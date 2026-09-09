@@ -2,6 +2,8 @@ package life.neurone.core.consent
 
 import life.neurone.core.analytics.ResearchAnalyticsGate
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.models.ClinicianAccessExpansionRequest
+import life.neurone.core.models.ClinicianAccessScope
 import life.neurone.core.models.ClinicianConsentGrant
 import life.neurone.core.models.ClinicianUseCaseTier
 import life.neurone.core.models.ResearchCategory
@@ -40,6 +42,7 @@ class ConsentStore(
         const val GRANTS_KEY = "np.consent.clinician-grants"
         const val RESEARCH_KEY = "np.consent.research"
         const val PARTICIPATION_KEY = "np.consent.study-participations"
+        const val EXPANSIONS_KEY = "np.consent.clinician-expansions"
     }
 
     var clinicianGrants: List<ClinicianConsentGrant> = emptyList()
@@ -49,6 +52,13 @@ class ConsentStore(
     var studyParticipations: List<StudyParticipationRecord> = emptyList()
         private set
     var pendingInvitations: List<StudyInvitation> = emptyList()
+        private set
+
+    /**
+     * Clinician access-expansion requests (§6.1), decided and undecided alike — a denial is part
+     * of the record. The UI shows `expansionRequests.filter { it.isPending }`.
+     */
+    var expansionRequests: List<ClinicianAccessExpansionRequest> = emptyList()
         private set
 
     init {
@@ -64,12 +74,148 @@ class ConsentStore(
 
     fun revokeClinicianAccess(grantId: String) {
         clinicianGrants = clinicianGrants.filterNot { it.id == grantId }
+        // An outstanding request to widen a grant that no longer exists is a notification the user
+        // can only answer wrongly, so it goes with the grant. Decided requests stay: they are the
+        // record of what was asked and answered.
+        expansionRequests = expansionRequests.filterNot { it.grantId == grantId && it.isPending }
         save()
     }
 
-    fun expandClinicianAccess(grantId: String, newTier: ClinicianUseCaseTier) {
-        clinicianGrants = clinicianGrants.map {
-            if (it.id == grantId) it.copy(tier = newTier) else it
+    // ── Clinician access expansion (§6.1) ────────────────────────────────
+    //
+    // §6.1's workflow is: differential consent document → persistent user notification → user
+    // approves / denies / asks questions → retroactive access is a SEPARATE decision, "presented
+    // as separate consent decisions even if made simultaneously".
+    //
+    // Before this existed, expandClinicianAccess was a public method that set `tier` and nothing
+    // else, with no caller anywhere (OI-CONSENT-02). That is not merely an unimplemented workflow:
+    // because approvedElements derives from `tier` and a tier is timeless, raising it hands the
+    // clinician the new elements over every session ever recorded — silently taking the
+    // retroactive decision §6.1 requires to be asked separately, and taking it in the affirmative.
+    // The mutation is now private, and the only way to reach it is a request the user decided.
+
+    /**
+     * Ingest a clinician's request to widen a grant. No UI caller: requests arrive from the
+     * clinician-portal sync layer, which does not exist yet (`OI-CONSENT-05`) — the same missing
+     * layer that leaves [addInvitation] without one.
+     *
+     * A new request from the same grant supersedes that grant's outstanding one; decided requests
+     * are left alone, because they are history rather than an inbox.
+     */
+    fun addExpansionRequest(request: ClinicianAccessExpansionRequest) {
+        expansionRequests =
+            expansionRequests.filterNot { it.grantId == request.grantId && it.isPending } + request
+        save()
+    }
+
+    /**
+     * Record the user's approval and apply it.
+     *
+     * [includePriorData] is the second of the two §6.1 decisions and arrives from its own control
+     * on its own step; it is stored beside the approval rather than folded into it, so the record
+     * can still say the user approved the expansion *and* refused it over history.
+     */
+    fun approveExpansion(requestId: String, includePriorData: Boolean) {
+        val request = expansionRequests.firstOrNull { it.id == requestId && it.isPending } ?: return
+
+        // Fail closed on a stale request: the grant may have been revoked, or already widened past
+        // this tier, since the request was raised. Approving what the differential document no
+        // longer describes would apply a change the user was not shown.
+        val grant = clinicianGrants.firstOrNull { it.id == request.grantId } ?: return
+        if (ConsentEngine.accessDifferential(grant, request.toTier) == null) return
+
+        val today = LocalDate.now().toString()
+        expansionRequests = expansionRequests.map {
+            if (it.id == requestId) {
+                it.copy(
+                    decision = ClinicianAccessExpansionRequest.ExpansionDecision.Approved(
+                        decidedOnDay = today,
+                        includesPriorData = includePriorData,
+                    ),
+                )
+            } else {
+                it
+            }
+        }
+        expandClinicianAccess(
+            grantId = request.grantId,
+            newTier = request.toTier,
+            includePriorData = includePriorData,
+            decidedOnDay = today,
+        )
+    }
+
+    /**
+     * Record a denial. Nothing about the grant changes — denying is the reversible direction, and
+     * the clinician may raise a fresh request.
+     */
+    fun denyExpansion(requestId: String) {
+        expansionRequests = expansionRequests.map {
+            if (it.id == requestId && it.isPending) {
+                it.copy(
+                    decision = ClinicianAccessExpansionRequest.ExpansionDecision.Denied(
+                        decidedOnDay = LocalDate.now().toString(),
+                    ),
+                )
+            } else {
+                it
+            }
+        }
+        save()
+    }
+
+    /**
+     * Record that the user asked a question rather than deciding (§6.1's third response).
+     *
+     * The request stays pending: asking is not answering, and the notification must not clear as
+     * though the user had decided. Delivering the question to the clinician needs the same missing
+     * outbound channel as [addExpansionRequest] (`OI-CONSENT-05`); until it exists the UI says so
+     * plainly rather than implying a message was sent.
+     */
+    fun askQuestionAboutExpansion(requestId: String) {
+        expansionRequests = expansionRequests.map {
+            if (it.id == requestId && it.isPending) {
+                it.copy(
+                    decision = ClinicianAccessExpansionRequest.ExpansionDecision.QuestionSent(
+                        sentOnDay = LocalDate.now().toString(),
+                    ),
+                )
+            } else {
+                it
+            }
+        }
+        save()
+    }
+
+    /**
+     * Apply an approved expansion. Private, and deliberately so: §6.1 makes the consent document
+     * and the two decisions preconditions of the mutation, and a method that can widen a grant
+     * without them is a standing invitation to skip them.
+     *
+     * The new elements are appended as their own [ClinicianAccessScope] rather than folded into
+     * the tier alone, so the retroactive answer survives in the record. The tier still moves — it
+     * is what the subscription and the price are keyed to — but it is no longer the only thing
+     * deciding what the clinician can see.
+     */
+    private fun expandClinicianAccess(
+        grantId: String,
+        newTier: ClinicianUseCaseTier,
+        includePriorData: Boolean,
+        decidedOnDay: String,
+    ) {
+        clinicianGrants = clinicianGrants.map { grant ->
+            if (grant.id != grantId) {
+                grant
+            } else {
+                grant.copy(
+                    accessScopes = grant.effectiveScopes + ClinicianAccessScope(
+                        elements = newTier.uhdrElements - grant.approvedElements,
+                        effectiveFromDay = decidedOnDay,
+                        includesPriorData = includePriorData,
+                    ),
+                    tier = newTier,
+                )
+            }
         }
         save()
     }
@@ -200,6 +346,15 @@ class ConsentStore(
                 )
             }
         }
+        // Expansion requests persist because §6.1 calls for a *persistent* notification: one the
+        // user can dismiss by backgrounding the app is not one.
+        store.getString(EXPANSIONS_KEY)?.let { blob ->
+            runCatching {
+                expansionRequests = json.decodeFromString(
+                    ListSerializer(ClinicianAccessExpansionRequest.serializer()), blob,
+                )
+            }
+        }
     }
 
     private fun save() {
@@ -215,6 +370,12 @@ class ConsentStore(
             PARTICIPATION_KEY,
             json.encodeToString(
                 ListSerializer(StudyParticipationRecord.serializer()), studyParticipations,
+            ),
+        )
+        store.putString(
+            EXPANSIONS_KEY,
+            json.encodeToString(
+                ListSerializer(ClinicianAccessExpansionRequest.serializer()), expansionRequests,
             ),
         )
     }

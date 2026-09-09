@@ -86,10 +86,27 @@ const SURFACE: Record<string, Reach> = {
   //    under OI-CONSENT-01 are gone with the screen that closed it.
   grantClinicianAccess: { kind: "ui" },
   revokeClinicianAccess: { kind: "ui" },
-  expandClinicianAccess: {
+
+  // ── Clinician access expansion (§6.1). `expandClinicianAccess` used to be declared here,
+  //    `pending` under OI-CONSENT-02: a public tier setter with no caller anywhere. It is not
+  //    listed any more because it is PRIVATE on both platforms, not because it was deleted —
+  //    the workflow it belongs to is built, and the raw mutation is reachable only through a
+  //    request the user decided. Private methods are outside this gate's surface by
+  //    construction, which is a stronger guarantee than a declaration: the gate can only say a
+  //    public method has no caller today, never that nothing may call it tomorrow.
+  addExpansionRequest: {
     kind: "pending",
-    oi: "OI-CONSENT-02",
-    note: "§6.1's expansion workflow (differential consent document, approve/deny/ask) is unimplemented on both platforms",
+    oi: "OI-CONSENT-05",
+    note: "expansion requests are ingested from the clinician-portal sync layer, which does not exist yet; no UI caller is expected — the same missing layer as addInvitation",
+  },
+  approveExpansion: {
+    kind: "ui",
+    note: "carries BOTH §6.1 decisions: the approval itself, and the separately-asked retroactive answer in `includePriorData`. The two UIs ask them on separate steps",
+  },
+  denyExpansion: { kind: "ui" },
+  askQuestionAboutExpansion: {
+    kind: "ui",
+    note: "§6.1's third response. Leaves the request pending — asking is not deciding — so the notification survives it",
   },
 
   // ── Research consent (§6.2). The Rev 37 path, and the one that broke.

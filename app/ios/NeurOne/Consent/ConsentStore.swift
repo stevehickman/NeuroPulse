@@ -27,10 +27,14 @@ final class ConsentStore: ObservableObject {
     @Published private(set) var researchConsent: ResearchConsentState = ResearchConsentState()
     @Published private(set) var studyParticipations: [StudyParticipationRecord] = []
     @Published private(set) var pendingInvitations: [StudyInvitation] = []
+    /// Clinician access-expansion requests (§6.1), decided and undecided alike — a denial is part
+    /// of the record. The UI shows `expansionRequests.filter(\.isPending)`.
+    @Published private(set) var expansionRequests: [ClinicianAccessExpansionRequest] = []
 
     private let grantsKey        = "np.consent.clinician-grants"
     private let researchKey      = "np.consent.research"
     private let participationKey = "np.consent.study-participations"
+    private let expansionsKey    = "np.consent.clinician-expansions"
 
     init() { load() }
 
@@ -44,11 +48,112 @@ final class ConsentStore: ObservableObject {
 
     func revokeClinicianAccess(grantID: UUID) {
         clinicianGrants.removeAll { $0.id == grantID }
+        // An outstanding request to widen a grant that no longer exists is a notification the user
+        // can only answer wrongly, so it goes with the grant. Decided requests stay: they are the
+        // record of what was asked and answered.
+        expansionRequests.removeAll { $0.grantID == grantID && $0.isPending }
         save()
     }
 
-    func expandClinicianAccess(grantID: UUID, to newTier: ClinicianUseCaseTier) {
+    // MARK: - Clinician access expansion (§6.1)
+    //
+    // §6.1's workflow is: differential consent document → persistent user notification → user
+    // approves / denies / asks questions → retroactive access is a SEPARATE decision, "presented
+    // as separate consent decisions even if made simultaneously".
+    //
+    // Before this existed, `expandClinicianAccess` was a public method that set `tier` and
+    // nothing else, with no caller anywhere (OI-CONSENT-02). That is not merely an unimplemented
+    // workflow: because `approvedElements` derives from `tier` and a tier is timeless, raising it
+    // hands the clinician the new elements over every session ever recorded — silently taking the
+    // retroactive decision §6.1 requires to be asked separately, and taking it in the affirmative.
+    // The mutation is now private, and the only way to reach it is a request the user decided.
+
+    /// Ingest a clinician's request to widen a grant. No UI caller: requests arrive from the
+    /// clinician-portal sync layer, which does not exist yet (`OI-CONSENT-05`) — the same missing
+    /// layer that leaves `addInvitation` without one.
+    ///
+    /// A new request from the same grant supersedes that grant's outstanding one; decided
+    /// requests are left alone, because they are history rather than an inbox.
+    func addExpansionRequest(_ request: ClinicianAccessExpansionRequest) {
+        expansionRequests.removeAll { $0.grantID == request.grantID && $0.isPending }
+        expansionRequests.append(request)
+        save()
+    }
+
+    /// Record the user's approval and apply it.
+    ///
+    /// `includePriorData` is the second of the two §6.1 decisions and arrives from its own
+    /// control on its own step; it is stored beside the approval rather than folded into it, so
+    /// the record can still say the user approved the expansion *and* refused it over history.
+    func approveExpansion(requestID: UUID, includePriorData: Bool) {
+        guard let idx = expansionRequests.firstIndex(where: { $0.id == requestID }),
+              expansionRequests[idx].isPending else { return }
+        let request = expansionRequests[idx]
+
+        // Fail closed on a stale request: the grant may have been revoked, or already widened past
+        // this tier, since the request was raised. Approving what the differential document no
+        // longer describes would apply a change the user was not shown.
+        guard let grant = clinicianGrants.first(where: { $0.id == request.grantID }),
+              ConsentEngine.accessDifferential(for: grant, expandingTo: request.toTier) != nil
+        else { return }
+
+        let now = Date()
+        expansionRequests[idx].decision = .approved(at: now, includesPriorData: includePriorData)
+        expandClinicianAccess(
+            grantID: request.grantID,
+            to: request.toTier,
+            includePriorData: includePriorData,
+            decidedAt: now
+        )
+    }
+
+    /// Record a denial. Nothing about the grant changes — denying is the reversible direction, and
+    /// the clinician may raise a fresh request.
+    func denyExpansion(requestID: UUID) {
+        guard let idx = expansionRequests.firstIndex(where: { $0.id == requestID }),
+              expansionRequests[idx].isPending else { return }
+        expansionRequests[idx].decision = .denied(at: Date())
+        save()
+    }
+
+    /// Record that the user asked a question rather than deciding (§6.1's third response).
+    ///
+    /// The request stays pending: asking is not answering, and the notification must not clear as
+    /// though the user had decided. Delivering the question to the clinician needs the same
+    /// missing outbound channel as `addExpansionRequest` (`OI-CONSENT-05`); until it exists the UI
+    /// says so plainly rather than implying a message was sent.
+    func askQuestionAboutExpansion(requestID: UUID) {
+        guard let idx = expansionRequests.firstIndex(where: { $0.id == requestID }),
+              expansionRequests[idx].isPending else { return }
+        expansionRequests[idx].decision = .questionSent(at: Date())
+        save()
+    }
+
+    /// Apply an approved expansion. Private, and deliberately so: §6.1 makes the consent document
+    /// and the two decisions preconditions of the mutation, and a method that can widen a grant
+    /// without them is a standing invitation to skip them.
+    ///
+    /// The new elements are appended as their own `ClinicianAccessScope` rather than folded into
+    /// the tier alone, so the retroactive answer survives in the record. The tier still moves —
+    /// it is what the subscription and the price are keyed to — but it is no longer the only thing
+    /// deciding what the clinician can see.
+    private func expandClinicianAccess(
+        grantID: UUID,
+        to newTier: ClinicianUseCaseTier,
+        includePriorData: Bool,
+        decidedAt: Date
+    ) {
         guard let idx = clinicianGrants.firstIndex(where: { $0.id == grantID }) else { return }
+        let grant = clinicianGrants[idx]
+        let newlyVisible = newTier.uhdrElements.subtracting(grant.approvedElements)
+
+        clinicianGrants[idx].accessScopes = grant.effectiveScopes + [
+            ClinicianAccessScope(
+                elements: newlyVisible,
+                effectiveFrom: decidedAt,
+                includesPriorData: includePriorData
+            )
+        ]
         clinicianGrants[idx].tier = newTier
         save()
     }
@@ -167,6 +272,12 @@ final class ConsentStore: ObservableObject {
            let decoded = try? JSONDecoder().decode([StudyParticipationRecord].self, from: data) {
             studyParticipations = decoded
         }
+        // Expansion requests persist because §6.1 calls for a *persistent* notification: one the
+        // user can dismiss by backgrounding the app is not one.
+        if let data = UserDefaults.standard.data(forKey: expansionsKey),
+           let decoded = try? JSONDecoder().decode([ClinicianAccessExpansionRequest].self, from: data) {
+            expansionRequests = decoded
+        }
     }
 
     private func save() {
@@ -178,6 +289,9 @@ final class ConsentStore: ObservableObject {
         }
         if let data = try? JSONEncoder().encode(studyParticipations) {
             UserDefaults.standard.set(data, forKey: participationKey)
+        }
+        if let data = try? JSONEncoder().encode(expansionRequests) {
+            UserDefaults.standard.set(data, forKey: expansionsKey)
         }
     }
 }
