@@ -8,11 +8,18 @@ import life.neurone.core.models.ClinicianConsentGrant
 import life.neurone.core.models.ClinicianUseCaseTier
 import life.neurone.core.models.ResearchCategory
 import life.neurone.core.models.ResearchConsentState
+import life.neurone.core.models.StudyDescriptor
+import life.neurone.core.models.StudyDescriptorAdmission
+import life.neurone.core.models.StudyDescriptorVerification
+import life.neurone.core.models.StudyDescriptorVerifier
+import life.neurone.core.models.StudyInvitation
 import life.neurone.core.models.UHDRElement
 import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -62,23 +69,345 @@ class ConsentStoreTests {
 
     @Test
     fun studyWithdrawalDoesNotRevokeResearchAnalytics() {
-        val (store, kv, backend) = makeStore()
-        store.addInvitation(
-            life.neurone.core.models.StudyInvitation(
-                studyId = "S1", studyTitle = "Sleep Study",
-                researchCategories = listOf(ResearchCategory.SLEEP),
-                approvedElements = emptySet(), cannotLearn = emptyList(),
-                irreversibilityNotice = "notice",
-            ),
-        )
-        store.acceptInvitation(studyId = "S1")
+        val kv = InMemoryKeyValueStore()
+        kv.putBoolean(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY, true)
+        val backend = RecordingBackend()
+        val gate = ResearchAnalyticsGate(kv, backend)
+        gate.configure()
+        val store = ConsentStore(kv, gate, descriptorVerifier = verifying(HASH))
+        store.updateResearchConsent(categoryConsent(ResearchCategory.SLEEP))
+
+        store.ingestStudyDescriptor(descriptor(categories = listOf(ResearchCategory.SLEEP)))
+        store.acceptInvitation(STUDY_ID)
         assertTrue(store.studyParticipations.single().isActive)
 
-        store.withdrawFromStudy(studyId = "S1")
+        store.withdrawFromStudy(STUDY_ID)
 
         assertFalse(store.studyParticipations.single().isActive)
         assertTrue(kv.getBoolean(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY))
         assertEquals(0, backend.resetCount)
+    }
+
+    // ── Study descriptor ingestion (§6.3 / OI-CONSENT-03) ────────────────
+    //
+    // The gate the old `addInvitation` did not have. Each refusal below is a decision that
+    // method took silently and took in the affirmative. Peer of iOS ConsentStoreTests.
+
+    private fun verifying(hash: String) =
+        StudyDescriptorVerifier { StudyDescriptorVerification.Verified(hash) }
+
+    private fun ingestingStore(
+        verification: StudyDescriptorVerification = StudyDescriptorVerification.Verified(HASH),
+        consent: ResearchConsentState = categoryConsent(ResearchCategory.DEPRESSION),
+    ): Pair<ConsentStore, InMemoryKeyValueStore> {
+        val kv = InMemoryKeyValueStore()
+        val gate = ResearchAnalyticsGate(kv, RecordingBackend())
+        val store = ConsentStore(kv, gate, descriptorVerifier = { verification })
+        store.updateResearchConsent(consent)
+        return store to kv
+    }
+
+    private fun categoryConsent(category: ResearchCategory) = ResearchConsentState(
+        contactConsentGranted = true,
+        categoryConsents = ResearchCategory.entries.associateWith { it == category },
+    )
+
+    private fun blanketConsent() = ResearchConsentState(
+        contactConsentGranted = true,
+        blanketConsentGranted = true,
+    )
+
+    private fun descriptor(
+        categories: List<ResearchCategory> = listOf(ResearchCategory.DEPRESSION),
+        elements: Set<UHDRElement> = setOf(
+            UHDRElement.SESSION_TIMESTAMPS, UHDRElement.EEG_WAVEFORMS,
+        ),
+        k: Int = 10,
+        rounding: Int = 7,
+    ) = StudyDescriptor(
+        studyId = STUDY_ID,
+        studyTitle = "Test Study",
+        researchCategories = categories,
+        requestedElements = elements,
+        kAnonymity = k,
+        dateRoundingDays = rounding,
+        issuedOnDay = LocalDate.now().toString(),
+        signature = "sig",
+    )
+
+    private fun refusalOf(admission: StudyDescriptorAdmission): StudyDescriptorAdmission.Reason =
+        assertIs<StudyDescriptorAdmission.Refused>(admission).reason
+
+    /**
+     * The state of every device today, and the reason the verifier is injected rather than
+     * assumed: with no signing key nothing can be checked, so nothing is shown.
+     */
+    @Test
+    fun withNoVerifierConfiguredEveryDescriptorIsRefused() {
+        val kv = InMemoryKeyValueStore()
+        val store = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()))
+        store.updateResearchConsent(blanketConsent())
+
+        assertEquals(
+            StudyDescriptorAdmission.Reason.VERIFIER_UNAVAILABLE,
+            refusalOf(store.ingestStudyDescriptor(descriptor())),
+        )
+        assertTrue(store.pendingInvitations.isEmpty())
+        assertTrue(store.studyParticipations.isEmpty())
+    }
+
+    @Test
+    fun forgedDescriptorNeverReachesTheUser() {
+        val (store, _) = ingestingStore(StudyDescriptorVerification.Rejected, blanketConsent())
+        assertEquals(
+            StudyDescriptorAdmission.Reason.SIGNATURE_INVALID,
+            refusalOf(store.ingestStudyDescriptor(descriptor())),
+        )
+        assertTrue(store.pendingInvitations.isEmpty())
+    }
+
+    /**
+     * §5.3 locks k≥10 and ≥1-week date rounding, and the device is the only place they can be
+     * checked. A study below the floor is not one the user may be *asked* about.
+     */
+    @Test
+    fun anonymisationBelowTheLockedFloorIsRefused() {
+        val (store, _) = ingestingStore(consent = blanketConsent())
+        assertEquals(
+            StudyDescriptorAdmission.Reason.ANONYMISATION_BELOW_FLOOR,
+            refusalOf(store.ingestStudyDescriptor(descriptor(k = 9))),
+        )
+        assertEquals(
+            StudyDescriptorAdmission.Reason.ANONYMISATION_BELOW_FLOOR,
+            refusalOf(store.ingestStudyDescriptor(descriptor(rounding = 6))),
+        )
+        assertTrue(store.pendingInvitations.isEmpty())
+    }
+
+    /**
+     * The signature is checked before anything the descriptor *claims*, so a forged descriptor
+     * asking for impossible anonymisation is refused as forged, not as out-of-range.
+     */
+    @Test
+    fun signatureIsCheckedBeforeTheDescriptorsOwnClaims() {
+        val (store, _) = ingestingStore(StudyDescriptorVerification.Rejected, blanketConsent())
+        assertEquals(
+            StudyDescriptorAdmission.Reason.SIGNATURE_INVALID,
+            refusalOf(store.ingestStudyDescriptor(descriptor(k = 1))),
+        )
+    }
+
+    @Test
+    fun categoryTheUserDidNotOptIntoIsRefused() {
+        val (store, _) = ingestingStore()
+        assertEquals(
+            StudyDescriptorAdmission.Reason.CATEGORY_NOT_CONSENTED,
+            refusalOf(store.ingestStudyDescriptor(descriptor(categories = listOf(ResearchCategory.SLEEP)))),
+        )
+    }
+
+    /**
+     * §6.2.1: a contact method is the shared precondition for all three delivery paths, so L1
+     * gates the engagement notification too — not only the invitation that asks a question.
+     */
+    @Test
+    fun contactConsentGatesBothPostures() {
+        val (store, _) = ingestingStore(
+            consent = blanketConsent().copy(contactConsentGranted = false),
+        )
+        assertEquals(
+            StudyDescriptorAdmission.Reason.NO_CONTACT_CONSENT,
+            refusalOf(store.ingestStudyDescriptor(descriptor())),
+        )
+    }
+
+    @Test
+    fun deviceWithNoResearchConsentAtAllIsRefused() {
+        val (store, _) = ingestingStore(consent = ResearchConsentState())
+        assertEquals(
+            StudyDescriptorAdmission.Reason.NO_RESEARCH_CONSENT,
+            refusalOf(store.ingestStudyDescriptor(descriptor())),
+        )
+    }
+
+    // ── The two postures (§6.2 L2 vs L3) ─────────────────────────────────
+
+    /** L2 consent means the user is *asked*: they are not in the study until they answer. */
+    @Test
+    fun categoryConsentUserIsAskedAndIsNotInTheStudyUntilTheyAnswer() {
+        val (store, _) = ingestingStore()
+        val admission = assertIs<StudyDescriptorAdmission.Admitted>(
+            store.ingestStudyDescriptor(descriptor()),
+        )
+
+        assertEquals(StudyInvitation.Posture.CONSENT_REQUEST, admission.posture)
+        assertEquals(HASH, admission.descriptorHash)
+        assertFalse(store.pendingInvitations.single().participatesWithoutAnswer)
+        assertTrue(
+            store.studyParticipations.isEmpty(),
+            "An unanswered consent request must not enrol the user.",
+        )
+
+        store.acceptInvitation(STUDY_ID)
+        assertEquals(1, store.studyParticipations.size)
+    }
+
+    /**
+     * L3 blanket consent means the user is *told*: §6.2 locks that they "still receive per-study
+     * engagement notifications, not consent requests", so they are in the study on arrival.
+     */
+    @Test
+    fun blanketConsentUserIsToldAndIsInTheStudyOnArrival() {
+        val (store, _) = ingestingStore(consent = blanketConsent())
+        val admission = assertIs<StudyDescriptorAdmission.Admitted>(
+            store.ingestStudyDescriptor(descriptor(categories = listOf(ResearchCategory.SLEEP))),
+        )
+
+        assertEquals(StudyInvitation.Posture.ENGAGEMENT_NOTIFICATION, admission.posture)
+        assertTrue(store.pendingInvitations.single().participatesWithoutAnswer)
+        assertEquals(
+            1, store.studyParticipations.size,
+            "L3 pre-approved the study, so the audit trail must say the user is in it.",
+        )
+        assertTrue(store.studyParticipations.single().isActive)
+    }
+
+    /**
+     * The L3 opt-out. "Decline" from an engagement notification is a withdrawal, because the user
+     * is already enrolled — the one place the two postures must not share behaviour.
+     */
+    @Test
+    fun leavingAnEngagementNotificationWithdrawsTheParticipation() {
+        val (store, _) = ingestingStore(consent = blanketConsent())
+        store.ingestStudyDescriptor(descriptor())
+
+        store.declineInvitation(STUDY_ID)
+
+        assertFalse(store.studyParticipations.single().isActive)
+        assertFalse(store.pendingInvitations.single().isOpen)
+    }
+
+    /**
+     * An engagement notification was never a question, so it cannot be answered "yes" — that
+     * would file a second participation for a study the user is already in.
+     */
+    @Test
+    fun engagementNotificationCannotBeAccepted() {
+        val (store, _) = ingestingStore(consent = blanketConsent())
+        store.ingestStudyDescriptor(descriptor())
+
+        store.acceptInvitation(STUDY_ID)
+
+        assertEquals(1, store.studyParticipations.size)
+        assertNull(store.pendingInvitations.single().decision)
+    }
+
+    // ── §6.3 step 4's third response ─────────────────────────────────────
+
+    @Test
+    fun askingAQuestionAboutAStudyIsNotDeciding() {
+        val (store, _) = ingestingStore()
+        store.ingestStudyDescriptor(descriptor())
+
+        store.askQuestionAboutInvitation(STUDY_ID)
+
+        assertNotNull(store.pendingInvitations.single().questionSentOnDay)
+        assertTrue(
+            store.pendingInvitations.single().isOpen,
+            "Asking is not answering: the invitation must stay in the inbox.",
+        )
+        assertTrue(store.studyParticipations.isEmpty())
+
+        store.acceptInvitation(STUDY_ID)
+        assertEquals(1, store.studyParticipations.size)
+    }
+
+    // ── Persistence and re-ingestion ─────────────────────────────────────
+
+    /**
+     * Invitations were in-memory only. An accepted study's participation record outlived the
+     * invitation that recorded the acceptance, so the trail and the inbox disagreed after every
+     * restart — and the same descriptor could be ingested and accepted a second time.
+     */
+    @Test
+    fun invitationsAndTheirDecisionsSurviveAReload() {
+        val (store, kv) = ingestingStore()
+        store.ingestStudyDescriptor(descriptor())
+        store.askQuestionAboutInvitation(STUDY_ID)
+
+        val reloaded = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()))
+        assertEquals(1, reloaded.pendingInvitations.size)
+        assertNotNull(reloaded.pendingInvitations.single().questionSentOnDay)
+        assertEquals(
+            StudyInvitation.Posture.CONSENT_REQUEST,
+            reloaded.pendingInvitations.single().posture,
+        )
+    }
+
+    /**
+     * §5.3 and §6.3 step 6: withdrawal blocks future descriptor processing. Re-presenting a study
+     * the user already answered would be the device forgetting the answer.
+     */
+    @Test
+    fun studyAlreadyAnsweredIsNotPresentedAgain() {
+        val (store, _) = ingestingStore()
+        store.ingestStudyDescriptor(descriptor())
+        store.declineInvitation(STUDY_ID)
+
+        assertEquals(
+            StudyDescriptorAdmission.Reason.STUDY_ALREADY_DECIDED,
+            refusalOf(store.ingestStudyDescriptor(descriptor())),
+        )
+        assertEquals(1, store.pendingInvitations.size)
+    }
+
+    @Test
+    fun withdrawnStudyIsNotPresentedAgain() {
+        val (store, _) = ingestingStore()
+        store.ingestStudyDescriptor(descriptor())
+        store.acceptInvitation(STUDY_ID)
+        store.withdrawFromStudy(STUDY_ID)
+
+        assertEquals(
+            StudyDescriptorAdmission.Reason.STUDY_ALREADY_DECIDED,
+            refusalOf(store.ingestStudyDescriptor(descriptor())),
+        )
+        assertEquals(1, store.studyParticipations.size)
+    }
+
+    // ── What the consent surface says ────────────────────────────────────
+
+    /**
+     * §6.3 step 3 requires the invitation to be explicit about what researchers CANNOT see. It is
+     * the complement of the approved set, computed here — not prose supplied by the party asking
+     * for access.
+     */
+    @Test
+    fun cannotSeeListIsDerivedFromTheApprovedSet() {
+        val (store, _) = ingestingStore()
+        store.ingestStudyDescriptor(
+            descriptor(elements = setOf(UHDRElement.SESSION_TIMESTAMPS)),
+        )
+
+        val invitation = store.pendingInvitations.single()
+        assertEquals(setOf(UHDRElement.SESSION_TIMESTAMPS), invitation.approvedElements)
+        assertEquals(
+            UHDRElement.entries.toSet() - UHDRElement.SESSION_TIMESTAMPS,
+            invitation.cannotLearn,
+        )
+    }
+
+    /**
+     * The §5.3 audit trail names a descriptor. It used to record the literal string "pending",
+     * because there was no descriptor to hash.
+     */
+    @Test
+    fun participationRecordCarriesTheDescriptorHash() {
+        val (store, _) = ingestingStore()
+        store.ingestStudyDescriptor(descriptor())
+        store.acceptInvitation(STUDY_ID)
+
+        assertEquals(HASH, store.studyParticipations.single().descriptorHash)
     }
 
     // ── Blanket coupling at the UI commit path (CLAUDE.md §6.2.5) ────────
@@ -465,5 +794,10 @@ class ConsentStoreTests {
         kv.putString(ConsentStore.RESEARCH_KEY, "{not json")
         val store = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()))
         assertFalse(store.researchConsent.hasAnyResearchConsent)
+    }
+
+    private companion object {
+        const val STUDY_ID = "TEST-001"
+        const val HASH = "sha256:abc"
     }
 }

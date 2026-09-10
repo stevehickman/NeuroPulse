@@ -373,24 +373,170 @@ struct StudyParticipationRecord: Codable, Identifiable {
     var isActive: Bool { withdrawnAt == nil }
 }
 
-// MARK: - Per-project consent notification
+// MARK: - Signed study descriptor (§5.3 step 1)
 
-struct StudyInvitation: Identifiable {
+/// A study as NeurOne's research service issues it: what it wants, how it undertakes to
+/// anonymise it, and a signature over all of that.
+///
+/// **This, not `StudyInvitation`, is what enters the device.** The invitation the user reads is
+/// *derived* from a descriptor on-device, after the signature verifies — so every sentence on the
+/// consent surface is one the app wrote, and the party asking for access supplies facts about the
+/// study rather than the prose describing it. The descriptor used to be skipped entirely:
+/// `addInvitation` took a finished invitation, plain-language "what they cannot see" list and all,
+/// on trust from whatever called it (`OI-CONSENT-03`).
+struct StudyDescriptor: Codable, Equatable {
+    var studyID: String
+    /// The study's own name. The one field that is server-supplied text and stays that way: it
+    /// names a specific study the way a part number names a part (CLAUDE.md §17).
+    var studyTitle: String
+    var researchCategories: [ResearchCategory]
+    /// The UHDR elements the study asks for. What it *cannot* see is derived from this, not
+    /// asserted alongside it — see `StudyInvitation.cannotLearn`.
+    var requestedElements: Set<UHDRElement>
+    /// §5.3 anonymisation parameters, checked against their floors at ingestion. The device is
+    /// the only place they can be checked, because §5.3 puts the anonymisation on the device.
+    var kAnonymity: Int
+    var dateRoundingDays: Int
+    var issuedAt: Date
+    /// Detached signature over the canonical descriptor bytes. Never parsed here: it is the
+    /// verifier's input, and nothing derived from an unverified descriptor may reach the user.
+    var signature: String
+}
+
+// MARK: - Study descriptor verification (§5.3 step 1)
+
+/// The result of checking a descriptor's signature.
+///
+/// `unavailable` is a third answer rather than a flavour of `rejected` because "we cannot check"
+/// and "we checked and it is forged" are different facts about the world, and the device says
+/// which. Both refuse ingestion.
+enum StudyDescriptorVerification: Equatable {
+    /// Signature checks out. Carries the SHA-256 of the exact bytes that were signed — the §5.3
+    /// audit-trail hash, produced by the only component that has those bytes.
+    case verified(descriptorHash: String)
+    case rejected
+    /// No signing key is configured, so no descriptor can be checked at all.
+    case unavailable
+}
+
+/// Port for descriptor signature verification. §5.3 locks that study descriptors are
+/// cryptographically signed; the key distribution and the fetch that carries them belong to the
+/// NeurOne study service, which does not exist yet (`OI-CONSENT-07`).
+protocol StudyDescriptorVerifier {
+    func verify(_ descriptor: StudyDescriptor) -> StudyDescriptorVerification
+}
+
+/// The default verifier, and the reason `ConsentStore` takes one at all: it verifies nothing and
+/// admits nothing.
+///
+/// A store that ingested descriptors without a verifier would let whoever builds the transport
+/// decide whether §5.3's signature is checked, and the store could not tell a verified descriptor
+/// from a fabricated one. With this as the default the decision is not theirs to skip: until a
+/// real verifier is injected, ingestion refuses everything and says why.
+struct RefusingStudyDescriptorVerifier: StudyDescriptorVerifier {
+    func verify(_ descriptor: StudyDescriptor) -> StudyDescriptorVerification { .unavailable }
+}
+
+// MARK: - Study descriptor ingestion outcome (§6.3)
+
+/// What the device did with a descriptor. Every refusal names its reason, because "nothing
+/// appeared" is the one outcome a user cannot distinguish from "nothing was sent".
+enum StudyDescriptorAdmission: Equatable {
+    /// Admitted, as an invitation of this posture.
+    case admitted(posture: StudyInvitation.Posture, descriptorHash: String)
+    case refused(Refusal)
+
+    enum Refusal: String, Equatable, Codable {
+        /// No signing key configured — the state of every device today (`OI-CONSENT-07`).
+        case verifierUnavailable
+        case signatureInvalid
+        /// k < 10 or date rounding < 1 week (§5.3). A study whose anonymisation is below the
+        /// locked floor is not one the user may be asked to consent to.
+        case anonymisationBelowFloor
+        /// L1 is the shared precondition for every delivery path, invitations and engagement
+        /// notifications alike (§6.2.1).
+        case noContactConsent
+        /// No L2 category on this descriptor is consented, and L3 is off.
+        case categoryNotConsented
+        /// The user holds no research consent at any layer.
+        case noResearchConsent
+        /// This study was already decided or already withdrawn from. §5.3 and §6.3 step 6 make
+        /// withdrawal block future descriptor processing; re-asking would be the device
+        /// forgetting an answer the user already gave.
+        case studyAlreadyDecided
+    }
+}
+
+// MARK: - Per-project consent notification (§6.3)
+
+/// A study as the user sees it — derived from a verified `StudyDescriptor`, never received
+/// ready-made.
+struct StudyInvitation: Codable, Identifiable, Equatable {
     var id: UUID
     var studyID: String
     var studyTitle: String
     var researchCategories: [ResearchCategory]
     var approvedElements: Set<UHDRElement>
-    var cannotLearn: [String]       // plain-language "what we CANNOT see"
-    var irreversibilityNotice: String
+    /// SHA-256 of the signed descriptor this was derived from (§5.3 audit trail). Carried onto
+    /// the participation record on acceptance, which used to record the literal string
+    /// `"pending"` because there was no descriptor to hash.
+    var descriptorHash: String
+    var kAnonymity: Int
+    var dateRoundingDays: Int
+    var posture: Posture
     var receivedAt: Date
     var decision: StudyDecision?
 
-    enum StudyDecision {
+    /// **Which question the device is putting to the user, and what silence means.**
+    ///
+    /// §6.2 locks that an L3 user "still receives per-study *engagement* notifications, **not
+    /// consent requests**" — they pre-approved NeurOne-reviewed research and may opt out per
+    /// study. So the same study reaches an L2 user and an L3 user as two different things, and
+    /// the default on no answer is opposite: an unanswered consent request means *not
+    /// participating*, an unread engagement notification means *participating*.
+    ///
+    /// One shape for both would have to pick one of those defaults for everyone. That is the
+    /// reason this type could not simply be persisted as it was.
+    enum Posture: String, Codable, Equatable {
+        /// L2 path: the user is being asked, and is not in the study until they say yes.
+        case consentRequest
+        /// L3 path: the user pre-approved this study, is in it already, and is being told —
+        /// with a per-study opt-out that goes through `withdrawFromStudy`.
+        case engagementNotification
+    }
+
+    /// §6.3 step 4's three responses: Yes / No / Ask a question.
+    enum StudyDecision: Codable, Equatable {
         case accepted(at: Date)
         case declined(at: Date)
         case questionSent(at: Date)
     }
 
-    var hasNoDecision: Bool { decision == nil }
+    /// The elements this study cannot see — **derived here, never asserted by the descriptor.**
+    ///
+    /// §6.3 step 3 requires the invitation to be "explicit about what researchers CAN and CANNOT
+    /// see". Taking the second half as prose from the party asking for access lets that party
+    /// write it, and it drifts from the first half by construction the moment either changes.
+    /// It is the complement of `approvedElements`, so the app computes it.
+    var cannotLearn: Set<UHDRElement> {
+        Set(UHDRElement.allCases).subtracting(approvedElements)
+    }
+
+    /// Still in the user's inbox. A sent question leaves it open — asking is not deciding, the
+    /// same rule `ClinicianAccessExpansionRequest.isPending` holds for §6.1.
+    var isOpen: Bool {
+        switch decision {
+        case .none, .some(.questionSent): return true
+        case .some(.accepted), .some(.declined): return false
+        }
+    }
+
+    /// Whether an unanswered invitation means the user is in the study. True only for an
+    /// engagement notification, where L3 already answered.
+    var participatesWithoutAnswer: Bool { posture == .engagementNotification }
+
+    var questionSentAt: Date? {
+        if case let .some(.questionSent(at)) = decision { return at }
+        return nil
+    }
 }

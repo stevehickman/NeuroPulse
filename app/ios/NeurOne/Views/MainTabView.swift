@@ -73,7 +73,7 @@ struct MainTabView: View {
             .tabItem {
                 Label(String(localized: "SETUP_PRIVACY_CARD_TITLE"), systemImage: "lock.shield")
             }
-            .badge(consent.pendingInvitations.filter { $0.hasNoDecision }.count)
+            .badge(consent.pendingInvitations.filter(\.isOpen).count)
             .tag(3)
     }
 

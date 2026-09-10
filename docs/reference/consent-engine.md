@@ -118,5 +118,48 @@ teardown — the same regression inverted.
 5. Results notification closes loop for all who opted in (including null results). Users who later withdrew consent still receive results for studies they previously participated in — notification only, no new data.
 6. Consent withdrawal effect: device immediately stops processing study descriptors; no further extracts generated or transmitted, for any data period including historical sessions.
 
+**Device-side ingestion gate (added 2026-09-10, closes `OI-CONSENT-03`).** Steps 1–3 above are
+NeurOne's; the device does not take them on trust. What crosses onto the device is the **signed
+study descriptor** of §5.3 step 1 — study ID, title, categories, requested UHDR elements, `k`,
+date-rounding interval, signature — and the invitation the user reads is *derived* from it here,
+after the signature verifies. It used to be the other way round: `ConsentStore.addInvitation()` took
+a finished invitation, "what they CANNOT see" prose and irreversibility notice included, from
+whatever called it.
+
+`ConsentEngine.admit()` decides whether a descriptor may become something the user sees. **The order
+is load-bearing**, and each step traces to a locked line:
+
+| # | Check | Refusal | Source |
+|---|-------|---------|--------|
+| 1 | Signature verifies | `verifierUnavailable` · `signatureInvalid` | §5.3 step 1. First, so nothing an unverified descriptor *claims* reaches a later step |
+| 2 | `k ≥ 10` and date rounding `≥ 7` days | `anonymisationBelowFloor` | §5.3. The device is the only place these can be enforced, because §5.3 puts the anonymisation on the device — a study below the floor is not one a user may be *asked* about |
+| 3 | Any research consent at all | `noResearchConsent` | §6.0 |
+| 4 | L1 contact consent | `noContactConsent` | §6.2.1 — a contact method is the precondition for **all three** delivery paths, so it gates the engagement notification too |
+| 5 | Study not already answered, joined or withdrawn from | `studyAlreadyDecided` | §5.3, §6.3 step 6. Re-presenting a study is the device forgetting an answer the user gave |
+| 6 | L3 on → engagement notification; else an L2 category must match | `categoryNotConsented` | §6.2.2 |
+
+**Step 6 is why this needed a data-model change and not wiring.** L3 users "still receive per-study
+*engagement* notifications, **not consent requests**" (§6.2), so one study reaches an L2 and an L3
+user as two different objects whose **defaults on silence are opposite**: an unanswered consent
+request means *not participating*; an unread engagement notification means *participating*, because
+L3 already answered. `StudyInvitation.Posture` carries which. An engagement notification records
+participation at ingestion, cannot be "accepted", and its decline is a withdrawal — §6.2's *can opt
+out per-study*, routed through the same `withdrawFromStudy` the dashboard already uses.
+
+**What the invitation may say.** `cannotLearn` is the complement of the approved element set,
+computed on-device — step 3 requires the invitation to be explicit about what researchers cannot
+see, and taking that half as prose from the party asking for access lets that party write it and
+lets it drift from the first half. The irreversibility notice is the §6.2 copy from a locale key.
+`studyTitle` is the one field that stays server-supplied text: it names a specific study the way a
+part number names a part (CLAUDE.md §17).
+
+**Step 4's third response exists** — `askQuestionAboutInvitation()` leaves the invitation open,
+because asking is not deciding, the rule §6.1's `askQuestionAboutExpansion` already held.
+
+**What is not built:** the transport. No descriptor fetch, no signing key, no outbound channel for
+the question (`OI-CONSENT-07`). The inbound end is nevertheless **closed by default**, not merely
+uncalled: `StudyDescriptorVerifier`'s only implementation refuses everything, so a transport cannot
+be wired up without also supplying §5.3's signature check.
+
 ---
 

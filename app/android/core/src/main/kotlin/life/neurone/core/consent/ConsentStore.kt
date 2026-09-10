@@ -6,8 +6,12 @@ import life.neurone.core.models.ClinicianAccessExpansionRequest
 import life.neurone.core.models.ClinicianAccessScope
 import life.neurone.core.models.ClinicianConsentGrant
 import life.neurone.core.models.ClinicianUseCaseTier
+import life.neurone.core.models.RefusingStudyDescriptorVerifier
 import life.neurone.core.models.ResearchCategory
 import life.neurone.core.models.ResearchConsentState
+import life.neurone.core.models.StudyDescriptor
+import life.neurone.core.models.StudyDescriptorAdmission
+import life.neurone.core.models.StudyDescriptorVerifier
 import life.neurone.core.models.StudyInvitation
 import life.neurone.core.models.StudyParticipationRecord
 import java.time.LocalDate
@@ -37,12 +41,18 @@ class ConsentStore(
     private val store: KeyValueStore,
     private val researchAnalyticsGate: ResearchAnalyticsGate,
     private val json: Json = Json { ignoreUnknownKeys = true },
+    /**
+     * Checks the signature on every study descriptor before anything derived from it reaches the
+     * user (§5.3 step 1). The default refuses everything: see [RefusingStudyDescriptorVerifier].
+     */
+    private val descriptorVerifier: StudyDescriptorVerifier = RefusingStudyDescriptorVerifier,
 ) {
     companion object {
         const val GRANTS_KEY = "np.consent.clinician-grants"
         const val RESEARCH_KEY = "np.consent.research"
         const val PARTICIPATION_KEY = "np.consent.study-participations"
         const val EXPANSIONS_KEY = "np.consent.clinician-expansions"
+        const val INVITATIONS_KEY = "np.consent.study-invitations"
     }
 
     var clinicianGrants: List<ClinicianConsentGrant> = emptyList()
@@ -96,8 +106,8 @@ class ConsentStore(
 
     /**
      * Ingest a clinician's request to widen a grant. No UI caller: requests arrive from the
-     * clinician-portal sync layer, which does not exist yet (`OI-CONSENT-05`) — the same missing
-     * layer that leaves [addInvitation] without one.
+     * clinician-portal sync layer, which does not exist yet (`OI-CONSENT-05`) — the sibling of
+     * the study-service transport that leaves [ingestStudyDescriptor] without one.
      *
      * A new request from the same grant supersedes that grant's outstanding one; decided requests
      * are left alone, because they are history rather than an inbox.
@@ -280,34 +290,162 @@ class ConsentStore(
         save()
     }
 
-    // ── Study invitations ────────────────────────────────────────────────
+    // ── Study invitations (§6.3 per-project workflow) ────────────────────
+    //
+    // Ingestion used to be `addInvitation(invitation: StudyInvitation)`: a finished invitation,
+    // plain-language "what they cannot see" list and irreversibility notice included, taken on
+    // trust from whatever called it, held in memory only, and called from nothing but a unit test
+    // (`OI-CONSENT-03`). Like `expandClinicianAccess` before it, that was not merely an
+    // unimplemented workflow — it took decisions silently and took them all in the affirmative:
+    // that the descriptor's signature need not be checked, that §5.3's anonymisation floors need
+    // not be met, that the user's own L1/L2/L3 state need not be consulted, and that the party
+    // asking for access may write the sentence describing what it cannot see.
+    //
+    // What enters the device now is the signed descriptor. The invitation is derived from it.
 
-    fun addInvitation(invitation: StudyInvitation) {
-        pendingInvitations =
-            pendingInvitations.filterNot { it.studyId == invitation.studyId } + invitation
+    /**
+     * Ingest a signed study descriptor (§5.3 step 1) and, if it is admissible, put the invitation
+     * derived from it in front of the user.
+     *
+     * **No UI caller, and none is expected**: descriptors arrive from the NeurOne study service,
+     * which does not exist yet (`OI-CONSENT-07`). With no verifier injected this refuses every
+     * descriptor with [StudyDescriptorAdmission.Reason.VERIFIER_UNAVAILABLE], which is the honest
+     * description of a device that has no signing key — not a silent no-op.
+     *
+     * Returns the admission so the caller can tell a refusal from a delivery. Nothing is persisted
+     * on a refusal: a descriptor the device would not show the user is not a record of anything
+     * the user did.
+     */
+    fun ingestStudyDescriptor(descriptor: StudyDescriptor): StudyDescriptorAdmission {
+        val admission = ConsentEngine.admit(
+            descriptor = descriptor,
+            verification = descriptorVerifier.verify(descriptor),
+            consent = researchConsent,
+            studyAlreadyDecided = hasDecided(descriptor.studyId),
+        )
+        if (admission !is StudyDescriptorAdmission.Admitted) return admission
+
+        val today = LocalDate.now().toString()
+        pendingInvitations = pendingInvitations.filterNot { it.studyId == descriptor.studyId } +
+            ConsentEngine.invitation(
+                descriptor = descriptor,
+                posture = admission.posture,
+                descriptorHash = admission.descriptorHash,
+                receivedOnDay = today,
+            )
+
+        // An engagement notification is not a question (§6.2 L3): the user pre-approved this
+        // study, so they are in it from the moment it arrives, and the audit trail has to say so.
+        // Recording participation only on an explicit acceptance would leave an L3 user
+        // participating in studies their own dashboard did not list.
+        if (admission.posture == StudyInvitation.Posture.ENGAGEMENT_NOTIFICATION) {
+            recordParticipation(descriptor.studyId, admission.descriptorHash, today)
+        }
+        save()
+        return admission
     }
 
+    /**
+     * Whether this study already has an answer on this device — decided, joined, or withdrawn
+     * from. §5.3 and §6.3 step 6 make withdrawal block future descriptor processing, and a device
+     * that re-presented a withdrawn study would be forgetting an answer the user gave.
+     */
+    private fun hasDecided(studyId: String): Boolean =
+        pendingInvitations.any { it.studyId == studyId && !it.isOpen } ||
+            studyParticipations.any { it.studyId == studyId }
+
+    /**
+     * §6.3 step 4, *Yes*. Only a consent request can be accepted: an engagement notification was
+     * never a question, and accepting it would record a second participation for a study the user
+     * is already in.
+     */
     fun acceptInvitation(studyId: String) {
+        val invitation = pendingInvitations.firstOrNull { it.studyId == studyId } ?: return
+        if (invitation.posture != StudyInvitation.Posture.CONSENT_REQUEST || !invitation.isOpen) return
+
+        val today = LocalDate.now().toString()
         pendingInvitations = pendingInvitations.map {
-            if (it.studyId == studyId) it.copy(decision = StudyInvitation.StudyDecision.Accepted) else it
+            if (it.studyId == studyId) {
+                it.copy(decision = StudyInvitation.StudyDecision.Accepted(today))
+            } else {
+                it
+            }
         }
-        recordParticipation(studyId = studyId, descriptorHash = "pending")
+        recordParticipation(studyId, invitation.descriptorHash, today)
+        save()
     }
 
+    /**
+     * §6.3 step 4, *No* — and the L3 per-study opt-out, which is the same intent reached from the
+     * other posture. For an engagement notification the user is already in the study, so declining
+     * has to withdraw the participation ingestion recorded; for a consent request there is nothing
+     * to withdraw.
+     */
     fun declineInvitation(studyId: String) {
+        val invitation = pendingInvitations.firstOrNull { it.studyId == studyId } ?: return
+        if (!invitation.isOpen) return
+
         pendingInvitations = pendingInvitations.map {
-            if (it.studyId == studyId) it.copy(decision = StudyInvitation.StudyDecision.Declined) else it
+            if (it.studyId == studyId) {
+                it.copy(
+                    decision = StudyInvitation.StudyDecision.Declined(LocalDate.now().toString()),
+                )
+            } else {
+                it
+            }
         }
+        if (invitation.posture == StudyInvitation.Posture.ENGAGEMENT_NOTIFICATION) {
+            withdrawFromStudy(studyId)
+        }
+        save()
+    }
+
+    /**
+     * §6.3 step 4's third response — *Ask a question* (secure message to a NeurOne liaison,
+     * 2 business day response).
+     *
+     * The invitation stays open, exactly as [askQuestionAboutExpansion] leaves an expansion request
+     * pending: asking is not deciding, and the invitation must not clear as though the user had
+     * answered. Delivering the question needs the same absent channel as the descriptor fetch
+     * (`OI-CONSENT-07`); until it exists the UI says so plainly rather than implying a message was
+     * sent.
+     */
+    fun askQuestionAboutInvitation(studyId: String) {
+        val invitation = pendingInvitations.firstOrNull { it.studyId == studyId } ?: return
+        if (invitation.posture != StudyInvitation.Posture.CONSENT_REQUEST || !invitation.isOpen) return
+
+        pendingInvitations = pendingInvitations.map {
+            if (it.studyId == studyId) {
+                it.copy(
+                    decision = StudyInvitation.StudyDecision.QuestionSent(
+                        LocalDate.now().toString(),
+                    ),
+                )
+            } else {
+                it
+            }
+        }
+        save()
     }
 
     // ── Participation audit (SHDR-class) ─────────────────────────────────
 
-    private fun recordParticipation(studyId: String, descriptorHash: String) {
+    /**
+     * Append the §5.3 audit-trail record for a study the device has joined.
+     *
+     * Idempotent per study: a second record for a study already in the trail would make the
+     * dashboard list one study twice and give [withdrawFromStudy] two rows to find. Before
+     * invitations were persisted this was reachable by ordinary use — an app restart emptied
+     * `pendingInvitations` while the trail survived, so the same descriptor could be ingested and
+     * accepted again.
+     */
+    private fun recordParticipation(studyId: String, descriptorHash: String, onDay: String) {
+        if (studyParticipations.any { it.studyId == studyId }) return
         studyParticipations = studyParticipations + StudyParticipationRecord(
             id = UUID.randomUUID().toString(),
             studyId = studyId,
             descriptorHash = descriptorHash,
-            transmittedAtDay = LocalDate.now().toString(),
+            transmittedAtDay = onDay,
             extractBytes = 0,
         )
         save()
@@ -355,6 +493,18 @@ class ConsentStore(
                 )
             }
         }
+        // Invitations persist for the same reason expansion requests do, and for one more: §6.3
+        // step 4 gives the user two business days for an answer to a question, which an inbox
+        // emptied by the next app launch cannot hold. While they were in-memory only, an accepted
+        // study's participation record outlived the invitation that recorded the acceptance, so
+        // the trail and the inbox disagreed after every restart.
+        store.getString(INVITATIONS_KEY)?.let { blob ->
+            runCatching {
+                pendingInvitations = json.decodeFromString(
+                    ListSerializer(StudyInvitation.serializer()), blob,
+                )
+            }
+        }
     }
 
     private fun save() {
@@ -377,6 +527,10 @@ class ConsentStore(
             json.encodeToString(
                 ListSerializer(ClinicianAccessExpansionRequest.serializer()), expansionRequests,
             ),
+        )
+        store.putString(
+            INVITATIONS_KEY,
+            json.encodeToString(ListSerializer(StudyInvitation.serializer()), pendingInvitations),
         )
     }
 }

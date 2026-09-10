@@ -35,8 +35,16 @@ final class ConsentStore: ObservableObject {
     private let researchKey      = "np.consent.research"
     private let participationKey = "np.consent.study-participations"
     private let expansionsKey    = "np.consent.clinician-expansions"
+    private let invitationsKey   = "np.consent.study-invitations"
 
-    init() { load() }
+    /// Checks the signature on every study descriptor before anything derived from it reaches the
+    /// user (§5.3 step 1). The default refuses everything: see `RefusingStudyDescriptorVerifier`.
+    private let descriptorVerifier: StudyDescriptorVerifier
+
+    init(descriptorVerifier: StudyDescriptorVerifier = RefusingStudyDescriptorVerifier()) {
+        self.descriptorVerifier = descriptorVerifier
+        load()
+    }
 
     // MARK: - Clinician consent
 
@@ -69,8 +77,8 @@ final class ConsentStore: ObservableObject {
     // The mutation is now private, and the only way to reach it is a request the user decided.
 
     /// Ingest a clinician's request to widen a grant. No UI caller: requests arrive from the
-    /// clinician-portal sync layer, which does not exist yet (`OI-CONSENT-05`) — the same missing
-    /// layer that leaves `addInvitation` without one.
+    /// clinician-portal sync layer, which does not exist yet (`OI-CONSENT-05`) — the sibling of
+    /// the study-service transport that leaves `ingestStudyDescriptor` without one.
     ///
     /// A new request from the same grant supersedes that grant's outstanding one; decided
     /// requests are left alone, because they are history rather than an inbox.
@@ -220,31 +228,132 @@ final class ConsentStore: ObservableObject {
         save()
     }
 
-    // MARK: - Study invitations
+    // MARK: - Study invitations (§6.3 per-project workflow)
+    //
+    // Ingestion used to be `addInvitation(_ invitation: StudyInvitation)`: a finished invitation,
+    // plain-language "what they cannot see" list and irreversibility notice included, taken on
+    // trust from whatever called it, held in memory only, and called from nothing but a unit test
+    // (`OI-CONSENT-03`). Like `expandClinicianAccess` before it, that was not merely an
+    // unimplemented workflow — it took decisions silently and took them all in the affirmative:
+    // that the descriptor's signature need not be checked, that §5.3's anonymisation floors need
+    // not be met, that the user's own L1/L2/L3 state need not be consulted, and that the party
+    // asking for access may write the sentence describing what it cannot see.
+    //
+    // What enters the device now is the signed descriptor. The invitation is derived from it.
 
-    func addInvitation(_ invitation: StudyInvitation) {
-        pendingInvitations.removeAll { $0.studyID == invitation.studyID }
-        pendingInvitations.append(invitation)
+    /// Ingest a signed study descriptor (§5.3 step 1) and, if it is admissible, put the invitation
+    /// derived from it in front of the user.
+    ///
+    /// **No UI caller, and none is expected**: descriptors arrive from the NeurOne study service,
+    /// which does not exist yet (`OI-CONSENT-07`). With no verifier injected this refuses every
+    /// descriptor with `.verifierUnavailable`, which is the honest description of a device that
+    /// has no signing key — not a silent no-op.
+    ///
+    /// Returns the admission so the caller can tell a refusal from a delivery. Nothing is
+    /// persisted on a refusal: a descriptor the device would not show the user is not a record of
+    /// anything the user did.
+    @discardableResult
+    func ingestStudyDescriptor(_ descriptor: StudyDescriptor) -> StudyDescriptorAdmission {
+        let admission = ConsentEngine.admit(
+            descriptor: descriptor,
+            verification: descriptorVerifier.verify(descriptor),
+            consent: researchConsent,
+            studyAlreadyDecided: hasDecided(studyID: descriptor.studyID)
+        )
+        guard case let .admitted(posture, descriptorHash) = admission else { return admission }
+
+        let now = Date()
+        pendingInvitations.removeAll { $0.studyID == descriptor.studyID }
+        pendingInvitations.append(
+            ConsentEngine.invitation(
+                from: descriptor, posture: posture, descriptorHash: descriptorHash, receivedAt: now
+            )
+        )
+
+        // An engagement notification is not a question (§6.2 L3): the user pre-approved this
+        // study, so they are in it from the moment it arrives, and the audit trail has to say so.
+        // Recording participation only on an explicit acceptance would leave an L3 user
+        // participating in studies their own dashboard did not list.
+        if posture == .engagementNotification {
+            recordParticipation(studyID: descriptor.studyID, descriptorHash: descriptorHash, at: now)
+        }
+        save()
+        return admission
     }
 
+    /// Whether this study already has an answer on this device — decided, joined, or withdrawn
+    /// from. §5.3 and §6.3 step 6 make withdrawal block future descriptor processing, and a
+    /// device that re-presented a withdrawn study would be forgetting an answer the user gave.
+    private func hasDecided(studyID: String) -> Bool {
+        pendingInvitations.contains { $0.studyID == studyID && !$0.isOpen }
+            || studyParticipations.contains { $0.studyID == studyID }
+    }
+
+    /// §6.3 step 4, *Yes*. Only a consent request can be accepted: an engagement notification was
+    /// never a question, and accepting it would record a second participation for a study the
+    /// user is already in.
     func acceptInvitation(studyID: String) {
-        guard let idx = pendingInvitations.firstIndex(where: { $0.studyID == studyID }) else { return }
-        pendingInvitations[idx].decision = .accepted(at: Date())
-        recordParticipation(studyID: studyID, descriptorHash: "pending")
+        guard let idx = pendingInvitations.firstIndex(where: { $0.studyID == studyID }),
+              pendingInvitations[idx].posture == .consentRequest,
+              pendingInvitations[idx].isOpen
+        else { return }
+        let now = Date()
+        pendingInvitations[idx].decision = .accepted(at: now)
+        recordParticipation(
+            studyID: studyID,
+            descriptorHash: pendingInvitations[idx].descriptorHash,
+            at: now
+        )
+        save()
     }
 
+    /// §6.3 step 4, *No* — and the L3 per-study opt-out, which is the same intent reached from
+    /// the other posture. For an engagement notification the user is already in the study, so
+    /// declining has to withdraw the participation ingestion recorded; for a consent request
+    /// there is nothing to withdraw.
     func declineInvitation(studyID: String) {
-        guard let idx = pendingInvitations.firstIndex(where: { $0.studyID == studyID }) else { return }
+        guard let idx = pendingInvitations.firstIndex(where: { $0.studyID == studyID }),
+              pendingInvitations[idx].isOpen
+        else { return }
         pendingInvitations[idx].decision = .declined(at: Date())
+        if pendingInvitations[idx].posture == .engagementNotification {
+            withdrawFromStudy(studyID: studyID)
+        }
+        save()
+    }
+
+    /// §6.3 step 4's third response — *Ask a question* (secure message to a NeurOne liaison,
+    /// 2 business day response).
+    ///
+    /// The invitation stays open, exactly as `askQuestionAboutExpansion` leaves an expansion
+    /// request pending: asking is not deciding, and the invitation must not clear as though the
+    /// user had answered. Delivering the question needs the same absent channel as the descriptor
+    /// fetch (`OI-CONSENT-07`); until it exists the UI says so plainly rather than implying a
+    /// message was sent.
+    func askQuestionAboutInvitation(studyID: String) {
+        guard let idx = pendingInvitations.firstIndex(where: { $0.studyID == studyID }),
+              pendingInvitations[idx].posture == .consentRequest,
+              pendingInvitations[idx].isOpen
+        else { return }
+        pendingInvitations[idx].decision = .questionSent(at: Date())
+        save()
     }
 
     // MARK: - Participation audit (SHDR)
 
-    private func recordParticipation(studyID: String, descriptorHash: String) {
+    /// Append the §5.3 audit-trail record for a study the device has joined.
+    ///
+    /// Idempotent per study: a second record for a study already in the trail would make the
+    /// dashboard list one study twice and give `withdrawFromStudy` two rows to find. Before
+    /// invitations were persisted this was reachable by ordinary use — an app restart emptied
+    /// `pendingInvitations` while the trail survived, so the same descriptor could be ingested
+    /// and accepted again.
+    private func recordParticipation(studyID: String, descriptorHash: String, at date: Date) {
+        guard !studyParticipations.contains(where: { $0.studyID == studyID }) else { return }
         let record = StudyParticipationRecord(
             id: UUID(), studyID: studyID,
             descriptorHash: descriptorHash,
-            transmittedAt: Date(), extractBytes: 0
+            transmittedAt: date, extractBytes: 0
         )
         studyParticipations.append(record)
         save()
@@ -278,6 +387,15 @@ final class ConsentStore: ObservableObject {
            let decoded = try? JSONDecoder().decode([ClinicianAccessExpansionRequest].self, from: data) {
             expansionRequests = decoded
         }
+        // Invitations persist for the same reason expansion requests do, and for one more: §6.3
+        // step 4 gives the user two business days for an answer to a question, which an inbox
+        // emptied by the next app launch cannot hold. While they were in-memory only, an accepted
+        // study's participation record outlived the invitation that recorded the acceptance, so
+        // the trail and the inbox disagreed after every restart.
+        if let data = UserDefaults.standard.data(forKey: invitationsKey),
+           let decoded = try? JSONDecoder().decode([StudyInvitation].self, from: data) {
+            pendingInvitations = decoded
+        }
     }
 
     private func save() {
@@ -292,6 +410,9 @@ final class ConsentStore: ObservableObject {
         }
         if let data = try? JSONEncoder().encode(expansionRequests) {
             UserDefaults.standard.set(data, forKey: expansionsKey)
+        }
+        if let data = try? JSONEncoder().encode(pendingInvitations) {
+            UserDefaults.standard.set(data, forKey: invitationsKey)
         }
     }
 }
