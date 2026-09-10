@@ -273,14 +273,19 @@ struct ConsentDashboardView: View {
         }
     }
 
+    /// The invitation inbox. Rows carry their posture, because the two are not the same object to
+    /// the user: a consent request is waiting on them, an engagement notification is telling them
+    /// about a study they are already in under L3 (§6.2). A row that looked the same either way
+    /// would leave the user to guess which.
     private var pendingInvitationsSection: some View {
         Section("DASHBOARD_SECTION_PENDING") {
-            if consentStore.pendingInvitations.filter({ $0.decision == nil }).isEmpty {
+            let openInvitations = consentStore.pendingInvitations.filter(\.isOpen)
+            if openInvitations.isEmpty {
                 Text("DASHBOARD_NO_INVITATIONS")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             } else {
-                ForEach(consentStore.pendingInvitations.filter { $0.hasNoDecision }) { invitation in
+                ForEach(openInvitations) { invitation in
                     Button {
                         selectedInvitation = invitation
                     } label: {
@@ -288,6 +293,13 @@ struct ConsentDashboardView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(invitation.studyTitle).font(.subheadline.bold())
                                 Text(invitation.studyID).font(.caption).foregroundColor(.secondary)
+                                let isNotification = invitation.posture == .engagementNotification
+                                let badge: LocalizedStringKey = isNotification
+                                    ? "INVITATION_ENGAGEMENT_BADGE"
+                                    : "INVITATION_REQUEST_BADGE"
+                                Text(badge)
+                                    .font(.caption2)
+                                    .foregroundColor(isNotification ? .secondary : .orange)
                             }
                             Spacer()
                             Image(systemName: "chevron.right").foregroundColor(.secondary)
@@ -379,11 +391,30 @@ struct StudyParticipationRow: View {
     }
 }
 
+/// §6.3's per-project consent surface — and, under L3, its engagement notification.
+///
+/// Both postures render from the same invitation, and the screen says which one it is rather than
+/// leaving it to be inferred from the buttons. §6.2 locks that an L3 user "still receives per-study
+/// *engagement* notifications, **not consent requests**": they are in the study already, so this
+/// screen tells them so and offers the per-study opt-out, and there is nothing here to accept.
+///
+/// The "what they CANNOT see" list is the complement of the approved elements, computed on the
+/// invitation, and the irreversibility notice is a locale key. Neither travels with the descriptor:
+/// the party asking for access supplies the study's facts, not the sentences describing them.
 struct StudyInvitationView: View {
     let invitation: StudyInvitation
     @EnvironmentObject private var consentStore: ConsentStore
     @Environment(\.dismiss) private var dismiss
     @State private var showParticipateConfirmation = false   // ISC-79
+    @State private var showLeaveConfirmation = false
+
+    private var isEngagementNotification: Bool {
+        invitation.posture == .engagementNotification
+    }
+
+    private var screenTitle: LocalizedStringKey {
+        isEngagementNotification ? "INVITATION_ENGAGEMENT_TITLE" : "INVITATION_TITLE"
+    }
 
     var body: some View {
         NavigationStack {
@@ -394,37 +425,64 @@ struct StudyInvitationView: View {
                                 invitation.studyID))
                         .font(.caption).foregroundColor(.secondary)
 
+                    if isEngagementNotification {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Label("INVITATION_ENGAGEMENT_HEADING", systemImage: "checkmark.seal.fill")
+                                .font(.subheadline.bold())
+                            Text("INVITATION_ENGAGEMENT_BODY")
+                                .font(.caption).foregroundColor(.secondary)
+                        }
+                        .padding(12)
+                        .background(Color.accentColor.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+
                     Divider()
 
                     Text("INVITATION_CAN_SEE_HEADING").font(.headline)
-                    ForEach(Array(invitation.approvedElements), id: \.rawValue) { element in
-                        Label(element.rawValue, systemImage: "checkmark.circle.fill")
+                    ForEach(invitation.approvedElements.sorted { $0.rawValue < $1.rawValue },
+                            id: \.rawValue) { element in
+                        Label(element.displayName, systemImage: "checkmark.circle.fill")
                             .font(.subheadline)
                             .foregroundColor(.green)
                     }
 
                     Text("INVITATION_CANNOT_SEE_HEADING").font(.headline)
-                    ForEach(invitation.cannotLearn, id: \.self) { item in
-                        Label(item, systemImage: "xmark.circle.fill")
+                    ForEach(invitation.cannotLearn.sorted { $0.rawValue < $1.rawValue },
+                            id: \.rawValue) { element in
+                        Label(element.displayName, systemImage: "xmark.circle.fill")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
+
+                    // The §5.3 parameters the ingestion gate checked, shown rather than merely
+                    // enforced: they are what "anonymised" means for this study.
+                    Text(String(format: String(localized: "INVITATION_ANONYMISATION_FORMAT"),
+                                String(invitation.kAnonymity),
+                                String(invitation.dateRoundingDays)))
+                        .font(.caption).foregroundColor(.secondary)
 
                     Divider()
 
                     VStack(alignment: .leading, spacing: 8) {
                         Label("INVITATION_IMPORTANT_LABEL", systemImage: "info.circle.fill")
                             .font(.subheadline.bold()).foregroundColor(.orange)
-                        Text(invitation.irreversibilityNotice)
+                        Text(ConsentEngine.irreversibilityNotice)
                             .font(.caption).foregroundColor(.secondary)
                     }
                     .padding(12)
                     .background(Color.orange.opacity(0.08))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                    if let askedAt = invitation.questionSentAt {
+                        Text(String(format: String(localized: "INVITATION_ASKED_LABEL"),
+                                    askedAt.formatted(.dateTime.month().day().year())))
+                            .font(.caption).foregroundColor(.secondary)
+                    }
                 }
                 .padding()
             }
-            .navigationTitle("INVITATION_TITLE")
+            .navigationTitle(screenTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -432,23 +490,47 @@ struct StudyInvitationView: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                HStack(spacing: 12) {
-                    Button("INVITATION_DECLINE_BUTTON") {
-                        consentStore.declineInvitation(studyID: invitation.studyID)
-                        dismiss()
-                    }
-                    .buttonStyle(.bordered)
-                    .foregroundColor(.red)
+                if isEngagementNotification {
+                    // No accept: L3 already answered. The only decision left is to leave, which
+                    // withdraws the participation ingestion recorded.
+                    Button("INVITATION_LEAVE_BUTTON") { showLeaveConfirmation = true }
+                        .buttonStyle(.bordered)
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(.regularMaterial)
+                } else {
+                    VStack(spacing: 8) {
+                        HStack(spacing: 12) {
+                            Button("INVITATION_DECLINE_BUTTON") {
+                                consentStore.declineInvitation(studyID: invitation.studyID)
+                                dismiss()
+                            }
+                            .buttonStyle(.bordered)
+                            .foregroundColor(.red)
 
-                    // ISC-79: confirmation must include the irreversibility notice.
-                    Button("INVITATION_PARTICIPATE_BUTTON") {
-                        showParticipateConfirmation = true
+                            // ISC-79: confirmation must include the irreversibility notice.
+                            Button("INVITATION_PARTICIPATE_BUTTON") {
+                                showParticipateConfirmation = true
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .frame(maxWidth: .infinity)
+                        }
+                        // §6.3 step 4's third response. It decides nothing, so it is not one of
+                        // the two answer buttons: the invitation stays open behind it.
+                        Button("INVITATION_ASK_BUTTON") {
+                            consentStore.askQuestionAboutInvitation(studyID: invitation.studyID)
+                            dismiss()
+                        }
+                        .buttonStyle(.borderless)
+                        .font(.subheadline)
+                        Text("INVITATION_ASK_EXPLAINER")
+                            .font(.caption2).foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(.regularMaterial)
                 }
-                .padding()
-                .background(.regularMaterial)
             }
             .confirmationDialog(
                 "INVITATION_CONFIRM_DIALOG_TITLE",
@@ -461,7 +543,20 @@ struct StudyInvitationView: View {
                 }
                 Button("COMMON_CANCEL", role: .cancel) {}
             } message: {
-                Text(invitation.irreversibilityNotice)
+                Text(ConsentEngine.irreversibilityNotice)
+            }
+            .confirmationDialog(
+                "INVITATION_LEAVE_DIALOG_TITLE",
+                isPresented: $showLeaveConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("INVITATION_LEAVE_CONFIRM_BUTTON", role: .destructive) {
+                    consentStore.declineInvitation(studyID: invitation.studyID)
+                    dismiss()
+                }
+                Button("COMMON_CANCEL", role: .cancel) {}
+            } message: {
+                Text(ConsentEngine.irreversibilityNotice)
             }
         }
     }

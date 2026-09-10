@@ -27,7 +27,7 @@ final class ConsentStoreTests: XCTestCase {
 
     private func clearConsentDefaults() {
         let keys = ["np.consent.clinician-grants", "np.consent.research", "np.consent.study-participations",
-                    "np.consent.clinician-expansions"]
+                    "np.consent.clinician-expansions", "np.consent.study-invitations"]
         keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
     }
 
@@ -78,38 +78,277 @@ final class ConsentStoreTests: XCTestCase {
     // MARK: - ISC-81: badge count never negative
 
     func testPendingInvitationBadgeNeverNegative_freshStore() {
-        let count = store.pendingInvitations.filter { $0.hasNoDecision }.count
+        let count = store.pendingInvitations.filter(\.isOpen).count
         XCTAssertGreaterThanOrEqual(count, 0)
     }
 
     func testPendingInvitationBadgeNeverNegative_afterDeclineNonExistent() {
-        // Declining a study that was never added must be a no-op, not a crash or underflow.
+        // Declining a study that was never ingested must be a no-op, not a crash or underflow.
         store.declineInvitation(studyID: "no-such-study-id")
-        let count = store.pendingInvitations.filter { $0.hasNoDecision }.count
-        XCTAssertGreaterThanOrEqual(count, 0)
+        XCTAssertGreaterThanOrEqual(store.pendingInvitations.filter(\.isOpen).count, 0)
     }
 
     func testPendingInvitationBadgeNeverNegative_afterFullCycle() {
-        let invitation = StudyInvitation(
-            id: UUID(),
-            studyID: "TEST-001",
-            studyTitle: "Test Study",
-            researchCategories: [.depression],
-            approvedElements: [.sessionTimestamps],
-            cannotLearn: ["EEG recordings"],
-            irreversibilityNotice: ConsentEngine.irreversibilityNotice,
-            receivedAt: Date(),
-            decision: nil
-        )
-        store.addInvitation(invitation)
-        XCTAssertEqual(store.pendingInvitations.filter { $0.hasNoDecision }.count, 1)
+        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()),
+                       .admitted(posture: .consentRequest, descriptorHash: hash))
+        XCTAssertEqual(store.pendingInvitations.filter(\.isOpen).count, 1)
 
-        store.declineInvitation(studyID: "TEST-001")
-        XCTAssertEqual(store.pendingInvitations.filter { $0.hasNoDecision }.count, 0)
+        store.declineInvitation(studyID: studyID)
+        XCTAssertEqual(store.pendingInvitations.filter(\.isOpen).count, 0)
 
         // Declining again must not go negative.
-        store.declineInvitation(studyID: "TEST-001")
-        XCTAssertEqual(store.pendingInvitations.filter { $0.hasNoDecision }.count, 0)
+        store.declineInvitation(studyID: studyID)
+        XCTAssertEqual(store.pendingInvitations.filter(\.isOpen).count, 0)
+    }
+
+    // MARK: - Study descriptor ingestion (§6.3 / OI-CONSENT-03)
+    //
+    // The gate the old `addInvitation` did not have. Each refusal below is a decision that method
+    // took silently and took in the affirmative.
+
+    private let studyID = "TEST-001"
+    private let hash = "sha256:abc"
+
+    private var categoryConsent: ResearchConsentState {
+        var state = ResearchConsentState()
+        state.contactConsentGranted = true
+        state.categoryConsents[.depression] = true
+        return state
+    }
+
+    private var blanketConsent: ResearchConsentState {
+        var state = ResearchConsentState()
+        state.contactConsentGranted = true
+        state.blanketConsentGranted = true
+        return state
+    }
+
+    private struct StubVerifier: StudyDescriptorVerifier {
+        let result: StudyDescriptorVerification
+        func verify(_ descriptor: StudyDescriptor) -> StudyDescriptorVerification { result }
+    }
+
+    private func makeStore(
+        verification: StudyDescriptorVerification,
+        consent: ResearchConsentState
+    ) -> ConsentStore {
+        let store = ConsentStore(descriptorVerifier: StubVerifier(result: verification))
+        store.updateResearchConsent(consent)
+        return store
+    }
+
+    private func makeDescriptor(
+        categories: [ResearchCategory] = [.depression],
+        elements: Set<UHDRElement> = [.sessionTimestamps, .eegWaveforms],
+        k: Int = 10,
+        rounding: Int = 7
+    ) -> StudyDescriptor {
+        StudyDescriptor(
+            studyID: studyID,
+            studyTitle: "Test Study",
+            researchCategories: categories,
+            requestedElements: elements,
+            kAnonymity: k,
+            dateRoundingDays: rounding,
+            issuedAt: Date(),
+            signature: "sig"
+        )
+    }
+
+    /// The state of every device today, and the reason the verifier is injected rather than
+    /// assumed: with no signing key nothing can be checked, so nothing is shown.
+    func testWithNoVerifierConfiguredEveryDescriptorIsRefused() {
+        let store = ConsentStore()            // production default
+        store.updateResearchConsent(blanketConsent)
+
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()), .refused(.verifierUnavailable))
+        XCTAssertTrue(store.pendingInvitations.isEmpty)
+        XCTAssertTrue(store.studyParticipations.isEmpty)
+    }
+
+    func testAForgedDescriptorNeverReachesTheUser() {
+        let store = makeStore(verification: .rejected, consent: blanketConsent)
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()), .refused(.signatureInvalid))
+        XCTAssertTrue(store.pendingInvitations.isEmpty)
+    }
+
+    /// §5.3 locks k≥10 and ≥1-week date rounding, and the device is the only place they can be
+    /// checked. A study below the floor is not one the user may be *asked* about.
+    func testAnonymisationBelowTheLockedFloorIsRefused() {
+        let store = makeStore(verification: .verified(descriptorHash: hash), consent: blanketConsent)
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor(k: 9)),
+                       .refused(.anonymisationBelowFloor))
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor(rounding: 6)),
+                       .refused(.anonymisationBelowFloor))
+        XCTAssertTrue(store.pendingInvitations.isEmpty)
+    }
+
+    /// The signature is checked before anything the descriptor *claims*, so a forged descriptor
+    /// asking for impossible anonymisation is refused as forged, not as out-of-range.
+    func testSignatureIsCheckedBeforeTheDescriptorsOwnClaims() {
+        let store = makeStore(verification: .rejected, consent: blanketConsent)
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor(k: 1)),
+                       .refused(.signatureInvalid))
+    }
+
+    func testACategoryTheUserDidNotOptIntoIsRefused() {
+        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor(categories: [.sleep])),
+                       .refused(.categoryNotConsented))
+    }
+
+    /// §6.2.1: a contact method is the shared precondition for all three delivery paths, so L1
+    /// gates the engagement notification too — not only the invitation that asks a question.
+    func testL1GatesBothPostures() {
+        var noContact = blanketConsent
+        noContact.contactConsentGranted = false
+        let store = makeStore(verification: .verified(descriptorHash: hash), consent: noContact)
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()), .refused(.noContactConsent))
+    }
+
+    func testADeviceWithNoResearchConsentAtAllIsRefused() {
+        let store = makeStore(verification: .verified(descriptorHash: hash),
+                              consent: ResearchConsentState())
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()), .refused(.noResearchConsent))
+    }
+
+    // MARK: - The two postures (§6.2 L2 vs L3)
+
+    /// L2 consent means the user is *asked*: they are not in the study until they answer.
+    func testACategoryConsentUserIsAskedAndIsNotInTheStudyUntilTheyAnswer() {
+        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()),
+                       .admitted(posture: .consentRequest, descriptorHash: hash))
+
+        XCTAssertEqual(store.pendingInvitations[0].posture, .consentRequest)
+        XCTAssertFalse(store.pendingInvitations[0].participatesWithoutAnswer)
+        XCTAssertTrue(store.studyParticipations.isEmpty,
+                      "An unanswered consent request must not enrol the user.")
+
+        store.acceptInvitation(studyID: studyID)
+        XCTAssertEqual(store.studyParticipations.count, 1)
+    }
+
+    /// L3 blanket consent means the user is *told*: §6.2 locks that they "still receive per-study
+    /// engagement notifications, not consent requests", so they are in the study on arrival.
+    func testABlanketConsentUserIsToldAndIsInTheStudyOnArrival() {
+        let store = makeStore(verification: .verified(descriptorHash: hash), consent: blanketConsent)
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor(categories: [.sleep])),
+                       .admitted(posture: .engagementNotification, descriptorHash: hash))
+
+        XCTAssertEqual(store.pendingInvitations[0].posture, .engagementNotification)
+        XCTAssertTrue(store.pendingInvitations[0].participatesWithoutAnswer)
+        XCTAssertEqual(store.studyParticipations.count, 1,
+                       "L3 pre-approved the study, so the audit trail must say the user is in it.")
+        XCTAssertTrue(store.studyParticipations[0].isActive)
+    }
+
+    /// The L3 opt-out. "Decline" from an engagement notification is a withdrawal, because the user
+    /// is already enrolled — the one place the two postures must not share behaviour.
+    func testLeavingAnEngagementNotificationWithdrawsTheParticipation() {
+        let store = makeStore(verification: .verified(descriptorHash: hash), consent: blanketConsent)
+        store.ingestStudyDescriptor(makeDescriptor())
+
+        store.declineInvitation(studyID: studyID)
+
+        XCTAssertFalse(store.studyParticipations[0].isActive)
+        XCTAssertFalse(store.pendingInvitations[0].isOpen)
+    }
+
+    /// An engagement notification was never a question, so it cannot be answered "yes" — that
+    /// would file a second participation for a study the user is already in.
+    func testAnEngagementNotificationCannotBeAccepted() {
+        let store = makeStore(verification: .verified(descriptorHash: hash), consent: blanketConsent)
+        store.ingestStudyDescriptor(makeDescriptor())
+
+        store.acceptInvitation(studyID: studyID)
+
+        XCTAssertEqual(store.studyParticipations.count, 1)
+        XCTAssertNil(store.pendingInvitations[0].decision)
+    }
+
+    // MARK: - §6.3 step 4's third response
+
+    func testAskingAQuestionAboutAStudyIsNotDeciding() {
+        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        store.ingestStudyDescriptor(makeDescriptor())
+
+        store.askQuestionAboutInvitation(studyID: studyID)
+
+        XCTAssertNotNil(store.pendingInvitations[0].questionSentAt)
+        XCTAssertTrue(store.pendingInvitations[0].isOpen,
+                      "Asking is not answering: the invitation must stay in the inbox.")
+        XCTAssertTrue(store.studyParticipations.isEmpty)
+
+        // And it can still be answered afterwards.
+        store.acceptInvitation(studyID: studyID)
+        XCTAssertEqual(store.studyParticipations.count, 1)
+    }
+
+    // MARK: - Persistence and re-ingestion
+
+    /// Invitations were in-memory only. An accepted study's participation record outlived the
+    /// invitation that recorded the acceptance, so the trail and the inbox disagreed after every
+    /// restart — and the same descriptor could be ingested and accepted a second time.
+    func testInvitationsAndTheirDecisionsSurviveAReload() {
+        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        store.ingestStudyDescriptor(makeDescriptor())
+        store.askQuestionAboutInvitation(studyID: studyID)
+
+        let reloaded = ConsentStore()
+        XCTAssertEqual(reloaded.pendingInvitations.count, 1)
+        XCTAssertNotNil(reloaded.pendingInvitations[0].questionSentAt)
+        XCTAssertEqual(reloaded.pendingInvitations[0].posture, .consentRequest)
+    }
+
+    /// §5.3 and §6.3 step 6: withdrawal blocks future descriptor processing. Re-presenting a study
+    /// the user already answered would be the device forgetting the answer.
+    func testAStudyAlreadyAnsweredIsNotPresentedAgain() {
+        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        store.ingestStudyDescriptor(makeDescriptor())
+        store.declineInvitation(studyID: studyID)
+
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()),
+                       .refused(.studyAlreadyDecided))
+        XCTAssertEqual(store.pendingInvitations.count, 1)
+    }
+
+    func testAWithdrawnStudyIsNotPresentedAgain() {
+        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        store.ingestStudyDescriptor(makeDescriptor())
+        store.acceptInvitation(studyID: studyID)
+        store.withdrawFromStudy(studyID: studyID)
+
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()),
+                       .refused(.studyAlreadyDecided))
+        XCTAssertEqual(store.studyParticipations.count, 1)
+    }
+
+    // MARK: - What the consent surface says
+
+    /// §6.3 step 3 requires the invitation to be explicit about what researchers CANNOT see.
+    /// It is the complement of the approved set, computed here — not prose supplied by the party
+    /// asking for access.
+    func testTheCannotSeeListIsDerivedFromTheApprovedSet() {
+        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        store.ingestStudyDescriptor(makeDescriptor(elements: [.sessionTimestamps]))
+
+        let invitation = store.pendingInvitations[0]
+        XCTAssertEqual(invitation.approvedElements, [.sessionTimestamps])
+        XCTAssertEqual(invitation.cannotLearn,
+                       Set(UHDRElement.allCases).subtracting([.sessionTimestamps]))
+        XCTAssertFalse(invitation.cannotLearn.contains(.sessionTimestamps))
+    }
+
+    /// The §5.3 audit trail names a descriptor. It used to record the literal string "pending",
+    /// because there was no descriptor to hash.
+    func testTheParticipationRecordCarriesTheDescriptorHash() {
+        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        store.ingestStudyDescriptor(makeDescriptor())
+        store.acceptInvitation(studyID: studyID)
+
+        XCTAssertEqual(store.studyParticipations[0].descriptorHash, hash)
     }
 
     // MARK: - Clinician grant revoke
@@ -135,18 +374,14 @@ final class ConsentStoreTests: XCTestCase {
     // MARK: - Study withdrawal
 
     func testWithdrawFromStudy_setsWithdrawnAt() {
-        let invitation = StudyInvitation(
-            id: UUID(), studyID: "STUDY-002", studyTitle: "Withdrawal Test",
-            researchCategories: [], approvedElements: [], cannotLearn: [],
-            irreversibilityNotice: "", receivedAt: Date(), decision: nil
-        )
-        store.addInvitation(invitation)
-        store.acceptInvitation(studyID: "STUDY-002")
+        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        store.ingestStudyDescriptor(makeDescriptor())
+        store.acceptInvitation(studyID: studyID)
         XCTAssertFalse(store.studyParticipations.isEmpty)
 
-        store.withdrawFromStudy(studyID: "STUDY-002")
+        store.withdrawFromStudy(studyID: studyID)
 
-        let record = store.studyParticipations.first { $0.studyID == "STUDY-002" }
+        let record = store.studyParticipations.first { $0.studyID == studyID }
         XCTAssertNotNil(record)
         XCTAssertFalse(record!.isActive, "After withdrawal, isActive must be false.")
         XCTAssertNotNil(record!.withdrawnAt)

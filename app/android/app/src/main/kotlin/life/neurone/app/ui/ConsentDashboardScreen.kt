@@ -132,6 +132,11 @@ fun ConsentDashboardScreen(app: NeurOneApplication, modifier: Modifier = Modifie
                 version++
                 route = DashboardRoute.Dashboard
             },
+            onAskQuestion = {
+                store.askQuestionAboutInvitation(current.invitation.studyId)
+                version++
+                route = DashboardRoute.Dashboard
+            },
             onBack = { route = DashboardRoute.Dashboard },
             modifier = modifier,
         )
@@ -169,7 +174,7 @@ private fun DashboardContent(
     val grants = remember(version) { store.clinicianGrants }
     val research = remember(version) { store.researchConsent }
     val participations = remember(version) { store.studyParticipations }
-    val invitations = remember(version) { store.pendingInvitations.filter { it.hasNoDecision } }
+    val invitations = remember(version) { store.pendingInvitations.filter { it.isOpen } }
     val expansions = remember(version) { store.expansionRequests.filter { it.isPending } }
 
     var grantPendingRevoke by remember { mutableStateOf<ClinicianConsentGrant?>(null) }
@@ -384,9 +389,27 @@ private fun DashboardContent(
                             stringResource(R.string.invitation_study_id_format, invitation.studyId),
                             style = MaterialTheme.typography.bodySmall,
                         )
+                        // The row carries its posture: a consent request is waiting on the user,
+                        // an engagement notification is telling them about a study they are
+                        // already in under L3 (§6.2). A row that looked the same either way would
+                        // leave the user to guess which.
+                        Text(
+                            if (invitation.participatesWithoutAnswer) {
+                                stringResource(R.string.invitation_engagement_badge)
+                            } else {
+                                stringResource(R.string.invitation_request_badge)
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                        )
                         Spacer(Modifier.height(8.dp))
                         OutlinedButton(onClick = { onNavigate(DashboardRoute.Invitation(invitation)) }) {
-                            Text(stringResource(R.string.invitation_title))
+                            Text(
+                                if (invitation.participatesWithoutAnswer) {
+                                    stringResource(R.string.invitation_engagement_title)
+                                } else {
+                                    stringResource(R.string.invitation_title)
+                                },
+                            )
                         }
                     }
                 }
@@ -581,20 +604,30 @@ private fun StudyParticipationCard(
 /**
  * Study invitation detail — port of iOS StudyInvitationView.
  *
- * Both halves of §6.3's per-project decision are here: what the researchers can see, what
- * they cannot, and the irreversibility notice the invitation itself carries. Accepting goes
- * through a confirmation that repeats that notice (iOS ISC-79); declining does not, because
- * declining is the reversible direction.
+ * Both postures render from the same invitation, and the screen says which one it is rather than
+ * leaving it to be inferred from the buttons. §6.2 locks that an L3 user "still receives per-study
+ * *engagement* notifications, **not consent requests**": they are in the study already, so this
+ * screen tells them so and offers the per-study opt-out, and there is nothing here to accept.
+ *
+ * What the researchers can see, what they cannot, and the irreversibility notice are all derived
+ * on the device — `cannotLearn` is the complement of the approved elements and the notice is a
+ * locale key. Neither travels with the descriptor: the party asking for access supplies the
+ * study's facts, not the sentences describing them. Accepting goes through a confirmation that
+ * repeats the notice (iOS ISC-79); declining a consent request does not, because declining is the
+ * reversible direction, while *leaving* a study under L3 does, because it is not.
  */
 @Composable
 private fun StudyInvitationScreen(
     invitation: StudyInvitation,
     onAccept: () -> Unit,
     onDecline: () -> Unit,
+    onAskQuestion: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showParticipateConfirmation by remember { mutableStateOf(false) }
+    var showLeaveConfirmation by remember { mutableStateOf(false) }
+    val isEngagementNotification = invitation.participatesWithoutAnswer
 
     Column(
         modifier = modifier
@@ -608,7 +641,14 @@ private fun StudyInvitationScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             TextButton(onClick = onBack) { Text(stringResource(R.string.consent_back_button)) }
-            Text(stringResource(R.string.invitation_title), style = MaterialTheme.typography.titleMedium)
+            Text(
+                if (isEngagementNotification) {
+                    stringResource(R.string.invitation_engagement_title)
+                } else {
+                    stringResource(R.string.invitation_title)
+                },
+                style = MaterialTheme.typography.titleMedium,
+            )
         }
         Spacer(Modifier.height(12.dp))
 
@@ -617,6 +657,18 @@ private fun StudyInvitationScreen(
             stringResource(R.string.invitation_study_id_format, invitation.studyId),
             style = MaterialTheme.typography.bodySmall,
         )
+
+        if (isEngagementNotification) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                stringResource(R.string.invitation_engagement_heading),
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                stringResource(R.string.invitation_engagement_body),
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
 
         Spacer(Modifier.height(16.dp))
         Divider()
@@ -627,22 +679,62 @@ private fun StudyInvitationScreen(
 
         Spacer(Modifier.height(12.dp))
         Text(stringResource(R.string.invitation_cannot_see_heading), fontWeight = FontWeight.Medium)
-        for (item in invitation.cannotLearn) {
-            Text(item, style = MaterialTheme.typography.bodySmall)
-        }
+        Text(elementList(invitation.cannotLearn), style = MaterialTheme.typography.bodySmall)
+
+        // The §5.3 parameters the ingestion gate checked, shown rather than merely enforced:
+        // they are what "anonymised" means for this study.
+        Spacer(Modifier.height(12.dp))
+        Text(
+            stringResource(
+                R.string.invitation_anonymisation_format,
+                invitation.kAnonymity,
+                invitation.dateRoundingDays,
+            ),
+            style = MaterialTheme.typography.bodySmall,
+        )
 
         Spacer(Modifier.height(16.dp))
         Text(stringResource(R.string.invitation_important_label), fontWeight = FontWeight.Medium)
-        Text(invitation.irreversibilityNotice, style = MaterialTheme.typography.bodySmall)
+        Text(
+            stringResource(R.string.consent_irreversibility_notice),
+            style = MaterialTheme.typography.bodySmall,
+        )
+
+        val askedOn = invitation.questionSentOnDay
+        if (askedOn != null) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                stringResource(R.string.invitation_asked_label, askedOn),
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
 
         Spacer(Modifier.height(24.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = onDecline) {
-                Text(stringResource(R.string.invitation_decline_button))
+        if (isEngagementNotification) {
+            // No accept: L3 already answered. The only decision left is to leave, which withdraws
+            // the participation ingestion recorded.
+            OutlinedButton(onClick = { showLeaveConfirmation = true }) {
+                Text(stringResource(R.string.invitation_leave_button))
             }
-            Button(onClick = { showParticipateConfirmation = true }) {
-                Text(stringResource(R.string.invitation_participate_button))
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onDecline) {
+                    Text(stringResource(R.string.invitation_decline_button))
+                }
+                Button(onClick = { showParticipateConfirmation = true }) {
+                    Text(stringResource(R.string.invitation_participate_button))
+                }
             }
+            // §6.3 step 4's third response. It decides nothing, so it is not one of the two
+            // answer buttons: the invitation stays open behind it.
+            Spacer(Modifier.height(8.dp))
+            TextButton(onClick = onAskQuestion) {
+                Text(stringResource(R.string.invitation_ask_button))
+            }
+            Text(
+                stringResource(R.string.invitation_ask_explainer),
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
     }
 
@@ -650,7 +742,7 @@ private fun StudyInvitationScreen(
         AlertDialog(
             onDismissRequest = { showParticipateConfirmation = false },
             title = { Text(stringResource(R.string.invitation_confirm_dialog_title)) },
-            text = { Text(invitation.irreversibilityNotice) },
+            text = { Text(stringResource(R.string.consent_irreversibility_notice)) },
             confirmButton = {
                 TextButton(onClick = {
                     showParticipateConfirmation = false
@@ -659,6 +751,25 @@ private fun StudyInvitationScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showParticipateConfirmation = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
+    }
+
+    if (showLeaveConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showLeaveConfirmation = false },
+            title = { Text(stringResource(R.string.invitation_leave_dialog_title)) },
+            text = { Text(stringResource(R.string.consent_irreversibility_notice)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showLeaveConfirmation = false
+                    onDecline()
+                }) { Text(stringResource(R.string.invitation_leave_confirm_button)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLeaveConfirmation = false }) {
                     Text(stringResource(R.string.common_cancel))
                 }
             },
