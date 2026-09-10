@@ -1,18 +1,21 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 42 (current)  
+**Revision:** 43 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
 > bear on most conversations and names the file holding the rest. Read a subsidiary file when the
 > task needs it — do not assume a figure or a spec detail is here.
 >
-> **Revision history (Rev 33–42, what changed and why): `docs/reference/claude-md-revision-history.md`.**
-> Rev 42 (2026-09-09) scoped a clinician grant's reach in time, so §6.1's retroactive question has
-> two representable answers rather than one (§6.1); no decision changed. Rev 41 (2026-09-08) made
-> `locales/*.json` the only committed copy of any user-facing string — the per-platform locale files
-> are build outputs now (§17). Rev 40 (2026-09-01) relocated detail out of this file; no design
-> decision changed. Read the history file before assuming *why* something is the way it is.
+> **Revision history (Rev 33–43, what changed and why): `docs/reference/claude-md-revision-history.md`.**
+> Rev 43 (2026-09-10) made the device the last gate on a study descriptor, and split L3's engagement
+> notification from an L2 consent request because silence means the opposite thing in each (§6.2,
+> §6.3); no decision changed. Rev 42 (2026-09-09) scoped a clinician grant's reach in time, so §6.1's
+> retroactive question has two representable answers rather than one (§6.1); no decision changed.
+> Rev 41 (2026-09-08) made `locales/*.json` the only committed copy of any user-facing string — the
+> per-platform locale files are build outputs now (§17). Rev 40 (2026-09-01) relocated detail out of
+> this file; no design decision changed. Read the history file before assuming *why* something is
+> the way it is.
 >
 > **Three live constraints that decide whether an answer is safe to give:**
 > 1. **Every T1 configuration is gross-margin negative and every cost figure is a floor** (§2.1).
@@ -388,6 +391,11 @@ it is rendered; it has never meant "the third screen."
   guards the Rev 37 defect this was written against (correct, tested, unreachable from the iOS UI).
 - **L3 carries an irreversibility notice whenever its control is on**, and per-project consent
   repeats it for vulnerable populations (45 CFR 46) — full copy in `docs/reference/consent-engine.md`.
+- **L3's per-study notification is not a consent request, and the two cannot share one shape.**
+  Silence means the opposite thing in each: an unanswered consent request means *not participating*;
+  an unread engagement notification means *participating*, because L3 already answered. A single
+  representation has to pick one default for everyone (Rev 43) — so a study reaches an L2 and an L3
+  user as two different objects, and an L3 user's opt-out is a withdrawal, not a decline (§6.3).
 
 ### 6.3 Research suggestion portal (three functions) → `docs/reference/consent-engine.md`
 
@@ -397,6 +405,16 @@ Patient research agenda (plain-language study ideas, community voting) · pre-id
 contact workflow — NeurOne reviews the study, generates the eligible list from device ID and contact
 prefs only (**no UHDR**), invites in NeurOne's own voice, and closes the loop with results including
 null results — is in `docs/reference/consent-engine.md` §6.3.
+
+**The device does not take that server-side review on trust.** What crosses onto the device is
+§5.3's **signed study descriptor**; the invitation the user reads is derived from it on-device after
+the signature verifies, and `ConsentEngine.admit()` re-checks §5.3's k≥10 / ≥1-week floors, L1, and
+the user's own L2/L3 state before anything is shown (Rev 43). Two consequences a later change must
+not undo: **what a study CANNOT see is computed as the complement of what it asked for**, never
+supplied as prose by the party asking; and **verification is closed by default** — the only
+`StudyDescriptorVerifier` shipped refuses everything, so a transport cannot be wired up without
+supplying the signature check (`OI-CONSENT-07`). Gate table:
+`docs/reference/consent-engine.md` §6.3.
 
 ---
 

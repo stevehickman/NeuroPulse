@@ -123,6 +123,94 @@ enum ConsentEngine {
             stillNotAccessibleElements: Set(UHDRElement.allCases).subtracting(target)
         )
     }
+
+    // MARK: - Study descriptor ingestion (§6.3 per-project workflow)
+
+    /// §5.3's anonymisation floors. They are locked, and the device is the only place they can
+    /// be enforced, because §5.3 puts the anonymisation on the device: a descriptor that asks
+    /// for weaker anonymisation than this is not one a user may be asked to consent to.
+    static let minimumKAnonymity = 10
+    static let minimumDateRoundingDays = 7
+
+    /// The **ingestion gate**: whether a signed study descriptor may become something the user
+    /// sees, and if so which of §6.2's two postures it arrives in.
+    ///
+    /// Pure, and deliberately separate from the store: the store holds the state, this holds the
+    /// policy, in the same way `accessDifferential` holds §6.1's.
+    ///
+    /// **Order is load-bearing.** The signature is checked first, so nothing a descriptor
+    /// *claims* — its categories, its element list, its title — can influence any later step of
+    /// an unverified descriptor. Then §5.3's floors, which are properties of the study itself.
+    /// Only then the user's consent state, which is the part that varies per device.
+    ///
+    /// - Parameters:
+    ///   - verification: the result of checking the descriptor's signature.
+    ///   - consent: the user's current research consent (L1–L4).
+    ///   - studyAlreadyDecided: whether this study ID has already been answered, joined or
+    ///     withdrawn from on this device.
+    static func admit(
+        descriptor: StudyDescriptor,
+        verification: StudyDescriptorVerification,
+        consent: ResearchConsentState,
+        studyAlreadyDecided: Bool
+    ) -> StudyDescriptorAdmission {
+        let descriptorHash: String
+        switch verification {
+        case .unavailable: return .refused(.verifierUnavailable)
+        case .rejected:    return .refused(.signatureInvalid)
+        case let .verified(hash): descriptorHash = hash
+        }
+
+        guard descriptor.kAnonymity >= minimumKAnonymity,
+              descriptor.dateRoundingDays >= minimumDateRoundingDays
+        else { return .refused(.anonymisationBelowFloor) }
+
+        guard consent.hasAnyResearchConsent else { return .refused(.noResearchConsent) }
+
+        // L1 is the shared precondition for all three delivery paths — per-study invitations,
+        // per-study engagement notifications and results notifications (§6.2.1) — so it gates
+        // both postures, not just the one that asks a question.
+        guard consent.contactConsentGranted else { return .refused(.noContactConsent) }
+
+        guard !studyAlreadyDecided else { return .refused(.studyAlreadyDecided) }
+
+        // L3 is posture, L2 is scope (§6.2.2). Blanket consent means this study is pre-approved
+        // and the user is told rather than asked; without it, at least one of the study's
+        // categories must be one the user opted into.
+        if consent.blanketConsentGranted {
+            return .admitted(posture: .engagementNotification, descriptorHash: descriptorHash)
+        }
+        let consentedCategory = descriptor.researchCategories.contains { consent.categoryConsents[$0] == true }
+        guard consentedCategory else { return .refused(.categoryNotConsented) }
+        return .admitted(posture: .consentRequest, descriptorHash: descriptorHash)
+    }
+
+    /// Build the invitation the user reads from a verified descriptor.
+    ///
+    /// Everything the consent surface needs beyond the study's own facts is derived here or at
+    /// render time: `cannotLearn` is the complement of the approved elements, and the
+    /// irreversibility notice §6.3 step 4 requires comes from `irreversibilityNotice` — a locale
+    /// key — rather than travelling with the descriptor as prose.
+    static func invitation(
+        from descriptor: StudyDescriptor,
+        posture: StudyInvitation.Posture,
+        descriptorHash: String,
+        receivedAt: Date
+    ) -> StudyInvitation {
+        StudyInvitation(
+            id: UUID(),
+            studyID: descriptor.studyID,
+            studyTitle: descriptor.studyTitle,
+            researchCategories: descriptor.researchCategories,
+            approvedElements: descriptor.requestedElements,
+            descriptorHash: descriptorHash,
+            kAnonymity: descriptor.kAnonymity,
+            dateRoundingDays: descriptor.dateRoundingDays,
+            posture: posture,
+            receivedAt: receivedAt,
+            decision: nil
+        )
+    }
 }
 
 // MARK: - Differential consent document (§6.1)

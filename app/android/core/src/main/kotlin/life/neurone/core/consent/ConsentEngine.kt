@@ -2,6 +2,11 @@ package life.neurone.core.consent
 
 import life.neurone.core.models.ClinicianConsentGrant
 import life.neurone.core.models.ClinicianUseCaseTier
+import life.neurone.core.models.ResearchConsentState
+import life.neurone.core.models.StudyDescriptor
+import life.neurone.core.models.StudyDescriptorAdmission
+import life.neurone.core.models.StudyDescriptorVerification
+import life.neurone.core.models.StudyInvitation
 import life.neurone.core.models.UHDRElement
 
 /**
@@ -63,6 +68,128 @@ object ConsentEngine {
             stillNotAccessibleElements = UHDRElement.entries.toSet() - target,
         )
     }
+
+    // ── Study descriptor ingestion (§6.3 per-project workflow) ───────────
+
+    /**
+     * §5.3's anonymisation floors. They are locked, and the device is the only place they can be
+     * enforced, because §5.3 puts the anonymisation on the device: a descriptor that asks for
+     * weaker anonymisation than this is not one a user may be asked to consent to.
+     */
+    const val MINIMUM_K_ANONYMITY = 10
+    const val MINIMUM_DATE_ROUNDING_DAYS = 7
+
+    /**
+     * The **ingestion gate**: whether a signed study descriptor may become something the user
+     * sees, and if so which of §6.2's two postures it arrives in.
+     *
+     * Pure, and deliberately separate from the store: the store holds the state, this holds the
+     * policy, in the same way [accessDifferential] holds §6.1's.
+     *
+     * **Order is load-bearing.** The signature is checked first, so nothing a descriptor *claims*
+     * — its categories, its element list, its title — can influence any later step of an
+     * unverified descriptor. Then §5.3's floors, which are properties of the study itself. Only
+     * then the user's consent state, which is the part that varies per device.
+     *
+     * @param verification the result of checking the descriptor's signature.
+     * @param consent the user's current research consent (L1–L4).
+     * @param studyAlreadyDecided whether this study ID has already been answered, joined or
+     *   withdrawn from on this device.
+     */
+    fun admit(
+        descriptor: StudyDescriptor,
+        verification: StudyDescriptorVerification,
+        consent: ResearchConsentState,
+        studyAlreadyDecided: Boolean,
+    ): StudyDescriptorAdmission {
+        val descriptorHash = when (verification) {
+            StudyDescriptorVerification.Unavailable ->
+                return StudyDescriptorAdmission.Refused(
+                    StudyDescriptorAdmission.Reason.VERIFIER_UNAVAILABLE,
+                )
+            StudyDescriptorVerification.Rejected ->
+                return StudyDescriptorAdmission.Refused(
+                    StudyDescriptorAdmission.Reason.SIGNATURE_INVALID,
+                )
+            is StudyDescriptorVerification.Verified -> verification.descriptorHash
+        }
+
+        if (descriptor.kAnonymity < MINIMUM_K_ANONYMITY ||
+            descriptor.dateRoundingDays < MINIMUM_DATE_ROUNDING_DAYS
+        ) {
+            return StudyDescriptorAdmission.Refused(
+                StudyDescriptorAdmission.Reason.ANONYMISATION_BELOW_FLOOR,
+            )
+        }
+
+        if (!consent.hasAnyResearchConsent) {
+            return StudyDescriptorAdmission.Refused(
+                StudyDescriptorAdmission.Reason.NO_RESEARCH_CONSENT,
+            )
+        }
+
+        // L1 is the shared precondition for all three delivery paths — per-study invitations,
+        // per-study engagement notifications and results notifications (§6.2.1) — so it gates both
+        // postures, not just the one that asks a question.
+        if (!consent.contactConsentGranted) {
+            return StudyDescriptorAdmission.Refused(
+                StudyDescriptorAdmission.Reason.NO_CONTACT_CONSENT,
+            )
+        }
+
+        if (studyAlreadyDecided) {
+            return StudyDescriptorAdmission.Refused(
+                StudyDescriptorAdmission.Reason.STUDY_ALREADY_DECIDED,
+            )
+        }
+
+        // L3 is posture, L2 is scope (§6.2.2). Blanket consent means this study is pre-approved
+        // and the user is told rather than asked; without it, at least one of the study's
+        // categories must be one the user opted into.
+        if (consent.blanketConsentGranted) {
+            return StudyDescriptorAdmission.Admitted(
+                posture = StudyInvitation.Posture.ENGAGEMENT_NOTIFICATION,
+                descriptorHash = descriptorHash,
+            )
+        }
+        val consentedCategory =
+            descriptor.researchCategories.any { consent.categoryConsents[it] == true }
+        if (!consentedCategory) {
+            return StudyDescriptorAdmission.Refused(
+                StudyDescriptorAdmission.Reason.CATEGORY_NOT_CONSENTED,
+            )
+        }
+        return StudyDescriptorAdmission.Admitted(
+            posture = StudyInvitation.Posture.CONSENT_REQUEST,
+            descriptorHash = descriptorHash,
+        )
+    }
+
+    /**
+     * Build the invitation the user reads from a verified descriptor.
+     *
+     * Everything the consent surface needs beyond the study's own facts is derived here or at
+     * render time: `cannotLearn` is the complement of the approved elements, and the
+     * irreversibility notice §6.3 step 4 requires is a locale key the UI resolves rather than
+     * prose travelling with the descriptor.
+     */
+    fun invitation(
+        descriptor: StudyDescriptor,
+        posture: StudyInvitation.Posture,
+        descriptorHash: String,
+        receivedOnDay: String,
+    ): StudyInvitation = StudyInvitation(
+        studyId = descriptor.studyId,
+        studyTitle = descriptor.studyTitle,
+        researchCategories = descriptor.researchCategories,
+        approvedElements = descriptor.requestedElements,
+        descriptorHash = descriptorHash,
+        kAnonymity = descriptor.kAnonymity,
+        dateRoundingDays = descriptor.dateRoundingDays,
+        posture = posture,
+        receivedOnDay = receivedOnDay,
+        decision = null,
+    )
 }
 
 /**

@@ -155,9 +155,9 @@ The NeurOne iOS app is App Store-live at Month 12, passing App Store review on f
 - [x] ISC-76: Tapping "Revoke" on a clinician grant calls `ConsentStore.revokeClinicianAccess(grantID:)` after a confirmation alert.
 - [x] ISC-77: `ConsentDashboardView` lists all active study participations with study ID, participation date, and a "Withdraw" button.
 - [ ] ISC-78: `ConsentDashboardView` lists all pending study invitations with study name, brief description, what elements will be shared, and Accept / Decline buttons.
-- [x] ISC-79: Accepting a study invitation calls `ConsentStore.acceptInvitation(studyID:)` and surfaces a confirmation that includes the irreversibility notice for that specific study.
+- [x] ISC-79: Accepting a study invitation calls `ConsentStore.acceptInvitation(studyID:)` and surfaces a confirmation that includes the irreversibility notice. The notice is `ConsentEngine.irreversibilityNotice` — the §6.2 copy, resolved from a locale key — not a per-study string travelling on the invitation: under OI-CONSENT-03 that field was prose supplied by the party asking for access (2026-09-10).
 - [x] ISC-80: `ConsentStore.withdrawBlanketResearchConsent()` sets `blanketConsentGranted = false` and persists — verified by checking the `researchKey` UserDefaults value after calling it.
-- [x] ISC-81: `Anti:` The consent tab badge count (`consent.pendingInvitations.filter { $0.hasNoDecision }.count`) never goes negative.
+- [x] ISC-81: `Anti:` The consent tab badge count (`consent.pendingInvitations.filter(\.isOpen).count`) never goes negative. `isOpen` replaced `hasNoDecision` with OI-CONSENT-03, so a study the user asked a question about still counts — asking is not deciding.
 - [x] ISC-82: `Anti:` `ConsentEngine.minimumNecessaryElements(for:)` never returns elements from a use case that was not in `selectedUseCaseIDs`.
 
 ### Privacy compliance — launch-blocking screens

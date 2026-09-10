@@ -24,11 +24,12 @@
  * ── Why declarations rather than "everything needs a UI caller" ──────────────
  *
  * Because that rule is false here, and a gate that manufactures false work gets
- * switched off (the lesson check-gate-coverage.ts is built around). Of the 11
- * methods, three legitimately have no UI caller: one is called only from inside
- * the store, one is superseded by a wholesale-state path, and one belongs to an
- * unimplemented workflow. Only a per-method declaration can tell those apart
- * from the #277 defect, which looks identical from outside.
+ * switched off (the lesson check-gate-coverage.ts is built around). Of the 15
+ * methods, four legitimately have no UI caller: one is called only from inside
+ * the store, one is superseded by a wholesale-state path, and two are the
+ * inbound ends of workflows whose transport does not exist yet. Only a
+ * per-method declaration can tell those apart from the #277 defect, which looks
+ * identical from outside.
  *
  * ── Waivers are per-platform, and deliberately narrow ────────────────────────
  *
@@ -97,7 +98,7 @@ const SURFACE: Record<string, Reach> = {
   addExpansionRequest: {
     kind: "pending",
     oi: "OI-CONSENT-05",
-    note: "expansion requests are ingested from the clinician-portal sync layer, which does not exist yet; no UI caller is expected — the same missing layer as addInvitation",
+    note: "expansion requests are ingested from the clinician-portal sync layer, which does not exist yet; no UI caller is expected — the sibling of the study-service transport ingestStudyDescriptor waits on",
   },
   approveExpansion: {
     kind: "ui",
@@ -134,13 +135,31 @@ const SURFACE: Record<string, Reach> = {
   },
 
   // ── Study invitations (§6.3 per-project workflow).
-  addInvitation: {
+  //
+  //    `addInvitation` used to be declared here, `pending` under OI-CONSENT-03: it took a finished
+  //    `StudyInvitation` — element list, "what they cannot see" prose and irreversibility notice
+  //    included — on trust from whatever called it, and nothing but a unit test ever did. It is
+  //    replaced, not merely given a caller. What enters the device is the signed descriptor
+  //    (§5.3 step 1); the invitation the user reads is derived from it after the signature
+  //    verifies, and `ConsentEngine.admit` decides whether it may be shown at all.
+  ingestStudyDescriptor: {
     kind: "pending",
-    oi: "OI-CONSENT-03",
-    note: "invitations are ingested from the study-descriptor sync layer, which does not exist yet; no UI caller is expected",
+    oi: "OI-CONSENT-07",
+    note:
+      "descriptors arrive from the NeurOne study service, which does not exist yet; no UI caller " +
+      "is expected. Unlike the method it replaces, this one is not open by default: with no " +
+      "verifier injected it refuses every descriptor as `verifierUnavailable`, so the transport " +
+      "cannot be wired up without also supplying the §5.3 signature check",
   },
   acceptInvitation: { kind: "ui" },
-  declineInvitation: { kind: "ui" },
+  declineInvitation: {
+    kind: "ui",
+    note: "§6.3 step 4's *No*, and the L3 per-study opt-out — the same intent reached from the other posture, which is why leaving an engagement notification withdraws the participation ingestion recorded",
+  },
+  askQuestionAboutInvitation: {
+    kind: "ui",
+    note: "§6.3 step 4's third response. Leaves the invitation open — asking is not deciding — the same rule askQuestionAboutExpansion holds for §6.1",
+  },
   withdrawFromStudy: { kind: "ui" },
 };
 
