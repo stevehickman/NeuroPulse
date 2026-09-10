@@ -131,6 +131,13 @@ data class NPTDCSParams(
     var intensityMilliamps: Double = 1.0,
     var electrodePairs: List<List<String>> = listOf(listOf("Fp1", "P3")),
     var rampSeconds: Int = 30,
+    /**
+     * OI-CHARGE-04: area of ONE electrode, cm². Authored because [electrodePairs] names
+     * 10-20 SITES and implies nothing about pad size, while the 40 µC/cm² ceiling is a
+     * per-electrode density. Carried in the signed session descriptor so this app and the
+     * safety MCU divide by the same number.
+     */
+    var electrodeAreaCm2: Double = NPHardwareLimits.TDCS_DEFAULT_ELECTRODE_AREA_CM2,
 )
 
 data class NPVNSHRVParams(

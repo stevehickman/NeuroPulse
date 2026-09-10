@@ -5,7 +5,7 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: b19683a0ffde55dbb80c63e7b8c913f007d8c0abb8bd1f22c7c7d70d4255b1ed
+// sources-sha256: 806faf818a4d691407f1198624d4c726fba8dca4b0df4babc5559017f8c088fe
 var __create = Object.create;
 var __getProtoOf = Object.getPrototypeOf;
 var __defProp = Object.defineProperty;
@@ -1909,7 +1909,8 @@ function defaultParams(type) {
     tdcs: {
       intensityMilliamps: 1,
       electrodePairs: [["Fp1", "Fp2"]],
-      rampSeconds: 30
+      rampSeconds: 30,
+      electrodeAreaCm2: 35
     },
     vns_hrv: {
       frequencyHz: 25,
@@ -3245,7 +3246,8 @@ class Parser {
           params: {
             intensityMilliamps: num("intensity_milliamps", d.intensityMilliamps),
             electrodePairs,
-            rampSeconds: num("ramp_seconds", d.rampSeconds)
+            rampSeconds: num("ramp_seconds", d.rampSeconds),
+            electrodeAreaCm2: num("electrode_area_cm2", d.electrodeAreaCm2)
           }
         };
       }

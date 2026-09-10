@@ -55,6 +55,11 @@ extern void np_charge_monitor_geom_gate(np_safety_state_t *state);
  * HD-tDCS accumulates on this channel (OI-CHARGE-02).                         */
 #define NP_SAFETY_CH_CLIN_STIM_IDX  13U
 
+/* TDCS charge-monitor channel index = bit position of NP_SAFETY_EN_TDCS.
+ * T1 tDCS accumulates on this channel and, since OI-CHARGE-04, declares its
+ * pad geometry on it too.                                                     */
+#define NP_SAFETY_CH_TDCS_IDX       6U
+
 /* ── Helper: build a clean state ────────────────────────────────────────────── */
 static np_safety_state_t fresh_state(void)
 {
@@ -356,9 +361,13 @@ static void test_geom_gate_blocks_until_applied(void)
     np_charge_monitor_geom_gate(&s);
     check((s.granted_mask & (1U << NP_SAFETY_CH_CLIN_STIM_IDX)) == 0U,
           "geom gate: CLIN_STIM blocked when required and not applied (fail-closed)");
-    /* Other channels untouched by the gate. */
-    check((s.granted_mask & (1U << 6)) != 0U,
-          "geom gate: non-CLIN_STIM channels unaffected");
+    /* Other channels untouched by the gate — including TDCS (ch 6), whose own
+     * gate bit is not set here.  OI-CHARGE-04: the two gates are independent,
+     * so a CLIN_STIM geometry declaration must not reach the tDCS channel. */
+    check((s.granted_mask & (1U << NP_SAFETY_CH_TDCS_IDX)) != 0U,
+          "geom gate: TDCS unaffected by the CLIN_STIM gate");
+    check((s.granted_mask & (1U << 7)) != 0U,
+          "geom gate: ungated channels unaffected");
 
     /* Apply HD-tDCS electrode area to CLIN_STIM → gate opens. */
     np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_CLIN_STIM_IDX, 96U);
@@ -399,6 +408,102 @@ static void test_geom_gate_rearms_each_session(void)
           "geom gate: re-armed after reset_session (blocks again until re-applied)");
 }
 
+/* ── Tests: OI-CHARGE-04 tDCS geometry gate ─────────────────────────────────── */
+
+/*
+ * The tDCS channel gets the OI-CHARGE-03 treatment: a session that declares
+ * tDCS geometry but whose area command has not landed keeps TDCS out of
+ * granted_mask rather than running it against the 25 cm² NP_ELECTRODE_AREA_CM2
+ * fallback the app never agreed with.  That fallback is what OI-CHARGE-04 was:
+ * the app pre-flight assumed 35 cm² per pad and summed pad areas, so it
+ * accepted protocols this monitor cut short mid-session.
+ */
+static void test_tdcs_geom_gate_blocks_until_applied(void)
+{
+    np_charge_monitor_reset_session(NULL);   /* geom NOT applied yet */
+
+    np_safety_state_t s = fresh_state();
+    s.geom_required_tdcs = true;
+    np_charge_monitor_geom_gate(&s);
+    check((s.granted_mask & (1U << NP_SAFETY_CH_TDCS_IDX)) == 0U,
+          "tdcs geom gate: TDCS blocked when required and not applied (fail-closed)");
+    check((s.granted_mask & (1U << NP_SAFETY_CH_CLIN_STIM_IDX)) != 0U,
+          "tdcs geom gate: CLIN_STIM unaffected by the tDCS gate");
+
+    /* Declaring a 35 cm² sponge pad opens the gate and sets the limit. */
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_TDCS_IDX, 35000U);
+    np_safety_state_t s2 = fresh_state();
+    s2.geom_required_tdcs = true;
+    np_charge_monitor_geom_gate(&s2);
+    check((s2.granted_mask & (1U << NP_SAFETY_CH_TDCS_IDX)) != 0U,
+          "tdcs geom gate: TDCS granted after declared area applied");
+
+    /* The declared pad, not the fallback, is what the limit is derived from:
+     * 40 µC/cm² × 35 cm² = 1400 µC, where the 25 cm² NP_ELECTRODE_AREA_CM2
+     * fallback would have given 1000 µC.  Accumulated in real 200 ms heartbeat
+     * ticks at a commanded 2 mA — 400 µC per tick.  Three ticks (1200 µC)
+     * would already have tripped the fallback limit and does not trip the
+     * declared one; the fourth (1600 µC) does.  That difference IS
+     * OI-CHARGE-04: the app authored against one geometry and the enforcer
+     * used another, so a protocol the app accepted was cut short here.       */
+    for (int t = 0; t < 3; t++) {
+        np_charge_monitor_accumulate(NP_SAFETY_CH_TDCS_IDX, 2000U, 200000U);
+    }
+    np_charge_monitor_tick(&s2);
+    check((s2.granted_mask & (1U << NP_SAFETY_CH_TDCS_IDX)) != 0U,
+          "tdcs geom gate: 1200 µC does not trip a declared 35 cm² pad (1400 µC)");
+    np_charge_monitor_accumulate(NP_SAFETY_CH_TDCS_IDX, 2000U, 200000U);
+    np_charge_monitor_tick(&s2);
+    check((s2.granted_mask & (1U << NP_SAFETY_CH_TDCS_IDX)) == 0U,
+          "tdcs geom gate: 1600 µC trips the declared 35 cm² limit");
+}
+
+/*
+ * The gates must not be one flag wearing two hats.  A session running T1 tDCS
+ * (geometry declared) alongside clinical tACS (which shares the CLIN_STIM
+ * enable bit and declares no geometry) must gate neither: this is why
+ * GEOM_REQ_TDCS is its own wire bit rather than a widening of GEOM_REQUIRED.
+ */
+static void test_geom_gates_are_independent(void)
+{
+    np_charge_monitor_reset_session(NULL);
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_TDCS_IDX, 25000U);
+
+    np_safety_state_t s = fresh_state();
+    s.geom_required      = false;   /* clinical tACS declares no geometry */
+    s.geom_required_tdcs = true;    /* tDCS does, and it was applied      */
+    np_charge_monitor_geom_gate(&s);
+    check((s.granted_mask & (1U << NP_SAFETY_CH_TDCS_IDX)) != 0U,
+          "gate independence: TDCS granted (its own geometry applied)");
+    check((s.granted_mask & (1U << NP_SAFETY_CH_CLIN_STIM_IDX)) != 0U,
+          "gate independence: clinical tACS not gated by the tDCS declaration");
+
+    /* And the converse: HD-tDCS applied, tDCS declared but not applied. */
+    np_charge_monitor_reset_session(NULL);
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_CLIN_STIM_IDX, 96U);
+    np_safety_state_t s2 = fresh_state();
+    s2.geom_required      = true;
+    s2.geom_required_tdcs = true;
+    np_charge_monitor_geom_gate(&s2);
+    check((s2.granted_mask & (1U << NP_SAFETY_CH_CLIN_STIM_IDX)) != 0U,
+          "gate independence: CLIN_STIM granted (its own geometry applied)");
+    check((s2.granted_mask & (1U << NP_SAFETY_CH_TDCS_IDX)) == 0U,
+          "gate independence: TDCS still blocked (its geometry never landed)");
+}
+
+static void test_tdcs_geom_gate_rearms_each_session(void)
+{
+    np_charge_monitor_reset_session(NULL);
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_TDCS_IDX, 35000U);
+
+    np_charge_monitor_reset_session(NULL);   /* new session — applied flag cleared */
+    np_safety_state_t s = fresh_state();
+    s.geom_required_tdcs = true;
+    np_charge_monitor_geom_gate(&s);
+    check((s.granted_mask & (1U << NP_SAFETY_CH_TDCS_IDX)) == 0U,
+          "tdcs geom gate: re-armed after reset_session (blocks until re-declared)");
+}
+
 /* ── Main ───────────────────────────────────────────────────────────────────── */
 
 int main(void)
@@ -419,6 +524,9 @@ int main(void)
     test_geom_gate_blocks_until_applied();
     test_geom_gate_not_required_passes();
     test_geom_gate_rearms_each_session();
+    test_tdcs_geom_gate_blocks_until_applied();
+    test_geom_gates_are_independent();
+    test_tdcs_geom_gate_rearms_each_session();
 
     printf("\n%s: %d failure(s)\n",
            (g_failures == 0) ? "PASS" : "FAIL", g_failures);

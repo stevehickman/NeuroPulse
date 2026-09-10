@@ -21,8 +21,24 @@ object NPHardwareLimits {
     const val TDCS_MIN_MILLIAMPS: Double = 0.1
     const val TDCS_MAX_MILLIAMPS: Double = 2.0
     const val TDCS_MAX_CHARGE_DENSITY_UC_CM2: Double = 40.0 // safety MCU enforced, app cannot override
-    /** Assumed area per electrode (cm²) for charge-density estimation when geometry is absent. */
+    /**
+     * Default per-electrode pad area (cm²) for a NEWLY AUTHORED tDCS block — an editor
+     * default only, not an assumption any check falls back on. 35 cm² is a standard tDCS
+     * sponge pad (DHF Rev 11).
+     *
+     * OI-CHARGE-04 (closed 2026-09-09): the area a protocol validates against is
+     * `NPTDCSParams.electrodeAreaCm2`, authored per protocol and carried in the signed
+     * session descriptor, so app and safety MCU divide by the same declared number.
+     * This constant had the same 35.0 as iOS and, unlike iOS, carried no note that it
+     * disagreed with the enforcer's 25 cm² — the divergence was recorded at two of the
+     * three app sites, and this was the third.
+     */
     const val TDCS_DEFAULT_ELECTRODE_AREA_CM2: Double = 35.0
+    /**
+     * Largest declarable per-electrode area. Not a clinical limit — the wire field
+     * (`electrode_area_mcm2`) is a uint16 of milli-cm², so 65.535 cm² is what fits.
+     */
+    const val TDCS_MAX_ELECTRODE_AREA_CM2: Double = 65.535
     const val TDCS_RAMP_SECONDS: Int = 30                // hardware-enforced, always applied
     const val TDCS_MAX_ELECTRODE_PAIRS: Int = 3
 

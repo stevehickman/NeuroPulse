@@ -149,10 +149,15 @@ function eegProtocol(): NPProtocolDefinition {
 
 // ─── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('hub protocol v2 wire format', () => {
-  it('emits protocol version 2', () => {
+describe('hub protocol v3 wire format', () => {
+  it('emits protocol version 3', () => {
+    // OI-CHARGE-04 bumped v2 → v3 (np_mod_tdcs_params_t grew
+    // electrode_area_mcm2). Must match NP_HUB_PROTO_VERSION in
+    // firmware/hub_control/include/np_hub_config.h, which np_protocol_tests.c
+    // pins from the other side — the hub rejects anything else as
+    // NP_HUB_ERR_BAD_VERSION before it reads a single command.
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['Frontal Left'] }), { zones });
-    expect(readBlob(blob).version).toBe(2);
+    expect(readBlob(blob).version).toBe(3);
   });
 
   it('emits a 14-byte command header with a target block', () => {
@@ -368,7 +373,7 @@ describe('parameter block sizes match the firmware structs', () => {
     pbm_intranasal:     { size: 5,  slot: 9,    params: { intensityPercent: 60, frequencyHz: 10, dutyCyclePercent: 25 } },
     eeg_neurofeedback:  { size: 5,  slot: 5,    params: { channels: 'all', band: 'alpha', closedLoopEnabled: false } },
     bes_tacs:           { size: 7,  slot: 17,   params: { frequencyHz: 10, intensityMilliamps: 0.8, waveform: 'sinusoidal' } },
-    tdcs:               { size: 6,  slot: 18,   params: { intensityMilliamps: 1.5, electrodePairs: [['F3', 'F4']], rampSeconds: 30 } },
+    tdcs:               { size: 8,  slot: 18,   params: { intensityMilliamps: 1.5, electrodePairs: [['F3', 'F4']], rampSeconds: 30, electrodeAreaCm2: 35 } },
     vns_hrv:            { size: 9,  slot: 8,    params: { frequencyHz: 20, intensityMilliamps: 1, hrvProtocol: 'standalone' } },
     audio_entrainment:  { size: 8,  slot: 6,    params: { carrierHz: 200, binauralBeatsHz: 10, volumePercent: 50, boneConductionPacer: false, eegAdaptive: false } },
     visual_stimulation: { size: 9,  slot: 7,    params: { mode: 'binocular', frequencyHz: 10, emdrCadenceHz: 1, enableModeF: false } },

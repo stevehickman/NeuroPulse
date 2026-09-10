@@ -328,6 +328,18 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
         <div className="param-grid">
           <SliderField label={t('WEB_MOD_INTENSITY')} value={p.intensityMilliamps} min={0.1} max={2.0} step={0.1} unit=" mA" onChange={v => update<typeof params>({ ...p, intensityMilliamps: v })} />
           <NumberField label={t('WEB_MOD_RAMP')} value={p.rampSeconds} min={5} max={120} unit="sec" onChange={v => update<typeof params>({ ...p, rampSeconds: v })} />
+          {/* OI-CHARGE-04: the geometry the 40 µC/cm² ceiling divides by. Not
+              derivable from the pairs below — those name 10-20 sites, not pad
+              sizes — and the device enforces against whatever is declared
+              here, so it has to be authored. */}
+          <NumberField
+            label={t('MODALITY_TDCS_ELECTRODE_AREA_LABEL')}
+            value={p.electrodeAreaCm2} min={0.01} max={65.535} step={0.5}
+            onChange={v => update<typeof params>({ ...p, electrodeAreaCm2: v })}
+          />
+          <div className="param-field" style={{ flex: '0 0 100%' }}>
+            <p className="param-help">{t('MODALITY_TDCS_ELECTRODE_AREA_HELP')}</p>
+          </div>
           <div className="param-field" style={{ flex: '0 0 100%' }}>
             <label className="param-label">{t('WEB_MOD_ELECTRODE_PAIRS')}</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>

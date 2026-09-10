@@ -728,6 +728,14 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+/* Explanatory note under a param field — sentence case, not the uppercase
+   label treatment, because it is prose rather than a field name. */
+.param-help {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
 
 .param-value-display {
   font-size: 13px;

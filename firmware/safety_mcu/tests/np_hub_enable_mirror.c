@@ -44,6 +44,7 @@ const unsigned np_hub_enable_mirror_count =
 
 /* The bit ≡ charge-monitor-channel-index identity, as the hub understands it. */
 const uint8_t np_hub_ch_clin_stim = (uint8_t)NP_SAFETY_CH_CLIN_STIM;
+const uint8_t np_hub_ch_tdcs      = (uint8_t)NP_SAFETY_CH_TDCS;
 
 /* Audio is deliberately NOT safety-MCU gated; the hub encodes that as 0 and the
  * session runner skips the enable request.  Pinned so it cannot quietly become

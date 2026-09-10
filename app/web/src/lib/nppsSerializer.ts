@@ -114,6 +114,7 @@ function serializeModalityFields(mp: NPModalityParams): string[] {
       return [
         `intensity: ${p.intensityMilliamps}mA`,
         `electrode_pairs: [${pairs}]`,
+        `electrode_area_cm2: ${p.electrodeAreaCm2}`,
         `ramp: ${p.rampSeconds}s`,
       ];
     }

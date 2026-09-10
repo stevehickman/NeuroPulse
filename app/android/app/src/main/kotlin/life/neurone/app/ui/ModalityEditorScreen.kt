@@ -209,6 +209,11 @@ private fun Bes(p: NPBESTacsParams, on: (NPBESTacsParams) -> Unit) {
 @Composable
 private fun Tdcs(p: NPTDCSParams, on: (NPTDCSParams) -> Unit) {
     NumField(stringResource(R.string.and_modality_intensity_ma), p.intensityMilliamps) { on(p.copy(intensityMilliamps = it)) }
+    // OI-CHARGE-04: the pad geometry the 40 µC/cm² ceiling divides by. The pairs below
+    // name 10-20 sites and say nothing about pad size, and the device enforces against
+    // whatever is declared here, so it has to be authored — editable, not a summary line.
+    NumField(stringResource(R.string.modality_tdcs_electrode_area_label), p.electrodeAreaCm2) { on(p.copy(electrodeAreaCm2 = it)) }
+    Text(stringResource(R.string.modality_tdcs_electrode_area_help), style = MaterialTheme.typography.bodySmall)
     Text(stringResource(R.string.and_modality_ramp_0_s_hardware_enforced, p.rampSeconds), style = MaterialTheme.typography.bodySmall)
     Text(stringResource(R.string.and_modality_electrode_pairs_0, p.electrodePairs.joinToString("; ") { it.joinToString("–") }), style = MaterialTheme.typography.bodySmall)
 }

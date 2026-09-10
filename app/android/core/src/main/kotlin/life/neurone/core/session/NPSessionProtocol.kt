@@ -89,6 +89,7 @@ data class NPSessionProtocol(
                             durationSeconds = if (m.interval.isContinuous) duration else m.interval.intervalOnSeconds,
                             rampSeconds = p.params.rampSeconds,
                             electrodePairs = p.params.electrodePairs,
+                            electrodeAreaCm2 = p.params.electrodeAreaCm2,
                         ),
                     )
                     is NPModalityParams.VnsHRV -> configs.add(
@@ -177,7 +178,14 @@ sealed class ModalityConfig {
         val amplitudeMilliamps: Double,
         val durationSeconds: Int,
         val rampSeconds: Int = 30,
-        val electrodePairs: List<List<String>>,
+        val electrodePairs: List<List<String>>,   // 10-20 SITES, not pad geometry
+        /**
+         * OI-CHARGE-04: per-electrode pad area, cm². The hub converts this to the
+         * milli-cm² of `np_mod_tdcs_params_t.electrode_area_mcm2` and hands it to the
+         * safety MCU, which derives its 40 µC/cm² charge limit from it. No default —
+         * a missing area is the defect this field closes.
+         */
+        val electrodeAreaCm2: Double,
     ) : ModalityConfig()
 
     @Serializable

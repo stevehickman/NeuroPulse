@@ -1131,6 +1131,10 @@ class Parser {
             intensityMilliamps: num('intensity_milliamps', d.intensityMilliamps),
             electrodePairs,
             rampSeconds: num('ramp_seconds', d.rampSeconds),
+            // OI-CHARGE-04. Spelled with its unit like every other canonical
+            // field (frequency_hz, ramp_seconds) rather than as `35cm2`: the
+            // lexer's unit suffixes are Hz/%/mA/s/m, and `cm2` is not one.
+            electrodeAreaCm2: num('electrode_area_cm2', d.electrodeAreaCm2),
           },
         };
       }

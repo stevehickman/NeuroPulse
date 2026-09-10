@@ -200,6 +200,14 @@ export interface TDCSParams {
   intensityMilliamps: number;
   electrodePairs: [string, string][];
   rampSeconds: number;
+  // OI-CHARGE-04: area of ONE electrode, cm². Authored per protocol because
+  // electrodePairs names 10-20 SITES and implies nothing about pad size, and
+  // the 40 µC/cm² ceiling is a per-electrode density. Travels in the signed
+  // descriptor (np_mod_tdcs_params_t.electrode_area_mcm2) so this validator
+  // and the safety MCU divide by the same number. 35 cm² is a standard sponge
+  // pad, which is what the DHF Rev 11 record assumed; it is now declared and
+  // enforced rather than assumed on one side only.
+  electrodeAreaCm2: number;
 }
 
 export interface VNSHRVParams {
@@ -333,6 +341,7 @@ export function defaultParams<T extends NPModalityTypeId>(type: T): ModalityPara
       intensityMilliamps: 1.0,
       electrodePairs: [['Fp1', 'Fp2']],
       rampSeconds: 30,
+      electrodeAreaCm2: 35,
     },
     vns_hrv: {
       frequencyHz: 25,

@@ -256,6 +256,14 @@ typedef struct __attribute__((packed)) {
     uint16_t current_ua;     /* DC current µA; firmware cap ≤ 2000 (2mA) */
     uint8_t  polarity;       /* 0=anode at pair-A, 1=cathode at pair-A */
     uint16_t ramp_s;         /* ramp duration; firmware minimum 30s enforced */
+    /* OI-CHARGE-04: area of ONE electrode, milli-cm² (1 unit = 0.001 cm²).
+     * electrode_pair names 10-20 SITES (F3-F4, P3-P4, Fz-Pz) and says nothing
+     * about pad size, so the geometry the 40µC/cm² limit divides by has to be
+     * authored.  Delivered to the safety MCU on NP_SAFETY_CH_TDCS via
+     * np_safety_chan_limit_cmd_t; the density constant stays on the MCU.
+     * 0 = not declared, which the OI-CHARGE-04 geometry gate treats as
+     * fail-CLOSED (tDCS is never granted), not as "use the 25cm² default". */
+    uint16_t electrode_area_mcm2;
 } np_mod_tdcs_params_t;
 
 /* ── VNS + HRV auricular clip (NP_MOD_VNS_HRV) ─────────────────────────────── */
