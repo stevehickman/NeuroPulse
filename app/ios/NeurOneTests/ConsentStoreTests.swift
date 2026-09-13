@@ -8,6 +8,14 @@
 import XCTest
 @testable import NeurOne
 
+/// Stands in for the signature check §5.3 requires. At file scope, not nested in the test case:
+/// the protocol is non-isolated, and nesting it inside a `@MainActor` class invites the question
+/// of whether it inherits that isolation.
+private struct StubVerifier: StudyDescriptorVerifier {
+    let result: StudyDescriptorVerification
+    func verify(_ descriptor: StudyDescriptor) -> StudyDescriptorVerification { result }
+}
+
 @MainActor
 final class ConsentStoreTests: XCTestCase {
 
@@ -89,9 +97,9 @@ final class ConsentStoreTests: XCTestCase {
     }
 
     func testPendingInvitationBadgeNeverNegative_afterFullCycle() {
-        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()),
-                       .admitted(posture: .consentRequest, descriptorHash: hash))
+                       .admitted(posture: .consentRequest, descriptorHash: descriptorHash))
         XCTAssertEqual(store.pendingInvitations.filter(\.isOpen).count, 1)
 
         store.declineInvitation(studyID: studyID)
@@ -108,7 +116,9 @@ final class ConsentStoreTests: XCTestCase {
     // took silently and took in the affirmative.
 
     private let studyID = "TEST-001"
-    private let hash = "sha256:abc"
+    // Not `hash`: XCTestCase descends from NSObject, whose `hash` property this would try — and
+    // fail — to override with a different type.
+    private let descriptorHash = "sha256:abc"
 
     private var categoryConsent: ResearchConsentState {
         var state = ResearchConsentState()
@@ -122,11 +132,6 @@ final class ConsentStoreTests: XCTestCase {
         state.contactConsentGranted = true
         state.blanketConsentGranted = true
         return state
-    }
-
-    private struct StubVerifier: StudyDescriptorVerifier {
-        let result: StudyDescriptorVerification
-        func verify(_ descriptor: StudyDescriptor) -> StudyDescriptorVerification { result }
     }
 
     private func makeStore(
@@ -176,7 +181,7 @@ final class ConsentStoreTests: XCTestCase {
     /// §5.3 locks k≥10 and ≥1-week date rounding, and the device is the only place they can be
     /// checked. A study below the floor is not one the user may be *asked* about.
     func testAnonymisationBelowTheLockedFloorIsRefused() {
-        let store = makeStore(verification: .verified(descriptorHash: hash), consent: blanketConsent)
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: blanketConsent)
         XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor(k: 9)),
                        .refused(.anonymisationBelowFloor))
         XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor(rounding: 6)),
@@ -193,7 +198,7 @@ final class ConsentStoreTests: XCTestCase {
     }
 
     func testACategoryTheUserDidNotOptIntoIsRefused() {
-        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor(categories: [.sleep])),
                        .refused(.categoryNotConsented))
     }
@@ -203,12 +208,12 @@ final class ConsentStoreTests: XCTestCase {
     func testL1GatesBothPostures() {
         var noContact = blanketConsent
         noContact.contactConsentGranted = false
-        let store = makeStore(verification: .verified(descriptorHash: hash), consent: noContact)
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: noContact)
         XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()), .refused(.noContactConsent))
     }
 
     func testADeviceWithNoResearchConsentAtAllIsRefused() {
-        let store = makeStore(verification: .verified(descriptorHash: hash),
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
                               consent: ResearchConsentState())
         XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()), .refused(.noResearchConsent))
     }
@@ -217,9 +222,9 @@ final class ConsentStoreTests: XCTestCase {
 
     /// L2 consent means the user is *asked*: they are not in the study until they answer.
     func testACategoryConsentUserIsAskedAndIsNotInTheStudyUntilTheyAnswer() {
-        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()),
-                       .admitted(posture: .consentRequest, descriptorHash: hash))
+                       .admitted(posture: .consentRequest, descriptorHash: descriptorHash))
 
         XCTAssertEqual(store.pendingInvitations[0].posture, .consentRequest)
         XCTAssertFalse(store.pendingInvitations[0].participatesWithoutAnswer)
@@ -233,9 +238,9 @@ final class ConsentStoreTests: XCTestCase {
     /// L3 blanket consent means the user is *told*: §6.2 locks that they "still receive per-study
     /// engagement notifications, not consent requests", so they are in the study on arrival.
     func testABlanketConsentUserIsToldAndIsInTheStudyOnArrival() {
-        let store = makeStore(verification: .verified(descriptorHash: hash), consent: blanketConsent)
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: blanketConsent)
         XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor(categories: [.sleep])),
-                       .admitted(posture: .engagementNotification, descriptorHash: hash))
+                       .admitted(posture: .engagementNotification, descriptorHash: descriptorHash))
 
         XCTAssertEqual(store.pendingInvitations[0].posture, .engagementNotification)
         XCTAssertTrue(store.pendingInvitations[0].participatesWithoutAnswer)
@@ -247,7 +252,7 @@ final class ConsentStoreTests: XCTestCase {
     /// The L3 opt-out. "Decline" from an engagement notification is a withdrawal, because the user
     /// is already enrolled — the one place the two postures must not share behaviour.
     func testLeavingAnEngagementNotificationWithdrawsTheParticipation() {
-        let store = makeStore(verification: .verified(descriptorHash: hash), consent: blanketConsent)
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: blanketConsent)
         store.ingestStudyDescriptor(makeDescriptor())
 
         store.declineInvitation(studyID: studyID)
@@ -259,7 +264,7 @@ final class ConsentStoreTests: XCTestCase {
     /// An engagement notification was never a question, so it cannot be answered "yes" — that
     /// would file a second participation for a study the user is already in.
     func testAnEngagementNotificationCannotBeAccepted() {
-        let store = makeStore(verification: .verified(descriptorHash: hash), consent: blanketConsent)
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: blanketConsent)
         store.ingestStudyDescriptor(makeDescriptor())
 
         store.acceptInvitation(studyID: studyID)
@@ -271,7 +276,7 @@ final class ConsentStoreTests: XCTestCase {
     // MARK: - §6.3 step 4's third response
 
     func testAskingAQuestionAboutAStudyIsNotDeciding() {
-        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         store.ingestStudyDescriptor(makeDescriptor())
 
         store.askQuestionAboutInvitation(studyID: studyID)
@@ -292,7 +297,7 @@ final class ConsentStoreTests: XCTestCase {
     /// invitation that recorded the acceptance, so the trail and the inbox disagreed after every
     /// restart — and the same descriptor could be ingested and accepted a second time.
     func testInvitationsAndTheirDecisionsSurviveAReload() {
-        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         store.ingestStudyDescriptor(makeDescriptor())
         store.askQuestionAboutInvitation(studyID: studyID)
 
@@ -305,7 +310,7 @@ final class ConsentStoreTests: XCTestCase {
     /// §5.3 and §6.3 step 6: withdrawal blocks future descriptor processing. Re-presenting a study
     /// the user already answered would be the device forgetting the answer.
     func testAStudyAlreadyAnsweredIsNotPresentedAgain() {
-        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         store.ingestStudyDescriptor(makeDescriptor())
         store.declineInvitation(studyID: studyID)
 
@@ -315,7 +320,7 @@ final class ConsentStoreTests: XCTestCase {
     }
 
     func testAWithdrawnStudyIsNotPresentedAgain() {
-        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         store.ingestStudyDescriptor(makeDescriptor())
         store.acceptInvitation(studyID: studyID)
         store.withdrawFromStudy(studyID: studyID)
@@ -331,7 +336,7 @@ final class ConsentStoreTests: XCTestCase {
     /// It is the complement of the approved set, computed here — not prose supplied by the party
     /// asking for access.
     func testTheCannotSeeListIsDerivedFromTheApprovedSet() {
-        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         store.ingestStudyDescriptor(makeDescriptor(elements: [.sessionTimestamps]))
 
         let invitation = store.pendingInvitations[0]
@@ -344,11 +349,11 @@ final class ConsentStoreTests: XCTestCase {
     /// The §5.3 audit trail names a descriptor. It used to record the literal string "pending",
     /// because there was no descriptor to hash.
     func testTheParticipationRecordCarriesTheDescriptorHash() {
-        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         store.ingestStudyDescriptor(makeDescriptor())
         store.acceptInvitation(studyID: studyID)
 
-        XCTAssertEqual(store.studyParticipations[0].descriptorHash, hash)
+        XCTAssertEqual(store.studyParticipations[0].descriptorHash, descriptorHash)
     }
 
     // MARK: - Clinician grant revoke
@@ -374,7 +379,7 @@ final class ConsentStoreTests: XCTestCase {
     // MARK: - Study withdrawal
 
     func testWithdrawFromStudy_setsWithdrawnAt() {
-        let store = makeStore(verification: .verified(descriptorHash: hash), consent: categoryConsent)
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         store.ingestStudyDescriptor(makeDescriptor())
         store.acceptInvitation(studyID: studyID)
         XCTAssertFalse(store.studyParticipations.isEmpty)
