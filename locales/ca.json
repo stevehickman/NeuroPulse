@@ -277,6 +277,8 @@
   "DASHBOARD_POSTURE_ASKED": "You are asked about each study",
   "DASHBOARD_RESEARCH_PORTAL_LINK": "Research Portal",
   "DASHBOARD_RESEARCH_PREFS_BUTTON": "Research Preferences",
+  "DASHBOARD_RESEARCH_STOPPED": "Research participation stopped",
+  "DASHBOARD_RESEARCH_STOPPED_FORMAT": "You stopped all research participation on {0}. No new studies are offered and nothing new is shared, whichever research areas are still ticked below. You can start again from Research Preferences.",
   "DASHBOARD_REVOKE_ACCESS_FORMAT": "Revoke access for {0}",
   "DASHBOARD_REVOKE_BUTTON": "Revoke",
   "DASHBOARD_REVOKE_DIALOG_TITLE": "Revoke clinician access?",

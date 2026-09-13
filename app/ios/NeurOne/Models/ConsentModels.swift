@@ -302,6 +302,16 @@ struct ResearchConsentState: Codable {
     // L3: Blanket consent
     var blanketConsentGranted: Bool = false
     var blanketConsentGrantedAt: Date? = nil
+    /// When the user last withdrew blanket consent. `nil` means they never have.
+    ///
+    /// **"Never asked" and "said stop" are different states, and §6.0 treats them differently.**
+    /// `blanketConsentGranted == false` is true of both, so the flag alone cannot tell them apart
+    /// — the same shape as §6.2.5's teardown guard, which keys on the transition rather than the
+    /// value for exactly this reason. Set by `ConsentStore` on the true→false transition and by
+    /// nothing else: the consent UI commits a whole `ResearchConsentState` and cannot see a
+    /// transition, and a screen able to clear this could erase the record of the user having
+    /// said stop.
+    var blanketConsentWithdrawnAt: Date? = nil
 
     // L4: Results + community
     var resultsOptIn: Bool = false
@@ -310,6 +320,16 @@ struct ResearchConsentState: Codable {
     var hasAnyResearchConsent: Bool {
         contactConsentGranted || blanketConsentGranted ||
         categoryConsents.values.contains(true)
+    }
+
+    /// The user withdrew blanket consent and has not re-granted it.
+    ///
+    /// §6.0: withdrawing L3 "stops **ALL** research data flows" — all of them, not only the
+    /// pre-approved ones. So this outranks whatever L2 categories are still ticked: withdrawal
+    /// does not un-tick them, and nine stale checkboxes are not a fresh decision to resume.
+    /// Re-granting blanket consent clears the condition, because that *is* a fresh decision.
+    var blanketConsentWithdrawn: Bool {
+        blanketConsentWithdrawnAt != nil && !blanketConsentGranted
     }
 
     /// True when every research category is selected. Drives the Select-all affordance's
@@ -460,6 +480,10 @@ enum StudyDescriptorAdmission: Equatable {
         case categoryNotConsented
         /// The user holds no research consent at any layer.
         case noResearchConsent
+        /// The user withdrew blanket consent (§6.0). Distinct from `noResearchConsent`: one is a
+        /// user who was never asked, the other a user who said stop, and only the second is a
+        /// decision the device is declining to re-open.
+        case researchConsentWithdrawn
         /// This study was already decided or already withdrawn from. §5.3 and §6.3 step 6 make
         /// withdrawal block future descriptor processing; re-asking would be the device
         /// forgetting an answer the user already gave.

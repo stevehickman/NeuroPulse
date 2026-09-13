@@ -13,6 +13,40 @@
 
 ## Current revision
 
+**Rev 45 (2026-09-13) — §6.0: "never asked" and "said stop" are different states, and the boolean
+that was standing in for both could not hold the difference.** No decision changed. §6.0 has said
+since it was locked that withdrawing blanket consent "stops **ALL** research data flows"; the
+sentence is unchanged, and this is what makes it true of the code.
+
+**What the flag could not say.** `ResearchConsentState.blanketConsentGranted == false` describes a
+user who never turned L3 on and a user who turned it off, and §6.0 treats those differently — only
+the second stopped everything. Withdrawal deliberately leaves the nine L2 categories ticked, because
+clearing a stored preference is its own decision and not one withdrawal should smuggle in. The
+consequence, once Rev 44's ingestion gate existed to expose it, was that a user who withdrew from
+all research kept being admitted studies through the categories they had never gone back to un-tick
+— research data flows continuing after the user stopped them. `blanketConsentWithdrawnAt` records
+the true→false transition, and `blanketConsentWithdrawn` outranks L2 at the gate.
+
+**Why it belongs in the core.** This is the third instance of one shape in four revisions: Rev 42
+(a timeless tier could only answer §6.1's retroactive question yes), Rev 44 (one invitation type had
+to pick one meaning of silence for everyone), and now this. In each, a locked sentence was true of
+the specification and unrepresentable in the model, and in each the model quietly answered in the
+permissive direction. The guard against a later change re-collapsing them is naming the distinction
+where the invariants live, not only where the field is declared.
+
+**Three properties of the marker are load-bearing**, and all three are the kind a refactor can
+remove without appearing to change anything: the **store** sets it and no screen can (the consent UI
+commits a whole state and cannot see a transition, so a stale commit could otherwise erase it); it is
+guarded on the **transition, not the value**, like §6.2.5's analytics teardown, so withdrawing
+something never granted does not bar an L2 participant; and **re-granting clears the condition, not
+the record**.
+
+**Where the detail is.** The gate's step 3a, the dashboards' three postures, and the migration note
+are in `docs/reference/consent-engine.md` §6.3. Record: `docs/status/completed-decisions.md`,
+2026-09-13.
+
+## Earlier revisions
+
 **Rev 44 (2026-09-10) — §6.2 and §6.3: the device is the last gate on a study descriptor, and L3's
 engagement notification is not an L2 consent request.** No decision changed. Both sentences the core
 gained were already implied by locked text; neither was implementable, and one of them the code had
@@ -48,8 +82,6 @@ can undo by re-admitting a ready-made invitation.
 **Where the detail is.** The gate's six checks and why their order is load-bearing, the two
 postures, and what deliberately was not built are in `docs/reference/consent-engine.md` §6.3.
 Record: `docs/status/completed-decisions.md`, 2026-09-10.
-
-## Earlier revisions
 
 **Rev 43 (2026-09-13) — core/subsidiary split extended a third time; no design decision changed.**
 The always-loaded core went from 38,680 to 34,153 bytes (−11.7%). What moved, and the one criterion it moved

@@ -249,10 +249,22 @@ class ConsentStore(
      */
     fun updateResearchConsent(state: ResearchConsentState) {
         val wasBlanketGranted = researchConsent.blanketConsentGranted
-        researchConsent = state
+        val isWithdrawal = wasBlanketGranted && !state.blanketConsentGranted
+
+        // blanketConsentWithdrawnOnDay is the store's to set, never the screen's. The UI commits a
+        // whole state and cannot see the transition this method is built around; carrying the
+        // committed value through would let a stale screen erase the record of the user having
+        // said stop, which is the one thing §6.0 needs to survive.
+        researchConsent = state.copy(
+            blanketConsentWithdrawnOnDay = if (isWithdrawal) {
+                LocalDate.now().toString()
+            } else {
+                researchConsent.blanketConsentWithdrawnOnDay
+            },
+        )
         save()
 
-        if (wasBlanketGranted && !state.blanketConsentGranted) {
+        if (isWithdrawal) {
             revokeResearchAnalytics()
         }
     }
@@ -268,7 +280,18 @@ class ConsentStore(
      * revoke research analytics.
      */
     fun withdrawBlanketResearchConsent() {
-        researchConsent = researchConsent.copy(blanketConsentGranted = false)
+        // Guarded on the transition, like updateResearchConsent: calling this when blanket consent
+        // was never granted stops nothing, and marking it would silently bar an L2 participant
+        // from studies they are still consenting to.
+        val wasGranted = researchConsent.blanketConsentGranted
+        researchConsent = researchConsent.copy(
+            blanketConsentGranted = false,
+            blanketConsentWithdrawnOnDay = if (wasGranted) {
+                LocalDate.now().toString()
+            } else {
+                researchConsent.blanketConsentWithdrawnOnDay
+            },
+        )
         save()
         revokeResearchAnalytics()
     }

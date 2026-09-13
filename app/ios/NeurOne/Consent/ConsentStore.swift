@@ -184,17 +184,32 @@ final class ConsentStore: ObservableObject {
     /// category-only edit — the 2026-06-16 regression inverted.
     func updateResearchConsent(_ state: ResearchConsentState) {
         let wasBlanketGranted = researchConsent.blanketConsentGranted
-        researchConsent = state
+        let isWithdrawal = wasBlanketGranted && !state.blanketConsentGranted
+
+        // `blanketConsentWithdrawnAt` is the store's to set, never the screen's. The UI commits a
+        // whole state and cannot see the transition this method is built around; carrying the
+        // committed value through would let a stale screen erase the record of the user having
+        // said stop, which is the one thing §6.0 needs to survive.
+        var next = state
+        next.blanketConsentWithdrawnAt = isWithdrawal
+            ? Date()
+            : researchConsent.blanketConsentWithdrawnAt
+        researchConsent = next
         save()
 
-        if wasBlanketGranted && !state.blanketConsentGranted {
+        if isWithdrawal {
             revokeResearchAnalytics()
         }
     }
 
     func withdrawBlanketResearchConsent() {
+        let wasGranted = researchConsent.blanketConsentGranted
         researchConsent.blanketConsentGranted = false
         researchConsent.blanketConsentGrantedAt = nil
+        // Guarded on the transition, like the teardown below and like `updateResearchConsent`:
+        // calling this when blanket consent was never granted stops nothing, and marking it would
+        // silently bar an L2 participant from studies they are still consenting to.
+        if wasGranted { researchConsent.blanketConsentWithdrawnAt = Date() }
         save()
         // Withdrawal immediately prevents future study descriptor processing.
         // Already-published extracts are unchanged (irreversibility notice given at L3).

@@ -133,10 +133,33 @@ is load-bearing**, and each step traces to a locked line:
 |---|-------|---------|--------|
 | 1 | Signature verifies | `verifierUnavailable` · `signatureInvalid` | §5.3 step 1. First, so nothing an unverified descriptor *claims* reaches a later step |
 | 2 | `k ≥ 10` and date rounding `≥ 7` days | `anonymisationBelowFloor` | §5.3. The device is the only place these can be enforced, because §5.3 puts the anonymisation on the device — a study below the floor is not one a user may be *asked* about |
-| 3 | Any research consent at all | `noResearchConsent` | §6.0 |
+| 3a | Blanket consent not withdrawn | `researchConsentWithdrawn` | §6.0 — *withdrawal stops **ALL** research data flows*. Ahead of 3b because a withdrawn user usually still passes it: withdrawal does not un-tick the nine L2 categories |
+| 3b | Any research consent at all | `noResearchConsent` | §6.0 |
 | 4 | L1 contact consent | `noContactConsent` | §6.2.1 — a contact method is the precondition for **all three** delivery paths, so it gates the engagement notification too |
 | 5 | Study not already answered, joined or withdrawn from | `studyAlreadyDecided` | §5.3, §6.3 step 6. Re-presenting a study is the device forgetting an answer the user gave |
 | 6 | L3 on → engagement notification; else an L2 category must match | `categoryNotConsented` | §6.2.2 |
+
+**Step 3a is the second place a boolean could not hold a decision.** `blanketConsentGranted ==
+false` describes a user who never turned L3 on *and* a user who turned it off, and §6.0 treats
+those differently: the second stopped everything. Withdrawal deliberately does not clear the L2
+categories — destroying a stored preference is its own decision, and not this one — so without a
+separate marker those nine stale checkboxes go on admitting studies as consent requests, which is
+the flow §6.0 says stops. `ResearchConsentState.blanketConsentWithdrawnAt` records the true→false
+transition. Three properties of it are load-bearing:
+
+- **The store sets it, never a screen.** The consent UI commits a whole `ResearchConsentState` and
+  cannot see a transition; a screen able to write this field could erase the record of the user
+  having said stop by committing a stale snapshot.
+- **It is guarded on the transition, not the value** — the same shape as §6.2.5's analytics
+  teardown, and for the same reason. Withdrawing consent that was never granted stops nothing, and
+  marking it would silently bar an L2 participant from studies they still consent to.
+- **Re-granting L3 clears the condition, not the record.** `blanketConsentWithdrawn` is
+  `blanketConsentWithdrawnAt != nil && !blanketConsentGranted`, so a fresh grant resumes admission
+  while the withdrawal stays in the history.
+
+The dashboards render three postures rather than two for the same reason: telling a withdrawn user
+*"you are asked about each study"* while the gate refuses every study they are sent is the one
+reading that is plainly false.
 
 **Step 6 is why this needed a data-model change and not wiring.** L3 users "still receive per-study
 *engagement* notifications, **not consent requests**" (§6.2), so one study reaches an L2 and an L3

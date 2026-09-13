@@ -1,13 +1,16 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 44 (current)  
+**Revision:** 45 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
 > bear on most conversations and names the file holding the rest. Read a subsidiary file when the
 > task needs it — do not assume a figure or a spec detail is here.
 >
-> **Revision history (Rev 33–44, what changed and why): `docs/reference/claude-md-revision-history.md`.**
+> **Revision history (Rev 33–45, what changed and why): `docs/reference/claude-md-revision-history.md`.**
+> Rev 45 (2026-09-13) made "never asked" and "said stop" distinguishable, so §6.0's *withdrawal
+> stops ALL research data flows* survives the L2 categories a withdrawal leaves ticked (§6.0); no
+> decision changed.
 > Rev 44 (2026-09-10) made the device the last gate on a study descriptor, and split L3's engagement
 > notification from an L2 consent request because silence means the opposite thing in each (§6.2,
 > §6.3); no decision changed.
@@ -333,6 +336,13 @@ NeurOne has **two distinct consent subjects** that must never be conflated:
 - Withdraw from specific study → stops data flows for that study only; app analytics unaffected.
 - Withdraw from specific category → stops data flows for that category; app analytics unaffected.
 - Withdraw blanket research consent (L3) → stops ALL research data flows AND tears down research analytics (`ConsentStore.withdrawBlanketResearchConsent()` calls `revokeResearchAnalytics()`), because blanket withdrawal signals the user does not want any data collection beyond basic device function.
+- **"Never asked" and "said stop" are different states and must stay distinguishable** (Rev 45).
+  `blanketConsentGranted == false` is true of both, so the flag alone cannot carry the rule above:
+  withdrawal does not un-tick the nine L2 categories, and those stale boxes would otherwise keep
+  admitting studies after the user stopped everything. `ResearchConsentState.blanketConsentWithdrawnAt`
+  records the true→false transition — set by the store, never by a screen — and
+  `blanketConsentWithdrawn` outranks L2 at the §6.3 ingestion gate. Re-granting L3 clears it,
+  because that is a fresh decision; the marker itself stays in the record.
 
 ### 6.1 Use case subscription tiers → `docs/reference/commercial-model.md`
 

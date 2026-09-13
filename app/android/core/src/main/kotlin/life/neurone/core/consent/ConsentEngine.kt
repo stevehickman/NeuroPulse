@@ -122,6 +122,16 @@ object ConsentEngine {
             )
         }
 
+        // §6.0: withdrawing blanket consent "stops ALL research data flows" — all of them, not
+        // only the pre-approved ones. Checked before hasAnyResearchConsent, because a withdrawn
+        // user often still *has* consent by that test: withdrawal does not un-tick the nine L2
+        // categories, and those stale checkboxes would otherwise keep admitting studies.
+        if (consent.blanketConsentWithdrawn) {
+            return StudyDescriptorAdmission.Refused(
+                StudyDescriptorAdmission.Reason.RESEARCH_CONSENT_WITHDRAWN,
+            )
+        }
+
         if (!consent.hasAnyResearchConsent) {
             return StudyDescriptorAdmission.Refused(
                 StudyDescriptorAdmission.Reason.NO_RESEARCH_CONSENT,

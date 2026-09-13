@@ -279,9 +279,17 @@ private fun DashboardContent(
 
         // ── Research consent (§6.2) ──────────────────────────────────────
         SectionHeader(stringResource(R.string.dashboard_section_research))
+        // Three postures, not two. "Never asked" and "said stop" both have
+        // blanketConsentGranted == false, so the flag alone would show a withdrawn user the
+        // per-category summary while the ingestion gate refuses every study they are sent (§6.0).
         Text(
-            if (research.blanketConsentGranted) stringResource(R.string.dashboard_blanket_approved)
-            else stringResource(R.string.dashboard_per_category),
+            when {
+                research.blanketConsentGranted ->
+                    stringResource(R.string.dashboard_blanket_approved)
+                research.blanketConsentWithdrawn ->
+                    stringResource(R.string.dashboard_research_stopped)
+                else -> stringResource(R.string.dashboard_per_category)
+            },
             style = MaterialTheme.typography.titleSmall,
         )
         Text(
@@ -317,8 +325,15 @@ private fun DashboardContent(
             )
         }
         if (!research.blanketConsentGranted) {
+            // "You are asked about each study" is simply false after a blanket withdrawal: the
+            // device refuses every descriptor (§6.0). Say what is in force and where to undo it.
+            val withdrawnOn = research.blanketConsentWithdrawnOnDay
             Text(
-                stringResource(R.string.dashboard_posture_asked),
+                if (research.blanketConsentWithdrawn && withdrawnOn != null) {
+                    stringResource(R.string.dashboard_research_stopped_format, withdrawnOn)
+                } else {
+                    stringResource(R.string.dashboard_posture_asked)
+                },
                 style = MaterialTheme.typography.bodySmall,
             )
         } else {

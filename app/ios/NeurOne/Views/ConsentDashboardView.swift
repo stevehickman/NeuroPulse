@@ -204,6 +204,13 @@ struct ConsentDashboardView: View {
                     showBlanketWithdrawConfirmation = true
                 }
                 .font(.subheadline)
+            } else if consentStore.researchConsent.blanketConsentWithdrawn {
+                // "You are asked about each study" is simply false here: the device refuses every
+                // descriptor after a blanket withdrawal (§6.0). The user is told what is in force
+                // and where to undo it.
+                Text(withdrawnNotice)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             } else {
                 Text("DASHBOARD_POSTURE_ASKED")
                     .font(.caption)
@@ -223,12 +230,30 @@ struct ConsentDashboardView: View {
         }
     }
 
+    /// The three research postures the dashboard has to tell apart. "Never asked" and "said stop"
+    /// both have `blanketConsentGranted == false`, so the flag alone would show a withdrawn user
+    /// the per-category summary and promise they will be asked about each study — while the
+    /// ingestion gate refuses every study they are sent (§6.0).
+    private var researchPostureKey: LocalizedStringKey {
+        if consentStore.researchConsent.blanketConsentGranted { return "DASHBOARD_BLANKET_APPROVED" }
+        if consentStore.researchConsent.blanketConsentWithdrawn { return "DASHBOARD_RESEARCH_STOPPED" }
+        return "DASHBOARD_PER_CATEGORY"
+    }
+
+    /// What stopped, when, and where to undo it. The date is the user's own record of a decision
+    /// they made; it is shown to them and goes nowhere else.
+    private var withdrawnNotice: String {
+        guard let withdrawnAt = consentStore.researchConsent.blanketConsentWithdrawnAt else {
+            return String(localized: "DASHBOARD_RESEARCH_STOPPED")
+        }
+        return String(format: String(localized: "DASHBOARD_RESEARCH_STOPPED_FORMAT"),
+                      withdrawnAt.formatted(.dateTime.month().day().year()))
+    }
+
     private var researchConsentSummaryRow: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(consentStore.researchConsent.blanketConsentGranted
-                     ? "DASHBOARD_BLANKET_APPROVED"
-                     : "DASHBOARD_PER_CATEGORY")
+                Text(researchPostureKey)
                     .font(.subheadline.bold())
                 Text(consentStore.researchConsent.contactConsentGranted
                      ? String(format: String(localized: "DASHBOARD_CONTACT_FORMAT"),

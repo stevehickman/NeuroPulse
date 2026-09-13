@@ -346,6 +346,116 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertFalse(invitation.cannotLearn.contains(.sessionTimestamps))
     }
 
+    // MARK: - "Never asked" vs "said stop" (§6.0)
+    //
+    // `blanketConsentGranted == false` is true of a user who never turned L3 on and of one who
+    // turned it off. §6.0 treats them differently — withdrawal "stops ALL research data flows" —
+    // so the flag alone cannot decide admission.
+
+    /// The defect the marker exists to fix. Withdrawal does not un-tick the nine L2 categories, so
+    /// before this a withdrawn user's stale checkboxes kept admitting studies as consent requests —
+    /// research data flows continuing after §6.0 says they all stop.
+    func testWithdrawnBlanketConsentStopsStudiesTheStaleCategoriesWouldStillAdmit() {
+        var consent = blanketConsent
+        consent.setAllCategories(true)
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
+                              consent: consent)
+
+        store.withdrawBlanketResearchConsent()
+        XCTAssertTrue(store.researchConsent.allCategoriesSelected,
+                      "withdrawal deliberately leaves L2 alone; the marker is what must outrank it")
+
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()),
+                       .refused(.researchConsentWithdrawn))
+    }
+
+    /// The other direction: a user who was never asked is not a user who said stop.
+    func testNeverGrantingBlanketConsentLeavesCategoryConsentWorking() {
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
+                              consent: categoryConsent)
+        XCTAssertNil(store.researchConsent.blanketConsentWithdrawnAt)
+
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()),
+                       .admitted(posture: .consentRequest, descriptorHash: descriptorHash))
+    }
+
+    /// Re-granting is a fresh decision, so it clears the condition rather than being outranked.
+    func testReGrantingBlanketConsentResumesAdmission() {
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
+                              consent: blanketConsent)
+        store.withdrawBlanketResearchConsent()
+
+        var regranted = store.researchConsent
+        regranted.blanketConsentGranted = true
+        store.updateResearchConsent(regranted)
+
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()),
+                       .admitted(posture: .engagementNotification, descriptorHash: descriptorHash))
+        XCTAssertNotNil(store.researchConsent.blanketConsentWithdrawnAt,
+                        "the withdrawal stays in the record; it is simply no longer in force")
+    }
+
+    /// The commit path the merged S2 screen actually uses must set the marker too.
+    func testCommitPathWithdrawalSetsTheMarker() {
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
+                              consent: blanketConsent)
+        var withdrawn = store.researchConsent
+        withdrawn.blanketConsentGranted = false
+        store.updateResearchConsent(withdrawn)
+
+        XCTAssertNotNil(store.researchConsent.blanketConsentWithdrawnAt)
+        XCTAssertTrue(store.researchConsent.blanketConsentWithdrawn)
+    }
+
+    /// A category-only edit is not a withdrawal — the §6.2.5 guard shape, applied to the marker.
+    func testCategoryOnlyEditDoesNotSetTheMarker() {
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
+                              consent: categoryConsent)
+        var edited = store.researchConsent
+        edited.setAllCategories(true)
+        store.updateResearchConsent(edited)
+
+        XCTAssertNil(store.researchConsent.blanketConsentWithdrawnAt)
+        XCTAssertFalse(store.researchConsent.blanketConsentWithdrawn)
+    }
+
+    /// The marker is the store's, not the screen's. A UI that commits a stale state — one read
+    /// before the withdrawal — must not erase the record of the user having said stop.
+    func testAStaleCommitCannotClearTheMarker() {
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
+                              consent: blanketConsent)
+        var staleSnapshot = store.researchConsent
+        store.withdrawBlanketResearchConsent()
+
+        staleSnapshot.blanketConsentGranted = false
+        store.updateResearchConsent(staleSnapshot)
+
+        XCTAssertNotNil(store.researchConsent.blanketConsentWithdrawnAt)
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()),
+                       .refused(.researchConsentWithdrawn))
+    }
+
+    /// Withdrawing something never granted stops nothing, so it must not bar an L2 participant.
+    func testWithdrawingBlanketConsentThatWasNeverGrantedDoesNotBarStudies() {
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
+                              consent: categoryConsent)
+        store.withdrawBlanketResearchConsent()
+
+        XCTAssertNil(store.researchConsent.blanketConsentWithdrawnAt)
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()),
+                       .admitted(posture: .consentRequest, descriptorHash: descriptorHash))
+    }
+
+    func testTheWithdrawalMarkerSurvivesAReload() {
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
+                              consent: blanketConsent)
+        store.withdrawBlanketResearchConsent()
+
+        let reloaded = ConsentStore()
+        XCTAssertNotNil(reloaded.researchConsent.blanketConsentWithdrawnAt)
+        XCTAssertTrue(reloaded.researchConsent.blanketConsentWithdrawn)
+    }
+
     /// The §5.3 audit trail names a descriptor. It used to record the literal string "pending",
     /// because there was no descriptor to hash.
     func testTheParticipationRecordCarriesTheDescriptorHash() {

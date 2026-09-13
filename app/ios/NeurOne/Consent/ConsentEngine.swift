@@ -165,6 +165,12 @@ enum ConsentEngine {
               descriptor.dateRoundingDays >= minimumDateRoundingDays
         else { return .refused(.anonymisationBelowFloor) }
 
+        // §6.0: withdrawing blanket consent "stops ALL research data flows" — all of them, not
+        // only the pre-approved ones. Checked before `hasAnyResearchConsent`, because a withdrawn
+        // user often still *has* consent by that test: withdrawal does not un-tick the nine L2
+        // categories, and those stale checkboxes would otherwise keep admitting studies.
+        guard !consent.blanketConsentWithdrawn else { return .refused(.researchConsentWithdrawn) }
+
         guard consent.hasAnyResearchConsent else { return .refused(.noResearchConsent) }
 
         // L1 is the shared precondition for all three delivery paths — per-study invitations,

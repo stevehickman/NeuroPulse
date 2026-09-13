@@ -397,6 +397,128 @@ class ConsentStoreTests {
         )
     }
 
+    // ── "Never asked" vs "said stop" (§6.0) ──────────────────────────────
+    //
+    // `blanketConsentGranted == false` is true of a user who never turned L3 on and of one who
+    // turned it off. §6.0 treats them differently — withdrawal "stops ALL research data flows" —
+    // so the flag alone cannot decide admission.
+
+    /**
+     * The defect the marker exists to fix. Withdrawal does not un-tick the nine L2 categories, so
+     * before this a withdrawn user's stale checkboxes kept admitting studies as consent requests —
+     * research data flows continuing after §6.0 says they all stop.
+     */
+    @Test
+    fun withdrawnBlanketConsentStopsStudiesTheStaleCategoriesWouldStillAdmit() {
+        val (store, _) = ingestingStore(
+            consent = blanketConsent().copy(
+                categoryConsents = ResearchCategory.entries.associateWith { true },
+            ),
+        )
+        store.withdrawBlanketResearchConsent()
+        assertTrue(
+            store.researchConsent.categoryConsents.values.all { it },
+            "withdrawal deliberately leaves L2 alone; the marker is what must outrank it",
+        )
+
+        assertEquals(
+            StudyDescriptorAdmission.Reason.RESEARCH_CONSENT_WITHDRAWN,
+            refusalOf(store.ingestStudyDescriptor(descriptor())),
+        )
+    }
+
+    /** The other direction: a user who was never asked is not a user who said stop. */
+    @Test
+    fun neverGrantingBlanketConsentLeavesCategoryConsentWorking() {
+        val (store, _) = ingestingStore()
+        assertNull(store.researchConsent.blanketConsentWithdrawnOnDay)
+
+        val admission = assertIs<StudyDescriptorAdmission.Admitted>(
+            store.ingestStudyDescriptor(descriptor()),
+        )
+        assertEquals(StudyInvitation.Posture.CONSENT_REQUEST, admission.posture)
+    }
+
+    /** Re-granting is a fresh decision, so it clears the condition rather than being outranked. */
+    @Test
+    fun reGrantingBlanketConsentResumesAdmission() {
+        val (store, _) = ingestingStore(consent = blanketConsent())
+        store.withdrawBlanketResearchConsent()
+        store.updateResearchConsent(store.researchConsent.copy(blanketConsentGranted = true))
+
+        val admission = assertIs<StudyDescriptorAdmission.Admitted>(
+            store.ingestStudyDescriptor(descriptor()),
+        )
+        assertEquals(StudyInvitation.Posture.ENGAGEMENT_NOTIFICATION, admission.posture)
+        assertNotNull(
+            store.researchConsent.blanketConsentWithdrawnOnDay,
+            "the withdrawal stays in the record; it is simply no longer in force",
+        )
+    }
+
+    /** The commit path the merged S2 screen actually uses must set the marker too. */
+    @Test
+    fun commitPathWithdrawalSetsTheMarker() {
+        val (store, _) = ingestingStore(consent = blanketConsent())
+        store.updateResearchConsent(store.researchConsent.copy(blanketConsentGranted = false))
+
+        assertNotNull(store.researchConsent.blanketConsentWithdrawnOnDay)
+        assertTrue(store.researchConsent.blanketConsentWithdrawn)
+    }
+
+    /** A category-only edit is not a withdrawal — the §6.2.5 guard shape, applied to the marker. */
+    @Test
+    fun categoryOnlyEditDoesNotSetTheMarker() {
+        val (store, _) = ingestingStore()
+        store.updateResearchConsent(
+            store.researchConsent.copy(
+                categoryConsents = ResearchCategory.entries.associateWith { true },
+            ),
+        )
+
+        assertNull(store.researchConsent.blanketConsentWithdrawnOnDay)
+        assertFalse(store.researchConsent.blanketConsentWithdrawn)
+    }
+
+    /**
+     * The marker is the store's, not the screen's. A UI that commits a stale state — one read
+     * before the withdrawal — must not erase the record of the user having said stop.
+     */
+    @Test
+    fun aStaleCommitCannotClearTheMarker() {
+        val (store, _) = ingestingStore(consent = blanketConsent())
+        val staleSnapshot = store.researchConsent
+        store.withdrawBlanketResearchConsent()
+
+        store.updateResearchConsent(staleSnapshot.copy(blanketConsentGranted = false))
+
+        assertNotNull(store.researchConsent.blanketConsentWithdrawnOnDay)
+        assertEquals(
+            StudyDescriptorAdmission.Reason.RESEARCH_CONSENT_WITHDRAWN,
+            refusalOf(store.ingestStudyDescriptor(descriptor())),
+        )
+    }
+
+    /** Withdrawing something never granted stops nothing, so it must not bar an L2 participant. */
+    @Test
+    fun withdrawingBlanketConsentThatWasNeverGrantedDoesNotBarStudies() {
+        val (store, _) = ingestingStore()
+        store.withdrawBlanketResearchConsent()
+
+        assertNull(store.researchConsent.blanketConsentWithdrawnOnDay)
+        assertIs<StudyDescriptorAdmission.Admitted>(store.ingestStudyDescriptor(descriptor()))
+    }
+
+    @Test
+    fun theWithdrawalMarkerSurvivesAReload() {
+        val (store, kv) = ingestingStore(consent = blanketConsent())
+        store.withdrawBlanketResearchConsent()
+
+        val reloaded = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()))
+        assertNotNull(reloaded.researchConsent.blanketConsentWithdrawnOnDay)
+        assertTrue(reloaded.researchConsent.blanketConsentWithdrawn)
+    }
+
     /**
      * The §5.3 audit trail names a descriptor. It used to record the literal string "pending",
      * because there was no descriptor to hash.
