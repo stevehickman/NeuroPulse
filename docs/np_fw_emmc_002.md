@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 2
-**Date:** 2026-08-12
+**Revision:** 3
+**Date:** 2026-09-13
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
-**References:** NP-PRIV-REM-001 STEP-01 through STEP-06, STEP-10; NP-PRIV-001 Rev 1 findings CRITICAL-01, HIGH-03, HIGH-04, MEDIUM-04, MEDIUM-05; NP-PRIV-001 Rev 2 finding HIGH-01 (§G, §H); NP-MOD-ID-001 Rev 1 §7, §7.5.1, §A.2–§A.5 (the precedent §H follows); CLAUDE.md §5.1, §5.2, §6.0; `firmware/shdr/`; `ci/shdr/shdr_fleet_schema.sql` Rev E
+**References:** NP-PRIV-REM-001 STEP-01 through STEP-06, STEP-10; NP-PRIV-001 Rev 1 findings CRITICAL-01, HIGH-03, HIGH-04, MEDIUM-04, MEDIUM-05; NP-PRIV-001 Rev 2 finding HIGH-01 (§G, §H); NP-MOD-ID-001 Rev 1 §7, §7.5.1, §A.2–§A.5 (the precedent §H follows); CLAUDE.md §5.1, §5.2, §6.0; **added at Rev 3:** NP-FW-NVRAM-001 Rev 2 §3.3(b), §3.3.1.4, D-22 (the §C.3 correction), NP-FW-EMMC-001 `EMMC-FS-01`; `firmware/shdr/`; `ci/shdr/shdr_fleet_schema.sql` Rev E
 **Related Issues:** —
 **Gate:** —
 **IEC 62304 Class:** SW-02 Class B (main processor)
@@ -134,7 +134,7 @@ Layer 2 — Master Key Wrapper Key (WKMD):
 ### C.3 Config partition UKMD record
 
 ```c
-/* Config partition offset 0x1000 — UKMD record */
+/* Config partition, LittleFS file "ukmd.rec" — UKMD record (Rev 3; see note below) */
 typedef struct {
     uint8_t  ukmd_ciphertext[32];   /* AES-256-GCM(UKMD, WKMD, nonce=ukmd_nonce) */
     uint8_t  ukmd_nonce[12];        /* AES-GCM nonce — random, unique per wrap operation */
@@ -147,6 +147,27 @@ typedef struct {
     uint8_t  reserved[44];          /* Pad to 192 bytes — future use */
 } np_ukmd_record_t;
 ```
+
+> **Rev 3 correction — the record has an address it cannot have, and the code never used it.**
+> This block read *"Config partition offset 0x1000 — UKMD record"* until 2026-09-13. A byte offset
+> into the Config partition names a block that **LittleFS owns and may relocate**: `EMMC-FS-01` gives
+> Config's instance `block_count` 4,096 × `block_size` 4,096 = 16 MiB, which is the whole partition,
+> so there is no space outside the filesystem for an offset to mean anything. Raised as `OI-NVRAM-02`
+> by `NP-FW-NVRAM-001` Rev 1 §3.3(b) and decided by its Rev 2 **D-22**: the record is a **named
+> LittleFS file**.
+>
+> **The correction is provably safe, which is why it is made here rather than deferred.** No code has
+> ever used the offset. `firmware/uhdr_key/src/np_uhdr_key.c` reaches the record through the HAL seams
+> `np_uhdr_hal_config_read_ukmd()` and `np_uhdr_hal_config_write_ukmd()` (`np_uhdr_key.h`), so the
+> address was a specification-side artifact with no implementation depending on it. The struct layout,
+> its 192-byte size, the `NP_UHDR_UKMD_RECORD_SIZE` static assertion and the §C.4 unlock sequence are
+> **unchanged**.
+>
+> The filename is given here because a HAL seam still needs one thing to open, and because leaving it
+> unnamed would reproduce the original defect in a different shape. Companion clause changes to
+> `NP-FW-EMMC-001` `EMMC-CFG-01`/`-02` are raised as `ECR-EMMC-001` (`NP-FW-NVRAM-001` Rev 2 §3.3.1.4)
+> — that document is a `.docx` and is not edited here (`OI-CONV-04`).
+
 
 ### C.4 UKMD unlock sequence (on app foreground)
 
@@ -915,3 +936,4 @@ Open items created by this document:
 | OI-EMMC2-12 | **Enrolment, withdrawal and programme-close copy for §H — BLOCKING before any device is offered enrolment.** Must state: what is collected (a coarsened impact histogram, per gap); what is not (no orientation, no per-event values, no clock, no record of who was handling it); that a drop does not require the device to be worn, so the profile is frequently not the wearer's; that already-trained models cannot be un-trained; that safety is unaffected either way; and that collection ends by itself. Follows `NP-MOD-ID-001` Appendix A. Requires legal review. **Also requires the `NP-PRIV-NOTICE-001` §2 claim to be scoped first** — consent text that contradicts the standing privacy notice is not informed consent (the same ordering `NP-MOD-ID-001` OI-MODID-08 sets) | **BLOCKING — before any enrolment is offered** |
 | OI-EMMC2-13 | **RECOMMENDED, NOT ADOPTED — a general derivation-parameter provenance rule.** The §G bootstrapping defect is one instance of a class: roughly thirty derived boolean flags fleet-wide, each computed from a threshold frozen before any fleet existed, none recording its parameter's provenance or what would falsify it. CLAUDE.md §5.2's Phase 2 "fleet-trained LSTM on HDR sensor trajectories" needs trajectories those flags do not carry. A standing rule — every derived SHDR field records provenance, falsifier, and the sanctioned evidence channel, or is marked explicitly unvalidatable and non-retunable — would address the class. Deliberately not adopted here: materially wider than the decision authorising §H | Principal decision |
 | OI-EMMC2-14 | **§G provenance discrepancy.** The Rev 1 front matter cited "NP-PRIV-001 Rev 2 finding MEDIUM-06" while §G.1 cited "Rev 2 HIGH-01 (originally Rev 1 HIGH-01)". Rev 2 aligns on HIGH-01, which is the finding the §H decision was taken against; whether MEDIUM-06 is a separate finding also touching §G is not established | Documentation consistency; not tooling-blocking |
+| 3 | 2026-09-13 | **§C.3's UKMD record address corrected — it named a byte offset the filesystem owns.** The block read *"Config partition offset 0x1000"*; `EMMC-FS-01` mounts LittleFS over all 4,096 blocks of the 16 MiB Config partition, so no offset inside it is stable and the address could never have been honoured. Raised as `OI-NVRAM-02` by `NP-FW-NVRAM-001` Rev 1 §3.3(b), decided by its Rev 2 **D-22**: the record becomes a **named LittleFS file**, `ukmd.rec`. **No code changed and none could have**: `np_uhdr_key.c` has always reached the record through `np_uhdr_hal_config_read_ukmd()`/`_write_ukmd()`, so the offset was a specification-side artifact only — which is why the correction is made here rather than deferred with the `NP-FW-EMMC-001` clause changes, which are a `.docx` edit raised as `ECR-EMMC-001`. Struct layout, 192-byte size, the `NP_UHDR_UKMD_RECORD_SIZE` static assertion and the §C.4 unlock sequence are unchanged; no privacy, classification or safety claim in §A–§H is affected. Rev 2 → 3. |

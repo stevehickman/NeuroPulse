@@ -1,9 +1,11 @@
 /*
  * NeurOne Hub Protocol Compiler
- * Document: NP-FW-HUB-001 Rev 1 — ⚠ registered but NOT WRITTEN. docs/np_fw_hub_001.md
- *           does not exist; the firmware in firmware/hub_control/ is its only
- *           description, so treat that code (not a spec) as the wire-format
- *           authority this compiler must match. Tracked as OI-DOC-01.
+ * Document: NP-FW-HUB-001 Rev 1 §4 (docs/np_fw_hub_001.md) — the wire format of
+ *           record, authored 2026-09-13 against firmware/hub_control/ and closing
+ *           OI-DOC-01. Where this compiler and §4 disagree, §4 and np_protocol.c
+ *           are the same artifact seen twice and the compiler is wrong
+ *           (REQ-FWHUB-08). No mechanical check enforces the agreement yet —
+ *           OI-FWHUB-03.
  *
  * Converts an NPProtocolDefinition (high-level modality params + timing) into
  * the binary wire format consumed by the hub firmware (np_protocol.c).

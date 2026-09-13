@@ -178,11 +178,25 @@
  * NP_HEXMAP_NVRAM_MAX_BYTES bounds any serialize buffer and the Config-partition
  * region the map is stored in.
  *
- * At MAX_SOCKETS 128 this is 8 + 128*139 + 4 = 17,804 bytes (17.4 KiB), up from
- * 8,908 (8.7 KiB) at 64. The Config/Calibration partition is 16 MiB
- * (NP_CONFIG_SIZE_LBA, firmware/bootloader/include/np_config.h:75-76), so the
- * blob occupies ~0.1% of it and sits alongside the UKMD record at offset 0x1000
- * (192 bytes), the warranty token, and the TRNG salt with no contention. */
+ * REC_BYTES = UID_LEN(8) + present/health/count(3) + MAX_ELEMENTS(128) +
+ * CAL_BYTES(36) = 175, so blob(n) = 8 + n*175 + 4:
+ *
+ *   blob(80)  = 14,012 bytes  <- the shipped lattice
+ *   blob(128) = 22,412 bytes  <- NP_HEXMAP_NVRAM_MAX_BYTES, the addressing ceiling
+ *
+ * These are the values the macros below compute and the tests assert.  This
+ * comment carried the v2 figures (139/socket, 17,804 bytes) for one revision
+ * after the v3 calibration payload landed -- stale in the header an integrator
+ * sizes the partition region from (OI-NVRAM-11, closed 2026-09-13).
+ *
+ * The Config/Calibration partition is 16 MiB (NP_CONFIG_SIZE_LBA,
+ * firmware/bootloader/include/np_config.h:75-76), so the blob occupies ~0.08% of
+ * it and sits alongside the UKMD record, the warranty token and the TRNG salt
+ * with no contention.  All four are LittleFS FILES: EMMC-FS-01 mounts LittleFS
+ * over all 4,096 blocks, so nothing on this partition has a stable byte offset.
+ * This comment said the UKMD record lived "at offset 0x1000" until NP-FW-NVRAM-001
+ * Rev 2 D-22 retired that address (NP-FW-EMMC-002 Rev 3 §C.3).  The binding
+ * per-file bound is LittleFS file_max = 65,536 B, not the partition size. */
 #define NP_HEXMAP_HDR_BYTES   8u    /* magic(4) + version(2) + n_sockets(2)          */
 
 /* ── UID-keyed PBM dose-metering calibration (OI-HUB-C06) ─────────────────────
