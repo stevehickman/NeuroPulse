@@ -12,6 +12,19 @@ enum class ClinicianUseCaseTier(val displayName: String, val monthlyPrice: Strin
     FULL_CLINICAL("Full Clinical", "$299/month/patient"),
     RESEARCH("Research", "$599/month/study");
 
+    /**
+     * Ordering for "does this tier reach that one". Not [ordinal], which silently re-ranks if a
+     * case is reordered or inserted, and not `uhdrElements.size`, which puts [RESEARCH] — empty
+     * by design — below [MONITOR]. Must match iOS `ClinicianUseCaseTier.rank`.
+     */
+    val rank: Int
+        get() = when (this) {
+            MONITOR -> 0
+            ASSESS -> 1
+            FULL_CLINICAL -> 2
+            RESEARCH -> 3
+        }
+
     // Minimum necessary UHDR elements for this tier — must match iOS mapping.
     val uhdrElements: Set<UHDRElement>
         get() = when (this) {
@@ -99,15 +112,31 @@ data class ClinicianConsentGrant(
      * Read it through [effectiveScopes], never directly.
      */
     val accessScopes: List<ClinicianAccessScope>? = null,
+    /**
+     * The use cases the user actually consented to ([life.neurone.core.consent.ConsentEngine]
+     * library IDs).
+     *
+     * §6.1's principle is that *clinicians select use cases, never data elements*, so this is the
+     * record of what was asked in the user's own terms. It is **not** what decides access —
+     * [accessScopes] is, and it carries the elements as derived on the day of the grant. Keeping
+     * both means a later edit to the library cannot reach backwards into a grant already made,
+     * and a grant can still be explained in the words it was granted in.
+     *
+     * Null for a grant written before `OI-CONSENT-04`, the same "never went through it"
+     * convention [accessScopes] uses.
+     */
+    val useCaseIds: List<String>? = null,
 ) {
     /**
      * The scopes as decided, or the pre-workflow equivalent for a grant that has none: the
      * tier's elements, effective from the grant day, with prior data included.
      *
      * That fallback is deliberately what a bare [tier] has always meant, so introducing the
-     * workflow does not silently re-scope an existing grant. Whether an *initial* grant should
-     * default to prior data at all is a real question, and a separate one from expansion —
-     * `OI-CONSENT-06`.
+     * workflow does not silently re-scope an existing grant. It is now reached only by grants
+     * written before `OI-CONSENT-04`/`-06`: every grant the form makes today carries an explicit
+     * initial scope, whose `includesPriorData` is the user's own answer rather than this
+     * fallback's. The fallback stays because those earlier grants still have to mean what they
+     * meant when they were made.
      */
     val effectiveScopes: List<ClinicianAccessScope>
         get() = accessScopes ?: listOf(

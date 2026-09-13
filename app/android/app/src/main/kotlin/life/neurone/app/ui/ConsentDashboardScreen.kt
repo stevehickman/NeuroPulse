@@ -996,9 +996,20 @@ private fun ElementListBlock(heading: String, elements: Set<UHDRElement>) {
 /**
  * New clinician grant — port of iOS NewClinicianGrantView.
  *
- * §6.1's principle is that the user consents to a use case and the system derives the
- * minimum necessary UHDR elements, so the tier's derived can-see / cannot-see lists are
- * shown before the grant is made rather than left to be discovered on the dashboard.
+ * §6.1's initial-grant flow, in two steps for the same reason the expansion flow is in two:
+ * *retroactive and prospective access are always presented as separate decisions*.
+ *
+ * **Step 1 — what.** Name, organisation, tier, and the use cases. §6.1's principle is that the
+ * user consents to a use case and the system derives the minimum necessary UHDR elements, so the
+ * picker decides the grant (`OI-CONSENT-04`) and the can-see / cannot-see lists below it are the
+ * live consequence of the selection. This screen previously showed those lists derived from the
+ * **tier**, because iOS collected a use-case selection and dropped it; with the selection
+ * load-bearing on both platforms, the library is ported and the lists follow it.
+ *
+ * **Step 2 — how far back.** The history question, asked afterwards and on its own, with both
+ * answers as buttons of equal weight (`OI-CONSENT-06`). It used to not be asked at all: a grant
+ * with no scopes falls back to *the tier's elements, from the grant day, prior data included* —
+ * one answer to a question nobody put.
  */
 @Composable
 private fun NewClinicianGrantScreen(
@@ -1009,9 +1020,47 @@ private fun NewClinicianGrantScreen(
     var name by remember { mutableStateOf("") }
     var organization by remember { mutableStateOf("") }
     var tier by remember { mutableStateOf(ClinicianUseCaseTier.MONITOR) }
+    var selectedUseCaseIds by remember { mutableStateOf(emptySet<String>()) }
+    var askingHistory by remember { mutableStateOf(false) }
 
-    val approved = tier.uhdrElements
+    val availableUseCases = ConsentEngine.useCasesAvailableFor(tier)
+    // The scope the grant would carry. Built with includesPriorData = false only to read its
+    // element set; the real answer arrives on step 2 and is what the committed scope carries.
+    val approved = ConsentEngine.initialAccessScope(
+        selectedUseCaseIds = selectedUseCaseIds,
+        tier = tier,
+        grantedAtDay = LocalDate.now().toString(),
+        includesPriorData = false,
+    ).elements
     val withheld = UHDRElement.entries.filterNot { it in approved }.toSet()
+    // The Research tier has no library to pick from — its elements are IRB-defined per study
+    // descriptor (§6.3) — so it is the one tier a grant may be made at with nothing selected.
+    val canProceed = name.isNotBlank() && organization.isNotBlank() &&
+        (tier == ClinicianUseCaseTier.RESEARCH || selectedUseCaseIds.isNotEmpty())
+
+    fun commit(includePriorData: Boolean) {
+        val today = LocalDate.now().toString()
+        onGrant(
+            ClinicianConsentGrant(
+                id = UUID.randomUUID().toString(),
+                clinicianName = name.trim(),
+                clinicianOrganization = organization.trim(),
+                tier = tier,
+                grantedAtDay = today,
+                expiresAtDay = null,
+                isActive = true,
+                accessScopes = listOf(
+                    ConsentEngine.initialAccessScope(
+                        selectedUseCaseIds = selectedUseCaseIds,
+                        tier = tier,
+                        grantedAtDay = today,
+                        includesPriorData = includePriorData,
+                    ),
+                ),
+                useCaseIds = selectedUseCaseIds.sorted(),
+            ),
+        )
+    }
 
     Column(
         modifier = modifier
@@ -1026,24 +1075,27 @@ private fun NewClinicianGrantScreen(
         ) {
             TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) }
             Text(stringResource(R.string.clinician_grant_title), style = MaterialTheme.typography.titleMedium)
-            Button(
-                onClick = {
-                    onGrant(
-                        ClinicianConsentGrant(
-                            id = UUID.randomUUID().toString(),
-                            clinicianName = name.trim(),
-                            clinicianOrganization = organization.trim(),
-                            tier = tier,
-                            grantedAtDay = LocalDate.now().toString(),
-                            expiresAtDay = null,
-                            isActive = true,
-                        ),
-                    )
-                },
-                enabled = name.isNotBlank() && organization.isNotBlank(),
-            ) { Text(stringResource(R.string.clinician_grant_button)) }
+            if (askingHistory) {
+                TextButton(onClick = { askingHistory = false }) {
+                    Text(stringResource(R.string.common_back))
+                }
+            } else {
+                Button(
+                    onClick = { askingHistory = true },
+                    enabled = canProceed,
+                ) { Text(stringResource(R.string.clinician_grant_continue_button)) }
+            }
         }
         Spacer(Modifier.height(16.dp))
+
+        if (askingHistory) {
+            ClinicianGrantHistoryStep(
+                clinicianName = name.trim(),
+                approved = approved,
+                onDecide = ::commit,
+            )
+            return@Column
+        }
 
         SectionHeader(stringResource(R.string.clinician_grant_section_details))
         OutlinedTextField(
@@ -1068,7 +1120,16 @@ private fun NewClinicianGrantScreen(
                 Modifier.fillMaxWidth().padding(vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                RadioButton(selected = tier == candidate, onClick = { tier = candidate })
+                RadioButton(
+                    selected = tier == candidate,
+                    onClick = {
+                        tier = candidate
+                        // Drop any selection the new ceiling cannot carry, rather than keeping it
+                        // hidden and live.
+                        val offered = ConsentEngine.useCasesAvailableFor(candidate).map { it.id }.toSet()
+                        selectedUseCaseIds = selectedUseCaseIds intersect offered
+                    },
+                )
                 Text(
                     stringResource(
                         R.string.clinician_grant_tier_format,
@@ -1079,22 +1140,125 @@ private fun NewClinicianGrantScreen(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
-        Text(stringResource(R.string.clinician_grant_can_see_heading), fontWeight = FontWeight.Medium)
-        if (approved.isEmpty()) {
-            // The Research tier's element set is IRB-defined per study descriptor, not
-            // derivable from the tier — saying "nothing" would be wrong in both directions.
+        Spacer(Modifier.height(20.dp))
+        SectionHeader(stringResource(R.string.clinician_grant_section_use_cases))
+        if (tier == ClinicianUseCaseTier.RESEARCH) {
             Text(
                 stringResource(R.string.clinician_grant_research_tier_note),
                 style = MaterialTheme.typography.bodySmall,
             )
         } else {
-            Text(elementList(approved), style = MaterialTheme.typography.bodySmall)
+            Text(
+                stringResource(R.string.clinician_grant_use_cases_footer),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            for (useCase in availableUseCases) {
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = useCase.id in selectedUseCaseIds,
+                        onCheckedChange = { checked ->
+                            selectedUseCaseIds = if (checked) {
+                                selectedUseCaseIds + useCase.id
+                            } else {
+                                selectedUseCaseIds - useCase.id
+                            }
+                        },
+                    )
+                    Column {
+                        Text(useCaseTitle(useCase.id), style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            useCaseDescription(useCase.id),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            SectionHeader(stringResource(R.string.clinician_grant_section_document))
+            Text(stringResource(R.string.clinician_grant_can_see_heading), fontWeight = FontWeight.Medium)
+            Text(
+                if (approved.isEmpty()) {
+                    stringResource(R.string.clinician_grant_can_see_none)
+                } else {
+                    elementList(approved)
+                },
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(R.string.clinician_grant_cannot_see_heading), fontWeight = FontWeight.Medium)
+            Text(elementList(withheld), style = MaterialTheme.typography.bodySmall)
         }
-        Spacer(Modifier.height(8.dp))
-        Text(stringResource(R.string.clinician_grant_cannot_see_heading), fontWeight = FontWeight.Medium)
-        Text(elementList(withheld), style = MaterialTheme.typography.bodySmall)
     }
+}
+
+/**
+ * The retroactive decision. Both answers are buttons of equal weight and neither is preselected —
+ * the same shape [ClinicianExpansionRequestScreen]'s history step uses, because it is the same
+ * question and §6.1 does not distinguish the two occasions it is asked on.
+ */
+@Composable
+private fun ClinicianGrantHistoryStep(
+    clinicianName: String,
+    approved: Set<UHDRElement>,
+    onDecide: (Boolean) -> Unit,
+) {
+    Text(stringResource(R.string.clinician_grant_can_see_heading), fontWeight = FontWeight.Medium)
+    Text(
+        if (approved.isEmpty()) {
+            stringResource(R.string.clinician_grant_can_see_none)
+        } else {
+            elementList(approved)
+        },
+        style = MaterialTheme.typography.bodySmall,
+    )
+    Spacer(Modifier.height(20.dp))
+    Text(
+        stringResource(R.string.clinician_grant_history_heading),
+        style = MaterialTheme.typography.titleSmall,
+    )
+    Spacer(Modifier.height(4.dp))
+    Text(
+        stringResource(R.string.clinician_grant_history_body, clinicianName),
+        style = MaterialTheme.typography.bodyMedium,
+    )
+    Spacer(Modifier.height(16.dp))
+    OutlinedButton(
+        onClick = { onDecide(false) },
+        modifier = Modifier.fillMaxWidth(),
+    ) { Text(stringResource(R.string.clinician_grant_history_forward_only_button)) }
+    Spacer(Modifier.height(8.dp))
+    OutlinedButton(
+        onClick = { onDecide(true) },
+        modifier = Modifier.fillMaxWidth(),
+    ) { Text(stringResource(R.string.clinician_grant_history_include_button)) }
+}
+
+/**
+ * Use-case key → resource, spelled out rather than resolved by name at runtime.
+ *
+ * `:core` carries the key because it cannot reference `R.string` (ISC-2..4), and an identifier
+ * lookup here would put the mapping beyond `check-locale-strings.ts`, which scans for literal
+ * `R.string.*` references. A `when` over a three-entry library keeps every key visible to the gate
+ * and turns a missing one into a compile error rather than a blank label.
+ */
+@Composable
+private fun useCaseTitle(id: String): String = when (id) {
+    "adherence_monitoring" -> stringResource(R.string.clinician_usecase_adherence_monitoring_name)
+    "eeg_review" -> stringResource(R.string.clinician_usecase_eeg_review_name)
+    "hrv_outcomes" -> stringResource(R.string.clinician_usecase_hrv_outcomes_name)
+    else -> id
+}
+
+@Composable
+private fun useCaseDescription(id: String): String = when (id) {
+    "adherence_monitoring" -> stringResource(R.string.clinician_usecase_adherence_monitoring_desc)
+    "eeg_review" -> stringResource(R.string.clinician_usecase_eeg_review_desc)
+    "hrv_outcomes" -> stringResource(R.string.clinician_usecase_hrv_outcomes_desc)
+    else -> id
 }
 
 /** Sorted, comma-joined element names — the same shape iOS's DASHBOARD_ACCESS_FORMAT takes. */

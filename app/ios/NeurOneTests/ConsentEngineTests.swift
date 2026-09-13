@@ -215,11 +215,10 @@ final class ConsentEngineTests: XCTestCase {
         XCTAssertEqual(doc.clinicianName, "Dr. Neda Rashidi-Ranjbar",
                        "Generated document must carry the requested clinician name.")
         XCTAssertEqual(doc.tier, .assess)
-        XCTAssertFalse(doc.plainLanguageSummary.isEmpty,
-                       "Plain-language summary must be non-empty.")
-        // Summary should name the clinician and organization.
-        XCTAssertTrue(doc.plainLanguageSummary.contains("Dr. Neda Rashidi-Ranjbar"))
-        XCTAssertTrue(doc.plainLanguageSummary.contains("St. Michael's Hospital"))
+        XCTAssertEqual(doc.organization, "St. Michael's Hospital")
+        XCTAssertEqual(Set(doc.approvedUseCases.map(\.id)),
+                       ["adherence_monitoring", "eeg_review"],
+                       "The document must carry the use cases it was built from.")
 
         // The "cannot see" set must be the complement of the approved set — no overlap, full cover.
         XCTAssertTrue(doc.approvedElements.isDisjoint(with: doc.cannotAccessElements),
@@ -229,5 +228,153 @@ final class ConsentEngineTests: XCTestCase {
             Set(UHDRElement.allCases),
             "Approved ∪ cannot-access must cover every UHDR element exactly once."
         )
+    }
+
+    // MARK: - OI-CONSENT-04: the use-case selection decides the grant
+
+    /// The defect the item was raised about: the form collected a use-case selection and built a
+    /// grant from the tier, so two different answers produced the same access.
+    func testUseCaseSelectionNarrowsAccessBelowTheTierCeiling() {
+        let narrow = ConsentEngine.initialAccessScope(
+            useCaseIDs: ["adherence_monitoring"],
+            tier: .fullClinical,
+            grantedAt: Date(),
+            includesPriorData: false
+        )
+        XCTAssertEqual(narrow.elements, ClinicianUseCaseTier.monitor.uhdrElements,
+                       "One Monitor-level use case must not reach the Full Clinical ceiling.")
+        XCTAssertTrue(narrow.elements.isSubset(of: ClinicianUseCaseTier.fullClinical.uhdrElements))
+        XCTAssertNotEqual(narrow.elements, ClinicianUseCaseTier.fullClinical.uhdrElements,
+                          "Deriving from the tier instead of the selection is the OI-CONSENT-04 defect.")
+    }
+
+    func testUseCasesOfferedAreCappedByTheTier() {
+        XCTAssertEqual(ConsentEngine.useCases(availableFor: .monitor).map(\.id),
+                       ["adherence_monitoring"])
+        XCTAssertEqual(ConsentEngine.useCases(availableFor: .assess).map(\.id),
+                       ["adherence_monitoring", "eeg_review"])
+        XCTAssertEqual(ConsentEngine.useCases(availableFor: .fullClinical).count, 3)
+        // Research is empty rather than everything: its elements are IRB-defined per study
+        // descriptor, and the emptiness must never be read as a set.
+        XCTAssertTrue(ConsentEngine.useCases(availableFor: .research).isEmpty)
+    }
+
+    /// A caller that skips `useCases(availableFor:)` still cannot exceed the ceiling the
+    /// subscription was sold at.
+    func testSelectionAboveTheTierIsClampedNotHonoured() {
+        let scope = ConsentEngine.initialAccessScope(
+            useCaseIDs: ["adherence_monitoring", "hrv_outcomes"],
+            tier: .monitor,
+            grantedAt: Date(),
+            includesPriorData: false
+        )
+        XCTAssertEqual(scope.elements, ClinicianUseCaseTier.monitor.uhdrElements)
+        XCTAssertFalse(scope.elements.contains(.hrvTimeSeries),
+                       "A Full Clinical use case must not deliver HRV through a Monitor grant.")
+    }
+
+    func testResearchTierYieldsNoElementsWhateverIsSelected() {
+        let scope = ConsentEngine.initialAccessScope(
+            useCaseIDs: ["adherence_monitoring", "eeg_review", "hrv_outcomes"],
+            tier: .research,
+            grantedAt: Date(),
+            includesPriorData: true
+        )
+        XCTAssertTrue(scope.elements.isEmpty)
+    }
+
+    /// Every library entry must sit at or above the highest tier its own elements require, or the
+    /// use case promises access its tier cannot carry and the clamp silently removes it.
+    func testEveryUseCaseIsReachableAtItsDeclaredTier() {
+        for useCase in ConsentEngine.useCaseLibrary {
+            XCTAssertTrue(
+                useCase.requiredElements.isSubset(of: useCase.tier.uhdrElements),
+                "\(useCase.id) requires elements its declared tier does not carry."
+            )
+        }
+    }
+
+    // MARK: - OI-CONSENT-06: the two decisions stay apart on an initial grant
+
+    func testInitialScopeCarriesTheRetroactiveAnswerBothWays() {
+        let now = Date()
+        let forwardOnly = ConsentEngine.initialAccessScope(
+            useCaseIDs: ["eeg_review"], tier: .assess, grantedAt: now, includesPriorData: false
+        )
+        let includingHistory = ConsentEngine.initialAccessScope(
+            useCaseIDs: ["eeg_review"], tier: .assess, grantedAt: now, includesPriorData: true
+        )
+        XCTAssertEqual(forwardOnly.elements, includingHistory.elements,
+                       "The history answer must not change WHAT is visible, only from when.")
+        XCTAssertFalse(forwardOnly.includesPriorData)
+        XCTAssertTrue(includingHistory.includesPriorData)
+    }
+
+    /// The point of the item: "widen it going forward, leave my earlier sessions alone" has to be
+    /// representable on a FIRST grant, not only on an expansion.
+    func testForwardOnlyInitialGrantHidesEarlierSessions() {
+        let now = Date()
+        let earlier = now.addingTimeInterval(-86_400)
+        let grant = ClinicianConsentGrant(
+            id: UUID(), clinicianName: "Dr. Ada Okafor", clinicianOrganization: "Bay Clinic",
+            tier: .assess, grantedAt: now,
+            accessScopes: [
+                ConsentEngine.initialAccessScope(
+                    useCaseIDs: ["eeg_review"], tier: .assess,
+                    grantedAt: now, includesPriorData: false
+                )
+            ],
+            useCaseIDs: ["eeg_review"]
+        )
+        XCTAssertTrue(grant.elementsVisible(forDataRecordedAt: earlier).isEmpty,
+                      "A forward-only initial grant must show nothing from before it was made.")
+        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: now), grant.approvedElements)
+        XCTAssertEqual(grant.forwardOnlyElements, grant.approvedElements)
+    }
+
+    /// A grant written before `OI-CONSENT-04`/`-06` keeps meaning what it meant: the tier's
+    /// elements, from the grant date, prior data included.
+    func testPreWorkflowGrantStillFallsBackToTheTier() {
+        let now = Date()
+        let legacy = ClinicianConsentGrant(
+            id: UUID(), clinicianName: "Dr. Ada Okafor", clinicianOrganization: "Bay Clinic",
+            tier: .assess, grantedAt: now
+        )
+        XCTAssertNil(legacy.useCaseIDs)
+        XCTAssertEqual(legacy.approvedElements, ClinicianUseCaseTier.assess.uhdrElements)
+        XCTAssertEqual(
+            legacy.elementsVisible(forDataRecordedAt: now.addingTimeInterval(-86_400)),
+            ClinicianUseCaseTier.assess.uhdrElements,
+            "Introducing the workflow must not silently re-scope a grant made before it."
+        )
+    }
+
+    /// The elements are frozen at grant time, so editing the library cannot reach backwards into
+    /// a grant already made.
+    func testStoredScopeDoesNotTrackTheLibrary() {
+        let now = Date()
+        let grant = ClinicianConsentGrant(
+            id: UUID(), clinicianName: "Dr. Ada Okafor", clinicianOrganization: "Bay Clinic",
+            tier: .fullClinical, grantedAt: now,
+            accessScopes: [
+                ConsentEngine.initialAccessScope(
+                    useCaseIDs: ["adherence_monitoring"], tier: .fullClinical,
+                    grantedAt: now, includesPriorData: false
+                )
+            ],
+            useCaseIDs: ["adherence_monitoring"]
+        )
+        // What the grant reaches comes from its stored scope, never from re-deriving the IDs
+        // against whatever the library says today.
+        XCTAssertEqual(grant.approvedElements, ClinicianUseCaseTier.monitor.uhdrElements)
+    }
+
+    func testTierRankOrdersTheCeilings() {
+        XCTAssertLessThan(ClinicianUseCaseTier.monitor.rank, ClinicianUseCaseTier.assess.rank)
+        XCTAssertLessThan(ClinicianUseCaseTier.assess.rank, ClinicianUseCaseTier.fullClinical.rank)
+        // Research outranks the clinical ladder despite having no elements — ranking by element
+        // count would put it at the bottom.
+        XCTAssertGreaterThan(ClinicianUseCaseTier.research.rank,
+                             ClinicianUseCaseTier.fullClinical.rank)
     }
 }

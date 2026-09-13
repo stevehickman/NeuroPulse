@@ -1,4 +1,3 @@
-// TODO(localization): strings below should use NSLocalizedString — see en.lproj/Localizable.strings
 import Foundation
 
 // Clinical consent engine — CLAUDE.md §6.
@@ -7,40 +6,57 @@ import Foundation
 
 // MARK: - Use case library
 
+/// One plain-language thing a clinician may do with a grant, and the UHDR elements doing it
+/// needs. §6.1's key principle is that this is the unit the user consents to — the elements are
+/// derived from it, never picked directly.
+///
+/// The library carries **keys, not text** (CLAUDE.md §17): the same table is read by Android's
+/// pure-JVM `:core` module, which cannot reference `R.string` at all, so English in the table
+/// would be English no platform could translate. Each platform resolves at the point of render.
 struct ClinicalUseCase: Identifiable {
     var id: String
-    var title: String
-    var description: String
+    /// `CLINICIAN_USECASE_<ID>_NAME` — resolve with `title`, never render this.
+    var titleKey: String
+    /// `CLINICIAN_USECASE_<ID>_DESC` — resolve with `useCaseDescription`.
+    var descriptionKey: String
     var requiredElements: Set<UHDRElement>
+    /// The lowest tier that may select this use case. A use case is offered only at or above it;
+    /// the tier remains the ceiling, and the use cases choose within it.
     var tier: ClinicianUseCaseTier
+
+    /// `stringLiteral:` is the only initialiser `String.LocalizationValue` offers for a value
+    /// that is not written as a literal — the key here comes from the table, by design.
+    var title: String { String(localized: String.LocalizationValue(stringLiteral: titleKey)) }
+    var useCaseDescription: String {
+        String(localized: String.LocalizationValue(stringLiteral: descriptionKey))
+    }
 }
 
 enum ConsentEngine {
 
     // All available clinical use cases — clinicians select from this library.
+    // Must stay identical to Android's `ConsentEngine.useCaseLibrary`: a grant records the IDs it
+    // was made from, and the two platforms read each other's grants.
     static let useCaseLibrary: [ClinicalUseCase] = [
         ClinicalUseCase(
             id: "adherence_monitoring",
-            title: "Adherence Monitoring",
-            description: "Your clinician can see when you completed sessions and which protocols"
-                + " you used. They cannot see your brainwave recordings or physiological signals.",
+            titleKey: "CLINICIAN_USECASE_ADHERENCE_MONITORING_NAME",
+            descriptionKey: "CLINICIAN_USECASE_ADHERENCE_MONITORING_DESC",
             requiredElements: [.sessionTimestamps, .sessionDuration, .protocolParameters],
             tier: .monitor
         ),
         ClinicalUseCase(
             id: "eeg_review",
-            title: "EEG Review",
-            description: "Your clinician can review your brainwave recordings from sessions to"
-                + " assess neurofeedback performance and protocol effectiveness.",
+            titleKey: "CLINICIAN_USECASE_EEG_REVIEW_NAME",
+            descriptionKey: "CLINICIAN_USECASE_EEG_REVIEW_DESC",
             requiredElements: [.eegWaveforms, .neurofeedbackScores, .pbmDoseLogs,
                                .sessionTimestamps, .sessionDuration, .protocolParameters],
             tier: .assess
         ),
         ClinicalUseCase(
             id: "hrv_outcomes",
-            title: "HRV + Outcome Tracking",
-            description: "Your clinician can see your heart rate variability, breathing"
-                + " coherence scores, and any outcomes you've logged. Includes all EEG access.",
+            titleKey: "CLINICIAN_USECASE_HRV_OUTCOMES_NAME",
+            descriptionKey: "CLINICIAN_USECASE_HRV_OUTCOMES_DESC",
             requiredElements: [.eegWaveforms, .neurofeedbackScores, .pbmDoseLogs,
                                .hrvTimeSeries, .ppgOpticalSignal, .closedLoopEvents,
                                .outcomeLogs, .sessionTimestamps, .sessionDuration, .protocolParameters],
@@ -55,7 +71,54 @@ enum ConsentEngine {
             .reduce(into: Set<UHDRElement>()) { $0.formUnion($1.requiredElements) }
     }
 
-    // Generate a plain-language consent document for the selected use cases.
+    /// The use cases a grant at `tier` may be built from: those whose own tier it reaches.
+    ///
+    /// The tier is the ceiling and the subscription — it is what the clinician pays for — and the
+    /// use cases choose within it. Offering one the tier cannot carry would let the user approve
+    /// access the grant then silently clamps away, which is the honesty defect `OI-CONSENT-04` was
+    /// raised about, inverted.
+    ///
+    /// `.research` is deliberately empty rather than everything: its elements are IRB-defined per
+    /// study descriptor (§6.3), not derivable from a library, and the same emptiness
+    /// `accessDifferential` refuses to read as a set must not be read as one here either.
+    static func useCases(availableFor tier: ClinicianUseCaseTier) -> [ClinicalUseCase] {
+        guard tier != .research else { return [] }
+        return useCaseLibrary.filter { $0.tier.rank <= tier.rank }
+    }
+
+    /// The initial grant's access decision (`OI-CONSENT-04` + `OI-CONSENT-06`).
+    ///
+    /// Two things are load-bearing about deriving it here rather than at the point of storage.
+    ///
+    /// **The elements are frozen into the grant, not recomputed from the IDs.** A grant records
+    /// `useCaseIDs` because §6.1 makes the use case the thing the user consented to, but what the
+    /// clinician may see is the element set as it stood that day. Re-deriving it on read would
+    /// mean editing `useCaseLibrary` — adding an element to an existing use case, say — widens
+    /// every grant already made, retroactively, with nobody asked.
+    ///
+    /// **The result is clamped to the tier.** `useCases(availableFor:)` already filters, so the
+    /// intersection is a no-op on any selection the UI can produce; it is here so a caller that
+    /// passes an unfiltered set cannot exceed the ceiling the subscription was sold at.
+    static func initialAccessScope(
+        useCaseIDs: Set<String>,
+        tier: ClinicianUseCaseTier,
+        grantedAt: Date,
+        includesPriorData: Bool
+    ) -> ClinicianAccessScope {
+        let derived = minimumNecessaryElements(for: useCaseIDs)
+        return ClinicianAccessScope(
+            elements: tier == .research ? [] : derived.intersection(tier.uhdrElements),
+            effectiveFrom: grantedAt,
+            includesPriorData: includesPriorData
+        )
+    }
+
+    /// The consent document for an **initial** grant — §6.1's "plain-language document stating
+    /// what the clinician CAN and CANNOT learn", built from the use cases the user picked.
+    ///
+    /// The element sets are clamped to the tier for the reason `initialAccessScope` clamps: what
+    /// this document promises and what the grant then stores must be the same set, or the document
+    /// is describing a grant that will not be made.
     static func consentDocument(
         clinicianName: String,
         organization: String,
@@ -63,7 +126,12 @@ enum ConsentEngine {
         tier: ClinicianUseCaseTier
     ) -> ConsentDocument {
         let selectedCases = useCaseLibrary.filter { selectedUseCaseIDs.contains($0.id) }
-        let elements = minimumNecessaryElements(for: selectedUseCaseIDs)
+        let elements = initialAccessScope(
+            useCaseIDs: selectedUseCaseIDs,
+            tier: tier,
+            grantedAt: Date(),
+            includesPriorData: false
+        ).elements
         let cannotSee = UHDRElement.allCases.filter { !elements.contains($0) }
 
         return ConsentDocument(
@@ -238,6 +306,14 @@ struct ClinicianAccessDifferential {
 
 // MARK: - Consent document
 
+/// What an initial grant would let a clinician see, and what it would not — §6.1's per-element
+/// plain-language document, for the grant the expansion differential's counterpart covers.
+///
+/// It carries **no prose of its own.** It used to: a `plainLanguageSummary` assembled an English
+/// paragraph from the element `rawValue`s, which are the persisted Codable values rather than
+/// display text, and which CLAUDE.md §17 forbids a source file from writing at all. The elements
+/// are the substance; the wording around them belongs to whichever platform renders it — the same
+/// rule `ClinicianAccessDifferential` was built under.
 struct ConsentDocument {
     var clinicianName: String
     var organization: String
@@ -246,21 +322,4 @@ struct ConsentDocument {
     var approvedElements: Set<UHDRElement>
     var cannotAccessElements: Set<UHDRElement>
     var generatedAt: Date
-
-    var plainLanguageSummary: String {
-        let canSee = approvedElements.map(\.rawValue).sorted().joined(separator: "\n• ")
-        let cannot = cannotAccessElements.map(\.rawValue).sorted().joined(separator: "\n• ")
-        return """
-        \(clinicianName) at \(organization) is requesting access to monitor your NeurOne sessions.
-
-        WHAT THEY CAN SEE:
-        • \(canSee.isEmpty ? "Nothing (no consent selected)" : canSee)
-
-        WHAT THEY CANNOT SEE:
-        • \(cannot.isEmpty ? "All elements approved" : cannot)
-
-        Pricing tier: \(tier.monthlyPrice)
-        You can revoke this access at any time from the Consent tab.
-        """
-    }
 }

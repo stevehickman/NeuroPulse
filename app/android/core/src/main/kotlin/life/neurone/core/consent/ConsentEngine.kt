@@ -1,5 +1,6 @@
 package life.neurone.core.consent
 
+import life.neurone.core.models.ClinicianAccessScope
 import life.neurone.core.models.ClinicianConsentGrant
 import life.neurone.core.models.ClinicianUseCaseTier
 import life.neurone.core.models.ResearchConsentState
@@ -10,14 +11,137 @@ import life.neurone.core.models.StudyInvitation
 import life.neurone.core.models.UHDRElement
 
 /**
+ * One plain-language thing a clinician may do with a grant, and the UHDR elements doing it needs.
+ * §6.1's key principle is that this is the unit the user consents to — the elements are derived
+ * from it, never picked directly.
+ *
+ * The library carries **keys, not text** (CLAUDE.md §17). `:core` is a pure-JVM module by design
+ * (ISC-2..4) and cannot reference `R.string` at all, so English here would be English no platform
+ * could translate; the `:app` UI resolves each key at the point of render, and iOS resolves the
+ * same keys through `String(localized:)`.
+ */
+data class ClinicalUseCase(
+    val id: String,
+    /** `CLINICIAN_USECASE_<ID>_NAME` — resolve at render, never display this. */
+    val titleKey: String,
+    /** `CLINICIAN_USECASE_<ID>_DESC` — resolve at render. */
+    val descriptionKey: String,
+    val requiredElements: Set<UHDRElement>,
+    /**
+     * The lowest tier that may select this use case. A use case is offered only at or above it;
+     * the tier remains the ceiling, and the use cases choose within it.
+     */
+    val tier: ClinicianUseCaseTier,
+)
+
+/**
  * Clinical consent engine — CLAUDE.md §6.1. Peer of iOS `Consent/ConsentEngine.swift`.
  *
- * Only the differential document is ported today. iOS's use-case library is not: the Android
- * grant form derives its element lists from the tier directly, and iOS discards its use-case
- * picker's selection when it builds the grant, so porting the library would port a control that
- * decides nothing (recorded when ConsentDashboardScreen landed).
+ * The use-case library is ported as of `OI-CONSENT-04`. It deliberately was not before: iOS
+ * discarded its picker's selection when it built the grant, so porting the library would have
+ * ported a control that decides nothing, and the Android form showed the tier's derived element
+ * lists instead. Now that the selection decides the grant's elements on both platforms, the
+ * library has to be the same table on both — a grant records the use-case IDs it was made from,
+ * and the two platforms read each other's grants.
  */
 object ConsentEngine {
+
+    /**
+     * All available clinical use cases. Must stay identical to iOS `ConsentEngine.useCaseLibrary`
+     * in IDs, element sets and tiers.
+     */
+    val useCaseLibrary: List<ClinicalUseCase> = listOf(
+        ClinicalUseCase(
+            id = "adherence_monitoring",
+            titleKey = "CLINICIAN_USECASE_ADHERENCE_MONITORING_NAME",
+            descriptionKey = "CLINICIAN_USECASE_ADHERENCE_MONITORING_DESC",
+            requiredElements = setOf(
+                UHDRElement.SESSION_TIMESTAMPS, UHDRElement.SESSION_DURATION,
+                UHDRElement.PROTOCOL_PARAMETERS,
+            ),
+            tier = ClinicianUseCaseTier.MONITOR,
+        ),
+        ClinicalUseCase(
+            id = "eeg_review",
+            titleKey = "CLINICIAN_USECASE_EEG_REVIEW_NAME",
+            descriptionKey = "CLINICIAN_USECASE_EEG_REVIEW_DESC",
+            requiredElements = setOf(
+                UHDRElement.EEG_WAVEFORMS, UHDRElement.NEUROFEEDBACK_SCORES,
+                UHDRElement.PBM_DOSE_LOGS, UHDRElement.SESSION_TIMESTAMPS,
+                UHDRElement.SESSION_DURATION, UHDRElement.PROTOCOL_PARAMETERS,
+            ),
+            tier = ClinicianUseCaseTier.ASSESS,
+        ),
+        ClinicalUseCase(
+            id = "hrv_outcomes",
+            titleKey = "CLINICIAN_USECASE_HRV_OUTCOMES_NAME",
+            descriptionKey = "CLINICIAN_USECASE_HRV_OUTCOMES_DESC",
+            requiredElements = setOf(
+                UHDRElement.EEG_WAVEFORMS, UHDRElement.NEUROFEEDBACK_SCORES,
+                UHDRElement.PBM_DOSE_LOGS, UHDRElement.HRV_TIME_SERIES,
+                UHDRElement.PPG_OPTICAL_SIGNAL, UHDRElement.CLOSED_LOOP_EVENTS,
+                UHDRElement.OUTCOME_LOGS, UHDRElement.SESSION_TIMESTAMPS,
+                UHDRElement.SESSION_DURATION, UHDRElement.PROTOCOL_PARAMETERS,
+            ),
+            tier = ClinicianUseCaseTier.FULL_CLINICAL,
+        ),
+    )
+
+    /** Minimum necessary UHDR elements for a set of selected use cases (§6.1). */
+    fun minimumNecessaryElements(selectedUseCaseIds: Set<String>): Set<UHDRElement> =
+        useCaseLibrary
+            .filter { it.id in selectedUseCaseIds }
+            .flatMap { it.requiredElements }
+            .toSet()
+
+    /**
+     * The use cases a grant at [tier] may be built from: those whose own tier it reaches.
+     *
+     * The tier is the ceiling and the subscription — it is what the clinician pays for — and the
+     * use cases choose within it. Offering one the tier cannot carry would let the user approve
+     * access the grant then silently clamps away, which is the honesty defect `OI-CONSENT-04` was
+     * raised about, inverted.
+     *
+     * [ClinicianUseCaseTier.RESEARCH] is deliberately empty rather than everything: its elements
+     * are IRB-defined per study descriptor (§6.3), not derivable from a library, and the same
+     * emptiness [accessDifferential] refuses to read as a set must not be read as one here either.
+     */
+    fun useCasesAvailableFor(tier: ClinicianUseCaseTier): List<ClinicalUseCase> =
+        if (tier == ClinicianUseCaseTier.RESEARCH) {
+            emptyList()
+        } else {
+            useCaseLibrary.filter { it.tier.rank <= tier.rank }
+        }
+
+    /**
+     * The initial grant's access decision (`OI-CONSENT-04` + `OI-CONSENT-06`).
+     *
+     * Two things are load-bearing about deriving it here rather than at the point of storage.
+     *
+     * **The elements are frozen into the grant, not recomputed from the IDs.** A grant records its
+     * use-case IDs because §6.1 makes the use case the thing the user consented to, but what the
+     * clinician may see is the element set as it stood that day. Re-deriving it on read would mean
+     * editing [useCaseLibrary] — adding an element to an existing use case, say — widens every
+     * grant already made, retroactively, with nobody asked.
+     *
+     * **The result is clamped to the tier.** [useCasesAvailableFor] already filters, so the
+     * intersection is a no-op on any selection the UI can produce; it is here so a caller that
+     * passes an unfiltered set cannot exceed the ceiling the subscription was sold at.
+     */
+    fun initialAccessScope(
+        selectedUseCaseIds: Set<String>,
+        tier: ClinicianUseCaseTier,
+        grantedAtDay: String,
+        includesPriorData: Boolean,
+    ): ClinicianAccessScope = ClinicianAccessScope(
+        elements = if (tier == ClinicianUseCaseTier.RESEARCH) {
+            emptySet()
+        } else {
+            minimumNecessaryElements(selectedUseCaseIds) intersect tier.uhdrElements
+        },
+        effectiveFromDay = grantedAtDay,
+        includesPriorData = includesPriorData,
+    )
 
     /**
      * The §6.1 **differential consent document** for widening an existing grant: what the change

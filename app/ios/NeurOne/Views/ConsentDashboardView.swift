@@ -760,6 +760,20 @@ struct ClinicianExpansionRequestView: View {
     }
 }
 
+/// §6.1's initial-grant flow, in two steps for the same reason the expansion flow is in two:
+/// *retroactive and prospective access are always presented as separate decisions*.
+///
+/// **Step 1 — what.** Name, organisation, tier, and the use cases. The use-case selection is what
+/// the grant is built from (`OI-CONSENT-04`): the form used to collect it and drop it on the floor,
+/// deriving access from the tier alone, so the user answered a question §6.1 makes load-bearing and
+/// the answer changed nothing. The document below the picker is the live consequence of the
+/// selection, so what the user is about to grant is on screen before they grant it.
+///
+/// **Step 2 — how far back.** The history question, asked afterwards and on its own, with both
+/// answers as buttons of equal weight (`OI-CONSENT-06`). It used to not be asked at all: a grant
+/// with no scopes falls back to *the tier's elements, from the grant date, prior data included* —
+/// one answer to a question nobody put. A checkbox on step 1 would not have fixed that; it presents
+/// one decision with a modifier on it, not two decisions.
 struct NewClinicianGrantView: View {
     @EnvironmentObject private var consentStore: ConsentStore
     @Environment(\.dismiss) private var dismiss
@@ -768,52 +782,200 @@ struct NewClinicianGrantView: View {
     @State private var selectedTier: ClinicianUseCaseTier = .monitor
     @State private var selectedUseCases = Set<String>()
 
+    private enum Step { case scope, history }
+    @State private var step: Step = .scope
+
+    /// The use cases this tier can carry. Changing the tier drops any selection above the new
+    /// ceiling rather than keeping it hidden and live.
+    private var availableUseCases: [ClinicalUseCase] {
+        ConsentEngine.useCases(availableFor: selectedTier)
+    }
+
+    private var document: ConsentDocument {
+        ConsentEngine.consentDocument(
+            clinicianName: name,
+            organization: organization,
+            selectedUseCaseIDs: selectedUseCases,
+            tier: selectedTier
+        )
+    }
+
+    /// The Research tier has no library to pick from — its elements are IRB-defined per study
+    /// descriptor (§6.3) — so it is the one tier a grant may be made at with nothing selected.
+    private var canProceed: Bool {
+        !name.isEmpty && !organization.isEmpty
+            && (selectedTier == .research || !selectedUseCases.isEmpty)
+    }
+
     var body: some View {
         NavigationStack {
-            Form {
-                Section("CLINICIAN_GRANT_SECTION_DETAILS") {
-                    TextField("CLINICIAN_GRANT_NAME_PLACEHOLDER", text: $name)
-                    TextField("CLINICIAN_GRANT_ORG_PLACEHOLDER", text: $organization)
-                }
-                Section("CLINICIAN_GRANT_SECTION_ACCESS") {
-                    Picker("CLINICIAN_GRANT_TIER_PICKER", selection: $selectedTier) {
-                        ForEach(ClinicianUseCaseTier.allCases, id: \.self) { tier in
-                            Text(String(format: String(localized: "CLINICIAN_GRANT_TIER_FORMAT"),
-                                        tier.rawValue, tier.monthlyPrice)).tag(tier)
-                        }
-                    }
-                    .pickerStyle(.inline)
-                }
-                Section("CLINICIAN_GRANT_SECTION_USE_CASES") {
-                    ForEach(ConsentEngine.useCaseLibrary) { useCase in
-                        Toggle(isOn: Binding(
-                            get: { selectedUseCases.contains(useCase.id) },
-                            set: { if $0 { selectedUseCases.insert(useCase.id) } else { selectedUseCases.remove(useCase.id) } }
-                        )) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(useCase.title).font(.subheadline)
-                                Text(useCase.description).font(.caption).foregroundColor(.secondary)
-                            }
-                        }
-                    }
+            Group {
+                switch step {
+                case .scope:   scopeStep
+                case .history: historyStep
                 }
             }
             .navigationTitle("CLINICIAN_GRANT_TITLE")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("COMMON_CANCEL") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("CLINICIAN_GRANT_BUTTON") {
-                        let grant = ClinicianConsentGrant(
-                            id: UUID(), clinicianName: name, clinicianOrganization: organization,
-                            tier: selectedTier, grantedAt: Date(), expiresAt: nil, isActive: true
-                        )
-                        consentStore.grantClinicianAccess(grant)
-                        dismiss()
+                if step == .scope {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("CLINICIAN_GRANT_CONTINUE_BUTTON") { step = .history }
+                            .disabled(!canProceed)
                     }
-                    .disabled(name.isEmpty || organization.isEmpty)
                 }
             }
         }
+    }
+
+    // MARK: - Step 1: what the clinician may do
+
+    private var scopeStep: some View {
+        Form {
+            Section("CLINICIAN_GRANT_SECTION_DETAILS") {
+                TextField("CLINICIAN_GRANT_NAME_PLACEHOLDER", text: $name)
+                TextField("CLINICIAN_GRANT_ORG_PLACEHOLDER", text: $organization)
+            }
+            Section("CLINICIAN_GRANT_SECTION_ACCESS") {
+                Picker("CLINICIAN_GRANT_TIER_PICKER", selection: $selectedTier) {
+                    ForEach(ClinicianUseCaseTier.allCases, id: \.self) { tier in
+                        Text(String(format: String(localized: "CLINICIAN_GRANT_TIER_FORMAT"),
+                                    tier.rawValue, tier.monthlyPrice)).tag(tier)
+                    }
+                }
+                .pickerStyle(.inline)
+                .onChange(of: selectedTier) { _, _ in
+                    let offered = Set(availableUseCases.map(\.id))
+                    selectedUseCases.formIntersection(offered)
+                }
+            }
+            if selectedTier == .research {
+                Section("CLINICIAN_GRANT_SECTION_USE_CASES") {
+                    Text("CLINICIAN_GRANT_RESEARCH_TIER_NOTE")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            } else {
+                Section {
+                    ForEach(availableUseCases) { useCase in
+                        Toggle(isOn: Binding(
+                            get: { selectedUseCases.contains(useCase.id) },
+                            set: { if $0 { selectedUseCases.insert(useCase.id) } else { selectedUseCases.remove(useCase.id) } }
+                        )) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(useCase.title).font(.subheadline)
+                                Text(useCase.useCaseDescription).font(.caption).foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("CLINICIAN_GRANT_SECTION_USE_CASES")
+                } footer: {
+                    Text("CLINICIAN_GRANT_USE_CASES_FOOTER").font(.caption)
+                }
+                consentDocumentSection
+            }
+        }
+    }
+
+    /// §6.1's plain-language document, rendered live from the selection rather than after the
+    /// fact: *the system derives the minimum necessary UHDR elements*, and the user should be able
+    /// to see what that came to before they agree to it.
+    private var consentDocumentSection: some View {
+        Section {
+            grantElementList("CLINICIAN_GRANT_CAN_SEE_HEADING", document.approvedElements,
+                             icon: "checkmark.circle.fill", color: .green,
+                             emptyKey: "CLINICIAN_GRANT_CAN_SEE_NONE")
+            grantElementList("CLINICIAN_GRANT_CANNOT_SEE_HEADING", document.cannotAccessElements,
+                             icon: "xmark.circle.fill", color: .secondary,
+                             emptyKey: "CLINICIAN_GRANT_CANNOT_SEE_NONE")
+        } header: {
+            Text("CLINICIAN_GRANT_SECTION_DOCUMENT")
+        }
+    }
+
+    private func grantElementList(
+        _ heading: LocalizedStringKey,
+        _ elements: Set<UHDRElement>,
+        icon: String,
+        color: Color,
+        emptyKey: LocalizedStringKey
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(heading).font(.subheadline.bold())
+            if elements.isEmpty {
+                Text(emptyKey).font(.caption).foregroundColor(.secondary)
+            } else {
+                ForEach(elements.map(\.displayName).sorted(), id: \.self) { element in
+                    Label(element, systemImage: icon)
+                        .font(.caption)
+                        .foregroundColor(color)
+                }
+            }
+        }
+    }
+
+    // MARK: - Step 2: how far back it reaches
+
+    /// The retroactive decision. Both answers are buttons of equal weight and neither is
+    /// preselected — the same shape `ClinicianExpansionRequestView.historyStep` uses, because it is
+    /// the same question and §6.1 does not distinguish the two occasions.
+    private var historyStep: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(String(format: String(localized: "CLINICIAN_GRANT_HISTORY_HEADER_FORMAT"),
+                                name, organization))
+                        .font(.title3.bold())
+                    Text(String(format: String(localized: "CLINICIAN_GRANT_TIER_FORMAT"),
+                                selectedTier.rawValue, selectedTier.monthlyPrice))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                grantElementList("CLINICIAN_GRANT_CAN_SEE_HEADING", document.approvedElements,
+                                 icon: "checkmark.circle.fill", color: .green,
+                                 emptyKey: "CLINICIAN_GRANT_CAN_SEE_NONE")
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("CLINICIAN_GRANT_HISTORY_HEADING").font(.headline)
+                    Text(String(format: String(localized: "CLINICIAN_GRANT_HISTORY_BODY"), name))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                VStack(spacing: 12) {
+                    Button("CLINICIAN_GRANT_HISTORY_FORWARD_ONLY_BUTTON") { commit(includePriorData: false) }
+                        .buttonStyle(.bordered)
+                        .frame(maxWidth: .infinity)
+                    Button("CLINICIAN_GRANT_HISTORY_INCLUDE_BUTTON") { commit(includePriorData: true) }
+                        .buttonStyle(.bordered)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .padding()
+        }
+    }
+
+    /// Build the grant from both answers. The scope is derived here, once, and stored — see
+    /// `ConsentEngine.initialAccessScope` for why it is frozen rather than re-derived on read.
+    private func commit(includePriorData: Bool) {
+        let now = Date()
+        let grant = ClinicianConsentGrant(
+            id: UUID(), clinicianName: name, clinicianOrganization: organization,
+            tier: selectedTier, grantedAt: now, expiresAt: nil, isActive: true,
+            accessScopes: [
+                ConsentEngine.initialAccessScope(
+                    useCaseIDs: selectedUseCases,
+                    tier: selectedTier,
+                    grantedAt: now,
+                    includesPriorData: includePriorData
+                )
+            ],
+            useCaseIDs: selectedUseCases
+        )
+        consentStore.grantClinicianAccess(grant)
+        dismiss()
     }
 }

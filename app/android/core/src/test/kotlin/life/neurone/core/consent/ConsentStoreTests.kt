@@ -918,6 +918,239 @@ class ConsentStoreTests {
         assertFalse(store.researchConsent.hasAnyResearchConsent)
     }
 
+    // ── OI-CONSENT-04: the use-case selection decides the grant ──────────────────
+
+    /// The defect the item was raised about: the form collected a use-case selection and built a
+    /// grant from the tier, so two different answers produced the same access.
+    @Test
+    fun useCaseSelectionNarrowsAccessBelowTheTierCeiling() {
+        val narrow = ConsentEngine.initialAccessScope(
+            selectedUseCaseIds = setOf("adherence_monitoring"),
+            tier = ClinicianUseCaseTier.FULL_CLINICAL,
+            grantedAtDay = LocalDate.now().toString(),
+            includesPriorData = false,
+        )
+        assertEquals(ClinicianUseCaseTier.MONITOR.uhdrElements, narrow.elements)
+        assertTrue(ClinicianUseCaseTier.FULL_CLINICAL.uhdrElements.containsAll(narrow.elements))
+        assertFalse(narrow.elements == ClinicianUseCaseTier.FULL_CLINICAL.uhdrElements)
+    }
+
+    @Test
+    fun useCasesOfferedAreCappedByTheTier() {
+        assertEquals(
+            listOf("adherence_monitoring"),
+            ConsentEngine.useCasesAvailableFor(ClinicianUseCaseTier.MONITOR).map { it.id },
+        )
+        assertEquals(
+            listOf("adherence_monitoring", "eeg_review"),
+            ConsentEngine.useCasesAvailableFor(ClinicianUseCaseTier.ASSESS).map { it.id },
+        )
+        assertEquals(3, ConsentEngine.useCasesAvailableFor(ClinicianUseCaseTier.FULL_CLINICAL).size)
+        // Research is empty rather than everything: its elements are IRB-defined per study
+        // descriptor, and the emptiness must never be read as a set.
+        assertTrue(ConsentEngine.useCasesAvailableFor(ClinicianUseCaseTier.RESEARCH).isEmpty())
+    }
+
+    /// A caller that skips [ConsentEngine.useCasesAvailableFor] still cannot exceed the ceiling
+    /// the subscription was sold at.
+    @Test
+    fun selectionAboveTheTierIsClampedNotHonoured() {
+        val scope = ConsentEngine.initialAccessScope(
+            selectedUseCaseIds = setOf("adherence_monitoring", "hrv_outcomes"),
+            tier = ClinicianUseCaseTier.MONITOR,
+            grantedAtDay = LocalDate.now().toString(),
+            includesPriorData = false,
+        )
+        assertEquals(ClinicianUseCaseTier.MONITOR.uhdrElements, scope.elements)
+        assertFalse(UHDRElement.HRV_TIME_SERIES in scope.elements)
+    }
+
+    @Test
+    fun researchTierYieldsNoElementsWhateverIsSelected() {
+        val scope = ConsentEngine.initialAccessScope(
+            selectedUseCaseIds = setOf("adherence_monitoring", "eeg_review", "hrv_outcomes"),
+            tier = ClinicianUseCaseTier.RESEARCH,
+            grantedAtDay = LocalDate.now().toString(),
+            includesPriorData = true,
+        )
+        assertTrue(scope.elements.isEmpty())
+    }
+
+    /// Every library entry must sit at or above the highest tier its own elements require, or the
+    /// use case promises access its tier cannot carry and the clamp silently removes it.
+    @Test
+    fun everyUseCaseIsReachableAtItsDeclaredTier() {
+        for (useCase in ConsentEngine.useCaseLibrary) {
+            assertTrue(
+                useCase.tier.uhdrElements.containsAll(useCase.requiredElements),
+                "${useCase.id} requires elements its declared tier does not carry",
+            )
+        }
+    }
+
+    /// The library is a cross-platform table: a grant records the IDs it was made from, and the
+    /// two platforms read each other's grants. Pins the IDs so a rename on one side is caught.
+    @Test
+    fun theUseCaseLibraryMatchesTheIosTable() {
+        assertEquals(
+            listOf("adherence_monitoring", "eeg_review", "hrv_outcomes"),
+            ConsentEngine.useCaseLibrary.map { it.id },
+        )
+        for (useCase in ConsentEngine.useCaseLibrary) {
+            val upper = useCase.id.uppercase()
+            assertEquals("CLINICIAN_USECASE_${upper}_NAME", useCase.titleKey)
+            assertEquals("CLINICIAN_USECASE_${upper}_DESC", useCase.descriptionKey)
+        }
+    }
+
+    // ── OI-CONSENT-06: the two decisions stay apart on an initial grant ──────────
+
+    @Test
+    fun initialScopeCarriesTheRetroactiveAnswerBothWays() {
+        val today = LocalDate.now().toString()
+        val forwardOnly = ConsentEngine.initialAccessScope(
+            setOf("eeg_review"), ClinicianUseCaseTier.ASSESS, today, includesPriorData = false,
+        )
+        val includingHistory = ConsentEngine.initialAccessScope(
+            setOf("eeg_review"), ClinicianUseCaseTier.ASSESS, today, includesPriorData = true,
+        )
+        // The history answer changes from when, never what.
+        assertEquals(forwardOnly.elements, includingHistory.elements)
+        assertFalse(forwardOnly.includesPriorData)
+        assertTrue(includingHistory.includesPriorData)
+    }
+
+    /// The point of the item: "widen it going forward, leave my earlier sessions alone" has to be
+    /// representable on a FIRST grant, not only on an expansion.
+    @Test
+    fun forwardOnlyInitialGrantHidesEarlierSessions() {
+        val today = LocalDate.now().toString()
+        val yesterday = LocalDate.now().minusDays(1).toString()
+        val grant = grantedYesterday(ClinicianUseCaseTier.ASSESS).copy(
+            grantedAtDay = today,
+            accessScopes = listOf(
+                ConsentEngine.initialAccessScope(
+                    setOf("eeg_review"), ClinicianUseCaseTier.ASSESS, today,
+                    includesPriorData = false,
+                ),
+            ),
+            useCaseIds = listOf("eeg_review"),
+        )
+        assertTrue(grant.elementsVisibleForDataRecordedOn(yesterday).isEmpty())
+        assertEquals(grant.approvedElements, grant.elementsVisibleForDataRecordedOn(today))
+        assertEquals(grant.approvedElements, grant.forwardOnlyElements)
+    }
+
+    /// A grant written before `OI-CONSENT-04`/`-06` keeps meaning what it meant: the tier's
+    /// elements, from the grant day, prior data included.
+    @Test
+    fun preWorkflowGrantStillFallsBackToTheTier() {
+        val legacy = grantedYesterday(ClinicianUseCaseTier.ASSESS)
+        assertNull(legacy.useCaseIds)
+        assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, legacy.approvedElements)
+        assertEquals(
+            ClinicianUseCaseTier.ASSESS.uhdrElements,
+            legacy.elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(30).toString()),
+        )
+    }
+
+    /// The elements are frozen at grant time, so editing the library cannot reach backwards into
+    /// a grant already made.
+    @Test
+    fun storedScopeDoesNotTrackTheLibrary() {
+        val today = LocalDate.now().toString()
+        val grant = grantedYesterday(ClinicianUseCaseTier.FULL_CLINICAL).copy(
+            accessScopes = listOf(
+                ConsentEngine.initialAccessScope(
+                    setOf("adherence_monitoring"), ClinicianUseCaseTier.FULL_CLINICAL, today,
+                    includesPriorData = false,
+                ),
+            ),
+            useCaseIds = listOf("adherence_monitoring"),
+        )
+        assertEquals(ClinicianUseCaseTier.MONITOR.uhdrElements, grant.approvedElements)
+    }
+
+    @Test
+    fun tierRankOrdersTheCeilings() {
+        assertTrue(ClinicianUseCaseTier.MONITOR.rank < ClinicianUseCaseTier.ASSESS.rank)
+        assertTrue(ClinicianUseCaseTier.ASSESS.rank < ClinicianUseCaseTier.FULL_CLINICAL.rank)
+        // Research outranks the clinical ladder despite having no elements — ranking by element
+        // count would put it at the bottom.
+        assertTrue(ClinicianUseCaseTier.FULL_CLINICAL.rank < ClinicianUseCaseTier.RESEARCH.rank)
+    }
+
+    // ── OI-CONSENT-05: the clinician-portal channel seam ─────────────────────────
+
+    /// The shipped channel refuses everything, and says the anchor is missing rather than that the
+    /// request is forged. A default that admitted would make the missing key silent.
+    @Test
+    fun theDefaultPortalChannelRefusesAndNamesTheMissingAnchor() {
+        val (store, _, _) = makeStore()
+        store.grantClinicianAccess(grantedYesterday(ClinicianUseCaseTier.MONITOR))
+
+        val outcome = ClinicianPortalSync(store).ingest(requestTo(ClinicianUseCaseTier.ASSESS))
+
+        assertTrue(outcome is ClinicianRequestAdmission.RefusedUnverifiable)
+        assertTrue("OI-CONSENT-05" in outcome.reason)
+        assertTrue(store.expansionRequests.isEmpty())
+    }
+
+    @Test
+    fun aVerifiedRequestIsIngested() {
+        val (store, _, _) = makeStore()
+        store.grantClinicianAccess(grantedYesterday(ClinicianUseCaseTier.MONITOR))
+        val sync = ClinicianPortalSync(store) { ClinicianRequestVerification.Verified }
+
+        assertEquals(
+            ClinicianRequestAdmission.Admitted,
+            sync.ingest(requestTo(ClinicianUseCaseTier.ASSESS)),
+        )
+        assertEquals(1, store.expansionRequests.count { it.isPending })
+    }
+
+    /// Identity is checked before anything the request claims. A forged request naming a grant
+    /// this device never issued is refused as forged — so the refusal cannot be read backwards to
+    /// learn which grants the device holds (CLAUDE.md §5.1 rule 2).
+    @Test
+    fun aForgedRequestIsRefusedAsForgedNotAsUnknownGrant() {
+        val (store, _, _) = makeStore()
+        val sync = ClinicianPortalSync(store) { ClinicianRequestVerification.Rejected }
+
+        assertTrue(store.clinicianGrants.isEmpty())
+        assertEquals(
+            ClinicianRequestAdmission.RefusedForgedRequest,
+            sync.ingest(requestTo(ClinicianUseCaseTier.ASSESS)),
+        )
+    }
+
+    @Test
+    fun aVerifiedRequestForAnUnknownGrantIsRefused() {
+        val (store, _, _) = makeStore()
+        val sync = ClinicianPortalSync(store) { ClinicianRequestVerification.Verified }
+
+        assertEquals(
+            ClinicianRequestAdmission.RefusedUnknownGrant,
+            sync.ingest(requestTo(ClinicianUseCaseTier.ASSESS)),
+        )
+        assertTrue(store.expansionRequests.isEmpty())
+    }
+
+    /// A change with no differential has no consent document, so there is nothing the user could
+    /// be asked — the same condition `approveExpansion` already fails closed on.
+    @Test
+    fun aVerifiedRequestThatIsNotAnExpansionIsRefused() {
+        val (store, _, _) = makeStore()
+        store.grantClinicianAccess(grantedYesterday(ClinicianUseCaseTier.FULL_CLINICAL))
+        val sync = ClinicianPortalSync(store) { ClinicianRequestVerification.Verified }
+
+        assertEquals(
+            ClinicianRequestAdmission.RefusedNotAnExpansion,
+            sync.ingest(requestTo(ClinicianUseCaseTier.ASSESS)),
+        )
+        assertTrue(store.expansionRequests.isEmpty())
+    }
+
     private companion object {
         const val STUDY_ID = "TEST-001"
         const val HASH = "sha256:abc"

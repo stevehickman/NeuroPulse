@@ -21,6 +21,7 @@
 		1A5EBE3A415E060242C58C2D /* OTAView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 887E0BA9C8169CDC0492A8AD /* OTAView.swift */; };
 		1CFE070095545217F6607859 /* HardwareSetupManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE9EF6DF8244A05D1A7537A /* HardwareSetupManagerTests.swift */; };
 		1DE6378FCAA13F6A790051B9 /* ConsentEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCC7358E9D616F6DF7D54679 /* ConsentEngine.swift */; };
+		0C57A1D34E9B62F08A31D5C4 /* ClinicianPortalChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C57A1D34E9B62F08A31D5C5 /* ClinicianPortalChannel.swift */; };
 		1F19E5D87F62AD5712A1FF25 /* SessionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A07432FCC0969BB599EE0CD7 /* SessionHistoryView.swift */; };
 		2127029C228AB1AA13EDCE83 /* NPDosageLimits.swift in Sources */ = {isa = PBXBuildFile; fileRef = 309962354B9E299DC6FF4003 /* NPDosageLimits.swift */; };
 		25EBA8651F29A6F765C6EFF0 /* RegionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A344EA104ABA2F0A3DAB762 /* RegionHelper.swift */; };
@@ -231,6 +232,7 @@
 		D41912D083096E48CBA2A5BC /* ConditionLinkPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConditionLinkPolicyTests.swift; sourceTree = "<group>"; };
 		D57EEF08B5E7ADF48D4ACC99 /* LocalizationHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationHelpers.swift; sourceTree = "<group>"; };
 		D7D9344D545A23DFAA12BC93 /* EngagementTier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngagementTier.swift; sourceTree = "<group>"; };
+		0C57A1D34E9B62F08A31D5C5 /* ClinicianPortalChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClinicianPortalChannel.swift; sourceTree = "<group>"; };
 		DCC7358E9D616F6DF7D54679 /* ConsentEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentEngine.swift; sourceTree = "<group>"; };
 		DFA0FC9F4B5E984859C2A762 /* ZoneModuleInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneModuleInfo.swift; sourceTree = "<group>"; };
 		E167EBA6A41BB017C680A05E /* SessionHistoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionHistoryStoreTests.swift; sourceTree = "<group>"; };
@@ -472,6 +474,7 @@
 		96E472CBB64BD0300B6C5CB8 /* Consent */ = {
 			isa = PBXGroup;
 			children = (
+				0C57A1D34E9B62F08A31D5C5 /* ClinicianPortalChannel.swift */,
 				DCC7358E9D616F6DF7D54679 /* ConsentEngine.swift */,
 				ECC2CE184428BE05634A1C50 /* ConsentStore.swift */,
 				9583A671EF2AC0372BD57A63 /* ResearchSuggestionStore.swift */,
@@ -675,6 +678,7 @@
 				02A68D1FF5C8694E42647D94 /* BLECentral.swift in Sources */,
 				E9D8B10832FE5A48165DFCB1 /* ConditionLinkView.swift in Sources */,
 				DD28D34B62B23AB379A4CDB8 /* ConsentDashboardView.swift in Sources */,
+				0C57A1D34E9B62F08A31D5C4 /* ClinicianPortalChannel.swift in Sources */,
 				1DE6378FCAA13F6A790051B9 /* ConsentEngine.swift in Sources */,
 				2C7B32DB4AB137EAED4A8CAC /* ConsentModels.swift in Sources */,
 				4CF660A9923EE2E3F493F9CA /* ConsentOnboardingView.swift in Sources */,

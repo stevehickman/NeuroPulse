@@ -802,4 +802,66 @@ final class ConsentStoreTests: XCTestCase {
         )
     }
 
+
+    // MARK: - OI-CONSENT-05: the clinician-portal channel seam
+
+    /// The shipped channel refuses everything, and says the anchor is missing rather than that the
+    /// request is forged. A default that admitted would make the missing key silent.
+    func testTheDefaultPortalChannelRefusesAndNamesTheMissingAnchor() {
+        store.grantClinicianAccess(makeGrant(.monitor))
+        let sync = ClinicianPortalSync(store: store)
+
+        let outcome = sync.ingest(makeRequest(requestID, to: .assess))
+
+        guard case let .refusedUnverifiable(reason) = outcome else {
+            return XCTFail("Expected an unverifiable refusal, got \(outcome).")
+        }
+        XCTAssertTrue(reason.contains("OI-CONSENT-05"))
+        XCTAssertTrue(store.expansionRequests.isEmpty,
+                      "A refused request must not reach the user's notification list.")
+    }
+
+    func testAVerifiedRequestIsIngested() {
+        store.grantClinicianAccess(makeGrant(.monitor))
+        let sync = ClinicianPortalSync(store: store, channel: StubPortalChannel(.verified))
+
+        XCTAssertEqual(sync.ingest(makeRequest(requestID, to: .assess)), .admitted)
+        XCTAssertEqual(store.expansionRequests.filter(\.isPending).count, 1)
+    }
+
+    /// Identity is checked before anything the request claims. A forged request naming a grant
+    /// this device never issued is refused as forged — so the refusal cannot be read backwards to
+    /// learn which grants the device holds (CLAUDE.md §5.1 rule 2).
+    func testAForgedRequestIsRefusedAsForgedNotAsUnknownGrant() {
+        let sync = ClinicianPortalSync(store: store, channel: StubPortalChannel(.rejected))
+
+        XCTAssertTrue(store.clinicianGrants.isEmpty)
+        XCTAssertEqual(sync.ingest(makeRequest(requestID, to: .assess)), .refusedForgedRequest)
+    }
+
+    func testAVerifiedRequestForAnUnknownGrantIsRefused() {
+        let sync = ClinicianPortalSync(store: store, channel: StubPortalChannel(.verified))
+
+        XCTAssertEqual(sync.ingest(makeRequest(requestID, to: .assess)), .refusedUnknownGrant)
+        XCTAssertTrue(store.expansionRequests.isEmpty)
+    }
+
+    /// A change with no differential has no consent document, so there is nothing the user could
+    /// be asked — the same condition `approveExpansion` already fails closed on.
+    func testAVerifiedRequestThatIsNotAnExpansionIsRefused() {
+        store.grantClinicianAccess(makeGrant(.fullClinical))
+        let sync = ClinicianPortalSync(store: store, channel: StubPortalChannel(.verified))
+
+        XCTAssertEqual(sync.ingest(makeRequest(requestID, to: .assess)), .refusedNotAnExpansion)
+        XCTAssertTrue(store.expansionRequests.isEmpty)
+    }
+}
+
+/// Stands in for the transport that does not exist, so the ingestion ORDER can be tested without
+/// one. It is a test double on purpose: shipping a channel that can be told to say `.verified`
+/// would be shipping the hole `RefusingClinicianPortalChannel` exists to keep open.
+private struct StubPortalChannel: ClinicianPortalChannel {
+    let result: ClinicianRequestVerification
+    init(_ result: ClinicianRequestVerification) { self.result = result }
+    func verify(_ request: ClinicianAccessExpansionRequest) -> ClinicianRequestVerification { result }
 }

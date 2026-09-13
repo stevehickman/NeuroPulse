@@ -26,10 +26,17 @@
  * Because that rule is false here, and a gate that manufactures false work gets
  * switched off (the lesson check-gate-coverage.ts is built around). Of the 15
  * methods, four legitimately have no UI caller: one is called only from inside
- * the store, one is superseded by a wholesale-state path, and two are the
- * inbound ends of workflows whose transport does not exist yet. Only a
- * per-method declaration can tell those apart from the #277 defect, which looks
- * identical from outside.
+ * the store, one is superseded by a wholesale-state path, one is fed by a named
+ * sync layer rather than by a control the user operates, and one is the inbound
+ * end of a workflow whose transport does not exist yet. Only a per-method
+ * declaration can tell those apart from the #277 defect, which looks identical
+ * from outside.
+ *
+ * The two declarations that assert an absence — `pending` and a `ui` waiver —
+ * both FAIL once a caller appears. A declaration that the path does not exist
+ * has to break when it does, or the gate ends up vouching for a lie about the
+ * code. `ingest` is the declaration to move to: it names the file doing the
+ * ingesting, and fails if that file is missing or does not call the method.
  *
  * ── Waivers are per-platform, and deliberately narrow ────────────────────────
  *
@@ -74,7 +81,17 @@ type Reach =
   | { kind: "internal"; note: string }
   /** A different path supersedes it; that path must exist and be reachable. */
   | { kind: "superseded-by"; by: string; note: string }
-  /** No caller expected yet. Must name the open item that will change that. */
+  /**
+   * Reached from a named non-UI ingestion path — a sync layer that puts something in front of
+   * the user rather than a control the user operates. The named file must exist on each platform
+   * that defines the method, and must call it.
+   */
+  | { kind: "ingest"; via: Partial<Record<Platform, string>>; note: string }
+  /**
+   * No caller expected yet. Must name the open item that will change that — and, like a waiver,
+   * a `pending` entry cannot outlive the gap it records: a caller appearing means the path was
+   * built and the declaration is now a lie about the code.
+   */
   | { kind: "pending"; oi: string; note: string };
 
 /**
@@ -96,9 +113,17 @@ const SURFACE: Record<string, Reach> = {
   //    construction, which is a stronger guarantee than a declaration: the gate can only say a
   //    public method has no caller today, never that nothing may call it tomorrow.
   addExpansionRequest: {
-    kind: "pending",
-    oi: "OI-CONSENT-05",
-    note: "expansion requests are ingested from the clinician-portal sync layer, which does not exist yet; no UI caller is expected — the sibling of the study-service transport ingestStudyDescriptor waits on",
+    kind: "ingest",
+    via: {
+      ios: "app/ios/NeurOne/Consent/ClinicianPortalChannel.swift",
+      android: "app/android/core/src/main/kotlin/life/neurone/core/consent/ClinicianPortalChannel.kt",
+    },
+    note:
+      "ingested by ClinicianPortalSync, never by a control the user operates. It was `pending` under " +
+      "OI-CONSENT-05 while nothing but a test called it; the port now exists and refuses by default, " +
+      "because the thing still missing is a clinician-identity anchor rather than a code path " +
+      "(NP-SW-PORTAL-API-001 §4c). `ingest` rather than `ui` on purpose: declaring it `ui` would pass " +
+      "this gate on the strength of a caller that is not a UI at all",
   },
   approveExpansion: {
     kind: "ui",
@@ -321,8 +346,42 @@ function audit(root: string, surface: Record<string, Reach> = SURFACE): Audit {
       }
     }
 
-    if (d.kind === "pending" && !/^OI-[A-Z0-9]+-\d+$/.test(d.oi)) {
-      violations.push(`${m}: pending must name an open item, got "${d.oi}"`);
+    if (d.kind === "ingest") {
+      for (const p of ["ios", "android"] as const) {
+        if (!defined[p].includes(m)) continue;
+        const via = d.via[p];
+        if (!via) {
+          violations.push(`${m} [${p}]: declared ingest but names no ingestion path for this platform`);
+          continue;
+        }
+        const file = callers[p].find((f) => f.rel === via);
+        if (!file) {
+          violations.push(
+            `${m} [${p}]: declared ingest via ${via}, which does not exist (or is a test file, ` +
+              `which cannot be an ingestion path)`,
+          );
+        } else if (!file.text.includes(`.${m}(`)) {
+          violations.push(`${m} [${p}]: declared ingest via ${via}, but that file does not call it`);
+        }
+      }
+    }
+
+    if (d.kind === "pending") {
+      if (!/^OI-[A-Z0-9]+-\d+$/.test(d.oi)) {
+        violations.push(`${m}: pending must name an open item, got "${d.oi}"`);
+      }
+      // Same rule as a waiver, for the same reason: a declaration that the path does not exist
+      // has to fail once it does, or it rots into a lie the gate is vouching for.
+      for (const p of ["ios", "android"] as const) {
+        if (!defined[p].includes(m)) continue;
+        const found = externalCallers(m, p);
+        if (found.length > 0) {
+          violations.push(
+            `${m} [${p}]: declared pending under ${d.oi} but a non-test caller exists ` +
+              `(${found[0]}) — the gap it records is closed; redeclare it (ui | ingest)`,
+          );
+        }
+      }
     }
   }
 
@@ -449,6 +508,64 @@ if (process.argv.includes("--self-test")) {
     WAIVED,
   );
 
+  // ── ingest: a named non-UI path, which must exist and must call the method ──
+  const INGEST: Record<string, Reach> = {
+    addExpansionRequest: {
+      kind: "ingest",
+      via: { ios: "app/ios/NeurOne/Consent/Sync.swift", android: "app/android/core/Sync.kt" },
+      note: "fixture",
+    },
+  };
+
+  expect(
+    "ingest whose named path calls it is clean",
+    build(iosFn("addExpansionRequest"), ktFn("addExpansionRequest"), {
+      "app/ios/NeurOne/Consent/Sync.swift": "store.addExpansionRequest(r)\n",
+      "app/android/core/Sync.kt": "store.addExpansionRequest(r)\n",
+    }),
+    null,
+    INGEST,
+  );
+
+  // The path exists but is not the one doing the ingesting — the declaration names a file that
+  // does not do what it claims, which is exactly the shape this gate exists to catch.
+  expect(
+    "ingest whose named path does not call it is caught",
+    build(iosFn("addExpansionRequest"), ktFn("addExpansionRequest"), {
+      "app/ios/NeurOne/Consent/Sync.swift": "// nothing\n",
+      "app/android/core/Sync.kt": "store.addExpansionRequest(r)\n",
+    }),
+    "but that file does not call it",
+    INGEST,
+  );
+
+  expect(
+    "ingest naming a path that does not exist is caught",
+    build(iosFn("addExpansionRequest"), ktFn("addExpansionRequest"), {
+      "app/android/core/Sync.kt": "store.addExpansionRequest(r)\n",
+    }),
+    "which does not exist",
+    INGEST,
+  );
+
+  // A `pending` declaration must not outlive the gap it records — the waiver rule, applied to the
+  // other way of saying "nothing reaches this yet".
+  expect(
+    "pending with a live caller is caught",
+    build(iosFn("addInvitation"), ktFn("addInvitation"), {
+      "app/ios/NeurOne/Consent/Sync.swift": "store.addInvitation(i)\n",
+    }),
+    "the gap it records is closed",
+  );
+
+  expect(
+    "pending with only a test caller stays clean",
+    build(iosFn("addInvitation"), ktFn("addInvitation"), {
+      "app/ios/NeurOneTests/ConsentStoreTests.swift": "store.addInvitation(i)\n",
+    }),
+    null,
+  );
+
   // internal: declared reachable from inside the store, and it must be.
   expect(
     "an internal method nothing in the store calls is caught",
@@ -481,8 +598,9 @@ if (process.argv.includes("--self-test")) {
     for (const f of failures) console.error("  " + f);
     process.exit(1);
   }
-  console.log("  9 case(s): the Rev 37 shape, test-only callers, parity, undeclared,");
-  console.log("  stale waivers, waiver enforcement and internal reachability all proven to fire");
+  console.log("  14 case(s): the Rev 37 shape, test-only callers, parity, undeclared, stale waivers,");
+  console.log("  waiver enforcement, internal reachability, ingest-path existence and use, and");
+  console.log("  pending-outliving-its-gap all proven to fire");
   console.log("SELF-TEST PASS — the checker has teeth.");
   process.exit(0);
 }
