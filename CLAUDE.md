@@ -1,13 +1,19 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 43 (current)  
+**Revision:** 45 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
 > bear on most conversations and names the file holding the rest. Read a subsidiary file when the
 > task needs it — do not assume a figure or a spec detail is here.
 >
-> **Revision history (Rev 33–43, what changed and why): `docs/reference/claude-md-revision-history.md`.**
+> **Revision history (Rev 33–45, what changed and why): `docs/reference/claude-md-revision-history.md`.**
+> Rev 45 (2026-09-13) made "never asked" and "said stop" distinguishable, so §6.0's *withdrawal
+> stops ALL research data flows* survives the L2 categories a withdrawal leaves ticked (§6.0); no
+> decision changed.
+> Rev 44 (2026-09-10) made the device the last gate on a study descriptor, and split L3's engagement
+> notification from an L2 consent request because silence means the opposite thing in each (§6.2,
+> §6.3); no decision changed.
 > Rev 43 (2026-09-13) relocated §17's mechanics, §4.3–§4.7's spec detail, §2.1's cost columns and
 > §5.1's contents enumerations to subsidiary files; no design decision changed. Rev 42 (2026-09-09)
 > scoped a clinician grant's reach in time, so §6.1's retroactive question has two representable
@@ -330,6 +336,13 @@ NeurOne has **two distinct consent subjects** that must never be conflated:
 - Withdraw from specific study → stops data flows for that study only; app analytics unaffected.
 - Withdraw from specific category → stops data flows for that category; app analytics unaffected.
 - Withdraw blanket research consent (L3) → stops ALL research data flows AND tears down research analytics (`ConsentStore.withdrawBlanketResearchConsent()` calls `revokeResearchAnalytics()`), because blanket withdrawal signals the user does not want any data collection beyond basic device function.
+- **"Never asked" and "said stop" are different states and must stay distinguishable** (Rev 45).
+  `blanketConsentGranted == false` is true of both, so the flag alone cannot carry the rule above:
+  withdrawal does not un-tick the nine L2 categories, and those stale boxes would otherwise keep
+  admitting studies after the user stopped everything. `ResearchConsentState.blanketConsentWithdrawnAt`
+  records the true→false transition — set by the store, never by a screen — and
+  `blanketConsentWithdrawn` outranks L2 at the §6.3 ingestion gate. Re-granting L3 clears it,
+  because that is a fresh decision; the marker itself stays in the record.
 
 ### 6.1 Use case subscription tiers → `docs/reference/commercial-model.md`
 
@@ -380,6 +393,11 @@ it is rendered; it has never meant "the third screen."
   guards the Rev 37 defect this was written against (correct, tested, unreachable from the iOS UI).
 - **L3 carries an irreversibility notice whenever its control is on**, and per-project consent
   repeats it for vulnerable populations (45 CFR 46) — full copy in `docs/reference/consent-engine.md`.
+- **L3's per-study notification is not a consent request, and the two cannot share one shape.**
+  Silence means the opposite thing in each: an unanswered consent request means *not participating*;
+  an unread engagement notification means *participating*, because L3 already answered. A single
+  representation has to pick one default for everyone (Rev 44) — so a study reaches an L2 and an L3
+  user as two different objects, and an L3 user's opt-out is a withdrawal, not a decline (§6.3).
 
 ### 6.3 Research suggestion portal (three functions) → `docs/reference/consent-engine.md`
 
@@ -389,6 +407,16 @@ Patient research agenda (plain-language study ideas, community voting) · pre-id
 contact workflow — NeurOne reviews the study, generates the eligible list from device ID and contact
 prefs only (**no UHDR**), invites in NeurOne's own voice, and closes the loop with results including
 null results — is in `docs/reference/consent-engine.md` §6.3.
+
+**The device does not take that server-side review on trust.** What crosses onto the device is
+§5.3's **signed study descriptor**; the invitation the user reads is derived from it on-device after
+the signature verifies, and `ConsentEngine.admit()` re-checks §5.3's k≥10 / ≥1-week floors, L1, and
+the user's own L2/L3 state before anything is shown (Rev 44). Two consequences a later change must
+not undo: **what a study CANNOT see is computed as the complement of what it asked for**, never
+supplied as prose by the party asking; and **verification is closed by default** — the only
+`StudyDescriptorVerifier` shipped refuses everything, so a transport cannot be wired up without
+supplying the signature check (`OI-CONSENT-07`). Gate table:
+`docs/reference/consent-engine.md` §6.3.
 
 ---
 

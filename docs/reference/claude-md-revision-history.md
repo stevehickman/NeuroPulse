@@ -13,6 +13,76 @@
 
 ## Current revision
 
+**Rev 45 (2026-09-13) — §6.0: "never asked" and "said stop" are different states, and the boolean
+that was standing in for both could not hold the difference.** No decision changed. §6.0 has said
+since it was locked that withdrawing blanket consent "stops **ALL** research data flows"; the
+sentence is unchanged, and this is what makes it true of the code.
+
+**What the flag could not say.** `ResearchConsentState.blanketConsentGranted == false` describes a
+user who never turned L3 on and a user who turned it off, and §6.0 treats those differently — only
+the second stopped everything. Withdrawal deliberately leaves the nine L2 categories ticked, because
+clearing a stored preference is its own decision and not one withdrawal should smuggle in. The
+consequence, once Rev 44's ingestion gate existed to expose it, was that a user who withdrew from
+all research kept being admitted studies through the categories they had never gone back to un-tick
+— research data flows continuing after the user stopped them. `blanketConsentWithdrawnAt` records
+the true→false transition, and `blanketConsentWithdrawn` outranks L2 at the gate.
+
+**Why it belongs in the core.** This is the third instance of one shape in four revisions: Rev 42
+(a timeless tier could only answer §6.1's retroactive question yes), Rev 44 (one invitation type had
+to pick one meaning of silence for everyone), and now this. In each, a locked sentence was true of
+the specification and unrepresentable in the model, and in each the model quietly answered in the
+permissive direction. The guard against a later change re-collapsing them is naming the distinction
+where the invariants live, not only where the field is declared.
+
+**Three properties of the marker are load-bearing**, and all three are the kind a refactor can
+remove without appearing to change anything: the **store** sets it and no screen can (the consent UI
+commits a whole state and cannot see a transition, so a stale commit could otherwise erase it); it is
+guarded on the **transition, not the value**, like §6.2.5's analytics teardown, so withdrawing
+something never granted does not bar an L2 participant; and **re-granting clears the condition, not
+the record**.
+
+**Where the detail is.** The gate's step 3a, the dashboards' three postures, and the migration note
+are in `docs/reference/consent-engine.md` §6.3. Record: `docs/status/completed-decisions.md`,
+2026-09-13.
+
+## Earlier revisions
+
+**Rev 44 (2026-09-10) — §6.2 and §6.3: the device is the last gate on a study descriptor, and L3's
+engagement notification is not an L2 consent request.** No decision changed. Both sentences the core
+gained were already implied by locked text; neither was implementable, and one of them the code had
+quietly decided the other way.
+
+**Why the L3 clause needed saying in the core.** §6.2 has said since it was locked that a blanket-
+consent user "still receives per-study *engagement* notifications, **not consent requests**". Read as
+copy, that is a wording rule. Read as behaviour, it is a statement about **what silence means**: an
+unanswered consent request means *not participating*, an unread engagement notification means
+*participating*, because L3 already answered. `StudyInvitation` had one shape for both, so it had to
+pick one of those defaults for everyone — and it had picked the L2 one. An L3 user would have been
+re-asked a question they had told the product to stop asking, and counted out of a study they were
+in. That is the same failure mode as Rev 42's: a locked sentence that no model on either platform
+could express the other half of. `StudyInvitation.Posture` now carries which question is being put,
+an engagement notification records participation at ingestion, and its opt-out is a withdrawal
+rather than a decline. A later change that collapses the two back into one type re-takes the
+decision, which is why the clause is in the core rather than only in the owning file.
+
+**Why the ingestion clause needed saying in the core.** §6.3's workflow has NeurOne review the
+study, build the eligible list and send the invitation — all server-side — and the device's job
+looked like receiving it. `ConsentStore.addInvitation()` did exactly that: it took a *finished*
+invitation, approved element list and "what they CANNOT see" prose included, from whatever called
+it, which on both platforms was only ever a unit test (`OI-CONSENT-03`). Three things follow from
+making the **signed descriptor** of §5.3 step 1 the thing that crosses onto the device instead.
+§5.3's k≥10 and ≥1-week floors become enforceable, and the device is the only place they can be
+enforced, because §5.3 puts the anonymisation on the device. What a study cannot see becomes the
+**complement** of what it asked for, computed on-device, rather than a sentence written by the party
+asking for access. And verification is **closed by default** — the only `StudyDescriptorVerifier`
+shipped refuses every descriptor — so the transport that does not exist yet (`OI-CONSENT-07`) cannot
+be built without also supplying the signature check. All three are structural facts a later change
+can undo by re-admitting a ready-made invitation.
+
+**Where the detail is.** The gate's six checks and why their order is load-bearing, the two
+postures, and what deliberately was not built are in `docs/reference/consent-engine.md` §6.3.
+Record: `docs/status/completed-decisions.md`, 2026-09-10.
+
 **Rev 43 (2026-09-13) — core/subsidiary split extended a third time; no design decision changed.**
 The always-loaded core went from 38,680 to 34,153 bytes (−11.7%). What moved, and the one criterion it moved
 under: **a figure that cannot be quoted from the core without first opening another file does not
@@ -81,8 +151,6 @@ top-level headings; every §N and every subsection number is retained as a stub,
 citations still resolve — the gate reports 781 citations against 8 valid sections, all resolving.
 Content was relocated verbatim except where a stub restates an invariant in fewer words. Record:
 `docs/status/completed-decisions.md`, 2026-09-13.
-
-## Earlier revisions
 
 **Rev 42 (2026-09-09) — §6.1: a clinician grant's reach is scoped in time, because the tier alone
 could only ever answer §6.1's retroactive question one way.** No decision changed. §6.1 has said
