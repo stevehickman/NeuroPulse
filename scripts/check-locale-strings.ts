@@ -431,6 +431,22 @@ function checkLocaleParity(keys: Set<string>): string[] {
  * rendered to the user verbatim, and the argument it names is silently dropped
  * at the call site. Placeholders are `{0}`, `{1}` (§17); `${0}` is a literal
  * dollar sign in front of one, which is fine.
+ *
+ * The `@` conversion is the same class of defect and the reason this rule was
+ * widened (OI-I18N-01). `%@` and `%1$@` are Apple-only spellings, and
+ * `sync-locales.ts` converts placeholders by matching `{n}` — so a value
+ * carrying `@` matches nothing, both generators copy it through verbatim, and
+ * it lands in `Localizable.xcstrings` as exactly what `String(format:)` wants.
+ * Apple therefore renders it correctly and nothing fails. Android's
+ * `Resources.getString(id, args)` runs `java.util.Formatter`, where `@` is an
+ * unknown conversion: `UnknownFormatConversionException`, a crash rather than a
+ * mis-render. Ten keys sat in that state for months because the only platform
+ * reading them was the one it happens to be correct on.
+ *
+ * Scoped to `@` deliberately. `%d` and `%.1f` are also non-canonical and also
+ * block a translator from reordering arguments, but they are valid conversions
+ * in both `String(format:)` and `java.util.Formatter`, so they mis-render at
+ * worst and are a separate item — see OI-I18N-02.
  */
 function checkInterpolationSyntax(canonical: Record<string, string>): string[] {
   const errs: string[] = [];
@@ -440,6 +456,15 @@ function checkInterpolationSyntax(canonical: Record<string, string>): string[] {
     }
     if (/\$\{[^0-9]/.test(v)) {
       errs.push(`${k}: carries \${…} interpolation — use {0} and pass the value as an argument`);
+    }
+    const apple = v.match(/%(?:\d+\$)?@/g);
+    if (apple) {
+      errs.push(
+        `${k}: carries the Apple-only ${apple[0]} conversion — use {0} (Android's Formatter ` +
+          `throws UnknownFormatConversionException on @, so this crashes rather than mis-renders). ` +
+          `Convert EVERY conversion in the value, not just this one: the generator escapes a ` +
+          `literal % only once a {n} is present, so a half-converted value emits %%1$d.`,
+      );
     }
     // A lone backslash is the signature of a literal that was split mid-escape:
     // `delete \"\\(name)\"` keyed only as far as the escaped quote leaves the
@@ -514,8 +539,34 @@ function selfTest(): void {
       bad++;
     }
   }
+  // checkInterpolationSyntax reads canonical values rather than source lines, so
+  // it needs its own fixture. Without these the `@` rule could be inverted and
+  // every case above would still pass.
+  const canonicalCases: Array<[string, boolean]> = [
+    // [canonical value, should it be flagged]
+    ["Coherence {0}", false],
+    ["Coherence %@", true],                    // OI-I18N-01: the un-positional spelling
+    ["%1$@, %2$@ module connected", true],     // and the positional one — same crash
+    ["Socket {0} — {1}", false],
+    ["Electrode %d", false],                   // valid on both platforms; OI-I18N-02, not this rule
+    ["Duty cycle must be ≤ {0}%", false],      // literal percent, escaped by the generator
+    ["Order {0}", false],
+    ["delete \\(name)", true],                 // pre-existing rule: Swift interpolation
+    ["${name} is not defined", true],          // pre-existing rule: template interpolation
+    ["A zone named “{0}” already exists.", false],
+  ];
+  for (const [value, shouldFlag] of canonicalCases) {
+    const flagged = checkInterpolationSyntax({ SELF_TEST_KEY: value }).length > 0;
+    if (flagged !== shouldFlag) {
+      console.error(`self-test FAILED: ${JSON.stringify(value)} -> flagged=${flagged}, expected ${shouldFlag}`);
+      bad++;
+    }
+  }
   if (bad > 0) { console.error(`\n${bad} self-test case(s) failed.`); process.exit(1); }
-  console.log(`check-locale-strings self-test: ${cases.length + swiftCases.length + kotlinCases.length} cases, all correct.`);
+  console.log(
+    `check-locale-strings self-test: ` +
+      `${cases.length + swiftCases.length + kotlinCases.length + canonicalCases.length} cases, all correct.`,
+  );
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
