@@ -13,6 +13,77 @@
 
 ## Current revision
 
+**Rev 43 (2026-09-13) — core/subsidiary split extended a third time; no design decision changed.**
+The always-loaded core went from 38,680 to 34,153 bytes (−11.7%). What moved, and the one criterion it moved
+under: **a figure that cannot be quoted from the core without first opening another file does not
+belong in the core.** It can only be misremembered there — which is the same argument Rev 41 made
+about a generated file sitting in the working tree, applied to prose.
+
+**§17 → `docs/reference/localization.md` (the largest single relocation, ~3.9 KB).** §17 was 20% of
+the core and had no subsidiary file. The core keeps the rule and the surface table — text lives in
+`locales/*.json`, code carries a key, the three per-platform files are git-ignored build outputs
+that are never edited or committed, module-level tables hold keys, firmware is exempt — because
+those are what a line of app code needs at the moment it is written. The generator mechanics, the
+iOS two-hook requirement and the CI run that proved it, the `bun`-on-`PATH` consequence, the
+placeholder/plural rules, the modality `_NAME`/`_DESC` derivation, the not-translated list and the
+`PENDING_PATHS` reach are §17.1–§17.6 of the new file. **The trigger is unchanged and is the point:**
+the core still fires on *any* non-firmware code generation, and now says to read the detail file
+before adding a key — which is when the mechanics are needed, and when `locales/*.json` is open
+anyway.
+
+**§2.1's BOM / COGS / GM% columns → `docs/reference/commercial-model.md` §2.1.** The core keeps
+each configuration's name, tier, retail price in force and modalities included — what identifies a
+configuration, and what 231 uses of those names across the tree resolve against — plus the invariant
+that every T1 row is gross-margin negative and every figure is a floor excluding term **U**. It no
+longer carries the figures. Rev 40 had kept the table on the reasoning that "a cost or margin
+question usually starts there"; that holds for the identity columns and fails for the money ones,
+because §2.1's own rule is that **no figure may be quoted, cited or acted on without first reading
+`docs/np_cost_001.md`**. A number that cannot be used from where it is read is not an invariant, and
+the cost model is the most-revised content in the document set — Rev 38 replaced every figure and
+`OI-HEXTILE-06` will move them again. §2.1a's illustrative figures went with them for the same
+reason; the core keeps the shape of the finding (break-even binds before margin; both Pro rows are
+profitable today; `OI-COST-08` and `OI-COST-09`). The ★ box-contents list moved as packaging detail.
+
+**§4.3, §4.4, §4.5, §4.7 → `docs/reference/hardware-detail.md`.** Per-layer shielding dB, fit-system
+ranges and materials, the mode/draw/PD/runtime table and the status-LED behaviour are lookup data of
+exactly the kind the core's own preamble warns is not there. The core keeps each section's
+invariant: combined 35–45dB ELF / 40–60dB RF and palladium-not-silver; one adult SKU for 52–62cm;
+the two peak draws §2.2's charger policy is keyed to; and that stealth mode never suppresses a
+safety fault. **§4.1 and §4.2 did not move** — §4.2 is one of the three live constraints and is
+cited more than any other hardware section. §4.6 did not move either; four one-line modes are not
+detail. **This was the weakest of the four relocations on size** (~0.8 KB): §4's bullets were
+already compressed, so a stub carrying the invariant costs nearly what the bullets did. It was taken
+for consistency with the §2.1 rule, not for the bytes.
+
+**§5.1's two contents enumerations → `docs/reference/data-architecture-detail.md` §5.1.** The core
+keeps both defining tests, the when-in-doubt rule, the conditional-redaction rule, each record's
+owner/access/storage lines, and a representative handful of each contents list. The full
+enumerations are in the file that was already authoritative per field. Deliberately conservative:
+§5.1 is the second-most-cited section (109 inbound citations) and the lists are how a new field gets
+classified quickly, so the exemplars stay.
+
+**Considered and rejected: §6.2's layer table.** `consent-engine.md` already carries the complete
+per-layer table, so the core's abridged one looks like a duplicate. Replacing it with prose saved 73
+bytes and cost scannability. It stays.
+
+**What the reduction actually cost, recorded because the estimate was wrong.** The moved text is
+~7.4 KB; the file shrank by 4.6 KB. Two things eat the difference, and both are structural rather
+than avoidable: **a stub that carries a section's invariant costs 30–60% of the bullets it replaces**
+(§4 was the extreme case — 2,285 bytes of already-compressed bullets became 1,484 bytes of stub, an
+0.8 KB return on a whole new file), and **the Document Map grows by a row per subsidiary file**, so
+it went 5,114 → 5,610 bytes and is now the second-largest block in the core. The lesson for a Rev 44:
+relocation pays where the source is *prose* (§17 returned 3.9 KB of its 7.6), and barely pays where
+the source is already a dense list. Sections whose content is mostly invariant — §3, §5.1, §6.0,
+§6.2 — were left alone for that reason, not overlooked.
+
+**Nothing was broken by this.** Only `scripts/check-section-refs.ts` reads CLAUDE.md, and only its
+top-level headings; every §N and every subsection number is retained as a stub, so the 663 inbound
+citations still resolve — the gate reports 781 citations against 8 valid sections, all resolving.
+Content was relocated verbatim except where a stub restates an invariant in fewer words. Record:
+`docs/status/completed-decisions.md`, 2026-09-13.
+
+## Earlier revisions
+
 **Rev 42 (2026-09-09) — §6.1: a clinician grant's reach is scoped in time, because the tier alone
 could only ever answer §6.1's retroactive question one way.** No decision changed. §6.1 has said
 since it was locked that *retroactive and prospective access are presented as separate consent
@@ -36,8 +107,6 @@ element set is IRB-defined per study descriptor so its emptiness is never a set)
 presentation of the decisions, and the two halves deliberately not built (`OI-CONSENT-05`,
 `OI-CONSENT-06`) — is in `docs/reference/commercial-model.md` §6.1. Record:
 `docs/status/completed-decisions.md`, 2026-09-09.
-
-## Earlier revisions
 
 **Rev 41 (2026-09-08) — §17: the generated locale files leave the repository; `locales/*.json` becomes
 the only committed copy of any user-facing string.** Rev 40's §17 already named canonical as the
