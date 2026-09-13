@@ -165,8 +165,10 @@ struct SocketMap: Equatable {
         guard let zone = NPZoneRegistry.primaryZone(forSocket: Int(socketID)) else {
             return String(format: String(localized: "ZONE_SOCKET_LABEL"), Int(socketID))
         }
+        // §17.2: canonical {0} renders as Apple's %@, which takes an object, so
+        // the socket number is converted here rather than passed as an Int.
         return String(format: String(localized: "ZONE_SOCKET_POSITION_LABEL"),
-                      Int(socketID), zone)
+                      String(socketID), zone)
     }
 
     /// Sentence the app speaks when a module seats. Names the type only when the
