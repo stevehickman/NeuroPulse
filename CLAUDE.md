@@ -1,18 +1,19 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 42 (current)  
+**Revision:** 43 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
 > bear on most conversations and names the file holding the rest. Read a subsidiary file when the
 > task needs it — do not assume a figure or a spec detail is here.
 >
-> **Revision history (Rev 33–42, what changed and why): `docs/reference/claude-md-revision-history.md`.**
-> Rev 42 (2026-09-09) scoped a clinician grant's reach in time, so §6.1's retroactive question has
-> two representable answers rather than one (§6.1); no decision changed. Rev 41 (2026-09-08) made
-> `locales/*.json` the only committed copy of any user-facing string — the per-platform locale files
-> are build outputs now (§17). Rev 40 (2026-09-01) relocated detail out of this file; no design
-> decision changed. Read the history file before assuming *why* something is the way it is.
+> **Revision history (Rev 33–43, what changed and why): `docs/reference/claude-md-revision-history.md`.**
+> Rev 43 (2026-09-13) relocated §17's mechanics, §4.3–§4.7's spec detail, §2.1's cost columns and
+> §5.1's contents enumerations to subsidiary files; no design decision changed. Rev 42 (2026-09-09)
+> scoped a clinician grant's reach in time, so §6.1's retroactive question has two representable
+> answers rather than one (§6.1). Rev 41 (2026-09-08) made `locales/*.json` the only committed copy
+> of any user-facing string — the per-platform locale files are build outputs now (§17). Read the
+> history file before assuming *why* something is the way it is.
 >
 > **Three live constraints that decide whether an answer is safe to give:**
 > 1. **Every T1 configuration is gross-margin negative and every cost figure is a floor** (§2.1).
@@ -25,19 +26,22 @@
 
 ## 📂 DOCUMENT MAP — where everything lives
 
-**In this file (invariants):** §1 product · §2 configurations + pricing · §3 modality roster ·
-§4 hardware · §5 UHDR/SHDR architecture · §6 consent · §16 naming. Everything below is a plain path
-(not an `@import`), so it loads only when I `Read` it.
+**In this file (invariants):** §1 product · §2 configurations · §3 modality roster · §4 hardware
+(§4.1 processor stack and §4.2 safety architecture in full) · §5 UHDR/SHDR architecture · §6 consent
+· §16 naming · §17 locale rule. Everything below is a plain path (not an `@import`), so it loads
+only when I `Read` it.
 
 **Detail relocated out of the core sections — read these when working in that section:**
 
 | Section | What moved | File |
 |---------|-----------|------|
-| Header | CLAUDE.md revision history, Rev 33–40 | `docs/reference/claude-md-revision-history.md` |
-| §2.1a · §2.2 · §2.3 · §6.1 | Implied retail ladder · charger tables + intent signals · consumables · clinician subscription tiers | `docs/reference/commercial-model.md` |
+| Header | CLAUDE.md revision history, Rev 33–42 | `docs/reference/claude-md-revision-history.md` |
+| §2.1 · §2.1a · §2.2 · §2.3 · §6.1 | **BOM / COGS / GM% columns + box contents** · implied retail ladder · charger tables + intent signals · consumables · clinician subscription tiers | `docs/reference/commercial-model.md` |
 | §3 | Full T1 + T2 modality specifications | `docs/reference/modality-stack.md` |
-| §5.1 · §5.2 · §5.3 | Per-field boundary resolutions · predictive maintenance · anonymization pipeline | `docs/reference/data-architecture-detail.md` |
+| **§4.3 · §4.4 · §4.5 · §4.7** | **Per-layer shielding stack · fit-system specs · power/PD/runtime table · status-LED behaviour** | `docs/reference/hardware-detail.md` |
+| §5.1 · §5.2 · §5.3 | **Full UHDR/SHDR contents enumerations** · per-field boundary resolutions · predictive maintenance · anonymization pipeline | `docs/reference/data-architecture-detail.md` |
 | §6.2 · §6.3 | Layer table, screen rationale, POA workflow · research portal | `docs/reference/consent-engine.md` |
+| **§17** | **Generator mechanics, placeholder + plural rules, key conventions, why the generated files are not committed** | `docs/reference/localization.md` |
 
 **Subject-matter documents:**
 
@@ -96,41 +100,39 @@ Two-tier platform sharing a single chassis, processor stack, app, and USB-C conn
 
 ## 2. CONFIGURATIONS + PRICING (🔓 retail UNLOCKED 2026-08-16; charger policy §2.2 still locked)
 
-### 2.1 Integrated system configurations
+### 2.1 Integrated system configurations (cost columns → `docs/reference/commercial-model.md`)
 
-> **⚠ BOM / COGS / GM% below are FLOORS, not estimates**, re-derived against the hex-tile
-> architecture; the pre-hex figures (Core $168–169 / 42% … Pro Full $1,506 / 81%) are superseded.
-> **Every T1 configuration is gross-margin negative at the prices in force.** Retail prices are the
-> prices currently in force, **not a decision** — unlocking the constraint set no price, and
-> **`OI-HEXTILE-06` must be decided before any price is set** (`OI-COST-10`).
+> **⚠ Every T1 configuration is gross-margin negative at the prices in force, and every cost figure in
+> the document set is a FLOOR, not an estimate** — each excludes the uncosted term **U**, because
+> `OI-HEXTILE-02` has selected no 660/808 nm emitter and **OI-HUB-C08 therefore cannot be closed**.
+> Retail prices are the prices currently in force, **not a decision** — unlocking the constraint set
+> no price, and **`OI-HEXTILE-06` must be decided before any price is set** (`OI-COST-10`).
 >
-> **Read `docs/np_cost_001.md` before quoting, citing or acting on any number here.** Three things
-> it carries that the table cannot: GM% is an *output* derived under the lock, not a target; every
-> row excludes the uncosted term **U** (the emitter-count delta — the 660/808 nm emitters are not
-> selected per `OI-HEXTILE-02`, so **OI-HUB-C08 cannot be closed**); and the dominant recoverable
-> term is the ~$10 InGaAs photodiode pair of the $11.53/tile driver + metering — that is
-> `OI-HEXTILE-06`, and none of its three options, alone or combined, restores a positive T1 margin.
+> **BOM, COGS and GM% are not in this file** — no figure may be quoted, cited or acted on without
+> first reading `docs/np_cost_001.md`. Those three columns and the full caveats:
+> `docs/reference/commercial-model.md` §2.1.
 
-| Config | BOM (floor) | COGS (floor) | Retail (in force, 🔓 unlocked) | GM% (floor) | Modalities included |
-|--------|-----|------|--------|-----|---------------------|
-| Core — EEG only | $360–423 | $554–650 | $449 | **−23% to −45%** | 4-ch EEG · all connectivity · EMF shielding · processor stack · 8GB eMMC |
-| Home Lite | $642–705 | $896–984 | $599 | **−50% to −64%** | Core + PBM tiles (660+810nm) · 8-ch EEG · VNS+HRV clip |
-| Home Standard ★ (flagship) | $897–959 | $1,196–1,278 | $849 | **−41% to −51%** | All T1 modalities (see §3) |
-| Home Premium | $952–1,014 | $1,287–1,371 | $1,199 | **−7% to −14%** | All T1 + EC lens (+$89 value) · 2yr warranty · priority support |
-| Pro Entry | $1,463–1,525 | $2,398–2,500 | $4,999 | **+50% to +52%** | All T1 + 21-ch qEEG · 1170nm deep PBM · clinical tACS · HIPAA cloud · sLORETA |
-| Pro Full | $2,136–2,198 | $3,728–3,836 | $13,999 | **+73%** | All T2 + TMS hub · multi-patient dashboard · scripting API · FHIR R4 · $1,800/yr service |
+| Config | Tier | Retail (in force, 🔓 unlocked) | Modalities included |
+|--------|------|--------|---------------------|
+| Core — EEG only | T1 | $449 | 4-ch EEG · all connectivity · EMF shielding · processor stack · 8GB eMMC |
+| Home Lite | T1 | $599 | Core + PBM tiles (660+810nm) · 8-ch EEG · VNS+HRV clip |
+| Home Standard ★ (flagship) | T1 | $849 | All T1 modalities (see §3) |
+| Home Premium | T1 | $1,199 | All T1 + EC lens (+$89 value) · 2yr warranty · priority support |
+| Pro Entry | T2 | $4,999 | All T1 + 21-ch qEEG · 1170nm deep PBM · clinical tACS · HIPAA cloud · sLORETA |
+| Pro Full | T2 | $13,999 | All T2 + TMS hub · multi-patient dashboard · scripting API · FHIR R4 · $1,800/yr service |
 
-**★ Home Standard box contents:** All T1 modules · hard clamshell case · braided aramid USB-C cable (spare in box) · **45W NeurOne branded GaN charger** · S1 opaque shade · interface covers (installed + spare set each type) · mesh cleaning brush · Boa replacement cable + hook tool · moisture-barrier electrode tip hydration caps · humidity indicator card · pre-impregnated cleaning cloth packets
+**★** Home Standard box contents: `docs/reference/commercial-model.md` §2.1.
 
 ### 2.1a Implied retail ladder (implied, NOT set) → `docs/reference/commercial-model.md`
 
 Retail = COGS ÷ (1 − original GM target), inheriting §2.1's floor status. **Break-even binds before
-margin does:** Home Standard cannot be sold below **~$1,196** at any margin — already 1.4× its $849
-price in force; at the original 36% target it is $1,869–1,997. Both Pro rows are profitable today
-(+$2,499, +$10,163/unit), so Pro is where the *target*, not the cost, is the thing to question. Two
-consequences the lock was concealing: the T1 and T2 ladders **collide** (`OI-COST-08`), and every
-competitive price claim is live again (`OI-COST-09`). Full ladder, per-configuration figures and the
-four things to weigh first: `docs/reference/commercial-model.md` §2.1a; derivation: `NP-COST-001` §8.
+margin does:** every T1 configuration's break-even already exceeds its price in force, so no margin
+target is reachable at today's prices and the binding number is break-even, not the target. Both Pro
+rows are profitable today, so Pro is where the *target*, not the cost, is the thing to question. Two consequences the lock was concealing: the T1
+and T2 ladders **collide** (`OI-COST-08`), and every competitive price claim is live again
+(`OI-COST-09`). **Every figure — break-even, target-margin retail, per-unit result — is in
+`docs/reference/commercial-model.md` §2.1a**, with the four things to weigh first; derivation:
+`NP-COST-001` §8.
 
 ### 2.2 Charger policy (locked) → `docs/reference/commercial-model.md`
 
@@ -209,36 +211,25 @@ Whether a given protocol fits the power envelope is `docs/np_ses_pwr_001.md`.
 | Cervical VNS (T2) | Cardiac rhythm interlock | Safety MCU owns enable GPIO; monitors R-peak GPIO; HR change >15 BPM within 5s → GPIO cutoff <100ms; 30s re-enable lockout + app confirm + repeat impedance |
 | All | Firmware anti-fragility | CSPRNG session protocol signing |
 
-### 4.3 EMF shielding (5-layer passive + active)
-- Layer 1: CFRP outer (30–50dB RF)
-- Layer 2: 0.2mm mu-metal liner (15–25dB ELF magnetic) — PETG laminate encapsulation, silicone RTV sealant at all cutout edges
-- Layer 3: **Palladium-coated polyester** inner liner (replaces silver — tarnish-immune for device lifetime, 40–60dB RF) — permanent shielding claim, verified by fleet SHDR attenuation monitoring
-- Layer 4: Carbon-loaded EMI absorber foam (cavity resonance suppression)
-- Layer 5: USB-C + accessory port filters (30–50dB)
-- **Active:** 3-axis fluxgate magnetometers + Helmholtz coil pairs · Combined: 35–45dB ELF magnetic, 40–60dB RF
-- Shell bonded to EEG DRL output (active EEG shield)
-- Non-conductive CFRP window at TMS coil site (prevents eddy current field loss)
-- Three firmware additions: TMS-gated cancellation · adaptive notch at BES/tACS stimulus frequency · synchronous Helmholtz subtraction from EEG
+### 4.3 EMF shielding (5-layer passive + active) → `docs/reference/hardware-detail.md`
 
-### 4.4 Fit system
-- Boa-style occipital dial · 10cm range · 0.5mm/click · 50,000-cycle rated · enclosed PTFE-lined cable channel (prevents hair entanglement) · Boa replacement cable + tool in box · regrease kit available ($4.99 accessory)
-- 5-position forehead bridge (5mm steps)
-- Spring-decoupled electrode pods (80–120g, ±12mm, Shore 30A silicone)
-- Temporal stability wings (snap-on, stored in hub dock)
-- 1 adult SKU covers 52–62cm heads
+Five passive layers plus active fluxgate + Helmholtz cancellation. **Combined 35–45dB ELF magnetic /
+40–60dB RF**, the figure every §1 claim rests on. Three things that bind other work: Layer 3 is
+**palladium, not silver** (tarnish-immune — what makes the claim *permanent*, verified by fleet SHDR
+attenuation); the shell is bonded to the EEG DRL output; the TMS coil site needs a **non-conductive
+CFRP window**. Per-layer dB and the three firmware additions: §4.3 of the detail file.
 
-### 4.5 Power
-| Mode | Draw | Min USB-C PD | Power bank runtime (10,000mAh) |
-|------|------|-------------|-------------------------------|
-| Standby | 1W | 5V/0.5A | ~330 hours |
-| EEG only | 2.5W | 5V/1A | ~130 hours |
-| Standard T1 ★ | ~17–20W | 15V/2A (45W) | ~95–110 min |
-| T1 peak | ~45–50W | 20V/3A (65W) | ~38–42 min |
-| T2 standard | ~44–46W | 20V/3A (65W) | ~41–43 min |
-| T2 peak | ~70–74W | 20V/5A (100W EPR) | ~24–27 min |
+### 4.4 Fit system → `docs/reference/hardware-detail.md`
 
-- 22F supercapacitor in control hub (absorbs LED duty-cycle transients, allows 50% aging over 5 years)
-- Hub NTC thermistor for supercapacitor aging estimation (logged in SHDR)
+**1 adult SKU covers 52–62cm heads** (Boa occipital dial, 5-position bridge, spring-decoupled pods).
+Ranges, ratings, materials: §4.4 of the detail file. Whether one SKU can register a 10-20 montage
+across that range is `docs/np_hw_eegnet_001.md`, not this section.
+
+### 4.5 Power → `docs/reference/hardware-detail.md`
+
+USB-C PD only. **T1 peak ~45–50W (65W PD) · T2 peak ~70–74W (100W EPR)** — the two figures §2.2's
+charger policy is keyed to. 22F hub supercapacitor absorbs LED duty-cycle transients; NTC aging
+estimate logged in SHDR. Full mode/draw/PD/runtime table: §4.5 of the detail file.
 
 ### 4.6 Operating modes
 - **Mode 1 Connected:** Real-time streaming <1ms
@@ -246,11 +237,11 @@ Whether a given protocol fits the power envelope is `docs/np_ses_pwr_001.md`.
 - **Mode 3 Autonomous:** Pre-programmed, runs from any USB-C PD power bank, full closed-loop EEG-adaptive operation without phone or app
 - **Mode 4 Download:** USB-C reconnect → EDF+ + parameter logs to app
 
-### 4.7 Status indicators
-- Left temple: green power LED (breathes at idle)
-- Right temple: amber in-use LED (pulse rate mirrors session frequency — caregiver can confirm correct protocol across room)
-- Fault: power LED red blink
-- Stealth mode: app-controlled suppress (safety faults always fire)
+### 4.7 Status indicators → `docs/reference/hardware-detail.md`
+
+Green power LED · amber in-use LED (pulse mirrors session frequency) · red blink on fault.
+**Stealth mode suppresses the indicators; safety faults always fire.** Detail: §4.7 of the detail
+file.
 
 ---
 
@@ -264,7 +255,7 @@ Whether a given protocol fits the power envelope is `docs/np_ses_pwr_001.md`.
 - Clinician access: per-element, per-use-case, time-limited, audited, revocable
 - Researcher access: anonymized aggregate only, separate IRB + explicit research consent
 - Defining test: does this record tell us something about the **person**? If yes → UHDR
-- Contents: EEG waveforms (all channels) · HRV time series · PPG optical signal · neurofeedback performance scores · session timestamps and duration · protocol parameters used · closed-loop adaptation events · PBM dose (J/cm²) per zone · user-entered symptom/outcome logs · eye-open/closed state during sessions
+- Contents (representative — full enumeration in the detail file): EEG waveforms (all channels) · HRV time series · session timestamps and duration · closed-loop adaptation events · PBM dose (J/cm²) per zone · user-entered symptom/outcome logs
 - Storage: on-device eMMC UHDR partition, AES-256 encrypted with user biometric-derived key (NeurOne does not hold decryption key)
 - Backup: automated nightly incremental backup to USB-C local or E2E encrypted cloud (user-held key) when on USB-C power
 
@@ -273,7 +264,7 @@ Whether a given protocol fits the power envelope is `docs/np_ses_pwr_001.md`.
 - Linked to: device ID + opaque TRNG warranty token **only** — never to user identity
 - **Consent subject: warranty owner** (the entity who registered warranty — may be a clinic, institution, or individual purchaser; is NOT assumed to be the person wearing the device). Warranty consent is entirely separate from user research consent. A clinic staff member activating warranty is not consenting on behalf of any patient.
 - Defining test: does this tell us about the **device's condition**, with nothing that reveals user biology? If yes → SHDR
-- Contents: LED output ratio per zone · NTC temperature profiles · EMF shielding attenuation ratio · device session count (unsigned integer, no timestamps) · consumable session counts · USB-C insertion counter · PD negotiation log · impact events (g-force, orientation — between sessions only) · fan RPM · supercapacitor cycles · firmware version history · OTA log · accessory authentication pass/fail · calibration coefficient history
+- Contents (representative — full enumeration in the detail file): LED output ratio per zone · NTC temperature profiles · EMF shielding attenuation ratio · device session count (unsigned integer, no timestamps) · USB-C insertion counter · firmware version + OTA history · calibration coefficient history
 - Storage: on-device eMMC SHDR partition, separate encryption from UHDR
 - Upload: to NeurOne fleet database on USB-C connect (warranty owner consent required at device registration; unrelated to user research consent)
 
@@ -289,10 +280,11 @@ Whether a given protocol fits the power envelope is `docs/np_ses_pwr_001.md`.
    `NP_SAFETY_STATUS_CARDIAC` made `count > 0 && tick_ms == 0` a self-interpreting one-bit cardiac
    oracle. `scripts/check-redaction-shape.ts` enforces this shape.
 
-**Per-field boundary resolutions (EEG impedance, accelerometer, VNS impedance, cervical-VNS
-cross-validation, anonymization `failed_step`, fault latch, …) are in
-`docs/reference/data-architecture-detail.md` §5.1** — that list, not this section, is authoritative
-per field, and a field not on it is decided by the defining tests above and then added there.
+**Both the full contents enumerations and the per-field boundary resolutions (EEG impedance,
+accelerometer, VNS impedance, cervical-VNS cross-validation, anonymization `failed_step`, fault
+latch, …) are in `docs/reference/data-architecture-detail.md` §5.1** — that file, not this section,
+is authoritative per field, and a field on neither list is decided by the defining tests above and
+then added there.
 
 ### 5.2 Predictive maintenance system (SHDR-based) → `docs/reference/data-architecture-detail.md`
 
@@ -408,7 +400,7 @@ null results — is in `docs/reference/consent-engine.md` §6.3.
 appear in full on first use in each document, abbreviated thereafter. Signal names, document IDs,
 `§N` citation form and the other identifier families are `docs/np_conv_001.md` (NP-CONV-001).
 
-## 17. LOCALIZED STRINGS — CODE GENERATION RULE (locked 2026-09-03; single-source 2026-09-08)
+## 17. LOCALIZED STRINGS — CODE GENERATION RULE (locked 2026-09-03; single-source 2026-09-08) → `docs/reference/localization.md`
 
 **Whenever non-firmware code is generated or edited, user-facing text goes into the locale files
 and the code carries only a key.** Never write a string a person will read into a source file.
@@ -420,71 +412,30 @@ and the code carries only a key.** Never write a string a person will read into 
 | Apple | *build output* — `app/ios/NeurOne/Localizable.xcstrings` | `Text("KEY")`, `String(localized: "KEY")`; with values, `String(format: String(localized: "KEY"), …)` |
 | Android | *build output* — `<buildDir>/generated/res/locales/values*/strings.xml` | `stringResource(R.string.key)` (lowercased key), `pluralStringResource(R.plurals.base, n, n)` |
 
-- **`locales/*.json` is the single source of truth, and the only place a user-facing string is
-  committed.** The three per-platform files are build outputs: git-ignored, and regenerated from
-  canonical by each app's own build — a Vite plugin (`canonicalLocales`) for web, the `syncLocales`
-  Gradle task for Android, and on iOS a **scheme build pre-action** plus the NeurOne target's first
-  build phase. All shell out to the one generator, `bun scripts/sync-locales.ts`.
-- **A generated resource must exist before the build plan is computed, not merely before the phase
-  that consumes it.** This is why iOS takes two hooks and not one. Xcode plans the build first, so a
-  git-ignored `Localizable.xcstrings` that does not yet exist is never in the plan and never
-  compiled into the bundle — a run-script phase that creates it afterwards writes a file nothing
-  reads, and every `String(localized:)` then renders its raw key. The first CI run of this
-  arrangement proved it: the phase logged "11 locales, 1420 keys" and eight tests still failed
-  asserting on rendered text. The **pre-action** (and the explicit generate step in `ios-ci.yml`,
-  which must precede *any* `xcodebuild` invocation) creates the file in time; the target phase keeps
-  it fresh within an open session. Gradle needs no equivalent because a generated res `srcDir` is a
-  declared task output, and Vite's `buildStart` runs before module resolution.
-- **Add a key to `locales/*.json` — all eleven** — then reference it. Nothing else is edited, and
-  there is no generated file in the tree to edit by mistake. Run the generator by hand only to
-  inspect its output; a build does it anyway.
-- **Why they are not committed.** A generated file under version control is a second source of truth
-  whether or not anyone means it to be. The committed String Catalog became exactly that: 26 keys
-  existed only there, 18 of them referenced by iOS source, and the NP-HFE-002 rewording of two setup
-  strings was applied to the catalogue alone — regenerating would have reverted live copy to
-  describing retired hardware. A staleness check caught drift after the fact; it could not stop the
-  edit being made in the wrong file, because the wrong file was sitting in the working tree, tracked
-  and editable. Removing them makes the hand-edit unrepresentable rather than merely detectable.
-  `bun scripts/sync-locales.ts --verify-untracked` fails CI if one is committed again.
-- **A build needs `bun` on `PATH`** — that is now true of the Android and iOS builds, not just the
-  web one, and CI installs it on every leg that compiles either (`android-ci`, `ios-ci`, and both
-  compiled CodeQL legs). A canonical edit also triggers those workflows, which it no longer would by
-  path alone.
-- **Placeholders are `{0}`, `{1}`** in canonical → `%1$@` for Apple, `%1$s` for Android. On Apple
-  **a numeric argument must be converted at the call site** (`String(count)`), because `%@` takes an
-  object; Android's `%s` accepts any type. Plural keys take `_ONE` / `_OTHER` (`_ZERO` is optional
-  and falls back to `_OTHER`), and **`{0}` must be the count** — all three generators map `{0}` to
-  the plural argument. A trailing `_ONE` is reserved for plurals: `sync-locales` rejects a family
-  with no sibling category rather than emitting a one-item plural nothing can resolve.
-- **Module-level tables hold KEYS, not text** (`MODALITY_META.displayNameKey`, `ELEMENT_TYPE_LABEL`,
-  `PRESETS.labelKey`). A constant initialised at import time captures English before `initI18n()`
-  resolves; resolve with `t()` at the point of render.
-- **One name and one description per modality type — `MODALITY_<ID>_NAME` and
-  `MODALITY_<ID>_DESC`, and no others.** The name is the modality's `.npps` grammar token with
-  underscores replaced by spaces and each word capitalised (`pbm_transcranial` → `PBM Transcranial`;
-  acronyms and unit symbols keep their conventional casing). Web, iOS and Android all render those
-  two keys — there is no separate consumer-facing name and no per-platform description — and, like a
-  product designation, the name carries the same value in all eleven locales. The two regulatory
-  consumer names §3 locks are carried by the **descriptions** of `bes_tacs` and `tdcs`, which open
-  with them verbatim — the derivation has no exceptions. **The `.npps` parser and hub compiler are
-  unaffected**: they keep the lowercase snake_case token, which stays the canonical identifier.
-- **Not translated, and deliberately literal:** unit symbols and numbers (`Hz`, `mA`, `42%`,
-  `1064nm`), product/tier designations and part numbers (`T1`, `ZM-PBM-DUAL`), enum and identifier
-  values, single glyphs used as icons, and `.npps` parser / hub-compiler diagnostics — those name
-  grammar keywords that are English by definition and read as compiler output.
-- **An unused key is deleted from every locale file**, `_metadata.json` included. A key referenced
-  by nothing is untranslated weight that translators are still asked to pay for.
+- **`locales/*.json` is the single source of truth and the only committed copy of any user-facing
+  string.** The three per-platform files are **git-ignored build outputs** regenerated by each app's
+  own build from the one generator, `bun scripts/sync-locales.ts`. **Never edit one, and never
+  commit one** — a generated file under version control is a second source of truth whether or not
+  anyone means it to be, which is the failure this arrangement was written after (§17.5).
+- **Add a key to `locales/*.json` — all eleven — then reference it.** Placeholder, plural and
+  modality-key rules are `docs/reference/localization.md` §17.1–§17.3; **read it before adding a
+  key**, because a malformed placeholder or plural family fails the build rather than degrading.
+- **Module-level tables hold KEYS, not text.** A constant initialised at import time captures
+  English before `initI18n()` resolves; resolve with `t()` at the point of render.
+- **One name and one description per modality — `MODALITY_<ID>_NAME` / `MODALITY_<ID>_DESC`, and no
+  others**, derived from the `.npps` grammar token; §3's two regulatory consumer names are carried
+  verbatim by the `bes_tacs` and `tdcs` *descriptions*. The `.npps` parser and hub compiler keep the
+  lowercase snake_case token, which stays the canonical identifier.
 - **Firmware is exempt because it renders no text at all.** It carries no locale key and includes no
   locale file; the device speaks in tones (`np_zone_audio.c`), LEDs and numeric status, and the app
   does the wording. A locale reference under `firmware/` means that boundary moved — a decision, not
   a detail.
 
-`bun scripts/check-locale-strings.ts` enforces all of the above and fails CI on a violation; its
-`PENDING_PATHS` names the code the rule has not yet reached — the pure-JVM `:core` Android module
-(no Android plugin by design, so it cannot name `R.string`), Windows, and the simulator — so the
-gate's reach stays legible. Those three, and watchOS, generate nothing today because they read no
-locale file yet; each becomes a fourth generator target when it does, not a fourth committed copy.
-`bun scripts/sync-locales.ts --verify-untracked` guards the single-source rule itself.
+Two gates: `bun scripts/check-locale-strings.ts` (no user-facing string in source; its
+`PENDING_PATHS` records the code the rule has not yet reached) and `bun scripts/sync-locales.ts
+--verify-untracked` (no generated artifact tracked). Generator mechanics, the iOS two-hook
+requirement, the `bun`-on-`PATH` consequence and the full rationale:
+`docs/reference/localization.md`.
 
 ---
 

@@ -1,6 +1,7 @@
 # Commercial model — retail ladder, charger policy, consumables, clinician tiers
 
-> Relocated from CLAUDE.md §2.1a, §2.2, §2.3 and §6.1 (Rev 40) to slim the always-loaded core.
+> Relocated from CLAUDE.md §2.1a, §2.2, §2.3 and §6.1 (Rev 40), and from §2.1 — the BOM / COGS / GM%
+> columns and the Home Standard box contents — (Rev 43), to slim the always-loaded core.
 > Content is verbatim; section numbers are unchanged so inbound `CLAUDE.md §2.2`-style citations
 > still name the right block. CLAUDE.md keeps the invariant of each section and points here.
 >
@@ -12,11 +13,15 @@
 > **Binding constraint carried over from §2.1a:** no price may be set before `OI-HEXTILE-06` is
 > decided (`OI-COST-10`).
 
-### 2.1 Configuration table — the full caveats (condensed in CLAUDE.md §2.1)
+### 2.1 Configuration cost table — BOM / COGS / GM% and the full caveats
 
-The configuration table itself stays in CLAUDE.md §2.1 because a cost or margin question usually
-starts there. Its two qualifying blocks are reproduced here in full; CLAUDE.md carries a condensed
-form of them.
+**The cost columns live here, not in CLAUDE.md §2.1 (Rev 43).** The core keeps what identifies a
+configuration — name, retail price in force, modalities included — plus the invariant that every T1
+row is gross-margin negative and every figure is a floor. It does not keep the figures, because by
+the rule stated in the caveat below **no figure here may be quoted, cited or acted on without first
+reading `docs/np_cost_001.md`**: a number visible in the always-loaded core could never be *used*
+from there, only misremembered, and the cost model is the most-revised content in the document set
+(Rev 38 replaced every figure; `OI-HEXTILE-06` will move them again).
 
 > **⚠ RETAIL IS UNLOCKED (principal, 2026-08-16). BOM / COGS / GM% are re-derived against the
 > hex-tile architecture and are FLOORS, not estimates.** The pre-hex figures (Core $168–169 /
@@ -44,6 +49,20 @@ form of them.
    `OI-HEXTILE-06`, and it is the decision that determines whether T1 can close against locked
    retail at all. `docs/np_cost_001.md` §6 runs its three options: **none of them, alone or
    combined, restores a positive T1 margin.**
+
+**Cost table (floors; relocated verbatim from CLAUDE.md §2.1, Rev 43).** The Retail and Modalities
+columns are the two the core retains; they are repeated here so this table stands on its own.
+
+| Config | BOM (floor) | COGS (floor) | Retail (in force, 🔓 unlocked) | GM% (floor) | Modalities included |
+|--------|-----|------|--------|-----|---------------------|
+| Core — EEG only | $360–423 | $554–650 | $449 | **−23% to −45%** | 4-ch EEG · all connectivity · EMF shielding · processor stack · 8GB eMMC |
+| Home Lite | $642–705 | $896–984 | $599 | **−50% to −64%** | Core + PBM tiles (660+810nm) · 8-ch EEG · VNS+HRV clip |
+| Home Standard ★ (flagship) | $897–959 | $1,196–1,278 | $849 | **−41% to −51%** | All T1 modalities (see §3) |
+| Home Premium | $952–1,014 | $1,287–1,371 | $1,199 | **−7% to −14%** | All T1 + EC lens (+$89 value) · 2yr warranty · priority support |
+| Pro Entry | $1,463–1,525 | $2,398–2,500 | $4,999 | **+50% to +52%** | All T1 + 21-ch qEEG · 1170nm deep PBM · clinical tACS · HIPAA cloud · sLORETA |
+| Pro Full | $2,136–2,198 | $3,728–3,836 | $13,999 | **+73%** | All T2 + TMS hub · multi-patient dashboard · scripting API · FHIR R4 · $1,800/yr service |
+
+**★ Home Standard box contents:** All T1 modules · hard clamshell case · braided aramid USB-C cable (spare in box) · **45W NeurOne branded GaN charger** · S1 opaque shade · interface covers (installed + spare set each type) · mesh cleaning brush · Boa replacement cable + hook tool · moisture-barrier electrode tip hydration caps · humidity indicator card · pre-impregnated cleaning cloth packets
 
 ### 2.1a Implied retail ladder (retail unlocked 2026-08-16 — implied, NOT set)
 

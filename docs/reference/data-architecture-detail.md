@@ -1,9 +1,10 @@
 # Data architecture — boundary resolutions, predictive maintenance, anonymization
 
-> Relocated from CLAUDE.md §5.1 (the specific boundary-resolution list), §5.2 and §5.3 (Rev 40) to
-> slim the always-loaded core. Content is verbatim; section numbers are unchanged. CLAUDE.md §5
-> keeps the UHDR/SHDR definitions, the defining tests, the when-in-doubt rule and the
-> conditional-redaction rule — the parts that decide most classification questions without this
+> Relocated from CLAUDE.md §5.1 (the specific boundary-resolution list), §5.2 and §5.3 (Rev 40), and
+> from §5.1's two full contents enumerations (Rev 43), to slim the always-loaded core. Content is
+> verbatim; section numbers are unchanged. CLAUDE.md §5 keeps the UHDR/SHDR definitions, the
+> defining tests, the when-in-doubt rule, the conditional-redaction rule and a representative
+> handful of each contents list — the parts that decide most classification questions without this
 > file.
 >
 > **Read this file when:** classifying a new telemetry field, touching the SHDR schema or fleet DB,
@@ -12,6 +13,19 @@
 > **The list below is authoritative per field and is the record `scripts/check-redaction-shape.ts`
 > enforces the shape of.** A field not on it is decided by CLAUDE.md §5.1's defining test, and the
 > answer is added here.
+
+### 5.1 Contents of each record — full enumeration (relocated from §5.1, Rev 43)
+
+CLAUDE.md §5.1 keeps each record's owner, access rules, defining test, storage and the two general
+rules, plus a representative handful of each contents list. The complete enumerations are here.
+
+**UHDR contents:** EEG waveforms (all channels) · HRV time series · PPG optical signal · neurofeedback performance scores · session timestamps and duration · protocol parameters used · closed-loop adaptation events · PBM dose (J/cm²) per zone · user-entered symptom/outcome logs · eye-open/closed state during sessions
+
+**SHDR contents:** LED output ratio per zone · NTC temperature profiles · EMF shielding attenuation ratio · device session count (unsigned integer, no timestamps) · consumable session counts · USB-C insertion counter · PD negotiation log · impact events (g-force, orientation — between sessions only) · fan RPM · supercapacitor cycles · firmware version history · OTA log · accessory authentication pass/fail · calibration coefficient history
+
+> Neither list is closed, and neither overrides the defining test. A field that is not on a list is
+> classified by CLAUDE.md §5.1's defining test, then added — to the boundary-resolution list below
+> if the answer needed argument, or to the enumeration above if it did not.
 
 ### 5.1 Specific boundary resolutions (list relocated from §5.1)
 
