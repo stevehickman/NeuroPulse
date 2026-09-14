@@ -2,17 +2,19 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-REM-001  
-**Revision:** 4
-**Date:** 2026-08-16  
+**Revision:** 5
+**Date:** 2026-09-14  
 **Status:** ACTIVE  
 **Effective Date:** 2026-08-12  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
 **Approved By:** Steve Hickman, CEO  
-**References:** NP-SEC-BR-001, NP-PROC-POA-001, NP-APP-TELEMETRY-001 Rev 2, NP-FW-EMMC-002 Rev 2 (§G, §H), NP-MOD-ID-001 Rev 1 §7  
-**Related Issues:** —  
+**References:** NP-SEC-BR-001, NP-PROC-POA-001, NP-APP-TELEMETRY-001 Rev 2, NP-FW-EMMC-002 Rev 2 (§G, §H), NP-MOD-ID-001 Rev 1 §7, NP-FW-ANON-001 Rev 1 §9, NP-FAI-001 Rev 2 §1, §2.1  
+**Related Issues:** GitHub Issue #343 (STEP-24 document field)  
 **Gate:** —  
 **IEC 62304 Class:** —  
-**Supersedes:** NP-PRIV-REM-001 Rev 3  
+**Supersedes:** NP-PRIV-REM-001 Rev 4  
+**Change Summary (Rev 5, 2026-09-14):** **STEP-24's `Document:` field only.** It named `NP-FAI-ANON-001`, a serial that had never been written and that should not be: anonymisation ships as firmware, and an FAI is an inspection of a manufactured first article (`NP-FAI-001` §1; `NP-ART-001` §1). The record of file is `NP-FW-ANON-001` §9, which already specifies FAI-ANON-01…09, and the field now says so — matching how STEP-22 and STEP-23 name their own verification tests. **No deliverable, criterion, trigger, target milestone, performer, authority or external-party entry changed in any step, and no step was added, removed, re-scoped or re-sequenced.** GitHub #343.
+
 **Change Summary (Rev 4, 2026-08-16):** STEP-36 Step 1 clarified only: the age gate remains the first screen of the *overall* onboarding consent chain (age gate → biometric/BIPA disclosure → research consent), which is unaffected by the research-consent flow going from four screens to two with the reciprocity screen first (CLAUDE.md Rev 37 §6.2). No remediation step was added, removed, re-scoped or re-sequenced. Rev 2 — Three new steps added (STEP-31, STEP-32, STEP-33) from NP-PRIV-001 Rev 2 delta findings: HIPAA Expert Determination certification pathway, adaptive stimulation right-to-explanation, and session_sequence coarsening. NP-APP-TELEMETRY-001 updated to Rev 2 (session_sequence → engagement_tier). NP-FW-EMMC-002 §G added. Capability matrix rows added for STEP-31 through STEP-33. Direct remediations section updated.  
 
 **Change Summary (Rev 3, 2026-08-12):** **STEP-10 rewritten.** It previously read *"Option C on-device processing / Status: OPEN — spec complete, implementation pending"*, which understated the problem: Option C was not a pending step but a destination with no road to it, because the on-device processing it names is defined by two thresholds that §G.3 forbids anyone from ever validating. Principal decision 2026-08-12 opens NP-FW-EMMC-002 §H — a time-boxed, opt-in, warranty-owner-consented characterisation window collecting a coarsened per-gap impact histogram, purpose-bound to predictive-maintenance training, expiring fail-closed in firmware on a record budget rather than a calendar (this device has no clock that survives a disconnect). `firmware/shdr/` authored, SHDR schema Rev E, CHAR-01 CI gate with a self-revoking exemption falsified in both directions. G1 (Month 6) target UNCHANGED. Four open items now gate closure: OI-EMMC2-09/10/11/12. **Rev 2 change summary retained below.**
@@ -555,7 +557,7 @@ The preferred IRB path is through a university collaborator who already has a fu
 ---
 
 #### STEP-24 — Research anonymisation verification: l-diversity + DP test suite
-**Document:** NP-FAI-ANON-001 (new FAI document)  
+**Document:** `NP-FW-ANON-001` Rev 1 §9 (FAI-ANON-01…09) — the record of file. **No new FAI document, corrected at Rev 5:** this step named `NP-FAI-ANON-001`, which had never been written and could not be, because an FAI inspects a manufactured first article and `NP-FAI-001` §1 excludes software verification while `NP-ART-001` §1 excludes firmware modules from the artifact register. STEP-22 and STEP-23 already name their verification tests without inventing a serial (`FAI-ACCEL-01`, `FAI-REVOKE-01`); this step was the outlier. Verification is IEC 62304 under `NP-SW-001`, executed by `firmware/anon/tests/` plus the external DP review below (GitHub #343, `NP-FAI-001` §2.1).  
 **Finding:** HIGH-02 (research anonymisation)  
 **Trigger:** When NP-FW-ANON-001 anonymisation engine is implemented.  
 **Target milestone:** G3 (Month 14) for software PASS; hardware/data bench can be concurrent with T2 prototype  

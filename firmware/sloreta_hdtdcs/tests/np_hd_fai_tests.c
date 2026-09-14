@@ -1,6 +1,12 @@
 /*
  * NeurOne sLORETA-guided HD-tDCS — First Article Inspection Tests
- * Document: NP-FW-HD-001 Rev 1 §12 / NP-FAI-HD-001 Rev 1
+ * Document: NP-FW-HD-001 Rev 6 §12 -- the test specification for FAI-HD01..HD04.
+ *
+ * §12 is the test specification and the record of file; this modality has no
+ * separate FAI checklist document, and none can be named yet -- the
+ * hardware-bench limbs inspect the T2 clinical electrode cap, which has no
+ * artifact register row (NP-ART-001 OI-ART-08, NP-FAI-001 §2.1 / OI-FAI-06).
+ * This binary is firmware verification, not an executed inspection record.
  *
  * FAI-HD01: sLORETA source localization accuracy vs known phantom
  *           HD01-D: covariance estimator variance on stochastic input
@@ -829,7 +835,7 @@ static int fai_hd01_sloreta_plumbing(void)
 
     printf("NOTE: FAI-HD01 hardware bench (15 mm accuracy criterion) requires\n");
     printf("      21-ch EEG phantom and known dipole injection at bench.\n");
-    printf("      See NP-FAI-HD-001 §3 for full procedure.\n");
+    printf("      See NP-FW-HD-001 §12.1 for full procedure.\n");
 
     int result2 = g_fail_count - failures_before;
     printf("FAI-HD01 (software plumbing): %s (%d failures)\n\n",
@@ -1676,7 +1682,7 @@ static int fai_hd03_focality_algorithm(void)
 
     printf("NOTE: FAI-HD03 focality measurement (FWHM ≤ 25 mm criterion) requires\n");
     printf("      saline phantom, 5 mm reference electrode grid, and field mapping.\n");
-    printf("      See NP-FAI-HD-001 §4 for full bench procedure.\n");
+    printf("      See NP-FW-HD-001 §12.3 for full bench procedure.\n");
 
     int result = g_fail_count - failures_before;
     printf("FAI-HD03 (algorithm check): %s (%d failures)\n\n",
@@ -1725,7 +1731,7 @@ static int fai_hd04_snr_constants(void)
     printf("  Min SNR threshold: %.1f dB\n", NP_HD_EEG_MIN_SNR_DB);
     printf("NOTE: FAI-HD04 SNR measurement requires hardware bench with\n");
     printf("      concurrent tDCS enabled and EEG phantom source injection.\n");
-    printf("      See NP-FAI-HD-001 §5 for full bench procedure.\n");
+    printf("      See NP-FW-HD-001 §12.4 for full bench procedure.\n");
 
     int result = g_fail_count - failures_before;
     printf("FAI-HD04 (constant check): %s (%d failures)\n\n",
@@ -1764,8 +1770,10 @@ static int fai_safety_constants(void)
 
 int main(void)
 {
-    printf("=== NP-FAI-HD-001 Rev 1 — sLORETA-guided HD-tDCS FAI Tests ===\n");
-    printf("Date: 2026-05-11  Document: NP-FW-HD-001 Rev 1  Issue: #23\n\n");
+    printf("=== NP-FW-HD-001 §12 — sLORETA-guided HD-tDCS FAI item checks ===\n");
+    printf("Document: NP-FW-HD-001 Rev 6 §12  Issue: #23\n");
+    printf("Not an inspection record: the T2 electrode cap has no artifact register\n");
+    printf("row, so no artifact FAI checklist exists (NP-ART-001 OI-ART-08).\n\n");
 
     fai_safety_constants();
     fai_hd01_sloreta_plumbing();
@@ -1782,7 +1790,7 @@ int main(void)
     if (g_fail_count == 0) {
         printf("SOFTWARE FAI: PASS\n");
         printf("HARDWARE FAI (FAI-HD01 full, FAI-HD03, FAI-HD04): bench required\n");
-        printf("See NP-FAI-HD-001 Rev 1 for complete hardware test procedures.\n");
+        printf("See NP-FW-HD-001 §12.1, §12.3, §12.4 for the bench procedures.\n");
     } else {
         printf("FAIL — %d assertion(s) failed. Review output above.\n", g_fail_count);
     }

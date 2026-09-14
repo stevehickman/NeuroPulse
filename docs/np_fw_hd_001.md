@@ -2,18 +2,18 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HD-001
-**Revision:** 5
-**Date:** 2026-09-09
+**Revision:** 6
+**Date:** 2026-09-14
 **Status:** BASELINED
 **Effective Date:** 2026-05-11
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
 **References:** CLAUDE.md §3 T2 additions (sLORETA-guided HD-tDCS)
-**Related Issues:** GitHub Issue #23
+**Related Issues:** GitHub Issue #23; GitHub Issue #343 (§12 FAI serial disposition)
 **Gate:** NP-COORD-001 G3-07
 **IEC 62304 Class:** SW-02 Class B (main processor)
 **Supersedes:** —
-**Change Summary:** Rev 5 (2026-09-09) — **§6.4's map has a controlled hardware source of truth.** `NP-HW-TCAP-001` Rev 1 §3 now specifies the electrode-to-driver-channel map (`REQ-TCAP-02`), closing `OI-TACS-02` half (i); `k_driver_channel[]` implements it rather than being it, and CI diffs the two (`scripts/check-tcap-map.ts`). §6.4 also now carries a pointer to `NP-HW-TCAP-001` §4.2, which found the 2 mA / 6.0 A/m² / 40 µC/cm² limits mutually unsatisfiable on a 3.5 mm electrode (`OI-TCAP-01`). **No algorithm, constant, montage or safety limit changed in this document.** Rev 4 (2026-09-08) — **the sLORETA buffers are on-chip; there is no external SDRAM.** NP-SW-CI-001 §4.13 closed OI-SWCI-46 by measuring that this document's entire ≈215 KB "LPSDR4" budget fits on-chip (312,716 B free in the staging region alone, plus ~439 KB of unallocated established DTCM) and that no SDRAM part exists in any BOM. §11's LPSDR4 rows become `.bss` rows and §3.2/§5.1 stop naming LPSDR4. No algorithm, constant or safety limit changed. **Numbered 4, not 3:** the header read `Revision: 2` while §15 already carried a Rev 3 row (the FAI-HD01-F coverage fix, added by #270, which bumped the history and not the header). §15 is the record that was right; the header was one behind and is corrected here rather than absorbed.
+**Change Summary:** Rev 6 (2026-09-14) — **§12 no longer claims to be a document that does not exist.** Rev 5 and earlier opened §12 with *"Test specification: NP-FAI-HD-001 Rev 1"*; that serial had never been written, and `tests/np_hd_fai_tests.c` printed it as its own header. GitHub #343 / `NP-FAI-001` §2.1 retire it — §12 **is** the test specification — and the test binary now names `NP-FW-HD-001` §12.1/§12.3/§12.4 instead. Records that the bench limbs still have **no** nameable artifact checklist, because the T2 electrode cap has no artifact-register row (`OI-ART-08`, `OI-FAI-06`). **No algorithm, constant, montage, safety limit, criterion or item number changed.** Rev 5 (2026-09-09) — **§6.4's map has a controlled hardware source of truth.** `NP-HW-TCAP-001` Rev 1 §3 now specifies the electrode-to-driver-channel map (`REQ-TCAP-02`), closing `OI-TACS-02` half (i); `k_driver_channel[]` implements it rather than being it, and CI diffs the two (`scripts/check-tcap-map.ts`). §6.4 also now carries a pointer to `NP-HW-TCAP-001` §4.2, which found the 2 mA / 6.0 A/m² / 40 µC/cm² limits mutually unsatisfiable on a 3.5 mm electrode (`OI-TCAP-01`). **No algorithm, constant, montage or safety limit changed in this document.** Rev 4 (2026-09-08) — **the sLORETA buffers are on-chip; there is no external SDRAM.** NP-SW-CI-001 §4.13 closed OI-SWCI-46 by measuring that this document's entire ≈215 KB "LPSDR4" budget fits on-chip (312,716 B free in the staging region alone, plus ~439 KB of unallocated established DTCM) and that no SDRAM part exists in any BOM. §11's LPSDR4 rows become `.bss` rows and §3.2/§5.1 stop naming LPSDR4. No algorithm, constant or safety limit changed. **Numbered 4, not 3:** the header read `Revision: 2` while §15 already carried a Rev 3 row (the FAI-HD01-F coverage fix, added by #270, which bumped the history and not the header). §15 is the record that was right; the header was one behind and is corrected here rather than absorbed.
 **Parent Document:** NP-SW-001
 
 ---
@@ -504,7 +504,19 @@ So the binding resource is the 440 KiB staging region rather than "1 MB on-chip"
 
 ## 12. First Article Inspection (FAI)
 
-Test specification: **NP-FAI-HD-001 Rev 1** (embedded in `tests/np_hd_fai_tests.c` and documented here).
+**This section is the test specification.** It is implemented by
+`firmware/sloreta_hdtdcs/tests/np_hd_fai_tests.c` for the software-verifiable limbs; the bench
+limbs are procedures, not results.
+
+> **There is no separate FAI checklist document for this modality, and Rev 5 and earlier said
+> there was.** This section was cited as an `NP-FAI-*` serial that had never been written, and the
+> test binary printed that serial as its own document header — which, per GitHub #343, reads to a
+> reviewer and to `NP-DHF-001` exactly like a controlled document that has been executed. The
+> serial is retired (`NP-FAI-001` §2.1) and this section is the record of file. **An artifact FAI
+> checklist cannot be named for the bench limbs yet**: FAI-HD01's phantom limb, FAI-HD03 and
+> FAI-HD04 inspect the T2 clinical electrode cap, whose only specification (`NP-HW-TCAP-001`
+> Rev 1) is DRAFT and which has no row in `NP-ART-001` §2 — so `NP-FAI-001` §2 F1 and F4 both
+> fail (`OI-ART-08`, `OI-FAI-06`). **No criterion, limit or item number in this section changed.**
 
 ### 12.1 FAI-HD01 — sLORETA source localisation accuracy
 
