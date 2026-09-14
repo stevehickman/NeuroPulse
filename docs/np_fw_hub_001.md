@@ -55,6 +55,13 @@
 >    respectively); nothing about the code changed. Recorded rather than fixed silently, because a
 >    revision citation invented against an absent document is exactly the failure `OI-DOC-01` is
 >    about, in miniature.
+> 3. **`NP_HUB_PROTO_VERSION` is at 3 and the register said Rev 1 described it.** The wire format has
+>    been revised twice since the register entry was written — v2 replaced the five-bit `slot_mask`
+>    with `slot_id` plus a target block (80 sockets do not fit in five bits), v3 grew
+>    `np_mod_tdcs_params_t` by the declared electrode area that `OI-CHARGE-04` requires. A register
+>    entry naming a document that cannot be read cannot go stale visibly, which is the property that
+>    makes the absence expensive rather than merely untidy. §4.5 is now the versioned record.
+>
 > 4. **Writing the bring-up table found a live ordering defect, and fixing it is part of this
 >    change.** `np_mod_reg_scan()` was called with the SHDR zone-auth callback *before*
 >    `np_log_init()`, so each record was stamped with `s_device_session_count` while it was still
@@ -74,13 +81,6 @@
 >    task count against the function itself, and was **falsified against the pre-fix commit**, not
 >    only against fixtures: it reports exactly these two violations on it (`NP-CONV-001` §8).
 >    `OI-FWHUB-07` and `OI-FWHUB-08`, both closed.
->
-> 3. **`NP_HUB_PROTO_VERSION` is at 3 and the register said Rev 1 described it.** The wire format has
->    been revised twice since the register entry was written — v2 replaced the five-bit `slot_mask`
->    with `slot_id` plus a target block (80 sockets do not fit in five bits), v3 grew
->    `np_mod_tdcs_params_t` by the declared electrode area that `OI-CHARGE-04` requires. A register
->    entry naming a document that cannot be read cannot go stale visibly, which is the property that
->    makes the absence expensive rather than merely untidy. §4.5 is now the versioned record.
 >
 > **What is NOT claimed.** This document does not verify the firmware, does not close any `OI-*` item
 > belonging to another document, and adds no requirement the code does not already meet — every
