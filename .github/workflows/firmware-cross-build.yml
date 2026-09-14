@@ -49,8 +49,14 @@ name: Firmware Cross-Compile (ARM)
 #                              build configuration + EMMC-FS-01 instance;
 #                              the target is declared in hub_control, where
 #                              the configuration lives — OI-LFS-01)
+#                            → np_lfs_powerloss_tests (power-loss injection
+#                              against claims L-1…L-4, swept across every
+#                              medium-touching op under three tear models and
+#                              falsified in both directions — OI-LFS-02.  Same
+#                              reason for living in hub_control: it mounts the
+#                              EMMC-FS-01 instance)
 #
-# The other 7 (firmware/safety_mcu) belong to safety-mcu-ci.yml.  7 + 25 = 32,
+# The other 7 (firmware/safety_mcu) belong to safety-mcu-ci.yml.  7 + 29 = 36,
 # disjoint; build-all.yml re-checks that partition weekly.  (This line read
 # "7 + 23 = 30" until phase 9.  It was stale from phase 8, which added a target
 # and updated NP_CLASS_B_TEST_COUNT here but not build-all.yml's
@@ -167,7 +173,7 @@ env:
   # stopped satisfying the requirement — a merge deadlock with no error message
   # anywhere.  The number belongs to the assertion, not to the check name.
   # NP-SW-CI-001 §6.7.
-  NP_CLASS_B_TEST_COUNT: '28'
+  NP_CLASS_B_TEST_COUNT: '29'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  This job always

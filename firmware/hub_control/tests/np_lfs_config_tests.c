@@ -1,6 +1,6 @@
 /*
  * NeurOne SW-02 — littlefs SOUP configuration + instance host tests
- * Document: NP-SOUP-LFS-001 Rev 2 §7.3 (closes OI-LFS-01)
+ * Document: NP-SOUP-LFS-001 Rev 3 §7.3 (closes OI-LFS-01)
  *
  * ── What this suite is for ───────────────────────────────────────────────────
  *
@@ -43,10 +43,11 @@
  * the tree still holds those bytes.
  *
  * That littlefs keeps any promise.  L-1…L-4 are power-loss atomicity claims and
- * remain UNVERIFIED — that is OI-LFS-02, and it needs a NeurOne power-loss
- * injection test falsified in both directions, not a configuration comparator.
- * Nothing here may be cited as evidence for NP-FW-NVRAM-001 §4 or
- * NP-FW-HUB-001 §6.5.
+ * a configuration comparator cannot reach them.  They are exercised by a
+ * different suite — np_lfs_powerloss_tests (OI-LFS-02, NP-SOUP-LFS-001 §12) —
+ * and nothing HERE may be cited as evidence for NP-FW-NVRAM-001 §4 or
+ * NP-FW-HUB-001 §6.5.  Note also what that suite does not reach: it interrupts
+ * the struct lfs_config contract, not the eMMC beneath it (OI-LFS-07).
  *
  * That anything mounts.  The OI-LOG-05..07 block-device glue does not exist, so
  * no lfs_mount() is reachable from this tree at all.
