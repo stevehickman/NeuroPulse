@@ -63,9 +63,13 @@ env:
   # (NP-SW-CI-001 §4.14, OI-SWCI-45) adds the next one: 7 + 27 = 34.  Both
   # re-derived by enumerating ctest on the merged tree, not by adding one to the
   # line above — which is how this value was wrong for a month at phase 8.
-  NP_TOTAL_TEST_COUNT: '35'
+  # OI-LFS-01 then added np_lfs_config_tests (7 + 28 = 35) and OI-LFS-02 adds
+  # np_lfs_powerloss_tests — the littlefs power-loss injection sweep against
+  # claims L-1…L-4 — taking the figures to 7 + 29 = 36.  Re-derived the same
+  # way: `ctest -N` on the merged tree.
+  NP_TOTAL_TEST_COUNT: '36'
   NP_SAFETY_TEST_COUNT: '7'
-  NP_CLASS_B_TEST_COUNT: '28'
+  NP_CLASS_B_TEST_COUNT: '29'
 
 jobs:
   host-tests-all:

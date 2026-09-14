@@ -656,6 +656,23 @@ as closed.
 > one file, which makes "one writer per log file" a requirement the `OI-LOG-05..07` glue has to
 > keep rather than something that happens to be true.
 
+> **Update 2026-09-14 (second) — `OI-LFS-02` is closed, and §6.5 is unblocked *to a stated depth*.**
+> `NP-SOUP-LFS-001` Rev 3 performs the §7.1.2 anomaly evaluation (§11) and runs the power-loss
+> injection test this section was waiting for (§12): `np_lfs_powerloss_tests` sweeps a cut across
+> every medium-touching op of a flushed-append sequence under three tear models — **90 interrupted
+> runs for `L-1`/`L-2`, 0 violations** — and `L-1` is checked in a **sharper** form than §6.5
+> writes it: the recovered length must be an exact flush boundary, because *"a flush commits the
+> exact buffered tail"* forbids a partial batch becoming visible. It was observed committing
+> exactly one batch and not the next.
+>
+> **Three qualifications, and §6.5 must not be read past them.** (1) The test interrupts the
+> `struct lfs_config` **contract**, not the eMMC behind the XTS layer — `OI-LFS-07`, and it needs
+> hardware. (2) It mounts the **Config** instance, because `OI-LFS-05` is still open and the log
+> partitions still have no stated parameters; `L-1` and `L-2` are claims about those. (3) A
+> post-power-loss **hang** is invisible to a sweep (upstream #1211), and on this device it is
+> fail-safe only because the SPI heartbeat stops. So §6.5's durability model is **verified in
+> shape and unverified on its own medium**.
+
 ---
 
 ## 7. Safety MCU interface
@@ -1040,7 +1057,7 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | `RISK-FWHUB-05` | tDCS runs against the 25 cm² default with small electrodes | High | geometry gate arms even when no area is declared, so the MCU never grants (§5.4) | Accepted |
 | `RISK-FWHUB-06` | A cardiac re-enable happens before the MCU lockout expires | High | hub window strictly contains the MCU window; MCU denies independently (§7a) | Accepted |
 | `RISK-FWHUB-07` | An SHDR record discloses user biology by redaction *shape* | Medium | unconditional suppression (§6.3); `check-redaction-shape.ts`; `FWHUB-DRC-11` | Accepted |
-| `RISK-FWHUB-08` | Log records lost on power loss | Low | bounded to one flush interval (§6.5) — **but the bound is asserted against a component no NeurOne test has exercised.** `NP-SOUP-LFS-001` Rev 2 pins and vendors littlefs `v2.11.3` (closing `OI-LFS-01`), which resolves "not in the tree" and resolves nothing about the bound; `OI-LFS-02` now blocks reliance on it. The log partitions' own instance parameters are additionally unstated — `OI-LFS-05` | **Open until `OI-LFS-02`** |
+| `RISK-FWHUB-08` | Log records lost on power loss | Low | bounded to one flush interval (§6.5) — **the bound is now exercised against the `lfs_config` contract and still not against the medium.** `NP-SOUP-LFS-001` Rev 2 pins and vendors littlefs `v2.11.3` (closing `OI-LFS-01`), which resolves "not in the tree" and resolves nothing about the bound; `OI-LFS-02` now blocks reliance on it. The log partitions' own instance parameters are additionally unstated — `OI-LFS-05` | **Open until `OI-LFS-02`** **Update 2026-09-14: `OI-LFS-02` closed** — `NP-SOUP-LFS-001` §12, 90 interrupted runs on the flushed-append path, 0 violations, falsified in both directions. What remains open is narrower and is stated as such: the eMMC behind the XTS layer (`OI-LFS-07`), the log partitions’ own instance parameters (`OI-LFS-05`), and a post-power-loss hang, which a sweep cannot see. |
 | `RISK-FWHUB-09` | Emission into a lifted goggle | High | Hall cutoff is a GPIO interrupt, plus three independent layers (§8.6) | Accepted |
 | `RISK-FWHUB-11` | Boot-time module authentication is not evidenced in fleet telemetry | Low | **was unmitigated — the records were discarded.** Fixed 2026-09-14 (§2.1) and held by `scripts/check-hub-bringup-order.ts`, falsified against the pre-fix commit | Accepted; records-integrity only, no emission path |
 | `RISK-FWHUB-10` | Per-tile PBM drive magnitude bounded only by a thermal cutoff | Medium | carried, not closed — `OI-NVRAM-10`; re-derive §9 before a differing tile variant ships | **Open** |

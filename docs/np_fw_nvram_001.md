@@ -1167,6 +1167,20 @@ blocking any reliance on §4's atomicity claims — because the component under 
 vendors it. §4's atomicity claims are exactly as unverified as before; the blocking status passed to
 `OI-LFS-02`, the §7.1.2 evaluation plus the NeurOne power-loss injection test. A vendored component
 is not a tested one — `NP-SOUP-LFS-001` §7.5.)**
+
+**(Updated 2026-09-14, second: `OI-LFS-02` is CLOSED, and §4 is unblocked to a stated depth.)**
+`NP-SOUP-LFS-001` Rev 3 performs the §7.1.2 evaluation (§11) and the power-loss injection test (§12).
+Two results land directly on this document. **D-5's tail-additive Map 3 journal was swept** — 168
+interrupted runs, one flush per record, 0 violations: a torn write cost the record in flight and
+never an earlier one. **And §4.2's atomicity for the `"NPMP"` blob was swept as write-temp,
+sync, close, rename** — 198 interrupted runs, 0 violations — with the **remove-then-rewrite**
+ordering swept alongside it and required to fail, which it did at 192 of 198 cut points. So §4.2's
+atomicity is a property of **that ordering**, which the `OI-LOG-05..07` glue must use; littlefs does
+not supply it. Three things §4 still may not claim: the eMMC behind the XTS layer was not
+interrupted (`OI-LFS-07`); a post-power-loss hang is invisible to a sweep (upstream #1211); and
+**upstream #1210 can silently drop a whole Config file with its data's CRC still valid**, which is
+`OI-LFS-08` and which no CRC in this document would see. `REQ-LFS-01` is why Map 3 is not the worst
+case of that; `ukmd.rec` is.
 `OI-NVRAM-05` remains open and still blocks `NP-MOD-ID-001` §10's factory-reset rotation test; it is a
 factory-reset correctness question rather than a storage-layer one, and Rev 2 does not touch it.
 

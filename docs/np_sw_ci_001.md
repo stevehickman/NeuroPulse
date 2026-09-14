@@ -3264,7 +3264,7 @@ A build that reaches the network is not reproducible, and a medical-device build
 | **ARM CMSIS-Core(M) 5.6.0** (CMSIS_5 `5.9.0`) | `firmware/vendor/cmsis_core/` | `VERSION` + `README-NEURONE.md`; NP-SW-001 §9.4; **anomaly review NP-SOUP-CMSIS-001 §3** | **SW-01 Class C** |
 | **ST CMSIS-Device STM32G0 `v1.4.5`** | `firmware/vendor/cmsis_device_g0/` | `VERSION` + `README-NEURONE.md`; NP-SW-001 §9.4; **anomaly review NP-SOUP-CMSIS-001 §4** | **SW-01 Class C** |
 | **NXP MCUX SDK 2.16.0** — MIMXRT1062 device layer | `firmware/vendor/mcux_sdk/` | `VERSION` + `README-NEURONE.md`; NP-SW-001 §9.4; **no anomaly review — Class B, see below** | SW-02 Class B |
-| **littlefs `v2.11.3`** | `firmware/vendor/littlefs/` | `VERSION` + `README-NEURONE.md`; NP-SW-001 §9.4; **hazard analysis NP-SOUP-LFS-001 Rev 2**; §7.1.2 evaluation still open (`OI-LFS-02`) | SW-02 Class B — **conditionally**, see NP-SOUP-LFS-001 §6.2 |
+| **littlefs `v2.11.3`** | `firmware/vendor/littlefs/` | `VERSION` + `README-NEURONE.md`; NP-SW-001 §9.4; **hazard analysis NP-SOUP-LFS-001 Rev 3**; **§7.1.2 evaluation performed — NP-SOUP-LFS-001 §11**; power-loss verification §12 | SW-02 Class B — **conditionally**, see NP-SOUP-LFS-001 §6.2 |
 
 The littlefs row was added 2026-09-14 (closing `OI-LFS-01`) and is the first row here that does
 **not** follow the obligation-5 pattern in either direction. It is Class B, so §9.3 obligation 5 does
@@ -3272,11 +3272,23 @@ not attach — but `NP-SOUP-LFS-001` requires the §7.1.2 evaluation for this co
 unlike MCUX its Class B argument is a property of the *caller* rather than of the component
 (`NP-SOUP-LFS-001` §6.2, `REQ-LFS-01`). Two consequences a later reader should not have to
 reconstruct. **A `VERSION` record here is complete without a current evaluation and incomplete
-without a pointer to why one is owed** — this one names `OI-LFS-02` explicitly, and states what the
-vendoring does *not* establish, because a populated vendor directory reads as an answer. And **the
+without a pointer to why one is owed** — this one named `OI-LFS-02` explicitly, and stated what the
+vendoring did *not* establish, because a populated vendor directory reads as an answer. And **the
 "intentionally NOT vendored" list carries a reason the other rows' lists do not**: upstream's own
 test suite is excluded precisely because the defective SOUP cell this whole record replaced cited it
 as NeurOne's verification. Vendoring it would make that citation look discharged.
+
+**Update 2026-09-14 — `OI-LFS-02` closed, and the pattern this row establishes changed shape.**
+`NP-SOUP-LFS-001` Rev 3 §11 performs the evaluation and §12 runs the power-loss test, so the
+`VERSION` record now carries a *performed* evaluation rather than a pointer to an owed one. **The
+part worth carrying to the next vendored component is what replaced the missing notice**: the record
+does not simply drop the warning, it states the boundary of what was verified — the test interrupts
+the `struct lfs_config` contract and not the eMMC beneath it (`OI-LFS-07`). A discharged obligation
+that leaves a narrower one behind should say so in the same place the broad one was stated, or the
+next reader infers the wrong scope from the absence. The exclusion of upstream's test suite also
+paid off exactly as intended: the power-loss injector is `firmware/hub_control/tests/np_lfs_powerbd.c`,
+NeurOne's own, and `np_lfs_powerloss_tests` is a NeurOne target — nothing in this row cites work
+somebody else ran.
 
 The MCUX row was added by phase 8 (2026-09-01, closing OI-SWCI-20) and is the first component
 vendored for SW-02 since FreeRTOS. Three things about it are worth reading off the table rather than

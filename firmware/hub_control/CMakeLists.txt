@@ -136,6 +136,24 @@ if(NP_BUILD_TESTS)
     target_compile_options(np_lfs_config_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g)
 
+    # OI-LFS-02: the NeurOne power-loss injection test against claims L-1…L-4.
+    # Mounts the EMMC-FS-01 instance over np_lfs_powerbd.c — NeurOne's own
+    # injecting block device, written rather than vendored because upstream's
+    # bd/lfs_emubd.* is deliberately not in the tree (NP-SOUP-LFS-001 §7.5) —
+    # and sweeps a power cut across every medium-touching op of each commit
+    # sequence, under three tear models.  Links np_crypto so the record checker
+    # is np_crc32 rather than the component's own lfs_crc.
+    add_executable(np_lfs_powerloss_tests
+        tests/np_lfs_powerloss_tests.c
+        tests/np_lfs_powerbd.c
+        src/np_lfs_instance.c
+    )
+    target_include_directories(np_lfs_powerloss_tests PRIVATE include tests)
+    target_link_libraries(np_lfs_powerloss_tests PRIVATE np_littlefs np_crypto)
+    target_compile_definitions(np_lfs_powerloss_tests PRIVATE NPTEST_HOST)
+    target_compile_options(np_lfs_powerloss_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g)
+
     # OI-HUB-MAIN-01: protocol transport reassembly + single-slot mailbox.
     add_executable(np_transport_tests
         tests/np_transport_tests.c

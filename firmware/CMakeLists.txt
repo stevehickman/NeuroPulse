@@ -30,11 +30,14 @@
 # SW-02 (Class B) — i.MX RT1062 main processor firmware modules:
 #   firmware/vendor/freertos/ — vendored FreeRTOS-Kernel V11.3.0 SOUP (SW-02 RTOS)
 #   firmware/vendor/littlefs/ — vendored littlefs v2.11.3 SOUP (SW-02 storage,
-#                                 NP-SW-001 §9.4, OI-LFS-01).  Pinned and built;
-#                                 NOT yet called by anything — the OI-LOG-05..07
-#                                 HAL seams are unimplemented, and OI-LFS-02
-#                                 (§7.1.2 evaluation + power-loss injection test)
-#                                 is open, so no atomicity claim may rest on it.
+#                                 NP-SW-001 §9.4, OI-LFS-01).  Pinned, built, and
+#                                 as of OI-LFS-02 anomaly-evaluated and
+#                                 power-loss tested (NP-SOUP-LFS-001 Rev 3 §11,
+#                                 §12).  STILL CALLED BY NOTHING — the
+#                                 OI-LOG-05..07 HAL seams are unimplemented, and
+#                                 the L-1…L-4 results are against the
+#                                 struct lfs_config contract, not against the
+#                                 eMMC behind it (OI-LFS-07).
 #   firmware/bootloader/      — dual-bank OTA bootloader, Ed25519, DFU
 #   firmware/hub_control/     — FreeRTOS hub control (module registry, session
 #                                 runner, session log, safety SPI heartbeat)
@@ -109,6 +112,11 @@
 #   firmware/vendor/littlefs/ → np_lfs_config_tests       (SOUP hashes + config +
 #                              EMMC-FS-01 instance; target lives in hub_control
 #                              because the configuration does)
+#                             → np_lfs_powerloss_tests   (OI-LFS-02: power-loss
+#                              injection against claims L-1…L-4 over the
+#                              EMMC-FS-01 instance, swept across every
+#                              medium-touching op under three tear models,
+#                              falsified in both directions)
 #   firmware/bootloader/      → np_bootloader_mem_tests   (freestanding memcpy/memset —
 #                              NP-SW-CI-001 §4.2)
 #                             → np_bootloader_app_image_tests (OCRAM staging limit +
@@ -123,7 +131,7 @@
 # self-contained because `needs:` only works within one workflow):
 #   firmware/safety_mcu/  → .github/workflows/safety-mcu-ci.yml        (7 targets, Class C)
 #   everything else above → .github/workflows/firmware-cross-build.yml (27 targets, Class B)
-# 7 + 27 = 34.  .github/workflows/build-all.yml re-checks that partition weekly
+# 7 + 29 = 36.  .github/workflows/build-all.yml re-checks that partition weekly
 # and fails if a target ever belongs to neither list.
 # (This line has been wrong more often than right, which is the argument against
 #  keeping a count in a comment at all.  It read "6 + 21 = 27" until 2026-08-12
@@ -321,6 +329,15 @@ if(NP_BUILD_TESTS)
     # Moves the Class B count 27 → 28 and the repo total 34 → 35.
     add_test(NAME np_lfs_config_tests
         COMMAND np_lfs_config_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # OI-LFS-02.  The other half: NeurOne's own power-loss injection against
+    # claims L-1…L-4, swept across every medium-touching op of each commit
+    # sequence under three tear models, and falsified in both directions —
+    # unsafe orderings must be CAUGHT, and every armed cut must be seen to fire.
+    # Moves the Class B count 28 → 29 and the repo total 35 → 36.
+    add_test(NAME np_lfs_powerloss_tests
+        COMMAND np_lfs_powerloss_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_mod_cvns_tests

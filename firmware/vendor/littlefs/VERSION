@@ -13,23 +13,40 @@ IEC 62304:   Class B — CONDITIONALLY.  The classification is a property of the
              CALLER, not of this component: see NP-SOUP-LFS-001 §6.2 and
              REQ-LFS-01.  Read that before treating "Class B" here as settled.
 Vendored:    2026-09-14  (closes OI-LFS-01)
-SOUP record: NP-SW-001 §9.4;  hazard analysis NP-SOUP-LFS-001 Rev 2
+SOUP record: NP-SW-001 §9.4;  hazard analysis NP-SOUP-LFS-001 Rev 3
 Vendoring decision: NP-SW-CI-001 §9 (vendor in-tree, never fetch at build time),
              obligations §9.3.
 
-⚠ THE §7.1.2 ANOMALY EVALUATION FOR THIS TAG DOES NOT EXIST YET — OI-LFS-02.
-Class B does not attach NP-SW-CI-001 §9.3 obligation 5, so this record is not
-incomplete by that rule.  It is named here anyway because NP-SOUP-LFS-001 §7.2
-requires the evaluation for THIS component regardless of class, and because the
-Class B argument above is conditional in a way the MCUX precedent's is not.
-Until OI-LFS-02 is closed, NO claim of power-loss atomicity may be made from the
-presence of this directory.  Pinning is what UNBLOCKS that work (and #75,
-NP-SBOM-001); it does not perform it.  See "What this vendoring does not
-establish" below.
+§7.1.2 ANOMALY EVALUATION: PERFORMED 2026-09-14 against this tag —
+NP-SOUP-LFS-001 Rev 3 §11.  Sources: this release's own notes, the v2.11.2 ->
+v2.11.3 differential, and five queries against the upstream issue tracker, which
+is the only anomaly list littlefs publishes (there is no numbered errata
+document, and there is no "bug" label — a query for one returns nothing, which
+must not be read as a clean result).  Thirteen items assessed against claims
+L-1..L-7; three applicable; none on a path to an emission.  The evaluation is a
+statement about THIS tag and carries forward to no other: if the pin moves, §11
+is re-run in full.
+
+POWER-LOSS VERIFICATION: PERFORMED 2026-09-14 — NP-SOUP-LFS-001 Rev 3 §12,
+firmware/hub_control/tests/np_lfs_powerloss_tests.c.  456 interrupted runs over
+the EMMC-FS-01 instance, three scenarios x three tear models, a cut swept across
+every medium-touching op; 0 violations; falsified in both directions.
+
+⚠ WHAT THAT DOES NOT COVER, and it is the reason this notice did not simply
+disappear at Rev 3: the power-loss test interrupts the struct lfs_config
+CONTRACT at prog_size granularity.  NeurOne's medium is an eMMC behind an XTS
+layer, which may tear inside a 512 B sector and whose erase semantics are not
+the raw-flash semantics littlefs is written against (upstream #1083 asks exactly
+this and has no answer).  No claim of power-loss atomicity may be made against
+the MEDIUM from this directory or from that test — OI-LFS-07, and it needs
+hardware.  Two further caller obligations came out of §11 and are not yet met:
+OI-LFS-08 (upstream #1210's silent file loss, worst case ukmd.rec) and
+OI-LFS-09 (validate stored values by content on every read).  See "What this
+vendoring does not establish" below.
 
 Why v2.11.3 and not an older, longer-in-the-field tag.  Stated because "newest"
-is the entry a reviewer is most likely to second-guess, and because OI-LFS-02
-may yet move the pin — that is its job.
+is the entry a reviewer is most likely to second-guess.  The §11 evaluation
+found no reason to move the pin.
   - v2.11.3 contains commit 488e84bb, "Fixed data corruption with multiple write
     handles": a sync to one handle left a second open handle on the same file
     stale, after which the allocator could re-use still-referenced blocks.  That
@@ -154,14 +171,17 @@ the omissions as oversight:
                        is the eMMC behind the XTS layer (NP-FW-EMMC-002 §C), and
                        the host tests model the seam rather than the medium.
                        lfs_emubd in particular is where an upstream power-loss
-                       test would run — see the note under OI-LFS-02 below.
+                       test would run.  NeurOne wrote its own injector instead
+                       (np_lfs_powerbd.c, host test code): vendoring upstream's
+                       would make the old "per LittleFS test suite" citation
+                       look discharged without NeurOne having run anything.
   tests/**, benches/**, runners/**, scripts/**
                        upstream's own test suite and its Python runners.  The
                        cell this whole record replaces cited exactly this suite
                        as NeurOne's verification; vendoring it would make that
                        citation look discharged without anything being run.
-                       OI-LFS-02 is what discharges it, and it is a NeurOne
-                       test.
+                       np_lfs_powerloss_tests is what discharges it, and it is a
+                       NeurOne test (NP-SOUP-LFS-001 §12).
   Makefile, .github/**, DESIGN.md, SPEC.md, README.md
                        upstream build and documentation.  The build is
                        CMakeLists.txt here; DESIGN.md and SPEC.md are reference
@@ -173,8 +193,15 @@ appearing under firmware/vendor/ reads as "integrated" and this one is not yet:
     unimplemented; np_littlefs is built and linked into no image.  `grep -rn
     "lfs_" firmware/ --include=*.c --include=*.h` outside this directory and the
     NeurOne configuration files above still finds no call.
-  - No NeurOne power-loss test exists (OI-LFS-02).  L-1…L-4 remain asserted, not
-    verified, and NP-FW-NVRAM-001 §4 / NP-FW-HUB-001 §6.5 may not be relied on.
+  - L-1..L-4 are exercised against the CONTRACT, not the medium (OI-LFS-07).
+    NP-FW-NVRAM-001 §4 and NP-FW-HUB-001 §6.5 may be relied on exactly that far
+    and no further — NP-SOUP-LFS-001 §12.5 states the boundary.  Note also that
+    L-3's result is a property of the write-temp-then-rename ORDERING the test
+    swept, not of this component: littlefs does not make a replacement atomic,
+    that ordering does, and the OI-LOG-05..07 glue has to use it.
+  - Wear levelling (L-6) is configured, never measured.  block_cycles 500 is set
+    and checked by value; nothing observes its effect, and on managed flash it
+    may not mean what the claim assumes (OI-LFS-07).
   - Only the Config instance has parameters.  The UHDR and SHDR log partitions
     carry claims L-1 and L-2 and NO document states their instance parameters —
     raised as OI-LFS-05 by NP-SOUP-LFS-001 Rev 2.
