@@ -78,6 +78,13 @@ const LOCALES_DIR = join(ROOT, "locales");
  * carries a file reference to that exact path; Xcode resolves it at project
  * load, before any build phase has run. It is git-ignored, and the run-script
  * phase regenerates it ahead of the Resources phase that consumes it.
+ *
+ * Since Issue #189 the .xcodeproj is generated from app/ios/project.yml rather
+ * than committed, which makes this generator's ordering load-bearing one step
+ * earlier: XcodeGen builds the project from what is on disk, so it must run
+ * AFTER this script or the catalogue is in no project at all — and XcodeGen
+ * also reads the project's knownRegions out of this very file. project.yml's
+ * preGenCommand and ios-ci.yml's explicit step both enforce that order.
  */
 const XCSTRINGS_OUT = join(ROOT, "app", "ios", "NeurOne", "Localizable.xcstrings");
 

@@ -1,7 +1,42 @@
+# XcodeGen spec for the NeurOne iOS app — the single source of truth for the
+# Xcode project. `NeurOne.xcodeproj` is GENERATED from this file and is NOT
+# committed (Issue #189); the watchOS target has worked this way since PR #190.
+#
+# Bootstrap a checkout, from anywhere in the repository:
+#
+#     cd app/ios && xcodegen generate
+#
+# Never edit the generated project: the next regeneration discards the edit, and
+# CI regenerates on every run. Everything the project should contain — sources,
+# settings, packages, build phases, the shared scheme and its pre-action — is
+# here.
 name: NeurOne
 
 options:
   bundleIdPrefix: life.neurone
+  # Generate the locale files BEFORE XcodeGen reads the source tree.
+  #
+  # `NeurOne/Localizable.xcstrings` is generated from `locales/*.json` and
+  # git-ignored (CLAUDE.md §17), and XcodeGen builds the project from what is on
+  # disk when it runs. Generate the project against a checkout where the
+  # catalogue does not exist yet and TWO things are silently lost: the Resources
+  # entry — so every `String(localized:)` renders its raw key, the failure PR
+  # #319 already hit once — and `knownRegions`, which XcodeGen reads out of the
+  # catalogue itself, collapsing eleven locales to `en` + `Base`. Neither fails
+  # the build. `optional: true` on an explicit source entry does not help:
+  # XcodeGen creates no file reference for an optional path that is missing.
+  #
+  # This runs the same generator `ios-ci.yml` runs as an explicit step, so the
+  # ordering holds for a developer running `xcodegen generate` by hand too.
+  preGenCommand: |
+    set -eu
+    export PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+    if ! command -v bun >/dev/null 2>&1; then
+      echo "error: bun not found. NeurOne/Localizable.xcstrings is generated from locales/*.json;" >&2
+      echo "note: install bun (https://bun.sh), then re-run xcodegen generate." >&2
+      exit 1
+    fi
+    bun "$(git rev-parse --show-toplevel)/scripts/sync-locales.ts"
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -50,6 +85,15 @@ targets:
         type: folder
         excludes:
           - "NeurOne.entitlements"
+      # The .npps protocol library, copied into the bundle as a folder
+      # reference and read at runtime by NPBundledProtocols (PR #285) —
+      # `predefined/manifest.json` and every file it lists. It was added to the
+      # committed .pbxproj by hand and never to this spec, so until Issue #189
+      # regenerating the project silently dropped it: the app would have shipped
+      # with no protocol library and NPProtocolLibraryTests would have failed on
+      # a missing manifest.
+      - path: ../../protocols/predefined
+        type: folder
 
     settings:
       base:
@@ -77,8 +121,8 @@ targets:
     # and the explicit step in ios-ci.yml). Both are kept: the pre-action for a
     # clean build, this phase for freshness within a session.
     #
-    # Kept in the spec as well as in the committed .xcodeproj so regenerating the
-    # project with XcodeGen does not drop it.
+    # Since Issue #189 the project is generated from this spec on every build
+    # and in CI, so this entry is the only place the phase exists.
     #
     # basedOnDependencyAnalysis: false because the inputs are 11 JSON files
     # outside SRCROOT; the generator only rewrites files whose content actually
@@ -134,11 +178,11 @@ schemes:
   NeurOne:
     build:
       # Runs BEFORE Xcode computes the build plan, which is the only point at
-      # which a git-ignored generated resource can still enter it. Mirrors the
-      # PreActions block in the committed
-      # NeurOne.xcodeproj/xcshareddata/xcschemes/NeurOne.xcscheme — that file is
-      # what xcodebuild actually reads; this entry keeps an XcodeGen
-      # regeneration from dropping it.
+      # which a git-ignored generated resource can still enter it. XcodeGen
+      # writes it into the generated
+      # NeurOne.xcodeproj/xcshareddata/xcschemes/NeurOne.xcscheme, which is the
+      # file xcodebuild actually reads; since Issue #189 that scheme is no
+      # longer committed, so this entry is its only source.
       preActions:
         - name: "Generate localized strings"
           settingsTarget: NeurOne
@@ -166,11 +210,10 @@ schemes:
     archive:
       config: Release
 
-    preBuildScripts:
-      - name: "Lint — SwiftLint (warning only, non-blocking)"
-        script: |
-          if which swiftlint > /dev/null; then
-            swiftlint --config "${SRCROOT}/.swiftlint.yml" --reporter xcode 2>/dev/null || true
-          fi
-        showEnvVars: false
-        basedOnDependencyAnalysis: false
+    # No preBuildScripts here: `preBuildScripts` is a TARGET key, and XcodeGen
+    # ignores it under a scheme. A non-blocking SwiftLint phase was written here
+    # and never reached any project — the committed .pbxproj had no such phase
+    # either — so it is removed rather than carried into the file that is now
+    # the only source of truth. Linting is a CI job (`swiftlint --strict` in
+    # ios-ci.yml); to get it in-editor as well, move the entry to the NeurOne
+    # target's `preBuildScripts` above.
