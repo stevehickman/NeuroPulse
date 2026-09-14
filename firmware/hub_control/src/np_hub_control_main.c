@@ -2,7 +2,8 @@
  * NeurOne Hub Control Program — FreeRTOS Task Definitions and Entry Point
  * Document: NP-FW-HUB-001 Rev 1 §2
  *
- * Four tasks:
+ * Five tasks (this banner said "four" until 2026-09-14 — task_protocol_rx was
+ * omitted, and the document register inherited the undercount; OI-FWHUB-08):
  *
  *   task_safety_heartbeat  (prio 4 — REALTIME)
  *     Sends SPI heartbeat to safety MCU every NP_SAFETY_HEARTBEAT_MS.
@@ -11,8 +12,19 @@
  *
  *   task_hub_control  (prio 3 — HIGH)
  *     Waits for NP_EV_SESSION_START, then calls np_runner_run() which blocks
- *     until the session completes or is aborted.  Also handles incoming
- *     protocol blobs posted to g_proto_queue by the transport layer (BLE/USB-C).
+ *     until the session completes or is aborted.
+ *
+ *   task_protocol_rx  (prio 2 — NP_HUB_TASK_PRIO_CONTROL - 1)
+ *     Blocks in np_hal_proto_queue_receive() on the transport mailbox.  On a
+ *     complete blob it calls np_runner_load() — which verifies the Ed25519
+ *     signature and, on success, posts NP_EV_SESSION_START to wake
+ *     task_hub_control — then zeroes the receive buffer so no plaintext
+ *     protocol is left in RAM.
+ *
+ *     SEPARATE FROM task_hub_control ON PURPOSE: np_runner_run() blocks for the
+ *     whole session, so one task doing both could not accept the next protocol
+ *     until the current one finished, and the transport's single-slot mailbox
+ *     would backpressure for the session's duration rather than for the handoff.
  *
  *   task_telemetry  (prio 2 — NORMAL)
  *     Calls np_log_flush() on NP_LOG_UHDR_FLUSH_MS / NP_LOG_SHDR_FLUSH_MS
@@ -380,19 +392,42 @@ void np_hub_ppg_isr_sample(uint32_t sample)
 
 void np_hub_control_app_main(void)
 {
-    /* Initialize subsystems in dependency order. */
+    /* Initialize subsystems in dependency order.
+     *
+     * THE LOGGER COMES UP BEFORE THE REGISTRY SCAN, AND THAT ORDER IS LOAD-BEARING
+     * (OI-FWHUB-07, NP-FW-HUB-001 Rev 1 §2.1).  np_mod_reg_scan() emits one SHDR
+     * zone-auth record per probed slot through shdr_zone_auth_cb.  Until 2026-09-14
+     * the scan ran BEFORE np_log_init(), and those records were lost twice over:
+     * np_log_shdr_zone_auth() stamped them with s_device_session_count, which was
+     * still 0 because the count is read below, and then np_log_init() set
+     * s_shdr_pos = 0U and discarded the buffer they had been written into.  Boot-time
+     * module authentication therefore never reached SHDR at all.
+     *
+     * Two constraints pin the order and neither may be relaxed:
+     *   - np_safety_spi_init() FIRST, before any probe: it drives GAIN_SEL[0..4] LOW
+     *     (OI-PBM-HW-01).  Those lines float at reset, and a zone probe with GAIN_SEL
+     *     undriven reads an indeterminate transimpedance gain -- the detect result
+     *     becomes a function of board leakage rather than of what is plugged in.
+     *   - np_log_init() BEFORE np_mod_reg_scan(), so the scan's records carry the
+     *     true session count and survive into the SHDR buffer.
+     *
+     * scripts/check-hub-bringup-order.ts gates both against this function.
+     */
     np_safety_spi_init();
     np_cvns_reenable_init();   /* OI-CVNS-HUB-01: re-enable manager starts IDLE */
     np_transport_init();       /* OI-HUB-MAIN-01: protocol mailbox + wait primitive */
-    np_mod_reg_init();
-    np_mod_reg_scan(shdr_zone_auth_cb);
 
     /* OI-LOG-01..04: open the UHDR/SHDR log files on the mounted partitions
-     * before the session logger writes any record. */
+     * before the session logger writes any record.  The first such record is the
+     * zone-auth batch from np_mod_reg_scan() below -- which is why this pair now
+     * precedes the scan rather than following it. */
     (void)np_log_backend_init();
 
     uint32_t session_count = np_hal_get_device_session_count();
     np_log_init(session_count);
+
+    np_mod_reg_init();
+    np_mod_reg_scan(shdr_zone_auth_cb);
 
     g_hub_events = xEventGroupCreate();
     configASSERT(g_hub_events != NULL);

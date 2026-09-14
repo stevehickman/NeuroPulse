@@ -126,6 +126,7 @@ jobs:
       seamdecls: ${{ steps.scope.outputs.seamdecls }}
       localestrings: ${{ steps.scope.outputs.localestrings }}
       tcapmap: ${{ steps.scope.outputs.tcapmap }}
+      bringup: ${{ steps.scope.outputs.bringup }}
     env:
       # Eight independent surfaces, eight lists. A simulator-only change should
       # not run the Python gate, and vice versa. Blank lines and `#` comments
@@ -210,6 +211,16 @@ jobs:
         firmware/**
         scripts/check-tcap-map.ts
         .github/workflows/tooling-ci.yml
+      # The hub bring-up gate (OI-FWHUB-07/-08). np_hub_control_app_main() is
+      # ARM-cross-only — firmware/hub_control/src/ compiles in no host test — so
+      # this gate is the only thing that reads its call order at all. The list is
+      # the hub_control tree rather than the one file it parses: a call moved out
+      # of app_main into a helper, or a task created from a sibling TU, changes
+      # what the gate should see without touching np_hub_control_main.c.
+      NP_SCOPE_BRINGUP: |
+        firmware/hub_control/**
+        scripts/check-hub-bringup-order.ts
+        .github/workflows/tooling-ci.yml
       # The locale-string gate (CLAUDE.md §17). Three different edits break it,
       # so all three trees are listed: a literal added to a covered app file,
       # a key added to or removed from locales/, and a locale reference
@@ -266,6 +277,7 @@ jobs:
           printf '%s\n' "$NP_SCOPE_SEAMDECLS"  > scope.seamdecls.paths
           printf '%s\n' "$NP_SCOPE_LOCALESTRINGS" > scope.localestrings.paths
           printf '%s\n' "$NP_SCOPE_TCAPMAP" > scope.tcapmap.paths
+          printf '%s\n' "$NP_SCOPE_BRINGUP" > scope.bringup.paths
 
       # A well-formed pattern that matches nothing is a typo, not a scope
       # decision: `simluator/**` would silently take the whole surface out of
@@ -273,7 +285,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.bringup.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -344,6 +356,12 @@ jobs:
           assert scope.tcapmap.paths   true  firmware/sloreta_hdtdcs/src/np_hd_montage.c
           assert scope.tcapmap.paths   true  firmware/hub_control/include/np_hub_types.h
           assert scope.tcapmap.paths   false app/web/src/main.ts
+
+          assert scope.bringup.paths   true  firmware/hub_control/src/np_hub_control_main.c
+          assert scope.bringup.paths   true  firmware/hub_control/src/np_session_log.c
+          assert scope.bringup.paths   true  scripts/check-hub-bringup-order.ts
+          assert scope.bringup.paths   false firmware/safety_mcu/src/np_safety_main.c
+          assert scope.bringup.paths   false docs/np_fw_hub_001.md
           # The seam-declaration gate. The first case is the edit it exists to
           # catch — an `extern` re-added to a caller; the second is a seam
           # leaving or joining a contract header. app/ is out of scope because
@@ -417,6 +435,7 @@ jobs:
           emit seamdecls scope.seamdecls.paths
           emit localestrings scope.localestrings.paths
           emit tcapmap   scope.tcapmap.paths
+          emit bringup   scope.bringup.paths
 
   scripts-check:
     name: scripts/ type-check
@@ -723,6 +742,35 @@ jobs:
       # requires in place of that reading.
       - name: NP-HW-TCAP-001 §3, the firmware tables and both channel counts agree
         run: bun scripts/check-tcap-map.ts
+
+  hub-bringup-order:
+    name: the hub brings subsystems up in the order its correctness depends on
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.bringup != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # No `bun install`: the checker reads source text with node builtins.
+
+      - name: Guard self-test (prove all 4 constraints and the task count can fail)
+        run: bun scripts/check-hub-bringup-order.ts --self-test
+
+      # np_hub_control_app_main() is ARM-cross-only, so no unit test can reach
+      # this ordering — and until 2026-09-14 nothing did. np_mod_reg_scan() ran
+      # before np_log_init(), so every boot-time SHDR zone-auth record was
+      # stamped with a session count of 0 and then discarded when np_log_init()
+      # zeroed the buffer: module authentication never reached SHDR, for two
+      # independent reasons, under a comment asserting the opposite
+      # (OI-FWHUB-07). The banner's undercounted task set is OI-FWHUB-08.
+      - name: NP-FW-HUB-001 §2.1 bring-up order and §2.2 task count
+        run: bun scripts/check-hub-bringup-order.ts
 
   locale-strings:
     name: user-facing text lives in locales, not in code (CLAUDE.md §17)

@@ -2,18 +2,61 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-NVRAM-001
-**Revision:** 1
-**Date:** 2026-08-27
-**Status:** DESIGN STUDY — not a release baseline. Every behaviour below is a proposed engineering commitment traced to a cited source. **No new part is proposed and no code changed with this document.** See §11 (Decisions), §13 (Open items).
+**Revision:** 2
+**Date:** 2026-09-13
+**Status:** DESIGN STUDY — not a release baseline. Every behaviour below is a proposed engineering commitment traced to a cited source. **No new part is proposed and no code changed with this document.** Rev 2 resolves the store defects Rev 1 found (§3.3.1) so Map 3 can be built at all. See §11 (Decisions), §13 (Open items).
 **Effective Date:** —
 **Author:** NeurOne Firmware + Data Architecture
 **Approved By:** — (pending design review)
-**References:** CLAUDE.md §4 (processor stack, safety architecture, power), §5 (UHDR/SHDR), §6 (consent subjects); `NP-FW-EMMC-001` Rev 2 §4 (partition layout), §5.2 (LittleFS instance parameters), §9 (Config/Calibration partition), §12 (session data classification), §14 (write-endurance monitoring), §16 (processor ownership); `NP-FW-EMMC-002` Rev 2 §A (warranty token), §B.2 (factory reset R-7), §C.3 (Config UKMD record), §G.2 (record-denominated windows), §H.3.1–H.3.2 (no wall clock); `NP-MOD-ID-001` Rev 1 §4 (`module_ref`), §5 (on-module odometer, MODID-4), §6 (history portability, MODID-5/6), §7.5.1.1 (the two absences), §9 (open items); `NP-HW-HEXTILE-001` Rev 8 §6.2 (U1 on-module MCU), §6.4 (driver + metering BOM), §7.2–7.3 (19-position socket, `SEAT#`, contact sequencing); `NP-DRV-SHELL-002` Rev 4 §5.1.4 (UID EEPROM deleted), §6 (`SAFE_EN[n]`), §10.1 (interconnect BOM); `NP-HEX-ZM-001` Rev 3 §4a (SMART-1, `check_placement`), §5.4a (cluster clamp); `NP-COST-001` Rev 2 §6 (OI-HEXTILE-06 options); `NP-NPPS-REF-001` Rev 14 §1.6 (no build-time cache of protocol content); `NP-SW-001` Rev 3 §3.2 (Class B rationale for SW-02), §5.2 (SW-02 module inventory), §9.4 (SOUP); `NP-CONV-001` Rev 6 §4, §6, §8; `firmware/hub_control/include/np_module_map.h`; `firmware/hub_control/src/np_module_map.c`; `firmware/bootloader/include/np_config.h`; `firmware/hub_control/include/np_log_backend.h`
-**Related Issues:** —
+**References:** CLAUDE.md §4 (processor stack, safety architecture, power), §5 (UHDR/SHDR), §6 (consent subjects); `NP-FW-EMMC-001` Rev 2 §4 (partition layout), §5.2 (LittleFS instance parameters), §9 (Config/Calibration partition), §12 (session data classification), §14 (write-endurance monitoring), §16 (processor ownership); `NP-FW-EMMC-002` Rev 2 §A (warranty token), §B.2 (factory reset R-7), §C.3 (Config UKMD record), §G.2 (record-denominated windows), §H.3.1–H.3.2 (no wall clock); `NP-MOD-ID-001` Rev 1 §4 (`module_ref`), §5 (on-module odometer, MODID-4), §6 (history portability, MODID-5/6), §7.5.1.1 (the two absences), §9 (open items); `NP-HW-HEXTILE-001` Rev 8 §6.2 (U1 on-module MCU), §6.4 (driver + metering BOM), §7.2–7.3 (19-position socket, `SEAT#`, contact sequencing); `NP-DRV-SHELL-002` Rev 4 §5.1.4 (UID EEPROM deleted), §6 (`SAFE_EN[n]`), §10.1 (interconnect BOM); `NP-HEX-ZM-001` Rev 3 §4a (SMART-1, `check_placement`), §5.4a (cluster clamp); `NP-COST-001` Rev 2 §6 (OI-HEXTILE-06 options); `NP-NPPS-REF-001` Rev 14 §1.6 (no build-time cache of protocol content); `NP-SW-001` Rev 3 §3.2 (Class B rationale for SW-02), §5.2 (SW-02 module inventory), §9.4 (SOUP); `NP-CONV-001` Rev 6 §4, §6, §8; `firmware/hub_control/include/np_module_map.h`; `firmware/hub_control/src/np_module_map.c`; `firmware/bootloader/include/np_config.h`; `firmware/hub_control/include/np_log_backend.h`; **added at Rev 2:** `NP-SOUP-LFS-001` Rev 1 (LittleFS SOUP record + hazard analysis), `NP-FW-HUB-001` Rev 1 §6.5 (log durability model), `NP-CONV-001` Rev 6 §7 (how a document revises its own position)
+**Related Issues:** #339 (`OI-NVRAM-01`, `-02`, `-03`, `-12`, `-13`)
 **Gate:** — (no programme gate; this document specifies the resolution of `OI-HEXMAP-01`)
 **IEC 62304 Class:** **SW-02 Class B.** Argued in §9, and the argument turns on the fact that the Class C processor has no electrical path to the store. **No SW-01 source changes and no bit added to any Class C wire format.**
 **Supersedes:** None — new document.
 **Parent Document:** `NP-FW-EMMC-001`
+
+---
+
+> **⚠ REV 2 — the store is now buildable, and the reason the Rev 1 defect existed is worth keeping.**
+>
+> Rev 1 found four defects on the store Map 3 needs, three of them on controlled specifications, and
+> deliberately stopped at finding them (§3.3). Rev 2 **decides** them, because `OI-NVRAM-01` was
+> blocking Map 3's implementation and a blocking item that nobody may resolve is a design that cannot
+> start. The resolution is §3.3.1; the decisions are **D-21…D-24**. Per `NP-CONV-001` §7, §3.3's
+> findings are **retained verbatim** and §3.3.1 sits after them — what it was, what replaced it, why.
+>
+> **The decision: the Config journal is LittleFS files. `EMMC-CFG-02`'s raw-write clause is void.**
+>
+> And the reason matters more than the verdict, because the clause was not merely unimplementable —
+> **its stated justification was false.** It reserved a raw region *"no LittleFS overhead for
+> high-frequency updates"*, and the arithmetic in §3.3.1 shows that LittleFS overhead is not what
+> makes high-frequency updates expensive here. `prog_size` is 256 B, so appending a 32-byte record
+> costs **one 256-byte program** inside the current block — a raw region cannot make the program unit
+> smaller, because the program unit is a property of the NAND, not of the filesystem. What actually
+> costs 4.6 years of endurance (§3.5) is **rewriting a 14 KB blob to record a 16-byte fact**, and that
+> is a property of the blob being monolithic, which **D-5** already fixes by giving Map 3 its own
+> file. *The raw region was solving the wrong problem, and it would have cost a re-implementation of
+> the three properties §4 depends on — commit ordering, per-record CRC, wear levelling — on the Class
+> B side, with no test suite.*
+>
+> **Two things Rev 2 also closes, and one it hands off.** `OI-NVRAM-02`'s *"Config partition offset
+> 0x1000 — UKMD record"* becomes a named file (**D-22**); the code never depended on the offset —
+> `np_uhdr_hal_config_read_ukmd()` has always abstracted it — so the address was a spec-side artifact
+> only, and `NP-FW-EMMC-002` §C.3 is corrected in the same change. `OI-NVRAM-03`'s unlisted `"NPMP"`
+> write is resolved by widening rather than forbidding (**D-23**), as Rev 1 predicted. And
+> `OI-NVRAM-12` is **handed off, not closed**: `NP-SOUP-LFS-001` Rev 1 brings LittleFS under SOUP
+> management and performs the hazard analysis — finding, on the way, that **LittleFS is not in the
+> tree at all** (two `lfs_` tokens in all of `firmware/`, both comments), and that **this document's
+> own Class B argument in §9 is not a property of LittleFS but of `np_module_map`'s
+> reject-and-rebuild policy — the policy §7.2 specifies Map 3 to invert.** That is now `REQ-LFS-01`,
+> and it is the one place where Rev 1's two correct decisions needed a rule to keep them safe
+> together.
+>
+> **What Rev 2 does not do.** It does not edit `NP-FW-EMMC-001`, which is a `.docx` (`OI-CONV-04`).
+> The three clause changes D-21…D-23 require are raised as a precise engineering change request,
+> **`ECR-EMMC-001`** (§3.3.1.4), naming clause and replacement text, and `OI-NVRAM-01` stays open
+> until that lands — **downgraded from BLOCKING to a documentation action**, because the design
+> question it blocked is answered and Map 3 can now be implemented against this document.
 
 ---
 
@@ -215,6 +258,129 @@ whenever any socket's UID changes, which is every hot-plug and every tile swap. 
 specification rather than to forbid the write, since the write is correct and the specification
 predates the hex-tile architecture; but it must be a decision, not a silent divergence.
 **`OI-NVRAM-03`.**
+
+### 3.3.1 Resolution of (a), (b) and (c) — added at Rev 2
+
+Rev 1 stopped at the findings above. `OI-NVRAM-01` was blocking Map 3, and it named two options
+without choosing: *"Either the LittleFS `block_count` must shrink to leave the journal outside it, or
+the journal must become LittleFS files and `EMMC-CFG-02`'s 'no LittleFS overhead' justification is
+void."* This subsection chooses the second, on three grounds, the first of which refutes the clause
+rather than outweighing it.
+
+#### 3.3.1.1 The clause's justification does not survive the arithmetic
+
+`EMMC-CFG-02` reserves the raw region *"raw-write, no LittleFS overhead for high-frequency updates"*.
+That premise is testable against `EMMC-FS-01`'s own numbers.
+
+```
+EMMC-FS-01 (Config):  block_size 4,096 B   prog_size 256 B   file_max 65,536 B
+Map 3 record (D-24):  32 B, prog-unit aligned
+
+one 256 B program unit  = 8 records
+one 4,096 B block       = 16 program units = 128 records, on ONE erase
+```
+
+A LittleFS append into an open file lands in the file's current block and costs **one 256-byte
+program**. It does not erase a block; the block was erased once and is then programmed unit by unit
+until full. **A raw region cannot improve on that, because the 256-byte program unit is a property of
+the eMMC, not of the filesystem.** What LittleFS adds over a raw region is metadata — a commit tag
+per program unit and a periodic metadata-block update — which is single-digit percent at this record
+size, not a multiple.
+
+So what was the clause protecting against? §3.5 answers it: the expensive operation in this design is
+`np_module_map_persist()` **rewriting all 14,012 bytes of the inventory blob to record a 16-byte
+fact**, which at a per-event cadence gives ~4.6 years at clinic rate. That cost is a property of the
+blob being one monolithic record, and **D-5** already removes it by giving Map 3 its own file with its
+own append discipline. The raw region was aimed at the right symptom and the wrong cause.
+
+> **Recorded as a correction, not a preference** (`NP-CONV-001` §7). `EMMC-CFG-02`'s clause was
+> *reasonable when written* — it predates the hex-tile architecture and the four-map record, and at
+> that time "high-frequency Config updates" meant the session counter, not a per-module journal. What
+> is retired is the **justification**, which no longer holds at the numbers now in force. The
+> underlying concern — that write granularity is a first-class design parameter — is **not** retired;
+> it is §3.5's conclusion and it is why D-24 exists.
+
+#### 3.3.1.2 Shrinking `block_count` costs a migration on the one partition that must not be migrated
+
+The alternative is to reduce Config's LittleFS `block_count` below 4,096 so a raw region sits above
+the filesystem's last block. That is straightforward arithmetic and an unpleasant operation: it
+**relocates every existing Config file**, and Config holds the **UKMD record** — the wrapped user key
+material, without which a user's UHDR partition cannot be mounted at all (`NP-FW-EMMC-002` §C.4).
+A migration that moves the UKMD record is a migration that can render a user's own health data
+permanently unreadable, and NeurOne does not hold a second copy of that key (CLAUDE.md §5.1) so there
+is no recovery path.
+
+No device is provisioned today, so the migration is free today. **But the window closes at first
+provisioning, not at first ship** — the same boundary error §7.2 corrects for the blob version bump,
+and it is worth naming twice because both times the intuitive boundary is later than the real one.
+Choosing the option that needs no migration at all removes the deadline rather than meeting it.
+
+#### 3.3.1.3 A raw region means re-implementing, at Class B, exactly what §4 depends on
+
+§4's atomicity argument needs three properties: power-loss-safe commit ordering (D-6), a per-record
+CRC that localises a torn write (D-5), and wear levelling across the partition (§3.5). A raw region
+has none of them. Choosing it means writing all three by hand, on the Class B side, with no upstream
+test suite behind them.
+
+`OI-NVRAM-12`'s complaint was that these properties were asserted against an **unmanaged**
+dependency. The answer to an unmanaged dependency is to **manage** it — which
+`NP-SOUP-LFS-001` Rev 1 now does — and not to replace it with a second dependency that is unmanaged
+by construction because NeurOne wrote it last week.
+
+#### 3.3.1.4 What changes, and where
+
+**`ECR-EMMC-001`** — raised against `NP-FW-EMMC-001`, which is a `.docx` and therefore not edited
+here (`OI-CONV-04`). Three clause changes, stated as replacement text so the ECR is actionable rather
+than directional:
+
+| Clause | Was | Becomes | Decision |
+|---|---|---|---|
+| `EMMC-CFG-02` | *"These fields occupy a dedicated Config partition journal area (raw-write, no LittleFS overhead for high-frequency updates)"* | *"These fields are held in LittleFS files on the Config partition. There is no raw-write region: `EMMC-FS-01`'s instance owns all 4,096 blocks, and at `prog_size` 256 B a raw region offers no smaller program unit than an append does."* | **D-21** |
+| `EMMC-CFG-02` (whitelist) | session counter, lockout state, last-known PD profile | + the `"NPMP"` inventory blob (written by `np_module_map_persist()` on every UID change) + the Map 3 journal file | **D-23** |
+| `EMMC-CFG-01` (contents) | — | + `"NPMP"` blob, + Map 3 journal, + the UKMD record as a named file | **D-22**, **D-23** |
+
+**`NP-FW-EMMC-002` §C.3 is corrected in this change**, because it is Markdown and because the fix is
+provably safe: the code has never used the offset. `np_uhdr_key.c` reaches the record through
+`np_uhdr_hal_config_read_ukmd()` / `_write_ukmd()`, so *"Config partition offset 0x1000"* was a
+spec-side artifact with no implementation depending on it. **D-22.**
+
+#### 3.3.1.5 The Map 3 file budget — closes `OI-NVRAM-13`
+
+With the journal as its own LittleFS file (D-5), `file_max` = 65,536 B applies **per file**, so Map 3
+has the whole of it rather than competing with the 14,012-byte inventory blob. §3.5's warning — that
+a shared file would give 644 bytes per module with nothing warning until a run-time write failure —
+does not arise.
+
+**Record: 32 bytes**, chosen so that eight records fit exactly one 256-byte program unit and **no
+record straddles a program unit**, which is requirement 1 of §4.2(b):
+
+```
+uid           8 B      seq            4 B      ordinal              4 B
+session_count 2 B      dose_accum     4 B      throttle_count       2 B
+fault_flags   1 B      reserved       1 B      crc32(uid ‖ payload) 4 B
+                                                                  ── 30 B → padded to 32
+```
+
+**File bound: 49,152 B (48 KiB) = 1,536 rows.** Not `file_max`, deliberately: 16,384 B of headroom
+means a future version that grows the row to 40 B still fits (1,536 × 40 = 61,440 < 65,536) without
+re-deciding the bound, and §7.2's rule is that a **record's** version policy is tail-additive forever
+— so the bound must survive a growth the blob's policy would simply discard through.
+
+**Sessions-between-sync assumption, stated because `OI-NVRAM-13` requires one to be:** one row per
+module per session, worst case all 80 sockets. 1,536 ÷ 80 = **19 rows per socket.**
+
+| Use pattern | Sessions/day | Margin before `detail_lost` |
+|---|---|---|
+| Home, daily | 1 | **19 days** |
+| Clinic | 12 | **1.6 days** |
+
+The clinic figure is tight and is stated rather than rounded away. Three things make it acceptable
+and none of them is optimism: **(i)** a clinic device is on USB-C with the control software attached
+for most of its duty cycle, so the sync interval there is hours, not days; **(ii)** exceeding the
+assumption costs **detail, never a session and never a total** — §6.3's journal-full policy keeps the
+running totals, drops per-window detail and sets `detail_lost`, and D-12 forbids both wrapping over
+unsynced rows and blocking a session; **(iii)** the failure is visible, because `detail_lost` is a
+flag the control software reads, not a silent truncation. **D-24.**
 
 ### 3.4 SNVS is not a candidate, and two existing callers assume otherwise
 
@@ -896,6 +1062,10 @@ are decisions, and no amount of firmware work substitutes for either.
 | **D-18** | **No sync-boundary field and no per-window delta may be uploaded.** What reaches SHDR is the running total. A delta is a timestamped count once the party holding it can date the interval's ends |
 | **D-19** | **Map 2 is app-side and inherits UHDR-class handling**; no code path may read Map 2 and write SHDR, mirroring the `SHDRUploader`/`ConsentStore` independence in CLAUDE.md §6 |
 | **D-20** | **Insertion events are not recorded anywhere.** Mate cycles exist as a total only; an event timeline is a record of changes in treatment target and nothing needs it |
+| **D-21** *(Rev 2)* | **The Config journal is LittleFS files. `EMMC-CFG-02`'s raw-write region is void — and its *justification* is refuted, not merely outweighed.** At `prog_size` 256 B an append costs one 256-byte program; a raw region cannot make the program unit smaller, because the unit belongs to the eMMC. The cost the clause was aimed at is the 14 KB whole-blob rewrite, which **D-5** already removes. §3.3.1.1 |
+| **D-22** *(Rev 2)* | **The UKMD record is a named LittleFS file, not "Config partition offset 0x1000".** A byte offset into a mounted partition names a block the filesystem owns and may relocate. Safe to correct because no code ever used it — `np_uhdr_hal_config_read_ukmd()` has always abstracted it. `NP-FW-EMMC-002` §C.3 corrected in the same change. §3.3.1.4 |
+| **D-23** *(Rev 2)* | **Widen the Config specification, do not forbid the write.** `EMMC-CFG-01`'s contents list and `EMMC-CFG-02`'s normal-operation whitelist gain the `"NPMP"` blob and the Map 3 journal. `np_module_map_persist()` is correct and the specification predates the hex-tile architecture; the divergence had to become a decision rather than stay silent. §3.3.1.4 |
+| **D-24** *(Rev 2)* | **Map 3 is a 32-byte record in a 49,152-byte file — 1,536 rows, ~19 per socket at 80 sockets.** 32 B so eight records fit one program unit and none straddles it; 48 KiB not `file_max` so a future 40-byte row still fits without re-deciding the bound. Stated assumption: one row per module per session — 19 days of margin at home cadence, 1.6 days at clinic cadence, beyond which §6.3 degrades to totals-plus-`detail_lost` rather than failing. Closes `OI-NVRAM-13`. §3.3.1.5 |
 
 ---
 
@@ -923,9 +1093,9 @@ Scales per `NP-RM-001` §4. Status: **MITIGATED** (controls in place, residual a
 
 | ID | Description | Owner | Blocking |
 |---|---|---|---|
-| **OI-NVRAM-01** | **`EMMC-CFG-02`'s raw-write journal area has no address space.** Config's LittleFS instance is `block_size` 4,096 × `block_count` 4,096 = 16 MiB = the whole partition. Either shrink `block_count` to carve the journal out, or make the journal LittleFS files and void the clause's "no LittleFS overhead" rationale. Map 3's append substrate depends on the answer | FW + Quality | **BLOCKING — Map 3 implementation** |
-| **OI-NVRAM-02** | `NP-FW-EMMC-002` §C.3's *"Config partition offset 0x1000 — UKMD record"* addresses a byte offset inside a LittleFS-managed block range. Resolve with `OI-NVRAM-01` | FW + Security | UKMD record integrity |
-| **OI-NVRAM-03** | `EMMC-CFG-01`/`-02` do not list the `"NPMP"` blob among Config's contents or among the fields writable during normal operation, and `np_module_map_persist()` writes it on every UID change. Widen the specification (probable) or forbid the write (implausible), but decide | FW + Quality | Config specification correctness |
+| **OI-NVRAM-01** | **DECIDED at Rev 2 (§3.3.1, D-21) — DOWNGRADED from BLOCKING to a documentation action.** The journal is LittleFS files; the raw region is void and its "no LittleFS overhead" rationale is refuted by `prog_size` arithmetic, not merely outweighed. **Map 3 is now implementable against this document.** What remains is landing `ECR-EMMC-001`'s three clause changes in `NP-FW-EMMC-001`, which is a `.docx` and so not edited here (`OI-CONV-04`). Replacement text is given in §3.3.1.4 | Quality | Documentation consistency — **no longer blocking Map 3** |
+| ~~**OI-NVRAM-02**~~ | ✅ **CLOSED 2026-09-13 (Rev 2, D-22).** The UKMD record is a named LittleFS file; `NP-FW-EMMC-002` §C.3 corrected in the same change. Safe because no code ever used the offset — `np_uhdr_key.c` reaches the record through `np_uhdr_hal_config_read_ukmd()`/`_write_ukmd()`, so it was a spec-side artifact only | — (closed) | — |
+| **OI-NVRAM-03** | **DECIDED at Rev 2 (D-23) — widen, do not forbid**, as Rev 1 predicted. The write is correct and the specification predates the hex-tile architecture. Carried in `ECR-EMMC-001` with `OI-NVRAM-01`; the decision no longer waits on anything | Quality | Documentation consistency |
 | **OI-NVRAM-04** | **The pad-length stagger between contact group 3 and `SEAT#` is not dimensioned**, and no extraction-velocity assumption is stated, so the pre-break warning window has no duration. §4.3 designs around its absence; any future use of `SEAT#` as a timing signal needs this number | EE + ME | Any pre-break notification |
 | **OI-NVRAM-05** | **`NP_SNVS_RESET_IN_PROGRESS` and `NP_SNVS_ANON_IN_PROGRESS` are documented as power-loss recovery flags and can only be warm-reset flags** — the SNVS LP domain has no `VBAT` supply. The factory-reset case is the serious one: a power loss during R-4…R-9 is undetected and the device boots half-erased | FW + Privacy | **`NP-MOD-ID-001` §10's factory-reset rotation test** |
 | **OI-NVRAM-06** | Map 4's one-write-per-session-end cadence means **a session interrupted by tile extraction contributes nothing to that tile's odometer**. Quantify whether that matters for `NP-MOD-ID-001` §7.4's model, or accept and document it | FW | Odometer fidelity |
@@ -933,9 +1103,9 @@ Scales per `NP-RM-001` §4. Status: **MITIGATED** (controls in place, residual a
 | **OI-NVRAM-08** | **Write and falsify the CI check** that a journal written under version *n* loses no record when read under *n+1*. Per `NP-CONV-001` §8 it must be falsified in both directions before it is trusted | FW + CI | `RISK-NVRAM-01` |
 | **OI-NVRAM-09** | **Write and falsify the CI check** that no code path reads Map 2 and writes SHDR, and that no SHDR column or upload field names a sync boundary or a per-window delta. `warranty-nojoin-ci.yml` is the pattern; note that `TIME-01` cannot catch this because an ordinal is an integer | FW + Privacy | `RISK-NVRAM-02` |
 | **OI-NVRAM-10** | **Is there a Class C bound on per-tile emitter drive current that is independent of Map 1's ranges?** If not, a wrong range is bounded only by the 62 °C thermal cutoff — a thermal limit standing in for an optical one — and §9's classification must be re-derived before any tile variant with differing ranges ships | Safety + EE | **Class B classification durability** |
-| **OI-NVRAM-11** | `np_module_map.h`'s NVRAM-sizing comment still carries the v2 figure (*"8 + 128*139 + 4 = 17,804 bytes"*) after the v3 calibration payload took `REC_BYTES` to 175 and the blob to 22,412 — the number the code computes and the tests assert. Stale in the header an integrator sizes the partition region from | FW | Documentation accuracy |
-| **OI-NVRAM-12** | **LittleFS is the only Class B SOUP item that is neither vendored, version-pinned, nor anomaly-evaluated.** `NP-SW-001` §9.4 gives it *"2.x"* and one line of verification, against per-file SHA-256 provenance records for FreeRTOS, Monocypher, CMSIS-Core and CMSIS-Device. Nothing exists under `firmware/vendor/`. Every power-loss guarantee in §4 is asserted against it | FW + Quality | **BLOCKING — any claim of power-loss atomicity** |
-| **OI-NVRAM-13** | Choose Map 3's per-device size bound and the per-uid detail budget within it, against a stated sessions-between-sync assumption. §3.5 gives the ceiling that must not be crossed; nothing in the record gives the expected sync interval | FW + Product | Map 3 implementation |
+| ~~**OI-NVRAM-11**~~ | ✅ **CLOSED 2026-09-13 (Rev 2).** The comment now derives `REC_BYTES` = 175 and gives blob(80) = 14,012 and blob(128) = 22,412, the values the macros compute and the tests assert. **A second stale claim in the same comment was found and corrected with it** — it placed the UKMD record *"at offset 0x1000"*, the address D-22 retires; the comment now states that everything on Config is a LittleFS file and that the binding per-file bound is `file_max` = 65,536 B, not the partition size | — (closed) | — |
+| **OI-NVRAM-12** | **SUPERSEDED 2026-09-13 by `NP-SOUP-LFS-001` Rev 1**, which brings LittleFS under SOUP management, replaces `NP-SW-001` §9.4's cell, and performs the hazard analysis. Two findings come back to this document: **LittleFS is not merely unmanaged, it is absent** — two `lfs_` tokens in all of `firmware/`, both comments — so §4's guarantees rest on a component that is nominated rather than integrated; and **§9's Class B argument is a property of `np_module_map`'s reject-and-rebuild policy, not of LittleFS**, which is the policy §7.2 specifies Map 3 to invert. That is now `REQ-LFS-01`: no value bounding an emission may be stored under a tail-additive policy. Continues as `OI-LFS-01` (pin + vendor, **still blocking any reliance on §4**) and `OI-LFS-02` (§7.1.2 evaluation + a falsified power-loss injection test) | FW + Quality | **`OI-LFS-01` remains BLOCKING for any claim of power-loss atomicity** |
+| ~~**OI-NVRAM-13**~~ | ✅ **CLOSED 2026-09-13 (Rev 2, D-24, §3.3.1.5).** 32-byte record (eight per 256-byte program unit, none straddling), 49,152-byte file, 1,536 rows, ~19 per socket at 80 sockets. Assumption stated as required: one row per module per session — 19 days of margin at home cadence, **1.6 days at clinic cadence**, stated rather than rounded away, and bounded by §6.3's degrade-to-totals policy rather than by a failure | — (closed) | — |
 | **OI-NVRAM-14** | CLAUDE.md §3 still names **ATtiny402** as the on-module MCU, which `NP-HW-HEXTILE-001` §6.2 identifies as the retired design's part (10-bit ADC) and replaces with ATtiny426/427-class. `NP-MOD-ID-001` §5.2 sizes Map 4 at exactly 128 B against the latter, with zero slack. Correct the CLAUDE.md bullet | Systems | Map 4 storage budget |
 | **OI-NVRAM-15** | `NP-MOD-ID-001` is **DRAFT**, *"pending principal approval and the two BLOCKING open items in §9"*. This document builds on MODID-4/5/6 as though settled. If the odometer, the ref derivation or the coarsening rule changes, §6 and §8 change with them | Principal | This document's §6 and §8 |
 
@@ -987,10 +1157,14 @@ without persistence, UID-keyed calibration falls back to firmware defaults on ev
 renders inert the **$11.53/tile driver-plus-metering line — $346 per headset at 30 tiles** — that is
 the product's primary technical differentiator.
 
-**Open items.** Fifteen, of which three are blocking: `OI-NVRAM-01` (the Config journal area has no
-address space), `OI-NVRAM-12` (LittleFS is unvendored, unpinned, unevaluated SOUP under every
-atomicity claim here), and `OI-NVRAM-05` (blocking the factory-reset rotation test that
-`NP-MOD-ID-001` §10 requires).
+**Open items.** Fifteen at Rev 1, of which three were blocking. **Rev 2 leaves one blocking, and it
+is no longer this document's.** `OI-NVRAM-01` is decided (§3.3.1) and downgraded to a documentation
+action — `ECR-EMMC-001`, three clause changes against a `.docx` — so **Map 3 is implementable
+against this document now**; `OI-NVRAM-02` and `OI-NVRAM-13` are closed; `OI-NVRAM-03` is decided.
+`OI-NVRAM-12` is superseded by `NP-SOUP-LFS-001`, and continues as `OI-LFS-01`, which **is** still
+blocking any reliance on §4's atomicity claims — because the component under them is not in the tree.
+`OI-NVRAM-05` remains open and still blocks `NP-MOD-ID-001` §10's factory-reset rotation test; it is a
+factory-reset correctness question rather than a storage-layer one, and Rev 2 does not touch it.
 
 ---
 
@@ -999,3 +1173,4 @@ atomicity claim here), and `OI-NVRAM-05` (blocking the factory-reset rotation te
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 1 | 2026-08-27 | NeurOne Firmware + Data Architecture | Initial release. Specifies the hub NVRAM HAL under the four-map module record — the resolution of `OI-HEXMAP-01` — with twenty decisions (D-1…D-20), ten risk rows and fifteen open items. **Corrects six claims in its own scoping brief:** Map 4's substrate is not open and is not inside `OI-HEXTILE-06` (which is a photodiode-population decision) — `NP-HW-HEXTILE-001` D-3 and `NP-MOD-ID-001` MODID-4 already specify it, at **$0.00 BOM**; the module-change power cut is a per-cluster `SAFE_EN[n]` emitter-rail cut, not a hub power loss, which makes the atomicity requirement broader rather than narrower; `SEAT#` cannot supply a last-gasp write window because it has no firmware consumer, sits at Class B, and its pre-break interval is undimensioned; the version-bump window closes at the first unsynced Map 3 row, not at first ship, because a cache and a record need opposite policies; and two documents cited as house-style precedent are not on `main` (`NP-FEAS-PBMCH-001` in PR #292, `NP-FW-BENCH-001` in PR #297 — an initial reading that the former did not exist at all was itself wrong, and is corrected in §1), so the in-force no-wall-clock precedent used here is `NP-FW-EMMC-002` §H.3.1–H.3.2. **Four defects found on the store itself:** `EMMC-CFG-02`'s raw journal area has no address space inside a LittleFS instance owning all 16 MiB (`OI-NVRAM-01`, blocking); `NP-FW-EMMC-002` §C.3's offset-`0x1000` UKMD address has the same problem; the two SNVS power-loss recovery flags can only be warm-reset flags on a device with no `VBAT` rail (`OI-NVRAM-05`); and LittleFS is the only Class B SOUP item that is neither vendored, pinned nor anomaly-evaluated (`OI-NVRAM-12`, blocking). **Privacy finding:** a per-window delta becomes a timestamped count in the hands of the only party that can date the window's ends, so no sync-boundary field or delta may be uploaded — this walks around `TIME-01` rather than breaching it, and `NP-MOD-ID-001` §7.5.1.1's consent model rests on exactly that absence. No code changed with this document. |
+| 2 | 2026-09-13 | NeurOne Firmware Engineering | **Resolves the store defects Rev 1 found, so Map 3 can be built (Issue #339).** Rev 1 recorded four defects and deliberately stopped; `OI-NVRAM-01` was blocking Map 3, and a blocking item nobody may resolve is a design that cannot start. **D-21: the Config journal is LittleFS files, and `EMMC-CFG-02`'s raw-write region is void — its *justification* refuted, not outweighed.** At `EMMC-FS-01`'s `prog_size` of 256 B an append costs one 256-byte program inside the current block; a raw region cannot offer a smaller program unit, because the unit belongs to the eMMC and not to the filesystem. The cost the clause was aimed at is `np_module_map_persist()` rewriting 14,012 bytes to record a 16-byte fact, which **D-5 already removes** by giving Map 3 its own file — *the raw region was aimed at the right symptom and the wrong cause*. Two further grounds: carving the region shrinks `block_count` and so **relocates the UKMD record**, whose loss makes a user's UHDR permanently unmountable with no NeurOne-held second copy — free today, but the window closes at first **provisioning**, not first ship, the same boundary error §7.2 corrects for the version bump; and a raw region means re-implementing commit ordering, per-record CRC and wear levelling by hand at Class B, which is the wrong answer to `OI-NVRAM-12`. **D-22 closes `OI-NVRAM-02`** — the UKMD record becomes a named file and `NP-FW-EMMC-002` §C.3 is corrected here, provably safe because `np_uhdr_key.c` has always reached it through a HAL and never through the offset. **D-23 decides `OI-NVRAM-03`** by widening rather than forbidding, as Rev 1 predicted. **D-24 closes `OI-NVRAM-13`**: 32-byte record (eight per program unit, none straddling), 49,152-byte file, 1,536 rows, ~19 per socket, against a stated assumption of one row per module per session — 19 days of margin at home cadence and **1.6 days at clinic cadence, stated rather than rounded away**, bounded by §6.3's degrade-to-totals-plus-`detail_lost` rather than by a failure. **`OI-NVRAM-12` is superseded by `NP-SOUP-LFS-001` Rev 1**, which brings LittleFS under SOUP management and returns two findings to this document: it is **not in the tree at all** (two `lfs_` tokens in `firmware/`, both comments), so §4's guarantees rest on a nominated rather than integrated component; and **§9's Class B argument is a property of `np_module_map`'s reject-and-rebuild policy rather than of LittleFS** — the policy §7.2 specifies Map 3 to invert — now constrained by `REQ-LFS-01`. Per `NP-CONV-001` §7 every Rev 1 finding in §3.3 is retained verbatim and §3.3.1 sits after it. `NP-FW-EMMC-001` is not edited (it is a `.docx`, `OI-CONV-04`); its three clause changes are raised as `ECR-EMMC-001` with replacement text. **No code changed with this revision.** Rev 1 → 2. |
