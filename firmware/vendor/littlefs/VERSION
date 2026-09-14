@@ -1,0 +1,180 @@
+# littlefs SOUP Record — IEC 62304 §8.1.2
+
+Component:   littlefs — a power-loss-resilient filesystem for microcontrollers
+Version:     littlefs v2.11.3   (LFS_VERSION 0x0002000b = 2.11;
+                                 LFS_DISK_VERSION 0x00020001 = on-disk 2.1)
+Source:      https://github.com/littlefs-project/littlefs/tree/v2.11.3
+Tag:         v2.11.3   (tag commit 6cb4e86540eca0d9ba62500a298385c9d863c8be,
+                        dated 2026-03-24; the newest release on the v2 line)
+License:     BSD-3-Clause  (SPDX-License-Identifier in every vendored file;
+                            full text in LICENSE.md, copied from the same tag)
+SW item:     SW-02 (i.MX RT1062 main processor, Cortex-M7)
+IEC 62304:   Class B — CONDITIONALLY.  The classification is a property of the
+             CALLER, not of this component: see NP-SOUP-LFS-001 §6.2 and
+             REQ-LFS-01.  Read that before treating "Class B" here as settled.
+Vendored:    2026-09-14  (closes OI-LFS-01)
+SOUP record: NP-SW-001 §9.4;  hazard analysis NP-SOUP-LFS-001 Rev 2
+Vendoring decision: NP-SW-CI-001 §9 (vendor in-tree, never fetch at build time),
+             obligations §9.3.
+
+⚠ THE §7.1.2 ANOMALY EVALUATION FOR THIS TAG DOES NOT EXIST YET — OI-LFS-02.
+Class B does not attach NP-SW-CI-001 §9.3 obligation 5, so this record is not
+incomplete by that rule.  It is named here anyway because NP-SOUP-LFS-001 §7.2
+requires the evaluation for THIS component regardless of class, and because the
+Class B argument above is conditional in a way the MCUX precedent's is not.
+Until OI-LFS-02 is closed, NO claim of power-loss atomicity may be made from the
+presence of this directory.  Pinning is what UNBLOCKS that work (and #75,
+NP-SBOM-001); it does not perform it.  See "What this vendoring does not
+establish" below.
+
+Why v2.11.3 and not an older, longer-in-the-field tag.  Stated because "newest"
+is the entry a reviewer is most likely to second-guess, and because OI-LFS-02
+may yet move the pin — that is its job.
+  - v2.11.3 contains commit 488e84bb, "Fixed data corruption with multiple write
+    handles": a sync to one handle left a second open handle on the same file
+    stale, after which the allocator could re-use still-referenced blocks.  That
+    is a DATA-CORRUPTION defect on exactly the axis L-1…L-4 rest on, and it is
+    not present in any earlier v2 release.  Choosing an older tag would mean
+    knowingly pinning a version carrying it.
+  - The defect also has a NeurOne-side consequence that outlives the version
+    choice, and it belongs with the OI-LOG-05..07 glue rather than here: no file
+    on any NeurOne instance may be open through two handles at once.  The three
+    Config files (the "NPMP" blob, Map 3's journal, ukmd.rec) and the two log
+    files each have exactly one writer by design — that is now a requirement the
+    glue has to keep, not an accident of how it happens to be written.
+  - v2.11.3 is 11 commits ahead of v2.11.2; the remainder are a null-callback
+    guard in lfs_dir_fetchmatch, implicit-conversion warning fixes, and README
+    typos.  It is a patch release on the same on-disk version (2.1), so the pin
+    carries no format migration.
+
+Files vendored (byte-exact from the repository root at tag v2.11.3):
+  lfs.c         — the filesystem itself (6,558 lines)
+  lfs.h         — public API + struct lfs_config (802 lines)
+  lfs_util.c    — the CRC-32 table used when LFS_CRC is not overridden
+  lfs_util.h    — utility/config header; includes NeurOne's LFS_DEFINES header
+  LICENSE.md    — BSD-3-Clause, from the repository root of the same tag
+
+Byte-exactness was verified by two independent clones of the tag through
+separate transfers and a per-file `cmp` of the two trees — all five identical.
+SHA-256, recorded so the claim stays checkable without network access:
+  a36d6a095785ddea9571d541d68d3e4ef01d5b255a99d17d3f07fb6ea60ea132  lfs.c
+  b1befd7288d08815accc8f9af744c55686c0b9e3ac0061c32ceee38a1b3eb96d  lfs.h
+  f2fbde533670560434bd9f5a547174cc7c5a4670a02c47b4bd85180dced8b2ec  lfs_util.c
+  548d46aa524dc7449e16739286c1a422a52f9de727ff0be0c2ffc5593f5ca981  lfs_util.h
+  0cb4ff1daf5fdc1359c6a6ee3116092f08fc100c9d58b1b77ab17bfd801f856d  LICENSE.md
+
+Why each file is here — none is aspirational:
+  lfs.c        the component.  Nothing else in the subset does any work.
+  lfs.h        included by lfs.c line 8 and by every NeurOne caller; it is where
+               struct lfs_config lives, so the configuration below is a
+               statement about this file's type.
+  lfs_util.h   included by lfs.h line 11.  It is also the configuration seam —
+               see "Configuration" below; there is no way to use lfs.h without
+               it.
+  lfs_util.c   defines lfs_crc() for the !LFS_CRC case, which is the case
+               NeurOne takes.  Verified by deletion: removing it fails the link
+               of np_littlefs with an undefined reference to lfs_crc.
+  LICENSE.md   the licence the four files above are distributed under.
+
+Configuration — part of this SOUP record (NP-SOUP-LFS-001 §7.3).
+The build-time configuration and the per-instance parameters are NeurOne-authored
+and are NOT part of the vendored component.  They live with the hub control
+program, on the FreeRTOSConfig.h precedent (one owner, one source of truth):
+  firmware/hub_control/include/np_lfs_config.h    — build-time configuration,
+                                                    reached via -DLFS_DEFINES
+  firmware/hub_control/include/np_lfs_instance.h  — EMMC-FS-01 instance
+  firmware/hub_control/src/np_lfs_instance.c        parameters + the mount-time
+                                                    validator
+  firmware/hub_control/tests/np_lfs_config_tests.c  — the host test that asserts
+                                                    both against this record
+
+Build-time configuration in force (np_lfs_config.h; read it for the reasoning):
+  LFS_DEFINES=np_lfs_config.h  the ONE compile definition.  Everything else is
+                       set inside that header rather than on a command line, so
+                       a translation unit that includes lfs.h cannot see a
+                       different configuration from the one lfs.c was built
+                       with.  LFS_THREADSAFE changes the layout of struct
+                       lfs_config, so that is a correctness property, not tidiness.
+  LFS_NO_MALLOC        static allocation.  The device's heap is a fixed 64 KiB
+                       FreeRTOS pool and filesystem buffers must not come from
+                       it.  With this set, lfs_malloc() returns NULL, so a
+                       caller that forgets a buffer gets LFS_ERR_NOMEM at mount
+                       rather than a working filesystem on borrowed heap.
+  LFS_ASSERT(...)      assertions stay ON, retargeted.  NeurOne's handler halts
+                       the main processor, which stops the SPI heartbeat, which
+                       makes the safety MCU cut all stimulation within <50 ms
+                       (CLAUDE.md §4.2).  Compiling a Class B filesystem with
+                       its internal invariants disabled is the alternative, and
+                       it is not one: lfs_init()'s configuration checks are
+                       assertions.
+  LFS_NO_ASSERT        deliberately NOT defined — and it is the obvious-looking
+                       companion to the line above, so the reason is recorded
+                       rather than left to be rediscovered.  Upstream reads it
+                       as "assertions are compiled out", not as "do not include
+                       <assert.h>": lfs.c:507 guards the DEFINITION of
+                       lfs_mlist_isopen with it while lfs.c:6178 keeps the CALL
+                       inside LFS_ASSERT.  Setting both gives an implicit
+                       declaration and then an undefined symbol at link — and
+                       only once something pulls lfs.o in.  Found by building
+                       it.  Patching the vendored file is not available
+                       (NP-SW-CI-001 §9), so the configuration yields; the cost
+                       is one unused <assert.h> include.  Note what the
+                       assertion in question checks: that a file is not already
+                       open through a SECOND HANDLE — the exact condition behind
+                       the corruption defect this tag was pinned for.
+  LFS_NO_DEBUG,        the three logging families are OFF, which also removes
+  LFS_NO_WARN,         lfs_util.h's <stdio.h> include.  CLAUDE.md §17: firmware
+  LFS_NO_ERROR         renders no text at all.  A printf here would be both dead
+                       code and a locale boundary the firmware does not have.
+  LFS_THREADSAFE       ON.  lfs_config gains lock/unlock, and the validator
+                       REFUSES a config whose lock or unlock is NULL — with
+                       this define a NULL lock is a call through a null pointer
+                       on the first API call, so the check is the difference
+                       between a rejected mount and a hard fault.
+  LFS_MULTIVERSION     NOT defined: NeurOne writes the on-disk version of the
+                       pinned library (2.1) and reads no foreign media.
+  LFS_READONLY         NOT defined: every instance is written.
+  LFS_NO_INTRINSICS    NOT defined: the GCC builtins are wanted on Cortex-M7.
+
+Instance parameters (np_lfs_instance.h) — Config partition, from EMMC-FS-01:
+  read_size 256 · prog_size 256 · block_size 4,096 · block_count 4,096 ·
+  file_max 65,536                    ← the five EMMC-FS-01 owns (claim L-5)
+  cache_size 256 · lookahead_size 512 · block_cycles 500 · static buffers
+                                     ← the four EMMC-FS-01 does not state, and
+                                       which are therefore NeurOne decisions
+                                       recorded in np_lfs_instance.h
+block_cycles is set EXPLICITLY (§7.3): 0 is rejected by lfs_init, and -1 would
+disable block-level wear levelling, which is claim L-6 against EMMC-HW-01's
+30,000 P/E budget.  500 is mid-range of upstream's suggested 100–1000.
+
+Intentionally NOT vendored — named explicitly so a later reader does not read
+the omissions as oversight:
+  bd/lfs_rambd.*, bd/lfs_filebd.*, bd/lfs_emubd.*
+                       upstream's testing block devices.  NeurOne's block device
+                       is the eMMC behind the XTS layer (NP-FW-EMMC-002 §C), and
+                       the host tests model the seam rather than the medium.
+                       lfs_emubd in particular is where an upstream power-loss
+                       test would run — see the note under OI-LFS-02 below.
+  tests/**, benches/**, runners/**, scripts/**
+                       upstream's own test suite and its Python runners.  The
+                       cell this whole record replaces cited exactly this suite
+                       as NeurOne's verification; vendoring it would make that
+                       citation look discharged without anything being run.
+                       OI-LFS-02 is what discharges it, and it is a NeurOne
+                       test.
+  Makefile, .github/**, DESIGN.md, SPEC.md, README.md
+                       upstream build and documentation.  The build is
+                       CMakeLists.txt here; DESIGN.md and SPEC.md are reference
+                       reading, cited from NP-SOUP-LFS-001 rather than copied.
+
+What this vendoring does not establish.  Stated plainly, because a directory
+appearing under firmware/vendor/ reads as "integrated" and this one is not yet:
+  - NOTHING CALLS IT.  np_log_backend.h's OI-LOG-05..07 seams are still
+    unimplemented; np_littlefs is built and linked into no image.  `grep -rn
+    "lfs_" firmware/ --include=*.c --include=*.h` outside this directory and the
+    NeurOne configuration files above still finds no call.
+  - No NeurOne power-loss test exists (OI-LFS-02).  L-1…L-4 remain asserted, not
+    verified, and NP-FW-NVRAM-001 §4 / NP-FW-HUB-001 §6.5 may not be relied on.
+  - Only the Config instance has parameters.  The UHDR and SHDR log partitions
+    carry claims L-1 and L-2 and NO document states their instance parameters —
+    raised as OI-LFS-05 by NP-SOUP-LFS-001 Rev 2.

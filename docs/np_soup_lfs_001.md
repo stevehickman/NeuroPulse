@@ -2,9 +2,9 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-LFS-001
-**Revision:** 1
-**Date:** 2026-09-13
-**Status:** DRAFT — the hazard analysis (§4–§6) is complete and does not depend on a version. The IEC 62304 §7.1.2 anomaly-list evaluation (§7) is **deliberately not performed**, because it cannot be: it evaluates the anomaly list *for the version actually in use*, and no version is in use. §7 states the blocking action instead of a conclusion.
+**Revision:** 2
+**Date:** 2026-09-14
+**Status:** DRAFT — the hazard analysis (§4–§6) is complete and does not depend on a version. **Rev 2 closes `OI-LFS-01`: a version is pinned and vendored** (littlefs `v2.11.3`, `firmware/vendor/littlefs/`), so §7.1's blocking action is discharged and §2's "not in the tree" finding is superseded — see §2.1 and §7.4. The IEC 62304 §7.1.2 anomaly-list evaluation is **still not performed**: it is now performable and is `OI-LFS-02`, together with the NeurOne power-loss injection test. **No atomicity claim may be relied on yet.**
 **Effective Date:** —
 **Author:** NeurOne Firmware Engineering
 **Approved By:** — (DRAFT, not approved)
@@ -13,11 +13,34 @@
 **Gate:** G2
 **IEC 62304 Class:** SW-02 Class B
 **Supersedes:** None — new document. It replaces the single verification cell that `NP-SW-001` §9.4 previously carried for this component.
+**Pinned version:** littlefs **v2.11.3** (tag commit `6cb4e86540eca0d9ba62500a298385c9d863c8be`), vendored at `firmware/vendor/littlefs/` with per-file SHA-256 — `firmware/vendor/littlefs/VERSION` is the SOUP record proper, and this document is its hazard analysis.
 **Review Cadence:** On any change to the pinned version, on first integration, and at G2
 
 ---
 
-> **⚠ READ FIRST — the finding that reorders this document.**
+> **⚠ REV 2 — WHAT CHANGED, AND WHAT DID NOT (2026-09-14, closes `OI-LFS-01`).**
+>
+> | | Rev 1 | Rev 2 | Cause |
+> |---|---|---|---|
+> | Version | *"none — not integrated"* | **v2.11.3**, pinned and vendored | `OI-LFS-01` performed |
+> | Source in tree | none | `firmware/vendor/littlefs/`, 5 files, per-file SHA-256 | ditto |
+> | Configuration | unrecorded | recorded and **tested** (§7.4) | `§7.3` performed |
+> | §7.1.2 evaluation | not performable | **performable, and still not performed** | `OI-LFS-02` |
+> | Any reliance on `L-1…L-4` | blocked | **still blocked** | `OI-LFS-02` |
+>
+> **The Rev 1 banner below is retained verbatim** (`NP-CONV-001` §7). Its central finding — that
+> the component was absent — was **true and is now resolved**, not refuted; the reasoning it
+> produced is what §6.2 turns on, and that survives untouched. §2.1 records what is in the tree now.
+>
+> **The one thing a reader must not take from Rev 2: a vendored directory is not a test.**
+> `OI-LFS-01` was the *first* of two blocking items and it was never the one that verifies
+> anything. `NP-FW-NVRAM-001` §4, `EMMC-FS-01` and `NP-FW-HUB-001` §6.5 are exactly as unverified
+> today as they were yesterday — what changed is that the work that would verify them can now be
+> done. §7.4 states what was performed and §7.5 what a reviewer may and may not cite it for.
+
+---
+
+> **⚠ READ FIRST — the finding that reorders this document (Rev 1, retained).**
 >
 > `NP-SW-001` §9.4 has carried LittleFS as an SW-02 Class B SOUP item since Rev 1, with version
 > *"2.x"* and the verification *"Power-loss testing per LittleFS test suite."* `OI-NVRAM-12` raised it
@@ -59,8 +82,8 @@
 |---|---|
 | Component | LittleFS — a power-loss-resilient filesystem for microcontrollers |
 | Upstream | `littlefs-project/littlefs` |
-| Version in use | **none — not integrated** (§2) |
-| Version proposed for pinning | a named upstream release tag, selected at integration (§7.1) |
+| Version in use | **v2.11.3** — pinned and vendored 2026-09-14, `firmware/vendor/littlefs/` (§2.1). Rev 1 read *"none — not integrated"* |
+| Version proposed for pinning | ~~a named upstream release tag, selected at integration (§7.1)~~ — **selected: `v2.11.3`** (§7.4) |
 | SW item | SW-02 (hub control program, main processor) |
 | Safety class | Class B |
 | Reachable from SW-01 (Class C)? | **No.** The safety MCU is a separate CMake project with its own toolchain file; it has no eMMC interface and no storage of its own beyond its internal flash |
@@ -89,6 +112,36 @@ classification holds; and what must be done before any of those claims may be re
 glue on target and host-modeled in `np_log_backend.c` under `NPTEST_HOST`. That seam is the correct
 place for it, and its existence is why the absence has been invisible: the layer above it is real,
 tested, and passes.
+
+### 2.1 What is actually integrated — as of Rev 2 (2026-09-14)
+
+The table above is retained because it is the finding this document was written for, and because the
+difference between the two tables is the whole of what `OI-LFS-01` bought. **Two of its five rows
+change. Three do not, and those three are the ones that matter for reliance.**
+
+| Artifact | Rev 1 | Rev 2 | Evidence |
+|---|---|---|---|
+| LittleFS source under `firmware/vendor/` | No | **Yes** | `firmware/vendor/littlefs/` — `lfs.c`, `lfs.h`, `lfs_util.c`, `lfs_util.h`, `LICENSE.md`, byte-exact from tag `v2.11.3` |
+| A `VERSION` SOUP record | No | **Yes** | `firmware/vendor/littlefs/VERSION` — tag, commit, licence, per-file SHA-256, configuration, and an explicit "what this does not establish" |
+| Any call into the library | No | **Still no** | `OI-LOG-05..07` are unimplemented. The only non-vendor `lfs_` references are NeurOne's configuration and its test |
+| A NeurOne test exercising it | No | **Still no, in the sense that matters** | `np_lfs_config_tests` exercises the SOUP record, the build configuration and the instance parameters. It exercises **no filesystem behaviour** — there is no block device on a host |
+| A build that links it | No | **Partly** | `np_littlefs` builds in both modes and `np_hub_control` links it, so the pinned bytes compile under NeurOne's configuration. Nothing in the image calls it |
+
+**The third row is the one to read.** Pinning moved the component from *nominated* to *present*; it
+did not move it to *integrated*. Every claim in §3 is still a claim about a component no NeurOne code
+calls, and §5's hazard analysis is still an analysis of callers that do not yet exist. What changed
+is that the analysis now has a specific version under it rather than a version family.
+
+**One finding came out of the build itself**, and it is recorded here because it is the kind that is
+invisible until something compiles: NeurOne's configuration originally set `LFS_NO_ASSERT` alongside
+a replacement `LFS_ASSERT`, reading the define as *"do not include `<assert.h>`"*. Upstream reads it
+as *"assertions are compiled out"* — `lfs.c:507` guards the **definition** of `lfs_mlist_isopen` with
+it while `lfs.c:6178` keeps the **call** inside `LFS_ASSERT`. The result was an implicit declaration
+and an undefined symbol that appears only once something pulls `lfs.o` into a link. Patching vendored
+SOUP is not available (`NP-SW-CI-001` §9), so the configuration yielded. **What that assertion checks
+is the point**: that a file is not already open through a second handle — the exact condition behind
+the data-corruption defect `v2.11.3` was pinned for (§7.4). Compiling it out would have removed the
+run-time detector for the failure the version choice was made against.
 
 ---
 
@@ -230,9 +283,9 @@ is the single highest-value change in this document, and §7.2 states what repla
 
 ---
 
-## 7. What remains, and why §7.1.2 is not discharged here
+## 7. What remains, and why §7.1.2 is *still* not discharged here
 
-### 7.1 Pin a version — blocking, and blocking for two reasons
+### 7.1 Pin a version — blocking, and blocking for two reasons *(Rev 1; performed at Rev 2 — see §7.4)*
 
 `2.x` cannot be evaluated and cannot be vendored. A named upstream release tag must be selected at
 integration and recorded in `firmware/vendor/littlefs/VERSION` with per-file provenance and SHA-256,
@@ -244,6 +297,16 @@ been read, in a document whose purpose is to record that the anomaly list was re
 
 The second reason it blocks: **#75 (`NP-SBOM-001`) needs a version.** An SBOM entry reading `2.x` is
 not an SBOM entry, and the T2 510(k) cybersecurity submission consumes it.
+
+> **Rev 2: performed, and the Rev 1 reasoning above is *outweighed*, not refuted** (`NP-CONV-001`
+> §7). It remains true that a pinned tag with an unread anomaly list is not a discharged §7.1.2. What
+> Rev 1 got wrong is the order it implied: it read "do not pin before the list is read" as a rule,
+> when §7.2 immediately states the opposite dependency — **the list cannot be read until a tag
+> exists.** Holding the pin therefore blocked its own precondition, and blocked `#75` besides.
+> Rev 2 pins the tag and records the evaluation's *absence* explicitly (in `VERSION`, in §7.5, in
+> `NP-SW-001` §9.4, and in `OI-LFS-02`) rather than concealing it behind a missing version. The
+> `OI-DOC-01` failure Rev 1 feared is "a record that resolves to nothing"; a stated non-conclusion
+> resolves to something.
 
 ### 7.2 Then perform the evaluation, and record NeurOne's own verification
 
@@ -257,12 +320,95 @@ Per `NP-CONV-001` §8 that test must be **falsified before it is trusted** — p
 ordering and confirm it fails — because a power-loss test that has never been seen to fail is
 indistinguishable from a test that does not run. `OI-LFS-02`.
 
-### 7.3 Configuration is part of the SOUP record
+### 7.3 Configuration is part of the SOUP record *(Rev 1; performed at Rev 2 — see §7.4)*
 
 The vendored subset and its configuration must be recorded together, as the FreeRTOS row does. At
 minimum: static allocation (no `malloc` on a device whose heap is a fixed 64 KiB FreeRTOS pool),
 `block_cycles` set explicitly rather than defaulted (it governs wear levelling, which is L-6), and
 the `EMMC-FS-01` instance parameters (L-5) asserted at mount rather than assumed.
+
+### 7.4 What Rev 2 performed — `OI-LFS-01` closed (2026-09-14)
+
+**The tag: `v2.11.3`**, the newest release on the v2 line (tag commit `6cb4e865`, 2026-03-24).
+"Newest" is the choice a reviewer is most likely to second-guess, so the reason is on the record and
+not left to be inferred: **v2.11.3 contains upstream commit `488e84bb`, "Fixed data corruption with
+multiple write handles"** — a sync through one handle left a second open handle on the same file
+stale, after which the allocator could re-use still-referenced blocks. That is a data-corruption
+defect on exactly the axis `L-1…L-4` rest on, and it is in no earlier v2 release. Any older tag would
+be knowingly pinning a version carrying it. The remaining ten commits since v2.11.2 are a
+null-callback guard, implicit-conversion warning fixes and README typos; the on-disk version (2.1) is
+unchanged, so the pin carries no format migration.
+
+**That defect also leaves a requirement behind, and it outlives the version choice.** No file on any
+NeurOne instance may be open through two handles at once. The three Config files (the `"NPMP"` blob,
+Map 3's journal, `ukmd.rec`) and the two log files each have exactly one writer *by design* — which
+means it is currently true by accident of how the design happens to read, not by anything that would
+notice if it stopped. It belongs to the `OI-LOG-05..07` glue, and it is why §2.1's `LFS_NO_ASSERT`
+finding matters: `lfs_mlist_isopen` is the run-time detector for precisely this condition, and
+NeurOne's first configuration would have compiled it out.
+
+**The subset**: `lfs.c`, `lfs.h`, `lfs_util.c`, `lfs_util.h`, `LICENSE.md` — byte-exact, verified by
+two independent clones and a per-file comparison, with per-file SHA-256 in
+`firmware/vendor/littlefs/VERSION` so the claim stays checkable offline. Upstream's `bd/` test block
+devices, `tests/`, `benches/`, `runners/` and `scripts/` are **deliberately not vendored**, and the
+second of those is worth naming: the verification cell this whole document replaced cited upstream's
+own test suite as NeurOne's verification. Vendoring that suite would make the citation look
+discharged without anything having been run.
+
+**The configuration** (§7.3's three minimums, and what else was needed to satisfy them):
+
+| §7.3 asks for | In force | Where |
+|---|---|---|
+| static allocation | `LFS_NO_MALLOC`; all three buffers static, 1,024 B; `lfs_file_open()` unusable by construction, `lfs_file_opencfg()` only | `np_lfs_config.h`, `np_lfs_instance.c` |
+| `block_cycles` explicit | **500**, and checked *by value* — `-1` passes every "non-zero" test and silently disables the wear levelling `L-6` rests on | `np_lfs_instance.h` |
+| `EMMC-FS-01` parameters asserted at mount | `np_lfs_config_validate()`, plus eight `_Static_assert`s | `np_lfs_instance.c` |
+
+Two further decisions the §7.3 list did not anticipate. **Assertions stay on** (`LFS_ASSERT`
+retargeted to a handler that halts the main processor, so the safety MCU's 1.5 s watchdog cuts all
+stimulation — the `np_freertos_assert_failed` discipline): `lfs_init()`'s configuration checks *are*
+assertions, and a Class B filesystem compiled with its own invariants off converts a
+misconfiguration from a halt into undefined behaviour over stored values other code trusts. And
+**`LFS_THREADSAFE` is on**, because the Config instance already has three specified writers whose
+callers are not one task; the alternative is a single-task assumption recorded nowhere and checkable
+nowhere, which is the shape of failure this document exists because of.
+
+**Why the validator exists at all, since littlefs validates its own config.** `lfs_init()`'s
+assertions check that a configuration is *internally consistent*. They cannot check that it is
+*NeurOne's*, because they have never heard of `EMMC-FS-01`: a config with `block_size` 512 and
+`block_count` 32,768 passes every one of them and mounts a filesystem whose geometry no NeurOne
+document describes. `np_lfs_config_validate()` is that missing half, and `L-5` is the claim it
+discharges.
+
+**`np_lfs_config_tests`** (Class B host target 28; repo total 34 → 35) holds all of it in place:
+it recomputes each vendored file's SHA-256 against the `VERSION` record, compares the build-time
+configuration against what that record tells a reviewer to rely on, pins the instance parameters, and
+**requires nineteen single-field perturbations of a known-good config to be rejected**. Per
+`NP-CONV-001` §8 the suite was falsified before being trusted — a corrupted recorded hash, an edited
+vendored byte, `block_cycles` `-1` and `100`, a `lookahead_size` of 16, a hole punched in the
+validator and `LFS_THREADSAFE` removed were each confirmed to fail it, and the baseline confirmed to
+pass again afterwards. The `LFS_NO_ASSERT` finding in §2.1 was itself found this way.
+
+### 7.5 What a reviewer may and may not cite Rev 2 for
+
+Stated as a list because the failure mode here is optimistic reading, and because a directory under
+`firmware/vendor/` looks like an answer.
+
+**May be cited for:** a configuration identity for `#75` (`NP-SBOM-001`) — an SBOM entry can now name
+`v2.11.3` and a commit; that the vendored bytes are the upstream tag's; that NeurOne's configuration
+of the component is recorded, compiled and tested; that `L-5` is enforced rather than assumed.
+
+**May NOT be cited for — and this is unchanged from Rev 1:**
+
+- **`L-1`, `L-2`, `L-3`, `L-4`.** No power-loss behaviour has been exercised. `NP-FW-NVRAM-001` §4,
+  `EMMC-FS-01` and `NP-FW-HUB-001` §6.5 remain **specified and unverified**. `OI-LFS-02`.
+- **IEC 62304 §7.1.2.** The published anomaly list for `v2.11.3` has not been read or assessed
+  against §3's seven claims. It is now *performable*, which is the whole of what pinning bought.
+- **Integration.** Nothing calls the library (§2.1). `np_lfs_config_tests` tests the record and the
+  configuration; it mounts nothing, because a host has no block device.
+- **The UHDR and SHDR log instances.** Only the Config instance has stated parameters. `L-1` and
+  `L-2` are claims about the *log* partitions, whose instance parameters no document states —
+  `OI-LFS-05`. `np_lfs_instance.h` must not be reused for them by analogy: `block_count` alone
+  differs by three orders of magnitude, which changes what `lookahead_size` can mean.
 
 ---
 
@@ -272,8 +418,9 @@ the `EMMC-FS-01` instance parameters (L-5) asserted at mount rather than assumed
 |---|---|---|---|---|
 | `RISK-LFS-01` | Session records silently truncated or lost | Low | flush bound (`NP-FW-HUB-001` §6.5); per-record tags make truncation detectable | Accepted |
 | `RISK-LFS-02` | Corrupted safe range reaches emitter drive | **High** | blob CRC → reject-and-rebuild → empty inventory (§5.3); 62 °C throttle as the last bound | **Conditional** on `REQ-LFS-01`; re-derive if it is ever breached |
-| `RISK-LFS-03` | Atomicity claims relied on before the component exists | Medium | this document; `OI-LFS-01`/`-02` block the reliance, not the design | **Open until integration** |
-| `RISK-LFS-04` | An unpinned version reaches the SBOM and the 510(k) submission | Medium | `OI-LFS-01` blocks #75's entry | **Open** |
+| `RISK-LFS-03` | Atomicity claims relied on before the component is **verified** | Medium | this document; `OI-LFS-02` blocks the reliance, not the design. **Rev 2 narrowed the hazard and did not remove it** — the component now exists, which removes the "before it exists" half and makes the remaining half easier to misread, since a populated `firmware/vendor/littlefs/` looks like an answer. §7.5 is the mitigation for that reading | **Open until `OI-LFS-02`** |
+| `RISK-LFS-04` | An unpinned version reaches the SBOM and the 510(k) submission | Medium | ~~`OI-LFS-01` blocks #75's entry~~ — **CLOSED at Rev 2.** `v2.11.3` + commit `6cb4e865` + per-file SHA-256 is an SBOM entry | **Closed 2026-09-14** |
+| `RISK-LFS-05` | The log partitions are mounted with parameters nobody chose — a `block_count` three orders of magnitude larger than Config's, against a `lookahead_size` sized for Config | Medium | `OI-LFS-05`; `np_lfs_instance.h` is scoped to the Config instance in its own header and refuses to generalise | **Open** |
 
 ---
 
@@ -281,10 +428,12 @@ the `EMMC-FS-01` instance parameters (L-5) asserted at mount rather than assumed
 
 | ID | Description | Owner | Blocking |
 |---|---|---|---|
-| **`OI-LFS-01`** | **Pin a named upstream release tag and vendor it** under `firmware/vendor/littlefs/` with a `VERSION` record carrying per-file provenance and SHA-256, plus the subset and configuration per §7.3. Supersedes the version half of `OI-NVRAM-12` | FW + Quality | **BLOCKING — any reliance on `NP-FW-NVRAM-001` §4 or `NP-FW-HUB-001` §6.5; and #75 (`NP-SBOM-001`)** |
-| **`OI-LFS-02`** | **Perform the §7.1.2 anomaly evaluation against the pinned tag**, and write the NeurOne power-loss injection test against `L-1…L-4`, **falsified in both directions first** per `NP-CONV-001` §8. Supersedes the evaluation half of `OI-NVRAM-12` | FW + Quality | `NP-SW-001` §9.4 verification cell; G2 |
+| ~~`OI-LFS-01`~~ | **✅ CLOSED 2026-09-14 (Rev 2) — littlefs `v2.11.3` pinned and vendored** at `firmware/vendor/littlefs/`: byte-exact five-file subset verified by two independent downloads, per-file SHA-256, the configuration of §7.3 recorded *and* compiled *and* tested (`np_lfs_config_tests`, 19 falsified rejections), and an explicit "what this does not establish". §7.4. **Closing it unblocks #75 and unblocks `OI-LFS-02`; it unblocks no atomicity claim** — see §7.5, and note that the item below inherits the BLOCKING status this one carried | — (closed) | — |
+| **`OI-LFS-02`** | **Perform the §7.1.2 anomaly evaluation against the pinned tag** — `v2.11.3` is now selectable, which is what `OI-LFS-01` bought — and write the NeurOne power-loss injection test against `L-1…L-4`, **falsified in both directions first** per `NP-CONV-001` §8. Supersedes the evaluation half of `OI-NVRAM-12`, **and inherits `OI-LFS-01`'s blocking status** | FW + Quality | **BLOCKING — any reliance on `NP-FW-NVRAM-001` §4, `EMMC-FS-01` or `NP-FW-HUB-001` §6.5.** `NP-SW-001` §9.4 verification cell; G2 |
 | **`OI-LFS-03`** | **Write and falsify the CI check for `REQ-LFS-01`** — that no value bounding an emission is stored under a tail-additive policy, i.e. that Map 3's journal is never read as a limit. `warranty-nojoin-ci.yml` is the pattern | FW + Safety | `REQ-LFS-01` durability; §6.2 |
 | **`OI-LFS-04`** | `OI-NVRAM-10` — is there a Class C bound on per-tile emitter drive current independent of Map 1's ranges? Carried here because §5.3's third barrier is a thermal limit standing in for an optical one, and this document is where that now has a named consequence | Safety + EE | **Class B classification durability** |
+| **`OI-LFS-05`** | **Decide the UHDR and SHDR log instances' parameters.** `EMMC-FS-01` states parameters for the **Config** partition only, and `L-1`/`L-2` — the two claims `NP-FW-HUB-001` §6.5's whole durability model rests on — are claims about the **log** partitions. SHDR is 512 MiB and UHDR 6,903 MiB, so at `block_size` 4,096 their `block_count` is 131,072 and 1,767,168 against Config's 4,096: a full-coverage `lookahead_size` would be 16 KiB and 216 KiB respectively, which is a real decision and not a copy of Config's 512 B. Also decide `file_max` for an append-only log, where Config's 65,536 is plainly wrong. Raised by Rev 2 while writing the Config instance; `np_lfs_instance.h` is deliberately scoped so it cannot be reused for them by analogy | FW | **`OI-LOG-05..07` (the mount glue); `NP-FW-HUB-001` §6.5** |
+| **`OI-LFS-06`** | **Make "one open handle per file" checkable.** `v2.11.3` was pinned partly for upstream `488e84bb`, which fixes corruption arising from two write handles on one file (§7.4). NeurOne's five files each have one writer by design, but nothing enforces or observes it; `lfs_mlist_isopen` catches it at run time only, and only because §2.1's `LFS_NO_ASSERT` finding was caught. Belongs with the `OI-LOG-05..07` glue — a single open-handle registry, or the `warranty-nojoin-ci.yml`-shaped check `OI-LFS-03` already establishes the pattern for | FW | `OI-LOG-05..07` |
 
 ---
 
@@ -292,4 +441,5 @@ the `EMMC-FS-01` instance parameters (L-5) asserted at mount rather than assumed
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 2 | 2026-09-14 | NeurOne Firmware Engineering | **Closes `OI-LFS-01`: littlefs is pinned at `v2.11.3` and vendored, with its configuration.** Five byte-exact files at `firmware/vendor/littlefs/` from tag commit `6cb4e865`, verified by two independent downloads and carrying per-file SHA-256; a `VERSION` SOUP record on the `cmsis_core` pattern; `np_littlefs` building in both modes. **The tag choice is a safety argument, not a preference**: `v2.11.3` is the first release containing upstream `488e84bb`, which fixes data corruption from two write handles on one file — a defect on exactly the axis `L-1…L-4` rest on — and it leaves behind a NeurOne requirement (one open handle per file, `OI-LFS-06`). §7.3's configuration is recorded, compiled and tested: `LFS_NO_MALLOC` with static buffers, `block_cycles` **500** checked by value because `-1` passes every non-zero test and silently disables `L-6`, `LFS_THREADSAFE` on because the Config instance has three specified writers, assertions retargeted to the `np_freertos_assert_failed` halt, and `np_lfs_config_validate()` as the mount-time check `L-5` names — **littlefs's own asserts check that a config is self-consistent and cannot check that it is NeurOne's.** `np_lfs_config_tests` (Class B 27 → 28, repo 34 → 35) re-derives the SHA-256s, compares the build configuration against the SOUP record, and requires 19 single-field perturbations to be rejected; it was falsified in seven ways first per `NP-CONV-001` §8. **One finding came out of building it**: setting `LFS_NO_ASSERT` beside a replacement `LFS_ASSERT` removes the *definition* of `lfs_mlist_isopen` while keeping the *call*, and that assertion is the run-time detector for the very corruption this tag was pinned for. **Rev 1's §7.1 reasoning is outweighed, not refuted** — "do not pin before the anomaly list is read" blocked its own precondition, since the list cannot be read without a tag; the absence of the evaluation is now recorded explicitly instead of being concealed behind a missing version. **`OI-LFS-02` inherits the BLOCKING status**: `NP-FW-NVRAM-001` §4, `EMMC-FS-01` and `NP-FW-HUB-001` §6.5 are exactly as unverified as at Rev 1, and §7.5 exists because a populated vendor directory reads as an answer. `RISK-LFS-04` closed, `RISK-LFS-03` narrowed, `RISK-LFS-05` added. Two new open items: `OI-LFS-05` (the log partitions have no stated instance parameters, and they are the ones `L-1`/`L-2` are about) and `OI-LFS-06`. Feeds #75 (`NP-SBOM-001`) — which an SBOM entry can now satisfy. Rev 1 → 2. |
 | 1 | 2026-09-13 | NeurOne Firmware Engineering | **Initial release — brings LittleFS under SOUP management and performs the hazard analysis `OI-NVRAM-12` requires (Issue #339).** Replaces `NP-SW-001` §9.4's single cell (*"2.x"* / *"Power-loss testing per LittleFS test suite"*). **Principal finding: LittleFS is not unmanaged, it is absent** — `grep -rn "lfs_" firmware/` returns two hits, both comments in `np_log_backend.h` naming the `OI-LOG-06/07` seams, so every power-loss atomicity guarantee in `NP-FW-NVRAM-001` §4, `EMMC-FS-01` and `NP-FW-HUB-001` §6.5 rests on a component with no source, no version and no NeurOne test. **Second finding, and the one that outlives integration: the Class B classification is not a property of LittleFS but of `np_module_map`'s reject-and-rebuild policy** — every integrity failure becomes an *empty* inventory rather than a *wrong* one — and `NP-FW-NVRAM-001` §7.2 specifies Map 3 to need the opposite, tail-additive policy for independently correct reasons. `REQ-LFS-01` is the rule that keeps both decisions safe: no value that bounds an emission may be stored under a tail-additive policy. **The §7.1.2 anomaly evaluation is deliberately not performed** — it evaluates the list for the version in use and none is in use; recording a conclusion against *"2.x"* would reproduce `OI-DOC-01` inside the document written to close its sibling. Four risk rows, four open items, two of which supersede the halves of `OI-NVRAM-12`. Feeds #75 (`NP-SBOM-001`). |

@@ -63,9 +63,9 @@ env:
   # (NP-SW-CI-001 §4.14, OI-SWCI-45) adds the next one: 7 + 27 = 34.  Both
   # re-derived by enumerating ctest on the merged tree, not by adding one to the
   # line above — which is how this value was wrong for a month at phase 8.
-  NP_TOTAL_TEST_COUNT: '34'
+  NP_TOTAL_TEST_COUNT: '35'
   NP_SAFETY_TEST_COUNT: '7'
-  NP_CLASS_B_TEST_COUNT: '27'
+  NP_CLASS_B_TEST_COUNT: '28'
 
 jobs:
   host-tests-all:
