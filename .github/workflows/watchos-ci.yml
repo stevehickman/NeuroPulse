@@ -3,6 +3,8 @@ name: watchOS CI (xcodebuild)
 # Builds the standalone NeurOneWatch app for the watchOS simulator.
 # The project is generated from app/watchos/project.yml via XcodeGen, so the
 # spec is the source of truth and a stale committed .xcodeproj cannot drift.
+# Since Issue #189 ios-ci.yml does the same, so both Apple targets follow one
+# convention: project.yml is committed, the .xcodeproj is not.
 # There is no watchOS unit-test target yet, so this is a build gate only.
 
 on:

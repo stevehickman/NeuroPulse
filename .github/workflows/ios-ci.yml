@@ -1,7 +1,10 @@
 name: iOS CI (xcodebuild)
 
 # Builds the NeurOne iOS app and runs the NeurOneTests suite.
-# Uses the shared NeurOne.xcscheme checked into xcshareddata/.
+# NeurOne.xcodeproj — including the shared NeurOne.xcscheme — is generated from
+# app/ios/project.yml via XcodeGen and is not committed (Issue #189), so the
+# spec is the source of truth and no tracked project can drift from it. This is
+# the same arrangement as watchos-ci.yml.
 
 on:
   # Push only validates the integration branch after merge. Feature branches are
@@ -96,6 +99,21 @@ jobs:
       # puts the file on disk before Xcode looks.
       - name: Generate locale files from canonical locales/*.json
         run: bun scripts/sync-locales.ts
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      # MUST run after the locale step above and before every xcodebuild
+      # invocation. XcodeGen builds the project from what is on disk when it
+      # runs, so generating against a checkout without Localizable.xcstrings
+      # produces a project with no Resources entry for it and with knownRegions
+      # collapsed to en + Base — an app that renders raw keys, in English only,
+      # off a green build. app/ios/project.yml's preGenCommand runs the same
+      # generator for exactly that reason; this step keeps the ordering visible
+      # here too.
+      - name: Generate NeurOne.xcodeproj from spec
+        working-directory: app/ios
+        run: xcodegen generate
 
       - name: Resolve Swift Package dependencies
         run: |
