@@ -63,6 +63,16 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # `packages` defaults to `tools platform-tools`, and the obsolete `tools`
+          # package is no longer in the SDK repository — so the action's own
+          # sdkmanager call fails before any NeurOne step runs:
+          #     Warning: Failed to find package 'tools'
+          #     Error: The process '.../sdkmanager' failed with exit code 1
+          # Nothing is lost by installing none here. The next step installs the
+          # three packages this build actually needs, which makes it the single
+          # statement of what that is rather than a partial overlap with a default.
+          packages: ''
 
       - name: Install SDK packages (compileSdk 36 + build-tools + platform-tools)
         run: |
