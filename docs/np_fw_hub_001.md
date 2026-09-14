@@ -55,16 +55,25 @@
 >    respectively); nothing about the code changed. Recorded rather than fixed silently, because a
 >    revision citation invented against an absent document is exactly the failure `OI-DOC-01` is
 >    about, in miniature.
-> 3a. **Writing the bring-up table found a live ordering defect: boot-time zone-authentication
->    records never reach SHDR.** `np_mod_reg_scan()` is called at step 5 with the SHDR callback, which
->    stamps each record with `s_device_session_count` — still **0**, because the count is read at step
->    7 — and then `np_log_init()` at step 7 sets `s_shdr_pos = 0U`, **discarding the records the scan
->    just wrote**. Two independent reasons, one outcome. Not a hazard (SHDR is device-condition fleet
->    telemetry and nothing on the device reads it back) and near-inert today, because the zone slots
->    those records describe are themselves retired — but it is exactly the class of thing a
->    specification written against the code exists to surface, and it will bite the moment the
->    callback follows the socket lattice. The fix is one line; it is **deliberately not applied here**.
->    `OI-FWHUB-07`. The source also says "four tasks" where the code creates five (`OI-FWHUB-08`).
+> 4. **Writing the bring-up table found a live ordering defect, and fixing it is part of this
+>    change.** `np_mod_reg_scan()` was called with the SHDR zone-auth callback *before*
+>    `np_log_init()`, so each record was stamped with `s_device_session_count` while it was still
+>    **0** — the count is read later — and was then **discarded outright** when `np_log_init()` set
+>    `s_shdr_pos = 0U`. Boot-time module authentication never reached SHDR, for two independent
+>    reasons, under a comment three lines away asserting the log files open *"before the session
+>    logger writes any record"*. Not a hazard — SHDR is device-condition fleet telemetry and nothing
+>    on the device reads it back — and near-inert today because the zone slots those records describe
+>    are themselves retired, but it would have bitten the moment the callback follows the socket
+>    lattice. The logger now comes up before the scan (§2.1). The same pass found the banner
+>    declaring *"four tasks"* where the code creates five — `task_protocol_rx` was omitted, and the
+>    document register had inherited the undercount verbatim (§2.2).
+>
+>    **Both are now gated rather than merely fixed.** `np_hub_control_app_main()` is ARM-cross-only,
+>    so no unit test can reach it and nothing had ever read its call order — which is how the defect
+>    survived. `scripts/check-hub-bringup-order.ts` asserts the four ordering constraints and the
+>    task count against the function itself, and was **falsified against the pre-fix commit**, not
+>    only against fixtures: it reports exactly these two violations on it (`NP-CONV-001` §8).
+>    `OI-FWHUB-07` and `OI-FWHUB-08`, both closed.
 >
 > 3. **`NP_HUB_PROTO_VERSION` is at 3 and the register said Rev 1 described it.** The wire format has
 >    been revised twice since the register entry was written — v2 replaced the five-bit `slot_mask`
@@ -122,40 +131,48 @@ decision and not a detail.
 application startup code **after** clocks, eMMC mount and USB-C PD negotiation are complete. It is
 not an `main()`; it never returns.
 
-Bring-up order is load-bearing. This is the order the code runs, not an idealised one —
-`REQ-FWHUB-01` binds the two constraints marked below, and the ordering defect at step 5 is
-`OI-FWHUB-07`.
+Bring-up order is load-bearing, and `REQ-FWHUB-01` binds the four constraints marked **binding**
+below. This is the order the code runs.
 
 | # | Call | Note |
 |---|---|---|
-| 1 | `np_safety_spi_init()` | configures SPI3 **and drives `GAIN_SEL[0..4]` LOW** before detection runs (`OI-PBM-HW-01` sequencing) — **binding** |
+| 1 | `np_safety_spi_init()` | configures SPI3 **and drives `GAIN_SEL[0..4]` LOW** before any probe (`OI-PBM-HW-01` sequencing) — **binding** |
 | 2 | `np_cvns_reenable_init()` | the re-enable manager starts `IDLE` |
-| 3 | `np_transport_init()` | creates the consumer wait primitive before any task can feed it — **binding** |
-| 4 | `np_mod_reg_init()` | zeroes the registry |
-| 5 | `np_mod_reg_scan(shdr_zone_auth_cb)` | populates the registry; **emits SHDR zone-auth records through a logger that is not yet initialised** — `OI-FWHUB-07` |
-| 6 | `np_log_backend_init()` | opens both partition log files |
-| 7 | `np_log_init(device_session_count)` | reads the SHDR device session count that stamps SHDR records — **and zeroes both log buffers** |
+| 3 | `np_transport_init()` | creates the consumer wait primitive before any task can feed it |
+| 4 | `np_log_backend_init()` | opens both partition log files — **binding** |
+| 5 | `np_log_init(device_session_count)` | reads the SHDR device session count that stamps SHDR records, **and zeroes both log buffers** — **binding** |
+| 6 | `np_mod_reg_init()` | zeroes the registry — **binding** |
+| 7 | `np_mod_reg_scan(shdr_zone_auth_cb)` | populates it, emitting one SHDR zone-auth record per probed slot |
 | 8 | `xEventGroupCreate()` then `np_runner_init()` | the runner requires the event group to exist |
 | 9 | five `xTaskCreate()` calls, then `vTaskStartScheduler()` | which does not return |
 
-Step 1 preceding step 5 is not stylistic. The PBM gain-select lines float at reset; probing a zone
+**Step 1 before step 7** is not stylistic. The PBM gain-select lines float at reset; probing a zone
 slot with `GAIN_SEL` undriven reads an indeterminate transimpedance gain, and the detect result is
 then a function of board leakage rather than of what is plugged in.
 
-**Step 5 before steps 6–7 is a defect, and this table is where it became visible.** `np_mod_reg_scan()`
-takes `shdr_zone_auth_cb`, which calls `np_log_shdr_zone_auth()`, which appends into `s_shdr_buf`
-stamped with `s_device_session_count`. At that moment the count is still **0** — it is read at step 7
-— and then `np_log_init()` sets `s_shdr_pos = 0U`, **discarding every record the scan just wrote.**
-So boot-time zone authentication never reaches SHDR, for two independent reasons. The one-line fix is
-to move step 5 after step 7; it is **not applied in this change** (see `OI-FWHUB-07`). Note that the
-comment above `np_log_backend_init()` in the source asserts the files are opened *"before the session
-logger writes any record"* — which the call three lines above it already contradicts.
+**Step 5 before step 7 is the constraint this section was written to find.** Until 2026-09-14 the
+scan ran *first*, and its records were lost twice over: `np_log_shdr_zone_auth()` stamped each one
+with `s_device_session_count` while it was still **0**, because the count is read at step 5, and then
+`np_log_init()` set `s_shdr_pos = 0U` and discarded the buffer they had been written into. Boot-time
+module authentication reached SHDR not at all — under a source comment, three lines below the scan,
+asserting that the log files open *"before the session logger writes any record"*. `OI-FWHUB-07`,
+fixed in the same change that issued this document.
+
+**The order is gated, because nothing could test it.** `np_hub_control_app_main()` is ARM-cross-only
+— `firmware/hub_control/src/` is in `HUB_SOURCES`, which compiles under the arm-none-eabi toolchain
+and in no host test — so no unit test can reach this sequence, and that is precisely why the defect
+survived from 2026-05-16. `scripts/check-hub-bringup-order.ts` parses the function and asserts all
+four constraints plus §2.2's task count. Per `NP-CONV-001` §8 it was falsified before it was trusted,
+and against the **pre-fix commit** rather than only against fixtures: it reports exactly the two
+violations this change repairs.
 
 ### 2.2 The four tasks
 
-**There are five, not four.** The source banner and the document register have both said "four tasks"
-since 2026-05-16; `task_protocol_rx` is the fifth, and it is the one that blocks on the transport.
-Corrected here and in the register (`OI-FWHUB-08`).
+**There are five, not four.** The source banner and the document register both said "four tasks"
+from 2026-05-16 to 2026-09-14; `task_protocol_rx` is the fifth, and it is the one that blocks on the
+transport. Corrected in all three places, and the banner's declared count is now **counted against
+`xTaskCreate()` by `scripts/check-hub-bringup-order.ts`** rather than read — a miscount in the one
+comment a reader starts from is cheap to make and invisible to every other check. `OI-FWHUB-08`.
 
 | Task | Priority | Stack (words) | Duty |
 |---|---|---|---|
@@ -910,7 +927,7 @@ this line.
 
 | ID | Requirement | Where |
 |---|---|---|
-| `REQ-FWHUB-01` | Bring-up order per §2.1; `np_safety_spi_init()` drives `GAIN_SEL[0..4]` LOW before any detect probe | `np_hub_control_main.c` |
+| `REQ-FWHUB-01` | Bring-up order per §2.1 — all four constraints, including `np_log_init()` before `np_mod_reg_scan()` | `np_hub_control_main.c`; gated by `scripts/check-hub-bringup-order.ts` |
 | `REQ-FWHUB-02` | Heartbeat task holds highest priority and never blocks beyond one heartbeat period | §2.2 |
 | `REQ-FWHUB-03` | Module detection does not probe while a session is running | §2.2 |
 | `REQ-FWHUB-04` | One reassembler, one framing, both transports | `np_transport.c` |
@@ -934,6 +951,8 @@ this line.
 | `REQ-FWHUB-22` | Mode F is compile-time gated at `NP_MODE_F_REGULATORY_CLEARED` = 0 | §8.6 |
 | `REQ-FWHUB-23` | cVNS PPG rate is compile-time asserted; cardiac baseline is not descriptor-waivable | §8.8 |
 | `REQ-FWHUB-24` | Promoting a T2 stub to a real driver re-opens `OI-TACS-02` and `OI-TCAP-01/02` first | §8.9 |
+| `REQ-FWHUB-29` | Every SHDR record a boot emits is durably buffered and carries the true device session count | §2.1; gated |
+| `REQ-FWHUB-30` | The file banner's declared task count equals the number of `xTaskCreate()` calls | §2.2; gated — counted, not read |
 
 ### 10.2 Requirements the code does NOT currently meet
 
@@ -946,8 +965,6 @@ code everywhere would be describing, not specifying.
 | `REQ-FWHUB-26` | Every modality in CLAUDE.md §3's T1 roster has a dispatchable path | transcranial PBM has none (§3.3 + §5.6) | **`OI-FWHUB-01`** |
 | `REQ-FWHUB-27` | Every source file's `Document:` banner cites a revision of this document that exists | three files cite Rev 2 | `OI-FWHUB-02` (fixed in this change) |
 | `REQ-FWHUB-28` | The wire format has a mechanical agreement check against `hubCompiler.ts`, falsified in both directions per `NP-CONV-001` §8 | no such check exists | `OI-FWHUB-03` |
-| `REQ-FWHUB-29` | Every SHDR record a boot emits is durably written and carries the true device session count | zone-auth records are written before `np_log_init()`, which stamps them 0 and then zeroes the buffer | `OI-FWHUB-07` |
-| `REQ-FWHUB-30` | The source banners and the document register state the task set correctly | both say four tasks; the code creates five | `OI-FWHUB-08` (register corrected in this change) |
 
 ### 10.3 Design review checklist
 
@@ -961,7 +978,8 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 `FWHUB-DRC-09` `SIG_PENDING` still set after send → session aborts and no enable is requested ·
 `FWHUB-DRC-10` a pre-lockout cVNS confirmation is rejected and not queued ·
 `FWHUB-DRC-11` no SHDR record in the tree carries a timestamp — grep, not review ·
-`FWHUB-DRC-12` `NP_MODE_F_REGULATORY_CLEARED` is 0 in every build configuration.
+`FWHUB-DRC-12` `NP_MODE_F_REGULATORY_CLEARED` is 0 in every build configuration ·
+`FWHUB-DRC-13` the bring-up gate is run by CI and its self-test with it — a gate nothing runs is `OI-DOC-01`'s shape in miniature.
 
 ---
 
@@ -1008,7 +1026,7 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | `RISK-FWHUB-07` | An SHDR record discloses user biology by redaction *shape* | Medium | unconditional suppression (§6.3); `check-redaction-shape.ts`; `FWHUB-DRC-11` | Accepted |
 | `RISK-FWHUB-08` | Log records lost on power loss | Low | bounded to one flush interval (§6.5) — **but the bound is asserted against a component that is not in the tree**; `NP-SOUP-LFS-001` Rev 1 records this and `OI-LFS-01` blocks reliance on it | **Open until LittleFS is pinned and vendored** |
 | `RISK-FWHUB-09` | Emission into a lifted goggle | High | Hall cutoff is a GPIO interrupt, plus three independent layers (§8.6) | Accepted |
-| `RISK-FWHUB-11` | Boot-time module authentication is not evidenced in fleet telemetry | Low | none today — the records are discarded (`OI-FWHUB-07`) | **Open**; records-integrity only, no emission path |
+| `RISK-FWHUB-11` | Boot-time module authentication is not evidenced in fleet telemetry | Low | **was unmitigated — the records were discarded.** Fixed 2026-09-14 (§2.1) and held by `scripts/check-hub-bringup-order.ts`, falsified against the pre-fix commit | Accepted; records-integrity only, no emission path |
 | `RISK-FWHUB-10` | Per-tile PBM drive magnitude bounded only by a thermal cutoff | Medium | carried, not closed — `OI-NVRAM-10`; re-derive §9 before a differing tile variant ships | **Open** |
 
 ---
@@ -1021,8 +1039,8 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | ~~`OI-FWHUB-02`~~ | ✅ **CLOSED 2026-09-13 in the same change.** Three files cited `NP-FW-HUB-001 Rev 2` against a document with no Rev 1. Re-pointed to Rev 1 §8.9 and §6.4 | FW | — |
 | **`OI-FWHUB-03`** | **No mechanical agreement check between §4 and `hubCompiler.ts`.** `NP-CONV-001` §8 requires cross-artifact interface agreement to be verified by diff, never by review, and falsified in both directions first. `scripts/check-tcap-map.ts` is the pattern. Until it exists, the wire format's two implementations agree only by inspection — which is exactly the state that made `OI-DOC-01` expensive | FW + CI | `REQ-FWHUB-28` |
 | **`OI-FWHUB-04`** | **`uhdr_write()`/`shdr_write()` flush *before* appending the full buffer**, so the newly appended 4 KiB is unsynced until the next flush. Consistent with §6.5's stated durability bound and therefore not a defect, but reversed from the obvious reading, and the obvious reading is what a future editor will assume. Decide: reorder, or comment the intent | FW | Documentation accuracy |
-| **`OI-FWHUB-07`** | **Boot-time SHDR zone-auth records are written before the logger is initialised and are then discarded.** `np_mod_reg_scan(shdr_zone_auth_cb)` runs at bring-up step 5; `np_log_shdr_zone_auth()` stamps `s_device_session_count`, still 0, and `np_log_init()` at step 7 sets `s_shdr_pos = 0U`. The fix is to move the scan after `np_log_init()`, which keeps `np_safety_spi_init()`'s `GAIN_SEL` precedence intact. **Deliberately not applied in this change**: it reorders a Class B bring-up path, and a documentation change is the wrong vehicle for that — it wants its own review, and this document is the record that makes the review possible. The source comment above `np_log_backend_init()` claiming the files open *"before the session logger writes any record"* should be corrected with it | FW | `REQ-FWHUB-29`; follows `OI-FWHUB-05` |
-| **`OI-FWHUB-08`** | **The source banner and the register said "four tasks"; the code creates five.** `task_protocol_rx` is the fifth. §2.2 and `docs/status/document-register.md` are corrected in this change; `np_hub_control_main.c`'s own banner is not, for the same reason as `OI-FWHUB-07` — it should be corrected alongside it rather than in isolation | FW | Documentation accuracy |
+| ~~**`OI-FWHUB-07`**~~ | ✅ **CLOSED 2026-09-14.** Boot-time SHDR zone-auth records were written before the logger was initialised — stamped with session count 0, then discarded by `np_log_init()`'s `s_shdr_pos = 0U`. `np_log_backend_init()` and `np_log_init()` now precede `np_mod_reg_scan()`, which keeps `np_safety_spi_init()`'s `GAIN_SEL` precedence intact, and the misleading comment is corrected. Held by `scripts/check-hub-bringup-order.ts`, **falsified against the pre-fix commit**, not only fixtures | — (closed) | — |
+| ~~**`OI-FWHUB-08`**~~ | ✅ **CLOSED 2026-09-14.** The banner and the register said "four tasks"; the code creates five. All three corrected, and the banner's count is now **counted against `xTaskCreate()`** by the same gate rather than read | — (closed) | — |
 | **`OI-FWHUB-05`** | **The `np_mod_reg_scan()` SHDR auth callback fires "per zone slot"**, and the zone slots are retired. Confirm whether auth records are still expected for slots 0–4, or whether the callback should now follow the socket lattice, once `OI-FWHUB-01` is resolved | FW + Quality | Follows `OI-FWHUB-01` |
 | **`OI-FWHUB-06`** | **This document has no approver.** Issued as a design output with `Approved By` blank pending review against §10.3. `21 CFR §820.30(d)` expects design outputs to be reviewed and approved before release; until that happens the register entry should say DRAFT-pending-approval rather than imply a completed review | Principal | Design-control completeness |
 
@@ -1053,13 +1071,17 @@ the repository said so before this document, because the document that would hav
 exist. That is the shape of the cost `OI-DOC-01` was tracking, and it is why option (1) — author the
 specification — was the right resolution rather than retiring the number.
 
+**What writing it down was worth, concretely.** Two live defects in `np_hub_control_app_main()` — a
+bring-up ordering that silently discarded every boot-time SHDR zone-auth record, and a banner that
+undercounted the task set — neither of which any test could have found, because that function is
+ARM-cross-only and nothing had ever read it. Both are fixed here, and both are now held by
+`scripts/check-hub-bringup-order.ts`, falsified against the pre-fix commit rather than against
+fixtures alone.
+
 **What is deliberately not here.** No verification, no approval, and no requirement the code does not
-meet except the six in §10.2 that are marked unmet and carried as open items. **No code behaviour
-changed with this document** — the only source edits are three corrected `Document:` banners and two
-banner comments. The two defects §2 found (`OI-FWHUB-07`, `OI-FWHUB-08`) are recorded with their
-one-line fixes named and deliberately left unapplied: both touch a Class B bring-up path, and a
-documentation change is the wrong vehicle for that. Writing them down is what makes the review
-possible, which is the whole argument for having done this at all.
+meet except the four in §10.2 that are marked unmet and carried as open items — chiefly
+`OI-FWHUB-01`, which is a capability absence and genuine design work, not a defect this change could
+have absorbed.
 
 ---
 
@@ -1067,4 +1089,4 @@ possible, which is the whole argument for having done this at all.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
-| 1 | 2026-09-13 | NeurOne Firmware Engineering | **Initial release — closes `OI-DOC-01` (Issue #339) by authoring the specification that had been cited as governing since 2026-05-16 without existing.** Written against `firmware/hub_control/` as on `main`, back-dating nothing: 24 requirements met by the code (§10.1), 4 explicitly **not** met and carried as open items (§10.2), 23 decisions, 11 risk rows, 12 design-review checks, 8 open items. **Three findings that did not survive being written down:** (i) transcranial PBM — CLAUDE.md §3 modality ① — **has no dispatchable path at all**, because `np_mod_pbm_*` sits only in the five retired zone slots the parser rejects *and* socket-addressed commands are dropped by `dispatch_command()`; each half was individually documented and fail-closed, their conjunction was not (`OI-FWHUB-01`, blocking); (ii) three source files cited a `Rev 2` of a document that had no `Rev 1` — re-pointed to §8.9 and §6.4 in this change (`OI-FWHUB-02`, closed); (iii) the wire format has been revised twice (`slot_mask` → `slot_id` + target block; `electrode_area_mcm2`) while the register still described `Rev 1`, because **a register entry naming an unreadable document cannot go visibly stale**; and **(iv) writing the bring-up table found a live defect — boot-time SHDR zone-auth records are stamped with session count 0 and then discarded by `np_log_init()`'s buffer reset, so module authentication never reaches fleet telemetry (`OI-FWHUB-07`)**, alongside a source banner and register entry that both said "four tasks" where the code creates five (`OI-FWHUB-08`). Both fixes are one line, both touch a Class B bring-up path, and both are deliberately left unapplied so they get their own review. Also records that §4 is the specification `hubCompiler.ts` compiles against and that no mechanical check enforces their agreement (`OI-FWHUB-03`), contrary to `NP-CONV-001` §8. No code behaviour changed with this document; the only source edits are the three corrected `Document:` banners. |
+| 1 | 2026-09-13 | NeurOne Firmware Engineering | **Initial release — closes `OI-DOC-01` (Issue #339) by authoring the specification that had been cited as governing since 2026-05-16 without existing.** Written against `firmware/hub_control/` as on `main`, back-dating nothing: 26 requirements met by the code (§10.1), 4 explicitly **not** met and carried as open items (§10.2), 23 decisions, 11 risk rows, 13 design-review checks, 8 open items of which 4 close here. **Four findings that did not survive being written down:** (i) transcranial PBM — CLAUDE.md §3 modality ① — **has no dispatchable path at all**, because `np_mod_pbm_*` sits only in the five retired zone slots the parser rejects *and* socket-addressed commands are dropped by `dispatch_command()`; each half was individually documented and fail-closed, their conjunction was not (`OI-FWHUB-01`, blocking); (ii) three source files cited a `Rev 2` of a document that had no `Rev 1` — re-pointed to §8.9 and §6.4 in this change (`OI-FWHUB-02`, closed); (iii) the wire format has been revised twice (`slot_mask` → `slot_id` + target block; `electrode_area_mcm2`) while the register still described `Rev 1`, because **a register entry naming an unreadable document cannot go visibly stale**; and **(iv) writing the bring-up table found two live defects in `np_hub_control_app_main()`, and both are FIXED in this change** — `np_mod_reg_scan()` ran before `np_log_init()`, so every boot-time SHDR zone-auth record was stamped with a session count of 0 and then discarded when the logger zeroed its buffer, meaning module authentication reached SHDR not at all, under a source comment three lines away asserting the opposite (`OI-FWHUB-07`); and the file banner and the document register both said "four tasks" where the code creates five, `task_protocol_rx` having been omitted (`OI-FWHUB-08`). Also records that §4 is the specification `hubCompiler.ts` compiles against and that no mechanical check enforces their agreement (`OI-FWHUB-03`), contrary to `NP-CONV-001` §8. **Both fixes are gated, not merely applied:** `np_hub_control_app_main()` is ARM-cross-only and reachable by no host test — which is how a defect dating to 2026-05-16 survived — so `scripts/check-hub-bringup-order.ts` asserts the four ordering constraints and the task count against the function itself, and was falsified **against the pre-fix commit**, where it reports exactly those two violations (`NP-CONV-001` §8). Beyond those two fixes and three corrected `Document:` banners, no code behaviour changed. **§2.1, §2.2, §10, §12 and §13 were amended within this same unmerged change to describe the corrected code rather than the code as first found; Rev 1 is issued once, describing what merges.** |
