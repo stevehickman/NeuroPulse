@@ -45,6 +45,10 @@ name: Firmware Cross-Compile (ARM)
 #   firmware/cervical_vns    → np_cvns_fai_tests      (FAI CV01..CV06, cardiac interlock)
 #   firmware/sloreta_hdtdcs  → np_hd_fai_tests        (FAI HD02/HD05.., montage + sLORETA)
 #   firmware/vendor/freertos → np_freertos_smoke_tests (kernel + config, POSIX port)
+#   firmware/vendor/littlefs → np_lfs_config_tests (SOUP per-file SHA-256 +
+#                              build configuration + EMMC-FS-01 instance;
+#                              the target is declared in hub_control, where
+#                              the configuration lives — OI-LFS-01)
 #
 # The other 7 (firmware/safety_mcu) belong to safety-mcu-ci.yml.  7 + 25 = 32,
 # disjoint; build-all.yml re-checks that partition weekly.  (This line read
@@ -163,7 +167,7 @@ env:
   # stopped satisfying the requirement — a merge deadlock with no error message
   # anywhere.  The number belongs to the assertion, not to the check name.
   # NP-SW-CI-001 §6.7.
-  NP_CLASS_B_TEST_COUNT: '27'
+  NP_CLASS_B_TEST_COUNT: '28'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  This job always

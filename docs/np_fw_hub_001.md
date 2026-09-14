@@ -640,6 +640,22 @@ durability model above is therefore **specified but unverified**, and `OI-LFS-01
 **still blocking any reliance on it**. That item is not closed by this document and must not be read
 as closed.
 
+> **Update 2026-09-14 — `OI-LFS-01` is closed, and the durability model is no better off.**
+> `NP-SOUP-LFS-001` Rev 2 pins littlefs at `v2.11.3` and vendors it, so the "not in the tree"
+> half above is resolved: the component exists, with per-file SHA-256 and a recorded, tested
+> configuration. **The blocking status moved rather than lifted.** What §6.5 needs is a NeurOne
+> power-loss injection test against claims `L-1…L-4`, falsified in both directions — that is
+> `OI-LFS-02`, which now carries `OI-LFS-01`'s BLOCKING status and is open. The model is still
+> **specified and unverified**, and a populated `firmware/vendor/littlefs/` is not evidence for
+> it (`NP-SOUP-LFS-001` §7.5).
+>
+> Two things from Rev 2 bear on this section specifically. **`OI-LFS-05`:** `EMMC-FS-01` states
+> instance parameters for the **Config** partition only, and `L-1`/`L-2` — the two claims §6.5
+> rests on — are about the **log** partitions, whose parameters no document states. **`OI-LFS-06`:**
+> the pinned tag was chosen for an upstream fix to corruption caused by two open write handles on
+> one file, which makes "one writer per log file" a requirement the `OI-LOG-05..07` glue has to
+> keep rather than something that happens to be true.
+
 ---
 
 ## 7. Safety MCU interface
@@ -1024,7 +1040,7 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | `RISK-FWHUB-05` | tDCS runs against the 25 cm² default with small electrodes | High | geometry gate arms even when no area is declared, so the MCU never grants (§5.4) | Accepted |
 | `RISK-FWHUB-06` | A cardiac re-enable happens before the MCU lockout expires | High | hub window strictly contains the MCU window; MCU denies independently (§7a) | Accepted |
 | `RISK-FWHUB-07` | An SHDR record discloses user biology by redaction *shape* | Medium | unconditional suppression (§6.3); `check-redaction-shape.ts`; `FWHUB-DRC-11` | Accepted |
-| `RISK-FWHUB-08` | Log records lost on power loss | Low | bounded to one flush interval (§6.5) — **but the bound is asserted against a component that is not in the tree**; `NP-SOUP-LFS-001` Rev 1 records this and `OI-LFS-01` blocks reliance on it | **Open until LittleFS is pinned and vendored** |
+| `RISK-FWHUB-08` | Log records lost on power loss | Low | bounded to one flush interval (§6.5) — **but the bound is asserted against a component no NeurOne test has exercised.** `NP-SOUP-LFS-001` Rev 2 pins and vendors littlefs `v2.11.3` (closing `OI-LFS-01`), which resolves "not in the tree" and resolves nothing about the bound; `OI-LFS-02` now blocks reliance on it. The log partitions' own instance parameters are additionally unstated — `OI-LFS-05` | **Open until `OI-LFS-02`** |
 | `RISK-FWHUB-09` | Emission into a lifted goggle | High | Hall cutoff is a GPIO interrupt, plus three independent layers (§8.6) | Accepted |
 | `RISK-FWHUB-11` | Boot-time module authentication is not evidenced in fleet telemetry | Low | **was unmitigated — the records were discarded.** Fixed 2026-09-14 (§2.1) and held by `scripts/check-hub-bringup-order.ts`, falsified against the pre-fix commit | Accepted; records-integrity only, no emission path |
 | `RISK-FWHUB-10` | Per-tile PBM drive magnitude bounded only by a thermal cutoff | Medium | carried, not closed — `OI-NVRAM-10`; re-derive §9 before a differing tile variant ships | **Open** |

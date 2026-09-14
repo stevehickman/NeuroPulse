@@ -29,6 +29,12 @@
 #
 # SW-02 (Class B) — i.MX RT1062 main processor firmware modules:
 #   firmware/vendor/freertos/ — vendored FreeRTOS-Kernel V11.3.0 SOUP (SW-02 RTOS)
+#   firmware/vendor/littlefs/ — vendored littlefs v2.11.3 SOUP (SW-02 storage,
+#                                 NP-SW-001 §9.4, OI-LFS-01).  Pinned and built;
+#                                 NOT yet called by anything — the OI-LOG-05..07
+#                                 HAL seams are unimplemented, and OI-LFS-02
+#                                 (§7.1.2 evaluation + power-loss injection test)
+#                                 is open, so no atomicity claim may rest on it.
 #   firmware/bootloader/      — dual-bank OTA bootloader, Ed25519, DFU
 #   firmware/hub_control/     — FreeRTOS hub control (module registry, session
 #                                 runner, session log, safety SPI heartbeat)
@@ -100,6 +106,9 @@
 #   firmware/cervical_vns/    → np_cvns_fai_tests         (FAI CV01..CV06, cardiac interlock)
 #   firmware/sloreta_hdtdcs/  → np_hd_fai_tests           (FAI montage + sLORETA algorithm)
 #   firmware/vendor/freertos/ → np_freertos_smoke_tests   (kernel + config, POSIX port)
+#   firmware/vendor/littlefs/ → np_lfs_config_tests       (SOUP hashes + config +
+#                              EMMC-FS-01 instance; target lives in hub_control
+#                              because the configuration does)
 #   firmware/bootloader/      → np_bootloader_mem_tests   (freestanding memcpy/memset —
 #                              NP-SW-CI-001 §4.2)
 #                             → np_bootloader_app_image_tests (OCRAM staging limit +
@@ -195,6 +204,9 @@ if(NP_BUILD_TESTS)
     add_subdirectory(ota)
     add_subdirectory(safety_mcu)  # OI-SW01-M07-01: SPI frame tests
                                   # OI-CHARGE-01:   charge monitor tests
+    add_subdirectory(vendor/littlefs) # NP-SW-001 §9.4: littlefs v2.11.3 SOUP.
+                                  # Before hub_control: np_lfs_config_tests
+                                  # links np_littlefs.
     add_subdirectory(hub_control) # OI-CVNS-HUB-01: CVNS re-enable manager tests
     add_subdirectory(zone_announce) # module-status frame encoder (app notify path)
     add_subdirectory(pbm)  # NP-SES-1064-001 v5: session descriptor wire format
@@ -302,6 +314,15 @@ if(NP_BUILD_TESTS)
         COMMAND np_transport_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    # OI-LFS-01.  The vendored littlefs bytes against the SHA-256 in its own
+    # SOUP record, the build-time configuration against what that record says a
+    # reviewer may rely on, and the EMMC-FS-01 instance against its validator —
+    # with every single-field perturbation required to be rejected.
+    # Moves the Class B count 27 → 28 and the repo total 34 → 35.
+    add_test(NAME np_lfs_config_tests
+        COMMAND np_lfs_config_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     add_test(NAME np_mod_cvns_tests
         COMMAND np_mod_cvns_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
@@ -382,6 +403,11 @@ endif()
 
 add_subdirectory(crypto)
 add_subdirectory(vendor/freertos)   # np_freertos kernel library (SW-02 RTOS)
+add_subdirectory(vendor/littlefs)   # np_littlefs storage library (SW-02 SOUP).
+                                    # Built, and deliberately reaching no image:
+                                    # the OI-LOG-05..07 seams that would call it
+                                    # are unimplemented.  See NP-SOUP-LFS-001.
+
 
 if(NP_BUILD_BOOTLOADER)
     add_subdirectory(bootloader)

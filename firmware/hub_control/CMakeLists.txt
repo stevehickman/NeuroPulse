@@ -119,6 +119,23 @@ if(NP_BUILD_TESTS)
     target_compile_options(np_log_backend_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
 
+    # OI-LFS-01: the vendored littlefs SOUP record, NeurOne's build-time
+    # configuration of it, and the EMMC-FS-01 Config instance + mount-time
+    # validator.  Links np_littlefs (so the pinned bytes are compile-checked
+    # under NeurOne's configuration) and np_crypto (so the VERSION record's
+    # per-file SHA-256 is recomputed rather than trusted).
+    add_executable(np_lfs_config_tests
+        tests/np_lfs_config_tests.c
+        src/np_lfs_instance.c
+    )
+    target_include_directories(np_lfs_config_tests PRIVATE include)
+    target_link_libraries(np_lfs_config_tests PRIVATE np_littlefs np_crypto)
+    target_compile_definitions(np_lfs_config_tests PRIVATE
+        NPTEST_HOST
+        NP_LITTLEFS_DIR_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../vendor/littlefs")
+    target_compile_options(np_lfs_config_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g)
+
     # OI-HUB-MAIN-01: protocol transport reassembly + single-slot mailbox.
     add_executable(np_transport_tests
         tests/np_transport_tests.c
@@ -170,6 +187,7 @@ set(HUB_SOURCES
     src/np_safety_spi.c
     src/np_cvns_reenable.c        # OI-CVNS-HUB-01: CVNS re-enable manager
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
+    src/np_lfs_instance.c         # OI-LFS-01: EMMC-FS-01 littlefs instance + mount validator
     src/np_pbm_cal_bridge.c       # OI-HUB-C06: UID-keyed calibration -> pbm seams
     src/np_hub_freertos_hooks.c   # FreeRTOS app hooks (stack overflow, malloc, assert)
 
@@ -226,6 +244,7 @@ target_compile_options(np_hub_control PRIVATE
 target_link_libraries(np_hub_control
     PUBLIC
         np_freertos
+        np_littlefs
         np_pbm
         np_hrv_biofeedback
         np_zone_announce
