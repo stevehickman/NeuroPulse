@@ -100,6 +100,7 @@
 - S1 opaque (<0.5% VLT, included in box, instant cutoff for immersive sessions)
 - S2 polarising (~12% VLT, $24, standard lens only)
 - S3 prescription clip ($49 carrier + $49–139 Rx insert, compatible with both standard and EC lenses, 12–24 month renewal)
+  - **This is the ONLY path for corrective-eyewear users, by decision (principal, 2026-09-14).** Users who need correction buy prescription lenses **for** the goggle assembly; **the goggle assembly is not designed to be worn over the user's own glasses, and there is no intent to build one that is.** A fit-over assembly is specified as a deferred concept in `docs/np_hw_fitover_001.md` (`NP-HW-FITOVER-001`) and held at the bottom of the accessory priority set behind a demand gate. The reason is a safety finding, not sizing: a user-supplied spectacle lens would sit **inside** the 940 nm IR eye-open interlock path, where no snap-on shade ever does — so `NP-HFE-001` CT-03's *"safety is not shade-dependent"* argument does not extend to it.
 - 6× N42 neodymium magnets in lens rim (N42 not N52 — better impact tolerance, −$0.80 BOM)
 - Sliding rail lens mount (user self-install, eliminates alignment jig requirement, +$1.20 BOM)
 
