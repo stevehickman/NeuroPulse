@@ -2,18 +2,18 @@
 
 **Project:** NeurOne
 **Document:** NP-ACC-PRIORITY-001
-**Revision:** 1
-**Date:** 2026-09-13
+**Revision:** 2
+**Date:** 2026-09-14
 **Status:** DRAFT — awaiting principal + product sign-off. Ranks nothing that is locked; sets no price.
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
 **Approved By:** — (pending principal + product review)
-**References:** NP-THERM-COOL-001 Rev 11 (§6.7 the two thermal accessories, §6.7.1 the binding-term argument, §8 D-3 the two-item precedent this generalises, §8/§9 the rejected options); NP-PWRSRC-001 Rev 1 (§5.5 CEM43 and time-at-ceiling, §8 mains siting, §12 the honest-source prohibition); NP-PWR-BUDGET-001 Rev 3 §3.4 (the efficacy floor); NP-APP-ROADMAP-001 Rev 3 (§3 core-app prerequisite, §4.2 the four Watch phases, §6 the regulatory declaration that sets the Watch app's class, §7/§10 OI-WA-02); NP-FMEA-GEOM-001 FMEA-G02-01 (electrode impedance cutoff); NP-FMEA-001 FMEA-M06 (pre-session and mid-session impedance); NP-DP-001 (partner optician network, Month 10); NP-TOOL-LENS-001 Rev 2 (lens and goggle-arm tooling); NP-TOOL-HUB-001 Rev 1 F-02 (port-cover anchor posts, OI-ART-07); NP-CONV-001 §4.0 (document naming), §8 (falsify before trusting); CLAUDE.md §1 (tier timelines), §2 (configurations, the cost floor and `OI-COST-10`), §3 (modality roster and the accessory-bearing modalities), §5 (measurement-triggered reminders), §6; `docs/reference/accessories-roadmap.md`; `docs/reference/modality-stack.md`; `docs/reference/commercial-model.md` §2.1/§2.2/§2.3; `docs/reference/service-network.md`; `docs/reference/hardware-detail.md`; `docs/status/pending-decisions.md` §13.2, §13.4; `docs/np_cost_001.md`
+**References:** NP-THERM-COOL-001 Rev 11 (§6.7 the two thermal accessories, §6.7.1 the binding-term argument, §8 D-3 the two-item precedent this generalises, §8/§9 the rejected options); NP-PWRSRC-001 Rev 1 (§5.5 CEM43 and time-at-ceiling, §8 mains siting, §12 the honest-source prohibition); NP-PWR-BUDGET-001 Rev 3 §3.4 (the efficacy floor); NP-APP-ROADMAP-001 Rev 3 (§3 core-app prerequisite, §4.2 the four Watch phases, §6 the regulatory declaration that sets the Watch app's class, §7/§10 OI-WA-02); NP-FMEA-GEOM-001 FMEA-G02-01 (electrode impedance cutoff); NP-FMEA-001 FMEA-M06 (pre-session and mid-session impedance); NP-DP-001 (partner optician network, Month 10); NP-TOOL-LENS-001 Rev 2 (lens and goggle-arm tooling); NP-TOOL-HUB-001 Rev 1 F-02 (port-cover anchor posts, OI-ART-07); NP-CONV-001 §4.0 (document naming), §8 (falsify before trusting); CLAUDE.md §1 (tier timelines), §2 (configurations, the cost floor and `OI-COST-10`), §3 (modality roster and the accessory-bearing modalities), §5 (measurement-triggered reminders), §6; `docs/reference/accessories-roadmap.md`; `docs/reference/modality-stack.md`; `docs/reference/commercial-model.md` §2.1/§2.2/§2.3; `docs/reference/service-network.md`; `docs/reference/hardware-detail.md`; `docs/status/pending-decisions.md` §13.2, §13.4; `docs/np_cost_001.md`; NP-HW-FITOVER-001 Rev 1 (the deferred fit-over assembly ranked at 19, and the decision that closes `OI-ACC-01`); NP-HFE-001 CT-03; NP-FW-BENCH-001 (`OI-VIS-03`/`-04`, `OI-BENCH-08`)
 **Related Issues:** GitHub Issue #344 (this document); #24 (cervical tcVNS), #25 (S3 Rx / optician network), #30 (HOPE Phase 3), #31 (mastoid pad), #32 (Watch app), #73 (T2 programme)
 **Gate:** No gate. Not tooling-blocking — with one exception recorded in §7: the mastoid-pad anchor boss is a first-cut provision whose window closes with shell tooling, independently of the ranking.
 **IEC 62304 Class:** — (planning document; no code changed, no requirement altered)
 **Supersedes:** None — new document.
-**Change Summary:** First issue. Closes the general TODO raised 2026-08-30 in `docs/status/pending-decisions.md` §13.2 by `NP-THERM-COOL-001` §8 D-3.
+**Change Summary:** Rev 2 (2026-09-14) — **`OI-ACC-01` is closed by principal decision, and the ranking gains its first cross-class falsification.** Corrective-eyewear users buy prescription lenses *for* the goggle assembly (the S3 Rx path); there is no intent to build a goggle that fits over the user's own glasses. Rank 2's class is therefore **confirmed C1 and derived rather than judged** (§5), and the deferred fit-over assembly is placed at **rank 19, bottom of the set** (`NP-HW-FITOVER-001`), by §3.5's procedure — reproducing the principal's "very low priority" without being told it (§4). 18 items → 19; 17 ranks → 18. No other row moved, which is §3.5's property working. Rev 1 (2026-09-13): first issue, closing the general TODO raised 2026-08-30 in `docs/status/pending-decisions.md` §13.2 by `NP-THERM-COOL-001` §8 D-3.
 **Review Cadence:** Re-run on the triggers in §6 — not on a calendar. A ranking re-run on a schedule invites re-litigation; a ranking re-run on a trigger does not.
 
 ---
@@ -245,21 +245,44 @@ Test 1 alone separates them, in the direction D-3 decided, for the reason D-3 ga
   Any additive rubric weighting autonomy or draw meaningfully inverts D-3. Lexicographic ordering is
   what holds the decision, and §3.1 says so rather than leaving it to be rediscovered.
 - **The magnitude claim survives too.** D-3 called the ice pack **low** priority, not merely second.
-  §5 places it **15th of 18** with only the two lens options and the Watch app below it. That was
+  §5 places it **15th of 19** with only the two lens options, the Watch app and the deferred fit-over
+  goggle below it. That was
   derived, not fitted: the ice pack's rank falls out of C4 sitting below C1–C3, and nothing in the
   criterion mentions the ice pack.
 
-**One thing the criterion is not tested on.** D-3 compared two items *within* the thermal-accessory
-pair. No prior decision ranks across classes, so the C1-over-C2-over-C3 ordering in §3.1 is argued
-(from what "value delivered" must mean if it means anything) rather than falsified. It is the part
-of §3 most open to challenge, and §6's triggers are written so that challenging it is a re-run of
-§5 rather than an argument about one item.
+**The second test, and it is the one Rev 1 said was missing (added Rev 2).** Rev 1 recorded that D-3
+compared two items *within* one class-pair, so the C1-over-C2-over-C3 ordering was argued rather than
+falsified, and named that the part of §3 most open to challenge.
+
+**A cross-class case has now arrived on its own.** On 2026-09-14 the principal decided that
+corrective-eyewear users buy prescription lenses for the goggle assembly, that no fit-over goggle is
+intended, and — independently — that a fit-over assembly should be specified but held at **very low
+priority**, unbuilt absent specific user requests. The criterion was applied to it afterwards, by
+§3.5's four steps, with no reference to that judgement:
+
+| | Fit-over goggle assembly |
+|---|---|
+| **Test 1 — class** | **C5.** Access is already delivered to this cohort by rank 2, so it unlocks nothing; dose, protocol, concurrency and envelope are unchanged |
+| **Test 2 — reach** | Narrowest in the set — below rank 18 |
+| **Tests 3–4** | Forecloses nothing by waiting; highest engineering cost in the table |
+| **Criterion's result** | **rank 19 — bottom of the set** |
+| **Principal's judgement (2026-09-14)** | **"very low priority"** |
+
+Two things make this a real test rather than a restatement. **It crosses classes** — the placement
+turns on C5 sitting below C1, which is exactly the ordering Rev 1 could not falsify. And **the
+criterion had to be able to put it higher**: the naive reading is that a fit-over assembly serves the
+*same* access need as rank 2, which would make it C1 and put it near the top. §3.1's C1 test is what
+refuses that — access is about whether therapy reaches the user, and it already does.
+
+**What is still not falsified:** the C2-to-C3 and C3-to-C4 boundaries have no decided case either
+way. §6's triggers remain written so that challenging the class ordering is a re-run of §5 rather
+than an argument about one item.
 
 ---
 
 ## 5. The ordered priority set
 
-18 items, 17 ranks (one peer pair). **Rank is value delivered; the Gate column is what it waits on;
+19 items, 18 ranks (one peer pair). **Rank is value delivered; the Gate column is what it waits on;
 §3.3 governs how to read them together.** Figures are context, never inputs (§3.1 Test 4).
 
 ### C1 — Access · without the item the therapy does not reach the user
@@ -267,7 +290,7 @@ of §3 most open to challenge, and §6's triggers are written so that challengin
 | # | Item | Class evidence | Reach | Gate |
 |---|---|---|---|---|
 | **1** | **40 Hz mastoid vibrotactile LRA pad** (#31) | The 40 Hz somatosensory channel exists nowhere else on the platform. `docs/reference/accessories-roadmap.md` states it directly and names what does *not* substitute: the Watch's Taptic output is uncharacterised, wrist-to-brain coupling is soft-tissue attenuated, and `NP-APP-ROADMAP-001` Rev 3 records that **watchOS has no continuous-waveform haptic API at all** (`CHHapticEngine` does not exist there). Mastoid placement couples to bone | T1 + T2, every 40 Hz / GENUS protocol | **EXTERNAL** — #30, HOPE Phase 3 (Cognito Therapeutics, n=670, mid-2026). Release within 6 months if positive. **See §7: the anchor-boss provision does not wait on this** |
-| **2** | **S3 prescription clip + Rx insert** (#25) | **C1 conditional, contested — `OI-ACC-01`.** C1 by §3.1's second form *if* the goggle assembly cannot be worn over corrective eyewear. **The document set does not say**, either way, anywhere. Placed at the lower candidate class's evidence standard per §3.5 step 4 but at its C1 rank, because the cohort is large and the downside of under-ranking access is worse than of over-ranking convenience — a judgement, and flagged as one | T1 + T2 (Home Standard and up — goggles), the corrective-eyewear cohort | **INTERNAL** — partner optician network contract (`docs/status/pending-decisions.md` §13.4; `NP-DP-001` Month 10). `docs/reference/service-network.md` records Tier A opticians as **already engaged via the S3 programme**, so this gate is further along than its rank implies |
+| **2** | **S3 prescription clip + Rx insert** (#25) | **C1 confirmed — `OI-ACC-01` CLOSED 2026-09-14 (principal).** Corrective-eyewear users buy prescription lenses *for* the goggle assembly; there is **no intent to build a goggle that fits over the user's own glasses**, and `NP-HW-FITOVER-001` §1 records that as a positive design decision. So the platform provides **exactly one path** by which this cohort reaches the visual modality, which is §3.1's second form of C1 exactly — *a channel the platform delivers but a given user cannot receive*. Rev 1 held this rank on a flagged judgement; it is now **derived** | T1 + T2 (Home Standard and up — goggles), the corrective-eyewear cohort | **INTERNAL** — partner optician network contract (`docs/status/pending-decisions.md` §13.4; `NP-DP-001` Month 10). `docs/reference/service-network.md` records Tier A opticians as **already engaged via the S3 programme**, so this gate is further along than its rank implies |
 | **3** | **1064 nm snap-in smart zone module** (field upgrade) | Adds the **cortical depth tier** of the three-tier penetration stack (660 surface → 1064 cortical → 1170 deep). No other part delivers it; base modules are unchanged | T1 + T2, opt-in per zone | **INTERNAL** — hub-side cluster fan-out unimplemented (`OI-HUB-C01…C19`); emitter selection (`OI-HEXTILE-02`). **Also regulatory:** 1064 nm irradiance is inside the single RISK-03 counsel engagement (Issue #5, `NP-REG-PBM1064-001` Rev 1 §8) — do not open a parallel engagement |
 | **4** | **Cervical tcVNS accessory** (#24) | Cervical vagus trunk activation is higher than the auricular branch and is **not available on T1 at all** (T1 is auricular-only, deliberately: no carotid proximity) | **T2 only** — narrowest reach in C1 (§3.2's boundary note: this is the addressable population, not the gate) | **INTERNAL** — separate 510(k) required (predicate: electroCore gammaCore K163334 / K173323); T2 programme #73. Safety MCU owns the cardiac interlock (CLAUDE.md §4.2) |
 
@@ -313,6 +336,7 @@ of §3 most open to challenge, and §6's triggers are written so that challengin
 | # | Item | Class evidence | Reach | Gate |
 |---|---|---|---|---|
 | **18** | **Apple Watch sync app** (#32) | **Class set by the product's own regulatory declaration**, not by judgement: `NP-APP-ROADMAP-001` §6 and `docs/reference/accessories-roadmap.md` declare every Watch-delivered function to be session monitoring / user-interface aid, **not therapeutic delivery** — therapeutic claims attach to NeurOne hardware only. That declaration forecloses C1–C4. Highest reach in its class and $0 hardware BOM, but Test 1 is the primary key | Every iPhone + Watch user, all configurations | **INTERNAL** — downstream of the core iOS app (`NP-APP-ROADMAP-001` §3). Four phases; **Phase 3 rescoped** to a low-rate rhythmic cue, honestly labelled, because watchOS cannot render 40 Hz; **Phase 4 blocked on `OI-WA-02`** (screen brightness ≥100 nits at 40 Hz) |
+| **19** | **Fit-over goggle assembly** (deferred) | **C5, and capability-*negative* against the committed path.** `NP-HW-FITOVER-001` Rev 1. Not C1: access to the visual modality is **already delivered** to the corrective-eyewear cohort by rank 2, so a second route unlocks nothing. Not C2–C4: dose, protocol, concurrency and envelope unchanged — and §5.2 of that document recommends **withdrawing Mode F** on such an assembly, because NIR transmission through an undisclosed, uncharacterised spectacle lens is a metered *emission*, not a metered dose. What it offers is that the user need not buy an Rx insert. Below rank 18 on **reach**; also the highest-engineering-cost item in this table on Test 4 (a second assembly, a second tooling family, and a new visual safety case) | Corrective-eyewear users who decline the S3 path — narrowest in the set | **EXTERNAL — demand.** Nothing starts without specific recorded user requests (`NP-HW-FITOVER-001` §2.2). **Forecloses nothing by waiting** (§3.1 Test 3): it is a separate assembly, so no first-cut provision keeps it possible |
 
 ---
 
@@ -323,7 +347,7 @@ exactly four triggers, and on nothing else — in particular, not on a calendar:
 
 | Trigger | Why it re-ranks | Watch |
 |---|---|---|
-| **An item's class changes** | Class is the primary key, so a class change moves an item across bands, not within one | `OI-ACC-01` resolving moves the S3 system between rank 2 (C1) and the bottom of C5 |
+| **An item's class changes** | Class is the primary key, so a class change moves an item across bands, not within one | **Fired once and was absorbed, not re-run (Rev 2):** `OI-ACC-01` closed C1-confirming, so rank 2 did not move and no other row did either. A class change that *confirms* the held class costs nothing; one that flips it is the expensive case |
 | **The binding term changes** | C2 is a claim about what binds *now* (§3.1). If the electrical term stops binding first, cooling-only items become C2 and rank 15 moves to rank 5's band | `NP-THERM-COOL-001` §6.7.1; `OI-PWR-11`; `OI-PWRSRC-22` |
 | **A new capability class is needed** | An item that fits no class in §3.1 means the class set is incomplete, and the ordering argument in §4's last paragraph needs re-testing | — |
 | **A locked configuration or tier definition moves** | Test 2 counts over configurations (CLAUDE.md §2.1) and tiers (§1). If those move, reach moves | `OI-COST-08` (the T1/T2 ladders collide) |
@@ -360,7 +384,7 @@ question the ranking had to ask. None is tooling-blocking; `OI-ACC-01` is toolin
 
 | ID | Item | Owner |
 |---|---|---|
-| **OI-ACC-01** | **Can the goggle assembly be worn over corrective eyewear?** Nothing in the document set states this — not `docs/reference/modality-stack.md`, not `NP-TOOL-LENS-001` Rev 2, not `NP-HELMET-GEOM-001`, not `docs/ABBREVIATIONS.md`'s shade entry. The answer decides whether the S3 Rx system is **access-enabling (C1, rank 2)** or **convenience (C5, below rank 18)** — the largest single placement swing in §5. It is also a geometry question that touches goggle-arm and lens tooling, so it is tooling-*relevant* even though the ranking is not | ME + Product |
+| **OI-ACC-01** | ~~Can the goggle assembly be worn over corrective eyewear?~~ **CLOSED 2026-09-14 (principal).** **No, and by design.** Corrective-eyewear users buy prescription lenses *for* the goggle assembly — the S3 Rx path, already supported by the Tier A optician network. A goggle sized to be worn over the user's own glasses is specified as a deferred concept in `NP-HW-FITOVER-001` and held at rank 19 behind a demand gate. **Effect on §5:** rank 2's C1 class is confirmed and is now derived rather than judged. **Effect beyond §5:** the decision is load-bearing for safety, not only for sizing — `NP-HW-FITOVER-001` §5.1 finds that `NP-HFE-001` CT-03's *"safety is not shade-dependent"* argument does **not** transfer to a user-supplied lens, because shades snap on outboard of the lens while the 940 nm IR eye-open sensor looks inboard, so a spectacle lens would sit inside the interlock path and could read as a false eye-open — the permissive direction on a Class C interlock | **CLOSED** — was ME + Product |
 | **OI-ACC-02** | **The audio cup foam prompt is calendar-triggered, and CLAUDE.md §2.3 says no consumable prompt may be.** `docs/reference/commercial-model.md` §2.3 records "Calendar reminder" for the foam; CLAUDE.md §2.3 states all consumable prompts are measurement-triggered (§5.2), never calendar-triggered. Every other consumable in the table names a measurement. Either the foam needs a measurement trigger (a seal or compression proxy — design work, not a documentation edit), or the invariant needs an explicit, reasoned exception. **Not resolved here**, because inventing a trigger would be the design work the invariant is protecting | Product + FW |
 | **OI-ACC-03** | **The cervical tcVNS gel pad (5-pack) is a consumable with no consumables entry.** `docs/reference/modality-stack.md` specifies it as part of the tcVNS accessory; `docs/reference/commercial-model.md` §2.3 does not list it, so it has no price, interval or GM%, and no measurement trigger. T2-scoped, so it follows #73 | Product |
 
@@ -376,6 +400,11 @@ dependencies are recorded rather than ranked.
 Sign off §3 and §5 maintains itself. Sign off only §5 and the next accessory re-opens the list —
 which is the state Issue #344 was raised to end.
 
-Two placements are flagged for the principal as judgement rather than derivation, and are the
-places to look first: **rank 2** (the S3 system, pending `OI-ACC-01`) and **rank 16=** (the EC lens,
-C4 vs C5).
+**One placement remains flagged** for the principal as judgement rather than derivation, and it is
+the place to look first: **rank 16=**, the EC lens, C4 versus C5.
+
+Rev 1 flagged two. The other — **rank 2**, the S3 Rx system — was resolved on 2026-09-14 by the
+decision recorded in `NP-HW-FITOVER-001` §1, and resolved *in favour of the class the criterion was
+already holding*. That is the outcome worth noting when weighing §3: the flagged judgement was
+carrying the right answer, and closing the question changed nothing in §5 except the grounds it
+stands on.

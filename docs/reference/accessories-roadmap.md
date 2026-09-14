@@ -25,7 +25,7 @@ Purpose-built accessory delivering precisely characterized 40Hz somatosensory st
 - **Firmware:** 40Hz square-wave drive pattern; session start/stop synchronized with audio/visual 40Hz channels via hub; amplitude ramp 2s up/down (comfort).
 - **Marketing note:** Apple Watch sync app is available as a free companion — but the mastoid pad delivers results the Watch cannot. Key differences: mastoid placement couples directly to skull (vs wrist-to-brain soft tissue attenuation); 40Hz ± 0.5Hz locked precision (vs uncharacterised Taptic Engine output); hub-powered (vs Watch battery drain from 20 min continuous haptics). Message: "Use the Watch app as an extra layer — for the full experience, the pad is what delivers it." See marketing-notes.md for full draft copy.
 - **Status:** PROVISIONAL — await HOPE Phase 3 (Cognito Therapeutics, n=670, mid-2026). If positive: release mastoid pad within 6 months. Hardware anchor boss in temporal wing tooling at first cut (zero incremental tooling cost).
-- **Priority: rank 1 of 18** — `NP-ACC-PRIORITY-001` §5, class **C1 (access)**: the 40 Hz somatosensory channel exists nowhere else on the platform, and watchOS has no continuous-waveform haptic API to substitute for it. **The anchor-boss provision does not wait on HOPE** (`NP-ACC-PRIORITY-001` §7): the provision is free at first tooling cut and the retrofit is not, so it should be made whichever way the trial reads out. That is an argument for a provision already described here, not a change to it.
+- **Priority: rank 1 of 19** — `NP-ACC-PRIORITY-001` §5, class **C1 (access)**: the 40 Hz somatosensory channel exists nowhere else on the platform, and watchOS has no continuous-waveform haptic API to substitute for it. **The anchor-boss provision does not wait on HOPE** (`NP-ACC-PRIORITY-001` §7): the provision is free at first tooling cut and the retrofit is not, so it should be made whichever way the trial reads out. That is an argument for a provision already described here, not a change to it.
 
 ## Thermal Remote-Sink Accessories (provisional) — TEC base-station chiller · hip ice pack
 
@@ -73,11 +73,11 @@ The chiller arrives with a mains base station, so it raises both terms; the ice 
 > in-app upsell alike.
 
 - **Status:** PROVISIONAL. On the roadmap, priority as above — now placed against the whole set:
-  **chiller rank 5 of 18** (class **C2**, binding relief — the only C2 item in the document set) and
-  **ice pack rank 15 of 18** (class **C4**, envelope), `NP-ACC-PRIORITY-001` §5. D-3's own reasoning
+  **chiller rank 5 of 19** (class **C2**, binding relief — the only C2 item in the document set) and
+  **ice pack rank 15 of 19** (class **C4**, envelope), `NP-ACC-PRIORITY-001` §5. D-3's own reasoning
   is what the criterion generalises, and §4 of that document re-derives this pair from the criterion
   as its falsification case — including D-3's "low", which lands at 15th with only the two lens
-  options and the Watch app below it. `D-2` (whether the sealed pneumatic loop is in scope at all) is
+  options, the Watch app and the deferred fit-over goggle below it. `D-2` (whether the sealed pneumatic loop is in scope at all) is
   separate and was decided out of scope on 2026-08-30; `OI-THCOOL-06` closed with it.
 
 ## Apple Watch Sync App (provisional)
@@ -91,5 +91,31 @@ Companion watchOS app extending NeurOne session experience to Apple Watch. Three
 - **Additional Watch functions:** Session timer + haptic end-of-session alert; protocol selector (basic, without phone); quick impedance check result notification; consumable low reminders.
 - **Regulatory note:** All Watch-delivered functions are declared as session monitoring / user interface aids, not therapeutic delivery. Therapeutic claims attach to NeurOne hardware only.
 - **BOM delta:** $0 hardware. Software development cost only.
-- **Priority: rank 18 of 18** — `NP-ACC-PRIORITY-001` §5, class **C5 (experience)**. The class is set by this page's own regulatory note above and `NP-APP-ROADMAP-001` §6 — every Watch-delivered function is declared session monitoring / user-interface aid, not therapeutic delivery, which forecloses the four higher classes. Highest reach in its class and $0 hardware BOM; capability class is the primary key and neither is a tie-break against it.
+- **Priority: rank 18 of 19** — `NP-ACC-PRIORITY-001` §5, class **C5 (experience)**. The class is set by this page's own regulatory note above and `NP-APP-ROADMAP-001` §6 — every Watch-delivered function is declared session monitoring / user-interface aid, not therapeutic delivery, which forecloses the four higher classes. Highest reach in its class and $0 hardware BOM; capability class is the primary key and neither is a tie-break against it.
 - **Status:** PROVISIONAL. Added to Year 1 iOS app development roadmap (NP-APP-ROADMAP-001 Rev 1 — Issue #32). Develops in 4 phases post-core-app-launch: Phase 1 session status + HRV breathing ring (Month 1–2), Phase 2 audio sync (Month 3–4), Phase 3 haptic sync 40Hz (Month 4–5), Phase 4 40Hz visual flicker (Month 6+, blocked on OI-WA-02 screen brightness characterization ≥100 nits at 40Hz). See `docs/np_app_roadmap_001.md`.
+
+## Fit-Over Goggle Assembly (DEFERRED — not on the development plan)
+
+A goggle assembly sized to be worn over the user's own glasses. **Specified so the option is on the
+record; deliberately not being built.** Full concept specification, including the requirements and
+what it would cost in currently-locked constraints: `docs/np_hw_fitover_001.md`
+(`NP-HW-FITOVER-001` Rev 1).
+
+- **The decision (principal, 2026-09-14):** users who want correction while wearing the goggles
+  **buy prescription lenses for the goggle assembly** — the S3 Rx path, already supported by the
+  Tier A optician network. **There is no intent at this time to build a fit-over assembly**, and it
+  will not be implemented without specific user requests for it.
+- **Priority: rank 19 of 19 — bottom of the set**, class **C5**, `NP-ACC-PRIORITY-001` §5. It
+  unlocks nothing: access to the visual modality already reaches this cohort via the S3 insert, so a
+  second route to it is convenience. It is also the highest-engineering-cost item in the set.
+- **Gate: EXTERNAL — demand.** Recorded, never ranked (`NP-ACC-PRIORITY-001` §3.3).
+- **Two findings make this a design decision rather than a scheduling one**, and both are safety
+  rather than sizing. A user-supplied spectacle lens sits **inside** the 940 nm IR eye-open interlock
+  path — where a snap-on shade never does, because shades mount outboard and the sensor looks inboard
+  — so an unknown coating could read as a **false eye-open**, the permissive direction on a Class C
+  interlock. And Mode F meters a retinal NIR dose through an optic whose 808–830 nm transmission is
+  undisclosed and uncharacterised, which is a metered *emission*, not a metered dose;
+  `NP-HW-FITOVER-001` §5.2 recommends **withdrawing Mode F** on such an assembly. The deferred
+  alternative is therefore **capability-negative** against the committed one.
+- **It forecloses nothing by waiting** — a separate assembly needs no first-cut provision, unlike the
+  mastoid-pad anchor boss above. Deferring costs nothing that cannot be recovered.
