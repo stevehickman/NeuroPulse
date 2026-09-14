@@ -1,6 +1,12 @@
 /*
  * NeurOne Cervical VNS — First Article Inspection Tests
- * Document: NP-FW-CVNS-001 Rev 1 §9 / NP-FAI-CVNS-001 Rev 1
+ * Document: NP-FW-CVNS-001 Rev 4 §9 -- the test specification for FAI-CV01..CV03.
+ *
+ * §9 is the test specification and the record of file. A14 (the cervical VNS
+ * accessory) has no hardware specification, so its artifact FAI checklist
+ * cannot be written and is recorded as a named absence in NP-ART-001 §3.2
+ * (NP-FAI-001 §2.1 / OI-FAI-07). This binary is firmware verification of the
+ * software-checkable limbs of §9's items, not an executed inspection record.
  *
  * FAI-CV01: Cervical electrode placement verification (hardware bench — procedure doc)
  * FAI-CV02: Cardiac interlock response time (< 100 ms cutoff, hardware bench for timing)
@@ -288,7 +294,7 @@ static int fai_cv02_interlock_state_machine(void)
     printf("      Safety MCU TIM6 ISR fires every %u ms; worst-case GPIO latency < %u ms.\n",
            NP_CVNS_CARDIAC_POLL_MS,
            NP_CVNS_CARDIAC_POLL_MS + 1U);
-    printf("      See NP-FW-CVNS-001 Rev 1 §5.4 for latency derivation.\n");
+    printf("      See NP-FW-CVNS-001 §5.4 for latency derivation.\n");
 
     int result = g_fail_count - failures_before;
     printf("FAI-CV02 (software): %s (%d failures)\n\n", result == 0 ? "PASS" : "FAIL", result);
@@ -329,7 +335,7 @@ static int fai_cv01_procedure_doc(void)
     printf("  3. Both electrodes ≤ %.1f kΩ (CV01-A).\n", NP_CVNS_IMPEDANCE_MAX_KOHM);
     printf("  4. Remove one electrode → high-impedance fault within 500 ms (CV01-B).\n");
     printf("  5. Deliberate misplacement → impedance > limit → enable blocked (CV01-C).\n");
-    printf("  See NP-FW-CVNS-001 Rev 1 §9 for full procedure.\n");
+    printf("  See NP-FW-CVNS-001 §9 for full procedure.\n");
 
     int result = g_fail_count - failures_before;
     printf("FAI-CV01 (software constant check): %s (%d failures)\n\n",
@@ -361,7 +367,7 @@ static int fai_cv03_procedure_doc(void)
     printf("    CV03-B: Max sensation ≤ 7/10 at minimum protocol.\n");
     printf("    CV03-C: Cardiac interlock does not trigger spuriously.\n");
     printf("    CV03-D: All 3 participants complete minimum protocol.\n");
-    printf("  See NP-FW-CVNS-001 Rev 1 §9 for full procedure.\n");
+    printf("  See NP-FW-CVNS-001 §9 for full procedure.\n");
     printf("  STATUS: PENDING — IRB approval and T2 prototype required.\n");
 
     int result = g_fail_count - failures_before;
@@ -481,8 +487,10 @@ static int fai_ramp_arithmetic(void)
 
 int main(void)
 {
-    printf("=== NP-FAI-CVNS-001 Rev 1 — Cervical VNS FAI Tests ===\n");
-    printf("Date: 2026-05-11  Document: NP-FW-CVNS-001 Rev 1  Issue: #24\n\n");
+    printf("=== NP-FW-CVNS-001 §9 — Cervical VNS FAI item software checks ===\n");
+    printf("Document: NP-FW-CVNS-001 Rev 4 §9  Issue: #24\n");
+    printf("Not an inspection record: A14 has no hardware spec, so no artifact FAI\n");
+    printf("checklist exists (NP-ART-001 §3.2, NP-FAI-001 §2.1).\n\n");
 
     fai_safety_constants();
     fai_rr_buffer();
@@ -500,7 +508,7 @@ int main(void)
         printf("  FAI-CV01 (electrode placement):  bench required — PENDING\n");
         printf("  FAI-CV02 (< 100 ms GPIO cutoff): bench required — PENDING\n");
         printf("  FAI-CV03 (tolerability):         IRB + T2 prototype — PENDING\n");
-        printf("See NP-FW-CVNS-001 Rev 1 §9 for full hardware procedures.\n");
+        printf("See NP-FW-CVNS-001 §9 for full hardware procedures.\n");
         printf("G3-08 SOFTWARE BASELINED. Hardware FAI blocking for T2 clinical release.\n");
     } else {
         printf("FAIL — %d assertion(s) failed. Review output above.\n", g_fail_count);

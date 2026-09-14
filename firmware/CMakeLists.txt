@@ -198,7 +198,10 @@ if(NP_BUILD_TESTS)
     add_subdirectory(hub_control) # OI-CVNS-HUB-01: CVNS re-enable manager tests
     add_subdirectory(zone_announce) # module-status frame encoder (app notify path)
     add_subdirectory(pbm)  # NP-SES-1064-001 v5: session descriptor wire format
-    add_subdirectory(cervical_vns)   # NP-FAI-CVNS-001: cardiac interlock FAI suite
+    add_subdirectory(cervical_vns)   # NP-FW-CVNS-001 §9: main-processor FAI item
+                                  # suite (FAI-CV01..CV03 software limbs). NOT the
+                                  # Class C cardiac interlock -- that is
+                                  # safety_mcu/tests/np_cardiac_interlock_tests.c.
     add_subdirectory(sloreta_hdtdcs) # NP-FW-HD-001: montage + sLORETA FAI suite
     add_subdirectory(vendor/freertos) # NP-SW-001 §9.4: FreeRTOS kernel smoke test
     add_subdirectory(application) # NP-SW-CI-001 §4.8: the two linker scripts
