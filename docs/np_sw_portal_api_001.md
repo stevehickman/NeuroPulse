@@ -2,12 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-PORTAL-API-001
-**Revision:** 1
-**Date:** 2026-09-13
+**Revision:** 2
+**Date:** 2026-09-14
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
 **Approved By:** — (new document)
+**Revision note:** Rev 2 (2026-09-14) adds §4a — the canonical signing form and the Ed25519 verifier that implements it. No Rev 1 conclusion changed; §4(a)'s key-management finding is unaffected, and `OI-CONSENT-07` stays open for the reason it gave.
 **References:** CLAUDE.md §4.6, §5.1, §5.3, §6.0, §6.1, §6.2, §6.3, §17 · NP-CONV-001 · `docs/reference/consent-engine.md` · `docs/reference/data-architecture-detail.md` §5.1/§5.3 · `docs/status/pending-decisions.md` (OI-CONSENT-03, -05, -07)
 **Related Issues:** Issue #338; PR #326 (OI-CONSENT-02), PR #329 (OI-CONSENT-03)
 **Gate:** None yet — this document is the precondition for one, not a gate itself.
@@ -111,6 +112,76 @@ consulted. What the portal's signature adds is that the *clinician* asked — th
 not forged by the transport. Until a clinician-identity key exists, the honest default is the same
 one `OI-CONSENT-03` took: refuse.
 
+## §4a — What a signature actually covers, and the one schema decision this document takes
+
+§0 says no endpoint and no schema is specified here, and §7 says why. **The canonical signing form
+is the exception, and it has to be**: §5.3 locks that descriptors are *cryptographically signed*,
+which is not implementable until something says **what** is signed. A verifier cannot exist without
+it, and two platforms cannot agree without it being written down rather than inferred from whichever
+serializer each happens to use.
+
+It is specified in code — `StudyDescriptorCanonicalForm` on both platforms — and pinned by its exact
+bytes in a test on each, because a form described in prose twice is a form that drifts.
+
+```
+NP-STUDY-DESCRIPTOR-V1\n
+<byte length>:<studyID>\n
+<byte length>:<studyTitle>\n
+<byte length>:<researchCategories, in issued order, comma-joined>\n
+<byte length>:<requestedElements, sorted, comma-joined>\n
+<byte length>:<kAnonymity>\n
+<byte length>:<dateRoundingDays>\n
+<byte length>:<issued day, YYYY-MM-DD, UTC>\n
+```
+
+Four properties are load-bearing, and each is a decision rather than a formatting choice.
+
+**Length-prefixed, not delimited.** `studyTitle` is the one field that is server-supplied text and
+stays text, so it can contain any byte including the separator. A delimiter-joined encoding would
+let a title carrying that delimiter shift the field boundaries and produce the same bytes as a
+different descriptor — and a signature over an ambiguous encoding signs more than one message. Both
+test suites carry the forgery attempt this prevents.
+
+**Sets are sorted; lists are not re-ordered.** `requestedElements` is a set with no inherent order,
+so the encoding must impose one or the same descriptor signs differently depending on iteration
+order. `researchCategories` is a list and keeps the order the issuer sent.
+
+**Categories and elements are named by a stable wire spelling**, not by whatever each platform's
+serializer emits. On iOS that is `rawValue`, already the persisted Codable value; on Android it is
+now an explicit `wireName` with `displayName` derived from it, so that when localization reaches
+`:core` (CLAUDE.md §17) the display side can become a key lookup without moving the wire. Both
+suites pin all twenty strings: changing one invalidates every descriptor already issued, which
+should be a decision and not a rename.
+
+**Dates are UTC days, not instants** — and this one is a finding, not a preference. iOS models the
+issue date as a `Date` and Android as `"yyyy-MM-dd"`, so the coarser representation is the only one
+both platforms can produce; anything finer would have one of them computing different bytes for the
+same descriptor and rejecting every signature. The consequence is worth stating rather than
+discovering: **time of day is not covered by the signature**, so an issuer must not rely on it to
+distinguish two descriptors. `studyID` is what does that. The day is rendered in UTC on a fixed
+Gregorian calendar, so a descriptor cannot verify in one time zone and fail in another.
+
+**The audit-trail hash digests the signed bytes**, not the parsed object: `sha256:<hex>` over
+exactly the sequence above. Anything else would record a hash of the device's *reading* of a
+descriptor rather than of the descriptor, which is not what §5.3's audit trail is for.
+
+**Algorithm: Ed25519, and one key format.** Deterministic signatures — no per-signature entropy for
+the signing side to get wrong — small keys, and available on the JDK since 15, which matters because
+Android's `:core` is pure-JVM by design and may not reach for an Android provider. The key is the
+**raw 32 bytes** on both platforms, even though the JDK's `KeyFactory` wants SubjectPublicKeyInfo:
+if each side accepted what its own library prefers, "the NeurOne study-signing key" would be two
+different artifacts and a build could ship the wrong one to one platform. The DER wrapper is a fixed
+12-byte prefix for this algorithm, so that conversion belongs in the verifier, not in whoever holds
+the key.
+
+**None of this closes `OI-CONSENT-07`.** `Ed25519StudyDescriptorVerifier` cannot be constructed
+without a public key and there is no key to construct it with, so
+`RefusingStudyDescriptorVerifier` remains what `ConsentStore` defaults to — see §4(a), which is the
+reason. A key that is absent, malformed or the wrong length yields **no verifier at all** rather
+than one that throws at the first descriptor, so a misconfigured build falls back to refusing.
+What exists now is that the canonical form is executable, the two platforms are pinned against each
+other, and whoever eventually supplies the key is supplying only a key.
+
 ## §5 — Fixed response shapes
 
 §5.1's rule 2 governs the wire as it governs a record: a response whose *shape* varies with a
@@ -150,7 +221,7 @@ and they carry a grant ID rather than anything about the user's biology. They ma
 
 | Item | What is still needed | Owner |
 |------|---------------------|-------|
-| `OI-CONSENT-07` | The study-review signing key: who holds it, how it is rotated, and how it reaches an app build. §4(a). | App Lead + Security |
+| `OI-CONSENT-07` | The study-review signing key: who holds it, how it is rotated, and how it reaches an app build. §4(a). The verification side is built (§4a); the key is not. | App Lead + Security |
 | `OI-CONSENT-05` (inbound) | A clinician-identity anchor so a request can be shown to have come from the clinician who holds the grant. §4(c). | App Lead + Security |
 | `OI-CONSENT-05` (outbound) | E2E encryption of the user's question to the clinician, or a decision not to ship the question path. §6. | App Lead |
 | Endpoint + schema | Deliberately not specified here. Writing a URL and a JSON body before §4 is settled would make the unsolved part look solved, which is the failure `RefusingStudyDescriptorVerifier` exists to prevent. | — |
@@ -160,7 +231,8 @@ and they carry a grant ID rather than anything about the user's biology. They ma
 Both platforms carry a **refusing port** rather than an absence:
 
 - `StudyDescriptorVerifier` / `RefusingStudyDescriptorVerifier` (`OI-CONSENT-03`) — no descriptor is
-  admitted, and the missing signing key is the reason given.
+  admitted, and the missing signing key is the reason given. `Ed25519StudyDescriptorVerifier` is the
+  implementation waiting behind it (§4a); it is not the default and cannot be built without a key.
 - `ClinicianPortalChannel` / `RefusingClinicianPortalChannel` (this document, §4(c)) — no expansion
   request is ingested, and the missing clinician-identity anchor is the reason given.
 

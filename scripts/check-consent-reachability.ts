@@ -552,16 +552,16 @@ if (process.argv.includes("--self-test")) {
   // other way of saying "nothing reaches this yet".
   expect(
     "pending with a live caller is caught",
-    build(iosFn("addInvitation"), ktFn("addInvitation"), {
-      "app/ios/NeurOne/Consent/Sync.swift": "store.addInvitation(i)\n",
+    build(iosFn("ingestStudyDescriptor"), ktFn("ingestStudyDescriptor"), {
+      "app/ios/NeurOne/Consent/Sync.swift": "store.ingestStudyDescriptor(d)\n",
     }),
     "the gap it records is closed",
   );
 
   expect(
     "pending with only a test caller stays clean",
-    build(iosFn("addInvitation"), ktFn("addInvitation"), {
-      "app/ios/NeurOneTests/ConsentStoreTests.swift": "store.addInvitation(i)\n",
+    build(iosFn("ingestStudyDescriptor"), ktFn("ingestStudyDescriptor"), {
+      "app/ios/NeurOneTests/ConsentStoreTests.swift": "store.ingestStudyDescriptor(d)\n",
     }),
     null,
   );

@@ -44,8 +44,16 @@ enum class ClinicianUseCaseTier(val displayName: String, val monthlyPrice: Strin
         }
 }
 
-// UHDR data elements (per NP-FW-EMMC-001 §12)
-enum class UHDRElement(val displayName: String) {
+/**
+ * UHDR data elements (per NP-FW-EMMC-001 §12).
+ *
+ * [wireName] is the **identity**, for the reason given on [ResearchCategory]: a signed study
+ * descriptor names its requested elements by it, and the signature covers those names. It matches
+ * iOS `UHDRElement.rawValue`, which is that platform's persisted Codable value, so the two agree
+ * on what a descriptor says by construction rather than by coincidence —
+ * `StudyDescriptorCanonicalForm` is where that agreement is used and tested.
+ */
+enum class UHDRElement(val wireName: String) {
     EEG_WAVEFORMS("EEG Waveforms"),
     HRV_TIME_SERIES("HRV Time Series"),
     PPG_OPTICAL_SIGNAL("PPG Optical Signal"),
@@ -57,6 +65,9 @@ enum class UHDRElement(val displayName: String) {
     PBM_DOSE_LOGS("PBM Dose (J/cm²) Per Zone"),
     OUTCOME_LOGS("User-Entered Outcome Logs"),
     EYE_STATE_LOGS("Eye Open/Closed State");
+
+    /** Display text. Same string as [wireName] today; see the note on this enum. */
+    val displayName: String get() = wireName
 
     // Lowest clinician tier that may access this element.
     val minimumTier: ClinicianUseCaseTier
@@ -303,7 +314,16 @@ data class ResearchConsentState(
         copy(categoryConsents = ResearchCategory.entries.associateWith { granted })
 }
 
-enum class ResearchCategory(val displayName: String) {
+/**
+ * The nine research areas of §6.2's L2 layer.
+ *
+ * [wireName] is the **identity**: it is what a signed study descriptor names a category by, and it
+ * is covered by the signature, so changing one invalidates every descriptor already issued.
+ * [displayName] happens to return the same string today and must not be assumed to keep doing so —
+ * `:core` cannot yet reference `R.string` (CLAUDE.md §17, `check-locale-strings.ts` PENDING_PATHS),
+ * and when it can, the display side becomes a key lookup while the wire side stays put.
+ */
+enum class ResearchCategory(val wireName: String) {
     ALZHEIMERS_AND_DEMENTIA("Alzheimer's / Dementia"),
     DEPRESSION("Depression"),
     PTSD("PTSD"),
@@ -313,6 +333,10 @@ enum class ResearchCategory(val displayName: String) {
     PARKINSONS("Parkinson's Disease"),
     HEALTHY_AGEING("Healthy Ageing"),
     VISUAL_HEALTH("Visual Health"),
+    ;
+
+    /** Display text. Same string as [wireName] today; see the note on this enum. */
+    val displayName: String get() = wireName
 }
 
 // Study participation record (audit trail — SHDR-class, not UHDR)
