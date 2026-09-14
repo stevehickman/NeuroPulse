@@ -20,6 +20,18 @@ enum ClinicianUseCaseTier: String, CaseIterable, Codable {
         }
     }
 
+    /// Ordering for "does this tier reach that one". Not `allCases.firstIndex(of:)`, which would
+    /// silently re-rank if a case were ever reordered or inserted, and not `uhdrElements.count`,
+    /// which puts `.research` — empty by design — below `.monitor`.
+    var rank: Int {
+        switch self {
+        case .monitor:      return 0
+        case .assess:       return 1
+        case .fullClinical: return 2
+        case .research:     return 3
+        }
+    }
+
     // Minimum necessary UHDR elements for this tier
     var uhdrElements: Set<UHDRElement> {
         switch self {
@@ -149,6 +161,18 @@ struct ClinicianConsentGrant: Codable, Identifiable {
     /// Read it through `effectiveScopes`, never directly.
     var accessScopes: [ClinicianAccessScope]?
 
+    /// The use cases the user actually consented to (`ConsentEngine.useCaseLibrary` IDs).
+    ///
+    /// §6.1's principle is that *clinicians select use cases, never data elements*, so this is the
+    /// record of what was asked in the user's own terms. It is **not** what decides access —
+    /// `accessScopes` is, and it carries the elements as derived on the day of the grant. Keeping
+    /// both means a later edit to the library cannot reach backwards into a grant already made,
+    /// and a grant can still be explained in the words it was granted in.
+    ///
+    /// `nil` for a grant written before `OI-CONSENT-04`, the same "never went through it"
+    /// convention `accessScopes` uses.
+    var useCaseIDs: Set<String>?
+
     init(
         id: UUID,
         clinicianName: String,
@@ -157,7 +181,8 @@ struct ClinicianConsentGrant: Codable, Identifiable {
         grantedAt: Date,
         expiresAt: Date? = nil,
         isActive: Bool = true,
-        accessScopes: [ClinicianAccessScope]? = nil
+        accessScopes: [ClinicianAccessScope]? = nil,
+        useCaseIDs: Set<String>? = nil
     ) {
         self.id = id
         self.clinicianName = clinicianName
@@ -167,15 +192,18 @@ struct ClinicianConsentGrant: Codable, Identifiable {
         self.expiresAt = expiresAt
         self.isActive = isActive
         self.accessScopes = accessScopes
+        self.useCaseIDs = useCaseIDs
     }
 
     /// The scopes as decided, or the pre-workflow equivalent for a grant that has none: the
     /// tier's elements, effective from the grant date, with prior data included.
     ///
     /// That fallback is deliberately what a bare `tier` has always meant, so introducing the
-    /// workflow does not silently re-scope an existing grant. Whether an *initial* grant should
-    /// default to prior data at all is a real question, and a separate one from expansion —
-    /// `OI-CONSENT-06`.
+    /// workflow does not silently re-scope an existing grant. It is now reached only by grants
+    /// written before `OI-CONSENT-04`/`-06`: every grant the form makes today carries an explicit
+    /// initial scope, whose `includesPriorData` is the user's own answer rather than this
+    /// fallback's. The fallback stays because those earlier grants still have to mean what they
+    /// meant when they were made.
     var effectiveScopes: [ClinicianAccessScope] {
         accessScopes ?? [
             ClinicianAccessScope(

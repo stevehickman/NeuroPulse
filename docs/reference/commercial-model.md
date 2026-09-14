@@ -169,7 +169,30 @@ data model and not only the screens.
 - **A "from today onwards only" answer stays visible on the grant afterwards**, or the user cannot
   tell later which of the two answers they gave.
 
-Two halves are deliberately absent and tracked rather than implied: nothing ingests a request or
-delivers a question, because the clinician-portal channel does not exist (`OI-CONSENT-05`); and an
-**initial** grant's retroactive posture is still not separately elicited (`OI-CONSENT-06`).
+**Initial-grant workflow as implemented (2026-09-13, `OI-CONSENT-04` + `OI-CONSENT-06`).** The
+same two clauses constrain the *first* grant, and until now neither reached it.
+
+- **The use-case selection decides the grant.** The form collected one and built a grant from the
+  tier, so the key principle above was a question the user answered and nothing consumed. A grant
+  now carries the use-case IDs *and* the element set derived from them, clamped to the tier — which
+  stays the ceiling and the thing the price is keyed to. Most grants are therefore **narrower than
+  their tier**, which is what *minimum necessary* meant all along.
+- **The elements are frozen at grant time, not re-derived from the IDs on read.** Both are stored
+  because they answer different questions: the IDs are what the user consented to in their own
+  terms, and the scope is what that came to on the day. Re-deriving would mean a later edit to a
+  library entry silently widens every grant already made, retroactively, with nobody asked — the
+  same failure the timeless tier had, arriving by a different route.
+- **The library holds keys, not text**, because it is one table read by both platforms and
+  Android's `:core` cannot reference `R.string` at all (CLAUDE.md §17).
+- **The retroactive question is asked on the first grant too**, on its own step, with both answers
+  as controls of equal weight and neither preselected. Defaulting it to *prospective only* was the
+  cheaper and more conservative option and was rejected for that reason: §6.1 does not ask for
+  retroactive access to be narrow, it asks for the two decisions to be **presented separately**,
+  and a default presents neither.
+
+One half remains absent and tracked rather than implied: the clinician-portal channel is specified
+(`NP-SW-PORTAL-API-001`) and represented in code by a port that refuses by default
+(`ClinicianPortalChannel`), but the clinician-identity anchor it needs does not exist, and §6.1's
+third response — *asks questions* — has nowhere to send a question that NeurOne is allowed to carry
+(the text is the user's own, hence UHDR, hence end-to-end to the clinician or nothing).
 

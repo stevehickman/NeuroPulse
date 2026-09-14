@@ -12,6 +12,19 @@ enum class ClinicianUseCaseTier(val displayName: String, val monthlyPrice: Strin
     FULL_CLINICAL("Full Clinical", "$299/month/patient"),
     RESEARCH("Research", "$599/month/study");
 
+    /**
+     * Ordering for "does this tier reach that one". Not [ordinal], which silently re-ranks if a
+     * case is reordered or inserted, and not `uhdrElements.size`, which puts [RESEARCH] — empty
+     * by design — below [MONITOR]. Must match iOS `ClinicianUseCaseTier.rank`.
+     */
+    val rank: Int
+        get() = when (this) {
+            MONITOR -> 0
+            ASSESS -> 1
+            FULL_CLINICAL -> 2
+            RESEARCH -> 3
+        }
+
     // Minimum necessary UHDR elements for this tier — must match iOS mapping.
     val uhdrElements: Set<UHDRElement>
         get() = when (this) {
@@ -31,8 +44,16 @@ enum class ClinicianUseCaseTier(val displayName: String, val monthlyPrice: Strin
         }
 }
 
-// UHDR data elements (per NP-FW-EMMC-001 §12)
-enum class UHDRElement(val displayName: String) {
+/**
+ * UHDR data elements (per NP-FW-EMMC-001 §12).
+ *
+ * [wireName] is the **identity**, for the reason given on [ResearchCategory]: a signed study
+ * descriptor names its requested elements by it, and the signature covers those names. It matches
+ * iOS `UHDRElement.rawValue`, which is that platform's persisted Codable value, so the two agree
+ * on what a descriptor says by construction rather than by coincidence —
+ * `StudyDescriptorCanonicalForm` is where that agreement is used and tested.
+ */
+enum class UHDRElement(val wireName: String) {
     EEG_WAVEFORMS("EEG Waveforms"),
     HRV_TIME_SERIES("HRV Time Series"),
     PPG_OPTICAL_SIGNAL("PPG Optical Signal"),
@@ -44,6 +65,9 @@ enum class UHDRElement(val displayName: String) {
     PBM_DOSE_LOGS("PBM Dose (J/cm²) Per Zone"),
     OUTCOME_LOGS("User-Entered Outcome Logs"),
     EYE_STATE_LOGS("Eye Open/Closed State");
+
+    /** Display text. Same string as [wireName] today; see the note on this enum. */
+    val displayName: String get() = wireName
 
     // Lowest clinician tier that may access this element.
     val minimumTier: ClinicianUseCaseTier
@@ -99,15 +123,31 @@ data class ClinicianConsentGrant(
      * Read it through [effectiveScopes], never directly.
      */
     val accessScopes: List<ClinicianAccessScope>? = null,
+    /**
+     * The use cases the user actually consented to ([life.neurone.core.consent.ConsentEngine]
+     * library IDs).
+     *
+     * §6.1's principle is that *clinicians select use cases, never data elements*, so this is the
+     * record of what was asked in the user's own terms. It is **not** what decides access —
+     * [accessScopes] is, and it carries the elements as derived on the day of the grant. Keeping
+     * both means a later edit to the library cannot reach backwards into a grant already made,
+     * and a grant can still be explained in the words it was granted in.
+     *
+     * Null for a grant written before `OI-CONSENT-04`, the same "never went through it"
+     * convention [accessScopes] uses.
+     */
+    val useCaseIds: List<String>? = null,
 ) {
     /**
      * The scopes as decided, or the pre-workflow equivalent for a grant that has none: the
      * tier's elements, effective from the grant day, with prior data included.
      *
      * That fallback is deliberately what a bare [tier] has always meant, so introducing the
-     * workflow does not silently re-scope an existing grant. Whether an *initial* grant should
-     * default to prior data at all is a real question, and a separate one from expansion —
-     * `OI-CONSENT-06`.
+     * workflow does not silently re-scope an existing grant. It is now reached only by grants
+     * written before `OI-CONSENT-04`/`-06`: every grant the form makes today carries an explicit
+     * initial scope, whose `includesPriorData` is the user's own answer rather than this
+     * fallback's. The fallback stays because those earlier grants still have to mean what they
+     * meant when they were made.
      */
     val effectiveScopes: List<ClinicianAccessScope>
         get() = accessScopes ?: listOf(
@@ -274,7 +314,16 @@ data class ResearchConsentState(
         copy(categoryConsents = ResearchCategory.entries.associateWith { granted })
 }
 
-enum class ResearchCategory(val displayName: String) {
+/**
+ * The nine research areas of §6.2's L2 layer.
+ *
+ * [wireName] is the **identity**: it is what a signed study descriptor names a category by, and it
+ * is covered by the signature, so changing one invalidates every descriptor already issued.
+ * [displayName] happens to return the same string today and must not be assumed to keep doing so —
+ * `:core` cannot yet reference `R.string` (CLAUDE.md §17, `check-locale-strings.ts` PENDING_PATHS),
+ * and when it can, the display side becomes a key lookup while the wire side stays put.
+ */
+enum class ResearchCategory(val wireName: String) {
     ALZHEIMERS_AND_DEMENTIA("Alzheimer's / Dementia"),
     DEPRESSION("Depression"),
     PTSD("PTSD"),
@@ -284,6 +333,10 @@ enum class ResearchCategory(val displayName: String) {
     PARKINSONS("Parkinson's Disease"),
     HEALTHY_AGEING("Healthy Ageing"),
     VISUAL_HEALTH("Visual Health"),
+    ;
+
+    /** Display text. Same string as [wireName] today; see the note on this enum. */
+    val displayName: String get() = wireName
 }
 
 // Study participation record (audit trail — SHDR-class, not UHDR)
