@@ -84,6 +84,14 @@ void np_safety_spi_request_disable(uint16_t mask)
     g_last_disable_mask = mask;
 }
 
+/* OI-CHARGE-05 (c): the commanded-current publish that rides beside the enable. */
+static uint16_t g_last_chan_ua;
+void np_safety_spi_set_channel_current(uint8_t channel, uint16_t current_ua)
+{
+    (void)channel;
+    g_last_chan_ua = current_ua;
+}
+
 static int     g_auth_calls;
 static bool    g_auth_last_pass;
 void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass)

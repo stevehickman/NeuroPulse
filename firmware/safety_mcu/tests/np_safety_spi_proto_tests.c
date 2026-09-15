@@ -403,11 +403,50 @@ static void test_enable_word_matches_hub(void)
           "hub NP_SAFETY_CH_CLIN_STIM == safety MCU value");
     check(np_hub_ch_tdcs == NP_SAFETY_CH_TDCS,
           "hub NP_SAFETY_CH_TDCS == safety MCU value");
+    check(np_hub_ch_bes_tacs == NP_SAFETY_CH_BES_TACS,
+          "hub NP_SAFETY_CH_BES_TACS == safety MCU value");
+    check(np_hub_ch_vns_hrv == NP_SAFETY_CH_VNS_HRV,
+          "hub NP_SAFETY_CH_VNS_HRV == safety MCU value");
+    check(np_hub_ch_cvns == NP_SAFETY_CH_CVNS,
+          "hub NP_SAFETY_CH_CVNS == safety MCU value");
     /* Each index is the bit position of its own enable bit. */
     check((1U << np_hub_ch_clin_stim) == NP_SAFETY_EN_CLIN_STIM,
           "CH_CLIN_STIM is the bit position of EN_CLIN_STIM");
     check((1U << np_hub_ch_tdcs) == NP_SAFETY_EN_TDCS,
           "CH_TDCS is the bit position of EN_TDCS");
+    check((1U << np_hub_ch_bes_tacs) == NP_SAFETY_EN_BES_TACS,
+          "CH_BES_TACS is the bit position of EN_BES_TACS");
+    check((1U << np_hub_ch_vns_hrv) == NP_SAFETY_EN_VNS_HRV,
+          "CH_VNS_HRV is the bit position of EN_VNS_HRV");
+    check((1U << np_hub_ch_cvns) == NP_SAFETY_EN_CVNS,
+          "CH_CVNS is the bit position of EN_CVNS");
+
+    /* Every electrical channel must be inside NP_SAFETY_CH_ELECTRICAL_MASK —
+     * that mask is what the fail-closed declaration gate iterates, so a
+     * channel missing from it would be energised without a waveform
+     * declaration and therefore without a ceiling.                          */
+    check((NP_SAFETY_CH_ELECTRICAL_MASK & NP_SAFETY_EN_BES_TACS)  != 0U &&
+          (NP_SAFETY_CH_ELECTRICAL_MASK & NP_SAFETY_EN_TDCS)      != 0U &&
+          (NP_SAFETY_CH_ELECTRICAL_MASK & NP_SAFETY_EN_VNS_HRV)   != 0U &&
+          (NP_SAFETY_CH_ELECTRICAL_MASK & NP_SAFETY_EN_CVNS)      != 0U &&
+          (NP_SAFETY_CH_ELECTRICAL_MASK & NP_SAFETY_EN_CLIN_STIM) != 0U,
+          "every electrode-bearing channel is in NP_SAFETY_CH_ELECTRICAL_MASK");
+    /* And nothing else is: gating PBM or visual on a charge declaration would
+     * disable modalities that inject no charge through electrodes at all.   */
+    check((NP_SAFETY_CH_ELECTRICAL_MASK &
+           (NP_SAFETY_EN_PBM_CRANIAL | NP_SAFETY_EN_VISUAL |
+            NP_SAFETY_EN_INTRANASAL  | NP_SAFETY_EN_TMS |
+            NP_SAFETY_EN_PBM_1170NM)) == 0U,
+          "no non-electrode channel is in NP_SAFETY_CH_ELECTRICAL_MASK");
+
+    /* OI-CHARGE-07: the provisional areas' fail-safe direction.  Zero would
+     * silently fall back to the permissive 25 cm² default; anything above it
+     * would be a larger charge budget than the default, which needs a
+     * measurement behind it rather than a guess. */
+    check(np_hub_bes_area_mcm2  > 0U && np_hub_bes_area_mcm2  <= 25000U &&
+          np_hub_vns_area_mcm2  > 0U && np_hub_vns_area_mcm2  <= 25000U &&
+          np_hub_cvns_area_mcm2 > 0U && np_hub_cvns_area_mcm2 <= 25000U,
+          "provisional electrode areas are declared and no larger than the default");
 
     /* Audio carries no safety gate on either side. */
     check(np_hub_en_audio == 0U, "hub NP_SAFETY_EN_AUDIO is 0 (not gated)");
@@ -589,6 +628,109 @@ static void test_chan_limit_checksum(void)
           "chan-limit checksum valid after restore");
 }
 
+/* ── OI-CHARGE-05: per-channel waveform-class command frame tests ──────────── */
+
+static uint16_t chan_wave_checksum(const np_safety_chan_wave_cmd_t *c)
+{
+    uint16_t sum = 0U;
+    const uint8_t *b = (const uint8_t *)c;
+    uint16_t i;
+    for (i = 0U; i < (NP_SAFETY_CHAN_WAVE_FRAME_LEN - 2U); i++) { sum += b[i]; }
+    return sum;
+}
+
+static void test_chan_wave_frame_sizes(void)
+{
+    check(sizeof(np_safety_chan_wave_cmd_t) == NP_SAFETY_CHAN_WAVE_FRAME_LEN,
+          "np_safety_chan_wave_cmd_t size == NP_SAFETY_CHAN_WAVE_FRAME_LEN (76)");
+    check(NP_SAFETY_CHAN_WAVE_FRAME_LEN == 76U,
+          "NP_SAFETY_CHAN_WAVE_FRAME_LEN == 76");
+
+    /* Distinct from every other frame length (NSS-length discrimination). */
+    check(NP_SAFETY_CHAN_WAVE_FRAME_LEN != NP_SAFETY_FRAME_LEN &&
+          NP_SAFETY_CHAN_WAVE_FRAME_LEN != NP_SAFETY_RX_EXT_FRAME_LEN &&
+          NP_SAFETY_CHAN_WAVE_FRAME_LEN != NP_SAFETY_CMD_FRAME_LEN &&
+          NP_SAFETY_CHAN_WAVE_FRAME_LEN != NP_SAFETY_CHAN_LIMIT_FRAME_LEN,
+          "waveform frame length distinct from 8/34/38/102");
+}
+
+static void test_chan_wave_frame_offsets(void)
+{
+    check(offsetof(np_safety_chan_wave_cmd_t, cmd_magic)  == 0U,  "chan_wave.cmd_magic at 0");
+    check(offsetof(np_safety_chan_wave_cmd_t, cmd_type)   == 2U,  "chan_wave.cmd_type at 2");
+    check(offsetof(np_safety_chan_wave_cmd_t, reserved)   == 3U,  "chan_wave.reserved at 3");
+    check(offsetof(np_safety_chan_wave_cmd_t, wave_class) == 4U,  "chan_wave.wave_class at 4");
+    check(offsetof(np_safety_chan_wave_cmd_t, phase_us)   == 18U, "chan_wave.phase_us at 18");
+    check(offsetof(np_safety_chan_wave_cmd_t, checksum)   == 74U, "chan_wave.checksum at 74");
+    check(sizeof(((np_safety_chan_wave_cmd_t *)0)->wave_class) == NP_SAFETY_MAX_CHANNELS,
+          "wave_class byte-size == 14");
+    check(sizeof(((np_safety_chan_wave_cmd_t *)0)->phase_us) ==
+              NP_SAFETY_MAX_CHANNELS * sizeof(uint32_t),
+          "phase_us byte-size == 14 × 4 == 56");
+
+    check(NP_SAFETY_CMD_CHAN_WAVE == 0x03U, "NP_SAFETY_CMD_CHAN_WAVE == 0x03");
+    check(NP_SAFETY_CMD_CHAN_WAVE != NP_SAFETY_CMD_SESSION_SIG &&
+          NP_SAFETY_CMD_CHAN_WAVE != NP_SAFETY_CMD_CHAN_LIMIT,
+          "waveform cmd_type distinct from the other command types");
+
+    /* phase_us must be 32-bit: the 0.5 Hz bottom of the tACS band is a
+     * 1,000,000 µs half-period, which does not fit a uint16.               */
+    check(NP_CHARGE_MAX_PHASE_US > 65535UL,
+          "phase_us range exceeds uint16 (0.5 Hz half-period is 1e6 µs)");
+}
+
+static void test_chan_wave_class_bits(void)
+{
+    check(NP_CHARGE_WAVE_DC    == (1U << 0), "NP_CHARGE_WAVE_DC == bit 0");
+    check(NP_CHARGE_WAVE_PULSE == (1U << 1), "NP_CHARGE_WAVE_PULSE == bit 1");
+    check(NP_CHARGE_WAVE_SINE  == (1U << 2), "NP_CHARGE_WAVE_SINE == bit 2");
+    /* Distinct bits, because one channel can carry two classes at once
+     * (CLIN_STIM is HD-tDCS + clinical tACS) and both checks must run. */
+    check((NP_CHARGE_WAVE_DC & NP_CHARGE_WAVE_PULSE) == 0U &&
+          (NP_CHARGE_WAVE_DC & NP_CHARGE_WAVE_SINE)  == 0U &&
+          (NP_CHARGE_WAVE_PULSE & NP_CHARGE_WAVE_SINE) == 0U,
+          "waveform class bits are mutually distinct");
+    check(NP_CHARGE_WAVE_ALL ==
+              (NP_CHARGE_WAVE_DC | NP_CHARGE_WAVE_PULSE | NP_CHARGE_WAVE_SINE),
+          "NP_CHARGE_WAVE_ALL covers exactly the three classes");
+    /* 0 must mean "not declared" and never be a legal class — the fail-closed
+     * declaration gate depends on that. */
+    check((NP_CHARGE_WAVE_ALL & 0U) == 0U,
+          "class 0 is not a declared class (it is the undeclared sentinel)");
+}
+
+static void test_chan_wave_checksum(void)
+{
+    np_safety_chan_wave_cmd_t cmd;
+    memset(&cmd, 0, sizeof(cmd));
+    cmd.cmd_magic[0] = NP_SAFETY_CMD_MAGIC_0;
+    cmd.cmd_magic[1] = NP_SAFETY_CMD_MAGIC_1;
+    cmd.cmd_type     = NP_SAFETY_CMD_CHAN_WAVE;
+    cmd.wave_class[6]  = NP_CHARGE_WAVE_DC;          /* tDCS */
+    cmd.wave_class[5]  = NP_CHARGE_WAVE_SINE;        /* BES/tACS */
+    cmd.phase_us[5]    = 12500UL;                    /* 40 Hz half-period */
+    cmd.checksum = chan_wave_checksum(&cmd);
+
+    check(chan_wave_checksum(&cmd) == cmd.checksum,
+          "waveform checksum round-trip match");
+
+    /* Corrupt the phase — checksum must diverge.  This is the field an
+     * undetected corruption would most quietly weaken the per-phase check
+     * through, so it is the one the test perturbs. */
+    cmd.phase_us[5] ^= 0x00000FFFUL;
+    check(chan_wave_checksum(&cmd) != cmd.checksum,
+          "waveform checksum detects phase corruption");
+
+    cmd.phase_us[5] ^= 0x00000FFFUL;
+    check(chan_wave_checksum(&cmd) == cmd.checksum,
+          "waveform checksum valid after restore");
+
+    /* And a corrupted class. */
+    cmd.wave_class[6] ^= 0x03U;
+    check(chan_wave_checksum(&cmd) != cmd.checksum,
+          "waveform checksum detects class corruption");
+}
+
 /* ── OI-CHARGE-03: geometry-required session_status bit ─────────────────────── */
 
 static void test_geom_required_session_status_bit(void)
@@ -640,6 +782,10 @@ int main(void)
     test_chan_limit_frame_sizes();
     test_chan_limit_frame_offsets();
     test_chan_limit_checksum();
+    test_chan_wave_frame_sizes();
+    test_chan_wave_frame_offsets();
+    test_chan_wave_class_bits();
+    test_chan_wave_checksum();
 
     /* OI-CHARGE-03 — geometry-required session_status bit */
     test_geom_required_session_status_bit();

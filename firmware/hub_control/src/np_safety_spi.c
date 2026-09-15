@@ -34,6 +34,24 @@ static volatile bool     s_cvns_reenable  = false;
 static volatile float    s_cvns_imp_kohm[NP_SAFETY_IMP_CVNS_ELECTRODES];
 static volatile bool     s_cvns_imp_valid = false;
 
+/* ── Per-channel commanded current (OI-CHARGE-01 hub half, OI-CHARGE-05 (c)) ──
+ *
+ * Published by the modality modules as they apply each command, consumed by the
+ * heartbeat task one beat later.  This indirection is what closes OI-CHARGE-01:
+ * until 2026-09-15 np_hub_control_main.c passed current_ua = NULL because the
+ * heartbeat task had no way to learn what the session runner had commanded —
+ * they are separate FreeRTOS tasks — so the safety MCU's accumulate loop never
+ * ran and the charge interlock enforced nothing.
+ *
+ * The shape deliberately mirrors s_requested_mask: modules already call
+ * np_safety_spi_request_enable() beside every command they apply, and the
+ * current publish sits in the same place, so the two cannot drift apart.
+ *
+ * COMMANDED, not delivered — SHDR (what the signed descriptor asked for), never
+ * an ADC measurement (which would be UHDR-class; NP-FW-EMMC-001 §12).
+ */
+static volatile uint16_t s_channel_ua[NP_SAFETY_MAX_CHANNELS];
+
 /* s_requested_mask is protected by the FreeRTOS task-level critical section
  * (taskENTER_CRITICAL / taskEXIT_CRITICAL).  These functions are called from
  * task context only — never from an ISR — so the task variants are correct. */
@@ -259,6 +277,77 @@ np_hub_status_t np_safety_spi_send_channel_limits(const uint16_t *area_mcm2,
     }
 
     return NP_HUB_OK;
+}
+
+np_hub_status_t np_safety_spi_send_channel_waveforms(const uint8_t  *wave_class,
+                                                      const uint32_t *phase_us,
+                                                      uint8_t         count)
+{
+    np_safety_chan_wave_cmd_t cmd;
+    /* rx_dummy: discard the MCU's concurrent transmission during the cmd frame. */
+    uint8_t rx_dummy[NP_SAFETY_CHAN_WAVE_FRAME_LEN];
+    uint8_t ch;
+
+    if (wave_class == NULL || phase_us == NULL ||
+        count == 0U || count > NP_SAFETY_MAX_CHANNELS) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+
+    memset(&cmd, 0, sizeof(cmd));
+    cmd.cmd_magic[0] = NP_SAFETY_CMD_MAGIC_0;
+    cmd.cmd_magic[1] = NP_SAFETY_CMD_MAGIC_1;
+    cmd.cmd_type     = NP_SAFETY_CMD_CHAN_WAVE;
+    cmd.reserved     = 0U;
+    for (ch = 0U; ch < count; ch++) {
+        cmd.wave_class[ch] = wave_class[ch];
+        cmd.phase_us[ch]   = phase_us[ch];
+    }
+    /* Remaining entries stay 0 (memset) → "not declared in this frame" on the
+     * MCU, which leaves any existing declaration alone rather than clearing it. */
+    cmd.checksum = compute_checksum((const uint8_t *)&cmd,
+                                    NP_SAFETY_CHAN_WAVE_FRAME_LEN - 2U);
+
+    np_hub_status_t rc = np_safety_hal_spi_transfer((const uint8_t *)&cmd,
+                                                    rx_dummy,
+                                                    NP_SAFETY_CHAN_WAVE_FRAME_LEN);
+    if (rc != NP_HUB_OK) {
+        return NP_HUB_ERR_TIMEOUT;
+    }
+
+    return NP_HUB_OK;
+}
+
+void np_safety_spi_set_channel_current(uint8_t channel, uint16_t current_ua)
+{
+    if (channel >= NP_SAFETY_MAX_CHANNELS) {
+        return;
+    }
+    taskENTER_CRITICAL();
+    s_channel_ua[channel] = current_ua;
+    taskEXIT_CRITICAL();
+}
+
+void np_safety_spi_clear_channel_currents(void)
+{
+    uint8_t ch;
+    taskENTER_CRITICAL();
+    for (ch = 0U; ch < NP_SAFETY_MAX_CHANNELS; ch++) {
+        s_channel_ua[ch] = 0U;
+    }
+    taskEXIT_CRITICAL();
+}
+
+void np_safety_spi_get_channel_currents(uint16_t out_ua[])
+{
+    uint8_t ch;
+    if (out_ua == NULL) {
+        return;
+    }
+    taskENTER_CRITICAL();
+    for (ch = 0U; ch < NP_SAFETY_MAX_CHANNELS; ch++) {
+        out_ua[ch] = s_channel_ua[ch];
+    }
+    taskEXIT_CRITICAL();
 }
 
 void np_safety_spi_set_geom_required(bool required)

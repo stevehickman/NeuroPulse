@@ -235,10 +235,13 @@ bool np_safety_spi_get_cvns_impedance(float out_kohm[], bool *valid_out);
  * np_safety_spi_send_channel_limits — deliver per-channel electrode geometry to
  * the safety MCU via a 34-byte command frame (OI-CHARGE-02).
  *
- * The safety MCU converts each area into a per-electrode charge limit using its
- * resident 40µC/cm² density constant.  This function transmits electrode AREA
- * only — never a pre-computed limit — so the density constant stays on the
- * Class C safety MCU.
+ * The safety MCU converts each area into per-electrode charge limits using its
+ * resident density constants — NP_CHARGE_PHASE_LIMIT_UC_CM2 for the per-phase
+ * ceiling and NP_CHARGE_DC_LIMIT_MC_CM2 for the per-session one.  This function
+ * transmits electrode AREA only — never a pre-computed limit — so both
+ * constants stay on the Class C safety MCU.  WHICH of the two applies to a
+ * channel is the companion np_safety_spi_send_channel_waveforms() declaration,
+ * not anything in this frame.
  *
  * area_mcm2: array of per-channel electrode areas in milli-cm² (1 unit =
  *            0.001 cm²).  Entry n applies to safety channel n (= NP_SAFETY_EN_*
@@ -255,6 +258,60 @@ bool np_safety_spi_get_cvns_impedance(float out_kohm[], bool *valid_out);
  */
 np_hub_status_t np_safety_spi_send_channel_limits(const uint16_t *area_mcm2,
                                                    uint8_t         count);
+
+/*
+ * np_safety_spi_send_channel_waveforms — declare each electrical channel's
+ * WAVEFORM CLASS and phase duration to the safety MCU via a 76-byte command
+ * frame (OI-CHARGE-05 (b)).
+ *
+ * The MCU applies a different ceiling to a DC channel (per-session, mC/cm²)
+ * than to a charge-balanced one (per-phase, µC/cm²), and cannot tell them
+ * apart from current_ua[] alone.  As with the area frame, only the
+ * CLASSIFICATION crosses: both density constants stay resident on the Class C
+ * MCU and are never transmitted.
+ *
+ * wave_class: per-channel NP_CHARGE_WAVE_* bits.  Entry n applies to safety
+ *             channel n (= NP_SAFETY_EN_* bit position).  0 means "not declared
+ *             here" and leaves any existing declaration alone — it does NOT
+ *             clear one.  A channel may carry several bits: NP_SAFETY_CH_CLIN_STIM
+ *             is shared by HD-tDCS (DC) and clinical tACS (AC).
+ * phase_us:   per-channel phase duration µs — half-period for sinusoidal, pulse
+ *             width for rectangular biphasic, 0 for pure DC.
+ * count:      number of valid entries (1–NP_SAFETY_MAX_CHANNELS).
+ *
+ * MUST be called during session setup, BEFORE requesting enable of any
+ * electrical channel: an electrical channel with no declaration is held OFF by
+ * the MCU's fail-closed declaration gate.
+ *
+ * Returns NP_HUB_OK if the SPI transfer completed; NP_HUB_ERR_TIMEOUT on
+ * transfer failure; NP_HUB_ERR_INVALID_ARG on NULL/zero/oversized arguments.
+ */
+np_hub_status_t np_safety_spi_send_channel_waveforms(const uint8_t  *wave_class,
+                                                      const uint32_t *phase_us,
+                                                      uint8_t         count);
+
+/*
+ * Per-channel COMMANDED current, µA (OI-CHARGE-01 hub half, OI-CHARGE-05 (c)).
+ *
+ * np_safety_spi_set_channel_current()    publish what a module just commanded
+ * np_safety_spi_clear_channel_currents() zero every channel (session teardown)
+ * np_safety_spi_get_channel_currents()   snapshot for the heartbeat frame
+ *
+ * Modality modules call the setter beside the np_safety_spi_request_enable()
+ * they already make, and pass 0 beside request_disable, so the published
+ * current and the requested enable bit cannot drift apart.  The heartbeat task
+ * snapshots the array each beat and puts it in current_ua[], which is what
+ * makes the safety MCU's charge monitor run at all.
+ *
+ * out_ua must have room for NP_SAFETY_MAX_CHANNELS entries.
+ *
+ * Classification: SHDR.  This is the COMMANDED value from the signed session
+ * descriptor — never ADC-measured delivered current, which reveals tissue
+ * impedance and is UHDR-class (NP-FW-EMMC-001 §12).
+ */
+void np_safety_spi_set_channel_current(uint8_t channel, uint16_t current_ua);
+void np_safety_spi_clear_channel_currents(void);
+void np_safety_spi_get_channel_currents(uint16_t out_ua[]);
 
 /* ── HAL stub ─────────────────────────────────────────────────────────────────── */
 

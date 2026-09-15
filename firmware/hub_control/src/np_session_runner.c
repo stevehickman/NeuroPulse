@@ -62,6 +62,47 @@ static uint32_t elapsed_ms_now(void)
  * slot_mask_to_safety_bit — returns the NP_SAFETY_EN_* bit for the given slot.
  * Returns 0 for audio (not safety-MCU gated).
  */
+/*
+ * half_period_us — the duration of ONE phase of a periodic waveform, in µs,
+ * from its frequency in milli-Hz.
+ *
+ *   f Hz = freq_mhz / 1000, half period = 1/(2f) s = 500e6 / freq_mhz µs
+ *
+ * e.g. 0.5 Hz (freq_mhz = 500) → 1,000,000 µs; 40 Hz → 12,500 µs.
+ *
+ * A zero frequency would be a division by zero and is a malformed descriptor;
+ * it returns the clamp ceiling, which is the LONGEST phase and therefore the
+ * strictest per-phase verdict the safety MCU can reach — a malformed
+ * descriptor fails closed rather than escaping the check.  (The MCU applies
+ * the same clamp itself; this one keeps the wire value honest as well.)
+ */
+static uint32_t half_period_us(uint16_t freq_mhz)
+{
+    uint32_t us;
+    if (freq_mhz == 0U) {
+        return (uint32_t)NP_CHARGE_MAX_PHASE_US;
+    }
+    us = 500000000UL / (uint32_t)freq_mhz;
+    return (us > (uint32_t)NP_CHARGE_MAX_PHASE_US)
+             ? (uint32_t)NP_CHARGE_MAX_PHASE_US : us;
+}
+
+/*
+ * declare_phase — record a channel's phase duration, keeping the LONGEST when
+ * several commands land on one channel.  Longest phase means largest per-phase
+ * charge at a given amplitude, so keeping the maximum is the strict reading —
+ * the same rule, in the opposite direction, as taking the SMALLEST declared
+ * electrode area.  (The safety MCU applies this max independently; doing it
+ * here too means the transmitted frame already says what the MCU will
+ * conclude, so the two sides never disagree about what was declared.)
+ */
+static void declare_phase(uint32_t *phase_us, uint8_t channel, uint32_t us)
+{
+    if (us > phase_us[channel]) {
+        phase_us[channel] = us;
+    }
+}
+
 static uint16_t slot_to_safety_bit(uint8_t slot)
 {
     static const uint16_t k_map[NP_HUB_SLOT_MAX] = {
@@ -329,9 +370,14 @@ np_hub_status_t np_runner_run(void)
      * tightest declared geometry is the only conservative choice.            */
     {
         uint16_t area_mcm2[NP_SAFETY_MAX_CHANNELS];
+        uint8_t  wave_class[NP_SAFETY_MAX_CHANNELS];
+        uint32_t phase_us[NP_SAFETY_MAX_CHANNELS];
         bool     have_override = false;
         bool     have_tdcs     = false;
-        memset(area_mcm2, 0, sizeof(area_mcm2));
+        bool     have_electrical = false;
+        memset(area_mcm2,   0, sizeof(area_mcm2));
+        memset(wave_class,  0, sizeof(wave_class));
+        memset(phase_us,    0, sizeof(phase_us));
 
         for (uint8_t i = 0U; i < s_ctx.desc.cmd_count; i++) {
             const np_session_cmd_t *c = &s_ctx.desc.cmds[i];
@@ -345,6 +391,9 @@ np_hub_status_t np_runner_run(void)
                         NP_HD_SMALL_ELECTRODE_AREA_MCM2;
                     have_override = true;
                 }
+                /* HD-tDCS is DC — the per-session budget applies to it. */
+                wave_class[NP_SAFETY_CH_CLIN_STIM] |= NP_CHARGE_WAVE_DC;
+                have_electrical = true;
             } else if (c->mod_type == NP_MOD_TDCS &&
                        c->params_len >= sizeof(np_mod_tdcs_params_t)) {
                 const np_mod_tdcs_params_t *p =
@@ -355,8 +404,54 @@ np_hub_status_t np_runner_run(void)
                      p->electrode_area_mcm2 < area_mcm2[NP_SAFETY_CH_TDCS])) {
                     area_mcm2[NP_SAFETY_CH_TDCS] = p->electrode_area_mcm2;
                 }
+                wave_class[NP_SAFETY_CH_TDCS] |= NP_CHARGE_WAVE_DC;
+                have_electrical = true;
+            } else if (c->mod_type == NP_MOD_BES_TACS &&
+                       c->params_len >= sizeof(np_mod_bes_tacs_params_t)) {
+                const np_mod_bes_tacs_params_t *p =
+                    (const np_mod_bes_tacs_params_t *)(const void *)c->params;
+                area_mcm2[NP_SAFETY_CH_BES_TACS] = NP_BES_ELECTRODE_AREA_MCM2;
+                wave_class[NP_SAFETY_CH_BES_TACS] |=
+                    (p->waveform == 0U) ? NP_CHARGE_WAVE_SINE
+                                        : NP_CHARGE_WAVE_PULSE;
+                declare_phase(phase_us, NP_SAFETY_CH_BES_TACS,
+                              half_period_us(p->freq_mhz));
+                have_electrical = true;
+            } else if (c->mod_type == NP_MOD_CLIN_TACS &&
+                       c->params_len >= sizeof(np_mod_clin_tacs_params_t)) {
+                const np_mod_clin_tacs_params_t *p =
+                    (const np_mod_clin_tacs_params_t *)(const void *)c->params;
+                /* Shares CLIN_STIM with HD-tDCS; classes OR together and the
+                 * MCU runs both checks.  Declares no geometry of its own, so
+                 * it never arms the OI-CHARGE-03 gate (unchanged behaviour). */
+                wave_class[NP_SAFETY_CH_CLIN_STIM] |=
+                    (p->waveform == 0U) ? NP_CHARGE_WAVE_SINE
+                                        : NP_CHARGE_WAVE_PULSE;
+                declare_phase(phase_us, NP_SAFETY_CH_CLIN_STIM,
+                              half_period_us(p->freq_mhz));
+                have_electrical = true;
+            } else if (c->mod_type == NP_MOD_VNS_HRV &&
+                       c->params_len >= sizeof(np_mod_vns_hrv_params_t)) {
+                const np_mod_vns_hrv_params_t *p =
+                    (const np_mod_vns_hrv_params_t *)(const void *)c->params;
+                uint32_t pw = (p->pulse_width_us == 0U)
+                                ? 250UL : (uint32_t)p->pulse_width_us;
+                area_mcm2[NP_SAFETY_CH_VNS_HRV] = NP_VNS_ELECTRODE_AREA_MCM2;
+                wave_class[NP_SAFETY_CH_VNS_HRV] |= NP_CHARGE_WAVE_PULSE;
+                declare_phase(phase_us, NP_SAFETY_CH_VNS_HRV, pw);
+                have_electrical = true;
+            } else if (c->mod_type == NP_MOD_CVNS &&
+                       c->params_len >= sizeof(np_mod_cvns_params_t)) {
+                const np_mod_cvns_params_t *p =
+                    (const np_mod_cvns_params_t *)(const void *)c->params;
+                uint32_t pw = (p->pulse_width_us == 0U)
+                                ? 250UL : (uint32_t)p->pulse_width_us;
+                area_mcm2[NP_SAFETY_CH_CVNS] = NP_CVNS_ELECTRODE_AREA_MCM2;
+                wave_class[NP_SAFETY_CH_CVNS] |= NP_CHARGE_WAVE_PULSE;
+                declare_phase(phase_us, NP_SAFETY_CH_CVNS, pw);
+                have_electrical = true;
             } else {
-                /* modality carries no electrode geometry */
+                /* modality drives no electrode */
             }
         }
 
@@ -374,6 +469,15 @@ np_hub_status_t np_runner_run(void)
         if (have_override || have_tdcs) {
             (void)np_safety_spi_send_channel_limits(area_mcm2,
                                                     NP_SAFETY_MAX_CHANNELS);
+        }
+        if (have_electrical) {
+            /* OI-CHARGE-05 (b): tell the MCU which ceiling each electrical
+             * channel is held to.  No arming bit is needed — the MCU's
+             * declaration gate blocks any electrical channel it has heard
+             * nothing about, so losing this frame costs the session its
+             * electrical modalities rather than their monitoring.            */
+            (void)np_safety_spi_send_channel_waveforms(wave_class, phase_us,
+                                                       NP_SAFETY_MAX_CHANNELS);
         }
     }
 

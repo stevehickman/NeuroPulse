@@ -103,10 +103,15 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
             if (st->type == NP_MOD_BES_TACS) {
                 (void)np_mod_stim_hal_dac_stop(st->active_pair);
                 np_safety_spi_request_disable(NP_SAFETY_EN_BES_TACS);
+                /* OI-CHARGE-05 (c): the published commanded current is cleared
+                 * beside the enable it belongs to, so the heartbeat never
+                 * reports a channel still drawing after it was disabled. */
+                np_safety_spi_set_channel_current(NP_SAFETY_CH_BES_TACS, 0U);
             } else {
                 /* tDCS ramp to zero over 30s before cutting */
                 (void)np_mod_stim_hal_dc_ramp(st->active_pair, 0U, 0U, STIM_MIN_RAMP_S);
                 np_safety_spi_request_disable(NP_SAFETY_EN_TDCS);
+                np_safety_spi_set_channel_current(NP_SAFETY_CH_TDCS, 0U);
             }
             st->active = false;
         }
@@ -131,6 +136,10 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
         st->active_pair = p->electrode_pair;
         st->active = true;
         np_safety_spi_request_enable(NP_SAFETY_EN_BES_TACS);
+        /* OI-CHARGE-05 (c): publish the capped commanded amplitude — the same
+         * number handed to the DAC, so the safety MCU's per-phase check runs
+         * against what was actually commanded, not what was authored. */
+        np_safety_spi_set_channel_current(NP_SAFETY_CH_BES_TACS, amp);
 
     } else { /* tDCS */
         if (len != sizeof(np_mod_tdcs_params_t)) {
@@ -160,6 +169,12 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
         st->active_pair = p->electrode_pair;
         st->active = true;
         np_safety_spi_request_enable(NP_SAFETY_EN_TDCS);
+        /* OI-CHARGE-05 (c): the capped DC target.  Published at the ramp TARGET
+         * rather than tracking the ramp, which over-states delivered charge
+         * during the 30 s ramp-up — the strict direction, and the one that
+         * keeps this a property of the signed descriptor rather than of
+         * hardware timing the MCU cannot verify. */
+        np_safety_spi_set_channel_current(NP_SAFETY_CH_TDCS, current);
     }
 
     return NP_HUB_OK;

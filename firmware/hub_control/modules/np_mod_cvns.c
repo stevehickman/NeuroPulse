@@ -124,6 +124,13 @@ typedef struct {
     /* Cached, non-biology display fields for telemetry() (UHDR-class current /
      * impedance, same as np_mod_stim; NO HR is ever cached here). */
     uint16_t last_current_ua;
+    /* OI-CHARGE-05 (c): the COMMANDED amplitude for this session, taken from
+     * the clamped np_cvns_session_config_t at start.  Distinct from
+     * last_current_ua, which is the library's live display value: the safety
+     * MCU's per-phase check must run against the commanded number (which came
+     * from the signed descriptor and is constant for the session), not against
+     * a ramp-tracking display field. */
+    uint16_t cmd_current_ua;
     float    last_impedance_kohm;
     np_cvns_fault_reason_t last_fault;
 } np_mod_cvns_state_t;
@@ -253,6 +260,12 @@ static void cvns_request_enable(void)
 {
     if (!s_state.enable_requested) {
         np_safety_spi_request_enable(NP_SAFETY_EN_CVNS);
+        /* OI-CHARGE-05 (c): publish the commanded amplitude alongside the
+         * enable, so the safety MCU's per-phase check sees this channel.
+         * cmd_current_ua is the clamped value np_mod_cvns_build_config()
+         * derived from the descriptor at session start. */
+        np_safety_spi_set_channel_current(NP_SAFETY_CH_CVNS,
+                                          s_state.cmd_current_ua);
         s_state.enable_requested = true;
     }
 }
@@ -261,6 +274,7 @@ static void cvns_drop_enable(void)
 {
     if (s_state.enable_requested) {
         np_safety_spi_request_disable(NP_SAFETY_EN_CVNS);
+        np_safety_spi_set_channel_current(NP_SAFETY_CH_CVNS, 0U);
         s_state.enable_requested = false;
     }
 }
@@ -694,6 +708,10 @@ np_hub_status_t np_mod_cvns_control(uint8_t slot, const void *params, uint16_t l
 
     np_cvns_session_config_t cfg;
     np_mod_cvns_build_config(p, &cfg);
+
+    /* OI-CHARGE-05 (c): remember the clamped commanded amplitude for the
+     * heartbeat publish in cvns_request_enable(). */
+    s_state.cmd_current_ua = cfg.current_ua;
 
     /* Begin the library workflow: impedance → cardiac baseline → (grant) → ramp.
      * The unified enable bit is NOT requested here — only once the library

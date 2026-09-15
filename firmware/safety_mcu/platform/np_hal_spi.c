@@ -12,6 +12,7 @@
  *     38 bytes   extended heartbeat   np_safety_rx_ext_frame_t
  *    102 bytes   session signature    np_safety_sig_cmd_t
  *     34 bytes   per-channel limits   np_safety_chan_limit_cmd_t
+ *     76 bytes   per-channel waveform np_safety_chan_wave_cmd_t
  *
  * ── WHY NSS IS POLLED AND NOT AN EXTI SOURCE ─────────────────────────────────
  * Closing a frame requires knowing when NSS went high, and STM32 SPI slaves
@@ -94,6 +95,13 @@ _Static_assert(NP_SAFETY_CMD_FRAME_LEN >= NP_SAFETY_RX_EXT_FRAME_LEN,
                "RX buffer must hold the longest frame");
 _Static_assert(NP_SAFETY_CMD_FRAME_LEN >= NP_SAFETY_CHAN_LIMIT_FRAME_LEN,
                "RX buffer must hold the longest frame");
+_Static_assert(NP_SAFETY_CMD_FRAME_LEN >= NP_SAFETY_CHAN_WAVE_FRAME_LEN,
+               "RX buffer must hold the longest frame");
+/* Length IS the demux, so two frame types may never share a length. */
+_Static_assert(NP_SAFETY_CHAN_WAVE_FRAME_LEN != NP_SAFETY_RX_EXT_FRAME_LEN &&
+               NP_SAFETY_CHAN_WAVE_FRAME_LEN != NP_SAFETY_CMD_FRAME_LEN &&
+               NP_SAFETY_CHAN_WAVE_FRAME_LEN != NP_SAFETY_CHAN_LIMIT_FRAME_LEN,
+               "frame lengths must stay mutually distinct");
 
 /* Frame classification.  Pure and separately named so np_hal_platform_tests.c
  * can drive it over every length — including the ones that must be rejected —
@@ -104,7 +112,8 @@ typedef enum {
     NP_HAL_FRAME_NONE = 0,
     NP_HAL_FRAME_HEARTBEAT,
     NP_HAL_FRAME_SIG_CMD,
-    NP_HAL_FRAME_CHAN_LIMIT
+    NP_HAL_FRAME_CHAN_LIMIT,
+    NP_HAL_FRAME_CHAN_WAVE
 } np_hal_frame_kind_t;
 
 np_hal_frame_kind_t np_hal_spi_classify(uint16_t len);
@@ -113,6 +122,7 @@ np_hal_frame_kind_t np_hal_spi_classify(uint16_t len)
     if (len == NP_SAFETY_RX_EXT_FRAME_LEN)     { return NP_HAL_FRAME_HEARTBEAT; }
     if (len == NP_SAFETY_CMD_FRAME_LEN)        { return NP_HAL_FRAME_SIG_CMD; }
     if (len == NP_SAFETY_CHAN_LIMIT_FRAME_LEN) { return NP_HAL_FRAME_CHAN_LIMIT; }
+    if (len == NP_SAFETY_CHAN_WAVE_FRAME_LEN)  { return NP_HAL_FRAME_CHAN_WAVE; }
     return NP_HAL_FRAME_NONE;
 }
 
@@ -126,10 +136,12 @@ static volatile uint16_t s_rx_len = 0U;
 static uint8_t s_hb[NP_SAFETY_RX_EXT_FRAME_LEN];
 static uint8_t s_cmd[NP_SAFETY_CMD_FRAME_LEN];
 static uint8_t s_clim[NP_SAFETY_CHAN_LIMIT_FRAME_LEN];
+static uint8_t s_wave[NP_SAFETY_CHAN_WAVE_FRAME_LEN];
 
 static volatile bool s_hb_ready   = false;
 static volatile bool s_cmd_ready  = false;
 static volatile bool s_clim_ready = false;
+static volatile bool s_wave_ready = false;
 
 /* Diagnostics.  Not currently reported over the wire — the TX frame has no
  * spare field — but kept because they are the only evidence that would
@@ -275,6 +287,11 @@ static void np_hal_spi_poll(void)
         memcpy(s_clim, (const void *)s_rx, sizeof(s_clim));
         s_clim_ready = true;
         break;
+    case NP_HAL_FRAME_CHAN_WAVE:
+        if (s_wave_ready) { s_overrun_count++; }
+        memcpy(s_wave, (const void *)s_rx, sizeof(s_wave));
+        s_wave_ready = true;
+        break;
     case NP_HAL_FRAME_NONE:
     default:
         s_badlen_count++;
@@ -331,6 +348,21 @@ void np_hal_spi_get_chan_limit(np_safety_chan_limit_cmd_t *cmd_out)
     }
     memcpy(cmd_out, s_clim, sizeof(*cmd_out));
     s_clim_ready = false;
+}
+
+bool np_hal_spi_chan_wave_ready(void)
+{
+    np_hal_spi_poll();
+    return s_wave_ready;
+}
+
+void np_hal_spi_get_chan_wave(np_safety_chan_wave_cmd_t *cmd_out)
+{
+    if (cmd_out == NULL) {
+        return;
+    }
+    memcpy(cmd_out, s_wave, sizeof(*cmd_out));
+    s_wave_ready = false;
 }
 
 void np_hal_spi_send_reply(const uint8_t *buf, uint8_t len)
