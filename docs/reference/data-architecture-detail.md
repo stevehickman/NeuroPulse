@@ -44,7 +44,7 @@ Specific boundary resolutions:
 
 Three phases:
 - **Phase 1** (0–1,000 devices, Year 1): Population-average survival analysis on time-to-failure data
-- **Phase 2** (1,000–10,000 devices, Year 2): Fleet-trained LSTM on HDR sensor trajectories
+- **Phase 2** (1,000–10,000 devices, Year 2): Fleet-trained LSTM on SHDR sensor trajectories
 - **Phase 3** (10,000+ devices, Year 3+): Bayesian personalization — continuously revised RUL predictions
 
 All models version-stamped by hardware revision. New revision falls back to Phase 1 until fleet data accumulates. Models deployed back to devices via OTA — competitive moat grows automatically with fleet size.
@@ -53,7 +53,7 @@ All models version-stamped by hardware revision. New revision falls back to Phas
 
 - **Non-coercion (CHAR-4).** Participation buys *earlier and better maintenance prediction*, never baseline safety. Every §4.2 interlock and every safety-critical reminder fires identically for non-participants; this is asserted in `firmware/shdr/tests/np_accel_shdr_tests.c`, not merely stated.
 - **Selection bias.** The cohort is self-selected and plausibly differs from the fleet in the variable under study — people who opt into a handling study may handle differently. Per `NP-MOD-ID-001` §7.6, a *negative* result generalises comfortably and a positive one sized on a skewed cohort does not.
-- **A known gap in the Phase 2 premise.** Phase 2 is specified as a *"fleet-trained LSTM on HDR sensor trajectories"*, but roughly thirty SHDR fields are boolean flags derived from thresholds frozen before any fleet existed — flag streams, not trajectories. §H obtains real trajectories for one of those thirty. The general remedy is recorded as **OI-EMMC2-13** and is not adopted.
+- **A known gap in the Phase 2 premise.** Phase 2 is specified as a *"fleet-trained LSTM on SHDR sensor trajectories"*, but roughly thirty SHDR fields are boolean flags derived from thresholds frozen before any fleet existed — flag streams, not trajectories. §H obtains real trajectories for one of those thirty. The general remedy is recorded as **OI-EMMC2-13** and is not adopted.
 
 **Reminder engine rules:**
 - Safety-critical: cannot be dismissed — blocks session start
