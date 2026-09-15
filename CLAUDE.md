@@ -1,29 +1,18 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 46 (current)  
+**Revision:** 47 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
 > bear on most conversations and names the file holding the rest. Read a subsidiary file when the
 > task needs it — do not assume a figure or a spec detail is here.
 >
-> **Revision history (Rev 33–46, what changed and why): `docs/reference/claude-md-revision-history.md`.**
-> Rev 46 (2026-09-15) split the single 40 µC/cm² charge ceiling into the two it was always
-> conflating — a per-session DC limit and a per-phase pulsed one — and gave each a citation, because
-> the old figure's only source was this file (§3, §4.2). **This changed a locked decision**; the
-> interlock also went from inert to live.
-> Rev 45 (2026-09-13) made "never asked" and "said stop" distinguishable, so §6.0's *withdrawal
-> stops ALL research data flows* survives the L2 categories a withdrawal leaves ticked (§6.0); no
-> decision changed.
-> Rev 44 (2026-09-10) made the device the last gate on a study descriptor, and split L3's engagement
-> notification from an L2 consent request because silence means the opposite thing in each (§6.2,
-> §6.3); no decision changed.
-> Rev 43 (2026-09-13) relocated §17's mechanics, §4.3–§4.7's spec detail, §2.1's cost columns and
-> §5.1's contents enumerations to subsidiary files; no design decision changed. Rev 42 (2026-09-09)
-> scoped a clinician grant's reach in time, so §6.1's retroactive question has two representable
-> answers rather than one (§6.1). Rev 41 (2026-09-08) made `locales/*.json` the only committed copy
-> of any user-facing string — the per-platform locale files are build outputs now (§17). Read the
-> history file before assuming *why* something is the way it is.
+> **Revision history — every revision from Rev 33 to the current Rev 47, what it changed and why —
+> is `docs/reference/claude-md-revision-history.md`. None of it is summarised here.** That file is
+> the only narrative of *why* an invariant below reads the way it does, which entries changed a
+> locked decision, and which changed none: **read it before assuming why something is the way it
+> is**, and before reopening anything a revision entry settled. Revisions before Rev 33 are in git
+> history and `docs/status/completed-decisions.md`.
 >
 > **Three live constraints that decide whether an answer is safe to give:**
 > 1. **Every T1 configuration is gross-margin negative and every cost figure is a floor** (§2.1).
@@ -45,8 +34,8 @@ only when I `Read` it.
 
 | Section | What moved | File |
 |---------|-----------|------|
-| Header | CLAUDE.md revision history, Rev 33–42 | `docs/reference/claude-md-revision-history.md` |
-| §2.1 · §2.1a · §2.2 · §2.3 · §6.1 | **BOM / COGS / GM% columns + box contents** · implied retail ladder · charger tables + intent signals · consumables · clinician subscription tiers | `docs/reference/commercial-model.md` |
+| Header | **CLAUDE.md revision history — every revision, Rev 33 onward** | `docs/reference/claude-md-revision-history.md` |
+| **§2 in full** · §6.1 | **The configuration table (retail + modalities), BOM / COGS / GM%, box contents, the implied retail ladder, charger tables + intent signals, and every consumable row** — §2 keeps the rules and not one figure · clinician subscription tiers | `docs/reference/commercial-model.md` |
 | §3 | Full T1 + T2 modality specifications | `docs/reference/modality-stack.md` |
 | **§4.3 · §4.4 · §4.5 · §4.7** | **Per-layer shielding stack · fit-system specs · power/PD/runtime table · status-LED behaviour** | `docs/reference/hardware-detail.md` |
 | §5.1 · §5.2 · §5.3 | **Full UHDR/SHDR contents enumerations** · per-field boundary resolutions · predictive maintenance · anonymization pipeline | `docs/reference/data-architecture-detail.md` |
@@ -75,16 +64,16 @@ only when I `Read` it.
 | Formal DHF index (source of truth for design records) | 510(k) / design-control work | `docs/np_dhf_001.md` |
 | **Manufactured artifact register + documentation readiness** (what we build; which tooling spec / risk register / FAI checklist exists, and what blocks the rest) | asking "does X have a spec / an FAI / a risk register yet?", or planning tooling work | `docs/np_art_001.md` |
 | FAI programme (method, issue conditions, PDMS-bond + ingress qualifications) | writing or running any first article inspection | `docs/np_fai_001.md` |
-| Risk file — index + disposition of the retired RISK-01…26 register | any ISO 14971 / hazard question | `docs/np_risk_002.md` |
+| Risk file — the ISO 14971 index, and the disposition of every RISK-01…26 ID | any ISO 14971 / hazard question | `docs/np_risk_002.md` |
 | Risk registers — hex-tile module · shell/socket/interconnect/hub | per-artifact hazard work | `docs/np_risk_003.md` · `docs/np_risk_004.md` |
 | Hex-tile mould tooling specification | tile mould / BOM / mechanical work | `docs/np_tool_hextile_001.md` |
 | Shell interconnect design review record (gates shell tooling first cut) | shell tooling release | `docs/np_rev_shell_001.md` |
-| **Retired documents** — index with successors named | tracing why something changed | `docs/superseded/README.md` |
+| **Earlier document versions** — index naming the current document for each | you have a figure or a file and need to confirm it is the current one | `docs/superseded/README.md` |
 
 > The three `docs/status/` files are large logs, not narratives — each opens with a "How to read
 > this file" block giving the grep recipes to reach one entry without reading the whole file. They
-> also overlap heavily with the DHF index (`docs/np_dhf_001.md`) and git history; a dedup pass
-> against the DHF is a flagged follow-up.
+> also overlap heavily with the DHF index (`docs/np_dhf_001.md`) and git history. **The DHF is the
+> source of truth where they disagree**; the dedup pass against it is `OI-CONV-07`.
 
 ---
 
@@ -108,58 +97,42 @@ Two-tier platform sharing a single chassis, processor stack, app, and USB-C conn
 
 ---
 
-## 2. CONFIGURATIONS + PRICING (🔓 retail UNLOCKED 2026-08-16; charger policy §2.2 still locked)
+## 2. CONFIGURATIONS + PRICING (🔓 retail UNLOCKED 2026-08-16; charger policy §2.2 still locked) → `docs/reference/commercial-model.md`
 
-### 2.1 Integrated system configurations (cost columns → `docs/reference/commercial-model.md`)
+**Every §2 figure and table is in `docs/reference/commercial-model.md` §2.1–§2.3** (Rev 47) — retail
+in force, BOM/COGS/GM%, modalities per configuration, box contents, the implied ladder, the charger
+table and its intent signals, every consumable's price/interval/margin. **§2 holds no number.** The
+six configurations, by tier (§1: T1 is FDA-exempt wellness, T2 a 510(k) target) — **T1:** Core — EEG
+only · Home Lite · Home Standard ★ (flagship) · Home Premium. **T2:** Pro Entry · Pro Full.
 
-> **⚠ Every T1 configuration is gross-margin negative at the prices in force, and every cost figure in
-> the document set is a FLOOR, not an estimate** — each excludes the uncosted term **U**, because
-> `OI-HEXTILE-02` has selected no 660/808 nm emitter and **OI-HUB-C08 therefore cannot be closed**.
-> Retail prices are the prices currently in force, **not a decision** — unlocking the constraint set
-> no price, and **`OI-HEXTILE-06` must be decided before any price is set** (`OI-COST-10`).
->
-> **BOM, COGS and GM% are not in this file** — no figure may be quoted, cited or acted on without
-> first reading `docs/np_cost_001.md`. Those three columns and the full caveats:
-> `docs/reference/commercial-model.md` §2.1.
+### 2.1 Integrated system configurations → `docs/reference/commercial-model.md` §2.1
 
-| Config | Tier | Retail (in force, 🔓 unlocked) | Modalities included |
-|--------|------|--------|---------------------|
-| Core — EEG only | T1 | $449 | 4-ch EEG · all connectivity · EMF shielding · processor stack · 8GB eMMC |
-| Home Lite | T1 | $599 | Core + PBM tiles (660+810nm) · 8-ch EEG · VNS+HRV clip |
-| Home Standard ★ (flagship) | T1 | $849 | All T1 modalities (see §3) |
-| Home Premium | T1 | $1,199 | All T1 + EC lens (+$89 value) · 2yr warranty · priority support |
-| Pro Entry | T2 | $4,999 | All T1 + 21-ch qEEG · 1170nm deep PBM · clinical tACS · HIPAA cloud · sLORETA |
-| Pro Full | T2 | $13,999 | All T2 + TMS hub · multi-patient dashboard · scripting API · FHIR R4 · $1,800/yr service |
+**Every T1 configuration is gross-margin negative at the prices in force, and every cost figure in
+the document set is a FLOOR** — each excludes the uncosted term **U**, because `OI-HEXTILE-02` has
+selected no 660/808 nm emitter and **OI-HUB-C08 therefore cannot be closed**. Retail prices are the
+prices in force, **not a decision**, and **`OI-HEXTILE-06` must be decided before any price is set**
+(`OI-COST-10`). **No BOM, COGS, GM% or retail figure may be quoted, cited or acted on without first
+reading `docs/np_cost_001.md`.**
 
-**★** Home Standard box contents: `docs/reference/commercial-model.md` §2.1.
+### 2.1a Implied retail ladder (implied, NOT set) → `docs/reference/commercial-model.md` §2.1a
 
-### 2.1a Implied retail ladder (implied, NOT set) → `docs/reference/commercial-model.md`
+**Break-even binds before margin does:** every T1 break-even already exceeds its price in force, so
+no margin target is reachable today and the binding number is break-even, not the target. Both Pro
+rows are profitable, so Pro is where the *target*, not the cost, is the thing to question. The T1 and
+T2 ladders **collide** (`OI-COST-08`), and every competitive price claim is live again (`OI-COST-09`).
 
-Retail = COGS ÷ (1 − original GM target), inheriting §2.1's floor status. **Break-even binds before
-margin does:** every T1 configuration's break-even already exceeds its price in force, so no margin
-target is reachable at today's prices and the binding number is break-even, not the target. Both Pro
-rows are profitable today, so Pro is where the *target*, not the cost, is the thing to question. Two consequences the lock was concealing: the T1
-and T2 ladders **collide** (`OI-COST-08`), and every competitive price claim is live again
-(`OI-COST-09`). **Every figure — break-even, target-margin retail, per-unit result — is in
-`docs/reference/commercial-model.md` §2.1a**, with the four things to weigh first; derivation:
-`NP-COST-001` §8.
+### 2.2 Charger policy (locked) → `docs/reference/commercial-model.md` §2.2
 
-### 2.2 Charger policy (locked) → `docs/reference/commercial-model.md`
+**Keyed to peak draw (§4.5), not price — unaffected by the retail unlock**; auto-included at every
+upgrade by serial-number tracking. **EU:** chargers are branded recommendations, never proprietary
+requirements; **any PD-compliant charger must work, and the app informs ("power level: reduced"),
+never blocks.**
 
-Charger scaled to **peak draw** of the configuration (15W Core → 65W ×2 Pro Full), auto-included at
-every upgrade by serial-number tracking; a $19 at-cost 65W upgrade at checkout doubles as an intent
-signal. **Keyed to peak draw, not price — unaffected by the retail unlock.** **EU:** chargers are
-branded recommendations, never proprietary requirements; any PD-compliant charger must work and the
-app informs ("power level: reduced"), never blocks. Per-config tables and the intent-signal
-follow-ups: `docs/reference/commercial-model.md` §2.2.
+### 2.3 Consumables + recurring revenue → `docs/reference/commercial-model.md` §2.3
 
-### 2.3 Consumables + recurring revenue → `docs/reference/commercial-model.md`
-
-Intranasal hygiene sleeves ($19/pack or $19/mo, 68–79% GM) are the **only authenticated consumable**
-and the primary MRR driver; electrode hydrogel tips, VNS clip pads, audio foam/mesh, interface covers,
-S3 Rx inserts and the $1,800/yr T2 service contract follow. All consumable prompts are
-measurement-triggered (§5.2), never calendar-triggered. Full price/interval/GM table:
-`docs/reference/commercial-model.md` §2.3.
+Intranasal hygiene sleeves are the **only authenticated consumable** and the primary MRR driver.
+**All consumable prompts are measurement-triggered (§5.2), never calendar-triggered** — a consumable
+with no measurement gets no prompt; inventing a trigger is design work, not a documentation edit.
 
 ---
 
@@ -435,13 +408,16 @@ supplying the signature check (`OI-CONSENT-07`). Gate table:
 
 ---
 
-## 16. NAMING CONVENTION CHANGES
+## 16. NAMING CONVENTION
 
-**Retired term:** "Health Data Record (HDR)" — ambiguous, replaced throughout all documents.
-**Replacement:** `UHDR` = User Health Data Record (user's property, never accessed by NeurOne) ·
-`SHDR` = System Health Data Record (NeurOne property, device-linked only, never user-linked). Both
-appear in full on first use in each document, abbreviated thereafter. Signal names, document IDs,
-`§N` citation form and the other identifier families are `docs/np_conv_001.md` (NP-CONV-001).
+**Never name a health data record "HDR" or "Health Data Record"** — the term does not say whose
+record it is, which is the one thing §5 turns on. There are exactly two, and every reference names
+one of them: `UHDR` = User Health Data Record (user's property, never accessed by NeurOne) · `SHDR` =
+System Health Data Record (NeurOne property, device-linked only, never user-linked). Both appear in
+full on first use in each document, abbreviated thereafter. (`HDR` meaning a binary *header* —
+`blob(n) = HDR(8) + …` in the LittleFS and NVRAM documents — is a different word and is fine.)
+Signal names, document IDs, `§N` citation form and the other identifier families are
+`docs/np_conv_001.md` (NP-CONV-001).
 
 ## 17. LOCALIZED STRINGS — CODE GENERATION RULE (locked 2026-09-03; single-source 2026-09-08) → `docs/reference/localization.md`
 
