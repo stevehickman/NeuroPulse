@@ -8,10 +8,14 @@
 //  Subject under test: NPProtocolValidator (app/ios/NeurOne/Protocol/NPProtocolValidator.swift)
 //
 //  Validator coverage (all gaps now closed — ISC-37, ISC-38, ISC-47):
-//    (a) Charge density (mC/cm²) — implemented 2026-06-04, model corrected 2026-09-09 by
-//        OI-CHARGE-04. Formula: I(mA) × t(s) / A(cm²) where A is the area of ONE electrode,
-//        declared by the protocol as NPTDCSParams.electrodeAreaCm2 and carried to the safety
-//        MCU in the signed descriptor. Ceiling: NPHardwareLimits.tdcsMaxChargeDensityUCcm2 (40).
+//    (a) DC per-session charge density (mC/cm²) — implemented 2026-06-04, model corrected
+//        2026-09-09 by OI-CHARGE-04, ceiling re-sourced 2026-09-15 by OI-CHARGE-05.
+//        Formula: I(mA) × t(s) / A(cm²) where A is the area of ONE electrode, declared by
+//        the protocol as NPTDCSParams.electrodeAreaCm2 and carried to the safety MCU in the
+//        signed descriptor. Ceiling: NPHardwareLimits.tdcsMaxSessionChargeDensityMCcm2 (150),
+//        renamed from tdcsMaxChargeDensityUCcm2 (40) — the old name's unit was wrong by
+//        1000× and its missing period hid that a per-PHASE pulsed figure was being applied
+//        to a DC session dose. The comparison is >=, matching the safety MCU's comparator.
 //        Until the correction this divided by tdcsDefaultElectrodeAreaCm2 × the count of every
 //        electrode in the montage — an app-side assumption the enforcer never saw, and a sum
 //        that under-reported the density at each electrode (70 cm² for one pair against the
@@ -94,35 +98,64 @@ final class NPProtocolValidatorTests: XCTestCase {
     // MARK: - testChargeDensityOverLimitRejected (intended-behavior spec)
 
     func testChargeDensityOverLimitRejected() {
-        // 2.0 mA × 3600s / 35 cm² (ONE electrode) = 205.7 mC/cm² — over 40.
+        // 2.0 mA × 3600s / 35 cm² (ONE electrode) = 205.7 mC/cm² — over 150.
         let tdcs = NPTDCSParams(intensityMilliamps: 2.0, electrodePairs: [["Fp1", "P3"]])
         let def = protocolWith(.tdcs(tdcs), interval: .continuous, durationSeconds: 60 * 60)
         let result = hardwareOnlyValidator().validate(def)
 
         XCTAssertTrue(
             result.errors.contains { $0.parameterKey.lowercased().contains("charge") },
-            "Charge density over 40 mC/cm² must be rejected with a charge-density error."
+            "Charge density over 150 mC/cm² must be rejected with a charge-density error."
         )
     }
 
     // MARK: - testChargeDensityBorderlineValid (intended-behavior spec)
 
     func testChargeDensityBorderlineValid() {
-        // The ceiling is inclusive: 1.4 mA × 1000s / 35 cm² = exactly 40.0 mC/cm².
+        // Just under the ceiling: 1.4 mA × 3749s / 35 cm² = 149.96 mC/cm².
         //
         // This fixture used to be 2.0 mA at the default 20-minute duration and asserted
-        // valid, which it was only because the retired summed-area model divided by 70 cm²
-        // (34.3 mC/cm²). Per electrode that same protocol is 68.6 mC/cm² — over the ceiling,
-        // and it is the safety MCU that was going to say so, mid-session. The test now
-        // constructs the boundary it always claimed to be testing.
+        // valid, which it was only because the retired summed-area model divided by 70 cm².
+        // OI-CHARGE-04 rebuilt it at the boundary it always claimed to test; OI-CHARGE-05
+        // moved the boundary (40 → 150 mC/cm², now with a derivation behind it) and made
+        // the comparison inclusive, because the safety MCU trips at >= and an app that
+        // accepted exactly the ceiling would sign a session the device cuts.
         let tdcs = NPTDCSParams(intensityMilliamps: 1.4, electrodePairs: [["Fp1", "P3"]],
                                 electrodeAreaCm2: 35.0)
-        let def = protocolWith(.tdcs(tdcs), durationSeconds: 1000)
+        let def = protocolWith(.tdcs(tdcs), durationSeconds: 3749)
         let result = hardwareOnlyValidator().validate(def)
 
         XCTAssertTrue(
             result.isValid,
-            "A tDCS protocol exactly at the inclusive charge-density ceiling must be accepted."
+            "A tDCS protocol just under the charge-density ceiling must be accepted."
+        )
+    }
+
+    /// The enforcer trips AT the ceiling, so the pre-flight must too (OI-CHARGE-05).
+    func testChargeDensityAtCeilingRejected() {
+        // 1.4 mA × 3750s / 35 cm² = exactly 150.0 mC/cm².
+        let tdcs = NPTDCSParams(intensityMilliamps: 1.4, electrodePairs: [["Fp1", "P3"]],
+                                electrodeAreaCm2: 35.0)
+        let result = hardwareOnlyValidator().validate(
+            protocolWith(.tdcs(tdcs), durationSeconds: 3750))
+        XCTAssertTrue(
+            result.errors.contains { $0.parameterKey == "chargeDensityMCcm2" },
+            "Exactly at the ceiling must be rejected — np_charge_monitor.c trips at >=."
+        )
+    }
+
+    /// The clinical consequence OI-CHARGE-05 (d) weighed, pinned so a later change to the
+    /// ceiling cannot quietly take it away again. At the retired 40 the routine protocol
+    /// was unavailable and 13 of the 14 shipped predefined tDCS protocols exceeded it.
+    func testRoutineTwoMilliampTwentyMinuteProtocolAccepted() {
+        // 2 mA × 1200s / 35 cm² = 68.6 mC/cm² — the single most common protocol in the
+        // literature and the median of docs/tdcs_database_full.csv.
+        let tdcs = NPTDCSParams(intensityMilliamps: 2.0, electrodePairs: [["F3", "F4"]],
+                                electrodeAreaCm2: 35.0)
+        XCTAssertFalse(
+            hardwareOnlyValidator().validate(protocolWith(.tdcs(tdcs), durationSeconds: 1200))
+                .errors.contains { $0.parameterKey == "chargeDensityMCcm2" },
+            "2 mA × 20 min on a 35 cm² pad must be available."
         )
     }
 
@@ -131,16 +164,18 @@ final class NPProtocolValidatorTests: XCTestCase {
     /// Density is per electrode, so adding pairs must never make a protocol pass that a
     /// single pair fails. The summed-area model got 2× more permissive with each pair.
     func testChargeDensityDoesNotRelaxWithMoreElectrodePairs() {
-        // 1.0 mA × 1500s / 35 cm² = 42.9 mC/cm² — over 40 whatever the montage.
+        // 1.0 mA × 6000s / 35 cm² = 171.4 mC/cm² — over 150 whatever the montage.
+        // The retired summed model divided the pair's two pads (70 cm²), got 85.7, and
+        // accepted it.
         for pairs in [[["F3", "F4"]],
                       [["F3", "F4"], ["P3", "P4"]],
                       [["F3", "F4"], ["P3", "P4"], ["Fz", "Pz"]]] {
             let tdcs = NPTDCSParams(intensityMilliamps: 1.0, electrodePairs: pairs,
                                     electrodeAreaCm2: 35.0)
-            let def = protocolWith(.tdcs(tdcs), durationSeconds: 1500)
+            let def = protocolWith(.tdcs(tdcs), durationSeconds: 6000)
             let result = hardwareOnlyValidator().validate(def)
             XCTAssertTrue(
-                result.errors.contains { $0.parameterKey == "chargeDensityUCcm2" },
+                result.errors.contains { $0.parameterKey == "chargeDensityMCcm2" },
                 "\(pairs.count) pair(s): over-ceiling density must be rejected regardless of montage size."
             )
         }
@@ -148,20 +183,20 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     /// A smaller declared pad is stricter — which is the whole point of declaring it.
     func testSmallerDeclaredElectrodeAreaIsStricter() {
-        // 1.0 mA × 1100s = 1100 mC. On 35 cm²: 31.4 mC/cm², accepted. On 25 cm²: 44.0, rejected.
+        // 1.0 mA × 4000s = 4000 mC. On 35 cm²: 114.3 mC/cm², accepted. On 25 cm²: 160.0, rejected.
         let big = NPTDCSParams(intensityMilliamps: 1.0, electrodePairs: [["F3", "F4"]],
                                electrodeAreaCm2: 35.0)
         let small = NPTDCSParams(intensityMilliamps: 1.0, electrodePairs: [["F3", "F4"]],
                                  electrodeAreaCm2: 25.0)
         XCTAssertFalse(
-            hardwareOnlyValidator().validate(protocolWith(.tdcs(big), durationSeconds: 1100))
-                .errors.contains { $0.parameterKey == "chargeDensityUCcm2" },
-            "35 cm² pad at 31.4 mC/cm² must be accepted."
+            hardwareOnlyValidator().validate(protocolWith(.tdcs(big), durationSeconds: 4000))
+                .errors.contains { $0.parameterKey == "chargeDensityMCcm2" },
+            "35 cm² pad at 114.3 mC/cm² must be accepted."
         )
         XCTAssertTrue(
-            hardwareOnlyValidator().validate(protocolWith(.tdcs(small), durationSeconds: 1100))
-                .errors.contains { $0.parameterKey == "chargeDensityUCcm2" },
-            "25 cm² pad at 44.0 mC/cm² must be rejected."
+            hardwareOnlyValidator().validate(protocolWith(.tdcs(small), durationSeconds: 4000))
+                .errors.contains { $0.parameterKey == "chargeDensityMCcm2" },
+            "25 cm² pad at 160.0 mC/cm² must be rejected."
         )
     }
 
@@ -177,7 +212,7 @@ final class NPProtocolValidatorTests: XCTestCase {
             "A zero electrode area must be rejected as a geometry error."
         )
         XCTAssertFalse(
-            result.errors.contains { $0.parameterKey == "chargeDensityUCcm2" },
+            result.errors.contains { $0.parameterKey == "chargeDensityMCcm2" },
             "A zero area must not also report an infinite charge density — one defect, one message."
         )
     }
@@ -196,14 +231,95 @@ final class NPProtocolValidatorTests: XCTestCase {
     // MARK: - testChargeDensityBorderlineInvalid (intended-behavior spec)
 
     func testChargeDensityBorderlineInvalid() {
-        // 2.0 mA × 3600s / 35 cm² = 205.7 mC/cm² — over 40, must be rejected.
+        // 2.0 mA × 3600s / 35 cm² = 205.7 mC/cm² — over 150, must be rejected.
         let tdcs = NPTDCSParams(intensityMilliamps: 2.0, electrodePairs: [["Fp1", "P3"]])
         let def = protocolWith(.tdcs(tdcs), durationSeconds: 60 * 60)
         let result = hardwareOnlyValidator().validate(def)
 
         XCTAssertTrue(
             result.errors.contains { $0.parameterKey.lowercased().contains("charge") },
-            "Charge density over the 40 mC/cm² ceiling must be rejected."
+            "Charge density over the 150 mC/cm² ceiling must be rejected."
+        )
+    }
+
+    // MARK: - OI-CHARGE-05 (b): per-phase charge density for charge-balanced modalities
+
+    /// The session-cumulative DC dose must NEVER be applied to a charge-balanced
+    /// modality: net delivered charge is ~zero by construction, so integrating |I| over a
+    /// session measures nothing physical. The safety MCU did exactly that until
+    /// 2026-09-15, which would have tripped every one of these in 0.4–1.0 s.
+    func testChargeBalancedModalityHasNoSessionDose() {
+        let bes = NPBESTacsParams(frequencyHz: 10, intensityMilliamps: 1.0, waveform: .sinusoidal)
+        for seconds in [3600, 36000] {
+            let result = hardwareOnlyValidator().validate(
+                protocolWith(.besTacs(bes), durationSeconds: seconds))
+            XCTAssertFalse(
+                result.errors.contains { $0.parameterKey == "chargeDensityMCcm2" },
+                "\(seconds)s of tACS must raise no session-dose error — the waveform is charge balanced."
+            )
+        }
+    }
+
+    /// Each pulsed modality passes at its rated worst case.
+    func testPulsedModalitiesPassAtRatedMaximum() {
+        // VNS: 2 mA × 250 µs = 0.5 µC on a 0.5 cm² clip pad = 1.0 µC/cm², 2.5% of ceiling.
+        let vns = NPVNSHRVParams(frequencyHz: 25, intensityMilliamps: 2.0)
+        XCTAssertFalse(
+            hardwareOnlyValidator().validate(protocolWith(.vnsHRV(vns)))
+                .errors.contains { $0.parameterKey == "phaseChargeDensityUCcm2" },
+            "VNS at its rated 2 mA / 250 µs must pass."
+        )
+
+        // Cervical VNS: 0.5 µC on a 2 cm² collar pad = 0.25 µC/cm².
+        let cvns = NPCervicalVnsParams(frequencyHz: 25, intensityMilliamps: 2.0)
+        XCTAssertFalse(
+            hardwareOnlyValidator().validate(protocolWith(.cervicalVns(cvns)))
+                .errors.contains { $0.parameterKey == "phaseChargeDensityUCcm2" },
+            "Cervical VNS at its rated 2 mA must pass."
+        )
+
+        // tACS at the band bottom, where phase charge is LARGEST: 1 mA at 0.5 Hz is a
+        // 1 s half-period. Sinusoidal, so 2/π × 1000 µC = 636.6 µC ÷ 25 cm² = 25.5 µC/cm².
+        let tacs = NPBESTacsParams(frequencyHz: 0.5, intensityMilliamps: 1.0, waveform: .sinusoidal)
+        XCTAssertFalse(
+            hardwareOnlyValidator().validate(protocolWith(.besTacs(tacs)))
+                .errors.contains { $0.parameterKey == "phaseChargeDensityUCcm2" },
+            "1 mA sinusoidal tACS at the 0.5 Hz band bottom must pass."
+        )
+    }
+
+    /// The 2/π factor is load-bearing, not a refinement. Identical amplitude and phase
+    /// duration; only the waveform differs. A square wave delivers the full I × T
+    /// (1000 µC ÷ 25 cm² = 40.0 µC/cm², exactly the ceiling, refused); the sinusoid
+    /// delivers 2/π of it and passes. The safety MCU applies the same factor.
+    func testSineFactorAppliesOnlyToSinusoids() {
+        let square = NPBESTacsParams(frequencyHz: 0.5, intensityMilliamps: 1.0, waveform: .square)
+        XCTAssertTrue(
+            hardwareOnlyValidator().validate(protocolWith(.besTacs(square)))
+                .errors.contains { $0.parameterKey == "phaseChargeDensityUCcm2" },
+            "A 1 mA square wave at 0.5 Hz is 40.0 µC/cm² per phase and must be rejected."
+        )
+        let sine = NPBESTacsParams(frequencyHz: 0.5, intensityMilliamps: 1.0, waveform: .sinusoidal)
+        XCTAssertFalse(
+            hardwareOnlyValidator().validate(protocolWith(.besTacs(sine)))
+                .errors.contains { $0.parameterKey == "phaseChargeDensityUCcm2" },
+            "The same settings as a sinusoid are 25.5 µC/cm² and must be accepted."
+        )
+    }
+
+    /// Lower frequency means a longer phase means more charge per phase.
+    func testPhaseChargeGetsStricterAsFrequencyFalls() {
+        let slow = NPBESTacsParams(frequencyHz: 0.4, intensityMilliamps: 1.0, waveform: .square)
+        XCTAssertTrue(
+            hardwareOnlyValidator().validate(protocolWith(.besTacs(slow)))
+                .errors.contains { $0.parameterKey == "phaseChargeDensityUCcm2" },
+            "0.4 Hz square at 1 mA is a 1.25 s phase = 50 µC/cm² and must be rejected."
+        )
+        let fast = NPBESTacsParams(frequencyHz: 1.0, intensityMilliamps: 1.0, waveform: .square)
+        XCTAssertFalse(
+            hardwareOnlyValidator().validate(protocolWith(.besTacs(fast)))
+                .errors.contains { $0.parameterKey == "phaseChargeDensityUCcm2" },
+            "1 Hz halves the phase and must be accepted."
         )
     }
 

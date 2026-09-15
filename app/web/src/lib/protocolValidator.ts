@@ -594,27 +594,28 @@ export function validateProtocol(
     }
   }
 
-  // ─── tDCS charge density (OI-CHARGE-04) ──────────────────────────────────
-  // Until 2026-09-09 the web carried tdcsMaxChargeDensityUCcm2 and checked
-  // nothing against it, because it had no electrode area to divide by. It has
-  // one now, and it is the SAME number the safety MCU enforces against —
-  // authored per protocol and transmitted in the signed descriptor.
+  // ─── DC per-session charge density (OI-CHARGE-04, re-sourced OI-CHARGE-05) ──
+  // Until 2026-09-09 the web carried the ceiling and checked nothing against
+  // it, because it had no electrode area to divide by. It has one now, and it
+  // is the SAME number the safety MCU enforces against — authored per protocol
+  // and transmitted in the signed descriptor.
   //
   // Charge density is PER ELECTRODE: the full session current passes through
   // each electrode of a pair, so the denominator is one electrode's area. It
   // is not the sum of every electrode's area — that models a current split
   // across electrodes that never happens, and it under-reports the density at
-  // every one of them. iOS and Android divided by that sum until this change,
+  // every one of them. iOS and Android divided by that sum until 2026-09-09,
   // which is what made their pre-flight ~2.8× more permissive than the
   // enforcer for a single pair (35 × 2 = 70 cm² against the MCU's 25).
-  // UNITS (OI-CHARGE-05, corrected 2026-09-09): `I(mA) × t(s) / A(cm²)` yields
-  // **mC/cm²**, because mA × s = mC. This check therefore enforces 40 mC/cm² —
-  // the clinically recognised human tDCS figure — and until 2026-09-09 said
-  // "µC/cm²" in its message while doing so. The safety MCU enforces 40 µC/cm²
-  // for real (NP_CHARGE_LIMIT_UC_CM2 against an accumulator genuinely in nC),
-  // so the two sides are 1000× apart. Which is correct is OI-CHARGE-05's to
-  // decide, and it is a larger divergence than the area/model one OI-CHARGE-04
-  // closed; the mislabel is what hid it. Nothing here is changed but the label.
+  //
+  // UNITS AND PERIOD (OI-CHARGE-05, resolved 2026-09-15). `I(mA) × t(s) / A(cm²)`
+  // yields **mC/cm²**, because mA × s = mC — so this expression was never
+  // computing the µC/cm² its constant was named for, and the two sides were
+  // 1000× apart. The resolution is not to pick one: they are ceilings on
+  // DIFFERENT QUANTITIES. This is the DC per-session dose, in mC/cm², and it
+  // applies to tDCS and HD-tDCS only. The 40 µC/cm² figure is a PER-PHASE
+  // pulsed limit and now lives in the separate check below, where it is
+  // correct. See NP-DT-001 DI-SAFE-01 / DI-SAFE-01a.
   if (definition.timingMode.type === 'duration' && definition.timingMode.seconds > 0) {
     const hw  = NPHardwareLimits;
     const dur = definition.timingMode.seconds;
@@ -624,13 +625,112 @@ export function validateProtocol(
       const area = mp.params.electrodeAreaCm2;
       if (!(area > 0)) continue;   // already reported by the per-modality check
       const chargeDensity = (mp.params.intensityMilliamps * dur) / area;
-      if (chargeDensity > hw.tdcsMaxChargeDensityUCcm2) {
+      // >=, not >, because the safety MCU trips at >= (np_charge_monitor.c:
+      // `s_charge_nc[ch] >= session_limit_nc(ch)`). Accepting a protocol that
+      // lands exactly ON the ceiling would hand the user a session the
+      // enforcer cuts — the app/enforcer fidelity defect OI-CHARGE-04 exists
+      // to prevent, in its smallest form. Corrected with OI-CHARGE-05.
+      if (chargeDensity >= hw.tdcsMaxSessionChargeDensityMCcm2) {
         issues.push(issue(
-          'error', 'tdcs', 'chargeDensityUCcm2', t('VALIDATE_PARAM_CHARGE_DENSITY'),
+          'error', 'tdcs', 'chargeDensityMCcm2', t('VALIDATE_PARAM_CHARGE_DENSITY'),
           `${chargeDensity.toFixed(1)} mC/cm²`,
-          `${hw.tdcsMaxChargeDensityUCcm2} mC/cm²`, 'hardware',
+          `${hw.tdcsMaxSessionChargeDensityMCcm2} mC/cm²`, 'hardware',
           t('VALIDATE_MSG_TDCS_CHARGEDENSITY',
-            { 0: chargeDensity.toFixed(1), 1: hw.tdcsMaxChargeDensityUCcm2 })
+            { 0: chargeDensity.toFixed(1), 1: hw.tdcsMaxSessionChargeDensityMCcm2 })
+        ));
+      }
+    }
+  }
+
+  // ─── Pulsed / AC per-phase charge density (OI-CHARGE-05 (b)) ──────────────
+  // BES/tACS, VNS, cervical VNS and clinical tACS are charge-balanced biphasic:
+  // net delivered charge over a session is ~zero, so the session-cumulative
+  // check above is not a physical quantity for them and is deliberately not
+  // applied. What has a damage threshold behind it is charge PER PHASE, and
+  // that is what the safety MCU enforces on these channels.
+  //
+  // This check exists so the app rejects what the enforcer will reject — the
+  // same pre-flight-fidelity reason OI-CHARGE-04 existed for. Without it a
+  // protocol could be authored and signed here and then be held off the
+  // granted mask on device, which presents as a modality that silently never
+  // starts.
+  //
+  // The phase duration is the half-period for a periodic waveform and the
+  // pulse width for a pulse train. VNS and cervical VNS do not author a pulse
+  // width, so the firmware's own 250 µs default is used — the same number
+  // np_mod_cvns.c and np_session_runner.c substitute.
+  {
+    const hw = NPHardwareLimits;
+    const PULSE_WIDTH_DEFAULT_S = 250e-6;
+
+    // Peak-to-mean factor over one phase: a sinusoid delivers 2/π of what a
+    // rectangular phase of the same duration and peak amplitude does. The
+    // safety MCU applies the same factor (as the integer 2000/3141), and
+    // omitting it here would make the app 57% stricter than the enforcer at
+    // the 0.5 Hz bottom of the tACS band, rejecting protocols the device
+    // would have run.
+    const SINE_PHASE_FACTOR = 2 / Math.PI;
+
+    for (const block of enabled) {
+      const mp = block.modalityParams;
+      let amplitudeMa: number;
+      let phaseSeconds: number;
+      let areaCm2: number;
+      let waveform: string;
+      let label: string;
+
+      switch (mp.type) {
+        case 'bes_tacs':
+          amplitudeMa  = mp.params.intensityMilliamps;
+          phaseSeconds = mp.params.frequencyHz > 0 ? 1 / (2 * mp.params.frequencyHz) : 0;
+          areaCm2      = hw.besElectrodeAreaCm2;
+          waveform     = mp.params.waveform;
+          label        = t('MODALITY_BES_TACS_NAME');
+          break;
+        case 'clinical_tacs':
+          amplitudeMa  = mp.params.intensityMilliamps;
+          phaseSeconds = mp.params.frequencyHz > 0 ? 1 / (2 * mp.params.frequencyHz) : 0;
+          areaCm2      = hw.besElectrodeAreaCm2;
+          waveform     = mp.params.waveform;
+          label        = t('MODALITY_CLINICAL_TACS_NAME');
+          break;
+        case 'vns_hrv':
+          amplitudeMa  = mp.params.intensityMilliamps;
+          phaseSeconds = PULSE_WIDTH_DEFAULT_S;
+          areaCm2      = hw.vnsElectrodeAreaCm2;
+          waveform     = 'square';
+          label        = t('MODALITY_VNS_HRV_NAME');
+          break;
+        case 'cervical_vns':
+          amplitudeMa  = mp.params.intensityMilliamps;
+          phaseSeconds = PULSE_WIDTH_DEFAULT_S;
+          areaCm2      = hw.cervicalVnsElectrodeAreaCm2;
+          waveform     = 'square';
+          label        = t('MODALITY_CERVICAL_VNS_NAME');
+          break;
+        default:
+          continue;
+      }
+
+      if (!(amplitudeMa > 0) || !(phaseSeconds > 0) || !(areaCm2 > 0)) continue;
+
+      // mA × s = mC; × 1000 → µC.
+      const rectangularUC = amplitudeMa * phaseSeconds * 1000;
+      const phaseUC = waveform === 'sinusoidal'
+        ? rectangularUC * SINE_PHASE_FACTOR
+        : rectangularUC;
+      const phaseDensity = phaseUC / areaCm2;
+
+      // >=, matching the safety MCU's comparator exactly — see the DC check above.
+      if (phaseDensity >= hw.pulsedMaxPhaseChargeDensityUCcm2) {
+        issues.push(issue(
+          'error', mp.type, 'phaseChargeDensityUCcm2',
+          t('VALIDATE_PARAM_PHASE_CHARGE_DENSITY'),
+          `${phaseDensity.toFixed(1)} µC/cm²`,
+          `${hw.pulsedMaxPhaseChargeDensityUCcm2} µC/cm²`, 'hardware',
+          t('VALIDATE_MSG_PULSED_PHASECHARGE',
+            { 0: label, 1: phaseDensity.toFixed(1),
+              2: hw.pulsedMaxPhaseChargeDensityUCcm2 })
         ));
       }
     }
