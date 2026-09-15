@@ -20,12 +20,16 @@
 | VNS + HRV | Auricular electrical + PPG | + cervical option | Optical VNS (separate) | No | HRV only | No |
 | Audio entrainment | Binaural + bone conduction | + clinical EMDR | No | No | No | No |
 | Visual stimulation | 108 LEDs/lens + EMDR + retinal PBM + Mode F | + EEG-adaptive, seizure detection | No | No | No | No |
-| EMF shielding | 5-layer palladium + active | Same | None | None | None | None |
+| EMF shielding | 5-layer palladium + active* | Same | None | None | None | None |
 | Autonomous mobile | Yes — power bank | Yes | BT only | BT only | BT only | No — app required |
 | No mandatory subscription | Yes | Yes | Yes | Paywall on PLUS | Required $99–199/yr | No — $29/mo required |
 | Published clinical trials | None (new product)* | None (new product)* | 35+ RCTs | Limited | Ongoing | 1 claimed (DB placebo-controlled RCT, n=120 ADHD; status unclear) |
 
 *See regulatory-strategy.md and pending-decisions.md for pending actions on irradiance claim and evidence gap.
+
+\* **The "None" cells are accurate for the consumer wellness brands in this table and NOT for the
+research-grade dry-EEG market**, which ships Faraday shielding today. No NeurOne figure in this row is
+measured (`EMF-1` open). Evidence base and per-layer value audit: `docs/np_bib_emf_001.md`.
 
 **Neurode gap note (2026-07-13):** Two Neurode capabilities have no NeurOne equivalent today — **fNIRS hemodynamic brain monitoring** and **tRNS**. Both are low-cost to close: fNIRS reuses NeurOne's existing NIR optics (see `docs/np_feas_fnirs_001.md`); tRNS is a firmware preset on the T2 arbitrary-waveform driver. Neurode is otherwise a single-modality ADHD/focus device with no PBM, EEG, EMF shielding, or phone-free operation.
 
@@ -174,4 +178,11 @@ vielight.com transcranial-irradiance lab post · neuronic.com product page · Ne
 
 - "Real-time J/cm² dose metering — the only device that shows you the exact dose your brain received"
 - "Only consumer brain device with palladium-fabric EMF shielding verified by continuous fleet monitoring"
+  - **⚠ TWO WORDS IN THIS LINE ARE UNEARNED (`NP-BIB-EMF-001`, 2026-09-15).** *"verified"* — `EMF-1` has
+    never run, so the 35–45 dB / 40–60 dB figures are design targets whose only source is CLAUDE.md, and
+    fleet SHDR monitoring trends *stability*, not an absolute that was never measured. *"Only consumer"*
+    — research-grade dry-EEG headsets ship Faraday shielding today (Wearable Sensing DSI-24, DSI-VR300),
+    so the claim survives only on a specific reading of "consumer". **`OI-BIBEMF-01` gates publication of
+    this line.** The claim form itself is sound: an attenuation figure is a performance claim. It must
+    never be placed adjacent to an outcome claim — see `docs/np_bib_emf_001.md` §2 and §6.
 - "Autonomous closed-loop operation from any power bank — no phone required"

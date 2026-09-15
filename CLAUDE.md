@@ -65,6 +65,7 @@ only when I `Read` it.
 | Optional accessories + companion SW (mastoid pad, Watch app) | working on accessories / app roadmap | `docs/reference/accessories-roadmap.md` |
 | Durability + maintenance design changes | tooling / BOM / mechanical work | `docs/reference/durability-maintenance.md` |
 | Service network (partner tiers, covers) | service / warranty / logistics work | `docs/reference/service-network.md` |
+| **EMF shielding evidence base + claim substantiation** (what the literature does and does not support per layer and per modality; the per-layer value audit; why Layer 2 cannot be removed and Layer 4 is the live candidate) | quoting, publishing or acting on ANY shielding claim; any question about what the shielding buys; any proposal to add to or remove from the §4.3 stack | `docs/np_bib_emf_001.md` |
 | Competitive position + claims | marketing / positioning / claims work | `docs/reference/competitive-position.md` |
 | Regulatory strategy (T1 wellness / T2 510k) | regulatory / QMS / standards work | `docs/reference/regulatory-strategy.md` |
 | Clinical researchers + evidence bibliography | clinical trials / evidence / researcher outreach | `docs/reference/clinical.md` |
@@ -239,6 +240,16 @@ Five passive layers plus active fluxgate + Helmholtz cancellation. **Combined 35
 **palladium, not silver** (tarnish-immune — what makes the claim *permanent*, verified by fleet SHDR
 attenuation); the shell is bonded to the EEG DRL output; the TMS coil site needs a **non-conductive
 CFRP window**. Per-layer dB and the three firmware additions: §4.3 of the detail file.
+
+> **The dB figures are design targets, not measurements — `EMF-1` has never run** — and what the
+> stack is *for* is `docs/np_bib_emf_001.md` (NP-BIB-EMF-001), the evidence record. Read it before
+> quoting a shielding claim, or proposing to add to or remove from this stack. Three things it
+> establishes that this section does not say: the literature supports the **electric/RF** layers for
+> EEG signal quality and supports **no** therapeutic-outcome benefit on any modality; **Layer 2's
+> documented rationale is the one benefit the evidence does not support**, while three undocumented
+> dependencies are what actually hold it in place; and the stack is **aperture-limited, not
+> layer-limited**, so an unmeasured seam budget makes every layer's value unknowable. **No dB figure
+> here or in the detail file may be published as *measured*.**
 
 ### 4.4 Fit system → `docs/reference/hardware-detail.md`
 
