@@ -72,8 +72,8 @@ only when I `Read` it.
 
 > The three `docs/status/` files are large logs, not narratives — each opens with a "How to read
 > this file" block giving the grep recipes to reach one entry without reading the whole file. They
-> also overlap heavily with the DHF index (`docs/np_dhf_001.md`) and git history; a dedup pass
-> against the DHF is a flagged follow-up.
+> also overlap heavily with the DHF index (`docs/np_dhf_001.md`) and git history. **The DHF is the
+> source of truth where they disagree**; the dedup pass against it is `OI-CONV-07`.
 
 ---
 

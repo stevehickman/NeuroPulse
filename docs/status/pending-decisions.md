@@ -2,7 +2,7 @@
 
 > Relocated from CLAUDE.md Rev 32 §13.1–§13.4 to slim the always-loaded core. This is the authoritative open-items log. Referenced from CLAUDE.md → Document Map.
 >
-> **Note on overlap:** much of the completed detail here and in `completed-decisions.md` also appears in the DHF index (`docs/np_dhf_001.md`) and git history. Content was relocated faithfully, not deduped — a dedup pass against the DHF is flagged as a follow-up (deleting authoritative memory should be a reviewed, per-item decision).
+> **Note on overlap:** much of the completed detail here and in `completed-decisions.md` also appears in the DHF index (`docs/np_dhf_001.md`) and git history. Content was relocated faithfully, not deduped — the dedup pass against the DHF is **`OI-CONV-07`** (§13.3 below; owning entry in `docs/np_conv_001.md`), and deleting authoritative memory stays a reviewed, per-item decision. **Where this file and the DHF disagree, the DHF wins.**
 
 ## How to read this file
 
@@ -353,6 +353,7 @@ Science basis confirmed: PIEZO1 mechanosensitive ion channel mechanism (PNAS 202
 | Issue | Mitigation |
 |-------|-----------|
 | Fluxgate calibration requires Tier B service visit (every 3–5 years) | Geomagnetic comparison detects severe drift. Fleet SHDR predicts need with months of lead time. 3–5 year interval means Tier B network established before first visits needed. |
+| **`OI-CONV-07` — three supersession registers record the same facts** (`docs/status/document-register.md`, `docs/np_dhf_001.md`, `docs/superseded/README.md`), with the dedup pass flagged in four file preambles and, until 2026-09-15, tracked nowhere | **Precedence stated rather than left to the reader: the DHF is the source of truth, the register may be stale, and where they disagree the DHF wins** — now in the register's preamble. Owning entry is `OI-CONV-07` in `docs/np_conv_001.md`. `superseded/README.md` is deliberately *not* a dedup target: it carries retirement reasoning the other two do not. Stale-data risk only — no design input depends on which index lists a file, and `NP-CONV-001` §4.0.4 governs retention regardless |
 | iOS/Android OS update dependency | Apple/Google developer beta participation. 7-day OS compatibility SLA. Autonomous Mode 3 as structural fallback. |
 
 ## 13.4 Pending decisions — must resolve before tooling is cut

@@ -1,9 +1,29 @@
 # Superseded Documents
 
-Every document in this directory has been replaced. None of it is a design input. It is retained
-because `21 CFR §820.30(j)` requires the design history to be reconstructable, and because several
-of these documents are cited by name in decisions that are still live — deleting them would break
-the reasoning trail, not just the link.
+Every document in this directory has been replaced. None of it is a design input.
+
+**Why it is retained, and why "nothing here was ever published" does not change that.**
+`NP-CONV-001` §4.0.4 (BINDING) makes retention a two-question test — *is it referenced anywhere?*
+and *is it required to be retained for process or legal reasons?* — and states that **either limb
+alone is sufficient**. Both are satisfied here, so retention is over-determined:
+
+- **Limb 1, referenced anywhere — satisfied, and independently verifiable.** Several of these
+  documents are cited by name in decisions that are still live; deleting them breaks the reasoning
+  trail, not just the link. `NP-RISK-001` alone is cited from eighteen other files. Check any of
+  them the same way, rather than trusting a count in this file:
+  `grep -rl 'NP-RISK-001' --include=*.md . | grep -v superseded`.
+- **Limb 2, process or legal duty — satisfied prospectively.** `NP-CONV-001` §4.0.4 answers this
+  limb yes for NeurOne via `NP-QMS-001` §Records (DHF retention at life of device + 2 years,
+  `21 CFR §820.180`) and `NP-DHF-001` as the §820.30(j) index. Note what that duty is keyed to:
+  §820.180 runs from **release for commercial distribution**, and nothing has been released — this
+  is the pre-tooling design phase, T1 is FDA-exempt wellness and T2 is a 510(k) *target*. So the
+  clock has not started, and the duty binds the DHF this archive will be part of rather than
+  today's disk. **That reading changes nothing about what stays**, because limb 1 is already met on
+  its own; and whether §4.0.4's blanket "the answer is yes" should be qualified is a change to a
+  BINDING convention section, not a note anyone may make here.
+
+**Limb 1 is the one to check before proposing a deletion.** A document here becomes optional only
+when nothing cites it, and that is a `grep`, not a judgement about whether the project ever shipped.
 
 **Do not use anything here for new design, tooling, procurement or firmware work.** Each entry
 below names its successor. Where a document was only *partly* retired, the surviving part is named
@@ -19,8 +39,9 @@ someone is looking for the last place a number was derived.
   document.** `NP-CONV-001` §4.0 binds retired documents too, and §4.3 records why the earlier
   exemption was wrong: §1.1 protects records of *what was written*, not addresses. A retired
   document is the case where deriving the address from the serial matters **most**, because it is
-  the one nobody remembers the descriptive name of. `NP-RISK-001`'s ~38 inbound citations resolve to
-  `np_risk_001.docx` by rule, not by lookup.
+  the one nobody remembers the descriptive name of. Every inbound `NP-RISK-001` citation resolves to
+  `np_risk_001.docx` **by rule, not by lookup** — which is the property that matters, and the reason
+  no count of them is quoted here (an earlier "~38" had drifted and could only ever drift again).
 - **Former filenames are recorded below** so an external citation of the old descriptive name still
   leads somewhere. Inside git, these are renames — `git log --follow` traverses them.
 - **Nothing here is edited except to add a supersession banner.** The text is a record of what was

@@ -2,7 +2,7 @@
 
 > Relocated from CLAUDE.md Rev 32 §14 to slim the always-loaded core. This is the authoritative document/firmware register.
 >
-> **Note on overlap:** this register substantially overlaps the formal DHF index (`docs/np_dhf_001.md`). Content was relocated faithfully, not deduped — a dedup pass (making the DHF the single index and reducing this to a pointer) is flagged as a follow-up. Referenced from CLAUDE.md → Document Map.
+> **Note on overlap:** this register substantially overlaps the formal DHF index (`docs/np_dhf_001.md`). Content was relocated faithfully, not deduped — a dedup pass (making the DHF the single index and reducing this to a pointer) is **`OI-CONV-07`**, tracked in `docs/np_conv_001.md` and `docs/status/pending-decisions.md` §13.3. Until it closes, **the DHF is the source of truth and this register may be stale**; where the two disagree, the DHF wins. Referenced from CLAUDE.md → Document Map.
 
 ## How to read this file
 
@@ -21,10 +21,10 @@ design records; for *whether an artifact has an owning document at all*, read `d
 
 | Document | Location | Contents |
 |----------|----------|---------|
-| Design Brief Revision 1 | `docs/superseded/np_db_001.docx` | SUPERSEDED by R5 — Initial complete design specification |
-| Design Brief Revision 2 | `docs/superseded/np_db_002.docx` | SUPERSEDED by R5 — Updated with LED count, irradiance, EEG, EMF decisions |
-| Design Brief Revision 3 | `docs/superseded/np_db_003.docx` | SUPERSEDED by R5 — Adds UHDR/SHDR, consent systems, durability, service network |
-| Design Brief Revision 4 | `docs/superseded/np_db_004.docx` | SUPERSEDED by R5 — zone module engineering package; dual-PD, keying, gasket, lever, PDMS qual, 24-risk register |
+| Design Brief Revision 1 | `docs/superseded/np_db_001.docx` | SUPERSEDED by `NP-DB-005` — Initial complete design specification |
+| Design Brief Revision 2 | `docs/superseded/np_db_002.docx` | SUPERSEDED by `NP-DB-005` — Updated with LED count, irradiance, EEG, EMF decisions |
+| Design Brief Revision 3 | `docs/superseded/np_db_003.docx` | SUPERSEDED by `NP-DB-005` — Adds UHDR/SHDR, consent systems, durability, service network |
+| Design Brief Revision 4 | `docs/superseded/np_db_004.docx` | SUPERSEDED by `NP-DB-005` — zone module engineering package; dual-PD, keying, gasket, lever, PDMS qual, 24-risk register |
 | Master Design Brief | `docs/np_db_005.docx` | **NP-DB-005 Rev 6 — DRAFT, PENDING APPROVAL** (authored 2026-08-11; 21 CFR §820.40(a) requires approval prior to issue, so Rev 5 remains the last approved revision). Retirement-led re-issue. **§0.1 is a retirement ledger**: the fixed 5-slot/600-LED zone-module architecture, ZONE_ID resistor detection, per-slot LPI2C3 addressing, Hub PCB Rev B's DG2788A per-slot gain switch, RISK-15 keying layers 2–5, RISK-17 multi-FPC bundle management, the ~500-line safety-MCU figure, the per-zone `NP_SAFETY_EN_PBM_ZONE_0..4` bits, the 16-channel T2 tACS driver, the 25-risk NP-RISK-001 register, the ≥150 N/m PDMS peel figure and ACC-as-focal-target are each named as retired next to their replacement and the reason. Then current state: hex-tile lattice (80 sockets, 40 mm, T1-A/B/C, CLUSTER-1/SYM-1/CONTIG-1, 18 clusters); Hub PCB Rev C cluster-controller tier; NP-DRV-SHELL-002 five-network split and three EMI prohibitions; BN-boss thermal export and RISK-26; four UHDR/SHDR boundary resolutions new since Rev 5; two-consent-subjects table; SOUP vendoring and NP-SW-CI-001; OI-LED-W1 OPEN with all three options; clinical-03 evidence-grade claim GATED; every marketing claim carried with its gate. **First issue under NP-CONV-001 Rev 6** — Rev 6 is a new *revision* of serial NP-DB-005, not a new serial NP-DB-006, written in place per §4.0/§4.3 with Rev 5 retained by version control. Generator: `scripts/create_np_db_005.py`. |
 | Clinical Evidence Bibliography | `docs/np_bib_001.docx` | 39 entries, 12 modality sections (A–L), DOI links, NeurOne-specific summaries. Section L (entries 34–39): 1064nm PBM — Yao et al. Science Advances 2022 (primary RCT), UT Dallas follow-ons (open item), tissue optics penetration depth basis, CCO mechanism at 1064nm, safety summary, multi-modal combination evidence gap |
 | Researcher Candidate List | `docs/neurone_researchers.docx` | 12 researchers, 7 modalities, contact info, cost estimates, funding sources |
