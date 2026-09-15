@@ -6,6 +6,8 @@ import {
   buildNamespace,
   validateNamespaceReferences,
 } from './nppsParser';
+import { validateProtocol } from './protocolValidator';
+import type { NPLimitsSet } from '../types/limits';
 
 // Load the predefined library straight off disk and prove the whole set parses
 // and cross-references cleanly.
@@ -76,6 +78,96 @@ describe('predefined NPPS library', () => {
     for (const [, c] of namespace.conditions) {
       expect(c.link, `condition ${c.name} link`).toMatch(/^https?:\/\//);
     }
+  });
+
+  // ─── The shipped library must be RUNNABLE, not merely parseable (OI-CHARGE-05) ──
+  //
+  // This suite proved for a long time that every predefined protocol parses and
+  // cross-references, and never that any of them would survive hardware
+  // validation. It would not have: as of 2026-09-09, thirteen of the fourteen
+  // shipped tDCS protocols exceeded the charge-density ceiling then in force,
+  // and nothing in CI said so. (They were not being truncated on device either,
+  // because the interlock was inert — which is how a whole unrunnable library
+  // went unnoticed from both ends at once.)
+  //
+  // The ceiling that made them fail was a per-PHASE pulsed figure applied to a
+  // DC session dose; OI-CHARGE-05 split it, and NP-DT-001 §3.2.1 derived each
+  // half. This test is what stops the shipped library and the enforcer drifting
+  // apart again in either direction — a ceiling that rejects the library, or a
+  // protocol authored past the ceiling.
+  it('every shipped protocol passes hardware validation', () => {
+    const hardwareOnly: NPLimitsSet = {
+      id: 'predefined-hw-check',
+      name: 'Hardware only',
+      description: 'No dosage limits — hardware ceilings alone.',
+      createdAt: '2026-09-15T00:00:00Z',
+      modifiedAt: '2026-09-15T00:00:00Z',
+      level: 'global',
+    };
+
+    // One known, documented exception, waived by NAME so the waiver cannot
+    // outlive the defect: if the protocol is fixed, or if a second protocol
+    // starts failing, this list stops matching and the test fails. (Same
+    // discipline as the consent-reachability waivers.)
+    //
+    // OI-NPPS-LIMITS-01: "taVNS — Stroke Motor Rehab (paired)" authors 30 Hz, which is
+    // Dawson 2021 VNS-REHAB's frequency — but VNS-REHAB is the IMPLANTED
+    // Vivistim device, and NeurOne's auricular VNS ceiling is 1–25 Hz
+    // (CLAUDE.md §3, locked). The protocol transcribed a source trial's
+    // parameter that this hardware cannot deliver. It is NOT silently retuned
+    // to 25 Hz here: that would put a number in a cited clinical protocol that
+    // the citation does not support, which is the same class of move as
+    // inflating a declared pad area to satisfy a ceiling.
+    const WAIVED = [
+      'taVNS — Stroke Motor Rehab (paired): frequencyHz = 30 Hz (limit 1–25 Hz (hardware))',
+    ];
+
+    const failures: string[] = [];
+    for (const entry of namespace.entries) {
+      if (entry.kind !== 'single') continue;
+      const result = validateProtocol(entry.protocol, hardwareOnly);
+      const hardwareErrors = result.issues.filter(
+        i => i.severity === 'error' && i.limitSource === 'hardware',
+      );
+      for (const e of hardwareErrors) {
+        failures.push(
+          `${entry.protocol.name}: ${e.parameterKey} = ${e.actualValueDescription} (limit ${e.limitValueDescription})`,
+        );
+      }
+    }
+
+    expect(failures.sort(), `shipped protocols failing hardware validation:\n  ${failures.join('\n  ')}`)
+      .toEqual([...WAIVED].sort());
+  });
+
+  // The charge ceilings specifically carry no waiver — OI-CHARGE-05 exists to
+  // make the shipped library admissible under them, so a single failure here
+  // means either the library or the ceiling has moved and they no longer agree.
+  it('no shipped protocol exceeds either charge ceiling', () => {
+    const hardwareOnly: NPLimitsSet = {
+      id: 'predefined-charge-check',
+      name: 'Hardware only',
+      description: 'No dosage limits — hardware ceilings alone.',
+      createdAt: '2026-09-15T00:00:00Z',
+      modifiedAt: '2026-09-15T00:00:00Z',
+      level: 'global',
+    };
+
+    const failures: string[] = [];
+    for (const entry of namespace.entries) {
+      if (entry.kind !== 'single') continue;
+      for (const i of validateProtocol(entry.protocol, hardwareOnly).issues) {
+        if (i.severity !== 'error') continue;
+        if (i.parameterKey !== 'chargeDensityMCcm2' &&
+            i.parameterKey !== 'phaseChargeDensityUCcm2') continue;
+        failures.push(
+          `${entry.protocol.name}: ${i.parameterKey} = ${i.actualValueDescription}`,
+        );
+      }
+    }
+
+    expect(failures, `protocols over a charge ceiling:\n  ${failures.join('\n  ')}`)
+      .toEqual([]);
   });
 
   it('includes the expected clinical protocol coverage (53 clinical presets)', () => {

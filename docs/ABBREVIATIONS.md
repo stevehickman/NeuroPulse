@@ -51,7 +51,7 @@ Psychotherapy using bilateral alternating stimulation. NeurOne visual modality s
 
 ### [HD-tDCS](#hd-tdcs)
 **HD-tDCS** — High-Definition tDCS  
-Spatially-focused tDCS using 4×1 ring montage (center anode + 4 return cathodes). NeurOne T2 implementation: sLORETA-guided electrode positioning, ≤2mA per electrode, 40µC/cm² total charge density safety limit. See CLAUDE.md §3 (T2 additions) and §4.2.
+Spatially-focused tDCS using 4×1 ring montage (center anode + 4 return cathodes). NeurOne T2 implementation: sLORETA-guided electrode positioning, ≤2mA per electrode. **HD-tDCS is DC**, so the safety MCU applies the **150 mC/cm² per-session** ceiling (DI-SAFE-01) against the declared 0.0962 cm² electrode area — not the 40 µC/cm² per-phase figure, which belongs to the charge-balanced modalities (DI-SAFE-01a). Class B `np_hd_stim.c` separately aborts at 95% of a 40 µC/cm² per-phase figure of its own. See CLAUDE.md §3 (T2 additions) and §4.2.
 
 ### [HRV](#hrv)
 **HRV** — [Heart Rate Variability](https://en.wikipedia.org/wiki/Heart_rate_variability)  
@@ -87,7 +87,9 @@ Stimulation at cervical vagus trunk (carotid sheath level). NeurOne T2 accessory
 
 ### [tDCS](#tdcs)
 **tDCS** — [Transcranial Direct Current Stimulation](https://en.wikipedia.org/wiki/Transcranial_direct_current_stimulation)  
-Direct low-current brain stimulation (0.1–2mA DC, charge-balanced biphasic pulses). NeurOne: 40µC/cm² hardware-enforced limit (safety MCU, app cannot override). 30s ramp up/down, ≤3 electrode pairs. See CLAUDE.md §3 (modality 5).
+Direct low-current brain stimulation (0.1–2mA **DC**). NeurOne: **150 mC/cm² per session** per electrode, hardware-enforced (safety MCU, app cannot override), against the pad area declared in the signed descriptor. 30s ramp up/down, ≤3 electrode pairs. See CLAUDE.md §3 (modality 5) and NP-DT-001 DI-SAFE-01.
+
+> **This entry used to read *"0.1–2mA DC, charge-balanced biphasic pulses"* with a 40µC/cm² limit, and it was self-contradictory**: tDCS is direct current by definition, and "charge-balanced biphasic" is the BES/tACS/VNS description. Tracing `OI-CHARGE-05` found this was one of three places where the pulsed waveform had been pasted onto tDCS — and it is why a genuine **per-phase pulsed** ceiling (40 µC/cm², Shannon/McCreery, now DI-SAFE-01a) ended up stated as a tDCS session limit. Corrected 2026-09-15.
 
 ### [TMS](#tms)
 **TMS** — [Transcranial Magnetic Stimulation](https://en.wikipedia.org/wiki/Transcranial_magnetic_stimulation)  

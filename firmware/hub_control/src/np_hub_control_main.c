@@ -170,10 +170,28 @@ static void task_safety_heartbeat(void *arg)
          * would mean new enable requests never reach the safety MCU.        */
         uint16_t req_mask = np_safety_spi_get_requested_mask();
 
-        /* current_ua = NULL/0: per-channel commanded-current wiring into the
-         * heartbeat is a separate charge-monitor integration (OI-CHARGE-01
-         * hub side); channel_count 0 keeps the MCU accumulate loop idle.    */
-        np_hub_status_t rc = np_safety_spi_heartbeat(state, req_mask, NULL, 0U);
+        /* OI-CHARGE-01 hub half CLOSED 2026-09-15 (OI-CHARGE-05 (c)).  This
+         * call used to pass current_ua = NULL, channel_count = 0, which kept
+         * the safety MCU's accumulate loop idle — so the 40 µC/cm² charge
+         * interlock that NP-DT-001 DI-SAFE-01, NP-FMEA-001 SW01-M03 and
+         * NP-FW-BENCH-001 ("never bypassable") all describe as enforced was
+         * enforcing nothing.  OI-CHARGE-01 was logged CLOSED with only its
+         * safety-MCU half wired.
+         *
+         * The modality modules publish each commanded current as they apply it
+         * (np_safety_spi_set_channel_current, beside the request_enable they
+         * already make); this task snapshots the array every beat.  Commanded,
+         * not delivered — SHDR, never an ADC measurement.
+         *
+         * ALWAYS the full NP_SAFETY_MAX_CHANNELS, not a count of the channels
+         * currently commanding: the MCU reads current_ua[ch] only for channels
+         * in granted_mask, and a shrinking channel_count would silently stop
+         * it looking at a channel that is still enabled.                     */
+        uint16_t chan_ua[NP_SAFETY_MAX_CHANNELS];
+        np_safety_spi_get_channel_currents(chan_ua);
+
+        np_hub_status_t rc = np_safety_spi_heartbeat(state, req_mask, chan_ua,
+                                                     (uint8_t)NP_SAFETY_MAX_CHANNELS);
 
         /* OI-CVNS-HUB-08: publish THIS beat's fresh granted mask + status to the
          * cervical VNS module so its next tick folds them into the library's

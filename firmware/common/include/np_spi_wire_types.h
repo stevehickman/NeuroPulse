@@ -170,10 +170,14 @@ typedef char _np_spi_sig_cmd_size_check[
  * default 25cm² tDCS pad (notably T2 HD-tDCS 3.5mm Ag/AgCl electrodes).
  *
  * The hub delivers per-channel electrode AREA in milli-cm² (1 unit = 0.001cm²);
- * it does NOT deliver a pre-computed charge limit.  The 40µC/cm² charge-density
- * constant (NP_CHARGE_LIMIT_UC_CM2) stays resident on the Class C safety MCU,
- * which converts area→limit: limit_nc = NP_CHARGE_LIMIT_UC_CM2 × area_mcm2.
+ * it does NOT deliver a pre-computed charge limit.  Both charge-density
+ * constants (NP_CHARGE_PHASE_LIMIT_UC_CM2, NP_CHARGE_DC_LIMIT_MC_CM2) stay
+ * resident on the Class C safety MCU, which converts area→limits:
+ *   per-phase limit_nc  = NP_CHARGE_PHASE_LIMIT_UC_CM2 × area_mcm2
+ *   per-session limit_nc = NP_CHARGE_DC_LIMIT_MC_CM2 × 1000 × area_mcm2
  * A value of 0 for a channel means "keep the current (default) limit".
+ * OI-CHARGE-05: which of the two applies is the companion
+ * np_safety_chan_wave_cmd_t declaration below, not anything in this frame.
  *
  * The hub floors the area (truncates toward zero) so the derived limit can
  * never exceed the true 40µC/cm² ceiling — conservative by construction.
@@ -197,6 +201,91 @@ typedef struct __attribute__((packed)) {
 /* Compile-time size assertion */
 typedef char _np_spi_chan_limit_cmd_size_check[
     (sizeof(np_safety_chan_limit_cmd_t) == NP_SAFETY_CHAN_LIMIT_FRAME_LEN) ? 1 : -1
+];
+
+/* ── Per-channel WAVEFORM-CLASS declaration (OI-CHARGE-05 (b)) ───────────── */
+/*
+ * Sent once per session during setup, alongside np_safety_chan_limit_cmd_t,
+ * for every electrical channel the descriptor will command.
+ *
+ * WHY THIS FRAME EXISTS.  The safety MCU has to apply a DIFFERENT ceiling to a
+ * DC channel than to a charge-balanced one — a per-session integral of |I|·dt
+ * against a mC/cm² budget for the first, a per-phase amplitude × phase-width
+ * product against a µC/cm² budget for the second (see np_safety_config.h).  It
+ * cannot derive which is which on its own: `current_ua[]` in the heartbeat is
+ * a magnitude and carries no waveform information, and the MCU deliberately
+ * holds no modality→channel map (that map moves with the descriptor grammar,
+ * and putting it behind the Class C boundary would make a grammar change a
+ * recertification — the same argument NP-HW-HUB-001 §7.2.1 made against
+ * per-cluster enable bits).
+ *
+ * WHAT STAYS ON THE MCU.  Only the CLASSIFICATION and the phase DURATION
+ * cross this boundary.  Both ceilings — NP_CHARGE_PHASE_LIMIT_UC_CM2 and
+ * NP_CHARGE_DC_LIMIT_MC_CM2 — stay resident on the Class C MCU and are never
+ * transmitted, exactly as OI-CHARGE-02 established for the density constant.
+ * The hub says "this channel is sinusoidal with a 12,500 µs half-period"; the
+ * MCU alone decides what that is allowed to cost.
+ *
+ * FAIL-CLOSED.  A wave_class of 0 means "not declared".  np_charge_monitor.c
+ * clears any ELECTRICAL channel with an undeclared class from granted_mask
+ * (np_charge_monitor_decl_gate), so a lost or corrupt frame leaves the
+ * modality disabled rather than unmonitored.  This is the OI-CHARGE-03
+ * precedent applied to the waveform axis, and it needs no new heartbeat bit:
+ * "declared" is per-channel state the MCU already holds, and the electrical
+ * channel set is fixed at compile time (NP_SAFETY_CH_ELECTRICAL_MASK).
+ *
+ * Privacy: both fields are authored protocol parameters (SHDR — what was
+ * asked for), never measurements.  Same classification as current_ua[].
+ *
+ * Distinguished from the 8/34/38/102-byte frames by its NSS-delineated
+ * transfer length (76).  Shares the 0xC0/0xDE command magic.
+ *
+ * Checksum: additive sum of bytes [0..NP_SAFETY_CHAN_WAVE_FRAME_LEN-3],
+ * wrapping uint16.
+ */
+
+#define NP_SAFETY_CMD_CHAN_WAVE     0x03U   /* cmd_type: per-channel waveform class */
+
+/* 2 (magic) + 1 (type) + 1 (rsvd) + 14 (class[14]) + 56 (phase_us[14]) + 2 = 76 */
+#define NP_SAFETY_CHAN_WAVE_FRAME_LEN   76U
+
+/* Waveform-class bits.  A channel may carry MORE THAN ONE: NP_SAFETY_CH_CLIN_STIM
+ * is shared by HD-tDCS (DC) and clinical tACS (AC), and a session containing
+ * both must be held to BOTH ceilings rather than to whichever was written
+ * last.  The monitor ORs the declarations and runs every check that applies. */
+#define NP_CHARGE_WAVE_DC       (1U << 0)  /* direct current — per-session mC/cm²  */
+#define NP_CHARGE_WAVE_PULSE    (1U << 1)  /* rectangular biphasic — per-phase µC/cm² */
+#define NP_CHARGE_WAVE_SINE     (1U << 2)  /* sinusoidal — per-phase, 2/π of I×T   */
+#define NP_CHARGE_WAVE_ALL      (NP_CHARGE_WAVE_DC | NP_CHARGE_WAVE_PULSE | \
+                                 NP_CHARGE_WAVE_SINE)
+
+/* Longest phase duration either side will honour: 2,000,000 µs = 0.25 Hz.
+ * Below the 0.5 Hz BES/tACS floor (CLAUDE.md §3), so it clamps nothing real.
+ *
+ * Shared rather than per-side because both ends clamp: the hub so the frame it
+ * transmits already says what the MCU will conclude, and the MCU because it
+ * must not depend on the hub having done so — a corrupt or hostile phase_us
+ * would otherwise overflow the uint64 per-phase arithmetic.  Two independent
+ * clamps against one number is only meaningful if it IS one number.
+ *
+ * Note the direction: this clamps a declaration DOWN, and a shorter declared
+ * phase yields a SMALLER computed charge.  So the clamp is not itself a safety
+ * control — it is bounds-checking, and what makes an under-declared phase safe
+ * is the fail-closed declaration gate, not this.                            */
+#define NP_CHARGE_MAX_PHASE_US      2000000UL
+
+typedef struct __attribute__((packed)) {
+    uint8_t  cmd_magic[2];                          /* NP_SAFETY_CMD_MAGIC_0 / _1 */
+    uint8_t  cmd_type;                              /* NP_SAFETY_CMD_CHAN_WAVE (0x03) */
+    uint8_t  reserved;                              /* 0x00 */
+    uint8_t  wave_class[NP_SAFETY_MAX_CHANNELS];    /* NP_CHARGE_WAVE_* bits; 0 = undeclared */
+    uint32_t phase_us[NP_SAFETY_MAX_CHANNELS];      /* phase duration µs; 0 for pure DC */
+    uint16_t checksum;                              /* sum of bytes [0..73], wrapping uint16 */
+} np_safety_chan_wave_cmd_t;                        /* 2+1+1+14+56+2 = 76 bytes */
+
+/* Compile-time size assertion */
+typedef char _np_spi_chan_wave_cmd_size_check[
+    (sizeof(np_safety_chan_wave_cmd_t) == NP_SAFETY_CHAN_WAVE_FRAME_LEN) ? 1 : -1
 ];
 
 /* ── Extended MCU→hub impedance report (OI-CVNS-HUB-11) ──────────────────── */

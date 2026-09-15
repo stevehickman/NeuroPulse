@@ -46,7 +46,14 @@ extern void np_charge_monitor_accumulate(uint8_t channel, uint32_t current_ua, u
 extern void np_charge_monitor_tick(np_safety_state_t *state);
 extern void np_charge_monitor_reset_session(np_safety_state_t *state);
 extern void np_charge_monitor_set_channel_area_mcm2(uint8_t channel, uint16_t area_mcm2);
+extern void np_charge_monitor_set_channel_waveform(uint8_t channel, uint8_t wave_class,
+                                                   uint32_t phase_us);
 extern void np_charge_monitor_geom_gate(np_safety_state_t *state);
+extern void np_charge_monitor_decl_gate(np_safety_state_t *state);
+extern bool np_charge_monitor_is_dc(uint8_t channel);
+extern void np_charge_monitor_phase_tick(np_safety_state_t *state,
+                                         const uint16_t    *current_ua,
+                                         uint8_t            channel_count);
 extern void np_thermal_interlock_tick(np_safety_state_t *state);
 extern void np_cardiac_interlock_tick(np_safety_state_t *state);
 extern void np_cardiac_interlock_reenable(np_safety_state_t *state);
@@ -137,6 +144,20 @@ static bool chan_limit_checksum_ok(const np_safety_chan_limit_cmd_t *c)
     const uint8_t *b = (const uint8_t *)c;
     uint8_t i;
     for (i = 0U; i < (NP_SAFETY_CHAN_LIMIT_FRAME_LEN - 2U); i++) {
+        sum += b[i];
+    }
+    return sum == c->checksum;
+}
+
+/* Verify checksum of a 76-byte per-channel waveform-class command frame.
+ * Checksum covers bytes [0..NP_SAFETY_CHAN_WAVE_FRAME_LEN-3] (all except the
+ * 2 checksum bytes at the end).                                            */
+static bool chan_wave_checksum_ok(const np_safety_chan_wave_cmd_t *c)
+{
+    uint16_t sum = 0U;
+    const uint8_t *b = (const uint8_t *)c;
+    uint8_t i;
+    for (i = 0U; i < (NP_SAFETY_CHAN_WAVE_FRAME_LEN - 2U); i++) {
         sum += b[i];
     }
     return sum == c->checksum;
@@ -306,6 +327,41 @@ int main(void)
              * either gate — the modality simply never starts.                 */
         }
 
+        /* ── Per-channel waveform-class frame (76 bytes, OI-CHARGE-05 (b)) ─── */
+        /* Hub declares, for every electrical channel the descriptor will
+         * command, whether it is DC (per-session mC/cm² budget) or pulsed/AC
+         * (per-phase µC/cm² ceiling), and the phase duration for the latter.
+         * Both ceilings stay resident here; only the classification crosses.
+         *
+         * Applied AFTER the session-start reset block, for the same reason the
+         * area frame is: reset_session() clears every declaration, so a
+         * declaration arriving in the same loop iteration as the 0→1
+         * transition must land after it or it would be wiped.
+         *
+         * An undeclared electrical channel is held OFF by
+         * np_charge_monitor_decl_gate() below — so a lost or corrupt frame
+         * costs the modality its session rather than its monitoring.          */
+        if (np_hal_spi_chan_wave_ready()) {
+            np_safety_chan_wave_cmd_t wcmd;
+            np_hal_spi_get_chan_wave(&wcmd);
+
+            if (wcmd.cmd_magic[0] == NP_SAFETY_CMD_MAGIC_0 &&
+                wcmd.cmd_magic[1] == NP_SAFETY_CMD_MAGIC_1 &&
+                wcmd.cmd_type     == NP_SAFETY_CMD_CHAN_WAVE &&
+                chan_wave_checksum_ok(&wcmd)) {
+
+                uint8_t ch;
+                for (ch = 0U; ch < NP_SAFETY_MAX_CHANNELS; ch++) {
+                    /* class 0 means "not declared in this frame" —
+                     * set_channel_waveform() ignores it rather than clearing,
+                     * so a partial frame cannot un-declare a channel.         */
+                    np_charge_monitor_set_channel_waveform(ch,
+                                                           wcmd.wave_class[ch],
+                                                           wcmd.phase_us[ch]);
+                }
+            }
+        }
+
         /* CVNS re-enable after cardiac cutoff:
          * Hub sets NP_SESSION_STATUS_CVNS_REENABLE only when all three
          * conditions are met on the hub side: lockout elapsed + user
@@ -339,16 +395,29 @@ int main(void)
          * no charge while blocked. */
         np_charge_monitor_geom_gate(&s_state);
 
-        /* Accumulate charge for all currently-granted channels that carry a
+        /* OI-CHARGE-05 fail-safe declaration gate: block any ELECTRICAL channel
+         * whose waveform class was never declared this session.  Also before
+         * the accumulate loop, and for the same reason — an unmonitored channel
+         * must not be an energised one.                                       */
+        np_charge_monitor_decl_gate(&s_state);
+
+        /* Accumulate charge for currently-granted DC channels carrying a
          * non-zero commanded current.  dt_us is a compile-time constant —
          * NP_SAFETY_HEARTBEAT_EXP_MS × 1000 = 200000 µs — not transmitted
-         * over SPI.  current_ua[] are SHDR (commanded, not ADC-measured).      */
+         * over SPI.  current_ua[] are SHDR (commanded, not ADC-measured).
+         *
+         * DC ONLY (OI-CHARGE-05 (b)).  BES/tACS, VNS, cervical VNS and clinical
+         * tACS are charge-balanced biphasic: net delivered charge is ~zero, so
+         * integrating |I| over a session measures nothing physical for them and
+         * would trip them in 0.4–1.0 s at their rated currents.  Their ceiling
+         * is per-phase and is enforced by np_charge_monitor_phase_tick() below. */
         if (valid_frame && s_state.session_active) {
             uint8_t ch;
             for (ch = 0U;
                  ch < rx.channel_count && ch < NP_SAFETY_MAX_CHANNELS;
                  ch++) {
                 if (rx.current_ua[ch] > 0U &&
+                    np_charge_monitor_is_dc(ch) &&
                     (s_state.granted_mask & (uint16_t)(1U << ch)) != 0U) {
                     np_charge_monitor_accumulate(
                         ch,
@@ -356,9 +425,27 @@ int main(void)
                         (uint32_t)NP_SAFETY_HEARTBEAT_EXP_MS * 1000UL);
                 }
             }
+
+            /* Per-phase ceiling for the pulsed/AC channels.  A predicate on
+             * THIS beat's commanded amplitude, not an integral, so it follows
+             * a ramp exactly.  May cut channels.
+             *
+             * Copied into an aligned local first: rx is __attribute__((packed)),
+             * so current_ua[] has alignment 1 and passing &rx.current_ua[0] as
+             * a uint16_t* is an unaligned-pointer hazard on Cortex-M
+             * (-Waddress-of-packed-member).  The accumulate loop above reads
+             * the members by VALUE, which the compiler handles; only taking
+             * the address needs this.                                        */
+            uint16_t beat_ua[NP_SAFETY_MAX_CHANNELS];
+            uint8_t  n;
+            for (n = 0U; n < NP_SAFETY_MAX_CHANNELS; n++) {
+                beat_ua[n] = (n < rx.channel_count) ? rx.current_ua[n] : 0U;
+            }
+            np_charge_monitor_phase_tick(&s_state, beat_ua,
+                                         (uint8_t)NP_SAFETY_MAX_CHANNELS);
         }
 
-        /* Charge limit enforcement — runs after accumulate, may cut channels */
+        /* Per-session DC budget enforcement — after accumulate, may cut channels */
         np_charge_monitor_tick(&s_state);
 
         /* Apply granted mask to GPIO */

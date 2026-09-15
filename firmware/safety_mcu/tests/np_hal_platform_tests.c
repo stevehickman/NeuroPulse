@@ -61,7 +61,7 @@ uint16_t np_hal_adc_read_channel(uint8_t channel)
 
 /* ── Unit under test: internal, not part of the 25 ─────────────────────────── */
 typedef enum {
-    K_NONE = 0, K_HEARTBEAT, K_SIG_CMD, K_CHAN_LIMIT
+    K_NONE = 0, K_HEARTBEAT, K_SIG_CMD, K_CHAN_LIMIT, K_CHAN_WAVE
 } kind_t;
 extern int np_hal_spi_classify(uint16_t len);
 
@@ -269,7 +269,7 @@ static void test_pin_pos_rejects_malformed_masks(void)
 }
 
 /* ══ 3. SPI FRAME CLASSIFICATION ═══════════════════════════════════════════════
- * Transfer LENGTH is the only discriminator between the three frame types
+ * Transfer LENGTH is the only discriminator between the four frame types
  * (np_safety_hal.h).  A length that matches none must be rejected, not
  * delivered — every consumer memcpy's a fixed-size struct out of the buffer. */
 static void test_spi_frame_classification(void)
@@ -280,6 +280,8 @@ static void test_spi_frame_classification(void)
           "102 bytes classifies as the session-signature command");
     check(np_hal_spi_classify(NP_SAFETY_CHAN_LIMIT_FRAME_LEN) == K_CHAN_LIMIT,
           "34 bytes classifies as the per-channel limit command");
+    check(np_hal_spi_classify(NP_SAFETY_CHAN_WAVE_FRAME_LEN)  == K_CHAN_WAVE,
+          "76 bytes classifies as the per-channel waveform command");
 
     check(np_hal_spi_classify(0U)   == K_NONE, "0 bytes is rejected");
     check(np_hal_spi_classify(8U)   == K_NONE, "8 bytes (the old reply size) is rejected");
@@ -287,16 +289,26 @@ static void test_spi_frame_classification(void)
     check(np_hal_spi_classify(39U)  == K_NONE, "39 bytes (long heartbeat) is rejected");
     check(np_hal_spi_classify(101U) == K_NONE, "101 bytes (short sig cmd) is rejected");
     check(np_hal_spi_classify(103U) == K_NONE, "103 bytes (overrun-poisoned) is rejected");
+    check(np_hal_spi_classify(75U)  == K_NONE, "75 bytes (short waveform cmd) is rejected");
+    check(np_hal_spi_classify(77U)  == K_NONE, "77 bytes (long waveform cmd) is rejected");
 }
 
-/* The three lengths must stay mutually distinct — if a wire-format change ever
+/* The four lengths must stay mutually distinct — if a wire-format change ever
  * made two equal, length-based demux would silently route one as the other. */
 static void test_frame_lengths_are_distinct(void)
 {
     check(NP_SAFETY_RX_EXT_FRAME_LEN != NP_SAFETY_CMD_FRAME_LEN
               && NP_SAFETY_RX_EXT_FRAME_LEN != NP_SAFETY_CHAN_LIMIT_FRAME_LEN
-              && NP_SAFETY_CMD_FRAME_LEN    != NP_SAFETY_CHAN_LIMIT_FRAME_LEN,
-          "the three frame lengths are pairwise distinct (demux is unambiguous)");
+              && NP_SAFETY_CMD_FRAME_LEN    != NP_SAFETY_CHAN_LIMIT_FRAME_LEN
+              && NP_SAFETY_CHAN_WAVE_FRAME_LEN != NP_SAFETY_RX_EXT_FRAME_LEN
+              && NP_SAFETY_CHAN_WAVE_FRAME_LEN != NP_SAFETY_CMD_FRAME_LEN
+              && NP_SAFETY_CHAN_WAVE_FRAME_LEN != NP_SAFETY_CHAN_LIMIT_FRAME_LEN,
+          "the four frame lengths are pairwise distinct (demux is unambiguous)");
+
+    /* The RX buffer is sized off the longest frame; the 76-byte waveform
+     * command must fit inside it or np_hal_spi_poll() would memcpy past it. */
+    check(NP_SAFETY_CHAN_WAVE_FRAME_LEN <= NP_SAFETY_CMD_FRAME_LEN,
+          "waveform command fits the RX buffer (sized off the sig-cmd frame)");
 }
 
 /* ══ 4. OTP ERASED-STATE TRANSLATION ═══════════════════════════════════════════

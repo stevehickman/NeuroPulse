@@ -223,6 +223,45 @@
  * (40µC/cm² × 96 = 3840nC = 3.84µC) never exceeds the true 40µC/cm² ceiling.  */
 #define NP_HD_SMALL_ELECTRODE_AREA_MCM2  96U
 
+/* Mirror of the remaining safety-MCU electrical channel indices, same rule and
+ * same reason as the two above (OI-CHARGE-05).  np_safety_spi_proto_tests.c
+ * asserts all five against np_safety_protocol.h.                            */
+#define NP_SAFETY_CH_BES_TACS       5U
+#define NP_SAFETY_CH_VNS_HRV        7U
+#define NP_SAFETY_CH_CVNS           10U
+
+/* ── Electrode geometry for the channels that do not author their own ────────
+ *
+ * ⚠ PROVISIONAL — NOT MEASURED.  Recorded as OI-CHARGE-07, and marked here in
+ * the same style as NP_IMP_SENSE_R_OHM ("UNCALIBRATED placeholder") and the
+ * NTC pin map, because a number that looks like a datasheet value and is not
+ * one is worse than an obviously provisional one.
+ *
+ * WHY THESE ARE FIRMWARE CONSTANTS AT ALL, when OI-CHARGE-04 exists precisely
+ * to stop software assuming an electrode area: the tDCS pad is a CONSUMABLE
+ * THE USER CHOOSES, so its area is a protocol-authoring fact and must travel
+ * in the signed descriptor.  The BES pads, the auricular clip and the cervical
+ * collar are FIXED PARTS OF THE PRODUCT — the user cannot substitute them —
+ * so their area is a property of the device, which firmware may legitimately
+ * hold.  That distinction, not convenience, is the line.
+ *
+ * FAIL-SAFE DIRECTION: a SMALLER declared area yields a SMALLER charge budget,
+ * so these values may be revised DOWN freely and may only be revised UP
+ * against a measurement.  They are deliberately at or below the plausible
+ * physical size for that reason.
+ *
+ * What each is up against, at the per-phase ceiling and the modality's rated
+ * maximum — the margin is large everywhere except the bottom of the tACS band,
+ * which is a real physical result and not a units artifact:
+ *   BES/tACS  1 mA, 0.5 Hz sine  → 636 µC/phase ÷ 25 cm² = 25.5 µC/cm² (64% of 40)
+ *   BES/tACS  1 mA, 40 Hz sine   →   8 µC/phase ÷ 25 cm² =  0.3 µC/cm²
+ *   VNS       2 mA, 250 µs pulse → 0.5 µC/phase ÷ 0.5 cm² = 1.0 µC/cm²
+ *   CVNS      2 mA, 1000 µs      → 2.0 µC/phase ÷ 2.0 cm² = 1.0 µC/cm²
+ */
+#define NP_BES_ELECTRODE_AREA_MCM2   25000U  /* 25 cm² pad — PROVISIONAL */
+#define NP_VNS_ELECTRODE_AREA_MCM2     500U  /* 0.5 cm² auricular clip pad — PROVISIONAL */
+#define NP_CVNS_ELECTRODE_AREA_MCM2   2000U  /* 2 cm² cervical collar pad — PROVISIONAL */
+
 /* HD-tDCS montage codes (np_mod_hd_tdcs_params_t.montage).  Ring and bilateral
  * 4×1 use the 3.5mm small electrodes; standard 2-electrode uses the default
  * 25cm² pad (no charge-limit override needed).                               */

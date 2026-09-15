@@ -102,6 +102,17 @@ uint16_t np_mod_stim_hal_read_charge(uint8_t pair)    { (void)pair; return 10U; 
 void np_safety_spi_request_enable(uint16_t bits)  { g_enabled_bits  |= bits; }
 void np_safety_spi_request_disable(uint16_t bits) { g_disabled_bits |= bits; }
 
+/* OI-CHARGE-05 (c): spy on the per-channel commanded-current publish.  This is
+ * the hub half of OI-CHARGE-01 — until 2026-09-15 nothing published a current,
+ * so the safety MCU's accumulate loop never ran and the charge interlock
+ * enforced nothing.  The publish is what makes it live, so it is asserted
+ * rather than merely stubbed. */
+static uint16_t g_chan_ua[NP_SAFETY_MAX_CHANNELS];
+void np_safety_spi_set_channel_current(uint8_t channel, uint16_t current_ua)
+{
+    if (channel < NP_SAFETY_MAX_CHANNELS) { g_chan_ua[channel] = current_ua; }
+}
+
 void np_log_shdr_fault(uint8_t slot, uint8_t mod_type, uint8_t code, uint32_t t)
 {
     (void)slot; (void)mod_type; (void)code; (void)t;

@@ -1064,7 +1064,7 @@ Consequences and rationale:
   remains with OI-HUB-SOCKET-01.
 - **tES path interlock.** The `ELEC` contact is dual-rated (record + stimulate). The cluster
   carrier's record/stim selector must be gated by `SAFE_EN[n]` as well, so the ≤2 mA (T1) / ≤4 mA
-  (T2) drive path cannot be established on a de-energized cluster. The 40 µC/cm² charge-density
+  (T2) drive path cannot be established on a de-energized cluster. The commanded-charge-density
   limit remains where CLAUDE.md §4.2 puts it — in the Safety MCU, not here.
 
 ---

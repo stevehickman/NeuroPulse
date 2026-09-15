@@ -147,6 +147,9 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
             (void)np_mod_vns_hal_stim_stop(s_state.active_side);
             s_state.active = false;
             np_safety_spi_request_disable(NP_SAFETY_EN_VNS_HRV);
+            /* OI-CHARGE-05 (c): clear the published commanded current beside
+             * the enable it belongs to. */
+            np_safety_spi_set_channel_current(NP_SAFETY_CH_VNS_HRV, 0U);
         }
         if (s_state.ppg_on) {
             np_mod_vns_hal_ppg_stop();
@@ -198,6 +201,10 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
     s_state.active      = true;
     s_state.active_side = p->side;
     np_safety_spi_request_enable(NP_SAFETY_EN_VNS_HRV);
+    /* OI-CHARGE-05 (c): publish the capped commanded amplitude — the same
+     * number handed to the stimulator, so the safety MCU's per-phase check
+     * runs against what was commanded rather than what was authored. */
+    np_safety_spi_set_channel_current(NP_SAFETY_CH_VNS_HRV, amp);
 
     return NP_HUB_OK;
 }

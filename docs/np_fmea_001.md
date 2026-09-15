@@ -2,18 +2,18 @@
 
 **Project:** NeurOne  
 **Document:** NP-FMEA-001  
-**Revision:** 6
-**Date:** 2026-09-09  
+**Revision:** 7
+**Date:** 2026-09-15  
 **Status:** DRAFT  
 **Effective Date:** 2026-07-13  
 **Author:** SmartyPants / PAI  
 **Approved By:** TBD (Quality Lead)  
-**References:** NP-SW-001 Rev 1, NP-RM-001 Rev 1, NP-FW-CVNS-001 Rev 1, IEC 62304:2006+AMD1:2015 §7.1, ISO 14971:2019  
+**References:** NP-SW-001 Rev 8, NP-RM-001 Rev 1, NP-FW-CVNS-001 Rev 1, IEC 62304:2006+AMD1:2015 §7.1, ISO 14971:2019  
 **Related Issues:** —  
 **Gate:** —  
 **IEC 62304 Class:** C (SW-01 Safety MCU)  
 **Jurisdiction Scope:** —  
-**Change Summary:** Rev 6 (2026-09-09) — §3.3's flag corrected: the commanded-current substitution is **not** a privacy constraint. `np_safety_imp_report_t` already moves a UHDR-class measurement across the same SPI boundary and reports only a biology-free divergence flag to SHDR, so the rule is "UHDR may not land in SHDR", not "UHDR may not cross SPI". What constrains a delivered-dose interlock is signature independence and a current-sense ADC channel the MCU does not have. `OI-FMEA-07` now carries a recommended resolution needing no new hardware. No risk scores changed. Rev 5 (2026-09-09) — §3.3 (SW01-M03 charge density monitor) flagged as **not analysing the module that exists**: `np_charge_density.c/.h` never existed, there is no ADC, and FMEA-M03-02/-03 are hazards of one — so FMEA-M03-03 (S5/P2 = 10, UNACCEPTABLE initial) is carried as mitigated by a control that was never built, while its effect line describes the live system. `OI-FMEA-07` raised. No risk scores changed. Rev 4 — §3.4 (SW01-M04 thermal interlock) flagged as written against the **retired 5-PBM-slot architecture**; FMEA-M04-01's zone-index control marked INVALID; PA4 double-assignment recorded as an open instance under FMEA-M08-04; OI-FMEA-06 raised for re-analysis. **No risk scores changed and no failure modes added or removed** — re-scoring is hazard analysis and is deferred to OI-FMEA-06.
+**Change Summary:** Rev 7 (2026-09-15) — **§3.3 (SW01-M03) re-authored against the module that exists, and risk scores CHANGED** (`OI-FMEA-07`; Revs 5 and 6 flagged the gap and froze the scores, this one closes it). Two ADC failure modes retired and replaced — the real hazard is **delivered current diverging from commanded**, not a stuck ADC — and FMEA-M03-03 keeps its S5/P2 = 10 UNACCEPTABLE-initial score with the cause corrected to *commanded current never reaching the monitor*, which was the live state of the system until the hub half of `OI-CHARGE-01` was wired. FMEA-M03-06 added (wrong ceiling applied to a channel). The module is named a **commanded-dose** control throughout, with the safety argument stated for the first time: signature independence, not privacy. **SW01-M03's residual rating in §4 is now explicitly conditional** on `OI-FMEA-07`'s cross-check, which is specified but not built. `OI-FMEA-04` closed NOT APPLICABLE; `OI-FMEA-08` raised for the 95% ramp-down margin both requirement documents specified and neither implementation has. Rev 6 (2026-09-09) — §3.3's flag corrected: the commanded-current substitution is **not** a privacy constraint. `np_safety_imp_report_t` already moves a UHDR-class measurement across the same SPI boundary and reports only a biology-free divergence flag to SHDR, so the rule is "UHDR may not land in SHDR", not "UHDR may not cross SPI". What constrains a delivered-dose interlock is signature independence and a current-sense ADC channel the MCU does not have. `OI-FMEA-07` now carries a recommended resolution needing no new hardware. No risk scores changed. Rev 5 (2026-09-09) — §3.3 (SW01-M03 charge density monitor) flagged as **not analysing the module that exists**: `np_charge_density.c/.h` never existed, there is no ADC, and FMEA-M03-02/-03 are hazards of one — so FMEA-M03-03 (S5/P2 = 10, UNACCEPTABLE initial) is carried as mitigated by a control that was never built, while its effect line describes the live system. `OI-FMEA-07` raised. No risk scores changed. Rev 4 — §3.4 (SW01-M04 thermal interlock) flagged as written against the **retired 5-PBM-slot architecture**; FMEA-M04-01's zone-index control marked INVALID; PA4 double-assignment recorded as an open instance under FMEA-M08-04; OI-FMEA-06 raised for re-analysis. **No risk scores changed and no failure modes added or removed** — re-scoring is hazard analysis and is deferred to OI-FMEA-06.
 
 ---
 
@@ -135,55 +135,89 @@ The heartbeat SPI message carries the SW-02 requested-enable bitmask (what SW-02
 
 ---
 
-### 3.3 SW01-M03 — Charge Density Monitor (`np_charge_density.c/.h`)
+### 3.3 SW01-M03 — Charge Monitor, commanded dose (`np_charge_monitor.c`)
 
-> **⚠ THIS SECTION DOES NOT ANALYSE THE MODULE THAT EXISTS (flagged 2026-09-09, `OI-FMEA-07`).**
-> `np_charge_density.c/.h` has never existed; the module is
-> `firmware/safety_mcu/src/np_charge_monitor.c`. It has **no ADC**: it accumulates *commanded*
-> current from the 200 ms SPI heartbeat (5 Hz, not the 1 kHz below, and not measured), trips at
-> **100%** rather than the 95% this section specifies, responds in up to **200 ms** rather than
-> <25 µs, and uses a `uint64_t` accumulator with **no roll-over detection** and no 32-bit-boundary
-> unit test. **FMEA-M03-02 and FMEA-M03-03 are hazards of an ADC and their mitigations are
-> therefore fictional for this architecture** — there is nothing to self-test or 2-point
-> calibrate. FMEA-M03-03 is **S5/P2 = 10, UNACCEPTABLE initial**, so it is currently carried as
-> mitigated to acceptable by a control that was never built; and its effect line — *"Charge
-> density limit never reached; patient receives unlimited charge"* — **describes the live system**,
-> because the hub calls the heartbeat with `current_ua = NULL, channel_count = 0`
-> (`OI-CHARGE-05` (c); `OI-CHARGE-01`'s hub half was never wired).
->
-> **A monitor fed commanded current can only verify what was *asked for*, never what reached the
-> scalp**, so it cannot by itself detect a driver or electrode fault that makes delivered charge
-> diverge from commanded — a different safety argument from the one this section makes, and one no
-> document has yet stated. **This is not, however, a privacy constraint.** The substitution is
-> recorded in the source as one (commanded current is SHDR; ADC-measured current *"would be
-> UHDR-class"*), but `np_safety_imp_report_t`'s privacy gate already moves a UHDR-class
-> measurement across this same SPI boundary for cross-validation, keeps it device-internal, and
-> reports only a biology-free **divergence flag** to SHDR. The rule is *"UHDR data may not land in
-> SHDR"*, not *"UHDR data may not cross SPI"*. What actually constrains a delivered-dose interlock
-> is **signature independence** — commanded current comes from a signed descriptor and a measured
-> value cannot — and, for a Class C measurement, **a current-sense ADC channel the safety MCU does
-> not have** (ADC1 is fully allocated to six NTC and six impedance channels). `OI-FMEA-07` carries
-> a recommended resolution that needs no new hardware: keep the cutoff on commanded current, log
-> both doses to UHDR, and raise an SHDR divergence flag on the cross-check — which is what turns
-> FMEA-M03-02 and FMEA-M03-03 from unmitigable ADC fictions into detectable, scoreable hazards.
->
-> **No risk scores are changed and no failure modes are added or removed here.** Re-scoring the
-> module that exists is hazard analysis, not editorial correction; the scores below are frozen and
-> **not to be relied on** pending `OI-FMEA-07`. The separate question of whether 40 µC/cm² is the
-> right ceiling at all — it has no source in the document tree, and is a *per-phase* pulsed figure
-> applied to DC — is `OI-CHARGE-05`, not this item.
+> **RE-AUTHORED 2026-09-15 against the implemented module (`OI-FMEA-07`, Rev 7).** Revisions 5 and
+> 6 carried a warning banner over an analysis of a module that was never built: a
+> `np_charge_density.c/.h` with a 1 kHz current-sense ADC, a 95% abort margin and a <25 µs
+> response. Two of its three principal failure modes (FMEA-M03-02, -03) were hazards **of that
+> ADC**, mitigated by an ADC self-test and a 2-point calibration that cannot exist on this
+> architecture — so an **UNACCEPTABLE-initial** hazard was carried as mitigated to acceptable by a
+> control that had never been built and could not be. This section now analyses
+> `firmware/safety_mcu/src/np_charge_monitor.c` as it is, and **risk scores have changed**; the
+> retired rows and where each went are tabulated at the end.
 
-**Description:** SW01-M03 continuously integrates the charge delivered per electrode pair for all electrical stimulation modalities (tDCS, BES/tACS, VNS, cervical VNS). Charge integration uses a dedicated current-sense ADC channel (1 kHz sample rate). When the accumulated charge per electrode pair reaches 95% of the hardware safety limit (40 µC/cm²), SW01-M03 sends a fault signal to SW01-M01 to abort the session. The 95% threshold provides margin for the abort ramp-down period. Response time is within one PWM period (<25 µs at 40 kHz).
+**Description.** SW01-M03 bounds the charge the safety MCU has been *commanded* to deliver on each
+electrode-bearing channel, and clears that channel from `granted_mask` when the bound is reached.
+It is **waveform-aware** (`OI-CHARGE-05`), because the two waveform classes do not share a
+meaningful dose quantity:
 
-The electrode area used in the charge density calculation is a compile-time constant per electrode type, set from validated measurements.
+- **DC channels** (tDCS, HD-tDCS) — commanded charge is integrated across the session as
+  `|I| × dt` and compared against `DI-SAFE-01`'s **150 mC/cm² × the declared electrode area**.
+- **Pulsed/AC channels** (BES/tACS, VNS, cervical VNS, clinical tACS) — charge-balanced biphasic,
+  so net delivered charge is ~zero and a session integral of `|I|` is not a dose. These are
+  evaluated per heartbeat as a **predicate on charge per phase** (amplitude × phase width, with a
+  2/π factor for sinusoids) against `DI-SAFE-01a`'s **40 µC/cm² × the declared area**. No state is
+  accumulated.
+
+A channel may carry both classes: `NP_SAFETY_CH_CLIN_STIM` is shared by HD-tDCS and clinical tACS,
+and both checks then run.
+
+**It is a COMMANDED-dose control, not a delivered-dose one, and that is the safety argument this
+section previously failed to state.** The input is `current_ua[]` from the heartbeat frame, which
+carries what the cryptographically signed session descriptor asked for — never an ADC measurement.
+The reason is **signature independence**: a measured value cannot be signed in advance, so a
+Class C cutoff keyed to one would inherit the Class B hub's integrity, and a faulty or compromised
+hub could under-report without this MCU being able to tell. (The source previously recorded the
+reason as a UHDR/SHDR privacy constraint. That was wrong: `np_safety_imp_report_t` already moves a
+UHDR-class measurement across this same SPI boundary for cross-validation. The rule is *"UHDR may
+not land in SHDR"*, not *"UHDR may not cross SPI"*, so privacy is not what blocks a delivered-dose
+interlock.) What **does** block the strong form is hardware: ADC1 is fully allocated to six NTC and
+six impedance channels, and there is no current-sense input.
+
+**The consequence is the hazard class this section must actually analyse.** A monitor fed commanded
+current cannot detect delivered charge diverging from commanded — a driver stuck on, an electrode
+lifting, a current source out of calibration. That is a real hazard, it is detectable, and the
+control for it is the hub's commanded-versus-delivered cross-check with an SHDR **divergence flag**
+(device condition, no biology — the `np_safety_imp_report_t` pattern reused). FMEA-M03-02 and
+FMEA-M03-03 below are that hazard, written against this architecture instead of an imaginary one.
+
+**Timing and implementation facts** (each of which contradicted an earlier revision): the monitor
+ticks on the 200 ms SPI heartbeat loop, so worst-case detection latency is **200 ms**, not <25 µs,
+and its sampling rate is **5 Hz**, not 1 kHz. The trip is at **100%** of the derived limit
+(`>=`); there is **no 95% ramp-down margin** in Class C — that margin exists only in Class B
+HD-tDCS (`np_hd_stim.c`) — and whether Class C should have one is carried as `OI-FMEA-08` below
+rather than asserted here. The accumulator is **`uint64_t`**, with no roll-over detection and no
+32-bit-boundary unit test, because at these ceilings a 64-bit accumulator cannot wrap.
+
+**Electrode area is declared, not assumed** (`OI-CHARGE-02`/`-04`): the hub transmits the area from
+the signed descriptor and the MCU derives both limits from it, so the density constants never cross
+SPI. Channels whose electrodes are fixed parts of the product (BES pads, auricular clip, cervical
+collar) use firmware constants that are **PROVISIONAL and not measured** — `OI-CHARGE-07`.
 
 | FM-ID | Failure Mode | Effect | S | P | Risk | Mitigation | Res. S | Res. P | Res. Risk | Accept |
 |---|---|---|---|---|---|---|---|---|---|---|
-| FMEA-M03-01 | 32-bit charge accumulator overflows (wraps around) — accumulated charge reads as near-zero | Charge density limit not enforced; patient receives unsafe charge density exceeding 40 µC/cm² | S4 | P2 | 8 (ALARP) | Accumulator is `uint32_t`; maximum representable charge at 1 kHz sampling = 4,294,967,295 nC >> any session limit; overflow condition is checked independently: if accumulator value decrements between samples (roll-over detection), abort is triggered immediately; unit test validates 32-bit boundary | S2 | P1 | 2 | ACCEPTABLE |
-| FMEA-M03-02 | ADC read returns saturated value (0xFFF stuck high) — current-sense reads maximum at all times | Every sample adds maximum charge increment; session aborted nearly immediately (false positive cutoff) | S2 | P3 | 6 (ALARP) | Saturated ADC value detected as out-of-range (> 3× expected maximum at full-rated current); treated as ADC fault, session aborted conservatively; ADC hardware self-test at session start verifies reading within expected range for known zero-current condition | S1 | P2 | 2 | ACCEPTABLE |
-| FMEA-M03-03 | ADC read returns 0x000 (stuck low) — no charge accumulates in monitor | Charge density limit never reached; patient receives unlimited charge | S5 | P2 | 10 (UNACCEPTABLE initial) | ADC self-test at session start: delivers known current pulse and verifies ADC response is within expected range (2-point calibration: zero current and a safe test pulse); ADC stuck-low detected and blocks session enable; hardware current limit on driver circuit provides independent backstop | S3 | P1 | 3 | ACCEPTABLE |
-| FMEA-M03-04 | Charge accumulator not reset between sessions — cumulative overdose across multiple consecutive sessions | Patient total charge across sessions 1 + 2 exceeds safe limit without per-session abort | S4 | P3 | 12 (UNACCEPTABLE initial) | Accumulator explicitly zeroed in `np_charge_density_session_start()` called at the beginning of every session, not at the end; zero-on-start is unit-tested with a two-session test sequence; session log in SHDR records per-session charge delivered | S2 | P1 | 2 | ACCEPTABLE |
-| FMEA-M03-05 | Electrode area constant in firmware set incorrectly — charge density (µC/cm²) underestimated | True charge density exceeds limit while calculated value remains below abort threshold | S4 | P2 | 8 (ALARP) | Electrode area constants are defined in `np_gpio_enable.h` with reference to the physical electrode datasheet; values reviewed against IFU and electrode specification in design review; unit tests include known-good charge/area/density calculations for all electrode types | S2 | P1 | 2 | ACCEPTABLE |
+| FMEA-M03-01 | Charge accumulator overflows or is mis-indexed — accumulated charge reads low for the channel actually stimulating | DC charge limit not enforced on that channel; patient receives charge beyond the DI-SAFE-01 ceiling | S4 | P1 | 4 (ALARP) | Accumulator is `uint64_t`; the largest representable value exceeds any reachable session charge by >9 orders of magnitude, so wrap is not a credible mechanism and no roll-over detection is claimed. The mis-indexing mechanism is the live one: enable-bit position ≡ `current_ua[]` slot ≡ accumulator index is a three-way identity, now **asserted at compile time** (`_np_safety_ch_index_check`, `np_safety_protocol.h`) and cross-checked hub-to-MCU by `np_safety_spi_proto_tests.c` through `np_hub_enable_mirror`. Host tests cover per-channel isolation (a trip on one channel leaves others granted). | S2 | P1 | 2 | ACCEPTABLE |
+| FMEA-M03-02 | **Delivered current exceeds commanded** — driver stuck on, current source out of calibration, or electrode area smaller than declared | Monitor's accumulated figure under-states delivered charge; the ceiling is reached in tissue before the monitor reaches it, so the cutoff is late or absent. **This is the residual hazard inherent to a commanded-dose control** and cannot be mitigated within this module. | S4 | P2 | 8 (ALARP) | Hub cross-checks its own delivered-current telemetry (`NP_LOG_TAG_UHDR_STIM`) against commanded and raises an SHDR **divergence flag** — device condition, no biology (`OI-FMEA-07`, not yet built). Independent backstops that do not depend on this module: hardware current limit on the driver circuit; the SW01-M06 impedance check refuses enable on an out-of-range contact; SW01-M04 thermal cutoff bounds the energy path. **Declared** electrode area removes the assumed-geometry mechanism (`OI-CHARGE-04`). | S3 | P1 | 3 | ACCEPTABLE |
+| FMEA-M03-03 | **Commanded current never reaches the monitor** — hub sends no `current_ua[]`, sends zeros, or the heartbeat's ext-checksum fails every beat | No charge accumulates and no per-phase predicate evaluates; the charge limit is never reached; patient receives unlimited charge. **This was the live state of the system until 2026-09-15**: `np_hub_control_main.c` called the heartbeat with `current_ua = NULL, channel_count = 0` (`OI-CHARGE-05` (c)). | S5 | P2 | 10 (UNACCEPTABLE initial) | **The hub half is now wired** — modality modules publish each commanded current beside the `request_enable` they already make, so a channel enabled without a published current is a single-site coding error rather than an architectural gap, and `np_mod_stim_tests.c` asserts the publish. **Fail-closed declaration gate**: an electrical channel whose waveform class was never declared is cleared from `granted_mask` (`np_charge_monitor_decl_gate`), so a session whose setup frames are lost runs **no** electrical modality rather than running one unmonitored; the gate is driven by a compile-time channel set, so a silent hub cannot exempt itself. A heartbeat that fails checksum does not refresh the watchdog, and SW01-M02 cuts all stimulation at 1.5 s. | S3 | P1 | 3 | ACCEPTABLE |
+| FMEA-M03-04 | Charge accumulator not reset between sessions — cumulative dose carried across consecutive sessions, or a latched trip carried forward | Either a session is cut using a previous session's charge, or (the converse) a pause/resume cycle zeroes the accumulator mid-session and circumvents the limit | S4 | P2 | 8 (ALARP) | `np_charge_monitor_reset_session()` zeroes accumulators, areas, waveform declarations and the latched `NP_SAFETY_STATUS_CHARGE` bit, and is called on the `session_active` **0→1 transition only**. `np_safety_session_status_bits()` maps RUNNING, PAUSED **and** STOPPING to ACTIVE precisely so a pause cannot present as a new session — that mapping is the control for the circumvention direction and is host-tested. Two-session host tests cover re-arming in both directions; a per-session reset of the declarations makes a stale declaration unable to outlive its session. | S2 | P1 | 2 | ACCEPTABLE |
+| FMEA-M03-05 | Electrode area declared larger than the physical electrode, or a provisional firmware area is too large | Derived limit exceeds the true ceiling; charge density in tissue exceeds DI-SAFE-01/-01a while the monitor reads compliant | S4 | P2 | 8 (ALARP) | Area travels in the **signed** descriptor, so altering it invalidates the signature SW01-M07 verifies. The hub floors the area (truncates toward zero), so the derived limit can only err low. Where several commands land on one channel the **smallest** declared area wins. An undeclared area on a gated channel is fail-CLOSED, not a fallback (`OI-CHARGE-03`/`-04`). The three provisional product-electrode areas are asserted in test to be non-zero and no larger than the 25 cm² default, so the failure direction is bounded by construction (`OI-CHARGE-07` tracks measuring them). | S2 | P1 | 2 | ACCEPTABLE |
+| FMEA-M03-06 | **Wrong ceiling applied to a channel** — a charge-balanced channel judged against the DC session budget, or a DC channel against the per-phase predicate | Judging a charge-balanced channel by a session integral of \|I\| trips it in 0.4–1.0 s at its rated current — a spurious cutoff of a safe protocol. The converse leaves a DC channel with no session bound at all. **The first direction was the implemented behaviour until 2026-09-15**, latent only because FMEA-M03-03 kept the monitor inert. | S3 | P2 | 6 (ALARP) | Waveform class is declared per channel by the hub from the signed descriptor and applied on the Class C side (`np_safety_chan_wave_cmd_t`); the ceilings themselves never cross SPI. Classes OR together, so a shared enable bit carrying two modalities is held to **both** ceilings rather than the last one written. An undeclared class is fail-closed, not a default. Host tests pin both directions: that an hour of pulsed stimulation raises no session-dose fault, and that the per-phase ceiling still bites on a channel also declared DC. | S2 | P1 | 2 | ACCEPTABLE |
+
+**Retired rows and where they went.** Rev 7 removed two failure modes and re-scored a third; none
+is silently dropped:
+
+| Retired row | Why | Successor |
+|---|---|---|
+| FMEA-M03-02 (*"ADC read returns saturated value (0xFFF stuck high)"*) | Hazard of a current-sense ADC this design does not have. Its mitigations — out-of-range detection, ADC self-test at session start — could not be built. | Re-authored as the **commanded-versus-delivered divergence** hazard above, which is the real form of "the monitor's number is not what is in tissue" and is detectable. |
+| FMEA-M03-03 (*"ADC read returns 0x000 (stuck low)"*, S5/P2 = 10) | Same: an ADC hazard with a 2-point-calibration mitigation that cannot exist here. **But its effect line described the live system**, reached by a different cause. | Kept at **S5/P2 = 10 UNACCEPTABLE initial** with the cause corrected to *commanded current never reaching the monitor*, and mitigated by controls that now exist (the wired hub half, the fail-closed declaration gate, the SW01-M02 watchdog) rather than by an unbuilt self-test. |
+| FMEA-M03-01's *"32-bit accumulator … roll-over detection … unit test validates 32-bit boundary"* | The accumulator is `uint64_t`; there is no roll-over detection and no such test. The claimed controls did not exist. | Re-scored P3→P1 on the overflow mechanism (not credible at 64 bits) and re-pointed at the **mis-indexing** mechanism, which is credible and now has a compile-time assertion behind it. |
+
+**What is still true and still owed.** `OI-FMEA-04` (ADC self-test bench validation) is **closed as
+not applicable** — there is no ADC to validate. The 95% ramp-down margin question moves to
+`OI-FMEA-08`. The commanded-versus-delivered cross-check and its SHDR divergence flag, which
+FMEA-M03-02's residual score depends on, are **specified but not built** — that is `OI-FMEA-07`'s
+remaining scope, and FMEA-M03-02's residual rating should be read as conditional on it.
 
 ---
 
@@ -279,7 +313,7 @@ A baseline cross-validation step before enable ensures the Safety MCU's GPIO-tim
 |---|---|---|---|---|---|
 | SW01-M01 | Stimulation Enable GPIO Management | S5×P2 = 10 (FMEA-M01-05) | UNACCEPTABLE | S2×P1 = 2 | ACCEPTABLE |
 | SW01-M02 | SPI Heartbeat Watchdog | S5×P2 = 10 (FMEA-M02-02, -03, -05) | UNACCEPTABLE | S3×P1 = 3 | ACCEPTABLE |
-| SW01-M03 | Charge Density Monitor | S5×P2 = 10 (FMEA-M03-03) | UNACCEPTABLE | S3×P1 = 3 | ACCEPTABLE |
+| SW01-M03 | Charge Monitor (commanded dose) | S5×P2 = 10 (FMEA-M03-03) | UNACCEPTABLE | S3×P1 = 3 | ACCEPTABLE\* |
 | SW01-M04 | Thermal Interlock | S4×P3 = 12 (FMEA-M04-02) | UNACCEPTABLE | S2×P1 = 2 | ACCEPTABLE |
 | SW01-M05 | Cervical VNS Cardiac Interlock | S5×P2 = 10 (FMEA-M05-03, -06) | UNACCEPTABLE | S2×P1 = 2 | ACCEPTABLE |
 | SW01-M06 | Impedance Check | S4×P3 = 12 (FMEA-M06-03) | UNACCEPTABLE | S2×P1 = 2 | ACCEPTABLE |
@@ -287,6 +321,13 @@ A baseline cross-validation step before enable ensures the Safety MCU's GPIO-tim
 | SW01-M08 | Fault Latch and Fault Log | S5×P2 = 10 (FMEA-M08-01) | UNACCEPTABLE | S2×P1 = 2 | ACCEPTABLE |
 
 **All residual risks are ACCEPTABLE per NP-RM-001 §4.3 acceptability criteria.**
+
+**\*** SW01-M03's residual rating is **conditional**: FMEA-M03-02 (delivered current diverging from
+commanded) is scored against the hub's commanded-versus-delivered cross-check and SHDR divergence
+flag, which are **specified but not yet built** (`OI-FMEA-07`). It is recorded as conditional rather
+than as achieved because Rev 5 found this section carrying an UNACCEPTABLE-initial hazard as
+mitigated by a control that never existed, and stating the dependency is what stops that recurring.
+FMEA-M03-03's residual, by contrast, rests on controls that **are** built and tested.
 
 ---
 
@@ -325,8 +366,10 @@ The following system-level risks are addressed by SW-01 FMEA mitigations. **Regi
 | System risk | Addressed by SW01 module(s) | FMEA entries |
 |---|---|---|
 | RISK-25: Cervical VNS cardiac arrhythmia | SW01-M05 (cardiac interlock) | FMEA-M05-01 through M05-08 |
-| RISK-14: PBM dose metering accuracy | SW01-M03 (charge density), SW01-M04 (thermal) | FMEA-M03-01 through M04-04 |
-| Charge density overdose (tDCS/BES/VNS) | SW01-M03 (charge density monitor) | FMEA-M03-01 through M03-05 |
+| RISK-14: PBM dose metering accuracy | SW01-M04 (thermal) | FMEA-M04-01 through M04-04 |
+| Commanded charge overdose, DC (tDCS/HD-tDCS) | SW01-M03 (charge monitor, per-session ceiling) | FMEA-M03-01, -03, -04, -05, -06 |
+| Commanded charge overdose, pulsed (BES/tACS/VNS/cervical VNS/clinical tACS) | SW01-M03 (charge monitor, per-phase ceiling) | FMEA-M03-03, -05, -06 |
+| Delivered charge diverging from commanded | SW01-M03 (residual); hub cross-check + SHDR divergence flag (`OI-FMEA-07`, not yet built) | FMEA-M03-02 |
 | Malicious session protocol injection | SW01-M07 (signature verification) | FMEA-M07-01 through M07-05 |
 | SW-02 crash during active session | SW01-M02 (heartbeat watchdog) | FMEA-M02-01 through M02-06 |
 
@@ -345,7 +388,8 @@ The clinical benefit of the device — multi-modal neurostimulation supporting c
 | OI-FMEA-01 | Hardware bench validation of SW01-M02 watchdog timeout timing (FMEA-M02-02, M02-05): oscilloscope measurement of GPIO cutoff latency from IWDG reset to all stimulation GPIO LOW; must confirm ≤50 ms. Requires hardware bench (FAI-HUB bench). | HW team | Full G1 gate closure for SW01-M02 |
 | OI-FMEA-02 | Hardware bench validation of SW01-M05 cardiac interlock cutoff latency (FMEA-M05-03, M05-06): oscilloscope + R-peak signal generator; 10 consecutive trials must measure <5.1 ms worst-case (FAI-CV02). Requires T2 prototype. | HW team | Full G3-08 closure; T2 clinical release |
 | OI-FMEA-03 | SW01-M07 manufacturing public key flash sector integrity: CRC-32 of key in flash must be computed and stored at programming time; bootloader must verify CRC before first signature verification; spec to be added to NP-FW-EMMC-001 Rev 2. Currently partial (PCROP active, CRC check planned). | FW team | G2 gate |
-| OI-FMEA-04 | SW01-M03 ADC self-test (FMEA-M03-03): two-point calibration protocol (zero current + known safe test pulse) requires hardware bench validation with production current-sense circuit. Software test constants verified; hardware path pending T1 prototype. | HW team | G2 gate |
+| ~~OI-FMEA-04~~ | **CLOSED NOT APPLICABLE 2026-09-15.** Called for bench validation of an SW01-M03 ADC self-test against "the production current-sense circuit". There is no current-sense ADC in this design and never was — the monitor reads commanded current over the SPI heartbeat — so there is nothing to validate and nothing to build. The hazard it was attached to (FMEA-M03-03) is re-authored in §3.3 against its real cause, and the delivered-dose concern it gestured at is FMEA-M03-02, whose control is `OI-FMEA-07`'s cross-check. A Class C current-sense channel remains a **hardware** ask, not a bench task — see `OI-FMEA-07`. | — | — |
+| OI-FMEA-08 | **Decide whether the Class C charge monitor should carry a ramp-down margin.** `NP-SW-001` and `NP-FMEA-001` both specified an abort at *"95% of"* the ceiling *"to provide margin for the abort ramp-down period"*, and neither the margin nor the ramp-down exists in `np_charge_monitor.c`: it trips at 100% and clears the enable bit, which is abrupt by construction. The 95% figure exists only in Class B HD-tDCS (`np_hd_stim.c`). The question is real rather than editorial, because tDCS enforces a 30 s minimum ramp and a 100% trip leaves no budget to ramp within. Two honest answers: implement a margin in Class C (and specify what happens in it), or record that a charge cutoff is abrupt and that the ramp requirement does not apply to it. Both documents now say the margin is absent rather than implying it exists. | Safety SW + Quality | Before G2 firmware release |
 | OI-FMEA-06 | **Re-analyse SW01-M04 (and the enable-mask rows of SW01-M01) against the hex-lattice architecture.** The retired 5-PBM-slot model that §3.4 is written against no longer exists: "zone" now means an overlapping, user-authored set of sockets (`00-zones.npps`) and cannot be a thermal or enable domain; the thermal domain is the **tile** (~80), the aggregation boundary is the **cluster** (18, NP-HW-HEXTILE-001 §8.2.1), the per-tile 62 °C throttle is on-module Class B, and module faults reach the safety MCU by per-cluster wire-OR `ALERT#`. **Three concrete items:** (a) FMEA-M04-01's control (zone index bounded 0–4, "all 5 zone indices" tested) is **invalid** and needs a replacement control against the real index domain; (b) `NP_NTC_CHANNEL_COUNT 6 /* 5 zones + 1 hub */` in `np_safety_config.h` encodes the retired count and must be re-derived — the safety MCU cannot present 80 NTC channels; (c) the **PA4 double-assignment** under FMEA-M08-04 is an open instance of that hazard class, resolving via the NP-HW-HUB-001 §7.2 zone-enable deletion. **Also re-check FMEA-M01-03 (wrong GPIO bit position) whenever the Class C enable word is re-laid out** — enable-bit position is identical to the charge-monitor channel index (`NP_SAFETY_MAX_CHANNELS`, `NP_SAFETY_CH_CLIN_STIM`, `current_ua[]`), so a bit move silently re-means charge accumulation (NP-HW-HEXTILE-001 §8.4.2). **S/P scores in §3.4 are frozen pending this re-analysis and should not be relied on.** | Quality Lead + Firmware | **Blocks SW01-M04 re-baseline; coordinate with OI-HUB-C07 / OI-HEXTILE-13** |
 | OI-FMEA-05 | SW01-M06 mid-session impedance monitoring (FMEA-M06-03): firmware spec for continuous 1 Hz impedance monitoring during session requires authoring as a sub-requirement in NP-SW-001 §6.2; currently only pre-session impedance check is explicitly specified. | FW team | Before G2 firmware release |
 
@@ -357,6 +401,7 @@ The clinical benefit of the device — multi-modal neurostimulation supporting c
 |---|---|---|---|
 | 1 | 2026-06-06 | SmartyPants / PAI | Initial issue. Unit-level FMEA for SW01-M01 through SW01-M08 per IEC 62304 §7.1 Class C requirement. 43 failure modes across 8 modules. All residual risks ACCEPTABLE. Closes SW-01 FMEA pending decision in docs/status/pending-decisions.md §13.4. |
 | 2 | 2026-06-15 | SmartyPants / PAI | OI-SW01-M07-02 CLOSED — §3.7 description updated to reflect that Ed25519 is now provided by the shared `np_crypto` library (Monocypher 4.0.2, PR #132) rather than a self-contained implementation. FMEA-M07-05 mitigation updated to reference Monocypher `ct_memcmp`. No failure modes added or removed; no risk scores changed. References: NP-SW-001 §9.4 SOUP table; `firmware/crypto/vendor/monocypher/VERSION`. |
+| 7 | 2026-09-15 | NeurOne Firmware + Quality | **§3.3 RE-AUTHORED against the module that exists, and risk scores CHANGED (`OI-FMEA-07`).** Revs 5 and 6 flagged the gap and froze the scores; this revision closes it. **Two failure modes retired**: FMEA-M03-02 (*"ADC saturated"*) and the ADC premise of FMEA-M03-03 (*"ADC stuck low"*) were hazards of a current-sense ADC this design does not have, mitigated by an ADC self-test and 2-point calibration that could not be built — so an UNACCEPTABLE-initial hazard was carried as mitigated by a fiction. **Both are replaced, not dropped.** The real form of "the monitor's number is not what is in tissue" is **delivered current diverging from commanded** (new FMEA-M03-02, S4/P2 = 8), whose control is the hub cross-check and SHDR divergence flag — **specified but not yet built**, so SW01-M03's residual rating is now recorded as explicitly conditional in §4. FMEA-M03-03 keeps its **S5/P2 = 10 UNACCEPTABLE initial** with the cause corrected to *commanded current never reaching the monitor*, which was **the live state of the system** until the hub half of OI-CHARGE-01 was wired on 2026-09-15; its mitigations are now controls that exist and are tested (the wired publish, the fail-closed declaration gate, the SW01-M02 watchdog). **One failure mode added**: FMEA-M03-06, the wrong ceiling applied to a channel — judging a charge-balanced waveform by a session integral of \|I\| trips it in 0.4–1.0 s, which was the implemented behaviour and was latent only because the monitor was inert. FMEA-M03-01 re-scored P3→P1 on overflow (not credible at 64 bits) and re-pointed at mis-indexing, which now has a compile-time assertion behind it. **The module is renamed a commanded-dose control** throughout, and the safety argument for the substitution is stated for the first time: signature independence, not privacy. `OI-FMEA-04` closed NOT APPLICABLE (no ADC to bench-validate); `OI-FMEA-08` raised for the 95% ramp-down margin that both requirement documents specified and neither implementation has. |
 | 6 | 2026-09-09 | NeurOne Firmware + Quality | **§3.3's flag corrected — the commanded-current substitution is not a privacy constraint, and a delivered-dose control is available without new hardware. No risk scores changed.** Rev 5's flag read the substitution as the UHDR/SHDR boundary forbidding a delivered-dose interlock. It does not: `np_safety_imp_report_t`'s privacy gate already transfers measured tissue impedance (UHDR-class) MCU→hub for cross-validation, keeps it device-internal, and records only a **divergence flag** (device condition, no biology) to SHDR. The rule is *"UHDR-class data may not land in SHDR"*, not *"may not cross SPI"*, and the pattern is already implemented and reviewed. The genuine constraints are **signature independence** — commanded current comes from a cryptographically signed descriptor whose hash the MCU verifies, a measured value cannot be signed in advance, so a Class C cutoff against a hub-measured number would inherit Class B integrity — and, for the strong form only, **a current-sense ADC channel the safety MCU does not have** (ADC1 fully allocated: six NTC thermal domains, six impedance channels including `NP_IMP1_ADC_CH` for tDCS). `OI-FMEA-07` now carries a recommended resolution requiring no new hardware: MCU keeps the hard cutoff on commanded current; the hub logs **both** doses to UHDR (it already writes delivered current, charge and impedance there — commanded is what is missing); the hub cross-checks the two and raises an SHDR divergence flag. **That is the mitigation FMEA-M03-02 and FMEA-M03-03 need to be scoreable at all** — their real hazard class is delivered charge diverging from what the monitor believes (driver stuck on, electrode lifting), which is undetectable as an ADC failure on this architecture and detectable as a divergence. Scores stay frozen pending that decision. |
 | 5 | 2026-09-09 | NeurOne Firmware + Quality | **§3.3 (SW01-M03) flagged as not analysing the implemented module; `OI-FMEA-07` raised. No risk scores changed.** Six divergences between this section and `firmware/safety_mcu/src/np_charge_monitor.c`: the named file `np_charge_density.c/.h` does not exist; there is no current-sense ADC (commanded current over the 200 ms SPI heartbeat, 5 Hz, not measured); the trip is at 100% not 95%, so the ramp-down margin this section specifies is absent from the Class C monitor (it exists only in Class B `np_hd_stim.c`); response time is up to 200 ms not <25 µs; the accumulator is `uint64_t` with no roll-over detection; and the 32-bit-boundary unit test named as a control does not exist. **FMEA-M03-02 and FMEA-M03-03 are hazards of an ADC and their mitigations are fictional for this architecture**, which matters because FMEA-M03-03 is S5/P2 = 10 UNACCEPTABLE initial — an unacceptable hazard carried as mitigated by an unbuilt control — and because its effect (*"limit never reached; patient receives unlimited charge"*) **is the live state of the system**, the hub calling the heartbeat with `current_ua = NULL, channel_count = 0`. The ADC premise cannot simply be reinstated: the substitution was a deliberate UHDR/SHDR decision recorded in the source, and it makes this a commanded-dose control rather than a delivered-dose one — a safety argument no document has yet stated. Scores frozen and not to be relied on pending `OI-FMEA-07`; the ceiling's own validity is `OI-CHARGE-05`. |
 | 4 | 2026-08-04 | SmartyPants / PAI | **Retired "zone" concept flagged across SW01-M04 and SW01-M01; OI-FMEA-06 raised. No risk scores changed, no failure modes added or removed.** §3.4 is written against the retired **5-module-slot** architecture in which a "zone" was one of five physical PBM slots with its own NTC ADC channel at the safety MCU. That architecture is gone and the change is not cosmetic: a zone is now *"a named SET OF MODULES, defined as a list of socket addresses"* authored in `protocols/predefined/00-zones.npps`, user-extensible, unbounded in count, and **overlapping** (the inclusive-midline rule puts every midline socket in BOTH hemisphere zones of its lobe) — so a zone **cannot be a thermal or enable domain at all**. The thermal domain is now the **tile** (~80 sockets) and the aggregation boundary the **cluster** (18 — NP-HW-HEXTILE-001 §8.2.1); the safety MCU cannot present 80 NTC ADC channels, so the per-tile 62 °C junction throttle is on-module Class B (CLAUDE.md §4.2, required to act with the I2C bus silent) and module faults arrive by per-cluster wire-OR `ALERT#` (NP-DRV-SHELL-002 §6). Changes made: §3.4 carries an ARCHITECTURAL BASIS SUPERSEDED banner; **FMEA-M04-01's mitigation is marked INVALID** (its control bounds a zone index to 0–4 and unit-tests "all 5 zone indices" — both artifacts of the retired architecture), with the original text retained verbatim for traceability; FMEA-M01-03 flagged for re-check on any Class C enable-word re-layout, since enable-bit position is identical to the charge-monitor channel index (`NP_SAFETY_MAX_CHANNELS` / `NP_SAFETY_CH_CLIN_STIM` / `current_ua[]`), so moving a bit silently re-means charge accumulation; **FMEA-M08-04 gains a recorded open instance** — `np_safety_config.h` declares **PA4** as both SPI1 NSS (load-bearing for frame delineation) and `NP_EN_PBM_ZONE4_PIN`, which is exactly this row's hazard and whose stated control ("GPIO assignment verified against schematic in hardware design review") has not yet executed; and `NP_NTC_CHANNEL_COUNT 6 /* 5 zones + 1 hub */` is flagged as encoding the retired count. **Re-scoring deferred to OI-FMEA-06 by design** — assigning S/P values to the new architecture is hazard analysis, not an editorial correction, so §3.4's scores are frozen and marked not-to-be-relied-on rather than silently updated. **No firmware changed.** Rev 3 → D. Effective 2026-08-04. |

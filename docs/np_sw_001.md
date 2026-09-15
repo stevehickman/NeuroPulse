@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 7
-**Date:** 2026-09-14  
+**Revision:** 8
+**Date:** 2026-09-15  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -16,6 +16,8 @@
 **Next Review:** 2027-05-13 or upon significant architecture change
 
 ---
+
+**Rev 8 (2026-09-15):** **§5.1 SW01-M03 re-specified against the module that exists** (`OI-CHARGE-05`, `OI-FMEA-07`). The row named a file that has never existed — `np_charge_density.c/.h`; the module is `firmware/safety_mcu/src/np_charge_monitor.c` — and specified a single 40 µC/cm² ceiling with an abort at *"95% of"* it. It now specifies the **waveform-aware** model: DC channels (tDCS, HD-tDCS) against **150 mC/cm² per session** (DI-SAFE-01), charge-balanced channels (BES/tACS, VNS, cervical VNS, clinical tACS) against **40 µC/cm² per phase** (DI-SAFE-01a), both per electrode and both derived from the electrode area **declared in the signed descriptor**, with a fail-closed gate holding any undeclared electrical channel out of `granted_mask`. A note below the table records four things this document asserted and the implementation does not have: **no 95% ramp-down margin** in Class C — raised as `OI-FMEA-08` rather than quietly dropped, because with tDCS's 30 s enforced ramp a 100% trip leaves no budget to ramp within — a **200 ms** worst-case response rather than <25 µs, a **`uint64_t`** accumulator with no roll-over detection, and no 32-bit-boundary unit test. It also states for the first time that this is a **commanded-dose** control and that the reason for reading commanded rather than delivered current is **signature independence, not privacy**.
 
 **Rev C (2026-07-27):** Adds §5.2.1 ZONE_ID Detection Debounce Requirement (RISK-18) — states the 3-read/100ms/2-of-3-majority debounce requirement at the software-development-plan level, cross-referencing the existing implementations in NP-FW-ZA-001 and NP-FW-PBM1064-001. Closes the corresponding `docs/status/pending-decisions.md` open item. Rebased on top of Rev 2 (2026-07-22, SR-FAN-01…06 fan-health interlock, landed via PR #217) — no Rev 2 content changed by this revision.
 
@@ -138,12 +140,42 @@ Each module listed constitutes a **software unit** requiring individual unit ver
 |---|---|---|---|
 | SW01-M01 | Stimulation enable GPIO management | `np_gpio_enable.c/.h` | Owns all stimulation GPIO; enforces hardware interlock state machine |
 | SW01-M02 | SPI heartbeat watchdog | `np_spi_watchdog.c/.h` | Monitors 200ms heartbeat from SW-02; 1.5s timeout → all-cutoff |
-| SW01-M03 | Charge density monitor | `np_charge_density.c/.h` | Integrates delivered charge per electrode pair; aborts at 95% of 40µC/cm² |
+| SW01-M03 | Charge monitor (commanded dose) | `np_charge_monitor.c` | **Waveform-aware, two ceilings (OI-CHARGE-05).** DC channels (tDCS, HD-tDCS): integrates commanded charge per electrode across the session, cuts the channel at **150 mC/cm² × declared electrode area** (DI-SAFE-01). Pulsed/AC channels (BES/tACS, VNS, cervical VNS, clinical tACS): per-heartbeat predicate on **charge per phase** (amplitude × phase width), cuts at **40 µC/cm² × declared area** (DI-SAFE-01a); no session integral, because net charge on a charge-balanced waveform is ~zero. Fail-closed: an electrical channel whose waveform class was never declared is held out of `granted_mask`. Trips at 100%, not 95% — see the note below. |
 | SW01-M04 | Thermal interlock | `np_thermal.c/.h` | Reads NTC ADC per zone; throttles current at 62°C junction; additionally reads the scalp-facing NTC (Path B1) and bounds scalp-facing surface ≤42°C under loss of forced convection — PBM duty derate to the natural-convection-safe ceiling (SR-FAN-01/03/04/06, NP-REQ-FANHEALTH-001) |
 | SW01-M05 | Cervical VNS cardiac interlock | `np_cvns_interlock.c/.h` | RPEAK_IN GPIO timer; rolling HR window; >15 BPM change → cutoff <5.1ms |
 | SW01-M06 | Impedance check | `np_impedance.c/.h` | 1kHz AC impedance before session enable; blocks if out of range |
 | SW01-M07 | Session protocol signature verification | `np_session_sig.c/.h` | Ed25519 verify on session descriptor before enabling any stimulation |
 | SW01-M08 | Fault latch and fault log | `np_fault.c/.h` | Latches fault state; logs to SHDR via SPI to SW-02; requires explicit app clear |
+
+> **SW01-M03 notes (OI-CHARGE-05, OI-FMEA-07 — corrected 2026-09-15).**
+>
+> **The file name was wrong for as long as this document existed.** `np_charge_density.c/.h` has
+> never been in the tree; the module is `firmware/safety_mcu/src/np_charge_monitor.c`.
+>
+> **"Charge density monitor" over-claimed it, and the new name is not cosmetic.** This module
+> integrates the **commanded** current carried in the signed session descriptor, not an
+> ADC measurement of delivered current — so it verifies what was *asked for*, never what reached
+> the scalp. That substitution is deliberate and the reason is **signature independence**, not
+> privacy: commanded current comes from a descriptor whose hash this MCU verifies, and a measured
+> value cannot be signed in advance, so a Class C cutoff keyed to one would inherit the Class B
+> hub's integrity. (The privacy reading recorded in the source was wrong and is corrected in
+> `NP-FMEA-001` §3.3; `np_safety_imp_report_t` already moves a UHDR-class measurement across this
+> same SPI boundary.) What covers the difference between commanded and delivered is the hub's
+> cross-check and its SHDR divergence flag — `OI-FMEA-07`.
+>
+> **There is no 95% abort margin in this module, and this document used to claim one.** The trip
+> is at 100% (`>=` the derived limit). The 95% margin exists only in Class B HD-tDCS
+> (`np_hd_stim.c`). Whether Class C should carry one is an open question rather than an
+> implemented control: with tDCS's 30 s enforced ramp-down, a 100% trip leaves no budget to ramp
+> within, so the honest options are a margin here or an acknowledgement that a charge cutoff is
+> abrupt by design. Recorded as part of `OI-FMEA-07`; **do not read the table above as specifying
+> a margin.**
+>
+> **Response time is up to 200 ms**, not the *"<25 µs at 40 kHz"* an earlier revision claimed:
+> the monitor ticks on the SPI heartbeat loop, so its sampling rate is 5 Hz.
+>
+> **The accumulator is `uint64_t`** with no roll-over detection, which at these ceilings it does
+> not need; there is no 32-bit-boundary unit test because there is no 32-bit accumulator.
 
 ### 5.2 SW-02 — Main processor firmware modules (Class B)
 

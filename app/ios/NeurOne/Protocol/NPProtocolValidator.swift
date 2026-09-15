@@ -156,30 +156,107 @@ struct NPProtocolValidator {
         // error; skipping it here keeps one defect to one message instead of adding an
         // "Infinity mC/cm²" alongside it.
         //
-        // UNITS (OI-CHARGE-05, corrected 2026-09-09): I(mA) × t(s) / A(cm²) yields
-        // **mC/cm²**, because mA × s = mC. This check therefore enforces 40 mC/cm² — the
-        // clinically recognised human tDCS figure — and said "µC/cm²" while doing so until
-        // 2026-09-09. The safety MCU enforces 40 µC/cm² for real, so the two sides are
-        // 1000× apart; that gap is larger than the area/model one OI-CHARGE-04 closed, and
-        // the mislabel is what hid it. Only the label changed here.
+        // UNITS AND PERIOD (OI-CHARGE-05, resolved 2026-09-15): I(mA) × t(s) / A(cm²)
+        // yields **mC/cm²**, because mA × s = mC — so this expression was never computing
+        // the µC/cm² its constant was named for, and the app and the safety MCU were
+        // 1000× apart. The resolution is not to pick one: they are ceilings on DIFFERENT
+        // QUANTITIES. This is the DC per-session dose in mC/cm², for tDCS and HD-tDCS
+        // only. The 40 µC/cm² figure is a per-PHASE pulsed limit and now lives in the
+        // separate check below, where it is correct. See NP-DT-001 DI-SAFE-01 / -01a.
+        //
+        // The comparison is >=, matching the safety MCU's own comparator
+        // (np_charge_monitor.c). Accepting a protocol that lands exactly ON the ceiling
+        // would sign a session the enforcer cuts — the same app/enforcer fidelity defect
+        // OI-CHARGE-04 exists to prevent, in its smallest form.
         if let dur = totalDurationSeconds, dur > 0 {
             for block in enabledModalities {
                 if case .tdcs(let p) = block.params {
                     guard p.electrodeAreaCm2 > 0 else { continue }
                     let chargeDensity = p.intensityMilliamps * Double(dur) / p.electrodeAreaCm2
-                    if chargeDensity > NPHardwareLimits.tdcsMaxChargeDensityUCcm2 {
+                    if chargeDensity >= NPHardwareLimits.tdcsMaxSessionChargeDensityMCcm2 {
                         result.addError(
                             modality: .tdcs,
-                            param: "chargeDensityUCcm2", displayName: String(localized: "VALIDATE_PARAM_CHARGE_DENSITY"),
+                            param: "chargeDensityMCcm2", displayName: String(localized: "VALIDATE_PARAM_CHARGE_DENSITY"),
                             actual: String(format: "%.1f mC/cm²", chargeDensity),
-                            limit: "\(Int(NPHardwareLimits.tdcsMaxChargeDensityUCcm2)) mC/cm²",
+                            limit: "\(Int(NPHardwareLimits.tdcsMaxSessionChargeDensityMCcm2)) mC/cm²",
                             source: .hardware,
                             message: String(format: String(localized: "VALIDATE_MSG_TDCS_CHARGEDENSITY"),
                                             String(format: "%.1f", chargeDensity),
-                                            String(Int(NPHardwareLimits.tdcsMaxChargeDensityUCcm2)))
+                                            String(Int(NPHardwareLimits.tdcsMaxSessionChargeDensityMCcm2)))
                         )
                     }
                 }
+            }
+        }
+
+        // Per-PHASE charge density for the charge-balanced modalities (OI-CHARGE-05 b).
+        //
+        // BES/tACS, VNS, cervical VNS and clinical tACS are charge-balanced biphasic: net
+        // delivered charge over a session is ~zero, so the session-cumulative check above
+        // is not a physical quantity for them and is deliberately not applied. What has a
+        // damage threshold behind it is charge PER PHASE, which is what the safety MCU
+        // enforces on these channels — so the app must check the same thing, or it signs
+        // protocols the device then refuses to grant (presenting as a modality that
+        // silently never starts).
+        //
+        // Phase duration is the half-period for a periodic waveform and the pulse width
+        // for a pulse train. VNS and cervical VNS author no pulse width, so the firmware's
+        // own 250 µs default is used.
+        for block in enabledModalities {
+            let amplitudeMa: Double
+            let phaseSeconds: Double
+            let areaCm2: Double
+            let isSinusoid: Bool
+
+            switch block.params {
+            case .besTacs(let p):
+                amplitudeMa  = p.intensityMilliamps
+                phaseSeconds = p.frequencyHz > 0 ? 1.0 / (2.0 * p.frequencyHz) : 0
+                areaCm2      = NPHardwareLimits.besElectrodeAreaCm2
+                isSinusoid   = (p.waveform == .sinusoidal)
+            case .clinicalTacs(let p):
+                amplitudeMa  = p.intensityMilliamps
+                phaseSeconds = p.frequencyHz > 0 ? 1.0 / (2.0 * p.frequencyHz) : 0
+                areaCm2      = NPHardwareLimits.besElectrodeAreaCm2
+                isSinusoid   = (p.waveform == .sinusoidal)
+            case .vnsHRV(let p):
+                amplitudeMa  = p.intensityMilliamps
+                phaseSeconds = NPHardwareLimits.vnsDefaultPulseWidthSeconds
+                areaCm2      = NPHardwareLimits.vnsElectrodeAreaCm2
+                isSinusoid   = false
+            case .cervicalVns(let p):
+                amplitudeMa  = p.intensityMilliamps
+                phaseSeconds = NPHardwareLimits.vnsDefaultPulseWidthSeconds
+                areaCm2      = NPHardwareLimits.cervicalVnsElectrodeAreaCm2
+                isSinusoid   = false
+            default:
+                continue
+            }
+
+            guard amplitudeMa > 0, phaseSeconds > 0, areaCm2 > 0 else { continue }
+
+            // mA × s = mC; × 1000 → µC. A sinusoid delivers 2/π of what a rectangular
+            // phase of the same duration and peak amplitude does; the safety MCU applies
+            // the same factor (as the integer 2000/3141), and omitting it here would make
+            // the app 57% stricter than the enforcer at the 0.5 Hz bottom of the tACS
+            // band, rejecting protocols the device would have run.
+            let rectangularUC = amplitudeMa * phaseSeconds * 1000.0
+            let phaseUC = isSinusoid ? rectangularUC * (2.0 / Double.pi) : rectangularUC
+            let phaseDensity = phaseUC / areaCm2
+
+            if phaseDensity >= NPHardwareLimits.pulsedMaxPhaseChargeDensityUCcm2 {
+                result.addError(
+                    modality: block.modalityType,
+                    param: "phaseChargeDensityUCcm2",
+                    displayName: String(localized: "VALIDATE_PARAM_PHASE_CHARGE_DENSITY"),
+                    actual: String(format: "%.1f µC/cm²", phaseDensity),
+                    limit: "\(Int(NPHardwareLimits.pulsedMaxPhaseChargeDensityUCcm2)) µC/cm²",
+                    source: .hardware,
+                    message: String(format: String(localized: "VALIDATE_MSG_PULSED_PHASECHARGE"),
+                                    block.modalityType.displayName,
+                                    String(format: "%.1f", phaseDensity),
+                                    String(Int(NPHardwareLimits.pulsedMaxPhaseChargeDensityUCcm2)))
+                )
             }
         }
 

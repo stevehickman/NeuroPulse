@@ -248,7 +248,7 @@ still holds, unchanged and independently:
 | Barrier | Tier | Evidence |
 |---|---|---|
 | 62 °C junction thermal cutoff, 5 cranial sense domains + hub | **C** | `np_thermal_interlock.c`; `NP_NTC_CUTOFF_DEG_C`. Reads junction temperature; indifferent to whether a head is present |
-| 40 µC/cm² charge-density limit, per electrode per session | **C** | `np_charge_monitor.c`; `NP_CHARGE_LIMIT_UC_CM2`; plus the `OI-CHARGE-03` fail-safe geometry gate |
+| Commanded-charge ceilings — **150 mC/cm² per session** (DC channels) and **40 µC/cm² per phase** (charge-balanced channels), each per electrode | **C** | `np_charge_monitor.c`; `NP_CHARGE_DC_LIMIT_MC_CM2` / `NP_CHARGE_PHASE_LIMIT_UC_CM2`; plus the `OI-CHARGE-03`/`-04` fail-safe geometry gates and the `OI-CHARGE-05` fail-closed waveform-declaration gate. **Was inert until 2026-09-15** — the hub passed no commanded current, so nothing accumulated (`OI-CHARGE-05` (c)); the "never bypassable" claim below dates from before that was found. |
 | tES contact confirmation | **C** | `np_impedance_check.c` — and see §7 item 3: it makes tES *unrunnable* on a bare bench |
 | IEC 62471 MPE ceiling, hardware current limit | **C** | CLAUDE.md §4.2 interlock table |
 | Session-descriptor Ed25519 signature | **C** | `np_session_sig.c`; `NP_SAFETY_STATUS_SIG_PENDING` blocks `granted_mask` |
@@ -348,7 +348,7 @@ is *never* rather than *not yet*.
 | # | Interlock | Tier | Why never |
 |---|---|---|---|
 | 1 | **62 °C junction thermal cutoff** | C | The hazard is thermal injury to whatever is in contact — on a bench that is an operator's hand. Bench conditions are also the *less* favourable ones: `RISK-26` already records a scalp-face-over-limit path with the junction NTC nominal, in an assembly whose outward thermal resistance is dominated by a stagnant inter-bowl gap (`NP-RISK-004`; `NP-THERM-CFD-C2-001` §7) |
-| 2 | **40 µC/cm² charge-density limit** | C | Charge accumulates on commanded current, not on a load hypothesis. The `OI-CHARGE-03` geometry gate stays armed too, or a bench HD-tDCS run accrues at the permissive 25 cm² default |
+| 2 | **Commanded-charge ceilings** — 150 mC/cm² per session (DC) / 40 µC/cm² per phase (charge-balanced) | C | Charge accumulates on commanded current, not on a load hypothesis. The `OI-CHARGE-03`/`-04` geometry gates stay armed too, or a bench HD-tDCS run accrues at the permissive 25 cm² default; and the `OI-CHARGE-05` waveform declaration must be sent, or the bench harness gets no electrical channel granted at all |
 | 3 | **tES contact confirmation** (`NP_IMPEDANCE_MAX_OHM`) | C | **Consequence stated deliberately: tES cannot run on a bare bench, and that is correct.** A bench rig has no tissue load; bypassing this would drive 2–4 mA into an unknown impedance. Bench verification of tES uses a resistive phantom, which passes the *real* gate and therefore needs no bypass at all |
 | 4 | **IEC 62471 MPE ceiling, IR eye-open, Hall goggle-lift** | C (current limit) + B | The ocular case is the one hazard whose remaining protections are themselves presence-conditioned, so they degrade exactly where bench mode operates. Hence item 5 |
 | 5 | **The visual modality is excluded from bench mode entirely** | — | Bench mode never enables `NP_SAFETY_EN_VISUAL`. Firmware cannot verify that a lens is in a light-tight fixture, so it must not assume one. **D-6** |
@@ -651,7 +651,7 @@ only, annunciated on a dedicated LED state that stealth mode cannot suppress, an
 on head-presence reacquisition, disconnect, or any Class C fault. It suspends the gate's veto on
 session start; it never disables the gate.
 
-**Never bypassable.** The 62 °C junction thermal cutoff; the 40 µC/cm² charge-density limit and the
+**Never bypassable.** The 62 °C junction thermal cutoff; the commanded-charge ceilings (150 mC/cm² per session, 40 µC/cm² per phase) and the
 `OI-CHARGE-03` geometry gate; tES contact confirmation — which means **tES does not run on a bare
 bench, deliberately**; the IEC 62471 MPE ceiling, IR eye-open and Hall cutoff, together with the
 **exclusion of the visual modality from bench mode entirely**; the photoparoxysmal halt; the

@@ -2,18 +2,22 @@
 
 **Project:** NeurOne
 **Document:** NP-DT-001
-**Revision:** 2
-**Date:** 2026-07-22
+**Revision:** 3
+**Date:** 2026-09-15
 **Status:** DRAFT
 **Effective Date:** 2026-06-07
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
-**References:** NP-QMS-DC-001 Rev 1, NP-DP-001 Rev 1, NP-DHF-001 Rev 6, NP-RM-001 Rev 1, NP-SW-001 Rev 1, 21 CFR §820.30, ISO 13485:2016 §7.3
+**References:** NP-QMS-DC-001 Rev 1, NP-DP-001 Rev 1, NP-DHF-001 Rev 6, NP-RM-001 Rev 1, NP-SW-001 Rev 8, 21 CFR §820.30, ISO 13485:2016 §7.3
 **Related Issues:** GitHub Issue #122
 **Gate:** NP-DP-001 §6.4 G2 exit criterion
 **IEC 62304 Class:** —
 **Supersedes:** —
 **Parent Document:** NP-QMS-DC-001
+
+---
+
+**Rev 3 (2026-09-15):** **DI-SAFE-01 re-derived and split; DI-SAFE-01a added; new §3.2.1** (`OI-CHARGE-05` (d)). DI-SAFE-01 cited its Source as *"CLAUDE.md §4.2; NP-SW-001 SW01-M03"*; NP-SW-001 asserted the figure with no source; CLAUDE.md locked it with no source. **The chain was circular, and under 21 CFR 820.30(c) a design input whose source is the document asserting it is not yet a design input.** Tracing it found the 40 µC/cm² figure is a correct **per-phase pulsed** limit (Shannon/McCreery) that had been applied to a session-cumulative DC integral, so the input **splits** rather than being replaced: **DI-SAFE-01** is now the DC per-session ceiling (**150 mC/cm²**, derived in §3.2.1 from the conventional large-pad human tDCS envelope in `docs/tdcs_database_full.csv` with a 35× margin to Liebetanz et al. 2009's measured rat epicranial lesion threshold; **PROVISIONAL pending `OI-CHARGE-06`**), and **DI-SAFE-01a** is the per-phase pulsed ceiling (**40 µC/cm²**, unchanged in value, now carrying the citation it always should have had). Both are restated as **commanded-dose** limits rather than charge-density ones, because the monitor reads commanded current from the signed descriptor and never an ADC measurement — a distinction no design input previously drew. §5 traceability gains the DI-SAFE-01a row.
 
 ---
 
@@ -140,7 +144,8 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 
 | DI-ID | Category | Input Description | Source | Priority | Scope |
 |-------|----------|-------------------|--------|----------|-------|
-| DI-SAFE-01 | Safety | Charge density limit: 40 µC/cm² hardware-enforced by safety MCU STM32G071; app and main processor cannot override; covers BES/tDCS/tACS/HD-tDCS | CLAUDE.md §4.2; NP-SW-001 SW01-M03 | Safety-Critical | T1+T2 |
+| DI-SAFE-01 | Safety | **DC commanded-dose limit: 150 mC/cm² per session per electrode**, hardware-enforced by safety MCU STM32G071; app and main processor cannot override. Covers the DC channels only — tDCS and HD-tDCS. Enforced against the electrode area declared in the signed descriptor (OI-CHARGE-04), not an assumed one. | **Liebetanz et al. 2009** (measured rat epicranial DC lesion threshold 52,400 C/m² = 5,240 mC/cm²; ceiling is 35× below it) · **`docs/tdcs_database_full.csv`** (conventional large-pad human tDCS envelope; the most-exposed large RCT protocol in it is Brunoni ELECT-TDCS 2013/2017, 2 mA × 30 min on 25 cm² = 144 mC/cm²) · see §3.2.1 | Safety-Critical | T1+T2 |
+| DI-SAFE-01a | Safety | **Pulsed/AC commanded-dose limit: 40 µC/cm² per phase per electrode**, hardware-enforced by the same monitor. Covers the charge-balanced biphasic channels — BES/tACS, VNS, cervical VNS, clinical tACS. Phase charge is amplitude × phase width, evaluated per heartbeat against the commanded amplitude; it is NOT integrated over the session, because net delivered charge on these waveforms is ~zero and a session integral of \|I\| is not a dose. | **Shannon 1992** / **McCreery et al. 1990** (reversible charge-injection limits for pulsed neural stimulation) · see §3.2.1 | Safety-Critical | T1+T2 |
 | DI-SAFE-02 | Safety | SPI heartbeat watchdog: safety MCU receives 200 ms heartbeat; 1.5 s timeout without heartbeat → all stimulation GPIO cutoff ≤50 ms; fault latch requires explicit clear | CLAUDE.md §4.2; NP-SW-001 SW01-M02 | Safety-Critical | T1+T2 |
 | DI-SAFE-03 | Safety | Cervical VNS cardiac interlock: HR change >15 BPM within 5 s rolling observation window → CVNS GPIO cutoff ≤100 ms; 30 s lockout; baseline cross-validation PPG vs GPIO-timer within ±5 BPM | CLAUDE.md §4.2; NP-FW-CVNS-001 Rev 1; NP-SW-001 SW01-M05 | Safety-Critical | T2 |
 | DI-SAFE-04 | Safety | Photoparoxysmal EEG detection at Oz electrode → goggle LED hard cutoff ≤200 ms; clinician-unlock required to re-enable for 3–30 Hz frequency range | CLAUDE.md §3 modality 8; NP-SW-001 SW01-M06 | Safety-Critical | T1+T2 |
@@ -153,6 +158,96 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-SAFE-11 | Safety | Mode F retinal PBM: default-off; requires separate explicit user consent distinct from session consent; right temple amber LED triple-pulse pattern (3×150 ms) when active and not suppressible; firmware build flag `NP_MODE_F_REGULATORY_CLEARED = 0` until RISK-03 Q-13 opinion received | NP-FW-EMMC-002 Rev 1 §F | Safety-Critical | T1+T2 |
 | DI-SAFE-12 | Safety | Impedance check: 1 kHz AC synchronous impedance measurement required before any stimulation pulse; no timeout condition shall produce a false PASS; contact not confirmed → GPIO enable held low | CLAUDE.md §4.2; NP-SW-001 SW01-M06 | Safety-Critical | T1+T2 |
 | DI-SAFE-13 | Safety | Scalp-facing surface (applied part) ≤42 °C maintained under normal operation **and single-fault loss of forced convection** (fan / heatsink airflow loss): direct scalp-facing NTC co-located with PD2 (SR-FAN-01/02, Path B1) + natural-convection-safe PBM duty derate (SR-FAN-03: halt/trickle on fan loss, ≈4.5 mW/cm² ceiling at 43.3 °C ambient) + firmware ambient/duty envelope gate (NP-ENV-OPRANGE-001 / NP-FW-POE-001). **Base thermal design rejects module heat via BN-boss conductive export to an external heatsink with the shielded interior left un-ventilated** (preserves the EMF-shield / IP-seal). The DI-SAFE-08 junction throttle (62/65 °C) is proven insufficient to bound the face and does not substitute for this requirement (NP-THERM-CFD-R1-001). | NP-REQ-FANHEALTH-001 (SR-FAN-01…06); NP-THERM-CFD-R1-001; NP-SW-001 SW01-M04; IEC 60601-1 | Safety-Critical | T1+T2 |
+
+#### §3.2.1 Derivation of the two charge ceilings (OI-CHARGE-05 (d))
+
+**Why this subsection exists.** Until 2026-09-15 DI-SAFE-01 read *"40 µC/cm²"* and cited its
+Source as *"CLAUDE.md §4.2; NP-SW-001 SW01-M03"*. `NP-SW-001` SW01-M03 stated *"aborts at 95% of
+40 µC/cm²"* with no source of its own, and CLAUDE.md stated it as a locked invariant with no
+source. **The chain was circular: a design input whose source was the document asserting it.**
+Under 21 CFR 820.30(c) that is not yet a design input. No paper, no standard and no predicate
+device anywhere in the document tree carried the figure. `IEC 60601-2-10` is cited at DI-REG-02,
+but for *"current limits and waveform parameters"*; its verification VE-11 is Open, and it is a
+nerve/muscle stimulator **output** standard that sets no cortical charge-density ceiling. Git
+could not help either — the repository's history begins at `9841aa4` with the figure already
+present.
+
+**What the tracing found.** The figure was real, correct, and applied to the wrong thing. Three
+independent tells point at the **pulsed** literature, where 40 µC/cm² **per phase** is a
+well-founded limit:
+
+1. `docs/np_fw_hd_001.md` — the only place in the tree that names the quantity precisely — calls
+   it *"Per-phase charge density"*.
+2. `docs/ABBREVIATIONS.md` defined **tDCS** as *"0.1–2 mA DC, charge-balanced biphasic pulses"*,
+   which is self-contradictory: tDCS is DC by definition, and "charge-balanced biphasic" is the
+   BES/tACS/VNS description. The pulsed waveform had already been pasted onto tDCS in the glossary.
+3. `NP-FMEA-001` §SW01-M03 describes **one** integrator *"for all electrical stimulation modalities
+   (tDCS, BES/tACS, VNS, cervical VNS)"* — the conflation is in the hazard analysis itself, not
+   only in the code.
+
+The reading that fits every piece of evidence: a correct per-phase pulsed limit was adopted once,
+applied to the whole electrical tier, and survived review because **40 is plausible in both
+readings**. So the resolution is a split, not a replacement — DI-SAFE-01a keeps the figure where it
+belongs, and DI-SAFE-01 states the DC ceiling that was never actually derived.
+
+**DI-SAFE-01a — per-phase, 40 µC/cm² (unchanged in value).** Shannon (1992) and McCreery et al.
+(1990) establish reversible charge-injection limits for pulsed neural stimulation in terms of
+charge per phase and charge density per phase. The quantity is amplitude × phase width, which is
+what the monitor now computes. Margin at the rated maxima, on the declared geometries:
+
+| Channel | Rated worst case | Charge/phase | Electrode area | Density | % of ceiling |
+|---|---|---|---|---|---|
+| BES/tACS | 1 mA, 0.5 Hz sinusoid | 637 µC | 25 cm² (provisional) | 25.5 µC/cm² | 64% |
+| BES/tACS | 1 mA, 40 Hz sinusoid | 8 µC | 25 cm² (provisional) | 0.3 µC/cm² | 1% |
+| VNS auricular | 2 mA, 250 µs | 0.5 µC | 0.5 cm² (provisional) | 1.0 µC/cm² | 3% |
+| Cervical VNS | 2 mA, 1000 µs | 2 µC | 2 cm² (provisional) | 1.0 µC/cm² | 3% |
+
+**The 0.5 Hz tACS row is the one to watch**, and it is a real physical result rather than a units
+artifact: phase charge scales with phase duration, so the bottom of the tACS band is where this
+ceiling actually binds. It passes only because the sinusoid's 2/π factor is applied; treated as a
+rectangular phase the same protocol is 40.0 µC/cm², exactly at the ceiling.
+
+**DI-SAFE-01 — DC per session, 150 mC/cm² (new).** Two anchors, both outside this repository's own
+assertions:
+
+- **Envelope.** `docs/tdcs_database_full.csv` holds 237 studies, 204 of which state current,
+  electrode area and duration together. Their per-session charge densities run 8.6 to 600 mC/cm²,
+  median 68.6. 150 mC/cm² admits 92.6% of them, and specifically bounds the conventional large-pad
+  protocols: the most-exposed large RCT in the set is Brunoni ELECT-TDCS (2013/2017) at
+  2 mA × 30 min on 25 cm² pads = 144 mC/cm². What it excludes is the small-electrode tail
+  (4 cm² montages at 300–600 mC/cm²), which is HD-tDCS territory and declares its own much smaller
+  geometry on the CLIN_STIM channel rather than running as T1 tDCS.
+- **Margin.** Liebetanz et al. (2009) measured a rat epicranial DC lesion threshold of
+  52,400 C/m² = **5,240 mC/cm²** — the only *measured* damage threshold for DC in the evidence
+  base. 150 mC/cm² is 35× below it.
+
+**The clinical consequence, weighed rather than inherited.** At the retired ceiling read as
+40 mC/cm², the routine protocol **2 mA × 20 min on 35 cm² pads (68.6 mC/cm²) was not available**,
+and 13 of the 14 shipped predefined tDCS protocols (51.4 to 102.9 mC/cm²) exceeded it. That is not
+a defect in the protocols: 68.6 mC/cm² is the single most common protocol in the literature and the
+median of the database above. At 150 mC/cm² the whole shipped library is admissible and the ceiling
+still binds at roughly 31 minutes of 2 mA on a standard pad.
+
+**This was NOT resolved by inflating declared pad areas.** Those are physical facts about the
+hardware, and OI-CHARGE-04 exists precisely to stop software assuming them.
+
+**Status: PROVISIONAL pending Regulatory sign-off (`OI-CHARGE-06`).** The derivation above is
+recorded so it can be reviewed, contested and verified — which is more than the figure it replaces
+ever had — but 150 mC/cm² has not been through a regulatory review, and VE-11 (accredited-lab
+testing, Month 10–14) remains Open. DI-SAFE-01a's 40 µC/cm² is unchanged in value and carries the
+citation it always should have had.
+
+**Scope note.** Neither ceiling has a hardware consequence. The current source, electrodes, 30 s
+ramp, ≤2 mA, ≤3 electrode pairs, the 42/62 °C thermal cutoffs and the impedance interlock are all
+independent and unaffected — no BOM, tooling or schematic change.
+
+**What the monitor actually verifies.** Both ceilings are enforced against **commanded** current
+from the signed session descriptor, never an ADC measurement. That is a signature-independence
+choice, not a privacy one (`NP-FMEA-001` §3.3): a measured value cannot be signed in advance, so a
+Class C cutoff keyed to one would inherit the Class B hub's integrity. The consequence — this
+control verifies what was *asked for*, never what reached the scalp — is why both inputs above say
+**commanded-dose** rather than charge-density, and why the commanded-versus-delivered cross-check
+and its SHDR divergence flag (`OI-FMEA-07`) are the control that covers the difference.
 
 ### §3.3 Usability inputs (DI-USE)
 
@@ -286,7 +381,8 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-PERF-23 | Boa dial 50,000-cycle PTFE | DO-HW-06, DO-HW-04 | Shell tooling F-03 channel; ZM tooling | VE-08 | Partial |
 | DI-PERF-24 | Zone modules field-upgradeable Hirose FH34S | DO-HW-04, DO-HW-05, DO-FW-04, DO-SW-03 | ZM tooling RISK-22 eject lever; zone announce fw | VE-07 | Partial |
 | DI-PERF-25 | HRV biofeedback 4 protocols coherence | DO-FW-03, DO-SW-02 | HRV fw spec; source G2-12 CLOSED | VE-04 | Traced |
-| DI-SAFE-01 | Charge density 40 µC/cm² safety MCU HW | DO-FW-10, DO-RISK-01, DO-RISK-02, DO-RISK-03 | FMEA SW01-M03; risk register; risk plan | VE-01, VE-10 | Partial |
+| DI-SAFE-01 | DC commanded dose 150 mC/cm² per session, safety MCU HW | DO-FW-10, DO-RISK-01, DO-RISK-02, DO-RISK-03 | FMEA SW01-M03; risk register; risk plan | VE-01, VE-10 | Partial |
+| DI-SAFE-01a | Pulsed commanded dose 40 µC/cm² per phase, safety MCU HW | DO-FW-10, DO-RISK-01, DO-RISK-02, DO-RISK-03 | FMEA SW01-M03; risk register; risk plan | VE-01, VE-10 | Partial |
 | DI-SAFE-02 | SPI heartbeat ≤50 ms watchdog | DO-FW-08, DO-FW-10, DO-SW-07, DO-RISK-03 | Hub safety SPI np_hub_safety_spi; FMEA SW01-M02 | VE-01, VE-10 | Partial |
 | DI-SAFE-03 | CVNS cardiac interlock ≤100 ms | DO-FW-06, DO-FW-10, DO-SW-05, DO-RISK-03 | CVNS fw TIM6 ISR; FMEA SW01-M05; source | VE-03, VE-10 | Partial |
 | DI-SAFE-04 | Photoparoxysmal Oz ≤200 ms | DO-FW-08, DO-HW-07, DO-SW-07 | Hub control; lens tooling Hall sensor, IR proximity | VE-05, VE-08 | Partial |

@@ -46,6 +46,24 @@ const unsigned np_hub_enable_mirror_count =
 const uint8_t np_hub_ch_clin_stim = (uint8_t)NP_SAFETY_CH_CLIN_STIM;
 const uint8_t np_hub_ch_tdcs      = (uint8_t)NP_SAFETY_CH_TDCS;
 
+/* OI-CHARGE-05 added three more electrical channel indices to the hub header,
+ * for the per-channel waveform declaration and the commanded-current publish.
+ * They carry the same drift risk as the two above and are mirrored the same
+ * way — a mismatch would declare one modality's waveform against another's
+ * accumulator.                                                               */
+const uint8_t np_hub_ch_bes_tacs  = (uint8_t)NP_SAFETY_CH_BES_TACS;
+const uint8_t np_hub_ch_vns_hrv   = (uint8_t)NP_SAFETY_CH_VNS_HRV;
+const uint8_t np_hub_ch_cvns      = (uint8_t)NP_SAFETY_CH_CVNS;
+
+/* The PROVISIONAL electrode areas for the channels that author no geometry of
+ * their own (OI-CHARGE-07).  Exported so the proto test can pin the fail-safe
+ * DIRECTION: each must be > 0 (or the MCU falls back to the permissive 25 cm²
+ * default) and <= the 25 cm² default (a larger area is a larger charge budget,
+ * which may only be justified by a measurement). */
+const uint16_t np_hub_bes_area_mcm2  = (uint16_t)NP_BES_ELECTRODE_AREA_MCM2;
+const uint16_t np_hub_vns_area_mcm2  = (uint16_t)NP_VNS_ELECTRODE_AREA_MCM2;
+const uint16_t np_hub_cvns_area_mcm2 = (uint16_t)NP_CVNS_ELECTRODE_AREA_MCM2;
+
 /* Audio is deliberately NOT safety-MCU gated; the hub encodes that as 0 and the
  * session runner skips the enable request.  Pinned so it cannot quietly become
  * a real bit without this test noticing.                                      */

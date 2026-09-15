@@ -277,7 +277,7 @@ Mechanistic basis: the vagus efferent arm suppresses TNF and systemic inflammati
 
 **Others (Grade C):** Alzheimer's (anodal bilateral temporal or L-DLPFC → ↑MMSE/recognition memory, Khedr 2014/2019, but Bystad 2016 home null); Parkinson's (anodal M1-leg for gait/FOG, DLPFC for executive/depression; multitarget > single, Dagan 2018); disorders of consciousness (anodal L-DLPFC → CRS-R gains in MCS not VS, Thibaut 2014 n=55); autism (anodal F3 → ↓CARS, Amatachaya 2014); cerebellar ataxia (anodal cerebellar + spinal, Benussi 2018 persisted 3 mo); PTSD, tinnitus (bifrontal), sleep/insomnia (slow-oscillating anodal frontal → ↑N3/memory, Marshall 2006), cerebral palsy, Tourette (cathodal M1/SMA), stuttering (anodal left IFC), dyslexia (children).
 
-**Dose/safety notes:** dose is **non-linear** (2 mA cathodal can flip excitatory — Batsikadze 2013); HD-tDCS (4×1) gives more focal, longer after-effects; NeurOne safety-MCU 40 µC/cm² charge-density ceiling and per-electrode limits bound all of the above (T2 HD-tDCS uses the sLORETA-guided 4×1 ring).
+**Dose/safety notes:** dose is **non-linear** (2 mA cathodal can flip excitatory — Batsikadze 2013); HD-tDCS (4×1) gives more focal, longer after-effects; NeurOne's safety-MCU ceilings bound all of the above — for tDCS and HD-tDCS that is **150 mC/cm² per session** per electrode (NP-DT-001 DI-SAFE-01), which admits the 2 mA × 20–30 min protocols this section cites; the 40 µC/cm² figure is a **per-phase** limit belonging to the charge-balanced modalities (DI-SAFE-01a). T2 HD-tDCS uses the sLORETA-guided 4×1 ring.
 
 ---
 

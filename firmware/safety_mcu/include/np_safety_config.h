@@ -144,13 +144,61 @@
 #define NP_NTC5_PIN             (1U << 12)
 #define NP_NTC5_ADC_CH          16U
 
-/* ── Charge density monitor (SW01-M03) ───────────────────────────────────── */
-/* 40 µC/cm² charge density limit; enforced per electrode, per session.      */
-/* Electrode area for standard tDCS/BES electrode: 25 cm².                   */
-#define NP_CHARGE_LIMIT_UC_CM2      40U   /* µC/cm² hard limit */
+/* ── Charge monitor (SW01-M03) — TWO ceilings, one per waveform class ─────── */
+/*
+ * OI-CHARGE-05 (a)(b)(d).  Until 2026-09-15 this block declared ONE ceiling,
+ * 40 µC/cm², and np_charge_monitor.c applied it to a session-cumulative
+ * integral of |I|·dt on every electrical channel.  That is two different
+ * mistakes at once, and the numeral 40 being plausible in both readings is
+ * what hid them:
+ *
+ *   - 40 µC/cm² is a real and correct ceiling, but it is a PER-PHASE limit for
+ *     PULSED stimulation (Shannon 1992; McCreery 1990).  Comparing it against
+ *     a quantity integrated over a whole session is a category error, not a
+ *     conservative choice: it gives a 35 cm² pad a 1.4 mC budget that 2 mA
+ *     exhausts in 0.7 s — less than the 30 s ramp this firmware enforces as a
+ *     MINIMUM.
+ *   - For the charge-balanced biphasic modalities (BES/tACS, VNS, cervical
+ *     VNS, clinical tACS) net delivered charge is ~zero by construction, so a
+ *     session integral of |I| is not a physical dose at all.  Per phase is the
+ *     quantity that has a damage threshold behind it.
+ *
+ * So the ceiling splits by waveform class, and each half now has a source.
+ * See NP-DT-001 DI-SAFE-01 / DI-SAFE-01a and NP-SW-001 §SW01-M03 for the
+ * derivations; the citation chain used to be circular (OI-CHARGE-05 (d)) and
+ * is not any more.
+ */
+
+/* PULSED / AC channels — charge per PHASE, per electrode.
+ * Shannon (1992) / McCreery (1990) pulsed-stimulation charge-density limits
+ * for reversible (non-damaging) charge injection.  UNCHANGED IN VALUE: this
+ * is the figure the tree has always carried, now applied to the waveform
+ * class it is actually about.                                               */
+#define NP_CHARGE_PHASE_LIMIT_UC_CM2   40U   /* µC/cm² per phase */
+
+/* DC channels — charge per SESSION, per electrode.
+ * 150 mC/cm².  Two anchors, both outside this repository's own assertions:
+ *   - Envelope: bounds the conventional large-pad human tDCS literature.  The
+ *     most-exposed large RCT protocol in docs/tdcs_database_full.csv is
+ *     Brunoni ELECT-TDCS (2013/2017), 2 mA × 30 min on 25 cm² = 144 mC/cm².
+ *   - Margin: 35× below Liebetanz et al. (2009), whose measured rat epicranial
+ *     DC lesion threshold is 52,400 C/m² = 5,240 mC/cm².  That is the only
+ *     MEASURED damage threshold for DC anywhere in the evidence base.
+ * The routine clinical protocol 2 mA × 20 min on a 35 cm² pad is 68.6 mC/cm²
+ * and is therefore available, which at the retired 40-in-the-wrong-unit
+ * ceiling it was not.  PROVISIONAL pending Regulatory sign-off — see
+ * OI-CHARGE-06.                                                             */
+#define NP_CHARGE_DC_LIMIT_MC_CM2     150U   /* mC/cm² per session */
+
+/* Default electrode area for a channel that declares no geometry: 25 cm².
+ * Unchanged, and still never what tDCS or HD-tDCS actually runs against —
+ * OI-CHARGE-03/-04's geometry gate holds those channels OFF rather than
+ * letting them fall back here.                                              */
 #define NP_ELECTRODE_AREA_CM2       25U   /* default electrode area */
-/* Per-electrode absolute limit = NP_CHARGE_LIMIT_UC_CM2 * NP_ELECTRODE_AREA_CM2 */
-#define NP_CHARGE_LIMIT_UC      (NP_CHARGE_LIMIT_UC_CM2 * NP_ELECTRODE_AREA_CM2)
+
+/* Per-electrode per-phase budget at the default geometry (µC).             */
+#define NP_CHARGE_PHASE_LIMIT_UC \
+    (NP_CHARGE_PHASE_LIMIT_UC_CM2 * NP_ELECTRODE_AREA_CM2)
 
 /* ── Impedance check (SW01-M06) ──────────────────────────────────────────── */
 /* 1 kHz AC test current injected for 50ms; reject if Zmeasured > 10kΩ.     */

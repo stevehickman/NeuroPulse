@@ -173,12 +173,13 @@ uint16_t np_hal_adc_read_channel(uint8_t channel);
 
 /* ── SPI slave (to i.MX RT1062 main processor) ────────────────────────────────
  *
- * SPI1 in slave mode.  Three distinct inbound frame types share the link and
+ * SPI1 in slave mode.  Four distinct inbound frame types share the link and
  * are told apart BY NSS-DELINEATED TRANSFER LENGTH, not by any in-band tag:
  *
  *     38 bytes   extended heartbeat   np_safety_rx_ext_frame_t
  *    102 bytes   session signature    np_safety_sig_cmd_t
  *     34 bytes   per-channel limits   np_safety_chan_limit_cmd_t
+ *     76 bytes   per-channel waveform np_safety_chan_wave_cmd_t  (OI-CHARGE-05)
  *
  * Each type has a `_ready()` predicate and a `_get_*()` drain.  The `_get_*()`
  * calls are only valid when the matching `_ready()` returned true; calling one
@@ -230,6 +231,9 @@ void np_hal_spi_get_cmd(np_safety_sig_cmd_t *cmd_out);
 
 bool np_hal_spi_chan_limit_ready(void);
 void np_hal_spi_get_chan_limit(np_safety_chan_limit_cmd_t *cmd_out);
+
+bool np_hal_spi_chan_wave_ready(void);
+void np_hal_spi_get_chan_wave(np_safety_chan_wave_cmd_t *cmd_out);
 
 /* ── TIM2 capture (R-peak interval timing) ────────────────────────────────────
  *

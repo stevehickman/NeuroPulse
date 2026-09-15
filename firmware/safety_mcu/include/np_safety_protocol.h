@@ -149,6 +149,34 @@
  * this identity is why bit positions above 4 must never shift.               */
 #define NP_SAFETY_CH_CLIN_STIM      13U
 
+/* Charge-monitor channel INDICES for the remaining electrical channels
+ * (= bit positions of the NP_SAFETY_EN_* bits above).  Added with OI-CHARGE-05
+ * because these channels now carry per-channel declarations and per-channel
+ * commanded current, so the hub needs to name their slots — the same
+ * bit-position ≡ current_ua[] slot ≡ accumulator index identity documented in
+ * the reserved-bits note above, which is why positions above 4 must never
+ * shift.                                                                     */
+#define NP_SAFETY_CH_BES_TACS       5U
+#define NP_SAFETY_CH_VNS_HRV        7U
+#define NP_SAFETY_CH_CVNS           10U
+
+/* ── Electrode-bearing channel set (OI-CHARGE-05) ─────────────────────────── */
+/*
+ * The channels that drive current through skin-contact electrodes, and are
+ * therefore the ones a charge ceiling means anything for.  Fixed at compile
+ * time and deliberately NOT derived from anything the hub sends: it is what
+ * lets np_charge_monitor_decl_gate() insist on a waveform declaration without
+ * a per-session heartbeat bit to arm it — a hub that stays silent cannot
+ * thereby exempt a channel from being monitored.
+ *
+ * Excluded, because they inject no charge through electrodes: PBM cranial,
+ * PBM intranasal, PBM 1170nm, visual, TMS.  (TMS induces current by
+ * induction; its coil hazards are SW01-M07's, not this module's.)
+ */
+#define NP_SAFETY_CH_ELECTRICAL_MASK \
+    (NP_SAFETY_EN_BES_TACS | NP_SAFETY_EN_TDCS | NP_SAFETY_EN_VNS_HRV | \
+     NP_SAFETY_EN_CVNS     | NP_SAFETY_EN_CLIN_STIM)
+
 /* Charge-monitor channel INDEX for the T1 tDCS channel (= bit position of
  * NP_SAFETY_EN_TDCS above).  OI-CHARGE-04: tDCS now declares its electrode
  * geometry in the signed session descriptor, the hub delivers that area on
@@ -157,6 +185,19 @@
  * against.  Same bit-position ≡ current_ua[] slot ≡ accumulator index
  * identity as CLIN_STIM; see the reserved-bits note above.                  */
 #define NP_SAFETY_CH_TDCS           6U
+
+/* The bit-position ≡ channel-index identity, asserted rather than commented.
+ * It is Class C (both charge ceilings rest on it) and it is now relied on by
+ * the hub as well as this MCU, so a shifted enable bit must be a compile
+ * error and not a silently mis-indexed accumulator.  Same C99-compatible
+ * idiom as the frame-size checks in np_spi_wire_types.h.                    */
+typedef char _np_safety_ch_index_check[
+    ((NP_SAFETY_EN_BES_TACS  == (1U << NP_SAFETY_CH_BES_TACS))  &&
+     (NP_SAFETY_EN_TDCS      == (1U << NP_SAFETY_CH_TDCS))      &&
+     (NP_SAFETY_EN_VNS_HRV   == (1U << NP_SAFETY_CH_VNS_HRV))   &&
+     (NP_SAFETY_EN_CVNS      == (1U << NP_SAFETY_CH_CVNS))      &&
+     (NP_SAFETY_EN_CLIN_STIM == (1U << NP_SAFETY_CH_CLIN_STIM))) ? 1 : -1
+];
 
 /* ── Frame lengths ────────────────────────────────────────────────────────── */
 /* NP_SAFETY_FRAME_LEN is the MCU reply frame length (defined in np_safety_config.h as 8).
