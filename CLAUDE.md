@@ -1,13 +1,17 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 45 (current)  
+**Revision:** 46 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
 > bear on most conversations and names the file holding the rest. Read a subsidiary file when the
 > task needs it — do not assume a figure or a spec detail is here.
 >
-> **Revision history (Rev 33–45, what changed and why): `docs/reference/claude-md-revision-history.md`.**
+> **Revision history (Rev 33–46, what changed and why): `docs/reference/claude-md-revision-history.md`.**
+> Rev 46 (2026-09-15) split the single 40 µC/cm² charge ceiling into the two it was always
+> conflating — a per-session DC limit and a per-phase pulsed one — and gave each a citation, because
+> the old figure's only source was this file (§3, §4.2). **This changed a locked decision**; the
+> interlock also went from inert to live.
 > Rev 45 (2026-09-13) made "never asked" and "said stop" distinguishable, so §6.0's *withdrawal
 > stops ALL research data flows* survives the L2 categories a withdrawal leaves ticked (§6.0); no
 > decision changed.
@@ -180,10 +184,21 @@ enforcement in §4.2):
 |----------|---------|
 | PBM scalp | **400 mW/cm² peak pulsed** (≤25% duty, firmware-enforced) · 200 mW/cm² CW · 42 °C limit (IEC 60601) |
 | PBM deep (T2) | ≤1,000 mW/cm² (1170 nm, TEC-stabilised) |
-| BES / tACS | 0.5–40 Hz · ≤1 mA T1 / ≤4 mA T2 · charge-balanced biphasic |
-| tDCS | 0.1–2 mA DC · **40 µC/cm²** hardware limit · 30 s ramp · ≤3 electrode pairs |
-| VNS (auricular) | 1–25 Hz · ≤2 mA · biphasic charge-balanced |
+| BES / tACS | 0.5–40 Hz · ≤1 mA T1 / ≤4 mA T2 · charge-balanced biphasic · **40 µC/cm² per phase** (see below) |
+| tDCS | 0.1–2 mA DC · **150 mC/cm² per session** hardware limit · 30 s ramp · ≤3 electrode pairs |
+| VNS (auricular) | 1–25 Hz · ≤2 mA · biphasic charge-balanced · **40 µC/cm² per phase** |
 | Visual | IEC 62471 MPE at 50% of exempt-group threshold · photoparoxysmal halt <200 ms |
+
+**The charge ceiling is TWO ceilings, one per waveform class** (Rev 46, `OI-CHARGE-05`). A single
+40 µC/cm² figure used to be stated for the whole electrical tier; it is a **per-phase PULSED** limit
+(Shannon/McCreery) and was being compared against a session-cumulative integral, which is a category
+error in two directions at once. DC channels (tDCS, HD-tDCS) get a **per-session** ceiling of
+**150 mC/cm²** per electrode; charge-balanced channels (BES/tACS, VNS, cervical VNS, clinical tACS)
+get a **per-phase** ceiling of **40 µC/cm²** per electrode, because net charge on them is ~zero and a
+session integral of |I| is not a dose. Both are enforced against the electrode area **declared in the
+signed descriptor**, and both are **commanded-dose** limits — what the protocol asked for, never an
+ADC measurement. Derivations, citations and the provisional status of the 150: `docs/np_dt_001.md`
+§3.2.1 (DI-SAFE-01 / DI-SAFE-01a).
 
 **Do not answer a modality question from this roster alone** — wavelengths, counts, materials,
 consumables, evidence and per-modality open items are in `docs/reference/modality-stack.md`.
@@ -209,7 +224,7 @@ Whether a given protocol fits the power envelope is `docs/np_ses_pwr_001.md`.
 | Modality | Interlock | Implementation |
 |----------|-----------|----------------|
 | EEG + Visual | Photoparoxysmal detection → goggle halt | Oz electrode, <200ms, clinician-unlock for 3–30Hz |
-| BES / tDCS | 40µC/cm² charge density limit | Safety MCU hardware — app cannot override |
+| BES / tDCS / VNS / cVNS | Waveform-aware commanded-charge ceiling: **150 mC/cm² per session** (DC) · **40 µC/cm² per phase** (charge-balanced) | Safety MCU hardware — app cannot override. Fail-closed: an electrical channel whose waveform class was not declared is never granted |
 | Visual / retinal | IEC 62471 MPE ceiling | IR proximity + Hall sensor + hardware current limit (3 independent layers) |
 | PBM scalp | IEC 60601 42°C limit | NTC per zone → hardware current throttle at 62°C junction |
 | TMS | Coil protection | EMF cancellation gated off 5ms before pulse, 50ms hold |

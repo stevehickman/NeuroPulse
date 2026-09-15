@@ -50,7 +50,7 @@
 - Regulatory naming avoids FDA medical device classification trigger
 
 **5. tDCS (consumer name: Cortical Priming Stimulation)**
-- 0.1–2mA DC · 40µC/cm² hardware limit (safety MCU enforced, app cannot override)
+- 0.1–2mA DC · **150 mC/cm² per session** per electrode, hardware limit (safety MCU enforced, app cannot override; commanded dose against the declared pad area — CLAUDE.md §3, NP-DT-001 DI-SAFE-01). The retired single 40 µC/cm² figure was a per-PHASE pulsed limit misapplied to a DC session integral — see OI-CHARGE-05.
 - 30s ramp up/down (hardware-enforced)
 - ≤3 electrode pairs
 
@@ -123,7 +123,7 @@
   - Workflow: (1) T2 21-ch qEEG resting-state session → (2) sLORETA computes cortical source map (real-time or post-session) → (3) app identifies target region (e.g., DLPFC hypoactivity, anterior cingulate hyperactivation) → (4) firmware maps MNI target to nearest 10-20 electrode positions → (5) configures 4×1 current distribution automatically → (6) delivers personalized tDCS session
   - **Localization ≠ reachability:** sLORETA resolves deep sources, but a 4×1 ring is focal only for cortical-surface targets (~1.5 cm FWHM at 10 mm depth). ACC sits 47.1 mm from its nearest scalp electrode and is not focally reachable from any electrode position; a 4×1 there is indirect network modulation. Targets carry a `NP_HD_TARGET_DEPTH_SURFACE`/`_DEEP` class and deep targets must never be presented as focal stimulation. See NP-FW-HD-001 §2.3.
   - Montage options: 4×1 ring (most focal, ~1.5cm FWHM), bilateral 4×1 (dual hemisphere), standard 2-electrode (T1-compatible fallback)
-  - Safety: 40µC/cm² charge density limit enforced by safety MCU; ≤2mA per electrode; focal electrode density ≤6 A/m² (within Bikson lab safety limits for 3.5mm electrode geometry)
+  - Safety: HD-tDCS is DC, so the **150 mC/cm² per-session** ceiling applies (NP-DT-001 DI-SAFE-01), against the 0.0962 cm² declared electrode area; clinical tACS on the same enable bit is charge-balanced and takes the **40 µC/cm² per-phase** ceiling (DI-SAFE-01a). Both enforced by the safety MCU. ≤2mA per electrode; focal electrode density ≤6 A/m² (within Bikson lab safety limits for 3.5mm electrode geometry) — but see OI-TCAP-01: those three limits are not mutually satisfiable on this electrode.
   - Clinical evidence: Jog/UCLA 2025 (n=71, personalized MRI-guided HD-tDCS, significant depression improvement + gray matter changes); BRIGhTMIND 2024 (n=255, connectivity-guided iTBS shows personalized targeting outperforms fixed F3)
   - BOM delta: Ag/AgCl dual-rated electrodes in T2 cap specification; no additional driver hardware; +$0 software
 - **Cervical VNS (tcVNS) — T2 accessory:**

@@ -13,6 +13,51 @@
 
 ## Current revision
 
+**Rev 46 (2026-09-15) — §3 and §4.2: one charge ceiling becomes two, because it was always two, and
+the interlock that enforces them starts enforcing.** A locked decision changed, and the figure it
+replaces had no source anywhere in the document set.
+
+**What the single number could not say.** §3 and §4.2 locked *"40 µC/cm² hardware limit"* across the
+whole electrical tier. That figure is real and correct — as a **per-phase** limit for **pulsed**
+stimulation (Shannon/McCreery). It was being applied to a **session-cumulative integral**, which is a
+category error in two directions at once. For tDCS, DC through a 35 cm² pad, it gives a 1.4 mC budget
+that 2 mA exhausts in **0.7 s** — less than the 30 s ramp this same firmware enforces as a *minimum*.
+For BES/tACS, VNS, cervical VNS and clinical tACS, all charge-balanced biphasic, net delivered charge
+is ~zero by construction, so integrating |I| over a session measures nothing physical at all and
+would have tripped every one of them in 0.4–1.0 s. §3 now carries **150 mC/cm² per session** for the
+DC channels and **40 µC/cm² per phase** for the charge-balanced ones, and §4.2's interlock row names
+the waveform split rather than one number.
+
+**Why this was not a units fix.** Tracing the ceiling for `OI-CHARGE-05` found the citation chain was
+**circular**: `NP-DT-001` DI-SAFE-01 — a design *input* — cited CLAUDE.md and NP-SW-001; NP-SW-001
+asserted it with no source; CLAUDE.md locked it with no source. No paper, no standard, no predicate
+device. Under 21 CFR 820.30(c) a design input whose source is the document asserting it is not yet a
+design input, so this was a **first-time derivation, not a reversal** — nobody's recorded judgement
+was being overturned, because none had been recorded. `NP-DT-001` §3.2.1 now derives both ceilings
+from anchors outside this repository, and marks the 150 **PROVISIONAL** pending Regulatory sign-off
+(`OI-CHARGE-06`) rather than presenting a derivation as an approval.
+
+**The clinical consequence was weighed here rather than inherited.** At the old ceiling the routine
+**2 mA × 20 min** protocol was unavailable, and 13 of the 14 shipped predefined tDCS protocols
+exceeded it. That is not a defect in the protocols — 68.6 mC/cm² is the most common protocol in the
+literature and the median of this repository's own 237-study database. The alternative fix, inflating
+the declared pad areas until the ceiling was satisfiable, was rejected: pad areas are physical facts
+about the hardware, and `OI-CHARGE-04` exists precisely to stop software assuming them.
+
+**Why it belongs in the core rather than in the detail file.** The same shape as Rev 41 and Rev 45:
+an invariant stated in one place that the rest of the tree could not tell was wrong. Three
+independent documents had already pasted the pulsed waveform onto tDCS — `ABBREVIATIONS.md` defined
+tDCS as *"DC, charge-balanced biphasic pulses"*, which is self-contradictory — and none of them was
+close enough to the enforcement to notice. A ceiling whose period is unstated is a ceiling every
+reader has to guess at, so §3 now states the period as well as the unit in both rows.
+
+**And the control was inert while all of this was being reasoned about.** `np_hub_control_main.c`
+passed the safety MCU no commanded current at all, so nothing accumulated: `OI-CHARGE-01` was logged
+CLOSED with only its safety-MCU half wired, and DI-SAFE-01, FMEA SW01-M03 and NP-FW-BENCH-001's
+*"never bypassable"* were describing a control enforcing nothing. It enforces now. **Read that as the
+reason both figures are stated with their period in the core**: the wrong ceiling did no damage only
+because nothing was checking it, which is not a safety argument.
+
 **Rev 45 (2026-09-13) — §6.0: "never asked" and "said stop" are different states, and the boolean
 that was standing in for both could not hold the difference.** No decision changed. §6.0 has said
 since it was locked that withdrawing blanket consent "stops **ALL** research data flows"; the

@@ -488,13 +488,13 @@ Before **any** enable is requested, the runner scans the already-verified descri
 modalities whose electrode geometry the safety MCU cannot infer, and sends per-channel electrode
 **area** via `np_safety_spi_send_channel_limits()`.
 
-**Area only — never a pre-computed limit.** The 40 µC/cm² density constant stays resident on the
+**Area only — never a pre-computed limit.** Both density constants (150 mC/cm² per session, 40 µC/cm² per phase) stay resident on the
 Class C safety MCU, which derives the limit itself. Sending a limit would move a Class C constant
 onto the Class B side.
 
 | Channel | Source of the area | Behaviour |
 |---|---|---|
-| `NP_SAFETY_CH_CLIN_STIM` (13) | implied by the HD-tDCS montage code — ring / bilateral 4×1 use 3.5 mm electrodes | fixed `NP_HD_SMALL_ELECTRODE_AREA_MCM2` = 96 milli-cm², **floored** so the derived limit never exceeds 40 µC/cm² |
+| `NP_SAFETY_CH_CLIN_STIM` (13) | implied by the HD-tDCS montage code — ring / bilateral 4×1 use 3.5 mm electrodes | fixed `NP_HD_SMALL_ELECTRODE_AREA_MCM2` = 96 milli-cm², **floored** so the derived limits can only err low |
 | `NP_SAFETY_CH_TDCS` (6) | declared per protocol in the signed descriptor (`electrode_area_mcm2`) | **the smallest declared area wins** across several tDCS commands |
 
 T1 tDCS pad area is not implied by anything else the descriptor carries — `electrode_pair` names
@@ -815,7 +815,7 @@ One driver, two slots (§3.1), because both use the same stimulation DAC. Firmwa
 BES/tACS ≤ 1000 µA, tDCS ≤ 2000 µA, minimum 30 s ramp.
 
 `REQ-FWHUB-20`: **these are secondary caps, and must always be stated as such.** The binding limit is
-the safety MCU's 40 µC/cm² hardware charge-density limit, which the app cannot override. A firmware
+the safety MCU's hardware commanded-charge ceilings (150 mC/cm² per session for DC, 40 µC/cm² per phase for charge-balanced), which the app cannot override. A firmware
 cap that is described as *the* limit invites someone to relax it.
 
 ### 8.4 VNS + HRV — `np_mod_vns.c`
@@ -927,7 +927,7 @@ The argument, in the four steps that carry it:
    safety MCU (CLAUDE.md §4.2, `NP-HW-HUB-001` Rev 4 §7.2). The hub's only influence is the
    *requested* mask in a 38-byte SPI frame. A hub that requests everything gets what the MCU grants.
 2. **No stored value widens a grant.** Nothing the hub persists — calibration, the module map, the
-   log — is read by the safety MCU. Its limits are resident constants (40 µC/cm² density, HR-change
+   log — is read by the safety MCU. Its limits are resident constants (both charge-density ceilings, HR-change
    cutoff, lockout duration) and the hub supplies *inputs* to them (electrode **area**, §5.4), never
    the limits themselves.
 3. **Every failure path fails closed.** The watchdog cuts on heartbeat loss in < 50 ms; §2.4 forbids
