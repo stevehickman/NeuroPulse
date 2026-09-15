@@ -1,9 +1,13 @@
 # Commercial model — retail ladder, charger policy, consumables, clinician tiers
 
-> Relocated from CLAUDE.md §2.1a, §2.2, §2.3 and §6.1 (Rev 40), and from §2.1 — the BOM / COGS / GM%
-> columns and the Home Standard box contents — (Rev 43), to slim the always-loaded core.
+> Relocated from CLAUDE.md §2.1a, §2.2, §2.3 and §6.1 (Rev 40), from §2.1 — the BOM / COGS / GM%
+> columns and the Home Standard box contents — (Rev 43), and **(Rev 47) the remainder of §2: the
+> configuration table's Tier and Retail columns, the charger policy's mechanics, and the consumable
+> roster.** CLAUDE.md §2 now keeps no §2 figure at all — only the pricing guardrail, the two charger
+> rules, the two consumable rules, §2.1a's finding, and a one-line list of the six configuration
+> names by tier. **This file is therefore the only place any §2 number can be read.**
 > Content is verbatim; section numbers are unchanged so inbound `CLAUDE.md §2.2`-style citations
-> still name the right block. CLAUDE.md keeps the invariant of each section and points here.
+> still name the right block.
 >
 > **Read this file when:** quoting or setting a price, sizing a charger, working on consumables or
 > subscription revenue, or answering any margin question. The cost *derivation* behind §2.1a is
@@ -15,9 +19,10 @@
 
 ### 2.1 Configuration cost table — BOM / COGS / GM% and the full caveats
 
-**The cost columns live here, not in CLAUDE.md §2.1 (Rev 43).** The core keeps what identifies a
-configuration — name, retail price in force, modalities included — plus the invariant that every T1
-row is gross-margin negative and every figure is a floor. It does not keep the figures, because by
+**The whole table lives here, not in CLAUDE.md §2.1 (cost columns Rev 43; Tier, Retail and
+Modalities Rev 47).** The core keeps only the six configuration *names* grouped by tier — the
+mapping its §1 regulatory split and 231 inbound name references resolve against — plus the invariant
+that every T1 row is gross-margin negative and every figure is a floor. It keeps no figure, because by
 the rule stated in the caveat below **no figure here may be quoted, cited or acted on without first
 reading `docs/np_cost_001.md`**: a number visible in the always-loaded core could never be *used*
 from there, only misremembered, and the cost model is the most-revised content in the document set
@@ -50,17 +55,18 @@ from there, only misremembered, and the cost model is the most-revised content i
    retail at all. `docs/np_cost_001.md` §6 runs its three options: **none of them, alone or
    combined, restores a positive T1 margin.**
 
-**Cost table (floors; relocated verbatim from CLAUDE.md §2.1, Rev 43).** The Retail and Modalities
-columns are the two the core retains; they are repeated here so this table stands on its own.
+**Cost table (floors; cost columns relocated verbatim from CLAUDE.md §2.1 at Rev 43; Tier column
+added at Rev 47, when the core stopped holding a configuration table of its own).** The core retains
+none of these columns — this table is the only copy.
 
-| Config | BOM (floor) | COGS (floor) | Retail (in force, 🔓 unlocked) | GM% (floor) | Modalities included |
-|--------|-----|------|--------|-----|---------------------|
-| Core — EEG only | $360–423 | $554–650 | $449 | **−23% to −45%** | 4-ch EEG · all connectivity · EMF shielding · processor stack · 8GB eMMC |
-| Home Lite | $642–705 | $896–984 | $599 | **−50% to −64%** | Core + PBM tiles (660+810nm) · 8-ch EEG · VNS+HRV clip |
-| Home Standard ★ (flagship) | $897–959 | $1,196–1,278 | $849 | **−41% to −51%** | All T1 modalities (see §3) |
-| Home Premium | $952–1,014 | $1,287–1,371 | $1,199 | **−7% to −14%** | All T1 + EC lens (+$89 value) · 2yr warranty · priority support |
-| Pro Entry | $1,463–1,525 | $2,398–2,500 | $4,999 | **+50% to +52%** | All T1 + 21-ch qEEG · 1170nm deep PBM · clinical tACS · HIPAA cloud · sLORETA |
-| Pro Full | $2,136–2,198 | $3,728–3,836 | $13,999 | **+73%** | All T2 + TMS hub · multi-patient dashboard · scripting API · FHIR R4 · $1,800/yr service |
+| Config | Tier | BOM (floor) | COGS (floor) | Retail (in force, 🔓 unlocked) | GM% (floor) | Modalities included |
+|--------|------|-----|------|--------|-----|---------------------|
+| Core — EEG only | T1 | $360–423 | $554–650 | $449 | **−23% to −45%** | 4-ch EEG · all connectivity · EMF shielding · processor stack · 8GB eMMC |
+| Home Lite | T1 | $642–705 | $896–984 | $599 | **−50% to −64%** | Core + PBM tiles (660+810nm) · 8-ch EEG · VNS+HRV clip |
+| Home Standard ★ (flagship) | T1 | $897–959 | $1,196–1,278 | $849 | **−41% to −51%** | All T1 modalities (see §3) |
+| Home Premium | T1 | $952–1,014 | $1,287–1,371 | $1,199 | **−7% to −14%** | All T1 + EC lens (+$89 value) · 2yr warranty · priority support |
+| Pro Entry | T2 | $1,463–1,525 | $2,398–2,500 | $4,999 | **+50% to +52%** | All T1 + 21-ch qEEG · 1170nm deep PBM · clinical tACS · HIPAA cloud · sLORETA |
+| Pro Full | T2 | $2,136–2,198 | $3,728–3,836 | $13,999 | **+73%** | All T2 + TMS hub · multi-patient dashboard · scripting API · FHIR R4 · $1,800/yr service |
 
 **★ Home Standard box contents:** All T1 modules · hard clamshell case · braided aramid USB-C cable (spare in box) · **45W NeurOne branded GaN charger** · S1 opaque shade · interface covers (installed + spare set each type) · mesh cleaning brush · Boa replacement cable + hook tool · moisture-barrier electrode tip hydration caps · humidity indicator card · pre-impregnated cleaning cloth packets
 
@@ -96,6 +102,11 @@ so this is the *least* retail would have to move. Full derivation and consequenc
 
 ### 2.2 Charger policy (locked)
 
+**Two rules the core also keeps, because they constrain work that never opens this file** (→
+CLAUDE.md §2.2): the ladder is **keyed to peak draw, not price**, so the 2026-08-16 retail unlock
+does not touch it — the two peak-draw figures it is keyed to are CLAUDE.md §4.5, not this table —
+and the **EU note** below is a hard app-behaviour rule, not a marketing preference.
+
 Charger scaled to peak draw of configuration. Auto-included at every upgrade by serial number tracking. Upfront 65W upgrade option ($19 at-cost) offered at checkout as intent signal.
 
 | Config | Charger included | BOM |
@@ -115,6 +126,18 @@ Charger scaled to peak draw of configuration. Auto-included at every upgrade by 
 **EU note:** Chargers are branded recommendations, not proprietary requirements. Any PD-compliant charger must work. App displays "power level: reduced" informatively, never blocks.
 
 ### 2.3 Consumables + recurring revenue
+
+**Two rules the core also keeps** (→ CLAUDE.md §2.3): intranasal hygiene sleeves are the **only
+authenticated consumable** and the primary MRR driver; and **every consumable prompt is
+measurement-triggered (CLAUDE.md §5.2), never calendar-triggered** — a consumable with no
+measurement gets no prompt, and inventing a trigger for one is design work, not a documentation
+edit.
+
+> **⚠ One row below contradicts that second rule and is not resolved here.** The audio cup foam
+> names *"Calendar reminder"* as its trigger, which the invariant forbids; `docs/np_acc_priority_001.md`
+> raises it and declines to resolve it, on the ground that inventing a seal or compression proxy is
+> the design work the invariant exists to protect. Either the foam gains a measurement trigger or the
+> invariant gains an explicit, reasoned exception — a principal decision, Product + FW.
 
 | Item | Price | Interval | GM% | Notes |
 |------|-------|----------|-----|-------|

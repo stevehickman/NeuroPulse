@@ -4,6 +4,12 @@
 > authoritative narrative of what each CLAUDE.md revision changed and why. Referenced from
 > CLAUDE.md → Document Map.
 >
+> **Since Rev 47 this is the ONLY copy.** The CLAUDE.md header carried condensed summaries of the
+> most recent revisions alongside this file; they are gone, because a digest of a narrative is a
+> second source of truth about why a decision was made, and its selection of which revisions to
+> summarise decayed unowned (the Document Map still said "Rev 33–42" four revisions on). The header
+> now points here and says nothing about any revision. **Do not reintroduce a summary there.**
+>
 > **APPEND-ONLY, newest first.** Each entry records what was decided *and believed* when it was
 > written. Do not edit or delete an entry to reflect a later change — add a new entry that names
 > the entry it corrects.
@@ -12,6 +18,105 @@
 > is the reorganization that created the current core/subsidiary split.
 
 ## Current revision
+
+**Rev 47 (2026-09-15) — the header's revision digest and the whole of §2's figures leave the core; no
+design decision changed.** The always-loaded core went from 38,093 to 36,119 bytes (−5.2%). Fifth
+application of the Rev 33 core/subsidiary split, under Rev 43's
+criterion — *a figure that cannot be quoted from the core without first opening another file does
+not belong in the core* — plus a second one this revision adds: **a narrative that exists in full
+somewhere else does not belong in the core either, because a digest of it is a second source of
+truth about why a decision was made.** That is Rev 41's argument about generated locale files,
+applied to prose about the past rather than prose about the present.
+
+**(i) The header's revision digest → this file.** The header carried condensed summaries of Rev
+41–46 above the live-constraint list, while this file carried the authoritative narrative of all of
+them. Every claim in the digest was already here, in more detail and with its reasoning intact — so
+the digest's only distinct content was its *selection*: six revisions chosen, one to five lines each,
+with the rest of Rev 33–40 represented by a pointer. **A selection is an editorial judgement that
+nothing recorded, and it decayed the way an unowned judgement does**: the Document Map's row for this
+file still read *"Rev 33–42"* four revisions after Rev 46 was written. The header now states where
+the history is, that none of it is summarised, and that it must be read before assuming why an
+invariant reads the way it does. **The `**Revision:** N (current)` stamp stays** — it is the file's
+own version, not a narrative, and `check-section-refs.ts` aside it is the only machine-legible thing
+in the header.
+
+**(ii) §2's figures and tables → `docs/reference/commercial-model.md` §2.1–§2.3.** Rev 43 moved §2.1's
+BOM / COGS / GM% columns and kept name, tier, retail-in-force and modalities on the argument that
+those are "what identifies a configuration." **Half of that argument does not survive inspection.**
+The Retail column is a figure set governed by §2.1's own rule that no figure may be quoted without
+first reading `docs/np_cost_001.md` — the exact condition Rev 43 used to evict the cost columns, and
+it applied identically to the column beside them. The Modalities column restates §3, which is itself
+a pointer to `docs/reference/modality-stack.md`. And `docs/reference/commercial-model.md` §2.1
+already repeated both columns verbatim *"so this table stands on its own"* — so the core's copy was
+not the only copy, and two copies of a price table is the failure Rev 41 is named after. **What
+survived is the tier mapping**, which is not a figure and is not derivable from §1: §1 defines T1 as
+FDA-exempt wellness and T2 as a 510(k) target but never says which configuration is which, and a
+regulatory question about Home Premium needs that line. It is now one prose line of six names
+grouped by tier, and the Tier column was added to the reference table so nothing was destroyed by
+the move.
+
+**§2 is a pointer section that is not empty, and the four things it keeps are the point.** §2.2's
+*keyed to peak draw, not price* and *any PD-compliant charger must work — the app informs, never
+blocks*; §2.3's *only authenticated consumable* and *every consumable prompt is measurement-triggered,
+never calendar-triggered*. None is a number, and each constrains code written by someone who would
+never open a commercial file — an app developer writing a charger warning or a consumable reminder.
+§2.1's pricing guardrail and §2.1a's *break-even binds before margin* stay for the same reason in the
+other direction: they are what makes a cost answer safe to give, and constraint 1 of the header
+already depends on the first of them.
+
+**Each rule was also written into the receiving file, which is the part a relocation usually gets
+wrong.** A rule the core keeps *and* the reference file omits is a rule that disappears the moment
+the core is slimmed again — and one of these was already in that state: **§2.3's
+measurement-triggered invariant existed nowhere but CLAUDE.md.** `docs/reference/commercial-model.md`
+§2.3 had the consumable table with no statement of the rule governing it, and
+`docs/reference/data-architecture-detail.md` §5.2 states the analogous rule for *reminders*, not
+consumables. Moving §2.3 without carrying the sentence would have deleted an invariant that
+`docs/np_acc_priority_001.md` cites by section number.
+
+**And carrying it surfaced a contradiction that was previously split across two files.** The
+consumable table's audio-cup-foam row names *"Calendar reminder"* as its trigger, which the invariant
+forbids. `docs/np_acc_priority_001.md` raised this and deliberately declined to resolve it —
+inventing a seal or compression proxy is the design work the invariant protects — but with the rule
+in CLAUDE.md and the row in the reference file, nothing put the two in a reader's view at once.
+They are now adjacent, with the contradiction flagged and still unresolved: **it is recorded here as
+surfaced, not fixed**, because choosing between a new measurement trigger and a reasoned exception is
+a principal decision (Product + FW).
+
+**(iii) Every "retired" framing leaves the core, on the ground that nothing here was ever published
+or used externally, so there is no outside reader who needs to be told what a thing used to be.**
+Three occurrences, each reframed rather than simply deleted, because in each case the routing or the
+rule was doing work the retirement narrative was only decorating. The **risk-file Document Map row**
+read *"index + disposition of the retired RISK-01…26 register"*; a reader arriving with an ISO 14971
+question needs the ID range to grep for, not the register's status, so the row now reads *"the ISO
+14971 index, and the disposition of every RISK-01…26 ID."* The **`docs/superseded/README.md` row**
+read *"Retired documents — index with successors named · tracing why something changed"*; the row is
+the core's only pointer to those files, so deleting it would have made them unreachable from here,
+and *"tracing why something changed"* was never the live hazard anyway. It now names the hazard
+itself: *"Earlier document versions — index naming the current document for each · you have a figure
+or a file and need to confirm it is the current one."* **§16 was the one that mattered, and it was
+inverted rather than trimmed.** It read *"Retired term: Health Data Record (HDR) — ambiguous,
+replaced throughout all documents"*, which describes a past event and leaves a reader to infer the
+rule. It is now the rule: **never name a health data record "HDR" or "Health Data Record"**, because
+the term does not say whose record it is, which is the one thing §5 turns on. The section title lost
+the word "CHANGES" for the same reason — it states a convention, not a history of one. **Two things
+were added that the old wording did not carry.** The prohibition is now scoped: **`HDR` meaning a
+binary *header*** — `blob(n) = HDR(8) + …` in the LittleFS and NVRAM documents — is a different word
+and is explicitly fine, which the old note's *"replaced throughout all documents"* flatly
+contradicted for seven live uses. And **the rule turns out to have a live violation**, which is why
+inverting it was worth doing rather than deleting it: `docs/reference/data-architecture-detail.md`
+§5.2 specifies predictive-maintenance Phase 2 as a *"fleet-trained LSTM on **HDR** sensor
+trajectories"* — the retired term, in the record sense, in a locked section's detail file — and
+`docs/np_fw_emmc_002.md` §G quotes that phrase back verbatim. **Not fixed here, and deliberately
+so:** the phrase is quoted as specification wording in two places, so the correction (`SHDR`, per
+§5.2's own *"SHDR-based"* heading) has to change the source and both quotations together, which is
+an edit to a locked section's detail file and not a CLAUDE.md revision. Recorded as found.
+
+**Nothing broke.** Only `scripts/check-section-refs.ts` reads CLAUDE.md, and only its top-level
+numbered headings; §2 and every one of §2.1 / §2.1a / §2.2 / §2.3 is retained as a stub, so the
+inbound citations still resolve. No design decision changed, no figure was rewritten, and no locked
+section's substance was altered.
+
+## Earlier revisions
 
 **Rev 46 (2026-09-15) — §3 and §4.2: one charge ceiling becomes two, because it was always two, and
 the interlock that enforces them starts enforcing.** A locked decision changed, and the figure it
@@ -90,7 +195,6 @@ the record**.
 are in `docs/reference/consent-engine.md` §6.3. Record: `docs/status/completed-decisions.md`,
 2026-09-13.
 
-## Earlier revisions
 
 **Rev 44 (2026-09-10) — §6.2 and §6.3: the device is the last gate on a study descriptor, and L3's
 engagement notification is not an L2 consent request.** No decision changed. Both sentences the core
