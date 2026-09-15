@@ -950,9 +950,23 @@ and — like the safety-fault annunciation — **stealth mode must not suppress 
 
 *(Under `OI-SESPWR-03`'s duty reading every column reads 5/23; the conclusion is identical.)*
 
+> **⚠ 2026-09-15 — the 2/23 figure is now SPREADER-CONDITIONAL and the denominator moved.**
+> `NP-PWR-THERM-001` §3c re-runs the library against `SPEC-SINK-01`: on the **bare shell that ships
+> today, 21 of 22 zone-fixed protocols hold no tiles at all**, and **22 of 22 are thermally bound**
+> (`NP-THERM-CFD-N1-001` §6a found five power-bound). **§7.0's conclusion survives untouched — no
+> source in the candidate set changes coverage** — but per `SINK-D-1` a figure may be quoted only
+> alongside the per-tile drive **and the spreader state**, so "2/23" must not be repeated bare.
+> `OI-PWRTH-02` carries the re-statement to this document.
+
 > **No source in the candidate set changes single-pass protocol coverage at all, today.** The device
 > already owns the only source whose watts it can spend. **The route to the rest of the library is
 > demand reduction (`OI-SESPWR-01`) and the T1/T2 split (§6), not supply.**
+
+**One qualification — the only argument that could move this. REFUTED 2026-09-15**
+(`NP-THERM-CFD-N1-001` §7, N1-D-5: a 30-minute session reaches **75–91 %** of steady rise, not 39 % —
+the τ used below is R1's fan-off value, and `OI-PWRSRC-07` was recommended closed as not supported.)
+**The transient-permissible rung does not exist and the 70–125 W figure must not be quoted.** The
+paragraph is retained as written so the correction has something to point at.
 
 **One qualification — the only argument that could move this.** The 28–49 W ceiling is **steady
 state**, and τ_face is 35–45 min against 6–30-minute sessions, so a 20-minute session reaches only
@@ -1264,6 +1278,14 @@ exists*, applied to a table row); and **provenance on the T2 rows**, since 70–
 **Not proposed:** any change to the draw figures. `NP-PWR-BUDGET-001` §6 routes those to
 `OI-PWR-02`/`-03`/`-04`, and this study finds nothing that moves them.
 
+> **⚠ 2026-09-15 — the TMS row can be filled in, and the T1-peak row's thermal bound is now a
+> number** (`NP-PWR-THERM-001` §9). **T2 + TMS: ~176 W at a 48 V/5 A (240 W EPR) contract**, from
+> `SPEC-TMS-04`'s 169 W of recharge at 10 Hz biphasic-with-recovery — *conditional on `OI-PWR-02`*,
+> which is now BLOCKING and whose other answer is ~2,886 W. **T1 peak: the thermal bound is 38.4 W
+> of device draw fully distributed and 15.9 W at an authored montage**, so the row is an electrical
+> peak the assembly cannot spend. §13's four column changes are otherwise adopted verbatim; the
+> edit to `docs/reference/hardware-detail.md` §4.5 is `OI-PWRTH-06`.
+
 ---
 
 ## 14. CLAUDE.md §2's charger policy — impact, without touching §2
@@ -1481,6 +1503,17 @@ open, `OI-COST-10` making `OI-HEXTILE-06` a precondition on any pricing action.
 ## 18. Decisions
 
 **None is locked; all are proposals for design review.** Five are marked for principal decision.
+
+> **⚠ 2026-09-15 — D-1 is ADOPTED AS DECIDED and D-2 is DISCHARGED** (`NP-PWR-THERM-001` §5,
+> PWRTH-D-2). D-1 was stated reversibly *"on evidence, via `OI-PWR-01`"*. That evidence arrived:
+> `NP-THERM-SINK-001` specified the rejection path and §3 of that study re-derived the ceiling as
+> **31.4 W across the whole lattice, 8.9 W at N = 6 and 17.9 W at +35 °C ambient** — below the
+> 28–49 W band D-1 was argued against, and N- and ambient-dependent besides. **The wall-plug path
+> for T1 PBM is closed rather than deferred.** D-2's asymmetry argument was also right in the
+> direction it feared: the ceiling was optimistic. **`OI-PWR-01` itself is CLOSED** (PWRTH-D-1); its
+> residue is `OI-R1-01`, `OI-R1-02` and `OI-SINK-01`, and `OI-PWRSRC-07`'s transient qualification
+> below was separately **refuted** by `NP-THERM-CFD-N1-001` §7 (a 30-minute session reaches 75–91 %
+> of steady rise, not 39 %).
 
 | ID | Decision | Rationale | Reversible? |
 |---|---|---|---|

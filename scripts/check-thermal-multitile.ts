@@ -243,6 +243,24 @@ export const G_LAT_CAV = lateralG(10 * 0.0025 + 30 * 0.0002);
  *  at. Changing it is OI-SINK-02, for that document's owner. */
 export const R_SINK_DEFAULT = 0.5;
 
+/** SPEC-SINK-01, NP-THERM-SINK-001 §4 — the SPECIFIED value, recovered twice
+ *  and not chosen. OI-SINK-02 asked for R_SINK_DEFAULT to be raised to it and
+ *  marked specified. Raising it in place would silently move every published
+ *  figure in NP-THERM-CFD-N1-001, whose tables name the R_sink they were
+ *  computed at, so the two are carried side by side instead: R_SINK_DEFAULT
+ *  reproduces this script's own document, R_SINK_SPECIFIED is what any NEW
+ *  figure must be computed at, and `rSinkNote()` makes the difference visible
+ *  in every report line that names either. OI-SINK-02 is discharged by that
+ *  pairing, not by an overwrite. NP-PWR-THERM-001 §2. */
+export const R_SINK_SPECIFIED = 1.08;
+
+/** One line, printed wherever a figure at R_SINK_DEFAULT is reported, so a
+ *  superseded number cannot be read out of this script without its label. */
+export const rSinkNote = () =>
+  `  NOTE: R_sink ${R_SINK_DEFAULT} K/W is NP-THERM-CFD-N1-001's published value, SUPERSEDED by\n` +
+  `  SPEC-SINK-01 = ${R_SINK_SPECIFIED} K/W (NP-THERM-SINK-001 §4) and retained only so this\n` +
+  `  script keeps reproducing its own document. New figures: check-thermal-sink.ts.`;
+
 // ---------------------------------------------------------------------------
 // §4  Steady solver
 // ---------------------------------------------------------------------------
@@ -531,6 +549,7 @@ function reportNSweep(amb: number) {
   rule(`§4  Face temperature vs N at ambient ${amb} C — clustered against distributed`);
   console.log(`  Driven at NP-HW-HEXTILE-001 §9.2's R-4 point, ${OP.r4} W/tile electrical`);
   console.log(`  (= ${heatW(OP.r4).toFixed(2)} W/tile heat at eta_wp ${ETA_WP}), R_sink ${R_SINK_DEFAULT} K/W.`);
+  console.log(rSinkNote());
   console.log();
   console.log("   N   clustered            distributed          sink   spread");
   console.log("       compact  T_face      compact  T_face       T      relief");
@@ -670,6 +689,7 @@ function reportProtocolCeilings(amb: number) {
   console.log(`  "th(ideal)" repeats it with a PERFECT sink -- the R1 assumption, and an upper`);
   console.log(`  bound no heatsink can beat. Where th(ideal) is already 0, the verdict does`);
   console.log(`  NOT depend on the unspecified R_sink (OI-N1-02).`);
+  console.log(rSinkNote());
   console.log();
   console.log("  protocol                      W/tile   power  thermal  th(ideal)  binds");
   const rows = analyse()
@@ -746,6 +766,7 @@ function reportTransient(amb: number, w: number) {
   console.log(`  Sessions are 6-30 min (pbm_neuro_protocols.md). From an all-off start,`);
   console.log(`  distributed montage, R_sink ${R_SINK_DEFAULT} K/W. Percentages are the`);
   console.log(`  fraction of the steady-state RISE reached at that elapsed time.`);
+  console.log(rSinkNote());
   console.log();
   console.log("   N   cold    6 min     12 min    20 min    30 min     steady");
   for (const n of [6, 20, 80]) {
@@ -776,6 +797,7 @@ function reportOptionRatios(amb: number, w: number) {
   ];
   console.log(`  Ceiling = largest N (distributed) holding max face <= ${FACE_LIMIT} C,`);
   console.log(`  R_sink ${R_SINK_DEFAULT} K/W. '>80' means the whole lattice fits.`);
+  console.log(rSinkNote());
   console.log();
   console.log("  ID       option                              R_out   ceiling   vs base  shield");
   let base = 0;

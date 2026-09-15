@@ -32,6 +32,15 @@
 > at 40 J/cm², 2.2× at 60 and 3.4× at 120, defensible in every row but inherited rather than chosen.
 > **D-4, the band endpoints and every figure in §7.4 stand unchanged.**
 >
+> **⚠ 2026-09-15 — `OI-POE-09` is CLOSED** (`NP-PWR-THERM-001` §10). The gap Rev 11 recorded rather
+> than assumed past is answered in both halves: **two independent latches, one per IEC 62304 class**
+> (PWRTH-D-5) — a Class B write into Class C state is the same coupling §7.4.4 refused, through a
+> narrower aperture — and the efficacy edge gets **its own band, chosen in dose**:
+> `Δ = max(1.0 °C, 50/D °C)`, i.e. ≥ 2.0× the floor on re-admission (PWRTH-D-6). §7.5.1's Δ = 1.0 °C
+> is unchanged for the **thermal** edge and unchanged for every protocol above 50 J/cm² on the
+> efficacy edge; what changes is that it is now *chosen* there rather than inherited. **No figure in
+> §7.4 or §7.5 moves, and D-4 is untouched.**
+>
 > **Rev 10 (2026-09-03) — D-4 decides the derate semantics Rev 8 raised: the session length is
 > FIXED, dose scales with duty, and the ramp is clamped at the efficacy floor and refuses below it.
 > `OI-THCOOL-17` closes; §7.4 is rewritten from a proposal into a decision.** Rev 8 stated two
@@ -949,6 +958,12 @@ latch is SW-01 state, which was written when both edges were Class C; either SW-
 Class B write into Class C state — restricting only, so no hazard, but it needs a segregation
 argument) or each class carries its own latch. Nothing here is unsafe in either arrangement; it is
 unspecified, which is why it is raised rather than assumed.
+
+> **CLOSED 2026-09-15 — each class carries its own latch** (`NP-PWR-THERM-001` §10.1, PWRTH-D-5).
+> A floor refusal sets the **SW-02 efficacy latch**; the §6.1 Class C latch is a distinct object and
+> the two never write to each other. Admission requires both clear, composed at the admission test
+> in `NP-FW-POE-001` §5's existing `min()` shape. The efficacy edge also gets its own band, chosen
+> in dose: `Δ = max(1.0 °C, 50/D °C)` (PWRTH-D-6). `OI-THCOOL-19` is unaffected.
 
 **7.4.5 — One consequence that reads backwards, stated because it will be misread.**
 
