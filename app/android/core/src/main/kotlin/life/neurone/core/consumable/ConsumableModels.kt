@@ -16,7 +16,14 @@ enum class ConsumableKind(val rawValue: Int) {
             INTRANASAL_SLEEVES -> 1     // single use
             ELECTRODE_HYDROGEL -> 45    // midpoint of 30–60 range
             VNS_PADS -> 30              // midpoint of 20–40 range
-            AUDIO_CUP_FOAM -> 150       // ~180 sessions in 6 months assuming daily use
+            // UNVALIDATED PLACEHOLDER — OI-ACC-04. Exposure count, mechanism = compression set
+            // under wear. The value is NOT derived from that mechanism: it was back-derived from
+            // the retired "6–12 months" calendar interval (OI-ACC-02), which CLAUDE.md §2.3 forbids
+            // and which this device cannot implement anyway — no VBAT rail, so wall time dies on
+            // every disconnect. Kept rather than re-derived, because re-deriving from a void
+            // derivation is not an improvement. Same defect class as NP-FW-EMMC-002 §G.2's
+            // accelerometer thresholds; superseded by foam compression-set data, not by arithmetic.
+            AUDIO_CUP_FOAM -> 150
         }
 
     // Remind when this many sessions remain in the current consumable unit.

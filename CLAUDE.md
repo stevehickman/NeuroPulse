@@ -1,13 +1,13 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 47 (current)  
+**Revision:** 48 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
 > bear on most conversations and names the file holding the rest. Read a subsidiary file when the
 > task needs it — do not assume a figure or a spec detail is here.
 >
-> **Revision history — every revision from Rev 33 to the current Rev 47, what it changed and why —
+> **Revision history — every revision from Rev 33 to the current Rev 48, what it changed and why —
 > is `docs/reference/claude-md-revision-history.md`. None of it is summarised here.** That file is
 > the only narrative of *why* an invariant below reads the way it does, which entries changed a
 > locked decision, and which changed none: **read it before assuming why something is the way it
@@ -133,6 +133,29 @@ never blocks.**
 Intranasal hygiene sleeves are the **only authenticated consumable** and the primary MRR driver.
 **All consumable prompts are measurement-triggered (§5.2), never calendar-triggered** — a consumable
 with no measurement gets no prompt; inventing a trigger is design work, not a documentation edit.
+
+**What counts as a measurement (Rev 48, `OI-ACC-02`).** A calendar prompt is not only forbidden here,
+it is **unimplementable on this device**: there is no battery, coin cell or `VBAT` rail (§4.5), so the
+RT1062's SNVS RTC has no backup domain and wall time is lost on every disconnect. A replacement
+prompt therefore qualifies in exactly one of two ways, and the row must say which:
+
+1. **Condition measurement** — a sensed quantity of the part itself (hydrogel tips: impedance trend).
+2. **Exposure count** — a count the device already takes, of the quantity that drives the part's
+   degradation, **with that mechanism named** (VNS clip pads: electrochemical degradation from VNS
+   current, 20–40 sessions). An exposure count is weaker than a condition measurement and the
+   difference is not cosmetic: it cannot see a part that failed early, was damaged, or degraded off
+   the device. A row taking this route says what its count cannot see.
+
+**A threshold back-derived from a calendar interval is a calendar prompt wearing a session count**,
+and is the thing this invariant forbids — the trigger *kind* and the threshold's *provenance* are
+two claims, and satisfying the first does not satisfy the second. A threshold that no measurement
+supports is an unvalidated placeholder and is labelled one, per `NP-FW-EMMC-002` §G.2.
+
+**Scope: consumable replacement prompts only.** Service-network and calibration intervals are
+deliberately outside it and stay calendar-denominated — the 3–5 year Tier B fluxgate visit
+(`docs/reference/durability-maintenance.md`, scale-factor drift is not self-detectable) and the
+$1,800/yr T2 calibration visit (`NP-PWRSRC-001` D-16, the ISO 14971 re-acknowledgement point) have
+no measurement to substitute, and reading this rule onto them would delete two controls.
 
 ---
 

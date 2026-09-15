@@ -19,6 +19,61 @@
 
 ## Current revision
 
+**Rev 48 (2026-09-15) — §2.3: what "measurement-triggered" actually admits, because the term had no
+test and a row could pass it by sounding right.** No decision changed, and no exception was granted.
+The invariant's own sentence survives verbatim; what it gained is a way to fail.
+
+**This is Rev 48, not 47.** It was written as Rev 47 against a tree whose history table ended at 46;
+#360 merged its own Rev 47 first. On the precedent this file and `docs/np_dhf_001.md` history row 48
+already carry (PRs #272/#273, then #351), **the earlier claimant keeps the number** and this entry
+takes the next — so any citation of #360's work still resolves. **#360's Rev 47 is the entry directly
+below, and it surfaced this contradiction deliberately without resolving it:** carrying §2.3's
+invariant into `docs/reference/commercial-model.md` put the rule and the foam row in one reader's
+view for the first time, which is what made it resolvable here. The warning block it left above that
+table is replaced by the disposition, not deleted.
+
+**The item that forced it had a false premise.** `OI-ACC-02` recorded that the audio cup foam's
+prompt is `Calendar reminder` on a `6–12 months` interval in `docs/reference/commercial-model.md`
+§2.3, against §2.3's locked *"all consumable prompts are measurement-triggered (§5.2), never
+calendar-triggered"*, and offered two outcomes: build the foam a seal or compression proxy, or write
+a reasoned exception. `NP-ACC-PRIORITY-001` declined both, rightly, on the ground that inventing a
+proxy is design work. **Neither was needed.** The shipped app already triggers the foam on a session
+count from the hub's SHDR-class `CONSUMABLE_STATUS` characteristic — a measurement the device takes.
+The calendar lived only in the row's prose and could never have lived anywhere else: with no battery,
+coin cell or `VBAT` rail (§4.5), the SNVS RTC has no backup domain and wall time dies on every
+disconnect. **A calendar prompt here is unimplementable, not merely forbidden**, and §2.3 now says so
+— the same reasoning that denominated `NP-FW-EMMC-002` §H's characterisation window in records.
+
+**Why a definition rather than a fix to one row.** *"Measurement-triggered"* had no test, so the
+table was adjudicated on whether a Notes cell *sounded* like a measurement. That is how the foam row
+survived from the table's first revision until a ranking exercise happened to read it — and it is how
+the **mesh frame** row still passes while shipping nothing at all, its *"App driver impedance flags
+fouling"* resting on an unimplemented HAL stub whose return value is discarded and on a consumable
+kind that does not exist (`OI-ACC-05`). §2.3 now states two admissible kinds, and requires the row to
+say which: a **condition measurement** of the part, or an **exposure count** of the quantity driving
+its degradation **with that mechanism named**, plus what such a count cannot see — a part that failed
+early, was damaged, or degraded off the device.
+
+**The clause that does the real work is about provenance, not kind.** The trigger's kind and the
+threshold's derivation are two claims, and satisfying the first does not satisfy the second. Without
+that sentence this revision would have *laundered* the foam: `150` was back-derived from `6–12
+months` through an unvalidated *assuming daily use* assumption and does not match its own comment
+(`~180`), so a kind-only rule would have moved that defect from visible-with-an-open-item to
+certified-compliant-and-invisible. A threshold no measurement supports is an unvalidated placeholder
+and is labelled one, per `NP-FW-EMMC-002` §G.2 — whose accelerometer thresholds are the same defect.
+
+**The scoping sentence is not boilerplate.** `docs/reference/data-architecture-detail.md` §5.2
+carries a broader claim — *"All reminders measurement-triggered, not calendar-triggered"* — and
+reading this definition onto it would delete two controls with no measurement to substitute: the
+**3–5 year Tier B fluxgate visit** (scale-factor drift is not self-detectable, and it is the
+maintenance action behind §4.3's attenuation claim) and the **$1,800/yr T2 calibration visit**
+(`NP-PWRSRC-001` D-16, the ISO 14971 re-acknowledgement point). §2.3's clause is therefore scoped to
+consumable replacement prompts and names both exclusions.
+
+**Where the detail is.** The disposition, the two claims it falsifies, and what the exposure count
+cannot see are in `docs/reference/commercial-model.md` §2.3; the successors `OI-ACC-04…06` are in
+`docs/status/pending-decisions.md`. Record: `docs/status/completed-decisions.md`, 2026-09-15.
+
 **Rev 47 (2026-09-15) — the header's revision digest and the whole of §2's figures leave the core; no
 design decision changed.** The always-loaded core went from 38,093 to 36,119 bytes (−5.2%). Fifth
 application of the Rev 33 core/subsidiary split, under Rev 43's
@@ -162,6 +217,8 @@ CLOSED with only its safety-MCU half wired, and DI-SAFE-01, FMEA SW01-M03 and NP
 *"never bypassable"* were describing a control enforcing nothing. It enforces now. **Read that as the
 reason both figures are stated with their period in the core**: the wrong ceiling did no damage only
 because nothing was checking it, which is not a safety argument.
+
+## Earlier revisions
 
 **Rev 45 (2026-09-13) — §6.0: "never asked" and "said stop" are different states, and the boolean
 that was standing in for both could not hold the difference.** No decision changed. §6.0 has said
