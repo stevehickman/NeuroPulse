@@ -24,6 +24,25 @@
 - Non-conductive CFRP window at TMS coil site (prevents eddy current field loss)
 - Three firmware additions: TMS-gated cancellation · adaptive notch at BES/tACS stimulus frequency · synchronous Helmholtz subtraction from EEG
 
+> **Every dB figure above is a design target. None has been measured** — `EMF-1` (two-layer attenuation
+> ≥ single-shell baseline) has never run, and `EMF-3`, `RISK-20` and `OI-THCOOL-06` are open on the
+> seams and penetrations that set the real floor. **What the stack is for, and which layers earn their
+> cost, is `docs/np_bib_emf_001.md` (NP-BIB-EMF-001).** Three findings that bear directly on this list:
+>
+> - **Layer 2's rationale as written here is the one benefit the evidence does not support.** Ambient
+>   ELF at WHO residential levels (0.07–0.11 µT) is 2,000–18,000× below where any neural effect is
+>   reported, and EEG — unlike MEG — does not require external magnetic-field suppression. The layer
+>   stays because `NP-HEX-ZM-001` §5.3.1 co-designs the Helmholtz coils with it as **one magnetic
+>   circuit**, because `NP-ENV-OPRANGE-001` §2 makes it the degraded-mode fallback, and possibly
+>   because of IEC 61000-4-8 immunity — **none of which is stated here.**
+> - **Layer 4 is the only layer with no dB figure in any document**, including `NP-DT-001`
+>   `DI-PERF-22`. It is explicitly not primary shielding, and no document names the source that excites
+>   the resonance it suppresses — the radios live in the hub. It costs **18 % of the outward thermal
+>   path** and blocks two fixes to a BLOCKING `OI-SINK-01`. **`OI-BIBEMF-08`: EMC states its
+>   requirement in dB against a named source and band, or the layer goes.**
+> - **The stack is aperture-limited, not layer-limited.** Adding layers above the seam floor buys
+>   nothing, which is why `EMF-1` is the measurement that decides every layer's value.
+
 ### 4.4 Fit system
 - Boa-style occipital dial · 10cm range · 0.5mm/click · 50,000-cycle rated · enclosed PTFE-lined cable channel (prevents hair entanglement) · Boa replacement cable + tool in box · regrease kit available ($4.99 accessory)
 - 5-position forehead bridge (5mm steps)

@@ -8,6 +8,18 @@
 - Required standards: IEC 60601-1, IEC 60601-2-10, IEC 62471, IEC 62133, FCC Part 15
 - Cybersecurity: SBOM, vulnerability disclosure policy, documented OTA update approach
 - FTC claims substantiation: 33-entry bibliography maps each marketing claim to supporting citations
+  - **The EMF shielding claim is not in that bibliography.** CLAUDE.md §1 calls the 5-layer stack the
+    product's primary technical differentiator and `competitive-position.md` carries published copy for
+    it, but no entry here, in `clinical.md` or in the 33-entry set covers it. The evidence record is
+    **`docs/np_bib_emf_001.md` (NP-BIB-EMF-001)**, added 2026-09-15. Read it before substantiating any
+    shielding claim: it establishes that a **dB attenuation figure is a product-performance claim and
+    never an efficacy claim**, that no shielded-vs-unshielded outcome evidence exists for any modality,
+    and that the FTC has enforced against unsubstantiated EMF-protection claims (WaveShield 2003;
+    sticker settlements 2011; 5G-protection warnings 2020).
+  - **⚠ IEC 60601-1-2 (EMC) is missing from the required-standards line above** and is named for the
+    cervical VNS accessory in `NP-REG-CVNS-001` §192. Its IEC 61000-4-8 power-frequency magnetic
+    immunity clause may be what actually requires shielding Layer 2 — `OI-BIBEMF-04`, which **gates any
+    proposal to remove that layer**. Resolve before the standards list is relied on.
 
 ## T2 — FDA 510(k)
 - Modular predicate: TMS (NeuroStar K083538, BrainsWay K122288) + tACS (Soterix K142485, Neuroelectrics K173185) + taVNS (electroCore K163334, K173323)
