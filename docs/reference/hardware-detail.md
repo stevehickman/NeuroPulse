@@ -32,6 +32,26 @@
 - 1 adult SKU covers 52–62cm heads
 
 ### 4.5 Power
+
+> **⚠ The table below is ELECTRICAL draw only, and two things it does not carry now have numbers.**
+> Nothing here is edited — §4.5 is a locked section and the edit is routed as `OI-PWRTH-06` — but a
+> figure quoted from it without these is misleading:
+>
+> - **There is no thermal-bound column, and the thermal bound binds first for PBM.** Against
+>   `NP-THERM-SINK-001` `SPEC-SINK-01`, the sealed cavity admits **31.4 W of emitter power across the
+>   whole lattice, 8.9 W at an authored N = 6 montage and 17.9 W at +35 °C ambient**
+>   (`NP-PWR-THERM-001` §3). **The T1-peak row is an electrical peak the assembly cannot spend** —
+>   38.4 W of device draw fully distributed, 15.9 W at N = 6 — so a 45 W supply already covers it and
+>   the 65 W rung buys nothing thermally at T1.
+> - **There is no TMS row, and the T2 figures were derived for the 1170 nm laser zone only.**
+>   `SPEC-TMS-04` puts **T2 + TMS at ~176 W on a 48 V/5 A (240 W EPR) contract**, 2.4× the T2-peak
+>   figure five other documents cite as an input — **conditional on `OI-PWR-02`**, which is BLOCKING
+>   and whose other answer is ~2,886 W (`NP-PWR-THERM-001` §7, §9). TMS and 1170 nm are `max()`, not
+>   `sum()`: no authored session runs both.
+>
+> Proposed replacement table with both columns: `docs/np_pwr_therm_001.md` §9. Derivations:
+> `docs/np_pwrsrc_001.md` §13, `docs/np_pwr_budget_001.md` §6.
+
 | Mode | Draw | Min USB-C PD | Power bank runtime (10,000mAh) |
 |------|------|-------------|-------------------------------|
 | Standby | 1W | 5V/0.5A | ~330 hours |

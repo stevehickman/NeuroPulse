@@ -572,6 +572,15 @@ mesh CFD of the helmet would have resolved the cavity and the stack beautifully 
 answer parameterised on the same unknown `R_sink`. **Spending a CFD to learn that would have been the
 expensive way to learn it.**
 
+> **⚠ 2026-09-15 — `OI-PWR-01` is CLOSED, not narrowed** (`NP-PWR-THERM-001` §4, PWRTH-D-1). The
+> recommendation below is adopted in full; only its *disposition* changes, and it changes because
+> its own stated precondition — *"it should not gate anything that `OI-N1-02` does not gate first"* —
+> was met when `OI-N1-02` closed on 2026-09-08. With the binding term specified, nothing remains
+> under `OI-PWR-01`'s number that is not carried by name by `OI-R1-01` (mesh independence),
+> `OI-R1-02` (THERM-1b bench) or `OI-SINK-01` (the spreader, BLOCKING). Leaving a fourth name
+> pointing at three owned items invites a mesh CFD to be sequenced against a term that no longer
+> binds.
+>
 > **Recommended disposition of `OI-PWR-01`: NARROWED, not closed.** The aggregate-concurrency and
 > montage-clustering questions it was opened for are answered (§4, §4a, §6). What remains of its
 > original scope is the intra-tile field and the mesh-independence requirement, which belong to
