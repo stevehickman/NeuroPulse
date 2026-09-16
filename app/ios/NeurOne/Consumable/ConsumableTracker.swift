@@ -4,6 +4,13 @@ import UserNotifications
 
 // Measurement-triggered consumable reminder engine.
 // Per CLAUDE.md §5.2: all reminders are measurement-triggered, not calendar-triggered.
+// Every trigger here is a SESSION COUNT from the hub's SHDR-class CONSUMABLE_STATUS — an
+// *exposure count* in CLAUDE.md §2.3's sense, not a condition measurement of the part. Two
+// consequences, stated because the bare word "measurement-triggered" hides both: a count cannot
+// see a part that failed early, was damaged, or degraded off the device; and a count whose limit
+// was back-derived from a calendar is a calendar prompt in disguise, which is why the audio cup
+// foam's limit is labelled an unvalidated placeholder (OI-ACC-02 / OI-ACC-04, CLAUDE.md Rev 48).
+// No trigger in this engine is time-denominated, and none can be: the headset has no VBAT rail.
 // Reminder levels: safety-blocking (cannot dismiss), performance-critical (snooze ≤3×), comfort (≤5×).
 // Every reminder includes the measured data that triggered it + one-tap order link.
 

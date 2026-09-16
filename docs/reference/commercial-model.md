@@ -133,19 +133,72 @@ measurement-triggered (CLAUDE.md §5.2), never calendar-triggered** — a consum
 measurement gets no prompt, and inventing a trigger for one is design work, not a documentation
 edit.
 
-> **⚠ One row below contradicts that second rule and is not resolved here.** The audio cup foam
-> names *"Calendar reminder"* as its trigger, which the invariant forbids; `docs/np_acc_priority_001.md`
-> raises it and declines to resolve it, on the ground that inventing a seal or compression proxy is
-> the design work the invariant exists to protect. Either the foam gains a measurement trigger or the
-> invariant gains an explicit, reasoned exception — a principal decision, Product + FW.
+> **⚠ `OI-ACC-02` RESOLVED (principal, 2026-09-15; CLAUDE.md Rev 48) — the foam's trigger was never
+> a calendar, and CLAUDE.md §2.3 needed no exception.**
+>
+> **This block replaces the unresolved flag Rev 47 (#360) left here.** That revision carried §2.3's
+> invariant into this file and set the row beside it, which is what put the rule and the row in one
+> reader's view at once; it recorded the conflict as surfaced, not fixed, because choosing between a
+> new measurement trigger and a reasoned exception is a principal decision. This is that decision.
+>
+> The item offered two outcomes: build the foam a seal or
+> compression proxy, or write a reasoned exception into the invariant. **Neither was taken, because
+> the item's framing rested on this table rather than on the code.** The shipped app already triggers
+> the foam on a **session count** read from the hub's SHDR-class `CONSUMABLE_STATUS` characteristic
+> (`ConsumableInventory.swift`, `ConsumableModels.kt`) — a measurement the device takes. The calendar
+> existed only in this row's prose, and it could never have been anything else: the headset has no
+> battery, coin cell or `VBAT` rail, so wall time is lost on every disconnect and a device-side
+> calendar trigger is **unimplementable**, not merely forbidden (`NP-FW-EMMC-002` §H.3.1).
+>
+> **What was actually defective was the threshold's provenance.** `150` was back-derived from
+> "6–12 months" through an unvalidated *assuming daily use* assumption, and did not match its own
+> stated derivation (`~180`) on either platform. That is the `NP-FW-EMMC-002` §G.2 defect class —
+> `NP_ACCEL_DROP_THRESHOLD_G` and `NP_ACCEL_MAINT_THRESHOLD`, *"chosen before any hardware existed
+> and … never compared against a device that failed"* — and it takes that document's remedy: the
+> number is **relabelled an unvalidated placeholder** and carried by `OI-ACC-04`. **The value is
+> deliberately unchanged.** Re-deriving it (the file's own midpoint convention gives 270 from the
+> calendar-implied 180–360) would re-derive from a derivation just declared void, and would move
+> both platforms' test suites and the prompt frequency of a revenue-generating consumable on
+> reasoning that has been withdrawn. Overriding to any other number costs one edit.
+>
+> **No seal or compression measurement is obtainable from the current sensor set**, and that is a
+> physical finding rather than a budget one: the foam is non-conductive and sits in no circuit, there
+> is **no microphone anywhere in the design** (so no acoustic seal test exists), and the one audio
+> impedance channel — `np_mod_audio_hal_mesh_impedance()`, itself an unimplemented HAL stub
+> (`OI-AUDIO-08`) whose return value is discarded at its only call site — measures a **conductive
+> mesh**, not the foam beside it. This null is bounded by what was searched: the four candidate
+> channels enumerated in `NP-FW-BENCH-001` §4.1 plus `np_sw02_platform_hal.h` as of this revision.
+> A part added to either list reopens the question.
+>
+> **What the exposure count cannot see:** a foam torn, contaminated, or compression-set in storage or
+> by a second user; and any wearer whose sessions are much longer or shorter than whatever session
+> length `OI-ACC-04` eventually assumes. The mechanism is time-under-compression, and session count
+> is a proxy for it, not a measure of it.
+>
+> **Two corrections to claims made when the item was raised**, both false before this revision and
+> not created by it. (i) `NP-ACC-PRIORITY-001` §8 and `docs/status/pending-decisions.md` state *"every
+> other row in that table names a measurement"* — the interface-cover, S3 Rx and T2 service rows name
+> none, and no Notes cell anywhere in the table names a session count, because the session counts live
+> in the **Interval** column. (ii) §5 row 14 calls the foam *"the one calendar-triggered consumable
+> reminder in the document set"* — the mesh frame ("Annual"), the covers ("Annual / as lost") and the
+> S3 insert ("12–24 months") are all calendar-denominated in the Interval column, and the mesh frame
+> is the worse case, because its claimed measurement is unimplemented (`OI-ACC-05`).
+>
+> **Read Interval and Notes together.** No row states an admissible trigger inside one cell: Interval
+> supplies the exposure count, Notes supplies the mechanism or the condition measurement. Three rows
+> below satisfy neither half — covers (loss is not degradation), S3 Rx (its real trigger is refraction
+> change, which is user biology and therefore UHDR, permanently outside NeurOne's reach) and the T2
+> service contract (not a consumable prompt). They are recorded here rather than silently exempted.
+> **This rule is enforced by reading, not by a gate** — unlike §5.1's redaction shape, §6.2's
+> reachability and §17's locale rule, which each have one. That gap is `OI-ACC-06`.
 
 | Item | Price | Interval | GM% | Notes |
 |------|-------|----------|-----|-------|
 | Intranasal sleeves (30-pack) | $19/pack or $19/mo sub | Single use | 68–79% | Only authenticated consumable. COGS $4–6. Primary MRR driver. |
 | Electrode hydrogel tips (8-pack) | $12–16 or $9.99/mo sub | 30–60 sessions | 60–72% | App impedance trend prompts. Bayonet snap, zero training. |
 | VNS clip pads (2-pack) | $8/pack | 20–40 sessions | 65% | Electrochemical degradation from VNS current. |
-| Audio cup foam (set) | $24/set | 6–12 months | 58% | Calendar reminder. |
-| Audio cup mesh frame (pair) | $9.99/pair | Annual | 62% | App driver impedance flags fouling. Snap-in, user-replaceable. |
+| Audio cup foam (set) | $24/set | **150 sessions — unvalidated placeholder (`OI-ACC-04`)** | 58% | Exposure count. Mechanism: compression set under wear (time-under-compression; sessions proxy it). Cannot see tear, contamination, or storage set. Was "6–12 months / Calendar reminder" — `OI-ACC-02`, resolved above. |
+| Audio cup mesh frame (pair) | $9.99/pair | Annual | 62% | App driver impedance flags fouling. Snap-in, user-replaceable. **Trigger not implemented:** `np_mod_audio_hal_mesh_impedance()` is a HAL stub (`OI-AUDIO-08`) whose value is discarded, and there is no `ConsumableKind` case — so the shipped prompt is the Interval column, i.e. a calendar. `OI-ACC-05`. |
 | Interface protection covers (complete kit) | $22.99 or $19.99/yr bundle | Annual / as lost | 70% | All tethered — loss prevention by design. |
 | S3 prescription Rx insert | $49–139 | 12–24 months | Variable | Optician partner network. Zero marginal marketing cost per renewal. |
 | T2 service contract | $1,800/yr | Annual | ~75% | Same-day loaner, priority support, annual calibration. |

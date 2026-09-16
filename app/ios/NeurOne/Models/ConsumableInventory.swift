@@ -26,7 +26,14 @@ enum ConsumableKind: Int, CaseIterable, Identifiable {
         case .intranasalSleeves: return 1           // single use
         case .electrodeHydrogel: return 45          // midpoint of 30–60 range
         case .vnsPads:           return 30          // midpoint of 20–40 range
-        case .audioCupFoam:      return 150         // ~180 sessions in 6 months assuming daily use
+        // UNVALIDATED PLACEHOLDER — OI-ACC-04. Exposure count, mechanism = compression set under
+        // wear. The value is NOT derived from that mechanism: it was back-derived from the retired
+        // "6–12 months" calendar interval (OI-ACC-02), which CLAUDE.md §2.3 forbids and which this
+        // device cannot implement anyway — no VBAT rail, so wall time dies on every disconnect.
+        // Kept rather than re-derived, because re-deriving from a void derivation is not an
+        // improvement. Same defect class as NP-FW-EMMC-002 §G.2's accelerometer thresholds; it is
+        // superseded by foam compression-set data, not by another arithmetic pass.
+        case .audioCupFoam:      return 150
         }
     }
 
