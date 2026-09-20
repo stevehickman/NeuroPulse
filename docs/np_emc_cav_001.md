@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-EMC-CAV-001
-**Revision:** 7
+**Revision:** 8
 **Date:** 2026-09-20
 **Status:** ACTIVE — EMC analysis discharging `OI-BIBEMF-08` step 1; asserts no measurement
 **Effective Date:** 2026-09-20
@@ -13,7 +13,7 @@
 **Gate:** —
 **IEC 62304 Class:** — (analysis record, not device software)
 **Jurisdiction Scope:** N/A
-**Change Summary:** Rev 7 records **`BOSS-1`** (principal): the boss projects **outward**. With `FLUSH-1` and §8.6.1 that removes every local constraint on the inter-bowl Gap. `OI-THCOOL-06` reopened and now BLOCKING. See §11.
+**Change Summary:** Rev 8 dimensions the Gap (§8.7) and finds the **closed lever is not what sets it** — the **cluster controller boards on L1's gap-facing face** are, giving a floor of **2.75–3.45 mm** against 5–7 today. Four inputs are missing. See §11.
 
 ---
 
@@ -718,6 +718,86 @@ on 2026-08-30 **only because the pneumatic loop that needed it went out of scope
 
 ---
 
+### 8.7 Dimensioning the Gap — and the closed lever is **not** what sets it
+
+Asked to dimension the Gap to the closed-lever footprint. **The lever is not the binding
+contributor, and the thing that is has never been on the list.**
+
+Under `FLUSH-1` the lever is flush with L1's outer face, inside the **3.0–4.0 mm** of L1 outer-face
+features `NP-HELMET-GEOM-001` §2 already allocates. **Flush means it contributes zero Gap.** So
+dimensioning "to the closed-lever footprint" would give a Gap of ~0 — and that is wrong, because
+something else is in there.
+
+> **`NP-DRV-SHELL-002` §4.1 assigns L1's *gap-facing* face to** *"**Cluster controller components,
+> incl. the STM32G071**; clamp plates."* **The cluster controller boards sit in the Gap.** They are
+> not on §8.5's contributor table, not on §8.6's, and not on `NP-HELMET-GEOM-001` §2's Gap row. This
+> is the **third** correction to that list in three revisions, and the first one that *adds* rather
+> than removes.
+
+#### 8.7.1 The floor, from the package types the record actually names
+
+`NP-DRV-SHELL-002` §10.1 and `NP-HW-HUB-001` §8.1 name the parts by package, so their heights are
+JEDEC maxima rather than guesses:
+
+| Part | Package | Max height |
+|---|---|---:|
+| STM32G071 cluster MCU | UFQFPN32 | 0.60 mm |
+| PCA9548A I2C mux | TSSOP-24 | 1.20 mm |
+| 16:1 PD current mux (TMUX1308-class) | TSSOP | 1.20 mm |
+| Zero-drift TIA op-amp (MCP6V51 / OPA378-class) | SOT-23-5 | **1.45 mm ← tallest** |
+| ~400 pull-ups, straps, decoupling, ESD | 0402 / 0603 | 0.55 mm |
+
+**Closed-state stack, taking the clamp plate to pocket over the parts:**
+
+| Term | Value | Status |
+|---|---|---|
+| Cluster PCB, 4-layer | 0.8–1.0 mm | **ASSUMED — not stated anywhere** |
+| + tallest component | 1.45 mm | sourced (package maximum) |
+| + assembly / tolerance clearance | 0.5–1.0 mm | **ASSUMED — not stated anywhere** |
+| **= Gap floor** | **2.75–3.45 mm** | against **5–7 mm** today |
+
+**If the plate instead sits *over* the parts rather than pocketing, add its thickness — also
+unstated.** §8.1 of that document puts carrier and plate on *"opposite sides of the same cluster
+footprint"* with the plate lifting to release modules, which is consistent with either.
+
+#### 8.7.2 What that is worth, and what it costs to find out
+
+| Gap | Outward total | Recovered |
+|---:|---:|---:|
+| 6 mm (today) | 0.410 | — |
+| 3.5 mm | 0.314 | +0.096 |
+| **3.0 mm** | **0.295** | **+0.115** |
+| 2.75 mm | 0.284 | +0.125 |
+
+> **So the answer to "dimension the Gap" is ~3 mm, not ~0 — and the number is set by a 1.45 mm
+> op-amp package, a PCB thickness nobody has written down, and a clearance nobody has derived.**
+
+**Four inputs do not exist, and `MECH-2` needs all four:**
+
+1. **Cluster PCB thickness** — 4-layer, but 0.8 vs 1.0 mm moves the floor 0.2 mm ≈ 0.008 m²K/W.
+2. **Clamp plate thickness.**
+3. **Whether the plate pockets over the components or sits above them** — the single largest swing.
+4. **The outer bowl's inner-surface profile tolerance** — nowhere in the record, and it sets the
+   clearance term. §2's stack gives thicknesses (CFRP 2.5 ±0.3) but no **form** tolerance over a
+   ~190 mm dome.
+
+**`OI-EMCCAV-09` is re-scoped a third time** to carry exactly these four.
+
+#### 8.7.3 A consequence for the gap pad that partly restores §221's cap
+
+`completed-decisions.md` §221 capped gap-pad coverage at **22.7 %** on three keep-outs: cluster-clamp
+actuators, fluxgates, and bowl separation for service. **Two of those three are now wrong** — the
+actuators are flush (`FLUSH-1`) and the fluxgates were never in the Gap (§8.6.1). But **§8.7's
+finding supplies a keep-out §221 never named, and it is bigger than either: the 18 cluster controller
+boards themselves.**
+
+**§221's conclusion therefore survives its reasoning being twice wrong**, which is worth stating
+plainly rather than quietly: coverage is still capped, just by a different obstruction. **How much
+is now computable and is not computed here** — it needs the cluster board footprint, which §3.2 does
+not give. **`OI-EMCCAV-12`.**
+
+---
+
 ## 9. What this document does **not** establish
 
 Stated explicitly, because an analysis with a clean answer is easy to over-read.
@@ -767,7 +847,8 @@ Stated explicitly, because an analysis with a clean answer is easy to over-read.
 | **`OI-EMCCAV-04`** | Add `EMF-1a`–`EMF-1d` (§7) to the `EMF-1` fixture's test plan. Four sweeps on a fixture already committed. ~~Gates §8.2's deletion~~ — **Rev 2: no longer gating**, because §8.2 now recommends substitution, which does not depend on them. They are what would let `REQ-CAV-04`'s justification be stated as *measured*; **sweep `EMF-1a` to 6 GHz** for `OI-EMCCAV-06` | EMC | No — **re-scoped at Rev 2** |
 | **`OI-EMCCAV-06`** | **The band's upper edge is derived against the INTERNAL source only (§4.2).** The 31.1 dB roll-off is a property of §3's digital edges and says nothing about **external 6 GHz Wi-Fi ingress through the parting-plane seam** — the case `NP-HEX-ZM-001` §5.3a and `RISK-20` are actually written against. **Above 3 GHz the foam is no longer electrically thin** (§6.2 shows 11–41 dB), so §6's verdict does **not** transfer. Tissue is lossier at 6 GHz so §6.3's mechanism should hold harder, but **the case is not worked**. Sweep `EMF-1a` to 6 GHz | EMC | **Bounds §6's scope** |
 | **`OI-EMCCAV-08`** | ~~The only question between here and executing the deletion~~ **NARROWED 2026-09-20 by §8.3, and it no longer gates.** The absorber sits **outboard of the Gap**, so the re-loft takes **no clamp space at all**: the 5–7 mm Gap and the 3.0–4.0 mm of clamp features inside L1 are both preserved, and only the clamp's *counterface* changes — from compressible foam to rigid Pd/mu-metal/CFRP, which is **better** for an over-center mechanism whose over-center point would otherwise drift with foam compression set. The tolerance argument also inverts: the foam is a **±0.5 contributor**, so deleting it **shrinks the clamp's stack 38 % worst-case (±1.30 → ±0.80)**. **Residual, and it is `MECH-2`'s regardless:** confirm the per-module spring-plunger stroke covers ±0.80 — *a strictly easier requirement than today's ±1.30* | ME Lead (**`MECH-2`**) | **No — narrowed, no longer gating** |
-| **`OI-EMCCAV-09`** | **RE-SCOPED 2026-09-20 by `FLUSH-1` — dimension the assembled-state Gap, and hand it to thermal.** §8.3 found the 5–7 mm to be an allocation no requirement produced; **`FLUSH-1` says what it was mis-allocated for** — *travel*, which is a **bowls-OPEN** volume (`NP-HEX-ZM-001` §5.2, *"reached by unclamping the bowls"*) and therefore not an assembled-state requirement at all. What remains is the **closed** lever footprint, the labyrinth lip, the fluxgates and the boss — **and the boss is a standalone posterior-centre feature, so a locally-relieved gap is available.** **The prize: 0.0385 m²K/W per mm, on the largest single outward term (0.231, 56 %). Two mm beats deleting the whole absorber; three mm reaches ~70 % of §6.1's sealed-recirculation prize with no motor.** They interact rather than compose | ME (**`MECH-2`**) + Thermal | **No — but it is now the largest unclaimed thermal lever in the set** |
+| **`OI-EMCCAV-09`** | **RE-SCOPED a third time 2026-09-20 (§8.7) — the Gap floor is set by the CLUSTER CONTROLLER BOARDS, not the lever, and four inputs are missing.** `FLUSH-1` removed *travel*, §8.6.1 removed the *fluxgates*, `BOSS-1` removed the *boss* — and the closed lever is flush, so it contributes **zero**. But `NP-DRV-SHELL-002` §4.1 puts **"cluster controller components, incl. the STM32G071"** on L1's **gap-facing** face, and they were never on any contributor list. From the package types the record names, the floor is **2.75–3.45 mm** (PCB 0.8–1.0 *assumed* + tallest part **1.45 mm**, a SOT-23-5 op-amp + clearance 0.5–1.0 *assumed*) against **5–7 mm** today — worth **0.096–0.125 m²K/W**. **Needed: (1) cluster PCB thickness, (2) clamp plate thickness, (3) whether the plate pockets over the parts or sits above them — the largest swing, (4) the outer bowl's inner-surface PROFILE tolerance, which is nowhere in the record and sets the clearance term** | ME (**`MECH-2`**) + Thermal | **No — but it is the largest unclaimed thermal lever, and four inputs gate it** |
+| **`OI-EMCCAV-12`** | **Gap-pad coverage is still capped — by an obstruction `completed-decisions.md` §221 never named.** §221 capped coverage at **22.7 %** on three keep-outs: cluster-clamp actuators, fluxgates, and bowl separation. **Two are now wrong** — the actuators are flush (`FLUSH-1`) and the fluxgates were never in the Gap (§8.6.1) — but §8.7 supplies a bigger one §221 missed: **the 18 cluster controller boards**. **§221's conclusion survives its reasoning being twice wrong**, which is worth saying plainly. Recomputing the cap needs the **cluster board footprint**, which `NP-DRV-SHELL-002` §3.2 does not give | ME + Thermal | No |
 | ~~**`OI-EMCCAV-10`**~~ | **✅ DIRECTION DECIDED 2026-09-20 by `BOSS-1`** (principal; `NP-HEX-ZM-001` §5.3(c)) — **the boss projects OUTWARD, as a local emboss at the occiput centreline, only as deep as the blind-mate stack requires.** §8.6.3 is retained as the rationale of record. **The Gap's last local constraint is gone** (`FLUSH-1` removed travel, §8.6.1 removed the fluxgates, `BOSS-1` removes the boss), leaving the closed lever footprint and the labyrinth lip — which re-scopes `OI-EMCCAV-09`. **The measurement half is not closed and is now `OI-THCOOL-06`**, reopened 2026-09-20 against the collar and **BLOCKING on MECH-1 cutting the boss** — `BOSS-1` is what turns it from advisable into needed. Two keep-outs ride with the decision: the emboss stays inside the existing Boa-arch / neck-attach volume, and it does not intersect a Helmholtz coil former (`NP-HELMET-GEOM-001` §174 — fixed geometry, calibration depends on it, and that calibration is **D1**) | ME (**`MECH-1`**) + EMC. **DIRECTION CLOSED** | Residual → `OI-THCOOL-06` |
 | **`OI-EMCCAV-11`** | **The record contradicts itself on where the fluxgates are, and only one reading constrains the Gap.** `completed-decisions.md` §221 says *"§5.3c's fluxgates sit there"* — in the inter-bowl gap — while **`NP-HELMET-GEOM-001` §2 puts them in the "Inner-bowl socket wall + FPC channel" station (2.0–2.5 mm)** and **`NP-HEX-ZM-001` §5.3(c) puts them "on the inner bowl, **near the scalp**"**, which is the far side of L1 from the Gap. Likely reconciliation: the magnetic **keep-out** reaches into the gap while the sensor **body** does not — which preserves §221's no-continuous-pad conclusion but not its stated reason. **Material to `OI-EMCCAV-09`:** a keep-out is a **planform** exclusion, not a **radial** one, and only a radial constraint sets the Gap | EE + ME | No — but it changes the Gap's contributor list |
 | **`OI-EMCCAV-07`** | **Nobody has budgeted the heat that moves when this station is re-specified.** Lowering outward resistance puts more heat into the **outer bowl**, which carries the mu-metal and the Helmholtz coils. `NP-ENV-OPRANGE-001` §2 already makes the cancellation envelope **SOFT** on temperature drift, and `REQ-EMI-11` calibrates a coil-drive→field transfer that moves with coil resistance. Applies to the substitution as much as to a deletion | Thermal + EE Lead | No — but it is a **new** coupling |
@@ -786,3 +867,4 @@ Stated explicitly, because an analysis with a clean answer is easy to over-read.
 | 5 | 2026-09-20 | NeurOne EMC / Systems Engineering | **§8.5 added: `FLUSH-1` (principal direction) removes *travel* from the assembled-state inter-bowl Gap, and the lever it re-opens is larger than the one this whole document was written about.** `FLUSH-1` — *the cluster lever is flush when closed and throws only with the bowls separated* — has a second half that was **already a fact in the document set, with its consequence never drawn**: `NP-HEX-ZM-001` §5.2 reaches the levers *"by unclamping the bowls"* and §5.5 confirms *"during a module swap the bowls are open"*, so **the lever's swept volume is a bowls-OPEN volume**. `NP-HELMET-GEOM-001` §2's Gap line item — *"inter-bowl clamp **travel** + blind-mate boss + labyrinth lip"*, 5–7 mm — is therefore **mis-named**: travel is not an assembled-state requirement. §8.3 had already found that 5–7 mm was *"an allocation, not a derived requirement"*; **`FLUSH-1` says what it was mis-allocated for.** What remains is the **closed** lever footprint, the labyrinth lip, the fluxgates and the blind-mate boss — and **the boss is a standalone posterior-centre feature** (§5.3c), so **a locally-relieved gap is available** (deep at the occiput, shallow over the lattice), which "travel" had foreclosed by implying uniform swept clearance. **The prize is the largest in the outward path:** the gap is stagnant air at **0.231 m²K/W — 56 % of the total and its single biggest term**, so at k = 0.026 **each millimetre is worth 0.0385 m²K/W**. **Two millimetres of gap beats deleting the entire 3 mm Layer 4 absorber (0.077 vs 0.075); three reaches 0.115.** Against `NP-THERM-COOL-001` §6.1's sealed recirculation (0.231 → 0.067, recovery 0.164, needing a **motor inside the sealed cavity**), narrowing to 3 mm reaches **~70 % of the prize with no motor, no power draw, no moving part and no BOM line** — though the two **interact rather than compose** (less volume at higher flow resistance to stir) and must be traded, not stacked. **Stated here only because `FLUSH-1` surfaced it; dimensioning the gap is `MECH-2`'s and the thermal case is `NP-THERM-COOL-001`'s.** `OI-EMCCAV-09` **re-scoped** to carry the hand-off. **The EMC position is unchanged and narrow:** the gap is inside the Faraday envelope either way, narrowing it moves no aperture, and §4.1's modes were already computed across a head-size span far larger than any contemplated gap change. `scripts/check-cavity-q.ts` gains §8's gap model and six anchors, 25 → 31. **No locked section modified; no layer removed; no measurement asserted.** |
 | 6 | 2026-09-20 | NeurOne EMC / Systems Engineering | **§8.6 answers the two questions Rev 5 left open, corrects Rev 5's own Gap table, and fixes a status error this document had been propagating.** **(1) The fluxgates need ZERO gap.** Rev 5's §8.5 listed them as a Gap contributor; they are not one. `NP-HELMET-GEOM-001` §2 places them in the **"Inner-bowl socket wall + FPC channel"** station (2.0–2.5 mm), `NP-HEX-ZM-001` §5.3(c) puts them *"on the inner bowl, **near the scalp**"* — the far side of L1 from the Gap — and §5.1 lists them among the inner bowl's contents. Table corrected. **This exposes a contradiction that is not this document's:** `completed-decisions.md` §221 says the fluxgates *"sit there"*, in the gap. Likely reconciliation is that the magnetic **keep-out** reaches into the gap while the sensor **body** does not — which preserves §221's no-continuous-pad conclusion but not its reason, **and matters to `OI-EMCCAV-09` because a keep-out is a planform exclusion, not a radial one, and only a radial constraint sets the Gap.** **`OI-EMCCAV-11`.** **(2) The boss is the only real Gap constraint, it is undimensioned, and the dimension is already owed.** What crosses it: **216 interface pins in 20 tail groups** plus the fluxgate/coil harness, in **four segregated contact groups with independent returns**, **blind-mated as the bowls draw closed** — so it needs real mating depth (wipe + lead-in + the ±0.4 lateral / ±0.5 Z blind-mate tolerance). No figure exists anywhere. `NP-DRV-SHELL-002` §4.3 already says the layout *"must be settled before MECH-1 cuts the posterior boss"*; **FLUSH-1 only makes it urgent, because it is now the one thing left setting the Gap.** **(3) The boss should project OUTWARD, not inward.** Nothing requires inward. Outward **decouples the vault Gap from the boss entirely** — FLUSH-1's whole prize — for a local emboss at the occiput centreline, *"where the internal harness gathers (Boa arch / neck attach)"*, the bulkiest part of the assembly; it also marginally **increases** exterior area, mildly helpful against `NP-THERM-SINK-001` §6's 6.1 K idle rise. **The magnetic cost is real but largely sunk:** the outer bowl carries the mu-metal that §5.3(d) requires unbroken and `hardware-detail.md` §4.3's **D3** makes load-bearing, and mu-metal loses permeability when work-hardened and cannot be re-annealed after lamination — **but the boss is already "one aperture"** (`NP-DRV-SHELL-002` §4.3), continuity is already interrupted there, and the accepted treatment is a **mu-metal chimney collar**, which is itself a projection. **The question was never whether something projects at the boss, only which way** — inward it consumes Gap everywhere its shadow falls and competes with the harness; outward it consumes profile where there is already hardware. **`OI-EMCCAV-10`**, time-boxed by `MECH-1`. **(4) A status error this document propagated is corrected.** Rev 1–Rev 5 repeatedly stated *"`OI-THCOOL-06` unchanged and open"*, inherited from `NP-BIB-EMF-001` §1/§7.6. **Its owning document closed it on 2026-08-30** (`NP-THERM-COOL-001`, by D-2 — it was BLOCKING only on the pneumatic loop, which §6.9 put out of scope). The owning document wins. **But its closure note — *"reopen only if the loop is revived"* — is too narrow a trigger**, because the measurement is about a **formed mu-metal collar at the posterior boss** and applies to whatever passes through it. An outward-embossed boss needs exactly that bench number, so `OI-EMCCAV-10` recommends reopening it **against the collar rather than against the loop**. **No locked section modified; no layer removed; no measurement asserted.** |
 | 7 | 2026-09-20 | NeurOne EMC / Systems Engineering | **`BOSS-1` decided (principal direction): the posterior blind-mate boss projects OUTWARD, as a local emboss at the occiput centreline, only as deep as the blind-mate stack requires.** Recorded in its owning section, `NP-HEX-ZM-001` §5.3(c); §8.6.3 here is retained as the rationale of record. **The decision completes a three-step removal of every local constraint on the inter-bowl Gap:** `FLUSH-1` (Rev 5) took out *travel* — the lever throws only with the bowls separated; §8.6.1 (Rev 6) took out the **fluxgates**, which were never in the Gap at all; **`BOSS-1` takes out the boss.** What remains setting the assembled Gap is the **closed lever footprint and the labyrinth lip**, so `OI-EMCCAV-09` is re-scoped from *"which contributor binds?"* to *"how thin can the lever close?"* At **0.0385 m²K/W per millimetre** on the largest single outward thermal term, that is `FLUSH-1`'s full prize unlocked. **Outward is not a special case on this bowl:** `NP-HELMET-GEOM-001` §2 already records that *"coil formers add local thickness only"*, so local outward thickness variation is an **existing feature class** and `BOSS-1` adds one more instance. **Two keep-outs bind it, neither a blocker:** the emboss must stay inside the existing **Boa-arch / neck-attach exterior volume** (outward is free only while it hides in hardware already there), and it must **not intersect a Helmholtz coil former** — §174 of that document makes former geometry *fixed because calibration depends on it*, and that calibration is the coil-drive → field transfer function which `hardware-detail.md` §4.3's **D1** identifies as Layer 2's **decisive** dependency, re-run per configuration by `REQ-EMI-11`. A former is a keep-out to route around, not an obstacle. **`OI-EMCCAV-10`'s direction half is closed by this decision; its measurement half is `OI-THCOOL-06`**, reopened 2026-09-20 against the collar (`NP-THERM-COOL-001` Rev 12) and **BLOCKING on MECH-1 cutting the boss** — `BOSS-1` is precisely what turns that measurement from advisable into needed, because it commits to the geometry whose magnetic cost the measurement bounds. **`NP-HELMET-GEOM-001` §2's TOTAL row now carries two pending local exceptions that do not conflict:** the Layer 4 deletion re-lofts the bowl **3 mm inward globally**, `BOSS-1` embosses it **outward locally at the occiput**. **No locked section modified; no layer removed; no measurement asserted.** |
+| 8 | 2026-09-20 | NeurOne EMC / Systems Engineering | **§8.7 dimensions the inter-bowl Gap, and finds that the closed lever is NOT what sets it.** Under `FLUSH-1` the lever is flush with L1's outer face, inside the 3.0–4.0 mm of L1 features `NP-HELMET-GEOM-001` §2 already allocates — **flush means zero Gap contribution**, so dimensioning *"to the closed-lever footprint"* would give ~0, which is wrong because something else is in there. **`NP-DRV-SHELL-002` §4.1 assigns L1's *gap-facing* face to "cluster controller components, incl. the STM32G071; clamp plates" — the 18 controller boards sit in the Gap, and they appear on no contributor list anywhere**, not §8.5's, not §8.6's, not §2's Gap row. **This is the third correction to that list in three revisions and the first that ADDS rather than removes.** **The floor, from package types the record names** (so JEDEC maxima, not guesses): UFQFPN32 0.60 · TSSOP-24 1.20 · TMUX1308-class TSSOP 1.20 · **zero-drift op-amp SOT-23-5 1.45 (tallest)** · 0402/0603 passives 0.55. With the clamp plate pocketing over the parts: PCB 0.8–1.0 (**assumed — not stated**) + 1.45 + clearance 0.5–1.0 (**assumed — not stated**) = **2.75–3.45 mm**, against **5–7 mm** today, worth **0.096–0.125 m²K/W**. If the plate sits *over* the parts instead, add its thickness — also unstated. **So the answer is ~3 mm, not ~0, and it is set by a 1.45 mm op-amp package, a PCB thickness nobody has written down, and a clearance nobody has derived.** **`OI-EMCCAV-09` re-scoped a third time** to carry the four missing inputs: cluster PCB thickness, clamp plate thickness, **whether the plate pockets or sits above** (the largest swing), and the **outer bowl's inner-surface PROFILE tolerance** — §2's stack gives thicknesses (CFRP 2.5 ±0.3) but **no form tolerance over a ~190 mm dome**, and that is what sets the clearance term. **New `OI-EMCCAV-12`:** `completed-decisions.md` §221 capped gap-pad coverage at **22.7 %** on three keep-outs — clamp actuators, fluxgates, bowl separation. **Two are now wrong** (the actuators are flush, the fluxgates were never there) **but §8.7 supplies a bigger one §221 never named: the 18 controller boards.** §221's *conclusion* survives its *reasoning* being twice wrong — stated plainly rather than quietly — and recomputing the cap needs a cluster board footprint §3.2 does not give. `scripts/check-cavity-q.ts` gains the floor model and five anchors, 31 → 36. **No locked section modified; no layer removed; no measurement asserted.** |

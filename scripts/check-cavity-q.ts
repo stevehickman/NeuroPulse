@@ -261,6 +261,29 @@ const gapPerMm = () => rGap(1);
 /** Outward total with the gap re-dimensioned to `mm`, everything else held. */
 const outwardAtGap = (mm: number) => THERM.outwardTotal - rGap(GAP.nominalMm) + rGap(mm);
 
+// ── Dimensioning the Gap, for §8.7 ───────────────────────────────────────────
+// FLUSH-1 removed travel, §8.6.1 removed the fluxgates, BOSS-1 removed the boss.
+// What was NEVER on the contributor list is what actually sets the floor:
+// NP-DRV-SHELL-002 §4.1 puts the CLUSTER CONTROLLER COMPONENTS on L1's
+// GAP-FACING face. Package heights below are JEDEC maxima for the package types
+// those documents name; the two `assumed` entries are NOT stated anywhere.
+const GAP_FLOOR = {
+  // sourced: package types named in NP-DRV-SHELL-002 §10.1 / NP-HW-HUB-001 §8.1
+  parts: [
+    ["STM32G071 UFQFPN32", 0.6],
+    ["PCA9548A TSSOP-24", 1.2],
+    ["TMUX1308-class mux, TSSOP", 1.2],
+    ["zero-drift op-amp, SOT-23-5", 1.45],
+    ["passives 0402/0603", 0.55],
+  ] as Array<[string, number]>,
+  pcbAssumed: [0.8, 1.0] as const, // 4-layer cluster PCB — thickness NOT stated
+  clearanceAssumed: [0.5, 1.0] as const, // assembly/tolerance — NOT stated
+};
+const tallestPart = () => Math.max(...GAP_FLOOR.parts.map(([, h]) => h));
+/** Closed-state stack on L1's gap-facing face, if the clamp plate pockets over the parts. */
+const gapFloorPocketed = () =>
+  [0, 1].map((i) => GAP_FLOOR.pcbAssumed[i] + tallestPart() + GAP_FLOOR.clearanceAssumed[i]);
+
 const clampStack = (withAbsorber: boolean) => {
   const t = [CLAMP_TOL.features, CLAMP_TOL.gap, ...(withAbsorber ? [CLAMP_TOL.absorber] : [])];
   return { worst: t.reduce((a, b) => a + b, 0), rss: Math.sqrt(t.reduce((a, b) => a + b * b, 0)) };
@@ -556,6 +579,35 @@ function reportGap() {
   console.log(`  MECH-2's, and it is the largest unclaimed thermal lever in the document set.`);
 }
 
+function reportGapFloor() {
+  console.log(`\n=== 9. DIMENSIONING THE GAP — and the lever is not what sets it ===========\n`);
+  console.log(`  Three contributors have left the Gap's requirement list: FLUSH-1 took out`);
+  console.log(`  TRAVEL, §8.6.1 took out the FLUXGATES (never in it), BOSS-1 took out the`);
+  console.log(`  BOSS. What was never ON the list is what actually sets the floor:`);
+  console.log(`  NP-DRV-SHELL-002 §4.1 puts the CLUSTER CONTROLLER COMPONENTS on L1's`);
+  console.log(`  gap-facing face — "Cluster controller components, incl. the STM32G071".\n`);
+  console.log(`  Package heights (JEDEC maxima for the package types those docs name):`);
+  for (const [n, h] of GAP_FLOOR.parts) {
+    console.log(`    ${n.padEnd(30)} ${h.toFixed(2)} mm${h === tallestPart() ? "   <- tallest" : ""}`);
+  }
+  const [lo, hi] = gapFloorPocketed();
+  console.log(`\n  Closed-state stack, clamp plate POCKETED over the parts:`);
+  console.log(`    PCB ${GAP_FLOOR.pcbAssumed[0]}-${GAP_FLOOR.pcbAssumed[1]} (ASSUMED, not stated)`);
+  console.log(`    + tallest part ${tallestPart()}`);
+  console.log(`    + clearance ${GAP_FLOOR.clearanceAssumed[0]}-${GAP_FLOOR.clearanceAssumed[1]} (ASSUMED, not stated)`);
+  console.log(`    = ${lo.toFixed(2)}-${hi.toFixed(2)} mm   against 5-7 mm today\n`);
+  console.log(`  If the plate instead SITS OVER the parts, add its thickness — also unstated.\n`);
+  console.log(`  Thermal value of landing in that band:`);
+  for (const mm of [3.5, 3.0, 2.75]) {
+    console.log(`    ${mm.toFixed(2)} mm -> outward ${outwardAtGap(mm).toFixed(3)}` +
+      `   (recovers ${(rGap(GAP.nominalMm) - rGap(mm)).toFixed(3)})`);
+  }
+  console.log(`\n  THREE INPUTS DO NOT EXIST and MECH-2 needs them: the cluster PCB`);
+  console.log(`  thickness, the clamp plate thickness, and whether the plate pockets.`);
+  console.log(`  A fourth — the outer bowl's inner-surface PROFILE tolerance — is not`);
+  console.log(`  stated either, and it sets the clearance term above.`);
+}
+
 function reportValidation(): boolean {
   const m = midCavity();
   const small = lowestMode(HEAD_CIRC_M.min, "min");
@@ -603,6 +655,12 @@ function reportValidation(): boolean {
     ["outward total at 4 mm gap", outwardAtGap(4), 0.333, 0.002],
     ["outward total at 3 mm gap", outwardAtGap(3), 0.295, 0.002],
     ["2 mm of gap vs deleting the absorber", 2 * gapPerMm() - rStation(THERM.kFoam), 0.0019, 0.001],
+    // §8.7 — the Gap floor is set by the controller components, not the lever.
+    ["tallest named gap-facing package (mm)", tallestPart(), 1.45, 0.01],
+    ["gap floor, pocketed plate, low (mm)", gapFloorPocketed()[0], 2.75, 0.01],
+    ["gap floor, pocketed plate, high (mm)", gapFloorPocketed()[1], 3.45, 0.01],
+    ["outward total at a 3 mm gap", outwardAtGap(3), 0.295, 0.002],
+    ["recovery, 6 mm -> 3 mm", rGap(GAP.nominalMm) - rGap(3), 0.115, 0.002],
   ];
 
   console.log(`\nscanned: ${anchors.length} published anchor(s) — NP-EMC-CAV-001\n`);
@@ -633,6 +691,7 @@ function main() {
   reportVerdict();
   reportThermal();
   reportGap();
+  reportGapFloor();
   console.log();
 }
 
