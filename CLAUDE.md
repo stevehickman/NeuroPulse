@@ -55,6 +55,7 @@ only when I `Read` it.
 | Durability + maintenance design changes | tooling / BOM / mechanical work | `docs/reference/durability-maintenance.md` |
 | Service network (partner tiers, covers) | service / warranty / logistics work | `docs/reference/service-network.md` |
 | **EMF shielding evidence base + claim substantiation** (what the literature does and does not support per layer and per modality; the per-layer value audit; why Layer 2 cannot be removed and Layer 4 is the live candidate) | quoting, publishing or acting on ANY shielding claim; any question about what the shielding buys; any proposal to add to or remove from the §4.3 stack | `docs/np_bib_emf_001.md` |
+| **Enclosure cavity resonance** (the source that excites it, the band, Layer 4's requirement in dB — and why the layer supplies 1 % of it while the wearer's head supplies the rest) | any question about Layer 4, the absorber station, cavity Q, or what the §4.3 stack does above 400 MHz; before specifying or deleting that station | `docs/np_emc_cav_001.md` |
 | Competitive position + claims | marketing / positioning / claims work | `docs/reference/competitive-position.md` |
 | Regulatory strategy (T1 wellness / T2 510k) | regulatory / QMS / standards work | `docs/reference/regulatory-strategy.md` |
 | Clinical researchers + evidence bibliography | clinical trials / evidence / researcher outreach | `docs/reference/clinical.md` |
@@ -247,6 +248,15 @@ CFRP window**. Per-layer dB and the three firmware additions: §4.3 of the detai
 > dependencies are what actually hold it in place; and the stack is **aperture-limited, not
 > layer-limited**, so an unmeasured seam budget makes every layer's value unknowable. **No dB figure
 > here or in the detail file may be published as *measured*.**
+>
+> **Layer 4 now has a requirement, and fails it — `docs/np_emc_cav_001.md` (NP-EMC-CAV-001, 2026-09-20).**
+> It was the one layer with no dB figure anywhere; `REQ-CAV-02` now sets **loaded Q ≤ 20 over
+> 420 MHz – 3 GHz (≥ 26.2 dB)** against a named source (the **18 cluster controllers inside the
+> envelope**, not a radio) — and **the layer supplies 0.26 dB of it while the wearer's head supplies
+> 49.8 dB**, because a 3 mm non-magnetic absorber on a conductor is reactive-only regardless of its
+> loading. **Deletion is recommended and sits with the principal**, gated on `EMF-1a`/`EMF-1b`; until
+> it is taken, *"5-layer"* above stands. The station itself is already free to be specified on
+> **thermal grounds alone**.
 
 ### 4.4 Fit system → `docs/reference/hardware-detail.md`
 

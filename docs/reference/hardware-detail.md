@@ -17,7 +17,7 @@
 - Layer 1: CFRP outer (30–50dB RF)
 - Layer 2: 0.2mm mu-metal liner (15–25dB ELF magnetic) — PETG laminate encapsulation, silicone RTV sealant at all cutout edges
 - Layer 3: **Palladium-coated polyester** inner liner (replaces silver — tarnish-immune for device lifetime, 40–60dB RF) — permanent shielding claim, verified by fleet SHDR attenuation monitoring
-- Layer 4: Carbon-loaded EMI absorber foam (cavity resonance suppression)
+- Layer 4: Carbon-loaded EMI absorber foam — **requirement stated 2026-09-20: `REQ-CAV-02`, loaded Q ≤ 20 over 420 MHz – 3 GHz, i.e. ≥ 26.2 dB of peak-field reduction at resonance** (`NP-EMC-CAV-001` §5). **This layer supplies 0.26 dB of it**; the wearer's head supplies 49.8 dB. Deletion recommended and routed to the principal — `NP-EMC-CAV-001` §8.2, gated on `EMF-1a`/`EMF-1b`
 - Layer 5: USB-C + accessory port filters (30–50dB)
 - **Active:** 3-axis fluxgate magnetometers + Helmholtz coil pairs · Combined: 35–45dB ELF magnetic, 40–60dB RF
 - Shell bonded to EEG DRL output (active EEG shield)
@@ -35,11 +35,17 @@
 >   stays because `NP-HEX-ZM-001` §5.3.1 co-designs the Helmholtz coils with it as **one magnetic
 >   circuit**, because `NP-ENV-OPRANGE-001` §2 makes it the degraded-mode fallback, and possibly
 >   because of IEC 61000-4-8 immunity — **none of which is stated here.**
-> - **Layer 4 is the only layer with no dB figure in any document**, including `NP-DT-001`
->   `DI-PERF-22`. It is explicitly not primary shielding, and no document names the source that excites
->   the resonance it suppresses — the radios live in the hub. It costs **18 % of the outward thermal
->   path** and blocks two fixes to a BLOCKING `OI-SINK-01`. **`OI-BIBEMF-08`: EMC states its
->   requirement in dB against a named source and band, or the layer goes.**
+> - **Layer 4 now has a dB figure, and it does not meet it.** `OI-BIBEMF-08` is **discharged** by
+>   `NP-EMC-CAV-001` (2026-09-20), which names the source `NP-BIB-EMF-001` §7.3 could not find — not
+>   radios, but the **18 STM32G071 cluster controllers `NP-DRV-SHELL-002` §3.2 puts inside the
+>   envelope** — derives the band (**420 MHz – 3 GHz**, whose lower edge moves 84 MHz with head
+>   circumference), and states the requirement as **`REQ-CAV-02`: Q_L ≤ 20, i.e. ≥ 26.2 dB**. Layer 4
+>   supplies **0.26 dB** of that: a 3 mm non-magnetic absorber against a conductor is λ/217 at the
+>   lowest mode, and in the thin limit its surface impedance is purely reactive *independent of the
+>   loading*. **The wearer's head supplies 49.8 dB**, in every state where the sources are energised.
+>   So the layer costs 18 % of the outward thermal path and two fixes to a BLOCKING `OI-SINK-01` for
+>   1 % of its own stated job. **Deletion recommended, routed to the principal, gated on `EMF-1a`/
+>   `EMF-1b` — `NP-EMC-CAV-001` §8.2. Not performed here.**
 > - **The stack is aperture-limited, not layer-limited.** Adding layers above the seam floor buys
 >   nothing, which is why `EMF-1` is the measurement that decides every layer's value.
 

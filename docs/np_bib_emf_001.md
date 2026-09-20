@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-BIB-EMF-001
-**Revision:** 1
-**Date:** 2026-09-15
+**Revision:** 2
+**Date:** 2026-09-20
 **Status:** ACTIVE — literature review and claim-substantiation record; asserts no measurement
 **Effective Date:** 2026-09-15
 **Author:** NeurOne Systems Engineering
 **Approved By:** Pending — principal review required (§7 recommendations)
-**References:** CLAUDE.md §1, §4.3, §4.2; `docs/reference/hardware-detail.md` §4.3; `NP-HEX-ZM-001` §5.2, §5.3, §5.3.1; `NP-DRV-SHELL-002` §9.1–§9.6; `NP-HELMET-GEOM-001` §2, §3.2; `NP-ENV-OPRANGE-001` §2; `NP-THERM-COOL-001` §6.2; `NP-HW-EEGNET-001` §5.4; `NP-PWR-THERM-001` §11–§12; `NP-THERM-SINK-001` `RISK-SINK-03`, `OI-SINK-07`; `NP-THERM-COOL-001` §2, §6.3; `NP-DT-001` `DI-PERF-22`, `DI-REG-05`; `docs/reference/competitive-position.md`; `docs/reference/regulatory-strategy.md`; WHO EHC 238; ICNIRP 2010; IEC 60601-1-2; IEC 61000-4-8; FTC Health Products Compliance Guidance
+**References:** CLAUDE.md §1, §4.3, §4.2; `docs/reference/hardware-detail.md` §4.3; `NP-HEX-ZM-001` §5.2, §5.3, §5.3.1; `NP-DRV-SHELL-002` §9.1–§9.6; `NP-HELMET-GEOM-001` §2, §3.2; `NP-ENV-OPRANGE-001` §2; `NP-THERM-COOL-001` §6.2; `NP-HW-EEGNET-001` §5.4; `NP-PWR-THERM-001` §11–§12; `NP-THERM-SINK-001` `RISK-SINK-03`, `OI-SINK-07`; `NP-THERM-COOL-001` §2, §6.3; `NP-DT-001` `DI-PERF-22`, `DI-REG-05`; `docs/reference/competitive-position.md`; `docs/reference/regulatory-strategy.md`; **`NP-EMC-CAV-001`**; WHO EHC 238; ICNIRP 2010; IEC 60601-1-2; IEC 61000-4-8; FTC Health Products Compliance Guidance
 **Related Issues:** OI-BIBEMF-01…10; EMF-1; EMF-3; RISK-20; OI-THCOOL-04; OI-THCOOL-06; OI-THCOOL-15; OI-PWRTH-05; OI-SINK-01; OI-SINK-07
 **Gate:** —
 **IEC 62304 Class:** — (evidence record, not device software)
@@ -258,7 +258,7 @@ of the stack.
 | **L1** CFRP outer, 30–50 dB RF | structural shell + RF | §3 supports RF for EEG | **none attributable** — it is the chassis | **Keep.** No shielding-attributable cost to justify |
 | **L2** mu-metal 0.2 mm, 15–25 dB ELF | ambient ELF magnetic | **§4 — not supported** for EEG or any modality | thermally ~0; architecturally high | **Keep, on other grounds.** §7.2 — its stated rationale is the wrong one |
 | **L3** Pd-polyester, 40–60 dB RF | RF + permanent claim | §3 supports RF for EEG | layer uncosted; **+$6 Pd premium** | **Keep the layer. Challenge the premium** — §7.4 |
-| **L4** carbon-loaded absorber foam | *"cavity-resonance suppression"* | **none, anywhere, in any unit** | **18 % of the outward thermal path; blocks two thermal fixes** | **FAILS THE TEST — §7.3** |
+| **L4** carbon-loaded absorber foam | `REQ-CAV-02` — Q_L ≤ 20 over 420 MHz – 3 GHz (**`NP-EMC-CAV-001`**, Rev 2) | **requirement now stated, and the layer supplies 0.26 dB of the 26.2 dB it needs** | **18 % of the outward thermal path; blocks two thermal fixes** | **FAILS THE TEST — §7.3, now on measured-in-principle grounds** |
 | **L5** USB-C + port filters, 30–50 dB | conducted emissions | FCC Part 15 (`DI-REG-05`) | small, standard parts | **Keep.** Compliance-required |
 | **Active** fluxgates + Helmholtz | ELF trim | ambient benefit unsupported (§4); holds L2 in place | high — `REQ-EMI-10` | **The real question — §7.6** |
 
@@ -305,6 +305,12 @@ TMS train. CLAUDE.md §1 and §4.3 would both need re-derivation against 663 cit
 > actually hold it. That is a documentation defect, and it is why the layer looked removable.
 
 ### 7.3 Layer 4 — the one line that fails the test today
+
+> **⚠ UPDATED AT REV 2 (2026-09-20) — `OI-BIBEMF-08` IS DISCHARGED, AND NOT AS THIS SECTION
+> EXPECTED.** `NP-EMC-CAV-001` answers the burden step 1 placed on EMC. Read §7.3a below before
+> acting on anything in this subsection: **the premise corrected is this section's own.** The Rev 1
+> text is retained unedited, per `NP-CONV-001` §7 — it was outweighed by a calculation, not
+> refuted in its reasoning, and the burden it placed is what produced the answer.
 
 **Layer 4 is the only layer in the stack whose benefit has never been stated in any measurable form,
 anywhere.** Its entire documented justification is one phrase — *"cavity-resonance suppression"* —
@@ -360,6 +366,51 @@ gap pad. So:
 
 Either outcome is strictly better than today, and step 1 is the gate. **This is the audit's one live
 removal candidate.**
+
+### 7.3a What step 1 returned — `OI-BIBEMF-08` discharged (Rev 2, 2026-09-20)
+
+`NP-EMC-CAV-001` ran the gate. **Neither branch of §7.3's step 2 is what came back**, and the two
+corrections belong to this document rather than to that one.
+
+**Correction 1 — §7.3's search for the source failed because it was looking for a radio.** §7.3 is
+right that `NP-HEX-ZM-001` §5.3a bounds the RF concern to 6 GHz Wi-Fi and that the radios live in the
+hub. That is the correct bound for *ingress* and the wrong one for this question. §7.3's own caveat
+was the answer: `NP-DRV-SHELL-002` §3.2 puts **18 STM32G071 cluster controllers** on L1 inside the
+envelope, plus a 400 kHz I2C tree, 80 PWM LED drivers and the ADS1299 SPI bank — and §9.6 of that
+document already states the consequence in terms, *"A Faraday cage does not protect the EEG electrodes
+and fluxgates that share the enclosure with the source."* **The exciting source was named in the
+document set the whole time, one document away.** `REQ-EMI-04`'s prohibition on spread-spectrum PWM
+sharpens it further: deterministic lines are what a cavity responds to.
+
+**Correction 2 — the requirement is statable, so step 2b's stated reason is void; but the layer still
+goes, for a better one.** `REQ-CAV-01` (E ≤ 0.5 V/m, derived from `SH2-DRC-16` via RF demodulation,
+which `REQ-EMI-05` cannot subtract) and `REQ-CAV-02` (loaded Q ≤ 20 over **420 MHz – 3 GHz**, i.e.
+**≥ 26.2 dB**) are stated and testable. Against them:
+
+| | dB |
+|---|---:|
+| `REQ-CAV-02` needs | **26.2** |
+| **Layer 4 supplies** | **0.26** |
+| The wearer's head supplies | **49.8** |
+
+The reason is structural rather than a property of our foam: for a lossy slab on a conductor
+`Z_in = j·η·tan(kd)`, and in the thin limit `η·k = η₀·k₀` **exactly**, so `Z_in → j·η₀·k₀·d` — purely
+reactive, **independent of the loading**. At 3 mm the foam is λ/217 at the lowest mode. This is why
+thin commercial absorbers are iron- or ferrite-loaded, which `REQ-EMI-10` and §7.8 forbid here.
+
+**So step 2a is void too: there is no RF function to preserve, and `OI-THCOOL-04`'s substitution was
+additionally wrong in its material.** A *conductive* fill makes a reflector, not an absorber; the
+filler must be ceramic (`REQ-CAV-03`). `NP-EMC-CAV-001` §8.1 carries the correction.
+
+**Two things follow immediately, and one does not wait for anybody:**
+
+1. **The Layer 4 station may now be specified on thermal grounds alone**, because there is no
+   electrical requirement on it in band. `OI-THCOOL-04` and `OI-THCOOL-15` are unblocked **today**.
+2. **Deletion is recommended and routed to the principal**, gated on `EMF-1a`/`EMF-1b` —
+   `NP-EMC-CAV-001` §7, §8.2. A first-order calculation places a burden; it does not delete a locked
+   §4.3 layer, and §9.4 of this document said so first.
+
+**This is still the audit's one live removal candidate — it is now one with a number attached.**
 
 ### 7.4 Layer 3 — keep the layer, challenge the palladium premium
 
@@ -447,7 +498,7 @@ re-magnetises the liner shifts the fluxgate DC offset with no recalibration trig
 | **OI-BIBEMF-05** | Principal question: is the active-cancellation subsystem (L2 + fluxgates + Helmholtz + `REQ-EMI-10`) earning its architectural cost, given it gates `OI-SINK-01`? §7.7 | Principal | No — interacts with a BLOCKING item |
 | **OI-BIBEMF-06** | No degaussing or remanence-drift procedure for the mu-metal liner; impact events do not trigger `REQ-EMI-11` recalibration. §7.8 | EE + ME | No |
 | **OI-BIBEMF-07** | **The shielding stack has no BOM line in `NP-COST-001`** — not mu-metal, palladium, absorber, filters, fluxgates or Helmholtz. The cost side of the standing principle is unevaluable for the whole stack. §7.0 | Systems + Cost | **Gates the per-layer audit** |
-| **OI-BIBEMF-08** | **State Layer 4's requirement in dB against a named source and frequency band.** If EMC cannot, delete Layer 4 and recover two thermal levers (§7.3). If it can, adopt `OI-THCOOL-04`'s conductive-filled substitution | EMC + Thermal | **Gates the L4 decision** |
+| ~~**OI-BIBEMF-08**~~ | ~~State Layer 4's requirement in dB against a named source and frequency band~~ **✅ DISCHARGED 2026-09-20 by `NP-EMC-CAV-001`** (§7.3a). Source named (18 cluster controllers, not radios), band derived (**420 MHz – 3 GHz**, lower edge moving 84 MHz with head circumference), requirement stated (`REQ-CAV-01`/`REQ-CAV-02`, **≥ 26.2 dB**). **Layer 4 supplies 0.26 dB; the wearer's head supplies 49.8 dB.** Neither step-2 branch applies as written: there is no RF function to preserve (2a) and EMC was not silent (2b). **Deletion recommended, routed to the principal, gated on `EMF-1a`/`EMF-1b`.** The thermal half is unblocked now | EMC + Thermal. **DISCHARGED** | — |
 | **OI-BIBEMF-09** | Does silver tarnish measurably degrade RF shielding effectiveness at 0.8–6 GHz? The +$6/headset palladium premium is justified in the record by a marketing rationale only (§7.4) | EE + Materials | No |
 | **OI-BIBEMF-10** | `EMF-1` is not only a verification task — it is the measurement that reveals which layers contribute at all. No layer's value is knowable until the seam budget is measured (§7.6) | EE + EMC | Tracks `EMF-1` |
 
@@ -464,6 +515,9 @@ Stated explicitly, because a bibliography is easy to over-read:
    demonstrated effect is not demonstrated absence, and the C1 claim does not need it to be.
 3. **It does not show Layer 4 is worthless** — it shows Layer 4's value has never been stated in a
    testable form while its cost has, which is why the burden now sits with EMC (`OI-BIBEMF-08`).
+   **Rev 2:** that burden has been discharged (§7.3a). The value is now stated in a testable form and
+   is **0.26 dB against a 26.2 dB requirement** — but that is still a *calculation*, not a
+   measurement, and `EMF-1a`/`EMF-1b` are what would make it one. No layer has been removed.
 4. **It does not modify any locked decision.** §4.3 is untouched. §7 raises reopenings for the principal;
    it performs none.
 5. **The §4.3 calculation is this document's own**, not a citation, and is offered for refutation.
@@ -475,3 +529,4 @@ Stated explicitly, because a bibliography is easy to over-read:
 | Rev | Date | Author | Change |
 |-----|------|--------|--------|
 | 1 | 2026-09-15 | NeurOne Systems Engineering | Initial release. Establishes the first evidence record for the shielding claim, which had none in `clinical.md`, `regulatory-strategy.md`, `marketing-notes.md` or `np_cost_001.md`. **Separates the claim into C1 performance / C2 signal quality / C3 outcome (§2)**: the literature supports C2 for the electric/RF layers, supports neither for the ELF-magnetic layer, and supports C3 for nothing on any of the eleven modalities — no shielded-vs-unshielded outcome comparison exists anywhere. **§7 applies the standing "every cost must be justified by value" principle layer by layer.** Four results. **(1) The audit cannot be completed**: `NP-COST-001` carries no BOM line for any part of the stack, so the cost side is unknown for four of five passive layers and the whole active subsystem (`OI-BIBEMF-07`). **(2) Layer 2 cannot be removed, but not for the reason it is documented** — `NP-HEX-ZM-001` §5.3.1 co-designs the Helmholtz coils with the mu-metal as one magnetic circuit, `NP-ENV-OPRANGE-001` §2 makes it the degraded-mode fallback, and IEC 61000-4-8 immunity may depend on it, while its *stated* rationale (ambient ELF attenuation) is the one benefit §4 cannot support. **(3) Layer 4 is the audit's one live removal candidate** — the only layer with no dB figure in any document including `DI-PERF-22`, explicitly not primary shielding, suppressing a resonance whose exciting source is named nowhere (the radios live in the hub), against a precisely quantified 18 % of the outward thermal path that blocks *two* separate fixes to a BLOCKING `OI-SINK-01`. Burden placed on EMC to state a requirement in dB or lose the layer (`OI-BIBEMF-08`). **(4) The stack is aperture-limited, not layer-limited** — every open item is a seam or a hole, so marginal spend belongs on seam control, and `EMF-1` is what reveals which layers contribute at all (`OI-BIBEMF-10`). Also challenges the +$6 palladium premium as justified by a marketing rationale only (`OI-BIBEMF-09`), and raises an unhandled mu-metal remanence-drift path (`OI-BIBEMF-06`). Raises `OI-BIBEMF-01…10`, three of which gate other work. No locked section modified; no figure in a released document rewritten; no measurement asserted; no layer removed. |
+| 2 | 2026-09-20 | NeurOne Systems Engineering | **`OI-BIBEMF-08` discharged by `NP-EMC-CAV-001`; new §7.3a records what came back, and it corrects this document twice.** Rev 1's §7.3 text is retained unedited per `NP-CONV-001` §7 — it was outweighed by a calculation, not refuted, and the burden it placed is what produced the answer. **(1) §7.3's search for the exciting source failed because it was looking for a radio.** `NP-HEX-ZM-001` §5.3a's 6 GHz Wi-Fi bound is the right bound for ingress and the wrong one here; §7.3's own caveat held the answer, and `NP-DRV-SHELL-002` §9.6 had already stated the consequence in terms — 18 STM32G071 cluster controllers, a 400 kHz I2C tree, 80 PWM LED drivers and the ADS1299 SPI bank all sit **inside** the envelope, and a Faraday cage does not protect a victim sharing it. The source was one document away the whole time. **(2) Neither step-2 branch applies as written.** The requirement IS statable — `REQ-CAV-01` (E ≤ 0.5 V/m, from `SH2-DRC-16` via RF demodulation, which `REQ-EMI-05` cannot subtract) and `REQ-CAV-02` (Q_L ≤ 20 over **420 MHz – 3 GHz**, i.e. **≥ 26.2 dB**) — so 2b's stated reason is void; and there is no RF function to preserve, so 2a is void. **Layer 4 supplies 0.26 dB of the 26.2 dB; the wearer's head supplies 49.8 dB.** The reason is structural, not a property of our foam: for a lossy slab on a conductor `Z_in = j·η·tan(kd)`, and in the thin limit `η·k = η₀·k₀` exactly, so `Z_in → j·η₀·k₀·d` is purely reactive **independent of the loading** — at 3 mm the foam is λ/217 at the lowest mode. That is why thin commercial absorbers are magnetically loaded, which `REQ-EMI-10` and §7.8 forbid here. Also finds that the enclosure's lowest resonance is **a property of the wearer**, sweeping 84 MHz across the 52–62 cm SKU range — recorded nowhere before. **Consequences:** the Layer 4 station may be specified on thermal grounds alone **today**, unblocking `OI-THCOOL-04`/`OI-THCOOL-15`; `OI-THCOOL-04`'s *conductive*-filled substitution is separately wrong (a conductive fill makes a reflector; the filler must be ceramic — `REQ-CAV-03`); and deletion of Layer 4 is **recommended and routed to the principal**, gated on `EMF-1a`/`EMF-1b`. §7.1's L4 verdict row and §9.3 updated. **No locked section modified; no layer removed; no measurement asserted** — `EMF-1`, `EMF-3`, `RISK-20` and `OI-THCOOL-06` all unchanged and open. |
