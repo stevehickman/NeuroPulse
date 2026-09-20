@@ -17,7 +17,7 @@
 - Layer 1: CFRP outer (30–50dB RF)
 - Layer 2: 0.2mm mu-metal liner (15–25dB ELF magnetic) — PETG laminate encapsulation, silicone RTV sealant at all cutout edges
 - Layer 3: **Palladium-coated polyester** inner liner (replaces silver — tarnish-immune for device lifetime, 40–60dB RF) — permanent shielding claim, verified by fleet SHDR attenuation monitoring
-- Layer 4: Carbon-loaded EMI absorber foam — **requirement stated 2026-09-20: `REQ-CAV-02`, loaded Q ≤ 20 over 420 MHz – 3 GHz, i.e. ≥ 26.2 dB of peak-field reduction at resonance** (`NP-EMC-CAV-001` §5). **This layer supplies 0.26 dB of it**; the wearer's head supplies 49.8 dB. Deletion recommended and routed to the principal — `NP-EMC-CAV-001` §8.2, gated on `EMF-1a`/`EMF-1b`
+- Layer 4: Carbon-loaded EMI absorber foam — **requirement stated 2026-09-20: `REQ-CAV-02`, loaded Q ≤ 20 over 420 MHz – 3 GHz, i.e. ≥ 26.2 dB of peak-field reduction at resonance** (`NP-EMC-CAV-001` §5). **This layer supplies 0.26 dB of it**; the wearer's head supplies 49.8 dB. **Retained anyway, and re-specified** — deleting it is a thermal regression (air is 54 % worse per mm than the foam), so `REQ-CAV-04` keeps the station and changes its justification of record to **tolerance compliance and a thermal path, not RF** — `NP-EMC-CAV-001` §8.2
 - Layer 5: USB-C + accessory port filters (30–50dB)
 - **Active:** 3-axis fluxgate magnetometers + Helmholtz coil pairs · Combined: 35–45dB ELF magnetic, 40–60dB RF
 - Shell bonded to EEG DRL output (active EEG shield)
@@ -44,8 +44,14 @@
 >   lowest mode, and in the thin limit its surface impedance is purely reactive *independent of the
 >   loading*. **The wearer's head supplies 49.8 dB**, in every state where the sources are energised.
 >   So the layer costs 18 % of the outward thermal path and two fixes to a BLOCKING `OI-SINK-01` for
->   1 % of its own stated job. **Deletion recommended, routed to the principal, gated on `EMF-1a`/
->   `EMF-1b` — `NP-EMC-CAV-001` §8.2. Not performed here.**
+>   1 % of its own stated job. **But the layer stays** — deleting it is a thermal *regression*:
+>   vacating 3 mm fills it with stagnant air at **0.115 m²K/W against the foam's 0.075, 54 % worse
+>   per mm**, taking the outward path 0.410 → **0.450** unless the outer bowl is re-lofted 3 mm (a
+>   shell tooling change). A **ceramic-filled substitution reaches 0.355 for free** and keeps the
+>   tolerance compliance the foam actually provides. **`REQ-CAV-04` retains the station and changes
+>   its justification of record to tolerance compliance + thermal path** — which makes Layer 4 the
+>   same shape as Layer 2 above, and this audit's second mis-justified layer rather than its one
+>   removal. `NP-EMC-CAV-001` §8.2 (Rev 2).
 > - **The stack is aperture-limited, not layer-limited.** Adding layers above the seam floor buys
 >   nothing, which is why `EMF-1` is the measurement that decides every layer's value.
 

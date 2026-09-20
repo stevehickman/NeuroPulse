@@ -15,7 +15,12 @@
  *   bun scripts/check-cavity-q.ts             # full report
  *   bun scripts/check-cavity-q.ts --validate  # published anchors only, exit 1 on drift
  *
- * ── The four things it establishes ───────────────────────────────────────────
+ * CI-Kind: report
+ *
+ * (Declared up here rather than at the foot of the banner: check-gate-coverage.ts
+ * reads only the first 80 lines, and this banner outgrew that window at Rev 2.)
+ *
+ * ── The five things it establishes ───────────────────────────────────────────
  *
  *  1. THE BAND IS 420 MHz – 3 GHz, AND ITS LOWER EDGE MOVES WITH THE WEARER.
  *     The cavity is the shell between the scalp and the Pd-polyester liner
@@ -55,6 +60,17 @@
  *     damped resonance, an absent one. Every state in which the named sources of
  *     (2) are energised is a state in which the head is inside the cavity.
  *
+ *  5. BUT REMOVING IT IS NOT THE THERMAL WIN `OI-BIBEMF-08` ASSUMED. Vacating a
+ *     3 mm station does not delete its resistance — it fills it with stagnant
+ *     air, and air is a WORSE insulator per mm than the foam (0.115 vs 0.075
+ *     m2K/W, a 54 % regression). The outward path goes 0.410 -> 0.450 unless the
+ *     outer bowl is re-lofted 3 mm, which is a shell tooling change
+ *     `NP-REV-SHELL-001` gates. A ceramic-filled substitution lands at 0.355 with
+ *     NO re-loft, within 0.020 of the best case, and keeps the compliance the
+ *     foam currently provides across a curved 5-7 mm gap. So the layer is
+ *     retained because it is CHEAPER TO FIX THAN TO REMOVE — a different argument
+ *     from the RF one, and the only one left standing.
+ *
  * ── What it does NOT establish ───────────────────────────────────────────────
  *
  * It measures nothing. `EMF-1` has still never run. The head model is a
@@ -62,12 +78,12 @@
  * as a spherical shell; both are first-order. Every simplification was taken in
  * the conservative direction (least lossy tissue, lossless head for the bare-wall
  * figure, no credit for the L1 module bodies that also sit in the cavity), so the
- * margin is a floor rather than an estimate — but a first-order calculation is not
- * entitled to delete a locked §4.3 decision on its own, which is why
- * `NP-EMC-CAV-001` §8 routes that to the principal and §7 specifies the bench
- * measurement that would close it.
+ * margin is a floor rather than an estimate.
  *
- * CI-Kind: report
+ * The band stops at 3 GHz because the INTERNAL source rolls off there. That
+ * argument does not cover EXTERNAL 6 GHz Wi-Fi ingress through the parting-plane
+ * seam, which is a different excitation — and above 3 GHz the foam is no longer
+ * electrically thin. `NP-EMC-CAV-001` `OI-EMCCAV-06` carries that gap.
  */
 
 const VALIDATE_ONLY = process.argv.includes("--validate");
@@ -208,6 +224,19 @@ const FOAM_EPS: Array<[string, Cx]> = [
   ["heavy  (3.0 - j3.0)", cx(3.0, -3.0)],
   ["absurd (6.0 - j12 )", cx(6.0, -12.0)],
 ];
+
+// ── Thermal, for §7 — the half that decides what REPLACES the layer ──────────
+// NP-THERM-COOL-001 §2. The station is 3.0 mm; what occupies it decides the term.
+// The trap: vacating it does not delete the resistance, it fills it with stagnant
+// air, and air is a WORSE insulator per mm than the foam.
+const THERM = {
+  outwardTotal: 0.41, // m2K/W, NP-THERM-COOL-001 §2 / R1 §2
+  stationT: ABSORBER_T_M, // 3.0 mm
+  kFoam: 0.04, // carbon-loaded open-cell, NP-THERM-COOL-001 §2
+  kAir: 0.026, // stagnant air, same table's 6 mm gap term
+  rSubstitution: 0.02, // ceramic-filled elastomer target, §6.3 / OI-THCOOL-04
+};
+const rStation = (k: number) => THERM.stationT / k;
 
 // ── The allocation ───────────────────────────────────────────────────────────
 // SH2-DRC-16 holds EEG artifact below 5 uVpp with all LEDs at full PWM load.
@@ -425,6 +454,41 @@ function reportVerdict() {
   console.log(`  Layer 4 is not what meets it. See NP-EMC-CAV-001 §8.`);
 }
 
+function reportThermal() {
+  const rFoam = rStation(THERM.kFoam);
+  const rAir = rStation(THERM.kAir);
+  const T = THERM.outwardTotal;
+
+  console.log(`\n=== 7. WHAT REPLACES IT — and why "delete" is the wrong instrument ========\n`);
+  console.log(`  §6 says Layer 4 does not earn its place on RF grounds. It does NOT follow`);
+  console.log(`  that removing it is the thermal win OI-BIBEMF-08 assumed, because vacating`);
+  console.log(`  a 3 mm station does not delete its resistance — it fills it with stagnant`);
+  console.log(`  air, and air is a WORSE insulator per mm than the foam:\n`);
+  console.log(`    3 mm foam (k ${THERM.kFoam})   ${rFoam.toFixed(4)} m2K/W`);
+  console.log(`    3 mm air  (k ${THERM.kAir})  ${rAir.toFixed(4)} m2K/W` +
+    `   <- ${((rAir / rFoam - 1) * 100).toFixed(0)} % WORSE\n`);
+  const rows: Array<[string, number, string]> = [
+    ["today (foam in place)", T, ""],
+    ["delete, gap NOT closed", T - rFoam + rAir, "<- a REGRESSION"],
+    ["delete, outer bowl re-lofted 3 mm", T - rFoam, "needs a shell tooling change"],
+    ["substitute (ceramic-filled elastomer)", T - rFoam + THERM.rSubstitution, "no tooling change"],
+  ];
+  console.log(`  Outward path (NP-THERM-COOL-001 §2 total ${T}):\n`);
+  for (const [label, v, note] of rows) {
+    console.log(`    ${label.padEnd(38)} ${v.toFixed(3)}   ${note}`);
+  }
+  const deltaSub = (T - rFoam + THERM.rSubstitution) - (T - rFoam);
+  console.log(`\n  So the ordering is the opposite of the one OI-BIBEMF-08 assumed:`);
+  console.log(`  substitution lands within ${deltaSub.toFixed(3)} m2K/W of the best case and costs`);
+  console.log(`  NO re-loft, while deletion is a regression unless the bowl moves 3 mm —`);
+  console.log(`  a change to a shell mould NP-REV-SHELL-001 gates. And the foam is`);
+  console.log(`  currently the COMPLIANT member across a curved 5-7 mm gap with a +/-0.5`);
+  console.log(`  tolerance stack (it is why OI-THCOOL-15 exists); substitution keeps that`);
+  console.log(`  function, deletion removes it.`);
+  console.log(`\n  Layer 4 is therefore retained because it is CHEAPER TO FIX THAN TO REMOVE,`);
+  console.log(`  which is a different argument from the RF one — and the only one left.`);
+}
+
 // ── Published anchors ────────────────────────────────────────────────────────
 // Every figure NP-EMC-CAV-001 quotes, re-derived here. --validate fails on drift.
 function reportValidation(): boolean {
@@ -456,6 +520,13 @@ function reportValidation(): boolean {
     ["Layer 4 R_s, absurd loading (mOhm/sq)", foamAbsurd.Rs * 1e3, 36.6, 2.0],
     ["dB Layer 4 supplies, design loading", 20 * Math.log10(q.wallQ / qFoamDesign), 0.26, 0.03],
     ["dB Layer 4 supplies, absurd loading", 20 * Math.log10(q.wallQ / qFoamAbsurd), 2.71, 0.1],
+    // §7 — what replaces the layer. These decide the recommendation, not §6.
+    ["station R, 3 mm foam (m2K/W)", rStation(THERM.kFoam), 0.075, 0.001],
+    ["station R, 3 mm stagnant air (m2K/W)", rStation(THERM.kAir), 0.115, 0.001],
+    ["air-for-foam penalty (%)", (rStation(THERM.kAir) / rStation(THERM.kFoam) - 1) * 100, 53.8, 1.0],
+    ["outward path, delete without re-loft", THERM.outwardTotal - rStation(THERM.kFoam) + rStation(THERM.kAir), 0.450, 0.002],
+    ["outward path, delete with 3 mm re-loft", THERM.outwardTotal - rStation(THERM.kFoam), 0.335, 0.002],
+    ["outward path, ceramic substitution", THERM.outwardTotal - rStation(THERM.kFoam) + THERM.rSubstitution, 0.355, 0.002],
   ];
 
   console.log(`\nscanned: ${anchors.length} published anchor(s) — NP-EMC-CAV-001\n`);
@@ -463,7 +534,7 @@ function reportValidation(): boolean {
   for (const [label, got, want, tol] of anchors) {
     const pass = Math.abs(got - want) <= tol;
     if (!pass) ok = false;
-    const d = Math.abs(want) >= 100 ? 0 : Math.abs(want) >= 10 ? 1 : 2;
+    const d = Math.abs(want) >= 100 ? 0 : Math.abs(want) >= 10 ? 1 : Math.abs(want) >= 1 ? 2 : 3;
     console.log(
       `  ${pass ? "ok  " : "FAIL"}  ${label.padEnd(44)} ${got.toFixed(d).padStart(9)}  (published ${want.toFixed(d)} +/- ${tol})`,
     );
@@ -484,6 +555,7 @@ function main() {
   reportQ();
   reportAbsorber();
   reportVerdict();
+  reportThermal();
   console.log();
 }
 

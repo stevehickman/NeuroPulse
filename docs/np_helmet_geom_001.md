@@ -67,7 +67,7 @@ tooling DFM.
 | | Cluster-clamp + lever features (outer face) | 3.0–4.0 | ±0.3 | One actuator per 7-hex cluster, gap-facing |
 | | **L1 subtotal** | **~18–22** | | Module body dominates |
 | **Gap** | Inter-bowl clamp travel + blind-mate boss + labyrinth lip | 5–7 | ±0.5 | Where cluster clamps and the sensor/coil connector live |
-| **L2** | Carbon-loaded absorber foam (EMF L4) | 3.0 | ±0.5 | Cavity-resonance suppression — **requirement now stated: `REQ-CAV-02`, Q_L ≤ 20 over 420 MHz – 3 GHz; this station supplies 0.26 dB of the 26.2 dB needed (`NP-EMC-CAV-001` §6). Deletion recommended — §8.2, and it removes this 3.0 mm station** |
+| **L2** | Carbon-loaded absorber foam (EMF L4) | 3.0 | ±0.5 | ~~Cavity-resonance suppression~~ — **`NP-EMC-CAV-001` §6 refutes that justification** (`REQ-CAV-02` needs 26.2 dB over 420 MHz – 3 GHz; this station supplies 0.26 dB). **The station is retained at 3.0 mm and re-specified** (`REQ-CAV-04`): its function of record is now **tolerance compliance across the gap + a thermal path**, because vacating it fills it with stagnant air, which is 54 % *worse* per mm. Ceramic-filled substitution, insulating and non-magnetic (`REQ-CAV-03`) |
 | | Palladium-polyester (EMF L3) | 0.1 | — | Tarnish-immune RF liner |
 | | Mu-metal 0.2 mm + PETG laminate (EMF L2) | 0.5 | ±0.1 | ELF magnetic |
 | **L3** | CFRP structural shell + RF outer (EMF L1) | 2.5 | ±0.3 | Structural **and** 30–50 dB RF — one part serves both |

@@ -254,9 +254,13 @@ CFRP window**. Per-layer dB and the three firmware additions: §4.3 of the detai
 > 420 MHz – 3 GHz (≥ 26.2 dB)** against a named source (the **18 cluster controllers inside the
 > envelope**, not a radio) — and **the layer supplies 0.26 dB of it while the wearer's head supplies
 > 49.8 dB**, because a 3 mm non-magnetic absorber on a conductor is reactive-only regardless of its
-> loading. **Deletion is recommended and sits with the principal**, gated on `EMF-1a`/`EMF-1b`; until
-> it is taken, *"5-layer"* above stands. The station itself is already free to be specified on
-> **thermal grounds alone**.
+> loading. **But deleting it is a thermal *regression*** — vacating a 3 mm station fills it with
+> stagnant air, which is 54 % *worse* per mm than the foam (0.115 vs 0.075 m²K/W), so the outward
+> path goes 0.410 → **0.450** unless the outer bowl is re-lofted 3 mm, a shell tooling change. A
+> **ceramic-filled substitution reaches 0.355 with no tooling change**, and keeps the tolerance
+> compliance the foam actually provides. **So the station is re-specified, not removed**, and
+> *"5-layer"* above stands — but its justification of record is now **compliance and heat, not
+> RF** (`REQ-CAV-04`).
 
 ### 4.4 Fit system → `docs/reference/hardware-detail.md`
 

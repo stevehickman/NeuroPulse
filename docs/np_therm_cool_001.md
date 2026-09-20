@@ -313,9 +313,16 @@ set. **`OI-THCOOL-04`.**
 > the stack that did not). `NP-EMC-CAV-001` has since stated one — `REQ-CAV-02`, Q_L ≤ 20 over
 > 420 MHz – 3 GHz — and found that **this station supplies 0.26 dB of the 26.2 dB it needs, while the
 > wearer's head supplies 49.8 dB**. So the 18 % term is not defended by an electrical requirement:
-> **it may be specified, re-specified or deleted on thermal grounds alone.** §6.3 carries the
-> consequence, including a correction to the material it proposes. Deletion of the whole station is
-> recommended and sits with the principal (`NP-EMC-CAV-001` §8.2).
+> **it may be specified or re-specified on thermal grounds alone.** §6.3 carries the consequence,
+> including a correction to the material it proposes.
+>
+> **But deleting the station is a REGRESSION, not a recovery, and this table is why.** Vacating
+> 3 mm does not remove the resistance — it fills it with the **stagnant air of row 1**, at
+> k = 0.026 against the foam's 0.04. That is **0.115 m²K/W where 0.075 stood, 54 % worse per mm**,
+> and the outward total goes **0.410 → 0.450**. The 18 % is only recovered if the outer bowl is
+> **re-lofted 3 mm** (a shell tooling change), whereas §6.3's substitution reaches **0.355 with no
+> tooling change at all.** `NP-EMC-CAV-001` §8.2 (Rev 2) carries the comparison and now recommends
+> **substitution, not deletion**.
 
 **The inward path is a floor and cannot be fought.** R_in = 0.11 m²K/W is 1.6 mm of PDMS and air to a
 *perfused* sink. No outward-path work changes it. This is why §4's inward fractions asymptote, and it
@@ -506,7 +513,10 @@ elastomers reach k ≈ 1–3 W/m·K against ~0.04 for open-cell carbon foam. If 
 > `NP-EMC-CAV-001` has now stated one (`REQ-CAV-02`: Q_L ≤ 20 over 420 MHz – 3 GHz, ≥ 26.2 dB) and
 > found that **this station supplies 0.26 dB of it while the wearer's head supplies 49.8 dB**. So
 > *"if the RF absorption is held"* has no force: **there is no RF absorption to hold, and the station
-> may be specified on thermal grounds alone.**
+> may be specified on thermal grounds alone.** **This row is therefore the recommended path** — see
+> §2's note: *removing* the station lands at 0.450, re-lofting the bowl for it costs shell tooling,
+> and this substitution reaches **0.355 for free**, while keeping the tolerance compliance the
+> compressible foam currently provides (which is what §6.9.1/`OI-THCOOL-15` is about).
 >
 > **(b) "Conductive-filled absorber elastomer" is the wrong material, on three independent grounds.**
 > First, it is a contradiction in EM terms — raising bulk *electrical* conductivity turns an absorber
@@ -1234,7 +1244,7 @@ alternative *and* costs the ELF magnetic claim. It should not be revisited.
 | **OI-THCOOL-01** | Add convective stirring of the cavity gas as a fourth lever in `NP-PWR-BUDGET-001` §3.3, whose three-item list covers only conduction | Thermal | No |
 | **OI-THCOOL-02** | Set the tube acoustic-velocity bound against the audio/bone-conduction noise floor, not a comfort number; it sizes the bore | ME + Audio | No |
 | **OI-THCOOL-03** | Replace assumed convection coefficients (h = 30 stirred, 30 forced external, 10 natural) with CFD or bench values | Thermal | No |
-| **OI-THCOOL-04** | Thermally specify the Layer 4 EMI absorber — 18 % of the outward path, ~~currently specified in dB only~~. **UNBLOCKED 2026-09-20 by `NP-EMC-CAV-001` §8.1:** the "specified in dB only" premise was false (it was never specified at all), and now that a requirement exists the station supplies 0.26 dB of it — **so it may be specified on thermal grounds alone, with no EMC clearance.** Two constraints carry over: the filler must be **ceramic, not conductive** (§6.3's correction, `REQ-CAV-03`), and the station may disappear entirely if the principal takes `NP-EMC-CAV-001` §8.2's deletion | ME + EMC | No — **no longer waiting on EMC** |
+| **OI-THCOOL-04** | Thermally specify the Layer 4 EMI absorber — 18 % of the outward path, ~~currently specified in dB only~~. **UNBLOCKED 2026-09-20 by `NP-EMC-CAV-001` §8.1:** the "specified in dB only" premise was false (it was never specified at all), and now that a requirement exists the station supplies 0.26 dB of it — **so it may be specified on thermal grounds alone, with no EMC clearance.** Two constraints carry over: the filler must be **ceramic, not conductive** (§6.3's correction, `REQ-CAV-03`), and the station **stays** — `NP-EMC-CAV-001` §8.2 (Rev 2) withdrew its deletion recommendation, because vacating 3 mm fills it with stagnant air at 0.115 against the foam's 0.075 (outward path 0.410 → **0.450**) while this substitution reaches **0.355** with no shell re-loft. **This row is now the recommended path, not a contingency** | ME + EMC | No — **no longer waiting on EMC** |
 | **OI-THCOOL-05** | Characterise the via *interface* (contact + spreading + sink), which §3 shows is ~90 % of that path's resistance | ME | No |
 | **OI-THCOOL-15** | **Gap-pad geometry and contact (§6.9.1).** Fix the pad diameter and coverage fraction against the cluster-clamp and fluxgate keep-outs; establish real two-face contact across the curved 5–7 mm gap under the tolerance stack; and resolve **what the pad compresses against** — the absorber foam is itself compressible, so a pad pressed against it never reaches rated conductivity. Must be electrically insulating and non-magnetic (fluxgates inner, Helmholtz outer), and survive compression set over repeated bowl separations. **Coupled to `OI-THCOOL-04`** — the absorber's thermal spec and the pad's land are one decision. **The gating question for the largest term in the outward path.** **UNBLOCKED ON THE EMC SIDE 2026-09-20 by `NP-EMC-CAV-001` §8.1** — there is no electrical requirement on that station in 420 MHz – 3 GHz, so "what the pad compresses against" is now a purely mechanical question: locally omitting the absorber where pads land needs no EMC clearance, and making pad and absorber one ceramic-filled part is the cleaner answer (`REQ-CAV-03` — which restates this row's own insulating/non-magnetic constraint). **The mechanical half — diameter, coverage, two-face contact, compression set — is untouched and still gates** | ME (~~+EMC~~) | **Gates §6.9** |
 | ~~OI-THCOOL-17~~ | **✅ CLOSED 2026-09-02 by D-4 (§7.4) — fixed session length, dose scales with duty, and the ramp is clamped at `NP-PWR-BUDGET-001` §3.4's 10 J/cm² floor and refuses below it.** The dose-preserving alternative was not merely costly: it puts a 20-minute 60 J/cm² protocol at **50 CEM43 at 34.5 °C, past `NP-PWRSRC-001` §5.5's 40 concern line in one session**, against 5.0 for fixed length anywhere in the band. Effective block becomes per-protocol (33.8 / 34.2 / 34.6 °C at 40 / 60 / 120 J/cm²), at most 1.3 °C. **This item's own premise is corrected in closing it:** the descriptor gains protocol dose, but the **Class C gate must not** — a sub-threshold session is ineffective, not hazardous, so it is an Efficacy-class bound enforced as a non-dismissible **Class B** refusal in SW-02/SW-03 (`NP-FW-POE-001` §3/§4). `OI-OPR-01` inherits a **termination rule on one shared curve**, not a family of curves. **Costs `OI-THCOOL-16` nothing**: §7.5 anchored its band on `T_block_eff`, not on the constant +35, so the floor edge inherits the 1.0 °C hysteresis and the terminate-never-pause rule already, and §7.5's *"if the clamp is adopted"* conditional is now simply the case. Residuals: `OI-THCOOL-18`, `-19`, `-20` | — (closed) | — |
