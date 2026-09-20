@@ -1129,6 +1129,40 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
   forgiving target, clear open/closed state. **Validate by HFE formative** (5 subjects, Parkinson's
   H&Y II–III / post-stroke) — the NP-TOOL-ZM-001 OI-4 eject-lever study re-pointed
   at the cluster actuator.
+- **★ DECIDED 2026-09-20 (principal direction) — FLUSH-1: the cluster lever is FLUSH when closed,
+  and it throws ONLY with the bowls separated.** Two halves, and the second is a statement of fact
+  this document already implies without drawing the consequence.
+
+  **(a) The lever never moves in the assembled state.** §5.2 above: *"The module cluster clamps sit in
+  the inter-bowl gap and are **reached by unclamping the bowls**."* §5.1: the levers are on L1's outer
+  face, exposed by releasing the four corner latches. §5.5: *"During a module swap the bowls are open."*
+  **So the lever's swept volume is a bowls-OPEN volume. It is not an assembled-state requirement.**
+
+  **(b) Therefore the lever must be flush — or sub-flush — in its closed position**, within the
+  3.0–4.0 mm of L1 outer-face features, and must retain there. This is a new binding requirement on
+  the `MECH-2` actuator: the over-center throw already gives a stable closed detent, so flushness is a
+  packaging constraint on the closed geometry, not a new mechanism.
+
+  > **What this corrects.** `NP-HELMET-GEOM-001` §2 allocates the inter-bowl gap as
+  > *"**inter-bowl clamp travel** + blind-mate boss + labyrinth lip"* at **5–7 mm**. Under FLUSH-1 the
+  > first term is **not an assembled-state requirement at all** — travel happens when the bowls are
+  > apart, and the gap is closed only after the lever is home. **The line item is mis-named, and the
+  > 5–7 mm was never derived from anything.** What actually sets the assembled gap is the **closed**
+  > footprint of the lever, the labyrinth lip, the fluxgate sensors on this bowl (§5.3.1), and the
+  > blind-mate boss — and the boss is **a standalone posterior-center feature** (§5.3c), so it
+  > constrains the gap **locally at the occiput**, not across the vault. A locally-relieved gap — deep
+  > at the boss, shallow over the lattice — is available and was not previously on the table.
+
+  **Why this matters far beyond the clamp.** The inter-bowl gap is **stagnant air at 0.23 m²K/W — 56 %
+  of the entire outward thermal path and its single largest term** (`NP-THERM-COOL-001` §2). At
+  k = 0.026 each millimetre of gap is worth **0.0385 m²K/W**, so **narrowing it 2 mm recovers more than
+  deleting the entire Layer 4 absorber** (0.077 vs 0.075), and 3 mm recovers **0.115**. Against
+  §6.1's sealed-recirculation proposal (0.23 → 0.067, recovery 0.164) narrowing reaches **~70 % of the
+  prize with no motor, no power draw and no moving part inside the sealed cavity.** The two interact
+  rather than compose — a narrower gap is a smaller volume at higher flow resistance to stir — so they
+  must be traded, not stacked. **Dimensioning the assembled gap is `MECH-2`'s, and it is now the
+  largest unclaimed thermal lever in the document set.**
+
 - **Optional alignment:** cluster boundaries may align to the lobe *zones* of
   `00-zones.npps` (a frontal-left cluster ≈ the "Frontal Left" zone), but are ultimately set by
   geometry/curvature — final cluster size is decided with the lattice work (§7

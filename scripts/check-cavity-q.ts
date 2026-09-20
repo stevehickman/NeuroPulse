@@ -250,6 +250,17 @@ const CLAMP_TOL = {
   gap: 0.5, // inter-bowl clamp travel + blind-mate boss + labyrinth lip
   absorber: 0.5, // the station under audit — a contributor, not just a filler
 };
+// ── The Gap itself, for §8.5 — FLUSH-1 (NP-HEX-ZM-001 §5.4a, 2026-09-20) ─────
+// The lever throws only with the bowls separated (§5.2: "reached by unclamping
+// the bowls"), so "clamp travel" is not an assembled-state requirement and the
+// 5-7 mm was never derived. The gap is stagnant air and the LARGEST outward term.
+const GAP = { nominalMm: 6, rangeMm: [5, 7] as const, kAir: 0.026 };
+const rGap = (mm: number) => mm / 1000 / GAP.kAir;
+/** What one millimetre of gap is worth on the outward path. */
+const gapPerMm = () => rGap(1);
+/** Outward total with the gap re-dimensioned to `mm`, everything else held. */
+const outwardAtGap = (mm: number) => THERM.outwardTotal - rGap(GAP.nominalMm) + rGap(mm);
+
 const clampStack = (withAbsorber: boolean) => {
   const t = [CLAMP_TOL.features, CLAMP_TOL.gap, ...(withAbsorber ? [CLAMP_TOL.absorber] : [])];
   return { worst: t.reduce((a, b) => a + b, 0), rss: Math.sqrt(t.reduce((a, b) => a + b * b, 0)) };
@@ -515,6 +526,36 @@ function reportThermal() {
 
 // ── Published anchors ────────────────────────────────────────────────────────
 // Every figure NP-EMC-CAV-001 quotes, re-derived here. --validate fails on drift.
+function reportGap() {
+  console.log(`\n=== 8. THE GAP — re-opened by FLUSH-1, and it dwarfs the absorber ==========\n`);
+  console.log(`  FLUSH-1 (NP-HEX-ZM-001 §5.4a, 2026-09-20): the cluster lever is flush when`);
+  console.log(`  closed and throws ONLY with the bowls separated — §5.2 reaches the levers`);
+  console.log(`  "by unclamping the bowls". So "inter-bowl clamp TRAVEL" is not an`);
+  console.log(`  assembled-state requirement, and the 5-7 mm was never derived from it.\n`);
+  console.log(`  The gap is stagnant air and the LARGEST single outward term:`);
+  console.log(`    ${rGap(GAP.nominalMm).toFixed(3)} m2K/W at ${GAP.nominalMm} mm = ` +
+    `${((rGap(GAP.nominalMm) / THERM.outwardTotal) * 100).toFixed(0)} % of the outward path\n`);
+  console.log(`    gap(mm)   R_gap    outward   recovered`);
+  for (const mm of [7, 6, 5, 4, 3, 2]) {
+    const rec = rGap(GAP.nominalMm) - rGap(mm);
+    console.log(`      ${String(mm).padStart(2)}     ${rGap(mm).toFixed(3)}    ${outwardAtGap(mm).toFixed(3)}` +
+      `     ${rec >= 0 ? "+" : ""}${rec.toFixed(3)}${mm === GAP.nominalMm ? "   (today)" : ""}`);
+  }
+  console.log(`\n  Each mm is worth ${gapPerMm().toFixed(4)} m2K/W, so narrowing the gap 2 mm recovers`);
+  console.log(`  MORE than deleting the entire 3 mm Layer 4 absorber ` +
+    `(${(2 * gapPerMm()).toFixed(3)} vs ${rStation(THERM.kFoam).toFixed(3)}).`);
+  console.log(`\n  Against NP-THERM-COOL-001 §6.1's sealed recirculation (0.231 -> 0.067,`);
+  console.log(`  recovery 0.164), narrowing to 3 mm reaches ~70 % of the prize with NO motor,`);
+  console.log(`  no power draw and no moving part inside the sealed cavity. The two INTERACT`);
+  console.log(`  rather than compose — a narrower gap is less volume at higher flow`);
+  console.log(`  resistance to stir — so they must be traded, not stacked.`);
+  console.log(`\n  What sets the assembled gap is the CLOSED lever footprint, the labyrinth`);
+  console.log(`  lip, the fluxgates, and the blind-mate boss — and the boss is a STANDALONE`);
+  console.log(`  POSTERIOR-CENTRE feature (§5.3c), so it constrains the gap LOCALLY, not`);
+  console.log(`  across the vault. A locally-relieved gap is available. Dimensioning it is`);
+  console.log(`  MECH-2's, and it is the largest unclaimed thermal lever in the document set.`);
+}
+
 function reportValidation(): boolean {
   const m = midCavity();
   const small = lowestMode(HEAD_CIRC_M.min, "min");
@@ -555,6 +596,13 @@ function reportValidation(): boolean {
     ["clamp stack today, worst case (mm)", clampStack(true).worst, 1.30, 0.01],
     ["clamp stack after deletion, worst case (mm)", clampStack(false).worst, 0.80, 0.01],
     ["clamp stack reduction (%)", (1 - clampStack(false).worst / clampStack(true).worst) * 100, 38.5, 0.5],
+    // §8.5 — the Gap, re-opened by FLUSH-1. The largest unclaimed thermal lever.
+    ["gap R at 6 mm nominal (m2K/W)", rGap(GAP.nominalMm), 0.231, 0.001],
+    ["gap share of outward path (%)", (rGap(GAP.nominalMm) / THERM.outwardTotal) * 100, 56.3, 0.5],
+    ["per mm of gap (m2K/W)", gapPerMm(), 0.0385, 0.0005],
+    ["outward total at 4 mm gap", outwardAtGap(4), 0.333, 0.002],
+    ["outward total at 3 mm gap", outwardAtGap(3), 0.295, 0.002],
+    ["2 mm of gap vs deleting the absorber", 2 * gapPerMm() - rStation(THERM.kFoam), 0.0019, 0.001],
   ];
 
   console.log(`\nscanned: ${anchors.length} published anchor(s) — NP-EMC-CAV-001\n`);
@@ -584,6 +632,7 @@ function main() {
   reportAbsorber();
   reportVerdict();
   reportThermal();
+  reportGap();
   console.log();
 }
 

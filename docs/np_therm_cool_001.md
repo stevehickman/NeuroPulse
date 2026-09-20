@@ -294,7 +294,7 @@ stack is what makes each term separately attackable:
 
 | Term | R (m²K/W) | Share of outward path | Attackable by |
 |---|---:|---:|---|
-| **Stagnant inter-bowl air gap** (6 mm, k = 0.026) | **0.23** | 56 % | stirring the gas (§6.1) |
+| **Stagnant inter-bowl air gap** (6 mm, k = 0.026) | **0.23** | 56 % | stirring the gas (§6.1) — **or NARROWING it, newly available 2026-09-20 under `FLUSH-1`** |
 | **Carbon-loaded EMI absorber foam** (3 mm, k ≈ 0.04) | **0.075** | 18 % | specifying it thermally (§6.3) |
 | **External natural convection** (h ≈ 10) | **0.10** | 24 % | forced external air (§6.4) |
 | Shell — CFRP 2.5 mm + Pd-polyester + mu-metal | 0.005 | 1 % | nothing; already negligible |
@@ -316,6 +316,19 @@ set. **`OI-THCOOL-04`.**
 > **it may be specified or re-specified on thermal grounds alone.** §6.3 carries the consequence,
 > including a correction to the material it proposes.
 >
+> **⚠ AND ROW 1 IS NOW ATTACKABLE A SECOND WAY, WORTH MORE THAN ROW 2 ENTIRELY (2026-09-20).**
+> `FLUSH-1` (`NP-HEX-ZM-001` §5.4a) establishes that the cluster lever **throws only with the bowls
+> separated** — §5.2 reaches the levers *"by unclamping the bowls"*. So the *"inter-bowl clamp
+> **travel**"* in `NP-HELMET-GEOM-001` §2's 5–7 mm Gap allocation is **not an assembled-state
+> requirement**, and the gap can be re-dimensioned against the **closed** lever footprint, the
+> labyrinth lip, the fluxgates and the boss — the last being a **standalone posterior-centre
+> feature**, so a **locally-relieved** gap is available. **At k = 0.026 each millimetre is worth
+> 0.0385 m²K/W: 2 mm beats deleting the whole Layer 4 absorber (0.077 vs 0.075), and 3 mm recovers
+> 0.115.** Against §6.1's sealed recirculation (0.23 → 0.067, recovery 0.164) that is **~70 % of the
+> prize with no motor, no power and no BOM line** — but the two **interact rather than compose** (less
+> volume at higher flow resistance to stir) and must be **traded, not stacked**. Dimensioning it is
+> `MECH-2`'s; the thermal case is this document's. **`NP-EMC-CAV-001` §8.5 / `OI-EMCCAV-09`.**
+
 > **Deleting the station recovers the 18 % ONLY WITH a 3 mm re-loft of the outer bowl, and this
 > table is why.** Vacating 3 mm does not remove the resistance — it fills it with the **stagnant air
 > of row 1**, at k = 0.026 against the foam's 0.04. That is **0.115 m²K/W where 0.075 stood, 54 %
@@ -425,6 +438,15 @@ the study's central result and it is worth stating in the form the design conver
 ## 6. The architectural options
 
 ### 6.1 Sealed recirculation — stir the cavity, exchange nothing
+
+> **⚠ A NO-MOTOR ALTERNATIVE TO THIS SECTION EXISTS AS OF 2026-09-20, AND IT MUST BE TRADED AGAINST
+> IT RATHER THAN ADDED TO IT.** `FLUSH-1` removes *clamp travel* from the assembled-state Gap
+> allocation (§2's note), so the gap can simply be made **narrower**. Each millimetre is worth
+> **0.0385 m²K/W**; **3 mm of narrowing recovers 0.115 against this section's 0.164 — ~70 % of the
+> prize with no motor, no power draw, no moving part inside the sealed cavity, and no BOM line.**
+> The two **do not compose**: a narrower gap is a smaller volume at higher flow resistance to stir, so
+> the recirculation figure above would have to be re-derived at whatever gap `MECH-2` lands on.
+> **`NP-EMC-CAV-001` §8.5 / `OI-EMCCAV-09`.**
 
 **Air need not cross the shield to be useful.** The dominant outward term is the *stagnancy* of the
 inter-bowl gap, not the presence of air in it. A closed loop that circulates the cavity's own fixed air
