@@ -254,13 +254,14 @@ CFRP window**. Per-layer dB and the three firmware additions: §4.3 of the detai
 > 420 MHz – 3 GHz (≥ 26.2 dB)** against a named source (the **18 cluster controllers inside the
 > envelope**, not a radio) — and **the layer supplies 0.26 dB of it while the wearer's head supplies
 > 49.8 dB**, because a 3 mm non-magnetic absorber on a conductor is reactive-only regardless of its
-> loading. **But deleting it is a thermal *regression*** — vacating a 3 mm station fills it with
-> stagnant air, which is 54 % *worse* per mm than the foam (0.115 vs 0.075 m²K/W), so the outward
-> path goes 0.410 → **0.450** unless the outer bowl is re-lofted 3 mm, a shell tooling change. A
-> **ceramic-filled substitution reaches 0.355 with no tooling change**, and keeps the tolerance
-> compliance the foam actually provides. **So the station is re-specified, not removed**, and
-> *"5-layer"* above stands — but its justification of record is now **compliance and heat, not
-> RF** (`REQ-CAV-04`).
+> loading. **`REQ-CAV-04`: delete the station — and the 3 mm re-loft of the outer bowl is BINDING**,
+> because vacating 3 mm fills it with stagnant air at 54 % *worse* per mm than the foam (0.115 vs
+> 0.075 m²K/W): without the re-loft the outward path goes 0.410 → **0.450**, with it **0.335**. **Now
+> is the cheapest this decision will ever be** — no mould is cut (`NP-REV-SHELL-001` is DRAFT, and
+> `OI-ART-01` already owes a re-scope), and nothing is externally published, so *"5-layer"* above is
+> an internal string. **Recommended, not executed** — §1 and §4.3 still read 5-layer until the
+> principal takes it, and `OI-EMCCAV-08` (`MECH-2`) is the one open question: if the cluster clamps
+> cannot take up the tolerance stack without the foam, the station returns as a thin ceramic pad.
 
 ### 4.4 Fit system → `docs/reference/hardware-detail.md`
 

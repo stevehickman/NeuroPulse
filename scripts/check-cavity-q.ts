@@ -60,16 +60,19 @@
  *     damped resonance, an absent one. Every state in which the named sources of
  *     (2) are energised is a state in which the head is inside the cavity.
  *
- *  5. BUT REMOVING IT IS NOT THE THERMAL WIN `OI-BIBEMF-08` ASSUMED. Vacating a
+ *  5. REMOVING IT IS THE RIGHT CALL, BUT THE 3 mm RE-LOFT IS BINDING. Vacating a
  *     3 mm station does not delete its resistance — it fills it with stagnant
  *     air, and air is a WORSE insulator per mm than the foam (0.115 vs 0.075
- *     m2K/W, a 54 % regression). The outward path goes 0.410 -> 0.450 unless the
- *     outer bowl is re-lofted 3 mm, which is a shell tooling change
- *     `NP-REV-SHELL-001` gates. A ceramic-filled substitution lands at 0.355 with
- *     NO re-loft, within 0.020 of the best case, and keeps the compliance the
- *     foam currently provides across a curved 5-7 mm gap. So the layer is
- *     retained because it is CHEAPER TO FIX THAN TO REMOVE — a different argument
- *     from the RF one, and the only one left standing.
+ *     m2K/W, a 54 % regression). So deletion alone takes the outward path
+ *     0.410 -> 0.450, while deletion WITH the re-loft reaches 0.335, the best
+ *     figure available, against a ceramic-filled substitution's 0.355. The
+ *     deletion and the re-loft are ONE change, not two.
+ *
+ *     The re-loft costs nothing today: no mould is cut (`NP-REV-SHELL-001` is
+ *     DRAFT, no item signed) and `OI-ART-01` already owes a re-scope of
+ *     `NP-TOOL-SHELL-001`. Nor is "5-layer" a published claim — nothing is
+ *     externally published. An earlier revision charged both to deletion and
+ *     concluded "substitute"; neither cost exists.
  *
  * ── What it does NOT establish ───────────────────────────────────────────────
  *
@@ -459,34 +462,41 @@ function reportThermal() {
   const rAir = rStation(THERM.kAir);
   const T = THERM.outwardTotal;
 
-  console.log(`\n=== 7. WHAT REPLACES IT — and why "delete" is the wrong instrument ========\n`);
+  console.log(`\n=== 7. WHAT REPLACES IT — and why the re-loft is BINDING ==================\n`);
   console.log(`  §6 says Layer 4 does not earn its place on RF grounds. It does NOT follow`);
-  console.log(`  that removing it is the thermal win OI-BIBEMF-08 assumed, because vacating`);
-  console.log(`  a 3 mm station does not delete its resistance — it fills it with stagnant`);
-  console.log(`  air, and air is a WORSE insulator per mm than the foam:\n`);
+  console.log(`  that simply removing it recovers the 18 % OI-BIBEMF-08 assumed, because`);
+  console.log(`  vacating a 3 mm station does not delete its resistance — it fills it with`);
+  console.log(`  stagnant air, and air is a WORSE insulator per mm than the foam:\n`);
   console.log(`    3 mm foam (k ${THERM.kFoam})   ${rFoam.toFixed(4)} m2K/W`);
   console.log(`    3 mm air  (k ${THERM.kAir})  ${rAir.toFixed(4)} m2K/W` +
     `   <- ${((rAir / rFoam - 1) * 100).toFixed(0)} % WORSE\n`);
   const rows: Array<[string, number, string]> = [
     ["today (foam in place)", T, ""],
     ["delete, gap NOT closed", T - rFoam + rAir, "<- a REGRESSION"],
-    ["delete, outer bowl re-lofted 3 mm", T - rFoam, "needs a shell tooling change"],
-    ["substitute (ceramic-filled elastomer)", T - rFoam + THERM.rSubstitution, "no tooling change"],
+    ["delete, outer bowl re-lofted 3 mm", T - rFoam, "<- BEST; a CAD edit, no mould is cut"],
+    ["substitute (ceramic-filled elastomer)", T - rFoam + THERM.rSubstitution, "fallback if OI-EMCCAV-08 says so"],
   ];
   console.log(`  Outward path (NP-THERM-COOL-001 §2 total ${T}):\n`);
   for (const [label, v, note] of rows) {
     console.log(`    ${label.padEnd(38)} ${v.toFixed(3)}   ${note}`);
   }
   const deltaSub = (T - rFoam + THERM.rSubstitution) - (T - rFoam);
-  console.log(`\n  So the ordering is the opposite of the one OI-BIBEMF-08 assumed:`);
-  console.log(`  substitution lands within ${deltaSub.toFixed(3)} m2K/W of the best case and costs`);
-  console.log(`  NO re-loft, while deletion is a regression unless the bowl moves 3 mm —`);
-  console.log(`  a change to a shell mould NP-REV-SHELL-001 gates. And the foam is`);
-  console.log(`  currently the COMPLIANT member across a curved 5-7 mm gap with a +/-0.5`);
-  console.log(`  tolerance stack (it is why OI-THCOOL-15 exists); substitution keeps that`);
-  console.log(`  function, deletion removes it.`);
-  console.log(`\n  Layer 4 is therefore retained because it is CHEAPER TO FIX THAN TO REMOVE,`);
-  console.log(`  which is a different argument from the RF one — and the only one left.`);
+  console.log(`\n  So DELETION AND THE RE-LOFT ARE ONE CHANGE. Deleting without closing the`);
+  console.log(`  gap is a regression; deleting with it reaches the best figure available.`);
+  console.log(`  The re-loft costs nothing today — no mould is cut (NP-REV-SHELL-001 is`);
+  console.log(`  DRAFT, no item signed) and OI-ART-01 already owes a NP-TOOL-SHELL-001`);
+  console.log(`  re-scope — and "5-layer" is not a published claim, because nothing is`);
+  console.log(`  externally published. An earlier revision charged both to deletion.`);
+  console.log(`\n  Substitution trails by only ${deltaSub.toFixed(3)} m2K/W, but that gap is CONTACT`);
+  console.log(`  resistance, not bulk: a ceramic-filled station is ~${rStation(1.5).toFixed(3)} in bulk, so the`);
+  console.log(`  0.020 is the price of pressing a compliant pad onto two curved faces.`);
+  console.log(`  Deletion removes the interface, not just the material.`);
+  console.log(`\n  The compliant member is NOT the foam: NP-HEX-ZM-001 §5.4a puts preload on`);
+  console.log(`  over-center lever-throw cluster clamps with per-module spring plungers`);
+  console.log(`  (MECH-2). The foam is incidentally compressible, which is why it obstructs`);
+  console.log(`  OI-THCOOL-15's pad — an obstruction, not a function. Whether the clamps`);
+  console.log(`  still take up the +/-0.5 stack without it is OI-EMCCAV-08, and it is the`);
+  console.log(`  one question left before the re-loft is cut into CAD.`);
 }
 
 // ── Published anchors ────────────────────────────────────────────────────────
