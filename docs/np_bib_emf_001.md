@@ -48,11 +48,14 @@ none is asserted here.
 > owning document wins**, and this document propagated the error into `NP-EMC-CAV-001` and four of
 > its revisions. `EMF-1`, `EMF-3` and `RISK-20` are unaffected and remain open.
 >
-> **The closure note is nonetheless too narrow, and `NP-EMC-CAV-001` `OI-EMCCAV-10` recommends
-> reopening it.** It reads *"reopen only if the loop is revived"*, but the measurement is
+> **♻ AND IT WAS REOPENED 2026-09-20 (principal direction), against the collar rather than the
+> loop** — `NP-THERM-COOL-001` Rev 12. The closure note read *"reopen only if the loop is revived"*,
+> which scoped the item to a **consumer** rather than to the thing measured. The measurement is
 > *"bench-measure ELF magnetic leakage through a **mu-metal chimney collar at the posterior boss**"* —
 > which applies to whatever passes through that collar, tubes or a 216-pin blind-mate harness. An
-> outward-embossed boss (`NP-EMC-CAV-001` §8.6.3) needs exactly that number.
+> outward-embossed boss needs exactly that number — and **`BOSS-1`** (principal, 2026-09-20) has since
+> **decided on the outward emboss**, so the item is **BLOCKING on MECH-1 cutting the boss**
+> (`NP-EMC-CAV-001` §8.6.3).
 
 ---
 

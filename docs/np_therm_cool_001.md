@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-THERM-COOL-001
-**Revision:** 11
+**Revision:** 12
 **Date:** 2026-09-08
 **Status:** DRAFT — DESIGN STUDY. Not a tooling, firmware or release baseline. Modifies no locked section and changes no safety requirement.
 **Effective Date:** —
@@ -10,12 +10,34 @@
 **Approved By:** — (pending design review)
 **References:** NP-THERM-CFD-R1-001 Rev 1 (§2 the resistance network, §3 the inward-flux ceiling, §5 BN-boss export study, §5.3 findings, OI-R1-01…05); NP-THERM-CFD-001 (BC spec, case matrix); NP-THERM-CFD-C2-001 (§2 stack-up, §7 the 1D network); NP-THERM-BEZEL-001 (THERM-1 coupling, the 0.6–1.0 mm scalp gap); NP-REQ-FANHEALTH-001 (SR-FAN-01…06, Path B1); NP-PWR-BUDGET-001 Rev 3 (§3.2 aggregate estimate, §3.3 the three levers, OI-PWR-01/08); NP-PWRSRC-001 Rev 1 (§4.1 the cavity wall, §7.0 coverage 2/23); NP-HEX-ZM-001 (§5.1–5.3 two-bowl shell, §5.3a rim slot, §5.3c posterior boss, §5.3d mu-metal continuity); NP-DRV-SHELL-002 Rev 2 (§4.3 one aperture, segregated returns); NP-ENV-001 (§1 two envelopes, §2 survival, §5 humidity survival-only); NP-ENV-OPRANGE-001 (§1 the derate definition, §2 per-modality ambient bounds); NP-FW-POE-001 (§3 the POE block, §5 the min() rule, §6.1 the hard-edge hysteresis — the consumers of §7.4); NP-PWR-BUDGET-001 Rev 3 §3.4 (the efficacy floor); NP-PWRSRC-001 Rev 1 §5.5 (CEM43 and time-at-ceiling); NP-DT-001 Rev 2 (DI-SAFE-13); NP-HELMET-GEOM-001 (§2 radial stack, §8 THERM-1a gate); CLAUDE.md §4.2 (42/62 °C interlocks), §4.3 (EMF stack), §4.5 (power); IEC 60601-1 (42 °C applied part); `scripts/check-thermal-network.ts` (§17 the derate semantics, §18 the hysteresis sizing); `firmware/safety_mcu/src/np_thermal_interlock.c` + `np_safety_config.h` (the 62/55 °C junction re-arm precedent §7.5.1 declines to copy)
 **Related Issues:** —
-**Gate:** No gate. D-1, D-2, D-3 and D-4 are all **decided** (2026-08-30/31 and 2026-09-02/03); raises `OI-THCOOL-01…20`, of which `OI-THCOOL-06`, `OI-THCOOL-16` and `OI-THCOOL-17` are closed.
+**Gate:** No gate. D-1, D-2, D-3 and D-4 are all **decided** (2026-08-30/31 and 2026-09-02/03); raises `OI-THCOOL-01…20`, of which `OI-THCOOL-16` and `OI-THCOOL-17` are closed. **`OI-THCOOL-06` was closed 2026-08-30 and REOPENED 2026-09-20 against the posterior-boss collar** (principal direction) — it is BLOCKING again, on `OI-EMCCAV-10` and MECH-1's boss cut.
 **IEC 62304 Class:** — (analysis document; no code changed). No SR-FAN requirement is altered.
 **Supersedes:** None — new document.
 **Parent Document:** NP-THERM-CFD-R1-001
 
 ---
+
+> **Rev 12 (2026-09-20) — `OI-THCOOL-06` REOPENED by principal direction, against the posterior-boss
+> COLLAR rather than the pneumatic loop.** Rev 10's closure (2026-08-30, by D-2) was correct on its own
+> terms — the item was BLOCKING only on the pneumatic loop's penetration of the posterior boss, and §6.9
+> put that loop out of scope. **Its reopen trigger was not.** *"Reopen only if the loop is revived"*
+> scoped the item to a **consumer** rather than to the thing measured, which is **ELF magnetic leakage
+> through a formed mu-metal chimney collar at a penetration**. Two things need that number and neither is
+> pneumatic. **(a) The collar exists either way** — `NP-DRV-SHELL-002` §4.3 routes the whole module
+> interconnect (**216 pins in 20 tail groups** plus the fluxgate/coil harness) through that **one
+> aperture**, so mu-metal continuity is interrupted at the boss whatever its geometry, and
+> `docs/reference/hardware-detail.md` §4.3's **D3** makes that continuity load-bearing for Layer 2.
+> **(b) An outward emboss adds a distinct question** — `NP-EMC-CAV-001` §8.6.3 recommends embossing the
+> boss **outward** to decouple the inter-bowl Gap from it (`FLUSH-1`'s prize), and drawing mu-metal over
+> a local dome **work-hardens it**, with **no re-anneal possible after lamination** to PETG and CFRP —
+> trading Gap millimetres for a local permeability dip in exactly the layer D3 depends on. Scope is
+> **ELF, below ~100 Hz, where waveguide-below-cutoff does not apply**, so it is a fluxgate/Helmholtz
+> bench and **not** the VNA sweep `EMF-1a`–`EMF-1d` use; it rides the `EMF-1` fixture as **`EMF-1e`**.
+> **BLOCKING again**, on `OI-EMCCAV-10` (boss projection direction) and on MECH-1 cutting the posterior
+> boss — the same time-box `NP-DRV-SHELL-002` §4.3 already sets. The 2026-08-30 closure row and the
+> original text are **retained struck-through** per `NP-CONV-001` §4; §6.1's, §6.9's and §8's "no longer
+> needed" / "closed with it" statements are marked superseded **in place** rather than rewritten.
+> **No figure in this document changes and no decision is reversed** — only the item's status and scope.
 
 > **Rev 11 (2026-09-08) — one Rev 10 claim is withdrawn, and the gap it papered over is raised as
 > `OI-POE-09`. No decision changes.** Rev 10 sited the efficacy-floor refusal in SW-02 at **Class B**
@@ -161,7 +183,7 @@
 > stagnant-gap term, and a compliant ceramic-filled gap pad reaches 0.0022 against the stirred gap's
 > 0.067. The full static stack reaches **40.6 tiles against the loop stack's 19.7 — 2.1× better with no
 > blower, no tubes and no penetration.** So **§6.2's pneumatic loop is not in scope**, and
-> **`OI-THCOOL-06` (the ELF bench measurement) is no longer needed** unless the loop is revived. New
+> **`OI-THCOOL-06` (the ELF bench measurement) is no longer needed** unless the loop is revived. *(**♻ Superseded 2026-09-20:** REOPENED against the posterior-boss **collar**, which exists whatever passes through it — the loop was never the only consumer. See the open-items table.)* New
 > `OI-THCOOL-15` carries the mechanical question the pad now depends on.
 >
 > **Rev 4 (2026-08-30) — D-3 DECIDED by the principal. Both accessories are on the roadmap; the ice
@@ -802,7 +824,7 @@ Carried through the network (`bun scripts/check-thermal-network.ts` §15):
 > **The static stack is 2.1× better than the loop stack, with no blower, no tubes, no acoustic path
 > beside the audio modality, and no penetration of any kind.** The loop's benefit is therefore not
 > unique to it, and D-2's criterion is not met. **§6.2's pneumatic loop is out of scope**, and with it
-> `OI-THCOOL-06` — the ELF magnetic bench measurement was BLOCKING only on the loop's penetration,
+> `OI-THCOOL-06` — *(**♻ reopened 2026-09-20 against the collar**)* the ELF magnetic bench measurement was BLOCKING only on the loop's penetration,
 > which no longer exists. Both are retained in this document as the record of why, not as live work.
 
 #### 6.9.1 Pad geometry — discrete and boss-co-located, not a sheet
@@ -1203,7 +1225,7 @@ about step 3.**
 - **D-2 — ✅ DECIDED 2026-08-30 (principal): in scope only for a real benefit not obtainable by other
   means — and §6.9 finds it is obtainable otherwise, better.** A static conductive gap bridge attacks
   the same 0.23 m²K/W term and reaches **40.6 tiles against the loop's 19.7**, with no moving parts and
-  no penetration. **The pneumatic loop is out of scope; `OI-THCOOL-06` is closed with it.** The
+  no penetration. **The pneumatic loop is out of scope; `OI-THCOOL-06` is closed with it.** *(**♻ Superseded 2026-09-20** — reopened against the collar rather than the loop; principal direction.)* The
   criterion did the work here — "is it shield-safe" would have kept the loop alive, and "is the benefit
   unique to it" killed it. Replacement gating question: `OI-THCOOL-15`.
 - **D-3 — ✅ DECIDED 2026-08-30 (principal).** Both accessories go on the roadmap. **Priority follows
@@ -1278,7 +1300,8 @@ alternative *and* costs the ELF magnetic claim. It should not be revisited.
 | **OI-THCOOL-18** | **The dose-ordering inversion is a human-factors problem, not a copy problem (§7.4.5).** Because the floor binds on delivered dose and the derate is multiplicative, a **120 J/cm² protocol runs in a hotter room than a 40 J/cm² one** — heavier survives longer. The only honest advice at a refusal is therefore *"a higher-dose protocol may still run"*, which reads as an instruction to take more treatment because the room is hot. Establish whether that can be said safely at all, or whether the refusal should name the room rather than the protocol; owned with `NP-HFE-001`/`NP-HFE-002`. **Do not resolve it by hiding the inversion** — a user who discovers it unaided will read it as a fault | HFE + App | No |
 | **OI-THCOOL-19** | **Protocol dose becomes a signed descriptor input, and nothing yet checks it against what the protocol actually commands.** `NP-FW-POE-001` §3 gains `dose_full_dJ`; the floor clamp is computed from it. Overstating it cannot widen any thermal bound (§7.4.4) — the Class C table still blocks at +35 — but it silently defeats the efficacy guarantee this decision exists to provide, which is the very failure mode D-4 closes, re-entering through the descriptor instead of the ambient. Specify the consistency check between `dose_full_dJ` and the commanded irradiance × duty × length, where it runs (app sign-time, SW-02 admission, or both), and what an inconsistency does | FW + App | No |
 | **OI-THCOOL-20** | **A sub-threshold session is sometimes the point — T2 research needs a way to say so.** The clamp refuses any session below 10 J/cm², but sham and dose-ranging arms are deliberately sub-threshold, and `NP-IRB-001`/the T2 scripting API can legitimately request one. Decide whether a signed research descriptor may declare intent and bypass the **efficacy** floor (never the +35 thermal block), and how that is surfaced to the wearer without unblinding the arm. **Not a T1 question** — the T1 refusal is absolute | FW + Clinical | No |
-| ~~OI-THCOOL-06~~ | **✅ CLOSED 2026-08-30 by D-2** — this was BLOCKING only on the pneumatic loop's penetration of the posterior boss, and §6.9 puts that loop out of scope. Retained struck-through rather than deleted, per `NP-CONV-001` §4's append-only open-item rule; reopen only if the loop is revived | — (closed) | — |
+| **OI-THCOOL-06** | **♻ REOPENED 2026-09-20 (principal direction) — AGAINST THE COLLAR, NOT THE LOOP.** **Bench-measure ELF magnetic leakage through a formed mu-metal chimney collar at the posterior boss, and the permeability the forming costs.** The 2026-08-30 closure below is **retained and correct on its own terms** — D-2 did put the pneumatic loop out of scope — but its trigger, *"reopen only if the loop is revived"*, **was too narrow**: the measurement is about a **formed collar at a penetration**, not about what passes through it. Two things now need it, neither pneumatic. **(a) The collar exists either way.** `NP-DRV-SHELL-002` §4.3 routes the entire module interconnect — **216 pins in 20 tail groups** plus the fluxgate/coil harness — through this **one aperture**, so mu-metal continuity is interrupted at the boss regardless of geometry, and `hardware-detail.md` §4.3 **D3** makes that continuity load-bearing for Layer 2. **(b) An OUTWARD emboss adds a second, distinct question, and it is now COMMITTED, not hypothetical** — **`BOSS-1`** (principal direction 2026-09-20, `NP-HEX-ZM-001` §5.3(c)) projects the boss **outward** as a local emboss (`NP-EMC-CAV-001` §8.6.3): drawing mu-metal over a local dome **work-hardens it**, and it **cannot be re-annealed after lamination** to PETG and CFRP — so the emboss trades Gap millimetres for a local permeability dip in the one layer D3 depends on. **Scope: ELF magnetic, below ~100 Hz, where waveguide-below-cutoff does not apply** — a fluxgate/Helmholtz bench, **not** the VNA sweep `EMF-1a`–`EMF-1d` use. Rides the `EMF-1` fixture as **`EMF-1e`** | EMC (`EMF-1`) + ME | **BLOCKING on `OI-EMCCAV-10` (boss projection direction) and on MECH-1 cutting the posterior boss** — the same time-box `NP-DRV-SHELL-002` §4.3 already sets |
+| ~~OI-THCOOL-06~~ | **✅ CLOSED 2026-08-30 by D-2** — this was BLOCKING only on the pneumatic loop's penetration of the posterior boss, and §6.9 puts that loop out of scope. Retained struck-through rather than deleted, per `NP-CONV-001` §4's append-only open-item rule; ~~reopen only if the loop is revived~~ — **that trigger was too narrow; REOPENED 2026-09-20 against the collar, see the row above** | — (closed) | — |
 | ~~OI-THCOOL-06 (original text)~~ | **Bench-measure ELF magnetic leakage through a mu-metal chimney collar at the posterior boss with tube penetrations.** Waveguide-below-cutoff does not apply below ~100 Hz | EMC (EMF-1) | **BLOCKING on §6.2** |
 | **OI-THCOOL-07** | Confirm the sealed loop's condensation behaviour across the `NP-ENV-001` §2.2 warm-up transient — fixed absolute humidity should help, but the cold-optics case is untested | Thermal | No |
 | **OI-THCOOL-08** | Re-run §5 against `OI-PWR-01`'s multi-tile CFD; the ratios need a valid model at N > 8 before any number is quoted. **DONE 2026-09-03 — `NP-THERM-CFD-N1-001` §8.** The ratios shrink by ~2.4× (RFE **3.28× → 1.36×**; X 2.05× → 1.17×; R 1.66× → 1.10×) because §5 routes the whole concurrency question through a cavity leg that carries ~10 % of the heat. **§5's central ordering survives and its recommendation is unchanged** — the shield-safe stack still beats the shield-breaching one — and the static gap bridge **GFE is now the strongest row**, clearing the whole lattice at the library floor with no blower, tubes or aperture, which leaves the pneumatic loop with no case on this model. §5's absolute counts are superseded; the new ones inherit `OI-N1-02` | Thermal | **Answered.** §5 numbers superseded by `NP-THERM-CFD-N1-001` §8 |

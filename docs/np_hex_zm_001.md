@@ -824,6 +824,44 @@ latch), mated automatically as the bowls draw closed and seated by the flanking
 PL/PR latches. Decoupling the connector from the clamp pattern is deliberate — a
 blind-mate feature only has to mate on closure; it should not dictate latch count.
 
+> **★ DECIDED 2026-09-20 (principal direction) — BOSS-1: the posterior blind-mate boss projects
+> OUTWARD, and only as far as it needs to.** A **local emboss** of the outer bowl at the occiput
+> centreline, its planform the boss footprint and its depth the **minimum** the blind-mate stack
+> requires (contact wipe + lead-in chamfer + the ±0.4 lateral / ±0.5 Z tolerance). **Not a round
+> number, and not a global allocation.**
+>
+> **What it buys.** The inter-bowl Gap is **decoupled from the boss entirely**. Under `FLUSH-1`
+> (§5.4a) *travel* had already left the Gap's requirement list; **`BOSS-1` removes the last local
+> feature that could have set it**, so the assembled Gap now falls to the **closed** lever footprint
+> and the labyrinth lip alone. At **0.0385 m²K/W per millimetre** on the largest single outward
+> thermal term, that is the whole of `FLUSH-1`'s prize unlocked (`NP-EMC-CAV-001` §8.5, §8.6.3).
+>
+> **Why outward is nearly free here, and it is not special pleading.** `NP-HELMET-GEOM-001` §2
+> already records that **"coil formers add local thickness only"** on this bowl — local outward
+> thickness variation is an **existing** feature class, not a new one. And §5.3(c) sites the boss
+> *"where the internal harness gathers near the occiput (Boa arch / neck attach)"*, the bulkiest part
+> of the assembly.
+>
+> **Three constraints bind it, and none is a blocker:**
+>
+> 1. **Stay inside the existing exterior volume.** The emboss is free only while it hides within the
+>    Boa-arch / neck-attach envelope already there. Break that envelope and it stops being a local
+>    detail and becomes a new exterior feature, with the industrial-design and `NP-HW-FITOVER-001`
+>    consequences that implies.
+> 2. **Do not intersect a Helmholtz coil former.** `NP-HELMET-GEOM-001` §174 makes former geometry
+>    **fixed, because calibration depends on it** — and that calibration is the coil-drive → field
+>    transfer function which `hardware-detail.md` §4.3's **D1** identifies as Layer 2's *decisive*
+>    dependency, re-run per configuration by `REQ-EMI-11`. A former is a **keep-out**, not an
+>    obstacle: route the emboss around it, or re-fix and re-calibrate the former deliberately.
+> 3. **The mu-metal forming cost is real and is now measured.** Drawing mu-metal over a local dome
+>    **work-hardens it**, and it **cannot be re-annealed after lamination** to PETG and CFRP — so the
+>    emboss trades Gap millimetres for a local permeability dip in the one layer **D3** depends on.
+>    **That cost is largely sunk** (this boss is already the *one aperture* of `NP-DRV-SHELL-002`
+>    §4.3, so continuity is interrupted here regardless, and the accepted treatment — a mu-metal
+>    chimney collar — is itself a projection). **`OI-THCOOL-06` is reopened against exactly this**
+>    and is **BLOCKING on MECH-1 cutting the boss**; `BOSS-1` is what makes that measurement needed
+>    rather than merely advisable.
+
 **(d) Magnetic (mu-metal) continuity.** Magnetic shields leak at butt-joints. The
 mu-metal L2 stays **entirely on the outer bowl, unbroken**; the inner bowl carries
 **no** magnetic layer, so there is no mu-metal seam to leak. (This is the reason
