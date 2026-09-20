@@ -15,7 +15,16 @@
 
 ### 4.3 EMF shielding (5-layer passive + active)
 - Layer 1: CFRP outer (30–50dB RF)
-- Layer 2: 0.2mm mu-metal liner (15–25dB ELF magnetic) — PETG laminate encapsulation, silicone RTV sealant at all cutout edges
+- Layer 2: 0.2mm mu-metal liner (15–25dB ELF magnetic) — PETG laminate encapsulation, silicone RTV sealant at all cutout edges.
+  **What actually holds this layer in place is NOT the ELF-attenuation figure above** (`NP-BIB-EMF-001` §4 — ambient ELF at WHO residential levels is 2,000–18,000× below any reported effect, and EEG, unlike MEG, does not require external magnetic suppression). **Four dependencies do, and they are load-bearing in different ways:**
+  | # | Dependency | Why it binds | Owner |
+  |---|---|---|---|
+  | **D1** | **The Helmholtz coils are co-designed with the mu-metal as ONE magnetic circuit** — *"the high-permeability mu-metal (outer bowl) shunts and reshapes any nearby coil's flux… co-locating passive shield + active trim on the outer bowl keeps them a single characterized subsystem"* | **Decisive.** The calibrated quantity in the active loop is the **coil-drive → field transfer function, defined WITH the mu-metal present.** Removing L2 does not subtract 15–25 dB from a total — it **invalidates the actuator characterisation on all three axes**, and with it `REQ-EMI-05`'s feed-forward subtraction and `REQ-EMI-11`'s per-configuration recalibration. The active half would need **redesign, not re-measurement** | `NP-HEX-ZM-001` §5.3.1 reason 2 |
+  | **D2** | **L2 is the degraded-mode fallback** | `NP-ENV-OPRANGE-001` §2 makes the active-cancellation envelope **SOFT** *because* *"fluxgate temp drift degrades cancellation; passive 5-layer shield always present."* Remove L2 and **a soft bound becomes a hard one**, re-opening `NP-ENV-001`'s operating range | `NP-ENV-OPRANGE-001` §2 |
+  | **D3** | **L2 carries the shell's magnetic-continuity architecture** | Magnetic shields leak at butt-joints, which is why all shielding is consolidated onto **one unbroken outer bowl**. `NP-HELMET-GEOM-001` §89 routes L2 around the TMS window; `NP-THERM-COOL-001` §6.2 and `OI-THCOOL-06` (**BLOCKING**) exist to protect its reluctance at the posterior boss | `NP-HEX-ZM-001` §5.2, §5.3(d) |
+  | **D4** | **IEC 61000-4-8 may REQUIRE it** — unresolved | IEC 60601-1-2 incorporates power-frequency magnetic immunity (typically 30 A/m ≈ 37.7 µT, far above the 0.1 µT ambient of §4). That is **device immunity, not user protection**, and with fluxgates and a µV front end inside the envelope it is plausibly load-bearing. **`regulatory-strategy.md` §8 omits IEC 60601-1-2 entirely** | **`OI-BIBEMF-04` — gates any L2 removal** |
+  **And the claim arithmetic moves:** L2 supplies the 15–25 dB half of the combined 35–45 dB ELF figure. Removing it leaves the ELF claim resting on an active loop `OI-PWRTH-05` already records as **off for most of a TMS train**, and CLAUDE.md §1 and §4.3 would both need re-derivation.
+  > **The defect this table closes (`NP-BIB-EMF-001` §7.2, 2026-09-15; written in 2026-09-20).** For four revisions this line justified Layer 2 by the **one benefit the evidence does not support** and omitted all four dependencies that actually hold it — *"which is a documentation defect, and it is why the layer looked removable."* **D1–D4 are the reasons. The dB figure is not one of them.** Layer 2 is **not** in the same position as Layer 4 (`NP-EMC-CAV-001`): L4's candidate dependencies turned out to be an unbuilt mould, an unpublished sentence and an inferred function, while L2's are four real ones, of which D1 alone is decisive.
 - Layer 3: **Palladium-coated polyester** inner liner (replaces silver — tarnish-immune for device lifetime, 40–60dB RF) — permanent shielding claim, verified by fleet SHDR attenuation monitoring
 - Layer 4: Carbon-loaded EMI absorber foam — **requirement stated 2026-09-20: `REQ-CAV-02`, loaded Q ≤ 20 over 420 MHz – 3 GHz, i.e. ≥ 26.2 dB of peak-field reduction at resonance** (`NP-EMC-CAV-001` §5). **This layer supplies 0.26 dB of it**; the wearer's head supplies 49.8 dB. **`REQ-CAV-04`: delete the station, with the 3 mm re-loft of the outer bowl BINDING** — vacating it without re-lofting fills it with stagnant air (54 % worse per mm) and the outward path goes 0.410 → 0.450; with the re-loft, 0.335. **Recommended, not executed** — `NP-EMC-CAV-001` §8.2, `OI-EMCCAV-08`
 - Layer 5: USB-C + accessory port filters (30–50dB)
@@ -29,12 +38,12 @@
 > seams and penetrations that set the real floor. **What the stack is for, and which layers earn their
 > cost, is `docs/np_bib_emf_001.md` (NP-BIB-EMF-001).** Three findings that bear directly on this list:
 >
-> - **Layer 2's rationale as written here is the one benefit the evidence does not support.** Ambient
->   ELF at WHO residential levels (0.07–0.11 µT) is 2,000–18,000× below where any neural effect is
->   reported, and EEG — unlike MEG — does not require external magnetic-field suppression. The layer
->   stays because `NP-HEX-ZM-001` §5.3.1 co-designs the Helmholtz coils with it as **one magnetic
->   circuit**, because `NP-ENV-OPRANGE-001` §2 makes it the degraded-mode fallback, and possibly
->   because of IEC 61000-4-8 immunity — **none of which is stated here.**
+> - **Layer 2's dB figure is not why Layer 2 is here.** Ambient ELF at WHO residential levels
+>   (0.07–0.11 µT) is 2,000–18,000× below where any neural effect is reported, and EEG — unlike MEG —
+>   does not require external magnetic-field suppression. **The four dependencies that actually hold
+>   the layer are now written into its entry above as D1–D4** (2026-09-20), closing the documentation
+>   defect §7.2 raised. **D1 is decisive**: the Helmholtz coils and the mu-metal are one magnetic
+>   circuit, so removing L2 invalidates the actuator characterisation rather than subtracting dB.
 > - **Layer 4 now has a dB figure, and it does not meet it.** `OI-BIBEMF-08` is **discharged** by
 >   `NP-EMC-CAV-001` (2026-09-20), which names the source `NP-BIB-EMF-001` §7.3 could not find — not
 >   radios, but the **18 STM32G071 cluster controllers `NP-DRV-SHELL-002` §3.2 puts inside the

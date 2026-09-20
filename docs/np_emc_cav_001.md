@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-EMC-CAV-001
-**Revision:** 3
+**Revision:** 4
 **Date:** 2026-09-20
 **Status:** ACTIVE — EMC analysis discharging `OI-BIBEMF-08` step 1; asserts no measurement
 **Effective Date:** 2026-09-20
@@ -13,7 +13,7 @@
 **Gate:** —
 **IEC 62304 Class:** — (analysis record, not device software)
 **Jurisdiction Scope:** N/A
-**Change Summary:** Rev 3 lands §8.2 on **delete the station + re-loft the bowl (binding)**. Rev 2's two objections to deletion were phantom costs — no tooling exists and nothing is published. See §11.
+**Change Summary:** Rev 4 adds §8.3 (the clamps lose no space to the re-loft, and the tolerance stack *shrinks* 38 %) and §8.4 (the "5-layer" touch-list, with the RISK-15 homonym trap). `OI-EMCCAV-08` narrowed and no longer gating. See §11.
 
 ---
 
@@ -444,6 +444,100 @@ that is the sweep to run before the re-loft is cut into CAD.
 
 ---
 
+### 8.3 How much space do the clamps need — and does the re-loft take any of it?
+
+`OI-EMCCAV-08` was raised as *"the one question between here and executing the deletion."* Worked
+against the geometry, **it largely answers itself, and in the opposite direction to the way §8.2
+first framed it.**
+
+**What is allocated.** `NP-HELMET-GEOM-001` §2 gives the clamp two radial budgets:
+
+| Where | Element | Radial (mm) | Tol |
+|---|---|---:|---|
+| **inside L1** | cluster-clamp + lever features, on L1's outer face | **3.0–4.0** | ±0.3 |
+| **the Gap** | inter-bowl clamp **travel** + blind-mate boss + labyrinth lip | **5–7** | ±0.5 |
+| | **total radial budget available to the clamp** | **8–11** | |
+
+**What is specified.** Nothing dimensional. `NP-HEX-ZM-001` §5.4a specifies the actuator
+*functionally* — a large easy-grip control, a **push/pull over-center lever throw (not a twist cam)**,
+low input force by mechanical advantage, one-handed, clear open/closed state, validated by HFE
+formative against `RISK-22` — and `MECH-2` is still open on exactly this: *"Remaining: over-center
+lever-throw actuator … + per-module spring plungers, curvature span at 122 mm, low one-handed input
+force."*
+
+> **So the 5–7 mm is an allocation, not a derived requirement.** No throw, stroke or plate-lift figure
+> exists anywhere in the document set. **That is the same defect shape as Layer 4's, one level down**
+> — a dimension in the radial stack that no stated requirement produced — and it is worth naming as
+> such even though it is `MECH-2`'s to close, not this document's.
+
+**Does the re-loft take any of it? No — and this is the part that decides the item.** The absorber
+sits at station **L2, on the outer bowl's inner face, outboard of the Gap**. The clamps live in the
+Gap. Deleting the absorber moves the Pd-polyester liner and everything outboard of it **3 mm inward
+together**, so:
+
+- **the 5–7 mm Gap is preserved unchanged** — the clamp loses no travel;
+- **the 3.0–4.0 mm of clamp features inside L1 is untouched** — L1 does not move at all;
+- what changes is only **what the clamp's far end reacts against**.
+
+**And that change is an improvement, not a cost.** Today the counterface is compressible carbon foam.
+An over-center mechanism reacting against a compliant counterface has **degraded throw authority and
+a drifting over-center point** — foam compression set moves it over service life, across repeated
+bowl separations for module replacement. After deletion the counterface is **rigid Pd-polyester on
+mu-metal on CFRP**, which is what an over-center lever wants.
+
+**The tolerance argument also runs backwards from how §8.2 Rev 2 put it.** The clamp load path runs
+from L1's outer face to the first rigid counterface on the outer bowl. Summing `NP-HELMET-GEOM-001`
+§2's tolerances along it:
+
+| | contributors | worst case | RSS |
+|---|---|---:|---:|
+| today | clamp features ±0.3 · Gap ±0.5 · **absorber ±0.5** | **±1.30** | ±0.77 |
+| after deletion | clamp features ±0.3 · Gap ±0.5 | **±0.80** | ±0.58 |
+
+**Deleting the absorber shrinks the stack the clamp must take up by 38 % worst-case (24 % RSS)**,
+because the foam is not only a compliance *provider*, it is a ±0.5 tolerance *contributor*. Rev 2
+counted the first and missed the second.
+
+> **`OI-EMCCAV-08` is therefore narrowed to a residual, and it is `MECH-2`'s anyway:** the per-module
+> spring plungers must cover a **±0.80 stack instead of ±1.30**, against a plunger stroke nobody has
+> specified yet. **That is a strictly easier requirement than the one they face today**, so it cannot
+> block the re-loft — it can only be confirmed when `MECH-2` selects the actuator.
+
+**One more consequence, and it closes a BLOCKING-adjacent item outright.** `OI-THCOOL-15`'s central
+question is *"what the pad compresses against"* — the answer today being the compressible foam, so
+*"a pad pressed against foam compresses the foam and never reaches rated conductivity"*
+(`completed-decisions.md` §221). **Delete the station and the pad presses against the rigid bowl.**
+The question does not get answered; it **ceases to exist.**
+
+### 8.4 Every "5-layer" string the deletion touches — and the homonym trap
+
+A find-and-replace here would corrupt four unrelated lines. **There are two different "five-layers"
+in this document set**, and only one of them is the EMF stack.
+
+| Carries the **EMF** stack — update | |
+|---|---|
+| `CLAUDE.md` §1 (founding principle), §4.3 heading | `docs/reference/hardware-detail.md` §4.3 heading |
+| `NP-DT-001` `DI-PERF-22` + its trace row | `NP-ART-001` A6 |
+| **`NP-ENV-OPRANGE-001` §2** — *"passive 5-layer shield always present"* | `NP-HELMET-GEOM-001` §134, §268 |
+| `NP-HELMET-GEOM-ISA` `ISC-4` | `NP-HEX-ZM-001` §773 |
+| `NP-HW-FITOVER-001` §145 | `NP-PWR-THERM-001` §498 |
+| `NP-RM-001` §184 | `NP-THERM-COOL-001` §549 |
+| `NP-THERM-SINK-001` §42 (*"five-layer outer bowl"*) | `NP-TOOL-HUB-001` §40 |
+| `competitive-position.md` §23 | `regulatory-strategy.md` §11 |
+
+> **⚠ DO NOT TOUCH these — they are the retired RISK-15 zone-module KEYING scheme, a different
+> five-layer entirely:** `NP-DT-001` `DI-USE-05` and `DO-HW-01`, `NP-RISK-003` §41,
+> `durability-maintenance.md` §18. All four say *"five-layer keying"*, and all four describe a scheme
+> **retired 2026-07-28**.
+
+**`NP-ENV-OPRANGE-001` §2 is the one that is not cosmetic.** Its wording is the evidence for **D2**,
+Layer 2's degraded-mode dependency (`hardware-detail.md` §4.3). The sentence must become *"passive
+4-layer shield always present"* — the substance is unaffected, because Layer 4 contributes nothing to
+the ELF figure that sentence is about, but **editing it without understanding that it is load-bearing
+for a different layer is how a real dependency gets deleted by a search-and-replace.**
+
+---
+
 ## 9. What this document does **not** establish
 
 Stated explicitly, because an analysis with a clean answer is easy to over-read.
@@ -492,7 +586,8 @@ Stated explicitly, because an analysis with a clean answer is easy to over-read.
 | **`OI-EMCCAV-03`** | **`OI-HUB-C19` is now an EMC decision.** If the 15–20 V → 24 V boost is ever sited inside the helmet envelope rather than on the Hub PCB, §4's band and §6's verdict must both be re-derived — a switching converter is an order of magnitude above anything in §3's table | EE Lead + EMC | Gates any re-siting of the boost |
 | **`OI-EMCCAV-04`** | Add `EMF-1a`–`EMF-1d` (§7) to the `EMF-1` fixture's test plan. Four sweeps on a fixture already committed. ~~Gates §8.2's deletion~~ — **Rev 2: no longer gating**, because §8.2 now recommends substitution, which does not depend on them. They are what would let `REQ-CAV-04`'s justification be stated as *measured*; **sweep `EMF-1a` to 6 GHz** for `OI-EMCCAV-06` | EMC | No — **re-scoped at Rev 2** |
 | **`OI-EMCCAV-06`** | **The band's upper edge is derived against the INTERNAL source only (§4.2).** The 31.1 dB roll-off is a property of §3's digital edges and says nothing about **external 6 GHz Wi-Fi ingress through the parting-plane seam** — the case `NP-HEX-ZM-001` §5.3a and `RISK-20` are actually written against. **Above 3 GHz the foam is no longer electrically thin** (§6.2 shows 11–41 dB), so §6's verdict does **not** transfer. Tissue is lossier at 6 GHz so §6.3's mechanism should hold harder, but **the case is not worked**. Sweep `EMF-1a` to 6 GHz | EMC | **Bounds §6's scope** |
-| **`OI-EMCCAV-08`** | **The only question between here and executing the deletion, and it is mechanical.** Once 3 mm of incidental compliance leaves the inter-bowl gap, do `NP-HEX-ZM-001` §5.4a's over-center lever-throw cluster clamps and per-module spring plungers still take up the ±0.5 tolerance stack across the curved span? If **yes** → delete and re-loft (§8.2, 0.335). If **no** → the station returns as a **thin ceramic-filled pad sized by the tolerance stack**, not by the 3.0 mm an RF justification picked (~0.355) | ME Lead (**`MECH-2`**) | **Gates the re-loft** |
+| **`OI-EMCCAV-08`** | ~~The only question between here and executing the deletion~~ **NARROWED 2026-09-20 by §8.3, and it no longer gates.** The absorber sits **outboard of the Gap**, so the re-loft takes **no clamp space at all**: the 5–7 mm Gap and the 3.0–4.0 mm of clamp features inside L1 are both preserved, and only the clamp's *counterface* changes — from compressible foam to rigid Pd/mu-metal/CFRP, which is **better** for an over-center mechanism whose over-center point would otherwise drift with foam compression set. The tolerance argument also inverts: the foam is a **±0.5 contributor**, so deleting it **shrinks the clamp's stack 38 % worst-case (±1.30 → ±0.80)**. **Residual, and it is `MECH-2`'s regardless:** confirm the per-module spring-plunger stroke covers ±0.80 — *a strictly easier requirement than today's ±1.30* | ME Lead (**`MECH-2`**) | **No — narrowed, no longer gating** |
+| **`OI-EMCCAV-09`** | **The 5–7 mm inter-bowl Gap is an allocation, not a derived requirement.** `NP-HEX-ZM-001` §5.4a specifies the cluster-clamp actuator only *functionally* (over-center lever throw, one-handed, low input force, `RISK-22`); **no throw, stroke or plate-lift figure exists anywhere in the document set**, and `MECH-2` is open on exactly this. Same defect shape as Layer 4's, one level down — a dimension in the radial stack that no stated requirement produced | ME Lead (**`MECH-2`**) | No — but it is the next one of these |
 | **`OI-EMCCAV-07`** | **Nobody has budgeted the heat that moves when this station is re-specified.** Lowering outward resistance puts more heat into the **outer bowl**, which carries the mu-metal and the Helmholtz coils. `NP-ENV-OPRANGE-001` §2 already makes the cancellation envelope **SOFT** on temperature drift, and `REQ-EMI-11` calibrates a coil-drive→field transfer that moves with coil resistance. Applies to the substitution as much as to a deletion | Thermal + EE Lead | No — but it is a **new** coupling |
 | **`OI-EMCCAV-05`** | **`IEC 60601-1-2` is still absent from `regulatory-strategy.md` §8.** §5.3 leans on Part 15B, which *is* in the record via `DI-REG-05`, but the immunity half of this analysis has no standards home. Same gap `OI-BIBEMF-04` raises from the Layer 2 side | Regulatory | No — but two documents now depend on it |
 
@@ -505,3 +600,4 @@ Stated explicitly, because an analysis with a clean answer is easy to over-read.
 | 1 | 2026-09-20 | NeurOne EMC / Systems Engineering | **Initial release, discharging `OI-BIBEMF-08` step 1 — the gate `NP-BIB-EMF-001` §7.3 placed on EMC.** States Layer 4's requirement against a named source and band for the first time, and reaches an answer §7.3 did not anticipate. **(1) The source is named and it is not a radio** — `NP-DRV-SHELL-002` puts 18 STM32G071 cluster controllers, a 400 kHz I2C tree, 80 PWM LED drivers and the ADS1299 SPI bank *inside* the envelope; §9.6 already states that a Faraday cage does not protect victims sharing it. §7.3's "the radios live in the hub" is the right bound for ingress and the wrong one for this question. **(2) The band is 420 MHz – 3 GHz, and its lower edge is a property of the wearer** — the lowest circumferential mode runs 506 MHz at a 52 cm head to 422 MHz at 62 cm, so the enclosure's resonance sweeps 84 MHz across one SKU; recorded nowhere before. **(3) The requirement is stated in dB** — `REQ-CAV-01` E ≤ 0.5 V/m derived from SH2-DRC-16 via RF demodulation, which unlike the therapeutic-band self-field is *not* subtractable by `REQ-EMI-05`; `REQ-CAV-02` allocates the enclosure's share as Q_L ≤ 20, i.e. ≥ 26.2 dB. **(4) Layer 4 supplies 0.26 dB of it, and that result is structural** — for a lossy slab on a conductor `Z_in = j·η·tan(kd)`, and in the thin limit `η·k = η₀·k₀` exactly, so `Z_in → j·η₀·k₀·d` is purely reactive **independent of the loading**; at 3 mm the foam is λ/217 at the lowest mode. Swept to an absurd ε_r of 6 − j12 it still reaches only 2.71 dB. This is why thin commercial absorbers are magnetically loaded — which `REQ-EMI-10` and `NP-BIB-EMF-001` §7.8 forbid here. **(5) The wearer's head is the absorber, by 49.8 dB** — dry skin (the least lossy candidate) presents 53.9 Ω/sq over 36.5 % of the boundary, taking Q from 409 to 1.32, and every state in which the §3 sources are energised is a state in which the head is inside the cavity. **Outcome: neither §7.3 branch.** Not 2a (there is no RF function to preserve) and not 2b's stated reason (EMC is not silent) — the requirement exists and Layer 4 is not what meets it. **Two results that do not wait for that decision:** the Layer 4 station may now be specified on thermal grounds alone, closing the premise `OI-THCOOL-04`/`OI-THCOOL-15` were waiting on; and `NP-THERM-COOL-001` §6.3's proposed *"conductive-filled absorber elastomer"* is corrected — a conductive fill makes a reflector, not an absorber, and collides with §6.9.1's own insulating/non-magnetic constraint and with `REQ-EMI-10`; the filler must be ceramic (BN/AlN/Al₂O₃), and nothing lossy need be added at all (`REQ-CAV-03`). Specifies `EMF-1a`–`EMF-1d`, four sweeps on the already-committed `EMF-1` fixture, as what would settle it (§7). Raises `OI-EMCCAV-01…05`, two gating. Adds `scripts/check-cavity-q.ts` (`CI-Kind: report`), which reproduces all 14 published anchors and fails on drift. **No locked section modified; no layer removed; no measurement asserted; `EMF-1`, `EMF-3`, `RISK-20` and `OI-THCOOL-06` all unchanged and open.** |
 | 2 | 2026-09-20 | NeurOne EMC / Systems Engineering | **Rev 1's §8.2 recommendation is REVERSED: substitute the Layer 4 station, do not delete it.** The RF finding is unchanged and unchallenged — the layer still supplies **0.26 dB of a 26.2 dB requirement**, and §3–§6 stand as written. What Rev 1 got wrong is the **thermal** half. It inherited `OI-BIBEMF-08`'s assumption that removing the layer recovers its 18 % of the outward path, and never asked what would occupy the station afterwards. **Vacating a 3 mm station does not delete its resistance — it fills it with stagnant air, and air is a worse insulator per mm than the foam:** 0.115 against 0.075 m²K/W, a **54 % regression**, both conductivities taken from `NP-THERM-COOL-001` §2's own table. Through to the outward path: today **0.410**; delete without closing the gap **0.450** (*a regression, the opposite of the intent*); delete with a 3 mm re-loft of the outer bowl **0.335**, but that is a shell tooling change `NP-REV-SHELL-001` gates; **ceramic-filled substitution 0.355 with no tooling change at all.** Substitution therefore lands within **0.020 m²K/W** of the best case for free, and deletion wins only if the re-loft actually happens — which reverses Rev 1's ordering. **Three further reasons Rev 1 did not weigh:** the foam is the **compliant member** taking up a ±0.5 tolerance stack across a curved 5–7 mm gap and preloading the clamps and latches — its compressibility is exactly why `OI-THCOOL-15` exists, and a non-compressible ceramic-filled part *keeps* that budget while unblocking the pad, whereas an empty gap keeps neither; **nothing is priced** (Rev 1's *"negative BOM cost"* was an assumption, and `OI-BIBEMF-07` records that the stack has no BOM line at all); and substitution **leaves the published claim and the renumbering hazard untouched**. New **`REQ-CAV-04`**: the station is retained and re-specified, and **its justification of record changes from "cavity-resonance suppression" — which §6 refutes — to tolerance compliance and a thermal path**. Keeping a layer for a reason it does not serve is the defect `OI-BIBEMF-08` was raised about; keeping it under a corrected justification is not. The deletion option is retained, costed, in §8.2, with the re-loft marked **not optional**. **Two limits of Rev 1 also recorded.** **`OI-EMCCAV-06`** — §4.2's upper band edge is derived against the **internal** source only; the 31.1 dB roll-off says nothing about **external 6 GHz Wi-Fi ingress through the parting-plane seam**, the case `NP-HEX-ZM-001` §5.3a and `RISK-20` are actually written against, and **above 3 GHz the foam is no longer electrically thin** (§6.2 gives it 11–41 dB there), so §6's verdict does not transfer; tissue is lossier at 6 GHz so §6.3's mechanism should hold harder, but the case is **not worked**. **`OI-EMCCAV-07`** — nobody has budgeted the heat that moves into the **outer bowl** (mu-metal + Helmholtz) when outward resistance falls, against `NP-ENV-OPRANGE-001` §2's SOFT temperature envelope and `REQ-EMI-11`'s transfer function; it applies to the substitution too. `OI-EMCCAV-04` re-scoped: `EMF-1a`/`EMF-1b` no longer gate anything, since substitution does not depend on them — they are what would make `REQ-CAV-04`'s justification *measured*, and `EMF-1a` should now sweep to 6 GHz. §1's summary table, §4.2, §8.2 and §9 (items 6 and 7 added) updated; `scripts/check-cavity-q.ts` gains §7's thermal comparison and six anchors, 16 → 22. **Still no locked section modified, no layer removed, no measurement asserted.** |
 | 3 | 2026-09-20 | NeurOne EMC / Systems Engineering | **§8.2 rewritten a second time, and it lands on Rev 1's conclusion by Rev 2's arithmetic: delete the station, and the 3 mm re-loft is BINDING.** Rev 2 argued *substitute, do not delete* on three grounds. **Two were phantom costs.** (1) It called the re-loft *"a shell tooling change `NP-REV-SHELL-001` gates"* — but **no tooling exists**: that document is *"DRAFT — open review; no item signed"*, CLAUDE.md's header puts the programme in **pre-tooling design phase**, and `OI-ART-01` already requires `NP-TOOL-SHELL-001` to be re-scoped or superseded because its F-01 still describes the retired 5-colour zone-slot scheme. The re-loft is a CAD edit riding along with a re-scope already owed. (2) It called *"5-layer"* **a published claim** — but **nothing is externally published**; `competitive-position.md`'s own source note says the copy *"should be re-verified before publication"*, and its shielding line already carries a ⚠ that two of its words are unearned. **The third ground was an inference, and the record contradicts it.** Rev 2 claimed the foam is the compliant member taking up the ±0.5 tolerance stack; `NP-HEX-ZM-001` §5.4a specifies the preload path as **over-center lever-throw cluster clamps with per-module spring plungers** (`MECH-2`). The foam is *incidentally* compressible — which is why it blocks `OI-THCOOL-15`'s pad — not a designed compliant member. **What survives from Rev 2 is its arithmetic, re-cast as a condition on HOW to delete rather than an argument against deleting:** vacating 3 mm fills it with stagnant air at 0.115 against the foam's 0.075, so deletion without the re-loft is still a regression (0.410 → 0.450), while **delete + re-loft reaches 0.335** — the best figure available — against substitution's 0.355. **`REQ-CAV-04` restated: delete the station, and the 3 mm re-loft is binding, not optional; the two move as one change.** Also records why the residual 0.020 is not worth buying back: once ceramic-filled, the station's *bulk* resistance is ~0.002, so that 0.020 is almost entirely **contact resistance** — the price of the interface substitution necessarily creates, which deletion removes. And notes that **this is the cheapest moment the decision will ever be available**: no mould cut, the shell tooling spec already open for re-scoping on unrelated grounds, no external copy depending on the number. New **`OI-EMCCAV-08`** carries the one remaining question, and it is mechanical rather than EMC: once 3 mm of incidental compliance leaves the gap, do the clamps and spring plungers still take up the tolerance stack? If not, the station returns as a **thin ceramic-filled pad sized by the tolerance stack** — not by the 3.0 mm an RF justification picked — at ~0.355, the documented fallback. `EMF-1a`/`EMF-1b` gate **confidence, not the decision**: §6.1's result is structural, so they can only show the layer does less than 0.26 dB, never more. `OI-EMCCAV-06`'s **6 GHz ingress case is the one place a measurement could change the answer**, and that sweep — absorber fitted vs removed, to 6 GHz — should run before the re-loft is cut into CAD. §1's summary table corrected (both outcome rows were stale). **Still no locked section modified, no layer removed in this document, no measurement asserted.** |
+| 4 | 2026-09-20 | NeurOne EMC / Systems Engineering | **§8.3 answers `OI-EMCCAV-08` and narrows it out of the gating position; §8.4 enumerates every *"5-layer"* string the deletion touches, with a homonym trap flagged.** **The clamps lose no space to the re-loft.** `NP-HELMET-GEOM-001` §2 allocates the cluster clamp **3.0–4.0 mm** of lever features inside L1 plus the **5–7 mm** inter-bowl Gap for travel — **8–11 mm** total. The absorber sits at station **L2, outboard of the Gap**, so deleting it moves the Pd liner and everything outboard **3 mm inward together**: the Gap is preserved unchanged, L1 does not move, and **only the clamp's counterface changes** — from compressible foam to rigid Pd/mu-metal/CFRP. **That is an improvement**: an over-center mechanism reacting against a compliant counterface has degraded throw authority and an over-center point that drifts with foam compression set across repeated bowl separations. **The tolerance argument also runs backwards from Rev 2's**: the foam is not only a compliance provider, it is a **±0.5 tolerance CONTRIBUTOR**, so the clamp load path (features ±0.3 · Gap ±0.5 · absorber ±0.5) **shrinks from ±1.30 to ±0.80 worst-case — 38 % — on deletion**. `OI-EMCCAV-08` is therefore **narrowed and no longer gating**: the residual is confirming the per-module spring-plunger stroke covers ±0.80, *a strictly easier requirement than today's ±1.30*, and it is `MECH-2`'s regardless. **One item closes outright as a side effect:** `OI-THCOOL-15`'s central question — *"what the pad compresses against"* — **ceases to exist** once the pad presses on the rigid bowl. **New `OI-EMCCAV-09`:** the 5–7 mm Gap is itself **an allocation, not a derived requirement** — `NP-HEX-ZM-001` §5.4a specifies the actuator only functionally (over-center lever throw, one-handed, `RISK-22`) and **no throw, stroke or plate-lift figure exists anywhere in the document set**, which is the same defect shape as Layer 4's, one level down. **§8.4** lists the 16 documents carrying an EMF *"5-layer"* string, and flags four that must **not** be touched — `DI-USE-05`, `DO-HW-01`, `NP-RISK-003` §41 and `durability-maintenance.md` §18 all say *"five-layer keying"*, the **retired RISK-15 zone-module scheme**, a different five-layer entirely. It also singles out **`NP-ENV-OPRANGE-001` §2** as the one edit that is not cosmetic: its *"passive 5-layer shield always present"* is the evidence for **D2**, Layer 2's degraded-mode dependency, so it must be updated knowingly rather than by search-and-replace. `scripts/check-cavity-q.ts` gains the clamp-stack arithmetic and three anchors, 22 → 25. **No locked section modified; no layer removed; no measurement asserted.** |

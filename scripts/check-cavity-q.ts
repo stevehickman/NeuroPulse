@@ -241,6 +241,20 @@ const THERM = {
 };
 const rStation = (k: number) => THERM.stationT / k;
 
+// ── Clamp load path, for §8.3 — NP-HELMET-GEOM-001 §2 tolerances ─────────────
+// The absorber sits at station L2, OUTBOARD of the Gap the clamps live in, so
+// the re-loft takes no clamp space. But the foam is also a +/-0.5 tolerance
+// CONTRIBUTOR, so deleting it SHRINKS the stack the spring plungers must cover.
+const CLAMP_TOL = {
+  features: 0.3, // cluster-clamp + lever features on L1's outer face
+  gap: 0.5, // inter-bowl clamp travel + blind-mate boss + labyrinth lip
+  absorber: 0.5, // the station under audit — a contributor, not just a filler
+};
+const clampStack = (withAbsorber: boolean) => {
+  const t = [CLAMP_TOL.features, CLAMP_TOL.gap, ...(withAbsorber ? [CLAMP_TOL.absorber] : [])];
+  return { worst: t.reduce((a, b) => a + b, 0), rss: Math.sqrt(t.reduce((a, b) => a + b * b, 0)) };
+};
+
 // ── The allocation ───────────────────────────────────────────────────────────
 // SH2-DRC-16 holds EEG artifact below 5 uVpp with all LEDs at full PWM load.
 // RF demodulation is allocated 20 % of that budget because, unlike the
@@ -537,6 +551,10 @@ function reportValidation(): boolean {
     ["outward path, delete without re-loft", THERM.outwardTotal - rStation(THERM.kFoam) + rStation(THERM.kAir), 0.450, 0.002],
     ["outward path, delete with 3 mm re-loft", THERM.outwardTotal - rStation(THERM.kFoam), 0.335, 0.002],
     ["outward path, ceramic substitution", THERM.outwardTotal - rStation(THERM.kFoam) + THERM.rSubstitution, 0.355, 0.002],
+    // §8.3 — the clamp stack SHRINKS on deletion; the foam is a tolerance contributor.
+    ["clamp stack today, worst case (mm)", clampStack(true).worst, 1.30, 0.01],
+    ["clamp stack after deletion, worst case (mm)", clampStack(false).worst, 0.80, 0.01],
+    ["clamp stack reduction (%)", (1 - clampStack(false).worst / clampStack(true).worst) * 100, 38.5, 0.5],
   ];
 
   console.log(`\nscanned: ${anchors.length} published anchor(s) — NP-EMC-CAV-001\n`);
