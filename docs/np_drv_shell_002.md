@@ -849,6 +849,15 @@ hold over a doubly-curved cluster.
 > inradius rather than the circumradius, leaves room for §7.1's required mis-key asymmetry, and
 > keeps `SEAT#` at a genuine mechanical extreme so §7.3's last-to-mate sequencing is real. Verified
 > by **SH2-DRC-05a**.
+>
+> **★ `CURV-1` (principal direction, 2026-09-21, `NP-HEX-ZM-001` §3.1) — the array's datum is
+> CURVED, at the module's own compromise radius `R_m ≈ 87 mm`.** The module is a **median-curved**
+> 40 mm hexagon and the socket seating surface now matches it, so these two rows lie on a curved
+> datum rather than a plane. **This is load-bearing here, not upstream trivia:** the interface is a
+> **compression contact** (§9.1) with **`SH2-DRC-08` wipe ≥ 0.30 mm**, and across this array's
+> **~18 mm span** the `R_m` sagitta is `87 − √(87² − 9²)` = **0.467 mm — 1.56× the whole wipe
+> budget**. A flat datum would take the end contacts out of compression or bottom the middle ones.
+> **`SH2-DRC-08` must therefore be run on a curved pair; flat coupons do not test this interface.**
 
 Adopting 3+3 is what converts this from the conditional note Rev 2 first carried ("above ~17
 contacts the array *should* go to two rows") into a binding layout requirement — a 19-contact single

@@ -112,6 +112,38 @@ skull in that range. Everything below follows from that skull and the 40 mm tile
 Both give 30, and the 429 cm² tileable area independently reproduces the
 ~420 cm² this brief carried before the skull model existed.
 
+> **★ DECIDED 2026-09-21 (principal direction) — CURV-1: the module SOCKET seating surface, and
+> its contact-array datum, carry the SAME compromise curvature as the module — `R_m ≈ 87 mm`.**
+> This table's median-curved tile (Option A) fixed the *module* side; nothing fixed the socket side.
+>
+> **It is forced, not chosen.** Modules are **interchangeable** — any type into any socket — and all
+> share one curvature. So every socket must carry that curvature, and it must be the **same value**.
+> The compromise was already made above, across all socket positions; there is no second one to make.
+>
+> **And it is load-bearing for the contact array, not cosmetic.** The module↔socket interface is a
+> **compression contact** with **no connector** (`NP-DRV-SHELL-002` §9.1), seated by the §5.4a clamp
+> plunger, and **`SH2-DRC-08` specifies wipe ≥ 0.30 mm** over ≥1,000 cycles. `REQ-SKT-01` lays the
+> 19 contacts out as **two staggered rows, 9 + 10 at 2.00 mm pitch — a ~18 mm span.** Across that
+> span the `R_m` sagitta is
+>
+> > `R − √(R² − (s/2)²)` = `87 − √(87² − 9²)` = **0.467 mm**
+>
+> — **1.56× the entire specified wipe budget.** A flat socket floor under a curved module back puts
+> that straight into contact height: **the end contacts come out of compression, or the middle ones
+> bottom.** The sagitta exceeds the wipe at every span from 18 mm up, so no plausible array geometry
+> escapes it.
+>
+> **Two consequences that are not restatements.** **(a) The contact-array datum follows the curved
+> surface, not merely the pocket floor** — curving the pocket and leaving the pads on a flat datum
+> reproduces the same error inside the array. **(b) `SH2-DRC-08` must be executed on a CURVED pair.**
+> Wipe and contact force measured on flat coupons would not be testing this interface. That changes
+> how an already-specified bench test is run, not what is tested.
+>
+> **It does not foreclose Option B.** §1's future path records Option B as *"semi-flex tile +
+> **shell-socket-defined curvature**… a module swap into the **unchanged socket interface**"* —
+> `CURV-1` states exactly the socket curvature Option B would hold constant while the tile flexes to
+> it. It specifies what Option B already assumed.
+
 - **Workable 34–46 mm.** Floor = bezel + element embedding (cluster clamps
   remove the per-module lever-arm floor, §5.4a); ceiling = rigid fit. Ideal
   **38–42 mm**; design point **40 mm**.
