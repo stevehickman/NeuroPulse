@@ -1216,12 +1216,15 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
   > the plate already carries **34.2–57.0 N** across 19 contacts on a 6-tile plate (`NP-DRV-SHELL-002`
   > §5.1.5). **The pocket geometry must not spend the margin the 7-tile cap bought.**
   >
-  > **The mitigation is free, and it is available because nobody has used it yet: the controller
-  > board's POSITION within the cluster footprint is unspecified.** Neither this document nor
-  > `NP-DRV-SHELL-002` §3.2 places it. Sited **off mid-span**, the pocket removes section where the
-  > bending moment is low and the structural cost is near zero; sited **at the centre**, it removes it
-  > at maximum moment under a distributed load. **Ribbing around the pockets is the fallback, not the
-  > first move.** `OI-EMCCAV-13`.
+  > **✅ The mitigation is taken: `BOARD-1` (principal direction, 2026-09-21,
+  > `NP-DRV-SHELL-002` §3.2) sites the controller board at the cluster's PAN-FACING EDGE, on the
+  > cluster's own mirror axis — not at its centroid.** At the plate **edge** the bending moment is
+  > minimal, so the pocket costs nearly nothing; **where the board falls into the inter-tile gap, no
+  > pocket is needed at all.** Three further constraints select the same position — shortest tail to
+  > the PAN, less `REQ-EMI-06` loop area (linear in feed length), and `SYM-1` preserved without an
+  > exception clause. **Ribbing remains the fallback and is no longer the expected case.**
+  > `OI-EMCCAV-13` **closed on the structural question**; the residual is a **planform packing
+  > conflict with the cluster-clamp bosses**, which also want the inter-tile gaps.
 
 - **Optional alignment:** cluster boundaries may align to the lobe *zones* of
   `00-zones.npps` (a frontal-left cluster ≈ the "Frontal Left" zone), but are ultimately set by

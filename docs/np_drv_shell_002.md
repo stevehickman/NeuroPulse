@@ -351,6 +351,33 @@ with one **STM32G071 in UFQFPN32** per board.
 > **1.0 → 0.80 mm is 0.0077 m²K/W recovered for nothing.** `NP-EMC-CAV-001` §8.7 carries the stack;
 > this closes one of the four inputs `OI-EMCCAV-09` was waiting on.
 
+> **★ DECIDED 2026-09-21 (principal direction) — BOARD-1: the cluster controller board sits at the
+> cluster's PAN-FACING EDGE, on the cluster's own mirror axis — not at its centroid.** Rev 2 named
+> this board's contents and never placed it. `PLATE-1` (`NP-HEX-ZM-001` §5.4a) made the omission
+> load-bearing, because the clamp plate now **pockets** over these components and a pocket at the
+> plate's centroid is a pocket at maximum bending moment.
+>
+> **Four independent constraints select the same position, which is why it is a rule and not a
+> preference:**
+>
+> | | Why the PAN-facing edge |
+> |---|---|
+> | **Plate structure** — the reason it was asked | §5.4a caps the cluster at 7 tiles because an 8th raises **plate-mode deflection ×3.07**, *"the one that matters"*, against a plate already carrying **34.2–57.0 N** over 19 contacts (§5.1.5). At the **edge** the bending moment is minimal, so `PLATE-1`'s pocket costs nearly nothing; at the centroid it costs the most. **Where the board falls into the inter-tile gap, no pocket is needed at all.** |
+> | **Tail length** | All **18** tails converge on the PAN at the occiput centreline (§4.2). PAN-facing siting is the **shortest run for every cluster** — less rigid-flex, lower cost, fewer bend-radius constraints (§8.3). |
+> | **Loop area — `REQ-EMI-06`** | N1 is a **tree from the PAN** (§3.1, never a ring per `REQ-EMI-09`), and §9.3 computes loop area **over a 200 mm cluster feed**. Loop area is **linear in feed length**, so shortening the feed shortens the loop by the same fraction. That is margin on the **≤25 mm²** limit §9.5 calls mandatory rather than a refinement — and margin on the self-field §9.5 must subtract. |
+> | **`SYM-1`** | Siting on **the cluster's own mirror axis** keeps the six self-symmetric midline clusters self-symmetric and lets the six lateral mirror pairs mirror by construction. `SYM-1` is preserved **without an exception clause**. |
+>
+> **`REQ-EMI-01` is unaffected:** the board stays inside its cluster footprint, so no electrode-mux
+> or TIA lane lengthens — the analog path is still muxed at the cluster and digitised at the PAN.
+>
+> **One packing conflict this does NOT resolve, and `MECH-2` must.** `NP-HELMET-GEOM-001` §3's
+> **cluster-clamp bosses also sit in the inter-tile gaps**, where they *"add mid-span stiffness to
+> the scalp-facing plane without costing any module coverage."* For a **midline** cluster the mirror
+> axis meets the PAN-facing edge **on an inter-tile boundary**, which is exactly where a boss wants
+> to be. **The board and the boss compete for that gap, and the planform packing is not solved
+> here.** It is a layout question, not an architectural one — but it is real, and pretending the
+> rule lands cleanly everywhere would be wrong.
+
 ### 3.2a Why the tier needs local intelligence — and why HUB-001's stated reason is not the reason
 
 `NP-HW-HUB-001` §3.2 argues the tier needs an MCU because **LED drive must distribute**:
