@@ -19,6 +19,53 @@
 
 ## Current revision
 
+**Rev 49 (2026-09-20) — one Document Map row: the six accessory and applicator hardware
+specifications, because until today four artifacts' governing specification was §3 itself.** No
+invariant changed, no figure moved, and no section gained or lost content. This entry is longer than
+the edit because the edit is a pointer to work that happened elsewhere.
+
+**What happened outside CLAUDE.md.** GitHub #332 / `NP-ART-001` `OI-ART-04` asked for owning
+specifications for the manufactured artifacts that had none. Six were written — `NP-HW-AUDIO-001`
+(audio cup), `NP-HW-NASAL-001` (intranasal Y-probe and hygiene sleeve), `NP-HW-VNSCLIP-001`
+(auricular VNS/HRV clip), `NP-HW-CVNS-001` (cervical VNS accessory), `NP-HW-TMS-001` (TMS coil) and
+`NP-HW-TACSDRV-001` (the 21-channel clinical tACS driver stage, newly registered as artifact A16).
+`NP-ART-001` Rev 3 records the whole disposition.
+
+**Why that needs a row here rather than nothing.** For A11 and A12 the *governing specification of
+record* was **`CLAUDE.md` §3 modality ⑦ and modality ②** — roster lines in the always-loaded core
+standing in for hardware documents, which is exactly the confusion the Document Map exists to
+prevent. The new row says where a modality's hardware is now specified and, as importantly, that
+**§3's roster is not that**. One row, in the subject-matter table, beside the FAI programme and the
+artifact register it belongs with.
+
+**What the row deliberately says about maturity.** All six are **DRAFT and requirements-grade**:
+they carry what the existing record already binds, with citations, and enumerate what is missing.
+**No dimension, material, emitter, exposure limit, force, constant or price is created by any of
+them**, and `NP-FAI-001` §2's F1/F2 still fail on all six, so no artifact FAI became writable — the
+count stays at 1 of 16. A reader who follows the row must not mistake an owning document for a
+released one, so the row says so itself.
+
+**Three findings from that work that touch locked sections, and are recorded rather than acted on
+here:**
+
+- **§3's hard-limits table has no intranasal row.** It has *PBM scalp* and *PBM deep (T2)*; the
+  intranasal probe — a shipping T1 modality applied to **mucosa** — inherits its 25 % duty ceiling
+  from the cranial tiles by way of a firmware comment, and the 42 °C limit §4.2 realises with a
+  per-zone NTC has no sensor in the probe to realise it with. `OI-NASAL-02`, **BLOCKING**. Adding
+  the row is a clinical and regulatory decision and is routed to the existing `RISK-03` engagement,
+  not taken here.
+- **§4.2's TMS row is titled *Coil protection* and names no patient-facing control.** Every other
+  stimulation row in that table names one. There is a Class C enable, and nothing anywhere states
+  what must cut it off — no dose, train, inter-train or contraindication limit. `OI-TMS-03`.
+- **The audio cup mesh frame's 40 dB RF figure is a shielding claim outside §4.3's stack**, on a
+  **user-replaceable** part, with a fouling trigger that is an unimplemented HAL stub.
+  `OI-AUDIOHW-03`; §4.3 is locked and adding to it is a CLAUDE.md decision, so nothing was added.
+
+**Nothing in §1–§6 or §16–§17 is edited by this revision.** `check-section-refs` and
+`check-doc-filenames` clean.
+
+## Earlier revisions
+
 **Rev 48 (2026-09-15) — §2.3: what "measurement-triggered" actually admits, because the term had no
 test and a row could pass it by sounding right.** No decision changed, and no exception was granted.
 The invariant's own sentence survives verbatim; what it gained is a way to fail.

@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 48 (current)  
+**Revision:** 49 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
@@ -64,6 +64,7 @@ only when I `Read` it.
 | **Document + firmware register** (was §14) | locating a spec doc or firmware module | `docs/status/document-register.md` |
 | Formal DHF index (source of truth for design records) | 510(k) / design-control work | `docs/np_dhf_001.md` |
 | **Manufactured artifact register + documentation readiness** (what we build; which tooling spec / risk register / FAI checklist exists, and what blocks the rest) | asking "does X have a spec / an FAI / a risk register yet?", or planning tooling work | `docs/np_art_001.md` |
+| **Accessory + applicator hardware specifications** — audio cup · intranasal Y-probe + sleeve · auricular VNS/HRV clip · cervical VNS · TMS coil · 21-ch tACS driver. **All DRAFT and requirements-grade: they carry what the record binds and name what is missing, not dimensions** | working on any of those six artifacts; asking what a modality's *hardware* is actually specified to do — **§3's roster is not that** | `docs/np_hw_audio_001.md` · `docs/np_hw_nasal_001.md` · `docs/np_hw_vnsclip_001.md` · `docs/np_hw_cvns_001.md` · `docs/np_hw_tms_001.md` · `docs/np_hw_tacsdrv_001.md` |
 | FAI programme (method, issue conditions, PDMS-bond + ingress qualifications) | writing or running any first article inspection | `docs/np_fai_001.md` |
 | Risk file — the ISO 14971 index, and the disposition of every RISK-01…26 ID | any ISO 14971 / hazard question | `docs/np_risk_002.md` |
 | Risk registers — hex-tile module · shell/socket/interconnect/hub | per-artifact hazard work | `docs/np_risk_003.md` · `docs/np_risk_004.md` |
