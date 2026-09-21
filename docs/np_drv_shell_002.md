@@ -331,6 +331,26 @@ with one **STM32G071 in UFQFPN32** per board.
 | Cluster power gate | high-side load switch, **24 V-rated** | 1 | Gated by `SAFE_EN[n]` (§6). Part class changed by the rail decision (§5.4) |
 | Local bulk decoupling | ceramic + polymer bulk | — | Sized for edges/carrier only (§9.2) |
 
+> **★ DECIDED 2026-09-21 (principal direction) — PCB-1: the cluster controller board is
+> 0.80 mm nominal, ±0.08 (±10 %), 4-layer rigid-flex.** Rev 2 costed it as *"small 4-layer +
+> rigid-flex tail, $1.80"* and gave it **no thickness** — which turned out to matter far outside this
+> document.
+>
+> **Why 0.80 and not the default 1.6.** The usual reason to run a 4-layer board at 1.6 mm is
+> self-support, and **this board does not need it**: §8.1 makes the carrier *"fixed — laminated into
+> L1, never moves"*, so the polymer bowl provides the stiffness. 0.80 mm is a **stock rigid-section
+> thickness for 4-layer rigid-flex**, so it carries no fabrication premium.
+>
+> **Why not thinner.** 0.60 mm is achievable but constrains dielectric and copper-weight options on a
+> 4-layer stack-up, and the board carries a **24 V rail at up to the whole vault feed** (§5.4).
+> **0.60 is not selected without a fab DFM review** — the remaining 0.20 mm is worth
+> ~0.008 m²K/W and is not worth buying blind.
+>
+> **What it decides elsewhere.** This board sits on L1's **gap-facing** face (§4.1), so its thickness
+> is a term in the **inter-bowl Gap floor** — the largest single term in the outward thermal path.
+> **1.0 → 0.80 mm is 0.0077 m²K/W recovered for nothing.** `NP-EMC-CAV-001` §8.7 carries the stack;
+> this closes one of the four inputs `OI-EMCCAV-09` was waiting on.
+
 ### 3.2a Why the tier needs local intelligence — and why HUB-001's stated reason is not the reason
 
 `NP-HW-HUB-001` §3.2 argues the tier needs an MCU because **LED drive must distribute**:

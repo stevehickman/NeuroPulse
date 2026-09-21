@@ -1201,6 +1201,28 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
   must be traded, not stacked. **Dimensioning the assembled gap is `MECH-2`'s, and it is now the
   largest unclaimed thermal lever in the document set.**
 
+- **★ DECIDED 2026-09-21 (principal direction) — PLATE-1: the clamp plate POCKETS over the cluster
+  controller components.** Its seated plane is set by its **land areas**, not by the tallest part, so
+  the closed-state Gap stack is **max(component plane, plate plane)** rather than their **sum**.
+
+  **What it buys.** With `PCB-1` (0.80 mm, `NP-DRV-SHELL-002` §3.2) the component plane is
+  0.80 + 1.45 = **2.25 mm**, and the Gap floor lands at **2.75–3.25 mm** (clearance 0.5–1.0) against
+  a *summed* stack's ~3.55 mm — **0.031 m²K/W**, on top of `PCB-1`'s 0.0077.
+
+  > **⚠ And it spends plate section exactly where this section says not to.** The `CLUSTER-1`
+  > derivation above caps the cluster at 7 tiles because an 8th raises **plate-mode deflection
+  > ×3.07**, and calls that *"the one that matters"* — the per-module spring plungers exist because
+  > *"a rigid plate over a curved cluster could not seat evenly."* **Pocketing removes section**, and
+  > the plate already carries **34.2–57.0 N** across 19 contacts on a 6-tile plate (`NP-DRV-SHELL-002`
+  > §5.1.5). **The pocket geometry must not spend the margin the 7-tile cap bought.**
+  >
+  > **The mitigation is free, and it is available because nobody has used it yet: the controller
+  > board's POSITION within the cluster footprint is unspecified.** Neither this document nor
+  > `NP-DRV-SHELL-002` §3.2 places it. Sited **off mid-span**, the pocket removes section where the
+  > bending moment is low and the structural cost is near zero; sited **at the centre**, it removes it
+  > at maximum moment under a distributed load. **Ribbing around the pockets is the fallback, not the
+  > first move.** `OI-EMCCAV-13`.
+
 - **Optional alignment:** cluster boundaries may align to the lobe *zones* of
   `00-zones.npps` (a frontal-left cluster ≈ the "Frontal Left" zone), but are ultimately set by
   geometry/curvature — final cluster size is decided with the lattice work (§7

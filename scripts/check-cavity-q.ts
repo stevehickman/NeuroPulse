@@ -276,13 +276,25 @@ const GAP_FLOOR = {
     ["zero-drift op-amp, SOT-23-5", 1.45],
     ["passives 0402/0603", 0.55],
   ] as Array<[string, number]>,
-  pcbAssumed: [0.8, 1.0] as const, // 4-layer cluster PCB — thickness NOT stated
-  clearanceAssumed: [0.5, 1.0] as const, // assembly/tolerance — NOT stated
+  // PCB-1 (principal, 2026-09-21, NP-DRV-SHELL-002 §3.2): 0.80 mm ±0.08, 4-layer
+  // rigid-flex. Was an unstated assumption of 0.8-1.0; now a decision.
+  pcb: 0.8,
+  pcbTol: 0.08,
+  clearanceAssumed: [0.5, 1.0] as const, // assembly/tolerance — STILL NOT stated
 };
 const tallestPart = () => Math.max(...GAP_FLOOR.parts.map(([, h]) => h));
-/** Closed-state stack on L1's gap-facing face, if the clamp plate pockets over the parts. */
+/** Component plane on L1's gap-facing face: PCB-1 plus the tallest named package. */
+const componentPlane = () => GAP_FLOOR.pcb + tallestPart();
+/**
+ * PLATE-1 (principal, 2026-09-21): the plate POCKETS, so the closed-state stack is
+ * max(component plane, plate plane) — not their sum. Only the clearance term is
+ * still an assumption.
+ */
 const gapFloorPocketed = () =>
-  [0, 1].map((i) => GAP_FLOOR.pcbAssumed[i] + tallestPart() + GAP_FLOOR.clearanceAssumed[i]);
+  GAP_FLOOR.clearanceAssumed.map((c) => componentPlane() + c);
+/** What the plate would cost if it sat OVER the parts instead of pocketing. */
+const gapFloorStacked = (plateMm: number) =>
+  GAP_FLOOR.clearanceAssumed.map((c) => componentPlane() + plateMm + c);
 
 const clampStack = (withAbsorber: boolean) => {
   const t = [CLAMP_TOL.features, CLAMP_TOL.gap, ...(withAbsorber ? [CLAMP_TOL.absorber] : [])];
@@ -591,21 +603,26 @@ function reportGapFloor() {
     console.log(`    ${n.padEnd(30)} ${h.toFixed(2)} mm${h === tallestPart() ? "   <- tallest" : ""}`);
   }
   const [lo, hi] = gapFloorPocketed();
-  console.log(`\n  Closed-state stack, clamp plate POCKETED over the parts:`);
-  console.log(`    PCB ${GAP_FLOOR.pcbAssumed[0]}-${GAP_FLOOR.pcbAssumed[1]} (ASSUMED, not stated)`);
+  console.log(`\n  Closed-state stack, under PCB-1 and PLATE-1 (both principal, 2026-09-21):`);
+  console.log(`    PCB ${GAP_FLOOR.pcb} +/-${GAP_FLOOR.pcbTol}   <- PCB-1, DECIDED (was an assumption)`);
   console.log(`    + tallest part ${tallestPart()}`);
-  console.log(`    + clearance ${GAP_FLOOR.clearanceAssumed[0]}-${GAP_FLOOR.clearanceAssumed[1]} (ASSUMED, not stated)`);
+  console.log(`    = component plane ${componentPlane().toFixed(2)} mm`);
+  console.log(`    + clearance ${GAP_FLOOR.clearanceAssumed[0]}-${GAP_FLOOR.clearanceAssumed[1]} (STILL ASSUMED, not stated)`);
   console.log(`    = ${lo.toFixed(2)}-${hi.toFixed(2)} mm   against 5-7 mm today\n`);
-  console.log(`  If the plate instead SITS OVER the parts, add its thickness — also unstated.\n`);
+  console.log(`  PLATE-1 pockets, so this is max(component, plate) and NOT their sum. A`);
+  console.log(`  0.8 mm plate sitting OVER the parts would give ${gapFloorStacked(0.8)[0].toFixed(2)} mm instead —`);
+  console.log(`  pocketing is worth ${(rGap(gapFloorStacked(0.8)[0]) - rGap(lo)).toFixed(3)} m2K/W, on top of PCB-1's ` +
+    `${(rGap(1.0 + tallestPart() + 0.5) - rGap(lo)).toFixed(4)}.\n`);
   console.log(`  Thermal value of landing in that band:`);
   for (const mm of [3.5, 3.0, 2.75]) {
     console.log(`    ${mm.toFixed(2)} mm -> outward ${outwardAtGap(mm).toFixed(3)}` +
       `   (recovers ${(rGap(GAP.nominalMm) - rGap(mm)).toFixed(3)})`);
   }
-  console.log(`\n  THREE INPUTS DO NOT EXIST and MECH-2 needs them: the cluster PCB`);
-  console.log(`  thickness, the clamp plate thickness, and whether the plate pockets.`);
-  console.log(`  A fourth — the outer bowl's inner-surface PROFILE tolerance — is not`);
-  console.log(`  stated either, and it sets the clearance term above.`);
+  console.log(`\n  TWO of the four missing inputs are now closed: PCB-1 fixes the board at`);
+  console.log(`  0.80 mm and PLATE-1 makes the plate pocket. TWO REMAIN, both MECH-2's:`);
+  console.log(`  the plate's own structural thickness (it only governs if it exceeds the`);
+  console.log(`  ${tallestPart()} mm component plane), and the outer bowl's inner-surface PROFILE`);
+  console.log(`  tolerance, which is nowhere in the record and sets the clearance term.`);
 }
 
 function reportValidation(): boolean {
@@ -657,8 +674,12 @@ function reportValidation(): boolean {
     ["2 mm of gap vs deleting the absorber", 2 * gapPerMm() - rStation(THERM.kFoam), 0.0019, 0.001],
     // §8.7 — the Gap floor is set by the controller components, not the lever.
     ["tallest named gap-facing package (mm)", tallestPart(), 1.45, 0.01],
-    ["gap floor, pocketed plate, low (mm)", gapFloorPocketed()[0], 2.75, 0.01],
-    ["gap floor, pocketed plate, high (mm)", gapFloorPocketed()[1], 3.45, 0.01],
+    ["component plane, PCB-1 + tallest part (mm)", componentPlane(), 2.25, 0.01],
+    ["gap floor, PLATE-1 pocketed, low (mm)", gapFloorPocketed()[0], 2.75, 0.01],
+    ["gap floor, PLATE-1 pocketed, high (mm)", gapFloorPocketed()[1], 3.25, 0.01],
+    ["PLATE-1 saving vs a 0.8 mm plate sitting over", rGap(gapFloorStacked(0.8)[0]) - rGap(gapFloorPocketed()[0]), 0.031, 0.002],
+    ["PCB-1 saving, 1.0 -> 0.80 mm", rGap(1.0 + tallestPart() + 0.5) - rGap(gapFloorPocketed()[0]), 0.0077, 0.0005],
+    ["outward total at the 2.75 mm floor", outwardAtGap(gapFloorPocketed()[0]), 0.285, 0.002],
     ["outward total at a 3 mm gap", outwardAtGap(3), 0.295, 0.002],
     ["recovery, 6 mm -> 3 mm", rGap(GAP.nominalMm) - rGap(3), 0.115, 0.002],
   ];
