@@ -2,14 +2,14 @@
 
 **Project:** NeurOne
 **Document:** NP-RISK-002
-**Revision:** 2
-**Date:** 2026-09-14
+**Revision:** 3
+**Date:** 2026-09-20
 **Status:** ACTIVE
 **Effective Date:** 2026-08-11
 **Author:** NeurOne Quality (interim: Steve Hickman, CEO)
 **Approved By:** Steve Hickman, CEO
-**References:** NP-RISK-001 Rev 3 (superseded — `docs/superseded/np_risk_001.docx`); NP-RM-001 Rev 1 §4 (scales), §8.1 (baseline), §8.2 (change control); NP-RISK-003 Rev 1; NP-RISK-004 Rev 1; NP-ART-001 Rev 2; NP-FAI-001 Rev 2 §2.1, §7; NP-FMEA-001 Rev 4; NP-FMEA-GEOM-001 Rev 1; NP-QMS-DC-001 Rev 1; NP-QMS-CAPA-001 Rev 1; NP-DHF-001 Rev 27; ISO 14971:2019
-**Related Issues:** GitHub Issue #343 (RISK-25 FAI-bench blocker restated); GitHub Issue #332 (A14 hardware specification)
+**References:** NP-RISK-001 Rev 3 (superseded — `docs/superseded/np_risk_001.docx`); NP-RM-001 Rev 1 §4 (scales), §8.1 (baseline), §8.2 (change control); NP-RISK-003 Rev 1; NP-RISK-004 Rev 1; NP-ART-001 Rev 3; NP-FAI-001 Rev 2 §2.1, §7; NP-HW-AUDIO-001 Rev 1 §7; NP-HW-NASAL-001 Rev 1 §7; NP-HW-VNSCLIP-001 Rev 1 §7; NP-HW-CVNS-001 Rev 1 §7; NP-HW-TMS-001 Rev 1 §7; NP-FMEA-001 Rev 4; NP-FMEA-GEOM-001 Rev 1; NP-QMS-DC-001 Rev 1; NP-QMS-CAPA-001 Rev 1; NP-DHF-001 Rev 27; ISO 14971:2019
+**Related Issues:** GitHub Issue #343 (RISK-25 FAI-bench blocker restated); GitHub Issue #332 (A11–A15 hardware specifications — `OI-RISK2-02` unblocked)
 **Gate:** NP-COORD-001 G2
 **IEC 62304 Class:** N/A (hardware risk file)
 **Supersedes:** **NP-RISK-001 Rev 3** — as the ISO 14971 risk file of record. Content is dispositioned in §3, not discarded.
@@ -134,6 +134,36 @@ Two carried risks have no per-artifact register because their artifact has no sp
 > modalities — intranasal PBM, neural audio entrainment, auricular VNS/HRV — have had no hazard
 > analysis. Recorded as **OI-RISK2-02**.
 
+### 4.1 The reason for the hold is discharged — the hold is not (Rev 3, 2026-09-20, GitHub #332)
+
+Both rows above are held *because the artifact has no specification document to analyse*. **All four
+artifacts now have one** — `NP-HW-AUDIO-001` (A11), `NP-HW-NASAL-001` (A12), `NP-HW-VNSCLIP-001`
+(A13) and `NP-HW-CVNS-001` (A14), with `NP-HW-TMS-001` covering A15 — and `NP-ART-001` OI-ART-04 is
+discharged into `OI-ART-09`.
+
+**Nothing in §3 or §4 is re-dispositioned, re-scored or moved by this revision.** RISK-25 remains
+LOW / MITIGATED and CARRIED, and the three unassessed modalities remain unassessed: **a hazard
+analysis is an act, not a consequence of a document existing.** What changes is that
+**`OI-RISK2-02` is unblocked**, and each specification supplies the input list its analysis starts
+from — `NP-HW-AUDIO-001` §7, `NP-HW-NASAL-001` §7, `NP-HW-VNSCLIP-001` §7, and for A14 and A15
+`NP-HW-CVNS-001` §7 and `NP-HW-TMS-001` §7. Each list is deliberately **unscored**, on the same
+principle §3 applies: disposition and rating are separate acts (OI-RISK2-01).
+
+**Four inputs those lists carry that this file has never held, and that bear on risks already in
+it:**
+
+| Input | Bears on |
+|---|---|
+| A14's cardiac interlock takes its R-peaks from **A13's PPG sensor** — a cross-artifact dependency stated in no device description, control set or IFU (`NP-HW-CVNS-001` §5.2, `OI-CVNSHW-03`) | **RISK-25 directly.** Its mitigation of record is the interlock; the interlock's sensor is in another artifact whose skin contact is a consumable degraded by unrelated use |
+| The per-phase charge ceiling divides by **unmeasured PROVISIONAL electrode areas** for both the auricular clip (0.5 cm²) and the cervical collar (2 cm²) | `OI-CHARGE-07`; RISK-25's charge limb |
+| The intranasal probe has **no exposure ceiling and no temperature sensor** (`OI-NASAL-02`, BLOCKING) | A12's analysis, and `RISK-03`'s scope — which covers 660/808 nm **at the scalp**, not mucosa |
+| A15 has **no risk register entry of any kind**; `RISK-PWRTH-01` (coil at 42 °C, no cooling path, **no verification defined**) and `RISK-PWRTH-03` sit in `NP-PWR-THERM-001` §15, a thermal study | §5's list of hazards the architecture created — A15's are held outside the risk file entirely |
+
+**A correction of record.** `NP-ART-001` Rev 1 and Rev 2 marked A13's risk-register column **✅
+`NP-RISK-002` §4**. The §4 row it points at is the second row above — the one stating the clip's
+hazards are *not assessed at all*. **That is a named absence, not a register entry**, and the tick
+read as coverage. Corrected in `NP-ART-001` Rev 3.
+
 ---
 
 ## 5. Risks the architecture change created
@@ -170,7 +200,7 @@ control effective 2026-05-13. That statement is amended, not withdrawn:
 | ID | Description | Owner | Blocking |
 |---|---|---|---|
 | **OI-RISK2-01** | Re-score the carried risks against the `NP-RM-001` §4 severity × probability scales **at the new architecture's numbers**. This document deliberately re-scores nothing — disposition and re-scoring are separate acts, and mixing them would hide which judgements changed. RISK-16 (5 → ~30 seals) and RISK-22 (≤ 1 N lever → 34.2–57.0 N plate) are the two whose scores most plainly no longer hold. | Quality + ME | ISO 14971 file currency |
-| **OI-RISK2-02** | **Hazard analysis for A11 (audio cup), A12 (intranasal Y-probe) and A13 (auricular VNS/HRV clip).** Three shipping T1 modalities with no entries in any risk register, ever. Blocked behind `NP-ART-001` OI-ART-04 (they have no specification to analyse). | Quality + Systems | **ISO 14971 completeness; T1 release** |
+| **OI-RISK2-02** | **Hazard analysis for A11 (audio cup), A12 (intranasal Y-probe) and A13 (auricular VNS/HRV clip).** Three shipping T1 modalities with no entries in any risk register, ever. ~~Blocked behind `NP-ART-001` OI-ART-04 (they have no specification to analyse).~~ **UNBLOCKED 2026-09-20 (GitHub #332)** — all three now have owning specifications, and each supplies an unscored hazard-input list in its §7 (§4.1). The item stays **OPEN**: the analysis itself has not been performed, and the specifications are DRAFT, so some inputs (electrode area, exposure ceilings, materials) are still open items rather than values. **Extend it to A15**, which has no risk register entry of any kind — `RISK-PWRTH-01` and `-03` sit in `NP-PWR-THERM-001` §15 rather than in this file. | Quality + Systems | **ISO 14971 completeness; T1 release** |
 | **OI-RISK2-03** | Confirm the nine RETIRED dispositions with a second reader. Each rests on a claim that a mechanism no longer exists in the design — the failure mode of this document is a hazard retired because its *old* description stopped matching, while the hazard itself moved somewhere nobody looked. RISK-11 and RISK-15 are the two worth re-testing hardest. | Quality | Risk file integrity |
 | **OI-RISK2-04** | RISK-03 (400 mW/cm² regulatory opinion) has been OPEN and externally blocked since 2026-05-06 with no counsel commissioned. It is the only risk in the file whose owner is the CEO. | CEO / Regulatory Counsel | Irradiance ceiling; RSET values |
 
@@ -180,5 +210,6 @@ control effective 2026-05-13. That statement is amended, not withdrawn:
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| **3** | **2026-09-20** | **NeurOne Quality** | **§4's two held rows keep their hold, and the reason for it is discharged (GitHub #332).** Both rows are held because the artifact *"has no specification document to analyse"*; A11–A15 now have owning specifications (`NP-HW-AUDIO-001`, `NP-HW-NASAL-001`, `NP-HW-VNSCLIP-001`, `NP-HW-CVNS-001`, `NP-HW-TMS-001`), so **`OI-RISK2-02` is unblocked and stays OPEN** — new §4.1 records that a hazard analysis is an act, not a consequence of a document existing, and points at the unscored input list each specification supplies in its §7. **No risk is re-dispositioned, re-scored, re-classified or moved; RISK-25 remains LOW / MITIGATED and CARRIED; the three unassessed modalities remain unassessed.** §4.1 carries four inputs this file has never held, one of which bears on **RISK-25 directly**: its mitigation of record is the cardiac interlock, and that interlock's **R-peak source is A13's PPG sensor** — a cross-artifact dependency stated in no device description, control set or IFU (`OI-CVNSHW-03`). The other three: the per-phase charge ceiling divides by **unmeasured PROVISIONAL electrode areas** on both VNS channels (`OI-CHARGE-07`); the intranasal probe has **no exposure ceiling and no temperature sensor** (`OI-NASAL-02`, BLOCKING) while `RISK-03`'s scope is 660/808 nm **at the scalp**; and **A15 has no risk register entry at all**, its two hazard rows living in a thermal study. **Correction of record:** `NP-ART-001` Rev 1 and Rev 2 showed ✅ for A13's risk register against the §4 row that states its hazards are *not assessed* — a named absence read as coverage, corrected in that register's Rev 3. `OI-RISK2-02` is extended to A15. |
 | **2** | **2026-09-14** | **NeurOne Quality** | **RISK-25's FAI-bench blocker is restated: it is the missing hardware specification, not a missing checklist.** Rev 1's §4 row said the bench *"cannot run because `NP-FAI-CVNS-001` has never existed"*, which inverted cause and effect — a checklist is absent **because** A14 has no mechanical or electrical specification (GitHub #332), and `NP-FAI-001` §2 F1 forbids writing one against nothing. GitHub #343 closed `NP-ART-001` OI-ART-05 and established that four of the five cited `NP-FAI-*` serials were duplicate names for firmware-specification sections; `NP-FAI-CVNS-001` is the one real absence and stays named in `NP-ART-001` §3.2. FAI-CV01…CV03 themselves are specified in `NP-FW-CVNS-001` §9 and always were. **No risk is re-scored, re-classified or re-dispositioned; no mitigation changes; RISK-25 remains LOW / MITIGATED and CARRIED.** |
 | 1 | 2026-08-11 | NeurOne Quality | Initial release. Re-baselines the ISO 14971 risk file after the 2026-07-15 hex-tile architecture change, replacing `NP-RISK-001` Rev 3 as the file of record. **All twenty-six RISK IDs dispositioned individually (§3)** — 5 retired with the mechanism that produced them (RISK-01, -07, -09, -11, -15), 20 carried (10 → `NP-RISK-003`, 9 → `NP-RISK-004`, RISK-25 held in §4), 1 (**RISK-24**) closed by being *confirmed*: the 15 mm PBM-to-EEG separation was found geometrically impossible in the hex architecture and the requirement was replaced by the < 5 µVpp threshold it was a proxy for. Records that **RISK-16 is the one risk the architecture change made worse** (5 → ~30 perimeter seals) and that **RISK-11 is the largest improvement** (dynamic-flex set is now empty). No risk is re-scored — deliberately, and OI-RISK2-01 holds that work. §4 surfaces that three shipping T1 modalities (intranasal, audio, auricular clip) have **never had a hazard analysis**, invisible while the file was zone-module-shaped. §5 records five new hazards the architecture created, under prefixed IDs so the `RISK-NN` sequence stays closed at 26 and append-only. §6 amends `NP-RM-001` §8.1's change-control statement. Raises OI-RISK2-01…04. |

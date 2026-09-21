@@ -2,14 +2,14 @@
 
 **Project:** NeurOne
 **Document:** NP-FAI-001
-**Revision:** 2
-**Date:** 2026-09-14
+**Revision:** 3
+**Date:** 2026-09-20
 **Status:** ACTIVE
 **Effective Date:** 2026-08-11
 **Author:** NeurOne Quality (interim: Steve Hickman, CEO)
 **Approved By:** — (new document)
-**References:** NP-ART-001 Rev 1 (artifact register); NP-FAI-ZM-001 Rev 1 (superseded — method source); NP-RM-001 Rev 1 §4 (severity/probability scales); NP-QMS-DC-001 (record types); NP-PROC-SUP-001 Rev 1 (supplier qualification); NP-COORD-001 (gates); NP-CONV-001 Rev 6 §1.1, §4, §6; NP-FW-PBM1064-001 Rev 4 §11; NP-FW-HD-001 Rev 6 §12; NP-FW-CVNS-001 Rev 4 §9; NP-FW-ANON-001 Rev 1 §9; NP-HW-TCAP-001 Rev 1; NP-PRIV-REM-001 Rev 5 STEP-22…STEP-24; `docs/superseded/README.md`
-**Related Issues:** GitHub Issue #343 (OI-ART-05 disposition); GitHub Issue #332 (A14 hardware specification)
+**References:** NP-ART-001 Rev 1 (artifact register); NP-FAI-ZM-001 Rev 1 (superseded — method source); NP-RM-001 Rev 1 §4 (severity/probability scales); NP-QMS-DC-001 (record types); NP-PROC-SUP-001 Rev 1 (supplier qualification); NP-COORD-001 (gates); NP-CONV-001 Rev 6 §1.1, §4, §6; NP-FW-PBM1064-001 Rev 4 §11; NP-FW-HD-001 Rev 6 §12; NP-FW-CVNS-001 Rev 5 §9; NP-FW-ANON-001 Rev 1 §9; NP-HW-TCAP-001 Rev 2; NP-HW-AUDIO-001 Rev 1 §8.1; NP-HW-NASAL-001 Rev 1 §8.1; NP-HW-VNSCLIP-001 Rev 1 §8.1; NP-HW-CVNS-001 Rev 1 §8.1; NP-HW-TMS-001 Rev 1 §8.1; NP-HW-TACSDRV-001 Rev 1; NP-PRIV-REM-001 Rev 5 STEP-22…STEP-24; `docs/superseded/README.md`
+**Related Issues:** GitHub Issue #343 (OI-ART-05 disposition); GitHub Issue #332 (A11–A15 hardware specifications — §2.1.1 and OI-FAI-07 re-scoped; §2.2 added)
 **Gate:** NP-COORD-001 G2 (pre-tooling) and G3 (pre-production)
 **IEC 62304 Class:** N/A (mechanical/electrical inspection programme)
 **Supersedes:** None. `NP-FAI-ZM-001` Rev 1 is superseded by this document **together with** `NP-ART-001` and the per-artifact checklists; no single document replaces it one-for-one, because it conflated a programme, a method and one artifact's checklist.
@@ -103,14 +103,46 @@ right. **None passes, and none can be written today:**
 | Candidate checklist | Artifact it would inspect | §2 verdict |
 |---|---|---|
 | 1064 nm smart module hardware items (FAI-SM-04, -06, -07, -08) | **A2** hex-tile FPC + element population, T1-C | **F1 fails** — `NP-HW-HEXTILE-001` is DESIGN STUDY, and `OI-HEXTILE-02` has selected no emitter, so its §4.3 V_f and radiant-flux figures are design targets rather than datasheet values (`NP-ART-001` §3.2). A2's checklist is already named `NP-FAI-HEXFPC-001` in `NP-ART-001` §3.2; these items belong to it, not to a smart-module serial. |
-| HD-tDCS hardware items (FAI-HD01 bench, HD03, HD04) | **T2 clinical electrode cap** | **F1 fails** — `NP-HW-TCAP-001` Rev 1 is DRAFT. **F4 has no register entry to hang on**: the cap is not in `NP-ART-001` §2 at all, which that document raises as `OI-ART-08` (see also `OI-TCAP-06`, `OI-ART-06`). |
-| Cervical VNS hardware items (FAI-CV01…CV03) | **A14** cervical VNS accessory | **F1 fails absolutely** — no mechanical or electrical specification exists for the electrode assembly, cable or connector (GitHub #332). This is the one case where the *checklist* is genuinely absent rather than misnamed, and it keeps its serial as a named absence per §2's closing rule. |
+| HD-tDCS hardware items (FAI-HD01 bench, HD03, HD04) | **T2 clinical electrode cap** | **F1 fails** — `NP-HW-TCAP-001` is DRAFT (Rev 2). **F4 has no register entry to hang on**: the cap is not in `NP-ART-001` §2 at all, which that document raises as `OI-ART-08` (see also `OI-TCAP-06`, `OI-ART-06`). |
+| Cervical VNS hardware items (FAI-CV01…CV03) | **A14** cervical VNS accessory | **F1 fails absolutely** — no mechanical or electrical specification exists for the electrode assembly, cable or connector (GitHub #332). This is the one case where the *checklist* is genuinely absent rather than misnamed, and it keeps its serial as a named absence per §2's closing rule. **Superseded in one word at Rev 3, 2026-09-20: not *absolutely*.** `NP-HW-CVNS-001` Rev 1 exists; F1 still fails, on DRAFT status. See §2.2. |
 | Research anonymisation (FAI-ANON-01…09) | — | **Out of scope of this programme.** §1 excludes software verification, and `NP-ART-001` §1 excludes firmware modules and data schemas from the artifact register. A pipeline that ships as code has no first article to inspect. `NP-FW-ANON-001` §9 under `NP-SW-001` and IEC 62304 is the correct and sufficient record; `NP-PRIV-REM-001` STEP-22 and STEP-23 already name their verification tests this way, without inventing a serial. STEP-24 was the outlier and is corrected. |
 
 So the standing state after this disposition is: **one named, unwritten artifact checklist
 (`NP-FAI-CVNS-001`), blocked on F1**; two item groups that will be absorbed by checklists already
 named in `NP-ART-001` §3.2 when those become writable (OI-FAI-05, OI-FAI-06); and one item group
 that never needed an FAI serial.
+
+### 2.2 Six artifacts gained an owning specification and none gained a checklist (Rev 3, 2026-09-20)
+
+`NP-ART-001` Rev 3 issued `NP-HW-AUDIO-001` (A11), `NP-HW-NASAL-001` (A12), `NP-HW-VNSCLIP-001`
+(A13), `NP-HW-CVNS-001` (A14), `NP-HW-TMS-001` (A15) and `NP-HW-TACSDRV-001` (A16, a new register
+row) against GitHub #332. **This section records what that does to §2, which is less than it
+sounds and is worth stating precisely.**
+
+| Artifact | F1 | F2 | F3 | F4 |
+|---|---|---|---|---|
+| A11 audio cup | **fails** — DRAFT | **fails** — no dimension exists | not assessable | **fails**, unblocked (`OI-RISK2-02`) |
+| A12 intranasal probe | **fails** — DRAFT | **fails** — only the 15/20/25 mm ring family is dimensioned, without tolerances | not assessable | **fails**, unblocked |
+| A13 auricular clip | **fails** — DRAFT | **fails** — the one numeric property with a value (pad area) is PROVISIONAL | not assessable | **fails**, unblocked |
+| A14 cervical VNS | **fails** — DRAFT | **fails** | not assessable | **passes** — RISK-25, and `NP-RISK-002` §4's reason for holding it outside a per-artifact register is discharged |
+| A15 TMS coil | **fails** — DRAFT **and gated behind two BLOCKING items** | **fails** — `SPEC-TMS` is design-study grade and explicitly re-derivable | not assessable | **fails** — no risk register of any kind |
+| A16 tACS driver stage | **fails** — DRAFT | **fails** — no silicon, no compliance voltage | not assessable | **fails** — which register owns it depends on `OI-TACSDRV-01` |
+
+**So the writable-checklist count is unchanged at one** (`NP-FAI-HUB-001`), against sixteen
+artifacts rather than fifteen. **That is §2 working, not §2 failing.** F1 exists precisely so that a
+`DRAFT` document — which states in its own status line that its numbers are proposals — cannot be
+inspected to; six new DRAFT documents create six new owning specifications and zero new accept
+criteria.
+
+**What did change is the *shape* of the absence**, and it is the difference between an unanswerable
+and an answerable question. Before: *"no owning specification document exists at all"* — nobody
+owned the gap and nothing named what would close it. Now each blocked checklist has a document that
+enumerates, by open-item ID, the engineering decisions standing between it and F1/F2. `NP-ART-001`
+`OI-ART-09` is the successor item that tracks them.
+
+**`NP-FAI-TACSDRV-001` is named here for the first time**, as §2's closing rule requires of an
+artifact failing F1. No FAI item anywhere inspects the driver stage today — FAI-HD01's bench limb,
+HD03 and HD04 inspect the **cap** (`NP-FW-HD-001` §12), which is `OI-FAI-06`'s subject.
 
 #### 2.1.2 Where these serials may still appear, and where they may not
 
@@ -274,8 +306,9 @@ closure. The mapping for the tests in this document:
 | **OI-FAI-03** | Confirm the §5 ingress qualification scales to ~30 seals, or re-derive it. FAI-IPX-02's cycle count grows 6× and the seals are in series for the enclosure claim but independent for the tile claim; the retired test never had to distinguish those. | ME + Quality | IPX4 claim |
 | **OI-FAI-04** | Decide whether `NP-QR-PDMS-001` (the qualification report the retired checklist required by number) is still the record of file, or whether it is superseded alongside its parent. It is cited by number and has never been created. | Quality | DHF consistency |
 | **OI-FAI-05** | **Fold FAI-SM-04, -06, -07 and -08 into `NP-FAI-HEXFPC-001` when that checklist becomes writable.** §2.1 retired `NP-FAI-SM-001`; `NP-FW-PBM1064-001` §11 keeps the items, but §11 is a *firmware* specification and the four hardware-bench items inspect artifact A2. They have no artifact checklist until `OI-HEXTILE-02`, `-12` and `-05` close. Do not re-create a smart-module serial to hold them. | Quality + HW EE | `NP-FAI-HEXFPC-001` issue |
-| **OI-FAI-06** | **The T2 clinical electrode cap has no artifact-register entry, so its hardware FAI has nothing to hang on.** FAI-HD01's bench limb, FAI-HD03 and FAI-HD04 inspect the cap; its only specification, `NP-HW-TCAP-001` Rev 1, is DRAFT (F1) and the cap appears nowhere in `NP-ART-001` §2 (F4). Resolve with `OI-TCAP-06` / `OI-ART-06` by giving the cap a register row, then name its checklist from the register rather than from `NP-FW-HD-001` §12. | Systems + Quality | T2 verification planning |
-| **OI-FAI-07** | **`NP-FAI-CVNS-001` stays a named absence until A14 has a hardware specification.** It is the only one of §2.1's five that is a genuinely missing checklist rather than a duplicate serial, and it fails F1 outright — there is no mechanical or electrical specification for the cervical VNS electrode assembly, cable or connector (GitHub #332, and `NP-ART-001` OI-ART-04 for the same gap across A11–A13, A15). Until then `NP-RISK-002` RISK-25's FAI bench cannot be scheduled. | Systems + ME | RISK-25 closure; T2 accessory release |
+| **OI-FAI-06** | **The T2 clinical electrode cap has no artifact-register entry, so its hardware FAI has nothing to hang on.** FAI-HD01's bench limb, FAI-HD03 and FAI-HD04 inspect the cap; its only specification, `NP-HW-TCAP-001` (Rev 2), is DRAFT (F1) and the cap appears nowhere in `NP-ART-001` §2 (F4). Resolve with `OI-TCAP-06` / `OI-ART-06` by giving the cap a register row, then name its checklist from the register rather than from `NP-FW-HD-001` §12. | Systems + Quality | T2 verification planning |
+| **OI-FAI-07** | **`NP-FAI-CVNS-001` stays a named absence — re-scoped 2026-09-20, not closed.** It is the only one of §2.1's five that is a genuinely missing checklist rather than a duplicate serial. **As written it asked for A14 to have a hardware specification; A14 has one** (`NP-HW-CVNS-001` Rev 1, GitHub #332), and F1 still fails because that document is DRAFT — satisfied in its letter, not its substance. The item now runs until `NP-HW-CVNS-001` reaches `ACTIVE`/`BASELINED` with dimensioned criteria, tracked per-decision by `OI-CVNSHW-01…08` and collectively by `NP-ART-001` OI-ART-09. Note `REQ-CVNS-12`: FAI-CV01's placement, impedance and open-detection criteria are **A14's acceptance criteria** carried by a firmware test procedure, and `NP-FAI-CVNS-001` inherits them when F1 is met — nothing moves out of `NP-FW-CVNS-001` §9 meanwhile. Until then `NP-RISK-002` RISK-25's FAI bench cannot be scheduled. | Systems + ME | RISK-25 closure; T2 accessory release |
+| **OI-FAI-08** | **`NP-FAI-TACSDRV-001` is a named absence from its first mention (§2.2).** The 21-channel clinical tACS driver stage (A16) has no FAI item anywhere and fails F1, F2 and F4. F4 is the one to sequence first, because `OI-TACSDRV-01`'s siting decision determines **which** risk register and which artifact row own the stage — and if it is sited on Hub PCB Rev C the checklist is `NP-FAI-HUBPCB-001`'s problem, not a new serial's. | Quality + EE | A16 verification planning |
 
 ---
 
@@ -283,5 +316,6 @@ closure. The mapping for the tests in this document:
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| **3** | **2026-09-20** | **NeurOne Quality** | **§2.2 added — six artifacts gained an owning specification and no checklist became writable (GitHub #332).** `NP-ART-001` Rev 3 issued hardware specifications for A11, A12, A13, A14, A15 and the newly registered A16; §2.2 tests each against F1–F4 and records that **all six fail F1 on DRAFT status**, five fail F4, and the writable-checklist count stays at **one** (`NP-FAI-HUB-001`) against sixteen artifacts. **That is §2 working**: F1 exists so that a document whose own status line calls its numbers proposals cannot be inspected to. What changed is the *shape* of the absence — from *"no owning specification exists"*, which nobody owned, to a per-document list of the engineering decisions standing between each checklist and F1/F2 (`NP-ART-001` OI-ART-09). **§2.1.1's verdict on A14 is corrected in one word**: *"F1 fails absolutely"* was true when written and is superseded — `NP-HW-CVNS-001` Rev 1 exists and F1 fails on its DRAFT status. **`OI-FAI-07` is re-scoped, not closed**, because its wording is satisfied in the letter and not the substance; it now runs until that document reaches `ACTIVE`/`BASELINED`. **`NP-FAI-TACSDRV-001` is named for the first time** as a named absence, with `OI-FAI-08` raised and its F4 limb sequenced behind the driver's siting decision. **No accept criterion, item number, process qualification or issue condition is created, changed or deleted, and nothing moves out of any firmware specification's own FAI section.** |
 | **2** | **2026-09-14** | **NeurOne Quality** | **§2.1 added — disposition of the five `NP-FAI-*` serials that were cited as controlled documents and never written (closes `NP-ART-001` OI-ART-05, GitHub #343).** Principal finding: **four of the five were duplicate serials, not missing documents.** FAI-SM-01…11, FAI-HD01…HD04, FAI-CV01…CV03 and FAI-ANON-01…09 are each already specified in a firmware specification's own FAI section (`NP-FW-PBM1064-001` §11, `NP-FW-HD-001` §12, `NP-FW-CVNS-001` §9, `NP-FW-ANON-001` §9 — three BASELINED, one ACTIVE), so `NP-FAI-SM-001`, `NP-FAI-HD-001`, `NP-FAI-CV-001` and `NP-FAI-ANON-001` are **retired** and every citation is re-pointed at the section that holds the items. `NP-FAI-CV-001` was additionally a second serial for the same artifact as `NP-FAI-CVNS-001`. **No item number is renumbered and no accept criterion is created, changed or deleted** — nothing about the programme's engineering content moves. Each candidate was then tested against §2's F1–F4 **as an artifact checklist in its own right, and none passes**: the smart-module hardware items belong to `NP-FAI-HEXFPC-001` (OI-FAI-05), the HD-tDCS bench items to a cap that has no register row (OI-FAI-06), and `NP-FAI-CVNS-001` fails F1 outright and is **retained as a named absence** in `NP-ART-001` §3.2 exactly as §2's closing rule requires (OI-FAI-07); research anonymisation is out of this programme's scope per §1 and needed no FAI serial. **§3.1 added** — an `FAI-<GROUP><NN>` prefix numbers an item and never implies an `NP-FAI-<GROUP>-001`, which is the inference that produced all five; a bare item number is not a citation. §2.1.2 states the two places a retired serial may still appear (the register that records the absence, and historical records protected by `NP-CONV-001` §1.1) so that a later sweep does not delete the evidence that made the gap findable. Raises OI-FAI-05, -06, -07. |
 | 1 | 2026-08-11 | NeurOne Quality | Initial release. Separates the FAI *programme and method* from the per-artifact *checklists* and from the *artifact register*, which `NP-FAI-ZM-001` Rev 1 conflated. §2 states the four conditions (F1–F4) under which a checklist may be issued at all — the rule that produced the blocked list in `NP-ART-001` §3.2. §3 retains the nine-section checklist pattern and adds the `[GATED: OI-xxx]` marker so an item can exist without an invented accept criterion. §4 and §5 carry forward the two process qualifications that are properties of materials and process rather than of the retired geometry: PDMS–PI bond (FAI-M01…M03, FAI-TC01…TC06) and post-service ingress (FAI-IPX-01…04). **Two criteria tightened by the architecture change rather than relaxed**: FAI-IPX-02 grows from 50 swaps over 5 seals to ~300 over ~30, and FAI-TC04a adds a 1064 nm transmittance check the original predates. Records that **FAI-TC02 remains BLOCKING and unmet** — the programme's oldest open production gate, unaffected by the hex-tile decision. Raises OI-FAI-01…04. |

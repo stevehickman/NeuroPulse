@@ -2,20 +2,22 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 4
-**Date:** 2026-09-14
+**Revision:** 5
+**Date:** 2026-09-20
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
-**References:** CLAUDE.md §3 T2 additions (cervical VNS accessory)
-**Related Issues:** GitHub Issue #24; GitHub Issue #343 (§9 FAI serial disposition); GitHub Issue #332 (A14 hardware specification)
+**References:** CLAUDE.md §3 T2 additions (cervical VNS accessory); NP-HW-CVNS-001 Rev 1 (the A14 hardware specification, from 2026-09-20)
+**Related Issues:** GitHub Issue #24; GitHub Issue #343 (§9 FAI serial disposition); GitHub Issue #332 (A14 hardware specification — issued 2026-09-20 as NP-HW-CVNS-001)
 **Gate:** NP-COORD-001 G3-08
 **IEC 62304 Class:** SW-01 Class C (safety MCU) / SW-02 Class B (main processor)
-**Supersedes:** NP-FW-CVNS-001 Rev 3
+**Supersedes:** NP-FW-CVNS-001 Rev 4
 **Parent Document:** NP-SW-001
 
 ---
+
+**Rev 5 (2026-09-20): §9's note said no A14 hardware specification exists; one does now, and the conclusion it supported is unchanged.** GitHub #332 issued **`NP-HW-CVNS-001` Rev 1**, the mechanical and electrical specification for the electrode assembly, cable and connector. `NP-FAI-CVNS-001` remains unwritable and remains a named absence in `NP-ART-001` §3.2 — `NP-FAI-001` §2 F1 requires `BASELINED` or `ACTIVE` and that document is DRAFT — so **only the stated reason changes**, from *absence* to *maturity* (`NP-FAI-001` §2.2, and OI-FAI-07 re-scoped rather than closed). §9's header note and §10's Rev 4 note are updated to say so. **`NP-HW-CVNS-001` `REQ-CVNS-12` records that FAI-CV01's placement, impedance and open-detection criteria are A14's acceptance criteria carried by a firmware test procedure, and that the artifact checklist inherits them when F1 is met — nothing moves out of §9, which stays the test specification and the record of file.** **No constant, limit, criterion, item number, test procedure or firmware behaviour changed. IEC 62304 SW-01 Class C / SW-02 Class B: no code, no interface and no verification is affected.**
 
 **Rev 4 (2026-09-14): §9 stops being cited as a document that does not exist.** `firmware/CMakeLists.txt` registered `np_cvns_fai_tests` as *"NP-FAI-CVNS-001: cardiac interlock FAI suite"* and the binary printed that serial as its own document header. Neither half held: the serial has never been written, and the suite tests the main-processor module rather than the Class C interlock. GitHub #343 / `NP-FAI-001` §2.1 retire the citation — **§9 is the test specification** — while `NP-FAI-CVNS-001` itself stays a *named absence* in `NP-ART-001` §3.2, because A14 still has no hardware specification (#332) and §2 F1 therefore fails. §9 gains a header note saying so, and §10's note is corrected. The Rev 3 banner below is retained as written; its description of the old registration is a record of what was true then. **No constant, limit, criterion, item number or firmware behaviour changed.**
 
@@ -558,11 +560,16 @@ np_cvns_stage_t np_cvns_session_stage(const np_cvns_session_ctx_t *ctx);
 
 > **This section is the test specification for FAI-CV01…CV03, and there is no separate FAI
 > checklist document.** The A14 *artifact* FAI checklist is named `NP-FAI-CVNS-001` by
-> `NP-ART-001` §3.2 and **has never been written** — no mechanical or electrical specification
-> exists for the electrode assembly, cable or connector (GitHub #332), so `NP-FAI-001` §2 F1
-> fails and §2 requires a named absence rather than a checklist with invented accept criteria.
+> `NP-ART-001` §3.2 and **has never been written**. **Updated at Rev 5:** through Rev 4 the reason
+> given was that *no mechanical or electrical specification exists for the electrode assembly,
+> cable or connector (GitHub #332)*. One does — **`NP-HW-CVNS-001` Rev 1**, issued 2026-09-20 — and
+> it is **DRAFT**, so `NP-FAI-001` §2 F1 still fails and §2 still requires a named absence rather
+> than a checklist with invented accept criteria. The reason moved from absence to maturity;
+> the conclusion did not (`NP-FAI-001` §2.2, OI-FAI-07 re-scoped).
 > The items below are firmware verification items; their bench limbs are procedures, not
 > results, and a PASS here is not an inspection record (`NP-FAI-001` §2.1, §3.1 / OI-FAI-07).
+> **Their hardware limbs are A14's acceptance criteria** and the artifact checklist inherits them
+> when F1 is met (`NP-HW-CVNS-001` `REQ-CVNS-12`); nothing moves out of this section.
 
 ### FAI-CV01 — Cervical electrode placement verification
 
@@ -670,7 +677,7 @@ np_cvns_stage_t np_cvns_session_stage(const np_cvns_session_ctx_t *ctx);
 | `src/np_cardiac_interlock.c` | SW01-M05: R-R capture, baseline arming, ±15 BPM cutoff, 30 s lockout |
 | `tests/np_cardiac_interlock_tests.c` | Host tests for SW01-M05 — arming, cutoff both directions, FMEA-M05-02 signed-delta guard, lockout, conservative hold |
 
-> Note: `np_cvns_fai_tests` exercises the **main-processor** module in this section's table and asserts on main-processor constants. It is not coverage of the Class C interlock; `np_cardiac_interlock_tests` is. **Corrected at Rev 4:** through Rev 3 the suite was registered in `firmware/CMakeLists.txt` as *"NP-FAI-CVNS-001: cardiac interlock FAI suite"* and printed that serial as its own document header — two claims in one string, both wrong. `NP-FAI-CVNS-001` has never been written and cannot be (A14 has no hardware specification, GitHub #332), so it is recorded as a named absence in `NP-ART-001` §3.2 rather than cited here; and the suite is not interlock coverage. Both the registration and the banner now name **§9 of this document**, which is the test specification for FAI-CV01…CV03 and the record of file. See `NP-FAI-001` §2.1 / OI-FAI-07.
+> Note: `np_cvns_fai_tests` exercises the **main-processor** module in this section's table and asserts on main-processor constants. It is not coverage of the Class C interlock; `np_cardiac_interlock_tests` is. **Corrected at Rev 4:** through Rev 3 the suite was registered in `firmware/CMakeLists.txt` as *"NP-FAI-CVNS-001: cardiac interlock FAI suite"* and printed that serial as its own document header — two claims in one string, both wrong. `NP-FAI-CVNS-001` has never been written and cannot be — through Rev 4, because A14 had no hardware specification (GitHub #332); **since Rev 5, because `NP-HW-CVNS-001` Rev 1 is DRAFT and `NP-FAI-001` §2 F1 requires `BASELINED` or `ACTIVE`** — so it is recorded as a named absence in `NP-ART-001` §3.2 rather than cited here; and the suite is not interlock coverage. Both the registration and the banner now name **§9 of this document**, which is the test specification for FAI-CV01…CV03 and the record of file. See `NP-FAI-001` §2.1 / OI-FAI-07.
 
 ---
 
