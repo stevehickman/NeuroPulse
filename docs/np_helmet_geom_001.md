@@ -98,7 +98,13 @@ tooling DFM.
   > the lattice compressed to ~13.9 mm at the rim; that was a 3-space **chord** measured across a
   > surface that turns over, not an on-surface distance, and it is withdrawn — `NP-EMC-CAV-001`
   > §8.8 Rev 12.)* What **does** vary is the **inter-tile gap**, which widens where curvature is
-  > highest — so this station has **more** room at crown and rim, not less. `OI-EMCCAV-15`.
+  > highest. ~~so this station has more room at crown and rim~~ **❌ WITHDRAWN 2026-09-21** — that
+  > rested on treating the module as **flat**, and it is not: §3.1 of `NP-HEX-ZM-001` committed a
+  > **median-curved** 40 mm hexagon (`R_m ≈ 87 mm`, 3.1 mm dome), **one compromise curvature chosen
+  > to minimise mismatch across all socket positions**. Its residual is **1.04 mm worst case,
+  > ~0.25 mm typical**, and §3.1 already absorbs it in *"the PDMS window standoff + a ≤0.8 mm
+  > compliant gasket"* — **radially at L0, not as in-plane gap width**. `NP-EMC-CAV-001` §8.8
+  > Rev 13.
 - **Ear boundary:** the vault stack ends at the lattice's ear cut-out; the ear-cup
   subassembly mounts to the L3 rim there (separate part family, its own seal).
 - **TMS window (T2):** the CFRP L3 is broken by a non-conductive CFRP window at the coil

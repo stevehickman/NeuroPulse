@@ -320,16 +320,28 @@ const gapFloorStacked = (plateMm: number) =>
 // interchangeable, so every hexagon is the same size BY CONSTRUCTION — and
 // adjacent socket centres are therefore 40 mm apart ON THE SURFACE everywhere.
 // They cannot be closer: the parts would overlap.
+//
+// ⚠ AND THE MODULE SURFACE IS NOT FLAT. NP-HEX-ZM-001 §3.1 committed
+// "Option A (rigid, MEDIAN-CURVED 40 mm hexagon)": one compromise curvature,
+// R_m ~ 87 mm, 3.1 mm dome depth at W = 40 — chosen to minimise the mismatch
+// between module and site curvature across ALL socket positions, which is what
+// its "worst-case mismatch" column tabulates. The residual is already bounded
+// and already allocated: 1.04 mm worst case, ~0.25 mm over most of the vault,
+// "absorbed by the PDMS window standoff + a <=0.8 mm compliant gasket".
+// Rev 12 of NP-EMC-CAV-001 argued from FLAT hexagons and concluded the gaps
+// widen with curvature, giving PACK-1 free clearance. Wrong premise, and the
+// conclusion does not survive it: the mismatch is taken up RADIALLY at L0, not
+// in-plane as gap width. Rev 13 withdrew it.
 const HEX = {
   nominalWmm: 40, // hardware/np_socket_map.json geometry.moduleWidthMm
-  // What actually varies on a doubly-curved surface is the INTER-TILE GAP, not
-  // the tile: congruent flat hexagons cannot tile positive Gaussian curvature
-  // without opening gaps. That is WHY there are inter-tile gaps for the clamp
-  // bosses to sit in (NP-HELMET-GEOM-001 §3, "made free by the lattice gaps"),
-  // and the gaps OPEN where curvature is highest — so PACK-1 gets more room at
-  // crown and rim, not less. Quantifying that needs the surface model
-  // (scripts/extract-helmet-surface.ts), not this socket list.
+  moduleRadiusMm: 87, // R_m, the compromise curvature (NP-HELMET-GEOM-001 §1)
+  domeDepthMm: 3.1, // at W = 40 (NP-HEX-ZM-001 §3.1)
+  mismatchWorstMm: 1.04, // §3.1, absorbed by standoff + <=0.8 mm gasket
+  mismatchTypicalMm: 0.25, // §3.1, "most of the vault"
 };
+/** The hex edge as a CHORD across the module's own curved surface. */
+const hexEdgeChord = (wMm: number, rMm: number) =>
+  2 * rMm * Math.sin(hexEdge(wMm) / (2 * rMm));
 const hexEdge = (wMm: number) => wMm / Math.sqrt(3);
 /** Boss at a from centre, board at 2a — separation is exactly one hex edge. */
 const packSeparation = (wMm: number) => hexEdge(wMm);
@@ -724,6 +736,9 @@ function reportValidation(): boolean {
     // Uniform tiles => this separation is IDENTICAL at all 18 clusters. There is
     // no per-cluster variation to sweep, which is the point of interchangeability.
     ["hex edge is the tile's own edge, so it is constant (mm)", hexEdge(HEX.nominalWmm), 23.09, 0.01],
+    // The module is median-curved, so check the curvature does not move PACK-1.
+    ["hex edge as chord on the R=87 module surface (mm)", hexEdgeChord(HEX.nominalWmm, HEX.moduleRadiusMm), 23.03, 0.01],
+    ["curvature perturbation to PACK-1 (mm)", hexEdge(HEX.nominalWmm) - hexEdgeChord(HEX.nominalWmm, HEX.moduleRadiusMm), 0.068, 0.005],
     ["outward total at a 3 mm gap", outwardAtGap(3), 0.295, 0.002],
     ["recovery, 6 mm -> 3 mm", rGap(GAP.nominalMm) - rGap(3), 0.115, 0.002],
   ];
