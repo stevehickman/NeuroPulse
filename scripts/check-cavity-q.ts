@@ -302,13 +302,33 @@ const gapFloorStacked = (plateMm: number) =>
 // bending moment under PLATE-1). On a hex lattice those are one hex edge apart,
 // both on the cluster's mirror axis — so both keep SYM-1 and neither moves.
 // Hex edge a = W/sqrt(3); NP-HEX-ZM-001 §5.4a calls 23.09 mm "one hex edge".
+//
+// ⚠ DO NOT MEASURE THIS LATTICE WITH 3-SPACE DISTANCES. The socket map gives
+// xMm/yMm/zMm on a DOUBLY-CURVED scanned surface, so a straight-line chord
+// between two socket centres UNDERSTATES their on-surface spacing — badly where
+// the surface turns over. Row 11's z swings 21.6 mm across four sockets, and its
+// chords read 24-25 mm; a 25 mm chord for a 40 mm geodesic implies a local
+// radius of ~13 mm, which is the rim fold, not a compressed lattice.
+// Rev 11 of NP-EMC-CAV-001 made exactly that error and published a "lattice
+// compresses to 13.9 mm at the rim" caveat. Rev 12 withdrew it. An earlier pass
+// made the same mistake a different way (naive nearest-neighbour across rows of
+// differing width). Same root cause both times.
+//
+// The governing constraint is not a measurement at all, it is the PART:
+// the tile is ONE UNIVERSAL 40 mm MOULD, type-agnostic, identical shape
+// (NP-ART-001 A1, NP-HEX-ZM-001 §627, NP-DT-001 DI-USE-05). Modules are
+// interchangeable, so every hexagon is the same size BY CONSTRUCTION — and
+// adjacent socket centres are therefore 40 mm apart ON THE SURFACE everywhere.
+// They cannot be closer: the parts would overlap.
 const HEX = {
   nominalWmm: 40, // hardware/np_socket_map.json geometry.moduleWidthMm
-  // Measured in-row spacing from the SCAN-GROUNDED socket map. The lattice is
-  // at nominal over the mid-vault and COMPRESSES at crown and rim, which is
-  // where the packing check actually has to be run.
-  midVaultSpanMm: [38.6, 41.0] as const, // rows 5-8
-  tightestMm: 24.0, // row 11, the rim
+  // What actually varies on a doubly-curved surface is the INTER-TILE GAP, not
+  // the tile: congruent flat hexagons cannot tile positive Gaussian curvature
+  // without opening gaps. That is WHY there are inter-tile gaps for the clamp
+  // bosses to sit in (NP-HELMET-GEOM-001 §3, "made free by the lattice gaps"),
+  // and the gaps OPEN where curvature is highest — so PACK-1 gets more room at
+  // crown and rim, not less. Quantifying that needs the surface model
+  // (scripts/extract-helmet-surface.ts), not this socket list.
 };
 const hexEdge = (wMm: number) => wMm / Math.sqrt(3);
 /** Boss at a from centre, board at 2a — separation is exactly one hex edge. */
@@ -701,8 +721,9 @@ function reportValidation(): boolean {
     // §8.8 — PACK-1. The rule is safe at nominal pitch and tight at the rim.
     ["hex edge at nominal W=40 (mm)", hexEdge(HEX.nominalWmm), 23.09, 0.01],
     ["boss->board separation, nominal (mm)", packSeparation(HEX.nominalWmm), 23.09, 0.01],
-    ["boss->board separation, mid-vault low (mm)", packSeparation(HEX.midVaultSpanMm[0]), 22.29, 0.01],
-    ["boss->board separation, tightest rim cluster (mm)", packSeparation(HEX.tightestMm), 13.86, 0.01],
+    // Uniform tiles => this separation is IDENTICAL at all 18 clusters. There is
+    // no per-cluster variation to sweep, which is the point of interchangeability.
+    ["hex edge is the tile's own edge, so it is constant (mm)", hexEdge(HEX.nominalWmm), 23.09, 0.01],
     ["outward total at a 3 mm gap", outwardAtGap(3), 0.295, 0.002],
     ["recovery, 6 mm -> 3 mm", rGap(GAP.nominalMm) - rGap(3), 0.115, 0.002],
   ];

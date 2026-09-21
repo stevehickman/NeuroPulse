@@ -90,9 +90,15 @@ tooling DFM.
   > centre, board at **2a = 46.19 mm**, **one hex edge apart** (`W/√3`, the same 23.09 mm
   > `NP-HEX-ZM-001` §5.4a calls *"one hex edge"*). Both stay on the mirror axis, so **`SYM-1`
   > survives for both without an exception clause**, and **internal** is exactly what *"mid-span
-  > stiffness"* above asks for. **⚠ 23.09 mm is nominal:** the scan-grounded lattice compresses,
-  > and one hex edge falls to **~13.9 mm at row 11**, so the packing check runs at the tightest
-  > cluster, not at nominal — `NP-EMC-CAV-001` §8.8, `OI-EMCCAV-14`.
+  > stiffness"* above asks for.
+  > **23.09 mm is CONSTANT at every cluster, because it is the tile's own edge and the tile is one
+  > universal 40 mm mould** (`NP-ART-001` A1; the modules are interchangeable, so the hexagons are
+  > identical by construction). Adjacent socket centres are therefore **40 mm apart ON THE SURFACE**
+  > everywhere — they cannot be closer without the parts overlapping. *(An earlier revision claimed
+  > the lattice compressed to ~13.9 mm at the rim; that was a 3-space **chord** measured across a
+  > surface that turns over, not an on-surface distance, and it is withdrawn — `NP-EMC-CAV-001`
+  > §8.8 Rev 12.)* What **does** vary is the **inter-tile gap**, which widens where curvature is
+  > highest — so this station has **more** room at crown and rim, not less. `OI-EMCCAV-15`.
 - **Ear boundary:** the vault stack ends at the lattice's ear cut-out; the ear-cup
   subassembly mounts to the L3 rim there (separate part family, its own seal).
 - **TMS window (T2):** the CFRP L3 is broken by a non-conductive CFRP window at the coil
