@@ -83,6 +83,16 @@ tooling DFM.
   attachment) *and* at the **cluster-clamp bosses**, which sit in the inter-tile gaps —
   so they add mid-span stiffness to the scalp-facing plane **without costing any module
   coverage**. That is the inner attachment you asked about, made free by the lattice gaps.
+  > **★ `PACK-1` (principal direction, 2026-09-21) — the boss takes the PAN-facing INTERNAL
+  > vertex of its cluster, on the cluster's mirror axis.** `BOARD-1` (`NP-DRV-SHELL-002` §3.2)
+  > puts the cluster controller board at the **perimeter** end of the same seam, so the two want
+  > different **radii** on one axis and do not compete: boss at **a = 23.09 mm** from the cluster
+  > centre, board at **2a = 46.19 mm**, **one hex edge apart** (`W/√3`, the same 23.09 mm
+  > `NP-HEX-ZM-001` §5.4a calls *"one hex edge"*). Both stay on the mirror axis, so **`SYM-1`
+  > survives for both without an exception clause**, and **internal** is exactly what *"mid-span
+  > stiffness"* above asks for. **⚠ 23.09 mm is nominal:** the scan-grounded lattice compresses,
+  > and one hex edge falls to **~13.9 mm at row 11**, so the packing check runs at the tightest
+  > cluster, not at nominal — `NP-EMC-CAV-001` §8.8, `OI-EMCCAV-14`.
 - **Ear boundary:** the vault stack ends at the lattice's ear cut-out; the ear-cup
   subassembly mounts to the L3 rim there (separate part family, its own seal).
 - **TMS window (T2):** the CFRP L3 is broken by a non-conductive CFRP window at the coil

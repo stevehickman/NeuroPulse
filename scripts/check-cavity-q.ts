@@ -296,6 +296,24 @@ const gapFloorPocketed = () =>
 const gapFloorStacked = (plateMm: number) =>
   GAP_FLOOR.clearanceAssumed.map((c) => componentPlane() + plateMm + c);
 
+// ── PACK-1, for §8.8 — boss vs board on the cluster mirror axis ──────────────
+// The cluster-clamp boss wants an INTERNAL vertex (mid-span stiffness,
+// NP-HELMET-GEOM-001 §3); BOARD-1 wants the PAN-facing PERIMETER (minimum
+// bending moment under PLATE-1). On a hex lattice those are one hex edge apart,
+// both on the cluster's mirror axis — so both keep SYM-1 and neither moves.
+// Hex edge a = W/sqrt(3); NP-HEX-ZM-001 §5.4a calls 23.09 mm "one hex edge".
+const HEX = {
+  nominalWmm: 40, // hardware/np_socket_map.json geometry.moduleWidthMm
+  // Measured in-row spacing from the SCAN-GROUNDED socket map. The lattice is
+  // at nominal over the mid-vault and COMPRESSES at crown and rim, which is
+  // where the packing check actually has to be run.
+  midVaultSpanMm: [38.6, 41.0] as const, // rows 5-8
+  tightestMm: 24.0, // row 11, the rim
+};
+const hexEdge = (wMm: number) => wMm / Math.sqrt(3);
+/** Boss at a from centre, board at 2a — separation is exactly one hex edge. */
+const packSeparation = (wMm: number) => hexEdge(wMm);
+
 const clampStack = (withAbsorber: boolean) => {
   const t = [CLAMP_TOL.features, CLAMP_TOL.gap, ...(withAbsorber ? [CLAMP_TOL.absorber] : [])];
   return { worst: t.reduce((a, b) => a + b, 0), rss: Math.sqrt(t.reduce((a, b) => a + b * b, 0)) };
@@ -680,6 +698,11 @@ function reportValidation(): boolean {
     ["PLATE-1 saving vs a 0.8 mm plate sitting over", rGap(gapFloorStacked(0.8)[0]) - rGap(gapFloorPocketed()[0]), 0.031, 0.002],
     ["PCB-1 saving, 1.0 -> 0.80 mm", rGap(1.0 + tallestPart() + 0.5) - rGap(gapFloorPocketed()[0]), 0.0077, 0.0005],
     ["outward total at the 2.75 mm floor", outwardAtGap(gapFloorPocketed()[0]), 0.285, 0.002],
+    // §8.8 — PACK-1. The rule is safe at nominal pitch and tight at the rim.
+    ["hex edge at nominal W=40 (mm)", hexEdge(HEX.nominalWmm), 23.09, 0.01],
+    ["boss->board separation, nominal (mm)", packSeparation(HEX.nominalWmm), 23.09, 0.01],
+    ["boss->board separation, mid-vault low (mm)", packSeparation(HEX.midVaultSpanMm[0]), 22.29, 0.01],
+    ["boss->board separation, tightest rim cluster (mm)", packSeparation(HEX.tightestMm), 13.86, 0.01],
     ["outward total at a 3 mm gap", outwardAtGap(3), 0.295, 0.002],
     ["recovery, 6 mm -> 3 mm", rGap(GAP.nominalMm) - rGap(3), 0.115, 0.002],
   ];
