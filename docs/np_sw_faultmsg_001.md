@@ -8,8 +8,8 @@
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
 **Approved By:** — (pending principal review)
-**References:** CLAUDE.md §4.2 (safety MCU owns the enable lines; cervical VNS cardiac interlock), §4.5 (USB-C power only, no battery), §4.6 (Mode 3), §4.7 (status LED), §5.1 (UHDR/SHDR; redaction shape), §17 (firmware renders no text); NP-FW-CVNS-001 §3.5, §5.4, §5.5; NP-HW-CVNS-001 `REQ-CVNS-09`; NP-REG-CVNS-001 §7.3, §7.4 (proposed in PR #370); NP-RISK-002 RISK-25; `OI-ACC-07` (`docs/status/pending-decisions.md`); `firmware/safety_mcu/src/np_cardiac_interlock.c`, `np_fault_latch.c`, `np_safety_main.c`; `firmware/cervical_vns/src/np_cvns_session.c`, `include/np_cvns_types.h`; `firmware/hub_control/include/np_hub_types.h`; `app/ios/NeurOne/Session/EDFDownloader.swift`
-**Related Issues:** PR #370 (cervical gel pad alert and the user-doc Mode 3 route this proposal completes)
+**References:** CLAUDE.md §4.2 (safety MCU owns the enable lines; cervical VNS cardiac interlock), §4.5 (USB-C power only, no battery), §4.6 (Mode 3), §4.7 (status LED), §5.1 (UHDR/SHDR; redaction shape), §17 (firmware renders no text); NP-FW-CVNS-001 §3.5, §5.4, §5.5; NP-HW-CVNS-001 `REQ-CVNS-09`; NP-REG-CVNS-001 §7.3, §7.4 (added in PR #370, merged 2026-09-22); NP-RISK-002 RISK-25; `OI-ACC-07` (`docs/status/pending-decisions.md`); `firmware/safety_mcu/src/np_cardiac_interlock.c`, `np_fault_latch.c`, `np_safety_main.c`; `firmware/cervical_vns/src/np_cvns_session.c`, `include/np_cvns_types.h`; `firmware/hub_control/include/np_hub_types.h`; `app/ios/NeurOne/Session/EDFDownloader.swift`
+**Related Issues:** PR #370, merged (cervical gel pad alert and the user-doc Mode 3 route this proposal completes)
 **Gate:** N/A
 **IEC 62304 Class:** Touches SW-01 Class C (safety MCU, §4.3), SW-02 Class B (hub, cervical library) and the apps
 **Supersedes:** None — new document.
@@ -26,7 +26,7 @@ that is the same for every fault: a red blink on the power LED (CLAUDE.md §4.7;
 `np_led_state_t` has three values: idle, session, fault). So the wearer learns *that* something
 failed, but not *what* failed or *what to do*.
 
-The user doc now routes this to the phone. The proposed IFU text (`NP-REG-CVNS-001` §7.4, PR #370)
+The user doc now routes this to the phone. The proposed IFU text (`NP-REG-CVNS-001` §7.4, merged in PR #370)
 says: if the red light blinks without the app, stop, connect your phone and start again from the
 app. That works for a gel pad fault, because starting again re-runs the pad check and the app names
 the side. It does not work for a **cardiac cutoff**. §7.3 says not to restart after one without

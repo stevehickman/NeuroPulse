@@ -11,10 +11,10 @@ object GattUuids {
 
     // Notify-only characteristics — match NP-APP-ROADMAP-001 §5
     val sessionState: UUID     = UUID.fromString("4E455550-0002-1000-8000-00805F9B34FB") // NOTIFY 4B
-    val sessionStatus: UUID    = UUID.fromString("4E455550-0003-1000-8000-00805F9B34FB") // NOTIFY 2B
+    val sessionStatus: UUID    = UUID.fromString("4E455550-0003-1000-8000-00805F9B34FB") // NOTIFY 4B
     val hrvCoherence: UUID     = UUID.fromString("4E455550-0004-1000-8000-00805F9B34FB") // NOTIFY 4B
-    val pacerPhase: UUID       = UUID.fromString("4E455550-0005-1000-8000-00805F9B34FB") // NOTIFY 2B
-    val impedanceResult: UUID  = UUID.fromString("4E455550-0006-1000-8000-00805F9B34FB") // NOTIFY 2B
+    val pacerPhase: UUID       = UUID.fromString("4E455550-0005-1000-8000-00805F9B34FB") // NOTIFY 4B
+    val impedanceResult: UUID  = UUID.fromString("4E455550-0006-1000-8000-00805F9B34FB") // NOTIFY 4B
     val consumableStatus: UUID = UUID.fromString("4E455550-0007-1000-8000-00805F9B34FB") // READ/NOTIFY 8B
 
     // Write characteristics — Mode 2 protocol upload, Mode 4 EDF request, OTA, calibration
@@ -35,6 +35,12 @@ object GattUuids {
     // Current hub firmware version — READ/NOTIFY 4B little-endian uint32.
     // NOT in `all` — optional until hub firmware ships it (OI-WA-03).
     val firmwareVersion: UUID  = UUID.fromString("4E455550-0011-1000-8000-00805F9B34FB") // READ/NOTIFY 4B
+
+    // Cervical VNS gel pad contact result — NOTIFY 4B (failed mask, check, side of each pad). T2 only.
+    // Words the hub's pad refusal for the wearer (OI-ACC-07); frame in CervicalPadStatus.
+    // UHDR-class, display only. NOT in `all` — the hub does not ship it yet, and a T1 hub has
+    // no cervical accessory, so its absence must never block allCharacteristicsResolved.
+    val cvnsPadStatus: UUID    = UUID.fromString("4E455550-0013-1000-8000-00805F9B34FB") // NOTIFY 4B
 
     // All characteristics required for a fully-operational session.
     // warrantyToken and firmwareVersion are deliberately omitted (optional until

@@ -1,5 +1,6 @@
 package life.neurone.app.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,6 +9,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -28,12 +31,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import life.neurone.app.R
 import life.neurone.app.ble.ConnectionState
+import life.neurone.core.models.CervicalPadStatus
 import life.neurone.core.models.PacerPhase
 import life.neurone.core.models.SessionState
 import life.neurone.core.models.SessionStatus
@@ -52,6 +61,8 @@ fun SessionScreen(
     onChooseProtocol: () -> Unit,
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
+    cervicalPadAlert: CervicalPadStatus? = null,
+    onAcknowledgeCervicalPadAlert: () -> Unit = {},
 ) {
     var showStopConfirm by remember { mutableStateOf(false) }
     val isRunning = session.status == SessionStatus.RUNNING
@@ -127,6 +138,98 @@ fun SessionScreen(
             dismissButton = {
                 TextButton(onClick = { showStopConfirm = false }) { Text(stringResource(R.string.common_cancel)) }
             },
+        )
+    }
+
+    // OI-ACC-07: the hub refused or stopped cervical VNS on a failed gel pad. The safety MCU
+    // has already acted; this only tells the wearer which pad, and where.
+    val padMessage = cervicalPadAlert?.let { cervicalPadMessage(it) }
+    if (cervicalPadAlert != null && padMessage != null) {
+        AlertDialog(
+            onDismissRequest = onAcknowledgeCervicalPadAlert,
+            title = { Text(stringResource(R.string.cvns_pad_alert_title)) },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    NeckPadDiagram(cervicalPadAlert.failingSides)
+                    Spacer(Modifier.height(16.dp))
+                    Text(padMessage)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = onAcknowledgeCervicalPadAlert) { Text(stringResource(R.string.common_ok)) }
+            },
+        )
+    }
+}
+
+@Composable
+private fun cervicalPadMessage(status: CervicalPadStatus): String? = when (status.message) {
+    CervicalPadStatus.Message.PRE_LEFT -> stringResource(R.string.cvns_pad_alert_pre_left)
+    CervicalPadStatus.Message.PRE_RIGHT -> stringResource(R.string.cvns_pad_alert_pre_right)
+    CervicalPadStatus.Message.PRE_BOTH -> stringResource(R.string.cvns_pad_alert_pre_both)
+    CervicalPadStatus.Message.MID_LEFT -> stringResource(R.string.cvns_pad_alert_mid_left)
+    CervicalPadStatus.Message.MID_RIGHT -> stringResource(R.string.cvns_pad_alert_mid_right)
+    CervicalPadStatus.Message.MID_BOTH -> stringResource(R.string.cvns_pad_alert_mid_both)
+    null -> null
+}
+
+/**
+ * Front view of head and neck, drawn as the wearer sees themself in a mirror: their left side
+ * is on the left of the screen. Each side is labelled in words as well, so the diagram never
+ * depends on the reader guessing the view. One pad marker per side; a side lights when the hub
+ * reports a failing pad there. The pads sit on the neck module, not in a helmet socket.
+ * Mirrors iOS NeckPadDiagram. Decorative for TalkBack — the message names the side in words.
+ */
+@Composable
+private fun NeckPadDiagram(failingSides: Set<CervicalPadStatus.NeckSide>) {
+    val outline = MaterialTheme.colorScheme.onSurfaceVariant
+    val alert = MaterialTheme.colorScheme.error
+    val leftFailing = CervicalPadStatus.NeckSide.LEFT in failingSides
+    val rightFailing = CervicalPadStatus.NeckSide.RIGHT in failingSides
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clearAndSetSemantics { },
+    ) {
+        Canvas(modifier = Modifier.size(width = 160.dp, height = 140.dp)) {
+            val cx = size.width / 2
+            val stroke = Stroke(width = 2.dp.toPx())
+            drawCircle(outline, radius = 36.dp.toPx(), center = Offset(cx, 34.dp.toPx()), style = stroke)
+            drawRoundRect(
+                outline,
+                topLeft = Offset(cx - 22.dp.toPx(), 70.dp.toPx()),
+                size = Size(44.dp.toPx(), 56.dp.toPx()),
+                cornerRadius = CornerRadius(8.dp.toPx()),
+                style = stroke,
+            )
+            fun pad(x: Float, failing: Boolean) {
+                val topLeft = Offset(x - 7.dp.toPx(), 73.dp.toPx())
+                val padSize = Size(14.dp.toPx(), 22.dp.toPx())
+                val radius = CornerRadius(4.dp.toPx())
+                if (failing) drawRoundRect(alert, topLeft, padSize, radius)
+                drawRoundRect(if (failing) alert else outline, topLeft, padSize, radius, style = stroke)
+            }
+            pad(cx - 26.dp.toPx(), leftFailing)
+            pad(cx + 26.dp.toPx(), rightFailing)
+        }
+        Row(modifier = Modifier.width(150.dp)) {
+            Text(
+                stringResource(R.string.cvns_pad_side_left),
+                color = if (leftFailing) alert else outline,
+                fontWeight = if (leftFailing) FontWeight.Bold else FontWeight.Normal,
+                style = MaterialTheme.typography.labelMedium,
+            )
+            Spacer(Modifier.weight(1f))
+            Text(
+                stringResource(R.string.cvns_pad_side_right),
+                color = if (rightFailing) alert else outline,
+                fontWeight = if (rightFailing) FontWeight.Bold else FontWeight.Normal,
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
+        Text(
+            stringResource(R.string.cvns_pad_diagram_caption),
+            color = outline,
+            style = MaterialTheme.typography.labelSmall,
         )
     }
 }

@@ -90,6 +90,55 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(counts, [1, 30, 256, 1000])
     }
 
+    // MARK: - CVNS_PAD_STATUS (mask + check + per-electrode side) — OI-ACC-07
+
+    // Side codes: 0x01 = left of neck, 0x02 = right. Bilateral montage = [left, right].
+
+    func testParseCervicalPadStatusNamesTheFailingSide() {
+        let status = GATTParser.parseCervicalPadStatus(Data([0x02, 0x00, 0x01, 0x02]))
+        XCTAssertEqual(status, CervicalPadStatus(failedPadSides: [.right], check: .preEnable))
+        XCTAssertEqual(status?.messageKey, "CVNS_PAD_ALERT_PRE_RIGHT")
+        XCTAssertEqual(status?.failingSides, [.right])
+    }
+
+    func testParseCervicalPadStatusMessageVariants() {
+        XCTAssertEqual(GATTParser.parseCervicalPadStatus(Data([0x01, 0x00, 0x01, 0x02]))?.messageKey,
+                       "CVNS_PAD_ALERT_PRE_LEFT")
+        XCTAssertEqual(GATTParser.parseCervicalPadStatus(Data([0x03, 0x00, 0x01, 0x02]))?.messageKey,
+                       "CVNS_PAD_ALERT_PRE_BOTH")
+        XCTAssertEqual(GATTParser.parseCervicalPadStatus(Data([0x01, 0x01, 0x01, 0x02]))?.messageKey,
+                       "CVNS_PAD_ALERT_MID_LEFT")
+        XCTAssertEqual(GATTParser.parseCervicalPadStatus(Data([0x02, 0x01, 0x01, 0x02]))?.messageKey,
+                       "CVNS_PAD_ALERT_MID_RIGHT")
+        XCTAssertEqual(GATTParser.parseCervicalPadStatus(Data([0x03, 0x01, 0x01, 0x02]))?.messageKey,
+                       "CVNS_PAD_ALERT_MID_BOTH")
+    }
+
+    /// Unilateral montage: both pads on one side. The side comes from the hub, never from the
+    /// electrode number — electrode 1 here is on the RIGHT.
+    func testParseCervicalPadStatusUnilateralTakesSideFromHub() {
+        let one = GATTParser.parseCervicalPadStatus(Data([0x01, 0x00, 0x02, 0x02]))
+        XCTAssertEqual(one?.messageKey, "CVNS_PAD_ALERT_PRE_RIGHT")
+        let both = GATTParser.parseCervicalPadStatus(Data([0x03, 0x00, 0x02, 0x02]))
+        XCTAssertEqual(both?.messageKey, "CVNS_PAD_ALERT_PRE_BOTH")
+        XCTAssertEqual(both?.failingSides, [.right])
+    }
+
+    func testParseCervicalPadStatusAllPassHasNoMessage() {
+        let status = GATTParser.parseCervicalPadStatus(Data([0x00, 0x00, 0x01, 0x02]))
+        XCTAssertEqual(status?.hasFailure, false)
+        XCTAssertNil(status?.messageKey)
+        XCTAssertNil(status?.alertMessage)
+    }
+
+    func testParseCervicalPadStatusRejectsMalformedFrames() {
+        XCTAssertNil(GATTParser.parseCervicalPadStatus(Data([0x01, 0x00, 0x01])), "short frame")
+        XCTAssertNil(GATTParser.parseCervicalPadStatus(Data([0x04, 0x00, 0x01, 0x02])), "reserved bit")
+        XCTAssertNil(GATTParser.parseCervicalPadStatus(Data([0x01, 0x02, 0x01, 0x02])), "unknown check")
+        XCTAssertNil(GATTParser.parseCervicalPadStatus(Data([0x01, 0x00, 0x00, 0x02])), "unknown side")
+        XCTAssertNil(GATTParser.parseCervicalPadStatus(Data([0x01, 0x00, 0x01, 0x03])), "unknown side")
+    }
+
     // MARK: - OTA_STATUS (uint8 phase + uint8 progress + uint16 errorCode)
 
     func testParseOTAStatus() {
