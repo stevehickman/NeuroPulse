@@ -439,6 +439,29 @@ the one that fails the wavelength window.** That is a fact `OI-LED-W1`'s owners 
 the wavelength question and the lattice-pitch question are coupled, and neither this pass nor §13.2d had
 noticed it.
 
+**Postscript — one of the three "failures" above is softer than it looked (2026-09-21).** `T_j` max
+115 °C was recorded against §2.3's ≥ 125 °C. **That requirement is not derived.** `125` appears nowhere
+else in the document set as a temperature and has no firmware referent; the chain that *is* derived runs
+**42 °C scalp (IEC 60601-1) → 62 °C junction throttle → 65 °C cutoff → ~70 °C PTC → 85 °C die cutoff**
+(`CLAUDE.md` §4.2, FMEA-M04). The row asks for 63 °C of headroom above a threshold at which firmware
+already halves the current, and reads as the commodity datasheet convention for the part class. So it is a
+**screening waiver to record, not a safety finding** — unlike the **missing L70 figure**, which has no
+substitute and genuinely does block a PO, and the **wavelength bin**, which can ship out-of-window parts.
+`NP-PROC-FPC-001` Rev 6 §2.3 records the provenance; **the requirement is not relaxed and the candidate is
+not re-scored.** The load-bearing thermal row is the one above it — θjc, which `NP-THERM-BEZEL-001` §4.1
+calls *"the real THERM-1 requirement … a face-temperature spec, not a junction spec"* — and the Luminus part
+is 5.3 °C/W against < 15 required.
+
+**And the same trace found a live defect in the 1064 nm sibling, raised as `OI-PBM-HW-08`**
+(`NP-PROC-FPC-1064-001` Rev 2). Its §3.2/§3.7 compute against a *"maximum junction temperature 42°C"* whose
+own parenthetical describes `42 + 20 = 62` — **42 °C is the scalp limit** — with ΔT = 20 °C matching neither
+figure. At the correct ΔT = 37 °C the V_f conclusion survives (55.5 mV, still negligible) but the wavelength
+conclusion does not: **11.1 nm → 1075 nm, 6 nm outside the ±5 nm band**. Both paragraphs were already
+self-contradicting before the correction (*"shift < 6 nm — remains within ±5 nm band"*; *"1070 nm maximum …
+(1059–1069 nm range)"*). **Probably resolved by re-deriving the band rather than the part**: `OI-HEXTILE-21`
+and commit `f8806dd` moved the 1064 nm claim to the **1060–1080 nm** Alzheimer's band, which 1075 nm
+satisfies with margin. That re-derivation is a decision and is not taken.
+
 **What is still not decided, and it is the same thing it was two passes ago.** A verified candidate is not a
 selection. `OI-LED-W1` needs **SAB**, **Regulatory Counsel** and **EE Lead**; `OI-HEXTILE-02` needs
 `OI-LED-W1` and now `OI-HEXTILE-22` as well; `OI-LED-01` is discharged for this family and untouched for the

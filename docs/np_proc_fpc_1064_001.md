@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-PROC-FPC-1064-001  
-**Revision:** 1
-**Date:** 2026-05-13  
+**Revision:** 2
+**Date:** 2026-09-21  
 **Status:** BASELINED  
 **Effective Date:** 2026-05-13  
 **Author:** NeurOne Hardware Engineering  
@@ -16,6 +16,20 @@
 **Parent Document:** NP-PROC-FPC-001 **Rev 4** (base module FPC procurement — the 660/808 nm binning specifications this document inherits are unchanged by Rev 4; *the "Rev 1" this field carried was the parent's stale header read through* `NP-CONV-001` *§4.1, see that document's Rev 4 banner*)
 
 ---
+
+> **⚠ Rev 2 (2026-09-21) — §3.2 and §3.7's thermal compliance argument does not hold, and the wavelength row contradicts itself on its face. `OI-PBM-HW-08` raised. No requirement is changed and no part is re-selected.**
+>
+> Found while tracing `NP-PROC-FPC-001` §2.3's `T_j` requirement for GitHub #333. **The junction temperature both sections compute against is wrong, and the band-compliance conclusion fails even at the temperature they use.**
+>
+> **1. 42 °C is the scalp limit, not the junction limit.** §3.7 reads *"At maximum junction temperature 42°C (IEC 60601 scalp surface limit + 20°C junction-to-case)"* — the parenthetical describes `42 + 20 = 62` and then labels the result **42**. `CLAUDE.md` §4.2 and `NP-THERM-BEZEL-001` §4.1 are unambiguous: **42 °C is the scalp face (IEC 60601-1 applied part) and 62 °C is the junction throttle**, and §4.1 states the 20 °C gap is deliberate — *"keep the scalp cool while letting the junction run warm."* The sentence contains its own correction.
+>
+> **2. The arithmetic does not match either number.** Both sections use **ΔT = 20 °C** from 25 °C nominal, i.e. an effective junction of **45 °C** — neither the 42 °C they state (ΔT = 17) nor the 62 °C the interlock permits (**ΔT = 37**).
+>
+> **3. The V_f conclusion survives; the wavelength conclusion does not.** At the real ΔT = 37 °C the V_f drift is `37 × 1.5 mV/°C` = **55.5 mV**, not 30 mV — larger, still small, and §3.7's *"no thermal derating of current setpoint is required"* stands on a constant-current driver. **But the wavelength row fails twice over.** §3.2 states *"shift < 6 nm — remains within ±5 nm band"*: **6 nm is not within ±5 nm.** §3.7 states *"+6 nm over 20°C range → 1070 nm maximum. Remains within ±5 nm therapeutic band … (1059–1069 nm range allows the shift)"*: **1070 nm is above the 1069 nm ceiling it names in the same sentence.** Both are self-contradicting before any temperature correction. At the correct ΔT = 37 °C the shift is `37 × 0.3 nm/°C` = **11.1 nm → 1075 nm**, which is **6 nm outside** the ±5 nm band — roughly twice the excursion the band allows.
+>
+> **What this probably does NOT mean, stated so the correction is not over-read.** The ±5 nm band in §3.2 is justified as *"matches 1064nm Nd:YAG literature wavelength"*, and the 1064 nm claim has since **moved**: `OI-HEXTILE-21` and commit `f8806dd` re-authored `clinical-03` against the **Alzheimer's protocol at 1060–1080 nm** (Grade A, `docs/pbm_neuro_protocols.md`) rather than the cognitive one. **1075 nm sits inside 1060–1080 nm with margin.** So the likely resolution is that the ±5 nm procurement band is tighter than the therapeutic target now requires and should be **re-derived against the band the claim is actually made in** — not that the emitter is unusable. That re-derivation is a decision, and this revision does not take it.
+>
+> **Nothing in §3.3, §3.4, §3.5, §3.6, §4, §5 or §6 changes. `OI-PBM-HW-07` (part confirmation) is untouched.** The 2026-07-28 supersession below is unaffected and still governs module count, BOM and pricing.
 
 > **⚠ SUPERSEDED (2026-07-28) — module-count and BOM figures retired, do not use for BOM/pricing work.** This spec prices and sizes the smart module against the retired large-format (66×78mm), 5-zone-slot architecture: 150× 1064nm LEDs on a single 550-LED module, and retail pricing keyed to "all-5-zone smart module kit." `NP-HEX-ZM-001` replaced that with a universal 40mm hex tile (~90 elements max per tile — see `docs/np_hex_zm_001.md` §3.1) tiling ~30–80 sockets; per-module LED count, BOM, and kit pricing all need re-derivation against the new tile size, not this document's numbers.
 >
@@ -168,7 +182,7 @@ UPDI programming: performed on the rigidizer sub-board before assembly into modu
 
 ### 3.1 Overview
 
-This section supplements NP-PROC-FPC-001 Rev 4 with procurement requirements for 1064nm LED emitters used in the smart module CH_C channel. The structure mirrors the existing 660nm and 808nm sections of NP-PROC-FPC-001 Rev 1.
+This section supplements NP-PROC-FPC-001 Rev 4 with procurement requirements for 1064nm LED emitters used in the smart module CH_C channel. The structure mirrors the existing 660nm and 808nm sections of NP-PROC-FPC-001 Rev 5.
 
 ### 3.2 Wavelength Specification
 
@@ -176,7 +190,7 @@ This section supplements NP-PROC-FPC-001 Rev 4 with procurement requirements for
 |-----------|-------------|-----------|
 | Peak emission wavelength | 1064 nm ± 5 nm | CCO absorption secondary peak; matches 1064nm Nd:YAG literature wavelength for PBM |
 | Spectral half-width (FWHM) | ≤ 30 nm | Narrow enough to avoid broadband IR noise; wider than laser but sufficient for LED-based PBM |
-| Operating temperature shift | ≤ +0.3 nm/°C | At 42°C junction limit (IEC 60601), shift < 6 nm — remains within ±5 nm band |
+| Operating temperature shift | ≤ +0.3 nm/°C | ⚠ **Rationale WITHDRAWN Rev 2, requirement unchanged — `OI-PBM-HW-08`.** It read: *"At 42°C junction limit (IEC 60601), shift < 6 nm — remains within ±5 nm band."* **6 nm is not within ±5 nm**, so the conclusion contradicts its own premise; and **42 °C is the scalp-face limit, not the junction limit** — the junction throttle is **62 °C** (`CLAUDE.md` §4.2). At ΔT = 37 °C from 25 °C nominal the shift is **11.1 nm → 1075 nm**, **6 nm outside** the ±5 nm band. See the Rev 2 banner: the likely fix is re-deriving this band against the **1060–1080 nm** Alzheimer's target the 1064 nm claim now rests on, which 1075 nm satisfies |
 
 ### 3.3 Electrical and Optical Specifications
 
@@ -252,6 +266,34 @@ Rationale:
 1064nm GaAs LED Vf has a temperature coefficient of approximately −1.5 mV/°C (typical for GaAs). At maximum junction temperature 42°C (IEC 60601 scalp surface limit + 20°C junction-to-case), Vf reduces by: 20°C × 1.5 mV/°C = 30 mV from 25°C nominal. This has negligible effect on string current (< 2% change across 1.0 Ω series resistance FET configuration). No thermal derating of current setpoint is required.
 
 Wavelength shift: +6 nm over 20°C range → 1070 nm maximum. Remains within ±5 nm therapeutic band for 1064nm target (1059–1069 nm range allows the shift).
+
+> **⚠ CORRECTED Rev 2 (2026-09-21) — `OI-PBM-HW-08`. The two paragraphs above are retained as the record of
+> what was computed; neither is usable as written.**
+>
+> **The junction temperature is wrong.** *"maximum junction temperature 42°C (IEC 60601 scalp surface limit +
+> 20°C junction-to-case)"* — the parenthetical describes `42 + 20 = 62 °C` and then labels it 42. **42 °C is
+> the scalp face; 62 °C is the junction throttle** (`CLAUDE.md` §4.2; `NP-THERM-BEZEL-001` §4.1, which states
+> the 20 °C gap is deliberate). **And the arithmetic matches neither**: ΔT = 20 °C from 25 °C nominal is an
+> effective junction of **45 °C**. The correct figure is **ΔT = 37 °C**.
+>
+> | Quantity | As written | At ΔT = 37 °C | Consequence |
+> |---|---|---|---|
+> | V_f drift | 30 mV | **55.5 mV** | Conclusion **survives** — still negligible against a constant-current driver; no setpoint derating needed |
+> | Peak wavelength | +6 nm → 1070 nm | **+11.1 nm → 1075 nm** | Conclusion **fails** — ±5 nm allows 1059–1069 nm, so 1075 nm is **6 nm outside** |
+>
+> **The wavelength claim was already self-contradicting before the temperature correction**: *"1070 nm
+> maximum. Remains within ±5 nm therapeutic band … (1059–1069 nm range allows the shift)"* states a maximum
+> above the ceiling it names in the same sentence.
+>
+> **Not necessarily a part problem.** The ±5 nm band is justified in §3.2 as matching the Nd:YAG literature
+> wavelength, and the 1064 nm claim has since moved to the **1060–1080 nm** Alzheimer's band
+> (`OI-HEXTILE-21`; `clinical-03` re-authored at commit `f8806dd`), which **1075 nm satisfies with margin**.
+> Re-deriving §3.2's band against the target the claim is now made in is `OI-PBM-HW-08` and is not decided here.
+>
+> **The `< 2 % string current` claim is also not checkable as stated** and was not corrected: it cites *"1.0 Ω
+> series resistance FET configuration"* without a string length, and per-emitter V_f drift enters the string
+> multiplied by N. Restating it with N, or deleting it in favour of the driver-regulation argument that
+> actually carries the conclusion, is part of the same item.
 
 ---
 
@@ -369,3 +411,4 @@ Silicon PD pair in base module: ~$1.50–3.00 total. InGaAs PD pair adds **+$17�
 | OI-PBM-HW-05 | ATtiny402 firmware NP-FW-ZM-TINY402-001 | FAI-SM-02/04 |
 | OI-PBM-HW-06 | Update FPC artwork (OI-PBM-HW-04) to include G12180-010A SMD footprint at PD1/PD2 annular ring positions | OI-PBM-HW-04 |
 | OI-PBM-HW-07 | 1064nm LED emitter: confirm Marubeni America EPITEX part number; obtain binning program confirmation; confirm SMD footprint match to FPC artwork | FAI-SM-04/06 |
+| **OI-PBM-HW-08** | **§3.2 / §3.7 thermal-and-wavelength compliance argument is unsound; re-derive the ±5 nm band against the target the 1064 nm claim now rests on** (raised Rev 2, 2026-09-21, found while tracing `NP-PROC-FPC-001` §2.3 for GitHub #333). Three defects: **(a)** both sections compute against a junction temperature of 42 °C, which is the **scalp-face** limit — the junction throttle is **62 °C**; **(b)** the arithmetic uses ΔT = 20 °C (effective junction 45 °C), matching neither 42 nor 62 — the correct figure is ΔT = 37 °C, at which the shift is **11.1 nm → 1075 nm**, **6 nm outside** the ±5 nm band; **(c)** both the §3.2 rationale and the §3.7 paragraph **contradict themselves before any correction** (*"shift < 6 nm — remains within ±5 nm band"*; *"1070 nm maximum … remains within … (1059–1069 nm range)"*). The V_f half of §3.7 survives at 55.5 mV. **Likely resolution is that the ±5 nm band is tighter than the claim now needs** — `OI-HEXTILE-21` and commit `f8806dd` moved the 1064 nm claim to the **1060–1080 nm** Alzheimer's band, which 1075 nm satisfies — but that is a decision, not a correction, and it is not taken here. Also restate or delete §3.7's *"< 2 % string current"* claim, which omits the string length the drift is multiplied by | §3.2 wavelength band on any 1064 nm PO; `OI-PBM-HW-07` part confirmation; 1064 nm claim wording |
