@@ -19,6 +19,45 @@
 
 ## Current revision
 
+**Rev 50 (2026-09-21) — §18 added: a requirement must be required. One new section, mirroring
+`NP-CONV-001` §7.1; no existing invariant changed and no figure moved.**
+
+**Why it is in the always-loaded core rather than only in the conventions document.** §18 governs an
+act performed constantly and almost invisibly — writing a number into a specification. A rule that
+only binds when someone happens to open `NP-CONV-001` does not bind that act. The core carries the
+rule and the scope limit; the test, the worked example and the audit item stay in §7.1.
+
+**What produced it.** `NP-PROC-FPC-001` §2.3 required *"Maximum junction temperature (Tj_max)
+≥ 125 °C"*, justified as *"operating headroom above 62 °C throttle threshold"*. Traced while working
+GitHub #333: **`125` appeared nowhere else in the document set as a temperature and had no firmware
+referent.** The chain that *is* derived — 42 °C scalp face (IEC 60601-1) → 62 °C junction throttle →
+65 °C cutoff → ~70 °C PTC → 85 °C die cutoff — is entirely firmware and hardware interlocks, none of
+them a supplier specification. The row had already rejected a candidate emitter at `T_j` 115 °C, a
+part with 53 °C of headroom over the throttle. It was retired at that document's Rev 7.
+
+**The generalisation, which is the owner's and is stated as a rule:** *nothing should be a
+requirement if it isn't actually required; never add unnecessary constraints.* Two questions must
+have answers before a number enters a controlled document — **what fails if this is not met**, and
+**where is that traceable** — and **a Notes cell that restates the requirement is not a derivation**.
+
+**Why this is not a tidiness rule.** Most procurement and interface documents in this set open with
+*"all specifications are MANDATORY unless marked ADVISORY; a purchase order that omits a mandatory
+specification is non-conforming."* Under that preamble an unrequired figure does not sit inertly —
+it **rejects usable parts and manufactures false failures**, with the full authority of the document.
+
+**The scope limit is part of the rule, not a caveat on it.** A rule that licenses removing
+requirements is dangerous in a device programme, so §18 states what it does not reach: externally
+imposed limits (IEC 60601-1's 42 °C, IEC 62471 MPE, §3's charge ceilings), hazard controls, ISO 14971
+dispositions, and requirements whose derivation exists but is merely uncited. **"I could not find the
+derivation" is a reason to look, then to raise an open item, never to retire.**
+
+**Raised with it: `OI-CONV-08`**, whose first pass found three clusters (`NP-PROC-FPC-1064-001` §3.3
+and §4.1, `NP-TOOL-HUB-001`) and one document worth copying (`NP-HW-CVNS-001`, which carries an
+explicit *derived?* column per requirement). The sweep is recorded as incomplete, with its three
+method gaps named.
+
+## Earlier revisions
+
 **Rev 49 (2026-09-20) — one Document Map row: the six accessory and applicator hardware
 specifications, because until today four artifacts' governing specification was §3 itself.** No
 invariant changed, no figure moved, and no section gained or lost content. This entry is longer than
