@@ -406,7 +406,9 @@ pulse handling with margin, and **meeting §2.1's ±0.10 V bin as a standard shi
 and ships in 0.2 V `V_f` increments, so the bin §2.1 calls *"tighter than commodity specification"* needs no
 special agreement from this supplier — which §2.1's own note, naming Luminus, already implied.
 
-**Three requirement failures, recorded rather than waived.** `T_j` max **115 °C** against §2.3's ≥ 125 °C;
+**Three requirement failures, recorded rather than waived** — **now two; see the postscript below, which
+supersedes this sentence.** `T_j` max **115 °C** against §2.3's ≥ 125 °C *(requirement RETIRED, not a
+failure)*;
 **neither datasheet publishes an L70 figure at all** against §2.3's ≥ 80,000 h (Note 3 defers to *"typical
 forward drive currents"* and gives no number — `OI-LED-05` asked of a third supplier); and the **shipped
 wavelength bin spans λ_p 800–830 nm**, whose lower 8 nm is *below* the 808 nm window, so a PO against the
@@ -439,16 +441,23 @@ the one that fails the wavelength window.** That is a fact `OI-LED-W1`'s owners 
 the wavelength question and the lattice-pitch question are coupled, and neither this pass nor §13.2d had
 noticed it.
 
-**Postscript — one of the three "failures" above is softer than it looked (2026-09-21).** `T_j` max
-115 °C was recorded against §2.3's ≥ 125 °C. **That requirement is not derived.** `125` appears nowhere
+**Postscript — one of the three "failures" above was against a requirement that no longer exists
+(2026-09-21).** `T_j` max 115 °C was recorded against §2.3's ≥ 125 °C. **That requirement was not derived,
+and it is now RETIRED** (`NP-PROC-FPC-001` Rev 7).** `125` appears nowhere
 else in the document set as a temperature and has no firmware referent; the chain that *is* derived runs
 **42 °C scalp (IEC 60601-1) → 62 °C junction throttle → 65 °C cutoff → ~70 °C PTC → 85 °C die cutoff**
 (`CLAUDE.md` §4.2, FMEA-M04). The row asks for 63 °C of headroom above a threshold at which firmware
-already halves the current, and reads as the commodity datasheet convention for the part class. So it is a
-**screening waiver to record, not a safety finding** — unlike the **missing L70 figure**, which has no
-substitute and genuinely does block a PO, and the **wavelength bin**, which can ship out-of-window parts.
-`NP-PROC-FPC-001` Rev 6 §2.3 records the provenance; **the requirement is not relaxed and the candidate is
-not re-scored.** The load-bearing thermal row is the one above it — θjc, which `NP-THERM-BEZEL-001` §4.1
+already halves the current, and reads as the commodity datasheet convention for the part class. **It was removed rather than relaxed**, on the owner's direction and the principle behind it:
+a figure nothing requires should not be a requirement, and an unnecessary constraint in a document whose
+§1 makes every unmarked specification MANDATORY does active harm — it rejects usable parts and manufactures
+false failures, which is exactly what this one did here. Retiring it to ADVISORY was rejected because
+ADVISORY still leaves something to screen against. **No safety control is lost**: the junction is bounded by
+the 42/62/65/~70/85 °C interlock chain, which is firmware and hardware, not a supplier specification, and
+the procurement ground is covered by θjc and by L70 — which is where junction temperature actually reaches
+reliability, being specified *at* a junction temperature. **So the Luminus family has TWO open requirement
+failures, not three**: the **missing L70 figure**, which has no substitute and genuinely does block a PO,
+and the **wavelength bin**, which can ship out-of-window parts. The retired row is retained in place and
+marked, per the `NP-TOOL-SHELL-001` F-01 precedent, so the retirement is auditable. The load-bearing thermal row is the one above it — θjc, which `NP-THERM-BEZEL-001` §4.1
 calls *"the real THERM-1 requirement … a face-temperature spec, not a junction spec"* — and the Luminus part
 is 5.3 °C/W against < 15 required.
 
