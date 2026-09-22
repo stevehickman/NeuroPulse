@@ -224,6 +224,20 @@ The following standards are proposed for the NeurOne Pro Cervical VNS Accessory:
 - Discomfort at stimulation site is expected and reversible; reduce current level if discomfort is excessive.
 - Keep gel electrodes away from eyes and mucous membranes.
 
+### 7.4 Gel pad use and replacement (proposed IFU text)
+
+*"Each gel pad is designed to work for one session. You can use a pad again for as long as the device accepts it.*
+
+*Before every session, the device checks that each gel pad is making good contact with your skin. If a pad fails this check, stimulation does not start, and the NeurOne app tells you which side of your neck the pad is on. Replace that pad with a new one and try again.*
+
+*If a pad loses contact during a session, stimulation stops, and the app tells you which side. Replace that pad and start again.*
+
+*If you are using the device without the app, it cannot tell you which pad failed. If stimulation does not start or stops early, replace both pads.*
+
+*Throw a pad away if it is torn, dirty or no longer sticks to your skin, even if the device still accepts it. Do not share pads with another person."*
+
+Basis. The pad's replacement trigger is the device's contact check, not a use count (§2.4; `docs/reference/commercial-model.md` §2.3): per-electrode impedance ≤ 5.0 kΩ at 1 kHz before enable (NP-FW-CVNS-001 §3.2; `NP-HW-CVNS-001` `REQ-CVNS-06`), with loss of contact during stimulation detected within 500 ms (`REQ-CVNS-08`). The first three paragraphs describe that check and the app message that names the failing side (`OI-ACC-07`). The fourth covers Mode 3, where there is no app to name the side. The last paragraph covers what the contact check cannot see — a pad that still conducts but is contaminated, damaged, or used by a second person — which is the skin hazard reuse leaves (`OI-CVNSHW-07`). Final wording follows the biocompatibility basis and human-factors review.
+
 ---
 
 ## 8. Q-Sub Meeting Request
@@ -276,4 +290,4 @@ NeurOne will request that FDA consider bundling the Q-Sub for all three modaliti
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | Rev 1 | 2026-05-11 | NeurOne Regulatory Affairs | Initial baseline; Issue #24 |
-| Rev 2 | 2026-09-22 | NeurOne Regulatory Affairs | §2.4 consumable row: *"single-use"* restated as a performance guarantee with reuse permitted, by principal decision (`OI-ACC-03`, `NP-HW-CVNS-001` `OI-CVNSHW-05`). *"Single-use"* on a medical device reads as *"do not reuse"*, which was not the intent. Consequences for the submission: the biocompatibility basis must cover repeat application (`OI-CVNSHW-07`), and the IFU must tell the user to replace a pad the device refuses (`OI-ACC-07`). Predicate comparison (§3.2 electrode row) unaffected. |
+| Rev 2 | 2026-09-22 | NeurOne Regulatory Affairs | §2.4 consumable row: *"single-use"* restated as a performance guarantee with reuse permitted, by principal decision (`OI-ACC-03`, `NP-HW-CVNS-001` `OI-CVNSHW-05`). *"Single-use"* on a medical device reads as *"do not reuse"*, which was not the intent. Consequences for the submission: the biocompatibility basis must cover repeat application (`OI-CVNSHW-07`), and the IFU must tell the user to replace a pad the device refuses (`OI-ACC-07`) — §7.4 added with that text. Predicate comparison (§3.2 electrode row) unaffected. |
