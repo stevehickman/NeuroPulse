@@ -112,6 +112,38 @@ skull in that range. Everything below follows from that skull and the 40 mm tile
 Both give 30, and the 429 cm² tileable area independently reproduces the
 ~420 cm² this brief carried before the skull model existed.
 
+> **★ DECIDED 2026-09-21 (principal direction) — CURV-1: the module SOCKET seating surface, and
+> its contact-array datum, carry the SAME compromise curvature as the module — `R_m ≈ 87 mm`.**
+> This table's median-curved tile (Option A) fixed the *module* side; nothing fixed the socket side.
+>
+> **It is forced, not chosen.** Modules are **interchangeable** — any type into any socket — and all
+> share one curvature. So every socket must carry that curvature, and it must be the **same value**.
+> The compromise was already made above, across all socket positions; there is no second one to make.
+>
+> **And it is load-bearing for the contact array, not cosmetic.** The module↔socket interface is a
+> **compression contact** with **no connector** (`NP-DRV-SHELL-002` §9.1), seated by the §5.4a clamp
+> plunger, and **`SH2-DRC-08` specifies wipe ≥ 0.30 mm** over ≥1,000 cycles. `REQ-SKT-01` lays the
+> 19 contacts out as **two staggered rows, 9 + 10 at 2.00 mm pitch — a ~18 mm span.** Across that
+> span the `R_m` sagitta is
+>
+> > `R − √(R² − (s/2)²)` = `87 − √(87² − 9²)` = **0.467 mm**
+>
+> — **1.56× the entire specified wipe budget.** A flat socket floor under a curved module back puts
+> that straight into contact height: **the end contacts come out of compression, or the middle ones
+> bottom.** The sagitta exceeds the wipe at every span from 18 mm up, so no plausible array geometry
+> escapes it.
+>
+> **Two consequences that are not restatements.** **(a) The contact-array datum follows the curved
+> surface, not merely the pocket floor** — curving the pocket and leaving the pads on a flat datum
+> reproduces the same error inside the array. **(b) `SH2-DRC-08` must be executed on a CURVED pair.**
+> Wipe and contact force measured on flat coupons would not be testing this interface. That changes
+> how an already-specified bench test is run, not what is tested.
+>
+> **It does not foreclose Option B.** §1's future path records Option B as *"semi-flex tile +
+> **shell-socket-defined curvature**… a module swap into the **unchanged socket interface**"* —
+> `CURV-1` states exactly the socket curvature Option B would hold constant while the tile flexes to
+> it. It specifies what Option B already assumed.
+
 - **Workable 34–46 mm.** Floor = bezel + element embedding (cluster clamps
   remove the per-module lever-arm floor, §5.4a); ceiling = rigid fit. Ideal
   **38–42 mm**; design point **40 mm**.
@@ -824,6 +856,44 @@ latch), mated automatically as the bowls draw closed and seated by the flanking
 PL/PR latches. Decoupling the connector from the clamp pattern is deliberate — a
 blind-mate feature only has to mate on closure; it should not dictate latch count.
 
+> **★ DECIDED 2026-09-20 (principal direction) — BOSS-1: the posterior blind-mate boss projects
+> OUTWARD, and only as far as it needs to.** A **local emboss** of the outer bowl at the occiput
+> centreline, its planform the boss footprint and its depth the **minimum** the blind-mate stack
+> requires (contact wipe + lead-in chamfer + the ±0.4 lateral / ±0.5 Z tolerance). **Not a round
+> number, and not a global allocation.**
+>
+> **What it buys.** The inter-bowl Gap is **decoupled from the boss entirely**. Under `FLUSH-1`
+> (§5.4a) *travel* had already left the Gap's requirement list; **`BOSS-1` removes the last local
+> feature that could have set it**, so the assembled Gap now falls to the **closed** lever footprint
+> and the labyrinth lip alone. At **0.0385 m²K/W per millimetre** on the largest single outward
+> thermal term, that is the whole of `FLUSH-1`'s prize unlocked (`NP-EMC-CAV-001` §8.5, §8.6.3).
+>
+> **Why outward is nearly free here, and it is not special pleading.** `NP-HELMET-GEOM-001` §2
+> already records that **"coil formers add local thickness only"** on this bowl — local outward
+> thickness variation is an **existing** feature class, not a new one. And §5.3(c) sites the boss
+> *"where the internal harness gathers near the occiput (Boa arch / neck attach)"*, the bulkiest part
+> of the assembly.
+>
+> **Three constraints bind it, and none is a blocker:**
+>
+> 1. **Stay inside the existing exterior volume.** The emboss is free only while it hides within the
+>    Boa-arch / neck-attach envelope already there. Break that envelope and it stops being a local
+>    detail and becomes a new exterior feature, with the industrial-design and `NP-HW-FITOVER-001`
+>    consequences that implies.
+> 2. **Do not intersect a Helmholtz coil former.** `NP-HELMET-GEOM-001` §174 makes former geometry
+>    **fixed, because calibration depends on it** — and that calibration is the coil-drive → field
+>    transfer function which `hardware-detail.md` §4.3's **D1** identifies as Layer 2's *decisive*
+>    dependency, re-run per configuration by `REQ-EMI-11`. A former is a **keep-out**, not an
+>    obstacle: route the emboss around it, or re-fix and re-calibrate the former deliberately.
+> 3. **The mu-metal forming cost is real and is now measured.** Drawing mu-metal over a local dome
+>    **work-hardens it**, and it **cannot be re-annealed after lamination** to PETG and CFRP — so the
+>    emboss trades Gap millimetres for a local permeability dip in the one layer **D3** depends on.
+>    **That cost is largely sunk** (this boss is already the *one aperture* of `NP-DRV-SHELL-002`
+>    §4.3, so continuity is interrupted here regardless, and the accepted treatment — a mu-metal
+>    chimney collar — is itself a projection). **`OI-THCOOL-06` is reopened against exactly this**
+>    and is **BLOCKING on MECH-1 cutting the boss**; `BOSS-1` is what makes that measurement needed
+>    rather than merely advisable.
+
 **(d) Magnetic (mu-metal) continuity.** Magnetic shields leak at butt-joints. The
 mu-metal L2 stays **entirely on the outer bowl, unbroken**; the inner bowl carries
 **no** magnetic layer, so there is no mu-metal seam to leak. (This is the reason
@@ -1129,6 +1199,65 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
   forgiving target, clear open/closed state. **Validate by HFE formative** (5 subjects, Parkinson's
   H&Y II–III / post-stroke) — the NP-TOOL-ZM-001 OI-4 eject-lever study re-pointed
   at the cluster actuator.
+- **★ DECIDED 2026-09-20 (principal direction) — FLUSH-1: the cluster lever is FLUSH when closed,
+  and it throws ONLY with the bowls separated.** Two halves, and the second is a statement of fact
+  this document already implies without drawing the consequence.
+
+  **(a) The lever never moves in the assembled state.** §5.2 above: *"The module cluster clamps sit in
+  the inter-bowl gap and are **reached by unclamping the bowls**."* §5.1: the levers are on L1's outer
+  face, exposed by releasing the four corner latches. §5.5: *"During a module swap the bowls are open."*
+  **So the lever's swept volume is a bowls-OPEN volume. It is not an assembled-state requirement.**
+
+  **(b) Therefore the lever must be flush — or sub-flush — in its closed position**, within the
+  3.0–4.0 mm of L1 outer-face features, and must retain there. This is a new binding requirement on
+  the `MECH-2` actuator: the over-center throw already gives a stable closed detent, so flushness is a
+  packaging constraint on the closed geometry, not a new mechanism.
+
+  > **What this corrects.** `NP-HELMET-GEOM-001` §2 allocates the inter-bowl gap as
+  > *"**inter-bowl clamp travel** + blind-mate boss + labyrinth lip"* at **5–7 mm**. Under FLUSH-1 the
+  > first term is **not an assembled-state requirement at all** — travel happens when the bowls are
+  > apart, and the gap is closed only after the lever is home. **The line item is mis-named, and the
+  > 5–7 mm was never derived from anything.** What actually sets the assembled gap is the **closed**
+  > footprint of the lever, the labyrinth lip, the fluxgate sensors on this bowl (§5.3.1), and the
+  > blind-mate boss — and the boss is **a standalone posterior-center feature** (§5.3c), so it
+  > constrains the gap **locally at the occiput**, not across the vault. A locally-relieved gap — deep
+  > at the boss, shallow over the lattice — is available and was not previously on the table.
+
+  **Why this matters far beyond the clamp.** The inter-bowl gap is **stagnant air at 0.23 m²K/W — 56 %
+  of the entire outward thermal path and its single largest term** (`NP-THERM-COOL-001` §2). At
+  k = 0.026 each millimetre of gap is worth **0.0385 m²K/W**, so **narrowing it 2 mm recovers more than
+  deleting the entire Layer 4 absorber** (0.077 vs 0.075), and 3 mm recovers **0.115**. Against
+  §6.1's sealed-recirculation proposal (0.23 → 0.067, recovery 0.164) narrowing reaches **~70 % of the
+  prize with no motor, no power draw and no moving part inside the sealed cavity.** The two interact
+  rather than compose — a narrower gap is a smaller volume at higher flow resistance to stir — so they
+  must be traded, not stacked. **Dimensioning the assembled gap is `MECH-2`'s, and it is now the
+  largest unclaimed thermal lever in the document set.**
+
+- **★ DECIDED 2026-09-21 (principal direction) — PLATE-1: the clamp plate POCKETS over the cluster
+  controller components.** Its seated plane is set by its **land areas**, not by the tallest part, so
+  the closed-state Gap stack is **max(component plane, plate plane)** rather than their **sum**.
+
+  **What it buys.** With `PCB-1` (0.80 mm, `NP-DRV-SHELL-002` §3.2) the component plane is
+  0.80 + 1.45 = **2.25 mm**, and the Gap floor lands at **2.75–3.25 mm** (clearance 0.5–1.0) against
+  a *summed* stack's ~3.55 mm — **0.031 m²K/W**, on top of `PCB-1`'s 0.0077.
+
+  > **⚠ And it spends plate section exactly where this section says not to.** The `CLUSTER-1`
+  > derivation above caps the cluster at 7 tiles because an 8th raises **plate-mode deflection
+  > ×3.07**, and calls that *"the one that matters"* — the per-module spring plungers exist because
+  > *"a rigid plate over a curved cluster could not seat evenly."* **Pocketing removes section**, and
+  > the plate already carries **34.2–57.0 N** across 19 contacts on a 6-tile plate (`NP-DRV-SHELL-002`
+  > §5.1.5). **The pocket geometry must not spend the margin the 7-tile cap bought.**
+  >
+  > **✅ The mitigation is taken: `BOARD-1` (principal direction, 2026-09-21,
+  > `NP-DRV-SHELL-002` §3.2) sites the controller board at the cluster's PAN-FACING EDGE, on the
+  > cluster's own mirror axis — not at its centroid.** At the plate **edge** the bending moment is
+  > minimal, so the pocket costs nearly nothing; **where the board falls into the inter-tile gap, no
+  > pocket is needed at all.** Three further constraints select the same position — shortest tail to
+  > the PAN, less `REQ-EMI-06` loop area (linear in feed length), and `SYM-1` preserved without an
+  > exception clause. **Ribbing remains the fallback and is no longer the expected case.**
+  > `OI-EMCCAV-13` **closed on the structural question**; the residual is a **planform packing
+  > conflict with the cluster-clamp bosses**, which also want the inter-tile gaps.
+
 - **Optional alignment:** cluster boundaries may align to the lobe *zones* of
   `00-zones.npps` (a frontal-left cluster ≈ the "Frontal Left" zone), but are ultimately set by
   geometry/curvature — final cluster size is decided with the lattice work (§7

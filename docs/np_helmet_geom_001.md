@@ -63,16 +63,16 @@ tooling DFM.
 | | Optical window (PDMS + SiO₂ interlayer) or electrode pad | 0.5–1.0 | — | Electrode pods travel ±12 mm on springs; nominal flush |
 | | **Sacrificial bezel land** (optical modules; proud of face, §5) | +1.0 | ±0.2 | Impact **and** thermal-decoupling function (NP-THERM-BEZEL-001); electrode-pod aperture is bezel-free |
 | **L1** | Module seated body depth (LED/PCB/driver + 20-pin FPC) | 12–16 | ±0.3 | Deepest for T1-C (on-module driver) / T2-D (laser + TEC) |
-| | Inner-bowl socket wall + FPC channel | 2.0–2.5 | ±0.2 | Non-magnetic polymer (fluxgates live here) |
+| | Inner-bowl socket wall + FPC channel | 2.0–2.5 | ±0.2 | Non-magnetic polymer (fluxgates live here). **★ `CURV-1` (2026-09-21): the socket SEATING SURFACE and its contact-array datum carry the module's own compromise curvature, `R_m ≈ 87 mm`** — forced by interchangeability (one module curvature ⇒ one socket curvature), and load-bearing: across `REQ-SKT-01`'s ~18 mm array span the sagitta is **0.467 mm against `SH2-DRC-08`'s ≥0.30 mm wipe**. `NP-HEX-ZM-001` §3.1 |
 | | Cluster-clamp + lever features (outer face) | 3.0–4.0 | ±0.3 | One actuator per 7-hex cluster, gap-facing |
 | | **L1 subtotal** | **~18–22** | | Module body dominates |
-| **Gap** | Inter-bowl clamp travel + blind-mate boss + labyrinth lip | 5–7 | ±0.5 | Where cluster clamps and the sensor/coil connector live |
-| **L2** | Carbon-loaded absorber foam (EMF L4) | 3.0 | ±0.5 | Cavity-resonance suppression |
+| **Gap** | ~~Inter-bowl clamp travel~~ ~~+ blind-mate boss~~ ~~+ fluxgates~~ — **closed-state lever footprint + labyrinth lip ONLY** | 5–7 **— UNDER REVIEW, and the floor is now much lower** | ±0.5 | Where cluster clamps and the sensor/coil connector live. **⚠ CORRECTED 2026-09-20 by FLUSH-1 (`NP-HEX-ZM-001` §5.4a):** *travel* is **not** an assembled-state requirement — §5.2 reaches the levers *"by unclamping the bowls"*, so the throw is a bowls-OPEN volume. The 5–7 mm was never derived; what sets it is the **closed** lever footprint, the labyrinth lip, the fluxgates, and the boss — and the boss is a **standalone posterior-center feature** (§5.3c), so it constrains the gap **locally**, not across the vault. **Two further contributors have since left this list.** **`BOSS-1`** (principal, 2026-09-20, `NP-HEX-ZM-001` §5.3(c)) projects the blind-mate boss **OUTWARD** as a local emboss, so it no longer sets the Gap; and the **fluxgates were never in it** — they sit in the inner-bowl socket-wall station above (`NP-EMC-CAV-001` §8.6.1; a contradicting claim in `completed-decisions.md` §221 is `OI-EMCCAV-11`). **⚠ But a contributor was MISSING from this row all along:** `NP-DRV-SHELL-002` §4.1 puts the **18 cluster controller boards** on L1's **gap-facing** face, and they — not the lever — set the floor. From the package types that document names, the closed-state stack is **2.75–3.45 mm** (`NP-EMC-CAV-001` §8.7), so **what remains is the controller boards, the closed lever footprint and the labyrinth lip.** **At 0.0385 m²K/W per mm this is the largest unclaimed thermal lever in the set** (`NP-EMC-CAV-001` §8.5). Re-derive under `MECH-2` |
+| **L2** | Carbon-loaded absorber foam (EMF L4) | 3.0 | ±0.5 | ~~Cavity-resonance suppression~~ — **`NP-EMC-CAV-001` §6 refutes that justification** (`REQ-CAV-02` needs 26.2 dB over 420 MHz – 3 GHz; this station supplies 0.26 dB). **`REQ-CAV-04` recommends DELETING this 3.0 mm station, with the 3 mm re-loft of the outer bowl BINDING** — vacating it without re-lofting fills it with stagnant air (54 % worse per mm), outward path 0.410 → 0.450; with the re-loft, 0.335, and the radial total goes **30–35 → 27–32 mm**. Not executed; `OI-EMCCAV-08` (`MECH-2`) must first confirm the cluster clamps take up the tolerance stack without it, else a thin ceramic pad (`REQ-CAV-03`) returns here |
 | | Palladium-polyester (EMF L3) | 0.1 | — | Tarnish-immune RF liner |
 | | Mu-metal 0.2 mm + PETG laminate (EMF L2) | 0.5 | ±0.1 | ELF magnetic |
 | **L3** | CFRP structural shell + RF outer (EMF L1) | 2.5 | ±0.3 | Structural **and** 30–50 dB RF — one part serves both |
 | | **L2+L3 subtotal (outer bowl)** | **~6** | | Coil formers add local thickness only |
-| | **TOTAL scalp → exterior** | **~30–35** | | Crown exterior ≈ 157 + 32 ≈ **189 mm** |
+| | **TOTAL scalp → exterior** | **~30–35** | | Crown exterior ≈ 157 + 32 ≈ **189 mm**. **⚠ Two pending local exceptions:** the Layer 4 deletion re-lofts the outer bowl **3 mm inward globally** (`NP-EMC-CAV-001` §8.2, binding with the deletion), while **`BOSS-1`** embosses it **outward locally at the occiput centreline** by the blind-mate mating depth. Different locations; they do not conflict. The emboss must stay inside the existing Boa-arch / neck-attach volume or it becomes a new exterior feature |
 
 **Key geometric consequences**
 - **Two user-separable interfaces, both physical seams — not shield cuts** (np_hex_zm_001
@@ -83,6 +83,28 @@ tooling DFM.
   attachment) *and* at the **cluster-clamp bosses**, which sit in the inter-tile gaps —
   so they add mid-span stiffness to the scalp-facing plane **without costing any module
   coverage**. That is the inner attachment you asked about, made free by the lattice gaps.
+  > **★ `PACK-1` (principal direction, 2026-09-21) — the boss takes the PAN-facing INTERNAL
+  > vertex of its cluster, on the cluster's mirror axis.** `BOARD-1` (`NP-DRV-SHELL-002` §3.2)
+  > puts the cluster controller board at the **perimeter** end of the same seam, so the two want
+  > different **radii** on one axis and do not compete: boss at **a = 23.09 mm** from the cluster
+  > centre, board at **2a = 46.19 mm**, **one hex edge apart** (`W/√3`, the same 23.09 mm
+  > `NP-HEX-ZM-001` §5.4a calls *"one hex edge"*). Both stay on the mirror axis, so **`SYM-1`
+  > survives for both without an exception clause**, and **internal** is exactly what *"mid-span
+  > stiffness"* above asks for.
+  > **23.09 mm is CONSTANT at every cluster, because it is the tile's own edge and the tile is one
+  > universal 40 mm mould** (`NP-ART-001` A1; the modules are interchangeable, so the hexagons are
+  > identical by construction). Adjacent socket centres are therefore **40 mm apart ON THE SURFACE**
+  > everywhere — they cannot be closer without the parts overlapping. *(An earlier revision claimed
+  > the lattice compressed to ~13.9 mm at the rim; that was a 3-space **chord** measured across a
+  > surface that turns over, not an on-surface distance, and it is withdrawn — `NP-EMC-CAV-001`
+  > §8.8 Rev 12.)* What **does** vary is the **inter-tile gap**, which widens where curvature is
+  > highest. ~~so this station has more room at crown and rim~~ **❌ WITHDRAWN 2026-09-21** — that
+  > rested on treating the module as **flat**, and it is not: §3.1 of `NP-HEX-ZM-001` committed a
+  > **median-curved** 40 mm hexagon (`R_m ≈ 87 mm`, 3.1 mm dome), **one compromise curvature chosen
+  > to minimise mismatch across all socket positions**. Its residual is **1.04 mm worst case,
+  > ~0.25 mm typical**, and §3.1 already absorbs it in *"the PDMS window standoff + a ≤0.8 mm
+  > compliant gasket"* — **radially at L0, not as in-plane gap width**. `NP-EMC-CAV-001` §8.8
+  > Rev 13.
 - **Ear boundary:** the vault stack ends at the lattice's ear cut-out; the ear-cup
   subassembly mounts to the L3 rim there (separate part family, its own seal).
 - **TMS window (T2):** the CFRP L3 is broken by a non-conductive CFRP window at the coil

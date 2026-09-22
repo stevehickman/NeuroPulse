@@ -331,6 +331,53 @@ with one **STM32G071 in UFQFPN32** per board.
 | Cluster power gate | high-side load switch, **24 V-rated** | 1 | Gated by `SAFE_EN[n]` (§6). Part class changed by the rail decision (§5.4) |
 | Local bulk decoupling | ceramic + polymer bulk | — | Sized for edges/carrier only (§9.2) |
 
+> **★ DECIDED 2026-09-21 (principal direction) — PCB-1: the cluster controller board is
+> 0.80 mm nominal, ±0.08 (±10 %), 4-layer rigid-flex.** Rev 2 costed it as *"small 4-layer +
+> rigid-flex tail, $1.80"* and gave it **no thickness** — which turned out to matter far outside this
+> document.
+>
+> **Why 0.80 and not the default 1.6.** The usual reason to run a 4-layer board at 1.6 mm is
+> self-support, and **this board does not need it**: §8.1 makes the carrier *"fixed — laminated into
+> L1, never moves"*, so the polymer bowl provides the stiffness. 0.80 mm is a **stock rigid-section
+> thickness for 4-layer rigid-flex**, so it carries no fabrication premium.
+>
+> **Why not thinner.** 0.60 mm is achievable but constrains dielectric and copper-weight options on a
+> 4-layer stack-up, and the board carries a **24 V rail at up to the whole vault feed** (§5.4).
+> **0.60 is not selected without a fab DFM review** — the remaining 0.20 mm is worth
+> ~0.008 m²K/W and is not worth buying blind.
+>
+> **What it decides elsewhere.** This board sits on L1's **gap-facing** face (§4.1), so its thickness
+> is a term in the **inter-bowl Gap floor** — the largest single term in the outward thermal path.
+> **1.0 → 0.80 mm is 0.0077 m²K/W recovered for nothing.** `NP-EMC-CAV-001` §8.7 carries the stack;
+> this closes one of the four inputs `OI-EMCCAV-09` was waiting on.
+
+> **★ DECIDED 2026-09-21 (principal direction) — BOARD-1: the cluster controller board sits at the
+> cluster's PAN-FACING EDGE, on the cluster's own mirror axis — not at its centroid.** Rev 2 named
+> this board's contents and never placed it. `PLATE-1` (`NP-HEX-ZM-001` §5.4a) made the omission
+> load-bearing, because the clamp plate now **pockets** over these components and a pocket at the
+> plate's centroid is a pocket at maximum bending moment.
+>
+> **Four independent constraints select the same position, which is why it is a rule and not a
+> preference:**
+>
+> | | Why the PAN-facing edge |
+> |---|---|
+> | **Plate structure** — the reason it was asked | §5.4a caps the cluster at 7 tiles because an 8th raises **plate-mode deflection ×3.07**, *"the one that matters"*, against a plate already carrying **34.2–57.0 N** over 19 contacts (§5.1.5). At the **edge** the bending moment is minimal, so `PLATE-1`'s pocket costs nearly nothing; at the centroid it costs the most. **Where the board falls into the inter-tile gap, no pocket is needed at all.** |
+> | **Tail length** | All **18** tails converge on the PAN at the occiput centreline (§4.2). PAN-facing siting is the **shortest run for every cluster** — less rigid-flex, lower cost, fewer bend-radius constraints (§8.3). |
+> | **Loop area — `REQ-EMI-06`** | N1 is a **tree from the PAN** (§3.1, never a ring per `REQ-EMI-09`), and §9.3 computes loop area **over a 200 mm cluster feed**. Loop area is **linear in feed length**, so shortening the feed shortens the loop by the same fraction. That is margin on the **≤25 mm²** limit §9.5 calls mandatory rather than a refinement — and margin on the self-field §9.5 must subtract. |
+> | **`SYM-1`** | Siting on **the cluster's own mirror axis** keeps the six self-symmetric midline clusters self-symmetric and lets the six lateral mirror pairs mirror by construction. `SYM-1` is preserved **without an exception clause**. |
+>
+> **`REQ-EMI-01` is unaffected:** the board stays inside its cluster footprint, so no electrode-mux
+> or TIA lane lengthens — the analog path is still muxed at the cluster and digitised at the PAN.
+>
+> **One packing conflict this does NOT resolve, and `MECH-2` must.** `NP-HELMET-GEOM-001` §3's
+> **cluster-clamp bosses also sit in the inter-tile gaps**, where they *"add mid-span stiffness to
+> the scalp-facing plane without costing any module coverage."* For a **midline** cluster the mirror
+> axis meets the PAN-facing edge **on an inter-tile boundary**, which is exactly where a boss wants
+> to be. **The board and the boss compete for that gap, and the planform packing is not solved
+> here.** It is a layout question, not an architectural one — but it is real, and pretending the
+> rule lands cleanly everywhere would be wrong.
+
 ### 3.2a Why the tier needs local intelligence — and why HUB-001's stated reason is not the reason
 
 `NP-HW-HUB-001` §3.2 argues the tier needs an MCU because **LED drive must distribute**:
@@ -802,10 +849,157 @@ hold over a doubly-curved cluster.
 > inradius rather than the circumradius, leaves room for §7.1's required mis-key asymmetry, and
 > keeps `SEAT#` at a genuine mechanical extreme so §7.3's last-to-mate sequencing is real. Verified
 > by **SH2-DRC-05a**.
+>
+> **★ `CURV-1` (principal direction, 2026-09-21, `NP-HEX-ZM-001` §3.1) — the array's datum is
+> CURVED, at the module's own compromise radius `R_m ≈ 87 mm`.** The module is a **median-curved**
+> 40 mm hexagon and the socket seating surface now matches it, so these two rows lie on a curved
+> datum rather than a plane. **This is load-bearing here, not upstream trivia:** the interface is a
+> **compression contact** (§9.1) with **`SH2-DRC-08` wipe ≥ 0.30 mm**, and across this array's
+> **~18 mm span** the `R_m` sagitta is `87 − √(87² − 9²)` = **0.467 mm — 1.56× the whole wipe
+> budget**. A flat datum would take the end contacts out of compression or bottom the middle ones.
+> **`SH2-DRC-08` must therefore be run on a curved pair; flat coupons do not test this interface.**
+
+> **Topology alternatives are recorded in §5.1.6a, not here** — three rows (`ALT-SKT-A`), an outboard
+> `SEAT#` (`ALT-SKT-B`), a constant-radius arc (`ALT-SKT-C`), and the net-to-position assignment
+> (`ALT-SKT-D`) that is free and **is** taken. `REQ-SKT-01`'s outline is unchanged by all four.
 
 Adopting 3+3 is what converts this from the conditional note Rev 2 first carried ("above ~17
 contacts the array *should* go to two rows") into a binding layout requirement — a 19-contact single
 row is not viable at 2.00 mm pitch on a 40 mm hex.
+
+#### 5.1.6a Array topology — the alternatives, and the one degree of freedom that is free
+
+**Recorded 2026-09-22 on principal direction.** `REQ-SKT-01` fixes the array's *outline* (two
+staggered rows, 9 + 10, ~18 mm) and `CURV-1` fixes its *datum*. Neither fixes the topology, and
+three alternatives were raised against it. None is adopted here; **`REQ-SKT-01` stands.** They are
+recorded with their numbers and their trigger conditions so the next person does not re-derive them,
+and because **one of them is free and should be taken now** (`ALT-SKT-D`).
+
+**The governing identity, which subsumes the row-count question.** On the spherical module cap
+`R_m` (§3), depth below the pole is a function of **radius from the module axis alone**:
+
+> `z(ρ) = R_m − √(R_m² − ρ²)`
+
+So the array's height variation is set by its **radial spread**, not by its row count, its span or
+its aspect ratio — those only matter through the radii they reach. Two consequences that are not
+obvious from the row-count framing: an array's variation is the difference between its outermost and
+innermost pad radius, and **any iso-radius locus has ZERO variation, exactly, at any size.** All
+figures below are `z(ρ)` at `R_m = 87 mm`, checkable in one line.
+
+| Topology | Span | Radial spread | **Height variation** | vs 0.30 mm wipe | `SEAT#` lever arm |
+|---|---|---|---|---|---|
+| 1 row (19) | 36 mm | 0 → 18.00 | 1.882 mm | 6.27× | 18.00 mm |
+| **2 rows 9 + 10 ★ REQ-SKT-01** | **18 mm** | **0 → 9.04** | **0.471 mm** | **1.57×** | **9.04 mm** |
+| 3 rows 7 + 6 + 6 (`ALT-SKT-A`) | 12 mm | 0 → 6.24 | 0.224 mm | 0.75× | 6.24 mm |
+| 18-pad core, 3 rows 6 + 6 + 6 (`ALT-SKT-B`) | 10 mm | 0 → 5.29 | 0.161 mm | 0.54× | *outboard* |
+| 19 on one arc, ρ = 16 mm (`ALT-SKT-C`) | 36 mm arc | **16.00 → 16.00** | **0.000 mm** | **0×** | 16.00 mm |
+
+> **`ALT-SKT-A` — three rows, 7 + 6 + 6.** Halves the variation (0.471 → 0.224 mm) and leaves span
+> far inside `SH2-DRC-05a`'s ≤20 mm. It matters even under `CURV-1`, because form tolerance on the
+> moulded curved floor scales with radial spread, not only with flatness. **It costs a third of
+> `SEAT#`'s lever arm (9.04 → 6.24 mm)** — spent on the one interlock guarding the *silent* failure
+> of §5.1.3(a), which `SH2-DRC-10b` has to clear at any insertion depth. **Not adopted: nothing
+> forces the move today, and it pays in the wrong currency.**
+>
+> **Two constraints that bind if it is ever taken.** **(a) 7 + 6 + 6, never 6 + 7 + 6** — the
+> symmetric layout is C2-symmetric about the array centre, so it maps onto itself under 180°
+> rotation and the array stops mis-keying itself; §7.1's asymmetry would then need a separate
+> feature, where 9 + 10 and 7 + 6 + 6 both carry it intrinsically. 6 + 7 + 6 is the layout anyone
+> reaches for first, which is why it is written down. **(b) The middle row is landlocked** — its 6–7
+> nets escape between 2.00 mm-pitch pads or on inner layers. Cheap on the module's rigid PCB, less
+> cheap on the socket side, which is L1 rigid-flex. **And one question ME must answer first:** if the
+> spring beams wipe *transverse* to the rows, the middle row has no free side to cantilever into; if
+> they wipe along the rows, the 2.00 mm in-row pitch binds identically in both layouts and there is
+> no difference. **Beam orientation is not specified anywhere in the set.**
+>
+> **Trigger:** adopt if `SH2-DRC-08`, run on a curved pair per `CURV-1`, shows the usable working
+> deflection is tighter than the 0.30 mm wipe implies (`OI-SHELL2-12`) — and pair it with
+> `ALT-SKT-B`, because the two costs then offset.
+
+> **`ALT-SKT-B` — move `SEAT#` out of the array.** The one structural observation in this section:
+> **the two geometric objectives belong to different pins.** Eighteen pads want small radial spread;
+> `SEAT#` alone wants a large radius, because its tilt sensitivity is proportional to its lever arm.
+> They conflict *only* while all 19 share one outline. Split them and both improve — a genuine
+> Pareto move on the two geometric axes:
+>
+> | | variation | `SEAT#` lever |
+> |---|---|---|
+> | today (9 + 10) | 0.471 mm | 9.04 mm |
+> | 18-pad core 9 + 9, `SEAT#` at ρ = 15 | 0.373 mm (−21 %) | 15.0 mm (**1.66×**) |
+> | 18-pad core 6 + 6 + 6, `SEAT#` at ρ = 18 | 0.161 mm (−66 %) | 18.0 mm (**1.99×**) |
+>
+> The minimal version keeps two rows and moves one pin, so it is cheap to take. **What it spends,
+> and why "only improves" is not quite true:** an outboard pad at ρ = 18 sits 2.0 mm inside the
+> 20.0 mm inradius — inside the per-tile perimeter gasket's ingress path, against `SH2-DRC-11`
+> (IPX4 after 10 swap cycles) and `FAI-IPX-05`'s per-tile seam budget. **Radius is the dial:** ρ = 15
+> still buys 1.66× at 5.0 mm of gasket standoff. It also **routes one net across the socket floor**
+> to the perimeter, and it makes the outboard pad carry the mis-key on its own if the core is C2-symmetric.
+>
+> **What it does NOT fix, and must not be claimed to:** `SEAT#` is a *single-point* detector in both
+> arrangements. It sees lift **at itself**; a tilt about an axis through `SEAT#` lifts the core while
+> `SEAT#` reads home. Moving it outboard neither creates nor closes that hole — `OI-SHELL2-13`.
+
+> **`ALT-SKT-C` — one constant-radius arc, and why it is the interesting one.** From the identity
+> above, **19 pads on a single arc at ρ = 16 mm have exactly ZERO height variation** — not small,
+> zero, by construction and independent of `R_m`. At 2.00 mm arc pitch the 18 gaps make a 36.0 mm
+> arc subtending 128.9°, entirely inside the 20.0 mm inradius with 4.0 mm of wall clearance, and it
+> gives **every** pad a 16 mm lever arm. It is also the arrangement §5.4a's central spring plunger
+> most wants: preload at the centre against contacts on a circle is statically balanced, where a
+> linear array puts a moment about its own axis. **It dominates every row layout on the quantity
+> `CURV-1` was written about.**
+>
+> **Three costs, and the third is probably decisive.** **(1) Ingress:** it puts the *entire* array
+> at ρ = 16, not one pin — the `SH2-DRC-11` objection at full scale. **(2) It must stay a SINGLE
+> arc:** two concentric arcs one row-gap apart (ρ = 16.00 / 17.73) reintroduce **0.342 mm** of
+> variation and throw the whole benefit away, so the one property that makes this topology worth
+> anything is also the easy thing to lose. **(3) Manufacturability:** spring-pin blocks in this class
+> are supplied as **rectangular grids**, not arcs. A 19-pin arc is a custom pin field on the socket
+> side, against `NP-HW-HEXTILE-001` §7.1's deliberate choice to put the springs in the socket and
+> keep the module a passive gold pad. **That is a supplier question, not a geometry question, and it
+> is the one to ask before anything else here is costed** — `OI-SHELL2-14`.
+>
+> **On the record it was raised against:** the set contains no prior consideration of a perimeter or
+> partial-perimeter pin arrangement for this interface. The ring-shaped concept that *is* in the
+> record is `NP-HW-HEXTILE-001` **D-1**'s 5-ring centred-hexagonal **emitter** lattice, where T1-B is
+> a depopulation "around the reserved centre" — emitters on the tile face, not contacts on its back.
+> `NP-HFE-002` §7.3's "perimeter completeness" is a *visual* tile-type encoding. Neither is this.
+
+> **★ `ALT-SKT-D` — net-to-position assignment. This one IS free, and it is the answer to "is there
+> an arrangement that only improves things?".** **Which net lands at which position in the array is
+> specified nowhere.** `REQ-SKT-01` gives the outline; `SH2-DRC-05a` checks span, mis-key and
+> `SEAT#`'s extreme; `NP-HW-HEXTILE-001` §7.3 orders mating by **pad-length stagger in Z**, not by
+> position in XY; and the §7.2 pin table is a *numbering*. **So the XY assignment is an unallocated
+> degree of freedom** — stating it costs nothing, changes no count, span, force, sequencing or
+> outline, and cannot make anything worse.
+>
+> **It is worth stating because the variation is not uniform across the array.** `z(ρ)` is worst at
+> the ends and flat near the centre, so position quality differs by ~0.47 mm end-to-end while the
+> pins differ enormously in how much they care:
+>
+> | | Nets | Why |
+> |---|---|---|
+> | **Tolerant → give them the ENDS** | `VLED` ×3, `PGND` ×3 | Triple-redundant *by rule* — §5.1.5 sizes them so losing any one still leaves ≥2× derating. They are the only pins on this interface designed to survive a degraded contact |
+> | | `SDA`, `SCL`, `SYNC`, `ALERT#`, `VCC_3V3`, `DGND` | Digital: ~52 mV of bounce against a 0.99 V threshold (§5.1.3c) |
+> | **Intolerant → give them the CENTRE** | `PD1_K`, `PD2_K`, `AGND` | 14–72 µA photocurrent across a spring contact; drift is a **dose-metering error term**, the cost §7.2 accepted when `OI-HUB-C17c` kept the TIA on the cluster controller. `SH2-DRC-09`'s wear mode lands here |
+> | | `NTC` | 42 °C / 62 °C interlock chain (R-9) |
+> | | `ELEC`, `ELEC_SHLD` | µV EEG recording **and** tES current on one conductor; keep the shield adjacent |
+> | **Fixed by function** | `SEAT#` | An extreme, by §5.1.3(a) — that is the whole mechanism |
+>
+> **Rule of record: position by tolerance to contact-resistance drift, not by pin number.** The
+> redundant and digital pins take the worst geometry; the singleton sense pins take the best.
+>
+> **Two constraints it must not break.** Each `VLED` keeps its **broadside `PGND` partner** across
+> the rows — `REQ-EMI-07` and §9.3's cancellation depend on supply and return carrying the same
+> current in the same pair — and the three `VLED`/`PGND` pairs stay **contiguous**, because splitting
+> them to opposite ends lengthens the path-length difference between the three parallel conductors
+> and worsens exactly the current *imbalance* §5.1.5 noted 3-way paralleling does not fix. So the
+> tolerant group goes to **one** end as paired columns, `SEAT#` takes the other extreme, and the
+> analog block moves **inboard of** the digital block — which is the swap this rule actually asks
+> for, and it is free.
+>
+> **Verification:** folded into `SH2-DRC-05a`. **`SH2-DRC-05b`'s pin-for-pin diff is what keeps this
+> from decaying** — the assignment lives in two controlled documents and a divergence would read as
+> agreement, which is the §5.1.7 failure mode.
 
 #### 5.1.7 Signal naming — one name per conductor (decided 2026-08-11)
 
@@ -1473,10 +1667,10 @@ pass/fail with supporting evidence.
 | SH2-DRC-04 | Cluster tail static bend radius at every formed bend | CAD measurement | ≥12.5 mm (REQ-BR2-01) | ME |
 | SH2-DRC-05 | No bend within 5 mm of any rigid-flex transition, stiffener, boss or carrier edge | CAD | REQ-BR2-03 | ME |
 | SH2-DRC-05b | Socket pin table matches `NP-HW-HEXTILE-001` §7.2 pin for pin **and name for name** | Mechanical diff of the two tables, not a review | Identical; zero signals differing only in spelling (§5.1.7) | EE |
-| SH2-DRC-05a | **19-contact pad array is two staggered rows** and fits inside the tile inradius with mis-key asymmetry and `SEAT#` at a mechanical extreme (**REQ-SKT-01**, §5.1.6) | CAD | Span ≤20 mm; ±0.4 mm lateral blind-mate tolerance held across a full cluster | ME/EE |
+| SH2-DRC-05a | **19-contact pad array is two staggered rows** and fits inside the tile inradius with mis-key asymmetry and `SEAT#` at a mechanical extreme (**REQ-SKT-01**, §5.1.6). **Also: net-to-position assignment follows §5.1.6a `ALT-SKT-D`** — redundant and digital nets at the array ends, singleton sense nets (`PD1_K`, `PD2_K`, `AGND`, `NTC`, `ELEC`) mid-array, `VLED`/`PGND` broadside pairs contiguous | CAD | Span ≤20 mm; ±0.4 mm lateral blind-mate tolerance held across a full cluster; no singleton sense net at an end position | ME/EE |
 | SH2-DRC-06 | No formed bend under a clamp plate footprint or a socket | CAD | REQ-BR2-05 | ME |
 | SH2-DRC-07 | Zero dynamic-flex paths in the module interconnect | Design review | Set is empty (REQ-BR2-02) | ME |
-| SH2-DRC-08 | Socket contact force, wipe distance and mating cycle rating | Bench | ≥1,000 cycles, wipe ≥0.3 mm | ME/EE |
+| SH2-DRC-08 | Socket contact force, wipe distance, **usable working deflection** and mating cycle rating. **Run on a CURVED pair per `CURV-1`** — flat coupons do not test this interface | Bench | ≥1,000 cycles, wipe ≥0.3 mm; **working deflection range REPORTED, not assumed** — it is the quantity a height error actually spends, and no document states it (`OI-SHELL2-12`) | ME/EE |
 | SH2-DRC-09 | Contact plating hard gold ≥0.5 µm both halves; fretting resistance | Coupon | Contact R drift <20 % over cycle life | EE |
 | SH2-DRC-10 | Cluster clamp plate load with final contact count vs one-handed input force — **restate against a 6-tile plate, not 7** (§5.1.6) | Bench + HFE | RISK-22 intent met with §5.4a actuator | ME/HFE |
 | SH2-DRC-10a | **The adopted 3 `VLED+` deliver the ≥2× degraded-case margin §5.1.5's rule asserts.** *(Re-pointed: this no longer selects between 2/3/4 — 3 is decided. It verifies the rule on real contacts.)* | Bench: force one contact to elevated R, measure current share + local ΔT | Survivor ≤0.5 A (≥2× vs ≥1.0 A rating); no thermal runaway over cycle life | EE/ME |
@@ -1519,6 +1713,9 @@ pass/fail with supporting evidence.
 | OI-SHELL2-09 | **Controlled-document updates this architecture implies but does not make:** NP-HEX-ZM-001 §5.3.1/§5.4a (bus on L1 vs reasons 3–4), NP-HELMET-GEOM-001 §2 (L1 module depth assumes a "20-pin FPC"; tiles now have no tail) and §3.2, and a new FMEA entry for the §4.3 shared-return failure alongside FMEA-G07-01. **Rev 2 added three:** (i) ~~**`NP-HW-HEXTILE-001` §7.1–7.2 (D-5)**~~ — **✅ DONE 2026-08-11, HEXTILE Rev 3.** The 16-position count and pin table are superseded by §5.1.4's 19; the 2.00 mm pitch, spring-on-socket choice, ≥0.8 µm hard-gold plating, ≤50 mΩ / ≥500-cycle specs and §7.3 mating sequence carried over unchanged, and REQ-SKT-01's two-row array is reflected there. HEXTILE Rev 3 also raises **OI-HEXTILE-15** (its §5.3/§6 still read as though D-4 holds — module BOM, not tooling-blocking) and **OI-HEXTILE-16** (`GUARD` vs `ELEC_SHLD`, one conductor two names — pick one before Hub PCB Rev C release). (ii) ~~`NP-HW-HUB-001` §7.4 (12/16 → 18/20 connectors)~~ — **✅ DONE 2026-08-16, HUB-001 Rev 5**, which closes **OI-HEXTILE-14**: §7.4 now reads 18 populated / 20 provisioned, 216/240 pins and 4 × PCA9548A on LPI2C1–4, and the re-size reached four places this item had not named — §6.3 (18 DG2788A, not 10), §5.2 (the `ceil(n/8)` mux rate **and** a 16-controller tier-1 ceiling that 18 actually breaks), §8.2/§8.5 (18 boards; 216 parting-plane conductors, so the headline is ~4.1× not 8.8×) and HUB-DRC-C02. **Still open there:** §3.2 (LED-drive rationale, per OI-HUB-C15), §7.5.2 (14–15 figures void), §7.5.3 (passive-carrier model), and the §5.2 tier-1 *topology* rewrite — **the signal-naming portion is COMPLETE (2026-08-11): `ELEC`/`ELEC_SHLD` in §7.5.2, `ALERT#` and `SEAT#` in §125, and `ELEC_SIG` → `ELEC` in §113/§124 all aligned per §5.1.7. OI-HEXTILE-16 and OI-HEXTILE-17 both closed; no naming residual remains in this document set**. (iii) `NP-HEX-ZM-001` §5.4a MECH-2 (prices the flower at 12 boards / $76.08; actual 18 / $114.12) | Quality | DHF consistency; **(i) blocks socket tooling** |
 | OI-SHELL2-10 | Decide whether the ADS1299 bank sits at the PAN (assumed) or the Hub PCB; moves an SPI interface across the boss. `NP-HW-HUB-001` §7.4 response 3 **accepts the PAN** as the better placement; the item stays open only for the Hub PCB Rev C schematic to confirm | EE Lead | Hub PCB Rev C |
 | **OI-SHELL2-11** | **NEW — inter-bowl thermal load from 18 active cluster controllers (§10.3).** Rev 1's passive carrier dissipated essentially nothing and raised no thermal question. Eighteen boards each carrying an STM32G071, a zero-drift TIA op-amp, three mux banks and an I2C switch dissipate **continuously** (emitters are duty-cycled; this is not) into the inter-bowl gap, which `NP-THERM-CFD-C2-001` §7 characterises as **stagnant air at 0.231 m²K/W — ~59 % of the entire outward resistance path** (total outward ≈ 0.393 vs inward ≈ 0.108 m²K/W). That analysis already concluded the outward path is **~4× more resistive than the inward path to the perfused scalp**, which is why Path A was NO-GO and Path B1 committed. Heat added on the gap-facing side of L1 therefore sits *behind* the dominant outward resistance, and §4.1's claim that gap-facing components are "out of the scalp thermal path" is **not established**. **Two inputs do not exist yet:** a budgeted per-controller dissipation figure, and a CFD case placing the source on the **gap-facing side of L1** rather than at the LED junction plane. **This is the thermal load that moved sides when OI-HUB-C17c resolved against D-4** (§3.3a) — D-4 would have put this silicon on the tile instead, which is the question C17c's *other*, still-open half asks. The two must be assessed as one budget, not separately | Thermal + EE Lead | **THERM-1a CFD** (`NP-THERM-CFD-001` case matrix); interacts with **OI-HUB-C17c**, SR-FAN-01…06, OI-FAN-01a |
+| **OI-SHELL2-12** | **NEW — `SH2-DRC-08` specifies no working DEFLECTION range, and that is the quantity a height error actually spends.** The DRC gives contact force (0.3–0.5 N), wipe (≥0.3 mm) and cycles (≥1,000). `CURV-1` and §5.1.6a both had to compare a sagitta against the **wipe** figure — 0.471 mm vs 0.30 mm — because wipe is the only published *length* at this contact. **Wipe is a proxy and is being used past its warrant:** it is a sliding distance during mating, not the usable compression window, and the two are related only through beam geometry that is also unspecified (§5.1.6a notes beam ORIENTATION is likewise nowhere stated). Until the window is a number, no array-topology decision here can be closed on evidence — `ALT-SKT-A`'s trigger is written against it. **Report it from the `SH2-DRC-08` bench, on a curved pair; do not back-derive it from the wipe spec.** | ME/EE | `SH2-DRC-08`; gates `ALT-SKT-A` |
+| **OI-SHELL2-13** | **NEW — `SEAT#` is a SINGLE-POINT detector and `SH2-DRC-10b` asks it a whole-interface question.** §5.1.3(a) places `SEAT#` at a mechanical extreme so it mates last, and `SH2-DRC-10b` requires *"no plausible-but-wrong dose reading at any insertion depth"*. One point sees lift **at itself**: a tilt about an axis through `SEAT#` lifts the core while `SEAT#` reads home, and the §5.4a plunger permits tilt in any direction. **This is a hole in the CURRENT arrangement, not one created by any §5.1.6a alternative** — `ALT-SKT-B` moves the point without closing it. Closing it properly costs contacts (three extremes 120° apart, or a two-pad sense loop across a diameter), and contact count is the one budget §5.1.5 and RISK-22 have already closed. **So either `SH2-DRC-10b`'s criterion is narrowed to the tilt directions one point can see, or the count is reopened with §5.1.5's rule.** Do not let the bench close it by testing only the favourable direction. | ME/EE/FW | `SH2-DRC-10b`; couples to `OI-SHELL2-03` |
+| **OI-SHELL2-14** | **NEW — are arc / non-rectangular spring-pin fields available in this class at all?** §5.1.6a's `ALT-SKT-C` is the only topology that drives height variation to **exactly zero**, and its viability turns on a supplier question nobody has asked: spring-pin blocks at this size are supplied as **rectangular grids**, and `NP-HW-HEXTILE-001` §7.1 deliberately puts the springs in the socket to keep the module a passive gold pad. A 19-pin arc is a custom pin field on the wearing half. **Ask this before costing anything else in §5.1.6a** — a "no" closes `ALT-SKT-C` outright and a "yes" makes it the leading candidate, and either answer is cheap to get. Fold into `OI-SHELL2-05`'s quotation round. | EE/Supply | `ALT-SKT-C`; `OI-SHELL2-05` |
 
 ---
 
