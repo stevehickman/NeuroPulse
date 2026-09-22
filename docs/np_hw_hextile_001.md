@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HEXTILE-001
-**Revision:** 9
+**Revision:** 10
 **Date:** 2026-09-21
 **Status:** DESIGN STUDY — not a tooling baseline. Every numeric value below is a proposed engineering commitment, not a measured or locked figure. See §10 (Decisions) and §11 (Open Items).
 **Effective Date:** —
@@ -14,6 +14,20 @@
 **IEC 62304 Class:** — (hardware; the on-module driver firmware is Class B, see §6.5)
 **Supersedes:** — (new document; fills the gap declared in NP-HW-FPC-001 Rev 5 supersession note: *"no document yet specifies the T1-A/T1-C hex-tile FPC pinout or electrical layout"*)
 **Parent Document:** NP-HEX-ZM-001
+
+---
+
+> **Rev 10 (2026-09-21) — a real emitter is put through §8.1.1 for the first time, and two of this document's own numbers do not survive it. `OI-HEXTILE-22` raised. No decision, no part selection, no interface change.**
+>
+> `NP-PROC-FPC-001` Rev 5 assessed the Luminus **SST-06 / SST-10-IRD-810** family against §2.2/§2.3 from the manufacturer's datasheets (PDS-003021 Rev 02, PDS-003022 Rev 01). Every previous candidate reached this document as a design target or an estimate; this is the first one carrying datasheet values at the operating point, and putting it through §8.1.1 returns three results, two of which are about **this document** rather than about the part.
+>
+> **1. The dead band is cleared, and §8.1.1's arithmetic holds.** Reading Δ`V_f` off each datasheet's `ΔV_f` vs `I_F` trace against its 350 mA binning reference gives `V_f` = **2.82 V** (SST-10) and **2.85 V** (SST-06) at 150 mA — **below** §8.1.1's 3.00–3.20 V dead band, not inside it. At **N = 8** that is 22.58 V, a 1.42 V residual and **5.9 %** linear overhead: inside §8.1's budget, and landing between the 2.80 V and 3.30 V rows §8.1.1 already tabulates. The read is self-validated — the trace returns Δ`V_f` = −0.005 V at 350 mA, where it is zero by construction.
+>
+> **2. §8.1.1's caveat 1 is right about the binning dependency and wrong about the margin. `NP-PROC-FPC-001` §2.1's ±0.10 V bin does not make fixed-N comfortable; it makes it critically sized.** Luminus bins in **0.2 V increments**, which meets §2.1 exactly as a standard shipping condition. But 0.2 V across N = 8 is **1.6 V of spread in `N · V_f`**, and §8.1's entire residual window is `(24 − V_dropout) − 22.4 = 1.6 − V_dropout`. **A fixed N = 8 holding across a full ±0.10 V bin therefore requires a driver dropout of zero.** Worked against the three bins this part actually ships in, only the lowest clears the 24 V functional ceiling across its whole width, and it does so while falling under the 22.4 V thermal floor at its low edge (20.98 V, 12.6 % overhead). This is **`OI-HEXTILE-18` and `OI-HEXTILE-19` arriving as a number instead of a warning**, and it is not specific to Luminus — any supplier's ±0.10 V bin does this at N = 8. §8.1.1 gains the worked table.
+>
+> **3. `OI-HEXTILE-22` — §4.1's 3.80 mm pitch was derived from areal density and edge clearance, and never checked against an emitter package.** A 3.80 mm triangular lattice puts the 60° neighbour at **(1.90, 3.29) mm**, so an axis-aligned square package must be **≤ 3.29 mm** or it overlaps its neighbour. The Luminus package is 3.45 mm square (3.65 mm at maximum material) and needs ≥ 4.21 mm. **So do two of the three parts already shortlisted in `NP-PROC-FPC-001` §2.6.2** — SFH 4703AS (3.85 mm) needs ≥ 4.45 mm and SFH 4718A (3.75 mm) needs ≥ 4.33 mm, both **above §4.1's own 4.04 mm ceiling at 91 sites**. Only L1IZ-0850 (1.9 × 1.37 mm) fits, and only with its long axis on the 60° axis. **The one shortlisted NIR part that fits the specified lattice is the 850 nm one, which is the part that fails the wavelength window** — a fact for `OI-LED-W1`'s owners, and not a decision taken here.
+>
+> **Nothing in §4.2, §5, §6, §7, §9 or §10 changes, and no emitter is selected.** §4.1 and §8.1.1 gain notes, §11 gains `OI-HEXTILE-22`, `OI-HEXTILE-02` gains the verified data. GitHub #333; trace in `docs/status/pending-decisions.md` §13.2e(i).
 
 ---
 
@@ -237,6 +251,26 @@ A centered hexagonal array of n rings holds 3n² + 3n + 1 sites. For n = 5 that 
 | 6 | 127 | 3.37 mm | 12.0 /cm² |
 
 Pitch is set to **3.80 mm**, not the 4.04 mm ceiling, leaving 1.2 mm of clearance between the outermost emitter sites and the active-field boundary for placement tolerance and the PDMS window edge bead. Array circumradius = 5 × 3.80 = **19.00 mm**.
+
+> **⚠ The 1.2 mm of clearance is at the array *boundary*. Nothing in this section checks the pitch
+> against the *footprint of the emitter that sits on each site* — and at 3.80 mm most of the
+> shortlist does not fit (`OI-HEXTILE-22`, raised Rev 10).** A triangular lattice of pitch `p` puts
+> the 60° neighbour at `(p/2, p√3/2)` = **(1.90, 3.29) mm**, so two axis-aligned square packages
+> clear each other only if the package is **≤ 3.29 mm**. Against the parts actually shortlisted in
+> `NP-PROC-FPC-001` §2.6.2 and §2.6.3:
+>
+> | Candidate | Package | Minimum pitch | At 3.80 mm |
+> |---|---|---|---|
+> | Lumileds L1IZ-0850 (850 nm) | 1.9 × 1.37 mm | 2.19 mm | ✓ fits, long axis on the 60° axis |
+> | Luminus SST-06 / SST-10-IRD-810 | 3.45 mm sq (3.65 max) | 4.21 mm | ✗ overlaps |
+> | ams-OSRAM SFH 4718A (860 nm) | 3.75 mm sq | 4.33 mm | ✗ overlaps |
+> | ams-OSRAM SFH 4703AS (810 nm) | 3.85 mm sq | 4.45 mm | ✗ overlaps |
+>
+> Three of the four need more pitch than **4.04 mm**, which is this section's own ceiling at n = 5,
+> so for them the conflict is not resolvable by spending the 1.2 mm boundary clearance — it costs a
+> ring (n = 4, 61 sites, 5.05 mm available) or a different package. **The pitch and the emitter
+> package have to be chosen together, and §4.3's irradiance figures depend on the outcome of both.**
+> A 45° package rotation clears the 3.45 mm part by ~0.03 mm, which is not a manufacturable margin.
 
 This independently reproduces the estimate NP-HEX-ZM-001 §3.1 carried without deriving — *"the densest tile (tri-wavelength PBM ~90 elements at ~3.5 mm pitch)"*. That the row-construction guess and this packing derivation agree at ~90 is the same two-independent-ways corroboration the parent document applied to the socket count.
 
@@ -648,6 +682,14 @@ upper is functional.
 | 2.80 V | 8 | 22.40 V | 1.60 V | 6.7 % | ✓ |
 | 3.00 < V_f < 3.20 V | — | — | — | — | ✗ **no integer N** (dead band; widens with `V_dropout`) |
 | 3.30 V | 7 | 23.10 V | 0.90 V | 3.8 % | ✓ |
+| **2.82 V** — Luminus SST-10-IRD-810 at 150 mA, **datasheet** | **8** | **22.58 V** | **1.42 V** | **5.9 %** | **✓** |
+| **2.85 V** — Luminus SST-06-IRD-810 at 150 mA, **datasheet** | **8** | **22.82 V** | **1.18 V** | **4.9 %** | **✓** |
+
+**The last two rows are the only ones in this table that are not design targets or bracket
+estimates** (Rev 10). They are read off each datasheet's `ΔV_f` vs `I_F` trace against its 350 mA
+binning reference, and the read is self-validated — the trace returns `ΔV_f` = −0.005 V at 350 mA,
+where it is zero by construction. `NP-PROC-FPC-001` §2.6.3 carries the full assessment, including
+three requirement failures that have nothing to do with this section.
 
 **Consequence for emitter selection (OI-HEXTILE-02).** A ~3 V AlGaAs NIR emitter is **not**
 categorically incompatible with this rail — at 7–8 series it lands on residuals this section already
@@ -667,7 +709,31 @@ the N = 8 ceiling is `(24 − V_dropout)/8`, not 3.00 V.
    makes fixed-N viable is `NP-PROC-FPC-001` §2.1's mandatory **±0.10 V within-order Vf bin**. **It is
    load-bearing for string construction, not only for RISK-08 current matching** — and as of that
    document's **Rev 4 (2026-09-21)** §2.1 says so itself, where before it justified the bin on
-   current-hogging grounds alone. The distinction Rev 4 adds is the one that matters here: on the
+   current-hogging grounds alone.
+
+   > **⚠ Rev 10 — the bin makes fixed-N *possible*, not *comfortable*, and the margin is zero.**
+   > A ±0.10 V bin is **0.2 V wide**, and 0.2 V across **N = 8** is **1.6 V of spread in `N · V_f`**.
+   > §8.1's entire residual window is `(24 − V_dropout) − 22.4` = **`1.6 − V_dropout`**. So:
+   >
+   > > **A fixed N = 8 holding across a full ±0.10 V bin requires `V_dropout` = 0.**
+   >
+   > Worked against the three 0.2 V bins the Luminus part actually ships in (shifted −0.177 V from
+   > their 350 mA binning point to 150 mA):
+   >
+   > | Shipped bin at 350 mA | At 150 mA | `N · V_f` at N = 8 | ≤ 24 V ceiling | ≥ 22.4 V floor |
+   > |---|---|---|---|---|
+   > | 2.8–3.0 V | 2.62–2.82 V | 20.98–22.58 V | ✓ | ✗ under at the low edge (12.6 % overhead) |
+   > | 3.0–3.2 V | 2.82–3.02 V | 22.58–24.18 V | ✗ over the rail at the top edge | ✓ |
+   > | 3.2–3.4 V | 3.02–3.22 V | 24.18–25.78 V | ✗ | ✓ |
+   >
+   > **Only the lowest bin clears the hard functional ceiling across its whole width, and it does so
+   > by spending more than the 7 % thermal allocation at its low edge.** This is not a Luminus
+   > property — *any* supplier's ±0.10 V bin does this at N = 8. It is **`OI-HEXTILE-18` (no minimum
+   > dropout is specified) and `OI-HEXTILE-19` (no rail tolerance is stated) arriving as a number**,
+   > and it says the three are one question, not three: the bin width, the dropout and the rail
+   > tolerance all spend the same 1.6 V. Resolving it means tightening the bin below ±0.10 V,
+   > re-deriving the 7 % allocation from §9.3, or adding a per-string trim — an EE Lead decision that
+   > `OI-HEXTILE-02` should not be closed ahead of. The distinction Rev 4 adds is the one that matters here: on the
    current-hogging axis the bin degrades gracefully, on this axis it does not. Relaxing it does not
    widen a current imbalance; it removes the premise that a fixed N exists. Any §2.5 "use-as-is"
    disposition of an out-of-bin lot at ±0.15 V is therefore a string-length decision as well as a
@@ -1003,7 +1069,7 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 | ID | Description | Blocking |
 |---|---|---|
 | **OI-HEXTILE-01** | **Bezel width conflict:** NP-HEX-ZM-001 §3.1 assumes 2.5 mm; NP-THERM-BEZEL-001 Rev 1 sets 1.0 mm. This document uses the conservative 2.5 mm. Resolution changes A_a by ±14.5 % and every irradiance figure with it, and governs inter-tile uniformity (§4.4) | FPC artwork; **all §4 irradiance figures** |
-| **OI-HEXTILE-02** | Select 660–670 nm and 808–830 nm emitters for the base tile. §4.3's V_f and radiant-flux figures are design targets, not datasheet values. V_f binning ≤±0.1 V per `NP-PROC-FPC-001` **§2.1** (*corrected Rev 9 — this row cited §4.2, which is the Hirose connector; §2.1 is the binning specification, and as of that document's Rev 4 it states the string-construction dependency in §8.1.1 caveat 1 rather than leaving it implied*). Selection closes the string-length divisibility slack in §8.1. **Status at Rev 9: still open, and the blocker is upstream of this document.** Part selection cannot precede `OI-LED-W1`, the NIR wavelength decision, whose owners are **SAB** (science), **Regulatory Counsel** (RISK-03 scope and the published *"810nm"* claim) and **EE Lead** (cost) — open since 2026-07-28 with a decision brief written (`docs/status/pending-decisions.md` §13.2d). Two corrected inputs the owners now have that they did not: elevated V_f is **not** disqualifying on the 24 V rail (§8.1.1, §13.2e(b)), and the only shortlisted in-window part, SFH 4703AS, is **discontinued** while matching the published 810 nm claim on its own centroid specification. One new and **unverified** input: the **Luminus SST-06-IRD-810 / SST-10-IRD-810** dual-junction family is in-window on centroid and in the right package class, found 2026-09-21 by re-running the Option C search without the V_f filter — recorded as a lead in `NP-PROC-FPC-001` §2.6.3, with no datasheet retrieved and therefore no figure usable as a design input (§13.2e(h)). GitHub #333 | FPC artwork; emitter procurement; §4.3 validity; `NP-FAI-HEXFPC-001`; `OI-HUB-C08` term **U** |
+| **OI-HEXTILE-02** | Select 660–670 nm and 808–830 nm emitters for the base tile. §4.3's V_f and radiant-flux figures are design targets, not datasheet values. V_f binning ≤±0.1 V per `NP-PROC-FPC-001` **§2.1** (*corrected Rev 9 — this row cited §4.2, which is the Hirose connector; §2.1 is the binning specification, and as of that document's Rev 4 it states the string-construction dependency in §8.1.1 caveat 1 rather than leaving it implied*). Selection closes the string-length divisibility slack in §8.1. **Status at Rev 9: still open, and the blocker is upstream of this document.** Part selection cannot precede `OI-LED-W1`, the NIR wavelength decision, whose owners are **SAB** (science), **Regulatory Counsel** (RISK-03 scope and the published *"810nm"* claim) and **EE Lead** (cost) — open since 2026-07-28 with a decision brief written (`docs/status/pending-decisions.md` §13.2d). Two corrected inputs the owners now have that they did not: elevated V_f is **not** disqualifying on the 24 V rail (§8.1.1, §13.2e(b)), and the only shortlisted in-window part, SFH 4703AS, is **discontinued** while matching the published 810 nm claim on its own centroid specification. One input that is now **verified** (Rev 10): the **Luminus SST-06-IRD-810 / SST-10-IRD-810** dual-junction family, found by re-running the Option C search without the V_f filter and assessed in `NP-PROC-FPC-001` Rev 5 §2.6.3 against the manufacturer's datasheets. **In-window on centroid (λ_c 810 nm typ) on an ACTIVE part**, clearing §2.3 on package, θ_jc, DC current and pulse handling, meeting §2.1's ±0.10 V bin as a standard shipping condition, and giving `V_f` = **2.82 V at 150 mA** — below §8.1.1's dead band, N = 8 at 5.9 % overhead. **It does not clear everything, and this item must not be closed as though it did:** `T_j` max is **115 °C** against §2.3's ≥ 125 °C, **neither datasheet publishes an L70 figure at all** against §2.3's ≥ 80,000 h, and the shipped wavelength bin spans λ_p 800–830 nm whose lower 8 nm is **below** the 808 nm window. **Its radiant flux at 150 mA is ~220 mW against §4.3's 95 mW design target**, which moves §4.3.1's operating point rather than validating it — 45 emitters × 220 mW is ~2.3× R-4's ceiling, so the same irradiance arrives at ~65 mA or at fewer sites (interacts with `OI-HEXTILE-20`). **And it does not fit §4.1's lattice** — `OI-HEXTILE-22`. GitHub #333 | FPC artwork; emitter procurement; §4.3 validity; `NP-FAI-HEXFPC-001`; `OI-HUB-C08` term **U** |
 | **OI-HEXTILE-03** | Verify the 21-minute 1064 nm minimum session (§4.3.2) against `protocols/predefined/clinical-03-pbm-cognitive-1064.npps` and the NP-BIB-1064-001 evidence base. A 40 mm tile cannot deliver 36 J/cm² faster. **⚠ Reframed at Rev 7 — this item is stated as a session-length check, and session length is the symptom.** The 21 minutes is a consequence of CH_C's 28 mW/cm², and no protocol re-timing fixes an irradiance that is 9× below what the protocol specifies. **The irradiance-reachability half is split out as `OI-HEXTILE-21`; this item retains only the protocol-authoring verification**, which is still worth doing and is now downstream of OI-HEXTILE-21's answer | 1064 nm protocol authoring; interacts with REG-1. **Sequence after `OI-HEXTILE-21`** |
 | **OI-HEXTILE-04** | Illumination model for intra-tile uniformity at 3.80 mm pitch — needs emitter beam angle (OI-HEXTILE-02), PDMS diffuser scattering, and window standoff (SCAN-1) | Uniformity claim; GATE-2 bench design |
 | **OI-HEXTILE-05** | T1-B spring electrode pod body diameter → number of depopulated rings (§4.5) and T1-B emitter count | T1-B layout (deferred to Rev 2) |
@@ -1021,6 +1087,7 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 | **OI-HEXTILE-12** | FPC stack-up, trace width/spacing, and copper weight for a 24 V / 1.04 A tile. PDMS bonding (SiO₂ 75 nm interlayer + O₂ plasma) and the 200-cycle IEC 60068-2-14 qualification inherit unchanged from NP-HW-FPC-001 Rev 5 §7 and remain BLOCKING | FPC artwork release |
 | **OI-HEXTILE-20** | **§8.1's 25.0 W/tile peak may not be a legal operating point, and the contact count depends on it.** §4.3.1 puts each T1-A channel at **403 mW/cm²** at full 150 mA drive — *"by construction"* on R-4's 400 mW/cm² ceiling — so **both channels simultaneously is 806 mW/cm² against R-5's 600 mW/cm² aggregate ceiling.** Two readings, and the document does not say which holds: (a) **R-5 binds only the three-channel case** its source (`NP-FW-PBM1064-001` Rev 2, OI-PBM-05) addresses, in which case say so explicitly, because §4.3.2 presents 566 mW/cm² *"vs 600 mW/cm² ceiling ✓"* as a general check and a reader will apply it generally; or (b) **R-5 binds T1-A too**, in which case the true per-tile peak is **~18.6 W**, not 25.0 W. **Reading (b) is not conservative bookkeeping** — it propagates into the rail current (1.04 A → 0.78 A), the per-pin contact current that set `VLED` at 3 contacts under the ≥2× degraded-case rule (D-5, D-6, §8.1), §9's entire concurrency table, and `NP-PWR-BUDGET-001` §3.5. D-5's own text says the pin count is *"load-bearing and now tooling-blocking"* | **Socket contact count (D-5) — tooling-blocking.** Resolve with `NP-FW-PBM1064-001` as R-5's owner; propagates to §9, `NP-DRV-SHELL-002` §5.1, `NP-PWR-BUDGET-001` §3.5 |
 | **OI-HEXTILE-21** | **The 1064 nm channel cannot reach the irradiance of its own flagship protocol, at any tile population.** §4.3.2 gives CH_C **28 mW/cm²** at 30 sites. `docs/pbm_neuro_protocols.md` grades cognitive enhancement **A** at **1064 nm CW, 0.25 W/cm², 60 J/cm²/site, 8 min** — **9× above** what the tile delivers; a hypothetical 90-site 1064-only tile reaches only ~85 mW/cm², still 3× short. **This is an emitter-efficiency wall, not a budget or layout shortfall:** η_wp ≈ 4.8 % at 1064 nm (§4.3), and R-6 already caps drive at 120–180 mA for L70, so neither more watts nor more sites closes it. Three responses, none free: select a materially better 1064 nm emitter (extends `OI-HEXTILE-02` to CH_C, and `NP-PROC-FPC-1064-001`'s EPITEX reference part is the current bound); accept CW-only operation and long sessions, stating the protocol NeurOne actually targets; or **claim 1064 nm against the Alzheimer's protocol (1060–1080 nm, 0.1–0.3 W/cm²) rather than the cognitive one** — a band a 90-site tile can approach. **Split from `OI-HEXTILE-03`, which framed this as session length.** Note the same wall bounds every 1070 nm competitor (`docs/reference/competitive-position.md`) | **1064 nm claims and protocol authoring; `OI-HEXTILE-02` scope for CH_C.** Not tooling-blocking — the lattice is unaffected either way |
+| **OI-HEXTILE-22** | **§4.1's 3.80 mm lattice pitch was never checked against the footprint of the emitter that sits on each site, and most of the shortlist does not fit it** (raised Rev 10, GitHub #333). A triangular lattice of pitch `p` puts the 60° neighbour at `(p/2, p√3/2)`; at p = 3.80 mm that is **(1.90, 3.29) mm**, so two axis-aligned square packages clear each other only at **≤ 3.29 mm**. Luminus SST-06/SST-10-IRD-810 is 3.45 mm square (**3.65 mm at maximum material**, +0.20/−0.00) and needs ≥ 4.21 mm; **ams-OSRAM SFH 4718A (3.75 mm) needs ≥ 4.33 mm and SFH 4703AS (3.85 mm) needs ≥ 4.45 mm** — both above §4.1's own **4.04 mm** ceiling at n = 5, so for them it is not resolvable by spending the 1.2 mm boundary clearance. **Only Lumileds L1IZ-0850 (1.9 × 1.37 mm) fits**, and only with its long axis on the 60° axis — which is the 850 nm part, the one that fails the wavelength window. A 45° package rotation clears the 3.45 mm part by ~0.03 mm and is not a manufacturable margin. **Three ways out and this item does not pick one:** drop to n = 4 (61 sites, 5.05 mm available, and every §4.3 irradiance figure re-derives on the lower count); hold 91 sites and require a ≤ 3.29 mm package, which is a procurement constraint `NP-PROC-FPC-001` §2.3 does not currently state (it says only *“SMD 2835 or equivalent”* — and 2835 is 2.8 × 3.5 mm, whose 3.5 mm axis already exceeds 3.29 mm); or re-derive the pitch jointly with the part under `OI-HEXTILE-02`. **Sequence before `OI-HEXTILE-02` and `OI-HEXTILE-04`** — beam angle and uniformity are both downstream of whichever pitch survives | §4.1 pitch; **all §4.3 irradiance figures**; FPC artwork; `OI-HEXTILE-02` part selection; `NP-PROC-FPC-001` §2.3 package requirement |
 
 ---
 

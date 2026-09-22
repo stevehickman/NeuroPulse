@@ -346,9 +346,9 @@ Lead** on cost. All three now decide against a corrected electrical premise.
 
 | # | Item | Owner |
 |---|---|---|
-| 1 | **OPEN.** **Read Vf at 120–180 mA off the `IF = f(VF)` curve** for GH CSSRM5.24 (660 nm), SFH 4718A, L1IZ-0850 and any in-window candidate. Every string-length number in the set — including the specified 11 × 2.10 and 14 × 1.60 — currently rests on design targets, not datasheet values (OI-HEXTILE-02, OI-LED-01). **Attempted 2026-09-21 and not discharged** — the vendor datasheets are not retrievable from the session that runs these passes (§13.2e(h)), and a curve-read is not a thing a secondary source can supply | EE Lead |
+| 1 | **PARTIAL 2026-09-21 — done for the in-window candidate, still open for the other three.** **Read Vf at 120–180 mA off the `IF = f(VF)` curve** for GH CSSRM5.24 (660 nm), SFH 4718A, L1IZ-0850 and any in-window candidate. **Performed for the Luminus SST-06/SST-10-IRD-810 family** against its own datasheets (§13.2e(i)): `V_f` = **2.82 V / 2.85 V at 150 mA**, self-validated at the trace's own 350 mA reference. **The three parts this item names by name are untouched** — their datasheets have not been read at the operating point, so `NP-HW-HEXTILE-001` §4.3's specified 11 × 2.10 V and 14 × 1.60 V still rest on design targets, and that is the half of this item that blocks `OI-HEXTILE-02` | EE Lead |
 | 2 | **OPEN, unchanged.** **Confirm SFH 4703AS EOL against a PCN**, and confirm it applies to the exact orderable variant. The 2026-09-21 pass re-confirmed the EOL status at the same strength it already held — vendor status fields — and retrieved no PCN. **`NP-PROC-FPC-001` §2.6.2 now records the part as discontinued at that stated strength**, which is what stops it being designed in; it does not discharge this item | Procurement |
-| 3 | **PARTIAL 2026-09-21 — one candidate family found, none verified. See §13.2e(h).** The OSLON Black 810 nm family resolves to the one part already shortlisted, and it is EOL; but the **Luminus SST-06-IRD-810 / SST-10-IRD-810** dual-junction family is in-window on centroid, in the right package class, and was missed by both prior passes — exactly the shape of part a Vf filter excludes. **Recorded in `NP-PROC-FPC-001` §2.6.3 as an unverified LEAD and nothing more**, because no datasheet could be retrieved. Item stays open on the verification, not on the search | EE Lead + Procurement |
+| 3 | ✅ **DONE 2026-09-21 — search re-run and the candidate verified** (§13.2e(h) then (i)). The OSLON Black 810 nm family resolves to the one part already shortlisted and it is EOL; the **Luminus SST-06-IRD-810 / SST-10-IRD-810** family was found instead, and its datasheets were then read rather than summarised. Full assessment in `NP-PROC-FPC-001` Rev 5 §2.6.3. **The search is closed; what it produced is a candidate with three open requirement failures (T_j, L70, wavelength bin) and a lattice-fit problem, not a part to select** | EE Lead + Procurement |
 | 4 | ✅ **DONE 2026-09-21 — `NP-PROC-FPC-001` Rev 4** (GitHub #333). All five corrections applied in place: the "2000mA DC / 11× margin" row now reads **1000 mA DC / 5.6×** with the 2 A figure identified as `I_FSM` surge at D = 0.005; "Vf=3.55V @1A" is marked not a datasheet value (**typ 3.3 V / max 4.0 V at 1 A, 10 ms**); **centroid 810 nm** added alongside the 820 nm peak; the "DigiKey, Mouser stocked" row replaced with **DISCONTINUED**, at the stated strength of three vendor status fields and explicitly not a PCN; and the CRITICAL FINDING is **WITHDRAWN and retained**, with its 15 V anchor restated against D-6's 24 V rail. The standing practice this row cited — that the `.docx` is not hand-edited — was **read too broadly**: `np_tool_shell_001.docx` carries an in-place PARTIALLY SUPERSEDED banner from 2026-08-18, so the set's own precedent is to correct a `.docx` in place and retain what it replaces. This pass followed it | Hardware Engineering |
 | 5 | **State a minimum driver dropout and a 24 V rail tolerance** — OI-HEXTILE-18 / OI-HEXTILE-19 | EE Lead |
 | 6 | ✅ **DONE 2026-09-21 — `NP-PROC-FPC-001` Rev 4 §2.1.** The note states the dependency and draws the consequence the bare statement does not: on the current-hogging axis the bin degrades gracefully, on the string-construction axis it does not — relaxing it does not widen an imbalance, it removes the premise that a fixed emitter count per string exists. So a §2.5 step 3(a) "use-as-is" disposition at ±0.15 V must now be assessed against string length as well | Hardware Engineering |
@@ -390,6 +390,60 @@ task and none of them is discharged by a correction pass.** Two passes have now 
 decide against. The decision itself has been open since 2026-07-28 and remains the single item
 `OI-HEXTILE-02`, `NP-FAI-HEXFPC-001`, `OI-HUB-C08`'s term **U**, `OI-HEXTILE-20`'s contact count and
 GitHub #9's *"part numbers locked in BOM"* are all waiting on.
+
+#### (i) The lead is verified against the manufacturer's datasheets — and the two findings that matter are not about the part (2026-09-21, GitHub #333)
+
+§13.2e(h) recorded the Luminus family as an unverified lead and said plainly why: the datasheets were not
+retrievable. **They were then supplied** — Luminus `PDS-003021 Rev 02` (SST-10-IRD-810nm) and `PDS-003022
+Rev 01` (SST-06-IRD-810nm) — and read. `NP-PROC-FPC-001` Rev 5 §2.6.3 carries the assessment and a
+qualification table per §2.2/§2.3 requirement. **Two figures in (h) were wrong** and are corrected there:
+`V_f` max is **3.4 V**, not 3.2 V, and SST-10 offers 90°/130° lens options rather than one angle. That is
+what a search summary is worth, and it is why (h) recorded it as a lead.
+
+**What the part is.** In-window on centroid (λ_c **810 nm** typ, λ_p 815 nm typ) on an **ACTIVE** part — the
+property SFH 4703AS lacks — clearing §2.3 on package, θ_jc (5.3 / 8.2 °C/W), DC current (1.5 / 1.0 A) and
+pulse handling with margin, and **meeting §2.1's ±0.10 V bin as a standard shipping condition**: Luminus bins
+and ships in 0.2 V `V_f` increments, so the bin §2.1 calls *"tighter than commodity specification"* needs no
+special agreement from this supplier — which §2.1's own note, naming Luminus, already implied.
+
+**Three requirement failures, recorded rather than waived.** `T_j` max **115 °C** against §2.3's ≥ 125 °C;
+**neither datasheet publishes an L70 figure at all** against §2.3's ≥ 80,000 h (Note 3 defers to *"typical
+forward drive currents"* and gives no number — `OI-LED-05` asked of a third supplier); and the **shipped
+wavelength bin spans λ_p 800–830 nm**, whose lower 8 nm is *below* the 808 nm window, so a PO against the
+stock bin can ship out-of-window parts even though the typical is inside it.
+
+**The `OI-LED-01` curve-read, performed.** Both datasheets plot `ΔV_f` vs `I_F` against their 350 mA binning
+reference. Read off the trace: `V_f` = **2.82 V** (SST-10) and **2.85 V** (SST-06) at 150 mA, self-validated
+because the trace returns `ΔV_f` = −0.005 V at 350 mA where it is zero by construction. **That is below
+`NP-HW-HEXTILE-001` §8.1.1's 3.00–3.20 V dead band**, and at N = 8 gives 22.58 V, 1.42 V residual, 5.9 %
+overhead — inside §8.1's budget. **First time any candidate has been through that rule on a datasheet value
+rather than a design target.**
+
+#### The two findings that are not about this part
+
+**1. §2.1's ±0.10 V bin is critically sized against §8.1, not comfortably inside it.** A ±0.10 V bin is
+0.2 V wide; 0.2 V across N = 8 is **1.6 V of spread in `N · V_f`**; and §8.1's entire residual window is
+`(24 − V_dropout) − 22.4` = **`1.6 − V_dropout`**. **A fixed N = 8 across a full bin therefore requires a
+driver dropout of zero.** Worked against the three bins this part ships in, only the lowest clears the 24 V
+functional ceiling across its whole width, and it falls under the 22.4 V thermal floor at its low edge.
+**This is not a Luminus property** — any supplier's ±0.10 V bin does it at N = 8. It is `OI-HEXTILE-18` (no
+minimum dropout specified) and `OI-HEXTILE-19` (no rail tolerance stated) arriving as a number, and it says
+the three are **one** question: the bin width, the dropout and the rail tolerance all spend the same 1.6 V.
+
+**2. `OI-HEXTILE-22` — §4.1's 3.80 mm lattice pitch was never checked against an emitter package, and most
+of the shortlist does not fit it.** The 60° neighbour sits at **(1.90, 3.29) mm**, so an axis-aligned square
+package must be **≤ 3.29 mm**. The Luminus package is 3.45 mm square (3.65 mm at maximum material) and needs
+≥ 4.21 mm; **SFH 4718A (3.75 mm) needs ≥ 4.33 mm and SFH 4703AS (3.85 mm) needs ≥ 4.45 mm**, both above
+§4.1's own 4.04 mm ceiling at 91 sites. **Only L1IZ-0850 (1.9 × 1.37 mm) fits — the 850 nm part, which is
+the one that fails the wavelength window.** That is a fact `OI-LED-W1`'s owners should have in front of them:
+the wavelength question and the lattice-pitch question are coupled, and neither this pass nor §13.2d had
+noticed it.
+
+**What is still not decided, and it is the same thing it was two passes ago.** A verified candidate is not a
+selection. `OI-LED-W1` needs **SAB**, **Regulatory Counsel** and **EE Lead**; `OI-HEXTILE-02` needs
+`OI-LED-W1` and now `OI-HEXTILE-22` as well; `OI-LED-01` is discharged for this family and untouched for the
+three parts it names. **No emitter is selected, no wavelength is chosen, and `NP-FAI-HEXFPC-001` remains
+unwritable.**
 
 **Documents changed by this pass:** this entry (§13.2d banner, §13.2e new); `NP-HW-HEXTILE-001` Rev 3
 → **Rev 4** (§8.1 string budget generalised; OI-HEXTILE-18/17 raised). **No decision was taken on
