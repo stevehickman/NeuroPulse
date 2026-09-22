@@ -132,6 +132,10 @@ Narrowing the zone fixed lateralization; it did **not** fix this. clinical-03 st
 > **SFH 4703AS's centroid wavelength is 810 nm** (peak 820 nm) per its own datasheet, and the part is
 > **listed discontinued**. §13.2e states what replaces the premise. **OI-LED-W1 remains OPEN and
 > undecided** — this correction changes the facts the owners decide against, nothing else.
+>
+> **Second pass 2026-09-21 (GitHub #333): the corrections are now applied to `NP-PROC-FPC-001`
+> (Rev 4), and Option C below has a live in-window candidate it did not have — §13.2e(h).
+> `OI-LED-W1` is still OPEN and still undecided, and no research pass can close it.**
 
 **Problem** *(as written 2026-07-28; the Vf clause is superseded by §13.2e)*. No high-power (≥350mA-class, thermal-pad ceramic SMD) LED shortlisted for the NIR channel actually sits inside the CLAUDE.md §3 "808–830nm" spec. NP-PROC-FPC-001 §2.6.2's two electrically-workable candidates — Lumileds L1IZ-0850 (850nm) and ams-OSRAM SFH 4718A (860nm) — are 20nm and 30nm over the window respectively. The one candidate that **is** in-window, ams-OSRAM SFH 4703AS (820nm), has a Vf of ~3.0–3.6V (AlGaAs epitaxy) vs. the ~1.6–2.2V the existing 660nm string/driver architecture assumes — incompatible without a separate driver rail. Pulse-current rating (closed above) is not the blocker for either path; wavelength-vs-electrical-compatibility is.
 
@@ -154,6 +158,19 @@ Cons: Vf ~3.0–3.6V requires a separate higher-voltage driver stage, string top
 
 **Option C — keep searching for an alternate in-window, high-power part.** Low-probability based on two research passes: true 800–830nm AlGaAs LEDs at ≥350mA in a thermal-pad ceramic package appear to be a genuinely under-served market segment — vendors in that exact wavelength band (Ushio/Epitex SMT810N, Marktech MTE-8xxx series) top out at 60–100mA (sensor/pulse-oximetry-class parts, not illumination-class), while the high-power ceramic NIR market has concentrated at 850nm/940nm (biometrics/ToF volume). Not recommended as the primary path; could run in parallel as a low-cost contingency via OI-LED-07 (Seoul Semiconductor outreach, already open).
 
+> **⚠ Option C's "low-probability" verdict is weakened twice over, and should not be quoted as it
+> stands.** (i) §13.2e(f) established that the search was run with a Vf filter the 24 V rail does not
+> justify, so the two passes it rests on were looking through the wrong screen. (ii) **A re-run on
+> 2026-09-21 found an in-window high-power family both passes missed** — the **Luminus
+> SST-06-IRD-810 / SST-10-IRD-810**, vendor-described as high-power IR emitters with a *typical
+> 810 nm centroid* in a ceramic SMD package, i.e. precisely the part class this paragraph concludes
+> does not exist in-window. They are **dual-junction** devices, which is both why their Vf is
+> elevated (secondary sources: min 2.8 / typ 3.0 / max 3.2 V at 350 mA) and why a Vf filter would
+> have dropped them. **No figure in this note is datasheet-verified and none may be used as a design
+> input** — see §13.2e(h) for what the pass could and could not establish. What it changes is the
+> standing of the verdict, not the decision: Option C is no longer known to be a dead end, and
+> §13.2d hands **SAB** a live in-window candidate at the exact centroid the published claim asserts.
+
 **Not decided here.** This brief hands the tradeoff to whoever owns OI-LED-W1 (SAB for the science call, Regulatory Counsel for the RISK-03 scope question, EE Lead for the driver-rework cost) — it does not pick a path. Whichever option is chosen, update NP-PROC-FPC-001 §2.6.2/§2.6.3 (OI-LED-W1, OI-LED-01) and this entry with the decision and date.
 
 ### 13.2e The "~1.6–2.2 V" premise under §13.2d — traced, and it is not a specified constraint (2026-08-16)
@@ -169,10 +186,17 @@ is a span welded from two different columns of one estimate table, and from two 
 
 | Source | Value | How the source labels it |
 |---|---|---|
-| `NP-PROC-FPC-001` §2.3, **660 nm** column | **2.0–2.2 V** at 150 mA | *"(confirm from datasheet)"* |
-| `NP-PROC-FPC-001` §2.3, **808–830 nm** column | **1.6–1.8 V** at 150 mA | *"(confirm from datasheet)"* |
+| `NP-PROC-FPC-001` **§2.1**, **660 nm** column | **2.0–2.2 V** at 150 mA | *"(confirm from datasheet)"* |
+| `NP-PROC-FPC-001` **§2.1**, **808–830 nm** column | **1.6–1.8 V** at 150 mA | *"(confirm from datasheet)"* |
 | `NP-HW-HEXTILE-001` §4.3, CH_A **660–670 nm** | **2.10 V** at 150 mA | design target |
 | `NP-HW-HEXTILE-001` §4.3, CH_B **808–830 nm** | **1.60 V** at 150 mA | design target |
+
+> **Corrected 2026-09-21: the section number above was §2.3 in the Rev 4 (2026-08-16) text of this
+> entry, and §2.3 has no forward-voltage row — it is the thermal and package table.** The estimate
+> lives in **§2.1**. `NP-PROC-FPC-001` §2.6.2's own CRITICAL FINDING carried the same mis-citation
+> (*"the 1.6–1.8V Vf assumed in §2.3"*), which is where this entry inherited it. Both are fixed in
+> `NP-PROC-FPC-001` Rev 4. Nothing in the argument depends on it; it is corrected because the next
+> reader to check the trace would look in the wrong table and find no figure at all.
 
 `1.6` is the **NIR** channel's lower bound. `2.2` is the **660 nm** channel's upper bound. Nothing in
 the document set asserts `1.6–2.2 V` as a property of the 660 nm string, and the 660 nm figure taken
@@ -322,12 +346,50 @@ Lead** on cost. All three now decide against a corrected electrical premise.
 
 | # | Item | Owner |
 |---|---|---|
-| 1 | **Read Vf at 120–180 mA off the `IF = f(VF)` curve** for GH CSSRM5.24 (660 nm), SFH 4718A, L1IZ-0850 and any in-window candidate. Every string-length number in the set — including the specified 11 × 2.10 and 14 × 1.60 — currently rests on design targets, not datasheet values (OI-HEXTILE-02, OI-LED-01) | EE Lead |
-| 2 | **Confirm SFH 4703AS EOL against a PCN**, and confirm it applies to the exact orderable variant | Procurement |
-| 3 | **Re-run the Option C search with the Vf filter removed**, starting with the ams-OSRAM OSLON Black 810 nm family. Feeds OI-LED-07 | EE Lead + Procurement |
-| 4 | **`NP-PROC-FPC-001` §2.6.2 corrections** (`.docx` — not hand-edited here, per standing practice): the "2000mA DC / 11× margin" row is the surge rating and must read **1000 mA DC / 5.6×**; "Vf=3.55V @1A" is not a datasheet value (**typ 3.3 V, max 4.0 V**); add **centroid 810 nm**; the "DigiKey, Mouser stocked" row is stale; and the §2.6.2 CRITICAL FINDING's **15 V rail** anchor must be restated at 24 V or withdrawn | Hardware Engineering |
+| 1 | **OPEN.** **Read Vf at 120–180 mA off the `IF = f(VF)` curve** for GH CSSRM5.24 (660 nm), SFH 4718A, L1IZ-0850 and any in-window candidate. Every string-length number in the set — including the specified 11 × 2.10 and 14 × 1.60 — currently rests on design targets, not datasheet values (OI-HEXTILE-02, OI-LED-01). **Attempted 2026-09-21 and not discharged** — the vendor datasheets are not retrievable from the session that runs these passes (§13.2e(h)), and a curve-read is not a thing a secondary source can supply | EE Lead |
+| 2 | **OPEN, unchanged.** **Confirm SFH 4703AS EOL against a PCN**, and confirm it applies to the exact orderable variant. The 2026-09-21 pass re-confirmed the EOL status at the same strength it already held — vendor status fields — and retrieved no PCN. **`NP-PROC-FPC-001` §2.6.2 now records the part as discontinued at that stated strength**, which is what stops it being designed in; it does not discharge this item | Procurement |
+| 3 | **PARTIAL 2026-09-21 — one candidate family found, none verified. See §13.2e(h).** The OSLON Black 810 nm family resolves to the one part already shortlisted, and it is EOL; but the **Luminus SST-06-IRD-810 / SST-10-IRD-810** dual-junction family is in-window on centroid, in the right package class, and was missed by both prior passes — exactly the shape of part a Vf filter excludes. **Recorded in `NP-PROC-FPC-001` §2.6.3 as an unverified LEAD and nothing more**, because no datasheet could be retrieved. Item stays open on the verification, not on the search | EE Lead + Procurement |
+| 4 | ✅ **DONE 2026-09-21 — `NP-PROC-FPC-001` Rev 4** (GitHub #333). All five corrections applied in place: the "2000mA DC / 11× margin" row now reads **1000 mA DC / 5.6×** with the 2 A figure identified as `I_FSM` surge at D = 0.005; "Vf=3.55V @1A" is marked not a datasheet value (**typ 3.3 V / max 4.0 V at 1 A, 10 ms**); **centroid 810 nm** added alongside the 820 nm peak; the "DigiKey, Mouser stocked" row replaced with **DISCONTINUED**, at the stated strength of three vendor status fields and explicitly not a PCN; and the CRITICAL FINDING is **WITHDRAWN and retained**, with its 15 V anchor restated against D-6's 24 V rail. The standing practice this row cited — that the `.docx` is not hand-edited — was **read too broadly**: `np_tool_shell_001.docx` carries an in-place PARTIALLY SUPERSEDED banner from 2026-08-18, so the set's own precedent is to correct a `.docx` in place and retain what it replaces. This pass followed it | Hardware Engineering |
 | 5 | **State a minimum driver dropout and a 24 V rail tolerance** — OI-HEXTILE-18 / OI-HEXTILE-19 | EE Lead |
-| 6 | **`NP-PROC-FPC-001` §2.1's ±0.10 V binning spec is load-bearing for string construction**, not only for RISK-08 current matching. Worth stating in §2.1 itself | Hardware Engineering |
+| 6 | ✅ **DONE 2026-09-21 — `NP-PROC-FPC-001` Rev 4 §2.1.** The note states the dependency and draws the consequence the bare statement does not: on the current-hogging axis the bin degrades gracefully, on the string-construction axis it does not — relaxing it does not widen an imbalance, it removes the premise that a fixed emitter count per string exists. So a §2.5 step 3(a) "use-as-is" disposition at ±0.15 V must now be assessed against string length as well | Hardware Engineering |
+
+#### (h) The correction is applied, the decision is not — and what a session cannot reach (2026-09-21, GitHub #333)
+
+**What was done.** Residual items 4 and 6 above are discharged: `NP-PROC-FPC-001` is at **Rev 4**,
+corrected in place on the `np_tool_shell_001.docx` precedent (an in-place PARTIALLY SUPERSEDED banner,
+2026-08-18) rather than left as a standing action. Item 4's own parenthesis — *"`.docx` — not hand-edited
+here, per standing practice"* — was a statement about what **that** pass chose to do, and it hardened into
+a rule it never was. There is no standing practice against correcting a `.docx`; there is one against
+*deleting* what it replaces, and Rev 4 retains every superseded row.
+
+**Two defects found while applying it, neither of them in the physics.**
+
+1. **The document's header revision was two behind its own history.** It read *"Revision: B"* while §8
+   already carried a **Rev C** row dated 2026-07-28. Every citation of this document in the active set
+   — `NP-DT-001` DO-HW-03, `NP-PROC-FPC-1064-001`, `docs/status/document-register.md` — says **"Rev 1"**,
+   which is the header read through `NP-CONV-001` §4.1's `A`=1 mapping and then applied to the wrong
+   letter. The correct pre-existing revision was **3**, so this issue is **4**, and the citations are
+   corrected with it. Nothing was quoted from a wrong revision; the trail simply pointed at one.
+2. **A section mis-citation in §13.2e(a) above, inherited from the document it was tracing.** Both called
+   the Vf estimate table **§2.3**; it is **§2.1**, and §2.3 has no forward-voltage row at all. Fixed in
+   both places.
+
+**What a session of this kind cannot do, stated so the next one does not re-attempt it.** Residual
+items 1 and 2 — reading Vf off an `IF = f(VF)` curve at 120–180 mA, and confirming an EOL against a PCN
+— both require the manufacturer's own documents. **The network egress policy blocks `ams-osram.com`,
+`download.luminus.com` and `www.mouser.com`**, so no datasheet, product page or distributor catalogue is
+reachable. Web *search* is reachable, and the difference is exactly the one this document set already
+draws: a search summary is a pointer to evidence, not evidence. The Luminus family in item 3 is recorded
+at that strength and no higher, in `NP-PROC-FPC-001` §2.6.3 as well as here.
+
+**And the part nobody should mistake for progress.** `OI-LED-W1` is a decision with three named owners
+— **SAB** on whether 850/860 nm is scientifically defensible against the 808/830 nm CCO absorption peaks,
+**Regulatory Counsel** on the RISK-03 scope question and the published *"810nm"* claim, **EE Lead** on
+§13.2e(b)'s finding that elevated Vf is not disqualifying at 24 V. **None of those three is a research
+task and none of them is discharged by a correction pass.** Two passes have now improved the facts they
+decide against. The decision itself has been open since 2026-07-28 and remains the single item
+`OI-HEXTILE-02`, `NP-FAI-HEXFPC-001`, `OI-HUB-C08`'s term **U**, `OI-HEXTILE-20`'s contact count and
+GitHub #9's *"part numbers locked in BOM"* are all waiting on.
 
 **Documents changed by this pass:** this entry (§13.2d banner, §13.2e new); `NP-HW-HEXTILE-001` Rev 3
 → **Rev 4** (§8.1 string budget generalised; OI-HEXTILE-18/17 raised). **No decision was taken on

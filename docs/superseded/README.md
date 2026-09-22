@@ -139,3 +139,9 @@ tracked instead in `NP-ART-001` §5:
 - **`np_proc_fpc_001.docx` (NP-PROC-FPC-001)** — specifies the Hirose FH34S
   20-pin connector and the RA-copper/Vf-binning requirements for a tailed FPC. Hex tiles have no
   tail; the LED requirements survive.
+  **Corrected in place 2026-09-21 (Rev 4)**, on the `NP-TOOL-SHELL-001` precedent above and for the
+  same reason it is not in this directory: it is the only written procurement control on the emitter
+  supply, so its wrong rows are live rather than historical. §2.6.2's CRITICAL FINDING is **withdrawn
+  and retained**; five SFH 4703AS figures are corrected from the manufacturer datasheet; §2.1 now
+  states that the ±0.10 V bin is load-bearing for string construction. **Nothing is deleted and no
+  decision is taken** — `OI-LED-W1` and `OI-HEXTILE-02` remain open. GitHub #333.

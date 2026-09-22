@@ -13,7 +13,7 @@
 **Gate:** —  
 **IEC 62304 Class:** —  
 **Supersedes:** —  
-**Parent Document:** NP-PROC-FPC-001 Rev 1 (base module FPC procurement — unchanged)
+**Parent Document:** NP-PROC-FPC-001 **Rev 4** (base module FPC procurement — the 660/808 nm binning specifications this document inherits are unchanged by Rev 4; *the "Rev 1" this field carried was the parent's stale header read through* `NP-CONV-001` *§4.1, see that document's Rev 4 banner*)
 
 ---
 
@@ -33,7 +33,7 @@ This document covers component selection and procurement specifications for the 
 
 It also covers the TIA gain compatibility analysis (§5) and full smart module BOM summary (§6).
 
-This document supplements NP-PROC-FPC-001 Rev 1. The existing 660nm and 808nm LED emitter binning specs in NP-PROC-FPC-001 Rev 1 are unchanged and apply to the 660nm and 808nm emitters in the smart module's CH_A and CH_B channels.
+This document supplements NP-PROC-FPC-001 Rev 4. The existing 660nm and 808nm LED emitter binning specs in NP-PROC-FPC-001 §2.1 are unchanged and apply to the 660nm and 808nm emitters in the smart module's CH_A and CH_B channels — **and Rev 4 §2.1 adds that the ±0.10 V within-order bin is load-bearing for string construction, not only for RISK-08 current matching. That consequence carries to CH_C**: the ±0.1 V requirement in §3 below is a string-length premise as well as a current-matching one.
 
 ---
 
@@ -168,7 +168,7 @@ UPDI programming: performed on the rigidizer sub-board before assembly into modu
 
 ### 3.1 Overview
 
-This section supplements NP-PROC-FPC-001 Rev 1 with procurement requirements for 1064nm LED emitters used in the smart module CH_C channel. The structure mirrors the existing 660nm and 808nm sections of NP-PROC-FPC-001 Rev 1.
+This section supplements NP-PROC-FPC-001 Rev 4 with procurement requirements for 1064nm LED emitters used in the smart module CH_C channel. The structure mirrors the existing 660nm and 808nm sections of NP-PROC-FPC-001 Rev 1.
 
 ### 3.2 Wavelength Specification
 
@@ -188,14 +188,14 @@ This section supplements NP-PROC-FPC-001 Rev 1 with procurement requirements for
 | Drive current: pulsed | 200 mA at ≤ 25% duty cycle, ≤ 10 ms pulse width | Firmware-enforced ceiling (NP-FW-PBM1064-001 Rev 1 §5.5) |
 | Wall-plug efficiency (WPE) | ≥ 10% at 150 mA | 1064nm GaAs emitters are less efficient than 808nm (WPE ~30–40%). Minimum 10% acceptable for this application. |
 | Radiant flux at 150 mA | ≥ 45 mW per LED | From 10% WPE × 150 mA × 2.1 V = 31.5 mW minimum; specify 45 mW as procurement floor |
-| L70 lifetime | ≥ 80,000 hours at rated drive | Same requirement as 660nm/808nm emitters in NP-PROC-FPC-001 Rev 1 §4.3 |
+| L70 lifetime | ≥ 80,000 hours at rated drive | Same requirement as 660nm/808nm emitters in NP-PROC-FPC-001 **§2.3** (*corrected 2026-09-21 — this cell cited §4.3, which does not exist; §4 of that document is the Hirose connector*) |
 | Lumen maintenance binning | ≤ 15% flux spread within a single module lot | Consistent irradiance across zone |
 
 ### 3.4 Package Requirements
 
 | Parameter | Requirement |
 |-----------|-------------|
-| Package family | SMD, reflow-compatible; same footprint as 660nm/808nm emitters used in base module (NP-PROC-FPC-001 Rev 1 §3.1) |
+| Package family | SMD, reflow-compatible; same footprint as 660nm/808nm emitters used in base module (NP-PROC-FPC-001 **§2.3** — *corrected 2026-09-21 from §3.1, which does not exist; §3 of that document is the BCR421W driver IC*) |
 | Footprint compatibility | Must match existing LED pads on NP-FPC-ZM-SM-01 artwork |
 | Thermal pad | Exposed thermal pad or bottom-side pad preferred for FPC heat spreading |
 | Window material | Epoxy lens or flat-top; PDMS optical window above LED (per zone module design) provides diffusion |

@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HEXTILE-001
-**Revision:** 8
-**Date:** 2026-08-21
+**Revision:** 9
+**Date:** 2026-09-21
 **Status:** DESIGN STUDY — not a tooling baseline. Every numeric value below is a proposed engineering commitment, not a measured or locked figure. See §10 (Decisions) and §11 (Open Items).
 **Effective Date:** —
 **Author:** NeurOne Hardware Engineering
@@ -14,6 +14,16 @@
 **IEC 62304 Class:** — (hardware; the on-module driver firmware is Class B, see §6.5)
 **Supersedes:** — (new document; fills the gap declared in NP-HW-FPC-001 Rev 5 supersession note: *"no document yet specifies the T1-A/T1-C hex-tile FPC pinout or electrical layout"*)
 **Parent Document:** NP-HEX-ZM-001
+
+---
+
+> **Rev 9 (2026-09-21) — `NP-PROC-FPC-001` Rev 4 discharges §8.1.1's caveat 1. Status only; no derivation, count, decision or interface in this document changes.**
+>
+> §8.1.1 caveat 1 recorded that fixed-N string construction depends on `NP-PROC-FPC-001` §2.1's ±0.10 V within-order Vf bin, and that the owning document *"currently justifies itself only on RISK-08 current-hogging grounds"*. **It no longer does** — `NP-PROC-FPC-001` Rev 4 §2.1 states the string-construction dependency and draws the consequence: on the current-hogging axis the bin degrades gracefully, on the string-construction axis it does not, so relaxing it removes the premise that a fixed N exists rather than widening an imbalance. A §2.5 "use-as-is" disposition at ±0.15 V is now assessed against string length too. The caveat is updated to say what the owning document says.
+>
+> **Two corrections in this document's own citations, found in the same pass.** (i) `OI-HEXTILE-02` cited the binning precedent as *"NP-PROC-FPC-001 §4.2"*; the binning specification is **§2.1** — §4 of that document is the Hirose connector. (ii) Every citation of that document in the active set called it **Rev 1**; it was at **Rev 3** (header stale at "Rev B" against its own Rev C history) and is now at **Rev 4**. Both fixed here.
+>
+> **What did not change, and is the whole point of saying so: no emitter is selected.** `OI-HEXTILE-02` is open; §4.3's V_f and radiant-flux figures are still design targets, not datasheet values; §8.1's worked strings — 11 × 2.10 V and 14 × 1.60 V — still rest on those targets, and `OI-LED-01`'s curve-read at 120–180 mA is not discharged for any candidate. `OI-HEXTILE-02` gains one input: a candidate family that is in-window on centroid, in the right package class, and **unverified** — see the item itself. GitHub #333; trace in `docs/status/pending-decisions.md` §13.2e(h).
 
 ---
 
@@ -107,7 +117,7 @@
 > anywhere), and **no tolerance is stated on the 24 V rail** (**OI-HEXTILE-19**), so every string
 > figure here is a nominal-point calculation. Also records that fixed-N string construction depends on
 > `NP-PROC-FPC-001` §2.1's ±0.10 V Vf bin — load-bearing beyond the RISK-08 current-hogging grounds
-> §2.1 currently gives for it. **No emitter was selected; OI-HEXTILE-02 and OI-LED-W1 remain open.**
+> §2.1 gave for it at the time (**stated in §2.1 itself as of that document's Rev 4, 2026-09-21**). **No emitter was selected; OI-HEXTILE-02 and OI-LED-W1 remain open.**
 >
 > *Revision label note: the banner below is written "Rev C", the letter scheme in use when it was
 > issued. Per `NP-CONV-001` §4.1 that maps positionally to **Rev 3**; §1.1 keeps historical records as
@@ -654,9 +664,14 @@ the N = 8 ceiling is `(24 − V_dropout)/8`, not 3.00 V.
 1. **Fixed-N construction depends on Vf binning, and that dependency has not been stated before.**
    A commodity emitter's datasheet typ→max Vf spread is routinely ≥0.7 V per die; across 7–14 in
    series that is several times the entire 1.6 V residual budget, and no fixed N survives it. What
-   makes fixed-N viable is `NP-PROC-FPC-001` §2.1's mandatory **±0.10 V within-order Vf bin**, which
-   that document currently justifies only on RISK-08 current-hogging grounds. **It is load-bearing for
-   string construction too.**
+   makes fixed-N viable is `NP-PROC-FPC-001` §2.1's mandatory **±0.10 V within-order Vf bin**. **It is
+   load-bearing for string construction, not only for RISK-08 current matching** — and as of that
+   document's **Rev 4 (2026-09-21)** §2.1 says so itself, where before it justified the bin on
+   current-hogging grounds alone. The distinction Rev 4 adds is the one that matters here: on the
+   current-hogging axis the bin degrades gracefully, on this axis it does not. Relaxing it does not
+   widen a current imbalance; it removes the premise that a fixed N exists. Any §2.5 "use-as-is"
+   disposition of an out-of-bin lot at ±0.15 V is therefore a string-length decision as well as a
+   current-matching one.
 2. **The 7 % figure is asserted here, not derived.** It is not traceable to a tile power or
    temperature limit anywhere in this document or in `NP-HW-HUB-001` / `NP-DRV-SHELL-002`. Treat it as
    a chosen allocation open to re-derivation from §9.3, not as a bound with a physical basis —
@@ -988,7 +1003,7 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 | ID | Description | Blocking |
 |---|---|---|
 | **OI-HEXTILE-01** | **Bezel width conflict:** NP-HEX-ZM-001 §3.1 assumes 2.5 mm; NP-THERM-BEZEL-001 Rev 1 sets 1.0 mm. This document uses the conservative 2.5 mm. Resolution changes A_a by ±14.5 % and every irradiance figure with it, and governs inter-tile uniformity (§4.4) | FPC artwork; **all §4 irradiance figures** |
-| **OI-HEXTILE-02** | Select 660–670 nm and 808–830 nm emitters for the base tile. §4.3's V_f and radiant-flux figures are design targets, not datasheet values. V_f binning ≤±0.1 V per NP-PROC-FPC-001 §4.2 precedent. Selection closes the string-length divisibility slack in §8.1 | FPC artwork; emitter procurement; §4.3 validity |
+| **OI-HEXTILE-02** | Select 660–670 nm and 808–830 nm emitters for the base tile. §4.3's V_f and radiant-flux figures are design targets, not datasheet values. V_f binning ≤±0.1 V per `NP-PROC-FPC-001` **§2.1** (*corrected Rev 9 — this row cited §4.2, which is the Hirose connector; §2.1 is the binning specification, and as of that document's Rev 4 it states the string-construction dependency in §8.1.1 caveat 1 rather than leaving it implied*). Selection closes the string-length divisibility slack in §8.1. **Status at Rev 9: still open, and the blocker is upstream of this document.** Part selection cannot precede `OI-LED-W1`, the NIR wavelength decision, whose owners are **SAB** (science), **Regulatory Counsel** (RISK-03 scope and the published *"810nm"* claim) and **EE Lead** (cost) — open since 2026-07-28 with a decision brief written (`docs/status/pending-decisions.md` §13.2d). Two corrected inputs the owners now have that they did not: elevated V_f is **not** disqualifying on the 24 V rail (§8.1.1, §13.2e(b)), and the only shortlisted in-window part, SFH 4703AS, is **discontinued** while matching the published 810 nm claim on its own centroid specification. One new and **unverified** input: the **Luminus SST-06-IRD-810 / SST-10-IRD-810** dual-junction family is in-window on centroid and in the right package class, found 2026-09-21 by re-running the Option C search without the V_f filter — recorded as a lead in `NP-PROC-FPC-001` §2.6.3, with no datasheet retrieved and therefore no figure usable as a design input (§13.2e(h)). GitHub #333 | FPC artwork; emitter procurement; §4.3 validity; `NP-FAI-HEXFPC-001`; `OI-HUB-C08` term **U** |
 | **OI-HEXTILE-03** | Verify the 21-minute 1064 nm minimum session (§4.3.2) against `protocols/predefined/clinical-03-pbm-cognitive-1064.npps` and the NP-BIB-1064-001 evidence base. A 40 mm tile cannot deliver 36 J/cm² faster. **⚠ Reframed at Rev 7 — this item is stated as a session-length check, and session length is the symptom.** The 21 minutes is a consequence of CH_C's 28 mW/cm², and no protocol re-timing fixes an irradiance that is 9× below what the protocol specifies. **The irradiance-reachability half is split out as `OI-HEXTILE-21`; this item retains only the protocol-authoring verification**, which is still worth doing and is now downstream of OI-HEXTILE-21's answer | 1064 nm protocol authoring; interacts with REG-1. **Sequence after `OI-HEXTILE-21`** |
 | **OI-HEXTILE-04** | Illumination model for intra-tile uniformity at 3.80 mm pitch — needs emitter beam angle (OI-HEXTILE-02), PDMS diffuser scattering, and window standoff (SCAN-1) | Uniformity claim; GATE-2 bench design |
 | **OI-HEXTILE-05** | T1-B spring electrode pod body diameter → number of depopulated rings (§4.5) and T1-B emitter count | T1-B layout (deferred to Rev 2) |
