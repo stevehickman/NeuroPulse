@@ -7,7 +7,7 @@
 > bear on most conversations and names the file holding the rest. Read a subsidiary file when the
 > task needs it — do not assume a figure or a spec detail is here.
 >
-> **Revision history — every revision from Rev 33 to the current Rev 48, what it changed and why —
+> **Revision history — every revision from Rev 33 onward, what it changed and why —
 > is `docs/reference/claude-md-revision-history.md`. None of it is summarised here.** That file is
 > the only narrative of *why* an invariant below reads the way it does, which entries changed a
 > locked decision, and which changed none: **read it before assuming why something is the way it
@@ -537,6 +537,6 @@ audit item `OI-CONV-08`: `docs/np_conv_001.md` §7.1.
 everything else. Detail lives in the subsidiary files listed in the Document Map — a section here
 that names a file is a pointer, not a summary you may quote figures from. When a locked decision
 changes, update the owning file, log it in `docs/status/completed-decisions.md`, and add an entry to
-`docs/reference/claude-md-revision-history.md`. Keep every top-level section (§1–§6, §16) and every
+`docs/reference/claude-md-revision-history.md`. Keep every top-level section (§1–§6, §16–§18) and every
 subsection number in place even when its content moves —* `bun scripts/check-section-refs.ts` *guards
 663 inbound citations that resolve against them.*
