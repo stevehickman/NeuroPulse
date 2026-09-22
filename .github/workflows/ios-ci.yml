@@ -22,6 +22,12 @@ on:
       # not run this workflow at all.
       - 'locales/**'
       - 'scripts/sync-locales.ts'
+      # The bundled .npps library is a build input since Issue #189:
+      # app/ios/project.yml copies protocols/predefined into the app bundle as a
+      # folder reference, and NPProtocolLibraryTests reads its manifest.json out
+      # of that bundle. A protocol edit touches nothing under app/ios/**, so
+      # without this entry it would not run the tests that load it.
+      - 'protocols/predefined/**'
       - '.github/workflows/ios-ci.yml'
   pull_request:
     paths:
@@ -29,6 +35,7 @@ on:
       - 'app/NeurOneShared/**'
       - 'locales/**'
       - 'scripts/sync-locales.ts'
+      - 'protocols/predefined/**'
       - '.github/workflows/ios-ci.yml'
   workflow_dispatch:
 
