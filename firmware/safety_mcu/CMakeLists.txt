@@ -122,6 +122,7 @@ if(NP_BUILD_TESTS)
     add_executable(np_cardiac_interlock_tests
         tests/np_cardiac_interlock_tests.c
         src/np_cardiac_interlock.c
+        src/np_spi_watchdog.c
     )
     np_host_test(np_cardiac_interlock_tests)
 

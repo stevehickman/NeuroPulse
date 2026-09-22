@@ -99,6 +99,15 @@
 #define NP_CARDIAC_LOCKOUT_MS   30000U      /* re-enable lockout */
 #define NP_CARDIAC_BASELINE_BEATS 8U        /* beats to establish baseline */
 
+/* What a cardiac cutoff blocks (principal, 2026-09-22): ONLY what the interlock
+ * exists for.  The cardiac rhythm interlock is specified for cervical VNS
+ * (CLAUDE.md §4.2 table; RISK-25, the carotid-sheath baroreceptor reflex), so
+ * NP_SAFETY_STATUS_CARDIAC withholds the CVNS enable and nothing else — every
+ * other modality that is otherwise safe keeps its grant.  Until 2026-09-22 it
+ * sat in np_spi_watchdog_tick()'s all-channel fault mask.  Adding a channel
+ * here is a hazard-analysis decision (NP-RISK-002), not a tuning change. */
+#define NP_CARDIAC_BLOCK_MASK   (NP_SAFETY_EN_CVNS)
+
 /* ── Non-volatile safety state (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01) ──────
  * Two 2 KB pages at the top of flash, outside the image
  * (startup/stm32g071_flash.ld reserves them).  One 64-bit record per slot.   */

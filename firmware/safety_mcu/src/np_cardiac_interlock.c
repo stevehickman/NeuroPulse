@@ -84,13 +84,12 @@ np_safe_status_t np_cardiac_interlock_init(void)
  * main.c runs only while CVNS is requested — turns it into a live cutoff before
  * the grant reaches the GPIO (see the top of the tick).
  *
- * Why latent rather than re-asserting CARDIAC at boot: CARDIAC blocks EVERY
- * channel (np_spi_watchdog_tick), and the lockout only counts down while CVNS is
- * requested.  Re-asserting it at boot would lock a wearer out of PBM, audio and
- * every other modality permanently after one cardiac cutoff unless they ran the
- * cervical re-enable sequence — broader than NP-SW-FAULTMSG-001 P1, which
- * refuses the CVNS enable.  Latent, a non-cervical session is unaffected, and a
- * cervical one meets exactly the state a live cutoff leaves.
+ * Why latent rather than re-asserting CARDIAC at boot: the lockout only counts
+ * down while CVNS is requested, and a session that never requests CVNS has
+ * nothing for a cardiac cutoff to protect.  Latent, a non-cervical session is
+ * unaffected, and a cervical one meets exactly the state a live cutoff leaves.
+ * (CARDIAC itself withholds only NP_CARDIAC_BLOCK_MASK — see np_spi_watchdog.c
+ * — so even a live cutoff no longer stops the other modalities.)
  */
 void np_cardiac_interlock_restore(bool cutoff_pending)
 {

@@ -39,6 +39,12 @@ extern void             np_cardiac_interlock_reenable(np_safety_state_t *state);
 extern void             np_cardiac_interlock_restore(bool cutoff_pending);
 extern bool             np_cardiac_interlock_nv_request(bool *pending_out);
 extern void             np_cardiac_interlock_nv_done(bool written);
+/* The grant computation, linked in so the scope of a cardiac cutoff is tested
+ * against the real code rather than a mirror of its mask. */
+extern np_safe_status_t np_spi_watchdog_init(void);
+extern void             np_spi_watchdog_tick(np_safety_state_t              *state,
+                                             const np_safety_rx_ext_frame_t *rx,
+                                             np_safety_tx_frame_t           *tx);
 
 /* ── Mocked HAL stubs ──────────────────────────────────────────────────────────
  * Definitions of symbols declared in np_safety_hal.h — drift from the
@@ -527,6 +533,29 @@ static void test_restore_false_is_inert(void)
     check((st.status & NP_SAFETY_STATUS_CARDIAC) == 0U, "restore(false): no CARDIAC");
 }
 
+
+/* A cardiac cutoff withholds cervical VNS and nothing else (principal,
+ * 2026-09-22): every other channel that is otherwise safe keeps its grant, and
+ * CUTOFF stays set while the cervical channel is cut. */
+static void test_cardiac_blocks_only_cvns(void)
+{
+    np_safety_state_t st;
+    const uint16_t other = (uint16_t)(NP_SAFETY_EN_ALL_MASK & ~NP_SAFETY_EN_CVNS);
+    reset_all(&st, true, 0U);
+    (void)np_spi_watchdog_init();
+    st.requested_mask = NP_SAFETY_EN_ALL_MASK;
+    st.status         = NP_SAFETY_STATUS_CARDIAC | NP_SAFETY_STATUS_CUTOFF;
+
+    np_spi_watchdog_tick(&st, NULL, NULL);
+    check((st.granted_mask & NP_SAFETY_EN_CVNS) == 0U, "scope: CVNS withheld under CARDIAC");
+    check((st.granted_mask & other) == other,          "scope: every other channel still granted");
+    check((st.status & NP_SAFETY_STATUS_CUTOFF) != 0U, "scope: CUTOFF stays set while CVNS is cut");
+
+    st.status = NP_SAFETY_STATUS_CARDIAC | NP_SAFETY_STATUS_THERMAL;
+    np_spi_watchdog_tick(&st, NULL, NULL);
+    check(st.granted_mask == 0U, "scope: an all-channel fault still blocks everything");
+}
+
 int main(void)
 {
     test_no_cutoff_before_baseline();
@@ -546,6 +575,7 @@ int main(void)
     test_restored_cutoff_latent_without_cvns();
     test_restored_cutoff_asserts_on_cvns_request();
     test_restore_false_is_inert();
+    test_cardiac_blocks_only_cvns();
 
     if (g_failures == 0) { printf("ALL TESTS PASSED\n"); return 0; }
     printf("%d TEST(S) FAILED\n", g_failures);
