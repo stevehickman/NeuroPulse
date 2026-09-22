@@ -1,5 +1,6 @@
 package life.neurone.core.ble
 
+import life.neurone.core.models.CervicalPadStatus
 import life.neurone.core.models.FirmwareVersion
 import life.neurone.core.models.HRVData
 import life.neurone.core.models.OtaStatusPacket
@@ -54,6 +55,9 @@ object GattParser {
         if (data.size < 2) return null
         return data.leUInt16(0)
     }
+
+    /** CVNS_PAD_STATUS: uint8 failed mask + uint8 check + 2 × uint8 pad side. UHDR-class. null if malformed. */
+    fun parseCervicalPadStatus(data: ByteArray): CervicalPadStatus? = CervicalPadStatus.fromWire(data)
 
     /** CONSUMABLE_STATUS: 4 × uint16 session counts (intranasal, hydrogel, VNS, audio) */
     fun parseConsumableStatus(data: ByteArray): List<Int>? {

@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-APP-ROADMAP-001  
-**Revision:** 3
-**Date:** 2026-07-13  
+**Revision:** 4
+**Date:** 2026-09-22  
 **Status:** BASELINED  
 **Effective Date:** 2026-07-13  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -13,7 +13,7 @@
 **Gate:** —  
 **IEC 62304 Class:** —  
 **Supersedes:** NP-APP-ROADMAP-001 Rev 2  
-**Change Summary:** Corrected a platform-fact error in the Watch Phase 3 haptic spec. Core Haptics (`CHHapticEngine`) does not exist on watchOS; the only watchOS haptic API is `WKInterfaceDevice.play(_:)`, which cannot render a continuous 40Hz waveform. Phase 3 on the Watch is rescoped from "40Hz continuous Core Haptics" to a low-rate **rhythmic session cue** (WKInterfaceDevice named haptic, explicitly not 40Hz, honestly labelled as a supplement per §3b/§15). True 40Hz Core Haptics is achievable only on iPhone (where the phone is the contact surface); therapeutic 40Hz vibrotactile remains the mastoid LRA pad. OI-WA-01 and OI-WA-04 superseded (no continuous Core Haptics path exists on watchOS to characterise); OI-WA-05 rescoped. §4.1 diagram + channel table, §4.2 Phase 3, §7/§10 open items updated. Rev 2 change (retained): §9 Privacy Constraints; HealthKit binding; age gate; BIPA release; adaptive transparency card; OI-WA-06, OI-PA-01..04.
+**Change Summary:** Rev 4 (2026-09-22) — §5 gains `CVNS_PAD_STATUS` (T2, optional, NOTIFY 4 B): the cervical gel pad contact result with the side of the neck of each pad, so the phone app can tell the wearer which pad location failed (`OI-ACC-07`). Rev 3: Corrected a platform-fact error in the Watch Phase 3 haptic spec. Core Haptics (`CHHapticEngine`) does not exist on watchOS; the only watchOS haptic API is `WKInterfaceDevice.play(_:)`, which cannot render a continuous 40Hz waveform. Phase 3 on the Watch is rescoped from "40Hz continuous Core Haptics" to a low-rate **rhythmic session cue** (WKInterfaceDevice named haptic, explicitly not 40Hz, honestly labelled as a supplement per §3b/§15). True 40Hz Core Haptics is achievable only on iPhone (where the phone is the contact surface); therapeutic 40Hz vibrotactile remains the mastoid LRA pad. OI-WA-01 and OI-WA-04 superseded (no continuous Core Haptics path exists on watchOS to characterise); OI-WA-05 rescoped. §4.1 diagram + channel table, §4.2 Phase 3, §7/§10 open items updated. Rev 2 change (retained): §9 Privacy Constraints; HealthKit binding; age gate; BIPA release; adaptive transparency card; OI-WA-06, OI-PA-01..04.
 
 ---
 
@@ -148,8 +148,9 @@ Custom BLE GATT service UUID and characteristic layout (to be assigned at firmwa
 | PACER_PHASE | NOTIFY | 2 bytes | Phase (uint8: 0=inhale, 1=exhale) + elapsed % (uint8) |
 | IMPEDANCE_RESULT | NOTIFY | 2 bytes | Pass/fail flags per electrode (uint16 bitmask) |
 | CONSUMABLE_STATUS | READ/NOTIFY | 8 bytes | Per-consumable session counts (4× uint16) |
+| CVNS_PAD_STATUS | NOTIFY | 4 bytes | T2 only, optional. Failed-electrode bitmask (uint8) + check (uint8: 0 = pre-enable, 1 = mid-session) + side of the neck of electrode 1's and electrode 2's pad (2× uint8: 1 = left, 2 = right). Hub supplies the side; UHDR, display only (`OI-ACC-07`) |
 
-Notification interval: 100ms for SESSION_STATE and PACER_PHASE; 5s for HRV_COHERENCE; event-driven for IMPEDANCE_RESULT and CONSUMABLE_STATUS.
+Notification interval: 100ms for SESSION_STATE and PACER_PHASE; 5s for HRV_COHERENCE; event-driven for IMPEDANCE_RESULT, CONSUMABLE_STATUS and CVNS_PAD_STATUS (on a change of result within a session attempt, and at each new attempt).
 
 WatchConnectivity message from iPhone app to Watch app mirrors the GATT data in real time, reformatted as a WCSession `sendMessage` dictionary.
 

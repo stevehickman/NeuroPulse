@@ -557,4 +557,46 @@ final class NeurOneGATTManagerTests: XCTestCase {
         XCTAssertFalse(manager.shdrUploadPending,
                        "shdrUploadPending must start false — no upload until hub requests one")
     }
+
+    // MARK: OI-ACC-07 — cervical gel pad alert
+
+    /// A failure raises the alert; both pads passing clears it; a malformed frame changes nothing.
+    func testCervicalPadAlertRaisedClearedAndMalformedIgnored() {
+        let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
+        XCTAssertNil(manager.cervicalPadAlert)
+
+        manager.applyCervicalPadStatus(Data([0x01, 0x00, 0x01, 0x02]))
+        XCTAssertEqual(manager.cervicalPadAlert, CervicalPadStatus(failedPadSides: [.left], check: .preEnable))
+
+        manager.applyCervicalPadStatus(Data([0x80, 0x00, 0x01, 0x02]))   // reserved bit — discarded
+        XCTAssertEqual(manager.cervicalPadAlert, CervicalPadStatus(failedPadSides: [.left], check: .preEnable))
+
+        manager.applyCervicalPadStatus(Data([0x00, 0x00, 0x01, 0x02]))
+        XCTAssertNil(manager.cervicalPadAlert, "both pads passing must clear the alert")
+    }
+
+    /// Acknowledging clears the alert; the next failure raises it again.
+    func testCervicalPadAlertAcknowledgeThenReRaise() {
+        let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
+        manager.applyCervicalPadStatus(Data([0x03, 0x01, 0x01, 0x02]))
+        manager.acknowledgeCervicalPadAlert()
+        XCTAssertNil(manager.cervicalPadAlert)
+
+        manager.applyCervicalPadStatus(Data([0x03, 0x01, 0x01, 0x02]))
+        XCTAssertNotNil(manager.cervicalPadAlert, "a new failure after acknowledgement must alert again")
+    }
+
+    /// UHDR-class display state must not survive a disconnect.
+    func testCervicalPadAlertClearedOnDisconnect() {
+        let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
+        manager.applyCervicalPadStatus(Data([0x02, 0x00, 0x01, 0x02]))
+        manager.applyDisconnection()
+        XCTAssertNil(manager.cervicalPadAlert)
+    }
+
+    /// Optional characteristic: its absence must never block allCharacteristicsResolved.
+    func testCervicalPadStatusIsNotRequired() {
+        XCTAssertFalse(NPUUID.all.contains(NPUUID.cvnsPadStatus))
+    }
+
 }

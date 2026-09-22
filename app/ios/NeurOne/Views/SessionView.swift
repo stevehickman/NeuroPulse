@@ -110,6 +110,14 @@ struct SessionView: View {
                 } message: {
                     Text(stopErrorMessage ?? "")
                 }
+                // OI-ACC-07: the hub refused or stopped cervical VNS on a failed gel pad. The
+                // safety MCU has already acted; this only tells the wearer which pad, and where.
+                .sheet(item: Binding(
+                    get: { gatt.cervicalPadAlert },
+                    set: { if $0 == nil { gatt.acknowledgeCervicalPadAlert() } }
+                )) { status in
+                    CervicalPadAlertView(status: status) { gatt.acknowledgeCervicalPadAlert() }
+                }
                 .sessionObservers(
                     healthKit: healthKit,
                     gatt: gatt,

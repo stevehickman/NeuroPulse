@@ -140,6 +140,7 @@ private fun SessionTab(app: NeurOneApplication, modifier: Modifier) {
     // Live BLE state from the app-scoped GATT manager (OI-AND-BLE-01).
     val connectionState by app.gattManager.connectionState.collectAsState()
     val session by app.gattManager.session.collectAsState()
+    val cervicalPadAlert by app.gattManager.cervicalPadAlert.collectAsState()
 
     // Request BLE runtime permissions (Android 12+); on grant, kick off scanning.
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -196,6 +197,8 @@ private fun SessionTab(app: NeurOneApplication, modifier: Modifier) {
             onChooseProtocol = { showMenu = true },
             onStop = { app.gattManager.requestSessionStop() },
             modifier = modifier,
+            cervicalPadAlert = cervicalPadAlert,
+            onAcknowledgeCervicalPadAlert = { app.gattManager.acknowledgeCervicalPadAlert() },
         )
     }
 }
