@@ -19,23 +19,267 @@ on:
   schedule:
     - cron: '33 15 * * 4'
 
+# Per-language scoping (NP-SW-CI-001 §5.6). On a pull request, a language is
+# analysed only if the change touches a path in that language's relevance list
+# below, so a docs-only PR runs no analysis at all and a firmware-only PR runs
+# c-cpp alone instead of seven legs, one of them ~10 minutes on macOS. `push` to
+# main and the weekly `schedule` are NEVER scoped: they are the baseline every
+# PR's alerts are compared against, and the schedule is what re-scans unchanged
+# code when the query packs themselves change.
+#
+# Scoped with a `changes` job and a dynamic matrix rather than `on: … paths:`,
+# for the reason every other workflow here gives (§6.7.1): a workflow suppressed
+# by `paths:` never reports, and a required check that never reports blocks the
+# PR forever. None of the Analyze contexts is required today (OI-SWCI-04 left
+# them out), so this keeps that decision open rather than foreclosing it.
+#
+# Known cost: on a PR that skips a language, the code-scanning `CodeQL` check may
+# note that a configuration present on main has no analysis on the PR. That is
+# informational — it cannot introduce alerts for code the PR did not touch.
+
 # Least privilege, workflow-level default: deny everything.
 #
 # This is the one workflow in the repo that genuinely needs a write scope
 # (security-events: write, to upload SARIF), so unlike the other seven it cannot
 # just declare `contents: read` at the top. Instead the default is an empty map —
-# every permission set to `none` — and the `analyze` job below re-grants exactly
-# what CodeQL requires. That is the correct shape when per-job scopes exist: the
-# job's grant becomes the ONLY grant, and a job added to this file later starts
-# from zero rather than inheriting the repository default.
+# every permission set to `none` — and each job below re-grants exactly what it
+# requires: `changes` only reads the repository, `analyze` gets what CodeQL
+# needs. That is the correct shape when per-job scopes exist: the job's grant
+# becomes the ONLY grant, and a job added to this file later starts from zero
+# rather than inheriting the repository default.
 #
 # Do not "simplify" this to `contents: read`; that would silently widen the
 # baseline for every future job here.
 permissions: {}
 
 jobs:
+  # The relevance lists, one per CodeQL language. Always runs, always reports.
+  changes:
+    name: CodeQL scope
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      actions: ${{ steps.scope.outputs.actions }}
+      cpp: ${{ steps.scope.outputs.cpp }}
+      csharp: ${{ steps.scope.outputs.csharp }}
+      java: ${{ steps.scope.outputs.java }}
+      js: ${{ steps.scope.outputs.js }}
+      python: ${{ steps.scope.outputs.python }}
+      swift: ${{ steps.scope.outputs.swift }}
+      include: ${{ steps.matrix.outputs.include }}
+    env:
+      # What each language's extractor would read. The matcher supports only
+      # `prefix/**` and exact paths — no `**/*.py` — so each list names the
+      # directories that hold that language, measured with `git ls-files` on
+      # 2026-09-22. A NEW directory holding one of these languages must be added
+      # here, or edits to it are never analysed on a PR (the weekly run and the
+      # push to main still see it). codeql.yml and the matcher are in every list:
+      # a change to either must be proven on all seven legs.
+      NP_SCOPE_ACTIONS: |
+        .github/**
+        scripts/ci-changed-scope.sh
+      NP_SCOPE_CPP: |
+        firmware/**
+        # np_bridge.c and the vendored Argon2 sources, built into the Swift
+        # package. Buildless c-cpp extraction reads every C file in the checkout.
+        app/NeurOneShared/**
+        .github/workflows/codeql.yml
+        scripts/ci-changed-scope.sh
+      NP_SCOPE_CSHARP: |
+        app/windows/**
+        .github/workflows/codeql.yml
+        scripts/ci-changed-scope.sh
+      NP_SCOPE_JAVA: |
+        # locales/** and scripts/sync-locales.ts are deliberately absent. The
+        # manual build below runs the locale generator, but what it generates is
+        # string resources, not code CodeQL analyses; a locale edit that breaks
+        # the build is android-ci.yml's failure to report, not this one's.
+        app/android/**
+        .github/workflows/codeql.yml
+        scripts/ci-changed-scope.sh
+      NP_SCOPE_JS: |
+        app/web/**
+        npps/**
+        scripts/**
+        simulator/**
+        .github/workflows/codeql.yml
+      NP_SCOPE_PYTHON: |
+        ci/**
+        editscripts/**
+        generate_privacy_report.py
+        scripts/**
+        .github/workflows/codeql.yml
+      NP_SCOPE_SWIFT: |
+        # Same reasoning as the java list for locales/**.
+        app/ios/**
+        app/watchos/**
+        app/NeurOneShared/**
+        .github/workflows/codeql.yml
+        scripts/ci-changed-scope.sh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # A broken matcher would skip every leg while every check went green.
+      - name: Matcher self-test
+        run: scripts/ci-changed-scope.sh --self-test
+
+      - name: Write the relevance lists
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$NP_SCOPE_ACTIONS" > scope.actions.paths
+          printf '%s\n' "$NP_SCOPE_CPP"     > scope.cpp.paths
+          printf '%s\n' "$NP_SCOPE_CSHARP"  > scope.csharp.paths
+          printf '%s\n' "$NP_SCOPE_JAVA"    > scope.java.paths
+          printf '%s\n' "$NP_SCOPE_JS"      > scope.js.paths
+          printf '%s\n' "$NP_SCOPE_PYTHON"  > scope.python.paths
+          printf '%s\n' "$NP_SCOPE_SWIFT"   > scope.swift.paths
+
+      # A well-formed pattern that matches nothing is a typo, not a scope
+      # decision: `app/andriod/**` would silently stop analysing Kotlin on PRs.
+      - name: Every relevance pattern still resolves in the tree
+        run: |
+          set -euo pipefail
+          for f in scope.actions.paths scope.cpp.paths scope.csharp.paths scope.java.paths scope.js.paths scope.python.paths scope.swift.paths; do
+            echo "--- $f"
+            scripts/ci-changed-scope.sh --check-tree "$f"
+          done
+
+      - name: Scope assertions
+        run: |
+          set -euo pipefail
+          assert() { # <list> <expected> <path>
+            printf '%s\n' "$3" > .scope-probe
+            got=$(scripts/ci-changed-scope.sh --relevant "$1" .scope-probe)
+            if [ "$got" != "$2" ]; then
+              echo "::error::CodeQL scope assertion failed on $1: '$3' expected relevant=$2, got $got"
+              exit 1
+            fi
+            echo "ok: $1 · $3 → $got"
+          }
+          # The case this job exists for: a docs-only change analyses nothing.
+          for l in actions cpp csharp java js python swift; do
+            assert scope.$l.paths false docs/np_sw_ci_001.md
+            assert scope.$l.paths false CLAUDE.md
+            assert scope.$l.paths true  .github/workflows/codeql.yml
+          done
+          assert scope.cpp.paths     true  firmware/safety_mcu/src/np_safety_main.c
+          assert scope.cpp.paths     true  app/NeurOneShared/Sources/NeurOneArgon2/np_bridge.c
+          assert scope.cpp.paths     false app/web/src/main.ts
+          assert scope.swift.paths   true  app/ios/NeurOne/Analytics/AnalyticsBackend.swift
+          assert scope.swift.paths   true  app/NeurOneShared/Sources/NeurOneArgon2/np_bridge.c
+          assert scope.swift.paths   false firmware/safety_mcu/src/np_safety_main.c
+          assert scope.java.paths    true  app/android/app/build.gradle.kts
+          assert scope.java.paths    false locales/en.json
+          assert scope.js.paths      true  app/web/src/main.ts
+          assert scope.js.paths      true  npps/grammar/npps-parser.mjs
+          assert scope.js.paths      false firmware/safety_mcu/src/np_safety_main.c
+          assert scope.python.paths  true  ci/test_shdr_schema.py
+          assert scope.python.paths  true  editscripts/fix_risk_table.py
+          assert scope.python.paths  false app/web/src/main.ts
+          assert scope.csharp.paths  true  app/windows/NeurOne/Protocol/ExternalBrowser.cs
+          assert scope.csharp.paths  false app/android/app/build.gradle.kts
+          assert scope.actions.paths true  .github/workflows/web-ci.yml
+          assert scope.actions.paths false firmware/safety_mcu/src/np_safety_main.c
+
+      - name: Changed files
+        id: diff
+        env:
+          NP_BASE: ${{ github.event.pull_request.base.sha }}
+          NP_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # Fail-safe direction is ANALYSE. Only a pull request with a usable
+          # base is scoped; push, schedule and anything unresolvable run every
+          # language. Unlike the build workflows there is no default-branch
+          # fallback for push, because a push to main must never be scoped.
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "::notice::event=${{ github.event_name }} is never scoped — analysing every language"
+            echo "unknown_base=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -z "${NP_BASE:-}" ] || ! git cat-file -e "${NP_BASE}^{commit}" 2>/dev/null \
+             || ! git cat-file -e "${NP_HEAD}^{commit}" 2>/dev/null \
+             || ! merge_base=$(git merge-base "${NP_BASE}" "${NP_HEAD}"); then
+            echo "::notice::no usable base revision (base='${NP_BASE:-}') — analysing every language"
+            echo "unknown_base=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git diff --name-only "${merge_base}" "${NP_HEAD}" > changed.txt
+          echo "unknown_base=false" >> "$GITHUB_OUTPUT"
+          echo "--- changed files (base ${merge_base}) ---"
+          cat changed.txt
+
+      - name: Relevance
+        id: scope
+        run: |
+          set -euo pipefail
+          emit() { # <output-name> <patterns-file>
+            if [ "${{ steps.diff.outputs.unknown_base }}" = "true" ]; then
+              relevant=true
+            else
+              relevant=$(scripts/ci-changed-scope.sh --relevant "$2" changed.txt)
+            fi
+            echo "$1=${relevant}" | tee -a "$GITHUB_OUTPUT"
+          }
+          emit actions scope.actions.paths
+          emit cpp     scope.cpp.paths
+          emit csharp  scope.csharp.paths
+          emit java    scope.java.paths
+          emit js      scope.js.paths
+          emit python  scope.python.paths
+          emit swift   scope.swift.paths
+
+      # The analysis matrix, built from the outputs above. A language is left
+      # out only on a definite `false`; a missing or malformed output keeps it.
+      - name: Analysis matrix
+        id: matrix
+        env:
+          NP_RELEVANT: ${{ toJSON(steps.scope.outputs) }}
+        run: |
+          set -euo pipefail
+          # <scope output>  <CodeQL language>  <build-mode>
+          #
+          # java-kotlin is 'manual', not 'autobuild': CodeQL's Java autobuilder
+          # runs from the source root, and this repo's root holds no JVM build
+          # file — the Gradle project is at app/android/. Autobuild therefore
+          # exits with "Could not detect a suitable build command for the source
+          # checkout" and the job ends as a configuration error. The explicit
+          # build steps in `analyze` compile it instead. Buildless ('none') would
+          # also go green, but CodeQL notes that buildless extraction "will
+          # generally yield less accurate analysis results", and app/android
+          # holds the BLE, consent, and session-data code — worth a real build.
+          #
+          # CodeQL supports: actions, c-cpp, csharp, go, java-kotlin,
+          # javascript-typescript, python, ruby, rust, swift. See
+          # https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning
+          table='actions actions               none
+          cpp     c-cpp                 none
+          csharp  csharp                none
+          java    java-kotlin           manual
+          js      javascript-typescript none
+          python  python                none
+          swift   swift                 autobuild'
+          include='[]'
+          while read -r out lang mode; do
+            relevant=$(jq -r --arg k "$out" '.[$k] // "true"' <<<"$NP_RELEVANT")
+            if [ "$relevant" != "false" ]; then
+              include=$(jq -c --arg l "$lang" --arg m "$mode" '. + [{language: $l, "build-mode": $m}]' <<<"$include")
+            fi
+          done <<<"$table"
+          echo "include=${include}" | tee -a "$GITHUB_OUTPUT"
+
   analyze:
     name: Analyze (${{ matrix.language }})
+    needs: changes
+    # Skip ONLY on a definite negative for every language — `!= 'false'`, not
+    # `== 'true'`, as everywhere else here. This `if:` exists because a matrix
+    # cannot be empty (GitHub rejects `include: []`), and a job-level `if:` cannot
+    # read `matrix`, so per-language skipping is done by the matrix itself.
+    if: ${{ !cancelled() && (needs.changes.outputs.actions != 'false' || needs.changes.outputs.cpp != 'false' || needs.changes.outputs.csharp != 'false' || needs.changes.outputs.java != 'false' || needs.changes.outputs.js != 'false' || needs.changes.outputs.python != 'false' || needs.changes.outputs.swift != 'false') }}
     # Runner size impacts CodeQL analysis time. To learn more, please see:
     #   - https://gh.io/recommended-hardware-resources-for-running-codeql
     #   - https://gh.io/supported-runners-and-hardware-resources
@@ -56,37 +300,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-        - language: actions
-          build-mode: none
-        - language: c-cpp
-          build-mode: none
-        - language: csharp
-          build-mode: none
-        # 'manual', not 'autobuild': CodeQL's Java autobuilder runs from the source
-        # root, and this repo's root holds no JVM build file — the Gradle project is
-        # at app/android/. Autobuild therefore exits with "Could not detect a suitable
-        # build command for the source checkout" and the job ends as a configuration
-        # error. The explicit build steps below compile it instead. Buildless
-        # ('none') would also go green, but CodeQL notes that buildless extraction
-        # "will generally yield less accurate analysis results", and app/android holds
-        # the BLE, consent, and session-data code — worth a real build.
-        - language: java-kotlin
-          build-mode: manual
-        - language: javascript-typescript
-          build-mode: none
-        - language: python
-          build-mode: none
-        - language: swift
-          build-mode: autobuild
-        # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
-        # Use `c-cpp` to analyze code written in C, C++ or both
-        # Use 'java-kotlin' to analyze code written in Java, Kotlin or both
-        # Use 'javascript-typescript' to analyze code written in JavaScript, TypeScript or both
-        # To learn more about changing the languages that are analyzed or customizing the build mode for your analysis,
-        # see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning.
-        # If you are analyzing a compiled language, you can modify the 'build-mode' for that language to customize how
-        # your codebase is analyzed, see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages
+        # Built by `changes` from its table of language × build-mode.
+        include: ${{ fromJSON(needs.changes.outputs.include) }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v7
