@@ -406,6 +406,45 @@ static void test_fault_cb_disables_and_logs(void)
     check(g_fault_log_ms == 0U, "fault: SHDR timestamp suppressed (privacy gate)");
 }
 
+/* ── NP-SW-FAULTMSG-001 P2 (OI-FAULTMSG-02): the fault KIND in the UHDR record ─
+ * np_cvns_session_tick() routes every interlock fault through the cardiac-cutoff
+ * path.  The record must still say which fault it was, and set cutoff_occurred
+ * only for a real heart-rate-change cutoff — the app explains offline faults
+ * from this record, and a lost ear-clip signal is not a cardiac event. */
+static void run_to_interlock_fault(np_cvns_fault_reason_t reason)
+{
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    np_mod_cvns_test_session()->stage = NP_CVNS_STAGE_ACTIVE;
+    np_mod_cvns_test_interlock()->state        = NP_CVNS_INTERLOCK_FAULT;
+    np_mod_cvns_test_interlock()->fault_reason = reason;
+    np_cvns_session_tick(np_mod_cvns_test_session(), 20U, g_now_unix);
+}
+
+static void test_uhdr_record_distinguishes_fault_kind(void)
+{
+    const np_cvns_session_record_t *rec;
+
+    run_to_interlock_fault(NP_CVNS_FAULT_DATA_LOSS);
+    rec = &np_mod_cvns_test_session()->uhdr_record;
+    check(rec->fault_reason == (uint8_t)NP_CVNS_FAULT_DATA_LOSS,
+          "P2: R-peak data loss recorded as DATA_LOSS");
+    check(rec->cutoff_occurred == 0U,
+          "P2: data loss is NOT recorded as a cardiac cutoff");
+
+    run_to_interlock_fault(NP_CVNS_FAULT_SAFETY_MCU);
+    rec = &np_mod_cvns_test_session()->uhdr_record;
+    check(rec->fault_reason == (uint8_t)NP_CVNS_FAULT_SAFETY_MCU && rec->cutoff_occurred == 0U,
+          "P2: safety-MCU fault recorded as SAFETY_MCU, not a cardiac cutoff");
+
+    run_to_interlock_fault(NP_CVNS_FAULT_HR_CHANGE);
+    rec = &np_mod_cvns_test_session()->uhdr_record;
+    check(rec->fault_reason == (uint8_t)NP_CVNS_FAULT_HR_CHANGE && rec->cutoff_occurred == 1U,
+          "P2: heart-rate change recorded as a cardiac cutoff");
+}
+
 /* ── OI-CVNS-HUB-08: unified heartbeat → library SPI responses ───────────────── */
 
 /* Advisory impedance step (OI-CVNS-HUB-09): a genuine hub-side per-electrode
@@ -790,6 +829,7 @@ int main(void)
     test_hb_snapshot_reset_on_start();
     test_stop_when_inactive_noop();
     test_control_before_init();
+    test_uhdr_record_distinguishes_fault_kind();
 
     if (g_failures == 0) {
         printf("ALL TESTS PASSED\n");

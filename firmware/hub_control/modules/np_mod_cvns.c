@@ -464,12 +464,14 @@ static bool cvns_advisory_impedance_step(uint32_t now_ms)
  *   carries only a pass/fail impedance bit; when no measurement is available the
  *   step falls back to NP_CVNS_HB_IMPEDANCE_NOMINAL_KOHM (previous behaviour).
  *
- * Residual:
- *   A safety-MCU enable refusal surfaces through the library's generic fault
- *     path, which np_cvns_session_tick() records with cutoff_occurred=1 even
- *     though it was not a cardiac cutoff; the SHDR fault_reason is correct
- *     (NP_CVNS_FAULT_SAFETY_MCU).  Correcting the library's fault taxonomy is a
- *     separate library change, not this hub bridge.
+ * Residual (RESOLVED 2026-09-22, NP-SW-FAULTMSG-001 P2 / OI-FAULTMSG-02):
+ *   A safety-MCU enable refusal — and any other interlock fault — surfaces
+ *   through the library's generic fault path, which np_cvns_session_tick()
+ *   routes as a cardiac cutoff.  The UHDR record used to set cutoff_occurred=1
+ *   for all of them.  It now carries the interlock's own fault_reason and sets
+ *   cutoff_occurred only for NP_CVNS_FAULT_HR_CHANGE (np_cvns_session.c).  The
+ *   SHDR summary's cutoff_occurred is unchanged; the SHDR fault_reason was
+ *   already correct.
  */
 static void cvns_apply_heartbeat(uint32_t now_ms)
 {

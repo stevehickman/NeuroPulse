@@ -122,6 +122,11 @@ void np_cvns_interlock_tick(np_cvns_interlock_ctx_t *ctx,
 /* ── State accessors ─────────────────────────────────────────────────────────── */
 np_cvns_interlock_state_t np_cvns_interlock_state(const np_cvns_interlock_ctx_t *ctx);
 float                     np_cvns_interlock_baseline_hr(const np_cvns_interlock_ctx_t *ctx);
+/* Main-processor HR estimate now: the mean of the last
+ * NP_CVNS_BASELINE_BEATS_MIN R-R intervals, the same window the baseline uses.
+ * 0 if no interval has been seen.  Not the safety MCU's value — the two sides
+ * are independent implementations (NP-FW-CVNS-001 §5). */
+float                     np_cvns_interlock_current_hr(const np_cvns_interlock_ctx_t *ctx);
 bool                      np_cvns_interlock_baseline_valid(const np_cvns_interlock_ctx_t *ctx);
 np_cvns_fault_reason_t    np_cvns_interlock_fault_reason(const np_cvns_interlock_ctx_t *ctx);
 

@@ -356,6 +356,11 @@ bool np_cvns_interlock_baseline_valid(const np_cvns_interlock_ctx_t *ctx)
     return ctx ? ctx->baseline_valid : false;
 }
 
+float np_cvns_interlock_current_hr(const np_cvns_interlock_ctx_t *ctx)
+{
+    return ctx ? rr_mean_bpm(&ctx->rr_buf, NP_CVNS_BASELINE_BEATS_MIN) : 0.0f;
+}
+
 np_cvns_fault_reason_t np_cvns_interlock_fault_reason(const np_cvns_interlock_ctx_t *ctx)
 {
     return ctx ? ctx->fault_reason : NP_CVNS_FAULT_NONE;
