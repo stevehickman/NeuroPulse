@@ -132,7 +132,7 @@
   - Indication: cluster headache + migraine (FDA-cleared precedent: electroCore gammaCore K163334, K173323); extending to depression, PTSD, post-stroke rehabilitation
   - Safety MCU ownership: current path near carotid → safety MCU reads impedance + cardiac rhythm monitor before enable; automatic cutoff if HR changes >15 BPM within 5s of stimulation
   - Regulatory: 510(k) predicate = electroCore gammaCore (K163334 cluster headache, K173323 migraine); separate 510(k) required for T2 product launch; T1 uses auricular-only (no carotid proximity)
-  - Connects via existing hub accessory port; separate cable + electrode assembly; gel pad consumable (5-pack)
+  - Connects via existing hub accessory port; separate cable + electrode assembly; gel pad consumable (5-pack), single use per electrode contact surface — consumables row in `docs/reference/commercial-model.md` §2.3 (`OI-ACC-03`, closed 2026-09-22)
   - BOM delta: +$35–55 for cervical tcVNS accessory module
 - **HIPAA cloud + EHR:** FHIR R4 · multi-patient dashboard · sLORETA source imaging (also drives HD-tDCS targeting) · LSL streaming · scripting API
 - **anonymized session tag:** Random session identifier for clinical multi-patient environments — clinic holds patient-to-tag mapping, NeurOne cannot cross-reference

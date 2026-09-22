@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-CVNS-001
-**Revision:** 1
-**Date:** 2026-09-20
+**Revision:** 2
+**Date:** 2026-09-22
 **Status:** DRAFT — **requirements-grade. The electrode assembly is undimensioned and its area is a PROVISIONAL firmware constant; §8 names each absence rather than supplying a value.**
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -233,6 +233,16 @@ filled: pricing a consumable is `docs/reference/commercial-model.md`'s act, and 
 > raises the same enforcement question `NP-HW-NASAL-001` §6.2 raises — **with the difference that
 > this pad is not authenticated at all.** Route to Product + Quality.
 
+> **Rev 2 (2026-09-22) — the commercial half is closed; the enforcement half is what remains.**
+> `NP-ACC-PRIORITY-001` `OI-ACC-03` raised the same gap from the commercial side and is closed:
+> `docs/reference/commercial-model.md` §2.3 now carries the row — single use, price and GM% not set
+> (`OI-COST-10`), and a trigger assessed as a **condition measurement at point of use**: `REQ-CVNS-06`'s
+> per-electrode ≤ 5.0 kΩ check, on which the safety MCU refuses enable. So the pad *is* gated, as
+> this item predicted — but on its **contact**, not its **use count**. A dried, lifted or missing pad
+> is refused; a reused pad whose hydrogel still conducts is not. **`OI-CVNSHW-05` is re-scoped to that
+> question alone:** does single use need enforcement beyond the IFU (authentication as the intranasal
+> sleeve has it, or some other means), and if so what? Nothing here assumes the answer.
+
 ---
 
 ## 7. Hazard inputs
@@ -298,7 +308,7 @@ after the dash is what this document changes.
 | **OI-CVNSHW-02** | **Decide the drive topology — one source with a side selector, or two independent sources.** `OI-CVNS-09`'s single-vs-dual enable line follows from it, not the reverse, and each topology has a distinct Class C failure mode (§4.3) | EE + Safety | `OI-CVNS-09`; PCB layout (G1) |
 | **OI-CVNSHW-03** | **State A13-worn-and-functioning as an explicit precondition of A14's safety case**, in `NP-REG-CVNS-001`'s device description, RISK-25's control set and the IFU — or give A14 its own cardiac sensing (§5.2). The dependency is reasonable; leaving it unwritten is not | Systems + Regulatory + Quality | RISK-25 control integrity; 510(k) |
 | **OI-CVNSHW-04** | Specify and measure the electrode/pad wetted contact area with a tolerance, so `NP_CVNS_ELECTRODE_AREA_MCM2` stops being PROVISIONAL. Closes `OI-CHARGE-07`'s cervical limb. Note the area that matters is the **pad's**, and the pad is unspecified | ME + Clinical | `OI-CHARGE-07`; Class C safety argument |
-| **OI-CVNSHW-05** | **The cervical VNS gel pad has no row in `docs/reference/commercial-model.md` §2.3** — a shipping T2 consumable with no price, interval, margin or assessed trigger, and unlike the intranasal sleeve it is not authenticated, so single use is unenforced (§6) | Product + Quality | Consumable record completeness |
+| **OI-CVNSHW-05** | **Re-scoped Rev 2.** ~~No row in `docs/reference/commercial-model.md` §2.3~~ — row added, and trigger assessed, under `OI-ACC-03` (closed 2026-09-22). **Remaining:** single use is unenforced. The pad is not authenticated, and the only measurement on it — `REQ-CVNS-06`'s pre-enable impedance — refuses a pad that does not conduct, not one that has been used. Decide whether single use needs enforcement beyond the IFU, and by what means (§6) | Product + Quality | Consumable record completeness; reuse hazard (§7) |
 | **OI-CVNSHW-06** | Specify neck module geometry, retention, mass and the neck-size range served | ME + HFE | A14 tooling; hazard analysis |
 | **OI-CVNSHW-07** | Specify gel pad formulation, adhesion, shelf life and biocompatibility basis (single-use hydrogel on neck skin) | ME + Quality | Hazard analysis; 510(k) biocompatibility |
 | **OI-CVNSHW-08** | Select connector and strain relief. Worth deciding **once** across A11, A12, A13 and A14 | EE + ME | A14 tooling |
@@ -327,3 +337,4 @@ after the dash is what this document changes.
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 1 | 2026-09-20 | NeurOne Systems Engineering | Initial release, against GitHub #332. **Gives artifact A14's hardware an owning specification for the first time** — the absence cited by name in `NP-ART-001` §2.4/§3.2, `NP-FAI-001` §2.1.1 and OI-FAI-07, and `NP-RISK-002` RISK-25. §2 reads `NP-REG-CVNS-001` §2.4's device description as a manufacturing list and states each sub-part's specification status; §3 carries eleven requirements from the record and marks the four that are **predicate-coupled** and cannot be relaxed without re-running the substantial-equivalence argument. **Principal finding (§5.2): the cardiac interlock's R-peak source is a different artifact** — `NP-FW-CVNS-001` §6.2 takes it from the auricular clip's PPG (A13), so the control that mitigates RISK-25 and is presented to FDA as the key differentiator from the gammaCore predicate depends on a T1 accessory being worn, whose skin contact is a consumable degraded by unrelated use. The dependency is reasonable; its absence from the device description, the risk controls and the IFU is not (`OI-CVNSHW-03`). Also recorded: `OI-CVNS-09`'s single-vs-dual enable line is **a hardware topology question and is re-seated here** (`OI-CVNSHW-02`); the 4-conductor cable has no pin assignment and its count is regulatory-visible (`OI-CVNSHW-01`); `NP_CVNS_ELECTRODE_AREA_MCM2` = 2 cm² is PROVISIONAL and never measured, and the area that matters is the **pad's** (`OI-CVNSHW-04`, closing `OI-CHARGE-07`'s cervical limb); and the cervical gel pad is a shipping T2 consumable with **no row in the consumables table at all** (`OI-CVNSHW-05`). §8.1 states the FAI consequence precisely: **`NP-FAI-CVNS-001` remains unwritable**, F1 failing now on DRAFT status rather than on absence, so `OI-FAI-07` is re-scoped rather than closed. **No constant, limit, criterion, clinical claim or locked decision changes; nothing in `NP-FW-CVNS-001` or `NP-REG-CVNS-001` is amended.** Raises OI-CVNSHW-01…08. |
+| 2 | 2026-09-22 | NeurOne Systems Engineering | **`OI-CVNSHW-05` re-scoped, not closed.** Its commercial half — no row in the consumables table — is closed by `NP-ACC-PRIORITY-001` `OI-ACC-03`: `docs/reference/commercial-model.md` §2.3 now lists the pad as single use, price not set (`OI-COST-10`), with `REQ-CVNS-06`'s impedance check assessed as its trigger. §6 gains a note saying the pad is gated on contact, not on use count, and the item now carries only the enforcement question. **No requirement, constant or limit changed.** |

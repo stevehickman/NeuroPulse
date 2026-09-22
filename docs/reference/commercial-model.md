@@ -192,11 +192,44 @@ edit.
 > **This rule is enforced by reading, not by a gate** — unlike §5.1's redaction shape, §6.2's
 > reachability and §17's locale rule, which each have one. That gap is `OI-ACC-06`.
 
+> **`OI-ACC-03` CLOSED (2026-09-22) — the cervical VNS gel pad has a row, and it is the only row
+> whose price is deliberately empty.** The pad was specified as a T2 consumable
+> (`NP-REG-CVNS-001` §2.4: *"Gel pad 5-pack; single-use per electrode contact surface"*) and appeared
+> in no consumables table. The row below records what the document set already fixes, and
+> supplies nothing it does not:
+>
+> - **Price and GM%: not set.** `OI-COST-10` forbids setting any price before `OI-HEXTILE-06`, and
+>   the pad has no COGS estimate anywhere, so a margin would be a number with no inputs. The empty
+>   cells are the record, not an omission; they are filled in this file when the sequencing allows.
+> - **Interval: single use**, from the regulatory device description — not a session count, and
+>   **not** the 20–40 sessions of the auricular clip pads. The `OI-ACC-02` record said this item was
+>   cheaply closable on the VNS-clip template, `modality-stack.md` *"already recording 20–40
+>   sessions for the pads"*; that figure belongs to the auricular PDMS pads (modality ⑥), and the
+>   template does not transfer. A single-use part has no replacement interval to trigger.
+> - **Trigger: a condition measurement at the point of use, which refuses the session.** Every
+>   cervical session is preceded by a per-electrode impedance check against **≤ 5.0 kΩ at 1 kHz**
+>   (`NP-HW-CVNS-001` `REQ-CVNS-06`, `NP_CVNS_IMPEDANCE_MAX_KOHM`), and the safety MCU withholds
+>   enable when it fails (CLAUDE.md §4.2) — so a dried, lifted or missing pad blocks the session. That is
+>   the first of CLAUDE.md §2.3's two admissible kinds, and its threshold is a safety gate with its own
+>   provenance, not one back-derived from a calendar. It is why `NP-ACC-PRIORITY-001` §5 ranks the
+>   pad C3a (blocking).
+> - **What the measurement cannot see:** a **reused** pad whose hydrogel still conducts. Unlike the
+>   intranasal sleeve, the pad is **not authenticated**, so single use is an IFU instruction and not
+>   a gate. Whether it needs one is a Product + Quality question and stays open as
+>   `NP-HW-CVNS-001` `OI-CVNSHW-05` (re-scoped to that question alone); the pad's formulation,
+>   adhesion and wetted area are `OI-CVNSHW-07` and `OI-CVNSHW-04`. There is no `ConsumableKind`
+>   for it on either platform, and none is needed for a single-use part that the impedance gate
+>   already refuses — the gap is in enforcing single use, not in prompting replacement.
+> - **Pack size is a commercial choice, not a requirement** (CLAUDE.md §18). The assembly checks
+>   two electrodes every session (`NP_CVNS_ELECTRODE_COUNT`), so a 5-pack serves two sessions and
+>   one pad over; the price decision is the place to revisit it.
+
 | Item | Price | Interval | GM% | Notes |
 |------|-------|----------|-----|-------|
 | Intranasal sleeves (30-pack) | $19/pack or $19/mo sub | Single use | 68–79% | Only authenticated consumable. COGS $4–6. Primary MRR driver. |
 | Electrode hydrogel tips (8-pack) | $12–16 or $9.99/mo sub | 30–60 sessions | 60–72% | App impedance trend prompts. Bayonet snap, zero training. |
 | VNS clip pads (2-pack) | $8/pack | 20–40 sessions | 65% | Electrochemical degradation from VNS current. |
+| Cervical VNS gel pads (5-pack) — T2 | **Not set — `OI-COST-10`** | Single use, per electrode contact surface (`NP-REG-CVNS-001` §2.4) | **— (no price, no COGS)** | Condition measurement at point of use: per-electrode impedance ≤ 5.0 kΩ at 1 kHz before every session (`REQ-CVNS-06`); the safety MCU refuses enable otherwise. Not authenticated, so it cannot see a reused pad that still conducts (`OI-CVNSHW-05`). `OI-ACC-03`, closed above. |
 | Audio cup foam (set) | $24/set | **150 sessions — unvalidated placeholder (`OI-ACC-04`)** | 58% | Exposure count. Mechanism: compression set under wear (time-under-compression; sessions proxy it). Cannot see tear, contamination, or storage set. Was "6–12 months / Calendar reminder" — `OI-ACC-02`, resolved above. |
 | Audio cup mesh frame (pair) | $9.99/pair | Annual | 62% | App driver impedance flags fouling. Snap-in, user-replaceable. **Trigger not implemented:** `np_mod_audio_hal_mesh_impedance()` is a HAL stub (`OI-AUDIO-08`) whose value is discarded, and there is no `ConsumableKind` case — so the shipped prompt is the Interval column, i.e. a calendar. `OI-ACC-05`. |
 | Interface protection covers (complete kit) | $22.99 or $19.99/yr bundle | Annual / as lost | 70% | All tethered — loss prevention by design. |
