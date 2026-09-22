@@ -346,8 +346,8 @@ Lead** on cost. All three now decide against a corrected electrical premise.
 
 | # | Item | Owner |
 |---|---|---|
-| 1 | **PARTIAL 2026-09-21 — done for the in-window candidate, still open for the other three.** **Read Vf at 120–180 mA off the `IF = f(VF)` curve** for GH CSSRM5.24 (660 nm), SFH 4718A, L1IZ-0850 and any in-window candidate. **Performed for the Luminus SST-06/SST-10-IRD-810 family** against its own datasheets (§13.2e(i)): `V_f` = **2.82 V / 2.85 V at 150 mA**, self-validated at the trace's own 350 mA reference. **The three parts this item names by name are untouched** — their datasheets have not been read at the operating point, so `NP-HW-HEXTILE-001` §4.3's specified 11 × 2.10 V and 14 × 1.60 V still rest on design targets, and that is the half of this item that blocks `OI-HEXTILE-02` | EE Lead |
-| 2 | **OPEN, unchanged.** **Confirm SFH 4703AS EOL against a PCN**, and confirm it applies to the exact orderable variant. The 2026-09-21 pass re-confirmed the EOL status at the same strength it already held — vendor status fields — and retrieved no PCN. **`NP-PROC-FPC-001` §2.6.2 now records the part as discontinued at that stated strength**, which is what stops it being designed in; it does not discharge this item | Procurement |
+| 1 | **PARTIAL 2026-09-21 — done for the in-window candidate, still open for the other three.** **Read Vf at 120–180 mA off the `IF = f(VF)` curve** for GH CSSRM5.24 (660 nm), SFH 4718A, L1IZ-0850 and any in-window candidate. **Performed for the Luminus SST-06/SST-10-IRD-810 family** against its own datasheets (§13.2e(i)): `V_f` = **2.82 V / 2.85 V at 150 mA**, self-validated at the trace's own 350 mA reference. **The three parts this item names by name are untouched** — their datasheets have not been read at the operating point, so `NP-HW-HEXTILE-001` §4.3's specified 11 × 2.10 V and 14 × 1.60 V still rest on design targets, and that is the half of this item that blocks `OI-HEXTILE-02`. **The blocker is narrow (2026-09-22): a session cannot *fetch* a datasheet, but one *supplied into it* works — that is exactly how the Luminus read was done. This item is three handed-over documents away: the `IF = f(VF)` curves for GH CSSRM5.24, SFH 4718A and L1IZ-0850.** The read itself is mechanical and self-validating | EE Lead |
+| 2 | **OPEN, unchanged.** **Confirm SFH 4703AS EOL against a PCN**, and confirm it applies to the exact orderable variant. The 2026-09-21 pass re-confirmed the EOL status at the same strength it already held — vendor status fields — and retrieved no PCN. **Note (2026-09-22): this one is not an egress problem at all** — a Product Discontinuation Notice is obtained by **asking ams-OSRAM or an authorised distributor**, not by downloading a public page, so no amount of session network access would discharge it. It is a procurement action, which is why the owner column reads Procurement. **`NP-PROC-FPC-001` §2.6.2 now records the part as discontinued at that stated strength**, which is what stops it being designed in; it does not discharge this item | Procurement |
 | 3 | ✅ **DONE 2026-09-21 — search re-run and the candidate verified** (§13.2e(h) then (i)). The OSLON Black 810 nm family resolves to the one part already shortlisted and it is EOL; the **Luminus SST-06-IRD-810 / SST-10-IRD-810** family was found instead, and its datasheets were then read rather than summarised. Full assessment in `NP-PROC-FPC-001` Rev 5 §2.6.3. **The search is closed; what it produced is a candidate with three open requirement failures (T_j, L70, wavelength bin) and a lattice-fit problem, not a part to select** | EE Lead + Procurement |
 | 4 | ✅ **DONE 2026-09-21 — `NP-PROC-FPC-001` Rev 4** (GitHub #333). All five corrections applied in place: the "2000mA DC / 11× margin" row now reads **1000 mA DC / 5.6×** with the 2 A figure identified as `I_FSM` surge at D = 0.005; "Vf=3.55V @1A" is marked not a datasheet value (**typ 3.3 V / max 4.0 V at 1 A, 10 ms**); **centroid 810 nm** added alongside the 820 nm peak; the "DigiKey, Mouser stocked" row replaced with **DISCONTINUED**, at the stated strength of three vendor status fields and explicitly not a PCN; and the CRITICAL FINDING is **WITHDRAWN and retained**, with its 15 V anchor restated against D-6's 24 V rail. The standing practice this row cited — that the `.docx` is not hand-edited — was **read too broadly**: `np_tool_shell_001.docx` carries an in-place PARTIALLY SUPERSEDED banner from 2026-08-18, so the set's own precedent is to correct a `.docx` in place and retain what it replaces. This pass followed it | Hardware Engineering |
 | 5 | **State a minimum driver dropout and a 24 V rail tolerance** — OI-HEXTILE-18 / OI-HEXTILE-19 | EE Lead |
@@ -381,6 +381,21 @@ items 1 and 2 — reading Vf off an `IF = f(VF)` curve at 120–180 mA, and conf
 reachable. Web *search* is reachable, and the difference is exactly the one this document set already
 draws: a search summary is a pointer to evidence, not evidence. The Luminus family in item 3 is recorded
 at that strength and no higher, in `NP-PROC-FPC-001` §2.6.3 as well as here.
+
+> **⚠ CORRECTED 2026-09-22 — the fact above is right and the conclusion drawn from it was wrong.** The
+> egress policy does block those three domains, so a session cannot **fetch** a datasheet. It does not
+> follow that these items cannot be discharged here, and **§13.2e(i) is the proof**: the Luminus
+> datasheets (`PDS-003021 Rev 02`, `PDS-003022 Rev 01`) were **supplied manually into the session**, read,
+> and the `OI-LED-01` curve-read performed on them and self-validated against the trace's own 350 mA
+> reference. **The blocker is retrieval, not capability**, and the working route is established: hand the
+> document to the session.
+>
+> So the guidance this paragraph was written to give — *"do not re-attempt"* — is **withdrawn**. The
+> correct instruction is the opposite: **these items are one supplied document away each**, and the
+> deliverable is named per item in (g) above. What remains true, and is the distinction worth keeping, is
+> that **web search is not a substitute** — two of the figures it returned for this very family were wrong
+> (`V_f` max 3.4 V not 3.2 V; 90°/130° lens options, not one), which is why (h) recorded them as a lead
+> rather than as data.
 
 **And the part nobody should mistake for progress.** `OI-LED-W1` is a decision with three named owners
 — **SAB** on whether 850/860 nm is scientifically defensible against the 808/830 nm CCO absorption peaks,

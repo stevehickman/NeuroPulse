@@ -19,6 +19,46 @@
 
 ## Current revision
 
+**CORRECTION to the Rev 50 entry below (2026-09-22) — Rev 50 carries TWO changes, not one, and the
+second arrived without a revision bump. CLAUDE.md remains at Rev 50; this corrects the record, not
+the file.**
+
+Per this file's own rule — *do not edit an entry to reflect a later change; add a new entry that
+names the entry it corrects* — the Rev 50 entry below is left as written. It describes §18 as though
+§18 were the whole of Rev 50. It is not.
+
+**What else Rev 50 carries.** Commit `707fe2d` (*"EMC cavity resonance analysis: establish Layer 4
+requirement in dB"*, #365, merged to `main` 2026-09-22) added fifteen lines to CLAUDE.md — a Document
+Map row for `docs/np_emc_cav_001.md`, and a note under §4.3 — **and left the header at Rev 49.** The
+§18 work was rebased onto it, so both now sit in one file reading Rev 50, and the second change had no
+entry in this file at all.
+
+**What those fifteen lines say**, recorded here because otherwise nothing in this file does:
+
+- A Document Map row pointing at `NP-EMC-CAV-001` for cavity resonance — the source that excites it,
+  the band, and Layer 4's requirement in dB.
+- A §4.3 note: **Layer 4 now has a requirement and fails it.** `REQ-CAV-02` sets **loaded Q ≤ 20 over
+  420 MHz – 3 GHz (≥ 26.2 dB)** against a named source — the **18 cluster controllers inside the
+  envelope**, not a radio — and **the layer supplies 0.26 dB while the wearer's head supplies
+  49.8 dB**. `REQ-CAV-04` recommends deleting the station, with the 3 mm re-loft of the outer bowl
+  **BINDING** if it is deleted, because vacating 3 mm otherwise fills it with stagnant air that is
+  54 % worse per mm than the foam.
+
+**The one thing a later reader must not "fix".** That note recommends a 4-layer stack, but **§1 and
+§4.3 still read *5-layer*, and that is deliberate** — the note says *"Recommended, not executed"*, and
+`OI-EMCCAV-08` (`MECH-2`) is the open question that decides it. The apparent contradiction between
+§1's *"5-layer EMF shielding"* and a §4.3 note arguing for four is the state of the decision, not a
+documentation defect. Do not reconcile it by editing §1.
+
+**The process point, which is why this entry exists rather than a silent renumber.** A CLAUDE.md
+content change that skips the revision bump gets **no narrative entry**, and then a later revision
+absorbs it invisibly — which is the decay this file was split out to stop. Rev 47's entry records the
+same failure mode in the other direction (a header digest whose selection *"decayed unowned"*).
+Nothing here renumbers or rewrites `707fe2d`'s work; the correction **records** the gap rather than
+repairing it, because the change is `main`'s and its author may want to number it themselves.
+
+## Earlier revisions
+
 **Rev 50 (2026-09-21) — §18 added: a requirement must be required. One new section, mirroring
 `NP-CONV-001` §7.1; no existing invariant changed and no figure moved.**
 
