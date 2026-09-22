@@ -1,5 +1,6 @@
 package life.neurone.core.ble
 
+import life.neurone.core.models.CervicalPadStatus
 import life.neurone.core.models.OtaPhase
 import life.neurone.core.models.PacerPhase
 import life.neurone.core.models.SessionStatus
@@ -103,5 +104,65 @@ class GattParserTests {
         assertNull(GattParser.parseZoneModuleStatus(byteArrayOf(1, 2)))
         assertNull(GattParser.parseFirmwareVersion(short))
         assertNull(GattParser.parseOtaStatus(byteArrayOf(1, 2)))
+    }
+
+    // ── CVNS_PAD_STATUS (mask + check + per-electrode side) — OI-ACC-07 ──
+    // Side codes: 0x01 = left of neck, 0x02 = right. Bilateral montage = [left, right].
+
+    private fun pad(vararg b: Int) = ByteArray(b.size) { b[it].toByte() }
+
+    @Test
+    fun parseCervicalPadStatusNamesTheFailingSide() {
+        val status = GattParser.parseCervicalPadStatus(pad(0x02, 0x00, 0x01, 0x02))
+        assertEquals(
+            CervicalPadStatus(listOf(CervicalPadStatus.NeckSide.RIGHT), CervicalPadStatus.Check.PRE_ENABLE),
+            status,
+        )
+        assertEquals(CervicalPadStatus.Message.PRE_RIGHT, status?.message)
+        assertEquals(setOf(CervicalPadStatus.NeckSide.RIGHT), status?.failingSides)
+    }
+
+    @Test
+    fun parseCervicalPadStatusMessageVariants() {
+        fun m(vararg b: Int) = GattParser.parseCervicalPadStatus(pad(*b))?.message
+        assertEquals(CervicalPadStatus.Message.PRE_LEFT, m(0x01, 0x00, 0x01, 0x02))
+        assertEquals(CervicalPadStatus.Message.PRE_BOTH, m(0x03, 0x00, 0x01, 0x02))
+        assertEquals(CervicalPadStatus.Message.MID_LEFT, m(0x01, 0x01, 0x01, 0x02))
+        assertEquals(CervicalPadStatus.Message.MID_RIGHT, m(0x02, 0x01, 0x01, 0x02))
+        assertEquals(CervicalPadStatus.Message.MID_BOTH, m(0x03, 0x01, 0x01, 0x02))
+    }
+
+    /** Unilateral: both pads on one side, which comes from the hub — electrode 1 is on the RIGHT here. */
+    @Test
+    fun parseCervicalPadStatusUnilateralTakesSideFromHub() {
+        assertEquals(
+            CervicalPadStatus.Message.PRE_RIGHT,
+            GattParser.parseCervicalPadStatus(pad(0x01, 0x00, 0x02, 0x02))?.message,
+        )
+        val both = GattParser.parseCervicalPadStatus(pad(0x03, 0x00, 0x02, 0x02))
+        assertEquals(CervicalPadStatus.Message.PRE_BOTH, both?.message)
+        assertEquals(setOf(CervicalPadStatus.NeckSide.RIGHT), both?.failingSides)
+    }
+
+    @Test
+    fun parseCervicalPadStatusAllPassHasNoMessage() {
+        val status = GattParser.parseCervicalPadStatus(pad(0x00, 0x00, 0x01, 0x02))
+        assertEquals(false, status?.hasFailure)
+        assertNull(status?.message)
+    }
+
+    @Test
+    fun parseCervicalPadStatusRejectsMalformedFrames() {
+        assertNull(GattParser.parseCervicalPadStatus(pad(0x01, 0x00, 0x01)))       // short
+        assertNull(GattParser.parseCervicalPadStatus(pad(0x04, 0x00, 0x01, 0x02))) // reserved bit
+        assertNull(GattParser.parseCervicalPadStatus(pad(0x80, 0x00, 0x01, 0x02))) // reserved bit
+        assertNull(GattParser.parseCervicalPadStatus(pad(0x01, 0x02, 0x01, 0x02))) // unknown check
+        assertNull(GattParser.parseCervicalPadStatus(pad(0x01, 0x00, 0x00, 0x02))) // unknown side
+        assertNull(GattParser.parseCervicalPadStatus(pad(0x01, 0x00, 0x01, 0x03))) // unknown side
+    }
+
+    @Test
+    fun cervicalPadStatusIsNotARequiredCharacteristic() {
+        assertEquals(false, GattUuids.all.contains(GattUuids.cvnsPadStatus))
     }
 }

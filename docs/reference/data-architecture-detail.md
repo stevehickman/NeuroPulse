@@ -35,6 +35,7 @@ Specific boundary resolutions:
 - Raw ambient light → UHDR; cumulative UV exposure index → SHDR
 - Raw VNS impedance → UHDR; contact resistance trend → SHDR
 - Cervical VNS per-electrode impedance reported by the safety MCU to the hub for cross-validation (OI-CVNS-HUB-11) → UHDR (raw tissue impedance), transferred device-internally only, NEVER written to SHDR; the hub-vs-MCU divergence FLAG (`NP_CVNS_SHDR_EV_IMP_CROSSVAL`, no kΩ values, suppressed timestamp) → SHDR
+- Cervical VNS gel pad contact pass/fail per electrode, with the side of the neck each pad is on (`CVNS_PAD_STATUS`, `OI-ACC-07`) → UHDR (derived from raw tissue impedance; the side reveals the wearer's montage). Delivered to the user's own app for display only — held in memory, never persisted, cleared on disconnect, NEVER written to SHDR
 - IR eye state during sessions → UHDR; safety interlock log → SHDR
 - Device session count (unsigned integer) → SHDR; session timestamps → UHDR
 - Research anonymization pipeline `failed_step` (which stage aborted, esp. `NP_ANON_STEP_VALIDATE`) → UHDR/app-side only (drives user retry prompt). A per-device count of validate failures weakly signals the wearer is a re-identification outlier (small anonymity set) — health-adjacent under WA MHMD / GDPR Art. 9. If a device-health signal is needed in SHDR, log only a coarse `anonymization_failed: bool` without the stage. See `firmware/anon/include/np_anon_pipeline.h` (`np_anon_step_t`).

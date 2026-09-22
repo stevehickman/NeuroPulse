@@ -192,11 +192,53 @@ edit.
 > **This rule is enforced by reading, not by a gate** — unlike §5.1's redaction shape, §6.2's
 > reachability and §17's locale rule, which each have one. That gap is `OI-ACC-06`.
 
+> **`OI-ACC-03` CLOSED (2026-09-22, principal) — the cervical VNS gel pad has a row, is replaced
+> on a measured failure, and is the only row whose price is deliberately empty.** The pad was a
+> specified T2 consumable (`NP-REG-CVNS-001` §2.4) that appeared in no consumables table.
+>
+> - **"Single use" is a performance guarantee, not a reuse prohibition** (principal, 2026-09-22).
+>   The pad is guaranteed to work for one application; it is not required to be discarded after
+>   one. **Single use is therefore not enforced**, and needs no authentication, because a failing
+>   pad is detected. `NP-REG-CVNS-001` §2.4 (Rev 2) now says so, since *"single-use"* on a medical
+>   device reads as *"do not reuse"* by default.
+> - **Trigger: a condition measurement, the first of CLAUDE.md §2.3's two admissible kinds.** Every
+>   cervical session is preceded by a per-electrode impedance check against **≤ 5.0 kΩ at 1 kHz**
+>   (`NP-HW-CVNS-001` `REQ-CVNS-06`, `NP_CVNS_IMPEDANCE_MAX_KOHM`), and the safety MCU withholds
+>   enable when it fails (CLAUDE.md §4.2); a pad that lifts mid-session is caught within 500 ms
+>   (`REQ-CVNS-08`). The threshold is a safety gate with its own provenance, not one back-derived
+>   from a calendar. This is the blocking mechanism `NP-ACC-PRIORITY-001` §5 row 9 already named.
+> - **Interval: none — replaced on failure.** Not a session count, and **not** the 20–40 sessions
+>   of the auricular clip pads: the `OI-ACC-02` record called this item cheaply closable on the
+>   VNS-clip template, `modality-stack.md` *"already recording 20–40 sessions for the pads"*, but
+>   that figure belongs to the auricular PDMS pads (modality ⑥). A pad with a condition measurement
+>   needs no exposure count and no validated threshold.
+> - **A worn pad that still passes cannot overdose.** The per-phase charge ceiling is checked
+>   against the declared 2 cm² (`NP_CVNS_ELECTRODE_AREA_MCM2`), and at `REQ-CVNS-04`'s maxima
+>   (2 mA × 1000 µs = 2 µC) the commanded density is 1 µC/cm² against 40 µC/cm², so contact would have
+>   to shrink below 0.05 cm² before the ceiling is at stake — far past any impedance that passes
+>   5.0 kΩ. The residual reuse hazard is **skin**, not dose: the pad's biocompatibility basis must
+>   cover repeat application (`NP-HW-CVNS-001` `OI-CVNSHW-07`).
+> - **The detection reaches the user by location — app side done, hub side open (`OI-ACC-07`).**
+>   A refusal with no words is not a prompt (CLAUDE.md §5.2), and the principal requires the
+>   message to say **which pad location** failed. iOS and Android now read `CVNS_PAD_STATUS` and
+>   show *"a gel pad on the left side of your neck failed its contact check"*, over a neck diagram
+>   that lights that side. The side is reported by the hub, which knows the montage; the app never
+>   guesses it from an electrode number. No `ConsumableKind` is needed — the trigger is a
+>   per-session refusal, not a count. Still open: the hub does not publish the characteristic
+>   yet, its side mapping waits on the cable pin assignment (`OI-CVNSHW-01`), and a Mode 3
+>   wearer is sent to the phone by the user doc (`NP-REG-CVNS-001` §7.4).
+> - **Price and GM%: not set.** `OI-COST-10` forbids setting any price before `OI-HEXTILE-06`, and
+>   the pad has no COGS estimate anywhere. The empty cells are the record, not an omission.
+> - **Pack size is a commercial choice, not a requirement** (CLAUDE.md §18). The assembly checks
+>   two electrodes every session (`NP_CVNS_ELECTRODE_COUNT`); how many sessions a pack serves now
+>   depends on how long pads last, which nothing yet measures.
+
 | Item | Price | Interval | GM% | Notes |
 |------|-------|----------|-----|-------|
 | Intranasal sleeves (30-pack) | $19/pack or $19/mo sub | Single use | 68–79% | Only authenticated consumable. COGS $4–6. Primary MRR driver. |
 | Electrode hydrogel tips (8-pack) | $12–16 or $9.99/mo sub | 30–60 sessions | 60–72% | App impedance trend prompts. Bayonet snap, zero training. |
 | VNS clip pads (2-pack) | $8/pack | 20–40 sessions | 65% | Electrochemical degradation from VNS current. |
+| Cervical VNS gel pads (5-pack) — T2 | **Not set — `OI-COST-10`** | On failure — performance guaranteed for one use; reuse permitted (`NP-REG-CVNS-001` §2.4) | **— (no price, no COGS)** | Condition measurement: per-electrode impedance ≤ 5.0 kΩ at 1 kHz before every session (`REQ-CVNS-06`), enable refused by the safety MCU otherwise; lift mid-session caught in 500 ms (`REQ-CVNS-08`). Cannot see skin reaction to reuse (`OI-CVNSHW-07`). App names the failing pad's side and lights it on a neck diagram; hub side open (`OI-ACC-07`). `OI-ACC-03`, closed above. |
 | Audio cup foam (set) | $24/set | **150 sessions — unvalidated placeholder (`OI-ACC-04`)** | 58% | Exposure count. Mechanism: compression set under wear (time-under-compression; sessions proxy it). Cannot see tear, contamination, or storage set. Was "6–12 months / Calendar reminder" — `OI-ACC-02`, resolved above. |
 | Audio cup mesh frame (pair) | $9.99/pair | Annual | 62% | App driver impedance flags fouling. Snap-in, user-replaceable. **Trigger not implemented:** `np_mod_audio_hal_mesh_impedance()` is a HAL stub (`OI-AUDIO-08`) whose value is discarded, and there is no `ConsumableKind` case — so the shipped prompt is the Interval column, i.e. a calendar. `OI-ACC-05`. |
 | Interface protection covers (complete kit) | $22.99 or $19.99/yr bundle | Annual / as lost | 70% | All tethered — loss prevention by design. |

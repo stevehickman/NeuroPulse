@@ -85,6 +85,11 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     /// nil until the hub ships NPUUID.firmwareVersion (OI-WA-03); OTAView shows "Unknown".
     @Published private(set) var hubFirmwareVersion: String?
 
+    /// A cervical VNS gel pad failure the wearer has not yet acknowledged (OI-ACC-07).
+    /// Set from CVNS_PAD_STATUS; cleared when the hub reports both pads passing, when the
+    /// wearer acknowledges it, or on disconnect. UHDR-class — display only, never persisted.
+    @Published private(set) var cervicalPadAlert: CervicalPadStatus?
+
     // MARK: - Connection lifecycle type
 
     enum ConnectionState { case disconnected, scanning, connecting, connected }
@@ -132,6 +137,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     private var socketMapChar:        CBCharacteristic?
     private var warrantyTokenChar:    CBCharacteristic?
     private var firmwareVersionChar:  CBCharacteristic?
+    private var cvnsPadStatusChar:    CBCharacteristic?
 
     /// In-flight partial session state accumulated from individual characteristic notifications.
     private var pending: SessionState = .empty
@@ -218,6 +224,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         allCharacteristicsResolved = false
         warrantyToken = nil
         hubFirmwareVersion = nil
+        cervicalPadAlert = nil
         clearCharacteristicHandles()
 
         // Guard: no reconnect timer when BLE is unavailable — avoids a silent no-op scan.
@@ -357,6 +364,21 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         p.writeValue(Data([0x01]), for: char, type: .withResponse)
     }
 
+    // MARK: - Cervical VNS gel pad alert (OI-ACC-07)
+
+    /// Applies a CVNS_PAD_STATUS frame. A failure raises the alert; a both-pads-pass frame
+    /// clears it. A malformed frame changes nothing. `internal` — driven directly by tests.
+    func applyCervicalPadStatus(_ data: Data) {
+        guard let status = GATTParser.parseCervicalPadStatus(data) else { return }
+        cervicalPadAlert = status.hasFailure ? status : nil
+    }
+
+    /// The wearer has read the alert. The hub has already refused or stopped stimulation —
+    /// acknowledging changes nothing on the device; the next failure raises a new alert.
+    func acknowledgeCervicalPadAlert() {
+        cervicalPadAlert = nil
+    }
+
     // MARK: - Private helpers
 
     private func clearCharacteristicHandles() {
@@ -367,6 +389,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         calibrationCmdChar = nil; sessionStopChar = nil; warrantyTokenChar = nil
         socketMapChar = nil
         firmwareVersionChar = nil
+        cvnsPadStatusChar = nil
     }
 }
 
@@ -421,7 +444,7 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
         // Discover required chars plus optional warrantyToken and firmwareVersion (OI-WA-03).
         peripheral.discoverCharacteristics(
             NPUUID.all + [NPUUID.warrantyToken, NPUUID.firmwareVersion,
-                          NPUUID.socketMap], for: service)
+                          NPUUID.socketMap, NPUUID.cvnsPadStatus], for: service)
     }
 
     func peripheral(_ peripheral: CBPeripheral,
@@ -503,6 +526,11 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
                 peripheral.setNotifyValue(true, for: char)
                 peripheral.readValue(for: char)
 
+            case NPUUID.cvnsPadStatus:
+                // Optional — T2 cervical accessory only, and hub firmware not yet shipped.
+                cvnsPadStatusChar = char
+                peripheral.setNotifyValue(true, for: char)
+
             default:
                 break
             }
@@ -558,6 +586,13 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             // UID. Handled here, above the `session = pending` path, so it can
             // never be folded into a UHDR session record.
             applyZoneModuleStatus(data)
+            return
+        }
+
+        if characteristic.uuid == NPUUID.cvnsPadStatus {
+            // UHDR-class (tissue impedance reduced to pass/fail, plus pad side) — but not part of the
+            // session record, so it is published on its own and never folded into `pending`.
+            applyCervicalPadStatus(data)
             return
         }
 

@@ -8,10 +8,10 @@ enum NPUUID {
 
     // Notify-only characteristics — match NP-APP-ROADMAP-001 §5
     static let sessionState     = CBUUID(string: "4E455550-0002-1000-8000-00805F9B34FB") // NOTIFY 4B
-    static let sessionStatus    = CBUUID(string: "4E455550-0003-1000-8000-00805F9B34FB") // NOTIFY 2B
+    static let sessionStatus    = CBUUID(string: "4E455550-0003-1000-8000-00805F9B34FB") // NOTIFY 4B
     static let hrvCoherence     = CBUUID(string: "4E455550-0004-1000-8000-00805F9B34FB") // NOTIFY 4B
-    static let pacerPhase       = CBUUID(string: "4E455550-0005-1000-8000-00805F9B34FB") // NOTIFY 2B
-    static let impedanceResult  = CBUUID(string: "4E455550-0006-1000-8000-00805F9B34FB") // NOTIFY 2B
+    static let pacerPhase       = CBUUID(string: "4E455550-0005-1000-8000-00805F9B34FB") // NOTIFY 4B
+    static let impedanceResult  = CBUUID(string: "4E455550-0006-1000-8000-00805F9B34FB") // NOTIFY 4B
     static let consumableStatus = CBUUID(string: "4E455550-0007-1000-8000-00805F9B34FB") // READ/NOTIFY 8B
 
     // Write characteristics — Mode 2 protocol upload, Mode 4 EDF request, OTA, calibration
@@ -51,6 +51,12 @@ enum NPUUID {
     // NOT included in NPUUID.all — optional until hub firmware ships it (OI-WA-03).
     // OTAView shows "Unknown" when nil; does not block allCharacteristicsResolved.
     static let firmwareVersion  = CBUUID(string: "4E455550-0011-1000-8000-00805F9B34FB") // READ/NOTIFY 4B
+
+    // Cervical VNS gel pad contact result — NOTIFY 4B (failed mask, check, side of each pad). T2 only.
+    // Words the hub's pad refusal for the wearer (OI-ACC-07); see CervicalPadStatus for the
+    // frame. UHDR-class, display only. NOT in NPUUID.all — the hub does not ship it yet, and a
+    // T1 hub has no cervical accessory, so its absence must never block allCharacteristicsResolved.
+    static let cvnsPadStatus    = CBUUID(string: "4E455550-0013-1000-8000-00805F9B34FB") // NOTIFY 4B
 
     // All characteristics required for a fully-operational session.
     // warrantyToken and firmwareVersion are deliberately omitted — both are optional
@@ -129,6 +135,11 @@ struct GATTParser {
     static func parseImpedanceResult(_ data: Data) -> UInt16? {
         guard data.count >= 2 else { return nil }
         return data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: 0, as: UInt16.self) }
+    }
+
+    /// CVNS_PAD_STATUS: uint8 failed mask + uint8 check + 2 × uint8 pad side. nil if malformed.
+    static func parseCervicalPadStatus(_ data: Data) -> CervicalPadStatus? {
+        CervicalPadStatus(wire: data)
     }
 
     /// CONSUMABLE_STATUS: 4 × uint16 session counts (intranasal, hydrogel, VNS, audio)

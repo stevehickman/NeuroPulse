@@ -3,6 +3,7 @@ package life.neurone.app.ble
 import life.neurone.core.ble.GattParser
 import life.neurone.core.ble.GattUuids
 import life.neurone.core.ble.OtaOpcode
+import life.neurone.core.models.CervicalPadStatus
 import life.neurone.core.models.OtaStatusPacket
 import life.neurone.core.models.SessionState
 import java.util.UUID
@@ -69,6 +70,15 @@ class NeurOneGattManager(
     private val _shdrUploadPending = MutableStateFlow(false)
     val shdrUploadPending: StateFlow<Boolean> = _shdrUploadPending
 
+    /**
+     * A cervical VNS gel pad failure the wearer has not yet acknowledged (OI-ACC-07).
+     * Set from CVNS_PAD_STATUS; cleared when the hub reports both pads passing, when the
+     * wearer acknowledges it, or on disconnect. UHDR-class — display only, never persisted.
+     * Mirrors iOS NeurOneGATTManager.cervicalPadAlert.
+     */
+    private val _cervicalPadAlert = MutableStateFlow<CervicalPadStatus?>(null)
+    val cervicalPadAlert: StateFlow<CervicalPadStatus?> = _cervicalPadAlert
+
     private var reconnectJob: Job? = null
 
     init {
@@ -103,7 +113,9 @@ class NeurOneGattManager(
         _connectionState.value = ConnectionState.CONNECTED
         central.discoverCharacteristics(
             GattUuids.service,
-            GattUuids.all + listOf(GattUuids.warrantyToken, GattUuids.firmwareVersion),
+            GattUuids.all + listOf(
+                GattUuids.warrantyToken, GattUuids.firmwareVersion, GattUuids.cvnsPadStatus,
+            ),
         )
     }
 
@@ -124,6 +136,8 @@ class NeurOneGattManager(
         GattUuids.all.forEach { central.enableNotifications(it) }
         if (GattUuids.warrantyToken in characteristics) central.read(GattUuids.warrantyToken)
         if (GattUuids.firmwareVersion in characteristics) central.read(GattUuids.firmwareVersion)
+        // Optional — T2 cervical accessory only, and hub firmware not yet shipped.
+        if (GattUuids.cvnsPadStatus in characteristics) central.enableNotifications(GattUuids.cvnsPadStatus)
         // Restore session status immediately on (re)connect.
         if (GattUuids.sessionStatus in characteristics) central.read(GattUuids.sessionStatus)
     }
@@ -138,6 +152,11 @@ class NeurOneGattManager(
             // SHDR upload bookkeeping only; never touches session state. Publish the
             // pending trigger (0x01 = upload pending) for the SHDR upload pipeline.
             _shdrUploadPending.value = value.isNotEmpty() && value[0] == 0x01.toByte()
+            return
+        }
+        if (uuid == GattUuids.cvnsPadStatus) {
+            // UHDR-class, but not part of the session record — published on its own.
+            applyCervicalPadStatus(value)
             return
         }
         when (uuid) {
@@ -192,7 +211,21 @@ class NeurOneGattManager(
     fun sendCalibration(opcode: life.neurone.core.ble.CalibrationOpcode) =
         central.write(GattUuids.calibrationCmd, byteArrayOf(opcode.rawValue.toByte()))
 
+    /**
+     * The wearer has read the alert. The hub has already refused or stopped stimulation —
+     * acknowledging changes nothing on the device; the next failure raises a new alert.
+     */
+    fun acknowledgeCervicalPadAlert() {
+        _cervicalPadAlert.value = null
+    }
+
     // ── Internals ────────────────────────────────────────────────────────
+
+    /** A failure raises the alert; a both-pads-pass frame clears it; a malformed frame changes nothing. */
+    private fun applyCervicalPadStatus(value: ByteArray) {
+        val status = GattParser.parseCervicalPadStatus(value) ?: return
+        _cervicalPadAlert.value = status.takeIf { it.hasFailure }
+    }
 
     private fun startScanning() {
         _connectionState.value = ConnectionState.SCANNING
@@ -205,6 +238,7 @@ class NeurOneGattManager(
         _session.value = SessionState.EMPTY   // clear stale UHDR display state
         _hubFirmwareVersion.value = null
         _warrantyToken.value = null
+        _cervicalPadAlert.value = null
         // Reset the SHDR upload trigger — it is tied to a live connection; the hub
         // re-signals 0x01 on reconnect (retry on next USB-C session, iOS parity).
         _shdrUploadPending.value = false
