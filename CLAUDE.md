@@ -1,13 +1,13 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 49 (current)  
+**Revision:** 50 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
 > bear on most conversations and names the file holding the rest. Read a subsidiary file when the
 > task needs it — do not assume a figure or a spec detail is here.
 >
-> **Revision history — every revision from Rev 33 to the current Rev 48, what it changed and why —
+> **Revision history — every revision from Rev 33 onward, what it changed and why —
 > is `docs/reference/claude-md-revision-history.md`. None of it is summarised here.** That file is
 > the only narrative of *why* an invariant below reads the way it does, which entries changed a
 > locked decision, and which changed none: **read it before assuming why something is the way it
@@ -41,6 +41,7 @@ only when I `Read` it.
 | §5.1 · §5.2 · §5.3 | **Full UHDR/SHDR contents enumerations** · per-field boundary resolutions · predictive maintenance · anonymization pipeline | `docs/reference/data-architecture-detail.md` |
 | §6.2 · §6.3 | Layer table, screen rationale, POA workflow · research portal | `docs/reference/consent-engine.md` |
 | **§17** | **Generator mechanics, placeholder + plural rules, key conventions, why the generated files are not committed** | `docs/reference/localization.md` |
+| **§18** | **The two-question test in full, the worked example, retire-vs-downgrade, and the `OI-CONV-08` audit** | `docs/np_conv_001.md` §7.1 |
 
 **Subject-matter documents:**
 
@@ -508,10 +509,34 @@ requirement, the `bun`-on-`PATH` consequence and the full rationale:
 
 ---
 
+## 18. REQUIREMENTS — A REQUIREMENT MUST BE REQUIRED (locked 2026-09-21) → `docs/np_conv_001.md` §7.1
+
+**Nothing is written as a requirement unless something requires it. Never add an unnecessary
+constraint.** Before a number, limit, tolerance or "shall" enters a controlled document, two questions
+must have answers and the row must carry them: **what fails if this is not met**, and **where is that
+traceable** (an external standard, a measurement, a derivation from another specified value, or a hazard
+control). **A Notes cell that restates the requirement is not a derivation.**
+
+This is not tidiness. Most procurement and interface documents here open with *"all specifications are
+MANDATORY unless marked ADVISORY"*, so an unrequired figure **rejects usable parts and manufactures
+false failures** with the document's full authority — which is what `NP-PROC-FPC-001` §2.3's undrived
+`Tj_max ≥ 125 °C` did before it was retired. **Disposition: retire, do not downgrade** (ADVISORY still
+leaves something to screen against), and **retire is not delete** — the row stays marked in place so the
+retirement is auditable.
+
+**Scope limit — this is not licence to strip limits.** It governs constraints NeurOne invented. It does
+**not** reach an externally imposed limit (IEC 60601-1's 42 °C, IEC 62471 MPE, the §3 charge ceilings), a
+hazard control, or a requirement whose derivation exists but is merely uncited — **"I could not find the
+derivation" is a reason to look, then to raise an open item, never to retire.** Removing a safety control
+is an ISO 14971 decision and never follows from this section. Full rule, test, worked example and the
+audit item `OI-CONV-08`: `docs/np_conv_001.md` §7.1.
+
+---
+
 *This CLAUDE.md is the always-loaded core of the NeurOne design program: the invariants, and a map to
 everything else. Detail lives in the subsidiary files listed in the Document Map — a section here
 that names a file is a pointer, not a summary you may quote figures from. When a locked decision
 changes, update the owning file, log it in `docs/status/completed-decisions.md`, and add an entry to
-`docs/reference/claude-md-revision-history.md`. Keep every top-level section (§1–§6, §16) and every
+`docs/reference/claude-md-revision-history.md`. Keep every top-level section (§1–§6, §16–§18) and every
 subsection number in place even when its content moves —* `bun scripts/check-section-refs.ts` *guards
 663 inbound citations that resolve against them.*
