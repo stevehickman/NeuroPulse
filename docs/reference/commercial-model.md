@@ -225,8 +225,8 @@ edit.
 >   that lights that side. The side is reported by the hub, which knows the montage; the app never
 >   guesses it from an electrode number. No `ConsumableKind` is needed — the trigger is a
 >   per-session refusal, not a count. Still open: the hub does not publish the characteristic
->   yet, its side mapping waits on the cable pin assignment (`OI-CVNSHW-01`), and Mode 3 has no
->   phone to show it on.
+>   yet, its side mapping waits on the cable pin assignment (`OI-CVNSHW-01`), and a Mode 3
+>   wearer is sent to the phone by the user doc (`NP-REG-CVNS-001` §7.4).
 > - **Price and GM%: not set.** `OI-COST-10` forbids setting any price before `OI-HEXTILE-06`, and
 >   the pad has no COGS estimate anywhere. The empty cells are the record, not an omission.
 > - **Pack size is a commercial choice, not a requirement** (CLAUDE.md §18). The assembly checks
