@@ -302,6 +302,42 @@ uint32_t np_hal_impedance_read_cvns_electrode_ohm(uint8_t electrode);
  */
 void np_hal_otp_read_pubkey(uint8_t *buf, uint8_t len);
 
+/* ── Non-volatile state flash (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01) ────────
+ *
+ * Two reserved 2 KB flash pages (the NV region, the last 4 KB of flash —
+ * startup/stm32g071_flash.ld keeps the image out of it).  They hold the one
+ * fact the safety MCU must remember across a POWER-ON reset: a cervical VNS
+ * cardiac cutoff the app has not yet acknowledged.  The record format, the
+ * page rotation and the fail-closed decoding live in src/np_nv_state.c, not
+ * here — these three are the thin register-level primitives beneath it.
+ *
+ * NP_NV_PAGE_COUNT = 2, NP_NV_SLOTS_PER_PAGE = 256 double-words (np_safety_config.h).
+ *
+ * np_hal_nv_read_dword(page, slot, lo, hi)
+ *                           Memory-mapped read of one 64-bit slot.  Erased flash
+ *                           reads 0xFFFFFFFF in both words.  Non-blocking.
+ *
+ * np_hal_nv_erase_page(page)
+ *                           Erase one NV page to all-ones.  Returns true when
+ *                           the controller reports completion with no error.
+ *                           BLOCKING, and it STALLS THE CORE: ~22 ms typical,
+ *                           40 ms maximum, during which flash-resident code —
+ *                           ISRs included — cannot run.
+ *
+ * np_hal_nv_program_dword(page, slot, lo, hi)
+ *                           Program one erased 64-bit slot (flash programming
+ *                           can only clear bits).  Returns true when the
+ *                           controller reports completion with no error.
+ *                           BLOCKING, ~85 µs, same core stall.
+ *
+ * Because of the stall, callers erase or program only while every stimulation
+ * channel is already off — after the GPIO cutoff has been applied, never on the
+ * path to it (np_safety_main.c).
+ */
+void np_hal_nv_read_dword(uint8_t page, uint16_t slot, uint32_t *lo, uint32_t *hi);
+bool np_hal_nv_erase_page(uint8_t page);
+bool np_hal_nv_program_dword(uint8_t page, uint16_t slot, uint32_t lo, uint32_t hi);
+
 /*
  * ── WHAT THIS HEADER COULD NOT TELL YOU — AND WHERE PHASE 7 ANSWERED IT ──────
  *

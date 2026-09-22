@@ -20,6 +20,7 @@
  *   4. Session descriptor signature verified (if session_active bit set)
  */
 
+#include "np_nv_state.h"
 #include "np_safety_config.h"
 #include "np_safety_hal.h"
 #include "np_safety_protocol.h"
@@ -57,6 +58,9 @@ extern void np_charge_monitor_phase_tick(np_safety_state_t *state,
 extern void np_thermal_interlock_tick(np_safety_state_t *state);
 extern void np_cardiac_interlock_tick(np_safety_state_t *state);
 extern void np_cardiac_interlock_reenable(np_safety_state_t *state);
+extern void np_cardiac_interlock_restore(bool cutoff_pending);
+extern bool np_cardiac_interlock_nv_request(bool *pending_out);
+extern void np_cardiac_interlock_nv_done(bool written);
 extern void np_impedance_check_request(uint16_t requested_mask);
 extern void np_impedance_check_poll(np_safety_state_t *state);
 extern bool np_impedance_check_build_cvns_report(np_safety_imp_report_t *out);
@@ -82,6 +86,13 @@ static uint8_t           s_bad_cmd_count = 0U; /* consecutive bad-magic/checksum
  * the preserved latch data (slot + specific status bits) with the generic
  * NP_SAFETY_STATUS_FAULT=0x01 that init places in s_state.status. */
 static bool              s_prior_latch_reported = false;
+
+/* Consecutive failed attempts to persist the cardiac-cutoff state
+ * (NP-SW-FAULTMSG-001 P1).  After NP_NV_WRITE_ATTEMPTS the safety MCU stops
+ * retrying and raises NP_FAULT_SLOT_NVSTATE: each attempt can stall the core
+ * for up to one page erase, so retries are bounded, and a flash that cannot
+ * record a cutoff is a device fault to surface, not to hide. */
+static uint8_t           s_nv_fail_count = 0U;
 
 /* ── Checksum verification (matches hub_control np_safety_spi.c) ──────────── */
 
@@ -200,6 +211,12 @@ int main(void)
     } else {
         s_prior_latch_reported = true;  /* no prior fault — commit is safe immediately */
     }
+
+    /* Cervical VNS cardiac cutoff persisted across a power-on reset
+     * (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01).  Held latent until a session
+     * requests CVNS — see np_cardiac_interlock_restore(). */
+    np_nv_state_init();
+    np_cardiac_interlock_restore(np_nv_cardiac_pending());
 
     /* ── Main polling loop ─────────────────────────────────────────────── */
     for (;;) {
@@ -471,6 +488,33 @@ int main(void)
             memcpy(&reply[NP_SAFETY_IMP_REPORT_OFFSET], &imp_report,
                    sizeof(imp_report));
             np_hal_spi_send_reply(reply, (uint8_t)sizeof(reply));
+        }
+
+        /* Persist the cardiac-cutoff state across power-on resets
+         * (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01).  Placed AFTER the GPIO apply
+         * and the reply, and gated on an all-zero granted mask, because a flash
+         * erase stalls the core for up to 40 ms and no interlock may be starved
+         * while any channel is energised.  At a cutoff only CVNS is dropped at
+         * once; the rest follow on the next heartbeat (np_spi_watchdog_tick),
+         * so the SET write lands within one heartbeat period of the cutoff.
+         * The CLR write follows a re-enable, which happens with every channel
+         * already off.                                                       */
+        if (s_state.granted_mask == 0U) {
+            bool nv_value = false;
+            if (np_cardiac_interlock_nv_request(&nv_value)) {
+                if (np_nv_cardiac_pending_set(nv_value)) {
+                    np_cardiac_interlock_nv_done(nv_value);
+                    s_nv_fail_count = 0U;
+                } else {
+                    s_nv_fail_count++;
+                    if (s_nv_fail_count >= (uint8_t)NP_NV_WRITE_ATTEMPTS) {
+                        np_cardiac_interlock_nv_done(nv_value);   /* stop retrying */
+                        s_nv_fail_count    = 0U;
+                        s_state.fault_slot = NP_FAULT_SLOT_NVSTATE;
+                        s_state.status    |= NP_SAFETY_STATUS_FAULT;
+                    }
+                }
+            }
         }
 
         /* Commit fault to latch for warm-reset persistence.

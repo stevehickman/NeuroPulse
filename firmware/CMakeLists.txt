@@ -129,9 +129,9 @@
 # workflow that owns its host tests, or edits to it run no CI.  Ownership is
 # split by IEC 62304 class (NP-SW-CI-001 §5.0.1 — the workflows are
 # self-contained because `needs:` only works within one workflow):
-#   firmware/safety_mcu/  → .github/workflows/safety-mcu-ci.yml        (7 targets, Class C)
+#   firmware/safety_mcu/  → .github/workflows/safety-mcu-ci.yml        (8 targets, Class C)
 #   everything else above → .github/workflows/firmware-cross-build.yml (27 targets, Class B)
-# 7 + 29 = 36.  .github/workflows/build-all.yml re-checks that partition weekly
+# 8 + 29 = 37.  .github/workflows/build-all.yml re-checks that partition weekly
 # and fails if a target ever belongs to neither list.
 # (This line has been wrong more often than right, which is the argument against
 #  keeping a count in a comment at all.  It read "6 + 21 = 27" until 2026-08-12
@@ -288,6 +288,12 @@ if(NP_BUILD_TESTS)
     # OI-SWCI-17).  Moves the Class C count 6 → 7 and the repo total 27 → 28.
     add_test(NAME np_hal_platform_tests
         COMMAND np_hal_platform_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # Eighth Class C target — SW01-M09 non-volatile safety state
+    # (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01).  Class C count 7 → 8, total 36 → 37.
+    add_test(NAME np_nv_state_tests
+        COMMAND np_nv_state_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_cvns_reenable_tests
