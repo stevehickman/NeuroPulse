@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-THERM-COOL-001
-**Revision:** 14
+**Revision:** 15
 **Date:** 2026-09-23
 **Status:** DRAFT — DESIGN STUDY. Not a tooling, firmware or release baseline. Modifies no locked section and changes no safety requirement.
 **Effective Date:** —
@@ -16,6 +16,14 @@
 **Parent Document:** NP-THERM-CFD-R1-001
 
 ---
+
+> **Rev 15 (2026-09-23) — `OI-EMCCAV-11` (GitHub #404): the fluxgates are not in the inter-bowl gap.**
+> §6.9.1 said *"§5.3c puts the fluxgate magnetometers there"*, and §5.3(c) never did. The sensor body is
+> on L1, inboard of the gap (`NP-HEX-ZM-001` §5.3(c), which owns the siting). §6.9.1 now carries a dated
+> correction, and `OI-THCOOL-15`'s *"fluxgate keep-outs"* is annotated: **no fluxgate keep-out is
+> specified**, and whether one is needed is an EE decision (`NP-EMC-CAV-001` §8.6.1). No number in this
+> document changes. The pad's *electrically insulating, non-magnetic* constraint stands, because it is a
+> material rule and does not depend on where the sensor is.
 
 > **Rev 14 (2026-09-23) — `OI-EMCCAV-07` answered by `NP-THERM-BOWL-001` (GitHub #403); one hand-off
 > to `OI-THCOOL-21`, no figure here changed.** On `NP-THERM-SINK-001`'s via network the deletion moves
@@ -862,10 +870,21 @@ that gap (one per cluster, on the inner bowl's outer face, **18 clusters** under
 §5.3c puts the **fluxgate magnetometers** there; and §5.1 requires the bowls to **separate for module
 replacement**, so anything spanning the gap is re-compressed at every service event.
 
+> **⚠ Corrected 2026-09-23 (`OI-EMCCAV-11`, GitHub #404; Rev 15).** The middle clause is wrong:
+> **§5.3c does not put the fluxgates in the gap.** The sensor body sits on L1, inside the socket-wall
+> station, **inboard** of the gap (`NP-HEX-ZM-001` §5.3(c)'s fluxgate-siting paragraph, which owns
+> this). **The record also specifies no fluxgate keep-out.** So the fluxgates are not an established
+> obstruction to pad coverage. They are an **open question** about whether a planform keep-out is
+> needed, and it is EE's. Its two readings are in `NP-EMC-CAV-001` §8.6.1. The first clause has also
+> moved on: the clamps are flush (`FLUSH-1`), and the obstruction that now caps coverage is the 18
+> cluster controller boards (`NP-EMC-CAV-001` §8.7.3, `OI-EMCCAV-12`). **The discrete-pad conclusion
+> below is unaffected.** It rests on the controller boards and on bowl separation, not on the
+> fluxgates. The paragraph is kept as written, in the tense of its date.
+
 **So the shape follows the heat, not the area.** Heat arrives at discrete points — `NP-HELMET-GEOM-001`
 §3.2's *"boron-nitride-filled thermally-conductive polymer bosses at module heat pickups"*. The pad
 pattern should be **one pad per tile, co-located with that tile's BN boss**, sized to the boss
-footprint. Discrete pads route around the clamps and fluxgates instead of fighting them, and the
+footprint. Discrete pads route around the clamps and fluxgates *(see the 2026-09-23 correction above: the fluxgates are not in the gap)* instead of fighting them, and the
 network sees their parallel sum.
 
 **Coverage is the design variable, and §6.9's number assumed the wrong one.** Pads at area fraction φ
@@ -1325,7 +1344,7 @@ alternative *and* costs the ELF magnetic claim. It should not be revisited.
 | **OI-THCOOL-03** | Replace assumed convection coefficients (h = 30 stirred, 30 forced external, 10 natural) with CFD or bench values | Thermal | No |
 | ~~**OI-THCOOL-04**~~ | ~~Thermally specify the Layer 4 EMI absorber~~ **✅ CLOSED 2026-09-23 — the station is DELETED** (`REQ-CAV-04` taken, GitHub #391; `NP-EMC-CAV-001` §8.2), with the 3 mm bowl re-loft binding: outward path **0.410 → 0.335**. There is nothing left to specify. History: unblocked 2026-09-20 by `NP-EMC-CAV-001` §8.1, which found the station supplied 0.26 dB of a 26.2 dB requirement. **The ceramic-filled substitution (0.355, `REQ-CAV-03`) survives only as `OI-EMCCAV-08`'s fallback**, at a thickness set by the ±0.80 clamp tolerance stack, if `MECH-2`'s spring plungers cannot cover it | ME + EMC | — (closed) |
 | **OI-THCOOL-05** | Characterise the via *interface* (contact + spreading + sink), which §3 shows is ~90 % of that path's resistance | ME | No |
-| **OI-THCOOL-15** | **Gap-pad geometry and contact (§6.9.1).** Fix the pad diameter and coverage fraction against the cluster-clamp and fluxgate keep-outs; establish real two-face contact across the curved 5–7 mm gap under the tolerance stack; and ~~resolve **what the pad compresses against**~~ (**✅ answered 2026-09-23: the rigid Pd/mu-metal/CFRP bowl**, because the absorber station is deleted — `REQ-CAV-04`). Must be electrically insulating and non-magnetic (fluxgates inner, Helmholtz outer), and survive compression set over repeated bowl separations. **Coupled to `OI-THCOOL-04`** — the absorber's thermal spec and the pad's land are one decision. **The gating question for the largest term in the outward path.** **UNBLOCKED ON THE EMC SIDE 2026-09-20 by `NP-EMC-CAV-001` §8.1** — there is no electrical requirement on that station in 420 MHz – 3 GHz, so "what the pad compresses against" is now a purely mechanical question and needs no EMC clearance. **Rev 3 goes further: if the station is deleted (§8.2, re-loft binding), "what the pad compresses against" is the bare Pd-polyester/CFRP bowl and this sub-question disappears entirely** — which makes `OI-EMCCAV-08` (`MECH-2`) the prior question for this row too. **The rest of the mechanical half — diameter, coverage, two-face contact, compression set — is untouched and still gates** | ME (~~+EMC~~) | **Gates §6.9** |
+| **OI-THCOOL-15** | **Gap-pad geometry and contact (§6.9.1).** Fix the pad diameter and coverage fraction against the cluster-clamp and fluxgate keep-outs *(2026-09-23: no fluxgate keep-out is specified. Whether one is needed is `OI-EMCCAV-11`, an EE decision, per `NP-HEX-ZM-001` §5.3(c). The fluxgate bodies are not in the gap. The coverage cap now comes from the cluster controller boards, `OI-EMCCAV-12`)*; establish real two-face contact across the curved 5–7 mm gap under the tolerance stack; and ~~resolve **what the pad compresses against**~~ (**✅ answered 2026-09-23: the rigid Pd/mu-metal/CFRP bowl**, because the absorber station is deleted — `REQ-CAV-04`). Must be electrically insulating and non-magnetic (fluxgates inner, Helmholtz outer), and survive compression set over repeated bowl separations. **Coupled to `OI-THCOOL-04`** — the absorber's thermal spec and the pad's land are one decision. **The gating question for the largest term in the outward path.** **UNBLOCKED ON THE EMC SIDE 2026-09-20 by `NP-EMC-CAV-001` §8.1** — there is no electrical requirement on that station in 420 MHz – 3 GHz, so "what the pad compresses against" is now a purely mechanical question and needs no EMC clearance. **Rev 3 goes further: if the station is deleted (§8.2, re-loft binding), "what the pad compresses against" is the bare Pd-polyester/CFRP bowl and this sub-question disappears entirely** — which makes `OI-EMCCAV-08` (`MECH-2`) the prior question for this row too. **The rest of the mechanical half — diameter, coverage, two-face contact, compression set — is untouched and still gates** | ME (~~+EMC~~) | **Gates §6.9** |
 | ~~OI-THCOOL-17~~ | **✅ CLOSED 2026-09-02 by D-4 (§7.4) — fixed session length, dose scales with duty, and the ramp is clamped at `NP-PWR-BUDGET-001` §3.4's 10 J/cm² floor and refuses below it.** The dose-preserving alternative was not merely costly: it puts a 20-minute 60 J/cm² protocol at **50 CEM43 at 34.5 °C, past `NP-PWRSRC-001` §5.5's 40 concern line in one session**, against 5.0 for fixed length anywhere in the band. Effective block becomes per-protocol (33.8 / 34.2 / 34.6 °C at 40 / 60 / 120 J/cm²), at most 1.3 °C. **This item's own premise is corrected in closing it:** the descriptor gains protocol dose, but the **Class C gate must not** — a sub-threshold session is ineffective, not hazardous, so it is an Efficacy-class bound enforced as a non-dismissible **Class B** refusal in SW-02/SW-03 (`NP-FW-POE-001` §3/§4). `OI-OPR-01` inherits a **termination rule on one shared curve**, not a family of curves. **Costs `OI-THCOOL-16` nothing**: §7.5 anchored its band on `T_block_eff`, not on the constant +35, so the floor edge inherits the 1.0 °C hysteresis and the terminate-never-pause rule already, and §7.5's *"if the clamp is adopted"* conditional is now simply the case. Residuals: `OI-THCOOL-18`, `-19`, `-20` | — (closed) | — |
 | ~~OI-THCOOL-16~~ | **✅ CLOSED 2026-09-02 by §7.5.** Band **Δ = 1.0 °C** on every ambient hard edge, anchored on `T_block_eff = min(TABLE_block, POE_block)` rather than on the constant 35.0, and applied as a **raised admission bar** (`ambient ≤ T_block_eff − Δ` while latched) rather than a hold-off — strictly more restrictive at every ambient, so it composes with `NP-FW-POE-001` §5's `min()` untouched. A mid-session crossing **terminates** the session rather than pausing it, which removes the last automatic re-entry path. Normative in `NP-FW-POE-001` §6.1. Retained struck-through per `NP-CONV-001` §4. **Residual, not blocking:** `t_dwell` inherits `OI-ENV-05` (60 s with a dedicated ambient NTC, ≥ 5τ_hub with the hub NTC as proxy — fail-safe either way), and a sub-1 °C band would need the ambient path specified at 0.1 °C resolution → `OI-POE-06` | FW (closed) | — |
 | ~~OI-THCOOL-16 (original text)~~ | **Hysteresis on the +35 °C PBM ambient cliff.** With the derate band collapsed (Rev 6), the T1-A envelope is a hard block at a single temperature, so an ambient NTC sitting on +35 could chatter start/stop. Specify the hysteresis band and its interaction with `NP-FW-POE-001`'s gate | FW | No |
