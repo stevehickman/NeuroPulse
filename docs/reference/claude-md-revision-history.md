@@ -19,6 +19,25 @@
 
 ## Current revision
 
+**Rev 53 (2026-09-23) — §17's canonical-surface row states the one exception to equal key sets: a
+locale may add its own CLDR plural categories. No locked decision changed; `OI-I18N-03` closed.**
+
+**What changed.** §17's table said all eleven locale files "carry the same key set". Russian needs
+`_FEW` and `_MANY`, and Arabic needs `_ZERO`, `_TWO`, `_FEW` and `_MANY`, on plural families where
+English has only `_ONE` and `_OTHER`. Under the old sentence those languages could not be translated
+correctly (#191). The row now says every locale carries en.json's keys and may add only its own CLDR
+categories to a family en.json defines. That is exactly what `check-locale-strings.ts` enforces.
+
+**Why in the core and not only in `localization.md`.** The sentence is the one a person reads before
+adding a key. Left as it was, it states a rule the gate no longer applies, and someone reading it
+would take a legitimate `ru.json` `_FEW` for an orphan and delete it. The mechanics (sources, ledger,
+web selection) are in `localization.md` §17.2 and §17.7, not here.
+
+**What it does not change.** Every locale still carries every en.json key; no generated file is
+committed; the single-source rule is untouched.
+
+## Earlier revisions
+
 **Rev 52 (2026-09-23) — §1 gains the T1 → T2 upgrade model as an invariant, and the Document Map
 gains `NP-REG-UPG-001`. One locked decision taken (`OI-TACSDRV-06`); no figure moved.**
 

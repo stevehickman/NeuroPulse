@@ -60,7 +60,7 @@ fun HistoryScreen(store: SessionHistoryStore, modifier: Modifier = Modifier) {
                 Column(Modifier.padding(12.dp)) {
                     Text(record.protocolName, style = MaterialTheme.typography.titleMedium)
                     Text(record.sessionDay, style = MaterialTheme.typography.bodySmall) // day granularity — UHDR boundary
-                    record.averageCoherenceScore?.let { Text(stringResource(R.string.history_coherence_1f).format(it)) }
+                    record.averageCoherenceScore?.let { Text(stringResource(R.string.history_coherence_1f, "%.1f".format(it))) }
                     Text(stringResource(R.string.history_impedance_0_8_electrodes, record.impedancePassCount))
                 }
             }
@@ -80,7 +80,7 @@ private fun SessionDetail(record: SessionRecord, onBack: () -> Unit, modifier: M
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
                 Text(stringResource(R.string.history_0_min_session, summary.durationSeconds / 60), style = MaterialTheme.typography.titleMedium)
-                summary.averageCoherenceScore?.let { Text(stringResource(R.string.history_average_coherence_1f).format(it)) }
+                summary.averageCoherenceScore?.let { Text(stringResource(R.string.history_average_coherence_1f, "%.1f".format(it))) }
                 summary.rmssdMilliseconds?.let { Text(stringResource(R.string.history_rmssd_0_ms, it)) }
                 Text(stringResource(R.string.history_impedance_0_8_electrodes_passed, summary.impedancePassCount))
             }

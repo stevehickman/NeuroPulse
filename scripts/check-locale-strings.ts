@@ -37,8 +37,15 @@
  *      en.json is referenced by code. Both directions matter — a missing key
  *      renders as the key itself, and an orphan key is untranslated weight that
  *      translators are still asked to pay for.
- *   4. All 11 locale files carry an identical key set, so a locale cannot
- *      silently drop a string.
+ *   4. All 11 locale files carry every en.json key, so a locale cannot
+ *      silently drop a string — and nothing more, except the extra CLDR plural
+ *      categories of a family en.json defines (OI-I18N-03).
+ *   5. TRANSLATIONS enter only verified, and stay as verified (#191). A locale
+ *      value that differs from the English must have an entry in
+ *      locales/_translations.json, and must still hash to what was verified;
+ *      a current translation must keep the English's placeholders. See
+ *      the ledger section below for the states and scripts/translations.ts for the
+ *      only path that writes one.
  *
  * ── The reach, stated narrowly ───────────────────────────────────────────────
  *
@@ -58,7 +65,8 @@
  * CI-Scans: locale key usage, and user-facing literals in covered app code
  * CI-Scan-Paths: app/** locales/** firmware/**
  */
-import { readFileSync, readdirSync } from "fs";
+import { createHash } from "crypto";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "fs";
 import { join, basename } from "path";
 import { execFileSync } from "child_process";
 
@@ -410,16 +418,42 @@ function checkKeyUsage(files: string[], keys: Set<string>): string[] {
   return errs;
 }
 
-/** (4) Every locale carries the same key set. */
-function checkLocaleParity(keys: Set<string>): string[] {
+/**
+ * (4) Every locale carries every en.json key, so a locale cannot silently drop
+ * a string. The one thing it may add is a plural category its own language
+ * has and English does not (OI-I18N-03): `_FEW` / `_MANY` for Russian, `_ZERO`
+ * / `_TWO` / `_FEW` / `_MANY` for Arabic, on a family en.json already defines.
+ * Anything else extra is an orphan.
+ */
+export function localeParityErrors(
+  canonical: Record<string, string>,
+  locale: string,
+  values: Record<string, string>,
+): string[] {
+  const errs: string[] = [];
+  const allowed = sourcesFor(canonical, locale);
+  for (const k of Object.keys(canonical)) {
+    if (!(k in values)) errs.push(`locales/${locale}.json: missing key ${k}`);
+  }
+  for (const k of Object.keys(values)) {
+    if (k in allowed) continue;
+    errs.push(
+      PLURAL_MEMBER.test(k)
+        ? `locales/${locale}.json: extra key ${k} — not a plural family in en.json, or not a CLDR ` +
+            `plural category of "${locale}" (it has ${localePluralCategories(locale).join(", ")})`
+        : `locales/${locale}.json: extra key ${k} not in en.json`,
+    );
+  }
+  return errs;
+}
+
+function checkLocaleParity(canonical: Record<string, string>): string[] {
   const errs: string[] = [];
   for (const f of readdirSync(LOCALES_DIR).filter((x) => x.endsWith(".json") && !x.startsWith("_"))) {
     const code = basename(f, ".json");
     if (code === "en") continue;
     const d = JSON.parse(readFileSync(join(LOCALES_DIR, f), "utf-8"));
-    const here = new Set(Object.keys(d));
-    for (const k of keys) if (!here.has(k)) errs.push(`locales/${f}: missing key ${k}`);
-    for (const k of here) if (!keys.has(k)) errs.push(`locales/${f}: extra key ${k} not in en.json`);
+    errs.push(...localeParityErrors(canonical, code, d));
   }
   return errs;
 }
@@ -443,10 +477,12 @@ function checkLocaleParity(keys: Set<string>): string[] {
  * mis-render. Ten keys sat in that state for months because the only platform
  * reading them was the one it happens to be correct on.
  *
- * Scoped to `@` deliberately. `%d` and `%.1f` are also non-canonical and also
- * block a translator from reordering arguments, but they are valid conversions
- * in both `String(format:)` and `java.util.Formatter`, so they mis-render at
- * worst and are a separate item — see OI-I18N-02.
+ * The rest of the printf family followed (OI-I18N-02). `%d` and `%.1f` are
+ * valid in both `String(format:)` and `java.util.Formatter`, so they never
+ * crashed — but a bare `%d` is consumed in source order, so a translator could
+ * not reorder arguments, and web's `t()` rendered it literally. Fourteen keys
+ * were converted before translation started (#191) so none has to be
+ * re-translated; the rule now rejects every conversion, not only `@`.
  */
 function checkInterpolationSyntax(canonical: Record<string, string>): string[] {
   const errs: string[] = [];
@@ -466,11 +502,303 @@ function checkInterpolationSyntax(canonical: Record<string, string>): string[] {
           `literal % only once a {n} is present, so a half-converted value emits %%1$d.`,
       );
     }
+    // OI-I18N-02: the rest of the printf family. %d / %.1f / %1$d are valid on
+    // both native platforms, so they never crash — what they cost is §17.2's
+    // purpose. A canonical {n} is positional by construction, so a translator
+    // may reorder arguments; a bare %d is consumed in source order, and web's
+    // t() substitutes {n} and nothing else, so it renders the specifier itself.
+    // No space in the flag set: a literal percent before a word ("{0}% of")
+    // and the %MT unit are text, not conversions.
+    const printf = v.match(/%(?:\d+\$)?[-#+0,(]*\d*(?:\.\d+)?[diouxXeEfgGcs]/g);
+    if (printf && !apple) {
+      errs.push(
+        `${k}: carries the printf conversion ${printf[0]} — use {0}/{1} so a translation can reorder ` +
+          `its arguments, and format the value at the call site (on Apple, String(…) or ` +
+          `NPNumberFormatter; {n} generates %n$@, which takes an object). Convert EVERY ` +
+          `conversion in the value.`,
+      );
+    }
     // A lone backslash is the signature of a literal that was split mid-escape:
     // `delete \"\\(name)\"` keyed only as far as the escaped quote leaves the
     // value ending in `\`, and the remainder stranded as code at the call site.
     if (v.includes("\\")) {
       errs.push(`${k}: contains a backslash — a keyed value is plain text, so this is a literal truncated mid-escape`);
+    }
+  }
+  return errs;
+}
+
+// ─── Translation ledger (#191) ─────────────────────────────────────────────────
+
+/**
+ * Which locale values are verified translations (#191). Exported for
+ * scripts/translations.ts, the only writer; kept in this file so the gate's
+ * self-test stays hermetic.
+ *
+ * Every locale file carries the full key set (CLAUDE.md §17), and until a key is
+ * translated its value is the English. That makes "is this string translated?"
+ * unanswerable from the locale files alone: a French value equal to the English
+ * may be untranslated or may be a product name that is the same in French, and a
+ * French value that differs may be a verified translation or somebody's guess.
+ *
+ * The ledger, `locales/_translations.json`, answers it. One entry per
+ * (locale, key) that a native speaker has verified, holding two hashes:
+ *
+ *   source  hash of the en.json value the translation was made FROM
+ *   value   hash of the locale value that was verified
+ *
+ * From those, every (locale, key) has exactly one state:
+ *
+ *   untranslated  no entry. The value must still equal the English — an
+ *                 unverified translation cannot enter a locale file.
+ *   translated    source matches en.json today; value matches the file.
+ *   stale         the English has changed since. The translation stays in place
+ *                 (#191: adding or editing strings never modifies a translated
+ *                 one) and is re-issued to translators by the next export.
+ *   tampered      the locale value no longer matches what was verified — it was
+ *                 edited outside `scripts/translations.ts import`. A gate failure.
+ *
+ * `en` is the source locale and never has entries. A key deleted from en.json
+ * must also leave the ledger, or the gate reports the orphan.
+ *
+ * Hash, not text: the ledger must not become a second copy of any string (the
+ * §17.5 failure), and a hash says "this exact value" without saying it twice.
+ */
+export const SOURCE_LOCALE = "en";
+
+export interface LedgerEntry {
+  /** hash of the en.json value translated from */
+  source: string;
+  /** hash of the verified locale value */
+  value: string;
+  /** who verified it as a native speaker — an identifier the importer supplies */
+  verifiedBy: string;
+  /** ISO date (YYYY-MM-DD) of the import */
+  verifiedOn: string;
+}
+
+/** locale → key → entry */
+export type Ledger = Record<string, Record<string, LedgerEntry>>;
+
+export type TranslationState = "untranslated" | "translated" | "stale" | "tampered";
+
+export function hashText(s: string): string {
+  return createHash("sha256").update(s, "utf8").digest("hex").slice(0, 16);
+}
+
+export function ledgerPath(localesDir: string): string {
+  return join(localesDir, "_translations.json");
+}
+
+export function loadLedger(localesDir: string): Ledger {
+  const p = ledgerPath(localesDir);
+  if (!existsSync(p)) return {};
+  return JSON.parse(readFileSync(p, "utf-8")) as Ledger;
+}
+
+/** Sorted at both levels, so a write is a pure function of content. */
+export function saveLedger(localesDir: string, ledger: Ledger): void {
+  const out: Ledger = {};
+  for (const loc of Object.keys(ledger).sort()) {
+    const entries = ledger[loc]!;
+    if (Object.keys(entries).length === 0) continue;
+    out[loc] = {};
+    for (const k of Object.keys(entries).sort()) out[loc]![k] = entries[k]!;
+  }
+  writeFileSync(ledgerPath(localesDir), JSON.stringify(out, null, 2) + "\n");
+}
+
+/** The target locale codes: every locale file except the source and `_` files. */
+export function targetLocales(localesDir: string): string[] {
+  return readdirSync(localesDir)
+    .filter((f) => f.endsWith(".json") && !f.startsWith("_"))
+    .map((f) => basename(f, ".json"))
+    .filter((c) => c !== SOURCE_LOCALE)
+    .sort();
+}
+
+export function stateOf(
+  source: string,
+  value: string,
+  entry: LedgerEntry | undefined,
+): TranslationState {
+  if (!entry) return "untranslated";
+  if (entry.value !== hashText(value)) return "tampered";
+  if (entry.source !== hashText(source)) return "stale";
+  return "translated";
+}
+
+/** `{0}`, `{1}` … in first-appearance order, deduplicated and sorted. */
+export function placeholders(s: string): string[] {
+  return [...new Set(s.match(/\{\d+\}/g) ?? [])].sort();
+}
+
+// ─── Plural categories (OI-I18N-03) ───────────────────────────────────────────
+//
+// en.json's plural families carry English's categories: `_ONE` / `_OTHER`, and
+// sometimes an explicit `_ZERO` (count === 0 exactly, in every language). CLDR
+// gives other languages more — Russian one/few/many/other, Arabic
+// zero/one/two/few/many/other — and a family that can only hold English's two
+// forces one wrong sentence for 2, 5 or 21. A locale may therefore carry the
+// extra CLDR categories of a family en.json defines, and nothing else extra.
+// An extra category has no English of its own; it is translated FROM the
+// family's `_OTHER`, which is what the source hash is taken of.
+
+export const PLURAL_MEMBER = /_(ZERO|ONE|TWO|FEW|MANY|OTHER)$/;
+const CATEGORY_ORDER = ["ZERO", "ONE", "TWO", "FEW", "MANY", "OTHER"];
+
+/** The locale's CLDR plural categories, upper-case, in a fixed order. */
+export function localePluralCategories(locale: string): string[] {
+  const cats = new Intl.PluralRules(locale).resolvedOptions().pluralCategories.map((c) => c.toUpperCase());
+  return CATEGORY_ORDER.filter((c) => cats.includes(c));
+}
+
+/** Bases of the plural families in canonical — those with an `_OTHER` member. */
+export function pluralBases(canonical: Record<string, string>): string[] {
+  return Object.keys(canonical)
+    .filter((k) => k.endsWith("_OTHER"))
+    .map((k) => k.slice(0, -"_OTHER".length))
+    .sort();
+}
+
+/**
+ * Every key a locale may carry, mapped to the English it is translated from:
+ * en.json itself, plus each extra CLDR category → the family's `_OTHER`.
+ */
+export function sourcesFor(canonical: Record<string, string>, locale: string): Record<string, string> {
+  const out: Record<string, string> = { ...canonical };
+  if (locale === SOURCE_LOCALE) return out;
+  for (const base of pluralBases(canonical)) {
+    for (const cat of localePluralCategories(locale)) {
+      const k = `${base}_${cat}`;
+      if (!(k in out)) out[k] = canonical[`${base}_OTHER`]!;
+    }
+  }
+  return out;
+}
+
+/**
+ * An English plural member no selector ever reads in this locale: `_ONE` in
+ * Chinese or Indonesian, whose only category is `other`. `_ZERO` is never
+ * unused — every platform's explicit-zero rule reads it for count 0.
+ */
+export function isUnusedPluralMember(canonical: Record<string, string>, locale: string, key: string): boolean {
+  const m = key.match(PLURAL_MEMBER);
+  if (!m || !(key in canonical) || m[1] === "ZERO") return false;
+  if (!(`${key.slice(0, -m[0].length)}_OTHER` in canonical)) return false;
+  return !localePluralCategories(locale).includes(m[1]!);
+}
+
+/**
+ * A few counts that select `category` in `locale`, for a translator. Whole
+ * numbers first; a category no whole number reaches (Russian `other`) gets
+ * fractional examples instead, so the translator sees why it exists.
+ */
+export function pluralExamples(locale: string, category: string): number[] {
+  const rules = new Intl.PluralRules(locale);
+  const out: number[] = [];
+  for (let n = 0; n <= 1_000_000 && out.length < 6; n = n < 1000 ? n + 1 : n * 10) {
+    if (rules.select(n).toUpperCase() === category) out.push(n);
+  }
+  for (let n = 0.5; n < 10 && out.length === 0; n++) {
+    if (rules.select(n).toUpperCase() === category) out.push(n, n + 1);
+  }
+  return out;
+}
+
+/**
+ * Does `category` select exactly one whole number in `locale`? Arabic zero,
+ * one and two do (0, 1, 2), and so does English one; Russian one does not
+ * (1, 21, 31 …), and nor does French many (1,000,000, 2,000,000 …).
+ */
+function selectsOneCount(locale: string, category: string): boolean {
+  const rules = new Intl.PluralRules(locale);
+  const probe = [...Array.from({ length: 2001 }, (_, n) => n), 10_000, 100_000, 1_000_000, 2_000_000, 10_000_000];
+  return probe.filter((n) => rules.select(n).toUpperCase() === category).length === 1;
+}
+
+/**
+ * Why a translation's placeholders do not fit its source, or null if they do.
+ * Every `{n}` must survive — with one exception: a plural member whose category
+ * selects exactly one count may drop the count `{0}`, because the word already
+ * says it (Arabic dual "سطران", "two lines"). Where the category spans many
+ * counts (Russian one: 1, 21, 31) the number must stay.
+ */
+export function placeholderMismatch(
+  canonical: Record<string, string>,
+  locale: string,
+  key: string,
+  source: string,
+  translation: string,
+): string | null {
+  const want = placeholders(source);
+  const got = placeholders(translation);
+  if (want.join(",") === got.join(",")) return null;
+  const m = key.match(PLURAL_MEMBER);
+  const isFamily = m !== null && `${key.slice(0, -m[0].length)}_OTHER` in canonical;
+  const onlyCountDropped =
+    want.filter((p) => !got.includes(p)).join(",") === "{0}" && got.every((p) => want.includes(p));
+  if (isFamily && onlyCountDropped && selectsOneCount(locale, m![1]!)) return null;
+  return `placeholders [${got.join(",")}] do not match the English [${want.join(",")}]`;
+}
+
+/**
+ * The ledger's own invariants, for the gate. Returns one message per violation.
+ * Stale entries are NOT violations: an English copy edit must never be blocked
+ * on a translator.
+ */
+export function checkLedger(
+  canonical: Record<string, string>,
+  locales: Record<string, Record<string, string>>,
+  ledger: Ledger,
+): string[] {
+  const errs: string[] = [];
+  if (ledger[SOURCE_LOCALE]) {
+    errs.push(`_translations.json: "${SOURCE_LOCALE}" is the source locale and cannot carry entries`);
+  }
+  for (const loc of Object.keys(ledger)) {
+    if (loc !== SOURCE_LOCALE && !locales[loc]) {
+      errs.push(`_translations.json: entries for "${loc}", which has no locale file`);
+    }
+  }
+  for (const [loc, values] of Object.entries(locales)) {
+    const entries = ledger[loc] ?? {};
+    const sources = sourcesFor(canonical, loc);
+    for (const k of Object.keys(entries)) {
+      if (!(k in sources)) {
+        errs.push(`_translations.json: ${loc}/${k} — key no longer exists in en.json; remove the entry`);
+      }
+    }
+    for (const [k, en] of Object.entries(sources)) {
+      const v = values[k];
+      if (v === undefined) continue; // parity is reported by its own check
+      const st = stateOf(en, v, entries[k]);
+      if (st === "untranslated" && !(k in canonical)) {
+        // An extra plural category has no English to hold while untranslated,
+        // so it exists only as a verified translation.
+        errs.push(
+          `locales/${loc}.json: ${k} is a plural category English does not have, with no verified ` +
+            `translation on record — it enters only through \`bun scripts/translations.ts import\``,
+        );
+      } else if (st === "untranslated" && v !== en) {
+        errs.push(
+          `locales/${loc}.json: ${k} differs from en.json but has no verified translation on record. ` +
+            `If the English was edited, run \`bun scripts/translations.ts fill\`; a translation enters ` +
+            `only through \`bun scripts/translations.ts import\` (#191)`,
+        );
+      } else if (st === "tampered") {
+        errs.push(
+          `locales/${loc}.json: ${k} is a verified translation that has been edited since it was ` +
+            `verified — restore it, or re-import the corrected value with its reviewer`,
+        );
+      }
+      // Placeholder parity on a current translation. A translation that drops
+      // {1} silently loses an argument on every platform. Not on a stale one:
+      // the English may have gained a placeholder the translator has not seen.
+      if (st === "translated") {
+        const why = placeholderMismatch(canonical, loc, k, en, v);
+        if (why) errs.push(`locales/${loc}.json: ${k} — ${why}`);
+      }
     }
   }
   return errs;
@@ -548,7 +876,12 @@ function selfTest(): void {
     ["Coherence %@", true],                    // OI-I18N-01: the un-positional spelling
     ["%1$@, %2$@ module connected", true],     // and the positional one — same crash
     ["Socket {0} — {1}", false],
-    ["Electrode %d", false],                   // valid on both platforms; OI-I18N-02, not this rule
+    ["Electrode %d", true],                    // OI-I18N-02: valid on both platforms, but not reorderable
+    ["%1$d of %2$d sockets populated", true],  // positional printf is still printf
+    ["Coherence %.1f", true],                  // precision is formatted at the call site, not here
+    ["%d:%02d into session", true],            // flags and width
+    ["{0}% exceeds limit", false],             // literal percent followed by a space
+    ["±{0} %MT", false],                       // unit symbol, not a conversion
     ["Duty cycle must be ≤ {0}%", false],      // literal percent, escaped by the generator
     ["Order {0}", false],
     ["delete \\(name)", true],                 // pre-existing rule: Swift interpolation
@@ -562,10 +895,96 @@ function selfTest(): void {
       bad++;
     }
   }
+  // checkLedger: every state the ledger distinguishes, driven directly. Without
+  // these, a checkLedger that returned [] would pass every run on today's tree,
+  // where nothing is translated yet.
+  const en = { K: "Socket {0}" };
+  const entry = (source: string, value: string) =>
+    ({ source: hashText(source), value: hashText(value), verifiedBy: "t", verifiedOn: "2026-01-01" });
+  const ledgerCases: Array<[string, Record<string, string>, Record<string, ReturnType<typeof entry>>, boolean]> = [
+    ["untranslated, still English", { K: "Socket {0}" }, {}, false],
+    ["unverified translation", { K: "Prise {0}" }, {}, true],
+    ["verified translation", { K: "Prise {0}" }, { K: entry("Socket {0}", "Prise {0}") }, false],
+    ["verified, identical to English", { K: "Socket {0}" }, { K: entry("Socket {0}", "Socket {0}") }, false],
+    ["stale: English moved on", { K: "Prise {0}" }, { K: entry("Old socket {0}", "Prise {0}") }, false],
+    ["tampered: edited after verification", { K: "Prise n° {0}" }, { K: entry("Socket {0}", "Prise {0}") }, true],
+    ["verified but dropped a placeholder", { K: "Prise" }, { K: entry("Socket {0}", "Prise") }, true],
+    ["entry for a deleted key", { K: "Socket {0}" }, { GONE: entry("x", "y") }, true],
+  ];
+  for (const [name, fr, entries, shouldFlag] of ledgerCases) {
+    const flagged = checkLedger(en, { fr }, { fr: entries }).length > 0;
+    if (flagged !== shouldFlag) {
+      console.error(`self-test FAILED: ledger case "${name}" -> flagged=${flagged}, expected ${shouldFlag}`);
+      bad++;
+    }
+  }
+  // Parity with plural categories (OI-I18N-03), driven directly with a fixture.
+  const pluralEn = { N_ONE: "{0} file", N_OTHER: "{0} files", PLAIN: "Save" };
+  const parityCases: Array<[string, string, Record<string, string>, boolean]> = [
+    ["ru carries en's key set", "ru", { ...pluralEn }, false],
+    ["ru adds its own FEW and MANY", "ru", { ...pluralEn, N_FEW: "{0} файла", N_MANY: "{0} файлов" }, false],
+    ["ru adds TWO, which Russian does not have", "ru", { ...pluralEn, N_TWO: "{0}" }, true],
+    ["ar adds ZERO and TWO", "ar", { ...pluralEn, N_ZERO: "{0}", N_TWO: "{0}" }, false],
+    ["fr adds FEW, which French does not have", "fr", { ...pluralEn, N_FEW: "{0}" }, true],
+    ["a category on a family en.json lacks", "ru", { ...pluralEn, M_FEW: "{0}" }, true],
+    ["a plain extra key", "ru", { ...pluralEn, EXTRA: "x" }, true],
+    ["a missing en key", "ru", { N_ONE: "{0}", N_OTHER: "{0}" }, true],
+  ];
+  for (const [name, loc, values, shouldFlag] of parityCases) {
+    const flagged = localeParityErrors(pluralEn, loc, values).length > 0;
+    if (flagged !== shouldFlag) {
+      console.error(`self-test FAILED: parity case "${name}" -> flagged=${flagged}, expected ${shouldFlag}`);
+      bad++;
+    }
+  }
+  // An extra category is translated FROM _OTHER, and exists only verified.
+  const ruExtra = { ...pluralEn, N_FEW: "{0} файла" };
+  const pluralLedgerCases: Array<[string, Record<string, ReturnType<typeof entry>>, boolean]> = [
+    ["extra category with no ledger entry", {}, true],
+    ["extra category verified against _OTHER", { N_FEW: entry("{0} files", "{0} файла") }, false],
+    ["extra category verified against _ONE (wrong source) reads stale, not failed", { N_FEW: entry("{0} file", "{0} файла") }, false],
+  ];
+  for (const [name, entries, shouldFlag] of pluralLedgerCases) {
+    const flagged = checkLedger(pluralEn, { ru: ruExtra }, { ru: entries }).length > 0;
+    if (flagged !== shouldFlag) {
+      console.error(`self-test FAILED: plural ledger case "${name}" -> flagged=${flagged}, expected ${shouldFlag}`);
+      bad++;
+    }
+  }
+  const placeholderCases: Array<[string, string, string, string, boolean]> = [
+    // [locale, key, translation, name, should it be flagged]
+    ["ar", "N_TWO", "ملفان", "Arabic dual drops the count", false],
+    ["ar", "N_ZERO", "لا ملفات", "Arabic zero drops the count", false],
+    ["ru", "N_ONE", "файл", "Russian one drops the count — 21 would read as 1", true],
+    ["fr", "N_MANY", "de fichiers", "French many spans 1e6, 2e6 …", true],
+    ["ru", "PLAIN", "", "not a plural member", true],
+    ["ru", "N_FEW", "{0} {1} файла", "an invented placeholder", true],
+  ];
+  const phEn = { ...pluralEn, PLAIN: "Save {0}" };
+  for (const [loc, key, tr, name, shouldFlag] of placeholderCases) {
+    const flagged = placeholderMismatch(phEn, loc, key, phEn[key as keyof typeof phEn] ?? phEn.N_OTHER, tr) !== null;
+    if (flagged !== shouldFlag) {
+      console.error(`self-test FAILED: placeholder case "${name}" -> flagged=${flagged}, expected ${shouldFlag}`);
+      bad++;
+    }
+  }
+  const unusedCases: Array<[string, string, boolean]> = [
+    ["zh-Hans", "N_ONE", true],   // Chinese has only `other`
+    ["ru", "N_ONE", false],
+    ["zh-Hans", "N_OTHER", false],
+    ["zh-Hans", "PLAIN", false],
+  ];
+  for (const [loc, key, want] of unusedCases) {
+    if (isUnusedPluralMember(pluralEn, loc, key) !== want) {
+      console.error(`self-test FAILED: isUnusedPluralMember(${loc}, ${key}) !== ${want}`);
+      bad++;
+    }
+  }
   if (bad > 0) { console.error(`\n${bad} self-test case(s) failed.`); process.exit(1); }
   console.log(
     `check-locale-strings self-test: ` +
-      `${cases.length + swiftCases.length + kotlinCases.length + canonicalCases.length} cases, all correct.`,
+      `${cases.length + swiftCases.length + kotlinCases.length + canonicalCases.length + ledgerCases.length +
+        parityCases.length + pluralLedgerCases.length + placeholderCases.length + unusedCases.length} cases, all correct.`,
   );
 }
 
@@ -581,8 +1000,13 @@ function main(): void {
   const fw = checkFirmware(files, keys);
   const embedded = checkEmbedded(files);
   const usage = checkKeyUsage(files, keys);
-  const parity = checkLocaleParity(keys);
+  const parity = checkLocaleParity(canonical);
   const interp = checkInterpolationSyntax(canonical);
+  const locales: Record<string, Record<string, string>> = {};
+  for (const loc of targetLocales(LOCALES_DIR)) {
+    locales[loc] = JSON.parse(readFileSync(join(LOCALES_DIR, `${loc}.json`), "utf-8"));
+  }
+  const ledger = checkLedger(canonical, locales, loadLedger(LOCALES_DIR));
 
   let failed = 0;
 
@@ -616,6 +1040,13 @@ function main(): void {
     failed += parity.length;
   }
 
+  if (ledger.length) {
+    console.error("\nTRANSLATION LEDGER (#191 — see scripts/translations.ts):");
+    for (const e of ledger.slice(0, 40)) console.error(`  ${e}`);
+    if (ledger.length > 40) console.error(`  ... and ${ledger.length - 40} more`);
+    failed += ledger.length;
+  }
+
   if (failed > 0) {
     console.error(`\n${failed} violation(s). See scripts/check-locale-strings.ts for the rule.`);
     process.exit(1);
@@ -638,4 +1069,5 @@ function main(): void {
   for (const [p, why] of PENDING_PATHS) console.log(`  ${p} — ${why}`);
 }
 
-main();
+// Imported by scripts/translations.ts for the ledger; run only when invoked.
+if (import.meta.main) main();

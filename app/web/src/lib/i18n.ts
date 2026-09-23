@@ -60,22 +60,53 @@ export function t(key: string, params?: Record<string, string | number>): string
   return value;
 }
 
+const pluralRulesCache = new Map<string, Intl.PluralRules>();
+
+function pluralRules(bcp47: string): Intl.PluralRules {
+  let rules = pluralRulesCache.get(bcp47);
+  if (!rules) {
+    rules = new Intl.PluralRules(bcp47);
+    pluralRulesCache.set(bcp47, rules);
+  }
+  return rules;
+}
+
 /**
- * `_ZERO` is an optional extra category, not a CLDR plural category for
- * English — most keys only define `_ONE` and `_OTHER`. Selecting `_ZERO` and
- * stopping there would render the literal key ("..._ZERO") on screen for every
- * count of 0, so an absent category falls back to `_OTHER` before t() gets a
- * chance to echo the key back.
+ * Which member of a plural family to render (OI-I18N-03).
+ *
+ * The category comes from the locale's own CLDR rules, not from English's
+ * one-or-other: Russian needs `_FEW` for 2–4 and 22–24 and `_MANY` for 5–20,
+ * Arabic has `_TWO`, and Chinese has only `_OTHER` — its count of 1 is not
+ * `_ONE`. A locale file may carry those extra categories (§17.2); one it does
+ * not yet carry falls back to `_OTHER`, never to the raw key.
+ *
+ * `_ZERO` for a count of exactly 0 is checked first in every locale. It is an
+ * optional explicit form ("No sockets selected"), not only Arabic's CLDR zero,
+ * so a family that defines it gets it wherever it is defined.
  */
+export function pluralKey(
+  baseKey: string,
+  count: number,
+  bcp47: string,
+  has: (key: string) => boolean,
+): string {
+  const zero = `${baseKey}_ZERO`;
+  if (count === 0 && has(zero)) return zero;
+  const category = `${baseKey}_${pluralRules(bcp47).select(count).toUpperCase()}`;
+  return has(category) ? category : `${baseKey}_OTHER`;
+}
+
 export function tPlural(
   baseKey: string,
   count: number,
   params?: Record<string, string | number>,
 ): string {
-  const suffix = count === 0 ? "_ZERO" : count === 1 ? "_ONE" : "_OTHER";
-  const key = `${baseKey}${suffix}`;
-  const resolved =
-    key in currentTranslations || key in FALLBACK ? key : `${baseKey}_OTHER`;
+  const resolved = pluralKey(
+    baseKey,
+    count,
+    currentLocale.bcp47,
+    (k) => k in currentTranslations || k in FALLBACK,
+  );
   return t(resolved, { "0": count, ...params });
 }
 

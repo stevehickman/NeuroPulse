@@ -448,7 +448,7 @@ struct SessionView: View {
             }
 
             if let hrv = gatt.session.hrv {
-                Text(String(format: String(localized: "SESSION_RMSSD_FORMAT"), hrv.rmssdMilliseconds))
+                Text(String(format: String(localized: "SESSION_RMSSD_FORMAT"), String(hrv.rmssdMilliseconds)))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -506,11 +506,11 @@ struct SessionView: View {
                       ? "exclamationmark.triangle.fill" : "square.grid.3x3.fill")
                     .foregroundColor(faulted > 0 ? .orange : .green)
                     .accessibilityHidden(true)
-                Text(String(format: String(localized: "SESSION_ZONE_MODULE_COUNT"), present))
+                Text(String(format: String(localized: "SESSION_ZONE_MODULE_COUNT"), String(present)))
                     .font(.subheadline)
                 if faulted > 0 {
                     Spacer()
-                    Text(String(format: String(localized: "SESSION_ZONE_MODULE_FAULTS"), faulted))
+                    Text(String(format: String(localized: "SESSION_ZONE_MODULE_FAULTS"), String(faulted)))
                         .font(.caption)
                         .foregroundColor(.orange)
                 }
