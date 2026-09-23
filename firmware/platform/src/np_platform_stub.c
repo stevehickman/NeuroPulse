@@ -49,7 +49,7 @@
 
 #include "np_platform_trap.h"
 
-/* The 63 symbols with no other declaring header. */
+/* The 65 symbols with no other declaring header. */
 #include "np_sw02_platform_hal.h"
 
 /* The 33 already single-sourced by the module that owns them.  Included rather
@@ -125,6 +125,18 @@ np_hub_status_t np_mod_pbm_hal_pwm_set(uint8_t slot,
                                        uint8_t freq_code, uint8_t duty)
 {
     (void)slot;
+    (void)cur_a;
+    (void)cur_b;
+    (void)freq_code;
+    (void)duty;
+    NP_PLATFORM_TRAP();
+}
+
+np_hub_status_t np_mod_pbm_hal_socket_pwm_set(uint16_t socket_id,
+                                              uint8_t cur_a, uint8_t cur_b,
+                                              uint8_t freq_code, uint8_t duty)
+{
+    (void)socket_id;
     (void)cur_a;
     (void)cur_b;
     (void)freq_code;

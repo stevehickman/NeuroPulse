@@ -70,9 +70,11 @@ env:
   # Class C target, np_nv_state_tests: 8 + 29 = 37.  NP-SW-FAULTMSG-001 §9.6
   # then added np_cvns_fault_summary_tests (the hub's cervical offline-fault
   # summary): 8 + 30 = 38, re-derived with `ctest -N` on the tree.
-  NP_TOTAL_TEST_COUNT: '38'
+  # NP-FW-HUB-001 Rev 2 (OI-FWHUB-01) then added np_socket_dispatch_tests:
+  # 8 + 31 = 39, re-derived with `ctest -N` on the tree.
+  NP_TOTAL_TEST_COUNT: '39'
   NP_SAFETY_TEST_COUNT: '8'
-  NP_CLASS_B_TEST_COUNT: '30'
+  NP_CLASS_B_TEST_COUNT: '31'
 
 jobs:
   host-tests-all:

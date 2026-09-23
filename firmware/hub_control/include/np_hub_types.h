@@ -38,6 +38,7 @@ typedef enum {
     NP_HUB_ERR_LOG_FULL             = -15,
     NP_HUB_ERR_MOD_INIT             = -16,
     NP_HUB_ERR_MOD_FAULT            = -17,
+    NP_HUB_ERR_POWER_BUDGET         = -18,  /* PBM load refused by np_pbm_power_admit (OI-HEXTILE-09) */
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════

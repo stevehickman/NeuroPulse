@@ -96,6 +96,31 @@ if(NP_BUILD_TESTS)
 
     # BES/tACS + tDCS slot dispatch. The driver shares silicon across two slots,
     # so the slot is the only thing distinguishing an AC waveform from a DC ramp.
+    # OI-FWHUB-01: socket-indexed dispatch. Links the real np_module_map and
+    # np_protocol (socket expansion); the PBM socket driver and the safety-SPI
+    # requests are test doubles, and so is np_pbm_power_admit() — the test needs
+    # an admitting governor to reach the drive path at all. The PRODUCTION
+    # governor is linked too, renamed, so the test can also assert that what
+    # ships refuses every load (the closed-by-default property is the one that
+    # matters, and a `return false` nobody runs is one nobody would notice
+    # changing). The rename is test-configuration only: this block returns
+    # before the cross build is configured.
+    add_executable(np_socket_dispatch_tests
+        tests/np_socket_dispatch_tests.c
+        src/np_socket_dispatch.c
+        src/np_pbm_power_gov.c
+        src/np_module_map.c
+        src/np_protocol.c
+    )
+    set_source_files_properties(src/np_pbm_power_gov.c PROPERTIES
+        COMPILE_DEFINITIONS "np_pbm_power_admit=np_pbm_power_admit_production")
+    target_include_directories(np_socket_dispatch_tests PRIVATE
+        include
+        ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}
+    )
+    target_compile_options(np_socket_dispatch_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+
     add_executable(np_mod_stim_tests
         tests/np_mod_stim_tests.c
         modules/np_mod_stim.c
@@ -225,6 +250,8 @@ set(HUB_SOURCES
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
     src/np_lfs_instance.c         # OI-LFS-01: EMMC-FS-01 littlefs instance + mount validator
     src/np_pbm_cal_bridge.c       # OI-HUB-C06: UID-keyed calibration -> pbm seams
+    src/np_socket_dispatch.c      # OI-FWHUB-01: socket-indexed dispatch registry
+    src/np_pbm_power_gov.c        # OI-FWHUB-09 / OI-HEXTILE-09: governor, CLOSED by default
     src/np_hub_freertos_hooks.c   # FreeRTOS app hooks (stack overflow, malloc, assert)
 
     modules/np_mod_pbm.c

@@ -104,6 +104,7 @@
 #                             → np_module_map_tests       (hex zone-module addressing/NVRAM map)
 #                             → np_protocol_tests         (hub protocol v2 socket-mask targets)
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
+#                             → np_socket_dispatch_tests  (OI-FWHUB-01 socket dispatch)
 #   firmware/zone_announce/   → np_zone_announce_tests    (module-status frame encoder)
 #                             → np_zone_notify_tests      (app-notify dispatch)
 #   firmware/pbm/      → np_pbm_session_desc_tests (NP-SES-1064-001 v5 wire format)
@@ -319,6 +320,13 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_mod_stim_tests
         COMMAND np_mod_stim_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # OI-FWHUB-01: socket-indexed dispatch — all-or-nothing placement/power/
+    # driver admission, cranial-gate ownership, and the closed production
+    # power governor (OI-FWHUB-09).
+    add_test(NAME np_socket_dispatch_tests
+        COMMAND np_socket_dispatch_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_log_backend_tests
