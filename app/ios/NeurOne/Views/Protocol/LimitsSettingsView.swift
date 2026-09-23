@@ -287,7 +287,8 @@ struct LimitsSettingsView: View {
                 }
                 Spacer()
                 VStack(spacing: 6) {
-                    Button(isActive ? "Deactivate" : "Set Active") {
+                    // A ternary of literals is a String, which SwiftUI shows verbatim; wrap the key so it is looked up.
+                    Button(LocalizedStringKey(isActive ? "LIMITS_DEACTIVATE" : "LIMITS_SET_ACTIVE")) {
                         limitsStore.setActiveProfile(isActive ? nil : profile.id)
                         revalidate()
                     }
