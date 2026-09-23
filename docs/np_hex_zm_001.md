@@ -2,14 +2,14 @@
 
 **Project:** NeurOne
 **Document:** NP-HEX-ZM-001
-**Revision:** 4
-**Date:** 2026-09-23
+**Revision:** 5
+**Date:** 2026-09-24
 **Status:** DESIGN STUDY — Option A committed as baseline, Option B documented as future path. NOT a locked tooling baseline; gated by the curvature-scan go/no-go (§7).
 **Effective Date:** 2026-08-04
 **Author:** NeurOne Mechanical + Hardware Engineering
 **Approved By:** — (design study; principal directions recorded inline)
-**References:** NP-HW-HEXTILE-001 Rev 2 (electrical/FPC counterpart; §8.2.1 cluster-count derivation); NP-HW-HUB-001 Rev 3 (cluster-controller tier); NP-DRV-SHELL-002 Rev 1 (shell interconnect); NP-OPT-PSF-001 Rev 1 (lateralization model); NP-THERM-BEZEL-001 Rev 1 (bezel conflict); CLAUDE.md §3, §4
-**Related Issues:** —
+**References:** NP-HW-HEXTILE-001 Rev 2 (electrical/FPC counterpart; §8.2.1 cluster-count derivation); NP-HW-HUB-001 Rev 3 (cluster-controller tier); NP-DRV-SHELL-002 Rev 1 (shell interconnect); NP-OPT-PSF-001 Rev 1 (lateralization model); NP-THERM-BEZEL-001 Rev 1 (bezel conflict); NP-EMC-CAV-001 Rev 18 §5, §7, §8.2 (`REQ-CAV-00`…`-04`, the cavity sweeps); NP-THERM-COOL-001 `OI-THCOOL-06` (`EMF-1e`); CLAUDE.md §3, §4
+**Related Issues:** GitHub #401 (`OI-EMCCAV-04`, §5.6.1)
 **Gate:** curvature-scan go/no-go (§7); REG-1 10-20 registration
 **IEC 62304 Class:** N/A (mechanical/architectural brief)
 **Program:** NeurOne zone-module redesign
@@ -24,6 +24,7 @@
 | Rev | Date | Author | Change |
 |---|---|---|---|
 | **4** | **2026-09-23** | NeurOne Systems Engineering | **`OI-EMCCAV-11` (GitHub #404): §5.3(c) now owns the fluxgate siting, stated once.** The **sensor body is on L1**, inside `NP-HELMET-GEOM-001` §2's socket-wall + FPC-channel station, and **never in the inter-bowl Gap**. *"Near the scalp"* is comparative: inner bowl rather than outer. So the fluxgates **do not contribute to the Gap**. **No magnetic keep-out envelope is specified anywhere in the record**, and this revision does not invent one. The only fluxgate protections in force are **material** rules (`REQ-EMI-10`, `REQ-NET-04`, `NP-THERM-COOL-001` §6.9.1). A keep-out would be a planform exclusion that could cap gap-pad coverage, never the Gap's radial dimension. Whether one is needed stays open as `OI-EMCCAV-11`, an EE decision, with both readings written up in `NP-EMC-CAV-001` §8.6.1. The siting is recorded but the fit is unverified, because no fluxgate part is selected. §5.4a's FLUSH-1 contributor list gets a dated correction note and is otherwise kept as written. Revisions to §5 since Rev 3 (FLUSH-1, BOSS-1, `PACK-1`, the Layer 4 deletion) were made in place and are recorded in `NP-EMC-CAV-001` §11 and `completed-decisions.md`. |
+| **5** | **2026-09-24** | NeurOne Mechanical + Hardware Engineering / EMC | **New §5.6.1: the `EMF-1` test plan, discharging `OI-EMCCAV-04` (GitHub #401).** `EMF-1` had no plan beyond its §7 gate row and the §5.6 acceptance bullet. `NP-EMC-CAV-001` §7 had specified four cavity sweeps to ride its fixture, and none had been written into the plan. **`EMF-1a`–`EMF-1d` are now written here**, each with setup, range, what it measures and a pass criterion traced to `REQ-CAV-01` / `REQ-CAV-02` (with `REQ-CAV-00` for the band). **`EMF-1a` and `EMF-1b` run to 6 GHz** for `OI-EMCCAV-06` (GitHub #402); above 3 GHz the data are recorded, not judged, because no requirement exists there. `EMF-1e` (`NP-THERM-COOL-001` `OI-THCOOL-06`) is listed as riding the fixture and stays owned there. **All sweeps are re-stated against the as-designed stack:** Layer 4 deleted, bowl re-lofted 3 mm (`REQ-CAV-04`). §7's *absorber fitted vs. removed* survives only as its removed half. The re-loft leaves the 23–29 mm dielectric region, and so the band, unchanged. What the sweeps can now establish is that the enclosure without the layer meets `REQ-CAV-02`, which is what would let the deletion's justification be stated as measured. **Flagged for the principal, not decided:** whether to add a foam-fitted comparison run. It would need a temporary liner that takes 3 mm out of the cavity, or a second bowl at the pre-re-loft radius. Also flagged for `OI-EMCCAV-06`: the 6 GHz ceiling does not reach Wi-Fi 6E (5.925–7.125 GHz), and internal-probe S₂₁ gives cavity Q, not seam ingress. The §7 `EMF-1` row points here. **Also registers under a revision the Layer 4 strike-throughs PR #397 made to §5.1 and §5.7 while this document stayed at Rev 3** (Rev 4, `OI-EMCCAV-11`, did not record them). **No measurement asserted; `EMF-1` has never run.** |
 | **3** | **2026-08-18** | NeurOne Mechanical + Hardware Engineering | **`OI-HEXTILE-14` closed — §5.4a's MECH-2 comparison table given its disposition, and the one place that still quoted a pre-SYM-1 figure as live corrected.** Rev 2 annotated the MECH-2 table *"do not size hardware off this table"* but left the flower row reading 12 boards / $76.08; peers had already sized off it. **Decision: the table is KEPT, not corrected in place, and the design figure is added to it as a fourth row — 18 boards / $114.12 under CLUSTER-1 + SYM-1 + CONTIG-1.** Correcting the flower row would have destroyed the table's purpose (it compares cluster *units* under one fixed no-symmetry assumption, which is the reasoning behind CLUSTER-1); leaving the correction in prose alone had already demonstrably failed. The MECH-2 open item, which still quoted **$76.08** as a live BOM gradient against the triad, now reads **$114.12**. No mechanical, geometric or cluster-shape decision changed — CLUSTER-1, SYM-1 and CONTIG-1 are untouched, and per-board *cost* remains void under `NP-HW-HUB-001` §8 / OI-HUB-C15, so this fixes the count, not the rate. Peer closure: `NP-HW-HUB-001` **Rev 6**, `NP-DRV-SHELL-002` **Rev 4**, `NP-HW-HEXTILE-001` **Rev 6** (HT-DRC-20 ✓). |
 | 1 | 2026-07-15 | NeurOne Mechanical Engineering | Initial release. Option A (rigid median-curved 40 mm hexagon) committed as baseline, Option B (semi-flex) recorded as future path. Hex lattice geometry (§3), module-type taxonomy + SMART-1 (§4a), addressing and wire format (§4/§4b), two-layer shell + EMF seam (§5), cluster clamps (§5.4a), gates (§7). **CLUSTER-1 (7-hex flower as the cluster unit) was added to §5.4a on 2026-07-30 without a revision bump** — a bookkeeping lapse corrected at Rev 2, which registers this document into the DHF index for the first time. |
 | **2** | **2026-08-04** | NeurOne Mechanical + Hardware Engineering | **Front matter brought to `docs/FRONT_MATTER_TEMPLATES.md` (the title carried the revision, and Document/Revision/Effective Date/Author/Approved By/References/Gate/Class fields were absent); revision history added; document registered in NP-DHF-001 §5.2 and `docs/status/document-register.md` for the first time.** Content changes, all in §4a and §5.4a: **two new principal directions recorded — SYM-1** (cluster partition mirror-symmetric about the sagittal midline) and **CONTIG-1** (a cluster's petals must form a contiguous arc; no pendant petal), with their derivations and mechanical rationale. **CLUSTER-1 itself is unchanged.** The §5.4a "30 tiles ≈ 4 clusters / 4–10 cluster clamps" figures are annotated as **retired-30-socket-lattice values that do not rescale** — NP-HW-HEXTILE-001 Rev 1 had carried them to the 80-socket lattice and sized hardware off them; the count under the standing decisions is **18** (six forced midline clusters + six lateral mirror pairs, provably minimal). §4a's `ceil(n/8)` cluster-board cost model reconciled as a *capacity floor* rather than a board count, with board count = cluster count and the tier BOM restated at **$114.12** at n = 80; the §5.4a MECH-2 comparison table annotated as pre-SYM-1 and marked "do not size hardware off this table". Peer documents (NP-HW-HUB-001, NP-DRV-SHELL-002) deliberately **not** modified — their stale counts are routed to their own revisions via OI-HEXTILE-14. No firmware changed. |
@@ -1331,6 +1332,75 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
   exceed the single-shell baseline (≥35–45 dB ELF magnetic, ≥40–60 dB RF)** — the
   redesign may not regress the shielding claim.
 
+### 5.6.1 `EMF-1` test plan — the fixture and the sweeps that ride it
+
+> **Added Rev 5 (2026-09-24, `OI-EMCCAV-04`, GitHub #401).** Before this revision `EMF-1` was defined
+> only by the §7 gate row and the acceptance bullet above. `NP-EMC-CAV-001` §7 specified four cavity
+> sweeps to ride its fixture (`EMF-1a`–`EMF-1d`) and `NP-THERM-COOL-001` `OI-THCOOL-06` a fifth
+> (`EMF-1e`), but none had been written into the plan they ride. This subsection is that plan. **It is
+> a plan, not a procedure, and it records no result: `EMF-1` has never run.** Instruments, probe
+> positions, calibration, cable entry and data format belong to the test procedure, which does not
+> exist yet.
+
+**The article under test is the as-designed stack, not the one `NP-EMC-CAV-001` §7 was written
+against.** Every sweep runs with both bowls clamped, all four latches reporting closed (§5.5), the
+posterior boss mated, and the **4-layer passive stack as designed since 2026-09-23**: CFRP, mu-metal
+L2, Pd-polyester L3, port filters L5. There is **no Layer 4 station, and the outer bowl is re-lofted
+3 mm inward** (`REQ-CAV-04`, `NP-EMC-CAV-001` §8.2). The re-loft moves the conductor onto the face the
+foam used to present. So the **23–29 mm** air/dielectric region that `NP-EMC-CAV-001` §2 and §4
+computed the modes over is unchanged, and so is `REQ-CAV-00`'s 420 MHz – 3 GHz band.
+
+**§7 specified `EMF-1a` as *absorber fitted vs. absorber removed*, and only the removed half still
+describes a real configuration.** Re-stated against the deleted stack, the sweeps no longer measure
+what Layer 4 contributed. What they measure is more useful: **whether the enclosure that will actually
+ship meets `REQ-CAV-02` without the layer.** A pass on `EMF-1b`/`EMF-1c` is what lets `REQ-CAV-04`'s
+justification be stated as **measured** rather than analysed. A prototype outer bowl built to the
+pre-re-loft geometry, with the station left empty, puts the conductor at 26–32 mm. That shifts the
+modes, so it is **not** the as-designed article, and any result from one says so.
+
+| ID | Setup | Range | Measures | Pass criterion — and what it traces to |
+|---|---|---|---|---|
+| **`EMF-1`** | Bowls clamped vs. the single-shell baseline | Not yet specified | Shielding attenuation | ≥ single-shell baseline (≥35–45 dB ELF magnetic, ≥40–60 dB RF), per the §5.6 bullet above: the two-bowl redesign may not regress the CLAUDE.md §4.3 claim. **Unchanged by this revision; its method is still unwritten** |
+| **`EMF-1a`** | **Empty cavity** (no phantom), DUT unpowered. S₂₁ between two small probes inside the closed assembly | **300 MHz – 6 GHz** | Frequency of each resolvable mode, and its Q from the −3 dB width. This is the **bare-wall Q** of the as-designed enclosure | **None: characterisation only.** `REQ-CAV-02` is defined with a head phantom fitted, and the empty cavity is a bench/FAI state that no session occupies (`NP-EMC-CAV-001` §6.3). The result is used three ways. **(1)** Coupling proof: `EMF-1b`/`EMF-1c` use the **same probes, positions and calibration**, so a mode that resolves here and not there was damped, not missed. **(2)** Its Q replaces the analysed **409** in `REQ-CAV-02`'s dB equivalence (26.2 dB = 20·log₁₀(409/20)); the Q ≤ 20 criterion itself does not move. **(3)** The 3–6 GHz data go to `OI-EMCCAV-06` (GitHub #402) |
+| **`EMF-1b`** | As `EMF-1a`, with a **57 cm tissue-equivalent head phantom** fitted (IEC 60601-1-2 / IEEE 1528 class; mid-range, as `NP-EMC-CAV-001` §6.2) | **300 MHz – 6 GHz** | Whether the modes `EMF-1a` resolved still resolve, and Q_L for any that do | **420 MHz – 3 GHz: no mode with loaded Q > 20 (`REQ-CAV-02`).** A mode `EMF-1a` resolved that does not resolve here counts as over-damped and passes. §6.3 predicts exactly that (Q ≈ 1.3). **3–6 GHz: recorded, not judged.** `REQ-CAV-00` ends at 3 GHz, so no requirement exists there to pass or fail; setting one is `OI-EMCCAV-06`'s job |
+| **`EMF-1c`** | As `EMF-1b`, at **52, 57 and 62 cm**: the two ends of the one-SKU range (CLAUDE.md §4.4) and §6.2's mid-range. Each phantom is seated as the fit system seats that head | **420 MHz – 3 GHz** | Q_L of each resolvable mode at each size; lowest-mode frequency | **Every resolvable mode Q_L ≤ 20 at every size (`REQ-CAV-02`).** One size cannot stand for the range, because the resonance is a property of the wearer (§4.1: 422–506 MHz). **Separately:** a resolvable mode below **420 MHz** at 62 cm fails `REQ-CAV-00`'s lower edge. That is a failure of the analysis, not the hardware, and `REQ-CAV-00` is re-derived before any result is judged against it |
+| **`EMF-1d`** | Powered and session-active; head phantom fitted at the size `EMF-1c` found worst (highest Q_L; 57 cm if none resolve), because cavity field scales with Q. All 18 cluster controllers running, **all LED drivers at full PWM** | **420 MHz – 3 GHz** | E-field at the electrode plane | **E ≤ 0.5 V/m peak (`REQ-CAV-01`).** The drive state is the one `SH2-DRC-16`'s 5.0 µVpp budget, and so `REQ-CAV-01`, is derived at (`NP-EMC-CAV-001` §5.1). **Conditions:** the 0.5 V/m moves decade-for-decade with the **60 dB EMIRR assumption**, so `OI-EMCCAV-01` (GitHub #398) is settled and the criterion re-derived **before** this run is judged, not after. Production firmware currently refuses every PBM drive at the closed power governor (`OI-FWHUB-09`, §7), so the procedure names the build it runs. A run that cannot reach full PWM on every LED driver records the state it did reach, and makes no `REQ-CAV-01` compliance claim |
+| **`EMF-1e`** | ELF magnetic leakage through the formed mu-metal collar at the posterior boss: a fluxgate/Helmholtz bench, **not** the VNA set-up above | below ~100 Hz | — | **Owned by `NP-THERM-COOL-001` `OI-THCOOL-06`**, including its criterion and its BLOCKING status. It is listed here only because it rides this fixture |
+
+**Order.** `EMF-1a` runs first, because it is the coupling proof for `EMF-1b`/`EMF-1c`. `EMF-1d` runs
+last: it needs `EMF-1c`'s worst size and `OI-EMCCAV-01`'s criterion. None of the five gates the Layer 4
+deletion, which the principal took without them. `NP-EMC-CAV-001` §6.1's result is structural, so
+below 3 GHz no measurement could make the foam matter.
+
+**Two things the 6 GHz extension does not cover (for `OI-EMCCAV-06`, not decided here).** **(i)** The
+6 GHz ceiling reaches the 5 GHz Wi-Fi band, whose top edge is ≈5.9 GHz; that is the band §5.3(a)'s
+λ/20 bound names. It does not reach **Wi-Fi 6E's 5.925–7.125 GHz** band, which nearby third-party
+devices use. **(ii)** `EMF-1a`/`EMF-1b` excite the cavity from inside. They give its Q above 3 GHz,
+which sets how much any energy that leaks in is enhanced. They do not measure how much leaks in
+through the parting-plane seam. That is an external-illumination measurement (`EMF-1`'s RF half,
+`RISK-20`), whose band is not yet specified.
+
+> **⚑ FLAGGED, NOT DECIDED — a foam-fitted comparison run.** `NP-EMC-CAV-001` §8.2, written before the
+> decision was taken, asked for `EMF-1a` at 6 GHz **"with the absorber fitted and removed — before the
+> re-loft is cut into CAD."** The plan above contains only the removed half. Whether to add the fitted
+> half is **the principal's call**, and this revision does not make it.
+>
+> - **For it:** above 3 GHz the foam was no longer electrically thin (§6.2 gives 11–41 dB at 3 GHz).
+>   That is the only region where the deleted layer did measurable work, and it is the region
+>   `OI-EMCCAV-06` asks about.
+> - **Against it:** below 3 GHz it cannot change anything (§6.1). Above 3 GHz there is no requirement
+>   to test the difference against. The question `OI-EMCCAV-06` actually asks, whether the
+>   as-designed enclosure is adequate there, is answered by the as-designed sweep; the comparison
+>   would add only how much was given up.
+> - **What it costs:** a test article outside the design. The re-lofted bowl has no station, so a
+>   temporary 3 mm foam liner would take 3 mm out of the 23–29 mm dielectric region (→ 20–26 mm) and
+>   shift the modes it is meant to compare. It would not reproduce the pre-deletion geometry. The
+>   like-for-like option is a second outer bowl at the pre-re-loft radius, with the foam fitted and
+>   then removed.
+>
+> Recorded in `docs/status/pending-decisions.md`. Until it is decided, `EMF-1a`–`EMF-1d` run as
+> specified above.
+
 ### 5.7 Cross-section (schematic)
 
 ```
@@ -1380,7 +1450,7 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 | SW-1 | Wire `np_module_map_check_placement()` presence-gates into modality enable (Oz-before-visual-stim; electrodes-before-tES) | Safety enforcement (primitive delivered) |
 | OI-HUB-SOCKET-01 | Dispatch socket-addressed commands: socket-indexed control registry + per-socket safety-MCU enable (today `NP_SAFETY_EN_PBM_ZONE_0..4` is per-zone-slot). Until then `dispatch_command()` logs and DROPS a socket target rather than falling back to the slot path — a missed dose is recoverable, a wrong-site dose is not. **Safety-enable half answered 2026-07-29 by NP-HW-HUB-001 Rev 3 §7:** per-socket enable is *impossible* in the current wire format — the enable mask is 16 bits (`enable_lo`/`enable_hi`, `NP_SAFETY_EN_ALL_MASK = 0x3FFF`, 2 spare) and even per-*cluster* needs 16 bits for clusters alone plus 9 surviving modality bits = 25 > 16. Rev 3 replaces bits 0–4 with a single `NP_SAFETY_EN_PBM_CRANIAL` (bits 1–4 reserved, not reused), arguing the interlock needs to *cut*, not select — per-socket dose shutdown is a Class B duty=0 write, and the per-tile 62 °C throttle is analog hardware. Physical gating still distributes (one gate per cluster on its LED rail). Accepted consequence: safety cuts are all-or-nothing across the lattice — routed to safety review as OI-HUB-C07. **Firmware dispatch half delivered 2026-09-23** — `src/np_socket_dispatch.c` (`NP-FW-HUB-001` Rev 2 §3.4, closing `OI-FWHUB-01`) dispatches socket targets all-or-nothing and owns `NP_SAFETY_EN_PBM_CRANIAL`; every drive is then refused at the closed power governor until `OI-FWHUB-09` / `OI-HEXTILE-09`. Remaining here: the per-cluster Class B gate command (`OI-FWHUB-11`) | Cranial session execution (parse + resolve + dispatch delivered; power admission closed) |
 | OI-HUB-SOCKET-02 | Socket-address the remaining socket-based modalities (1170 nm deep PBM, EEG/qEEG, BES/tACS/tDCS/HD-tDCS). They stay slot-addressed today because their param types carry no socket selector — EEG names 10-20 channels, tES names electrode pairs. Needs the param types to gain zone refs first | Per-socket cranial targeting beyond PBM transcranial |
-| EMF-1 | Prototype 2-layer attenuation ≥ single-shell baseline | Shield claim |
+| EMF-1 | Prototype 2-layer attenuation ≥ single-shell baseline. **Test plan: §5.6.1 (Rev 5)**, which adds the cavity sweeps **`EMF-1a`–`EMF-1d`** (`NP-EMC-CAV-001` §7, re-stated against the as-designed 4-layer stack; pass criteria from `REQ-CAV-01` / `REQ-CAV-02`, with `EMF-1a`/`EMF-1b` swept to 6 GHz for `OI-EMCCAV-06`) and lists **`EMF-1e`** (`OI-THCOOL-06`). **Never run.** A foam-fitted comparison run is flagged there for the principal and not decided | Shield claim; `REQ-CAV-04` justification stated as *measured* (`EMF-1b`–`EMF-1d`); `OI-EMCCAV-06` (3–6 GHz data) |
 | EMF-2 | Ground-bond ≤50 mΩ over clamp-cycle life; SHDR trend armed | Driven-shield function |
 | EMF-3 | Gasket line-pressure map: min compression at back-center (PL–PR) span AND the two side (ear) spans ≥ seal threshold with the four-corner AL/AR/PL/PR pattern; if marginal → lip/gasket stiffening (or lateral/posterior-center latch) | Latch-pattern sign-off; RF seal |
 | MECH-1 | Four-corner clamp (AL/AR/PL/PR) + posterior-center connector boss + Hall interlock detail | Shell tooling |
