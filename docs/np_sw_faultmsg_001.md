@@ -279,8 +279,11 @@ and no hub publishes them yet.
 - **Not verified:** ARM cross-build and silicon for the NV driver; Swift compilation (no toolchain
   here); the Android `:app` module (the AGP build was not reachable here). The Android `:core` tests
   pass.
-- **Android has no profile picker yet.** The tag goes out only once `NPLimitsStore.activeProfileId`
-  is set. Until then the device keeps assuming its last user, as §9.1(4) requires.
+- ~~**Android has no profile picker yet.**~~ *Added 2026-09-23.* Settings → *Who is using the
+  device* (`ProfilesScreen.kt`) adds, activates, deactivates and deletes profiles. Profiles and the
+  active profile now persist across restarts, so a relaunch does not become "nobody named".
+  Until a profile is chosen, or after one is deactivated, nothing is sent and the device keeps
+  assuming its last user, as §9.1(4) requires. That is the same as iOS.
 - **Flash hazards.**
   - A double-bit ECC error on reading a torn flash word raises an NMI.
   - Any future safety-MCU update path must never erase NV pages 62–63.
