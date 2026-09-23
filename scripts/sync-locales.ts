@@ -361,6 +361,7 @@ function androidValuesDir(locale: string): string {
  */
 function androidEscape(value: string): string {
   let out = value
+    .replace(/\\/g, "\\\\")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
