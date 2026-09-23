@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-FAI-HUB-001
-**Revision:** 2
+**Revision:** 3
 **Date:** 2026-09-23
-**Status:** DRAFT — issued for first-article use; five items gated (see §0)
+**Status:** DRAFT — issued for first-article use; six items gated (see §0)
 **Effective Date:** — (effective at hub housing first shot)
 **Author:** NeurOne Quality (interim: Steve Hickman, CEO)
 **Approved By:** —
-**References:** NP-TOOL-HUB-001 Rev 2 (**the sole source of every dimension below**); NP-HW-NASAL-001 Rev 2 (OI-NASAL-09 — the probe geometry F-01 is stated against); NP-FAI-001 Rev 1 §2–§3 (issue conditions, structure, markers); NP-ART-001 Rev 1 §2.2 (artifact A8); NP-RISK-004 Rev 1; NP-REQ-FANHEALTH-001 Rev 1 (SR-FAN-05); NP-FMEA-GEOM-001 Rev 1 (FMEA-G07-01 / RISK-26); IEC 60529; IEC 60601-1 Fig. 6 test finger; CLAUDE.md §3 (PBM Intranasal), §4.4 (Boa), §4.5
+**References:** NP-TOOL-HUB-001 Rev 3 (**the sole source of every dimension below**); NP-HW-NASAL-001 Rev 2 (OI-NASAL-09 — the probe geometry F-01 is stated against); NP-FAI-001 Rev 1 §2–§3 (issue conditions, structure, markers); NP-ART-001 Rev 1 §2.2 (artifact A8); NP-RISK-004 Rev 1; NP-REQ-FANHEALTH-001 Rev 1 (SR-FAN-05); NP-FMEA-GEOM-001 Rev 1 (FMEA-G07-01 / RISK-26); IEC 60529; IEC 60601-1 Fig. 6 test finger; CLAUDE.md §3 (PBM Intranasal), §4.4 (Boa), §4.5
 **Related Issues:** —
 **Gate:** NP-COORD-001 G1 (hub tooling design review) → G3 (pre-production)
 **IEC 62304 Class:** N/A
@@ -34,7 +34,7 @@ That is why this checklist exists and the other eleven in `NP-ART-001` §3.2 do 
 > governing specification's status — but three items fall under F2's *"explicitly marked as gated"*
 > branch that Rev 1 had not applied to them.
 
-**Five items are `[GATED]` rather than fabricated:**
+**Six items are `[GATED]` rather than fabricated** (FAI-HUB-14 added at Rev 3):
 
 | Item | Gated on | What is missing |
 |---|---|---|
@@ -43,6 +43,7 @@ That is why this checklist exists and the other eleven in `NP-ART-001` §3.2 do 
 | **FAI-HUB-10** | `NP-HW-NASAL-001` OI-NASAL-09 | Pads must cover *"the PD window and the optical-code/pogo contact landing"* — **neither location exists**, so pad placement has nothing to be checked against. Rev 2. |
 | **FAI-HUB-20** | `NP-HW-NASAL-001` OI-NASAL-09 | Retention force and 500-cycle durability are measured **with a probe in the dock**, and there is no dimensioned probe from which to make a test article. The ≤ 2 N figure is not gated here; its provenance is a separate question under `NP-CONV-001` OI-CONV-08 (c). Rev 2. |
 | **FAI-HUB-16** | `OI-HTOOL-03` | The hub enclosure has **no environmental rating** — no NeurOne document sets one. CLAUDE.md's IPX4 references are scoped to the module swap connector, not the hub. Without a class there is no ingress criterion, and whether F-04's door needs a gasket at all is undecided. |
+| **FAI-HUB-14** | `OI-HTOOL-08` | *Added Rev 3, 2026-09-23, at the closure of `OI-ART-07`.* The count of anchor posts depends on which hub ports carry a tethered cover. `NP-TOOL-HUB-001` F-02 names USB-C and a "DFU/service" port that no other document describes (DFU runs over USB-C), and omits the hub accessory port(s) four accessory specifications connect to. The boss dimension the item measures has no derivation for tether capture (`OI-HTOOL-09`). |
 
 None carries an invented number. Per `NP-FAI-001` §3 a `[GATED]` item is numbered, present, and unsignable.
 
@@ -91,7 +92,7 @@ None carries an invented number. Per `NP-FAI-001` §3 a `[GATED]` item is number
 | FAI-HUB-11 | **[GATED: OI-HTOOL-02]** **F-03** Boa channel minimum bend radius at every turn within the hub housing | CMM / CAD-to-part comparison | ≥ 12 × nominal lace OD. **Criterion not derivable until the lace OD datasheet is on file.** Item is unsignable until `OI-HTOOL-02` closes | | |
 | FAI-HUB-12 | **F-03** channel cross-section continuity at the shell/hub interface | Section cut or borescope | No discontinuity, step or pinch at the interface; PTFE liner continuous | | |
 | FAI-HUB-13 | **F-03** channel thermally and mechanically isolated from the F-04 fan/heatsink cavity | Visual + section | No shared wall exposing the liner to heatsink surface temperature or fan-drawn airflow | | |
-| FAI-HUB-14 | **F-02** two anchor posts present, at the USB-C and DFU/service ports | Comparator | Ø 1.0 mm, 0.5 mm protrusion, per `NP-TOOL-HUB-001` §3 F-02 | | |
+| FAI-HUB-14 | **[GATED: OI-HTOOL-08]** **F-02** two anchor posts present, at the USB-C and DFU/service ports — *count and port list unsignable until the hub port inventory closes* | Comparator | Ø 1.0 mm, 0.5 mm protrusion, per `NP-TOOL-HUB-001` §3 F-02 | | |
 | FAI-HUB-15 | **F-04** fan grille louvre slot width | Calibrated pin gauge | ≤ 6.0 mm on every slot | | |
 | FAI-HUB-16 | **[GATED: OI-HTOOL-03]** **F-04** door sealing / hub enclosure ingress rating | IEC 60529 per the assigned class | **No class assigned.** Whether a door gasket is required is contingent on the same decision. Unsignable until `OI-HTOOL-03` closes | | |
 
@@ -121,7 +122,7 @@ None carries an invented number. Per `NP-FAI-001` §3 a `[GATED]` item is number
 
 | Item | Check | Method | Accept criterion | Result | Sign |
 |---|---|---|---|---|---|
-| FAI-HUB-23 | **[BLOCKING]** *(was FAI-HTOOL-02)* Port-cover tether reach — foreign object near a rotating fan blade | Physical sweep, cover detached and tether fully extended, **every** hub orientation | Tether and cover **cannot contact the F-04 fan intake grille from any orientation**. Any contact → HALT; tether length or anchor position non-conformant. Depends on `OI-HTOOL-05` (full 3D CAD envelope sweep) having been done first — a nominal-orientation check is not this test | | |
+| FAI-HUB-23 | **[BLOCKING]** *(was FAI-HTOOL-02)* Port-cover tether reach — foreign object near a rotating fan blade | Physical sweep, cover detached and tether fully extended, **every** hub orientation | Tether and cover **cannot contact the F-04 fan intake grille from any orientation** — performed for **every** tethered cover on the hub, whatever count `OI-HTOOL-08` settles at. Any contact → HALT; tether length or anchor position non-conformant. Depends on `OI-HTOOL-05` (full 3D CAD envelope sweep) having been done first — a nominal-orientation check is not this test | | |
 | FAI-HUB-24 | **[BLOCKING]** *(was FAI-HTOOL-04)* Fan door finger-probe, door **open** | IEC 60601-1 Fig. 6 jointed test finger, fan running at maximum RPM | No contact with the rotating blade at any probe angle or insertion depth. The door is a service access point, **not** a substitute for blade guarding | | |
 | FAI-HUB-25 | Fan RPM telemetry reaches SHDR from the assembled hub | Read-back over USB-C | RPM logged; value tracks a commanded change. This is the sensor SR-FAN-05's predictive-maintenance alert depends on, and RISK-26's whole mitigation chain sits behind it | | |
 | FAI-HUB-26 | Post-cleaning function: clear the heatsink through the open door with compressed air and a soft brush, reclose | Function | Fan RPM and airflow return to pre-fouling baseline; no consumable required (`NP-TOOL-HUB-001` §6: no new SKU) | | |
@@ -166,5 +167,6 @@ No waiver without **both** Engineering and Quality sign-off (`NP-FAI-001` §3).
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 3 | 2026-09-23 | NeurOne Systems Engineering | **`OI-ART-07` closed — `NP-TOOL-HUB-001` (Rev 3) owns every hub port cover; `NP-TOOL-SHELL-001` F-02 retired.** No criterion changes. FAI-HUB-14 is now `[GATED: OI-HTOOL-08]` because the port list it counts has no source (a DFU/service port no other document describes; the hub accessory port(s) omitted). FAI-HUB-23's sweep is stated to cover every tethered cover on the hub. |
 | 2 | 2026-09-23 | NeurOne Systems Engineering | **Three F-01 items gated on `NP-HW-NASAL-001` OI-NASAL-09; §0 corrected.** Rev 1's §0 counted *"saddle radius keyed to the Y-junction OD"* as dimensioned geometry; it is keyed to a value the probe's own specification does not state. FAI-HUB-09 (saddle radius), FAI-HUB-10 (pad placement) and FAI-HUB-20 (retention and durability, which need a probe article) now carry `[GATED]` markers, following the FAI-HUB-11 precedent; each keeps its Rev 1 criterion as the text that applies once the gate lifts. Gated count 2 → 5. FAI-HUB-01 now requires `NP-TOOL-HUB-001` Rev 2. **No accept criterion is changed or invented.** Follows `NP-TOOL-HUB-001` Rev 2 and closes `NP-HW-NASAL-001` OI-NASAL-01. |
 | 1 | 2026-08-11 | NeurOne Quality | Initial release. Expands `NP-TOOL-HUB-001` Rev 1 §5's four-item stub (FAI-HTOOL-01…04) into a full nine-section checklist per `NP-FAI-001` §3; the four originals are preserved and mapped (FAI-HUB-20/23/21/24). **First and, at this date, only NeurOne artifact FAI checklist that meets `NP-FAI-001` §2's F1 condition** — `NP-TOOL-HUB-001` is the sole BASELINED artifact specification. Two items issued `[GATED]` rather than given fabricated criteria: FAI-HUB-11 (Boa bend radius, needs `OI-HTOOL-02`'s lace OD) and FAI-HUB-16 (ingress, needs `OI-HTOOL-03` — **the hub enclosure has no environmental rating in any NeurOne document**). Two items are `[BLOCKING]`, both covering hazards that mitigations introduced: FAI-HUB-23 (tethered cover reaching the fan intake) and FAI-HUB-24 (finger access through the service door). §9 records RISK-HUB-01…03, new to `NP-RISK-004`. |
