@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-FAI-HUB-001
-**Revision:** 1
-**Date:** 2026-08-11
-**Status:** DRAFT — issued for first-article use; two items gated (see §0)
+**Revision:** 2
+**Date:** 2026-09-23
+**Status:** DRAFT — issued for first-article use; five items gated (see §0)
 **Effective Date:** — (effective at hub housing first shot)
 **Author:** NeurOne Quality (interim: Steve Hickman, CEO)
 **Approved By:** —
-**References:** NP-TOOL-HUB-001 Rev 1 (**the sole source of every dimension below**); NP-FAI-001 Rev 1 §2–§3 (issue conditions, structure, markers); NP-ART-001 Rev 1 §2.2 (artifact A8); NP-RISK-004 Rev 1; NP-REQ-FANHEALTH-001 Rev 1 (SR-FAN-05); NP-FMEA-GEOM-001 Rev 1 (FMEA-G07-01 / RISK-26); IEC 60529; IEC 60601-1 Fig. 6 test finger; CLAUDE.md §3 (PBM Intranasal), §4.4 (Boa), §4.5
+**References:** NP-TOOL-HUB-001 Rev 2 (**the sole source of every dimension below**); NP-HW-NASAL-001 Rev 2 (OI-NASAL-09 — the probe geometry F-01 is stated against); NP-FAI-001 Rev 1 §2–§3 (issue conditions, structure, markers); NP-ART-001 Rev 1 §2.2 (artifact A8); NP-RISK-004 Rev 1; NP-REQ-FANHEALTH-001 Rev 1 (SR-FAN-05); NP-FMEA-GEOM-001 Rev 1 (FMEA-G07-01 / RISK-26); IEC 60529; IEC 60601-1 Fig. 6 test finger; CLAUDE.md §3 (PBM Intranasal), §4.4 (Boa), §4.5
 **Related Issues:** —
 **Gate:** NP-COORD-001 G1 (hub tooling design review) → G3 (pre-production)
 **IEC 62304 Class:** N/A
@@ -21,19 +21,30 @@
 
 `NP-FAI-001` §2 requires a `BASELINED` or `ACTIVE` governing specification before an FAI checklist
 may be written. **`NP-TOOL-HUB-001` Rev 1 is the only artifact specification in the NeurOne set with
-status BASELINED**, and its four features carry dimensioned geometry — saddle radius keyed to the
-Y-junction OD, 1.0 mm × 0.5 mm anchor bosses, ≤ 20 mm tether, ≤ 6 mm louvre slots, two diagonally
-opposed quarter-turn captives. That is why this checklist exists and the other eleven in
-`NP-ART-001` §3.2 do not.
+status BASELINED**, and three of its four features carry dimensioned geometry — 1.0 mm × 0.5 mm
+anchor bosses, ≤ 20 mm tether, ≤ 6 mm louvre slots, two diagonally opposed quarter-turn captives.
+That is why this checklist exists and the other eleven in `NP-ART-001` §3.2 do not.
 
-**Two items are `[GATED]` rather than fabricated:**
+> **Correction (Rev 2, 2026-09-23).** Rev 1 listed *"saddle radius keyed to the Y-junction OD"*
+> among the dimensioned geometry. It is not dimensioned: it is keyed to a value no document states.
+> The probe's owning specification, `NP-HW-NASAL-001`, was first issued 2026-09-20 and dimensions
+> neither the Y-junction body OD nor the probe-tip envelope, PD window or authentication contacts
+> the F-01 pads sit against (`REQ-NASAL-03`). F-01 is the fourth feature, and its probe-contact
+> items are now gated below. The F1 basis for this checklist is unaffected — F1 is about the
+> governing specification's status — but three items fall under F2's *"explicitly marked as gated"*
+> branch that Rev 1 had not applied to them.
+
+**Five items are `[GATED]` rather than fabricated:**
 
 | Item | Gated on | What is missing |
 |---|---|---|
 | **FAI-HUB-11** | `OI-HTOOL-02` | The F-03 minimum bend radius is stated as *≥ 12 × nominal Boa lace OD*. The lace OD is a supplier datasheet value not yet on file, so the radius is a multiple without a multiplicand. |
+| **FAI-HUB-09** | `NP-HW-NASAL-001` OI-NASAL-09 | Saddle radius *"sized to the Y-junction body OD"* — **no Y-junction OD exists**. Rev 2. |
+| **FAI-HUB-10** | `NP-HW-NASAL-001` OI-NASAL-09 | Pads must cover *"the PD window and the optical-code/pogo contact landing"* — **neither location exists**, so pad placement has nothing to be checked against. Rev 2. |
+| **FAI-HUB-20** | `NP-HW-NASAL-001` OI-NASAL-09 | Retention force and 500-cycle durability are measured **with a probe in the dock**, and there is no dimensioned probe from which to make a test article. The ≤ 2 N figure is not gated here; its provenance is a separate question under `NP-CONV-001` OI-CONV-08 (c). Rev 2. |
 | **FAI-HUB-16** | `OI-HTOOL-03` | The hub enclosure has **no environmental rating** — no NeurOne document sets one. CLAUDE.md's IPX4 references are scoped to the module swap connector, not the hub. Without a class there is no ingress criterion, and whether F-04's door needs a gasket at all is undecided. |
 
-Neither carries a number. Per `NP-FAI-001` §3 a `[GATED]` item is numbered, present, and unsignable.
+None carries an invented number. Per `NP-FAI-001` §3 a `[GATED]` item is numbered, present, and unsignable.
 
 **Build record**
 
@@ -53,7 +64,7 @@ Neither carries a number. Per `NP-FAI-001` §3 a `[GATED]` item is numbered, pre
 
 | Item | Check | Method | Accept criterion | Result | Sign |
 |---|---|---|---|---|---|
-| FAI-HUB-01 | `NP-TOOL-HUB-001` Rev 1 or later on file | Document check | Revision confirmed, status BASELINED | | |
+| FAI-HUB-01 | `NP-TOOL-HUB-001` Rev 2 or later on file | Document check | Revision confirmed, status BASELINED | | |
 | FAI-HUB-02 | All eleven `NP-TOOL-HUB-001` §4 mould-design-review items (HUB-MDR-01…11) signed off | Document check | 11/11 closed. **Any open item → this FAI does not proceed** (`OI-HTOOL-06` gates steel cut on exactly this) | | |
 | FAI-HUB-03 | Hub-to-shell interface CAD locked | Document check | `OI-HTOOL-01` closed; HUB-MDR-11 evidence on file | | |
 | FAI-HUB-04 | BOM revision matches `NP-TOOL-HUB-001` §6 — quarter-turn captives from a standard catalogue line, not a bespoke part | BOM review | Catalogue part number recorded, captive-retention feature confirmed | | |
@@ -75,8 +86,8 @@ Neither carries a number. Per `NP-FAI-001` §3 a `[GATED]` item is numbered, pre
 
 | Item | Check | Method | Accept criterion | Result | Sign |
 |---|---|---|---|---|---|
-| FAI-HUB-09 | **F-01** probe-dock Y-junction saddle radius | CMM or calibrated comparator | Sized to the Y-junction **body** OD, not the bilateral lead OD. A saddle cut to lead OD lets the junction hang on its leads, which is the exact failure the dock exists to prevent (CLAUDE.md §3: *"prevents Y-junction fracture"*) | | |
-| FAI-HUB-10 | **F-01** two probe-tip receptacles, silicone insert pads present and bonded at the probe-tip contact point | Visual, 10× | Both present; bond per the F-SM-01 precedent process; pad covers the PD window and the optical-code/pogo contact landing | | |
+| FAI-HUB-09 | **[GATED: NP-HW-NASAL-001 OI-NASAL-09]** **F-01** probe-dock Y-junction saddle radius | CMM or calibrated comparator | **Criterion not derivable: no Y-junction body OD is specified.** Unsignable until OI-NASAL-09 closes. When it does: sized to the Y-junction **body** OD, not the bilateral lead OD. A saddle cut to lead OD lets the junction hang on its leads, which is the exact failure the dock exists to prevent (CLAUDE.md §3: *"prevents Y-junction fracture"*) | | |
+| FAI-HUB-10 | **[GATED: NP-HW-NASAL-001 OI-NASAL-09]** **F-01** two probe-tip receptacles, silicone insert pads present and bonded at the probe-tip contact point | Visual, 10× | **Placement criterion not derivable: no PD-window or contact location is specified.** Unsignable until OI-NASAL-09 closes. When it does: both present; bond per the F-SM-01 precedent process; pad covers the PD window and the optical-code/pogo contact landing | | |
 | FAI-HUB-11 | **[GATED: OI-HTOOL-02]** **F-03** Boa channel minimum bend radius at every turn within the hub housing | CMM / CAD-to-part comparison | ≥ 12 × nominal lace OD. **Criterion not derivable until the lace OD datasheet is on file.** Item is unsignable until `OI-HTOOL-02` closes | | |
 | FAI-HUB-12 | **F-03** channel cross-section continuity at the shell/hub interface | Section cut or borescope | No discontinuity, step or pinch at the interface; PTFE liner continuous | | |
 | FAI-HUB-13 | **F-03** channel thermally and mechanically isolated from the F-04 fan/heatsink cavity | Visual + section | No shared wall exposing the liner to heatsink surface temperature or fan-drawn airflow | | |
@@ -100,7 +111,7 @@ Neither carries a number. Per `NP-FAI-001` §3 a `[GATED]` item is numbered, pre
 
 | Item | Check | Method | Accept criterion | Result | Sign |
 |---|---|---|---|---|---|
-| FAI-HUB-20 | *(was FAI-HTOOL-01)* Probe dock retention/extraction force and durability | Force gauge; 500 dock/undock cycles | ≤ 2 N insertion and extraction throughout; no visible wear at the Y-junction saddle or the insert pads at 500 cycles | | |
+| FAI-HUB-20 | **[GATED: NP-HW-NASAL-001 OI-NASAL-09]** *(was FAI-HTOOL-01)* Probe dock retention/extraction force and durability | Force gauge; 500 dock/undock cycles, **with a probe article dimensioned per OI-NASAL-09** | **No such article can exist yet.** Unsignable until OI-NASAL-09 closes. When it does: ≤ 2 N insertion and extraction throughout; no visible wear at the Y-junction saddle or the insert pads at 500 cycles | | |
 | FAI-HUB-21 | *(was FAI-HTOOL-03)* Boa channel fatigue **through the hub housing segment specifically** | 50,000-cycle lace actuation, hub segment instrumented | No lace fracture, no liner wear-through. The point of the test is to confirm the hub does not introduce a fatigue-limiting bend that the shell segment does not have — the hub segment is the one that is **not** field-replaceable with the in-box spare cable and hook tool | | |
 | FAI-HUB-22 | Captive fastener cycle life | 1,000 open/close cycles | Captive feature intact; no thread wear preventing quarter-turn engagement | | |
 
@@ -155,4 +166,5 @@ No waiver without **both** Engineering and Quality sign-off (`NP-FAI-001` §3).
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 2 | 2026-09-23 | NeurOne Systems Engineering | **Three F-01 items gated on `NP-HW-NASAL-001` OI-NASAL-09; §0 corrected.** Rev 1's §0 counted *"saddle radius keyed to the Y-junction OD"* as dimensioned geometry; it is keyed to a value the probe's own specification does not state. FAI-HUB-09 (saddle radius), FAI-HUB-10 (pad placement) and FAI-HUB-20 (retention and durability, which need a probe article) now carry `[GATED]` markers, following the FAI-HUB-11 precedent; each keeps its Rev 1 criterion as the text that applies once the gate lifts. Gated count 2 → 5. FAI-HUB-01 now requires `NP-TOOL-HUB-001` Rev 2. **No accept criterion is changed or invented.** Follows `NP-TOOL-HUB-001` Rev 2 and closes `NP-HW-NASAL-001` OI-NASAL-01. |
 | 1 | 2026-08-11 | NeurOne Quality | Initial release. Expands `NP-TOOL-HUB-001` Rev 1 §5's four-item stub (FAI-HTOOL-01…04) into a full nine-section checklist per `NP-FAI-001` §3; the four originals are preserved and mapped (FAI-HUB-20/23/21/24). **First and, at this date, only NeurOne artifact FAI checklist that meets `NP-FAI-001` §2's F1 condition** — `NP-TOOL-HUB-001` is the sole BASELINED artifact specification. Two items issued `[GATED]` rather than given fabricated criteria: FAI-HUB-11 (Boa bend radius, needs `OI-HTOOL-02`'s lace OD) and FAI-HUB-16 (ingress, needs `OI-HTOOL-03` — **the hub enclosure has no environmental rating in any NeurOne document**). Two items are `[BLOCKING]`, both covering hazards that mitigations introduced: FAI-HUB-23 (tethered cover reaching the fan intake) and FAI-HUB-24 (finger access through the service door). §9 records RISK-HUB-01…03, new to `NP-RISK-004`. |
