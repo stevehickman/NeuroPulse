@@ -2,18 +2,18 @@
 
 **Project:** NeurOne
 **Document:** NP-EMC-CAV-001
-**Revision:** 18
-**Date:** 2026-09-23
+**Revision:** 19
+**Date:** 2026-09-24
 **Status:** ACTIVE — EMC analysis discharging `OI-BIBEMF-08` step 1; asserts no measurement. **`REQ-CAV-04` TAKEN 2026-09-23 — Layer 4 deleted**
 **Effective Date:** 2026-09-20
 **Author:** NeurOne EMC / Systems Engineering
 **Approved By:** Principal — `REQ-CAV-04` taken 2026-09-23 (GitHub #391); the analysis itself remains unmeasured (§9)
 **References:** CLAUDE.md §1, §3, §4.1, §4.3, §4.4; `docs/reference/hardware-detail.md` §4.3; `NP-BIB-EMF-001` §7.3, §7.6, §7.8; `NP-HELMET-GEOM-001` §2, §3.2; `NP-DRV-SHELL-002` §3.2, §3.4, §3.5, §5.4, §9.1–§9.6; `NP-HEX-ZM-001` §5.2, §5.3a, §5.3.1; `NP-THERM-COOL-001` §2, §6.3, §6.9.1; `NP-THERM-SINK-001` `RISK-SINK-03`, `OI-SINK-01`, `OI-SINK-07`; `NP-DT-001` `DI-PERF-22`, `DI-REG-05`; `NP-HW-HUB-001` §7.4, §8.1, §11 (`OI-HUB-C19`); `NP-HW-TACSDRV-001` Q3; FCC Part 15 Subpart B §15.109; CISPR 11 Group 1 Class B; IEC 60601-1-2; Gabriel et al. 1996 (tissue dielectric properties)
-**Related Issues:** GitHub Issue #362; GitHub Issue #391 (the decision); GitHub Issue #400 (`OI-EMCCAV-03`); GitHub Issue #401 (`OI-EMCCAV-04`, the test plan); GitHub Issue #403 (`OI-EMCCAV-07`, answered by `NP-THERM-BOWL-001`); `OI-BIBEMF-08`; `OI-THCOOL-04`; `OI-THCOOL-15`; `OI-SINK-01`; `OI-SINK-07`; `RISK-SINK-03`; `EMF-1`; `EMF-3`; `RISK-20`; `OI-HUB-C19`
+**Related Issues:** GitHub Issue #362; GitHub Issue #391 (the decision); GitHub Issue #398 (`OI-EMCCAV-01`); GitHub Issue #400 (`OI-EMCCAV-03`); GitHub Issue #401 (`OI-EMCCAV-04`, the test plan); GitHub Issue #403 (`OI-EMCCAV-07`, answered by `NP-THERM-BOWL-001`); `OI-BIBEMF-08`; `OI-THCOOL-04`; `OI-THCOOL-15`; `OI-SINK-01`; `OI-SINK-07`; `RISK-SINK-03`; `EMF-1`; `EMF-3`; `RISK-20`; `OI-HUB-C19`
 **Gate:** —
 **IEC 62304 Class:** — (analysis record, not device software)
 **Jurisdiction Scope:** N/A
-**Change Summary:** Rev 18 writes §7's four sweeps into the `EMF-1` test plan (`NP-HEX-ZM-001` §5.6.1, `OI-EMCCAV-04`, GitHub #401), re-stated against the deleted stack, and corrects §10's stale *"§8.2 now recommends substitution"*. Rev 16 recorded that **`OI-EMCCAV-07` is ANSWERED by `NP-THERM-BOWL-001`** (GitHub #403): the deletion moves the outer bowl 0.002 K, and the coil-drift question passes to `OI-THBOWL-01/02` (§9 item 6, §10). Rev 15 closes **`OI-EMCCAV-03`** (GitHub #400): the condition that an in-envelope boost re-opens §4 and §6 now sits on `OI-HUB-C19`'s own row, and new **§3.1** computes how much stronger an internal source §6's verdict tolerates (23.6 dB; 3.6 dB left at a ×10-in-field source) and names the four inputs a real estimate needs. Rev 14 recorded `REQ-CAV-04` TAKEN (GitHub #391). See §11.
+**Change Summary:** Rev 19 adds **§5.4 — how `REQ-CAV-01` and the margin behind `REQ-CAV-04` move with the unmeasured ADS1299 EMIRR** (40 / 50 / 60 / 70 dB, computed by `scripts/check-cavity-q.ts`), and records that the bench procedure for `OI-EMCCAV-01` now exists (`NP-EMC-EMIRR-001`, GitHub #398) — no measurement, no requirement changed. Rev 18 writes §7's four sweeps into the `EMF-1` test plan (`NP-HEX-ZM-001` §5.6.1, `OI-EMCCAV-04`, GitHub #401), re-stated against the deleted stack, and corrects §10's stale *"§8.2 now recommends substitution"*. Rev 16 recorded that **`OI-EMCCAV-07` is ANSWERED by `NP-THERM-BOWL-001`** (GitHub #403): the deletion moves the outer bowl 0.002 K, and the coil-drift question passes to `OI-THBOWL-01/02` (§9 item 6, §10). Rev 15 closes **`OI-EMCCAV-03`** (GitHub #400): the condition that an in-envelope boost re-opens §4 and §6 now sits on `OI-HUB-C19`'s own row, and new **§3.1** computes how much stronger an internal source §6's verdict tolerates (23.6 dB; 3.6 dB left at a ×10-in-field source) and names the four inputs a real estimate needs. Rev 14 recorded `REQ-CAV-04` TAKEN (GitHub #391). See §11.
 
 ---
 
@@ -247,7 +247,7 @@ Deriving the limit from the budget that already exists:
 |---|---:|---|
 | EEG artifact budget, all LEDs at full PWM | 5.0 µVpp | **SH2-DRC-16** (`NP-DRV-SHELL-002` §9.1) |
 | Allocated to RF demodulation | 20 % → **1.0 µVpp** | this document — it is the non-subtractable share |
-| EMIRR at the amplifier input | 60 dB | **design assumption** — the softest input here; see §9 item 3 |
+| EMIRR at the amplifier input | 60 dB | **design assumption** — the softest input here; see §9 item 3. Sensitivity: §5.4. Procedure: `NP-EMC-EMIRR-001` |
 | → V_RF permitted at the input | **1.0 mV** | |
 | In-tile electrode pickup (N4 beyond it is guarded, `REQ-EMI-02`) | 40 mm → h_e 20 mm | electrically short at 500 MHz (λ/15) |
 | Common-mode → differential conversion at RF | 20 dB | the 110 dB CMRR spec is a 50/60 Hz figure and does not survive to hundreds of MHz |
@@ -279,6 +279,54 @@ is comparable within ~1.5 dB once distance-corrected. Standard practice designs 
 Leakage through the parting-plane seam (`RISK-20`) and the posterior boss scales with the internal
 field driving them, so **`REQ-CAV-02` is simultaneously the emissions allocation** — which is the same
 observation `NP-BIB-EMF-001` §7.6 makes from the aperture side, arriving from the other direction.
+
+### 5.4 Sensitivity to the one unmeasured input — EMIRR (`OI-EMCCAV-01`)
+
+**Nothing in this subsection is measured.** The rows are candidate EMIRR values, chosen to bracket
+the 60 dB assumption by ±20 dB; `NP-EMC-EMIRR-001` is the procedure that will replace them with one
+number. Every figure is computed by `emirrSensitivity()` in `scripts/check-cavity-q.ts` and pinned by
+`--validate`.
+
+**How each column is derived.** `REQ-CAV-01` is §5.1's chain with EMIRR substituted — linear in
+10^(EMIRR/20), one decade per 20 dB. `REQ-CAV-02` is the enclosure's **allocation** of that field
+limit (§5.2); resonant peak field is proportional to Q, so **holding the source/layout share
+(`REQ-EMI-01`…`-07`) fixed**, the Q ceiling scales dB-for-dB with `REQ-CAV-01`. That is the
+conservative reading — the enclosure absorbs the whole change — and **whether to re-allocate instead
+is an EMC / principal decision, not made here.** Evaluated at the mid-range head's lowest mode, like
+every other single-number anchor in this document.
+
+| EMIRR | `REQ-CAV-01` (E peak) | Scaled `REQ-CAV-02` (Q ceiling) | Head margin (Q_L = 1.32) | Layer 4 on top of the head |
+|---:|---:|---:|---:|---:|
+| 40 dB | 0.050 V/m | 2.0 | **3.6 dB** | 0.001 dB |
+| 50 dB | 0.158 V/m | 6.3 | **13.6 dB** | 0.001 dB |
+| **60 dB (assumed)** | **0.50 V/m** | **20** | **23.6 dB** | 0.001 dB |
+| 70 dB | 1.58 V/m | 63 | **33.6 dB** | 0.001 dB |
+
+**Break-even: EMIRR = 36.4 dB.** Below it, under the fixed allocation, the wearer-loaded cavity no
+longer meets the scaled `REQ-CAV-02`. This is the same scaling §3.1 applies to a stronger source, seen from
+the victim's side: **an EMIRR X dB below 60 dB costs exactly the margin a source X dB stronger in
+field would** (§3.1's 13.6 dB at +10 dB and 3.6 dB at +20 dB are this table's 50 and 40 dB rows), and
+the two costs add — both draw on the same 23.6 dB.
+
+Three things follow, and the third is the one that bears on `REQ-CAV-04`:
+
+1. **The EMIRR assumption can be 23.6 dB wrong before the head margin is gone.** An ADS1299 would
+   have to reject RF worse than 36.4 dB for the §6.3 finding to stop meeting its own requirement.
+2. **`REQ-CAV-01` itself is not robust to it** — it moves 10× per 20 dB. That is why §5.1 labels the
+   input soft and why the published 0.5 V/m must be re-derived from the measurement, whichever way it
+   goes (`NP-EMC-EMIRR-001` §7.2).
+3. **The deletion does not depend on EMIRR.** The last column is what the deleted absorber would add
+   *with the head fitted* — 0.001 dB at every EMIRR, because the head (R_s 53.9 Ω/sq over 36.5 % of
+   the boundary) swamps a wall term that the foam moves by 3 %. If EMIRR comes in below 36.4 dB, the
+   thing that must move is the allocation between source/layout and enclosure — **Layer 4 cannot
+   rescue it at any EMIRR**, so a low result is not a reason to reopen `REQ-CAV-04`. (Against the
+   **bare-wall** figure the foam's 0.26 dB of §6.2 is likewise EMIRR-independent; only the
+   requirement it is compared to moves.)
+
+**What §5.4 does not settle.** The table uses one frequency; a measured EMIRR curve that dips
+somewhere in band sets `REQ-CAV-01` at its minimum (`NP-EMC-EMIRR-001` §7.1). And §5.1's chain assumes
+the RF arrives differentially after a 20 dB CM→DM conversion; if the part rectifies common-mode drive
+directly, the chain is structurally wrong, not just mis-valued — `NP-EMC-EMIRR-001` §6.3 tests that.
 
 ---
 
@@ -1062,7 +1110,10 @@ Stated explicitly, because an analysis with a clean answer is easy to over-read.
    the 23.6 dB margin is a floor. But a floor computed from a first-order model is still first-order.
 3. **The 60 dB EMIRR is the softest input, and it is the one worth measuring first.** The ADS1299
    datasheet carries no EMIRR specification. It is a bench measurement on a part already in hand, and
-   `REQ-CAV-01`'s 0.5 V/m moves decade-for-decade with it. **`OI-EMCCAV-01`.**
+   `REQ-CAV-01`'s 0.5 V/m moves decade-for-decade with it. **`OI-EMCCAV-01`.** *(Rev 19:)* §5.4 now
+   states how far it can move — the head's margin survives down to **36.4 dB** under a fixed
+   allocation, and Layer 4's contribution is EMIRR-independent — and the bench procedure is
+   `NP-EMC-EMIRR-001`. **The measurement itself has still not been made.**
 4. **It does not clear `RISK-SINK-03`.** The `SPEC-SINK-04` graphite spreader sits on the **exterior**
    of the CFRP, outside the shield stack entirely, so nothing here bears on it — except to narrow the
    question: an exterior conductor cannot change the internal cavity Q, so what `OI-SINK-01` needs
@@ -1096,7 +1147,7 @@ Stated explicitly, because an analysis with a clean answer is easy to over-read.
 
 | ID | Item | Owner | Blocking? |
 |----|------|-------|-----------|
-| **`OI-EMCCAV-01`** | **Measure the ADS1299's EMIRR at 420 MHz – 3 GHz.** §5.1's 60 dB is the softest input in this document and `REQ-CAV-01` moves decade-for-decade with it. Bench measurement on a part in hand | EE Lead | No — bounds `REQ-CAV-01` |
+| **`OI-EMCCAV-01`** | **Measure the ADS1299's EMIRR at 420 MHz – 3 GHz.** §5.1's 60 dB is the softest input in this document and `REQ-CAV-01` moves decade-for-decade with it. Bench measurement on a part in hand. **Rev 19 (GitHub #398): procedure written — `NP-EMC-EMIRR-001` Rev 1 (DRAFT, never run); sensitivity stated in §5.4 (head margin holds to EMIRR 36.4 dB; Layer 4 adds 0.001 dB with the head at any EMIRR). MEASUREMENT PENDING** — closes when a measured curve is recorded and §5.1 / `check-cavity-q.ts` are re-derived from it | EE Lead | No — bounds `REQ-CAV-01` |
 | **`OI-EMCCAV-02`** | `RISK-SINK-03` narrowed, not cleared: the exterior spreader cannot affect cavity Q, so `OI-SINK-01`'s EMF clearance reduces to **ELF eddy loading of the Helmholtz actuator** + external RF. Re-scope the item to those two mechanisms | EMC + Thermal | No — narrows a **BLOCKING** item |
 | ~~**`OI-EMCCAV-03`**~~ | **✅ CLOSED 2026-09-23 (Rev 15, GitHub #400) — the condition now lives on `OI-HUB-C19`'s own row** (`NP-HW-HUB-001` Rev 7, §11 and §7.4): siting the 15–20 V → 24 V boost inside the helmet envelope requires §4 (band) and §6 (the head meets `REQ-CAV-02`) to be re-derived **before the siting is accepted**, because a switching converter is an order of magnitude above anything in §3's table and Layer 4 is no longer present. **The record already decides the siting — Hub PCB, provisional (principal 2026-07-30), outside the envelope** — so nothing is re-derived today; the condition gates the one named alternative, the PAN. **§3.1 quantifies why it must gate:** §6's 23.6 dB margin survives a source up to +23.6 dB, and read as ×10 in field "an order of magnitude" leaves **3.6 dB**, inside the model's own uncertainty; the deleted station removes the only in-stack place a remedy could have gone. **What a PAN siting would need and the record lacks:** boost switching frequency, switch-node edge time, hot-loop area (all arrive with `OI-HUB-C19`'s part selection), and an amplitude for §3's controller edges | EE Lead + EMC | **Gate carried by `OI-HUB-C19`** — gates any re-siting of the boost |
 | **`OI-EMCCAV-04`** | Add `EMF-1a`–`EMF-1d` (§7) to the `EMF-1` fixture's test plan. Four sweeps on a fixture already committed. **✅ PLAN WRITTEN 2026-09-23 (Rev 18, GitHub #401): `NP-HEX-ZM-001` §5.6.1**, re-stated against the as-designed stack, with each sweep's pass criterion traced to `REQ-CAV-01` / `REQ-CAV-02`, and `EMF-1a`/`EMF-1b` swept to 6 GHz. **The one residual is DECIDED (principal direction 2026-09-24, PR #412):** the foam-fitted comparison is run, as `EMF-1f`, on a pre-re-loft article. ~~Gates §8.2's deletion~~ — ~~**Rev 2: no longer gating**, because §8.2 now recommends substitution, which does not depend on them.~~ **Corrected Rev 18:** not gating, because §8.2 was rewritten at Rev 3 to recommend **deletion**, the principal **took** it on 2026-09-23 (`REQ-CAV-04`, GitHub #391), and §6.1's result is structural, so these sweeps gate confidence, not the decision. They are what would let `REQ-CAV-04`'s justification be stated as *measured*; **sweep `EMF-1a` to 6 GHz** for `OI-EMCCAV-06` (done: `EMF-1a` and `EMF-1b` both run to 6 GHz) | EMC | No. **Plan written Rev 18**, including `EMF-1f` |
@@ -1137,3 +1188,4 @@ Stated explicitly, because an analysis with a clean answer is easy to over-read.
 | 16 | 2026-09-23 | NeurOne Thermal / Systems Engineering | **`OI-EMCCAV-07` ANSWERED by the new `NP-THERM-BOWL-001` (GitHub #403); §9 item 6 and §10 updated, no analysis in this document changed.** The outer-bowl heat budget was feared to rise when the station was deleted. It does not, measurably: the BN-boss via is parallel to the station between junction and bowl, so the bowl moves **0.002 K**. The coil holds **~42 °C** under the face-42 °C governor and reaches **43.1 °C** at the +50 °C top of `NP-ENV-OPRANGE-001` §2's SOFT envelope. The live residual is the `REQ-EMI-11` transfer function. Its drift depends on an unstated coil **drive topology** (voltage mode 3.9 % per session and 19.5 % across the envelope; current mode immune at first order). `REQ-EMI-11` has **no temperature trigger**, so the envelope case can occur. Raised there as `OI-THBOWL-01/02`, not designed. **No locked section modified; no measurement asserted.** |
 | 17 | 2026-09-23 | NeurOne EMC / Systems Engineering | **`OI-EMCCAV-11` partly resolved (GitHub #404): the record settles where the fluxgate body is, but not whether a keep-out exists.** §8.6.1 gains a resolution note, §8.7.3 a pointer, and the `OI-EMCCAV-11` row is re-scoped. **(1) Body: on L1, inside the socket-wall + FPC-channel station, never in the Gap.** Every siting source agrees. The only exceptions are §221 and `NP-THERM-COOL-001` §6.9.1, both from one 2026-08-31 analysis, both citing §5.3c for a claim it never made. The owning statement is now **`NP-HEX-ZM-001` §5.3(c)** (Rev 4), and `NP-HELMET-GEOM-001` (Rev 2) and `NP-THERM-COOL-001` (Rev 15) cite it. **(2) The Gap's contributor list is unchanged**, because the fluxgates are off it under either reading. **(3) Rev 6's "likely reconciliation" is withdrawn as unsupported:** it assumed a magnetic keep-out, and **no keep-out is specified anywhere**. The only fluxgate protections in force are material rules. **(4) Not picked:** whether a planform keep-out is needed. Both readings and their gap-pad-coverage consequences (#405) are written up for EE. The one mechanism that might justify Reading B is **thermal**, not magnetic, and is stated as a hypothesis. **(5) New condition:** the fit of a 3-axis part in 2.0–2.5 mm is unverified, because no part is selected. No number changed; no measurement asserted. |
 | 18 | 2026-09-24 | NeurOne EMC / Systems Engineering | **`OI-EMCCAV-04` discharged (GitHub #401): §7's cavity sweeps are written into the `EMF-1` test plan, `NP-HEX-ZM-001` §5.6.1 (Rev 5), not only cross-referenced.** Each of `EMF-1a`–`EMF-1d` carries setup, range, what it measures and a pass criterion traced to a requirement in this document. `EMF-1a` (empty cavity) is characterisation only, because `REQ-CAV-02` is defined head-fitted; it is the coupling proof for the others and the measured bare-wall Q behind the 26.2 dB equivalence. `EMF-1b`/`EMF-1c` are judged against `REQ-CAV-02` (Q_L ≤ 20 at 420 MHz – 3 GHz, at 52/57/62 cm), and a mode below 420 MHz re-derives `REQ-CAV-00`. `EMF-1d` is judged against `REQ-CAV-01`, and only after `OI-EMCCAV-01` settles the EMIRR the 0.5 V/m rests on. **`EMF-1a`/`EMF-1b` run to 6 GHz** for `OI-EMCCAV-06`; 3–6 GHz is recorded, not judged, because `REQ-CAV-00` sets no requirement there. **The absorber is deleted, so the sweeps are re-stated against the as-designed stack**, and §7's *fitted vs. removed* survives only as its removed half. Because the re-loft leaves the 23–29 mm dielectric region unchanged, §4's band stands. **Foam-fitted comparison: run, by principal direction 2026-09-24 (PR #412), as `EMF-1f`.** It uses a second outer bowl at the pre-re-loft radius, not a liner in the re-lofted bowl, which would shift the modes being compared. The liner's permittivity is measured, because §6.2's is assumed. It has no pass criterion, and a result against §6.2 or `REQ-CAV-04` goes to the principal. **§10's `OI-EMCCAV-04` row corrected:** its Rev 2 wording *"§8.2 now recommends substitution"* is struck. §8.2 was rewritten at Rev 3 to delete, and the principal took that on 2026-09-23. §7's *"should not be executed before"* caution and §8.2's *"what still gates"* paragraph are annotated in place, not rewritten. **No figure in §1–§6 changes and no measurement is asserted.** |
+| 19 | 2026-09-24 | NeurOne EMC / Systems Engineering | **`OI-EMCCAV-01` (GitHub #398): sensitivity stated, procedure written, measurement still pending.** New **§5.4** tabulates how `REQ-CAV-01`, the scaled `REQ-CAV-02` Q ceiling and the head's margin move for EMIRR 40 / 50 / 60 / 70 dB — **0.050 / 0.158 / 0.50 / 1.58 V/m; margin 3.6 / 13.6 / 23.6 / 33.6 dB; break-even 36.4 dB** — computed by the new `emirrSensitivity()` in `scripts/check-cavity-q.ts` (nine new `--validate` anchors), with the source/layout share held fixed and that assumption labelled. **Finding for `REQ-CAV-04`: the deleted absorber adds 0.001 dB with the head fitted at every EMIRR, so no EMIRR result reopens the deletion; a result below 36.4 dB moves the allocation instead**, which is an EMC / principal decision this revision does not make. The bench procedure is new document **`NP-EMC-EMIRR-001`** (DRAFT). §5.1's EMIRR row, §9 item 3 and §10's `OI-EMCCAV-01` row point to both. **No measurement, no requirement value and no locked decision changed.** |
