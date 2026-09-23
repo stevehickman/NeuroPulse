@@ -81,7 +81,7 @@ design · **⛔** blocked, with the blocking item named · **—** not applicabl
 | # | Artifact | Governing spec | Spec maturity | Tooling spec | Risk register | FAI checklist |
 |---|---|---|---|---|---|---|
 | **A10** | **Lens rim + goggle arm + shade assembly** (incl. EC lens) | `NP-TOOL-LENS-001` Rev 2 | Pre-Tooling Draft | ✅ `NP-TOOL-LENS-001` | ✅ `NP-RISK-002` §4 routes to it | ⛔ **NP-TOOL-LENS-001 §OI-01…OI-10** |
-| **A11** | **Audio cup assembly** — planar magnetic driver, bone conduction, replaceable mesh frame | **`NP-HW-AUDIO-001` Rev 1** (2026-09-20) | **DRAFT — requirements-grade, no dimensioned geometry** | ⛔ **`OI-AUDIOHW-04`, `-05`** (no driver selected, no geometry) | ⛔ **`OI-RISK2-02` — unblocked 2026-09-20**, inputs at `NP-HW-AUDIO-001` §7 | ⛔ **F1, F2** — see §3.2 |
+| **A11** | **Audio cup assembly** — planar magnetic driver, bone conduction, replaceable mesh frame | **`NP-HW-AUDIO-001` Rev 2** (2026-09-23) | **DRAFT — requirements-grade, no dimensioned geometry** | ⛔ **`OI-AUDIOHW-04`, `-05`** (no driver selected, no geometry) | ⛔ **`OI-RISK2-02` — unblocked 2026-09-20**, inputs at `NP-HW-AUDIO-001` §7 | ⛔ **F1, F2** — see §3.2 |
 
 ### 2.4 Applicators and separate accessories
 
