@@ -281,7 +281,7 @@ struct LimitsSettingsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    Text(hasLimits ? "Individual limits configured" : "No individual limits")
+                    Text(LocalizedStringKey(hasLimits ? "LIMITS_INDIVIDUAL_LIMITS_CONFIGURED" : "LIMITS_NO_INDIVIDUAL_LIMITS"))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
