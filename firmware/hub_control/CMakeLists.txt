@@ -121,6 +121,20 @@ if(NP_BUILD_TESTS)
     target_compile_options(np_socket_dispatch_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
 
+    # OI-MMSOCK-02 / NP-FW-HUB-001 §5.4: which electrode areas, waveform
+    # classes and geometry gates the runner declares to the safety MCU.
+    # Extracted from np_runner_run(), which no host test can reach.
+    add_executable(np_chan_decl_tests
+        tests/np_chan_decl_tests.c
+        src/np_chan_decl.c
+    )
+    target_include_directories(np_chan_decl_tests PRIVATE
+        include
+        ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}
+    )
+    target_compile_options(np_chan_decl_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+
     add_executable(np_mod_stim_tests
         tests/np_mod_stim_tests.c
         modules/np_mod_stim.c
@@ -251,6 +265,7 @@ set(HUB_SOURCES
     src/np_lfs_instance.c         # OI-LFS-01: EMMC-FS-01 littlefs instance + mount validator
     src/np_pbm_cal_bridge.c       # OI-HUB-C06: UID-keyed calibration -> pbm seams
     src/np_socket_dispatch.c      # OI-FWHUB-01: socket-indexed dispatch registry
+    src/np_chan_decl.c            # OI-MMSOCK-02: electrode-geometry declarations to the safety MCU
     src/np_pbm_power_gov.c        # OI-FWHUB-09 / OI-HEXTILE-09: governor, CLOSED by default
     src/np_hub_freertos_hooks.c   # FreeRTOS app hooks (stack overflow, malloc, assert)
 

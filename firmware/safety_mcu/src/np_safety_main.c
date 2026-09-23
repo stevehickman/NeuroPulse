@@ -303,6 +303,9 @@ int main(void)
                 /* OI-CHARGE-04: the same, for the T1 tDCS channel's own gate. */
                 s_state.geom_required_tdcs =
                     (rx.session_status & NP_SESSION_STATUS_GEOM_REQ_TDCS) != 0U;
+                /* OI-MMSOCK-02: and for the BES/tACS channel's own gate.     */
+                s_state.geom_required_bes =
+                    (rx.session_status & NP_SESSION_STATUS_GEOM_REQ_BES) != 0U;
 
                 /* Reset watchdog on valid heartbeat */
                 np_spi_watchdog_tick(&s_state, &rx, &tx);
@@ -351,9 +354,10 @@ int main(void)
              * The channels that would otherwise keep the permissive 1000µC
              * default are held OFF meanwhile by np_charge_monitor_geom_gate():
              * CLIN_STIM on NP_SESSION_STATUS_GEOM_REQUIRED (OI-CHARGE-03) and
-             * TDCS on NP_SESSION_STATUS_GEOM_REQ_TDCS (OI-CHARGE-04).  Both
-             * bits ride every heartbeat, so a lost command cannot disarm
-             * either gate — the modality simply never starts.                 */
+             * TDCS on NP_SESSION_STATUS_GEOM_REQ_TDCS (OI-CHARGE-04), and
+             * BES_TACS on NP_SESSION_STATUS_GEOM_REQ_BES (OI-MMSOCK-02).  All
+             * three bits ride every heartbeat, so a lost command cannot disarm
+             * any gate — the modality simply never starts.                    */
         }
 
         /* ── Per-channel waveform-class frame (76 bytes, OI-CHARGE-05 (b)) ─── */

@@ -258,6 +258,12 @@
  *   VNS       2 mA, 250 µs pulse → 0.5 µC/phase ÷ 0.5 cm² = 1.0 µC/cm²
  *   CVNS      2 mA, 1000 µs      → 2.0 µC/phase ÷ 2.0 cm² = 1.0 µC/cm²
  */
+/* OI-MMSOCK-02 (2026-09-23): BES/tACS is now GATED on this area — the hub arms
+ * NP_SESSION_STATUS_GEOM_REQ_BES for every BES/tACS session and always sends it
+ * (np_chan_decl.c), so the safety MCU never applies its own fallback to BES.
+ * It stays a device constant because T1 tES stays on the fixed pads
+ * (NP-FW-MMSOCK-001 P-1); a lattice electrode's area comes with a tES socket
+ * target (OI-MMSOCK-10), not from here.                                      */
 #define NP_BES_ELECTRODE_AREA_MCM2   25000U  /* 25 cm² pad — PROVISIONAL */
 #define NP_VNS_ELECTRODE_AREA_MCM2     500U  /* 0.5 cm² auricular clip pad — PROVISIONAL */
 #define NP_CVNS_ELECTRODE_AREA_MCM2   2000U  /* 2 cm² cervical collar pad — PROVISIONAL */

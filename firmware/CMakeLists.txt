@@ -105,6 +105,7 @@
 #                             → np_protocol_tests         (hub protocol v2 socket-mask targets)
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
 #                             → np_socket_dispatch_tests  (OI-FWHUB-01 socket dispatch)
+#                             → np_chan_decl_tests        (OI-MMSOCK-02 electrode-geometry declarations)
 #   firmware/zone_announce/   → np_zone_announce_tests    (module-status frame encoder)
 #                             → np_zone_notify_tests      (app-notify dispatch)
 #   firmware/pbm/      → np_pbm_session_desc_tests (NP-SES-1064-001 v5 wire format)
@@ -327,6 +328,12 @@ if(NP_BUILD_TESTS)
     # power governor (OI-FWHUB-09).
     add_test(NAME np_socket_dispatch_tests
         COMMAND np_socket_dispatch_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # OI-MMSOCK-02: the electrode areas, waveform classes and geometry gates
+    # the runner declares to the safety MCU (NP-FW-HUB-001 §5.4).
+    add_test(NAME np_chan_decl_tests
+        COMMAND np_chan_decl_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_log_backend_tests

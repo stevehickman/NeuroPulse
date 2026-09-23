@@ -127,7 +127,11 @@ np_hub_status_t np_sock_disp_command(const np_session_cmd_t *cmd)
         return NP_HUB_ERR_INVALID_ARG;
     }
 
-    /* 1. Only a driven lattice emitter is socket-addressable. */
+    /* 1. Only a driven lattice emitter is socket-addressable. Electrode
+     *    modalities (EEG, tES, VNS) are refused here deliberately, not merely
+     *    unimplemented: a lattice electrode is a T1-B pod, and BES/tACS has no
+     *    declared area or geometry gate, so the safety MCU would check it
+     *    against the 25 cm² pad default (NP-FW-MMSOCK-001 §3.6, OI-MMSOCK-02). */
     if (!is_socket_addressable(cmd->mod_type)) {
         return NP_HUB_ERR_INVALID_ARG;
     }

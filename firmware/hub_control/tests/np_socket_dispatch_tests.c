@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control — Socket-Indexed Dispatch Host Tests (OI-FWHUB-01)
- * Document: NP-FW-HUB-001 Rev 2 §3.3, §5.6, §10
+ * Document: NP-FW-HUB-001 Rev 2 §3.3, §5.6, §10; NP-FW-MMSOCK-001 Rev 1 §3.6, §11
  *
  * np_socket_dispatch.c is the path by which a socket-addressed transcranial PBM
  * command reaches an emitter. Before it existed there was no such path at all;
@@ -86,7 +86,7 @@ np_hub_status_t np_hexmap_nvram_read(uint8_t *buf, size_t len, size_t *read_len)
     return NP_HUB_ERR_NOT_PRESENT;
 }
 
-typedef enum { TILE_EMPTY, TILE_BASE, TILE_SMART, TILE_EEG } tile_kind_t;
+typedef enum { TILE_EMPTY, TILE_BASE, TILE_SMART, TILE_EEG, TILE_T1B } tile_kind_t;
 
 static np_socket_geom_t g_geom[N_SOCKETS];
 static tile_kind_t      g_tile[N_SOCKETS];
@@ -110,8 +110,16 @@ static np_hub_status_t inv_cb(uint16_t socket_id, void *ctx,
         types_out[n++] = NP_ELEM_PD_FORWARD;
         types_out[n++] = NP_ELEM_NTC;
         break;
-    case TILE_EEG:      /* T1-B-like: an electrode, no emitter */
+    case TILE_EEG:      /* electrode only, no emitter */
         types_out[n++] = NP_ELEM_DUAL_ELECTRODE;
+        break;
+    case TILE_T1B:      /* T1-B as NP-HEX-ZM-001 §4a defines it: 660 + 808 around a
+                         * dual-rated electrode, PD, NTC */
+        types_out[n++] = NP_ELEM_LED_660;
+        types_out[n++] = NP_ELEM_LED_808;
+        types_out[n++] = NP_ELEM_DUAL_ELECTRODE;
+        types_out[n++] = NP_ELEM_PD_FORWARD;
+        types_out[n++] = NP_ELEM_NTC;
         break;
     default:
         break;
@@ -251,10 +259,12 @@ static void setup(void)
     }
     (void)np_module_map_init(g_geom, (uint16_t)N_SOCKETS);
 
-    /* 0-9 base, 10-19 smart, 20 EEG-only, 21+ empty. */
+    /* 0-9 base, 10-19 smart, 20 EEG-only, 21-22 T1-B, 23+ empty. */
     for (uint16_t s = 0; s < 10; s++)  { plug(s, TILE_BASE);  }
     for (uint16_t s = 10; s < 20; s++) { plug(s, TILE_SMART); }
     plug(20, TILE_EEG);
+    plug(21, TILE_T1B);
+    plug(22, TILE_T1B);
 
     np_sock_disp_reset();
     g_log_n = 0;
@@ -306,22 +316,75 @@ static void test_base_drive_all_sockets(void)
     check(g_admit_calls == 1, "governor consulted once");
 }
 
+/*
+ * REQ-FWHUB-33, pinned for every modality that uses an electrode rather than
+ * only for tDCS. NP-FW-MMSOCK-001 §3.6 is the reason: a lattice electrode is a
+ * T1-B pod of at most ~1.02 cm², BES/tACS has no declared area and no geometry
+ * gate, so the safety MCU would check it against the 25 cm² pad default — a
+ * ~24x fail-open (RISK-MMSOCK-01, OI-MMSOCK-02). Admitting any of these here
+ * "because it is just like PBM" is that hazard. The targets are aimed at a T1-B
+ * socket, so placement is not what refuses them.
+ *
+ * THE STOP IS THE DISCRIMINATING CASE. A stop skips every gate after gate 1, so
+ * only gate 1 can refuse it. A drive is refused by gate 1 too, but a mis-typed
+ * drive would ALSO die at the params gates (its block is read as the wrong
+ * struct), so the drive assertion alone cannot show gate 1 holds. Falsified:
+ * admitting NP_MOD_BES_TACS at gate 1 fails the stop assertion and not the
+ * drive one (NP-FW-MMSOCK-001 §11).
+ */
 static void test_not_socket_addressable(void)
 {
     setup();
-    const uint16_t s[] = { 1 };
+    const uint16_t s[] = { 21 };   /* a T1-B: carries NP_ELEM_DUAL_ELECTRODE */
+    static const np_hub_mod_type_t k_electrode_mods[] = {
+        NP_MOD_EEG, NP_MOD_BES_TACS, NP_MOD_TDCS, NP_MOD_VNS_HRV,
+        NP_MOD_CVNS, NP_MOD_CLIN_TACS, NP_MOD_HD_TDCS, NP_MOD_QEEG_21CH,
+    };
+    const unsigned n_mods = (unsigned)(sizeof k_electrode_mods / sizeof k_electrode_mods[0]);
+
+    unsigned drive_refused = 0U, stop_refused = 0U;
+    for (unsigned i = 0; i < n_mods; i++) {
+        np_session_cmd_t c = base_cmd(s, 1);          /* a well-formed params block */
+        c.mod_type = k_electrode_mods[i];
+        if (np_sock_disp_command(&c) == NP_HUB_ERR_INVALID_ARG) { drive_refused++; }
+        np_session_cmd_t st = stop_cmd(k_electrode_mods[i], s, 1);
+        if (np_sock_disp_command(&st) == NP_HUB_ERR_INVALID_ARG) { stop_refused++; }
+    }
+    check(drive_refused == n_mods, "every electrode modality's drive on a T1-B socket -> INVALID_ARG");
+    check(stop_refused == n_mods, "every electrode modality's stop on a T1-B socket -> INVALID_ARG");
+
     np_session_cmd_t c = base_cmd(s, 1);
-    c.mod_type = NP_MOD_TDCS;
-    check(np_sock_disp_command(&c) == NP_HUB_ERR_INVALID_ARG, "tDCS on a socket target -> INVALID_ARG");
     c.mod_type = NP_MOD_PBM_1170NM;
     check(np_sock_disp_command(&c) == NP_HUB_ERR_INVALID_ARG, "1170 nm on a socket target -> INVALID_ARG");
-    np_session_cmd_t st = stop_cmd(NP_MOD_EEG, s, 1);
-    check(np_sock_disp_command(&st) == NP_HUB_ERR_INVALID_ARG, "non-PBM stop on a socket target -> INVALID_ARG");
     check(count_ops('D') == 0 && g_admit_calls == 0, "nothing driven, governor not asked");
+    check(g_enable_calls == 0 && g_requested == 0U, "no enable of any kind requested");
 
     np_session_cmd_t slot = base_cmd(s, 1);
     slot.target_kind = NP_PROTO_TARGET_SLOT;
     check(np_sock_disp_command(&slot) == NP_HUB_ERR_INVALID_ARG, "slot-kind command refused here (no cross-routing)");
+}
+
+/*
+ * PBM on a T1-B's emitters is admitted exactly like PBM on a T1-A: the
+ * electrode element is neither required nor a reason to refuse. The principal
+ * decided P-3 this way on 2026-09-23 (NP-FW-MMSOCK-001 §3.2, §7.2): PBM and EEG
+ * may share a T1-B.
+ */
+static void test_pbm_on_t1b_admitted(void)
+{
+    setup();
+    const uint16_t s[] = { 21, 22, 3 };   /* two T1-B and one T1-A in one command */
+    np_session_cmd_t c = base_cmd(s, 3);
+    check(np_sock_disp_command(&c) == NP_HUB_OK, "base PBM on T1-B + T1-A sockets -> OK");
+    check(count_ops('D') == 3 && np_sock_disp_active_count() == 3, "all three driven");
+    check(np_sock_disp_socket(21)->mod_type == NP_MOD_PBM_BASE, "T1-B socket recorded as base PBM");
+    check(cranial_requested(), "cranial enable requested for a T1-B drive");
+
+    setup();
+    const uint16_t t[] = { 21 };
+    np_session_cmd_t sm = smart_cmd(t, 1, 0x04);   /* T1-B carries no 1064 nm */
+    check(np_sock_disp_command(&sm) == NP_HUB_ERR_NOT_PRESENT,
+          "1064 nm on a T1-B -> NOT_PRESENT (placement by emitter, not by tile name)");
 }
 
 static void test_malformed(void)
@@ -534,6 +597,7 @@ int main(void)
     test_power_refusal_drives_nothing();
     test_base_drive_all_sockets();
     test_not_socket_addressable();
+    test_pbm_on_t1b_admitted();
     test_malformed();
     test_placement_all_or_nothing();
     test_driver_fault_rolls_back();

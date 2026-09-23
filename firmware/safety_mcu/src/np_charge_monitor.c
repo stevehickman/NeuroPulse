@@ -72,6 +72,12 @@
  *   no declared geometry (unreachable for tDCS and HD-tDCS), and 35 is the app's
  *   authoring default for a standard sponge pad, transmitted and enforced.
  *
+ * OI-MMSOCK-02 (2026-09-23, NP-FW-MMSOCK-001 §5.3 C-1) — BES/tACS declares its
+ *   electrode geometry too, on NP_SESSION_STATUS_GEOM_REQ_BES, and is gated
+ *   fail-closed exactly as TDCS is.  It was the last electrical channel still
+ *   checked against the 25 cm² fallback; a ≤1.02 cm² T1-B lattice electrode
+ *   would have been allowed ~24x its per-phase ceiling.  PENDING SW-01 REVIEW.
+ *
  * OI-CHARGE-05 CLOSED (2026-09-15) — the waveform split above, the two sourced
  *   ceilings in np_safety_config.h, and the fail-closed DECLARATION gate:
  *   np_charge_monitor_decl_gate() clears any ELECTRICAL channel whose waveform
@@ -116,6 +122,7 @@ static uint32_t s_phase_us[NP_SAFETY_MAX_CHANNELS];
  * close — the gate on the other.                                             */
 static bool     s_geom_applied_clin_stim;
 static bool     s_geom_applied_tdcs;
+static bool     s_geom_applied_bes;
 
 /* ── Limit derivation ─────────────────────────────────────────────────────── */
 /*
@@ -173,6 +180,7 @@ static void clear_session_state(void)
     memset(s_phase_us,      0, sizeof(s_phase_us));
     s_geom_applied_clin_stim = false;
     s_geom_applied_tdcs      = false;
+    s_geom_applied_bes       = false;
 }
 
 np_safe_status_t np_charge_monitor_init(void)
@@ -236,6 +244,8 @@ void np_charge_monitor_set_channel_area_mcm2(uint8_t channel, uint16_t area_mcm2
             s_geom_applied_clin_stim = true;
         } else if (channel == NP_SAFETY_CH_TDCS) {
             s_geom_applied_tdcs = true;
+        } else if (channel == NP_SAFETY_CH_BES_TACS) {
+            s_geom_applied_bes = true;          /* OI-MMSOCK-02 */
         } else {
             /* no gate on other channels */
         }
@@ -295,6 +305,9 @@ void np_charge_monitor_set_channel_waveform(uint8_t  channel,
  *
  *   CLIN_STIM — state->geom_required      (NP_SESSION_STATUS_GEOM_REQUIRED)
  *   TDCS      — state->geom_required_tdcs (NP_SESSION_STATUS_GEOM_REQ_TDCS)
+ *   BES_TACS  — state->geom_required_bes  (NP_SESSION_STATUS_GEOM_REQ_BES,
+ *               OI-MMSOCK-02: without it BES/tACS is checked against the 25 cm²
+ *               fallback, ~24x permissive for a T1-B lattice electrode)
  *
  * The two are independent by construction.  Clinical tACS shares the CLIN_STIM
  * enable bit but declares no geometry, so it is never blocked; and because the
@@ -308,6 +321,9 @@ void np_charge_monitor_geom_gate(np_safety_state_t *state)
     }
     if (state->geom_required_tdcs && !s_geom_applied_tdcs) {
         state->granted_mask &= (uint16_t)~NP_SAFETY_EN_TDCS;
+    }
+    if (state->geom_required_bes && !s_geom_applied_bes) {
+        state->granted_mask &= (uint16_t)~NP_SAFETY_EN_BES_TACS;
     }
 }
 

@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 2
+**Revision:** 3
 **Date:** 2026-09-23
 **Status:** RELEASED as a design output under `21 CFR §820.30(d)`. **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -17,6 +17,18 @@
 
 ---
 
+> **Rev 3 (2026-09-23) — BES/tACS gets its own fail-closed geometry gate, and a latent defect in the
+> area hand-off is fixed.** `NP-FW-MMSOCK-001` P-5 (principal, 2026-09-23) took Class C change C-1:
+> `NP_SESSION_STATUS_GEOM_REQ_BES` (bit 4) and a third arm of `np_charge_monitor_geom_gate()`, so the
+> safety MCU no longer applies its 25 cm² fallback to BES/tACS on trust (§5.4, §7.4, `REQ-FWHUB-36`).
+> **Pending SW-01 review.** Writing it found that the runner sent the area frame **only** when a
+> session held HD-tDCS or tDCS, so the fixed BES, VNS (0.5 cm²) and cervical-VNS (2 cm²) areas were
+> computed and dropped in every other session and the MCU enforced 25 cm² instead — **50× looser than
+> designed on the auricular clip** (`RISK-FWHUB-15`). The scan is now `src/np_chan_decl.c`, extracted
+> from the ARM-only runner so it is host-tested (`np_chan_decl_tests`, Class B 31 → 32, total 39 → 40),
+> and it sends every area it computes (`REQ-FWHUB-37`). No wire-format change: the BES pad area stays
+> the fixed device constant `OI-CHARGE-07` made it, because T1 tES stays on pads (`NP-FW-MMSOCK-001` P-1).
+>
 > **Rev 2 (2026-09-23) — `OI-FWHUB-01` is closed: the socket-indexed dispatch registry exists, and
 > transcranial PBM still does not run, now for exactly one named reason.**
 >
@@ -566,6 +578,21 @@ onto the Class B side.
 |---|---|---|
 | `NP_SAFETY_CH_CLIN_STIM` (13) | implied by the HD-tDCS montage code — ring / bilateral 4×1 use 3.5 mm electrodes | fixed `NP_HD_SMALL_ELECTRODE_AREA_MCM2` = 96 milli-cm², **floored** so the derived limits can only err low |
 | `NP_SAFETY_CH_TDCS` (6) | declared per protocol in the signed descriptor (`electrode_area_mcm2`) | **the smallest declared area wins** across several tDCS commands |
+| `NP_SAFETY_CH_BES_TACS` (5) — **Rev 3** | the fixed pad constant `NP_BES_ELECTRODE_AREA_MCM2` (25 cm², PROVISIONAL, `OI-CHARGE-07`) | **gated** on its own bit (`OI-MMSOCK-02`): a pad is a fixed product part, so firmware may hold its area — but the MCU is no longer left to assume it |
+| `NP_SAFETY_CH_VNS_HRV` (7), `NP_SAFETY_CH_CVNS` (10) | fixed constants, 0.5 cm² and 2 cm² (`OI-CHARGE-07`) | not gated; **sent in every session that commands them** (Rev 3 — see below) |
+
+**The scan is `np_chan_decl_build()` (Rev 3).** It was inline in `np_runner_run()`, which is ARM-cross-only
+and reached by no host test, and it arms Class C gates — so it was extracted to `src/np_chan_decl.c` and
+is tested by `np_chan_decl_tests`. The runner arms the gates it returns, then sends the area frame, then
+the waveform frame, in that order.
+
+**Every area it computes is sent (Rev 3, `REQ-FWHUB-37`).** Until Rev 3 the area frame went out only
+when the session held an HD-tDCS or tDCS command. The fixed BES, VNS and cervical-VNS areas were computed
+into the frame and then **dropped in every other session**, and the safety MCU enforced its 25 cm²
+fallback: 50× looser than designed on the 0.5 cm² auricular clip, 12.5× on the cervical collar. At rated
+VNS parameters the per-phase charge is ~3 % of even the intended ceiling, so no dose exceeded a limit —
+but the Class C argument that divides by 0.5 cm² (`OI-CHARGE-07`, `NP-HW-VNSCLIP-001` §5.2) was not what
+ran. `RISK-FWHUB-15`. Falsified: restoring the old send rule fails the VNS-only and cervical-VNS-only cases.
 
 T1 tDCS pad area is not implied by anything else the descriptor carries — `electrode_pair` names
 10-20 sites, not pad sizes — so it travels in the signed descriptor, and the app pre-flight and this
@@ -574,10 +601,11 @@ enforcer divide by the same declared number.
 **The fail-closed gates are the point.** A tDCS command declaring **no** area leaves `area_mcm2` at 0
 ("keep default" to the MCU) *while still arming the tDCS geometry gate*, so the MCU never grants
 `TDCS` at all. Silently running such a protocol against the 25 cm² fallback is the fail-**open**
-behaviour `OI-CHARGE-03` rejected. The two gates are deliberately **separate flags**
-(`set_geom_required` for `CLIN_STIM`, `set_geom_required_tdcs` for `TDCS`) because the gates are
-per-channel: declaring tDCS geometry must not gate off clinical tACS, which shares the `CLIN_STIM`
-enable bit and declares no geometry.
+behaviour `OI-CHARGE-03` rejected. The **three** gates are deliberately **separate flags**
+(`set_geom_required` for `CLIN_STIM`, `set_geom_required_tdcs` for `TDCS`, and — Rev 3 —
+`set_geom_required_bes` for `BES_TACS`) because the gates are per-channel: declaring tDCS geometry must
+not gate off clinical tACS, which shares the `CLIN_STIM` enable bit and declares no geometry, and a tDCS
+area must not open the BES gate.
 
 ### 5.5 Shutdown
 
@@ -815,10 +843,11 @@ than a Class B one.
 
 ### 7.4 Geometry gates
 
-While `set_geom_required` / `set_geom_required_tdcs` is set, every heartbeat carries the
-corresponding `session_status` bit and the MCU keeps that channel **out of `granted_mask`** until it
-has applied a valid electrode-area command. A lost or delayed area command therefore fails **closed**.
-Both are cleared on session end/abort and by `np_safety_spi_disable_all()`. See §5.4.
+While `set_geom_required` / `set_geom_required_tdcs` / `set_geom_required_bes` is set, every heartbeat
+carries the corresponding `session_status` bit (2, 3, 4) and the MCU keeps that channel **out of
+`granted_mask`** until it has applied a valid electrode-area command. A lost or delayed area command
+therefore fails **closed**. All three are cleared on session end/abort and by
+`np_safety_spi_disable_all()`. Bits 5–7 of `session_status` remain unused. See §5.4.
 
 ### 7a. Cervical VNS re-enable manager
 
@@ -1089,6 +1118,8 @@ this line.
 | `REQ-FWHUB-33` | Only `NP_MOD_PBM_BASE` / `NP_MOD_PBM_SMART` are socket-addressable | §3.4 gate 1; `np_socket_dispatch_tests` |
 | `REQ-FWHUB-34` | A socket stop is always admitted; `NP_SAFETY_EN_PBM_CRANIAL` is requested only after a command's sockets are all configured and released only when none is active — or at once, with every socket stopped, when a stop fails | §3.4; `np_socket_dispatch_tests` |
 | `REQ-FWHUB-35` | No socket drive command is admitted without `np_pbm_power_admit()`, and the definition that ships refuses every load until the `OI-HEXTILE-09` governor exists | §5.6; `np_socket_dispatch_tests` links the production definition and asserts it |
+| `REQ-FWHUB-36` | **(Rev 3)** A session containing a BES/tACS command arms `NP_SESSION_STATUS_GEOM_REQ_BES`, so the safety MCU grants BES/tACS only after an area for that channel has been applied. *Fails without it:* BES/tACS is enforced against the 25 cm² fallback on trust — 24× permissive on a T1-B lattice electrode (`NP-FW-MMSOCK-001` §3.6.1). *Traced to:* DI-SAFE-01a; `OI-MMSOCK-02` | §5.4, §7.4; `np_chan_decl_tests`, `np_charge_monitor_tests`, `np_safety_spi_proto_tests` |
+| `REQ-FWHUB-37` | **(Rev 3)** Every electrode area the runner computes is sent to the safety MCU. *Fails without it:* the MCU enforces its 25 cm² fallback in place of the fixed VNS / cervical-VNS / BES areas — 50× looser than designed on the auricular clip. *Traced to:* DI-SAFE-01a; `OI-CHARGE-07` | §5.4; `np_chan_decl_tests` (falsified against the old send rule) |
 
 ### 10.2 Requirements the code does NOT currently meet
 
@@ -1150,6 +1181,8 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | D-25 | A socket drive command is all-or-nothing across placement, power and driver faults | §3.4 |
 | D-26 | The dispatcher owns `NP_SAFETY_EN_PBM_CRANIAL` and releases it only when no socket is active, except on a failed stop | §3.4 |
 | D-27 | The power governor ships refusing every load rather than as a plausible approximation | §5.6 |
+| D-28 | **(Rev 3)** BES/tACS is gated on its own bit, with its area the fixed pad constant rather than an authored field — no wire-format change while T1 tES stays on pads (`NP-FW-MMSOCK-001` P-1) | §5.4 |
+| D-29 | **(Rev 3)** The runner's geometry scan is a pure, host-tested function rather than inline in an ARM-only loop | §5.4 |
 
 ---
 
@@ -1171,6 +1204,8 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | `RISK-FWHUB-09` | Emission into a lifted goggle | High | Hall cutoff is a GPIO interrupt, plus three independent layers (§8.6) | Accepted |
 | `RISK-FWHUB-11` | Boot-time module authentication is not evidenced in fleet telemetry | Low | **was unmitigated — the records were discarded.** Fixed 2026-09-14 (§2.1) and held by `scripts/check-hub-bringup-order.ts`, falsified against the pre-fix commit | Accepted; records-integrity only, no emission path |
 | `RISK-FWHUB-10` | Per-tile PBM drive magnitude bounded only by a thermal cutoff | Medium | carried, not closed — `OI-NVRAM-10`; re-derive §9 before a differing tile variant ships | **Open** |
+| `RISK-FWHUB-15` | **(Rev 3)** A fixed electrode area (VNS 0.5 cm², cervical VNS 2 cm², BES 25 cm²) is computed and not sent, so the Class C per-phase ceiling is enforced against the 25 cm² fallback | Medium — **was live** in every session without HD-tDCS or tDCS; no rated dose reached even the intended ceiling (VNS ~3 %) | **Fixed in Rev 3**: every computed area is sent (`REQ-FWHUB-37`), held by `np_chan_decl_tests`, falsified against the old rule | Accepted |
+| `RISK-FWHUB-16` | **(Rev 3)** BES/tACS reaches an electrode smaller than 25 cm² and is enforced against the fallback | High | **not reachable** — tES is not socket-addressable (`REQ-FWHUB-33`) | own geometry gate, fail-closed (`REQ-FWHUB-36`); a lattice electrode's area arrives with a tES socket target (`NP-FW-MMSOCK-001` P-2) | Accepted pending SW-01 review |
 
 ---
 
@@ -1243,5 +1278,6 @@ have absorbed.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 3 | 2026-09-23 | NeurOne Firmware Engineering | **BES/tACS geometry gate (`NP-FW-MMSOCK-001` P-5, C-1) and the area-hand-off defect.** New `NP_SESSION_STATUS_GEOM_REQ_BES` (bit 4, previously unused) and a third arm of the safety MCU's geometry gate — **Class C, pending SW-01 review**; no enable-word bit and no frame byte moves. The hub arms it for every BES/tACS session and sends the fixed pad area (D-28; `REQ-FWHUB-36`). **Found while writing it:** the area frame was sent only in sessions holding HD-tDCS or tDCS, so VNS, cervical-VNS and BES areas were silently dropped elsewhere and the MCU enforced 25 cm² — 50× loose on the auricular clip (`RISK-FWHUB-15`, fixed; `REQ-FWHUB-37`). The scan moved to `src/np_chan_decl.c` (D-29) with `np_chan_decl_tests` (Class B 31 → 32, total 39 → 40); every mutation of the send rule, the BES arming and the two Class C gate lines is caught. §5.4, §7.4, §10.1, §11, §12 updated. Cross-compiled for both processors on arm-none-eabi-gcc 13.2.1. |
 | 2 | 2026-09-23 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-01` — the socket dispatch registry — and moves its blocking status to the power governor rather than lifting it.** New §3.4: `src/np_socket_dispatch.c`, a 128-entry socket-indexed registry beside the slot registry, with no fallback between the two (`REQ-FWHUB-31`); admission is all-or-nothing across mod-type, params, placement against the live `np_module_map` inventory, power, and driver faults with rollback (`REQ-FWHUB-32`, `-33`); the registry owns `NP_SAFETY_EN_PBM_CRANIAL`, requesting it after a command's sockets are configured and releasing it only when none is active, or at once when a stop fails (`REQ-FWHUB-34`). Driver seam: `np_mod_pbm_socket_drive()` / `_stop()` in `np_mod_pbm.c`, and one new platform seam `np_mod_pbm_hal_socket_pwm_set()` (SW-02 census 97 → 98). **§5.6 rewritten: opening the path makes `NP-HW-HEXTILE-001` §9.3's governor requirement live** — `scripts/check-pbm-power.ts` reads 20 of 23 predefined transcranial protocols over the 40 W budget — and that governor cannot be written (`OI-HEXTILE-09`, `OI-SESPWR-03`, `OI-HEXTILE-02`), so `np_pbm_power_admit()` ships **refusing every load** (`REQ-FWHUB-35`, D-27). **Transcranial PBM therefore still does not execute**; `OI-FWHUB-09` (blocking) replaces `OI-FWHUB-01` as the reason, and `REQ-FWHUB-25/26` stay in §10.2 against it. New `NP_HUB_ERR_POWER_BUDGET` (−18). `np_socket_dispatch_tests` (Class B 30 → 31, total 38 → 39): 14 cases linking the real module map and socket expansion, and the production governor renamed so what ships is asserted closed; seven mutations of the dispatcher and governor each caught (three survived the first draft of the suite and each gained a case). Raised: `OI-FWHUB-10` (socket telemetry and dose metering), `-11` (`HUB-REQ-C05` cluster gate not commanded), `-12` (the PBM I²C stub's five-slot bound). `OI-FWHUB-05` unblocked. Risks `RISK-FWHUB-12…14` added; `RISK-FWHUB-01` re-described. Decisions D-24…D-27. |
 | 1 | 2026-09-13 | NeurOne Firmware Engineering | **Initial release — closes `OI-DOC-01` (Issue #339) by authoring the specification that had been cited as governing since 2026-05-16 without existing.** Written against `firmware/hub_control/` as on `main`, back-dating nothing: 26 requirements met by the code (§10.1), 4 explicitly **not** met and carried as open items (§10.2), 23 decisions, 11 risk rows, 13 design-review checks, 8 open items of which 4 close here. **Four findings that did not survive being written down:** (i) transcranial PBM — CLAUDE.md §3 modality ① — **has no dispatchable path at all**, because `np_mod_pbm_*` sits only in the five retired zone slots the parser rejects *and* socket-addressed commands are dropped by `dispatch_command()`; each half was individually documented and fail-closed, their conjunction was not (`OI-FWHUB-01`, blocking); (ii) three source files cited a `Rev 2` of a document that had no `Rev 1` — re-pointed to §8.9 and §6.4 in this change (`OI-FWHUB-02`, closed); (iii) the wire format has been revised twice (`slot_mask` → `slot_id` + target block; `electrode_area_mcm2`) while the register still described `Rev 1`, because **a register entry naming an unreadable document cannot go visibly stale**; and **(iv) writing the bring-up table found two live defects in `np_hub_control_app_main()`, and both are FIXED in this change** — `np_mod_reg_scan()` ran before `np_log_init()`, so every boot-time SHDR zone-auth record was stamped with a session count of 0 and then discarded when the logger zeroed its buffer, meaning module authentication reached SHDR not at all, under a source comment three lines away asserting the opposite (`OI-FWHUB-07`); and the file banner and the document register both said "four tasks" where the code creates five, `task_protocol_rx` having been omitted (`OI-FWHUB-08`). Also records that §4 is the specification `hubCompiler.ts` compiles against and that no mechanical check enforces their agreement (`OI-FWHUB-03`), contrary to `NP-CONV-001` §8. **Both fixes are gated, not merely applied:** `np_hub_control_app_main()` is ARM-cross-only and reachable by no host test — which is how a defect dating to 2026-05-16 survived — so `scripts/check-hub-bringup-order.ts` asserts the four ordering constraints and the task count against the function itself, and was falsified **against the pre-fix commit**, where it reports exactly those two violations (`NP-CONV-001` §8). Beyond those two fixes and three corrected `Document:` banners, no code behaviour changed. **§2.1, §2.2, §10, §12 and §13 were amended within this same unmerged change to describe the corrected code rather than the code as first found; Rev 1 is issued once, describing what merges.** |
