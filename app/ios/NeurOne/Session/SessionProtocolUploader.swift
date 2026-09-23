@@ -64,7 +64,7 @@ final class SessionProtocolUploader: ObservableObject {
     // Validates the definition against hardware safety limits, converts to
     // the NPSessionProtocol wire format, signs, and uploads.
     func upload(_ definition: NPProtocolDefinition) async throws {
-        try await upload(try buildWireProtocol(from: definition))
+        try await send(try buildWireProtocol(from: definition))
     }
 
     /// Set by the "this is a different person" confirmation; consumed by the next cervical
@@ -99,9 +99,12 @@ final class SessionProtocolUploader: ObservableObject {
         }
     }
 
-    // Upload a session protocol to the hub (Mode 2 Programming).
-    // On success the hub enters Mode 2: it will run this protocol when triggered.
-    func upload(_ proto: NPSessionProtocol) async throws {
+    // Send an already-built wire protocol to the hub. PRIVATE on purpose: every upload enters
+    // through a definition (upload(_:) / programAutonomous(_:)), so it passes
+    // buildWireProtocol's checks — including the cervical gate — and the protocol menu shows
+    // the same message or confirmation whichever mode it was sent in. A public wire-level
+    // entry point was a way round that gate (NP-SW-FAULTMSG-001 §9.5).
+    private func send(_ proto: NPSessionProtocol) async throws {
         guard gatt.isHubConnected else { throw UploadError.bleNotReady }
         isUploading = true
         lastError = nil
@@ -173,15 +176,9 @@ final class SessionProtocolUploader: ObservableObject {
     // Forces the protocol's operating mode to `.mode3Autonomous` so the hub
     // runs it standalone from any USB-C PD power bank without a phone present
     // (CLAUDE.md §4.6). Intended to be invoked from the setup flow.
-    func programAutonomous(_ proto: NPSessionProtocol) async throws {
-        var autonomous = proto
-        autonomous.mode = .mode3Autonomous
-        try await upload(autonomous)
-    }
-
     func programAutonomous(_ definition: NPProtocolDefinition) async throws {
         // Build with mode3Autonomous so the hub enters fully-autonomous operation.
-        try await upload(try buildWireProtocol(from: definition, mode: .mode3Autonomous))
+        try await send(try buildWireProtocol(from: definition, mode: .mode3Autonomous))
     }
 
     // Validate a definition against hardware safety limits and convert it to

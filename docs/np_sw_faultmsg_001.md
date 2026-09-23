@@ -288,6 +288,10 @@ and no hub publishes them yet.
   Both must be recorded against RISK-25.
 - **Auricular VNS is not in the CARDIAC mask.** Whether it belongs there is a hazard-analysis
   question, not an implementation one.
-- **One path skips the app's check.** `upload(_ proto: NPSessionProtocol)` on iOS bypasses the
-  cervical check. The safety MCU still holds the block, so this is a wording gap, not a safety
-  gap.
+- ~~**One path skips the app's check.**~~ *Fixed 2026-09-23.* The wire-level
+  `upload(_ proto: NPSessionProtocol)` and `programAutonomous(_ proto: NPSessionProtocol)` on iOS
+  were public, and they skipped the checks the definition path runs. Both are now private. Every
+  upload, Mode 2 or Mode 3, enters through a protocol definition, passes the same cervical check
+  and shows the same message and "is this your profile?" confirmation in the protocol menu. The
+  wire format has no cervical VNS case, so the old path could not actually send cervical
+  stimulation; the gap was the unchecked entry point, not a cervical session that went unchecked.

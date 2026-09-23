@@ -257,6 +257,34 @@ final class SessionProtocolUploaderTests: XCTestCase {
         }
     }
 
+    /// Mode 3 goes through the same gate and throws the same errors, so the protocol menu shows
+    /// the same message and confirmation whichever mode the wearer chose.
+    func testAutonomousProgrammingUsesTheSameCervicalGate() async throws {
+        let gateway = MockProtocolUploadGateway()
+        gateway.cervicalRestartBlocked = true
+        let uploader = SessionProtocolUploader(gatt: gateway)
+        do {
+            try await uploader.programAutonomous(cervicalDefinition())
+            XCTFail("Mode 3 must not get round an unread cardiac cutoff")
+        } catch UploadError.cervicalRestartBlocked {
+            // expected
+        }
+        XCTAssertEqual(gateway.uploadCallCount, 0)
+
+        gateway.cervicalRestartBlocked = false
+        gateway.cervicalOutstandingForAnotherUser = true
+        do {
+            try await uploader.programAutonomous(cervicalDefinition())
+            XCTFail("Mode 3 must ask the different-person question too")
+        } catch UploadError.differentPersonConfirmationRequired {
+            // expected
+        }
+        XCTAssertEqual(gateway.uploadCallCount, 0)
+        uploader.confirmDifferentPerson()
+        try await uploader.programAutonomous(cervicalDefinition())
+        XCTAssertGreaterThan(gateway.uploadCallCount, 0)
+    }
+
     func testNonCervicalProtocolUnaffectedByCardiacCutoff() async throws {
         let gateway = MockProtocolUploadGateway()
         gateway.cervicalRestartBlocked = true
