@@ -25,7 +25,7 @@
   lockout, which cannot exist on this device. It is now P2 until the controls are verified on
   hardware, with P1 as the target.
 
-No requirement, threshold or implementation changed. Pending the Quality Lead's sign-off.
+No requirement, threshold or implementation changed. Ratings approved by the Quality Lead (interim: Steve Hickman, CEO) 2026-09-23.
 
 **Rev 6 (2026-09-23): the cardiac cutoff survives power loss, is held per user, and withholds cervical VNS only; the UHDR record says which fault stopped the session (`NP-SW-FAULTMSG-001` Rev 2, principal decisions 2026-09-22).** Three changes.
 - **§5.4 step 2c now holds across a power-on reset.** It used to hold only while the device stayed powered, and the headset has no battery. In Mode 3, unplugging the power bank cleared the lockout, and `REQ-CVNS-09`'s app confirmation was skipped (`OI-FAULTMSG-01`). The safety MCU now records the cutoff in its own flash (new §5.4.1).
@@ -779,7 +779,7 @@ Hardware FAI (CV01 bench, CV02 timing, CV03 clinical) PENDING — blocking for T
 | Residual probability | **P2 — Remote** now, because no control is yet verified on hardware; **P1** target after FAI-CV02, silicon verification of §5.4.1, `OI-CVNS-11` and `OI-CVNSHW-03` (`NP-RISK-002` §4.3) |
 | Residual risk | **S5 × P2 = ALARP** (target S5 × P1, still ALARP). ALARP justification: `NP-RISK-002` §4.3.4. *Before 2026-09-23 this read "Low", which the `NP-RM-001` matrix cannot produce at S5* |
 | Verification | FAI-CV02: measured cutoff latency ≤ 100 ms (10 consecutive trials) |
-| Status | **ALARP — re-scored 2026-09-23, pending Quality Lead sign-off**; verification pending (FAI-CV02, silicon) |
+| Status | **ALARP — re-scored 2026-09-23, approved by the Quality Lead (interim: Steve Hickman, CEO) 2026-09-23**; verification pending (FAI-CV02, silicon) |
 
 ---
 

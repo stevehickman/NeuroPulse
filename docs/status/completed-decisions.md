@@ -311,7 +311,7 @@ Entries sharing a date keep the relative order they had before the reordering.
     - Silicon, the ARM build, Swift compilation and the Android `:app` module are unverified.
     - RISK-25 is not re-scored.
   - **No threshold, latency, lockout duration, SHDR field, price or CLAUDE.md text changed.**
-- **2026-09-23 — RISK-25 re-scored: S5 × P2 = ALARP, not "LOW / MITIGATED" (`NP-RISK-002` Rev 5 §4.3; `NP-FW-CVNS-001` Rev 7 §13; `NP-FMEA-001` Rev 8), at the Quality Lead's direction; ratings pending sign-off:**
+- **2026-09-23 — RISK-25 re-scored: S5 × P2 = ALARP, not "LOW / MITIGATED" (`NP-RISK-002` Rev 5 §4.3; `NP-FW-CVNS-001` Rev 7 §13; `NP-FMEA-001` Rev 8), at the Quality Lead's direction; ratings approved by the Quality Lead (interim: Steve Hickman, CEO) 2026-09-23:**
   - **Trigger:** the `NP-SW-FAULTMSG-001` Rev 2 design change.
   - **The recorded rating was wrong three ways:**
     - The severity was scored S4, while `NP-RM-001` §4.1 names this exact harm as its S5 example.
