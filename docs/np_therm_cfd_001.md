@@ -43,7 +43,7 @@ Radial layer stack (from np_helmet_geom_001 §2), scalp → exterior:
 | src | **LED plane (heat source)** | — | §4 |
 | L1 | module body + socket (glass-filled PBT) + BN boss | 12–16 + 2.5 mm | BN boss at the heat pickup |
 | gap2 | inter-bowl air + clamp | 5–7 mm | |
-| L2 | absorber foam / Pd-poly / mu-metal | 3 / 0.1 / 0.2 mm | |
+| L2 | ~~absorber foam /~~ Pd-poly / mu-metal | ~~3 /~~ 0.1 / 0.2 mm | **Absorber deleted 2026-09-23** (`REQ-CAV-04`); the outer bowl is re-lofted 3 mm inward, so the gap2 row is unchanged and L2 closes up. Model it this way in the verification-grade run |
 | L3 | CFRP shell | 2.5 mm | outer convective face |
 
 ---

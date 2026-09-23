@@ -8,7 +8,7 @@
 - Required standards: IEC 60601-1, IEC 60601-2-10, IEC 62471, IEC 62133, FCC Part 15
 - Cybersecurity: SBOM, vulnerability disclosure policy, documented OTA update approach
 - FTC claims substantiation: 33-entry bibliography maps each marketing claim to supporting citations
-  - **The EMF shielding claim is not in that bibliography.** CLAUDE.md §1 calls the 5-layer stack the
+  - **The EMF shielding claim is not in that bibliography.** CLAUDE.md §1 calls the 4-layer stack (5-layer before the 2026-09-23 Layer 4 deletion) the
     product's primary technical differentiator and `competitive-position.md` carries published copy for
     it, but no entry here, in `clinical.md` or in the 33-entry set covers it. The evidence record is
     **`docs/np_bib_emf_001.md` (NP-BIB-EMF-001)**, added 2026-09-15. Read it before substantiating any

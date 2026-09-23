@@ -142,7 +142,7 @@ bridge is a locked adjustment range, not an adjustable one.
 
 ### 4.4 EMF envelope
 
-The five-layer stack (CLAUDE.md §4.3) is an enclosure property. An enlarged enclosure is a different
+The four-layer stack (CLAUDE.md §4.3; five-layer until the Layer 4 absorber was deleted 2026-09-23) is an enclosure property. An enlarged enclosure is a different
 enclosure; the 35–45 dB ELF / 40–60 dB RF figure that every §1 claim rests on is measured, and would
 be re-measured.
 

@@ -2,20 +2,34 @@
 
 **Project:** NeurOne
 **Document:** NP-THERM-COOL-001
-**Revision:** 12
-**Date:** 2026-09-08
+**Revision:** 13
+**Date:** 2026-09-23
 **Status:** DRAFT — DESIGN STUDY. Not a tooling, firmware or release baseline. Modifies no locked section and changes no safety requirement.
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
 **Approved By:** — (pending design review)
 **References:** NP-THERM-CFD-R1-001 Rev 1 (§2 the resistance network, §3 the inward-flux ceiling, §5 BN-boss export study, §5.3 findings, OI-R1-01…05); NP-THERM-CFD-001 (BC spec, case matrix); NP-THERM-CFD-C2-001 (§2 stack-up, §7 the 1D network); NP-THERM-BEZEL-001 (THERM-1 coupling, the 0.6–1.0 mm scalp gap); NP-REQ-FANHEALTH-001 (SR-FAN-01…06, Path B1); NP-PWR-BUDGET-001 Rev 3 (§3.2 aggregate estimate, §3.3 the three levers, OI-PWR-01/08); NP-PWRSRC-001 Rev 1 (§4.1 the cavity wall, §7.0 coverage 2/23); NP-HEX-ZM-001 (§5.1–5.3 two-bowl shell, §5.3a rim slot, §5.3c posterior boss, §5.3d mu-metal continuity); NP-DRV-SHELL-002 Rev 2 (§4.3 one aperture, segregated returns); NP-ENV-001 (§1 two envelopes, §2 survival, §5 humidity survival-only); NP-ENV-OPRANGE-001 (§1 the derate definition, §2 per-modality ambient bounds); NP-FW-POE-001 (§3 the POE block, §5 the min() rule, §6.1 the hard-edge hysteresis — the consumers of §7.4); NP-PWR-BUDGET-001 Rev 3 §3.4 (the efficacy floor); NP-PWRSRC-001 Rev 1 §5.5 (CEM43 and time-at-ceiling); NP-DT-001 Rev 2 (DI-SAFE-13); NP-HELMET-GEOM-001 (§2 radial stack, §8 THERM-1a gate); CLAUDE.md §4.2 (42/62 °C interlocks), §4.3 (EMF stack), §4.5 (power); IEC 60601-1 (42 °C applied part); `scripts/check-thermal-network.ts` (§17 the derate semantics, §18 the hysteresis sizing); `firmware/safety_mcu/src/np_thermal_interlock.c` + `np_safety_config.h` (the 62/55 °C junction re-arm precedent §7.5.1 declines to copy)
 **Related Issues:** —
-**Gate:** No gate. D-1, D-2, D-3 and D-4 are all **decided** (2026-08-30/31 and 2026-09-02/03); raises `OI-THCOOL-01…20`, of which `OI-THCOOL-16` and `OI-THCOOL-17` are closed. **`OI-THCOOL-06` was closed 2026-08-30 and REOPENED 2026-09-20 against the posterior-boss collar** (principal direction) — it is BLOCKING again, on `OI-EMCCAV-10` and MECH-1's boss cut.
+**Gate:** No gate. D-1, D-2, D-3 and D-4 are all **decided** (2026-08-30/31 and 2026-09-02/03); raises `OI-THCOOL-01…21`, of which `OI-THCOOL-16` and `OI-THCOOL-17` are closed. **`OI-THCOOL-06` was closed 2026-08-30 and REOPENED 2026-09-20 against the posterior-boss collar** (principal direction) — it is BLOCKING again, on `OI-EMCCAV-10` and MECH-1's boss cut.
 **IEC 62304 Class:** — (analysis document; no code changed). No SR-FAN requirement is altered.
 **Supersedes:** None — new document.
 **Parent Document:** NP-THERM-CFD-R1-001
 
 ---
+
+> **Rev 13 (2026-09-23) — the Layer 4 absorber station is DELETED (`REQ-CAV-04` taken by the principal,
+> GitHub #391), with the 3 mm outer-bowl re-loft binding.** §2's 0.075 m²K/W term (18 %) leaves the
+> outward path, which becomes **0.410 → 0.335 m²K/W** (`NP-EMC-CAV-001` §8.2). Consequences here:
+> **`OI-THCOOL-04` is CLOSED** — there is no station to specify thermally, and §6.3's ceramic-filled
+> substitution survives only as `OI-EMCCAV-08`'s fallback; **`OI-THCOOL-15` loses its counterface
+> sub-question** — the gap pad now presses against the rigid Pd-polyester/mu-metal/CFRP bowl, not
+> compressible foam (§6.9.1's *"local omission"* and *"one part"* options are moot); and **row 1 of §8's
+> action list is done by deletion rather than substitution.** What this revision does **not** do is
+> re-run the network: `scripts/check-thermal-network.ts` and every §4/§5/§6 table still carry the
+> as-was 0.410 baseline, because those numbers are cited downstream and re-baselining them is analysis,
+> not an edit. **`OI-THCOOL-21`** carries it, together with `NP-EMC-CAV-001`'s `OI-EMCCAV-07` (the heat
+> that now lands in the outer bowl, beside the mu-metal and Helmholtz coils). The §2 and §6.3 notes
+> below are kept as written, in the tense of their date.
 
 > **Rev 12 (2026-09-20) — `OI-THCOOL-06` REOPENED by principal direction, against the posterior-boss
 > COLLAR rather than the pneumatic loop.** Rev 10's closure (2026-08-30, by D-2) was correct on its own
@@ -317,7 +331,7 @@ stack is what makes each term separately attackable:
 | Term | R (m²K/W) | Share of outward path | Attackable by |
 |---|---:|---:|---|
 | **Stagnant inter-bowl air gap** (6 mm, k = 0.026) | **0.23** | 56 % | stirring the gas (§6.1) — **or NARROWING it, newly available 2026-09-20 under `FLUSH-1`** |
-| **Carbon-loaded EMI absorber foam** (3 mm, k ≈ 0.04) | **0.075** | 18 % | specifying it thermally (§6.3) |
+| ~~**Carbon-loaded EMI absorber foam** (3 mm, k ≈ 0.04)~~ | ~~**0.075**~~ | ~~18 %~~ | **DELETED 2026-09-23** with a binding 3 mm re-loft (`REQ-CAV-04`) → outward total **0.335**. Row kept because every table below was computed with it (`OI-THCOOL-21`) |
 | **External natural convection** (h ≈ 10) | **0.10** | 24 % | forced external air (§6.4) |
 | Shell — CFRP 2.5 mm + Pd-polyester + mu-metal | 0.005 | 1 % | nothing; already negligible |
 | — inward path, junction → perfused core | **0.11** | — | **nothing. This is a floor.** |
@@ -358,7 +372,8 @@ set. **`OI-THCOOL-04`.**
 > **0.335** — the best figure available, against §6.3's substitution at 0.355. **The re-loft costs
 > nothing today**: no mould is cut (`NP-REV-SHELL-001` is DRAFT) and `OI-ART-01` already owes a
 > re-scope of `NP-TOOL-SHELL-001`. `NP-EMC-CAV-001` §8.2 (Rev 3) recommends **deletion with the
-> re-loft binding**; `OI-EMCCAV-08` (`MECH-2`) is the one open question.
+> re-loft binding**; `OI-EMCCAV-08` (`MECH-2`) is the one open question. **→ TAKEN 2026-09-23
+> (GitHub #391): the station is deleted and the re-loft binds. Outward path 0.335.**
 
 **The inward path is a floor and cannot be fought.** R_in = 0.11 m²K/W is 1.6 mm of PDMS and air to a
 *perfused* sink. No outward-path work changes it. This is why §4's inward fractions asymptote, and it
@@ -577,6 +592,10 @@ elastomers reach k ≈ 1–3 W/m·K against ~0.04 for open-cell carbon foam. If 
 > ceramic filler — BN, AlN or Al₂O₃ at k ≈ 1–3 W/m·K, i.e. §6.9.1's "ceramic-filled silicone" — not
 > from a conductive one. Nothing lossy need be added at all. `REQ-CAV-03` binds. **The 0.075 → ~0.02
 > m²K/W target is unaffected; only the filler chemistry is.**
+>
+> **→ 2026-09-23: superseded by deletion.** The principal took `REQ-CAV-04` (GitHub #391); the station
+> is gone and the bowl re-lofted, reaching 0.335. §6.3 now describes only the fallback `OI-EMCCAV-08`
+> would bring back — a thin ceramic-filled pad, `REQ-CAV-03`, sized by the ±0.80 clamp tolerance stack.
 
 ### 6.4 Forced external convection on the outer shell
 
@@ -590,7 +609,7 @@ cool the outer shell?"*, which reads as a measurement to be taken. It is settled
   complete EMF envelope and the inner bowl nests inside it. The fan is **outside** that envelope, in the
   hub at the occipital arch (`NP-TOOL-HUB-001` §3, F-04).
 - Air can cross that boundary only two ways, and **both breach a stated requirement**. Through the outer
-  bowl contradicts `NP-HELMET-GEOM-001` §3.3's *"unbroken 5-layer stack on its inner face"* and its
+  bowl contradicts `NP-HELMET-GEOM-001` §3.3's *"unbroken 5-layer stack on its inner face"* (4-layer since the 2026-09-23 Layer 4 deletion — the argument is unchanged) and its
   *"mu-metal continuity depends on staying one bowl"*. Through the rim defeats `NP-HEX-ZM-001` §5.3a's
   labyrinth lip, whose purpose is that there be *"no line-of-sight aperture from outside to the
   modules"* with any residual slot ≤ 2.5 mm — making that slot continuous is the slot antenna the fold
@@ -868,6 +887,11 @@ absorber one part. **Local omission is plausible but not free** — the absorber
 resonance rather than providing primary shielding (the mu-metal and Pd-polyester do that), so windows
 in it are an EMC question, not a shielding-claim question. **This couples `OI-THCOOL-15` to
 `OI-THCOOL-04`** — the absorber's thermal specification and the pad's land are the same decision.
+
+> **→ 2026-09-23: this problem is gone.** The absorber station is deleted (`REQ-CAV-04`, GitHub #391) and
+> the outer bowl re-lofted 3 mm inward, so the pad's counterface is **rigid Pd-polyester on mu-metal on
+> CFRP**. Neither local omission nor a combined part is needed. `OI-THCOOL-04` is closed; the rest of
+> `OI-THCOOL-15` — diameter, coverage, two-face contact, compression set — is unchanged.
 
 **Two constraints the pad inherits, and they are mechanical rather than electromagnetic.** It must be
 **electrically insulating and non-magnetic** — the fluxgates sit on the inner bowl and the Helmholtz
@@ -1195,7 +1219,7 @@ Normative encoding, enforcement flow, failure modes and verification: **`NP-FW-P
 | # | Action | Cost | Worth | Owner |
 |---|---|---|---|---|
 | 0 | **Close `OI-R1-03`** — pin the existing fan's airflow path | ~0 | Gates every baseline below | ME + Thermal |
-| 1 | **Thermally specify the EMI absorber** (§6.3) | Materials substitution | 0.075 → ~0.02 | ME + EMC |
+| 1 | ~~**Thermally specify the EMI absorber** (§6.3)~~ **DONE BY DELETION 2026-09-23** (`REQ-CAV-04`, 3 mm re-loft binding) | CAD re-loft, carried in `OI-ART-01`'s shell re-scope | 0.075 → **0** (outward 0.410 → 0.335) | ME + EMC |
 | 2 | **Attack the via interface, not the via** (§3) | TIM + mounting | ~90 % of via-path R | ME |
 | 3 | **Conductive gap bridge across the inter-bowl gap** (§6.9) — supersedes the pneumatic loop, which D-2 puts out of scope | Gap pad + assembly force | **0.23 → ~0.002** | ME |
 | 4 | **Forced external convection** (§6.4) | Depends on step 0 | 0.10 → ~0.033 | ME |
@@ -1291,15 +1315,16 @@ alternative *and* costs the ELF magnetic claim. It should not be revisited.
 | **OI-THCOOL-01** | Add convective stirring of the cavity gas as a fourth lever in `NP-PWR-BUDGET-001` §3.3, whose three-item list covers only conduction | Thermal | No |
 | **OI-THCOOL-02** | Set the tube acoustic-velocity bound against the audio/bone-conduction noise floor, not a comfort number; it sizes the bore | ME + Audio | No |
 | **OI-THCOOL-03** | Replace assumed convection coefficients (h = 30 stirred, 30 forced external, 10 natural) with CFD or bench values | Thermal | No |
-| **OI-THCOOL-04** | Thermally specify the Layer 4 EMI absorber — 18 % of the outward path, ~~currently specified in dB only~~. **UNBLOCKED 2026-09-20 by `NP-EMC-CAV-001` §8.1:** the "specified in dB only" premise was false (it was never specified at all), and now that a requirement exists the station supplies 0.26 dB of it — **so it may be specified on thermal grounds alone, with no EMC clearance.** Two constraints carry over: the filler must be **ceramic, not conductive** (§6.3's correction, `REQ-CAV-03`), and the station is **recommended for deletion** — `NP-EMC-CAV-001` §8.2 (Rev 3), with the 3 mm bowl re-loft **binding** (0.410 → **0.335**; without the re-loft, 0.450). This substitution (**0.355**) is the **fallback** if `OI-EMCCAV-08` / `MECH-2` finds the cluster clamps cannot take up the tolerance stack without the foam, and then at a thickness set by that stack | ME + EMC | No — **no longer waiting on EMC** |
+| ~~**OI-THCOOL-04**~~ | ~~Thermally specify the Layer 4 EMI absorber~~ **✅ CLOSED 2026-09-23 — the station is DELETED** (`REQ-CAV-04` taken, GitHub #391; `NP-EMC-CAV-001` §8.2), with the 3 mm bowl re-loft binding: outward path **0.410 → 0.335**. There is nothing left to specify. History: unblocked 2026-09-20 by `NP-EMC-CAV-001` §8.1, which found the station supplied 0.26 dB of a 26.2 dB requirement. **The ceramic-filled substitution (0.355, `REQ-CAV-03`) survives only as `OI-EMCCAV-08`'s fallback**, at a thickness set by the ±0.80 clamp tolerance stack, if `MECH-2`'s spring plungers cannot cover it | ME + EMC | — (closed) |
 | **OI-THCOOL-05** | Characterise the via *interface* (contact + spreading + sink), which §3 shows is ~90 % of that path's resistance | ME | No |
-| **OI-THCOOL-15** | **Gap-pad geometry and contact (§6.9.1).** Fix the pad diameter and coverage fraction against the cluster-clamp and fluxgate keep-outs; establish real two-face contact across the curved 5–7 mm gap under the tolerance stack; and resolve **what the pad compresses against** — the absorber foam is itself compressible, so a pad pressed against it never reaches rated conductivity. Must be electrically insulating and non-magnetic (fluxgates inner, Helmholtz outer), and survive compression set over repeated bowl separations. **Coupled to `OI-THCOOL-04`** — the absorber's thermal spec and the pad's land are one decision. **The gating question for the largest term in the outward path.** **UNBLOCKED ON THE EMC SIDE 2026-09-20 by `NP-EMC-CAV-001` §8.1** — there is no electrical requirement on that station in 420 MHz – 3 GHz, so "what the pad compresses against" is now a purely mechanical question and needs no EMC clearance. **Rev 3 goes further: if the station is deleted (§8.2, re-loft binding), "what the pad compresses against" is the bare Pd-polyester/CFRP bowl and this sub-question disappears entirely** — which makes `OI-EMCCAV-08` (`MECH-2`) the prior question for this row too. **The rest of the mechanical half — diameter, coverage, two-face contact, compression set — is untouched and still gates** | ME (~~+EMC~~) | **Gates §6.9** |
+| **OI-THCOOL-15** | **Gap-pad geometry and contact (§6.9.1).** Fix the pad diameter and coverage fraction against the cluster-clamp and fluxgate keep-outs; establish real two-face contact across the curved 5–7 mm gap under the tolerance stack; and ~~resolve **what the pad compresses against**~~ (**✅ answered 2026-09-23: the rigid Pd/mu-metal/CFRP bowl**, because the absorber station is deleted — `REQ-CAV-04`). Must be electrically insulating and non-magnetic (fluxgates inner, Helmholtz outer), and survive compression set over repeated bowl separations. **Coupled to `OI-THCOOL-04`** — the absorber's thermal spec and the pad's land are one decision. **The gating question for the largest term in the outward path.** **UNBLOCKED ON THE EMC SIDE 2026-09-20 by `NP-EMC-CAV-001` §8.1** — there is no electrical requirement on that station in 420 MHz – 3 GHz, so "what the pad compresses against" is now a purely mechanical question and needs no EMC clearance. **Rev 3 goes further: if the station is deleted (§8.2, re-loft binding), "what the pad compresses against" is the bare Pd-polyester/CFRP bowl and this sub-question disappears entirely** — which makes `OI-EMCCAV-08` (`MECH-2`) the prior question for this row too. **The rest of the mechanical half — diameter, coverage, two-face contact, compression set — is untouched and still gates** | ME (~~+EMC~~) | **Gates §6.9** |
 | ~~OI-THCOOL-17~~ | **✅ CLOSED 2026-09-02 by D-4 (§7.4) — fixed session length, dose scales with duty, and the ramp is clamped at `NP-PWR-BUDGET-001` §3.4's 10 J/cm² floor and refuses below it.** The dose-preserving alternative was not merely costly: it puts a 20-minute 60 J/cm² protocol at **50 CEM43 at 34.5 °C, past `NP-PWRSRC-001` §5.5's 40 concern line in one session**, against 5.0 for fixed length anywhere in the band. Effective block becomes per-protocol (33.8 / 34.2 / 34.6 °C at 40 / 60 / 120 J/cm²), at most 1.3 °C. **This item's own premise is corrected in closing it:** the descriptor gains protocol dose, but the **Class C gate must not** — a sub-threshold session is ineffective, not hazardous, so it is an Efficacy-class bound enforced as a non-dismissible **Class B** refusal in SW-02/SW-03 (`NP-FW-POE-001` §3/§4). `OI-OPR-01` inherits a **termination rule on one shared curve**, not a family of curves. **Costs `OI-THCOOL-16` nothing**: §7.5 anchored its band on `T_block_eff`, not on the constant +35, so the floor edge inherits the 1.0 °C hysteresis and the terminate-never-pause rule already, and §7.5's *"if the clamp is adopted"* conditional is now simply the case. Residuals: `OI-THCOOL-18`, `-19`, `-20` | — (closed) | — |
 | ~~OI-THCOOL-16~~ | **✅ CLOSED 2026-09-02 by §7.5.** Band **Δ = 1.0 °C** on every ambient hard edge, anchored on `T_block_eff = min(TABLE_block, POE_block)` rather than on the constant 35.0, and applied as a **raised admission bar** (`ambient ≤ T_block_eff − Δ` while latched) rather than a hold-off — strictly more restrictive at every ambient, so it composes with `NP-FW-POE-001` §5's `min()` untouched. A mid-session crossing **terminates** the session rather than pausing it, which removes the last automatic re-entry path. Normative in `NP-FW-POE-001` §6.1. Retained struck-through per `NP-CONV-001` §4. **Residual, not blocking:** `t_dwell` inherits `OI-ENV-05` (60 s with a dedicated ambient NTC, ≥ 5τ_hub with the hub NTC as proxy — fail-safe either way), and a sub-1 °C band would need the ambient path specified at 0.1 °C resolution → `OI-POE-06` | FW (closed) | — |
 | ~~OI-THCOOL-16 (original text)~~ | **Hysteresis on the +35 °C PBM ambient cliff.** With the derate band collapsed (Rev 6), the T1-A envelope is a hard block at a single temperature, so an ambient NTC sitting on +35 could chatter start/stop. Specify the hysteresis band and its interaction with `NP-FW-POE-001`'s gate | FW | No |
 | **OI-THCOOL-18** | **The dose-ordering inversion is a human-factors problem, not a copy problem (§7.4.5).** Because the floor binds on delivered dose and the derate is multiplicative, a **120 J/cm² protocol runs in a hotter room than a 40 J/cm² one** — heavier survives longer. The only honest advice at a refusal is therefore *"a higher-dose protocol may still run"*, which reads as an instruction to take more treatment because the room is hot. Establish whether that can be said safely at all, or whether the refusal should name the room rather than the protocol; owned with `NP-HFE-001`/`NP-HFE-002`. **Do not resolve it by hiding the inversion** — a user who discovers it unaided will read it as a fault | HFE + App | No |
 | **OI-THCOOL-19** | **Protocol dose becomes a signed descriptor input, and nothing yet checks it against what the protocol actually commands.** `NP-FW-POE-001` §3 gains `dose_full_dJ`; the floor clamp is computed from it. Overstating it cannot widen any thermal bound (§7.4.4) — the Class C table still blocks at +35 — but it silently defeats the efficacy guarantee this decision exists to provide, which is the very failure mode D-4 closes, re-entering through the descriptor instead of the ambient. Specify the consistency check between `dose_full_dJ` and the commanded irradiance × duty × length, where it runs (app sign-time, SW-02 admission, or both), and what an inconsistency does | FW + App | No |
 | **OI-THCOOL-20** | **A sub-threshold session is sometimes the point — T2 research needs a way to say so.** The clamp refuses any session below 10 J/cm², but sham and dose-ranging arms are deliberately sub-threshold, and `NP-IRB-001`/the T2 scripting API can legitimately request one. Decide whether a signed research descriptor may declare intent and bypass the **efficacy** floor (never the +35 thermal block), and how that is surfaced to the wearer without unblinding the arm. **Not a T1 question** — the T1 refusal is absolute | FW + Clinical | No |
+| **OI-THCOOL-21** | **Re-baseline the outward path at 0.335 m²K/W now that the Layer 4 absorber is deleted (2026-09-23, `REQ-CAV-04`).** `scripts/check-thermal-network.ts` (`R_FOAM`), `check-thermal-multitile.ts` (`R_CAV_AMB`), `check-thermal-sink.ts` (the absorber layer) and every table in §4–§6 of this document, `NP-THERM-SINK-001` §3.1 and `NP-THERM-CFD-R1-001` §2 still carry the 0.410 baseline with the foam in it. They are **conservative** (the real path is less resistive), so nothing they conclude about a safety ceiling is weakened — but every *capability* figure (§5's aggregate ceiling, D-2's option ranking, the GFE 6.77×) is understated, and none may be quoted as current until re-run. Do together with `OI-EMCCAV-07` (outer-bowl heat budget) | Thermal | No — conservative |
 | **OI-THCOOL-06** | **♻ REOPENED 2026-09-20 (principal direction) — AGAINST THE COLLAR, NOT THE LOOP.** **Bench-measure ELF magnetic leakage through a formed mu-metal chimney collar at the posterior boss, and the permeability the forming costs.** The 2026-08-30 closure below is **retained and correct on its own terms** — D-2 did put the pneumatic loop out of scope — but its trigger, *"reopen only if the loop is revived"*, **was too narrow**: the measurement is about a **formed collar at a penetration**, not about what passes through it. Two things now need it, neither pneumatic. **(a) The collar exists either way.** `NP-DRV-SHELL-002` §4.3 routes the entire module interconnect — **216 pins in 20 tail groups** plus the fluxgate/coil harness — through this **one aperture**, so mu-metal continuity is interrupted at the boss regardless of geometry, and `hardware-detail.md` §4.3 **D3** makes that continuity load-bearing for Layer 2. **(b) An OUTWARD emboss adds a second, distinct question, and it is now COMMITTED, not hypothetical** — **`BOSS-1`** (principal direction 2026-09-20, `NP-HEX-ZM-001` §5.3(c)) projects the boss **outward** as a local emboss (`NP-EMC-CAV-001` §8.6.3): drawing mu-metal over a local dome **work-hardens it**, and it **cannot be re-annealed after lamination** to PETG and CFRP — so the emboss trades Gap millimetres for a local permeability dip in the one layer D3 depends on. **Scope: ELF magnetic, below ~100 Hz, where waveguide-below-cutoff does not apply** — a fluxgate/Helmholtz bench, **not** the VNA sweep `EMF-1a`–`EMF-1d` use. Rides the `EMF-1` fixture as **`EMF-1e`** | EMC (`EMF-1`) + ME | **BLOCKING on `OI-EMCCAV-10` (boss projection direction) and on MECH-1 cutting the posterior boss** — the same time-box `NP-DRV-SHELL-002` §4.3 already sets |
 | ~~OI-THCOOL-06~~ | **✅ CLOSED 2026-08-30 by D-2** — this was BLOCKING only on the pneumatic loop's penetration of the posterior boss, and §6.9 puts that loop out of scope. Retained struck-through rather than deleted, per `NP-CONV-001` §4's append-only open-item rule; ~~reopen only if the loop is revived~~ — **that trigger was too narrow; REOPENED 2026-09-20 against the collar, see the row above** | — (closed) | — |
 | ~~OI-THCOOL-06 (original text)~~ | **Bench-measure ELF magnetic leakage through a mu-metal chimney collar at the posterior boss with tube penetrations.** Waveguide-below-cutoff does not apply below ~100 Hz | EMC (EMF-1) | **BLOCKING on §6.2** |

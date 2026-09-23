@@ -583,7 +583,7 @@ function reportThermal() {
   const rows: Array<[string, number, string]> = [
     ["today (foam in place)", T, ""],
     ["delete, gap NOT closed", T - rFoam + rAir, "<- a REGRESSION"],
-    ["delete, outer bowl re-lofted 3 mm", T - rFoam, "<- BEST; a CAD edit, no mould is cut"],
+    ["delete, outer bowl re-lofted 3 mm", T - rFoam, "<- BEST; TAKEN (REQ-CAV-04, #391)"],
     ["substitute (ceramic-filled elastomer)", T - rFoam + THERM.rSubstitution, "fallback if OI-EMCCAV-08 says so"],
   ];
   console.log(`  Outward path (NP-THERM-COOL-001 §2 total ${T}):\n`);
@@ -597,6 +597,7 @@ function reportThermal() {
   console.log(`  DRAFT, no item signed) and OI-ART-01 already owes a NP-TOOL-SHELL-001`);
   console.log(`  re-scope — and "5-layer" is not a published claim, because nothing is`);
   console.log(`  externally published. An earlier revision charged both to deletion.`);
+  console.log(`  REQ-CAV-04 TAKEN 2026-09-23 (GitHub #391): station deleted, re-loft binding.`);
   console.log(`\n  Substitution trails by only ${deltaSub.toFixed(3)} m2K/W, but that gap is CONTACT`);
   console.log(`  resistance, not bulk: a ceramic-filled station is ~${rStation(1.5).toFixed(3)} in bulk, so the`);
   console.log(`  0.020 is the price of pressing a compliant pad onto two curved faces.`);

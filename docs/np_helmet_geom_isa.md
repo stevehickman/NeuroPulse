@@ -14,7 +14,7 @@ requirements derivation. A naïve single transparent inner shield is physically 
 because electrode modules must galvanically contact skin.
 
 ## Vision
-A concave stack, ~30–35 mm scalp-to-exterior, where each module carries its own IP seal, the
+A concave stack, ~27–32 mm scalp-to-exterior (~30–35 before the 2026-09-23 Layer 4 deletion), where each module carries its own IP seal, the
 socket layer levers out from a permanently-shielded outer bowl, and the cheapest parts
 (bezels, gaskets, plugs) absorb all wear and impact — leaving the expensive modules and the
 never-opened EMF envelope untouched across the device lifetime.
@@ -48,7 +48,7 @@ comparison for every layer, self-consistent with the committed two-bowl architec
 - **ISC-1** Radial stack-up defined for L0–L3 with nominal + tolerance, offset from the scan datum. *(met — brief §2)*
 - **ISC-2** Each L0 element class has hard constraints + candidate materials + a lead pick. *(met — §3.1)*
 - **ISC-3** L1 material honors non-magnetic + dimensional-stability + heat-egress constraints. *(met — §3.2)*
-- **ISC-4** Outer bowl preserves the unbroken 5-layer shield + permanent-shielding claim. *(met — §3.3)*
+- **ISC-4** Outer bowl preserves the unbroken 4-layer shield (Layer 4 absorber deleted 2026-09-23, `REQ-CAV-04`; number retired) + permanent-shielding claim. *(met — §3.3)*
 - **ISC-5** Complete key-structural-element inventory, incl. the new L0 sealing parts. *(met — §4)*
 - **ISC-6** Impact strategy resolves "protect modules, sacrifice cheap part" without a shield. *(met — §5)*
 - **ISC-7** MTBF-vs-cost comparison per layer with a rolled-up recommendation. *(met — §6, estimates pending FMEA-RECON)*

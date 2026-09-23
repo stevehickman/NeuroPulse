@@ -457,7 +457,7 @@ controllers inside the envelope** (`NP-DRV-SHELL-002` §3.2), so the emission th
 not clock rate — and it fixed the band at **420 MHz – 3 GHz**, whose lower edge is a property of the
 wearer. `REQ-CAV-02` now reads **loaded Q ≤ 20 at every cavity mode in that band**, i.e. **26.2 dB**.
 **Layer 4 supplies 0.26 dB of it — 1.0 % of its own stated job — while the wearer's head supplies
-49.8 dB** (`REQ-CAV-04`: delete the station).
+49.8 dB** (`REQ-CAV-04`: delete the station — **taken by the principal 2026-09-23**, GitHub #391).
 
 **Read the pair together, because the symptom does not predict the disposition.**
 
