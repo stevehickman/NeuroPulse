@@ -606,6 +606,17 @@ cost/inventory decision, not a firmware constraint. Only the four cranial-scalp
 modalities are tiles; intranasal, auricular VNS/HRV, audio, and visual goggles
 are separate accessories (not tiles).
 
+> **The tile interface is tier-common, and must stay so (2026-09-23).** `OI-TACSDRV-06` is decided
+> (`NP-REG-UPG-001` Rev 2 §7.0). A T1 owner reaches T2 by buying a new unit, and **the tiles they
+> bought carry over to it**. So every T1 tile type must inventory and run on a T2 socket, and a change
+> to the socket (mechanical, electrical, or the `np_module_map` inventory and UID protocol) is made to
+> both tiers or to neither (`REQ-UPG-03`). One mould and one socket tool make this true mechanically.
+> The requirement binds the firmware and every later socket revision, starting with P-6's 19 → 20
+> contacts (`OI-MMSOCK-12`). **The reverse does not hold.** A **T2-D** tile in a T1 unit's socket must
+> be refused (`REQ-UPG-01`), because the socket's type-agnosticism is exactly what would otherwise
+> let a T1 unit be upgraded piecemeal. **The module UID stays out of SHDR uploads until `OI-UPG-07`
+> closes**, because a UID seen on two devices links them.
+
 ### T1 — three tile types
 
 | ID | Type | Elements | EEG | Covers |

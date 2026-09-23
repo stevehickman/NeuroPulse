@@ -27,3 +27,23 @@
 - 40Hz ± 0.5Hz locked precision vs uncharacterised wrist haptics
 - Powered by the NeurOne hub — doesn't drain your Watch battery
 - The Apple Watch sync app is a free bonus, not the full experience
+
+---
+
+## T1 → T2: what may and may not be said (added 2026-09-23, `NP-REG-UPG-001` Rev 2 §7.4 (8))
+
+The principal decided on 2026-09-23 that a T1 owner reaches T2 by **buying a new T2 unit**, and that
+**the modules they already bought carry over to it**. Two constraints follow for copy. Neither is a
+style preference: each is intended-use evidence under FDA's general wellness policy
+(`docs/reference/regulatory-strategy.md`).
+
+- **Never present T1 as upgradeable to Pro, or to a medical device.** No *"upgrade your Home to
+  Pro"*, no *"Pro-ready"*, no upgrade path drawn from a T1 product page. A T1 is a wellness product
+  for its whole life. Upgrades *within* T1 (adding tiles, the 1064 nm smart module) are fine to
+  promote as they are today.
+- **Do not publish "your modules carry over to Pro" yet.** It is true by design (`REQ-UPG-03`), but
+  it links a wellness product to a 510(k) device. It waits on counsel's answers to `NP-REG-UPG-001`
+  §6.6 Q1 and Q2 (`OI-UPG-02`).
+- **Never imply that a T2 part will work on a T1.** A T1 unit refuses every T2 modality whatever is
+  attached (`REQ-UPG-01`).
+

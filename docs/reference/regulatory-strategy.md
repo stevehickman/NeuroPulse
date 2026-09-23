@@ -30,7 +30,28 @@
 - Clinical data: required for TMS modality; seeded T2 units into research institutions (Years 2–3) generate this data
 - Human factors engineering (FDA 2016 HFE Guidance): URRA + formative + summative testing — governed by NP-HFE-001 (planned Month 9)
 
-## T1 → T2 transition — how a unit crosses the tier line (added 2026-09-23, `OI-TACSDRV-06`)
+## T1 → T2 transition — how a unit crosses the tier line (added 2026-09-23, `OI-TACSDRV-06`; DECIDED 2026-09-23)
+
+> **DECIDED by the principal, 2026-09-23: (a) new unit** (`NP-REG-UPG-001` Rev 2 §7.0). **No unit ever
+> crosses the tier line.** A T2 is built, accepted, labelled and UDI-marked as T2, and a T1 is a
+> wellness unit for its whole life. Rows (b) and (c) below are now of record only. Three reasons were
+> given: the modules a purchaser bought carry over to their T2; the regulatory issues of (b) and (c)
+> are avoided; and a T1 owner cannot assemble T2 capability part by part to get round the T1 → T2
+> price differential. **Three regulatory consequences follow, set out in `NP-REG-UPG-001` §7.4–§7.5:**
+>
+> 1. **Carried modules become 510(k) components.** Until counsel answers Q2 (now *on what
+>    conditions*, not *whether*), every module that can carry over is a **tier-common part number
+>    built under the QMS from first production** (`OI-UPG-04`). The **A13** clip is the sharpest case,
+>    because on T2 it feeds A14's cardiac interlock.
+> 2. **A T1-identity unit never enables a T2 modality or unlocks a T2 feature** (`REQ-UPG-01`), and
+>    the tier identity is written once, at manufacture (`REQ-UPG-02`). Without that, a T2-D tile, the
+>    cervical VNS accessory or the qEEG cap on a T1 unit is the unwitnessed transition of row (c).
+>    **Neither gate exists yet** (`OI-UPG-01`).
+> 3. **Promotion.** T1 is never presented as upgradeable to a medical device. *"Your modules carry
+>    over to Pro"* is not published until counsel has answered Q1 and Q2.
+>
+> **Counsel's list is now four questions (Q1, Q2, Q6, Q7).** Q3–Q5 are withdrawn.
+
 
 **Nothing above said how a T1 unit becomes a T2 unit, and the answer is a regulatory one.** T1 sits
 under FDA's general wellness policy, which is enforcement discretion keyed to **intended use**. It is
@@ -41,7 +62,7 @@ It is an engineering reading, not a regulatory opinion:
 
 | Model | Regulatory consequence, in one line |
 |---|---|
-| **(a) New unit** (trade-in or second purchase) — **RECOMMENDED, not decided** | No transition happens in the field. Each T2 is built, accepted, labelled and UDI-marked as T2. T1 promotion must not present T1 as upgradeable to a medical device. The residual question is whether T1-released parts may carry over into a T2 |
+| **(a) New unit** (trade-in or second purchase) — **DECIDED 2026-09-23** | No transition happens in the field. Each T2 is built, accepted, labelled and UDI-marked as T2. T1 promotion must not present T1 as upgradeable to a medical device. The residual question is whether T1-released parts may carry over into a T2 |
 | **(b) Service conversion** | Manufacturing, not servicing: **depot only**, never a Tier B partner. The 510(k) must cover converted units, and the conversion needs process validation. **Every T1 unit would need DHR-grade build history from day one**, whether or not it is ever converted. It must be a Pre-Submission question |
 | **(c) User-installed parts** | The user creates the medical device outside any manufacturing control. It cannot deliver T2 anyway: the tACS driver, the 21-channel ADS1299 bank, the T2 power path and the TMS window are factory-only |
 
@@ -55,4 +76,5 @@ converts units the manufacturer. The record's only EU position today is the char
 **Needed under every model:** the device holds no tier identity. `NP_PROTO_FLAG_T2_TIER` is read by
 no firmware, and T2-D tiles, the cervical VNS accessory and possibly the qEEG cap fit interfaces every
 T1 unit has. A T1-labelled unit therefore cannot currently refuse a T2 modality. That is `OI-UPG-01`,
-the extension of `NP-PWRSRC-001` D-9's device-bound entitlement to modality gating.
+the extension of `NP-PWRSRC-001` D-9's device-bound entitlement to modality gating. **Since the
+decision it is a requirement, `REQ-UPG-01`, and it is not yet implemented.**

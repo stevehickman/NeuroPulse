@@ -123,6 +123,19 @@ Charger scaled to peak draw of configuration. Auto-included at every upgrade by 
 > is a serial event"*). It does not assume that a T1 unit is converted into a T2 unit. `NP-REG-UPG-001`
 > recommends, but does not decide, that T2 is always a new unit, which ships with its own
 > configuration's charger under this same rule. The policy text and table are unchanged.
+>
+> **DECIDED 2026-09-23 (`NP-REG-UPG-001` Rev 2 §7.0): T2 is always a new unit, and a T1 owner's modules
+> carry over to it.** The charger rule and table above are unchanged. A T2 ships its own configuration's
+> charger, and the T1 keeps its own. **Three commercial consequences, none of them a price:**
+> (1) **No rolling upgrade.** A T1 unit refuses every T2 modality and T2 software feature
+> (`REQ-UPG-01`), so a T2-D tile, the cervical VNS accessory or the qEEG cap sold to a T1-only owner
+> does nothing on that unit. Whether such parts are sold to T1-only owners at all is Product's call.
+> (2) **§2.1 has no T2 offering for a buyer who already owns modules.** Every configuration row ships
+> its own box contents. Defining that offering is Product's (`OI-UPG-04`). The differential the
+> decision protects is the **unit's**: base hardware plus T2 content. Carried modules lower the
+> owner's cost of the move by exactly what they already paid. (3) **No price is set before
+> `OI-HEXTILE-06`** (`OI-COST-10`), and that includes any trade-in value or T2-without-modules offering.
+> The T1 and T2 ladder collision (`OI-COST-08`) is unchanged by this decision.
 
 **Charger upgrade intent signals:**
 - Core buyer selects 30W upfront → PBM intent → 14-day follow-up
