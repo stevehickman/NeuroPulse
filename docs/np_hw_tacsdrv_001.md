@@ -215,11 +215,11 @@ the sources changes is the path the current takes, not how much of it there is.
 
 **(d) Q3 — switching magnetics stay outside the shield.** `OI-HUB-C19` put the 24 V vault boost on
 the Hub PCB for three reasons. Two of them transfer directly: **magnetics stay away from the
-inner-bowl fluxgates**, which are co-sited at the PAN with the fluxgate/coil harness boss
+inner-bowl fluxgates**, whose fluxgate/coil harness boss is co-sited with the PAN
 (`NP-DRV-SHELL-002` §4.2), and **conversion loss lands on the fan-served side**. The recommendation
 follows the precedent and does not add to it. **Whether any new switching stage is needed at all
 depends on `OI-TACSDRV-02`.** The PAN is already the vault's 24 V PDN feed point, but a compliance
-voltage above roughly 20 V rules that rail out. The one impedance figure in the record is
+voltage above roughly 20 V (24 V less the sources' headroom) rules that rail out. The one impedance figure in the record is
 `NP-HW-TCAP-001` §4.3's **≤ 10 kΩ at 1 kHz** abort threshold, and 4 mA × 10 kΩ is **40 V**. That is
 an abort threshold measured at 1 kHz, not the load at 0.5 Hz, so it does not close `OI-TACSDRV-02`.
 It does mean the 24 V rail cannot be assumed to be enough.
@@ -246,8 +246,8 @@ and *"the tES driver interface"* (`NP-DRV-SHELL-002` §4.2), and none of those m
 **(f) What would overturn this: heat at the PAN.** A linear current source dissipates
 (V_c − I·Z)·I, which is largest into a low-impedance electrode. The worst case for the stage is
 therefore about **V_c × 84 mA** (21 × 4 mA, concurrent per `REQ-TACSD-02`). At the 40 V in (d),
-that is **~3.4 W**, delivered at the occiput, inside the shielded envelope and within the 42 °C
-scalp limit's reach. **No thermal document in the set addresses the PAN**
+that is **~3.4 W**, delivered at the occiput, inside the shielded envelope where the 42 °C scalp
+limit applies. **No thermal document in the set addresses the PAN**
 (`NP-THERM-SINK-001` covers the tile field and the hub heatsink). The Hub PCB has a fan. So the
 recommendation is conditional. **If the PAN cannot reject V_c × 84 mA inside the scalp limit, and a
 tracking supply or a V_c reduction from `OI-TACSDRV-02` does not bring the figure down, Q2 falls to
