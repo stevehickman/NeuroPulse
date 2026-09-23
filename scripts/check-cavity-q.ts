@@ -742,6 +742,12 @@ function reportValidation(): boolean {
     ["curvature perturbation to PACK-1 (mm)", hexEdge(HEX.nominalWmm) - hexEdgeChord(HEX.nominalWmm, HEX.moduleRadiusMm), 0.068, 0.005],
     ["outward total at a 3 mm gap", outwardAtGap(3), 0.295, 0.002],
     ["recovery, 6 mm -> 3 mm", rGap(GAP.nominalMm) - rGap(3), 0.115, 0.002],
+    // §3.1 — OI-EMCCAV-03. REQ-CAV-02 is an allocation against §3's sources, so a
+    // new in-envelope source X dB stronger (in field) tightens the Q ceiling to
+    // Q_CEILING * 10^(-X/20). The head's margin under the ceiling is what it tolerates.
+    ["§3.1 head margin under the Q ceiling (dB)", 20 * Math.log10(Q_CEILING / q.loaded), 23.6, 0.1],
+    ["§3.1 margin left, source +10 dB", 20 * Math.log10(Q_CEILING * 10 ** (-10 / 20) / q.loaded), 13.6, 0.1],
+    ["§3.1 margin left, source +20 dB (x10 field)", 20 * Math.log10(Q_CEILING * 10 ** (-20 / 20) / q.loaded), 3.6, 0.1],
   ];
 
   console.log(`\nscanned: ${anchors.length} published anchor(s) — NP-EMC-CAV-001\n`);
