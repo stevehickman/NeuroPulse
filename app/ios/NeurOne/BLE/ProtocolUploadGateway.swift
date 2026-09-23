@@ -15,6 +15,20 @@ protocol ProtocolUploadGateway: AnyObject {
     /// the previous chunk's completion handler fires with `.success`.
     /// Hub firmware's reassembly state machine expects these framing headers in order.
     func uploadProtocol(_ chunk: Data, completion: @escaping (Result<Void, GATTWriteError>) -> Void)
+
+    /// True while a cardiac cutoff from a session that ran without the app is unread
+    /// (NP-SW-FAULTMSG-001 P4).  A protocol containing cervical VNS is then refused.
+    var cervicalRestartBlocked: Bool { get }
+
+    /// True while someone other than the active user has an outstanding cardiac cutoff: a
+    /// protocol containing cervical VNS then needs the "this is a different person" confirmation.
+    var cervicalOutstandingForAnotherUser: Bool { get }
+}
+
+extension ProtocolUploadGateway {
+    /// Gateways with no cervical fault source never block.
+    var cervicalRestartBlocked: Bool { false }
+    var cervicalOutstandingForAnotherUser: Bool { false }
 }
 
 // NeurOneGATTManager satisfies this protocol without any code changes —

@@ -599,4 +599,84 @@ final class NeurOneGATTManagerTests: XCTestCase {
         XCTAssertFalse(NPUUID.all.contains(NPUUID.cvnsPadStatus))
     }
 
+
+    // MARK: NP-SW-FAULTMSG-001 P3/P4 — offline faults
+
+    private func isolatedManager() -> NeurOneGATTManager {
+        let m = NeurOneGATTManager(mockCentral: MockBLECentral())
+        let suite = "np.test.cvns-ledger.\(UUID().uuidString)"
+        m.cervicalFaultLedgerDefaults = UserDefaults(suiteName: suite)!
+        return m
+    }
+
+    /// [version, state, 1, 0] + one record [counter 7, kind, 0 side, 0, 0].
+    private func oneFault(kind: UInt8, state: UInt8 = 0) -> Data {
+        Data([0x01, state, 0x01, 0x00, 0x07, 0x00, 0x00, 0x00, kind, 0x00, 0x00, 0x00])
+    }
+
+    func testUnreadCardiacCutoffBlocksUntilAcknowledged() {
+        let m = isolatedManager()
+        m.applyCervicalFaultStatus(oneFault(kind: 1))
+        XCTAssertEqual(m.unacknowledgedCervicalFaults.map(\.kind), [.heartRateChange])
+        XCTAssertTrue(m.cervicalRestartBlocked)
+
+        m.acknowledgeCervicalFaults()
+        XCTAssertTrue(m.unacknowledgedCervicalFaults.isEmpty)
+        XCTAssertFalse(m.cervicalRestartBlocked)
+
+        // Re-reading the same summary (next connect) does not re-show it.
+        m.applyCervicalFaultStatus(oneFault(kind: 1))
+        XCTAssertTrue(m.unacknowledgedCervicalFaults.isEmpty, "explained once, not on every connect")
+    }
+
+    func testFaultStatusClearedOnDisconnect() {
+        let m = isolatedManager()
+        m.applyCervicalFaultStatus(oneFault(kind: 2, state: 2))
+        m.applyDisconnection()
+        XCTAssertNil(m.cervicalFaultStatus)
+        XCTAssertTrue(m.unacknowledgedCervicalFaults.isEmpty)
+    }
+
+    func testMalformedFaultStatusIgnored() {
+        let m = isolatedManager()
+        m.applyCervicalFaultStatus(Data([0x01, 0x00, 0x01, 0x00]))   // n = 1 but no record
+        XCTAssertNil(m.cervicalFaultStatus)
+    }
+
+    func testFaultLedgerIsPerUser() {
+        let m = isolatedManager()
+        m.activeUserTag = 11
+        m.applyCervicalFaultStatus(oneFault(kind: 1))
+        m.acknowledgeCervicalFaults()
+        XCTAssertFalse(m.cervicalRestartBlocked)
+
+        // Another person's acknowledgement point is their own: switching profile re-reads the
+        // device's summary against the new user's ledger, never the previous user's.
+        m.activeUserTag = 22
+        m.applyCervicalFaultStatus(oneFault(kind: 1))
+        XCTAssertTrue(m.cervicalRestartBlocked, "one user's read does not clear another's")
+
+        m.activeUserTag = 11
+        m.applyCervicalFaultStatus(oneFault(kind: 1))
+        XCTAssertFalse(m.cervicalRestartBlocked, "the first user's acknowledgement persisted")
+    }
+
+    func testBlanketWarningFlagsAndPerConnectionAcknowledgement() {
+        let m = isolatedManager()
+        m.applyCervicalFaultStatus(Data([0x01, 0x00, 0x00, 0x02]))
+        XCTAssertTrue(m.cervicalOutstandingForAnotherUser)
+        XCTAssertFalse(m.cardiacWarningAcknowledged)
+        m.acknowledgeCardiacWarning()
+        XCTAssertTrue(m.cardiacWarningAcknowledged)
+        m.applyDisconnection()
+        XCTAssertFalse(m.cardiacWarningAcknowledged, "shown again at the next connect")
+        XCTAssertFalse(m.cervicalOutstandingForAnotherUser, "no status without a connection")
+    }
+
+    func testFaultCharacteristicsAreNotRequired() {
+        XCTAssertFalse(NPUUID.all.contains(NPUUID.cvnsFaultStatus))
+        XCTAssertFalse(NPUUID.all.contains(NPUUID.cvnsReenableConfirm))
+        XCTAssertFalse(NPUUID.all.contains(NPUUID.activeUser))
+    }
+
 }

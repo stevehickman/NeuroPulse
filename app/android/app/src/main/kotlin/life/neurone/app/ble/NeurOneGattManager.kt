@@ -3,6 +3,12 @@ package life.neurone.app.ble
 import life.neurone.core.ble.GattParser
 import life.neurone.core.ble.GattUuids
 import life.neurone.core.ble.OtaOpcode
+import life.neurone.core.common.InMemoryKeyValueStore
+import life.neurone.core.common.KeyValueStore
+import life.neurone.core.models.ActiveUserTag
+import life.neurone.core.models.CervicalFaultLedger
+import life.neurone.core.models.CervicalFaultRecord
+import life.neurone.core.models.CervicalFaultStatus
 import life.neurone.core.models.CervicalPadStatus
 import life.neurone.core.models.OtaStatusPacket
 import life.neurone.core.models.SessionState
@@ -33,6 +39,8 @@ import kotlinx.coroutines.launch
 class NeurOneGattManager(
     private val central: BleCentral,
     private val scope: CoroutineScope,
+    /** Holds the per-user offline-fault acknowledgement point (CervicalFaultLedger). */
+    private val ledgerStore: KeyValueStore = InMemoryKeyValueStore(),
 ) : BleCentralListener {
 
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
@@ -79,6 +87,39 @@ class NeurOneGattManager(
     private val _cervicalPadAlert = MutableStateFlow<CervicalPadStatus?>(null)
     val cervicalPadAlert: StateFlow<CervicalPadStatus?> = _cervicalPadAlert
 
+    /**
+     * The hub's offline cervical-fault summary and re-enable state (NP-SW-FAULTMSG-001 P3/P4).
+     * UHDR-class, held in memory, cleared on disconnect. Mirrors iOS cervicalFaultStatus.
+     */
+    private val _cervicalFaultStatus = MutableStateFlow<CervicalFaultStatus?>(null)
+    val cervicalFaultStatus: StateFlow<CervicalFaultStatus?> = _cervicalFaultStatus
+
+    /** Offline faults this user has not yet read — drives the summary sheet. */
+    private val _unacknowledgedCervicalFaults = MutableStateFlow<List<CervicalFaultRecord>>(emptyList())
+    val unacknowledgedCervicalFaults: StateFlow<List<CervicalFaultRecord>> = _unacknowledgedCervicalFaults
+
+    /** The blanket warning has been read on this connection. Reset at every disconnect. */
+    private val _cardiacWarningAcknowledged = MutableStateFlow(false)
+    val cardiacWarningAcknowledged: StateFlow<Boolean> = _cardiacWarningAcknowledged
+
+    private var activeUserCharPresent = false
+
+    /**
+     * The person using the device, from the active individual profile. Sent whenever it
+     * changes and at every connect; null = the app has not named anyone, so the device keeps
+     * assuming whoever it last knew.
+     */
+    var activeUserTag: Long? = null
+        set(value) {
+            if (field == value) return
+            field = value
+            sendActiveUserTag()
+            // Offline faults are the active user's; re-read them against this user's ledger.
+            _cervicalFaultStatus.value?.let {
+                _unacknowledgedCervicalFaults.value = cervicalFaultLedger.unacknowledged(it.records)
+            }
+        }
+
     private var reconnectJob: Job? = null
 
     init {
@@ -115,6 +156,7 @@ class NeurOneGattManager(
             GattUuids.service,
             GattUuids.all + listOf(
                 GattUuids.warrantyToken, GattUuids.firmwareVersion, GattUuids.cvnsPadStatus,
+                GattUuids.cvnsFaultStatus, GattUuids.cvnsReenableConfirm, GattUuids.activeUser,
             ),
         )
     }
@@ -138,6 +180,13 @@ class NeurOneGattManager(
         if (GattUuids.firmwareVersion in characteristics) central.read(GattUuids.firmwareVersion)
         // Optional — T2 cervical accessory only, and hub firmware not yet shipped.
         if (GattUuids.cvnsPadStatus in characteristics) central.enableNotifications(GattUuids.cvnsPadStatus)
+        // Name the person before the fault summary is read: the summary is theirs.
+        activeUserCharPresent = GattUuids.activeUser in characteristics
+        sendActiveUserTag()
+        if (GattUuids.cvnsFaultStatus in characteristics) {
+            central.enableNotifications(GattUuids.cvnsFaultStatus)
+            central.read(GattUuids.cvnsFaultStatus)
+        }
         // Restore session status immediately on (re)connect.
         if (GattUuids.sessionStatus in characteristics) central.read(GattUuids.sessionStatus)
     }
@@ -157,6 +206,10 @@ class NeurOneGattManager(
         if (uuid == GattUuids.cvnsPadStatus) {
             // UHDR-class, but not part of the session record — published on its own.
             applyCervicalPadStatus(value)
+            return
+        }
+        if (uuid == GattUuids.cvnsFaultStatus) {
+            applyCervicalFaultStatus(value)
             return
         }
         when (uuid) {
@@ -219,7 +272,67 @@ class NeurOneGattManager(
         _cervicalPadAlert.value = null
     }
 
+    /** Decodes CVNS_FAULT_STATUS; a malformed frame changes nothing. */
+    fun applyCervicalFaultStatus(value: ByteArray) {
+        val status = GattParser.parseCervicalFaultStatus(value) ?: return
+        _cervicalFaultStatus.value = status
+        _unacknowledgedCervicalFaults.value = cervicalFaultLedger.unacknowledged(status.records)
+    }
+
+    /** The wearer has read the offline-fault summary. Moves this user's ledger past these records. */
+    fun acknowledgeCervicalFaults() {
+        val records = _cervicalFaultStatus.value?.records ?: return
+        cervicalFaultLedger = cervicalFaultLedger.acknowledge(records)
+        _unacknowledgedCervicalFaults.value = emptyList()
+    }
+
+    /**
+     * True while a cardiac cutoff from an offline session is unread: the protocol uploader then
+     * refuses a protocol containing cervical VNS.
+     */
+    val cervicalRestartBlocked: Boolean
+        get() = _cervicalFaultStatus.value?.let { cervicalFaultLedger.blocksCervicalRestart(it.records) } ?: false
+
+    /** Someone other than the active user has an outstanding cardiac cutoff. */
+    val cervicalOutstandingForAnotherUser: Boolean
+        get() = _cervicalFaultStatus.value?.outstandingForAnotherUser ?: false
+
+    /** The wearer has read this connection's blanket warning. */
+    fun acknowledgeCardiacWarning() {
+        _cardiacWarningAcknowledged.value = true
+    }
+
+    /**
+     * The wearer confirms resuming cervical VNS after a cardiac cutoff. The hub accepts it only
+     * while awaiting a confirmation, then re-checks the pads; its next CVNS_FAULT_STATUS shows
+     * the outcome. Returns false when the hub has no such characteristic or is not connected.
+     */
+    fun sendCervicalReenableConfirm(): Boolean {
+        if (_connectionState.value != ConnectionState.CONNECTED ||
+            _cervicalFaultStatus.value?.reenableState != CervicalFaultStatus.ReenableState.AWAIT_CONFIRM
+        ) return false
+        central.write(GattUuids.cvnsReenableConfirm, byteArrayOf(0x01))
+        return true
+    }
+
     // ── Internals ────────────────────────────────────────────────────────
+
+    private val cervicalFaultLedgerKey: String
+        get() = CERVICAL_FAULT_LEDGER_KEY + "." + (activeUserTag?.toString() ?: "unnamed")
+
+    private var cervicalFaultLedger: CervicalFaultLedger
+        get() = CervicalFaultLedger(ledgerStore.getString(cervicalFaultLedgerKey)?.toLongOrNull())
+        set(value) {
+            val n = value.lastAcknowledgedSession
+            if (n == null) ledgerStore.remove(cervicalFaultLedgerKey)
+            else ledgerStore.putString(cervicalFaultLedgerKey, n.toString())
+        }
+
+    private fun sendActiveUserTag() {
+        val tag = activeUserTag ?: return
+        if (!activeUserCharPresent || _connectionState.value != ConnectionState.CONNECTED) return
+        central.write(GattUuids.activeUser, ActiveUserTag.toWire(tag))
+    }
 
     /** A failure raises the alert; a both-pads-pass frame clears it; a malformed frame changes nothing. */
     private fun applyCervicalPadStatus(value: ByteArray) {
@@ -239,6 +352,10 @@ class NeurOneGattManager(
         _hubFirmwareVersion.value = null
         _warrantyToken.value = null
         _cervicalPadAlert.value = null
+        _cervicalFaultStatus.value = null
+        _unacknowledgedCervicalFaults.value = emptyList()
+        _cardiacWarningAcknowledged.value = false
+        activeUserCharPresent = false
         // Reset the SHDR upload trigger — it is tied to a live connection; the hub
         // re-signals 0x01 on reconnect (retry on next USB-C session, iOS parity).
         _shdrUploadPending.value = false
@@ -248,5 +365,9 @@ class NeurOneGattManager(
         // Reject short payloads; truncate long ones to 32 bytes (iOS parity).
         if (value.size < 32) return
         _warrantyToken.value = value.copyOf(32)
+    }
+
+    private companion object {
+        const val CERVICAL_FAULT_LEDGER_KEY = "np.cvns.fault-ledger.last-acknowledged-session"   // iOS parity
     }
 }

@@ -91,6 +91,11 @@ struct NeurOneApp: App {
                 .environmentObject(limitsStore)
                 .environmentObject(healthKit)
                 .environmentObject(historyStore)
+                // Per-user cardiac scope: tell the device who is using it, from the active
+                // individual profile (an opaque tag, no identity).
+                .onChange(of: limitsStore.activeProfileId, initial: true) { _, id in
+                    gatt.activeUserTag = ActiveUserTag.from(profileId: id)
+                }
                 .onAppear {
                     UIDevice.current.isBatteryMonitoringEnabled = true
                     EngagementTier.incrementLaunchCount()

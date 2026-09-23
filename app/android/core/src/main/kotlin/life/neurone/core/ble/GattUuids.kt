@@ -42,6 +42,19 @@ object GattUuids {
     // no cervical accessory, so its absence must never block allCharacteristicsResolved.
     val cvnsPadStatus: UUID    = UUID.fromString("4E455550-0013-1000-8000-00805F9B34FB") // NOTIFY 4B
 
+    // Cervical VNS offline-fault summary + hub re-enable state — READ/NOTIFY, 4 + 8n bytes
+    // (see CervicalFaultStatus). And the wearer's re-enable confirmation after a cardiac
+    // cutoff — WRITE, 1 byte 0x01; the hub accepts it only while awaiting one
+    // (np_hub_cvns_reenable_confirm). NP-SW-FAULTMSG-001 P3/P4. Both T2 only and NOT in
+    // `all`, for the same reasons as cvnsPadStatus.
+    val cvnsFaultStatus: UUID     = UUID.fromString("4E455550-0014-1000-8000-00805F9B34FB") // READ/NOTIFY
+    val cvnsReenableConfirm: UUID = UUID.fromString("4E455550-0015-1000-8000-00805F9B34FB") // WRITE 1B
+
+    // Which person is using the device — WRITE 4B, little-endian opaque tag (ActiveUserTag),
+    // forwarded to the safety MCU so a cardiac cutoff is held for that person only. Optional,
+    // NOT in `all`.
+    val activeUser: UUID          = UUID.fromString("4E455550-0016-1000-8000-00805F9B34FB") // WRITE 4B
+
     // All characteristics required for a fully-operational session.
     // warrantyToken and firmwareVersion are deliberately omitted (optional until
     // hub firmware ships them — OI-WA-03). Mirrors iOS NPUUID.all exactly.

@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 5
-**Date:** 2026-09-20
+**Revision:** 6
+**Date:** 2026-09-23
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -12,10 +12,19 @@
 **Related Issues:** GitHub Issue #24; GitHub Issue #343 (§9 FAI serial disposition); GitHub Issue #332 (A14 hardware specification — issued 2026-09-20 as NP-HW-CVNS-001)
 **Gate:** NP-COORD-001 G3-08
 **IEC 62304 Class:** SW-01 Class C (safety MCU) / SW-02 Class B (main processor)
-**Supersedes:** NP-FW-CVNS-001 Rev 4
+**Supersedes:** NP-FW-CVNS-001 Rev 5
 **Parent Document:** NP-SW-001
 
 ---
+
+**Rev 6 (2026-09-23): the cardiac cutoff survives power loss, is held per user, and withholds cervical VNS only; the UHDR record says which fault stopped the session (`NP-SW-FAULTMSG-001` Rev 2, principal decisions 2026-09-22).** Three changes.
+- **§5.4 step 2c now holds across a power-on reset.** It used to hold only while the device stayed powered, and the headset has no battery. In Mode 3, unplugging the power bank cleared the lockout, and `REQ-CVNS-09`'s app confirmation was skipped (`OI-FAULTMSG-01`). The safety MCU now records the cutoff in its own flash (new §5.4.1).
+- **The cutoff is scoped.**
+  - It withholds `NP_SAFETY_EN_CVNS` only (`NP_CARDIAC_BLOCK_MASK`). Before this revision, CARDIAC was in the all-channel cutoff mask, which stopped every modality.
+  - It is held for the user who triggered it, and nobody else.
+- **§4.5 carries `fault_reason`.** `cutoff_occurred` is set only for a heart-rate change, and `cutoff_hr_at_event_bpm` is now written (`OI-FAULTMSG-02`). Before, every interlock fault set `cutoff_occurred`, so a lost R-peak signal read as a cardiac cutoff.
+
+§13 is updated to match. No threshold, latency, lockout duration or SHDR field changed.
 
 **Rev 5 (2026-09-20): §9's note said no A14 hardware specification exists; one does now, and the conclusion it supported is unchanged.** GitHub #332 issued **`NP-HW-CVNS-001` Rev 1**, the mechanical and electrical specification for the electrode assembly, cable and connector. `NP-FAI-CVNS-001` remains unwritable and remains a named absence in `NP-ART-001` §3.2 — `NP-FAI-001` §2 F1 requires `BASELINED` or `ACTIVE` and that document is DRAFT — so **only the stated reason changes**, from *absence* to *maturity* (`NP-FAI-001` §2.2, and OI-FAI-07 re-scoped rather than closed). §9's header note and §10's Rev 4 note are updated to say so. **`NP-HW-CVNS-001` `REQ-CVNS-12` records that FAI-CV01's placement, impedance and open-detection criteria are A14's acceptance criteria carried by a firmware test procedure, and that the artifact checklist inherits them when F1 is met — nothing moves out of §9, which stays the test specification and the record of file.** **No constant, limit, criterion, item number, test procedure or firmware behaviour changed. IEC 62304 SW-01 Class C / SW-02 Class B: no code, no interface and no verification is affected.**
 
@@ -225,9 +234,17 @@ typedef struct {
     float    impedance_right_kohm;
     float    mean_impedance_kohm;
     uint8_t  abort_reason;           /* 0=normal, else np_cvns_status_t        */
-    uint8_t  reserved[3];
+    uint8_t  fault_reason;           /* np_cvns_fault_reason_t; NONE if normal  */
+    uint8_t  reserved[2];
 } np_cvns_session_record_t;
 ```
+
+**Rev 6.**
+- `cutoff_occurred` is 1 **only** for `NP_CVNS_FAULT_HR_CHANGE`, the cardiac cutoff.
+- `fault_reason` records which interlock fault stopped the session: HR change, R-peak data loss, watchdog, safety MCU or pad impedance. It takes one of the reserved bytes, so the record size is unchanged.
+- `cutoff_hr_at_event_bpm` is written at the cutoff.
+
+Before Rev 6, every interlock fault set `cutoff_occurred`, and the event HR was never written, so the user's own record could not say which fault happened (`NP-SW-FAULTMSG-001` F2).
 
 ### 4.6 SHDR session summary
 
@@ -314,7 +331,26 @@ Once stimulation is enabled, the safety MCU runs a 200 Hz interrupt-driven loop 
    b. Record the fault: `NP_SAFETY_STATUS_CARDIAC` and `NP_SAFETY_STATUS_CUTOFF` set, `fault_slot` = 10 (CVNS).
    c. Start the `NP_CARDIAC_LOCKOUT_MS` (30 s) re-enable lockout. Re-enable is refused for the whole window; after it expires, re-enable additionally requires explicit app confirmation and a repeat impedance check (§5.5, CLAUDE.md §4.2).
    d. Send FAULT SPI notification to main processor on next SPI transaction.
+   e. **(Rev 6)** Record the cutoff in safety-MCU flash for the active user (§5.4.1), once every channel is off. The CARDIAC status withholds `NP_SAFETY_EN_CVNS` **only** (`NP_CARDIAC_BLOCK_MASK`). Every other channel stays grantable.
 3. **Conservative hold.** The safety MCU will not fire a cutoff at all until the baseline has armed — that is, until `NP_CARDIAC_BASELINE_BEATS` (8) intervals have accumulated. This is stricter than Rev 1's "fewer than 3 valid intervals" rule, which described the *main processor's* data-loss handling (`NP_CVNS_DATA_LOSS_TIMEOUT_S`, §6). The safety MCU has **no** warning flag and **no** 10 s soft-cutoff timer; it holds, silently and unconditionally, until armed. Re-enable invalidates the baseline, so the hold applies again after every cutoff.
+
+#### 5.4.1 Persistence and per-user scope (Rev 6)
+
+The step 2c lockout used to be RAM state, and the fault latch is cleared by a power-on reset. The headset has no battery (CLAUDE.md §4.5), so in Mode 3 an unplug and re-plug restarted cervical stimulation with no app confirmation (`NP-SW-FAULTMSG-001` F1). Module SW01-M09 (`np_nv_state.c`) closes this. The design and its rationale are in `NP-SW-FAULTMSG-001` §9.
+
+- **Active user.** The app names the person using the device with an opaque tag, derived from the profile's random UUID. The hub forwards it (`NP_SAFETY_CMD_ACTIVE_USER`, 10-byte frame) only while no session is running. The safety MCU accepts it only when nothing is granted. The same person is assumed until the app names someone else.
+- **Record.** A cutoff is recorded against the active user.
+  - A cutoff recorded before any user is named is unattributable and blocks everyone.
+  - The completed re-enable (§5.5: lockout expired, app confirmation, repeat impedance) clears the confirming user's entry and every unattributable one.
+- **Boot.** The log is replayed. If the current user has an outstanding cutoff, CARDIAC is re-armed *latently*: it is asserted at the first cervical enable request, and no other channel is affected.
+- **Fail closed.**
+  - A torn record counts as an unattributable cutoff.
+  - An uncommitted compaction snapshot is merged additively.
+  - An overflow past 8 pending users becomes "any".
+  - A flash write that fails 3 times raises a FAULT (slot `NP_FAULT_SLOT_NVSTATE`).
+- **Stall.** Flash writes stall the core for up to 40 ms, so they run only while no channel is granted.
+- **Reported to the hub, not to SHDR.** Two bits go to the hub in every SPI reply (`np_safety_nv_report_t`): *this user is withheld*, and *someone on this device has an outstanding cutoff*. They reach the app only. They are never timed, never logged and never SHDR-reportable (CLAUDE.md §5.1).
+- **Flash layout.** Pages 62–63 (0x0801F000, 4 KB) are reserved in the linker script. A future safety-MCU update path must never erase them.
 
 **Cutoff latency guarantee:** The GPIO assertion occurs within the TIM6 ISR, with a maximum latency of one 5 ms tick after the condition is first detected. The ISR itself executes in < 100 µs on the STM32G071 at 64 MHz (< 6,400 cycles). **Total worst-case cutoff latency: < 5.1 ms — well within the 100 ms specification (`NP_CVNS_CUTOFF_LATENCY_MAX_MS`).**
 
@@ -729,7 +765,7 @@ Hardware FAI (CV01 bench, CV02 timing, CV03 clinical) PENDING — blocking for T
 | Severity | Critical (S4: could result in serious injury) |
 | Probability (unmitigated) | P3 (possible; documented in gammaCore predicate safety data) |
 | Risk (unmitigated) | High |
-| Mitigation | Safety MCU TIM6 ISR fires every 5 ms; cardiac interlock GPIO cutoff < 5.1 ms from detection trigger. Baseline cross-validation blocks enable if main processor and safety MCU disagree. 30 s re-enable lockout. Re-enable requires explicit app confirmation. gammaCore predicate demonstrated equivalent interlock concept safe in K163334/K173323. |
+| Mitigation | Safety MCU TIM6 ISR fires every 5 ms; cardiac interlock GPIO cutoff < 5.1 ms from detection trigger. Baseline cross-validation blocks enable if main processor and safety MCU disagree. 30 s re-enable lockout. Re-enable requires explicit app confirmation. **(Rev 6)** The cutoff persists in safety-MCU flash across power loss, per user, failing closed (§5.4.1). It withholds cervical VNS only. gammaCore predicate demonstrated equivalent interlock concept safe in K163334/K173323. |
 | Residual probability | P1 (unlikely; hardware interlock is independent of software stack) |
 | Residual risk | Low |
 | Verification | FAI-CV02: measured cutoff latency ≤ 100 ms (10 consecutive trials) |

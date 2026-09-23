@@ -42,6 +42,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import life.neurone.app.R
 import life.neurone.app.ble.ConnectionState
+import life.neurone.core.models.CervicalFaultRecord
+import life.neurone.core.models.CervicalFaultStatus
 import life.neurone.core.models.CervicalPadStatus
 import life.neurone.core.models.PacerPhase
 import life.neurone.core.models.SessionState
@@ -63,6 +65,13 @@ fun SessionScreen(
     modifier: Modifier = Modifier,
     cervicalPadAlert: CervicalPadStatus? = null,
     onAcknowledgeCervicalPadAlert: () -> Unit = {},
+    cervicalFaultStatus: CervicalFaultStatus? = null,
+    unacknowledgedCervicalFaults: List<CervicalFaultRecord> = emptyList(),
+    onAcknowledgeCervicalFaults: () -> Unit = {},
+    cardiacWarningAcknowledged: Boolean = true,
+    onAcknowledgeCardiacWarning: () -> Unit = {},
+    /** Sends the re-enable confirmation; false when the hub is not awaiting one. */
+    onConfirmCervicalResume: () -> Boolean = { false },
 ) {
     var showStopConfirm by remember { mutableStateOf(false) }
     val isRunning = session.status == SessionStatus.RUNNING
@@ -82,6 +91,11 @@ fun SessionScreen(
         if (connectionState == ConnectionState.CONNECTED) {
             SessionStatusCard(session.status)
             Spacer(Modifier.height(16.dp))
+
+            if (cervicalFaultStatus?.reenableState == CervicalFaultStatus.ReenableState.AWAIT_CONFIRM) {
+                CervicalResumeCard(onConfirmCervicalResume)
+                Spacer(Modifier.height(16.dp))
+            }
 
             if (isRunning) {
                 LiveMetricsGrid(session)
@@ -157,6 +171,99 @@ fun SessionScreen(
             },
             confirmButton = {
                 TextButton(onClick = onAcknowledgeCervicalPadAlert) { Text(stringResource(R.string.common_ok)) }
+            },
+        )
+    }
+
+    // NP-SW-FAULTMSG-001 P4: faults from sessions that ran without the app. No dismiss on
+    // outside tap — the wearer must read it; acknowledging releases nothing on the device.
+    if (unacknowledgedCervicalFaults.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text(stringResource(R.string.cvns_fault_summary_title)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.cvns_fault_summary_intro))
+                    unacknowledgedCervicalFaults.forEach { fault ->
+                        Spacer(Modifier.height(12.dp))
+                        Text(cervicalFaultMessage(fault))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = onAcknowledgeCervicalFaults) {
+                    Text(stringResource(R.string.cvns_fault_acknowledge))
+                }
+            },
+        )
+    } else if (cervicalFaultStatus?.outstanding == true && !cardiacWarningAcknowledged) {
+        // Per-user cardiac scope: someone on this device has an outstanding cardiac cutoff.
+        // Everyone who connects sees this once per connection — it never says who — so
+        // switching profiles cannot hide a block.
+        AlertDialog(
+            onDismissRequest = onAcknowledgeCardiacWarning,
+            title = { Text(stringResource(R.string.cvns_blanket_warning_title)) },
+            text = { Text(stringResource(R.string.cvns_blanket_warning_body)) },
+            confirmButton = {
+                TextButton(onClick = onAcknowledgeCardiacWarning) { Text(stringResource(R.string.common_ok)) }
+            },
+        )
+    }
+}
+
+@Composable
+private fun cervicalFaultMessage(fault: CervicalFaultRecord): String = when (fault.message) {
+    CervicalFaultRecord.Message.HR_CHANGE -> stringResource(R.string.cvns_fault_hr_change)
+    CervicalFaultRecord.Message.SIGNAL_LOST -> stringResource(R.string.cvns_fault_signal_lost)
+    CervicalFaultRecord.Message.DEVICE -> stringResource(R.string.cvns_fault_device)
+    CervicalFaultRecord.Message.PAD_LEFT -> stringResource(R.string.cvns_fault_pad_left)
+    CervicalFaultRecord.Message.PAD_RIGHT -> stringResource(R.string.cvns_fault_pad_right)
+    CervicalFaultRecord.Message.PAD_BOTH -> stringResource(R.string.cvns_fault_pad_both)
+}
+
+/**
+ * Shown while the hub is waiting for the wearer to confirm resuming cervical stimulation after
+ * a cardiac cutoff. Confirming sends the confirmation the hub requires (REQ-CVNS-09); the hub
+ * then re-checks the pads, and only then does the safety MCU clear the cutoff. Mirrors iOS
+ * CervicalResumeCard.
+ */
+@Composable
+private fun CervicalResumeCard(onConfirm: () -> Boolean) {
+    var askConfirm by remember { mutableStateOf(false) }
+    var sent by remember { mutableStateOf<Boolean?>(null) }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.cvns_resume_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(R.string.cvns_resume_body))
+            sent?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(if (it) R.string.cvns_resume_sent else R.string.cvns_resume_rejected),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = { askConfirm = true }) { Text(stringResource(R.string.cvns_resume_button)) }
+        }
+    }
+    if (askConfirm) {
+        AlertDialog(
+            onDismissRequest = { askConfirm = false },
+            title = { Text(stringResource(R.string.cvns_resume_confirm_title)) },
+            text = { Text(stringResource(R.string.cvns_resume_confirm_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    askConfirm = false
+                    sent = onConfirm()
+                }) { Text(stringResource(R.string.cvns_resume_button)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { askConfirm = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }

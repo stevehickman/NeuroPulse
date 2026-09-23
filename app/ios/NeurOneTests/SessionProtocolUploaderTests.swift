@@ -205,6 +205,71 @@ final class SessionProtocolUploaderTests: XCTestCase {
         let stillUploading = uploader.isUploading
         XCTAssertFalse(stillUploading, "isUploading must be false after upload completes")
     }
+
+    // MARK: - NP-SW-FAULTMSG-001 P4: unread cardiac cutoff blocks a cervical restart
+
+    private func cervicalDefinition() -> NPProtocolDefinition {
+        NPProtocolDefinition(
+            name: "Cervical",
+            timingMode: .duration(120),
+            modalities: [NPProtocolModality(params: .cervicalVns(NPCervicalVnsParams()),
+                                            interval: .continuous, enabled: true)]
+        )
+    }
+
+    func testCervicalProtocolRefusedWhileCardiacCutoffUnread() async {
+        let gateway = MockProtocolUploadGateway()
+        gateway.cervicalRestartBlocked = true
+        let uploader = SessionProtocolUploader(gatt: gateway)
+        do {
+            try await uploader.upload(cervicalDefinition())
+            XCTFail("a cervical protocol must be refused while a cardiac cutoff is unread")
+        } catch UploadError.cervicalRestartBlocked {
+            // expected
+        } catch {
+            XCTFail("unexpected error \(error)")
+        }
+        XCTAssertEqual(gateway.uploadCallCount, 0, "nothing may reach the hub")
+    }
+
+    func testAnotherPersonsCutoffNeedsOneConfirmationPerUpload() async throws {
+        let gateway = MockProtocolUploadGateway()
+        gateway.cervicalOutstandingForAnotherUser = true
+        let uploader = SessionProtocolUploader(gatt: gateway)
+        do {
+            try await uploader.upload(cervicalDefinition())
+            XCTFail("a profile switch past another person's cutoff must be confirmed")
+        } catch UploadError.differentPersonConfirmationRequired {
+            // expected
+        }
+        XCTAssertEqual(gateway.uploadCallCount, 0)
+
+        uploader.confirmDifferentPerson()
+        try await uploader.upload(cervicalDefinition())
+        XCTAssertGreaterThan(gateway.uploadCallCount, 0, "confirmed — the upload proceeds")
+
+        // The confirmation is one-shot: the next upload asks again.
+        do {
+            try await uploader.upload(cervicalDefinition())
+            XCTFail("confirmation must not carry over to a later upload")
+        } catch UploadError.differentPersonConfirmationRequired {
+            // expected
+        }
+    }
+
+    func testNonCervicalProtocolUnaffectedByCardiacCutoff() async throws {
+        let gateway = MockProtocolUploadGateway()
+        gateway.cervicalRestartBlocked = true
+        let uploader = SessionProtocolUploader(gatt: gateway)
+        let pbm = NPProtocolDefinition(
+            name: "PBM",
+            timingMode: .duration(600),
+            modalities: [NPProtocolModality(params: .pbmTranscranial(NPPBMTranscranialParams()),
+                                            interval: .continuous, enabled: true)]
+        )
+        try await uploader.upload(pbm)
+        XCTAssertGreaterThan(gateway.uploadCallCount, 0, "other modalities are not blocked")
+    }
 }
 
 // MARK: - Mock GATT gateway
@@ -214,6 +279,8 @@ final class SessionProtocolUploaderTests: XCTestCase {
 private final class MockProtocolUploadGateway: ProtocolUploadGateway {
 
     var isHubConnected: Bool
+    var cervicalRestartBlocked = false
+    var cervicalOutstandingForAnotherUser = false
     private(set) var uploadCallCount = 0
     private var chunks: [Data] = []
 

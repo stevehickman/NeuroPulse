@@ -151,6 +151,18 @@ class NPLimitsStore(private val kv: KeyValueStore) {
         private set
     var activeHelmetSerial: String? = null
     var activeProfileId: String? = null
+        set(value) {
+            if (field == value) return
+            field = value
+            onActiveProfileChanged?.invoke(value)
+        }
+
+    /**
+     * Observes the active individual profile — the composition root forwards it to the hub as
+     * the device's active user (per-user cardiac scope, NP-SW-FAULTMSG-001). iOS observes
+     * NPLimitsStore.activeProfileId the same way.
+     */
+    var onActiveProfileChanged: ((String?) -> Unit)? = null
 
     init {
         loadGlobal()

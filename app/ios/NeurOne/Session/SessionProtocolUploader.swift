@@ -17,6 +17,12 @@ enum UploadError: LocalizedError {
     /// the validator — that combination means a target the validator does not
     /// yet check.
     case targetUnresolvable(Error)
+    /// The protocol contains cervical VNS, and a cardiac cutoff from a session that ran without
+    /// the app has not been read yet (NP-SW-FAULTMSG-001 P4).
+    case cervicalRestartBlocked
+    /// The protocol contains cervical VNS and another person on this device has an outstanding
+    /// cardiac cutoff: the wearer must confirm they are a different person first.
+    case differentPersonConfirmationRequired
 
     var errorDescription: String? {
         switch self {
@@ -34,6 +40,10 @@ enum UploadError: LocalizedError {
             return "Protocol validation failed: \(summary)\(extra)"
         case .targetUnresolvable(let e):
             return "Protocol target could not be resolved: \(e.localizedDescription)"
+        case .cervicalRestartBlocked:
+            return String(localized: "UPLOAD_CERVICAL_BLOCKED")
+        case .differentPersonConfirmationRequired:
+            return String(localized: "CVNS_DIFFERENT_PERSON_BODY")
         }
     }
 }
@@ -55,6 +65,38 @@ final class SessionProtocolUploader: ObservableObject {
     // the NPSessionProtocol wire format, signs, and uploads.
     func upload(_ definition: NPProtocolDefinition) async throws {
         try await upload(try buildWireProtocol(from: definition))
+    }
+
+    /// Set by the "this is a different person" confirmation; consumed by the next cervical
+    /// upload.  One confirmation covers one upload, so it cannot go stale.
+    private var differentPersonConfirmed = false
+
+    func confirmDifferentPerson() {
+        differentPersonConfirmed = true
+    }
+
+    /// NP-SW-FAULTMSG-001 P4 and the per-user cardiac scope.  The safety MCU holds every cutoff
+    /// regardless (P1); these make the app say why, and put a profile switch on the record.
+    ///  - an unread cardiac cutoff from an offline session → refused until it is read;
+    ///  - another person's outstanding cutoff → one explicit "different person" confirmation.
+    /// A blocked user can still start a cervical session: the device holds cervical VNS and the
+    /// re-enable confirmation runs inside it.
+    private func checkCervicalGate(_ definition: NPProtocolDefinition) throws {
+        guard definition.modalities.contains(where: { $0.enabled && $0.modalityType == .cervicalVns })
+        else { return }
+        if gatt.cervicalRestartBlocked {
+            let err = UploadError.cervicalRestartBlocked
+            lastError = err
+            throw err
+        }
+        if gatt.cervicalOutstandingForAnotherUser {
+            guard differentPersonConfirmed else {
+                let err = UploadError.differentPersonConfirmationRequired
+                lastError = err
+                throw err
+            }
+            differentPersonConfirmed = false
+        }
     }
 
     // Upload a session protocol to the hub (Mode 2 Programming).
@@ -155,6 +197,7 @@ final class SessionProtocolUploader: ObservableObject {
             lastError = err
             throw err
         }
+        try checkCervicalGate(definition)
         let result = NPProtocolValidator(resolvedLimits: .unlimited).validate(definition)
         guard result.isValid else {
             let err = UploadError.validationFailed(result.errors)
