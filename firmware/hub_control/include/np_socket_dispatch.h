@@ -19,7 +19,10 @@
  * ── Admission, in order — every step all-or-nothing ──────────────────────────
  *
  *   1. mod_type must be socket-addressable: NP_MOD_PBM_BASE or NP_MOD_PBM_SMART.
- *      Nothing else occupies a lattice socket as a DRIVEN emitter today.
+ *      Nothing else occupies a lattice socket as a DRIVEN emitter today, and
+ *      electrode modalities must not be admitted here until NP-FW-MMSOCK-001
+ *      §3.6's geometry gap (OI-MMSOCK-02) is closed — see that document for
+ *      which modalities may share a socket and which must not.
  *   2. The mask must select ≥1 socket.
  *   3. A STOP (params_len == 0) is admitted unconditionally past this point:
  *      stopping is always safe and must never be refused.
