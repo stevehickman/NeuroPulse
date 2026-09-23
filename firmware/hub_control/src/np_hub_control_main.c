@@ -54,6 +54,7 @@
 #include "np_transport.h"
 #include "np_safety_spi.h"
 #include "np_cvns_reenable.h"
+#include "np_cvns_fault_summary.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "event_groups.h"
@@ -166,6 +167,9 @@ static void task_safety_heartbeat(void *arg)
         if (s_active_user_pending && (state == NP_SESSION_IDLE)) {
             if (np_safety_spi_send_active_user(s_active_user_tag) == NP_HUB_OK) {
                 s_active_user_pending = false;
+                /* The MCU now names this person, so the hub attributes the
+                 * next cervical fault to them too (NP-SW-FAULTMSG-001 §9.6). */
+                np_cvfs_set_user(s_active_user_tag);
             }
         }
 
@@ -177,6 +181,15 @@ static void task_safety_heartbeat(void *arg)
             now_ms);
         np_safety_spi_set_cvns_reenable(np_cvns_reenable_bit_active());
         log_cvns_event(ev);
+
+        /* NP-SW-FAULTMSG-001 §9.6: publish CVNS_FAULT_STATUS when it changes
+         * (re-enable state, the safety MCU's per-user flags, a new fault) and
+         * persist a pending change.  Flags come from the most recent reply. */
+        {
+            uint8_t nv_flags = 0U;
+            bool    nv_valid = np_safety_spi_get_cardiac_report(&nv_flags);
+            np_cvfs_poll((uint8_t)np_cvns_reenable_get_state(), nv_valid, nv_flags);
+        }
 
         /* Transmit the REQUESTED mask (accumulated by the session runner via
          * request_enable/request_disable) — echoing the granted mask back
@@ -474,6 +487,11 @@ void np_hub_control_app_main(void)
 
     uint32_t session_count = np_hal_get_device_session_count();
     np_log_init(session_count);
+
+    /* NP-SW-FAULTMSG-001 §9.6: reload the cervical offline-fault summary and
+     * the last-named user from the UHDR partition, which the backend has just
+     * opened.  Before the heartbeat task starts polling it. */
+    np_cvfs_init();
 
     np_mod_reg_init();
     np_mod_reg_scan(shdr_zone_auth_cb);

@@ -67,10 +67,12 @@ env:
   # np_lfs_powerloss_tests — the littlefs power-loss injection sweep against
   # claims L-1…L-4 — taking the figures to 7 + 29 = 36.  Re-derived the same
   # way: `ctest -N` on the merged tree.  OI-FAULTMSG-01 then added the eighth
-  # Class C target, np_nv_state_tests: 8 + 29 = 37.
-  NP_TOTAL_TEST_COUNT: '37'
+  # Class C target, np_nv_state_tests: 8 + 29 = 37.  NP-SW-FAULTMSG-001 §9.6
+  # then added np_cvns_fault_summary_tests (the hub's cervical offline-fault
+  # summary): 8 + 30 = 38, re-derived with `ctest -N` on the tree.
+  NP_TOTAL_TEST_COUNT: '38'
   NP_SAFETY_TEST_COUNT: '8'
-  NP_CLASS_B_TEST_COUNT: '29'
+  NP_CLASS_B_TEST_COUNT: '30'
 
 jobs:
   host-tests-all:

@@ -327,3 +327,11 @@ Entries sharing a date keep the relative order they had before the reordering.
     - `OI-RISK2-05`: other FMEA §3.5 M05 rows, and §2's IWDG, describe controls the safety-MCU code does not contain.
     - `OI-RISK2-06`: the auricular VNS clinical question.
   - **No requirement, threshold, code or CLAUDE.md text changed.**
+- **2026-09-23 — the hub now builds and publishes the cervical offline-fault summary (`NP-SW-FAULTMSG-001` Rev 3 §9.6):**
+  - **The store.** A Class B module (`np_cvns_fault_summary.c`) keeps the last 8 cervical fault stops with the user named at the time, plus the last-named user. They persist as a CRC-checked UHDR blob, so a Mode 3 fault survives the power bank being unplugged.
+  - **The frame.** It builds `CVNS_FAULT_STATUS` exactly as the apps parse it, and a host test byte-compares it with the apps' fixture. The frame carries only the active user's records and the unattributed ones, and it is published on change from the heartbeat.
+  - **The writes.** `ACTIVE_USER` and `CVNS_REENABLE_CONFIRM` are validated and forwarded.
+  - **Wiring.** The cervical module records each fault with its real kind at session end.
+  - **Attribution.** The hub's attribution follows the safety MCU's: it changes when the user is forwarded between sessions, not when the app writes.
+  - **Not done:** the BLE GATT server (`OI-WA-03`) and the UHDR storage glue (`OI-LFS-05`) are the three remaining platform seams (census 94 → 97), so nothing reaches a phone on hardware yet. The worst-case duration of the save in the heartbeat task is unmeasured.
+  - **No requirement, threshold or safety-MCU code changed.**
