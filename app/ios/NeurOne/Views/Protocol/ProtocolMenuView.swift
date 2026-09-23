@@ -36,6 +36,9 @@ struct ProtocolMenuView: View {
     @State private var unavailableAlert: NPProtocolEntry? = nil
     @State private var uploadConfirm: NPProtocolEntry? = nil
     @State private var uploadError: String? = nil
+    /// Per-user cardiac scope: another person on this device has an outstanding cardiac cutoff,
+    /// and this cervical protocol needs the "different person" confirmation first.
+    @State private var askDifferentPerson = false
     @State private var lastSelectedEntry: NPProtocolEntry? = nil
     @State private var showUploadSuccess = false
     @State private var uploadTask: Task<Void, Never>? = nil
@@ -52,6 +55,16 @@ struct ProtocolMenuView: View {
                 }
             }
             .navigationTitle(String(localized: "TAB_PROTOCOLS"))
+            .confirmationDialog("CVNS_DIFFERENT_PERSON_TITLE", isPresented: $askDifferentPerson,
+                                titleVisibility: .visible) {
+                Button("CVNS_DIFFERENT_PERSON_CONFIRM", role: .destructive) {
+                    uploader.confirmDifferentPerson()
+                    if let entry = lastSelectedEntry { handleSelect(entry) }
+                }
+                Button("COMMON_CANCEL", role: .cancel) { }
+            } message: {
+                Text("CVNS_DIFFERENT_PERSON_BODY")
+            }
             .navigationBarTitleDisplayMode(.large)
             .searchable(text: $searchText, prompt: String(localized: "PROTOCOL_MENU_SEARCH_BY_NAME_OR_TAG"))
             .toolbar { toolbarContent }
@@ -474,6 +487,9 @@ struct ProtocolMenuView: View {
                     withAnimation { showUploadSuccess = false }
                     dismiss()
                 }
+            } catch UploadError.differentPersonConfirmationRequired {
+                guard !Task.isCancelled else { return }
+                askDifferentPerson = true
             } catch {
                 guard !Task.isCancelled else { return }
                 withAnimation { uploadError = error.localizedDescription }

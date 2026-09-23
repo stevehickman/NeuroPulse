@@ -62,21 +62,28 @@ void np_spi_watchdog_tick(np_safety_state_t         *state,
     uint8_t active_faults = state->status & (NP_SAFETY_STATUS_FAULT       |
                                               NP_SAFETY_STATUS_THERMAL      |
                                               NP_SAFETY_STATUS_CHARGE       |
-                                              NP_SAFETY_STATUS_CARDIAC      |
                                               NP_SAFETY_STATUS_SIG_PENDING);
+    /* NP_SAFETY_STATUS_CARDIAC is NOT an all-channel fault: it withholds only
+     * NP_CARDIAC_BLOCK_MASK (cervical VNS), below.  It still keeps CUTOFF set,
+     * because the cervical channel is cut. */
+    bool cardiac = (state->status & NP_SAFETY_STATUS_CARDIAC) != 0U;
     /* NP_SAFETY_STATUS_WATCHDOG intentionally excluded: the WATCHDOG bit is
      * cleared above in this function on each valid heartbeat; including it in
      * the active_faults mask would block the grant mask during the same tick
      * cycle that clears it. */
 
-    /* Only clear CUTOFF if no other interlock is actively asserting it */
-    if (active_faults == 0U) {
+    /* Only clear CUTOFF if no interlock is actively asserting it */
+    if ((active_faults == 0U) && !cardiac) {
         state->status &= (uint8_t)~NP_SAFETY_STATUS_CUTOFF;
     }
 
-    /* Grant requested channels if no fault conditions are active */
+    /* Grant requested channels if no all-channel fault is active; a cardiac
+     * cutoff then withholds only the channels it exists for. */
     if (active_faults == 0U) {
         state->granted_mask = state->requested_mask & NP_SAFETY_EN_ALL_MASK;
+        if (cardiac) {
+            state->granted_mask &= (uint16_t)~NP_CARDIAC_BLOCK_MASK;
+        }
     } else {
         state->granted_mask = 0U;
     }

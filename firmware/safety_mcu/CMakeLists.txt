@@ -18,9 +18,11 @@
 #   SW01-M06  np_impedance_check   — pre-session contact impedance verification
 #   SW01-M07  np_session_sig       — Ed25519 session descriptor signature gate
 #   SW01-M08  np_fault_latch       — non-volatile fault latch in backup SRAM
+#   SW01-M09  np_nv_state          — cardiac-cutoff state persisted in flash across power-on
+#                                    resets (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01)
 #
 # ── Platform contract ─────────────────────────────────────────────────────────
-#   include/np_safety_hal.h is the SINGLE declaration point for all 25 np_hal_*
+#   include/np_safety_hal.h is the SINGLE declaration point for all 30 np_hal_*
 #   platform symbols (NP-SW-CI-001 §4.4.1, closes OI-SWCI-18).  Every module
 #   above and every host-test double includes it, so a signature change is a
 #   compile error at both ends rather than silent cross-TU UB.  It declares
@@ -120,6 +122,7 @@ if(NP_BUILD_TESTS)
     add_executable(np_cardiac_interlock_tests
         tests/np_cardiac_interlock_tests.c
         src/np_cardiac_interlock.c
+        src/np_spi_watchdog.c
     )
     np_host_test(np_cardiac_interlock_tests)
 
@@ -154,6 +157,20 @@ if(NP_BUILD_TESTS)
     np_host_test(np_hal_platform_tests)
     target_include_directories(np_hal_platform_tests PRIVATE platform)
     target_compile_definitions(np_hal_platform_tests PRIVATE NP_HAL_HOST_TEST)
+
+    # np_nv_state_tests: SW01-M09 — the cardiac-cutoff state persisted in flash
+    # across power-on resets (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01).  The
+    # EIGHTH Class C target: NP_SAFETY_TEST_COUNT moves 7 → 8 in
+    # safety-mcu-ci.yml and build-all.yml, and NP_SAFETY_TESTS gains nv_state in
+    # all three workflows.  Drives the real record log over a NOR-rules RAM
+    # double of the two NV pages, with torn writes and interrupted rotations
+    # injected.  platform/np_hal_nv.c is NOT here — it waits on BSY, and a fake
+    # that is never busy would read as coverage of branches it never takes.
+    add_executable(np_nv_state_tests
+        tests/np_nv_state_tests.c
+        src/np_nv_state.c
+    )
+    np_host_test(np_nv_state_tests)
 
     return()
 endif()
@@ -195,10 +212,11 @@ set(SAFETY_SOURCES
     src/np_impedance_check.c
     src/np_session_sig.c
     src/np_fault_latch.c
+    src/np_nv_state.c
 )
 
 # ── SW-01 platform layer (phase 7 — closes Defect E / OI-SWCI-17) ─────────────
-# The STM32G071 register drivers behind the 25 np_hal_* symbols declared in
+# The STM32G071 register drivers behind the 30 np_hal_* symbols declared in
 # include/np_safety_hal.h.  Before phase 7 there were none, and the image had
 # never linked (NP-SW-CI-001 §4.4).
 #
@@ -220,6 +238,7 @@ set(PLATFORM_SOURCES
     platform/np_hal_rpeak.c
     platform/np_hal_impedance.c
     platform/np_hal_otp.c
+    platform/np_hal_nv.c
 )
 
 # ── CPU flags (Cortex-M0+, no FPU) ────────────────────────────────────────────
@@ -307,7 +326,7 @@ target_compile_options(np_safety_mcu_objs PRIVATE
 # ── Firmware image ─────────────────────────────────────────────────────────────
 # Links the objects above plus np_crypto.  UNBLOCKED AT PHASE 7: Defect E
 # (NP-SW-CI-001 §4.4, OI-SWCI-17) is closed — the platform layer in platform/
-# defines all 25 np_hal_* symbols — and this target is what CI gates on.
+# defines all 30 np_hal_* symbols — and this target is what CI gates on.
 #
 # Producing it also required fixing the .fault_latch placement in
 # startup/stm32g071_flash.ld, which had never linked either: a SECOND link

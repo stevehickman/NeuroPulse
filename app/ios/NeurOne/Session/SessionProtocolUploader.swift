@@ -17,6 +17,12 @@ enum UploadError: LocalizedError {
     /// the validator — that combination means a target the validator does not
     /// yet check.
     case targetUnresolvable(Error)
+    /// The protocol contains cervical VNS, and a cardiac cutoff from a session that ran without
+    /// the app has not been read yet (NP-SW-FAULTMSG-001 P4).
+    case cervicalRestartBlocked
+    /// The protocol contains cervical VNS and another person on this device has an outstanding
+    /// cardiac cutoff: the wearer must confirm they are a different person first.
+    case differentPersonConfirmationRequired
 
     var errorDescription: String? {
         switch self {
@@ -34,6 +40,10 @@ enum UploadError: LocalizedError {
             return "Protocol validation failed: \(summary)\(extra)"
         case .targetUnresolvable(let e):
             return "Protocol target could not be resolved: \(e.localizedDescription)"
+        case .cervicalRestartBlocked:
+            return String(localized: "UPLOAD_CERVICAL_BLOCKED")
+        case .differentPersonConfirmationRequired:
+            return String(localized: "CVNS_DIFFERENT_PERSON_BODY")
         }
     }
 }
@@ -54,12 +64,47 @@ final class SessionProtocolUploader: ObservableObject {
     // Validates the definition against hardware safety limits, converts to
     // the NPSessionProtocol wire format, signs, and uploads.
     func upload(_ definition: NPProtocolDefinition) async throws {
-        try await upload(try buildWireProtocol(from: definition))
+        try await send(try buildWireProtocol(from: definition))
     }
 
-    // Upload a session protocol to the hub (Mode 2 Programming).
-    // On success the hub enters Mode 2: it will run this protocol when triggered.
-    func upload(_ proto: NPSessionProtocol) async throws {
+    /// Set by the "this is a different person" confirmation; consumed by the next cervical
+    /// upload.  One confirmation covers one upload, so it cannot go stale.
+    private var differentPersonConfirmed = false
+
+    func confirmDifferentPerson() {
+        differentPersonConfirmed = true
+    }
+
+    /// NP-SW-FAULTMSG-001 P4 and the per-user cardiac scope.  The safety MCU holds every cutoff
+    /// regardless (P1); these make the app say why, and put a profile switch on the record.
+    ///  - an unread cardiac cutoff from an offline session → refused until it is read;
+    ///  - another person's outstanding cutoff → one explicit "different person" confirmation.
+    /// A blocked user can still start a cervical session: the device holds cervical VNS and the
+    /// re-enable confirmation runs inside it.
+    private func checkCervicalGate(_ definition: NPProtocolDefinition) throws {
+        guard definition.modalities.contains(where: { $0.enabled && $0.modalityType == .cervicalVns })
+        else { return }
+        if gatt.cervicalRestartBlocked {
+            let err = UploadError.cervicalRestartBlocked
+            lastError = err
+            throw err
+        }
+        if gatt.cervicalOutstandingForAnotherUser {
+            guard differentPersonConfirmed else {
+                let err = UploadError.differentPersonConfirmationRequired
+                lastError = err
+                throw err
+            }
+            differentPersonConfirmed = false
+        }
+    }
+
+    // Send an already-built wire protocol to the hub. PRIVATE on purpose: every upload enters
+    // through a definition (upload(_:) / programAutonomous(_:)), so it passes
+    // buildWireProtocol's checks — including the cervical gate — and the protocol menu shows
+    // the same message or confirmation whichever mode it was sent in. A public wire-level
+    // entry point was a way round that gate (NP-SW-FAULTMSG-001 §9.5).
+    private func send(_ proto: NPSessionProtocol) async throws {
         guard gatt.isHubConnected else { throw UploadError.bleNotReady }
         isUploading = true
         lastError = nil
@@ -131,15 +176,9 @@ final class SessionProtocolUploader: ObservableObject {
     // Forces the protocol's operating mode to `.mode3Autonomous` so the hub
     // runs it standalone from any USB-C PD power bank without a phone present
     // (CLAUDE.md §4.6). Intended to be invoked from the setup flow.
-    func programAutonomous(_ proto: NPSessionProtocol) async throws {
-        var autonomous = proto
-        autonomous.mode = .mode3Autonomous
-        try await upload(autonomous)
-    }
-
     func programAutonomous(_ definition: NPProtocolDefinition) async throws {
         // Build with mode3Autonomous so the hub enters fully-autonomous operation.
-        try await upload(try buildWireProtocol(from: definition, mode: .mode3Autonomous))
+        try await send(try buildWireProtocol(from: definition, mode: .mode3Autonomous))
     }
 
     // Validate a definition against hardware safety limits and convert it to
@@ -155,6 +194,7 @@ final class SessionProtocolUploader: ObservableObject {
             lastError = err
             throw err
         }
+        try checkCervicalGate(definition)
         let result = NPProtocolValidator(resolvedLimits: .unlimited).validate(definition)
         guard result.isValid else {
             let err = UploadError.validationFailed(result.errors)

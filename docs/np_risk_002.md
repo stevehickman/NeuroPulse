@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-RISK-002
-**Revision:** 3
-**Date:** 2026-09-20
+**Revision:** 4
+**Date:** 2026-09-23
 **Status:** ACTIVE
 **Effective Date:** 2026-08-11
 **Author:** NeurOne Quality (interim: Steve Hickman, CEO)
@@ -165,6 +165,34 @@ hazards are *not assessed at all*. **That is a named absence, not a register ent
 read as coverage. Corrected in `NP-ART-001` Rev 3.
 
 ---
+
+### 4.2 RISK-25 — the lockout did not survive power loss (Rev 4, 2026-09-23, `NP-SW-FAULTMSG-001`)
+
+**A stated mitigation held only while the device stayed powered.** The row above lists the 30 s
+re-enable lockout and app confirmation (`REQ-CVNS-09`) as mitigations. Both were RAM state. The
+headset has no battery, so in Mode 3 an unplug and re-plug of the power bank cleared them. Cervical
+stimulation could then restart after a cardiac cutoff with no confirmation (`NP-SW-FAULTMSG-001` F1,
+`OI-FAULTMSG-01`).
+
+**Fix (principal decision P1, 2026-09-22).** The safety MCU now records the cutoff in its own flash,
+per user, failing closed (`NP-FW-CVNS-001` Rev 6 §5.4.1). By the same decision, a cardiac cutoff
+now withholds cervical VNS only, not every channel.
+
+**Not re-scored.** RISK-25 stays LOW / MITIGATED and CARRIED. Re-scoring is an act of the risk
+analysis, and the fix is not yet verified on silicon. The fix introduces hazards that the analysis
+must take up, and none of them is scored here:
+
+1. Reading a flash word torn by a power loss mid-program can raise a double-bit ECC NMI. The NMI
+   handler's behaviour on the NV pages is not yet specified.
+2. A future safety-MCU firmware update path that erases flash pages 62–63 would silently clear
+   every outstanding cutoff.
+3. **Per-user scope trusts the profile the app names.** A second person using the device under the
+   blocked person's profile is blocked, which is safe. The blocked person using another profile is
+   *not* blocked. The control for that is administrative: a blanket warning at connect, and an
+   explicit "is this your profile?" confirmation before a cervical upload (`NP-SW-FAULTMSG-001`
+   §9.1).
+4. Auricular VNS (`NP_SAFETY_EN_VNS`) is outside the cardiac block mask. Whether a cervical cardiac
+   cutoff should also withhold auricular VNS is a hazard question this file has not asked.
 
 ## 5. Risks the architecture change created
 

@@ -99,6 +99,27 @@
 #define NP_CARDIAC_LOCKOUT_MS   30000U      /* re-enable lockout */
 #define NP_CARDIAC_BASELINE_BEATS 8U        /* beats to establish baseline */
 
+/* What a cardiac cutoff blocks (principal, 2026-09-22): ONLY what the interlock
+ * exists for.  The cardiac rhythm interlock is specified for cervical VNS
+ * (CLAUDE.md §4.2 table; RISK-25, the carotid-sheath baroreceptor reflex), so
+ * NP_SAFETY_STATUS_CARDIAC withholds the CVNS enable and nothing else — every
+ * other modality that is otherwise safe keeps its grant.  Until 2026-09-22 it
+ * sat in np_spi_watchdog_tick()'s all-channel fault mask.  Adding a channel
+ * here is a hazard-analysis decision (NP-RISK-002), not a tuning change. */
+#define NP_CARDIAC_BLOCK_MASK   (NP_SAFETY_EN_CVNS)
+
+/* ── Non-volatile safety state (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01) ──────
+ * Two 2 KB pages at the top of flash, outside the image
+ * (startup/stm32g071_flash.ld reserves them).  One 64-bit record per slot.   */
+#define NP_NV_PAGE_COUNT        2U
+#define NP_NV_SLOTS_PER_PAGE    256U        /* 2048 B / 8 B per double-word */
+#define NP_NV_FIRST_PAGE        62U         /* flash pages 62 and 63 of 64  */
+#define NP_NV_WRITE_ATTEMPTS    3U          /* then NP_FAULT_SLOT_NVSTATE   */
+/* Distinct users that can hold an outstanding cutoff at once.  A cutoff for a
+ * further user is recorded as NP_SAFETY_USER_ANY — withheld from everyone until
+ * acknowledged — so a full table fails closed rather than dropping a cutoff. */
+#define NP_NV_MAX_PENDING       8U
+
 /* ── Thermal interlock (SW01-M04) ────────────────────────────────────────── */
 /* ADC1 channels: 5 cranial thermal sense domains + 1 hub NTC.
  * A THERMAL SENSE DOMAIN IS NOT A ZONE.  It is the physical region of the shell
@@ -244,6 +265,7 @@
 #define NP_FAULT_SLOT_UNPROV        0xFEU  /* OTP unprovisioned — all-zero public key */
 #define NP_FAULT_SLOT_SIG_CORRUPT   0xFCU  /* repeated corrupt session sig command frames */
 #define NP_FAULT_SLOT_HUB_NTC      0xFBU  /* hub NTC thermal cutoff (all channels) */
+#define NP_FAULT_SLOT_NVSTATE     0xFAU  /* non-volatile safety state could not be written */
 
 /* Session signature escalation limits */
 #define NP_SAFETY_SIG_BAD_CMD_MAX   3U  /* consecutive bad-magic/checksum frames → FAULT */

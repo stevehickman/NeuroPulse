@@ -139,6 +139,84 @@ final class GATTParserTests: XCTestCase {
         XCTAssertNil(GATTParser.parseCervicalPadStatus(Data([0x01, 0x00, 0x01, 0x03])), "unknown side")
     }
 
+    // MARK: - CVNS_FAULT_STATUS + ledger — NP-SW-FAULTMSG-001 P3/P4
+
+    /// Header [version, state, n, 0] + n × [counter LE u32, kind, side mask, 0, 0].
+    private func faultFrame(state: UInt8, _ records: [(UInt32, UInt8, UInt8)]) -> Data {
+        var b: [UInt8] = [0x01, state, UInt8(records.count), 0x00]
+        for (c, k, m) in records {
+            b += [UInt8(c & 0xFF), UInt8((c >> 8) & 0xFF), UInt8((c >> 16) & 0xFF), UInt8(c >> 24), k, m, 0, 0]
+        }
+        return Data(b)
+    }
+
+    func testParseCervicalFaultStatus() {
+        let s = GATTParser.parseCervicalFaultStatus(
+            faultFrame(state: 2, [(41, 2, 0), (42, 1, 0), (43, 4, 0x02)]))
+        XCTAssertEqual(s?.reenableState, .awaitConfirm)
+        XCTAssertEqual(s?.records.map(\.kind), [.signalLost, .heartRateChange, .padContact])
+        XCTAssertEqual(s?.records.last?.padSides, [.right])
+        XCTAssertEqual(s?.records[1].messageKey, "CVNS_FAULT_HR_CHANGE")
+        XCTAssertEqual(s?.records[2].messageKey, "CVNS_FAULT_PAD_RIGHT")
+    }
+
+    func testParseCervicalFaultStatusRejectsMalformed() {
+        XCTAssertNil(GATTParser.parseCervicalFaultStatus(Data([0x02, 0, 0, 0])), "version")
+        XCTAssertNil(GATTParser.parseCervicalFaultStatus(Data([0x01, 9, 0, 0])), "state")
+        XCTAssertNil(GATTParser.parseCervicalFaultStatus(faultFrame(state: 0, [(1, 9, 0)])), "kind")
+        XCTAssertNil(GATTParser.parseCervicalFaultStatus(faultFrame(state: 0, [(1, 1, 0x01)])),
+                     "side mask on a non-pad fault")
+        XCTAssertNil(GATTParser.parseCervicalFaultStatus(faultFrame(state: 0, [(1, 4, 0x04)])),
+                     "reserved side bit")
+        var short = faultFrame(state: 0, [(1, 1, 0)]); short.removeLast()
+        XCTAssertNil(GATTParser.parseCervicalFaultStatus(short), "length")
+        XCTAssertNil(GATTParser.parseCervicalFaultStatus(
+            faultFrame(state: 0, [(1, 1, 0), (2, 1, 0), (3, 1, 0), (4, 1, 0), (5, 1, 0)])), "n > 4")
+    }
+
+    func testFaultLedgerAcknowledgementAndCounterReset() {
+        let s = GATTParser.parseCervicalFaultStatus(faultFrame(state: 0, [(10, 2, 0), (11, 1, 0)]))!
+        var ledger = CervicalFaultLedger()
+        XCTAssertEqual(ledger.unacknowledged(s.records).count, 2, "nothing read yet")
+        XCTAssertTrue(ledger.blocksCervicalRestart(s.records), "unread cardiac cutoff blocks")
+
+        ledger.acknowledge(s.records)
+        XCTAssertTrue(ledger.unacknowledged(s.records).isEmpty, "read once, not re-shown")
+        XCTAssertFalse(ledger.blocksCervicalRestart(s.records), "read cutoff no longer blocks")
+
+        let newer = GATTParser.parseCervicalFaultStatus(faultFrame(state: 0, [(11, 1, 0), (12, 2, 0)]))!
+        XCTAssertEqual(ledger.unacknowledged(newer.records).map(\.sessionCounter), [12], "only the new one")
+        XCTAssertFalse(ledger.blocksCervicalRestart(newer.records), "new fault is not cardiac")
+
+        // A lower counter means another or reset device: show everything, hide nothing.
+        let other = GATTParser.parseCervicalFaultStatus(faultFrame(state: 0, [(3, 1, 0)]))!
+        XCTAssertEqual(ledger.unacknowledged(other.records).count, 1)
+        XCTAssertTrue(ledger.blocksCervicalRestart(other.records))
+    }
+
+    func testParseCervicalFaultStatusFlags() {
+        func flags(_ f: UInt8) -> CervicalFaultStatus? {
+            GATTParser.parseCervicalFaultStatus(Data([0x01, 0x00, 0x00, f]))
+        }
+        XCTAssertEqual(flags(0x00)?.userBlocked, false)
+        XCTAssertEqual(flags(0x00)?.outstanding, false)
+        XCTAssertEqual(flags(0x03)?.userBlocked, true)
+        XCTAssertEqual(flags(0x03)?.outstandingForAnotherUser, false, "it is this user's own block")
+        XCTAssertEqual(flags(0x02)?.outstandingForAnotherUser, true, "someone else's cutoff")
+        XCTAssertNil(flags(0x04), "reserved flag bit")
+        XCTAssertNil(flags(0x80), "reserved flag bit")
+    }
+
+    func testActiveUserTagAvoidsReservedValues() {
+        XCTAssertNil(ActiveUserTag.from(profileId: nil), "no profile named — send nothing")
+        let id = UUID(uuidString: "04030201-0000-4000-8000-000000000000")!
+        XCTAssertEqual(ActiveUserTag.from(profileId: id), 0x0102_0304, "first four bytes, little-endian")
+        XCTAssertEqual(ActiveUserTag.from(profileId: UUID(uuidString: "00000000-0000-4000-8000-000000000000")!),
+                       1, "0 is the device's 'unspecified'")
+        XCTAssertEqual(ActiveUserTag.from(profileId: UUID(uuidString: "FFFFFFFF-0000-4000-8000-000000000000")!),
+                       0xFFFF_FFFE, "0xFFFFFFFF is the device's 'any'")
+    }
+
     // MARK: - OTA_STATUS (uint8 phase + uint8 progress + uint16 errorCode)
 
     func testParseOTAStatus() {

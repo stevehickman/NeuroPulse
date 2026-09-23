@@ -61,7 +61,7 @@ uint16_t np_hal_adc_read_channel(uint8_t channel)
 
 /* ── Unit under test: internal, not part of the 25 ─────────────────────────── */
 typedef enum {
-    K_NONE = 0, K_HEARTBEAT, K_SIG_CMD, K_CHAN_LIMIT, K_CHAN_WAVE
+    K_NONE = 0, K_HEARTBEAT, K_SIG_CMD, K_CHAN_LIMIT, K_CHAN_WAVE, K_USER
 } kind_t;
 extern int np_hal_spi_classify(uint16_t len);
 
@@ -282,6 +282,8 @@ static void test_spi_frame_classification(void)
           "34 bytes classifies as the per-channel limit command");
     check(np_hal_spi_classify(NP_SAFETY_CHAN_WAVE_FRAME_LEN)  == K_CHAN_WAVE,
           "76 bytes classifies as the per-channel waveform command");
+    check(np_hal_spi_classify(NP_SAFETY_USER_FRAME_LEN)       == K_USER,
+          "10 bytes classifies as the active-user command");
 
     check(np_hal_spi_classify(0U)   == K_NONE, "0 bytes is rejected");
     check(np_hal_spi_classify(8U)   == K_NONE, "8 bytes (the old reply size) is rejected");
@@ -291,6 +293,8 @@ static void test_spi_frame_classification(void)
     check(np_hal_spi_classify(103U) == K_NONE, "103 bytes (overrun-poisoned) is rejected");
     check(np_hal_spi_classify(75U)  == K_NONE, "75 bytes (short waveform cmd) is rejected");
     check(np_hal_spi_classify(77U)  == K_NONE, "77 bytes (long waveform cmd) is rejected");
+    check(np_hal_spi_classify(9U)   == K_NONE, "9 bytes (short user cmd) is rejected");
+    check(np_hal_spi_classify(11U)  == K_NONE, "11 bytes (long user cmd) is rejected");
 }
 
 /* The four lengths must stay mutually distinct — if a wire-format change ever
@@ -302,8 +306,12 @@ static void test_frame_lengths_are_distinct(void)
               && NP_SAFETY_CMD_FRAME_LEN    != NP_SAFETY_CHAN_LIMIT_FRAME_LEN
               && NP_SAFETY_CHAN_WAVE_FRAME_LEN != NP_SAFETY_RX_EXT_FRAME_LEN
               && NP_SAFETY_CHAN_WAVE_FRAME_LEN != NP_SAFETY_CMD_FRAME_LEN
-              && NP_SAFETY_CHAN_WAVE_FRAME_LEN != NP_SAFETY_CHAN_LIMIT_FRAME_LEN,
-          "the four frame lengths are pairwise distinct (demux is unambiguous)");
+              && NP_SAFETY_CHAN_WAVE_FRAME_LEN != NP_SAFETY_CHAN_LIMIT_FRAME_LEN
+              && NP_SAFETY_USER_FRAME_LEN != NP_SAFETY_RX_EXT_FRAME_LEN
+              && NP_SAFETY_USER_FRAME_LEN != NP_SAFETY_CMD_FRAME_LEN
+              && NP_SAFETY_USER_FRAME_LEN != NP_SAFETY_CHAN_LIMIT_FRAME_LEN
+              && NP_SAFETY_USER_FRAME_LEN != NP_SAFETY_CHAN_WAVE_FRAME_LEN,
+          "the five frame lengths are pairwise distinct (demux is unambiguous)");
 
     /* The RX buffer is sized off the longest frame; the 76-byte waveform
      * command must fit inside it or np_hal_spi_poll() would memcpy past it. */

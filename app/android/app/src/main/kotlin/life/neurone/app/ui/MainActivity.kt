@@ -6,12 +6,14 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Lock
@@ -141,6 +143,13 @@ private fun SessionTab(app: NeurOneApplication, modifier: Modifier) {
     val connectionState by app.gattManager.connectionState.collectAsState()
     val session by app.gattManager.session.collectAsState()
     val cervicalPadAlert by app.gattManager.cervicalPadAlert.collectAsState()
+    val cervicalFaultStatus by app.gattManager.cervicalFaultStatus.collectAsState()
+    val unreadCervicalFaults by app.gattManager.unacknowledgedCervicalFaults.collectAsState()
+    val cardiacWarningAcknowledged by app.gattManager.cardiacWarningAcknowledged.collectAsState()
+    // A cervical protocol held back until the wearer confirms the selected profile is theirs.
+    var awaitingDifferentPerson by remember {
+        mutableStateOf<life.neurone.core.protocol.NPProtocolEntry.Single?>(null)
+    }
 
     // Request BLE runtime permissions (Android 12+); on grant, kick off scanning.
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -162,30 +171,62 @@ private fun SessionTab(app: NeurOneApplication, modifier: Modifier) {
         }
     }
 
+    fun uploadAndReport(entry: life.neurone.core.protocol.NPProtocolEntry) {
+        // Compile → sign → chunk → upload (Mode 2). Composite upload is a follow-up.
+        val result = when (entry) {
+            is life.neurone.core.protocol.NPProtocolEntry.Single ->
+                app.protocolUploader.upload(entry.protocol)
+            else ->
+                life.neurone.app.session.ProtocolUploader.Result.Failure(
+                    context.getString(R.string.and_ui_composite_protocol_upload_is_not_yet_support),
+                )
+        }
+        if (result is life.neurone.app.session.ProtocolUploader.Result.DifferentPersonConfirmationRequired &&
+            entry is life.neurone.core.protocol.NPProtocolEntry.Single
+        ) {
+            awaitingDifferentPerson = entry
+            return
+        }
+        val message = when (result) {
+            is life.neurone.app.session.ProtocolUploader.Result.Success ->
+                context.getString(R.string.protocol_menu_protocol_sent_to_hub)
+            is life.neurone.app.session.ProtocolUploader.Result.Failure -> result.message
+            is life.neurone.app.session.ProtocolUploader.Result.CervicalRestartBlocked ->
+                context.getString(R.string.upload_cervical_blocked)
+            is life.neurone.app.session.ProtocolUploader.Result.DifferentPersonConfirmationRequired ->
+                context.getString(R.string.cvns_different_person_body)
+        }
+        android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+        showMenu = false
+    }
+
+    awaitingDifferentPerson?.let { held ->
+        AlertDialog(
+            onDismissRequest = { awaitingDifferentPerson = null },
+            title = { Text(stringResource(R.string.cvns_different_person_title)) },
+            text = { Text(stringResource(R.string.cvns_different_person_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    awaitingDifferentPerson = null
+                    app.protocolUploader.confirmDifferentPerson()
+                    uploadAndReport(held)
+                }) { Text(stringResource(R.string.cvns_different_person_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { awaitingDifferentPerson = null }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
+    }
+
     if (showMenu) {
         ProtocolMenuScreen(
             library = app.protocolLibrary,
             consentGranted = consentGranted,
             eegUnavailableMessage = eegMessage,
             limits = app.limitsStore.resolvedLimits,
-            onSelect = { entry ->
-                // Compile → sign → chunk → upload (Mode 2). Composite upload is a follow-up.
-                val result = when (entry) {
-                    is life.neurone.core.protocol.NPProtocolEntry.Single ->
-                        app.protocolUploader.upload(entry.protocol)
-                    else ->
-                        life.neurone.app.session.ProtocolUploader.Result.Failure(
-                            context.getString(R.string.and_ui_composite_protocol_upload_is_not_yet_support),
-                        )
-                }
-                val message = when (result) {
-                    is life.neurone.app.session.ProtocolUploader.Result.Success ->
-                        context.getString(R.string.protocol_menu_protocol_sent_to_hub)
-                    is life.neurone.app.session.ProtocolUploader.Result.Failure -> result.message
-                }
-                android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
-                showMenu = false
-            },
+            onSelect = { entry -> uploadAndReport(entry) },
             onBack = { showMenu = false },
             modifier = modifier,
         )
@@ -199,6 +240,12 @@ private fun SessionTab(app: NeurOneApplication, modifier: Modifier) {
             modifier = modifier,
             cervicalPadAlert = cervicalPadAlert,
             onAcknowledgeCervicalPadAlert = { app.gattManager.acknowledgeCervicalPadAlert() },
+            cervicalFaultStatus = cervicalFaultStatus,
+            unacknowledgedCervicalFaults = unreadCervicalFaults,
+            onAcknowledgeCervicalFaults = { app.gattManager.acknowledgeCervicalFaults() },
+            cardiacWarningAcknowledged = cardiacWarningAcknowledged,
+            onAcknowledgeCardiacWarning = { app.gattManager.acknowledgeCardiacWarning() },
+            onConfirmCervicalResume = { app.gattManager.sendCervicalReenableConfirm() },
         )
     }
 }

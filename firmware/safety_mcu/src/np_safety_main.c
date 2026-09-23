@@ -20,6 +20,7 @@
  *   4. Session descriptor signature verified (if session_active bit set)
  */
 
+#include "np_nv_state.h"
 #include "np_safety_config.h"
 #include "np_safety_hal.h"
 #include "np_safety_protocol.h"
@@ -57,6 +58,10 @@ extern void np_charge_monitor_phase_tick(np_safety_state_t *state,
 extern void np_thermal_interlock_tick(np_safety_state_t *state);
 extern void np_cardiac_interlock_tick(np_safety_state_t *state);
 extern void np_cardiac_interlock_reenable(np_safety_state_t *state);
+extern void np_cardiac_interlock_restore(bool cutoff_pending);
+extern bool np_cardiac_interlock_nv_request(bool *pending_out);
+extern void np_cardiac_interlock_nv_done(bool written);
+extern void np_cardiac_interlock_user_changed(np_safety_state_t *state, bool new_user_blocked);
 extern void np_impedance_check_request(uint16_t requested_mask);
 extern void np_impedance_check_poll(np_safety_state_t *state);
 extern bool np_impedance_check_build_cvns_report(np_safety_imp_report_t *out);
@@ -82,6 +87,13 @@ static uint8_t           s_bad_cmd_count = 0U; /* consecutive bad-magic/checksum
  * the preserved latch data (slot + specific status bits) with the generic
  * NP_SAFETY_STATUS_FAULT=0x01 that init places in s_state.status. */
 static bool              s_prior_latch_reported = false;
+
+/* Consecutive failed attempts to persist the cardiac-cutoff state
+ * (NP-SW-FAULTMSG-001 P1).  After NP_NV_WRITE_ATTEMPTS the safety MCU stops
+ * retrying and raises NP_FAULT_SLOT_NVSTATE: each attempt can stall the core
+ * for up to one page erase, so retries are bounded, and a flash that cannot
+ * record a cutoff is a device fault to surface, not to hide. */
+static uint8_t           s_nv_fail_count = 0U;
 
 /* ── Checksum verification (matches hub_control np_safety_spi.c) ──────────── */
 
@@ -152,6 +164,17 @@ static bool chan_limit_checksum_ok(const np_safety_chan_limit_cmd_t *c)
 /* Verify checksum of a 76-byte per-channel waveform-class command frame.
  * Checksum covers bytes [0..NP_SAFETY_CHAN_WAVE_FRAME_LEN-3] (all except the
  * 2 checksum bytes at the end).                                            */
+static bool user_cmd_checksum_ok(const np_safety_user_cmd_t *c)
+{
+    const uint8_t *b = (const uint8_t *)c;
+    uint16_t sum = 0U;
+    uint8_t  i;
+    for (i = 0U; i < (uint8_t)(NP_SAFETY_USER_FRAME_LEN - 2U); i++) {
+        sum = (uint16_t)(sum + b[i]);
+    }
+    return (sum == c->checksum) && (c->reserved == 0U);
+}
+
 static bool chan_wave_checksum_ok(const np_safety_chan_wave_cmd_t *c)
 {
     uint16_t sum = 0U;
@@ -200,6 +223,12 @@ int main(void)
     } else {
         s_prior_latch_reported = true;  /* no prior fault — commit is safe immediately */
     }
+
+    /* Cervical VNS cardiac cutoff persisted across a power-on reset
+     * (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01).  Held latent until a session
+     * requests CVNS — see np_cardiac_interlock_restore(). */
+    np_nv_state_init();
+    np_cardiac_interlock_restore(np_nv_cardiac_blocked(np_nv_current_user()));
 
     /* ── Main polling loop ─────────────────────────────────────────────── */
     for (;;) {
@@ -470,7 +499,84 @@ int main(void)
             np_impedance_check_build_cvns_report(&imp_report);
             memcpy(&reply[NP_SAFETY_IMP_REPORT_OFFSET], &imp_report,
                    sizeof(imp_report));
+            /* Cardiac-status report (np_safety_nv_report_t): is the active
+             * user's cervical VNS withheld, and does anyone on this device have
+             * an outstanding cutoff?  The second drives the blanket warning;
+             * WHICH user is never sent.  UHDR — never forwarded to SHDR. */
+            {
+                np_safety_nv_report_t nv_report;
+                nv_report.magic = NP_SAFETY_NV_REPORT_MAGIC;
+                nv_report.flags = (uint8_t)(
+                    (np_nv_cardiac_blocked(np_nv_current_user())
+                         ? NP_SAFETY_NV_FLAG_USER_BLOCKED : 0U) |
+                    (np_nv_cardiac_outstanding()
+                         ? NP_SAFETY_NV_FLAG_OUTSTANDING : 0U));
+                nv_report.checksum = (uint16_t)((uint16_t)nv_report.magic +
+                                                (uint16_t)nv_report.flags);
+                memcpy(&reply[NP_SAFETY_NV_REPORT_OFFSET], &nv_report,
+                       sizeof(nv_report));
+            }
             np_hal_spi_send_reply(reply, (uint8_t)sizeof(reply));
+        }
+
+        /* Persist the cardiac-cutoff state across power-on resets
+         * (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01).  Placed AFTER the GPIO apply
+         * and the reply, and gated on an all-zero granted mask, because a flash
+         * erase stalls the core for up to 40 ms and no interlock may be starved
+         * while any channel is energised.  At a cutoff only CVNS is dropped at
+         * once; the rest follow on the next heartbeat (np_spi_watchdog_tick),
+         * so the SET write lands within one heartbeat period of the cutoff.
+         * The CLR write follows a re-enable, which happens with every channel
+         * already off.                                                       */
+        if (s_state.granted_mask == 0U) {
+            bool nv_value = false;
+            if (np_cardiac_interlock_nv_request(&nv_value)) {
+                if (np_nv_cardiac_set(np_nv_current_user(), nv_value)) {
+                    np_cardiac_interlock_nv_done(nv_value);
+                    s_nv_fail_count = 0U;
+                } else {
+                    s_nv_fail_count++;
+                    if (s_nv_fail_count >= (uint8_t)NP_NV_WRITE_ATTEMPTS) {
+                        np_cardiac_interlock_nv_done(nv_value);   /* stop retrying */
+                        s_nv_fail_count    = 0U;
+                        s_state.fault_slot = NP_FAULT_SLOT_NVSTATE;
+                        s_state.status    |= NP_SAFETY_STATUS_FAULT;
+                    }
+                }
+            }
+        }
+
+        /* Active-user change (per-user cardiac scope, principal 2026-09-22).
+         * Accepted only between sessions — no session active, nothing granted,
+         * and no cardiac write still owed for the outgoing user — otherwise
+         * ignored; the hub sends it before a session starts.  The tag is
+         * opaque and chosen by the app; the two reserved values are refused. */
+        if (np_hal_spi_user_ready()) {
+            np_safety_user_cmd_t ucmd;
+            bool owed = false;
+            np_hal_spi_get_user(&ucmd);
+            if (ucmd.cmd_magic[0] == NP_SAFETY_CMD_MAGIC_0 &&
+                ucmd.cmd_magic[1] == NP_SAFETY_CMD_MAGIC_1 &&
+                ucmd.cmd_type     == NP_SAFETY_CMD_ACTIVE_USER &&
+                user_cmd_checksum_ok(&ucmd) &&
+                ucmd.user_tag != NP_SAFETY_USER_UNSPECIFIED &&
+                ucmd.user_tag != NP_SAFETY_USER_ANY &&
+                !s_state.session_active &&
+                s_state.granted_mask == 0U &&
+                !np_cardiac_interlock_nv_request(&owed) &&
+                ucmd.user_tag != np_nv_current_user()) {
+                if (np_nv_set_current_user(ucmd.user_tag)) {
+                    np_cardiac_interlock_user_changed(
+                        &s_state, np_nv_cardiac_blocked(ucmd.user_tag));
+                } else {
+                    s_nv_fail_count++;
+                    if (s_nv_fail_count >= (uint8_t)NP_NV_WRITE_ATTEMPTS) {
+                        s_nv_fail_count    = 0U;
+                        s_state.fault_slot = NP_FAULT_SLOT_NVSTATE;
+                        s_state.status    |= NP_SAFETY_STATUS_FAULT;
+                    }
+                }
+            }
         }
 
         /* Commit fault to latch for warm-reset persistence.

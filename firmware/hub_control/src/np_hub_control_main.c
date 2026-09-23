@@ -139,6 +139,11 @@ static void log_cvns_event(np_cvns_reenable_event_t ev)
     np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS, code, 0U /* ts suppressed */);
 }
 
+/* Active user posted by np_hub_set_active_user() (app-transport task), sent to
+ * the safety MCU by task_safety_heartbeat.  Single writer each way. */
+static volatile uint32_t s_active_user_tag     = 0U;
+static volatile bool     s_active_user_pending = false;
+
 static void task_safety_heartbeat(void *arg)
 {
     (void)arg;
@@ -156,6 +161,14 @@ static void task_safety_heartbeat(void *arg)
          * not RUNNING the machine resets and the bit clears, so the frame can
          * never carry CVNS_REENABLE=1 with ACTIVE=0 during teardown.  The
          * machine is the ONLY source of the bit.                            */
+        /* Per-user cardiac scope: forward a posted active-user change while no
+         * session is running (the safety MCU ignores one mid-session). */
+        if (s_active_user_pending && (state == NP_SESSION_IDLE)) {
+            if (np_safety_spi_send_active_user(s_active_user_tag) == NP_HUB_OK) {
+                s_active_user_pending = false;
+            }
+        }
+
         uint8_t  mcu_status = np_safety_spi_get_status();
         uint32_t now_ms     = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
         np_cvns_reenable_event_t ev = np_cvns_reenable_on_heartbeat(
@@ -249,6 +262,24 @@ static void task_safety_heartbeat(void *arg)
 np_hub_status_t np_hub_cvns_reenable_confirm(void)
 {
     return np_cvns_reenable_confirm();
+}
+
+/*
+ * np_hub_set_active_user — public entry point for the app-transport layer to
+ * name the person using the device (per-user cardiac scope, principal
+ * 2026-09-22; the app sends an opaque tag per individual profile).  Same
+ * single-writer pattern as np_hub_cvns_reenable_confirm: this only posts the
+ * tag; the safety heartbeat task sends it to the safety MCU while no session is
+ * running, since the MCU accepts a change only between sessions.
+ */
+np_hub_status_t np_hub_set_active_user(uint32_t user_tag)
+{
+    if ((user_tag == NP_SAFETY_USER_UNSPECIFIED) || (user_tag == NP_SAFETY_USER_ANY)) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    s_active_user_tag     = user_tag;
+    s_active_user_pending = true;
+    return NP_HUB_OK;
 }
 
 /* ── task_hub_control ─────────────────────────────────────────────────────────── */

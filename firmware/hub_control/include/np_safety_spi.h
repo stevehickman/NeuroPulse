@@ -232,6 +232,23 @@ np_hub_status_t np_safety_spi_send_session_sig(const uint8_t *hash,
 bool np_safety_spi_get_cvns_impedance(float out_kohm[], bool *valid_out);
 
 /*
+ * np_safety_spi_get_cardiac_report — per-user cardiac scope (principal,
+ * 2026-09-22).  The safety MCU's NP_SAFETY_NV_FLAG_* from the latest valid
+ * heartbeat reply: USER_BLOCKED (the active user's cervical VNS is withheld)
+ * and OUTSTANDING (someone on this device has an outstanding cutoff — the
+ * blanket warning).  Returns false, and *flags_out = 0, when no valid report
+ * has been received.  UHDR: for the user's own app only, never SHDR.
+ */
+bool np_safety_spi_get_cardiac_report(uint8_t *flags_out);
+
+/*
+ * np_safety_spi_send_active_user — tell the safety MCU which person is using
+ * the device (np_safety_user_cmd_t).  The MCU accepts it only between sessions
+ * and persists it.  The two reserved tags are refused here.
+ */
+np_hub_status_t np_safety_spi_send_active_user(uint32_t user_tag);
+
+/*
  * np_safety_spi_send_channel_limits — deliver per-channel electrode geometry to
  * the safety MCU via a 34-byte command frame (OI-CHARGE-02).
  *

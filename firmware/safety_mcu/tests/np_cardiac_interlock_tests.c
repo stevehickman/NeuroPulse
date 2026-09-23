@@ -36,6 +36,17 @@
 extern np_safe_status_t np_cardiac_interlock_init(void);
 extern void             np_cardiac_interlock_tick(np_safety_state_t *state);
 extern void             np_cardiac_interlock_reenable(np_safety_state_t *state);
+extern void             np_cardiac_interlock_restore(bool cutoff_pending);
+extern bool             np_cardiac_interlock_nv_request(bool *pending_out);
+extern void             np_cardiac_interlock_nv_done(bool written);
+extern void             np_cardiac_interlock_user_changed(np_safety_state_t *state,
+                                                          bool new_user_blocked);
+/* The grant computation, linked in so the scope of a cardiac cutoff is tested
+ * against the real code rather than a mirror of its mask. */
+extern np_safe_status_t np_spi_watchdog_init(void);
+extern void             np_spi_watchdog_tick(np_safety_state_t              *state,
+                                             const np_safety_rx_ext_frame_t *rx,
+                                             np_safety_tx_frame_t           *tx);
 
 /* ── Mocked HAL stubs ──────────────────────────────────────────────────────────
  * Definitions of symbols declared in np_safety_hal.h — drift from the
@@ -425,6 +436,157 @@ static void test_rolling_baseline_absorbs_slow_drift(void)
           "refresh: baseline advanced to 75 (86 BPM is within 15 of it)");
 }
 
+
+/* ── Power-cycle persistence (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01) ──────────
+ * The interlock does not touch flash; it posts write requests and, at boot,
+ * re-asserts a persisted cutoff when a session first requests CVNS. */
+
+/* A live cutoff posts "pending"; the request survives until that value is
+ * reported written, and a stale completion cannot drop a newer request. */
+static void test_cutoff_posts_pending_write(void)
+{
+    np_safety_state_t st;
+    bool v = false;
+    reset_all(&st, true, 0U);
+    check(!np_cardiac_interlock_nv_request(&v), "nv: no request before any cutoff");
+
+    establish_baseline(&st, RR_60_BPM);
+    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE && !cutoff_fired(&st); i++) {
+        beat(&st, RR_120_BPM);
+    }
+    check(np_cardiac_interlock_nv_request(&v) && v, "nv: cutoff requests persist(pending)");
+
+    np_cardiac_interlock_nv_done(false);   /* stale completion for another value */
+    check(np_cardiac_interlock_nv_request(&v) && v, "nv: stale completion does not drop it");
+    np_cardiac_interlock_nv_done(true);
+    check(!np_cardiac_interlock_nv_request(&v), "nv: request cleared once written");
+}
+
+/* A completed re-enable posts "acknowledged". */
+static void test_reenable_posts_clear_write(void)
+{
+    np_safety_state_t st;
+    bool v = true;
+    reset_all(&st, true, 0U);
+    establish_baseline(&st, RR_60_BPM);
+    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE && !cutoff_fired(&st); i++) {
+        beat(&st, RR_120_BPM);
+    }
+    np_cardiac_interlock_nv_done(true);
+    g_tick_ms += NP_CARDIAC_LOCKOUT_MS;
+    np_cardiac_interlock_tick(&st);
+    np_cardiac_interlock_reenable(&st);
+    check(np_cardiac_interlock_nv_request(&v) && !v, "nv: re-enable requests persist(acknowledged)");
+}
+
+/* A restored cutoff is LATENT: a session that does not request CVNS is
+ * untouched, so one cardiac cutoff cannot lock the wearer out of every other
+ * modality. */
+static void test_restored_cutoff_latent_without_cvns(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, false, 0U);
+    st.granted_mask = NP_SAFETY_EN_CVNS | (uint16_t)(NP_SAFETY_EN_CVNS >> 1);
+    np_cardiac_interlock_restore(true);
+    idle_tick(&st, 10U);
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) == 0U,
+          "restore: no CARDIAC while CVNS is not requested");
+    check(st.granted_mask == (uint16_t)(NP_SAFETY_EN_CVNS | (NP_SAFETY_EN_CVNS >> 1)),
+          "restore: grants untouched while CVNS is not requested");
+}
+
+/* The first CVNS request after a restore meets exactly the state a live cutoff
+ * leaves: CVNS dropped before it reaches the GPIO, CARDIAC + CUTOFF, fault slot
+ * 10, and a 30 s lockout counted from now — then the ordinary re-enable path. */
+static void test_restored_cutoff_asserts_on_cvns_request(void)
+{
+    np_safety_state_t st;
+    bool v = false;
+    reset_all(&st, true, 0U);
+    g_tick_ms = 5000U;
+    np_cardiac_interlock_restore(true);
+    np_cardiac_interlock_tick(&st);
+    check(cutoff_fired(&st), "restore: CVNS dropped on first CVNS request");
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) != 0U, "restore: CARDIAC set");
+    check((st.status & NP_SAFETY_STATUS_CUTOFF) != 0U, "restore: CUTOFF set");
+    check(st.fault_slot == CVNS_FAULT_SLOT, "restore: fault_slot = 10 (CVNS)");
+    check(!np_cardiac_interlock_nv_request(&v), "restore: no write — already persisted");
+
+    g_tick_ms = 5000U + NP_CARDIAC_LOCKOUT_MS - 1U;
+    np_cardiac_interlock_tick(&st);
+    np_cardiac_interlock_reenable(&st);
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) != 0U,
+          "restore: re-enable refused inside the restarted 30 s lockout");
+
+    g_tick_ms = 5000U + NP_CARDIAC_LOCKOUT_MS;
+    np_cardiac_interlock_tick(&st);
+    np_cardiac_interlock_reenable(&st);
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) == 0U, "restore: re-enable accepted after lockout");
+    check(np_cardiac_interlock_nv_request(&v) && !v, "restore: acknowledgement persisted");
+}
+
+static void test_restore_false_is_inert(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    np_cardiac_interlock_restore(false);
+    np_cardiac_interlock_tick(&st);
+    check(!cutoff_fired(&st), "restore(false): CVNS stays granted");
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) == 0U, "restore(false): no CARDIAC");
+}
+
+
+/* A cardiac cutoff withholds cervical VNS and nothing else (principal,
+ * 2026-09-22): every other channel that is otherwise safe keeps its grant, and
+ * CUTOFF stays set while the cervical channel is cut. */
+static void test_cardiac_blocks_only_cvns(void)
+{
+    np_safety_state_t st;
+    const uint16_t other = (uint16_t)(NP_SAFETY_EN_ALL_MASK & ~NP_SAFETY_EN_CVNS);
+    reset_all(&st, true, 0U);
+    (void)np_spi_watchdog_init();
+    st.requested_mask = NP_SAFETY_EN_ALL_MASK;
+    st.status         = NP_SAFETY_STATUS_CARDIAC | NP_SAFETY_STATUS_CUTOFF;
+
+    np_spi_watchdog_tick(&st, NULL, NULL);
+    check((st.granted_mask & NP_SAFETY_EN_CVNS) == 0U, "scope: CVNS withheld under CARDIAC");
+    check((st.granted_mask & other) == other,          "scope: every other channel still granted");
+    check((st.status & NP_SAFETY_STATUS_CUTOFF) != 0U, "scope: CUTOFF stays set while CVNS is cut");
+
+    st.status = NP_SAFETY_STATUS_CARDIAC | NP_SAFETY_STATUS_THERMAL;
+    np_spi_watchdog_tick(&st, NULL, NULL);
+    check(st.granted_mask == 0U, "scope: an all-channel fault still blocks everything");
+}
+
+
+/* Per-user scope (principal, 2026-09-22): a cutoff is held for the user who
+ * triggered it.  Switching to a user without one releases cervical VNS for
+ * them; switching back re-arms the first user's cutoff as latent. */
+static void test_user_change_scopes_the_cutoff(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    (void)np_spi_watchdog_init();
+    establish_baseline(&st, RR_60_BPM);
+    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE && !cutoff_fired(&st); i++) {
+        beat(&st, RR_120_BPM);
+    }
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) != 0U, "user: Alice's live cutoff");
+
+    np_cardiac_interlock_user_changed(&st, false);          /* Bob: not blocked */
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) == 0U, "user: Bob does not inherit CARDIAC");
+    st.requested_mask = NP_SAFETY_EN_CVNS;
+    np_spi_watchdog_tick(&st, NULL, NULL);
+    np_cardiac_interlock_tick(&st);
+    check((st.granted_mask & NP_SAFETY_EN_CVNS) != 0U, "user: Bob is granted cervical VNS");
+
+    np_cardiac_interlock_user_changed(&st, true);           /* back to Alice */
+    np_spi_watchdog_tick(&st, NULL, NULL);
+    np_cardiac_interlock_tick(&st);
+    check(cutoff_fired(&st) && (st.status & NP_SAFETY_STATUS_CARDIAC) != 0U,
+          "user: Alice's cutoff re-asserted on her next CVNS request");
+}
+
 int main(void)
 {
     test_no_cutoff_before_baseline();
@@ -439,6 +601,13 @@ int main(void)
     test_reenable_refused_during_lockout();
     test_reenable_forces_fresh_baseline();
     test_rolling_baseline_absorbs_slow_drift();
+    test_cutoff_posts_pending_write();
+    test_reenable_posts_clear_write();
+    test_restored_cutoff_latent_without_cvns();
+    test_restored_cutoff_asserts_on_cvns_request();
+    test_restore_false_is_inert();
+    test_cardiac_blocks_only_cvns();
+    test_user_change_scopes_the_cutoff();
 
     if (g_failures == 0) { printf("ALL TESTS PASSED\n"); return 0; }
     printf("%d TEST(S) FAILED\n", g_failures);

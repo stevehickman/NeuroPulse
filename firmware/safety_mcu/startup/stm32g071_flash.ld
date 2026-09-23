@@ -4,7 +4,13 @@
  * Document: NP-SW-001 Rev A — SW-01 Class C
  *
  * Memory map:
- *   Flash  0x08000000  128 KB  — code + read-only data
+ *   Flash  0x08000000  124 KB  — code + read-only data
+ *   NVST   0x0801F000    4 KB  — non-volatile safety state, flash pages 62–63
+ *                              (NP_NV_FIRST_PAGE, np_safety_config.h).  Not part
+ *                              of the image: nothing links here, and a safety-MCU
+ *                              firmware update must never erase these pages, or
+ *                              it erases a persisted cardiac cutoff
+ *                              (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01).
  *   SRAM   0x20000000   36 KB  — stack + data + BSS + fault latch region
  *
  * The fault latch (SW01-M08) occupies the top 64 bytes of SRAM.
@@ -15,7 +21,8 @@ ENTRY(Reset_Handler)
 
 MEMORY
 {
-    FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 128K
+    FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 124K
+    NVST  (r)   : ORIGIN = 0x0801F000, LENGTH = 4K
     SRAM  (rwx) : ORIGIN = 0x20000000, LENGTH = 36K
 }
 

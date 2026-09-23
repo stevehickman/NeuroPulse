@@ -92,14 +92,22 @@ typedef struct {
     uint16_t stim_current_ua;
     uint16_t stim_pulse_width_us;
     uint8_t  electrode_config;
-    uint8_t  cutoff_occurred;           /* 1 if cardiac interlock fired          */
+    uint8_t  cutoff_occurred;           /* 1 ONLY for a heart-rate-change cutoff
+                                         * (NP_CVNS_FAULT_HR_CHANGE); other
+                                         * interlock faults are in fault_reason
+                                         * (NP-SW-FAULTMSG-001 P2)               */
     uint16_t cutoff_hr_baseline_x10;   /* baseline HR × 10 (BPM, 1 dp)         */
-    uint16_t cutoff_hr_at_event_x10;   /* HR at cutoff × 10; 0 if no cutoff     */
+    uint16_t cutoff_hr_at_event_x10;   /* main-processor HR estimate when the
+                                         * cutoff was processed × 10; 0 if none  */
     uint32_t cutoff_time_offset_s;      /* s after stim onset; 0 if no cutoff    */
     float    impedance_left_kohm;
     float    impedance_right_kohm;
     uint8_t  abort_reason;              /* 0=normal, else np_cvns_status_t       */
-    uint8_t  reserved[3];
+    uint8_t  fault_reason;              /* np_cvns_fault_reason_t; NONE if the
+                                         * session ended normally.  Lets the
+                                         * user's own app say WHICH fault
+                                         * stopped the session (P2)              */
+    uint8_t  reserved[2];
 } np_cvns_session_record_t;
 
 /* ── SHDR session summary ─────────────────────────────────────────────────────── */
