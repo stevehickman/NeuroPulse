@@ -39,6 +39,12 @@
  *      translators are still asked to pay for.
  *   4. All 11 locale files carry an identical key set, so a locale cannot
  *      silently drop a string.
+ *   5. TRANSLATIONS enter only verified, and stay as verified (#191). A locale
+ *      value that differs from the English must have an entry in
+ *      locales/_translations.json, and must still hash to what was verified;
+ *      a current translation must keep the English's placeholders. See
+ *      the ledger section below for the states and scripts/translations.ts for the
+ *      only path that writes one.
  *
  * ── The reach, stated narrowly ───────────────────────────────────────────────
  *
@@ -58,7 +64,8 @@
  * CI-Scans: locale key usage, and user-facing literals in covered app code
  * CI-Scan-Paths: app/** locales/** firmware/**
  */
-import { readFileSync, readdirSync } from "fs";
+import { createHash } from "crypto";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "fs";
 import { join, basename } from "path";
 import { execFileSync } from "child_process";
 
@@ -443,10 +450,12 @@ function checkLocaleParity(keys: Set<string>): string[] {
  * mis-render. Ten keys sat in that state for months because the only platform
  * reading them was the one it happens to be correct on.
  *
- * Scoped to `@` deliberately. `%d` and `%.1f` are also non-canonical and also
- * block a translator from reordering arguments, but they are valid conversions
- * in both `String(format:)` and `java.util.Formatter`, so they mis-render at
- * worst and are a separate item — see OI-I18N-02.
+ * The rest of the printf family followed (OI-I18N-02). `%d` and `%.1f` are
+ * valid in both `String(format:)` and `java.util.Formatter`, so they never
+ * crashed — but a bare `%d` is consumed in source order, so a translator could
+ * not reorder arguments, and web's `t()` rendered it literally. Fourteen keys
+ * were converted before translation started (#191) so none has to be
+ * re-translated; the rule now rejects every conversion, not only `@`.
  */
 function checkInterpolationSyntax(canonical: Record<string, string>): string[] {
   const errs: string[] = [];
@@ -466,11 +475,189 @@ function checkInterpolationSyntax(canonical: Record<string, string>): string[] {
           `literal % only once a {n} is present, so a half-converted value emits %%1$d.`,
       );
     }
+    // OI-I18N-02: the rest of the printf family. %d / %.1f / %1$d are valid on
+    // both native platforms, so they never crash — what they cost is §17.2's
+    // purpose. A canonical {n} is positional by construction, so a translator
+    // may reorder arguments; a bare %d is consumed in source order, and web's
+    // t() substitutes {n} and nothing else, so it renders the specifier itself.
+    // No space in the flag set: a literal percent before a word ("{0}% of")
+    // and the %MT unit are text, not conversions.
+    const printf = v.match(/%(?:\d+\$)?[-#+0,(]*\d*(?:\.\d+)?[diouxXeEfgGcs]/g);
+    if (printf && !apple) {
+      errs.push(
+        `${k}: carries the printf conversion ${printf[0]} — use {0}/{1} so a translation can reorder ` +
+          `its arguments, and format the value at the call site (on Apple, String(…) or ` +
+          `NPNumberFormatter; {n} generates %n$@, which takes an object). Convert EVERY ` +
+          `conversion in the value.`,
+      );
+    }
     // A lone backslash is the signature of a literal that was split mid-escape:
     // `delete \"\\(name)\"` keyed only as far as the escaped quote leaves the
     // value ending in `\`, and the remainder stranded as code at the call site.
     if (v.includes("\\")) {
       errs.push(`${k}: contains a backslash — a keyed value is plain text, so this is a literal truncated mid-escape`);
+    }
+  }
+  return errs;
+}
+
+// ─── Translation ledger (#191) ─────────────────────────────────────────────────
+
+/**
+ * Which locale values are verified translations (#191). Exported for
+ * scripts/translations.ts, the only writer; kept in this file so the gate's
+ * self-test stays hermetic.
+ *
+ * Every locale file carries the full key set (CLAUDE.md §17), and until a key is
+ * translated its value is the English. That makes "is this string translated?"
+ * unanswerable from the locale files alone: a French value equal to the English
+ * may be untranslated or may be a product name that is the same in French, and a
+ * French value that differs may be a verified translation or somebody's guess.
+ *
+ * The ledger, `locales/_translations.json`, answers it. One entry per
+ * (locale, key) that a native speaker has verified, holding two hashes:
+ *
+ *   source  hash of the en.json value the translation was made FROM
+ *   value   hash of the locale value that was verified
+ *
+ * From those, every (locale, key) has exactly one state:
+ *
+ *   untranslated  no entry. The value must still equal the English — an
+ *                 unverified translation cannot enter a locale file.
+ *   translated    source matches en.json today; value matches the file.
+ *   stale         the English has changed since. The translation stays in place
+ *                 (#191: adding or editing strings never modifies a translated
+ *                 one) and is re-issued to translators by the next export.
+ *   tampered      the locale value no longer matches what was verified — it was
+ *                 edited outside `scripts/translations.ts import`. A gate failure.
+ *
+ * `en` is the source locale and never has entries. A key deleted from en.json
+ * must also leave the ledger, or the gate reports the orphan.
+ *
+ * Hash, not text: the ledger must not become a second copy of any string (the
+ * §17.5 failure), and a hash says "this exact value" without saying it twice.
+ */
+export const SOURCE_LOCALE = "en";
+
+export interface LedgerEntry {
+  /** hash of the en.json value translated from */
+  source: string;
+  /** hash of the verified locale value */
+  value: string;
+  /** who verified it as a native speaker — an identifier the importer supplies */
+  verifiedBy: string;
+  /** ISO date (YYYY-MM-DD) of the import */
+  verifiedOn: string;
+}
+
+/** locale → key → entry */
+export type Ledger = Record<string, Record<string, LedgerEntry>>;
+
+export type TranslationState = "untranslated" | "translated" | "stale" | "tampered";
+
+export function hashText(s: string): string {
+  return createHash("sha256").update(s, "utf8").digest("hex").slice(0, 16);
+}
+
+export function ledgerPath(localesDir: string): string {
+  return join(localesDir, "_translations.json");
+}
+
+export function loadLedger(localesDir: string): Ledger {
+  const p = ledgerPath(localesDir);
+  if (!existsSync(p)) return {};
+  return JSON.parse(readFileSync(p, "utf-8")) as Ledger;
+}
+
+/** Sorted at both levels, so a write is a pure function of content. */
+export function saveLedger(localesDir: string, ledger: Ledger): void {
+  const out: Ledger = {};
+  for (const loc of Object.keys(ledger).sort()) {
+    const entries = ledger[loc]!;
+    if (Object.keys(entries).length === 0) continue;
+    out[loc] = {};
+    for (const k of Object.keys(entries).sort()) out[loc]![k] = entries[k]!;
+  }
+  writeFileSync(ledgerPath(localesDir), JSON.stringify(out, null, 2) + "\n");
+}
+
+/** The target locale codes: every locale file except the source and `_` files. */
+export function targetLocales(localesDir: string): string[] {
+  return readdirSync(localesDir)
+    .filter((f) => f.endsWith(".json") && !f.startsWith("_"))
+    .map((f) => basename(f, ".json"))
+    .filter((c) => c !== SOURCE_LOCALE)
+    .sort();
+}
+
+export function stateOf(
+  source: string,
+  value: string,
+  entry: LedgerEntry | undefined,
+): TranslationState {
+  if (!entry) return "untranslated";
+  if (entry.value !== hashText(value)) return "tampered";
+  if (entry.source !== hashText(source)) return "stale";
+  return "translated";
+}
+
+/** `{0}`, `{1}` … in first-appearance order, deduplicated and sorted. */
+export function placeholders(s: string): string[] {
+  return [...new Set(s.match(/\{\d+\}/g) ?? [])].sort();
+}
+
+/**
+ * The ledger's own invariants, for the gate. Returns one message per violation.
+ * Stale entries are NOT violations: an English copy edit must never be blocked
+ * on a translator.
+ */
+export function checkLedger(
+  canonical: Record<string, string>,
+  locales: Record<string, Record<string, string>>,
+  ledger: Ledger,
+): string[] {
+  const errs: string[] = [];
+  if (ledger[SOURCE_LOCALE]) {
+    errs.push(`_translations.json: "${SOURCE_LOCALE}" is the source locale and cannot carry entries`);
+  }
+  for (const loc of Object.keys(ledger)) {
+    if (loc !== SOURCE_LOCALE && !locales[loc]) {
+      errs.push(`_translations.json: entries for "${loc}", which has no locale file`);
+    }
+  }
+  for (const [loc, values] of Object.entries(locales)) {
+    const entries = ledger[loc] ?? {};
+    for (const k of Object.keys(entries)) {
+      if (!(k in canonical)) {
+        errs.push(`_translations.json: ${loc}/${k} — key no longer exists in en.json; remove the entry`);
+      }
+    }
+    for (const [k, en] of Object.entries(canonical)) {
+      const v = values[k];
+      if (v === undefined) continue; // parity is reported by its own check
+      const st = stateOf(en, v, entries[k]);
+      if (st === "untranslated" && v !== en) {
+        errs.push(
+          `locales/${loc}.json: ${k} differs from en.json but has no verified translation on record. ` +
+            `If the English was edited, run \`bun scripts/translations.ts fill\`; a translation enters ` +
+            `only through \`bun scripts/translations.ts import\` (#191)`,
+        );
+      } else if (st === "tampered") {
+        errs.push(
+          `locales/${loc}.json: ${k} is a verified translation that has been edited since it was ` +
+            `verified — restore it, or re-import the corrected value with its reviewer`,
+        );
+      }
+      // Placeholder parity on a current translation. A translation that drops
+      // {1} silently loses an argument on every platform. Not on a stale one:
+      // the English may have gained a placeholder the translator has not seen.
+      if (st === "translated") {
+        const want = placeholders(en).join(",");
+        const got = placeholders(v).join(",");
+        if (want !== got) {
+          errs.push(`locales/${loc}.json: ${k} has placeholders [${got}], English has [${want}]`);
+        }
+      }
     }
   }
   return errs;
@@ -548,7 +735,12 @@ function selfTest(): void {
     ["Coherence %@", true],                    // OI-I18N-01: the un-positional spelling
     ["%1$@, %2$@ module connected", true],     // and the positional one — same crash
     ["Socket {0} — {1}", false],
-    ["Electrode %d", false],                   // valid on both platforms; OI-I18N-02, not this rule
+    ["Electrode %d", true],                    // OI-I18N-02: valid on both platforms, but not reorderable
+    ["%1$d of %2$d sockets populated", true],  // positional printf is still printf
+    ["Coherence %.1f", true],                  // precision is formatted at the call site, not here
+    ["%d:%02d into session", true],            // flags and width
+    ["{0}% exceeds limit", false],             // literal percent followed by a space
+    ["±{0} %MT", false],                       // unit symbol, not a conversion
     ["Duty cycle must be ≤ {0}%", false],      // literal percent, escaped by the generator
     ["Order {0}", false],
     ["delete \\(name)", true],                 // pre-existing rule: Swift interpolation
@@ -562,10 +754,33 @@ function selfTest(): void {
       bad++;
     }
   }
+  // checkLedger: every state the ledger distinguishes, driven directly. Without
+  // these, a checkLedger that returned [] would pass every run on today's tree,
+  // where nothing is translated yet.
+  const en = { K: "Socket {0}" };
+  const entry = (source: string, value: string) =>
+    ({ source: hashText(source), value: hashText(value), verifiedBy: "t", verifiedOn: "2026-01-01" });
+  const ledgerCases: Array<[string, Record<string, string>, Record<string, ReturnType<typeof entry>>, boolean]> = [
+    ["untranslated, still English", { K: "Socket {0}" }, {}, false],
+    ["unverified translation", { K: "Prise {0}" }, {}, true],
+    ["verified translation", { K: "Prise {0}" }, { K: entry("Socket {0}", "Prise {0}") }, false],
+    ["verified, identical to English", { K: "Socket {0}" }, { K: entry("Socket {0}", "Socket {0}") }, false],
+    ["stale: English moved on", { K: "Prise {0}" }, { K: entry("Old socket {0}", "Prise {0}") }, false],
+    ["tampered: edited after verification", { K: "Prise n° {0}" }, { K: entry("Socket {0}", "Prise {0}") }, true],
+    ["verified but dropped a placeholder", { K: "Prise" }, { K: entry("Socket {0}", "Prise") }, true],
+    ["entry for a deleted key", { K: "Socket {0}" }, { GONE: entry("x", "y") }, true],
+  ];
+  for (const [name, fr, entries, shouldFlag] of ledgerCases) {
+    const flagged = checkLedger(en, { fr }, { fr: entries }).length > 0;
+    if (flagged !== shouldFlag) {
+      console.error(`self-test FAILED: ledger case "${name}" -> flagged=${flagged}, expected ${shouldFlag}`);
+      bad++;
+    }
+  }
   if (bad > 0) { console.error(`\n${bad} self-test case(s) failed.`); process.exit(1); }
   console.log(
     `check-locale-strings self-test: ` +
-      `${cases.length + swiftCases.length + kotlinCases.length + canonicalCases.length} cases, all correct.`,
+      `${cases.length + swiftCases.length + kotlinCases.length + canonicalCases.length + ledgerCases.length} cases, all correct.`,
   );
 }
 
@@ -583,6 +798,11 @@ function main(): void {
   const usage = checkKeyUsage(files, keys);
   const parity = checkLocaleParity(keys);
   const interp = checkInterpolationSyntax(canonical);
+  const locales: Record<string, Record<string, string>> = {};
+  for (const loc of targetLocales(LOCALES_DIR)) {
+    locales[loc] = JSON.parse(readFileSync(join(LOCALES_DIR, `${loc}.json`), "utf-8"));
+  }
+  const ledger = checkLedger(canonical, locales, loadLedger(LOCALES_DIR));
 
   let failed = 0;
 
@@ -616,6 +836,13 @@ function main(): void {
     failed += parity.length;
   }
 
+  if (ledger.length) {
+    console.error("\nTRANSLATION LEDGER (#191 — see scripts/translations.ts):");
+    for (const e of ledger.slice(0, 40)) console.error(`  ${e}`);
+    if (ledger.length > 40) console.error(`  ... and ${ledger.length - 40} more`);
+    failed += ledger.length;
+  }
+
   if (failed > 0) {
     console.error(`\n${failed} violation(s). See scripts/check-locale-strings.ts for the rule.`);
     process.exit(1);
@@ -638,4 +865,5 @@ function main(): void {
   for (const [p, why] of PENDING_PATHS) console.log(`  ${p} — ${why}`);
 }
 
-main();
+// Imported by scripts/translations.ts for the ledger; run only when invoked.
+if (import.meta.main) main();

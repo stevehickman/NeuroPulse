@@ -106,9 +106,15 @@ private struct AdaptationEventRow: View {
         let m = (total % 3600) / 60
         let s = total % 60
         if h > 0 {
-            return String(format: String(localized: "ADAPT_OFFSET_HMS"), h, m, s)
+            return String(format: String(localized: "ADAPT_OFFSET_HMS"), String(h), twoDigits(m), twoDigits(s))
         }
-        return String(format: String(localized: "ADAPT_OFFSET_MS"), m, s)
+        return String(format: String(localized: "ADAPT_OFFSET_MS"), String(m), twoDigits(s))
+    }
+
+    // Clock-face field: a canonical {n} renders as %@ on Apple, so the zero
+    // padding the old %02d conversion supplied is done here instead (§17.2).
+    private func twoDigits(_ value: Int) -> String {
+        value < 10 ? "0" + String(value) : String(value)
     }
 }
 

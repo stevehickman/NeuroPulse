@@ -496,8 +496,8 @@ struct ZoneModuleStatusGrid: View {
 
     private var summaryLine: some View {
         Text(String(format: String(localized: "SETUP_ZONE_SUMMARY"),
-                    configuration.presentSockets.count,
-                    configuration.sockets.count))
+                    String(configuration.presentSockets.count),
+                    String(configuration.sockets.count)))
             .font(.caption)
             .foregroundColor(.secondary)
     }
