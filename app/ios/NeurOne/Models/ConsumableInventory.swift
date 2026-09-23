@@ -32,7 +32,9 @@ enum ConsumableKind: Int, CaseIterable, Identifiable {
         // device cannot implement anyway — no VBAT rail, so wall time dies on every disconnect.
         // Kept rather than re-derived, because re-deriving from a void derivation is not an
         // improvement. Same defect class as NP-FW-EMMC-002 §G.2's accelerometer thresholds; it is
-        // superseded by foam compression-set data, not by another arithmetic pass.
+        // superseded by a condition measurement — loss of seal read by an in-cup noise-cancelling
+        // mic (principal, 2026-09-23; OI-AUDIOHW-08) — not by another arithmetic pass.
+        // Comfort/hygiene replacement is the user's call and gets no prompt.
         case .audioCupFoam:      return 150
         }
     }
