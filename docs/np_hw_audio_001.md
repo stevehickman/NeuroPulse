@@ -170,20 +170,20 @@ stated (tear, contamination, storage set). The **threshold** is an unvalidated p
 labelled one, carried by `OI-ACC-04`. `OI-ACC-02` closed on this on 2026-09-15.
 
 **This document adds nothing to that disposition and deliberately does not re-derive the
-threshold.** What it adds is the hardware consequence: closing `OI-ACC-04` needs a foam whose
-compression-set behaviour is characterised, and **no foam is specified** (§8).
+threshold.** ~~What it adds is the hardware consequence: closing `OI-ACC-04` needs a foam whose
+compression-set behaviour is characterised, and **no foam is specified** (§8).~~ *Superseded by Rev 2
+below: the threshold is no longer a compression-set figure.*
 
-**Rev 2 (2026-09-23) — `OI-ACC-04` is gated on this document.** Closing the threshold needs three
-inputs, and this document owns two of them: the foam material (`OI-AUDIOHW-06`) and the clamping
-pressure it is held at (`OI-AUDIOHW-05`). The third — the compression set at which the foam counts
-as worn out — must be derived from what fails when it is exceeded (`CLAUDE.md` §18), and **this
-document states no seal or passive-isolation requirement from which to derive it**; `OI-AUDIOHW-01`
-covers acoustic output only. None of the three is supplied here. The practical consequence is
-ordering: request compression-set characterisation at service conditions (skin temperature,
-intermittent load with recovery) **as a condition of the ear-pad material selection**, because
-after selection it is a separate study. Denominating the count in worn time instead of sessions
-would remove the session-length assumption but not these inputs (`docs/status/pending-decisions.md`,
-`OI-ACC-04` re-scope).
+**Rev 2 (2026-09-23) — the foam's prompt measures loss of seal, and needs a microphone this
+document does not have.** By principal decision, comfort and perceived hygiene are the wearer's to
+judge, and the foam can be replaced voluntarily at any time; the prompt covers only **loss of
+function**, which for the ear pad is **loss of seal** (bass level and passive isolation). The
+trigger that measures it is the in-cup (feedback) microphone of noise cancelling, which the
+programme intends to add for session quality and which **does not exist in this document**
+(`OI-AUDIOHW-08`). Until it does, the placeholder exposure count stands. The threshold becomes a
+seal loss in dB derived from what a session needs, so it no longer depends on the foam material
+(`OI-AUDIOHW-06`) or the clamping pressure (`OI-AUDIOHW-05`) — both still matter to the part.
+Full disposition: `docs/status/pending-decisions.md`, `OI-ACC-04`.
 
 ### 6.2 Mesh frame (pair) — the trigger named in the record does not exist
 
@@ -300,9 +300,10 @@ Against `NP-FAI-001` §2:
 | **OI-AUDIOHW-02** | **No bone-conduction drive ceiling exists**, and an air-conduction limit does not transfer to it unexamined. Decide the limit and the standard it is taken from | Systems + Clinical | Hazard analysis; T1 release |
 | **OI-AUDIOHW-03** | **The mesh frame's 40 dB RF figure is a shielding claim outside the audited stack (§6.3)** — absent from `CLAUDE.md` §4.3, from `docs/reference/hardware-detail.md` §4.3, from `NP-BIB-EMF-001`'s per-layer audit and from `NP-DT-001` `DI-PERF-22` — on a **user-replaceable** part whose fouling trigger is unimplemented (`OI-ACC-05`). Decide whether it is a programme claim or a supplier figure, and stop quoting it beside audited ones either way | Systems + EMC | Shielding claim integrity; `NP-BIB-EMF-001` completeness |
 | **OI-AUDIOHW-04** | Select and specify the planar magnetic driver and the bone-conduction element (electrical, acoustic and mechanical parameters). Nothing beyond *"40 mm planar magnetic"* and *"piezoelectric at the mastoid"* exists | EE + Acoustic | A11 tooling; `NP-FAI-AUDIO-001` F1/F2 |
-| **OI-AUDIOHW-05** | Specify cup body, ear-pad and bayonet geometry, clamping force and assembly mass — **the clamping pressure also gates `OI-ACC-04`** (§6.1). The bayonet's material decision (`docs/reference/durability-maintenance.md`) has no interface behind it, and A11's mass loads the `CLAUDE.md` §4.4 fit system with a figure nobody has written down | ME | A11 tooling; fit verification |
-| **OI-AUDIOHW-06** | Specify ear-pad and silicone isolator materials and their biocompatibility basis (prolonged skin contact). **Also gates `OI-ACC-04`** (§6.1): the ear-pad selection should carry a compression-set characterisation at service conditions, or the foam's replacement threshold stays a placeholder | ME + Quality | Hazard analysis; T1 release |
+| **OI-AUDIOHW-05** | Specify cup body, ear-pad and bayonet geometry, clamping force and assembly mass. The bayonet's material decision (`docs/reference/durability-maintenance.md`) has no interface behind it, and A11's mass loads the `CLAUDE.md` §4.4 fit system with a figure nobody has written down | ME | A11 tooling; fit verification |
+| **OI-AUDIOHW-06** | Specify ear-pad and silicone isolator materials and their biocompatibility basis (prolonged skin contact) | ME + Quality | Hazard analysis; T1 release |
 | **OI-AUDIOHW-07** | Select the cup-to-hub cable, connector and strain relief. The same connector gap `NP-HW-TCAP-001` §8 records for the T2 cap and `NP-HW-VNSCLIP-001` §8 for the clip — worth deciding **once** across the head-worn accessories rather than three times | EE + ME | A11 tooling |
+| **OI-AUDIOHW-08** | **Add noise cancelling with an in-cup (feedback) microphone, or decide not to.** Intended for session quality; also the only measurement found for the foam's loss of seal (`OI-ACC-04`, §6.1) and a candidate for mesh fouling if the mic sits on the ear side of the mesh (`OI-ACC-05`, §6.2). **It reverses a property the record states — there is no microphone anywhere in the design** — so it carries: a privacy decision (on-device processing only, a seal score out, no audio stored; the score depends on the wearer's head and is presumptively UHDR); an acoustic-safety one (anti-noise adds output and can howl when the seal breaks, which makes `OI-AUDIOHW-01` more pressing); and placement, cable and power consequences for `OI-AUDIOHW-05` and `-07`. Microphones put no current, light or field into the assembly, so `REQ-AUDIO-12` is not triggered | EE + Acoustic + Privacy | `OI-ACC-04` closure; A11 tooling if adopted |
 
 > **On the `OI-AUDIOHW-` prefix.** `OI-AUDIO-01…08` is already in use, in
 > `firmware/hub_control/modules/np_mod_audio.c`, for the audio **HAL stubs**. Open-item IDs are
@@ -329,4 +330,4 @@ Against `NP-FAI-001` §2:
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 1 | 2026-09-20 | NeurOne Systems Engineering | Initial release, against GitHub #332 / `NP-ART-001` OI-ART-04. **Gives artifact A11 an owning specification for the first time**, displacing `CLAUDE.md` §3 modality ⑦ — a roster entry — from that role. Decomposes the assembly into five sub-parts (§2), carries ten requirements from documents that already state them (§3), restates the firmware interface as the shipped Class B driver has it (§4), and affirms rather than flags the absence of a safety-MCU enable line (§5). **Two absent exposure limits are recorded as open items rather than supplied**: no acoustic output ceiling and no bone-conduction drive ceiling exist anywhere in the document set (`OI-AUDIOHW-01`, `-02`). **Principal new finding (§6.3): the mesh frame's 40 dB RF figure is a shielding claim on a user-replaceable consumable that appears in no layer of the `CLAUDE.md` §4.3 stack and in no row of `NP-BIB-EMF-001`'s per-layer audit**, and whose fouling trigger is an unimplemented HAL stub (`OI-ACC-05`, `OI-AUDIO-08`) — three defects that compound. §7 supplies the hazard-analysis input list that `OI-RISK2-02` was blocked for want of; the block is lifted, the analysis is not performed here. §8.1 states the FAI verdict honestly: **`NP-FAI-AUDIO-001` still cannot be written** — F1 and F2 fail on a DRAFT document with no dimensioned geometry — so the absence is narrowed and re-owned rather than closed. **No engineering value is set, no figure is invented, no price, interval, margin or locked decision changes.** Raises OI-AUDIOHW-01…07. |
-| 2 | 2026-09-23 | NeurOne Systems Engineering | **`OI-ACC-04` gated on this document (§6.1, §8).** The foam threshold's closure needs the ear-pad material (`OI-AUDIOHW-06`), the clamping pressure (`OI-AUDIOHW-05`) and a replacement criterion that this document has no seal or isolation requirement to derive from. Records the ordering consequence — characterise compression set as a condition of material selection. **No requirement added, no value set, no threshold changed.** |
+| 2 | 2026-09-23 | NeurOne Systems Engineering | **Foam prompt re-scoped by principal decision (§6.1, §8).** Comfort and hygiene replacement is at the user's discretion; the prompt covers loss of seal only, measured by the in-cup microphone of noise cancelling the programme intends to add. **Raises `OI-AUDIOHW-08`** (add ANC with a feedback mic, or decide not to) — it reverses the record's *no microphone anywhere in the design*, so privacy, acoustic-safety and placement consequences are listed with it. **No requirement added, no value set, no threshold changed.** |
