@@ -2,9 +2,9 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-FAULTMSG-001
-**Revision:** 2
+**Revision:** 3
 **Date:** 2026-09-23
-**Status:** DRAFT — **decided by the principal (§9); implemented in firmware and both apps, not yet verified on hardware.** The hub's CVNS_FAULT_STATUS frame builder and its GATT server are not built (§9.5)
+**Status:** DRAFT — **decided by the principal (§9); implemented in the safety MCU, the hub and both apps, not yet verified on hardware.** The hub now builds and publishes CVNS_FAULT_STATUS (§9.6); what is still missing is the BLE GATT server that carries it (OI-WA-03) and the UHDR storage glue (OI-LFS-05)
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
 **Approved By:** Principal (decisions §9.1, 2026-09-22) — document approval pending
@@ -13,7 +13,7 @@
 **Gate:** N/A
 **IEC 62304 Class:** Touches SW-01 Class C (safety MCU, §4.3), SW-02 Class B (hub, cervical library) and the apps
 **Supersedes:** None — new document.
-**Change Summary:** Rev 2 (2026-09-23) — records the principal's decisions (§9.1): P1 chosen, P2–P4 accepted, a cardiac cutoff withholds cervical VNS only, and it is held per user with a blanket warning to every user of the device. Adds §9 (what was built, the per-user model, the NV log, the wire formats, what is not verified) and updates §6 for the two bits that now cross to the app. Rev 1 (2026-09-22) — first draft, at the principal's request: explain faults that happened while no phone was connected, from the device's own logs, when a phone next connects. Records three findings the design depends on (§3), the first of which is a safety gap in the cardiac lockout.
+**Change Summary:** Rev 3 (2026-09-23) — **the hub side of P3 is built (§9.6).** A Class B module keeps each user's recent cervical faults across power loss, builds the `CVNS_FAULT_STATUS` frame byte-for-byte as the apps parse it, publishes it on change, and handles the `CVNS_REENABLE_CONFIRM` and `ACTIVE_USER` writes. The BLE GATT server and the UHDR storage glue remain platform seams. Rev 2 (2026-09-23) — records the principal's decisions (§9.1): P1 chosen, P2–P4 accepted, a cardiac cutoff withholds cervical VNS only, and it is held per user with a blanket warning to every user of the device. Adds §9 (what was built, the per-user model, the NV log, the wire formats, what is not verified) and updates §6 for the two bits that now cross to the app. Rev 1 (2026-09-22) — first draft, at the principal's request: explain faults that happened while no phone was connected, from the device's own logs, when a phone next connects. Records three findings the design depends on (§3), the first of which is a safety gap in the cardiac lockout.
 **Review Cadence:** On principal decision; again when any §7 item closes.
 
 ---
@@ -181,7 +181,7 @@ device is an opaque tag derived from a random profile UUID, with no name (§9.2)
 |---|---|---|
 | **OI-FAULTMSG-01** | *(Rev 2: **decided — P1**, implemented §9.4; open until hardware-verified and RISK-25 is re-scored.)* **The cardiac lockout does not survive a power cycle (F1)**, so in Mode 3 an unplug and re-plug restarts cervical stimulation with no app confirmation, and nothing keeps cervical VNS out of autonomous protocols. Decide P1, P1b or both. Record the hazard under RISK-25 (NP-RISK-002 §4) and in NP-FW-CVNS-001 §5.4. **Must close before cervical VNS ships** | Safety + FW + Quality (ISO 14971) |
 | **OI-FAULTMSG-02** | *(Rev 2: **implemented**, commit "Cervical VNS: record the real fault kind", §9.4.)* The UHDR session record cannot tell a cardiac cutoff from other interlock faults, and `cutoff_hr_at_event_x10` is never written (F2). P2 | FW |
-| **OI-FAULTMSG-03** | *(Rev 2: **transport chosen — Bluetooth GATT 0x0014/0x0015/0x0016**, §9.3; the hub's frame builder and GATT server are owed, §9.5.)* Choose the connect-time transport for the fault summary: USB-C parameter-log download, a Bluetooth request/response pair, or both (P3) | FW + App |
+| **OI-FAULTMSG-03** | *(Rev 3: **the hub builds, persists and publishes the frame and handles both writes, §9.6**; what remains is the platform: the BLE GATT server (OI-WA-03) and the UHDR blob store (OI-LFS-05). Rev 2: transport chosen — Bluetooth GATT 0x0014/0x0015/0x0016, §9.3.)* Choose the connect-time transport for the fault summary: USB-C parameter-log download, a Bluetooth request/response pair, or both (P3) | FW + App |
 | **OI-FAULTMSG-04** | *(Rev 2: **apps implemented** on iOS and Android, §9.4; P5, the user-doc change, waits until the hub publishes the summary.)* App gate and fault text on iOS and Android (P4), then the user-doc change (P5) | App + Regulatory |
 
 ## 8. Decisions requested
@@ -274,8 +274,10 @@ and no hub publishes them yet.
 
 ### 9.5 Not done, not verified
 
-- **The hub does not build the 0x0014 frame**, and **the hub has no GATT server** (OI-WA-03). Until
-  both exist, the apps' paths are correct but unreachable on hardware, and P5 waits.
+- ~~**The hub does not build the 0x0014 frame.**~~ *Built 2026-09-23, §9.6.* **The hub still has no
+  BLE GATT server** (OI-WA-03), and the UHDR partition has no littlefs parameters (OI-LFS-05), so
+  the three seams §9.6 names are traps on target. Until they exist the path is complete and tested
+  on the host but unreachable on hardware, and P5 waits.
 - **Not verified:** ARM cross-build and silicon for the NV driver; Swift compilation (no toolchain
   here); the Android `:app` module (the AGP build was not reachable here). The Android `:core` tests
   pass.
@@ -298,3 +300,86 @@ and no hub publishes them yet.
   and shows the same message and "is this your profile?" confirmation in the protocol menu. The
   wire format has no cervical VNS case, so the old path could not actually send cervical
   stimulation; the gap was the unchecked entry point, not a cervical session that went unchecked.
+
+### 9.6 The hub side of P3 (Rev 3, 2026-09-23)
+
+`firmware/hub_control/src/np_cvns_fault_summary.c` (Class B, SW-02) is what the app reads at
+connect.
+
+**What it keeps.** The last 8 cervical fault stops across all users. Each carries:
+- the device session counter;
+- the fault kind;
+- for a pad fault, which side of the neck failed;
+- the user named when it happened.
+
+It also keeps the hub's copy of the last-named user, so a Mode 3 fault after a power cycle is still
+attributed to someone. It stores no heart-rate value and no timestamp.
+
+**Where it comes from.** When a cervical session ends on a fault, `np_mod_cvns`'s session-end
+callback records it with its real `fault_reason` (the P2 field).
+- **Pad side.** For a pad fault, the side comes from the session record's per-side impedances. A
+  side out of window, or not a finite positive number, is named. If neither is out of window, both
+  are named rather than neither.
+- **Caveat.** Which physical pad is "left" is still `OI-CVNSHW-01`'s wiring question.
+
+**Who sees what.** A frame carries the active user's records and the unattributed ones, and never
+another named user's. That mirrors the safety MCU's rule (§9.2). Attribution changes when the
+heartbeat forwards a new user to the safety MCU, which happens between sessions. So the hub and the
+safety MCU always name the same person for a given session's fault. It does not change when the app
+writes `ACTIVE_USER`, which can happen mid-session.
+
+**The frame.** The frame is exactly §9.3's layout:
+- the four newest matching records, oldest first;
+- the hub re-enable state;
+- the safety MCU's two flags, sent as 0 until the first valid report arrives.
+
+A host test byte-compares it against the frame the iOS and Android parser tests use, so the three
+cannot drift apart silently.
+
+**Publishing.** `np_cvfs_poll()` runs on every heartbeat. It rebuilds the frame, notifies only when
+the frame changed, and persists a pending change outside the critical section. A failed save is
+retried on the next poll. `np_cvfs_read()` serves an ATT read.
+
+**Writes.**
+- **0x0016** (`ACTIVE_USER`) accepts exactly 4 bytes, not 0 and not `0xFFFFFFFF`, and posts to
+  `np_hub_set_active_user()`.
+- **0x0015** (`CVNS_REENABLE_CONFIRM`) accepts exactly `0x01` and forwards to
+  `np_hub_cvns_reenable_confirm()`.
+
+A refusal returns an error, so the app's write-with-response fails, as its UI expects.
+
+**Persistence.** The store is a 90-byte-maximum blob with a version byte and a CRC-32. A missing,
+short, wrong-version, CRC-failing or out-of-range blob loads as empty with no user named. That is
+the right failure for information: the safety MCU holds the cutoff regardless (C4 in `NP-RISK-002`
+§4.3.2).
+
+**Platform seams.** There are three: `np_cvfs_hal_load`, `np_cvfs_hal_save` and
+`np_cvfs_hal_notify`.
+- They are declared once, in `np_cvns_fault_summary.h`, and trap-defined in
+  `firmware/platform/src/np_platform_stub.c`.
+- The SW-02 platform census rises from 94 to 97.
+- They wait on the UHDR partition's littlefs parameters (`OI-LFS-05`) and the BLE GATT server
+  (`OI-WA-03`). This is the same shape as `np_transport.h`'s producer seam.
+
+**Tests.** `np_cvns_fault_summary_tests` covers:
+- the golden frame, flags and state;
+- per-user scope;
+- the newest-four window, eviction and record validation;
+- pad sides;
+- persistence round trip, corrupt blobs and save retry;
+- notify-on-change and read;
+- both write handlers.
+
+`np_mod_cvns_tests` gains the check that a fault reaches the summary once, with its kind and
+counter.
+
+Three mutations were each caught: dropping the user filter, reversing the order, and losing the save
+retry. Host ctest is 38 of 38 (8 Class C, 30 Class B).
+
+**Not verified, and a known cost.**
+- The ARM cross-build runs in CI only.
+- The save runs in the 200 ms heartbeat task. It is rare (a fault or a user change), and a slow
+  eMMC write delays one beat, well inside the safety MCU's 1.5 s watchdog, but its worst-case
+  duration is not measured.
+- A power loss between a fault and the next poll (≤ 200 ms) loses that record's explanation, not
+  its cutoff.

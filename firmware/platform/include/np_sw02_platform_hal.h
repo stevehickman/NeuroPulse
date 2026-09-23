@@ -18,18 +18,19 @@
  *
  * ── What this header is NOT ─────────────────────────────────────────────────
  *
- * It is not the whole SW-02 platform contract.  Thirty further symbols are
+ * It is not the whole SW-02 platform contract.  Thirty-three further symbols are
  * declared in the module header that owns them and are already single-sourced
  * there — np_anon_hal_* (np_anon_scratch.h), np_cvns_hal_impedance_{start,poll}
  * (np_cvns_reenable.h), np_factory_reset_hal_* (np_factory_reset.h),
  * np_hexmap_nvram_* (np_module_map.h), np_log_hal_part_* (np_log_backend.h),
+ * np_cvfs_hal_* (np_cvns_fault_summary.h),
  * np_safety_hal_spi_transfer (np_safety_spi.h), np_uhdr_hal_* (np_uhdr_key.h)
  * and np_za_platform_* (np_zone_announce.h).  They are deliberately NOT
  * restated here: a second declaration of an already single-sourced symbol is a
  * second place to get it wrong.  firmware/platform/src/np_platform_stub.c
- * includes those eight headers directly.
+ * includes those nine headers directly.
  *
- * The full SW-02 platform contract is therefore this file plus those eight
+ * The full SW-02 platform contract is therefore this file plus those nine
  * headers, and the count that tracks it is NP_SW02_PLATFORM_SYMBOL_COUNT below.
  */
 
@@ -49,9 +50,9 @@ extern "C" {
 
 /*
  * Total number of symbols the SW-02 platform layer owes: the 64 declared in
- * this file plus the 30 declared in the eight module headers named above.
+ * this file plus the 33 declared in the nine module headers named above.
  *
- * This is not decoration.  firmware/platform/ defines all 94 as traps rather
+ * This is not decoration.  firmware/platform/ defines all 97 as traps rather
  * than drivers, and the cross-build asserts that the number of definitions it
  * emits equals this constant (NP-SW-CI-001 §4.8).  The count can only change by
  * editing this line, which is the point: a platform symbol appearing or
@@ -62,8 +63,13 @@ extern "C" {
  * the only one the census did not count, because it is called by the startup
  * path rather than by a module.  An uncounted gap in the layer whose purpose is
  * to count the gaps is the census measuring around its own blind spot.
+ *
+ * 94 → 97 on 2026-09-23 (NP-SW-FAULTMSG-001 §9.6): np_cvfs_hal_load/_save (the
+ * cervical offline-fault summary's UHDR blob, OI-LFS-05) and np_cvfs_hal_notify
+ * (the CVNS_FAULT_STATUS notification, OI-WA-03) — declared in
+ * np_cvns_fault_summary.h, the ninth module header.
  */
-#define NP_SW02_PLATFORM_SYMBOL_COUNT   94
+#define NP_SW02_PLATFORM_SYMBOL_COUNT   97
 
 /* ── Core clock (OI-SWCI-41) ──────────────────────────────────────────────────
  *

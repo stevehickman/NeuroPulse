@@ -85,6 +85,7 @@
 #include "np_cvns_stim.h"
 
 #include "np_sw02_platform_hal.h"
+#include "np_cvns_fault_summary.h"   /* NP-SW-FAULTMSG-001 §9.6 */
 
 /* The Pan-Tompkins detector timing constants (refractory, integration window,
  * running-max history) are all derived for a fixed sample rate.  If the PPG ADC
@@ -601,15 +602,29 @@ static void cvns_fault_cb(np_cvns_interlock_ctx_t *interlock,
 /*
  * Session-end callback — invoked by np_cvns_session.c on normal completion or
  * fault.  The library has already written its own UHDR/SHDR records via its
- * platform hooks; here we only tear down the hub-side wiring.
+ * platform hooks.  Here we tear down the hub-side wiring and, for a session
+ * that stopped on a fault, add it to the offline-fault summary the app reads on
+ * its next connect (NP-SW-FAULTMSG-001 §9.6) — the only way a Mode 3 wearer
+ * learns which fault the red LED meant.  The summary records the kind and, for
+ * a pad fault, which side; no heart-rate value.
  */
 static void cvns_session_end_cb(const np_cvns_session_record_t *record,
                                 np_cvns_status_t                result)
 {
-    (void)record;
     (void)result;
     cvns_drop_enable();
     s_state.active = false;
+
+    if ((record != NULL) && (record->fault_reason != (uint8_t)NP_CVNS_FAULT_NONE)) {
+        uint8_t sides = 0U;
+        if (record->fault_reason == (uint8_t)NP_CVNS_FAULT_IMPEDANCE) {
+            sides = np_cvfs_pad_side_mask(record->impedance_left_kohm,
+                                          record->impedance_right_kohm);
+        }
+        (void)np_cvfs_record_fault(np_hal_get_device_session_count(),
+                                   (np_cvns_fault_reason_t)record->fault_reason,
+                                   sides);
+    }
 }
 
 /*

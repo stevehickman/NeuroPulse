@@ -52,10 +52,11 @@
 /* The 63 symbols with no other declaring header. */
 #include "np_sw02_platform_hal.h"
 
-/* The 30 already single-sourced by the module that owns them.  Included rather
+/* The 33 already single-sourced by the module that owns them.  Included rather
  * than restated so the compiler — not this file — is what checks them. */
 #include "np_anon_scratch.h"     /* np_anon_hal_*          (5) */
 #include "np_cvns_reenable.h"    /* np_cvns_hal_impedance_ (2) */
+#include "np_cvns_fault_summary.h" /* np_cvfs_hal_*        (3) */
 #include "np_factory_reset.h"    /* np_factory_reset_hal_* (5) */
 #include "np_module_map.h"       /* np_hexmap_nvram_*      (2) */
 #include "np_log_backend.h"      /* np_log_hal_part_*      (3) */
@@ -586,6 +587,35 @@ np_hub_status_t np_cvns_hal_impedance_start(void)
 bool np_cvns_hal_impedance_poll(bool *passed_out)
 {
     (void)passed_out;
+    NP_PLATFORM_TRAP();
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Cervical offline-fault summary (NP-SW-FAULTMSG-001 §9.6) —
+ * np_cvns_fault_summary.h.  The UHDR blob store waits on the UHDR partition's
+ * littlefs parameters (OI-LFS-05); the notification waits on the BLE GATT
+ * server (OI-WA-03).
+ * ──────────────────────────────────────────────────────────────────────────*/
+
+np_hub_status_t np_cvfs_hal_load(uint8_t *buf, size_t cap, size_t *len_out)
+{
+    (void)buf;
+    (void)cap;
+    (void)len_out;
+    NP_PLATFORM_TRAP();
+}
+
+np_hub_status_t np_cvfs_hal_save(const uint8_t *buf, size_t len)
+{
+    (void)buf;
+    (void)len;
+    NP_PLATFORM_TRAP();
+}
+
+void np_cvfs_hal_notify(const uint8_t *frame, size_t len)
+{
+    (void)frame;
+    (void)len;
     NP_PLATFORM_TRAP();
 }
 

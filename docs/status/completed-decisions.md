@@ -311,4 +311,28 @@ Entries sharing a date keep the relative order they had before the reordering.
     - Silicon, the ARM build, Swift compilation and the Android `:app` module are unverified.
     - RISK-25 is not re-scored.
   - **No threshold, latency, lockout duration, SHDR field, price or CLAUDE.md text changed.**
+- **2026-09-23 — RISK-25 re-scored: S5 × P2 = ALARP, not "LOW / MITIGATED" (`NP-RISK-002` Rev 5 §4.3; `NP-FW-CVNS-001` Rev 7 §13; `NP-FMEA-001` Rev 8), at the Quality Lead's direction; ratings approved by the Quality Lead (interim: Steve Hickman, CEO) 2026-09-23:**
+  - **Trigger:** the `NP-SW-FAULTMSG-001` Rev 2 design change.
+  - **The recorded rating was wrong three ways:**
+    - The severity was scored S4, while `NP-RM-001` §4.1 names this exact harm as its S5 example.
+    - "LOW" is not a rating the `NP-RM-001` matrix can produce at S5; the best possible is ALARP.
+    - The residual rested on `NP-FMEA-001` FMEA-M05-06's lockout "persisted to battery-backed RTC backup registers". The headset has no battery, so that control never existed. That is how the power-cycle gap (`NP-SW-FAULTMSG-001` F1) passed review.
+  - **Post-change:** S5; initial P3 (UNACCEPTABLE); residual **P2**, because no control is yet verified on hardware; target P1 (still ALARP). A §4.4 ALARP justification is now recorded.
+  - **The four new hazards:**
+    - Torn-flash NMI: **ACCEPTABLE**. Every NV read runs with all enables off, so the hang fails safe; the loss is availability.
+    - Update-path erase of the NV pages: **ALARP**.
+    - Blocked person switching profiles: **ALARP**. The residual of the principal's per-user decision.
+    - Auricular VNS left available after a cervical cutoff: **ALARP (provisional)**, a clinical question.
+  - **Raised:**
+    - `OI-RISK2-05`: other FMEA §3.5 M05 rows, and §2's IWDG, describe controls the safety-MCU code does not contain.
+    - `OI-RISK2-06`: the auricular VNS clinical question.
+  - **No requirement, threshold, code or CLAUDE.md text changed.**
+- **2026-09-23 — the hub now builds and publishes the cervical offline-fault summary (`NP-SW-FAULTMSG-001` Rev 3 §9.6):**
+  - **The store.** A Class B module (`np_cvns_fault_summary.c`) keeps the last 8 cervical fault stops with the user named at the time, plus the last-named user. They persist as a CRC-checked UHDR blob, so a Mode 3 fault survives the power bank being unplugged.
+  - **The frame.** It builds `CVNS_FAULT_STATUS` exactly as the apps parse it, and a host test byte-compares it with the apps' fixture. The frame carries only the active user's records and the unattributed ones, and it is published on change from the heartbeat.
+  - **The writes.** `ACTIVE_USER` and `CVNS_REENABLE_CONFIRM` are validated and forwarded.
+  - **Wiring.** The cervical module records each fault with its real kind at session end.
+  - **Attribution.** The hub's attribution follows the safety MCU's: it changes when the user is forwarded between sessions, not when the app writes.
+  - **Not done:** the BLE GATT server (`OI-WA-03`) and the UHDR storage glue (`OI-LFS-05`) are the three remaining platform seams (census 94 → 97), so nothing reaches a phone on hardware yet. The worst-case duration of the save in the heartbeat task is unmeasured.
+  - **No requirement, threshold or safety-MCU code changed.**
 - **2026-09-23 — `OI-ACC-04` re-scoped (principal): the audio cup foam's replacement prompt measures loss of seal only, and comfort and hygiene replacement is the user's call.** Comfort and perceived hygiene are what a wearer notices directly, and the foam can be replaced voluntarily at any time, so **no prompt is owed for them — by design, not as a gap**. The prompt covers loss of function, which for an ear pad is loss of seal (bass level, passive isolation). **Target trigger: a condition measurement (CLAUDE.md §2.3 kind 1)** — the in-cup (feedback) microphone of the noise cancelling the programme intends to add for session quality; adaptive ANC already estimates the driver-to-mic path, and a leak shows as a low-frequency drop. Foam wear is read as a decline in the best seal across sessions (one poor reading prompts a reseat), including the compensation adaptive ANC spends; the score is presumptively UHDR and stays on-device. **Consequences:** the same-day first re-scope's gate on `OI-AUDIOHW-05`/`-06` is withdrawn — the threshold becomes a seal loss in dB derived from what a session needs, not a compression-set figure; the worn-tick route is moot; `150` stays as a labelled placeholder until the microphone exists, because nothing measures the seal today. **Raised `OI-AUDIOHW-08`** (`NP-HW-AUDIO-001` Rev 2): add ANC with an in-cup mic, which reverses the record's *no microphone anywhere in the design* and carries privacy, acoustic-safety (`OI-AUDIOHW-01`) and placement consequences; microphones put no current, light or field into the assembly, so `REQ-AUDIO-12` is not triggered. Recorded as a candidate, not adopted: the same mic may detect mesh fouling as a high-frequency loss (`OI-ACC-05`). **Also raised the same day, `OI-ACC-08`:** `CONSUMABLE_STATUS` has no firmware producer, no increment rule, and no path for *Mark replaced* to reach the hub. **Changed:** `docs/status/pending-decisions.md` (`OI-ACC-04`, `-05`, `-08`); `docs/reference/commercial-model.md` §2.3 foam row; `NP-HW-AUDIO-001` Rev 2 (§6.1, §8, revision history); register and DHF index rows; comments only in `ConsumableInventory.swift` and `ConsumableModels.kt`. **No constant, price, BOM, COGS, GM% or locked CLAUDE.md decision changed; no firmware touched.** No QMS/CAPA record — development mode, no hardware.

@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 6
+**Revision:** 7
 **Date:** 2026-09-23
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
@@ -12,10 +12,20 @@
 **Related Issues:** GitHub Issue #24; GitHub Issue #343 (§9 FAI serial disposition); GitHub Issue #332 (A14 hardware specification — issued 2026-09-20 as NP-HW-CVNS-001)
 **Gate:** NP-COORD-001 G3-08
 **IEC 62304 Class:** SW-01 Class C (safety MCU) / SW-02 Class B (main processor)
-**Supersedes:** NP-FW-CVNS-001 Rev 5
+**Supersedes:** NP-FW-CVNS-001 Rev 6
 **Parent Document:** NP-SW-001
 
 ---
+
+**Rev 7 (2026-09-23): §13 re-scored — RISK-25 is S5 × P2 = ALARP, not "Critical (S4) … Low" (`NP-RISK-002` §4.3).**
+- **Severity.** "Critical (S4)" mixed two scale levels. `NP-RM-001` §4.1 names cardiac arrhythmia
+  from cervical VNS as its S5 example.
+- **Rating.** "Low" is not a rating the matrix produces at S5.
+- **Residual probability.** It was P1, resting partly on `NP-FMEA-001` FMEA-M05-06's battery-backed
+  lockout, which cannot exist on this device. It is now P2 until the controls are verified on
+  hardware, with P1 as the target.
+
+No requirement, threshold or implementation changed. Ratings approved by the Quality Lead (interim: Steve Hickman, CEO) 2026-09-23.
 
 **Rev 6 (2026-09-23): the cardiac cutoff survives power loss, is held per user, and withholds cervical VNS only; the UHDR record says which fault stopped the session (`NP-SW-FAULTMSG-001` Rev 2, principal decisions 2026-09-22).** Three changes.
 - **§5.4 step 2c now holds across a power-on reset.** It used to hold only while the device stayed powered, and the headset has no battery. In Mode 3, unplugging the power bank cleared the lockout, and `REQ-CVNS-09`'s app confirmation was skipped (`OI-FAULTMSG-01`). The safety MCU now records the cutoff in its own flash (new §5.4.1).
@@ -762,14 +772,14 @@ Hardware FAI (CV01 bench, CV02 timing, CV03 clinical) PENDING — blocking for T
 | Risk ID | RISK-25 |
 | Title | Cardiac reflex during cervical VNS — inadequate interlock response time |
 | Hazard | Stimulation near carotid sheath activates baroreceptor reflex → uncontrolled HR drop or arrhythmia |
-| Severity | Critical (S4: could result in serious injury) |
-| Probability (unmitigated) | P3 (possible; documented in gammaCore predicate safety data) |
-| Risk (unmitigated) | High |
+| Severity | **S5 — Critical** (`NP-RM-001` §4.1 names this harm as its S5 example). *Before 2026-09-23 this read "Critical (S4)", mixing two scale levels* |
+| Probability (unmitigated) | P3 — Occasional (documented in gammaCore predicate safety data) |
+| Risk (unmitigated) | S5 × P3 = **UNACCEPTABLE** |
 | Mitigation | Safety MCU TIM6 ISR fires every 5 ms; cardiac interlock GPIO cutoff < 5.1 ms from detection trigger. Baseline cross-validation blocks enable if main processor and safety MCU disagree. 30 s re-enable lockout. Re-enable requires explicit app confirmation. **(Rev 6)** The cutoff persists in safety-MCU flash across power loss, per user, failing closed (§5.4.1). It withholds cervical VNS only. gammaCore predicate demonstrated equivalent interlock concept safe in K163334/K173323. |
-| Residual probability | P1 (unlikely; hardware interlock is independent of software stack) |
-| Residual risk | Low |
+| Residual probability | **P2 — Remote** now, because no control is yet verified on hardware; **P1** target after FAI-CV02, silicon verification of §5.4.1, `OI-CVNS-11` and `OI-CVNSHW-03` (`NP-RISK-002` §4.3) |
+| Residual risk | **S5 × P2 = ALARP** (target S5 × P1, still ALARP). ALARP justification: `NP-RISK-002` §4.3.4. *Before 2026-09-23 this read "Low", which the `NP-RM-001` matrix cannot produce at S5* |
 | Verification | FAI-CV02: measured cutoff latency ≤ 100 ms (10 consecutive trials) |
-| Status | MITIGATED — pending FAI-CV02 hardware bench confirmation |
+| Status | **ALARP — re-scored 2026-09-23, approved by the Quality Lead (interim: Steve Hickman, CEO) 2026-09-23**; verification pending (FAI-CV02, silicon) |
 
 ---
 
