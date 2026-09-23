@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 50 (current)  
+**Revision:** 51 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
@@ -55,8 +55,8 @@ only when I `Read` it.
 | Optional accessories + companion SW (mastoid pad, Watch app) | working on accessories / app roadmap | `docs/reference/accessories-roadmap.md` |
 | Durability + maintenance design changes | tooling / BOM / mechanical work | `docs/reference/durability-maintenance.md` |
 | Service network (partner tiers, covers) | service / warranty / logistics work | `docs/reference/service-network.md` |
-| **EMF shielding evidence base + claim substantiation** (what the literature does and does not support per layer and per modality; the per-layer value audit; why Layer 2 cannot be removed and Layer 4 is the live candidate) | quoting, publishing or acting on ANY shielding claim; any question about what the shielding buys; any proposal to add to or remove from the §4.3 stack | `docs/np_bib_emf_001.md` |
-| **Enclosure cavity resonance** (the source that excites it, the band, Layer 4's requirement in dB — and why the layer supplies 1 % of it while the wearer's head supplies the rest) | any question about Layer 4, the absorber station, cavity Q, or what the §4.3 stack does above 400 MHz; before specifying or deleting that station | `docs/np_emc_cav_001.md` |
+| **EMF shielding evidence base + claim substantiation** (what the literature does and does not support per layer and per modality; the per-layer value audit; why Layer 2 cannot be removed and why Layer 4 was deleted) | quoting, publishing or acting on ANY shielding claim; any question about what the shielding buys; any proposal to add to or remove from the §4.3 stack | `docs/np_bib_emf_001.md` |
+| **Enclosure cavity resonance** (the source that excites it, the band, the cavity requirement in dB — and why the deleted Layer 4 supplied 1 % of it while the wearer's head supplies the rest) | any question about the retired Layer 4 / absorber station, cavity Q, or what the §4.3 stack does above 400 MHz; before proposing to put anything back at that station | `docs/np_emc_cav_001.md` |
 | Competitive position + claims | marketing / positioning / claims work | `docs/reference/competitive-position.md` |
 | Regulatory strategy (T1 wellness / T2 510k) | regulatory / QMS / standards work | `docs/reference/regulatory-strategy.md` |
 | Clinical researchers + evidence bibliography | clinical trials / evidence / researcher outreach | `docs/reference/clinical.md` |
@@ -94,7 +94,7 @@ Two-tier platform sharing a single chassis, processor stack, app, and USB-C conn
 - Shared platform (one production line, two markets)
 - Wired-first USB-C default (zero RF at scalp)
 - Autonomous closed-loop EEG-adaptive stimulation without phone (primary competitive moat)
-- 5-layer EMF shielding + active Helmholtz cancellation (only consumer brain wearable with measured shielding)
+- 4-layer EMF shielding + active Helmholtz cancellation (only consumer brain wearable with measured shielding)
 - Modular field-upgradeability via snap-in zone modules
 - No mandatory subscription — all core functions offline-capable permanently
 - UHDR/SHDR data separation (user health data never accessed by NeurOne)
@@ -232,10 +232,12 @@ Whether a given protocol fits the power envelope is `docs/np_ses_pwr_001.md`.
 | Cervical VNS (T2) | Cardiac rhythm interlock | Safety MCU owns enable GPIO; monitors R-peak GPIO; HR change >15 BPM within 5s → GPIO cutoff <100ms; 30s re-enable lockout + app confirm + repeat impedance |
 | All | Firmware anti-fragility | CSPRNG session protocol signing |
 
-### 4.3 EMF shielding (5-layer passive + active) → `docs/reference/hardware-detail.md`
+### 4.3 EMF shielding (4-layer passive + active) → `docs/reference/hardware-detail.md`
 
-Five passive layers plus active fluxgate + Helmholtz cancellation. **Combined 35–45dB ELF magnetic /
-40–60dB RF**, the figure every §1 claim rests on. Three things that bind other work: Layer 3 is
+Four passive layers — **Layers 1, 2, 3 and 5; Layer 4 is retired and its number is held, never
+reused** — plus active fluxgate + Helmholtz cancellation. **Combined 35–45dB ELF magnetic /
+40–60dB RF**, the figure every §1 claim rests on (unchanged by the deletion: Layer 4 contributed to
+neither). Three things that bind other work: Layer 3 is
 **palladium, not silver** (tarnish-immune — what makes the claim *permanent*, verified by fleet SHDR
 attenuation); the shell is bonded to the EEG DRL output; the TMS coil site needs a **non-conductive
 CFRP window**. Per-layer dB and the three firmware additions: §4.3 of the detail file.
@@ -250,19 +252,20 @@ CFRP window**. Per-layer dB and the three firmware additions: §4.3 of the detai
 > layer-limited**, so an unmeasured seam budget makes every layer's value unknowable. **No dB figure
 > here or in the detail file may be published as *measured*.**
 >
-> **Layer 4 now has a requirement, and fails it — `docs/np_emc_cav_001.md` (NP-EMC-CAV-001, 2026-09-20).**
-> It was the one layer with no dB figure anywhere; `REQ-CAV-02` now sets **loaded Q ≤ 20 over
-> 420 MHz – 3 GHz (≥ 26.2 dB)** against a named source (the **18 cluster controllers inside the
-> envelope**, not a radio) — and **the layer supplies 0.26 dB of it while the wearer's head supplies
-> 49.8 dB**, because a 3 mm non-magnetic absorber on a conductor is reactive-only regardless of its
-> loading. **`REQ-CAV-04`: delete the station — and the 3 mm re-loft of the outer bowl is BINDING**,
-> because vacating 3 mm fills it with stagnant air at 54 % *worse* per mm than the foam (0.115 vs
-> 0.075 m²K/W): without the re-loft the outward path goes 0.410 → **0.450**, with it **0.335**. **Now
-> is the cheapest this decision will ever be** — no mould is cut (`NP-REV-SHELL-001` is DRAFT, and
-> `OI-ART-01` already owes a re-scope), and nothing is externally published, so *"5-layer"* above is
-> an internal string. **Recommended, not executed** — §1 and §4.3 still read 5-layer until the
-> principal takes it, and `OI-EMCCAV-08` (`MECH-2`) is the one open question: if the cluster clamps
-> cannot take up the tolerance stack without the foam, the station returns as a thin ceramic pad.
+> **Layer 4 (carbon-loaded absorber foam) is DELETED — `REQ-CAV-04` taken 2026-09-23 (GitHub #391,
+> `docs/np_emc_cav_001.md` §8.2).** `REQ-CAV-02` sets **loaded Q ≤ 20 over 420 MHz – 3 GHz
+> (≥ 26.2 dB)** against a named source (the **18 cluster controllers inside the envelope**, not a
+> radio); the layer supplied **0.26 dB** of it and the wearer's head supplies **49.8 dB**, because a
+> 3 mm non-magnetic absorber on a conductor is reactive-only regardless of its loading. **The 3 mm
+> re-loft of the outer bowl moved with it and is BINDING** — vacating 3 mm without it fills the
+> station with stagnant air at 54 % *worse* per mm than the foam, so the outward thermal path goes
+> 0.410 → 0.450; with it, **0.335** m²K/W. Scalp → exterior radial stack **27–32 mm** (was 30–35).
+> Three rules bind from here: **(1) never renumber** — `L5` stays `L5`, because every historical
+> citation of "Layer 4" means the absorber; **(2) *"five-layer keying"* is a different, retired
+> RISK-15 scheme** and is not this stack; **(3) the one documented way the station returns** is
+> `OI-EMCCAV-08` (`MECH-2`): if the spring plungers cannot take up the (now ±0.80) tolerance stack, a
+> thin **electrically insulating, non-magnetic** ceramic-filled pad (`REQ-CAV-03`), sized by that
+> stack — never an absorber. `EMF-1` has still never run, so the deletion is analysed, not measured.
 
 ### 4.4 Fit system → `docs/reference/hardware-detail.md`
 

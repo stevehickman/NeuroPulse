@@ -211,7 +211,7 @@ programme:**
 
 | Where a shielding figure normally lives | Does the mesh appear? |
 |---|---|
-| `CLAUDE.md` §4.3 five-layer stack | **No.** Layers 1–5 are CFRP, mu-metal, palladium-coated polyester, absorber foam and port filters. The mesh is none of them |
+| `CLAUDE.md` §4.3 four-layer stack (five-layer before 2026-09-23) | **No.** Layers 1, 2, 3 and 5 are CFRP, mu-metal, palladium-coated polyester and port filters (Layer 4, absorber foam, was deleted 2026-09-23 — `REQ-CAV-04`). The mesh is none of them |
 | `docs/reference/hardware-detail.md` §4.3 per-layer dB | **No** |
 | `NP-BIB-EMF-001` per-layer value audit | **No row** |
 | `NP-DT-001` `DI-PERF-22` design trace | **No** |

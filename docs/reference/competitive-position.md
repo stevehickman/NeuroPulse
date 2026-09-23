@@ -20,7 +20,7 @@
 | VNS + HRV | Auricular electrical + PPG | + cervical option | Optical VNS (separate) | No | HRV only | No |
 | Audio entrainment | Binaural + bone conduction | + clinical EMDR | No | No | No | No |
 | Visual stimulation | 108 LEDs/lens + EMDR + retinal PBM + Mode F | + EEG-adaptive, seizure detection | No | No | No | No |
-| EMF shielding | 5-layer palladium + active* | Same | None | None | None | None |
+| EMF shielding | 4-layer palladium + active* | Same | None | None | None | None |
 | Autonomous mobile | Yes — power bank | Yes | BT only | BT only | BT only | No — app required |
 | No mandatory subscription | Yes | Yes | Yes | Paywall on PLUS | Required $99–199/yr | No — $29/mo required |
 | Published clinical trials | None (new product)* | None (new product)* | 35+ RCTs | Limited | Ongoing | 1 claimed (DB placebo-controlled RCT, n=120 ADHD; status unclear) |
@@ -29,7 +29,9 @@
 
 \* **The "None" cells are accurate for the consumer wellness brands in this table and NOT for the
 research-grade dry-EEG market**, which ships Faraday shielding today. No NeurOne figure in this row is
-measured (`EMF-1` open). Evidence base and per-layer value audit: `docs/np_bib_emf_001.md`.
+measured (`EMF-1` open). Evidence base and per-layer value audit: `docs/np_bib_emf_001.md`. The row read
+*5-layer* until 2026-09-23, when Layer 4 (absorber foam) was deleted (`REQ-CAV-04`, `docs/np_emc_cav_001.md`
+§8.2); it was pre-publication, so no external copy changes.
 
 **Neurode gap note (2026-07-13):** Two Neurode capabilities have no NeurOne equivalent today — **fNIRS hemodynamic brain monitoring** and **tRNS**. Both are low-cost to close: fNIRS reuses NeurOne's existing NIR optics (see `docs/np_feas_fnirs_001.md`); tRNS is a firmware preset on the T2 arbitrary-waveform driver. Neurode is otherwise a single-modality ADHD/focus device with no PBM, EEG, EMF shielding, or phone-free operation.
 
