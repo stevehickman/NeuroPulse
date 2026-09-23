@@ -19,6 +19,33 @@
 
 ## Current revision
 
+**Rev 51 (2026-09-23) — §1 gains the T1 → T2 upgrade model as an invariant, and the Document Map
+gains `NP-REG-UPG-001`. One locked decision taken (`OI-TACSDRV-06`); no figure moved.**
+
+**What was decided.** The principal took `NP-REG-UPG-001`'s recommendation: **a T1 owner reaches T2
+by buying a new unit, and no T1 unit is converted by anyone.** Three reasons were given. Purchasers
+reuse any modules they bought. The regulatory issues of conversion and user installation are avoided.
+And a rolling upgrade cannot get round the T1 → T2 price differential.
+
+**Why it belongs in the core rather than only in its document.** Two of its consequences bind work
+that never opens `NP-REG-UPG-001`. **(1) Module carry-over** makes every T1 module interface a two-tier
+interface. Anyone revising a socket pinout, an accessory port or the inventory protocol needs to know
+that, and `OI-MMSOCK-12`'s socket change was already in flight. **(2) The rolling-upgrade reason** makes
+a T1 refusal of T2 modalities a requirement. Anyone writing gating, entitlement or feature-flag code
+needs to know that the gate must sit where the enables are owned, and that the app's
+`NP_PROTO_FLAG_T2_TIER` is not it. **§1's "modular field-upgradeability" line would otherwise read as
+permission to promote T1 as upgradeable to Pro**, which is intended-use evidence. So the new text
+scopes it to within a tier.
+
+**What it is careful not to say.** It does not say the gate exists. It does not. `OI-UPG-01` carries
+the implementation, and the §1 text says so, so that nobody cites §1 as evidence that a T1 unit
+refuses a T2-D tile today. It states no price or cost. The T2 offering for a buyer who already owns
+modules is Product's (`OI-UPG-04`), and no price may be set before `OI-HEXTILE-06`. It does not settle
+the conditions under which carried modules become 510(k) components. That is counsel's Q2, and the
+design meanwhile builds them as tier-common part numbers under the QMS.
+
+## Earlier revisions
+
 **CORRECTION to the Rev 50 entry below (2026-09-22) — Rev 50 carries TWO changes, not one, and the
 second arrived without a revision bump. CLAUDE.md remains at Rev 50; this corrects the record, not
 the file.**

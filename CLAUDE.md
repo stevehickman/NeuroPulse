@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 50 (current)  
+**Revision:** 51 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
@@ -72,6 +72,7 @@ only when I `Read` it.
 | Risk registers — hex-tile module · shell/socket/interconnect/hub | per-artifact hazard work | `docs/np_risk_003.md` · `docs/np_risk_004.md` |
 | Hex-tile mould tooling specification | tile mould / BOM / mechanical work | `docs/np_tool_hextile_001.md` |
 | Shell interconnect design review record (gates shell tooling first cut) | shell tooling release | `docs/np_rev_shell_001.md` |
+| **T1 → T2 upgrade path** — decided 2026-09-23 (new unit, modules carry over); the regulatory consequences of each path; `REQ-UPG-01…03`; what the decision settled and what it opened | any question about moving a customer from T1 to T2, tier identity or gating, whether a part or module works across tiers, or changing an interface a T1 module uses | `docs/np_reg_upg_001.md` |
 | **Earlier document versions** — index naming the current document for each | you have a figure or a file and need to confirm it is the current one | `docs/superseded/README.md` |
 
 > The three `docs/status/` files are large logs, not narratives — each opens with a "How to read
@@ -98,6 +99,18 @@ Two-tier platform sharing a single chassis, processor stack, app, and USB-C conn
 - Modular field-upgradeability via snap-in zone modules
 - No mandatory subscription — all core functions offline-capable permanently
 - UHDR/SHDR data separation (user health data never accessed by NeurOne)
+
+**T1 → T2 is a new unit, never a conversion** (decided 2026-09-23, `OI-TACSDRV-06` →
+`docs/np_reg_upg_001.md` §7). A T1 is a wellness unit for its whole life, and a T2 is built as T2. Three
+rules follow, and each binds work far from the upgrade question:
+1. **A T1 unit never enables a T2 modality or unlocks a T2 feature, whatever is attached** (`REQ-UPG-01`).
+   T2-D, cervical VNS and possibly the qEEG cap fit interfaces every T1 unit has, so physical absence
+   is not the gate. The gate is a signed tier identity **written once, at manufacture** (`REQ-UPG-02`).
+   **No such gate exists yet** (`OI-UPG-01`).
+2. **The modules a purchaser bought carry over to their T2**, so every T1 module interface is kept on
+   every T2 (`REQ-UPG-03`). **A change to a tile socket, accessory port or lens mount lands on both tiers
+   or neither.**
+3. **"Field-upgradeable" (above) means within a tier.** Never present T1 as upgradeable to Pro.
 
 ---
 

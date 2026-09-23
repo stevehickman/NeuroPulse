@@ -645,6 +645,17 @@ carries.** `clinical-03` is exactly that — ordinary `pbm_transcranial` on ordi
 
 > **That is the first tier gate with no physical backing, and no mechanism for it exists.**
 
+> **Note 2026-09-23 (`NP-REG-UPG-001` Rev 2): the opening premise holds only for some T2 parts.**
+> *"A T1 helmet has no TMS coil and no 1170 nm laser"* is true of the unit as shipped. But **T2-D**
+> fits any socket, **cervical VNS** plugs into the hub accessory port, and the **qEEG cap** may reach
+> the PAN (`NP-REG-UPG-001` §3.3). So for those three, "not there" is not enforcement. `OI-TACSDRV-06`
+> is now decided: a new unit, with no conversion and no piecemeal upgrade. That makes the missing gate
+> a requirement: **`REQ-UPG-01`**, under which a T1-identity unit never enables a T2 modality or
+> unlocks a T2 feature, and **`REQ-UPG-02`**, under which the tier identity is written once, at
+> manufacture. The mechanism is D-9's device-bound signed entitlement, extended from F4 protocols to
+> modalities. The work also closes **`RISK-PWRSRC-10`**. Neither is implemented (`OI-UPG-01`). This
+> note changes no D-row.
+
 ### 6.3 F4 — tier / supervision, and the rule that must go with it
 
 The eligibility mechanism reports **F1** major (wrong module fitted), **F2** minor (variant cannot

@@ -109,6 +109,12 @@ tooling DFM.
   subassembly mounts to the L3 rim there (separate part family, its own seal).
 - **TMS window (T2):** the CFRP L3 is broken by a non-conductive CFRP window at the coil
   site (prevents eddy-current field loss); local L2 mu-metal is routed around it.
+  > **2026-09-23: "(T2)" means T2 layups only.** `OI-TACSDRV-06` is decided: a T1 unit is never
+  > converted to T2 (`NP-REG-UPG-001` Rev 2 §7.0, §7.4 (2)). **T1 outer bowls are laid up without the
+  > window, so L2 stays continuous, and every T2 bowl carries it, Pro Entry included.** Pro Entry →
+  > Pro Full therefore never needs a new bowl. This holds only if the window is a **layup choice**.
+  > If it turns out to be a **mould feature**, every bowl has the geometry and the question returns to
+  > the principal. That is `OI-UPG-05`, time-boxed to **MECH-1**.
 
 ---
 
