@@ -94,6 +94,8 @@
  * be swept to 7.125 GHz to confirm it.
  */
 
+import * as TOP from "./thermal-outward-path";
+
 const VALIDATE_ONLY = process.argv.includes("--validate");
 
 // ── Physical constants ───────────────────────────────────────────────────────
@@ -131,7 +133,7 @@ const ctan = (z: Cx): Cx => {
 const HEAD_CIRC_M = { min: 0.52, max: 0.62 }; // CLAUDE.md §4.4, 1 adult SKU
 const L1_SUBTOTAL_M = { min: 0.018, max: 0.022 }; // module body + socket wall + clamp
 const INTERBOWL_GAP_M = { min: 0.005, max: 0.007 }; // clamp travel + boss + labyrinth
-const ABSORBER_T_M = 0.003; // EMF L4, the layer under audit
+const ABSORBER_T_M = TOP.ABSORBER_T_M; // EMF L4, the layer under audit (deleted 2026-09-23)
 
 /** Scalp -> absorber inner face: the air/dielectric part of the cavity. */
 const airThickness = (which: "min" | "max") => L1_SUBTOTAL_M[which] + INTERBOWL_GAP_M[which];
@@ -237,12 +239,15 @@ const FOAM_EPS: Array<[string, Cx]> = [
 // NP-THERM-COOL-001 §2. The station is 3.0 mm; what occupies it decides the term.
 // The trap: vacating it does not delete the resistance, it fills it with stagnant
 // air, and air is a WORSE insulator per mm than the foam.
+// Constants shared with every thermal script since OI-THCOOL-21 (GitHub #407),
+// so this table and the network models cannot fork.
 const THERM = {
-  outwardTotal: 0.41, // m2K/W, NP-THERM-COOL-001 §2 / R1 §2
-  stationT: ABSORBER_T_M, // 3.0 mm
-  kFoam: 0.04, // carbon-loaded open-cell, NP-THERM-COOL-001 §2
-  kAir: 0.026, // stagnant air, same table's 6 mm gap term
-  rSubstitution: 0.02, // ceramic-filled elastomer target, §6.3 / OI-THCOOL-04
+  outwardTotal: TOP.R_OUT_R1, // m2K/W, AS-WAS (foam in) — §7/§8.5 argue from it; HISTORICAL
+  outwardCurrent: TOP.R_OUT_CURRENT, // 0.335 — station deleted, 3 mm re-loft (REQ-CAV-04)
+  stationT: TOP.ABSORBER_T_M, // 3.0 mm
+  kFoam: TOP.K_ABSORBER, // carbon-loaded open-cell, NP-THERM-COOL-001 §2
+  kAir: TOP.K_AIR, // stagnant air, same table's 6 mm gap term
+  rSubstitution: TOP.R_STATION_SUBSTITUTED, // ceramic-filled elastomer target, §6.3 / OI-THCOOL-04
 };
 const rStation = (k: number) => THERM.stationT / k;
 
@@ -264,7 +269,11 @@ const rGap = (mm: number) => mm / 1000 / GAP.kAir;
 /** What one millimetre of gap is worth on the outward path. */
 const gapPerMm = () => rGap(1);
 /** Outward total with the gap re-dimensioned to `mm`, everything else held. */
+/** Outward total at a given gap, AS-WAS (foam in). HISTORICAL: §8.5/§8.7's
+ *  published figures were stated on this baseline before the deletion. */
 const outwardAtGap = (mm: number) => THERM.outwardTotal - rGap(GAP.nominalMm) + rGap(mm);
+/** The same, CURRENT (station deleted). OI-THCOOL-21. */
+const outwardAtGapNow = (mm: number) => THERM.outwardCurrent - rGap(GAP.nominalMm) + rGap(mm);
 
 // ── Dimensioning the Gap, for §8.7 ───────────────────────────────────────────
 // FLUSH-1 removed travel, §8.6.1 removed the fluxgates, BOSS-1 removed the boss.
@@ -894,7 +903,7 @@ function reportGap() {
   console.log(`    gap(mm)   R_gap    outward   recovered`);
   for (const mm of [7, 6, 5, 4, 3, 2]) {
     const rec = rGap(GAP.nominalMm) - rGap(mm);
-    console.log(`      ${String(mm).padStart(2)}     ${rGap(mm).toFixed(3)}    ${outwardAtGap(mm).toFixed(3)}` +
+    console.log(`      ${String(mm).padStart(2)}     ${rGap(mm).toFixed(3)}    ${outwardAtGap(mm).toFixed(3)}  (now ${outwardAtGapNow(mm).toFixed(3)})` +
       `     ${rec >= 0 ? "+" : ""}${rec.toFixed(3)}${mm === GAP.nominalMm ? "   (today)" : ""}`);
   }
   console.log(`\n  Each mm is worth ${gapPerMm().toFixed(4)} m2K/W, so narrowing the gap 2 mm recovers`);
@@ -936,7 +945,7 @@ function reportGapFloor() {
     `${(rGap(1.0 + tallestPart() + 0.5) - rGap(lo)).toFixed(4)}.\n`);
   console.log(`  Thermal value of landing in that band:`);
   for (const mm of [3.5, 3.0, 2.75]) {
-    console.log(`    ${mm.toFixed(2)} mm -> outward ${outwardAtGap(mm).toFixed(3)}` +
+    console.log(`    ${mm.toFixed(2)} mm -> outward ${outwardAtGap(mm).toFixed(3)} as-was, ${outwardAtGapNow(mm).toFixed(3)} now` +
       `   (recovers ${(rGap(GAP.nominalMm) - rGap(mm)).toFixed(3)})`);
   }
   console.log(`\n  TWO of the four missing inputs are now closed: PCB-1 fixes the board at`);
@@ -1123,6 +1132,14 @@ function reportValidation(): boolean {
     ["6E: EMIRR break-even, holes @ 9.2 V/m, 7.125 GHz (dB)", emirrBreakEven6E(fr6hi.holes * incidentE(WIFI_CLIENT.lpiDbm, WIFI_CLIENT.refDistM) * PEAK_FACTOR), 44.0, 0.2],
     ["6E: EMIRR break-even, holes @ 54.8 V/m, 7.125 GHz (dB)", emirrBreakEven6E(fr6hi.holes * incidentE(WIFI_CLIENT.spDbm, WIFI_CLIENT.nearDistM) * PEAK_FACTOR), 59.5, 0.2],
     ["6E: EMIRR break-even, slot @ 9.2 V/m (dB)", emirrBreakEven6E(fr6.slot * incidentE(WIFI_CLIENT.lpiDbm, WIFI_CLIENT.refDistM) * PEAK_FACTOR), 78.6, 0.2],
+    // OI-THCOOL-21 — the same Gap figures on the CURRENT (station deleted) baseline.
+    // The as-was rows above stay: §8.5's "2 mm beats deleting the absorber" is
+    // stated against the absorber, and only makes sense with it in.
+    ["[current] outward path, station deleted", THERM.outwardCurrent, 0.335, 0.002],
+    ["[current] gap share of outward path (%)", (rGap(GAP.nominalMm) / THERM.outwardCurrent) * 100, 68.9, 0.5],
+    ["[current] outward total at 4 mm gap", outwardAtGapNow(4), 0.258, 0.002],
+    ["[current] outward total at 3 mm gap", outwardAtGapNow(3), 0.220, 0.002],
+    ["[current] outward total at the 2.75 mm floor", outwardAtGapNow(gapFloorPocketed()[0]), 0.210, 0.002],
   ];
 
   console.log(`\nscanned: ${anchors.length} published anchor(s) — NP-EMC-CAV-001\n`);

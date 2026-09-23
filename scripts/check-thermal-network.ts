@@ -18,16 +18,22 @@
  * CI-Kind: report
  */
 
+import {
+  R_OUT_R1, R_OUT_CURRENT, R_GAP_STAGNANT, R_ABSORBER, R_OUT_VACATED, R_OUT_SUBSTITUTED,
+} from "./thermal-outward-path";
+
 // ---------------------------------------------------------------------------
 // §1  Published anchors — NOT derived here. Changing one invalidates the model.
 // ---------------------------------------------------------------------------
 
 /** NP-THERM-CFD-R1-001 §2: inward path, junction -> perfused scalp core. */
 const R_IN = 0.11;
-/** NP-THERM-CFD-R1-001 §2: outward path total, fan off. */
-const R_OUT_BASE = 0.41;
-/** NP-THERM-CFD-R1-001 §2: the stagnant inter-bowl air gap term within R_OUT_BASE. */
-const R_GAP_STAGNANT = 0.23;
+/** NP-THERM-CFD-R1-001 §2: outward path total, fan off, WITH the Layer 4 foam.
+ *  HISTORICAL since the 2026-09-23 deletion (REQ-CAV-04) — kept as the anchor
+ *  R_via_eff and the 6.7 K cavity budget are calibrated against, because R1's
+ *  published 90 % export and the ~6-tile rule were both produced with the foam in.
+ *  The CURRENT path is R_OUT_CURRENT = 0.335. OI-THCOOL-21. */
+const R_OUT_BASE = R_OUT_R1;
 /** NP-THERM-CFD-R1-001 §3: face -> 37 C core, low perfusion. Sets the inward flux ceiling. */
 const R_FACE_CORE = 0.105;
 /** NP-THERM-CFD-R1-001 §3: inward flux ceiling to hold face <= 42 C. */
@@ -47,7 +53,12 @@ const VAULT_AREA = 0.11; // m^2, ~80 sockets x tile area (NP-HELMET-GEOM-001 ord
 // Allocated here from the NP-THERM-CFD-C2-001 §2 stack so each term can be
 // attacked independently. Sums to 0.18 by construction.
 
-const R_FOAM = 0.075;      // 3 mm carbon-loaded EMI absorber, k ~ 0.04 W/m.K
+/** 3 mm carbon-loaded EMI absorber, k ~ 0.04 W/m.K. DELETED 2026-09-23
+ *  (REQ-CAV-04, GitHub #391) with the 3 mm outer-bowl re-loft binding, so it
+ *  appears ONLY in the as-was (historical) option set below. */
+const R_FOAM = R_ABSORBER;
+/** The station after the deletion + re-loft: closed, not vacated. */
+const R_FOAM_CURRENT = 0;
 const R_SHELL = 0.005;     // CFRP 2.5 mm + Pd-polyester 0.1 + mu-metal 0.2
 const R_EXT_NATURAL = 0.10; // outer face natural convection, h ~ 10 W/m^2.K
 
@@ -96,6 +107,8 @@ const R_VIA_EFF = calibrateVia(VIA_EXPORT_FRACTION);
 
 const NO_VIA = Infinity;
 
+/** AS-WAS option set — every row with the Layer 4 foam in it (HISTORICAL).
+ *  NP-THERM-COOL-001 §4/§5/§6.9 were computed on these rows before Rev 14. */
 const options: Option[] = [
   {
     id: "BASE", name: "As-modelled, fan off, no via",
@@ -144,6 +157,31 @@ const options: Option[] = [
   {
     id: "GFE", name: "Gap bridge + absorber + forced external",
     rGap: GAP_PAD, rFoam: 0.02, rExt: forcedExternal(30), rVia: R_VIA_EFF,
+    breachesShield: false, note: "Full static stack — the D-2 comparator",
+  },
+];
+
+/**
+ * CURRENT option set (OI-THCOOL-21) — the same architectures with the absorber
+ * station deleted and the bowl re-lofted, so rFoam = 0 in every row. Two rows
+ * of the as-was set collapse: "thermally-specified absorber" (RF, GF) has no
+ * station left to specify, so RF == R and GF == G, and the forced-external rows
+ * become RE (was RFE) and GE (was GFE). Row X is kept for the §4.2 comparison.
+ */
+const optionsCurrent: Option[] = [
+  { ...options[0], rFoam: R_FOAM_CURRENT, note: "current baseline, station deleted" },
+  { ...options[1], rFoam: R_FOAM_CURRENT },
+  { ...options[2], rFoam: R_FOAM_CURRENT },
+  { ...options[3], rFoam: R_FOAM_CURRENT },
+  {
+    id: "RE", name: "Recirculation + forced external (was RFE)",
+    rGap: stirredGap(30), rFoam: R_FOAM_CURRENT, rExt: forcedExternal(30), rVia: R_VIA_EFF,
+    breachesShield: false, note: "Full loop stack, no absorber to specify",
+  },
+  { ...options[6], rFoam: R_FOAM_CURRENT },
+  {
+    id: "GE", name: "Gap bridge + forced external (was GFE)",
+    rGap: GAP_PAD, rFoam: R_FOAM_CURRENT, rExt: forcedExternal(30), rVia: R_VIA_EFF,
     breachesShield: false, note: "Full static stack — the D-2 comparator",
   },
 ];
@@ -241,52 +279,79 @@ function pcmMassKg(watts: number, minutes: number): number {
 // ---------------------------------------------------------------------------
 
 const f2 = (n: number) => n.toFixed(2);
+const f3 = (n: number) => n.toFixed(3);
 const pc = (n: number) => (n * 100).toFixed(1) + "%";
 
 console.log("NP-THERM-COOL-001 — thermal network model\n");
 
 console.log("§2  Outward path decomposition (m^2K/W)");
-console.log(`  stagnant inter-bowl gap   ${f2(R_GAP_STAGNANT)}   <- published, dominant`);
-console.log(`  EMI absorber foam         ${f2(R_FOAM)}   <- shield part, never thermally specified`);
-console.log(`  shell (CFRP+Pd+mu)        ${f2(R_SHELL)}`);
-console.log(`  external natural conv.    ${f2(R_EXT_NATURAL)}`);
-console.log(`  total                     ${f2(R_GAP_STAGNANT + R_OUT_REMAINDER)}  (published ${f2(R_OUT_BASE)})`);
+console.log("                            as-was (R1)   CURRENT");
+console.log(`  stagnant inter-bowl gap   ${f2(R_GAP_STAGNANT)}          ${f2(R_GAP_STAGNANT)}   <- published, dominant`);
+console.log(`  EMI absorber foam         ${f3(R_FOAM)}         ${f3(R_FOAM_CURRENT)}   <- DELETED 2026-09-23 (REQ-CAV-04), 3 mm re-loft binding`);
+console.log(`  shell (CFRP+Pd+mu)        ${f3(R_SHELL)}         ${f3(R_SHELL)}`);
+console.log(`  external natural conv.    ${f2(R_EXT_NATURAL)}          ${f2(R_EXT_NATURAL)}`);
+console.log(`  total                     ${f3(R_GAP_STAGNANT + R_OUT_REMAINDER)}         ${f3(R_GAP_STAGNANT + R_FOAM_CURRENT + R_SHELL + R_EXT_NATURAL)}` +
+  `   (published ${f2(R_OUT_BASE)} -> ${f3(R_OUT_CURRENT)})`);
+console.log(`  gap share of outward      ${pc(R_GAP_STAGNANT / R_OUT_BASE)}         ${pc(R_GAP_STAGNANT / R_OUT_CURRENT)}`);
+console.log(`  (vacated without the re-loft: ${f3(R_OUT_VACATED)}; OI-EMCCAV-08 fallback pad: ${f3(R_OUT_SUBSTITUTED)})`);
 console.log(`  inward path R_in          ${f2(R_IN)}   <- FLOOR: 1.6 mm to a perfused sink\n`);
 
 console.log(`§3  Via calibration: R_via_eff = ${R_VIA_EFF.toFixed(4)} m^2K/W`);
 console.log(`     (reproduces the published ${pc(VIA_EXPORT_FRACTION)} export; an ideal 4 mm`);
-console.log(`      copper via is ~0.001, so ~90% of via resistance is contact/spreading/sink)\n`);
+console.log(`      copper via is ~0.001, so ~90% of via resistance is contact/spreading/sink)`);
+console.log(`     Calibrated at R1's as-was ${f2(R_OUT_BASE)} — the path R1's 90 % was computed on.`);
+console.log(`     The via itself is unchanged by the deletion (3 mm shorter, which only helps).\n`);
 
-console.log("§4  Heat split at the junction");
-console.log("  ID    R_out   inward   outward  exported  shield  option");
-for (const o of options) {
-  const s = solve(o);
-  const flag = o.breachesShield ? "BREACH" : "  ok  ";
-  console.log(
-    `  ${o.id.padEnd(5)} ${f2(s.rOut)}   ${pc(s.inward).padStart(6)}   ` +
-    `${pc(s.outward).padStart(6)}   ${pc(s.exported).padStart(7)}  ${flag}  ${o.name}`,
-  );
+function printSplit(set: Option[]) {
+  console.log("  ID    R_out   inward   outward  exported  shield  option");
+  for (const o of set) {
+    const s = solve(o);
+    const flag = o.breachesShield ? "BREACH" : "  ok  ";
+    console.log(
+      `  ${o.id.padEnd(5)} ${f3(s.rOut)}  ${pc(s.inward).padStart(6)}   ` +
+      `${pc(s.outward).padStart(6)}   ${pc(s.exported).padStart(7)}  ${flag}  ${o.name}`,
+    );
+  }
 }
+
+console.log("§4  Heat split at the junction — CURRENT (station deleted, OI-THCOOL-21)");
+printSplit(optionsCurrent);
+console.log("\n§4h Heat split — AS-WAS, foam in (HISTORICAL; NP-THERM-COOL-001 Rev 13 and earlier)");
+printSplit(options);
 
 const base = solve(options[0]);
 const vent = solve(options[2]);
-console.log(`\n  Model reproduces the published ~83% inward at ${pc(base.inward)} (network vs FD: within 4 pp).`);
-console.log(`  Perfect external ventilation reaches only ${pc(vent.inward)} inward — it does NOT`);
+const baseCur = solve(optionsCurrent[0]);
+console.log(`\n  Model reproduces the published ~83% inward at ${pc(base.inward)} (as-was; network vs FD: within 4 pp).`);
+console.log(`  Current, no via: ${pc(baseCur.inward)} inward — the deletion moves ${(100 * (base.inward - baseCur.inward)).toFixed(1)} pp of`);
+console.log(`  junction heat OFF the scalp. With the via: ${pc(solve(options[1]).inward)} -> ${pc(solve(optionsCurrent[1]).inward)}.`);
+console.log(`  SAFETY DIRECTION: every current inward fraction is <= its as-was row.`);
+console.log(`  Perfect external ventilation reaches only ${pc(vent.inward)} inward (as-was) — it does NOT`);
 console.log(`  fix the face, and the adopted via already reaches ${pc(solve(options[1]).inward)}.\n`);
 
-console.log("§5  Aggregate cavity ceiling (equal cavity temperature rise)");
-console.log("  ID    R_out   tiles   vs baseline   option");
-for (const o of options) {
-  const s = solve(o);
-  const n = tileCeiling(s.rOut);
-  const ratio = n / tileCeiling(base.rOut);
-  console.log(
-    `  ${o.id.padEnd(5)} ${f2(s.rOut)}   ${n.toFixed(1).padStart(5)}   ` +
-    `${ratio.toFixed(2)}x`.padStart(11) + `   ${o.name}`,
-  );
+/** Ceiling calibrated on the AS-WAS baseline (the ~6-tile rule was stated with
+ *  the foam in), so both columns share one yardstick. */
+const baseCeil = tileCeiling(base.rOut);
+function printCeilings(set: Option[]) {
+  const vCur = tileCeiling(solve(set[1]).rOut);
+  console.log("  ID    R_out   tiles   vs as-was base   vs this set's V   option");
+  for (const o of set) {
+    const n = tileCeiling(solve(o).rOut);
+    console.log(
+      `  ${o.id.padEnd(5)} ${f3(solve(o).rOut)}  ${n.toFixed(1).padStart(5)}   ` +
+      `${(n / baseCeil).toFixed(2)}x`.padStart(14) + `${(n / vCur).toFixed(2)}x`.padStart(18) + `   ${o.name}`,
+    );
+  }
 }
-console.log(`\n  Baseline calibrated to the published ~6-tile concurrency rule.`);
-console.log(`  Ceiling scales as 1/R_out — this is the protocol-coverage lever.\n`);
+
+console.log("§5  Aggregate cavity ceiling (equal cavity temperature rise) — CURRENT");
+printCeilings(optionsCurrent);
+console.log("\n§5h Aggregate cavity ceiling — AS-WAS (HISTORICAL)");
+printCeilings(options);
+console.log(`\n  Baseline calibrated to the published ~6-tile rule AT THE AS-WAS ${f2(R_OUT_BASE)}.`);
+console.log(`  The deletion alone takes it ${baseCeil.toFixed(1)} -> ${tileCeiling(R_OUT_CURRENT).toFixed(1)} (${(R_OUT_BASE / R_OUT_CURRENT).toFixed(2)}x, = ${f2(R_OUT_BASE)}/${f3(R_OUT_CURRENT)}).`);
+console.log(`  Ceiling scales as 1/R_out — this is the protocol-coverage lever.`);
+console.log(`  Superseded as an ABSOLUTE by NP-THERM-CFD-N1-001 §8 (coupled lattice); ratios only.\n`);
 
 console.log("§6  Max ambient holding face <= 42 C, healthy state, via fitted");
 console.log(`  (linear fit through R1 §5.1's two published points, slope ${SLOPE.toFixed(3)} K/K)`);
@@ -294,7 +359,10 @@ for (const c of configs) {
   console.log(`  ${c.name}   face ${c.face433} C @ 43.3 C  ->  max ambient ${maxAmbient(c.face433).toFixed(1)} C`);
 }
 console.log(`\n  Compare NP-ENV-OPRANGE-001 as published: T1-A full <= +35, T2-D full <= +30.`);
-console.log(`  The provisional dagger-marked bounds already sit close to what the thermal design supports.\n`);
+console.log(`  The provisional dagger-marked bounds already sit close to what the thermal design supports.`);
+console.log(`  NOT re-run for the deletion: these are R1's published CFD temperatures, computed with the`);
+console.log(`  foam in (outward ${f2(R_OUT_BASE)}). The current path is less resistive, so each max ambient here is a`);
+console.log(`  FLOOR on the current one — conservative, not stale. check-thermal-multitile.ts §2c gives the shift.\n`);
 
 console.log("§7  Pneumatic loop — 20 W removed, 12 K rise, 1.5 m each way");
 console.log("  bore   velocity    Re      dP/tube   TE11 cutoff   BCO atten @ L/D=3");
@@ -346,9 +414,17 @@ const SOURCES: Array<[string, number]> = [
   ["100 W EPR", 95],
   ["mains base station", 235],
 ];
-/** Sealed-cavity aggregate thermal ceiling, NP-PWRSRC-001 §4.1. */
+/** Sealed-cavity aggregate thermal ceiling, NP-PWRSRC-001 §4.1 — its 11.3 K
+ *  margin over R" 0.41 (conservative) and 0.23 (optimistic, gap only). AS-WAS. */
+const PWRSRC_MARGIN_K = 11.3;
 const THERMAL_UNCOOLED: [number, number] = [27.6, 49.1];
-const COOLING_GAIN = 3.28; // §5 row RFE
+/** The same inversion at the CURRENT path: only the conservative end moves,
+ *  because 0.23 is the gap term alone and the deletion leaves it untouched. */
+const THERMAL_UNCOOLED_CURRENT: [number, number] = [PWRSRC_MARGIN_K / R_OUT_CURRENT, THERMAL_UNCOOLED[1]];
+const COOLING_GAIN = 3.28; // §5h row RFE, as-was
+/** Current equivalent: RE against the current V row (the absorber term is
+ *  already banked in the baseline, so less of the gain is left to buy). */
+const COOLING_GAIN_CURRENT = R_OUT_CURRENT / solve(optionsCurrent.find((o) => o.id === "RE")!).rOut;
 
 const tilesFrom = (watts: number) => watts / P_TILE_DUTY;
 
@@ -370,33 +446,45 @@ console.log(`\n  Ice (334 kJ/kg) beats paraffin (${L_PARAFFIN / 1000} kJ/kg) by 
 console.log(`  A TEC removing the 6-tile via load draws ${(viaLoad(6) / TEC_COP).toFixed(0)} W and rejects ${(viaLoad(6) * (1 + 1 / TEC_COP)).toFixed(0)} W:`);
 console.log(`  mains only. The ice pack draws ~1-2 W (pump), so it alone preserves Mode 3.\n`);
 
-console.log("§10 The governor bind — cooling raises ONLY the thermal term");
-console.log("  Concurrency = min(electrical, thermal). Cooling moves thermal; the source moves electrical.");
-console.log("\n  source                        elec tiles   thermal tiles      min      cooled min");
-for (const [name, w] of SOURCES) {
-  const e = tilesFrom(w);
-  const tLo = tilesFrom(THERMAL_UNCOOLED[0]), tHi = tilesFrom(THERMAL_UNCOOLED[1]);
-  const cLo = tLo * COOLING_GAIN, cHi = tHi * COOLING_GAIN;
-  console.log(
-    `  ${name.padEnd(28)} ${e.toFixed(1).padStart(10)}   ${(tLo.toFixed(1) + "-" + tHi.toFixed(1)).padStart(13)}   ` +
-    `${Math.min(e, tHi).toFixed(1).padStart(6)}   ${Math.min(e, cHi).toFixed(1).padStart(10)}`,
-  );
+function printGovernor(label: string, band: [number, number], gain: number) {
+  console.log(`  ${label} (thermal band ${band[0].toFixed(1)}-${band[1].toFixed(1)} W, cooling gain ${gain.toFixed(2)}x)`);
+  console.log("  source                        elec tiles   thermal tiles      min      cooled min");
+  for (const [name, w] of SOURCES) {
+    const e = tilesFrom(w);
+    const tLo = tilesFrom(band[0]), tHi = tilesFrom(band[1]);
+    const cHi = tHi * gain;
+    console.log(
+      `  ${name.padEnd(28)} ${e.toFixed(1).padStart(10)}   ${(tLo.toFixed(1) + "-" + tHi.toFixed(1)).padStart(13)}   ` +
+      `${Math.min(e, tHi).toFixed(1).padStart(6)}   ${Math.min(e, cHi).toFixed(1).padStart(10)}`,
+    );
+  }
 }
-console.log("\n  THE FINDING: on the 45 W brick — Home Standard, the config the ice pack targets —");
-console.log("  the cooled min is UNCHANGED at 6.4 tiles, because electrical binds first.");
-console.log("  Higher-wattage sources do gain (65 W: 7.9 -> 9.6; 100 W EPR: 7.9 -> 15.2), so the");
-console.log("  gain is bought by WATTS first and cooling second; cooling alone buys nothing at 45 W.");
+
+console.log("§10 The governor bind — cooling raises ONLY the thermal term");
+console.log("  Concurrency = min(electrical, thermal). Cooling moves thermal; the source moves electrical.\n");
+printGovernor("CURRENT", THERMAL_UNCOOLED_CURRENT, COOLING_GAIN_CURRENT);
+console.log();
+printGovernor("AS-WAS (HISTORICAL)", THERMAL_UNCOOLED, COOLING_GAIN);
+console.log("\n  THE FINDING (unchanged by the deletion): on the 45 W brick — Home Standard, the");
+console.log("  config the ice pack targets — the cooled min is UNCHANGED at 6.4 tiles, because");
+console.log("  electrical binds first. The deletion raises only the conservative END of the");
+console.log(`  thermal band (${tilesFrom(THERMAL_UNCOOLED[0]).toFixed(1)} -> ${tilesFrom(THERMAL_UNCOOLED_CURRENT[0]).toFixed(1)} tiles); the optimistic end is the gap alone.`);
 console.log("  So: ice pack on a 45 W brick -> ambient envelope only, no session-length gain.");
 console.log("      TEC chiller in a mains base station -> both, because the station brings watts too.\n");
 
 console.log("§11 Cascade length and thermal dose — what concurrency is worth");
-const bindBase = Math.min(tilesFrom(40), tilesFrom(THERMAL_UNCOOLED[1]));
-const bindStation = Math.min(tilesFrom(235), tilesFrom(THERMAL_UNCOOLED[1] * COOLING_GAIN));
-const ratio = bindStation / bindBase;
+for (const [label, band, gain] of [["CURRENT", THERMAL_UNCOOLED_CURRENT, COOLING_GAIN_CURRENT],
+                                   ["AS-WAS ", THERMAL_UNCOOLED, COOLING_GAIN]] as const) {
+  const bindBase = Math.min(tilesFrom(40), tilesFrom(band[1]));
+  const bindStation = Math.min(tilesFrom(235), tilesFrom(band[1] * gain));
+  const ratio = bindStation / bindBase;
+  console.log(`  ${label}  ${bindBase.toFixed(1)} tiles -> ${bindStation.toFixed(1)} tiles is a ${ratio.toFixed(1)}x reduction:` +
+    ` groups ~${Math.ceil(40 / ratio)}, ~${(20 / ratio).toFixed(1)} h, CEM43 ~${(292 / ratio).toFixed(0)}`);
+}
 console.log(`  Cascade time scales as 1/concurrency (groups = ceil(sockets / maxConcurrent)).`);
-console.log(`  ${bindBase.toFixed(1)} tiles -> ${bindStation.toFixed(1)} tiles is a ${ratio.toFixed(1)}x reduction.`);
-console.log(`  Applied to NP-PWRSRC-001 §5.5's worst case (Vascular Baseline, 40 groups, 20.0 h, 292 CEM43):`);
-console.log(`    groups ~${Math.ceil(40 / ratio)}, ~${(20 / ratio).toFixed(1)} h, CEM43 ~${(292 / ratio).toFixed(0)} at an unchanged plateau.`);
+console.log(`  Applied to NP-PWRSRC-001 §5.5's worst case (Vascular Baseline, 40 groups, 20.0 h, 292 CEM43)`);
+console.log(`  at an unchanged plateau. The current row is SMALLER because the deletion banks part of the`);
+console.log(`  chiller's gain in the uncooled baseline — the accessory buys less on top, not less in total.`);
 console.log(`  CEM43 uses R = 0.25 below 43 C, so each 1 C the chiller removes cuts it a further 4x.`);
 console.log(`  Directional: NP-PWRSRC-001 owns the dose model (scripts/check-thermal-dose.ts).\n`);
 
@@ -455,26 +543,38 @@ console.log("\n  Both are ACCESSORIES, not base BOM: Home Standard is already $8
 console.log("§15 D-2 test — pneumatic loop vs a static conductive gap bridge");
 console.log("  D-2 (principal): the loop is in scope only if its benefit is real AND not");
 console.log("  obtainable otherwise. Both attack the SAME term — the 0.23 stagnant inter-bowl gap.\n");
-console.log("  ID    R_out   tiles   vs base   moving parts   aperture   option");
-for (const id of ["V", "R", "RFE", "G", "GF", "GFE"]) {
-  const o = options.find((x) => x.id === id)!;
-  const r = solve(o);
-  const n = tileCeiling(r.rOut);
-  const loop = id === "R" || id === "RFE";
-  console.log(
-    `  ${id.padEnd(5)} ${r.rOut.toFixed(3).padStart(5)}   ${n.toFixed(1).padStart(5)}   ` +
-    `${(n / tileCeiling(solve(options[0]).rOut)).toFixed(2)}x`.padStart(7) +
-    `   ${(loop ? "blower+tubes" : "none").padEnd(13)}  ${"none".padEnd(9)}  ${o.name}`,
-  );
+function printD2(set: Option[], ids: string[]) {
+  const v = tileCeiling(solve(set[1]).rOut);
+  console.log("  ID    R_out   tiles   vs as-was   vs own V   moving parts   option");
+  for (const id of ids) {
+    const o = set.find((x) => x.id === id)!;
+    const r = solve(o);
+    const n = tileCeiling(r.rOut);
+    const loop = id.startsWith("R");
+    console.log(
+      `  ${id.padEnd(5)} ${r.rOut.toFixed(3).padStart(5)}   ${n.toFixed(1).padStart(5)}   ` +
+      `${(n / baseCeil).toFixed(2)}x`.padStart(9) + `${(n / v).toFixed(2)}x`.padStart(11) +
+      `   ${(loop ? "blower+tubes" : "none").padEnd(13)}  ${o.name}`,
+    );
+  }
 }
+console.log("  CURRENT (station deleted):");
+printD2(optionsCurrent, ["V", "R", "RE", "G", "GE"]);
+console.log("\n  AS-WAS (HISTORICAL — the table D-2 was decided on, 2026-08-30):");
+printD2(options, ["V", "R", "RFE", "G", "GF", "GFE"]);
 const rfe = tileCeiling(solve(options.find((o) => o.id === "RFE")!).rOut);
 const gfe = tileCeiling(solve(options.find((o) => o.id === "GFE")!).rOut);
+const re = tileCeiling(solve(optionsCurrent.find((o) => o.id === "RE")!).rOut);
+const ge = tileCeiling(solve(optionsCurrent.find((o) => o.id === "GE")!).rOut);
 console.log(`\n  A gap pad is R = ${GAP_PAD.toFixed(4)} m^2K/W against ${(2 / 30).toFixed(3)} for a stirred gap`);
 console.log(`  and 0.230 stagnant — conduction through a solid beats convection across a gap.`);
-console.log(`  GFE reaches ${gfe.toFixed(1)} tiles vs RFE's ${rfe.toFixed(1)} — ${(gfe / rfe).toFixed(1)}x BETTER with no loop at all.`);
+console.log(`  CURRENT: GE reaches ${ge.toFixed(1)} tiles vs RE's ${re.toFixed(1)} — ${(ge / re).toFixed(1)}x BETTER with no loop at all.`);
+console.log(`  AS-WAS:  GFE reached ${gfe.toFixed(1)} vs RFE's ${rfe.toFixed(1)} — ${(gfe / rfe).toFixed(1)}x.`);
+console.log(`  The ranking is UNCHANGED and the static stack's lead WIDENS: removing a series`);
+console.log(`  term common to both rows helps the row whose remainder is smaller more.`);
 console.log(`\n  CONCLUSION for D-2: the loop's benefit is NOT unique to it. A static pad attacks`);
 console.log(`  the same term harder, with no blower, no tubes, no acoustic path beside the audio`);
-console.log(`  modality, and no penetration — so OI-THCOOL-06's ELF measurement is not needed.`);
+console.log(`  modality, and no penetration of its own.`);
 console.log(`  Subject to OI-THCOOL-15: real two-face contact across a curved 5-7 mm gap with`);
 console.log(`  tolerance stack, and compression set over repeated bowl separations.`);
 
@@ -494,30 +594,32 @@ const coverageFromPadDia = (dMm: number) =>
   (Math.PI * (dMm / 2) ** 2) / (TILE_AREA * 1e6);
 
 console.log("§16 Gap-pad coverage sensitivity — §6.9's figures assume FULL AREA");
-console.log("  Pads at fraction phi are in parallel with stagnant air over (1 - phi).\n");
-console.log("  pad dia   phi     R_gap    R_out*   tiles   vs base   note");
+console.log("  Pads at fraction phi are in parallel with stagnant air over (1 - phi).");
+console.log("  Full static stack: pad + [absorber] + shell + forced external. CURRENT has no absorber.\n");
+console.log("  pad dia   phi     R_gap    R_out cur  tiles  vs as-was  vs cur V |  R_out was  tiles  vs base");
+const vCurCeil = tileCeiling(R_OUT_CURRENT);
 for (const d of [10, 12, 16, 20, 25, 30]) {
   const phi = coverageFromPadDia(d);
   const rGap = gapAtCoverage(phi);
-  // full static stack (GFE) with this gap term
-  const rOut = rGap + 0.02 + R_SHELL + forcedExternal(30);
-  const n = tileCeiling(rOut);
-  const note = d <= 12 ? "fits beside clamps easily" : d >= 30 ? "likely clashes" : "";
+  const rCur = rGap + R_FOAM_CURRENT + R_SHELL + forcedExternal(30);
+  const rWas = rGap + 0.02 + R_SHELL + forcedExternal(30);
+  const nCur = tileCeiling(rCur), nWas = tileCeiling(rWas);
   console.log(
     `  ${String(d).padStart(4)} mm  ${(phi * 100).toFixed(1).padStart(4)}%  ` +
-    `${rGap.toFixed(4)}   ${rOut.toFixed(3)}   ${n.toFixed(1).padStart(5)}   ` +
-    `${(n / tileCeiling(solve(options[0]).rOut)).toFixed(2)}x`.padStart(7) + `   ${note}`,
+    `${rGap.toFixed(4)}   ${rCur.toFixed(3).padStart(8)}  ${nCur.toFixed(1).padStart(5)}  ` +
+    `${(nCur / baseCeil).toFixed(2)}x`.padStart(9) + `${(nCur / vCurCeil).toFixed(2)}x`.padStart(10) +
+    ` |  ${rWas.toFixed(3).padStart(8)}  ${nWas.toFixed(1).padStart(5)}  ` + `${(nWas / baseCeil).toFixed(2)}x`.padStart(7),
   );
 }
-const full = tileCeiling(solve(options.find((o) => o.id === "GFE")!).rOut);
 const phi20 = coverageFromPadDia(20);
-const real = tileCeiling(gapAtCoverage(phi20) + 0.02 + R_SHELL + forcedExternal(30));
-console.log(`\n  Full-area (§6.9 as written): ${full.toFixed(1)} tiles.`);
-console.log(`  A realistic 20 mm pad per tile (${(phi20 * 100).toFixed(0)}% coverage): ${real.toFixed(1)} tiles.`);
-console.log(`  So §6.9's headline is optimistic by ${(full / real).toFixed(1)}x — but even the`);
-console.log(`  low-coverage rows beat the stirred gap (${(2 / 30).toFixed(3)}), so D-2's conclusion holds.`);
+const realCur = tileCeiling(gapAtCoverage(phi20) + R_SHELL + forcedExternal(30));
+const realWas = tileCeiling(gapAtCoverage(phi20) + 0.02 + R_SHELL + forcedExternal(30));
+console.log(`\n  Full-area: ${ge.toFixed(1)} tiles current (${gfe.toFixed(1)} as-was).`);
+console.log(`  A realistic 20 mm pad per tile (${(phi20 * 100).toFixed(0)}% coverage): ${realCur.toFixed(1)} current (${realWas.toFixed(1)} as-was).`);
+console.log(`  Full-area optimism: ${(ge / realCur).toFixed(2)}x current, ${(gfe / realWas).toFixed(2)}x as-was — LARGER now, because with the`);
+console.log(`  absorber gone the gap term is a bigger share of what is left. Every row still beats`);
+console.log(`  the stirred gap (${(2 / 30).toFixed(3)}), so D-2's conclusion holds.`);
 console.log(`  Coverage, not pad conductivity, is the design variable. OI-THCOOL-15.`);
-
 
 // ---------------------------------------------------------------------------
 // §17  Derate semantics and the efficacy-floor clamp (§7.4) — DECIDED, D-4

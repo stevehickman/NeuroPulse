@@ -51,6 +51,9 @@ import {
   SOCKETS, NEIGH, N_SOCKETS, distributed,
   heatW, OP, G_LAT_SCALP, G_LAT_FACE, steady as steadyN1,
 } from "./check-thermal-multitile";
+import {
+  SHELL_OFFSET_MM_R1, SHELL_OFFSET_MM_CURRENT, R_ABSORBER, R_ABSORBER_SINK_TABLE, R_OUT_CURRENT,
+} from "./thermal-outward-path";
 
 const VALIDATE_ONLY = process.argv.includes("--validate");
 const A = TILE_AREA;
@@ -64,23 +67,34 @@ const A = TILE_AREA;
 
 type Layer = { name: string; mm: number; k: number; note: string };
 
-/** Outward stack from the cavity face of the absorber to the exterior skin.
+/** Outward stack from the cavity face of the outer bowl to the exterior skin,
+ *  AS R1 MODELLED IT (HISTORICAL): with the Layer 4 absorber, which was DELETED
+ *  2026-09-23 (REQ-CAV-04, GitHub #391). Kept because R1's decomposition (§2a of
+ *  the report) and r1Compat mode must reproduce R1, which had the foam in.
  *  Thicknesses: NP-HELMET-GEOM-001 §2 (L2 + L3). Conductivities: material class. */
-export const OUT_STACK: Layer[] = [
-  { name: "carbon-loaded absorber foam", mm: 3.0, k: 0.05, note: "EMF L4, open-cell carbon foam" },
+export const OUT_STACK_R1: Layer[] = [
+  { name: "carbon-loaded absorber foam", mm: 3.0, k: 0.05, note: "EMF L4 — DELETED 2026-09-23" },
   { name: "Pd-polyester liner", mm: 0.1, k: 0.20, note: "EMF L3" },
   { name: "mu-metal", mm: 0.2, k: 30.0, note: "EMF L2" },
   { name: "PETG laminate", mm: 0.3, k: 0.20, note: "EMF L2 encapsulation" },
   { name: "CFRP shell", mm: 2.5, k: 0.80, note: "EMF L1 + structure, through-thickness" },
 ];
+/** CURRENT outward stack: the station is closed by the 3 mm re-loft, so the Pd
+ *  liner is the cavity face. OI-THCOOL-21. */
+export const OUT_STACK: Layer[] = OUT_STACK_R1.slice(1);
 
-/** Solid part of the outward path, m^2K/W. */
-export const R_SOLID_OUT = OUT_STACK.reduce((a, l) => a + l.mm / 1000 / l.k, 0);
+const solidR = (stack: Layer[]) => stack.reduce((a, l) => a + l.mm / 1000 / l.k, 0);
+/** Solid part of the outward path, m^2K/W — CURRENT (0.0051). */
+export const R_SOLID_OUT = solidR(OUT_STACK);
+/** Solid part as R1 modelled it, foam included (0.0651). HISTORICAL. */
+export const R_SOLID_OUT_R1 = solidR(OUT_STACK_R1);
 
 /** THE EXTERNAL FILM. R1's outward path minus its own solid stack. This is the
  *  term R1 sets to zero when it pins the via terminus at ambient — and the same
- *  term its cavity path already spends once. m^2K/W over the TILE FOOTPRINT. */
-export const R_FILM_R1 = R_CAV_AMB - R_SOLID_OUT;
+ *  term its cavity path already spends once. m^2K/W over the TILE FOOTPRINT.
+ *  Recovered from R1's AS-WAS stack, because that is what R1's 0.41 contains; the
+ *  film is a property of the exterior, not of the foam, and is not re-derived. */
+export const R_FILM_R1 = R_CAV_AMB - R_SOLID_OUT_R1;
 /** Implied external coefficient, W/m^2K, referred to the tile footprint. */
 export const H_FILM_R1 = 1 / R_FILM_R1;
 
@@ -90,8 +104,11 @@ export const H_FILM_R1 = 1 / R_FILM_R1;
 
 const MAP = JSON.parse(readFileSync("hardware/np_socket_map.json", "utf8"));
 const AX = MAP.ellipsoidSemiAxesMm as { foreAft: number; lateral: number; vertical: number };
-/** Module-face plane to exterior skin: gap + L2 + L3 per NP-HELMET-GEOM-001 §2. */
-const SHELL_OFFSET_MM = 12;
+/** Module-face plane to exterior skin: gap + L2 + L3 per NP-HELMET-GEOM-001 §2.
+ *  CURRENT: 9 mm, since the 3 mm re-loft moved the whole outer bowl inward
+ *  (was 12 — SHELL_OFFSET_MM_R1). The exterior the helmet rejects through
+ *  shrinks with it; that is the one term the deletion makes WORSE. */
+const SHELL_OFFSET_MM = SHELL_OFFSET_MM_CURRENT;
 
 /** Thomsen approximation, better than 1.1 % for any ellipsoid. */
 function ellipsoidArea(a: number, b: number, c: number): number {
@@ -100,9 +117,11 @@ function ellipsoidArea(a: number, b: number, c: number): number {
 }
 
 /** Exterior area of the vault dome, m^2 — half the offset ellipsoid. */
-export const A_EXT_GROSS =
-  ellipsoidArea(AX.foreAft + SHELL_OFFSET_MM, AX.lateral + SHELL_OFFSET_MM, AX.vertical + SHELL_OFFSET_MM)
-  / 2 / 1e6;
+const domeArea = (offMm: number) =>
+  ellipsoidArea(AX.foreAft + offMm, AX.lateral + offMm, AX.vertical + offMm) / 2 / 1e6;
+export const A_EXT_GROSS = domeArea(SHELL_OFFSET_MM);
+/** The same at R1's 12 mm offset (HISTORICAL; NP-THERM-SINK-001 Rev 1's 1354 cm2). */
+export const A_EXT_GROSS_R1 = domeArea(SHELL_OFFSET_MM_R1);
 
 /** Deductions: what the vault exterior is not free to reject through.
  *  Areas are design-stage estimates and are the softest input in this file. */
@@ -111,18 +130,21 @@ export const A_EXT_DEDUCTIONS: { name: string; cm2: number }[] = [
   { name: "hub enclosure footprint (occipital arch)", cm2: 54 },
   { name: "Boa occipital dial", cm2: 20 },
 ];
-export const A_EXT_EFF = A_EXT_GROSS - A_EXT_DEDUCTIONS.reduce((a, d) => a + d.cm2, 0) / 1e4;
+const A_EXT_DEDUCT_M2 = A_EXT_DEDUCTIONS.reduce((a, d) => a + d.cm2, 0) / 1e4;
+export const A_EXT_EFF = A_EXT_GROSS - A_EXT_DEDUCT_M2;
+export const A_EXT_EFF_R1 = A_EXT_GROSS_R1 - A_EXT_DEDUCT_M2;
 
 /** Air properties at a ~305 K film. */
 const AIR = { nu: 1.6e-5, alpha: 2.25e-5, k: 0.0263, Pr: 0.71, beta: 1 / 305 };
 /** Characteristic sphere diameter of the helmeted head, m. */
-const D_SPHERE = 2 * ((AX.foreAft + AX.lateral + AX.vertical) / 3 + SHELL_OFFSET_MM) / 1000;
+const dSphere = (offMm: number) => 2 * ((AX.foreAft + AX.lateral + AX.vertical) / 3 + offMm) / 1000;
+const D_SPHERE = dSphere(SHELL_OFFSET_MM);
 
 /** Churchill-Chu sphere natural convection. Returns h in W/m^2K. */
-export function hConvSphere(dT: number): number {
-  const Ra = (9.81 * AIR.beta * dT * D_SPHERE ** 3) / (AIR.nu * AIR.alpha);
+export function hConvSphere(dT: number, d = D_SPHERE): number {
+  const Ra = (9.81 * AIR.beta * dT * d ** 3) / (AIR.nu * AIR.alpha);
   const Nu = 2 + (0.589 * Ra ** 0.25) / (1 + (0.469 / AIR.Pr) ** (9 / 16)) ** (4 / 9);
-  return (Nu * AIR.k) / D_SPHERE;
+  return (Nu * AIR.k) / d;
 }
 
 const EMISSIVITY = 0.90;   // painted polymer / CFRP
@@ -131,9 +153,11 @@ const VIEW_FACTOR = 0.85;  // the rest of the view is the wearer's own shoulders
 export const hRad = (tmK: number) => 4 * EMISSIVITY * VIEW_FACTOR * 5.67e-8 * tmK ** 3;
 
 /** Independent external coefficient over the REAL exterior area, W/m^2K. */
-export function hExtCorrelation(dT = 10, tmK = 303): number {
-  return hConvSphere(dT) + hRad(tmK);
+export function hExtCorrelation(dT = 10, tmK = 303, d = D_SPHERE): number {
+  return hConvSphere(dT, d) + hRad(tmK);
 }
+/** The correlation at R1's geometry — the corroboration pair was stated there. */
+export const hExtCorrelationR1 = (dT = 10, tmK = 303) => hExtCorrelation(dT, tmK, dSphere(SHELL_OFFSET_MM_R1));
 
 // ---------------------------------------------------------------------------
 // §3  Lateral conduction in the exterior skin — the spreader trade
@@ -184,8 +208,10 @@ const NC = (i: number) => 3 * N_SOCKETS + i;
 const NX = (i: number) => 4 * N_SOCKETS + i;
 const N_NODES = 5 * N_SOCKETS;
 
-/** Exterior skin area belonging to one socket, m^2. */
+/** Exterior skin area belonging to one socket, m^2 — CURRENT. */
 export const A_EXT_TILE = A_EXT_EFF / N_SOCKETS;
+/** The same at R1's geometry. HISTORICAL. */
+export const A_EXT_TILE_R1 = A_EXT_EFF_R1 / N_SOCKETS;
 
 export type SinkOpts = {
   amb?: number;
@@ -202,12 +228,21 @@ export type SinkOpts = {
    *  R_CAV_AMB (film included). That pair IS R1's configuration — and the fact
    *  that it takes both is the double count this document is about. */
   r1Compat?: boolean;
+  /** AS-WAS (HISTORICAL) geometry: the Layer 4 foam in the C -> X leg and the
+   *  exterior at R1's 12 mm offset. Reproduces NP-THERM-SINK-001 Rev 1. */
+  asWas?: boolean;
+  /** Split asWas into its two halves, to attribute a change: `foamIn` keeps the
+   *  absorber in the C -> X leg only; `exteriorR1` keeps R1's 12 mm exterior only. */
+  foamIn?: boolean;
+  exteriorR1?: boolean;
   /** Bolt a heatsink to the shell at the occipital arch (the §1b test).
    *  `rHub` is its own resistance to ambient, K/W; 0 = a perfect one. */
   hubSink?: { rHub: number; gContact?: number };
-  /** Override the C -> X leg (m^2K/W). Default R_SOLID_OUT, the as-was stack
-   *  with the absorber in it. check-thermal-bowl.ts passes the post-deletion
-   *  shell-only value (REQ-CAV-04, 2026-09-23) — OI-EMCCAV-07. */
+  /** Override the C -> X leg (m^2K/W). check-thermal-bowl.ts passes the
+   *  post-deletion shell-only value (REQ-CAV-04, 2026-09-23) — OI-EMCCAV-07.
+   *  Since OI-THCOOL-21 the DEFAULT is already that (R_SOLID_OUT is current;
+   *  `foamIn` / `asWas` select R_SOLID_OUT_R1), so the override is a no-op
+   *  there and is kept for its callers. */
   rCX?: number;
 };
 
@@ -253,7 +288,8 @@ export type SinkField = {
 
 export function steadySink(qTile: number[], o: SinkOpts = {}): SinkField {
   const amb = o.amb ?? AMB_NOMINAL;
-  const hExt = o.hExt ?? H_EXT_SPEC;
+  const extR1 = o.asWas || o.exteriorR1, foamIn = o.asWas || o.foamIn;
+  const hExt = o.hExt ?? (extR1 ? H_EXT_SPEC_R1 : H_EXT_SPEC);
   const ktLat = KT_SHELL_BARE + (o.ktSpreader ?? 0);
   const gLatX = lateralG(ktLat);
   const occlFrac = o.occludedFrac ?? 0;
@@ -267,8 +303,10 @@ export function steadySink(qTile: number[], o: SinkOpts = {}): SinkField {
   const toRes = (a1: number, g: number, T: number) => { M[a1][a1] += g; b[a1] += g * T; };
 
   // Per-socket exterior conductance: (1-phi) clear + phi occluded, in parallel.
-  const gClear = (1 - occlFrac) * A_EXT_TILE * hExt;
-  const gOccl = occlFrac * A_EXT_TILE / (1 / hExt + occlR);
+  const aTile = extR1 ? A_EXT_TILE_R1 : A_EXT_TILE;
+  const rSolid = foamIn ? R_SOLID_OUT_R1 : R_SOLID_OUT;
+  const gClear = (1 - occlFrac) * aTile * hExt;
+  const gOccl = occlFrac * aTile / (1 / hExt + occlR);
   const gXA = gClear + gOccl;
 
   for (let i = 0; i < N_SOCKETS; i++) {
@@ -276,7 +314,7 @@ export function steadySink(qTile: number[], o: SinkOpts = {}): SinkField {
     link(NF(i), NS(i), A / R_FS);
     toRes(NS(i), A / R_SC, T_CORE);
     link(NJ(i), NC(i), A / R_GAP_STAGNANT);
-    link(NC(i), NX(i), A / (o.r1Compat ? R_CAV_AMB : (o.rCX ?? R_SOLID_OUT)));
+    link(NC(i), NX(i), A / (o.r1Compat ? R_CAV_AMB : (o.rCX ?? rSolid)));
     link(NJ(i), NX(i), A / R_VIA);
     if (!o.perfectSink && !o.r1Compat) toRes(NX(i), gXA, amb);
     b[NJ(i)] += qTile[i];
@@ -318,19 +356,25 @@ function drive(set: number[], elecW: number): number[] {
 
 /** Specified external coefficient over the exterior skin, W/m^2K.
  *  The conservative of the two independent recoveries (§2 of the report). */
+/** R1's film re-referred to the real exterior area R1 had (12 mm offset). */
+export const H_FILM_R1_EXT = H_FILM_R1 * (A / A_EXT_TILE_R1);
 export const H_EXT_SPEC = Math.min(
-  H_FILM_R1 * (A / A_EXT_TILE),   // R1's film, re-referred to the real exterior area
-  hExtCorrelation(10, 303),        // correlation, over the same area
+  H_FILM_R1_EXT,                   // R1's film, re-referred to R1's exterior area
+  hExtCorrelation(10, 303),        // correlation, over the CURRENT exterior
 );
 
-/** SPEC-SINK-01: the aggregate rejection resistance of the vault exterior, K/W. */
+/** SPEC-SINK-01: the aggregate rejection resistance of the vault exterior, K/W.
+ *  CURRENT geometry (outer bowl re-lofted 3 mm inward). OI-THCOOL-21. */
 export const R_SINK_SPEC = 1 / (H_EXT_SPEC * A_EXT_EFF);
+/** SPEC-SINK-01 as published at Rev 1, R1's 12 mm geometry. HISTORICAL. */
+export const H_EXT_SPEC_R1 = Math.min(H_FILM_R1_EXT, hExtCorrelationR1(10, 303));
+export const R_SINK_SPEC_R1 = 1 / (H_EXT_SPEC_R1 * A_EXT_EFF_R1);
 
 /** Band on SPEC-SINK-01, from the corners of the two soft inputs: h_ext over
  *  [correlation at dT 5 in a 25 C room, R1's own implied film] and A_ext over
  *  [-25 %, +25 %] of the §2 deduction estimate. */
 export const R_SINK_BAND: [number, number] = [
-  1 / (H_FILM_R1 * (A / A_EXT_TILE) * A_EXT_EFF * 1.25),
+  1 / (H_FILM_R1_EXT * A_EXT_EFF * 1.25),
   1 / (hExtCorrelation(5, 298) * A_EXT_EFF * 0.75),
 ];
 
@@ -361,7 +405,8 @@ function reportTerminus() {
   const rStack = OUT_STACK.reduce((a, l) => a + l.mm / 1000 / l.k, 0);
   const viaLenMm = 14 + 2.25 + 3.5 + 6 + OUT_STACK.reduce((a, l) => a + l.mm, 0);
   console.log(`  R1 §5's via is a solid conductor down the boss centreline. Against the`);
-  console.log(`  NP-HELMET-GEOM-001 §2 radial stack it is ~${viaLenMm.toFixed(0)} mm long: module body 14,`);
+  console.log(`  NP-HELMET-GEOM-001 §2 radial stack it is ~${viaLenMm.toFixed(0)} mm long (was ~${(viaLenMm + 3).toFixed(0)} before the`);
+  console.log(`  2026-09-23 Layer 4 deletion took 3 mm out of the outer bowl): module body 14,`);
   console.log(`  socket wall 2.25, clamp 3.5, inter-bowl gap 6, then the ${rStack > 0 ? OUT_STACK.length : 0}-layer outer bowl.`);
   console.log(`  It therefore terminates ON THE OUTER BOWL. It does not reach the hub.`);
   const d = hubDistances();
@@ -416,25 +461,28 @@ function reportTerminus() {
 
 function reportBudget() {
   rule("§2  The rejection budget — one coefficient, recovered twice");
-  console.log(`  (a) FROM R1'S OWN OUTWARD PATH. R_OUT_BASE = ${f2(R_OUT_BASE)} m2K/W, of which the`);
+  console.log(`  (a) FROM R1'S OWN OUTWARD PATH (HISTORICAL — R1 was computed with the Layer 4`);
+  console.log(`      foam in, so this decomposition is stated on the as-was stack).`);
+  console.log(`      R_OUT_BASE = ${f2(R_OUT_BASE)} m2K/W, of which the`);
   console.log(`      stagnant gap is ${f2(R_GAP_STAGNANT)}, leaving R_cav->amb = ${f2(R_CAV_AMB)}. Decompose it:`);
   console.log();
   console.log(`        layer                          mm      k      R"      note`);
-  for (const l of OUT_STACK) {
+  for (const l of OUT_STACK_R1) {
     console.log(`        ${l.name.padEnd(28)} ${String(l.mm).padStart(4)}  ${String(l.k).padStart(5)}  ` +
       `${(l.mm / 1000 / l.k).toFixed(4)}   ${l.note}`);
   }
-  console.log(`        ${"solid subtotal".padEnd(28)}                ${R_SOLID_OUT.toFixed(4)}`);
+  console.log(`        ${"solid subtotal".padEnd(28)}                ${R_SOLID_OUT_R1.toFixed(4)}   (CURRENT, foam gone: ${R_SOLID_OUT.toFixed(4)})`);
   console.log(`        ${"EXTERNAL FILM (by balance)".padEnd(28)}                ${R_FILM_R1.toFixed(4)}   h = ${f2(H_FILM_R1)} W/m2K`);
   console.log();
   console.log(`      That film is referred to the tile footprint (${(A * 1e4).toFixed(2)} cm2). Re-referred to`);
-  console.log(`      the real exterior area it is h = ${f2(H_FILM_R1 * (A / A_EXT_TILE))} W/m2K.`);
+  console.log(`      R1's real exterior area it is h = ${f2(H_FILM_R1_EXT)} W/m2K.`);
   console.log();
   console.log(`  (b) FROM THE OUTSIDE OF THE HELMET, with no R1 input at all.`);
-  console.log(`      Vault dome, semi-axes (${AX.foreAft}, ${AX.lateral}, ${AX.vertical}) + ${SHELL_OFFSET_MM} mm:` +
-    `  ${(A_EXT_GROSS * 1e4).toFixed(0)} cm2 gross`);
+  console.log(`      Vault dome, semi-axes (${AX.foreAft}, ${AX.lateral}, ${AX.vertical}) + ${SHELL_OFFSET_MM} mm (CURRENT; +${SHELL_OFFSET_MM_R1} as-was):` +
+    `  ${(A_EXT_GROSS * 1e4).toFixed(0)} cm2 gross (${(A_EXT_GROSS_R1 * 1e4).toFixed(0)} as-was)`);
   for (const d of A_EXT_DEDUCTIONS) console.log(`        less ${d.name.padEnd(38)} ${String(d.cm2).padStart(4)} cm2`);
-  console.log(`        effective rejecting area                       ${(A_EXT_EFF * 1e4).toFixed(0)} cm2 = ${f3(A_EXT_EFF)} m2`);
+  console.log(`        effective rejecting area                       ${(A_EXT_EFF * 1e4).toFixed(0)} cm2 = ${f3(A_EXT_EFF)} m2` +
+    `   (as-was ${(A_EXT_EFF_R1 * 1e4).toFixed(0)} cm2)`);
   console.log();
   console.log(`        dT(K)   h_conv (sphere, D ${f2(D_SPHERE)} m)   h_rad (eps ${EMISSIVITY}, F ${VIEW_FACTOR})   h_total`);
   for (const dT of [5, 10, 15]) {
@@ -442,11 +490,80 @@ function reportBudget() {
       `${f2(hRad(303)).padStart(28)}   ${f2(hConvSphere(dT) + hRad(303)).padStart(6)}`);
   }
   console.log();
-  const hA = H_FILM_R1 * (A / A_EXT_TILE), hB = hExtCorrelation(10, 303);
-  console.log(`      (a) gives ${f2(hA)} W/m2K, (b) gives ${f2(hB)} W/m2K over the same area —` +
+  const hA = H_FILM_R1_EXT, hB = hExtCorrelationR1(10, 303);
+  console.log(`      At R1's own geometry, (a) gives ${f2(hA)} W/m2K, (b) gives ${f2(hB)} W/m2K —` +
     ` ${(100 * Math.abs(hA - hB) / hB).toFixed(1)} % apart.`);
   console.log(`      Two derivations sharing no input agree. R_sink is NOT a free parameter:`);
   console.log(`      it is the outside of the helmet, and it was already in R_OUT_BASE.`);
+  console.log(`      The corroboration is a statement about R1 and stays at R1's geometry; the`);
+  console.log(`      specification below uses (b) at the CURRENT exterior, which is primary.`);
+}
+
+/** What the deletion + re-loft does to this model (OI-THCOOL-21). Two terms,
+ *  pulling opposite ways: the C -> X leg loses the foam (better), and the
+ *  exterior skin moves 3 mm inward so the rejecting area shrinks (worse). */
+function reportDeletion() {
+  rule("§3a  The Layer 4 deletion in this network — two terms, opposite signs (OI-THCOOL-21)");
+  console.log(`  C -> X leg      ${R_SOLID_OUT_R1.toFixed(4)} -> ${R_SOLID_OUT.toFixed(4)} m2K/W   (foam removed: BETTER)`);
+  console.log(`  exterior area   ${(A_EXT_EFF_R1 * 1e4).toFixed(0)} -> ${(A_EXT_EFF * 1e4).toFixed(0)} cm2` +
+    `          (skin 3 mm further in: WORSE, ${(100 * (A_EXT_EFF / A_EXT_EFF_R1 - 1)).toFixed(1)} %)`);
+  console.log(`  SPEC-SINK-01    ${f2(R_SINK_SPEC_R1)} -> ${f2(R_SINK_SPEC)} K/W`);
+  console.log();
+  const cases: [string, SinkOpts][] = [
+    ["bare S0", {}], ["PGS S3", { ktSpreader: SPREADERS[3].kt }],
+  ];
+  console.log(`  quantity (25 C unless stated)                as-was     current    change`);
+  for (const [id, base] of cases) {
+    for (const [w, lbl] of [[OP.libMin, "ceiling @ 1.3 W/tile"], [OP.r4, "ceiling @ 6.25 W/tile"]] as const) {
+      const a = ceiling(w, { amb: AMB_NOMINAL, ...base, asWas: true });
+      const b = ceiling(w, { amb: AMB_NOMINAL, ...base });
+      console.log(`  ${(id + ", " + lbl).padEnd(44)} ${String(a).padStart(6)}  ${String(b).padStart(9)}`);
+    }
+    for (const amb of [25, 35]) {
+      const a = maxTotalWatts({ amb, ...base, asWas: true }), b = maxTotalWatts({ amb, ...base });
+      console.log(`  ${(id + ", best-N total W, " + amb + " C").padEnd(44)} ${f1(a).padStart(6)}  ${f1(b).padStart(9)}   ${(b - a >= 0 ? "+" : "") + f1(b - a)} W`);
+    }
+    const a6 = admissibleWatts(6, { amb: 25, ...base, asWas: true }), b6 = admissibleWatts(6, { amb: 25, ...base });
+    console.log(`  ${(id + ", admissible W at N = 6").padEnd(44)} ${f1(a6).padStart(6)}  ${f1(b6).padStart(9)}   ${(b6 - a6 >= 0 ? "+" : "") + f1(b6 - a6)} W`);
+  }
+  const zero = new Array(N_SOCKETS).fill(0);
+  const idleA = steadySink(zero, { amb: AMB_NOMINAL, ktSpreader: KT_ISOTHERMAL, asWas: true }).x[0] - AMB_NOMINAL;
+  const idleB = steadySink(zero, { amb: AMB_NOMINAL, ktSpreader: KT_ISOTHERMAL }).x[0] - AMB_NOMINAL;
+  console.log(`  ${"idle exterior rise above ambient".padEnd(44)} ${f1(idleA).padStart(6)}  ${f1(idleB).padStart(9)} K`);
+  const q = drive(distributed(6), OP.libMin);
+  const occ = (asWas: boolean) => {
+    const t = (phi: number) => maxFace(steadySink(q, {
+      amb: AMB_NOMINAL, ktSpreader: SPREADERS[3].kt, occludedFrac: phi, occlusionR: OCCLUSION.rAdd, asWas,
+    }));
+    if (t(1) <= FACE_LIMIT) return NaN;
+    let lo = 0, hi = 1;
+    for (let k = 0; k < 30; k++) { const m = (lo + hi) / 2; if (t(m) > FACE_LIMIT) hi = m; else lo = m; }
+    return hi;
+  };
+  console.log(`  ${"occlusion phi crossing 42 C (N=6, floor, S3)".padEnd(44)} ${occ(true).toFixed(2).padStart(6)}  ${occ(false).toFixed(2).padStart(9)}`);
+  const f6a = maxFace(steadySink(q, { amb: AMB_NOMINAL, ktSpreader: SPREADERS[3].kt, asWas: true }));
+  const f6b = maxFace(steadySink(q, { amb: AMB_NOMINAL, ktSpreader: SPREADERS[3].kt }));
+  console.log(`  ${"max face, N=6 floor, S3".padEnd(44)} ${f1(f6a).padStart(6)}  ${f1(f6b).padStart(9)} C`);
+  console.log();
+  console.log(`  ATTRIBUTION — each half alone, N = 6, library floor, S3, 25 C:`);
+  console.log(`                                   max face    occl. phi at 42 C   best-N total W`);
+  for (const [lbl, o] of [
+    ["as-was (foam in, 12 mm exterior)", { asWas: true }],
+    ["foam removed ONLY", { exteriorR1: true }],
+    ["exterior 3 mm smaller ONLY", { foamIn: true }],
+    ["current (both)", {}],
+  ] as const) {
+    const base: SinkOpts = { amb: AMB_NOMINAL, ktSpreader: SPREADERS[3].kt, ...o };
+    const t = (phi: number) => maxFace(steadySink(q, { ...base, occludedFrac: phi, occlusionR: OCCLUSION.rAdd }));
+    let lo = 0, hi = 1;
+    for (let k = 0; k < 30; k++) { const m = (lo + hi) / 2; if (t(m) > FACE_LIMIT) hi = m; else lo = m; }
+    console.log(`  ${lbl.padEnd(34)} ${f2(maxFace(steadySink(q, base))).padStart(7)} C   ${f2(hi).padStart(10)}          ${f1(maxTotalWatts(base)).padStart(6)} W`);
+  }
+  console.log();
+  console.log(`  Read the sign of each row, not only its size: the foam term removes resistance`);
+  console.log(`  on the CAVITY leg only, while the area loss raises the film under BOTH legs —`);
+  console.log(`  and the via, which carries ~90 %, sees only the second. Where the two net out`);
+  console.log(`  worse, it is the re-loft's geometry, not the deletion's thermal term, doing it.`);
 }
 
 function reportSpec() {
@@ -466,10 +583,20 @@ function reportSpec() {
 
 function reportValidation(): boolean {
   rule("§0  Validation — the refined network IS R1's, re-partitioned");
-  const sum = R_GAP_STAGNANT + R_SOLID_OUT + R_FILM_R1;
+  const sum = R_GAP_STAGNANT + R_SOLID_OUT_R1 + R_FILM_R1;
   const okSum = Math.abs(sum - R_OUT_BASE) < 1e-9;
-  console.log(`  Leg sum   ${f3(R_GAP_STAGNANT)} + ${f3(R_SOLID_OUT)} + ${f3(R_FILM_R1)} = ${sum.toFixed(6)}` +
+  console.log(`  Leg sum, as-was  ${f3(R_GAP_STAGNANT)} + ${f3(R_SOLID_OUT_R1)} + ${f3(R_FILM_R1)} = ${sum.toFixed(6)}` +
     `   vs R_OUT_BASE ${f3(R_OUT_BASE)}   ${okSum ? "EXACT" : "DRIFT"}`);
+  // CURRENT: the same legs with the foam out. This model's foam row is k 0.05
+  // (0.060), not NP-THERM-COOL-001's k 0.04 (0.075), so on R1's film it lands at
+  // 0.350 rather than 0.335. The 0.015 is that foam-k difference and nothing
+  // else — asserted, so it cannot silently become a third number.
+  const sumCur = R_GAP_STAGNANT + R_SOLID_OUT + R_FILM_R1;
+  const okCur = Math.abs(sumCur - (R_OUT_BASE - R_ABSORBER_SINK_TABLE)) < 1e-9 &&
+    Math.abs((sumCur - R_OUT_CURRENT) - (R_ABSORBER - R_ABSORBER_SINK_TABLE)) < 1e-9;
+  console.log(`  Leg sum, current ${f3(R_GAP_STAGNANT)} + ${f3(R_SOLID_OUT)} + ${f3(R_FILM_R1)} = ${sumCur.toFixed(6)}` +
+    `   vs 0.335 + foam-k difference ${f3(R_ABSORBER - R_ABSORBER_SINK_TABLE)}   ${okCur ? "EXACT" : "DRIFT"}`);
+  console.log(`  (Specification below uses the CORRELATION film at the current exterior, not R1's.)`);
   // R1-compat mode must reproduce R1's own single adiabatic cell.
   const gIn = 1 / R_IN, gOut = 1 / R_OUT_BASE, gVia = 1 / R_VIA;
   /** R1 §5.1 T1-std @ 25 C, at the flux the N1 model recovers: 84.5 mW/cm^2. */
@@ -493,7 +620,7 @@ function reportValidation(): boolean {
   console.log(`  — that drive is R1's T1-std flux on ALL 80 sockets (${f1(qm2 * A * N_SOCKETS)} W of heat), far`);
   console.log(`  outside any operating point. It isolates the term; it is not an operating`);
   console.log(`  claim. §6 gives the admissible drives.`);
-  const ok = okSum && dPin < 0.05;
+  const ok = okSum && okCur && dPin < 0.05;
   console.log(`  ${ok ? "PASS" : "FAIL"}`);
   return ok;
 }
@@ -733,6 +860,7 @@ function main() {
   reportTerminus();
   reportBudget();
   reportSpec();
+  reportDeletion();
   reportBaseline();
   reportSpreader();
   reportCeilings();

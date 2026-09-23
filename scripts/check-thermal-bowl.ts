@@ -56,15 +56,29 @@
  * had not merged to main when this was written; the 0.335 case is computed
  * here, locally, and #407 will need to reconcile its constants with these.
  *
+ * RECONCILED by #407: the COOL constants come from scripts/thermal-outward-path.ts
+ * and the SPEC allocations from check-thermal-sink.ts's explicit AS-WAS exports
+ * (OUT_STACK_R1, R_SOLID_OUT_R1, H_EXT_SPEC_R1, A_EXT_*_R1), so every figure this
+ * script published reproduces unchanged. Its "post" cases therefore remove the
+ * foam but hold R1's 12 mm exterior — they do NOT include the 4.6 % exterior-
+ * area loss of the 3 mm re-loft, which check-thermal-sink.ts §3a now carries
+ * (SPEC-SINK-01 1.08 -> 1.14 K/W, OI-SINK-09). That term raises the exterior,
+ * so every bowl and coil figure below is a slight UNDER-estimate for the
+ * re-lofted design; §3a's N = 6 floor case puts the skin +0.2 K warmer.
+ *
  * CI-Kind: report
  */
 import {
   N_SOCKETS, TILE_AREA, FACE_LIMIT, AMB_NOMINAL, distributed, heatW, ETA_WP,
 } from "./check-thermal-multitile";
 import {
-  steadySink, OUT_STACK, R_SOLID_OUT, H_EXT_SPEC, A_EXT_TILE, A_EXT_EFF,
-  R_SINK_SPEC, SPREADERS, type SinkOpts,
+  steadySink, OUT_STACK_R1 as OUT_STACK, R_SOLID_OUT_R1 as R_SOLID_OUT,
+  H_EXT_SPEC_R1 as H_EXT_SPEC, A_EXT_TILE_R1 as A_EXT_TILE, A_EXT_EFF_R1 as A_EXT_EFF,
+  R_SINK_SPEC_R1 as R_SINK_SPEC, SPREADERS, type SinkOpts,
 } from "./check-thermal-sink";
+import {
+  R_GAP_STAGNANT, R_ABSORBER, R_CAV_AMB_R1,
+} from "./thermal-outward-path";
 
 const VALIDATE_ONLY = process.argv.includes("--validate");
 const A = TILE_AREA;
@@ -73,13 +87,13 @@ const A = TILE_AREA;
 // §1  The two allocations, before and after REQ-CAV-04
 // ---------------------------------------------------------------------------
 
-const R_GAP = 0.23;
+const R_GAP = R_GAP_STAGNANT;
 /** NP-THERM-COOL-001 §2: foam 3 mm at k ~0.04. */
-const R_FOAM_COOL = 0.075;
+const R_FOAM_COOL = R_ABSORBER;
 /** NP-THERM-COOL-001 §2: CFRP + Pd-polyester + mu-metal. */
 const R_SHELL_COOL = 0.005;
 /** NP-THERM-COOL-001 §2: external natural convection, h ~10 over the tile footprint. */
-const R_FILM_COOL = 0.10;
+const R_FILM_COOL = R_CAV_AMB_R1 - R_ABSORBER - R_SHELL_COOL; // 0.10
 
 /** NP-THERM-SINK-001 §3.1's solid stack with the absorber row struck. */
 export const R_SHELL_SPEC = R_SOLID_OUT - OUT_STACK[0].mm / 1000 / OUT_STACK[0].k;
@@ -117,7 +131,8 @@ export type BowlResult = {
  *  of the outer bowl, so each is charged the heat crossing the shell solid
  *  (conservative: every watt leaving through that socket's film crosses it). */
 export function bowl(q: number[], a: Alloc, amb: number, kt: number, extraSocketW = 0): BowlResult {
-  const o: SinkOpts = { amb, hExt: a.hExt, rCX: a.rCX, ktSpreader: kt };
+  // exteriorR1: this script's allocations are stated at R1's 12 mm exterior (see header).
+  const o: SinkOpts = { amb, hExt: a.hExt, rCX: a.rCX, ktSpreader: kt, exteriorR1: true };
   const f = steadySink(q, o);
   // Coil self-heat is dissipated ON the bowl. steadySink injects only at the
   // junctions, so add it by superposition as a uniform rise charged to the film
@@ -363,8 +378,8 @@ function reportValidation(): boolean {
   check("SINK §3.1 solid stack", R_SOLID_OUT, 0.0651, 0.0005, " m2K/W");
   // rCX = default must reproduce check-thermal-sink.ts exactly (no fork).
   const q = uniformHeat(20);
-  const a = steadySink(q, { amb: 25, ktSpreader: KT_S3 });
-  const b = steadySink(q, { amb: 25, ktSpreader: KT_S3, rCX: R_SOLID_OUT, hExt: H_EXT_SPEC });
+  const a = steadySink(q, { amb: 25, ktSpreader: KT_S3, asWas: true });
+  const b = steadySink(q, { amb: 25, ktSpreader: KT_S3, rCX: R_SOLID_OUT, hExt: H_EXT_SPEC, exteriorR1: true });
   check("rCX override = default reproduces sink model", Math.max(...a.f) - Math.max(...b.f), 0, 1e-9, " K");
   // NP-THERM-SINK-001 §8.1: 31.4 W fully distributed with S3 at 25 C (absorber in).
   check("SINK §8.1 aggregate W, S3, 25 C", admissibleTotalW(ALLOC.specPre, 25, KT_S3), 31.4, 0.5, " W");
