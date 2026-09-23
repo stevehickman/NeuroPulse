@@ -2,14 +2,14 @@
 
 **Project:** NeurOne
 **Document:** NP-THERM-SINK-001
-**Revision:** 1
-**Date:** 2026-09-08
+**Revision:** 2
+**Date:** 2026-09-23
 **Status:** DESIGN STUDY — **specification of the term `NP-THERM-CFD-N1-001` `OI-N1-02` declares BLOCKING.** It is a resistance-network study on the delivered 80-socket lattice, not a mesh CFD and not a bench measurement; `OI-R1-01` (mesh independence) and `OI-R1-02` (THERM-1b correlation) both remain open. It closes `OI-N1-02` by *recovering* the number rather than choosing one, and it changes the answer to `N1-D-1`.
 **Effective Date:** —
 **Author:** NeurOne Thermal / Systems Engineering
 **Approved By:** — (pending design review)
-**References:** NP-THERM-CFD-N1-001 Rev 1 (§2.1 the network and its lateral terms, §4a/§5 the `R_sink` sweep, §5.1 the export-vs-rejection inversion, §6a per-protocol ceilings, §6b the per-tile drive wall, N1-D-1…7, `OI-N1-01…08` — the parent document); NP-THERM-CFD-R1-001 Rev 1 (§2 the outward path `R_OUT_BASE`, §3 the inward-flux ceiling, §5 the BN-boss export study and its "perfect sink", §5.2 the fault case, §5.3 findings, `OI-R1-01…06`); NP-THERM-CFD-001 (§4 heat-source model and η_wp, §5 BC spec); NP-THERM-CFD-C2-001 (§7 the 1D network and its sign convention); NP-THERM-COOL-001 Rev 11 (§4 the 90 %/2 % split, §5 the cooling options, §6.4 `OI-R1-03` — the fan cools the outer shell only, §6.7 the remote-sink accessories, D-2/D-4 — Rev 11's withdrawal is confined to §7.4.4's Class B/C latch ownership and touches none of these); NP-HELMET-GEOM-001 (§2 the radial stack-up, §3.2 the L1 BN bosses, §3.3 the outer bowl and its unbroken 4-layer inner face, §8 THERM-1a); NP-HEX-ZM-001 (§5.1 the outer bowl as the complete EMF envelope, §5.3 the parting plane and labyrinth lip); NP-PWR-BUDGET-001 Rev 3 (§3.2 the 4–8 tile estimate, §3.3 export efficiency, §3.5 the N = 80 extrapolation, D-4, `OI-PWR-01/08/10`); NP-SES-PWR-001 Rev 1 (§2.1 the tile-count governor, the library floor and ceiling); NP-PWRSRC-001 Rev 1 (§5 thermal dose, §11 the min() governor, `OI-PWRSRC-05`); NP-HW-HUB-001 Rev 5 (`OI-HUB-C19` hub thermal budget, HUB-REQ-C04); NP-TOOL-HUB-001 Rev 1 (§2 the inferred occipital-arch placement, §3 F-04 the fan/heatsink access door, `OI-HTOOL-03/04`); NP-REQ-FANHEALTH-001 (SR-FAN-01…06, Path B1); NP-FMEA-GEOM-001 (FMEA-G07-01); NP-ENV-OPRANGE-001 (§2 the ambient/duty envelope); NP-DT-001 Rev 2 (DI-SAFE-13, DI-REG-01 IEC 60601-1); NP-CONV-001 Rev 6 (§4 identifiers, §8 a convention worth writing down is worth a script); CLAUDE.md §3 (PBM ceilings), §4.2 (42/62 °C interlocks), §4.3 (the 4-layer EMF stack), §4.4 (fit system mass), §4.5 (power), §5.1 (SHDR fan RPM); IEC 60601-1 (42 °C applied part); `hardware/np_socket_map.json`; `scripts/check-thermal-sink.ts`; `scripts/check-thermal-multitile.ts`
-**Related Issues:** —
+**References:** NP-THERM-CFD-N1-001 Rev 1 (§2.1 the network and its lateral terms, §4a/§5 the `R_sink` sweep, §5.1 the export-vs-rejection inversion, §6a per-protocol ceilings, §6b the per-tile drive wall, N1-D-1…7, `OI-N1-01…08` — the parent document); NP-THERM-CFD-R1-001 Rev 1 (§2 the outward path `R_OUT_BASE`, §3 the inward-flux ceiling, §5 the BN-boss export study and its "perfect sink", §5.2 the fault case, §5.3 findings, `OI-R1-01…06`); NP-THERM-CFD-001 (§4 heat-source model and η_wp, §5 BC spec); NP-THERM-CFD-C2-001 (§7 the 1D network and its sign convention); NP-THERM-COOL-001 Rev 11 (§4 the 90 %/2 % split, §5 the cooling options, §6.4 `OI-R1-03` — the fan cools the outer shell only, §6.7 the remote-sink accessories, D-2/D-4 — Rev 11's withdrawal is confined to §7.4.4's Class B/C latch ownership and touches none of these); NP-HELMET-GEOM-001 (§2 the radial stack-up, §3.2 the L1 BN bosses, §3.3 the outer bowl and its unbroken 4-layer inner face, §8 THERM-1a); NP-HEX-ZM-001 (§5.1 the outer bowl as the complete EMF envelope, §5.3 the parting plane and labyrinth lip); NP-PWR-BUDGET-001 Rev 3 (§3.2 the 4–8 tile estimate, §3.3 export efficiency, §3.5 the N = 80 extrapolation, D-4, `OI-PWR-01/08/10`); NP-SES-PWR-001 Rev 1 (§2.1 the tile-count governor, the library floor and ceiling); NP-PWRSRC-001 Rev 1 (§5 thermal dose, §11 the min() governor, `OI-PWRSRC-05`); NP-HW-HUB-001 Rev 5 (`OI-HUB-C19` hub thermal budget, HUB-REQ-C04); NP-TOOL-HUB-001 Rev 1 (§2 the inferred occipital-arch placement, §3 F-04 the fan/heatsink access door, `OI-HTOOL-03/04`); NP-REQ-FANHEALTH-001 (SR-FAN-01…06, Path B1); NP-FMEA-GEOM-001 (FMEA-G07-01); NP-ENV-OPRANGE-001 (§2 the ambient/duty envelope); NP-DT-001 Rev 2 (DI-SAFE-13, DI-REG-01 IEC 60601-1); NP-CONV-001 Rev 6 (§4 identifiers, §8 a convention worth writing down is worth a script); CLAUDE.md §3 (PBM ceilings), §4.2 (42/62 °C interlocks), §4.3 (the 4-layer EMF stack), §4.4 (fit system mass), §4.5 (power), §5.1 (SHDR fan RPM); IEC 60601-1 (42 °C applied part); `hardware/np_socket_map.json`; `scripts/check-thermal-sink.ts`; `scripts/check-thermal-multitile.ts` · **Rev 2:** NP-EMC-CAV-001 §7, §9 item 4, §10 (`OI-EMCCAV-02`); NP-BIB-EMF-001 §7.2, §7.6; NP-HEX-ZM-001 §5.3, §5.3.1; NP-DRV-SHELL-002 `REQ-EMI-10`, `REQ-EMI-11`; `hardware-detail.md` §4.3 (D1); NP-HW-TMS-001 `REQ-TMS-08`; NP-REG-UPG-001 `OI-UPG-05`; WHO EHC 238 (ELF, 0–300 Hz)
+**Related Issues:** GitHub Issue #399 (`OI-EMCCAV-02`, Rev 2); GitHub Issue #391
 **Gate:** Does not close THERM-1a. Closes `OI-N1-02` and **supersedes `N1-D-1`'s prohibition with a number**; raises one BLOCKING item of its own (`OI-SINK-01`).
 **IEC 62304 Class:** — (analysis document; no code ships from it)
 **Supersedes:** None — specifies a term `NP-THERM-CFD-N1-001` left open
@@ -333,6 +333,143 @@ that is **gross-margin negative at every T1 price in force** (CLAUDE.md §2.1, `
 sits on the exterior of the EMF shell. Nothing here suggests it perturbs the shielding claim — it is
 outboard of an already-conductive CFRP layer, adds no aperture, and is non-magnetic — but that is an
 assertion this document is not entitled to make. **`OI-SINK-01`, BLOCKING**, carries both.
+*(Rev 2: §7.1 now works that assertion at first order, mechanism by mechanism. It does not clear
+`OI-SINK-01`.)*
+
+### 7.1 The spreader against the EMF stack — `RISK-SINK-03` re-scoped (Rev 2, GitHub #399)
+
+**What the film cannot do.** `NP-EMC-CAV-001` §9 item 4: the film sits on the **exterior** of the
+outer bowl, outboard of every shield layer, so it cannot change the internal cavity's loaded Q
+(`REQ-CAV-02`), and cavity behaviour is dropped from `RISK-SINK-03`. **Nor does `REQ-EMI-10` reach it
+by its own text**: that requirement governs conductive additions to the **inner carrier** (L1 in
+`NP-DRV-SHELL-002`'s notation, where the fluxgates mount), not the outer bowl's exterior. Two EMF
+mechanisms remain, and this section gives each a clearance route. **Nothing below is a measurement.**
+
+**Inputs — which ones the record holds, and which it does not.**
+
+| Input | Value used | Source / why this value |
+|---|---|---|
+| Outer radius of the shell `a` | **≤ 0.15 m** | Bounds both record figures: 99 mm maximum head radius (`NP-EMC-CAV-001` §2, §4.1) + 32 mm radial stack (CLAUDE.md §4.3) = 131 mm; §3's 1,354 cm² gross exterior taken as a hemisphere = 147 mm. `τ` grows with `a`, so the larger is the conservative one |
+| Film sheet conductance `G = σ·t` | **≤ 250 S** at 100 µm | **Not in the record** — `SPEC-SINK-04` specifies `Σk·t`, not σ. Bounded instead by the in-plane resistivity of highly oriented pyrolytic graphite, ≈ 0.4 µΩ·m (σ ≈ 2.5 × 10⁶ S/m) — the ordered limit, which no commercial film exceeds. Replace with the selected film's datasheet under `OI-SINK-01` |
+| Film magnetism | diamagnetic, χ of order −10⁻⁴ (SI volume) | Graphite; against L2's µr ≫ 1 in the same stack it is nil, and **no credit or debit is taken for it** below |
+| Coupling `κ` of the film's reaction field to the coils' centre field | **≤ 1.40**; **1.00** for a Helmholtz pair inscribed in the shell | Derived below |
+| Band | **≤ 300 Hz** | The WHO definition of ELF (EHC 238), the band `NP-BIB-EMF-001` §4 argues in and CLAUDE.md §4.3's ELF figure is stated for. **The active loop's own bandwidth is not stated anywhere in the record** — see the condition in (1) |
+| Allowed transfer-function error | **≤ 0.1 (−20 dB)** | CLAUDE.md §4.3: combined ELF 35–45 dB, of which L2 supplies 15–25 dB, so the active loop is asked for **20 dB at both ends of the range**. Read open-loop, because `REQ-EMI-05`'s subtraction is feed-forward: an actuator whose field is off by a vector fraction ε leaves a residual of ε, and 20 dB needs ε ≤ 0.1. A feedback reading would tolerate more; this is the strict one |
+
+#### (1) ELF eddy-current loading of the Helmholtz actuator — **cleared at first order, inside a stated envelope**
+
+**The mechanism.** The calibrated quantity in the active loop is the **coil-drive → field transfer
+function** (`hardware-detail.md` §4.3 **D1**; `REQ-EMI-11`). A conducting sheet around the coils
+carries eddy currents that react on the coils' field, and so changes that transfer function.
+
+**First-order model.** Treat the film as a thin spherical shell of radius `a` and sheet conductance
+`G`. Its dipole (l = 1) mode — the only one whose field is non-zero at the centre, which is where the
+brain volume is — has time constant
+
+```
+τ₁ = μ₀·G·a / 3 = (4π×10⁻⁷)(250)(0.15)/3 = 1.57 × 10⁻⁵ s
+```
+
+and at frequency `f` its reaction field is the perfect-conductor image scaled by
+`jωτ₁ / (1 + jωτ₁)`. For a perfect conductor, a coil pair of radius `ρ` and total dipole moment `m = 2NIπρ²`
+inside a shell of radius `a` sees a uniform image field `−μ₀m / (2πa³)`, which is what makes
+`B_r = 0` at `r = a`.
+Against a Helmholtz pair's centre field `0.7155·μ₀NI/ρ` that is `κ = (ρ/a)³ / 0.7155`, **≤ 1.40 for
+any `ρ ≤ a`**, and for a pair inscribed in the shell at Helmholtz spacing (`ρ = a/√1.25`) exactly
+**1.00**. So the fractional error the film puts on the transfer function is
+
+```
+ε(f) ≈ κ · ωτ₁ / √(1 + (ωτ₁)²)
+```
+
+| f | ε | in dB | margin against the −20 dB budget |
+|---:|---:|---:|---:|
+| 50 Hz | 0.0069 | −43.2 | 23.2 dB |
+| 60 Hz | 0.0083 | −41.6 | 21.6 dB |
+| **300 Hz** | **0.041** | **−27.7** | **7.7 dB** |
+
+**What this takes no credit for, and each is a real one.** (a) **Calibration.** The film is laminated
+to the outer bowl before any calibration can run, so it is *in* the transfer function `REQ-EMI-11`
+calibrates, and a linear time-invariant change to a calibrated plant is calibrated out. The table
+assumes a calibration that ignores the film entirely. (b) **L2.** The record does not state the
+coils' radial position relative to the mu-metal. If they sit inboard of it — as a coil meant to drive
+the brain volume through a 15–25 dB magnetic shield would have to — the flux the exterior film sees
+is what leaks outward through L2, a further 15–25 dB on §4.3's own figure. No credit is taken either
+way. (c) **The conductors already present.** CFRP and
+mu-metal are both conductors in the characterised plant (D1); the film adds a sheet to a stack that
+already carries eddy currents, it does not introduce the mechanism.
+
+**The envelope, stated as the conditions the clearance rests on — not as requirements on the part.**
+The clearance holds while `κ·ω·μ₀·G·a/3 ≤ 0.1` over the loop's band. At 300 Hz and `a = 0.15 m` that
+is **`G ≤ 603 S`, i.e. a film up to ~240 µm at the graphite ceiling** — `SPEC-SINK-04`'s 100 µm sits
+at 2.4× inside it. At `G = 250 S` the band may reach **~720 Hz** before the budget is consumed.
+**Nothing in the record states the active loop's bandwidth**; if a loop specification ever puts it
+above that frequency, this line is re-run, and until then the calibration credit in (a) is the reason
+it would still hold. Outside the envelope the clearance reverts to the bench step.
+
+**The residual that calibration cannot remove** is a *change* to the film after calibration —
+delamination, cracking, a gouge. Its effect is bounded by the whole-film figure above (a film that is
+entirely gone moves ε by at most 0.041 at 300 Hz), and `REQ-EMI-11` recalibration fires on
+`np_module_map` rebuild, not on damage — the same gap `OI-BIBEMF-06` records for mu-metal remanence.
+It is inside the budget without any trigger.
+
+**Ambient direction, for completeness.** The same shell attenuates *external* ELF reaching the
+fluxgates by `1/(1 + jωτ₁)` — at 60 Hz, by under 0.002 % in magnitude. It helps, negligibly, and changes no argument.
+
+**Bench confirmation — `EMF-1-SINK-1`.** On the `EMF-1` fixture: the coil-drive → fluxgate transfer
+function, three axes, 10–300 Hz and to the loop's bandwidth if one is ever stated, **film fitted vs.
+not**. The prediction to refute is `|ΔH/H| ≤ 0.041` at 300 Hz with no recalibration between the two
+states. It confirms the analysis; the analysis does not wait on it.
+
+#### (2) External RF — **narrowed, not cleared**
+
+**Over the continuous area it can only add.** The film is laminated to the CFRP through a dielectric
+bond whose thickness is micrometres to tens of micrometres, against λ/4 = 12.5 mm at 6 GHz, the upper
+edge `NP-HEX-ZM-001` §5.3(a) bounds the external concern at. Electrically, film and CFRP are two
+shunt sheets in contact: their admittances add, and a plane wave's transmission through a shunt sheet
+`T = 2/(2 + Z₀Y)` falls as `Y` rises. **An unbroken exterior conductor cannot lower the stack's
+through-sheet attenuation**, and it is outside the cavity, so it cannot reach §9 item 4's question
+either.
+
+**At its edges it can do something, and the record cannot say what.** `NP-BIB-EMF-001` §7.6: the
+stack is **aperture-limited, not layer-limited** — and the film ends at exactly the apertures that set
+the floor: the parting-plane labyrinth lip (`NP-HEX-ZM-001` §5.3(a), `RISK-20`), the `BOSS-1` emboss
+(§5.3(c)), and the TMS window cut-out that §7.1(3) below now requires. As specified, the film is a
+**floating** conductor under a dielectric overwrap: nothing bonds it to shield ground, and a floating
+sheet whose largest dimension is of order 0.3 m resonates from roughly c/2L ≈ 0.5 GHz upward — inside
+`NP-EMC-CAV-001`'s 420 MHz – 3 GHz band and well below 6 GHz. A resonant floating conductor
+terminating at a slot can drive that slot. Whether it does depends on the edge geometry and bonding,
+**which `SPEC-SINK-04` does not set** — so there is nothing to compute against.
+
+**Bench step — `EMF-1-SINK-2`.** On the `EMF-1` fixture, over the same range as `EMF-1a` swept to
+6 GHz (`NP-EMC-CAV-001` §7, `OI-EMCCAV-04`/`-06`): external illumination, E-field at the electrode
+plane, **bare shell vs. film fitted with its edges terminated as built**; plus a radiated-emissions
+pre-scan against FCC Part 15B / CISPR 11 in both states, because a floating conductor re-radiates
+internal leakage as readily as it admits external RF. **Pass: the film-fitted shell is no worse than
+the bare shell at any frequency, within the fixture's uncertainty.** The claim being cleared is
+*no degradation*, so the bare shell is the reference — not the 40–60 dB target, which `EMF-1` itself
+has yet to measure. **Two edge treatments are available to `OI-SINK-01`'s owner and neither is chosen
+here:** bond the film to shield ground at the rim bond points (`NP-HEX-ZM-001` §5.3(b)), or stop it
+back from each aperture. Either changes `EMF-1-SINK-2`'s build, not its criterion.
+
+#### (3) Found while scoping (2): the film must not cover the TMS window — `RISK-SINK-07`
+
+CLAUDE.md §4.3 requires a **non-conductive CFRP window at the TMS coil site** to prevent eddy-current
+field loss, and `NP-HW-TMS-001` `REQ-TMS-08` records that the window *"forecloses the obvious metallic
+heat spreader."* `SPEC-SINK-04` describes a film laminated *"over the dome"* with no exclusion. A
+graphite film is a conductor, and laminating it across the window puts back, on the exterior, the
+conductor the window exists to remove. **This is not a new constraint** — it is the locked §4.3
+control applied to a part that post-dates it — so the film carries a **cut-out at the TMS window on
+every bowl laid up with one** (`NP-REG-UPG-001` `OI-UPG-05` decides whether T1 bowls are). It is not
+Helmholtz loading and not external RF, so it is not in `RISK-SINK-03`; it is `RISK-SINK-07`. The cut-out
+also removes spreader from under the TMS site, a local loss of `Σk·t` that `OI-SINK-01`'s thermal
+side now has to carry. **`OI-SINK-09`.**
+
+> **Net effect on `OI-SINK-01`: narrowed, not cleared — it stays BLOCKING.** Mechanism (1) is cleared
+> at first order inside the stated envelope, with `EMF-1-SINK-1` as confirmation only. Mechanism (2)
+> is cleared over the continuous area and **open at the terminations**, which only `EMF-1-SINK-2` can
+> close. And `OI-SINK-01` was never only an EMF item: the BOM line against a margin-negative T1, the
+> lamination process and the ingress half (`RISK-SINK-06`) are untouched by this section.
 
 ---
 
@@ -505,7 +642,9 @@ where it does not — the bare-shell case.
 ellipsoid (`OI-N1-07`: replace from shell CAD); the 174 cm² of deductions is a design-stage judgement.
 §10's box is wide enough to cover being wrong about it.
 
-**It does not price the spreader, or clear it against the EMF stack.** `OI-SINK-01`.
+**It does not price the spreader, or clear it against the EMF stack.** `OI-SINK-01`. *(Rev 2: §7.1
+clears the Helmholtz-loading mechanism at first order and narrows external RF to the film's
+terminations; `OI-SINK-01` stays BLOCKING.)*
 
 **It does not re-run the protocol library.** `NP-THERM-CFD-N1-001` §6a's per-protocol table was
 computed at `R_sink` = 0.5 with the film double-counted; under this specification it will get worse,
@@ -532,9 +671,11 @@ and its four-inadmissible / fourteen-recoverable split will not survive as state
 |---|---|---|---|
 | RISK-SINK-01 | The shipped design has no exterior spreader; a montage authorised on N1's 16–78 range exceeds the face limit at N ≥ 3 | SINK-D-1/D-4; `scripts/check-thermal-sink.ts` §6 is the standing check | Spreader specified + THERM-1b (`OI-R1-02`) |
 | RISK-SINK-02 | `RISK-26`'s cause list omits vault occlusion, so the predictive layer (`SR-FAN-05`) cannot alert on the most probable initiator | Path B1 face NTC catches the effect regardless — **the control holds, the analysis does not** | **No verification defined** — `OI-SINK-04` |
-| RISK-SINK-03 | A spreader film on the outer bowl perturbs the EMF stack or the ingress seal | None — this document asserts no clearance | EMF-1 bench + shell tooling review (`NP-REV-SHELL-001`); `OI-SINK-01` |
+| RISK-SINK-03 | **Re-scoped Rev 2 (GitHub #399).** The exterior spreader film perturbs the EMF stack by exactly two mechanisms: **(1) ELF eddy-current loading of the Helmholtz actuator** — the film's eddy currents change `REQ-EMI-11`'s coil-drive → field transfer function, and `REQ-EMI-05`'s feed-forward subtraction runs on it; **(2) external RF** — the film, floating under its overwrap, couples to the apertures it terminates at. *Cavity behaviour is dropped: an exterior conductor cannot change the internal cavity Q (`NP-EMC-CAV-001` §9 item 4). The ingress-seal half of the Rev 1 row is carried unchanged by `RISK-SINK-06`* | (1) §7.1(1) first-order bound: ε ≤ 0.041 at 300 Hz against a 0.1 budget, no calibration or L2 credit, holding for `G ≤ 603 S` over a ≤ 300 Hz band. (2) §7.1(2): cleared over the continuous area only; **no control at the terminations** | (1) **Cleared by analysis**; `EMF-1-SINK-1` confirms. (2) **`EMF-1-SINK-2`** — the terminations are open until it runs. Both on the `EMF-1` fixture; `OI-SINK-01` |
 | RISK-SINK-04 | `h_ext` is a correlation, never measured; the library-floor ceiling moves 4 → 25 tiles across a plausible box | §10 states the box; §8's figures are labelled estimates | THERM-1b scalp-phantom bench, `OI-R1-02` |
 | RISK-SINK-05 | `NP-THERM-CFD-N1-001` §6a's per-protocol admissibility table remains published at `R_sink` 0.5 with the film double-counted | None — that table is not corrected here | `OI-SINK-05` |
+| RISK-SINK-06 | *(Rev 2 — split out of Rev 1's `RISK-SINK-03`, wording unchanged in substance.)* The spreader film's lamination and dielectric overwrap perturb the shell's ingress seal | None — this document asserts no clearance | Shell tooling review (`NP-REV-SHELL-001`); `OI-SINK-01` |
+| RISK-SINK-07 | *(Rev 2.)* The spreader film, laminated "over the dome" with no exclusion, covers the TMS coil site and puts back the conductor CLAUDE.md §4.3's non-conductive CFRP window exists to remove — eddy-current field loss at the coil | The locked §4.3 window requirement and `REQ-TMS-08`; **not yet carried into `SPEC-SINK-04`** | Film cut-out at the window on every bowl laid up with one; `OI-SINK-09` |
 
 ---
 
@@ -542,7 +683,7 @@ and its four-inadmissible / fourteen-recoverable split will not survive as state
 
 | Ref | Item | Owner |
 |---|---|---|
-| **OI-SINK-01** | **BLOCKING — specify, cost and clear the exterior spreader (`SPEC-SINK-04`).** A ≥ 100 µm pyrolytic graphite film with a dielectric overwrap, ~28 g over the dome, laminated to the outer bowl exterior. Needs a BOM line against a margin-negative T1 (`NP-COST-001`, `OI-COST-10`), a lamination process in `NP-TOOL-SHELL-001`, and an EMF/ingress clearance this document is not entitled to assert. **Without it §8's bare-shell column is the design** | ME + Thermal + EMC |
+| **OI-SINK-01** | **BLOCKING — specify, cost and clear the exterior spreader (`SPEC-SINK-04`).** A ≥ 100 µm pyrolytic graphite film with a dielectric overwrap, ~28 g over the dome, laminated to the outer bowl exterior. Needs a BOM line against a margin-negative T1 (`NP-COST-001`, `OI-COST-10`), a lamination process in `NP-TOOL-SHELL-001`, and an EMF/ingress clearance this document is not entitled to assert. **Without it §8's bare-shell column is the design.** **Rev 2 — EMF clearance NARROWED, not cleared (§7.1, GitHub #399):** Helmholtz eddy loading is cleared at first order for a film of `G ≤ 603 S` over a ≤ 300 Hz band (the selected film's σ replaces the graphite-ceiling bound); external RF remains open **at the film's terminations only**, on `EMF-1-SINK-2`; the edge treatment (bonded vs. stopped back) is this item's to choose; and the film now needs a TMS-window cut-out (`OI-SINK-09`). Ingress (`RISK-SINK-06`), cost and process are unchanged | ME + Thermal + EMC |
 | **OI-SINK-02** | ~~Update `scripts/check-thermal-multitile.ts` `R_SINK_DEFAULT` 0.5 → **1.08** and mark it specified, with the isothermal-exterior caveat. Not done here: it would silently move every published figure in `NP-THERM-CFD-N1-001`~~ **CLOSED 2026-09-15 by `NP-PWR-THERM-001` §4a — by *pairing*, not by overwrite.** `R_SINK_SPECIFIED = 1.08` is added alongside `R_SINK_DEFAULT = 0.5`, and `rSinkNote()` prints at every report line that names either that 0.5 is N1's published value and is superseded by `SPEC-SINK-01`. The defect this item was raised against is a **superseded number being readable without its label**, not a constant having the wrong value; a rename would have fixed the constant and left N1's tables unreproducible | Thermal (owner of N1). **CLOSED** |
 | **OI-SINK-03** | **Record the heat-pipe rejection as a decision.** §2.2 refuses a metallic collection path on the Faraday-boundary argument `NP-THERM-COOL-001` §6.4/§6.5 already applies to air and to liquid. It has never been written down for a conductor, and it is the obvious counter-proposal to SINK-D-2 | Thermal + EMC |
 | **OI-SINK-04** | **`FMEA-G07-01` / `RISK-26` name fan failure as the cause of a hazard whose probable initiator is vault occlusion**, which no fan-RPM signal observes. Path B1 covers the effect; the cause list and `SR-FAN-05`'s predictive claim do not. Also re-examine `NP-TOOL-HUB-001` F-04's stated rationale, which rests on the fouling story | Safety + FW |
@@ -550,6 +691,7 @@ and its four-inadmissible / fourteen-recoverable split will not survive as state
 | **OI-SINK-06** | **Restate `OI-N1-04` to cover both signs.** §6 shows the core-to-shell conduction path is present at every ambient, not only above 37 °C; at 25 °C it costs 6.1 K of the face budget before any tile is driven | Thermal + FW |
 | ~~**OI-SINK-07**~~ | ~~The absorber foam's conductivity (k 0.05) is the largest lever in §3.1's decomposition. Replace from the datasheet with `OI-R1-04`.~~ **✅ MOOT 2026-09-23 — the absorber is deleted** (`REQ-CAV-04`, GitHub #391; `NP-EMC-CAV-001` §8.2), so there is no datasheet to read. §3.1's decomposition is re-run under `NP-THERM-COOL-001` `OI-THCOOL-21`. §3.2 never depended on it | Thermal |
 | **OI-SINK-08** | **`NP-HELMET-GEOM-001` §3.2 specifies BN-filled *polymer* bosses (k ~ 1–10) at the module heat pickups; R1 §5 models a *copper* via (k 400).** At the same geometry those differ by ~50× on the leg that carries ~90 % of the heat. Only the copper case has ever been analysed. Reconcile on the owning document | ME + Thermal |
+| **OI-SINK-09** | *(Rev 2.)* **Carry the TMS-window cut-out into `SPEC-SINK-04`, and cost it thermally.** §7.1(3): the film may not cover CLAUDE.md §4.3's non-conductive window. Needs the window footprint (`NP-HELMET-GEOM-001` §3.3) and `OI-UPG-05`'s answer on whether T1 bowls carry one; the local `Σk·t` loss under the TMS site is an input to `OI-SINK-01` and to `OI-PWRTH-01` | Thermal + ME |
 
 **Closed since issue:** `OI-SINK-02` and `OI-SINK-05` — `NP-PWR-THERM-001` Rev 1, 2026-09-15 (§4a and §3c).
 
@@ -581,3 +723,4 @@ specifying is worth a check that it still follows from the document it was recov
 | Rev | Date | Author | Change |
 |---|---|---|---|
 | 1 | 2026-09-08 | NeurOne Thermal / Systems Engineering | **Initial release, against `NP-THERM-CFD-N1-001` `OI-N1-02` (BLOCKING).** Specifies the rejection resistance at the BN-boss via terminus by recovering it rather than selecting it. **Central finding: there is no heatsink to specify.** R1's via is a ~32 mm radial conductor terminating on the outer bowl, a median 188 mm from the hub `NP-TOOL-HUB-001` §2 infers, and no part connects them: a solid trunk inside a head-worn mass budget drops 40 K at the N = 6 library floor and 193 K at the N = 6 R-4 point, and a heatsink bolted on at the occiput adds **zero** tiles even at `R_hub` = 0 (§2). So the terminus rejects through the helmet's own exterior, and its resistance is **the external film that is already the last term of R1's `R_OUT_BASE`** — recovered from R1's decomposition at h 8.18 W/m²K and independently from a Churchill sphere correlation plus linearised radiation at 7.81, **two derivations sharing no input agreeing to 4.7 %** (§3). **`SPEC-SINK-01`: `R_sink` = 1.08 K/W aggregate**, band 0.83–1.58 (§4). That validates N1's 1.00 K/W row and makes its 0.50 "plausible default" 2.2× optimistic. **R1 spends the same film twice** — reproducing its cell takes both pinning the skin at ambient and charging the cavity leg the full 0.18 — and the re-partitioned legs sum to 0.410 exactly, so nothing is invented (§5). **A lumped `R_sink` presumes an isothermal terminus and the bare CFRP bowl is not one**: 1.6× lat/rej, ~63 mm spreading length, eighty hot spots. **The missing component is a spreader, not a heatsink** (§7, `SPEC-SINK-04`, SINK-D-4). Under the specification the ceiling at the library floor and 25 °C is **10 tiles with a 100 µm graphite film and 2 without**, against N1's 16–78 (§8); in watts, 8.9 W at N = 6 with the spreader against 4.7 W without, converging on 31.4 W fully distributed. **The R-4 point is inadmissible across a 6–14 W/m²K × 0.090–0.150 m² box** and needs none of the soft inputs; the library-floor ceiling moves 4 → 25 across the same box and is a design target for THERM-1b, not a claim (§10). **New term found: the exterior sits 6.1 K above ambient with every tile idle**, because 80 populated sockets conduct 5.6 W from the 37 °C core into the shell — `OI-N1-04`'s mechanism in the direction that is always present (§6, `OI-SINK-06`). **`SPEC-SINK-03`: fan loss does not change `R_sink`**; the fault case is vault **occlusion**, which crosses 42 °C at φ ≥ 0.9 at N = 6 on the library floor and which fan RPM cannot observe — so `FMEA-G07-01`/`RISK-26`'s named cause and `SR-FAN-05`'s predictive claim are both wrong, while Path B1's face NTC still covers the hazard (§11, `OI-SINK-04`). **`N1-D-1` lifted and replaced by SINK-D-1**; `OI-HUB-C19` decoupled from the tile field (SINK-D-3). Eight open items `OI-SINK-01…08` (one BLOCKING), five risk rows, six decisions SINK-D-1…6 (three to principal). Adds `scripts/check-thermal-sink.ts`; exports the published anchors from `scripts/check-thermal-multitile.ts` and guards its `main()` behind `import.meta.main` so the two models cannot fork. **No locked section modified; no firmware, app or protocol changed; no figure in a released document rewritten** — `NP-THERM-CFD-N1-001`'s own `R_SINK_DEFAULT` is left alone and routed as `OI-SINK-02`. |
+| 2 | 2026-09-23 | NeurOne Thermal / EMC | **`RISK-SINK-03` re-scoped against `NP-EMC-CAV-001` `OI-EMCCAV-02` (GitHub #399), and `OI-SINK-01`'s EMF clearance NARROWED — not cleared; it stays BLOCKING.** New **§7.1** works Rev 1's unentitled assertion mechanism by mechanism. **Cavity behaviour is dropped** (an exterior conductor cannot change the internal Q), and `REQ-EMI-10` is shown not to reach the film by its own text (it governs the inner carrier). **(1) ELF eddy loading of the Helmholtz actuator — cleared at first order:** a thin-shell dipole-mode model (`τ₁ = μ₀Ga/3`, `a ≤ 0.15 m`, film `G ≤ 250 S` bounded by the in-plane conductivity of oriented graphite because the record holds no σ, coupling `κ ≤ 1.40`) puts **ε ≤ 0.041 (−27.7 dB) at 300 Hz and 0.0083 (−41.6 dB) at 60 Hz** on the coil-drive → field transfer, against a **0.1 budget** derived from §4.3 (35–45 dB combined less L2's 15–25 dB = 20 dB active, read open-loop because `REQ-EMI-05` is feed-forward) — with **no credit** for calibration, for L2, or for the conductors already in the plant. The clearance holds for `G ≤ 603 S` over a ≤ 300 Hz band (~240 µm at the graphite ceiling; `SPEC-SINK-04`'s 100 µm is 2.4× inside); **the record states no active-loop bandwidth**, which is named as the condition. Bench confirmation `EMF-1-SINK-1`. **(2) External RF — narrowed:** over the continuous area two shunt sheets in contact can only add attenuation; at the film's **terminations** (rim lip, `BOSS-1` emboss, TMS cut-out) a floating, resonant-from-~0.5 GHz conductor can drive the apertures that set the floor (`NP-BIB-EMF-001` §7.6), and `SPEC-SINK-04` sets no edge geometry to compute against — bench step `EMF-1-SINK-2` (bare vs. film-fitted, to 6 GHz, plus an emissions pre-scan; pass = no worse than bare). Edge treatment left to `OI-SINK-01`'s owner. **Found while scoping:** the film as specified would cover CLAUDE.md §4.3's non-conductive TMS window — **`RISK-SINK-07`, `OI-SINK-09`** (a cut-out, applying the locked control; not a new requirement). Rev 1's ingress half of `RISK-SINK-03` is split out unchanged as **`RISK-SINK-06`**. Also records, as this revision, `OI-SINK-07`'s 2026-09-23 MOOT mark made in place under #391/#397. **No measurement asserted; no requirement added; no safety control removed; no locked decision changed.** |
