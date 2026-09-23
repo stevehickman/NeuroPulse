@@ -302,7 +302,8 @@ typedef char _np_spi_chan_wave_cmd_size_check[
  * in bytes [0..7] and this 8-byte report in bytes [8..15] on MISO; the hub reads
  * the whole 38-byte receive buffer.  This adds NO new SPI transfer, NO new
  * NSS-delineated length, and does not touch the base 8-byte reply frame or its
- * checksum.  Bytes [16..37] of the MISO window stay zero (unused).
+ * checksum.  Bytes [16..19] carry the cardiac-status report below
+ * (np_safety_nv_report_t); bytes [20..37] stay zero (unused).
  *
  * ── Privacy gate (NP-FW-EMMC-001 Rev 1 §12) ──────────────────────────────
  * cvns_kohm_x100[] is measured tissue impedance → UHDR (user biology).  It is
@@ -337,6 +338,74 @@ typedef char _np_spi_imp_report_size_check[
 /* The report must fit in the MISO window after the 8-byte base reply. */
 typedef char _np_spi_imp_report_fits_check[
     ((NP_SAFETY_IMP_REPORT_OFFSET + NP_SAFETY_IMP_REPORT_LEN)
+        <= NP_SAFETY_RX_EXT_FRAME_LEN) ? 1 : -1
+];
+
+/* ── Active-user command frame (NP-SW-FAULTMSG-001, per-user cardiac scope) ── */
+/*
+ * Tells the safety MCU which person is using the device, so that a cervical VNS
+ * cardiac cutoff is held for THAT person and nobody else (principal decision,
+ * 2026-09-22).  The tag is opaque: a random 32-bit value the app derives from
+ * its individual profile, carrying no name or identity.  The MCU persists the
+ * current tag in flash (np_nv_state.c), so the same user is assumed across
+ * sessions and power cycles until the app says otherwise — including in Mode 3.
+ *
+ * Accepted only between sessions (no session active, nothing granted); a frame
+ * that arrives mid-session is ignored.  Checksum: additive sum of bytes [0..7].
+ *
+ * Two tag values are reserved and never sent by the app:
+ *   NP_SAFETY_USER_UNSPECIFIED  no user has ever been named — single-user use
+ *   NP_SAFETY_USER_ANY          internal: a cutoff that cannot be attributed to
+ *                               one person (a torn flash record, a full table)
+ */
+#define NP_SAFETY_CMD_ACTIVE_USER     0x04U   /* cmd_type: set the active user tag */
+#define NP_SAFETY_USER_FRAME_LEN      10U
+#define NP_SAFETY_USER_UNSPECIFIED    0x00000000UL
+#define NP_SAFETY_USER_ANY            0xFFFFFFFFUL
+
+typedef struct __attribute__((packed)) {
+    uint8_t  cmd_magic[2];     /* NP_SAFETY_CMD_MAGIC_0 / _1 */
+    uint8_t  cmd_type;         /* NP_SAFETY_CMD_ACTIVE_USER  */
+    uint8_t  reserved;         /* 0x00 */
+    uint32_t user_tag;         /* little-endian opaque tag   */
+    uint16_t checksum;         /* sum of bytes [0..7], wrapping uint16 */
+} np_safety_user_cmd_t;        /* 2+1+1+4+2 = 10 bytes */
+
+typedef char _np_spi_user_cmd_size_check[
+    (sizeof(np_safety_user_cmd_t) == NP_SAFETY_USER_FRAME_LEN) ? 1 : -1
+];
+
+/* ── MCU→hub cardiac-status report (NP-SW-FAULTMSG-001 P4, blanket warning) ─ */
+/*
+ * Two facts the app needs at connect, carried in the spare MISO window bytes
+ * right after the impedance report — no new transfer, no new length:
+ *   USER_BLOCKED  the ACTIVE user has an outstanding cardiac cutoff, so the MCU
+ *                 withholds cervical VNS for them;
+ *   OUTSTANDING   SOMEONE on this device has one (the active user or another).
+ * The second drives the blanket warning every user sees, so switching profiles
+ * cannot be used to get around a block unseen.  WHICH user is never reported.
+ *
+ * Privacy: cardiac events are user biology → UHDR.  These flags go to the
+ * user's own app for display only and are NEVER written to SHDR.
+ */
+#define NP_SAFETY_NV_REPORT_MAGIC       0x6CU
+#define NP_SAFETY_NV_REPORT_OFFSET      (NP_SAFETY_IMP_REPORT_OFFSET + NP_SAFETY_IMP_REPORT_LEN)
+#define NP_SAFETY_NV_FLAG_USER_BLOCKED  (1U << 0)
+#define NP_SAFETY_NV_FLAG_OUTSTANDING   (1U << 1)
+
+typedef struct __attribute__((packed)) {
+    uint8_t  magic;            /* NP_SAFETY_NV_REPORT_MAGIC */
+    uint8_t  flags;            /* NP_SAFETY_NV_FLAG_*       */
+    uint16_t checksum;         /* additive sum of bytes [0..1] */
+} np_safety_nv_report_t;       /* 4 bytes; window bytes [16..19] */
+
+#define NP_SAFETY_NV_REPORT_LEN  4U
+
+typedef char _np_spi_nv_report_size_check[
+    (sizeof(np_safety_nv_report_t) == NP_SAFETY_NV_REPORT_LEN) ? 1 : -1
+];
+typedef char _np_spi_nv_report_fits_check[
+    ((NP_SAFETY_NV_REPORT_OFFSET + NP_SAFETY_NV_REPORT_LEN)
         <= NP_SAFETY_RX_EXT_FRAME_LEN) ? 1 : -1
 ];
 

@@ -203,11 +203,12 @@ static void test_watchdog_blocks_on_sig_pending(void)
     check(NP_SAFETY_STATUS_SIG_PENDING == 0x80U,
           "NP_SAFETY_STATUS_SIG_PENDING is bit 7 (0x80)");
 
-    /* Build the active_faults mask exactly as np_spi_watchdog_tick() does */
+    /* Build the active_faults mask exactly as np_spi_watchdog_tick() does.
+     * CARDIAC is not in it since 2026-09-22: a cardiac cutoff withholds only
+     * NP_CARDIAC_BLOCK_MASK (np_cardiac_interlock_tests drives the real tick). */
     uint8_t active_faults_mask = (uint8_t)(NP_SAFETY_STATUS_FAULT      |
                                             NP_SAFETY_STATUS_THERMAL     |
                                             NP_SAFETY_STATUS_CHARGE      |
-                                            NP_SAFETY_STATUS_CARDIAC     |
                                             NP_SAFETY_STATUS_SIG_PENDING);
 
     check((active_faults_mask & NP_SAFETY_STATUS_SIG_PENDING) != 0U,

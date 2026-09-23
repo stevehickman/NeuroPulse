@@ -118,6 +118,29 @@ struct SessionView: View {
                 )) { status in
                     CervicalPadAlertView(status: status) { gatt.acknowledgeCervicalPadAlert() }
                 }
+                // Per-user cardiac scope: someone on this device has an outstanding cardiac
+                // cutoff.  Everyone who connects sees this once per connection — it never says
+                // who — so switching profiles cannot hide a block.
+                .alert("CVNS_BLANKET_WARNING_TITLE",
+                       isPresented: Binding(
+                           get: { (gatt.cervicalFaultStatus?.outstanding ?? false)
+                                  && !gatt.cardiacWarningAcknowledged
+                                  && gatt.unacknowledgedCervicalFaults.isEmpty },
+                           set: { if !$0 { gatt.acknowledgeCardiacWarning() } }
+                       )) {
+                    Button("COMMON_OK", role: .cancel) { gatt.acknowledgeCardiacWarning() }
+                } message: {
+                    Text("CVNS_BLANKET_WARNING_BODY")
+                }
+                // NP-SW-FAULTMSG-001 P4: faults from sessions that ran without the app.
+                .sheet(isPresented: Binding(
+                    get: { !gatt.unacknowledgedCervicalFaults.isEmpty },
+                    set: { _ in }
+                )) {
+                    CervicalFaultSummaryView(faults: gatt.unacknowledgedCervicalFaults) {
+                        gatt.acknowledgeCervicalFaults()
+                    }
+                }
                 .sessionObservers(
                     healthKit: healthKit,
                     gatt: gatt,
@@ -141,6 +164,15 @@ struct SessionView: View {
                     blockingConsumableAlert
                 } else {
                     sessionStatusCard
+                    // NP-SW-FAULTMSG-001 P4: the hub is waiting for the wearer to confirm
+                    // resuming cervical stimulation after a cardiac cutoff.
+                    if gatt.cervicalFaultStatus?.reenableState == .awaitConfirm {
+                        CervicalResumeCard { done in
+                            gatt.sendCervicalReenableConfirm { result in
+                                if case .success = result { done(true) } else { done(false) }
+                            }
+                        }
+                    }
                     if gatt.session.status == .running {
                         hrvBreathingRing
                         if eegConsentGranted {

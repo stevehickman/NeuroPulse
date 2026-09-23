@@ -112,10 +112,30 @@ static void session_advance_to_fault(np_cvns_session_ctx_t *ctx,
     ctx->uhdr_record.session_duration_s = (uint32_t)(now_ms - ctx->stim_start_ms) / 1000U;
     ctx->uhdr_record.abort_reason       = (uint8_t)(-reason); /* convert to positive */
 
+    /* The fault kind, in the user's own record (NP-SW-FAULTMSG-001 P2,
+     * OI-FAULTMSG-02).  np_cvns_session_tick() routes EVERY interlock fault
+     * here as NP_CVNS_ERR_CARDIAC_CUTOFF — heart-rate change, R-peak data loss,
+     * watchdog and safety-MCU refusal alike — so the interlock's own reason is
+     * what says which one it was.  Before P2 this record set cutoff_occurred
+     * for all of them, and the app could not tell a lost ear-clip signal from a
+     * cardiac cutoff. */
     if (reason == NP_CVNS_ERR_CARDIAC_CUTOFF) {
+        ctx->uhdr_record.fault_reason =
+            (uint8_t)np_cvns_interlock_fault_reason(ctx->interlock);
+    } else if (reason == NP_CVNS_ERR_IMPEDANCE_HIGH) {
+        ctx->uhdr_record.fault_reason = (uint8_t)NP_CVNS_FAULT_IMPEDANCE;
+    } else if (reason == NP_CVNS_ERR_SAFETY_REJECTED) {
+        ctx->uhdr_record.fault_reason = (uint8_t)NP_CVNS_FAULT_SAFETY_MCU;
+    } else {
+        ctx->uhdr_record.fault_reason = (uint8_t)NP_CVNS_FAULT_NONE;
+    }
+
+    if (ctx->uhdr_record.fault_reason == (uint8_t)NP_CVNS_FAULT_HR_CHANGE) {
         ctx->uhdr_record.cutoff_occurred   = 1U;
         ctx->uhdr_record.cutoff_hr_baseline_x10 =
             (uint16_t)(np_cvns_interlock_baseline_hr(ctx->interlock) * 10.0f);
+        ctx->uhdr_record.cutoff_hr_at_event_x10 =
+            (uint16_t)(np_cvns_interlock_current_hr(ctx->interlock) * 10.0f);
         ctx->uhdr_record.cutoff_time_offset_s =
             (ctx->stim_start_ms > 0U)
             ? (now_ms - ctx->stim_start_ms) / 1000U : 0U;
@@ -140,6 +160,7 @@ static void session_complete(np_cvns_session_ctx_t *ctx, uint32_t now_ms)
     ctx->uhdr_record.session_duration_s = (uint32_t)(now_ms - ctx->stim_start_ms) / 1000U;
     ctx->uhdr_record.abort_reason       = 0U;
     ctx->uhdr_record.cutoff_occurred    = 0U;
+    ctx->uhdr_record.fault_reason       = (uint8_t)NP_CVNS_FAULT_NONE;
 
     ctx->shdr_summary.stim_duration_s   = ctx->uhdr_record.session_duration_s;
     ctx->shdr_summary.cutoff_occurred   = 0U;

@@ -51,6 +51,63 @@ class NPLimitsStoreTests {
     }
 
     @Test
+    fun profilesAndActiveProfilePersistAcrossReload() {
+        val kv = InMemoryKeyValueStore()
+        val s1 = NPLimitsStore(kv)
+        val alex = NPIndividualProfile(name = "Alex", notes = "left-handed")
+        val sam = NPIndividualProfile(name = "Sam")
+        s1.saveProfile(alex)
+        s1.saveProfile(sam)
+        s1.setActiveProfile(sam.id)
+
+        val s2 = NPLimitsStore(kv)
+        assertEquals(listOf(alex, sam), s2.profiles)
+        assertEquals(sam.id, s2.activeProfileId)
+        assertEquals(sam, s2.activeProfile)
+    }
+
+    @Test
+    fun setActiveProfileIgnoresUnknownIdAndNotifies() {
+        val store = NPLimitsStore(InMemoryKeyValueStore())
+        val alex = NPIndividualProfile(name = "Alex")
+        store.saveProfile(alex)
+        val seen = mutableListOf<String?>()
+        store.onActiveProfileChanged = { seen += it }
+
+        store.setActiveProfile("not-a-profile")
+        assertNull(store.activeProfileId, "an id that is not a saved profile is ignored")
+        store.setActiveProfile(alex.id)
+        store.setActiveProfile(alex.id)   // no change, no second notification
+        store.setActiveProfile(null)
+        assertEquals(listOf(alex.id, null), seen)
+    }
+
+    @Test
+    fun deletingTheActiveProfileClearsItDurably() {
+        val kv = InMemoryKeyValueStore()
+        val s1 = NPLimitsStore(kv)
+        val alex = NPIndividualProfile(name = "Alex")
+        s1.saveProfile(alex)
+        s1.setActiveProfile(alex.id)
+        s1.deleteProfile(alex.id)
+        assertNull(s1.activeProfileId)
+
+        val s2 = NPLimitsStore(kv)
+        assertTrue(s2.profiles.isEmpty())
+        assertNull(s2.activeProfileId)
+    }
+
+    @Test
+    fun corruptProfileRecordLoadsAsNoProfiles() {
+        val kv = InMemoryKeyValueStore()
+        kv.putString(NPLimitsStore.PROFILES_KEY, "{not json")
+        kv.putString(NPLimitsStore.ACTIVE_PROFILE_KEY, "orphan")
+        val store = NPLimitsStore(kv)
+        assertTrue(store.profiles.isEmpty())
+        assertNull(store.activeProfileId, "an active id with no saved profile is not restored")
+    }
+
+    @Test
     fun globalLimitsPersistAcrossReloadViaNpps() {
         val kv = InMemoryKeyValueStore()
         val s1 = NPLimitsStore(kv)

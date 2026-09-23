@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -45,6 +47,7 @@ fun SettingsScreen(app: NeurOneApplication, modifier: Modifier = Modifier) {
     var showOta by remember { mutableStateOf(false) }
     var showSetup by remember { mutableStateOf(false) }
     var showLimits by remember { mutableStateOf(false) }
+    var showProfiles by remember { mutableStateOf(false) }
     var eegGranted by remember {
         mutableStateOf(app.keyValueStore.getBoolean(OnboardingKeys.BIPA_ACCEPTED))
     }
@@ -52,6 +55,11 @@ fun SettingsScreen(app: NeurOneApplication, modifier: Modifier = Modifier) {
     val otaStatus by app.gattManager.otaStatus.collectAsState()
 
     when {
+        showProfiles -> ProfilesScreen(
+            store = app.limitsStore,
+            onDone = { showProfiles = false },
+            modifier = modifier,
+        )
         showLimits -> LimitsSettingsScreen(
             store = app.limitsStore,
             onDone = { showLimits = false },
@@ -93,6 +101,7 @@ fun SettingsScreen(app: NeurOneApplication, modifier: Modifier = Modifier) {
             onManageFirmware = { showOta = true },
             onDeviceSetup = { showSetup = true },
             onManageLimits = { showLimits = true },
+            onManageProfiles = { showProfiles = true },
             modifier = modifier,
         )
     }
@@ -108,9 +117,10 @@ private fun SettingsContent(
     onManageFirmware: () -> Unit,
     onDeviceSetup: () -> Unit,
     onManageLimits: () -> Unit,
+    onManageProfiles: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
+    Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
         Text(stringResource(R.string.tab_settings), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(20.dp))
 
@@ -153,6 +163,17 @@ private fun SettingsContent(
         Text(stringResource(R.string.and_ui_re_run_the_guided_hardware_setup_for_your_he), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onDeviceSetup) { Text(stringResource(R.string.and_ui_set_up_device)) }
+
+        Spacer(Modifier.height(24.dp))
+
+        // Who is using the device — the active individual profile (per-user cardiac scope)
+        Text(stringResource(R.string.profile_picker_title), style = MaterialTheme.typography.titleMedium)
+        Text(
+            app.limitsStore.activeProfile?.name ?: stringResource(R.string.profile_picker_none_selected),
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onManageProfiles) { Text(stringResource(R.string.limits_profiles)) }
 
         Spacer(Modifier.height(24.dp))
 

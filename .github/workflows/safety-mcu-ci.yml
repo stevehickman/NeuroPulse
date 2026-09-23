@@ -21,6 +21,8 @@ name: Safety MCU CI (STM32G071, Class C)
 #   np_impedance_report_tests     (OI-CVNS-HUB-11)
 #   np_fault_latch_privacy_tests  (fault-latch privacy gate)
 #   np_cardiac_interlock_tests    (SW01-M05 Class C cardiac interlock)
+#   np_hal_platform_tests         (SW-01 platform layer)
+#   np_nv_state_tests             (SW01-M09 cardiac-cutoff state across power-on, OI-FAULTMSG-01)
 #
 # The remaining 19 belong to firmware-cross-build.yml.  6 + 19 = 25, disjoint;
 # build-all.yml re-checks that partition every week so the split cannot rot
@@ -67,7 +69,7 @@ env:
   # must select.  The count assertion is the point: a silently-shrinking test
   # selection is the OI-SWCI-09 failure mode, and `ctest` exits 0 on a subset
   # just as happily as on the whole suite.
-  NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock|hal_platform)_tests$'
+  NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock|hal_platform|nv_state)_tests$'
   # The count lives here and in the assertion step — and NOT in the `host-tests`
   # job `name:`, which is what a required status check matches on.  The job used
   # to be called "Safety MCU host tests (6 targets)".  A required context is an
@@ -87,7 +89,7 @@ env:
   # count did not move, because those targets are Class B.  Do not re-cite the
   # total here — it is build-all.yml's to own, and a copy of it here is the
   # one-value-several-places shape that produced OI-SWCI-37.)
-  NP_SAFETY_TEST_COUNT: '7'
+  NP_SAFETY_TEST_COUNT: '8'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  Always runs, always

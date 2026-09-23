@@ -12,11 +12,19 @@
  *
  * FMEA-M05-02 mitigation: HR delta comparison uses int16_t signed arithmetic
  * to prevent underflow when current HR < baseline HR (MISRA C:2012 Rule 10.1).
+ *
+ * Power-cycle persistence (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01): a cutoff the
+ * app has not yet acknowledged survives a power-on reset.  This module does not
+ * touch flash itself — writing stalls the core, so np_safety_main.c does it
+ * after the GPIO cutoff has been applied.  Here: a cutoff and a completed
+ * re-enable each post a write request (np_cardiac_interlock_nv_request), and at
+ * boot np_cardiac_interlock_restore() re-asserts a persisted cutoff.
  */
 
 #include "np_safety_config.h"
 #include "np_safety_hal.h"
 #include "np_safety_protocol.h"
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -39,6 +47,14 @@ static bool     s_lockout_active;
 static uint32_t s_lockout_start_ms;         /* stored start (not end) for wrap safety */
 static bool     s_cutoff_active;
 
+/* Pending non-volatile write: a new "cutoff awaiting acknowledgement" value
+ * that np_safety_main.c has not yet persisted. */
+static bool     s_nv_request;
+static bool     s_nv_value;
+
+/* A cutoff persisted before the last power-on reset, not yet re-asserted. */
+static bool     s_restored_pending;
+
 np_safe_status_t np_cardiac_interlock_init(void)
 {
     for (uint8_t i = 0U; i < NP_RR_BUF_SIZE; i++) {
@@ -53,7 +69,74 @@ np_safe_status_t np_cardiac_interlock_init(void)
     s_lockout_active       = false;
     s_lockout_start_ms     = 0U;
     s_cutoff_active        = false;
+    s_nv_request           = false;
+    s_nv_value             = false;
+    s_restored_pending     = false;
     return NP_SAFE_OK;
+}
+
+/*
+ * np_cardiac_interlock_restore — called once at boot with the persisted value
+ * from np_nv_cardiac_pending().
+ *
+ * A persisted cutoff is held LATENT: nothing changes until a session actually
+ * requests the CVNS channel.  At that point np_cardiac_interlock_tick() — which
+ * main.c runs only while CVNS is requested — turns it into a live cutoff before
+ * the grant reaches the GPIO (see the top of the tick).
+ *
+ * Why latent rather than re-asserting CARDIAC at boot: the lockout only counts
+ * down while CVNS is requested, and a session that never requests CVNS has
+ * nothing for a cardiac cutoff to protect.  Latent, a non-cervical session is
+ * unaffected, and a cervical one meets exactly the state a live cutoff leaves.
+ * (CARDIAC itself withholds only NP_CARDIAC_BLOCK_MASK — see np_spi_watchdog.c
+ * — so even a live cutoff no longer stops the other modalities.)
+ */
+void np_cardiac_interlock_restore(bool cutoff_pending)
+{
+    s_restored_pending = cutoff_pending;
+}
+
+/*
+ * np_cardiac_interlock_user_changed — the active user has changed between
+ * sessions (principal, 2026-09-22: a cutoff is held for the user who triggered
+ * it and nobody else).  The previous user's live cutoff state leaves RAM — it
+ * stays persisted for them in np_nv_state and returns if they come back — and
+ * the new user's own persisted state is re-armed as latent.  CUTOFF is left for
+ * np_spi_watchdog_tick() to clear, since another interlock may hold it.
+ */
+void np_cardiac_interlock_user_changed(np_safety_state_t *state, bool new_user_blocked)
+{
+    s_cutoff_active    = false;
+    s_lockout_active   = false;
+    s_baseline_valid   = false;
+    s_rr_count         = 0U;
+    s_rr_head          = 0U;
+    s_first_beat_seen  = false;
+    s_restored_pending = new_user_blocked;
+    state->status     &= (uint8_t)~NP_SAFETY_STATUS_CARDIAC;
+}
+
+/*
+ * np_cardiac_interlock_nv_request — true if a value is waiting to be persisted;
+ * writes it to *pending_out.  np_cardiac_interlock_nv_done(written) clears the
+ * request once that value has been persisted — but only if it is still the
+ * latest one, so a newer request posted in between is never dropped.  A newer
+ * request simply replaces an unwritten older one: only the latest value
+ * matters.
+ */
+bool np_cardiac_interlock_nv_request(bool *pending_out)
+{
+    if (s_nv_request && (pending_out != NULL)) {
+        *pending_out = s_nv_value;
+    }
+    return s_nv_request;
+}
+
+void np_cardiac_interlock_nv_done(bool written)
+{
+    if (s_nv_value == written) {
+        s_nv_request = false;
+    }
 }
 
 /*
@@ -75,6 +158,8 @@ void np_cardiac_interlock_reenable(np_safety_state_t *state)
     s_rr_count        = 0U;
     s_rr_head         = 0U;
     s_first_beat_seen = false;
+    s_nv_request      = true;   /* persist: acknowledged */
+    s_nv_value        = false;
 }
 
 static int16_t rr_to_bpm(uint32_t rr_us)
@@ -112,6 +197,24 @@ static int16_t current_hr_bpm(void)
 void np_cardiac_interlock_tick(np_safety_state_t *state)
 {
     uint32_t now_ms = np_hal_get_tick_ms();
+
+    /* A cutoff persisted across a power cycle meets its first CVNS request:
+     * re-assert it exactly as a live cutoff leaves the state, before this
+     * iteration's grant reaches the GPIO.  Clearing it is the ordinary
+     * re-enable path (hub lockout + app confirmation + impedance, REQ-CVNS-09).
+     * The lockout restarts now: the time since the cutoff is unknown (no RTC,
+     * no battery), so it is treated as having only just happened.  No write is
+     * posted — the persisted value is already "pending". */
+    if (s_restored_pending && state->cvns_active) {
+        s_restored_pending  = false;
+        s_cutoff_active     = true;
+        s_lockout_active    = true;
+        s_lockout_start_ms  = now_ms;
+        state->granted_mask &= (uint16_t)~NP_SAFETY_EN_CVNS;
+        state->status       |= NP_SAFETY_STATUS_CARDIAC | NP_SAFETY_STATUS_CUTOFF;
+        state->fault_slot    = 10U; /* slot index for CVNS */
+        return;
+    }
 
     /* Clear lockout if elapsed — use elapsed subtraction for wrap safety at ~49 days */
     if (s_lockout_active && ((now_ms - s_lockout_start_ms) >= NP_CARDIAC_LOCKOUT_MS)) {
@@ -180,5 +283,7 @@ void np_cardiac_interlock_tick(np_safety_state_t *state)
         state->status                            |= NP_SAFETY_STATUS_CARDIAC |
                                                     NP_SAFETY_STATUS_CUTOFF;
         state->fault_slot                         = 10U; /* slot index for CVNS */
+        s_nv_request                              = true;  /* persist AFTER the */
+        s_nv_value                                = true;  /* GPIO cutoff (main) */
     }
 }

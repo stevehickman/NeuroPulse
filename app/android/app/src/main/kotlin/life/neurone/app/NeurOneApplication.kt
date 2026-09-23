@@ -13,6 +13,7 @@ import life.neurone.core.analytics.EngagementTier
 import life.neurone.core.analytics.ResearchAnalyticsGate
 import life.neurone.core.analytics.WarrantyAnalyticsGate
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.models.ActiveUserTag
 import life.neurone.core.consent.ConsentStore
 import life.neurone.core.consumable.ConsumableCountsProviding
 import life.neurone.core.consumable.ConsumableTracker
@@ -102,7 +103,7 @@ class NeurOneApplication : Application() {
         // runtime permission and calls bleCentral.refresh() (adapterState = UNAUTHORIZED
         // until then, so the manager's auto-scan-on-ON path is inert at startup).
         bleCentral = AndroidBleCentral(this)
-        gattManager = NeurOneGattManager(bleCentral, bleScope)
+        gattManager = NeurOneGattManager(bleCentral, bleScope, keyValueStore)
         // Consumable reminder engine, fed by the hub's CONSUMABLE_STATUS counts (SHDR-class).
         consumableTracker = ConsumableTracker(
             GattConsumableCountsProvider(gattManager.session, bleScope),
@@ -111,6 +112,11 @@ class NeurOneApplication : Application() {
         protocolUploader = ProtocolUploader(gattManager, AndroidProtocolSigner())
         researchSuggestionStore = ResearchSuggestionStore(keyValueStore)
         limitsStore = NPLimitsStore(keyValueStore)
+        // Per-user cardiac scope (NP-SW-FAULTMSG-001): the active individual profile names the
+        // person on the device. Until a profile is chosen the device keeps assuming whoever it
+        // last knew — nothing is sent.
+        gattManager.activeUserTag = ActiveUserTag.from(limitsStore.activeProfileId)
+        limitsStore.onActiveProfileChanged = { gattManager.activeUserTag = ActiveUserTag.from(it) }
 
         // SHDR fleet uploader — gated on the WARRANTY OWNER's consent only
         // (WarrantyAnalyticsGate), structurally independent of user research consent.

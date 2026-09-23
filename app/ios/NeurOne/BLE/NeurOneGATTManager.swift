@@ -90,6 +90,34 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     /// wearer acknowledges it, or on disconnect. UHDR-class — display only, never persisted.
     @Published private(set) var cervicalPadAlert: CervicalPadStatus?
 
+    /// The hub's cervical fault summary and re-enable state (NP-SW-FAULTMSG-001 P3/P4).
+    /// UHDR-class — display only, never persisted; cleared on disconnect.
+    @Published private(set) var cervicalFaultStatus: CervicalFaultStatus?
+
+    /// Faults from sessions that ran without the app, not yet read by the wearer.
+    @Published private(set) var unacknowledgedCervicalFaults: [CervicalFaultRecord] = []
+
+    /// Where the acknowledgement point is kept.  `internal` so tests can inject a suite.
+    var cervicalFaultLedgerDefaults: UserDefaults = .standard
+    static let cervicalFaultLedgerKey = "np.cvns.fault-ledger.last-acknowledged-session"
+
+    /// Whether this connection's blanket warning has been read (reset on disconnect).
+    @Published private(set) var cardiacWarningAcknowledged = false
+
+    /// The person using the device, from the active individual profile.  Sent whenever it
+    /// changes and at every connect; nil = the app has not named anyone, so the device keeps
+    /// assuming whoever it last knew.
+    var activeUserTag: UInt32? {
+        didSet {
+            guard activeUserTag != oldValue else { return }
+            sendActiveUserTag()
+            // Offline faults are the active user's; re-read them against this user's ledger.
+            if let status = cervicalFaultStatus {
+                unacknowledgedCervicalFaults = cervicalFaultLedger.unacknowledged(status.records)
+            }
+        }
+    }
+
     // MARK: - Connection lifecycle type
 
     enum ConnectionState { case disconnected, scanning, connecting, connected }
@@ -138,6 +166,10 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     private var warrantyTokenChar:    CBCharacteristic?
     private var firmwareVersionChar:  CBCharacteristic?
     private var cvnsPadStatusChar:    CBCharacteristic?
+    private var cvnsFaultStatusChar:  CBCharacteristic?
+    private var cvnsReenableConfirmChar: CBCharacteristic?
+    private var activeUserChar:        CBCharacteristic?
+    private var onCervicalReenableConfirmAck: ((Result<Void, GATTWriteError>) -> Void)?
 
     /// In-flight partial session state accumulated from individual characteristic notifications.
     private var pending: SessionState = .empty
@@ -225,6 +257,9 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         warrantyToken = nil
         hubFirmwareVersion = nil
         cervicalPadAlert = nil
+        cervicalFaultStatus = nil
+        unacknowledgedCervicalFaults = []
+        cardiacWarningAcknowledged = false
         clearCharacteristicHandles()
 
         // Guard: no reconnect timer when BLE is unavailable — avoids a silent no-op scan.
@@ -379,6 +414,80 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         cervicalPadAlert = nil
     }
 
+    // MARK: - Cervical VNS offline faults and re-enable (NP-SW-FAULTMSG-001 P3/P4)
+
+    /// One ledger per person: the records are the active user's own.
+    private var cervicalFaultLedgerStorageKey: String {
+        Self.cervicalFaultLedgerKey + "." + (activeUserTag.map { String($0) } ?? "unnamed")
+    }
+
+    private var cervicalFaultLedger: CervicalFaultLedger {
+        get {
+            let n = cervicalFaultLedgerDefaults.object(forKey: cervicalFaultLedgerStorageKey) as? NSNumber
+            return CervicalFaultLedger(lastAcknowledgedSession: n.map { $0.uint32Value })
+        }
+        set {
+            if let v = newValue.lastAcknowledgedSession {
+                cervicalFaultLedgerDefaults.set(NSNumber(value: v), forKey: cervicalFaultLedgerStorageKey)
+            } else {
+                cervicalFaultLedgerDefaults.removeObject(forKey: cervicalFaultLedgerStorageKey)
+            }
+        }
+    }
+
+    /// Applies a CVNS_FAULT_STATUS frame. A malformed frame changes nothing.
+    /// `internal` — driven directly by tests.
+    func applyCervicalFaultStatus(_ data: Data) {
+        guard let status = GATTParser.parseCervicalFaultStatus(data) else { return }
+        cervicalFaultStatus = status
+        unacknowledgedCervicalFaults = cervicalFaultLedger.unacknowledged(status.records)
+    }
+
+    /// The wearer has read the offline-fault summary.  Moves the ledger past these records;
+    /// it releases nothing on the device.
+    func acknowledgeCervicalFaults() {
+        guard let status = cervicalFaultStatus else { return }
+        var ledger = cervicalFaultLedger
+        ledger.acknowledge(status.records)
+        cervicalFaultLedger = ledger
+        unacknowledgedCervicalFaults = ledger.unacknowledged(status.records)
+    }
+
+    /// True while someone other than the active user has an outstanding cardiac cutoff: a
+    /// cervical session then needs the "this is a different person" confirmation.
+    var cervicalOutstandingForAnotherUser: Bool {
+        cervicalFaultStatus?.outstandingForAnotherUser ?? false
+    }
+
+    /// The wearer has read this connection's blanket warning.
+    func acknowledgeCardiacWarning() {
+        cardiacWarningAcknowledged = true
+    }
+
+    private func sendActiveUserTag() {
+        guard let tag = activeUserTag, let char = activeUserChar, let p = peripheral else { return }
+        var le = tag.littleEndian
+        p.writeValue(Data(bytes: &le, count: 4), for: char, type: .withResponse)
+    }
+
+    /// True while a cardiac cutoff from an offline session is unread: the protocol uploader then
+    /// refuses a protocol containing cervical VNS.
+    var cervicalRestartBlocked: Bool {
+        guard let status = cervicalFaultStatus else { return false }
+        return cervicalFaultLedger.blocksCervicalRestart(status.records)
+    }
+
+    /// The wearer confirms resuming cervical stimulation after a cardiac cutoff.  The hub
+    /// accepts it only while awaiting confirmation (after the 30 s lockout, in a running
+    /// session), then re-checks the pads before the safety MCU clears the cutoff (REQ-CVNS-09).
+    func sendCervicalReenableConfirm(completion: @escaping (Result<Void, GATTWriteError>) -> Void) {
+        guard let char = cvnsReenableConfirmChar, let p = peripheral else {
+            completion(.failure(.notConnected)); return
+        }
+        onCervicalReenableConfirmAck = completion
+        p.writeValue(Data([0x01]), for: char, type: .withResponse)
+    }
+
     // MARK: - Private helpers
 
     private func clearCharacteristicHandles() {
@@ -390,6 +499,9 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         socketMapChar = nil
         firmwareVersionChar = nil
         cvnsPadStatusChar = nil
+        cvnsFaultStatusChar = nil
+        cvnsReenableConfirmChar = nil
+        activeUserChar = nil
     }
 }
 
@@ -444,7 +556,9 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
         // Discover required chars plus optional warrantyToken and firmwareVersion (OI-WA-03).
         peripheral.discoverCharacteristics(
             NPUUID.all + [NPUUID.warrantyToken, NPUUID.firmwareVersion,
-                          NPUUID.socketMap, NPUUID.cvnsPadStatus], for: service)
+                          NPUUID.socketMap, NPUUID.cvnsPadStatus,
+                          NPUUID.cvnsFaultStatus, NPUUID.cvnsReenableConfirm,
+                          NPUUID.activeUser], for: service)
     }
 
     func peripheral(_ peripheral: CBPeripheral,
@@ -531,6 +645,21 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
                 cvnsPadStatusChar = char
                 peripheral.setNotifyValue(true, for: char)
 
+            case NPUUID.cvnsFaultStatus:
+                // Optional — T2 only; read at connect so offline faults are explained before
+                // any session is offered (NP-SW-FAULTMSG-001 P3).
+                cvnsFaultStatusChar = char
+                peripheral.setNotifyValue(true, for: char)
+                peripheral.readValue(for: char)
+
+            case NPUUID.cvnsReenableConfirm:
+                cvnsReenableConfirmChar = char
+
+            case NPUUID.activeUser:
+                // Name the person before anything else happens on this link.
+                activeUserChar = char
+                sendActiveUserTag()
+
             default:
                 break
             }
@@ -586,6 +715,12 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             // UID. Handled here, above the `session = pending` path, so it can
             // never be folded into a UHDR session record.
             applyZoneModuleStatus(data)
+            return
+        }
+
+        if characteristic.uuid == NPUUID.cvnsFaultStatus {
+            // UHDR-class, not part of the session record — published on its own.
+            applyCervicalFaultStatus(data)
             return
         }
 
@@ -657,6 +792,8 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             onCalibrationAck?(result); onCalibrationAck = nil
         case NPUUID.sessionStop:
             onSessionStopAck?(result); onSessionStopAck = nil
+        case NPUUID.cvnsReenableConfirm:
+            onCervicalReenableConfirmAck?(result); onCervicalReenableConfirmAck = nil
         default:
             break
         }

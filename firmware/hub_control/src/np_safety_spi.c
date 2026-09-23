@@ -34,6 +34,11 @@ static volatile bool     s_cvns_reenable  = false;
 static volatile float    s_cvns_imp_kohm[NP_SAFETY_IMP_CVNS_ELECTRODES];
 static volatile bool     s_cvns_imp_valid = false;
 
+/* Cardiac-status report (np_safety_nv_report_t, per-user cardiac scope).
+ * UHDR — for the user's own app only, never forwarded to SHDR. */
+static volatile uint8_t  s_nv_flags = 0U;
+static volatile bool     s_nv_valid = false;
+
 /* ── Per-channel commanded current (OI-CHARGE-01 hub half, OI-CHARGE-05 (c)) ──
  *
  * Published by the modality modules as they apply each command, consumed by the
@@ -124,6 +129,24 @@ static void parse_cvns_impedance_report(const uint8_t *rx_raw)
     s_cvns_imp_valid = true;
 }
 
+/*
+ * parse_nv_report — the safety MCU's cardiac-status flags (np_safety_nv_report_t)
+ * from window bytes [16..19].  Magic + checksum validated; a bad report leaves
+ * s_nv_valid false, so the app shows nothing rather than a guess.
+ */
+static void parse_nv_report(const uint8_t *rx_raw)
+{
+    np_safety_nv_report_t rep;
+    memcpy(&rep, rx_raw + NP_SAFETY_NV_REPORT_OFFSET, sizeof(rep));
+    if ((rep.magic != NP_SAFETY_NV_REPORT_MAGIC) ||
+        (rep.checksum != (uint16_t)((uint16_t)rep.magic + (uint16_t)rep.flags))) {
+        s_nv_valid = false;
+        return;
+    }
+    s_nv_flags = rep.flags;
+    s_nv_valid = true;
+}
+
 np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
                                           uint16_t            requested_enable_mask,
                                           const uint16_t     *current_ua,
@@ -198,6 +221,7 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
         s_granted_mask   = 0U;
         s_mcu_status     = NP_SAFETY_STATUS_FAULT;
         s_cvns_imp_valid = false;   /* OI-CVNS-HUB-11: distrust a corrupt frame's tail */
+        s_nv_valid       = false;
         return NP_HUB_ERR_SAFETY_FAULT;
     }
 
@@ -205,6 +229,7 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
      * impedance report the MCU clocks out in the spare window bytes [8..15]
      * (independently magic + checksum validated inside). */
     parse_cvns_impedance_report(rx_raw);
+    parse_nv_report(rx_raw);
 
     s_granted_mask = (uint16_t)((uint16_t)mcu_reply.granted_lo |
                                  ((uint16_t)mcu_reply.granted_hi << 8));
@@ -408,6 +433,38 @@ uint16_t np_safety_spi_get_requested_mask(void)
 uint8_t np_safety_spi_get_status(void)
 {
     return s_mcu_status;
+}
+
+bool np_safety_spi_get_cardiac_report(uint8_t *flags_out)
+{
+    bool valid = s_nv_valid;
+    if (flags_out != NULL) {
+        *flags_out = valid ? s_nv_flags : 0U;
+    }
+    return valid;
+}
+
+np_hub_status_t np_safety_spi_send_active_user(uint32_t user_tag)
+{
+    np_safety_user_cmd_t cmd;
+    uint8_t rx_dummy[NP_SAFETY_USER_FRAME_LEN];
+
+    if ((user_tag == NP_SAFETY_USER_UNSPECIFIED) || (user_tag == NP_SAFETY_USER_ANY)) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    memset(&cmd, 0, sizeof(cmd));
+    cmd.cmd_magic[0] = NP_SAFETY_CMD_MAGIC_0;
+    cmd.cmd_magic[1] = NP_SAFETY_CMD_MAGIC_1;
+    cmd.cmd_type     = NP_SAFETY_CMD_ACTIVE_USER;
+    cmd.reserved     = 0U;
+    cmd.user_tag     = user_tag;
+    cmd.checksum     = compute_checksum((const uint8_t *)&cmd, NP_SAFETY_USER_FRAME_LEN - 2U);
+
+    if (np_safety_hal_spi_transfer((const uint8_t *)&cmd, rx_dummy,
+                                   NP_SAFETY_USER_FRAME_LEN) != NP_HUB_OK) {
+        return NP_HUB_ERR_TIMEOUT;
+    }
+    return NP_HUB_OK;
 }
 
 bool np_safety_spi_get_cvns_impedance(float out_kohm[], bool *valid_out)
