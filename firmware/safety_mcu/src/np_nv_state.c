@@ -1,52 +1,62 @@
 /*
  * NeurOne Safety MCU — SW01-M09: Non-Volatile Safety State
- * Document: NP-SW-FAULTMSG-001 P1 (OI-FAULTMSG-01); NP-FW-CVNS-001 §5.4;
- *           NP-HW-CVNS-001 REQ-CVNS-09
+ * Document: NP-SW-FAULTMSG-001 P1 (OI-FAULTMSG-01) and the per-user scope
+ *           decision of 2026-09-22; NP-FW-CVNS-001 §5.4; NP-HW-CVNS-001 REQ-CVNS-09
  *
  * WHY THIS MODULE EXISTS
  * ----------------------
  * After a cervical VNS cardiac cutoff, re-enable needs the 30 s lockout, app
  * confirmation and a repeat impedance check.  That state used to live only in
- * RAM (np_cardiac_interlock.c), and the fault latch survives only a warm reset.
- * The headset has no battery (CLAUDE.md §4.5), so unplugging the power bank was
- * a power-on reset that erased the cutoff: in Mode 3 a new session could then
- * enable cervical stimulation with no app confirmation at all.  This module
- * keeps one bit — "a cutoff is awaiting acknowledgement" — in flash.
+ * RAM, and the headset has no battery (CLAUDE.md §4.5): unplugging the power
+ * bank erased the cutoff, and in Mode 3 a new session could enable cervical
+ * stimulation with no confirmation at all.  This module keeps it in flash.
  *
- * RECORD FORMAT
- * -------------
- * Append-only log of 64-bit records across two 2 KB pages (NP_NV_*,
- * np_safety_config.h).  Each record:
- *   lo = NP_NV_MAGIC << 16 | seq    (seq: 16-bit, +1 per record)
- *   hi = NP_NV_VAL_SET | NP_NV_VAL_CLR
- * Erased flash reads 0xFFFFFFFF/0xFFFFFFFF.  Within a page, slot order is
- * write order; across pages, the higher seq is newer.
+ * PER-USER SCOPE (principal, 2026-09-22)
+ * --------------------------------------
+ * A cutoff is held for the user who triggered it and nobody else.  The app
+ * names the active user with an opaque tag (np_safety_user_cmd_t); the same
+ * user is assumed until it names another, across sessions and power cycles.
+ * Two kinds of outstanding cutoff cannot be attributed to one person and are
+ * therefore withheld from EVERYONE until someone acknowledges them:
+ *   - one recorded while no user had been named (NP_SAFETY_USER_UNSPECIFIED);
+ *   - NP_SAFETY_USER_ANY — a torn record, an interrupted compaction, or a
+ *     cutoff for a further user once NP_NV_MAX_PENDING are already held.
+ * Acknowledging (the re-enable confirmation, run by a named person) clears that
+ * person's entry and both unattributable kinds.
+ *
+ * RECORD LOG
+ * ----------
+ * Append-only 64-bit records across two 2 KB pages, replayed in order at boot:
+ *   lo = NP_NV_MAGIC << 24 | type << 16 | seq     hi = user tag or count
+ *   SET(tag)  tag now has an outstanding cutoff
+ *   CLR(tag)  tag acknowledged (also clears UNSPECIFIED and ANY)
+ *   USER(tag) active user changed
+ *   RESET … COMMIT(n)   a complete snapshot of the state, n records between
+ * Within a page, slot order is write order; pages replay in order of their
+ * lowest seq, and a page holding only undecodable records replays last.
+ *
+ * COMPACTION — why a power loss never loses a cutoff
+ * --------------------------------------------------
+ * When the live page fills, the whole state is written as RESET … COMMIT to the
+ * other (empty) page, and only then is the full page erased.  A snapshot counts
+ * only once its COMMIT is down.  An UNCOMMITTED snapshot is never trusted to
+ * replace the state: its records are merged in on top of what came before, and
+ * ANY is set, because the write it was carrying may be missing.  If both pages
+ * hold records at the next write (compaction interrupted before the erase), a
+ * fresh committed snapshot is appended to the newer page first, then the older
+ * page is erased.
  *
  * FAIL-CLOSED DECODING
  * --------------------
- *   - Never-written storage (both pages erased) → not pending.  A factory-fresh
- *     unit must not be locked out.
- *   - The newest record of EITHER page is not a valid record (a write torn by
- *     power loss) → pending.  A torn write may have been a SET.
- *   - Otherwise → the value of the valid record with the highest seq.
- * A torn record that is NOT the newest in its page is ignored: a valid record
- * written after it supersedes it.
- *
- * WRITE ORDER — why a power loss can never lose a SET
- * ----------------------------------------------------
- *   1. If the page NOT holding the newest valid record has any content (a torn
- *      rotation, a stale residue), erase it.  Afterwards only one page is live.
- *   2. Append to the live page.  If it is full, write slot 0 of the (now empty)
- *      other page, and only then erase the full page.
- * A SET is never preceded by erasing the page that holds the latest record, so
- * there is no instant at which the newest persisted state is gone.
+ *   - never-written storage → no user, nothing outstanding (factory-fresh)
+ *   - an undecodable record → treated as SET(ANY) at its place in the log
+ *   - an uncommitted snapshot → merged additively, plus ANY
  *
  * WHAT THIS DOES NOT HANDLE (bench items, OI-FAULTMSG-01)
  * -------------------------------------------------------
- * On silicon, a double-word torn by power loss can carry a double-bit ECC error,
- * and reading it raises an NMI (FLASH_ECCR.ECCD).  This module's decoding
- * assumes the read returns the torn bits; the NMI path needs its own handling,
- * which has not been bench-tested.  Recorded, not assumed away.
+ * On silicon, reading a power-loss-torn double-word can raise a double-ECC NMI
+ * (FLASH_ECCR.ECCD).  The decoding above assumes the read returns the torn
+ * bits; the NMI path is not handled and has not been bench-tested.
  *
  * IEC 62304 Class C — MISRA C:2012.  C11, no GNU extensions.
  */
@@ -56,77 +66,266 @@
 #include "np_safety_hal.h"
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
-#define NP_NV_MAGIC      0x4E43U        /* "NC" — NeurOne cardiac */
-#define NP_NV_VAL_SET    0x53455421UL   /* "SET!" — cutoff awaiting acknowledgement */
-#define NP_NV_VAL_CLR    0x434C5221UL   /* "CLR!" — acknowledged */
+#define NP_NV_MAGIC      0xA5U
+#define NP_NV_T_SET      1U
+#define NP_NV_T_CLR      2U
+#define NP_NV_T_USER     3U
+#define NP_NV_T_RESET    4U
+#define NP_NV_T_COMMIT   5U
 #define NP_NV_ERASED     0xFFFFFFFFUL
 #define NP_NV_SEQ_MAX    0xFFFFU
+/* RESET + USER + one SET per pending user + SET(ANY) + COMMIT */
+#define NP_NV_SNAPSHOT_MAX  (NP_NV_MAX_PENDING + 4U)
 
-_Static_assert(NP_NV_PAGE_COUNT == 2U, "rotation assumes exactly two pages");
+_Static_assert(NP_NV_PAGE_COUNT == 2U, "compaction assumes exactly two pages");
+_Static_assert(NP_NV_SNAPSHOT_MAX < NP_NV_SLOTS_PER_PAGE, "a snapshot fits a page");
 
 typedef struct {
-    uint16_t used;          /* slots before the first erased tail slot        */
-    bool     newest_torn;   /* last used slot is not a valid record           */
+    uint32_t current;
+    uint32_t pending[NP_NV_MAX_PENDING];
+    uint8_t  n;
+    bool     any;
+} np_nv_view_t;
+
+typedef struct {
+    uint16_t used;       /* slots up to and including the last non-erased one */
     bool     has_valid;
-    uint16_t max_seq;       /* highest seq among valid records                */
-    bool     max_set;       /* value of that record                           */
-} np_nv_page_scan_t;
+    uint16_t min_seq;
+    uint16_t max_seq;
+} np_nv_page_t;
 
-static np_nv_page_scan_t s_scan[NP_NV_PAGE_COUNT];
-static bool              s_pending;
+static np_nv_page_t s_page[NP_NV_PAGE_COUNT];
+static np_nv_view_t s_view;
 
-static bool slot_erased(uint32_t lo, uint32_t hi)
+/* ── View operations ────────────────────────────────────────────────────────── */
+
+static void view_clear(np_nv_view_t *v)
 {
-    return (lo == NP_NV_ERASED) && (hi == NP_NV_ERASED);
+    (void)memset(v, 0, sizeof(*v));
+    v->current = NP_SAFETY_USER_UNSPECIFIED;
 }
 
-static bool slot_valid(uint32_t lo, uint32_t hi)
+static bool view_has(const np_nv_view_t *v, uint32_t tag)
 {
-    return ((lo >> 16) == NP_NV_MAGIC) &&
-           ((hi == NP_NV_VAL_SET) || (hi == NP_NV_VAL_CLR));
+    uint8_t i;
+    for (i = 0U; i < v->n; i++) {
+        if (v->pending[i] == tag) {
+            return true;
+        }
+    }
+    return false;
 }
 
-static void scan_page(uint8_t page, np_nv_page_scan_t *out)
+static void view_set(np_nv_view_t *v, uint32_t tag)
+{
+    if (tag == NP_SAFETY_USER_ANY) {
+        v->any = true;
+    } else if (!view_has(v, tag)) {
+        if (v->n < (uint8_t)NP_NV_MAX_PENDING) {
+            v->pending[v->n] = tag;
+            v->n++;
+        } else {
+            v->any = true;          /* table full: fail closed, never drop it */
+        }
+    } else {
+        /* already outstanding */
+    }
+}
+
+static void view_remove(np_nv_view_t *v, uint32_t tag)
+{
+    uint8_t i = 0U;
+    while (i < v->n) {
+        if (v->pending[i] == tag) {
+            v->n--;
+            v->pending[i] = v->pending[v->n];
+        } else {
+            i++;
+        }
+    }
+}
+
+static void view_clr(np_nv_view_t *v, uint32_t tag)
+{
+    view_remove(v, tag);
+    view_remove(v, NP_SAFETY_USER_UNSPECIFIED);
+    v->any = false;
+}
+
+/* Fold an abandoned (uncommitted) snapshot into the running state: keep
+ * everything either side says is outstanding, and add ANY. */
+static void view_merge_abandoned(np_nv_view_t *main_v, const np_nv_view_t *grp)
+{
+    uint8_t i;
+    for (i = 0U; i < grp->n; i++) {
+        view_set(main_v, grp->pending[i]);
+    }
+    main_v->any = true;
+}
+
+static bool view_equal(const np_nv_view_t *a, const np_nv_view_t *b)
+{
+    uint8_t i;
+    if ((a->current != b->current) || (a->any != b->any) || (a->n != b->n)) {
+        return false;
+    }
+    for (i = 0U; i < a->n; i++) {
+        if (!view_has(b, a->pending[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/* ── Record encoding ────────────────────────────────────────────────────────── */
+
+static bool rec_valid(uint32_t lo, uint32_t hi, uint8_t *type_out, uint16_t *seq_out)
+{
+    uint8_t type = (uint8_t)((lo >> 16) & 0xFFU);
+    (void)hi;
+    if (((lo >> 24) != NP_NV_MAGIC) || (type < NP_NV_T_SET) || (type > NP_NV_T_COMMIT)) {
+        return false;
+    }
+    *type_out = type;
+    *seq_out  = (uint16_t)(lo & 0xFFFFU);
+    return true;
+}
+
+static uint32_t rec_lo(uint8_t type, uint16_t seq)
+{
+    return ((uint32_t)NP_NV_MAGIC << 24) | ((uint32_t)type << 16) | (uint32_t)seq;
+}
+
+/* ── Scan and replay ────────────────────────────────────────────────────────── */
+
+static void scan_page(uint8_t page)
 {
     uint16_t slot;
-    uint16_t last_used = 0U;
-    bool     any       = false;
+    np_nv_page_t *p = &s_page[page];
 
-    out->used        = 0U;
-    out->newest_torn = false;
-    out->has_valid   = false;
-    out->max_seq     = 0U;
-    out->max_set     = false;
+    p->used      = 0U;
+    p->has_valid = false;
+    p->min_seq   = 0U;
+    p->max_seq   = 0U;
 
-    /* The used region is everything up to the LAST non-erased slot.  Scanning
-     * the whole page rather than stopping at the first erased slot means a hole
-     * (which the append order never creates) cannot hide a later record. */
     for (slot = 0U; slot < NP_NV_SLOTS_PER_PAGE; slot++) {
         uint32_t lo;
         uint32_t hi;
+        uint8_t  type;
+        uint16_t seq;
         np_hal_nv_read_dword(page, slot, &lo, &hi);
-        if (slot_erased(lo, hi)) {
+        if ((lo == NP_NV_ERASED) && (hi == NP_NV_ERASED)) {
             continue;
         }
-        any       = true;
-        last_used = slot;
-        if (slot_valid(lo, hi)) {
-            uint16_t seq = (uint16_t)(lo & 0xFFFFU);
-            if (!out->has_valid || (seq >= out->max_seq)) {
-                out->max_seq = seq;
-                out->max_set = (hi == NP_NV_VAL_SET);
-            }
-            out->has_valid = true;
+        p->used = (uint16_t)(slot + 1U);
+        if (rec_valid(lo, hi, &type, &seq)) {
+            if (!p->has_valid || (seq < p->min_seq)) { p->min_seq = seq; }
+            if (!p->has_valid || (seq > p->max_seq)) { p->max_seq = seq; }
+            p->has_valid = true;
         }
     }
+}
 
-    if (any) {
-        uint32_t lo;
-        uint32_t hi;
-        out->used = (uint16_t)(last_used + 1U);
-        np_hal_nv_read_dword(page, last_used, &lo, &hi);
-        out->newest_torn = !slot_valid(lo, hi);
+/* Replay order: pages with valid records by lowest seq; a page holding only
+ * undecodable records last (it can only be the newest write, torn). */
+static void page_order(uint8_t order[NP_NV_PAGE_COUNT])
+{
+    bool swap = false;
+    if (s_page[0].has_valid && s_page[1].has_valid) {
+        swap = s_page[1].min_seq < s_page[0].min_seq;
+    } else if (!s_page[0].has_valid && s_page[1].has_valid) {
+        swap = true;
+    } else {
+        swap = false;
+    }
+    order[0] = swap ? 1U : 0U;
+    order[1] = swap ? 0U : 1U;
+}
+
+static uint16_t max_seq_all(bool *any_valid)
+{
+    uint16_t m = 0U;
+    uint8_t  p;
+    *any_valid = false;
+    for (p = 0U; p < NP_NV_PAGE_COUNT; p++) {
+        if (s_page[p].has_valid) {
+            if (!*any_valid || (s_page[p].max_seq > m)) { m = s_page[p].max_seq; }
+            *any_valid = true;
+        }
+    }
+    return m;
+}
+
+static void apply(np_nv_view_t *v, uint8_t type, uint32_t tag)
+{
+    if (type == NP_NV_T_SET) {
+        view_set(v, tag);
+    } else if (type == NP_NV_T_CLR) {
+        view_clr(v, tag);
+    } else if (type == NP_NV_T_USER) {
+        v->current = tag;
+    } else {
+        /* RESET / COMMIT are handled by the replay loop */
+    }
+}
+
+static void replay(np_nv_view_t *out)
+{
+    uint8_t      order[NP_NV_PAGE_COUNT];
+    uint8_t      k;
+    bool         in_group = false;
+    uint32_t     group_count = 0U;
+    np_nv_view_t group;
+
+    view_clear(out);
+    view_clear(&group);
+    page_order(order);
+
+    for (k = 0U; k < NP_NV_PAGE_COUNT; k++) {
+        uint8_t  page = order[k];
+        uint16_t slot;
+        for (slot = 0U; slot < s_page[page].used; slot++) {
+            uint32_t lo;
+            uint32_t hi;
+            uint8_t  type;
+            uint16_t seq;
+            np_hal_nv_read_dword(page, slot, &lo, &hi);
+            if ((lo == NP_NV_ERASED) && (hi == NP_NV_ERASED)) {
+                continue;
+            }
+            if (!rec_valid(lo, hi, &type, &seq)) {
+                /* Undecodable: may have been a SET — fail closed. */
+                if (in_group) { group.any = true; group_count++; }
+                else          { out->any  = true; }
+                continue;
+            }
+            if (type == NP_NV_T_RESET) {
+                if (in_group) { view_merge_abandoned(out, &group); }
+                view_clear(&group);
+                group.current = out->current;
+                in_group    = true;
+                group_count = 0U;
+            } else if (type == NP_NV_T_COMMIT) {
+                if (in_group && (hi == group_count)) {
+                    *out = group;                    /* complete snapshot */
+                } else if (in_group) {
+                    view_merge_abandoned(out, &group);
+                } else {
+                    /* stray COMMIT: nothing to commit */
+                }
+                in_group = false;
+            } else if (in_group) {
+                apply(&group, type, hi);
+                group_count++;
+            } else {
+                apply(out, type, hi);
+            }
+        }
+    }
+    if (in_group) {
+        view_merge_abandoned(out, &group);           /* never committed */
     }
 }
 
@@ -134,52 +333,13 @@ static void scan_all(void)
 {
     uint8_t p;
     for (p = 0U; p < NP_NV_PAGE_COUNT; p++) {
-        scan_page(p, &s_scan[p]);
+        scan_page(p);
     }
 }
 
-/* Page holding the newest valid record; page 0 if none is valid. */
-static uint8_t live_page(void)
-{
-    if (s_scan[1].has_valid &&
-        (!s_scan[0].has_valid || (s_scan[1].max_seq > s_scan[0].max_seq))) {
-        return 1U;
-    }
-    return 0U;
-}
+/* ── Writing ────────────────────────────────────────────────────────────────── */
 
-static bool decode_pending(void)
-{
-    uint8_t p;
-    bool    any_valid = false;
-
-    for (p = 0U; p < NP_NV_PAGE_COUNT; p++) {
-        if (s_scan[p].newest_torn) {
-            return true;            /* fail closed: a torn newest write may be a SET */
-        }
-        if (s_scan[p].has_valid) {
-            any_valid = true;
-        }
-    }
-    if (!any_valid) {
-        return false;               /* never written: factory-fresh */
-    }
-    return s_scan[live_page()].max_set;
-}
-
-np_safe_status_t np_nv_state_init(void)
-{
-    scan_all();
-    s_pending = decode_pending();
-    return NP_SAFE_OK;
-}
-
-bool np_nv_cardiac_pending(void)
-{
-    return s_pending;
-}
-
-static bool program_and_verify(uint8_t page, uint16_t slot, uint32_t lo, uint32_t hi)
+static bool program_verify(uint8_t page, uint16_t slot, uint32_t lo, uint32_t hi)
 {
     uint32_t rlo;
     uint32_t rhi;
@@ -190,56 +350,123 @@ static bool program_and_verify(uint8_t page, uint16_t slot, uint32_t lo, uint32_
     return (rlo == lo) && (rhi == hi);
 }
 
-bool np_nv_cardiac_pending_set(bool pending)
+static uint16_t snapshot_len(const np_nv_view_t *v)
 {
-    uint8_t  live;
-    uint8_t  other;
-    uint16_t seq;
-    uint32_t lo;
-    uint32_t hi = pending ? NP_NV_VAL_SET : NP_NV_VAL_CLR;
-    bool     ok;
+    return (uint16_t)(3U + v->n + (v->any ? 1U : 0U));   /* RESET USER … COMMIT */
+}
+
+/* Write `v` as RESET … COMMIT starting at (page, slot). */
+static bool write_snapshot(uint8_t page, uint16_t slot, uint16_t *seq, const np_nv_view_t *v)
+{
+    uint8_t  i;
+    uint32_t count = 0U;
+
+    if (!program_verify(page, slot, rec_lo(NP_NV_T_RESET, *seq), 0U)) { return false; }
+    slot++; (*seq)++;
+    if (!program_verify(page, slot, rec_lo(NP_NV_T_USER, *seq), v->current)) { return false; }
+    slot++; (*seq)++; count++;
+    for (i = 0U; i < v->n; i++) {
+        if (!program_verify(page, slot, rec_lo(NP_NV_T_SET, *seq), v->pending[i])) { return false; }
+        slot++; (*seq)++; count++;
+    }
+    if (v->any) {
+        if (!program_verify(page, slot, rec_lo(NP_NV_T_SET, *seq), NP_SAFETY_USER_ANY)) { return false; }
+        slot++; (*seq)++; count++;
+    }
+    return program_verify(page, slot, rec_lo(NP_NV_T_COMMIT, *seq), count);
+}
+
+static bool write_change(uint8_t type, uint32_t tag)
+{
+    np_nv_view_t now;
+    np_nv_view_t want;
+    uint8_t      order[NP_NV_PAGE_COUNT];
+    bool         any_valid;
+    uint16_t     seq;
+    bool         ok;
 
     scan_all();
-    live  = live_page();
-    other = (uint8_t)(1U - live);
+    replay(&now);
+    want = now;
+    apply(&want, type, tag);
 
-    if (!s_scan[live].has_valid && !s_scan[other].has_valid) {
-        /* No valid record anywhere: clear any torn residue in both pages. */
-        if ((s_scan[0].used > 0U) && !np_hal_nv_erase_page(0U)) { return false; }
-        if ((s_scan[1].used > 0U) && !np_hal_nv_erase_page(1U)) { return false; }
-        seq = 1U;
-        s_scan[0].used = 0U;
-        live  = 0U;
-        other = 1U;
-    } else {
-        if (s_scan[live].max_seq == NP_NV_SEQ_MAX) {
-            /* 65 535 records is ~32 000 cutoffs: unreachable in the life of a
-             * device, and refused rather than wrapped, because a wrapped seq
-             * would make the newest record look like the oldest. */
-            return false;
-        }
-        seq = (uint16_t)(s_scan[live].max_seq + 1U);
-        /* Step 1: only one live page. */
-        if ((s_scan[other].used > 0U) && !np_hal_nv_erase_page(other)) {
-            return false;
-        }
+    seq = (uint16_t)(max_seq_all(&any_valid) + (any_valid ? 1U : 0U));
+    if (any_valid && (seq > (uint16_t)(NP_NV_SEQ_MAX - NP_NV_SNAPSHOT_MAX))) {
+        /* 65 535 records is unreachable in the life of a device; refused rather
+         * than wrapped, because a wrapped seq would reorder the log. */
+        return false;
     }
 
-    lo = ((uint32_t)NP_NV_MAGIC << 16) | (uint32_t)seq;
+    page_order(order);
 
-    if (s_scan[live].used < NP_NV_SLOTS_PER_PAGE) {
-        ok = program_and_verify(live, s_scan[live].used, lo, hi);
-    } else {
-        /* Step 2: rotate.  Write the new page first; erase the old one only
-         * after the new record is safely down.  A failed erase of the old page
-         * leaves it as residue that step 1 removes on the next write. */
-        ok = program_and_verify(other, 0U, lo, hi);
+    if ((s_page[0].used > 0U) && (s_page[1].used > 0U)) {
+        /* Compaction was interrupted before the older page was erased: commit a
+         * complete snapshot of the intended state to the newer page, then erase
+         * the older one. */
+        uint8_t newer = order[1];
+        uint8_t older = order[0];
+        if ((uint32_t)s_page[newer].used + snapshot_len(&want) > NP_NV_SLOTS_PER_PAGE) {
+            return false;
+        }
+        ok = write_snapshot(newer, s_page[newer].used, &seq, &want);
         if (ok) {
-            (void)np_hal_nv_erase_page(live);
+            (void)np_hal_nv_erase_page(older);
+        }
+    } else {
+        uint8_t live  = (s_page[1].used > 0U) ? 1U : 0U;
+        uint8_t other = (uint8_t)(1U - live);
+        if (s_page[live].used < NP_NV_SLOTS_PER_PAGE) {
+            ok = program_verify(live, s_page[live].used, rec_lo(type, seq), tag);
+        } else {
+            /* Compact: the new page first, the full page erased only after. */
+            ok = write_snapshot(other, 0U, &seq, &want);
+            if (ok) {
+                (void)np_hal_nv_erase_page(live);
+            }
         }
     }
 
     scan_all();
-    s_pending = decode_pending();
-    return ok && (s_pending == pending);
+    replay(&s_view);
+    return ok && view_equal(&s_view, &want);
+}
+
+/* ── Public API ─────────────────────────────────────────────────────────────── */
+
+np_safe_status_t np_nv_state_init(void)
+{
+    scan_all();
+    replay(&s_view);
+    return NP_SAFE_OK;
+}
+
+uint32_t np_nv_current_user(void)
+{
+    return s_view.current;
+}
+
+bool np_nv_cardiac_blocked(uint32_t user)
+{
+    if (s_view.any || view_has(&s_view, NP_SAFETY_USER_UNSPECIFIED)) {
+        return true;                     /* unattributable: withheld from everyone */
+    }
+    if (user == NP_SAFETY_USER_UNSPECIFIED) {
+        return s_view.n > 0U;            /* unknown user: cannot rule them out */
+    }
+    return view_has(&s_view, user);
+}
+
+bool np_nv_cardiac_outstanding(void)
+{
+    return s_view.any || (s_view.n > 0U);
+}
+
+bool np_nv_cardiac_set(uint32_t user, bool pending)
+{
+    return write_change(pending ? NP_NV_T_SET : NP_NV_T_CLR, user);
+}
+
+bool np_nv_set_current_user(uint32_t user)
+{
+    return write_change(NP_NV_T_USER, user);
 }

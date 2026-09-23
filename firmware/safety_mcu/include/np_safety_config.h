@@ -115,6 +115,10 @@
 #define NP_NV_SLOTS_PER_PAGE    256U        /* 2048 B / 8 B per double-word */
 #define NP_NV_FIRST_PAGE        62U         /* flash pages 62 and 63 of 64  */
 #define NP_NV_WRITE_ATTEMPTS    3U          /* then NP_FAULT_SLOT_NVSTATE   */
+/* Distinct users that can hold an outstanding cutoff at once.  A cutoff for a
+ * further user is recorded as NP_SAFETY_USER_ANY — withheld from everyone until
+ * acknowledged — so a full table fails closed rather than dropping a cutoff. */
+#define NP_NV_MAX_PENDING       8U
 
 /* ── Thermal interlock (SW01-M04) ────────────────────────────────────────── */
 /* ADC1 channels: 5 cranial thermal sense domains + 1 hub NTC.

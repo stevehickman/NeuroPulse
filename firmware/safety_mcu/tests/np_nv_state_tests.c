@@ -8,10 +8,15 @@
  * TORN write, which leaves a non-erased, invalid double-word, the state a power
  * loss during programming leaves behind.
  *
- * The property under test is the one P1 exists for: no sequence of writes and
- * power losses can make a persisted cutoff read back as acknowledged, and a
- * factory-fresh unit reads as clear.  "Power cycle" here is np_nv_state_init()
- * re-reading the pages, which is exactly what boot does.
+ * The properties under test:
+ *   - no sequence of writes and power losses can make a persisted cutoff read
+ *     back as acknowledged, and a factory-fresh unit reads as clear (P1);
+ *   - a cutoff is held for the user who triggered it and nobody else, and the
+ *     active user persists until the app names another (per-user scope,
+ *     principal 2026-09-22);
+ *   - anything that cannot be attributed to one person is withheld from all.
+ * "Power cycle" here is np_nv_state_init() re-reading the pages, which is
+ * exactly what boot does.
  */
 
 #include <stdint.h>
@@ -22,12 +27,15 @@
 #include "../include/np_safety_config.h"
 #include "../include/np_safety_hal.h"
 #include "../include/np_nv_state.h"
+#include "../include/np_safety_protocol.h"
 
 /* ── NOR flash double ───────────────────────────────────────────────────────── */
 static uint32_t g_flash[NP_NV_PAGE_COUNT][NP_NV_SLOTS_PER_PAGE][2];
 static int      g_fail_program_next;   /* next program: return false, no write */
 static int      g_tear_program_next;   /* next program: write garbage, false   */
 static int      g_fail_erase_next;     /* next erase: return false, no change  */
+static int      g_tear_program_at;     /* tear the Nth program from now (1-based), 0 = off */
+static int      g_stop_program_at;     /* power lost before the Nth program: it and all later fail */
 static int      g_erase_count[NP_NV_PAGE_COUNT];
 
 static void flash_blank(void)
@@ -36,6 +44,8 @@ static void flash_blank(void)
     g_fail_program_next = 0;
     g_tear_program_next = 0;
     g_fail_erase_next   = 0;
+    g_tear_program_at   = 0;
+    g_stop_program_at   = 0;
     g_erase_count[0] = 0;
     g_erase_count[1] = 0;
 }
@@ -60,6 +70,14 @@ bool np_hal_nv_program_dword(uint8_t page, uint16_t slot, uint32_t lo, uint32_t 
         return false;   /* PROGERR: programming a non-erased double-word */
     }
     if (g_fail_program_next) { g_fail_program_next = 0; return false; }
+    if (g_stop_program_at > 0) {
+        if (g_stop_program_at == 1) { return false; }   /* dead from here on */
+        g_stop_program_at--;
+    }
+    if (g_tear_program_at > 0) {
+        g_tear_program_at--;
+        if (g_tear_program_at == 0) { g_tear_program_next = 1; }
+    }
     if (g_tear_program_next) {
         g_tear_program_next = 0;
         g_flash[page][slot][0] = lo & 0x0F0F0F0FUL;   /* half-programmed bits */
@@ -79,11 +97,11 @@ static void check(int cond, const char *name)
     else      { printf("FAIL: %s\n", name); g_failures++; }
 }
 
-static bool power_cycle(void)
-{
-    (void)np_nv_state_init();
-    return np_nv_cardiac_pending();
-}
+#define ALICE  0x1111AAAAUL
+#define BOB    0x2222BBBBUL
+#define UNSPEC NP_SAFETY_USER_UNSPECIFIED
+
+static void boot(void) { (void)np_nv_state_init(); }
 
 static uint16_t used_slots(uint8_t page)
 {
@@ -96,154 +114,244 @@ static uint16_t used_slots(uint8_t page)
     return n;
 }
 
-/* ── Tests ──────────────────────────────────────────────────────────────────── */
+/* Fill the live page with alternating user changes until it is full. */
+static void fill_page(void)
+{
+    while ((used_slots(0U) < NP_NV_SLOTS_PER_PAGE) && (used_slots(1U) == 0U)) {
+        (void)np_nv_set_current_user((used_slots(0U) % 2U) ? ALICE : BOB);
+    }
+}
+
+/* ── Single-user behaviour (no user ever named) ─────────────────────────────── */
 
 static void test_factory_fresh_is_clear(void)
 {
-    flash_blank();
-    check(!power_cycle(), "fresh: never-written storage reads as not pending");
+    flash_blank(); boot();
+    check(np_nv_current_user() == UNSPEC, "fresh: no user named");
+    check(!np_nv_cardiac_outstanding(), "fresh: nothing outstanding");
+    check(!np_nv_cardiac_blocked(UNSPEC), "fresh: not blocked");
 }
 
-static void test_set_survives_power_cycle(void)
+static void test_single_user_set_survives_and_clears(void)
 {
-    flash_blank();
-    (void)np_nv_state_init();
-    check(np_nv_cardiac_pending_set(true), "set: write succeeds");
-    check(np_nv_cardiac_pending(), "set: cached value pending");
-    check(power_cycle(), "set: pending after power cycle");
+    flash_blank(); boot();
+    check(np_nv_cardiac_set(UNSPEC, true), "single: SET succeeds");
+    boot();
+    check(np_nv_cardiac_blocked(UNSPEC), "single: blocked after power cycle");
+    check(np_nv_cardiac_set(UNSPEC, false), "single: CLR succeeds");
+    boot();
+    check(!np_nv_cardiac_blocked(UNSPEC) && !np_nv_cardiac_outstanding(), "single: clear after power cycle");
 }
 
-static void test_clear_after_set(void)
+/* ── Per-user scope ─────────────────────────────────────────────────────────── */
+
+static void test_cutoff_held_for_its_user_only(void)
 {
-    flash_blank();
-    (void)np_nv_state_init();
-    (void)np_nv_cardiac_pending_set(true);
-    check(np_nv_cardiac_pending_set(false), "clear: write succeeds");
-    check(!power_cycle(), "clear: not pending after power cycle");
+    flash_blank(); boot();
+    (void)np_nv_set_current_user(ALICE);
+    check(np_nv_cardiac_set(ALICE, true), "per-user: Alice's cutoff recorded");
+    boot();
+    check(np_nv_current_user() == ALICE, "per-user: active user persists across power cycle");
+    check(np_nv_cardiac_blocked(ALICE), "per-user: Alice blocked");
+    check(!np_nv_cardiac_blocked(BOB), "per-user: Bob NOT blocked");
+    check(np_nv_cardiac_outstanding(), "per-user: outstanding flag set (blanket warning)");
+
+    (void)np_nv_set_current_user(BOB);
+    boot();
+    check(np_nv_current_user() == BOB, "per-user: switch to Bob persists");
+    check(np_nv_cardiac_blocked(ALICE) && !np_nv_cardiac_blocked(BOB),
+          "per-user: switching users does not clear Alice's cutoff");
+    check(np_nv_cardiac_blocked(UNSPEC), "per-user: an unnamed user cannot be ruled out");
+
+    check(np_nv_cardiac_set(BOB, false), "per-user: Bob acknowledging writes");
+    check(np_nv_cardiac_blocked(ALICE), "per-user: Bob cannot acknowledge Alice's cutoff");
+    check(np_nv_cardiac_set(ALICE, false), "per-user: Alice acknowledges");
+    boot();
+    check(!np_nv_cardiac_outstanding(), "per-user: nothing outstanding after Alice acknowledges");
 }
 
-/* A torn newest write may have been a SET, so it must read as pending even when
- * the record before it said "acknowledged". */
-static void test_torn_newest_fails_closed(void)
+/* A cutoff recorded before any user was named cannot be attributed: it is
+ * withheld from everyone, and whoever runs the confirmation clears it. */
+static void test_unattributed_cutoff_blocks_everyone(void)
 {
-    flash_blank();
-    (void)np_nv_state_init();
-    (void)np_nv_cardiac_pending_set(true);
-    (void)np_nv_cardiac_pending_set(false);
+    flash_blank(); boot();
+    (void)np_nv_cardiac_set(UNSPEC, true);
+    (void)np_nv_set_current_user(ALICE);
+    boot();
+    check(np_nv_cardiac_blocked(ALICE) && np_nv_cardiac_blocked(BOB),
+          "unattributed: withheld from every user");
+    (void)np_nv_cardiac_set(ALICE, false);
+    boot();
+    check(!np_nv_cardiac_blocked(BOB) && !np_nv_cardiac_outstanding(),
+          "unattributed: cleared by the person who acknowledged it");
+}
+
+/* More users than the table holds: the extra cutoff is not dropped. */
+static void test_full_table_fails_closed(void)
+{
+    flash_blank(); boot();
+    for (uint32_t u = 1U; u <= NP_NV_MAX_PENDING; u++) { (void)np_nv_cardiac_set(0x100U + u, true); }
+    check(!np_nv_cardiac_blocked(BOB), "full: a user without a cutoff is not blocked");
+    (void)np_nv_cardiac_set(BOB, true);
+    boot();
+    check(np_nv_cardiac_blocked(BOB) && np_nv_cardiac_blocked(ALICE),
+          "full: overflow recorded as ANY — withheld from everyone, never dropped");
+}
+
+/* ── Power loss ─────────────────────────────────────────────────────────────── */
+
+static void test_torn_record_fails_closed(void)
+{
+    flash_blank(); boot();
+    (void)np_nv_set_current_user(ALICE);
     g_tear_program_next = 1;
-    check(!np_nv_cardiac_pending_set(true), "torn: write reports failure");
-    check(power_cycle(), "torn: torn newest record reads as pending (fail closed)");
+    check(!np_nv_cardiac_set(ALICE, true), "torn: write reports failure");
+    boot();
+    check(np_nv_cardiac_blocked(BOB), "torn: an undecodable record is withheld from everyone");
+    (void)np_nv_set_current_user(BOB);   /* a later record does not hide it */
+    boot();
+    check(np_nv_cardiac_blocked(BOB), "torn: still withheld after later records");
+    check(np_nv_cardiac_set(BOB, false), "torn: acknowledgement writes");
+    boot();
+    check(!np_nv_cardiac_outstanding(), "torn: cleared by acknowledgement");
 }
 
-/* A torn record that a later valid record supersedes no longer matters. */
-static void test_torn_then_superseded(void)
+static void test_compaction_preserves_state(void)
 {
-    flash_blank();
-    (void)np_nv_state_init();
-    (void)np_nv_cardiac_pending_set(true);
-    g_tear_program_next = 1;
-    (void)np_nv_cardiac_pending_set(false);
-    check(np_nv_cardiac_pending_set(false), "superseded: retry succeeds after torn slot");
-    check(!power_cycle(), "superseded: valid record after torn slot decides");
+    flash_blank(); boot();
+    (void)np_nv_set_current_user(ALICE);
+    (void)np_nv_cardiac_set(ALICE, true);
+    fill_page();
+    check(used_slots(0U) == NP_NV_SLOTS_PER_PAGE, "compact: page 0 full");
+    uint32_t cur = np_nv_current_user();
+    check(np_nv_cardiac_set(BOB, true), "compact: write triggers compaction");
+    check(used_slots(0U) == 0U && used_slots(1U) > 0U, "compact: snapshot on page 1, page 0 erased");
+    boot();
+    check(np_nv_current_user() == cur, "compact: active user survives");
+    check(np_nv_cardiac_blocked(ALICE) && np_nv_cardiac_blocked(BOB), "compact: both cutoffs survive");
+    (void)np_nv_cardiac_set(ALICE, false);
+    boot();
+    check(!np_nv_cardiac_blocked(ALICE) && np_nv_cardiac_blocked(BOB), "compact: log continues after compaction");
 }
 
-static void test_program_failure_reported(void)
+/* Power lost before the full page was erased: both pages hold records. */
+static void test_compaction_interrupted_before_erase(void)
 {
-    flash_blank();
-    (void)np_nv_state_init();
-    g_fail_program_next = 1;
-    check(!np_nv_cardiac_pending_set(true), "program fail: reported as failure");
-    check(np_nv_cardiac_pending_set(true), "program fail: retry succeeds");
-    check(power_cycle(), "program fail: pending after retry");
+    flash_blank(); boot();
+    (void)np_nv_set_current_user(ALICE);
+    (void)np_nv_cardiac_set(ALICE, true);
+    fill_page();
+    g_fail_erase_next = 1;
+    (void)np_nv_cardiac_set(BOB, true);
+    check(used_slots(0U) > 0U && used_slots(1U) > 0U, "interrupted erase: both pages hold records");
+    boot();
+    check(np_nv_cardiac_blocked(ALICE) && np_nv_cardiac_blocked(BOB), "interrupted erase: committed snapshot wins");
+    check(np_nv_cardiac_set(ALICE, false), "interrupted erase: next write recovers");
+    check(used_slots(0U) == 0U || used_slots(1U) == 0U, "interrupted erase: one page again");
+    boot();
+    check(!np_nv_cardiac_blocked(ALICE) && np_nv_cardiac_blocked(BOB), "interrupted erase: state exact");
 }
 
-/* Filling a page forces a rotation: the new record goes to the other page
- * first, and the full page is erased only afterwards. */
-static void test_rotation(void)
+/* Power lost part-way through writing the snapshot: it has no COMMIT and must
+ * not replace the state — and whatever it was carrying may be missing. */
+static void test_compaction_torn_snapshot(void)
 {
-    flash_blank();
-    (void)np_nv_state_init();
-    for (uint16_t i = 0U; i < NP_NV_SLOTS_PER_PAGE; i++) {
-        (void)np_nv_cardiac_pending_set((i % 2U) == 0U);
-    }
-    check(used_slots(0U) == NP_NV_SLOTS_PER_PAGE, "rotation: page 0 full");
-    check(!power_cycle(), "rotation: last record in full page is CLR");
-
-    check(np_nv_cardiac_pending_set(true), "rotation: write into other page succeeds");
-    check(used_slots(1U) == 1U, "rotation: record at page 1 slot 0");
-    check(used_slots(0U) == 0U, "rotation: full page erased after new record");
-    check(power_cycle(), "rotation: SET survives power cycle after rotation");
+    flash_blank(); boot();
+    (void)np_nv_set_current_user(ALICE);
+    (void)np_nv_cardiac_set(ALICE, true);
+    fill_page();
+    g_tear_program_next = 1;             /* the RESET itself tears */
+    check(!np_nv_cardiac_set(BOB, true), "torn snapshot: write reports failure");
+    check(used_slots(0U) == NP_NV_SLOTS_PER_PAGE, "torn snapshot: full page NOT erased");
+    boot();
+    check(np_nv_cardiac_blocked(ALICE), "torn snapshot: Alice still blocked");
+    check(np_nv_cardiac_blocked(BOB), "torn snapshot: Bob's lost write fails closed");
+    check(np_nv_cardiac_set(BOB, true), "torn snapshot: retry succeeds");
+    check(np_nv_cardiac_set(BOB, false), "torn snapshot: acknowledgement succeeds");
+    boot();
+    check(np_nv_cardiac_blocked(ALICE) && !np_nv_cardiac_blocked(BOB), "torn snapshot: recovers exactly");
 }
 
-/* Power loss between writing the new page and erasing the old one: both pages
- * hold records, and the higher sequence number must win. */
-static void test_rotation_interrupted_before_old_erase(void)
-{
-    flash_blank();
-    (void)np_nv_state_init();
-    for (uint16_t i = 0U; i < NP_NV_SLOTS_PER_PAGE; i++) {
-        (void)np_nv_cardiac_pending_set(false);
-    }
-    /* The erase of the full page fails — the new record is already down. */
-    {
-        /* First erase in the write is step 1 (other page empty → skipped), so
-         * the only erase attempted is of the old page. */
-        g_fail_erase_next = 1;
-        (void)np_nv_cardiac_pending_set(true);
-    }
-    check(used_slots(0U) == NP_NV_SLOTS_PER_PAGE && used_slots(1U) == 1U,
-          "interrupted: both pages hold records");
-    check(power_cycle(), "interrupted: newer SET wins over the old full page");
-
-    check(np_nv_cardiac_pending_set(false), "interrupted: next write succeeds");
-    check(used_slots(0U) == 0U, "interrupted: residue page erased by the next write");
-    check(!power_cycle(), "interrupted: CLR after cleanup");
-}
-
-/* Power loss while writing slot 0 of the new page during rotation: the new
- * page holds only a torn record.  It may have been a SET, so fail closed; the
- * next write erases it and recovers. */
-static void test_rotation_torn_new_page(void)
-{
-    flash_blank();
-    (void)np_nv_state_init();
-    for (uint16_t i = 0U; i < NP_NV_SLOTS_PER_PAGE; i++) {
-        (void)np_nv_cardiac_pending_set(false);
-    }
-    g_tear_program_next = 1;
-    check(!np_nv_cardiac_pending_set(true), "torn rotation: write reports failure");
-    check(used_slots(0U) == NP_NV_SLOTS_PER_PAGE, "torn rotation: old page NOT erased");
-    check(power_cycle(), "torn rotation: reads as pending (fail closed)");
-
-    check(np_nv_cardiac_pending_set(true), "torn rotation: retry succeeds");
-    check(power_cycle(), "torn rotation: pending after retry");
-    check(np_nv_cardiac_pending_set(false), "torn rotation: later CLR succeeds");
-    check(!power_cycle(), "torn rotation: recovers to CLR");
-}
-
-/* A page of garbage with no valid record anywhere (e.g. a torn very first
- * write) fails closed, and a write recovers from it. */
 static void test_garbage_only_fails_closed(void)
 {
     flash_blank();
     g_flash[0][0][0] = 0x12345678UL;
     g_flash[0][0][1] = 0x9ABCDEF0UL;
-    check(power_cycle(), "garbage: undecodable storage reads as pending");
-    check(np_nv_cardiac_pending_set(false), "garbage: write succeeds");
-    check(!power_cycle(), "garbage: recovers to CLR");
+    boot();
+    check(np_nv_cardiac_blocked(ALICE), "garbage: undecodable storage is withheld from everyone");
+    check(np_nv_cardiac_set(ALICE, false), "garbage: acknowledgement writes");
+    boot();
+    check(!np_nv_cardiac_outstanding(), "garbage: recovers");
+}
+
+
+/* The snapshot's RESET and first records land but its COMMIT does not.  It
+ * must NOT replace the state (that would drop whatever it had not yet written),
+ * and what it was carrying may be missing — so fail closed. */
+static void test_uncommitted_snapshot_never_replaces_state(void)
+{
+    /* Snapshot = RESET, USER, SET(Alice), SET(Bob), COMMIT: tear the COMMIT. */
+    flash_blank(); boot();
+    (void)np_nv_set_current_user(ALICE);
+    (void)np_nv_cardiac_set(ALICE, true);
+    fill_page();
+    g_tear_program_at = 5;
+    check(!np_nv_cardiac_set(BOB, true), "no commit: write reports failure");
+    boot();
+    check(np_nv_cardiac_blocked(ALICE) && np_nv_cardiac_blocked(BOB),
+          "no commit: nobody unblocked by an unfinished snapshot");
+
+    /* Tear the SET(Alice) inside the snapshot: the group holds only RESET +
+     * USER.  Applied as a reset it would silently clear Alice. */
+    flash_blank(); boot();
+    (void)np_nv_set_current_user(ALICE);
+    (void)np_nv_cardiac_set(ALICE, true);
+    fill_page();
+    g_tear_program_at = 3;
+    (void)np_nv_cardiac_set(BOB, true);
+    boot();
+    check(np_nv_cardiac_blocked(ALICE), "partial snapshot: Alice's cutoff not dropped");
+    check(np_nv_cardiac_set(ALICE, false) && np_nv_cardiac_set(BOB, false), "partial snapshot: recovers");
+    boot();
+    check(!np_nv_cardiac_outstanding(), "partial snapshot: clean after acknowledgements");
+}
+
+
+/* Power lost cleanly part-way through a snapshot — no torn record at all.  The
+ * snapshot copied Alice but not yet Carol; were it trusted, Carol's cutoff
+ * would vanish. */
+#define CAROL 0x3333CCCCUL
+static void test_cut_off_snapshot_keeps_uncopied_users(void)
+{
+    flash_blank(); boot();
+    (void)np_nv_set_current_user(ALICE);
+    (void)np_nv_cardiac_set(ALICE, true);
+    (void)np_nv_cardiac_set(CAROL, true);
+    fill_page();
+    /* Snapshot order: RESET, USER, SET(Alice), SET(Carol), SET(Bob), COMMIT.
+     * Power is lost before the 4th program — SET(Carol). */
+    g_stop_program_at = 4;
+    (void)np_nv_cardiac_set(BOB, true);
+    g_stop_program_at = 0;
+    boot();
+    check(np_nv_cardiac_blocked(CAROL), "cut-off snapshot: Carol's cutoff survives");
+    check(np_nv_cardiac_blocked(ALICE), "cut-off snapshot: Alice's cutoff survives");
+    check(np_nv_cardiac_blocked(BOB), "cut-off snapshot: Bob's unwritten cutoff fails closed");
 }
 
 int main(void)
 {
     test_factory_fresh_is_clear();
-    test_set_survives_power_cycle();
-    test_clear_after_set();
-    test_torn_newest_fails_closed();
-    test_torn_then_superseded();
-    test_program_failure_reported();
-    test_rotation();
-    test_rotation_interrupted_before_old_erase();
-    test_rotation_torn_new_page();
+    test_single_user_set_survives_and_clears();
+    test_cutoff_held_for_its_user_only();
+    test_unattributed_cutoff_blocks_everyone();
+    test_full_table_fails_closed();
+    test_torn_record_fails_closed();
+    test_compaction_preserves_state();
+    test_compaction_interrupted_before_erase();
+    test_compaction_torn_snapshot();
+    test_uncommitted_snapshot_never_replaces_state();
+    test_cut_off_snapshot_keeps_uncopied_users();
     test_garbage_only_fails_closed();
 
     if (g_failures == 0) { printf("ALL TESTS PASSED\n"); return 0; }

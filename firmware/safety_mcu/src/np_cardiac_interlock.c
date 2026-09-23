@@ -97,6 +97,26 @@ void np_cardiac_interlock_restore(bool cutoff_pending)
 }
 
 /*
+ * np_cardiac_interlock_user_changed — the active user has changed between
+ * sessions (principal, 2026-09-22: a cutoff is held for the user who triggered
+ * it and nobody else).  The previous user's live cutoff state leaves RAM — it
+ * stays persisted for them in np_nv_state and returns if they come back — and
+ * the new user's own persisted state is re-armed as latent.  CUTOFF is left for
+ * np_spi_watchdog_tick() to clear, since another interlock may hold it.
+ */
+void np_cardiac_interlock_user_changed(np_safety_state_t *state, bool new_user_blocked)
+{
+    s_cutoff_active    = false;
+    s_lockout_active   = false;
+    s_baseline_valid   = false;
+    s_rr_count         = 0U;
+    s_rr_head          = 0U;
+    s_first_beat_seen  = false;
+    s_restored_pending = new_user_blocked;
+    state->status     &= (uint8_t)~NP_SAFETY_STATUS_CARDIAC;
+}
+
+/*
  * np_cardiac_interlock_nv_request — true if a value is waiting to be persisted;
  * writes it to *pending_out.  np_cardiac_interlock_nv_done(written) clears the
  * request once that value has been persisted — but only if it is still the

@@ -39,6 +39,8 @@ extern void             np_cardiac_interlock_reenable(np_safety_state_t *state);
 extern void             np_cardiac_interlock_restore(bool cutoff_pending);
 extern bool             np_cardiac_interlock_nv_request(bool *pending_out);
 extern void             np_cardiac_interlock_nv_done(bool written);
+extern void             np_cardiac_interlock_user_changed(np_safety_state_t *state,
+                                                          bool new_user_blocked);
 /* The grant computation, linked in so the scope of a cardiac cutoff is tested
  * against the real code rather than a mirror of its mask. */
 extern np_safe_status_t np_spi_watchdog_init(void);
@@ -556,6 +558,35 @@ static void test_cardiac_blocks_only_cvns(void)
     check(st.granted_mask == 0U, "scope: an all-channel fault still blocks everything");
 }
 
+
+/* Per-user scope (principal, 2026-09-22): a cutoff is held for the user who
+ * triggered it.  Switching to a user without one releases cervical VNS for
+ * them; switching back re-arms the first user's cutoff as latent. */
+static void test_user_change_scopes_the_cutoff(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    (void)np_spi_watchdog_init();
+    establish_baseline(&st, RR_60_BPM);
+    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE && !cutoff_fired(&st); i++) {
+        beat(&st, RR_120_BPM);
+    }
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) != 0U, "user: Alice's live cutoff");
+
+    np_cardiac_interlock_user_changed(&st, false);          /* Bob: not blocked */
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) == 0U, "user: Bob does not inherit CARDIAC");
+    st.requested_mask = NP_SAFETY_EN_CVNS;
+    np_spi_watchdog_tick(&st, NULL, NULL);
+    np_cardiac_interlock_tick(&st);
+    check((st.granted_mask & NP_SAFETY_EN_CVNS) != 0U, "user: Bob is granted cervical VNS");
+
+    np_cardiac_interlock_user_changed(&st, true);           /* back to Alice */
+    np_spi_watchdog_tick(&st, NULL, NULL);
+    np_cardiac_interlock_tick(&st);
+    check(cutoff_fired(&st) && (st.status & NP_SAFETY_STATUS_CARDIAC) != 0U,
+          "user: Alice's cutoff re-asserted on her next CVNS request");
+}
+
 int main(void)
 {
     test_no_cutoff_before_baseline();
@@ -576,6 +607,7 @@ int main(void)
     test_restored_cutoff_asserts_on_cvns_request();
     test_restore_false_is_inert();
     test_cardiac_blocks_only_cvns();
+    test_user_change_scopes_the_cutoff();
 
     if (g_failures == 0) { printf("ALL TESTS PASSED\n"); return 0; }
     printf("%d TEST(S) FAILED\n", g_failures);

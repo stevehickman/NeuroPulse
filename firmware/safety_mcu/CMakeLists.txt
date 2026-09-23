@@ -22,7 +22,7 @@
 #                                    resets (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01)
 #
 # ── Platform contract ─────────────────────────────────────────────────────────
-#   include/np_safety_hal.h is the SINGLE declaration point for all 28 np_hal_*
+#   include/np_safety_hal.h is the SINGLE declaration point for all 30 np_hal_*
 #   platform symbols (NP-SW-CI-001 §4.4.1, closes OI-SWCI-18).  Every module
 #   above and every host-test double includes it, so a signature change is a
 #   compile error at both ends rather than silent cross-TU UB.  It declares
@@ -216,7 +216,7 @@ set(SAFETY_SOURCES
 )
 
 # ── SW-01 platform layer (phase 7 — closes Defect E / OI-SWCI-17) ─────────────
-# The STM32G071 register drivers behind the 28 np_hal_* symbols declared in
+# The STM32G071 register drivers behind the 30 np_hal_* symbols declared in
 # include/np_safety_hal.h.  Before phase 7 there were none, and the image had
 # never linked (NP-SW-CI-001 §4.4).
 #
@@ -326,7 +326,7 @@ target_compile_options(np_safety_mcu_objs PRIVATE
 # ── Firmware image ─────────────────────────────────────────────────────────────
 # Links the objects above plus np_crypto.  UNBLOCKED AT PHASE 7: Defect E
 # (NP-SW-CI-001 §4.4, OI-SWCI-17) is closed — the platform layer in platform/
-# defines all 28 np_hal_* symbols — and this target is what CI gates on.
+# defines all 30 np_hal_* symbols — and this target is what CI gates on.
 #
 # Producing it also required fixing the .fault_latch placement in
 # startup/stm32g071_flash.ld, which had never linked either: a SECOND link

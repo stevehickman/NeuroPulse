@@ -235,6 +235,12 @@ void np_hal_spi_get_chan_limit(np_safety_chan_limit_cmd_t *cmd_out);
 bool np_hal_spi_chan_wave_ready(void);
 void np_hal_spi_get_chan_wave(np_safety_chan_wave_cmd_t *cmd_out);
 
+/* Active-user command (10 bytes, np_safety_user_cmd_t) — which person is using
+ * the device, so a cardiac cutoff is held for that person only
+ * (NP-SW-FAULTMSG-001; per-user cardiac scope). */
+bool np_hal_spi_user_ready(void);
+void np_hal_spi_get_user(np_safety_user_cmd_t *cmd_out);
+
 /* ── TIM2 capture (R-peak interval timing) ────────────────────────────────────
  *
  * np_hal_tim2_init()         TIM2 as a free-running 1 MHz up-counter with input
