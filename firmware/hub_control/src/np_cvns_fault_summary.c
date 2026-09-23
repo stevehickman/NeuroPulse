@@ -7,7 +7,6 @@
 
 #include "np_cvns_fault_summary.h"
 #include "np_cvns_config.h"
-#include "np_spi_wire_types.h"
 #include "np_transport.h"   /* np_transport_hal_enter/exit_critical */
 #include <string.h>
 
