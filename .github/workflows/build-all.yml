@@ -72,9 +72,11 @@ env:
   # summary): 8 + 30 = 38, re-derived with `ctest -N` on the tree.
   # NP-FW-HUB-001 Rev 2 (OI-FWHUB-01) then added np_socket_dispatch_tests:
   # 8 + 31 = 39, re-derived with `ctest -N` on the tree.
-  NP_TOTAL_TEST_COUNT: '39'
+  # NP-FW-MMSOCK-001 (OI-MMSOCK-02) then added np_chan_decl_tests:
+  # 8 + 32 = 40, re-derived with `ctest -N` on the tree.
+  NP_TOTAL_TEST_COUNT: '40'
   NP_SAFETY_TEST_COUNT: '8'
-  NP_CLASS_B_TEST_COUNT: '31'
+  NP_CLASS_B_TEST_COUNT: '32'
 
 jobs:
   host-tests-all:

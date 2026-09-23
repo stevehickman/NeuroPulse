@@ -63,6 +63,17 @@
                                                      * MCU must not grant TDCS until a valid
                                                      * area command has been applied     */
 
+/* OI-MMSOCK-02 (NP-FW-MMSOCK-001 §3.6.1, §5.3 C-1): the same fail-closed gate
+ * for the BES/tACS channel.  Before this bit, BES/tACS was the one electrical
+ * channel with no declared geometry: it was always checked against the 25 cm²
+ * NP_ELECTRODE_AREA_CM2 fallback, which is ~24x permissive for a ≤1.02 cm²
+ * T1-B lattice electrode.  Its own bit, for the same per-channel reason bit 3
+ * is separate from bit 2.  Bits 5–7 remain unused.                          */
+#define NP_SESSION_STATUS_GEOM_REQ_BES   (1U << 4)  /* OI-MMSOCK-02: session needs a BES/tACS
+                                                     * electrode-geometry declaration; safety
+                                                     * MCU must not grant BES_TACS until a
+                                                     * valid area command has been applied */
+
 /* ── Session signature command constants ────────────────────────────────── */
 
 #define NP_SAFETY_CMD_MAGIC_0       0xC0U   /* distinguishes from heartbeat 0xBE */

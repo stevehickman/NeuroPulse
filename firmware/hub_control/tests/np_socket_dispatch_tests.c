@@ -366,9 +366,9 @@ static void test_not_socket_addressable(void)
 
 /*
  * PBM on a T1-B's emitters is admitted exactly like PBM on a T1-A: the
- * electrode element is neither required nor a reason to refuse. This is the
- * behaviour NP-FW-MMSOCK-001 §3.2 recommends keeping (P-3). If the principal
- * decides P-3 against, this is the test to invert.
+ * electrode element is neither required nor a reason to refuse. The principal
+ * decided P-3 this way on 2026-09-23 (NP-FW-MMSOCK-001 §3.2, §7.2): PBM and EEG
+ * may share a T1-B.
  */
 static void test_pbm_on_t1b_admitted(void)
 {

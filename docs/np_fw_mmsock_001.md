@@ -2,12 +2,12 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-MMSOCK-001
-**Revision:** 1
+**Revision:** 2
 **Date:** 2026-09-23
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Firmware Engineering
-**Approved By:** — (design study; §7.2 lists the decisions put to the principal)
+**Approved By:** Principal — P-1…P-6 (§7.2) accepted as recommended, 2026-09-23. Class C change C-1 implemented, **pending SW-01 review**
 **References:** CLAUDE.md §3 (modality roster and hard limits), §4.2 (safety architecture), §5 (UHDR/SHDR), §18 (a requirement must be required); `NP-FW-HUB-001` Rev 2 §3.4 (socket dispatch registry), §4.3 (target block), §4.5 (versioning), §5.4 (electrode geometry hand-off), §5.6 (power gate), §7.4 (geometry gates), §10; `NP-HW-HEXTILE-001` Rev 11 §3, §4.5 (T1-B), §7.2 (pinout — pin 17 `ELEC`), §8.4 (D-8), §9.3 (`OI-HEXTILE-09`); `NP-HW-HUB-001` Rev 6 §7.2 (one `NP_SAFETY_EN_PBM_CRANIAL` bit), §7.2.2 (`HUB-REQ-C05`), §7.3; `NP-DRV-SHELL-002` Rev 4 §3.5 (electrode network N4), §6 (tES path interlock), §9.1 (`SH2-DRC-16`), REQ-EMI-03/04/08; `NP-HW-EEGNET-001` Rev 8 §0, §1.9.1 (pod diameter), §5, §5.5 (`REQ-NET-10`); `NP-HEX-ZM-001` Rev 3 §4a (tile taxonomy); `NP-DT-001` Rev 3 §3.2.1 (DI-SAFE-01 / DI-SAFE-01a); `NP-SES-PWR-001` Rev 1; `NP-RISK-003` Rev 1; `NP-NPPS-REF-001` Rev 16; `NP-CONV-001` Rev 8 §4, §5, §7.1; `firmware/hub_control/src/np_socket_dispatch.c`, `include/np_module_map.h`, `include/np_hub_types.h`, `src/np_session_runner.c`; `firmware/safety_mcu/src/np_charge_monitor.c`; `firmware/common/include/np_spi_wire_types.h`; `app/web/src/lib/hubCompiler.ts`; `protocols/predefined/`
 **Related Issues:** PR #377 (the socket dispatch registry this study builds on; `OI-FWHUB-01`)
 **Gate:** N/A — design study; its outputs gate `OI-FWHUB-09`'s successor work and any tES-by-socket wire change
@@ -17,6 +17,36 @@
 
 ---
 
+> **Rev 2 (2026-09-23) — the principal accepted all six recommendations (§7.2), and one is built.**
+>
+> | | Decision | What happened |
+> |---|---|---|
+> | **P-1** | T1 tES on conventional **pads outside the lattice**; the T1-B electrode is recording-first, and stimulates only for **tACS where a pod fits the per-phase ceiling** (≳ 8–10 Hz at 1 mA) | `OI-MMSOCK-01` **closed**. No new frequency rule is written: the Class C per-phase ceiling, enforced against a pod's own area, already refuses the rest (CLAUDE.md §18). **Consequence found:** no T1 tES pad hardware is specified anywhere — `OI-MMSOCK-11` — **ACCEPTED 2026-09-23** |
+> | **P-2** | tES gets a socket target **after P-1** — now satisfied, and scoped by it to tACS on the T1-B dual-rated pad | not built; `OI-MMSOCK-10` — **ACCEPTED 2026-09-23** |
+> | **P-3** | PBM + EEG at a T1-B: **allow** | already the behaviour; the pinning test's comment now cites the decision — **ACCEPTED 2026-09-23** |
+> | **P-4** | PBM + tES at a T1-B: **allow** | moot until `OI-MMSOCK-10` — **ACCEPTED 2026-09-23** |
+> | **P-5** | Class C change C-1 **now** | **built** — see below; `OI-MMSOCK-02` implemented, closes on SW-01 review — **ACCEPTED 2026-09-23** |
+> | **P-6** | **Two electrodes per T1-B**, one recording-only, one dual-rated | recorded; propagation to the socket, tile and net specifications is `OI-MMSOCK-12`, **before socket tooling** — **ACCEPTED 2026-09-23** |
+>
+> **C-1 as built differs from §5.3 in one respect, on purpose.** §5.3 and `OI-MMSOCK-02` proposed an
+> authored `electrode_area_mcm2` in `np_mod_bes_tacs_params_t` (wire v4). Building it found that the hub
+> already holds the BES pad area as a **fixed device constant**, `NP_BES_ELECTRODE_AREA_MCM2`, by a
+> documented rule (`OI-CHARGE-07`: a fixed product part's area is a device property; a user-chosen
+> consumable's is authored). P-1 keeps T1 tES on those pads, so the rule still applies and an authored
+> field would have contradicted it. **What was built:** `NP_SESSION_STATUS_GEOM_REQ_BES` (bit 4) and a
+> third safety-MCU gate arm, fail-closed; the hub arms it for every BES/tACS session and sends the pad
+> constant. **What was not:** the wire field. A lattice electrode's area arrives with the tES socket
+> target (`OI-MMSOCK-10`), which is where an area that is not the pad's first exists.
+>
+> **§3.6.1 was imprecise, and is corrected here rather than rewritten.** It said BES/tACS is enforced
+> against the MCU's `NP_ELECTRODE_AREA_CM2` default. The hub computes its own 25 cm² constant — but
+> **sent it only in sessions that also held tDCS or HD-tDCS**, so in every other session the MCU's
+> default applied. Both are 25 cm², so §3.6.1's arithmetic stands. The same send rule dropped the VNS
+> (0.5 cm²) and cervical-VNS (2 cm²) areas, which do differ: **a VNS-only session was enforced 50× looser
+> than designed.** Fixed in this change (`NP-FW-HUB-001` Rev 3, `REQ-FWHUB-37`, `RISK-FWHUB-15`).
+>
+> ---
+>
 > **Summary — read this if nothing else.**
 >
 > The request was to let the helmet drive more than one modality on one hex-tile socket at the same
@@ -566,7 +596,7 @@ CLAUDE.md §18 forbids.
 | D-3 | **§4.1's lane record is specified, not built.** It is built with the first electrode-lane command type, not ahead of it | building a lane nothing can occupy adds code with no behaviour, and would change the governor's input type while the governor refuses everything (§6.3) |
 | D-4 | No new SHDR field or fault code | §6.2 |
 
-### 7.2 Put to the principal — not decided here
+### 7.2 Put to the principal — all six ACCEPTED as recommended, 2026-09-23
 
 | # | Question | Options | This study's recommendation |
 |---|---|---|---|
@@ -616,15 +646,18 @@ is changed here**; `NP-RISK-003` / `NP-RISK-004` rows are proposed through the o
 
 | ID | Description | Owner | Blocking |
 |---|---|---|---|
-| **`OI-MMSOCK-01`** | **Principal — T1 tES delivery electrode.** No T1-B pod (≤ 1.02 cm²) can carry any of the 14 shipped tDCS protocols under DI-SAFE-01: they need 8.0–24.0 cm², 9 of 14 more than a whole 40 mm tile face, and on a pod the MCU cuts each at 77–153 s (§3.6.2). `NP-HEX-ZM-001` §4a's premise that T1-B's dual-rated electrode delivers T1 tES does not survive the arithmetic. Options P-1 (a)–(d), §7.2 | Principal + Systems + Clinical | **Any T1 tES through the lattice; `NP-HEX-ZM-001` §4a; `OI-HEXTILE-05` scoping** |
-| **`OI-MMSOCK-02`** | **BES/tACS has no declared electrode area and no fail-closed geometry gate** (§3.6.1). Take Class C change C-1 (§5.3) and add `electrode_area_mcm2` to `np_mod_bes_tacs_params_t` (wire v4, `REQ-FWHUB-10`). SW-01 review required. Recommended **now**, independent of P-2, because the stim HAL (`OI-STIM-01`) must route to T1-B pods and makes the gap live without any wire change | FW (SW-01 + SW-02) + Safety | **Before `OI-STIM-01` routes any BES/tACS output to a lattice electrode** |
+| ~~**`OI-MMSOCK-01`**~~ | ✅ **CLOSED 2026-09-23 — P-1 accepted:** T1 tES on conventional pads outside the lattice; T1-B stimulates only for tACS where a pod fits the per-phase ceiling. Consequences are `OI-MMSOCK-11` (pad hardware) and `-12` (propagation). *Was:* **Principal — T1 tES delivery electrode.** No T1-B pod (≤ 1.02 cm²) can carry any of the 14 shipped tDCS protocols under DI-SAFE-01: they need 8.0–24.0 cm², 9 of 14 more than a whole 40 mm tile face, and on a pod the MCU cuts each at 77–153 s (§3.6.2). `NP-HEX-ZM-001` §4a's premise that T1-B's dual-rated electrode delivers T1 tES does not survive the arithmetic. Options P-1 (a)–(d), §7.2 | Principal + Systems + Clinical | **Any T1 tES through the lattice; `NP-HEX-ZM-001` §4a; `OI-HEXTILE-05` scoping** |
+| **`OI-MMSOCK-02`** | **IMPLEMENTED 2026-09-23 (P-5) — closes on SW-01 review.** Built as `NP_SESSION_STATUS_GEOM_REQ_BES` + a third gate arm, with the fixed pad constant as the area and **no wire field** (Rev 2 banner explains why); the lattice-electrode area is `OI-MMSOCK-10`'s. *Was:* **BES/tACS has no declared electrode area and no fail-closed geometry gate** (§3.6.1). Take Class C change C-1 (§5.3) and add `electrode_area_mcm2` to `np_mod_bes_tacs_params_t` (wire v4, `REQ-FWHUB-10`). SW-01 review required. Recommended **now**, independent of P-2, because the stim HAL (`OI-STIM-01`) must route to T1-B pods and makes the gap live without any wire change | FW (SW-01 + SW-02) + Safety | **Before `OI-STIM-01` routes any BES/tACS output to a lattice electrode** |
 | **`OI-MMSOCK-03`** | The module inventory carries no electrode **contact area**, so the Class B cross-check of §5.2 item 3 has nothing to compare against. Needs an inventory field (UID-reported, NVRAM blob version bump) once pod geometry is fixed (`OI-HEXTILE-05`) | FW + HW | P-2 |
 | **`OI-MMSOCK-04`** | Superposed DC + AC waveforms (oscillating tDCS): if wanted, define them as one channel and decide their waveform class for DI-SAFE-01 (§3.5, C-3) | Principal + Safety | Any superposed-waveform protocol |
 | **`OI-MMSOCK-05`** | **Optically-induced artifact at a co-sited electrode is unmeasured.** Extend `SH2-DRC-16` so its setup includes a T1-B driving its own emitters while recording on its own electrode, and add a closed-loop self-artifact check: with the PBM envelope at *f*, adaptation keyed to the band containing *f* must not move (§3.2) | EE + FW + V&V | Claiming EEG-adaptive closed loop at T1-B sites |
 | **`OI-MMSOCK-06`** | Measure pod-local temperature with tES and PBM co-driven at the worst authored T1-B case, and state the NTC's position relative to the pod (§3.3 (a)) | Thermal + HW | P-4 |
 | **`OI-MMSOCK-07`** | **Route `RISK-MMSOCK-05` to `NP-RISK-003`**: N1 (24 V) to N4 (`ELEC`) insulation on a T1-B tile, with a scalp contact on N4. Needs a creepage/insulation requirement on the T1-B FPC and a hazard score; `NP-HW-HEXTILE-001` §4.5 (T1-B) is the owning layout | Safety + HW | T1-B layout (`OI-HEXTILE-05`; T1-B is out of `NP-HW-HEXTILE-001`'s current scope, §4.5) |
 | **`OI-MMSOCK-08`** | `.npps` tACS `intensity` — peak or peak-to-peak — is not stated in `NP-NPPS-REF-001`, and it halves or doubles §3.6.2's phase-charge table. It also matters today, for the MCU's per-phase check on pads | FW + App | Correctness of every per-phase figure |
-| **`OI-MMSOCK-09`** | **Electrodes per tile, for co-drive rather than density (§3.8, P-6).** Linked to `NP-HW-EEGNET-001` `OI-EEGNET-19` (electrodes per tile) and `OI-EEGNET-20` (socket contact count in the MECH-2 force study), which it adds a second motive to: those items ask for density; this one asks for one recording-only pad beside one dual-rated pad. Two questions the density study does not carry: (a) the recommended split is one dual-rated + one recording-only, which holds the safety-MCU stimulation channel count flat; (b) **the stimulation artifact at a recording pad 20–29 mm from a pad carrying up to 2 mA is unmeasured** — whether it saturates the ADS1299 decides whether the second pad buys anything. Does **not** affect `OI-MMSOCK-01` or `-02` | Systems + ME + EE | **Socket tooling (`OI-SHELL2-09(i)`)** — the contact count is permanent after it |
+| **`OI-MMSOCK-09`** | **DECIDED 2026-09-23 (P-6): two electrodes per T1-B, one recording-only, one dual-rated.** Stays open only for (b), the unmeasured artifact at the recording pad; the contact-count change is `OI-MMSOCK-12`. *Was:* **Electrodes per tile, for co-drive rather than density (§3.8, P-6).** Linked to `NP-HW-EEGNET-001` `OI-EEGNET-19` (electrodes per tile) and `OI-EEGNET-20` (socket contact count in the MECH-2 force study), which it adds a second motive to: those items ask for density; this one asks for one recording-only pad beside one dual-rated pad. Two questions the density study does not carry: (a) the recommended split is one dual-rated + one recording-only, which holds the safety-MCU stimulation channel count flat; (b) **the stimulation artifact at a recording pad 20–29 mm from a pad carrying up to 2 mA is unmeasured** — whether it saturates the ADS1299 decides whether the second pad buys anything. Does **not** affect `OI-MMSOCK-01` or `-02` | Systems + ME + EE | **Socket tooling (`OI-SHELL2-09(i)`)** — the contact count is permanent after it |
+| **`OI-MMSOCK-10`** | **Build P-2: a tES socket target, scoped by P-1 to tACS on a T1-B's dual-rated pad.** §5.1 option A (two disjoint bitmaps, wire v4, `NP_HUB_PROTO_TARGET_MAX` 16 → 32), **plus the electrode area of the targeted pad** — the first case where BES/tACS runs on something other than the fixed pad, and therefore where an area must travel with the command rather than come from `NP_BES_ELECTRODE_AREA_MCM2`. Needs `OI-MMSOCK-03` (contact area in the inventory) and `OI-HEXTILE-05` (pod geometry). Hub and app only; the Class C gate it needs is already built | FW + App | P-4 in practice; any tACS at a lattice electrode |
+| **`OI-MMSOCK-11`** | **P-1 puts T1 tES on pads outside the lattice, and no such hardware is specified anywhere.** N4 is the only electrode network in the helmet (`NP-DRV-SHELL-002` §3.5) and `NP-ART-001` lists no pad, harness or connection point for T1 tES. Register it as an artifact, decide where the pads connect (hub accessory port, as cervical VNS does, is the precedent), and specify it — the measured pad area it produces is what closes `OI-CHARGE-07`'s BES limb | Systems + ME + EE | **Any T1 tES session on shipping hardware** |
+| **`OI-MMSOCK-12`** | **Propagate P-1 and P-6 to the documents that own them** — not done here, because each is another owner's controlled document: `NP-HEX-ZM-001` §4a (T1-B = one recording electrode + one dual-rated; T1 tES on pads); `NP-HW-EEGNET-001` §0 and `OI-EEGNET-19` (answered: two, one dual-rated); `NP-HW-HEXTILE-001` §7.2 and `NP-DRV-SHELL-002` §5.1.4 (socket 19 → 20 contacts with a shared shield, which is `OI-EEGNET-20`'s force study); `NP-DRV-SHELL-002` §3.5 (per-cluster electrode mux width) | Systems + ME + EE | **Socket tooling (`OI-SHELL2-09(i)`)** |
 
 ---
 
@@ -652,8 +685,23 @@ is unchanged — it already says what the tests now pin.
 
 ---
 
+### 11.1 Rev 2 — C-1 (P-5) and the area hand-off
+
+| Where | Change |
+|---|---|
+| Class C — `firmware/common/include/np_spi_wire_types.h` | `NP_SESSION_STATUS_GEOM_REQ_BES` = bit 4 (bits 4–7 were unused) |
+| Class C — `firmware/safety_mcu/` | `geom_required_bes` in the state; decoded in `np_safety_main.c`; third arm of `np_charge_monitor_geom_gate()`; a channel-5 area opens it; cleared per session |
+| Class B — `firmware/hub_control/` | fifth flag in `np_safety_session_status_bits()`; `np_safety_spi_set_geom_required_bes()`; the runner's geometry scan extracted to `src/np_chan_decl.c`, which arms the BES gate and **sends every area it computes** |
+| Tests | `np_charge_monitor_tests` +2 cases, `np_safety_spi_proto_tests` +1, `np_cvns_reenable_tests` +3, new `np_chan_decl_tests` (Class B 31 → 32, total 39 → 40). Four mutations — the old send rule, BES arming removed, the Class C gate line removed, the area never opening it — each fail the suite |
+| CI | test counts in `build-all.yml` and `firmware-cross-build.yml` |
+
+**Not changed:** the enable word, the heartbeat frame layout, the wire format, any app, any protocol file.
+Both processors cross-compile on arm-none-eabi-gcc 13.2.1. `test_pbm_on_t1b_admitted`'s comment now cites
+P-3 as decided.
+
 ## 12. Revision history
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 2 | 2026-09-23 | NeurOne Firmware Engineering | **P-1…P-6 accepted by the principal as recommended; P-5 built.** Class C change C-1 — `NP_SESSION_STATUS_GEOM_REQ_BES` and a third geometry-gate arm — implemented and **pending SW-01 review**, taking the BES area from the fixed pad constant rather than an authored wire field, because `OI-CHARGE-07` makes a fixed part's area a device property and P-1 keeps T1 tES on pads. Building it found the runner sent electrode areas only in sessions with tDCS or HD-tDCS, so a VNS-only session was enforced 50× looser than designed — fixed (`NP-FW-HUB-001` Rev 3). §3.6.1's description of the BES default corrected in the banner, not rewritten. `OI-MMSOCK-01` closed; `-02` implemented; `-09` decided; new `-10` (build the tACS socket target), **`-11` (no T1 tES pad hardware exists)**, `-12` (propagate P-1/P-6 before socket tooling). §11.1 lists the code. |
 | 1 | 2026-09-23 | NeurOne Firmware Engineering | **Initial issue.** Answers which modality combinations may share one hex-tile socket by reducing the socket to two physical lanes — optical and one `ELEC` conductor (§2). **Verdicts:** multi-wavelength PBM supported; PBM + EEG and PBM + tES at a T1-B **recommended allow** (no traced hazard; tES adds ≤ 40 mW against ≥ 1.3 W of LED heat); EEG + tES on one electrode and two electrical channels on one electrode **must not**, each traced (ADS1299 full scale and REQ-EMI-08; per-channel ceilings cannot see a superposition). **Two findings larger than the question:** the BES/tACS channel has **no geometry gate** and would enforce a ≤ 1.02 cm² pod against the 25 cm² default, **24.5× fail-open** (`OI-MMSOCK-02`, Class C change C-1 recommended now); and **no T1-B pod can carry any of the 14 shipped tDCS protocols** under DI-SAFE-01 — 8.0–24.0 cm² needed, 9 of 14 more than a whole tile face (`OI-MMSOCK-01`, principal). Specifies, without building, a per-(socket, lane) record that makes both must-nots unrepresentable, lane-scoped enable ownership, a two-bitmap tES target (wire v4) and a Class B area cross-check; states the SW-01 review scope (C-1…C-4; no enable-word or frame-layout change). No SHDR field added. Code: two test additions and one comment — no behaviour change. Five questions put to the principal (P-1…P-5); eight open items; six risk rows. **Amended within the same unmerged change (2026-09-23):** new §3.8 — more electrodes per tile: it moves §3.4's must-not from the socket to the electrode and resolves §3.5 across electrodes, but fixes neither §3.6 finding (four pods total 4.08 cm² against the library's smallest 8.0 cm²); recommends two electrodes, one dual-rated, if co-sited record-and-stimulate is wanted; P-6 and `OI-MMSOCK-09`, linked to `OI-EEGNET-19`/`-20`. Rev 1 is issued once, describing what merges. |

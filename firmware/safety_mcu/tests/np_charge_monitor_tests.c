@@ -698,6 +698,78 @@ static void test_tdcs_geom_gate_rearms_each_session(void)
           "tdcs geom gate: re-armed after reset_session (blocks until re-declared)");
 }
 
+/* ── OI-MMSOCK-02 (NP-FW-MMSOCK-001 §3.6.1, §5.3 C-1): the BES/tACS gate ──── */
+
+/* Fail-closed until declared, and the DECLARED area — not the 25 cm² fallback
+ * — sets the per-phase ceiling.  A 1 cm² lattice electrode is 1000 mcm² →
+ * 40 µC ceiling = 40,000 nC.  1 mA sine at 5 Hz: phase 100 ms, the monitor
+ * charges 1000 µA × 100,000 µs / 1000 = 100,000 nC (it treats the commanded
+ * amplitude as a rectangular phase — the conservative reading).  That passes
+ * the 25 cm² fallback (1,000,000 nC) and must trip the declared 1 cm²; that
+ * gap is exactly the ~24x fail-open this gate closes.                       */
+static void test_bes_geom_gate_blocks_until_applied(void)
+{
+    uint16_t cur[NP_SAFETY_MAX_CHANNELS];
+    np_charge_monitor_reset_session(NULL);
+
+    np_safety_state_t s = fresh_state();
+    s.geom_required_bes = true;
+    np_charge_monitor_geom_gate(&s);
+    check((s.granted_mask & (1U << NP_SAFETY_CH_BES_IDX)) == 0U,
+          "bes geom gate: BES_TACS blocked when required and not applied (fail-closed)");
+    check((s.granted_mask & (1U << NP_SAFETY_CH_TDCS_IDX)) != 0U &&
+          (s.granted_mask & (1U << NP_SAFETY_CH_CLIN_STIM_IDX)) != 0U,
+          "bes geom gate: TDCS and CLIN_STIM unaffected by the BES gate");
+
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_BES_IDX, 1000U);
+    np_safety_state_t s2 = fresh_state();
+    s2.geom_required_bes = true;
+    np_charge_monitor_geom_gate(&s2);
+    check((s2.granted_mask & (1U << NP_SAFETY_CH_BES_IDX)) != 0U,
+          "bes geom gate: BES_TACS granted after declared area applied");
+
+    np_charge_monitor_set_channel_waveform(NP_SAFETY_CH_BES_IDX,
+                                           NP_CHARGE_WAVE_PULSE, 100000UL);
+    one_current(cur, NP_SAFETY_CH_BES_IDX, 1000U);
+    np_charge_monitor_phase_tick(&s2, cur, NP_SAFETY_MAX_CHANNELS);
+    check((s2.granted_mask & (1U << NP_SAFETY_CH_BES_IDX)) == 0U,
+          "bes geom gate: 1 mA / 100 ms phase trips a declared 1 cm² electrode "
+          "(it would pass the 25 cm² fallback)");
+}
+
+static void test_bes_geom_gate_independent_and_rearms(void)
+{
+    /* Not required → never blocks, even with no area: a session with no
+     * BES/tACS command must not be affected by the gate's existence.      */
+    np_charge_monitor_reset_session(NULL);
+    np_safety_state_t s = fresh_state();
+    s.geom_required_bes = false;
+    np_charge_monitor_geom_gate(&s);
+    check((s.granted_mask & (1U << NP_SAFETY_CH_BES_IDX)) != 0U,
+          "bes geom gate: BES_TACS not blocked when not required");
+
+    /* A tDCS declaration does not open the BES gate, and vice versa.     */
+    np_charge_monitor_reset_session(NULL);
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_TDCS_IDX, 35000U);
+    np_safety_state_t s2 = fresh_state();
+    s2.geom_required_tdcs = true;
+    s2.geom_required_bes  = true;
+    np_charge_monitor_geom_gate(&s2);
+    check((s2.granted_mask & (1U << NP_SAFETY_CH_TDCS_IDX)) != 0U &&
+          (s2.granted_mask & (1U << NP_SAFETY_CH_BES_IDX)) == 0U,
+          "bes geom gate: a tDCS area does not open the BES gate");
+
+    /* Re-armed per session. */
+    np_charge_monitor_reset_session(NULL);
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_BES_IDX, 25000U);
+    np_charge_monitor_reset_session(NULL);
+    np_safety_state_t s3 = fresh_state();
+    s3.geom_required_bes = true;
+    np_charge_monitor_geom_gate(&s3);
+    check((s3.granted_mask & (1U << NP_SAFETY_CH_BES_IDX)) == 0U,
+          "bes geom gate: re-armed after reset_session (blocks until re-declared)");
+}
+
 /* The declared phase duration is clamped, so a malformed or hostile value
  * cannot overflow the per-phase arithmetic. */
 static void test_phase_clamped(void)
@@ -749,6 +821,8 @@ int main(void)
     test_tdcs_geom_gate_blocks_until_applied();
     test_geom_gates_are_independent();
     test_tdcs_geom_gate_rearms_each_session();
+    test_bes_geom_gate_blocks_until_applied();
+    test_bes_geom_gate_independent_and_rearms();
     test_phase_clamped();
 
     printf("=== %d failure(s) ===\n", g_failures);

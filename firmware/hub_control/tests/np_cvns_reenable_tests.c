@@ -446,39 +446,39 @@ static void test_new_cutoff_during_impedance_restarts(void)
 static void test_session_status_bits(void)
 {
     /* Regression: RUNNING (=3) must map to ACTIVE only — never CVNS_REENABLE */
-    check(np_safety_session_status_bits(NP_SESSION_RUNNING, false, false, false)
+    check(np_safety_session_status_bits(NP_SESSION_RUNNING, false, false, false, false)
               == NP_SESSION_STATUS_ACTIVE,
           "bits: RUNNING → ACTIVE only (enum-cast regression)");
 
     /* Regression: PAUSED (=4) must not assert GEOM_REQUIRED */
-    check(np_safety_session_status_bits(NP_SESSION_PAUSED, false, false, false)
+    check(np_safety_session_status_bits(NP_SESSION_PAUSED, false, false, false, false)
               == NP_SESSION_STATUS_ACTIVE,
           "bits: PAUSED → ACTIVE only (no spurious GEOM_REQUIRED)");
 
-    check(np_safety_session_status_bits(NP_SESSION_STOPPING, false, false, false)
+    check(np_safety_session_status_bits(NP_SESSION_STOPPING, false, false, false, false)
               == NP_SESSION_STATUS_ACTIVE,
           "bits: STOPPING → ACTIVE (ramp-down still in session)");
 
     /* Non-session states carry no ACTIVE bit */
-    check(np_safety_session_status_bits(NP_SESSION_IDLE, false, false, false) == 0U,
+    check(np_safety_session_status_bits(NP_SESSION_IDLE, false, false, false, false) == 0U,
           "bits: IDLE → 0");
-    check(np_safety_session_status_bits(NP_SESSION_LOADING, false, false, false) == 0U,
+    check(np_safety_session_status_bits(NP_SESSION_LOADING, false, false, false, false) == 0U,
           "bits: LOADING → 0 (no premature session_active)");
-    check(np_safety_session_status_bits(NP_SESSION_VERIFYING, false, false, false) == 0U,
+    check(np_safety_session_status_bits(NP_SESSION_VERIFYING, false, false, false, false) == 0U,
           "bits: VERIFYING → 0");
-    check(np_safety_session_status_bits(NP_SESSION_COMPLETE, false, false, false) == 0U,
+    check(np_safety_session_status_bits(NP_SESSION_COMPLETE, false, false, false, false) == 0U,
           "bits: COMPLETE → 0");
-    check(np_safety_session_status_bits(NP_SESSION_FAULT, false, false, false) == 0U,
+    check(np_safety_session_status_bits(NP_SESSION_FAULT, false, false, false, false) == 0U,
           "bits: FAULT → 0");
 
     /* Flag bits OR in independently */
-    check(np_safety_session_status_bits(NP_SESSION_RUNNING, false, true, false)
+    check(np_safety_session_status_bits(NP_SESSION_RUNNING, false, true, false, false)
               == (NP_SESSION_STATUS_ACTIVE | NP_SESSION_STATUS_CVNS_REENABLE),
           "bits: cvns flag ORs in CVNS_REENABLE");
-    check(np_safety_session_status_bits(NP_SESSION_RUNNING, true, false, false)
+    check(np_safety_session_status_bits(NP_SESSION_RUNNING, true, false, false, false)
               == (NP_SESSION_STATUS_ACTIVE | NP_SESSION_STATUS_GEOM_REQUIRED),
           "bits: geom flag ORs in GEOM_REQUIRED");
-    check(np_safety_session_status_bits(NP_SESSION_RUNNING, true, true, false)
+    check(np_safety_session_status_bits(NP_SESSION_RUNNING, true, true, false, false)
               == (NP_SESSION_STATUS_ACTIVE | NP_SESSION_STATUS_CVNS_REENABLE |
                   NP_SESSION_STATUS_GEOM_REQUIRED),
           "bits: all three bits combine");
@@ -486,17 +486,29 @@ static void test_session_status_bits(void)
     /* OI-CHARGE-04: the tDCS geometry flag is its own bit and is independent
      * of the CLIN_STIM one — declaring tDCS geometry must not assert (or
      * clear) GEOM_REQUIRED, which is what would gate clinical tACS off. */
-    check(np_safety_session_status_bits(NP_SESSION_RUNNING, false, false, true)
+    check(np_safety_session_status_bits(NP_SESSION_RUNNING, false, false, true, false)
               == (NP_SESSION_STATUS_ACTIVE | NP_SESSION_STATUS_GEOM_REQ_TDCS),
           "bits: tdcs geom flag ORs in GEOM_REQ_TDCS and nothing else");
-    check(np_safety_session_status_bits(NP_SESSION_RUNNING, true, true, true)
+    check(np_safety_session_status_bits(NP_SESSION_RUNNING, true, true, true, false)
               == (NP_SESSION_STATUS_ACTIVE | NP_SESSION_STATUS_CVNS_REENABLE |
                   NP_SESSION_STATUS_GEOM_REQUIRED |
                   NP_SESSION_STATUS_GEOM_REQ_TDCS),
           "bits: all four bits combine");
-    check(np_safety_session_status_bits(NP_SESSION_PAUSED, false, false, false)
+    check(np_safety_session_status_bits(NP_SESSION_PAUSED, false, false, false, false)
               == NP_SESSION_STATUS_ACTIVE,
           "bits: PAUSED (=4) → ACTIVE only (no spurious GEOM_REQ_TDCS either)");
+
+    /* OI-MMSOCK-02: the BES/tACS geometry flag is a fifth, independent bit. */
+    check(np_safety_session_status_bits(NP_SESSION_RUNNING, false, false, false, true)
+              == (NP_SESSION_STATUS_ACTIVE | NP_SESSION_STATUS_GEOM_REQ_BES),
+          "bits: bes geom flag ORs in GEOM_REQ_BES and nothing else");
+    check(np_safety_session_status_bits(NP_SESSION_RUNNING, true, true, true, true)
+              == (NP_SESSION_STATUS_ACTIVE | NP_SESSION_STATUS_CVNS_REENABLE |
+                  NP_SESSION_STATUS_GEOM_REQUIRED | NP_SESSION_STATUS_GEOM_REQ_TDCS |
+                  NP_SESSION_STATUS_GEOM_REQ_BES),
+          "bits: all five bits combine");
+    check(NP_SESSION_STATUS_GEOM_REQ_BES == (1U << 4),
+          "bits: GEOM_REQ_BES is bit 4 (wire contract)");
 
     /* Wire-contract constants match the safety MCU side */
     check(NP_SESSION_STATUS_ACTIVE == (1U << 0),

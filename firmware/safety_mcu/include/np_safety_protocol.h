@@ -275,6 +275,9 @@ typedef struct {
     bool     geom_required_tdcs; /* OI-CHARGE-04: hub declared this session needs an
                                 * electrode-geometry declaration on TDCS (from
                                 * heartbeat NP_SESSION_STATUS_GEOM_REQ_TDCS bit)  */
+    bool     geom_required_bes; /* OI-MMSOCK-02: hub declared this session needs an
+                                * electrode-geometry declaration on BES_TACS (from
+                                * heartbeat NP_SESSION_STATUS_GEOM_REQ_BES bit)   */
 } np_safety_state_t;
 
 /* np_safety_sig_cmd_t, NP_SAFETY_CMD_MAGIC_0/1, NP_SAFETY_CMD_SESSION_SIG,

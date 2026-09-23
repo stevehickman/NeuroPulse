@@ -752,6 +752,20 @@ static void test_geom_required_session_status_bit(void)
           "GEOM_REQUIRED recoverable when all three bits set");
 }
 
+/* ── OI-MMSOCK-02: the BES/tACS geometry bit takes spare bit 4 ─────────────── */
+
+static void test_geom_req_bes_session_status_bit(void)
+{
+    check(NP_SESSION_STATUS_GEOM_REQ_BES == (1U << 4),
+          "NP_SESSION_STATUS_GEOM_REQ_BES == bit 4");
+    uint8_t others = (uint8_t)(NP_SESSION_STATUS_ACTIVE |
+                               NP_SESSION_STATUS_CVNS_REENABLE |
+                               NP_SESSION_STATUS_GEOM_REQUIRED |
+                               NP_SESSION_STATUS_GEOM_REQ_TDCS);
+    check((NP_SESSION_STATUS_GEOM_REQ_BES & others) == 0U,
+          "GEOM_REQ_BES overlaps no existing session_status bit");
+}
+
 /* ── Main ───────────────────────────────────────────────────────────────────── */
 
 int main(void)
@@ -770,6 +784,7 @@ int main(void)
     /* NP-HW-HUB-001 Rev 3 §7.2 — cranial enable collapse + hub agreement */
     test_enable_word_layout();
     test_enable_word_matches_hub();
+    test_geom_req_bes_session_status_bit();
 
     /* OI-CHARGE-01 — extended heartbeat frame tests */
     test_ext_frame_sizes();

@@ -59,7 +59,8 @@
 static inline uint8_t np_safety_session_status_bits(np_session_state_t state,
                                                     bool geom_required,
                                                     bool cvns_reenable,
-                                                    bool geom_required_tdcs)
+                                                    bool geom_required_tdcs,
+                                                    bool geom_required_bes)
 {
     uint8_t bits = 0U;
     if (state == NP_SESSION_RUNNING ||
@@ -75,6 +76,9 @@ static inline uint8_t np_safety_session_status_bits(np_session_state_t state,
     }
     if (geom_required_tdcs) {
         bits |= (uint8_t)NP_SESSION_STATUS_GEOM_REQ_TDCS;
+    }
+    if (geom_required_bes) {
+        bits |= (uint8_t)NP_SESSION_STATUS_GEOM_REQ_BES;
     }
     return bits;
 }
@@ -143,6 +147,20 @@ void np_safety_spi_set_geom_required(bool required);
  * np_safety_spi_disable_all()).
  */
 void np_safety_spi_set_geom_required_tdcs(bool required);
+
+/*
+ * np_safety_spi_set_geom_required_bes — the OI-MMSOCK-02 counterpart for the
+ * BES/tACS channel (NP-FW-MMSOCK-001 §5.3 C-1).  While set, every heartbeat
+ * carries NP_SESSION_STATUS_GEOM_REQ_BES and the safety MCU keeps BES_TACS out
+ * of granted_mask until it has applied a valid electrode-area command for
+ * NP_SAFETY_CH_BES_TACS.  Without it BES/tACS is checked against the 25 cm²
+ * fallback, ~24x permissive for a T1-B lattice electrode.
+ *
+ * Set for EVERY session containing a BES/tACS command, including one that
+ * declares no area.  Cleared on session end/abort and by
+ * np_safety_spi_disable_all().
+ */
+void np_safety_spi_set_geom_required_bes(bool required);
 
 /*
  * np_safety_spi_set_cvns_reenable — assert (or clear) the CVNS re-enable bit

@@ -20,6 +20,8 @@ static volatile uint8_t  s_mcu_status     = NP_SAFETY_STATUS_OK;
 static volatile bool     s_geom_required  = false;
 /* OI-CHARGE-04: independent of s_geom_required — see np_safety_spi.h. */
 static volatile bool     s_geom_required_tdcs = false;
+/* OI-MMSOCK-02: independent of both — see np_safety_spi.h. */
+static volatile bool     s_geom_required_bes = false;
 /* OI-CVNS-HUB-01: mirrored from np_cvns_reenable_bit_active() by the heartbeat
  * task each beat.  True only while the re-enable state machine is ASSERTING
  * (all three gates passed).  Every heartbeat then carries
@@ -87,6 +89,7 @@ np_hub_status_t np_safety_spi_init(void)
     s_mcu_status     = NP_SAFETY_STATUS_OK;
     s_geom_required  = false;
     s_geom_required_tdcs = false;
+    s_geom_required_bes  = false;
     s_cvns_reenable  = false;
     s_cvns_imp_valid = false;
     for (uint8_t e = 0U; e < NP_SAFETY_IMP_CVNS_ELECTRODES; e++) {
@@ -176,7 +179,8 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
     tx.session_status = np_safety_session_status_bits(session_state,
                                                       s_geom_required,
                                                       s_cvns_reenable,
-                                                      s_geom_required_tdcs);
+                                                      s_geom_required_tdcs,
+                                                      s_geom_required_bes);
     tx.enable_lo     = (uint8_t)(requested_enable_mask & 0xFFU);
     tx.enable_hi     = (uint8_t)((requested_enable_mask >> 8) & 0xFFU);
 
@@ -389,6 +393,13 @@ void np_safety_spi_set_geom_required_tdcs(bool required)
     taskEXIT_CRITICAL();
 }
 
+void np_safety_spi_set_geom_required_bes(bool required)
+{
+    taskENTER_CRITICAL();
+    s_geom_required_bes = required;
+    taskEXIT_CRITICAL();
+}
+
 void np_safety_spi_set_cvns_reenable(bool active)
 {
     taskENTER_CRITICAL();
@@ -416,6 +427,7 @@ void np_safety_spi_disable_all(void)
     s_requested_mask = 0U;
     s_geom_required  = false;   /* OI-CHARGE-03:   clear the geometry flag on abort/end */
     s_geom_required_tdcs = false; /* OI-CHARGE-04: same, for the tDCS channel        */
+    s_geom_required_bes  = false; /* OI-MMSOCK-02: same, for the BES/tACS channel    */
     s_cvns_reenable  = false;   /* OI-CVNS-HUB-01: never let a re-enable outlive a session */
     taskEXIT_CRITICAL();
 }
