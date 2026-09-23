@@ -205,6 +205,10 @@ export type SinkOpts = {
   /** Bolt a heatsink to the shell at the occipital arch (the §1b test).
    *  `rHub` is its own resistance to ambient, K/W; 0 = a perfect one. */
   hubSink?: { rHub: number; gContact?: number };
+  /** Override the C -> X leg (m^2K/W). Default R_SOLID_OUT, the as-was stack
+   *  with the absorber in it. check-thermal-bowl.ts passes the post-deletion
+   *  shell-only value (REQ-CAV-04, 2026-09-23) — OI-EMCCAV-07. */
+  rCX?: number;
 };
 
 /** Socket whose exterior skin the occipital hub would bolt to. */
@@ -272,7 +276,7 @@ export function steadySink(qTile: number[], o: SinkOpts = {}): SinkField {
     link(NF(i), NS(i), A / R_FS);
     toRes(NS(i), A / R_SC, T_CORE);
     link(NJ(i), NC(i), A / R_GAP_STAGNANT);
-    link(NC(i), NX(i), A / (o.r1Compat ? R_CAV_AMB : R_SOLID_OUT));
+    link(NC(i), NX(i), A / (o.r1Compat ? R_CAV_AMB : (o.rCX ?? R_SOLID_OUT)));
     link(NJ(i), NX(i), A / R_VIA);
     if (!o.perfectSink && !o.r1Compat) toRes(NX(i), gXA, amb);
     b[NJ(i)] += qTile[i];
