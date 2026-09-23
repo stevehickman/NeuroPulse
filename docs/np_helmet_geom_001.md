@@ -22,6 +22,7 @@ shell), `CLAUDE.md` §4.2 (interlocks/thermal), §4.3 (EMF stack), §4.5 (power/
 | **Geometry basis** | **Offset outward** from the scan-grounded inner datum (np_hex_zm_001 §3.4). No re-derivation of the inner surface. | Principal, Q4 |
 | **Ear cups** | **Separate rim-mounted subassembly.** Vault stack terminates at the ear boundary already excluded from the lattice. | Principal, Q3 |
 | **Reconciliation** | This stack **is** the committed two-nested-bowl shell (np_hex_zm_001 §5). Inner bowl = L1; outer bowl = L2+L3. No architectural conflict; this brief adds the L0 sealing detail and the full radial/material/MTBF treatment. | This doc |
+| **Layer 4 station (2026-09-23)** | **DELETED, with the 3 mm outer-bowl re-loft BINDING** (`REQ-CAV-04`). The L2 absorber station (3.0 mm ±0.5) is removed and the outer bowl moves 3 mm inward; radial total **~30–35 → ~27–32 mm**, outward thermal path 0.410 → 0.335 m²K/W. The Gap and L1 do not move. §2 carries the struck row | Principal, GitHub #391; `NP-EMC-CAV-001` §8.2 |
 
 **Governing environmental envelope (all layers):** split into two distinct envelopes in **NP-ENV-001**
 — a **survival/warranty (non-degradation)** envelope (**committed target −20/+60 °C**, qualified −30/+70,
@@ -67,12 +68,12 @@ tooling DFM.
 | | Cluster-clamp + lever features (outer face) | 3.0–4.0 | ±0.3 | One actuator per 7-hex cluster, gap-facing |
 | | **L1 subtotal** | **~18–22** | | Module body dominates |
 | **Gap** | ~~Inter-bowl clamp travel~~ ~~+ blind-mate boss~~ ~~+ fluxgates~~ — **closed-state lever footprint + labyrinth lip ONLY** | 5–7 **— UNDER REVIEW, and the floor is now much lower** | ±0.5 | Where cluster clamps and the sensor/coil connector live. **⚠ CORRECTED 2026-09-20 by FLUSH-1 (`NP-HEX-ZM-001` §5.4a):** *travel* is **not** an assembled-state requirement — §5.2 reaches the levers *"by unclamping the bowls"*, so the throw is a bowls-OPEN volume. The 5–7 mm was never derived; what sets it is the **closed** lever footprint, the labyrinth lip, the fluxgates, and the boss — and the boss is a **standalone posterior-center feature** (§5.3c), so it constrains the gap **locally**, not across the vault. **Two further contributors have since left this list.** **`BOSS-1`** (principal, 2026-09-20, `NP-HEX-ZM-001` §5.3(c)) projects the blind-mate boss **OUTWARD** as a local emboss, so it no longer sets the Gap; and the **fluxgates were never in it** — they sit in the inner-bowl socket-wall station above (`NP-EMC-CAV-001` §8.6.1; a contradicting claim in `completed-decisions.md` §221 is `OI-EMCCAV-11`). **⚠ But a contributor was MISSING from this row all along:** `NP-DRV-SHELL-002` §4.1 puts the **18 cluster controller boards** on L1's **gap-facing** face, and they — not the lever — set the floor. From the package types that document names, the closed-state stack is **2.75–3.45 mm** (`NP-EMC-CAV-001` §8.7), so **what remains is the controller boards, the closed lever footprint and the labyrinth lip.** **At 0.0385 m²K/W per mm this is the largest unclaimed thermal lever in the set** (`NP-EMC-CAV-001` §8.5). Re-derive under `MECH-2` |
-| **L2** | Carbon-loaded absorber foam (EMF L4) | 3.0 | ±0.5 | ~~Cavity-resonance suppression~~ — **`NP-EMC-CAV-001` §6 refutes that justification** (`REQ-CAV-02` needs 26.2 dB over 420 MHz – 3 GHz; this station supplies 0.26 dB). **`REQ-CAV-04` recommends DELETING this 3.0 mm station, with the 3 mm re-loft of the outer bowl BINDING** — vacating it without re-lofting fills it with stagnant air (54 % worse per mm), outward path 0.410 → 0.450; with the re-loft, 0.335, and the radial total goes **30–35 → 27–32 mm**. Not executed; `OI-EMCCAV-08` (`MECH-2`) must first confirm the cluster clamps take up the tolerance stack without it, else a thin ceramic pad (`REQ-CAV-03`) returns here |
+| **L2** | ~~Carbon-loaded absorber foam (EMF L4)~~ **— STATION DELETED 2026-09-23** | ~~3.0~~ **0** | ~~±0.5~~ | **`REQ-CAV-04` taken (principal, GitHub #391).** Its justification (*cavity-resonance suppression*) was refuted by `NP-EMC-CAV-001` §6: `REQ-CAV-02` needs 26.2 dB over 420 MHz – 3 GHz, this station supplied 0.26 dB, and the wearer's head supplies 49.8 dB. **The 3 mm re-loft of the outer bowl is BINDING with the deletion** — the Pd liner and everything outboard move 3 mm inward together, so this station is **closed, not vacated** (vacated, it would fill with stagnant air, 54 % worse per mm: outward path 0.410 → 0.450; re-lofted, **0.335**). The Gap is unchanged and L1 does not move; the cluster clamp now reacts against rigid Pd/mu-metal/CFRP, and the clamp's tolerance stack drops **±1.30 → ±0.80** (`NP-EMC-CAV-001` §8.3). **Layer number L4 is retired and held — do not renumber the port filters.** Only documented return: `OI-EMCCAV-08` (`MECH-2`) — if the spring plungers cannot cover ±0.80, a thin electrically insulating, non-magnetic ceramic-filled pad (`REQ-CAV-03`) sized by that stack |
 | | Palladium-polyester (EMF L3) | 0.1 | — | Tarnish-immune RF liner |
 | | Mu-metal 0.2 mm + PETG laminate (EMF L2) | 0.5 | ±0.1 | ELF magnetic |
 | **L3** | CFRP structural shell + RF outer (EMF L1) | 2.5 | ±0.3 | Structural **and** 30–50 dB RF — one part serves both |
-| | **L2+L3 subtotal (outer bowl)** | **~6** | | Coil formers add local thickness only |
-| | **TOTAL scalp → exterior** | **~30–35** | | Crown exterior ≈ 157 + 32 ≈ **189 mm**. **⚠ Two pending local exceptions:** the Layer 4 deletion re-lofts the outer bowl **3 mm inward globally** (`NP-EMC-CAV-001` §8.2, binding with the deletion), while **`BOSS-1`** embosses it **outward locally at the occiput centreline** by the blind-mate mating depth. Different locations; they do not conflict. The emboss must stay inside the existing Boa-arch / neck-attach volume or it becomes a new exterior feature |
+| | **L2+L3 subtotal (outer bowl)** | **~3** (was ~6 with the absorber) | | Coil formers add local thickness only |
+| | **TOTAL scalp → exterior** | **~27–32** (was ~30–35 before the 2026-09-23 Layer 4 deletion) | | Crown exterior ≈ 157 + 29 ≈ **186 mm** (was ≈ 189). **One local exception, plus the global re-loft now applied:** the Layer 4 deletion re-lofted the outer bowl **3 mm inward globally** (`NP-EMC-CAV-001` §8.2, taken 2026-09-23), while **`BOSS-1`** embosses it **outward locally at the occiput centreline** by the blind-mate mating depth. Different locations; they do not conflict. The emboss must stay inside the existing Boa-arch / neck-attach volume or it becomes a new exterior feature |
 
 **Key geometric consequences**
 - **Two user-separable interfaces, both physical seams — not shield cuts** (np_hex_zm_001
@@ -153,7 +154,7 @@ module heat pickups + molded vent paths for the peak-power configs.
 | Constraint | Requirement | Why |
 |-----------|-------------|-----|
 | Structure + impact | Primary stiffness, drop/impact protection, mounts ear cups + Boa + latches | It is the "never-opened" body |
-| RF/ELF envelope | Unbroken 5-layer stack on its inner face; 35–45 dB ELF, 40–60 dB RF combined | np_hex_zm_001 §5.1; mu-metal continuity depends on staying one bowl |
+| RF/ELF envelope | Unbroken 4-layer stack (L1–L3 on its inner face, L5 at the ports; L4 deleted 2026-09-23); 35–45 dB ELF, 40–60 dB RF combined | np_hex_zm_001 §5.1; mu-metal continuity depends on staying one bowl |
 | No rust / lifetime shielding | Corrosion-immune inner liner | **Pd-polyester** chosen over silver for tarnish immunity (permanent-shielding claim) |
 | Thermal shock / dissipate | Sink module + coil heat to ambient without cracking | 0–100 % RH, 60–110 °F |
 | TMS window (T2) | Non-conductive CFRP patch at coil site | Prevents eddy-current field loss |
@@ -163,7 +164,7 @@ module heat pickups + molded vent paths for the peak-power configs.
 nylon + full reliance on the metal EMF layers for RF — cheaper, heavier; (c) aluminum —
 excellent RF/heat but heavy, eddy issues, cost. **Lead: CFRP as specced** — the permanent
 shielding claim and weight budget depend on it; the metal EMF liners (mu-metal, Pd-polyester)
-laminate to its inner face, absorber foam inboard of those.
+laminate to its inner face. (Absorber foam inboard of those was deleted 2026-09-23, `REQ-CAV-04`; the bowl is re-lofted 3 mm inward in its place.)
 
 ---
 
@@ -192,7 +193,7 @@ Complete inventory of load-bearing features across the stack (▲ = new/refined 
 - Labyrinth rim lip (≤2.5 mm residual slot at 6 GHz) + conductive elastomer bead
 
 **Outer bowl (L2+L3)**
-- CFRP structural shell + laminated mu-metal / Pd-polyester / absorber foam
+- CFRP structural shell + laminated mu-metal / Pd-polyester (absorber foam deleted 2026-09-23, `REQ-CAV-04`)
 - Helmholtz coil formers (fixed geometry — calibration depends on it)
 - Non-conductive CFRP TMS window (T2)
 - Ear-cup rim mount interface (separate subassembly)
@@ -287,7 +288,7 @@ existing BOM tables where possible.
 
 Lead stack: **PDMS/COC L0 windows · sintered Ag/AgCl electrodes with tethered caps ·
 per-socket co-molded LSR seals + PC/LSR blanking plugs · glass-filled PBT socket layer ·
-cluster clamps + hard-gold BeCu bonds · CFRP outer bowl with the specced 5-layer stack.**
+cluster clamps + hard-gold BeCu bonds · CFRP outer bowl with the specced 4-layer stack** (Layer 4 absorber deleted 2026-09-23).
 This maximizes serviceability MTBF (failures isolated to swappable parts), holds REG-1
 registration, and preserves the permanent-shielding and non-magnetic-inner-bowl invariants,
 at a mechanical BOM consistent with the Home Standard $405 target (the CFRP outer bowl is
@@ -302,7 +303,7 @@ the single biggest mechanical line; everything inboard is low-cost polymer + LSR
 | Impermeable to liquids/solids, permeable to signals | Per-module IP seal (§3.1); optical windows pass 660–1170 nm; electrodes pass current via galvanic contact; pod-perimeter gasket seals around the conductive contact |
 | Withstand module radiation, thermal cycles/gradients, flex, food/clean | PDMS 200-cycle qual (§6.1), COC/Ag-AgCl chemical resistance, ISO 10993 + food-contact-grade cleanability (§0) |
 | Strength from material + shape + edge/inner attachment to shell | Concave shell stiffness (§1); rim latches (edge) + cluster bosses (inner, gap-sited) (§2) |
-| Three parts firm together, comfortable, damage-resistant on head | Four-corner clamp + labyrinth seal (§4); ~30–35 mm protective stack; recessed faces + bezel (§5) |
+| Three parts firm together, comfortable, damage-resistant on head | Four-corner clamp + labyrinth seal (§4); ~27–32 mm protective stack; recessed faces + bezel (§5) |
 | Modules may support rigidity, but shield damage over module damage | No shield; modules make no inboard contact; sacrificial bezel takes the hit (§5) |
 | Heat dissipation, thermal shock, no rust/crack, ≤110 °F under helmet | 42 °C scalp cap governs (< 110 °F); BN-filled thermal bosses + vents (§3.2); Pd-polyester non-corroding; CFRP/PBT thermal-shock tolerant |
 | Add-on modules: attachment + power, sockets plugged when unused | Universal hex socket + power (np_hex_zm_001); blanking plugs + tethered caps (§3.1) |

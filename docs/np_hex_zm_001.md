@@ -802,13 +802,13 @@ budget (§3).
 
 Tiling the interior removes the interior real estate the module clamp mechanism
 used to occupy — a mechanism on the tiled face would leave coverage gaps. So the
-clamp moves OFF the interior. But a mechanism that pierces the 5-layer EMF stack
+clamp moves OFF the interior. But a mechanism that pierces the EMF stack (5-layer when written; 4-layer since 2026-09-23)
 punches an aperture in the shield. The resolution is a **two-nested-bowl shell**:
 
 - **Outer bowl = the complete EMF envelope.** The full passive stack lives on its
   INNER face, unbroken: CFRP outer (30–50 dB RF) · 0.2 mm mu-metal L2 (15–25 dB
-  ELF magnetic) · palladium-polyester L3 (40–60 dB RF) · carbon-loaded absorber
-  L4. The Helmholtz cancellation coils mount here too. This bowl is NEVER opened
+  ELF magnetic) · palladium-polyester L3 (40–60 dB RF) · ~~carbon-loaded absorber
+  L4~~ (**deleted 2026-09-23**, `REQ-CAV-04`, with the bowl re-lofted 3 mm inward; number retired). The Helmholtz cancellation coils mount here too. This bowl is NEVER opened
   for a module swap.
 - **Inner bowl = the module carrier.** It holds the keyed sockets, the module
   **cluster clamps** (§5.4a — one actuator per cluster of tiles, on its OUTER,
@@ -1289,7 +1289,7 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 
 ```
    outside
- ══════════════  ← outer bowl: CFRP / mu-metal / Pd / absorber (unbroken)  +Helmholtz coils
+ ══════════════  ← outer bowl: CFRP / mu-metal / Pd (unbroken; absorber deleted)  +Helmholtz coils
         )        ← labyrinth overlap lip + conductive bead  (parting-plane seam)
    ┌─cluster─┐   ← inter-bowl gap: module cluster clamp (reached only when unclamped)
  ──────────────  ← inner bowl: sockets + fluxgate sensors

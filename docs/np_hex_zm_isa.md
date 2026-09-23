@@ -189,7 +189,7 @@ bench.
 
 ### Two-layer shell + EMF seam
 - [ ] ISC-19: Shell is two nested bowls: outer = complete EMF envelope; inner = module/socket/cluster-clamp carrier nesting inside it.
-- [ ] ISC-20: The full passive stack (CFRP, mu-metal L2, palladium L3, absorber L4) lives UNBROKEN on the outer bowl; the inner bowl carries no passive shield.
+- [ ] ISC-20: The full passive stack (CFRP, mu-metal L2, palladium L3) lives UNBROKEN on the outer bowl; the inner bowl carries no passive shield. (Absorber L4 deleted 2026-09-23, `REQ-CAV-04`; number retired.)
 - [ ] ISC-21: Module cluster clamps live in the inter-bowl gap (inner-bowl exterior face) and are reached only by unclamping the bowls — they never pierce the outer shield.
 - [ ] ISC-22: Layer clamp is a symmetric four-corner pattern (anterior L/R, posterior L/R) at the rim between ear and neck attachment zones; it brackets the front-center and back-center spans with even L/R + front/back force and flanks the forehead bridge.
 - [ ] ISC-23: Outer bowl overlaps the inner bowl rim with a labyrinth lip; residual continuous parting-plane slot ≤ λ/20 at 6 GHz (~2.5 mm).

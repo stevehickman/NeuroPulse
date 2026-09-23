@@ -19,6 +19,48 @@
 
 ## Current revision
 
+**Rev 51 (2026-09-23) — the Layer 4 absorber is deleted: `REQ-CAV-04` taken by the principal (GitHub
+#391). §1 and §4.3 now read *4-layer*. This is the change the Rev 50 correction below told a later
+reader not to make without a decision; the decision now exists.**
+
+**What changed in CLAUDE.md.** §1's founding principle reads *"4-layer EMF shielding"*. §4.3's heading
+reads *(4-layer passive + active)* and its body names the passive layers as **1, 2, 3 and 5**. The
+§4.3 note that argued for the deletion (*"Recommended, not executed"*) is replaced by one recording
+it, the binding 3 mm outer-bowl re-loft (outward thermal path 0.410 → **0.335** m²K/W; radial stack
+30–35 → **27–32 mm**), and three rules that bind from here. Two Document Map rows are reworded so they
+no longer describe Layer 4 as a live candidate. **The combined 35–45 dB ELF / 40–60 dB RF figure is
+unchanged** — Layer 4 contributed to neither — and it is still a design target (`EMF-1` has never
+run).
+
+**The three rules the note carries, and why each is there.**
+1. **Never renumber.** `NP-EMC-CAV-001` §8.2 warned that *L5 → L4* would silently repoint every
+   historical citation of "Layer 4" at the port filters. The number is retired and held.
+2. **"Five-layer keying" is a different thing.** `NP-DT-001` `DI-USE-05` / `DO-HW-01`, `NP-RISK-003`,
+   `NP-RM-001` §221 and `durability-maintenance.md` §18 describe the retired RISK-15 zone-module keying
+   scheme. They were deliberately left alone (`NP-EMC-CAV-001` §8.4's homonym trap).
+3. **The station comes back one way only.** If `MECH-2`'s spring plungers cannot take up the (now
+   ±0.80) clamp tolerance stack, `OI-EMCCAV-08` puts back a thin, **electrically insulating,
+   non-magnetic** ceramic-filled pad (`REQ-CAV-03`) sized by that stack, at ~0.355 m²K/W. Never an
+   absorber: `NP-EMC-CAV-001` §6 found there is no RF function to restore.
+
+**Carried through the document set** per `NP-EMC-CAV-001` §8.4: `hardware-detail.md` §4.3,
+`NP-EMC-CAV-001` Rev 14, `NP-BIB-EMF-001` Rev 6, `NP-HELMET-GEOM-001` §0/§2/§3.3/§4/§6.6/§7 and its
+ISA, `NP-DT-001` Rev 4 (`DI-PERF-22`), `NP-ART-001` Rev 7 (A6, `OI-ART-01`), `NP-THERM-COOL-001` Rev 13
+(`OI-THCOOL-04` closed, `OI-THCOOL-15` narrowed, `OI-THCOOL-21` raised), `NP-THERM-SINK-001`
+(`OI-SINK-07` moot), `NP-ENV-OPRANGE-001` §2 (D2's evidence sentence — substance unchanged),
+`NP-HEX-ZM-001` §5.1/§5.7 and its ISA, `NP-THERM-CFD-001`, `NP-HW-FITOVER-001`, `NP-HW-AUDIO-001`,
+`NP-PWR-THERM-001`, `NP-RM-001`, `NP-TOOL-HUB-001`, `NP-CONV-001`, `competitive-position.md`,
+`regulatory-strategy.md` and `cad/CAD_PARTS_LIST.md`.
+
+**What was deliberately NOT changed.** The thermal network scripts and the tables computed from them
+still carry the 0.410 baseline with the foam in it. That is conservative for every scalp-side
+conclusion and understates every capability figure; re-running it is analysis, not an edit, and is
+`OI-THCOOL-21`. `NP-TOOL-SHELL-001` (a generated `.docx`) is not edited: the re-loft rides the
+re-scope `OI-ART-01` already owes (GitHub #331). Historical entries in this file and in
+`completed-decisions.md` that say *5-layer* are left as written.
+
+## Earlier revisions
+
 **CORRECTION to the Rev 50 entry below (2026-09-22) — Rev 50 carries TWO changes, not one, and the
 second arrived without a revision bump. CLAUDE.md remains at Rev 50; this corrects the record, not
 the file.**
@@ -56,8 +98,6 @@ absorbs it invisibly — which is the decay this file was split out to stop. Rev
 same failure mode in the other direction (a header digest whose selection *"decayed unowned"*).
 Nothing here renumbers or rewrites `707fe2d`'s work; the correction **records** the gap rather than
 repairing it, because the change is `main`'s and its author may want to number it themselves.
-
-## Earlier revisions
 
 **Rev 50 (2026-09-21) — §18 added: a requirement must be required. One new section, mirroring
 `NP-CONV-001` §7.1; no existing invariant changed and no figure moved.**

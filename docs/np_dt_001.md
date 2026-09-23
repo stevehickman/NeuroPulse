@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-DT-001
-**Revision:** 3
-**Date:** 2026-09-15
+**Revision:** 4
+**Date:** 2026-09-23
 **Status:** DRAFT
 **Effective Date:** 2026-06-07
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -16,6 +16,8 @@
 **Parent Document:** NP-QMS-DC-001
 
 ---
+
+**Rev 4 (2026-09-23):** **DI-PERF-22 re-stated as a 4-layer passive stack** — the Layer 4 absorber is deleted (`REQ-CAV-04` taken by the principal, GitHub #391; `NP-EMC-CAV-001` §8.2), with the 3 mm outer-bowl re-loft binding. `REQ-CAV-02` is kept on the row because it still binds; it is simply met by the wearer's head. No DO or VE changes: the palladium tooling output and `VE-08` (`EMF-1`) are unaffected. `DI-USE-05` / `DO-HW-01`'s *"five-layer keying"* is the retired RISK-15 scheme and is deliberately untouched.
 
 **Rev 3 (2026-09-15):** **DI-SAFE-01 re-derived and split; DI-SAFE-01a added; new §3.2.1** (`OI-CHARGE-05` (d)). DI-SAFE-01 cited its Source as *"CLAUDE.md §4.2; NP-SW-001 SW01-M03"*; NP-SW-001 asserted the figure with no source; CLAUDE.md locked it with no source. **The chain was circular, and under 21 CFR 820.30(c) a design input whose source is the document asserting it is not yet a design input.** Tracing it found the 40 µC/cm² figure is a correct **per-phase pulsed** limit (Shannon/McCreery) that had been applied to a session-cumulative DC integral, so the input **splits** rather than being replaced: **DI-SAFE-01** is now the DC per-session ceiling (**150 mC/cm²**, derived in §3.2.1 from the conventional large-pad human tDCS envelope in `docs/tdcs_database_full.csv` with a 35× margin to Liebetanz et al. 2009's measured rat epicranial lesion threshold; **PROVISIONAL pending `OI-CHARGE-06`**), and **DI-SAFE-01a** is the per-phase pulsed ceiling (**40 µC/cm²**, unchanged in value, now carrying the citation it always should have had). Both are restated as **commanded-dose** limits rather than charge-density ones, because the monitor reads commanded current from the signed descriptor and never an ADC measurement — a distinction no design input previously drew. §5 traceability gains the DI-SAFE-01a row.
 
@@ -135,7 +137,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-PERF-19 | Performance | UHDR/SHDR separation: AES-256-XTS Argon2id-derived key; biometric/PIN input; NeurOne never holds decryption key; two-layer UKMD/WKMD wrapper | CLAUDE.md §5; NP-FW-EMMC-002 §C | High | T1+T2 |
 | DI-PERF-20 | Performance | Storage: 8 GB industrial eMMC (SLC, 30,000+ P/E cycles), 9-partition GPT layout; LittleFS; UHDR 6,903 MiB; SHDR 512 MiB; Scratch 500 MiB zeroed on boot | CLAUDE.md §4.1; NP-FW-EMMC-001 Rev 1 §4 | Medium | T1+T2 |
 | DI-PERF-21 | Performance | Dual-bank OTA firmware: Ed25519 signature verification on all images; SNVS_LPGPR0 bank flag; 9-step OTA sequence with readback; USB-C DFU recovery always available | CLAUDE.md §4.1; NP-FW-EMMC-001 Rev 1 §8 | High | T1+T2 |
-| DI-PERF-22 | Performance | EMF shielding: 5-layer passive (CFRP 30–50 dB + mu-metal 15–25 dB ELF + palladium fabric 40–60 dB RF + **absorber foam — `REQ-CAV-02`, loaded Q ≤ 20 over 420 MHz – 3 GHz (≥ 26.2 dB at resonance); this layer supplies 0.26 dB, so `REQ-CAV-04` recommends deleting the station with a BINDING 3 mm bowl re-loft — not executed, `OI-EMCCAV-08` open** + port filters) + active Helmholtz 35–45 dB ELF combined. **Every figure is a design target; none measured (`EMF-1`).** | CLAUDE.md §4.3; **`NP-EMC-CAV-001` §5, §6** | High | T1+T2 |
+| DI-PERF-22 | Performance | EMF shielding: 4-layer passive (CFRP 30–50 dB + mu-metal 15–25 dB ELF + palladium fabric 40–60 dB RF + port filters; **Layer 4 absorber foam DELETED 2026-09-23 — `REQ-CAV-04` taken, with the 3 mm outer-bowl re-loft binding; number retired, not reused.** The cavity requirement it was said to meet, `REQ-CAV-02` — loaded Q ≤ 20 over 420 MHz – 3 GHz (≥ 26.2 dB at resonance) — still binds, and is met by the wearer's head (49.8 dB), not by any layer) + active Helmholtz 35–45 dB ELF combined. **Every figure is a design target; none measured (`EMF-1`).** | CLAUDE.md §4.3; **`NP-EMC-CAV-001` §5, §6** | High | T1+T2 |
 | DI-PERF-23 | Performance | Fit system: Boa dial 10 cm range, 0.5 mm/click, 50,000-cycle; enclosed PTFE-lined cable channel; 5-position bridge; spring-decoupled electrode pods 80–120 g / ±12 mm; 1 adult SKU covers 52–62 cm | CLAUDE.md §4.4 | Medium | T1+T2 |
 | DI-PERF-24 | Performance | Zone modules: snap-in field-upgradeable hex tiles, count scales with sockets populated (not a fixed 5); user self-service swap; connector ≥1,000 insertion cycles; sliding eject lever ≤1 N extraction force. **⚠ Superseded 2026-07-28** — "5 snap-in" and the Hirose FH34S connector-per-zone assumption are retired; see `docs/superseded/np_hw_fpc_001.md`. | docs/reference/durability-maintenance.md §7.1; NP-HEX-ZM-001 | Medium | T1+T2 |
 | DI-PERF-25 | Performance | HRV biofeedback: resonance-frequency breathing pacer (default 6 BPM, personalised sweep 4–7 BPM); coherence score 0–10; 4 protocols (standalone, HRV+taVNS, HRV+EEG dual, HRV+PBM); software-only | CLAUDE.md §3 modality 6 | Medium | T1+T2 |
@@ -377,7 +379,7 @@ and its SHDR divergence flag (`OI-FMEA-07`) are the control that covers the diff
 | DI-PERF-19 | UHDR/SHDR AES-256 biometric key | DO-FW-01, DO-FW-02, DO-SW-01, DO-SW-08, DO-SW-09 | eMMC spec; priv delta UKMD/WKMD; bootloader; anon; iOS | VE-09 | Partial |
 | DI-PERF-20 | 8 GB eMMC 9-partition LittleFS | DO-FW-01, DO-SW-01 | eMMC spec Rev 1 §4; bootloader source | VE-02 | Traced |
 | DI-PERF-21 | Dual-bank OTA Ed25519 + DFU | DO-FW-01, DO-SW-01 | eMMC spec §8 9-step; bootloader source | VE-02 | Traced |
-| DI-PERF-22 | 5-layer EMF + active Helmholtz | DO-HW-06, DO-RISK-01 | Shell tooling palladium fabric; risk register RISK-10 | VE-08 | Partial |
+| DI-PERF-22 | 4-layer EMF + active Helmholtz (L4 deleted 2026-09-23) | DO-HW-06, DO-RISK-01 | Shell tooling palladium fabric; risk register RISK-10 | VE-08 | Partial |
 | DI-PERF-23 | Boa dial 50,000-cycle PTFE | DO-HW-06, DO-HW-04 | Shell tooling F-03 channel; ZM tooling | VE-08 | Partial |
 | DI-PERF-24 | Zone modules field-upgradeable Hirose FH34S | DO-HW-04, DO-HW-05, DO-FW-04, DO-SW-03 | ZM tooling RISK-22 eject lever; zone announce fw | VE-07 | Partial |
 | DI-PERF-25 | HRV biofeedback 4 protocols coherence | DO-FW-03, DO-SW-02 | HRV fw spec; source G2-12 CLOSED | VE-04 | Traced |

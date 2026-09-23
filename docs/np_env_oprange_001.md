@@ -57,7 +57,7 @@ cases C3/C4 → thermal high bounds); NP-REQ-FANHEALTH-001 (SR-FAN Class C gate)
 | **Neural audio** | −10 § | +50 § | none limiting | Comfort | none | — |
 | **Visual stim (goggle µLED)** | −10 § | +45 § | safety is IEC 62471 **MPE** (temp-independent), not ambient | Safety(optical)/eff | MPE hard; ambient SOFT | IR proximity/Hall; MPE limit |
 | **EC lens** | **+5 §**(cold switching stalls) | +50 § | bistable EC ion mobility falls cold; failsafe = clears to 75 % (safe) | Efficacy/fn | SOFT | EC transition-time monitor |
-| **Active EMF cancel (fluxgate)** | −10 § | +50 § | fluxgate temp drift degrades cancellation; passive 5-layer shield always present | Efficacy(shield) | SOFT | fluxgate/SHDR attenuation |
+| **Active EMF cancel (fluxgate)** | −10 § | +50 § | fluxgate temp drift degrades cancellation; passive 4-layer shield always present (5-layer before the 2026-09-23 Layer 4 absorber deletion, `REQ-CAV-04` — the absorber never contributed to the ELF fallback this row relies on, so the SOFT designation is unchanged) | Efficacy(shield) | SOFT | fluxgate/SHDR attenuation |
 
 \* tES safety is delivered by the charge-density/impedance interlocks (CLAUDE.md §4.2), not an ambient gate,
 so its ambient envelope is wide and soft.

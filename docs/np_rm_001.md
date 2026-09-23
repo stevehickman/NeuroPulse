@@ -181,7 +181,7 @@ The following hazard categories apply to NeurOne. Each category must be systemat
 | Electrical stimulation | Excessive current/charge density; charge imbalance; electrode loss of contact | Safety MCU hardware GPIO; 40µC/cm² hardware limit; impedance monitoring |
 | Optical / photobiological | Retinal exposure (visual LEDs, Mode F NIR); skin thermal injury (PBM scalp); IEC 62471 MPE | Hardware current limit; Hall sensor goggle lift cutoff; IR proximity; NTC thermal throttle |
 | Thermal | Scalp burn from PBM zone; battery / supercapacitor thermal runaway | NTC per zone → hardware current throttle at 62°C junction; IEC 60601-1 42°C limit |
-| Electromagnetic | EMF exposure from device operation; interference with external pacemakers/ICDs | 5-layer passive + active Helmholtz shielding; contraindication labelling |
+| Electromagnetic | EMF exposure from device operation; interference with external pacemakers/ICDs | 4-layer passive + active Helmholtz shielding (Layer 4 absorber deleted 2026-09-23, `REQ-CAV-04` — no ELF/RF attenuation claim rested on it); contraindication labelling |
 | Mechanical | Zone module ejection during use; Boa dial failure; eye goggle impact | Snap-fit detent on eject lever; Boa 50,000-cycle rating; clamshell case |
 | Biological / chemical | Skin sensitisation from silicone/PDMS; infection risk from shared intranasal probe | ISO 10993 biocompatibility; single-use hygiene sleeves; no shared electrode tips |
 | Software / cybersecurity | Malicious session protocol; unauthorised firmware; UHDR data breach | Ed25519 session signing; Ed25519 OTA firmware verification; biometric-derived UHDR key |

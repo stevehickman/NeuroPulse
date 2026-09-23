@@ -8,7 +8,7 @@
 **Effective Date:** —
 **Author:** NeurOne Thermal / Systems Engineering
 **Approved By:** — (pending design review)
-**References:** NP-THERM-CFD-N1-001 Rev 1 (§2.1 the network and its lateral terms, §4a/§5 the `R_sink` sweep, §5.1 the export-vs-rejection inversion, §6a per-protocol ceilings, §6b the per-tile drive wall, N1-D-1…7, `OI-N1-01…08` — the parent document); NP-THERM-CFD-R1-001 Rev 1 (§2 the outward path `R_OUT_BASE`, §3 the inward-flux ceiling, §5 the BN-boss export study and its "perfect sink", §5.2 the fault case, §5.3 findings, `OI-R1-01…06`); NP-THERM-CFD-001 (§4 heat-source model and η_wp, §5 BC spec); NP-THERM-CFD-C2-001 (§7 the 1D network and its sign convention); NP-THERM-COOL-001 Rev 11 (§4 the 90 %/2 % split, §5 the cooling options, §6.4 `OI-R1-03` — the fan cools the outer shell only, §6.7 the remote-sink accessories, D-2/D-4 — Rev 11's withdrawal is confined to §7.4.4's Class B/C latch ownership and touches none of these); NP-HELMET-GEOM-001 (§2 the radial stack-up, §3.2 the L1 BN bosses, §3.3 the outer bowl and its unbroken 5-layer inner face, §8 THERM-1a); NP-HEX-ZM-001 (§5.1 the outer bowl as the complete EMF envelope, §5.3 the parting plane and labyrinth lip); NP-PWR-BUDGET-001 Rev 3 (§3.2 the 4–8 tile estimate, §3.3 export efficiency, §3.5 the N = 80 extrapolation, D-4, `OI-PWR-01/08/10`); NP-SES-PWR-001 Rev 1 (§2.1 the tile-count governor, the library floor and ceiling); NP-PWRSRC-001 Rev 1 (§5 thermal dose, §11 the min() governor, `OI-PWRSRC-05`); NP-HW-HUB-001 Rev 5 (`OI-HUB-C19` hub thermal budget, HUB-REQ-C04); NP-TOOL-HUB-001 Rev 1 (§2 the inferred occipital-arch placement, §3 F-04 the fan/heatsink access door, `OI-HTOOL-03/04`); NP-REQ-FANHEALTH-001 (SR-FAN-01…06, Path B1); NP-FMEA-GEOM-001 (FMEA-G07-01); NP-ENV-OPRANGE-001 (§2 the ambient/duty envelope); NP-DT-001 Rev 2 (DI-SAFE-13, DI-REG-01 IEC 60601-1); NP-CONV-001 Rev 6 (§4 identifiers, §8 a convention worth writing down is worth a script); CLAUDE.md §3 (PBM ceilings), §4.2 (42/62 °C interlocks), §4.3 (the 5-layer EMF stack), §4.4 (fit system mass), §4.5 (power), §5.1 (SHDR fan RPM); IEC 60601-1 (42 °C applied part); `hardware/np_socket_map.json`; `scripts/check-thermal-sink.ts`; `scripts/check-thermal-multitile.ts`
+**References:** NP-THERM-CFD-N1-001 Rev 1 (§2.1 the network and its lateral terms, §4a/§5 the `R_sink` sweep, §5.1 the export-vs-rejection inversion, §6a per-protocol ceilings, §6b the per-tile drive wall, N1-D-1…7, `OI-N1-01…08` — the parent document); NP-THERM-CFD-R1-001 Rev 1 (§2 the outward path `R_OUT_BASE`, §3 the inward-flux ceiling, §5 the BN-boss export study and its "perfect sink", §5.2 the fault case, §5.3 findings, `OI-R1-01…06`); NP-THERM-CFD-001 (§4 heat-source model and η_wp, §5 BC spec); NP-THERM-CFD-C2-001 (§7 the 1D network and its sign convention); NP-THERM-COOL-001 Rev 11 (§4 the 90 %/2 % split, §5 the cooling options, §6.4 `OI-R1-03` — the fan cools the outer shell only, §6.7 the remote-sink accessories, D-2/D-4 — Rev 11's withdrawal is confined to §7.4.4's Class B/C latch ownership and touches none of these); NP-HELMET-GEOM-001 (§2 the radial stack-up, §3.2 the L1 BN bosses, §3.3 the outer bowl and its unbroken 4-layer inner face, §8 THERM-1a); NP-HEX-ZM-001 (§5.1 the outer bowl as the complete EMF envelope, §5.3 the parting plane and labyrinth lip); NP-PWR-BUDGET-001 Rev 3 (§3.2 the 4–8 tile estimate, §3.3 export efficiency, §3.5 the N = 80 extrapolation, D-4, `OI-PWR-01/08/10`); NP-SES-PWR-001 Rev 1 (§2.1 the tile-count governor, the library floor and ceiling); NP-PWRSRC-001 Rev 1 (§5 thermal dose, §11 the min() governor, `OI-PWRSRC-05`); NP-HW-HUB-001 Rev 5 (`OI-HUB-C19` hub thermal budget, HUB-REQ-C04); NP-TOOL-HUB-001 Rev 1 (§2 the inferred occipital-arch placement, §3 F-04 the fan/heatsink access door, `OI-HTOOL-03/04`); NP-REQ-FANHEALTH-001 (SR-FAN-01…06, Path B1); NP-FMEA-GEOM-001 (FMEA-G07-01); NP-ENV-OPRANGE-001 (§2 the ambient/duty envelope); NP-DT-001 Rev 2 (DI-SAFE-13, DI-REG-01 IEC 60601-1); NP-CONV-001 Rev 6 (§4 identifiers, §8 a convention worth writing down is worth a script); CLAUDE.md §3 (PBM ceilings), §4.2 (42/62 °C interlocks), §4.3 (the 4-layer EMF stack), §4.4 (fit system mass), §4.5 (power), §5.1 (SHDR fan RPM); IEC 60601-1 (42 °C applied part); `hardware/np_socket_map.json`; `scripts/check-thermal-sink.ts`; `scripts/check-thermal-multitile.ts`
 **Related Issues:** —
 **Gate:** Does not close THERM-1a. Closes `OI-N1-02` and **supersedes `N1-D-1`'s prohibition with a number**; raises one BLOCKING item of its own (`OI-SINK-01`).
 **IEC 62304 Class:** — (analysis document; no code ships from it)
@@ -39,8 +39,8 @@
 ## 1. Headline
 
 1. **The terminus is the shell (§2).** Against `NP-HELMET-GEOM-001` §2's radial stack, R1's via
-   spans module body → socket wall → clamp → inter-bowl gap → the five-layer outer bowl: **~32 mm**,
-   ending on the outer bowl. `NP-TOOL-HUB-001` §2 *infers* a hub heatsink at the occipital arch from
+   spans module body → socket wall → clamp → inter-bowl gap → the outer bowl: **~32 mm** as computed here, **~29 mm** since the
+   2026-09-23 Layer 4 absorber deletion took 3 mm off the outer bowl (`REQ-CAV-04`), ending on the outer bowl. `NP-TOOL-HUB-001` §2 *infers* a hub heatsink at the occipital arch from
    R1 §5's phrase "external fan-cooled heatsink". The sockets are **20–262 mm (median 188)** from
    that point and **no document specifies a conductor between them.**
 2. **Neither collection architecture survives its own arithmetic (§2.1, §2.2).** A solid trunk drops
@@ -114,6 +114,10 @@ Against `NP-HELMET-GEOM-001` §2's radial stack, a conductor from the LED juncti
 | absorber foam + Pd liner + mu-metal + PETG + CFRP | 6.1 | §2 L2 + L3 |
 | **total** | **~32** | |
 
+> **Since 2026-09-23 the absorber row is gone** (`REQ-CAV-04`, Layer 4 deleted with a binding 3 mm
+> re-loft): the last segment is **3.1 mm** (Pd liner + mu-metal + PETG + CFRP) and the total **~29 mm**.
+> The table is kept as computed, because the R1 decomposition below was taken against it.
+
 **The via reaches the outer bowl and stops.** Straight-line socket-to-occiput distance across the
 delivered lattice is **20 mm minimum, 188 median, 262 maximum** — and straight-line is a lower bound,
 because a real conductor follows the shell. Nothing in the document tree specifies a part spanning
@@ -180,7 +184,7 @@ thicknesses and material-class conductivities:
 
 | layer | mm | k (W/mK) | R" (m²K/W) | note |
 |---|---:|---:|---:|---|
-| carbon-loaded absorber foam | 3.0 | 0.05 | 0.0600 | EMF L4 |
+| carbon-loaded absorber foam | 3.0 | 0.05 | 0.0600 | EMF L4 — **deleted 2026-09-23** (`REQ-CAV-04`); row kept because the decomposition below was computed with it |
 | Pd-polyester liner | 0.1 | 0.20 | 0.0005 | EMF L3 |
 | mu-metal | 0.2 | 30 | 0.0000 | EMF L2 |
 | PETG laminate | 0.3 | 0.20 | 0.0015 | EMF L2 encapsulation |
@@ -544,7 +548,7 @@ and its four-inadmissible / fourteen-recoverable split will not survive as state
 | **OI-SINK-04** | **`FMEA-G07-01` / `RISK-26` name fan failure as the cause of a hazard whose probable initiator is vault occlusion**, which no fan-RPM signal observes. Path B1 covers the effect; the cause list and `SR-FAN-05`'s predictive claim do not. Also re-examine `NP-TOOL-HUB-001` F-04's stated rationale, which rests on the fouling story | Safety + FW |
 | **OI-SINK-05** | ~~**Re-run `NP-THERM-CFD-N1-001` §6a's per-protocol table** under `SPEC-SINK-01` + `SPEC-SINK-04`~~ **CLOSED 2026-09-15 by `NP-PWR-THERM-001` §3c.** The split does not survive: **22 of 22** zone-fixed protocols are thermally bound (§6a found five power-bound), **3** are inadmissible at any rejection resistance, **4** are recovered by the *spreader* rather than by a heatsink, and **21 of 22 hold no tiles at all on the bare shell as adopted**. "Recoverable on the heatsink alone" has no referent after `SINK-D-2`; what those protocols are recoverable on is `SPEC-SINK-04`, i.e. `OI-SINK-01`, still BLOCKING | Thermal. **CLOSED** |
 | **OI-SINK-06** | **Restate `OI-N1-04` to cover both signs.** §6 shows the core-to-shell conduction path is present at every ambient, not only above 37 °C; at 25 °C it costs 6.1 K of the face budget before any tile is driven | Thermal + FW |
-| **OI-SINK-07** | The absorber foam's conductivity (k 0.05) is the largest lever in §3.1's decomposition. Replace from the datasheet with `OI-R1-04`. §3.2 does not depend on it, which is why the specification does not either | Thermal |
+| ~~**OI-SINK-07**~~ | ~~The absorber foam's conductivity (k 0.05) is the largest lever in §3.1's decomposition. Replace from the datasheet with `OI-R1-04`.~~ **✅ MOOT 2026-09-23 — the absorber is deleted** (`REQ-CAV-04`, GitHub #391; `NP-EMC-CAV-001` §8.2), so there is no datasheet to read. §3.1's decomposition is re-run under `NP-THERM-COOL-001` `OI-THCOOL-21`. §3.2 never depended on it | Thermal |
 | **OI-SINK-08** | **`NP-HELMET-GEOM-001` §3.2 specifies BN-filled *polymer* bosses (k ~ 1–10) at the module heat pickups; R1 §5 models a *copper* via (k 400).** At the same geometry those differ by ~50× on the leg that carries ~90 % of the heat. Only the copper case has ever been analysed. Reconcile on the owning document | ME + Thermal |
 
 **Closed since issue:** `OI-SINK-02` and `OI-SINK-05` — `NP-PWR-THERM-001` Rev 1, 2026-09-15 (§4a and §3c).
