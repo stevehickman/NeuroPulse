@@ -32,3 +32,5 @@ Three cover types, all tethered to headset:
 | Lens rim guards (2 per headset) | Shore 85A UV-stable TPU, clear | Mechanical snap-fit over rim profile | 2 installed + 1 spare pair | Pair $6.99 |
 
 **Anchor posts:** molded into headset shell at zero incremental tooling cost if specified before first cut. All tethered — cannot be permanently lost without deliberate cutting.
+
+> **Note 2026-09-23 (`OI-ART-07` closed).** The accessory **port** covers are on the control hub, not the headset shell, and their anchor posts are owned by `NP-TOOL-HUB-001` F-02 (≤ 20 mm tether — a hazard control against the hub fan, `RISK-HUB-01`). That specification does not yet list the hub accessory ports or a magnetic retention method; both are `OI-HTOOL-08`. The zone slot plugs above are retired with the zone-module architecture (`NP-TOOL-SHELL-001` F-01).
