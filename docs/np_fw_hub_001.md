@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 1
-**Date:** 2026-09-13
+**Revision:** 2
+**Date:** 2026-09-23
 **Status:** RELEASED as a design output under `21 CFR §820.30(d)`. **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
-**Effective Date:** 2026-09-13
+**Effective Date:** 2026-09-23
 **Author:** NeurOne Firmware Engineering
 **Approved By:** — (pending design review; `FWHUB-DRC-01…12` in §10.3 are the review checklist)
-**References:** CLAUDE.md §1 (product tiers), §3 (modality roster and its hard limits), §4.1 (processor stack), §4.2 (safety architecture), §4.6 (operating modes), §5 (UHDR/SHDR), §17 (firmware carries no locale key); `NP-SW-001` Rev 5 §3.2 (SW-02 Class B rationale), §5.2 (SW-02 module inventory), §9.4 (SOUP); `NP-HW-HUB-001` Rev 4 §7.2–§7.2.2 (`PBM_CRANIAL_EN`, per-cluster gates, `HUB-REQ-C05`); `NP-FW-EMMC-001` Rev 2 §4 (partitions), §9 (Config/Calibration), §12 (session data classification); `NP-FW-EMMC-002` Rev 3 §C (UHDR key + mount), §F (Mode F); `NP-FW-CVNS-001` Rev 1 §6 (cardiac interlock); `NP-FW-NVRAM-001` Rev 2 §4 (power-loss atomicity), §9 (Class B argument); `NP-SOUP-LFS-001` Rev 1 (LittleFS SOUP record + hazard analysis); `NP-HEX-ZM-001` Rev 3 §7 (`OI-HUB-SOCKET-01`); `NP-NPPS-REF-001` (`.npps` grammar, the compiler's input); `NP-MOD-ID-001` Rev 1; `NP-PRIV-REM-001` Rev 3 STEP-33 (adaptation events); `NP-CONV-001` Rev 6 §4, §5, §6, §8; `firmware/hub_control/`; `app/web/src/lib/hubCompiler.ts`
+**References:** CLAUDE.md §1 (product tiers), §3 (modality roster and its hard limits), §4.1 (processor stack), §4.2 (safety architecture), §4.6 (operating modes), §5 (UHDR/SHDR), §17 (firmware carries no locale key); `NP-SW-001` Rev 5 §3.2 (SW-02 Class B rationale), §5.2 (SW-02 module inventory), §9.4 (SOUP); `NP-HW-HUB-001` Rev 4 §7.2–§7.2.2 (`PBM_CRANIAL_EN`, per-cluster gates, `HUB-REQ-C05`); `NP-FW-EMMC-001` Rev 2 §4 (partitions), §9 (Config/Calibration), §12 (session data classification); `NP-FW-EMMC-002` Rev 3 §C (UHDR key + mount), §F (Mode F); `NP-FW-CVNS-001` Rev 1 §6 (cardiac interlock); `NP-FW-NVRAM-001` Rev 2 §4 (power-loss atomicity), §9 (Class B argument); `NP-SOUP-LFS-001` Rev 1 (LittleFS SOUP record + hazard analysis); `NP-HEX-ZM-001` Rev 3 §7 (`OI-HUB-SOCKET-01`); `NP-HW-HEXTILE-001` §8.4 (D-8), §9.3 (`OI-HEXTILE-09`, the concurrent-power governor); `NP-SES-PWR-001` (the protocol power audit, `OI-SESPWR-03`); `NP-HW-HUB-001` Rev 4 §9.2 (socket-indexed HAL signatures), §9.3 (`np_hub_cluster_read_frame`); `NP-NPPS-REF-001` (`.npps` grammar, the compiler's input); `NP-MOD-ID-001` Rev 1; `NP-PRIV-REM-001` Rev 3 STEP-33 (adaptation events); `NP-CONV-001` Rev 6 §4, §5, §6, §8; `firmware/hub_control/`; `app/web/src/lib/hubCompiler.ts`
 **Related Issues:** #339 (`OI-DOC-01`), #69 (original implementation), #179, #298
 **Gate:** G2-14 (SW-02 design outputs documented) — this document is the missing half of that gate.
 **IEC 62304 Class:** **SW-02 Class B.** Argued in §9. The Class C item is the separate safety MCU program (`firmware/safety_mcu/`, `NP-SW-001` SW-01); nothing in this document is Class C and no change here may add a bit to a Class C wire format without SW-01 review.
@@ -17,6 +17,23 @@
 
 ---
 
+> **Rev 2 (2026-09-23) — `OI-FWHUB-01` is closed: the socket-indexed dispatch registry exists, and
+> transcranial PBM still does not run, now for exactly one named reason.**
+>
+> `src/np_socket_dispatch.c` (§3.4) is the missing half of `OI-HUB-SOCKET-01`. `dispatch_command()`
+> now routes a `NP_PROTO_TARGET_SOCKET_MASK` command to it, and it checks placement against the live
+> inventory, drives **every named socket or none**, owns the one `NP_SAFETY_EN_PBM_CRANIAL` bit, and
+> keeps per-socket auto-stops. **What it will not do is admit a drive command today.** Opening the path
+> made a gap that had been latent live: `NP-HW-HEXTILE-001` §9.3 requires a concurrent-power governor
+> in the session runner, and `scripts/check-pbm-power.ts` finds **20 of 23** predefined transcranial
+> protocols over the 40 W emitter budget, all of which compile clean. That governor cannot be written
+> yet (`OI-HEXTILE-09`, blocked on `OI-SESPWR-03`), so `np_pbm_power_admit()` ships **refusing every
+> load** — complete, and closed by default, like the `StudyDescriptorVerifier` of CLAUDE.md §6.3.
+> Replacing that one function body is `OI-FWHUB-09`, which inherits the blocking status. Three other
+> items the new path does not yet discharge are raised rather than absorbed: socket-path telemetry and
+> dose metering (`OI-FWHUB-10`), the Class B per-cluster gate command `HUB-REQ-C05` asks of this
+> processor (`OI-FWHUB-11`), and the five-slot bound in the PBM library's I²C stub (`OI-FWHUB-12`).
+>
 > **⚠ READ FIRST — this document was written last, and three things it found say so.**
 >
 > NP-FW-HUB-001 has been cited as the governing specification of `firmware/hub_control/` since
@@ -47,7 +64,8 @@
 >    choice and each is individually recorded (the parser rejection in `np_hub_config.h`; the drop as
 >    `OI-HUB-SOCKET-01`). **Their conjunction is not recorded anywhere, and it is that a transcranial
 >    PBM protocol cannot execute.** Intranasal PBM (slot 9) is unaffected and works. §3.3, §5.6,
->    `OI-FWHUB-01` — the only **blocking** item this document raises.
+>    `OI-FWHUB-01` — the only **blocking** item this document raises. **Rev 2: the dispatch half is
+>    resolved (§3.4); the blocking status moves to the power governor, `OI-FWHUB-09`.**
 > 2. **Three source files cite a revision of this document that has never existed.**
 >    `modules/np_mod_t2_stubs.c`, `src/np_adaptation_log.c` and `include/np_adaptation_log.h` head
 >    their banners *"NP-FW-HUB-001 Rev 2"*. There was no Rev 1 to be a second revision of. The
@@ -313,6 +331,58 @@ delivering an eleven-socket frontal-left command to whatever occupies slot 0, an
 is not recoverable where a missed one is. What is missing is not a guard; it is the socket-indexed
 dispatch registry itself. §5.6 states the consequence; `OI-FWHUB-01` owns it.
 
+**Rev 2: joined — §3.4.** The table above still describes the two inventories; what changed is that
+the right-hand column is now reachable from a command, through a third structure that sits beside
+`np_module_registry` rather than inside it.
+
+### 3.4 The socket dispatch registry (Rev 2, `OI-FWHUB-01`)
+
+`src/np_socket_dispatch.c` holds one record per socket in the full 7-bit domain
+(`NP_HEXMAP_MAX_SOCKETS`, 128) — active, module type, the params it was driven with, and its
+auto-stop time. It has no FreeRTOS dependency and is host-tested by `np_socket_dispatch_tests`.
+`dispatch_command()` sends every socket-addressed command here and every slot-addressed command to
+`np_module_registry`; **neither falls through to the other** (`REQ-FWHUB-31`).
+
+**Admission — every step all-or-nothing, in this order:**
+
+| # | Gate | Refusal | Why it is all-or-nothing |
+|---|---|---|---|
+| 1 | `mod_type` is `NP_MOD_PBM_BASE` or `NP_MOD_PBM_SMART` | `INVALID_ARG` | nothing else occupies a lattice socket as a *driven* emitter; tES and EEG sockets are not dispatched here (`REQ-FWHUB-33`) |
+| 2 | the mask selects ≥ 1 socket | `INVALID_ARG` | — |
+| 3 | **a stop (`params_len == 0`) is admitted here, unconditionally** | never | stopping is always safe; it is never gated on placement or power |
+| 4 | `params_len` is exactly the struct its `mod_type` defines | `INVALID_ARG` | a short block is read past its end; a long one means producer and firmware disagree about the struct |
+| 5 | the params light ≥ 1 emitter, and a smart `ch_mask` names no channel above bit 2 | `INVALID_ARG` | a drive that lights nothing would still enter UHDR as a delivered modality |
+| 6 | **placement:** every socket holds every emitter the params light (`np_module_map_check_placement`, one requirement per socket × emitter) | `NOT_PRESENT` | driving the capable subset would dose fewer sites than the protocol named while UHDR recorded the protocol — the same rule `np_pbm_session_desc_expand()` states: *a missed dose is recoverable, a partially-honoured session is not* |
+| 7 | **power:** `np_pbm_power_admit(cmd, current)` | `POWER_BUDGET` | §5.6 — the production definition refuses everything |
+| 8 | drive each socket in ascending order; on any driver fault, stop every socket this command touched | `MOD_FAULT` | the rollback is what makes step 8 all-or-nothing too (`REQ-FWHUB-32`) |
+
+A socket already driven by the *other* module type is stopped before it is re-driven — base and smart
+tiles are reached through different hardware paths, and reprogramming one does not quiesce the other.
+A socket re-driven with the same type is simply reprogrammed, and its stop time overwritten, which is
+the slot path's semantics.
+
+**The cranial enable is owned here, and is reference-counted by active sockets** (`REQ-FWHUB-34`).
+`NP_SAFETY_EN_PBM_CRANIAL` is one bit for the whole lattice (`NP-HW-HUB-001` §7.2). It is requested
+only after every socket of a command is configured, and released only when **no** socket remains
+active — so one command's stop cannot cut the gate under another command's running sockets, which
+would leave UHDR recording as delivered a dose the safety MCU had cut. **The exception is a stop that
+fails:** firmware has then lost control of an emitter, so every socket is stopped and the bit released
+at once, and the safety MCU's whole-lattice cut is what guarantees the emitter goes dark. (The slot
+path's `np_mod_pbm_control()` drops the bit on every stop; that was only ever safe because the slot
+path is unreachable.)
+
+**The driver seam** is two functions added to `modules/np_mod_pbm.c` (registry idiom, declared in
+`np_socket_dispatch.h`): `np_mod_pbm_socket_drive()` and `np_mod_pbm_socket_stop()`. Smart (T1-C)
+tiles use the same `np_pbm_drive` register sequence as the slot path with the socket index as the
+address, which the HAL tunnels through the socket's cluster controller (`NP-HW-HUB-001` §9.2). Base
+(T1-A) tiles have no on-module MCU; their PWM comes from the cluster controller through a new platform
+seam, `np_mod_pbm_hal_socket_pwm_set()` (`OI-PBM-HAL-04`; SW-02 census 97 → 98). Neither touches the
+safety enable.
+
+**What this registry does not do yet** — each raised, none silently absorbed: per-socket telemetry and
+dose metering (`OI-FWHUB-10`), commanding the per-cluster Class B gate (`OI-FWHUB-11`), and anything
+on hardware at all, since every seam beneath it is a platform trap.
+
 ---
 
 ## 4. Session descriptor wire format
@@ -461,8 +531,8 @@ write UHDR session-start record
 send per-channel electrode geometry to the safety MCU   ← §5.4
 loop:
     if NP_EV_SESSION_ABORT | NP_EV_SAFETY_FAULT  → break
-    dispatch every command with start_ms ≤ elapsed_ms
-    process_stops(elapsed_ms)
+    dispatch every command with start_ms ≤ elapsed_ms   ← slot → registry; socket → §3.4
+    process_stops(elapsed_ms); np_sock_disp_process_stops(elapsed_ms)
     every NP_RUNNER_TELEM_INTERVAL_MS: telemetry() each present slot → np_log_telemetry()
     if a cVNS command is active: np_mod_cvns_tick(hal_now_ms, hal_now_unix)
     sleep ms_until_next_event(), clamped to ≥ NP_RUNNER_TICK_MS (5 ms)
@@ -512,7 +582,7 @@ enable bit and declares no geometry.
 ### 5.5 Shutdown
 
 On completion or abort: `state := STOPPING` → `np_safety_spi_disable_all()` → `control(slot, NULL, 0)`
-on **every** slot (modules ramp down internally) → wait `NP_RUNNER_SHUTDOWN_MS` (5 s) → flush all
+on **every** slot (modules ramp down internally) → `np_sock_disp_stop_all()` on every active socket → wait `NP_RUNNER_SHUTDOWN_MS` (5 s) → flush all
 stops → finalise the UHDR and SHDR records → `np_log_session_end()` → `np_log_flush()` →
 `COMPLETE` or `FAULT`.
 
@@ -524,22 +594,47 @@ that has already been requested.
 overwrites `shdr.abort_reason` from `s_ctx.abort_reason` unconditionally, so a driver writing the
 record field directly has its value erased before it is ever logged.
 
-### 5.6 What the runner cannot dispatch
+### 5.6 What the runner cannot dispatch — and the power gate (Rev 2)
 
-`dispatch_command()` handles `NP_PROTO_TARGET_SLOT` and nothing else. Any other target kind is
-logged as an SHDR fault **against `NP_HUB_SLOT_NONE`** — not slot 0, because attributing the drop to
-the retired zone-0 slot would put a fault in the device-health log against a module that was never
-involved — sets `NP_ABORT_MOD_FAULT`, and returns false.
+**Rev 1 recorded here that `dispatch_command()` handled `NP_PROTO_TARGET_SLOT` and nothing else**, so
+that no transcranial PBM command of either addressing form could reach an emitter (`OI-FWHUB-01`).
+Rev 2 routes socket-addressed commands to the registry of §3.4. What remains true, and is the reason
+this section keeps its number:
 
-A dropped command does **not** set its bit in `uhdr.mods_active_mask`. UHDR is the patient's dose
-record; a command that was dropped must not appear in it as delivered. This is the correct behaviour
-and it is also the thing that makes the gap detectable from the record rather than only from the code.
+**A refused command is logged and kept out of UHDR.** Any command the socket registry refuses — at
+placement, at power, or on a driver fault — is logged as an SHDR fault **against
+`NP_HUB_SLOT_NONE`** with the refusing gate's status as the fault code, sets `NP_ABORT_MOD_FAULT`, and
+does **not** set its bit in `uhdr.mods_active_mask`. UHDR is the patient's dose record; a command that
+was refused must not appear in it as delivered. A socket **stop** that succeeds is dispatched but
+delivers nothing, so it does not set the bit either. A target kind the parser does not know is
+unreachable (§4.4) and is refused the same way.
 
-**Consequence, stated plainly:** combined with §3.3, no transcranial PBM command of either addressing
-form can reach `np_mod_pbm_control()`. `OI-FWHUB-01`, blocking. This document does not resolve it —
-the resolution is a socket-indexed dispatch registry, which is genuine design work with a hardware
-half already proposed in `NP-HW-HEXTILE-001` §8.4 (per-cluster VLED gate as the coarse hardware cut)
-and `NP-HW-HUB-001` Rev 4 §7.2.2 (the 18 Class B cluster gates commanded by this processor).
+**Every transcranial drive command is refused today, at the power gate, and that is deliberate.**
+`NP-HW-HEXTILE-001` §9.3: *"A global concurrent-power governor is required in firmware … The compiler
+and the session runner both need a power-budget check against the negotiated USB-C PD contract."*
+While no socket command could reach an emitter, that requirement was latent. §3.4 removes the barrier
+that made it latent, and the protocol library would not survive the change: `NP-SES-PWR-001` found
+17 of 20 transcranial protocols over the 40 W emitter budget by 1.25×–40×, and
+`scripts/check-pbm-power.ts`, re-run on the live library at this revision, reads **20 of 23 over, 2
+within, 1 indeterminate** — every one of which compiles clean.
+
+The governor cannot be written yet, and a plausible one would be worse than none:
+
+- it must be denominated in **watts against the negotiated PD contract**, not a tile count — per-tile
+  draw spans 1.3–25.0 W, so the concurrent ceiling spans 1–32 tiles (`OI-HEXTILE-09`,
+  `NP-PWR-BUDGET-001` D-4) — and there is no PD-contract seam on this processor yet;
+- its input is **undefined** for `frequency: 0Hz` combined with `duty_cycle:`, a 4× swing across a
+  fifth of the library (`OI-SESPWR-03`, which blocks `OI-HEXTILE-09`);
+- its per-tile watts derive from emitters that are **not selected** (`OI-HEXTILE-02`), so every
+  coefficient would be a design target presented as a limit.
+
+So `src/np_pbm_power_gov.c` defines `np_pbm_power_admit()` to **refuse every load**, and
+`np_socket_dispatch_tests` asserts that the definition which ships does so (`REQ-FWHUB-35`). The
+dispatch path is complete and closed by default — the shape of the `StudyDescriptorVerifier` that
+ships refusing everything (CLAUDE.md §6.3), so the path cannot be opened without supplying the check
+it exists to hold. **Consequence, stated plainly:** a transcranial PBM protocol still does not execute
+on this firmware; the reason is now one function body rather than a missing registry. `OI-FWHUB-09`,
+blocking. Stops never reach the governor.
 
 ---
 
@@ -795,7 +890,10 @@ Per-slot state carries `ntc_peak_c` and `throttle_count`. The 42 °C IEC 60601 l
 junction throttle are enforced in hardware per zone (CLAUDE.md §4.2); this driver records that they
 fired, it does not implement them.
 
-**Reachable only through slots 0–4, which the parser rejects — see §3.3 and `OI-FWHUB-01`.**
+**The slot entry points are reachable only through slots 0–4, which the parser rejects (§3.3).** Rev 2
+adds `np_mod_pbm_socket_drive()` / `np_mod_pbm_socket_stop()`, the socket-indexed entry points the
+dispatch registry calls (§3.4). They never touch the safety enable, and they keep their own per-socket
+module type and smart-driver state, sized to the 128-socket domain.
 
 ### 8.2 EEG — `np_mod_eeg.c`
 
@@ -956,7 +1054,7 @@ this line.
 
 ## 10. Requirements
 
-### 10.1 Binding requirements, all met by the code as of 2026-09-13
+### 10.1 Binding requirements, all met by the code as of 2026-09-23 (Rev 2 adds 31–35)
 
 | ID | Requirement | Where |
 |---|---|---|
@@ -986,6 +1084,11 @@ this line.
 | `REQ-FWHUB-24` | Promoting a T2 stub to a real driver re-opens `OI-TACS-02` and `OI-TCAP-01/02` first | §8.9 |
 | `REQ-FWHUB-29` | Every SHDR record a boot emits is durably buffered and carries the true device session count | §2.1; gated |
 | `REQ-FWHUB-30` | The file banner's declared task count equals the number of `xTaskCreate()` calls | §2.2; gated — counted, not read |
+| `REQ-FWHUB-31` | A socket-addressed command is dispatched only through the socket registry and a slot-addressed one only through the slot registry; neither falls back to the other | §3.4, `np_session_runner.c` `dispatch_command()`; `np_socket_dispatch_tests` |
+| `REQ-FWHUB-32` | A socket-addressed drive command drives every named socket or none — placement, power and driver faults all leave no socket of that command driven | §3.4; `np_socket_dispatch_tests` (placement, rollback) |
+| `REQ-FWHUB-33` | Only `NP_MOD_PBM_BASE` / `NP_MOD_PBM_SMART` are socket-addressable | §3.4 gate 1; `np_socket_dispatch_tests` |
+| `REQ-FWHUB-34` | A socket stop is always admitted; `NP_SAFETY_EN_PBM_CRANIAL` is requested only after a command's sockets are all configured and released only when none is active — or at once, with every socket stopped, when a stop fails | §3.4; `np_socket_dispatch_tests` |
+| `REQ-FWHUB-35` | No socket drive command is admitted without `np_pbm_power_admit()`, and the definition that ships refuses every load until the `OI-HEXTILE-09` governor exists | §5.6; `np_socket_dispatch_tests` links the production definition and asserts it |
 
 ### 10.2 Requirements the code does NOT currently meet
 
@@ -994,8 +1097,8 @@ code everywhere would be describing, not specifying.
 
 | ID | Requirement | Gap | Item |
 |---|---|---|---|
-| `REQ-FWHUB-25` | A verified socket-addressed command reaches the addressed emitters | `dispatch_command()` drops every non-`SLOT` target kind | **`OI-FWHUB-01`** (blocking) |
-| `REQ-FWHUB-26` | Every modality in CLAUDE.md §3's T1 roster has a dispatchable path | transcranial PBM has none (§3.3 + §5.6) | **`OI-FWHUB-01`** |
+| `REQ-FWHUB-25` | A verified socket-addressed command reaches the addressed emitters | **Rev 2: the path exists (§3.4, `REQ-FWHUB-31…34`) and every drive is refused at the power gate (§5.6).** Was: `dispatch_command()` dropped every non-`SLOT` target kind (`OI-FWHUB-01`, closed) | **`OI-FWHUB-09`** (blocking) |
+| `REQ-FWHUB-26` | Every modality in CLAUDE.md §3's T1 roster has a dispatchable path | as `REQ-FWHUB-25`: transcranial PBM is dispatchable and not admitted | **`OI-FWHUB-09`** |
 | `REQ-FWHUB-27` | Every source file's `Document:` banner cites a revision of this document that exists | three files cite Rev 2 | `OI-FWHUB-02` (fixed in this change) |
 | `REQ-FWHUB-28` | The wire format has a mechanical agreement check against `hubCompiler.ts`, falsified in both directions per `NP-CONV-001` §8 | no such check exists | `OI-FWHUB-03` |
 
@@ -1043,6 +1146,10 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | D-21 | Audio is deliberately not safety-MCU gated | §8.5 |
 | D-22 | Mode F is compile-time gated, not runtime | §8.6 |
 | D-23 | This document is issued at Rev 1 dated today, not back-dated to 2026-05-16 | banner |
+| D-24 | Socket dispatch is a separate registry beside the slot registry, with no fallback between them | §3.4 |
+| D-25 | A socket drive command is all-or-nothing across placement, power and driver faults | §3.4 |
+| D-26 | The dispatcher owns `NP_SAFETY_EN_PBM_CRANIAL` and releases it only when no socket is active, except on a failed stop | §3.4 |
+| D-27 | The power governor ships refusing every load rather than as a plausible approximation | §5.6 |
 
 ---
 
@@ -1050,7 +1157,10 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 
 | ID | Hazard | Sev | Mitigation | Residual |
 |---|---|---|---|---|
-| `RISK-FWHUB-01` | A socket-addressed command is dispatched through the slot path and delivers stimulation to a site the protocol never named | **High** | `dispatch_command()` drops it; the parser independently rejects retired slots; `ISC-87` asserts the drop | **None on wrong-site.** The residual is the opposite failure — no dose at all (`OI-FWHUB-01`) |
+| `RISK-FWHUB-01` | A socket-addressed command is dispatched through the slot path and delivers stimulation to a site the protocol never named | **High** | **Rev 2:** `dispatch_command()` routes by target kind to two registries with no fallback (`REQ-FWHUB-31`); the parser independently rejects retired slots; `np_socket_dispatch_tests` asserts the socket registry refuses a slot-kind command | **None on wrong-site.** The residual is still no dose at all — now at the power gate (`OI-FWHUB-09`) |
+| `RISK-FWHUB-12` | An admitted lattice load exceeds the negotiated PD contract and browns out the rail | **High** | governor ships closed (§5.6, `REQ-FWHUB-35`) — **no drive is admitted**, so the hazard is not reachable on this firmware | **Open until `OI-FWHUB-09`** — becomes reachable the moment that function body admits anything |
+| `RISK-FWHUB-13` | One command's stop cuts the lattice gate under another command's running sockets, and UHDR records their undelivered dose | Medium | cranial bit reference-counted by active sockets (`REQ-FWHUB-34`) | Accepted |
+| `RISK-FWHUB-14` | A command reaches only the capable subset of its sockets and UHDR records the full protocol | Medium | placement checked for every socket before any is driven; driver faults roll back (`REQ-FWHUB-32`) | Accepted |
 | `RISK-FWHUB-02` | Hub hangs with stimulation enabled | High | MCU watchdog cuts in < 50 ms on heartbeat loss; §2.4 forbids a beating fault path | Accepted (Class C backstop) |
 | `RISK-FWHUB-03` | A protocol runs with no stop, from a wrapped deadline or an under-counted `cmd_count` | High | both rejected at parse (§4.4); `FWHUB-DRC-05/06` | Accepted with the checks in place |
 | `RISK-FWHUB-04` | Charge limit circumvented by pause/resume | High | `ACTIVE` covers `PAUSED` (§5.1) | Accepted |
@@ -1068,13 +1178,17 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 
 | ID | Description | Owner | Blocking |
 |---|---|---|---|
-| **`OI-FWHUB-01`** | **Transcranial PBM has no dispatchable path.** `np_mod_pbm_*` is reachable only through slots 0–4, which the parser rejects; socket-addressed commands parse and resolve but are dropped by `dispatch_command()`. Needs the socket-indexed dispatch registry — the missing half of `OI-HUB-SOCKET-01`, whose hardware half is proposed in `NP-HW-HEXTILE-001` §8.4 and `NP-HW-HUB-001` Rev 4 §7.2.2. Fails closed, so not a hazard; it is a **capability absence in the product's primary optical modality** | FW | **BLOCKING — any T1 PBM session; `REQ-FWHUB-25`, `-26`** |
+| ~~**`OI-FWHUB-01`**~~ | ✅ **CLOSED 2026-09-23 (Rev 2).** *Was:* transcranial PBM had no dispatchable path — `np_mod_pbm_*` reachable only through the rejected slots 0–4, socket commands dropped by `dispatch_command()`. **Resolved by the socket dispatch registry (§3.4)**, the firmware half of `OI-HUB-SOCKET-01`, with `np_socket_dispatch_tests` (Class B 30 → 31). **The blocking status moves rather than lifts:** every drive is refused at the power gate until `OI-FWHUB-09` | — (closed) | — |
+| **`OI-FWHUB-09`** | **The concurrent-power governor `np_pbm_power_admit()` refuses every load.** Deliberately (§5.6). Replace its body with the watts-against-PD-contract governor `NP-HW-HEXTILE-001` §9.3 requires. Needs: `OI-HEXTILE-09` designed; `OI-SESPWR-03` (`0Hz` + duty) defined; a PD-contract seam on SW-02; per-tile watts from selected emitters (`OI-HEXTILE-02`). The compiler-side half of the same check is `OI-HEXTILE-09`'s, not this document's. When it lands, `REQ-FWHUB-35`'s second clause is rewritten, not deleted, and `RISK-FWHUB-12` is re-scored | FW + EE Lead | **BLOCKING — any T1 transcranial PBM session; `REQ-FWHUB-25`, `-26`** |
+| **`OI-FWHUB-10`** | **Socket-path telemetry and dose metering do not exist.** The runner's telemetry loop and `np_telem_pbm_t` are slot-indexed (five zone entries); no per-socket NTC, PD1/PD2 or J/cm² reaches SHDR or UHDR, and the slot path's pre-drive NTC over-temperature check has no socket equivalent. Needs `np_hub_cluster_read_frame()` (`NP-HW-HUB-001` §9.3) and a socket-indexed telemetry record. The 42 °C / 62 °C hardware limits are unaffected — they are enforced below this processor. **Blocks CLAUDE.md §3's dual-PD dose-metering claim for the lattice, not safety** | FW | Before `OI-FWHUB-09` admits a load |
+| **`OI-FWHUB-11`** | **`HUB-REQ-C05` is not implemented.** `NP-HW-HUB-001` §7.2.2 requires the per-cluster Class B `SAFE_EN[n]` gate to be commanded by this processor, not by the cluster controller it gates. The dispatcher does not command it: that needs the `socket_id → (cluster, channel)` table (`OI-HUB-C10`, not yet generated) and a settled gate polarity (`OI-RISK4-01`). Availability only — the Class C cranial bit is in series | FW + EE Lead | Hardware bring-up |
+| **`OI-FWHUB-12`** | **The PBM library's I²C stub bounds its address to the five retired slots.** `firmware/pbm/src/np_pbm_hal.c` rejects `slot >= 5`, so a smart-tile socket above index 4 fails in the stub. Not a requirement — the stub is marked *"replace entirely before hardware bring-up"* — but the tunnelled HAL that replaces it must take a socket index 0–127 (`NP-HW-HUB-001` §9.2), and nothing else records that | FW | Hardware bring-up |
 | ~~`OI-FWHUB-02`~~ | ✅ **CLOSED 2026-09-13 in the same change.** Three files cited `NP-FW-HUB-001 Rev 2` against a document with no Rev 1. Re-pointed to Rev 1 §8.9 and §6.4 | FW | — |
 | **`OI-FWHUB-03`** | **No mechanical agreement check between §4 and `hubCompiler.ts`.** `NP-CONV-001` §8 requires cross-artifact interface agreement to be verified by diff, never by review, and falsified in both directions first. `scripts/check-tcap-map.ts` is the pattern. Until it exists, the wire format's two implementations agree only by inspection — which is exactly the state that made `OI-DOC-01` expensive | FW + CI | `REQ-FWHUB-28` |
 | **`OI-FWHUB-04`** | **`uhdr_write()`/`shdr_write()` flush *before* appending the full buffer**, so the newly appended 4 KiB is unsynced until the next flush. Consistent with §6.5's stated durability bound and therefore not a defect, but reversed from the obvious reading, and the obvious reading is what a future editor will assume. Decide: reorder, or comment the intent | FW | Documentation accuracy |
 | ~~**`OI-FWHUB-07`**~~ | ✅ **CLOSED 2026-09-14.** Boot-time SHDR zone-auth records were written before the logger was initialised — stamped with session count 0, then discarded by `np_log_init()`'s `s_shdr_pos = 0U`. `np_log_backend_init()` and `np_log_init()` now precede `np_mod_reg_scan()`, which keeps `np_safety_spi_init()`'s `GAIN_SEL` precedence intact, and the misleading comment is corrected. Held by `scripts/check-hub-bringup-order.ts`, **falsified against the pre-fix commit**, not only fixtures | — (closed) | — |
 | ~~**`OI-FWHUB-08`**~~ | ✅ **CLOSED 2026-09-14.** The banner and the register said "four tasks"; the code creates five. All three corrected, and the banner's count is now **counted against `xTaskCreate()`** by the same gate rather than read | — (closed) | — |
-| **`OI-FWHUB-05`** | **The `np_mod_reg_scan()` SHDR auth callback fires "per zone slot"**, and the zone slots are retired. Confirm whether auth records are still expected for slots 0–4, or whether the callback should now follow the socket lattice, once `OI-FWHUB-01` is resolved | FW + Quality | Follows `OI-FWHUB-01` |
+| **`OI-FWHUB-05`** | **The `np_mod_reg_scan()` SHDR auth callback fires "per zone slot"**, and the zone slots are retired. Confirm whether auth records are still expected for slots 0–4, or whether the callback should now follow the socket lattice, once `OI-FWHUB-01` is resolved. **Rev 2: `OI-FWHUB-01` is closed, so this is unblocked** | FW + Quality | — (unblocked 2026-09-23) |
 | **`OI-FWHUB-06`** | **This document has no approver.** Issued as a design output with `Approved By` blank pending review against §10.3. `21 CFR §820.30(d)` expects design outputs to be reviewed and approved before release; until that happens the register entry should say DRAFT-pending-approval rather than imply a completed review | Principal | Design-control completeness |
 
 ---
@@ -1111,6 +1225,13 @@ ARM-cross-only and nothing had ever read it. Both are fixed here, and both are n
 `scripts/check-hub-bringup-order.ts`, falsified against the pre-fix commit rather than against
 fixtures alone.
 
+**What Rev 2 changed.** The registry the gap named now exists (§3.4): socket commands are dispatched,
+all-or-nothing, through their own registry, which owns the cranial enable. **And transcranial PBM still
+does not run** — because the same change that removed the barrier exposed the power governor
+`NP-HW-HEXTILE-001` §9.3 had always required, which cannot yet be written, and which therefore ships
+refusing everything (§5.6, `OI-FWHUB-09`). A gap that had two halves, each documented and neither
+connected, is now one function body with its reason written above it.
+
 **What is deliberately not here.** No verification, no approval, and no requirement the code does not
 meet except the four in §10.2 that are marked unmet and carried as open items — chiefly
 `OI-FWHUB-01`, which is a capability absence and genuine design work, not a defect this change could
@@ -1122,4 +1243,5 @@ have absorbed.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 2 | 2026-09-23 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-01` — the socket dispatch registry — and moves its blocking status to the power governor rather than lifting it.** New §3.4: `src/np_socket_dispatch.c`, a 128-entry socket-indexed registry beside the slot registry, with no fallback between the two (`REQ-FWHUB-31`); admission is all-or-nothing across mod-type, params, placement against the live `np_module_map` inventory, power, and driver faults with rollback (`REQ-FWHUB-32`, `-33`); the registry owns `NP_SAFETY_EN_PBM_CRANIAL`, requesting it after a command's sockets are configured and releasing it only when none is active, or at once when a stop fails (`REQ-FWHUB-34`). Driver seam: `np_mod_pbm_socket_drive()` / `_stop()` in `np_mod_pbm.c`, and one new platform seam `np_mod_pbm_hal_socket_pwm_set()` (SW-02 census 97 → 98). **§5.6 rewritten: opening the path makes `NP-HW-HEXTILE-001` §9.3's governor requirement live** — `scripts/check-pbm-power.ts` reads 20 of 23 predefined transcranial protocols over the 40 W budget — and that governor cannot be written (`OI-HEXTILE-09`, `OI-SESPWR-03`, `OI-HEXTILE-02`), so `np_pbm_power_admit()` ships **refusing every load** (`REQ-FWHUB-35`, D-27). **Transcranial PBM therefore still does not execute**; `OI-FWHUB-09` (blocking) replaces `OI-FWHUB-01` as the reason, and `REQ-FWHUB-25/26` stay in §10.2 against it. New `NP_HUB_ERR_POWER_BUDGET` (−18). `np_socket_dispatch_tests` (Class B 30 → 31, total 38 → 39): 14 cases linking the real module map and socket expansion, and the production governor renamed so what ships is asserted closed; seven mutations of the dispatcher and governor each caught (three survived the first draft of the suite and each gained a case). Raised: `OI-FWHUB-10` (socket telemetry and dose metering), `-11` (`HUB-REQ-C05` cluster gate not commanded), `-12` (the PBM I²C stub's five-slot bound). `OI-FWHUB-05` unblocked. Risks `RISK-FWHUB-12…14` added; `RISK-FWHUB-01` re-described. Decisions D-24…D-27. |
 | 1 | 2026-09-13 | NeurOne Firmware Engineering | **Initial release — closes `OI-DOC-01` (Issue #339) by authoring the specification that had been cited as governing since 2026-05-16 without existing.** Written against `firmware/hub_control/` as on `main`, back-dating nothing: 26 requirements met by the code (§10.1), 4 explicitly **not** met and carried as open items (§10.2), 23 decisions, 11 risk rows, 13 design-review checks, 8 open items of which 4 close here. **Four findings that did not survive being written down:** (i) transcranial PBM — CLAUDE.md §3 modality ① — **has no dispatchable path at all**, because `np_mod_pbm_*` sits only in the five retired zone slots the parser rejects *and* socket-addressed commands are dropped by `dispatch_command()`; each half was individually documented and fail-closed, their conjunction was not (`OI-FWHUB-01`, blocking); (ii) three source files cited a `Rev 2` of a document that had no `Rev 1` — re-pointed to §8.9 and §6.4 in this change (`OI-FWHUB-02`, closed); (iii) the wire format has been revised twice (`slot_mask` → `slot_id` + target block; `electrode_area_mcm2`) while the register still described `Rev 1`, because **a register entry naming an unreadable document cannot go visibly stale**; and **(iv) writing the bring-up table found two live defects in `np_hub_control_app_main()`, and both are FIXED in this change** — `np_mod_reg_scan()` ran before `np_log_init()`, so every boot-time SHDR zone-auth record was stamped with a session count of 0 and then discarded when the logger zeroed its buffer, meaning module authentication reached SHDR not at all, under a source comment three lines away asserting the opposite (`OI-FWHUB-07`); and the file banner and the document register both said "four tasks" where the code creates five, `task_protocol_rx` having been omitted (`OI-FWHUB-08`). Also records that §4 is the specification `hubCompiler.ts` compiles against and that no mechanical check enforces their agreement (`OI-FWHUB-03`), contrary to `NP-CONV-001` §8. **Both fixes are gated, not merely applied:** `np_hub_control_app_main()` is ARM-cross-only and reachable by no host test — which is how a defect dating to 2026-05-16 survived — so `scripts/check-hub-bringup-order.ts` asserts the four ordering constraints and the task count against the function itself, and was falsified **against the pre-fix commit**, where it reports exactly those two violations (`NP-CONV-001` §8). Beyond those two fixes and three corrected `Document:` banners, no code behaviour changed. **§2.1, §2.2, §10, §12 and §13 were amended within this same unmerged change to describe the corrected code rather than the code as first found; Rev 1 is issued once, describing what merges.** |

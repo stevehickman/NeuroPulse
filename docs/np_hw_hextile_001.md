@@ -1022,6 +1022,15 @@ The hex redesign does **not** increase deliverable dose, and was never going to 
 Three consequences follow — a fourth was added at Rev 7:
 
 1. **A global concurrent-power governor is required in firmware.** Today nothing prevents a protocol from naming 40 sockets in a `NP_PROTO_TARGET_SOCKET_MASK` bitmap (NP-HEX-ZM-001 §4b) and commanding them all on. That protocol would brown out the rail or trip PD negotiation. The compiler and the session runner both need a power-budget check against the negotiated USB-C PD contract. **OI-HEXTILE-09** — this is a genuine safety-adjacent gap in the delivered v2 wire format, not a future nicety.
+
+   > **Update 2026-09-23 — the session-runner hook now exists, and ships closed.** Until
+   > `NP-FW-HUB-001` Rev 2 this consequence was latent: no socket-addressed command could reach an
+   > emitter at all (`OI-FWHUB-01`). Rev 2 adds the socket dispatch registry, and with it the runner-side
+   > check this item requires, as one function — `np_pbm_power_admit()` — consulted before any socket
+   > is driven. **It refuses every load**, because the governor cannot be written until this item is
+   > designed and `OI-SESPWR-03` defines its input; the firmware owner of replacing it is
+   > `OI-FWHUB-09`. **This item is not closed or changed by that** — the compiler half and the
+   > governor's design are still here.
 2. **NP-HEX-ZM-001 §6's aggregate thermal concern is bounded by the same arithmetic.** That document warns that "whole-vault active tiling raises aggregate scalp thermal load." It cannot, in the sense feared: the power envelope permits ~6 tiles ≈ 64 cm² of active area, which is comparable to the retired 5-slot design's footprint. The thermal risk is *local* (one tile at 42 °C) and is already owned by the per-tile NTC and Path B1 (NP-THERM-CFD-R1-001), not aggregate.
 3. **§6.4's cost problem has a natural answer.** If only ~6 tiles can ever be live, populating all 80 with $11.50 of driver and metering hardware buys placement options, not capability. This is the strongest argument for option 1 in §6.4 — a partially-populated lattice — and the two open items should be decided together.
 

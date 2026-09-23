@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — Session Runner Implementation
- * Document: NP-FW-HUB-001 Rev 1 §5
+ * Document: NP-FW-HUB-001 Rev 2 §5
  *
  * Execution model:
  *  - Commands in desc.cmds[] are pre-sorted by start_ms (np_protocol_sort_cmds).
@@ -9,6 +9,9 @@
  *  - Each command registers a stop event at (start_ms + duration_ms) in
  *    s_ctx.stop_at_ms[slot].  If a new command arrives for the same slot before
  *    the stop fires, the stop time is overwritten.
+ *  - A socket-addressed command (NP_PROTO_TARGET_SOCKET_MASK) is routed to the
+ *    socket-indexed registry (np_socket_dispatch.c), which tracks its own
+ *    per-socket stop times; it never falls back to the slot path.
  *  - Telemetry is requested every NP_RUNNER_TELEM_INTERVAL_MS via a callback
  *    posted to the telemetry task queue.
  *  - NP_EV_SESSION_ABORT or NP_EV_SAFETY_FAULT unblocks the loop immediately.
@@ -17,6 +20,7 @@
 #include "np_session_runner.h"
 #include "np_protocol.h"
 #include "np_module_registry.h"
+#include "np_socket_dispatch.h"
 #include "np_session_log.h"
 #include "np_safety_spi.h"
 #include "np_cvns_reenable.h"
@@ -109,8 +113,8 @@ static uint16_t slot_to_safety_bit(uint8_t slot)
         /* Slots 0-4 (the retired zone slots) deliberately have NO entry, so they
          * zero-init to 0 and request no enable.  Cranial PBM is gated by the one
          * NP_SAFETY_EN_PBM_CRANIAL bit (NP-HW-HUB-001 Rev 3 §7.2), and the
-         * requester for it is the socket-dispatch path, which does not exist yet
-         * (OI-HUB-SOCKET-01 — see the dispatch_command note below).  Mapping a
+         * requester for it is the socket-dispatch path (np_socket_dispatch.c),
+         * which owns that bit outright.  Mapping a
          * retired slot to the cranial bit instead would let a stale zone target
          * enable the WHOLE lattice; 0 fails closed.  np_protocol_verify_and_parse
          * already rejects slot_id < NP_HUB_SLOT_FIRST_VALID, so this is the
@@ -134,36 +138,50 @@ static uint16_t slot_to_safety_bit(uint8_t slot)
 }
 
 /*
- * dispatch_command — call the registered control function for the command's
- * slot, request enable from safety MCU, and record stop time.
+ * dispatch_command — route a command to the registry its target kind names,
+ * and for a slot command request enable from the safety MCU and record the
+ * stop time.
  *
- * SOCKET-ADDRESSED COMMANDS ARE NOT DISPATCHED (OI-HUB-SOCKET-01).
- * ---------------------------------------------------------------
- * Protocol v2 lets a cranial command name helmet SOCKETS rather than slots
- * (np_proto_target_kind_t). The parser understands them and np_module_map
- * resolves them to (socket:element) addresses — but the control-dispatch path
- * below is still the legacy fixed-slot registry (np_module_registry), which has
- * no socket-indexed entries. The safety-MCU enable bitmap is no longer the
- * blocker it once was — NP-HW-HUB-001 Rev 3 §7.2 replaced the per-zone-slot
- * NP_SAFETY_EN_PBM_ZONE_0..4 with the single NP_SAFETY_EN_PBM_CRANIAL bit, which
- * a socket-addressed command can request unchanged. What remains missing is the
- * socket-indexed dispatch registry itself.
+ * TWO REGISTRIES, NO FALLBACK (OI-FWHUB-01, RISK-FWHUB-01).
+ * ---------------------------------------------------------
+ * A SLOT command goes to np_module_registry. A SOCKET_MASK command goes to
+ * np_socket_dispatch, which checks placement and power, drives every named
+ * socket or none, and owns the one NP_SAFETY_EN_PBM_CRANIAL bit. Neither ever
+ * falls through to the other: a socket command dispatched through the slot path
+ * would deliver an eleven-socket frontal-left dose to whatever sits in slot 0,
+ * and a wrong-site dose is not recoverable where a missed one is.
  *
- * Until then a socket-addressed command is logged and DROPPED. The alternative
- * — falling back to the slot path — would dispatch a command targeting, say,
- * eleven frontal-left sockets to whatever module sits in slot 0, i.e. deliver
- * stimulation somewhere the protocol never named. A missed dose is recoverable;
- * a wrong-site dose is not. Fail closed.
+ * A socket command the registry refuses — placement, power, a driver fault — is
+ * logged to SHDR and returns false, so it never enters UHDR's delivered mask.
+ * Today every transcranial DRIVE command is refused at np_pbm_power_admit(),
+ * whose production definition is closed until the OI-HEXTILE-09 governor
+ * exists (OI-FWHUB-09); stops are always admitted.
  */
 static bool dispatch_command(const np_session_cmd_t *cmd, uint32_t now_ms)
 {
+    if (cmd->target_kind == NP_PROTO_TARGET_SOCKET_MASK) {
+        np_hub_status_t src = np_sock_disp_command(cmd);
+        if (src != NP_HUB_OK) {
+            /* Logged against NP_HUB_SLOT_NONE, not slot 0: the command named no
+             * slot, and attributing the refusal to the retired zone-0 slot would
+             * put a fault in the SHDR device-health log against a module that was
+             * never involved. The fault code says which gate refused it. */
+            np_log_shdr_fault(NP_HUB_SLOT_NONE, cmd->mod_type,
+                              (uint8_t)(-src), now_ms);
+            if (s_ctx.abort_reason == NP_ABORT_NONE) {
+                s_ctx.abort_reason = NP_ABORT_MOD_FAULT;
+            }
+            return false;
+        }
+        /* A stop is dispatched but delivers nothing; only a drive marks the
+         * modality as delivered in UHDR. */
+        return cmd->params_len > 0U;
+    }
+
     if (cmd->target_kind != NP_PROTO_TARGET_SLOT) {
-        /* Logged against NP_HUB_SLOT_NONE, not slot 0: the command named no
-         * slot, and attributing the drop to the retired zone-0 slot would put a
-         * fault in the SHDR device-health log against a module that was never
-         * involved. */
+        /* Unreachable: the parser rejects every other kind. Fail closed. */
         np_log_shdr_fault(NP_HUB_SLOT_NONE, cmd->mod_type,
-                          (uint8_t)(-NP_HUB_ERR_NOT_PRESENT), now_ms);
+                          (uint8_t)(-NP_HUB_ERR_INVALID_ARG), now_ms);
         if (s_ctx.abort_reason == NP_ABORT_NONE) {
             s_ctx.abort_reason = NP_ABORT_MOD_FAULT;
         }
@@ -274,6 +292,12 @@ static uint32_t ms_until_next_event(uint32_t now_ms)
             }
         }
     }
+    {
+        uint32_t sock_stop = np_sock_disp_next_stop_ms(now_ms);
+        if (sock_stop != 0U && sock_stop - now_ms < nearest) {
+            nearest = sock_stop - now_ms;
+        }
+    }
 
     if (nearest < NP_RUNNER_TICK_MS) {
         nearest = NP_RUNNER_TICK_MS;
@@ -300,6 +324,7 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
     }
 
     memset(&s_ctx, 0, sizeof(s_ctx));
+    np_sock_disp_reset();
     s_ctx.state = NP_SESSION_LOADING;
 
     s_ctx.state = NP_SESSION_VERIFYING;
@@ -509,8 +534,9 @@ np_hub_status_t np_runner_run(void)
                s_ctx.desc.cmds[s_ctx.next_cmd_idx].start_ms <= now_ms) {
             /* Track which module types are active for UHDR record — only when
              * the command was actually dispatched. UHDR is the patient's dose
-             * record; a command that was dropped (a socket target, until
-             * OI-HUB-SOCKET-01) must not appear in it as delivered. */
+             * record; a command that was refused (e.g. a socket target the power
+             * governor did not admit, OI-FWHUB-09) must not appear in it as
+             * delivered. */
             if (dispatch_command(&s_ctx.desc.cmds[s_ctx.next_cmd_idx], now_ms)) {
                 s_ctx.uhdr.mods_active_mask |=
                     (1U << (uint8_t)s_ctx.desc.cmds[s_ctx.next_cmd_idx].mod_type);
@@ -520,6 +546,7 @@ np_hub_status_t np_runner_run(void)
 
         /* Issue implicit stops for expired commands */
         process_stops(now_ms);
+        np_sock_disp_process_stops(now_ms);
 
         /* Trigger telemetry snapshot */
         if (now_ms - last_telem_ms >= NP_RUNNER_TELEM_INTERVAL_MS) {
@@ -571,6 +598,7 @@ np_hub_status_t np_runner_run(void)
             (void)mod->control(slot, NULL, 0U);
         }
     }
+    np_sock_disp_stop_all();
 
     /* Wait up to NP_RUNNER_SHUTDOWN_MS for modules to complete ramp-down. */
     vTaskDelay(pdMS_TO_TICKS(NP_RUNNER_SHUTDOWN_MS));
