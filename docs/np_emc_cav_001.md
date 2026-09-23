@@ -2,18 +2,18 @@
 
 **Project:** NeurOne
 **Document:** NP-EMC-CAV-001
-**Revision:** 20
+**Revision:** 21
 **Date:** 2026-09-24
 **Status:** ACTIVE — EMC analysis discharging `OI-BIBEMF-08` step 1; asserts no measurement. **`REQ-CAV-04` TAKEN 2026-09-23 — Layer 4 deleted**
 **Effective Date:** 2026-09-20
 **Author:** NeurOne EMC / Systems Engineering
 **Approved By:** Principal — `REQ-CAV-04` taken 2026-09-23 (GitHub #391); the analysis itself remains unmeasured (§9)
-**References:** CLAUDE.md §1, §3, §4.1, §4.3, §4.4; `docs/reference/hardware-detail.md` §4.3; `NP-BIB-EMF-001` §7.3, §7.6, §7.8; `NP-HELMET-GEOM-001` §2, §3.2; `NP-DRV-SHELL-002` §3.2, §3.4, §3.5, §5.4, §9.1–§9.6; `NP-HEX-ZM-001` §5.2, §5.3a, §5.3.1; `NP-THERM-COOL-001` §2, §6.3, §6.9.1; `NP-THERM-SINK-001` `RISK-SINK-03`, `OI-SINK-01`, `OI-SINK-07`; `NP-DT-001` `DI-PERF-22`, `DI-REG-05`; `NP-HW-HUB-001` §7.4, §8.1, §11 (`OI-HUB-C19`); `NP-HW-TACSDRV-001` Q3; FCC Part 15 Subpart B §15.109; CISPR 11 Group 1 Class B; IEC 60601-1-2; Gabriel et al. 1996 (tissue dielectric properties)
-**Related Issues:** GitHub Issue #362; GitHub Issue #391 (the decision); GitHub Issue #398 (`OI-EMCCAV-01`); GitHub Issue #400 (`OI-EMCCAV-03`); GitHub Issue #401 (`OI-EMCCAV-04`, the test plan); GitHub Issue #403 (`OI-EMCCAV-07`, answered by `NP-THERM-BOWL-001`); `OI-BIBEMF-08`; `OI-THCOOL-04`; `OI-THCOOL-15`; `OI-SINK-01`; `OI-SINK-07`; `RISK-SINK-03`; `EMF-1`; `EMF-3`; `RISK-20`; `OI-HUB-C19`
+**References:** CLAUDE.md §1, §3, §4.1, §4.3, §4.4; `docs/reference/hardware-detail.md` §4.3; `NP-BIB-EMF-001` §7.3, §7.6, §7.8; `NP-HELMET-GEOM-001` §2, §3.2; `NP-DRV-SHELL-002` §3.2, §3.4, §3.5, §5.4, §9.1–§9.6; `NP-HEX-ZM-001` §5.2, §5.3a, §5.3.1; `NP-THERM-COOL-001` §2, §6.3, §6.9.1; `NP-THERM-SINK-001` `RISK-SINK-03`, `OI-SINK-01`, `OI-SINK-07`; `NP-DT-001` `DI-PERF-22`, `DI-REG-05`; `NP-HW-HUB-001` §7.4, §8.1, §11 (`OI-HUB-C19`); `NP-HW-TACSDRV-001` Q3; FCC Part 15 Subpart B §15.109; CISPR 11 Group 1 Class B; IEC 60601-1-2; Gabriel et al. 1996 (tissue dielectric properties); 47 CFR §15.407 and FCC 20-51 (ET Docket 18-295, 6 GHz U-NII-5–8); IEC 61000-4-21 (reverberation-chamber Q); Hill et al. 1994 (aperture excitation of electrically large lossy cavities, IEEE Trans. EMC 36(3))
+**Related Issues:** GitHub Issue #362; GitHub Issue #391 (the decision); GitHub Issue #402 (`OI-EMCCAV-06`, §6.5); GitHub Issue #398 (`OI-EMCCAV-01`); GitHub Issue #400 (`OI-EMCCAV-03`); GitHub Issue #401 (`OI-EMCCAV-04`, the test plan); GitHub Issue #403 (`OI-EMCCAV-07`, answered by `NP-THERM-BOWL-001`); `OI-BIBEMF-08`; `OI-THCOOL-04`; `OI-THCOOL-15`; `OI-SINK-01`; `OI-SINK-07`; `RISK-SINK-03`; `EMF-1`; `EMF-3`; `RISK-20`; `OI-HUB-C19`
 **Gate:** —
 **IEC 62304 Class:** — (analysis record, not device software)
 **Jurisdiction Scope:** N/A
-**Change Summary:** Rev 20 closes **`OI-EMCCAV-02`** (GitHub #399): `NP-THERM-SINK-001` Rev 2 §7.1 re-scopes `RISK-SINK-03` to ELF eddy loading of the Helmholtz actuator (cleared at first order) and external RF (narrowed to the film's terminations, bench step `EMF-1-SINK-2`); `OI-SINK-01` stays BLOCKING. §9 item 4 and §10 updated. Revs 15–19 closed or advanced `OI-EMCCAV-03`, `-07`, `-11`, `-04` and `-01`; Rev 14 recorded `REQ-CAV-04` TAKEN (GitHub #391). See §11.
+**Change Summary:** Rev 21 adds §6.5 and works `OI-EMCCAV-06`, the external 6 GHz Wi-Fi ingress case through the parting-plane seam, against the post-deletion geometry. **The deletion verdict holds, and the case turns on the seam, not the layer.** At 5.925–7.125 GHz the cavity is overmoded, with composite Q 34–41 with the head in, and `REQ-CAV-01` holds or fails by 36 dB depending on the seam state, while Layer 4 would have moved it by 2 dB. Raises `OI-EMCCAV-16`–`-18`. Unmeasured. Revs 15–20 are in §11.
 
 ---
 
@@ -220,6 +220,12 @@ a quarter wavelength, which does not happen until 2.6 GHz (§4.2). The lowest fa
 > and §6.2 shows it reaching 11–41 dB there, so the §6 verdict does **not** transfer to that case.
 > §6.3's mechanism still should — tissue is *lossier* at 6 GHz than at 460 MHz, so the head should
 > damp it harder — but **that case is not worked here.** **`OI-EMCCAV-06`.**
+>
+> **Rev 21: now worked, in §6.5.** The deletion verdict holds, and the premise in the paragraph
+> above turns out only half right. Tissue is lossier at 6 GHz, but the cavity is overmoded there
+> (modal overlap ≈ 25) and its composite Q with the head in is **34–41**, which is *higher* than at
+> 460 MHz, not lower. `REQ-CAV-01` is decided by the **seam**, which swings the field by 36 dB,
+> while the deleted layer would have moved it by 2 dB.
 
 ---
 
@@ -415,6 +421,170 @@ worn. The only high-Q state is *bowls closed, powered, off the head* — a bench
 **Layer 4 delivers 1.0 % of its own stated job**, in the band where that job exists, at a cost of 18 %
 of the outward thermal path and two blocked fixes to a BLOCKING `OI-SINK-01`.
 
+### 6.5 External 6 GHz Wi-Fi ingress through the parting-plane seam (`OI-EMCCAV-06`)
+
+§4.2 set the band's upper edge using the **internal** source's roll-off, so §6.1–§6.4 say nothing
+about a source **outside** the envelope that does not roll off. That source is the one
+`NP-HEX-ZM-001` §5.3a and `RISK-20` are written against. This section works that case to §6's
+first-order standard. It uses the **post-deletion** geometry (`REQ-CAV-04` taken: the liner sits
+directly on the 23–29 mm air region, with no absorber). Every figure is reproduced by
+`scripts/check-cavity-q.ts`, report block 10, and it is **unmeasured** (§9).
+
+**The answer, stated before the working:** the deletion verdict holds for this case. The layer is
+not what decides it; the **seam** is. With the head present, the cavity at 5.925–7.125 GHz is **not
+resonance-free**. It holds a bounded, diffuse field at composite Q 34–41. Whether that field meets
+`REQ-CAV-01` depends on the parting-plane seam. With the discrete apertures §5.3a intends, it meets
+it. If the conductive bead is absent or lifted and the seam becomes a continuous slot, it fails by
+~19 dB. Keeping Layer 4 would have changed the internal field by **2.0 dB**. The seam changes it by
+**36 dB**.
+
+#### 6.5.1 The source and the incident field
+
+| | Value | Why this and not something else |
+|---|---:|---|
+| Band | **5.925 – 7.125 GHz** | U-NII-5 … U-NII-8, opened by FCC 20-51 (ET Docket 18-295). *"6 GHz"* in §5.3a names the bottom of the band, not all of it |
+| Source | a Wi-Fi 6E **client** (phone, laptop) near the wearer | the headset's own radios are in the hub (§5.3a). An access point is further away and is not the proximity case |
+| EIRP | **24 dBm** low-power-indoor client · **30 dBm** standard-power client | the regulatory ceilings for a client under 47 CFR §15.407 as amended by FCC 20-51. No real device exceeds them, so they bound the source without depending on one product |
+| Distance | **0.3 m** reference · **0.1 m** bounding | 0.3 m is the proximity distance in IEC 60601-1-2:2014+A1:2020 Table 9. 0.1 m is a handset held against the helmet |
+| **Incident field** (`E = √(30·EIRP)/d`) | **9.15 V/m rms** reference · **54.8 V/m** bounding (30 dBm @ 0.1 m) | the reference case reproduces Table 9's own **9 V/m** at 5.1–5.8 GHz, which is the highest band Table 9 covers. **Table 9 stops below 6 GHz**, so the standard does not yet set this level, and that is why it is derived here from the EIRP rule |
+
+That last gap is the one `OI-EMCCAV-05` already names. No immunity standard in the record covers
+the 6 GHz band yet.
+
+#### 6.5.2 The head at 6 GHz, and why "lossier tissue holds harder" is wrong
+
+The premise carried by §4.2 and GitHub #402 was: *tissue is lossier at 6 GHz than at 460 MHz, so the
+head should damp the cavity harder.* The first half is true. Gabriel et al. 1996 4-Cole-Cole, dry
+skin:
+
+| | 460 MHz | 5.925 GHz | 6.525 GHz | 7.125 GHz |
+|---|---:|---:|---:|---:|
+| ε_r | 45.6 | 35.0 | 34.5 | 34.0 |
+| σ (S/m) | 0.71 | 3.83 | 4.37 | 4.94 |
+
+(In passing: the model gives 0.71 S/m at 460 MHz. §6.3's spot value of 0.44 is therefore **below**
+it, which makes §6.3 conservative, as it claims to be.)
+
+**The conclusion does not follow**, for two reasons:
+
+1. **Q scales with electrical size.** Stored energy grows with the volume measured in wavelengths,
+   while the head's absorptivity saturates. Averaged over angle, the absorptivity is **0.498** at
+   6.525 GHz, so about half of what reaches the head is reflected: it is not a matched load. The
+   head therefore stays the dominant loss by a wide margin (the fabric wall alone gives Q ≈ 10,600),
+   but the loaded Q **rises** with frequency. It does not fall.
+2. **At 6 GHz the cavity is overmoded.** The Weyl count gives **305 modes** below 6.525 GHz,
+   **140 per GHz**, and a modal-overlap factor **M ≈ 24.5**. Modes overlap, so there is no discrete
+   resonance, and §6.3's single-mode surface-impedance formula is the wrong tool here. Applied anyway
+   it gives Q_head ≈ 14, which is optimistic because it is linearised in R_s and carries G = 0.5. The
+   right tool is the diffuse-field composite Q, `Q = 8πV / (λ·Σ Sᵢ·αᵢ)` (Hill 1994; the
+   reverberation-chamber relation of IEC 61000-4-21).
+
+| | 5.925 GHz | 6.525 GHz | 7.125 GHz |
+|---|---:|---:|---:|
+| **Composite Q, head in, Layer 4 deleted** | **34.0** | **37.4** | **40.8** |
+| Composite Q had Layer 4 been kept (design loading, diffuse α 0.17) | — | 23.8 | — |
+
+**What this means for the two requirements:**
+
+- **`REQ-CAV-02` does not apply here, and it does not *fail* here either.** `REQ-CAV-00` scopes it to
+  420 MHz – 3 GHz. A per-mode Q ceiling also has no meaning when M ≫ 1, because there is no isolated
+  mode for it to bound. A reader who applied Q ≤ 20 to the composite figure anyway would find 37 and
+  report a failure. **This document does not extend `REQ-CAV-02`'s band.** At 6 GHz, Q only enters
+  through the field it produces, and that field is `REQ-CAV-01`'s question.
+- **The head does not make the resonance *absent* at 6 GHz**, as §6.3 found it does at 460 MHz. It
+  makes the field diffuse and bounded. That is a weaker result, and it is the honest one.
+
+#### 6.5.3 Coupling through the seam
+
+The internal field of an aperture-coupled, electrically large, lossy cavity (Hill 1994) is
+
+> `E_c / E_inc = √(λ · Q · ⟨σ_t⟩ / (2π V))`
+
+where ⟨σ_t⟩ is the seam's transmission cross-section averaged over incidence angle. The rim
+perimeter at mid head size is 733 mm. §5.3a's target (*"any continuous residual slot ≤ λ/20 at
+6 GHz ≈ 2.5 mm"*) can be read two ways, and the two readings differ by 36 dB:
+
+| Seam state | ⟨σ_t⟩ model | Coupling (6.525 GHz) |
+|---|---|---:|
+| **As §5.3a intends:** the conductive bead is continuous, and what leaks is **discrete apertures ≤ 2.5 mm**. Counted pathologically: one every 2.5 mm around the whole rim, 293 in all | Hill's small-aperture `16k⁴a⁶/9π` each | **−47.7 dB** |
+| **Bead absent, lifted or compression-set:** the labyrinth lip leaves a **continuous 2.5 mm slot** around the rim | electrically large aperture, `P·w/2` | **−11.5 dB** |
+
+The labyrinth lip's waveguide-below-cutoff attenuation gets **no credit** in either row, because
+§5.3a gives its ≥ 2× overlap as a ratio and never as a depth. Getting that credit is part of
+`OI-EMCCAV-16`.
+
+#### 6.5.4 The internal field against `REQ-CAV-01`
+
+§5.1 derived `REQ-CAV-01` (0.5 V/m peak) for 420 MHz – 3 GHz. **Its derivation stays conservative at
+6 GHz.** At 7.125 GHz the pickup's effective height is capped at λ/π = 13.4 mm, below §5.1's 20 mm,
+and EMIRR generally rises with frequency. So it is used here as a **screen**, and this revision does
+not extend its band (§18: something must require it first; see `OI-EMCCAV-16`). Peak
+single-component field is taken from the rms total with a factor of **1.75**: √2 for crest, times
+the 99th percentile of a Rayleigh-distributed diffuse-field component.
+
+| Seam state | at 9.15 V/m (reference) | at 54.8 V/m (bounding) | vs 0.5 V/m |
+|---|---:|---:|---|
+| Discrete ≤ 2.5 mm apertures, **worst over the band (7.125 GHz)** | **0.079** | **0.473** | **holds**: 16.0 dB margin at reference, **0.5 dB** at bounding |
+| Continuous 2.5 mm slot (any frequency; λ·Q is flat across the band) | **4.27** | 25.6 | **fails by 18.6 dB** at reference |
+| Continuous slot, **had Layer 4 been kept** | 3.40 | — | still fails, by 16.6 dB |
+
+> **Plainly: with the absorber deleted, `REQ-CAV-01` holds against external 6 GHz Wi-Fi if and only
+> if the parting-plane seam is what §5.3a intends: a continuous conductive bead, leaking only
+> through discrete apertures no larger than λ/20.** The head is necessary. It is the only
+> significant loss, and without it Q would be ~10,600. But the head is not sufficient. Layer 4 would
+> not have been sufficient either: it was worth 2.0 dB against a failure of 18.6. **The remedy
+> belongs to aperture and seam control (`NP-BIB-EMF-001` §7.6), not to layer count.** This section
+> does not reopen `REQ-CAV-04`.
+
+#### 6.5.5 What this case depends on that §6 did not
+
+1. **The bead's continuity is now load-bearing for EMC, not just for sealing.** Whether it seats
+   continuously depends on the rim finish (`RISK-20`, OPEN, BLOCKING two supplier items) and on
+   gasket line pressure at the back-centre and ear spans (`EMF-3`, unmeasured). **`OI-EMCCAV-16`.**
+2. **§5.3a's λ/20 is computed at the bottom of the band.** At 7.125 GHz, λ/20 is **2.10 mm**, not
+   2.5 mm. The bounding row above (0.5 dB margin at 2.5 mm) shows that the difference matters once
+   the incident field is high. **`OI-EMCCAV-16`.**
+3. **The head must be RF-visible through the module field.** §6.3 and this section both treat the
+   head as a boundary of the cavity. At 6 GHz, though, the tile field's FPC copper and module bodies
+   could screen part of the head, and those parts get no credit (§9 item 2). The fraction of the head
+   that must stay visible is **1.4 %** at the reference field and **63 %** at the bounding field. The
+   deleted foam would have matched the head's absorption only if **58 %** or less of the head were
+   visible. So if the tile field turns out largely opaque at 6 GHz, the foam would have been worth
+   more than 2 dB. It still would not have been worth the 18.6 dB that the seam controls, but the
+   principal should know that the 2.0 dB figure rests on this. **`OI-EMCCAV-17`.**
+4. **The rim meets the scalp, and that is a second ingress path.** The mouth of the helmet, where
+   the rim meets hair and skin, is an annular path that neither §5.3a nor this section bounds. One
+   side of it is lossy tissue, so it is probably heavily attenuated, but that has not been shown.
+   **`OI-EMCCAV-18`.**
+5. **Every margin above assumes §5.1's 60 dB EMIRR, and §5.4 shows `REQ-CAV-01` moves 20 dB per
+   decade of it.** The EMIRR at which each case just meets the limit: design-intent seam at the
+   reference field, **44.0 dB**; the same seam at the bounding field, **59.5 dB**, which is
+   effectively the assumption itself; a continuous slot at the reference field, **78.6 dB**. The
+   60 dB is a 420 MHz – 3 GHz assumption. EMIRR usually rises with frequency as input filtering
+   takes hold, so 6 GHz is unlikely to be worse, but `NP-EMC-EMIRR-001`'s procedure stops at
+   3 GHz, so nothing measures it there. This does not change the comparison, because the seam still
+   moves the field 36 dB and the deleted layer 2 dB. It does mean the bounding row has no margin to
+   spare. **`OI-EMCCAV-01`.**
+
+**Bench confirmation is still required, and nothing above is a measurement.** The `EMF-1` test
+plan (`NP-HEX-ZM-001` §5.6.1, GitHub #401) now carries `EMF-1a`, `EMF-1b` and the foam-fitted
+comparison `EMF-1f`, all to **6 GHz**. It names two gaps and leaves them to this item, and §6.5
+answers both:
+
+- **The band.** 6 GHz reaches the 5 GHz Wi-Fi band but not Wi-Fi 6E's **5.925 – 7.125 GHz**. For the
+  internal sweeps (`EMF-1a`, `EMF-1b`, `EMF-1f`) to confirm §6.5.2's composite Q, and the 2.0 dB it
+  credits the deleted layer, they need to reach **7.125 GHz**. `EMF-1b` also needs a third
+  configuration, **head phantom + populated module field**, which is what answers item 3.
+- **The seam.** The internal sweeps give Q, not ingress. §6.5 finds the seam decides the case, so
+  the measurement that settles it is the **external-illumination** half of `EMF-1` (`RISK-20`). Its
+  band is not yet specified, and this section supplies it: **5.925 – 7.125 GHz**, with E-field
+  measured at the electrode plane and the head phantom fitted. It should run in two seam states,
+  bead **seated** and bead **deliberately lifted over a known length**, so that the 36 dB swing is
+  measured rather than inferred.
+
+**This revision does not edit §5.6.1.** The test plan belongs to `NP-HEX-ZM-001`, so the two
+extensions are carried by `OI-EMCCAV-06`'s residual and `OI-EMCCAV-16` for its owner to take up.
+
 ---
 
 ## 7. What would settle it on the bench
@@ -569,6 +739,10 @@ not the decision: they can only show the layer does less than 0.26 dB, never mor
 result is structural. `OI-EMCCAV-06`'s 6 GHz ingress case is the one place a measurement could
 change the answer, and it needs `EMF-1a` swept to 6 GHz **with the absorber fitted and removed** —
 that is the sweep to run before the re-loft is cut into CAD.
+**Rev 21:** that case is now worked analytically in §6.5, and it does **not** change the answer.
+With the head in, the layer is worth 2.0 dB of internal field at 6.5 GHz, while the seam is worth
+36 dB. The bench sweep still needs to happen, now to **7.125 GHz** and with the module field fitted
+(§6.5.5). But what it would reopen is the **seam** specification, not the station.
 
 > **⤷ Rev 18:** the 6 GHz extension is in `NP-HEX-ZM-001` §5.6.1. The deleted stack leaves only the
 > *removed* half as a real configuration. **The *fitted* half is run as `EMF-1f`** (principal direction
@@ -1143,6 +1317,14 @@ Stated explicitly, because an analysis with a clean answer is easy to over-read.
    409 and Layer 4 still supplies 0.26 dB of the 26.2 dB needed — so the layer is not the answer
    there either. What *would* be, if `EMF-1a` finds a problem, is aperture and seam resistive control
    (`NP-BIB-EMF-001` §7.6), not layer count.
+9. **§6.5 does not show that the external 6 GHz case is safe. It shows what the case depends on.**
+   The field level comes from regulatory EIRP ceilings, not from a measured device. The seam is
+   modelled as bounding aperture shapes, not as a design, because no seam design exists yet. The
+   head is a homogeneous skin half-space. At 6 GHz the wave penetrates about 8 mm, so the skin–fat
+   stratification matters, in a direction not assessed here. The module field is assumed
+   transparent. **The one firm conclusion is comparative:** the seam state moves the internal field
+   36 dB and the deleted layer moves it 2 dB, and that holds whichever way the absolute numbers
+   fall.
 
 ---
 
@@ -1154,7 +1336,10 @@ Stated explicitly, because an analysis with a clean answer is easy to over-read.
 | ~~**`OI-EMCCAV-02`**~~ | ~~`RISK-SINK-03` narrowed, not cleared: the exterior spreader cannot affect cavity Q, so `OI-SINK-01`'s EMF clearance reduces to **ELF eddy loading of the Helmholtz actuator** + external RF. Re-scope the item to those two mechanisms~~ **✅ CLOSED 2026-09-24 (Rev 20, GitHub #399) — the re-scope is done; `OI-SINK-01` is narrowed, NOT cleared, and stays BLOCKING.** `NP-THERM-SINK-001` Rev 2 §7.1 rewrites `RISK-SINK-03` to exactly the two mechanisms and drops cavity behaviour. **(1) Helmholtz eddy loading — cleared at first order:** thin-shell dipole mode, `τ₁ = μ₀Ga/3`; at `a ≤ 0.15 m` and a film bounded at `G ≤ 250 S` (oriented-graphite ceiling — no σ is in the record), the film moves the coil-drive → field transfer by **ε ≤ 0.041 at 300 Hz** (0.0083 at 60 Hz), against `NP-THERM-BOWL-001` §5.2's active-loop share (10 / ~20 / 30 dB): clears the 20 dB mid share across the ELF band and the 30 dB top share up to ~230 Hz with no calibration or L2 credit; the top share above ~230 Hz rests on `REQ-EMI-11`'s calibration resolving phase; bench confirmation `EMF-1-SINK-1`. **(2) External RF — narrowed:** cannot degrade the continuous area; **open at the film's terminations**, where a floating sheet meets the apertures that set the floor — bench step **`EMF-1-SINK-2`** on the `EMF-1` fixture, bare vs. film-fitted to 6 GHz, same range as `EMF-1a`. Scoping also found the film would cover the §4.3 TMS window (`RISK-SINK-07`, `OI-SINK-09`) and split the ingress half out as `RISK-SINK-06` | EMC + Thermal | ~~No — narrows a **BLOCKING** item~~ **CLOSED** — residue carried by `OI-SINK-01` (BLOCKING) and `OI-SINK-09` |
 | ~~**`OI-EMCCAV-03`**~~ | **✅ CLOSED 2026-09-23 (Rev 15, GitHub #400) — the condition now lives on `OI-HUB-C19`'s own row** (`NP-HW-HUB-001` Rev 7, §11 and §7.4): siting the 15–20 V → 24 V boost inside the helmet envelope requires §4 (band) and §6 (the head meets `REQ-CAV-02`) to be re-derived **before the siting is accepted**, because a switching converter is an order of magnitude above anything in §3's table and Layer 4 is no longer present. **The record already decides the siting — Hub PCB, provisional (principal 2026-07-30), outside the envelope** — so nothing is re-derived today; the condition gates the one named alternative, the PAN. **§3.1 quantifies why it must gate:** §6's 23.6 dB margin survives a source up to +23.6 dB, and read as ×10 in field "an order of magnitude" leaves **3.6 dB**, inside the model's own uncertainty; the deleted station removes the only in-stack place a remedy could have gone. **What a PAN siting would need and the record lacks:** boost switching frequency, switch-node edge time, hot-loop area (all arrive with `OI-HUB-C19`'s part selection), and an amplitude for §3's controller edges | EE Lead + EMC | **Gate carried by `OI-HUB-C19`** — gates any re-siting of the boost |
 | **`OI-EMCCAV-04`** | Add `EMF-1a`–`EMF-1d` (§7) to the `EMF-1` fixture's test plan. Four sweeps on a fixture already committed. **✅ PLAN WRITTEN 2026-09-23 (Rev 18, GitHub #401): `NP-HEX-ZM-001` §5.6.1**, re-stated against the as-designed stack, with each sweep's pass criterion traced to `REQ-CAV-01` / `REQ-CAV-02`, and `EMF-1a`/`EMF-1b` swept to 6 GHz. **The one residual is DECIDED (principal direction 2026-09-24, PR #412):** the foam-fitted comparison is run, as `EMF-1f`, on a pre-re-loft article. ~~Gates §8.2's deletion~~ — ~~**Rev 2: no longer gating**, because §8.2 now recommends substitution, which does not depend on them.~~ **Corrected Rev 18:** not gating, because §8.2 was rewritten at Rev 3 to recommend **deletion**, the principal **took** it on 2026-09-23 (`REQ-CAV-04`, GitHub #391), and §6.1's result is structural, so these sweeps gate confidence, not the decision. They are what would let `REQ-CAV-04`'s justification be stated as *measured*; **sweep `EMF-1a` to 6 GHz** for `OI-EMCCAV-06` (done: `EMF-1a` and `EMF-1b` both run to 6 GHz) | EMC | No. **Plan written Rev 18**, including `EMF-1f` |
-| **`OI-EMCCAV-06`** | **The band's upper edge is derived against the INTERNAL source only (§4.2).** The 31.1 dB roll-off is a property of §3's digital edges and says nothing about **external 6 GHz Wi-Fi ingress through the parting-plane seam** — the case `NP-HEX-ZM-001` §5.3a and `RISK-20` are actually written against. **Above 3 GHz the foam is no longer electrically thin** (§6.2 shows 11–41 dB), so §6's verdict does **not** transfer. Tissue is lossier at 6 GHz so §6.3's mechanism should hold harder, but **the case is not worked**. Sweep `EMF-1a` to 6 GHz | EMC | **Bounds §6's scope** |
+| ~~**`OI-EMCCAV-06`**~~ | **✅ WORKED ANALYTICALLY 2026-09-24 (Rev 21, §6.5, GitHub #402). Bench confirmation remains.** External Wi-Fi 6E at 5.925–7.125 GHz, from a client at its FCC 20-51 EIRP ceiling (9.15 V/m at IEC 60601-1-2 Table 9's 0.3 m; 54.8 V/m bounding). The cavity is **overmoded** there (M ≈ 25), with composite Q **34–41** with the head in. So `REQ-CAV-02` is out of band and has no per-mode meaning, and the head bounds the field without removing it. `REQ-CAV-01`, applied as a screen, **holds** if the seam leaks only through §5.3a's discrete ≤ 2.5 mm apertures (16.0 dB margin; 0.5 dB at the bounding field). It **fails by 18.6 dB** if the bead is absent and the seam becomes a continuous slot. Layer 4 would have bought **2.0 dB**, so **the deletion verdict holds**, and the remedy is seam control (`OI-EMCCAV-16`–`-18`). **Residual, for the `EMF-1` plan's owner (`NP-HEX-ZM-001` §5.6.1, written to 6 GHz by GitHub #401):** extend `EMF-1a`/`EMF-1b`/`EMF-1f` to **7.125 GHz**, and add a head-phantom + module-field configuration to `EMF-1b`. The margins assume §5.1's 60 dB EMIRR (§6.5.5 item 5: break-even 44.0 dB at the reference field, 59.5 dB at the bounding field) | EMC | No — §6's scope is now bounded; the residual is `OI-EMCCAV-16`/`-17` |
+| **`OI-EMCCAV-16`** | **The parting-plane bead's continuity is now EMC-load-bearing, and §5.3a's slot target needs restating (§6.5).** Continuous bead with discrete apertures: `REQ-CAV-01` holds. Continuous 2.5 mm slot: fails by 18.6 dB. That 36 dB swing makes the seam, not any layer, the thing that decides external 6 GHz ingress. Three parts: **(a)** restate `NP-HEX-ZM-001` §5.3a's target as a **maximum discrete aperture** with a **continuous** conductive bead, not as a *"continuous residual slot"*; **(b)** compute λ/20 at the band top, **2.10 mm at 7.125 GHz** rather than 2.5 mm at 6 GHz; **(c)** dimension the labyrinth overlap as a **depth** so its below-cutoff attenuation can be credited. Continuity depends on `RISK-20` (rim finish) and `EMF-3` (line pressure). **(d)** Give `EMF-1`'s external-illumination half its band, **5.925 – 7.125 GHz**, measured at the electrode plane with the phantom fitted, bead seated and bead deliberately lifted (§6.5.5). Whether to extend `REQ-CAV-01`'s band to 7.125 GHz needs an incident-field level to trace to, and that has no standards home until `OI-EMCCAV-05` closes | EMC + ME | No — but it is what §6.5's verdict rests on |
+| **`OI-EMCCAV-17`** | **Is the head RF-visible through the module field at 6 GHz?** §6.3 and §6.5 treat the head as a cavity boundary. The tile field's FPC copper and module bodies could screen it. The design-intent seam holds `REQ-CAV-01` with **1.4 %** of the head visible at 9.15 V/m, but needs **63 %** at 54.8 V/m. Below **58 %** visibility, the deleted foam would have out-absorbed the head, so §6.5's 2.0 dB figure rests on this. Settled by `EMF-1b` with a populated module field over the phantom | EMC | No — bounds §6.5's 2.0 dB |
+| **`OI-EMCCAV-18`** | **The helmet mouth, where the rim meets hair and scalp, is a second 6 GHz ingress path that nothing bounds.** It is an annular channel with lossy tissue on one side, probably heavily attenuating, but neither §5.3a nor §6.5 shows it. Work it, or include it in `EMF-1b`'s phantom configuration | EMC | No |
 | **`OI-EMCCAV-08`** | ~~The only question between here and executing the deletion~~ **NARROWED 2026-09-20 by §8.3, and it no longer gates.** The absorber sits **outboard of the Gap**, so the re-loft takes **no clamp space at all**: the 5–7 mm Gap and the 3.0–4.0 mm of clamp features inside L1 are both preserved, and only the clamp's *counterface* changes — from compressible foam to rigid Pd/mu-metal/CFRP, which is **better** for an over-center mechanism whose over-center point would otherwise drift with foam compression set. The tolerance argument also inverts: the foam is a **±0.5 contributor**, so deleting it **shrinks the clamp's stack 38 % worst-case (±1.30 → ±0.80)**. **Residual, and it is `MECH-2`'s regardless:** confirm the per-module spring-plunger stroke covers ±0.80 — *a strictly easier requirement than today's ±1.30* | ME Lead (**`MECH-2`**) | **No — narrowed, no longer gating** |
 | **`OI-EMCCAV-09`** | **TWO OF FOUR INPUTS CLOSED 2026-09-21 by `PCB-1` and `PLATE-1`.** The Gap floor is set by the **cluster controller boards** on L1's gap-facing face (`NP-DRV-SHELL-002` §4.1), not by the lever — which is flush and contributes zero. With **`PCB-1`** (0.80 mm ±0.08, 4-layer rigid-flex) and the tallest named package (**1.45 mm**, SOT-23-5 op-amp) the component plane is **2.25 mm**; with **`PLATE-1`** the plate **pockets**, so the stack is **max(...)** not **sum(...)**. **Floor: 2.75–3.25 mm against 5–7 mm today.** **Two remain, both `MECH-2`'s:** the plate's structural thickness (now only binding if it exceeds 1.45 mm), and — **the one that actually binds** — the **outer bowl's inner-surface PROFILE tolerance**, which is **nowhere in the record** and is the whole of the remaining 0.5 mm clearance uncertainty, worth **0.019 m²K/W** | ME (**`MECH-2`**) + Thermal | **No — two inputs left** |
 | ~~**`OI-EMCCAV-13`**~~ | **✅ CLOSED ON THE STRUCTURAL QUESTION 2026-09-21 by `BOARD-1`** (principal; `NP-DRV-SHELL-002` §3.2) — **the controller board sits at the cluster's PAN-facing edge, on the cluster's own mirror axis, not at its centroid.** At the plate **edge** the bending moment is minimal, so `PLATE-1`'s pocket costs nearly nothing, and **where the board falls into the inter-tile gap no pocket is needed at all**. Ribbing remains the fallback and is no longer the expected case. **Four constraints select the position independently:** plate structure, shortest tail to the PAN, `REQ-EMI-06` loop area (linear in feed length), and `SYM-1` preserved without an exception clause. **Residual, and it is a layout question not an architectural one:** `NP-HELMET-GEOM-001` §3's **cluster-clamp bosses also want the inter-tile gaps**, and for a midline cluster the mirror axis meets the PAN-facing edge **on an inter-tile boundary** — so board and boss compete for that gap | ME (**`MECH-2`**). **STRUCTURAL HALF CLOSED** | ~~Residual: planform packing~~ **✅ FULLY CLOSED 2026-09-21 by `PACK-1` (§8.8)** |
@@ -1193,3 +1378,4 @@ Stated explicitly, because an analysis with a clean answer is easy to over-read.
 | 18 | 2026-09-24 | NeurOne EMC / Systems Engineering | **`OI-EMCCAV-04` discharged (GitHub #401): §7's cavity sweeps are written into the `EMF-1` test plan, `NP-HEX-ZM-001` §5.6.1 (Rev 5), not only cross-referenced.** Each of `EMF-1a`–`EMF-1d` carries setup, range, what it measures and a pass criterion traced to a requirement in this document. `EMF-1a` (empty cavity) is characterisation only, because `REQ-CAV-02` is defined head-fitted; it is the coupling proof for the others and the measured bare-wall Q behind the 26.2 dB equivalence. `EMF-1b`/`EMF-1c` are judged against `REQ-CAV-02` (Q_L ≤ 20 at 420 MHz – 3 GHz, at 52/57/62 cm), and a mode below 420 MHz re-derives `REQ-CAV-00`. `EMF-1d` is judged against `REQ-CAV-01`, and only after `OI-EMCCAV-01` settles the EMIRR the 0.5 V/m rests on. **`EMF-1a`/`EMF-1b` run to 6 GHz** for `OI-EMCCAV-06`; 3–6 GHz is recorded, not judged, because `REQ-CAV-00` sets no requirement there. **The absorber is deleted, so the sweeps are re-stated against the as-designed stack**, and §7's *fitted vs. removed* survives only as its removed half. Because the re-loft leaves the 23–29 mm dielectric region unchanged, §4's band stands. **Foam-fitted comparison: run, by principal direction 2026-09-24 (PR #412), as `EMF-1f`.** It uses a second outer bowl at the pre-re-loft radius, not a liner in the re-lofted bowl, which would shift the modes being compared. The liner's permittivity is measured, because §6.2's is assumed. It has no pass criterion, and a result against §6.2 or `REQ-CAV-04` goes to the principal. **§10's `OI-EMCCAV-04` row corrected:** its Rev 2 wording *"§8.2 now recommends substitution"* is struck. §8.2 was rewritten at Rev 3 to delete, and the principal took that on 2026-09-23. §7's *"should not be executed before"* caution and §8.2's *"what still gates"* paragraph are annotated in place, not rewritten. **No figure in §1–§6 changes and no measurement is asserted.** |
 | 19 | 2026-09-24 | NeurOne EMC / Systems Engineering | **`OI-EMCCAV-01` (GitHub #398): sensitivity stated, procedure written, measurement still pending.** New **§5.4** tabulates how `REQ-CAV-01`, the scaled `REQ-CAV-02` Q ceiling and the head's margin move for EMIRR 40 / 50 / 60 / 70 dB — **0.050 / 0.158 / 0.50 / 1.58 V/m; margin 3.6 / 13.6 / 23.6 / 33.6 dB; break-even 36.4 dB** — computed by the new `emirrSensitivity()` in `scripts/check-cavity-q.ts` (nine new `--validate` anchors), with the source/layout share held fixed and that assumption labelled. **Finding for `REQ-CAV-04`: the deleted absorber adds 0.001 dB with the head fitted at every EMIRR, so no EMIRR result reopens the deletion; a result below 36.4 dB moves the allocation instead**, which is an EMC / principal decision this revision does not make. The bench procedure is new document **`NP-EMC-EMIRR-001`** (DRAFT). §5.1's EMIRR row, §9 item 3 and §10's `OI-EMCCAV-01` row point to both. **No measurement, no requirement value and no locked decision changed.** |
 | 20 | 2026-09-24 | NeurOne EMC / Systems Engineering | **`OI-EMCCAV-02` CLOSED (GitHub #399): the re-scope §9 item 4 offered is taken up by `NP-THERM-SINK-001` Rev 2 §7.1, and `OI-SINK-01` is NARROWED, not cleared.** `RISK-SINK-03` now names exactly two mechanisms and drops cavity behaviour. **Helmholtz eddy loading is cleared at first order** — the film moves the coil-drive → field transfer by ε ≤ 0.041 at 300 Hz, against `NP-THERM-BOWL-001` §5.2's active-loop share (10 / ~20 / 30 dB): clears the 20 dB mid share across the ELF band and the 30 dB top share up to ~230 Hz with no calibration or L2 credit; the top share above ~230 Hz rests on `REQ-EMI-11`'s calibration resolving phase (the record states no loop bandwidth or calibration method; both are stated conditions). **External RF is cleared over the continuous area and open at the film's terminations**, on a new `EMF-1` fixture step `EMF-1-SINK-2` over `EMF-1a`'s range. §9 item 4 annotated; §10 row struck and closed with its residue named. No figure in §3–§8 changes; nothing measured. |
+| 21 | 2026-09-24 | NeurOne EMC / Systems Engineering | **§6.5 added: `OI-EMCCAV-06` worked analytically (GitHub #402). External 6 GHz Wi-Fi ingress through the parting-plane seam does not reopen `REQ-CAV-04`, and the case is decided by the SEAM.** **(1) Source:** a Wi-Fi 6E client at its FCC 20-51 / 47 CFR §15.407 EIRP ceiling (24 dBm LPI; 30 dBm standard power), 5.925–7.125 GHz. Incident field **9.15 V/m** at IEC 60601-1-2 Table 9's 0.3 m, which reproduces Table 9's own 9 V/m at 5.1–5.8 GHz (Table 9 stops below 6 GHz), and **54.8 V/m** bounding (30 dBm at 0.1 m). **(2) The #402 premise is half right.** Skin is lossier at 6 GHz (Gabriel 4-Cole-Cole: σ 4.37 S/m at 6.525 GHz), but Q scales with electrical size and the cavity is **overmoded** (305 modes, overlap M ≈ 24.5). So the head bounds a diffuse field at **composite Q 34–41** (Hill 1994 / IEC 61000-4-21) instead of removing a mode. `REQ-CAV-02` is out of band and has no per-mode meaning there, and its band is **not** extended. **(3) Seam coupling** (Hill aperture model): discrete ≤ 2.5 mm apertures, 293 counted pathologically, give −47.7 dB; a continuous 2.5 mm slot (bead absent) gives −11.5 dB. **(4) `REQ-CAV-01` as a screen** (its derivation stays conservative at 6 GHz: h_e ≤ λ/π = 13.4 mm): **holds** with discrete apertures (0.079 V/m peak at 7.125 GHz, 16.0 dB margin; 0.5 dB at the bounding field) and **fails by 18.6 dB** with a continuous slot. Layer 4 would have bought **1.97 dB**. **Remedy: seam control, not layer count** (`NP-BIB-EMF-001` §7.6). **Raised:** `OI-EMCCAV-16` (bead continuity is EMC-load-bearing; restate §5.3a as a maximum discrete aperture; λ/20 at 7.125 GHz is 2.10 mm, not 2.5; dimension the labyrinth depth). `OI-EMCCAV-17` (head RF-visibility through the module field: 1.4 % needed at reference, 63 % at bounding; foam parity at 58 %). `OI-EMCCAV-18` (the mouth/scalp interface path is unbounded). **`OI-EMCCAV-06` closed analytically. Bench confirmation remains:** `EMF-1a`/`EMF-1b` swept to **7.125 GHz**, empty, with head phantom, and with phantom + module field (`NP-HEX-ZM-001` §5.6.1). `scripts/check-cavity-q.ts` report block 10 and 27 new anchors reproduce every figure. §4.2, §8.2, §9 (item 9) and §10 updated. **Rebased over Revs 15–20:** §6.5.5 gains item 5, applying §5.4's EMIRR sensitivity (#398): break-even 44.0 dB at the reference field, 59.5 dB bounding, and 78.6 dB for a continuous slot. The bench paragraph is rewritten against #401's `NP-HEX-ZM-001` §5.6.1 plan, which sweeps to 6 GHz and leaves two gaps to this item. §6.5 answers both: extend the internal sweeps to 7.125 GHz, and give the external-illumination half the 5.925–7.125 GHz band. §5.6.1 itself is not edited. No locked decision changed |
