@@ -5,7 +5,7 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: 806faf818a4d691407f1198624d4c726fba8dca4b0df4babc5559017f8c088fe
+// sources-sha256: 9ae4245dd34235cdfcf70679ef107ff7f8f821f0c84c81ac2a2897c8da40f418
 var __create = Object.create;
 var __getProtoOf = Object.getPrototypeOf;
 var __defProp = Object.defineProperty;
@@ -1879,6 +1879,7 @@ function detectLocale() {
   return findLocale(browserLang);
 }
 var currentLocale = detectLocale();
+var pluralRulesCache = new Map;
 
 // app/web/src/types/protocol.ts
 function defaultParams(type) {

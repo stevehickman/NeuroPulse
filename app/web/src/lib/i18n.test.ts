@@ -32,20 +32,31 @@ describe("i18n locale files", () => {
     expect(Object.keys(en).length).toBeGreaterThanOrEqual(50);
   });
 
-  it("all locale files have the same keys as en.json", () => {
+  // Every locale carries every en.json key. The only extra keys allowed are
+  // the locale's own CLDR plural categories on a family en.json defines
+  // (OI-I18N-03) — Russian _FEW / _MANY, Arabic _ZERO / _TWO / _FEW / _MANY.
+  it("all locale files carry en.json's keys, plus only their own plural categories", () => {
     const en = JSON.parse(
       readFileSync(join(LOCALES_DIR, "en.json"), "utf-8"),
     );
     const enKeys = Object.keys(en).sort();
+    const bases = enKeys.filter((k) => k.endsWith("_OTHER")).map((k) => k.slice(0, -6));
     const files = readdirSync(LOCALES_DIR).filter(
       (f) => f.endsWith(".json") && !f.startsWith("_") && f !== "en.json",
     );
     for (const file of files) {
+      const code = file.slice(0, -5);
       const loc = JSON.parse(
         readFileSync(join(LOCALES_DIR, file), "utf-8"),
       );
-      const locKeys = Object.keys(loc).sort();
-      expect(locKeys).toEqual(enKeys);
+      const cats = new Intl.PluralRules(code)
+        .resolvedOptions()
+        .pluralCategories.map((c) => c.toUpperCase());
+      const allowedExtra = new Set(bases.flatMap((b) => cats.map((c) => `${b}_${c}`)));
+      const locKeys = Object.keys(loc);
+      for (const k of enKeys) expect(locKeys, `${file} missing ${k}`).toContain(k);
+      const extras = locKeys.filter((k) => !(k in en));
+      for (const k of extras) expect(allowedExtra.has(k), `${file} extra ${k}`).toBe(true);
     }
   });
 });
@@ -60,6 +71,58 @@ describe("t() function", () => {
     const { t } = await import("./i18n");
     const result = t("TEST_WITH_PARAM", { "0": "hello" });
     expect(result).not.toContain("{0}");
+  });
+});
+
+describe("pluralKey()", () => {
+  const family = (...cats: string[]) => {
+    const keys = new Set(cats.map((c) => `N_${c}`));
+    return (k: string) => keys.has(k);
+  };
+
+  it("English: one and other", async () => {
+    const { pluralKey } = await import("./i18n");
+    const has = family("ONE", "OTHER");
+    expect(pluralKey("N", 1, "en", has)).toBe("N_ONE");
+    expect(pluralKey("N", 2, "en", has)).toBe("N_OTHER");
+    expect(pluralKey("N", 0, "en", has)).toBe("N_OTHER");
+  });
+
+  it("an explicit _ZERO wins for 0 in every locale", async () => {
+    const { pluralKey } = await import("./i18n");
+    const has = family("ZERO", "ONE", "OTHER");
+    expect(pluralKey("N", 0, "en", has)).toBe("N_ZERO");
+    expect(pluralKey("N", 0, "ru", has)).toBe("N_ZERO");
+  });
+
+  it("Russian selects few and many once the locale carries them", async () => {
+    const { pluralKey } = await import("./i18n");
+    const has = family("ONE", "FEW", "MANY", "OTHER");
+    expect(pluralKey("N", 1, "ru", has)).toBe("N_ONE");
+    expect(pluralKey("N", 21, "ru", has)).toBe("N_ONE");
+    expect(pluralKey("N", 3, "ru", has)).toBe("N_FEW");
+    expect(pluralKey("N", 22, "ru", has)).toBe("N_FEW");
+    expect(pluralKey("N", 5, "ru", has)).toBe("N_MANY");
+    expect(pluralKey("N", 11, "ru", has)).toBe("N_MANY");
+  });
+
+  it("a category the locale does not carry yet falls back to _OTHER, never the raw key", async () => {
+    const { pluralKey } = await import("./i18n");
+    const has = family("ONE", "OTHER");
+    expect(pluralKey("N", 3, "ru", has)).toBe("N_OTHER");
+    expect(pluralKey("N", 2, "ar", has)).toBe("N_OTHER");
+  });
+
+  it("Arabic two; Chinese never selects _ONE", async () => {
+    const { pluralKey } = await import("./i18n");
+    expect(pluralKey("N", 2, "ar", family("ONE", "TWO", "OTHER"))).toBe("N_TWO");
+    expect(pluralKey("N", 1, "zh-Hans", family("ONE", "OTHER"))).toBe("N_OTHER");
+  });
+
+  it("tPlural renders the count through the selected member", async () => {
+    const { tPlural } = await import("./i18n");
+    expect(tPlural("SCRIPT_LINE_COUNT", 1)).toBe("1 line");
+    expect(tPlural("SCRIPT_LINE_COUNT", 3)).toBe("3 lines");
   });
 });
 

@@ -34,6 +34,27 @@ and falls back to `_OTHER`), and **`{0}` must be the count** — all three gener
 the plural argument. A trailing `_ONE` is reserved for plurals: `sync-locales` rejects a family
 with no sibling category rather than emitting a one-item plural nothing can resolve.
 
+**A locale may carry its own plural categories** (`OI-I18N-03`). en.json's families hold English's
+forms. CLDR gives Russian `one / few / many / other` and Arabic `zero / one / two / few / many /
+other`, so `ru.json` may add `_FEW` and `_MANY` to a family en.json defines, and `ar.json` may add
+`_ZERO`, `_TWO`, `_FEW` and `_MANY`. **That is the only extra key a locale may carry.** A category the
+language does not have, or one on a family en.json lacks, fails `check-locale-strings.ts`. An extra
+category is translated from the family's `_OTHER`. It has no English of its own, so it never holds
+English: it exists only as a verified translation (§17.7). All three platforms choose the category
+by the locale's CLDR rules. Android `<plurals>` and Apple string-catalog variations do it natively,
+and web's `tPlural` uses `Intl.PluralRules`. A category the file does not carry yet falls back to
+`_OTHER`. An explicit `_ZERO` is read for a count of exactly 0 in every locale.
+
+**A translation keeps every placeholder, with one exception:** a plural member whose category matches
+exactly one count may leave out the count `{0}`, because the word already says it. Arabic
+zero/one/two and English one are like that (Arabic dual "سطران" means "two lines"). A category that
+covers many counts may not: Russian `one` covers 1, 21 and 31, so without `{0}` it would say "1" for
+21. The gate and `import` apply the same rule (`placeholderMismatch`).
+
+**Consequence while a locale is untranslated:** a language whose only category is `other` (Chinese,
+Indonesian) renders the English `_OTHER` for a count of 1 ("1 lines") until it is translated. That
+is correct CLDR selection over English placeholder text, and it goes away with the translation.
+
 **No printf conversion appears in a canonical value** — not `%@`, `%d`, `%.1f` or `%1$d`.
 `{n}` is positional by construction, so a translation can reorder its arguments; a bare `%d` is
 consumed in source order, and web's `t()` renders it literally. Precision and padding are the call
@@ -132,7 +153,10 @@ key in each locale is in exactly one state:
   `translation-export/<locale>.json` (git-ignored). Each key comes with its English text, a hash of
   it, the placeholders the translation must keep, the previous translation if it is stale, and
   `legalReviewRequired` from `_metadata.json`. Keys marked `"translate": false` (the modality names,
-  §17.3) are left out.
+  §17.3) are left out. Plural members carry `pluralCategory` and `pluralExamples` (counts that
+  select that category in this language, such as `few: 2, 3, 4, 22, 23, 24` for Russian). The
+  export includes the categories English lacks and leaves out the ones the language never selects,
+  such as `_ONE` in Chinese (§17.2).
 - `import <file> --verified-by <reviewer> [--legal-reviewed] [--replace]`: takes only the
   `translation` fields that are filled in. It refuses: a key whose English changed after the export;
   a placeholder set that differs from the English; a printf conversion; consent, age-gate or BIPA
@@ -141,6 +165,5 @@ key in each locale is in exactly one state:
 - `fill`: after adding a key or editing English, copies the English into every locale where the key
   is untranslated. It never touches a translated or stale value.
 
-**`ru` and `ar` are blocked on `OI-I18N-03`:** the key set carries only `_ONE` / `_OTHER`, so their
-extra CLDR plural categories have nowhere to go. The other eight locales can go to translators once
-the export exists.
+All eleven locales can go to translators. `ru` and `ar` were blocked on `OI-I18N-03` until the
+plural categories above existed.

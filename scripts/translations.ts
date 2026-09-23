@@ -33,7 +33,11 @@
  * (modality names, CLAUDE.md §17 / localization.md §17.3) are not exported.
  *
  * `{0}`, `{1}` may be reordered freely: every generator emits them positionally
- * (§17.2). Plural members (`_ONE` / `_OTHER`) are exported as separate keys.
+ * (§17.2). Plural members are exported as separate keys, each with its CLDR
+ * category and counts that select it in this language — including the
+ * categories English lacks (`_FEW` / `_MANY` for Russian), translated from the
+ * family's `_OTHER` (OI-I18N-03). A member the language never selects (`_ONE`
+ * in Chinese) is not exported; it keeps the English, which nothing reads.
  *
  * `fill` is the step after an English edit or a new key: it copies the English
  * into every locale where the key is untranslated, which is what §17.1's "add
@@ -46,11 +50,16 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname, join, resolve } from "path";
 import {
+  PLURAL_MEMBER,
   SOURCE_LOCALE,
   hashText,
+  isUnusedPluralMember,
   loadLedger,
+  placeholderMismatch,
   placeholders,
+  pluralExamples,
   saveLedger,
+  sourcesFor,
   stateOf,
   targetLocales,
   type TranslationState,
@@ -66,6 +75,9 @@ interface ExportedString {
   sourceHash: string;
   status: "untranslated" | "stale";
   placeholders: string[];
+  /** Plural members only: the CLDR category, and counts that select it here. */
+  pluralCategory?: string;
+  pluralExamples?: number[];
   previousTranslation?: string;
   legalReviewRequired?: true;
   translation: string;
@@ -97,6 +109,28 @@ function loadMeta(): Record<string, KeyMeta> {
   return existsSync(p) ? readJson(p) : {};
 }
 
+/** An extra plural category inherits its family's `_OTHER` metadata. */
+function metaOf(meta: Record<string, KeyMeta>, key: string): KeyMeta | undefined {
+  const m = key.match(PLURAL_MEMBER);
+  return meta[key] ?? (m ? meta[`${key.slice(0, -m[0].length)}_OTHER`] : undefined);
+}
+
+/**
+ * The keys a translator is asked for in `loc`, mapped to the English each is
+ * translated from: en.json plus the locale's extra CLDR plural categories
+ * (OI-I18N-03), minus `"translate": false` and minus English plural members
+ * this locale never reads (`_ONE` in Chinese).
+ */
+function translatable(en: Record<string, string>, loc: string, meta: Record<string, KeyMeta>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, src] of Object.entries(sourcesFor(en, loc))) {
+    if (metaOf(meta, k)?.translate === false) continue;
+    if (isUnusedPluralMember(en, loc, k)) continue;
+    out[k] = src;
+  }
+  return out;
+}
+
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -126,16 +160,16 @@ function status(): void {
   const en = loadLocale(SOURCE_LOCALE);
   const meta = loadMeta();
   const ledger = loadLedger(LOCALES_DIR);
-  const translatable = Object.keys(en).filter((k) => meta[k]?.translate !== false);
-  console.log(`${translatable.length} translatable key(s) in ${SOURCE_LOCALE}.json\n`);
-  console.log("locale     translated  stale  untranslated  tampered");
+  // The key count differs per locale: plural categories are the language's own.
+  console.log("locale      keys  translated  stale  untranslated  tampered");
   for (const loc of targetLocales(LOCALES_DIR)) {
     const values = loadLocale(loc);
+    const src = translatable(en, loc, meta);
     const n: Record<TranslationState, number> = { untranslated: 0, translated: 0, stale: 0, tampered: 0 };
-    for (const k of translatable) n[stateOf(en[k]!, values[k] ?? "", ledger[loc]?.[k])]++;
+    for (const [k, text] of Object.entries(src)) n[stateOf(text, values[k] ?? "", ledger[loc]?.[k])]++;
     console.log(
-      `${loc.padEnd(10)} ${String(n.translated).padStart(10)}  ${String(n.stale).padStart(5)}  ` +
-        `${String(n.untranslated).padStart(12)}  ${String(n.tampered).padStart(8)}`,
+      `${loc.padEnd(10)} ${String(Object.keys(src).length).padStart(5)}  ${String(n.translated).padStart(10)}  ` +
+        `${String(n.stale).padStart(5)}  ${String(n.untranslated).padStart(12)}  ${String(n.tampered).padStart(8)}`,
     );
   }
 }
@@ -152,7 +186,10 @@ function fill(): void {
       if (ledger[loc]?.[k]) continue; // translated, stale or tampered: never overwritten
       if (values[k] !== en[k]) { values[k] = en[k]!; n++; }
     }
-    for (const k of Object.keys(values)) if (!(k in en)) { delete values[k]; n++; }
+    // A key en.json no longer has goes — but not a plural category the locale
+    // is allowed to add (OI-I18N-03), which never had English to begin with.
+    const allowed = sourcesFor(en, loc);
+    for (const k of Object.keys(values)) if (!(k in allowed)) { delete values[k]; n++; }
     if (n > 0) { saveLocale(loc, values); console.log(`${loc}: ${n} untranslated value(s) set to the English`); }
   }
 }
@@ -169,18 +206,22 @@ function exportLocale(args: string[]): void {
 
   const strings: Record<string, ExportedString> = {};
   let tampered = 0;
-  for (const k of Object.keys(en).sort()) {
-    if (meta[k]?.translate === false) continue;
-    const st = stateOf(en[k]!, values[k] ?? "", entries[k]);
+  const src = translatable(en, loc, meta);
+  for (const k of Object.keys(src).sort()) {
+    const text = src[k]!;
+    const st = stateOf(text, values[k] ?? "", entries[k]);
     if (st === "translated") continue;
     if (st === "tampered") { tampered++; continue; }
+    const cat = k.match(PLURAL_MEMBER)?.[1];
+    const plural = cat !== undefined && `${k.slice(0, -cat.length - 1)}_OTHER` in en;
     strings[k] = {
-      source: en[k]!,
-      sourceHash: hashText(en[k]!),
+      source: text,
+      sourceHash: hashText(text),
       status: st,
-      placeholders: placeholders(en[k]!),
-      ...(st === "stale" ? { previousTranslation: values[k]! } : {}),
-      ...(meta[k]?.legal_review_required ? { legalReviewRequired: true as const } : {}),
+      placeholders: placeholders(text),
+      ...(plural ? { pluralCategory: cat!.toLowerCase(), pluralExamples: pluralExamples(loc, cat!) } : {}),
+      ...(st === "stale" && values[k] !== undefined ? { previousTranslation: values[k]! } : {}),
+      ...(metaOf(meta, k)?.legal_review_required ? { legalReviewRequired: true as const } : {}),
       translation: "",
     };
   }
@@ -213,37 +254,39 @@ function importFile(args: string[]): void {
   const meta = loadMeta();
   const ledger = loadLedger(LOCALES_DIR);
   const entries = (ledger[loc] ??= {});
+  const sources = sourcesFor(en, loc);
 
   const skipped: string[] = [];
   let imported = 0;
   for (const [k, s] of Object.entries(file.strings ?? {})) {
     const tr = s.translation ?? "";
     if (tr.trim() === "") continue; // not done yet — stays in the next export
-    if (!(k in en)) { skipped.push(`${k}: no longer exists in ${SOURCE_LOCALE}.json`); continue; }
-    if (meta[k]?.translate === false) { skipped.push(`${k}: marked "translate": false`); continue; }
-    if (hashText(en[k]!) !== s.sourceHash) {
+    if (!(k in sources)) { skipped.push(`${k}: no longer exists in ${SOURCE_LOCALE}.json`); continue; }
+    if (metaOf(meta, k)?.translate === false) { skipped.push(`${k}: marked "translate": false`); continue; }
+    if (isUnusedPluralMember(en, loc, k)) { skipped.push(`${k}: a plural category ${loc} never selects`); continue; }
+    const text = sources[k]!;
+    if (hashText(text) !== s.sourceHash) {
       skipped.push(`${k}: the English changed after this file was exported — re-export and translate the current text`);
       continue;
     }
-    const st = stateOf(en[k]!, values[k] ?? "", entries[k]);
+    const st = stateOf(text, values[k] ?? "", entries[k]);
     if (st === "tampered") { skipped.push(`${k}: the current value was edited outside import — resolve first`); continue; }
     if (st === "translated" && !replace) {
       skipped.push(`${k}: already translated — pass --replace to correct a verified translation deliberately`);
       continue;
     }
-    if (meta[k]?.legal_review_required && !legalReviewed) {
+    if (metaOf(meta, k)?.legal_review_required && !legalReviewed) {
       skipped.push(`${k}: needs legal review in this language — pass --legal-reviewed once it has had it`);
       continue;
     }
-    const want = placeholders(en[k]!).join(",");
-    const got = placeholders(tr).join(",");
-    if (want !== got) { skipped.push(`${k}: placeholders [${got}] do not match the English [${want}]`); continue; }
+    const why = placeholderMismatch(en, loc, k, text, tr);
+    if (why) { skipped.push(`${k}: ${why}`); continue; }
     if (tr.includes("\\") || /%(?:\d+\$)?[-#+0,(]*\d*(?:\.\d+)?[@diouxXeEfgGcs]/.test(tr)) {
       skipped.push(`${k}: carries a backslash or printf conversion — use {0}/{1} only`);
       continue;
     }
     values[k] = tr;
-    entries[k] = { source: hashText(en[k]!), value: hashText(tr), verifiedBy, verifiedOn: today() };
+    entries[k] = { source: hashText(text), value: hashText(tr), verifiedBy, verifiedOn: today() };
     imported++;
   }
 
