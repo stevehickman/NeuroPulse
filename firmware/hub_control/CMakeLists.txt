@@ -163,6 +163,23 @@ if(NP_BUILD_TESTS)
     target_compile_options(np_transport_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
 
+    # NP-SW-FAULTMSG-001 §9.6: cervical offline-fault summary (CVNS_FAULT_STATUS
+    # frame, per-user scope, persisted blob, ATT write handlers).  Links
+    # np_transport.c for its host-modeled critical section.
+    add_executable(np_cvns_fault_summary_tests
+        tests/np_cvns_fault_summary_tests.c
+        src/np_cvns_fault_summary.c
+        src/np_transport.c
+    )
+    target_include_directories(np_cvns_fault_summary_tests PRIVATE
+        include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../cervical_vns/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
+    )
+    target_compile_options(np_cvns_fault_summary_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+    target_link_libraries(np_cvns_fault_summary_tests m)
+
     # Hub ↔ cervical VNS library integration + cardiac-interlock config.
     # Links the real np_cervical_vns library sources directly (host build).
     set(NP_CVNS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../cervical_vns)
@@ -204,6 +221,7 @@ set(HUB_SOURCES
     src/np_adaptation_log.c
     src/np_safety_spi.c
     src/np_cvns_reenable.c        # OI-CVNS-HUB-01: CVNS re-enable manager
+    src/np_cvns_fault_summary.c   # NP-SW-FAULTMSG-001 §9.6: offline-fault summary + GATT handlers
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
     src/np_lfs_instance.c         # OI-LFS-01: EMMC-FS-01 littlefs instance + mount validator
     src/np_pbm_cal_bridge.c       # OI-HUB-C06: UID-keyed calibration -> pbm seams

@@ -33,6 +33,7 @@ name: Firmware Cross-Compile (ARM)
 #                            → np_log_backend_tests   (OI-LOG-01..04)
 #                            → np_transport_tests     (OI-HUB-MAIN-01)
 #                            → np_mod_cvns_tests      (hub ↔ CVNS library)
+#                            → np_cvns_fault_summary_tests (NP-SW-FAULTMSG-001 §9.6)
 #                            → np_module_map_tests    (hex zone-module addressing/NVRAM map)
 #                            → np_protocol_tests      (hub protocol v2 socket-mask targets)
 #                            → np_mod_stim_tests      (BES/tACS + tDCS slot dispatch)
@@ -173,7 +174,8 @@ env:
   # stopped satisfying the requirement — a merge deadlock with no error message
   # anywhere.  The number belongs to the assertion, not to the check name.
   # NP-SW-CI-001 §6.7.
-  NP_CLASS_B_TEST_COUNT: '29'
+  # 29 → 30: np_cvns_fault_summary_tests (NP-SW-FAULTMSG-001 §9.6).
+  NP_CLASS_B_TEST_COUNT: '30'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  This job always

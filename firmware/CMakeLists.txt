@@ -100,6 +100,7 @@
 #                             → np_log_backend_tests      (OI-LOG-01..04)
 #                             → np_transport_tests        (OI-HUB-MAIN-01)
 #                             → np_mod_cvns_tests         (hub ↔ CVNS library)
+#                             → np_cvns_fault_summary_tests (NP-SW-FAULTMSG-001 §9.6)
 #                             → np_module_map_tests       (hex zone-module addressing/NVRAM map)
 #                             → np_protocol_tests         (hub protocol v2 socket-mask targets)
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
@@ -348,6 +349,14 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_mod_cvns_tests
         COMMAND np_mod_cvns_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # NP-SW-FAULTMSG-001 §9.6: the hub's cervical offline-fault summary — the
+    # CVNS_FAULT_STATUS frame (byte-compared with the apps' parser fixture),
+    # per-user scope, the persisted blob and the two ATT write handlers.
+    # Moves the Class B count 29 → 30 and the repo total 37 → 38.
+    add_test(NAME np_cvns_fault_summary_tests
+        COMMAND np_cvns_fault_summary_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_zone_notify_tests

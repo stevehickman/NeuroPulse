@@ -281,13 +281,14 @@ struct LimitsSettingsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    Text(hasLimits ? "Individual limits configured" : "No individual limits")
+                    Text(LocalizedStringKey(hasLimits ? "LIMITS_INDIVIDUAL_LIMITS_CONFIGURED" : "LIMITS_NO_INDIVIDUAL_LIMITS"))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
                 Spacer()
                 VStack(spacing: 6) {
-                    Button(isActive ? "Deactivate" : "Set Active") {
+                    // A ternary of literals is a String, which SwiftUI shows verbatim; wrap the key so it is looked up.
+                    Button(LocalizedStringKey(isActive ? "LIMITS_DEACTIVATE" : "LIMITS_SET_ACTIVE")) {
                         limitsStore.setActiveProfile(isActive ? nil : profile.id)
                         revalidate()
                     }

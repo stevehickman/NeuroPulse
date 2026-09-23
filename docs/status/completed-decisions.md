@@ -311,3 +311,27 @@ Entries sharing a date keep the relative order they had before the reordering.
     - Silicon, the ARM build, Swift compilation and the Android `:app` module are unverified.
     - RISK-25 is not re-scored.
   - **No threshold, latency, lockout duration, SHDR field, price or CLAUDE.md text changed.**
+- **2026-09-23 — RISK-25 re-scored: S5 × P2 = ALARP, not "LOW / MITIGATED" (`NP-RISK-002` Rev 5 §4.3; `NP-FW-CVNS-001` Rev 7 §13; `NP-FMEA-001` Rev 8), at the Quality Lead's direction; ratings approved by the Quality Lead (interim: Steve Hickman, CEO) 2026-09-23:**
+  - **Trigger:** the `NP-SW-FAULTMSG-001` Rev 2 design change.
+  - **The recorded rating was wrong three ways:**
+    - The severity was scored S4, while `NP-RM-001` §4.1 names this exact harm as its S5 example.
+    - "LOW" is not a rating the `NP-RM-001` matrix can produce at S5; the best possible is ALARP.
+    - The residual rested on `NP-FMEA-001` FMEA-M05-06's lockout "persisted to battery-backed RTC backup registers". The headset has no battery, so that control never existed. That is how the power-cycle gap (`NP-SW-FAULTMSG-001` F1) passed review.
+  - **Post-change:** S5; initial P3 (UNACCEPTABLE); residual **P2**, because no control is yet verified on hardware; target P1 (still ALARP). A §4.4 ALARP justification is now recorded.
+  - **The four new hazards:**
+    - Torn-flash NMI: **ACCEPTABLE**. Every NV read runs with all enables off, so the hang fails safe; the loss is availability.
+    - Update-path erase of the NV pages: **ALARP**.
+    - Blocked person switching profiles: **ALARP**. The residual of the principal's per-user decision.
+    - Auricular VNS left available after a cervical cutoff: **ALARP (provisional)**, a clinical question.
+  - **Raised:**
+    - `OI-RISK2-05`: other FMEA §3.5 M05 rows, and §2's IWDG, describe controls the safety-MCU code does not contain.
+    - `OI-RISK2-06`: the auricular VNS clinical question.
+  - **No requirement, threshold, code or CLAUDE.md text changed.**
+- **2026-09-23 — the hub now builds and publishes the cervical offline-fault summary (`NP-SW-FAULTMSG-001` Rev 3 §9.6):**
+  - **The store.** A Class B module (`np_cvns_fault_summary.c`) keeps the last 8 cervical fault stops with the user named at the time, plus the last-named user. They persist as a CRC-checked UHDR blob, so a Mode 3 fault survives the power bank being unplugged.
+  - **The frame.** It builds `CVNS_FAULT_STATUS` exactly as the apps parse it, and a host test byte-compares it with the apps' fixture. The frame carries only the active user's records and the unattributed ones, and it is published on change from the heartbeat.
+  - **The writes.** `ACTIVE_USER` and `CVNS_REENABLE_CONFIRM` are validated and forwarded.
+  - **Wiring.** The cervical module records each fault with its real kind at session end.
+  - **Attribution.** The hub's attribution follows the safety MCU's: it changes when the user is forwarded between sessions, not when the app writes.
+  - **Not done:** the BLE GATT server (`OI-WA-03`) and the UHDR storage glue (`OI-LFS-05`) are the three remaining platform seams (census 94 → 97), so nothing reaches a phone on hardware yet. The worst-case duration of the save in the heartbeat task is unmeasured.
+  - **No requirement, threshold or safety-MCU code changed.**

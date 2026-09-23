@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-RISK-002
-**Revision:** 4
+**Revision:** 5
 **Date:** 2026-09-23
 **Status:** ACTIVE
 **Effective Date:** 2026-08-11
@@ -109,7 +109,7 @@ changed in response.
 | RISK-22 | Gasket compression force and key alignment impede replacement for users with reduced grip or tremor | MEDIUM / MITIGATED | **CARRIED, mechanism changed** → `NP-RISK-004` | The retired mitigation was a per-module eject lever (`NP-TOOL-ZM-001` F-08, 3:1 advantage, ≤ 1 N at the tip). Cluster clamps replace it: one over-centre lever per 3–7 tiles at **34.2–57.0 N plate load**. Whether that is one-handed-achievable at Parkinson's H&Y II–III is **OI-SHELL2-03(b)** and is open. The accessibility requirement is unchanged; the design that satisfies it is not yet shown to. |
 | RISK-23 | Mould requires several simultaneous co-moulded features — omission risk before first cut | HIGH / MITIGATED | **CARRIED, re-scoped** → `NP-RISK-003` | The hazard is generic to any multi-feature mould and its control is a consolidated feature checklist — which is precisely what `NP-TOOL-ZM-001` was. Its successor `NP-TOOL-HEXTILE-001` inherits the role. |
 | ~~RISK-24~~ | ≥ 15 mm FPC-to-EEG separation may be geometrically unachievable | MEDIUM / MITIGATED | **CLOSED-CONFIRMED** | The risk was that a stated requirement might be impossible. `NP-DRV-SHELL-002` §9.1 investigated it and found it **is** impossible in the hex architecture — electrodes now sit inside tiles on the same layer as the LED bus, so the 15 mm separation cannot exist at any geometry. The requirement was withdrawn and replaced by four mechanisms retaining the **< 5 µVpp** artifact threshold it was a proxy for. This is the one entry in the register that closed by being proven right. |
-| RISK-25 | Cervical VNS cardiac reflex — bradycardia/asystole near the carotid sheath | LOW / MITIGATED | **CARRIED** → §4 (no artifact register) | Wholly independent of the cranial architecture. Mitigation (safety-MCU cardiac interlock, HR change > 15 BPM within 5 s → cutoff < 100 ms) stands. Pending its FAI bench. **Restated at Rev 2 (`NP-ART-001` OI-ART-05 closed, GitHub #343):** the bench is blocked by the *specification*, not by a missing checklist. FAI-CV01…CV03 are specified in `NP-FW-CVNS-001` §9; what does not exist is any mechanical or electrical specification for the A14 electrode assembly, cable or connector (GitHub #332), so `NP-FAI-001` §2 F1 fails and A14's artifact checklist stays a named absence in `NP-ART-001` §3.2 (`NP-FAI-001` OI-FAI-07). Rev 1 attributed the blockage to the checklist's non-existence, which inverted cause and effect. |
+| RISK-25 | Cervical VNS cardiac reflex — bradycardia/asystole near the carotid sheath | ~~LOW / MITIGATED~~ **S5 × P2 = ALARP** (re-scored 2026-09-23, §4.3; approved by the Quality Lead (interim: Steve Hickman, CEO) 2026-09-23) | **CARRIED** → §4 (no artifact register) | Wholly independent of the cranial architecture. Mitigation (safety-MCU cardiac interlock, HR change > 15 BPM within 5 s → cutoff < 100 ms) stands. Pending its FAI bench. **Restated at Rev 2 (`NP-ART-001` OI-ART-05 closed, GitHub #343):** the bench is blocked by the *specification*, not by a missing checklist. FAI-CV01…CV03 are specified in `NP-FW-CVNS-001` §9; what does not exist is any mechanical or electrical specification for the A14 electrode assembly, cable or connector (GitHub #332), so `NP-FAI-001` §2 F1 fails and A14's artifact checklist stays a named absence in `NP-ART-001` §3.2 (`NP-FAI-001` OI-FAI-07). Rev 1 attributed the blockage to the checklist's non-existence, which inverted cause and effect. |
 | RISK-26 | Fan/heatsink airflow loss → scalp face > 42 °C while junction NTC ≤ 62 °C | HIGH / ALARP | **CARRIED** → `NP-RISK-004` | Path B1 (scalp-facing NTC co-located with PD2) selected; constants provisional pending verification-grade CFD and the THERM-1b bench. **`OI-SHELL2-11` adds a second heat source on the same path** — 18 continuously dissipating cluster controllers behind the dominant outward resistance — which was not in scope when RISK-26 was scored. |
 
 **Totals — counted from the table above, not asserted:** 26 dispositioned · **5 RETIRED** (RISK-01, -07, -09, -11, -15) · **20 CARRIED** (10 → `NP-RISK-003`, 9 → `NP-RISK-004`, 1 — RISK-25 — held in §4 with no artifact register) · **1 CLOSED-CONFIRMED** (RISK-24).
@@ -178,7 +178,7 @@ stimulation could then restart after a cardiac cutoff with no confirmation (`NP-
 per user, failing closed (`NP-FW-CVNS-001` Rev 6 §5.4.1). By the same decision, a cardiac cutoff
 now withholds cervical VNS only, not every channel.
 
-**Not re-scored.** RISK-25 stays LOW / MITIGATED and CARRIED. Re-scoring is an act of the risk
+**Not re-scored in this subsection** — re-scored in §4.3 (Rev 5). *Rev 4 text:* RISK-25 stays LOW / MITIGATED and CARRIED. Re-scoring is an act of the risk
 analysis, and the fix is not yet verified on silicon. The fix introduces hazards that the analysis
 must take up, and none of them is scored here:
 
@@ -193,6 +193,100 @@ must take up, and none of them is scored here:
    §9.1).
 4. Auricular VNS (`NP_SAFETY_EN_VNS`) is outside the cardiac block mask. Whether a cervical cardiac
    cutoff should also withhold auricular VNS is a hazard question this file has not asked.
+
+### 4.3 RISK-25 re-scored (Rev 5, 2026-09-23)
+
+**Trigger (`NP-RM-001` §8.2 item 1):** the design change `NP-SW-FAULTMSG-001` Rev 2. It closed a gap in a
+stated control (§4.2) and introduced four new hazards. Re-scoring was performed at the Quality Lead's
+direction on 2026-09-23. **Approval (§8.2 item 3): the ratings below were approved by the Quality Lead (interim: Steve Hickman, CEO) on 2026-09-23.** Approval covers the ratings and the ALARP justification as written. It does not close the verification that would move the residual to P1 (§4.3.1), or the two open items the re-score raised (`OI-RISK2-05`, `OI-RISK2-06`).
+
+#### 4.3.1 Pre-change and post-change rating (§8.2 item 2)
+
+| | Severity | Probability | Rating (`NP-RM-001` §4.3) |
+|---|---|---|---|
+| **Pre-change, as recorded** | "Critical (S4: could result in serious injury)" (`NP-FW-CVNS-001` §13) | P3 initial → "P1 (unlikely)" residual | Recorded as **LOW / MITIGATED** |
+| **Pre-change, against `NP-RM-001`** | **S5** | P3 initial; residual P1 claimed | Initial S5 × P3 = **UNACCEPTABLE**; residual S5 × P1 = **ALARP** — never "LOW" |
+| **Post-change (this re-score)** | **S5** | Initial **P3**; residual **P2** now, **P1** target | Initial **UNACCEPTABLE**; residual **S5 × P2 = ALARP** (target S5 × P1, still ALARP) |
+
+**Why the recorded rating was wrong on three counts:**
+
+1. **The severity was mis-scaled.** `NP-RM-001` §4.1 uses *"cardiac arrhythmia from cervical VNS"* as
+   its own example of **S5 — Critical**. The entry wrote "Critical" but scored it **S4**, which is the scale's
+   "Serious".
+2. **"LOW" is not a rating the matrix can produce for S5.** At S5, P1 is **ALARP** and every higher
+   probability is ALARP or worse. A residual at S5 therefore requires a §4.4 ALARP justification. None
+   existed; §4.3.4 supplies one.
+3. **The residual P1 rested on a control that did not exist.** `NP-FMEA-001` FMEA-M05-06 scored the
+   power-cycle bypass ACCEPTABLE because the lockout was *"persisted to STM32G071 backup registers
+   (RTC_BKPxR, battery-backed domain)"*. The headset has **no battery, coin cell or VBAT rail**
+   (CLAUDE.md §4.5), so that domain loses its contents with power. The mitigation was never
+   implementable, and the code never contained it. That is how `NP-SW-FAULTMSG-001` F1 went unnoticed.
+   It is now corrected in `NP-FMEA-001`.
+
+**Why severity is not reduced.** The interlock acts on an observed heart-rate change of more than
+15 BPM from baseline. So the reflex has already begun when it fires. The control shortens exposure,
+which lowers the probability of harm. It does not cap the harm of the reflex that trips it.
+
+**Why the residual is P2, not P1, today.** The controls below are specified, implemented and
+host-tested, but not one is verified on hardware:
+
+- FAI-CV02 (cutoff latency ≤ 100 ms) has not run.
+- The persistence log has not run on silicon.
+- The interlock's R-peak source has two open gaps: it depends on A13's PPG (`OI-CVNSHW-03`), and
+  the safety MCU has no R-R validity filter (`OI-CVNS-11`).
+
+P1 is the target once those four close. The rating stays **ALARP** either way, because S5 × P1 is ALARP.
+
+#### 4.3.2 Risk controls (`NP-RM-001` §9 level) and their verification status
+
+| # | Control | Level | Status |
+|---|---|---|---|
+| C1 | Safety-MCU cardiac interlock: HR change > 15 BPM → CVNS enable cut, computed worst case < 5.1 ms (`NP-FW-CVNS-001` §5.4) | 2 | Implemented, host-tested. **FAI-CV02 not run** |
+| C2 | No enable until the baseline arms (8 intervals), cross-validated against the hub's baseline (§5.3) | 2 | Implemented, host-tested |
+| C3 | 30 s re-enable lockout, then app confirmation and repeat impedance (`REQ-CVNS-09`) | 2 | Implemented |
+| C4 | **C3 persisted across power loss**, per user, failing closed (`NP-FW-CVNS-001` §5.4.1; SW01-M09) | 2 | Implemented, host-tested (12 fault-injection tests). **Not run on silicon** |
+| C5 | A cutoff withholds cervical VNS for the triggering user until re-enabled. Other users are scoped out by the named profile | 2 | Implemented |
+| C6 | Blanket warning to every profile, and a one-shot "is this your profile?" confirmation before a cervical upload, in Mode 2 and Mode 3 | 3 | Implemented (iOS, Android); the hub side is owed (`OI-FAULTMSG-03`) |
+| C7 | Offline-fault explanation, and an unread-cutoff upload gate | 3 | Implemented (apps); the hub side is owed |
+| C8 | Stimulation limits (`REQ-CVNS-04`), per-phase charge ceiling 40 µC/cm² | 2 | Implemented; electrode area PROVISIONAL (`OI-CHARGE-07`) |
+| C9 | IFU contraindications and warnings (`NP-REG-CVNS-001` §7.3–§7.4) | 3 | Proposed text |
+
+#### 4.3.3 The four hazards introduced by the change (§4.2), scored
+
+| ID | Hazard | S | P | Rating | Basis |
+|---|---|---|---|---|---|
+| **25-a** | A power-loss-torn flash word raises a double-bit ECC NMI | **S1** | P2 | **ACCEPTABLE** | The NMI handler spins (`b .`), and there is no hardware watchdog. **Every NV read runs with all enables off**: at boot before the main loop, or inside a write gated on `granted_mask == 0`. A hang is therefore fail-safe (no stimulation, and the hub's heartbeat detects the silent MCU). The harm is availability: the device hangs at every boot until serviced. Not a patient hazard |
+| **25-b** | A future safety-MCU update path erases NV pages 62–63, silently clearing every outstanding cutoff | S5 | P1 | **ALARP** | No such update path exists today. Control: the pages are reserved in the linker script, and `NP-FW-CVNS-001` §5.4.1 requires any update path to preserve them. **A verification test is owed by whichever change adds the path** (`OI-RISK2-05`) |
+| **25-c** | Per-user scope trusts the named profile: the blocked person selects another profile and is not blocked | S5 | P2 | **ALARP** | Needs a deliberate act past two warnings (C6). A device-wide block was considered and rejected by the principal (2026-09-22), because it withholds a working therapy from people who had no event. That is the §4.4 item 3 trade-off, recorded in §4.3.4 |
+| **25-d** | A cervical cardiac cutoff leaves auricular VNS (`NP_SAFETY_EN_VNS`) available to the same person | S5 | P1 (provisional) | **ALARP (provisional)** | Auricular stimulation has its own contact interlock only. Whether a person who just had a cervical cardiac reflex should also be withheld auricular VNS is a **clinical** question this file cannot settle. The control, if required, is a one-line change to `NP_CARDIAC_BLOCK_MASK` (`OI-RISK2-06`) |
+
+#### 4.3.4 ALARP justification (`NP-RM-001` §4.4)
+
+1. **Options considered.**
+   - Remove cervical VNS from Mode 3 (P1b).
+   - Persist the lockout in safety-MCU flash (P1, taken).
+   - A device-wide lockout rather than per user.
+   - Dedicated cardiac sensing on A14, rather than A13's PPG (`OI-CVNSHW-03`).
+   - Adding auricular VNS to the block mask (25-d).
+2. **Why the selected controls.** C1–C5 are level-2 controls in the Class C processor that owns the
+   enable line (CLAUDE.md §4.2). No app-side path can release them.
+3. **Why further reduction is not reasonably practicable today.**
+   - **P1b** would remove a therapy mode for every user, to cover a gap C4 now closes.
+   - **A device-wide lockout** withholds therapy from people with no event. The residual it removes
+     (25-c) needs deliberate misuse past two warnings.
+   - **Dedicated sensing** is an open design question (`OI-CVNSHW-03`), not a rejected one.
+   - **25-d** is deferred to clinical review, not rejected.
+4. **Residual risk.** S5 × P2 = ALARP now, S5 × P1 = ALARP after verification. The hazards 25-b, 25-c
+   and 25-d are ALARP, and 25-a is ACCEPTABLE.
+5. **Benefit versus risk.** Cervical VNS is a T2, 510(k)-track therapy with a predicate that uses an
+   equivalent interlock concept (gammaCore, K163334/K173323; `NP-REG-CVNS-001`). **This justification
+   is provisional:** the benefit–risk conclusion is for the 510(k) clinical evaluation. It is recorded
+   here so the ALARP rating has the §4.4 content it requires, not in place of that evaluation.
+
+**What would move the rating.**
+- **To P1:** FAI-CV02 passes, C4 runs on silicon, and `OI-CVNS-11` and `OI-CVNSHW-03` close.
+- **Worse:** a hardware result that breaks the < 100 ms cutoff, or a finding that A13's PPG
+  degrades undetected.
 
 ## 5. Risks the architecture change created
 
@@ -230,6 +324,8 @@ control effective 2026-05-13. That statement is amended, not withdrawn:
 | **OI-RISK2-01** | Re-score the carried risks against the `NP-RM-001` §4 severity × probability scales **at the new architecture's numbers**. This document deliberately re-scores nothing — disposition and re-scoring are separate acts, and mixing them would hide which judgements changed. RISK-16 (5 → ~30 seals) and RISK-22 (≤ 1 N lever → 34.2–57.0 N plate) are the two whose scores most plainly no longer hold. | Quality + ME | ISO 14971 file currency |
 | **OI-RISK2-02** | **Hazard analysis for A11 (audio cup), A12 (intranasal Y-probe) and A13 (auricular VNS/HRV clip).** Three shipping T1 modalities with no entries in any risk register, ever. ~~Blocked behind `NP-ART-001` OI-ART-04 (they have no specification to analyse).~~ **UNBLOCKED 2026-09-20 (GitHub #332)** — all three now have owning specifications, and each supplies an unscored hazard-input list in its §7 (§4.1). The item stays **OPEN**: the analysis itself has not been performed, and the specifications are DRAFT, so some inputs (electrode area, exposure ceilings, materials) are still open items rather than values. **Extend it to A15**, which has no risk register entry of any kind — `RISK-PWRTH-01` and `-03` sit in `NP-PWR-THERM-001` §15 rather than in this file. | Quality + Systems | **ISO 14971 completeness; T1 release** |
 | **OI-RISK2-03** | Confirm the nine RETIRED dispositions with a second reader. Each rests on a claim that a mechanism no longer exists in the design — the failure mode of this document is a hazard retired because its *old* description stopped matching, while the hazard itself moved somewhere nobody looked. RISK-11 and RISK-15 are the two worth re-testing hardest. | Quality | Risk file integrity |
+| **OI-RISK2-05** | **`NP-FMEA-001` §3.5 (SW01-M05) scores controls the code does not contain.** Found re-scoring RISK-25, and only FMEA-M05-06 is corrected here. FMEA-M05-01 claims a 10 s data-loss soft cutoff, and `NP-FW-CVNS-001` §5.4 item 3 says the safety MCU has none. FMEA-M05-03 describes `uint16_t` saturating arithmetic, and the code uses a signed `int16_t` comparison. FMEA-M05-04 says 5 baseline beats, and the code uses 8. §2's watchdog row relies on a hardware IWDG, and **the safety-MCU firmware configures no IWDG**. Each residual rating resting on these needs re-deriving from the implemented module, as `OI-FMEA-07` did for SW01-M03. Also: any future safety-MCU update path must carry a test that NV pages 62–63 survive it (hazard 25-b) | Quality + FW | RISK-25 moving to P1 |
+| **OI-RISK2-06** | **Clinical question for hazard 25-d:** should a cervical cardiac cutoff also withhold auricular VNS from the same person? If yes, add `NP_SAFETY_EN_VNS` to `NP_CARDIAC_BLOCK_MASK`. That is a one-line change, and the principal's "block only what it was meant to block" then has a clinical answer rather than an assumed one | Clinical + Safety | — |
 | **OI-RISK2-04** | RISK-03 (400 mW/cm² regulatory opinion) has been OPEN and externally blocked since 2026-05-06 with no counsel commissioned. It is the only risk in the file whose owner is the CEO. | CEO / Regulatory Counsel | Irradiance ceiling; RSET values |
 
 ---
@@ -238,6 +334,8 @@ control effective 2026-05-13. That statement is amended, not withdrawn:
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| **5** | **2026-09-23** | **NeurOne Quality** | **RISK-25 re-scored (§4.3), at the Quality Lead's direction.** The pre-change record was wrong on three counts. The severity was scored S4 where `NP-RM-001` §4.1 names this exact harm as S5. "LOW" is not a rating the matrix produces at S5. And the residual rested on a battery-backed-register control that cannot exist on a device with no battery (`NP-FMEA-001` FMEA-M05-06, now corrected). Post-change: **S5, initial P3 (UNACCEPTABLE), residual P2 → S5 × P2 = ALARP**, with a §4.4 ALARP justification. The target is P1, still ALARP. The four hazards from §4.2 are scored: torn-word NMI **ACCEPTABLE** (it fails with all outputs off); update-path erase, profile switching and auricular VNS **ALARP**. `OI-RISK2-05` (FMEA §3.5 scores controls the code lacks, including an IWDG the safety MCU does not configure) and `OI-RISK2-06` (the auricular VNS clinical question) raised. **Ratings approved by the Quality Lead 2026-09-23** |
+| **4** | **2026-09-23** | **NeurOne Quality** | **§4.2 added: RISK-25's lockout mitigation held only while powered; fixed by `NP-SW-FAULTMSG-001` P1. Not re-scored; four new hazards recorded unscored.** |
 | **3** | **2026-09-20** | **NeurOne Quality** | **§4's two held rows keep their hold, and the reason for it is discharged (GitHub #332).** Both rows are held because the artifact *"has no specification document to analyse"*; A11–A15 now have owning specifications (`NP-HW-AUDIO-001`, `NP-HW-NASAL-001`, `NP-HW-VNSCLIP-001`, `NP-HW-CVNS-001`, `NP-HW-TMS-001`), so **`OI-RISK2-02` is unblocked and stays OPEN** — new §4.1 records that a hazard analysis is an act, not a consequence of a document existing, and points at the unscored input list each specification supplies in its §7. **No risk is re-dispositioned, re-scored, re-classified or moved; RISK-25 remains LOW / MITIGATED and CARRIED; the three unassessed modalities remain unassessed.** §4.1 carries four inputs this file has never held, one of which bears on **RISK-25 directly**: its mitigation of record is the cardiac interlock, and that interlock's **R-peak source is A13's PPG sensor** — a cross-artifact dependency stated in no device description, control set or IFU (`OI-CVNSHW-03`). The other three: the per-phase charge ceiling divides by **unmeasured PROVISIONAL electrode areas** on both VNS channels (`OI-CHARGE-07`); the intranasal probe has **no exposure ceiling and no temperature sensor** (`OI-NASAL-02`, BLOCKING) while `RISK-03`'s scope is 660/808 nm **at the scalp**; and **A15 has no risk register entry at all**, its two hazard rows living in a thermal study. **Correction of record:** `NP-ART-001` Rev 1 and Rev 2 showed ✅ for A13's risk register against the §4 row that states its hazards are *not assessed* — a named absence read as coverage, corrected in that register's Rev 3. `OI-RISK2-02` is extended to A15. |
 | **2** | **2026-09-14** | **NeurOne Quality** | **RISK-25's FAI-bench blocker is restated: it is the missing hardware specification, not a missing checklist.** Rev 1's §4 row said the bench *"cannot run because `NP-FAI-CVNS-001` has never existed"*, which inverted cause and effect — a checklist is absent **because** A14 has no mechanical or electrical specification (GitHub #332), and `NP-FAI-001` §2 F1 forbids writing one against nothing. GitHub #343 closed `NP-ART-001` OI-ART-05 and established that four of the five cited `NP-FAI-*` serials were duplicate names for firmware-specification sections; `NP-FAI-CVNS-001` is the one real absence and stays named in `NP-ART-001` §3.2. FAI-CV01…CV03 themselves are specified in `NP-FW-CVNS-001` §9 and always were. **No risk is re-scored, re-classified or re-dispositioned; no mitigation changes; RISK-25 remains LOW / MITIGATED and CARRIED.** |
 | 1 | 2026-08-11 | NeurOne Quality | Initial release. Re-baselines the ISO 14971 risk file after the 2026-07-15 hex-tile architecture change, replacing `NP-RISK-001` Rev 3 as the file of record. **All twenty-six RISK IDs dispositioned individually (§3)** — 5 retired with the mechanism that produced them (RISK-01, -07, -09, -11, -15), 20 carried (10 → `NP-RISK-003`, 9 → `NP-RISK-004`, RISK-25 held in §4), 1 (**RISK-24**) closed by being *confirmed*: the 15 mm PBM-to-EEG separation was found geometrically impossible in the hex architecture and the requirement was replaced by the < 5 µVpp threshold it was a proxy for. Records that **RISK-16 is the one risk the architecture change made worse** (5 → ~30 perimeter seals) and that **RISK-11 is the largest improvement** (dynamic-flex set is now empty). No risk is re-scored — deliberately, and OI-RISK2-01 holds that work. §4 surfaces that three shipping T1 modalities (intranasal, audio, auricular clip) have **never had a hazard analysis**, invisible while the file was zone-module-shaped. §5 records five new hazards the architecture created, under prefixed IDs so the `RISK-NN` sequence stays closed at 26 and append-only. §6 amends `NP-RM-001` §8.1's change-control statement. Raises OI-RISK2-01…04. |

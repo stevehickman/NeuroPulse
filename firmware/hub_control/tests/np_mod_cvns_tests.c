@@ -123,6 +123,29 @@ static uint32_t g_now_ms;
 static uint32_t g_now_unix = 1000000000U;
 
 bool     np_cvns_hal_accessory_present(void) { return g_accessory_present; }
+/* Offline-fault summary (NP-SW-FAULTMSG-001 §9.6) and device session count. */
+static uint32_t               g_session_count = 100U;
+static int                    g_cvfs_calls;
+static uint32_t               g_cvfs_counter;
+static np_cvns_fault_reason_t g_cvfs_kind;
+static uint8_t                g_cvfs_sides;
+uint32_t np_hal_get_device_session_count(void) { return g_session_count; }
+np_hub_status_t np_cvfs_record_fault(uint32_t session_counter,
+                                     np_cvns_fault_reason_t kind,
+                                     uint8_t side_mask)
+{
+    g_cvfs_calls++;
+    g_cvfs_counter = session_counter;
+    g_cvfs_kind    = kind;
+    g_cvfs_sides   = side_mask;
+    return NP_HUB_OK;
+}
+uint8_t np_cvfs_pad_side_mask(float left_kohm, float right_kohm)
+{
+    (void)left_kohm; (void)right_kohm;
+    return 0x01U;
+}
+
 uint32_t np_mod_cvns_hal_now_ms(void)        { return g_now_ms; }
 uint32_t np_mod_cvns_hal_now_unix(void)      { return g_now_unix; }
 
@@ -443,6 +466,23 @@ static void test_uhdr_record_distinguishes_fault_kind(void)
     rec = &np_mod_cvns_test_session()->uhdr_record;
     check(rec->fault_reason == (uint8_t)NP_CVNS_FAULT_HR_CHANGE && rec->cutoff_occurred == 1U,
           "P2: heart-rate change recorded as a cardiac cutoff");
+}
+
+/* NP-SW-FAULTMSG-001 §9.6: a session that stops on a fault is added to the
+ * offline-fault summary with its real kind and the device session counter. */
+static void test_fault_reaches_offline_summary(void)
+{
+    g_cvfs_calls = 0;
+    g_session_count = 4242U;
+    run_to_interlock_fault(NP_CVNS_FAULT_HR_CHANGE);
+    check(g_cvfs_calls == 1 && g_cvfs_kind == NP_CVNS_FAULT_HR_CHANGE &&
+          g_cvfs_counter == 4242U && g_cvfs_sides == 0U,
+          "summary: a cardiac cutoff is recorded once, with the session counter and no side");
+
+    g_cvfs_calls = 0;
+    run_to_interlock_fault(NP_CVNS_FAULT_DATA_LOSS);
+    check(g_cvfs_calls == 1 && g_cvfs_kind == NP_CVNS_FAULT_DATA_LOSS,
+          "summary: R-peak data loss is recorded as data loss, not a cardiac cutoff");
 }
 
 /* ── OI-CVNS-HUB-08: unified heartbeat → library SPI responses ───────────────── */
@@ -830,6 +870,7 @@ int main(void)
     test_stop_when_inactive_noop();
     test_control_before_init();
     test_uhdr_record_distinguishes_fault_kind();
+    test_fault_reaches_offline_summary();
 
     if (g_failures == 0) {
         printf("ALL TESTS PASSED\n");
