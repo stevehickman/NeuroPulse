@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-ART-001
-**Revision:** 5
+**Revision:** 6
 **Date:** 2026-09-23
 **Status:** ACTIVE
 **Effective Date:** 2026-08-11
@@ -67,7 +67,12 @@ design · **⛔** blocked, with the blocking item named · **—** not applicabl
 | **A16** | **21-channel clinical tACS driver stage** (T2) — 21 current sources, their sense paths, compliance supply and cap-side termination. **Added at Rev 3 (GitHub #332, `OI-TACS-02`)** | **`NP-HW-TACSDRV-001` Rev 1** (2026-09-20) | **DRAFT — requirements-grade.** No silicon (`OI-TCAP-03`); **no compliance voltage and no cap electrode impedance exist anywhere** (`OI-TACSDRV-02`) | — (PCB fab package) | ⛔ **none** — which register holds it depends on `OI-TACSDRV-01` | ⛔ **F1, F2, F4** — `NP-FAI-TACSDRV-001` named as an absence in §3.2 |
 
 > **A16's siting is undecided, and the row says so deliberately.** `OI-TACSDRV-01` chooses between
-> its own T2 board, Hub PCB Rev C, and the posterior aggregation node. **If it lands on the Hub PCB,
+> its own T2 board, Hub PCB Rev C, and the posterior aggregation node. **Rev 6: `NP-HW-TACSDRV-001`
+> Rev 2 §4.1.1 recommends, but does not decide, its own T2-only board at the PAN, with the
+> compliance-supply magnetics on the Hub PCB.** Under that recommendation the row stays. It is
+> conditional on a PAN thermal budget (`OI-TACSDRV-04`). The PAN that would host A16 has no row in
+> this register either, which is a third instance of `OI-ART-06` and is recorded against
+> `OI-TACSDRV-03`. **If it lands on the Hub PCB,
 > A16 folds into A9 and this row is struck** — a legitimate outcome, recorded here so that the fold
 > is a decision rather than a disappearance. It is listed under §2.2 rather than §2.4 because two of
 > the three candidate sitings are hub-side.
@@ -240,6 +245,7 @@ worse than one with a stale section.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 6 | 2026-09-23 | NeurOne Systems Engineering | **A16 note updated for `NP-HW-TACSDRV-001` Rev 2.** `OI-TACSDRV-01` is analysed and a siting is recommended, not decided: own T2-only board at the posterior aggregation node, with compliance-supply magnetics on the Hub PCB. Under that recommendation A16 keeps its row rather than folding into A9, conditional on `OI-TACSDRV-04` (the PAN's thermal budget). Records that the PAN has no row in §2, a third `OI-ART-06` instance, against `OI-TACSDRV-03`. No row added or struck. |
 | 5 | 2026-09-23 | NeurOne Systems Engineering | **`OI-ART-07` closed.** `NP-TOOL-HUB-001` (Rev 3) owns every hub port cover; `NP-TOOL-SHELL-001` F-02 retired in place (Rev 3). §5's SHELL row and §2's A8 row updated. Corrects the item's "2.5×" (loop circumference, ≈ 1.25×) and records that the survivor's port list is unsourced — raised as `OI-HTOOL-08` / `OI-HTOOL-09` in `NP-TOOL-HUB-001`, `FAI-HUB-14` gated on the first. |
 | 4 | 2026-09-23 | NeurOne Systems Engineering | **A8 row and `OI-ART-09` updated for `NP-HW-NASAL-001` OI-NASAL-01's closure.** `NP-TOOL-HUB-001` Rev 2 records F-01's probe-contact geometry as gated on `OI-NASAL-09`, and `NP-FAI-HUB-001` Rev 2 gates three more items (2 → 5). The A8 row stays BASELINED and its FAI stays writable — F1 turns on the governing specification's status, and F2 is met by *marking* a gate, which is what was done. The writable-checklist count is unchanged at **1 of 16**. What changed is that A8's hub mould is now visibly blocked on A12, and `NP-TOOL-HUB-001` OI-HTOOL-07 names the design change that would unblock it. No artifact row added or removed. |
 | **3** | **2026-09-20** | **NeurOne Systems Engineering** | **Every artifact in §2 now has an owning specification document, and no artifact FAI became writable — both halves stated (GitHub #332, `OI-ART-04`, `OI-TACS-02`).** Six specifications were issued against this register's principal finding: **`NP-HW-AUDIO-001`** (A11), **`NP-HW-NASAL-001`** (A12), **`NP-HW-VNSCLIP-001`** (A13), **`NP-HW-CVNS-001`** (A14), **`NP-HW-TMS-001`** (A15, written against `OI-PWRTH-01` and `OI-PWRTH-09` as `OI-ART-04` required) and **`NP-HW-TACSDRV-001`** for the 21-channel clinical tACS driver stage, **registered here as A16** — the second artifact found missing from §2 by following a citation rather than auditing it, after `OI-ART-08`'s cap, which is `OI-ART-06`'s premise demonstrated twice. **A16's siting is undecided and its row says so: if `OI-TACSDRV-01` puts the stage on Hub PCB Rev C, A16 folds into A9 and the row is struck.** **`OI-ART-04` is discharged as to its own words and succeeded by `OI-ART-09`**, which is narrower: the artifacts need engineering, not authoring. **What did not change is stated as plainly as what did** (§4.1): all six documents are **DRAFT with no dimensioned geometry**, F1 and F2 fail on every one, the writable-FAI count stays at **1 of 16**, and **G2 pre-tooling completeness is still not declarable**. What did: `OI-RISK2-02` is **unblocked** — A11–A13 have hazard-analysis inputs for the first time — `NP-RISK-002` §4's stated reason for holding RISK-25 outside a per-artifact register is discharged, and `NP-FAI-CVNS-001`'s F1 failure changes from *absence* to *DRAFT status*, re-scoping `OI-FAI-07`. **Three findings the artifacts' own documents surfaced** are carried into §4.1: `NP-TOOL-HUB-001` F-01 is **BASELINED against probe features A12 does not specify**; the intranasal probe has **no exposure ceiling of its own** (BLOCKING); the T2 qEEG's A1/A2 reference sits on a **consumable degraded by another modality**; and A14's cardiac interlock depends on **A13's PPG sensor** with that dependency stated nowhere. **Two corrections of record:** A13's risk-register column showed ✅ against a `NP-RISK-002` §4 row that states its hazards are *not assessed*, and §4's *"four of those nine"* miscounts a list of three (the fourth, the TMS coil, is T2). **No engineering value is set or changed by this revision, no figure is invented, and no locked decision moves.** Raises OI-ART-09. |
