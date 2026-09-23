@@ -2,18 +2,18 @@
 
 **Project:** NeurOne
 **Document:** NP-EMC-CAV-001
-**Revision:** 14
+**Revision:** 15
 **Date:** 2026-09-23
 **Status:** ACTIVE — EMC analysis discharging `OI-BIBEMF-08` step 1; asserts no measurement. **`REQ-CAV-04` TAKEN 2026-09-23 — Layer 4 deleted**
 **Effective Date:** 2026-09-20
 **Author:** NeurOne EMC / Systems Engineering
 **Approved By:** Principal — `REQ-CAV-04` taken 2026-09-23 (GitHub #391); the analysis itself remains unmeasured (§9)
-**References:** CLAUDE.md §1, §3, §4.1, §4.3, §4.4; `docs/reference/hardware-detail.md` §4.3; `NP-BIB-EMF-001` §7.3, §7.6, §7.8; `NP-HELMET-GEOM-001` §2, §3.2; `NP-DRV-SHELL-002` §3.2, §3.4, §3.5, §5.4, §9.1–§9.6; `NP-HEX-ZM-001` §5.2, §5.3a, §5.3.1; `NP-THERM-COOL-001` §2, §6.3, §6.9.1; `NP-THERM-SINK-001` `RISK-SINK-03`, `OI-SINK-01`, `OI-SINK-07`; `NP-DT-001` `DI-PERF-22`, `DI-REG-05`; `NP-HW-HUB-001` §8.1; FCC Part 15 Subpart B §15.109; CISPR 11 Group 1 Class B; IEC 60601-1-2; Gabriel et al. 1996 (tissue dielectric properties)
-**Related Issues:** GitHub Issue #362; GitHub Issue #391 (the decision); `OI-BIBEMF-08`; `OI-THCOOL-04`; `OI-THCOOL-15`; `OI-SINK-01`; `OI-SINK-07`; `RISK-SINK-03`; `EMF-1`; `EMF-3`; `RISK-20`; `OI-HUB-C19`
+**References:** CLAUDE.md §1, §3, §4.1, §4.3, §4.4; `docs/reference/hardware-detail.md` §4.3; `NP-BIB-EMF-001` §7.3, §7.6, §7.8; `NP-HELMET-GEOM-001` §2, §3.2; `NP-DRV-SHELL-002` §3.2, §3.4, §3.5, §5.4, §9.1–§9.6; `NP-HEX-ZM-001` §5.2, §5.3a, §5.3.1; `NP-THERM-COOL-001` §2, §6.3, §6.9.1; `NP-THERM-SINK-001` `RISK-SINK-03`, `OI-SINK-01`, `OI-SINK-07`; `NP-DT-001` `DI-PERF-22`, `DI-REG-05`; `NP-HW-HUB-001` §7.4, §8.1, §11 (`OI-HUB-C19`); `NP-HW-TACSDRV-001` Q3; FCC Part 15 Subpart B §15.109; CISPR 11 Group 1 Class B; IEC 60601-1-2; Gabriel et al. 1996 (tissue dielectric properties)
+**Related Issues:** GitHub Issue #362; GitHub Issue #391 (the decision); GitHub Issue #400 (`OI-EMCCAV-03`); `OI-BIBEMF-08`; `OI-THCOOL-04`; `OI-THCOOL-15`; `OI-SINK-01`; `OI-SINK-07`; `RISK-SINK-03`; `EMF-1`; `EMF-3`; `RISK-20`; `OI-HUB-C19`
 **Gate:** —
 **IEC 62304 Class:** — (analysis record, not device software)
 **Jurisdiction Scope:** N/A
-**Change Summary:** Rev 14 records the principal's decision: **`REQ-CAV-04` is TAKEN (GitHub #391, 2026-09-23) — the Layer 4 absorber station is deleted and the 3 mm outer-bowl re-loft moves with it.** Executed across the set per §8.4; §8.2, §9 item 5 and §10 updated. See §11.
+**Change Summary:** Rev 15 closes **`OI-EMCCAV-03`** (GitHub #400): the condition that an in-envelope boost re-opens §4 and §6 now sits on `OI-HUB-C19`'s own row, and new **§3.1** computes how much stronger an internal source §6's verdict tolerates (23.6 dB; 3.6 dB left at a ×10-in-field source) and names the four inputs a real estimate needs. Rev 14 recorded `REQ-CAV-04` TAKEN (GitHub #391). See §11.
 
 ---
 
@@ -115,7 +115,68 @@ the knee is 40–80 MHz, so there is real spectral content through the whole ban
 stage (~35 W) on the Hub PCB, **outside** the helmet. A switching converter is the classic broadband
 cavity driver, and it is an order of magnitude above anything in the table. **If `OI-HUB-C19` ever
 moves that stage inside the envelope, §4's band and §6's verdict must both be re-derived.** That
-decision is now an EMC decision and not only a packaging one — recorded as `OI-EMCCAV-03`.
+decision is now an EMC decision and not only a packaging one — recorded as `OI-EMCCAV-03`, and
+**since Rev 15 carried as a condition on `OI-HUB-C19`'s own row** (`NP-HW-HUB-001` §11, §7.4). §3.1
+says what can and cannot be computed about it today.
+
+### 3.1 A boost inside the envelope — what the record lets us compute, and what it does not (Rev 15)
+
+**Where the record sites it.** `NP-HW-HUB-001` §7.4 and `OI-HUB-C19`: **on the Hub PCB,
+provisional**, principal 2026-07-30, *"revisit if the hub thermal budget or EMI bench says
+otherwise."* The only in-envelope alternative the record names is the **PAN** (posterior aggregation
+node), which is inside the envelope — it carries the ADS1299 bank in the table above (`NP-DRV-SHELL-002`
+§3.5). So the siting **is decided, and it is outside the cavity**: nothing in §4 or §6 needs
+re-deriving today. What this section adds is why a revisit toward the PAN cannot be accepted on
+packaging or thermal grounds alone.
+
+**What can be computed — how much stronger an internal source §6's verdict tolerates.** `REQ-CAV-02`
+is an *allocation* (§5.2): the field at the victim is source × coupling × Q, `REQ-CAV-01` fixes the
+field, and the Q ceiling of 20 was allocated against **this** table's sources. Hold `REQ-CAV-01` and
+add a source *X* dB stronger in field, and the Q the enclosure must reach tightens to `20 · 10^(−X/20)`.
+The head delivers Q_L = 1.32 (§6.3), which is **23.6 dB** below the ceiling. So:
+
+| New in-envelope source, field amplitude above §3's table | Q ceiling it implies | Head's margin left |
+|---|---:|---:|
+| +10 dB (×10 in **power**) | 6.3 | **13.6 dB** |
+| **+20 dB (×10 in field — "an order of magnitude")** | **2.0** | **3.6 dB** |
+| +23.6 dB | 1.32 | **0 — verdict fails** |
+
+**Read at face value, "an order of magnitude" leaves 3.6 dB** — less than the first-order model can
+be trusted to (§9 item 2: homogeneous sphere, degenerate modes, one tissue). That is why the verdict
+cannot be carried over: not because it demonstrably fails, but because the one number standing
+between it and failure would be smaller than the model's own uncertainty. **Layer 4's deletion does
+not change this arithmetic** — it supplied 0.26 dB (§6.2) and would not have rescued it — **but it
+removes the only place a remedy could have been put inside the stack**: the station is gone, the one
+documented way it returns is an electrically insulating, non-magnetic pad (`OI-EMCCAV-08`,
+`REQ-CAV-03`) which absorbs nothing, and magnetic loading, the only thin absorber that works (§6.1), is
+forbidden by `REQ-EMI-10`. **With the head already the whole of the damping, a stronger in-envelope
+source has to be answered at the source — never by the enclosure.**
+
+**Two further things a PAN siting would reopen, neither computable yet:**
+
+- **§4's upper edge.** `REQ-CAV-00`'s 3 GHz is set by the 31.1 dB roll-off of 4–8 ns edges, and
+  `REQ-CAV-00` already names *"the fastest edge inside the envelope"* as a re-derive trigger. A
+  switch node faster than 4 ns moves the knee up and the edge with it. (The lower edge is the
+  wearer's, §4.1, and does not move.)
+- **§6.3's energised-⇒-worn argument.** It holds because every §3 source runs only during a session.
+  Whether the vault rail is up off-head (bench, charging, Mode 2 programming) is not stated anywhere;
+  if it is, the boost sees the bare Q of 409 (§9 item 8).
+
+**What cannot be computed — how far above the controller edges the boost would actually sit.** That
+estimate needs, on the boost side: **(1) switching frequency**, **(2) switch-node rise/fall time**
+(the knee), **(3) hot-loop area** — `NP-HW-HUB-001` §7.4 gives topology, 15–20 V in, 24 V / ~35 W /
+~1.46 A out and HUB-REQ-C04's control-loop bandwidth ≫ 40 Hz, **and none of the three**; they arrive
+with `OI-HUB-C19`'s own residual (*"size and select the boost"*). **And on the reference side,
+(4) the table above gives rise times but no amplitude** — no drive current or loop area for any
+controller edge — so **§3's "an order of magnitude" is an engineering judgement, not a computed
+ratio**, and the +20 dB row above is a reading of it, not a result. All four are needed before a
+PAN siting could be assessed; none is needed while the boost stays on the Hub PCB. `scripts/check-cavity-q.ts`
+reproduces the three margins above.
+
+> **The same logic reaches any switching stage proposed inside the envelope**, because it is
+> `REQ-CAV-00`'s own trigger, not a new requirement. The one other candidate in the record is the
+> clinical tACS compliance supply: `NP-HW-TACSDRV-001` Q3 already sites its switching stage on the
+> Hub PCB *"following `OI-HUB-C19`'s rule"*, so it is consistent today.
 
 ---
 
@@ -977,7 +1038,7 @@ Stated explicitly, because an analysis with a clean answer is easy to over-read.
 |----|------|-------|-----------|
 | **`OI-EMCCAV-01`** | **Measure the ADS1299's EMIRR at 420 MHz – 3 GHz.** §5.1's 60 dB is the softest input in this document and `REQ-CAV-01` moves decade-for-decade with it. Bench measurement on a part in hand | EE Lead | No — bounds `REQ-CAV-01` |
 | **`OI-EMCCAV-02`** | `RISK-SINK-03` narrowed, not cleared: the exterior spreader cannot affect cavity Q, so `OI-SINK-01`'s EMF clearance reduces to **ELF eddy loading of the Helmholtz actuator** + external RF. Re-scope the item to those two mechanisms | EMC + Thermal | No — narrows a **BLOCKING** item |
-| **`OI-EMCCAV-03`** | **`OI-HUB-C19` is now an EMC decision.** If the 15–20 V → 24 V boost is ever sited inside the helmet envelope rather than on the Hub PCB, §4's band and §6's verdict must both be re-derived — a switching converter is an order of magnitude above anything in §3's table | EE Lead + EMC | Gates any re-siting of the boost |
+| ~~**`OI-EMCCAV-03`**~~ | **✅ CLOSED 2026-09-23 (Rev 15, GitHub #400) — the condition now lives on `OI-HUB-C19`'s own row** (`NP-HW-HUB-001` Rev 7, §11 and §7.4): siting the 15–20 V → 24 V boost inside the helmet envelope requires §4 (band) and §6 (the head meets `REQ-CAV-02`) to be re-derived **before the siting is accepted**, because a switching converter is an order of magnitude above anything in §3's table and Layer 4 is no longer present. **The record already decides the siting — Hub PCB, provisional (principal 2026-07-30), outside the envelope** — so nothing is re-derived today; the condition gates the one named alternative, the PAN. **§3.1 quantifies why it must gate:** §6's 23.6 dB margin survives a source up to +23.6 dB, and read as ×10 in field "an order of magnitude" leaves **3.6 dB**, inside the model's own uncertainty; the deleted station removes the only in-stack place a remedy could have gone. **What a PAN siting would need and the record lacks:** boost switching frequency, switch-node edge time, hot-loop area (all arrive with `OI-HUB-C19`'s part selection), and an amplitude for §3's controller edges | EE Lead + EMC | **Gate carried by `OI-HUB-C19`** — gates any re-siting of the boost |
 | **`OI-EMCCAV-04`** | Add `EMF-1a`–`EMF-1d` (§7) to the `EMF-1` fixture's test plan. Four sweeps on a fixture already committed. ~~Gates §8.2's deletion~~ — **Rev 2: no longer gating**, because §8.2 now recommends substitution, which does not depend on them. They are what would let `REQ-CAV-04`'s justification be stated as *measured*; **sweep `EMF-1a` to 6 GHz** for `OI-EMCCAV-06` | EMC | No — **re-scoped at Rev 2** |
 | **`OI-EMCCAV-06`** | **The band's upper edge is derived against the INTERNAL source only (§4.2).** The 31.1 dB roll-off is a property of §3's digital edges and says nothing about **external 6 GHz Wi-Fi ingress through the parting-plane seam** — the case `NP-HEX-ZM-001` §5.3a and `RISK-20` are actually written against. **Above 3 GHz the foam is no longer electrically thin** (§6.2 shows 11–41 dB), so §6's verdict does **not** transfer. Tissue is lossier at 6 GHz so §6.3's mechanism should hold harder, but **the case is not worked**. Sweep `EMF-1a` to 6 GHz | EMC | **Bounds §6's scope** |
 | **`OI-EMCCAV-08`** | ~~The only question between here and executing the deletion~~ **NARROWED 2026-09-20 by §8.3, and it no longer gates.** The absorber sits **outboard of the Gap**, so the re-loft takes **no clamp space at all**: the 5–7 mm Gap and the 3.0–4.0 mm of clamp features inside L1 are both preserved, and only the clamp's *counterface* changes — from compressible foam to rigid Pd/mu-metal/CFRP, which is **better** for an over-center mechanism whose over-center point would otherwise drift with foam compression set. The tolerance argument also inverts: the foam is a **±0.5 contributor**, so deleting it **shrinks the clamp's stack 38 % worst-case (±1.30 → ±0.80)**. **Residual, and it is `MECH-2`'s regardless:** confirm the per-module spring-plunger stroke covers ±0.80 — *a strictly easier requirement than today's ±1.30* | ME Lead (**`MECH-2`**) | **No — narrowed, no longer gating** |
@@ -1011,3 +1072,4 @@ Stated explicitly, because an analysis with a clean answer is easy to over-read.
 | 12 | 2026-09-21 | NeurOne EMC / Systems Engineering | **Rev 11's §8.8 caveat is WITHDRAWN: the lattice does not compress, and the governing constraint was never a measurement.** Rev 11 published *"the lattice compresses at crown and rim"*, with one hex edge falling to **13.9 mm** at row 11, and directed the packing check to the tightest cluster. **That is wrong.** **The tile is one universal 40 mm mould, type-agnostic, identical shape** — `NP-ART-001` A1, `NP-HEX-ZM-001` §627 and `NP-DT-001` `DI-USE-05` all state it, **because the modules are interchangeable**. Every hexagon is therefore the same size **by construction**, adjacent socket centres are **40 mm apart on the surface everywhere** (they cannot be closer — the parts would overlap), and **`PACK-1`'s 23.09 mm is the tile's own edge length, so the boss-to-board clearance is IDENTICAL at all 18 clusters.** There is no per-cluster sweep to run, which is the point of interchangeability. **What Rev 11 measured was a 3-space CHORD, not an on-surface distance.** The socket map gives positions on a **doubly-curved scanned surface**; at row 11 the z-coordinate swings **21.6 mm across four sockets** as the rim turns over, so the chord badly understates spacing — a 25 mm chord for a 40 mm geodesic implies a local radius of **~13 mm**, the rim fold. Over the mid-vault the same chords read **38.6–41.0 mm** and the error is invisible, which is exactly why it passed. **This is the SECOND time this lattice was mis-measured the same way**: Rev 11's own log entry already recorded a naive nearest-neighbour pass that read a 19–39 mm spread as a pitch discrepancy. **Same root cause both times — treating 3-space distances between socket centres as on-surface distances** — so a guard is now written into `scripts/check-cavity-q.ts` at the point of use rather than left as a lesson. **And the real variation runs the other way.** Congruent flat hexagons **cannot tile positive Gaussian curvature without opening gaps**, which is *why* inter-tile gaps exist at all and why `NP-HELMET-GEOM-001` §3 can site the clamp bosses in them *"made free by the lattice gaps"*. **The gaps widen where curvature is highest, and both the boss and the board live in them — so `PACK-1` gets MORE clearance at crown and rim, not less.** Quantifying that needs the surface model (`scripts/extract-helmet-surface.ts`), not the socket list: **`OI-EMCCAV-15`**. `PACK-1`'s conclusion is unchanged and strengthened — boss at the internal vertex, board at the perimeter, one hex edge apart, on every cluster. **No locked section modified; no layer removed; no measurement asserted.** |
 | 13 | 2026-09-21 | NeurOne EMC / Systems Engineering | **Rev 12's closing paragraph is corrected: the module surface is MEDIAN-CURVED, not flat, and its curvature mismatch is already bounded and already allocated.** Rev 12 argued from *"congruent **flat** hexagons cannot tile positive Gaussian curvature without opening gaps"* and concluded the inter-tile gaps widen with curvature, handing `PACK-1` free clearance at crown and rim. **The premise is false.** `NP-HEX-ZM-001` §3.1 committed **"Option A (rigid, median-curved 40 mm hexagon)"**: a single **compromise curvature**, `R_m ≈ 87 mm`, **3.1 mm dome depth** at W = 40, selected to minimise the discrepancy between module and site curvature **across all socket positions** — exactly what that section's *"worst-case mismatch"* column tabulates per candidate tile width. **The residual is 1.04 mm worst case and ~0.25 mm over most of the vault, and §3.1 already names its home: "absorbed by the PDMS window standoff + a ≤0.8 mm compliant gasket".** So the mismatch is taken up **radially at L0**, not in-plane as gap width — there is no uncounted free clearance, and **`OI-EMCCAV-15` is withdrawn**. **`PACK-1` is unaffected and the curvature makes it more exact, not less:** its 23.09 mm is the module's own hex edge, measuring **23.094 mm as an arc** on the R = 87 mm module surface and **23.026 mm as a chord** — a **0.068 mm (0.29 %)** difference, immaterial against a 23 mm packing budget, and identical at every cluster because every module is the same curved part. **Nothing decided here spends the L0 mismatch budget:** `PCB-1` and `PLATE-1` sit on L1's gap-facing side and `BOSS-1` on the outer bowl, while the standoff and gasket are at **L0**, scalp-facing. **A root cause worth naming, because this is the third correction in this geometry area and it is NOT the same one as Rev 12's.** Rev 11 and Rev 12 both failed by **mis-measuring** — 3-space chords read as on-surface distances. **Rev 12's flat-hexagon paragraph failed by re-deriving from first principles a question §3.1 had already answered**, with a table, a committed option and a budgeted residual. The guard in `scripts/check-cavity-q.ts` now carries both lessons: measure on the surface, **and read §3.1 before reasoning about tile curvature at all**. **No locked section modified; no layer removed; no measurement asserted.** |
 | 14 | 2026-09-23 | NeurOne EMC / Systems Engineering | **Principal decision recorded: `REQ-CAV-04` is TAKEN (GitHub #391). The Layer 4 absorber station is deleted, and the 3 mm re-loft of the outer bowl moves with it as one change.** §8.2 carries the decision banner; its Rev 3 reasoning is kept as the rationale of record. **Executed per §8.4** — CLAUDE.md §1 / §4.3 (Rev 51) and `hardware-detail.md` §4.3 now read *4-layer*; `NP-DT-001` `DI-PERF-22`, `NP-ART-001` A6, `NP-ENV-OPRANGE-001` §2 (D2's evidence sentence — substance unchanged), `NP-HELMET-GEOM-001` §2 / §3 / §8 (station struck, radial total **27–32 mm**), `NP-HELMET-GEOM-ISA` `ISC-4`, `NP-HEX-ZM-001` §5.1, `NP-HW-FITOVER-001`, `NP-PWR-THERM-001`, `NP-RM-001`, `NP-THERM-COOL-001`, `NP-THERM-SINK-001`, `NP-TOOL-HUB-001`, `competitive-position.md` and `regulatory-strategy.md` updated; the four RISK-15 *"five-layer keying"* rows untouched. **Layer 4's number is retired and held — Layer 5 is not renumbered.** The re-loft is carried into `OI-ART-01`'s `NP-TOOL-SHELL-001` re-scope (GitHub #331). §9 item 5 amended: this document still modifies no locked decision; the principal's decision does. **The follow-ons stay open and none gates the decision:** `OI-EMCCAV-08` is now the station's only documented return path (a thin insulating ceramic pad, `REQ-CAV-03`, if `MECH-2`'s plungers cannot cover ±0.80); `OI-EMCCAV-07` (outer-bowl heat budget) becomes live rather than hypothetical; `OI-EMCCAV-04` / `-06` would let the justification be stated as *measured*. **No measurement asserted.** |
+| 15 | 2026-09-23 | NeurOne EMC / Systems Engineering | **`OI-EMCCAV-03` closed (GitHub #400): `OI-HUB-C19` now carries the EMC condition on its own row, and §3.1 says why it has to.** `NP-HW-HUB-001` Rev 6 → 7 writes the condition into `OI-HUB-C19` (§11) and into §7.4's placement decision: **siting the boost inside the helmet envelope requires §4 and §6 of this document to be re-derived before the siting is accepted.** **The siting is already decided — Hub PCB, provisional, principal 2026-07-30 — and it is outside the envelope**, so nothing is re-derived now; the condition gates the one in-envelope alternative the record names, the **PAN**. **New §3.1, computed rather than asserted:** `REQ-CAV-02` is an allocation against §3's sources, so a new source *X* dB stronger in field tightens the Q ceiling to `20·10^(−X/20)`; the head's Q_L of 1.32 is **23.6 dB** under 20, so the verdict tolerates up to +23.6 dB — **13.6 dB** of margin left at +10 dB, **3.6 dB at +20 dB**, the ×10-in-field reading of §3's *"an order of magnitude"*, which is inside the first-order model's own uncertainty (§9 item 2). **The Layer 4 deletion does not change that arithmetic (0.26 dB) but removes the only in-stack place a remedy could go** — the station's one return path is a non-absorbing insulating pad and magnetic loading is forbidden by `REQ-EMI-10` — so a stronger internal source must be answered at the source. §3.1 also records two things a PAN siting reopens that cannot yet be computed (a switch node faster than 4 ns moves `REQ-CAV-00`'s upper edge; whether the vault rail is up off-head is stated nowhere), and **declines the optional estimate of how far above the controller edges the boost would sit**, naming why: the record gives the boost's topology and ratings but **not its switching frequency, switch-node edge time or hot-loop area**, and gives §3's controller edges **rise times but no amplitude** — so §3's *"order of magnitude"* is a judgement, not a ratio. Notes that `NP-HW-TACSDRV-001` Q3's compliance-supply switching stage already follows `OI-HUB-C19`'s rule. `scripts/check-cavity-q.ts` gains three anchors, 45 → 48. **No locked section modified; no requirement added — the condition is `REQ-CAV-00`'s existing re-derive trigger, applied to its owning row; no measurement asserted.** |
