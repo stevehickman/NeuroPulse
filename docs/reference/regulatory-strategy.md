@@ -29,3 +29,30 @@
 - IEC 62304 software classification: Safety MCU → **Class C** · Main processor → **Class B** · App → **Class B** — formalized in NP-SW-001 Rev 1
 - Clinical data: required for TMS modality; seeded T2 units into research institutions (Years 2–3) generate this data
 - Human factors engineering (FDA 2016 HFE Guidance): URRA + formative + summative testing — governed by NP-HFE-001 (planned Month 9)
+
+## T1 → T2 transition — how a unit crosses the tier line (added 2026-09-23, `OI-TACSDRV-06`)
+
+**Nothing above said how a T1 unit becomes a T2 unit, and the answer is a regulatory one.** T1 sits
+under FDA's general wellness policy, which is enforcement discretion keyed to **intended use**. It is
+not a statutory exemption, whatever the shorthand "FDA-exempt" suggests. T2 is a 510(k) device. So
+every upgrade model is an answer to *"when, and by whose act, does a wellness product become a device
+intended for a medical purpose?"* The analysis is **`docs/np_reg_upg_001.md` (NP-REG-UPG-001) §6**.
+It is an engineering reading, not a regulatory opinion:
+
+| Model | Regulatory consequence, in one line |
+|---|---|
+| **(a) New unit** (trade-in or second purchase) — **RECOMMENDED, not decided** | No transition happens in the field. Each T2 is built, accepted, labelled and UDI-marked as T2. T1 promotion must not present T1 as upgradeable to a medical device. The residual question is whether T1-released parts may carry over into a T2 |
+| **(b) Service conversion** | Manufacturing, not servicing: **depot only**, never a Tier B partner. The 510(k) must cover converted units, and the conversion needs process validation. **Every T1 unit would need DHR-grade build history from day one**, whether or not it is ever converted. It must be a Pre-Submission question |
+| **(c) User-installed parts** | The user creates the medical device outside any manufacturing control. It cannot deliver T2 anyway: the tACS driver, the 21-channel ADS1299 bank, the T2 power path and the TMS window are factory-only |
+
+**Seven questions for counsel** (`NP-REG-UPG-001` §6.6) join the **existing RISK-03 engagement**
+(GitHub Issue #5), per `NP-REG-PBM1064-001` §1's single-engagement rule. That is `OI-UPG-02`. One of
+them reaches beyond the upgrade question: **EU MDR Annex XVI** may bring non-medical brain-stimulation
+equipment, and so T1, into MDR scope in the EU, and **Article 16** would make any partner that
+converts units the manufacturer. The record's only EU position today is the charger note in
+`commercial-model.md` §2.2.
+
+**Needed under every model:** the device holds no tier identity. `NP_PROTO_FLAG_T2_TIER` is read by
+no firmware, and T2-D tiles, the cervical VNS accessory and possibly the qEEG cap fit interfaces every
+T1 unit has. A T1-labelled unit therefore cannot currently refuse a T2 modality. That is `OI-UPG-01`,
+the extension of `NP-PWRSRC-001` D-9's device-bound entitlement to modality gating.

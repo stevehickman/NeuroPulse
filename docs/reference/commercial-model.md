@@ -118,6 +118,12 @@ Charger scaled to peak draw of configuration. Auto-included at every upgrade by 
 | Pro Entry | 65W NeurOne GaN (branded) | $13 |
 | Pro Full | 65W NeurOne GaN (branded) × 2 | $26 |
 
+> **Note 2026-09-23 (`OI-TACSDRV-06`) — scope of "upgrade" above, not a change to the policy.** The
+> auto-include rule serves **configuration upgrades** (`NP-PWRSRC-001` §14.2: *"Fitting a T1-C module
+> is a serial event"*). It does not assume that a T1 unit is converted into a T2 unit. `NP-REG-UPG-001`
+> recommends, but does not decide, that T2 is always a new unit, which ships with its own
+> configuration's charger under this same rule. The policy text and table are unchanged.
+
 **Charger upgrade intent signals:**
 - Core buyer selects 30W upfront → PBM intent → 14-day follow-up
 - Core buyer selects 45W upfront → Full T1 intent → 7-day completion bundle offer

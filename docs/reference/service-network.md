@@ -19,6 +19,15 @@
 - Tool-free hub fan → user self-service
 - Automated nightly UHDR backup → eliminates most data recovery emergencies
 
+> **Note 2026-09-23 (`OI-TACSDRV-06`).** "Upgrades" in the lever-ZIF line above are **configuration
+> upgrades within a tier**: tile additions such as T1-C, done by the user through bowl separation
+> (`NP-HEX-ZM-001` §5.1). **No tier in §8.1 converts a T1 unit into a T2 unit.** A conversion would be
+> medical-device manufacturing, not service. It touches factory-only assemblies (the PAN on the
+> laminated L1 carrier, the posterior boss and, for TMS, the outer bowl), and a partner that did it
+> would take on the manufacturer's obligations. `NP-REG-UPG-001` **recommends, but does not decide,**
+> that T2 is only ever built as T2. If the principal chose conversion instead, it would be a **Depot**
+> task and would need `EMF-1`-class attenuation measurement there (`NP-REG-UPG-001` §5.2).
+
 **Residual mandatory service per T1 user over 5 years:** 2–5 optician visits (Rx clip, already part of their workflow) + 0–1 fluxgate calibration + 0–2 damage-driven events.
 
 ## 8.3 Interface protection covers
