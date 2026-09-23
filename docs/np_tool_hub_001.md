@@ -2,9 +2,9 @@
 
 **Project:** NeurOne
 **Document:** NP-TOOL-HUB-001
-**Revision:** 1
-**Date:** 2026-07-27
-**Status:** BASELINED
+**Revision:** 2
+**Date:** 2026-09-23
+**Status:** BASELINED — **F-01's probe-contact geometry is GATED on `NP-HW-NASAL-001` OI-NASAL-09 (Rev 2; see F-01)**
 **Effective Date:** 2026-07-27
 **Author:** NeurOne Mechanical Engineering
 **Approved By:** Steve Hickman, CEO
@@ -57,6 +57,12 @@ Taken together, these three facts place the hub enclosure **externally mounted a
 - The dock is a fixed molded feature of the hub housing, not a separate accessory — it ships in place from day one, consistent with CLAUDE.md's box-contents philosophy of parity across configurations.
 
 **Material:** same CFRP-filled polymer as the hub housing shell; silicone inserts co-molded or bonded per the same 3M 9088 double-sided tape process used for zone-module rigidizer retention (`NP-TOOL-ZM-SM-001` §3, F-SM-01).
+
+> **⚠ Gate, 2026-09-23 (Rev 2) — F-01's geometry is stated against a part no document dimensions, and is now marked so.** The saddle radius above is *"sized to the Y-junction body OD"*; the insert pads sit at *"the probe-tip PD window and the optical-code/pogo-pin authentication contacts"*; the receptacles hold *"probe tips"*. **`NP-HW-NASAL-001` — the owning specification for the probe, artifact A12, first issued 2026-09-20 — dimensions none of the four**: Y-junction body OD, probe-tip envelope, PD-window location and finish, authentication-contact location (`REQ-NASAL-03`). This document was baselined with each of them as a relation to a part rather than a value, so every F-01 feature that touches the probe had a *rule* and no *number*. That is the same shape as F-03's *"≥ 12 × lace OD"* — a multiple without a multiplicand — and it is recorded the same way: **gated, not fabricated** (`NP-FAI-001` §2 F2).
+>
+> **What is gated:** `HUB-MDR-01`, `HUB-MDR-02` (placement only — the bonding process is not), `HUB-MDR-03` and `FAI-HTOOL-01` (§4, §5), and `NP-FAI-HUB-001` FAI-HUB-09, -10 and -20, all on **`NP-HW-NASAL-001` OI-NASAL-09**, which owns the four values. **What is not:** the dock's *existence*, its placement on the hub exterior, its material, the pad durometer, the bonding process and the passive-holster (non-keyed) principle are all independent of the probe's dimensions and stand as written. **No F-01 value is changed by this gate** — the ≤ 2 N detent's own provenance is a separate question, already open under `NP-CONV-001` OI-CONV-08 (c), and nothing here answers it.
+>
+> **Consequence for steel:** `OI-HTOOL-06` gates the hub mould steel cut on §4 being fully signed, and three §4 items are now unsignable until OI-NASAL-09 closes. **The hub mould therefore cannot be cut on this revision.** `OI-HTOOL-07` records the one design change that would release it without waiting for the probe — **recommended, not executed**.
 
 ### F-02 — Accessory Anchor Posts (Hub Port Covers)
 
@@ -115,9 +121,9 @@ Taken together, these three facts place the hub enclosure **externally mounted a
 
 | Item | Description | Status |
 |------|-------------|--------|
-| HUB-MDR-01 | Probe dock Y-junction saddle radius sized to Y-junction body OD (not lead OD) — CAD verification | Open |
-| HUB-MDR-02 | Probe dock silicone insert pads at both probe-tip receptacles — bonding process matches F-SM-01 precedent | Open |
-| HUB-MDR-03 | Probe dock retention force ≤2N insertion/extraction — bench measurement on first-shot part | Open |
+| HUB-MDR-01 | Probe dock Y-junction saddle radius sized to Y-junction body OD (not lead OD) — CAD verification | Open — **GATED: `NP-HW-NASAL-001` OI-NASAL-09** (no Y-junction OD exists) |
+| HUB-MDR-02 | Probe dock silicone insert pads at both probe-tip receptacles — bonding process matches F-SM-01 precedent | Open — pad **placement GATED: OI-NASAL-09** (no PD-window or contact location exists); bonding process not gated |
+| HUB-MDR-03 | Probe dock retention force ≤2N insertion/extraction — bench measurement on first-shot part | Open — **GATED: OI-NASAL-09** (the measurement needs a mating probe; none is dimensioned). The ≤2 N figure's provenance is separately open under `NP-CONV-001` OI-CONV-08 (c) |
 | HUB-MDR-04 | Two accessory anchor posts (USB-C, DFU/service) present and dimensioned per §3 F-02 boss spec (1.0mm dia, 0.5mm protrusion) | Open |
 | HUB-MDR-05 | Port cover tether length ≤20mm confirmed geometrically unable to reach F-04 fan intake grille in CAD assembly | Open — **BLOCKING for FAI-HTOOL-02** |
 | HUB-MDR-06 | Boa cable channel continuity from shell segment into hub housing — no cross-section discontinuity at interface | Open |
@@ -133,7 +139,7 @@ Taken together, these three facts place the hub enclosure **externally mounted a
 
 | FAI ID | Description | Blocking |
 |--------|-------------|---------|
-| FAI-HTOOL-01 | Probe dock retention/extraction force bench test (≤2N) and 500-cycle dock/undock durability (no visible wear at Y-junction saddle) | Hardware build |
+| FAI-HTOOL-01 | Probe dock retention/extraction force bench test (≤2N) and 500-cycle dock/undock durability (no visible wear at Y-junction saddle) | Hardware build — **GATED: `NP-HW-NASAL-001` OI-NASAL-09** (no probe article to dock) |
 | FAI-HTOOL-02 | Port cover tether reach test: with cover detached from port and tether fully extended, confirm tether/cover cannot contact the F-04 fan intake grille from any hub orientation | Hardware build — **BLOCKING**, foreign-object-near-fan-blade hazard |
 | FAI-HTOOL-03 | Boa channel 50,000-cycle fatigue test through the hub housing segment specifically (not just the shell segment already implied by CLAUDE.md §4.4) — confirms the hub does not introduce a new fatigue-limiting bend | Hardware bench |
 | FAI-HTOOL-04 | Fan door finger-probe test (IEC 60529/60601-1 test probe, door open) — confirms no contact with rotating fan blade | Hardware bench |
@@ -162,4 +168,14 @@ Taken together, these three facts place the hub enclosure **externally mounted a
 | OI-HTOOL-03 | Set the hub enclosure's environmental (ingress) rating — no prior document specifies one; determines whether F-04's door requires a gasket and what class | Pre-prototype; **feeds HUB-MDR-09, FAI-HTOOL-04 pass criteria** |
 | OI-HTOOL-04 | Confirm F-04 fan/heatsink cavity geometry against the eventual verification-grade CFD and THERM-1b bench outcome (`NP-THERM-CFD-001` §9 step 2) — this document specifies the *access door*, not the heatsink/fan sizing itself, which remains provisional pending that analysis | Post-THERM-1b |
 | OI-HTOOL-05 | Port cover tether reach geometry (HUB-MDR-05) — full 3D CAD sweep of the tether's reachable envelope in every hub orientation, not just the nominal orientation | Pre-prototype; **BLOCKING for FAI-HTOOL-02** |
-| OI-HTOOL-06 | Hub housing mold steel-cut approval — this §4 checklist (11 items) must be fully signed off, matching the gating pattern used for the zone module (`NP-TOOL-ZM-001` §5) and shell (`NP-TOOL-SHELL-001`) tooling | All FAI-HTOOL items |
+| OI-HTOOL-06 | Hub housing mold steel-cut approval — this §4 checklist (11 items) must be fully signed off, matching the gating pattern used for the zone module (`NP-TOOL-ZM-001` §5) and shell (`NP-TOOL-SHELL-001`) tooling. **Since Rev 2, HUB-MDR-01…03 are gated on `NP-HW-NASAL-001` OI-NASAL-09, so this item cannot close until either that one does or `OI-HTOOL-07` is taken** | All FAI-HTOOL items |
+| **OI-HTOOL-07** | **Decide how F-01 is released from the probe's geometry (Rev 2, 2026-09-23).** Two routes. **(a) Wait:** the hub mould steel cut waits on `NP-HW-NASAL-001` OI-NASAL-09's four values, and on the emitter selection and optical work behind the probe tip. **(b) Move every probe-contact surface into the silicone inserts — RECOMMENDED, NOT EXECUTED.** The only F-01 surfaces that touch the probe are already specified as silicone parts *bonded* to the housing (§3 F-01 *Material*); extend that to the saddle (a bonded silicone saddle liner in place of a moulded radius), and have the rigid housing carry only a **pocket whose envelope this document allocates from hub exterior real estate**. The four probe-dependent values then bind two soft parts that are re-made without touching the hub steel, and the one value the hard mould needs — the pocket envelope — is the hub's own to set. Route (b) also **reverses the dependency to the right way round**: today a BASELINED tooling specification waits on a DRAFT probe specification; under (b) the probe is designed to fit an envelope the baselined document already owns, which `NP-HW-NASAL-001` would then carry as a requirement traceable to this allocation. What (b) costs: the *co-moulded* insert option in §3 F-01 *Material* is foreclosed (a co-moulded insert is cut into the steel), and the pocket envelope is a number this document does not yet state and must — it is **not** supplied here, because it depends on hub exterior layout (`OI-HTOOL-01`) and not on anything this item can derive. **Decision owner: ME + Systems. This revision does not execute (b)**: F-01's geometry text is unchanged, and adopting (b) is a Rev 3 change to a BASELINED document | **Hub mould steel cut** (via `OI-HTOOL-06`); `NP-FAI-HUB-001` FAI-HUB-09, -10, -20 |
+
+---
+
+## 8. Revision history
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 2 | 2026-09-23 | NeurOne Systems Engineering | **F-01's probe-contact geometry recorded as GATED on `NP-HW-NASAL-001` OI-NASAL-09 — closes that document's `OI-NASAL-01` by its second branch.** Rev 1 was baselined with the saddle radius, insert-pad placement and retention test stated as relations to features of the intranasal probe (A12) that no document dimensions; `NP-HW-NASAL-001` Rev 1 (2026-09-20) made that visible. Adds the gate note to §3 F-01, gates HUB-MDR-01…03 and FAI-HTOOL-01, extends OI-HTOOL-06, and raises **OI-HTOOL-07** with a recommended — not executed — route to release the hub mould without waiting for the probe. **No F-01 value, material, feature or BOM line is changed**; the ≤ 2 N detent's provenance stays with `NP-CONV-001` OI-CONV-08 (c). Status remains BASELINED: a gate added to a baselined document narrows what it can release, it does not reopen what it says. |
+| 1 | 2026-07-27 | NeurOne Mechanical Engineering | Initial release (F-01…F-04, §4 checklist HUB-MDR-01…11, FAI-HTOOL-01…04, OI-HTOOL-01…06). Approved by Steve Hickman, CEO. In-place correction to §3 F-02 on 2026-08-18 (tether/boss conflict with `NP-TOOL-SHELL-001` F-02, `OI-ART-07`), made without a revision increment. |

@@ -2,14 +2,14 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-NASAL-001
-**Revision:** 1
-**Date:** 2026-09-20
+**Revision:** 2
+**Date:** 2026-09-23
 **Status:** DRAFT — **requirements-grade. No probe geometry, no emitter selection and no mucosal exposure limit exist; §8 names each absence rather than supplying a value.**
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
 **Approved By:** — (new document)
-**References:** CLAUDE.md §3 modality ② (PBM intranasal) and its hard-limits table, §2.3 (consumables — the sleeve is the only authenticated one), §4.2 (safety architecture), §5.1 (UHDR/SHDR); `docs/reference/modality-stack.md` (modality 2 detail); `docs/reference/commercial-model.md` §2.3 (sleeve price, interval, GM%); NP-FW-HUB-001 Rev 1 §8.7 (`np_mod_intranasal.c`); NP-TOOL-HUB-001 Rev 1 F-01 (probe dock, BASELINED); NP-NPPS-REF-001 Rev 15 §4.2 (protocol block); NP-ENV-OPRANGE-001 (shared thermal envelope, probe included); NP-ART-001 Rev 3 §2.4 A12, §3.2, §4, OI-ART-04; NP-FAI-001 Rev 3 §2 (F1–F4); NP-RISK-002 Rev 3 §4, OI-RISK2-02; NP-CONV-001 Rev 6 §4, §5, §6; NP-HW-HEXTILE-001 Rev 5 (the tile's dual-PD dose-metering precedent); `firmware/hub_control/modules/np_mod_intranasal.c`
-**Related Issues:** GitHub Issue #332 (OI-ART-04 — A12 has no owning document)
+**References:** CLAUDE.md §3 modality ② (PBM intranasal) and its hard-limits table, §2.3 (consumables — the sleeve is the only authenticated one), §4.2 (safety architecture), §5.1 (UHDR/SHDR); `docs/reference/modality-stack.md` (modality 2 detail); `docs/reference/commercial-model.md` §2.3 (sleeve price, interval, GM%); NP-FW-HUB-001 Rev 1 §8.7 (`np_mod_intranasal.c`); NP-TOOL-HUB-001 Rev 2 F-01 (probe dock, BASELINED; probe-contact geometry GATED on OI-NASAL-09), §7 OI-HTOOL-07; NP-FAI-HUB-001 Rev 2 (FAI-HUB-09, -10, -20); NP-NPPS-REF-001 Rev 15 §4.2 (protocol block); NP-ENV-OPRANGE-001 (shared thermal envelope, probe included); NP-ART-001 Rev 3 §2.4 A12, §3.2, §4, OI-ART-04; NP-FAI-001 Rev 3 §2 (F1–F4); NP-RISK-002 Rev 3 §4, OI-RISK2-02; NP-CONV-001 Rev 6 §4, §5, §6; NP-HW-HEXTILE-001 Rev 5 (the tile's dual-PD dose-metering precedent); `firmware/hub_control/modules/np_mod_intranasal.c`
+**Related Issues:** GitHub Issue #332 (OI-ART-04 — A12 has no owning document); OI-NASAL-01 (closed Rev 2 — the baselined dock recorded as gated)
 **Gate:** NP-COORD-001 G2 (pre-tooling) — A12's entry in the G2 completeness check, not a release of it
 **IEC 62304 Class:** N/A (hardware specification). It constrains SW-02 Class B code (`np_mod_intranasal.c`) and sits behind the Class C enable `NP_SAFETY_EN_INTRANASAL` (§5).
 **Supersedes:** None — first issue. It removes `CLAUDE.md` §3 modality ② from the role of governing specification for artifact A12.
@@ -108,6 +108,37 @@ Every one of those requirements is stated **against features of A12**, and A12 s
 > window**, and the **location of the authentication contacts**. Until they exist, F-01's saddle
 > radius and insert-pad placement are dimensioned against nothing. **`OI-NASAL-01`** — and it is
 > the one open item in this document that gates an already-baselined tool rather than a future one.
+
+**Resolution (Rev 2, 2026-09-23) — `OI-NASAL-01` closed by its second branch: F-01 is recorded as
+gated.** The item offered two exits: supply the four values, or record F-01's geometry as gated.
+**The values cannot be supplied honestly today.** The probe tip's envelope follows from an emitter
+package, a PD, a reference LED and a sleeve wall, and none of those is selected (`OI-NASAL-06`,
+`OI-NASAL-03`); the Y-junction OD follows from the conductor count and the over-mould wall that
+protects them, and no cable is selected (`OI-NASAL-07`). A number written here would be the invented
+figure `NP-FAI-001` §2 F2 and `NP-CONV-001` §7.1 exist to keep out — and it would be worse than
+none, because the baselined tool would then be cut to it. So the second exit was taken:
+
+| Where | What changed |
+|---|---|
+| `NP-TOOL-HUB-001` Rev 2 §3 F-01 | Gate note: the four probe-dependent features are relations to a part with no dimensions. No F-01 value changed |
+| `NP-TOOL-HUB-001` Rev 2 §4, §5 | HUB-MDR-01, -03 and FAI-HTOOL-01 gated; HUB-MDR-02 gated as to placement only |
+| `NP-TOOL-HUB-001` Rev 2 §7 | OI-HTOOL-06 notes it cannot close; **OI-HTOOL-07** raised (below) |
+| `NP-FAI-HUB-001` Rev 2 | FAI-HUB-09, -10, -20 carry `[GATED: NP-HW-NASAL-001 OI-NASAL-09]`; §0's claim that the saddle is dimensioned is corrected |
+
+**What this closes, and what it does not.** It closes the defect `OI-NASAL-01` named — a baselined
+tool *silently* dimensioned against nothing: every F-01 item that depends on A12 now says so and
+names the item that releases it. **It does not release the hub mould.** `OI-HTOOL-06` gates the
+steel cut on the §4 checklist being fully signed, and three of those items are now visibly
+unsignable. The four values are still owed, and are carried forward as **`OI-NASAL-09`**.
+
+**The way out that does not wait for the probe is on the hub side, not here.** `NP-TOOL-HUB-001`
+`OI-HTOOL-07` recommends — without executing — moving every probe-contact surface of the dock into
+the silicone inserts F-01 already bonds to the housing, so that the hard mould carries only a pocket
+whose envelope the hub allocates. If that is taken, the relationship reverses: this document would
+gain a requirement that A12 fits the allocated envelope, traceable to that allocation (the
+`NP-CONV-001` §7.1 test answered by *"the probe does not dock"*), and `OI-NASAL-09` would gate two
+soft parts instead of a steel cut. **Until it is taken, `REQ-NASAL-03` stands as written**: this
+document owes the hub the four values.
 
 ---
 
@@ -285,7 +316,7 @@ analysis is still owed. Inputs, unscored:
 
 | Not specified | Why | Where it goes |
 |---|---|---|
-| Probe tip envelope, Y-junction OD, overall probe geometry | No geometry exists; and `NP-TOOL-HUB-001` F-01 is **already baselined against it** | **`OI-NASAL-01`** |
+| Probe tip envelope, Y-junction OD, overall probe geometry | No geometry exists, and it follows from selections not yet made (§2.2 resolution). `NP-TOOL-HUB-001` F-01 is baselined against it and, since its Rev 2, **gated on it** | **`OI-NASAL-09`** (was `OI-NASAL-01`, closed Rev 2) |
 | Emitter selection, optical power, beam geometry | The same absence as `OI-HEXTILE-02` on the cranial side — no 660/808 nm emitter is selected anywhere in the programme | **`OI-NASAL-06`**, with `OI-HEXTILE-02` |
 | Mucosal irradiance and temperature ceilings | Clinical/regulatory decision, `RISK-03` surface (§5.2) | **`OI-NASAL-02`** (BLOCKING) |
 | Depth-stop ring retention force and stop strength | §2.1 | **`OI-NASAL-05`** |
@@ -313,7 +344,7 @@ analysis is still owed. Inputs, unscored:
 
 | ID | Description | Owner | Blocking |
 |---|---|---|---|
-| **OI-NASAL-01** | **A BASELINED tool is dimensioned against an unspecified part.** `NP-TOOL-HUB-001` F-01's saddle radius, insert-pad placement and ≤ 2 N detent are all stated against A12 features — Y-junction OD, probe-tip envelope, PD window and authentication-contact locations — none of which exists. Supply the four values, or record F-01's geometry as gated | ME + Systems | **Hub mould cut**; `NP-FAI-HUB-001` |
+| ~~OI-NASAL-01~~ | **✅ CLOSED 2026-09-23 (Rev 2) by its second branch — F-01's geometry recorded as gated (§2.2 resolution); the four values carried forward as `OI-NASAL-09`.** The item read: **a BASELINED tool is dimensioned against an unspecified part.** `NP-TOOL-HUB-001` F-01's saddle radius, insert-pad placement and ≤ 2 N detent are all stated against A12 features — Y-junction OD, probe-tip envelope, PD window and authentication-contact locations — none of which exists. Supply the four values, or record F-01's geometry as gated | — (closed) | — |
 | **OI-NASAL-02** | **BLOCKING — the intranasal probe has no exposure ceiling.** No irradiance limit, no thermal limit, and no sensor that could enforce a thermal limit (§5.2). `CLAUDE.md` §3's hard-limits table needs an intranasal row. Extend the existing `RISK-03` regulatory instruction (`NP-REG-PBM1064-001` §2 forbids a parallel engagement) rather than deriving one here | Clinical + Regulatory + Systems | **T1 release**; hazard analysis |
 | **OI-NASAL-03** | Establish whether single-PD-plus-reference-LED meets the real-time J/cm² dose claim **through a consumable sleeve of uncharacterised transmittance**, or whether the probe needs the tile's dual-PD treatment. Includes specifying sleeve transmittance at 660 nm and 808–830 nm as an incoming-inspection parameter | EE + Optical | Dose claim integrity |
 | **OI-NASAL-04** | **Decide what sleeve authentication asserts — type, or unit with consumed state (§6.2).** As specified it is a boolean type check, so single use is unenforceable, which touches hygiene and the primary MRR line at once. A per-unit serial additionally raises a UHDR/SHDR classification question that must be answered *before* anything is logged | Product + EE + Privacy | Consumable revenue model; hazard analysis |
@@ -321,6 +352,7 @@ analysis is still owed. Inputs, unscored:
 | **OI-NASAL-06** | Select the 660 nm and 808–830 nm emitters for the probe. Shares the cranial-side absence (`OI-HEXTILE-02`) but not necessarily the part: a probe-tip emitter and a tile emitter have different thermal and envelope constraints | EE + Optical | A12 BOM; `NP-FAI-NASAL-001` F2 |
 | **OI-NASAL-07** | Select cable, connector and strain relief to the hub accessory port. Worth deciding **once** across A11, A12, A13 and A14 rather than four times | EE + ME | A12 tooling |
 | **OI-NASAL-08** | Specify the cleaning and disinfection regime for the probe and for the hub dock that touches it every session. A body-cavity applicator stored in a moulded cradle on the hub exterior has a contamination path the rest of the product does not | Quality + Product | IFU; hazard analysis |
+| **OI-NASAL-09** | **Dimension the probe features the hub dock is stated against** — Y-junction body OD, probe-tip envelope, PD-window location and finish, authentication-contact location (`REQ-NASAL-03`). Succeeds `OI-NASAL-01`. Not derivable until the emitter (`OI-NASAL-06`), the sleeve wall and PD topology (`OI-NASAL-03`) and the cable (`OI-NASAL-07`) are selected. **Its blocking weight depends on `NP-TOOL-HUB-001` OI-HTOOL-07:** under route (a) it gates the hub mould steel cut; under route (b) it gates only the dock's bonded silicone parts, and the probe is instead designed into the hub's allocated envelope | ME + Systems | `NP-TOOL-HUB-001` HUB-MDR-01…03 → OI-HTOOL-06 (**hub mould cut**, unless OI-HTOOL-07 route (b) is taken); `NP-FAI-HUB-001` FAI-HUB-09, -10, -20 |
 
 ---
 
@@ -340,4 +372,5 @@ analysis is still owed. Inputs, unscored:
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 2 | 2026-09-23 | NeurOne Systems Engineering | **`OI-NASAL-01` closed by its second branch: the baselined hub dock is recorded as gated, not given invented dimensions** (§2.2 resolution). The four values the dock needs cannot be supplied honestly — each follows from an emitter, PD/sleeve or cable selection not yet made — so `NP-TOOL-HUB-001` Rev 2 now marks F-01's probe-contact geometry, HUB-MDR-01…03 and FAI-HTOOL-01 as gated, and `NP-FAI-HUB-001` Rev 2 gates FAI-HUB-09, -10 and -20 and corrects its §0 claim that the saddle radius was dimensioned. **The hub mould is not released by this**: its steel cut stays blocked through `OI-HTOOL-06`, now visibly rather than silently. The values are carried forward as **`OI-NASAL-09`**; `NP-TOOL-HUB-001` raises **OI-HTOOL-07**, recommending (not executing) moving every probe-contact surface into the dock's bonded silicone inserts so the hard mould no longer depends on the probe. **No engineering value is set; no requirement, price or locked decision changes.** |
 | 1 | 2026-09-20 | NeurOne Systems Engineering | Initial release, against GitHub #332 / `NP-ART-001` OI-ART-04. **Gives artifact A12 an owning specification for the first time**, displacing `CLAUDE.md` §3 modality ② from that role, and treats the hygiene sleeve as a separately manufactured artifact rather than an accessory of the probe (`REQ-NASAL-01`). **Three findings, none of which existed as a written statement before.** (i) **`NP-TOOL-HUB-001` F-01 is BASELINED and dimensioned against features A12 does not specify** — saddle radius to a Y-junction OD nobody has stated, insert pads to a PD window with no location (`OI-NASAL-01`, and the one item here that gates a tool already at baseline). (ii) **The probe has no exposure ceiling of its own** — `CLAUDE.md` §3's hard-limits table has a scalp row and a deep-PBM row and no intranasal row; the duty ceiling is inherited from the cranial tiles by a firmware comment; the 42 °C limit is enforced by an NTC the probe does not have; and the tissue is mucosa (`OI-NASAL-02`, BLOCKING, routed to the existing `RISK-03` engagement rather than a parallel one). (iii) **The only authenticated consumable cannot be enforced as single-use** — the authentication interface of record is a `bool`, there is no per-unit identity, no consumed state and no counter, and a per-unit serial would itself raise a UHDR classification question (`OI-NASAL-04`). §5.3 additionally records that the probe's single-PD-plus-reference-LED topology does not reproduce the tile's dual-PD separation of window fouling from emitter ageing, and that a consumable sleeve of unstated transmittance sits in the optical path (`OI-NASAL-03`). §7 supplies the hazard-analysis input list `OI-RISK2-02` was blocked for. §8.1: **`NP-FAI-NASAL-001` still cannot be written** (F1, F2, F4 fail) — the absence is narrowed and re-owned, not closed. **No engineering value is set, no figure is invented, no price, interval, margin or locked decision changes.** Raises OI-NASAL-01…08. |
