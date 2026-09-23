@@ -314,8 +314,54 @@ volume. This is part of `OI-MMSOCK-01`'s question, not an independent requiremen
 | EEG + tES, same electrode | **must not** | unrepresentable in the socket record (§4.2); N4 is a selector (hardware) |
 | tES ch *a* + tES ch *b*, same electrode | **must not** | unrepresentable (§4.2); parser rejects a socket in two electrode sets (§5.1) |
 | any tES through a T1-B pod | **must not until `OI-MMSOCK-02` closes** | `REQ-FWHUB-33` (existing) — tES is not socket-addressable; pinned by test (§11) |
+| EEG on pad *a* + tES on pad *b*, same tile | **not possible at one electrode per tile**; with two, a recommendation rather than a must-not (§3.8) | the per-element electrode lane (§3.8, §4.1) |
 
 ---
+
+### 3.8 More electrodes per tile — what it unlocks and what it does not
+
+The obvious response to §3.4 and §3.5 is to give a tile more than one electrode. `NP-HW-EEGNET-001`
+§1.7 has already studied that for recording density (`OI-EEGNET-19`); this section asks the other
+question — **which of this document's verdicts it changes.**
+
+**It is physically possible.** Up to four ⌀11.4 mm pods fit in a tile's active field, 20.5 mm apart
+on a square, or two at ±14.5 mm, 29.0 mm apart (`NP-HW-EEGNET-001` §1.7.1). Face area never binds —
+a 30-contact array is ~4.5 % of the tile face (§1.7.2 of that document).
+
+**What it costs — every item owned elsewhere, none decided here:**
+
+| Cost | Size | Owner |
+|---|---|---|
+| **Socket contacts → clamp force** — the binding constraint | each electrode adds `ELEC`, plus `ELEC_SHLD` if shields are per-electrode: 19 → 20–21 contacts at two electrodes, 22–25 at four; plate load 34.2–57.0 N → 36.0–63.0 N (two) or 39.6–75.0 N (four). 34.2–57.0 N is **already** unanswered against one-handed operation (`OI-SHELL2-03(b)`, `RISK-22`) | `NP-HW-EEGNET-001` §1.7.2, `OI-EEGNET-20` |
+| **The socket has no spare positions** | closed at 19 with the two reserved positions dropped; after socket tooling (`OI-SHELL2-09(i)`) the count is permanent at every socket | `NP-DRV-SHELL-002` §5.1.4 |
+| ADC channels | T1 records 8; more electrodes record nothing more without a second ADS1299 | `NP-HW-HUB-001` §5 |
+| **Safety MCU** | a recording-only pad costs it **nothing**. Each independently **stimulating** electrode is a charge-monitor channel, and the 38-byte heartbeat has zero spare bytes — a Class C wire-format change (`NP-HW-HEXTILE-001` §8.4.2) | `NP-HW-HUB-001` §7.2 |
+| N4 mux width, socket BOM | per-cluster electrode inputs double at two electrodes; +$3–7 per headset at 21 contacts | `NP-DRV-SHELL-002` §3.5, §10.1 |
+
+**Against this document's verdicts:**
+
+| Verdict | Changed by more electrodes? |
+|---|---|
+| §3.4 — EEG + tES on one electrode, must not | **Moves, does not disappear.** With two electrodes the must-not still holds *per electrode*, but a tile can then record on one pad while stimulating on the other — the VNS clip's one-conductor-per-function pattern (`NP-HW-EEGNET-001` §0 note), at a tile. **What replaces the must-not is an unmeasured risk:** a recording pad 20–29 mm from a pad carrying up to 2 mA sits in the stimulation field, and whether that saturates the ADS1299 at ×24 gain is unknown. It is the across-socket artifact problem §1 excludes, brought closer — `OI-MMSOCK-09` (b) |
+| §3.5 — two channels on one electrode, must not | **Resolved in the form that matters**: tDCS on one pad and tACS on another is two electrodes, each checked by its own ceiling, and no superposition exists at any electrode. **Residual:** at 20–29 mm spacing a share of the current shunts through the scalp between the pads rather than reaching cortex. That is an efficacy question, not a charge-ceiling one, and it is unquantified |
+| §3.6.1 — BES/tACS geometry gate missing | **No.** More stimulating pads make C-1 more necessary, not less |
+| §3.6.2 — no pod carries the tDCS library | **No.** Four pods total 4 × 1.02 = **4.08 cm²** against the library's smallest need of 8.0 cm². Ganging pods as one electrode does not help either: the split between them is set by contact impedance, which nothing measures, so the safety MCU must assume the whole channel current through the smallest pod (§5.2 item 2) — the same 1.02 cm². §3.6.2's conclusion is about the tile, and more pods on the tile leave it standing |
+
+**Recommendation — if the goal is recording and stimulating at one site, two electrodes, one of them
+dual-rated.** One recording-only pad plus one dual-rated pad per T1-B:
+
+- opens the combination §3.4 forbids on one electrode, at the price of `OI-MMSOCK-09` (b);
+- holds the safety MCU's stimulation-channel count flat, so no Class C frame change follows from it
+  (`NP-HW-EEGNET-001` §1.7.1's decoupling lever);
+- costs one contact with a shared shield (19 → 20; +1.8–3.0 N per plate) — the cheapest point on the
+  force curve.
+
+Four electrodes pay only for **recording density**, and there the 8-channel ADC binds before the tile
+does. **None of this changes P-1**: T1 tDCS still needs a pad-scale electrode on or off the lattice.
+
+**Effect on §4.** The per-(socket, lane) record already anticipates this (§4.1, *rejected — per-(socket,
+element)*): the electrode lane becomes an array indexed by electrode element, one role and one channel
+per element. The must-nots stay properties of the struct, now per element rather than per socket.
 
 ## 4. Data model (question 2)
 
@@ -529,6 +575,7 @@ CLAUDE.md §18 forbids.
 | **P-3** | Allow PBM + EEG at a T1-B (§3.2) | allow · allow after `OI-MMSOCK-05` · forbid | **allow**, with `SH2-DRC-16`'s setup extended; claim the closed loop at T1-B sites only after `OI-MMSOCK-05` |
 | **P-4** | Allow PBM + tES at a T1-B (§3.3) | allow · forbid | **allow**, moot until P-1/P-2 |
 | **P-5** | Take Class C change C-1 (§5.3) now | now · with P-2 | **now** — it is fail-closed only, needs no layout change, and closes a gap the slot path can reach (`OI-MMSOCK-02`) |
+| **P-6** | Electrodes per T1-B (§3.8, `OI-MMSOCK-09`) | one (today) · two, one dual-rated · four | **two, one dual-rated**, if recording and stimulating at one site is wanted — decided with `OI-EEGNET-19`/`-20` and **before socket tooling**, after which the contact count is permanent |
 
 ---
 
@@ -577,6 +624,7 @@ is changed here**; `NP-RISK-003` / `NP-RISK-004` rows are proposed through the o
 | **`OI-MMSOCK-06`** | Measure pod-local temperature with tES and PBM co-driven at the worst authored T1-B case, and state the NTC's position relative to the pod (§3.3 (a)) | Thermal + HW | P-4 |
 | **`OI-MMSOCK-07`** | **Route `RISK-MMSOCK-05` to `NP-RISK-003`**: N1 (24 V) to N4 (`ELEC`) insulation on a T1-B tile, with a scalp contact on N4. Needs a creepage/insulation requirement on the T1-B FPC and a hazard score; `NP-HW-HEXTILE-001` §4.5 (T1-B) is the owning layout | Safety + HW | T1-B layout (`OI-HEXTILE-05`; T1-B is out of `NP-HW-HEXTILE-001`'s current scope, §4.5) |
 | **`OI-MMSOCK-08`** | `.npps` tACS `intensity` — peak or peak-to-peak — is not stated in `NP-NPPS-REF-001`, and it halves or doubles §3.6.2's phase-charge table. It also matters today, for the MCU's per-phase check on pads | FW + App | Correctness of every per-phase figure |
+| **`OI-MMSOCK-09`** | **Electrodes per tile, for co-drive rather than density (§3.8, P-6).** Linked to `NP-HW-EEGNET-001` `OI-EEGNET-19` (electrodes per tile) and `OI-EEGNET-20` (socket contact count in the MECH-2 force study), which it adds a second motive to: those items ask for density; this one asks for one recording-only pad beside one dual-rated pad. Two questions the density study does not carry: (a) the recommended split is one dual-rated + one recording-only, which holds the safety-MCU stimulation channel count flat; (b) **the stimulation artifact at a recording pad 20–29 mm from a pad carrying up to 2 mA is unmeasured** — whether it saturates the ADS1299 decides whether the second pad buys anything. Does **not** affect `OI-MMSOCK-01` or `-02` | Systems + ME + EE | **Socket tooling (`OI-SHELL2-09(i)`)** — the contact count is permanent after it |
 
 ---
 
@@ -608,4 +656,4 @@ is unchanged — it already says what the tests now pin.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
-| 1 | 2026-09-23 | NeurOne Firmware Engineering | **Initial issue.** Answers which modality combinations may share one hex-tile socket by reducing the socket to two physical lanes — optical and one `ELEC` conductor (§2). **Verdicts:** multi-wavelength PBM supported; PBM + EEG and PBM + tES at a T1-B **recommended allow** (no traced hazard; tES adds ≤ 40 mW against ≥ 1.3 W of LED heat); EEG + tES on one electrode and two electrical channels on one electrode **must not**, each traced (ADS1299 full scale and REQ-EMI-08; per-channel ceilings cannot see a superposition). **Two findings larger than the question:** the BES/tACS channel has **no geometry gate** and would enforce a ≤ 1.02 cm² pod against the 25 cm² default, **24.5× fail-open** (`OI-MMSOCK-02`, Class C change C-1 recommended now); and **no T1-B pod can carry any of the 14 shipped tDCS protocols** under DI-SAFE-01 — 8.0–24.0 cm² needed, 9 of 14 more than a whole tile face (`OI-MMSOCK-01`, principal). Specifies, without building, a per-(socket, lane) record that makes both must-nots unrepresentable, lane-scoped enable ownership, a two-bitmap tES target (wire v4) and a Class B area cross-check; states the SW-01 review scope (C-1…C-4; no enable-word or frame-layout change). No SHDR field added. Code: two test additions and one comment — no behaviour change. Five questions put to the principal (P-1…P-5); eight open items; six risk rows. |
+| 1 | 2026-09-23 | NeurOne Firmware Engineering | **Initial issue.** Answers which modality combinations may share one hex-tile socket by reducing the socket to two physical lanes — optical and one `ELEC` conductor (§2). **Verdicts:** multi-wavelength PBM supported; PBM + EEG and PBM + tES at a T1-B **recommended allow** (no traced hazard; tES adds ≤ 40 mW against ≥ 1.3 W of LED heat); EEG + tES on one electrode and two electrical channels on one electrode **must not**, each traced (ADS1299 full scale and REQ-EMI-08; per-channel ceilings cannot see a superposition). **Two findings larger than the question:** the BES/tACS channel has **no geometry gate** and would enforce a ≤ 1.02 cm² pod against the 25 cm² default, **24.5× fail-open** (`OI-MMSOCK-02`, Class C change C-1 recommended now); and **no T1-B pod can carry any of the 14 shipped tDCS protocols** under DI-SAFE-01 — 8.0–24.0 cm² needed, 9 of 14 more than a whole tile face (`OI-MMSOCK-01`, principal). Specifies, without building, a per-(socket, lane) record that makes both must-nots unrepresentable, lane-scoped enable ownership, a two-bitmap tES target (wire v4) and a Class B area cross-check; states the SW-01 review scope (C-1…C-4; no enable-word or frame-layout change). No SHDR field added. Code: two test additions and one comment — no behaviour change. Five questions put to the principal (P-1…P-5); eight open items; six risk rows. **Amended within the same unmerged change (2026-09-23):** new §3.8 — more electrodes per tile: it moves §3.4's must-not from the socket to the electrode and resolves §3.5 across electrodes, but fixes neither §3.6 finding (four pods total 4.08 cm² against the library's smallest 8.0 cm²); recommends two electrodes, one dual-rated, if co-sited record-and-stimulate is wanted; P-6 and `OI-MMSOCK-09`, linked to `OI-EEGNET-19`/`-20`. Rev 1 is issued once, describing what merges. |
