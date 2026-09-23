@@ -117,11 +117,11 @@ enum SetupError: LocalizedError {
         case .calibrationFailed:
             return String(localized: "SETUP_ERROR_CALIBRATION_FAILED")
         case .impedanceFailed(let els):
-            let names = els.map { String(format: String(localized: "SETUP_ELECTRODE_LABEL"), $0 + 1) }.joined(separator: ", ")
+            let names = els.map { String(format: String(localized: "SETUP_ELECTRODE_LABEL"), String($0 + 1)) }.joined(separator: ", ")
             return String(format: String(localized: "SETUP_ERROR_IMPEDANCE_FAILED"), names)
         case .zoneModulesMissing(let sockets):
             let names = sockets
-                .map { String(format: String(localized: "SETUP_SOCKET_LABEL"), Int($0)) }
+                .map { String(format: String(localized: "SETUP_SOCKET_LABEL"), String($0)) }
                 .joined(separator: ", ")
             return String(format: String(localized: "SETUP_ERROR_ZONE_MISSING"), names)
         case .noZoneModulesDetected:

@@ -163,7 +163,7 @@ struct SocketMap: Equatable {
     /// meaning.
     func label(for socketID: UInt8) -> String {
         guard let zone = NPZoneRegistry.primaryZone(forSocket: Int(socketID)) else {
-            return String(format: String(localized: "ZONE_SOCKET_LABEL"), Int(socketID))
+            return String(format: String(localized: "ZONE_SOCKET_LABEL"), String(socketID))
         }
         // §17.2: canonical {0} renders as Apple's %@, which takes an object, so
         // the socket number is converted here rather than passed as an Int.
@@ -182,7 +182,7 @@ struct SocketMap: Equatable {
     /// handle there is, and silence would be worse.
     func spokenConfirmation(for status: ZoneModuleStatus) -> String {
         let place = NPZoneRegistry.primaryZone(forSocket: Int(status.socketID))
-            ?? String(format: String(localized: "ZONE_SOCKET_LABEL"), Int(status.socketID))
+            ?? String(format: String(localized: "ZONE_SOCKET_LABEL"), String(status.socketID))
         if let type = status.moduleType.displayName {
             return String(format: String(localized: "ZONE_ANNOUNCE_WITH_TYPE"), place, type)
         }

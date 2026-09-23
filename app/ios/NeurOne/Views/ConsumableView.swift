@@ -78,7 +78,7 @@ struct ConsumableStatusRow: View {
                 ProgressView(value: Double(state.sessionCount), total: Double(state.kind.sessionLimit))
                     .progressViewStyle(.linear)
                     .tint(statusColor)
-                Text(String(format: String(localized: "CONSUMABLE_SESSIONS_LEFT_FORMAT"), state.sessionsRemaining))
+                Text(String(format: String(localized: "CONSUMABLE_SESSIONS_LEFT_FORMAT"), String(state.sessionsRemaining)))
                     .font(.caption2)
                     .foregroundColor(.secondary)
                     .frame(width: 44, alignment: .trailing)
@@ -95,7 +95,7 @@ struct ConsumableStatusRow: View {
                         .controlSize(.small)
                     }
                     if state.canSnooze {
-                        Button(String(format: String(localized: "CONSUMABLE_SNOOZE_FORMAT"), state.maxSnooze - state.snoozeCount)) {
+                        Button(String(format: String(localized: "CONSUMABLE_SNOOZE_FORMAT"), String(state.maxSnooze - state.snoozeCount))) {
                             tracker.snooze(consumableIndex: state.kind.rawValue)
                         }
                         .font(.caption)
@@ -137,8 +137,8 @@ struct ConsumableAlertRow: View {
             Text(
                 String(
                     format: String(localized: "CONSUMABLE_SESSIONS_USED_FORMAT"),
-                    reminder.state.sessionCount,
-                    reminder.state.kind.sessionLimit
+                    String(reminder.state.sessionCount),
+                    String(reminder.state.kind.sessionLimit)
                 )
             )
                 .font(.caption)

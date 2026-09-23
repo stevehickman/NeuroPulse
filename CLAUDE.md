@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 52 (current)  
+**Revision:** 53 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
@@ -493,7 +493,7 @@ and the code carries only a key.** Never write a string a person will read into 
 
 | Surface | Where the text lives | How text is read |
 |---------|--------------------|------------------|
-| Canonical | `locales/<bcp47>.json` — flat `KEY` → string, sorted, all 11 locales carry the same key set. **The only committed copy.** | — |
+| Canonical | `locales/<bcp47>.json` — flat `KEY` → string, sorted. All 11 locales carry en.json's key set, and may add only their own CLDR plural categories to a plural family (§17.2). **The only committed copy.** | — |
 | Web | *build output* — `app/web/src/generated/locales/*.json` | `t('KEY')`, `tPlural('BASE', n)` from `app/web/src/lib/i18n.ts` |
 | Apple | *build output* — `app/ios/NeurOne/Localizable.xcstrings` | `Text("KEY")`, `String(localized: "KEY")`; with values, `String(format: String(localized: "KEY"), …)` |
 | Android | *build output* — `<buildDir>/generated/res/locales/values*/strings.xml` | `stringResource(R.string.key)` (lowercased key), `pluralStringResource(R.plurals.base, n, n)` |

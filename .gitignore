@@ -99,3 +99,6 @@ local.properties
 # ── CI artifacts ──────────────────────────────────────────────────────────────
 build/host-tests/
 *.xcresult
+
+# Translator hand-off files from scripts/translations.ts export (#191) — never committed
+translation-export/

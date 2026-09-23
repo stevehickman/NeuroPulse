@@ -134,6 +134,51 @@
   "DASHBOARD_STOP_PREAPPROVING_MESSAGE": {
     "legal_review_required": true
   },
+  "MODALITY_AUDIO_ENTRAINMENT_NAME": {
+    "translate": false
+  },
+  "MODALITY_BES_TACS_NAME": {
+    "translate": false
+  },
+  "MODALITY_CERVICAL_VNS_NAME": {
+    "translate": false
+  },
+  "MODALITY_CLINICAL_TACS_NAME": {
+    "translate": false
+  },
+  "MODALITY_EEG_NEUROFEEDBACK_NAME": {
+    "translate": false
+  },
+  "MODALITY_HD_TDCS_NAME": {
+    "translate": false
+  },
+  "MODALITY_PBM_DEEP_1170NM_NAME": {
+    "translate": false
+  },
+  "MODALITY_PBM_INTRANASAL_NAME": {
+    "translate": false
+  },
+  "MODALITY_PBM_TRANSCRANIAL_NAME": {
+    "translate": false
+  },
+  "MODALITY_QEEG_21CH_NAME": {
+    "translate": false
+  },
+  "MODALITY_TDCS_NAME": {
+    "translate": false
+  },
+  "MODALITY_TMS_NAME": {
+    "translate": false
+  },
+  "MODALITY_VIBROTACTILE_40HZ_NAME": {
+    "translate": false
+  },
+  "MODALITY_VISUAL_STIMULATION_NAME": {
+    "translate": false
+  },
+  "MODALITY_VNS_HRV_NAME": {
+    "translate": false
+  },
   "OTA_SAFETY_MCU_WARNING": {
     "legal_review_required": true
   },

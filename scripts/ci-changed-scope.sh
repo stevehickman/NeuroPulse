@@ -52,6 +52,10 @@
 #   ci-changed-scope.sh --relevant <patterns-file> <files-file>
 #       Print `true` if any file matched, else `false`.
 #
+#   ci-changed-scope.sh --diff-base <event> <event-base> <head> <default-branch> <ref>
+#       Print the revision to diff <head> against, or NOTHING when the scope of
+#       the change is unknown (the caller then builds).  See np_diff_base.
+#
 # Pattern files may contain blank lines and `#` comments, so the relevance list
 # can carry its reasoning inline next to the entries it explains.
 #
@@ -134,6 +138,61 @@ np_match() {
   done < "$files_file"
 }
 
+# np_diff_base <event> <event-base> <head> <default-branch> <ref>
+# Print the merge base to diff <head> against; print nothing when it is unknown.
+#
+# Every `changes` job used to carry this inline, and every copy compared a push
+# against `github.event.before`.  That is right for an ordinary commit and wrong
+# for a "merge main into branch" commit: the diff from the branch's previous tip
+# to the merge is everything main gained in the meantime, so a docs-only branch
+# ran the web build because main had touched scripts/sync-locales.ts (run
+# 35930198671, PR #408).  The pull_request event for the same head scoped it
+# correctly, because it diffs against the base.  A push to a feature branch now
+# asks the same question the pull request does — what does this branch change
+# relative to the default branch — so the two events can no longer disagree.
+#
+#   pull_request                 <event-base> (the PR's base sha)
+#   push to the default branch   <event-base> (`before`): main has no base but
+#                                itself, and diffing it against origin/main would
+#                                find nothing and skip every job
+#   push to any other branch     origin/<default-branch>; <event-base> only if
+#                                that ref is missing.  Also covers a branch's
+#                                FIRST push, whose `before` is all zeros
+#   anything else                unknown — workflow_dispatch is a human asking
+#                                for a build, and gets one
+#
+# The consequence for a push is deliberate: the diff is the WHOLE branch, not the
+# commits in this push, so a later docs-only commit on a branch that touched
+# app/web earlier still builds the web app.  That is the pull request's answer
+# too, and it errs toward building.
+np_diff_base() {
+  event=$1 event_base=$2 head=$3 default_branch=$4 ref=$5
+  zero=0000000000000000000000000000000000000000
+  git cat-file -e "${head}^{commit}" 2>/dev/null || return 0
+
+  candidates=""
+  case $event in
+    pull_request) candidates=$event_base ;;
+    push)
+      if [ -n "$default_branch" ] && [ "$ref" = "refs/heads/$default_branch" ]; then
+        candidates=$event_base
+      else
+        candidates="origin/$default_branch $event_base"
+      fi
+      ;;
+  esac
+
+  for candidate in $candidates; do
+    case $candidate in ''|"$zero"|origin/) continue ;; esac
+    git cat-file -e "${candidate}^{commit}" 2>/dev/null || continue
+    if merge_base=$(git merge-base "$candidate" "$head" 2>/dev/null); then
+      printf '%s\n' "$merge_base"
+      return 0
+    fi
+  done
+  return 0
+}
+
 # ── Self-test ─────────────────────────────────────────────────────────────────
 # These assert the matcher's semantics, not that it "ran".  The prefix-boundary
 # and the literal-dot cases are the two that a plausible-looking implementation
@@ -160,6 +219,68 @@ np_st_expect_die() { # <pattern> <path> <label>
     printf 'FAIL %s: pattern=%s should be rejected (exit 2), got=%s\n' "$3" "$1" "$got" >&2
     np_st_fail=$((np_st_fail + 1))
   fi
+}
+
+# np_st_diff <label> <expected changed files, space-separated | UNKNOWN> <np_diff_base args...>
+np_st_diff() {
+  label=$1 want=$2
+  shift 2
+  base=$(np_diff_base "$@")
+  if [ -z "$base" ]; then
+    got=UNKNOWN
+  else
+    got=$(git diff --name-only "$base" "$3" | tr '\n' ' ')
+    got=${got% }
+  fi
+  if [ "$got" != "$want" ]; then
+    printf 'FAIL diff-base-%s: expected [%s], got [%s]\n' "$label" "$want" "$got" >&2
+    np_st_fail=$((np_st_fail + 1))
+  fi
+}
+
+# A real history, because the defect was in which revision gets diffed, and no
+# string fixture can show that.  main advances a web-relevant script while the
+# branch edits only a doc, then the branch merges main in.
+np_self_test_diff_base() {
+  repo=$1
+  (
+    export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+    export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+    mkdir -p "$repo" && cd "$repo"
+    git init -q -b main .
+    mkdir docs scripts
+    echo 0 > docs/a.md; echo 0 > scripts/s.ts
+    git add -A && git commit -qm root
+    git checkout -qb feature
+    echo 1 > docs/a.md && git commit -qam 'branch: doc only'
+    git checkout -q main
+    echo 1 > scripts/s.ts && git commit -qam 'main: script'
+    git update-ref refs/remotes/origin/main main
+    git checkout -q feature
+    git merge -q --no-edit main
+  ) >/dev/null 2>&1 || { printf 'FAIL diff-base: could not build fixture repo\n' >&2; np_st_fail=$((np_st_fail + 1)); return; }
+
+  root=$(git -C "$repo" rev-parse main~1)
+  before=$(git -C "$repo" rev-parse feature^1)
+  merge=$(git -C "$repo" rev-parse feature)
+  main=$(git -C "$repo" rev-parse main)
+  zero=0000000000000000000000000000000000000000
+
+  pushd "$repo" >/dev/null
+  # The regression: the merge push must see the branch's doc, not main's script.
+  np_st_diff merge-push       'docs/a.md'    push "$before" "$merge" main refs/heads/feature
+  np_st_diff first-push       'docs/a.md'    push "$zero"   "$merge" main refs/heads/feature
+  np_st_diff pull-request     'docs/a.md'    pull_request "$main" "$merge" main refs/pull/1/merge
+  # main itself is diffed against `before`, never against origin/main (= itself).
+  np_st_diff default-branch   'scripts/s.ts' push "$root" "$main" main refs/heads/main
+  np_st_diff default-zero     'UNKNOWN'      push "$zero" "$main" main refs/heads/main
+  np_st_diff dispatch         'UNKNOWN'      workflow_dispatch '' "$merge" main refs/heads/feature
+  np_st_diff unknown-head     'UNKNOWN'      push "$before" "$zero" main refs/heads/feature
+  # Without origin/<default>, a branch push falls back to `before` — which is
+  # the old behaviour, and shows the defect: main's script, not the branch's doc.
+  git update-ref -d refs/remotes/origin/main
+  np_st_diff no-origin        'scripts/s.ts' push "$before" "$merge" main refs/heads/feature
+  popd >/dev/null
 }
 
 np_self_test() {
@@ -213,6 +334,8 @@ np_self_test() {
   got=$(np_match "$tmp/real.paths" "$tmp/mixed.files" | wc -l | tr -d ' ')
   [ "$got" = "1" ] || { printf 'FAIL e2e-positive: expected 1 match, got %s\n' "$got" >&2; np_st_fail=$((np_st_fail + 1)); }
 
+  np_self_test_diff_base "$tmp/repo"
+
   if [ "$np_st_fail" -ne 0 ]; then
     printf 'ci-changed-scope: %s self-test assertion(s) FAILED\n' "$np_st_fail" >&2
     exit 1
@@ -264,7 +387,11 @@ case ${1:-} in
     [ $# -eq 3 ] || np_die "usage: --relevant <patterns-file> <files-file>"
     if [ -n "$(np_match "$2" "$3")" ]; then printf 'true\n'; else printf 'false\n'; fi
     ;;
+  --diff-base)
+    [ $# -eq 6 ] || np_die "usage: --diff-base <event> <event-base> <head> <default-branch> <ref>"
+    np_diff_base "$2" "$3" "$4" "$5" "$6"
+    ;;
   *)
-    np_die "usage: $0 --self-test | --match <patterns> <files> | --relevant <patterns> <files>"
+    np_die "usage: $0 --self-test | --match <patterns> <files> | --relevant <patterns> <files> | --diff-base <event> <event-base> <head> <default-branch> <ref>"
     ;;
 esac
