@@ -215,7 +215,7 @@ if(NP_BUILD_TESTS)
     # Mounts the REAL geometry (1,767,168 / 131,072 blocks) over a sparse
     # medium and sweeps L-1/L-2 on it; carries the evidence for ECR-EMMC-002
     # (prog_size below the 512-byte XTS unit loses committed data under a
-    # read-modify-write tear — for the logs as EMMC-FS-01 prints them, and for
+    # read-modify-write tear — for the logs as EMMC-FS-01 Rev 2 printed them, and for
     # the Config geometry at 256, which moved the Config instance to 512 —
     # OI-LFS-10); and measures the specified
     # lookahead's allocator traversals in reads.

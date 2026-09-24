@@ -155,20 +155,20 @@ Build-time configuration in force (np_lfs_config.h; read it for the reasoning):
   LFS_READONLY         NOT defined: every instance is written.
   LFS_NO_INTRINSICS    NOT defined: the GCC builtins are wanted on Cortex-M7.
 
-Instance parameters (np_lfs_instance.h) — Config partition:
-  read_size 512 · prog_size 512      ← the 512-byte XTS data unit, NOT
-                                       EMMC-FS-01's printed 256 (OI-LFS-10,
-                                       decided 2026-09-24; ECR-EMMC-002)
-  block_size 4,096 · block_count 4,096 · file_max 65,536   ← EMMC-FS-01 (L-5)
-  cache_size 512                     ← forced by prog_size; = EMMC-FS-01
-  lookahead_size 512 · block_cycles 500 · name_max/attr_max unset
-                                     ← DIFFER from EMMC-FS-01 (64, 200, 64/256);
-                                       Rev 2 believed the table silent on them.
-                                       OI-LFS-10's open half.
-  UHDR / SHDR instances: np_lfs_log_instance.h (OI-LFS-05).
+Instance parameters (np_lfs_instance.h) — Config partition, EXACTLY
+NP-FW-EMMC-001 Rev 3's EMMC-FS-01 Config column (OI-LFS-10 closed 2026-09-24):
+  read_size 512 · prog_size 512      ← the 512-byte XTS data unit; Rev 3 via
+                                       ECR-EMMC-002 (Rev 2 printed 256, which
+                                       loses committed data under an XTS
+                                       read-modify-write tear)
+  block_size 4,096 · block_count 4,096 · file_max 65,536   (claim L-5)
+  cache_size 512 · lookahead_size 64 · block_cycles 200 ·
+  name_max 64 · attr_max 256 · metadata_max 4,096
+  UHDR / SHDR instances: np_lfs_log_instance.h (OI-LFS-05), also EMMC-FS-01
+  Rev 3 as printed.
 block_cycles is set EXPLICITLY (§7.3): 0 is rejected by lfs_init, and -1 would
 disable block-level wear levelling, which is claim L-6 against EMMC-HW-01's
-30,000 P/E budget.  500 is mid-range of upstream's suggested 100–1000.
+30,000 P/E budget.  200 is EMMC-FS-01's value (500 until OI-LFS-10).
 
 Intentionally NOT vendored — named explicitly so a later reader does not read
 the omissions as oversight:

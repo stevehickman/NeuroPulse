@@ -29,7 +29,10 @@
  * model, the append sweep that passes at prog_size 512 FAILS at 256.  Raised
  * against NP-FW-EMMC-001 as ECR-EMMC-002 (NP-SOUP-LFS-001 §13.1.3); the same
  * finding landed on the Config instance as OI-LFS-10, which moved it to 512
- * too (NP-SOUP-LFS-001 §13.8).
+ * too (NP-SOUP-LFS-001 §13.8).  ECR-EMMC-002 was APPLIED 2026-09-24:
+ * NP-FW-EMMC-001 Rev 3 prints 512 in all three columns
+ * (editscripts/patch_emmc_ecr002_prog512.py), so 512 is now the specified
+ * value, not a deviation from it.
  *
  * ── Taken from EMMC-FS-01 as written ──────────────────────────────────────────
  * block_size, block_count, cache_size, lookahead_size, block_cycles, file_max,
@@ -66,8 +69,8 @@
 
 /* ── Common to both log instances ─────────────────────────────────────────── */
 #define NP_LFS_LOG_BLOCK_SIZE      4096u    /* EMMC-FS-01, EMMC-FS-02            */
-#define NP_LFS_LOG_READ_SIZE       512u     /* DEVIATION — EMMC-UHDR-05, above   */
-#define NP_LFS_LOG_PROG_SIZE       512u     /* DEVIATION — EMMC-UHDR-05, above   */
+#define NP_LFS_LOG_READ_SIZE       512u     /* EMMC-FS-01 Rev 3 (ECR-EMMC-002)   */
+#define NP_LFS_LOG_PROG_SIZE       512u     /* EMMC-FS-01 Rev 3 (ECR-EMMC-002)   */
 #define NP_LFS_LOG_CACHE_SIZE      4096u    /* EMMC-FS-01                        */
 #define NP_LFS_LOG_BLOCK_CYCLES    500      /* EMMC-FS-01; L-6 (and OI-LFS-07)   */
 #define NP_LFS_LOG_FILE_MAX        2147483647u /* EMMC-FS-01 = LFS_FILE_MAX      */
@@ -107,7 +110,7 @@ np_hub_status_t np_lfs_log_config_apply(np_log_part_t part,
  * The mount-time check (claim L-5, now for the logs).  Every field above by
  * VALUE; the buffers present; the block device and lock bound.
  * NP_HUB_ERR_BAD_VERSION for any configuration that is not `part`'s —
- * including the Config instance's, and including EMMC-FS-01's printed 256.
+ * including the Config instance's, and including EMMC-FS-01 Rev 2's 256.
  */
 np_hub_status_t np_lfs_log_config_validate(np_log_part_t part,
                                            const struct lfs_config *cfg);

@@ -15,7 +15,7 @@
  *      over a sparse medium, because a result on a smaller partition would be
  *      a result about a filesystem the device does not mount
  *   3. sweeps L-1/L-2 on both, three tear models, every op
- *   4. is the evidence for the deviation (ECR-EMMC-002): under a 512-byte
+ *   4. is the evidence for ECR-EMMC-002 (applied, NP-FW-EMMC-001 Rev 3): under a 512-byte
  *      read-modify-write encryption unit (EMMC-UHDR-05), the same sweep passes
  *      at prog_size 512 and FAILS at 256 — for the log instance as EMMC-FS-01
  *      prints it, and for the Config geometry at 256 — which is why the
@@ -125,9 +125,9 @@ static void p_nolock(struct lfs_config *c)   { c->lock = NULL; }
 static void test_parameters_are_pinned(void)
 {
     static const struct { const char *name; perturb_fn fn; } cases[] = {
-        { "read_size 256 (EMMC-FS-01 as printed)",   p_read256 },
-        { "prog_size 256 (EMMC-FS-01 as printed)",   p_prog256 },
-        { "read+prog 256 (EMMC-FS-01 as printed)",   p_both256 },
+        { "read_size 256 (EMMC-FS-01 Rev 2)",        p_read256 },
+        { "prog_size 256 (EMMC-FS-01 Rev 2)",        p_prog256 },
+        { "read+prog 256 (EMMC-FS-01 Rev 2)",        p_both256 },
         { "block_size 8192",                         p_block   },
         { "block_count - 1",                         p_count   },
         { "cache_size 2048",                         p_cache   },

@@ -39,9 +39,15 @@
  * decision — the same deviation the log instances take (ECR-EMMC-002, now
  * extended to the Config column).  cache_size follows to 512 because lfs_init()
  * requires it to be a multiple of prog_size; 512 is also EMMC-FS-01's own
- * Config value, so that field now agrees with the table.  The other three
- * differences — lookahead_size, block_cycles, name_max/attr_max — are
- * unchanged and remain OI-LFS-10's open half.
+ * Config value, so that field now agrees with the table.
+ *
+ * ── OI-LFS-10 CLOSED 2026-09-24 (NP-SOUP-LFS-001 Rev 6 §13.9) ────────────────
+ * The remaining fields take EMMC-FS-01's Config values, on the principal's
+ * decision: lookahead_size 64, block_cycles 200, name_max 64, attr_max 256,
+ * and metadata_max 4,096 stated explicitly.  Every parameter of this instance
+ * now equals EMMC-FS-01's Config column — read_size/prog_size included since
+ * ECR-EMMC-002 was applied (NP-FW-EMMC-001 Rev 3, 2026-09-24).  Where the Rev 2 reasoning for a superseded value is
+ * kept below, it is marked as superseded and kept as the record of why.
  */
 
 #ifndef NP_LFS_INSTANCE_H
@@ -61,7 +67,8 @@
  * the arithmetic behind D-21 and the reason EMMC-CFG-02's raw-write region is
  * void.
  */
-/* read_size / prog_size: 512, NOT EMMC-FS-01's printed 256.  A program smaller
+/* read_size / prog_size: 512 — EMMC-FS-01 Rev 3 (Rev 2 printed 256; ECR-EMMC-002
+ * amended it).  A program smaller
  * than the 512-byte XTS data unit (EMMC-UHDR-05) makes the encryption layer
  * read-modify-write the whole unit, and a power loss inside that rewrite
  * damages bytes littlefs already committed (NP-SOUP-LFS-001 §13.1.3, shown by
@@ -82,19 +89,24 @@
  * one cache per OPEN FILE, all of which are static here.  A larger cache buys
  * fewer block accesses on sequential reads that this device does not do — the
  * Config partition's traffic is a 14,012-byte blob and 32-byte journal appends.
- * It also bounds inline_max, so small files live in metadata (inline_max is
- * min(cache_size, attr_max, block_size/8) = 512 B): Map 3 records (32 B) and
- * ukmd.rec's 208-byte replica envelope are both inlineable, which is the cheap
- * case for exactly the two the design writes most.
+ * It also bounds inline_max, so small files live in metadata.  inline_max is
+ * min(cache_size, attr_max, block_size/8) = min(512, 256, 512) = 256 B since
+ * attr_max took EMMC-FS-01's 256: Map 3 records (32 B) and ukmd.rec's 208-byte
+ * replica envelope are both still inlineable, which is the cheap case for
+ * exactly the two the design writes most.
  *
- * lookahead_size 512.  The lookahead buffer is a bitmap, one bit per block, so
- * 512 B covers 4,096 blocks — the WHOLE partition in a single allocator pass.
- * The alternative (upstream's example uses 16 B) is repeated traversals during
- * allocation, i.e. more reads and a longer window in which a power loss lands
- * mid-allocation.  512 B of static RAM to make the allocator single-pass on a
- * partition this small is not a close call.
+ * lookahead_size 64 (EMMC-FS-01; was 512 until OI-LFS-10).  The lookahead
+ * buffer is a bitmap, one bit per block, so 64 B covers 512 blocks — 2 MiB,
+ * one eighth of the partition — and the allocator traverses the filesystem
+ * once per 512 blocks allocated.  On this partition a traversal is cheap: the
+ * Config instance holds a handful of files, a 14 KiB blob the largest, so the
+ * traversal reads a few metadata pairs and a few CTZ pointers.  The Rev 2
+ * argument for 512 (single-pass allocation) was sound and is outweighed by
+ * agreement with the specification, not refuted.
  *
- * block_cycles 500.  Set EXPLICITLY, as NP-SOUP-LFS-001 §7.3 requires, because
+ * block_cycles 200 (EMMC-FS-01; was 500 until OI-LFS-10).  Still set
+ * EXPLICITLY, as NP-SOUP-LFS-001 §7.3 requires.  Rev 2's argument for 500 is
+ * below:  Set EXPLICITLY, as NP-SOUP-LFS-001 §7.3 requires, because
  * the two adjacent values are both wrong: 0 is rejected outright by lfs_init(),
  * and -1 DISABLES block-level wear levelling — which is claim L-6, the claim
  * EMMC-HW-01's 30,000 P/E budget is spent against.  500 is the midpoint of
@@ -105,12 +117,21 @@
  * calculation this data does not support.
  *
  * Static buffers.  LFS_NO_MALLOC is in force (np_lfs_config.h), so all three
- * buffers are supplied here from .bss.  1,536 B total, plus 512 B per open file
+ * buffers are supplied here from .bss.  1,088 B total, plus 512 B per open file
  * that the caller owns.
+ *
+ * name_max 64, attr_max 256, metadata_max 4,096 (EMMC-FS-01; unset until
+ * OI-LFS-10, i.e. littlefs's 255 / 1,022 / block_size).  littlefs writes
+ * name_max and attr_max into the superblock at format and refuses a mount whose
+ * config is smaller than the disk's, so these are stated and validated rather
+ * than defaulted.  The longest Config path component is "ukmd.rec" (8 B).
  */
 #define NP_LFS_CFG_CACHE_SIZE       512u
-#define NP_LFS_CFG_LOOKAHEAD_SIZE   512u
-#define NP_LFS_CFG_BLOCK_CYCLES     500
+#define NP_LFS_CFG_LOOKAHEAD_SIZE   64u
+#define NP_LFS_CFG_BLOCK_CYCLES     200
+#define NP_LFS_CFG_NAME_MAX         64u
+#define NP_LFS_CFG_ATTR_MAX         256u
+#define NP_LFS_CFG_METADATA_MAX     4096u
 
 /* Per-file cache size for lfs_file_opencfg().  LFS_NO_MALLOC means lfs_file_open()
  * cannot be used at all; every open must carry a caller-owned buffer of exactly
