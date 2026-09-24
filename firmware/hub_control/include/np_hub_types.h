@@ -39,6 +39,15 @@ typedef enum {
     NP_HUB_ERR_MOD_INIT             = -16,
     NP_HUB_ERR_MOD_FAULT            = -17,
     NP_HUB_ERR_POWER_BUDGET         = -18,  /* PBM load refused by np_pbm_power_admit (OI-HEXTILE-09) */
+    /* OI-UPG-01 / REQ-UPG-01: the protocol uses a T2 modality and the safety
+     * MCU reports this unit's signed tier identity as T1.  This is F4
+     * (NP-PWRSRC-001 §6.3): no module, supply or purchase for THIS unit clears
+     * it, so it must never be presented as a missing module (F1). */
+    NP_HUB_ERR_TIER_F4              = -19,
+    /* The protocol uses a T2 modality and no valid tier report has arrived
+     * from the safety MCU yet.  Not F4 — nothing is known to be wrong; retry
+     * after the first heartbeat.  Refused meanwhile: fail closed. */
+    NP_HUB_ERR_TIER_UNVERIFIED      = -20,
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -191,6 +200,13 @@ typedef struct {
 
 /* ── Protocol flags ───────────────────────────────────────────────────────────── */
 
+/* NP_PROTO_FLAG_T2_TIER is APP-COMPUTED and carries no authority.  No
+ * firmware decision reads it: whether a protocol is T2 is derived from its
+ * modality set (np_protocol_uses_t2_modality), and whether this unit may run
+ * one is the safety MCU's signed tier identity (np_protocol_tier_admit).  An
+ * app that set or cleared this bit changes nothing for a protocol naming a T2
+ * modality (RISK-PWRSRC-10).  A T2-tier protocol built only from T1 modalities
+ * (NP-PWRSRC-001 §6.2) has no gate yet: the modality set cannot express it. */
 #define NP_PROTO_FLAG_T2_TIER       (1U << 0)
 #define NP_PROTO_FLAG_AUTONOMOUS    (1U << 1)
 

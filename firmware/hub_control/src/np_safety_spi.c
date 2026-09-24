@@ -41,6 +41,16 @@ static volatile bool     s_cvns_imp_valid = false;
 static volatile uint8_t  s_nv_flags = 0U;
 static volatile bool     s_nv_valid = false;
 
+/* Tier-identity report (np_safety_tier_report_t, OI-UPG-01).  The tier is set
+ * once at manufacture and cannot change within a power cycle, so the last
+ * VALID value is kept across a corrupt frame; it starts, and stays until the
+ * first valid report, at NP_TIER_UNKNOWN.  The REFUSED flag is per-beat and
+ * is dropped on any frame that does not carry a valid report.  REFUSED is
+ * about what someone tried to run — never forwarded to SHDR. */
+static volatile uint8_t  s_tier         = NP_TIER_UNKNOWN;
+static volatile uint8_t  s_tier_reason  = NP_TIER_REASON_OK;
+static volatile bool     s_tier_refused = false;
+
 /* ── Per-channel commanded current (OI-CHARGE-01 hub half, OI-CHARGE-05 (c)) ──
  *
  * Published by the modality modules as they apply each command, consumed by the
@@ -92,6 +102,9 @@ np_hub_status_t np_safety_spi_init(void)
     s_geom_required_bes  = false;
     s_cvns_reenable  = false;
     s_cvns_imp_valid = false;
+    s_tier           = NP_TIER_UNKNOWN;
+    s_tier_reason    = NP_TIER_REASON_OK;
+    s_tier_refused   = false;
     for (uint8_t e = 0U; e < NP_SAFETY_IMP_CVNS_ELECTRODES; e++) {
         s_cvns_imp_kohm[e] = 0.0f;
     }
@@ -148,6 +161,28 @@ static void parse_nv_report(const uint8_t *rx_raw)
     }
     s_nv_flags = rep.flags;
     s_nv_valid = true;
+}
+
+/*
+ * parse_tier_report — the safety MCU's tier-identity report
+ * (np_safety_tier_report_t) from window bytes [20..25].  Magic, checksum and
+ * tier code validated; a bad report leaves the last valid tier in place and
+ * clears REFUSED.
+ */
+static void parse_tier_report(const uint8_t *rx_raw)
+{
+    np_safety_tier_report_t rep;
+    memcpy(&rep, rx_raw + NP_SAFETY_TIER_REPORT_OFFSET, sizeof(rep));
+    if ((rep.magic != NP_SAFETY_TIER_REPORT_MAGIC) ||
+        (rep.checksum != (uint16_t)((uint16_t)rep.magic + (uint16_t)rep.tier +
+                                    (uint16_t)rep.flags + (uint16_t)rep.reason)) ||
+        ((rep.tier != NP_TIER_T1) && (rep.tier != NP_TIER_T2))) {
+        s_tier_refused = false;
+        return;
+    }
+    s_tier         = rep.tier;
+    s_tier_reason  = rep.reason;
+    s_tier_refused = (rep.flags & NP_SAFETY_TIER_FLAG_REFUSED) != 0U;
 }
 
 np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
@@ -226,6 +261,7 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
         s_mcu_status     = NP_SAFETY_STATUS_FAULT;
         s_cvns_imp_valid = false;   /* OI-CVNS-HUB-11: distrust a corrupt frame's tail */
         s_nv_valid       = false;
+        s_tier_refused   = false;   /* tier itself is kept: it cannot change */
         return NP_HUB_ERR_SAFETY_FAULT;
     }
 
@@ -234,6 +270,7 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
      * (independently magic + checksum validated inside). */
     parse_cvns_impedance_report(rx_raw);
     parse_nv_report(rx_raw);
+    parse_tier_report(rx_raw);
 
     s_granted_mask = (uint16_t)((uint16_t)mcu_reply.granted_lo |
                                  ((uint16_t)mcu_reply.granted_hi << 8));
@@ -454,6 +491,23 @@ bool np_safety_spi_get_cardiac_report(uint8_t *flags_out)
         *flags_out = valid ? s_nv_flags : 0U;
     }
     return valid;
+}
+
+uint8_t np_safety_spi_get_tier(void)
+{
+    return s_tier;
+}
+
+bool np_safety_spi_get_tier_report(uint8_t *reason_out, bool *refused_out)
+{
+    const uint8_t tier = s_tier;
+    if (reason_out != NULL) {
+        *reason_out = s_tier_reason;
+    }
+    if (refused_out != NULL) {
+        *refused_out = s_tier_refused;
+    }
+    return tier != NP_TIER_UNKNOWN;
 }
 
 np_hub_status_t np_safety_spi_send_active_user(uint32_t user_tag)

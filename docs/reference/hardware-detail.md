@@ -80,9 +80,9 @@
 >
 > - **There is no thermal-bound column, and the thermal bound binds first for PBM.** Against
 >   `NP-THERM-SINK-001` `SPEC-SINK-01`, the sealed cavity admits **31.4 W of emitter power across the
->   whole lattice, 8.9 W at an authored N = 6 montage and 17.9 W at +35 °C ambient**
+>   whole lattice, 8.9 W at an authored N = 6 montage and 17.9 W at +35 °C ambient** *(**30.5 / 8.8 / 17.5 W** since the 2026-09-23 Layer 4 deletion's 3 mm re-loft shrank the exterior — `NP-THERM-SINK-001` Rev 3 §3a, `OI-THCOOL-21`)*
 >   (`NP-PWR-THERM-001` §3). **The T1-peak row is an electrical peak the assembly cannot spend** —
->   38.4 W of device draw fully distributed, 15.9 W at N = 6 — so a 45 W supply already covers it and
+>   38.4 W of device draw fully distributed, 15.9 W at N = 6 *(**37.5 / 15.8 W** since the 2026-09-23 re-loft — `OI-THCOOL-21`)* — so a 45 W supply already covers it and
 >   the 65 W rung buys nothing thermally at T1.
 > - **There is no TMS row, and the T2 figures were derived for the 1170 nm laser zone only.**
 >   `SPEC-TMS-04` puts **T2 + TMS at ~176 W on a 48 V/5 A (240 W EPR) contract**, 2.4× the T2-peak

@@ -20,6 +20,8 @@
 #   SW01-M08  np_fault_latch       — non-volatile fault latch in backup SRAM
 #   SW01-M09  np_nv_state          — cardiac-cutoff state persisted in flash across power-on
 #                                    resets (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01)
+#   SW01-M10  np_tier_identity     — signed OTP tier identity; withholds every T2 enable
+#                                    line on a unit that is not T2 (REQ-UPG-01, OI-UPG-01)
 #
 # ── Platform contract ─────────────────────────────────────────────────────────
 #   include/np_safety_hal.h is the SINGLE declaration point for all 30 np_hal_*
@@ -172,6 +174,36 @@ if(NP_BUILD_TESTS)
     )
     np_host_test(np_nv_state_tests)
 
+    # np_tier_identity_tests: SW01-M10 — the signed tier identity and the T2
+    # enable gate (NP-REG-UPG-001 §7.5, REQ-UPG-01/-02, OI-UPG-01).  The NINTH
+    # and TENTH Class C targets: NP_SAFETY_TEST_COUNT moves 8 → 10 in
+    # safety-mcu-ci.yml and build-all.yml, and NP_SAFETY_TESTS gains
+    # tier_identity and tier_identity_nokey in all three workflows.
+    # Links the REAL np_crypto verifier and signs its records with Monocypher's
+    # signer under a test key pair compiled in via NP_TIER_AUTHORITY_PUBKEY_INIT,
+    # so "verifies" means RFC 8032 verifies — not a stub that returns 0.
+    #
+    # np_tier_identity_nokey_tests: the TENTH Class C target (8 → 10 with the
+    # one above).  The same test source built WITHOUT the key override — the
+    # all-zero placeholder the image ships with until the key ceremony
+    # (OI-UPG-08).  A separate binary because the key is a compile-time
+    # constant: it proves the placeholder fails closed, which a keyed build
+    # cannot show.
+    foreach(np_tier_target np_tier_identity_tests np_tier_identity_nokey_tests)
+        add_executable(${np_tier_target}
+            tests/np_tier_identity_tests.c
+            src/np_tier_identity.c
+        )
+        np_host_test(${np_tier_target})
+        target_link_libraries(${np_tier_target} PRIVATE np_crypto)
+        target_include_directories(${np_tier_target} PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../crypto/vendor/monocypher)
+    endforeach()
+    target_compile_options(np_tier_identity_tests PRIVATE
+        -include ${CMAKE_CURRENT_SOURCE_DIR}/tests/np_tier_test_key.h)
+    target_compile_definitions(np_tier_identity_nokey_tests PRIVATE
+        NP_TIER_TEST_NOKEY)
+
     return()
 endif()
 
@@ -213,6 +245,7 @@ set(SAFETY_SOURCES
     src/np_session_sig.c
     src/np_fault_latch.c
     src/np_nv_state.c
+    src/np_tier_identity.c
 )
 
 # ── SW-01 platform layer (phase 7 — closes Defect E / OI-SWCI-17) ─────────────

@@ -163,7 +163,7 @@ env:
   # guard fires on the SYMPTOM, one CI round-trip later, and only because the
   # counts happen to be asserted. Raised as OI-SWCI-37: hoist this to one
   # source, or add a guard that diffs the three copies directly.
-  NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock|hal_platform|nv_state)_tests$'
+  NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock|hal_platform|nv_state|tier_identity|tier_identity_nokey)_tests$'
   # The count the selection must match.  It lives here and in the assertion step
   # below — and NOT in the `host-tests` job `name:`, which is what a required
   # status check matches on.  The job used to be called "CMake host tests (21

@@ -16,7 +16,8 @@
  *   OI-PWR-04              a second inlet nobody assessed
  *   TMS                    no electrical specification ANYWHERE
  *
- * The first is closed: `SPEC-SINK-01` R_sink = 1.08 K/W, recovered twice.
+ * The first is closed: `SPEC-SINK-01` R_sink = 1.08 K/W, recovered twice —
+ * 1.14 K/W since the 3 mm outer-bowl re-loft (OI-THCOOL-21, NP-THERM-SINK-001 §3a).
  * This script takes that as an input and does the four things that follow
  * from it, plus the one thing that was never blocked on it at all.
  *
@@ -59,12 +60,13 @@
  * CI-Kind: report
  */
 import {
-  distributed, heatW, OP, FACE_LIMIT, AMB_NOMINAL, N_SOCKETS, TILE_AREA,
+  distributed, heatW, OP, FACE_LIMIT, AMB_NOMINAL, N_SOCKETS, TILE_AREA, R_SINK_SPECIFIED,
 } from "./check-thermal-multitile";
 import {
   steadySink, SPREADERS, R_SINK_SPEC, R_SINK_BAND, H_EXT_SPEC, A_EXT_EFF,
-  OCCLUSION, type SinkOpts,
+  R_SINK_SPEC_R1, A_EXT_EFF_R1, OCCLUSION, type SinkOpts,
 } from "./check-thermal-sink";
+import { R_OUT_CURRENT } from "./thermal-outward-path";
 import { analyse } from "./check-pbm-power";
 
 const VALIDATE_ONLY = process.argv.includes("--validate");
@@ -99,7 +101,7 @@ const BARE: SinkOpts = {};
  *  past the precision any figure here is quoted to. */
 const driveCache = new Map<string, number>();
 function maxDrivePerTile(n: number, o: SinkOpts): number {
-  const key = `${n}|${o.ktSpreader ?? 0}|${o.amb ?? AMB_NOMINAL}|${o.occludedFrac ?? 0}|${o.perfectSink ? 1 : 0}`;
+  const key = `${n}|${o.ktSpreader ?? 0}|${o.amb ?? AMB_NOMINAL}|${o.occludedFrac ?? 0}|${o.perfectSink ? 1 : 0}|${o.asWas ? 1 : 0}`;
   const hit = driveCache.get(key);
   if (hit !== undefined) return hit;
   let lo = 0, hi = 60;
@@ -134,7 +136,7 @@ function ceilingTiles(elecW: number, o: SinkOpts): number {
 
 /** NP-PWRSRC-001 §4.1's one-node inversion, reproduced so the two can be
  *  compared rather than asserted to differ. P_total = dT_margin / R. */
-const PWRSRC_41 = { margin: 11.3, rLo: 0.23, rHi: 0.41 };
+const PWRSRC_41 = { margin: 11.3, rLo: 0.23, rHi: 0.41, rNow: R_OUT_CURRENT };
 const pwrsrc41Ceiling = (r: number) => PWRSRC_41.margin / r;
 
 function reportCeiling() {
@@ -143,6 +145,8 @@ function reportCeiling() {
   console.log(`  single number for the whole assembly:`);
   console.log(`    R" ${f2(PWRSRC_41.rHi)} m2K/W (conservative)  ->  ${f1(pwrsrc41Ceiling(PWRSRC_41.rHi))} W`);
   console.log(`    R" ${f2(PWRSRC_41.rLo)} m2K/W (optimistic)    ->  ${f1(pwrsrc41Ceiling(PWRSRC_41.rLo))} W`);
+  console.log(`    (at the CURRENT ${PWRSRC_41.rNow.toFixed(3)}, Layer 4 deleted, its conservative end would be ${f1(pwrsrc41Ceiling(PWRSRC_41.rNow))} W —`);
+  console.log(`     §4.1 is NP-PWRSRC-001's to restate; OI-THCOOL-21. The comparison below is unaffected in sign.)`);
   console.log(`  That model has no N in it. SPEC-SINK-01's does, and N is the whole story:`);
   console.log();
   console.log("    N     bare shell S0        with spreader S3      (25 C ambient)");
@@ -656,16 +660,25 @@ function reportValidation(): boolean {
     ok &&= pass;
     console.log(`  ${pass ? "ok  " : "FAIL"} ${name.padEnd(46)} ${f2(got)}${unit} vs ${f2(want)}${unit} +/- ${tol}`);
   };
-  // The rejection specification this report is built on.
-  check("SPEC-SINK-01 R_sink (NP-THERM-SINK-001 §4)", R_SINK_SPEC, 1.08, 0.02, " K/W");
-  check("SPEC-SINK-01 h_ext", H_EXT_SPEC, 7.81, 0.05, " W/m2K");
-  check("exterior effective area", A_EXT_EFF, 0.118, 0.002, " m2");
+  // The rejection specification this report is built on — CURRENT geometry
+  // (Layer 4 deleted, outer bowl re-lofted 3 mm inward; OI-THCOOL-21).
+  check("SPEC-SINK-01 R_sink (NP-THERM-SINK-001 §4)", R_SINK_SPEC, 1.14, 0.02, " K/W");
+  check("SPEC-SINK-01 h_ext", H_EXT_SPEC, 7.83, 0.05, " W/m2K");
+  check("multitile R_SINK_SPECIFIED == SPEC-SINK-01", R_SINK_SPECIFIED, R_SINK_SPEC, 0.005, " K/W");
+  check("exterior effective area", A_EXT_EFF, 0.1125, 0.002, " m2");
   // NP-THERM-SINK-001 §8's published ceilings — this script must reproduce the
   // document it takes as an input, or one of the two has moved.
   check("SINK §8 ceiling, library floor, S3, 25 C", ceilingTiles(OP.libMin, WITH_SPREADER), 10, 0, " tiles");
-  check("SINK §8 ceiling, library floor, S0, 25 C", ceilingTiles(OP.libMin, BARE), 2, 0, " tiles");
-  check("SINK §8.1 admissible W at N = 6, S3", admissibleW(6, WITH_SPREADER), 8.9, 0.3, " W");
-  check("SINK §8.1 aggregate W, S3", aggregateW(WITH_SPREADER).w, 31.4, 0.5, " W");
+  check("SINK §8 ceiling, library floor, S0, 25 C", ceilingTiles(OP.libMin, BARE), 1, 0, " tiles");
+  check("SINK §8.1 admissible W at N = 6, S3", admissibleW(6, WITH_SPREADER), 8.8, 0.3, " W");
+  check("SINK §8.1 aggregate W, S3", aggregateW(WITH_SPREADER).w, 30.5, 0.5, " W");
+  // HISTORICAL — NP-THERM-SINK-001 Rev 1 as published, foam in and R1's 12 mm
+  // exterior. Kept so the as-was figures still reproduce where cited.
+  const WAS: SinkOpts = { asWas: true };
+  check("[as-was] SPEC-SINK-01 R_sink, Rev 1", R_SINK_SPEC_R1, 1.08, 0.02, " K/W");
+  check("[as-was] exterior effective area", A_EXT_EFF_R1, 0.118, 0.002, " m2");
+  check("[as-was] ceiling, library floor, S0, 25 C", ceilingTiles(OP.libMin, WAS), 2, 0, " tiles");
+  check("[as-was] aggregate W, S3", aggregateW({ ...WITH_SPREADER, ...WAS }).w, 31.4, 0.5, " W");
   // aggregateW() takes the full lattice as the best N. That is NP-THERM-SINK-001
   // §8.1's claim, not an assumption of this script — so it is checked, not held.
   {

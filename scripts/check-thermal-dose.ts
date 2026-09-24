@@ -46,6 +46,7 @@
  * CI-Kind: report
  */
 import { analyse, type Row } from "./check-pbm-power";
+import { R_OUT_CURRENT } from "./thermal-outward-path";
 
 // ── Provisional thermal constants ────────────────────────────────────────────
 // Replace from OI-PWR-01's verification-grade CFD. Sources named per constant.
@@ -63,6 +64,12 @@ export const TAU_FACE_MAX = 45.0;
  *  0.23–0.41 m²K/W, so ΔT_cavity = P_total × R with R in °C/W numerically equal. */
 export const R_CAVITY_CONSERVATIVE = 0.41;
 export const R_CAVITY_OPTIMISTIC = 0.23;
+/** OI-THCOOL-21: the outward path with the Layer 4 absorber deleted (0.335).
+ *  R_CAVITY_CONSERVATIVE is DELIBERATELY left at the as-was 0.41: this is a
+ *  thermal-injury audit, 0.41 still bounds the current path from above, and a
+ *  dose bound is not loosened by a capability re-baseline. The current figure
+ *  is printed beside it so the size of the conservatism is visible. */
+export const R_CAVITY_CURRENT = R_OUT_CURRENT;
 
 /** The one published calibration point: NP-THERM-CFD-R1-001 §5.1, single T1-std
  *  tile, 25 °C ambient → face 30.7 °C, i.e. a 5.7 °C total rise. */
@@ -198,10 +205,29 @@ for (const r of rows) {
   );
 }
 const overConcern = caseB.filter((c) => c.cem >= CEM43_CONCERN_LINE).length;
+// OI-THCOOL-21: the same Case B at the current outward path, to show the bound
+// the audit keeps is conservative against the design as it now stands.
+let curConcern = 0, curReview = 0, worstWas = 0, worstNow = 0;
+for (const r of rows) {
+  if (r.requiredW === null || r.requiredW <= BUDGET_W || r.durationS === null || r.groups === null) continue;
+  const mins = (r.durationS / 60) * r.groups;
+  const was = sessionDose(BUDGET_W, r.perTileW, mins, R_CAVITY_CONSERVATIVE, TAU_FACE_MIN, ambientC).cem43;
+  const now = sessionDose(BUDGET_W, r.perTileW, mins, R_CAVITY_CURRENT, TAU_FACE_MIN, ambientC).cem43;
+  if (now >= CEM43_CONCERN_LINE) curConcern++;
+  if (now >= CEM43_REVIEW_LINE) curReview++;
+  if (now > was + 1e-9) throw new Error(`OI-THCOOL-21: ${r.name} dose ROSE at the current path — stop and flag`);
+  worstWas = Math.max(worstWas, was); worstNow = Math.max(worstNow, now);
+}
 const overReview = caseB.filter((c) => c.cem >= CEM43_REVIEW_LINE).length;
 console.log(
   `\n${overConcern} of ${caseB.length} cascaded protocols reach the ${CEM43_CONCERN_LINE} CEM43 reference line ` +
   `in a SINGLE session; ${overReview} reach ${CEM43_REVIEW_LINE}.`,
+);
+
+console.log(
+  `At the CURRENT outward path (${R_CAVITY_CURRENT.toFixed(3)}, Layer 4 deleted): ${curConcern} reach ${CEM43_CONCERN_LINE}, ` +
+  `${curReview} reach ${CEM43_REVIEW_LINE}; worst single session ${fmt(worstWas)} -> ${fmt(worstNow)} CEM43. ` +
+  `No protocol's dose rises; the audit keeps ${R_CAVITY_CONSERVATIVE} as its bound.`,
 );
 
 // ── Case C: back-to-back, the case nothing in the design considers ───────────
@@ -227,6 +253,8 @@ const sens = (rCav: number, tau: number) =>
   sessionDose(BUDGET_W, refTileW, 20, rCav, tau, ambientC);
 console.log(`R_cav ${R_CAVITY_CONSERVATIVE} / τ ${TAU_FACE_MIN}: peak ${sens(R_CAVITY_CONSERVATIVE, TAU_FACE_MIN).peakUnclampedC.toFixed(1)} °C, ` +
   `CEM43 ${fmt(sens(R_CAVITY_CONSERVATIVE, TAU_FACE_MIN).cem43)}`);
+console.log(`R_cav ${R_CAVITY_CURRENT.toFixed(3)} / τ ${TAU_FACE_MIN} (current, Layer 4 deleted): peak ${sens(R_CAVITY_CURRENT, TAU_FACE_MIN).peakUnclampedC.toFixed(1)} °C, ` +
+  `CEM43 ${fmt(sens(R_CAVITY_CURRENT, TAU_FACE_MIN).cem43)}`);
 console.log(`R_cav ${R_CAVITY_OPTIMISTIC} / τ ${TAU_FACE_MAX}: peak ${sens(R_CAVITY_OPTIMISTIC, TAU_FACE_MAX).peakUnclampedC.toFixed(1)} °C, ` +
   `CEM43 ${fmt(sens(R_CAVITY_OPTIMISTIC, TAU_FACE_MAX).cem43)}`);
 const amb = sessionDose(BUDGET_W, refTileW, 20, R_CAVITY_CONSERVATIVE, TAU_FACE_MIN, 35);

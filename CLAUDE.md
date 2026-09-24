@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 53 (current)  
+**Revision:** 54 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
@@ -106,7 +106,10 @@ rules follow, and each binds work far from the upgrade question:
 1. **A T1 unit never enables a T2 modality or unlocks a T2 feature, whatever is attached** (`REQ-UPG-01`).
    T2-D, cervical VNS and possibly the qEEG cap fit interfaces every T1 unit has, so physical absence
    is not the gate. The gate is a signed tier identity **written once, at manufacture** (`REQ-UPG-02`).
-   **No such gate exists yet** (`OI-UPG-01`).
+   **The firmware gate exists and is not in force** (`docs/np_reg_upg_001.md` §7.7). The safety MCU
+   withholds every T2 enable line unless its UID-bound OTP record verifies as T2. The authority key is
+   a placeholder, so **every unit is T1** until `OI-UPG-08`. The software-feature gate is not built
+   (`OI-UPG-01`). `NP_PROTO_FLAG_T2_TIER` is app-computed and decides nothing.
 2. **The modules a purchaser bought carry over to their T2**, so every T1 module interface is kept on
    every T2 (`REQ-UPG-03`). **A change to a tile socket, accessory port or lens mount lands on both tiers
    or neither.**
@@ -230,7 +233,7 @@ Whether a given protocol fits the power envelope is `docs/np_ses_pwr_001.md`.
 ### 4.2 Safety architecture
 - Safety MCU physically owns all stimulation enable GPIO — app crash cannot cause unsafe stimulation
 - SPI heartbeat from main processor every 200ms; 1.5s watchdog → all-stimulation cutoff <50ms
-- Dual-processor isolation: IEC 62304 Class C (safety MCU, bare-metal — ~1,600 physical lines across 9 modules as of 2026-08; `wc -l firmware/safety_mcu/src/*.c` is the source of truth, not this line) + Class B (main processor) separately certified
+- Dual-processor isolation: IEC 62304 Class C (safety MCU, bare-metal — ~2,900 physical lines across 10 modules as of 2026-09; `wc -l firmware/safety_mcu/src/*.c` is the source of truth, not this line) + Class B (main processor) separately certified
 - Session protocol cryptographically signed by app — headset rejects unsigned or corrupted protocols
 
 **Modality-specific interlocks:**
@@ -243,6 +246,7 @@ Whether a given protocol fits the power envelope is `docs/np_ses_pwr_001.md`.
 | TMS | Coil protection | EMF cancellation gated off 5ms before pulse, 50ms hold |
 | VNS | Contact confirmation | Safety MCU reads impedance; holds if contacts not confirmed |
 | Cervical VNS (T2) | Cardiac rhythm interlock | Safety MCU owns enable GPIO; monitors R-peak GPIO; HR change >15 BPM within 5s → GPIO cutoff <100ms; 30s re-enable lockout + app confirm + repeat impedance |
+| T2 lines (cVNS, TMS, 1170 nm, clinical stim) | Tier identity (`REQ-UPG-01`) | Safety MCU withholds unless its signed, UID-bound OTP record says T2; fail-closed to T1. Not in force until `OI-UPG-08` |
 | All | Firmware anti-fragility | CSPRNG session protocol signing |
 
 ### 4.3 EMF shielding (4-layer passive + active) → `docs/reference/hardware-detail.md`

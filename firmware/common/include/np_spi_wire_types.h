@@ -420,4 +420,65 @@ typedef char _np_spi_nv_report_fits_check[
         <= NP_SAFETY_RX_EXT_FRAME_LEN) ? 1 : -1
 ];
 
+/* ── MCU→hub tier-identity report (NP-REG-UPG-001 §7.5, REQ-UPG-01/-02, OI-UPG-01) ─
+ *
+ * The device's tier, as the SAFETY MCU established it at power-on from the
+ * signed tier-identity record in its OTP (src/np_tier_identity.c).  Carried in
+ * the spare MISO window bytes right after the cardiac-status report — no new
+ * transfer, no new length.
+ *
+ * The safety MCU is the authority: it withholds every T2 enable line on a unit
+ * whose identity is not a verified T2, whatever the hub requests.  The hub reads
+ * this report only to refuse a T2 protocol at load, before anything is asked
+ * of the MCU, and to present that refusal as F4 (NP-PWRSRC-001 §6.3) rather
+ * than as a missing module.  A hub that ignored this report would still get no
+ * T2 enable.
+ *
+ * Tier codes.  NP_TIER_UNKNOWN is never sent by the MCU; it is the hub's value
+ * before a valid report has arrived.  Anything that is not exactly NP_TIER_T2
+ * is treated as T1 by every consumer — fail closed (REQ-UPG-01).
+ *
+ * REFUSED: the hub requested a T2 enable on THIS beat and the MCU withheld it
+ * because the unit is not T2.  That is a fact about what someone tried to run,
+ * not about the device's condition, so it goes to the user's own app for the
+ * F4 message and is NEVER written to SHDR.  `tier` and `reason` are device
+ * facts (set once, at manufacture) and carry no user biology.
+ *
+ * `reason` is diagnostic: why the MCU reached the tier it reports.  A T1 unit
+ * reporting NP_TIER_REASON_BLANK was never given its identity at manufacture —
+ * behaviourally identical to a signed T1, and exactly what final acceptance
+ * must catch (REQ-UPG-02).
+ */
+#define NP_TIER_UNKNOWN                 0x00U   /* hub only: no valid report yet   */
+#define NP_TIER_T1                      0x01U   /* NeurOne Home (wellness)         */
+#define NP_TIER_T2                      0x02U   /* NeurOne Pro (510(k) target)     */
+
+#define NP_TIER_REASON_OK               0x00U   /* signed record verified          */
+#define NP_TIER_REASON_NO_AUTHORITY     0x01U   /* image carries no tier-authority key */
+#define NP_TIER_REASON_BLANK            0x02U   /* OTP record window never programmed */
+#define NP_TIER_REASON_FORMAT           0x03U   /* bad magic/version/reserved/tier code */
+#define NP_TIER_REASON_SIGNATURE        0x04U   /* signature does not verify for THIS device */
+
+#define NP_SAFETY_TIER_REPORT_MAGIC     0x7DU
+#define NP_SAFETY_TIER_REPORT_OFFSET    (NP_SAFETY_NV_REPORT_OFFSET + NP_SAFETY_NV_REPORT_LEN)
+#define NP_SAFETY_TIER_FLAG_REFUSED     (1U << 0)
+
+typedef struct __attribute__((packed)) {
+    uint8_t  magic;            /* NP_SAFETY_TIER_REPORT_MAGIC        */
+    uint8_t  tier;             /* NP_TIER_T1 / NP_TIER_T2            */
+    uint8_t  flags;            /* NP_SAFETY_TIER_FLAG_*              */
+    uint8_t  reason;           /* NP_TIER_REASON_*                   */
+    uint16_t checksum;         /* additive sum of bytes [0..3]       */
+} np_safety_tier_report_t;     /* 6 bytes; window bytes [20..25]     */
+
+#define NP_SAFETY_TIER_REPORT_LEN  6U
+
+typedef char _np_spi_tier_report_size_check[
+    (sizeof(np_safety_tier_report_t) == NP_SAFETY_TIER_REPORT_LEN) ? 1 : -1
+];
+typedef char _np_spi_tier_report_fits_check[
+    ((NP_SAFETY_TIER_REPORT_OFFSET + NP_SAFETY_TIER_REPORT_LEN)
+        <= NP_SAFETY_RX_EXT_FRAME_LEN) ? 1 : -1
+];
+
 #endif /* NP_SPI_WIRE_TYPES_H */

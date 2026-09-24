@@ -46,7 +46,10 @@
 > 2. **A T1-identity unit never enables a T2 modality or unlocks a T2 feature** (`REQ-UPG-01`), and
 >    the tier identity is written once, at manufacture (`REQ-UPG-02`). Without that, a T2-D tile, the
 >    cervical VNS accessory or the qEEG cap on a T1 unit is the unwitnessed transition of row (c).
->    **Neither gate exists yet** (`OI-UPG-01`).
+>    **The firmware gate exists (2026-09-24, `NP-REG-UPG-001` §7.7) and is not yet in force.** The
+>    safety MCU withholds every T2 enable line unless its signed OTP identity is T2. The image carries
+>    a placeholder key, so every unit is T1 until `OI-UPG-08`. The software-feature gate does not
+>    exist (`OI-UPG-01`).
 > 3. **Promotion.** T1 is never presented as upgradeable to a medical device. *"Your modules carry
 >    over to Pro"* is not published until counsel has answered Q1 and Q2.
 >
@@ -73,8 +76,11 @@ equipment, and so T1, into MDR scope in the EU, and **Article 16** would make an
 converts units the manufacturer. The record's only EU position today is the charger note in
 `commercial-model.md` §2.2.
 
-**Needed under every model:** the device holds no tier identity. `NP_PROTO_FLAG_T2_TIER` is read by
-no firmware, and T2-D tiles, the cervical VNS accessory and possibly the qEEG cap fit interfaces every
-T1 unit has. A T1-labelled unit therefore cannot currently refuse a T2 modality. That is `OI-UPG-01`,
-the extension of `NP-PWRSRC-001` D-9's device-bound entitlement to modality gating. **Since the
-decision it is a requirement, `REQ-UPG-01`, and it is not yet implemented.**
+**Needed under every model:** a tier identity the device can check. T2-D tiles, the cervical VNS
+accessory and possibly the qEEG cap fit interfaces every T1 unit has, so physical absence does not
+stop them. `OI-UPG-01` extends `NP-PWRSRC-001` D-9's device-bound entitlement to modality gating.
+**Since the decision it is a requirement, `REQ-UPG-01`.** *(2026-09-24:* the firmware half is built
+(`NP-REG-UPG-001` §7.7). A signed, UID-bound record in the safety MCU's OTP decides the tier, the MCU
+withholds every T2 enable line on a unit that is not T2, and `NP_PROTO_FLAG_T2_TIER` is read by
+nothing. **It is not in force:** the authority key is a placeholder, so every unit is T1 until the key
+ceremony and the programming step exist (`OI-UPG-08`). The app's software-feature gate is not built.*)*

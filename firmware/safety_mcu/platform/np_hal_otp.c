@@ -110,3 +110,57 @@ void np_hal_otp_read_pubkey(uint8_t *buf, uint8_t len)
         }
     }
 }
+
+/* ── Tier-identity record window (SW01-M10, OI-UPG-01) ─────────────────────── */
+/*
+ * Same OTP window, at NP_TIER_OTP_OFFSET.  Copied verbatim — see
+ * np_safety_hal.h for why this read does NOT translate the erased state the
+ * way np_hal_otp_read_pubkey() does.
+ */
+_Static_assert((NP_TIER_OTP_OFFSET + NP_TIER_RECORD_LEN) <= NP_HAL_OTP_SIZE,
+               "tier-identity record does not fit in the OTP window");
+_Static_assert(NP_TIER_OTP_OFFSET >= (NP_HAL_OTP_PUBKEY_OFF + NP_ED25519_PUB_KEY_LEN),
+               "tier-identity record overlaps the root session key");
+_Static_assert((NP_TIER_OTP_OFFSET % 8U) == 0U,
+               "tier-identity record must start on an OTP double-word");
+
+void np_hal_otp_read_tier_record(uint8_t *buf, uint8_t len)
+{
+    const volatile uint8_t *otp =
+        (const volatile uint8_t *)(NP_HAL_OTP_BASE + NP_TIER_OTP_OFFSET);
+    uint8_t n;
+    uint8_t i;
+
+    if (buf == NULL) {
+        return;
+    }
+    n = (len < (uint8_t)NP_TIER_RECORD_LEN) ? len : (uint8_t)NP_TIER_RECORD_LEN;
+    for (i = 0U; i < n; i++) {
+        buf[i] = otp[i];
+    }
+}
+
+/* ── Factory unique device ID ─────────────────────────────────────────────── */
+/*
+ * STM32G0 96-bit unique ID, reference manual "Unique device ID register":
+ * three read-only words at 0x1FFF7590.  #ifndef for the same reason as
+ * NP_HAL_OTP_BASE above — the host test retargets it at an array.
+ */
+#ifndef NP_HAL_UID_BASE
+#define NP_HAL_UID_BASE        0x1FFF7590UL
+#endif
+
+void np_hal_read_device_uid(uint8_t *buf, uint8_t len)
+{
+    const volatile uint8_t *uid = (const volatile uint8_t *)NP_HAL_UID_BASE;
+    uint8_t n;
+    uint8_t i;
+
+    if (buf == NULL) {
+        return;
+    }
+    n = (len < (uint8_t)NP_DEVICE_UID_LEN) ? len : (uint8_t)NP_DEVICE_UID_LEN;
+    for (i = 0U; i < n; i++) {
+        buf[i] = uid[i];
+    }
+}

@@ -15,6 +15,11 @@ architecture; (ii) §5.1's flux labels reproduce §5.1's own temperatures at 0.6
 (`OI-R1-06` below).
 **Further extended by NP-THERM-SINK-001 Rev 1** (the rejection specification, `OI-N1-02`): §5's *"perfect sink"*
 is the h_ext → ∞ limit of a resistance this document already carries once, on the cavity path — see the note at §5.1.
+**Amended 2026-09-23 (Rev 2, `OI-THCOOL-21`, GitHub #407):** every result here was computed with the 3 mm
+Layer 4 absorber in the outward path. That station is **deleted** (`REQ-CAV-04`, #391) and the outer bowl
+re-lofted 3 mm, so the current outward path is **0.335**, not 0.41. **No figure below is rewritten**: they are
+the calibration anchor every downstream model reproduces, and re-running them moves the face −0.01 to −0.03 K
+(`check-thermal-multitile.ts` §2c) — each is a conservative bound on the current design. See the note at §2.
 **Feeds:** NP-REQ-FANHEALTH-001 (SR-FAN-03/04 path selection + constants) · NP-FMEA-GEOM-001
 (FMEA-G07-01) · NP-ENV-OPRANGE-001 (PBM high-temp bound) · a candidate base-thermal design input.
 **Method:** 1D radial resistance network (per NP-THERM-CFD-C2-001 §7) + cell-centred finite-volume
@@ -57,6 +62,17 @@ inter-bowl air gap**, ≈ 0.23) is ~3.7× more resistive than the inward path to
 (≈ 0.11), so ~83 % of junction heat dumps into the patient — **the junction throttle regulates the wrong
 node.** 2D spreading does not rescue the face (periodic vault → adiabatic side walls → no lateral relief);
 FD face = mean = peak, confirming the 1D. **Decision (per NP-THERM-CFD-001 §9): Path A dead → Path B.**
+
+> **Rev 2 (2026-09-23, `OI-THCOOL-21`) — the outward path above includes the Layer 4 absorber foam
+> (≈ 0.075 of the 0.41), deleted with a binding 3 mm re-loft (`REQ-CAV-04`, GitHub #391).** Current:
+> **≈ 0.335**, of which the gap is now ≈ 69 %; the outward/inward ratio falls ~3.7× → **~3.0×**, and the
+> no-via inward share **~83 % → ~79 %** on this document's own basis (the 1D network of
+> `NP-THERM-COOL-001` §4 gives 78.8 % → 75.3 %). **Path A remains dead** — the junction is pinned at
+> 62 °C in C2, so the face follows the inward path, which the deletion does not touch — and the 0.41
+> figures in this document stay as published: they are the calibration anchor
+> (`scripts/thermal-outward-path.ts` `R_OUT_R1`) and a conservative bound. One qualification the
+> per-area figure cannot carry: the re-loft also shrinks the helmet's exterior 4.6 %, which
+> `NP-THERM-SINK-001` Rev 3 §3a finds makes the via's rejection slightly *worse* (`OI-SINK-10`).
 
 ## 3. C3 — natural-convection-safe duty ceiling (fan OFF, 1D)
 
@@ -180,3 +196,10 @@ NP-THERM-CFD-001 (BC spec, matrix, decision logic) · NP-THERM-CFD-C2-001 (C2 ru
 NP-REQ-FANHEALTH-001 (SR-FAN) · NP-FMEA-GEOM-001 (FMEA-G07-01) · NP-THERM-BEZEL-001 (THERM-1) ·
 NP-ENV-OPRANGE-001 / NP-FW-POE-001 (ambient/duty envelope) · NP-HELMET-GEOM-001 §2/§8 (stack, gates) ·
 CLAUDE.md §4.2 (42/62 °C interlocks), §4.3 (EMF stack), §4.5 (power/heat).
+
+## 10. Revision history
+
+| Rev | Date | Author | Change |
+|---|---|---|---|
+| 1 | 2026-07-22 | NeurOne Thermal | Initial release (C2 / C3 / C6 + BN-boss export study). *Row added at Rev 2; this document carried no revision table before.* |
+| 2 | 2026-09-23 | NeurOne Thermal / Systems Engineering | **Amended for the Layer 4 absorber deletion (`OI-THCOOL-21`, GitHub #407; `REQ-CAV-04`, #391).** Header note and a §2 note: the published outward path 0.41 includes the deleted 3 mm foam; the current path is 0.335. **No result rewritten** — every figure is the calibration anchor downstream models reproduce, and a conservative bound (face −0.01 to −0.03 K at 0.335). Path A's verdict unchanged. Cross-ref to `NP-THERM-SINK-001` §3a / `OI-SINK-10` for the exterior-area term. |

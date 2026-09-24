@@ -267,6 +267,64 @@
 #define NP_FAULT_SLOT_HUB_NTC      0xFBU  /* hub NTC thermal cutoff (all channels) */
 #define NP_FAULT_SLOT_NVSTATE     0xFAU  /* non-volatile safety state could not be written */
 
+/* ── Tier identity (SW01-M10, NP-REG-UPG-001 §7.5, OI-UPG-01) ────────────── */
+/*
+ * The signed tier-identity record, written ONCE into OTP at manufacture
+ * (REQ-UPG-02).  OTP on this part can be programmed but never erased, and this
+ * firmware contains no OTP write path at all, so no field route — app, OTA,
+ * service partner, depot — can write or change it.
+ *
+ * Placement: OTP offset 0x40, immediately after the 32-byte root session key at
+ * offset 0 and 8-byte aligned, because STM32G0 OTP programs in 64-bit double
+ * words.  Like the root key's offset (OI-SWCI-30) this is a production-
+ * programming contract, not a silicon fact.
+ *
+ * Record (72 bytes = 9 double words):
+ *   [0..3]   magic    'N' 'P' 'T' 'I'
+ *   [4]      version  NP_TIER_RECORD_VERSION
+ *   [5]      tier     NP_TIER_T1 / NP_TIER_T2  (np_spi_wire_types.h)
+ *   [6..7]   reserved 0x00 0x00
+ *   [8..71]  Ed25519 signature by the tier authority over
+ *            NP_TIER_SIG_DOMAIN (16) || record[0..7] (8) || device UID (12)
+ *
+ * The device UID in the signed message is what makes the record DEVICE-BOUND
+ * (NP-PWRSRC-001 D-9): a T2 record copied into another unit's OTP names the
+ * wrong UID and fails verification there.  The domain string keeps a tier
+ * signature from ever verifying as any other signed object in the programme.
+ */
+#define NP_TIER_OTP_OFFSET          0x40U
+#define NP_TIER_RECORD_LEN          72U
+#define NP_TIER_RECORD_BODY_LEN     8U     /* bytes [0..7] — the signed fields */
+#define NP_TIER_RECORD_VERSION      0x01U
+#define NP_TIER_RECORD_MAGIC_0      0x4EU  /* 'N' */
+#define NP_TIER_RECORD_MAGIC_1      0x50U  /* 'P' */
+#define NP_TIER_RECORD_MAGIC_2      0x54U  /* 'T' */
+#define NP_TIER_RECORD_MAGIC_3      0x49U  /* 'I' */
+#define NP_TIER_SIG_DOMAIN          "NeurOne.TierId.1"
+#define NP_TIER_SIG_DOMAIN_LEN      16U
+#define NP_DEVICE_UID_LEN           12U    /* STM32G0 96-bit unique device ID */
+#define NP_TIER_SIG_MSG_LEN \
+    (NP_TIER_SIG_DOMAIN_LEN + NP_TIER_RECORD_BODY_LEN + NP_DEVICE_UID_LEN)
+
+/*
+ * The tier authority's Ed25519 public key, compiled into the signed safety
+ * image.  NOT the OTP root session key: that key's holder signs every session
+ * descriptor, and a party able to sign sessions must not thereby be able to
+ * sign a tier.  Compiled in rather than read from OTP, so that nothing on an
+ * unprovisioned unit's OTP can nominate its own authority.
+ *
+ * ALL-ZERO IS A PLACEHOLDER, AND IT FAILS CLOSED: with no authority key, no
+ * record verifies and every unit is T1 (reason NP_TIER_REASON_NO_AUTHORITY).
+ * The key is generated at a manufacturing key ceremony that has not happened
+ * (OI-UPG-08); a T2 image cannot be released until it has.  Overridable at
+ * compile time so the host test can use its own key pair.
+ */
+#ifndef NP_TIER_AUTHORITY_PUBKEY_INIT
+#define NP_TIER_AUTHORITY_PUBKEY_INIT { \
+    0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, \
+    0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U }
+#endif
+
 /* Session signature escalation limits */
 #define NP_SAFETY_SIG_BAD_CMD_MAX   3U  /* consecutive bad-magic/checksum frames → FAULT */
 #define NP_SIG_FAIL_MAX             3U  /* consecutive Ed25519 verify failures → hard lock */

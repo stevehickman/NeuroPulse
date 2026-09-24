@@ -18,6 +18,7 @@
  *   2. Watchdog has not timed out (np_spi_watchdog_check passes)
  *   3. All active interlock checks pass for requested channels
  *   4. Session descriptor signature verified (if session_active bit set)
+ *   5. For a T2 line, the unit's signed tier identity is T2 (SW01-M10)
  */
 
 #include "np_nv_state.h"
@@ -37,6 +38,7 @@ extern np_safe_status_t np_cardiac_interlock_init(void);
 extern np_safe_status_t np_impedance_check_init(void);
 extern np_safe_status_t np_session_sig_init(void);
 extern np_safe_status_t np_fault_latch_init(bool *prior_fault_out);
+extern np_safe_status_t np_tier_identity_init(void);
 
 /* ── Forward declarations for module tick / action functions ─────────────── */
 extern void np_spi_watchdog_tick(np_safety_state_t             *state,
@@ -72,6 +74,9 @@ extern np_safe_status_t np_session_sig_verify(np_safety_state_t *state,
                                                const uint8_t *sig);
 extern void np_gpio_mgr_apply(const np_safety_state_t *state);
 extern void np_fault_latch_commit(const np_safety_state_t *state);
+extern void np_tier_identity_gate(np_safety_state_t *state);
+extern void np_tier_identity_build_report(np_safety_tier_report_t *out,
+                                          uint16_t                 requested_mask);
 
 /* ── HAL ──────────────────────────────────────────────────────────────────
  * Platform symbols come from np_safety_hal.h (included above) — the single
@@ -208,6 +213,7 @@ int main(void)
     np_cardiac_interlock_init();
     np_impedance_check_init();
     np_session_sig_init();
+    np_tier_identity_init();   /* OTP tier record verified once; T1 unless proven T2 */
 
     memset(&s_state, 0, sizeof(s_state));
     s_state.fault_slot = 0xFFU;
@@ -434,6 +440,13 @@ int main(void)
          * must not be an energised one.                                       */
         np_charge_monitor_decl_gate(&s_state);
 
+        /* SW01-M10 tier gate (REQ-UPG-01, OI-UPG-01): withhold every T2 enable
+         * line unless this unit's signed tier identity is T2.  After the
+         * watchdog tick — the only place a grant is made — and before the
+         * accumulate loop and the GPIO write, so a withheld line is never
+         * energised and accrues no charge.  Nothing below adds a bit.        */
+        np_tier_identity_gate(&s_state);
+
         /* Accumulate charge for currently-granted DC channels carrying a
          * non-zero commanded current.  dt_us is a compile-time constant —
          * NP_SAFETY_HEARTBEAT_EXP_MS × 1000 = 200000 µs — not transmitted
@@ -519,6 +532,14 @@ int main(void)
                                                 (uint16_t)nv_report.flags);
                 memcpy(&reply[NP_SAFETY_NV_REPORT_OFFSET], &nv_report,
                        sizeof(nv_report));
+            }
+            /* Tier report (SW01-M10): the tier, why, and whether a T2 line
+             * was withheld on this beat — so the hub can say F4, not F1. */
+            {
+                np_safety_tier_report_t tier_report;
+                np_tier_identity_build_report(&tier_report, s_state.requested_mask);
+                memcpy(&reply[NP_SAFETY_TIER_REPORT_OFFSET], &tier_report,
+                       sizeof(tier_report));
             }
             np_hal_spi_send_reply(reply, (uint8_t)sizeof(reply));
         }

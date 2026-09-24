@@ -295,6 +295,18 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
         return rc;
     }
 
+    /* REQ-UPG-01 (OI-UPG-01): a T2 protocol on a unit whose signed tier
+     * identity is not T2 is refused here, before anything is requested of the
+     * safety MCU — which would withhold the T2 lines anyway — so it reaches the
+     * app as F4 and not as a mid-session module fault.  T2-ness comes from the
+     * modality set, never from the app-computed NP_PROTO_FLAG_T2_TIER. */
+    rc = np_protocol_tier_admit(&s_ctx.desc, np_safety_spi_get_tier());
+    if (rc != NP_HUB_OK) {
+        memset(&s_ctx.desc, 0, sizeof(s_ctx.desc));
+        s_ctx.state = NP_SESSION_IDLE;
+        return rc;
+    }
+
     /* Initialize stop-tracking to "no stop pending". */
     for (uint8_t i = 0U; i < NP_HUB_SLOT_MAX; i++) {
         s_ctx.stop_at_ms[i] = 0U;

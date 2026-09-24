@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-PWR-BUDGET-001
-**Revision:** 3
+**Revision:** 4
 **Date:** 2026-08-21
 **Status:** DESIGN STUDY — not a tooling baseline. Every numeric value below is a derived engineering estimate with its assumption chain stated inline, not a measured or locked figure. See §7 (Decisions) and §8 (Open Items). **Does not modify CLAUDE.md §4.5** — that requires a principal decision (§7).
 **Effective Date:** —
@@ -16,6 +16,12 @@
 **Parent Document:** CLAUDE.md §4.5
 
 ---
+
+> **Rev 4 (2026-09-23) — figures annotated only (`OI-THCOOL-21`, GitHub #407).** The two dated notes
+> quoting `NP-PWR-THERM-001`'s thermal ceiling (§3.2's and §9's) now carry the current values beside the
+> published ones: **30.5 / 8.8 / 17.5 W** emitter and **37.5 / 15.8 W** device draw, down ≤ 3 % because the
+> Layer 4 deletion's binding 3 mm re-loft shrank the helmet exterior (`NP-THERM-SINK-001` Rev 3 §3a,
+> `OI-SINK-10`). **No conclusion of this document changes**, and nothing else is edited.
 
 > **Rev 3 (2026-08-21) — a third TMS power-path option assessed (new §4.4), and a locked-section inconsistency raised. No figure in §3, §4.1–§4.3, §5 or §6 changes; CLAUDE.md §4.5 and §2.2 are both unmodified.**
 >
@@ -400,7 +406,7 @@ work starts** — the answer determines whether §4.4 is a proposal or a specifi
 
 > **⚠ 2026-09-15 — the escape clause below fired, and it fired the wrong way for the ladder.**
 > `NP-THERM-SINK-001` specified the rejection path and `NP-PWR-THERM-001` §3 re-derived the ceiling
-> against it: **31.4 W across the whole lattice, 8.9 W at N = 6, 17.9 W at +35 °C ambient** — not a
+> against it: **31.4 W across the whole lattice, 8.9 W at N = 6, 17.9 W at +35 °C ambient** *(**30.5 / 8.8 / 17.5 W** since the 2026-09-23 Layer 4 deletion's 3 mm re-loft shrank the exterior — `NP-THERM-SINK-001` Rev 3 §3a, `OI-THCOOL-21`)* — not a
 > *materially higher* thermal ceiling but a **lower** one, and one that varies with N and ambient in
 > a way no configuration-keyed supply can see. §4.4.4's conclusion stands and is no longer
 > conditional.
@@ -441,7 +447,7 @@ NP-THERM-CFD-001 §4 shows the current T2-peak figure (70–74 W) was derived as
 > **⚠ 2026-09-15 — both rows have moved, and `NP-PWR-THERM-001` §9 is where the proposal now lives.**
 >
 > **T1.** "Plausible" is superseded. Against `SPEC-SINK-01` the T1-peak row is an **electrical peak
-> the assembly cannot spend**: 38.4 W of device draw at the fully-distributed thermal ceiling, 15.9 W
+> the assembly cannot spend**: 38.4 W of device draw at the fully-distributed thermal ceiling *(**37.5 / 15.8 W** since the 2026-09-23 re-loft — `OI-THCOOL-21`)*, 15.9 W
 > at an authored N = 6 montage, against ~45–50 W. §3.2's 4–8 tiles and §9's ~6 were never independent
 > (both divide the same envelope by the same 6.25 W/tile, `NP-PWRSRC-001` §4.1), and the specified
 > ceiling is lower than either. **A 45 W brick already covers it; the 65 W rung buys nothing at T1.**

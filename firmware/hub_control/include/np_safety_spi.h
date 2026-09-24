@@ -267,6 +267,21 @@ bool np_safety_spi_get_cardiac_report(uint8_t *flags_out);
 np_hub_status_t np_safety_spi_send_active_user(uint32_t user_tag);
 
 /*
+ * np_safety_spi_get_tier — the unit's tier as the safety MCU established it
+ * from its signed OTP tier identity (OI-UPG-01, REQ-UPG-01/-02):
+ * NP_TIER_T1 / NP_TIER_T2, or NP_TIER_UNKNOWN until the first valid report.
+ * Consumers treat anything but NP_TIER_T2 as not-T2.  The hub never decides
+ * the tier; it only relays the MCU's verdict.
+ *
+ * np_safety_spi_get_tier_report — the same, plus the MCU's reason code
+ * (NP_TIER_REASON_*) and whether it withheld a T2 enable on the last beat.
+ * Returns false while the tier is still unknown.  REFUSED is about what the
+ * user tried to run: for the user's own app (the F4 message), never SHDR.
+ */
+uint8_t np_safety_spi_get_tier(void);
+bool    np_safety_spi_get_tier_report(uint8_t *reason_out, bool *refused_out);
+
+/*
  * np_safety_spi_send_channel_limits — deliver per-channel electrode geometry to
  * the safety MCU via a 34-byte command frame (OI-CHARGE-02).
  *
