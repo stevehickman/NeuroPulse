@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HEXTILE-001
-**Revision:** 12
+**Revision:** 13
 **Date:** 2026-09-24
 **Status:** DESIGN STUDY — not a tooling baseline. Every numeric value below is a proposed engineering commitment, not a measured or locked figure. See §10 (Decisions) and §11 (Open Items).
 **Effective Date:** —
@@ -14,6 +14,39 @@
 **IEC 62304 Class:** — (hardware; the on-module driver firmware is Class B, see §6.5)
 **Supersedes:** — (new document; fills the gap declared in NP-HW-FPC-001 Rev 5 supersession note: *"no document yet specifies the T1-A/T1-C hex-tile FPC pinout or electrical layout"*)
 **Parent Document:** NP-HEX-ZM-001
+
+---
+
+> **Rev 13 (2026-09-24) — the drive stage is regulated, and duty-limited in hardware: `NP-SOUP-LFS-001` §13.12's options A and B, decided together by Safety + Hardware Engineering. `OI-HEXTILE-23` decided; `OI-HEXTILE-24` and `-25` raised. No emitter, no part and no value is selected.**
+>
+> **D-9** (§10) records the decision and §6.2 gains two rows, **U3** and **U4**. The derivation is in
+> `NP-SOUP-LFS-001` §13.14, and these are the requirements it places here:
+>
+> - **`REQ-TDRV-01`.** CH_A and CH_B conduct at most `I_cap`, set by a reference that no firmware,
+>   register or stored value can raise. `I_cap` is sized so that at the regulation's upper tolerance
+>   limit, and at the selected emitter's highest-flux bin and coldest junction, irradiance while on
+>   is **≤ 400 mW/cm²** (R-4).
+> - **`REQ-TDRV-02`.** A circuit on the gate path, not in U1, holds each channel's conducting
+>   fraction to **≤ 50 %** over any window **`T_w` ≥ 250 ms**. Because flux is monotonic in current,
+>   `REQ-TDRV-01` then caps the average at **200 mW/cm²**, R-4's CW ceiling, with no emitter data.
+>   The 250 ms keeps the 2 Hz / 25 % preset's 125 ms pulses legal.
+>
+> CH_C is exempt from both: at full drive it gives 28 mW/cm² (§4.3.2), below the CW ceiling.
+>
+> **§4.3.1 and §8.1.1 now describe the intended circuit, and §6.2 is what changes.** That was the
+> choice `OI-HEXTILE-23` asked for. Four consequences, all raised as **`OI-HEXTILE-25`** and none
+> decided here:
+>
+> 1. §4.3.1's 150 mA design point gives 403 mW/cm², which is **0.75 % over** the cap. The cap falls
+>    near 148.9 mA before tolerance.
+> 2. Under D-9, CW at 200 mW/cm² is **~50 % PWM at `I_cap`**, not DC at ~75 mA, so §4.3.1's WPE
+>    advantage is forgone.
+> 3. The hub clamps **every** mode, CW included, to 25 % duty (`NP_PBM_DUTY_MAX_REG`), so CW 200 is
+>    unreachable by the firmware today.
+> 4. `CUR` spans 0–180 mA (`NP-FW-PBM1064-001` §5.1), and codes above `I_cap` now saturate.
+>
+> Parts, values and the R1–R3 derivation are **`OI-HEXTILE-24`**. **Decided, not built:** until
+> that closes, the safety MCU's thermal cut is still the only non-firmware bound on a tile.
 
 ---
 
@@ -330,6 +363,14 @@ E = N · Φ / A_a = 45 × 95 mW / 10.61 cm² = **403 mW/cm²**
 
 This lands, by construction, on the **400 mW/cm² pulsed peak ceiling** (R-4). That is the intended design point: **full drive at the top of the L70 current window equals the firmware-enforced peak ceiling**, so the array cannot be commanded past its own optical limit even before firmware intervenes, and CW operation at the 200 mW/cm² ceiling runs at roughly half current (≈75 mA), comfortably inside the L70 window and at better WPE.
 
+> **Rev 13 — both claims in that paragraph change under D-9, and neither is decided here (`OI-HEXTILE-25`).**
+> **(a)** The *"cannot be commanded past its own optical limit"* claim now has a circuit behind it
+> (§6.2 U3). But 403 mW/cm² is 0.75 % **over** the ceiling U3 enforces, so `I_cap` sits below 150 mA:
+> ~148.9 mA at the design-target flux, less the regulation tolerance and the flux bin.
+> **(b)** U4 forbids a gate held on for more than 50 % of any window, at any current. CW at
+> 200 mW/cm² therefore becomes ~50 % PWM at `I_cap`, and DC at ~75 mA is no longer available. The
+> WPE advantage is forgone, and the difference is heat, a §9.3 term.
+
 **4.3.2 T1-C, all three channels:**
 
 | Channel | N | E at 150 mA | Session time to reach dose (R-7) |
@@ -424,11 +465,15 @@ Inherited in concept from NP-HW-FPC-001 Rev 5 §6.2 — its supersession note li
 |---|---|---|---|
 | U1 | I2C slave MCU, 3× PWM, ADC | tinyAVR 2-series, ATtiny426/427-class, SOIC-8/SOT-23-8 | 12-bit ADC + PGA for PD metering (§5.3); TWI address-match wake from standby (§8.3) |
 | Q1–Q3 | Low-side N-MOSFET per channel | IRLML6344-class, SOT-23 | V_GS(th) 0.4–1.0 V, fully enhanced at 3.3 V gate drive |
-| R1–R3 | Current sense per channel | 0.5 Ω / 1 Ω, 0402, 1 % | value set by string current, §6.3 |
+| R1–R3 | Current sense per channel | 0.5 Ω / 1 Ω, 0402, 1 % | ~~value set by string current, §6.3~~ *(Rev 13: that citation was wrong — §6.3 is the rigidizer fit.)* Under D-9, R = `V_ref` / `I_cap`, derived from U3's reference (`REQ-TDRV-01`) — **`OI-HEXTILE-24`** |
+| U3 *(Rev 13, D-9)* | Regulating stage, CH_A/CH_B — **fixed** reference + error amplifier driving Q1/Q2, or a constant-current regulator IC | **not selected** | `REQ-TDRV-01`: conducting current ≤ `I_cap`, set by a reference no firmware, register or stored value can raise. U1's PWM gates it on and off; it cannot move the ceiling. **Its dropout is §8.1.1's `V_dropout`** |
+| U4 *(Rev 13, D-9)* | Gate-duty limiter, CH_A/CH_B — between U1's PWM output and the gate | **not selected** | `REQ-TDRV-02`: conduction ≤ 50 % over any window `T_w` ≥ 250 ms, at its own upper tolerance limit. It acts on the gate path, so it holds when U1 is wedged or wrong. The form (monostable with a minimum off-time, or an RC integrator and comparator) is EE's |
 | D1 | PD1 (InGaAs) | G12180-010A | §5.1 |
 | D2 | PD2 (InGaAs) | G12180-010A | §5.2 |
 | U2 | Transimpedance amplifier, dual | single-supply, rail-to-rail, SOT-23-8 | fixed gain per fitted PD (D-4) |
 | RT1 | NTC thermistor | 10 kΩ, B25/85 3435 | on-module; read by U1 ADC, §6.5 |
+
+**CH_C is not in `REQ-TDRV-01` or `-02`** (Rev 13): at full drive it reaches 28 mW/cm² (§4.3.2), below the CW ceiling even held on continuously, so neither bound is required by R-4 on that channel. Fitting U3/U4 to CH_C anyway, so that the three channels share one layout, is EE's choice (`OI-HEXTILE-24`).
 
 **T1-A fits the identical assembly with Q3, R3, and the CH_C string omitted.** One rigidizer artwork, one pick-and-place program with a depopulation variant — the same "population differs, geometry does not" principle the mould already follows.
 
@@ -1085,6 +1130,7 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 | **D-6** | VLED = 24 V | Holds peak contact current to **0.35 A/pin (~3× derating nominal, ~2× on loss of one contact)** at Rev 3's 3 `VLED` pins — *Rev B stated 0.26 A/pin and 4× at 4 pins* — and keeps linear drive overhead ≤7 % at practical string lengths. **Adopted programme-wide as OI-HUB-C17b**, which closed `NP-DRV-SHELL-002` OI-SHELL2-01 against its 12 V estimate | Yes, with pin-count consequences |
 | **D-7** | Per-cluster I2C segments with UID-derived dynamic addressing, **18 segments** at the v1 lattice (§8.2.1) | Removes the address collision instead of muxing around it; reuses the UID `np_module_map` already depends on; collapses cascaded muxing to one tier. 18 of 32 available segments — the one-tier conclusion survives the count correction | Yes |
 | **D-8** *(Rev 4)* | Safety MCU gates VLED across the cranial lattice with **one Class C policy bit**; **18 high-side switches** retained per cluster as **IEC 62304 Class B** availability gates in series with it | STM32G071 has no 80-GPIO option; coarse hardware cut + fine on-module control is defence in depth, not a compromise. **Switch count 18; policy-bit count 1 — RESOLVED 2026-08-16, §8.4.1 / `NP-HW-HUB-001` §7.2.1, OI-HEXTILE-13 closed.** Per-cluster *policy* rejected because it puts a topological socket→cluster map behind a Class C boundary and matches no hazard's extent | Partly — the **class split** is now load-bearing; **HUB-REQ-C05** binds who commands the Class B gate |
+| **D-9** *(Rev 13)* | **Every CH_A/CH_B drive stage is regulated to a fixed hardware reference (U3, `REQ-TDRV-01`) and gate-duty-limited in hardware (U4, `REQ-TDRV-02`)** — `NP-SOUP-LFS-001` §13.12 options A and B together, decided by Safety + Hardware Engineering 2026-09-24 | Before D-9, per-tile drive magnitude was bounded only by firmware plus the 62 °C thermal cut, which is a thermal limit standing in for an optical one (`OI-NVRAM-10`). A alone bounds the peak but not the duty, and B alone bounds the duty of an unregulated peak. Together they bound output at ≤ 400 mW/cm² peak and ≤ 200 mW/cm² average per channel, and no firmware, register or stored value can move either. Derivation: `NP-SOUP-LFS-001` §13.14 | Yes — but reversing it reopens `OI-NVRAM-10` |
 
 **Rejected, with reasons:**
 
@@ -1120,7 +1166,9 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 | **OI-HEXTILE-12** | FPC stack-up, trace width/spacing, and copper weight for a 24 V / 1.04 A tile. PDMS bonding (SiO₂ 75 nm interlayer + O₂ plasma) and the 200-cycle IEC 60068-2-14 qualification inherit unchanged from NP-HW-FPC-001 Rev 5 §7 and remain BLOCKING | FPC artwork release |
 | **OI-HEXTILE-20** | **§8.1's 25.0 W/tile peak may not be a legal operating point, and the contact count depends on it.** §4.3.1 puts each T1-A channel at **403 mW/cm²** at full 150 mA drive — *"by construction"* on R-4's 400 mW/cm² ceiling — so **both channels simultaneously is 806 mW/cm² against R-5's 600 mW/cm² aggregate ceiling.** Two readings, and the document does not say which holds: (a) **R-5 binds only the three-channel case** its source (`NP-FW-PBM1064-001` Rev 2, OI-PBM-05) addresses, in which case say so explicitly, because §4.3.2 presents 566 mW/cm² *"vs 600 mW/cm² ceiling ✓"* as a general check and a reader will apply it generally; or (b) **R-5 binds T1-A too**, in which case the true per-tile peak is **~18.6 W**, not 25.0 W. **Reading (b) is not conservative bookkeeping** — it propagates into the rail current (1.04 A → 0.78 A), the per-pin contact current that set `VLED` at 3 contacts under the ≥2× degraded-case rule (D-5, D-6, §8.1), §9's entire concurrency table, and `NP-PWR-BUDGET-001` §3.5. D-5's own text says the pin count is *"load-bearing and now tooling-blocking"* | **Socket contact count (D-5) — tooling-blocking.** Resolve with `NP-FW-PBM1064-001` as R-5's owner; propagates to §9, `NP-DRV-SHELL-002` §5.1, `NP-PWR-BUDGET-001` §3.5 |
 | **OI-HEXTILE-21** | **The 1064 nm channel cannot reach the irradiance of its own flagship protocol, at any tile population.** §4.3.2 gives CH_C **28 mW/cm²** at 30 sites. `docs/pbm_neuro_protocols.md` grades cognitive enhancement **A** at **1064 nm CW, 0.25 W/cm², 60 J/cm²/site, 8 min** — **9× above** what the tile delivers; a hypothetical 90-site 1064-only tile reaches only ~85 mW/cm², still 3× short. **This is an emitter-efficiency wall, not a budget or layout shortfall:** η_wp ≈ 4.8 % at 1064 nm (§4.3), and R-6 already caps drive at 120–180 mA for L70, so neither more watts nor more sites closes it. Three responses, none free: select a materially better 1064 nm emitter (extends `OI-HEXTILE-02` to CH_C, and `NP-PROC-FPC-1064-001`'s EPITEX reference part is the current bound); accept CW-only operation and long sessions, stating the protocol NeurOne actually targets; or **claim 1064 nm against the Alzheimer's protocol (1060–1080 nm, 0.1–0.3 W/cm²) rather than the cognitive one** — a band a 90-site tile can approach. **Split from `OI-HEXTILE-03`, which framed this as session length.** Note the same wall bounds every 1070 nm competitor (`docs/reference/competitive-position.md`) | **1064 nm claims and protocol authoring; `OI-HEXTILE-02` scope for CH_C.** Not tooling-blocking — the lattice is unaffected either way |
-| **OI-HEXTILE-23** | **The drive stage is specified as switched (§6.2) and as constant-current (§8.1.1, §4.3.1), and only the second supports the hardware optical-ceiling claim** (raised Rev 12, `NP-SOUP-LFS-001` §13.12). §6.2 lists no regulating element — tile-MCU PWM, a low-side FET and a sense resistor read by firmware — so while the FET conducts the current is set by 24 V, the string's `V_f` (which falls as the string heats) and the resistor: fixed by hardware, but unregulated. §4.3.1's *"cannot be commanded past its own optical limit even before firmware intervenes"* and §8.1.1's dropout rule both assume a regulator holding the sense voltage to a fixed reference. Decide the topology; if regulated, add the element to §6.2 and derive R1–R3 from the reference (the row's *"§6.3"* citation is wrong); if switched, retire §4.3.1's hardware-ceiling sentence and §8.1.1's dropout bound. The same decision answers `OI-LFS-04` / `OI-NVRAM-10` (whether any non-firmware bound on per-tile drive magnitude exists) | EE + Safety | `OI-LFS-04`; §4.3.1; §8.1.1; tooling of the rigidizer |
+| ~~**OI-HEXTILE-23**~~ | **✅ DECIDED 2026-09-24 (Rev 13, D-9) — regulated.** Safety + Hardware Engineering chose `NP-SOUP-LFS-001` §13.12 A + B. §4.3.1 and §8.1.1 describe the intended circuit, §6.2 gains U3 (the regulating element) and U4, and R1–R3's wrong *"§6.3"* citation is struck. The work left is implementation (`OI-HEXTILE-24`) and the consequences for the record (`OI-HEXTILE-25`). *Original text:* **The drive stage is specified as switched (§6.2) and as constant-current (§8.1.1, §4.3.1), and only the second supports the hardware optical-ceiling claim** (raised Rev 12, `NP-SOUP-LFS-001` §13.12). §6.2 lists no regulating element — tile-MCU PWM, a low-side FET and a sense resistor read by firmware — so while the FET conducts the current is set by 24 V, the string's `V_f` (which falls as the string heats) and the resistor: fixed by hardware, but unregulated. §4.3.1's *"cannot be commanded past its own optical limit even before firmware intervenes"* and §8.1.1's dropout rule both assume a regulator holding the sense voltage to a fixed reference. Decide the topology; if regulated, add the element to §6.2 and derive R1–R3 from the reference (the row's *"§6.3"* citation is wrong); if switched, retire §4.3.1's hardware-ceiling sentence and §8.1.1's dropout bound. The same decision answers `OI-LFS-04` / `OI-NVRAM-10` (whether any non-firmware bound on per-tile drive magnitude exists) | EE + Safety | `OI-LFS-04`; §4.3.1; §8.1.1; tooling of the rigidizer |
+| **OI-HEXTILE-24** | **Implement D-9: select U3 and U4 and fix their values** (raised Rev 13). (a) `I_cap`: sized from the selected emitter (`OI-HEXTILE-02`) so that the regulation's upper tolerance limit, at the highest-flux bin and coldest junction, gives ≤ 400 mW/cm² (`REQ-TDRV-01`). It will be below 150 mA (`OI-HEXTILE-25`(a)). (b) R1–R3 = `V_ref` / `I_cap`. (c) U3's dropout becomes §8.1.1's `V_dropout`, and it enters the ±0.10 V-bin arithmetic of Rev 10, where N = 8 already needs a dropout of zero, so this may force string length (`OI-HEXTILE-18`/`-19`). (d) U4's form and tolerance: ≤ 50 % at its upper limit, `T_w` ≥ 250 ms. A window above ~40 s re-derives its thermal argument (`NP-SOUP-LFS-001` §13.14). (e) Area on the 22 × 14 mm rigidizer, and the BOM line for §6.4 — uncosted, and every cost figure is a floor (`CLAUDE.md` §2.1). (f) Whether CH_C carries U3/U4 for layout uniformity. (g) Verification: a bench test that U3 holds `I_cap` and U4 trips while U1 commands 100 % duty and full `CUR`. **Until this closes, the thermal cut is the only non-firmware bound** | EE + Safety | `RISK-FWHUB-10`, `RISK-NVRAM-04`; rigidizer tooling; §6.4 |
+| **OI-HEXTILE-25** | **What D-9 does to the rest of the record** (raised Rev 13, found while deriving `REQ-TDRV-01`/`-02`). (a) §4.3.1's full-drive point, 403 mW/cm² at 150 mA, is 0.75 % over the cap D-9 enforces, so every figure computed at "150 mA full drive" (§4.3, §8.1, §9, `OI-HEXTILE-20`) is at a point that is no longer reachable. (b) CW at 200 mW/cm² becomes ~50 % PWM at `I_cap`, not DC at ~75 mA. §4.3.1's WPE advantage is forgone, and the extra heat is a §9.3 term. (c) The hub clamps every mode, CW included, to 25 % duty (`NP_PBM_DUTY_MAX_REG`, `NP-FW-PBM1064-001` §5.3), so R-4's 200 mW/cm² CW ceiling is unreachable through the firmware today. Decide which limit governs CW (`OI-HEXTILE-07`, the tile firmware specification). U4 at 50 % sits behind the firmware's 25 % and does not conflict with it. (d) `CUR` encodes 0–180 mA (`NP-FW-PBM1064-001` §5.1), about 480 mW/cm² at the design-target flux. Under D-9, codes above `I_cap` saturate, and the register map should say so | EE + FW | §4.3.1, §9.3; `NP-FW-PBM1064-001` §5; `OI-HEXTILE-07` |
 | **OI-HEXTILE-22** | **§4.1's 3.80 mm lattice pitch was never checked against the footprint of the emitter that sits on each site, and most of the shortlist does not fit it** (raised Rev 10, GitHub #333). A triangular lattice of pitch `p` puts the 60° neighbour at `(p/2, p√3/2)`; at p = 3.80 mm that is **(1.90, 3.29) mm**, so two axis-aligned square packages clear each other only at **≤ 3.29 mm**. Luminus SST-06/SST-10-IRD-810 is 3.45 mm square (**3.65 mm at maximum material**, +0.20/−0.00) and needs ≥ 4.21 mm; **ams-OSRAM SFH 4718A (3.75 mm) needs ≥ 4.33 mm and SFH 4703AS (3.85 mm) needs ≥ 4.45 mm** — both above §4.1's own **4.04 mm** ceiling at n = 5, so for them it is not resolvable by spending the 1.2 mm boundary clearance. **Only Lumileds L1IZ-0850 (1.9 × 1.37 mm) fits**, and only with its long axis on the 60° axis — which is the 850 nm part, the one that fails the wavelength window. A 45° package rotation clears the 3.45 mm part by ~0.03 mm and is not a manufacturable margin. **Three ways out and this item does not pick one:** drop to n = 4 (61 sites, 5.05 mm available, and every §4.3 irradiance figure re-derives on the lower count); hold 91 sites and require a ≤ 3.29 mm package, which is a procurement constraint `NP-PROC-FPC-001` §2.3 does not currently state (it says only *“SMD 2835 or equivalent”* — and 2835 is 2.8 × 3.5 mm, whose 3.5 mm axis already exceeds 3.29 mm); or re-derive the pitch jointly with the part under `OI-HEXTILE-02`. **Sequence before `OI-HEXTILE-02` and `OI-HEXTILE-04`** — beam angle and uniformity are both downstream of whichever pitch survives | §4.1 pitch; **all §4.3 irradiance figures**; FPC artwork; `OI-HEXTILE-02` part selection; `NP-PROC-FPC-001` §2.3 package requirement |
 
 ---
