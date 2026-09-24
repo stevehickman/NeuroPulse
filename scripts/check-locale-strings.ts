@@ -422,7 +422,8 @@ function checkKeyUsage(files: string[], keys: Set<string>): string[] {
  * (4) Every locale carries every en.json key, so a locale cannot silently drop
  * a string. The one thing it may add is a plural category its own language
  * has and English does not (OI-I18N-03): `_FEW` / `_MANY` for Russian, `_ZERO`
- * / `_TWO` / `_FEW` / `_MANY` for Arabic, on a family en.json already defines.
+ * / `_TWO` / `_FEW` / `_MANY` for Arabic, `_MANY` (exact millions) for French,
+ * Spanish and Catalan — on a family en.json already defines.
  * Anything else extra is an orphan.
  */
 export function localeParityErrors(
