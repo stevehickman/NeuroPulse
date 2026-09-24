@@ -29,7 +29,7 @@ enum class ConsumableKind(val rawValue: Int) {
             // every disconnect. Kept rather than re-derived, because re-deriving from a void
             // derivation is not an improvement. Same defect class as NP-FW-EMMC-002 §G.2's
             // accelerometer thresholds. To be superseded by a condition measurement — loss of seal
-            // read by an in-cup noise-cancelling mic (principal, 2026-09-23; OI-AUDIOHW-08) — not
+            // read by the in-cup measurement mic (principal, 2026-09-23/24; OI-AUDIOHW-08 B) — not
             // by arithmetic. Comfort/hygiene replacement is the user's call and gets no prompt.
             AUDIO_CUP_FOAM -> 150
         }
