@@ -84,6 +84,7 @@
 - Driver impedance monitors mesh fouling (detects both acoustic degradation AND RF shielding loss simultaneously)
 - Mesh cleaning brush in box
 - Silicone isolator for bone conduction piezoelectric element
+- In-cup microphone per side, **measurement only** — foam seal and in-cup level; **no noise cancelling**; raw audio never stored or transmitted (decided 2026-09-24, `NP-HW-AUDIO-001` §3.1 `REQ-AUDIO-14`–`16`, `OI-AUDIOHW-08`)
 
 **8. Visual Stimulation**
 - 108 micro-LEDs per lens (660nm + 808–830nm) · 6 zones per eye
