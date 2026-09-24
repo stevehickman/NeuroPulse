@@ -51,6 +51,11 @@ name: Safety MCU CI (STM32G071, Class C)
 # Dependencies count; proximity in the tree does not.  That reasoning is now
 # ASSERTED as well as stated: the "Scope assertions" step fails this job if a
 # crypto-only change is ever judged out of scope here.
+#
+# firmware/common/** is listed for the same reason: np_safety_protocol.h
+# includes common/include/np_spi_wire_types.h, which defines the SPI frames and
+# MISO reports (impedance, cardiac, tier identity) this firmware sends and
+# parses.  A common-only change is asserted in scope alongside crypto.
 
 on:
   push:
@@ -106,15 +111,18 @@ jobs:
       relevant: ${{ steps.scope.outputs.relevant }}
     env:
       # ── THE Class C RELEVANCE LIST ────────────────────────────────────────
-      # Same 5 entries the retired `paths:` blocks carried, plus the matcher
-      # itself, so a change to the matcher re-runs what it gates.  Blank lines
-      # and `#` comments are stripped by ci-changed-scope.sh.
+      # The 5 entries the retired `paths:` blocks carried, firmware/common/**
+      # (added later — below), plus the matcher itself, so a change to the
+      # matcher re-runs what it gates.  Blank lines and `#` comments are
+      # stripped by ci-changed-scope.sh.
       #
       # firmware/crypto/** is present ON PURPOSE — np_crypto links into
       # np_safety_mcu.  See the header, and the "Scope assertions" step below.
       NP_SCOPE_PATHS: |
         firmware/safety_mcu/**
         firmware/crypto/**
+        # np_safety_protocol.h includes common/include/np_spi_wire_types.h (the SPI frames + MISO reports Class C sends and parses).
+        firmware/common/**
         firmware/cmake/stm32g071.cmake
         firmware/CMakeLists.txt
         .github/workflows/safety-mcu-ci.yml
@@ -160,6 +168,7 @@ jobs:
           }
           assert true  firmware/safety_mcu/src/np_gpio_mgr.c
           assert true  firmware/crypto/np_sha256.c
+          assert true  firmware/common/include/np_spi_wire_types.h
           assert false firmware/bootloader/src/np_main.c
           assert false docs/np_sw_ci_001.md
 
