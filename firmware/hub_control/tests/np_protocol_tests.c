@@ -741,6 +741,101 @@ static void test_clin_tacs_channel_mask_spans_the_driver(void)
     }
 }
 
+/* ── Tier admission (REQ-UPG-01, OI-UPG-01) ───────────────────────────────────────
+ * The hub half of the T1 refusal.  T2-ness must come from the modality set,
+ * never from the app-computed NP_PROTO_FLAG_T2_TIER, and the verdict must be
+ * the safety MCU's tier — anything but exactly T2 refuses. */
+
+static void desc_with(np_session_desc_t *d, const np_hub_mod_type_t *mods,
+                      uint8_t n, uint8_t flags)
+{
+    memset(d, 0, sizeof *d);
+    d->flags     = flags;
+    d->cmd_count = n;
+    for (uint8_t i = 0U; i < n; i++) {
+        d->cmds[i].mod_type    = mods[i];
+        d->cmds[i].target_kind = NP_PROTO_TARGET_SLOT;
+    }
+}
+
+static void test_t2_modality_set(void)
+{
+    static const np_hub_mod_type_t t2[] = {
+        NP_MOD_CVNS, NP_MOD_QEEG_21CH, NP_MOD_TMS, NP_MOD_PBM_1170NM,
+        NP_MOD_CLIN_TACS, NP_MOD_HD_TDCS };
+    np_session_desc_t d;
+    bool all_t2 = true;
+    bool no_t1  = true;
+
+    for (size_t i = 0U; i < sizeof t2 / sizeof t2[0]; i++) {
+        desc_with(&d, &t2[i], 1U, 0U);
+        if (!np_protocol_uses_t2_modality(&d)) { all_t2 = false; }
+    }
+    check(all_t2, "tier: each of the six T2 modalities marks a protocol T2");
+
+    for (uint8_t m = NP_MOD_PBM_BASE; m < NP_MOD_TYPE_COUNT; m++) {
+        bool is_t2 = false;
+        for (size_t i = 0U; i < sizeof t2 / sizeof t2[0]; i++) {
+            if (m == (uint8_t)t2[i]) { is_t2 = true; }
+        }
+        if (is_t2) { continue; }
+        np_hub_mod_type_t mt = (np_hub_mod_type_t)m;
+        desc_with(&d, &mt, 1U, 0U);
+        if (np_protocol_uses_t2_modality(&d)) { no_t1 = false; }
+    }
+    check(no_t1, "tier: no T1 or accessory modality marks a protocol T2");
+}
+
+static void test_t2_is_derived_not_flagged(void)
+{
+    np_session_desc_t d;
+    const np_hub_mod_type_t t1_only[] = { NP_MOD_TDCS, NP_MOD_AUDIO };
+    const np_hub_mod_type_t mixed[]   = { NP_MOD_VNS_HRV, NP_MOD_CVNS };
+
+    desc_with(&d, t1_only, 2U, NP_PROTO_FLAG_T2_TIER);
+    check(!np_protocol_uses_t2_modality(&d),
+          "tier: T2 flag set on a T1-only protocol does not make it T2");
+    check(np_protocol_tier_admit(&d, NP_TIER_T1) == NP_HUB_OK,
+          "tier: T1-only protocol with a spurious T2 flag is admitted on T1");
+
+    desc_with(&d, mixed, 2U, 0U);
+    check(np_protocol_uses_t2_modality(&d),
+          "tier: T2 flag CLEAR on a protocol naming cervical VNS still makes it T2");
+    check(np_protocol_tier_admit(&d, NP_TIER_T1) == NP_HUB_ERR_TIER_F4,
+          "tier: clearing the app flag does not get cervical VNS past a T1 unit (RISK-PWRSRC-10)");
+}
+
+static void test_tier_admit_matrix(void)
+{
+    np_session_desc_t d;
+    const np_hub_mod_type_t t1_only[] = { NP_MOD_PBM_BASE, NP_MOD_BES_TACS };
+    const np_hub_mod_type_t t2_part[] = { NP_MOD_PBM_BASE, NP_MOD_PBM_1170NM };
+    const np_hub_mod_type_t cap[]     = { NP_MOD_QEEG_21CH };
+
+    desc_with(&d, t1_only, 2U, 0U);
+    check(np_protocol_tier_admit(&d, NP_TIER_T1)      == NP_HUB_OK &&
+          np_protocol_tier_admit(&d, NP_TIER_T2)      == NP_HUB_OK &&
+          np_protocol_tier_admit(&d, NP_TIER_UNKNOWN) == NP_HUB_OK,
+          "tier: T1 protocol admitted on T1, T2 and before any tier report (REQ-UPG-03)");
+
+    desc_with(&d, t2_part, 2U, NP_PROTO_FLAG_T2_TIER);
+    check(np_protocol_tier_admit(&d, NP_TIER_T2) == NP_HUB_OK,
+          "tier: T2 protocol admitted on a T2 unit");
+    check(np_protocol_tier_admit(&d, NP_TIER_T1) == NP_HUB_ERR_TIER_F4,
+          "tier: T2-D protocol on a T1 unit is refused as F4");
+    check(np_protocol_tier_admit(&d, NP_TIER_UNKNOWN) == NP_HUB_ERR_TIER_UNVERIFIED,
+          "tier: T2 protocol before the first tier report is refused as UNVERIFIED, not F4");
+    check(np_protocol_tier_admit(&d, 0x7FU) == NP_HUB_ERR_TIER_F4,
+          "tier: an unrecognised tier code is not T2 (fail closed)");
+
+    desc_with(&d, cap, 1U, 0U);
+    check(np_protocol_tier_admit(&d, NP_TIER_T1) == NP_HUB_ERR_TIER_F4,
+          "tier: qEEG cap protocol refused on T1 — the one T2 part with no enable line");
+
+    check(np_protocol_tier_admit(NULL, NP_TIER_T2) == NP_HUB_ERR_INVALID_ARG,
+          "tier: NULL descriptor rejected");
+}
+
 /* ── Runner ───────────────────────────────────────────────────────────────────── */
 
 int main(void)
@@ -772,6 +867,10 @@ int main(void)
     test_rejects_stop_deadline_overflow();
 
     test_clin_tacs_channel_mask_spans_the_driver();
+
+    test_t2_modality_set();
+    test_t2_is_derived_not_flagged();
+    test_tier_admit_matrix();
 
     if (g_failures == 0) {
         printf("\nALL TESTS PASSED\n");

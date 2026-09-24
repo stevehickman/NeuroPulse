@@ -47,7 +47,7 @@ permissions:
   contents: read
 
 env:
-  NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock|hal_platform|nv_state)_tests$'
+  NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock|hal_platform|nv_state|tier_identity|tier_identity_nokey)_tests$'
   # ⚠ NP_TOTAL_TEST_COUNT read '30' from phase 8 until phase 9, while the repo
   # actually had 31 targets (7 + 24).  Phase 8 added np_app_link_agreement_tests
   # and updated firmware-cross-build.yml's NP_CLASS_B_TEST_COUNT and
@@ -74,8 +74,11 @@ env:
   # 8 + 31 = 39, re-derived with `ctest -N` on the tree.
   # NP-FW-MMSOCK-001 (OI-MMSOCK-02) then added np_chan_decl_tests:
   # 8 + 32 = 40, re-derived with `ctest -N` on the tree.
-  NP_TOTAL_TEST_COUNT: '40'
-  NP_SAFETY_TEST_COUNT: '8'
+  # NP-REG-UPG-001 Rev 3 (OI-UPG-01) then added the ninth and tenth Class C
+  # targets, np_tier_identity_tests and np_tier_identity_nokey_tests:
+  # 10 + 32 = 42, re-derived with `ctest -N` on the tree.
+  NP_TOTAL_TEST_COUNT: '42'
+  NP_SAFETY_TEST_COUNT: '10'
   NP_CLASS_B_TEST_COUNT: '32'
 
 jobs:

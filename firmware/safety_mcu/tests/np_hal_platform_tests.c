@@ -42,6 +42,7 @@ TIM_TypeDef  np_hal_fake_tim3;
 ADC_TypeDef  np_hal_fake_adc1;
 EXTI_TypeDef np_hal_fake_exti;
 uint8_t      np_hal_fake_otp[1024];
+uint8_t      np_hal_fake_uid[12];
 
 /* ── HAL doubles for symbols whose drivers are not in this target ───────────
  * Defined against np_safety_hal.h, so drift from the production contract is a
@@ -457,6 +458,74 @@ static void test_adc_full_scale_does_not_cut(void)
           "full-scale ADC does NOT cut — 0 and 4095 are not both 'hot' (table orientation confirmed)");
 }
 
+/* ══ 4b. TIER RECORD AND DEVICE UID (SW01-M10, OI-UPG-01) ═════════════════════
+ * The tier record read is VERBATIM — the opposite rule to the root key — so the
+ * module can tell a blank window from a malformed one.  And it must come from
+ * NP_TIER_OTP_OFFSET, not from the root key at offset 0: reading the wrong
+ * window would make every unit's verdict depend on its session key's bytes. */
+static void test_tier_record_read_verbatim_from_its_offset(void)
+{
+    uint8_t rec[NP_TIER_RECORD_LEN];
+    uint8_t i;
+    bool    ok = true;
+
+    memset(np_hal_fake_otp, 0xFF, sizeof(np_hal_fake_otp));
+    for (i = 0U; i < NP_ED25519_PUB_KEY_LEN; i++) {
+        np_hal_fake_otp[i] = 0xEEU;                         /* root key bytes */
+    }
+    for (i = 0U; i < NP_TIER_RECORD_LEN; i++) {
+        np_hal_fake_otp[NP_TIER_OTP_OFFSET + i] = (uint8_t)(0x40U + i);
+    }
+    np_hal_otp_read_tier_record(rec, (uint8_t)NP_TIER_RECORD_LEN);
+    for (i = 0U; i < NP_TIER_RECORD_LEN; i++) {
+        if (rec[i] != (uint8_t)(0x40U + i)) { ok = false; }
+    }
+    check(ok, "tier record is read byte-for-byte from NP_TIER_OTP_OFFSET, not from the root key");
+
+    memset(np_hal_fake_otp, 0xFF, sizeof(np_hal_fake_otp));
+    np_hal_otp_read_tier_record(rec, (uint8_t)NP_TIER_RECORD_LEN);
+    ok = true;
+    for (i = 0U; i < NP_TIER_RECORD_LEN; i++) {
+        if (rec[i] != 0xFFU) { ok = false; }
+    }
+    check(ok, "blank tier window is reported as 0xFF, NOT translated to the zero sentinel");
+}
+
+static void test_tier_record_clamps_len(void)
+{
+    uint8_t buf[NP_TIER_RECORD_LEN + 8U];
+    uint8_t i;
+    bool    ok = true;
+
+    memset(np_hal_fake_otp, 0x5A, sizeof(np_hal_fake_otp));
+    memset(buf, 0xC3, sizeof(buf));
+    np_hal_otp_read_tier_record(buf, (uint8_t)sizeof(buf));
+    for (i = NP_TIER_RECORD_LEN; i < sizeof(buf); i++) {
+        if (buf[i] != 0xC3U) { ok = false; }
+    }
+    check(ok, "tier record read never writes past NP_TIER_RECORD_LEN");
+}
+
+static void test_device_uid_read(void)
+{
+    uint8_t uid[NP_DEVICE_UID_LEN + 4U];
+    uint8_t i;
+    bool    ok = true;
+
+    for (i = 0U; i < NP_DEVICE_UID_LEN; i++) {
+        np_hal_fake_uid[i] = (uint8_t)(0xA0U + i);
+    }
+    memset(uid, 0xC3, sizeof(uid));
+    np_hal_read_device_uid(uid, (uint8_t)sizeof(uid));
+    for (i = 0U; i < NP_DEVICE_UID_LEN; i++) {
+        if (uid[i] != (uint8_t)(0xA0U + i)) { ok = false; }
+    }
+    for (i = NP_DEVICE_UID_LEN; i < sizeof(uid); i++) {
+        if (uid[i] != 0xC3U) { ok = false; }
+    }
+    check(ok, "device UID read is byte-for-byte and clamped to NP_DEVICE_UID_LEN");
+}
+
 int main(void)
 {
     printf("=== SW-01 platform layer host tests (NP-SW-CI-001 phase 7) ===\n");
@@ -475,6 +544,9 @@ int main(void)
     test_otp_programmed_key_passes_through();
     test_otp_partial_is_not_flattened();
     test_otp_clamps_len();
+    test_tier_record_read_verbatim_from_its_offset();
+    test_tier_record_clamps_len();
+    test_device_uid_read();
 
     test_adc_failsafe_value_actually_cuts();
     test_adc_full_scale_does_not_cut();

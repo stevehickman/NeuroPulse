@@ -132,9 +132,10 @@
 # workflow that owns its host tests, or edits to it run no CI.  Ownership is
 # split by IEC 62304 class (NP-SW-CI-001 §5.0.1 — the workflows are
 # self-contained because `needs:` only works within one workflow):
-#   firmware/safety_mcu/  → .github/workflows/safety-mcu-ci.yml        (8 targets, Class C)
-#   everything else above → .github/workflows/firmware-cross-build.yml (27 targets, Class B)
-# 8 + 29 = 37.  .github/workflows/build-all.yml re-checks that partition weekly
+#   firmware/safety_mcu/  → .github/workflows/safety-mcu-ci.yml        (10 targets, Class C)
+#   everything else above → .github/workflows/firmware-cross-build.yml (32 targets, Class B)
+# 10 + 32 = 42 (re-derived with `ctest -N` at OI-UPG-01; it read "27" and
+# "8 + 29 = 37" against a real 8 + 32 before that).  .github/workflows/build-all.yml re-checks that partition weekly
 # and fails if a target ever belongs to neither list.
 # (This line has been wrong more often than right, which is the argument against
 #  keeping a count in a comment at all.  It read "6 + 21 = 27" until 2026-08-12
@@ -297,6 +298,17 @@ if(NP_BUILD_TESTS)
     # (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01).  Class C count 7 → 8, total 36 → 37.
     add_test(NAME np_nv_state_tests
         COMMAND np_nv_state_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # Ninth and tenth Class C targets — SW01-M10 tier identity
+    # (NP-REG-UPG-001 §7.5, REQ-UPG-01/-02, OI-UPG-01).  Class C count 8 → 10,
+    # total 40 → 42.  One source, built with the test authority key and with the
+    # shipped all-zero placeholder.
+    add_test(NAME np_tier_identity_tests
+        COMMAND np_tier_identity_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    add_test(NAME np_tier_identity_nokey_tests
+        COMMAND np_tier_identity_nokey_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_cvns_reenable_tests

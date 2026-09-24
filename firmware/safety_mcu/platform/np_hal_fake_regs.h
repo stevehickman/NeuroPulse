@@ -200,4 +200,8 @@ typedef enum { SPI1_IRQn = 25, EXTI4_15_IRQn = 7 } IRQn_Type;
 extern uint8_t np_hal_fake_otp[1024];
 #define NP_HAL_OTP_BASE  ((uintptr_t)np_hal_fake_otp)
 
+/* Factory unique ID (np_hal_otp.c) — same reason: a fixed silicon address. */
+extern uint8_t np_hal_fake_uid[12];
+#define NP_HAL_UID_BASE  ((uintptr_t)np_hal_fake_uid)
+
 #endif /* NP_HAL_FAKE_REGS_H */
