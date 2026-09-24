@@ -20,12 +20,22 @@
  * the OI-LOG-05..07 mount glue must call it before lfs_mount().
  *
  * ── Which instance ────────────────────────────────────────────────────────────
- * The CONFIG partition only (partition 4, 16 MiB, NP_CONFIG_SIZE_LBA).  It is
- * the only instance whose parameters any document states.  The UHDR and SHDR
- * log partitions carry claims L-1 and L-2 and have NO stated parameters —
- * OI-LFS-05.  Nothing here may be reused for them by analogy: block_count alone
- * differs by three orders of magnitude, which changes what lookahead_size can
- * mean.
+ * The CONFIG partition only (partition 4, 16 MiB, NP_CONFIG_SIZE_LBA).  The
+ * UHDR and SHDR instances are np_lfs_log_instance.h (OI-LFS-05, closed).
+ * Nothing here may be reused for them by analogy: block_count alone differs by
+ * three orders of magnitude, which changes what lookahead_size can mean.
+ *
+ * ── CORRECTION (NP-SOUP-LFS-001 Rev 4 §13.1.2) — read before the next block ──
+ * This header was written believing EMMC-FS-01 states five Config parameters
+ * and is silent on the rest.  It is not: NP-FW-EMMC-001 §5.2 states all twelve
+ * for Config (and for UHDR and SHDR), including cache_size 512,
+ * lookahead_size 64, block_cycles 200, name_max 64 and attr_max 256 — and the
+ * values below differ on all five.  Separately, the specified read/prog 256 is
+ * below the 512-byte XTS data unit (EMMC-UHDR-05), and under a read-modify-
+ * write tear it loses committed data.  Both are OI-LFS-10.  The values are
+ * left exactly as they were, because every Config result in NP-SOUP-LFS-001
+ * §12 and §13 was obtained against them; changing them is OI-LFS-10's
+ * decision, and CI re-runs both suites against whatever it decides.
  */
 
 #ifndef NP_LFS_INSTANCE_H
@@ -51,7 +61,8 @@
 #define NP_LFS_CFG_BLOCK_COUNT      4096u
 #define NP_LFS_CFG_FILE_MAX         65536u
 
-/* ── The four EMMC-FS-01 does not state — NeurOne decisions, recorded here ────
+/* ── The four this header believed EMMC-FS-01 does not state — it does; see the
+ *    CORRECTION above and OI-LFS-10.  The reasoning below is kept as written. ─
  *
  * cache_size 256.  Must be a multiple of read_size and prog_size and a factor of
  * block_size (lfs_init).  256 is the smallest value satisfying all three, and

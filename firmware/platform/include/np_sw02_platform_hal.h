@@ -65,7 +65,7 @@ extern "C" {
  * to count the gaps is the census measuring around its own blind spot.
  *
  * 94 → 97 on 2026-09-23 (NP-SW-FAULTMSG-001 §9.6): np_cvfs_hal_load/_save (the
- * cervical offline-fault summary's UHDR blob, OI-LFS-05) and np_cvfs_hal_notify
+ * cervical offline-fault summary's UHDR blob, OI-LOG-05..07) and np_cvfs_hal_notify
  * (the CVNS_FAULT_STATUS notification, OI-WA-03) — declared in
  * np_cvns_fault_summary.h, the ninth module header.
  *

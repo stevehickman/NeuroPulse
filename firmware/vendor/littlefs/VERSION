@@ -39,10 +39,12 @@ layer, which may tear inside a 512 B sector and whose erase semantics are not
 the raw-flash semantics littlefs is written against (upstream #1083 asks exactly
 this and has no answer).  No claim of power-loss atomicity may be made against
 the MEDIUM from this directory or from that test — OI-LFS-07, and it needs
-hardware.  Two further caller obligations came out of §11 and are not yet met:
-OI-LFS-08 (upstream #1210's silent file loss, worst case ukmd.rec) and
-OI-LFS-09 (validate stored values by content on every read).  See "What this
-vendoring does not establish" below.
+hardware.  Two further caller obligations came out of §11: OI-LFS-08
+(upstream #1210's silent file loss, worst case ukmd.rec) and OI-LFS-09
+(validate stored values by content on every read).  Both are MET as of
+NP-SOUP-LFS-001 Rev 4 §13 (2026-09-24) by np_cfg_store, the Config instance's
+only caller — for the Config instance, and against the contract only.  See
+"What this vendoring does not establish" below.
 
 Why v2.11.3 and not an older, longer-in-the-field tag.  Stated because "newest"
 is the entry a reviewer is most likely to second-guess.  The §11 evaluation
@@ -189,19 +191,25 @@ the omissions as oversight:
 
 What this vendoring does not establish.  Stated plainly, because a directory
 appearing under firmware/vendor/ reads as "integrated" and this one is not yet:
-  - NOTHING CALLS IT.  np_log_backend.h's OI-LOG-05..07 seams are still
-    unimplemented; np_littlefs is built and linked into no image.  `grep -rn
-    "lfs_" firmware/ --include=*.c --include=*.h` outside this directory and the
-    NeurOne configuration files above still finds no call.
+  - NOTHING IN THE IMAGE CALLS IT.  np_log_backend.h's OI-LOG-05..07 seams are
+    still unimplemented.  Since NP-SOUP-LFS-001 Rev 4 two first-party modules
+    DO call littlefs — hub_control/src/np_cfg_store.c (the Config store) and
+    np_lfs_log_instance.c (lfs_fs_gc only) — and scripts/check-lfs-caller-rules.ts
+    fails CI if anything else does.  Neither is called from any code path in
+    the image, so the link drops them; they are tested on the host only.
   - L-1..L-4 are exercised against the CONTRACT, not the medium (OI-LFS-07).
     NP-FW-NVRAM-001 §4 and NP-FW-HUB-001 §6.5 may be relied on exactly that far
     and no further — NP-SOUP-LFS-001 §12.5 states the boundary.  Note also that
     L-3's result is a property of the write-temp-then-rename ORDERING the test
-    swept, not of this component: littlefs does not make a replacement atomic,
-    that ordering does, and the OI-LOG-05..07 glue has to use it.
+    swept, not of this component.  Rev 4's store uses a different ordering — an
+    in-place O_TRUNC rewrite, committed at close, because rename deletes and
+    delete churn is #1210's trigger — and re-swept L-3 against it (§13.4).
   - Wear levelling (L-6) is configured, never measured.  block_cycles 500 is set
     and checked by value; nothing observes its effect, and on managed flash it
     may not mean what the claim assumes (OI-LFS-07).
-  - Only the Config instance has parameters.  The UHDR and SHDR log partitions
-    carry claims L-1 and L-2 and NO document states their instance parameters —
-    raised as OI-LFS-05 by NP-SOUP-LFS-001 Rev 2.
+  - The UHDR and SHDR instances' parameters are EMMC-FS-01's own columns with
+    one deviation, read/prog 512 (ECR-EMMC-002) — np_lfs_log_instance.h,
+    OI-LFS-05 closed at Rev 4.  Rev 2's statement here that "NO document states
+    their instance parameters" was wrong; EMMC-FS-01 always did.
+  - The Config instance's prog_size 256 is below the 512-byte XTS data unit,
+    and under a read-modify-write tear it loses committed data (OI-LFS-10).

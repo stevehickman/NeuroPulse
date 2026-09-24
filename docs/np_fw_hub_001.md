@@ -796,6 +796,19 @@ as closed.
 > fail-safe only because the SPI heartbeat stops. So §6.5's durability model is **verified in
 > shape and unverified on its own medium**.
 
+> **Update 2026-09-24 — `OI-LFS-05` and `OI-LFS-06` are closed (`NP-SOUP-LFS-001` Rev 4 §13).**
+> Qualification (2) above is lifted: the log partitions now have parameters — `EMMC-FS-01`'s own
+> UHDR and SHDR columns, which the Rev 2 note above wrongly said did not exist, with one deviation
+> (`read_size`/`prog_size` 512, the XTS data unit, `ECR-EMMC-002`) — applied and validated by
+> `np_lfs_log_instance`, and `L-1`/`L-2` are swept on the **real** 1,767,168- and 131,072-block
+> geometry: 132 interrupted runs, 0 violations. Qualifications (1) and (3) stand. **Two new ones
+> bear on §6.5:** the specified UHDR `lookahead_size` means one whole-filesystem allocator
+> traversal per 16 MiB written, during which the writer waits — counted on the host (≈ 0.5 reads
+> per block in use), timed only on hardware (`OI-LFS-07`); and §6.5's single append-mode log file
+> per partition cannot exceed littlefs's 2 GiB `file_max`, under a third of UHDR (`OI-LFS-11`,
+> for `OI-LOG-05`). "One writer per log file" is now enforced for the Config instance by a
+> registry and a CI gate; the log glue joins that gate's caller list when it is written.
+
 ---
 
 ## 7. Safety MCU interface

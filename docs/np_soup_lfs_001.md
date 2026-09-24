@@ -2,19 +2,45 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-LFS-001
-**Revision:** 3
-**Date:** 2026-09-14
-**Status:** DRAFT — the hazard analysis (§4–§6) is complete and does not depend on a version. **Rev 3 closes `OI-LFS-02`: the IEC 62304 §7.1.2 anomaly evaluation is performed (§11) and the NeurOne power-loss injection test against `L-1…L-4` is written, run and falsified in both directions (§12).** `L-1…L-4` may now be relied on **against the `struct lfs_config` contract** — which is what they were stated against — and not against the eMMC beneath it, which no host test can reach and which is raised as `OI-LFS-07`. Rev 2 closed `OI-LFS-01` (littlefs `v2.11.3` pinned and vendored at `firmware/vendor/littlefs/`); Rev 1 performed the hazard analysis.
+**Revision:** 4
+**Date:** 2026-09-24
+**Status:** DRAFT — the hazard analysis (§4–§6) is complete and does not depend on a version. **Rev 4 builds the caller rules §11 asked for and closes five items (§13): `OI-LFS-03`, `-05`, `-06`, `-08`, `-09`.** The Config store (`np_cfg_store`) makes each rule a property of its API, a CI gate makes going around it fail, the UHDR/SHDR instances have parameters and a validator, and upstream #1205 is reproduced on `v2.11.3` and shown not to reach a caller. It also finds that `EMMC-FS-01` states every parameter Rev 2 said it did not, and that a `prog_size` below the 512-byte XTS unit loses committed data — which is the Config instance as built (`OI-LFS-10`). `OI-LFS-07` (the eMMC) and `OI-LFS-04` (Safety + EE) stay open. **Rev 3 closed `OI-LFS-02`: the IEC 62304 §7.1.2 anomaly evaluation is performed (§11) and the NeurOne power-loss injection test against `L-1…L-4` is written, run and falsified in both directions (§12).** `L-1…L-4` may now be relied on **against the `struct lfs_config` contract** — which is what they were stated against — and not against the eMMC beneath it, which no host test can reach and which is raised as `OI-LFS-07`. Rev 2 closed `OI-LFS-01` (littlefs `v2.11.3` pinned and vendored at `firmware/vendor/littlefs/`); Rev 1 performed the hazard analysis.
 **Effective Date:** —
 **Author:** NeurOne Firmware Engineering
 **Approved By:** — (DRAFT, not approved)
 **References:** `NP-SW-001` Rev 6 §9.4 (SOUP register — this record replaces its LittleFS row, and its second Class B SOUP note carries this document's conclusion); `NP-SOUP-CMSIS-001` Rev 1 (method precedent); `NP-FW-EMMC-001` Rev 2 `EMMC-FS-01` (instance parameters), `EMMC-CFG-01/-02` (Config contents and write whitelist), `EMMC-HW-01` (endurance); `NP-FW-EMMC-002` Rev 2 §C (UHDR mount); `NP-FW-NVRAM-001` Rev 2 §3.3, §4 (power-loss atomicity), §9 (Class B argument); `NP-FW-HUB-001` Rev 1 §6.5 (log durability model); `NP-CONV-001` Rev 6 §8 (a check must be falsified before it is trusted); `firmware/hub_control/include/np_log_backend.h`
-**Related Issues:** #339 (`OI-NVRAM-12`), #75 (`NP-SBOM-001` — T2 510(k) cybersecurity submission)
+**Related Issues:** #339 (`OI-NVRAM-12`), #75 (`NP-SBOM-001` — T2 510(k) cybersecurity submission), #382 (Rev 4 — `OI-LFS-03…09`), #340 (the UHDR key and scratch HAL the store will back)
 **Gate:** G2
 **IEC 62304 Class:** SW-02 Class B
 **Supersedes:** None — new document. It replaces the single verification cell that `NP-SW-001` §9.4 previously carried for this component.
 **Pinned version:** littlefs **v2.11.3** (tag commit `6cb4e86540eca0d9ba62500a298385c9d863c8be`), vendored at `firmware/vendor/littlefs/` with per-file SHA-256 — `firmware/vendor/littlefs/VERSION` is the SOUP record proper, and this document is its hazard analysis.
 **Review Cadence:** On any change to the pinned version, on first integration, and at G2. §11 is re-run in full on any tag change — a §7.1.2 evaluation is a statement about one version and carries forward to no other.
+
+---
+
+> **⚠ REV 4 — WHAT CHANGED, AND WHAT DID NOT (2026-09-24, GitHub #382).**
+>
+> | | Rev 3 | Rev 4 | Where |
+> |---|---|---|---|
+> | What stops the applicable anomalies | caller rules that do not exist | **`np_cfg_store` — each rule a property of its API; #1205 reproduced and stopped** | §13.2–§13.4 |
+> | `REQ-LFS-01` | remembered | **enforced in CI (`check-lfs-caller-rules.ts`, R4–R6)** | §13.5 |
+> | One handle per file | true by accident | **a registry, and a gate that forbids going around it** | §13.3 |
+> | Log instances (`L-1`, `L-2`) | no parameters | **`EMMC-FS-01`'s, one deviation, swept on the real 1,767,168-block geometry** | §13.1 |
+> | `EMMC-FS-01`'s Config column | read as silent on four fields | **states them all, and the code disagrees on five** | §13.1.2, `OI-LFS-10` |
+>
+> **Two things a reader must not take from Rev 4.**
+>
+> **First: the Config instance has a specific reason not to survive its medium.** A 256-byte program
+> into a 512-byte XTS unit is a read-modify-write of bytes littlefs already committed; the §13.1.3
+> sweep loses a durable Map 3 record under that model. §12's and §13's Config results still hold
+> against the `lfs_config` contract, which is all they ever claimed — but `OI-LFS-10` must be decided
+> before they are cited against an encrypted partition.
+>
+> **Second: nothing is integrated.** The store and the log instances are tested code that no path
+> in the image calls; the block device is still `OI-LOG-05..07`. And #1210 was **not reproduced**,
+> so the store is shown bounding its trigger and replicating its worst victim — not preventing it.
+>
+> **The Rev 1–3 banners below are retained verbatim** (`NP-CONV-001` §7).
 
 ---
 
@@ -205,6 +231,13 @@ what has been *shown*:
 
 **None of these is a statement about the eMMC.** §12 interrupts the block-device contract; whether
 the medium honours that contract is `OI-LFS-07`.
+
+**Rev 4 additions** (§13): `L-1`/`L-2` are now also swept on the **UHDR and SHDR** instances at their
+real geometry (132 runs, 0 violations); `L-3` is re-swept for the **in-place `O_TRUNC`** replacement
+the store uses instead of write-temp-then-rename (186 runs, 0 violations); `L-4` is swept **through
+the store** (171 runs, 0); `L-5` is enforced for the log instances. And one result against the
+table's own premise: under a 512-byte XTS read-modify-write, the Config instance's `prog_size` 256
+loses a committed record (§13.1.3, `OI-LFS-10`).
 
 ---
 
@@ -480,9 +513,10 @@ of the component is recorded, compiled and tested; that `L-5` is enforced rather
 | `RISK-LFS-02` | Corrupted safe range reaches emitter drive | **High** | blob CRC → reject-and-rebuild → empty inventory (§5.3); 62 °C throttle as the last bound | **Conditional** on `REQ-LFS-01`; re-derive if it is ever breached |
 | `RISK-LFS-03` | Atomicity claims relied on before the component is **verified** | Medium | this document; `OI-LFS-02` blocks the reliance, not the design. **Rev 2 narrowed the hazard and did not remove it** — the component now exists, which removes the "before it exists" half and makes the remaining half easier to misread, since a populated `firmware/vendor/littlefs/` looks like an answer. §7.5 is the mitigation for that reading. **Rev 3 narrows it a second time and again does not remove it**: `L-1…L-4` are now exercised against the `lfs_config` contract (§12), so what remains is reliance on them *against the eMMC*, which is a different and un-narrowed claim | **Reduced to `RISK-LFS-06` at Rev 3** — the contract half is discharged; the medium half continues as `OI-LFS-07` |
 | `RISK-LFS-04` | An unpinned version reaches the SBOM and the 510(k) submission | Medium | ~~`OI-LFS-01` blocks #75's entry~~ — **CLOSED at Rev 2.** `v2.11.3` + commit `6cb4e865` + per-file SHA-256 is an SBOM entry | **Closed 2026-09-14** |
-| `RISK-LFS-06` | **The `lfs_config` contract holds and the eMMC does not honour it.** Every `L-1…L-4` result in §12 is conditional on the medium behaving as `struct lfs_config` says a block device behaves — atomic-per-`prog_size` programs, erase-to-`0xFF`, no reordering. An eMMC's FTL is free to tear inside a 512 B sector and to answer an erase however it likes (upstream #1083, unanswered) | **Medium** | `OI-LFS-07` — power-loss injection on hardware at bring-up, on the real eMMC behind the real XTS layer. Until then §12.5 bounds what may be cited | **Open** |
-| `RISK-LFS-07` | **A Config file disappears silently and no integrity check fires** — upstream #1210's orphaned `INLINE` tag, whose data carries a valid CRC. The worst instance is `ukmd.rec`: its loss makes that user's UHDR permanently unmountable, with no NeurOne-held second copy (`NP-FW-NVRAM-001` §3.3.1.1). Not an emission path; a total loss of the user's own property | **Medium** | `OI-LFS-08` — bound the Config directory's create/delete churn, and give `ukmd.rec` a durability story that does not depend on one filesystem entry. **Nothing mitigates it today** | **Open** |
-| `RISK-LFS-05` | The log partitions are mounted with parameters nobody chose — a `block_count` three orders of magnitude larger than Config's, against a `lookahead_size` sized for Config | Medium | `OI-LFS-05`; `np_lfs_instance.h` is scoped to the Config instance in its own header and refuses to generalise | **Open** |
+| `RISK-LFS-06` | **The `lfs_config` contract holds and the eMMC does not honour it.** Every `L-1…L-4` result in §12 is conditional on the medium behaving as `struct lfs_config` says a block device behaves — atomic-per-`prog_size` programs, erase-to-`0xFF`, no reordering. An eMMC's FTL is free to tear inside a 512 B sector and to answer an erase however it likes (upstream #1083, unanswered) | **Medium** | `OI-LFS-07` — power-loss injection on hardware at bring-up, on the real eMMC behind the real XTS layer. Until then §12.5 bounds what may be cited | **Open** — Rev 4: also carries the traversal-time measurement (§13.1.4) |
+| `RISK-LFS-07` | **A Config file disappears silently and no integrity check fires** — upstream #1210's orphaned `INLINE` tag, whose data carries a valid CRC. The worst instance is `ukmd.rec`: its loss makes that user's UHDR permanently unmountable, with no NeurOne-held second copy (`NP-FW-NVRAM-001` §3.3.1.1). Not an emission path; a total loss of the user's own property | **Medium** | `OI-LFS-08` — bound the Config directory's create/delete churn, and give `ukmd.rec` a durability story that does not depend on one filesystem entry. ~~Nothing mitigates it today~~ **Rev 4 (§13.4):** the store never removes or renames, so churn is one create per file for the partition's life; `ukmd.rec` is two enveloped copies in two metadata pairs, repaired from its twin on first use | **Reduced** — #1210 was not reproduced, so the mitigation is shown bounding the trigger and replicating the victim, not preventing the defect. Both copies lost remains possible and is reported as an absence |
+| `RISK-LFS-05` | The log partitions are mounted with parameters nobody chose — a `block_count` three orders of magnitude larger than Config's, against a `lookahead_size` sized for Config | Medium | ~~`OI-LFS-05`~~ — **Rev 4:** `np_lfs_log_instance` applies and validates `EMMC-FS-01`'s UHDR/SHDR columns (with `ECR-EMMC-002`'s deviation), and `L-1`/`L-2` are swept on the real geometry (§13.1) | **Closed 2026-09-24** |
+| `RISK-LFS-08` | **A program smaller than the XTS data unit tears committed data.** The encryption layer must read-modify-write the whole 512-byte unit, so a power loss damages bytes littlefs has already synced — breaking the property `L-1…L-4` rest on from below the contract | Medium | Log instances: `prog_size` 512, validated and `_Static_assert`ed (§13.1.3, `ECR-EMMC-002`). **Config instance: not mitigated** — built at 256 per `EMMC-FS-01`, shown to lose a durable Map 3 record under the RMW model | **Open for Config** — `OI-LFS-10` |
 
 ---
 
@@ -492,13 +526,15 @@ of the component is recorded, compiled and tested; that `L-5` is enforced rather
 |---|---|---|---|
 | ~~`OI-LFS-01`~~ | **✅ CLOSED 2026-09-14 (Rev 2) — littlefs `v2.11.3` pinned and vendored** at `firmware/vendor/littlefs/`: byte-exact five-file subset verified by two independent downloads, per-file SHA-256, the configuration of §7.3 recorded *and* compiled *and* tested (`np_lfs_config_tests`, 19 falsified rejections), and an explicit "what this does not establish". §7.4. **Closing it unblocks #75 and unblocks `OI-LFS-02`; it unblocks no atomicity claim** — see §7.5, and note that the item below inherits the BLOCKING status this one carried | — (closed) | — |
 | ~~`OI-LFS-02`~~ | **✅ CLOSED 2026-09-14 (Rev 3) — both halves performed.** The IEC 62304 §7.1.2 anomaly evaluation against `v2.11.3` is **§11**: five tracker queries plus the release notes and the `v2.11.2`→`v2.11.3` differential, thirteen items assessed against §3's seven claims, **three applicable** (#1210, #1205, #1086) and none of them on a path to an emission. The power-loss injection test is **§12**: `np_lfs_powerloss_tests`, NeurOne's own injecting block device, **456 interrupted runs across three scenarios and three tear models with 0 violations**, plus three unsafe orderings the same verifiers are required to catch and six hand perturbations of which five were caught and one (P4) was not and is recorded as a negative result. **Closing it unblocks `NP-FW-NVRAM-001` §4, `EMMC-FS-01` and `NP-FW-HUB-001` §6.5 only as far as §12.5 states** — against the `lfs_config` contract, not against the eMMC — and it leaves three successors below, two of which are constraints on code that does not exist yet | — (closed) | — |
-| **`OI-LFS-07`** | **Power-loss injection on hardware.** §12 interrupts the `struct lfs_config` contract; the medium is an eMMC behind an XTS layer, and littlefs's guarantees are written for raw program/erase semantics. Undecided on both sides: what NeurOne's `erase()` callback does on a device with large erase groups, whether `block_cycles` 500 (claim `L-6`) means anything above an FTL that levels wear itself, and whether "reliable write" bounds a torn sector. Upstream #1083 asks exactly this and has no answer, #1203 is the same family. **This is the part of `OI-LFS-02` a host test could never discharge, and it is raised rather than absorbed** | FW + EE | **Any reliance on `L-1…L-4` against the MEDIUM rather than the contract.** `RISK-LFS-06`; bring-up |
-| **`OI-LFS-08`** | **Bound the Config directory's create/delete churn, and stop `ukmd.rec` depending on one filesystem entry.** Upstream #1210 loses a file's `NAME` tag during compaction while keeping its `INLINE` data, silently and with a valid CRC — triggered by repeated create/delete of a lower-id file in the same metadata pair, which is exactly what write-temp-then-rename does, and `ukmd.rec` (192 B) and Map 3's records (32 B) are both inline at `cache_size` 256. No fix upstream; `v2.11.3` is not excluded. The consequence to design against is **a user's UHDR becoming permanently unmountable through a defect nothing on the device can observe** | FW | `OI-LOG-05..07`; `RISK-LFS-07`; `NP-FW-EMMC-002` §C |
-| **`OI-LFS-09`** | **Validate stored values by content, on every read.** Two findings converge on one rule: #1205 leaves stale bytes in the read cache after a block-device read error and returns them **reporting success**, and #1164 establishes that a file can exist after a power loss with none of its data — so `lfs_stat()` is not a durability check and a single check at mount is not enough. The glue must re-verify the blob CRC, each Map 3 record and `ukmd.rec`'s GCM tag at each use, and must not retry a failed read through the same cache | FW | `OI-LOG-05..07`; §11.4 |
-| **`OI-LFS-03`** | **Write and falsify the CI check for `REQ-LFS-01`** — that no value bounding an emission is stored under a tail-additive policy, i.e. that Map 3's journal is never read as a limit. `warranty-nojoin-ci.yml` is the pattern | FW + Safety | `REQ-LFS-01` durability; §6.2 |
+| **`OI-LFS-07`** | **Power-loss injection on hardware.** §12 interrupts the `struct lfs_config` contract; the medium is an eMMC behind an XTS layer, and littlefs's guarantees are written for raw program/erase semantics. Undecided on both sides: what NeurOne's `erase()` callback does on a device with large erase groups, whether `block_cycles` 500 (claim `L-6`) means anything above an FTL that levels wear itself, and whether "reliable write" bounds a torn sector. Upstream #1083 asks exactly this and has no answer, #1203 is the same family. **This is the part of `OI-LFS-02` a host test could never discharge, and it is raised rather than absorbed** **Rev 4 adds two bring-up measurements:** the time of one allocator traversal on a realistically filled UHDR partition (§13.1.4 — ≈ 0.5 reads per block in use; if it exceeds the session logger's buffering headroom, revisit `lookahead_size`), and whether the eMMC + XTS stack tears a 512-byte unit as a whole or not at all (§13.1.3's model is the worst case) | FW + EE | **Any reliance on `L-1…L-4` against the MEDIUM rather than the contract.** `RISK-LFS-06`; bring-up |
+| ~~`OI-LFS-08`~~ | **✅ CLOSED 2026-09-24 (Rev 4, §13.4).** Bound the Config directory's create/delete churn, and stop `ukmd.rec` depending on one filesystem entry (upstream #1210). **Done:** `np_cfg_store` never removes or renames — replacement is an in-place `O_TRUNC` rewrite, re-swept for `L-3` (186 runs, 0 violations) — so the partition sees one create per file for its life and zero deletes; `ukmd.rec` is two enveloped copies in two directories (two metadata pairs), repaired from its twin on first use. **Not shown:** #1210 did not reproduce on `v2.11.3` in 3,000 churn cycles, so the store is shown bounding the trigger and replicating the victim, not preventing the defect. `RISK-LFS-07` reduced | — (closed) | — |
+| ~~`OI-LFS-09`~~ | **✅ CLOSED 2026-09-24 (Rev 4, §13.2).** Validate stored values by content on every read. **Done:** `np_cfg_store` has no unverified read and no `stat` — a content check is mandatory on every read; a read error is an absence, never retried, and forces a remount before the next operation. **#1205 reproduced on `v2.11.3`** through raw littlefs and shown not to reach a store caller; hand-falsifying the remount found a second path (a failed read of the root metadata pair poisons littlefs's own cache) that is now a test, and the store's own test found a defect in it (a failed remount stuck) that is fixed | — (closed) | — |
+| ~~`OI-LFS-03`~~ | **✅ CLOSED 2026-09-24 (Rev 4, §13.5).** The CI check for `REQ-LFS-01`: `scripts/check-lfs-caller-rules.ts`, run by `tooling-ci.yml` after its own 21-case `--self-test`. R4 pins the tail-additive Config files to exactly Map 3's journal; R5 allows the journal reader only from listed callers, each with why it reads history (none yet); R6 forbids every emission-limit consumer from naming the journal at all. In the API, each file's policy decides which call may touch it. **Reach:** textual — a value handed through a helper is not followed, which is why every `JOURNAL_READERS` entry must carry its reason | — (closed) | — |
 | **`OI-LFS-04`** | `OI-NVRAM-10` — is there a Class C bound on per-tile emitter drive current independent of Map 1's ranges? Carried here because §5.3's third barrier is a thermal limit standing in for an optical one, and this document is where that now has a named consequence | Safety + EE | **Class B classification durability** |
-| **`OI-LFS-05`** | **Decide the UHDR and SHDR log instances' parameters.** `EMMC-FS-01` states parameters for the **Config** partition only, and `L-1`/`L-2` — the two claims `NP-FW-HUB-001` §6.5's whole durability model rests on — are claims about the **log** partitions. SHDR is 512 MiB and UHDR 6,903 MiB, so at `block_size` 4,096 their `block_count` is 131,072 and 1,767,168 against Config's 4,096: a full-coverage `lookahead_size` would be 16 KiB and 216 KiB respectively, which is a real decision and not a copy of Config's 512 B. Also decide `file_max` for an append-only log, where Config's 65,536 is plainly wrong. Raised by Rev 2 while writing the Config instance; `np_lfs_instance.h` is deliberately scoped so it cannot be reused for them by analogy | FW | **`OI-LOG-05..07` (the mount glue); `NP-FW-HUB-001` §6.5** |
-| **`OI-LFS-06`** | **Make "one open handle per file" checkable.** `v2.11.3` was pinned partly for upstream `488e84bb`, which fixes corruption arising from two write handles on one file (§7.4). NeurOne's five files each have one writer by design, but nothing enforces or observes it; `lfs_mlist_isopen` catches it at run time only, and only because §2.1's `LFS_NO_ASSERT` finding was caught. Belongs with the `OI-LOG-05..07` glue — a single open-handle registry, or the `warranty-nojoin-ci.yml`-shaped check `OI-LFS-03` already establishes the pattern for | FW | `OI-LOG-05..07` |
+| ~~`OI-LFS-05`~~ | **✅ CLOSED 2026-09-24 (Rev 4, §13.1).** The UHDR and SHDR instances' parameters. **The premise was wrong: `EMMC-FS-01` has UHDR and SHDR columns** (and states every Config value Rev 2 said it did not — `OI-LFS-10`). Decided: `EMMC-FS-01`'s values with **one deviation, `read_size`/`prog_size` 512** (`ECR-EMMC-002`: a smaller program is a read-modify-write of committed bytes under the 512-byte XTS unit, shown by sweep). `lookahead_size` kept at the specified 512/256 under CLAUDE.md §18 — full coverage would cost 237 KiB of on-chip RAM against an unmeasured stall — with its traversal cost measured in reads and its time added to `OI-LFS-07`. `np_lfs_log_instance` applies and validates them; `L-1`/`L-2` swept on the real 1,767,168- and 131,072-block geometry (132 runs, 0 violations). **Does not build the UHDR file glue** — that is `OI-LOG-05..07`, so `OI-FAULTMSG-03` narrows rather than unblocks. `RISK-LFS-05` closed | — (closed) | — |
+| ~~`OI-LFS-06`~~ | **✅ CLOSED 2026-09-24 (Rev 4, §13.3).** One open handle per file, made checkable. Every Config handle comes from `cfg_open()`, which keeps a registry and refuses a second (`NP_HUB_ERR_STORE_BUSY`), tested; the gate's R1/R2 forbid littlefs calls outside the listed callers, `lfs_file_open()` anywhere, and `lfs_file_opencfg()` anywhere but inside `cfg_open()`. The log instances' future glue must be added to the gate's `LFS_CALLERS` with its reason | — (closed) | — |
+| **`OI-LFS-10`** | **The Config instance disagrees with `EMMC-FS-01`, and one disagreement is a hazard.** `np_lfs_instance.h` says `EMMC-FS-01` does not state `cache_size`, `lookahead_size` or `block_cycles`; it states them (512, 64, 200), and `name_max`/`attr_max` (64, 256), and the code differs on all five (§13.1.2). Separately and more seriously, **`EMMC-FS-01`'s own Config `prog_size` 256 is below the 512-byte XTS unit**: under a read-modify-write tear the §13.1.3 sweep loses a durable Map 3 record through the store. Decide: move the Config instance to `read`/`prog` 512 (which moves every Config result in §12 and §13 onto a new configuration, so both suites re-run — they do in CI) and extend `ECR-EMMC-002` to the Config column; and for the other four fields, either adopt the table or ECR it with the reasons in `np_lfs_instance.h`. **Not decided here** because it changes the instance `L-5` pins and `ukmd.rec`'s inline status, which is `NP-FW-EMMC-002` §C's to weigh | FW | **Any reliance on Config-instance power-loss results against an XTS-encrypted partition.** `RISK-LFS-08` |
+| **`OI-LFS-11`** | **The log backend's file layout cannot fill the UHDR partition.** `np_log_backend.h` specifies one append-mode log file per partition; littlefs caps a file at `file_max` = 2 GiB − 1, under a third of UHDR's 6,903 MiB. `EMMC-UHDR-12` specifies one file per session instead, which the parameter suits. The `OI-LOG-05` glue must pick one, and the one-file design needs a rotation it does not have | FW | `OI-LOG-05`; `NP-FW-HUB-001` §6.5 |
 
 ---
 
@@ -511,6 +547,7 @@ of the component is recorded, compiled and tested; that `L-5` is enforced rather
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 4 | 2026-09-24 | NeurOne Firmware Engineering | **Builds the caller rules §11 asked for — `OI-LFS-03`, `-05`, `-06`, `-08`, `-09` CLOSED (GitHub #382), §13.** New Class B module **`np_cfg_store`**, the Config instance's only caller, in which each rule is a property of the API: a registry that refuses a second handle (`OI-LFS-06`); no unverified read, no `stat`, a read error reported as an absence and followed by a remount (`OI-LFS-09`); no remove or rename — replacement is an in-place `O_TRUNC` rewrite, re-swept for `L-3` — and `ukmd.rec` held as two enveloped copies in two metadata pairs, repaired from its twin (`OI-LFS-08`); and a per-file policy table whose tail-additive rows are pinned. **`scripts/check-lfs-caller-rules.ts`** makes going around the API fail CI and is `REQ-LFS-01`'s check (`OI-LFS-03`), self-tested in 21 cases. New module **`np_lfs_log_instance`**: the UHDR/SHDR parameters, validator and allocator primer (`OI-LFS-05`). Host targets `np_cfg_store_tests` and `np_lfs_log_instance_tests` (Class B 32 → 34, repo 42 → 44); `np_lfs_powerbd` gains a sparse medium, read-error injection and a read-modify-write tear unit, all off by default so §12's suite is untouched. **Findings:** upstream **#1205 reproduced** on `v2.11.3` and shown not to reach a store caller — hand-falsification of the remount found a second, metadata-pair path, now a test; **`EMMC-FS-01` states every parameter** Rev 2 said it did not, including UHDR and SHDR columns, and the Config code disagrees on five fields; **`prog_size` below the 512-byte XTS unit loses committed data** under a read-modify-write tear — the logs deviate to 512 (`ECR-EMMC-002`), the Config instance as built does not (`OI-LFS-10`, `RISK-LFS-08`); the specified UHDR `lookahead_size` costs one whole-filesystem traversal per 16 MiB written, ≈ 0.5 reads per block in use, kept under CLAUDE.md §18 with its time added to `OI-LFS-07`; the log backend's single-file layout cannot fill UHDR (`OI-LFS-11`). **Negative results recorded:** #1210 did not reproduce; the remount was at first caught only by a counter. Falsified by hand in 13 ways (§13.6). `RISK-LFS-05` closed, `RISK-LFS-07` reduced, `RISK-LFS-08` added. **Not closed:** `OI-LFS-07` (hardware) and `OI-LFS-04` (Safety + EE). Nothing is integrated. Rev 3 → 4. |
 | 3 | 2026-09-14 | NeurOne Firmware Engineering | **Closes `OI-LFS-02`: the §7.1.2 anomaly evaluation is performed (§11) and `L-1…L-4` are exercised (§12).** **§11** evaluates littlefs `v2.11.3`'s published anomaly list — its GitHub tracker and release notes, because upstream publishes no numbered errata document — through five queries plus the `v2.11.2`→`v2.11.3` differential, and assesses thirteen items against §3's seven claims. **Three are applicable and none reaches an emission**: #1086's assertion becomes a halt the safety MCU converts into a stimulation cutoff; #1205's stale read cache becomes an absence because every stored value is CRC- or AEAD-checked at the point of use; and **#1210 is stopped by nothing that exists today** — it drops a file's `NAME` tag during compaction while keeping its `INLINE` data, silently, with a valid CRC, and the consequence to design against is a user's UHDR becoming permanently unmountable through the loss of `ukmd.rec`. **That is §6.2's finding arriving a second time by a different route**: the anomaly profile, like the Class B argument, rests on caller policy — and the callers are the unwritten `OI-LOG-05..07` glue. **§12** records `np_lfs_powerloss_tests` (Class B 28 → 29, repo 35 → 36): NeurOne's own injecting block device, written rather than vendored because vendoring upstream's `lfs_emubd` would make the old *"per LittleFS test suite"* citation look discharged; a cut swept across **every** medium-touching op of each commit sequence under three tear models; **456 interrupted runs, 0 violations**, every attempt remounting cleanly. `L-1` is checked in a sharper form than it is written — the recovered length must be an exact flush boundary — and `L-3`'s result is explicitly **a property of the write-temp-then-rename ordering, not of the component**. Falsified in both directions per `NP-CONV-001` §8: three unsafe orderings the same verifiers are required to catch (including truncate-and-rebuild, which is `REQ-LFS-01`'s own subject matter), and six hand perturbations of which **five were caught and P4 was not** — clearing the `lfs_t` across a simulated reboot changes nothing, because `lfs_mount()` re-initialises it, and that negative result is recorded rather than dropped. **What a reviewer may cite is bounded by §12.5**: the contract was interrupted, the eMMC was not. `RISK-LFS-03` reduced, `RISK-LFS-06` and `RISK-LFS-07` added. Three successors: `OI-LFS-07` (hardware injection over the real eMMC and XTS layer — the part of `OI-LFS-02` a host could never discharge), `OI-LFS-08` (#1210: bound the Config directory's create/delete churn and stop `ukmd.rec` resting on one filesystem entry) and `OI-LFS-09` (validate by content on every read — #1205 and #1164 converge on it). Rev 2 → 3. |
 | 2 | 2026-09-14 | NeurOne Firmware Engineering | **Closes `OI-LFS-01`: littlefs is pinned at `v2.11.3` and vendored, with its configuration.** Five byte-exact files at `firmware/vendor/littlefs/` from tag commit `6cb4e865`, verified by two independent downloads and carrying per-file SHA-256; a `VERSION` SOUP record on the `cmsis_core` pattern; `np_littlefs` building in both modes. **The tag choice is a safety argument, not a preference**: `v2.11.3` is the first release containing upstream `488e84bb`, which fixes data corruption from two write handles on one file — a defect on exactly the axis `L-1…L-4` rest on — and it leaves behind a NeurOne requirement (one open handle per file, `OI-LFS-06`). §7.3's configuration is recorded, compiled and tested: `LFS_NO_MALLOC` with static buffers, `block_cycles` **500** checked by value because `-1` passes every non-zero test and silently disables `L-6`, `LFS_THREADSAFE` on because the Config instance has three specified writers, assertions retargeted to the `np_freertos_assert_failed` halt, and `np_lfs_config_validate()` as the mount-time check `L-5` names — **littlefs's own asserts check that a config is self-consistent and cannot check that it is NeurOne's.** `np_lfs_config_tests` (Class B 27 → 28, repo 34 → 35) re-derives the SHA-256s, compares the build configuration against the SOUP record, and requires 19 single-field perturbations to be rejected; it was falsified in seven ways first per `NP-CONV-001` §8. **One finding came out of building it**: setting `LFS_NO_ASSERT` beside a replacement `LFS_ASSERT` removes the *definition* of `lfs_mlist_isopen` while keeping the *call*, and that assertion is the run-time detector for the very corruption this tag was pinned for. **Rev 1's §7.1 reasoning is outweighed, not refuted** — "do not pin before the anomaly list is read" blocked its own precondition, since the list cannot be read without a tag; the absence of the evaluation is now recorded explicitly instead of being concealed behind a missing version. **`OI-LFS-02` inherits the BLOCKING status**: `NP-FW-NVRAM-001` §4, `EMMC-FS-01` and `NP-FW-HUB-001` §6.5 are exactly as unverified as at Rev 1, and §7.5 exists because a populated vendor directory reads as an answer. `RISK-LFS-04` closed, `RISK-LFS-03` narrowed, `RISK-LFS-05` added. Two new open items: `OI-LFS-05` (the log partitions have no stated instance parameters, and they are the ones `L-1`/`L-2` are about) and `OI-LFS-06`. Feeds #75 (`NP-SBOM-001`) — which an SBOM entry can now satisfy. Rev 1 → 2. |
 | 1 | 2026-09-13 | NeurOne Firmware Engineering | **Initial release — brings LittleFS under SOUP management and performs the hazard analysis `OI-NVRAM-12` requires (Issue #339).** Replaces `NP-SW-001` §9.4's single cell (*"2.x"* / *"Power-loss testing per LittleFS test suite"*). **Principal finding: LittleFS is not unmanaged, it is absent** — `grep -rn "lfs_" firmware/` returns two hits, both comments in `np_log_backend.h` naming the `OI-LOG-06/07` seams, so every power-loss atomicity guarantee in `NP-FW-NVRAM-001` §4, `EMMC-FS-01` and `NP-FW-HUB-001` §6.5 rests on a component with no source, no version and no NeurOne test. **Second finding, and the one that outlives integration: the Class B classification is not a property of LittleFS but of `np_module_map`'s reject-and-rebuild policy** — every integrity failure becomes an *empty* inventory rather than a *wrong* one — and `NP-FW-NVRAM-001` §7.2 specifies Map 3 to need the opposite, tail-additive policy for independently correct reasons. `REQ-LFS-01` is the rule that keeps both decisions safe: no value that bounds an emission may be stored under a tail-additive policy. **The §7.1.2 anomaly evaluation is deliberately not performed** — it evaluates the list for the version in use and none is in use; recording a conclusion against *"2.x"* would reproduce `OI-DOC-01` inside the document written to close its sibling. Four risk rows, four open items, two of which supersede the halves of `OI-NVRAM-12`. Feeds #75 (`NP-SBOM-001`). |
@@ -804,3 +841,277 @@ is the extent they were written at.
   test block device is not a working storage stack.
 - **A hang.** §12 cannot distinguish a post-power-loss hang from a slow run (§11.3, #1211).
 - **`L-6`.** Wear levelling is configured and checked by value; nothing here measures it.
+
+---
+
+## 13. The caller rules, built — `OI-LFS-03`, `-05`, `-06`, `-08`, `-09` (performed 2026-09-24, Rev 4)
+
+> §11 ended with a set of constraints on code that did not exist, and said that was the cheapest
+> moment to state them. This section is the code, and what it was shown to do. GitHub Issue #382.
+> Two items are **not** closed here and are not closable on a host: `OI-LFS-07` (the eMMC) and
+> `OI-LFS-04` (a Safety + EE question). One new defect was found in the record itself (§13.1.2) and
+> one in NeurOne's own configuration (§13.1.3, `OI-LFS-10`).
+
+### 13.0 What was built
+
+| File | What it is |
+|---|---|
+| `firmware/hub_control/include/np_cfg_store.h`, `src/np_cfg_store.c` | **The Config store** — the only caller of the Config instance. Each §11 caller rule is a property of its API rather than an instruction to its users |
+| `firmware/hub_control/include/np_lfs_log_instance.h`, `src/np_lfs_log_instance.c` | **The UHDR and SHDR instances** — parameters, mount-time validator (claim `L-5` for the logs), and the allocator primer |
+| `firmware/hub_control/tests/np_cfg_store_tests.c` | Class B host target 33 |
+| `firmware/hub_control/tests/np_lfs_log_instance_tests.c` | Class B host target 34 — Class B 32 → **34**, repo total 42 → **44**, re-derived with `ctest -N` |
+| `firmware/hub_control/tests/np_lfs_sweep.{h,c}` | The §12 sweep method as a reusable harness, so §12's own suite stays byte-identical and its recorded results stay results about the code that produced them |
+| `firmware/hub_control/tests/np_lfs_powerbd.{h,c}` | Three additions, all **off by default** so `np_lfs_powerloss_tests` runs against exactly the device it always did: a sparse medium, read-error injection, and a read-modify-write tear unit |
+| `scripts/check-lfs-caller-rules.ts` | **The `OI-LFS-03` / `OI-LFS-06` gate**, run by `tooling-ci.yml` job `lfs-caller-rules` after its own `--self-test` (21 cases) |
+| `np_hub_types.h` | Three statuses: `NP_HUB_ERR_STORE_BUSY` / `_IO` / `_INTEGRITY` |
+
+**Nothing here is integrated, and that has not changed.** The block device over the XTS-mounted
+partition is still `OI-LOG-05..07`; `np_cfg_store` and the log instances compile into
+`np_hub_control` under the ARM toolchain and no code path in the image calls them, so the link drops
+them. What moved is that the rules the glue must obey now exist as code that is tested, rather than
+as sentences in §11.5.
+
+### 13.1 `OI-LFS-05` — the log instances' parameters (CLOSED)
+
+#### 13.1.1 The decision
+
+| Parameter | UHDR | SHDR | Source |
+|---|---|---|---|
+| `block_size` | 4,096 | 4,096 | `EMMC-FS-01`, `EMMC-FS-02` |
+| `block_count` | 1,767,168 | 131,072 | `EMMC-FS-01` — and `_Static_assert`ed against `np_config.h`'s partition map, not against the table's own division |
+| **`read_size`, `prog_size`** | **512** | **512** | **DEVIATION** from `EMMC-FS-01`'s 256 — §13.1.3, `ECR-EMMC-002` |
+| `cache_size` | 4,096 | 4,096 | `EMMC-FS-01` |
+| `lookahead_size` | 512 | 256 | `EMMC-FS-01` — examined and kept, §13.1.4 |
+| `block_cycles` | 500 | 500 | `EMMC-FS-01`; claim `L-6`, and `OI-LFS-07` |
+| `file_max` | 2,147,483,647 | 2,147,483,647 | `EMMC-FS-01` (= `LFS_FILE_MAX`) — but see `OI-LFS-11` |
+| `name_max`, `attr_max`, `metadata_max` | 255, 1,022, 4,096 | same | `EMMC-FS-01` |
+
+Static RAM for both instances: **17,152 B** (two 4 KiB caches each, plus 768 B of lookahead).
+
+#### 13.1.2 The premise `OI-LFS-05` was raised on was wrong — and so is Rev 2's reading of `EMMC-FS-01`
+
+`OI-LFS-05` said `EMMC-FS-01` *"states parameters for the Config partition only"*, and
+`np_lfs_instance.h` says the same in code: *"The five EMMC-FS-01 owns"* and *"The four EMMC-FS-01
+does not state — NeurOne decisions"*. **`NP-FW-EMMC-001` §5.2's `EMMC-FS-01` table has a UHDR, an
+SHDR and a Config column, each with twelve parameters.** It states every value Rev 2 thought it did
+not. That is recorded rather than quietly fixed, because it is the second time in this document that
+a claim about what another record says was taken on trust (`NP-CONV-001` §7).
+
+For the logs the consequence is benign: the decision became *take the specified values and find out
+whether they survive*, and eleven of twelve do. **For the Config instance it is not benign** — the
+code disagrees with its own specification on five fields, and one of the five is the hazard below.
+That is `OI-LFS-10`.
+
+| Config field | `EMMC-FS-01` | Built (`np_lfs_instance.h`) |
+|---|---|---|
+| `read_size` / `prog_size` | 256 / 256 | 256 / 256 — **and both are below the XTS unit, §13.1.3** |
+| `cache_size` | 512 | 256 |
+| `lookahead_size` | 64 | 512 |
+| `block_cycles` | 200 | 500 |
+| `name_max` / `attr_max` | 64 / 256 | not set (255 / 1,022) |
+
+#### 13.1.3 The deviation: a program smaller than the XTS data unit is not a program
+
+`EMMC-FS-01` prints `read_size`/`prog_size` 256. `EMMC-UHDR-05` sets the AES-XTS data unit to
+**512 bytes, "matching the LittleFS read_size and prog_size"**, and `EMMC-SHDR-03` inherits it. Both
+cannot hold. The clause that states its reason wins, and the reason is a hazard, not a preference:
+XTS encrypts a whole data unit under one tweak, so a 256-byte program into a 512-byte unit makes the
+encryption layer read, decrypt, merge, re-encrypt and **rewrite the whole unit**. A power loss inside
+that rewrite damages the other 256 bytes — bytes littlefs already committed and synced. The one
+property of `struct lfs_config` that `L-1…L-4` rest on is that a program disturbs nothing outside
+itself, and this breaks it from below.
+
+**Shown, not argued.** `np_lfs_powerbd` gained an `rmw_unit`: under a `PARTIAL` tear, a program
+smaller than the unit leaves the **whole enclosing unit** indeterminate. Same sweep, same verifier:
+
+| Instance | `prog_size` | RMW unit | Attempts | Violations |
+|---|---|---|---|---|
+| SHDR, as decided | 512 | 512 | 66 | **0** |
+| SHDR, as `EMMC-FS-01` prints it | 256 | 512 | 66 | **1** — not a flush boundary (`L-1`) |
+| SHDR, control | 256 | none | 66 | 0 — so the failure is the unit's, not 256's |
+| **Config, as built today** | 256 | 512 | 123 | **1** — a durable Map 3 record lost (`L-4`) |
+| Config, control | 256 | none | 123 | 0 |
+
+One violation in 66 is not a rate anyone should read anything into; it is an existence proof, which
+is what a falsification needs. The model is the **worst** case (the whole unit indeterminate) — a
+real FTL might tear more gently, which is exactly the thing only `OI-LFS-07` can measure.
+
+**`ECR-EMMC-002`** — raised against `NP-FW-EMMC-001` (a `.docx`, so not edited here, `OI-CONV-04`),
+on the `ECR-EMMC-001` pattern. Clause `EMMC-FS-01`, rows `read_size` and `prog_size`, UHDR and SHDR
+columns: replace *"256 bytes"* with *"512 bytes (= the XTS data unit, EMMC-UHDR-05; a smaller
+program forces a read-modify-write of a unit whose other half littlefs has already committed)"*.
+The Config column is `OI-LFS-10`'s decision and is deliberately not in this ECR.
+
+Enforced three ways: `np_lfs_log_config_validate()` refuses 256; a `_Static_assert` requires
+`prog_size` to be a whole number of 512-byte units; and the test above fails if the RMW model ever
+stops producing the violation, which would leave the deviation with no evidence behind it.
+
+#### 13.1.4 `lookahead_size` — examined, kept, and its cost measured
+
+The specified windows cover 4,096 blocks (UHDR, 16 MiB) and 2,048 (SHDR, 8 MiB). Each time one is
+used up, `lfs_alloc_scan()` traverses **the whole filesystem** — cost proportional to blocks in use —
+and the writer waits. Full coverage would move every traversal to mount, at **220,896 B + 16,384 B**
+of static RAM on a processor with no external SDRAM (`NP-SW-CI-001` §4.13, `OI-SWCI-46`). What fails
+if the window stays small is a stall of the session logger whose **duration** is per-read eMMC
+latency × blocks in use — a property of silicon. CLAUDE.md §18: a constraint needs a failure it
+prevents, and this one's size is unmeasured. So the specified value stands, and the **count** is
+measured instead:
+
+| UHDR geometry, 16,384 blocks (64 MiB) in use | |
+|---|---|
+| Reads in one full traversal | **8,292** (≈ 0.5 per block in use) |
+| A 6,144-block (24 MiB, ~30 min of EEG) session, unprimed | **2** traversals, worst single write 10,319 reads |
+| The same session after `np_lfs_log_prime_allocator()` at mount | **1** traversal |
+
+Extrapolated, a near-full UHDR partition costs on the order of **880,000 reads per traversal**, one
+per 16 MiB written. Whether that is milliseconds or minutes is the eMMC's answer, and **it is added to
+`OI-LFS-07`'s bring-up list**: measure one traversal's time at a realistic fill; if it exceeds the
+session logger's buffering headroom, revisit this value with the measurement in hand. What is done
+now costs nothing: `np_lfs_log_prime_allocator()` runs `lfs_fs_gc()` at mount, so the one traversal
+that is certain happens where a delay costs nothing instead of inside the first session's first
+append.
+
+#### 13.1.5 What else the decision surfaced
+
+`file_max` = `LFS_FILE_MAX` is right for `EMMC-UHDR-12`'s one-file-per-session layout and **wrong for
+`np_log_backend.h`'s "the append-mode log file"** — one file per partition cannot exceed 2 GiB, under
+a third of the UHDR partition. That is a finding against the log backend's layout, not against the
+parameter: `OI-LFS-11`, for `OI-LOG-05`.
+
+`OI-FAULTMSG-03` named `OI-LFS-05` as its storage blocker. **The parameters are decided; the UHDR
+file glue those parameters are for is still `OI-LOG-05..07` (#340)** — so `OI-FAULTMSG-03` narrows
+rather than unblocks.
+
+### 13.2 `OI-LFS-09` — content, on every read, and never retried (CLOSED)
+
+**There is no unverified read in `np_cfg_store`.** Every read takes a mandatory content check
+(`NULL` is refused) and runs it on the bytes just read; there is no `stat`. Tested: a never-written
+file reads as absent; **an existing, empty file (upstream #1164) is refused**; a single flipped bit in
+a data block — which littlefs does not checksum — is refused; and the same corrupted read with an
+accept-anything check comes back OK, so the refusal is the check's doing.
+
+**Upstream #1205 was reproduced on `v2.11.3`.** Through raw littlefs: read the front of a
+four-block file (the file cache now holds block X), seek into block Y, fail one read of Y, retry —
+**the retry returns block X's bytes and reports success**. §11.3 assessed #1205 from its report; it
+is now a NeurOne observation, and `np_cfg_store_tests` fails if it ever stops reproducing (which
+would mean either the defect is gone — re-run §11 — or the mitigation is shown against nothing).
+
+**Through the store it does not reach a caller**, for two reasons that turned out to be separable:
+
+1. **A handle never outlives the call that opened it**, so a poisoned *file* cache dies with its
+   handle. This alone stops the scenario above.
+2. **A read error forces a remount before the next operation.** Hand-falsifying the remount showed
+   (1) was hiding a second path: a failed read of the root **metadata** pair poisons littlefs's own
+   read cache, which outlives every handle — without the remount, the next fault-free read reported
+   `npmp.bin` as **absent**. With it, correct. `lfs_mount()` → `lfs_init()` zeroes both caches; it is
+   the only public-API way to drop them, and patching `lfs_bd_read()` is not available (byte-exact
+   SOUP).
+
+And one defect in the store, found by its own test: when the remount *itself* met the fault, the
+store stayed unmounted for the rest of the power cycle — every later read an absence, with nothing
+wrong. A failed remount now stays pending and retries on the next call.
+
+### 13.3 `OI-LFS-06` — one open handle per file (CLOSED)
+
+Every handle on the Config instance comes from one static function, `cfg_open()`, which keeps a
+registry and refuses a second handle on an open file (`NP_HUB_ERR_STORE_BUSY`). Tested through a
+host-only hook that holds one handle and asks for another. **What makes it checkable rather than
+true-by-construction** is the gate (§13.5 R1, R2): no translation unit in `firmware/` outside the
+listed callers may call littlefs at all, `lfs_file_open()` is called nowhere, and
+`lfs_file_opencfg()` exactly once, inside `cfg_open()`.
+
+### 13.4 `OI-LFS-08` — bounded churn, and `ukmd.rec` on two entries (CLOSED)
+
+**Churn.** The store never removes and never renames. A whole-file replacement is an **in-place
+`O_CREAT | O_TRUNC` rewrite**: littlefs's truncation is lazy and is committed together with the new
+contents at close, so the old file survives a cut at any point before that commit. **§12's `L-3`
+result was about write-temp-then-rename, and this is a different ordering — so it was re-swept:**
+186 interrupted runs, 0 violations, with the remove-then-write ordering required to fail under the
+same verifier (192 of 198). Over 850 writes across all three files the partition sees **exactly one
+create per directory and file, and zero removes**; after a reboot, zero creates at all — a create
+there would mean a file was lost and re-made.
+
+**`ukmd.rec`.** Two copies, `ra/ukmd.rec` and `rb/ukmd.rec`, in two **directories** — two chains of
+metadata pairs, because #1210 acts on one pair while compacting it, and two names in one directory
+would share the pair. Each copy is an envelope (magic, generation, length, CRC-32), because the store
+must tell a good copy from a bad one **without the user's key** — `ukmd.rec`'s own GCM tag is still
+checked by `np_uhdr_key` at every unlock. Written A then B; read picks the valid copy with the higher
+generation and **repairs the twin on first use**. Tested: copy A's entry deleted outright (#1210's
+consequence, applied directly) → served from B, A restored; B's content damaged → served from A, B
+restored; A left one generation behind → the newer copy wins; both gone → an absence, never a
+different record. Swept under power loss (12 runs, 0 violations — two inline commits, so few ops),
+with "both copies destroyed first" required to fail (12 of 36).
+
+**What was not shown, and is recorded as a negative result.** #1210 was **not reproduced** on
+`v2.11.3`: 3,000 cycles of the old write-temp-then-rename churn beside `ukmd.rec` in one directory,
+blob inline and not, lost nothing. So the suite cannot show the store *preventing* #1210. It shows
+the two things the store does about it — the trigger bounded to a constant, and the one
+unrecoverable file no longer resting on one entry. A later reproduction belongs in
+`np_cfg_store_tests`, not in prose.
+
+### 13.5 `OI-LFS-03` — `REQ-LFS-01` made observable (CLOSED)
+
+Two halves. **In the API:** every Config file has one row in `s_files[]` with a policy
+(`REBUILD`, `TAIL_ADDITIVE`, `REPLICATED`), and the policy decides which call may touch it — the
+rebuild-cache reader refuses the journal, the journal reader refuses a rebuild cache, and nothing
+appends to a rebuild cache. **In CI:** `scripts/check-lfs-caller-rules.ts`, on the
+`warranty-nojoin-ci.yml` pattern — its self-test runs before it, proving each rule rejects and each
+vacuity path refuses (21 cases):
+
+| Rule | Checks | Item |
+|---|---|---|
+| R1 | only listed files call littlefs; everything else goes through the store | `OI-LFS-06`, `-09` |
+| R2 | no `lfs_file_open()`; `lfs_file_opencfg()` exactly once, inside `cfg_open()` | `OI-LFS-06` |
+| R3 | no `lfs_remove` / `lfs_rename` / `lfs_stat` in the Config store | `OI-LFS-08`, `-09` |
+| R4 | the `TAIL_ADDITIVE` rows are exactly `NP_CFG_FILE_MAP3`; every file has a row | `REQ-LFS-01` |
+| R5 | `np_cfg_store_journal_read()` is called only from `JOURNAL_READERS`, each with why it reads history (none yet — Map 3 has no consumer) | `REQ-LFS-01` |
+| R6 | no emission-limit consumer names the journal — its id, its API or its path — and every listed consumer exists | `REQ-LFS-01` |
+
+**Its reach, stated narrowly:** textual, like its siblings. It sees a direct call and a direct name,
+not a value handed through a helper — which is why a `JOURNAL_READERS` entry must carry its reason:
+the gate forces the question where a reader is added, the one place a text check can ask it.
+
+### 13.6 Falsification record — `NP-CONV-001` §8
+
+Built into the suites and re-run on every CI execution: the unsafe orderings above, the RMW control,
+and "every armed cut fired" for every sweep. Performed by hand on 2026-09-24, baseline confirmed to
+pass again after each:
+
+| # | Perturbation | Outcome |
+|---|---|---|
+| S1 | Remount after a read error removed | **Caught** — first only by the remount counter, which is how §13.2's metadata-pair path was found; then by behaviour, once that path became a test |
+| S2 | Handle registry disabled | **Caught** |
+| S3 | Content check skipped after the read | **Caught** — the empty file and the flipped bit both accepted |
+| S4 | Replacement done as remove-then-write | **Caught** — `L-3` sweep fails |
+| S5 | Replica repair disabled | **Caught** — six assertions |
+| S6 | Only copy A ever written | **Caught** — the suite aborts on a littlefs assertion |
+| S7 | Replica generation ignored (always A) | **Caught** |
+| S8 | Journal appended with `O_TRUNC` | **Caught** — `L-4` sweep fails at every cut |
+| S9 | A failed remount left unmounted (the defect §13.2 found) | **Caught** |
+| Q1 | RMW tear model disabled in the block device | **Caught** — both "256 must fail" cases fail |
+| Q2 | Log validator skips the limits | **Caught** |
+| Q3 | `np_lfs_log_prime_allocator()` a no-op | **Caught** |
+| Q4 | Log validator accepts 256 | **Caught** — six refusals missing |
+
+### 13.7 What §13 does and does not establish
+
+**May be cited for:** the §11.5 caller rules existing as tested code for the Config instance; #1205
+reproduced on `v2.11.3` and shown not to reach a store caller; `L-3` for the in-place replacement and
+`L-4` through the store, against the `lfs_config` contract; the log instances' parameters, mount-time
+validation, and `L-1`/`L-2` on their real geometry against the contract; `REQ-LFS-01` enforced in CI.
+
+**May NOT be cited for:**
+
+- **The eMMC** — unchanged from §12.5. `OI-LFS-07`, now also carrying the traversal-time
+  measurement (§13.1.4).
+- **The Config instance under XTS.** §13.1.3 shows its `prog_size` 256 losing a committed record
+  under a 512-byte RMW unit. Until `OI-LFS-10` is decided, every Config result in §12 and §13 holds
+  against the contract **only** — which is where it always stood, but there is now a specific reason
+  the medium might not honour it.
+- **#1210.** Not reproduced, so not shown prevented (§13.4).
+- **Integration.** `OI-LOG-05..07` are unwritten and nothing in the image calls the store.
+- **`OI-LFS-04`.** A Class C bound on per-tile emitter drive current is a Safety + EE question. From
+  the firmware side, for the record: `firmware/safety_mcu/` owns the cranial and 1170 nm PBM
+  **enable** lines and cuts them on over-temperature (`np_thermal_interlock.c`); it holds **no bound
+  on drive magnitude**. Whether the drive stage has one in hardware is not answerable from this
+  repository.

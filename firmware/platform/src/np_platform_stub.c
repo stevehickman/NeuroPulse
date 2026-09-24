@@ -605,8 +605,9 @@ bool np_cvns_hal_impedance_poll(bool *passed_out)
 /* ────────────────────────────────────────────────────────────────────────────
  * Cervical offline-fault summary (NP-SW-FAULTMSG-001 §9.6) —
  * np_cvns_fault_summary.h.  The UHDR blob store waits on the UHDR partition's
- * littlefs parameters (OI-LFS-05); the notification waits on the BLE GATT
- * server (OI-WA-03).
+ * littlefs file glue (OI-LOG-05..07; the instance's parameters, OI-LFS-05, are
+ * np_lfs_log_instance.h); the notification waits on the BLE GATT server
+ * (OI-WA-03).
  * ──────────────────────────────────────────────────────────────────────────*/
 
 np_hub_status_t np_cvfs_hal_load(uint8_t *buf, size_t cap, size_t *len_out)

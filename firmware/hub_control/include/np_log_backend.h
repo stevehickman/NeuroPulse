@@ -71,6 +71,15 @@ np_hub_status_t np_log_hal_shdr_flush(void);                            /* OI-LO
  * Implemented by the platform LittleFS glue on target; host-modeled in
  * np_log_backend.c under NPTEST_HOST.  These operate on the XTS-mounted
  * partition, so bytes are encrypted at rest without this layer seeing keys.
+ *
+ * NP-SOUP-LFS-001 Rev 4 §13 binds that glue three ways.  It mounts each
+ * partition with np_lfs_log_config_apply()/_validate() and calls
+ * np_lfs_log_prime_allocator() once after mount (np_lfs_log_instance.h).  It
+ * must be added to LFS_CALLERS in scripts/check-lfs-caller-rules.ts, with its
+ * reason, or CI fails — the one-handle-per-file rule (OI-LFS-06) is enforced
+ * there.  And "the append-mode log file" above cannot be ONE file per
+ * partition: littlefs caps a file at 2 GiB, under a third of UHDR, while
+ * EMMC-UHDR-12 specifies one file per session (OI-LFS-11).
  */
 
 /* OI-LOG-05: open (create if absent) the append-mode log file on `part`.       */

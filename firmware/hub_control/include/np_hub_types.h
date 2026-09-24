@@ -48,6 +48,17 @@ typedef enum {
      * from the safety MCU yet.  Not F4 — nothing is known to be wrong; retry
      * after the first heartbeat.  Refused meanwhile: fail closed. */
     NP_HUB_ERR_TIER_UNVERIFIED      = -20,
+    /* NP-SOUP-LFS-001 Rev 4 §13 — the Config store (np_cfg_store.h).
+     * STORE_BUSY:      a second handle on a file that is already open
+     *                  (OI-LFS-06; the condition upstream 488e84bb fixed).
+     * STORE_IO:        the block device failed a read.  Reported as an
+     *                  ABSENCE, never retried, and the instance is remounted
+     *                  before its next use (OI-LFS-09, upstream #1205).
+     * STORE_INTEGRITY: the bytes were read and failed the caller's content
+     *                  check — also an absence (OI-LFS-09, upstream #1164). */
+    NP_HUB_ERR_STORE_BUSY           = -21,
+    NP_HUB_ERR_STORE_IO             = -22,
+    NP_HUB_ERR_STORE_INTEGRITY      = -23,
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════

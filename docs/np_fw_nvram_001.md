@@ -1181,6 +1181,17 @@ interrupted (`OI-LFS-07`); a post-power-loss hang is invisible to a sweep (upstr
 **upstream #1210 can silently drop a whole Config file with its data's CRC still valid**, which is
 `OI-LFS-08` and which no CRC in this document would see. `REQ-LFS-01` is why Map 3 is not the worst
 case of that; `ukmd.rec` is.
+
+> **Update 2026-09-24 (`NP-SOUP-LFS-001` Rev 4 §13).** The glue this section says §4.2 depends on
+> now exists for the Config instance as `np_cfg_store`, and it does **not** use write-temp-then-
+> rename: a replacement is an in-place `O_TRUNC` rewrite that littlefs commits atomically at close,
+> re-swept for `L-3` (186 runs, 0 violations) — because rename is a delete, and create/delete churn
+> is #1210's trigger. `OI-LFS-08` is closed by that bound and by holding `ukmd.rec` as two copies in
+> two metadata pairs, repaired from its twin; #1210 itself did not reproduce, so it is bounded, not
+> shown prevented. Map 3 is `NP_CFG_POLICY_TAIL_ADDITIVE` in the store's file table, and
+> `REQ-LFS-01` is now a CI gate. **A new caveat for §4:** the Config instance's `prog_size` 256 is
+> below the 512-byte XTS unit, and under a read-modify-write tear the Map 3 journal lost a durable
+> record (`OI-LFS-10`).
 `OI-NVRAM-05` remains open and still blocks `NP-MOD-ID-001` §10's factory-reset rotation test; it is a
 factory-reset correctness question rather than a storage-layer one, and Rev 2 does not touch it.
 
