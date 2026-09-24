@@ -37,7 +37,13 @@ with no sibling category rather than emitting a one-item plural nothing can reso
 **A locale may carry its own plural categories** (`OI-I18N-03`). en.json's families hold English's
 forms. CLDR gives Russian `one / few / many / other` and Arabic `zero / one / two / few / many /
 other`, so `ru.json` may add `_FEW` and `_MANY` to a family en.json defines, and `ar.json` may add
-`_ZERO`, `_TWO`, `_FEW` and `_MANY`. **That is the only extra key a locale may carry.** A category the
+`_ZERO`, `_TWO`, `_FEW` and `_MANY`. **French, Latin-American Spanish and Catalan also have a
+`many`** (`one / many / other`): it selects exact multiples of a million, where the noun takes *de*
+("1 000 000 de lignes", "1.000.000 de líneas", "1.000.000 de línies"). So `fr.json`, `es-419.json`
+and `ca.json` may add `_MANY`, and the export issues it with the example count 1000000. Among the
+eleven, only `en`, `en-GB`, `hi` and `bn` (`one / other`) and `zh-Hans` and `id` (`other` only) add
+nothing. The list is `Intl.PluralRules(locale).resolvedOptions().pluralCategories`, read by the gate
+and the export, not a table kept here. **That is the only extra key a locale may carry.** A category the
 language does not have, or one on a family en.json lacks, fails `check-locale-strings.ts`. An extra
 category is translated from the family's `_OTHER`. It has no English of its own, so it never holds
 English: it exists only as a verified translation (§17.7). All three platforms choose the category
@@ -166,4 +172,6 @@ key in each locale is in exactly one state:
   is untranslated. It never touches a translated or stale value.
 
 All eleven locales can go to translators. `ru` and `ar` were blocked on `OI-I18N-03` until the
-plural categories above existed.
+plural categories above existed. `fr`, `es-419` and `ca` were affected too, though the item did not
+say so at the time: each has a `many` category for exact millions (§17.2), so their exports carry
+`_MANY` keys as well.
