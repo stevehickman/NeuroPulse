@@ -47,6 +47,9 @@
  */
 import { readFileSync } from "fs";
 import { analyse, AVAILABLE_W } from "./check-pbm-power";
+import {
+  R_OUT_R1, R_OUT_CURRENT as R_OUT_CUR, R_GAP_STAGNANT as R_GAP_ST, R_CAV_AMB_CURRENT,
+} from "./thermal-outward-path";
 
 const VALIDATE_ONLY = process.argv.includes("--validate");
 
@@ -56,10 +59,15 @@ const VALIDATE_ONLY = process.argv.includes("--validate");
 
 /** NP-THERM-CFD-R1-001 §2: inward path, junction -> perfused scalp core. */
 export const R_IN = 0.11;
-/** NP-THERM-CFD-R1-001 §2: outward path total, fan off. */
-export const R_OUT_BASE = 0.41;
+/** NP-THERM-CFD-R1-001 §2: outward path total, fan off, WITH the Layer 4 foam.
+ *  HISTORICAL since 2026-09-23 (REQ-CAV-04): it is R1's calibration anchor —
+ *  validate(), singleCell() and R_VIA all reproduce R1, which was computed with
+ *  the foam in — and NOT the coupled model's default any more. OI-THCOOL-21. */
+export const R_OUT_BASE = R_OUT_R1;
+/** CURRENT outward path, station deleted + 3 mm re-loft: 0.335. */
+export const R_OUT_CURRENT = R_OUT_CUR;
 /** NP-THERM-CFD-R1-001 §2: stagnant inter-bowl air gap term within R_OUT_BASE. */
-export const R_GAP_STAGNANT = 0.23;
+export const R_GAP_STAGNANT = R_GAP_ST;
 /** NP-THERM-CFD-R1-001 §3: face -> 37 C perfused core, low perfusion. */
 export const R_FACE_CORE = 0.105;
 /** NP-THERM-CFD-R1-001 §5.1 T1-std @ 43.3 C: junction, and via export fraction. */
@@ -94,8 +102,23 @@ export const CENTRE_PITCH_M = TILE_F2F_M;
 export const R_JF = 0.005;  // 1 mm PDMS + 0.6 mm gap (R1 §5.3)
 export const R_FS = 0.039;  // module face -> scalp surface
 export const R_SC = R_FACE_CORE - R_FS; // 0.066, scalp -> perfused core
-/** Cavity leg of the outward path; the rest of R_OUT_BASE is cavity -> ambient. */
-export const R_CAV_AMB = R_OUT_BASE - R_GAP_STAGNANT; // 0.18 (foam + shell + ext film)
+/** Cavity leg of the outward path AS R1 MODELLED IT; the rest of R_OUT_BASE is
+ *  cavity -> ambient. 0.18 = foam + shell + ext film. HISTORICAL: the R1
+ *  decomposition and r1Compat mode in check-thermal-sink.ts depend on it. */
+export const R_CAV_AMB = R_OUT_BASE - R_GAP_STAGNANT; // 0.18
+/** CURRENT cavity leg: shell + ext film, the foam's 0.075 gone (OI-THCOOL-21).
+ *  NOT the coupled model's default, for the same reason R_SINK_DEFAULT is not
+ *  raised in place: every table in NP-THERM-CFD-N1-001 names the cavity leg it
+ *  was computed at, so the two are carried side by side and `CURRENT` below
+ *  selects this one. Every current-case figure is printed by §2d. */
+export const R_CAV_AMB_CUR = R_CAV_AMB_CURRENT; // 0.105
+/** Opts fragment selecting the CURRENT (station deleted) cavity leg. */
+export const CURRENT: Opts = { rCavAmb: R_CAV_AMB_CUR };
+/** Printed wherever an as-was figure is reported, like rSinkNote(). */
+export const rCavNote = () =>
+  `  NOTE: cavity leg ${R_CAV_AMB.toFixed(3)} m2K/W is R1's, WITH the Layer 4 foam (deleted 2026-09-23).\n` +
+  `  Current leg ${R_CAV_AMB_CUR.toFixed(3)}; current-case figures are §2d's. Below ~39 C ambient every\n` +
+  `  face below bounds the current design from above (§2c, §2d).`;
 
 /** R_VIA back-solved so the network reproduces R1 §5.1's 87 % export at T_j 47.5. */
 function calibrateVia(): { rVia: number; qAnchor: number } {
@@ -114,8 +137,8 @@ const R1_ROWS = [
 ];
 
 /** Single adiabatic cell, perfect sink — R1's own configuration. q in W/m^2. */
-function singleCell(q: number, amb: number) {
-  const gIn = 1 / R_IN, gOut = 1 / R_OUT_BASE, gVia = 1 / R_VIA;
+function singleCell(q: number, amb: number, rOut = R_OUT_BASE) {
+  const gIn = 1 / R_IN, gOut = 1 / rOut, gVia = 1 / R_VIA;
   const tj = (q + T_CORE * gIn + amb * gOut + amb * gVia) / (gIn + gOut + gVia);
   const qIn = (tj - T_CORE) * gIn;
   return {
@@ -252,14 +275,20 @@ export const R_SINK_DEFAULT = 0.5;
  *  figure must be computed at, and `rSinkNote()` makes the difference visible
  *  in every report line that names either. OI-SINK-02 is discharged by that
  *  pairing, not by an overwrite. NP-PWR-THERM-001 §2. */
-export const R_SINK_SPECIFIED = 1.08;
+export const R_SINK_SPECIFIED = 1.14;
+/** SPEC-SINK-01 as NP-THERM-SINK-001 Rev 1 published it (1.08), at R1's 12 mm
+ *  exterior. The 3 mm re-loft that moved with the Layer 4 deletion shrank the
+ *  exterior 4.6 % and raised it to 1.14 (NP-THERM-SINK-001 §3a, OI-THCOOL-21).
+ *  Hard-coded, not imported, because check-thermal-sink.ts imports this file;
+ *  check-power-envelope.ts --validate pins the two against each other. */
+export const R_SINK_SPECIFIED_R1 = 1.08;
 
 /** One line, printed wherever a figure at R_SINK_DEFAULT is reported, so a
  *  superseded number cannot be read out of this script without its label. */
 export const rSinkNote = () =>
   `  NOTE: R_sink ${R_SINK_DEFAULT} K/W is NP-THERM-CFD-N1-001's published value, SUPERSEDED by\n` +
   `  SPEC-SINK-01 = ${R_SINK_SPECIFIED} K/W (NP-THERM-SINK-001 §4) and retained only so this\n` +
-  `  script keeps reproducing its own document. New figures: check-thermal-sink.ts.`;
+  `  script keeps reproducing its own document. New figures: check-thermal-sink.ts.\n` + rCavNote();
 
 // ---------------------------------------------------------------------------
 // §4  Steady solver
@@ -474,7 +503,10 @@ const comp = (set: number[]) => (set.length < 2 ? "  \u2014" : compactness(set).
 const C_J = 28.2e3 * A;   // module body
 const C_F = 1.4e3 * A;    // PDMS face
 const C_S = 11e3 * A;     // partial scalp
-const C_C = 4.2e3 * A;    // CFRP shell 2.5 mm + absorber
+/** CFRP shell 2.5 mm + absorber, as N1 published it. The deleted foam's share
+ *  is ~0.2-0.4 kJ/m^2.K (60-120 kg/m^3 x 3 mm x ~1 kJ/kg.K) — immaterial next
+ *  to C_J's 28.2, and not re-derived for the current case (OI-THCOOL-21). */
+const C_C = 4.2e3 * A;
 /** Sink mass, absolute J/K. 200 g of aluminium — unspecified in the tree, like
  *  R_SINK itself (OI-N1-02). */
 export const C_SINK_DEFAULT = 0.2 * 900;
@@ -634,6 +666,7 @@ function reportMaxAmbient(w: number) {
   console.log(`  It also means the +35 block has little thermal margin left in it at N > 6: the`);
   console.log(`  conservatism NP-ENV-OPRANGE-001 §2 describes as "more than the physics requires"`);
   console.log(`  is measured against a SINGLE-tile ceiling (37.9 C), and N erodes it.`);
+  console.log(`  OI-THCOOL-21: as-was cavity leg; the current case is §2d(b).`);
 }
 
 function reportSinkSweep(amb: number, w: number) {
@@ -786,9 +819,18 @@ function reportTransient(amb: number, w: number) {
 }
 
 function reportOptionRatios(amb: number, w: number) {
-  rule(`§8  NP-THERM-COOL-001 §5 option ratios, re-run at ambient ${amb} C, ${w} W/tile (OI-THCOOL-08)`);
-  const opts: { id: string; name: string; rGap: number; rRest: number; breach: boolean }[] = [
-    { id: "BASE/V", name: "As adopted", rGap: R_GAP_STAGNANT, rRest: 0.18, breach: false },
+  rule(`§8  NP-THERM-COOL-001 §5 option ratios, re-run at ambient ${amb} C, ${w} W/tile (OI-THCOOL-08, -21)`);
+  type Row = { id: string; name: string; rGap: number; rRest: number; breach: boolean };
+  /** rRest = cavity -> ambient leg. Current rows drop the 0.075 absorber term. */
+  const cur: Row[] = [
+    { id: "BASE/V", name: "As adopted (station deleted)", rGap: R_GAP_STAGNANT, rRest: R_CAV_AMB_CUR, breach: false },
+    { id: "X", name: "External ventilation", rGap: 0.02, rRest: R_CAV_AMB_CUR, breach: true },
+    { id: "R", name: "Sealed recirculation", rGap: 2 / 30, rRest: R_CAV_AMB_CUR, breach: false },
+    { id: "RE", name: "R + forced external (was RFE)", rGap: 2 / 30, rRest: 0.0383, breach: false },
+    { id: "GE", name: "Gap bridge + forced ext (was GFE)", rGap: 0.0022, rRest: 0.0383, breach: false },
+  ];
+  const was: Row[] = [
+    { id: "BASE/V", name: "As adopted (foam in)", rGap: R_GAP_STAGNANT, rRest: 0.18, breach: false },
     { id: "X", name: "External ventilation", rGap: 0.02, rRest: 0.18, breach: true },
     { id: "R", name: "Sealed recirculation", rGap: 2 / 30, rRest: 0.18, breach: false },
     { id: "RF", name: "R + thermal absorber", rGap: 2 / 30, rRest: 0.125, breach: false },
@@ -798,20 +840,133 @@ function reportOptionRatios(amb: number, w: number) {
   console.log(`  Ceiling = largest N (distributed) holding max face <= ${FACE_LIMIT} C,`);
   console.log(`  R_sink ${R_SINK_DEFAULT} K/W. '>80' means the whole lattice fits.`);
   console.log(rSinkNote());
-  console.log();
-  console.log("  ID       option                              R_out   ceiling   vs base  shield");
-  let base = 0;
-  for (const o of opts) {
-    const ceiling = ceilingFor({ rGap: o.rGap, rCavAmb: o.rRest, amb }, w);
-    if (o.id.startsWith("BASE")) base = ceiling;
-    console.log(
-      `  ${o.id.padEnd(8)} ${o.name.padEnd(34)} ${(o.rGap + o.rRest).toFixed(3)}   ` +
-      `${(ceiling === N_SOCKETS ? ">80" : String(ceiling)).padStart(5)}    ${base ? (ceiling / base).toFixed(2) + "x" : "n/a"}    ${o.breach ? "BREACH" : "ok"}`);
+  const wasBase = ceilingFor({ rGap: R_GAP_STAGNANT, rCavAmb: 0.18, amb }, w);
+  for (const [label, rows] of [["CURRENT", cur], ["AS-WAS (HISTORICAL)", was]] as const) {
+    console.log();
+    console.log(`  ${label}`);
+    console.log("  ID       option                              R_out   ceiling   vs own base  vs as-was  shield");
+    let base = 0;
+    for (const o of rows) {
+      const ceiling = ceilingFor({ rGap: o.rGap, rCavAmb: o.rRest, amb }, w);
+      if (o.id.startsWith("BASE")) base = ceiling;
+      const fmt = (x: number) => (x === N_SOCKETS ? ">80" : String(x));
+      const ge = ceiling === N_SOCKETS ? ">=" : "";
+      const r = (d: number) => (d ? ge + (ceiling / d).toFixed(2) + "x" : "n/a");
+      console.log(
+        `  ${o.id.padEnd(8)} ${o.name.padEnd(34)} ${(o.rGap + o.rRest).toFixed(3)}   ` +
+        `${fmt(ceiling).padStart(5)}   ${r(base).padStart(11)}  ${r(wasBase).padStart(9)}    ${o.breach ? "BREACH" : "ok"}`);
+    }
   }
   console.log();
   console.log(`  NP-THERM-COOL-001 §5 published 6.0 / 12.3 / 10.0 / 12.8 / 19.7 on a cavity`);
   console.log(`  model calibrated to reproduce the ~6-tile rule. Those ratios are a property`);
   console.log(`  of the cavity leg alone. Here the cavity leg is not what binds.`);
+}
+
+/** The current (station deleted) case across N1's headline tables, side by
+ *  side with the as-was figures N1 Rev 1 published. OI-THCOOL-21. */
+function reportCurrentCase() {
+  rule("§2d  N1's headline tables at the CURRENT cavity leg (Layer 4 deleted, OI-THCOOL-21)");
+  console.log(`  Cavity leg ${R_CAV_AMB.toFixed(3)} -> ${R_CAV_AMB_CUR.toFixed(3)} m2K/W. Everything else — R_VIA, R_sink ${R_SINK_DEFAULT},`);
+  console.log(`  lattice, drives — as N1 published it. Format: as-was -> current.`);
+  const ceil = (w: number, o: Opts) => {
+    let last = 0;
+    for (let n = 1; n <= N_SOCKETS; n++) {
+      if (maxFace(steady(drive(distributed(n), w), o)) <= FACE_LIMIT) last = n; else break;
+    }
+    return last === N_SOCKETS ? ">80" : String(last);
+  };
+  console.log();
+  console.log("  (a) §4a tile ceiling, distributed montage");
+  console.log("  drive          amb   perfect      0.25        0.50        1.00        2.00");
+  for (const [name, w] of [["floor  1.3", OP.libMin], ["R-4    6.25", OP.r4], ["ceil  20.0", OP.libMax]] as const) {
+    for (const amb of [AMB_NOMINAL, 35.0, AMB_WORST]) {
+      const cells = [null, 0.25, 0.5, 1.0, 2.0].map((rs) => {
+        const o: Opts = rs === null ? { amb, perfectSink: true } : { amb, rSink: rs };
+        const a = ceil(w, o), b = ceil(w, { ...o, ...CURRENT });
+        return (a === b ? a : `${a}->${b}`).padStart(10);
+      });
+      console.log(`  ${(amb === AMB_NOMINAL ? name : "").padEnd(13)} ${String(amb).padStart(4)}  ${cells.join("  ")}`);
+    }
+  }
+  console.log();
+  console.log(`  (b) §4b max ambient holding 42 C at ${OP.libMin} W/tile, R_sink 0.50`);
+  for (const n of [1, 6, 12, 20, 80]) {
+    const bis = (o: Opts) => {
+      let lo = -10, hi = 60;
+      for (let k = 0; k < 60; k++) {
+        const mid = (lo + hi) / 2;
+        if (maxFace(steady(drive(distributed(n), OP.libMin), { ...o, amb: mid, rSink: 0.5 })) <= FACE_LIMIT) lo = mid; else hi = mid;
+      }
+      return lo;
+    };
+    const a = bis({}), b = bis(CURRENT);
+    console.log(`    N ${String(n).padStart(2)}   ${f1(a).padStart(5)} -> ${f1(b).padStart(5)} C   vs +35 block: ${b >= 35 ? "clears" : (35 - b).toFixed(1) + " K SHORT"}`);
+  }
+  // The one place the deletion moves a face the WRONG way: above ~39 C the room
+  // is hotter than a lightly-driven face, so a less resistive outward path
+  // couples the face more tightly to it. Shown, not hidden.
+  for (const rs of [1.0, 2.0]) {
+    const bis1 = (o: Opts) => {
+      let lo = -10, hi = 60;
+      for (let k = 0; k < 60; k++) {
+        const mid = (lo + hi) / 2;
+        if (maxFace(steady(drive(distributed(1), OP.libMin), { ...o, amb: mid, rSink: rs })) <= FACE_LIMIT) lo = mid; else hi = mid;
+      }
+      return lo;
+    };
+    const a = bis1({}), b = bis1(CURRENT);
+    console.log(`    N  1 at R_sink ${rs.toFixed(2)}: ${a.toFixed(2)} -> ${b.toFixed(2)} C  (${(b - a).toFixed(2)} K — ABOVE ~39 C the outward path imports heat)`);
+  }
+  console.log(`    Every cell that falls is >= 39.9 C, above the +35 block: no verdict changes.`);
+  console.log();
+  console.log(`  (c) §6a per-protocol thermal ceiling at ${AMB_NOMINAL} C, R_sink ${R_SINK_DEFAULT} (only rows that move)`);
+  const seen = new Set<string>();
+  let moved = 0;
+  for (const r of analyse().filter((x) => x.perTileW > 0).sort((a, b) => b.perTileW - a.perTileW)) {
+    if (seen.has(r.name)) continue;
+    seen.add(r.name);
+    const a = ceil(r.perTileW, { amb: AMB_NOMINAL }), b = ceil(r.perTileW, { amb: AMB_NOMINAL, ...CURRENT });
+    if (a === b) continue;
+    moved++;
+    const pw = r.maxConcurrent, nb = b === ">80" ? N_SOCKETS : Number(b);
+    console.log(`    ${r.name.slice(0, 34).padEnd(34)} ${r.perTileW.toFixed(1).padStart(5)} W   thermal ${a} -> ${b}   binds ${nb < pw ? "THERMAL" : nb > pw ? "power" : "equal"}`);
+  }
+  console.log(`    ${moved} row(s) move; no binding term changes sign unless shown.`);
+  console.log();
+  console.log(`  (d) §7 steady max face, ${OP.libMin} W/tile, ${AMB_NOMINAL} C`);
+  for (const n of [6, 20, 80]) {
+    const a = maxFace(steady(drive(distributed(n), OP.libMin), { amb: AMB_NOMINAL }));
+    const b = maxFace(steady(drive(distributed(n), OP.libMin), { amb: AMB_NOMINAL, ...CURRENT }));
+    console.log(`    N ${String(n).padStart(2)}   ${f1(a)} -> ${f1(b)} C`);
+  }
+  console.log();
+  console.log(`  Direction: every face at or below ~39 C ambient falls, so every ceiling rises or holds.`);
+  console.log(`  N1-D-1 is already superseded by SINK-D-1, so none of these is a quotable absolute;`);
+  console.log(`  check-thermal-sink.ts is the current model, and it adds the exterior-area term this`);
+  console.log(`  network cannot see (NP-THERM-SINK-001 §3a).`);
+}
+
+/** What the deletion does to R1's own four operating points: the single
+ *  adiabatic cell re-run at the current outward path, same flux. */
+function reportDeletionShift() {
+  rule("§2c  R1's published points, re-run with the absorber station deleted (OI-THCOOL-21)");
+  console.log(`  Same heat flux that reproduces each R1 row at R_out ${R_OUT_BASE}; outward path ${R_OUT_CURRENT.toFixed(3)}.`);
+  console.log(`  R_VIA unchanged (the via is 3 mm shorter, which only lowers it — ignored, conservative).`);
+  console.log();
+  console.log("  cfg      amb    T_face was  T_face now   shift    export was/now");
+  for (const r of R1_ROWS) {
+    const q = fluxFor(r.tj, r.amb);
+    const a = singleCell(q, r.amb), b = singleCell(q, r.amb, R_OUT_CURRENT);
+    const ex = Number.isNaN(r.exp) ? "      —" :
+      `${(a.exportFrac * 100).toFixed(1)}/${(b.exportFrac * 100).toFixed(1)}`;
+    console.log(`  ${r.cfg.padEnd(8)} ${String(r.amb).padStart(4)}   ${f1(a.face).padStart(8)}    ${f1(b.face).padStart(8)}   ` +
+      `${(b.face - a.face).toFixed(2).padStart(6)} K   ${ex}`);
+  }
+  console.log();
+  console.log(`  Every face temperature falls or holds: the deletion removes a series resistance`);
+  console.log(`  on a path that carries heat AWAY from the scalp. The shift is small (the via`);
+  console.log(`  carries ~90 %), and every R1 figure quoted elsewhere is a conservative bound.`);
 }
 
 /** Largest N (distributed) holding max face <= FACE_LIMIT for a cavity path. */
@@ -830,6 +985,8 @@ function ceilingFor(o: Opts, w: number): number {
 function main() {
   const ok = validate();
   if (VALIDATE_ONLY) { process.exit(ok ? 0 : 1); return; }
+  reportDeletionShift();
+  reportCurrentCase();
   reportAdiabaticIdentity();
   reportNSweep(AMB_NOMINAL);
   reportNSweep(AMB_WORST);

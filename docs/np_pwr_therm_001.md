@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-PWR-THERM-001
-**Revision:** 1
+**Revision:** 2
 **Date:** 2026-09-15
 **Status:** DESIGN STUDY — resolves the five threads grouped in issue #336 as far as the evidence reaches, and says explicitly where it stops. **Modifies no locked section.** CLAUDE.md §2.2 and §4.5 are read, re-derived and analysed; §9 says what §4.5 has to become and routes the edit, and §6 does the same for §2.2. Every figure is produced by `scripts/check-power-envelope.ts`, not transcribed.
 **Effective Date:** —
@@ -23,7 +23,8 @@
 > the unspecified quantity somewhere else."* That is exactly right, and this document's finding is
 > the reason: **every one of the five terminates in heat, not in watts, and four of the five were
 > being argued as supply questions.** With `SPEC-SINK-01` in hand the PBM ceiling is **31.4 W across
-> the whole lattice and 8.9 W at the montages the library actually authors** — 3.1× below the bottom
+> the whole lattice and 8.9 W at the montages the library actually authors** *(Rev 2: **30.5 W and
+> 8.8 W** since the Layer 4 deletion's 3 mm re-loft shrank the exterior — `OI-THCOOL-21`, §3a note)* — 3.1× below the bottom
 > of the band `NP-PWRSRC-001` §4.1 argued the T1 source decision against, so that decision
 > **strengthens and can be closed rather than deferred** (§5). CLAUDE.md §4.5's *T1 peak 45–50 W* is
 > an electrical peak the assembly cannot spend (§3). The TMS coil now has an electrical
@@ -52,7 +53,7 @@
    answered; the intra-tile field and mesh-independence residue belongs to `OI-R1-01`, where it
    started, and nothing is left under `OI-PWR-01`'s own number.
 3. **The PBM ceiling is N-dependent and a charger cannot see N (§3).** 31.4 W at the full lattice,
-   **8.9 W at N = 6**, 17.9 W at the top of the ambient envelope. `NP-PWRSRC-001` §4.1's
+   **8.9 W at N = 6**, 17.9 W at the top of the ambient envelope (Rev 2: **30.5 / 8.8 / 17.5 W**). `NP-PWRSRC-001` §4.1's
    27.6–49.1 W is not wrong; it is the fully-distributed corner of a surface, quoted as a property
    of the assembly.
 4. **The per-protocol table does not survive its own re-run (§4a).** Under `SPEC-SINK-01`,
@@ -60,7 +61,7 @@
    power-bound are not — and **21 of 22 hold no tiles at all on the bare shell that ships today.**
    `OI-SINK-01` was BLOCKING before this re-run and is more so after it.
 5. **CLAUDE.md §4.5's T1-peak row is unreachable (§3b).** ~45–50 W device draw against a
-   **38.4 W** thermal ceiling at the most favourable montage there is. A 45 W brick already covers
+   **38.4 W** (Rev 2: **37.5 W**) thermal ceiling at the most favourable montage there is. A 45 W brick already covers
    it. The 65 W rung is a T2 *intent* signal, which §2.2 says it is, and nothing else.
 6. **`SPEC-TMS` exists (§6).** Figure-8, two 25 mm wings in series, 10 turns each, **L = 18.2 µH**,
    a **28 µF / 1,600 V** bank, **36.0 J/pulse** at 0.5 T, a **142 µs** ring, **1,989 A** peak.
@@ -130,21 +131,29 @@ scalp interface in the boiling-water band. But the model behind it has **no N in
 
 | N | bare shell S0, W/tile | S0 total | with spreader S3, W/tile | S3 total |
 |---:|---:|---:|---:|---:|
-| 1 | 1.33 | 1.3 W | 2.46 | 2.5 W |
-| 2 | 1.31 | 2.6 W | 2.35 | 4.7 W |
-| **6** | 0.78 | **4.7 W** | 1.49 | **8.9 W** |
-| 12 | 0.72 | 8.7 W | 1.20 | 14.4 W |
-| 20 | 0.62 | 12.3 W | 0.88 | 17.6 W |
-| 37 | 0.49 | 18.1 W | 0.64 | 23.6 W |
-| 80 | 0.39 | 31.4 W | 0.39 | 31.4 W |
+| 1 | 1.33 → 1.31 | 1.3 W | 2.46 → 2.42 | 2.5 → 2.4 W |
+| 2 | 1.31 → 1.29 | 2.6 W | 2.35 → 2.32 | 4.7 → 4.6 W |
+| **6** | 0.78 → 0.76 | **4.7 → 4.6 W** | 1.49 → 1.46 | **8.9 → 8.8 W** |
+| 12 | 0.72 → 0.71 | 8.7 → 8.5 W | 1.20 → 1.18 | 14.4 → 14.1 W |
+| 20 | 0.62 → 0.60 | 12.3 → 12.0 W | 0.88 → 0.86 | 17.6 → 17.2 W |
+| 37 | 0.49 → 0.48 | 18.1 → 17.6 W | 0.64 → 0.62 | 23.6 → 23.0 W |
+| 80 | 0.39 → 0.38 | 31.4 → 30.5 W | 0.39 → 0.38 | 31.4 → 30.5 W |
 
-25 °C ambient, distributed montage, max `T_face` ≤ 42.0 °C. **17.9 W** aggregate at the +35 °C top of
-`NP-ENV-OPRANGE-001` §2's envelope; **7.8 W at N = 6 occluded** (`SPEC-SINK-02`).
+25 °C ambient, distributed montage, max `T_face` ≤ 42.0 °C. **17.9 W** (→ **17.5 W**) aggregate at the +35 °C top of
+`NP-ENV-OPRANGE-001` §2's envelope; **7.8 W** (→ 7.7 W) **at N = 6 occluded** (`SPEC-SINK-02`).
+
+> **Rev 2 (2026-09-23, `OI-THCOOL-21`) — as-was → current.** The Layer 4 absorber is deleted
+> (`REQ-CAV-04`, GitHub #391) and the outer bowl re-lofted 3 mm inward. In `SPEC-SINK-01`'s model the
+> second half dominates: the exterior shrinks 4.6 %, `SPEC-SINK-01` goes **1.08 → 1.14 K/W**, and every
+> cell above falls by ≤ 3 % (`NP-THERM-SINK-001` Rev 3 §3a, `OI-SINK-10`). **Every conclusion in this
+> section stands** — the ratios to §4.1's band are 3.1× and 6.0×, and the ordering of every comparison
+> below is unchanged. `check-power-envelope.ts --validate` now pins the current figures and keeps the
+> Rev 1 set as labelled `[as-was]` anchors.
 
 **§4.1's band is the fully-distributed corner of this surface, quoted as a property of the
 assembly.** `NP-THERM-CFD-N1-001` §6 puts authored montages at **N = 5–37**, and at N = 6 the
 admissible total is **3.1× below the bottom of §4.1's band with a spreader and 5.9× below it
-without.**
+without** (6.0× since Rev 2).
 
 > **This does not overturn §4.1's conclusion; it removes the last way of reading around it.** §4.1
 > argued no source above ~57 W buys anything, with the escape clause that `OI-PWR-01`'s CFD might
@@ -165,8 +174,8 @@ overhead that is ~38–43 W to emitters, and `scripts/check-pbm-power.ts` takes 
 
 | | to emitters | device draw |
 |---|---:|---:|
-| thermally admissible, fully distributed (N = 80) | 31.4 W | **38.4 W** |
-| thermally admissible at an authored montage (N = 6) | 8.9 W | **15.9 W** |
+| thermally admissible, fully distributed (N = 80) | 31.4 → 30.5 W | **38.4 → 37.5 W** |
+| thermally admissible at an authored montage (N = 6) | 8.9 → 8.8 W | **15.9 → 15.8 W** |
 
 **The T1-peak row is an electrical peak the assembly cannot spend.** A 45 W brick covers the
 fully-distributed ceiling with 6.6 W to spare, and covers the realistic montage nearly three times
@@ -266,7 +275,7 @@ recommendation was made against.**
 |---|---:|---|
 | `NP-PWR-BUDGET-001` §3.2 (2026-08-02) | 4–8 tiles | single-tile CFD, extrapolated |
 | `NP-PWRSRC-001` §4.1 (2026-08-27) | 27.6–49.1 W | the same, inverted into watts |
-| **this document, §3** | **31.4 W distributed / 8.9 W at N = 6 / 17.9 W at +35 °C** | `SPEC-SINK-01`, two independent recoveries |
+| **this document, §3** | **31.4 W distributed / 8.9 W at N = 6 / 17.9 W at +35 °C** (Rev 2: 30.5 / 8.8 / 17.5) | `SPEC-SINK-01`, two independent recoveries |
 
 > **PWRTH-D-2 (principal): the wall-plug path for T1 PBM is CLOSED, not deferred.** §4.3's escape
 > clause required a *materially higher* thermal ceiling to make even one rung of the supply ladder
@@ -308,7 +317,7 @@ need more rungs, it needs one fewer justification.**
 |---|---|---|---|
 | Core | 15 W | EEG + hub, no PBM | unaffected — no PBM, no cavity |
 | Home Lite | 30 W | partial PBM | inside the thermal ceiling at every N |
-| Home Standard ★ | 45 W | ~17–20 W standard, 45–50 W peak | **45 W already exceeds the 38.4 W fully-distributed thermal ceiling** |
+| Home Standard ★ | 45 W | ~17–20 W standard, 45–50 W peak | **45 W already exceeds the 38.4 W (Rev 2: 37.5 W) fully-distributed thermal ceiling** |
 | Home Premium | 45 W | same | same |
 | Pro Entry | 65 W | T2 standard 44–46 W | 1170 nm path, separate budget — unaffected |
 | Pro Full | 65 W × 2 | T2 peak 70–74 W | **§12** |
@@ -514,7 +523,7 @@ and `OI-PWRTH-06` routes the edit; what follows is what the table has to become.
 | Standby | 1 W | 5 V/0.5 A | n/a | yes |
 | EEG only | 2.5 W | 5 V/1 A | n/a | yes |
 | Standard T1 ★ | ~17–20 W | 15 V/2 A (45 W) | inside | yes |
-| T1 peak | ~45–50 W | 20 V/3 A (65 W) | **NOT REACHABLE — 38.4 W distributed, 15.9 W at N = 6 (`SPEC-SINK-01`)** | yes |
+| T1 peak | ~45–50 W | 20 V/3 A (65 W) | **NOT REACHABLE — 38.4 W distributed, 15.9 W at N = 6 (`SPEC-SINK-01`); 37.5 / 15.8 W since Rev 2** | yes |
 | T2 standard | ~44–46 W | 20 V/3 A (65 W) | 1170 nm TEC path, separate | yes |
 | T2 peak (1170 nm) | ~70–74 W | 20 V/5 A (100 W EPR) | 1170 nm TEC path, separate | unverified (`OI-PWRSRC-08`) |
 | **T2 + TMS †** | **~176 W** | **48 V/5 A (240 W EPR)** | **coil-limited to 516 pulses (§8.4)** | **no** |
@@ -819,3 +828,4 @@ worth a check that it still follows from them.
 | Rev | Date | Author | Change |
 |---|---|---|---|
 | 1 | 2026-09-15 | NeurOne Systems Engineering | **Initial release, against issue #336's five grouped threads.** **Central finding: every one of the five terminates in heat, and four were being argued as supply questions** — which is the issue's own grouping rationale, one level down. Takes `NP-THERM-SINK-001`'s `SPEC-SINK-01` as an input and re-derives what depends on it. **PBM ceiling in watts: 31.4 W at the full lattice, 8.9 W at N = 6, 17.9 W at +35 °C** — 3.1× below the bottom of `NP-PWRSRC-001` §4.1's 27.6–49.1 W band at the montages the library authors, because §4.1's model has no N in it (§3). **CLAUDE.md §4.5's T1-peak row is an electrical peak the assembly cannot spend**: 38.4 W thermal against ~45–50 W, so a 45 W brick already covers it and the 65 W rung is a T2 intent signal and nothing else (§3b). **`OI-SINK-05` discharged**: re-running N1 §6a under the specification leaves **22 of 22** zone-fixed protocols thermally bound (§6a found five power-bound), **3 inadmissible at any rejection resistance**, and **21 of 22 holding no tiles at all on the bare shell that ships** (§3c). **`OI-PWR-01` CLOSED rather than narrowed** — `NP-THERM-CFD-N1-001` §11's own stated precondition was met when `OI-N1-02` closed, and its residue is carried by name by `OI-R1-01`, `OI-R1-02` and `OI-SINK-01` (§4, PWRTH-D-1). **`OI-SINK-02` discharged by pairing not overwrite**: `R_SINK_SPECIFIED = 1.08` added alongside `R_SINK_DEFAULT = 0.5` with `rSinkNote()` printed at every report line naming either, so a superseded number cannot be read without its label and N1's tables stay reproducible (§4a). **The T1 wall-plug path is CLOSED, not deferred** — §4.3's escape clause needed a materially *higher* ceiling and the specified one is lower (§5, PWRTH-D-2). **CLAUDE.md §2.2 needs no change**, and the reason is recorded rather than left as an absence: a ladder keyed to peak draw and a governor in sustained watts were never in conflict (§6, PWRTH-D-3). **First electrical specification of the TMS coil, `SPEC-TMS-01…05`** — figure-8, two 25 mm wings, 10 turns each, **L = 18.2 µH**, **28 µF/1,600 V**, **36.0 J/pulse** at 0.5 T, **142 µs** ring, **1,989 A** peak, **169 W** recharge at 10 Hz biphasic-recovered — derived from geometry and reproducing `NP-PWR-BUDGET-001` §4.1's E ∝ B² estimate at both ends of the field range from inputs it shares none of (§8, `OI-PWR-03` answered). **Biphasic-with-recovery is specified rather than left open** because the monophasic figure is 430 W and no PD class delivers it (§8.3). **The coil's own thermal wall is §3's finding at the other tier**: 33 W of I²R at the scalp under the same 42 °C limit, **516 admissible pulses against a 3,000-pulse protocol**, no cooling path anywhere, and a non-conductive window beneath that forecloses a metallic spreader — `OI-PWRTH-01`, BLOCKING (§8.4). **`OI-PWR-02` quantified and confirmed**: at 0.5 T the coil reaches **17 %** of a clinical figure-8's maximum cortical field and is **4.1× short** of 120 % RMT, the shortfall being **depth falloff of a 25 mm wing** which `NP-PWR-BUDGET-001` §4.2 does not charge it for, not the peak-field comparison §4.2 does make — and the 1.8× this coil *gains* on pulse width is already credited. Closing it by field alone needs 2.06 T → 613 J → **2,886 W**, so the TMS supply question has **two answers 17× apart** and `OI-PWR-02` decides which (§7, PWRTH-D-4). **`OI-POE-09` CLOSED in both halves**: (a) **two independent latches, one per IEC 62304 class** — a Class B write into Class C state is the same coupling §7.4.4 refused, through a narrower aperture — with the withdrawn Rev 10 claim's replacement stated explicitly; (b) **`Δ = max(1.0 °C, 50/D °C)`**, ≥ 2.0× the efficacy floor on re-admission, composed by `max()` as §6.1 requires, chosen in dose where the sense path can express the choice and falling back to `OI-POE-06`'s whole-degree floor where it cannot (§10). **`OI-PWR-04`'s third option assessed and declined for a fourth**: a second PD sink on the hub was the lead candidate and its whole case was scoping the Mode 3 loss, which 176 W removes, while `OI-PWR-12`'s cost stands — the inlet belongs on the TMS driver where the bank and the 33 W already are (§11, PWRTH-D-7). **`OI-PWR-11` decidable at last**: 2 × 65 = 130 W against 176 W, short by 36 %, so §4.4.2's reading 2 is **refuted** and §4.4 was a proposal, not a specification being rediscovered (§12, PWRTH-D-8). Hands #335 the governor's **form** — `P_thermal(N, ambient, spreader)` — and states why its **constants** are not available (§13). Nine open items `OI-PWRTH-01…09` (one BLOCKING, plus `OI-PWR-02` re-marked BLOCKING), five risk rows, nine decisions PWRTH-D-1…9 (six to principal). Adds `scripts/check-power-envelope.ts`; adds `R_SINK_SPECIFIED` and `rSinkNote()` to `scripts/check-thermal-multitile.ts`. **No locked section modified; no firmware, app or protocol changed; no figure in a released document rewritten.** |
+| 2 | 2026-09-23 | NeurOne Systems Engineering | **Re-baselined for the Layer 4 absorber deletion (`OI-THCOOL-21`, GitHub #407; `REQ-CAV-04`, #391).** `SPEC-SINK-01` moves **1.08 → 1.14 K/W** because the binding 3 mm re-loft shrinks the helmet exterior 4.6 % (`NP-THERM-SINK-001` Rev 3 §3a; `OI-SINK-10` to the principal). §3's table carries *was → now*: aggregate **31.4 → 30.5 W**, N = 6 **8.9 → 8.8 W** (S3) / **4.7 → 4.6 W** (S0), +35 °C **17.9 → 17.5 W**, occluded N = 6 7.8 → 7.7 W; §3b's device-draw ceilings **38.4 → 37.5 W** and **15.9 → 15.8 W**; ratio to §4.1's band 5.9× → 6.0× without a spreader. **No conclusion changes**: the T1-peak row is still unreachable, the 45 W brick still covers the ceiling (now by 7.5 W), §3c's counts (22/22 thermally bound, 3 inadmissible, 4 spreader-recovered, 21 of 22 zero on the bare shell) are unchanged. `check-power-envelope.ts --validate` pins the current figures plus four `[as-was]` Rev 1 anchors and asserts `R_SINK_SPECIFIED == SPEC-SINK-01`. |
