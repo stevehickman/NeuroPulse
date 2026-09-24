@@ -184,6 +184,15 @@ static int np_powerbd_erase(const struct lfs_config *c, lfs_block_t block)
     bd->total_erases++;
     mark_dirty(bd, block);
 
+    if (bd->erase_noop) {
+        /* The block keeps its old contents whether or not the cut lands
+         * here — there is nothing for a tear to tear. */
+        if (take_op(bd)) {
+            stop(bd);
+        }
+        return 0;
+    }
+
     if (!take_op(bd)) {
         memset(dst, 0xFF, bd->block_size);
         return 0;

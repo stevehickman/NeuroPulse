@@ -2,9 +2,9 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-LFS-001
-**Revision:** 7
+**Revision:** 8
 **Date:** 2026-09-24
-**Status:** DRAFT — the hazard analysis (§4–§6) is complete and does not depend on a version. **Rev 7 closes `OI-LFS-11` (§13.10): UHDR logs are one file per session, as `EMMC-UHDR-12`/`-13` specify, so no file approaches littlefs's 2 GiB `file_max`; SHDR stays one file because its whole partition is 512 MiB.** **Rev 6 closes `OI-LFS-10` and applies `ECR-EMMC-002` (§13.9): the Config instance takes `EMMC-FS-01`'s remaining values, and `NP-FW-EMMC-001` Rev 3 now prints `read_size`/`prog_size` 512 in all three columns — so all three littlefs instances match their specification exactly.** **Rev 5 decides the first half of `OI-LFS-10`: the Config instance moves to `read_size`/`prog_size` 512, the XTS data unit, and `cache_size` follows to 512 (§13.8); `RISK-LFS-08` closed.** **Rev 4 builds the caller rules §11 asked for and closes five items (§13): `OI-LFS-03`, `-05`, `-06`, `-08`, `-09`.** The Config store (`np_cfg_store`) makes each rule a property of its API, a CI gate makes going around it fail, the UHDR/SHDR instances have parameters and a validator, and upstream #1205 is reproduced on `v2.11.3` and shown not to reach a caller. It also finds that `EMMC-FS-01` states every parameter Rev 2 said it did not, and that a `prog_size` below the 512-byte XTS unit loses committed data — which is the Config instance as built (`OI-LFS-10`). `OI-LFS-07` (the eMMC) and `OI-LFS-04` (Safety + EE) stay open. **Rev 3 closed `OI-LFS-02`: the IEC 62304 §7.1.2 anomaly evaluation is performed (§11) and the NeurOne power-loss injection test against `L-1…L-4` is written, run and falsified in both directions (§12).** `L-1…L-4` may now be relied on **against the `struct lfs_config` contract** — which is what they were stated against — and not against the eMMC beneath it, which no host test can reach and which is raised as `OI-LFS-07`. Rev 2 closed `OI-LFS-01` (littlefs `v2.11.3` pinned and vendored at `firmware/vendor/littlefs/`); Rev 1 performed the hazard analysis.
+**Status:** DRAFT — the hazard analysis (§4–§6) is complete and does not depend on a version. **Rev 8 narrows the last two items (§13.11, §13.12): `OI-LFS-07` gets its host-decidable half — `erase()` may be a no-op on the eMMC, shown by sweep — and a silicon bring-up protocol with pass criteria; `OI-LFS-04` gets an answer — there is no Class C bound on per-tile drive magnitude — and the options that would create one, for Safety + EE to choose.** **Rev 7 closes `OI-LFS-11` (§13.10): UHDR logs are one file per session, as `EMMC-UHDR-12`/`-13` specify, so no file approaches littlefs's 2 GiB `file_max`; SHDR stays one file because its whole partition is 512 MiB.** **Rev 6 closes `OI-LFS-10` and applies `ECR-EMMC-002` (§13.9): the Config instance takes `EMMC-FS-01`'s remaining values, and `NP-FW-EMMC-001` Rev 3 now prints `read_size`/`prog_size` 512 in all three columns — so all three littlefs instances match their specification exactly.** **Rev 5 decides the first half of `OI-LFS-10`: the Config instance moves to `read_size`/`prog_size` 512, the XTS data unit, and `cache_size` follows to 512 (§13.8); `RISK-LFS-08` closed.** **Rev 4 builds the caller rules §11 asked for and closes five items (§13): `OI-LFS-03`, `-05`, `-06`, `-08`, `-09`.** The Config store (`np_cfg_store`) makes each rule a property of its API, a CI gate makes going around it fail, the UHDR/SHDR instances have parameters and a validator, and upstream #1205 is reproduced on `v2.11.3` and shown not to reach a caller. It also finds that `EMMC-FS-01` states every parameter Rev 2 said it did not, and that a `prog_size` below the 512-byte XTS unit loses committed data — which is the Config instance as built (`OI-LFS-10`). `OI-LFS-07` (the eMMC) and `OI-LFS-04` (Safety + EE) stay open. **Rev 3 closed `OI-LFS-02`: the IEC 62304 §7.1.2 anomaly evaluation is performed (§11) and the NeurOne power-loss injection test against `L-1…L-4` is written, run and falsified in both directions (§12).** `L-1…L-4` may now be relied on **against the `struct lfs_config` contract** — which is what they were stated against — and not against the eMMC beneath it, which no host test can reach and which is raised as `OI-LFS-07`. Rev 2 closed `OI-LFS-01` (littlefs `v2.11.3` pinned and vendored at `firmware/vendor/littlefs/`); Rev 1 performed the hazard analysis.
 **Effective Date:** —
 **Author:** NeurOne Firmware Engineering
 **Approved By:** — (DRAFT, not approved)
@@ -15,6 +15,18 @@
 **Supersedes:** None — new document. It replaces the single verification cell that `NP-SW-001` §9.4 previously carried for this component.
 **Pinned version:** littlefs **v2.11.3** (tag commit `6cb4e86540eca0d9ba62500a298385c9d863c8be`), vendored at `firmware/vendor/littlefs/` with per-file SHA-256 — `firmware/vendor/littlefs/VERSION` is the SOUP record proper, and this document is its hazard analysis.
 **Review Cadence:** On any change to the pinned version, on first integration, and at G2. §11 is re-run in full on any tag change — a §7.1.2 evaluation is a statement about one version and carries forward to no other.
+
+---
+
+> **⚠ REV 8 (2026-09-24) — `OI-LFS-07` and `OI-LFS-04` narrowed, not closed (§13.11, §13.12).**
+> Both need things this repository cannot supply — silicon, and a hardware decision. What changed is
+> that each now says exactly what is left. **`OI-LFS-07`:** NeurOne's `erase()` on the eMMC is a
+> **no-op** (littlefs: *"the state of an erased block is undefined"*; swept on the host with an erase
+> that never touches the medium, 0 violations); `block_cycles` stays as specified; and
+> `HW-LFS-01…05` are the bring-up tests, with pass criteria. **`OI-LFS-04`:** the answer to *"is
+> there a Class C bound on per-tile drive current independent of Map 1?"* is **no** — the safety MCU
+> owns the PBM enable line and its thermal cut, nothing else; and the tile's drive stage is specified
+> two incompatible ways (`OI-HEXTILE-23`).
 
 ---
 
@@ -555,11 +567,11 @@ of the component is recorded, compiled and tested; that `L-5` is enforced rather
 |---|---|---|---|
 | ~~`OI-LFS-01`~~ | **✅ CLOSED 2026-09-14 (Rev 2) — littlefs `v2.11.3` pinned and vendored** at `firmware/vendor/littlefs/`: byte-exact five-file subset verified by two independent downloads, per-file SHA-256, the configuration of §7.3 recorded *and* compiled *and* tested (`np_lfs_config_tests`, 19 falsified rejections), and an explicit "what this does not establish". §7.4. **Closing it unblocks #75 and unblocks `OI-LFS-02`; it unblocks no atomicity claim** — see §7.5, and note that the item below inherits the BLOCKING status this one carried | — (closed) | — |
 | ~~`OI-LFS-02`~~ | **✅ CLOSED 2026-09-14 (Rev 3) — both halves performed.** The IEC 62304 §7.1.2 anomaly evaluation against `v2.11.3` is **§11**: five tracker queries plus the release notes and the `v2.11.2`→`v2.11.3` differential, thirteen items assessed against §3's seven claims, **three applicable** (#1210, #1205, #1086) and none of them on a path to an emission. The power-loss injection test is **§12**: `np_lfs_powerloss_tests`, NeurOne's own injecting block device, **456 interrupted runs across three scenarios and three tear models with 0 violations**, plus three unsafe orderings the same verifiers are required to catch and six hand perturbations of which five were caught and one (P4) was not and is recorded as a negative result. **Closing it unblocks `NP-FW-NVRAM-001` §4, `EMMC-FS-01` and `NP-FW-HUB-001` §6.5 only as far as §12.5 states** — against the `lfs_config` contract, not against the eMMC — and it leaves three successors below, two of which are constraints on code that does not exist yet | — (closed) | — |
-| **`OI-LFS-07`** | **Power-loss injection on hardware.** §12 interrupts the `struct lfs_config` contract; the medium is an eMMC behind an XTS layer, and littlefs's guarantees are written for raw program/erase semantics. Undecided on both sides: what NeurOne's `erase()` callback does on a device with large erase groups, whether `block_cycles` 500 (claim `L-6`) means anything above an FTL that levels wear itself, and whether "reliable write" bounds a torn sector. Upstream #1083 asks exactly this and has no answer, #1203 is the same family. **This is the part of `OI-LFS-02` a host test could never discharge, and it is raised rather than absorbed** **Rev 4 adds two bring-up measurements:** the time of one allocator traversal on a realistically filled UHDR partition (§13.1.4 — ≈ 0.5 reads per block in use; if it exceeds the session logger's buffering headroom, revisit `lookahead_size`), and whether the eMMC + XTS stack tears a 512-byte unit as a whole or not at all (§13.1.3's model is the worst case) | FW + EE | **Any reliance on `L-1…L-4` against the MEDIUM rather than the contract.** `RISK-LFS-06`; bring-up |
+| **`OI-LFS-07`** | **Power-loss injection on hardware.** §12 interrupts the `struct lfs_config` contract; the medium is an eMMC behind an XTS layer, and littlefs's guarantees are written for raw program/erase semantics. Undecided on both sides: what NeurOne's `erase()` callback does on a device with large erase groups, whether `block_cycles` 500 (claim `L-6`) means anything above an FTL that levels wear itself, and whether "reliable write" bounds a torn sector. Upstream #1083 asks exactly this and has no answer, #1203 is the same family. **This is the part of `OI-LFS-02` a host test could never discharge, and it is raised rather than absorbed** **Rev 4 adds two bring-up measurements:** the time of one allocator traversal on a realistically filled UHDR partition (§13.1.4 — ≈ 0.5 reads per block in use; if it exceeds the session logger's buffering headroom, revisit `lookahead_size`), and whether the eMMC + XTS stack tears a 512-byte unit as a whole or not at all (§13.1.3's model is the worst case) **Rev 8 (§13.11): narrowed.** Decided on the host: `erase()` is a **no-op** (lfs.h's contract; swept with a no-op erase, 0 violations); `block_cycles` stays at `EMMC-FS-01`'s values (it relocates logical metadata; the FTL levels physical wear; `EMMC-WE-03`'s WAF monitor measures the cost). **Left for silicon:** `HW-LFS-01…05` — tear granularity (and so whether eMMC reliable write is needed), the power-loss sweeps on the real stack with hang detection, traversal time against the logger's buffering, and write amplification | FW + EE | **Any reliance on `L-1…L-4` against the MEDIUM rather than the contract.** `RISK-LFS-06`; bring-up |
 | ~~`OI-LFS-08`~~ | **✅ CLOSED 2026-09-24 (Rev 4, §13.4).** Bound the Config directory's create/delete churn, and stop `ukmd.rec` depending on one filesystem entry (upstream #1210). **Done:** `np_cfg_store` never removes or renames — replacement is an in-place `O_TRUNC` rewrite, re-swept for `L-3` (186 runs, 0 violations) — so the partition sees one create per file for its life and zero deletes; `ukmd.rec` is two enveloped copies in two directories (two metadata pairs), repaired from its twin on first use. **Not shown:** #1210 did not reproduce on `v2.11.3` in 3,000 churn cycles, so the store is shown bounding the trigger and replicating the victim, not preventing the defect. `RISK-LFS-07` reduced | — (closed) | — |
 | ~~`OI-LFS-09`~~ | **✅ CLOSED 2026-09-24 (Rev 4, §13.2).** Validate stored values by content on every read. **Done:** `np_cfg_store` has no unverified read and no `stat` — a content check is mandatory on every read; a read error is an absence, never retried, and forces a remount before the next operation. **#1205 reproduced on `v2.11.3`** through raw littlefs and shown not to reach a store caller; hand-falsifying the remount found a second path (a failed read of the root metadata pair poisons littlefs's own cache) that is now a test, and the store's own test found a defect in it (a failed remount stuck) that is fixed | — (closed) | — |
 | ~~`OI-LFS-03`~~ | **✅ CLOSED 2026-09-24 (Rev 4, §13.5).** The CI check for `REQ-LFS-01`: `scripts/check-lfs-caller-rules.ts`, run by `tooling-ci.yml` after its own 21-case `--self-test`. R4 pins the tail-additive Config files to exactly Map 3's journal; R5 allows the journal reader only from listed callers, each with why it reads history (none yet); R6 forbids every emission-limit consumer from naming the journal at all. In the API, each file's policy decides which call may touch it. **Reach:** textual — a value handed through a helper is not followed, which is why every `JOURNAL_READERS` entry must carry its reason | — (closed) | — |
-| **`OI-LFS-04`** | `OI-NVRAM-10` — is there a Class C bound on per-tile emitter drive current independent of Map 1's ranges? Carried here because §5.3's third barrier is a thermal limit standing in for an optical one, and this document is where that now has a named consequence | Safety + EE | **Class B classification durability** |
+| **`OI-LFS-04`** | `OI-NVRAM-10` — is there a Class C bound on per-tile emitter drive current independent of Map 1's ranges? Carried here because §5.3's third barrier is a thermal limit standing in for an optical one, and this document is where that now has a named consequence **Rev 8 (§13.12): answered — no.** The safety MCU owns the cranial and 1170 nm PBM enable lines and cuts them on over-temperature; it has no per-tile magnitude bound. The tile's on-current is set by hardware (bus voltage, string `V_f`, sense resistor — `NP-HW-HEXTILE-001` §6.2), not by Map 1, but nothing regulates it; Map 1 bounds drive only through firmware (duty/intensity codes). So an out-of-range Map 1 entry reaches average irradiance through Class B firmware, with the 62 °C cut as the only Class C backstop — `OI-NVRAM-10`'s residual, confirmed. The drive stage itself is specified inconsistently (`OI-HEXTILE-23`). Options in §13.12; the choice is Safety + EE's | Safety + EE | **Class B classification durability** |
 | ~~`OI-LFS-05`~~ | **✅ CLOSED 2026-09-24 (Rev 4, §13.1).** The UHDR and SHDR instances' parameters. **The premise was wrong: `EMMC-FS-01` has UHDR and SHDR columns** (and states every Config value Rev 2 said it did not — `OI-LFS-10`). Decided: `EMMC-FS-01`'s values with **one deviation, `read_size`/`prog_size` 512** (`ECR-EMMC-002`: a smaller program is a read-modify-write of committed bytes under the 512-byte XTS unit, shown by sweep). `lookahead_size` kept at the specified 512/256 under CLAUDE.md §18 — full coverage would cost 237 KiB of on-chip RAM against an unmeasured stall — with its traversal cost measured in reads and its time added to `OI-LFS-07`. `np_lfs_log_instance` applies and validates them; `L-1`/`L-2` swept on the real 1,767,168- and 131,072-block geometry (132 runs, 0 violations). **Does not build the UHDR file glue** — that is `OI-LOG-05..07`, so `OI-FAULTMSG-03` narrows rather than unblocks. `RISK-LFS-05` closed | — (closed) | — |
 | ~~`OI-LFS-06`~~ | **✅ CLOSED 2026-09-24 (Rev 4, §13.3).** One open handle per file, made checkable. Every Config handle comes from `cfg_open()`, which keeps a registry and refuses a second (`NP_HUB_ERR_STORE_BUSY`), tested; the gate's R1/R2 forbid littlefs calls outside the listed callers, `lfs_file_open()` anywhere, and `lfs_file_opencfg()` anywhere but inside `cfg_open()`. The log instances' future glue must be added to the gate's `LFS_CALLERS` with its reason | — (closed) | — |
 | ~~`OI-LFS-10`~~ | **✅ CLOSED 2026-09-24 (Rev 5 §13.8, Rev 6 §13.9).** The Config instance disagreed with `EMMC-FS-01` on five fields, and its `prog_size` 256 lost committed data under the 512-byte XTS read-modify-write. **Decided by the principal in two steps:** `read_size`/`prog_size` 512 with `cache_size` 512 (Rev 5); then `EMMC-FS-01`'s `lookahead_size` 64, `block_cycles` 200, `name_max` 64, `attr_max` 256 and `metadata_max` 4,096 (Rev 6). `ECR-EMMC-002` applied: `NP-FW-EMMC-001` Rev 3 prints 512 in all three columns. The Config instance now equals the specification exactly. `RISK-LFS-08` closed | — (closed) | — |
@@ -577,6 +589,7 @@ of the component is recorded, compiled and tested; that `L-5` is enforced rather
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 8 | 2026-09-24 | NeurOne Firmware Engineering | **`OI-LFS-07` and `OI-LFS-04` narrowed (§13.11, §13.12).** `OI-LFS-07`: `np_lfs_powerbd` gains a no-op-erase mode (still cuttable, never changes the medium), proven active by a direct check that fails when the mode is disabled; the SHDR L-1/L-2 sweep and the Config journal through the store both pass with it (66 + 84 runs, 0 violations), so NeurOne's eMMC `erase()` is decided a no-op. `block_cycles` retained. Bring-up protocol `HW-LFS-01…05` written with pass criteria (≥1,000 cuts per scenario, 0 violations, 0 hangs; the rule of three bounds the per-cut failure rate below 0.3 % at 95 %). `OI-LFS-04`: answered **no** from the code and the hardware record; the tile's drive stage is specified two incompatible ways — raised as `NP-HW-HEXTILE-001` `OI-HEXTILE-23`; three options stated, not chosen. Rev 7 → 8. |
 | 7 | 2026-09-24 | NeurOne Firmware Engineering | **`OI-LFS-11` CLOSED — UHDR logs become one file per session (§13.10).** `np_log_backend` gains `np_log_backend_session_begin(counter)` / `_session_end()`: UHDR is written only inside a session, to `/uhdr/sessions/<count>` (`EMMC-UHDR-12`/`-13`), created exclusively and never reopened; each session's staged tail is flushed into its own file; a per-file cap at `file_max` fails one session closed and clears at the next. UHDR is no longer opened at boot, when it is not yet mounted. SHDR keeps one file — its partition (512 MiB) is below `file_max`. `np_session_log` opens and closes the files at session start/end, increments the device session count there (`EMMC-SHDR-09`), and steps past a count whose file exists rather than lose the session (new `NP_HUB_ERR_LOG_EXISTS`). Lower HAL: `np_log_hal_part_open()` gains the segment argument; new seam `np_log_hal_part_close()` (SW-02 census 98 → 99). `np_log_backend_tests` gains seven cases and links the logger; falsified four ways. New `OI-LFS-12`: the session count is not persisted. Rev 6 → 7. |
 | 6 | 2026-09-24 | NeurOne Firmware Engineering | **`OI-LFS-10` CLOSED and `ECR-EMMC-002` APPLIED (§13.9).** The Config instance takes `EMMC-FS-01`'s remaining values on the principal's decision — `lookahead_size` 64 (was 512), `block_cycles` 200 (was 500), `name_max` 64 and `attr_max` 256 (were unset), `metadata_max` 4,096 stated — now set by `np_lfs_config_apply()` and checked by `np_lfs_config_validate()`, with five new must-refuse perturbations. `inline_max` falls to 256 B (`attr_max` bounds it); `ukmd.rec`'s 208-byte envelope stays inline. `NP-FW-EMMC-001` amended Rev 2 → 3 by `editscripts/patch_emmc_ecr002_prog512.py` (idempotent; six cells changed with the superseded 256 retained, a banner, header and revision row) — the first edit to that `.docx` since Rev 2, made through the patch-script convention `OI-CONV-04` points to. All three instances now match `EMMC-FS-01` exactly. Suites re-run: §12 285 interrupted runs, the store 225, Config RMW 84 — 0 violations; falsifications still caught. Rev 5 → 6. |
 | 5 | 2026-09-24 | NeurOne Firmware Engineering | **`OI-LFS-10`'s hazard half decided by the principal — the Config instance moves to `read_size`/`prog_size` 512 (§13.8).** `cache_size` follows to 512 because `lfs_init()` requires a multiple of `prog_size`, which also brings it into agreement with `EMMC-FS-01`. `np_lfs_instance.h` changed and `_Static_assert`ed (a 256 build no longer compiles); `np_lfs_config_tests` pins 512 and now requires 256 to be *refused*; the Config RMW sweep in `np_lfs_log_instance_tests` flips from *must lose data* to *must lose nothing*, and a raw-littlefs sweep at 256 keeps the evidence live. §12's suite re-run on the new instance: 285 interrupted runs, 0 violations, falsifications still caught. `ECR-EMMC-002` extended to the Config column. `RISK-LFS-08` closed. **Still open in `OI-LFS-10`:** `lookahead_size`, `block_cycles`, `name_max`/`attr_max`. Static RAM 1,024 → 1,536 B, plus 512 B per open file. Rev 4 → 5. |
@@ -1275,4 +1288,101 @@ stepping past existing files. **Falsified by hand** four ways, each caught: the 
 exclusive-create and file-per-session behaviour are tested against the host model of that seam.
 `np_lfs_log_instance` and `check-lfs-caller-rules.ts` already require that glue to be added to the
 gate's caller list when it is written.
+
+### 13.11 `OI-LFS-07` — what the host could decide, and the bring-up protocol for the rest (Rev 8)
+
+`OI-LFS-07` asked four things of the eMMC + XTS stack. Two are decided here, two need silicon.
+
+**1. What `erase()` does — DECIDED: nothing.** littlefs's contract (`lfs.h`): *"A block must be
+erased before being programmed. The state of an erased block is undefined."* An eMMC has no
+erase-before-program requirement — its FTL remaps every write — so the callback may be a no-op,
+**provided littlefs never relies on an erased block reading as `0xFF`.** That proviso is testable on
+the host and was tested: `np_lfs_powerbd` gained `erase_noop` (an erase still consumes an op index
+and can be cut, but never changes the medium), proven active by a direct prog-then-erase check that
+fails when the mode is switched off. With it set:
+
+| Sweep | Runs | Violations |
+|---|---|---|
+| SHDR `L-1`/`L-2`, real geometry, no-op erase | 66 | **0** |
+| Config `L-4` through `np_cfg_store`, no-op erase | 84 | **0** |
+
+So NeurOne's block-device glue implements `erase()` as `return 0;` — no `CMD35/36/38`, which also
+removes upstream #1083's erase-group question (384 KiB groups against 4 KiB blocks) entirely. A
+discard/TRIM for wear is an optimisation that would need its own sweep; it is not required.
+
+**2. What `block_cycles` means above an FTL — DECIDED: kept as specified.** It sets how often
+littlefs relocates a metadata pair between *logical* blocks; the FTL levels *physical* wear
+regardless. Keeping it costs a small amount of write amplification and buys nothing the FTL does not
+already do — but it is `EMMC-FS-01`'s value, harmless, and `EMMC-WE-03` already requires the
+firmware to measure write amplification and fault above 3×. `HW-LFS-05` confirms it with numbers.
+Claim `L-6` is re-read accordingly: wear levelling is the eMMC's; littlefs's is belt and braces.
+
+**3 and 4 — tear granularity and "reliable write", and the medium's behaviour under a real cut —
+need silicon.** The bring-up protocol:
+
+| ID | Test | Method | Pass criterion |
+|---|---|---|---|
+| **HW-LFS-01** | **Tear granularity** | Write known patterns to consecutive 512-byte units (XTS on, and once with XTS bypassed to separate the layers); cut eMMC `VCC` with a GPIO-driven load switch at random offsets inside `CMD24`/`CMD25`; after power-up classify every unit as old / new / mixed / damaged-but-not-in-flight. ≥ 1,000 cuts | **No unit other than the one in flight is ever damaged.** If one is, §13.1.3's RMW model is optimistic for this part: enable eMMC reliable write (`EXT_CSD` `WR_REL_SET`) and repeat |
+| **HW-LFS-02** | **Power-loss sweeps on the real stack** | The §12/§13 scenarios — log append (`L-1`/`L-2`), in-place replace (`L-3`), journal (`L-4`), replicated `ukmd.rec`, per-session file open/close — run on target over the real XTS block device with `erase()` a no-op, power cut at random times by the same load switch. The host verifiers, compiled for target. ≥ 1,000 cuts per scenario | **0 violations, 0 mount failures, 0 hangs** (a hang = no SPI heartbeat within 5 s of power-up — upstream #1211's symptom, which only hardware can observe). With 0 failures in 1,000 cuts the per-cut failure probability is below 0.3 % at 95 % confidence (rule of three); a failure anywhere is a finding, not a retry |
+| **HW-LFS-03** | **Mount after interrupted format and interrupted repair** | Cut during `np_cfg_store_format()` and during a replicated-record repair | Mount succeeds or reports cleanly; `ukmd.rec` never lost while one copy was valid before the cut |
+| **HW-LFS-04** | **Allocator traversal time** | UHDR filled to 25 %, 50 % and 90 %; time `np_lfs_log_prime_allocator()` at mount and one traversal forced mid-session (§13.1.4 measured ≈ 0.5 reads per block in use) | A mid-session traversal completes inside the session logger's buffering headroom at the EEG rate; if not, `lookahead_size` (§13.1.4) or the logger's buffering is revisited **with this measurement** |
+| **HW-LFS-05** | **Write amplification** | `EMMC-WE-03`'s WAF over a 100-session endurance run, with `EXT_CSD` life estimates before and after | WAF ≤ 3× (`EMMC-WE-03`'s fault threshold); the expected 1.1–1.5× is recorded against it |
+
+**What this does not change.** `OI-LFS-07` stays **open** until `HW-LFS-01…05` have run: every
+`L-1…L-4` result in this document is still a statement about the contract, and `RISK-LFS-06` stays
+open. What changed is that the medium question is now a test list with numbers, and one of its four
+sub-questions is closed.
+
+### 13.12 `OI-LFS-04` — is there a Class C bound on per-tile drive current? The answer is no (Rev 8)
+
+`OI-LFS-04` (= `OI-NVRAM-10`) asks whether anything in SW-01 — the Class C safety MCU — bounds a
+tile's emitter drive current independently of Map 1's ranges. It is Safety + EE's to *decide*; it
+is answerable from the record, and the answer is **no**.
+
+**What the Class C side has.** `firmware/safety_mcu/` owns the cranial and 1,170 nm PBM **enable**
+lines (`np_gpio_mgr.c`) and cuts them on over-temperature (`np_thermal_interlock.c`). It has no
+per-tile current sense, no per-tile magnitude limit, and no wire-format field that carries one.
+
+**What sets the current.** `NP-HW-HEXTILE-001` §6.2 specifies the on-module driver as the tile MCU's
+PWM switching a low-side N-FET, with a series sense resistor per channel — inherited from
+`NP-HW-FPC-001` §6.2, whose text is explicit: *"the FETs switch LED current via series sense
+resistors"*, with over-current **detected by the tile firmware** reading that resistor (220 mA). In
+that topology the magnitude while the FET is on is set by **hardware** — bus voltage, the string's
+forward voltage, the resistor — and **not by Map 1**; Map 1's ranges reach the emitters only through
+firmware, as duty or intensity codes. So:
+
+| Path | Bounded by | Class |
+|---|---|---|
+| Peak current while on | the string's I–V curve against 24 V and the sense resistor — **unregulated**; forward voltage falls ~2 mV/°C per emitter, so a hot string draws more | hardware, uncontrolled |
+| Average irradiance (duty) | hub firmware (≤ 25 % duty, the power governor) and the tile firmware | Class B |
+| Over-current | tile firmware ADC threshold | Class B (tile) |
+| Everything, eventually | the safety MCU's thermal cut of the enable line | **Class C — the only one** |
+
+An out-of-range or substituted Map 1 entry therefore reaches **average** irradiance through Class B
+firmware, with the 62 °C cut as the only Class C backstop: `OI-NVRAM-10`'s *"thermal limit standing
+in for an optical one"*, confirmed rather than hypothetical. §6.1's classification stands on its
+stated condition (`REQ-LFS-01` keeps limits in the reject-and-rebuild cache), and that condition is
+enforced in CI (§13.5) — but the backstop behind it is thermal.
+
+**A defect in the hardware record, found on the way.** `NP-HW-HEXTILE-001` §8.1.1 describes the stage
+as **constant-current** with a **dropout** below which *"control falls out of regulation"*, and §4.3.1
+claims the 150 mA full-drive point lands on the 400 mW/cm² ceiling *"so the array cannot be commanded
+past its own optical limit even before firmware intervenes."* Both require a regulating element — an
+amplifier or regulator holding the sense-resistor voltage to a reference. §6.2's parts list has none
+(U2 is the photodiode TIA), and its sense-resistor row cites *"value set by string current, §6.3"*,
+where §6.3 is the rigidizer fit. **Either the stage regulates and its regulator is missing from the
+specification, or it is switched and §4.3.1's hardware-ceiling claim does not hold.** Raised as
+`NP-HW-HEXTILE-001` **`OI-HEXTILE-23`**.
+
+**The options — for Safety + EE, not decided here:**
+
+| | Option | Bounds | Cost |
+|---|---|---|---|
+| **A** | Specify a regulating constant-current stage per channel with a **fixed hardware reference** (sense resistor + reference + amplifier or a regulator IC) | **peak** current, independent of every firmware and of Map 1 — what §4.3.1 and §8.1.1 already assume | parts and area on a 22 × 14 mm rigidizer; resolves `OI-HEXTILE-23` |
+| **B** | A **hardware duty / on-time limit** on each channel (e.g. a retriggerable one-shot on the gate) | **average** irradiance, independent of firmware | small; complements A |
+| **C** | Accept the thermal cut as the only non-firmware bound and **re-derive** §6.1's argument with that stated | nothing new | documentation; the residual stays a thermal limit for an optical hazard |
+
+A without B bounds the peak but not the duty; B without A bounds the duty of an unregulated peak.
+**A + B together** would give a bound on optical output that no stored value can move — which is the
+property `OI-NVRAM-10` was asking about. `OI-LFS-04` stays open until one is chosen.
 

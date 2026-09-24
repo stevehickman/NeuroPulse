@@ -123,6 +123,14 @@ typedef struct {
      * synced.  EMMC-UHDR-05 sets that unit to 512 B. */
     lfs_size_t  rmw_unit;
 
+    /* No-op erase (OI-LFS-07).  When set, erase() still consumes an op index
+     * and can be cut, but never changes the medium — the block keeps whatever
+     * it held.  That is what an eMMC erase() implemented as a no-op does, and
+     * littlefs's contract allows it: "The state of an erased block is
+     * undefined" (lfs.h).  A sweep that passes with it set is the host
+     * evidence that NeurOne's erase() need not issue CMD35/36/38 at all. */
+    bool        erase_noop;
+
     /* Counters, for the falsification cases.  Never reset by a power cycle:
      * a suite that never programmed anything must be able to say so. */
     long        total_progs;

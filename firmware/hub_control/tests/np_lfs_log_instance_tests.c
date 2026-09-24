@@ -414,6 +414,8 @@ static int jrn_verify(const char *what, long cut, np_powerbd_tear_t tear)
     return 1;
 }
 
+static bool g_erase_noop;   /* applied by config_journal_sweep's bind */
+
 static np_sweep_result_t config_journal_sweep(lfs_size_t rmw, const char *label,
                                               bool expect)
 {
@@ -422,9 +424,10 @@ static np_sweep_result_t config_journal_sweep(lfs_size_t rmw, const char *label,
     np_powerbd_bind(&g_bd, &g_cfg, g_cmedia, NP_LFS_CFG_BLOCK_SIZE,
                     NP_LFS_CFG_BLOCK_COUNT, NP_LFS_CFG_PROG_SIZE,
                     g_cdirty, sizeof(g_cdirty));
-    g_bd.rmw_unit = rmw;
-    g_cfg.lock    = host_lock;
-    g_cfg.unlock  = host_unlock;
+    g_bd.rmw_unit   = rmw;
+    g_bd.erase_noop = g_erase_noop;
+    g_cfg.lock      = host_lock;
+    g_cfg.unlock    = host_unlock;
     np_sweep_bind(&g_bd, reboot_store);
     g_expect = expect;
     g_shown  = 0;
@@ -549,6 +552,67 @@ static void session(lfs_size_t blocks, long spike, long *max_reads, long *spikes
     (void)lfs_file_close(&g_lfs, &f);
 }
 
+/* ── 5a. OI-LFS-07 — erase() may be a no-op on the eMMC ────────────────────
+ *
+ * littlefs's contract: "A block must be erased before being programmed. The
+ * state of an erased block is undefined" (lfs.h).  An eMMC has no erase-before-
+ * program requirement — its FTL remaps writes — so NeurOne's erase() callback
+ * can do nothing at all, and upstream #1083's question ("what should erase()
+ * do on a device with large erase groups?") has that answer IF littlefs never
+ * relies on an erased block reading as 0xFF.  These sweeps are that check: the
+ * same power-loss scenarios, with an erase that leaves every block exactly as
+ * it was.  Hardware still has to confirm the eMMC honours the program half of
+ * the contract; this settles the erase half on the host.
+ */
+static void test_noop_erase_is_contract_valid(void)
+{
+    /* The log instance, real SHDR geometry. */
+    ASSERT(build_log(NP_LOG_PART_SHDR, 0U), "SHDR config refused");
+    g_bd.erase_noop = true;
+
+    /* The mode is real: an erase through the bound callback leaves a written
+     * block's bytes exactly as they were (without this, a flag the device
+     * ignored would pass every sweep below). */
+    {
+        static uint8_t pattern[NP_LFS_LOG_BLOCK_SIZE];
+        memset(pattern, 0x3C, sizeof(pattern));
+        np_powerbd_power_cycle(&g_bd);
+        ASSERT(g_cfg.prog(&g_cfg, 7U, 0U, pattern, sizeof(pattern)) == 0 &&
+               g_cfg.erase(&g_cfg, 7U) == 0, "direct prog/erase");
+        const uint8_t *blk = np_powerbd_block_data(&g_bd, 7U);
+        ASSERT(blk != NULL && memcmp(blk, pattern, sizeof(pattern)) == 0,
+               "the no-op erase changed the block — the sweeps below would "
+               "not be testing a no-op erase()");
+        np_powerbd_sparse_drop(&g_bd, 7U);
+    }
+    long erases_before = g_bd.total_erases;
+    np_sweep_result_t log = sweep("SHDR L-1/L-2, no-op erase", false);
+    ASSERT(g_bd.total_erases > erases_before,
+           "the no-op-erase sweep issued no erase at all — it tested nothing");
+    ASSERT(log.ops > 0 && log.missed_cuts == 0, "sweep did not run as measured");
+    ASSERT(log.violations == 0,
+           "L-1/L-2 fail when erase() leaves the block unchanged — littlefs "
+           "depends on the erased state after all, and a no-op erase() on the "
+           "eMMC is NOT safe");
+    np_sweep_release();
+
+    /* The Config instance, through the store's journal (L-4). */
+    g_cmedia = malloc((size_t)NP_LFS_CFG_BLOCK_SIZE * NP_LFS_CFG_BLOCK_COUNT);
+    ASSERT(g_cmedia != NULL, "host out of memory");
+    if (g_cmedia == NULL) {
+        return;
+    }
+    g_erase_noop = true;
+    np_sweep_result_t cfg = config_journal_sweep(0U, "Config L-4, no-op erase",
+                                                 false);
+    g_erase_noop = false;
+    ASSERT(cfg.violations == 0,
+           "the Config journal loses records when erase() is a no-op");
+    np_sweep_release();
+    free(g_cmedia);
+    g_cmedia = NULL;
+}
+
 static void test_lookahead_cost_is_measured(void)
 {
     /* UHDR geometry, 16,384 blocks (64 MiB, ~90 min of EEG at 12 kB/s) already
@@ -614,6 +678,7 @@ int main(void)
     test_parameters_are_pinned();
     test_log_instances_hold_l1_l2();
     test_prog_smaller_than_xts_unit_breaks_the_contract();
+    test_noop_erase_is_contract_valid();
     test_lookahead_cost_is_measured();
 
     np_sweep_release();

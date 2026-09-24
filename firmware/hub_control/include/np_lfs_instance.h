@@ -151,7 +151,9 @@
  * What it deliberately does NOT touch, because none of it is this module's to
  * decide: context, read/prog/erase/sync (OI-LOG-05..07, the platform block-device
  * glue over the XTS-mounted partition) and lock/unlock (LFS_THREADSAFE — the
- * caller's mutex).  The caller sets those, then calls np_lfs_config_validate().
+ * caller's mutex).  erase() on the eMMC is a NO-OP — littlefs leaves an erased
+ * block's state undefined, and the power-loss sweeps pass with an erase that
+ * never touches the medium (NP-SOUP-LFS-001 §13.11, OI-LFS-07).  The caller sets those, then calls np_lfs_config_validate().
  *
  * Returns NP_HUB_ERR_INVALID_ARG if cfg is NULL, otherwise NP_HUB_OK.
  */

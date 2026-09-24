@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HEXTILE-001
-**Revision:** 11
-**Date:** 2026-09-21
+**Revision:** 12
+**Date:** 2026-09-24
 **Status:** DESIGN STUDY — not a tooling baseline. Every numeric value below is a proposed engineering commitment, not a measured or locked figure. See §10 (Decisions) and §11 (Open Items).
 **Effective Date:** —
 **Author:** NeurOne Hardware Engineering
@@ -14,6 +14,20 @@
 **IEC 62304 Class:** — (hardware; the on-module driver firmware is Class B, see §6.5)
 **Supersedes:** — (new document; fills the gap declared in NP-HW-FPC-001 Rev 5 supersession note: *"no document yet specifies the T1-A/T1-C hex-tile FPC pinout or electrical layout"*)
 **Parent Document:** NP-HEX-ZM-001
+
+---
+
+> **Rev 12 (2026-09-24) — the drive stage is specified two incompatible ways. Open item only; no value changes.**
+>
+> `NP-SOUP-LFS-001` Rev 8 §13.12, answering `OI-LFS-04` / `OI-NVRAM-10`, found that §6.2 and §8.1.1
+> describe different circuits. §6.2 (inherited from `NP-HW-FPC-001` §6.2, whose text says *"the FETs
+> switch LED current via series sense resistors"*) is a **switched** stage: tile-MCU PWM on a low-side
+> N-FET, a sense resistor that the tile firmware reads for over-current. §8.1.1 is a **regulated**
+> stage: *"constant-current control"* with a dropout. §4.3.1's claim that full drive *"cannot be
+> commanded past its own optical limit even before firmware intervenes"* needs the regulated one, and
+> §6.2's parts list has no regulating element. Its sense-resistor row also cites *"value set by string
+> current, §6.3"* — §6.3 is the rigidizer fit. Raised as **`OI-HEXTILE-23`** (§11). It is the
+> hardware half of `OI-LFS-04`: option A there (a fixed-reference regulating stage) resolves both.
 
 ---
 
@@ -1106,6 +1120,7 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 | **OI-HEXTILE-12** | FPC stack-up, trace width/spacing, and copper weight for a 24 V / 1.04 A tile. PDMS bonding (SiO₂ 75 nm interlayer + O₂ plasma) and the 200-cycle IEC 60068-2-14 qualification inherit unchanged from NP-HW-FPC-001 Rev 5 §7 and remain BLOCKING | FPC artwork release |
 | **OI-HEXTILE-20** | **§8.1's 25.0 W/tile peak may not be a legal operating point, and the contact count depends on it.** §4.3.1 puts each T1-A channel at **403 mW/cm²** at full 150 mA drive — *"by construction"* on R-4's 400 mW/cm² ceiling — so **both channels simultaneously is 806 mW/cm² against R-5's 600 mW/cm² aggregate ceiling.** Two readings, and the document does not say which holds: (a) **R-5 binds only the three-channel case** its source (`NP-FW-PBM1064-001` Rev 2, OI-PBM-05) addresses, in which case say so explicitly, because §4.3.2 presents 566 mW/cm² *"vs 600 mW/cm² ceiling ✓"* as a general check and a reader will apply it generally; or (b) **R-5 binds T1-A too**, in which case the true per-tile peak is **~18.6 W**, not 25.0 W. **Reading (b) is not conservative bookkeeping** — it propagates into the rail current (1.04 A → 0.78 A), the per-pin contact current that set `VLED` at 3 contacts under the ≥2× degraded-case rule (D-5, D-6, §8.1), §9's entire concurrency table, and `NP-PWR-BUDGET-001` §3.5. D-5's own text says the pin count is *"load-bearing and now tooling-blocking"* | **Socket contact count (D-5) — tooling-blocking.** Resolve with `NP-FW-PBM1064-001` as R-5's owner; propagates to §9, `NP-DRV-SHELL-002` §5.1, `NP-PWR-BUDGET-001` §3.5 |
 | **OI-HEXTILE-21** | **The 1064 nm channel cannot reach the irradiance of its own flagship protocol, at any tile population.** §4.3.2 gives CH_C **28 mW/cm²** at 30 sites. `docs/pbm_neuro_protocols.md` grades cognitive enhancement **A** at **1064 nm CW, 0.25 W/cm², 60 J/cm²/site, 8 min** — **9× above** what the tile delivers; a hypothetical 90-site 1064-only tile reaches only ~85 mW/cm², still 3× short. **This is an emitter-efficiency wall, not a budget or layout shortfall:** η_wp ≈ 4.8 % at 1064 nm (§4.3), and R-6 already caps drive at 120–180 mA for L70, so neither more watts nor more sites closes it. Three responses, none free: select a materially better 1064 nm emitter (extends `OI-HEXTILE-02` to CH_C, and `NP-PROC-FPC-1064-001`'s EPITEX reference part is the current bound); accept CW-only operation and long sessions, stating the protocol NeurOne actually targets; or **claim 1064 nm against the Alzheimer's protocol (1060–1080 nm, 0.1–0.3 W/cm²) rather than the cognitive one** — a band a 90-site tile can approach. **Split from `OI-HEXTILE-03`, which framed this as session length.** Note the same wall bounds every 1070 nm competitor (`docs/reference/competitive-position.md`) | **1064 nm claims and protocol authoring; `OI-HEXTILE-02` scope for CH_C.** Not tooling-blocking — the lattice is unaffected either way |
+| **OI-HEXTILE-23** | **The drive stage is specified as switched (§6.2) and as constant-current (§8.1.1, §4.3.1), and only the second supports the hardware optical-ceiling claim** (raised Rev 12, `NP-SOUP-LFS-001` §13.12). §6.2 lists no regulating element — tile-MCU PWM, a low-side FET and a sense resistor read by firmware — so while the FET conducts the current is set by 24 V, the string's `V_f` (which falls as the string heats) and the resistor: fixed by hardware, but unregulated. §4.3.1's *"cannot be commanded past its own optical limit even before firmware intervenes"* and §8.1.1's dropout rule both assume a regulator holding the sense voltage to a fixed reference. Decide the topology; if regulated, add the element to §6.2 and derive R1–R3 from the reference (the row's *"§6.3"* citation is wrong); if switched, retire §4.3.1's hardware-ceiling sentence and §8.1.1's dropout bound. The same decision answers `OI-LFS-04` / `OI-NVRAM-10` (whether any non-firmware bound on per-tile drive magnitude exists) | EE + Safety | `OI-LFS-04`; §4.3.1; §8.1.1; tooling of the rigidizer |
 | **OI-HEXTILE-22** | **§4.1's 3.80 mm lattice pitch was never checked against the footprint of the emitter that sits on each site, and most of the shortlist does not fit it** (raised Rev 10, GitHub #333). A triangular lattice of pitch `p` puts the 60° neighbour at `(p/2, p√3/2)`; at p = 3.80 mm that is **(1.90, 3.29) mm**, so two axis-aligned square packages clear each other only at **≤ 3.29 mm**. Luminus SST-06/SST-10-IRD-810 is 3.45 mm square (**3.65 mm at maximum material**, +0.20/−0.00) and needs ≥ 4.21 mm; **ams-OSRAM SFH 4718A (3.75 mm) needs ≥ 4.33 mm and SFH 4703AS (3.85 mm) needs ≥ 4.45 mm** — both above §4.1's own **4.04 mm** ceiling at n = 5, so for them it is not resolvable by spending the 1.2 mm boundary clearance. **Only Lumileds L1IZ-0850 (1.9 × 1.37 mm) fits**, and only with its long axis on the 60° axis — which is the 850 nm part, the one that fails the wavelength window. A 45° package rotation clears the 3.45 mm part by ~0.03 mm and is not a manufacturable margin. **Three ways out and this item does not pick one:** drop to n = 4 (61 sites, 5.05 mm available, and every §4.3 irradiance figure re-derives on the lower count); hold 91 sites and require a ≤ 3.29 mm package, which is a procurement constraint `NP-PROC-FPC-001` §2.3 does not currently state (it says only *“SMD 2835 or equivalent”* — and 2835 is 2.8 × 3.5 mm, whose 3.5 mm axis already exceeds 3.29 mm); or re-derive the pitch jointly with the part under `OI-HEXTILE-02`. **Sequence before `OI-HEXTILE-02` and `OI-HEXTILE-04`** — beam angle and uniformity are both downstream of whichever pitch survives | §4.1 pitch; **all §4.3 irradiance figures**; FPC artwork; `OI-HEXTILE-02` part selection; `NP-PROC-FPC-001` §2.3 package requirement |
 
 ---
