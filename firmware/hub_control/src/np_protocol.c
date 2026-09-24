@@ -312,3 +312,51 @@ void np_protocol_sort_cmds(np_session_desc_t *desc)
         desc->cmds[j + 1] = key;
     }
 }
+
+/* ── Tier admission (REQ-UPG-01, OI-UPG-01) ─────────────────────────────────── */
+
+static bool is_t2_modality(np_hub_mod_type_t m)
+{
+    switch (m) {
+        case NP_MOD_CVNS:
+        case NP_MOD_QEEG_21CH:
+        case NP_MOD_TMS:
+        case NP_MOD_PBM_1170NM:
+        case NP_MOD_CLIN_TACS:
+        case NP_MOD_HD_TDCS:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool np_protocol_uses_t2_modality(const np_session_desc_t *desc)
+{
+    if (desc == NULL) {
+        return false;
+    }
+    for (uint8_t i = 0U; i < desc->cmd_count && i < NP_HUB_PROTO_CMD_MAX; i++) {
+        if (is_t2_modality(desc->cmds[i].mod_type)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+np_hub_status_t np_protocol_tier_admit(const np_session_desc_t *desc,
+                                        uint8_t                  device_tier)
+{
+    if (desc == NULL) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    if (!np_protocol_uses_t2_modality(desc)) {
+        return NP_HUB_OK;
+    }
+    if (device_tier == NP_TIER_T2) {
+        return NP_HUB_OK;
+    }
+    if (device_tier == NP_TIER_UNKNOWN) {
+        return NP_HUB_ERR_TIER_UNVERIFIED;
+    }
+    return NP_HUB_ERR_TIER_F4;   /* T1, or any code that is not exactly T2 */
+}

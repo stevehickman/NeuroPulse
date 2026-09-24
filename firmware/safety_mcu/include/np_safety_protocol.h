@@ -143,6 +143,24 @@
 /* 0x3FFF with bits 1–4 (0x001E) cleared: 10 allocated bits, 4 reserved holes. */
 #define NP_SAFETY_EN_ALL_MASK       0x3FE1U
 
+/* ── T2 enable set (NP-REG-UPG-001 §7.5, REQ-UPG-01, OI-UPG-01) ───────────── */
+/*
+ * The enable lines a unit whose tier identity is not a verified T2 never has
+ * asserted, whatever is attached: cervical VNS (A14, on the hub accessory port
+ * every T1 hub has), TMS, 1170 nm deep PBM (T2-D, which fits any socket) and
+ * clinical tACS / HD-tDCS.  np_tier_identity_gate() strips them from
+ * granted_mask.  Fixed at compile time and derived from nothing the hub sends:
+ * a hub that stays silent cannot exempt a line from the gate.
+ *
+ * Deliberately NOT in this set: every T1 line, including the ones a T1
+ * module drives on a T2 unit (REQ-UPG-03, modules carry over).  The 21-channel
+ * qEEG cap has no enable line at all — it senses, it does not stimulate — so it
+ * is refused by the hub at protocol load (np_protocol_tier_admit()), not here.
+ */
+#define NP_SAFETY_EN_T2_MASK \
+    (NP_SAFETY_EN_CVNS | NP_SAFETY_EN_TMS | NP_SAFETY_EN_PBM_1170NM | \
+     NP_SAFETY_EN_CLIN_STIM)
+
 /* Charge-monitor channel INDEX for CLIN_STIM (= bit position of the enable
  * bit above).  HD-tDCS accumulates charge on this channel and is subject to
  * the OI-CHARGE-03 fail-safe geometry gate.  See the reserved-bits note above:

@@ -308,6 +308,25 @@ uint32_t np_hal_impedance_read_cvns_electrode_ohm(uint8_t electrode);
  */
 void np_hal_otp_read_pubkey(uint8_t *buf, uint8_t len);
 
+/*
+ * np_hal_otp_read_tier_record()
+ *                           Copy the tier-identity record window (OTP offset
+ *                           NP_TIER_OTP_OFFSET, NP_TIER_RECORD_LEN bytes) into
+ *                           `buf` VERBATIM.  No erased-state translation: the
+ *                           caller, np_tier_identity_init(), tells an erased
+ *                           window (all 0xFF) from a malformed one itself,
+ *                           because the two are different findings at final
+ *                           acceptance.  len is clamped to NP_TIER_RECORD_LEN.
+ *                           Memory-mapped; non-blocking.
+ *
+ * np_hal_read_device_uid()  Copy the part's 96-bit factory unique ID
+ *                           (NP_DEVICE_UID_LEN bytes) into `buf`.  Read-only
+ *                           silicon, memory-mapped; non-blocking.  len is
+ *                           clamped to NP_DEVICE_UID_LEN.
+ */
+void np_hal_otp_read_tier_record(uint8_t *buf, uint8_t len);
+void np_hal_read_device_uid(uint8_t *buf, uint8_t len);
+
 /* ── Non-volatile state flash (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01) ────────
  *
  * Two reserved 2 KB flash pages (the NV region, the last 4 KB of flash —

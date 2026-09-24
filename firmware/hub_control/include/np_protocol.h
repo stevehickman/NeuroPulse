@@ -98,6 +98,36 @@ size_t np_protocol_compute_expected_len(const np_proto_header_t *hdr,
                                          size_t                   cmd_body_len);
 
 /*
+ * np_protocol_uses_t2_modality
+ *
+ * True if any command in the descriptor names a T2 modality: cervical VNS,
+ * 21-ch qEEG, TMS, 1170 nm deep PBM, clinical tACS or HD-tDCS.  DERIVED FROM
+ * THE MODALITY SET, never from desc->flags (NP_PROTO_FLAG_T2_TIER is set by the
+ * app and is not evidence of anything).  A stop command counts: a protocol
+ * that names a T2 modality at all is a T2 protocol.
+ */
+bool np_protocol_uses_t2_modality(const np_session_desc_t *desc);
+
+/*
+ * np_protocol_tier_admit — REQ-UPG-01, hub half (OI-UPG-01).
+ *
+ * `device_tier` is the tier the safety MCU reports (np_safety_spi_get_tier()):
+ * NP_TIER_T1, NP_TIER_T2, or NP_TIER_UNKNOWN before the first valid report.
+ *
+ *   no T2 modality           → NP_HUB_OK, whatever the tier
+ *   T2 modality, tier T2     → NP_HUB_OK
+ *   T2 modality, tier UNKNOWN→ NP_HUB_ERR_TIER_UNVERIFIED  (retry; not F4)
+ *   T2 modality, otherwise   → NP_HUB_ERR_TIER_F4
+ *
+ * The safety MCU withholds every T2 enable line on a non-T2 unit regardless of
+ * this check (np_tier_identity_gate).  This check exists so the refusal happens
+ * before a session starts, covers the qEEG cap (which has no enable line), and
+ * reaches the user as F4 rather than as a mid-session module fault.
+ */
+np_hub_status_t np_protocol_tier_admit(const np_session_desc_t *desc,
+                                        uint8_t                  device_tier);
+
+/*
  * np_protocol_sort_cmds
  *
  * Sorts desc->cmds[0..cmd_count-1] by start_ms ascending.

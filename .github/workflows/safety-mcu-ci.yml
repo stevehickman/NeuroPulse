@@ -69,7 +69,7 @@ env:
   # must select.  The count assertion is the point: a silently-shrinking test
   # selection is the OI-SWCI-09 failure mode, and `ctest` exits 0 on a subset
   # just as happily as on the whole suite.
-  NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock|hal_platform|nv_state)_tests$'
+  NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock|hal_platform|nv_state|tier_identity|tier_identity_nokey)_tests$'
   # The count lives here and in the assertion step — and NOT in the `host-tests`
   # job `name:`, which is what a required status check matches on.  The job used
   # to be called "Safety MCU host tests (6 targets)".  A required context is an
@@ -89,7 +89,12 @@ env:
   # count did not move, because those targets are Class B.  Do not re-cite the
   # total here — it is build-all.yml's to own, and a copy of it here is the
   # one-value-several-places shape that produced OI-SWCI-37.)
-  NP_SAFETY_TEST_COUNT: '8'
+  #
+  # OI-UPG-01 moved this 8 → 10: SW01-M10's tier-identity suite, built twice —
+  # np_tier_identity_tests with a test authority key, and
+  # np_tier_identity_nokey_tests with the all-zero placeholder the image ships
+  # with, which a keyed build cannot exercise.
+  NP_SAFETY_TEST_COUNT: '10'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  Always runs, always

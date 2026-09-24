@@ -19,6 +19,34 @@
 
 ## Current revision
 
+**Rev 54 (2026-09-24) — §1's *"No such gate exists yet"* replaced by what now exists and what is not
+in force; §4.2 gains the tier-identity interlock row; §4.2's safety-MCU module count updated. No
+locked decision changed; `OI-UPG-01`'s firmware half implemented, `OI-UPG-08` raised.**
+
+**What changed.** `NP-REG-UPG-001` Rev 3 §7.7 built the stimulation half of `REQ-UPG-01` and the
+firmware half of `REQ-UPG-02`. A new Class C module, SW01-M10, verifies a UID-bound Ed25519 tier record
+in the safety MCU's OTP and withholds every T2 enable line unless the record verifies as T2. The hub
+refuses T2 protocols at load as F4. §1 rule 1 said the gate did not exist. It now says the gate exists,
+that it is not in force, and why.
+
+**Why "not in force" is the load-bearing phrase.** The image carries an all-zero placeholder
+authority key, and that fails closed: **every unit, T2 included, is T1** until the key ceremony and
+the OTP programming step exist (`OI-UPG-08`). A reader who took "the gate exists" alone would cite §1
+as evidence that T2 units work, or that a T1 unit's refusal has been verified on silicon. Neither is
+true. Rev 52's entry was careful not to say the gate existed. This entry is careful not to say more
+than that it now does.
+
+**Why a §4.2 row.** §4.2's table is where a reader looks for what the safety MCU withholds, and this
+is now one of those things. The row names the fail-closed direction and the open item, for the same
+reason as above. The module count moved from *"9 modules as of 2026-08"* to 10. The line already
+defers to `wc -l`, which now reads ~2,900.
+
+**What it does not change.** No decision. `REQ-UPG-01`'s software sentence is still unbuilt, and the
+app's tier is still UI state (`OI-UPG-01`). A T2-tier protocol built only from T1 modalities
+(`NP-PWRSRC-001` §6.2) still has no gate. `RISK-PWRSRC-10` stays open for it.
+
+## Earlier revisions
+
 **Rev 53 (2026-09-23) — §17's canonical-surface row states the one exception to equal key sets: a
 locale may add its own CLDR plural categories. No locked decision changed; `OI-I18N-03` closed.**
 
