@@ -85,8 +85,13 @@
  *
  * The band stops at 3 GHz because the INTERNAL source rolls off there. That
  * argument does not cover EXTERNAL 6 GHz Wi-Fi ingress through the parting-plane
- * seam, which is a different excitation — and above 3 GHz the foam is no longer
- * electrically thin. `NP-EMC-CAV-001` `OI-EMCCAV-06` carries that gap.
+ * seam, which is a different excitation. §6.5 (report block 10, `OI-EMCCAV-06`)
+ * works that case against the post-deletion geometry: at 5.925-7.125 GHz the
+ * cavity is OVERMODED (modal overlap ~25), so the head bounds a diffuse field
+ * at composite Q 34-41 rather than removing a mode — and the internal field is
+ * decided by the SEAM (a 36 dB swing between §5.3a's discrete apertures and a
+ * continuous slot), not by the deleted layer (2 dB). Unmeasured; EMF-1a/1b must
+ * be swept to 7.125 GHz to confirm it.
  */
 
 const VALIDATE_ONLY = process.argv.includes("--validate");
@@ -409,6 +414,218 @@ const emirrBreakEven = () => {
   const q = qLoaded(midCavity().f, PD_FABRIC_RS.nominal);
   return EMIRR_DB - 20 * Math.log10(Q_CEILING / q.loaded);
 };
+// ── §6.5 — EXTERNAL 6 GHz Wi-Fi ingress through the parting-plane seam ──────
+// (`OI-EMCCAV-06`.) §4.2's upper edge is set by the INTERNAL source's roll-off
+// and says nothing about an external source that does not roll off. This block
+// works that case to §6's first-order standard, against the POST-DELETION
+// geometry (REQ-CAV-04 taken: the liner sits on the air region, no absorber).
+
+// Band: FCC 20-51 (ET Docket 18-295) opened U-NII-5 .. U-NII-8, 5.925-7.125 GHz.
+const WIFI6E_HZ = { lo: 5.925e9, mid: 6.525e9, hi: 7.125e9 };
+
+// Incident field. The EIRP ceilings are the regulatory maxima for a CLIENT
+// (a phone or laptop near the wearer) under 47 CFR §15.407 as amended by
+// FCC 20-51: low-power-indoor client 24 dBm, standard-power client 30 dBm
+// (6 dB under the 36 dBm AP). 0.3 m is IEC 60601-1-2:2014+A1:2020 Table 9's
+// proximity distance; 0.1 m is a phone held against the headset.
+const WIFI_CLIENT = {
+  lpiDbm: 24, // FCC 20-51 LPI client ceiling
+  spDbm: 30, // FCC 20-51 standard-power client ceiling
+  refDistM: 0.3, // IEC 60601-1-2 Table 9 proximity distance
+  nearDistM: 0.1, // handset against the helmet — bounding case
+  table9Vpm: 9, // IEC 60601-1-2 Table 9, 5100-5800 MHz (the band it stops at)
+};
+const dbmToW = (dbm: number) => 10 ** (dbm / 10) / 1000;
+/** Far-field rms E from EIRP: E = sqrt(30 * EIRP) / d. */
+const incidentE = (eirpDbm: number, dM: number) => Math.sqrt(30 * dbmToW(eirpDbm)) / dM;
+
+// Dry skin, Gabriel et al. 1996 (Phys. Med. Biol. 41, part III) 4-Cole-Cole
+// parameters. §6.3 uses a spot value at 460 MHz; at 6-7 GHz the dispersion is
+// steep enough that the model, not a spot value, is the honest input.
+const GABRIEL_SKIN_DRY = {
+  epsInf: 4.0,
+  sigmaIonic: 0.0002,
+  poles: [
+    { dEps: 32.0, tau: 7.234e-12, alpha: 0.0 },
+    { dEps: 1100, tau: 32.481e-9, alpha: 0.2 },
+  ],
+};
+function gabrielSkin(f: number) {
+  const w = 2 * Math.PI * f;
+  let e = cx(GABRIEL_SKIN_DRY.epsInf);
+  for (const p of GABRIEL_SKIN_DRY.poles) {
+    // dEps / (1 + (j w tau)^(1 - alpha))
+    const mag = (w * p.tau) ** (1 - p.alpha);
+    const ph = ((1 - p.alpha) * Math.PI) / 2;
+    const den = cx(1 + mag * Math.cos(ph), mag * Math.sin(ph));
+    const t = cdiv(cx(p.dEps), den);
+    e = cx(e.re + t.re, e.im + t.im);
+  }
+  // e is eps' - j eps'' in the e^{jwt} convention; add the ionic term.
+  const epsC = cx(e.re, e.im - GABRIEL_SKIN_DRY.sigmaIonic / (w * EPS0));
+  return { epsC, epsR: epsC.re, sigma: -epsC.im * w * EPS0 };
+}
+
+/** Post-deletion geometry: the conductor sits directly on the air region. */
+function postDeletionCavity(circ = (HEAD_CIRC_M.min + HEAD_CIRC_M.max) / 2) {
+  const aHead = headRadius(circ);
+  const t = (airThickness("min") + airThickness("max")) / 2;
+  const aShield = aHead + t;
+  return {
+    aHead, aShield, t,
+    V: shellVolume(aHead, aShield),
+    sHead: sphereArea(aHead),
+    sShield: sphereArea(aShield),
+    rimPerimeter: 2 * Math.PI * aShield, // the parting-plane seam runs round the mouth
+  };
+}
+
+/**
+ * Plane-wave power absorptivity of a surface at incidence theta, TE and TM,
+ * given its input impedance for each polarisation. Free-space reference
+ * impedances are eta0/cos (TE) and eta0*cos (TM).
+ */
+function absorptivity(zTE: Cx, zTM: Cx, th: number) {
+  const c = Math.cos(th);
+  const a = (z: Cx, z0: number) => {
+    const g = cdiv(cx(z.re - z0, z.im), cx(z.re + z0, z.im));
+    return 1 - (g.re * g.re + g.im * g.im);
+  };
+  return (a(zTE, ETA0 / c) + a(zTM, ETA0 * c)) / 2;
+}
+/** Wave impedances in a medium of relative permittivity e for a given sin(theta) in air. */
+function mediumZ(f: number, e: Cx, s: number) {
+  const k0 = (2 * Math.PI * f) / C0;
+  const kz = cscale(csqrt(cx(e.re - s * s, e.im)), k0); // k0 sqrt(e - sin^2)
+  const w = 2 * Math.PI * f;
+  const zTE = cdiv(cx(w * MU0), kz);
+  const zTM = cdiv(kz, cscale(e, w * EPS0));
+  return { kz, zTE, zTM };
+}
+/** Diffuse-field (cosine-weighted, 2*sin*cos) average of a theta-dependent absorptivity. */
+function diffuseAverage(fn: (th: number) => number, n = 400) {
+  let acc = 0;
+  for (let i = 0; i < n; i++) {
+    const th = ((i + 0.5) / n) * (Math.PI / 2);
+    acc += fn(th) * Math.sin(2 * th) * (Math.PI / 2 / n);
+  }
+  return acc;
+}
+/** A lossy half-space (the head, first-order: homogeneous dry skin). */
+function halfSpaceAbsorptivity(f: number, e: Cx, th?: number) {
+  const one = (t: number) => {
+    const m = mediumZ(f, e, Math.sin(t));
+    return absorptivity(m.zTE, m.zTM, t);
+  };
+  return th === undefined ? diffuseAverage(one) : one(th);
+}
+/** A lossy slab of thickness d on a conductor (the deleted Layer 4, for comparison). */
+function slabOnPecAbsorptivity(f: number, e: Cx, d: number, th?: number) {
+  const one = (t: number) => {
+    const m = mediumZ(f, e, Math.sin(t));
+    const tn = ctan(cscale(m.kz, d));
+    const j = cx(0, 1);
+    return absorptivity(cmul(j, cmul(m.zTE, tn)), cmul(j, cmul(m.zTM, tn)), t);
+  };
+  return th === undefined ? diffuseAverage(one) : one(th);
+}
+/** A good-conductor wall of surface resistance Rs: a ~ 4 Rs / eta0 at normal incidence (the larger, so the wall gets more credit than it earns). */
+const wallAbsorptivity = (rs: number) => (4 * rs) / ETA0;
+
+/**
+ * Composite Q of an OVERMODED cavity (diffuse field): Q = 8 pi V / (lambda * sum S_i a_i).
+ * Hill 1994 / IEC 61000-4-21 Annex. At 6 GHz this cavity has hundreds of modes
+ * and they overlap (below), so a per-mode Q is not defined; this is.
+ */
+function diffuseQ(f: number, absorptionAreaM2: number, V: number) {
+  return (8 * Math.PI * V) / ((C0 / f) * absorptionAreaM2);
+}
+/** Weyl mode density and the modal-overlap factor M = (dN/df) * (f/Q). */
+function modalOverlap(f: number, V: number, Q: number) {
+  const dNdf = (8 * Math.PI * V * f * f) / C0 ** 3;
+  return { dNdf, modesBelow: (8 * Math.PI * V * f ** 3) / (3 * C0 ** 3), M: dNdf * (f / Q) };
+}
+
+/**
+ * Seam transmission cross-sections, diffuse-averaged.
+ *  - continuous residual slot of width w along the whole rim: <sigma_t> = P*w/2
+ *    (the electrically-large-aperture limit, half the area over 4 pi incidence);
+ *  - n discrete circular apertures of diameter L: Hill 1994's small-aperture
+ *    <sigma_t> = 16 k^4 a^6 / (9 pi) each, a = L/2.
+ */
+const SEAM = {
+  residualMm: 2.5, // NP-HEX-ZM-001 §5.3a: lambda/20 at 6 GHz
+};
+const sigmaContinuousSlot = (P: number, wM: number) => (P * wM) / 2;
+const sigmaSmallAperture = (f: number, dM: number) => {
+  const k = (2 * Math.PI * f) / C0;
+  const a = dM / 2;
+  return (16 * k ** 4 * a ** 6) / (9 * Math.PI);
+};
+/** Internal rms field ratio: E_c / E_inc = sqrt(lambda * Q * sigma_t / (2 pi V)). Hill 1994. */
+const internalFieldRatio = (f: number, Q: number, sigma: number, V: number) =>
+  Math.sqrt(((C0 / f) * Q * sigma) / (2 * Math.PI * V));
+/**
+ * Peak single-component field at the electrode, from the rms total: sqrt(2)
+ * for the carrier crest, x sqrt(ln 100) / sqrt(3) for the 99th percentile of a
+ * Rayleigh-distributed rectangular component of a diffuse field.
+ */
+const PEAK_FACTOR = Math.SQRT2 * Math.sqrt(Math.log(100)) / Math.sqrt(3);
+
+function wifiCase(f = WIFI6E_HZ.mid, headVisible = 1) {
+  const c = postDeletionCavity();
+  const skin = gabrielSkin(f);
+  const aHead = halfSpaceAbsorptivity(f, skin.epsC);
+  const aHeadNormal = halfSpaceAbsorptivity(f, skin.epsC, 0);
+  const aWall = wallAbsorptivity(PD_FABRIC_RS.nominal);
+  const aFoam = slabOnPecAbsorptivity(f, FOAM_EPS[1][1], ABSORBER_T_M);
+  const areaHead = headVisible * c.sHead * aHead;
+  const areaWall = c.sShield * aWall;
+  const areaFoam = c.sShield * aFoam; // what the deleted layer WOULD add
+  const Q = diffuseQ(f, areaHead + areaWall, c.V);
+  const Qfoam = diffuseQ(f, areaHead + areaWall + areaFoam, c.V);
+  const Qwall = diffuseQ(f, areaWall, c.V);
+  // §6's surface-impedance formula, for comparison (G = 0.5, linearised).
+  const qSurf = qFromBoundary(f, c.V, c.sHead, tissueSurfaceR(f, skin.epsR, skin.sigma).Rs);
+  return { c, skin, aHead, aHeadNormal, aWall, aFoam, Q, Qfoam, Qwall, qSurf, areaHead, areaWall, areaFoam };
+}
+
+/**
+ * Fraction of the head that must be RF-visible through the module field for the
+ * design-intent seam to hold REQ-CAV-01 at incident field eInc. Q goes as
+ * 1/(visible head area) once the head dominates, so field goes as 1/sqrt(f_v).
+ */
+function visibleFractionForLimit(eInc: number, f = WIFI6E_HZ.mid) {
+  const w = wifiCase(f, 1);
+  const fr = wifiField(f, w.Q, w.c.V, w.c.rimPerimeter);
+  const eMax = fieldLimit().eMax;
+  const ePk = fr.holes * eInc * PEAK_FACTOR;
+  // solve (areaHead*fv + areaWall) = (areaHead + areaWall) * (ePk/eMax)^2
+  const need = (w.areaHead + w.areaWall) * (ePk / eMax) ** 2;
+  return (need - w.areaWall) / w.areaHead;
+}
+
+/**
+ * EMIRR at which the 6E internal field just meets REQ-CAV-01 (§5.4's sensitivity,
+ * applied to §6.5). REQ-CAV-01 is linear in 10^(EMIRR/20), so the break-even is
+ * the 60 dB design assumption minus the margin in dB.
+ */
+function emirrBreakEven6E(ePkVpm: number) {
+  return EMIRR_DB - 20 * Math.log10(fieldLimit().eMax / ePkVpm);
+}
+
+function wifiField(f: number, Q: number, V: number, P: number) {
+  const slot = internalFieldRatio(f, Q, sigmaContinuousSlot(P, SEAM.residualMm / 1000), V);
+  const nPath = Math.floor(P / (SEAM.residualMm / 1000)); // pathological: a hole every 2.5 mm
+  const holes = internalFieldRatio(f, Q, nPath * sigmaSmallAperture(f, SEAM.residualMm / 1000), V);
+  return { slot, holes, nPath };
+}
+
+/** Visible head fraction at which the head's absorption equals what the deleted foam's would have been. */
+function visibleFractionFoamParity(f = WIFI6E_HZ.mid) {
+  const w = wifiCase(f, 1);
+  return w.areaFoam / w.areaHead;
+}
 
 // ── Reporting ────────────────────────────────────────────────────────────────
 const f3 = (n: number, d = 1) => n.toFixed(d);
@@ -729,6 +946,68 @@ function reportGapFloor() {
   console.log(`  tolerance, which is nowhere in the record and sets the clearance term.`);
 }
 
+function reportWifi() {
+  const f = WIFI6E_HZ.mid;
+  const w = wifiCase(f);
+  const c = w.c;
+  const fl = fieldLimit();
+  console.log(`\n=== 10. EXTERNAL 6 GHz Wi-Fi INGRESS (OI-EMCCAV-06, §6.5) ================\n`);
+  console.log(`  Post-deletion cavity, 57 cm head: t ${f3(c.t * 1e3)} mm · V ${f3(c.V * 1e3, 2)} L · rim ${f3(c.rimPerimeter * 1e3, 0)} mm\n`);
+  console.log(`  Incident field (47 CFR §15.407 / FCC 20-51 client EIRP ceilings):`);
+  for (const [lab, dbm, d] of [
+    ["LPI client 24 dBm @ 0.3 m (IEC 60601-1-2 Table 9 distance)", WIFI_CLIENT.lpiDbm, WIFI_CLIENT.refDistM],
+    ["SP  client 30 dBm @ 0.3 m", WIFI_CLIENT.spDbm, WIFI_CLIENT.refDistM],
+    ["LPI client 24 dBm @ 0.1 m (handset against the helmet)", WIFI_CLIENT.lpiDbm, WIFI_CLIENT.nearDistM],
+    ["SP  client 30 dBm @ 0.1 m (bounding)", WIFI_CLIENT.spDbm, WIFI_CLIENT.nearDistM],
+  ] as Array<[string, number, number]>) {
+    console.log(`    ${lab.padEnd(60)} ${f3(incidentE(dbm, d), 1).padStart(6)} V/m rms`);
+  }
+  console.log(`\n  Dry skin, Gabriel 1996 4-Cole-Cole:`);
+  for (const ff of [460e6, WIFI6E_HZ.lo, WIFI6E_HZ.mid, WIFI6E_HZ.hi]) {
+    const s = gabrielSkin(ff);
+    console.log(`    ${mhz(ff).padStart(12)}  e_r ${f3(s.epsR, 1)}  sigma ${f3(s.sigma, 2)} S/m`);
+  }
+  console.log(`    (§6.3's 44 / 0.44 at 460 MHz sits BELOW the model's loss — conservative, as it says.)\n`);
+  console.log(`  Head absorptivity at ${mhz(f)}: normal ${f3(w.aHeadNormal, 3)}, diffuse-averaged ${f3(w.aHead, 3)}`);
+  console.log(`  Fabric wall absorptivity ${w.aWall.toExponential(2)} · deleted foam (design loading) would be ${f3(w.aFoam, 3)}\n`);
+  const mo = modalOverlap(f, c.V, w.Q);
+  console.log(`  Modes below ${mhz(f)}: ${f3(mo.modesBelow, 0)} · density ${f3(mo.dNdf * 1e9, 0)} /GHz · overlap M ${f3(mo.M, 1)}`);
+  console.log(`    M >> 1: the field is DIFFUSE. There is no discrete resonance for a per-mode`);
+  console.log(`    Q ceiling to bound, so REQ-CAV-02 has no meaning here even if its band reached.\n`);
+  console.log(`  Composite Q (diffuse, Hill 1994):  wall only ${f3(w.Qwall, 0)} · head in ${f3(w.Q, 1)} · + deleted foam ${f3(w.Qfoam, 1)}`);
+  console.log(`  §6's surface-impedance formula would give Q_head ${f3(w.qSurf, 1)} — optimistic here (linearised, G = 0.5).`);
+  for (const ff of [WIFI6E_HZ.lo, WIFI6E_HZ.hi]) console.log(`    at ${mhz(ff)}: Q ${f3(wifiCase(ff).Q, 1)}`);
+  console.log(`  What the deleted foam would have bought in internal field: ${f3(10 * Math.log10(w.Q / w.Qfoam), 2)} dB`);
+  console.log(`  Head fraction visible through the module field at which foam = head: ${f3(visibleFractionFoamParity() * 100, 0)} %\n`);
+
+  const fr = wifiField(f, w.Q, c.V, c.rimPerimeter);
+  const eRef = incidentE(WIFI_CLIENT.lpiDbm, WIFI_CLIENT.refDistM);
+  const eBound = incidentE(WIFI_CLIENT.spDbm, WIFI_CLIENT.nearDistM);
+  const pk = (ratio: number, e: number) => ratio * e * PEAK_FACTOR;
+  console.log(`  Internal field, screened against REQ-CAV-01's ${f3(fl.eMax, 2)} V/m peak (peak factor ${f3(PEAK_FACTOR, 2)}):`);
+  console.log(`    seam as §5.3a intends — discrete <= ${SEAM.residualMm} mm holes, ${fr.nPath} of them (one every ${SEAM.residualMm} mm):`);
+  console.log(`      coupling ${f3(20 * Math.log10(fr.holes), 1)} dB -> ${f3(pk(fr.holes, eRef), 3)} V/m @ ${f3(eRef, 1)} · ${f3(pk(fr.holes, eBound), 3)} V/m @ ${f3(eBound, 1)} V/m`);
+  console.log(`    seam with the bead absent or lifted — continuous ${SEAM.residualMm} mm slot round the rim:`);
+  console.log(`      coupling ${f3(20 * Math.log10(fr.slot), 1)} dB -> ${f3(pk(fr.slot, eRef), 2)} V/m @ ${f3(eRef, 1)} · ${f3(pk(fr.slot, eBound), 1)} V/m @ ${f3(eBound, 1)} V/m`);
+  console.log(`\n  Across the band (continuous-slot and discrete-hole coupling both rise with f):`);
+  for (const ff of [WIFI6E_HZ.lo, WIFI6E_HZ.mid, WIFI6E_HZ.hi]) {
+    const ww = wifiCase(ff);
+    const r = wifiField(ff, ww.Q, c.V, c.rimPerimeter);
+    console.log(
+      `    ${mhz(ff).padStart(12)}  Q ${f3(ww.Q, 1)}  holes ${f3(20 * Math.log10(r.holes), 1)} dB -> ${f3(pk(r.holes, eRef), 3)} / ${f3(pk(r.holes, eBound), 3)} V/m` +
+        `   slot ${f3(20 * Math.log10(r.slot), 1)} dB -> ${f3(pk(r.slot, eRef), 2)} V/m`,
+    );
+  }
+  console.log(`    lambda/20 at the band top (${mhz(WIFI6E_HZ.hi)}) is ${f3((C0 / WIFI6E_HZ.hi / 20) * 1e3, 2)} mm, not §5.3a's 2.5 mm.`);
+  console.log(`\n  Module-field screening: the head must be RF-visible through the tile field. Fraction needed`);
+  console.log(`  for the design-intent seam to hold 0.5 V/m: ${f3(visibleFractionForLimit(eRef) * 100, 1)} % at ${f3(eRef, 1)} V/m · ${f3(visibleFractionForLimit(eBound) * 100, 0)} % at ${f3(eBound, 1)} V/m`);
+  console.log(`\n  Against §5.4's EMIRR sensitivity (REQ-CAV-01 moves 20 dB per decade of EMIRR), the`);
+  console.log(`  EMIRR at which each case just meets it: holes @ ${f3(eRef, 1)} V/m ${f3(emirrBreakEven6E(pk(wifiField(WIFI6E_HZ.hi, wifiCase(WIFI6E_HZ.hi).Q, c.V, c.rimPerimeter).holes, eRef)), 1)} dB · holes @ ${f3(eBound, 1)} V/m ${f3(emirrBreakEven6E(pk(wifiField(WIFI6E_HZ.hi, wifiCase(WIFI6E_HZ.hi).Q, c.V, c.rimPerimeter).holes, eBound)), 1)} dB · slot @ ${f3(eRef, 1)} V/m ${f3(emirrBreakEven6E(pk(fr.slot, eRef)), 1)} dB`);
+  console.log(`\n  The head keeps Q finite (${f3(w.Q, 0)}) but does NOT make the mode absent at 6 GHz: Q scales`);
+  console.log(`  with electrical size. What decides REQ-CAV-01 is the seam, by ~${f3(20 * Math.log10(fr.slot / fr.holes), 0)} dB — not the layer.`);
+  console.log(`  h_e check: lambda/pi at 7.125 GHz = ${f3((C0 / WIFI6E_HZ.hi / Math.PI) * 1e3, 1)} mm <= §5.1's ${f3(fl.hEff * 1e3)} mm, so 0.5 V/m is conservative here.`);
+}
+
 function reportValidation(): boolean {
   const m = midCavity();
   const small = lowestMode(HEAD_CIRC_M.min, "min");
@@ -739,6 +1018,10 @@ function reportValidation(): boolean {
   const foamAbsurd = slabSurfaceR(m.f, ABSORBER_T_M, FOAM_EPS[3][1]);
   const qFoamDesign = qLoaded(m.f, PD_FABRIC_RS.nominal, foamDesign.Rs).wallQ;
   const qFoamAbsurd = qLoaded(m.f, PD_FABRIC_RS.nominal, foamAbsurd.Rs).wallQ;
+  const w6 = wifiCase(WIFI6E_HZ.mid);
+  const fr6 = wifiField(WIFI6E_HZ.mid, w6.Q, w6.c.V, w6.c.rimPerimeter);
+  const w6hi = wifiCase(WIFI6E_HZ.hi);
+  const fr6hi = wifiField(WIFI6E_HZ.hi, w6hi.Q, w6hi.c.V, w6hi.c.rimPerimeter);
 
   const anchors: Array<[string, number, number, number]> = [
     // label, computed, published, tolerance
@@ -811,6 +1094,35 @@ function reportValidation(): boolean {
     ["head margin at EMIRR 60 dB (dB)", emirrSensitivity(60).headMarginDb, 23.6, 0.3],
     ["head margin at EMIRR 70 dB (dB)", emirrSensitivity(70).headMarginDb, 33.6, 0.3],
     ["EMIRR break-even for the head margin (dB)", emirrBreakEven(), 36.4, 0.3],
+    // §6.5 — OI-EMCCAV-06: external 6 GHz Wi-Fi ingress, post-deletion geometry.
+    ["6E: LPI client 24 dBm @ 0.3 m (V/m rms)", incidentE(WIFI_CLIENT.lpiDbm, WIFI_CLIENT.refDistM), 9.15, 0.05],
+    ["6E: SP client 30 dBm @ 0.1 m, bounding (V/m rms)", incidentE(WIFI_CLIENT.spDbm, WIFI_CLIENT.nearDistM), 54.8, 0.2],
+    ["6E: Gabriel dry skin e_r at 6.525 GHz", w6.skin.epsR, 34.5, 0.2],
+    ["6E: Gabriel dry skin sigma at 6.525 GHz (S/m)", w6.skin.sigma, 4.37, 0.05],
+    ["6E: Gabriel dry skin sigma at 460 MHz (S/m)", gabrielSkin(460e6).sigma, 0.71, 0.02],
+    ["6E: head absorptivity, diffuse", w6.aHead, 0.498, 0.005],
+    ["6E: post-deletion cavity volume (L)", w6.c.V * 1e3, 3.53, 0.02],
+    ["6E: modal overlap M at 6.525 GHz", modalOverlap(WIFI6E_HZ.mid, w6.c.V, w6.Q).M, 24.5, 0.5],
+    ["6E: composite Q, head in, 5.925 GHz", wifiCase(WIFI6E_HZ.lo).Q, 34.0, 0.5],
+    ["6E: composite Q, head in, 6.525 GHz", w6.Q, 37.4, 0.5],
+    ["6E: composite Q, head in, 7.125 GHz", wifiCase(WIFI6E_HZ.hi).Q, 40.8, 0.5],
+    ["6E: composite Q, empty (fabric wall only)", w6.Qwall, 10633, 100],
+    ["6E: composite Q had Layer 4 been kept", w6.Qfoam, 23.8, 0.5],
+    ["6E: field Layer 4 would have bought (dB)", 10 * Math.log10(w6.Q / w6.Qfoam), 1.97, 0.05],
+    ["6E: head visibility at foam parity (%)", visibleFractionFoamParity() * 100, 58, 1],
+    ["6E: seam coupling, discrete 2.5 mm holes (dB)", 20 * Math.log10(fr6.holes), -47.7, 0.2],
+    ["6E: seam coupling, continuous 2.5 mm slot (dB)", 20 * Math.log10(fr6.slot), -11.5, 0.2],
+    ["6E: E_pk, holes @ 9.2 V/m, 7.125 GHz (V/m)", fr6hi.holes * incidentE(WIFI_CLIENT.lpiDbm, WIFI_CLIENT.refDistM) * PEAK_FACTOR, 0.079, 0.002],
+    ["6E: E_pk, holes @ 54.8 V/m, 7.125 GHz (V/m)", fr6hi.holes * incidentE(WIFI_CLIENT.spDbm, WIFI_CLIENT.nearDistM) * PEAK_FACTOR, 0.473, 0.005],
+    ["6E: E_pk, slot @ 9.2 V/m (V/m)", fr6.slot * incidentE(WIFI_CLIENT.lpiDbm, WIFI_CLIENT.refDistM) * PEAK_FACTOR, 4.27, 0.05],
+    ["6E: E_pk, slot @ 9.2 V/m had Layer 4 been kept (V/m)", fr6.slot * incidentE(WIFI_CLIENT.lpiDbm, WIFI_CLIENT.refDistM) * PEAK_FACTOR * Math.sqrt(w6.Qfoam / w6.Q), 3.40, 0.05],
+    ["6E: slot vs holes swing at 6.525 GHz (dB)", 20 * Math.log10(fr6.slot / fr6.holes), 36.2, 0.3],
+    ["6E: head visibility needed @ 54.8 V/m (%)", visibleFractionForLimit(incidentE(WIFI_CLIENT.spDbm, WIFI_CLIENT.nearDistM)) * 100, 63, 1],
+    ["6E: lambda/20 at 7.125 GHz (mm)", (C0 / WIFI6E_HZ.hi / 20) * 1e3, 2.10, 0.01],
+    // §6.5.5 item 5 — the same margins against §5.4's EMIRR sensitivity.
+    ["6E: EMIRR break-even, holes @ 9.2 V/m, 7.125 GHz (dB)", emirrBreakEven6E(fr6hi.holes * incidentE(WIFI_CLIENT.lpiDbm, WIFI_CLIENT.refDistM) * PEAK_FACTOR), 44.0, 0.2],
+    ["6E: EMIRR break-even, holes @ 54.8 V/m, 7.125 GHz (dB)", emirrBreakEven6E(fr6hi.holes * incidentE(WIFI_CLIENT.spDbm, WIFI_CLIENT.nearDistM) * PEAK_FACTOR), 59.5, 0.2],
+    ["6E: EMIRR break-even, slot @ 9.2 V/m (dB)", emirrBreakEven6E(fr6.slot * incidentE(WIFI_CLIENT.lpiDbm, WIFI_CLIENT.refDistM) * PEAK_FACTOR), 78.6, 0.2],
   ];
 
   console.log(`\nscanned: ${anchors.length} published anchor(s) — NP-EMC-CAV-001\n`);
@@ -843,6 +1155,7 @@ function main() {
   reportThermal();
   reportGap();
   reportGapFloor();
+  reportWifi();
   console.log();
 }
 
