@@ -62,7 +62,7 @@
  * script published reproduces unchanged. Its "post" cases therefore remove the
  * foam but hold R1's 12 mm exterior — they do NOT include the 4.6 % exterior-
  * area loss of the 3 mm re-loft, which check-thermal-sink.ts §3a now carries
- * (SPEC-SINK-01 1.08 -> 1.14 K/W, OI-SINK-09). That term raises the exterior,
+ * (SPEC-SINK-01 1.08 -> 1.14 K/W, OI-SINK-10). That term raises the exterior,
  * so every bowl and coil figure below is a slight UNDER-estimate for the
  * re-lofted design; §3a's N = 6 floor case puts the skin +0.2 K warmer.
  *

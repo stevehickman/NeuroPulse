@@ -72,7 +72,7 @@ FD face = mean = peak, confirming the 1D. **Decision (per NP-THERM-CFD-001 §9):
 > figures in this document stay as published: they are the calibration anchor
 > (`scripts/thermal-outward-path.ts` `R_OUT_R1`) and a conservative bound. One qualification the
 > per-area figure cannot carry: the re-loft also shrinks the helmet's exterior 4.6 %, which
-> `NP-THERM-SINK-001` Rev 2 §3a finds makes the via's rejection slightly *worse* (`OI-SINK-09`).
+> `NP-THERM-SINK-001` Rev 3 §3a finds makes the via's rejection slightly *worse* (`OI-SINK-10`).
 
 ## 3. C3 — natural-convection-safe duty ceiling (fan OFF, 1D)
 
@@ -202,4 +202,4 @@ CLAUDE.md §4.2 (42/62 °C interlocks), §4.3 (EMF stack), §4.5 (power/heat).
 | Rev | Date | Author | Change |
 |---|---|---|---|
 | 1 | 2026-07-22 | NeurOne Thermal | Initial release (C2 / C3 / C6 + BN-boss export study). *Row added at Rev 2; this document carried no revision table before.* |
-| 2 | 2026-09-23 | NeurOne Thermal / Systems Engineering | **Amended for the Layer 4 absorber deletion (`OI-THCOOL-21`, GitHub #407; `REQ-CAV-04`, #391).** Header note and a §2 note: the published outward path 0.41 includes the deleted 3 mm foam; the current path is 0.335. **No result rewritten** — every figure is the calibration anchor downstream models reproduce, and a conservative bound (face −0.01 to −0.03 K at 0.335). Path A's verdict unchanged. Cross-ref to `NP-THERM-SINK-001` §3a / `OI-SINK-09` for the exterior-area term. |
+| 2 | 2026-09-23 | NeurOne Thermal / Systems Engineering | **Amended for the Layer 4 absorber deletion (`OI-THCOOL-21`, GitHub #407; `REQ-CAV-04`, #391).** Header note and a §2 note: the published outward path 0.41 includes the deleted 3 mm foam; the current path is 0.335. **No result rewritten** — every figure is the calibration anchor downstream models reproduce, and a conservative bound (face −0.01 to −0.03 K at 0.335). Path A's verdict unchanged. Cross-ref to `NP-THERM-SINK-001` §3a / `OI-SINK-10` for the exterior-area term. |

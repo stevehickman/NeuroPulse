@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-THERM-CFD-N1-001
-**Revision:** 1
-**Date:** 2026-09-03
+**Revision:** 2
+**Date:** 2026-09-23
 **Status:** DESIGN STUDY — **coupled N-tile resistance network on the delivered 80-socket lattice, validated against every published `NP-THERM-CFD-R1-001` figure.** It is **not** a mesh CFD and does not close `OI-R1-01`'s mesh-independence requirement. It closes the *question* `OI-PWR-01` was opened to answer, and finds that a mesh CFD could not have answered it — see §11.
 **Effective Date:** —
 **Author:** NeurOne Thermal / Systems Engineering
@@ -61,6 +61,17 @@
 > is no heatsink to improve.
 
 ---
+
+> **Rev 2 (2026-09-23) — the Layer 4 absorber is deleted (`REQ-CAV-04`, GitHub #391); `OI-THCOOL-21`
+> (#407) re-runs this network with it gone.** Every table below was computed with R1's cavity leg
+> **0.180 m²K/W**, which contains the 3 mm foam; the current leg is **0.105**. **The tables are kept as
+> published**, for the reason `R_SINK_DEFAULT` was never raised in place: each names the configuration
+> it was computed at, and the script must keep reproducing this document. The current case is carried
+> beside them — `check-thermal-multitile.ts` §2c/§2d and §8 — and summarised in **§8a**. Below ~39 °C
+> ambient every face here falls or holds, so every ceiling rises or holds and every figure in this
+> document bounds the current design from above. Two things this network cannot see are in
+> `NP-THERM-SINK-001` Rev 3 §3a: the re-loft that moved with the deletion also **shrinks the exterior**,
+> and in that model the net at the scalp is slightly *worse* (`OI-SINK-10`).
 
 ## 1. Headline
 
@@ -502,6 +513,45 @@ recommendation is unchanged; its margin is smaller and its stated basis needs co
 row**, clearing the whole lattice at the library floor with no blower, no tubes and no aperture. On
 this model the pneumatic loop has no case left.
 
+### 8a. The same tables with the Layer 4 station deleted (Rev 2, `OI-THCOOL-21`)
+
+`bun scripts/check-thermal-multitile.ts` §2c, §2d and §8 (CURRENT). Cavity leg 0.180 → **0.105**;
+everything else — `R_VIA`, `R_sink` 0.5, lattice, drives — as published above. RF and GFE's absorber
+term have no current counterpart, so RFE → **RE** and GFE → **GE**.
+
+**§8's option ratios** (25 °C, library floor):
+
+| ID | Option | R_out | N1 ceiling | vs current base | vs as-was base | Shield |
+|---|---|---:|---:|---:|---:|---|
+| BASE/V | As adopted, station deleted | 0.335 | **44** (was 42) | 1.00× | 1.05× | ok |
+| X | External ventilation | 0.125 | 57 | **1.30×** | 1.36× | **BREACH** |
+| R | Sealed recirculation | 0.172 | 51 | 1.16× | 1.21× | ok |
+| RE | R + forced external | 0.105 | 61 | **1.39×** | 1.45× | ok |
+| GE | Gap bridge + forced external | 0.041 | >80 | ≥ 1.82× | ≥ 1.90× | ok |
+
+**The ordering survives; RE's lead over X narrows from 16 % to 7 %**, because deleting the foam lowers
+the ventilated row too. GE still clears the lattice.
+
+**§4a ceiling grid** — only these cells move: library floor at 25 °C, `R_sink` 0.25 / 0.50 / 1.00 /
+2.00 → **78 → >80, 42 → 44, 25 → 26, 16 → 17**; at 35 °C, 1.00 → **8 → 9**. Every R-4 and library-ceiling
+cell stays 0.
+
+**§4b max ambient** (library floor, 0.50 K/W): N = 1 39.6 · N = 6 37.8 · N = 12 35.7 → 35.8 ·
+N = 20 **32.9 → 33.1** (still 1.9 K short of the +35 block — `OI-N1-08` stands) · N = 80 12.2 → 13.1.
+**The one cell that moves the other way:** at N = 1, `R_sink` 1.00 / 2.00, max ambient falls
+**0.05 / 0.11 K** (40.0 → 39.95, 40.6 → 40.5), because above ~39 °C the room is hotter than a
+lightly-driven face and a less resistive outward path imports heat. Every such cell is above the
++35 °C block; no verdict changes. **Recorded, not adjusted.**
+
+**§6a per-protocol thermal ceiling** (25 °C, 0.5 K/W) — seven rows move, each up by 1–2 tiles:
+Alzheimer's (Chun) 1 → 2 · ADHD Focus 2 → 3 · Depression (Schiffer) 4 → 5 · Alzheimer's 40 Hz and
+Anxiety (Maiello) 25 → 26 · TBI + intranasal 39 → 41 · Autism 45 → 46. **No row changes which term
+binds.** The as-published table is itself superseded by `NP-PWR-THERM-001` §3c under `SPEC-SINK-01`,
+whose own re-run is in `NP-THERM-SINK-001` Rev 3.
+
+**§7 transient** steady max face at 1.3 W/tile, 25 °C: N = 6 33.8 → 33.7 · N = 20 36.9 → 36.7 ·
+N = 80 50.2 → 49.7 °C. **R1's four published points** at 0.335 move −0.01 to −0.03 K (§2c).
+
 ---
 
 ## 9. `OI-PWR-08` — the N = 80 extrapolation
@@ -655,3 +705,4 @@ is worth a script — and an anchor worth quoting is worth a check that it still
 | Rev | Date | Author | Change |
 |---|---|---|---|
 | 1 | 2026-09-03 | NeurOne Thermal / Systems Engineering | **Initial release, against `OI-PWR-01`.** Coupled 321-node N-tile network on the delivered 80-socket lattice, validated against all four published `NP-THERM-CFD-R1-001` figures to ≤ 0.45 K and all three export fractions to ≤ 0.8 pp from a single calibration point. **Central finding: an adiabatic-walled periodic cell is the N = ∞ boundary condition, not N = 1**, so R1 already reported the fully-active limit and `NP-PWR-BUDGET-001` §3.2 spends a margin that was never a function of tile count (§3). **The two genuinely N-dependent terms are not the ones under discussion:** lateral conduction (the `OI-PWR-10` clustering effect) is worth ≤ 0.22 K across every authored montage and is dropped (§6, N1-D-2), while the **shared external heatsink** — pinned at ambient by R1 as an idealisation and **specified nowhere in the tree** — sets the entire ceiling, ranging it from 16 to 78 tiles at the library floor and to 0 at the R-4 point (§4a, §5). **`OI-N1-02` BLOCKING; N1-D-1 forbids quoting any tile count until it closes.** Inverts `NP-PWR-BUDGET-001` §3.3: export efficiency routes heat *into* the N-scaling term, so the lever is rejection, not export (§5.1, N1-D-3). **18 of 23 authored protocols are thermally bound rather than power bound**, four of them inadmissible at one tile at any heatsink and fourteen recoverable on the heatsink alone (§6a). **With an ideal sink there is no tile-count limit at all, only a per-tile drive wall** of 6.63 W/tile at 25 °C falling ~0.38 W/tile per °C to zero at ~42.5 °C — the thermal side arriving independently at `NP-PWR-BUDGET-001` D-4's governor-in-watts (§6b, N1-D-4). **Folded-in items answered:** `OI-PWR-08` — §3.5's sign and order confirmed from a model with no N-range of validity, but N = 80 spans 29.4–129.9 °C so the figure is a property of drive and `R_sink`, not of population (§9); `OI-PWRSRC-07` — premise refuted, its τ is R1's fan-off value and a 30-min session reaches 75–91 % of steady rise, not 39 %, recommended closed as not supported (§7, N1-D-5); `OI-THCOOL-08` — `NP-THERM-COOL-001` §5's ratios shrink ~2.4× (RFE 3.28× → 1.36×) because §5 routes the ceiling through a cavity leg carrying ~10 % of the heat, **but its central ordering survives** — the shield-safe stack still beats the shield-breaching one, and the static gap bridge `GFE` is now the strongest row, leaving the pneumatic loop with no case (§8, N1-D-6); `OI-PWRSRC-05` — stays flag-for-review, re-pointed at bench correlation `OI-R1-02` rather than at `OI-PWR-01`, and `NP-PWRSRC-001` §5's 292 CEM43 figure needs re-running against the admissible drive set (§10, `OI-N1-05`). **One defect found in the anchor document:** R1's §5.1 temperatures reproduce at **0.649 ×** the flux its own table labels, consistent with η_wp applied twice, which is non-conservative and lands on the exact 11.3 K margin §3.2 divides — reported, not silently corrected (`OI-N1-01`). **`OI-PWR-01` recommended NARROWED, not closed:** the concurrency and clustering questions are answered, the intra-tile field and mesh-independence return to `OI-R1-01`, and a mesh CFD could not have answered the question because the binding term is lumped and unspecified (§11). **§4b, added on rebase against `NP-THERM-COOL-001` Rev 10 and `NP-ENV-OPRANGE-001` (`OI-THCOOL-16/17`, 2026-09-02/03):** the PBM ambient block moved **+43 → +38 → +35 °C** by principal decision while this study was in draft, so the ambient rows are re-labelled against the current envelope — the 35 °C rows sit **at** the block and the 43.3 °C rows are outside it entirely, retained only as the comparison against R1's worst case. At N = 1 the model brackets `NP-THERM-COOL-001` §7's 37.9 °C single-tile full-dose ceiling (39.1–40.6 °C), independently corroborating the figure the block was set against; **but the gate is a flat ambient threshold against an N-dependent ceiling, and the conservatism it is credited with inverts at N ≥ 20 at 0.5 K/W** (32.9 °C admissible against a 35 °C gate) — `OI-N1-08`, RISK-N1-05, conditional on `OI-N1-02` and not a live hazard because §6a's per-protocol ceilings bind first. **Eight open items `OI-N1-01…08` (one BLOCKING), five risk rows (three with no verification defined), seven decisions `N1-D-1…7` (two to principal).** Adds `scripts/check-thermal-multitile.ts`. **No locked section modified; no firmware, app or protocol changed.** |
+| 2 | 2026-09-23 | NeurOne Thermal / Systems Engineering | **Re-run for the Layer 4 absorber deletion (`OI-THCOOL-21`, GitHub #407; `REQ-CAV-04`, #391).** Cavity leg 0.180 → 0.105. **Published tables kept as published** (the `R_SINK_DEFAULT` precedent: each names its configuration and the script keeps reproducing them) and the current case added beside them in new **§8a** and a Rev 2 note before §1. Results: BASE ceiling 42 → 44; option ratios X 1.30× · R 1.16× · RE 1.39× · GE ≥ 1.82× — **RE still beats X, by 7 % rather than 16 %**; seven §6a rows up 1–2 tiles, no binding term changes; §4b N = 20 32.9 → 33.1 °C (`OI-N1-08` stands); R1's points move −0.01 to −0.03 K. **One cell moves the other way and is recorded**: N = 1 max ambient at `R_sink` 1.00/2.00 falls 0.05/0.11 K (above ~39 °C the outward path imports heat), all above the +35 °C block. Cross-ref to `NP-THERM-SINK-001` Rev 3 §3a / `OI-SINK-10` for the exterior-area term this network cannot see. Script: `R_CAV_AMB_CUR`, `CURRENT`, `rCavNote()`, §2c/§2d, current rows in §8; `R_SINK_SPECIFIED` 1.08 → 1.14 with `R_SINK_SPECIFIED_R1` kept. **No locked section modified.** |
