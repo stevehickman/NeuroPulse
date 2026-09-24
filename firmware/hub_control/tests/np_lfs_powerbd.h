@@ -1,6 +1,7 @@
 /*
  * np_lfs_powerbd.h — NeurOne power-loss-injecting test block device
- * Document: NP-SOUP-LFS-001 Rev 3 §7.2, §12 (closes OI-LFS-02)
+ * Document: NP-SOUP-LFS-001 Rev 3 §7.2, §12 (closes OI-LFS-02);
+ *           Rev 4 §13 (sparse medium, read-error injection, RMW-unit tear)
  * SW item:  SW-02 host test support — IEC 62304 Class B
  *
  * HOST TEST CODE ONLY.  Nothing here is compiled into any target image; it has
@@ -94,6 +95,42 @@ typedef struct {
     uint8_t    *dirty;
     lfs_size_t  dirty_bytes;
 
+    /* ── Rev 4 additions (NP-SOUP-LFS-001 §13).  All three default to OFF, so
+     * np_lfs_powerloss_tests — whose §12 results were recorded before they
+     * existed — runs against exactly the device it always ran against. ── */
+
+    /* Sparse medium.  When `media` is NULL and `sparse` is not, each block is
+     * a lazily allocated page and an unallocated block reads back erased.  It
+     * exists for OI-LFS-05: the UHDR instance is 1,767,168 blocks (6,903 MiB),
+     * which no host test can hold densely, and a log-instance result obtained
+     * on a smaller geometry would be a result about a filesystem the device
+     * does not mount. */
+    uint8_t   **sparse;
+
+    /* Read-error injection (OI-LFS-09, upstream #1205).  The next
+     * `fail_reads` reads that touch `fail_read_block` return LFS_ERR_IO and
+     * leave the caller's buffer untouched — which is what a real uncorrectable
+     * ECC failure does, and exactly the precondition #1205 needs. */
+    lfs_block_t fail_read_block;
+    long        fail_reads;
+
+    /* Read-modify-write unit (OI-LFS-05).  Zero, or equal to prog_size, means
+     * a program lands in isolation — the struct lfs_config contract.  Larger
+     * models an encryption layer whose data unit is bigger than littlefs's
+     * program: the XTS layer must decrypt the whole unit, merge, re-encrypt
+     * and rewrite it, so a PARTIAL tear leaves the WHOLE enclosing unit
+     * indeterminate — including bytes littlefs had already committed and
+     * synced.  EMMC-UHDR-05 sets that unit to 512 B. */
+    lfs_size_t  rmw_unit;
+
+    /* No-op erase (OI-LFS-07).  When set, erase() still consumes an op index
+     * and can be cut, but never changes the medium — the block keeps whatever
+     * it held.  That is what an eMMC erase() implemented as a no-op does, and
+     * littlefs's contract allows it: "The state of an erased block is
+     * undefined" (lfs.h).  A sweep that passes with it set is the host
+     * evidence that NeurOne's erase() need not issue CMD35/36/38 at all. */
+    bool        erase_noop;
+
     /* Counters, for the falsification cases.  Never reset by a power cycle:
      * a suite that never programmed anything must be able to say so. */
     long        total_progs;
@@ -118,6 +155,29 @@ void np_powerbd_bind(np_powerbd_t *bd, struct lfs_config *cfg,
                      uint8_t *media, lfs_size_t block_size,
                      lfs_size_t block_count, lfs_size_t prog_size,
                      uint8_t *dirty, lfs_size_t dirty_bytes);
+
+/*
+ * As np_powerbd_bind(), over a SPARSE medium of `block_count` lazily allocated
+ * blocks.  `table` must hold block_count pointers, all NULL.  Release the pages
+ * with np_powerbd_sparse_free().  Host heap, host tests only.
+ */
+void np_powerbd_bind_sparse(np_powerbd_t *bd, struct lfs_config *cfg,
+                            uint8_t **table, lfs_size_t block_size,
+                            lfs_size_t block_count, lfs_size_t prog_size,
+                            uint8_t *dirty, lfs_size_t dirty_bytes);
+
+/* The page holding `block`, or NULL if a sparse block was never written (it
+ * reads back erased).  For a dense medium this is never NULL. */
+uint8_t *np_powerbd_block_data(const np_powerbd_t *bd, lfs_size_t block);
+
+/* Drop a sparse block back to the never-written state. */
+void np_powerbd_sparse_drop(np_powerbd_t *bd, lfs_size_t block);
+
+/* Free every allocated page of a sparse medium. */
+void np_powerbd_sparse_free(np_powerbd_t *bd);
+
+/* Arm read-error injection: the next `count` reads of `block` fail. */
+void np_powerbd_fail_reads(np_powerbd_t *bd, lfs_block_t block, long count);
 
 /* True if `block` has been programmed or erased since the last
  * np_powerbd_dirty_clear().  See np_powerbd_t::dirty. */

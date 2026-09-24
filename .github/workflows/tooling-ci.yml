@@ -128,6 +128,7 @@ jobs:
       tcapmap: ${{ steps.scope.outputs.tcapmap }}
       bringup: ${{ steps.scope.outputs.bringup }}
       consumables: ${{ steps.scope.outputs.consumables }}
+      lfscallers: ${{ steps.scope.outputs.lfscallers }}
     env:
       # Eight independent surfaces, eight lists. A simulator-only change should
       # not run the Python gate, and vice versa. Blank lines and `#` comments
@@ -263,6 +264,16 @@ jobs:
         firmware/**
         scripts/check-consumable-triggers.ts
         .github/workflows/tooling-ci.yml
+      # The littlefs caller-rules gate (NP-SOUP-LFS-001 Rev 4 §13: OI-LFS-03's
+      # REQ-LFS-01 check and OI-LFS-06's one-handle check). The edit that breaks
+      # it is a littlefs call added anywhere in firmware/, a Config file added
+      # or re-policied in np_cfg_store.c, or a journal read appearing in a
+      # limit consumer — any firmware tree, so firmware/** rather than
+      # hub_control/**. It opens no document.
+      NP_SCOPE_LFSCALLERS: |
+        firmware/**
+        scripts/check-lfs-caller-rules.ts
+        .github/workflows/tooling-ci.yml
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -293,6 +304,7 @@ jobs:
           printf '%s\n' "$NP_SCOPE_TCAPMAP" > scope.tcapmap.paths
           printf '%s\n' "$NP_SCOPE_BRINGUP" > scope.bringup.paths
           printf '%s\n' "$NP_SCOPE_CONSUMABLES" > scope.consumables.paths
+          printf '%s\n' "$NP_SCOPE_LFSCALLERS" > scope.lfscallers.paths
 
       # A well-formed pattern that matches nothing is a typo, not a scope
       # decision: `simluator/**` would silently take the whole surface out of
@@ -300,7 +312,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.bringup.paths scope.consumables.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -395,6 +407,14 @@ jobs:
           assert scope.consumables.paths true  firmware/hub_control/src/np_session_log.c
           assert scope.consumables.paths false docs/reference/modality-stack.md
           assert scope.consumables.paths false app/web/src/main.ts
+          # The littlefs caller-rules gate. The store is the file it parses; a
+          # limit consumer in another tree is where R6 bites; a document is
+          # outside what it opens.
+          assert scope.lfscallers.paths true  firmware/hub_control/src/np_cfg_store.c
+          assert scope.lfscallers.paths true  firmware/pbm/src/np_pbm_drive.c
+          assert scope.lfscallers.paths true  scripts/check-lfs-caller-rules.ts
+          assert scope.lfscallers.paths false docs/np_soup_lfs_001.md
+          assert scope.lfscallers.paths false app/web/src/main.ts
 
       - name: Changed files
         id: diff
@@ -450,6 +470,7 @@ jobs:
           emit tcapmap   scope.tcapmap.paths
           emit bringup   scope.bringup.paths
           emit consumables scope.consumables.paths
+          emit lfscallers scope.lfscallers.paths
 
   scripts-check:
     name: scripts/ type-check
@@ -897,3 +918,30 @@ jobs:
       # measurement reads as compliant. So this asks where the producer is.
       - name: Every §2.3 row declares an admissible trigger whose producer exists
         run: bun scripts/check-consumable-triggers.ts
+
+  lfs-caller-rules:
+    name: littlefs is reached only through its caller rules (NP-SOUP-LFS-001 §13)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.lfscallers != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # No `bun install`: the checker reads source text with node builtins.
+
+      - name: Guard self-test (prove R1–R6 can fail and the vacuity paths refuse)
+        run: bun scripts/check-lfs-caller-rules.ts --self-test
+
+      # NP-SOUP-LFS-001 found that littlefs is Class B on SW-02 because of
+      # caller policy, not because of littlefs (§6.2, §11). np_cfg_store makes
+      # each rule a property of its API; this makes going around the API — a
+      # second opener, a rename, a journal read in a limit consumer — fail CI.
+      # REQ-LFS-01 (OI-LFS-03) and one-handle-per-file (OI-LFS-06).
+      - name: littlefs caller rules and REQ-LFS-01
+        run: bun scripts/check-lfs-caller-rules.ts

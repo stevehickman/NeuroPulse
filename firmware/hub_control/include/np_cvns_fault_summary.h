@@ -27,7 +27,7 @@
  *     stimulation; a lost or corrupt summary costs an explanation, not a
  *     control.
  *   - The BLE GATT server and the storage glue — the three np_cvfs_hal_* seams
- *     below, owed by the platform (OI-WA-03, OI-LFS-05), the same shape as
+ *     below, owed by the platform (OI-WA-03, OI-LOG-05..07), the same shape as
  *     np_transport.h's producer seam.
  *
  * ── Per-user scope (principal decision 2026-09-22) ──────────────────────────
@@ -176,7 +176,7 @@ np_hub_status_t np_cvfs_on_reenable_confirm_write(const uint8_t *data, size_t le
 np_hub_status_t np_hub_set_active_user(uint32_t user_tag);
 np_hub_status_t np_hub_cvns_reenable_confirm(void);
 
-/* ── Platform seams (OI-WA-03 BLE GATT server; OI-LFS-05 UHDR storage) ────────
+/* ── Platform seams (OI-WA-03 BLE GATT server; OI-LOG-05..07 UHDR storage) ───
  * Trap-defined in firmware/platform/src/np_platform_stub.c until the drivers
  * exist; host-modeled in the tests.                                           */
 

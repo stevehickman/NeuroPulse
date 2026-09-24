@@ -77,9 +77,12 @@ env:
   # NP-REG-UPG-001 Rev 3 (OI-UPG-01) then added the ninth and tenth Class C
   # targets, np_tier_identity_tests and np_tier_identity_nokey_tests:
   # 10 + 32 = 42, re-derived with `ctest -N` on the tree.
-  NP_TOTAL_TEST_COUNT: '42'
+  # NP-SOUP-LFS-001 Rev 4 (OI-LFS-05/-06/-08/-09) then added two Class B
+  # targets, np_cfg_store_tests and np_lfs_log_instance_tests: 10 + 34 = 44,
+  # re-derived with `ctest -N` on the tree.
+  NP_TOTAL_TEST_COUNT: '44'
   NP_SAFETY_TEST_COUNT: '10'
-  NP_CLASS_B_TEST_COUNT: '32'
+  NP_CLASS_B_TEST_COUNT: '34'
 
 jobs:
   host-tests-all:

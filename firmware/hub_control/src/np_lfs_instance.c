@@ -40,8 +40,17 @@ _Static_assert(NP_LFS_CFG_BLOCK_CYCLES != 0,
                "block_cycles = 0 is rejected by lfs_init");
 _Static_assert(NP_LFS_CFG_BLOCK_CYCLES != -1,
                "block_cycles = -1 disables wear levelling — claim L-6");
-_Static_assert(8u * NP_LFS_CFG_LOOKAHEAD_SIZE >= NP_LFS_CFG_BLOCK_COUNT,
-               "lookahead must cover the whole partition in one pass");
+/* OI-LFS-10: a program must be a whole number of 512-byte XTS data units
+ * (EMMC-UHDR-05), or a torn program rewrites committed bytes it does not own. */
+_Static_assert(NP_LFS_CFG_PROG_SIZE % 512u == 0,
+               "prog_size must be a whole number of XTS data units - "
+               "NP-SOUP-LFS-001 s13.1.3, OI-LFS-10");
+_Static_assert(NP_LFS_CFG_LOOKAHEAD_SIZE > 0u,
+               "lookahead_size must be non-zero (lfs_init)");
+_Static_assert(NP_LFS_CFG_METADATA_MAX <= NP_LFS_CFG_BLOCK_SIZE,
+               "metadata_max must not exceed block_size (lfs_init)");
+_Static_assert(NP_LFS_CFG_NAME_MAX <= LFS_NAME_MAX && NP_LFS_CFG_ATTR_MAX <= LFS_ATTR_MAX,
+               "name_max / attr_max must not exceed littlefs's compile-time limits");
 _Static_assert((uint64_t)NP_LFS_CFG_BLOCK_SIZE * NP_LFS_CFG_BLOCK_COUNT
                    == 16u * 1024u * 1024u,
                "EMMC-FS-01: the instance is the whole 16 MiB Config partition");
@@ -82,6 +91,9 @@ np_hub_status_t np_lfs_config_apply(struct lfs_config *cfg)
     cfg->cache_size     = NP_LFS_CFG_CACHE_SIZE;
     cfg->lookahead_size = NP_LFS_CFG_LOOKAHEAD_SIZE;
     cfg->file_max       = NP_LFS_CFG_FILE_MAX;
+    cfg->name_max       = NP_LFS_CFG_NAME_MAX;
+    cfg->attr_max       = NP_LFS_CFG_ATTR_MAX;
+    cfg->metadata_max   = NP_LFS_CFG_METADATA_MAX;
 
     cfg->read_buffer      = s_read_buffer;
     cfg->prog_buffer      = s_prog_buffer;
@@ -111,6 +123,16 @@ np_hub_status_t np_lfs_config_validate(const struct lfs_config *cfg)
     if (cfg->cache_size     != NP_LFS_CFG_CACHE_SIZE     ||
         cfg->lookahead_size != NP_LFS_CFG_LOOKAHEAD_SIZE ||
         cfg->block_cycles   != NP_LFS_CFG_BLOCK_CYCLES) {
+        return NP_HUB_ERR_BAD_VERSION;
+    }
+
+    /* 2a. The limits EMMC-FS-01 states (OI-LFS-10).  littlefs records
+     *     name_max and attr_max in the superblock and refuses a mount whose
+     *     config is smaller than the disk's, so a drift here is a latent mount
+     *     failure rather than a harmless default. */
+    if (cfg->name_max     != NP_LFS_CFG_NAME_MAX ||
+        cfg->attr_max     != NP_LFS_CFG_ATTR_MAX ||
+        cfg->metadata_max != NP_LFS_CFG_METADATA_MAX) {
         return NP_HUB_ERR_BAD_VERSION;
     }
 

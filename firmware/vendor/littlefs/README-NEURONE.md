@@ -12,11 +12,12 @@ anomaly evaluation and the power-loss test — is closed too, but not by anythin
 in this directory: it is closed by `NP-SOUP-LFS-001` §11 and §12 and by
 `firmware/hub_control/tests/np_lfs_powerloss_tests.c`.
 
-- **Nothing calls it yet.** The `OI-LOG-05..07` HAL seams in
-  `firmware/hub_control/include/np_log_backend.h` are still unimplemented, and
-  `np_littlefs` is linked into no image. The library builds, its configuration
-  is tested, and the power-loss suite mounts it over a **test** block device;
-  the device's own storage stack does not exist.
+- **Nothing in the image calls it yet.** The `OI-LOG-05..07` HAL seams in
+  `firmware/hub_control/include/np_log_backend.h` are still unimplemented. Since
+  `NP-SOUP-LFS-001` Rev 4 the Config store (`np_cfg_store.c`) and the log
+  instances (`np_lfs_log_instance.c`) call it, `scripts/check-lfs-caller-rules.ts`
+  fails CI if anything else does, and all of it is tested over a **test** block
+  device — but no code path in the image reaches them.
 - **`L-1…L-4` hold against the `struct lfs_config` contract, not against the
   eMMC.** 456 interrupted runs, 0 violations (`NP-SOUP-LFS-001` §12) — but the
   injector interrupts the contract at `prog_size` granularity, and the medium is
@@ -24,12 +25,15 @@ in this directory: it is closed by `NP-SOUP-LFS-001` §11 and §12 and by
   raw-flash semantics littlefs is written against. `OI-LFS-07` needs hardware.
   `NP-FW-NVRAM-001` §4, `EMMC-FS-01` and `NP-FW-HUB-001` §6.5 may be relied on
   exactly as far as §12.5 says and no further.
-- **Two caller obligations came out of the anomaly evaluation and are not met.**
-  `OI-LFS-08` (upstream #1210 silently drops a file whose data keeps a valid
-  CRC; the worst instance is `ukmd.rec`, whose loss makes a user's UHDR
-  permanently unmountable) and `OI-LFS-09` (validate stored values by content on
-  every read — `lfs_stat()` is not a durability check, and a read error can
-  leave stale bytes in the cache that read back as success).
+- **The two caller obligations from the anomaly evaluation are met by
+  `np_cfg_store`** (`NP-SOUP-LFS-001` Rev 4 §13). `OI-LFS-08`: no remove or
+  rename, and `ukmd.rec` held as two copies in two metadata pairs — #1210 did
+  not reproduce, so it is bounded, not shown prevented. `OI-LFS-09`: every read
+  content-verified, and a read error followed by a remount — #1205's stale read
+  cache **was** reproduced on this tag and shown not to reach a caller.
+- **The Config instance's `prog_size` is 512, not `EMMC-FS-01`'s printed 256**
+  (`OI-LFS-10`, decided 2026-09-24): a program below the 512-byte XTS unit
+  loses committed data under a read-modify-write tear.
 - **The Class B classification is conditional on the caller**, not on this
   component — `NP-SOUP-LFS-001` §6.2 and `REQ-LFS-01`. Read it before quoting
   the class. §11.4 finds the same thing about the anomaly profile.

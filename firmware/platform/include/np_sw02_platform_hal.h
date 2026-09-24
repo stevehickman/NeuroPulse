@@ -49,8 +49,8 @@ extern "C" {
 #endif
 
 /*
- * Total number of symbols the SW-02 platform layer owes: the 65 declared in
- * this file plus the 33 declared in the nine module headers named above.
+ * Total number of symbols the SW-02 platform layer owes: the 64 declared in
+ * this file plus the 34 declared in the nine module headers named above.
  *
  * This is not decoration.  firmware/platform/ defines all 98 as traps rather
  * than drivers, and the cross-build asserts that the number of definitions it
@@ -65,7 +65,7 @@ extern "C" {
  * to count the gaps is the census measuring around its own blind spot.
  *
  * 94 → 97 on 2026-09-23 (NP-SW-FAULTMSG-001 §9.6): np_cvfs_hal_load/_save (the
- * cervical offline-fault summary's UHDR blob, OI-LFS-05) and np_cvfs_hal_notify
+ * cervical offline-fault summary's UHDR blob, OI-LOG-05..07) and np_cvfs_hal_notify
  * (the CVNS_FAULT_STATUS notification, OI-WA-03) — declared in
  * np_cvns_fault_summary.h, the ninth module header.
  *
@@ -74,6 +74,18 @@ extern "C" {
  * tiles.  It is the first PBM seam indexed by socket rather than by retired
  * zone slot; the three slot-indexed PBM seams stay until the slot path is
  * deleted, because the slot path still links.
+ *
+ * 98 → 99 on 2026-09-24 (NP-SOUP-LFS-001 Rev 7 §13.10, OI-LFS-11):
+ * np_log_hal_part_close(), declared in np_log_backend.h.  UHDR logs became one
+ * file per session, so a session's file must be closed at its end; the seam
+ * np_log_hal_part_open() also gained the segment (session counter) argument.
+ *
+ * 99 → 98 on 2026-09-24 (NP-SOUP-LFS-001 Rev 9 §13.13, OI-LFS-12):
+ * np_hal_get_device_session_count() RETIRED.  EMMC-SHDR-09 keeps the count in
+ * the Config partition, and np_session_count now persists it there through
+ * np_cfg_store — first-party code, not a platform driver.  Its two callers
+ * (bring-up and the cervical fault summary) read np_session_count_load() and
+ * np_log_session_count() instead.
  */
 #define NP_SW02_PLATFORM_SYMBOL_COUNT   98
 
@@ -118,7 +130,9 @@ typedef enum {
 } np_led_state_t;
 
 extern void     np_hal_status_led_set(np_led_state_t state);        /* OI-HUB-MAIN-02 */
-extern uint32_t np_hal_get_device_session_count(void);              /* OI-HUB-MAIN-03 */
+/* np_hal_get_device_session_count() (OI-HUB-MAIN-03) RETIRED 2026-09-24 —
+ * the count is persisted in the Config partition by np_session_count
+ * (OI-LFS-12, NP-SOUP-LFS-001 §13.13). */
 
 /* ── Protocol identity (np_protocol.c) ───────────────────────────────────────
  * The public key returned by np_proto_hal_get_proto_pubkey() is 32 bytes and

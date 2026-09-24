@@ -150,6 +150,11 @@ if(NP_BUILD_TESTS)
     add_executable(np_log_backend_tests
         tests/np_log_backend_tests.c
         src/np_log_backend.c
+        # OI-LFS-11: the session logger opens and closes the per-session UHDR
+        # files, so its session boundaries are tested here, over the same
+        # host model of the lower HAL.
+        src/np_session_log.c
+        src/np_adaptation_log.c
     )
     target_include_directories(np_log_backend_tests PRIVATE
         include
@@ -191,6 +196,48 @@ if(NP_BUILD_TESTS)
     target_link_libraries(np_lfs_powerloss_tests PRIVATE np_littlefs np_crypto)
     target_compile_definitions(np_lfs_powerloss_tests PRIVATE NPTEST_HOST)
     target_compile_options(np_lfs_powerloss_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g)
+
+    # NP-SOUP-LFS-001 Rev 4 §13 (OI-LFS-06/-08/-09): the Config store — the
+    # caller rules §11 found the applicable anomalies depend on.  Reproduces
+    # upstream #1205 through raw littlefs and shows it not reaching a store
+    # caller; sweeps the store's own orderings (in-place O_TRUNC replace,
+    # journal append, two-copy write) under a power cut at every op.
+    add_executable(np_cfg_store_tests
+        tests/np_cfg_store_tests.c
+        tests/np_lfs_powerbd.c
+        tests/np_lfs_sweep.c
+        src/np_cfg_store.c
+        src/np_session_count.c        # OI-LFS-12: the persisted session count
+        src/np_lfs_instance.c
+    )
+    target_include_directories(np_cfg_store_tests PRIVATE include tests)
+    target_link_libraries(np_cfg_store_tests PRIVATE np_littlefs np_crypto)
+    target_compile_definitions(np_cfg_store_tests PRIVATE NPTEST_HOST)
+    target_compile_options(np_cfg_store_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g)
+
+    # NP-SOUP-LFS-001 Rev 4 §13.1 (OI-LFS-05): the UHDR and SHDR instances.
+    # Mounts the REAL geometry (1,767,168 / 131,072 blocks) over a sparse
+    # medium and sweeps L-1/L-2 on it; carries the evidence for ECR-EMMC-002
+    # (prog_size below the 512-byte XTS unit loses committed data under a
+    # read-modify-write tear — for the logs as EMMC-FS-01 Rev 2 printed them, and for
+    # the Config geometry at 256, which moved the Config instance to 512 —
+    # OI-LFS-10); and measures the specified
+    # lookahead's allocator traversals in reads.
+    add_executable(np_lfs_log_instance_tests
+        tests/np_lfs_log_instance_tests.c
+        tests/np_lfs_powerbd.c
+        tests/np_lfs_sweep.c
+        src/np_lfs_log_instance.c
+        src/np_lfs_instance.c
+        src/np_cfg_store.c
+    )
+    target_include_directories(np_lfs_log_instance_tests PRIVATE
+        include tests ${NP_BOOTLOADER_INCLUDE_DIR})
+    target_link_libraries(np_lfs_log_instance_tests PRIVATE np_littlefs np_crypto)
+    target_compile_definitions(np_lfs_log_instance_tests PRIVATE NPTEST_HOST)
+    target_compile_options(np_lfs_log_instance_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g)
 
     # OI-HUB-MAIN-01: protocol transport reassembly + single-slot mailbox.
@@ -263,6 +310,9 @@ set(HUB_SOURCES
     src/np_cvns_fault_summary.c   # NP-SW-FAULTMSG-001 §9.6: offline-fault summary + GATT handlers
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
     src/np_lfs_instance.c         # OI-LFS-01: EMMC-FS-01 littlefs instance + mount validator
+    src/np_cfg_store.c            # OI-LFS-06/-08/-09: Config store — the littlefs caller rules
+    src/np_lfs_log_instance.c     # OI-LFS-05: UHDR/SHDR littlefs instances + mount validator
+    src/np_session_count.c        # OI-LFS-12: device session count persisted in Config
     src/np_pbm_cal_bridge.c       # OI-HUB-C06: UID-keyed calibration -> pbm seams
     src/np_socket_dispatch.c      # OI-FWHUB-01: socket-indexed dispatch registry
     src/np_chan_decl.c            # OI-MMSOCK-02: electrode-geometry declarations to the safety MCU

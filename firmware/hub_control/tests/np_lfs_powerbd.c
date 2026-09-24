@@ -8,6 +8,7 @@
 
 #include "np_lfs_powerbd.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 /* The byte a half-programmed page reads back as.  NOT 0xFF: an erased-value
@@ -19,6 +20,23 @@
 static np_powerbd_t *bd_of(const struct lfs_config *c)
 {
     return (np_powerbd_t *)c->context;
+}
+
+/* The bytes of `block`, allocating a sparse page on first write.  Returns NULL
+ * only for a sparse block that has never been written and `for_write` is
+ * false: it reads back erased. */
+static uint8_t *block_ptr(np_powerbd_t *bd, lfs_block_t block, bool for_write)
+{
+    if (bd->media != NULL) {
+        return bd->media + ((size_t)block * bd->block_size);
+    }
+    if (bd->sparse[block] == NULL && for_write) {
+        bd->sparse[block] = malloc(bd->block_size);
+        if (bd->sparse[block] != NULL) {
+            memset(bd->sparse[block], 0xFF, bd->block_size);
+        }
+    }
+    return bd->sparse[block];
 }
 
 /* Mark a block as differing from the sweep's pre-state.  Set on every prog and
@@ -64,7 +82,20 @@ static int np_powerbd_read(const struct lfs_config *c, lfs_block_t block,
     /* Reads consume no op index: a read changes nothing, so cutting inside one
      * is indistinguishable from cutting just before it. */
     bd->total_reads++;
-    memcpy(buffer, bd->media + ((size_t)block * bd->block_size) + off, size);
+
+    if (bd->fail_reads > 0 && block == bd->fail_read_block) {
+        /* An uncorrectable read.  The buffer is left exactly as it was — the
+         * device returned nothing — which is #1205's precondition. */
+        bd->fail_reads--;
+        return LFS_ERR_IO;
+    }
+
+    const uint8_t *src = block_ptr(bd, block, false);
+    if (src == NULL) {
+        memset(buffer, 0xFF, size);
+    } else {
+        memcpy(buffer, src + off, size);
+    }
     return 0;
 }
 
@@ -72,11 +103,16 @@ static int np_powerbd_prog(const struct lfs_config *c, lfs_block_t block,
                            lfs_off_t off, const void *buffer, lfs_size_t size)
 {
     np_powerbd_t *bd  = bd_of(c);
-    uint8_t      *dst = bd->media + ((size_t)block * bd->block_size) + off;
 
     if (block >= bd->block_count || off + size > bd->block_size) {
         return LFS_ERR_IO;
     }
+
+    uint8_t *base = block_ptr(bd, block, true);
+    if (base == NULL) {
+        return LFS_ERR_IO;          /* host out of memory — not a medium fault */
+    }
+    uint8_t *dst = base + off;
 
     bd->total_progs++;
     mark_dirty(bd, block);
@@ -104,6 +140,20 @@ static int np_powerbd_prog(const struct lfs_config *c, lfs_block_t block,
             lfs_size_t flight = (size - whole < bd->prog_size)
                                     ? (size - whole) : bd->prog_size;
             memset(dst + whole, NP_POWERBD_INDETERMINATE, flight);
+
+            /* An encryption layer with a data unit larger than prog_size
+             * rewrote the whole enclosing unit, so the whole unit is what the
+             * tear leaves indeterminate — the neighbouring bytes of the unit
+             * included, whether or not littlefs had committed them. */
+            if (bd->rmw_unit > bd->prog_size) {
+                lfs_off_t at    = off + whole;
+                lfs_off_t first = at - (at % bd->rmw_unit);
+                lfs_off_t last  = first + bd->rmw_unit;
+                if (last > bd->block_size) {
+                    last = bd->block_size;
+                }
+                memset(base + first, NP_POWERBD_INDETERMINATE, last - first);
+            }
             break;
         }
 
@@ -121,14 +171,27 @@ static int np_powerbd_prog(const struct lfs_config *c, lfs_block_t block,
 static int np_powerbd_erase(const struct lfs_config *c, lfs_block_t block)
 {
     np_powerbd_t *bd  = bd_of(c);
-    uint8_t      *dst = bd->media + ((size_t)block * bd->block_size);
 
     if (block >= bd->block_count) {
         return LFS_ERR_IO;
     }
 
+    uint8_t *dst = block_ptr(bd, block, true);
+    if (dst == NULL) {
+        return LFS_ERR_IO;
+    }
+
     bd->total_erases++;
     mark_dirty(bd, block);
+
+    if (bd->erase_noop) {
+        /* The block keeps its old contents whether or not the cut lands
+         * here — there is nothing for a tear to tear. */
+        if (take_op(bd)) {
+            stop(bd);
+        }
+        return 0;
+    }
 
     if (!take_op(bd)) {
         memset(dst, 0xFF, bd->block_size);
@@ -193,8 +256,57 @@ void np_powerbd_bind(np_powerbd_t *bd, struct lfs_config *cfg,
     cfg->sync    = np_powerbd_sync;
 }
 
+void np_powerbd_bind_sparse(np_powerbd_t *bd, struct lfs_config *cfg,
+                            uint8_t **table, lfs_size_t block_size,
+                            lfs_size_t block_count, lfs_size_t prog_size,
+                            uint8_t *dirty, lfs_size_t dirty_bytes)
+{
+    np_powerbd_bind(bd, cfg, NULL, block_size, block_count, prog_size,
+                    dirty, dirty_bytes);
+    bd->sparse = table;
+}
+
+uint8_t *np_powerbd_block_data(const np_powerbd_t *bd, lfs_size_t block)
+{
+    if (bd->media != NULL) {
+        return bd->media + ((size_t)block * bd->block_size);
+    }
+    return bd->sparse[block];
+}
+
+void np_powerbd_sparse_drop(np_powerbd_t *bd, lfs_size_t block)
+{
+    if (bd->media == NULL && bd->sparse[block] != NULL) {
+        free(bd->sparse[block]);
+        bd->sparse[block] = NULL;
+    }
+}
+
+void np_powerbd_sparse_free(np_powerbd_t *bd)
+{
+    if (bd->media != NULL || bd->sparse == NULL) {
+        return;
+    }
+    for (lfs_size_t b = 0U; b < bd->block_count; b++) {
+        np_powerbd_sparse_drop(bd, b);
+    }
+}
+
+void np_powerbd_fail_reads(np_powerbd_t *bd, lfs_block_t block, long count)
+{
+    bd->fail_read_block = block;
+    bd->fail_reads      = count;
+}
+
 void np_powerbd_wipe(np_powerbd_t *bd)
 {
+    if (bd->media == NULL) {
+        np_powerbd_sparse_free(bd);          /* never-written reads back erased */
+        if (bd->dirty != NULL) {
+            memset(bd->dirty, 0xFF, bd->dirty_bytes);
+        }
+        return;
+    }
     memset(bd->media, 0xFF, (size_t)bd->block_size * bd->block_count);
     if (bd->dirty != NULL) {
         memset(bd->dirty, 0xFF, bd->dirty_bytes);   /* every block differs now */

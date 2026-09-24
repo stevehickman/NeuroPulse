@@ -120,6 +120,10 @@
 #                              EMMC-FS-01 instance, swept across every
 #                              medium-touching op under three tear models,
 #                              falsified in both directions)
+#                             → np_cfg_store_tests       (Rev 4 §13: the Config
+#                              store's caller rules; #1205 reproduced and stopped)
+#                             → np_lfs_log_instance_tests (Rev 4 §13.1: UHDR/SHDR
+#                              instances, real geometry; ECR-EMMC-002 evidence)
 #   firmware/bootloader/      → np_bootloader_mem_tests   (freestanding memcpy/memset —
 #                              NP-SW-CI-001 §4.2)
 #                             → np_bootloader_app_image_tests (OCRAM staging limit +
@@ -372,6 +376,17 @@ if(NP_BUILD_TESTS)
     # Moves the Class B count 28 → 29 and the repo total 35 → 36.
     add_test(NAME np_lfs_powerloss_tests
         COMMAND np_lfs_powerloss_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # NP-SOUP-LFS-001 Rev 4 §13.  The caller rules §11 found the applicable
+    # littlefs anomalies depend on (OI-LFS-06/-08/-09), and the UHDR/SHDR
+    # instances on their real geometry (OI-LFS-05).  Moves the Class B count
+    # 32 → 34 and the repo total 42 → 44.
+    add_test(NAME np_cfg_store_tests
+        COMMAND np_cfg_store_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    add_test(NAME np_lfs_log_instance_tests
+        COMMAND np_lfs_log_instance_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_mod_cvns_tests

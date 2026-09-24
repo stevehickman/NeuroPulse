@@ -94,10 +94,6 @@ void np_hal_status_led_set(np_led_state_t state)
     NP_PLATFORM_TRAP();
 }
 
-uint32_t np_hal_get_device_session_count(void)
-{
-    NP_PLATFORM_TRAP();
-}
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Protocol identity (np_protocol.c)
@@ -605,8 +601,9 @@ bool np_cvns_hal_impedance_poll(bool *passed_out)
 /* ────────────────────────────────────────────────────────────────────────────
  * Cervical offline-fault summary (NP-SW-FAULTMSG-001 §9.6) —
  * np_cvns_fault_summary.h.  The UHDR blob store waits on the UHDR partition's
- * littlefs parameters (OI-LFS-05); the notification waits on the BLE GATT
- * server (OI-WA-03).
+ * littlefs file glue (OI-LOG-05..07; the instance's parameters, OI-LFS-05, are
+ * np_lfs_log_instance.h); the notification waits on the BLE GATT server
+ * (OI-WA-03).
  * ──────────────────────────────────────────────────────────────────────────*/
 
 np_hub_status_t np_cvfs_hal_load(uint8_t *buf, size_t cap, size_t *len_out)
@@ -688,7 +685,14 @@ np_hub_status_t np_hexmap_nvram_write(const uint8_t *buf, size_t len)
  * Session-log partition backing (OI-LOG-05..07) — np_log_backend.h
  * ──────────────────────────────────────────────────────────────────────────*/
 
-np_hub_status_t np_log_hal_part_open(np_log_part_t part)
+np_hub_status_t np_log_hal_part_open(np_log_part_t part, uint64_t segment)
+{
+    (void)part;
+    (void)segment;
+    NP_PLATFORM_TRAP();
+}
+
+np_hub_status_t np_log_hal_part_close(np_log_part_t part)
 {
     (void)part;
     NP_PLATFORM_TRAP();

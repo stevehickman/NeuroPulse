@@ -621,7 +621,10 @@ static void cvns_session_end_cb(const np_cvns_session_record_t *record,
             sides = np_cvfs_pad_side_mask(record->impedance_left_kohm,
                                           record->impedance_right_kohm);
         }
-        (void)np_cvfs_record_fault(np_hal_get_device_session_count(),
+        /* The CURRENT session's count (OI-LFS-12): the platform seam this
+         * used returned one boot-time value, stamping every fault of a boot
+         * with the same session. */
+        (void)np_cvfs_record_fault(np_log_session_count(),
                                    (np_cvns_fault_reason_t)record->fault_reason,
                                    sides);
     }

@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 3
-**Date:** 2026-09-23
+**Revision:** 4
+**Date:** 2026-09-24
 **Status:** RELEASED as a design output under `21 CFR §820.30(d)`. **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
 **Author:** NeurOne Firmware Engineering
@@ -796,7 +796,66 @@ as closed.
 > fail-safe only because the SPI heartbeat stops. So §6.5's durability model is **verified in
 > shape and unverified on its own medium**.
 
+> **Update 2026-09-24 — `OI-LFS-05` and `OI-LFS-06` are closed (`NP-SOUP-LFS-001` Rev 4 §13).**
+> Qualification (2) above is lifted: the log partitions now have parameters — `EMMC-FS-01`'s own
+> UHDR and SHDR columns, which the Rev 2 note above wrongly said did not exist, with one deviation
+> (`read_size`/`prog_size` 512, the XTS data unit, `ECR-EMMC-002`) — applied and validated by
+> `np_lfs_log_instance`, and `L-1`/`L-2` are swept on the **real** 1,767,168- and 131,072-block
+> geometry: 132 interrupted runs, 0 violations. Qualifications (1) and (3) stand. **Two new ones
+> bear on §6.5:** the specified UHDR `lookahead_size` means one whole-filesystem allocator
+> traversal per 16 MiB written, during which the writer waits — counted on the host (≈ 0.5 reads
+> per block in use), timed only on hardware (`OI-LFS-07`); and §6.5's single append-mode log file
+> per partition cannot exceed littlefs's 2 GiB `file_max`, under a third of UHDR (`OI-LFS-11`,
+> for `OI-LOG-05`). "One writer per log file" is now enforced for the Config instance by a
+> registry and a CI gate; the log glue joins that gate's caller list when it is written.
+
+> **Update 2026-09-24 — `OI-LFS-11` closed (`NP-SOUP-LFS-001` Rev 7 §13.10).** §6.5's *"the log
+> file"* is, for UHDR, **one file per session** — `/uhdr/sessions/<count>`, as `NP-FW-EMMC-001`
+> `EMMC-UHDR-12`/`-13` specify — opened by `np_log_session_start()` and closed by
+> `np_log_session_end()`, created exclusively and never reopened. The durability model above holds
+> per file: a flush commits the exact tail of the session file it was written to. SHDR keeps one
+> file. UHDR is no longer opened at bring-up (it is not mounted until the user unlocks it), and
+> nothing is written to UHDR outside a session. The device session count increments at session
+> start but is not persisted (`OI-LFS-12`); the logger steps past a count whose file exists.
+> *(`OI-LFS-12` closed the same day, `NP-SOUP-LFS-001` §13.13: the count is persisted in the Config
+> partition by `np_session_count`, committed before each session's file is created and loaded at
+> bring-up; `np_hal_get_device_session_count()` is retired.)*
+
 ---
+
+### 6.6 Per-session recording limit — proposed IFU text *(Rev 4)*
+
+Since `OI-LFS-11` (`NP-SOUP-LFS-001` Rev 7 §13.10) each session's UHDR record is **one file**,
+`/uhdr/sessions/<count>`, and littlefs caps one file at `file_max` = 2,147,483,647 B
+(`NP-FW-EMMC-001` Rev 3 `EMMC-FS-01`). What that means for the person using the device:
+
+| | Value | Derivation |
+|---|---|---|
+| Per-session file cap | 2,147,483,647 B (2 GiB − 1) | `NP_LOG_SEGMENT_MAX_BYTES` = `file_max` |
+| Dominant data rate | ≈ 12,000 B/s | 8 EEG channels × 500 Hz × 3 B (`NP_EEG_CHANNELS`, `NP_EEG_SAMPLE_BYTES`); every other UHDR record is small beside it |
+| Continuous recording per session | **≈ 49 hours** with EEG recording | 2,147,483,647 / 12,000 ≈ 178,900 s ≈ 49.7 h — stated as *"about 49 hours"* so the figure never over-promises |
+| What happens at the limit | **recording stops for the rest of that session; the session itself is not stopped** | `np_log_*()` return nothing and `np_runner_run()` does not check them — the limit ends the record, not the stimulation, which is still governed by the safety MCU and the protocol's own duration limits |
+| Effect on other sessions | none — the next session starts a new file; earlier sessions are untouched | per-session files, created exclusively (§6.5 update) |
+
+**Proposed IFU text** — for the instructions for use and the in-app help when those documents
+exist (`NP-QMS-DC-001` lists device labelling and IFU as *TBD*, so there is no IFU to edit yet;
+`OI-FWHUB-13` carries this text to it). Plain language, second person, no internal identifiers:
+
+> **How long a session can record.** Your NeurOne saves each session's recording — brain-activity
+> (EEG) data, heart-rate data and session events — in its own file on the device. A single session
+> can record for about 49 hours. If one session runs longer than that, the device stops recording
+> for the rest of that session. The session itself is not stopped, and your earlier sessions and
+> your next session are not affected. Most sessions are far shorter than this limit.
+>
+> This is a limit on one session. The device's total storage is separate: the app tells you when
+> the device's storage for your own data is nearly full.
+
+The last sentence points at the existing `EMMC-WE-02` notification (*"UHDR storage approaching
+capacity"*), so the two limits are not confused. **Not added:** an in-app warning at protocol
+authoring. Every protocol longer than 2 hours already draws `VALIDATE_MSG_GENERAL_DURATION_2`,
+far below this limit, and a new locale key needs all eleven locales (CLAUDE.md §17). If a protocol
+ever legitimately runs near 49 hours, that key becomes worth adding, and this section is where its
+figure comes from.
 
 ## 7. Safety MCU interface
 
@@ -1203,7 +1262,7 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | `RISK-FWHUB-08` | Log records lost on power loss | Low | bounded to one flush interval (§6.5) — **the bound is now exercised against the `lfs_config` contract and still not against the medium.** `NP-SOUP-LFS-001` Rev 2 pins and vendors littlefs `v2.11.3` (closing `OI-LFS-01`), which resolves "not in the tree" and resolves nothing about the bound; `OI-LFS-02` now blocks reliance on it. The log partitions' own instance parameters are additionally unstated — `OI-LFS-05` | **Open until `OI-LFS-02`** **Update 2026-09-14: `OI-LFS-02` closed** — `NP-SOUP-LFS-001` §12, 90 interrupted runs on the flushed-append path, 0 violations, falsified in both directions. What remains open is narrower and is stated as such: the eMMC behind the XTS layer (`OI-LFS-07`), the log partitions’ own instance parameters (`OI-LFS-05`), and a post-power-loss hang, which a sweep cannot see. |
 | `RISK-FWHUB-09` | Emission into a lifted goggle | High | Hall cutoff is a GPIO interrupt, plus three independent layers (§8.6) | Accepted |
 | `RISK-FWHUB-11` | Boot-time module authentication is not evidenced in fleet telemetry | Low | **was unmitigated — the records were discarded.** Fixed 2026-09-14 (§2.1) and held by `scripts/check-hub-bringup-order.ts`, falsified against the pre-fix commit | Accepted; records-integrity only, no emission path |
-| `RISK-FWHUB-10` | Per-tile PBM drive magnitude bounded only by a thermal cutoff | Medium | carried, not closed — `OI-NVRAM-10`; re-derive §9 before a differing tile variant ships | **Open** |
+| `RISK-FWHUB-10` | Per-tile PBM drive magnitude bounded only by a thermal cutoff | Medium | carried, not closed — `OI-NVRAM-10`; re-derive §9 before a differing tile variant ships. **2026-09-24: control decided** — a hardware peak-current reference and gate-duty limit per tile channel (`NP-HW-HEXTILE-001` D-9, `REQ-TDRV-01`/`-02`, `NP-SOUP-LFS-001` §13.14). This row closes when `OI-HEXTILE-24` verifies them on hardware | **Open** (control decided, not built) |
 | `RISK-FWHUB-15` | **(Rev 3)** A fixed electrode area (VNS 0.5 cm², cervical VNS 2 cm², BES 25 cm²) is computed and not sent, so the Class C per-phase ceiling is enforced against the 25 cm² fallback | Medium — **was live** in every session without HD-tDCS or tDCS; no rated dose reached even the intended ceiling (VNS ~3 %) | **Fixed in Rev 3**: every computed area is sent (`REQ-FWHUB-37`), held by `np_chan_decl_tests`, falsified against the old rule | Accepted |
 | `RISK-FWHUB-16` | **(Rev 3)** BES/tACS reaches an electrode smaller than 25 cm² and is enforced against the fallback | High | **not reachable** — tES is not socket-addressable (`REQ-FWHUB-33`) | own geometry gate, fail-closed (`REQ-FWHUB-36`); a lattice electrode's area arrives with a tES socket target (`NP-FW-MMSOCK-001` P-2) | Accepted pending SW-01 review |
 
@@ -1217,6 +1276,7 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | **`OI-FWHUB-09`** | **The concurrent-power governor `np_pbm_power_admit()` refuses every load.** Deliberately (§5.6). Replace its body with the watts-against-PD-contract governor `NP-HW-HEXTILE-001` §9.3 requires. Needs: `OI-HEXTILE-09` designed; `OI-SESPWR-03` (`0Hz` + duty) defined; a PD-contract seam on SW-02; per-tile watts from selected emitters (`OI-HEXTILE-02`). The compiler-side half of the same check is `OI-HEXTILE-09`'s, not this document's. When it lands, `REQ-FWHUB-35`'s second clause is rewritten, not deleted, and `RISK-FWHUB-12` is re-scored | FW + EE Lead | **BLOCKING — any T1 transcranial PBM session; `REQ-FWHUB-25`, `-26`** |
 | **`OI-FWHUB-10`** | **Socket-path telemetry and dose metering do not exist.** The runner's telemetry loop and `np_telem_pbm_t` are slot-indexed (five zone entries); no per-socket NTC, PD1/PD2 or J/cm² reaches SHDR or UHDR, and the slot path's pre-drive NTC over-temperature check has no socket equivalent. Needs `np_hub_cluster_read_frame()` (`NP-HW-HUB-001` §9.3) and a socket-indexed telemetry record. The 42 °C / 62 °C hardware limits are unaffected — they are enforced below this processor. **Blocks CLAUDE.md §3's dual-PD dose-metering claim for the lattice, not safety** | FW | Before `OI-FWHUB-09` admits a load |
 | **`OI-FWHUB-11`** | **`HUB-REQ-C05` is not implemented.** `NP-HW-HUB-001` §7.2.2 requires the per-cluster Class B `SAFE_EN[n]` gate to be commanded by this processor, not by the cluster controller it gates. The dispatcher does not command it: that needs the `socket_id → (cluster, channel)` table (`OI-HUB-C10`, not yet generated) and a settled gate polarity (`OI-RISK4-01`). Availability only — the Class C cranial bit is in series | FW + EE Lead | Hardware bring-up |
+| **`OI-FWHUB-13`** | **The per-session recording limit must reach the user documentation.** §6.6 states it (about 49 hours per session; recording stops, the session does not) and gives proposed IFU text, but no IFU or in-app help document exists yet (`NP-QMS-DC-001`: labelling and IFU *TBD*). When that document is created, §6.6's text goes into it, and the figure is re-derived if `file_max` or the EEG data rate changes | FW + Regulatory | IFU authoring |
 | **`OI-FWHUB-12`** | **The PBM library's I²C stub bounds its address to the five retired slots.** `firmware/pbm/src/np_pbm_hal.c` rejects `slot >= 5`, so a smart-tile socket above index 4 fails in the stub. Not a requirement — the stub is marked *"replace entirely before hardware bring-up"* — but the tunnelled HAL that replaces it must take a socket index 0–127 (`NP-HW-HUB-001` §9.2), and nothing else records that | FW | Hardware bring-up |
 | ~~`OI-FWHUB-02`~~ | ✅ **CLOSED 2026-09-13 in the same change.** Three files cited `NP-FW-HUB-001 Rev 2` against a document with no Rev 1. Re-pointed to Rev 1 §8.9 and §6.4 | FW | — |
 | **`OI-FWHUB-03`** | **No mechanical agreement check between §4 and `hubCompiler.ts`.** `NP-CONV-001` §8 requires cross-artifact interface agreement to be verified by diff, never by review, and falsified in both directions first. `scripts/check-tcap-map.ts` is the pattern. Until it exists, the wire format's two implementations agree only by inspection — which is exactly the state that made `OI-DOC-01` expensive | FW + CI | `REQ-FWHUB-28` |
@@ -1278,6 +1338,7 @@ have absorbed.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 4 | 2026-09-24 | NeurOne Firmware Engineering | **§6.6 added — the per-session recording limit, with proposed IFU text.** `OI-LFS-11` (`NP-SOUP-LFS-001` Rev 7 §13.10) made each session's UHDR record one file, and littlefs caps a file at 2 GiB − 1: about **49 hours** of recording with EEG at ≈12 kB/s. At the limit recording stops for the rest of that session; the session is not stopped, and other sessions are unaffected. §6.6 derives the figure, states the behaviour from the code, and gives plain-language IFU text. No IFU exists yet, so `OI-FWHUB-13` carries the text to it. §6.5 gains the `OI-LFS-11` update note. Rev 3 → 4. |
 | 3 | 2026-09-23 | NeurOne Firmware Engineering | **BES/tACS geometry gate (`NP-FW-MMSOCK-001` P-5, C-1) and the area-hand-off defect.** New `NP_SESSION_STATUS_GEOM_REQ_BES` (bit 4, previously unused) and a third arm of the safety MCU's geometry gate — **Class C, pending SW-01 review**; no enable-word bit and no frame byte moves. The hub arms it for every BES/tACS session and sends the fixed pad area (D-28; `REQ-FWHUB-36`). **Found while writing it:** the area frame was sent only in sessions holding HD-tDCS or tDCS, so VNS, cervical-VNS and BES areas were silently dropped elsewhere and the MCU enforced 25 cm² — 50× loose on the auricular clip (`RISK-FWHUB-15`, fixed; `REQ-FWHUB-37`). The scan moved to `src/np_chan_decl.c` (D-29) with `np_chan_decl_tests` (Class B 31 → 32, total 39 → 40); every mutation of the send rule, the BES arming and the two Class C gate lines is caught. §5.4, §7.4, §10.1, §11, §12 updated. Cross-compiled for both processors on arm-none-eabi-gcc 13.2.1. |
 | 2 | 2026-09-23 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-01` — the socket dispatch registry — and moves its blocking status to the power governor rather than lifting it.** New §3.4: `src/np_socket_dispatch.c`, a 128-entry socket-indexed registry beside the slot registry, with no fallback between the two (`REQ-FWHUB-31`); admission is all-or-nothing across mod-type, params, placement against the live `np_module_map` inventory, power, and driver faults with rollback (`REQ-FWHUB-32`, `-33`); the registry owns `NP_SAFETY_EN_PBM_CRANIAL`, requesting it after a command's sockets are configured and releasing it only when none is active, or at once when a stop fails (`REQ-FWHUB-34`). Driver seam: `np_mod_pbm_socket_drive()` / `_stop()` in `np_mod_pbm.c`, and one new platform seam `np_mod_pbm_hal_socket_pwm_set()` (SW-02 census 97 → 98). **§5.6 rewritten: opening the path makes `NP-HW-HEXTILE-001` §9.3's governor requirement live** — `scripts/check-pbm-power.ts` reads 20 of 23 predefined transcranial protocols over the 40 W budget — and that governor cannot be written (`OI-HEXTILE-09`, `OI-SESPWR-03`, `OI-HEXTILE-02`), so `np_pbm_power_admit()` ships **refusing every load** (`REQ-FWHUB-35`, D-27). **Transcranial PBM therefore still does not execute**; `OI-FWHUB-09` (blocking) replaces `OI-FWHUB-01` as the reason, and `REQ-FWHUB-25/26` stay in §10.2 against it. New `NP_HUB_ERR_POWER_BUDGET` (−18). `np_socket_dispatch_tests` (Class B 30 → 31, total 38 → 39): 14 cases linking the real module map and socket expansion, and the production governor renamed so what ships is asserted closed; seven mutations of the dispatcher and governor each caught (three survived the first draft of the suite and each gained a case). Raised: `OI-FWHUB-10` (socket telemetry and dose metering), `-11` (`HUB-REQ-C05` cluster gate not commanded), `-12` (the PBM I²C stub's five-slot bound). `OI-FWHUB-05` unblocked. Risks `RISK-FWHUB-12…14` added; `RISK-FWHUB-01` re-described. Decisions D-24…D-27. |
 | 1 | 2026-09-13 | NeurOne Firmware Engineering | **Initial release — closes `OI-DOC-01` (Issue #339) by authoring the specification that had been cited as governing since 2026-05-16 without existing.** Written against `firmware/hub_control/` as on `main`, back-dating nothing: 26 requirements met by the code (§10.1), 4 explicitly **not** met and carried as open items (§10.2), 23 decisions, 11 risk rows, 13 design-review checks, 8 open items of which 4 close here. **Four findings that did not survive being written down:** (i) transcranial PBM — CLAUDE.md §3 modality ① — **has no dispatchable path at all**, because `np_mod_pbm_*` sits only in the five retired zone slots the parser rejects *and* socket-addressed commands are dropped by `dispatch_command()`; each half was individually documented and fail-closed, their conjunction was not (`OI-FWHUB-01`, blocking); (ii) three source files cited a `Rev 2` of a document that had no `Rev 1` — re-pointed to §8.9 and §6.4 in this change (`OI-FWHUB-02`, closed); (iii) the wire format has been revised twice (`slot_mask` → `slot_id` + target block; `electrode_area_mcm2`) while the register still described `Rev 1`, because **a register entry naming an unreadable document cannot go visibly stale**; and **(iv) writing the bring-up table found two live defects in `np_hub_control_app_main()`, and both are FIXED in this change** — `np_mod_reg_scan()` ran before `np_log_init()`, so every boot-time SHDR zone-auth record was stamped with a session count of 0 and then discarded when the logger zeroed its buffer, meaning module authentication reached SHDR not at all, under a source comment three lines away asserting the opposite (`OI-FWHUB-07`); and the file banner and the document register both said "four tasks" where the code creates five, `task_protocol_rx` having been omitted (`OI-FWHUB-08`). Also records that §4 is the specification `hubCompiler.ts` compiles against and that no mechanical check enforces their agreement (`OI-FWHUB-03`), contrary to `NP-CONV-001` §8. **Both fixes are gated, not merely applied:** `np_hub_control_app_main()` is ARM-cross-only and reachable by no host test — which is how a defect dating to 2026-05-16 survived — so `scripts/check-hub-bringup-order.ts` asserts the four ordering constraints and the task count against the function itself, and was falsified **against the pre-fix commit**, where it reports exactly those two violations (`NP-CONV-001` §8). Beyond those two fixes and three corrected `Document:` banners, no code behaviour changed. **§2.1, §2.2, §10, §12 and §13 were amended within this same unmerged change to describe the corrected code rather than the code as first found; Rev 1 is issued once, describing what merges.** |

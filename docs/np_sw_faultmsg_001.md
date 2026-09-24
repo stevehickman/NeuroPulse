@@ -4,7 +4,7 @@
 **Document:** NP-SW-FAULTMSG-001
 **Revision:** 3
 **Date:** 2026-09-23
-**Status:** DRAFT — **decided by the principal (§9); implemented in the safety MCU, the hub and both apps, not yet verified on hardware.** The hub now builds and publishes CVNS_FAULT_STATUS (§9.6); what is still missing is the BLE GATT server that carries it (OI-WA-03) and the UHDR storage glue (OI-LFS-05)
+**Status:** DRAFT — **decided by the principal (§9); implemented in the safety MCU, the hub and both apps, not yet verified on hardware.** The hub now builds and publishes CVNS_FAULT_STATUS (§9.6); what is still missing is the BLE GATT server that carries it (OI-WA-03) and the UHDR storage glue (OI-LOG-05..07 — its littlefs parameters, OI-LFS-05, were decided 2026-09-24 by NP-SOUP-LFS-001 Rev 4 §13.1)
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
 **Approved By:** Principal (decisions §9.1, 2026-09-22) — document approval pending
@@ -181,7 +181,7 @@ device is an opaque tag derived from a random profile UUID, with no name (§9.2)
 |---|---|---|
 | **OI-FAULTMSG-01** | *(Rev 2: **decided — P1**, implemented §9.4; open until hardware-verified and RISK-25 is re-scored.)* **The cardiac lockout does not survive a power cycle (F1)**, so in Mode 3 an unplug and re-plug restarts cervical stimulation with no app confirmation, and nothing keeps cervical VNS out of autonomous protocols. Decide P1, P1b or both. Record the hazard under RISK-25 (NP-RISK-002 §4) and in NP-FW-CVNS-001 §5.4. **Must close before cervical VNS ships** | Safety + FW + Quality (ISO 14971) |
 | **OI-FAULTMSG-02** | *(Rev 2: **implemented**, commit "Cervical VNS: record the real fault kind", §9.4.)* The UHDR session record cannot tell a cardiac cutoff from other interlock faults, and `cutoff_hr_at_event_x10` is never written (F2). P2 | FW |
-| **OI-FAULTMSG-03** | *(Rev 3: **the hub builds, persists and publishes the frame and handles both writes, §9.6**; what remains is the platform: the BLE GATT server (OI-WA-03) and the UHDR blob store (OI-LFS-05). Rev 2: transport chosen — Bluetooth GATT 0x0014/0x0015/0x0016, §9.3.)* Choose the connect-time transport for the fault summary: USB-C parameter-log download, a Bluetooth request/response pair, or both (P3) | FW + App |
+| **OI-FAULTMSG-03** | *(Rev 3: **the hub builds, persists and publishes the frame and handles both writes, §9.6**; what remains is the platform: the BLE GATT server (OI-WA-03) and the UHDR blob store (OI-LOG-05..07; the UHDR instance's parameters, OI-LFS-05, are decided — NP-SOUP-LFS-001 Rev 4 §13.1 — so what remains is the file glue, not a decision). Rev 2: transport chosen — Bluetooth GATT 0x0014/0x0015/0x0016, §9.3.)* Choose the connect-time transport for the fault summary: USB-C parameter-log download, a Bluetooth request/response pair, or both (P3) | FW + App |
 | **OI-FAULTMSG-04** | *(Rev 2: **apps implemented** on iOS and Android, §9.4; P5, the user-doc change, waits until the hub publishes the summary.)* App gate and fault text on iOS and Android (P4), then the user-doc change (P5) | App + Regulatory |
 
 ## 8. Decisions requested
@@ -275,7 +275,7 @@ and no hub publishes them yet.
 ### 9.5 Not done, not verified
 
 - ~~**The hub does not build the 0x0014 frame.**~~ *Built 2026-09-23, §9.6.* **The hub still has no
-  BLE GATT server** (OI-WA-03), and the UHDR partition has no littlefs parameters (OI-LFS-05), so
+  BLE GATT server** (OI-WA-03), and the UHDR partition has no littlefs file glue (OI-LOG-05..07 — its parameters, OI-LFS-05, were decided 2026-09-24), so
   the three seams §9.6 names are traps on target. Until they exist the path is complete and tested
   on the host but unreachable on hardware, and P5 waits.
 - **Not verified:** ARM cross-build and silicon for the NV driver; Swift compilation (no toolchain
@@ -358,7 +358,7 @@ the right failure for information: the safety MCU holds the cutoff regardless (C
 - They are declared once, in `np_cvns_fault_summary.h`, and trap-defined in
   `firmware/platform/src/np_platform_stub.c`.
 - The SW-02 platform census rises from 94 to 97.
-- They wait on the UHDR partition's littlefs parameters (`OI-LFS-05`) and the BLE GATT server
+- They wait on the UHDR partition's littlefs file glue (`OI-LOG-05..07`; its parameters, `OI-LFS-05`, were decided 2026-09-24) and the BLE GATT server
   (`OI-WA-03`). This is the same shape as `np_transport.h`'s producer seam.
 
 **Tests.** `np_cvns_fault_summary_tests` covers:

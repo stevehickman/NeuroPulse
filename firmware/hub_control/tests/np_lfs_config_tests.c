@@ -264,8 +264,12 @@ static void test_instance_parameters(void)
     /* The five EMMC-FS-01 owns (claim L-5).  Changing any of them is a change
      * to NP-FW-EMMC-001 raised as an ECR, and it RELOCATES ukmd.rec — whose
      * loss makes a user's UHDR permanently unmountable. */
-    ASSERT(NP_LFS_CFG_READ_SIZE   == 256U,   "EMMC-FS-01 read_size");
-    ASSERT(NP_LFS_CFG_PROG_SIZE   == 256U,   "EMMC-FS-01 prog_size");
+    /* read/prog: 512 — EMMC-FS-01 Rev 3 (Rev 2 printed 256) — the XTS data unit
+     * (EMMC-UHDR-05).  OI-LFS-10 / ECR-EMMC-002, NP-SOUP-LFS-001 §13.8. */
+    ASSERT(NP_LFS_CFG_READ_SIZE   == 512U,   "read_size is the 512-byte XTS unit (OI-LFS-10)");
+    ASSERT(NP_LFS_CFG_PROG_SIZE   == 512U,   "prog_size is the 512-byte XTS unit (OI-LFS-10)");
+    ASSERT(NP_LFS_CFG_PROG_SIZE % 512U == 0U,
+           "a program smaller than the XTS unit tears committed bytes");
     ASSERT(NP_LFS_CFG_BLOCK_SIZE  == 4096U,  "EMMC-FS-01 block_size");
     ASSERT(NP_LFS_CFG_BLOCK_COUNT == 4096U,  "EMMC-FS-01 block_count");
     ASSERT(NP_LFS_CFG_FILE_MAX    == 65536U, "EMMC-FS-01 file_max");
@@ -277,18 +281,21 @@ static void test_instance_parameters(void)
            "the Config instance must span the whole 16 MiB partition");
 
     /* The four NeurOne decides. */
-    ASSERT(NP_LFS_CFG_CACHE_SIZE == 256U,
-           "cache_size is no longer 256 — it bounds inline_max, and 256 is what "
-           "makes Map 3 records (32 B) and ukmd.rec (192 B) inlineable");
-    ASSERT(NP_LFS_CFG_LOOKAHEAD_SIZE == 512U,
-           "lookahead_size is no longer 512 — 512 B of bitmap is exactly the "
-           "4,096 blocks of this partition, i.e. one allocator pass");
-    ASSERT(8U * NP_LFS_CFG_LOOKAHEAD_SIZE >= NP_LFS_CFG_BLOCK_COUNT,
-           "the lookahead bitmap no longer covers the partition in one pass");
-    ASSERT(NP_LFS_CFG_BLOCK_CYCLES == 500,
-           "block_cycles is no longer 500. NP-SOUP-LFS-001 §7.3 requires it set "
-           "EXPLICITLY: 0 is rejected by lfs_init and -1 disables wear "
-           "levelling, which is claim L-6 against EMMC-HW-01's 30,000 P/E");
+    ASSERT(NP_LFS_CFG_CACHE_SIZE == 512U,
+           "cache_size is no longer 512 — the smallest multiple of prog_size, "
+           "EMMC-FS-01's own Config value, and the bound on inline_max that "
+           "keeps Map 3 records (32 B) and ukmd.rec's envelope (208 B) inline");
+    /* OI-LFS-10 (closed): the rest of EMMC-FS-01's Config column. */
+    ASSERT(NP_LFS_CFG_LOOKAHEAD_SIZE == 64U,
+           "lookahead_size is no longer EMMC-FS-01's 64 (OI-LFS-10)");
+    ASSERT(NP_LFS_CFG_BLOCK_CYCLES == 200,
+           "block_cycles is no longer EMMC-FS-01's 200 (OI-LFS-10). "
+           "NP-SOUP-LFS-001 §7.3 requires it set EXPLICITLY: 0 is rejected by "
+           "lfs_init and -1 disables wear levelling, which is claim L-6");
+    ASSERT(NP_LFS_CFG_NAME_MAX == 64U,  "name_max is no longer EMMC-FS-01's 64");
+    ASSERT(NP_LFS_CFG_ATTR_MAX == 256U, "attr_max is no longer EMMC-FS-01's 256");
+    ASSERT(NP_LFS_CFG_METADATA_MAX == 4096U,
+           "metadata_max is no longer EMMC-FS-01's 4,096");
 
     /* littlefs's own relations, at compile time in np_lfs_instance.c and here
      * so a reader sees them stated where the numbers are. */
@@ -296,7 +303,7 @@ static void test_instance_parameters(void)
     ASSERT(NP_LFS_CFG_CACHE_SIZE % NP_LFS_CFG_PROG_SIZE == 0U, "cache % prog");
     ASSERT(NP_LFS_CFG_BLOCK_SIZE % NP_LFS_CFG_CACHE_SIZE == 0U, "block % cache");
 
-    ASSERT(NP_LFS_STATIC_RAM_BYTES == 1024U,
+    ASSERT(NP_LFS_STATIC_RAM_BYTES == 1088U,
            "the instance's static RAM cost changed — NP-SW-CI-001 §4.10's "
            "FlexRAM budget is stated against it");
 }
@@ -351,6 +358,9 @@ static void test_apply(void)
     ASSERT(cfg.cache_size     == NP_LFS_CFG_CACHE_SIZE,      "cache_size");
     ASSERT(cfg.lookahead_size == NP_LFS_CFG_LOOKAHEAD_SIZE,  "lookahead_size");
     ASSERT(cfg.block_cycles   == NP_LFS_CFG_BLOCK_CYCLES,    "block_cycles");
+    ASSERT(cfg.name_max       == NP_LFS_CFG_NAME_MAX,        "name_max");
+    ASSERT(cfg.attr_max       == NP_LFS_CFG_ATTR_MAX,        "attr_max");
+    ASSERT(cfg.metadata_max   == NP_LFS_CFG_METADATA_MAX,    "metadata_max");
 
     ASSERT(cfg.read_buffer      != NULL, "read_buffer must be static, not heap");
     ASSERT(cfg.prog_buffer      != NULL, "prog_buffer must be static, not heap");
@@ -403,16 +413,20 @@ static void reject_case(const char *what, void (*perturb)(struct lfs_config *))
     }
 }
 
-static void p_read_size(struct lfs_config *c)   { c->read_size = 512U; }
-static void p_prog_size(struct lfs_config *c)   { c->prog_size = 512U; }
+static void p_read_size(struct lfs_config *c)   { c->read_size = 256U; }
+static void p_prog_size(struct lfs_config *c)   { c->prog_size = 256U; }
 static void p_block_size(struct lfs_config *c)  { c->block_size = 512U; }
 static void p_block_count(struct lfs_config *c) { c->block_count = 32768U; }
 static void p_file_max(struct lfs_config *c)    { c->file_max = 0U; }
-static void p_cache_size(struct lfs_config *c)  { c->cache_size = 512U; }
+static void p_cache_size(struct lfs_config *c)  { c->cache_size = 1024U; }
 static void p_lookahead(struct lfs_config *c)   { c->lookahead_size = 16U; }
 static void p_cycles_zero(struct lfs_config *c) { c->block_cycles = 0; }
 static void p_cycles_off(struct lfs_config *c)  { c->block_cycles = -1; }
-static void p_cycles_other(struct lfs_config *c){ c->block_cycles = 100; }
+static void p_cycles_other(struct lfs_config *c){ c->block_cycles = 500; }
+static void p_name_max(struct lfs_config *c)    { c->name_max = 0U; }
+static void p_attr_max(struct lfs_config *c)    { c->attr_max = 1022U; }
+static void p_metadata_max(struct lfs_config *c){ c->metadata_max = 0U; }
+static void p_lookahead_old(struct lfs_config *c){ c->lookahead_size = 512U; }
 static void p_no_read_buf(struct lfs_config *c) { c->read_buffer = NULL; }
 static void p_no_prog_buf(struct lfs_config *c) { c->prog_buffer = NULL; }
 static void p_no_look_buf(struct lfs_config *c) { c->lookahead_buffer = NULL; }
@@ -427,21 +441,29 @@ static void p_no_unlock(struct lfs_config *c)   { c->unlock = NULL; }
 
 static void test_validate_rejects_every_perturbation(void)
 {
-    reject_case("read_size 512 (EMMC-FS-01 says 256)",        p_read_size);
-    reject_case("prog_size 512 (EMMC-FS-01 says 256)",        p_prog_size);
+    reject_case("read_size 256 (EMMC-FS-01 Rev 2 — below "
+                "the XTS unit, OI-LFS-10)",                   p_read_size);
+    reject_case("prog_size 256 (EMMC-FS-01 Rev 2 — below "
+                "the XTS unit, OI-LFS-10)",                   p_prog_size);
     reject_case("block_size 512 (EMMC-FS-01 says 4,096)",     p_block_size);
     reject_case("block_count 32,768 (EMMC-FS-01 says 4,096)", p_block_count);
     reject_case("file_max 0 — littlefs's 'use the default', "
                 "which is not EMMC-FS-01's 65,536",           p_file_max);
-    reject_case("cache_size 512",                             p_cache_size);
+    reject_case("cache_size 1024",                            p_cache_size);
     reject_case("lookahead_size 16 (upstream's example — "
                 "256 blocks of 4,096 per pass)",              p_lookahead);
     reject_case("block_cycles 0 (lfs_init rejects it, but "
                 "only via an assertion)",                     p_cycles_zero);
     reject_case("block_cycles -1 — WEAR LEVELLING DISABLED, "
                 "and it passes every non-zero test",          p_cycles_off);
-    reject_case("block_cycles 100 — in upstream's suggested "
-                "range, and still not the pinned value",      p_cycles_other);
+    reject_case("block_cycles 500 — the pre-OI-LFS-10 value, in "
+                "upstream's range and still not EMMC-FS-01's", p_cycles_other);
+    reject_case("lookahead_size 512 — the pre-OI-LFS-10 value", p_lookahead_old);
+    reject_case("name_max 0 — littlefs's default 255, not "
+                "EMMC-FS-01's 64",                            p_name_max);
+    reject_case("attr_max 1,022 — littlefs's default, not "
+                "EMMC-FS-01's 256",                           p_attr_max);
+    reject_case("metadata_max 0 — the default, not stated",   p_metadata_max);
     reject_case("no read_buffer (LFS_NO_MALLOC)",             p_no_read_buf);
     reject_case("no prog_buffer (LFS_NO_MALLOC)",             p_no_prog_buf);
     reject_case("no lookahead_buffer (LFS_NO_MALLOC)",        p_no_look_buf);

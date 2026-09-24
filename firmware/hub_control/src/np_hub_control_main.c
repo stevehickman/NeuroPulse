@@ -42,7 +42,8 @@
  *   OI-HUB-MAIN-01: np_hal_proto_queue_receive(buf, buf_len, recv_len_out, timeout_ms)
  *     Blocks until a protocol blob arrives from BLE GATT or USB-C CDC transport.
  *   OI-HUB-MAIN-02: np_hal_status_led_set(state) — left-temple power LED.
- *   OI-HUB-MAIN-03: np_hal_get_device_session_count() → uint32_t from SHDR.
+ *   OI-HUB-MAIN-03: RETIRED 2026-09-24 (OI-LFS-12) — the device session count
+ *                   is np_session_count_load() from the Config partition.
  */
 
 #include "np_hub_types.h"
@@ -51,6 +52,7 @@
 #include "np_session_runner.h"
 #include "np_session_log.h"
 #include "np_log_backend.h"
+#include "np_session_count.h"   /* OI-LFS-12: persisted device session count */
 #include "np_transport.h"
 #include "np_safety_spi.h"
 #include "np_cvns_reenable.h"
@@ -485,8 +487,15 @@ void np_hub_control_app_main(void)
      * precedes the scan rather than following it. */
     (void)np_log_backend_init();
 
-    uint32_t session_count = np_hal_get_device_session_count();
+    /* OI-LFS-12: the device session count lives in the Config partition
+     * (EMMC-SHDR-09), persisted by np_session_count through np_cfg_store.  An
+     * absent or unreadable record seeds 0 — safe, because the logger commits
+     * each new count before creating its file and steps past any file that
+     * already exists (np_session_log.h). */
+    uint32_t session_count = 0U;
+    (void)np_session_count_load(&session_count);
     np_log_init(session_count);
+    np_log_set_count_commit(np_session_count_commit);
 
     /* NP-SW-FAULTMSG-001 §9.6: reload the cervical offline-fault summary and
      * the last-named user from the UHDR partition, which the backend has just
