@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-AUDIO-001
-**Revision:** 2
-**Date:** 2026-09-23
+**Revision:** 3
+**Date:** 2026-09-24
 **Status:** DRAFT — **requirements-grade. Every geometric and acoustic value an FAI would inspect is absent, and §8 says which, rather than supplying a placeholder.**
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -185,6 +185,10 @@ seal loss in dB derived from what a session needs, so it no longer depends on th
 (`OI-AUDIOHW-06`) or the clamping pressure (`OI-AUDIOHW-05`) — both still matter to the part.
 Full disposition: `docs/status/pending-decisions.md`, `OI-ACC-04`.
 
+**Rev 3 (2026-09-24):** the seal measurement needs an in-cup microphone, **not** noise cancelling —
+a probe-tone transfer measurement is a block measurement that needs no anti-noise loop. The options
+and a recommendation are §6.4.
+
 ### 6.2 Mesh frame (pair) — the trigger named in the record does not exist
 
 `REQ-AUDIO-07` says driver impedance detects fouling. It does not, today:
@@ -234,6 +238,183 @@ Three consequences follow, and they compound:
 > should stop appearing next to figures that are. **This document does not decide it** — the §4.3
 > stack is locked and adding to it is a `CLAUDE.md` decision, not a specification edit.
 
+### 6.4 In-cup microphone — the options for `OI-AUDIOHW-08` (Rev 3: analysed, **not decided**)
+
+`OI-AUDIOHW-08` asks whether to add noise cancelling with an in-cup (feedback) microphone, or not.
+It reverses a property the record states — *there is no microphone anywhere in the design* — so it
+is a principal decision, and this section does what `NP-REG-UPG-001` did for `OI-TACSDRV-06`:
+it states the options, what each costs and buys, and recommends one. **Nothing below is adopted.
+No requirement is added to §3, no value is set, and the foam's `150` is unchanged.**
+
+#### 6.4.1 The finding that reframes the question — the measurement needs the microphone, not the noise cancelling
+
+The item couples two things that separate cleanly:
+
+- **What `OI-ACC-04` needs is a transfer-function measurement:** the driver-to-in-cup-mic path at
+  low frequency, taken with a short probe tone at session start (§6.1; `OI-ACC-04`'s principal
+  decision already names the probe tone). That is a **block measurement**. It tolerates any
+  latency, runs once per donning, and needs a microphone, a probe signal and a few hundred
+  milliseconds of arithmetic. It does not need anti-noise.
+- **What noise cancelling needs is a closed control loop** that drives anti-noise from the same
+  microphone continuously, for the whole session. Adaptive ANC happens to estimate the same path
+  as a by-product — which is why the principal decision reached the measurement through ANC — but
+  it is one way of obtaining it, not a precondition for it.
+
+So there are three options, not two:
+
+| | **A — feedback (or hybrid) ANC** | **B — in-cup mic, sensing only** | **C — no microphone** |
+|---|---|---|---|
+| What is added | Mic per cup + a low-latency anti-noise loop + playback compensation + instability protection | Mic per cup; probe-tone measurements only; the driver never plays anti-noise | Nothing |
+| Foam seal (`OI-ACC-04`) | Measured | **Measured** — the same path, by probe tone | Not measured; `150` stays a placeholder with no route to a measurement, and the compression-set route the principal decision withdrew would have to be reopened |
+| Mesh fouling candidate (`OI-ACC-05`) | Candidate, if the mic sits on the ear side of the mesh | **Candidate**, same condition | Driver impedance only (§6.2 — weak for a planar driver) |
+| In-cup SPL for `OI-AUDIOHW-01` (§6.4.2) | Yes, but the delivered level now depends on the loop's state | **Yes** | No |
+| Session quality (ambient noise) | Improved at low frequency | Passive isolation only, as today | Passive isolation only, as today |
+| New acoustic hazard (§6.4.4) | **Yes** — anti-noise output and loop instability | Probe tone only, bounded by `OI-AUDIOHW-01` | None |
+| Conflict with the entrainment content (§6.4.3) | **Yes** — the carriers sit in the cancellation band | None | None |
+| Forces `REQ-AUDIO-04a` (§6.4.5) | **Yes** — a low-latency path the hub's SAI/DMA chain cannot provide | No | No |
+| Privacy exposure (§6.4.6) | Continuous capture for the whole session, confinable to the loop | Windowed capture during the probe only | None |
+
+#### 6.4.2 A use the record had not noticed — the microphone is also what `OI-AUDIOHW-01` is missing
+
+`OI-AUDIOHW-01` records that no acoustic output ceiling exists and that `volume_pct` is an
+**uncalibrated** 0–100 wire field. Any ceiling written against `volume_pct` has to assume a driver
+sensitivity, a cup and a fit; the level actually delivered to a given wearer varies with all three,
+and most of all with the seal this item is about. An in-cup microphone measures the level in the
+wearer's own cup on the wearer's own fit — which is what a ceiling needs to be enforced as a
+measured quantity rather than a table lookup.
+
+Two limits on this, stated so it is not over-read: an in-cup microphone is **not at the eardrum**,
+so a cup-to-eardrum correction is still needed and is itself a derivation `OI-AUDIOHW-01` would
+own; and it **cannot see the bone-conduction path** at all, so it does nothing for `OI-AUDIOHW-02`.
+This strengthens the case for having a microphone (A or B). It is no argument for anti-noise.
+
+#### 6.4.3 Anti-noise and the entrainment content occupy the same band
+
+Feedback ANC does its work at low frequency, and that is where the shipped content lives: **every
+predefined protocol that sets a carrier sets `carrier_hz: 440Hz`** (`protocols/predefined/*.npps`),
+and the app's default is 200 Hz (`app/web/src/types/protocol.ts`). The feedback microphone hears the
+playback as well as the ambient noise, and a feedback loop cancels whatever it hears unless the
+playback is subtracted from its error signal first (playback compensation). That subtraction is
+only as accurate as the loop's model of the driver-to-mic path — **the same seal-dependent path**
+§6.1 proposes to measure. So under A:
+
+- the level at which each ear receives its carrier depends on the loop's state and on the seal,
+  per side, and the two sides can differ — which is a binaural-content property, not only a
+  loudness one;
+- an adaptive loop is time-varying, and whether its adaptation interacts with isochronic pulsing
+  at entrainment rates (2–40 Hz in `k_band_beat_mhz`) or with the EEG-adaptive retune every
+  `NP_AUDIO_ADAPT_INTERVAL_MS` is unknown.
+
+None of this makes A impossible — commercial ANC headphones play music through feedback loops — but
+it makes A a change to **what the modality delivers**, which would need its own verification that
+the content reaching the ear is the content the protocol commanded. B and C carry none of it.
+
+#### 6.4.4 Acoustic safety
+
+Under A the driver plays anti-noise in addition to the programme, so the cup's output is no longer
+set by `volume_pct` alone, and a feedback loop whose plant changes — the cup lifted, the seal
+broken, a hand cupped over it — can go unstable and produce a sustained tone at the ear. Both need
+controls: an output limiter and an instability detector that opens the loop. **Neither has a
+requirement, and the ceiling either would enforce does not exist** (`OI-AUDIOHW-01`). Under B the
+only added acoustic output is the probe tone — short, once per donning, and required to sit under
+whatever ceiling `OI-AUDIOHW-01` sets. Under C nothing changes.
+
+**`REQ-AUDIO-12` is not triggered by any option.** A microphone puts no current, light or field
+into the assembly, and anti-noise is acoustic output from the transducer that already exists. The
+acoustic hazards above belong in `OI-RISK2-02`'s analysis (§7), not in `CLAUDE.md` §4.2's table.
+
+#### 6.4.5 Latency — A cannot run on the architecture the record has
+
+`REQ-AUDIO-04` places origination, mixing and synthesis in the hub, through the hub I²S codec via
+SAI (`NP-FW-HUB-001` §8.5), with the RT1062 processing audio in DMA blocks under FreeRTOS. A feedback
+loop's usable bandwidth is limited by its delay: delay in the loop is phase lag, and phase lag at
+the loop's crossover is what makes it unstable. A block-processed path through a processor and a
+cable is the wrong kind of path for it. **A therefore needs a dedicated low-latency loop** — a
+fixed-function ANC engine in a codec, or an analogue loop — sitting with the microphone, the driver
+and its amplifier. That decides `REQ-AUDIO-04a` (*whether any amplification sits in the cup*) by
+force, and with it the cup's power, its thermal behaviour and the conductor count of
+`OI-AUDIOHW-07`'s cable. B needs only one microphone signal per cup returned to a hub codec input,
+processed as a block; it leaves `REQ-AUDIO-04a` where it is. Whether the hub codec (`NP-HW-HUB-001`)
+has two spare inputs is not recorded, and is B's one hub-side question.
+
+#### 6.4.6 Privacy — a microphone is a new class of sensor, and bystanders are nobody's consent subject
+
+A microphone in the cup hears the wearer's own voice (strongly, through the occluded ear) and the
+voices of anyone nearby. The second is a problem the §5/§6 architecture has no place for:
+**`CLAUDE.md` §6.0 has exactly two consent subjects — the warranty owner and the wearer — and a
+bystander is neither.** No consent flow can cover them. So raw microphone audio must be excluded
+from the product **structurally**, not by policy, in the same sense that `SHDRUploader` has no
+reference to `ConsentStore`: there is no path by which it could be stored, logged, streamed in Mode
+1, written to eMMC, or transmitted, rather than a setting that says it is not.
+
+- **Under A** the loop can be confined to the in-cup ANC engine, so raw audio **never reaches the
+  RT1062**; the hub receives, at most, a derived number. That is the stronger structural position,
+  and it is A's one privacy advantage.
+- **Under B** raw audio reaches the RT1062 for the probe window only. The structural control is that
+  the microphone is **unpowered outside the measurement window**, the capture buffer is reduced to
+  the derived figure and cleared in the same call, and the audio module exposes no interface that
+  returns samples. Whether that is enforced by a CI gate in the manner of
+  `scripts/check-redaction-shape.ts` is a decision for the item that implements it.
+- **Under both,** the derived seal score is **presumptively UHDR** (`CLAUDE.md` §5.1, *when in
+  doubt → UHDR*): it depends on the wearer's head, hair and glasses, and a longitudinal series of it
+  describes the person as well as the foam. It is computed and consumed on-device, and the foam
+  prompt is raised on-device from it. **Nothing about it is added to SHDR by this section**, and
+  `CONSUMABLE_STATUS` stays the SHDR-class session count it is today. A later proposal to report a
+  derived "foam worn" flag to the fleet has to make the positive demonstration §5.1 rule 1 asks for.
+
+An EMC consequence belongs with this, because it is a property of the microphone type rather than
+of the option: a **digital-output (PDM) MEMS microphone** runs a clock of the order of a megahertz
+in the cup, beside the temporal EEG sites; an **analogue-output** microphone runs none. A new clocked
+part inside the head-worn envelope is a source for `NP-EMC-CAV-001`'s source analysis, and the
+microphone selection should be made knowing that. This section does not choose.
+
+#### 6.4.7 What both A and B need from the cup, and that C does not
+
+Two placement conditions, carried as **conditions on `OI-AUDIOHW-04` and `-05` if A or B is taken**,
+not as requirements — nothing requires them until one is:
+
+| Condition | What fails without it | Traceable to |
+|---|---|---|
+| **The seal must be the dominant leak.** The measurement sees the foam only to the extent that the foam leak dominates every other leak from the front volume; a vented or open-back cup adds a designed leak in parallel. A fully open-back cup is the case where the measurement presumptively does not work; whether a given vent leaves it working is acoustic engineering's to show under `OI-AUDIOHW-04` | The foam trigger measures the vent, not the foam, and `OI-ACC-04` does not close | Derivation from the measurement's physics (§6.1) |
+| **The mic sits in the front volume, on the ear side of the mesh**, for `OI-ACC-05`'s candidate to exist | Mesh fouling is outside the measured path; `OI-ACC-05` falls back to driver impedance | `OI-ACC-05` candidate (2026-09-23) |
+
+Whether A-or-B's microphone and cable land on both tiers is `REQ-UPG-03`'s question: A11 is a T1
+module from Home Standard up (§2.1), and a change to its cable and connector (`OI-AUDIOHW-07`) is a
+change to a module interface that must land on both tiers or neither. **No cost is stated for any
+option.** Every T1 configuration is gross-margin negative and every cost figure is a floor
+(`CLAUDE.md` §2.1); a BOM delta for a microphone or an ANC codec is quoted only through
+`docs/np_cost_001.md`.
+
+#### 6.4.8 Recommendation — **B**, and state a requirement before A
+
+**Recommended: B — add one in-cup microphone per side, for measurement only, with no anti-noise.**
+
+1. **B delivers everything the item was raised for that has a requirement behind it.** The foam's
+   condition measurement (`OI-ACC-04`, by principal decision), the mesh-fouling candidate
+   (`OI-ACC-05`), and — new here — a measured in-cup level for `OI-AUDIOHW-01`, which has no other
+   route to an enforceable ceiling.
+2. **Anti-noise is the part with nothing requiring it.** *Session quality* is the stated purpose, and
+   no document in the set states an ambient-noise target for entrainment, a level at which ambient
+   noise degrades a session, or evidence that it does. Under `CLAUDE.md` §18 that is the test a
+   constraint must pass before it enters a controlled document, and ANC adds three: a continuous
+   loop, an output limiter, and an instability detector. The item's own cost column — acoustic
+   safety, content interaction, latency, power, cable — is almost entirely A's.
+3. **B does not foreclose A.** B's microphone sits where A's error microphone would (§6.4.7). What A
+   adds is the loop electronics, which §6.4.5 shows is a hardware change of its own; B is **not**
+   required to carry A-ready electronics, because nothing requires A — making it a condition would
+   be the unrequired constraint §18 forbids.
+
+**The route to A, if the principal wants noise cancelling for session quality:** first state the
+requirement — what fails, for which protocols, at what ambient level — and its traceability; then
+take A as an increment on B, carrying §6.4.3–§6.4.5 as its verification burden.
+
+**If C is chosen instead,** the foam prompt stays an exposure count permanently, `OI-ACC-04` needs
+a threshold route again (the compression-set route its principal decision withdrew), and
+`OI-AUDIOHW-01` has no measured level to enforce against. Those are the costs C carries.
+
+**What the decision must also settle, whichever option is taken:** the privacy position of §6.4.6
+(stated here, not adopted), and the microphone type's EMC consequence.
+
 ---
 
 ## 7. Hazard-analysis inputs
@@ -251,6 +432,8 @@ the input list, not the analysis.
 | Mesh fouling undetected | Trigger unimplemented (`OI-ACC-05`); both the acoustic and the RF consequence go unflagged |
 | Bayonet failure in service | The part exists **because** the plastic predecessor flattened at 500–1,000 cycles; the replacement has no cycle rating of its own |
 | Pinch or entrapment at the bayonet | Head-worn rotating mechanical interface, user-actuated |
+| Anti-noise output and feedback-loop instability (sustained tone at the ear) | **Only if `OI-AUDIOHW-08` option A is taken** (§6.4.4) — no limiter or instability detector has a requirement |
+| Probe-tone exposure | **If option A or B is taken** (§6.4.4) — bounded by the ceiling `OI-AUDIOHW-01` has not set |
 | Ear-pad contact dermatitis / biocompatibility | Prolonged skin contact; no material is specified (§8) |
 | Mass and centre-of-mass contribution to fit | A11 hangs off the fit system (`CLAUDE.md` §4.4) and its mass is nowhere stated |
 
@@ -272,6 +455,7 @@ Naming the boundary is the point of the section, exactly as `NP-HW-TCAP-001` §8
 | Bayonet interface geometry, engagement torque, cycle rating | The record gives a material and a rationale, not an interface | **`OI-AUDIOHW-05`** |
 | Mesh aperture, open area, coating weight, and the basis of 40 dB | §6.3 | **`OI-AUDIOHW-03`** |
 | Acoustic output ceiling and exposure model | §5 | **`OI-AUDIOHW-01`**, **`OI-AUDIOHW-02`** |
+| Microphone: whether one exists, its type (analogue or PDM), placement, and the privacy position of its signal | Principal decision; options and recommendation in §6.4 | **`OI-AUDIOHW-08`** |
 | Cable, connector and strain relief to the hub | No connector is selected for any head-worn accessory; the same gap `NP-HW-TCAP-001` §8 records for the T2 cap | **`OI-AUDIOHW-07`** |
 
 ### 8.1 FAI readiness — the honest verdict
@@ -303,7 +487,7 @@ Against `NP-FAI-001` §2:
 | **OI-AUDIOHW-05** | Specify cup body, ear-pad and bayonet geometry, clamping force and assembly mass. The bayonet's material decision (`docs/reference/durability-maintenance.md`) has no interface behind it, and A11's mass loads the `CLAUDE.md` §4.4 fit system with a figure nobody has written down | ME | A11 tooling; fit verification |
 | **OI-AUDIOHW-06** | Specify ear-pad and silicone isolator materials and their biocompatibility basis (prolonged skin contact) | ME + Quality | Hazard analysis; T1 release |
 | **OI-AUDIOHW-07** | Select the cup-to-hub cable, connector and strain relief. The same connector gap `NP-HW-TCAP-001` §8 records for the T2 cap and `NP-HW-VNSCLIP-001` §8 for the clip — worth deciding **once** across the head-worn accessories rather than three times | EE + ME | A11 tooling |
-| **OI-AUDIOHW-08** | **Add noise cancelling with an in-cup (feedback) microphone, or decide not to.** Intended for session quality; also the only measurement found for the foam's loss of seal (`OI-ACC-04`, §6.1) and a candidate for mesh fouling if the mic sits on the ear side of the mesh (`OI-ACC-05`, §6.2). **It reverses a property the record states — there is no microphone anywhere in the design** — so it carries: a privacy decision (on-device processing only, a seal score out, no audio stored; the score depends on the wearer's head and is presumptively UHDR); an acoustic-safety one (anti-noise adds output and can howl when the seal breaks, which makes `OI-AUDIOHW-01` more pressing); and placement, cable and power consequences for `OI-AUDIOHW-05` and `-07`. Microphones put no current, light or field into the assembly, so `REQ-AUDIO-12` is not triggered | EE + Acoustic + Privacy | `OI-ACC-04` closure; A11 tooling if adopted |
+| **OI-AUDIOHW-08** | **ANALYSED 2026-09-24 (Rev 3, §6.4) — NOT DECIDED; recommendation B (in-cup microphone for measurement only, no anti-noise).** The measurement needs the microphone, not the noise cancelling (§6.4.1); the microphone is also the only route found to a measured level for `OI-AUDIOHW-01` (§6.4.2); anti-noise sits in the band of every shipped carrier (§6.4.3), adds output and instability hazards (§6.4.4), and needs a low-latency loop the hub's SAI/DMA path cannot provide, which would decide `REQ-AUDIO-04a` by force (§6.4.5); bystander audio has no consent subject, so raw audio must be excluded structurally (§6.4.6); and no requirement states what ambient noise costs a session, so under `CLAUDE.md` §18 nothing yet requires anti-noise (§6.4.8). **As raised:** **Add noise cancelling with an in-cup (feedback) microphone, or decide not to.** Intended for session quality; also the only measurement found for the foam's loss of seal (`OI-ACC-04`, §6.1) and a candidate for mesh fouling if the mic sits on the ear side of the mesh (`OI-ACC-05`, §6.2). **It reverses a property the record states — there is no microphone anywhere in the design** — so it carries: a privacy decision (on-device processing only, a seal score out, no audio stored; the score depends on the wearer's head and is presumptively UHDR); an acoustic-safety one (anti-noise adds output and can howl when the seal breaks, which makes `OI-AUDIOHW-01` more pressing); and placement, cable and power consequences for `OI-AUDIOHW-05` and `-07`. Microphones put no current, light or field into the assembly, so `REQ-AUDIO-12` is not triggered | EE + Acoustic + Privacy | `OI-ACC-04` closure; A11 tooling if adopted |
 
 > **On the `OI-AUDIOHW-` prefix.** `OI-AUDIO-01…08` is already in use, in
 > `firmware/hub_control/modules/np_mod_audio.c`, for the audio **HAL stubs**. Open-item IDs are
@@ -331,3 +515,4 @@ Against `NP-FAI-001` §2:
 |---|---|---|---|
 | 1 | 2026-09-20 | NeurOne Systems Engineering | Initial release, against GitHub #332 / `NP-ART-001` OI-ART-04. **Gives artifact A11 an owning specification for the first time**, displacing `CLAUDE.md` §3 modality ⑦ — a roster entry — from that role. Decomposes the assembly into five sub-parts (§2), carries ten requirements from documents that already state them (§3), restates the firmware interface as the shipped Class B driver has it (§4), and affirms rather than flags the absence of a safety-MCU enable line (§5). **Two absent exposure limits are recorded as open items rather than supplied**: no acoustic output ceiling and no bone-conduction drive ceiling exist anywhere in the document set (`OI-AUDIOHW-01`, `-02`). **Principal new finding (§6.3): the mesh frame's 40 dB RF figure is a shielding claim on a user-replaceable consumable that appears in no layer of the `CLAUDE.md` §4.3 stack and in no row of `NP-BIB-EMF-001`'s per-layer audit**, and whose fouling trigger is an unimplemented HAL stub (`OI-ACC-05`, `OI-AUDIO-08`) — three defects that compound. §7 supplies the hazard-analysis input list that `OI-RISK2-02` was blocked for want of; the block is lifted, the analysis is not performed here. §8.1 states the FAI verdict honestly: **`NP-FAI-AUDIO-001` still cannot be written** — F1 and F2 fail on a DRAFT document with no dimensioned geometry — so the absence is narrowed and re-owned rather than closed. **No engineering value is set, no figure is invented, no price, interval, margin or locked decision changes.** Raises OI-AUDIOHW-01…07. |
 | 2 | 2026-09-23 | NeurOne Systems Engineering | **Foam prompt re-scoped by principal decision (§6.1, §8).** Comfort and hygiene replacement is at the user's discretion; the prompt covers loss of seal only, measured by the in-cup microphone of noise cancelling the programme intends to add. **Raises `OI-AUDIOHW-08`** (add ANC with a feedback mic, or decide not to) — it reverses the record's *no microphone anywhere in the design*, so privacy, acoustic-safety and placement consequences are listed with it. **No requirement added, no value set, no threshold changed.** |
+| 3 | 2026-09-24 | NeurOne Systems Engineering | **`OI-AUDIOHW-08` analysed; not decided (§6.4).** Separates the measurement from the noise cancelling: the foam's seal (`OI-ACC-04`) needs an in-cup microphone and a probe tone, not an anti-noise loop. States three options — **A** feedback/hybrid ANC, **B** in-cup microphone for measurement only, **C** no microphone — and **recommends B**. New findings: the microphone is also the only route to a measured in-cup level for `OI-AUDIOHW-01` (§6.4.2); every predefined protocol's 440 Hz carrier sits in feedback ANC's band, so A changes what the modality delivers (§6.4.3); A needs a low-latency loop the hub SAI/DMA chain cannot provide, deciding `REQ-AUDIO-04a` by force (§6.4.5); bystanders are neither `CLAUDE.md` §6.0 consent subject, so raw audio must be excluded structurally (§6.4.6); a PDM microphone is a new clocked source for `NP-EMC-CAV-001`. Two placement conditions recorded for A or B (§6.4.7), two conditional hazards added to §7, one row to §8. **No requirement added, no value set, no threshold or constant changed, no cost stated.** |
