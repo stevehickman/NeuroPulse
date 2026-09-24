@@ -127,6 +127,7 @@ jobs:
       localestrings: ${{ steps.scope.outputs.localestrings }}
       tcapmap: ${{ steps.scope.outputs.tcapmap }}
       bringup: ${{ steps.scope.outputs.bringup }}
+      consumables: ${{ steps.scope.outputs.consumables }}
     env:
       # Eight independent surfaces, eight lists. A simulator-only change should
       # not run the Python gate, and vice versa. Blank lines and `#` comments
@@ -249,6 +250,19 @@ jobs:
         firmware/platform/**
         scripts/check-platform-seam-decls.ts
         .github/workflows/tooling-ci.yml
+      # The consumable-trigger gate (CLAUDE.md §2.3, OI-ACC-06). It compares the
+      # §2.3 table to the app code, so both sides are listed, plus firmware: the
+      # edit that must flip a FIRMWARE_PENDING declaration is a hub GATT server
+      # landing (#381), and a list that could not see firmware would let the
+      # declaration go stale while the job stayed skipped. The document is listed
+      # exactly, not docs/**, because it is the only one the gate opens.
+      NP_SCOPE_CONSUMABLES: |
+        docs/reference/commercial-model.md
+        app/ios/**
+        app/android/**
+        firmware/**
+        scripts/check-consumable-triggers.ts
+        .github/workflows/tooling-ci.yml
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -278,6 +292,7 @@ jobs:
           printf '%s\n' "$NP_SCOPE_LOCALESTRINGS" > scope.localestrings.paths
           printf '%s\n' "$NP_SCOPE_TCAPMAP" > scope.tcapmap.paths
           printf '%s\n' "$NP_SCOPE_BRINGUP" > scope.bringup.paths
+          printf '%s\n' "$NP_SCOPE_CONSUMABLES" > scope.consumables.paths
 
       # A well-formed pattern that matches nothing is a typo, not a scope
       # decision: `simluator/**` would silently take the whole surface out of
@@ -285,7 +300,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.bringup.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.bringup.paths scope.consumables.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -371,6 +386,15 @@ jobs:
           assert scope.seamdecls.paths true  firmware/platform/include/np_sw02_platform_hal.h
           assert scope.seamdecls.paths true  firmware/safety_mcu/include/np_safety_hal.h
           assert scope.seamdecls.paths false app/web/src/main.ts
+          # The consumable-trigger gate. The document and both enums are the two
+          # sides it compares; a firmware file is the edit that flips a declared
+          # absence; any other document is outside what it opens.
+          assert scope.consumables.paths true  docs/reference/commercial-model.md
+          assert scope.consumables.paths true  app/ios/NeurOne/Models/ConsumableInventory.swift
+          assert scope.consumables.paths true  app/android/core/src/main/kotlin/life/neurone/core/consumable/ConsumableModels.kt
+          assert scope.consumables.paths true  firmware/hub_control/src/np_session_log.c
+          assert scope.consumables.paths false docs/reference/modality-stack.md
+          assert scope.consumables.paths false app/web/src/main.ts
 
       - name: Changed files
         id: diff
@@ -425,6 +449,7 @@ jobs:
           emit localestrings scope.localestrings.paths
           emit tcapmap   scope.tcapmap.paths
           emit bringup   scope.bringup.paths
+          emit consumables scope.consumables.paths
 
   scripts-check:
     name: scripts/ type-check
@@ -846,3 +871,29 @@ jobs:
 
       - name: No caller re-declares a seam its header already declares
         run: bun scripts/check-platform-seam-decls.ts
+
+  consumable-triggers:
+    name: every consumable prompt is measurement-triggered (CLAUDE.md §2.3)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.consumables != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # No `bun install`: the checker reads source text with node builtins.
+
+      - name: Guard self-test (prove T1–T8 and both declared-absence kinds can fail)
+        run: bun scripts/check-consumable-triggers.ts --self-test
+
+      # The rule was enforced by reading until OI-ACC-06, and reading missed two
+      # rows: the foam on a calendar interval (OI-ACC-02), and the mesh frame
+      # naming a measurement that was a HAL stub (OI-ACC-05). A row that names a
+      # measurement reads as compliant. So this asks where the producer is.
+      - name: Every §2.3 row declares an admissible trigger whose producer exists
+        run: bun scripts/check-consumable-triggers.ts

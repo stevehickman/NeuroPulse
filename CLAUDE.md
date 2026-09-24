@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 54 (current)  
+**Revision:** 55 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
@@ -170,6 +170,12 @@ prompt therefore qualifies in exactly one of two ways, and the row must say whic
 and is the thing this invariant forbids — the trigger *kind* and the threshold's *provenance* are
 two claims, and satisfying the first does not satisfy the second. A threshold that no measurement
 supports is an unvalidated placeholder and is labelled one, per `NP-FW-EMMC-002` §G.2.
+
+**Enforced, not read (Rev 55, `OI-ACC-06`).** Each `commercial-model.md` §2.3 row declares its
+trigger kind, producer, threshold provenance, mechanism and blind spot in a Trigger column.
+`scripts/check-consumable-triggers.ts` checks that the producer exists on both apps, that each
+threshold equals the code's `sessionLimit`, and that no prompt is calendar-shaped. **A new
+consumable prompt needs a row before it ships.**
 
 **Scope: consumable replacement prompts only.** Service-network and calibration intervals are
 deliberately outside it and stay calendar-denominated — the 3–5 year Tier B fluxgate visit

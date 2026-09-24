@@ -1,7 +1,8 @@
 package life.neurone.core.consumable
 
 // Consumable kinds and session-count thresholds. Port of iOS
-// ConsumableInventory.swift. Thresholds are locked per CLAUDE.md §2.3.
+// ConsumableInventory.swift. Each sessionLimit must equal the threshold in the Trigger cell of
+// docs/reference/commercial-model.md §2.3 — scripts/check-consumable-triggers.ts enforces it.
 // Session counts come from the hub CONSUMABLE_STATUS GATT characteristic
 // (SHDR-class — device condition, no user biology).
 
@@ -14,8 +15,13 @@ enum class ConsumableKind(val rawValue: Int) {
     val sessionLimit: Int
         get() = when (this) {
             INTRANASAL_SLEEVES -> 1     // single use
-            ELECTRODE_HYDROGEL -> 45    // midpoint of 30–60 range
-            VNS_PADS -> 30              // midpoint of 20–40 range
+            // UNVALIDATED PLACEHOLDER — OI-ACC-09. Midpoint of a 30–60 range with no stated source,
+            // and no document names the mechanism this count drives. The intended trigger is an
+            // impedance trend (a condition measurement), which nothing implements yet.
+            ELECTRODE_HYDROGEL -> 45
+            // UNVALIDATED PLACEHOLDER — OI-VNSCLIP-07. Exposure count, mechanism = electrochemical
+            // degradation from VNS current; 30 is the midpoint of a quoted 20–40, not a derived life.
+            VNS_PADS -> 30
             // UNVALIDATED PLACEHOLDER — OI-ACC-04. Exposure count, mechanism = compression set
             // under wear. The value is NOT derived from that mechanism: it was back-derived from
             // the retired "6–12 months" calendar interval (OI-ACC-02), which CLAUDE.md §2.3 forbids

@@ -2,7 +2,8 @@ import Foundation
 
 // Consumable kinds and their session-count thresholds.
 // Session counts come from the hub CONSUMABLE_STATUS GATT characteristic.
-// Thresholds are locked per CLAUDE.md §2.3.
+// Each sessionLimit must equal the threshold in the Trigger cell of
+// docs/reference/commercial-model.md §2.3 — scripts/check-consumable-triggers.ts enforces it.
 
 enum ConsumableKind: Int, CaseIterable, Identifiable {
     case intranasalSleeves = 0
@@ -24,8 +25,13 @@ enum ConsumableKind: Int, CaseIterable, Identifiable {
     var sessionLimit: Int {
         switch self {
         case .intranasalSleeves: return 1           // single use
-        case .electrodeHydrogel: return 45          // midpoint of 30–60 range
-        case .vnsPads:           return 30          // midpoint of 20–40 range
+        // UNVALIDATED PLACEHOLDER — OI-ACC-09. Midpoint of a 30–60 range with no stated source,
+        // and no document names the mechanism this count drives. The intended trigger is an
+        // impedance trend (a condition measurement), which nothing implements yet.
+        case .electrodeHydrogel: return 45
+        // UNVALIDATED PLACEHOLDER — OI-VNSCLIP-07. Exposure count, mechanism = electrochemical
+        // degradation from VNS current; 30 is the midpoint of a quoted 20–40, not a derived life.
+        case .vnsPads:           return 30
         // UNVALIDATED PLACEHOLDER — OI-ACC-04. Exposure count, mechanism = compression set under
         // wear. The value is NOT derived from that mechanism: it was back-derived from the retired
         // "6–12 months" calendar interval (OI-ACC-02), which CLAUDE.md §2.3 forbids and which this
