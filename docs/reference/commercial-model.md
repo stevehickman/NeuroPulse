@@ -210,6 +210,8 @@ edit.
 > service contract (not a consumable prompt). They are recorded here rather than silently exempted.
 > **This rule is enforced by reading, not by a gate** — unlike §5.1's redaction shape, §6.2's
 > reachability and §17's locale rule, which each have one. That gap is `OI-ACC-06`.
+>
+> *(2026-09-24: `OI-ACC-06` closed — the rule now has a gate. See the next block.)*
 
 > **`OI-ACC-03` CLOSED (2026-09-22, principal) — the cervical VNS gel pad has a row, is replaced
 > on a measured failure, and is the only row whose price is deliberately empty.** The pad was a
@@ -252,17 +254,52 @@ edit.
 >   two electrodes every session (`NP_CVNS_ELECTRODE_COUNT`); how many sessions a pack serves now
 >   depends on how long pads last, which nothing yet measures.
 
-| Item | Price | Interval | GM% | Notes |
-|------|-------|----------|-----|-------|
-| Intranasal sleeves (30-pack) | $19/pack or $19/mo sub | Single use | 68–79% | Only authenticated consumable. COGS $4–6. Primary MRR driver. |
-| Electrode hydrogel tips (8-pack) | $12–16 or $9.99/mo sub | 30–60 sessions | 60–72% | App impedance trend prompts. Bayonet snap, zero training. |
-| VNS clip pads (2-pack) | $8/pack | 20–40 sessions | 65% | Electrochemical degradation from VNS current. |
-| Cervical VNS gel pads (5-pack) — T2 | **Not set — `OI-COST-10`** | On failure — performance guaranteed for one use; reuse permitted (`NP-REG-CVNS-001` §2.4) | **— (no price, no COGS)** | Condition measurement: per-electrode impedance ≤ 5.0 kΩ at 1 kHz before every session (`REQ-CVNS-06`), enable refused by the safety MCU otherwise; lift mid-session caught in 500 ms (`REQ-CVNS-08`). Cannot see skin reaction to reuse (`OI-CVNSHW-07`). App names the failing pad's side and lights it on a neck diagram; hub side open (`OI-ACC-07`). `OI-ACC-03`, closed above. |
-| Audio cup foam (set) | $24/set | **150 sessions — unvalidated placeholder (`OI-ACC-04`), pending the seal measurement; the count has no firmware producer yet (`OI-ACC-08`)** | 58% | Exposure count. Mechanism: compression set under wear (time-under-compression; sessions proxy it). Cannot see tear, contamination, or storage set. **Principal decision 2026-09-23:** the prompt covers loss of function (loss of seal) only; comfort and hygiene replacement is at the user's discretion by design. Target trigger is a condition measurement: seal loss read by the in-cup noise-cancelling microphone (`OI-AUDIOHW-08`, not yet in the design). Was "6–12 months / Calendar reminder" — `OI-ACC-02`, resolved above. |
-| Audio cup mesh frame (pair) | $9.99/pair | Annual | 62% | App driver impedance flags fouling. Snap-in, user-replaceable. **Trigger not implemented:** `np_mod_audio_hal_mesh_impedance()` is a HAL stub (`OI-AUDIO-08`) whose value is discarded, and there is no `ConsumableKind` case — so the shipped prompt is the Interval column, i.e. a calendar. `OI-ACC-05`. |
-| Interface protection covers (complete kit) | $22.99 or $19.99/yr bundle | Annual / as lost | 70% | All tethered — loss prevention by design. |
-| S3 prescription Rx insert | $49–139 | 12–24 months | Variable | Optician partner network. Zero marginal marketing cost per renewal. |
-| T2 service contract | $1,800/yr | Annual | ~75% | Same-day loaner, priority support, annual calibration. |
+> **`OI-ACC-06` CLOSED (2026-09-24, GitHub #387) — CLAUDE.md §2.3's trigger rule is enforced by
+> `scripts/check-consumable-triggers.ts`, and the table below gained the Trigger column it reads.**
+>
+> - **The Trigger column is the row's declaration.** It opens with one of three kinds —
+>   **Condition measurement**, **Exposure count**, or **No prompt** — followed by `·`-separated
+>   fields. A prompting row names its `producer:`. An exposure count adds `threshold:` with a
+>   provenance, `mechanism:` and `cannot see:`. The gate reads that cell. It does not read the
+>   Notes cell, because the mesh frame showed that a Notes cell can name a measurement no code takes.
+> - **What the gate checks against the code.** The producer exists on both platforms: a
+>   `ConsumableKind` case plus the `CONSUMABLE_STATUS` characteristic, or a registered
+>   characteristic such as `CVNS_PAD_STATUS`. Each `ConsumableKind` is claimed by exactly one row. A
+>   stated threshold equals `sessionLimit` on iOS and Android. A session count is never labelled a
+>   condition measurement. A prompting row has no calendar interval, and the reminder engines
+>   contain no calendar-shaped trigger. It fails in both directions: a kind added in code with no
+>   row fails, and so does a row whose producer is not in the code.
+> - **Declared absences are printed on every run and fail once they stop being true.** Two hub
+>   producers are unpublished: `CONSUMABLE_STATUS` (`OI-ACC-08`, #381) and `CVNS_PAD_STATUS`
+>   (`OI-ACC-07`). The gate flips when firmware code references either one. One row is exempted
+>   from one rule: the hydrogel tips' mechanism (`OI-ACC-09`). The exemption fails once the row
+>   names a mechanism.
+> - **Found while declaring the rows, and not fixed here: the hydrogel tip row named a trigger that
+>   does not exist.** Its Notes said *"App impedance trend prompts"*, and `NP-DT-001` `DI-USE-07`
+>   says the same. Neither platform computes an impedance trend. The shipped prompt is a 45-session
+>   count, the midpoint of a 30–60 range whose source nothing states. That is the mesh-frame defect
+>   (`OI-ACC-05`) with a count behind it. The row now states what ships, and `OI-ACC-09` carries the
+>   fix. The **VNS clip pads'** 30 is labelled an unvalidated placeholder under `OI-VNSCLIP-07` for
+>   the same reason. It is the midpoint of a quoted range, not a derived life.
+> - **What the gate cannot check:** whether a cited derivation is right, whether a named mechanism
+>   is the true one, or whether a producer works. It checks that a trigger is declared in an
+>   admissible shape and that its producer exists. Price, GM% and pack size are outside it.
+> - **Nothing else in #387 is closed by this.** `OI-ACC-04` and `OI-AUDIOHW-08` wait on the
+>   decision about the in-cup microphone. `OI-ACC-05` waits on a measurement. `OI-VNSCLIP-07` needs
+>   characterisation. `OI-NASAL-04` needs a Product + EE + Privacy decision on what sleeve
+>   authentication asserts. Each is now visible as a declared row or exemption, not as prose.
+
+| Item | Price | Interval | GM% | Trigger | Notes |
+|------|-------|----------|-----|---------|-------|
+| Intranasal sleeves (30-pack) | $19/pack or $19/mo sub | Single use | 68–79% | **Exposure count** · producer: `ConsumableKind.intranasalSleeves` · threshold: 1 — single use by design (`NP-HW-NASAL-001` §6.1) · mechanism: contamination of a hygiene barrier by use · cannot see: a sleeve refitted after *Mark replaced* — authentication checks the sleeve type, not the unit (`OI-NASAL-04`) | Only authenticated consumable. COGS $4–6. Primary MRR driver. Blocks session start when exceeded (safety-blocking). |
+| Electrode hydrogel tips (8-pack) | $12–16 or $9.99/mo sub | 30–60 sessions | 60–72% | **Exposure count** · producer: `ConsumableKind.electrodeHydrogel` · threshold: 45 — unvalidated placeholder, the midpoint of a range with no stated source (`OI-ACC-09`) · mechanism: not named (`OI-ACC-09`) · cannot see: a tip dried, damaged or contaminated off the device, or one that fails early | Bayonet snap, zero training. **Was "App impedance trend prompts"** — no impedance-trend trigger exists on either platform; the shipped prompt is the session count in the Trigger cell. The impedance trend is the target condition measurement (`OI-ACC-09`). |
+| VNS clip pads (2-pack) | $8/pack | 20–40 sessions | 65% | **Exposure count** · producer: `ConsumableKind.vnsPads` · threshold: 30 — unvalidated placeholder, the midpoint of a quoted range, not a derived life (`OI-VNSCLIP-07`) · mechanism: electrochemical degradation from VNS current · cannot see: a pad damaged, dried or degraded off the device, or a poor linked-ear EEG reference on a pad that still passes (`OI-VNSCLIP-01`) | Electrochemical degradation from VNS current. |
+| Cervical VNS gel pads (5-pack) — T2 | **Not set — `OI-COST-10`** | On failure — performance guaranteed for one use; reuse permitted (`NP-REG-CVNS-001` §2.4) | **— (no price, no COGS)** | **Condition measurement** · producer: `CVNS_PAD_STATUS` · per-electrode impedance ≤ 5.0 kΩ at 1 kHz before every session (`REQ-CVNS-06`) · cannot see: skin reaction to reuse (`OI-CVNSHW-07`) | Enable refused by the safety MCU when the check fails; lift mid-session caught in 500 ms (`REQ-CVNS-08`). App names the failing pad's side and lights it on a neck diagram; hub side open (`OI-ACC-07`). `OI-ACC-03`, closed above. |
+| Audio cup foam (set) | $24/set | **150 sessions — unvalidated placeholder (`OI-ACC-04`), pending the seal measurement; the count has no firmware producer yet (`OI-ACC-08`)** | 58% | **Exposure count** · producer: `ConsumableKind.audioCupFoam` · threshold: 150 — unvalidated placeholder (`OI-ACC-04`) · mechanism: compression set under wear (time-under-compression; sessions proxy it) · cannot see: tear, contamination, or storage set | **Principal decision 2026-09-23:** the prompt covers loss of function (loss of seal) only; comfort and hygiene replacement is at the user's discretion by design. Target trigger is a condition measurement: seal loss read by the in-cup noise-cancelling microphone (`OI-AUDIOHW-08`, not yet in the design). Was "6–12 months / Calendar reminder" — `OI-ACC-02`, resolved above. |
+| Audio cup mesh frame (pair) | $9.99/pair | Annual (purchase cadence — no prompt) | 62% | **No prompt** · the named measurement, driver impedance, is a HAL stub whose value is discarded (`np_mod_audio_hal_mesh_impedance()`, `OI-AUDIO-08`), and there is no `ConsumableKind` case, so nothing prompts; `OI-ACC-05` | Snap-in, user-replaceable. **Was "App driver impedance flags fouling"** — a row that named a measurement no code takes. Target trigger: a condition measurement of fouling, either driver impedance (`REQ-AUDIO-07`) or the in-cup microphone of `OI-AUDIOHW-08`. |
+| Interface protection covers (complete kit) | $22.99 or $19.99/yr bundle | Annual / as lost | 70% | **No prompt** · loss is not degradation, so there is nothing to measure; replacement is the user's call | All tethered — loss prevention by design. |
+| S3 prescription Rx insert | $49–139 | 12–24 months | Variable | **No prompt** · the real trigger is a change in the wearer's refraction, which is user biology — UHDR, permanently outside NeurOne's reach (CLAUDE.md §5.1) | Optician partner network. Zero marginal marketing cost per renewal. |
+| T2 service contract | $1,800/yr | Annual | ~75% | **No prompt** · a service and calibration interval, not a consumable replacement prompt; CLAUDE.md §2.3 keeps it calendar-denominated by scope | Same-day loaner, priority support, annual calibration. |
 
 ---
 

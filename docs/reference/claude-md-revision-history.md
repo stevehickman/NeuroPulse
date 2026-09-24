@@ -19,6 +19,25 @@
 
 ## Current revision
 
+**Rev 55 (2026-09-24) — §2.3 gains a paragraph naming the gate that enforces its trigger rule. No
+locked decision changed; `OI-ACC-06` closed, `OI-ACC-09` raised.**
+
+**What changed.** §2.3's trigger rule (Rev 48) had no gate. It now has one,
+`scripts/check-consumable-triggers.ts`, and `commercial-model.md` §2.3 has a Trigger column for it to
+read. The new paragraph says the rule is enforced, what the gate checks, and that a new consumable
+prompt needs a row before it ships.
+
+**Why in the core.** §5.1, §6.2 and §17 each name their gate in the core. Naming a gate tells the
+reader that a change touching the invariant will fail CI, not just review. §2.3 was the only one of
+those invariants with no gate to name.
+
+**What it does not change.** The rule's text, the two admissible kinds, the scope limit, every
+threshold value and every price. The hydrogel tip and VNS clip pad thresholds are relabelled
+unvalidated placeholders in `commercial-model.md` and in code comments on both platforms, with
+values unchanged. That applies §2.3's existing sentence and does not add a new one.
+
+## Earlier revisions
+
 **Rev 54 (2026-09-24) — §1's *"No such gate exists yet"* replaced by what now exists and what is not
 in force; §4.2 gains the tier-identity interlock row; §4.2's safety-MCU module count updated. No
 locked decision changed; `OI-UPG-01`'s firmware half implemented, `OI-UPG-08` raised.**
