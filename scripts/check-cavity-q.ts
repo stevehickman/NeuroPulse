@@ -364,13 +364,51 @@ const PICKUP_LEN_M = 0.04; // in-tile electrode lead; N4 beyond it is guarded (R
 const CMRR_AT_RF_DB = 20; // the 110 dB CMRR spec is a 50/60 Hz figure, not an RF one
 const Q_CEILING = 20; // REQ-CAV-02 allocation
 
-function fieldLimit() {
+function fieldLimit(emirrDb = EMIRR_DB) {
   const dvUv = EEG_BUDGET_UVPP * RF_DEMOD_SHARE; // uV allowed from demodulation
-  const vRfMax = (dvUv * 1e-6) * 10 ** (EMIRR_DB / 20); // volts at the amplifier input
+  const vRfMax = (dvUv * 1e-6) * 10 ** (emirrDb / 20); // volts at the amplifier input
   const hEff = PICKUP_LEN_M / 2; // electrically short: h_e ~ l/2
   const coupling = hEff * 10 ** (-CMRR_AT_RF_DB / 20); // V per (V/m)
   return { dvUv, vRfMax, hEff, coupling, eMax: vRfMax / coupling };
 }
+
+// OI-EMCCAV-01 (#398) — how REQ-CAV-01, and the margin behind REQ-CAV-04, move
+// with the one input nobody has measured. The ADS1299 datasheet gives no EMIRR;
+// NP-EMC-EMIRR-001 is the bench procedure that will. Until it runs, this is a
+// sensitivity statement over candidate values, not a result.
+//
+// REQ-CAV-01 is linear in 10^(EMIRR/20): one decade per 20 dB. REQ-CAV-02 is an
+// ALLOCATION of that field limit to the enclosure, as a Q ceiling. The scaling
+// below HOLDS THE SOURCE/LAYOUT SHARE (REQ-EMI-01..07) FIXED, so the whole change
+// in field limit lands on the enclosure's Q ceiling, dB for dB — resonant peak
+// field is proportional to Q. That is the conservative reading (the enclosure
+// absorbs all of it); whether to re-allocate instead is an EMC/principal call and
+// is not made here. Evaluated at the mid-range head's lowest mode, like every
+// other single-number anchor in this file.
+const EMIRR_SWEEP_DB = [40, 50, 60, 70];
+
+function emirrSensitivity(emirrDb: number) {
+  const m = midCavity();
+  const fl = fieldLimit(emirrDb);
+  const qCeil = Q_CEILING * 10 ** ((emirrDb - EMIRR_DB) / 20);
+  const q = qLoaded(m.f, PD_FABRIC_RS.nominal);
+  const foam = slabSurfaceR(m.f, ABSORBER_T_M, FOAM_EPS[1][1]);
+  const qWithFoam = qLoaded(m.f, PD_FABRIC_RS.nominal, foam.Rs);
+  return {
+    eMax: fl.eMax,
+    qCeil,
+    headMarginDb: 20 * Math.log10(qCeil / q.loaded),
+    // What the deleted absorber would add ON TOP of the head, at design loading.
+    // Independent of EMIRR — the point of carrying it in the sweep.
+    foamWithHeadDb: 20 * Math.log10(q.loaded / qWithFoam.loaded),
+  };
+}
+
+// EMIRR at which the head's margin against the scaled Q ceiling reaches zero.
+const emirrBreakEven = () => {
+  const q = qLoaded(midCavity().f, PD_FABRIC_RS.nominal);
+  return EMIRR_DB - 20 * Math.log10(Q_CEILING / q.loaded);
+};
 
 // ── Reporting ────────────────────────────────────────────────────────────────
 const f3 = (n: number, d = 1) => n.toFixed(d);
@@ -477,6 +515,21 @@ function reportAllocation() {
   console.log(`\n  This IS an allocation and is labelled one. The finding below does not depend`);
   console.log(`  on it: at Q_L <= 5 or Q_L <= 50 the head still meets it and the foam still`);
   console.log(`  does not move it.`);
+}
+
+function reportEmirr() {
+  console.log(`\n=== 3a. EMIRR SENSITIVITY — OI-EMCCAV-01, unmeasured ======================\n`);
+  console.log(`  ${EMIRR_DB} dB is a design assumption. Candidate values, source/layout share held fixed:\n`);
+  console.log(`    EMIRR   REQ-CAV-01     Q ceiling   head margin   foam on top of head`);
+  for (const e of EMIRR_SWEEP_DB) {
+    const r = emirrSensitivity(e);
+    console.log(
+      `    ${String(e).padStart(3)} dB  ${f3(r.eMax, 3).padStart(7)} V/m  ${f3(r.qCeil, 2).padStart(9)}  ${f3(r.headMarginDb).padStart(8)} dB  ${f3(r.foamWithHeadDb, 3).padStart(9)} dB`,
+    );
+  }
+  console.log(`\n  Break-even: the head's margin reaches 0 dB at EMIRR = ${f3(emirrBreakEven())} dB.`);
+  console.log(`  Below that the allocation, not Layer 4, is what has to move: the absorber adds`);
+  console.log(`  ${f3(emirrSensitivity(EMIRR_DB).foamWithHeadDb, 3)} dB with the head fitted at every EMIRR.`);
 }
 
 function reportQ() {
@@ -748,6 +801,16 @@ function reportValidation(): boolean {
     ["§3.1 head margin under the Q ceiling (dB)", 20 * Math.log10(Q_CEILING / q.loaded), 23.6, 0.1],
     ["§3.1 margin left, source +10 dB", 20 * Math.log10(Q_CEILING * 10 ** (-10 / 20) / q.loaded), 13.6, 0.1],
     ["§3.1 margin left, source +20 dB (x10 field)", 20 * Math.log10(Q_CEILING * 10 ** (-20 / 20) / q.loaded), 3.6, 0.1],
+    // §5.4 — OI-EMCCAV-01 sensitivity. Candidate EMIRR values, NOT measurements.
+    ["REQ-CAV-01 at EMIRR 40 dB (V/m)", emirrSensitivity(40).eMax, 0.050, 0.002],
+    ["REQ-CAV-01 at EMIRR 50 dB (V/m)", emirrSensitivity(50).eMax, 0.158, 0.002],
+    ["REQ-CAV-01 at EMIRR 70 dB (V/m)", emirrSensitivity(70).eMax, 1.58, 0.02],
+    ["scaled Q ceiling at EMIRR 40 dB", emirrSensitivity(40).qCeil, 2.0, 0.01],
+    ["head margin at EMIRR 40 dB (dB)", emirrSensitivity(40).headMarginDb, 3.6, 0.3],
+    ["head margin at EMIRR 50 dB (dB)", emirrSensitivity(50).headMarginDb, 13.6, 0.3],
+    ["head margin at EMIRR 60 dB (dB)", emirrSensitivity(60).headMarginDb, 23.6, 0.3],
+    ["head margin at EMIRR 70 dB (dB)", emirrSensitivity(70).headMarginDb, 33.6, 0.3],
+    ["EMIRR break-even for the head margin (dB)", emirrBreakEven(), 36.4, 0.3],
   ];
 
   console.log(`\nscanned: ${anchors.length} published anchor(s) — NP-EMC-CAV-001\n`);
@@ -773,6 +836,7 @@ function main() {
   reportBand();
   reportSource();
   reportAllocation();
+  reportEmirr();
   reportQ();
   reportAbsorber();
   reportVerdict();
