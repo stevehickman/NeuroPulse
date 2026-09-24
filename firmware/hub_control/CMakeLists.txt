@@ -216,7 +216,8 @@ if(NP_BUILD_TESTS)
     # medium and sweeps L-1/L-2 on it; carries the evidence for ECR-EMMC-002
     # (prog_size below the 512-byte XTS unit loses committed data under a
     # read-modify-write tear — for the logs as EMMC-FS-01 prints them, and for
-    # the Config instance as built, OI-LFS-10); and measures the specified
+    # the Config geometry at 256, which moved the Config instance to 512 —
+    # OI-LFS-10); and measures the specified
     # lookahead's allocator traversals in reads.
     add_executable(np_lfs_log_instance_tests
         tests/np_lfs_log_instance_tests.c

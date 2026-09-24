@@ -40,6 +40,11 @@ _Static_assert(NP_LFS_CFG_BLOCK_CYCLES != 0,
                "block_cycles = 0 is rejected by lfs_init");
 _Static_assert(NP_LFS_CFG_BLOCK_CYCLES != -1,
                "block_cycles = -1 disables wear levelling — claim L-6");
+/* OI-LFS-10: a program must be a whole number of 512-byte XTS data units
+ * (EMMC-UHDR-05), or a torn program rewrites committed bytes it does not own. */
+_Static_assert(NP_LFS_CFG_PROG_SIZE % 512u == 0,
+               "prog_size must be a whole number of XTS data units - "
+               "NP-SOUP-LFS-001 s13.1.3, OI-LFS-10");
 _Static_assert(8u * NP_LFS_CFG_LOOKAHEAD_SIZE >= NP_LFS_CFG_BLOCK_COUNT,
                "lookahead must cover the whole partition in one pass");
 _Static_assert((uint64_t)NP_LFS_CFG_BLOCK_SIZE * NP_LFS_CFG_BLOCK_COUNT

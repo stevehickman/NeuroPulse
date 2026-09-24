@@ -18,7 +18,8 @@
  *   4. is the evidence for the deviation (ECR-EMMC-002): under a 512-byte
  *      read-modify-write encryption unit (EMMC-UHDR-05), the same sweep passes
  *      at prog_size 512 and FAILS at 256 — for the log instance as EMMC-FS-01
- *      prints it, and for the Config instance as it is built today (OI-LFS-10)
+ *      prints it, and for the Config geometry at 256 — which is why the
+ *      Config instance was moved to 512 (OI-LFS-10, NP-SOUP-LFS-001 §13.8)
  *   5. measures, in reads, what the specified lookahead costs: how often the
  *      allocator traverses the filesystem during a session, and how many reads
  *      one traversal takes at a given fill.  The TIME is the eMMC's and is
@@ -413,7 +414,8 @@ static int jrn_verify(const char *what, long cut, np_powerbd_tear_t tear)
     return 1;
 }
 
-static np_sweep_result_t config_journal_sweep(lfs_size_t rmw, const char *label)
+static np_sweep_result_t config_journal_sweep(lfs_size_t rmw, const char *label,
+                                              bool expect)
 {
     memset(&g_cfg, 0, sizeof(g_cfg));
     (void)np_lfs_config_apply(&g_cfg);
@@ -424,7 +426,7 @@ static np_sweep_result_t config_journal_sweep(lfs_size_t rmw, const char *label)
     g_cfg.lock    = host_lock;
     g_cfg.unlock  = host_unlock;
     np_sweep_bind(&g_bd, reboot_store);
-    g_expect = (rmw != 0U);
+    g_expect = expect;
     g_shown  = 0;
     np_sweep_result_t r = np_sweep_run(jrn_baseline, jrn_append, label, jrn_verify);
     g_expect = false;
@@ -464,19 +466,41 @@ static void test_prog_smaller_than_xts_unit_breaks_the_contract(void)
            "prog_size 256 fails even without an RMW unit — (b) proves nothing "
            "about the XTS unit");
 
-    /* (d) OI-LFS-10: the Config instance, built today at prog 256 and mounted
-     *     on an XTS-encrypted partition, through the store's own journal. */
+    /* (d) OI-LFS-10: the Config instance.  Until 2026-09-24 it was built at
+     *     prog 256 and this case EXPECTED a lost Map 3 record under a 512-byte
+     *     RMW unit — it found one (NP-SOUP-LFS-001 §13.1.3).  It is now built
+     *     at 512, so through the store's own journal it must lose nothing. */
     g_cmedia = malloc((size_t)NP_LFS_CFG_BLOCK_SIZE * NP_LFS_CFG_BLOCK_COUNT);
     ASSERT(g_cmedia != NULL, "host out of memory");
     if (g_cmedia == NULL) {
         return;
     }
-    np_sweep_result_t c0 = config_journal_sweep(0U, "Config L-4, no RMW (control)");
-    np_sweep_result_t c1 = config_journal_sweep(512U, "Config L-4 / XTS RMW 512");
+    np_sweep_result_t c0 = config_journal_sweep(0U, "Config L-4, no RMW (control)",
+                                                false);
+    np_sweep_result_t c1 = config_journal_sweep(512U, "Config L-4 / XTS RMW 512",
+                                                false);
     ASSERT(c0.violations == 0, "the Config journal fails even without RMW");
-    ASSERT(c1.violations > 0,
-           "the Config instance's prog 256 survived a 512-byte RMW unit — "
-           "OI-LFS-10's finding is not reproduced; re-examine it");
+    ASSERT(c1.violations == 0,
+           "the Config instance as built lost a durable Map 3 record under a "
+           "512-byte RMW unit — OI-LFS-10's decision does not hold");
+
+    /* (e) The evidence for that decision, kept: the Config geometry at the
+     *     256 EMMC-FS-01 prints, under the same RMW unit.  Raw littlefs, since
+     *     the store's validator now refuses 256 — which is the point. */
+    memset(&g_cfg, 0, sizeof(g_cfg));
+    (void)np_lfs_config_apply(&g_cfg);
+    g_cfg.read_size = 256U;
+    g_cfg.prog_size = 256U;
+    np_powerbd_bind(&g_bd, &g_cfg, g_cmedia, NP_LFS_CFG_BLOCK_SIZE,
+                    NP_LFS_CFG_BLOCK_COUNT, 256U, g_cdirty, sizeof(g_cdirty));
+    g_bd.rmw_unit = 512U;
+    g_cfg.lock    = host_lock;
+    g_cfg.unlock  = host_unlock;
+    np_sweep_bind(&g_bd, reboot_raw);
+    np_sweep_result_t c2 = sweep("Config prog 256 / XTS RMW 512", true);
+    ASSERT(c2.violations > 0,
+           "the Config geometry at prog 256 survived a 512-byte RMW unit — "
+           "OI-LFS-10's evidence no longer reproduces; re-examine the decision");
     np_sweep_release();
     free(g_cmedia);
     g_cmedia = NULL;

@@ -31,8 +31,9 @@ in this directory: it is closed by `NP-SOUP-LFS-001` §11 and §12 and by
   not reproduce, so it is bounded, not shown prevented. `OI-LFS-09`: every read
   content-verified, and a read error followed by a remount — #1205's stale read
   cache **was** reproduced on this tag and shown not to reach a caller.
-- **The Config instance's `prog_size` (256) is below the 512-byte XTS unit**,
-  and under a read-modify-write tear it loses committed data — `OI-LFS-10`.
+- **The Config instance's `prog_size` is 512, not `EMMC-FS-01`'s printed 256**
+  (`OI-LFS-10`, decided 2026-09-24): a program below the 512-byte XTS unit
+  loses committed data under a read-modify-write tear.
 - **The Class B classification is conditional on the caller**, not on this
   component — `NP-SOUP-LFS-001` §6.2 and `REQ-LFS-01`. Read it before quoting
   the class. §11.4 finds the same thing about the anomaly profile.

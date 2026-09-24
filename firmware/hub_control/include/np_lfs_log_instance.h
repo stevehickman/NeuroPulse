@@ -28,7 +28,8 @@
  * np_lfs_log_instance_tests shows it: under a 512-byte read-modify-write
  * model, the append sweep that passes at prog_size 512 FAILS at 256.  Raised
  * against NP-FW-EMMC-001 as ECR-EMMC-002 (NP-SOUP-LFS-001 §13.1.3); the same
- * finding lands on the Config instance as OI-LFS-10.
+ * finding landed on the Config instance as OI-LFS-10, which moved it to 512
+ * too (NP-SOUP-LFS-001 §13.8).
  *
  * ── Taken from EMMC-FS-01 as written ──────────────────────────────────────────
  * block_size, block_count, cache_size, lookahead_size, block_cycles, file_max,

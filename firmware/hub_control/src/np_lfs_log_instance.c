@@ -38,7 +38,7 @@ _Static_assert(NP_LFS_LOG_BLOCK_CYCLES != 0 && NP_LFS_LOG_BLOCK_CYCLES != -1,
 #define NP_XTS_DATA_UNIT  512u
 _Static_assert(NP_LFS_LOG_PROG_SIZE % NP_XTS_DATA_UNIT == 0,
                "prog_size must be a whole number of XTS data units "
-               "(EMMC-UHDR-05) — NP-SOUP-LFS-001 §13.1.3");
+               "(EMMC-UHDR-05) - NP-SOUP-LFS-001 s13.1.3");
 
 /* The partition arithmetic EMMC-FS-01 prints, checked against the partition
  * map the bootloader actually uses rather than against the table's own

@@ -264,8 +264,12 @@ static void test_instance_parameters(void)
     /* The five EMMC-FS-01 owns (claim L-5).  Changing any of them is a change
      * to NP-FW-EMMC-001 raised as an ECR, and it RELOCATES ukmd.rec — whose
      * loss makes a user's UHDR permanently unmountable. */
-    ASSERT(NP_LFS_CFG_READ_SIZE   == 256U,   "EMMC-FS-01 read_size");
-    ASSERT(NP_LFS_CFG_PROG_SIZE   == 256U,   "EMMC-FS-01 prog_size");
+    /* read/prog: 512, not EMMC-FS-01's printed 256 — the XTS data unit
+     * (EMMC-UHDR-05).  OI-LFS-10 / ECR-EMMC-002, NP-SOUP-LFS-001 §13.8. */
+    ASSERT(NP_LFS_CFG_READ_SIZE   == 512U,   "read_size is the 512-byte XTS unit (OI-LFS-10)");
+    ASSERT(NP_LFS_CFG_PROG_SIZE   == 512U,   "prog_size is the 512-byte XTS unit (OI-LFS-10)");
+    ASSERT(NP_LFS_CFG_PROG_SIZE % 512U == 0U,
+           "a program smaller than the XTS unit tears committed bytes");
     ASSERT(NP_LFS_CFG_BLOCK_SIZE  == 4096U,  "EMMC-FS-01 block_size");
     ASSERT(NP_LFS_CFG_BLOCK_COUNT == 4096U,  "EMMC-FS-01 block_count");
     ASSERT(NP_LFS_CFG_FILE_MAX    == 65536U, "EMMC-FS-01 file_max");
@@ -277,9 +281,10 @@ static void test_instance_parameters(void)
            "the Config instance must span the whole 16 MiB partition");
 
     /* The four NeurOne decides. */
-    ASSERT(NP_LFS_CFG_CACHE_SIZE == 256U,
-           "cache_size is no longer 256 — it bounds inline_max, and 256 is what "
-           "makes Map 3 records (32 B) and ukmd.rec (192 B) inlineable");
+    ASSERT(NP_LFS_CFG_CACHE_SIZE == 512U,
+           "cache_size is no longer 512 — the smallest multiple of prog_size, "
+           "EMMC-FS-01's own Config value, and the bound on inline_max that "
+           "keeps Map 3 records (32 B) and ukmd.rec's envelope (208 B) inline");
     ASSERT(NP_LFS_CFG_LOOKAHEAD_SIZE == 512U,
            "lookahead_size is no longer 512 — 512 B of bitmap is exactly the "
            "4,096 blocks of this partition, i.e. one allocator pass");
@@ -296,7 +301,7 @@ static void test_instance_parameters(void)
     ASSERT(NP_LFS_CFG_CACHE_SIZE % NP_LFS_CFG_PROG_SIZE == 0U, "cache % prog");
     ASSERT(NP_LFS_CFG_BLOCK_SIZE % NP_LFS_CFG_CACHE_SIZE == 0U, "block % cache");
 
-    ASSERT(NP_LFS_STATIC_RAM_BYTES == 1024U,
+    ASSERT(NP_LFS_STATIC_RAM_BYTES == 1536U,
            "the instance's static RAM cost changed — NP-SW-CI-001 §4.10's "
            "FlexRAM budget is stated against it");
 }
@@ -403,12 +408,12 @@ static void reject_case(const char *what, void (*perturb)(struct lfs_config *))
     }
 }
 
-static void p_read_size(struct lfs_config *c)   { c->read_size = 512U; }
-static void p_prog_size(struct lfs_config *c)   { c->prog_size = 512U; }
+static void p_read_size(struct lfs_config *c)   { c->read_size = 256U; }
+static void p_prog_size(struct lfs_config *c)   { c->prog_size = 256U; }
 static void p_block_size(struct lfs_config *c)  { c->block_size = 512U; }
 static void p_block_count(struct lfs_config *c) { c->block_count = 32768U; }
 static void p_file_max(struct lfs_config *c)    { c->file_max = 0U; }
-static void p_cache_size(struct lfs_config *c)  { c->cache_size = 512U; }
+static void p_cache_size(struct lfs_config *c)  { c->cache_size = 1024U; }
 static void p_lookahead(struct lfs_config *c)   { c->lookahead_size = 16U; }
 static void p_cycles_zero(struct lfs_config *c) { c->block_cycles = 0; }
 static void p_cycles_off(struct lfs_config *c)  { c->block_cycles = -1; }
@@ -427,13 +432,15 @@ static void p_no_unlock(struct lfs_config *c)   { c->unlock = NULL; }
 
 static void test_validate_rejects_every_perturbation(void)
 {
-    reject_case("read_size 512 (EMMC-FS-01 says 256)",        p_read_size);
-    reject_case("prog_size 512 (EMMC-FS-01 says 256)",        p_prog_size);
+    reject_case("read_size 256 (EMMC-FS-01 as printed — below "
+                "the XTS unit, OI-LFS-10)",                   p_read_size);
+    reject_case("prog_size 256 (EMMC-FS-01 as printed — below "
+                "the XTS unit, OI-LFS-10)",                   p_prog_size);
     reject_case("block_size 512 (EMMC-FS-01 says 4,096)",     p_block_size);
     reject_case("block_count 32,768 (EMMC-FS-01 says 4,096)", p_block_count);
     reject_case("file_max 0 — littlefs's 'use the default', "
                 "which is not EMMC-FS-01's 65,536",           p_file_max);
-    reject_case("cache_size 512",                             p_cache_size);
+    reject_case("cache_size 1024",                            p_cache_size);
     reject_case("lookahead_size 16 (upstream's example — "
                 "256 blocks of 4,096 per pass)",              p_lookahead);
     reject_case("block_cycles 0 (lfs_init rejects it, but "

@@ -155,13 +155,17 @@ Build-time configuration in force (np_lfs_config.h; read it for the reasoning):
   LFS_READONLY         NOT defined: every instance is written.
   LFS_NO_INTRINSICS    NOT defined: the GCC builtins are wanted on Cortex-M7.
 
-Instance parameters (np_lfs_instance.h) — Config partition, from EMMC-FS-01:
-  read_size 256 · prog_size 256 · block_size 4,096 · block_count 4,096 ·
-  file_max 65,536                    ← the five EMMC-FS-01 owns (claim L-5)
-  cache_size 256 · lookahead_size 512 · block_cycles 500 · static buffers
-                                     ← the four EMMC-FS-01 does not state, and
-                                       which are therefore NeurOne decisions
-                                       recorded in np_lfs_instance.h
+Instance parameters (np_lfs_instance.h) — Config partition:
+  read_size 512 · prog_size 512      ← the 512-byte XTS data unit, NOT
+                                       EMMC-FS-01's printed 256 (OI-LFS-10,
+                                       decided 2026-09-24; ECR-EMMC-002)
+  block_size 4,096 · block_count 4,096 · file_max 65,536   ← EMMC-FS-01 (L-5)
+  cache_size 512                     ← forced by prog_size; = EMMC-FS-01
+  lookahead_size 512 · block_cycles 500 · name_max/attr_max unset
+                                     ← DIFFER from EMMC-FS-01 (64, 200, 64/256);
+                                       Rev 2 believed the table silent on them.
+                                       OI-LFS-10's open half.
+  UHDR / SHDR instances: np_lfs_log_instance.h (OI-LFS-05).
 block_cycles is set EXPLICITLY (§7.3): 0 is rejected by lfs_init, and -1 would
 disable block-level wear levelling, which is claim L-6 against EMMC-HW-01's
 30,000 P/E budget.  500 is mid-range of upstream's suggested 100–1000.
@@ -211,5 +215,7 @@ appearing under firmware/vendor/ reads as "integrated" and this one is not yet:
     one deviation, read/prog 512 (ECR-EMMC-002) — np_lfs_log_instance.h,
     OI-LFS-05 closed at Rev 4.  Rev 2's statement here that "NO document states
     their instance parameters" was wrong; EMMC-FS-01 always did.
-  - The Config instance's prog_size 256 is below the 512-byte XTS data unit,
-    and under a read-modify-write tear it loses committed data (OI-LFS-10).
+  - The Config instance's prog_size WAS 256, below the 512-byte XTS data unit,
+    and under a read-modify-write tear that lost committed data.  It is 512
+    since 2026-09-24 (OI-LFS-10); the §12 power-loss results were re-run on
+    the new configuration by the same suite.

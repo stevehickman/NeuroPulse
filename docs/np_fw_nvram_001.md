@@ -1191,7 +1191,8 @@ case of that; `ukmd.rec` is.
 > shown prevented. Map 3 is `NP_CFG_POLICY_TAIL_ADDITIVE` in the store's file table, and
 > `REQ-LFS-01` is now a CI gate. **A new caveat for §4:** the Config instance's `prog_size` 256 is
 > below the 512-byte XTS unit, and under a read-modify-write tear the Map 3 journal lost a durable
-> record (`OI-LFS-10`).
+> record (`OI-LFS-10`). *Resolved the same day (`NP-SOUP-LFS-001` Rev 5 §13.8): the Config
+> instance now programs 512 bytes at a time, and the same sweep loses nothing.*
 `OI-NVRAM-05` remains open and still blocks `NP-MOD-ID-001` §10's factory-reset rotation test; it is a
 factory-reset correctness question rather than a storage-layer one, and Rev 2 does not touch it.
 

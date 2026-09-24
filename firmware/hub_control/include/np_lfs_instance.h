@@ -32,10 +32,16 @@
  * lookahead_size 64, block_cycles 200, name_max 64 and attr_max 256 — and the
  * values below differ on all five.  Separately, the specified read/prog 256 is
  * below the 512-byte XTS data unit (EMMC-UHDR-05), and under a read-modify-
- * write tear it loses committed data.  Both are OI-LFS-10.  The values are
- * left exactly as they were, because every Config result in NP-SOUP-LFS-001
- * §12 and §13 was obtained against them; changing them is OI-LFS-10's
- * decision, and CI re-runs both suites against whatever it decides.
+ * write tear it loses committed data.  Both are OI-LFS-10.
+ *
+ * ── OI-LFS-10, first half DECIDED 2026-09-24 (NP-SOUP-LFS-001 Rev 5 §13.8) ──
+ * read_size and prog_size are 512, the XTS data unit, on the principal's
+ * decision — the same deviation the log instances take (ECR-EMMC-002, now
+ * extended to the Config column).  cache_size follows to 512 because lfs_init()
+ * requires it to be a multiple of prog_size; 512 is also EMMC-FS-01's own
+ * Config value, so that field now agrees with the table.  The other three
+ * differences — lookahead_size, block_cycles, name_max/attr_max — are
+ * unchanged and remain OI-LFS-10's open half.
  */
 
 #ifndef NP_LFS_INSTANCE_H
@@ -55,8 +61,13 @@
  * the arithmetic behind D-21 and the reason EMMC-CFG-02's raw-write region is
  * void.
  */
-#define NP_LFS_CFG_READ_SIZE        256u
-#define NP_LFS_CFG_PROG_SIZE        256u
+/* read_size / prog_size: 512, NOT EMMC-FS-01's printed 256.  A program smaller
+ * than the 512-byte XTS data unit (EMMC-UHDR-05) makes the encryption layer
+ * read-modify-write the whole unit, and a power loss inside that rewrite
+ * damages bytes littlefs already committed (NP-SOUP-LFS-001 §13.1.3, shown by
+ * sweep: a durable Map 3 record lost).  OI-LFS-10, ECR-EMMC-002. */
+#define NP_LFS_CFG_READ_SIZE        512u
+#define NP_LFS_CFG_PROG_SIZE        512u
 #define NP_LFS_CFG_BLOCK_SIZE       4096u
 #define NP_LFS_CFG_BLOCK_COUNT      4096u
 #define NP_LFS_CFG_FILE_MAX         65536u
@@ -64,14 +75,16 @@
 /* ── The four this header believed EMMC-FS-01 does not state — it does; see the
  *    CORRECTION above and OI-LFS-10.  The reasoning below is kept as written. ─
  *
- * cache_size 256.  Must be a multiple of read_size and prog_size and a factor of
- * block_size (lfs_init).  256 is the smallest value satisfying all three, and
- * size is what it costs: littlefs holds one read cache, one program cache, and
+ * cache_size 512.  Must be a multiple of read_size and prog_size and a factor of
+ * block_size (lfs_init).  512 is the smallest value satisfying all three now
+ * that prog_size is 512 (it was 256 until OI-LFS-10), and it is EMMC-FS-01's
+ * own Config value.  Size is what it costs: littlefs holds one read cache, one program cache, and
  * one cache per OPEN FILE, all of which are static here.  A larger cache buys
  * fewer block accesses on sequential reads that this device does not do — the
  * Config partition's traffic is a 14,012-byte blob and 32-byte journal appends.
- * It also bounds inline_max, so files at or below 256 B live in metadata: Map 3
- * records (32 B) and ukmd.rec (192 B) are both inlineable, which is the cheap
+ * It also bounds inline_max, so small files live in metadata (inline_max is
+ * min(cache_size, attr_max, block_size/8) = 512 B): Map 3 records (32 B) and
+ * ukmd.rec's 208-byte replica envelope are both inlineable, which is the cheap
  * case for exactly the two the design writes most.
  *
  * lookahead_size 512.  The lookahead buffer is a bitmap, one bit per block, so
@@ -92,10 +105,10 @@
  * calculation this data does not support.
  *
  * Static buffers.  LFS_NO_MALLOC is in force (np_lfs_config.h), so all three
- * buffers are supplied here from .bss.  1,024 B total, plus 256 B per open file
+ * buffers are supplied here from .bss.  1,536 B total, plus 512 B per open file
  * that the caller owns.
  */
-#define NP_LFS_CFG_CACHE_SIZE       256u
+#define NP_LFS_CFG_CACHE_SIZE       512u
 #define NP_LFS_CFG_LOOKAHEAD_SIZE   512u
 #define NP_LFS_CFG_BLOCK_CYCLES     500
 
