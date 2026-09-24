@@ -380,6 +380,53 @@ static void test_logger_steps_past_a_stale_count(void)
     np_log_session_end(&g_rec, &shdr);
 }
 
+/* ── OI-LFS-12: commit before create, and a reboot seeded from the record ─ */
+
+static uint32_t g_committed[8];
+static unsigned g_n_commits;
+static unsigned g_opens_at_commit[8];
+
+static np_hub_status_t fake_commit(uint32_t count)
+{
+    if (g_n_commits < 8U) {
+        g_committed[g_n_commits]       = count;
+        g_opens_at_commit[g_n_commits] = np_log_test_open_count(NP_LOG_PART_UHDR);
+        g_n_commits++;
+    }
+    return NP_HUB_OK;
+}
+
+static void test_count_committed_before_file(void)
+{
+    np_session_shdr_record_t shdr;
+    memset(&shdr, 0, sizeof shdr);
+    np_log_test_reset();
+    (void)np_log_backend_init();
+    np_log_init(20U);
+    g_n_commits = 0U;
+    np_log_set_count_commit(fake_commit);
+
+    np_log_session_start(&g_rec);
+    check(g_n_commits == 1U && g_committed[0] == 21U,
+          "persist: the new count is committed at session start");
+    check(g_opens_at_commit[0] == 0U &&
+          np_log_test_open_count(NP_LOG_PART_UHDR) == 1U,
+          "persist: committed BEFORE its session file was created");
+    np_log_session_end(&g_rec, &shdr);
+
+    /* Reboot, seeded from what was committed: no collision, no stepping. */
+    (void)np_log_backend_init();
+    np_log_init(g_committed[g_n_commits - 1U]);
+    unsigned opens_before = np_log_test_open_count(NP_LOG_PART_UHDR);
+    np_log_session_start(&g_rec);
+    check(np_log_session_count() == 22U &&
+          np_log_test_open_count(NP_LOG_PART_UHDR) == opens_before + 1U,
+          "persist: seeded from the committed count, the next session opens "
+          "first time with the next number");
+    np_log_session_end(&g_rec, &shdr);
+    np_log_set_count_commit(NULL);
+}
+
 int main(void)
 {
     printf("── np_log_backend_tests (OI-LOG-01..04) ──\n");
@@ -401,6 +448,7 @@ int main(void)
     test_per_file_cap();
     test_logger_names_files_by_session_count();
     test_logger_steps_past_a_stale_count();
+    test_count_committed_before_file();
 
     if (g_failures == 0) {
         printf("ALL TESTS PASSED\n");

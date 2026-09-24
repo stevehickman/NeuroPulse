@@ -52,6 +52,7 @@
 #include "np_lfs_instance.h"
 #include "np_lfs_powerbd.h"
 #include "np_lfs_sweep.h"
+#include "np_session_count.h"
 
 static int g_fail_count = 0;
 
@@ -903,6 +904,71 @@ static void test_store_orderings_survive_power_loss(void)
     ASSERT(g_bd.total_cuts > 0, "no cut fired anywhere in this suite");
 }
 
+/* ── 9. OI-LFS-12 — the persisted device session count ────────────────── */
+
+static void s_count_baseline(void)
+{
+    ASSERT(np_cfg_store_format() == NP_HUB_OK && np_cfg_store_mount() == NP_HUB_OK,
+           "baseline format/mount");
+    (void)np_session_count_commit(41U);
+    np_cfg_store_unmount();
+}
+
+static void s_count_advance(void)
+{
+    if (np_cfg_store_mount() != NP_HUB_OK) { return; }
+    (void)np_session_count_commit(42U);
+    np_cfg_store_unmount();
+}
+
+static int v_count(const char *what, long cut, np_powerbd_tear_t tear)
+{
+    uint32_t c = 0U;
+    np_hub_status_t st = NP_HUB_ERR_GENERIC;
+    if (np_cfg_store_mount() == NP_HUB_OK) {
+        st = np_session_count_load(&c);
+        np_cfg_store_unmount();
+    }
+    if (st == NP_HUB_OK && (c == 41U || c == 42U)) {
+        return 0;
+    }
+    finding(what, cut, tear, "session count is %u (status %d) — it went "
+            "backwards or was lost", (unsigned)c, st);
+    return 1;
+}
+
+static void test_session_count_is_persisted(void)
+{
+    uint32_t c = 99U;
+
+    fresh();
+    ASSERT(np_session_count_load(&c) == NP_HUB_ERR_NOT_PRESENT && c == 0U,
+           "a new device's count must read as absent and seed 0");
+    ASSERT(np_session_count_commit(5U) == NP_HUB_OK, "commit 5");
+    ASSERT(np_session_count_load(&c) == NP_HUB_OK && c == 5U, "count reads back");
+
+    /* Across a reboot — which is the whole point of OI-LFS-12. */
+    np_cfg_store_unmount();
+    reboot();
+    ASSERT(np_cfg_store_mount() == NP_HUB_OK, "remount");
+    ASSERT(np_session_count_load(&c) == NP_HUB_OK && c == 5U,
+           "the count did not survive a reboot");
+
+    /* One lost entry (upstream #1210's consequence) does not lose the count. */
+    ASSERT(np_session_count_commit(6U) == NP_HUB_OK, "commit 6");
+    ASSERT(lfs_remove(&g_lfs, "ra/sesscnt.rec") == 0, "raw remove of copy A");
+    ASSERT(np_session_count_load(&c) == NP_HUB_OK && c == 6U,
+           "losing one entry lost the count");
+    np_cfg_store_unmount();
+
+    /* A power loss during a commit leaves the old count or the new one. */
+    np_sweep_result_t r = run("session count commit", s_count_baseline,
+                              s_count_advance, v_count, false);
+    ASSERT(r.ops > 0 && r.missed_cuts == 0, "count sweep did not run as measured");
+    ASSERT(r.violations == 0,
+           "a power loss during the count commit made it go backwards or lost it");
+}
+
 int main(void)
 {
     printf("np_cfg_store_tests — NP-SOUP-LFS-001 Rev 4 §13 "
@@ -916,6 +982,7 @@ int main(void)
     test_churn_is_bounded();
     test_replicated_record_survives_one_lost_entry();
     test_store_orderings_survive_power_loss();
+    test_session_count_is_persisted();
 
     np_sweep_release();
     printf("  totals   %ld programs, %ld erases, %ld syncs, %ld reads, %ld cuts\n",

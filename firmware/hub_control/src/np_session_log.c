@@ -67,9 +67,16 @@ static void shdr_u8(uint8_t tag) { shdr_write(&tag, 1U); }
 
 /* ── Public API ───────────────────────────────────────────────────────────────── */
 
+static np_log_count_commit_fn s_count_commit;    /* OI-LFS-12 */
+
 uint32_t np_log_session_count(void)
 {
     return s_device_session_count;
+}
+
+void np_log_set_count_commit(np_log_count_commit_fn fn)
+{
+    s_count_commit = fn;
 }
 
 void np_log_init(uint32_t device_session_count)
@@ -103,6 +110,11 @@ void np_log_session_start(const np_session_uhdr_record_t *rec)
      * than lose the session — and never reopen it (OI-LFS-11). */
     for (uint32_t probe = 0U; probe < NP_LOG_SESSION_PROBE_MAX; probe++) {
         s_device_session_count++;
+        /* OI-LFS-12: persist first, create second.  A power loss between the
+         * two costs an unused count — a gap, never a reused one. */
+        if (s_count_commit != NULL) {
+            (void)s_count_commit(s_device_session_count);
+        }
         if (np_log_backend_session_begin((uint64_t)s_device_session_count)
                 != NP_HUB_ERR_LOG_EXISTS) {
             break;

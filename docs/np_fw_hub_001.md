@@ -817,6 +817,9 @@ as closed.
 > file. UHDR is no longer opened at bring-up (it is not mounted until the user unlocks it), and
 > nothing is written to UHDR outside a session. The device session count increments at session
 > start but is not persisted (`OI-LFS-12`); the logger steps past a count whose file exists.
+> *(`OI-LFS-12` closed the same day, `NP-SOUP-LFS-001` §13.13: the count is persisted in the Config
+> partition by `np_session_count`, committed before each session's file is created and loaded at
+> bring-up; `np_hal_get_device_session_count()` is retired.)*
 
 ---
 

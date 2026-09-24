@@ -94,10 +94,6 @@ void np_hal_status_led_set(np_led_state_t state)
     NP_PLATFORM_TRAP();
 }
 
-uint32_t np_hal_get_device_session_count(void)
-{
-    NP_PLATFORM_TRAP();
-}
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Protocol identity (np_protocol.c)

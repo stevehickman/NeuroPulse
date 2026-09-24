@@ -57,12 +57,15 @@ void np_log_init(uint32_t device_session_count);
  * execution, after np_uhdr_key_unlock() has mounted UHDR.
  *
  * The device session count (seeded by np_log_init()) is incremented here —
- * EMMC-SHDR-09 — and names the file (/uhdr/sessions/<count>, EMMC-UHDR-12).
- * If a file with that count already exists (a count that was not persisted
- * across a reboot), the count advances to the next unused value, up to
- * NP_LOG_SESSION_PROBE_MAX tries: never reopened, never overwritten, and the
- * count stays unique and monotonic (OI-LFS-11).  Past the bound this
- * session's UHDR log fails closed.
+ * EMMC-SHDR-09 — COMMITTED through the hook set by np_log_set_count_commit()
+ * (np_session_count_commit(), OI-LFS-12), and only then used to name the file
+ * (/uhdr/sessions/<count>, EMMC-UHDR-12).  Commit-before-create means no file
+ * can exist whose count was not persisted first, so a reboot seeded from the
+ * persisted count never collides.  If a file with the count exists anyway (the
+ * persisted record was lost), the count advances to the next unused value, up
+ * to NP_LOG_SESSION_PROBE_MAX tries, committing each: never reopened, never
+ * overwritten, unique and monotonic (OI-LFS-11).  Past the bound this
+ * session's UHDR log fails closed.  A failed commit does not stop the session.
  */
 #define NP_LOG_SESSION_PROBE_MAX  1024U
 
@@ -70,6 +73,11 @@ void np_log_session_start(const np_session_uhdr_record_t *rec);
 
 /* The device session count in force — the current session's once started. */
 uint32_t np_log_session_count(void);
+
+/* Where np_log_session_start() persists each new count before using it
+ * (OI-LFS-12).  NULL (the default) persists nothing. */
+typedef np_hub_status_t (*np_log_count_commit_fn)(uint32_t count);
+void np_log_set_count_commit(np_log_count_commit_fn fn);
 
 /*
  * np_log_session_end — write UHDR session-end and SHDR session-end records,

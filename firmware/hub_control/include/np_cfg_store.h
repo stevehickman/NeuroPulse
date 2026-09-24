@@ -77,6 +77,7 @@ typedef enum {
     NP_CFG_FILE_NPMP = 0,   /* "NPMP" module-map blob — np_module_map        */
     NP_CFG_FILE_MAP3,       /* Map 3 journal — NP-FW-NVRAM-001 §4.2          */
     NP_CFG_FILE_UKMD,       /* ukmd.rec — NP-FW-EMMC-002 §C.3, D-22          */
+    NP_CFG_FILE_SESSION_COUNT, /* device session count — EMMC-SHDR-09, OI-LFS-12 */
     NP_CFG_FILE_COUNT
 } np_cfg_file_t;
 

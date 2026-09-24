@@ -41,6 +41,12 @@ static const np_cfg_file_desc_t s_files[NP_CFG_FILE_COUNT] = {
     [NP_CFG_FILE_UKMD] = { NP_CFG_POLICY_REPLICATED,
                            { NP_CFG_REPLICA_DIR_A "/ukmd.rec",
                              NP_CFG_REPLICA_DIR_B "/ukmd.rec" } },
+    /* OI-LFS-12: the count must never go backwards, so it is REPLICATED —
+     * the envelope's generation picks the newer copy after a torn write, and
+     * one lost entry does not lose it.  It bounds nothing (REQ-LFS-01). */
+    [NP_CFG_FILE_SESSION_COUNT] = { NP_CFG_POLICY_REPLICATED,
+                           { NP_CFG_REPLICA_DIR_A "/sesscnt.rec",
+                             NP_CFG_REPLICA_DIR_B "/sesscnt.rec" } },
 };
 
 /* ── RAM state — all of it lost at a reboot, and np_cfg_store_bind() is one ── */

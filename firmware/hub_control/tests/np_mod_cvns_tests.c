@@ -129,7 +129,8 @@ static int                    g_cvfs_calls;
 static uint32_t               g_cvfs_counter;
 static np_cvns_fault_reason_t g_cvfs_kind;
 static uint8_t                g_cvfs_sides;
-uint32_t np_hal_get_device_session_count(void) { return g_session_count; }
+/* OI-LFS-12: the module records the logger's current-session count. */
+uint32_t np_log_session_count(void) { return g_session_count; }
 np_hub_status_t np_cvfs_record_fault(uint32_t session_counter,
                                      np_cvns_fault_reason_t kind,
                                      uint8_t side_mask)

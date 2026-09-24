@@ -208,6 +208,7 @@ if(NP_BUILD_TESTS)
         tests/np_lfs_powerbd.c
         tests/np_lfs_sweep.c
         src/np_cfg_store.c
+        src/np_session_count.c        # OI-LFS-12: the persisted session count
         src/np_lfs_instance.c
     )
     target_include_directories(np_cfg_store_tests PRIVATE include tests)
@@ -311,6 +312,7 @@ set(HUB_SOURCES
     src/np_lfs_instance.c         # OI-LFS-01: EMMC-FS-01 littlefs instance + mount validator
     src/np_cfg_store.c            # OI-LFS-06/-08/-09: Config store — the littlefs caller rules
     src/np_lfs_log_instance.c     # OI-LFS-05: UHDR/SHDR littlefs instances + mount validator
+    src/np_session_count.c        # OI-LFS-12: device session count persisted in Config
     src/np_pbm_cal_bridge.c       # OI-HUB-C06: UID-keyed calibration -> pbm seams
     src/np_socket_dispatch.c      # OI-FWHUB-01: socket-indexed dispatch registry
     src/np_chan_decl.c            # OI-MMSOCK-02: electrode-geometry declarations to the safety MCU
