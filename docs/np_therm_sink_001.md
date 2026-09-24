@@ -2,15 +2,15 @@
 
 **Project:** NeurOne
 **Document:** NP-THERM-SINK-001
-**Revision:** 2
+**Revision:** 3
 **Date:** 2026-09-23
 **Status:** DESIGN STUDY — **specification of the term `NP-THERM-CFD-N1-001` `OI-N1-02` declares BLOCKING.** It is a resistance-network study on the delivered 80-socket lattice, not a mesh CFD and not a bench measurement; `OI-R1-01` (mesh independence) and `OI-R1-02` (THERM-1b correlation) both remain open. It closes `OI-N1-02` by *recovering* the number rather than choosing one, and it changes the answer to `N1-D-1`.
 **Effective Date:** —
 **Author:** NeurOne Thermal / Systems Engineering
 **Approved By:** — (pending design review)
 **References:** NP-THERM-CFD-N1-001 Rev 1 (§2.1 the network and its lateral terms, §4a/§5 the `R_sink` sweep, §5.1 the export-vs-rejection inversion, §6a per-protocol ceilings, §6b the per-tile drive wall, N1-D-1…7, `OI-N1-01…08` — the parent document); NP-THERM-CFD-R1-001 Rev 1 (§2 the outward path `R_OUT_BASE`, §3 the inward-flux ceiling, §5 the BN-boss export study and its "perfect sink", §5.2 the fault case, §5.3 findings, `OI-R1-01…06`); NP-THERM-CFD-001 (§4 heat-source model and η_wp, §5 BC spec); NP-THERM-CFD-C2-001 (§7 the 1D network and its sign convention); NP-THERM-COOL-001 Rev 11 (§4 the 90 %/2 % split, §5 the cooling options, §6.4 `OI-R1-03` — the fan cools the outer shell only, §6.7 the remote-sink accessories, D-2/D-4 — Rev 11's withdrawal is confined to §7.4.4's Class B/C latch ownership and touches none of these); NP-HELMET-GEOM-001 (§2 the radial stack-up, §3.2 the L1 BN bosses, §3.3 the outer bowl and its unbroken 4-layer inner face, §8 THERM-1a); NP-HEX-ZM-001 (§5.1 the outer bowl as the complete EMF envelope, §5.3 the parting plane and labyrinth lip); NP-PWR-BUDGET-001 Rev 3 (§3.2 the 4–8 tile estimate, §3.3 export efficiency, §3.5 the N = 80 extrapolation, D-4, `OI-PWR-01/08/10`); NP-SES-PWR-001 Rev 1 (§2.1 the tile-count governor, the library floor and ceiling); NP-PWRSRC-001 Rev 1 (§5 thermal dose, §11 the min() governor, `OI-PWRSRC-05`); NP-HW-HUB-001 Rev 5 (`OI-HUB-C19` hub thermal budget, HUB-REQ-C04); NP-TOOL-HUB-001 Rev 1 (§2 the inferred occipital-arch placement, §3 F-04 the fan/heatsink access door, `OI-HTOOL-03/04`); NP-REQ-FANHEALTH-001 (SR-FAN-01…06, Path B1); NP-FMEA-GEOM-001 (FMEA-G07-01); NP-ENV-OPRANGE-001 (§2 the ambient/duty envelope); NP-DT-001 Rev 2 (DI-SAFE-13, DI-REG-01 IEC 60601-1); NP-CONV-001 Rev 6 (§4 identifiers, §8 a convention worth writing down is worth a script); CLAUDE.md §3 (PBM ceilings), §4.2 (42/62 °C interlocks), §4.3 (the 4-layer EMF stack), §4.4 (fit system mass), §4.5 (power), §5.1 (SHDR fan RPM); IEC 60601-1 (42 °C applied part); `hardware/np_socket_map.json`; `scripts/check-thermal-sink.ts`; `scripts/check-thermal-multitile.ts` · **Rev 2:** NP-EMC-CAV-001 §7, §9 item 4, §10 (`OI-EMCCAV-02`); NP-BIB-EMF-001 §7.2, §7.6; NP-HEX-ZM-001 §5.3, §5.3.1; NP-DRV-SHELL-002 `REQ-EMI-10`, `REQ-EMI-11`; `hardware-detail.md` §4.3 (D1); NP-HW-TMS-001 `REQ-TMS-08`; NP-REG-UPG-001 `OI-UPG-05`; WHO EHC 238 (ELF, 0–300 Hz); NP-THERM-BOWL-001 §5.2–§5.3 (the active-loop share and the thermal drift of the same transfer function); NP-HEX-ZM-001 §5.6.1 (the `EMF-1` test plan)
-**Related Issues:** GitHub Issue #399 (`OI-EMCCAV-02`, Rev 2); GitHub Issue #391
-**Gate:** Does not close THERM-1a. Closes `OI-N1-02` and **supersedes `N1-D-1`'s prohibition with a number**; raises one BLOCKING item of its own (`OI-SINK-01`).
+**Related Issues:** GitHub Issue #399 (`OI-EMCCAV-02`, Rev 2); GitHub Issue #391; GitHub Issue #407 (`OI-THCOOL-21`, Rev 3)
+**Gate:** Does not close THERM-1a. Closes `OI-N1-02` and **supersedes `N1-D-1`'s prohibition with a number**; raises one BLOCKING item of its own (`OI-SINK-01`). **Rev 3 (2026-09-23) re-baselines it for the Layer 4 deletion and raises `OI-SINK-10` to the principal** — the one figure in the thermal set the deletion makes worse.
 **IEC 62304 Class:** — (analysis document; no code ships from it)
 **Supersedes:** None — specifies a term `NP-THERM-CFD-N1-001` left open
 **Parent Document:** NP-THERM-CFD-N1-001 §5 (`OI-N1-02`)
@@ -27,7 +27,7 @@
 > `R_OUT_BASE = 0.41`**, and R1 pins that film at ambient for the via while charging it in full to
 > the cavity. **Recovered from R1's own numbers, and independently from a natural-convection
 > correlation over the helmet's exterior — two derivations sharing no input, agreeing to 4.7 % —
-> `R_sink` is 1.08 K/W** (band 0.83–1.58). That validates N1's 1.00 K/W row and makes its 0.50
+> `R_sink` is 1.08 K/W** (band 0.83–1.58; **1.14 since the 2026-09-23 re-loft — see the Rev 3 note below**). That validates N1's 1.00 K/W row and makes its 0.50
 > "plausible default" 2.2× optimistic. **But a lumped `R_sink` presumes an isothermal terminus, and
 > the bare CFRP bowl is not one:** it spreads over ~63 mm, so the exterior is eighty hot spots
 > rather than one sink. **The missing component is a spreader, not a heatsink** — and with the best
@@ -35,6 +35,22 @@
 > 16–78. **`N1-D-1` can be lifted; what replaces it is worse news than the prohibition was.**
 
 ---
+
+> **⚠ Rev 3 (2026-09-23) — re-baselined for the Layer 4 absorber deletion (`OI-THCOOL-21`, GitHub
+> #407), and ONE RESULT GOES THE WRONG WAY.** `REQ-CAV-04` (GitHub #391) deleted the 3 mm absorber
+> station and **re-lofted the outer bowl 3 mm inward as one binding change**. This network sees both
+> halves, and they have **opposite signs**. The foam leaves the cavity leg (`C → X` **0.0651 → 0.0051**
+> m²K/W — better). The re-loft moves the **exterior skin** 3 mm inward, so the rejecting area falls
+> **1180 → 1125 cm² (−4.6 %)** and **`SPEC-SINK-01` rises 1.08 → 1.14 K/W** — worse, and it sits under
+> the via, which carries ~90 % of the heat, while the foam term sat only on the cavity leg. **Net: the
+> scalp is slightly WARMER** — at N = 6 on the library floor with S3, max face **40.7 → 40.9 °C**, the
+> occlusion fraction at which that case crosses 42 °C **0.72 → 0.64**, and the bare-shell floor ceiling
+> **2 → 1 tile**. Attribution (§3a): foam alone **−0.02 K**, smaller exterior alone **+0.19 K**. Every
+> other figure in the thermal set moves the safe way, and `NP-EMC-CAV-001` §8.2's per-area 0.335 is
+> correct per unit area — it simply did not price the area. **No limit is changed**: the 42 °C interlock
+> and Path B1's face NTC cover the hazard exactly as before. Whether the trade is acceptable is the
+> principal's, not this document's — **`OI-SINK-10`**. Figures below carry *was → now* where they
+> moved; the R1 corroboration of §3.1–§3.2 is a statement about R1 and stays at R1's geometry.
 
 ## 1. Headline
 
@@ -52,8 +68,9 @@
    own `R_cav→amb = 0.18` into its solid layers leaves **0.115 m²K/W of external film** — h = 8.71
    W/m²K over the tile footprint, **8.18 over the real exterior area**. A Churchill sphere
    correlation plus linearised radiation over that same exterior gives **7.81**. The two share no
-   input and agree to **4.7 %**.
-4. **Specified: `R_sink` = 1.08 K/W aggregate (§4).** Band 0.83–1.58 K/W from the corners of the two
+   input and agree to **4.7 %**. *(At R1's geometry; the current exterior gives 7.83 — §3a.)*
+4. **Specified: `R_sink` = 1.08 K/W aggregate (§4)** — **1.14 K/W since the Rev 3 re-loft** (band
+   0.87–1.66). Band 0.83–1.58 K/W from the corners of the two
    soft inputs. **N1's sweep bracketed the truth**; its 1.00 K/W row is the real one and its 0.50
    "small fan-cooled extruded sink" was **2.2× optimistic**.
 5. **R1 spends the same film twice (§5).** Reproducing R1's cell in this network takes **two**
@@ -70,9 +87,9 @@
    dome)** takes it to 9.1× and is worth **1.9× the admissible watts at N = 6**. It is a new BOM
    line against an already margin-negative T1 (CLAUDE.md §2.1).
 8. **`N1-D-1` answered, and the answer is small (§8).** Distributed montage, 42 °C face limit, 25 °C
-   ambient, library floor: **10 tiles with the spreader, 2 without.** N1's range was 16–78. In the
+   ambient, library floor: **10 tiles with the spreader, 2 without** (Rev 3: **10 and 1**). N1's range was 16–78. In the
    unit `NP-PWR-BUDGET-001` D-4 and N1-D-4 both insist on: **31.4 W total PBM electrical, fully
-   distributed; 8.9 W at N = 6 with the spreader, 4.7 W without.**
+   distributed; 8.9 W at N = 6 with the spreader, 4.7 W without** (Rev 3: **30.5 W; 8.8 W and 4.6 W**).
 9. **The R-4 point is inadmissible, robustly (§10).** Across a deliberately wide box in h_ext and
    exterior area — 6–14 W/m²K × 0.090–0.150 m² — the ceiling at 6.25 W/tile is **0 in every cell**.
    That conclusion needs none of the soft inputs: the 4.29 K/W via alone spends more than the face
@@ -184,12 +201,12 @@ thicknesses and material-class conductivities:
 
 | layer | mm | k (W/mK) | R" (m²K/W) | note |
 |---|---:|---:|---:|---|
-| carbon-loaded absorber foam | 3.0 | 0.05 | 0.0600 | EMF L4 — **deleted 2026-09-23** (`REQ-CAV-04`); row kept because the decomposition below was computed with it |
+| carbon-loaded absorber foam | 3.0 | 0.05 | 0.0600 | EMF L4 — **deleted 2026-09-23** (`REQ-CAV-04`); row kept because R1's 0.41 contains it, so the film by balance can only be recovered with it in. **Not the 0.075 `NP-THERM-COOL-001` uses (k 0.04)** — on R1's film, deleting this row lands at 0.350, not 0.335; the 0.015 is that k difference and nothing else, and `--validate` asserts it |
 | Pd-polyester liner | 0.1 | 0.20 | 0.0005 | EMF L3 |
 | mu-metal | 0.2 | 30 | 0.0000 | EMF L2 |
 | PETG laminate | 0.3 | 0.20 | 0.0015 | EMF L2 encapsulation |
 | CFRP shell (through-thickness) | 2.5 | 0.80 | 0.0031 | EMF L1 + structure |
-| **solid subtotal** | | | **0.0651** | |
+| **solid subtotal** | | | **0.0651** | **0.0051 with the station deleted** |
 | **external film (by balance)** | | | **0.1149** | **h = 8.71 W/m²K over the tile footprint** |
 
 Referred to the real exterior area rather than the tile footprint, that is **h = 8.18 W/m²K**.
@@ -204,7 +221,7 @@ The vault dome at the socket map's ellipsoid semi-axes + 12 mm (module-face plan
 | less ear cut-outs (2 × ear-cup mount) | 100 |
 | less hub enclosure footprint | 54 |
 | less Boa occipital dial | 20 |
-| **effective rejecting area** | **1180 = 0.118 m²** |
+| **effective rejecting area** | **1180 = 0.118 m²** — **1125 = 0.113 m² since the re-loft** (§3a) |
 
 Churchill sphere natural convection at D = 0.29 m, plus linearised radiation at ε 0.90 and view
 factor 0.85 (the remainder of the view being the wearer's own shoulders):
@@ -226,16 +243,56 @@ agreement is the load-bearing result of this document: it is why the specificati
 > The decomposition is the **corroboration**, and the fact that a figure sensitive to foam k lands
 > within 5 % of one that is not is a check on both.
 
+### 3a. The Layer 4 deletion in this network — two terms, opposite signs (Rev 3)
+
+`bun scripts/check-thermal-sink.ts` §3a. The deletion (`REQ-CAV-04`, 2026-09-23) and its binding 3 mm
+re-loft change two inputs here, and only two:
+
+| Input | As-was (Rev 1) | Current | Direction |
+|---|---:|---:|---|
+| `C → X` leg (outer-bowl solid) | 0.0651 m²K/W | **0.0051** | better — cavity leg only |
+| Module face → exterior skin | 12 mm | **9 mm** | — |
+| Gross dome / effective rejecting area | 1354 / 1180 cm² | **1299 / 1125 cm²** (−4.6 %) | worse — under **both** legs |
+| Correlation `h_ext` (ΔT 10 K) | 7.81 | 7.83 W/m²K | smaller sphere, ≈ nil |
+| **`SPEC-SINK-01`** | **1.08 K/W** | **1.14 K/W** | worse |
+
+The gross dome shrinks with `(r − 3 mm)²`; the deductions (ear cut-outs, hub footprint, Boa dial) are
+fixed areas, so the *effective* area falls slightly faster. The foam term sits on the cavity leg,
+which carries ~10 % of the heat; the area term sits under the via's terminus, which carries ~90 %.
+
+| N = 6, library floor, S3, 25 °C | max face | occlusion φ at 42 °C | best-N total W |
+|---|---:|---:|---:|
+| As-was (foam in, 12 mm exterior) | 40.68 °C | 0.72 | 31.4 W |
+| Foam removed **only** | 40.66 °C | 0.73 | 31.4 W |
+| Exterior 3 mm smaller **only** | 40.87 °C | 0.63 | 30.5 W |
+| **Current (both)** | **40.85 °C** | **0.64** | **30.5 W** |
+
+**The deletion's own thermal term is a small help; the re-loft's geometry is a slightly larger harm,
+and it wins.** `NP-EMC-CAV-001` §8.2 compared outward paths **per unit area** (0.410 → 0.335), which is
+right on its terms and is what every other script in the set models — none of them has an exterior
+area in it. This is the only model that does, and it is the one the specification sits in.
+
+**What this is not.** It is not a hazard the design fails to control: every figure is still below
+42 °C in the unoccluded case, the 42 °C applied-part interlock and Path B1's face NTC observe the
+effect exactly as before, and `§10`'s sensitivity box — whose area axis runs 0.090–0.150 m² — already
+spans it. It **is** a scalp-side figure that got worse under a change recorded as thermally
+favourable, and the change was taken on that record. **`OI-SINK-10`** routes it to the principal; no
+limit is adjusted and the re-loft is not reopened here.
+
+Two things that would move it back, neither assessed: the re-loft could be taken **inward on the inner
+face only** (keeping the exterior where it was — a thicker bowl, i.e. mass), and a 3 mm-shorter via
+lowers `R_VIA` by roughly 1 % of its value (ignored here, conservatively).
+
 ---
 
 ## 4. THE SPECIFICATION
 
 | Ref | Quantity | Value | Basis |
 |---|---|---|---|
-| **SPEC-SINK-01** | `h_ext` over the vault exterior | **7.81 W/m²K over 0.118 m²** | §3.2, corroborated by §3.1 |
-| | **`R_sink` aggregate** | **1.08 K/W** (band **0.83–1.58**) | 1/(h·A); band from the corners of both soft inputs |
-| **SPEC-SINK-02** | `R_sink`, occluded | **1.48 K/W** | hood/bedding over 70 % of the vault: 3 mm fabric at k 0.05 plus suppressed radiation |
-| **SPEC-SINK-03** | `R_sink`, **fan lost** | **1.08 K/W — unchanged** | the hub fan is not on this path (§2.3) |
+| **SPEC-SINK-01** | `h_ext` over the vault exterior | ~~7.81 W/m²K over 0.118 m²~~ **7.83 W/m²K over 0.113 m²** (Rev 3, re-lofted exterior) | §3.2, corroborated by §3.1; §3a |
+| | **`R_sink` aggregate** | ~~1.08 K/W (band 0.83–1.58)~~ **1.14 K/W** (band **0.87–1.66**) | 1/(h·A); band from the corners of both soft inputs |
+| **SPEC-SINK-02** | `R_sink`, occluded | ~~1.48 K/W~~ **1.55 K/W** | hood/bedding over 70 % of the vault: 3 mm fabric at k 0.05 plus suppressed radiation |
+| **SPEC-SINK-03** | `R_sink`, **fan lost** | **1.14 K/W — unchanged by fan loss** (was 1.08) | the hub fan is not on this path (§2.3) |
 | **SPEC-SINK-04** | exterior lateral conductance | **≥ 0.18 W/K** (`Σk·t`), i.e. bare shell + a ≥ 100 µm pyrolytic-graphite spreader | §7; the condition under which SPEC-SINK-01 is realised at operating N |
 
 **SPEC-SINK-01 is not a part number and cannot be improved by buying a better one.** It is the
@@ -287,10 +344,12 @@ and it conducts whether or not the tile is driven. With **no tile driven at all*
 
 | ambient | T_skin | T_face | heat the wearer pushes into the shell |
 |---:|---:|---:|---:|
-| 20 °C | 28.7 | 29.4 | 8.0 W |
-| 25 °C | 31.1 | 31.7 | 5.6 W |
-| 30 °C | 33.6 | 33.9 | 3.3 W |
+| 20 °C | 28.7 → 28.9 | 29.4 → 29.6 | 8.0 → 7.8 W |
+| 25 °C | 31.1 → 31.2 | 31.7 → 31.8 | 5.6 → 5.5 W |
+| 30 °C | 33.6 | 33.9 → 34.0 | 3.3 → 3.2 W |
 | 35 °C | 36.0 | 36.1 | 0.9 W |
+
+*Rev 3 (§3a): as-was → current. The idle spend rises to ~6.2 K.*
 
 The spreader does not move this row — with every tile idle the exterior is uniformly loaded, so
 there is nothing to spread.
@@ -314,11 +373,15 @@ conductance of 0.012 W/K — a ratio of 1.6, and a spreading length of ~63 mm, u
 
 | id | spreader | `Σk·t` (W/K) | lat/rej | added mass | ceiling @1.3 W | @6.25 W |
 |---|---|---:|---:|---:|---:|---:|
-| S0 | none — bare outer bowl | 0.031 | 1.6× | 0 g | **2** | 0 |
-| S1 | PGS graphite film 25 µm | 0.079 | 3.9× | 7 g | 4 | 0 |
-| S2 | PGS graphite film 70 µm | 0.136 | 6.8× | 20 g | 8 | 0 |
-| S3 | **PGS graphite film 100 µm** | 0.181 | 9.1× | **28 g** | **10** | 0 |
-| S4 | aluminium foil 300 µm | 0.092 | 4.6× | 110 g | 4 | 0 |
+| S0 | none — bare outer bowl | 0.031 | 1.6× | 0 g | **2 → 1** | 0 |
+| S1 | PGS graphite film 25 µm | 0.079 | 3.9× → 4.1× | 7 g | 4 | 0 |
+| S2 | PGS graphite film 70 µm | 0.136 | 6.8× → 7.1× | 20 → 19 g | 8 → **6** | 0 |
+| S3 | **PGS graphite film 100 µm** | 0.181 | 9.1× → 9.5× | **28 → 27 g** | **10** | 0 |
+| S4 | aluminium foil 300 µm | 0.092 | 4.6× → 4.8× | 110 → 105 g | 4 | 0 |
+
+*Rev 3 (§3a): as-was → current. A smaller exterior means less rejection per socket, so lat/rej rises
+and film mass falls with the dome; the ceilings fall where rejection binds. S3 still holds 10 — but S2
+no longer comes close, which makes `SPEC-SINK-04`'s ≥ 100 µm floor slightly more binding, not less.*
 
 Graphite beats aluminium on both axes at once — 2× the lateral conductance at a quarter of the mass
 — which is why S4 is listed and not recommended.
@@ -505,7 +568,7 @@ Distributed montage, max `T_face` ≤ 42.0 °C.
 
 | drive (W/tile electrical) | amb 25 | amb 30 | amb 35 | occluded, amb 25 |
 |---|---:|---:|---:|---:|
-| library floor 1.3 | **10** | 4 | 2 | 6 |
+| library floor 1.3 | **10** | 4 | 2 | 6 → **5** |
 | R-4 point 6.25 | 0 | 0 | 0 | 0 |
 | library ceiling 20.0 | 0 | 0 | 0 | 0 |
 
@@ -513,7 +576,7 @@ Distributed montage, max `T_face` ≤ 42.0 °C.
 
 | drive (W/tile electrical) | amb 25 | amb 30 | amb 35 | occluded, amb 25 |
 |---|---:|---:|---:|---:|
-| library floor 1.3 | **2** | 0 | 0 | 0 |
+| library floor 1.3 | **2 → 1** | 0 | 0 | 0 |
 | R-4 point 6.25 | 0 | 0 | 0 | 0 |
 | library ceiling 20.0 | 0 | 0 | 0 | 0 |
 
@@ -524,10 +587,12 @@ from the power and thermal sides independently. Total admissible PBM **electrica
 
 | | N = 1 | N = 6 | N = 12 | N = 20 | N = 80 | best N |
 |---|---:|---:|---:|---:|---:|---:|
-| bare shell S0, 25 °C | 1.3 | 4.7 | 8.7 | 12.3 | 31.4 | 31.4 W |
-| bare shell S0, 35 °C | 0.8 | 2.7 | 4.9 | 7.0 | 17.9 | 17.9 W |
-| PGS 100 µm S3, 25 °C | 2.5 | **8.9** | 14.4 | 17.6 | 31.4 | 31.4 W |
-| PGS 100 µm S3, 35 °C | 1.4 | 5.1 | 8.2 | 10.1 | 17.9 | 17.9 W |
+| bare shell S0, 25 °C | 1.3 | 4.7 → 4.6 | 8.7 → 8.5 | 12.3 → 12.0 | 31.4 → 30.5 | 31.4 → **30.5 W** |
+| bare shell S0, 35 °C | 0.8 | 2.7 → 2.6 | 4.9 | 7.0 → 6.9 | 17.9 → 17.5 | 17.9 → **17.5 W** |
+| PGS 100 µm S3, 25 °C | 2.5 → 2.4 | **8.9 → 8.8** | 14.4 → 14.1 | 17.6 → 17.2 | 31.4 → 30.5 | 31.4 → **30.5 W** |
+| PGS 100 µm S3, 35 °C | 1.4 | 5.1 → 5.0 | 8.2 → 8.1 | 10.1 → 9.9 | 17.9 → 17.5 | 17.9 → **17.5 W** |
+
+*Rev 3: as-was → current (§3a). Every cell falls by ≤ 3 %, all from the smaller exterior.*
 
 Two things this unit shows that a tile count hides.
 
@@ -550,7 +615,7 @@ For scale, CLAUDE.md §4.5 puts Standard T1 at ~17–20 W **total device** draw.
 >
 > **The replacement is worse news than the prohibition.** N1 could not quote a number; the numbers it
 > could not quote ranged 16–78 tiles. The specified answer is **10**, and **2** on the design as
-> currently adopted.
+> currently adopted — **1** since the Rev 3 re-loft (§3a).
 
 ---
 
@@ -566,6 +631,11 @@ Feeding N1's single-sink topology the specified 1.08 K/W, against this network a
 | 6 | 36.1 | 37.2 | 40.7 | 49.0 |
 | 12 | 38.1 | 39.5 | 42.8 | 50.3 |
 | 20 | 40.8 | 42.6 | 46.9 | 53.4 |
+
+*Rev 3: HISTORICAL (Rev 1, as-was). Re-run at the current geometry and `R_sink` 1.14 (§3a,
+`check-thermal-sink.ts` §7) — N = 1: 34.3 / 35.3 / 37.3 / 41.9; N = 6: 36.0 / 37.3 / 40.9 / 49.2;
+N = 20: 40.6 / 42.9 / 47.2 / 53.9. N1's column falls (its cavity leg lost the foam); every column of
+this network rises (its exterior shrank). The two findings below are unchanged.*
 
 **Columns 2 and 3 differ by about a kelvin**, and that kelvin is the cavity leg's double-counted
 film. So N1's model, given the specified `R_sink`, is right — *conditional on an isothermal exterior*.
@@ -618,12 +688,15 @@ covered by 3 mm of fabric:
 
 | φ | T_skin | max T_face | |
 |---:|---:|---:|---|
-| 0.00 | 37.6 | 40.7 | |
-| 0.25 | 38.0 | 41.1 | |
-| 0.50 | 38.5 | 41.6 | |
-| 0.70 | 39.0 | 42.0 | at the limit |
-| 0.90 | 39.5 | 42.4 | **over 42** |
-| 1.00 | 39.7 | 42.6 | **over 42** |
+| 0.00 | 37.6 → 37.8 | 40.7 → 40.9 | |
+| 0.25 | 38.0 → 38.2 | 41.1 → 41.3 | |
+| 0.50 | 38.5 → 38.7 | 41.6 → 41.7 | |
+| 0.70 | 39.0 → 39.2 | 42.0 → **42.1** | at the limit → **over 42** |
+| 0.90 | 39.5 → 39.7 | 42.4 → 42.6 | **over 42** |
+| 1.00 | 39.7 → 39.9 | 42.6 → 42.8 | **over 42** |
+
+*Rev 3: as-was → current. The crossing moves φ ≈ 0.72 → 0.64 (§3a) — `OI-SINK-10`. Path B1's face NTC
+is the control either way, and the argument below is unchanged.*
 
 `FMEA-G07-01` / `RISK-26` reads *"Fan/vent fouling or fan failure → outward thermal resistance rises
 → heat diverted scalp-ward → scalp face > 42 °C while junction NTC ≤ 62 °C"*. **The mechanism is
@@ -681,7 +754,7 @@ and its four-inadmissible / fourteen-recoverable split will not survive as state
 | Ref | Decision | Basis | Reversible |
 |---|---|---|---|
 | **SINK-D-1** *(principal)* | **`N1-D-1` is lifted and replaced.** A tile count may be quoted only alongside the per-tile drive and the spreader state; the governed quantity is watts (§8.1) | §4, §8 | Yes |
-| **SINK-D-2** *(principal)* | **There is no hub heatsink for the tile field, and none is to be specified.** The via terminates on the outer bowl; the rejection surface is the vault exterior at **1.08 K/W** | §2, §3 | Yes — on a shell-CAD or bench result |
+| **SINK-D-2** *(principal)* | **There is no hub heatsink for the tile field, and none is to be specified.** The via terminates on the outer bowl; the rejection surface is the vault exterior at **1.08 K/W** (1.14 since Rev 3, §3a) | §2, §3 | Yes — on a shell-CAD or bench result |
 | **SINK-D-3** | **`OI-HUB-C19`'s hub thermal budget is decoupled from the tile field** and may be closed on hub electronics alone | §2.3 | Yes |
 | **SINK-D-4** *(principal)* | **An exterior spreader is required, not optional** (`SPEC-SINK-04`, ≥ 0.18 W/K `Σk·t`). Without one the design does not hold two tiles at the library floor at 25 °C | §7, §8 | No — the bare-shell column is not an operating design |
 | **SINK-D-5** | **`SPEC-SINK-03`: fan loss does not degrade `R_sink`.** The fan-loss fault case for the tile export path is **occlusion**, and it is the case to specify against | §2.3, §11 | Yes |
@@ -693,7 +766,7 @@ and its four-inadmissible / fourteen-recoverable split will not survive as state
 
 | Ref | Hazard | Current control | Verification |
 |---|---|---|---|
-| RISK-SINK-01 | The shipped design has no exterior spreader; a montage authorised on N1's 16–78 range exceeds the face limit at N ≥ 3 | SINK-D-1/D-4; `scripts/check-thermal-sink.ts` §6 is the standing check | Spreader specified + THERM-1b (`OI-R1-02`) |
+| RISK-SINK-01 | The shipped design has no exterior spreader; a montage authorised on N1's 16–78 range exceeds the face limit at N ≥ 3 (**N ≥ 2 since Rev 3's re-loft**, §3a) | SINK-D-1/D-4; `scripts/check-thermal-sink.ts` §6 is the standing check | Spreader specified + THERM-1b (`OI-R1-02`) |
 | RISK-SINK-02 | `RISK-26`'s cause list omits vault occlusion, so the predictive layer (`SR-FAN-05`) cannot alert on the most probable initiator | Path B1 face NTC catches the effect regardless — **the control holds, the analysis does not** | **No verification defined** — `OI-SINK-04` |
 | RISK-SINK-03 | **Re-scoped Rev 2 (GitHub #399).** The exterior spreader film perturbs the EMF stack by exactly two mechanisms: **(1) ELF eddy-current loading of the Helmholtz actuator** — the film's eddy currents change `REQ-EMI-11`'s coil-drive → field transfer function, and `REQ-EMI-05`'s feed-forward subtraction runs on it; **(2) external RF** — the film, floating under its overwrap, couples to the apertures it terminates at. *Cavity behaviour is dropped: an exterior conductor cannot change the internal cavity Q (`NP-EMC-CAV-001` §9 item 4). The ingress-seal half of the Rev 1 row is carried unchanged by `RISK-SINK-06`* | (1) §7.1(1) first-order bound: ε ≤ 0.041 at 300 Hz, 0.0083 at 60 Hz, against `NP-THERM-BOWL-001` §5.2's active-loop share (10 / ~20 / 30 dB): clears the 20 dB mid share across the ELF band and the 30 dB top share up to ~230 Hz with no calibration or L2 credit; the top share above ~230 Hz rests on `REQ-EMI-11`'s calibration resolving phase. (2) §7.1(2): cleared over the continuous area only; **no control at the terminations** | (1) **Cleared by analysis** at the mid share, and at the top share to ~230 Hz; `EMF-1-SINK-1` confirms, and closes the top share above ~230 Hz if the calibration condition is not met. (2) **`EMF-1-SINK-2`** — the terminations are open until it runs. Both on the `EMF-1` fixture; `OI-SINK-01` |
 | RISK-SINK-04 | `h_ext` is a correlation, never measured; the library-floor ceiling moves 4 → 25 tiles across a plausible box | §10 states the box; §8's figures are labelled estimates | THERM-1b scalp-phantom bench, `OI-R1-02` |
@@ -717,6 +790,8 @@ and its four-inadmissible / fourteen-recoverable split will not survive as state
 | **OI-SINK-08** | **`NP-HELMET-GEOM-001` §3.2 specifies BN-filled *polymer* bosses (k ~ 1–10) at the module heat pickups; R1 §5 models a *copper* via (k 400).** At the same geometry those differ by ~50× on the leg that carries ~90 % of the heat. Only the copper case has ever been analysed. Reconcile on the owning document | ME + Thermal |
 | **OI-SINK-09** | *(Rev 2.)* **Carry the TMS-window cut-out into `SPEC-SINK-04`, and cost it thermally.** §7.1(3): the film may not cover CLAUDE.md §4.3's non-conductive window. Needs the window footprint (`NP-HELMET-GEOM-001` §3.3) and `OI-UPG-05`'s answer on whether T1 bowls carry one; the local `Σk·t` loss under the TMS site is an input to `OI-SINK-01` and to `OI-PWRTH-01` | Thermal + ME |
 
+| **OI-SINK-10** | **⚠ TO THE PRINCIPAL — the binding 3 mm re-loft makes the one scalp-side figure in the set WORSE (Rev 3, §3a).** `REQ-CAV-04` was taken on a per-area comparison (outward 0.410 → 0.335, `NP-EMC-CAV-001` §8.2) that is correct per unit area and is all any other script models. This model also carries the **exterior area**, which the re-loft shrinks 4.6 %: `SPEC-SINK-01` **1.08 → 1.14 K/W**, N = 6 floor-case face **+0.2 K** (40.7 → 40.9 °C, S3), occlusion crossing **φ 0.72 → 0.64**, bare-shell floor ceiling **2 → 1**. The deletion's own term helps by 0.02 K; the geometry costs 0.19 K. **Not a control gap** — the 42 °C interlock and Path B1 observe it — and **no limit has been adjusted**. Decide: (a) accept, and record that the deletion is thermally neutral-to-slightly-adverse at the scalp rather than favourable; or (b) take the re-loft on the **inner face only**, holding the exterior (a thicker outer bowl — mass, and a `MECH-2` / `NP-TOOL-SHELL-001` re-scope question); or (c) something else. `THERM-1b` (`OI-R1-02`) is what would measure it. Couples to `OI-EMCCAV-07` (#403), whose outer-bowl heat budget sits on the same exterior | Principal (Thermal + ME) |
+
 **Closed since issue:** `OI-SINK-02` and `OI-SINK-05` — `NP-PWR-THERM-001` Rev 1, 2026-09-15 (§4a and §3c).
 
 **Answered or re-pointed elsewhere:** `OI-N1-02` **CLOSED** by §4 · `N1-D-1` lifted and replaced by
@@ -735,8 +810,11 @@ bun scripts/check-thermal-sink.ts --validate  # anchors only; exit 1 on drift fr
 
 The script imports every published anchor from `scripts/check-thermal-multitile.ts`, which in turn
 imports `analyse()` from `check-pbm-power.ts`, so demand, coverage and thermal cannot fork
-(`NP-PWRSRC-001` D-1). `--validate` asserts two things: that the re-partitioned legs sum to
-`R_OUT_BASE` exactly, and that R1-compatibility mode reproduces R1's own single adiabatic cell. Per
+(`NP-PWRSRC-001` D-1). `--validate` asserts three things: that the re-partitioned legs sum to
+`R_OUT_BASE` exactly on R1's as-was stack; that the current stack lands on 0.335 plus exactly the
+foam-k difference and nothing else (Rev 3); and that R1-compatibility mode reproduces R1's own single
+adiabatic cell. `SinkOpts.asWas` reproduces Rev 1's figures; `foamIn` / `exteriorR1` split it for §3a.
+Shared constants: `scripts/thermal-outward-path.ts`. Per
 `NP-CONV-001` §8, a convention worth writing down is worth a script — and a resistance worth
 specifying is worth a check that it still follows from the document it was recovered from.
 
@@ -748,3 +826,4 @@ specifying is worth a check that it still follows from the document it was recov
 |---|---|---|---|
 | 1 | 2026-09-08 | NeurOne Thermal / Systems Engineering | **Initial release, against `NP-THERM-CFD-N1-001` `OI-N1-02` (BLOCKING).** Specifies the rejection resistance at the BN-boss via terminus by recovering it rather than selecting it. **Central finding: there is no heatsink to specify.** R1's via is a ~32 mm radial conductor terminating on the outer bowl, a median 188 mm from the hub `NP-TOOL-HUB-001` §2 infers, and no part connects them: a solid trunk inside a head-worn mass budget drops 40 K at the N = 6 library floor and 193 K at the N = 6 R-4 point, and a heatsink bolted on at the occiput adds **zero** tiles even at `R_hub` = 0 (§2). So the terminus rejects through the helmet's own exterior, and its resistance is **the external film that is already the last term of R1's `R_OUT_BASE`** — recovered from R1's decomposition at h 8.18 W/m²K and independently from a Churchill sphere correlation plus linearised radiation at 7.81, **two derivations sharing no input agreeing to 4.7 %** (§3). **`SPEC-SINK-01`: `R_sink` = 1.08 K/W aggregate**, band 0.83–1.58 (§4). That validates N1's 1.00 K/W row and makes its 0.50 "plausible default" 2.2× optimistic. **R1 spends the same film twice** — reproducing its cell takes both pinning the skin at ambient and charging the cavity leg the full 0.18 — and the re-partitioned legs sum to 0.410 exactly, so nothing is invented (§5). **A lumped `R_sink` presumes an isothermal terminus and the bare CFRP bowl is not one**: 1.6× lat/rej, ~63 mm spreading length, eighty hot spots. **The missing component is a spreader, not a heatsink** (§7, `SPEC-SINK-04`, SINK-D-4). Under the specification the ceiling at the library floor and 25 °C is **10 tiles with a 100 µm graphite film and 2 without**, against N1's 16–78 (§8); in watts, 8.9 W at N = 6 with the spreader against 4.7 W without, converging on 31.4 W fully distributed. **The R-4 point is inadmissible across a 6–14 W/m²K × 0.090–0.150 m² box** and needs none of the soft inputs; the library-floor ceiling moves 4 → 25 across the same box and is a design target for THERM-1b, not a claim (§10). **New term found: the exterior sits 6.1 K above ambient with every tile idle**, because 80 populated sockets conduct 5.6 W from the 37 °C core into the shell — `OI-N1-04`'s mechanism in the direction that is always present (§6, `OI-SINK-06`). **`SPEC-SINK-03`: fan loss does not change `R_sink`**; the fault case is vault **occlusion**, which crosses 42 °C at φ ≥ 0.9 at N = 6 on the library floor and which fan RPM cannot observe — so `FMEA-G07-01`/`RISK-26`'s named cause and `SR-FAN-05`'s predictive claim are both wrong, while Path B1's face NTC still covers the hazard (§11, `OI-SINK-04`). **`N1-D-1` lifted and replaced by SINK-D-1**; `OI-HUB-C19` decoupled from the tile field (SINK-D-3). Eight open items `OI-SINK-01…08` (one BLOCKING), five risk rows, six decisions SINK-D-1…6 (three to principal). Adds `scripts/check-thermal-sink.ts`; exports the published anchors from `scripts/check-thermal-multitile.ts` and guards its `main()` behind `import.meta.main` so the two models cannot fork. **No locked section modified; no firmware, app or protocol changed; no figure in a released document rewritten** — `NP-THERM-CFD-N1-001`'s own `R_SINK_DEFAULT` is left alone and routed as `OI-SINK-02`. |
 | 2 | 2026-09-23 | NeurOne Thermal / EMC | **`RISK-SINK-03` re-scoped against `NP-EMC-CAV-001` `OI-EMCCAV-02` (GitHub #399), and `OI-SINK-01`'s EMF clearance NARROWED — not cleared; it stays BLOCKING.** New **§7.1** works Rev 1's unentitled assertion mechanism by mechanism. **Cavity behaviour is dropped** (an exterior conductor cannot change the internal Q), and `REQ-EMI-10` is shown not to reach the film by its own text (it governs the inner carrier). **(1) ELF eddy loading of the Helmholtz actuator — cleared at first order:** a thin-shell dipole-mode model (`τ₁ = μ₀Ga/3`, `a ≤ 0.15 m`, film `G ≤ 250 S` bounded by the in-plane conductivity of oriented graphite because the record holds no σ, coupling `κ ≤ 1.40`) puts **ε ≤ 0.041 (−27.7 dB) at 300 Hz and 0.0083 (−41.6 dB) at 60 Hz** on the coil-drive → field transfer, judged read open-loop (`REQ-EMI-05` is feed-forward) against `NP-THERM-BOWL-001` §5.2's active-loop share (10 / ~20 / 30 dB): clears the 20 dB mid share across the ELF band and the 30 dB top share up to ~230 Hz with no calibration or L2 credit; the top share above ~230 Hz rests on `REQ-EMI-11`'s calibration resolving phase (a quadrature error, so it adds root-sum-square to §5.3's thermal drift: 0.2 dB at mains). At the mid share the clearance holds for `G ≤ 603 S` (~240 µm at the graphite ceiling; `SPEC-SINK-04`'s 100 µm is 2.4× inside); at the top share it holds to ~230 Hz, and above that rests on the calibration resolving phase. **The record states neither the active-loop bandwidth nor the calibration method**; both are named as conditions. *The budget was first drafted as 20 dB at both ends of §4.3's ranges and corrected before merge to `NP-THERM-BOWL-001` §5.2's 10–30 dB span, which merged while this PR was open.* Bench confirmation `EMF-1-SINK-1`. **(2) External RF — narrowed:** over the continuous area two shunt sheets in contact can only add attenuation; at the film's **terminations** (rim lip, `BOSS-1` emboss, TMS cut-out) a floating, resonant-from-~0.5 GHz conductor can drive the apertures that set the floor (`NP-BIB-EMF-001` §7.6), and `SPEC-SINK-04` sets no edge geometry to compute against — bench step `EMF-1-SINK-2` (bare vs. film-fitted, to 6 GHz, plus an emissions pre-scan; pass = no worse than bare). Edge treatment left to `OI-SINK-01`'s owner. **Found while scoping:** the film as specified would cover CLAUDE.md §4.3's non-conductive TMS window — **`RISK-SINK-07`, `OI-SINK-09`** (a cut-out, applying the locked control; not a new requirement). Rev 1's ingress half of `RISK-SINK-03` is split out unchanged as **`RISK-SINK-06`**. Also records, as this revision, `OI-SINK-07`'s 2026-09-23 MOOT mark made in place under #391/#397. **No measurement asserted; no requirement added; no safety control removed; no locked decision changed.** |
+| 3 | 2026-09-23 | NeurOne Thermal / Systems Engineering | **Re-baselined for the Layer 4 absorber deletion (`OI-THCOOL-21`, GitHub #407; `REQ-CAV-04`, #391) — and the one result in the thermal set that goes the wrong way is recorded, not absorbed.** The deletion changes two inputs here and they have opposite signs: the 3 mm foam leaves the `C → X` leg (**0.0651 → 0.0051** m²K/W, cavity leg only), and the binding **3 mm re-loft moves the exterior skin inward**, shrinking the rejecting area **1180 → 1125 cm² (−4.6 %)**. **`SPEC-SINK-01` 1.08 → 1.14 K/W** (band 0.87–1.66), `SPEC-SINK-02` 1.48 → 1.55. Net at N = 6, library floor, S3, 25 °C: max face **40.7 → 40.9 °C**, occlusion crossing **φ 0.72 → 0.64**; bare-shell floor ceiling **2 → 1**; aggregate **31.4 → 30.5 W**, N = 6 **8.9 → 8.8 W** (S3) and **4.7 → 4.6 W** (S0), +35 °C **17.9 → 17.5 W**. Attribution (new §3a): foam alone −0.02 K, smaller exterior alone +0.19 K. **`NP-EMC-CAV-001` §8.2's per-area 0.335 is right per unit area; no other model has an exterior area to see this with.** New **`OI-SINK-10`** to the principal (accept, or take the re-loft on the inner face only, or other); **no limit adjusted**, Path B1 and the 42 °C interlock unchanged. §3.1–§3.2's R1 corroboration (8.18 vs 7.81, 4.7 %) is kept at R1's geometry — it is a statement about R1. §3.1 now records that this table's foam (k 0.05, 0.060) is not `NP-THERM-COOL-001`'s (k 0.04, 0.075): on R1's film the deletion lands at 0.350, and `--validate` asserts the 0.015 is exactly that k difference. §6, §7 (S2 8 → 6 tiles), §8, §8.1, §9, §11 and RISK-SINK-01 carry *was → now*. Script: `OUT_STACK` is now current and `OUT_STACK_R1` historical; `SinkOpts.asWas` / `foamIn` / `exteriorR1`; constants from `scripts/thermal-outward-path.ts`. **No locked section modified; no firmware, app or protocol changed.** |

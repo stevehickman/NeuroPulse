@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-THERM-COOL-001
-**Revision:** 15
+**Revision:** 16
 **Date:** 2026-09-23
 **Status:** DRAFT — DESIGN STUDY. Not a tooling, firmware or release baseline. Modifies no locked section and changes no safety requirement.
 **Effective Date:** —
@@ -10,12 +10,67 @@
 **Approved By:** — (pending design review)
 **References:** NP-THERM-CFD-R1-001 Rev 1 (§2 the resistance network, §3 the inward-flux ceiling, §5 BN-boss export study, §5.3 findings, OI-R1-01…05); NP-THERM-CFD-001 (BC spec, case matrix); NP-THERM-CFD-C2-001 (§2 stack-up, §7 the 1D network); NP-THERM-BEZEL-001 (THERM-1 coupling, the 0.6–1.0 mm scalp gap); NP-REQ-FANHEALTH-001 (SR-FAN-01…06, Path B1); NP-PWR-BUDGET-001 Rev 3 (§3.2 aggregate estimate, §3.3 the three levers, OI-PWR-01/08); NP-PWRSRC-001 Rev 1 (§4.1 the cavity wall, §7.0 coverage 2/23); NP-HEX-ZM-001 (§5.1–5.3 two-bowl shell, §5.3a rim slot, §5.3c posterior boss, §5.3d mu-metal continuity); NP-DRV-SHELL-002 Rev 2 (§4.3 one aperture, segregated returns); NP-ENV-001 (§1 two envelopes, §2 survival, §5 humidity survival-only); NP-ENV-OPRANGE-001 (§1 the derate definition, §2 per-modality ambient bounds); NP-FW-POE-001 (§3 the POE block, §5 the min() rule, §6.1 the hard-edge hysteresis — the consumers of §7.4); NP-PWR-BUDGET-001 Rev 3 §3.4 (the efficacy floor); NP-PWRSRC-001 Rev 1 §5.5 (CEM43 and time-at-ceiling); NP-DT-001 Rev 2 (DI-SAFE-13); NP-HELMET-GEOM-001 (§2 radial stack, §8 THERM-1a gate); CLAUDE.md §4.2 (42/62 °C interlocks), §4.3 (EMF stack), §4.5 (power); IEC 60601-1 (42 °C applied part); `scripts/check-thermal-network.ts` (§17 the derate semantics, §18 the hysteresis sizing); `firmware/safety_mcu/src/np_thermal_interlock.c` + `np_safety_config.h` (the 62/55 °C junction re-arm precedent §7.5.1 declines to copy)
 **Related Issues:** —
-**Gate:** No gate. D-1, D-2, D-3 and D-4 are all **decided** (2026-08-30/31 and 2026-09-02/03); raises `OI-THCOOL-01…21`, of which `OI-THCOOL-16` and `OI-THCOOL-17` are closed. **`OI-THCOOL-06` was closed 2026-08-30 and REOPENED 2026-09-20 against the posterior-boss collar** (principal direction) — it is BLOCKING again, on `OI-EMCCAV-10` and MECH-1's boss cut.
+**Gate:** No gate. D-1, D-2, D-3 and D-4 are all **decided** (2026-08-30/31 and 2026-09-02/03); raises `OI-THCOOL-01…21`, of which `OI-THCOOL-16` and `OI-THCOOL-17` are closed and `OI-THCOOL-21` is re-baselined (Rev 16) but held open on `OI-SINK-09`. **`OI-THCOOL-06` was closed 2026-08-30 and REOPENED 2026-09-20 against the posterior-boss collar** (principal direction) — it is BLOCKING again, on `OI-EMCCAV-10` and MECH-1's boss cut.
 **IEC 62304 Class:** — (analysis document; no code changed). No SR-FAN requirement is altered.
 **Supersedes:** None — new document.
 **Parent Document:** NP-THERM-CFD-R1-001
 
 ---
+
+> **Rev 16 (2026-09-23) — `OI-THCOOL-21` executed: the network is re-run with the Layer 4 absorber
+> station deleted and the outer bowl re-lofted 3 mm (`REQ-CAV-04`, GitHub #391 / #407).** The outward
+> path is **0.335 m²K/W** (was 0.410); every table in §4, §5, §6.7 and §6.9 now carries a **CURRENT**
+> set, with the as-was rows kept beneath it and labelled **HISTORICAL** — D-2 was decided on them and
+> the §2 note's *"2 mm of gap beats deleting the absorber"* only means something with the absorber in.
+> The constants live in one exported place, `scripts/thermal-outward-path.ts`, and #403's
+> `check-thermal-bowl.ts` now reads them (reconciled; every `NP-THERM-BOWL-001` figure reproduces).
+> **`OI-THBOWL-05` answered:** (a) agreed — on the via network the foam term alone is worth ~0 (bowl
+> +0.002 K there, face −0.02 K here), so the capability understatement Rev 13 described belongs to
+> the no-via, per-area models below; (b) the current path is **0.335**, the decision record's figure;
+> `NP-THERM-SINK-001` §3.1's foam at k 0.05 would give **0.350** on R1's film, and its `--validate` now
+> asserts the 0.015 is exactly that k difference. **What changed, and what did not:**
+>
+> - **Scalp safety (§4) — nothing gets worse.** With the via, inward heat goes **7.9 % → 7.8 %**; with
+>   no via, 78.8 % → 75.3 %. Every current inward fraction is at or below its as-was row. R1's own four
+>   published operating points, re-run at 0.335, move **−0.01 to −0.03 K** at the face
+>   (`check-thermal-multitile.ts` §2c), so every R1 temperature quoted in the set is a conservative bound.
+>   **One exception is recorded, not adjusted:** in the lumped N1 network, above ~39 °C ambient (where
+>   the room is hotter than a lightly-driven face) a less resistive outward path imports heat, and the
+>   N = 1 max-ambient cells at `R_sink` 1.00/2.00 fall by 0.05/0.11 K. All are ≥ 39.9 °C, above the
+>   +35 °C block, so no verdict moves.
+> - **§5's aggregate ceiling rises 1.22×** from the deletion alone (6.0 → 7.3 tiles on the calibrated
+>   yardstick). The ranking of the options is unchanged. **The shield-safe stack still beats the
+>   shield-breaching one, but by less:** RE (the old RFE, with no absorber left to specify) 3.19×
+>   against X's 2.68× over the current baseline — **19 % ahead, down from 60 %** — because the deletion
+>   helps the ventilated row too. On `NP-THERM-CFD-N1-001`'s coupled lattice the same comparison is RE
+>   1.39× against X 1.30× (was 1.36× against 1.17×).
+> - **D-2's ranking is unchanged and the static stack's lead WIDENS:** GE (was GFE) **60.6 tiles vs RE's
+>   23.4, 2.6×** (was 40.6 vs 19.7, 2.1×). **The GFE 6.77× becomes GE 8.26×** over the current baseline
+>   (10.12× on the as-was yardstick) — a ratio of a model `OI-PWR-08` bounds to N ≤ 8, so read it as an
+>   order, as before; on the coupled lattice GE still clears all 80 sockets. The rows RF and GF
+>   **collapse** into R and G: there is no station left to specify thermally. §6.9.1's full-area
+>   optimism grows 1.12× → 1.18×, because the gap is now a larger share of what is left.
+> - **§6.7.1's conclusion is unchanged**: on the 45 W brick electrical still binds at 6.4 tiles. The
+>   conservative end of the thermal band rises 4.4 → 5.4 tiles; the mains-station cooled figure falls
+>   25.8 → 25.1, because the deletion banks part of the chiller's gain in the uncooled baseline.
+>   §6.7.2's cascade reduction becomes 3.9× (~75 CEM43) from 4.0× (~73).
+> - **⚠ FLAGGED — `OI-SINK-09`, to the principal.** The per-area network above cannot see it, but the
+>   re-loft that moved with the deletion also moves the **exterior skin** 3 mm inward. In
+>   `NP-THERM-SINK-001`'s model, where the via terminates on that skin, the rejecting area falls
+>   **4.6 %**, `SPEC-SINK-01` rises **1.08 → 1.14 K/W**, and the net effect on the scalp is **worse,
+>   not better**: max face at N = 6 on the library floor **+0.2 K** (40.7 → 40.9 °C), the occlusion
+>   fraction at which that case crosses 42 °C falls **0.72 → 0.64**, and the bare-shell floor ceiling
+>   drops 2 → 1 tile. The attribution is clean — removing the foam alone moves the face −0.02 K; the
+>   smaller exterior alone moves it +0.19 K. **No limit is changed** (the 42 °C interlock and Path B1's
+>   face NTC still cover the hazard), and this revision does not decide whether that trade is
+>   acceptable: it is a consequence of the binding re-loft that `NP-EMC-CAV-001` §8.2's per-area
+>   0.335 did not price. See `NP-THERM-SINK-001` Rev 2 §3a.
+>
+> **Still open under `OI-THCOOL-21`: `OI-SINK-09` only.** `OI-EMCCAV-07`, which the issue ties it to, was
+> answered by `NP-THERM-BOWL-001` (Rev 14 above) — whose "post" cases hold R1's exterior and so do not
+> include the area term either; its coil and bowl figures are therefore slight under-estimates for the
+> re-lofted design, recorded in `check-thermal-bowl.ts`'s header. `OI-THCOOL-04` stays closed; no
+> SR-FAN requirement moves.
 
 > **Rev 15 (2026-09-23) — `OI-EMCCAV-11` (GitHub #404): the fluxgates are not in the inter-bowl gap.**
 > §6.9.1 said *"§5.3c puts the fluxgate magnetometers there"*, and §5.3(c) never did. The sensor body is
@@ -254,7 +309,8 @@
 > **1. Cooling the cavity does almost nothing for scalp safety, and that is not a reason to drop it.**
 > Once the adopted BN-boss via is fitted, only **7.9 %** of tile heat reaches the scalp and only **2.1 %**
 > uses the cavity path at all (§4). Driving the outward resistance from 0.41 to 0.13 m²K/W — everything
-> in this study, stacked — moves the inward fraction from 7.9 % to **7.5 %**. **No cooling architecture
+> in this study, stacked — moves the inward fraction from 7.9 % to **7.5 %**. *(Rev 16, station deleted: 7.8 % → 6.6 % across the
+> current option set.)* **No cooling architecture
 > in this document is a safety improvement, and none is offered as one.** `SR-FAN-01/03`, Path B1 and
 > the `NP-ENV-OPRANGE-001` ambient gate stand exactly as written. What cooling buys is **capability**,
 > and that is a different and much larger prize.
@@ -263,11 +319,15 @@
 > The cavity residual is what sets concurrency, and concurrency is what sets `NP-PWRSRC-001` §7.0's
 > **2-of-23 thermally achievable protocols**. At equal cavity temperature rise the full shield-safe
 > stack takes the ceiling from the published ~6 tiles to **~20 (3.3×)** — see §5 and its warning label.
+> *(Rev 16: the Layer 4 deletion alone takes it to ~7.3 (1.22×); the current shield-safe loop stack RE
+> reaches ~23 (3.19× over that).)*
 >
 > **3. The decisive result: the shield-safe option BEATS the shield-breaching one.** Ventilating the
 > cavity to outside air — the thing `NP-THERM-CFD-R1-001` §5 was written to avoid — is worth **2.05×**.
 > **Sealed recirculation with a thermally-specified absorber and forced external convection is worth
-> 3.28×, with the EMF envelope untouched** (§4, §6). The question "can we ventilate without breaching
+> 3.28×, with the EMF envelope untouched** (§4, §6). *(Rev 16: with the station deleted both rows
+> improve — RE 3.19× against X 2.68× over the current baseline; the shield-safe stack still wins, by
+> 19 % rather than 60 %.)* The question "can we ventilate without breaching
 > the shield" has a better answer than "yes": *breaching it was never the stronger option.*
 >
 > **4. All three of the principal's architectural challenges hold.** Air need not cross the shield —
@@ -346,9 +406,9 @@ stack is what makes each term separately attackable:
 
 | Term | R (m²K/W) | Share of outward path | Attackable by |
 |---|---:|---:|---|
-| **Stagnant inter-bowl air gap** (6 mm, k = 0.026) | **0.23** | 56 % | stirring the gas (§6.1) — **or NARROWING it, newly available 2026-09-20 under `FLUSH-1`** |
-| ~~**Carbon-loaded EMI absorber foam** (3 mm, k ≈ 0.04)~~ | ~~**0.075**~~ | ~~18 %~~ | **DELETED 2026-09-23** with a binding 3 mm re-loft (`REQ-CAV-04`) → outward total **0.335**. Row kept because every table below was computed with it (`OI-THCOOL-21`) |
-| **External natural convection** (h ≈ 10) | **0.10** | 24 % | forced external air (§6.4) |
+| **Stagnant inter-bowl air gap** (6 mm, k = 0.026) | **0.23** | 56 % (**69 %** of the current 0.335) | stirring the gas (§6.1) — **or NARROWING it, newly available 2026-09-20 under `FLUSH-1`** |
+| ~~**Carbon-loaded EMI absorber foam** (3 mm, k ≈ 0.04)~~ | ~~**0.075**~~ | ~~18 %~~ | **DELETED 2026-09-23** with a binding 3 mm re-loft (`REQ-CAV-04`) → outward total **0.335**. Row kept because every **HISTORICAL** table below was computed with it; the **CURRENT** tables (Rev 16, `OI-THCOOL-21`) set it to 0 |
+| **External natural convection** (h ≈ 10) | **0.10** | 24 % (30 % current) | forced external air (§6.4) |
 | Shell — CFRP 2.5 mm + Pd-polyester + mu-metal | 0.005 | 1 % | nothing; already negligible |
 | — inward path, junction → perfused core | **0.11** | — | **nothing. This is a floor.** |
 
@@ -414,7 +474,22 @@ mounting pressure, and sink design. `OI-THCOOL-05`.
 
 ## 4. Heat split — the safety question, answered negatively
 
-`bun scripts/check-thermal-network.ts` §4:
+`bun scripts/check-thermal-network.ts` §4 — **CURRENT** (Layer 4 deleted, outward 0.335; Rev 16,
+`OI-THCOOL-21`). RF and GF have no current counterpart: with no station left there is nothing to
+specify thermally, so they collapse into R and G, and RFE/GFE become **RE**/**GE**.
+
+| ID | Option | R_out | → scalp | → cavity | → exported | Shield |
+|---|---|---:|---:|---:|---:|---|
+| BASE | As-modelled, fan off, no via | 0.335 | **75.3 %** | 24.7 % | — | ok |
+| **V** | **BN-boss export (ADOPTED)** | 0.335 | **7.8 %** | 2.6 % | 89.6 % | ok |
+| X | External cavity ventilation | 0.125 | 53.2 % | 46.8 % | — | **BREACH** |
+| R | Sealed recirculation | 0.172 | 7.7 % | 4.9 % | 87.4 % | ok |
+| RE | R + forced external (was RFE) | 0.105 | 7.4 % | 7.8 % | 84.8 % | ok |
+| G | Gap bridge (pad) | 0.107 | 7.4 % | 7.6 % | 84.9 % | ok |
+| GE | G + forced external (was GFE) | 0.041 | **6.6 %** | 17.9 % | 75.5 % | ok |
+
+**HISTORICAL** — the same network with the foam in (`check-thermal-network.ts` §4h), as published
+through Rev 13. The findings below were stated against it and hold on the current table unchanged:
 
 | ID | Option | R_out | → scalp | → cavity | → exported | Shield |
 |---|---|---:|---:|---:|---:|---|
@@ -428,7 +503,8 @@ mounting pressure, and sink design. `OI-THCOOL-05`.
 **Three findings, and the first is the one that governs this study.**
 
 **4.1 — No cooling option here is a safety improvement.** With the via fitted, the scalp fraction moves
-7.9 % → 7.5 % across the entire option space. The via already won that fight; everything after it is
+7.9 % → 7.5 % across the entire option space (current: 7.8 % → 6.6 %, and the deletion itself buys
+0.1 pp of it). The via already won that fight; everything after it is
 rearranging 2 % of the heat. **Nothing in this study justifies reopening `SR-FAN-01/03`, Path B1, or
 `DI-SAFE-13`.** Any proposal that arrives claiming a cooling change improves scalp safety should be
 checked against this row first.
@@ -448,6 +524,19 @@ preserved for free. This study confirms that finding from an independent directi
 The per-tile split is not the concurrency question. Concurrency is set by the **cavity's own temperature
 rise**: N tiles each dump their un-exported residual into a shared, sealed volume that rejects through
 R_out over the vault. Holding the allowed rise fixed, the tolerable tile count scales as **1/R_out**.
+
+**CURRENT** (Rev 16, `OI-THCOOL-21`). The cavity budget stays calibrated to the ~6-tile rule **at the
+as-was 0.41** — that is the configuration the rule was stated for — so both ratio columns share one
+yardstick:
+
+| ID | Option | R_out | Tile ceiling | vs as-was base | vs current V | Shield |
+|---|---|---:|---:|---:|---:|---|
+| BASE / V | As adopted, station deleted | 0.335 | 7.3 | 1.22× | 1.00× | ok |
+| X | External ventilation | 0.125 | 19.7 | 3.28× | **2.68×** | **BREACH** |
+| R | Sealed recirculation | 0.172 | 14.3 | 2.39× | 1.95× | ok |
+| **RE** | **R + forced external (was RFE)** | **0.105** | **23.4** | **3.90×** | **3.19×** | **ok** |
+
+**HISTORICAL** (foam in, as published through Rev 13):
 
 | ID | Option | R_out | Tile ceiling | vs baseline | Shield |
 |---|---|---:|---:|---:|---|
@@ -471,6 +560,11 @@ R_out over the vault. Holding the allowed rise fixed, the tolerable tile count s
 > result of this section: RFE still beats X (1.36× against 1.17×), so the shield-safe answer is still
 > the best available one.** The absolute counts now inherit `OI-N1-02` (the external heatsink is
 > unspecified and sets the ceiling), and **GFE displacing RFE is a live input to D-2.**
+>
+> **Rev 16 — the same coupled re-run with the station deleted** (`check-thermal-multitile.ts` §8,
+> CURRENT): **BASE 1.00× · X 1.30× · R 1.16× · RE 1.39× · GE ≥ 1.82×** over the current baseline, whose
+> own ceiling rises 42 → 44 tiles (1.05×). **RE still beats X — by 7 % rather than 16 %** — and GE still
+> clears the whole lattice.
 
 **Why this matters more than it looks.** `NP-PWRSRC-001` §7.0 finds **2 of 23 protocols thermally
 achievable under every candidate power source**, and §4.1 identifies the sealed cavity — not the supply
@@ -480,7 +574,9 @@ Baseline. **Raising the cavity ceiling attacks the root of both**: it is the ter
 unachievable *and* the term that makes cascading necessary. That is a stronger case for this work than
 any per-session temperature figure.
 
-**And row RFE beats row X.** The shield-safe stack outperforms the shield-breaching one by 60 %. This is
+**And row RFE beats row X.** The shield-safe stack outperforms the shield-breaching one by 60 % —
+**19 % on the current table** (RE 3.19× against X 2.68×), because deleting the absorber lowers the
+ventilated row's R_out as well. Smaller, and still the same sign. This is
 the study's central result and it is worth stating in the form the design conversation needs:
 
 > **We do not have to choose between the EMF claim and the thermal ceiling.** The best available
@@ -646,7 +742,10 @@ is why the item still reads as open.
    response speed is not the binding constraint; `SR-FAN-04` is undisturbed.
 2. **Nothing in this study moves.** §4, §5 and §7 use R_out = 0.41 — the fan-off outward path — as the
    cavity's rejection resistance throughout, on §3.2's justification above. Every figure was already
-   computed on the correct branch.
+   computed on the correct branch. *(Rev 16: the fan-off path is now **0.335** with the absorber station
+   deleted; §4/§5's CURRENT tables use it. The branch argument is unchanged. §7's ambient crossovers
+   are R1's published temperatures at 0.41 and are left as conservative floors — the current path is
+   less resistive, and `check-thermal-multitile.ts` §2c moves R1's faces by −0.01 to −0.03 K.)*
 
 **The `NP-HELMET-GEOM-001` "vents" are not a counterexample.** Its vent references trace back to
 §3.2's **L1 inner bowl** — moulded channels inboard of the shield that carry module heat into the
@@ -737,10 +836,15 @@ maxConcurrent = min(electrical, thermal, dose)
 
 | Source | Electrical tiles | Thermal tiles | min | **min, cooled** |
 |---|---:|---:|---:|---:|
-| **45 W brick** (Home Standard) | 6.4 | 4.4–7.9 | 6.4 | **6.4 — unchanged** |
-| 65 W brick | 9.6 | 4.4–7.9 | 7.9 | 9.6 |
-| 100 W EPR | 15.2 | 4.4–7.9 | 7.9 | 15.2 |
-| **Mains base station** | 37.6 | 4.4–7.9 | 7.9 | **25.8** |
+| **45 W brick** (Home Standard) | 6.4 | 4.4–7.9 → **5.4–7.9** | 6.4 | **6.4 — unchanged** |
+| 65 W brick | 9.6 | 4.4–7.9 → **5.4–7.9** | 7.9 | 9.6 |
+| 100 W EPR | 15.2 | 4.4–7.9 → **5.4–7.9** | 7.9 | 15.2 |
+| **Mains base station** | 37.6 | 4.4–7.9 → **5.4–7.9** | 7.9 | **25.8 → 25.1** |
+
+*Rev 16 (`OI-THCOOL-21`, `check-thermal-network.ts` §10): as-was → current. Only the conservative end of
+the thermal band moves, because `NP-PWRSRC-001` §4.1's optimistic end (0.23) is the gap term alone,
+which the deletion does not touch. The cooled mains figure falls because part of the chiller's gain is
+now banked in the uncooled baseline (cooling gain 3.28× → 3.19×). **Every conclusion below stands.***
 
 > **On the 45 W brick — the configuration the ice pack targets — a cooled thermal term changes nothing,
 > because electrical binds first.** The gain is bought by **watts first and cooling second**. So the
@@ -755,7 +859,8 @@ heat; relieving heat moves it straight back to power.
 
 Cascade length scales as `1/maxConcurrent`. Taking 6.4 → 25.8 tiles is a **4.0× reduction**, which on
 `NP-PWRSRC-001` §5.5's worst case (Vascular Baseline, 40 groups, 20.0 h, **292 CEM43**) is roughly 10
-groups, ~5.0 h and **~73 CEM43** at an unchanged plateau — and CEM43 uses R = 0.25 below 43 °C, so each
+groups, ~5.0 h and **~73 CEM43** at an unchanged plateau *(Rev 16, station deleted: 6.4 → 25.1, 3.9×,
+~11 groups, ~5.1 h, ~75 CEM43 — the accessory buys slightly less on top of a better baseline)* — and CEM43 uses R = 0.25 below 43 °C, so each
 1 °C the chiller removes cuts it a further **4×**.
 
 That matters more than the time saved. §5.5's finding is that **cascading is what creates the only real
@@ -856,6 +961,19 @@ Carried through the network (`bun scripts/check-thermal-network.ts` §15):
 | RFE | Recirculation + absorber + forced external | 0.125 | 19.7 | 3.28× | blower + tubes |
 | **GFE** | **Gap bridge + absorber + forced external** | **0.061** | **40.6** | **6.77×** | **none** |
 
+**Rev 16 — CURRENT** (station deleted, `check-thermal-network.ts` §15). The table above is the one
+D-2 was decided on and is kept as its record; this is what the same comparison reads today:
+
+| ID | Option | R_out | Tiles | vs current V | vs as-was base | Moving parts |
+|---|---|---:|---:|---:|---:|---|
+| RE | Recirculation + forced external | 0.105 | 23.4 | 3.19× | 3.90× | blower + tubes |
+| **GE** | **Gap bridge + forced external** | **0.041** | **60.6** | **8.26×** | **10.12×** | **none** |
+
+**D-2's ranking is unchanged and the static stack's lead widens, 2.1× → 2.6×**: removing a series term
+common to both rows helps the row whose remainder is smaller more. The absolute counts sit far outside
+`OI-PWR-08`'s N ≤ 8 and are an order, not a number; on `NP-THERM-CFD-N1-001`'s coupled lattice GE still
+clears all 80 sockets (§5's note).
+
 > **The static stack is 2.1× better than the loop stack, with no blower, no tubes, no acoustic path
 > beside the audio modality, and no penetration of any kind.** The loop's benefit is therefore not
 > unique to it, and D-2's criterion is not met. **§6.2's pneumatic loop is out of scope**, and with it
@@ -891,16 +1009,21 @@ network sees their parallel sum.
 sit in parallel with stagnant air over the remaining (1 − φ). From `bun scripts/check-thermal-network.ts`
 §16, on a 40 mm hex tile:
 
-| Pad Ø | Coverage φ | R_gap | R_out (full static stack) | Tiles | vs base |
-|---:|---:|---:|---:|---:|---:|
-| 10 mm | 5.7 % | 0.0335 | 0.092 | 26.8 | 4.47× |
-| 12 mm | 8.2 % | 0.0243 | 0.083 | 29.7 | 4.96× |
-| 16 mm | 14.5 % | 0.0144 | 0.073 | 33.8 | 5.64× |
-| **20 mm** | **22.7 %** | **0.0094** | **0.068** | **36.3** | **6.05×** |
-| 25 mm | 35.4 % | 0.0061 | 0.064 | 38.1 | 6.36× |
-| *(full area, §6.9 as written)* | *100 %* | *0.0022* | *0.061* | *40.6* | *6.77×* |
+| Pad Ø | Coverage φ | R_gap | R_out (full static stack) | Tiles | vs base | **R_out current** | **Tiles current** | **vs current V** |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 10 mm | 5.7 % | 0.0335 | 0.092 | 26.8 | 4.47× | 0.072 | 34.2 | 4.66× |
+| 12 mm | 8.2 % | 0.0243 | 0.083 | 29.7 | 4.96× | 0.063 | 39.2 | 5.35× |
+| 16 mm | 14.5 % | 0.0144 | 0.073 | 33.8 | 5.64× | 0.053 | 46.6 | 6.36× |
+| **20 mm** | **22.7 %** | **0.0094** | **0.068** | **36.3** | **6.05×** | **0.048** | **51.5** | **7.02×** |
+| 25 mm | 35.4 % | 0.0061 | 0.064 | 38.1 | 6.36× | 0.044 | 55.3 | 7.54× |
+| *(full area, §6.9 as written)* | *100 %* | *0.0022* | *0.061* | *40.6* | *6.77×* | *0.041* | *60.6* | *8.26×* |
 
-> **§6.9's headline is optimistic by ~1.1×, not by the large factor a first estimate suggested.** R_gap
+*Rev 16 (`check-thermal-network.ts` §16): the left six columns are HISTORICAL (the absorber's 0.02
+"thermally-specified" allowance in the stack); the right three are CURRENT, with no station.*
+
+> **§6.9's headline is optimistic by ~1.1×, not by the large factor a first estimate suggested** —
+> **~1.2× on the current stack** (60.6 against 51.5), because with the absorber gone the gap is a larger
+> share of what is left, so coverage matters slightly more. R_gap
 > alone degrades 4.3× going from full area to a 20 mm pad — but by then the gap has stopped being the
 > dominant term, so R_out moves only 0.061 → 0.068 and the ceiling only 40.6 → 36.3. **D-2's conclusion
 > is untouched**: every row above, down to a 10 mm pad, still beats the stirred gap's 0.067.
@@ -1276,7 +1399,8 @@ about step 3.**
 - **D-2 — ✅ DECIDED 2026-08-30 (principal): in scope only for a real benefit not obtainable by other
   means — and §6.9 finds it is obtainable otherwise, better.** A static conductive gap bridge attacks
   the same 0.23 m²K/W term and reaches **40.6 tiles against the loop's 19.7**, with no moving parts and
-  no penetration. **The pneumatic loop is out of scope; `OI-THCOOL-06` is closed with it.** *(**♻ Superseded 2026-09-20** — reopened against the collar rather than the loop; principal direction.)* The
+  no penetration. *(Rev 16, station deleted: **60.6 against 23.4** — the ranking holds and the margin
+  widens; the decision is not reopened.)* **The pneumatic loop is out of scope; `OI-THCOOL-06` is closed with it.** *(**♻ Superseded 2026-09-20** — reopened against the collar rather than the loop; principal direction.)* The
   criterion did the work here — "is it shield-safe" would have kept the loop alive, and "is the benefit
   unique to it" killed it. Replacement gating question: `OI-THCOOL-15`.
 - **D-3 — ✅ DECIDED 2026-08-30 (principal).** Both accessories go on the roadmap. **Priority follows
@@ -1351,7 +1475,7 @@ alternative *and* costs the ELF magnetic claim. It should not be revisited.
 | **OI-THCOOL-18** | **The dose-ordering inversion is a human-factors problem, not a copy problem (§7.4.5).** Because the floor binds on delivered dose and the derate is multiplicative, a **120 J/cm² protocol runs in a hotter room than a 40 J/cm² one** — heavier survives longer. The only honest advice at a refusal is therefore *"a higher-dose protocol may still run"*, which reads as an instruction to take more treatment because the room is hot. Establish whether that can be said safely at all, or whether the refusal should name the room rather than the protocol; owned with `NP-HFE-001`/`NP-HFE-002`. **Do not resolve it by hiding the inversion** — a user who discovers it unaided will read it as a fault | HFE + App | No |
 | **OI-THCOOL-19** | **Protocol dose becomes a signed descriptor input, and nothing yet checks it against what the protocol actually commands.** `NP-FW-POE-001` §3 gains `dose_full_dJ`; the floor clamp is computed from it. Overstating it cannot widen any thermal bound (§7.4.4) — the Class C table still blocks at +35 — but it silently defeats the efficacy guarantee this decision exists to provide, which is the very failure mode D-4 closes, re-entering through the descriptor instead of the ambient. Specify the consistency check between `dose_full_dJ` and the commanded irradiance × duty × length, where it runs (app sign-time, SW-02 admission, or both), and what an inconsistency does | FW + App | No |
 | **OI-THCOOL-20** | **A sub-threshold session is sometimes the point — T2 research needs a way to say so.** The clamp refuses any session below 10 J/cm², but sham and dose-ranging arms are deliberately sub-threshold, and `NP-IRB-001`/the T2 scripting API can legitimately request one. Decide whether a signed research descriptor may declare intent and bypass the **efficacy** floor (never the +35 thermal block), and how that is surfaced to the wearer without unblinding the arm. **Not a T1 question** — the T1 refusal is absolute | FW + Clinical | No |
-| **OI-THCOOL-21** | **Re-baseline the outward path at 0.335 m²K/W now that the Layer 4 absorber is deleted (2026-09-23, `REQ-CAV-04`).** `scripts/check-thermal-network.ts` (`R_FOAM`), `check-thermal-multitile.ts` (`R_CAV_AMB`), `check-thermal-sink.ts` (the absorber layer) and every table in §4–§6 of this document, `NP-THERM-SINK-001` §3.1 and `NP-THERM-CFD-R1-001` §2 still carry the 0.410 baseline with the foam in it. They are **conservative** (the real path is less resistive), so nothing they conclude about a safety ceiling is weakened — but every *capability* figure (§5's aggregate ceiling, D-2's option ranking, the GFE 6.77×) is understated, and none may be quoted as current until re-run. Do together with `OI-EMCCAV-07` (outer-bowl heat budget). **Rev 14: `OI-EMCCAV-07` answered by `NP-THERM-BOWL-001`, and its `OI-THBOWL-05` hands back two inputs.** (a) On the **via** network (`NP-THERM-SINK-001`) the deletion is worth ~0 (bowl +0.002 K, admissible drive < 0.01 W), so the understatement applies to the no-via models only. (b) The foam is 0.075 here and 0.060 in SINK §3.1, which reads **0.335 vs 0.355**. Reconcile with `scripts/check-thermal-bowl.ts` | Thermal | No — conservative |
+| **OI-THCOOL-21** | **✅ RE-BASELINED 2026-09-23 (Rev 16, GitHub #407) — held OPEN on two things, neither of them the re-run.** Every script now carries a CURRENT case beside a labelled HISTORICAL one, constants in `scripts/thermal-outward-path.ts`; §4, §5, §6.7, §6.9 and §6.9.1 carry current tables; `NP-THERM-SINK-001` Rev 2, `NP-THERM-CFD-N1-001` Rev 2 and `NP-THERM-CFD-R1-001` Rev 2 updated. Results in the Rev 16 banner. **Still open on `OI-SINK-09` only** — `OI-EMCCAV-07` was answered by `NP-THERM-BOWL-001` (Rev 14), and its `OI-THBOWL-05` hand-back is answered in the Rev 16 banner (current path 0.335; SINK's k-0.05 foam gives 0.350, asserted). **`OI-SINK-09`** — the binding 3 mm re-loft shrinks the exterior the via rejects through by 4.6 %, raising `SPEC-SINK-01` 1.08 → 1.14 K/W and moving the N = 6 floor-case face **+0.2 K** and its occlusion crossing 0.72 → 0.64: the one scalp-side figure that gets **worse**, flagged to the principal and **not** absorbed into any limit. *Original text:* **Re-baseline the outward path at 0.335 m²K/W now that the Layer 4 absorber is deleted (2026-09-23, `REQ-CAV-04`).** `scripts/check-thermal-network.ts` (`R_FOAM`), `check-thermal-multitile.ts` (`R_CAV_AMB`), `check-thermal-sink.ts` (the absorber layer) and every table in §4–§6 of this document, `NP-THERM-SINK-001` §3.1 and `NP-THERM-CFD-R1-001` §2 still carry the 0.410 baseline with the foam in it. They are **conservative** (the real path is less resistive), so nothing they conclude about a safety ceiling is weakened — but every *capability* figure (§5's aggregate ceiling, D-2's option ranking, the GFE 6.77×) is understated, and none may be quoted as current until re-run. Do together with `OI-EMCCAV-07` (outer-bowl heat budget) | Thermal | No — conservative on every per-area figure; **see `OI-SINK-09` for the one that is not** |
 | **OI-THCOOL-06** | **♻ REOPENED 2026-09-20 (principal direction) — AGAINST THE COLLAR, NOT THE LOOP.** **Bench-measure ELF magnetic leakage through a formed mu-metal chimney collar at the posterior boss, and the permeability the forming costs.** The 2026-08-30 closure below is **retained and correct on its own terms** — D-2 did put the pneumatic loop out of scope — but its trigger, *"reopen only if the loop is revived"*, **was too narrow**: the measurement is about a **formed collar at a penetration**, not about what passes through it. Two things now need it, neither pneumatic. **(a) The collar exists either way.** `NP-DRV-SHELL-002` §4.3 routes the entire module interconnect — **216 pins in 20 tail groups** plus the fluxgate/coil harness — through this **one aperture**, so mu-metal continuity is interrupted at the boss regardless of geometry, and `hardware-detail.md` §4.3 **D3** makes that continuity load-bearing for Layer 2. **(b) An OUTWARD emboss adds a second, distinct question, and it is now COMMITTED, not hypothetical** — **`BOSS-1`** (principal direction 2026-09-20, `NP-HEX-ZM-001` §5.3(c)) projects the boss **outward** as a local emboss (`NP-EMC-CAV-001` §8.6.3): drawing mu-metal over a local dome **work-hardens it**, and it **cannot be re-annealed after lamination** to PETG and CFRP — so the emboss trades Gap millimetres for a local permeability dip in the one layer D3 depends on. **Scope: ELF magnetic, below ~100 Hz, where waveguide-below-cutoff does not apply** — a fluxgate/Helmholtz bench, **not** the VNA sweep `EMF-1a`–`EMF-1d` use. Rides the `EMF-1` fixture as **`EMF-1e`** | EMC (`EMF-1`) + ME | **BLOCKING on `OI-EMCCAV-10` (boss projection direction) and on MECH-1 cutting the posterior boss** — the same time-box `NP-DRV-SHELL-002` §4.3 already sets |
 | ~~OI-THCOOL-06~~ | **✅ CLOSED 2026-08-30 by D-2** — this was BLOCKING only on the pneumatic loop's penetration of the posterior boss, and §6.9 puts that loop out of scope. Retained struck-through rather than deleted, per `NP-CONV-001` §4's append-only open-item rule; ~~reopen only if the loop is revived~~ — **that trigger was too narrow; REOPENED 2026-09-20 against the collar, see the row above** | — (closed) | — |
 | ~~OI-THCOOL-06 (original text)~~ | **Bench-measure ELF magnetic leakage through a mu-metal chimney collar at the posterior boss with tube penetrations.** Waveguide-below-cutoff does not apply below ~100 Hz | EMC (EMF-1) | **BLOCKING on §6.2** |
@@ -1384,6 +1508,8 @@ raises one term of), §12 (the prohibition D-3 invokes), §5.5 (the CEM43 exposu
 §6.8 inherits) · CLAUDE.md §1 (Mode 3 autonomy), §3 (RISK-14 dual-PD), §4.2/§4.3/§4.5 ·
 `scripts/check-pbm-power.ts` (where `maxConcurrent` becomes session length) ·
 `scripts/check-thermal-network.ts` §9–§18 (§17 produces every §7.4 figure, §18 every §7.5 one) ·
+`scripts/thermal-outward-path.ts` (the as-was and current outward path, one exported place — Rev 16) ·
+`NP-THERM-SINK-001` §3a / `OI-SINK-09` (the exterior-area term the per-area network cannot see) ·
 `scripts/check-thermal-dose.ts` (the CEM43 model §7.4.2 uses, and the per-protocol audit §7.4.5
 relies on) ·
 `NP-FW-POE-001` §6.1 (the hysteresis §7.5 specifies, whose anchor §7.4 makes per-protocol) ·
