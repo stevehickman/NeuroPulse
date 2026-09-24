@@ -809,6 +809,15 @@ as closed.
 > for `OI-LOG-05`). "One writer per log file" is now enforced for the Config instance by a
 > registry and a CI gate; the log glue joins that gate's caller list when it is written.
 
+> **Update 2026-09-24 — `OI-LFS-11` closed (`NP-SOUP-LFS-001` Rev 7 §13.10).** §6.5's *"the log
+> file"* is, for UHDR, **one file per session** — `/uhdr/sessions/<count>`, as `NP-FW-EMMC-001`
+> `EMMC-UHDR-12`/`-13` specify — opened by `np_log_session_start()` and closed by
+> `np_log_session_end()`, created exclusively and never reopened. The durability model above holds
+> per file: a flush commits the exact tail of the session file it was written to. SHDR keeps one
+> file. UHDR is no longer opened at bring-up (it is not mounted until the user unlocks it), and
+> nothing is written to UHDR outside a session. The device session count increments at session
+> start but is not persisted (`OI-LFS-12`); the logger steps past a count whose file exists.
+
 ---
 
 ## 7. Safety MCU interface

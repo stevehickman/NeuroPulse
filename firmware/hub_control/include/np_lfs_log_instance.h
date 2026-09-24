@@ -57,7 +57,8 @@
  * session layout and WRONG for np_log_backend.h's "the append-mode log file"
  * — a single file cannot exceed 2 GiB, a third of the UHDR partition.  That is
  * a finding against the log backend's file layout, not against this value;
- * carried to OI-LOG-05 (NP-SOUP-LFS-001 §13.1.4).
+ * carried to OI-LOG-05 (NP-SOUP-LFS-001 §13.1.4).  Resolved as OI-LFS-11: the
+ * backend now writes one UHDR file per session (§13.10).
  */
 
 #ifndef NP_LFS_LOG_INSTANCE_H

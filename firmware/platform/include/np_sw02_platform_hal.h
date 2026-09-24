@@ -50,9 +50,9 @@ extern "C" {
 
 /*
  * Total number of symbols the SW-02 platform layer owes: the 65 declared in
- * this file plus the 33 declared in the nine module headers named above.
+ * this file plus the 34 declared in the nine module headers named above.
  *
- * This is not decoration.  firmware/platform/ defines all 98 as traps rather
+ * This is not decoration.  firmware/platform/ defines all 99 as traps rather
  * than drivers, and the cross-build asserts that the number of definitions it
  * emits equals this constant (NP-SW-CI-001 §4.8).  The count can only change by
  * editing this line, which is the point: a platform symbol appearing or
@@ -74,8 +74,13 @@ extern "C" {
  * tiles.  It is the first PBM seam indexed by socket rather than by retired
  * zone slot; the three slot-indexed PBM seams stay until the slot path is
  * deleted, because the slot path still links.
+ *
+ * 98 → 99 on 2026-09-24 (NP-SOUP-LFS-001 Rev 7 §13.10, OI-LFS-11):
+ * np_log_hal_part_close(), declared in np_log_backend.h.  UHDR logs became one
+ * file per session, so a session's file must be closed at its end; the seam
+ * np_log_hal_part_open() also gained the segment (session counter) argument.
  */
-#define NP_SW02_PLATFORM_SYMBOL_COUNT   98
+#define NP_SW02_PLATFORM_SYMBOL_COUNT   99
 
 /* ── Core clock (OI-SWCI-41) ──────────────────────────────────────────────────
  *

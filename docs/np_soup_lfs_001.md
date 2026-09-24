@@ -2,9 +2,9 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-LFS-001
-**Revision:** 6
+**Revision:** 7
 **Date:** 2026-09-24
-**Status:** DRAFT — the hazard analysis (§4–§6) is complete and does not depend on a version. **Rev 6 closes `OI-LFS-10` and applies `ECR-EMMC-002` (§13.9): the Config instance takes `EMMC-FS-01`'s remaining values, and `NP-FW-EMMC-001` Rev 3 now prints `read_size`/`prog_size` 512 in all three columns — so all three littlefs instances match their specification exactly.** **Rev 5 decides the first half of `OI-LFS-10`: the Config instance moves to `read_size`/`prog_size` 512, the XTS data unit, and `cache_size` follows to 512 (§13.8); `RISK-LFS-08` closed.** **Rev 4 builds the caller rules §11 asked for and closes five items (§13): `OI-LFS-03`, `-05`, `-06`, `-08`, `-09`.** The Config store (`np_cfg_store`) makes each rule a property of its API, a CI gate makes going around it fail, the UHDR/SHDR instances have parameters and a validator, and upstream #1205 is reproduced on `v2.11.3` and shown not to reach a caller. It also finds that `EMMC-FS-01` states every parameter Rev 2 said it did not, and that a `prog_size` below the 512-byte XTS unit loses committed data — which is the Config instance as built (`OI-LFS-10`). `OI-LFS-07` (the eMMC) and `OI-LFS-04` (Safety + EE) stay open. **Rev 3 closed `OI-LFS-02`: the IEC 62304 §7.1.2 anomaly evaluation is performed (§11) and the NeurOne power-loss injection test against `L-1…L-4` is written, run and falsified in both directions (§12).** `L-1…L-4` may now be relied on **against the `struct lfs_config` contract** — which is what they were stated against — and not against the eMMC beneath it, which no host test can reach and which is raised as `OI-LFS-07`. Rev 2 closed `OI-LFS-01` (littlefs `v2.11.3` pinned and vendored at `firmware/vendor/littlefs/`); Rev 1 performed the hazard analysis.
+**Status:** DRAFT — the hazard analysis (§4–§6) is complete and does not depend on a version. **Rev 7 closes `OI-LFS-11` (§13.10): UHDR logs are one file per session, as `EMMC-UHDR-12`/`-13` specify, so no file approaches littlefs's 2 GiB `file_max`; SHDR stays one file because its whole partition is 512 MiB.** **Rev 6 closes `OI-LFS-10` and applies `ECR-EMMC-002` (§13.9): the Config instance takes `EMMC-FS-01`'s remaining values, and `NP-FW-EMMC-001` Rev 3 now prints `read_size`/`prog_size` 512 in all three columns — so all three littlefs instances match their specification exactly.** **Rev 5 decides the first half of `OI-LFS-10`: the Config instance moves to `read_size`/`prog_size` 512, the XTS data unit, and `cache_size` follows to 512 (§13.8); `RISK-LFS-08` closed.** **Rev 4 builds the caller rules §11 asked for and closes five items (§13): `OI-LFS-03`, `-05`, `-06`, `-08`, `-09`.** The Config store (`np_cfg_store`) makes each rule a property of its API, a CI gate makes going around it fail, the UHDR/SHDR instances have parameters and a validator, and upstream #1205 is reproduced on `v2.11.3` and shown not to reach a caller. It also finds that `EMMC-FS-01` states every parameter Rev 2 said it did not, and that a `prog_size` below the 512-byte XTS unit loses committed data — which is the Config instance as built (`OI-LFS-10`). `OI-LFS-07` (the eMMC) and `OI-LFS-04` (Safety + EE) stay open. **Rev 3 closed `OI-LFS-02`: the IEC 62304 §7.1.2 anomaly evaluation is performed (§11) and the NeurOne power-loss injection test against `L-1…L-4` is written, run and falsified in both directions (§12).** `L-1…L-4` may now be relied on **against the `struct lfs_config` contract** — which is what they were stated against — and not against the eMMC beneath it, which no host test can reach and which is raised as `OI-LFS-07`. Rev 2 closed `OI-LFS-01` (littlefs `v2.11.3` pinned and vendored at `firmware/vendor/littlefs/`); Rev 1 performed the hazard analysis.
 **Effective Date:** —
 **Author:** NeurOne Firmware Engineering
 **Approved By:** — (DRAFT, not approved)
@@ -15,6 +15,15 @@
 **Supersedes:** None — new document. It replaces the single verification cell that `NP-SW-001` §9.4 previously carried for this component.
 **Pinned version:** littlefs **v2.11.3** (tag commit `6cb4e86540eca0d9ba62500a298385c9d863c8be`), vendored at `firmware/vendor/littlefs/` with per-file SHA-256 — `firmware/vendor/littlefs/VERSION` is the SOUP record proper, and this document is its hazard analysis.
 **Review Cadence:** On any change to the pinned version, on first integration, and at G2. §11 is re-run in full on any tag change — a §7.1.2 evaluation is a statement about one version and carries forward to no other.
+
+---
+
+> **⚠ REV 7 (2026-09-24) — `OI-LFS-11` CLOSED (§13.10).** The log backend's *"the append-mode log
+> file"* per partition becomes one UHDR file per session, created exclusively under
+> `/uhdr/sessions/<count>`; SHDR keeps its single file. **The open items remaining in this document
+> are `OI-LFS-07` (hardware) and `OI-LFS-04` (Safety + EE), plus `OI-LFS-12`, raised here** — the
+> device session count is not persisted (`EMMC-SHDR-09`), which the logger now survives but does not
+> fix.
 
 ---
 
@@ -554,7 +563,8 @@ of the component is recorded, compiled and tested; that `L-5` is enforced rather
 | ~~`OI-LFS-05`~~ | **✅ CLOSED 2026-09-24 (Rev 4, §13.1).** The UHDR and SHDR instances' parameters. **The premise was wrong: `EMMC-FS-01` has UHDR and SHDR columns** (and states every Config value Rev 2 said it did not — `OI-LFS-10`). Decided: `EMMC-FS-01`'s values with **one deviation, `read_size`/`prog_size` 512** (`ECR-EMMC-002`: a smaller program is a read-modify-write of committed bytes under the 512-byte XTS unit, shown by sweep). `lookahead_size` kept at the specified 512/256 under CLAUDE.md §18 — full coverage would cost 237 KiB of on-chip RAM against an unmeasured stall — with its traversal cost measured in reads and its time added to `OI-LFS-07`. `np_lfs_log_instance` applies and validates them; `L-1`/`L-2` swept on the real 1,767,168- and 131,072-block geometry (132 runs, 0 violations). **Does not build the UHDR file glue** — that is `OI-LOG-05..07`, so `OI-FAULTMSG-03` narrows rather than unblocks. `RISK-LFS-05` closed | — (closed) | — |
 | ~~`OI-LFS-06`~~ | **✅ CLOSED 2026-09-24 (Rev 4, §13.3).** One open handle per file, made checkable. Every Config handle comes from `cfg_open()`, which keeps a registry and refuses a second (`NP_HUB_ERR_STORE_BUSY`), tested; the gate's R1/R2 forbid littlefs calls outside the listed callers, `lfs_file_open()` anywhere, and `lfs_file_opencfg()` anywhere but inside `cfg_open()`. The log instances' future glue must be added to the gate's `LFS_CALLERS` with its reason | — (closed) | — |
 | ~~`OI-LFS-10`~~ | **✅ CLOSED 2026-09-24 (Rev 5 §13.8, Rev 6 §13.9).** The Config instance disagreed with `EMMC-FS-01` on five fields, and its `prog_size` 256 lost committed data under the 512-byte XTS read-modify-write. **Decided by the principal in two steps:** `read_size`/`prog_size` 512 with `cache_size` 512 (Rev 5); then `EMMC-FS-01`'s `lookahead_size` 64, `block_cycles` 200, `name_max` 64, `attr_max` 256 and `metadata_max` 4,096 (Rev 6). `ECR-EMMC-002` applied: `NP-FW-EMMC-001` Rev 3 prints 512 in all three columns. The Config instance now equals the specification exactly. `RISK-LFS-08` closed | — (closed) | — |
-| **`OI-LFS-11`** | **The log backend's file layout cannot fill the UHDR partition.** `np_log_backend.h` specifies one append-mode log file per partition; littlefs caps a file at `file_max` = 2 GiB − 1, under a third of UHDR's 6,903 MiB. `EMMC-UHDR-12` specifies one file per session instead, which the parameter suits. The `OI-LOG-05` glue must pick one, and the one-file design needs a rotation it does not have | FW | `OI-LOG-05`; `NP-FW-HUB-001` §6.5 |
+| ~~`OI-LFS-11`~~ | **✅ CLOSED 2026-09-24 (Rev 7, §13.10).** The log backend's one append file per partition could not pass littlefs's 2 GiB `file_max` on the 6,903 MiB UHDR partition. **Decided:** the layout `NP-FW-EMMC-001` already specified — UHDR one file per session (`EMMC-UHDR-12`/`-13`, `/uhdr/sessions/<count>`), created exclusively, opened at session start and closed at session end; SHDR one file, which cannot reach `file_max` because its partition is 512 MiB. A single session file is capped at `file_max` (≈49 h at 12 kB/s) and fails that session closed. New seam `np_log_hal_part_close()` | — (closed) | — |
+| **`OI-LFS-12`** | **The device session count is not persisted.** `EMMC-SHDR-09` says it is incremented at session start and stored in the Config partition; `np_session_log` now increments it (§13.10), but nothing writes it back, so after a reboot it restarts from whatever `np_hal_get_device_session_count()` returns. UHDR is protected — the logger steps past any count whose session file exists, so no file is reopened or overwritten and counts stay unique — but SHDR records carry a count that can jump, and past `NP_LOG_SESSION_PROBE_MAX` (1,024) stale values a session's UHDR log fails closed. Decide where the count lives (a `REBUILD` or `REPLICATED` Config file through `np_cfg_store`) and write it at session start | FW | SHDR count continuity; `EMMC-SHDR-09` |
 
 ---
 
@@ -567,6 +577,7 @@ of the component is recorded, compiled and tested; that `L-5` is enforced rather
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 7 | 2026-09-24 | NeurOne Firmware Engineering | **`OI-LFS-11` CLOSED — UHDR logs become one file per session (§13.10).** `np_log_backend` gains `np_log_backend_session_begin(counter)` / `_session_end()`: UHDR is written only inside a session, to `/uhdr/sessions/<count>` (`EMMC-UHDR-12`/`-13`), created exclusively and never reopened; each session's staged tail is flushed into its own file; a per-file cap at `file_max` fails one session closed and clears at the next. UHDR is no longer opened at boot, when it is not yet mounted. SHDR keeps one file — its partition (512 MiB) is below `file_max`. `np_session_log` opens and closes the files at session start/end, increments the device session count there (`EMMC-SHDR-09`), and steps past a count whose file exists rather than lose the session (new `NP_HUB_ERR_LOG_EXISTS`). Lower HAL: `np_log_hal_part_open()` gains the segment argument; new seam `np_log_hal_part_close()` (SW-02 census 98 → 99). `np_log_backend_tests` gains seven cases and links the logger; falsified four ways. New `OI-LFS-12`: the session count is not persisted. Rev 6 → 7. |
 | 6 | 2026-09-24 | NeurOne Firmware Engineering | **`OI-LFS-10` CLOSED and `ECR-EMMC-002` APPLIED (§13.9).** The Config instance takes `EMMC-FS-01`'s remaining values on the principal's decision — `lookahead_size` 64 (was 512), `block_cycles` 200 (was 500), `name_max` 64 and `attr_max` 256 (were unset), `metadata_max` 4,096 stated — now set by `np_lfs_config_apply()` and checked by `np_lfs_config_validate()`, with five new must-refuse perturbations. `inline_max` falls to 256 B (`attr_max` bounds it); `ukmd.rec`'s 208-byte envelope stays inline. `NP-FW-EMMC-001` amended Rev 2 → 3 by `editscripts/patch_emmc_ecr002_prog512.py` (idempotent; six cells changed with the superseded 256 retained, a banner, header and revision row) — the first edit to that `.docx` since Rev 2, made through the patch-script convention `OI-CONV-04` points to. All three instances now match `EMMC-FS-01` exactly. Suites re-run: §12 285 interrupted runs, the store 225, Config RMW 84 — 0 violations; falsifications still caught. Rev 5 → 6. |
 | 5 | 2026-09-24 | NeurOne Firmware Engineering | **`OI-LFS-10`'s hazard half decided by the principal — the Config instance moves to `read_size`/`prog_size` 512 (§13.8).** `cache_size` follows to 512 because `lfs_init()` requires a multiple of `prog_size`, which also brings it into agreement with `EMMC-FS-01`. `np_lfs_instance.h` changed and `_Static_assert`ed (a 256 build no longer compiles); `np_lfs_config_tests` pins 512 and now requires 256 to be *refused*; the Config RMW sweep in `np_lfs_log_instance_tests` flips from *must lose data* to *must lose nothing*, and a raw-littlefs sweep at 256 keeps the evidence live. §12's suite re-run on the new instance: 285 interrupted runs, 0 violations, falsifications still caught. `ECR-EMMC-002` extended to the Config column. `RISK-LFS-08` closed. **Still open in `OI-LFS-10`:** `lookahead_size`, `block_cycles`, `name_max`/`attr_max`. Static RAM 1,024 → 1,536 B, plus 512 B per open file. Rev 4 → 5. |
 | 4 | 2026-09-24 | NeurOne Firmware Engineering | **Builds the caller rules §11 asked for — `OI-LFS-03`, `-05`, `-06`, `-08`, `-09` CLOSED (GitHub #382), §13.** New Class B module **`np_cfg_store`**, the Config instance's only caller, in which each rule is a property of the API: a registry that refuses a second handle (`OI-LFS-06`); no unverified read, no `stat`, a read error reported as an absence and followed by a remount (`OI-LFS-09`); no remove or rename — replacement is an in-place `O_TRUNC` rewrite, re-swept for `L-3` — and `ukmd.rec` held as two enveloped copies in two metadata pairs, repaired from its twin (`OI-LFS-08`); and a per-file policy table whose tail-additive rows are pinned. **`scripts/check-lfs-caller-rules.ts`** makes going around the API fail CI and is `REQ-LFS-01`'s check (`OI-LFS-03`), self-tested in 21 cases. New module **`np_lfs_log_instance`**: the UHDR/SHDR parameters, validator and allocator primer (`OI-LFS-05`). Host targets `np_cfg_store_tests` and `np_lfs_log_instance_tests` (Class B 32 → 34, repo 42 → 44); `np_lfs_powerbd` gains a sparse medium, read-error injection and a read-modify-write tear unit, all off by default so §12's suite is untouched. **Findings:** upstream **#1205 reproduced** on `v2.11.3` and shown not to reach a store caller — hand-falsification of the remount found a second, metadata-pair path, now a test; **`EMMC-FS-01` states every parameter** Rev 2 said it did not, including UHDR and SHDR columns, and the Config code disagrees on five fields; **`prog_size` below the 512-byte XTS unit loses committed data** under a read-modify-write tear — the logs deviate to 512 (`ECR-EMMC-002`), the Config instance as built does not (`OI-LFS-10`, `RISK-LFS-08`); the specified UHDR `lookahead_size` costs one whole-filesystem traversal per 16 MiB written, ≈ 0.5 reads per block in use, kept under CLAUDE.md §18 with its time added to `OI-LFS-07`; the log backend's single-file layout cannot fill UHDR (`OI-LFS-11`). **Negative results recorded:** #1210 did not reproduce; the remount was at first caught only by a counter. Falsified by hand in 13 ways (§13.6). `RISK-LFS-05` closed, `RISK-LFS-07` reduced, `RISK-LFS-08` added. **Not closed:** `OI-LFS-07` (hardware) and `OI-LFS-04` (Safety + EE). Nothing is integrated. Rev 3 → 4. |
@@ -1216,4 +1227,52 @@ exactly. The word *"deviation"* in §13.1 and §13.8 now means *"from Rev 2 of t
 **Re-run on the instance as built:** §12's suite 285 interrupted runs; the store's in-place replace,
 journal and replicated write 105 + 108 + 12 = 225; the Config journal under the 512-byte RMW model 84
 — **0 violations**; the falsifications and the 256-under-RMW case still fail as required.
+
+### 13.10 `OI-LFS-11` — one UHDR file per session (Rev 7, 2026-09-24)
+
+**The problem.** `np_log_backend.h` specified *"the append-mode log file"* — one file per partition —
+and littlefs caps a file at `file_max` = 2,147,483,647 B. That is under a third of the 6,903 MiB
+UHDR partition, so the log would have stopped with two thirds of the partition free.
+
+**The decision: the layout `NP-FW-EMMC-001` already specified.** Nothing new was invented:
+
+| Partition | Layout | Why |
+|---|---|---|
+| UHDR | **one file per session**, `/uhdr/sessions/<count>` with the count zero-padded to 20 digits (`EMMC-UHDR-12`, `-13`) | a session cannot approach 2 GiB (≈49 h at the EEG rate), and a per-session file is the unit `EMMC-UHDR-12`'s record format, the backup manifest and `EMMC-WE-01`'s *"max file size in /uhdr/sessions/"* telemetry already assume |
+| SHDR | **one file**, unchanged | the whole partition is 512 MiB, so no file on it can reach `file_max`; `EMMC-SHDR-08`'s per-category directories are a separate matter the logger does not yet split by |
+
+**What changed in the code.**
+
+- `np_log_backend`: `np_log_backend_session_begin(counter)` and `_session_end()`. UHDR is written only
+  inside a session (`NP_HUB_ERR_NO_SESSION` outside one) — which also means it is no longer opened at
+  boot, when it is not even mounted (`np_uhdr_key_unlock()` mounts it). A session's staged tail is
+  flushed into **its own** file at end, or at the next begin if end was missed. A file that would pass
+  `NP_LOG_SEGMENT_MAX_BYTES` (= `file_max`) fails the rest of that session closed and clears at the
+  next begin. A new session's status reports only the new file.
+- Session files are **created exclusively** and never reopened: an existing file returns the new
+  `NP_HUB_ERR_LOG_EXISTS`. Appending a new session to an old file, or truncating it, would each be a
+  way to corrupt or destroy a user's earlier session.
+- `np_session_log`: `np_log_session_start()` drains anything buffered into the previous file,
+  increments the device session count (`EMMC-SHDR-09` — *incremented at session start*), and opens the
+  file it names; `np_log_session_end()` writes the end records, drains, and closes. **The count is not
+  persisted anywhere** (`OI-LFS-12`), so after a reboot it can repeat. The logger steps past any count
+  whose file exists — up to `NP_LOG_SESSION_PROBE_MAX` (1,024) — so counts stay unique and monotonic
+  and no session is lost to a stale count.
+- Lower HAL: `np_log_hal_part_open(part, segment)` (UHDR: exclusive create of the session file; SHDR:
+  the single file) and a new seam, `np_log_hal_part_close(part)` — SW-02 platform census **98 → 99**,
+  which the cross-build asserts.
+
+**Tested** in `np_log_backend_tests`, which now also links `np_session_log.c` and
+`np_adaptation_log.c`: no UHDR outside a session; one file per session; the tail stays with its
+session when a begin arrives without an end; an existing file refused with `LOG_EXISTS` and left
+untouched; the per-file cap failing one session and not the next; the logger naming files by the
+session count, the SHDR session-end record carrying the same count, and a stale post-reboot count
+stepping past existing files. **Falsified by hand** four ways, each caught: the step-past loop removed
+(2 failures), the drain at session end removed (3), the per-file cap removed (2), and
+`_session_end()` not flushing (3).
+
+**Not established.** The real `np_log_hal_part_*` over littlefs is still `OI-LOG-05..07`; the
+exclusive-create and file-per-session behaviour are tested against the host model of that seam.
+`np_lfs_log_instance` and `check-lfs-caller-rules.ts` already require that glue to be added to the
+gate's caller list when it is written.
 

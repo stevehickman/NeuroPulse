@@ -150,6 +150,11 @@ if(NP_BUILD_TESTS)
     add_executable(np_log_backend_tests
         tests/np_log_backend_tests.c
         src/np_log_backend.c
+        # OI-LFS-11: the session logger opens and closes the per-session UHDR
+        # files, so its session boundaries are tested here, over the same
+        # host model of the lower HAL.
+        src/np_session_log.c
+        src/np_adaptation_log.c
     )
     target_include_directories(np_log_backend_tests PRIVATE
         include

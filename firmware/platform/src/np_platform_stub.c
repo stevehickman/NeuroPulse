@@ -689,7 +689,14 @@ np_hub_status_t np_hexmap_nvram_write(const uint8_t *buf, size_t len)
  * Session-log partition backing (OI-LOG-05..07) — np_log_backend.h
  * ──────────────────────────────────────────────────────────────────────────*/
 
-np_hub_status_t np_log_hal_part_open(np_log_part_t part)
+np_hub_status_t np_log_hal_part_open(np_log_part_t part, uint64_t segment)
+{
+    (void)part;
+    (void)segment;
+    NP_PLATFORM_TRAP();
+}
+
+np_hub_status_t np_log_hal_part_close(np_log_part_t part)
 {
     (void)part;
     NP_PLATFORM_TRAP();

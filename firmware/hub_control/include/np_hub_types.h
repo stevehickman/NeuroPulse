@@ -59,6 +59,11 @@ typedef enum {
     NP_HUB_ERR_STORE_BUSY           = -21,
     NP_HUB_ERR_STORE_IO             = -22,
     NP_HUB_ERR_STORE_INTEGRITY      = -23,
+    /* NP-SOUP-LFS-001 Rev 7 §13.10 (OI-LFS-11): a UHDR session file with this
+     * counter already exists.  Session files are created exclusively and never
+     * reopened, so this is how a reused counter is reported — distinctly, so the
+     * logger can move to the next unused counter instead of losing the session. */
+    NP_HUB_ERR_LOG_EXISTS           = -24,
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════

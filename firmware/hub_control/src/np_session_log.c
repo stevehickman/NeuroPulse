@@ -15,6 +15,7 @@
 
 #include "np_session_log.h"
 #include "np_adaptation_log.h"
+#include "np_log_backend.h"    /* per-session UHDR files (OI-LFS-11) */
 #include <string.h>
 
 /* ── Internal buffers (flushed to eMMC by HAL) ───────────────────────────────── */
@@ -66,6 +67,11 @@ static void shdr_u8(uint8_t tag) { shdr_write(&tag, 1U); }
 
 /* ── Public API ───────────────────────────────────────────────────────────────── */
 
+uint32_t np_log_session_count(void)
+{
+    return s_device_session_count;
+}
+
 void np_log_init(uint32_t device_session_count)
 {
     s_uhdr_pos             = 0U;
@@ -73,9 +79,35 @@ void np_log_init(uint32_t device_session_count)
     s_device_session_count = device_session_count;
 }
 
+/* Hand everything buffered for UHDR to the file that is open NOW.  Called at
+ * both session boundaries so no record crosses into the wrong session's file. */
+static void uhdr_drain(void)
+{
+    if (s_uhdr_pos > 0U) {
+        np_log_hal_uhdr_append(s_uhdr_buf, s_uhdr_pos);
+        s_uhdr_pos = 0U;
+    }
+    np_log_hal_uhdr_flush();
+}
+
 void np_log_session_start(const np_session_uhdr_record_t *rec)
 {
     if (rec == NULL) { return; }
+
+    /* Anything still buffered belongs to the previous session's file. */
+    uhdr_drain();
+
+    /* EMMC-SHDR-09: the count increments at session start, and names this
+     * session's UHDR file (EMMC-UHDR-12).  A file that already has the name
+     * means the count was not carried across a reboot: step past it rather
+     * than lose the session — and never reopen it (OI-LFS-11). */
+    for (uint32_t probe = 0U; probe < NP_LOG_SESSION_PROBE_MAX; probe++) {
+        s_device_session_count++;
+        if (np_log_backend_session_begin((uint64_t)s_device_session_count)
+                != NP_HUB_ERR_LOG_EXISTS) {
+            break;
+        }
+    }
 
     /* UHDR: session start record */
     uhdr_u8(NP_LOG_TAG_UHDR_SESSION_START);
@@ -103,6 +135,15 @@ void np_log_session_end(const np_session_uhdr_record_t *uhdr_rec,
         shdr_write(&shdr_rec->abort_reason,  sizeof(shdr_rec->abort_reason));
         shdr_write(&shdr_rec->mods_active_mask, sizeof(shdr_rec->mods_active_mask));
         shdr_write(shdr_rec->firmware_version, sizeof(shdr_rec->firmware_version));
+    }
+
+    /* The session-end record is the last thing in this session's file. */
+    uhdr_drain();
+    (void)np_log_backend_session_end();
+    if (s_shdr_pos > 0U) {
+        np_log_hal_shdr_append(s_shdr_buf, s_shdr_pos);
+        s_shdr_pos = 0U;
+        np_log_hal_shdr_flush();
     }
 }
 
