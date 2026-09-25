@@ -80,8 +80,9 @@ typedef np_hub_status_t (*np_log_count_commit_fn)(uint32_t count);
 void np_log_set_count_commit(np_log_count_commit_fn fn);
 
 /*
- * np_log_session_end — write UHDR session-end and SHDR session-end records,
- * flush both, and close the session's UHDR file (OI-LFS-11).
+ * np_log_session_end — drain the adaptation ring, write UHDR session-end and
+ * SHDR session-end records, flush both, and close the session's UHDR file
+ * (OI-LFS-11, OI-FWHUB-15).
  * Call after np_runner_run() returns.
  */
 void np_log_session_end(const np_session_uhdr_record_t *uhdr_rec,

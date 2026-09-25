@@ -568,6 +568,37 @@ static void test_shdr_overflow_syncs_after_append(void)
           "durability: no SHDR byte lost or duplicated across the overflow");
 }
 
+/* OI-FWHUB-15: the runner calls np_log_session_end() and THEN np_log_flush(). */
+static void test_session_end_keeps_queued_adapt_events(void)
+{
+    logger_session_open();
+    np_adaptation_event_t ev;
+    memset(&ev, 0, sizeof ev);
+    ev.session_ms = 900U;
+    (void)np_adapt_log_event(&ev);                      /* still queued at session end */
+    np_session_shdr_record_t shdr;
+    memset(&shdr, 0, sizeof shdr);
+    np_log_session_end(&g_rec, &shdr);                  /* runner order */
+    np_log_flush();
+
+    const uint8_t *cap = np_log_test_captured(NP_LOG_PART_UHDR);
+    check(np_log_test_segment_len(NP_LOG_PART_UHDR, 0U) >
+              START_REC_BYTES + ADAPT_REC_BYTES &&
+          cap[START_REC_BYTES] == NP_LOG_TAG_UHDR_ADAPT_EVENT,
+          "session end: an adaptation event queued at session end is in its "
+          "session's file");
+    check(cap[START_REC_BYTES + ADAPT_REC_BYTES] == NP_LOG_TAG_UHDR_SESSION_END,
+          "session end: it precedes the session-end record");
+
+    np_log_session_start(&g_rec);                       /* the next session */
+    np_log_flush();
+    check(np_log_test_segment_len(NP_LOG_PART_UHDR, 1U) == START_REC_BYTES,
+          "session end: nothing from the previous session leaks into the next file");
+    np_session_shdr_record_t shdr2;
+    memset(&shdr2, 0, sizeof shdr2);
+    np_log_session_end(&g_rec, &shdr2);
+}
+
 int main(void)
 {
     printf("── np_log_backend_tests (OI-LOG-01..04) ──\n");
@@ -594,6 +625,7 @@ int main(void)
     test_flush_syncs_eeg_blocks();
     test_uhdr_overflow_syncs_after_append();
     test_shdr_overflow_syncs_after_append();
+    test_session_end_keeps_queued_adapt_events();
 
     if (g_failures == 0) {
         printf("ALL TESTS PASSED\n");

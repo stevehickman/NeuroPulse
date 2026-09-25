@@ -154,6 +154,12 @@ void np_log_session_start(const np_session_uhdr_record_t *rec)
 void np_log_session_end(const np_session_uhdr_record_t *uhdr_rec,
                          const np_session_shdr_record_t *shdr_rec)
 {
+    /* Adaptation events still in the ring belong to this session: move them
+     * into the buffer while its file is open, ahead of the session-end record.
+     * Left for the caller's np_log_flush(), they would reach a closed file and
+     * no file at all (OI-FWHUB-15). */
+    np_adapt_log_flush();
+
     if (uhdr_rec != NULL) {
         uhdr_u8(NP_LOG_TAG_UHDR_SESSION_END);
         uhdr_write(uhdr_rec->session_uuid, NP_HUB_PROTO_UUID_LEN);
