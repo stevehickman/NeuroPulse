@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 5
+**Revision:** 6
 **Date:** 2026-09-24
 **Status:** RELEASED as a design output under `21 CFR §820.30(d)`. **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -16,6 +16,12 @@
 **Parent Document:** `NP-SW-001`
 
 ---
+
+> **Rev 6 (2026-09-24) — `OI-FWHUB-15` closed: adaptation events queued at session end reach their
+> session's file.** `np_log_session_end()` now drains the adaptation ring before it writes the
+> session-end record and closes the file. Until now the runner's following `np_log_flush()` drained
+> the ring into a closed file, and the events were lost without a trace. `np_log_backend_tests` gains
+> 1 case, and removing the drain fails it (§6.5, §13).
 
 > **Rev 5 (2026-09-24) — the session logger appends before it syncs, and keeps a UHDR session file
 > in the order records were logged (§6.1, §6.5).** Two defects in `np_session_log.c` predate
@@ -870,6 +876,13 @@ as closed.
 > `np_log_session_end()`, which closes the session file, before `np_log_flush()` drains the ring
 > (`OI-FWHUB-15`).
 
+> **Update 2026-09-24 (Rev 6) — `OI-FWHUB-15` closed.** `np_log_session_end()` now drains the
+> adaptation ring first, while the session's file is still open. Events queued at session end
+> therefore land in that session's file, ahead of the session-end record, which ends each file. The
+> runner's `np_log_flush()` that follows finds the ring empty. A test asserts both properties, and
+> both fail when the drain is removed. It also checks that nothing from the ended session reaches
+> the next session's file.
+
 ---
 
 ### 6.6 Per-session recording limit — proposed IFU text *(Rev 4)*
@@ -1330,7 +1343,7 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | **`OI-FWHUB-13`** | **The per-session recording limit must reach the user documentation.** §6.6 states it (about 49 hours per session; recording stops, the session does not) and gives proposed IFU text, but no IFU or in-app help document exists yet (`NP-QMS-DC-001`: labelling and IFU *TBD*). When that document is created, §6.6's text goes into it, and the figure is re-derived if `file_max` or the EEG data rate changes | FW + Regulatory | IFU authoring |
 | **`OI-FWHUB-12`** | **The PBM library's I²C stub bounds its address to the five retired slots.** `firmware/pbm/src/np_pbm_hal.c` rejects `slot >= 5`, so a smart-tile socket above index 4 fails in the stub. Not a requirement — the stub is marked *"replace entirely before hardware bring-up"* — but the tunnelled HAL that replaces it must take a socket index 0–127 (`NP-HW-HUB-001` §9.2), and nothing else records that | FW | Hardware bring-up |
 | **`OI-FWHUB-14`** | **The EEG sample path's documented calling context is incompatible with the logger.** §8.2 and `np_mod_eeg.c` say `np_log_eeg_sample_block()` is called from the DMA ISR. That function now drains the adaptation ring and `s_uhdr_buf` (§6.5, Rev 5), and it has always appended to the backend's staging. All three are shared with the task-side logger and none is synchronized. From an ISR, a block landing during a task's `uhdr_write()` corrupts the record under construction. No caller exists, and the function is not in the linked image. Decide the hand-off: an ISR-to-task queue that calls the logger from the session runner's context, or a lock that the logger's hot path can afford | FW | **Any caller of `np_log_eeg_sample_block()` (EEG waveform logging)** |
-| **`OI-FWHUB-15`** | **Adaptation events still queued when a session ends are lost.** `np_session_runner` calls `np_log_session_end()` and then `np_log_flush()`. The session-end call closes the session's UHDR file (`OI-LFS-11`). The flush then drains the adaptation ring into `s_uhdr_buf`, and its append is refused with `NP_HUB_ERR_NO_SESSION`. The next session start discards that buffer before it opens its own file. The events reach no file, and nothing reports the loss. Before `OI-LFS-11` they landed after the session-end record in the single UHDR file: out of order, but kept. Likely fix: drain the ring at the top of `np_log_session_end()`, so the events precede the session-end record | FW | — (UHDR completeness; not a safety path) |
+| ~~**`OI-FWHUB-15`**~~ | ✅ **CLOSED 2026-09-24 (Rev 6)** — `np_log_session_end()` drains the adaptation ring before the session-end record (§6.5); pinned by `np_log_backend_tests`. *Was:* **Adaptation events still queued when a session ends are lost.** `np_session_runner` calls `np_log_session_end()` and then `np_log_flush()`. The session-end call closes the session's UHDR file (`OI-LFS-11`). The flush then drains the adaptation ring into `s_uhdr_buf`, and its append is refused with `NP_HUB_ERR_NO_SESSION`. The next session start discards that buffer before it opens its own file. The events reach no file, and nothing reports the loss. Before `OI-LFS-11` they landed after the session-end record in the single UHDR file: out of order, but kept. Likely fix: drain the ring at the top of `np_log_session_end()`, so the events precede the session-end record | — (closed) | — |
 | ~~`OI-FWHUB-02`~~ | ✅ **CLOSED 2026-09-13 in the same change.** Three files cited `NP-FW-HUB-001 Rev 2` against a document with no Rev 1. Re-pointed to Rev 1 §8.9 and §6.4 | FW | — |
 | **`OI-FWHUB-03`** | **No mechanical agreement check between §4 and `hubCompiler.ts`.** `NP-CONV-001` §8 requires cross-artifact interface agreement to be verified by diff, never by review, and falsified in both directions first. `scripts/check-tcap-map.ts` is the pattern. Until it exists, the wire format's two implementations agree only by inspection — which is exactly the state that made `OI-DOC-01` expensive | FW + CI | `REQ-FWHUB-28` |
 | **`OI-FWHUB-04`** | **`uhdr_write()`/`shdr_write()` flush *before* appending the full buffer**, so the newly appended 4 KiB is unsynced until the next flush. Consistent with §6.5's stated durability bound and therefore not a defect, but reversed from the obvious reading, and the obvious reading is what a future editor will assume. Decide: reorder, or comment the intent | FW | Documentation accuracy |
@@ -1391,6 +1404,7 @@ have absorbed.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 6 | 2026-09-24 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-15` (§6.5, §13).** `np_log_session_end()` now calls `np_adapt_log_flush()` before it writes the session-end record and closes the UHDR file. Adaptation events still queued when a session ends therefore land in that session's file, ahead of its session-end record. Before, the runner's following `np_log_flush()` drained them into a closed file, the append was refused (`NP_HUB_ERR_NO_SESSION`), and the next session start dropped the buffer, with nothing reporting the loss. `np_log_backend_tests` gains 1 case, run in the runner's order (end, then flush). Removing the drain fails its two positive checks. A third check, that nothing reaches the next session's file, guards against a fix that moves the events there. Host suite: 43/44; `np_lfs_log_instance_tests` fails on unmodified `main` too. The ARM cross-build is clean. No classification, record format or wire format changed; no new test target. |
 | 5 | 2026-09-24 | NeurOne Firmware Engineering | **The session logger appends before it syncs and keeps log order (§6.1, §6.5, §8.2, §13).** Two defects in `np_session_log.c` predate `OI-LFS-11` and were found during it (NP-SOUP-LFS-001 Rev 7 §13.10). (1) A full 4 KiB UHDR or SHDR buffer was synced and then appended, so the sync covered none of it. Both partitions now go through `uhdr_drain()`/`shdr_drain()`, which append and then sync. (2) EEG sample blocks were appended straight to the HAL ahead of records in `s_uhdr_buf` and the adaptation ring. They now drain both first, append only, and keep the zero-copy path for the samples. (3) Found by (2)'s test: `np_log_flush()` skipped the UHDR sync whenever the buffer was empty, so EEG data could miss the 30 s bound. It now always syncs UHDR. `np_log_backend_tests` gains 4 cases and the host hook `np_log_test_synced_len()`. Reverting each fix fails the case named for it (five mutants), and the pre-fix file fails 5 checks (`NP-CONV-001` §8). Host suite and ARM cross-build pass; the one other ctest failure, `np_lfs_log_instance_tests`, fails identically on the unmodified base (3 of 3 under ctest; it passes most standalone runs, and one crashed with a bus error) and links none of these files. Raised `OI-FWHUB-14` (EEG ISR context vs a single-context logger) and `OI-FWHUB-15` (adaptation events queued at session end are lost). No classification, record format or wire format changed; no new test target. |
 | 4 | 2026-09-24 | NeurOne Firmware Engineering | **§6.6 added — the per-session recording limit, with proposed IFU text.** `OI-LFS-11` (`NP-SOUP-LFS-001` Rev 7 §13.10) made each session's UHDR record one file, and littlefs caps a file at 2 GiB − 1: about **49 hours** of recording with EEG at ≈12 kB/s. At the limit recording stops for the rest of that session; the session is not stopped, and other sessions are unaffected. §6.6 derives the figure, states the behaviour from the code, and gives plain-language IFU text. No IFU exists yet, so `OI-FWHUB-13` carries the text to it. §6.5 gains the `OI-LFS-11` update note. Rev 3 → 4. |
 | 3 | 2026-09-23 | NeurOne Firmware Engineering | **BES/tACS geometry gate (`NP-FW-MMSOCK-001` P-5, C-1) and the area-hand-off defect.** New `NP_SESSION_STATUS_GEOM_REQ_BES` (bit 4, previously unused) and a third arm of the safety MCU's geometry gate — **Class C, pending SW-01 review**; no enable-word bit and no frame byte moves. The hub arms it for every BES/tACS session and sends the fixed pad area (D-28; `REQ-FWHUB-36`). **Found while writing it:** the area frame was sent only in sessions holding HD-tDCS or tDCS, so VNS, cervical-VNS and BES areas were silently dropped elsewhere and the MCU enforced 25 cm² — 50× loose on the auricular clip (`RISK-FWHUB-15`, fixed; `REQ-FWHUB-37`). The scan moved to `src/np_chan_decl.c` (D-29) with `np_chan_decl_tests` (Class B 31 → 32, total 39 → 40); every mutation of the send rule, the BES arming and the two Class C gate lines is caught. §5.4, §7.4, §10.1, §11, §12 updated. Cross-compiled for both processors on arm-none-eabi-gcc 13.2.1. |
