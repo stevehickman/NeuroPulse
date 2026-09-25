@@ -72,6 +72,7 @@ this group died with that decision.
 | `np_hw_fpc_001.md` | **NP-HW-FPC-001** (1064 variant) | E | `NP-HW-HEXTILE-001`, tile type T1-C | Dual-PD architecture and InGaAs PD choice survive and are cited from `NP-DRV-SHELL-002` §13. |
 | `np_tool_zm_sm_001.md` | **NP-TOOL-ZM-SM-001** | A | `NP-TOOL-HEXTILE-001` | Smart-module mould variant of a mould family that no longer exists. Its F-SM-03 mechanical key was **confirmed unnecessary** — SMART-1 makes every socket I2C/TIA-capable, so there is no wrong socket to key against. |
 | `np_fw_za_001.md` | **NP-FW-ZA-001** | A | `firmware/hub_control/np_module_map.*`; `firmware/zone_announce/np_zone_notify.h` | Detection mechanism (ZONE_ID resistor ladder on FPC pin 18) fully retired. The audio/debounce implementation in `firmware/zone_announce/` is still live code and still builds; only its trigger changed. |
+| `np_tool_shell_001.docx` | **NP-TOOL-SHELL-001** | 3 | `NP-TOOL-SHELL-002` (Rev 1, 2026-09-25) | *Shell Tooling Specification*, written 2026-05-10 for the five-zone-slot shell. Kept out of this directory until 2026-09-25 because it was the headset shell's only tooling specification (see *What is deliberately not here*, below). Moved when `NP-TOOL-SHELL-002` took that role (GitHub #331, `OI-ART-01`). F-01 and F-03 were retired at Rev 2, F-02 at Rev 3 (`OI-ART-07`), and **F-04 is carried unchanged as `NP-TOOL-SHELL-002` S2-F01**. Its §3/§5 anchor-post pattern, boss-root radius, IPX4-at-boss-base and draft floors are carried in the successor's §6. Its checklist IDs SH-15…SH-21 map to TS2-01…07. |
 
 ### Design brief lineage
 
@@ -129,11 +130,11 @@ an old name from an external citation, this is where it went.
 
 ## What is deliberately *not* here
 
-Three active documents are architecture-coupled to the retired zone module but have **not** been
+Three active documents were architecture-coupled to the retired zone module and were **not**
 moved, because moving them would leave a live artifact with no governing document at all. Each is
 tracked instead in `NP-ART-001` §5:
 
-- **`np_tool_shell_001.docx` (NP-TOOL-SHELL-001)** — its F-01 is "zone slot plug anchor posts
+- ~~**`np_tool_shell_001.docx` (NP-TOOL-SHELL-001)** — its F-01 is "zone slot plug anchor posts
   (×5, colour-coded)", and both its parent documents are now in this directory. It is the only
   tooling specification the headset shell has.
   **Read in full on 2026-08-18 and marked PARTIALLY SUPERSEDED in place (Rev 2).** The coupling
@@ -142,7 +143,10 @@ tracked instead in `NP-ART-001` §5:
   **F-02** collides with `NP-TOOL-HUB-001` F-02's safety-derived ≤20 mm tether limit
   (**OI-ART-07**) — **closed 2026-09-23: F-02 retired in place (Rev 3); hub port covers belong to
   `NP-TOOL-HUB-001`.** **F-04 survives unchanged and the document is releasable for it.** It stays
-  here — out of `docs/superseded/` — for the reason given above.
+  here — out of `docs/superseded/` — for the reason given above.~~
+  **Resolved 2026-09-25 (GitHub #331, `OI-ART-01`).** `NP-TOOL-SHELL-002` is now the shell's tooling
+  specification, so the reason for keeping this file out of here no longer holds, and it has moved into
+  the index above (*The 2026-07-15 architecture replacement*).
 - ~~**`np_coord_001.docx` (NP-COORD-001)** — titled *Zone Module FPC
   Engineering Coordination Checklist*; its G1/G2/G3 gate structure is scoped to an assembly that no
   longer exists, but those gates are cited as the release gates for documents that *are* current.~~

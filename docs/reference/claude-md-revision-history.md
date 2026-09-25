@@ -19,6 +19,24 @@
 
 ## Current revision
 
+**Rev 58 (2026-09-25) — §1's shielding principle stops claiming a measurement that has never been
+made. No locked decision changed.**
+
+**What changed.** One founding-principle line. It read *"only consumer brain wearable with measured
+shielding"*. It now says the shielding is designed to be measured, that the dB figures are targets
+until `EMF-1` runs, and that any "only" or "measured" claim waits on `OI-BIBEMF-01`.
+
+**Why.** The same file's §4.3 already says *"no dB figure may be published as measured"*, because
+`EMF-1` has never run. `NP-BIB-EMF-001` `OI-BIBEMF-01` found both load-bearing words unearned, and
+`competitive-position.md` had already restated its copy line. §1 was the last place the core still
+asserted it. GitHub #331 offered two ways to discharge `EMF-1`'s claim burden: measure, or restate.
+Measuring needs a first article, which needs `MECH-1`, so this revision restates. **`EMF-1` stays
+open, and what the public claim becomes is still `OI-BIBEMF-01`'s** (Marketing + Regulatory).
+The same change supersedes `NP-TOOL-SHELL-001` with `NP-TOOL-SHELL-002`, which touches no CLAUDE.md
+text, because the Document Map names neither.
+
+## Earlier revisions
+
 **Rev 57 (2026-09-25) — the Document Map's DHF row says what is now true: the DHF is the single
 maintained index, and it is gated. No locked decision changed.**
 
@@ -31,8 +49,6 @@ deleted.
 
 **Why here.** A pointer that names an open item as the state of the index goes stale the day the
 item closes, and the core is read in every conversation.
-
-## Earlier revisions
 
 **Rev 56 (2026-09-25) — the core cut from ~46 KB to ~28 KB by removing text the owning files
 already hold. No locked decision changed. Every section and subsection number is kept.**

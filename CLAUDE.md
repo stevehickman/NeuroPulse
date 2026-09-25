@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 57 (current)  
+**Revision:** 58 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -76,7 +76,8 @@ Two-tier platform sharing a single chassis, processor stack, app, and USB-C conn
 - Shared platform (one production line, two markets)
 - Wired-first USB-C default (zero RF at scalp)
 - Autonomous closed-loop EEG-adaptive stimulation without phone (primary competitive moat)
-- 4-layer EMF shielding + active Helmholtz cancellation (only consumer brain wearable with measured shielding)
+- 4-layer EMF shielding + active Helmholtz cancellation, **designed to be measured** (the dB figures are targets
+  until `EMF-1` runs, and any "only" or "measured" claim waits on `OI-BIBEMF-01`, §4.3)
 - Modular field-upgradeability via snap-in zone modules
 - No mandatory subscription — all core functions offline-capable permanently
 - UHDR/SHDR data separation (user health data never accessed by NeurOne)
