@@ -89,7 +89,7 @@ requirement that gets approximated.
 
 | ID | Requirement | Source |
 |---|---|---|
-| **REQ-TMS-02** | Coil: figure-8, 2 wings in series, wing mean radius 25 mm, 10 turns/wing, 9 mm² copper strip; **L = 18.2 µH**, Q = 69, 0.251 mT per amp-turn at the wing centre | `SPEC-TMS-01` |
+| **REQ-TMS-02** | Coil: figure-8, 2 wings in series, wing mean radius 25 mm, 10 turns/wing, 9 mm² copper strip; **L = 18.2 µH**, Q = 69, 0.251 mT per ampere of coil current (10 turns) at the wing centre *(corrected 2026-09-25, GitHub #394: this read "0.251 mT per amp-turn". μ₀/2a at a = 25 mm is 0.0251 mT per amp-turn, so 0.251 mT is per **ampere** of coil current over 10 turns — the reading `I_peak` = 1,989 A for 0.5 T depends on. No figure changes)* | `SPEC-TMS-01` |
 | **REQ-TMS-03** | Energy store: **28 µF at 1,600 V**, **biphasic with bank recovery** | `SPEC-TMS-02` |
 | **REQ-TMS-04** | Pulse: series-LC ring **T = 142 µs** biphasic (~71 µs monophasic); **I_peak = 1,989 A**; dB/dt = 22.1 kT/s at the design point | `SPEC-TMS-03` |
 | **REQ-TMS-05** | Supply: **169 W** average recharge at 10 Hz / 0.5 T / biphasic-recovered; **176 W** with device overhead; 423 W monophasic | `SPEC-TMS-04` |

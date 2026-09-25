@@ -91,6 +91,15 @@ Superseded by `np_db_005.docx` (NP-DB-005), which is the current brief.
 | `np_fw_req_001.docx` | NP-FW-REQ-001 | A | `NP-FW-PBM1064-001`, `NP-FW-HRV-001`, `NP-FW-CVNS-001`, `NP-FW-HD-001`, `NP-FW-EMMC-001` |
 | `np_mod_ext_001.docx` | NP-MOD-EXT-001 | A | the six per-modality specifications listed in `docs/status/document-register.md` |
 
+### Superseded revisions of documents that are still active
+
+A document that is re-issued in a new format leaves its previous revision here, unedited, when that
+revision is referenced (`NP-CONV-001` §4.0.4). The serial stays live; only this file is retired.
+
+| File | Document | Rev as written | Replaced by | Note |
+|---|---|---|---|---|
+| `np_coord_001.docx` | **NP-COORD-001** | A.10 (= Rev 11, `NP-COORD-001` Rev 12 §6) | `np_coord_001.md` (Rev 12, 2026-09-25) | *Zone Module FPC Engineering Coordination Checklist.* Moved here on 2026-09-25 (GitHub #394, `OI-ART-02`) when Rev 12 re-issued the serial as a gate-definition document. Its §6 is the only copy of the Rev 1–11 revision history. Every one of its item IDs is dispositioned in Rev 12 §4, so `G1-nn`/`G2-nn`/`G3-nn` citations still resolve. |
+
 ## Former filenames
 
 Every file here was renamed to its serial on 2026-08-11 (`NP-CONV-001` §4.0). If you arrived with
@@ -134,9 +143,13 @@ tracked instead in `NP-ART-001` §5:
   (**OI-ART-07**) — **closed 2026-09-23: F-02 retired in place (Rev 3); hub port covers belong to
   `NP-TOOL-HUB-001`.** **F-04 survives unchanged and the document is releasable for it.** It stays
   here — out of `docs/superseded/` — for the reason given above.
-- **`np_coord_001.docx` (NP-COORD-001)** — titled *Zone Module FPC
+- ~~**`np_coord_001.docx` (NP-COORD-001)** — titled *Zone Module FPC
   Engineering Coordination Checklist*; its G1/G2/G3 gate structure is scoped to an assembly that no
-  longer exists, but those gates are cited as the release gates for documents that *are* current.
+  longer exists, but those gates are cited as the release gates for documents that *are* current.~~
+  **Resolved 2026-09-25 (GitHub #394, `OI-ART-02`).** The serial was re-issued as
+  `np_coord_001.md` Rev 12, a gate-definition document, and the Rev 11 `.docx` is now in this
+  directory (*Superseded revisions of documents that are still active*, above). The reason it was
+  kept out of here still holds for the serial, which stays live, and no longer for the file.
 - **`np_proc_fpc_001.docx` (NP-PROC-FPC-001)** — specifies the Hirose FH34S
   20-pin connector and the RA-copper/Vf-binning requirements for a tailed FPC. Hex tiles have no
   tail; the LED requirements survive.

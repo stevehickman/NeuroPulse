@@ -19,6 +19,21 @@
 
 ## Current revision
 
+**Rev 57 (2026-09-25) — the Document Map's DHF row says what is now true: the DHF is the single
+maintained index, and it is gated. No locked decision changed.**
+
+**What changed.** One cell. It read *"source of truth where the status logs disagree; dedup is
+`OI-CONV-07`"*. `OI-CONV-07` is closed (GitHub #394). Reconciling the three registers against the
+files found the DHF itself incomplete: controlled documents had no index row, and Rev cells lagged
+their files. The DHF was reconciled from each file's own front matter. `scripts/check-dhf-index.ts`
+now fails CI on either defect, and `docs/status/document-register.md` is frozen as history, not
+deleted.
+
+**Why here.** A pointer that names an open item as the state of the index goes stale the day the
+item closes, and the core is read in every conversation.
+
+## Earlier revisions
+
 **Rev 56 (2026-09-25) — the core cut from ~46 KB to ~28 KB by removing text the owning files
 already hold. No locked decision changed. Every section and subsection number is kept.**
 
@@ -37,8 +52,6 @@ lists and the fault-latch narrative → `data-architecture-detail.md` §5.1), §
 **Why.** The file loads into every conversation. A passage that restates its owning file is a
 second copy that can drift from the first, which is the reason Rev 47 gave for removing the
 revision digests.
-
-## Earlier revisions
 
 **Rev 55 (2026-09-24) — §2.3 gains a paragraph naming the gate that enforces its trigger rule. No
 locked decision changed; `OI-ACC-06` closed, `OI-ACC-09` raised.**

@@ -173,6 +173,7 @@ jobs:
       NP_SCOPE_DOCNAMING: |
         docs/**
         scripts/check-doc-filenames.ts
+        scripts/check-dhf-index.ts
         .github/workflows/tooling-ci.yml
       NP_SCOPE_SIMULATOR: |
         simulator/**
@@ -373,6 +374,7 @@ jobs:
           assert scope.docnaming.paths true  docs/reference/competitive-position.md
           assert scope.docnaming.paths true  docs/superseded/np_risk_001.docx
           assert scope.docnaming.paths true  scripts/check-doc-filenames.ts
+          assert scope.docnaming.paths true  scripts/check-dhf-index.ts
           assert scope.docnaming.paths false app/web/src/main.ts
           assert scope.simulator.paths true  simulator/server/index.js
           assert scope.simulator.paths true  simulator/js/ui.js
@@ -616,6 +618,17 @@ jobs:
 
       - name: Document filenames match their serials (NP-CONV-001 §4.0)
         run: bun scripts/check-doc-filenames.ts
+
+      # The DHF is the single maintained index (NP-CONV-001 OI-CONV-07, closed
+      # 2026-09-25). Reconciliation found controlled documents with no index row
+      # and Rev cells behind their files: a rule that says which index wins is
+      # worth nothing unless the winning index is kept true, and this keeps it.
+      # Same population as the naming guard (docs/**), so the same job.
+      - name: Guard self-test (prove the DHF-index rules can fail)
+        run: bun scripts/check-dhf-index.ts --self-test
+
+      - name: Every controlled Markdown document is in the DHF at its own revision
+        run: bun scripts/check-dhf-index.ts
 
   section-refs:
     name: CLAUDE.md section citations resolve (repo-wide)

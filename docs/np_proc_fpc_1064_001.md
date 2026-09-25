@@ -2,20 +2,61 @@
 
 **Project:** NeurOne  
 **Document:** NP-PROC-FPC-1064-001  
-**Revision:** 2
-**Date:** 2026-09-21  
+**Revision:** 3
+**Date:** 2026-09-25  
 **Status:** BASELINED  
 **Effective Date:** 2026-05-13  
 **Author:** NeurOne Hardware Engineering  
 **Approved By:** Steve Hickman, CEO  
 **References:** NP-HW-FPC-001 Rev 5; NP-TOOL-ZM-SM-001 Rev 1; NP-FW-PBM1064-001 Rev 1  
-**Related Issues:** GitHub Issue #54  
+**Related Issues:** GitHub Issue #54; #333 (Rev 2); **#394 (Rev 3: `OI-ART-03`, `OI-CONV-08` (a)–(b))**  
 **Gate:** —  
 **IEC 62304 Class:** —  
 **Supersedes:** —  
 **Parent Document:** NP-PROC-FPC-001 **Rev 4** (base module FPC procurement — the 660/808 nm binning specifications this document inherits are unchanged by Rev 4; *the "Rev 1" this field carried was the parent's stale header read through* `NP-CONV-001` *§4.1, see that document's Rev 4 banner*)
 
 ---
+
+> **⚠ Rev 3 (2026-09-25) — SPLIT IN PLACE (`NP-ART-001` `OI-ART-03`), and the §7.1 audit's clusters (a) and (b) dispositioned (`NP-CONV-001` `OI-CONV-08`). GitHub #394. Nothing is deleted, and no part is selected or de-selected.**
+>
+> **Part A, LIVE:** the 1064 nm emitter procurement specification (§3.1–§3.4, §3.6, and §3.7 as
+> corrected at Rev 2), the photodiode requirements and evaluation (§4.1–§4.2, both now carrying open
+> items), and the supplier actions for the emitter and the PD (§6). They are part-level, and
+> `NP-HW-HEXTILE-001` §4.3 and §5.1 still name this document's parts as the reference.
+>
+> **Part B, RETIRED and retained verbatim:** everything that sizes, prices or wires the retired
+> 66 × 78 mm, 5-slot smart zone module. That is §3.5 (irradiance budget, 150 emitters per zone), §4.3
+> (the per-slot DG2788A hub TIA switch keyed off ZONE_ID), §4.4 and §5 (BOM delta and retail
+> pricing, already banned for BOM work since 2026-07-28), the §6 rows for the 5-slot hub switches and
+> the ATtiny402 firmware, and `OI-PBM-HW-01…06`. Each is marked where it stands.
+>
+> **One claim of the 2026-07-28 banner below is corrected, not only narrowed.** It lists the ATtiny402
+> driver selection as *"still-reusable"*. `NP-HW-HEXTILE-001` §5.3 records that part's 10-bit ADC as
+> too thin for the dose claim and specifies a tinyAVR 2-series part instead. §2 is therefore retained
+> as the **evaluation record**, and the tile's driver/MCU selection is `NP-HW-HEXTILE-001` §5.3 and §6's.
+> Where the two disagree, `NP-HW-HEXTILE-001` governs. (Whether the ADC is on-module at all turns on
+> `OI-HEXTILE-15`. That is not decided here.)
+>
+> **§7.1 dispositions (CLAUDE.md §18).** Each row was searched before it was dispositioned, and the
+> searches went both ways, as `NP-CONV-001` §7.1's two worked examples say they will. **Retired** means
+> searched, found unfounded, and not a hazard control. **Stands** means a derivation was found.
+> **Raised** means the number is wrong, or its derivation was not found, and an open item owns it.
+>
+> | Row | Disposition | What the search returned |
+> |---|---|---|
+> | §3.3 Lumen maintenance binning ≤ 15 % | **RETIRED** | Its rationale, *"consistent irradiance across zone"*, restates the requirement. `NP-HW-HEXTILE-001` §4.4 explicitly **declines** to assert an intra-tile uniformity number, pending `OI-HEXTILE-04`. It is not a hazard control: CH_C at full drive is 28 mW/cm², far below every ceiling (§4.3.2), and per-unit K-coefficient calibration absorbs flux variation for dose metering (`NP-FW-PBM1064-001` §6). If `OI-HEXTILE-04`'s model later sets a uniformity claim, a flux-spread bin can be derived from it then |
+> | §3.3 Radiant flux ≥ 45 mW | **RETIRED (the 45 mW)**. The flux requirement lives upstream | The row derived 31.5 mW from its own 10 % WPE and then uplifted 43 % with no stated basis. The requirement that *is* traceable is `NP-HW-HEXTILE-001` §4.3's CH_C design target: **10 mW at 150 mA**, *"a design target the eventual part must meet"*, from which §4.3.2's 28 mW/cm² and 21-minute session follow. A 45 mW floor would reject the reference part whose low flux that design is built on. The number is not re-stated here, because a second copy can disagree with the first |
+> | §3.3 WPE ≥ 10 % | **RETIRED** | Asserted *"acceptable"*, with no referent. Nothing fails on WPE alone: output is governed by the flux target, and heat by the tile thermal budget, which assumes **4.8 %** (`NP-HW-HEXTILE-001` §4.3; `OI-HEXTILE-21`). At 10 % the row was **unmeetable** by the design's own basis |
+> | §3.3 V_f 1.9–2.3 V nominal | **RAISED → `OI-PBM-HW-10`** | Wrong, not unfounded. V_f is load-bearing for the fixed-N strings on the 24 V rail (`NP-HW-HEXTILE-001` §8.1.1), and the tile assumes **1.40 V** for CH_C (§4.3). The two cannot both hold |
+> | §3.3 V_f bin ±0.1 V | **STANDS, re-sourced** | The rationale given (parallel-string sharing on a shared FPC) is the retired topology's. The live derivation is string construction: `NP-PROC-FPC-001` §2.1 (Rev 4 note) |
+> | §3.3 Drive current, continuous 80–180 mA and pulsed 200 mA / ≤ 25 % / ≤ 10 ms | **PARTLY STANDS; the rest is RAISED → `OI-PBM-HW-10`** | The cited `NP-FW-PBM1064-001` §5.5 derives **only the 25 %** (`DUTY_MAX_REG`). It says nothing about 200 mA, 10 ms or 80 mA. The 180 mA upper bound traces to R-6 (`NP-HW-HEXTILE-001` §1, CLAUDE.md §3). **This is the gap `OI-CONV-08` named: a citation that passed the filter without deriving the number** |
+> | §3.3 L70 ≥ 80,000 h | **STANDS, re-sourced** | R-6, `NP-HW-HEXTILE-001` §1 (*"Emitter drive 120–180 mA for L70 80,000–100,000 h"*, from CLAUDE.md §3 ①) |
+> | §4.1 Spectral range 900–1700 nm | **RAISED → `OI-PBM-HW-09`, and escalated to `NP-HW-HEXTILE-001` `OI-HEXTILE-26`** | The rationale *"covers 808nm CH_B"* is false: 900–1700 does not contain 808. The error is worse than the row. The selected G12180-010A's **published** range is 0.9–1.7 µm, so it may not respond at 660 or 808 nm at all, and it is fitted to every tile. Dose-metering path: nothing is relaxed |
+> | §4.1 Responsivity ≥ 0.70 A/W at 1064 nm; active area ≥ 0.5 mm²; dark current < 10 nA; operating −20…+70 °C | **RAISED → `OI-PBM-HW-09`** | None of the four numbers is derived: each Rationale cell restates its row or names a qualitative preference. They sit on the dose-metering path, which CLAUDE.md §18 keeps out of retirement by search alone, so they stay binding until re-derived against dose-metering resolution |
+> | §4.1 Response time < 1 ms | **STANDS** | Derived: the 100 ms dose tick (`NP-FW-PBM1064-001` §6.1), with a stated 100× margin |
+>
+> §3.2's ±5 nm band is **not** in this table. It is wrong, not unfounded, and `OI-PBM-HW-08` owns its
+> re-derivation, as `OI-CONV-08` required.
 
 > **⚠ Rev 2 (2026-09-21) — §3.2 and §3.7's thermal compliance argument does not hold, and the wavelength row contradicts itself on its face. `OI-PBM-HW-08` raised. No requirement is changed and no part is re-selected.**
 >
@@ -196,14 +237,14 @@ This section supplements NP-PROC-FPC-001 Rev 4 with procurement requirements for
 
 | Parameter | Requirement | Notes |
 |-----------|-------------|-------|
-| Forward voltage Vf | 1.9–2.3 V nominal at 150 mA | 1064nm GaAs/AlGaAs emitters; Vf lower than 660nm (1.8–2.0 V) and 808nm (1.6–1.8 V) |
+| Forward voltage Vf — **⚠ `OI-PBM-HW-10` (Rev 3)** | 1.9–2.3 V nominal at 150 mA | 1064nm GaAs/AlGaAs emitters; Vf lower than 660nm (1.8–2.0 V) and 808nm (1.6–1.8 V) |
 | Vf binning tolerance | ±0.1 V max spread within a single module lot | For uniform parallel string current sharing on FPC. Wider spread causes current hot-spots. |
 | Drive current: continuous | 80–180 mA | Nominal drive range per LED |
-| Drive current: pulsed | 200 mA at ≤ 25% duty cycle, ≤ 10 ms pulse width | Firmware-enforced ceiling (NP-FW-PBM1064-001 Rev 1 §5.5) |
-| Wall-plug efficiency (WPE) | ≥ 10% at 150 mA | 1064nm GaAs emitters are less efficient than 808nm (WPE ~30–40%). Minimum 10% acceptable for this application. |
-| Radiant flux at 150 mA | ≥ 45 mW per LED | From 10% WPE × 150 mA × 2.1 V = 31.5 mW minimum; specify 45 mW as procurement floor |
+| Drive current: pulsed — **⚠ 200 mA / 10 ms underived, `OI-PBM-HW-10` (Rev 3)** | 200 mA at ≤ 25% duty cycle, ≤ 10 ms pulse width | Firmware-enforced ceiling (NP-FW-PBM1064-001 Rev 1 §5.5) |
+| ~~Wall-plug efficiency (WPE)~~ **RETIRED Rev 3** | ~~≥ 10% at 150 mA~~ | 1064nm GaAs emitters are less efficient than 808nm (WPE ~30–40%). Minimum 10% acceptable for this application. |
+| ~~Radiant flux at 150 mA~~ **RETIRED Rev 3 — flux target is `NP-HW-HEXTILE-001` §4.3** | ~~≥ 45 mW per LED~~ | From 10% WPE × 150 mA × 2.1 V = 31.5 mW minimum; specify 45 mW as procurement floor |
 | L70 lifetime | ≥ 80,000 hours at rated drive | Same requirement as 660nm/808nm emitters in NP-PROC-FPC-001 **§2.3** (*corrected 2026-09-21 — this cell cited §4.3, which does not exist; §4 of that document is the Hirose connector*) |
-| Lumen maintenance binning | ≤ 15% flux spread within a single module lot | Consistent irradiance across zone |
+| ~~Lumen maintenance binning~~ **RETIRED Rev 3** | ~~≤ 15% flux spread within a single module lot~~ | Consistent irradiance across zone |
 
 ### 3.4 Package Requirements
 
@@ -216,6 +257,8 @@ This section supplements NP-PROC-FPC-001 Rev 4 with procurement requirements for
 | RoHS / REACH | Compliant; IPC/JEDEC J-STD-020E MSL rating ≤ 3 |
 
 ### 3.5 Irradiance Budget
+
+> **RETIRED Rev 3 (`OI-ART-03`).** Sized for 150 emitters on a 66 × 78 mm zone. The tile's CH_C budget is `NP-HW-HEXTILE-001` §4.3.2 (28 mW/cm², 21 min). Retained verbatim.
 
 At 150 LEDs per zone module at 150 mA nominal, 45 mW per LED:
 - Total optical power: 150 × 45 mW = 6,750 mW per zone
@@ -304,7 +347,7 @@ Wavelength shift: +6 nm over 20°C range → 1070 nm maximum. Remains within ±5
 | Parameter | Requirement | Rationale |
 |-----------|-------------|-----------|
 | Wavelength sensitivity | Peak responsivity at 1064 nm ≥ 0.70 A/W | 1064nm LED emission; silicon PDs are blind beyond ~1100 nm |
-| Spectral range | 900–1700 nm minimum | Covers 808nm CH_B, 1064nm CH_C, and 1170nm T2 reference |
+| Spectral range — **⚠ `OI-PBM-HW-09` (Rev 3)** | 900–1700 nm minimum | Covers 808nm CH_B, 1064nm CH_C, and 1170nm T2 reference. **⚠ Rev 3: false — 900–1700 nm does not contain 808 nm, and the selected part's published range is 0.9–1.7 µm (`NP-HW-HEXTILE-001` `OI-HEXTILE-26`)** |
 | Active area | ≥ 0.5 mm² | Sufficient photocurrent at dose-metering irradiance levels (§4.3) |
 | Package | SMD or compatible with 1.6 mm annular ring pad on FPC | Must match NP-HW-FPC-001 Rev 5 §5 footprint |
 | Response time | < 1 ms | 10 Hz dose accumulation tick (100 ms period) |
@@ -336,6 +379,8 @@ Rationale:
 
 ### 4.3 TIA Gain Compatibility
 
+> **RETIRED Rev 3 (`OI-ART-03`).** The per-slot DG2788A switch keyed off ZONE_ID has no referent: there are no slots and no ZONE_ID. The saturation physics stands, and where the gain is solved is `NP-HW-HEXTILE-001` §5.3 and `OI-HEXTILE-15`. Retained verbatim.
+
 Detailed analysis is in NP-HW-FPC-001 Rev 5 §5.3. Summary of findings:
 
 - InGaAs responsivity at 1064nm (~0.90 A/W) is approximately 2× higher than silicon responsivity at 808nm (~0.45 A/W)
@@ -352,6 +397,8 @@ Calibration K coefficients per NP-FW-PBM1064-001 Rev 1 §6.2 absorb the gain cha
 
 ### 4.4 Per-Unit Cost and BOM Impact
 
+> **RETIRED Rev 3 (`OI-ART-03`).** Per-module pricing for the retired module. Cost figures are `docs/np_cost_001.md`'s (CLAUDE.md §2.1). Retained verbatim.
+
 | Component | Qty per module | Unit cost | Total |
 |-----------|---------------|-----------|-------|
 | Hamamatsu G12180-010A (PD1) | 1 | $10.00 | $10.00 |
@@ -365,6 +412,8 @@ Silicon PD pair in base module: ~$1.50–3.00 total. InGaAs PD pair adds **+$17�
 ---
 
 ## 5. Summary: Smart Module BOM Delta vs. Base Zone Module
+
+> **RETIRED Rev 3 (`OI-ART-03`)**, formalising the 2026-07-28 ban on using it for BOM or pricing work. No figure here may be quoted (CLAUDE.md §2.1). Retained verbatim.
 
 | Item | Base module | Smart module delta | Smart module total |
 |------|-------------|-------------------|-------------------|
@@ -394,9 +443,9 @@ Silicon PD pair in base module: ~$1.50–3.00 total. InGaAs PD pair adds **+$17�
 | Obtain L70 test data ≥ 80,000 hr | EPITEX | Supplier qualification | 2–4 weeks | NP-PROC-SUP-001 CAT-A (LED supplier) |
 | InGaAs PD G12180-010A qualification | Hamamatsu Photonics K.K. | hamamatsu.com/us | 2 weeks | FAI-SM-06/07/08 |
 | Order 200 units G12180-010A for bench qualification | Hamamatsu / distribution | Digi-Key, Mouser, or direct | 2–3 weeks | FAI-SM-06 |
-| ATtiny402 firmware NP-FW-ZM-TINY402-001 | Internal firmware team | OI-PBM-HW-05 | 3–4 weeks | FAI-SM-02/04 |
-| Hub PCB TIA gain switch (OI-PBM-HW-01) | Hub PCB designer | Internal | 3–4 weeks | FAI-SM-06/07/08 |
-| Hub PCB I2C bus switch (OI-PBM-HW-02) | Hub PCB designer | Internal | 3–4 weeks | FAI-SM-02/04 |
+| ~~ATtiny402 firmware NP-FW-ZM-TINY402-001~~ **RETIRED Rev 3** (driver/MCU is `NP-HW-HEXTILE-001` §5.3/§6's) | Internal firmware team | OI-PBM-HW-05 | 3–4 weeks | FAI-SM-02/04 |
+| ~~Hub PCB TIA gain switch (OI-PBM-HW-01)~~ **RETIRED Rev 3** | Hub PCB designer | Internal | 3–4 weeks | FAI-SM-06/07/08 |
+| ~~Hub PCB I2C bus switch (OI-PBM-HW-02)~~ **RETIRED Rev 3** | Hub PCB designer | Internal | 3–4 weeks | FAI-SM-02/04 |
 
 ---
 
@@ -404,11 +453,23 @@ Silicon PD pair in base module: ~$1.50–3.00 total. InGaAs PD pair adds **+$17�
 
 | ID | Description | Blocking |
 |----|-------------|---------|
-| OI-PBM-HW-01 | Hub PCB TIA gain selection switch per slot (Vishay DG2788A SPDT analog switch + Rf = 22 kΩ for smart slots) | FAI-SM-06/07/08 — BLOCKING |
-| OI-PBM-HW-02 | Hub PCB I2C bus switch 5-slot (NXP PCA9546A or TI TCA9548A) | FAI-SM-02/04 |
-| OI-PBM-HW-03 | Hub PCB 3.3V rail budget: verify 5 × 50 mA = 250 mA smart module simultaneous load | Pre-prototype |
-| OI-PBM-HW-04 | NP-FPC-ZM-SM-01 FPC artwork: Gerbers with updated pinout, LED array, InGaAs PD footprint (G12180-010A land pattern), rigidizer pads | FAI-SM-01 |
-| OI-PBM-HW-05 | ATtiny402 firmware NP-FW-ZM-TINY402-001 | FAI-SM-02/04 |
-| OI-PBM-HW-06 | Update FPC artwork (OI-PBM-HW-04) to include G12180-010A SMD footprint at PD1/PD2 annular ring positions | OI-PBM-HW-04 |
+| ~~OI-PBM-HW-01~~ **RETIRED Rev 3 (`OI-ART-03`)** — 5-slot / zone-module subject | Hub PCB TIA gain selection switch per slot (Vishay DG2788A SPDT analog switch + Rf = 22 kΩ for smart slots) | FAI-SM-06/07/08 — BLOCKING |
+| ~~OI-PBM-HW-02~~ **RETIRED Rev 3 (`OI-ART-03`)** — 5-slot / zone-module subject | Hub PCB I2C bus switch 5-slot (NXP PCA9546A or TI TCA9548A) | FAI-SM-02/04 |
+| ~~OI-PBM-HW-03~~ **RETIRED Rev 3 (`OI-ART-03`)** — 5-slot / zone-module subject | Hub PCB 3.3V rail budget: verify 5 × 50 mA = 250 mA smart module simultaneous load | Pre-prototype |
+| ~~OI-PBM-HW-04~~ **RETIRED Rev 3 (`OI-ART-03`)** — 5-slot / zone-module subject | NP-FPC-ZM-SM-01 FPC artwork: Gerbers with updated pinout, LED array, InGaAs PD footprint (G12180-010A land pattern), rigidizer pads | FAI-SM-01 |
+| ~~OI-PBM-HW-05~~ **RETIRED Rev 3 (`OI-ART-03`)** — 5-slot / zone-module subject | ATtiny402 firmware NP-FW-ZM-TINY402-001 | FAI-SM-02/04 |
+| ~~OI-PBM-HW-06~~ **RETIRED Rev 3 (`OI-ART-03`)** — 5-slot / zone-module subject | Update FPC artwork (OI-PBM-HW-04) to include G12180-010A SMD footprint at PD1/PD2 annular ring positions | OI-PBM-HW-04 |
 | OI-PBM-HW-07 | 1064nm LED emitter: confirm Marubeni America EPITEX part number; obtain binning program confirmation; confirm SMD footprint match to FPC artwork | FAI-SM-04/06 |
 | **OI-PBM-HW-08** | **§3.2 / §3.7 thermal-and-wavelength compliance argument is unsound; re-derive the ±5 nm band against the target the 1064 nm claim now rests on** (raised Rev 2, 2026-09-21, found while tracing `NP-PROC-FPC-001` §2.3 for GitHub #333). Three defects: **(a)** both sections compute against a junction temperature of 42 °C, which is the **scalp-face** limit — the junction throttle is **62 °C**; **(b)** the arithmetic uses ΔT = 20 °C (effective junction 45 °C), matching neither 42 nor 62 — the correct figure is ΔT = 37 °C, at which the shift is **11.1 nm → 1075 nm**, **6 nm outside** the ±5 nm band; **(c)** both the §3.2 rationale and the §3.7 paragraph **contradict themselves before any correction** (*"shift < 6 nm — remains within ±5 nm band"*; *"1070 nm maximum … remains within … (1059–1069 nm range)"*). The V_f half of §3.7 survives at 55.5 mV. **Likely resolution is that the ±5 nm band is tighter than the claim now needs** — `OI-HEXTILE-21` and commit `f8806dd` moved the 1064 nm claim to the **1060–1080 nm** Alzheimer's band, which 1075 nm satisfies — but that is a decision, not a correction, and it is not taken here. Also restate or delete §3.7's *"< 2 % string current"* claim, which omits the string length the drift is multiplied by | §3.2 wavelength band on any 1064 nm PO; `OI-PBM-HW-07` part confirmation; 1064 nm claim wording |
+| **OI-PBM-HW-09** | **Re-derive §4.1 against the dose-metering path, starting with spectral range** (raised Rev 3, 2026-09-25, `OI-CONV-08` (b), GitHub #394). The spectral-range rationale is false (900–1700 nm does not cover 808 nm), and the selected part's published 0.9–1.7 µm range may exclude both T1 base wavelengths. That question is escalated to `NP-HW-HEXTILE-001` **`OI-HEXTILE-26`**, which owns the PD choice. Then re-derive responsivity, active area, dark current and operating range against the dose-metering resolution of `NP-FW-PBM1064-001` §6. Until then they stay binding: dose-metering path. Also correct §4.2's package (published listings give **TO-18**, not SMD ceramic 5 × 5 mm) | EE + Optical. **PD selection; `NP-FAI-HEXFPC-001`** |
+| **OI-PBM-HW-10** | **§3.3's electrical rows disagree with the tile's design basis or are underived** (raised Rev 3, `OI-CONV-08` (a)). (i) V_f nominal 1.9–2.3 V against `NP-HW-HEXTILE-001` §4.3's 1.40 V for CH_C, where §8.1.1's fixed-N strings on 24 V make V_f load-bearing. One of the two is wrong. (ii) Pulsed 200 mA and ≤ 10 ms, and the 80 mA continuous floor, are not derived by the cited `NP-FW-PBM1064-001` §5.5, which derives only the 25 % duty. 200 mA also exceeds R-6's 120–180 mA window. Derive each from §8.1.1, R-6 and the drive stage, or record that nothing requires it | EE. **CH_C emitter PO (`OI-PBM-HW-07`)** |
+
+---
+
+## 8. Revision history
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 3 | 2026-09-25 | NeurOne Systems Engineering + Hardware Engineering | **Split in place (`NP-ART-001` `OI-ART-03`) and §7.1 audit clusters (a)–(b) dispositioned (`NP-CONV-001` `OI-CONV-08`), GitHub #394.** Part A (live): §3 emitter specification, §4.1–§4.2 PD requirements and evaluation, §6 part-supply actions. Part B (retired, retained): §3.5, §4.3, §4.4, §5, the 5-slot rows of §6, and `OI-PBM-HW-01…06`. The *"still-reusable"* ATtiny402 claim is corrected against `NP-HW-HEXTILE-001` §5.3. §3.3: lumen-maintenance ≤ 15 %, flux ≥ 45 mW and WPE ≥ 10 % **RETIRED** as unfounded. The flux target is `NP-HW-HEXTILE-001` §4.3's, and the tile's own basis (10 mW, 4.8 %) made the last two unmeetable. V_f bin and L70 **stand**, re-sourced. V_f nominal and the pulsed-current figures are **raised** (`OI-PBM-HW-10`). §4.1: the spectral-range rationale is false and is **escalated** (`OI-PBM-HW-09` → `NP-HW-HEXTILE-001` `OI-HEXTILE-26`). Four unfounded PD numbers **stay binding** as dose-metering inputs pending re-derivation, and response time **stands**. No part selected or de-selected. |
+| 2 | 2026-09-21 | NeurOne Hardware Engineering | §3.2 / §3.7 thermal and wavelength argument corrected; `OI-PBM-HW-08` raised (GitHub #333). Recorded in the Rev 2 banner. |
+| 1 | 2026-05-13 | NeurOne Hardware Engineering | Initial release (GitHub Issue #54). Superseded in part on 2026-07-28 (module count, BOM, pricing). |
