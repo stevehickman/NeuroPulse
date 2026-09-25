@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-DRV-SHELL-002
-**Revision:** 4
-**Date:** 2026-08-11
+**Revision:** 5
+**Date:** 2026-09-25
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Mechanical + Hardware Engineering
@@ -16,6 +16,15 @@
 **Parent Document:** None
 
 ---
+
+> **Rev 5 (2026-09-25) — the `SAFE_EN[n]` polarity conflict is resolved (GitHub #437; `NP-RISK-004` §2.2 adopted). No BOM, network, socket or connector change.**
+> `SAFE_EN[n]` stays active-high and keeps its name. The "opposite convention" was the safety-MCU
+> pin `PBM_CRANIAL_EN#`, on the other side of an inverting buffer that no hardware document
+> specified. `NP-HW-HUB-001` **HUB-REQ-C06** now specifies it, together with the active-high
+> `PBM_CRANIAL_PERMIT` it drives. §6 is annotated. **SH2-DRC-13 is restated:** it named the
+> Safety MCU as `SAFE_EN[n]`'s commander, which HUB-REQ-C05 had already overturned. It now checks
+> both nets and the AND, so `NP-REV-SHELL-001` can move it off BLOCKED. RISK-SHELL-03's score is
+> not re-assessed here (`NP-RISK-004` OI-RISK4-06).
 
 > **Rev 4 (2026-08-18) — editorial only. No design decision, count, network or BOM figure changed.**
 >
@@ -1203,6 +1212,13 @@ RISK-22. Per-cluster *policy* would also put a topological socket→cluster map 
 boundary, making a MECH-2 or REG-1 re-cut a recertification. **R-11 is preserved**: the Class C line
 is in series, so no Class B fault can re-energise a cut lattice.
 
+> **✅ Rev 5 (2026-09-25): the polarity conflict below is RESOLVED** (`NP-RISK-004` §2.2, adopted;
+> `NP-HW-HUB-001` **HUB-REQ-C06**). `SAFE_EN[n]` stays active-high. The safety MCU's active-low
+> `PBM_CRANIAL_EN#` is inverted on the hub PCB to the active-high `PBM_CRANIAL_PERMIT`, and each
+> cluster's load switch conducts only on `PBM_CRANIAL_PERMIT` AND `SAFE_EN[n]`. **RISK-SHELL-03's
+> score is not re-assessed here**; that is `NP-RISK-004` OI-RISK4-06. The Rev 3 note below is
+> retained as written.
+
 **⚠ `RISK-SHELL-03` changes basis and is NOT resolved here.** The polarity conflict below is now
 between a **Class B availability gate** and the safety MCU's convention, not between a Class C
 stimulation enable and it. That lowers what is at stake but **does not close the item** — a Class B
@@ -1226,6 +1242,12 @@ Consequences and rationale:
   conditional on a package selection that has not been made. Note this is a cost of per-cluster
   *policy*, not of per-cluster *gates* — see §7.1a, which is the cheaper resolution.
 - **Fail-safe by construction.** `SAFE_EN[n]` low removes the LED rail from the cluster.
+  **✅ Rev 5: the polarity question this bullet raised is resolved, and `SAFE_EN[n]` is
+  active-high as stated.** The "opposite convention" was a different net: the safety-MCU pin
+  `PBM_CRANIAL_EN#`, which a hub-PCB inverting buffer turns into the active-high
+  `PBM_CRANIAL_PERMIT` (`NP-HW-HUB-001` HUB-REQ-C06). **The pull-down this bullet relies on is now
+  required**, at every `SAFE_EN[n]` and `PBM_CRANIAL_PERMIT` receiver (HUB-REQ-C06 (c)). The
+  text below is retained as the finding.
   **⚠ This polarity is opposite to the safety MCU's house convention and the conflict is unresolved.**
   `np_safety_config.h:7-8` specifies *"All stimulation enable GPIOs are active-LOW open-drain:
   LOW = stimulation enabled, HIGH = disabled"*. Both schemes are internally fail-safe — this one
@@ -1677,7 +1699,7 @@ pass/fail with supporting evidence.
 | SH2-DRC-10b | `SEAT#` asserts only when every other contact is home; a partially-seated tile that answers I2C is detected (§5.1.3a) | Bench: partial insertion sweep with PD readback | No plausible-but-wrong dose reading at any insertion depth | EE/FW |
 | SH2-DRC-11 | IPX4 maintained at the socket contact array after 10 swap cycles | Test | IPX4 (RISK-16 precedent) | ME |
 | SH2-DRC-12 | `SAFE_EN[n]` gates the cluster LED rail and the tES record/stim selector | Schematic + bench | No emission with `SAFE_EN[n]` low, any bus state | EE/Safety |
-| SH2-DRC-13 | `SAFE_EN[n]` defaults LOW at Safety-MCU power-on reset | BSP review | LOW before any modality task starts | FW |
+| SH2-DRC-13 | **Restated Rev 5 (2026-09-25).** `SAFE_EN[n]` and `PBM_CRANIAL_PERMIT` both read **LOW (disabled)** while undriven and through the power-on reset of whichever tier drives them. Each cluster's load switch conducts only when both are HIGH (`NP-HW-HUB-001` HUB-REQ-C06). *Rev 4 read: "`SAFE_EN[n]` defaults LOW at Safety-MCU power-on reset". It named the wrong commander, because HUB-REQ-C05 has the **hub** drive `SAFE_EN[n]`* | Schematic review + BSP review | Both nets LOW before any modality task starts; pull-downs present at every receiver; the AND is realised in hardware | EE/Safety + FW |
 | SH2-DRC-14 | Watchdog expiry removes all cluster rails <50 ms | Bench | <50 ms (CLAUDE.md §4.2) | EE/Safety |
 | SH2-DRC-15 | `VLED+`/`PGND` broadside overlap and loop area per cluster feed | CAD/stackup | ≤25 mm², dielectric ≤0.2 mm (REQ-EMI-06) | EE |
 | SH2-DRC-16 | **EEG artifact with all LEDs at full PWM load** (retained from retired DRC-18c) | Oscilloscope, prototype | **<5 µVpp**, all frequencies | EE |
@@ -1761,6 +1783,7 @@ pass/fail with supporting evidence.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| **5** | **2026-09-25** | NeurOne Systems Engineering + principal | **`SAFE_EN[n]` polarity conflict resolved; SH2-DRC-13 restated (GitHub #437).** `NP-RISK-004` §2.2 was adopted: `SAFE_EN[n]` stays active-high, and the safety MCU's active-low `PBM_CRANIAL_EN#` is inverted to the active-high `PBM_CRANIAL_PERMIT` (`NP-HW-HUB-001` HUB-REQ-C06). §6 annotated. SH2-DRC-13 now checks both nets, the receiver pull-downs and the AND. Its old wording named the Safety MCU as `SAFE_EN[n]`'s commander, contrary to HUB-REQ-C05. No BOM, network or socket change. *(Rev 4, 2026-08-18, is recorded in its banner only.)* |
 | **3** | **2026-08-16** | NeurOne Mechanical + Hardware Engineering | **Editorial only — no design decision, count or figure changed.** Rev 2 had already adopted `NP-HW-HEXTILE-001` §8.2.2 in full (18 clusters, 20 provisioned connector positions, D-7's 32-segment tree), so this document was not the open half of **OI-HEXTILE-14**; `NP-HW-HUB-001` was, and closes it at its **Rev 5** (2026-08-16). **OI-SHELL2-09(ii) updated** to record that the §7.4 connector half is done, and to name the four further places the re-size reached that the item had not listed (HUB-001 §6.3, §5.2, §8.2/§8.5, HUB-DRC-C02) alongside what remains open there. **Two revision-label defects from `NP-CONV-001` Rev 3's letter → integer sweep are fixed:** (1) the **Hub PCB keeps its letter** per `NP-CONV-001` §4.2, but §7's subsections had been converted to *"What Rev 3 must provide"* while §7's own title read *"Hub PCB Rev C interface contract"* — and because this file separately cites `NP-HW-HUB-001` **Rev 3** as a document, "Rev 3" had two referents; §7.1/§7.2/§7.3 and the §2 topology diagram now say **Hub PCB Rev C** explicitly; (2) this document's **own** revision was still written `Rev B` in nine places after its header moved to integers (§5.3 conductor table, §5.4 rail table, §9.2 self-field row, §7.1 contract column, OI-SHELL2-03/04/09/13 and the head banner) — all now **Rev 2** — and peer citations carrying letters are given integer revisions (`NP-HW-HUB-001 Rev C` → **Rev 5**, `NP-HW-HEXTILE-001 Rev B` → **Rev 2**). **OI-HUB-C07 / `OI-HEXTILE-13` remains undecided** and §7.1a is still recorded as conditional, not adopted. Status remains DRAFT pending REG-1/ACT-1. |
 | **2** | **2026-08-11** | NeurOne Mechanical + Hardware Engineering | **Five Rev 1 positions replaced, each stated with what it was and why it changed (banner at head of file).** (1) **Cluster carrier → cluster controller** — adds an STM32G071 UFQFPN32, PCA9548A, 16:1 PD current mux, one shared switched-gain TIA (DG2788A), 8:1 NTC mux + ADC, 24 V power gate (principal direction 2026-08-11; NP-HW-HUB-001 Rev 3 §3.1/§8.3 prevails). **HUB-001 §3.2's LED-drive justification is explicitly NOT carried forward** — HEXTILE D-3 fitted an on-module driver to every tile type and made it irreversible, and OI-HUB-C15 already directs its removal; the surviving justification is scanning/sequencing the retained TIA + PD mux + NTC mux + ADC (§3.2a). Records that this **effectively resolves OI-HUB-C17c against D-4** — the conservative side of C17c's ADC-drift worry (FAI-SM-06), with C17c's on-tile-dissipation half untouched and still open (§3.3a). (2) **N1 rail 12 V → 24 V** per OI-HUB-C17b / D-6; vault bus current ~2.9 A → **~1.46 A**, I²R quartered, N1 conductor sizing and gate part class re-rated, `VLED+` derating 1.0× → ~2×, §9.3 self-field figures halved; **OI-SHELL2-01 CLOSED**; boost siting noted as OI-HUB-C19 (Hub PCB, provisional). Finds the worst-case **cluster feed is the whole vault budget**, not 1/18 of it. (3) **12 clusters → 18** under CLUSTER-1 + SYM-1 + CONTIG-1, provably minimal; Rev 1's `8 branches × ≤2 = 16` I2C tree **cannot reach 18** and is replaced by D-7's 32-segment tree; connector positions **16 → 20**, tails 12 → 18, interface pins 144 → 216 (OI-HEXTILE-14, §8.2.2 option 1 + 3). §7.1a records option 4 — broadcast cranial enable → 11-conductor tail and a multi-drop trunk — as **conditional on OI-HUB-C07, not decided**. (4) **Bezel 1.0 mm** where it binds (principal direction; NP-THERM-BEZEL-001 §4.5 is the only calculated value). (5) **Socket contact budget reconciled against NP-HW-HEXTILE-001 §7.1–7.2 (D-5) and CLOSED at 19**: `SEAT#` adopted from D-5 (a partially-seated tile answering I2C while `PD1_K` sits at elevated resistance produces a silent dose under-read), `SYNC` retained (REQ-EMI-03 needs a deterministic phase reference; OI-HUB-C05 is its consumer), `DGND` retained (REQ-EMI-07 requires `PGND` to be LED return *only* for §9.3's broadside pair to cancel), 2 reserved dropped, N3 retained → 17; then **`VLED+`/`PGND` = 3+3 by principal decision 2026-08-11** under the stated rule *loss of any one contact must still leave ≥2× derating* (2 leaves the survivor at exactly the rating, into the fretting→resistance→heating runaway SH2-DRC-09 bounds; 4 spends eight contacts against RISK-22) → **19**. Rev 1's 18, D-5's 16 and **HUB-001 §7.5.2's 14–15 (voided — conditional on D-4 deleting N3)** all superseded. New **REQ-SKT-01**: the array is **two staggered rows** (a 19-contact single row spans 38 mm and is not viable at 2.00 mm pitch on a 40 mm hex) — binding, not advisory. Despite two more contacts the 6-tile plate load (34.2–57.0 N) lands *below* Rev 1's 7-tile figure, because the 18-cluster partition caps a plate at 6. **`NP-HW-HEXTILE-001` §7.1–7.2 must be co-revised (OI-SHELL2-09(i) — blocks socket tooling).** New **OI-SHELL2-11** — inter-bowl thermal load from 18 active boards into NP-THERM-CFD-C2-001 §7's stagnant air (0.231 m²K/W, ~59 % of the outward path). BOM restated $125–216 → **$175–225**. DRC grows 28 → 33 items (adds SH2-DRC-02a/02b/05a/10a/10b); 11 open items (1 closed, 5 re-scoped, 1 new). Status remains DRAFT pending REG-1/ACT-1. |
 | 1 | 2026-07-29 | NeurOne Mechanical + Hardware Engineering | Initial release. Replaces the retired 5-slot FPC routing architecture of NP-DRV-SHELL-001 Rev 2 with a cluster-carrier interconnect for the ~80-socket hex lattice. Five-network split (N1–N5); cluster as electrical aggregation boundary; two-level I2C tree reaching exactly `NP_HEXMAP_MAX_SOCKETS = 128`; TIA/AFE relocated from Hub PCB to cluster carriers; per-cluster hardware safety enable; Hub PCB Rev C interface contract (12 connectors × 12 pins, 16 positions provisioned); zero dynamic-flex paths; ≥15 mm EEG separation shown unachievable and replaced by four mechanisms retaining the <5 µVpp threshold; 28-item design review checklist; 10 open items. Status DRAFT pending REG-1/ACT-1. |

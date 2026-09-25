@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-REV-SHELL-001
-**Revision:** 1
-**Date:** 2026-08-11
+**Revision:** 2
+**Date:** 2026-09-25
 **Status:** DRAFT — open review; no item signed
 **Effective Date:** — (opens when `NP-DRV-SHELL-002` reaches BASELINED)
 **Author:** NeurOne Mechanical + Hardware Engineering
@@ -54,13 +54,14 @@ evidence per item, and the sign-off block.
 **This review cannot be closed yet.** `NP-DRV-SHELL-002` is `DRAFT` and its own §11 states the
 condition: DRAFT → BASELINED additionally requires **REG-1** and **ACT-1** to close. Both are open.
 
-Beyond that, three items in the checklist depend on decisions that have not been made, and are
+Beyond that, three items in the checklist depended on decisions that had not been made (*Rev 2: two
+still do; SH2-DRC-13 was unblocked 2026-09-25*), and are
 marked `BLOCKED` rather than `FAIL` below — a distinction that matters, because a FAIL is a design
 defect and a BLOCKED is a missing input:
 
 | Item | Blocked on | Why it cannot be reviewed |
 |---|---|---|
-| SH2-DRC-13 | `OI-CONV-01` / `RISK-SHELL-03` | The item reads *"`SAFE_EN[n]` defaults LOW at Safety-MCU power-on reset"*. Whether LOW is the safe state is **the disagreement itself** (`NP-RISK-004` §1.3). Reviewing this item against either convention would record a pass for a state that is unsafe under the other. |
+| ~~SH2-DRC-13~~ | ~~`OI-CONV-01` / `RISK-SHELL-03`~~ | **✅ UNBLOCKED 2026-09-25 (Rev 2).** `OI-CONV-01` closed when `NP-RISK-004` §2.2 was adopted. `NP-DRV-SHELL-002` Rev 5 restated the item to check both enable nets, their pull-downs and the AND (`NP-HW-HUB-001` HUB-REQ-C06), so it can now be reviewed against one convention. It is open and unreviewed, not passed. Original text: The item reads *"`SAFE_EN[n]` defaults LOW at Safety-MCU power-on reset"*. Whether LOW is the safe state is **the disagreement itself** (`NP-RISK-004` §1.3). Reviewing this item against either convention would record a pass for a state that is unsafe under the other. |
 | SH2-DRC-17 | `OI-SHELL2-07` | Pass criterion is *"within cancellation-loop budget"*. The budget has not been set. |
 | SH2-DRC-20 | `OI-HUB-C07` | Boss contact-group segregation depends on whether the cranial enable is per-cluster or broadcast; the broadcast option changes {N2/N5} from a star to a trunk, which changes the group structure and not merely its size. |
 
@@ -93,7 +94,7 @@ Criteria and methods are **not restated here**. Read each item in `NP-DRV-SHELL-
 | SH2-DRC-10b | EE/FW | | | — | |
 | SH2-DRC-11 | ME | | | — | |
 | SH2-DRC-12 | EE/Safety | | | — | |
-| **SH2-DRC-13** | FW | | | **BLOCKED** | `OI-CONV-01` — polarity disagreement unresolved |
+| SH2-DRC-13 | EE/Safety + FW | | | — | Unblocked 2026-09-25: `OI-CONV-01` closed; criterion restated in `NP-DRV-SHELL-002` Rev 5 |
 | SH2-DRC-14 | EE/Safety | | | — | |
 | SH2-DRC-15 | EE | | | — | |
 | SH2-DRC-16 | EE | | | — | |
@@ -179,4 +180,5 @@ or a dispositioned non-conformance.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 2 | 2026-09-25 | NeurOne Systems Engineering | **SH2-DRC-13 moved from BLOCKED to open (GitHub #437).** Its missing input, `OI-CONV-01`, closed when `NP-RISK-004` §2.2 was adopted. `NP-DRV-SHELL-002` Rev 5 restated the criterion. The reviewer column follows the restated owner (EE/Safety + FW). No item is signed or passed. SH2-DRC-17 and SH2-DRC-20 remain BLOCKED as recorded. |
 | 1 | 2026-08-11 | NeurOne Mechanical + Hardware Engineering | Initial release. Restores the design-review **record** instrument lost when `NP-DRV-SHELL-001` Rev 2 was retired: that document's §5 checklist was replaced by `NP-DRV-SHELL-002` §11, but its §8 eight-signatory sign-off block — the artifact that actually gated shell tooling first cut — had no successor. §0 answers the question that prompted this document: the routing **requirements** exist and were restated rather than lost (REQ-BR2-01…05, REQ-SKT-01, REQ-EMI-03…11), and the review **checklist** exists (33 items); only the record was missing. **This document deliberately holds no criteria** — it records reviewer, date, verdict and evidence per item and points at `NP-DRV-SHELL-002` §11 for what is being judged, so the two cannot drift apart. Three items open as **BLOCKED** rather than unreviewed, each naming its missing input: SH2-DRC-13 (`OI-CONV-01` — reviewing it would record a pass for a state that is unsafe under the competing convention), SH2-DRC-17 (`OI-SHELL2-07`), SH2-DRC-20 (`OI-HUB-C07`). §3 marks the three items that must be verified by mechanical diff and requires the diff be falsified before it is trusted. Raises OI-REVSH-01…04. |
