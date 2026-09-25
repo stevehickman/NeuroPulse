@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 8
+**Revision:** 9
 **Date:** 2026-09-25
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -16,6 +16,27 @@
 **Parent Document:** `NP-SW-001`
 
 ---
+
+> **Rev 9 (2026-09-25) — the hub builds the three controls `OI-FMEA-09` names (GitHub #386).**
+> `NP-FMEA-001` FMEA-M03-02 scores its residual against a hub check of delivered current against
+> commanded current. The safety MCU cannot make that check, because its charge monitor integrates
+> commanded current only. That check had never been built.
+> - **Commanded-dose record** (§6.1, `REQ-FWHUB-39`): every dispatched command is written to UHDR
+>   with its signed parameters and whether the registry accepted it. Until now the device log held
+>   no protocol parameters at all, so the commanded dose could not be rebuilt from it.
+> - **Commanded-versus-delivered cross-check** (§8.3.1, `REQ-FWHUB-41`): `src/np_stim_xcheck.c`
+>   compares the BES/tACS and tDCS delivered-current read-back with the commanded current. It
+>   raises one SHDR divergence flag per channel per session on a sustained excess, and it holds the
+>   previous level through a tDCS ramp-down.
+> - **Dirty-session marker** (§6.1, `REQ-FWHUB-40`): session start writes an SHDR `SESSION_OPEN`
+>   record and syncs it, together with the UHDR start record, before anything is dispatched. An OPEN
+>   with no END is a session that ended uncleanly.
+>
+> **Not closed by this revision.** The divergence thresholds are **unvalidated placeholders**; no
+> threshold has been derived. The delivered-current read (`OI-STIM-06`) is a HAL stub with no
+> hardware behind it. Cervical and auricular VNS have no delivered-current read to check. Those
+> remain `OI-FMEA-09`, so FMEA-M03-02's residual stays conditional. New host target
+> `np_stim_xcheck_tests`; `np_mod_stim_tests` and `np_log_backend_tests` gain cases.
 
 > **Rev 8 (2026-09-25) — `OI-FWHUB-16` closed: an accessory attached after boot is registered
 > again.** `task_module_detect` re-probed slots 7–18 through a rescan that refused every slot ≥ 5, and
@@ -680,13 +701,16 @@ asked for.
 ```
 reset cVNS re-enable manager   ← no cutoff/confirm state may cross a session boundary
 state := RUNNING; start_tick := now
-write UHDR session-start record
+write UHDR session-start + SHDR SESSION_OPEN, both synced   ← §6.1, Rev 9
+reset the commanded-vs-delivered cross-check                ← §8.3.1, Rev 9
 send per-channel electrode geometry to the safety MCU   ← §5.4
 loop:
     if NP_EV_SESSION_ABORT | NP_EV_SAFETY_FAULT  → break
     dispatch every command with start_ms ≤ elapsed_ms   ← slot → registry; socket → §3.4
+        and write each to UHDR as a commanded-dose record (accepted or refused)   ← Rev 9
     process_stops(elapsed_ms); np_sock_disp_process_stops(elapsed_ms)
     every NP_RUNNER_TELEM_INTERVAL_MS: telemetry() each present slot → np_log_telemetry()
+        → np_stim_xcheck_observe(); on a new divergence, one SHDR flag   ← §8.3.1, Rev 9
     if a cVNS command is active: np_mod_cvns_tick(hal_now_ms, hal_now_unix)
     sleep ms_until_next_event(), clamped to ≥ NP_RUNNER_TICK_MS (5 ms)
                                  and to ≤ NP_CVNS_STIM_TICK_MS while cVNS is active
@@ -818,8 +842,26 @@ Two 4 KiB static buffers (`s_uhdr_buf`, `s_shdr_buf`), each record prefixed by a
 | `0x10` session start | `0x15` stim | `0x80` session end | `0x83` zone auth |
 | `0x11` session end | `0x16` visual | `0x81` PBM health | `0x84` NTC peak |
 | `0x12` EEG band | `0x17` EEG impedance | `0x82` fault | `0x85` EEG calibration |
-| `0x13` PBM dose | `0x18` adaptation event | | |
-| `0x14` VNS/HRV | | | |
+| `0x13` PBM dose | `0x18` adaptation event | | `0x86` session open *(Rev 9)* |
+| `0x14` VNS/HRV | `0x19` command *(Rev 9)* | | |
+
+**`0x19` command — the commanded dose (Rev 9, `OI-FMEA-09`).** The runner writes one record per
+dispatched command: `session_ms` (4), `mod_type`, `target_kind`, `slot_id`, `accepted` (1 each),
+`params_len` (2), the signed `params`, and for a socket command its socket mask. `accepted` is
+false when the registry refused the command, so a refused drive is on the record as refused and
+never as delivered. The module caps are fixed firmware constants, so this record and the firmware
+version reproduce the commanded current the safety MCU integrated. UHDR only: it is the treatment
+the person received ("protocol parameters used", `data-architecture-detail.md` §5.1).
+
+**`0x86` session open — the dirty-session marker (Rev 9, `OI-FMEA-09`).** `np_log_session_start()`
+writes `SESSION_OPEN` with the device session count. It then appends and syncs both it and the UHDR
+start record before it returns, so before the runner dispatches anything. A clean end writes `0x80`
+for the same count. **An OPEN with no matching END is a session that did not end cleanly**, whether
+from power loss, a hard fault or a watchdog reset. A UHDR session file with a start record and no end
+record says the same. Without the marker, a truncated log cannot tell "the record was never written"
+from "nothing happened", and a reader then has to infer state from an absence (CLAUDE.md §5.1).
+The record carries the count only. Its classification is recorded in `data-architecture-detail.md`
+§5.1.
 
 The high bit separates the two spaces, which is not decorative: a tag byte misrouted between
 partitions is then a visibly invalid tag rather than a plausible one.
@@ -856,6 +898,8 @@ conditional on the event being suppressed.** `scripts/check-redaction-shape.ts` 
 the fault-latch marshaller; this section is the rule the script is derived from.
 
 The cVNS lifecycle codes (`NP_CVNS_SHDR_EV_*`, `0xC1`–`0xC7`) are flags only — no HR, no RR, no kΩ.
+So is `NP_STIM_SHDR_EV_DELIVERY_DIVERGENCE` (`0xD1`, Rev 9, §8.3.1): which slot diverged, never by
+how much.
 Raw per-electrode impedance is UHDR (patient tissue) and is **never** written to SHDR; only a
 divergence flag may be (`OI-CVNS-HUB-11`).
 
@@ -1193,6 +1237,48 @@ BES/tACS ≤ 1000 µA, tDCS ≤ 2000 µA, minimum 30 s ramp.
 the safety MCU's hardware commanded-charge ceilings (150 mC/cm² per session for DC, 40 µC/cm² per phase for charge-balanced), which the app cannot override. A firmware
 cap that is described as *the* limit invites someone to relax it.
 
+#### 8.3.1 Commanded-versus-delivered cross-check — `np_stim_xcheck.c` *(Rev 9, `OI-FMEA-09`)*
+
+**Why it exists.** The safety MCU's charge monitor integrates the **commanded** current the hub
+publishes. That is a signature-independence choice (`NP-SW-001` SW01-M03), and it means the monitor
+cannot see a driver delivering more than it was told to. That hazard is `NP-FMEA-001` FMEA-M03-02,
+and this is its control.
+
+**What it compares.** The driver calls `np_stim_xcheck_commanded()` beside every
+`np_safety_spi_set_channel_current()`, with the same capped value. The check therefore holds
+delivery to the number the MCU integrates, not the authored one: a BES command authored at 5 mA is
+held to 1 mA. At each telemetry snapshot the runner passes the record to `np_stim_xcheck_observe()`.
+An **excess** is `|delivered| > bound + max(bound × TOL_PCT %, FLOOR_UA)`. A non-finite reading
+counts as an excess, because it cannot show delivery is in bounds. `NP_STIM_XCHECK_CONSECUTIVE`
+excesses in a row raise **one** SHDR flag for that channel for the session. An in-bound snapshot
+resets the run.
+
+**The bound through a ramp.** tDCS reaches a lower target by ramping, over `ramp_s`, or over 30 s on
+a stop. While that ramp runs, the previous level stays the bound, so a ramp-down is not flagged as
+over-delivery against the new target. The hold is anchored at the first snapshot after the command,
+which can lengthen it by up to one telemetry interval and never shortens it. BES/tACS steps, so it
+has no hold. An increase is the bound at once. **The envelope belongs to the driver, not the
+session.** A 30 s tDCS stop ramp outlasts the runner's 5 s shutdown wait (§5.5). Session start
+(`np_stim_xcheck_reset()`) therefore clears only the latch and the debounce run. It keeps the
+commanded level and re-anchors a running hold to the new session's clock, so the previous session's
+ramp is not flagged in the next one.
+
+**Only the excess direction.** Under-delivery reduces dose. It is not the FMEA-M03-02 hazard, and
+flagging it would spend the flag on electrode contact, which the impedance checks already cover.
+
+**Coverage, stated narrowly.** Only BES/tACS and T1 tDCS have a delivered-current read
+(`np_mod_stim_hal_read_current()`, `OI-STIM-06`, which for BES returns the peak magnitude, the same
+quantity as `amplitude_ua`). Cervical VNS puts its **commanded** current in `current_ua`, so a check
+there would compare a number with itself, and it is excluded by name. Auricular VNS reports no
+current at all. T2 clinical stimulation waits for `NP-HW-TACSDRV-001` A16.2's sense path.
+
+**What this does not settle.** `NP_STIM_XCHECK_TOL_PCT`, `_FLOOR_UA` and `_CONSECUTIVE` are
+**unvalidated placeholders**, marked as such in `np_hub_config.h`, and they are not requirements
+(`NP-CONV-001` §7.1). A derived threshold needs the sense path's measured accuracy and the charge
+headroom the ceiling can spend before the flag fires. The flag is also **only a flag**: it does not
+stop the channel. The spec calls for no more, and whether a divergence should also cut the channel
+is a Safety decision. Both remain `OI-FMEA-09`.
+
 ### 8.4 VNS + HRV — `np_mod_vns.c`
 
 Auricular clip on slot 8, detected by accessory-port impedance. Delegates HRV biofeedback to
@@ -1370,6 +1456,9 @@ this line.
 | `REQ-FWHUB-38` | **(Rev 8)** While no session is in flight, every accessory slot (7–18) is re-probed, and a slot is re-initialised only when its presence or type changes. *Fails without it:* an accessory attached after boot is never usable (CLAUDE.md §1's field-upgradeable modules; `OI-FWHUB-16`). Re-initialising unchanged slots instead writes an SHDR auth record twice a second per attached intranasal or cervical VNS unit (§5 SHDR, `NP-FW-EMMC-002` §G wear) | §3.2; `np_module_registry_tests` |
 | `REQ-FWHUB-37` | **(Rev 3)** Every electrode area the runner computes is sent to the safety MCU. *Fails without it:* the MCU enforces its 25 cm² fallback in place of the fixed VNS / cervical-VNS / BES areas — 50× looser than designed on the auricular clip. *Traced to:* DI-SAFE-01a; `OI-CHARGE-07` | §5.4; `np_chan_decl_tests` (falsified against the old send rule) |
 
+| `REQ-FWHUB-39` | **(Rev 9)** Every dispatched command is written to UHDR as a commanded-dose record (§6.1 `0x19`), refused commands marked refused. *Fails without it:* the device log cannot reconstruct what was commanded, so FMEA-M03-02's cross-check has no record to be audited against (`OI-FMEA-09` (a)) | `np_session_runner.c`, `np_log_command()`; `np_log_backend_tests` (layout, UHDR-only) |
+| `REQ-FWHUB-40` | **(Rev 9)** Session start makes an SHDR `SESSION_OPEN` marker and the UHDR start record durable before any command is dispatched. *Fails without it:* an unclean session end cannot be told from a clean one in a truncated log, and a reader infers state from an absence (CLAUDE.md §5.1; `OI-FMEA-09` (c)) | `np_log_session_start()`; `np_log_backend_tests` (synced before return, OPEN/END pairing) |
+| `REQ-FWHUB-41` | **(Rev 9)** Delivered BES/tACS or tDCS current exceeding commanded raises an SHDR divergence flag: once per channel per session, a flag with no magnitude or timestamp, and not raised by a ramp-down the driver is still running. *Fails without it:* FMEA-M03-02's residual score rests on a control that does not exist (`NP-FMEA-001` §3.3). The thresholds are placeholders and are not part of this requirement (§8.3.1) | `np_stim_xcheck.c`; `np_stim_xcheck_tests`, `np_mod_stim_tests` |
 | `REQ-FWHUB-28` | **(Rev 7)** The wire format has a mechanical agreement check against `hubCompiler.ts`, falsified in both directions per `NP-CONV-001` §8. *Fails without it:* the two implementations agree only by inspection, and a length or offset drift surfaces on a device as `INVALID_ARG` | §4.6; `scripts/check-hub-wire-format.ts` (15 perturbation fixtures) |
 
 ### 10.2 Requirements the code does NOT currently meet
@@ -1543,6 +1632,7 @@ have absorbed.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 9 | 2026-09-25 | NeurOne Firmware Engineering | **GitHub #386, `OI-FMEA-09` (a)–(c) built.** (a) UHDR `0x19` commanded-dose record per dispatched command (`REQ-FWHUB-39`). (b) **New §8.3.1**, `src/np_stim_xcheck.c`: the commanded-versus-delivered cross-check for BES/tACS and tDCS, with one SHDR flag `0xD1` per channel per session and the tDCS ramp-down held (`REQ-FWHUB-41`). (c) SHDR `0x86` `SESSION_OPEN`, synced with the UHDR start record before dispatch (`REQ-FWHUB-40`). New host target `np_stim_xcheck_tests` (Class B 35 → 36); `np_mod_stim_tests` +3, `np_log_backend_tests` +10 and two overflow cases rebased on the now-empty start buffer. Mutation-tested, nine single faults, each caught. **Not closed:** placeholder thresholds, the `OI-STIM-06` read is a stub, VNS/cVNS/T2 uncovered, flag-only (no cutoff). All four stay on `OI-FMEA-09` |
 | 8 | 2026-09-25 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-16`: accessories attached after boot are registered again (§2.2, §3.2, §10, §11, §13).** `task_module_detect` re-probed slots 7–18 through `np_mod_reg_rescan_zone()`, which refused any slot ≥ `NP_HUB_ZONE_SLOT_COUNT` (5), and it discarded the `INVALID_ARG`. Only the boot scan ever registered goggles, the auricular VNS clip, the intranasal probe, cervical VNS or a T2 unit. **Renamed `np_mod_reg_rescan_slot()`**, since it is no longer zone-specific. It accepts `NP_HUB_SLOT_FIRST_VALID`..`NP_HUB_SLOT_MAX − 1`, refuses the retired zone slots 0–4 without probing, and re-initialises only on a presence or type change (D-30). A failed `init()` is not retried until the module is re-seated. Widening the bound alone would have flooded SHDR: the intranasal and cervical VNS `init()` each write an auth record, and the poll runs every 500 ms. It would also have re-run ADS1299 self-calibration and zeroed both stimulation channels every poll. `task_module_detect` now probes only in `IDLE`/`COMPLETE`/`FAULT`, re-reads the state before each slot (D-31), and asserts it never receives `INVALID_ARG` again. `np_hub_zone_insert_cb()` is a documented no-op (`OI-FWHUB-18`). **New host target `np_module_registry_tests`** (Class B 34 → 35, repo total 44 → 45, re-derived with `ctest -N`): the production registry against per-slot driver doubles. **Falsified:** built against the Rev 7 registry with `-DRESCAN_FN=np_mod_reg_rescan_zone`, it fails 120 checks. `np_hub_control_main.c` and `np_module_registry.c` cross-compile for Cortex-M7 with `-Werror`. `REQ-FWHUB-38` added. **Named downside:** `REQ-FWHUB-03` held vacuously while every rescan was refused. It is now live and held only by a state check, so it moves to §10.2 as not fully met (`OI-FWHUB-17`, blocking hardware bring-up). `np_mod_reg_rescan_slot()` takes the slot only, matching Rev 7's removal of the SHDR callback from `np_mod_reg_scan()`. |
 | 7 | 2026-09-25 | NeurOne Firmware Engineering | **Issue #384, non-blocking half: closes `OI-FWHUB-03`, `-05` and `-12`; records `-04` closed (fixed by Rev 5, #425); does the labelling half of `-06`.** **New §4.6**: per-modality code, parameter struct, byte count and target. **`scripts/check-hub-wire-format.ts`** diffs §4, `np_hub_config.h`/`np_hub_types.h` (defines, enums, packed-struct sizes and offsets) and `hubCompiler.ts`'s actual output, decoded at the firmware's offsets for all 16 encodings. Falsified on 15 single-corner perturbations and wired as `tooling-ci.yml:hub-wire-format`, so `REQ-FWHUB-28` moves to §10.1. **`np_module_registry`**: the per-zone-slot SHDR auth callback and its parameter are removed, because the records were made up from a retired ladder (§3.2, `-05`); §2.1 row 7 and the bring-up gate's rationale follow. **`firmware/pbm`**: the HAL stub is addressed over `NP_PBM_SOCKET_DOMAIN` (128), and `np_pbm_session_desc_tests` drives socket 77 (`-12`). **Status line → DRAFT — pending approval** (`-06`; approval still open). `OI-FWHUB-10` gains the per-socket SHDR inventory question. No requirement weakened; `REQ-FWHUB-25/26` remain unmet against `OI-FWHUB-09` (#335). Rev 6 → 7. |
 | 6 | 2026-09-24 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-15` (§6.5, §13).** `np_log_session_end()` now calls `np_adapt_log_flush()` before it writes the session-end record and closes the UHDR file. Adaptation events still queued when a session ends therefore land in that session's file, ahead of its session-end record. Before, the runner's following `np_log_flush()` drained them into a closed file, the append was refused (`NP_HUB_ERR_NO_SESSION`), and the next session start dropped the buffer, with nothing reporting the loss. `np_log_backend_tests` gains 1 case, run in the runner's order (end, then flush). Removing the drain fails its two positive checks. A third check, that nothing reaches the next session's file, guards against a fix that moves the events there. Host suite: 43/44; `np_lfs_log_instance_tests` fails on unmodified `main` too. The ARM cross-build is clean. No classification, record format or wire format changed; no new test target. |

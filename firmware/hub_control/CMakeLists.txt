@@ -149,6 +149,7 @@ if(NP_BUILD_TESTS)
     add_executable(np_mod_stim_tests
         tests/np_mod_stim_tests.c
         modules/np_mod_stim.c
+        src/np_stim_xcheck.c          # OI-FMEA-09: the driver feeds it
     )
     target_include_directories(np_mod_stim_tests PRIVATE
         include
@@ -156,6 +157,18 @@ if(NP_BUILD_TESTS)
     )
     target_compile_options(np_mod_stim_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+    target_link_libraries(np_mod_stim_tests PRIVATE m)
+
+    # OI-FMEA-09 / FMEA-M03-02: the commanded-versus-delivered stimulation
+    # cross-check. Pure C; the runner that calls it compiles in no host test.
+    add_executable(np_stim_xcheck_tests
+        tests/np_stim_xcheck_tests.c
+        src/np_stim_xcheck.c
+    )
+    target_include_directories(np_stim_xcheck_tests PRIVATE include)
+    target_compile_options(np_stim_xcheck_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+    target_link_libraries(np_stim_xcheck_tests PRIVATE m)
 
     # OI-LOG-01..04: session-log eMMC backing (block-coalescing append writer).
     add_executable(np_log_backend_tests
@@ -327,6 +340,7 @@ set(HUB_SOURCES
     src/np_pbm_cal_bridge.c       # OI-HUB-C06: UID-keyed calibration -> pbm seams
     src/np_socket_dispatch.c      # OI-FWHUB-01: socket-indexed dispatch registry
     src/np_chan_decl.c            # OI-MMSOCK-02: electrode-geometry declarations to the safety MCU
+    src/np_stim_xcheck.c          # OI-FMEA-09: commanded-vs-delivered stimulation cross-check
     src/np_pbm_power_gov.c        # OI-FWHUB-09 / OI-HEXTILE-09: governor, CLOSED by default
     src/np_hub_freertos_hooks.c   # FreeRTOS app hooks (stack overflow, malloc, assert)
 

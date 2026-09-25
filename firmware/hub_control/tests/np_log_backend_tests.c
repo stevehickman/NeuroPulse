@@ -438,6 +438,8 @@ static void test_count_committed_before_file(void)
 #define ADAPT_REC_BYTES (1U + sizeof(np_adaptation_event_t))
 #define ZONE_REC_BYTES  (1U + sizeof(uint32_t) + 3U)
 #define EEG_HDR_BYTES   7U
+#define OPEN_REC_BYTES  (1U + sizeof(uint32_t))
+#define CMD_HDR_BYTES   (1U + sizeof(uint32_t) + 4U + sizeof(uint16_t))
 
 static void logger_session_open(void)
 {
@@ -446,7 +448,7 @@ static void logger_session_open(void)
     np_log_init(0U);
     np_adapt_log_reset();
     memset(&g_rec, 0, sizeof g_rec);
-    np_log_session_start(&g_rec);                       /* session 1, start record buffered */
+    np_log_session_start(&g_rec);                       /* session 1, start record durable */
 }
 
 static void log_vns(uint32_t session_ms)
@@ -511,6 +513,9 @@ static void test_uhdr_overflow_syncs_after_append(void)
      * complete earlier record and the head of the one that overflowed. */
     logger_session_open();
     unsigned syncs0 = np_log_test_sync_count(NP_LOG_PART_UHDR);
+    /* Session start already made its record durable (OI-FMEA-09), so the
+     * buffer starts empty and the overflow is measured from what is there. */
+    const size_t base = np_log_test_captured_len(NP_LOG_PART_UHDR);
     size_t logged = START_REC_BYTES;                            /* bytes logged so far */
     size_t before_record = 0U;
     size_t handed_down = 0U;
@@ -524,8 +529,10 @@ static void test_uhdr_overflow_syncs_after_append(void)
             handed_down = np_log_test_captured_len(NP_LOG_PART_UHDR);
         }
     }
-    check(overflowed && np_log_test_sync_count(NP_LOG_PART_UHDR) == syncs0 + 1U &&
-          handed_down > 4096U - VNS_REC_BYTES && handed_down <= 4096U,
+    check(base == START_REC_BYTES && overflowed &&
+          np_log_test_sync_count(NP_LOG_PART_UHDR) == syncs0 + 1U &&
+          handed_down - base > 4096U - VNS_REC_BYTES &&
+          handed_down - base <= 4096U,
           "durability: filling the 4 KiB UHDR buffer hands it down with one sync");
     check(np_log_test_synced_len(NP_LOG_PART_UHDR) == handed_down &&
           handed_down >= before_record,
@@ -543,7 +550,9 @@ static void test_shdr_overflow_syncs_after_append(void)
      * complete earlier record and the head of the one that overflowed. */
     logger_session_open();
     unsigned syncs0 = np_log_test_sync_count(NP_LOG_PART_SHDR);
-    size_t logged = 0U;                            /* bytes logged so far */
+    /* The session-open marker is already durable (OI-FMEA-09). */
+    const size_t base = np_log_test_captured_len(NP_LOG_PART_SHDR);
+    size_t logged = OPEN_REC_BYTES;                /* bytes logged so far */
     size_t before_record = 0U;
     size_t handed_down = 0U;
     bool overflowed = false;
@@ -556,8 +565,10 @@ static void test_shdr_overflow_syncs_after_append(void)
             handed_down = np_log_test_captured_len(NP_LOG_PART_SHDR);
         }
     }
-    check(overflowed && np_log_test_sync_count(NP_LOG_PART_SHDR) == syncs0 + 1U &&
-          handed_down > 4096U - ZONE_REC_BYTES && handed_down <= 4096U,
+    check(base == OPEN_REC_BYTES && overflowed &&
+          np_log_test_sync_count(NP_LOG_PART_SHDR) == syncs0 + 1U &&
+          handed_down - base > 4096U - ZONE_REC_BYTES &&
+          handed_down - base <= 4096U,
           "durability: filling the 4 KiB SHDR buffer hands it down with one sync");
     check(np_log_test_synced_len(NP_LOG_PART_SHDR) == handed_down &&
           handed_down >= before_record,
@@ -599,6 +610,116 @@ static void test_session_end_keeps_queued_adapt_events(void)
     np_log_session_end(&g_rec, &shdr2);
 }
 
+/* ── OI-FMEA-09: the dirty-session marker and the commanded-dose record ─────── */
+
+static bool shdr_has_count_record(uint8_t tag, uint32_t want)
+{
+    const uint8_t *cap = np_log_test_captured(NP_LOG_PART_SHDR);
+    size_t n = np_log_test_captured_len(NP_LOG_PART_SHDR);
+    for (size_t i = 0U; i + 5U <= n; i++) {
+        uint32_t c;
+        memcpy(&c, cap + i + 1U, sizeof c);
+        if (cap[i] == tag && c == want) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void test_session_open_marker_is_durable_before_return(void)
+{
+    np_log_test_reset();
+    (void)np_log_backend_init();
+    np_log_init(40U);
+    np_adapt_log_reset();
+    memset(&g_rec, 0, sizeof g_rec);
+    np_log_session_start(&g_rec);
+
+    const uint8_t *cap = np_log_test_captured(NP_LOG_PART_SHDR);
+    uint32_t count = 0U;
+    memcpy(&count, cap + 1U, sizeof count);
+    check(np_log_test_captured_len(NP_LOG_PART_SHDR) == OPEN_REC_BYTES &&
+          cap[0] == NP_LOG_TAG_SHDR_SESSION_OPEN && count == 41U,
+          "dirty marker: session start writes SHDR SESSION_OPEN with this "
+          "session's count, and nothing else");
+    check(np_log_test_synced_len(NP_LOG_PART_SHDR) == OPEN_REC_BYTES,
+          "dirty marker: it is SYNCED before session start returns, i.e. "
+          "before any stimulation can begin");
+    check(np_log_test_synced_len(NP_LOG_PART_UHDR) == START_REC_BYTES,
+          "dirty marker: the UHDR start record is synced too, so a session "
+          "file with a start and no end is itself a dirty marker");
+
+    /* Power lost here: no end record. What survives says so. */
+    check(!shdr_has_count_record(NP_LOG_TAG_SHDR_SESSION_END, 41U),
+          "dirty marker: an interrupted session leaves OPEN with no END");
+
+    np_session_shdr_record_t shdr;
+    memset(&shdr, 0, sizeof shdr);
+    np_log_session_end(&g_rec, &shdr);
+    check(shdr_has_count_record(NP_LOG_TAG_SHDR_SESSION_OPEN, 41U) &&
+          shdr_has_count_record(NP_LOG_TAG_SHDR_SESSION_END, 41U),
+          "dirty marker: a clean session pairs OPEN and END on one count");
+}
+
+static void test_command_record_layout(void)
+{
+    logger_session_open();
+    const size_t base = np_log_test_captured_len(NP_LOG_PART_UHDR);
+
+    np_session_cmd_t cmd;
+    memset(&cmd, 0, sizeof cmd);
+    cmd.mod_type    = NP_MOD_TDCS;
+    cmd.slot_id     = NP_HUB_SLOT_TDCS;
+    cmd.target_kind = NP_PROTO_TARGET_SLOT;
+    cmd.params_len  = 3U;
+    cmd.params[0] = 0xA1; cmd.params[1] = 0xA2; cmd.params[2] = 0xA3;
+    np_log_command(&cmd, 0x01020304U, true);
+
+    np_session_cmd_t sock;
+    memset(&sock, 0, sizeof sock);
+    sock.mod_type    = NP_MOD_PBM_BASE;
+    sock.slot_id     = NP_HUB_SLOT_NONE;
+    sock.target_kind = NP_PROTO_TARGET_SOCKET_MASK;
+    sock.params_len  = 0U;                             /* a stop */
+    memset(sock.socket_mask, 0x5C, sizeof sock.socket_mask);
+    np_log_command(&sock, 7U, false);
+    np_log_flush();
+
+    const uint8_t *cap = np_log_test_captured(NP_LOG_PART_UHDR) + base;
+    size_t n = np_log_test_captured_len(NP_LOG_PART_UHDR) - base;
+    uint32_t ms;
+    uint16_t plen;
+    memcpy(&ms, cap + 1U, sizeof ms);
+    memcpy(&plen, cap + 9U, sizeof plen);
+    check(cap[0] == NP_LOG_TAG_UHDR_COMMAND && ms == 0x01020304U &&
+          cap[5] == NP_MOD_TDCS && cap[6] == NP_PROTO_TARGET_SLOT &&
+          cap[7] == NP_HUB_SLOT_TDCS && cap[8] == 1U && plen == 3U &&
+          cap[11] == 0xA1 && cap[12] == 0xA2 && cap[13] == 0xA3,
+          "command: tag, session_ms, mod, target kind, slot, accepted, "
+          "params_len and the signed params, in that order");
+
+    const uint8_t *c2 = cap + CMD_HDR_BYTES + 3U;
+    check(c2[0] == NP_LOG_TAG_UHDR_COMMAND && c2[8] == 0U &&
+          c2[6] == NP_PROTO_TARGET_SOCKET_MASK &&
+          c2[CMD_HDR_BYTES] == 0x5C &&
+          c2[CMD_HDR_BYTES + NP_HUB_SOCKET_MASK_BYTES - 1U] == 0x5C,
+          "command: a refused command is recorded as refused, and a socket "
+          "command carries its socket mask");
+    check(n == 2U * CMD_HDR_BYTES + 3U + NP_HUB_SOCKET_MASK_BYTES,
+          "command: exactly the two records, nothing more");
+    check(np_log_test_captured_len(NP_LOG_PART_SHDR) == OPEN_REC_BYTES,
+          "command: the commanded dose is UHDR only; nothing reaches SHDR");
+
+    np_session_cmd_t bad = cmd;
+    bad.params_len = NP_HUB_PROTO_PARAMS_MAX + 1U;
+    size_t before = np_log_test_captured_len(NP_LOG_PART_UHDR);
+    np_log_command(&bad, 0U, true);
+    np_log_command(NULL, 0U, true);
+    np_log_flush();
+    check(np_log_test_captured_len(NP_LOG_PART_UHDR) == before,
+          "command: an out-of-range params_len or NULL writes nothing");
+}
+
 int main(void)
 {
     printf("── np_log_backend_tests (OI-LOG-01..04) ──\n");
@@ -626,6 +747,8 @@ int main(void)
     test_uhdr_overflow_syncs_after_append();
     test_shdr_overflow_syncs_after_append();
     test_session_end_keeps_queued_adapt_events();
+    test_session_open_marker_is_durable_before_return();
+    test_command_record_layout();
 
     if (g_failures == 0) {
         printf("ALL TESTS PASSED\n");

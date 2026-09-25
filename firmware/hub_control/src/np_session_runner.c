@@ -22,6 +22,7 @@
 #include "np_module_registry.h"
 #include "np_socket_dispatch.h"
 #include "np_chan_decl.h"
+#include "np_stim_xcheck.h"
 #include "np_session_log.h"
 #include "np_safety_spi.h"
 #include "np_cvns_reenable.h"
@@ -116,9 +117,15 @@ static uint16_t slot_to_safety_bit(uint8_t slot)
  * Today every transcranial DRIVE command is refused at np_pbm_power_admit(),
  * whose production definition is closed until the OI-HEXTILE-09 governor
  * exists (OI-FWHUB-09); stops are always admitted.
+ *
+ * *accepted reports whether the registry took the command (drive or stop), for
+ * the UHDR commanded-dose record (OI-FMEA-09).  The return value is narrower:
+ * whether the command marks its modality as delivered.
  */
-static bool dispatch_command(const np_session_cmd_t *cmd, uint32_t now_ms)
+static bool dispatch_command(const np_session_cmd_t *cmd, uint32_t now_ms,
+                             bool *accepted)
 {
+    *accepted = false;
     if (cmd->target_kind == NP_PROTO_TARGET_SOCKET_MASK) {
         np_hub_status_t src = np_sock_disp_command(cmd);
         if (src != NP_HUB_OK) {
@@ -133,6 +140,7 @@ static bool dispatch_command(const np_session_cmd_t *cmd, uint32_t now_ms)
             }
             return false;
         }
+        *accepted = true;
         /* A stop is dispatched but delivers nothing; only a drive marks the
          * modality as delivered in UHDR. */
         return cmd->params_len > 0U;
@@ -177,6 +185,7 @@ static bool dispatch_command(const np_session_cmd_t *cmd, uint32_t now_ms)
         }
         return false;
     }
+    *accepted = true;
 
     /* Request enable from safety MCU for stimulation channels. */
     if (params != NULL) {
@@ -340,6 +349,10 @@ np_hub_status_t np_runner_run(void)
 
     np_log_session_start(&s_ctx.uhdr);
 
+    /* OI-FMEA-09: no envelope, run or latch carries over from a previous
+     * session.  Before any dispatch, so every commanded level is this one's. */
+    np_stim_xcheck_reset();
+
     /* ── OI-CHARGE-02 / -04 / OI-MMSOCK-02: deliver electrode geometry ──────── */
     /* The scan itself is np_chan_decl_build() (src/np_chan_decl.c), extracted so
      * it is host-tested; what follows is its rationale, unchanged.             */
@@ -432,10 +445,14 @@ np_hub_status_t np_runner_run(void)
              * record; a command that was refused (e.g. a socket target the power
              * governor did not admit, OI-FWHUB-09) must not appear in it as
              * delivered. */
-            if (dispatch_command(&s_ctx.desc.cmds[s_ctx.next_cmd_idx], now_ms)) {
-                s_ctx.uhdr.mods_active_mask |=
-                    (1U << (uint8_t)s_ctx.desc.cmds[s_ctx.next_cmd_idx].mod_type);
+            const np_session_cmd_t *cmd = &s_ctx.desc.cmds[s_ctx.next_cmd_idx];
+            bool accepted;
+            if (dispatch_command(cmd, now_ms, &accepted)) {
+                s_ctx.uhdr.mods_active_mask |= (1U << (uint8_t)cmd->mod_type);
             }
+            /* OI-FMEA-09: the commanded dose, refused commands included and
+             * marked as refused. */
+            np_log_command(cmd, now_ms, accepted);
             s_ctx.next_cmd_idx++;
         }
 
@@ -455,6 +472,15 @@ np_hub_status_t np_runner_run(void)
                 rec.session_ms = now_ms;
                 if (mod->telemetry(slot, &rec) == NP_HUB_OK) {
                     np_log_telemetry(&rec);
+                    /* OI-FMEA-09 / FMEA-M03-02: delivered current above
+                     * commanded is what the safety MCU's commanded-dose
+                     * monitor cannot see.  A flag only; the reading stays
+                     * in UHDR. */
+                    if (np_stim_xcheck_observe(&rec, now_ms)) {
+                        np_log_shdr_fault(rec.slot, rec.mod_type,
+                                          NP_STIM_SHDR_EV_DELIVERY_DIVERGENCE,
+                                          0U /* ts suppressed */);
+                    }
                 }
             }
         }

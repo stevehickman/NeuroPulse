@@ -19,6 +19,9 @@
  *   OI-STIM-04: np_mod_stim_hal_dc_ramp(pair, target_ua, polarity, ramp_s)
  *   OI-STIM-05: np_mod_stim_hal_read_impedance(pair) → float kohm
  *   OI-STIM-06: np_mod_stim_hal_read_current(pair)   → float µA (actual delivered)
+ *               For BES/tACS this is the PEAK magnitude over the sample window,
+ *               the same quantity as the commanded amplitude_ua, because the
+ *               OI-FMEA-09 cross-check (np_stim_xcheck.c) compares the two.
  *   OI-STIM-07: np_mod_stim_hal_read_charge(pair)    → uint16_t µC (session total)
  */
 
@@ -26,6 +29,7 @@
 #include "np_module_registry.h"
 #include "np_session_log.h"
 #include "np_safety_spi.h"
+#include "np_stim_xcheck.h"
 #include <string.h>
 
 #include "np_sw02_platform_hal.h"
@@ -107,11 +111,16 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
                  * beside the enable it belongs to, so the heartbeat never
                  * reports a channel still drawing after it was disabled. */
                 np_safety_spi_set_channel_current(NP_SAFETY_CH_BES_TACS, 0U);
+                np_stim_xcheck_commanded(NP_SAFETY_CH_BES_TACS, 0U, 0U);
             } else {
                 /* tDCS ramp to zero over 30s before cutting */
                 (void)np_mod_stim_hal_dc_ramp(st->active_pair, 0U, 0U, STIM_MIN_RAMP_S);
                 np_safety_spi_request_disable(NP_SAFETY_EN_TDCS);
                 np_safety_spi_set_channel_current(NP_SAFETY_CH_TDCS, 0U);
+                /* OI-FMEA-09: delivery ramps down over those 30 s, so the
+                 * cross-check holds the previous level as its bound. */
+                np_stim_xcheck_commanded(NP_SAFETY_CH_TDCS, 0U,
+                                         STIM_MIN_RAMP_S * 1000U);
             }
             st->active = false;
         }
@@ -140,6 +149,9 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
          * number handed to the DAC, so the safety MCU's per-phase check runs
          * against what was actually commanded, not what was authored. */
         np_safety_spi_set_channel_current(NP_SAFETY_CH_BES_TACS, amp);
+        /* OI-FMEA-09: the same number, to the commanded-vs-delivered check.
+         * The DAC steps, so there is no ramp to hold through. */
+        np_stim_xcheck_commanded(NP_SAFETY_CH_BES_TACS, amp, 0U);
 
     } else { /* tDCS */
         if (len != sizeof(np_mod_tdcs_params_t)) {
@@ -175,6 +187,9 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
          * keeps this a property of the signed descriptor rather than of
          * hardware timing the MCU cannot verify. */
         np_safety_spi_set_channel_current(NP_SAFETY_CH_TDCS, current);
+        /* OI-FMEA-09: a lower target is reached over ramp_s, not at once. */
+        np_stim_xcheck_commanded(NP_SAFETY_CH_TDCS, current,
+                                 (uint32_t)ramp_s * 1000U);
     }
 
     return NP_HUB_OK;

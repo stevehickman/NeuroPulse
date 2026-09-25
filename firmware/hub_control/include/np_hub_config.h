@@ -324,6 +324,33 @@
  * noted above.  Raw per-electrode kΩ is UHDR and is NEVER written to SHDR.     */
 #define NP_CVNS_SHDR_EV_IMP_CROSSVAL    0xC7U
 
+/* ── Commanded-versus-delivered stimulation cross-check (OI-FMEA-09) ──────────
+ *
+ * np_stim_xcheck.c compares delivered current (OI-STIM-06) against commanded
+ * current, and raises NP_STIM_SHDR_EV_DELIVERY_DIVERGENCE on a sustained
+ * excess.  FMEA-M03-02's residual score depends on it (NP-FMEA-001 §3.3).
+ *
+ * ⚠ UNVALIDATED PLACEHOLDERS — NOT DERIVED.  No threshold has been set for this
+ * cross-check (NP-HW-TACSDRV-001 §5.3: "follows from the divergence threshold
+ * OI-FMEA-09 sets, which is not yet set").  The values below were chosen only
+ * to be clear of plausible read-back error and to reject a single noisy
+ * sample.  They trace to no measurement, so this block is NOT a requirement
+ * (NP-CONV-001 §7.1).  They get replaced once a threshold is derived from the
+ * sense path's measured accuracy and the charge headroom the ceiling can spend
+ * before the flag.  That derivation is the open part of OI-FMEA-09.
+ *
+ * Excess = delivered > bound + max(bound × TOL_PCT / 100, FLOOR_UA).        */
+#define NP_STIM_XCHECK_TOL_PCT          10U   /* % of commanded — PLACEHOLDER  */
+#define NP_STIM_XCHECK_FLOOR_UA         100U  /* µA absolute floor — PLACEHOLDER */
+#define NP_STIM_XCHECK_CONSECUTIVE      3U    /* snapshots (1 s apart) — PLACEHOLDER */
+
+/* SHDR event code for np_log_shdr_fault(): delivered stimulation current
+ * exceeded commanded on this slot.  A flag only: no current, no magnitude, no
+ * timestamp (the logger discards session_ms for every caller).  Distinct from
+ * the 0xC_ cervical VNS codes and from the negated np_hub_status_t codes the
+ * runner logs for refused commands.                                          */
+#define NP_STIM_SHDR_EV_DELIVERY_DIVERGENCE 0xD1U
+
 /* Safety MCU status bits that make a fault NON-recoverable in-session.  A
  * heartbeat reply with NP_SAFETY_STATUS_CARDIAC set and none of these bits is
  * a recoverable cardiac cutoff: the hub holds the session and runs the CVNS
