@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HUB-001
-**Revision:** 7
-**Date:** 2026-09-23
+**Revision:** 8
+**Date:** 2026-09-25
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Hardware Engineering
@@ -16,6 +16,15 @@
 **Parent Document:** —
 
 ---
+
+> **Rev 8 (2026-09-25): GitHub #437. Adds HUB-REQ-C06, the cranial permit net (new §7.2.5), because `NP-RISK-004` §2.2 was adopted. Also closes one item, marks one blocked, and adds one pointer.**
+>
+> - **HUB-REQ-C07 and OI-HUB-C23 are new (§7.2.6), by principal decision on `NP-RISK-004` OI-RISK4-06.** The safety MCU reads back `PBM_CRANIAL_PERMIT`, not its own pin, and gains an independent Class C vault-feed cut, `VAULT_FEED_EN`, which realises `NP-DRV-SHELL-002` §6's so-far-unimplemented PAN feed cut. Boot holds the feed off until the permit reads LOW, and a stuck-enabled permit cuts the feed. OI-HUB-C20 moves ~23 → ~25 I/O.
+> - **HUB-REQ-C06 and OI-HUB-C22 are new.** The safety MCU's active-low `PBM_CRANIAL_EN#` is inverted on the hub PCB to the active-high **`PBM_CRANIAL_PERMIT`**. The pull-up and the buffer share one rail, every enable receiver has a pull-down, and each cluster load switch conducts only on `PBM_CRANIAL_PERMIT` AND `SAFE_EN[n]`. The §3.1 diagram is redrawn with the buffer; it previously showed `PBM_CRANIAL_EN#` gating the LED stage directly. **No firmware changes.**
+>
+> - **OI-HUB-C18 closed.** `NP-DRV-SHELL-002` Rev 2 did the whole propagation on 2026-08-11 (§5.4 at 24 V, 24 V gate part class, `OI-SHELL2-01` closed, `VLED+` taken to 3+3). This row was never marked.
+> - **OI-HUB-C13 marked BLOCKED.** §4.2's generated `socket_id → (cluster_id, channel)` table has no source: no committed data assigns sockets to clusters, and `scripts/sync-socket-map.ts` emits no cluster output.
+> - **OI-HUB-C21** gains a pointer to `NP-RISK-004` §2.2, which finds the pin-level form of the same Hamming-distance-1 property and that the safety MCU never reads its enable pins back.
 
 > **Rev 7 (2026-09-23) — `OI-HUB-C19` carries an EMC condition (`NP-EMC-CAV-001` `OI-EMCCAV-03`, GitHub #400). No decision changed.**
 >
@@ -288,7 +297,9 @@ signal of any kind.**
 
 ```
   i.MX RT1062 (hub PCB)
-        │  LPI2C  +  ATTN#(open-drain)  +  PBM_CRANIAL_EN# (from safety MCU)
+        │  LPI2C  +  ATTN#(open-drain)  +  PBM_CRANIAL_PERMIT (active-high)
+        │     ▲ safety MCU PBM_CRANIAL_EN# (active-low, pull-up)
+        │       → inverting buffer on the hub PCB, HUB-REQ-C06     §7.2.5
         │
    [PCA9615-class I2C↔differential transceiver]      ← hub PCB, §5.1
         │
@@ -304,7 +315,8 @@ signal of any kind.**
    │    · 16:1 current mux    → PD1/PD2 of 8 sockets                  §6.2
    │    · 1 shared TIA        → DG2788A gain switch, per-sample       §6.3
    │    · 8:1 mux + ADC       → NTC per socket
-   │    · LED drive stage     → gated by PBM_CRANIAL_EN#              §7.2
+   │    · LED drive stage     → gated by PBM_CRANIAL_PERMIT AND
+   │                            SAFE_EN[n] (both active-high)       §7.2.5
    │
  socket ×8 (unchanged FPC per socket)
 ```
@@ -1143,6 +1155,81 @@ unblocked**, and the residual work is a selection exercise, not an architecture 
    trunk. That is **OI-HEXTILE-14's** decision to take, not this one's. `NP-DRV-SHELL-002` §7.1a's
    instruction stands until it does: build Rev 4 against 20 positions and 12-conductor tails.
 
+#### 7.2.5 HUB-REQ-C06 (derived, adopted 2026-09-25) — the cranial permit net
+
+`NP-RISK-004` §2.2 (adopted 2026-09-25, GitHub #437) resolved `RISK-SHELL-03`'s polarity
+conflict. The safety MCU's active-low `PBM_CRANIAL_EN#` and `NP-DRV-SHELL-002` §6's active-high
+`SAFE_EN[n]` are on **two different nets**. An inverting buffer joins them, and until now only a
+firmware comment stated it (`np_gpio_mgr.c:5-7`). This requirement puts the buffer and its
+fail-safe conditions into hardware.
+
+**HUB-REQ-C06:** the cranial PBM safety cut shall be realised as follows.
+
+| Clause | Requirement | What fails if it is not met | Traced to |
+|---|---|---|---|
+| (a) | An **inverting buffer on the hub PCB** takes the safety MCU's `PBM_CRANIAL_EN#` (open-drain, active-low) and drives the active-high net **`PBM_CRANIAL_PERMIT`** to all 18 cluster boards | Without the buffer, a board built to `NP-DRV-SHELL-002` §6 and driven by the firmware as written is enabled whenever the pin is pulled up, which is the pin's disabled state | `NP-RISK-004` §2.2 item 1; `np_gpio_mgr.c:5-7` |
+| (b) | The `PBM_CRANIAL_EN#` **pull-up and the buffer take their supply from the same rail** | If the pull-up rail is lost while the buffer stays powered, the buffer input falls LOW and `PBM_CRANIAL_PERMIT` goes HIGH. That is a single fault reaching *enabled* | `NP-RISK-004` §2.2 item 2; IEC 60601-1 single-fault condition. Pull-up *value*: `NP-SW-CI-001` OI-SWCI-27 |
+| (c) | **Every receiver of `PBM_CRANIAL_PERMIT` and of `SAFE_EN[n]` has a pull-down**, so an undriven or unpowered input reads disabled. The buffer shall not source current into its output while unpowered | An open connector, an unpowered buffer or a hub in reset leaves a load-switch enable floating | `NP-RISK-004` §2.2 item 3; `NP-DRV-SHELL-002` §6 already relied on this pull-down without specifying it |
+| (d) | Each cluster's 24 V high-side load switch conducts **only when `PBM_CRANIAL_PERMIT` AND `SAFE_EN[n]` are both HIGH** | Without the AND, the Class B gate is not in series with the Class C cut, and R-11 is lost | §7.2.1 (R-11); `NP-DRV-SHELL-002` §6 layer table |
+
+**Names.** The pin keeps `PBM_CRANIAL_EN#`, and no firmware identifier changes (`NP-CONV-001` §3).
+The buffer output is `PBM_CRANIAL_PERMIT`. Its stem differs from the pin's, not just the `#`,
+because a dropped `#` on this line had already happened once (`NP-FW-HUB-001` before Rev 10).
+*Permit* also states the relationship: the Class C tier permits the lattice, and the Class B
+`SAFE_EN[n]` enables each cluster.
+
+**Not settled by this requirement, and settled by §7.2.6:** whether the safety MCU must read the
+line back. §2.2's residual single fault (a pull-up open or pin shorted LOW, with the buffer
+powered) reaches *enabled* on `PBM_CRANIAL_PERMIT`. The principal decided on 2026-09-25
+(`NP-RISK-004` OI-RISK4-06) to require a read-back of that net and an independent vault feed
+cut. That is **HUB-REQ-C07**.
+
+**Verification:** Hub PCB Rev C and cluster-board schematic review (**OI-HUB-C22**), together with
+`NP-DRV-SHELL-002` SH2-DRC-13. Owner: EE Lead + Safety.
+
+#### 7.2.6 HUB-REQ-C07 (decided 2026-09-25) — cranial permit read-back and the vault feed cut
+
+`NP-RISK-004` **OI-RISK4-06** asked whether an enable read-back is a required control. **The
+principal decided yes, on 2026-09-25**: on the cranial permit net, with an independent actuator.
+The alternatives considered and not taken were read-back on all ten enable nets (+10 inputs, which
+forces a larger package under OI-HUB-C20), detection with no actuator, and no read-back.
+
+**Why the read-back senses the downstream net, not the MCU pin.** If the pull-up fails open, the
+pin floats and reads indeterminately. A pin-level read-back also sees nothing past the pin: not
+the buffer, not the supply-domain fault HUB-REQ-C06 (b) guards against. Sensing
+`PBM_CRANIAL_PERMIT` itself sees every §2.2 residual fault.
+
+**Why an actuator is required, not only detection.** When the enable path is the thing that
+failed, the safety MCU cannot use it to cut stimulation. Detection alone could only report and
+refuse new grants while the lattice stayed energised. `NP-DRV-SHELL-002` §6 has always listed a
+whole-vault Class C *PAN feed cut*, but no signal, GPIO or firmware realised it. This requirement
+realises it.
+
+**HUB-REQ-C07:**
+
+| Clause | Requirement | What fails if it is not met | Traced to |
+|---|---|---|---|
+| (a) | A safety-MCU **input senses `PBM_CRANIAL_PERMIT`** at the buffer output, on the hub PCB | The §2.2 residual single fault (pull-up open, pin shorted LOW, or buffer fault) reaches *enabled* undetected | `NP-RISK-004` §2.2, OI-RISK4-06 |
+| (b) | A **separate safety-MCU output, `VAULT_FEED_EN`** (active-high, with a pull-down at its switch), enables a **series switch on the 24 V vault feed** that is independent of the `PBM_CRANIAL_EN#` → buffer → `SAFE_EN[n]` path: a different pin, a different switch, and no shared driver. Undriven or unpowered, it reads LOW, and the feed is off | Without an independent actuator, a detected stuck-enabled permit cannot be cut | `NP-DRV-SHELL-002` §6 (Global / whole vault / Class C row); IEC 60601-1 single-fault condition |
+| (c) | **At boot, `VAULT_FEED_EN` stays LOW until the read-back confirms `PBM_CRANIAL_PERMIT` LOW** while the pin is commanded disabled | A fault present at power-on energises the lattice before the first check | FMEA-M01-05 (`NP-FMEA-001`) |
+| (d) | **In every main-loop iteration**, if `PBM_CRANIAL_PERMIT` reads HIGH while the pin is commanded disabled, on two consecutive reads, the safety MCU drives `VAULT_FEED_EN` LOW, latches a fault and withholds all grants. Recovery requires a power cycle. The mismatch in the other direction (permit LOW while commanded enabled) is an availability fault: report it, and do not cut | A stuck-enabled permit during a session continues to energise the lattice | `NP-RISK-004` RISK-SHELL-03 |
+
+**Signal names** follow `NP-CONV-001` §1.1: `VAULT_FEED_EN` is active-high, so it carries no `#`.
+The read-back input senses the `PBM_CRANIAL_PERMIT` net and is named for it; it is not a new
+signal.
+
+**What this does not cover.** (i) A **hung safety-MCU main loop**: `VAULT_FEED_EN` holds its last
+state, as every enable pin does. That is `NP-RISK-002` **OI-RISK2-05** (no IWDG). (ii) **The other
+nine enable lines.** Their boot and stuck-LOW cases stay at FMEA-M01-05's S5×P1 ALARP, which was
+the scope decision taken. (iii) Where the feed switch sits relative to the 15–20 V → 24 V boost
+(**OI-HUB-C19**). The switch must be downstream of every source of the 24 V vault rail.
+
+**I/O cost:** +1 input, +1 output. **OI-HUB-C20**'s demand moves from ~23 to **~25 I/O**.
+
+**Verification:** schematic review (**OI-HUB-C22**); firmware realisation and host tests
+(**OI-HUB-C23**); bench fault injection (pull-up open, pin shorted to GND, buffer supply lost), each
+measured to feed-off. Owner: EE Lead + Safety + Firmware.
+
 ### 7.3 The Class B / Class C boundary is preserved
 
 The cluster controllers are **IEC 62304 Class B** (SW-02, main-processor class), *conditional on* one
@@ -1774,13 +1861,15 @@ binding constraint on how its calibration coefficients are re-indexed.
 | OI-HUB-C05 | **T1-C PWM phase sync routing** from on-module ATtiny402 (`CONFIG` bit[2] `sync_enable`) to the cluster controller, so HUB-REQ-C01's in-ON-window scan holds for smart modules (§6.5) | T1-C dose accuracy; FAI-SM-06 |
 | OI-HUB-C06 | **Calibration coefficients re-keyed to module UID, not socket** (§9.5) — against `NP-FW-PBM1064-001` Rev 3 and `NP-HEX-ZM-001` | Dose-metering accuracy claim |
 | ~~OI-HUB-C07~~ | **✅ CLOSED 2026-08-16 — per-cluster *policy* decided against; §7.2.1.** All-or-nothing `NP_SAFETY_EN_PBM_CRANIAL` granularity is **confirmed acceptable**. The Class C wire format does **not** widen and the enable word is unchanged. The falsifier §8.4.1 required — a hazard needing a single-cluster cut where a whole-lattice cut is itself unacceptable — was searched for across `NP-RISK-003`, `NP-RISK-004` and `NP-FMEA-001` and **cannot be produced**: no hazard in the tree has an extent of one cluster, because hazard extents are physical (tile, modality, device) and the cluster is a clamp-plate/FPC boundary. The 18 per-cluster gates survive as **IEC 62304 Class B**; the Class C bit is in series, so **R-11 is preserved**. New derived requirement **HUB-REQ-C05** (§7.2.2). Closes `NP-HW-HEXTILE-001` **OI-HEXTILE-13** with it | — (closed) |
-| OI-HUB-C21 | **A single-bit enable sits at Hamming distance 1 from the unsafe state — raised, NOT resolved, and NOT introduced by OI-HUB-C07.** Surfaced while closing C07 (2026-08-16) but **orthogonal to it and pre-existing**: `NP_SAFETY_EN_PBM_CRANIAL` has been one bit since 2026-08-05, and the same property holds for **all ten** allocated modality enable bits, not just the cranial one. One stuck-at bit, SEU, partial write or torn read reaches "enabled". The conventional Class C form is a **multi-bit coded pattern plus complement**, re-verified periodically, with anything-not-the-pattern meaning disabled. **Why it is urgent rather than merely open:** `NP-HW-HEXTILE-001` §8.4.2 establishes that an enable-word re-layout is cheap *only while no SHDR fault record exists* (standing principal instruction, 2026-08-04) — the same time-box C07 declined to spend. Widening one bit to a coded word would spend it for a reason C07 did not have. **Deliberately not done here:** it is a Class C behaviour change requiring its own hazard analysis, its own verification, and re-checking **FMEA-M01-01** and **FMEA-M01-03**, and it must not ride along on a documentation decision. Assess with **OI-FMEA-06**. Note the frame-growth costs in §8.4.2 apply if the coded word breaks the bit ≡ `current_ua[]` identity | **Safety + FW — time-boxed to the first SHDR fault record** |
-| OI-HUB-C20 | **Select the safety-MCU STM32G071 package — UNBLOCKED 2026-08-16 by OI-HUB-C07** (§7.2.3). Demand falls ~40 → **~23 I/O**, which no longer excludes the mid-range options. Needs: (a) the I/O list frozen against `np_safety_config.h` **after OI-FMEA-06** re-derives `NP_NTC_CHANNEL_COUNT` (currently `6 /* 5 zones + 1 hub */`, a retired-architecture count that may fall further); (b) a package chosen with margin for the G1 layout; (c) the choice recorded in this document and in `firmware/safety_mcu/`, which today names no package at all. **This is now the gating item for G1 layout**, having previously been gated on OI-HUB-C07 | **G1 layout** |
+| OI-HUB-C21 | **A single-bit enable sits at Hamming distance 1 from the unsafe state — raised, NOT resolved, and NOT introduced by OI-HUB-C07.** Surfaced while closing C07 (2026-08-16) but **orthogonal to it and pre-existing**: `NP_SAFETY_EN_PBM_CRANIAL` has been one bit since 2026-08-05, and the same property holds for **all ten** allocated modality enable bits, not just the cranial one. One stuck-at bit, SEU, partial write or torn read reaches "enabled". The conventional Class C form is a **multi-bit coded pattern plus complement**, re-verified periodically, with anything-not-the-pattern meaning disabled. **Why it is urgent rather than merely open:** `NP-HW-HEXTILE-001` §8.4.2 establishes that an enable-word re-layout is cheap *only while no SHDR fault record exists* (standing principal instruction, 2026-08-04) — the same time-box C07 declined to spend. Widening one bit to a coded word would spend it for a reason C07 did not have. **Deliberately not done here:** it is a Class C behaviour change requiring its own hazard analysis, its own verification, and re-checking **FMEA-M01-01** and **FMEA-M01-03**, and it must not ride along on a documentation decision. Assess with **OI-FMEA-06**. Note the frame-growth costs in §8.4.2 apply if the coded word breaks the bit ≡ `current_ua[]` identity. **Pin-level form (added Rev 8, 2026-09-25):** `NP-RISK-004` §2.2 finds the same property at the enable *pin*. A pull-up open or a pin shorted LOW reaches enabled, and the safety MCU has no enable-pin read-back (`np_hal_pin_read()`'s only caller is the SPI NSS watch). A coded word does not cover that case, so assess both together. **Pin-level half decided for the cranial line (2026-09-25):** HUB-REQ-C07 (§7.2.6) reads back `PBM_CRANIAL_PERMIT` and cuts the vault feed on a mismatch. The coded-word half of this item is unchanged | **Safety + FW — time-boxed to the first SHDR fault record** |
+| OI-HUB-C22 | **Realise HUB-REQ-C06 (§7.2.5) in the Hub PCB Rev C and cluster-board schematics.** Raised 2026-09-25 when `NP-RISK-004` §2.2 was adopted (GitHub #437). The work: (i) select the inverting buffer. It needs partial-power-down (I_off) rating, so its output neither floats HIGH nor back-powers when unpowered, and it must drive 18 receivers over the cluster tails. (ii) Put the `PBM_CRANIAL_EN#` pull-up and the buffer on one named rail. (iii) Size the receiver pull-downs against the load-switch enable input leakage and the tail capacitance. (iv) Implement the AND at each 24 V load switch. Pull-up *value* stays with `NP-SW-CI-001` OI-SWCI-27. **Widened 2026-09-25 by HUB-REQ-C07 (§7.2.6):** (v) route the `PBM_CRANIAL_PERMIT` read-back to a safety-MCU input; (vi) select the 24 V vault-feed series switch driven by `VAULT_FEED_EN`, with its pull-down, independent of the permit path and downstream of every 24 V source (placement with OI-HUB-C19) | EE Lead + Safety | Hub PCB Rev C; SH2-DRC-13 |
+| OI-HUB-C23 | **Firmware realisation of HUB-REQ-C07 (§7.2.6) in the safety MCU** (raised 2026-09-25, `NP-RISK-004` OI-RISK4-06). It needs a pin assignment for the read-back input and `VAULT_FEED_EN` (provisional until G1, as all of `np_safety_config.h` is). It also needs a boot gate that keeps the feed off until the permit reads LOW; a per-iteration two-read mismatch check that cuts the feed, latches a fault and withholds grants; and a new fault slot. Host tests must show each clause of HUB-REQ-C07 (c)–(d), mutation-checked, following `np_gpio_mgr_tests`. **Class C behaviour change:** `NP-FMEA-001` gains the corresponding failure modes, and FMEA-M01-05's cranial case is re-derived once this is built | Firmware + Safety | RISK-SHELL-03 falling below HIGH; G1 |
+| OI-HUB-C20 | **Select the safety-MCU STM32G071 package — UNBLOCKED 2026-08-16 by OI-HUB-C07** (§7.2.3). Demand falls ~40 → **~23 I/O**, which no longer excludes the mid-range options. **+2 on 2026-09-25 (HUB-REQ-C07: the permit read-back input and `VAULT_FEED_EN`) → ~25 I/O.** Needs: (a) the I/O list frozen against `np_safety_config.h` **after OI-FMEA-06** re-derives `NP_NTC_CHANNEL_COUNT` (currently `6 /* 5 zones + 1 hub */`, a retired-architecture count that may fall further); (b) a package chosen with margin for the G1 layout; (c) the choice recorded in this document and in `firmware/safety_mcu/`, which today names no package at all. **This is now the gating item for G1 layout**, having previously been gated on OI-HUB-C07 | **G1 layout** |
 | OI-HUB-C08 | **Net the $63.40 cluster tier against the retired 5-zone-module drive electronics** already inside the $405 Home Standard BOM (§8.4) — needs a post-hex module BOM that does not yet exist | BOM sign-off |
 | OI-HUB-C09 | **CLOSED 2026-07-30.** Electrical and mechanical clusters are **the same thing**: the board is **capacity-8**, not exactly-8, and capacity 8 costs the same as a hypothetical 7 (no 7-channel I2C switch or 14:1 mux exists), so one board SKU serves a full flower or any partial one. Shape settled by **CLUSTER-1** (principal, 2026-07-30): **7-hex flower wherever the lattice allows, partial flowers at the boundary** — decided on clamp-plate mechanics (span 122.2 vs 161.8 mm; stress ×1.75, plate deflection ×3.07, dome depth 25.1 → 55.0 mm, 136.8° subtended), *not* on the earlier BOM gradient, whose figures HEXTILE has voided. The triad stays excluded electrically too (43 segments at n=128 > the 32-segment budget). MECH-2 now verifies rather than selects. **Three-level `(cluster:module:element)` addressing remains explicitly rejected** (§4.5). | Closed — MECH-2 verifies |
-| OI-HUB-C13 | Add `NP_GROUP_KIND_CLUSTER = 3` + `cluster_id` to `np_group_query_t`, resolving via the §4.2 table (single ascending pass, no `seen` bitmap needed). Legitimate as a firmware-resident group because socket→cluster changes only on an inner-bowl re-tool (§4.5.1) — unlike lobe. Covers clamp-release reporting, cluster-controller fault isolation, per-cluster diagnostics — **device-state operations only, never therapeutic targeting** (§4.5). Already unreachable from NPPS/the app by construction (`NP_GROUP_KIND_*` is firmware-internal; the app emits a socket bitmap), so no new gate is required — but **do not** add a cluster selector to NPPS or a `NP_PROTO_TARGET_CLUSTER_MASK` wire target. Consider the simpler `np_module_map_cluster_sockets()` enumerator instead if the type-filtered diagnostic case proves unnecessary | Service + fault-isolation UX |
+| OI-HUB-C13 | **BLOCKED (2026-09-25, GitHub #437) on an input that does not exist yet: no machine-readable socket → cluster partition.** §4.2 requires the table to be *generated* by `scripts/sync-socket-map.ts` "so it cannot drift from the lattice". That script emits no cluster table, and no committed data file assigns sockets to the 18 clusters of `NP-HW-HEXTILE-001` §8.2.1. The partition is also provisional on REG-1 / MECH-2. A hand-written table in firmware is exactly the drift §4.2 forbids, so the enum is not added ahead of the table. Original text: Add `NP_GROUP_KIND_CLUSTER = 3` + `cluster_id` to `np_group_query_t`, resolving via the §4.2 table (single ascending pass, no `seen` bitmap needed). Legitimate as a firmware-resident group because socket→cluster changes only on an inner-bowl re-tool (§4.5.1) — unlike lobe. Covers clamp-release reporting, cluster-controller fault isolation, per-cluster diagnostics — **device-state operations only, never therapeutic targeting** (§4.5). Already unreachable from NPPS/the app by construction (`NP_GROUP_KIND_*` is firmware-internal; the app emits a socket bitmap), so no new gate is required — but **do not** add a cluster selector to NPPS or a `NP_PROTO_TARGET_CLUSTER_MASK` wire target. Consider the simpler `np_module_map_cluster_sockets()` enumerator instead if the type-filtered diagnostic case proves unnecessary | Service + fault-isolation UX |
 | OI-HUB-C17 | **PARTIALLY DECIDED 2026-07-30 (principal) — see §7.5.0.** **C17a ADOPTED:** `NP-DRV-SHELL-002`'s cluster-carrier architecture for N1/N2/N4/N5. **C17b ADOPTED:** HEXTILE **D-6**, 24 V vault rail — resolves SHELL-002 **OI-SHELL2-01** against its 12 V estimate. **C17c OPEN:** HEXTILE **D-4** (TIA + ADC on-module) deferred **pending the module heat-sink / helmet-cooling design** (§7.5.0a) — not pending cost, which §7.5.0(a)/(b) showed to be ~neutral and dominated 30× by PD population (OI-HEXTILE-06). Thermal gate has two parts: continuous on-tile dissipation inside the 42 °C face / 62 °C junction envelope, and **ADC drift 25 → 62 °C against the ±15 % dose claim (FAI-SM-06)**, which a cooler carrier-mounted ADC never faces. Decide after the heat-sink path is fixed and jointly with OI-HEXTILE-06. Only artefact still waiting: socket contact count (18 vs 14–15). Hub PCB §7.4 is unaffected either way (§7.5.7). | Socket tooling + carrier schematic only — **not** Hub PCB |
-| OI-HUB-C18 | **Propagate the 24 V adoption (C17b) into `NP-DRV-SHELL-002`.** Its §5.4 power budget, ~2.9 A vault bus figure, N1 conductor sizing and cluster power-gate part class are all computed at 12 V; at 24 V the bus current halves to ~1.46 A and I²R quarters. Its **OI-SHELL2-01** closes. Also re-check the 2-contact `VLED+` budget, which §7.5.5 shows had zero derating at 12 V and ~2× at 24 V | `NP-DRV-SHELL-002` Rev 2 |
+| ~~OI-HUB-C18~~ | **✅ CLOSED — done by `NP-DRV-SHELL-002` Rev 2 (2026-08-11); marked here in Rev 8 (2026-09-25, GitHub #437).** SHELL-002 recomputed §5.4 at 24 V (vault bus ~2.9 A → ~1.46 A), re-rated the cluster power gate to a 24 V part class (§3.2, §10.1), halved the §9.3 self-field figures and closed **OI-SHELL2-01**. The `VLED+` re-check this item asked for was settled more strongly than asked: the contact budget went to **3+3** under the rule that losing one contact must still leave ≥2× derating (SHELL-002 Rev 2 item 5). The boost is **OI-HUB-C19**'s residual, not this item's. Original text: **Propagate the 24 V adoption (C17b) into `NP-DRV-SHELL-002`.** Its §5.4 power budget, ~2.9 A vault bus figure, N1 conductor sizing and cluster power-gate part class are all computed at 12 V; at 24 V the bus current halves to ~1.46 A and I²R quarters. Its **OI-SHELL2-01** closes. Also re-check the 2-contact `VLED+` budget, which §7.5.5 shows had zero derating at 12 V and ~2× at 24 V | `NP-DRV-SHELL-002` Rev 2 |
 | OI-HUB-C19 | **PLACEMENT DECIDED (provisional) 2026-07-30 (principal): Hub PCB** — magnetics outside the shielded envelope away from the fluxgates; ~1.8 W conversion loss on the fan-served side; and **~17 % less modulated current across the parting-plane boss** (~1.46 A at 24 V vs ~1.75 A at 15–20 V if sited at the PAN), which directly helps `NP-DRV-SHELL-002` §9.3 loop-area control. Revisit if the hub thermal budget or the EMI bench objects. **EMC CONDITION ON ANY REVISIT (Rev 7, `OI-EMCCAV-03`, GitHub #400): siting the boost inside the helmet envelope — the PAN is the named alternative — is NOT accepted until `NP-EMC-CAV-001` §4 (band) and §6 (the head meets `REQ-CAV-02`) are re-derived with the boost as a source.** A switching converter is an order of magnitude above anything in that document's §3 source table, and Layer 4 is deleted (`REQ-CAV-04`), so the wearer's head is the whole of the cavity damping and nothing in the stack is left to absorb a stronger source; §3.1 there shows §6's 23.6 dB margin falls to 3.6 dB at ×10 in field. The re-derivation needs switching frequency, switch-node edge time and hot-loop area, which arrive with the part selection below. **The current Hub PCB siting is outside the envelope and triggers nothing.** **Residual:** size and select the boost (15–20 V → 24 V, ~35 W, ~1.46 A); confirm hub thermal headroom for ~1.8 W against the `NP-TOOL-HUB-001` F-04 fan/heatsink path; and verify **HUB-REQ-C04** — control-loop bandwidth ≫40 Hz so LED duty modulation stays in the current domain and never becomes 2–40 Hz rail-voltage ripple, which would be in-band at the entrainment frequencies and could masquerade as an EEG entrainment response **Thermal residual NARROWED 2026-09-08 by `NP-THERM-SINK-001` §2.3: the hub heatsink is DECOUPLED from the tile field and this row may close on hub electronics alone.** The BN-boss via terminates on the outer bowl ~32 mm out, not at the hub a median 188 mm away; a heatsink bolted to the shell at the occiput adds **zero tiles** to the concurrency ceiling even at `R_hub` = 0, because the shell rejects locally faster than it conducts that far. So the F-04 fan/heatsink path is sizing for the ~1.8 W boost loss, the RT1062 and the radios — a few watts, an ordinary part — and **not** for 5–30 W of PBM tile heat. `SINK-D-3`. **HUB-REQ-C04 is unaffected.** | Rev 3 schematic; hub thermal budget; EMI bench (with EMF-1) |
 | OI-HUB-C15 | **Merge this document with BOTH `NP-HW-HEXTILE-001` Rev 1 and `NP-DRV-SHELL-002` Rev 1** per the three-way banner at the head of this file. Adopt SHELL-002 §7.1 as the interface contract (done, §7.4). §6's fate follows OI-HUB-C17: deleted if HEXTILE D-4 wins, relocated to the cluster carrier if SHELL-002 wins — it does not stay on the Hub PCB either way. Rewrite §5.2 to the two-level UID-addressed tree; drop the cluster-MCU LED-drive rationale in §3.2; recost §8. Retain §2, §4.2–4.5.2, §7.2–7.4, §9.5, §10. **Rev 5 update (OI-HEXTILE-14):** the *counts* throughout are now correct at 18 — §7.4 (18/20 connectors, 216/240 pins, 4 × PCA9548A), §6.3 (18 DG2788A), §5.2 (per-cluster mux rate, 16-peer ceiling retired), §8.2/§8.5 (18 boards, 216 conductors), HUB-DRC-C02. **Two residuals stay here and are unchanged in kind:** (i) the §5.2 tier-1 **topology** rewrite — the count correction did not choose between this section's address-strapped shared bus and D-7's 32-segment tree, and the choice has a §5.1 differential-transceiver consequence (one PCA9615 pair or four); (ii) the §8 **recost**, whose per-board bill is still void from D-3/D-4 and must now be multiplied by 18, not 10 | Rev 3 baselining — §7.4 unblocked (§7.5.7) **and now count-correct**; §6's fate blocked on OI-HUB-C17; §5.2 topology + §8 recost still open here |
 | OI-HUB-C16 | **CLOSED 2026-07-30 by `NP-DRV-SHELL-002` network N4** — a per-cluster low-leakage analog mux onto N shared guarded lanes, terminating at an **ADS1299 bank at the posterior aggregation node** (not the Hub PCB), sized by channel count (8 T1 / 21 T2) rather than socket count. That is the crosspoint this item proposed, and it is the surviving justification for the cluster tier. Residual — contact resistance and leakage on a µV path through a pogo contact plus a mux, and tES current rating through the same switch — sits with SHELL-002, not here | Closed |

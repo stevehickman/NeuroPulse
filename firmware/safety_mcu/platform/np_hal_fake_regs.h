@@ -192,6 +192,18 @@ typedef enum { SPI1_IRQn = 25, EXTI4_15_IRQn = 7 } IRQn_Type;
 #define NVIC_EnableIRQ(x)        ((void)(x))
 #define NVIC_ClearPendingIRQ(x)  ((void)(x))
 
+/* ── IWDG ─────────────────────────────────────────────────────────────────── */
+typedef struct {
+    volatile uint32_t KR;
+    volatile uint32_t PR;
+    volatile uint32_t RLR;
+    volatile uint32_t SR;
+    volatile uint32_t WINR;
+} IWDG_TypeDef;
+
+extern IWDG_TypeDef np_hal_fake_iwdg;
+#define IWDG  (&np_hal_fake_iwdg)
+
 /* ── OTP window ───────────────────────────────────────────────────────────────
  * np_hal_otp.c reads an absolute address, which a host process cannot map.  It
  * guards its base with #ifndef, so pointing it at a normal array here lets the

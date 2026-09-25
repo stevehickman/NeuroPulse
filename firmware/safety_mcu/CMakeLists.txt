@@ -154,11 +154,32 @@ if(NP_BUILD_TESTS)
         platform/np_hal_gpio.c
         platform/np_hal_spi.c
         platform/np_hal_otp.c
+        platform/np_hal_iwdg.c
         src/np_thermal_interlock.c
     )
     np_host_test(np_hal_platform_tests)
     target_include_directories(np_hal_platform_tests PRIVATE platform)
     target_compile_definitions(np_hal_platform_tests PRIVATE NP_HAL_HOST_TEST)
+
+    # np_gpio_mgr_tests: SW01-M01 / SW01-M02 cutoff path (NP-FMEA-001 OI-FMEA-11).
+    # The ELEVENTH Class C target: NP_SAFETY_TEST_COUNT moves 10 → 11 in
+    # safety-mcu-ci.yml and build-all.yml, and NP_SAFETY_TESTS gains gpio_mgr
+    # in all three workflows.  NP-FMEA-001 scored FMEA-M01-01, -M01-05 and
+    # -M02-05 on verification that did not exist: np_gpio_mgr.c, the only
+    # writer of the ten enable lines, was in no host-test target, and neither
+    # was np_spi_watchdog_check().  np_hal_gpio_write_pin() is a recording
+    # double (the fake register file keeps one BSRR per port and cannot see nine
+    # sequential port-B writes); the driver's own polarity stays asserted
+    # against the real source by np_hal_platform_tests.  GPIOA/GPIOB resolve
+    # through a force-included test header, so no Class C source is edited.
+    add_executable(np_gpio_mgr_tests
+        tests/np_gpio_mgr_tests.c
+        src/np_gpio_mgr.c
+        src/np_spi_watchdog.c
+    )
+    np_host_test(np_gpio_mgr_tests)
+    target_compile_options(np_gpio_mgr_tests PRIVATE
+        -include ${CMAKE_CURRENT_SOURCE_DIR}/tests/np_gpio_mgr_test_ports.h)
 
     # np_nv_state_tests: SW01-M09 — the cardiac-cutoff state persisted in flash
     # across power-on resets (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01).  The
@@ -272,6 +293,7 @@ set(PLATFORM_SOURCES
     platform/np_hal_impedance.c
     platform/np_hal_otp.c
     platform/np_hal_nv.c
+    platform/np_hal_iwdg.c     # IWDG — NP-RISK-002 OI-RISK2-05 (adds 2 np_hal_* symbols)
 )
 
 # ── CPU flags (Cortex-M0+, no FPU) ────────────────────────────────────────────

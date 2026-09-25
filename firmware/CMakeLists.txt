@@ -319,6 +319,12 @@ if(NP_BUILD_TESTS)
         COMMAND np_tier_identity_nokey_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    # Eleventh Class C target — SW01-M01 / SW01-M02 cutoff path
+    # (NP-FMEA-001 OI-FMEA-11).  Class C count 10 → 11, total 48 → 49.
+    add_test(NAME np_gpio_mgr_tests
+        COMMAND np_gpio_mgr_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     add_test(NAME np_cvns_reenable_tests
         COMMAND np_cvns_reenable_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})

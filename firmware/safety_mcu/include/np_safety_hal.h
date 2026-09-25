@@ -267,6 +267,26 @@ uint32_t np_hal_tim2_get_capture(void);
 bool np_hal_rpeak_edge_pending(void);
 void np_hal_rpeak_edge_clear(void);
 
+/* ── Independent watchdog (IWDG) ──────────────────────────────────────────────
+ *
+ * np_hal_iwdg_start()    Start the IWDG from the LSI with a timeout of
+ *                        NP_SAFETY_IWDG_TIMEOUT_MS (np_safety_config.h).  Once
+ *                        started it CANNOT be stopped except by a reset — that
+ *                        is the property it is used for.  Bounded: the wait for
+ *                        the prescaler/reload update is capped; if it expires the
+ *                        IWDG is still running, at its reset-default timeout.
+ *                        Called once, immediately before the main loop.
+ *
+ * np_hal_iwdg_refresh()  Reload the counter.  Called from exactly ONE place: the
+ *                        end of each main-loop iteration, after the enable pins
+ *                        reflect that iteration's decision.  A hung or stalled
+ *                        loop therefore resets the MCU, and the reset path holds
+ *                        every enable disabled (external pull-ups, then the
+ *                        np_hal_gpio_init() preset).
+ */
+void np_hal_iwdg_start(void);
+void np_hal_iwdg_refresh(void);
+
 /* ── Contact impedance ────────────────────────────────────────────────────────
  *
  * 1 kHz AC pre-session contact check, run while stimulation output is disabled.
