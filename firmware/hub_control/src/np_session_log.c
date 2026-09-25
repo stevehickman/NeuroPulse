@@ -2,9 +2,11 @@
  * NeurOne Hub Control Program — Session Logger (UHDR / SHDR)
  * Document: NP-FW-HUB-001 Rev 1 §6
  *
- * All writes are buffered; np_log_flush() triggers eMMC writes.
+ * All writes are buffered; np_log_flush() triggers eMMC writes.  A buffer is
+ * always appended before it is synced (§6.5).
  * EEG sample blocks bypass the main buffer and go directly to HAL to avoid
- * copying 12 KB/s through a small intermediate buffer.
+ * copying 12 KB/s through a small intermediate buffer — after the buffered
+ * UHDR records ahead of them, so a session file stays in time order.
  *
  * Data routing follows NP-FW-EMMC-001 Rev 1 §12:
  *  UHDR: session UUID+timestamps, dose, HRV waveforms, coherence, impedance,
@@ -30,17 +32,51 @@ static size_t   s_shdr_pos = 0U;
 
 static uint32_t s_device_session_count = 0U;
 
+/* ── Buffer hand-down ─────────────────────────────────────────────────────────── */
+
+/* Hand everything buffered to the HAL, append only — no sync.  Used where
+ * order matters but durability is not the point (the EEG direct path). */
+static void uhdr_append_buffered(void)
+{
+    if (s_uhdr_pos > 0U) {
+        np_log_hal_uhdr_append(s_uhdr_buf, s_uhdr_pos);
+        s_uhdr_pos = 0U;
+    }
+}
+
+static void shdr_append_buffered(void)
+{
+    if (s_shdr_pos > 0U) {
+        np_log_hal_shdr_append(s_shdr_buf, s_shdr_pos);
+        s_shdr_pos = 0U;
+    }
+}
+
+/* Append, THEN sync: the sync covers the bytes just handed down (§6.5).  The
+ * one path by which buffered records become durable — never sync first.
+ * UHDR: also called at both session boundaries, so no record crosses into the
+ * wrong session's file (OI-LFS-11). */
+static void uhdr_drain(void)
+{
+    uhdr_append_buffered();
+    np_log_hal_uhdr_flush();
+}
+
+static void shdr_drain(void)
+{
+    shdr_append_buffered();
+    np_log_hal_shdr_flush();
+}
+
 /* ── Serialization helpers ────────────────────────────────────────────────────── */
 
 static bool uhdr_write(const void *data, size_t len)
 {
-    if (s_uhdr_pos + len > LOG_BUF_SIZE) {
-        np_log_hal_uhdr_flush();
-        np_log_hal_uhdr_append(s_uhdr_buf, s_uhdr_pos);
-        s_uhdr_pos = 0U;
-    }
     if (len > LOG_BUF_SIZE) {
         return false;
+    }
+    if (s_uhdr_pos + len > LOG_BUF_SIZE) {
+        uhdr_drain();
     }
     memcpy(s_uhdr_buf + s_uhdr_pos, data, len);
     s_uhdr_pos += len;
@@ -49,13 +85,11 @@ static bool uhdr_write(const void *data, size_t len)
 
 static bool shdr_write(const void *data, size_t len)
 {
-    if (s_shdr_pos + len > LOG_BUF_SIZE) {
-        np_log_hal_shdr_flush();
-        np_log_hal_shdr_append(s_shdr_buf, s_shdr_pos);
-        s_shdr_pos = 0U;
-    }
     if (len > LOG_BUF_SIZE) {
         return false;
+    }
+    if (s_shdr_pos + len > LOG_BUF_SIZE) {
+        shdr_drain();
     }
     memcpy(s_shdr_buf + s_shdr_pos, data, len);
     s_shdr_pos += len;
@@ -84,17 +118,6 @@ void np_log_init(uint32_t device_session_count)
     s_uhdr_pos             = 0U;
     s_shdr_pos             = 0U;
     s_device_session_count = device_session_count;
-}
-
-/* Hand everything buffered for UHDR to the file that is open NOW.  Called at
- * both session boundaries so no record crosses into the wrong session's file. */
-static void uhdr_drain(void)
-{
-    if (s_uhdr_pos > 0U) {
-        np_log_hal_uhdr_append(s_uhdr_buf, s_uhdr_pos);
-        s_uhdr_pos = 0U;
-    }
-    np_log_hal_uhdr_flush();
 }
 
 void np_log_session_start(const np_session_uhdr_record_t *rec)
@@ -153,9 +176,7 @@ void np_log_session_end(const np_session_uhdr_record_t *uhdr_rec,
     uhdr_drain();
     (void)np_log_backend_session_end();
     if (s_shdr_pos > 0U) {
-        np_log_hal_shdr_append(s_shdr_buf, s_shdr_pos);
-        s_shdr_pos = 0U;
-        np_log_hal_shdr_flush();
+        shdr_drain();
     }
 }
 
@@ -259,7 +280,16 @@ void np_log_eeg_sample_block(const uint8_t *samples,
                               uint32_t       session_ms)
 {
     if (samples == NULL || n_samples == 0U) { return; }
-    /* Write directly to UHDR without buffering — avoids a 12 KB/s copy overhead. */
+
+    /* Every UHDR record logged before this block goes to the file before it —
+     * the adaptation ring first, since its events reach s_uhdr_buf only when
+     * drained — so a session file stays in time order.  Append only: order,
+     * not durability, is what this path owes, and a sync here would cost one
+     * per block. */
+    np_adapt_log_flush();
+    uhdr_append_buffered();
+
+    /* The samples themselves bypass the buffer — avoids a 12 KB/s copy. */
     uint8_t hdr[7];
     hdr[0] = 0xEEU; /* EEG raw sample block tag */
     hdr[1] = (uint8_t)(session_ms >> 24);
@@ -309,14 +339,11 @@ void np_log_adapt_event(const np_adaptation_event_t *event)
 void np_log_flush(void)
 {
     np_adapt_log_flush();   /* drain the adaptation ring buffer first */
-    if (s_uhdr_pos > 0U) {
-        np_log_hal_uhdr_append(s_uhdr_buf, s_uhdr_pos);
-        s_uhdr_pos = 0U;
-        np_log_hal_uhdr_flush();
-    }
+    /* UHDR syncs whether or not s_uhdr_buf holds anything: EEG sample blocks
+     * reach the HAL without passing through it, so an empty buffer does not
+     * mean nothing is waiting to be made durable (§6.5). */
+    uhdr_drain();
     if (s_shdr_pos > 0U) {
-        np_log_hal_shdr_append(s_shdr_buf, s_shdr_pos);
-        s_shdr_pos = 0U;
-        np_log_hal_shdr_flush();
+        shdr_drain();
     }
 }
