@@ -1,18 +1,15 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 55 (current)  
+**Revision:** 56 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
-> **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
-> bear on most conversations and names the file holding the rest. Read a subsidiary file when the
-> task needs it — do not assume a figure or a spec detail is here.
+> **This file is the always-loaded core: invariants only.** Each section states the rule and names
+> the file that holds the figures, the rationale and the history. A section that names a file is a
+> pointer, not a summary you may quote figures from. Read that file when the task needs it.
 >
-> **Revision history — every revision from Rev 33 onward, what it changed and why —
-> is `docs/reference/claude-md-revision-history.md`. None of it is summarised here.** That file is
-> the only narrative of *why* an invariant below reads the way it does, which entries changed a
-> locked decision, and which changed none: **read it before assuming why something is the way it
-> is**, and before reopening anything a revision entry settled. Revisions before Rev 33 are in git
-> history and `docs/status/completed-decisions.md`.
+> **Why an invariant reads the way it does** is `docs/reference/claude-md-revision-history.md`
+> (Rev 33 onward; earlier in git history and `docs/status/completed-decisions.md`). Read it before
+> assuming why something is the way it is, or before reopening anything a revision settled.
 >
 > **Three live constraints that decide whether an answer is safe to give:**
 > 1. **Every T1 configuration is gross-margin negative and every cost figure is a floor** (§2.1).
@@ -25,60 +22,44 @@
 
 ## 📂 DOCUMENT MAP — where everything lives
 
-**In this file (invariants):** §1 product · §2 configurations · §3 modality roster · §4 hardware
-(§4.1 processor stack and §4.2 safety architecture in full) · §5 UHDR/SHDR architecture · §6 consent
-· §16 naming · §17 locale rule. Everything below is a plain path (not an `@import`), so it loads
-only when I `Read` it.
+Plain paths, not `@import`s: nothing below loads until it is `Read`.
 
-**Detail relocated out of the core sections — read these when working in that section:**
+**Section detail** (read when working in that section):
 
-| Section | What moved | File |
-|---------|-----------|------|
-| Header | **CLAUDE.md revision history — every revision, Rev 33 onward** | `docs/reference/claude-md-revision-history.md` |
-| **§2 in full** · §6.1 | **The configuration table (retail + modalities), BOM / COGS / GM%, box contents, the implied retail ladder, charger tables + intent signals, and every consumable row** — §2 keeps the rules and not one figure · clinician subscription tiers | `docs/reference/commercial-model.md` |
-| §3 | Full T1 + T2 modality specifications | `docs/reference/modality-stack.md` |
-| **§4.3 · §4.4 · §4.5 · §4.7** | **Per-layer shielding stack · fit-system specs · power/PD/runtime table · status-LED behaviour** | `docs/reference/hardware-detail.md` |
-| §5.1 · §5.2 · §5.3 | **Full UHDR/SHDR contents enumerations** · per-field boundary resolutions · predictive maintenance · anonymization pipeline | `docs/reference/data-architecture-detail.md` |
-| §6.2 · §6.3 | Layer table, screen rationale, POA workflow · research portal | `docs/reference/consent-engine.md` |
-| **§17** | **Generator mechanics, placeholder + plural rules, key conventions, why the generated files are not committed** | `docs/reference/localization.md` |
-| **§18** | **The two-question test in full, the worked example, retire-vs-downgrade, and the `OI-CONV-08` audit** | `docs/np_conv_001.md` §7.1 |
+| § | File |
+|---|------|
+| §2 in full (every figure), §6.1 | `docs/reference/commercial-model.md` |
+| §3 | `docs/reference/modality-stack.md` |
+| §4.3 · §4.4 · §4.5 · §4.7 | `docs/reference/hardware-detail.md` |
+| §5.1 – §5.3 (per-field UHDR/SHDR rulings) | `docs/reference/data-architecture-detail.md` |
+| §6.2 · §6.3 | `docs/reference/consent-engine.md` |
+| §17 | `docs/reference/localization.md` |
+| §18 | `docs/np_conv_001.md` §7.1 |
 
-**Subject-matter documents:**
+**Subject documents** (read before acting on the topic):
 
-| Topic | Read when… | File |
-|-------|-----------|------|
-| **Configuration cost model** (BOM/COGS/GM% derivation, the three unsourced assumptions, term U, why OI-HUB-C08 cannot close) | quoting or acting on ANY §2.1 cost figure; any BOM, margin or pricing question | `docs/np_cost_001.md` |
-| **PBM protocol power audit** (which predefined protocols fit the envelope; why the "~6 tiles" rule is really 2–32; the zone-granularity defect; what cascading can and cannot rescue) | asking whether a protocol can actually run, authoring or editing any `.npps`, or touching zone definitions | `docs/np_ses_pwr_001.md` |
-| **Naming + notation conventions** (signal names, `§N`, document IDs, identifier families) | authoring or revising ANY doc, naming a signal, or reviewing an interface | `docs/np_conv_001.md` |
-| **EEG electrode net** (why pod travel cannot fix 10-20 registration; net sizing model; modality interference; wiring) | ANY question about EEG electrode placement, fit across head sizes, the T1-B tile type, or `REG-1`'s scope | `docs/np_hw_eegnet_001.md` |
-| PBM optical resolution floor (what boundary the hardware can actually produce) | zone sizing, lateralized protocols, any "targets region X" claim | `docs/np_opt_psf_001.md` |
-| Optional accessories + companion SW (mastoid pad, Watch app) | working on accessories / app roadmap | `docs/reference/accessories-roadmap.md` |
-| Durability + maintenance design changes | tooling / BOM / mechanical work | `docs/reference/durability-maintenance.md` |
-| Service network (partner tiers, covers) | service / warranty / logistics work | `docs/reference/service-network.md` |
-| **EMF shielding evidence base + claim substantiation** (what the literature does and does not support per layer and per modality; the per-layer value audit; why Layer 2 cannot be removed and why Layer 4 was deleted) | quoting, publishing or acting on ANY shielding claim; any question about what the shielding buys; any proposal to add to or remove from the §4.3 stack | `docs/np_bib_emf_001.md` |
-| **Enclosure cavity resonance** (the source that excites it, the band, the cavity requirement in dB — and why the deleted Layer 4 supplied 1 % of it while the wearer's head supplies the rest) | any question about the retired Layer 4 / absorber station, cavity Q, or what the §4.3 stack does above 400 MHz; before proposing to put anything back at that station | `docs/np_emc_cav_001.md` |
-| Competitive position + claims | marketing / positioning / claims work | `docs/reference/competitive-position.md` |
-| Regulatory strategy (T1 wellness / T2 510k) | regulatory / QMS / standards work | `docs/reference/regulatory-strategy.md` |
-| Clinical researchers + evidence bibliography | clinical trials / evidence / researcher outreach | `docs/reference/clinical.md` |
-| Marketing notes / draft copy | marketing copy work | `docs/reference/marketing-notes.md` |
-| **Open items / pending decisions** (was §13.1–13.4) | checking what's blocking / unresolved | `docs/status/pending-decisions.md` |
-| **Completed + locked decisions log** (was §13.5) | checking whether/how something was decided | `docs/status/completed-decisions.md` |
-| **Document + firmware register** (was §14) | locating a spec doc or firmware module | `docs/status/document-register.md` |
-| Formal DHF index (source of truth for design records) | 510(k) / design-control work | `docs/np_dhf_001.md` |
-| **Manufactured artifact register + documentation readiness** (what we build; which tooling spec / risk register / FAI checklist exists, and what blocks the rest) | asking "does X have a spec / an FAI / a risk register yet?", or planning tooling work | `docs/np_art_001.md` |
-| **Accessory + applicator hardware specifications** — audio cup · intranasal Y-probe + sleeve · auricular VNS/HRV clip · cervical VNS · TMS coil · 21-ch tACS driver. **All DRAFT and requirements-grade: they carry what the record binds and name what is missing, not dimensions** | working on any of those six artifacts; asking what a modality's *hardware* is actually specified to do — **§3's roster is not that** | `docs/np_hw_audio_001.md` · `docs/np_hw_nasal_001.md` · `docs/np_hw_vnsclip_001.md` · `docs/np_hw_cvns_001.md` · `docs/np_hw_tms_001.md` · `docs/np_hw_tacsdrv_001.md` |
-| FAI programme (method, issue conditions, PDMS-bond + ingress qualifications) | writing or running any first article inspection | `docs/np_fai_001.md` |
-| Risk file — the ISO 14971 index, and the disposition of every RISK-01…26 ID | any ISO 14971 / hazard question | `docs/np_risk_002.md` |
-| Risk registers — hex-tile module · shell/socket/interconnect/hub | per-artifact hazard work | `docs/np_risk_003.md` · `docs/np_risk_004.md` |
-| Hex-tile mould tooling specification | tile mould / BOM / mechanical work | `docs/np_tool_hextile_001.md` |
-| Shell interconnect design review record (gates shell tooling first cut) | shell tooling release | `docs/np_rev_shell_001.md` |
-| **T1 → T2 upgrade path** — decided 2026-09-23 (new unit, modules carry over); the regulatory consequences of each path; `REQ-UPG-01…03`; what the decision settled and what it opened | any question about moving a customer from T1 to T2, tier identity or gating, whether a part or module works across tiers, or changing an interface a T1 module uses | `docs/np_reg_upg_001.md` |
-| **Earlier document versions** — index naming the current document for each | you have a figure or a file and need to confirm it is the current one | `docs/superseded/README.md` |
+| Topic | File |
+|-------|------|
+| **Any BOM / COGS / GM% / price figure** | `docs/np_cost_001.md` |
+| **Whether a PBM protocol fits the power envelope; any `.npps` or zone edit** | `docs/np_ses_pwr_001.md` |
+| **Naming, signal names, `§N` form, document IDs** (authoring any doc) | `docs/np_conv_001.md` |
+| **EEG electrode placement / 10-20 fit / T1-B tile / `REG-1`** | `docs/np_hw_eegnet_001.md` |
+| PBM optical resolution floor ("targets region X" claims) | `docs/np_opt_psf_001.md` |
+| **Any shielding claim, or adding to / removing from the §4.3 stack** | `docs/np_bib_emf_001.md` |
+| **Cavity resonance, the retired Layer 4 station** | `docs/np_emc_cav_001.md` |
+| **T1 → T2 path, tier gating, cross-tier interfaces** | `docs/np_reg_upg_001.md` |
+| Accessory / applicator hardware (audio cup, nasal probe, VNS clip, cVNS, TMS coil, tACS driver) — DRAFT, requirements-grade; §3 is not their spec | `docs/np_hw_{audio,nasal,vnsclip,cvns,tms,tacsdrv}_001.md` |
+| Accessories + companion SW · durability · service network | `docs/reference/{accessories-roadmap,durability-maintenance,service-network}.md` |
+| Competitive position · regulatory strategy · clinical evidence · marketing | `docs/reference/{competitive-position,regulatory-strategy,clinical,marketing-notes}.md` |
+| Open items · locked-decision log · document + firmware register | `docs/status/{pending-decisions,completed-decisions,document-register}.md` |
+| Formal DHF index (**source of truth** where the status logs disagree; dedup is `OI-CONV-07`) | `docs/np_dhf_001.md` |
+| Manufactured artifacts + which spec / risk register / FAI exists | `docs/np_art_001.md` |
+| FAI programme | `docs/np_fai_001.md` |
+| Risk: ISO 14971 index · hex-tile · shell/socket/hub | `docs/np_risk_002.md` · `_003` · `_004` |
+| Hex-tile mould tooling · shell interconnect review | `docs/np_tool_hextile_001.md` · `docs/np_rev_shell_001.md` |
+| Is this figure / file the current one? | `docs/superseded/README.md` |
 
-> The three `docs/status/` files are large logs, not narratives — each opens with a "How to read
-> this file" block giving the grep recipes to reach one entry without reading the whole file. They
-> also overlap heavily with the DHF index (`docs/np_dhf_001.md`) and git history. **The DHF is the
-> source of truth where they disagree**; the dedup pass against it is `OI-CONV-07`.
+The three `docs/status/` logs are large; each opens with grep recipes. Do not read them whole.
 
 ---
 
@@ -100,20 +81,15 @@ Two-tier platform sharing a single chassis, processor stack, app, and USB-C conn
 - No mandatory subscription — all core functions offline-capable permanently
 - UHDR/SHDR data separation (user health data never accessed by NeurOne)
 
-**T1 → T2 is a new unit, never a conversion** (decided 2026-09-23, `OI-TACSDRV-06` →
-`docs/np_reg_upg_001.md` §7). A T1 is a wellness unit for its whole life, and a T2 is built as T2. Three
-rules follow, and each binds work far from the upgrade question:
-1. **A T1 unit never enables a T2 modality or unlocks a T2 feature, whatever is attached** (`REQ-UPG-01`).
-   T2-D, cervical VNS and possibly the qEEG cap fit interfaces every T1 unit has, so physical absence
-   is not the gate. The gate is a signed tier identity **written once, at manufacture** (`REQ-UPG-02`).
-   **The firmware gate exists and is not in force** (`docs/np_reg_upg_001.md` §7.7). The safety MCU
-   withholds every T2 enable line unless its UID-bound OTP record verifies as T2. The authority key is
-   a placeholder, so **every unit is T1** until `OI-UPG-08`. The software-feature gate is not built
-   (`OI-UPG-01`). `NP_PROTO_FLAG_T2_TIER` is app-computed and decides nothing.
-2. **The modules a purchaser bought carry over to their T2**, so every T1 module interface is kept on
-   every T2 (`REQ-UPG-03`). **A change to a tile socket, accessory port or lens mount lands on both tiers
-   or neither.**
-3. **"Field-upgradeable" (above) means within a tier.** Never present T1 as upgradeable to Pro.
+**T1 → T2 is a new unit, never a conversion** (decided 2026-09-23 → `docs/np_reg_upg_001.md` §7):
+1. **A T1 unit never enables a T2 modality or unlocks a T2 feature, whatever is attached**
+   (`REQ-UPG-01`). The gate is a signed tier identity written once at manufacture (`REQ-UPG-02`),
+   not physical absence. The firmware gate exists but is **not in force**, so every unit is T1
+   until `OI-UPG-08`. The software gate is not built (`OI-UPG-01`). `NP_PROTO_FLAG_T2_TIER` is
+   app-computed and decides nothing.
+2. **Modules carry over to the purchaser's T2** (`REQ-UPG-03`): a change to a tile socket,
+   accessory port or lens mount lands on both tiers or neither.
+3. **"Field-upgradeable" means within a tier.** Never present T1 as upgradeable to Pro.
 
 ---
 
@@ -151,37 +127,16 @@ never blocks.**
 ### 2.3 Consumables + recurring revenue → `docs/reference/commercial-model.md` §2.3
 
 Intranasal hygiene sleeves are the **only authenticated consumable** and the primary MRR driver.
-**All consumable prompts are measurement-triggered (§5.2), never calendar-triggered** — a consumable
-with no measurement gets no prompt; inventing a trigger is design work, not a documentation edit.
-
-**What counts as a measurement (Rev 48, `OI-ACC-02`).** A calendar prompt is not only forbidden here,
-it is **unimplementable on this device**: there is no battery, coin cell or `VBAT` rail (§4.5), so the
-RT1062's SNVS RTC has no backup domain and wall time is lost on every disconnect. A replacement
-prompt therefore qualifies in exactly one of two ways, and the row must say which:
-
-1. **Condition measurement** — a sensed quantity of the part itself (hydrogel tips: impedance trend).
-2. **Exposure count** — a count the device already takes, of the quantity that drives the part's
-   degradation, **with that mechanism named** (VNS clip pads: electrochemical degradation from VNS
-   current, 20–40 sessions). An exposure count is weaker than a condition measurement and the
-   difference is not cosmetic: it cannot see a part that failed early, was damaged, or degraded off
-   the device. A row taking this route says what its count cannot see.
-
-**A threshold back-derived from a calendar interval is a calendar prompt wearing a session count**,
-and is the thing this invariant forbids — the trigger *kind* and the threshold's *provenance* are
-two claims, and satisfying the first does not satisfy the second. A threshold that no measurement
-supports is an unvalidated placeholder and is labelled one, per `NP-FW-EMMC-002` §G.2.
-
-**Enforced, not read (Rev 55, `OI-ACC-06`).** Each `commercial-model.md` §2.3 row declares its
-trigger kind, producer, threshold provenance, mechanism and blind spot in a Trigger column.
-`scripts/check-consumable-triggers.ts` checks that the producer exists on both apps, that each
-threshold equals the code's `sessionLimit`, and that no prompt is calendar-shaped. **A new
-consumable prompt needs a row before it ships.**
-
-**Scope: consumable replacement prompts only.** Service-network and calibration intervals are
-deliberately outside it and stay calendar-denominated — the 3–5 year Tier B fluxgate visit
-(`docs/reference/durability-maintenance.md`, scale-factor drift is not self-detectable) and the
-$1,800/yr T2 calibration visit (`NP-PWRSRC-001` D-16, the ISO 14971 re-acknowledgement point) have
-no measurement to substitute, and reading this rule onto them would delete two controls.
+**Every consumable replacement prompt is measurement-triggered (§5.2), never calendar-triggered.**
+A calendar trigger is also unimplementable, because the device has no RTC backup (§4.5). A prompt
+qualifies as either a **condition measurement** of the part, or an **exposure count** that names
+its degradation mechanism and what it cannot see. **A threshold back-derived from a calendar
+interval is a calendar prompt**, and an unsupported threshold is labelled an unvalidated
+placeholder. A consumable with no measurement gets no prompt. Inventing a trigger is design work,
+not a documentation edit. **A new prompt needs a Trigger-column row before it ships**, and
+`scripts/check-consumable-triggers.ts` enforces it. Service and calibration visits are outside this
+rule and stay calendar-based. The full rule, the scope carve-out and every row are in
+`commercial-model.md` §2.3.
 
 ---
 
@@ -199,32 +154,25 @@ retinal walk, snap-on shade system, EC lens option).
 clinical tACS (≤4 mA, 21-ch) · sLORETA-guided HD-tDCS (4×1 ring) · cervical VNS accessory · HIPAA
 cloud + FHIR R4 + LSL + scripting API · anonymized session tag.
 
-**Hard limits that constrain any protocol or firmware work** (full context in the modality file, and
-enforcement in §4.2):
+**Hard limits that constrain any protocol or firmware work** (enforcement in §4.2):
 
 | Modality | Ceiling |
 |----------|---------|
 | PBM scalp | **400 mW/cm² peak pulsed** (≤25% duty, firmware-enforced) · 200 mW/cm² CW · 42 °C limit (IEC 60601) |
 | PBM deep (T2) | ≤1,000 mW/cm² (1170 nm, TEC-stabilised) |
-| BES / tACS | 0.5–40 Hz · ≤1 mA T1 / ≤4 mA T2 · charge-balanced biphasic · **40 µC/cm² per phase** (see below) |
+| BES / tACS | 0.5–40 Hz · ≤1 mA T1 / ≤4 mA T2 · charge-balanced biphasic · **40 µC/cm² per phase** |
 | tDCS | 0.1–2 mA DC · **150 mC/cm² per session** hardware limit · 30 s ramp · ≤3 electrode pairs |
 | VNS (auricular) | 1–25 Hz · ≤2 mA · biphasic charge-balanced · **40 µC/cm² per phase** |
 | Visual | IEC 62471 MPE at 50% of exempt-group threshold · photoparoxysmal halt <200 ms |
 
-**The charge ceiling is TWO ceilings, one per waveform class** (Rev 46, `OI-CHARGE-05`). A single
-40 µC/cm² figure used to be stated for the whole electrical tier; it is a **per-phase PULSED** limit
-(Shannon/McCreery) and was being compared against a session-cumulative integral, which is a category
-error in two directions at once. DC channels (tDCS, HD-tDCS) get a **per-session** ceiling of
-**150 mC/cm²** per electrode; charge-balanced channels (BES/tACS, VNS, cervical VNS, clinical tACS)
-get a **per-phase** ceiling of **40 µC/cm²** per electrode, because net charge on them is ~zero and a
-session integral of |I| is not a dose. Both are enforced against the electrode area **declared in the
-signed descriptor**, and both are **commanded-dose** limits — what the protocol asked for, never an
-ADC measurement. Derivations, citations and the provisional status of the 150: `docs/np_dt_001.md`
-§3.2.1 (DI-SAFE-01 / DI-SAFE-01a).
+**The charge ceiling is two ceilings, one per waveform class.** DC channels (tDCS, HD-tDCS) have
+**150 mC/cm² per session** per electrode. Charge-balanced channels (BES/tACS, VNS, cVNS, clinical
+tACS) have **40 µC/cm² per phase** per electrode. Never compare a per-phase limit with a session
+integral. Both are **commanded-dose** limits, enforced against the electrode area in the signed
+descriptor. Derivation, and why the 150 is provisional: `docs/np_dt_001.md` §3.2.1.
 
-**Do not answer a modality question from this roster alone** — wavelengths, counts, materials,
-consumables, evidence and per-modality open items are in `docs/reference/modality-stack.md`.
-Whether a given protocol fits the power envelope is `docs/np_ses_pwr_001.md`.
+**Do not answer a modality question from this roster alone.** Wavelengths, materials, consumables,
+evidence and open items are in `docs/reference/modality-stack.md`.
 
 ---
 
@@ -257,38 +205,24 @@ Whether a given protocol fits the power envelope is `docs/np_ses_pwr_001.md`.
 
 ### 4.3 EMF shielding (4-layer passive + active) → `docs/reference/hardware-detail.md`
 
-Four passive layers — **Layers 1, 2, 3 and 5; Layer 4 is retired and its number is held, never
-reused** — plus active fluxgate + Helmholtz cancellation. **Combined 35–45dB ELF magnetic /
-40–60dB RF**, the figure every §1 claim rests on (unchanged by the deletion: Layer 4 contributed to
-neither). Three things that bind other work: Layer 3 is
-**palladium, not silver** (tarnish-immune — what makes the claim *permanent*, verified by fleet SHDR
-attenuation); the shell is bonded to the EEG DRL output; the TMS coil site needs a **non-conductive
-CFRP window**. Per-layer dB and the three firmware additions: §4.3 of the detail file.
+Four passive layers (**1, 2, 3 and 5**) plus active fluxgate + Helmholtz cancellation. The design
+target is **35–45 dB ELF magnetic / 40–60 dB RF**. **These are design targets, never measurements.**
+`EMF-1` has never run, so no dB figure may be published as measured. Rules that bind other work:
 
-> **The dB figures are design targets, not measurements — `EMF-1` has never run** — and what the
-> stack is *for* is `docs/np_bib_emf_001.md` (NP-BIB-EMF-001), the evidence record. Read it before
-> quoting a shielding claim, or proposing to add to or remove from this stack. Three things it
-> establishes that this section does not say: the literature supports the **electric/RF** layers for
-> EEG signal quality and supports **no** therapeutic-outcome benefit on any modality; **Layer 2's
-> documented rationale is the one benefit the evidence does not support**, while three undocumented
-> dependencies are what actually hold it in place; and the stack is **aperture-limited, not
-> layer-limited**, so an unmeasured seam budget makes every layer's value unknowable. **No dB figure
-> here or in the detail file may be published as *measured*.**
->
-> **Layer 4 (carbon-loaded absorber foam) is DELETED — `REQ-CAV-04` taken 2026-09-23 (GitHub #391,
-> `docs/np_emc_cav_001.md` §8.2).** `REQ-CAV-02` sets **loaded Q ≤ 20 over 420 MHz – 3 GHz
-> (≥ 26.2 dB)** against a named source (the **18 cluster controllers inside the envelope**, not a
-> radio); the layer supplied **0.26 dB** of it and the wearer's head supplies **49.8 dB**, because a
-> 3 mm non-magnetic absorber on a conductor is reactive-only regardless of its loading. **The 3 mm
-> re-loft of the outer bowl moved with it and is BINDING** — vacating 3 mm without it fills the
-> station with stagnant air at 54 % *worse* per mm than the foam, so the outward thermal path goes
-> 0.410 → 0.450; with it, **0.335** m²K/W. Scalp → exterior radial stack **27–32 mm** (was 30–35).
-> Three rules bind from here: **(1) never renumber** — `L5` stays `L5`, because every historical
-> citation of "Layer 4" means the absorber; **(2) *"five-layer keying"* is a different, retired
-> RISK-15 scheme** and is not this stack; **(3) the one documented way the station returns** is
-> `OI-EMCCAV-08` (`MECH-2`): if the spring plungers cannot take up the (now ±0.80) tolerance stack, a
-> thin **electrically insulating, non-magnetic** ceramic-filled pad (`REQ-CAV-03`), sized by that
-> stack — never an absorber. `EMF-1` has still never run, so the deletion is analysed, not measured.
+- Layer 3 is **palladium, not silver**. It is tarnish-immune, and fleet SHDR attenuation verifies
+  it. That is what makes the claim *permanent*.
+- The shell is bonded to the EEG DRL output. The TMS coil site needs a **non-conductive CFRP
+  window**.
+- **Layer 4 (absorber foam) is deleted** (`REQ-CAV-04`, 2026-09-23). **Never renumber:** `L5` stays
+  `L5`, because every historical "Layer 4" means the absorber. *"Five-layer keying"* is a retired
+  RISK-15 scheme, not this stack. The binding 3 mm outer-bowl re-loft went with the deletion. The
+  only documented way anything returns to that station is an insulating, non-magnetic pad under
+  `OI-EMCCAV-08`, and never an absorber.
+
+Before quoting a shielding claim or changing the stack, read `docs/np_bib_emf_001.md` (what the
+evidence supports: EEG signal quality, not therapeutic outcome) and `docs/np_emc_cav_001.md`
+(cavity). Per-layer dB and the deletion's thermal and tolerance figures are in
+`hardware-detail.md` §4.3.
 
 ### 4.4 Fit system → `docs/reference/hardware-detail.md`
 
@@ -326,36 +260,26 @@ file.
 - Clinician access: per-element, per-use-case, time-limited, audited, revocable
 - Researcher access: anonymized aggregate only, separate IRB + explicit research consent
 - Defining test: does this record tell us something about the **person**? If yes → UHDR
-- Contents (representative — full enumeration in the detail file): EEG waveforms (all channels) · HRV time series · session timestamps and duration · closed-loop adaptation events · PBM dose (J/cm²) per zone · user-entered symptom/outcome logs
-- Storage: on-device eMMC UHDR partition, AES-256 encrypted with user biometric-derived key (NeurOne does not hold decryption key)
-- Backup: automated nightly incremental backup to USB-C local or E2E encrypted cloud (user-held key) when on USB-C power
+- Storage: on-device eMMC UHDR partition, AES-256 with a user biometric-derived key (NeurOne does not hold it); nightly incremental backup to USB-C local or E2E-encrypted cloud (user-held key)
 
 **SHDR — System Health Data Record**
 - Owner: NeurOne
 - Linked to: device ID + opaque TRNG warranty token **only** — never to user identity
-- **Consent subject: warranty owner** (the entity who registered warranty — may be a clinic, institution, or individual purchaser; is NOT assumed to be the person wearing the device). Warranty consent is entirely separate from user research consent. A clinic staff member activating warranty is not consenting on behalf of any patient.
+- **Consent subject: warranty owner**, who may be a clinic, institution or purchaser and is NOT assumed to be the wearer (§6.0)
 - Defining test: does this tell us about the **device's condition**, with nothing that reveals user biology? If yes → SHDR
-- Contents (representative — full enumeration in the detail file): LED output ratio per zone · NTC temperature profiles · EMF shielding attenuation ratio · device session count (unsigned integer, no timestamps) · USB-C insertion counter · firmware version + OTA history · calibration coefficient history
-- Storage: on-device eMMC SHDR partition, separate encryption from UHDR
-- Upload: to NeurOne fleet database on USB-C connect (warranty owner consent required at device registration; unrelated to user research consent)
+- Storage: separate eMMC partition and encryption; uploaded to the fleet database on USB-C connect, with warranty-owner consent
 
-**Two general rules that decide most new fields:**
+**Two rules that decide most new fields:**
 
 1. **When in doubt → UHDR.** Reclassification requires positive demonstration of no user biology
    content.
-2. **A redaction applied conditionally on a sensitive predicate leaks that predicate** (2026-08-12).
-   It must be unconditional, or the predicate must not be inferable from the *pattern* of redaction
-   — the "no such user" vs "wrong password" failure shape. This is why fault-latch `tick_ms` is not
-   SHDR-reportable at all and why `status`/`slot`/`count` go through the single fixed-shape
-   marshaller `np_fault_latch_build_report()`: zeroing `tick_ms` only for
-   `NP_SAFETY_STATUS_CARDIAC` made `count > 0 && tick_ms == 0` a self-interpreting one-bit cardiac
-   oracle. `scripts/check-redaction-shape.ts` enforces this shape.
+2. **A redaction applied conditionally on a sensitive predicate leaks that predicate.** It must be
+   unconditional, or its pattern must not reveal the predicate. The fault-latch cardiac oracle is
+   the worked case. `scripts/check-redaction-shape.ts` enforces this rule.
 
-**Both the full contents enumerations and the per-field boundary resolutions (EEG impedance,
-accelerometer, VNS impedance, cervical-VNS cross-validation, anonymization `failed_step`, fault
-latch, …) are in `docs/reference/data-architecture-detail.md` §5.1** — that file, not this section,
-is authoritative per field, and a field on neither list is decided by the defining tests above and
-then added there.
+**The contents of each record, and the ruling on each field, are in
+`docs/reference/data-architecture-detail.md` §5.1.** That file is authoritative per field. A field
+on neither list is decided by the tests above and then added there.
 
 ### 5.2 Predictive maintenance system (SHDR-based) → `docs/reference/data-architecture-detail.md`
 
@@ -380,108 +304,66 @@ and never shared with researchers. Full data flow: `docs/reference/data-architec
 
 ---
 
-## 6. CLINICAL CONSENT ENGINE (all locked)
+## 6. CLINICAL CONSENT ENGINE (all locked) → `docs/reference/consent-engine.md`
 
 ### 6.0 Two consent subjects (locked)
 
-NeurOne has **two distinct consent subjects** that must never be conflated:
-
 | Subject | Who | Data | Consent granted at | Managed by |
 |---------|-----|------|--------------------|------------|
-| **Warranty owner** | Entity that purchased/registered the device — may be a clinic, institution, or individual; is **NOT assumed to be the device user** | SHDR fleet telemetry only | Device warranty registration | `SHDRUploader` (device-linked opaque token, no user identity) |
-| **User** | Person wearing the device during sessions | UHDR (EEG, HRV, PBM dose, adaptation events — user biology) | Per-user research consent flow (L1–L4 below) | `ConsentStore` (per user, on-device) |
+| **Warranty owner** | Entity that registered the device (clinic, institution or individual), **not assumed to be the user** | SHDR only | Warranty registration | `SHDRUploader` |
+| **User** | Person wearing the device | UHDR | Research consent flow (L1–L4) | `ConsentStore` (per user, on-device) |
 
-**Invariants:**
-- A clinic that registers a device warranty has NOT consented on behalf of any patient.
-- A patient using a clinic-owned device has their own independent `ConsentStore` state.
-- SHDR and UHDR consent gates are code-structurally independent — `SHDRUploader` has no reference to `ConsentStore`.
-- Revoking user research consent has no effect on SHDR uploads; revoking warranty consent has no effect on user research participation.
-
-**Research consent withdrawal scoping:**
-- Withdraw from specific study → stops data flows for that study only; app analytics unaffected.
-- Withdraw from specific category → stops data flows for that category; app analytics unaffected.
-- Withdraw blanket research consent (L3) → stops ALL research data flows AND tears down research analytics (`ConsentStore.withdrawBlanketResearchConsent()` calls `revokeResearchAnalytics()`), because blanket withdrawal signals the user does not want any data collection beyond basic device function.
-- **"Never asked" and "said stop" are different states and must stay distinguishable** (Rev 45).
-  `blanketConsentGranted == false` is true of both, so the flag alone cannot carry the rule above:
-  withdrawal does not un-tick the nine L2 categories, and those stale boxes would otherwise keep
-  admitting studies after the user stopped everything. `ResearchConsentState.blanketConsentWithdrawnAt`
-  records the true→false transition — set by the store, never by a screen — and
-  `blanketConsentWithdrawn` outranks L2 at the §6.3 ingestion gate. Re-granting L3 clears it,
-  because that is a fresh decision; the marker itself stays in the record.
+- A clinic registering a warranty has **not** consented for any patient. Each patient on a clinic
+  device has their own `ConsentStore`.
+- The two gates are code-structurally independent: `SHDRUploader` has no reference to
+  `ConsentStore`, and revoking either consent does not affect the other.
+- Withdrawing from a study or category stops only that flow. **Withdrawing blanket consent (L3)
+  stops all research flows and tears down research analytics.**
+- **"Never asked" and "said stop" must stay distinguishable.** `blanketConsentWithdrawnAt` is set
+  by the store, never by a screen, and it outranks stale L2 ticks at the §6.3 gate.
 
 ### 6.1 Use case subscription tiers → `docs/reference/commercial-model.md`
 
-Four clinician tiers — Monitor $49 · Assess $149 · Full Clinical $299 /mo/patient · Research
-$599/mo/study. **Key principle: clinicians select *use cases*, never data elements**; the system
-derives the minimum necessary UHDR elements, and users get a plain-language document stating what the
-clinician CAN and CANNOT learn per element. Expansion of access is a differential consent decision,
-and **retroactive and prospective access are always presented as separate decisions** even when made
-at the same time. **A grant's reach is therefore scoped in time and never derived from its tier
-alone** — `tier.uhdrElements` is timeless, so a tier by itself can only answer the retroactive
-question yes, and "widen it going forward, leave my earlier sessions alone" becomes unrepresentable
-(Rev 42). Tier table, element lists and the expansion workflow as implemented:
-`docs/reference/commercial-model.md` §6.1.
+Four clinician tiers (prices are in the owning file). **Clinicians select *use cases*, never data
+elements.** The system derives the minimum UHDR elements, and the user gets a plain-language
+statement of what the clinician can and cannot learn. **Retroactive and prospective access are
+always separate decisions**, so a grant's reach is scoped in time and never derived from its tier
+alone.
 
 ### 6.2 A priori research consent (4 layers, 2 onboarding screens)
 
-**Layers are not screens.** L1–L4 are the four consent layers — the units of the data model,
-of the withdrawal surfaces, and of every citation elsewhere in the document set. They are
-presented across **two** screens. A citation to "L3" means the blanket-consent layer, wherever
-it is rendered; it has never meant "the third screen."
+**Layers are not screens.** L1–L4 are the data-model units, and "L3" always means blanket consent.
+Screen **S1** carries L4 + L1 ("what you get back"). Screen **S2** carries L2 + L3 ("what you
+share").
 
-| Screen | Layers | Question the screen asks |
-|--------|--------|--------------------------|
-| **S1 — What you get back** | L4 + L1 | What do you want to hear about, and how do we reach you? |
-| **S2 — What you share** | L2 + L3 | Which research areas, and do you want to be asked about each study? |
+| Layer | In one line |
+|-------|-------------|
+| **L1 — Contact** | May we reach you about future research? (POA holders: human review) |
+| **L2 — Category** | Which of the 9 research areas? Each project is still a fresh decision |
+| **L3 — Blanket** | Pre-approve all NeurOne-reviewed research (k≥10, no IDs, no sub-weekly timestamps) |
+| **L4 — Results** | Plain-language results per study, **including null results**, plus the portal |
 
-| Layer | In one line | If no |
-|-------|-------------|-------|
-| **L1 — Contact** *(S1)* | May we reach you about future research? (contact method + frequency limit; POA holders upload a POA, human review 3 business days) | No contact; all features unchanged |
-| **L2 — Category** *(S2)* | Which of the 9 research areas? Each project is still a fresh decision | Not contacted for that category |
-| **L3 — Blanket** *(S2)* | Pre-approve all NeurOne-reviewed research (k≥10, no IDs, no sub-weekly timestamps); still receives per-study *engagement* notifications, not consent requests | Per-category and per-project process applies |
-| **L4 — Results + community** *(S1)* | Plain-language results per study **including null results**, paper link, suggestion/voting/pledge portal | No results contact, no portal |
-
-**Binding invariants (rationale, the full layer table, POA workflow and portal are in
-`docs/reference/consent-engine.md`):**
-
-- **L2 is scope; L3 is posture.** Selecting all nine L2 categories is *not* blanket consent —
-  "everything, but ask me" is a real position and survives only while both axes do (§6.2.2).
-- **Select-all does NOT auto-enable the blanket toggle** (§6.2.3). The usability objection is
-  answered with copy, not state.
-- **L4-first must not become an inducement** (§6.2.4): conditional framing ("if your data ever
-  contributes to a study"), a symmetric exchange that names **null results** explicitly, and
-  non-coercion stated on the screen — reciprocity buys information, never participation.
-- **Fewer steps to grant must not mean coarser withdrawal** (§6.2.5). Withdrawal stays at study,
-  category and blanket granularity, and the blanket→analytics teardown is enforced at the store
-  ingestion point (`updateResearchConsent`) on a **true→false transition** — guarding the transition,
-  not the value, so a category-only edit cannot trigger it. `scripts/check-consent-reachability.ts`
-  guards the Rev 37 defect this was written against (correct, tested, unreachable from the iOS UI).
-- **L3 carries an irreversibility notice whenever its control is on**, and per-project consent
-  repeats it for vulnerable populations (45 CFR 46) — full copy in `docs/reference/consent-engine.md`.
-- **L3's per-study notification is not a consent request, and the two cannot share one shape.**
-  Silence means the opposite thing in each: an unanswered consent request means *not participating*;
-  an unread engagement notification means *participating*, because L3 already answered. A single
-  representation has to pick one default for everyone (Rev 44) — so a study reaches an L2 and an L3
-  user as two different objects, and an L3 user's opt-out is a withdrawal, not a decline (§6.3).
+Binding invariants (rationale in `consent-engine.md` §6.2.2–§6.2.5):
+- **L2 is scope and L3 is posture.** All nine L2 categories is not blanket consent, and
+  **select-all never auto-enables L3.**
+- **L4-first must not become an inducement.** Use conditional framing, name null results, and state
+  non-coercion on the screen.
+- **Withdrawal stays at study, category and blanket granularity.** The analytics teardown fires on
+  a **true→false transition** at `updateResearchConsent`. `scripts/check-consent-reachability.ts`
+  guards it.
+- **L3 carries an irreversibility notice whenever it is on.** Per-project consent repeats that
+  notice for vulnerable populations (45 CFR 46).
+- **An L3 engagement notification and a consent request are different objects.** Silence means
+  opposite things in each. An L3 user's opt-out is a withdrawal, not a decline.
 
 ### 6.3 Research suggestion portal (three functions) → `docs/reference/consent-engine.md`
 
-Patient research agenda (plain-language study ideas, community voting) · pre-identified subject pool
-("would participate" intent flags — recruitment is 40–60% of trial cost) · crowdfunding catalyst
-(pledges are intent, not charges; escrow released only on confirmed feasibility). The per-project
-contact workflow — NeurOne reviews the study, generates the eligible list from device ID and contact
-prefs only (**no UHDR**), invites in NeurOne's own voice, and closes the loop with results including
-null results — is in `docs/reference/consent-engine.md` §6.3.
-
-**The device does not take that server-side review on trust.** What crosses onto the device is
-§5.3's **signed study descriptor**; the invitation the user reads is derived from it on-device after
-the signature verifies, and `ConsentEngine.admit()` re-checks §5.3's k≥10 / ≥1-week floors, L1, and
-the user's own L2/L3 state before anything is shown (Rev 44). Two consequences a later change must
-not undo: **what a study CANNOT see is computed as the complement of what it asked for**, never
-supplied as prose by the party asking; and **verification is closed by default** — the only
-`StudyDescriptorVerifier` shipped refuses everything, so a transport cannot be wired up without
-supplying the signature check (`OI-CONSENT-07`). Gate table:
-`docs/reference/consent-engine.md` §6.3.
+Research agenda voting · pre-identified subject pool · crowdfunding pledges (intent, not charges).
+NeurOne builds the invitation list from device ID and contact preferences only (**no UHDR**). **The
+device does not trust the server:** it verifies the signed study descriptor, and
+`ConsentEngine.admit()` re-checks k≥10, the ≥1-week floor, L1 and the user's L2/L3 state before
+showing anything. What a study cannot see is **computed as the complement** of what it asked for.
+The only shipped `StudyDescriptorVerifier` refuses everything (`OI-CONSENT-07`).
 
 ---
 
@@ -498,71 +380,40 @@ Signal names, document IDs, `§N` citation form and the other identifier familie
 
 ## 17. LOCALIZED STRINGS — CODE GENERATION RULE (locked 2026-09-03; single-source 2026-09-08) → `docs/reference/localization.md`
 
-**Whenever non-firmware code is generated or edited, user-facing text goes into the locale files
-and the code carries only a key.** Never write a string a person will read into a source file.
+**Non-firmware code carries only a key. User-facing text goes in `locales/<bcp47>.json`**, the only
+committed copy. There are 11 locales, flat and sorted. The web, Apple and Android files are
+**git-ignored build outputs** of `bun scripts/sync-locales.ts`, so never edit or commit them.
 
-| Surface | Where the text lives | How text is read |
-|---------|--------------------|------------------|
-| Canonical | `locales/<bcp47>.json` — flat `KEY` → string, sorted. All 11 locales carry en.json's key set, and may add only their own CLDR plural categories to a plural family (§17.2). **The only committed copy.** | — |
-| Web | *build output* — `app/web/src/generated/locales/*.json` | `t('KEY')`, `tPlural('BASE', n)` from `app/web/src/lib/i18n.ts` |
-| Apple | *build output* — `app/ios/NeurOne/Localizable.xcstrings` | `Text("KEY")`, `String(localized: "KEY")`; with values, `String(format: String(localized: "KEY"), …)` |
-| Android | *build output* — `<buildDir>/generated/res/locales/values*/strings.xml` | `stringResource(R.string.key)` (lowercased key), `pluralStringResource(R.plurals.base, n, n)` |
+- **Add the key to all eleven locales, then reference it** (`t('KEY')` web · `String(localized:)`
+  Apple · `stringResource(R.string.key)` Android). **Read `localization.md` §17.1–§17.3 before
+  adding a key**, because a malformed placeholder or plural family fails the build.
+- **Module-level tables hold keys, not text.** Resolve them with `t()` at render time.
+- **Each modality has exactly one name and one description:** `MODALITY_<ID>_NAME` and
+  `MODALITY_<ID>_DESC`, from the `.npps` token. §3's consumer names live in the `bes_tacs` and
+  `tdcs` descriptions.
+- **Firmware renders no text and references no locale file.** If one appears under `firmware/`,
+  that is a design decision, not a detail.
 
-- **`locales/*.json` is the single source of truth and the only committed copy of any user-facing
-  string.** The three per-platform files are **git-ignored build outputs** regenerated by each app's
-  own build from the one generator, `bun scripts/sync-locales.ts`. **Never edit one, and never
-  commit one** — a generated file under version control is a second source of truth whether or not
-  anyone means it to be, which is the failure this arrangement was written after (§17.5).
-- **Add a key to `locales/*.json` — all eleven — then reference it.** Placeholder, plural and
-  modality-key rules are `docs/reference/localization.md` §17.1–§17.3; **read it before adding a
-  key**, because a malformed placeholder or plural family fails the build rather than degrading.
-- **Module-level tables hold KEYS, not text.** A constant initialised at import time captures
-  English before `initI18n()` resolves; resolve with `t()` at the point of render.
-- **One name and one description per modality — `MODALITY_<ID>_NAME` / `MODALITY_<ID>_DESC`, and no
-  others**, derived from the `.npps` grammar token; §3's two regulatory consumer names are carried
-  verbatim by the `bes_tacs` and `tdcs` *descriptions*. The `.npps` parser and hub compiler keep the
-  lowercase snake_case token, which stays the canonical identifier.
-- **Firmware is exempt because it renders no text at all.** It carries no locale key and includes no
-  locale file; the device speaks in tones (`np_zone_audio.c`), LEDs and numeric status, and the app
-  does the wording. A locale reference under `firmware/` means that boundary moved — a decision, not
-  a detail.
-
-Two gates: `bun scripts/check-locale-strings.ts` (no user-facing string in source; its
-`PENDING_PATHS` records the code the rule has not yet reached) and `bun scripts/sync-locales.ts
---verify-untracked` (no generated artifact tracked). Generator mechanics, the iOS two-hook
-requirement, the `bun`-on-`PATH` consequence and the full rationale:
-`docs/reference/localization.md`.
-
----
+Gates: `bun scripts/check-locale-strings.ts` · `bun scripts/sync-locales.ts --verify-untracked`.
 
 ## 18. REQUIREMENTS — A REQUIREMENT MUST BE REQUIRED (locked 2026-09-21) → `docs/np_conv_001.md` §7.1
 
-**Nothing is written as a requirement unless something requires it. Never add an unnecessary
-constraint.** Before a number, limit, tolerance or "shall" enters a controlled document, two questions
-must have answers and the row must carry them: **what fails if this is not met**, and **where is that
-traceable** (an external standard, a measurement, a derivation from another specified value, or a hazard
-control). **A Notes cell that restates the requirement is not a derivation.**
+**Do not write a requirement unless something requires it.** Before a number, limit, tolerance or
+"shall" enters a controlled document, its row must answer two questions. **What fails if it is not
+met?** **Where is that traceable?** (a standard, a measurement, a derivation, or a hazard control).
+A Notes cell that restates the requirement is not a derivation. Most documents here make every
+figure MANDATORY, so a figure nothing requires rejects usable parts. **Retire such a row; do not
+downgrade it. Mark it retired in place, and do not delete it.**
 
-This is not tidiness. Most procurement and interface documents here open with *"all specifications are
-MANDATORY unless marked ADVISORY"*, so an unrequired figure **rejects usable parts and manufactures
-false failures** with the document's full authority — which is what `NP-PROC-FPC-001` §2.3's undrived
-`Tj_max ≥ 125 °C` did before it was retired. **Disposition: retire, do not downgrade** (ADVISORY still
-leaves something to screen against), and **retire is not delete** — the row stays marked in place so the
-retirement is auditable.
-
-**Scope limit — this is not licence to strip limits.** It governs constraints NeurOne invented. It does
-**not** reach an externally imposed limit (IEC 60601-1's 42 °C, IEC 62471 MPE, the §3 charge ceilings), a
-hazard control, or a requirement whose derivation exists but is merely uncited — **"I could not find the
-derivation" is a reason to look, then to raise an open item, never to retire.** Removing a safety control
-is an ISO 14971 decision and never follows from this section. Full rule, test, worked example and the
-audit item `OI-CONV-08`: `docs/np_conv_001.md` §7.1.
+**This does not license stripping limits.** It never reaches an external limit (IEC 60601-1 42 °C,
+IEC 62471, the §3 charge ceilings) or a hazard control. It also does not reach a requirement whose
+derivation exists but is uncited. **"I could not find the derivation" means raise an open item,
+never retire.** Removing a safety control is an ISO 14971 decision.
 
 ---
 
-*This CLAUDE.md is the always-loaded core of the NeurOne design program: the invariants, and a map to
-everything else. Detail lives in the subsidiary files listed in the Document Map — a section here
-that names a file is a pointer, not a summary you may quote figures from. When a locked decision
-changes, update the owning file, log it in `docs/status/completed-decisions.md`, and add an entry to
-`docs/reference/claude-md-revision-history.md`. Keep every top-level section (§1–§6, §16–§18) and every
-subsection number in place even when its content moves —* `bun scripts/check-section-refs.ts` *guards
-663 inbound citations that resolve against them.*
+*When a locked decision changes, update the owning file, log it in
+`docs/status/completed-decisions.md`, and add an entry to
+`docs/reference/claude-md-revision-history.md`. Keep every section number (§1–§6, §16–§18) and every
+subsection number in place, even when the content moves. `bun scripts/check-section-refs.ts` guards
+the citations that point at them.*

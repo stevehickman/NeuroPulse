@@ -152,6 +152,30 @@ measurement-triggered (CLAUDE.md §5.2), never calendar-triggered** — a consum
 measurement gets no prompt, and inventing a trigger for one is design work, not a documentation
 edit.
 
+**What counts as a measurement** (CLAUDE.md Rev 48, `OI-ACC-02`; this full statement was moved here
+from the core in Rev 56). A calendar prompt is not only forbidden here, it is **unimplementable on
+this device**. There is no battery, coin cell or `VBAT` rail (CLAUDE.md §4.5), so the RT1062's SNVS
+RTC has no backup domain and wall time is lost on every disconnect. A replacement prompt therefore
+qualifies in exactly one of two ways, and the row must say which:
+
+1. **Condition measurement**: a sensed quantity of the part itself (hydrogel tips: impedance trend).
+2. **Exposure count**: a count the device already takes, of the quantity that drives the part's
+   degradation, **with that mechanism named** (VNS clip pads: electrochemical degradation from VNS
+   current). An exposure count is weaker than a condition measurement, and the difference matters.
+   It cannot see a part that failed early, was damaged, or degraded off the device. A row taking
+   this route says what its count cannot see.
+
+**A threshold back-derived from a calendar interval is a calendar prompt wearing a session count**,
+and is the thing this invariant forbids. The trigger *kind* and the threshold's *provenance* are two
+claims, and satisfying the first does not satisfy the second. A threshold that no measurement
+supports is an unvalidated placeholder and is labelled one, per `NP-FW-EMMC-002` §G.2.
+
+**Scope: consumable replacement prompts only.** Service-network and calibration intervals are
+deliberately outside it and stay calendar-denominated. The 3–5 year Tier B fluxgate visit
+(`docs/reference/durability-maintenance.md`; scale-factor drift is not self-detectable) and the
+$1,800/yr T2 calibration visit (`NP-PWRSRC-001` D-16, the ISO 14971 re-acknowledgement point) have
+no measurement to substitute. Reading this rule onto them would delete two controls.
+
 > **⚠ `OI-ACC-02` RESOLVED (principal, 2026-09-15; CLAUDE.md Rev 48) — the foam's trigger was never
 > a calendar, and CLAUDE.md §2.3 needed no exception.**
 >
