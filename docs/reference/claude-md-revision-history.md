@@ -19,6 +19,27 @@
 
 ## Current revision
 
+**Rev 56 (2026-09-25) — the core cut from ~46 KB to ~28 KB by removing text the owning files
+already hold. No locked decision changed. Every section and subsection number is kept.**
+
+**What changed.** Each section now states its rule and points to its file. Removed text includes the
+rationale, the incident narratives, the figures and the per-field lists, which the owning files
+already carried. Only one passage had no copy elsewhere, and it was moved rather than cut: §2.3's
+statement of what counts as a measurement, together with its carve-out for service and calibration
+intervals. It now opens `commercial-model.md` §2.3. The Document Map is now two narrow tables.
+The largest reductions: §4.3 (Layer 4 deletion figures → `hardware-detail.md` §4.3), §5.1 (contents
+lists and the fault-latch narrative → `data-architecture-detail.md` §5.1), §6.0–§6.3 (→
+`consent-engine.md`), §17 (→ `localization.md`) and §18 (→ `np_conv_001.md` §7.1).
+
+**What was kept verbatim.** The three live constraints, §2–§2.2, §4.1, §4.2 in full, §4.4–§4.7,
+§5.2, §5.3 and §16.
+
+**Why.** The file loads into every conversation. A passage that restates its owning file is a
+second copy that can drift from the first, which is the reason Rev 47 gave for removing the
+revision digests.
+
+## Earlier revisions
+
 **Rev 55 (2026-09-24) — §2.3 gains a paragraph naming the gate that enforces its trigger rule. No
 locked decision changed; `OI-ACC-06` closed, `OI-ACC-09` raised.**
 
