@@ -236,6 +236,7 @@ typedef struct {
     uint8_t  buf[HOST_CAP_BYTES];
     size_t   len;
     unsigned syncs;
+    size_t   synced_len;   /* len when the last sync was issued */
     bool     fail_next;
     /* OI-LFS-11: which files exist and how much of the capture each holds. */
     bool     open;
@@ -308,7 +309,9 @@ np_hub_status_t np_log_hal_part_append(np_log_part_t part, const uint8_t *buf, s
 
 np_hub_status_t np_log_hal_part_sync(np_log_part_t part)
 {
-    host_for(part)->syncs++;
+    host_part_t *h = host_for(part);
+    h->syncs++;
+    h->synced_len = h->len;   /* a sync covers exactly what was appended before it */
     return NP_HUB_OK;
 }
 
@@ -331,6 +334,11 @@ const uint8_t *np_log_test_captured(np_log_part_t part)
 unsigned np_log_test_sync_count(np_log_part_t part)
 {
     return host_for(part)->syncs;
+}
+
+size_t np_log_test_synced_len(np_log_part_t part)
+{
+    return host_for(part)->synced_len;
 }
 
 void np_log_test_fail_next_append(np_log_part_t part)

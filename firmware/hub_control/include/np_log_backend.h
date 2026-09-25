@@ -150,6 +150,8 @@ void        np_log_test_reset(void);                 /* clear captured state    
 size_t      np_log_test_captured_len(np_log_part_t part);
 const uint8_t *np_log_test_captured(np_log_part_t part);
 unsigned    np_log_test_sync_count(np_log_part_t part);
+/* Captured length at the last sync: the prefix that sync made durable. */
+size_t      np_log_test_synced_len(np_log_part_t part);
 void        np_log_test_fail_next_append(np_log_part_t part); /* inject 1 error  */
 void        np_log_test_set_capacity(np_log_part_t part, uint64_t bytes);
 void        np_log_test_set_segment_cap(np_log_part_t part, uint64_t bytes);

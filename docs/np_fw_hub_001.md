@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 4
+**Revision:** 5
 **Date:** 2026-09-24
 **Status:** RELEASED as a design output under `21 CFR §820.30(d)`. **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -16,6 +16,16 @@
 **Parent Document:** `NP-SW-001`
 
 ---
+
+> **Rev 5 (2026-09-24) — the session logger appends before it syncs, and keeps a UHDR session file
+> in the order records were logged (§6.1, §6.5).** Two defects in `np_session_log.c` predate
+> `OI-LFS-11` and were found while working on it. First, a full 4 KiB buffer was synced *before* it
+> was appended, so the sync covered none of the bytes it followed. Second, EEG sample blocks went
+> straight to the HAL ahead of records still buffered. Fixing the second exposed a third:
+> `np_log_flush()` synced UHDR only when the buffer held something, so EEG data could wait past the
+> 30 s bound. All three are fixed, and `np_log_backend_tests` gains 4 cases, falsified five ways.
+> Raised: `OI-FWHUB-14`, because the EEG path's documented ISR context cannot share the logger's
+> state, and `OI-FWHUB-15`, because adaptation events still queued at session end are lost.
 
 > **Rev 3 (2026-09-23) — BES/tACS gets its own fail-closed geometry gate, and a latent defect in the
 > area hand-off is fixed.** `NP-FW-MMSOCK-001` P-5 (principal, 2026-09-23) took Class C change C-1:
@@ -684,7 +694,10 @@ The high bit separates the two spaces, which is not decorative: a tag byte misro
 partitions is then a visibly invalid tag rather than a plausible one.
 
 EEG sample blocks **bypass** the buffer and go straight to the HAL — 500 Hz × 8 ch × 3 B = 12 000 B/s
-would otherwise be copied through a 4 KiB intermediate for no benefit.
+would otherwise be copied through a 4 KiB intermediate for no benefit. **They skip the copy, not the
+queue** (Rev 5). `np_log_eeg_sample_block()` first drains the adaptation ring, then hands `s_uhdr_buf`
+down with an append and no sync. Every UHDR record logged before a block therefore precedes it in the
+session file (§6.5).
 
 ### 6.2 The routing rule
 
@@ -820,6 +833,42 @@ as closed.
 > *(`OI-LFS-12` closed the same day, `NP-SOUP-LFS-001` §13.13: the count is persisted in the Config
 > partition by `np_session_count`, committed before each session's file is created and loaded at
 > bring-up; `np_hal_get_device_session_count()` is retired.)*
+
+> **Update 2026-09-24 (Rev 5) — the logger now feeds the backend in the order this model assumes.**
+> "At most the records appended since the last flush are lost" describes the backend. The logger
+> above it was breaking that assumption in three ways. Each is fixed in `np_session_log.c`, and each
+> has a case in `np_log_backend_tests` that fails when its fix is reverted:
+>
+> 1. **Sync before append on overflow.** When a 4 KiB buffer filled, `uhdr_write()` and
+>    `shdr_write()` synced first and appended the buffer afterwards. The sync therefore covered none
+>    of the ~4 KiB it was there for, and those bytes waited for the next flush: up to 30 s for UHDR
+>    and 5 s for SHDR. Each partition now has one helper, `uhdr_drain()` or `shdr_drain()`, which
+>    appends and then syncs. That helper is the only way a buffer becomes durable; overflow, session
+>    boundaries and `np_log_flush()` all use it. Records are serialized one field at a time, so an
+>    overflow can fall inside a record. The sync covers the part already handed down, and the rest
+>    follows in order.
+> 2. **EEG blocks overtook buffered records.** `np_log_eeg_sample_block()` appended straight to the
+>    HAL. Records still in `s_uhdr_buf` therefore landed *after* an EEG block logged later than
+>    them. So did adaptation events, which reach `s_uhdr_buf` only when the ring is drained. The EEG
+>    path now drains the ring and hands the buffer down before writing its header. It appends only:
+>    order needs no sync, and syncing would cost one per block. The samples still skip the copy. A
+>    UHDR session file is now in the order its records were logged.
+> 3. **The periodic flush skipped EEG data** (found by the test for (2)). `np_log_flush()` synced
+>    UHDR only when `s_uhdr_buf` was non-empty. EEG bytes sit in the backend's 512 B staging, where
+>    that check cannot see them. With (2) in place the buffer is empty after every block, so the
+>    30 s bound would never have held for EEG. UHDR now syncs on every `np_log_flush()`. SHDR has no
+>    bypass path and keeps its conditional.
+>
+> The host model gains `np_log_test_synced_len()`, which reports how much of a file the last sync
+> covered. **Not changed:** the backend, the record formats and the flush cadence. **Two things this
+> does not settle.** First, the ordering guarantee holds only when every logger call runs in one
+> context. §8.2 says `np_log_eeg_sample_block()` runs in the DMA ISR. From there it would race the
+> task-side logger on `s_uhdr_buf`, the adaptation ring and the backend staging; the old direct
+> append already raced on the staging. No caller exists yet, and the function is absent from the
+> linked `np_application.elf`, so this is `OI-FWHUB-14`, not a live defect. Second, adaptation events
+> still in the ring when a session ends are dropped. `np_session_runner` calls
+> `np_log_session_end()`, which closes the session file, before `np_log_flush()` drains the ring
+> (`OI-FWHUB-15`).
 
 ---
 
@@ -988,6 +1037,8 @@ module type and smart-driver state, sized to the 128-socket domain.
 ADS1299, 8 channels, 500 Hz, 24-bit. **Fixed hardware: `detect()` always returns OK.** Waveform data
 is DMA-driven and written directly to UHDR from the DMA ISR via `np_log_eeg_sample_block()`; this
 driver handles configuration, impedance reads and band-power computation for adaptive feedback.
+**That calling context is not safe as built** (`OI-FWHUB-14`). The logger state the function touches
+is unsynchronized and assumes a single context (§6.5). No call site exists yet.
 
 Self-calibration at session start routes the ADS1299 internal reference to all channels for one
 epoch; gain/offset coefficients are stored in the Config partition (SHDR class) per
@@ -1278,6 +1329,8 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | **`OI-FWHUB-11`** | **`HUB-REQ-C05` is not implemented.** `NP-HW-HUB-001` §7.2.2 requires the per-cluster Class B `SAFE_EN[n]` gate to be commanded by this processor, not by the cluster controller it gates. The dispatcher does not command it: that needs the `socket_id → (cluster, channel)` table (`OI-HUB-C10`, not yet generated) and a settled gate polarity (`OI-RISK4-01`). Availability only — the Class C cranial bit is in series | FW + EE Lead | Hardware bring-up |
 | **`OI-FWHUB-13`** | **The per-session recording limit must reach the user documentation.** §6.6 states it (about 49 hours per session; recording stops, the session does not) and gives proposed IFU text, but no IFU or in-app help document exists yet (`NP-QMS-DC-001`: labelling and IFU *TBD*). When that document is created, §6.6's text goes into it, and the figure is re-derived if `file_max` or the EEG data rate changes | FW + Regulatory | IFU authoring |
 | **`OI-FWHUB-12`** | **The PBM library's I²C stub bounds its address to the five retired slots.** `firmware/pbm/src/np_pbm_hal.c` rejects `slot >= 5`, so a smart-tile socket above index 4 fails in the stub. Not a requirement — the stub is marked *"replace entirely before hardware bring-up"* — but the tunnelled HAL that replaces it must take a socket index 0–127 (`NP-HW-HUB-001` §9.2), and nothing else records that | FW | Hardware bring-up |
+| **`OI-FWHUB-14`** | **The EEG sample path's documented calling context is incompatible with the logger.** §8.2 and `np_mod_eeg.c` say `np_log_eeg_sample_block()` is called from the DMA ISR. That function now drains the adaptation ring and `s_uhdr_buf` (§6.5, Rev 5), and it has always appended to the backend's staging. All three are shared with the task-side logger and none is synchronized. From an ISR, a block landing during a task's `uhdr_write()` corrupts the record under construction. No caller exists, and the function is not in the linked image. Decide the hand-off: an ISR-to-task queue that calls the logger from the session runner's context, or a lock that the logger's hot path can afford | FW | **Any caller of `np_log_eeg_sample_block()` (EEG waveform logging)** |
+| **`OI-FWHUB-15`** | **Adaptation events still queued when a session ends are lost.** `np_session_runner` calls `np_log_session_end()` and then `np_log_flush()`. The session-end call closes the session's UHDR file (`OI-LFS-11`). The flush then drains the adaptation ring into `s_uhdr_buf`, and its append is refused with `NP_HUB_ERR_NO_SESSION`. The next session start discards that buffer before it opens its own file. The events reach no file, and nothing reports the loss. Before `OI-LFS-11` they landed after the session-end record in the single UHDR file: out of order, but kept. Likely fix: drain the ring at the top of `np_log_session_end()`, so the events precede the session-end record | FW | — (UHDR completeness; not a safety path) |
 | ~~`OI-FWHUB-02`~~ | ✅ **CLOSED 2026-09-13 in the same change.** Three files cited `NP-FW-HUB-001 Rev 2` against a document with no Rev 1. Re-pointed to Rev 1 §8.9 and §6.4 | FW | — |
 | **`OI-FWHUB-03`** | **No mechanical agreement check between §4 and `hubCompiler.ts`.** `NP-CONV-001` §8 requires cross-artifact interface agreement to be verified by diff, never by review, and falsified in both directions first. `scripts/check-tcap-map.ts` is the pattern. Until it exists, the wire format's two implementations agree only by inspection — which is exactly the state that made `OI-DOC-01` expensive | FW + CI | `REQ-FWHUB-28` |
 | **`OI-FWHUB-04`** | **`uhdr_write()`/`shdr_write()` flush *before* appending the full buffer**, so the newly appended 4 KiB is unsynced until the next flush. Consistent with §6.5's stated durability bound and therefore not a defect, but reversed from the obvious reading, and the obvious reading is what a future editor will assume. Decide: reorder, or comment the intent | FW | Documentation accuracy |
@@ -1338,6 +1391,7 @@ have absorbed.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 5 | 2026-09-24 | NeurOne Firmware Engineering | **The session logger appends before it syncs and keeps log order (§6.1, §6.5, §8.2, §13).** Two defects in `np_session_log.c` predate `OI-LFS-11` and were found during it (NP-SOUP-LFS-001 Rev 7 §13.10). (1) A full 4 KiB UHDR or SHDR buffer was synced and then appended, so the sync covered none of it. Both partitions now go through `uhdr_drain()`/`shdr_drain()`, which append and then sync. (2) EEG sample blocks were appended straight to the HAL ahead of records in `s_uhdr_buf` and the adaptation ring. They now drain both first, append only, and keep the zero-copy path for the samples. (3) Found by (2)'s test: `np_log_flush()` skipped the UHDR sync whenever the buffer was empty, so EEG data could miss the 30 s bound. It now always syncs UHDR. `np_log_backend_tests` gains 4 cases and the host hook `np_log_test_synced_len()`. Reverting each fix fails the case named for it (five mutants), and the pre-fix file fails 5 checks (`NP-CONV-001` §8). Host suite and ARM cross-build pass; the one other ctest failure, `np_lfs_log_instance_tests`, fails identically on the unmodified base (3 of 3 under ctest; it passes most standalone runs, and one crashed with a bus error) and links none of these files. Raised `OI-FWHUB-14` (EEG ISR context vs a single-context logger) and `OI-FWHUB-15` (adaptation events queued at session end are lost). No classification, record format or wire format changed; no new test target. |
 | 4 | 2026-09-24 | NeurOne Firmware Engineering | **§6.6 added — the per-session recording limit, with proposed IFU text.** `OI-LFS-11` (`NP-SOUP-LFS-001` Rev 7 §13.10) made each session's UHDR record one file, and littlefs caps a file at 2 GiB − 1: about **49 hours** of recording with EEG at ≈12 kB/s. At the limit recording stops for the rest of that session; the session is not stopped, and other sessions are unaffected. §6.6 derives the figure, states the behaviour from the code, and gives plain-language IFU text. No IFU exists yet, so `OI-FWHUB-13` carries the text to it. §6.5 gains the `OI-LFS-11` update note. Rev 3 → 4. |
 | 3 | 2026-09-23 | NeurOne Firmware Engineering | **BES/tACS geometry gate (`NP-FW-MMSOCK-001` P-5, C-1) and the area-hand-off defect.** New `NP_SESSION_STATUS_GEOM_REQ_BES` (bit 4, previously unused) and a third arm of the safety MCU's geometry gate — **Class C, pending SW-01 review**; no enable-word bit and no frame byte moves. The hub arms it for every BES/tACS session and sends the fixed pad area (D-28; `REQ-FWHUB-36`). **Found while writing it:** the area frame was sent only in sessions holding HD-tDCS or tDCS, so VNS, cervical-VNS and BES areas were silently dropped elsewhere and the MCU enforced 25 cm² — 50× loose on the auricular clip (`RISK-FWHUB-15`, fixed; `REQ-FWHUB-37`). The scan moved to `src/np_chan_decl.c` (D-29) with `np_chan_decl_tests` (Class B 31 → 32, total 39 → 40); every mutation of the send rule, the BES arming and the two Class C gate lines is caught. §5.4, §7.4, §10.1, §11, §12 updated. Cross-compiled for both processors on arm-none-eabi-gcc 13.2.1. |
 | 2 | 2026-09-23 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-01` — the socket dispatch registry — and moves its blocking status to the power governor rather than lifting it.** New §3.4: `src/np_socket_dispatch.c`, a 128-entry socket-indexed registry beside the slot registry, with no fallback between the two (`REQ-FWHUB-31`); admission is all-or-nothing across mod-type, params, placement against the live `np_module_map` inventory, power, and driver faults with rollback (`REQ-FWHUB-32`, `-33`); the registry owns `NP_SAFETY_EN_PBM_CRANIAL`, requesting it after a command's sockets are configured and releasing it only when none is active, or at once when a stop fails (`REQ-FWHUB-34`). Driver seam: `np_mod_pbm_socket_drive()` / `_stop()` in `np_mod_pbm.c`, and one new platform seam `np_mod_pbm_hal_socket_pwm_set()` (SW-02 census 97 → 98). **§5.6 rewritten: opening the path makes `NP-HW-HEXTILE-001` §9.3's governor requirement live** — `scripts/check-pbm-power.ts` reads 20 of 23 predefined transcranial protocols over the 40 W budget — and that governor cannot be written (`OI-HEXTILE-09`, `OI-SESPWR-03`, `OI-HEXTILE-02`), so `np_pbm_power_admit()` ships **refusing every load** (`REQ-FWHUB-35`, D-27). **Transcranial PBM therefore still does not execute**; `OI-FWHUB-09` (blocking) replaces `OI-FWHUB-01` as the reason, and `REQ-FWHUB-25/26` stay in §10.2 against it. New `NP_HUB_ERR_POWER_BUDGET` (−18). `np_socket_dispatch_tests` (Class B 30 → 31, total 38 → 39): 14 cases linking the real module map and socket expansion, and the production governor renamed so what ships is asserted closed; seven mutations of the dispatcher and governor each caught (three survived the first draft of the suite and each gained a case). Raised: `OI-FWHUB-10` (socket telemetry and dose metering), `-11` (`HUB-REQ-C05` cluster gate not commanded), `-12` (the PBM I²C stub's five-slot bound). `OI-FWHUB-05` unblocked. Risks `RISK-FWHUB-12…14` added; `RISK-FWHUB-01` re-described. Decisions D-24…D-27. |

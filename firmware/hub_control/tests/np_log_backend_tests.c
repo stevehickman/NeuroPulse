@@ -15,6 +15,9 @@
  *     exclusively; the tail belongs to the file it was written in; the
  *     per-file cap (littlefs file_max) fails one session, not the next;
  *     SHDR stays one file
+ *   - §6.5 at the logger: an EEG sample block lands after every UHDR record
+ *     logged before it (buffered or still in the adaptation ring), and a full
+ *     4 KiB buffer is appended before the sync that must cover it
  *
  * No FreeRTOS, no hardware; the LittleFS-file HAL is host-modeled in
  * np_log_backend.c (NPTEST_HOST).  IEC 62304 Class B — SW-02 hub control.
@@ -427,6 +430,144 @@ static void test_count_committed_before_file(void)
     np_log_set_count_commit(NULL);
 }
 
+/* ── §6.5 at the logger: time order and append-before-sync ─────────────────── */
+
+/* Serialized record sizes, as np_session_log.c writes them. */
+#define START_REC_BYTES (1U + NP_HUB_PROTO_UUID_LEN + sizeof(uint32_t) + sizeof(uint32_t))
+#define VNS_REC_BYTES   (1U + sizeof(uint32_t) + 3U * sizeof(float) + sizeof(uint16_t))
+#define ADAPT_REC_BYTES (1U + sizeof(np_adaptation_event_t))
+#define ZONE_REC_BYTES  (1U + sizeof(uint32_t) + 3U)
+#define EEG_HDR_BYTES   7U
+
+static void logger_session_open(void)
+{
+    np_log_test_reset();
+    (void)np_log_backend_init();
+    np_log_init(0U);
+    np_adapt_log_reset();
+    memset(&g_rec, 0, sizeof g_rec);
+    np_log_session_start(&g_rec);                       /* session 1, start record buffered */
+}
+
+static void log_vns(uint32_t session_ms)
+{
+    np_telem_record_t t;
+    memset(&t, 0, sizeof t);
+    t.mod_type   = NP_MOD_VNS_HRV;
+    t.session_ms = session_ms;
+    np_log_telemetry(&t);
+}
+
+static void test_eeg_block_keeps_time_order(void)
+{
+    logger_session_open();
+    log_vns(100U);                                      /* buffered in s_uhdr_buf */
+    np_adaptation_event_t ev;
+    memset(&ev, 0, sizeof ev);
+    ev.session_ms = 150U;
+    (void)np_adapt_log_event(&ev);                      /* queued in the adaptation ring */
+
+    uint8_t samples[2U * NP_EEG_CHANNELS * NP_EEG_SAMPLE_BYTES];
+    for (size_t i = 0; i < sizeof samples; i++) { samples[i] = (uint8_t)(0x40U + i); }
+    np_log_eeg_sample_block(samples, 2U, 200U);         /* logged last */
+    np_log_flush();
+
+    const uint8_t *cap = np_log_test_captured(NP_LOG_PART_UHDR);
+    const size_t vns_at   = START_REC_BYTES;
+    const size_t adapt_at = vns_at + VNS_REC_BYTES;
+    const size_t eeg_at   = adapt_at + ADAPT_REC_BYTES;
+    check(np_log_test_captured_len(NP_LOG_PART_UHDR) ==
+              eeg_at + EEG_HDR_BYTES + sizeof samples,
+          "order: every record reached the session file exactly once");
+    check(cap[0] == NP_LOG_TAG_UHDR_SESSION_START &&
+          cap[vns_at] == NP_LOG_TAG_UHDR_VNS_HRV,
+          "order: a buffered record logged before an EEG block precedes it in the file");
+    check(cap[adapt_at] == NP_LOG_TAG_UHDR_ADAPT_EVENT,
+          "order: an adaptation event queued before an EEG block precedes it in the file");
+    const uint8_t hdr[EEG_HDR_BYTES] = { 0xEEU, 0U, 0U, 0U, 200U, 0U, 2U };
+    check(memcmp(cap + eeg_at, hdr, sizeof hdr) == 0 &&
+          memcmp(cap + eeg_at + EEG_HDR_BYTES, samples, sizeof samples) == 0,
+          "order: the EEG block follows them, header then samples, intact");
+}
+
+static void test_flush_syncs_eeg_blocks(void)
+{
+    logger_session_open();
+    log_vns(100U);
+    uint8_t samples[NP_EEG_CHANNELS * NP_EEG_SAMPLE_BYTES];
+    memset(samples, 0x5E, sizeof samples);
+    np_log_eeg_sample_block(samples, 1U, 200U);         /* leaves s_uhdr_buf empty */
+    np_log_flush();
+    size_t logged = START_REC_BYTES + VNS_REC_BYTES + EEG_HDR_BYTES + sizeof samples;
+    check(np_log_test_synced_len(NP_LOG_PART_UHDR) == logged,
+          "durability: the periodic flush syncs EEG blocks even with the "
+          "record buffer empty");
+}
+
+static void test_uhdr_overflow_syncs_after_append(void)
+{
+    /* Records are serialized field by field, so the overflow can fall inside
+     * a record: the sync must cover every byte handed down before it — every
+     * complete earlier record and the head of the one that overflowed. */
+    logger_session_open();
+    unsigned syncs0 = np_log_test_sync_count(NP_LOG_PART_UHDR);
+    size_t logged = START_REC_BYTES;                            /* bytes logged so far */
+    size_t before_record = 0U;
+    size_t handed_down = 0U;
+    bool overflowed = false;
+    for (unsigned i = 0U; i < 1000U && !overflowed; i++) {
+        before_record = logged;
+        log_vns(i);
+        logged += VNS_REC_BYTES;
+        if (np_log_test_sync_count(NP_LOG_PART_UHDR) != syncs0) {
+            overflowed  = true;
+            handed_down = np_log_test_captured_len(NP_LOG_PART_UHDR);
+        }
+    }
+    check(overflowed && np_log_test_sync_count(NP_LOG_PART_UHDR) == syncs0 + 1U &&
+          handed_down > 4096U - VNS_REC_BYTES && handed_down <= 4096U,
+          "durability: filling the 4 KiB UHDR buffer hands it down with one sync");
+    check(np_log_test_synced_len(NP_LOG_PART_UHDR) == handed_down &&
+          handed_down >= before_record,
+          "durability: the overflow sync covers every UHDR byte handed down "
+          "before it (appended first, then synced)");
+    np_log_flush();
+    check(np_log_test_captured_len(NP_LOG_PART_UHDR) == logged,
+          "durability: no UHDR byte lost or duplicated across the overflow");
+}
+
+static void test_shdr_overflow_syncs_after_append(void)
+{
+    /* Records are serialized field by field, so the overflow can fall inside
+     * a record: the sync must cover every byte handed down before it — every
+     * complete earlier record and the head of the one that overflowed. */
+    logger_session_open();
+    unsigned syncs0 = np_log_test_sync_count(NP_LOG_PART_SHDR);
+    size_t logged = 0U;                            /* bytes logged so far */
+    size_t before_record = 0U;
+    size_t handed_down = 0U;
+    bool overflowed = false;
+    for (unsigned i = 0U; i < 1000U && !overflowed; i++) {
+        before_record = logged;
+        np_log_shdr_zone_auth((uint8_t)i, NP_MOD_PBM_BASE, true);
+        logged += ZONE_REC_BYTES;
+        if (np_log_test_sync_count(NP_LOG_PART_SHDR) != syncs0) {
+            overflowed  = true;
+            handed_down = np_log_test_captured_len(NP_LOG_PART_SHDR);
+        }
+    }
+    check(overflowed && np_log_test_sync_count(NP_LOG_PART_SHDR) == syncs0 + 1U &&
+          handed_down > 4096U - ZONE_REC_BYTES && handed_down <= 4096U,
+          "durability: filling the 4 KiB SHDR buffer hands it down with one sync");
+    check(np_log_test_synced_len(NP_LOG_PART_SHDR) == handed_down &&
+          handed_down >= before_record,
+          "durability: the overflow sync covers every SHDR byte handed down "
+          "before it (appended first, then synced)");
+    np_log_flush();
+    check(np_log_test_captured_len(NP_LOG_PART_SHDR) == logged,
+          "durability: no SHDR byte lost or duplicated across the overflow");
+}
+
 int main(void)
 {
     printf("── np_log_backend_tests (OI-LOG-01..04) ──\n");
@@ -449,6 +590,10 @@ int main(void)
     test_logger_names_files_by_session_count();
     test_logger_steps_past_a_stale_count();
     test_count_committed_before_file();
+    test_eeg_block_keeps_time_order();
+    test_flush_syncs_eeg_blocks();
+    test_uhdr_overflow_syncs_after_append();
+    test_shdr_overflow_syncs_after_append();
 
     if (g_failures == 0) {
         printf("ALL TESTS PASSED\n");
