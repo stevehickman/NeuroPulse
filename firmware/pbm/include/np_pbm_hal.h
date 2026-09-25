@@ -33,8 +33,8 @@ extern "C" {
 bool np_pbm_hal_adc_read_zone_id(uint8_t slot, uint16_t *counts_out);
 
 /*
- * Read PD1 or PD2 photodiode ADC for slot.
- * slot:   0–4.
+ * Read PD1 or PD2 photodiode ADC for a socket.
+ * slot:   socket index, 0 .. NP_PBM_SOCKET_DOMAIN-1 (OI-FWHUB-12; was 0–4).
  * pd_ch:  0 = PD1 (forward emission), 1 = PD2 (scalp-side backscatter).
  * counts_out: 12-bit ADC result.
  * Returns true on success.  OI-PBM-01.
@@ -64,6 +64,9 @@ np_pbm_status_t np_pbm_hal_i2c_mux_enable(uint8_t slot, bool enable);
 /*
  * Write len bytes to driver IC register reg_addr at 7-bit address
  * NP_PBM_I2C_ADDR on slot's LPI2C3 instance.
+ * slot: socket index, 0 .. NP_PBM_SOCKET_DOMAIN-1 (OI-FWHUB-12). The target
+ * HAL tunnels the transaction through the socket's cluster controller
+ * (NP-HW-HUB-001 §9.2) and must keep taking the socket index, not a zone slot.
  * Returns NP_PBM_OK or NP_PBM_ERR_I2C_WRITE.  OI-PBM-02.
  */
 np_pbm_status_t np_pbm_hal_i2c_write(uint8_t  slot,

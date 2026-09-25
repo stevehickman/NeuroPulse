@@ -1221,6 +1221,10 @@ static void test_cal_length_matches_pbm_library(void)
           "pbm np_pbm_module_uid_t and hub np_module_uid_t are the same size");
     check(NP_HEXMAP_CAL_FLOATS == (NP_PBM_WL_COUNT * 3u),
           "cal payload is exactly WL_COUNT x {K_PD1, K_PD2, K_ratio_nom}");
+    /* OI-FWHUB-12: the pbm HAL is addressed by socket index over its own
+     * NP_PBM_SOCKET_DOMAIN; np_mod_pbm_socket_drive() passes a hub socket_id. */
+    check(NP_PBM_SOCKET_DOMAIN == NP_HEXMAP_MAX_SOCKETS,
+          "pbm NP_PBM_SOCKET_DOMAIN == hub NP_HEXMAP_MAX_SOCKETS");
 }
 int main(void)
 {

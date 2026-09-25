@@ -106,13 +106,6 @@ static EventGroupHandle_t g_hub_events;
  * codebase described a placement the compiler was never asked for. */
 static uint8_t g_proto_buf[NP_HUB_PROTO_BLOB_MAX];
 
-/* ── SHDR log callback (wired from module registry to session logger) ─────────── */
-
-static void shdr_zone_auth_cb(uint8_t slot, np_hub_mod_type_t type, bool pass)
-{
-    np_log_shdr_zone_auth(slot, type, pass);
-}
-
 /* ── task_safety_heartbeat ────────────────────────────────────────────────────── */
 
 /*
@@ -387,7 +380,7 @@ static void task_module_detect(void *arg)
         /* Idle: rescan non-zone accessory slots (visual, VNS, intranasal, CVNS).
          * Zone slots are handled by np_zone_announce; this covers the rest. */
         for (uint8_t slot = NP_HUB_SLOT_VISUAL; slot < NP_HUB_SLOT_MAX; slot++) {
-            (void)np_mod_reg_rescan_zone(slot, shdr_zone_auth_cb);
+            (void)np_mod_reg_rescan_zone(slot);
         }
 
         vTaskDelay(pdMS_TO_TICKS(NP_DETECT_ACCESSORY_POLL_MS));
@@ -411,7 +404,7 @@ void np_hub_zone_insert_cb(uint8_t zone_id, bool announcement_done)
         return;
     }
     uint8_t slot = (uint8_t)(zone_id - 1U);
-    (void)np_mod_reg_rescan_zone(slot, shdr_zone_auth_cb);
+    (void)np_mod_reg_rescan_zone(slot);
 }
 
 void np_hub_zone_remove_cb(uint8_t zone_id)
@@ -459,8 +452,11 @@ void np_hub_control_app_main(void)
     /* Initialize subsystems in dependency order.
      *
      * THE LOGGER COMES UP BEFORE THE REGISTRY SCAN, AND THAT ORDER IS LOAD-BEARING
-     * (OI-FWHUB-07, NP-FW-HUB-001 Rev 1 §2.1).  np_mod_reg_scan() emits one SHDR
-     * zone-auth record per probed slot through shdr_zone_auth_cb.  Until 2026-09-14
+     * (OI-FWHUB-07, NP-FW-HUB-001 Rev 1 §2.1).  Modules initialised by
+     * np_mod_reg_scan() write SHDR records: the intranasal and cervical VNS
+     * drivers log their authentication result from init().  (Until 2026-09-25 the
+     * scan also wrote one zone-auth record per retired zone slot through a
+     * callback, which OI-FWHUB-05 removed.)  Until 2026-09-14
      * the scan ran BEFORE np_log_init(), and those records were lost twice over:
      * np_log_shdr_zone_auth() stamped them with s_device_session_count, which was
      * still 0 because the count is read below, and then np_log_init() set
@@ -472,8 +468,8 @@ void np_hub_control_app_main(void)
      *     (OI-PBM-HW-01).  Those lines float at reset, and a zone probe with GAIN_SEL
      *     undriven reads an indeterminate transimpedance gain -- the detect result
      *     becomes a function of board leakage rather than of what is plugged in.
-     *   - np_log_init() BEFORE np_mod_reg_scan(), so the scan's records carry the
-     *     true session count and survive into the SHDR buffer.
+     *   - np_log_init() BEFORE np_mod_reg_scan(), so the records written during
+     *     the scan carry the true session count and survive into the SHDR buffer.
      *
      * scripts/check-hub-bringup-order.ts gates both against this function.
      */
@@ -482,9 +478,9 @@ void np_hub_control_app_main(void)
     np_transport_init();       /* OI-HUB-MAIN-01: protocol mailbox + wait primitive */
 
     /* OI-LOG-01..04: open the UHDR/SHDR log files on the mounted partitions
-     * before the session logger writes any record.  The first such record is the
-     * zone-auth batch from np_mod_reg_scan() below -- which is why this pair now
-     * precedes the scan rather than following it. */
+     * before the session logger writes any record.  The first such records are
+     * the accessory auth results written during np_mod_reg_scan() below -- which
+     * is why this pair precedes the scan rather than following it. */
     (void)np_log_backend_init();
 
     /* OI-LFS-12: the device session count lives in the Config partition
@@ -503,7 +499,7 @@ void np_hub_control_app_main(void)
     np_cvfs_init();
 
     np_mod_reg_init();
-    np_mod_reg_scan(shdr_zone_auth_cb);
+    np_mod_reg_scan();
 
     g_hub_events = xEventGroupCreate();
     configASSERT(g_hub_events != NULL);

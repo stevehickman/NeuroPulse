@@ -126,6 +126,7 @@ jobs:
       seamdecls: ${{ steps.scope.outputs.seamdecls }}
       localestrings: ${{ steps.scope.outputs.localestrings }}
       tcapmap: ${{ steps.scope.outputs.tcapmap }}
+      wirefmt: ${{ steps.scope.outputs.wirefmt }}
       bringup: ${{ steps.scope.outputs.bringup }}
       consumables: ${{ steps.scope.outputs.consumables }}
       lfscallers: ${{ steps.scope.outputs.lfscallers }}
@@ -212,6 +213,15 @@ jobs:
         docs/**
         firmware/**
         scripts/check-tcap-map.ts
+        .github/workflows/tooling-ci.yml
+      # The hub wire-format gate (OI-FWHUB-03) reads three corners: NP-FW-HUB-001
+      # §4 under docs/, the hub's wire headers, and the web compiler — which it
+      # RUNS, so the compiler's runtime imports beside it are in scope too.
+      NP_SCOPE_WIREFMT: |
+        docs/np_fw_hub_001.md
+        firmware/hub_control/include/**
+        app/web/src/lib/**
+        scripts/check-hub-wire-format.ts
         .github/workflows/tooling-ci.yml
       # The hub bring-up gate (OI-FWHUB-07/-08). np_hub_control_app_main() is
       # ARM-cross-only — firmware/hub_control/src/ compiles in no host test — so
@@ -302,6 +312,7 @@ jobs:
           printf '%s\n' "$NP_SCOPE_SEAMDECLS"  > scope.seamdecls.paths
           printf '%s\n' "$NP_SCOPE_LOCALESTRINGS" > scope.localestrings.paths
           printf '%s\n' "$NP_SCOPE_TCAPMAP" > scope.tcapmap.paths
+          printf '%s\n' "$NP_SCOPE_WIREFMT" > scope.wirefmt.paths
           printf '%s\n' "$NP_SCOPE_BRINGUP" > scope.bringup.paths
           printf '%s\n' "$NP_SCOPE_CONSUMABLES" > scope.consumables.paths
           printf '%s\n' "$NP_SCOPE_LFSCALLERS" > scope.lfscallers.paths
@@ -312,7 +323,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -383,6 +394,13 @@ jobs:
           assert scope.tcapmap.paths   true  firmware/sloreta_hdtdcs/src/np_hd_montage.c
           assert scope.tcapmap.paths   true  firmware/hub_control/include/np_hub_types.h
           assert scope.tcapmap.paths   false app/web/src/main.ts
+          # The wire-format gate: one case per corner, and the compiler's
+          # runtime import, because the gate executes it.
+          assert scope.wirefmt.paths   true  docs/np_fw_hub_001.md
+          assert scope.wirefmt.paths   true  firmware/hub_control/include/np_hub_types.h
+          assert scope.wirefmt.paths   true  app/web/src/lib/hubCompiler.ts
+          assert scope.wirefmt.paths   true  app/web/src/lib/socketMap.generated.ts
+          assert scope.wirefmt.paths   false firmware/safety_mcu/src/np_safety_main.c
 
           assert scope.bringup.paths   true  firmware/hub_control/src/np_hub_control_main.c
           assert scope.bringup.paths   true  firmware/hub_control/src/np_session_log.c
@@ -468,6 +486,7 @@ jobs:
           emit seamdecls scope.seamdecls.paths
           emit localestrings scope.localestrings.paths
           emit tcapmap   scope.tcapmap.paths
+          emit wirefmt   scope.wirefmt.paths
           emit bringup   scope.bringup.paths
           emit consumables scope.consumables.paths
           emit lfscallers scope.lfscallers.paths
@@ -777,6 +796,33 @@ jobs:
       # requires in place of that reading.
       - name: NP-HW-TCAP-001 §3, the firmware tables and both channel counts agree
         run: bun scripts/check-tcap-map.ts
+
+  hub-wire-format:
+    name: the hub wire format agrees across NP-FW-HUB-001 §4, firmware and hubCompiler.ts
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.wirefmt != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # No `bun install`: the compiler's runtime imports are two local files,
+      # and its type-only imports are erased by Bun's transpiler.
+
+      - name: Guard self-test (prove every corner can fail)
+        run: bun scripts/check-hub-wire-format.ts --self-test
+
+      # OI-FWHUB-03 / NP-CONV-001 §8. The compiler and np_protocol.c are two
+      # implementations of one wire format; this is the diff that replaces
+      # agreeing by inspection. It runs the compiler and decodes what it
+      # writes at the firmware's own struct offsets.
+      - name: NP-FW-HUB-001 §4, np_hub_types.h and hubCompiler.ts agree
+        run: bun scripts/check-hub-wire-format.ts
 
   hub-bringup-order:
     name: the hub brings subsystems up in the order its correctness depends on

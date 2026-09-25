@@ -47,13 +47,14 @@ void np_mod_reg_init(void);
 /*
  * np_mod_reg_scan — probe all slots and populate present entries.
  * Calls each slot's detect function, then calls init() on detected modules.
- * Writes an SHDR auth log entry per zone slot (pass/fail) via shdr_log_cb.
  *
- * shdr_log_cb may be NULL (auth events skipped).
+ * Writes no SHDR record itself (OI-FWHUB-05, NP-FW-HUB-001 §3.2).  It used to
+ * write one "zone auth" record per retired zone slot 0–4 through a callback;
+ * those were classified from the ZONE_ID resistor ladder that Rev 3 hardware
+ * does not carry, so every one was a fabrication.  Accessories that do
+ * authenticate (intranasal, cervical VNS) log their own result from init().
  */
-typedef void (*np_mod_reg_shdr_cb_t)(uint8_t slot, np_hub_mod_type_t type, bool auth_pass);
-
-np_hub_status_t np_mod_reg_scan(np_mod_reg_shdr_cb_t shdr_log_cb);
+np_hub_status_t np_mod_reg_scan(void);
 
 /*
  * np_mod_reg_get — return the registry entry for the given slot.
@@ -82,7 +83,6 @@ void np_mod_reg_shutdown_all(void);
  * np_mod_reg_rescan_zone — re-probe a single zone slot (called by zone_announce
  * insert callback).  Updates the registry without full re-scan.
  */
-np_hub_status_t np_mod_reg_rescan_zone(uint8_t zone_slot,
-                                        np_mod_reg_shdr_cb_t shdr_log_cb);
+np_hub_status_t np_mod_reg_rescan_zone(uint8_t zone_slot);
 
 #endif /* NP_MODULE_REGISTRY_H */

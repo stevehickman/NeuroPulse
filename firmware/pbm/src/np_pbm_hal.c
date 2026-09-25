@@ -47,9 +47,17 @@ static const uint16_t k_stub_pd_counts[2] = { 1136U, 929U };
 /* Monotonic ms counter (incremented by 100 ms per call for FAI determinism). */
 static uint32_t s_stub_now_ms = 0U;
 
-/* ── I2C register shadow (per slot; 14 registers 0x00–0x0D) ─────────────────── */
+/* ── I2C register shadow (per socket; 14 registers 0x00–0x0D) ───────────────── */
 
-static uint8_t s_i2c_regs[5][14];
+/*
+ * OI-FWHUB-12: addressed by socket index over the whole socket domain
+ * (NP_PBM_SOCKET_DOMAIN, 0–127), not by the five retired zone slots. The
+ * socket path (np_mod_pbm_socket_drive) hands the socket index straight to the
+ * drive sequence, so a slot bound here refused every smart tile above socket 4.
+ * The tunnelled HAL that replaces this stub takes the same socket index
+ * (NP-HW-HUB-001 §9.2).
+ */
+static uint8_t s_i2c_regs[NP_PBM_SOCKET_DOMAIN][14];
 
 /* ── Public stub implementations ─────────────────────────────────────────────── */
 
@@ -63,7 +71,7 @@ bool np_pbm_hal_adc_read_zone_id(uint8_t slot, uint16_t *counts_out)
 bool np_pbm_hal_adc_read_pd(uint8_t slot, uint8_t pd_ch,
                                   uint16_t *counts_out)
 {
-    if (!counts_out || slot >= 5U || pd_ch > 1U) { return false; }
+    if (!counts_out || slot >= NP_PBM_SOCKET_DOMAIN || pd_ch > 1U) { return false; }
     *counts_out = k_stub_pd_counts[pd_ch];
     return true;
 }
@@ -81,7 +89,7 @@ np_pbm_status_t np_pbm_hal_i2c_write(uint8_t        slot,
                                                const uint8_t *data,
                                                uint8_t        len)
 {
-    if (slot >= 5U || !data || reg_addr + len > 14U) {
+    if (slot >= NP_PBM_SOCKET_DOMAIN || !data || reg_addr + len > 14U) {
         return NP_PBM_ERR_I2C_WRITE;
     }
     for (uint8_t i = 0; i < len; i++) {
@@ -95,7 +103,7 @@ np_pbm_status_t np_pbm_hal_i2c_read(uint8_t  slot,
                                               uint8_t *data,
                                               uint8_t  len)
 {
-    if (slot >= 5U || !data || reg_addr + len > 14U) {
+    if (slot >= NP_PBM_SOCKET_DOMAIN || !data || reg_addr + len > 14U) {
         return NP_PBM_ERR_I2C_READ;
     }
     for (uint8_t i = 0; i < len; i++) {

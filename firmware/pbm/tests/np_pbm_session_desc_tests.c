@@ -23,6 +23,7 @@
 #include "np_pbm_t2_combined.h"
 #include "np_pbm_fai.h"
 #include "np_pbm_dose.h"
+#include "np_pbm_hal.h"
 
 static int g_failures = 0;
 
@@ -258,10 +259,11 @@ static void test_session_start_beyond_old_domain(void)
 {
     /*
      * Regression test for the actual bug: a session addressing socket 0 (a
-     * socket the v4 8-bit mask COULD represent) succeeds through preflight,
-     * because today's HAL stub only wires slots 0-4 (NP-HW-HUB-001 Rev 3's
-     * cluster-controller fan-out for the full ~80-128 socket domain is
-     * separately-tracked, undesigned hardware — OI-HUB-C* items). What this
+     * socket the v4 8-bit mask COULD represent) succeeds through preflight.
+     * (The HAL stub wired only slots 0-4 when this was written; it now covers
+     * the whole socket domain — test_hal_stub_socket_domain, OI-FWHUB-12.
+     * The cluster-controller fan-out behind it is still separately-tracked,
+     * undesigned hardware — OI-HUB-C* items.) What this
      * test actually proves is that the DESCRIPTOR and its expansion are no
      * longer capped at 5-8 sockets: np_pbm_session_desc_expand() (tested
      * above) already demonstrated socket 77 parses and expands correctly.
@@ -617,6 +619,47 @@ static void test_session_cal_not_keyed_by_socket(void)
     (void)np_pbm_session_abort(&ctx, NP_PBM_FAULT_NONE);
     reset_cal_env();
 }
+static void test_hal_stub_socket_domain(void)
+{
+    /*
+     * OI-FWHUB-12: the stub's I2C shadow and PD reads were bounded to the five
+     * retired zone slots, so a smart tile at socket 77 failed its driver
+     * startup with NP_PBM_ERR_I2C_WRITE and metered no dose. The stub is
+     * addressed over the socket domain now; the bound is the domain edge.
+     */
+    uint8_t  v = 0x5AU, r = 0U;
+    uint16_t pd = 0U;
+    check(NP_PBM_SOCKET_DOMAIN == 128U, "HAL socket domain is the 7-bit socket domain");
+    check(np_pbm_hal_i2c_write(77U, 0x00U, &v, 1U) == NP_PBM_OK &&
+          np_pbm_hal_i2c_read(77U, 0x00U, &r, 1U) == NP_PBM_OK && r == 0x5AU,
+          "HAL stub: socket 77 I2C write/read round-trips");
+    check(np_pbm_hal_i2c_write(127U, 0x00U, &v, 1U) == NP_PBM_OK,
+          "HAL stub: last socket (127) is addressable");
+    check(np_pbm_hal_i2c_write(128U, 0x00U, &v, 1U) == NP_PBM_ERR_I2C_WRITE &&
+          np_pbm_hal_i2c_read(128U, 0x00U, &r, 1U) == NP_PBM_ERR_I2C_READ,
+          "HAL stub: socket 128 is outside the domain and refused");
+    check(np_pbm_hal_adc_read_pd(77U, 1U, &pd) && pd != 0U,
+          "HAL stub: socket 77 PD read succeeds");
+    check(!np_pbm_hal_adc_read_pd(128U, 0U, &pd),
+          "HAL stub: PD read outside the domain is refused");
+
+    np_pbm_session_desc_t desc;
+    memset(&desc, 0, sizeof(desc));
+    desc.hdr.version     = NP_SES1064_VERSION;
+    desc.hdr.group_count = 1U;
+    desc.hdr.duration_s  = 62U;
+    mask_set(desc.groups[0].mask, 77U);
+    desc.groups[0].preset = make_preset(180U, 40U, 0x10U);
+
+    np_pbm_session_ctx_t ctx;
+    np_pbm_session_init(&ctx, NULL, NULL, NULL, 0U);
+    check(np_pbm_session_start(&ctx, &desc) == NP_PBM_OK,
+          "session_start drives a smart tile at socket 77 through the stub");
+    check(ctx.active_socket_count == 1U && ctx.active_socket_id[0] == 77U,
+          "the active socket is 77");
+    (void)np_pbm_session_abort(&ctx, NP_PBM_FAULT_NONE);
+}
+
 int main(void)
 {
     test_struct_sizes();
@@ -630,6 +673,7 @@ int main(void)
     test_session_start_rejects_over_capacity();
     test_t2_combined_wire_and_start();
     test_fai_regressions();
+    test_hal_stub_socket_domain();       /* OI-FWHUB-12 */
 
     /* UID-keyed dose-metering calibration (OI-HUB-C06). */
     test_cal_load_fails_closed();
