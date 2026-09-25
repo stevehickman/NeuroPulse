@@ -37,6 +37,7 @@ name: Firmware Cross-Compile (ARM)
 #                            → np_module_map_tests    (hex zone-module addressing/NVRAM map)
 #                            → np_protocol_tests      (hub protocol v2 socket-mask targets)
 #                            → np_mod_stim_tests      (BES/tACS + tDCS slot dispatch)
+#                            → np_module_registry_tests (OI-FWHUB-16 accessory rescan)
 #                            → np_socket_dispatch_tests (OI-FWHUB-01 socket dispatch)
 #                            → np_chan_decl_tests     (OI-MMSOCK-02 geometry declarations)
 #                            → np_pbm_cal_bridge_tests (OI-HUB-C06: np_module_map's
@@ -188,7 +189,8 @@ env:
   # 31 → 32: np_chan_decl_tests (NP-FW-MMSOCK-001, OI-MMSOCK-02).
   # 32 → 34: np_cfg_store_tests and np_lfs_log_instance_tests
   #   (NP-SOUP-LFS-001 Rev 4 §13, OI-LFS-05/-06/-08/-09).
-  NP_CLASS_B_TEST_COUNT: '34'
+  # 34 → 35: np_module_registry_tests (NP-FW-HUB-001 Rev 8, OI-FWHUB-16).
+  NP_CLASS_B_TEST_COUNT: '35'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  This job always

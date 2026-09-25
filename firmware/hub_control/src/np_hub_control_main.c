@@ -31,8 +31,9 @@
  *     intervals to ensure eMMC write-through without blocking the runner.
  *
  *   task_module_detect  (prio 1 — LOW)
- *     Polls for module insertion/removal during idle.  Suspended while a
- *     session is active (yields immediately on NP_SESSION_RUNNING state).
+ *     Polls the accessory slots for insertion/removal while no session is in
+ *     flight (IDLE / COMPLETE / FAULT), re-initialising a slot only when its
+ *     presence or type changes (OI-FWHUB-16).
  *
  * Entry: np_hub_control_app_main() — called by the main processor's
  * post-bootloader application startup code after clocks, eMMC, and USB-C PD
@@ -365,46 +366,74 @@ static void task_telemetry(void *arg)
 
 /* ── task_module_detect ───────────────────────────────────────────────────────── */
 
+/*
+ * True when no session is in flight, so a probe cannot touch lines a session
+ * owns (REQ-FWHUB-03).  Until 2026-09-24 the task skipped only RUNNING, which
+ * left LOADING/VERIFYING/PAUSED/STOPPING open to a registry change under a
+ * loaded protocol — harmless only because every accessory rescan was being
+ * refused (OI-FWHUB-16).  A module pulled mid-session is its driver's own
+ * interlock's business (Hall sensor, impedance, cardiac), not this poll's.
+ */
+static bool detect_may_probe(void)
+{
+    np_session_state_t st = np_runner_get_state();
+    return st == NP_SESSION_IDLE || st == NP_SESSION_COMPLETE ||
+           st == NP_SESSION_FAULT;
+}
+
 static void task_module_detect(void *arg)
 {
     (void)arg;
 
     for (;;) {
-        /* During an active session, yield frequently but do not rescan:
-         * zone module insertion/removal is signalled via zone_announce callbacks. */
-        if (np_runner_get_state() == NP_SESSION_RUNNING) {
-            vTaskDelay(pdMS_TO_TICKS(NP_DETECT_ACCESSORY_POLL_MS));
-            continue;
-        }
-
-        /* Idle: rescan non-zone accessory slots (visual, VNS, intranasal, CVNS).
-         * Zone slots are handled by np_zone_announce; this covers the rest. */
+        /* Idle: re-probe the hot-pluggable accessory slots, VISUAL..MAX-1.
+         * np_mod_reg_rescan_slot() acts only on a presence or type change, so a
+         * module that stays attached costs one detect() per poll and writes no
+         * SHDR record; the fixed BES/tACS and tDCS slots in this range are
+         * no-ops.  EEG and audio (5, 6) are fixed silicon and not polled.
+         *
+         * The state is re-checked before EACH slot, not once per pass: this task
+         * is the lowest priority, so a session can start while it is part-way
+         * through the pass and hand the CPU back each time the runner blocks.
+         * That narrows the window to one probe; it does not close it — see
+         * OI-FWHUB-17.
+         *
+         * The return value is informational — NOT_PRESENT and MOD_INIT are the
+         * slot's state, not an error of the poll — but it must never again be
+         * INVALID_ARG, which is what every call returned before OI-FWHUB-16. */
         for (uint8_t slot = NP_HUB_SLOT_VISUAL; slot < NP_HUB_SLOT_MAX; slot++) {
-            (void)np_mod_reg_rescan_zone(slot);
+            if (!detect_may_probe()) {
+                break;
+            }
+            np_hub_status_t rc = np_mod_reg_rescan_slot(slot);
+            configASSERT(rc != NP_HUB_ERR_INVALID_ARG);
+            (void)rc;
         }
 
         vTaskDelay(pdMS_TO_TICKS(NP_DETECT_ACCESSORY_POLL_MS));
     }
 }
 
-/* ── Zone announce insert callback (called from np_zone_announce) ─────────────── */
+/* ── Zone announce callbacks (RETIRED) ────────────────────────────────────────── */
 
 /*
- * The np_zone_announce module (firmware/zone_announce/) detects zone module
- * insertion via ZONE_ID ADC, plays the bone-conduction announcement, and then
- * calls this callback.  We re-probe the slot to refresh the registry.
+ * These were the np_zone_announce insert/remove hooks for the five retired
+ * zone-module slots 0-4.  Nothing registers them: np_za_init() has no caller in
+ * the hub, and no header declares these functions.  They are kept as deliberate
+ * no-ops rather than deleted so the retirement is visible here, and so that if
+ * the ZONE_ID path is ever wired back it does not silently re-initialise a PBM
+ * driver the parser can no longer address (NP_HUB_SLOT_FIRST_VALID).
+ *
+ * The insert hook used to call the single-slot rescan for slots 0-4 — the only
+ * range that rescan accepted.  np_mod_reg_rescan_slot() now refuses 0-4, so the
+ * call is removed rather than left to fail silently.  The remove hook's
+ * shutdown() is kept: stopping an output is always safe.  Deletion is
+ * OI-FWHUB-18, with the zone_announce retirement.
  */
 void np_hub_zone_insert_cb(uint8_t zone_id, bool announcement_done)
 {
-    if (!announcement_done) {
-        return; /* wait for the second (post-audio) callback */
-    }
-    /* zone_id is 1-based (np_zone_id_t); slot is 0-based */
-    if (zone_id == 0U || zone_id > NP_HUB_ZONE_SLOT_COUNT) {
-        return;
-    }
-    uint8_t slot = (uint8_t)(zone_id - 1U);
-    (void)np_mod_reg_rescan_zone(slot);
+    (void)zone_id;
+    (void)announcement_done;
 }
 
 void np_hub_zone_remove_cb(uint8_t zone_id)

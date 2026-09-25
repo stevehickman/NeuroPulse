@@ -80,9 +80,29 @@ uint8_t np_mod_reg_count(void);
 void np_mod_reg_shutdown_all(void);
 
 /*
- * np_mod_reg_rescan_zone — re-probe a single zone slot (called by zone_announce
- * insert callback).  Updates the registry without full re-scan.
+ * np_mod_reg_rescan_slot — re-probe one accessory slot (called by
+ * task_module_detect while no session is in progress; OI-FWHUB-16).
+ *
+ * Accepts NP_HUB_SLOT_FIRST_VALID .. NP_HUB_SLOT_MAX-1.  The retired zone slots
+ * 0-4 and anything out of range return NP_HUB_ERR_INVALID_ARG without probing.
+ *
+ * Acts only on a CHANGE in presence or type since the last probe:
+ *   - newly present      → register, call init()         (one SHDR auth record
+ *                                                          for intranasal / CVNS)
+ *   - removed            → call shutdown() if it was initialised, deregister
+ *   - type changed       → shutdown() the old occupant, init() the new one
+ *   - unchanged          → nothing; detect() is the only driver call
+ * A module whose init() failed is not retried until it is removed and re-seated.
+ *
+ * Returns NP_HUB_OK (present and initialised), NP_HUB_ERR_NOT_PRESENT (empty),
+ * NP_HUB_ERR_MOD_INIT (present, init failed) or NP_HUB_ERR_INVALID_ARG.
+ *
+ * Fixed-hardware slots (EEG, audio, BES/tACS, tDCS) are accepted and are no-ops
+ * while their detect() keeps reporting them present.
+ *
+ * The registry writes no SHDR record of its own: the intranasal and cervical
+ * VNS drivers write theirs from init(), which runs once per insertion.
  */
-np_hub_status_t np_mod_reg_rescan_zone(uint8_t zone_slot);
+np_hub_status_t np_mod_reg_rescan_slot(uint8_t slot);
 
 #endif /* NP_MODULE_REGISTRY_H */
