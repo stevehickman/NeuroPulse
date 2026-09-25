@@ -11,8 +11,10 @@
  * Data routing follows NP-FW-EMMC-001 Rev 1 §12:
  *  UHDR: session UUID+timestamps, dose, HRV waveforms, coherence, impedance,
  *        EEG band power, EEG waveforms, eye state, protocol parameters used.
+ *        Commanded dose: every dispatched command (OI-FMEA-09).
  *  SHDR: device health metrics only — no HR values, no EEG amplitudes,
- *        no timestamps (only unsigned session count).
+ *        no timestamps (only unsigned session count).  Session open/end
+ *        markers pair by count to expose an unclean end (OI-FMEA-09).
  */
 
 #include "np_session_log.h"
@@ -149,6 +151,38 @@ void np_log_session_start(const np_session_uhdr_record_t *rec)
     uhdr_write(rec->session_uuid, NP_HUB_PROTO_UUID_LEN);
     uhdr_write(&rec->start_unix,  sizeof(rec->start_unix));
     uhdr_write(&rec->mods_active_mask, sizeof(rec->mods_active_mask));
+
+    /* SHDR: the dirty-session marker (OI-FMEA-09).  The count only. */
+    shdr_u8(NP_LOG_TAG_SHDR_SESSION_OPEN);
+    shdr_write(&s_device_session_count, sizeof(s_device_session_count));
+
+    /* Both durable before the caller starts stimulating: a marker that could
+     * be lost with the session it marks would mark nothing. */
+    uhdr_drain();
+    shdr_drain();
+}
+
+void np_log_command(const np_session_cmd_t *cmd, uint32_t session_ms,
+                    bool accepted)
+{
+    if (cmd == NULL || cmd->params_len > NP_HUB_PROTO_PARAMS_MAX) { return; }
+
+    const uint8_t mod_type = (uint8_t)cmd->mod_type;
+    const uint8_t acc      = accepted ? 1U : 0U;
+
+    uhdr_u8(NP_LOG_TAG_UHDR_COMMAND);
+    uhdr_write(&session_ms,        sizeof(session_ms));
+    uhdr_write(&mod_type,          1U);
+    uhdr_write(&cmd->target_kind,  1U);
+    uhdr_write(&cmd->slot_id,      1U);
+    uhdr_write(&acc,               1U);
+    uhdr_write(&cmd->params_len,   sizeof(cmd->params_len));
+    if (cmd->params_len > 0U) {
+        uhdr_write(cmd->params, cmd->params_len);
+    }
+    if (cmd->target_kind == NP_PROTO_TARGET_SOCKET_MASK) {
+        uhdr_write(cmd->socket_mask, NP_HUB_SOCKET_MASK_BYTES);
+    }
 }
 
 void np_log_session_end(const np_session_uhdr_record_t *uhdr_rec,

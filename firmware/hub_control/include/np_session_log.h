@@ -35,6 +35,7 @@
 #define NP_LOG_TAG_UHDR_VISUAL          0x16U
 #define NP_LOG_TAG_UHDR_EEG_IMPEDANCE   0x17U
 #define NP_LOG_TAG_UHDR_ADAPT_EVENT     0x18U  /* closed-loop adaptation event (STEP-33) */
+#define NP_LOG_TAG_UHDR_COMMAND         0x19U  /* commanded dose: one dispatched command (OI-FMEA-09) */
 
 #define NP_LOG_TAG_SHDR_SESSION_END     0x80U
 #define NP_LOG_TAG_SHDR_PBM_HEALTH      0x81U
@@ -42,6 +43,7 @@
 #define NP_LOG_TAG_SHDR_ZONE_AUTH       0x83U
 #define NP_LOG_TAG_SHDR_NTC_PEAK        0x84U
 #define NP_LOG_TAG_SHDR_EEG_CAL         0x85U
+#define NP_LOG_TAG_SHDR_SESSION_OPEN    0x86U  /* dirty-session marker (OI-FMEA-09) */
 
 /* ── API ─────────────────────────────────────────────────────────────────────── */
 
@@ -66,6 +68,17 @@ void np_log_init(uint32_t device_session_count);
  * to NP_LOG_SESSION_PROBE_MAX tries, committing each: never reopened, never
  * overwritten, unique and monotonic (OI-LFS-11).  Past the bound this
  * session's UHDR log fails closed.  A failed commit does not stop the session.
+ *
+ * DIRTY-SESSION MARKER (OI-FMEA-09).  An SHDR SESSION_OPEN record carrying the
+ * count is written here, and it and the UHDR start record are made durable
+ * (appended, then synced) before this returns, so before any stimulation.  A
+ * clean end writes SHDR SESSION_END for the same count.  An OPEN with no
+ * matching END is therefore a session that ended uncleanly (power loss, hard
+ * fault, watchdog reset).  Without the marker, a truncated log cannot tell "no
+ * record was written" from "nothing happened", and a reader would infer state
+ * from an absence (CLAUDE.md §5.1 rule 2).  The same holds for a UHDR session
+ * file that has a start record and no end record.  The marker carries the
+ * count only: no timestamp, no modality, nothing about the person.
  */
 #define NP_LOG_SESSION_PROBE_MAX  1024U
 
@@ -87,6 +100,25 @@ void np_log_set_count_commit(np_log_count_commit_fn fn);
  */
 void np_log_session_end(const np_session_uhdr_record_t *uhdr_rec,
                          const np_session_shdr_record_t *shdr_rec);
+
+/*
+ * np_log_command — write one dispatched session command to UHDR: the
+ * commanded dose, which the device log could not reconstruct until OI-FMEA-09
+ * (np_log_session_start() writes no protocol parameters).
+ *
+ * Layout after NP_LOG_TAG_UHDR_COMMAND: session_ms (4), mod_type (1),
+ * target_kind (1), slot_id (1), accepted (1), params_len (2), params
+ * (params_len), then socket_mask (NP_HUB_SOCKET_MASK_BYTES) for a
+ * socket-addressed command only.  `params` are as authored and signed.  The
+ * module caps are fixed firmware constants applied on top, so the commanded
+ * current the safety MCU integrated is reproducible from this record and the
+ * firmware version.  `accepted` is false when the registry refused the
+ * command, so a refused drive is recorded as refused, never as delivered.
+ *
+ * UHDR only: it is the treatment the person was given.
+ */
+void np_log_command(const np_session_cmd_t *cmd, uint32_t session_ms,
+                    bool accepted);
 
 /*
  * np_log_telemetry — route a module telemetry snapshot to the correct partition.

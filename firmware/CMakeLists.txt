@@ -107,6 +107,7 @@
 #                             → np_module_registry_tests  (OI-FWHUB-16 accessory rescan)
 #                             → np_socket_dispatch_tests  (OI-FWHUB-01 socket dispatch)
 #                             → np_chan_decl_tests        (OI-MMSOCK-02 electrode-geometry declarations)
+#                             → np_stim_xcheck_tests      (OI-FMEA-09 commanded-vs-delivered cross-check)
 #   firmware/zone_announce/   → np_zone_announce_tests    (module-status frame encoder)
 #                             → np_zone_notify_tests      (app-notify dispatch)
 #   firmware/pbm/      → np_pbm_session_desc_tests (NP-SES-1064-001 v5 wire format)
@@ -357,6 +358,12 @@ if(NP_BUILD_TESTS)
     # the runner declares to the safety MCU (NP-FW-HUB-001 §5.4).
     add_test(NAME np_chan_decl_tests
         COMMAND np_chan_decl_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # OI-FMEA-09 / FMEA-M03-02: delivered stimulation current above commanded
+    # raises one SHDR divergence flag per channel per session.
+    add_test(NAME np_stim_xcheck_tests
+        COMMAND np_stim_xcheck_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_log_backend_tests

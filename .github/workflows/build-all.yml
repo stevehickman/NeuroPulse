@@ -82,9 +82,11 @@ env:
   # re-derived with `ctest -N` on the tree.
   # NP-FW-HUB-001 Rev 8 (OI-FWHUB-16) then added np_module_registry_tests:
   # 10 + 35 = 45, re-derived with `ctest -N` on the tree.
-  NP_TOTAL_TEST_COUNT: '45'
+  # NP-FW-HUB-001 Rev 9 (OI-FMEA-09) then added np_stim_xcheck_tests:
+  # 10 + 36 = 46, re-derived with `ctest -N` on the tree.
+  NP_TOTAL_TEST_COUNT: '46'
   NP_SAFETY_TEST_COUNT: '10'
-  NP_CLASS_B_TEST_COUNT: '35'
+  NP_CLASS_B_TEST_COUNT: '36'
 
 jobs:
   host-tests-all:

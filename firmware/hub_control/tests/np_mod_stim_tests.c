@@ -22,6 +22,7 @@
 #include <string.h>
 
 #include "../include/np_hub_types.h"
+#include "../include/np_stim_xcheck.h"
 
 /* The doubles below define symbols declared in np_sw02_platform_hal.h.
  * Including it is what makes drift from the production contract a compile
@@ -273,6 +274,67 @@ static void test_unowned_slot_is_refused(void)
           "control: a slot this driver does not own is refused");
 }
 
+/* OI-FMEA-09: the driver hands the cross-check the same capped number it
+ * publishes to the safety MCU, and tells it how long a tDCS decrease ramps.
+ * The real np_stim_xcheck.c is linked, so this proves the wiring end to end;
+ * np_stim_xcheck_tests owns the comparison itself. */
+static np_telem_record_t stim_rec(np_hub_mod_type_t type, float delivered_ua)
+{
+    np_telem_record_t r;
+    memset(&r, 0, sizeof r);
+    r.mod_type = type;
+    r.data.stim.current_ua = delivered_ua;
+    return r;
+}
+
+static void test_driver_feeds_the_cross_check(void)
+{
+    np_mod_stim_init(NP_HUB_SLOT_BES_TACS);
+    np_stim_xcheck_clear();
+
+    /* BES authored at 5 mA is capped to 1 mA: the check must use 1 mA. */
+    np_mod_bes_tacs_params_t bes;
+    memset(&bes, 0, sizeof bes);
+    bes.freq_mhz     = 10000U;
+    bes.amplitude_ua = 5000U;
+    np_mod_stim_control(NP_HUB_SLOT_BES_TACS, &bes, sizeof bes);
+
+    np_telem_record_t over = stim_rec(NP_MOD_BES_TACS, 1500.0f);
+    bool raised = false;
+    for (uint32_t t = 1000U; t <= 3000U; t += 1000U) {
+        raised = np_stim_xcheck_observe(&over, t) || raised;
+    }
+    check(raised && np_stim_xcheck_latched(NP_SAFETY_CH_BES_TACS),
+          "xcheck wiring: 1.5 mA delivered against the CAPPED 1 mA BES "
+          "command is flagged (the authored 5 mA is not the bound)");
+
+    /* tDCS 2 mA, then stopped: delivery ramps down over 30 s, so 1.9 mA
+     * shortly after the stop is the ramp, not a divergence. */
+    np_stim_xcheck_clear();
+    np_mod_tdcs_params_t tdcs;
+    memset(&tdcs, 0, sizeof tdcs);
+    tdcs.current_ua          = 2000U;
+    tdcs.ramp_s              = 30U;
+    tdcs.electrode_area_mcm2 = 35000U;
+    np_mod_stim_control(NP_HUB_SLOT_TDCS, &tdcs, sizeof tdcs);
+    np_mod_stim_control(NP_HUB_SLOT_TDCS, NULL, 0U);
+
+    np_telem_record_t ramping = stim_rec(NP_MOD_TDCS, 1900.0f);
+    raised = false;
+    for (uint32_t t = 1000U; t <= 5000U; t += 1000U) {
+        raised = np_stim_xcheck_observe(&ramping, t) || raised;
+    }
+    check(!raised, "xcheck wiring: a tDCS stop's 30 s ramp-down is not "
+                   "flagged as delivery above the new zero command");
+
+    /* ...but still delivering 1.9 mA well after the ramp is a stuck driver. */
+    for (uint32_t t = 40000U; t <= 42000U; t += 1000U) {
+        raised = np_stim_xcheck_observe(&ramping, t) || raised;
+    }
+    check(raised, "xcheck wiring: tDCS still delivering after its ramp-down "
+                  "window is flagged (driver stuck on)");
+}
+
 int main(void)
 {
     test_detect_is_per_slot();
@@ -281,6 +343,7 @@ int main(void)
     test_channels_hold_independent_state();
     test_param_length_is_exact();
     test_unowned_slot_is_refused();
+    test_driver_feeds_the_cross_check();
 
     if (g_failures == 0) {
         printf("\nALL TESTS PASSED\n");
