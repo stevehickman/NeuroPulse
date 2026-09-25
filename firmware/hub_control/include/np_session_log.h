@@ -105,7 +105,7 @@ void np_log_eeg_sample_block(const uint8_t *samples,
 
 /*
  * np_log_shdr_zone_auth — write zone module authentication result to SHDR.
- * Called by np_mod_reg_scan() shdr_log_cb.
+ * Called by accessory drivers that authenticate (intranasal, cervical VNS).
  */
 void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass);
 

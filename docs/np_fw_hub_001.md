@@ -2,9 +2,9 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 6
-**Date:** 2026-09-24
-**Status:** RELEASED as a design output under `21 CFR §820.30(d)`. **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
+**Revision:** 7
+**Date:** 2026-09-25
+**Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
 **Author:** NeurOne Firmware Engineering
 **Approved By:** — (pending design review; `FWHUB-DRC-01…12` in §10.3 are the review checklist)
@@ -17,6 +17,27 @@
 
 ---
 
+> **Rev 7 (2026-09-25) — the wire format is diffed, the scan stops writing made-up SHDR records,
+> the PBM stub takes a socket index, and `OI-FWHUB-04` is recorded closed (#384).** None of this
+> changes whether transcranial PBM runs: it still does not, and `OI-FWHUB-09` still carries that
+> (blocked on #335).
+> - **`OI-FWHUB-03`:** new §4.6 tabulates every modality's code, parameter struct, byte count and
+>   target. `scripts/check-hub-wire-format.ts` checks it, §4.1/§4.3/§4.5, `np_hub_config.h`,
+>   `np_hub_types.h` and **the compiler's actual output**, decoded at the firmware's struct offsets,
+>   against each other. It is falsified on 15 single perturbations spread across the three corners
+>   (`REQ-FWHUB-28` is now met).
+> - **`OI-FWHUB-04`:** closed. Rev 5 (#425) already made every path append and **then** sync
+>   through `uhdr_drain()`/`shdr_drain()`, but left the item open in §13; Rev 7 records it.
+> - **`OI-FWHUB-05`:** `np_mod_reg_scan()` no longer writes a "zone auth" record per retired zone slot.
+>   Those records were classified from the ZONE_ID ladder that Rev 3 hardware does not carry, and the
+>   stub reported five "pass" results on every boot. Nothing on the lattice is authenticated, so
+>   there is no socket equivalent to write (§3.2).
+> - **`OI-FWHUB-12`:** the PBM library's HAL stub is addressed over the 128-socket domain, so a smart
+>   tile at socket 77 now completes its driver startup instead of failing `NP_PBM_ERR_I2C_WRITE`.
+>
+> `OI-FWHUB-06` is half done: the Status line above now says DRAFT, and the approval itself is still
+> the Principal's. `OI-FWHUB-10` and `-11` stay open with the dependencies §13 names.
+>
 > **Rev 6 (2026-09-24) — `OI-FWHUB-15` closed: adaptation events queued at session end reach their
 > session's file.** `np_log_session_end()` now drains the adaptation ring before it writes the
 > session-end record and closes the file. Until now the runner's following `np_log_flush()` drained
@@ -188,7 +209,7 @@ below. This is the order the code runs.
 | 4 | `np_log_backend_init()` | opens both partition log files — **binding** |
 | 5 | `np_log_init(device_session_count)` | reads the SHDR device session count that stamps SHDR records, **and zeroes both log buffers** — **binding** |
 | 6 | `np_mod_reg_init()` | zeroes the registry — **binding** |
-| 7 | `np_mod_reg_scan(shdr_zone_auth_cb)` | populates it, emitting one SHDR zone-auth record per probed slot |
+| 7 | `np_mod_reg_scan()` | populates it; the intranasal and cervical VNS drivers write their SHDR auth records from `init()` (Rev 7: the scan's own per-zone-slot callback is removed, `OI-FWHUB-05`) |
 | 8 | `xEventGroupCreate()` then `np_runner_init()` | the runner requires the event group to exist |
 | 9 | five `xTaskCreate()` calls, then `vTaskStartScheduler()` | which does not return |
 
@@ -202,7 +223,9 @@ with `s_device_session_count` while it was still **0**, because the count is rea
 `np_log_init()` set `s_shdr_pos = 0U` and discarded the buffer they had been written into. Boot-time
 module authentication reached SHDR not at all — under a source comment, three lines below the scan,
 asserting that the log files open *"before the session logger writes any record"*. `OI-FWHUB-07`,
-fixed in the same change that issued this document.
+fixed in the same change that issued this document. *(Rev 7: the zone-slot records themselves are
+gone, `OI-FWHUB-05`, §3.2. The constraint still binds, because the accessory auth records written
+during the scan need the same count and the same buffer.)*
 
 **The order is gated, because nothing could test it.** `np_hub_control_app_main()` is ARM-cross-only
 — `firmware/hub_control/src/` is in `HUB_SOURCES`, which compiles under the arm-none-eabi toolchain
@@ -328,9 +351,20 @@ parameter structs. One slot would have made the gate coarser than the hardware.
 one type — the PBM entry serves both `NP_MOD_PBM_BASE` and `NP_MOD_PBM_SMART` — so `detect()` returns
 the type it actually found and the registry stores it.
 
-Every zone-slot probe emits one SHDR authentication record (pass or fail) through the
-`np_mod_reg_shdr_cb_t` callback, wired in `np_hub_control_main.c` to `np_log_shdr_zone_auth()`. The
-callback may be `NULL`, in which case auth events are skipped rather than buffered.
+**The scan writes no SHDR record of its own** (Rev 7, `OI-FWHUB-05`). Until Rev 7 every zone-slot
+probe emitted a "zone auth" record through an `np_mod_reg_shdr_cb_t` callback. Those slots are
+retired, and on Rev 3 hardware their probe reads a ZONE_ID resistor ladder that does not exist
+(`np_pbm_hal_adc_read_zone_id()`, *"retained only to keep the host-test build linking"*). The stub
+classified all five as present, so every boot sent SHDR five authentication **passes** for modules
+nobody plugged in. The callback and its parameter are removed rather than left pointing at nothing.
+
+**Nothing follows the socket lattice instead, because nothing on the lattice is authenticated.**
+A tile is identified by its UID in the `np_module_map` inventory, not by a pass/fail challenge, so
+there is no result to log. A per-socket inventory record in SHDR would be a **new SHDR field**, and
+that is a CLAUDE.md §5.1 classification question (which socket a tile sits in can show how the
+headset is fitted), not a logging detail. It belongs with the other socket-path telemetry in
+`OI-FWHUB-10`. Accessories that do authenticate, the intranasal probe and the cervical VNS cuff,
+write `np_log_shdr_zone_auth()` from their own `init()`.
 
 `np_mod_reg_rescan_zone()` re-probes a single slot on a hot-plug event without a full rescan.
 
@@ -519,6 +553,41 @@ parser does not partially populate.
 `REQ-FWHUB-10`: **any change to a per-modality parameter struct's length bumps
 `NP_HUB_PROTO_VERSION`.** The rule is length, not semantics — a struct that changes meaning at the
 same length is caught by the signature only if the app also changed, which is not a guarantee.
+
+### 4.6 Per-modality parameter blocks *(Rev 7, `OI-FWHUB-03`)*
+
+A command's `params_len` is **exactly** its modality's packed struct size, and the drivers check it
+exactly: a longer block is refused, and a shorter one would leave fields unread. `params_len` 0 is
+the stop command. Each modality has exactly one target form.
+
+| Code | `mod_type` | Parameter struct (`np_hub_types.h`) | Bytes | Target |
+|---|---|---|---|---|
+| `0x01` | `NP_MOD_PBM_BASE` | `np_mod_pbm_base_params_t` | 4 | socket mask |
+| `0x02` | `NP_MOD_PBM_SMART` | `np_mod_pbm_smart_params_t` | 6 | socket mask |
+| `0x03` | `NP_MOD_INTRANASAL` | `np_mod_intranasal_params_t` | 5 | `NP_HUB_SLOT_INTRANASAL` (9) |
+| `0x04` | `NP_MOD_EEG` | `np_mod_eeg_params_t` | 5 | `NP_HUB_SLOT_EEG` (5) |
+| `0x05` | `NP_MOD_BES_TACS` | `np_mod_bes_tacs_params_t` | 7 | `NP_HUB_SLOT_BES_TACS` (17) |
+| `0x06` | `NP_MOD_TDCS` | `np_mod_tdcs_params_t` | 8 | `NP_HUB_SLOT_TDCS` (18) |
+| `0x07` | `NP_MOD_VNS_HRV` | `np_mod_vns_hrv_params_t` | 9 | `NP_HUB_SLOT_VNS_HRV` (8) |
+| `0x08` | `NP_MOD_AUDIO` | `np_mod_audio_params_t` | 8 | `NP_HUB_SLOT_AUDIO` (6) |
+| `0x09` | `NP_MOD_VISUAL` | `np_mod_visual_params_t` | 9 | `NP_HUB_SLOT_VISUAL` (7) |
+| `0x0A` | `NP_MOD_CVNS` | `np_mod_cvns_params_t` | 10 | `NP_HUB_SLOT_CVNS` (10) |
+| `0x0B` | `NP_MOD_QEEG_21CH` | `np_mod_qeeg_21ch_params_t` | 8 | `NP_HUB_SLOT_QEEG` (11) |
+| `0x0C` | `NP_MOD_TMS` | `np_mod_tms_params_t` | 10 | `NP_HUB_SLOT_TMS` (12) |
+| `0x0D` | `NP_MOD_PBM_1170NM` | `np_mod_pbm_1170nm_params_t` | 5 | `NP_HUB_SLOT_PBM_1170NM` (13) |
+| `0x0E` | `NP_MOD_CLIN_TACS` | `np_mod_clin_tacs_params_t` | 8 | `NP_HUB_SLOT_CLIN_TACS` (14) |
+| `0x0F` | `NP_MOD_HD_TDCS` | `np_mod_hd_tdcs_params_t` | 6 | `NP_HUB_SLOT_HD_TDCS` (15) |
+| `0x10` | `NP_MOD_VIBROTACTILE` | `np_mod_vibrotactile_params_t` | 4 | `NP_HUB_SLOT_VIBROTACTILE` (16) |
+
+**This table, `np_hub_types.h` and `hubCompiler.ts` are diffed, not read.** `scripts/check-hub-wire-format.ts`
+checks three sources against each other. The first is this section's constants (§4.1), target kinds (§4.3),
+current version (§4.5) and this table. The second is the firmware: the `np_hub_config.h` defines, the
+`np_hub_types.h` enums, and every packed struct's size and field offsets computed from its declaration.
+The third is **the compiler's output**: the check runs `compileProtocol()` for each modality and decodes
+the blob using the firmware's field offsets, so what is compared is what the compiler actually writes.
+Its self-test perturbs one corner at a time and must fail on each (`NP-CONV-001` §8). **A change to
+any of the three without the other two fails CI.** `REQ-FWHUB-10` still applies: a length change in
+this table bumps §4.5's version.
 
 ---
 
@@ -1244,6 +1313,8 @@ this line.
 | `REQ-FWHUB-36` | **(Rev 3)** A session containing a BES/tACS command arms `NP_SESSION_STATUS_GEOM_REQ_BES`, so the safety MCU grants BES/tACS only after an area for that channel has been applied. *Fails without it:* BES/tACS is enforced against the 25 cm² fallback on trust — 24× permissive on a T1-B lattice electrode (`NP-FW-MMSOCK-001` §3.6.1). *Traced to:* DI-SAFE-01a; `OI-MMSOCK-02` | §5.4, §7.4; `np_chan_decl_tests`, `np_charge_monitor_tests`, `np_safety_spi_proto_tests` |
 | `REQ-FWHUB-37` | **(Rev 3)** Every electrode area the runner computes is sent to the safety MCU. *Fails without it:* the MCU enforces its 25 cm² fallback in place of the fixed VNS / cervical-VNS / BES areas — 50× looser than designed on the auricular clip. *Traced to:* DI-SAFE-01a; `OI-CHARGE-07` | §5.4; `np_chan_decl_tests` (falsified against the old send rule) |
 
+| `REQ-FWHUB-28` | **(Rev 7)** The wire format has a mechanical agreement check against `hubCompiler.ts`, falsified in both directions per `NP-CONV-001` §8. *Fails without it:* the two implementations agree only by inspection, and a length or offset drift surfaces on a device as `INVALID_ARG` | §4.6; `scripts/check-hub-wire-format.ts` (15 perturbation fixtures) |
+
 ### 10.2 Requirements the code does NOT currently meet
 
 Stated separately and deliberately. A specification written after the code that quietly matched the
@@ -1254,7 +1325,7 @@ code everywhere would be describing, not specifying.
 | `REQ-FWHUB-25` | A verified socket-addressed command reaches the addressed emitters | **Rev 2: the path exists (§3.4, `REQ-FWHUB-31…34`) and every drive is refused at the power gate (§5.6).** Was: `dispatch_command()` dropped every non-`SLOT` target kind (`OI-FWHUB-01`, closed) | **`OI-FWHUB-09`** (blocking) |
 | `REQ-FWHUB-26` | Every modality in CLAUDE.md §3's T1 roster has a dispatchable path | as `REQ-FWHUB-25`: transcranial PBM is dispatchable and not admitted | **`OI-FWHUB-09`** |
 | `REQ-FWHUB-27` | Every source file's `Document:` banner cites a revision of this document that exists | three files cite Rev 2 | `OI-FWHUB-02` (fixed in this change) |
-| `REQ-FWHUB-28` | The wire format has a mechanical agreement check against `hubCompiler.ts`, falsified in both directions per `NP-CONV-001` §8 | no such check exists | `OI-FWHUB-03` |
+| ~~`REQ-FWHUB-28`~~ | *Moved to §10.1 in Rev 7 — met.* | — | `OI-FWHUB-03` (closed) |
 
 ### 10.3 Design review checklist
 
@@ -1338,19 +1409,19 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 |---|---|---|---|
 | ~~**`OI-FWHUB-01`**~~ | ✅ **CLOSED 2026-09-23 (Rev 2).** *Was:* transcranial PBM had no dispatchable path — `np_mod_pbm_*` reachable only through the rejected slots 0–4, socket commands dropped by `dispatch_command()`. **Resolved by the socket dispatch registry (§3.4)**, the firmware half of `OI-HUB-SOCKET-01`, with `np_socket_dispatch_tests` (Class B 30 → 31). **The blocking status moves rather than lifts:** every drive is refused at the power gate until `OI-FWHUB-09` | — (closed) | — |
 | **`OI-FWHUB-09`** | **The concurrent-power governor `np_pbm_power_admit()` refuses every load.** Deliberately (§5.6). Replace its body with the watts-against-PD-contract governor `NP-HW-HEXTILE-001` §9.3 requires. Needs: `OI-HEXTILE-09` designed; `OI-SESPWR-03` (`0Hz` + duty) defined; a PD-contract seam on SW-02; per-tile watts from selected emitters (`OI-HEXTILE-02`). The compiler-side half of the same check is `OI-HEXTILE-09`'s, not this document's. When it lands, `REQ-FWHUB-35`'s second clause is rewritten, not deleted, and `RISK-FWHUB-12` is re-scored | FW + EE Lead | **BLOCKING — any T1 transcranial PBM session; `REQ-FWHUB-25`, `-26`** |
-| **`OI-FWHUB-10`** | **Socket-path telemetry and dose metering do not exist.** The runner's telemetry loop and `np_telem_pbm_t` are slot-indexed (five zone entries); no per-socket NTC, PD1/PD2 or J/cm² reaches SHDR or UHDR, and the slot path's pre-drive NTC over-temperature check has no socket equivalent. Needs `np_hub_cluster_read_frame()` (`NP-HW-HUB-001` §9.3) and a socket-indexed telemetry record. The 42 °C / 62 °C hardware limits are unaffected — they are enforced below this processor. **Blocks CLAUDE.md §3's dual-PD dose-metering claim for the lattice, not safety** | FW | Before `OI-FWHUB-09` admits a load |
+| **`OI-FWHUB-10`** | **Socket-path telemetry and dose metering do not exist.** The runner's telemetry loop and `np_telem_pbm_t` are slot-indexed (five zone entries); no per-socket NTC, PD1/PD2 or J/cm² reaches SHDR or UHDR, and the slot path's pre-drive NTC over-temperature check has no socket equivalent. Needs `np_hub_cluster_read_frame()` (`NP-HW-HUB-001` §9.3) and a socket-indexed telemetry record. The 42 °C / 62 °C hardware limits are unaffected — they are enforced below this processor. **Blocks CLAUDE.md §3's dual-PD dose-metering claim for the lattice, not safety.** *Rev 7:* also owns whether a per-socket **inventory** record reaches SHDR (moved here from `OI-FWHUB-05`) — a new SHDR field, so classified under CLAUDE.md §5.1 first. The PBM HAL stub now serves PD reads over the socket domain (`OI-FWHUB-12`), so the accessor this item needs no longer stops at socket 4 | FW | Before `OI-FWHUB-09` admits a load |
 | **`OI-FWHUB-11`** | **`HUB-REQ-C05` is not implemented.** `NP-HW-HUB-001` §7.2.2 requires the per-cluster Class B `SAFE_EN[n]` gate to be commanded by this processor, not by the cluster controller it gates. The dispatcher does not command it: that needs the `socket_id → (cluster, channel)` table (`OI-HUB-C10`, not yet generated) and a settled gate polarity (`OI-RISK4-01`). Availability only — the Class C cranial bit is in series | FW + EE Lead | Hardware bring-up |
 | **`OI-FWHUB-13`** | **The per-session recording limit must reach the user documentation.** §6.6 states it (about 49 hours per session; recording stops, the session does not) and gives proposed IFU text, but no IFU or in-app help document exists yet (`NP-QMS-DC-001`: labelling and IFU *TBD*). When that document is created, §6.6's text goes into it, and the figure is re-derived if `file_max` or the EEG data rate changes | FW + Regulatory | IFU authoring |
-| **`OI-FWHUB-12`** | **The PBM library's I²C stub bounds its address to the five retired slots.** `firmware/pbm/src/np_pbm_hal.c` rejects `slot >= 5`, so a smart-tile socket above index 4 fails in the stub. Not a requirement — the stub is marked *"replace entirely before hardware bring-up"* — but the tunnelled HAL that replaces it must take a socket index 0–127 (`NP-HW-HUB-001` §9.2), and nothing else records that | FW | Hardware bring-up |
+| ~~**`OI-FWHUB-12`**~~ | ✅ **CLOSED 2026-09-25 (Rev 7).** *Was:* `firmware/pbm/src/np_pbm_hal.c` bounded its I²C shadow and PD reads to `slot < 5`, so a smart tile above socket 4 failed its driver startup (`NP_PBM_ERR_I2C_WRITE`) and metered no dose. The stub now takes a socket index over `NP_PBM_SOCKET_DOMAIN` (128, derived from `NP_PBM_SOCKET_MASK_BYTES`). `np_pbm_hal.h` records that the tunnelled HAL replacing it keeps the socket index (`NP-HW-HUB-001` §9.2). `np_pbm_session_desc_tests` drives socket 77 end to end and refuses 128, and fails four checks against the pre-fix stub. `np_module_map_tests` pins `NP_PBM_SOCKET_DOMAIN == NP_HEXMAP_MAX_SOCKETS` | — (closed) | — |
 | **`OI-FWHUB-14`** | **The EEG sample path's documented calling context is incompatible with the logger.** §8.2 and `np_mod_eeg.c` say `np_log_eeg_sample_block()` is called from the DMA ISR. That function now drains the adaptation ring and `s_uhdr_buf` (§6.5, Rev 5), and it has always appended to the backend's staging. All three are shared with the task-side logger and none is synchronized. From an ISR, a block landing during a task's `uhdr_write()` corrupts the record under construction. No caller exists, and the function is not in the linked image. Decide the hand-off: an ISR-to-task queue that calls the logger from the session runner's context, or a lock that the logger's hot path can afford | FW | **Any caller of `np_log_eeg_sample_block()` (EEG waveform logging)** |
 | ~~**`OI-FWHUB-15`**~~ | ✅ **CLOSED 2026-09-24 (Rev 6)** — `np_log_session_end()` drains the adaptation ring before the session-end record (§6.5); pinned by `np_log_backend_tests`. *Was:* **Adaptation events still queued when a session ends are lost.** `np_session_runner` calls `np_log_session_end()` and then `np_log_flush()`. The session-end call closes the session's UHDR file (`OI-LFS-11`). The flush then drains the adaptation ring into `s_uhdr_buf`, and its append is refused with `NP_HUB_ERR_NO_SESSION`. The next session start discards that buffer before it opens its own file. The events reach no file, and nothing reports the loss. Before `OI-LFS-11` they landed after the session-end record in the single UHDR file: out of order, but kept. Likely fix: drain the ring at the top of `np_log_session_end()`, so the events precede the session-end record | — (closed) | — |
 | ~~`OI-FWHUB-02`~~ | ✅ **CLOSED 2026-09-13 in the same change.** Three files cited `NP-FW-HUB-001 Rev 2` against a document with no Rev 1. Re-pointed to Rev 1 §8.9 and §6.4 | FW | — |
-| **`OI-FWHUB-03`** | **No mechanical agreement check between §4 and `hubCompiler.ts`.** `NP-CONV-001` §8 requires cross-artifact interface agreement to be verified by diff, never by review, and falsified in both directions first. `scripts/check-tcap-map.ts` is the pattern. Until it exists, the wire format's two implementations agree only by inspection — which is exactly the state that made `OI-DOC-01` expensive | FW + CI | `REQ-FWHUB-28` |
-| **`OI-FWHUB-04`** | **`uhdr_write()`/`shdr_write()` flush *before* appending the full buffer**, so the newly appended 4 KiB is unsynced until the next flush. Consistent with §6.5's stated durability bound and therefore not a defect, but reversed from the obvious reading, and the obvious reading is what a future editor will assume. Decide: reorder, or comment the intent | FW | Documentation accuracy |
+| ~~**`OI-FWHUB-03`**~~ | ✅ **CLOSED 2026-09-25 (Rev 7).** *Was:* no mechanical agreement check between §4 and `hubCompiler.ts`. **§4.6** now tabulates the per-modality blocks. **`scripts/check-hub-wire-format.ts`** diffs §4's constants and table, the `np_hub_config.h`/`np_hub_types.h` defines, enums and packed-struct layouts, and **the compiler's own output**, which it runs for all 16 modality encodings and decodes at the firmware's field offsets. Falsified on 15 single-corner perturbations (a field reordered, a struct grown or unpacked, a table byte count, a compiler buffer one byte long, a stale compiler version, and so on). The self-test passes an unperturbed copy first. Wired as `tooling-ci.yml:hub-wire-format` (`REQ-FWHUB-28`) | — (closed) | — |
+| ~~**`OI-FWHUB-04`**~~ | ✅ **CLOSED 2026-09-25 (Rev 7) — reordered, by Rev 5.** *Was:* on overflow, `uhdr_write()`/`shdr_write()` flushed *before* appending the full buffer, so the sync covered none of it. **Fixed in Rev 5 (#425):** every path now appends and then syncs through `uhdr_drain()`/`shdr_drain()`, and `np_log_backend_tests` covers it (§6.5). Rev 5 left this row open, so Rev 7 records the closure. No further code change | — (closed) | — |
 | ~~**`OI-FWHUB-07`**~~ | ✅ **CLOSED 2026-09-14.** Boot-time SHDR zone-auth records were written before the logger was initialised — stamped with session count 0, then discarded by `np_log_init()`'s `s_shdr_pos = 0U`. `np_log_backend_init()` and `np_log_init()` now precede `np_mod_reg_scan()`, which keeps `np_safety_spi_init()`'s `GAIN_SEL` precedence intact, and the misleading comment is corrected. Held by `scripts/check-hub-bringup-order.ts`, **falsified against the pre-fix commit**, not only fixtures | — (closed) | — |
 | ~~**`OI-FWHUB-08`**~~ | ✅ **CLOSED 2026-09-14.** The banner and the register said "four tasks"; the code creates five. All three corrected, and the banner's count is now **counted against `xTaskCreate()`** by the same gate rather than read | — (closed) | — |
-| **`OI-FWHUB-05`** | **The `np_mod_reg_scan()` SHDR auth callback fires "per zone slot"**, and the zone slots are retired. Confirm whether auth records are still expected for slots 0–4, or whether the callback should now follow the socket lattice, once `OI-FWHUB-01` is resolved. **Rev 2: `OI-FWHUB-01` is closed, so this is unblocked** | FW + Quality | — (unblocked 2026-09-23) |
-| **`OI-FWHUB-06`** | **This document has no approver.** Issued as a design output with `Approved By` blank pending review against §10.3. `21 CFR §820.30(d)` expects design outputs to be reviewed and approved before release; until that happens the register entry should say DRAFT-pending-approval rather than imply a completed review | Principal | Design-control completeness |
+| ~~**`OI-FWHUB-05`**~~ | ✅ **CLOSED 2026-09-25 (Rev 7).** *Was:* the scan's SHDR auth callback fired per zone slot. **Answer: no records are expected for slots 0–4, and there is nothing to follow on the lattice** (§3.2). The retired slots' records were classified from a ladder Rev 3 hardware lacks (every boot logged five passes). Tiles are inventoried by UID, not authenticated. The callback and its parameter are removed from `np_mod_reg_scan()` / `np_mod_reg_rescan_zone()`. A per-socket SHDR inventory record, if wanted, is a new SHDR field and goes to `OI-FWHUB-10` | — (closed) | — |
+| **`OI-FWHUB-06`** | **This document has no approver.** Issued as a design output with `Approved By` blank pending review against §10.3. `21 CFR §820.30(d)` expects design outputs to be reviewed and approved before release. **Rev 7: the labelling half is done.** The header Status, `NP-DHF-001` and the document register now say **DRAFT — pending approval** instead of RELEASED. **Open: the review and the approval**, which only the Principal can give | Principal | Design-control completeness |
 
 ---
 
@@ -1393,6 +1464,11 @@ does not run** — because the same change that removed the barrier exposed the 
 refusing everything (§5.6, `OI-FWHUB-09`). A gap that had two halves, each documented and neither
 connected, is now one function body with its reason written above it.
 
+**What Rev 7 changed.** The wire format's two implementations are now diffed rather than trusted
+(§4.6, `scripts/check-hub-wire-format.ts`). The boot scan no longer sends SHDR five authentication passes for zone
+modules that cannot exist. And the PBM stub can address a smart tile above socket 4. None of this
+lets transcranial PBM run.
+
 **What is deliberately not here.** No verification, no approval, and no requirement the code does not
 meet except the four in §10.2 that are marked unmet and carried as open items — chiefly
 `OI-FWHUB-01`, which is a capability absence and genuine design work, not a defect this change could
@@ -1404,6 +1480,7 @@ have absorbed.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 7 | 2026-09-25 | NeurOne Firmware Engineering | **Issue #384, non-blocking half: closes `OI-FWHUB-03`, `-05` and `-12`; records `-04` closed (fixed by Rev 5, #425); does the labelling half of `-06`.** **New §4.6**: per-modality code, parameter struct, byte count and target. **`scripts/check-hub-wire-format.ts`** diffs §4, `np_hub_config.h`/`np_hub_types.h` (defines, enums, packed-struct sizes and offsets) and `hubCompiler.ts`'s actual output, decoded at the firmware's offsets for all 16 encodings. Falsified on 15 single-corner perturbations and wired as `tooling-ci.yml:hub-wire-format`, so `REQ-FWHUB-28` moves to §10.1. **`np_module_registry`**: the per-zone-slot SHDR auth callback and its parameter are removed, because the records were made up from a retired ladder (§3.2, `-05`); §2.1 row 7 and the bring-up gate's rationale follow. **`firmware/pbm`**: the HAL stub is addressed over `NP_PBM_SOCKET_DOMAIN` (128), and `np_pbm_session_desc_tests` drives socket 77 (`-12`). **Status line → DRAFT — pending approval** (`-06`; approval still open). `OI-FWHUB-10` gains the per-socket SHDR inventory question. No requirement weakened; `REQ-FWHUB-25/26` remain unmet against `OI-FWHUB-09` (#335). Rev 6 → 7. |
 | 6 | 2026-09-24 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-15` (§6.5, §13).** `np_log_session_end()` now calls `np_adapt_log_flush()` before it writes the session-end record and closes the UHDR file. Adaptation events still queued when a session ends therefore land in that session's file, ahead of its session-end record. Before, the runner's following `np_log_flush()` drained them into a closed file, the append was refused (`NP_HUB_ERR_NO_SESSION`), and the next session start dropped the buffer, with nothing reporting the loss. `np_log_backend_tests` gains 1 case, run in the runner's order (end, then flush). Removing the drain fails its two positive checks. A third check, that nothing reaches the next session's file, guards against a fix that moves the events there. Host suite: 43/44; `np_lfs_log_instance_tests` fails on unmodified `main` too. The ARM cross-build is clean. No classification, record format or wire format changed; no new test target. |
 | 5 | 2026-09-24 | NeurOne Firmware Engineering | **The session logger appends before it syncs and keeps log order (§6.1, §6.5, §8.2, §13).** Two defects in `np_session_log.c` predate `OI-LFS-11` and were found during it (NP-SOUP-LFS-001 Rev 7 §13.10). (1) A full 4 KiB UHDR or SHDR buffer was synced and then appended, so the sync covered none of it. Both partitions now go through `uhdr_drain()`/`shdr_drain()`, which append and then sync. (2) EEG sample blocks were appended straight to the HAL ahead of records in `s_uhdr_buf` and the adaptation ring. They now drain both first, append only, and keep the zero-copy path for the samples. (3) Found by (2)'s test: `np_log_flush()` skipped the UHDR sync whenever the buffer was empty, so EEG data could miss the 30 s bound. It now always syncs UHDR. `np_log_backend_tests` gains 4 cases and the host hook `np_log_test_synced_len()`. Reverting each fix fails the case named for it (five mutants), and the pre-fix file fails 5 checks (`NP-CONV-001` §8). Host suite and ARM cross-build pass; the one other ctest failure, `np_lfs_log_instance_tests`, fails identically on the unmodified base (3 of 3 under ctest; it passes most standalone runs, and one crashed with a bus error) and links none of these files. Raised `OI-FWHUB-14` (EEG ISR context vs a single-context logger) and `OI-FWHUB-15` (adaptation events queued at session end are lost). No classification, record format or wire format changed; no new test target. |
 | 4 | 2026-09-24 | NeurOne Firmware Engineering | **§6.6 added — the per-session recording limit, with proposed IFU text.** `OI-LFS-11` (`NP-SOUP-LFS-001` Rev 7 §13.10) made each session's UHDR record one file, and littlefs caps a file at 2 GiB − 1: about **49 hours** of recording with EEG at ≈12 kB/s. At the limit recording stops for the rest of that session; the session is not stopped, and other sessions are unaffected. §6.6 derives the figure, states the behaviour from the code, and gives plain-language IFU text. No IFU exists yet, so `OI-FWHUB-13` carries the text to it. §6.5 gains the `OI-LFS-11` update note. Rev 3 → 4. |

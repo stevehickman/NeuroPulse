@@ -4,8 +4,11 @@
  *           record, authored 2026-09-13 against firmware/hub_control/ and closing
  *           OI-DOC-01. Where this compiler and §4 disagree, §4 and np_protocol.c
  *           are the same artifact seen twice and the compiler is wrong
- *           (REQ-FWHUB-08). No mechanical check enforces the agreement yet —
- *           OI-FWHUB-03.
+ *           (REQ-FWHUB-08). The agreement is enforced by
+ *           scripts/check-hub-wire-format.ts (OI-FWHUB-03, §4.6), which runs
+ *           this compiler and decodes its output at the firmware's struct
+ *           offsets — a constant, length or offset changed here without §4 and
+ *           np_hub_types.h fails CI.
  *
  * Converts an NPProtocolDefinition (high-level modality params + timing) into
  * the binary wire format consumed by the hub firmware (np_protocol.c).

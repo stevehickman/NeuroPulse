@@ -178,6 +178,13 @@
 #define NP_PBM_SOCKET_MASK_BYTES    16U     /* 128 bits; == hub_control NP_HUB_SOCKET_MASK_BYTES */
 
 /*
+ * The socket index domain the HAL is addressed over: 0 .. NP_PBM_SOCKET_DOMAIN-1.
+ * Derived from the mask width rather than stated again, so it cannot disagree
+ * with it (OI-FWHUB-12).
+ */
+#define NP_PBM_SOCKET_DOMAIN        (NP_PBM_SOCKET_MASK_BYTES * 8U)
+
+/*
  * ── Module UID length (OI-HUB-C06) ───────────────────────────────────────────
  *
  * Dose-metering calibration is keyed to the MODULE's UID, never to the socket

@@ -189,17 +189,11 @@ static np_mod_entry_t s_registry[NP_HUB_SLOT_MAX];
 
 /* ── Internal helpers ─────────────────────────────────────────────────────────── */
 
-static np_hub_status_t probe_and_register(uint8_t                  slot,
-                                            np_mod_reg_shdr_cb_t     shdr_log_cb)
+static np_hub_status_t probe_and_register(uint8_t slot)
 {
     np_hub_mod_type_t type  = NP_MOD_NONE;
     np_hub_status_t   rc    = k_slot_probes[slot].detect(slot, &type);
     bool              pass  = (rc == NP_HUB_OK && type != NP_MOD_NONE);
-
-    /* Log zone-slot auth events to SHDR (no auth for fixed-hardware slots). */
-    if (slot < NP_HUB_ZONE_SLOT_COUNT && shdr_log_cb != NULL) {
-        shdr_log_cb(slot, type, pass);
-    }
 
     if (!pass) {
         s_registry[slot].present = false;
@@ -230,12 +224,12 @@ void np_mod_reg_init(void)
     memset(s_registry, 0, sizeof(s_registry));
 }
 
-np_hub_status_t np_mod_reg_scan(np_mod_reg_shdr_cb_t shdr_log_cb)
+np_hub_status_t np_mod_reg_scan(void)
 {
     uint8_t n_present = 0U;
 
     for (uint8_t slot = 0U; slot < NP_HUB_SLOT_MAX; slot++) {
-        np_hub_status_t rc = probe_and_register(slot, shdr_log_cb);
+        np_hub_status_t rc = probe_and_register(slot);
         if (rc == NP_HUB_OK) {
             n_present++;
         }
@@ -288,8 +282,7 @@ void np_mod_reg_shutdown_all(void)
     }
 }
 
-np_hub_status_t np_mod_reg_rescan_zone(uint8_t              zone_slot,
-                                         np_mod_reg_shdr_cb_t shdr_log_cb)
+np_hub_status_t np_mod_reg_rescan_zone(uint8_t zone_slot)
 {
     if (zone_slot >= NP_HUB_ZONE_SLOT_COUNT) {
         return NP_HUB_ERR_INVALID_ARG;
@@ -299,5 +292,5 @@ np_hub_status_t np_mod_reg_rescan_zone(uint8_t              zone_slot,
         (void)s_registry[zone_slot].shutdown(zone_slot);
     }
     memset(&s_registry[zone_slot], 0, sizeof(np_mod_entry_t));
-    return probe_and_register(zone_slot, shdr_log_cb);
+    return probe_and_register(zone_slot);
 }

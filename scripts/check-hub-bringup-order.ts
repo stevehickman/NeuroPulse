@@ -35,9 +35,10 @@
  *     open (np_session_log.h).
  *
  *   np_log_init         →  np_mod_reg_scan
- *     THE OI-FWHUB-07 CONSTRAINT. The scan emits SHDR zone-auth records through
- *     shdr_zone_auth_cb; they must carry the true device session count and must
- *     not be in a buffer np_log_init() is about to zero.
+ *     THE OI-FWHUB-07 CONSTRAINT. Modules initialised by the scan write SHDR
+ *     auth records (intranasal, cervical VNS — the scan's own per-zone-slot
+ *     callback was removed by OI-FWHUB-05); they must carry the true device
+ *     session count and must not be in a buffer np_log_init() is about to zero.
  *
  *   np_mod_reg_init     →  np_mod_reg_scan
  *     The registry must be zeroed before it is populated.
@@ -79,7 +80,7 @@ const ENTRY = "np_hub_control_app_main";
 const ORDER: ReadonlyArray<readonly [string, string, string]> = [
   ["np_safety_spi_init", "np_mod_reg_scan", "GAIN_SEL[0..4] must be driven LOW before any zone probe (OI-PBM-HW-01)"],
   ["np_log_backend_init", "np_log_init", "the partition log files must be open before the logger is initialised"],
-  ["np_log_init", "np_mod_reg_scan", "the scan's SHDR zone-auth records must carry the true session count and survive np_log_init()'s buffer reset (OI-FWHUB-07)"],
+  ["np_log_init", "np_mod_reg_scan", "SHDR auth records written during the scan must carry the true session count and survive np_log_init()'s buffer reset (OI-FWHUB-07)"],
   ["np_mod_reg_init", "np_mod_reg_scan", "the registry must be zeroed before it is populated"],
 ];
 
