@@ -1194,7 +1194,7 @@ enable at socket granularity.**
 | Software | Per socket (~80) | B | Module driver register over I2C | Yes — which is why it is not the safety layer |
 | Hardware, availability | **Per cluster (18)** | **B** | `SAFE_EN[n]` gates the cluster's 24 V high-side load switch — no rail, no emission. **Commanded by the hub, not by the cluster controller it gates (HUB-REQ-C05)** | Yes — it is a Class B tier, which is why it is not the safety layer either |
 | **Hardware, safety** | **Whole cranial lattice** | **C** | **One broadcast Safety-MCU line, in series with all 18 gates** | **No** |
-| Global | Whole vault | C | PAN feed cut | **No** |
+| Global | Whole vault | C | PAN feed cut. **Realised 2026-09-25 as `VAULT_FEED_EN`** (`NP-HW-HUB-001` HUB-REQ-C07): a separate safety-MCU output and series switch on the 24 V vault feed, fail-off. It is driven off when the `PBM_CRANIAL_PERMIT` read-back disagrees with the commanded state. *Until then this row named a tier that no signal, GPIO or firmware implemented* | **No** |
 
 > **⚠ Class attaches to software, not to gates.** IEC 62304 classifies **software items**. The 18
 > per-cluster high-side switches are **hardware risk control measures** and carry no 62304 class;
