@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 16
-**Date:** 2026-09-07  
+**Revision:** 17
+**Date:** 2026-09-25  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -14,6 +14,8 @@
 **IEC 62304 Class:** —
 
 ---
+
+> **Rev 17 (2026-09-25) — `pbm_transcranial` states its light in absolute terms, and CW means continuous (OI-HEXTILE-25, principal direction).** Two rules, both binding on all four runtimes and the hub. **(i) `irradiance_mw_cm2` replaces `intensity` on `pbm_transcranial`.** A percentage is a fraction of *an emitter's capability* — which differs by tile type (T1-A reaches ~403 mW/cm² at full drive, a T1-C 660/808 channel ~269, CH_C 28) and moves with the part `OI-HEXTILE-02` has not selected — so `intensity: 80%` never had a fixed meaning; `NP-SES-PWR-001` §2.3 recorded five disagreeing reference constants for it. The field is the on-state irradiance at the scalp face in mW/cm², per lit wavelength channel; `intensity` and `intensity_percent` on this block are now **parse errors**, not aliases (the other optical blocks keep `intensity`). The limits field follows: `max_irradiance_mw_cm2` replaces `max_intensity` in the `pbm_transcranial` limits sub-block. **(ii) `frequency: 0` is continuous wave, and continuous means 100 % on-time.** A `duty_cycle` beside it contradicted it and was undefined (`OI-SESPWR-03`, a 4× swing on a fifth of the library); the pair is now a **parse error**, and the parsers store 100 % for a CW block. The ceilings are R-4's two, on the irradiance: **≤ 400 mW/cm² pulsed at ≤ 25 % duty, ≤ 200 mW/cm² CW** — enforced by every validator and, refusing rather than clamping, by the hub (`np_pbm_irradiance.c`). The hub wire format carries mW/cm², so the protocol version is **v4**. **The shipped library is migrated**: blocks whose source trial states an irradiance carry it (the files had recorded those targets in comments since August); the rest carry their percentage at the scale they were authored against, 100 % = 403 mW/cm² (1064 nm blocks: 100 % = CH_C's 28 mW/cm²), each with a comment saying so. `Vascular Baseline` converts to **322 mW/cm² CW, over R-4's CW ceiling**; it is kept as written, refused everywhere, and awaits re-authoring from evidence (`OI-SESPWR-02`). §4, §4.1, §7 and §12 updated; `npps/fixtures` gains two error fixtures.
 
 > **Rev 16 (2026-09-09) — `tdcs` gains `electrode_area_cm2`, the geometry the 40 µC/cm² charge-density ceiling divides by (OI-CHARGE-04).** The grammar had no way to say how big a tDCS pad is, so every runtime supplied its own assumption — 35 cm² on iOS and Android, none at all on the web — while the Class C safety MCU enforced against a 25 cm² default of its own. `electrode_pairs` was the only geometry-adjacent field and it names 10-20 *sites*, which say nothing about pad size. The field is therefore new grammar, not a renamed alias, and **it is not advisory**: it is compiled into the signed session descriptor and the safety MCU derives its charge limit from it, so a protocol declaring an area larger than the pads actually fitted raises the real ceiling on the device. A protocol declaring none is refused rather than defaulted. **It has no short alias and carries its unit in the key** (`electrode_area_cm2: 35`, never `35cm2`): the lexer's unit suffixes are `Hz % mA s m`, and since Rev 6 a digit-leading token that is not a number with a known suffix is a parse error rather than a silent identifier — so a `cm2` literal would fail loudly, but adding `cm2` to the lexer would have been a grammar-wide change for one field. §4.5 and §12 updated; all three runtimes read and write it.
 >
@@ -399,7 +401,7 @@ The following short names are accepted anywhere and map to the canonical name:
 | `ramp` | `ramp_seconds` |
 | `emdr_cadence` | `emdr_cadence_hz` |
 
-The `intensity` alias is context-dependent: it maps to `intensity_percent` for optical modalities (`pbm_transcranial`, `pbm_intranasal`, `visual_stimulation`), and `intensity_milliamps` for electrical modalities (`bes_tacs`, `tdcs`, `vns_hrv`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `tms`). For `pbm_deep_1170nm` use `intensity_mw_cm2:` directly; for `vibrotactile_40hz` use `intensity_g:` directly.
+The `intensity` alias is context-dependent: it maps to `intensity_percent` for optical modalities (`pbm_intranasal`, `visual_stimulation`), and `intensity_milliamps` for electrical modalities (`bes_tacs`, `tdcs`, `vns_hrv`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `tms`). For `pbm_deep_1170nm` use `intensity_mw_cm2:` directly; for `vibrotactile_40hz` use `intensity_g:` directly. **`pbm_transcranial` has no `intensity` at all** (Rev 17): it takes `irradiance_mw_cm2`, and `intensity` or `intensity_percent` on that block is a parse error.
 ---
 
 ### 4.1 PBM Transcranial
@@ -408,9 +410,9 @@ Photobiomodulation via scalp-facing LED zones.
 
 | Field | Canonical | Type | Values |
 |-------|-----------|------|--------|
-| `intensity` | `intensity_percent` | number | 0–100 |
+| `irradiance_mw_cm2` | `irradiance_mw_cm2` | number | On-state irradiance at the scalp face, **mW/cm²**, per lit wavelength channel. Pulsed ≤ 400; CW ≤ 200 (R-4). Default 300. **No short alias; `intensity` is a parse error here** (Rev 17) |
 | `frequency` | `frequency_hz` | number | 0 (CW) or 0.5–100 |
-| `duty_cycle` | `duty_cycle_percent` | number | 1–25 (firmware max) |
+| `duty_cycle` | `duty_cycle_percent` | number | 1–25 (firmware max). **Pulsed only** — with `frequency: 0` it is a parse error (Rev 17) |
 | `zones` | `zones` | string array \| `clinician_selected` | A **named-zone-reference array** (§8), or the keyword `clinician_selected` |
 | `wavelength` | `wavelength` | string | `"660_808nm"` `"1064nm"` `"660_808_1064nm"` — **quoted** (§2) |
 
@@ -418,7 +420,7 @@ Photobiomodulation via scalp-facing LED zones.
 
 ```
 pbm_transcranial {
-    intensity: 80%
+    irradiance_mw_cm2: 300                     # on-state, mW/cm² — absolute
     frequency: 40Hz
     duty_cycle: 25%
     zones: ["Frontal Left", "Frontal Right"]   # named zone references (§8)
@@ -439,7 +441,18 @@ Each string must match the `name` of a `zone` block in a loaded `.npps` file (§
 > `custom_zones` and numeric `zones: [0, 1, 2]` are rejected, not accepted and ignored.
 > Omitting `zones` defaults to `["All"]`, the whole-helmet zone in `00-zones.npps`.
 
-`frequency: 0` (or `0Hz`) selects continuous-wave (CW) mode.
+`frequency: 0` (or `0Hz`) selects continuous-wave (CW) mode, and **CW is continuous: 100 % on-time**. A CW block takes no `duty_cycle` — the pair is refused, because it used to leave the delivered dose undefined (`OI-SESPWR-03`).
+
+**Irradiance is absolute (Rev 17).** `irradiance_mw_cm2` is what the scalp receives while the channel is on — the number a source trial reports — not a fraction of what an emitter can do. The hub converts it to drive for the tile it is actually driving and **refuses** a command it cannot deliver as written: over R-4 for its mode (400 pulsed / 200 CW), over R-5's 600 mW/cm² three-channel aggregate on a T1-C tile, or beyond the tile's reach (a 1064 nm channel reaches ~28 mW/cm²). Average irradiance is `irradiance_mw_cm2 × duty` pulsed and `irradiance_mw_cm2` CW, and dose is that × time. **One value per block** applies to every lit channel; a `660_808_1064nm` block therefore asks all three channels for the same irradiance, which CH_C cannot supply above ~28 mW/cm² (`OI-HEXTILE-26`).
+
+```
+pbm_transcranial {
+    irradiance_mw_cm2: 36        # Cassano 2018: 36 mW/cm² CW
+    frequency: 0Hz               # continuous — no duty_cycle
+    zones: ["Frontal Left", "Frontal Right"]
+    wavelength: "660_808nm"
+}
+```
 
 ---
 
@@ -939,7 +952,7 @@ limits "T1 Home Defaults" {
     description: "Standard T1 safety limits."
 
     pbm_transcranial {
-        max_intensity: 100
+        max_irradiance_mw_cm2: 400
         max_frequency: 100
         max_duty_cycle: 25
         max_session_dose: 60.0
@@ -1038,7 +1051,7 @@ limits "T1 Home Defaults" {
 
 | Block | Field | Unit |
 |-------|-------|------|
-| `pbm_transcranial` | `max_intensity` | % |
+| `pbm_transcranial` | `max_irradiance_mw_cm2` | mW/cm² (on-state; Rev 17 — was `max_intensity` %) |
 | | `max_frequency` | Hz |
 | | `max_duty_cycle` | % |
 | | `max_session_dose` | J/cm² |
@@ -1406,7 +1419,7 @@ Reading the table:
 | `DLPFC_R` | Enum value | `tms` / `hd_tdcs` → `target` | Right dorsolateral prefrontal cortex. Surface-class target. |
 | `dual_electrode` | Element type | `zone` → `types` | Ag/AgCl contact dual-rated for both EEG recording and stimulation current. |
 | `duration` | Metadata / layer field | `protocol`, `composite`, `layer` | Fixed session length (protocol) or clip length (layer). A duration value — `m` suffix converts to seconds. Omit on a layer to run the referenced protocol to its natural end. |
-| `duty_cycle` | Modality field (alias) | `pbm_transcranial`, `pbm_intranasal`, `pbm_deep_1170nm` | Alias of `duty_cycle_percent` — pulsed duty cycle, 1–25 % (firmware max). |
+| `duty_cycle` | Modality field (alias) | `pbm_transcranial`, `pbm_intranasal`, `pbm_deep_1170nm` | Alias of `duty_cycle_percent` — pulsed duty cycle, 1–25 % (firmware max). On `pbm_transcranial` a parse error beside `frequency: 0` — CW is continuous (Rev 17). |
 | `duty_cycle_percent` | Modality field (canonical) | PBM modalities | Canonical name behind `duty_cycle`. |
 | `eeg_adaptive` | Modality field | `audio_entrainment` | Bool. Adjust entrainment frequency in real time from live EEG. |
 | `eeg_biofeedback` | Enum value | `vns_hrv` → `hrv_protocol` | Dual HRV + EEG biofeedback; pacer rate adapts to alpha/theta. |
@@ -1436,17 +1449,18 @@ Reading the table:
 | `id` | Metadata field | `protocol`, `composite`, `zone`, `condition` | Stable UUID. Its **presence marks the entry as predefined** (shipped, read-only). |
 | `individual` | Enum value | `limits` → `level` | Per-user limits; the most specific level, overrides `helmet`. Requires `individual_id`. |
 | `individual_id` | Limits field | `limits` | User ID the limits block applies to, when `level: individual`. |
-| `intensity` | Modality field (alias) | most modalities | **Context-dependent alias.** Maps to `intensity_percent` for optical modalities and `intensity_milliamps` for electrical ones (§4, Field aliases). Not available on `pbm_deep_1170nm` or `vibrotactile_40hz`. |
+| `intensity` | Modality field (alias) | most modalities | **Context-dependent alias.** Maps to `intensity_percent` for optical modalities and `intensity_milliamps` for electrical ones (§4, Field aliases). Not available on `pbm_deep_1170nm` or `vibrotactile_40hz`; **a parse error on `pbm_transcranial`**, which takes `irradiance_mw_cm2` (Rev 17). |
 | `intensity_g` | Modality field | `vibrotactile_40hz` | Drive amplitude in G (acceleration), 0.6–1.2. Use directly — `intensity` does not alias to it. |
 | `intensity_milliamps` | Modality field (canonical) | electrical modalities | Canonical name `intensity` resolves to for `bes_tacs`, `tdcs`, `vns_hrv`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `tms`. |
 | `intensity_mw_cm2` | Modality field | `pbm_deep_1170nm` | Irradiance in mW/cm², ≤1000. Use directly — `intensity` does not alias to it. |
-| `intensity_percent` | Modality field (canonical) | optical modalities | Canonical name `intensity` resolves to for `pbm_transcranial`, `pbm_intranasal`, `visual_stimulation`. |
+| `intensity_percent` | Modality field (canonical) | optical modalities | Canonical name `intensity` resolves to for `pbm_intranasal`, `visual_stimulation`. **Not `pbm_transcranial`** since Rev 17 — a parse error there. |
 | `intensity_percent_mt` | Modality field | `tms` | Stimulator output as % of motor threshold, 80–120 typical. |
 | `intensity_scale` | Layer field | `layer` | Multiplier applied to every modality intensity in the referenced protocol, 0.0–2.0. Default `1.0`. |
 | `interval_count` | Metadata field | `protocol` | Alternative to `duration`: run for N modality intervals instead of a fixed wall time. |
 | `interval_off` | Interval field | any modality block | Rest period of the on/off cycle. A duration; `0` means continuous (§5). |
 | `interval_on` | Interval field | any modality block | Active period of the on/off cycle. A duration; `0` means continuous (§5). |
 | `ir_prox` | Element type | `zone` → `types` | 940 nm infrared proximity sensor element (eye-open detection). |
+| `irradiance_mw_cm2` | Modality field (canonical) | `pbm_transcranial` | On-state irradiance at the scalp face, mW/cm², per lit channel — absolute (Rev 17, OI-HEXTILE-25). Pulsed ≤ 400, CW ≤ 200. No alias. |
 | `isochronic_hz` | Modality field (alias) | `audio_entrainment` | Alias of `isochronic_tones_hz` — isochronic tone rate in Hz. Optional. |
 | `isochronic_tones_hz` | Modality field (canonical) | `audio_entrainment` | Canonical name behind `isochronic_hz`. |
 | `iTBS` | Enum value | `tms` → `tms_protocol`; `limits` → `allowed_protocols` | Intermittent theta-burst stimulation. |
@@ -1467,8 +1481,9 @@ Reading the table:
 | `max_daily_dose` | Limits field | `limits` → `pbm_transcranial` | Ceiling on cumulative PBM dose per day, in J/cm². |
 | `max_duty_cycle` | Limits field | `limits` → `pbm_transcranial` | Ceiling on `duty_cycle`, in %. |
 | `max_frequency` | Limits field | `limits` → several modality sub-blocks | Ceiling on `frequency`, in Hz. |
-| `max_intensity` | Limits field | `limits` → most modality sub-blocks | Ceiling on that modality's intensity, in the modality's own unit (%, mA, mW/cm² or G). |
+| `max_intensity` | Limits field | `limits` → most modality sub-blocks | Ceiling on that modality's intensity, in the modality's own unit (%, mA, mW/cm² or G). Not `pbm_transcranial`, which takes `max_irradiance_mw_cm2` (Rev 17). |
 | `max_intensity_pct_mt` | Limits field | `limits` → `tms` | Ceiling on `intensity_percent_mt`, in % MT. |
+| `max_irradiance_mw_cm2` | Limits field | `limits` → `pbm_transcranial` | Ceiling on `irradiance_mw_cm2`, mW/cm² (Rev 17 — replaces `max_intensity` for this block). |
 | `max_isochronic_tones` | Limits field | `limits` → `audio_entrainment` | Ceiling on `isochronic_hz`, in Hz. |
 | `max_pulses_per_day` | Limits field | `limits` → `tms` | Ceiling on total TMS pulses per day. |
 | `max_pulses_per_session` | Limits field | `limits` → `tms` | Ceiling on `pulse_count` for one session. |

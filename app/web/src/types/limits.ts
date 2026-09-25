@@ -2,7 +2,7 @@
 // All fields optional: undefined = not set at this level
 
 export interface PBMTranscranialLimits {
-  maxIntensityPercent?: number;      // 0–100%
+  maxIrradianceMWcm2?: number;       // on-state, mW/cm² (absolute — OI-HEXTILE-25)
   maxFrequencyHz?: number;
   maxDutyCyclePercent?: number;      // ≤25 always (hardware cap)
   maxSessionDoseJCm2?: number;       // J/cm² per zone per session

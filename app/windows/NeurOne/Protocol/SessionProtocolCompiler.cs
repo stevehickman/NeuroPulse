@@ -43,13 +43,12 @@ static class SessionProtocolCompiler
             {
                 Zones = m.P.ResolvedZones,
                 FrequencyHz = m.P.FrequencyHz,
-                DutyCyclePercent = m.P.DutyCyclePercent,
+                DutyCyclePercent = m.P.FrequencyHz <= 0 ? 100 : m.P.DutyCyclePercent,
                 DurationSeconds = sessionDurationSeconds,
-                // Dose formula (mirrors Swift buildSessionProtocol):
-                // peak irradiance ≈ 400 mW/cm² × dutyCycle(25%) = 100 mW/cm² average
-                // dose = durationSeconds × intensityFraction × 0.4 W/cm² = J/cm²
-                // 0.4 is the CW-equivalent irradiance at 100% intensity (W/cm²).
-                TargetDoseJoules = sessionDurationSeconds * (m.P.IntensityPercent / 100.0) * 0.4
+                // Dose (J/cm²) from the absolute on-state irradiance and the fraction
+                // of time on (OI-HEXTILE-25; mirrors Swift buildSessionProtocol).
+                // CW is continuous. The old `intensity% × 0.4 W/cm²` never applied duty.
+                TargetDoseJoules = sessionDurationSeconds * (m.P.IrradianceMWcm2 / 1000.0) * m.P.OnFraction
             },
 
             NPModalityParams.PbmIntranasal m => new PbmIntranasalConfig

@@ -487,10 +487,10 @@ struct LimitsEditorView: View {
             )
         ) {
             if workingLimits.pbmTranscranial != nil {
-                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "%", value: Binding(
-                    get: { workingLimits.pbmTranscranial?.maxIntensityPercent },
-                    set: { workingLimits.pbmTranscranial?.maxIntensityPercent = $0 }
-                ), range: 0...100)
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_IRRADIANCE"), unit: "mW/cm²", value: Binding(
+                    get: { workingLimits.pbmTranscranial?.maxIrradianceMWcm2 },
+                    set: { workingLimits.pbmTranscranial?.maxIrradianceMWcm2 = $0 }
+                ), range: 0...400)
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_FREQUENCY"), unit: "Hz", value: Binding(
                     get: { workingLimits.pbmTranscranial?.maxFrequencyHz },
                     set: { workingLimits.pbmTranscranial?.maxFrequencyHz = $0 }

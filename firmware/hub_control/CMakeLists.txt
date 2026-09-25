@@ -240,6 +240,20 @@ if(NP_BUILD_TESTS)
     target_compile_options(np_lfs_log_instance_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g)
 
+    # OI-HEXTILE-25 (NP-HW-HEXTILE-001 Rev 14 §4.3.3): transcranial PBM is
+    # commanded in mW/cm².  The resolver refuses anything over R-4 for its mode
+    # or R-5 on a three-channel tile, or beyond the tile's reach; CW runs at
+    # 100 % on-time and pulsed is capped at 25 %.  Also drives np_pbm_drive's
+    # per-channel, mode-aware duty clamp.
+    add_executable(np_pbm_irradiance_tests
+        tests/np_pbm_irradiance_tests.c
+        src/np_pbm_irradiance.c
+        ../pbm/src/np_pbm_drive.c
+    )
+    target_include_directories(np_pbm_irradiance_tests PRIVATE include ../pbm/include)
+    target_compile_options(np_pbm_irradiance_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+
     # OI-HUB-MAIN-01: protocol transport reassembly + single-slot mailbox.
     add_executable(np_transport_tests
         tests/np_transport_tests.c
@@ -320,6 +334,7 @@ set(HUB_SOURCES
     src/np_hub_freertos_hooks.c   # FreeRTOS app hooks (stack overflow, malloc, assert)
 
     modules/np_mod_pbm.c
+    src/np_pbm_irradiance.c       # OI-HEXTILE-25: mW/cm² → CUR codes, R-4/R-5 refusal
     modules/np_mod_eeg.c
     modules/np_mod_stim.c
     modules/np_mod_vns.c

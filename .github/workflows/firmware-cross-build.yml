@@ -188,7 +188,8 @@ env:
   # 31 → 32: np_chan_decl_tests (NP-FW-MMSOCK-001, OI-MMSOCK-02).
   # 32 → 34: np_cfg_store_tests and np_lfs_log_instance_tests
   #   (NP-SOUP-LFS-001 Rev 4 §13, OI-LFS-05/-06/-08/-09).
-  NP_CLASS_B_TEST_COUNT: '34'
+  # 34 → 35: np_pbm_irradiance_tests (NP-HW-HEXTILE-001 Rev 14, OI-HEXTILE-25).
+  NP_CLASS_B_TEST_COUNT: '35'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  This job always

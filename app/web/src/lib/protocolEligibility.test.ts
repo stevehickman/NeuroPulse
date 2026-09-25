@@ -433,7 +433,7 @@ function pbmProtocol(zoneRefs: string[]): NPProtocolDefinition {
         type: 'pbm_transcranial',
         params: {
           zones: 'named', zoneRefs,
-          wavelength: '660_808nm', intensityPercent: 75, frequencyHz: 40, dutyCyclePercent: 25,
+          wavelength: '660_808nm', irradianceMWcm2: 300, frequencyHz: 40, dutyCyclePercent: 25,
         },
       },
     }],

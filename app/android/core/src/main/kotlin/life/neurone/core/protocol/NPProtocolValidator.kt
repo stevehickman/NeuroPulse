@@ -352,7 +352,17 @@ class NPProtocolValidator(private val resolvedLimits: NPLimitsSet) {
         val m = NPModalityType.PBM_TRANSCRANIAL
         val lim = resolvedLimits.pbmTranscranial
 
-        if (p.dutyCyclePercent > NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT) {
+        // R-4 is two ceilings on the on-state irradiance: 400 mW/cm² pulsed at
+        // ≤ 25 % duty, 200 mW/cm² continuous (OI-HEXTILE-25). CW takes no duty.
+        val cw = p.frequencyHz <= 0.0
+        val irrCeiling = if (cw) NPHardwareLimits.PBM_CW_MAX_MW_CM2 else NPHardwareLimits.PBM_PULSED_PEAK_MW_CM2
+        if (p.irradianceMWcm2 > irrCeiling) {
+            r.addError(m, "irradianceMWcm2", "Irradiance", "${fmt1(p.irradianceMWcm2)} mW/cm²",
+                "${fmt1(irrCeiling)} mW/cm²", NPLimitSource.HARDWARE,
+                (if (cw) "Continuous-wave" else "Pulsed") + " PBM irradiance ${fmt1(p.irradianceMWcm2)} mW/cm² " +
+                    "exceeds the ${fmt1(irrCeiling)} mW/cm² " + (if (cw) "continuous" else "peak") + " ceiling.")
+        }
+        if (!cw && p.dutyCyclePercent > NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT) {
             r.addError(m, "dutyCyclePercent", "Duty Cycle", "${p.dutyCyclePercent}%",
                 "${NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT}%", NPLimitSource.HARDWARE,
                 "PBM duty cycle ${p.dutyCyclePercent}% exceeds firmware-enforced maximum of " +
@@ -362,10 +372,10 @@ class NPProtocolValidator(private val resolvedLimits: NPLimitsSet) {
             r.addError(m, "frequencyHz", "Frequency", "${p.frequencyHz} Hz", "≥0 Hz",
                 NPLimitSource.HARDWARE, "PBM frequency cannot be negative.")
         }
-        lim?.maxIntensityPercent?.let { maxI ->
-            if (p.intensityPercent > maxI) r.addError(m, "intensityPercent", "Intensity",
-                "${p.intensityPercent.toInt()}%", "${maxI.toInt()}%", dosageSource,
-                "PBM transcranial intensity ${p.intensityPercent.toInt()}% exceeds limit of ${maxI.toInt()}%.")
+        lim?.maxIrradianceMWcm2?.let { maxI ->
+            if (p.irradianceMWcm2 > maxI) r.addError(m, "irradianceMWcm2", "Irradiance",
+                "${fmt1(p.irradianceMWcm2)} mW/cm²", "${fmt1(maxI)} mW/cm²", dosageSource,
+                "PBM irradiance ${fmt1(p.irradianceMWcm2)} mW/cm² exceeds limit of ${fmt1(maxI)} mW/cm².")
         }
         lim?.maxFrequencyHz?.let { maxF ->
             if (p.frequencyHz > maxF) r.addError(m, "frequencyHz", "Frequency",
@@ -373,15 +383,14 @@ class NPProtocolValidator(private val resolvedLimits: NPLimitsSet) {
                 "PBM frequency ${fmtHz(p.frequencyHz)} exceeds limit of ${fmtHz(maxF)}.")
         }
         lim?.maxDutyCyclePercent?.let { maxDC ->
-            if (p.dutyCyclePercent > maxDC) r.addError(m, "dutyCyclePercent", "Duty Cycle",
+            if (!cw && p.dutyCyclePercent > maxDC) r.addError(m, "dutyCyclePercent", "Duty Cycle",
                 "${p.dutyCyclePercent}%", "$maxDC%", dosageSource,
                 "PBM duty cycle ${p.dutyCyclePercent}% exceeds configured limit of $maxDC%.")
         }
         val maxDose = lim?.maxSessionDoseJCm2
         if (maxDose != null && totalDurationSeconds != null && totalDurationSeconds > 0) {
-            val peakMWcm2 = if (p.frequencyHz == 0.0) NPHardwareLimits.PBM_CW_MAX_MW_CM2
-                else NPHardwareLimits.PBM_PULSED_PEAK_MW_CM2 * p.dutyCyclePercent / 100.0
-            val estimatedDose = peakMWcm2 * (p.intensityPercent / 100.0) * totalDurationSeconds / 1000.0
+            // Absolute: on-state irradiance × fraction of time on × seconds.
+            val estimatedDose = p.irradianceMWcm2 * p.onFraction * totalDurationSeconds / 1000.0
             if (estimatedDose > maxDose) r.addError(m, "sessionDoseJCm2", "Session Dose",
                 fmt1(estimatedDose) + " J/cm²", fmt1(maxDose) + " J/cm²", dosageSource,
                 "Estimated PBM session dose ${fmt1(estimatedDose)} J/cm² exceeds the configured " +

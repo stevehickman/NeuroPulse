@@ -118,8 +118,16 @@ describe('predefined NPPS library', () => {
     // to 25 Hz here: that would put a number in a cited clinical protocol that
     // the citation does not support, which is the same class of move as
     // inflating a declared pad area to satisfy a ceiling.
+    //
+    // OI-SESPWR-02: "Vascular Baseline" authored `intensity: 80%` CW, which at the
+    // library's authoring scale is 322 mW/cm² continuous — over R-4's 200 mW/cm²
+    // CW ceiling. When OI-HEXTILE-25 moved PBM to absolute irradiance it was kept
+    // as written, NOT retuned to 200: the principal directed (2026-09-25) that it
+    // be re-authored from evidence by a clinical owner, and until then it must
+    // be refused, visibly.
     const WAIVED = [
       'taVNS — Stroke Motor Rehab (paired): frequencyHz = 30 Hz (limit 1–25 Hz (hardware))',
+      'Vascular Baseline: irradianceMWcm2 = 322 mW/cm² (limit 200 mW/cm² (hardware))',
     ];
 
     const failures: string[] = [];

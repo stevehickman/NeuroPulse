@@ -532,6 +532,17 @@ class Parser {
     if ('__intensity' in raw) {
       const intensityVal = raw['__intensity'];
       delete raw['__intensity'];
+      // Transcranial PBM states the power it delivers in absolute terms
+      // (OI-HEXTILE-25). A percentage is a fraction of an emitter's capability,
+      // which differs by tile type, so it has no fixed meaning — refuse it rather
+      // than guess the scale.
+      if (typeName === 'pbm_transcranial') {
+        throw new NPPSParseError(
+          'pbm_transcranial takes irradiance_mw_cm2 (on-state mW/cm²), not intensity — ' +
+          'a percentage of emitter capability has no fixed meaning (NP-NPPS-REF-001 §4.1)',
+          this.current.line,
+        );
+      }
       const percentTypes = new Set([
         'pbm_transcranial', 'pbm_intranasal', 'visual_stimulation',
       ]);
@@ -761,7 +772,7 @@ class Parser {
 
   private parsePBMTranscranialLimits(): PBMTranscranialLimits {
     return this.parseLimitsSubBlock<PBMTranscranialLimits>({
-      max_intensity: v => ({ maxIntensityPercent: Number(v) }),
+      max_irradiance_mw_cm2: v => ({ maxIrradianceMWcm2: Number(v) }),
       max_frequency: v => ({ maxFrequencyHz: Number(v) }),
       max_duty_cycle: v => ({ maxDutyCyclePercent: Number(v) }),
       max_session_dose: v => ({ maxSessionDoseJCm2: Number(v) }),
@@ -1073,12 +1084,29 @@ class Parser {
           }
           zones = 'clinician_selected';
         }
+        // Irradiance is absolute (OI-HEXTILE-25). Like every other field it
+        // defaults when absent — and its default is an absolute value too.
+        if ('intensity_percent' in raw) {
+          throw new NPPSParseError(
+            'pbm_transcranial takes irradiance_mw_cm2 (on-state mW/cm²), not intensity_percent',
+            line,
+          );
+        }
+        const frequencyHz = num('frequency_hz', d.frequencyHz);
+        // Continuous means continuous: frequency 0 is 100 % on-time, so a duty
+        // cycle beside it contradicts it. Refuse the pair rather than pick one.
+        if (frequencyHz <= 0 && 'duty_cycle_percent' in raw) {
+          throw new NPPSParseError(
+            'pbm_transcranial: frequency 0 is continuous wave (100 % on-time); remove duty_cycle',
+            line,
+          );
+        }
         const params: PBMTranscranialParams = {
           zones,
           wavelength: str('wavelength', d.wavelength) as PBMTranscranialParams['wavelength'],
-          intensityPercent: num('intensity_percent', d.intensityPercent),
-          frequencyHz: num('frequency_hz', d.frequencyHz),
-          dutyCyclePercent: num('duty_cycle_percent', d.dutyCyclePercent),
+          irradianceMWcm2: num('irradiance_mw_cm2', d.irradianceMWcm2),
+          frequencyHz,
+          dutyCyclePercent: frequencyHz <= 0 ? 100 : num('duty_cycle_percent', d.dutyCyclePercent),
         };
         if (zoneRefs) params.zoneRefs = zoneRefs;
         return { type: 'pbm_transcranial', params };

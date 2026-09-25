@@ -19,6 +19,32 @@
 
 ## Current revision
 
+**Rev 56 (2026-09-25) — §3 gains one paragraph: PBM is commanded in absolute irradiance, and CW is
+continuous. The PBM ceilings in the table are unchanged; `OI-HEXTILE-25` closed.**
+
+**What changed.** Three principal directions settled `NP-HW-HEXTILE-001` `OI-HEXTILE-25`:
+
+- CW means continuous.
+- Protocols execute as originally specified.
+- The power a protocol delivers is stated in absolute terms.
+
+Transcranial PBM protocols now state on-state mW/cm² (`irradiance_mw_cm2`, `NP-NPPS-REF-001`
+Rev 17), and `intensity` is a parse error on that block. `frequency: 0` is 100 % on-time, and a duty
+cycle beside it is a parse error. The hub refuses anything over R-4 or beyond the tile's reach,
+rather than clamping it.
+
+**Why in the core.** §3's hard-limits table is where every protocol and firmware author looks, and
+both rules bind them. Before this, a percentage had five disagreeing reference constants
+(`NP-SES-PWR-001` §2.3). The CW + duty pair left the delivered dose of a fifth of the library
+undefined by 4× (`OI-SESPWR-03`), including two clinical protocols whose trial dose depended on
+which reading won.
+
+**What it does not change.** R-4's 400 mW/cm² pulsed (≤ 25 % duty) and 200 mW/cm² CW, R-5, and
+every other §3 ceiling. Hardware limit B (`REQ-TDRV-02`) was re-derived so continuous CW can run;
+its bound, ≤ 200 mW/cm² average, is unchanged (`NP-SOUP-LFS-001` §13.15).
+
+## Earlier revisions
+
 **Rev 55 (2026-09-24) — §2.3 gains a paragraph naming the gate that enforces its trigger rule. No
 locked decision changed; `OI-ACC-06` closed, `OI-ACC-09` raised.**
 

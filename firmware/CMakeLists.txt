@@ -124,6 +124,8 @@
 #                              store's caller rules; #1205 reproduced and stopped)
 #                             → np_lfs_log_instance_tests (Rev 4 §13.1: UHDR/SHDR
 #                              instances, real geometry; ECR-EMMC-002 evidence)
+#                             → np_pbm_irradiance_tests  (OI-HEXTILE-25: PBM in
+#                              mW/cm², R-4/R-5 refusal, CW continuous)
 #   firmware/bootloader/      → np_bootloader_mem_tests   (freestanding memcpy/memset —
 #                              NP-SW-CI-001 §4.2)
 #                             → np_bootloader_app_image_tests (OCRAM staging limit +
@@ -387,6 +389,13 @@ if(NP_BUILD_TESTS)
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
     add_test(NAME np_lfs_log_instance_tests
         COMMAND np_lfs_log_instance_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # OI-HEXTILE-25 (NP-HW-HEXTILE-001 Rev 14 §4.3.3): transcranial PBM in mW/cm²
+    # — R-4/R-5 refused not clamped, CW continuous, mode-aware duty clamp.
+    # Moves the Class B count 34 → 35 and the repo total 44 → 45.
+    add_test(NAME np_pbm_irradiance_tests
+        COMMAND np_pbm_irradiance_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_mod_cvns_tests

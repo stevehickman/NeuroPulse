@@ -13,14 +13,14 @@ protocol "PBM — Depression (Cassano 2018, low-irradiance CW)" {
         # TARGET IRRADIANCE: 36 mW/cm² CW (Cassano 2018). Well inside R-4's
         # 200 mW/cm² CW ceiling.
         frequency: 0Hz
-        duty_cycle: 25%
-        # duty_cycle written explicitly so scripts/check-pbm-power.ts sees the
-        # OI-SESPWR-03 CW+duty ambiguity — omitting it does not remove the
-        # ambiguity (the parser defaults to 25 either way), only hides it.
-        intensity: 8.9%
-        # PROVISIONAL, NOT THE AUTHORED VALUE: 36 ÷ 403 against the only
-        # stated anchor (NP-HW-HEXTILE-001 §4.3.1), which NP-SES-PWR-001 §2.3
-        # flags as an "if". Becomes `irradiance_mw_cm2: 36`.
+        # CW is continuous (100 % on-time) and takes no duty_cycle (OI-HEXTILE-25, 2026-09-25).
+        # Until then it carried `duty_cycle: 25%` beside CW, a pair whose
+        # meaning was undefined (OI-SESPWR-03); read as 25 % it delivered a
+        # quarter of the trial's dose.
+        irradiance_mw_cm2: 36
+        # Authored as absolute irradiance (OI-HEXTILE-25, 2026-09-25): the trial's figure, no
+        # longer a percentage of the 403 mW/cm² anchor NP-SES-PWR-001 §2.3
+        # flagged as an "if".
         # DURATION IS DERIVED. The trial gives 20–30 min and "up to 65 J/cm²".
         # 36 mW/cm² × 1800 s = 64.8 J/cm², so 30 min is the end of the range
         # that reaches the stated dose AND clears §4\'s "≥60 J/cm² per site, do
@@ -31,10 +31,10 @@ protocol "PBM — Depression (Cassano 2018, low-irradiance CW)" {
         # NIR-only fidelity gap: the trial used a single NIR wavelength, and
         # this protocol delivers 660nm alongside it whether or not the evidence
         # did. The constraint is in the LANGUAGE AND COMPILER, not the wire:
-        # np_mod_pbm_base_params_t already carries cur_a (660nm) and cur_b
-        # (808nm) as separate current registers, but NPPS has one `intensity`
-        # field per PBM block with no per-channel form, so hubCompiler.ts
-        # writes the same register value into both. The `wavelength` enum also
+        # np_mod_pbm_base_params_t already carries irr_a (660nm) and irr_b
+        # (808nm) as separate irradiance fields, but NPPS has one
+        # `irradiance_mw_cm2` per PBM block with no per-channel form, so
+        # hubCompiler.ts writes the same value into both. The `wavelength` enum also
         # has no 808-only value. Whether the tile's driver supports independent
         # per-channel current is a separate, open question (OI-HEXTILE-07).
     }

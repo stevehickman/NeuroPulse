@@ -766,6 +766,14 @@ or re-target the claim at the 1060–1080 nm Alzheimer's band) are unchanged by 
 
 ### 10.3 The move from `intensity_percent` to absolute `irradiance_mw_cm2`
 
+> **LANDED 2026-09-25 (`OI-HEXTILE-25`, `NP-NPPS-REF-001` Rev 17), before per-channel control —
+> the reverse of §11.1's recommended order, by principal direction.** It went in as one change
+> across web, iOS, Android, Windows, the simulator and the hub, as condition 1 below asks. The
+> 26-value blocker was settled by the principal's rule that protocols execute as originally
+> specified. Blocks whose trial states an irradiance carry it; the rest carry their percentage at
+> the scale they were authored against. Per-channel irradiance remains open as
+> `NP-HW-HEXTILE-001` `OI-HEXTILE-26`. The text below is kept as written.
+
 This is a **live, principal-directed change**, planned but not landed. The interaction is
 substantial and runs both ways.
 

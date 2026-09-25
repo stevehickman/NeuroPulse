@@ -20,7 +20,7 @@
 - Tiled across the hex-socket lattice (NP-HEX-ZM-001) — zones are protocol-defined sets of sockets (`00-zones.npps`), not a fixed hardware slot count. Total LED count scales with how many T1-A (base PBM) tiles are populated in a given build/config.
 - 6mm inter-LED pitch → ±15–25% irradiance variation (near-uniform field)
 - 120–180mA per LED → L70 80,000–100,000 hours
-- **400 mW/cm² peak pulsed** (≤25% duty cycle, firmware-enforced) / 200 mW/cm² CW max
+- **400 mW/cm² peak pulsed** (≤25% duty cycle, firmware-enforced) / 200 mW/cm² CW max. **Protocols state absolute on-state irradiance (`irradiance_mw_cm2`), never a percentage of emitter capability, and CW is continuous (100 % on-time)** — `OI-HEXTILE-25` (2026-09-25), `NP-NPPS-REF-001` Rev 17. The hub refuses anything over either ceiling rather than clamping it
 - **Dual photodiode dose-metering (RISK-14 Option B):** PD1 behind PDMS window (measures forward emission) + PD2 on scalp-facing surface (measures backscattered tissue power). PD1/PD2 ratio separates PDMS fouling from LED aging in firmware. Pin 19 (PD2_CATHODE). BOM +$0.75–1.50/headset. T1 and T2 use identical zone module mold.
 - Plasma-activated anti-fouling PDMS optical windows. **PDMS–PI bond uses 75 nm SiO₂ interlayer (RF magnetron sputter) + O₂ plasma activation — achieves 174–860 N/m peel force.** 200-cycle IEC 60068-2-14 thermal cycling qualification required before production (BLOCKING).
 - Real-time J/cm² dose metering — primary differentiator over Vielight

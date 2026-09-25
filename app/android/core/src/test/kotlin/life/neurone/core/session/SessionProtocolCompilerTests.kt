@@ -31,7 +31,7 @@ class SessionProtocolCompilerTests {
                 params = NPModalityParams.PbmTranscranial(
                     NPPBMTranscranialParams(
                         target = NPPBMTarget.Named(listOf("Frontal Left")),
-                        intensityPercent = 80.0, frequencyHz = 40.0, dutyCyclePercent = 25,
+                        irradianceMWcm2 = 322.0, frequencyHz = 40.0, dutyCyclePercent = 25,
                     ),
                 ),
             ),

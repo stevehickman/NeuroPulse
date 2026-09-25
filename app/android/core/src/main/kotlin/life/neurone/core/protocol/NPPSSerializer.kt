@@ -68,7 +68,7 @@ class NPPSSerializer {
 
         limits.pbmTranscranial?.let { lim ->
             lines.add("    pbm_transcranial {")
-            lim.maxIntensityPercent?.let { lines.add("        max_intensity: ${it.toInt()}%") }
+            lim.maxIrradianceMWcm2?.let { lines.add("        max_irradiance_mw_cm2: ${formatIrradiance(it)}") }
             lim.maxFrequencyHz?.let { lines.add("        max_frequency: ${formatHz(it)}") }
             lim.maxDutyCyclePercent?.let { lines.add("        max_duty_cycle: $it%") }
             lim.maxSessionDoseJCm2?.let { lines.add("        max_session_dose: ${formatDouble(it)}") }
@@ -228,7 +228,7 @@ class NPPSSerializer {
         is NPModalityParams.PbmTranscranial -> {
             val p = params.params
             val lines = ArrayList<String>()
-            lines.add("intensity: ${p.intensityPercent.toInt()}%")
+            lines.add("irradiance_mw_cm2: ${formatIrradiance(p.irradianceMWcm2)}")
             lines.add("frequency: ${formatHz(p.frequencyHz)}")
             if (p.frequencyHz > 0) lines.add("duty_cycle: ${p.dutyCyclePercent}%")
             when (val t = p.target) {
@@ -455,6 +455,11 @@ class NPPSSerializer {
      * future locale/format concern is fixed in one place.
      */
     private fun formatDouble(value: Double): String = value.toString()
+
+    /** mW/cm² without a spurious ".0" — `irradiance_mw_cm2: 36`, as the other
+     *  serializers write it. */
+    private fun formatIrradiance(value: Double): String =
+        if (value % 1.0 == 0.0) value.toLong().toString() else value.toString()
 
     /**
      * Bug fix (5): emit a tag as a bare ident when every character is a letter,

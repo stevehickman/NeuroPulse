@@ -28,7 +28,9 @@ extension NPSessionProtocol {
                     frequencyHz: p.frequencyHz,
                     dutyCyclePercent: p.dutyCyclePercent,
                     durationSeconds: durationSeconds,
-                    targetDoseJoules: Double(durationSeconds) * (p.intensityPercent / 100.0) * 0.4
+                    // J/cm² from the absolute irradiance and the fraction of time on
+                    // (OI-HEXTILE-25) — CW is continuous.
+                    targetDoseJoules: Double(durationSeconds) * (p.irradianceMWcm2 / 1000.0) * p.onFraction
                 )))
             case .pbmIntranasal(let p):
                 modalities.append(.pbmIntranasal(PBMIntranasalConfig(

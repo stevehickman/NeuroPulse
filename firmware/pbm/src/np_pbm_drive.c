@@ -2,7 +2,8 @@
  * NeurOne 1064nm Smart Zone Module — I2C LED Driver Protocol
  * Document: NP-FW-PBM1064-001 Rev 1 §5
  *
- * All duty register writes clamp to NP_PBM_DUTY_MAX_REG (0x32 = 25%).
+ * Duty register writes clamp per channel by that channel's frequency code:
+ * pulsed ≤ NP_PBM_DUTY_MAX_REG (0x32 = 25%); CW is continuous, 100% (OI-HEXTILE-25).
  * Startup sequence: CONFIG → CUR → FREQ → DUTY → CH_ENABLE → STATUS check.
  * Periodic STATUS + FAULT_LATCH poll at 5 s intervals handles OCP and thermal.
  */
@@ -13,10 +14,13 @@
 
 /* ── Internal helpers ───────────────────────────────────────────────────────── */
 
-static uint8_t clamp_duty(uint8_t requested)
+/* Ceiling for a channel at `fcode`: a pulsed channel never exceeds 25 %; a CW
+ * channel may be written anywhere up to 100 % (a ramp passes through it). */
+static uint8_t clamp_duty(uint8_t fcode, uint8_t requested)
 {
-    return (requested <= NP_PBM_DUTY_MAX_REG) ?
-           requested : NP_PBM_DUTY_MAX_REG;
+    const uint8_t ceiling = (fcode == NP_PBM_FREQ_CODE_CW) ?
+                            NP_PBM_DUTY_FULL_REG : NP_PBM_DUTY_MAX_REG;
+    return (requested <= ceiling) ? requested : ceiling;
 }
 
 static np_pbm_status_t write_reg(uint8_t slot, uint8_t reg, uint8_t val)
@@ -73,7 +77,7 @@ np_pbm_status_t np_pbm_drive_startup(uint8_t slot,
     drv->freq_code[1] = fcode;
     drv->freq_code[2] = fcode;
 
-    /* Step 4: DUTY — clamped to 25%. Write 0 initially (ramp starts at 0). */
+    /* Step 4: DUTY — written 0 initially (ramp starts at 0); set_duty clamps. */
     rc = write_reg(slot, NP_PBM_REG_DUTY_A, 0U); if (rc != NP_PBM_OK) { return rc; }
     rc = write_reg(slot, NP_PBM_REG_DUTY_B, 0U); if (rc != NP_PBM_OK) { return rc; }
     rc = write_reg(slot, NP_PBM_REG_DUTY_C, 0U); if (rc != NP_PBM_OK) { return rc; }
@@ -113,23 +117,19 @@ np_pbm_status_t np_pbm_drive_set_duty(uint8_t slot,
                                                 uint8_t ch_mask,
                                                 uint8_t duty)
 {
-    uint8_t clamped = clamp_duty(duty);
-    np_pbm_status_t rc = NP_PBM_OK;
+    static const uint8_t reg[3] = { NP_PBM_REG_DUTY_A, NP_PBM_REG_DUTY_B,
+                                    NP_PBM_REG_DUTY_C };
+    static const uint8_t bit[3] = { NP_PBM_CH_A_EN, NP_PBM_CH_B_EN,
+                                    NP_PBM_CH_C_EN };
 
-    if (ch_mask & NP_PBM_CH_A_EN) {
-        rc = write_reg(slot, NP_PBM_REG_DUTY_A, clamped);
+    for (unsigned ch = 0U; ch < 3U; ch++) {
+        if ((ch_mask & bit[ch]) == 0U) {
+            continue;
+        }
+        uint8_t clamped = clamp_duty(drv->freq_code[ch], duty);
+        np_pbm_status_t rc = write_reg(slot, reg[ch], clamped);
         if (rc != NP_PBM_OK) { return rc; }
-        drv->duty[0] = clamped;
-    }
-    if (ch_mask & NP_PBM_CH_B_EN) {
-        rc = write_reg(slot, NP_PBM_REG_DUTY_B, clamped);
-        if (rc != NP_PBM_OK) { return rc; }
-        drv->duty[1] = clamped;
-    }
-    if (ch_mask & NP_PBM_CH_C_EN) {
-        rc = write_reg(slot, NP_PBM_REG_DUTY_C, clamped);
-        if (rc != NP_PBM_OK) { return rc; }
-        drv->duty[2] = clamped;
+        drv->duty[ch] = clamped;
     }
     return NP_PBM_OK;
 }
@@ -141,22 +141,30 @@ np_pbm_status_t np_pbm_drive_set_freq(uint8_t slot,
                                                 uint8_t ch_mask,
                                                 uint8_t freq_code)
 {
-    np_pbm_status_t rc = NP_PBM_OK;
+    static const uint8_t freq_reg[3] = { NP_PBM_REG_PWM_FREQ_A,
+                                         NP_PBM_REG_PWM_FREQ_B,
+                                         NP_PBM_REG_PWM_FREQ_C };
+    static const uint8_t duty_reg[3] = { NP_PBM_REG_DUTY_A, NP_PBM_REG_DUTY_B,
+                                         NP_PBM_REG_DUTY_C };
+    static const uint8_t bit[3]      = { NP_PBM_CH_A_EN, NP_PBM_CH_B_EN,
+                                         NP_PBM_CH_C_EN };
 
-    if (ch_mask & NP_PBM_CH_A_EN) {
-        rc = write_reg(slot, NP_PBM_REG_PWM_FREQ_A, freq_code);
+    for (unsigned ch = 0U; ch < 3U; ch++) {
+        if ((ch_mask & bit[ch]) == 0U) {
+            continue;
+        }
+        /* A channel leaving CW may be carrying a CW duty (up to 100 %). Bring it
+         * under the pulsed ceiling BEFORE the frequency changes, so there is no
+         * instant at which the channel pulses above 25 % (OI-HEXTILE-25). */
+        if (freq_code != NP_PBM_FREQ_CODE_CW &&
+            drv->duty[ch] > NP_PBM_DUTY_MAX_REG) {
+            np_pbm_status_t rc = write_reg(slot, duty_reg[ch], NP_PBM_DUTY_MAX_REG);
+            if (rc != NP_PBM_OK) { return rc; }
+            drv->duty[ch] = NP_PBM_DUTY_MAX_REG;
+        }
+        np_pbm_status_t rc = write_reg(slot, freq_reg[ch], freq_code);
         if (rc != NP_PBM_OK) { return rc; }
-        drv->freq_code[0] = freq_code;
-    }
-    if (ch_mask & NP_PBM_CH_B_EN) {
-        rc = write_reg(slot, NP_PBM_REG_PWM_FREQ_B, freq_code);
-        if (rc != NP_PBM_OK) { return rc; }
-        drv->freq_code[1] = freq_code;
-    }
-    if (ch_mask & NP_PBM_CH_C_EN) {
-        rc = write_reg(slot, NP_PBM_REG_PWM_FREQ_C, freq_code);
-        if (rc != NP_PBM_OK) { return rc; }
-        drv->freq_code[2] = freq_code;
+        drv->freq_code[ch] = freq_code;
     }
     return NP_PBM_OK;
 }

@@ -2,9 +2,9 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-LFS-001
-**Revision:** 10
+**Revision:** 11
 **Date:** 2026-09-24
-**Status:** DRAFT — the hazard analysis (§4–§6) is complete and does not depend on a version. **Rev 10 closes `OI-LFS-04` (§13.14): Safety + Hardware Engineering chose options A and B together — a fixed-reference regulating stage and a hardware gate-duty limit on each tile channel, `REQ-TDRV-01`/`-02` — so that once built, per-tile optical output is bounded by hardware no stored value can move.** **Rev 9 closes `OI-LFS-12` (§13.13): the device session count is persisted in the Config partition as a replicated record, committed before each session's UHDR file is created.** **Rev 8 narrows the last two items (§13.11, §13.12): `OI-LFS-07` gets its host-decidable half — `erase()` may be a no-op on the eMMC, shown by sweep — and a silicon bring-up protocol with pass criteria; `OI-LFS-04` gets an answer — there is no Class C bound on per-tile drive magnitude — and the options that would create one, for Safety + EE to choose.** **Rev 7 closes `OI-LFS-11` (§13.10): UHDR logs are one file per session, as `EMMC-UHDR-12`/`-13` specify, so no file approaches littlefs's 2 GiB `file_max`; SHDR stays one file because its whole partition is 512 MiB.** **Rev 6 closes `OI-LFS-10` and applies `ECR-EMMC-002` (§13.9): the Config instance takes `EMMC-FS-01`'s remaining values, and `NP-FW-EMMC-001` Rev 3 now prints `read_size`/`prog_size` 512 in all three columns — so all three littlefs instances match their specification exactly.** **Rev 5 decides the first half of `OI-LFS-10`: the Config instance moves to `read_size`/`prog_size` 512, the XTS data unit, and `cache_size` follows to 512 (§13.8); `RISK-LFS-08` closed.** **Rev 4 builds the caller rules §11 asked for and closes five items (§13): `OI-LFS-03`, `-05`, `-06`, `-08`, `-09`.** The Config store (`np_cfg_store`) makes each rule a property of its API, a CI gate makes going around it fail, the UHDR/SHDR instances have parameters and a validator, and upstream #1205 is reproduced on `v2.11.3` and shown not to reach a caller. It also finds that `EMMC-FS-01` states every parameter Rev 2 said it did not, and that a `prog_size` below the 512-byte XTS unit loses committed data — which is the Config instance as built (`OI-LFS-10`). `OI-LFS-07` (the eMMC) and `OI-LFS-04` (Safety + EE) stay open. **Rev 3 closed `OI-LFS-02`: the IEC 62304 §7.1.2 anomaly evaluation is performed (§11) and the NeurOne power-loss injection test against `L-1…L-4` is written, run and falsified in both directions (§12).** `L-1…L-4` may now be relied on **against the `struct lfs_config` contract** — which is what they were stated against — and not against the eMMC beneath it, which no host test can reach and which is raised as `OI-LFS-07`. Rev 2 closed `OI-LFS-01` (littlefs `v2.11.3` pinned and vendored at `firmware/vendor/littlefs/`); Rev 1 performed the hazard analysis.
+**Status:** DRAFT — the hazard analysis (§4–§6) is complete and does not depend on a version. **Rev 11 re-derives `REQ-TDRV-02` (§13.15): CW is continuous (principal, 2026-09-25), so hardware limit B becomes an average-current limit instead of a gate on-time limit that would have cut continuous CW.** **Rev 10 closes `OI-LFS-04` (§13.14): Safety + Hardware Engineering chose options A and B together — a fixed-reference regulating stage and a hardware gate-duty limit on each tile channel, `REQ-TDRV-01`/`-02` — so that once built, per-tile optical output is bounded by hardware no stored value can move.** **Rev 9 closes `OI-LFS-12` (§13.13): the device session count is persisted in the Config partition as a replicated record, committed before each session's UHDR file is created.** **Rev 8 narrows the last two items (§13.11, §13.12): `OI-LFS-07` gets its host-decidable half — `erase()` may be a no-op on the eMMC, shown by sweep — and a silicon bring-up protocol with pass criteria; `OI-LFS-04` gets an answer — there is no Class C bound on per-tile drive magnitude — and the options that would create one, for Safety + EE to choose.** **Rev 7 closes `OI-LFS-11` (§13.10): UHDR logs are one file per session, as `EMMC-UHDR-12`/`-13` specify, so no file approaches littlefs's 2 GiB `file_max`; SHDR stays one file because its whole partition is 512 MiB.** **Rev 6 closes `OI-LFS-10` and applies `ECR-EMMC-002` (§13.9): the Config instance takes `EMMC-FS-01`'s remaining values, and `NP-FW-EMMC-001` Rev 3 now prints `read_size`/`prog_size` 512 in all three columns — so all three littlefs instances match their specification exactly.** **Rev 5 decides the first half of `OI-LFS-10`: the Config instance moves to `read_size`/`prog_size` 512, the XTS data unit, and `cache_size` follows to 512 (§13.8); `RISK-LFS-08` closed.** **Rev 4 builds the caller rules §11 asked for and closes five items (§13): `OI-LFS-03`, `-05`, `-06`, `-08`, `-09`.** The Config store (`np_cfg_store`) makes each rule a property of its API, a CI gate makes going around it fail, the UHDR/SHDR instances have parameters and a validator, and upstream #1205 is reproduced on `v2.11.3` and shown not to reach a caller. It also finds that `EMMC-FS-01` states every parameter Rev 2 said it did not, and that a `prog_size` below the 512-byte XTS unit loses committed data — which is the Config instance as built (`OI-LFS-10`). `OI-LFS-07` (the eMMC) and `OI-LFS-04` (Safety + EE) stay open. **Rev 3 closed `OI-LFS-02`: the IEC 62304 §7.1.2 anomaly evaluation is performed (§11) and the NeurOne power-loss injection test against `L-1…L-4` is written, run and falsified in both directions (§12).** `L-1…L-4` may now be relied on **against the `struct lfs_config` contract** — which is what they were stated against — and not against the eMMC beneath it, which no host test can reach and which is raised as `OI-LFS-07`. Rev 2 closed `OI-LFS-01` (littlefs `v2.11.3` pinned and vendored at `firmware/vendor/littlefs/`); Rev 1 performed the hazard analysis.
 **Effective Date:** —
 **Author:** NeurOne Firmware Engineering
 **Approved By:** — (DRAFT, not approved)
@@ -15,6 +15,15 @@
 **Supersedes:** None — new document. It replaces the single verification cell that `NP-SW-001` §9.4 previously carried for this component.
 **Pinned version:** littlefs **v2.11.3** (tag commit `6cb4e86540eca0d9ba62500a298385c9d863c8be`), vendored at `firmware/vendor/littlefs/` with per-file SHA-256 — `firmware/vendor/littlefs/VERSION` is the SOUP record proper, and this document is its hazard analysis.
 **Review Cadence:** On any change to the pinned version, on first integration, and at G2. §11 is re-run in full on any tag change — a §7.1.2 evaluation is a statement about one version and carries forward to no other.
+
+---
+
+> **⚠ REV 11 (2026-09-25) — `REQ-TDRV-02` re-derived (§13.15).** The principal directed that CW is
+> continuous, that protocols run as originally specified, and that PBM power is stated in absolute
+> terms (`NP-HW-HEXTILE-001` Rev 14 `OI-HEXTILE-25`). §13.14's B, a ≤ 50 % gate on-time limit, would
+> cut a continuous channel at any current. It becomes an **average-current** limit that holds
+> average irradiance at ≤ 200 mW/cm² at the emitter's most efficient point. The bound is unchanged;
+> the input now includes emitter data (`k_max`). `OI-LFS-04` stays closed. Decided, not built.
 
 ---
 
@@ -610,6 +619,7 @@ of the component is recorded, compiled and tested; that `L-5` is enforced rather
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 11 | 2026-09-25 | NeurOne Firmware Engineering | **`REQ-TDRV-02` re-derived (§13.15)** after the principal's direction that CW is continuous (`OI-HEXTILE-25`, `NP-HW-HEXTILE-001` Rev 14). The ≤ 50 % gate on-time limit is replaced by a hardware average-current limit, `I_avg,max` = 200 mW/cm² ÷ `k_max`, over `T_w` ≥ 500 ms. The average-irradiance bound is unchanged, and continuous CW is allowed. The emitter-independence §13.14 claimed is lost, which §13.15 states. Rev 10 → 11. |
 | 10 | 2026-09-24 | NeurOne Firmware Engineering | **`OI-LFS-04` CLOSED — options A and B together (§13.14),** decided by Safety + Hardware Engineering. Requirements `REQ-TDRV-01` (fixed-reference peak cap, ≤ 400 mW/cm² at worst-case tolerance and flux) and `REQ-TDRV-02` (gate-path conduction ≤ 50 % over any window ≥ 250 ms, so ≤ 200 mW/cm² average by monotonic flux alone) are derived here and placed in `NP-HW-HEXTILE-001` Rev 13 (D-9, §6.2). CH_C is exempt from both: it cannot reach the CW ceiling. Four consequences recorded, not decided, as `OI-HEXTILE-25`. `OI-NVRAM-10` closes, and `OI-HEXTILE-23` is decided (regulated). The residual is unchanged until the tile is built and verified (`OI-HEXTILE-24`). No code changes. Rev 9 → 10. |
 | 9 | 2026-09-24 | NeurOne Firmware Engineering | **`OI-LFS-12` CLOSED — the device session count is persisted (§13.13).** New Config file `NP_CFG_FILE_SESSION_COUNT` (`REPLICATED`) and module `np_session_count` (load / commit, 4 bytes little-endian). `np_session_log` commits each new count through a hook *before* creating the session's UHDR file, so no file can exist whose count was not persisted; bring-up seeds the logger from the record. The cervical offline-fault summary now records the current session's count instead of a boot-time value. `np_hal_get_device_session_count()` (`OI-HUB-MAIN-03`) retired — SW-02 census 99 → 98. Tested in `np_cfg_store_tests` (reboot, lost entry, a power-loss sweep of the commit: 12 runs, 0 violations) and `np_log_backend_tests` (commit-before-create; reboot seeding); falsified two ways. Rev 8 → 9. |
 | 8 | 2026-09-24 | NeurOne Firmware Engineering | **`OI-LFS-07` and `OI-LFS-04` narrowed (§13.11, §13.12).** `OI-LFS-07`: `np_lfs_powerbd` gains a no-op-erase mode (still cuttable, never changes the medium), proven active by a direct check that fails when the mode is disabled; the SHDR L-1/L-2 sweep and the Config journal through the store both pass with it (66 + 84 runs, 0 violations), so NeurOne's eMMC `erase()` is decided a no-op. `block_cycles` retained. Bring-up protocol `HW-LFS-01…05` written with pass criteria (≥1,000 cuts per scenario, 0 violations, 0 hangs; the rule of three bounds the per-cut failure rate below 0.3 % at 95 %). `OI-LFS-04`: answered **no** from the code and the hardware record; the tile's drive stage is specified two incompatible ways — raised as `NP-HW-HEXTILE-001` `OI-HEXTILE-23`; three options stated, not chosen. Rev 7 → 8. |
@@ -1458,6 +1468,8 @@ stored value can move — the property `OI-NVRAM-10` asked about. Option C is no
 | **`REQ-TDRV-01`** (A) | On CH_A and CH_B, the conducting current is regulated to at most `I_cap`, set by a reference that no firmware, register or stored value can raise. `I_cap` is chosen so that at the **upper tolerance limit of the regulation** and the **highest-flux bin and coldest junction** of the selected emitter, irradiance while on is **≤ 400 mW/cm²** | An out-of-range `CUR` code or Map 1 entry, or a tile MCU fault, drives peak irradiance past the ceiling, with only the 62 °C cut behind it (§13.12) | `CLAUDE.md` §3 PBM scalp ceiling (`NP-HW-HEXTILE-001` R-4); hazard control for `OI-NVRAM-10` |
 | **`REQ-TDRV-02`** (B) | On CH_A and CH_B, a circuit acting on the gate path — not in the tile MCU — holds the conducting fraction over any window `T_w` to **≤ 50 %** at its own upper tolerance limit, with **`T_w` ≥ 250 ms** | Firmware can hold a channel on continuously at `I_cap`: average irradiance up to 400 mW/cm², twice the CW ceiling, with only the thermal cut behind it | the CW ceiling, 200 mW/cm² (R-4), divided by the peak `REQ-TDRV-01` guarantees; the 2 Hz / 25 % preset for `T_w` |
 
+*(Rev 11: the gate on-time form below is **superseded by §13.15** — continuous CW is incompatible with it. The average bound it delivers is kept.)*
+
 **Why 50 % needs no emitter data.** Flux rises monotonically with current, so under `REQ-TDRV-01`
 the on-irradiance at *any* current up to `I_cap` is ≤ 400 mW/cm², and the average over any window is
 ≤ 0.5 × 400 = **200 mW/cm²**: the CW ceiling, exactly. The emitter-dependent tolerance is absorbed
@@ -1520,3 +1532,49 @@ line and do not replace it.
 intranasal probe have their own drive stages and are not reached by this decision.
 
 `OI-LFS-04` **CLOSED** (decided). `OI-NVRAM-10` closes with it.
+
+### 13.15 `REQ-TDRV-02` re-derived — continuous CW (Rev 11, 2026-09-25)
+
+**What changed upstream.** The principal directed three things (`NP-HW-HEXTILE-001` Rev 14,
+`OI-HEXTILE-25`):
+
+- **CW is continuous**: 100 % on-time.
+- **Protocols execute as originally specified.**
+- **PBM power is stated in absolute terms**, not as a fraction of emitter capability.
+
+§13.14's B limited *gate on-time* to ≤ 50 %. A continuous channel is on 100 % of the time at any
+current, so that limit would cut every CW protocol, including Cassano's 36 mW/cm², which is far
+inside R-4. **A requirement that rejects a legal operating mode fails CLAUDE.md §18**, so B changes
+form. The bound it exists to deliver does not change: average irradiance ≤ 200 mW/cm², with nothing
+any firmware or stored value can move.
+
+| ID | Requirement (Rev 11) | What fails without it | Traces to |
+|---|---|---|---|
+| **`REQ-TDRV-02`** (B) | On CH_A and CH_B, a circuit on the drive path, not in the tile MCU, holds the channel's **current averaged over any window `T_w`** to ≤ **`I_avg,max` = 200 mW/cm² ÷ `k_max`**, at its own upper tolerance limit, with **`T_w` ≥ 500 ms**. `k_max` is the selected emitter's highest irradiance per unit current anywhere in 0…`I_cap`, at the highest-flux bin and coldest junction | Firmware can hold a channel at `I_cap` continuously — average irradiance up to 400 mW/cm², twice the CW ceiling — with only the thermal cut behind it | R-4's CW ceiling; the emitter's measured flux curve; the 2 Hz preset for `T_w` |
+
+**Why it bounds the average.** For every current in range, `E(I)` ≤ `k_max · I`. So over any window,
+the average of `E` is ≤ `k_max` × (average `I`) ≤ `k_max · I_avg,max` = 200 mW/cm². This holds for
+any waveform: DC, pulsed, or anything a faulty tile MCU produces.
+
+**What legitimate operation still gets.**
+
+- **Continuous CW** at the irradiance a protocol states is DC at `I = E / k(I)`. Its average current
+  is ≤ `I_avg,max` whenever `E` ≤ 200 × `k(I)` / `k_max`. At the ceiling itself the limiter's margin
+  is the gap between the emitter's efficiency at that current and its best efficiency. A CW
+  protocol at exactly 200 mW/cm² may therefore sit a few per cent under it. Every shipped CW protocol
+  is far below 200, except Vascular Baseline, which is refused anyway (`OI-SESPWR-02`).
+- **Pulsed at R-4's peak**: 400 mW/cm² at `I_cap`, 25 % duty, gives an average current of `I_cap`/4.
+  That is ≤ `I_avg,max` **iff `k_max` ≤ 2 × `k(I_cap)`**, i.e. the emitter's best efficiency is
+  under twice its efficiency at full drive. This is a condition to check on the selected part
+  (`OI-HEXTILE-24`(d)), not an assumption.
+- **`T_w` ≥ 500 ms.** The slowest preset is 2 Hz at 25 % (`03-deep-sleep.npps`): a 125 ms pulse
+  every 500 ms. A window shorter than the period can hold the whole pulse and little else. At
+  250 ms that averages `I_cap`/2, which trips the limit. Over a full period the average is
+  `I_cap`/4. The upper bound on `T_w` is unchanged from §13.14.
+
+**What this costs, stated.** §13.14 showed B needed no emitter data, because a duty limit times a
+peak cap is exact whatever the flux curve. **That property is gone.** `k_max` is a second
+emitter-dependent value beside `I_cap`, and it is read at the *low*-current end, where efficiency is
+best. It is the price of continuous CW, and it was not avoidable: no on-time limit both admits DC
+and bounds the average. `OI-HEXTILE-24` carries the value and its bench check. As before, **decided,
+not built.**

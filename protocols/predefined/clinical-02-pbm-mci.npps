@@ -18,15 +18,14 @@ protocol "PBM — Mild Cognitive Impairment (Papi 2022)" {
         # numbers, so this protocol is retargeted onto the one trial that
         # carries them.
         #
-        # TARGET IRRADIANCE: 285 mW/cm² peak (Papi 2022). PROVISIONAL, NOT THE
-        # AUTHORED VALUE: 285 ÷ 403 against the only stated anchor
-        # (NP-HW-HEXTILE-001 §4.3.1). Becomes `irradiance_mw_cm2: 285`.
+        # TARGET IRRADIANCE: 285 mW/cm² peak (Papi 2022), authored as absolute
+        # irradiance (OI-HEXTILE-25, 2026-09-25) — no longer a percentage of an assumed anchor.
         #
         # DURATION CORRECTED 20m → 10m, and this fixes a real overshoot. Papi
         # ran 10 min. At Papi's irradiance the retired 20-minute authoring
         # would have delivered 285 × 25% × 1200 s = 85.5 J/cm², ABOVE §2's own
         # 7–60 J/cm² ceiling. At 10 min it is 42.8 J/cm², inside the band.
-        intensity: 70.7%
+        irradiance_mw_cm2: 285
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["Frontal Left", "Frontal Right"]

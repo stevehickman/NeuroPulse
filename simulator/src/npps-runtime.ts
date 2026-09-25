@@ -36,10 +36,8 @@ const T2_ONLY_MODALITY_TYPES = new Set([
   'qeeg_21ch', 'tms', 'pbm_deep_1170nm', 'clinical_tacs', 'hd_tdcs', 'cervical_vns',
 ]);
 
-// Peak/limit constant from CLAUDE.md §3 modality 1 (PBM Transcranial), used only
-// to derive a plausible simulated dose display — real .npps files carry
-// intensity/duty/duration, not a precomputed J/cm² target.
-const PBM_PEAK_MW_CM2 = 400;
+// Real .npps files carry absolute on-state irradiance, duty and duration, not a
+// precomputed J/cm² target; the simulated dose display derives from those.
 
 export interface SimZone {
   name: string;
@@ -118,8 +116,10 @@ export function buildModalities(def: NPProtocolDefinition, durationSeconds: numb
 
   const pbm = findParam(def.modalities, 'pbm_transcranial');
   if (pbm) {
-    const dutyCycle = pbm.dutyCyclePercent / 100;
-    const avgIrradianceMWcm2 = PBM_PEAK_MW_CM2 * (pbm.intensityPercent / 100) * dutyCycle;
+    // Absolute on-state irradiance (OI-HEXTILE-25); CW is continuous, so its
+    // on-fraction is 1 whatever the duty field says.
+    const dutyCycle = pbm.frequencyHz <= 0 ? 1 : pbm.dutyCyclePercent / 100;
+    const avgIrradianceMWcm2 = pbm.irradianceMWcm2 * dutyCycle;
     const dose_jcm2 = (avgIrradianceMWcm2 * durationSeconds) / 1000; // mW/cm² * s -> mJ/cm² /1000 = J/cm²
     out.pbm = {
       active: true,

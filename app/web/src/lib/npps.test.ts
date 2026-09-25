@@ -17,7 +17,7 @@ protocol "Gamma Focus" {
     duration: 20m
 
     pbm_transcranial {
-        intensity: 80%
+        irradiance_mw_cm2: 322
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["All"]
@@ -60,7 +60,7 @@ protocol "All T1 Modalities" {
     duration: 30m
 
     pbm_transcranial {
-        intensity: 75%
+        irradiance_mw_cm2: 302
         frequency: 20Hz
         duty_cycle: 25%
         zones: ["All"]
@@ -204,7 +204,7 @@ protocol "Test" {
     const oldFormat = `
 protocol "Test" {
     timing { duration: 1200 }
-    pbm_transcranial { intensity: 80% }
+    pbm_transcranial { irradiance_mw_cm2: 322 }
 }`.trim();
     expect(() => parseNPPS(oldFormat)).toThrow(NPPSParseError);
   });
@@ -254,7 +254,7 @@ describe('parser — new format', () => {
     const pbm = proto.modalities[0].modalityParams;
     expect(pbm.type).toBe('pbm_transcranial');
     if (pbm.type === 'pbm_transcranial') {
-      expect(pbm.params.intensityPercent).toBe(80);
+      expect(pbm.params.irradianceMWcm2).toBe(322);
       expect(pbm.params.frequencyHz).toBe(40);
       expect(pbm.params.dutyCyclePercent).toBe(25);
       expect(pbm.params.zones).toBe('named');
@@ -379,6 +379,47 @@ protocol "Test" {
 
 // ─── Serializer ───────────────────────────────────────────────────────────────
 
+describe('pbm_transcranial is absolute irradiance; CW is continuous (OI-HEXTILE-25)', () => {
+  const block = (body: string) =>
+    `protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n${body}\n    }\n}\n`;
+  const pbmOf = (src: string) => {
+    const p = (parseNPPS(src)[0] as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
+    const m = p.modalities[0].modalityParams;
+    if (m.type !== 'pbm_transcranial') throw new Error('not pbm');
+    return m.params;
+  };
+
+  it('refuses intensity — a percentage of emitter capability has no fixed meaning', () => {
+    expect(() => parseNPPS(block('        intensity: 80%'))).toThrow(/irradiance_mw_cm2/);
+    expect(() => parseNPPS(block('        intensity_percent: 80'))).toThrow(/irradiance_mw_cm2/);
+  });
+
+  it('keeps intensity for the other optical blocks', () => {
+    const src = `protocol "T" {\n    duration: 5m\n    pbm_intranasal {\n        intensity: 60%\n    }\n}\n`;
+    expect(() => parseNPPS(src)).not.toThrow();
+  });
+
+  it('refuses a duty cycle beside CW', () => {
+    expect(() => parseNPPS(block('        irradiance_mw_cm2: 36\n        frequency: 0Hz\n        duty_cycle: 25%')))
+      .toThrow(/continuous/);
+  });
+
+  it('stores CW as 100 % on-time and pulsed as authored', () => {
+    expect(pbmOf(block('        irradiance_mw_cm2: 36\n        frequency: 0Hz'))).toMatchObject(
+      { irradianceMWcm2: 36, frequencyHz: 0, dutyCyclePercent: 100 });
+    expect(pbmOf(block('        irradiance_mw_cm2: 300\n        frequency: 40Hz\n        duty_cycle: 25%'))).toMatchObject(
+      { irradianceMWcm2: 300, frequencyHz: 40, dutyCyclePercent: 25 });
+  });
+
+  it('serializes CW without a duty cycle, and round-trips', () => {
+    const src = block('        irradiance_mw_cm2: 36\n        frequency: 0Hz\n        zones: ["All"]');
+    const out = serializeProtocol(parseNPPS(src)[0]);
+    expect(out).toContain('irradiance_mw_cm2: 36');
+    expect(out).not.toMatch(/duty_cycle/);
+    expect(pbmOf(out)).toMatchObject({ irradianceMWcm2: 36, dutyCyclePercent: 100 });
+  });
+});
+
 describe('serializer', () => {
   it('serializes a single protocol with correct header', () => {
     const [entry] = parseNPPS(GAMMA_FOCUS_NPPS);
@@ -392,7 +433,7 @@ describe('serializer', () => {
     const [entry] = parseNPPS(GAMMA_FOCUS_NPPS);
     const out = serializeProtocol(entry);
     expect(out).toContain('pbm_transcranial {');
-    expect(out).toContain('intensity: 80%');
+    expect(out).toContain('irradiance_mw_cm2: 322');
     expect(out).toContain('frequency: 40Hz');
     expect(out).toContain('duty_cycle: 25%');
     expect(out).toContain('zones: ["All"]');
@@ -751,7 +792,7 @@ describe('serialize → parse round-trip holds for every modality', () => {
   });
 
   it('a defaulted pbm_transcranial names its zones instead of emitting the tag', () => {
-    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        intensity: 80%\n    }\n}\n`);
+    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        irradiance_mw_cm2: 322\n    }\n}\n`);
     const out = serializeProtocol(entry);
     expect(out).toContain('zones: ["All"]');
     expect(out).not.toMatch(/^\s*zones:\s*named\s*$/m);
@@ -767,7 +808,7 @@ describe('serialize → parse round-trip holds for every modality', () => {
   });
 
   it('an empty named ref list is reported as a caller bug, not written out', () => {
-    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        intensity: 80%\n    }\n}\n`);
+    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        irradiance_mw_cm2: 322\n    }\n}\n`);
     const proto = (entry as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
     const params = proto.modalities[0].modalityParams.params as { zoneRefs?: string[] };
     delete params.zoneRefs;

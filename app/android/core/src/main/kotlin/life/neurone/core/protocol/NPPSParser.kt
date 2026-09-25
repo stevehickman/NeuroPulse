@@ -186,7 +186,7 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
         when (key) {
             "pbm_transcranial" -> {
                 val lim = NPPBMTranscranialLimits()
-                fields["max_intensity"]?.asPercent?.let { lim.maxIntensityPercent = it }
+                fields["max_irradiance_mw_cm2"]?.asDouble?.let { lim.maxIrradianceMWcm2 = it }
                 fields["max_frequency"]?.asHz?.let { lim.maxFrequencyHz = it }
                 fields["max_duty_cycle"]?.asPercent?.let { lim.maxDutyCyclePercent = it.toInt() }
                 fields["max_session_dose"]?.asDouble?.let { lim.maxSessionDoseJCm2 = it }
@@ -694,9 +694,29 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
         when (name) {
             "pbm_transcranial" -> {
                 val p = NPPBMTranscranialParams()
-                fields["intensity"]?.asPercent?.let { p.intensityPercent = it }
+                // Absolute irradiance (OI-HEXTILE-25): a percentage of emitter
+                // capability has no fixed meaning, so it is refused, not scaled.
+                if ("intensity" in fields || "intensity_percent" in fields) {
+                    throw NPPSError(
+                        "pbm_transcranial takes irradiance_mw_cm2 (on-state mW/cm²), not intensity — " +
+                            "a percentage of emitter capability has no fixed meaning (NP-NPPS-REF-001 §4.1)",
+                        currentLine(),
+                    )
+                }
+                fields["irradiance_mw_cm2"]?.asDouble?.let { p.irradianceMWcm2 = it }
                 fields["frequency"]?.asHz?.let { p.frequencyHz = it }
-                fields["duty_cycle"]?.asPercent?.let { p.dutyCyclePercent = it.toInt() }
+                // Continuous means continuous: a duty cycle beside CW contradicts it.
+                if (p.frequencyHz <= 0.0) {
+                    if ("duty_cycle" in fields || "duty_cycle_percent" in fields) {
+                        throw NPPSError(
+                            "pbm_transcranial: frequency 0 is continuous wave (100 % on-time); remove duty_cycle",
+                            currentLine(),
+                        )
+                    }
+                    p.dutyCyclePercent = 100
+                } else {
+                    fields["duty_cycle"]?.asPercent?.let { p.dutyCyclePercent = it.toInt() }
+                }
                 // Exactly two forms (NP-NPPS-REF-001 §4.1): a named-zone array, or
                 // the keyword clinician_selected. The retired five-slot selectors
                 // do NOT parse — a target this parser does not understand must stop

@@ -668,7 +668,7 @@ function LimitsSummary({ limits }: { limits: NPLimitsSet; compact?: boolean }) {
 
   if (limits.pbmTranscranial) {
     const l = limits.pbmTranscranial;
-    if (l.maxIntensityPercent != null) chips.push(t('WEB_CHIP_PBM_INTENSITY', { 0: l.maxIntensityPercent }));
+    if (l.maxIrradianceMWcm2 != null) chips.push(t('WEB_CHIP_PBM_IRRADIANCE', { 0: l.maxIrradianceMWcm2 }));
     if (l.maxFrequencyHz != null) chips.push(t('WEB_CHIP_PBM_FREQUENCY', { 0: l.maxFrequencyHz }));
     if (l.maxDutyCyclePercent != null) chips.push(t('WEB_CHIP_PBM_DUTY', { 0: l.maxDutyCyclePercent }));
   }
@@ -922,13 +922,13 @@ function VisualLimitsEditor({
         {limits.pbmTranscranial && (
           <>
             <LimitField
-              label={t('WEB_LIM_MAX_INTENSITY')}
-              value={limits.pbmTranscranial.maxIntensityPercent}
-              unit="%"
-              min={0} max={100} step={5}
-              hint="0–100%"
-              onChange={v => patchModality('pbmTranscranial', { maxIntensityPercent: v })}
-              onClear={() => patchModality('pbmTranscranial', { maxIntensityPercent: undefined })}
+              label={t('WEB_LIM_MAX_IRRADIANCE')}
+              value={limits.pbmTranscranial.maxIrradianceMWcm2}
+              unit="mW/cm²"
+              min={0} max={400} step={5}
+              hint="0–400 mW/cm²"
+              onChange={v => patchModality('pbmTranscranial', { maxIrradianceMWcm2: v })}
+              onClear={() => patchModality('pbmTranscranial', { maxIrradianceMWcm2: undefined })}
             />
             <LimitField
               label={t('WEB_LIM_MAX_FREQUENCY')}

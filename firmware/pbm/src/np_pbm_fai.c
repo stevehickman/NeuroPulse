@@ -162,49 +162,56 @@ np_pbm_fai_result_t np_pbm_fai_sm04(void)
         "(CH_A 660nm, CH_B 808nm, CH_C 1064nm)");
 }
 
-/* ── FAI-SM-05: Duty cycle ceiling clamped at 25% ───────────────────────────── */
+/* ── FAI-SM-05: Duty cycle ceiling — 25% pulsed, 100% CW ───────────────────── */
+/*
+ * OI-HEXTILE-25: the ceiling depends on the channel's mode.  A pulsed channel
+ * is never written above 0x32 (25%, R-4's pulsed duty); a CW channel is
+ * continuous and may be written up to 0xC8 (100%) — R-4's CW ceiling is held on
+ * the irradiance (np_pbm_irradiance.h), not the duty.  Both halves are checked:
+ * a clamp that also capped CW would make continuous-wave protocols impossible,
+ * and one that exempted pulsed channels would breach R-4.
+ */
 
 np_pbm_fai_result_t np_pbm_fai_sm05(void)
 {
-    np_pbm_drv_slot_t drv;
-    memset(&drv, 0, sizeof(drv));
-    drv.ch_enable = NP_PBM_CH_ALL_EN;
+    static const uint8_t test_duties[] = { 0x00U, 0x32U, 0x33U, 0x64U, 0xC8U, 0xFFU };
+    static const uint8_t expected_pulsed[] = { 0x00U, 0x32U, 0x32U, 0x32U, 0x32U, 0x32U };
+    static const uint8_t expected_cw[]     = { 0x00U, 0x32U, 0x33U, 0x64U, 0xC8U, 0xC8U };
 
-    /* Test values: all above and at the 25% ceiling. */
-    static const uint8_t test_duties[] = {
-        0x00U,   /* 0% — must write 0x00                               */
-        0x32U,   /* exactly 25% — must write 0x32                      */
-        0x33U,   /* one above — must clamp to 0x32                     */
-        0x64U,   /* 50% — must clamp to 0x32                           */
-        0xC8U,   /* 100% — must clamp to 0x32                          */
-        0xFFU,   /* 255 — must clamp to 0x32                           */
-    };
-    static const uint8_t expected[] = {
-        0x00U, 0x32U, 0x32U, 0x32U, 0x32U, 0x32U
-    };
+    for (unsigned mode = 0U; mode < 2U; mode++) {
+        const uint8_t  fcode    = (mode == 0U) ? NP_PBM_FREQ_CODE_40HZ : NP_PBM_FREQ_CODE_CW;
+        const uint8_t *expected = (mode == 0U) ? expected_pulsed : expected_cw;
 
-    for (size_t i = 0; i < sizeof(test_duties); i++) {
-        np_pbm_status_t rc = np_pbm_drive_set_duty(
-            0U, &drv, NP_PBM_CH_ALL_EN, test_duties[i]);
-        if (rc != NP_PBM_OK) {
-            return fai_fail("FAI-SM-05",
-                "Duty cycle ceiling clamped at 25%",
-                "np_pbm_drive_set_duty returned error");
-        }
-        /* Check actual duty written to register shadow (via HAL stub). */
-        if (drv.duty[0] != expected[i] ||
-            drv.duty[1] != expected[i] ||
-            drv.duty[2] != expected[i]) {
-            return fai_fail("FAI-SM-05",
-                "Duty cycle ceiling clamped at 25%",
-                "Duty register value exceeds 0x32 (25%) after set_duty call");
+        np_pbm_drv_slot_t drv;
+        memset(&drv, 0, sizeof(drv));
+        drv.ch_enable = NP_PBM_CH_ALL_EN;
+        drv.freq_code[0] = fcode;
+        drv.freq_code[1] = fcode;
+        drv.freq_code[2] = fcode;
+
+        for (size_t i = 0; i < sizeof(test_duties); i++) {
+            np_pbm_status_t rc = np_pbm_drive_set_duty(
+                0U, &drv, NP_PBM_CH_ALL_EN, test_duties[i]);
+            if (rc != NP_PBM_OK) {
+                return fai_fail("FAI-SM-05",
+                    "Duty ceiling: 25% pulsed, 100% CW",
+                    "np_pbm_drive_set_duty returned error");
+            }
+            if (drv.duty[0] != expected[i] ||
+                drv.duty[1] != expected[i] ||
+                drv.duty[2] != expected[i]) {
+                return fai_fail("FAI-SM-05",
+                    "Duty ceiling: 25% pulsed, 100% CW",
+                    (mode == 0U) ? "Pulsed duty register exceeds 0x32 (25%)"
+                                 : "CW duty register not written as requested up to 0xC8");
+            }
         }
     }
 
     return fai_pass("FAI-SM-05",
-        "Duty cycle ceiling clamped at 25%",
-        "All 6 duty test vectors correctly clamped to ≤ 0x32; "
-        "np_pbm_drive_set_duty enforces ceiling unconditionally");
+        "Duty ceiling: 25% pulsed, 100% CW",
+        "6 vectors x 2 modes: pulsed clamped to <= 0x32; CW passes up to 0xC8; "
+        "np_pbm_drive_set_duty clamps each channel by its own frequency code");
 }
 
 /* ── FAI-SM-06/07/08: Hardware bench — PENDING ───────────────────────────────── */

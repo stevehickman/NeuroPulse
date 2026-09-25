@@ -226,7 +226,7 @@ static np_session_cmd_t sock_cmd(np_hub_mod_type_t type, const uint16_t *socks, 
 static np_session_cmd_t base_cmd(const uint16_t *socks, unsigned n)
 {
     np_session_cmd_t c = sock_cmd(NP_MOD_PBM_BASE, socks, n);
-    const np_mod_pbm_base_params_t p = { .freq_code = 0x28, .duty = 0x20, .cur_a = 0x40, .cur_b = 0x40 };
+    const np_mod_pbm_base_params_t p = { .freq_code = 0x28, .duty = 0x20, .irr_a = 0x40, .irr_b = 0x40 };
     memcpy(c.params, &p, sizeof p);
     c.params_len = sizeof p;
     return c;
@@ -235,8 +235,8 @@ static np_session_cmd_t base_cmd(const uint16_t *socks, unsigned n)
 static np_session_cmd_t smart_cmd(const uint16_t *socks, unsigned n, uint8_t ch_mask)
 {
     np_session_cmd_t c = sock_cmd(NP_MOD_PBM_SMART, socks, n);
-    const np_mod_pbm_smart_params_t p = { .freq_code = 0x28, .duty = 0x20, .cur_a = 0x40,
-                                          .cur_b = 0x40, .cur_c = 0x40, .ch_mask = ch_mask };
+    const np_mod_pbm_smart_params_t p = { .freq_code = 0x28, .duty = 0x20, .irr_a = 0x40,
+                                          .irr_b = 0x40, .irr_c = 0x40, .ch_mask = ch_mask };
     memcpy(c.params, &p, sizeof p);
     c.params_len = sizeof p;
     return c;
@@ -410,8 +410,8 @@ static void test_malformed(void)
     check(np_sock_disp_command(&nomask) == NP_HUB_ERR_INVALID_ARG, "smart lighting nothing -> INVALID_ARG");
 
     np_session_cmd_t dark = base_cmd(s, 1);
-    ((np_mod_pbm_base_params_t *)(void *)dark.params)->cur_a = 0;
-    ((np_mod_pbm_base_params_t *)(void *)dark.params)->cur_b = 0;
+    ((np_mod_pbm_base_params_t *)(void *)dark.params)->irr_a = 0;
+    ((np_mod_pbm_base_params_t *)(void *)dark.params)->irr_b = 0;
     check(np_sock_disp_command(&dark) == NP_HUB_ERR_INVALID_ARG, "base lighting nothing -> INVALID_ARG");
 
     check(count_ops('D') == 0 && !cranial_requested(), "no malformed command drove anything");

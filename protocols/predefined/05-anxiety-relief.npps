@@ -17,7 +17,7 @@ protocol "Anxiety Relief" {
     }
 
     pbm_transcranial {
-        intensity: 65%
+        irradiance_mw_cm2: 262  # was intensity: 65% at 100 % = 403 mW/cm² (OI-HEXTILE-25, 2026-09-25)
         frequency: 10Hz
         duty_cycle: 25%
         zones: ["Frontal"]

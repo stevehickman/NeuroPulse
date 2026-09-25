@@ -164,7 +164,7 @@ protocol "Depression DLPFC" {
     duration: 20m
 
     pbm_transcranial {
-        intensity: 80%
+        irradiance_mw_cm2: 322
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["Left Frontal", "Right Frontal"]

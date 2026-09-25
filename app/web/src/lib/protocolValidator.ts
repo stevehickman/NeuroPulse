@@ -71,8 +71,20 @@ function validateModality(
   switch (p.type) {
     case 'pbm_transcranial': {
       const l = lim.pbmTranscranial;
-      // Hardware limits
-      if (p.params.dutyCyclePercent > hw.pbmDutyCycleMaxPercent) {
+      const cw = p.params.frequencyHz <= 0;
+      // Hardware limits. R-4 is two ceilings on the on-state irradiance: 400
+      // mW/cm² pulsed at ≤ 25 % duty, 200 mW/cm² continuous (OI-HEXTILE-25).
+      const irrCeiling = cw ? hw.pbmCWMaxMWcm2 : hw.pbmPulsedPeakMWcm2;
+      if (p.params.irradianceMWcm2 > irrCeiling) {
+        issues.push(issue(
+          'error', 'pbm_transcranial', 'irradianceMWcm2', t('VALIDATE_PARAM_IRRADIANCE'),
+          `${p.params.irradianceMWcm2} mW/cm²`, `${irrCeiling} mW/cm²`, 'hardware',
+          t(cw ? 'VALIDATE_MSG_PBM_TRANSCRANIAL_IRRADIANCE_CW' : 'VALIDATE_MSG_PBM_TRANSCRANIAL_IRRADIANCE_PEAK',
+            { 0: p.params.irradianceMWcm2, 1: irrCeiling })
+        ));
+      }
+      // CW is continuous: duty does not apply to it.
+      if (!cw && p.params.dutyCyclePercent > hw.pbmDutyCycleMaxPercent) {
         issues.push(issue(
           'error', 'pbm_transcranial', 'dutyCyclePercent', t('VALIDATE_PARAM_DUTY_CYCLE'),
           `${p.params.dutyCyclePercent}%`, `${hw.pbmDutyCycleMaxPercent}%`, 'hardware',
@@ -87,11 +99,11 @@ function validateModality(
         ));
       }
       // Dosage limits
-      if (l?.maxIntensityPercent != null && p.params.intensityPercent > l.maxIntensityPercent) {
+      if (l?.maxIrradianceMWcm2 != null && p.params.irradianceMWcm2 > l.maxIrradianceMWcm2) {
         issues.push(issue(
-          'error', 'pbm_transcranial', 'intensityPercent', t('VALIDATE_PARAM_INTENSITY'),
-          `${p.params.intensityPercent}%`, `${l.maxIntensityPercent}%`, 'global',
-          t('VALIDATE_MSG_PBM_TRANSCRANIAL_INTENSITYPERCENT', { 0: p.params.intensityPercent, 1: l.maxIntensityPercent })
+          'error', 'pbm_transcranial', 'irradianceMWcm2', t('VALIDATE_PARAM_IRRADIANCE'),
+          `${p.params.irradianceMWcm2} mW/cm²`, `${l.maxIrradianceMWcm2} mW/cm²`, 'global',
+          t('VALIDATE_MSG_PBM_TRANSCRANIAL_IRRADIANCE', { 0: p.params.irradianceMWcm2, 1: l.maxIrradianceMWcm2 })
         ));
       }
       if (l?.maxFrequencyHz != null && p.params.frequencyHz > l.maxFrequencyHz) {
@@ -101,7 +113,7 @@ function validateModality(
           t('VALIDATE_MSG_PBM_TRANSCRANIAL_FREQUENCYHZ_2', { 0: p.params.frequencyHz, 1: l.maxFrequencyHz })
         ));
       }
-      if (l?.maxDutyCyclePercent != null && p.params.dutyCyclePercent > l.maxDutyCyclePercent) {
+      if (!cw && l?.maxDutyCyclePercent != null && p.params.dutyCyclePercent > l.maxDutyCyclePercent) {
         issues.push(issue(
           'error', 'pbm_transcranial', 'dutyCyclePercent', t('VALIDATE_PARAM_DUTY_CYCLE'),
           `${p.params.dutyCyclePercent}%`, `${l.maxDutyCyclePercent}%`, 'global',

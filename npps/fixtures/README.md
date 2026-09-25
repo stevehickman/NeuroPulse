@@ -68,7 +68,8 @@ NPPS source fields are snake_case shorthand. The expected JSON uses camelCase re
 
 | NPPS source field | Expected JSON key |
 |---|---|
-| `intensity: 80%` | `intensityPercent`: 80 |
+| `intensity: 80%` (optical, except `pbm_transcranial`) | `intensityPercent`: 80 |
+| `irradiance_mw_cm2: 322` (`pbm_transcranial` — absolute, OI-HEXTILE-25) | `irradianceMWcm2`: 322 |
 | `frequency: 40Hz` | `frequencyHz`: 40 |
 | `duty_cycle: 25%` | `dutyCyclePercent`: 25 |
 | `binaural_hz: 40Hz` | `binauralBeatsHz`: 40 |
@@ -105,6 +106,8 @@ NPPS source fields are snake_case shorthand. The expected JSON uses camelCase re
 | `comments` | Full-line and inline # comments ignored, zero modalities |
 | `error_old_format` | **Error fixture** -- old `protocol { name: "X" }` format, expected to fail |
 | `compound_idents` | Tri-wavelength compound ident (660_808_1064nm) |
+| `error_pbm_intensity_percent` | **Error fixture** -- `pbm_transcranial` with `intensity:`; transcranial PBM is absolute irradiance only (OI-HEXTILE-25) |
+| `error_pbm_cw_duty` | **Error fixture** -- `frequency: 0Hz` with `duty_cycle:`; CW is continuous, so the pair is refused (OI-HEXTILE-25) |
 | `hyphenated_tags` | Hyphenated tags (wind-down, all-modalities, deep-sleep) |
 
 ## Condition link vectors

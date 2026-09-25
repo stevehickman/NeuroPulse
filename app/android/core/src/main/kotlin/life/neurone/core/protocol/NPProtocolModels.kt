@@ -75,10 +75,17 @@ data class NPPBMTranscranialParams(
      */
     var target: NPPBMTarget = NPPBMTarget.Named(listOf("All")),
     var wavelength: Wavelength = Wavelength.BASE_660_808NM,
-    var intensityPercent: Double = 75.0,
+    /** On-state irradiance at the scalp face, mW/cm², per lit wavelength channel —
+     *  absolute, never a fraction of emitter capability (OI-HEXTILE-25). */
+    var irradianceMWcm2: Double = 300.0,
+    /** 0 = continuous wave. */
     var frequencyHz: Double = 20.0,
+    /** Pulsed duty ≤ 25 %. CW is continuous: the parser stores 100. */
     var dutyCyclePercent: Int = 25,
 ) {
+    /** Fraction of time the channel is on: 1 for CW, duty for pulsed. */
+    val onFraction: Double
+        get() = if (frequencyHz <= 0.0) 1.0 else dutyCyclePercent / 100.0
 
     enum class Wavelength(val rawValue: String) {
         BASE_660_808NM("660_808nm"),
@@ -444,7 +451,8 @@ data class NPCompositeProtocol(
 // fields are nullable — null = "no limit configured at this tier".
 
 data class NPPBMTranscranialLimits(
-    var maxIntensityPercent: Double? = null,
+    /** On-state irradiance ceiling, mW/cm² (absolute — OI-HEXTILE-25). */
+    var maxIrradianceMWcm2: Double? = null,
     var maxFrequencyHz: Double? = null,
     var maxDutyCyclePercent: Int? = null,
     var maxSessionDoseJCm2: Double? = null,

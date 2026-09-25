@@ -19,35 +19,17 @@ protocol "PBM — Anxiety (Maiello 2019, low-irradiance CW)" {
         # TARGET IRRADIANCE: 30 mW/cm² (Maiello 2019), well inside R-4's
         # 200 mW/cm² CW ceiling.
         #
-        # The 7% below is PROVISIONAL AND NOT THE AUTHORED VALUE. Percent has
-        # no defined absolute meaning; it is 30 ÷ 403, using the only anchor
-        # stated anywhere (NP-HW-HEXTILE-001 §4.3.1 puts full 150 mA drive at
-        # 403 mW/cm²), and NP-SES-PWR-001 §2.3 flags that anchor as an "if",
-        # not an established fact. When intensity becomes irradiance_mw_cm2
-        # this line becomes `irradiance_mw_cm2: 30` and the anchor stops
-        # mattering. The target above is the real value; 7% is its shadow.
+        # Authored as absolute irradiance (OI-HEXTILE-25, 2026-09-25) — no longer 7 % of an
+        # assumed 403 mW/cm² anchor. OPEN: 30 mW/cm² may be below the emitters'
+        # usable minimum drive, which is not knowable until OI-HEXTILE-02
+        # selects a part; the hub refuses a value that rounds to zero drive.
+        irradiance_mw_cm2: 30
         #
-        # OPEN: 7% of full drive may be below the emitters' usable minimum —
-        # that is the `min` term of the module type map and is not knowable
-        # until OI-HEXTILE-02 selects a part.
-        intensity: 7.4%
-        duty_cycle: 25%
-        #
-        # ⚠ OI-SESPWR-03 BITES HARDEST HERE, and the duty_cycle above is
-        # written explicitly SO THAT THE COMMITTED AUDIT CAN SEE IT.
-        # scripts/check-pbm-power.ts flags the CW+duty ambiguity only when the
-        # field is present in the source; omitting it does not remove the
-        # ambiguity — the parser defaults dutyCyclePercent to 25 either way —
-        # it only hides it from the check. `frequency: 0Hz` together with a
-        # duty_cycle is the undefined case NP-SES-PWR-001 records: the compiler
-        # emits freqCode(0) and dutyReg(25) independently and leaves the hub to
-        # decide. If CW means full duty this delivers the trial's 36 J/cm²; if
-        # the 25% is applied it delivers 9 J/cm², BELOW §5's own 10 J/cm² floor.
-        # The language cannot currently express "CW = full duty" — duty_cycle's
-        # documented range is 1–25 (§4.1) — so this cannot be resolved in the
-        # protocol file. For most protocols the ambiguity is a 4× power
-        # question; for this one it is the difference between reproducing the
-        # trial and under-dosing it.
+        # OI-SESPWR-03 WAS THE DIFFERENCE BETWEEN REPRODUCING THIS TRIAL AND
+        # UNDER-DOSING IT: `frequency: 0Hz` beside `duty_cycle: 25%` was
+        # undefined, and read as 25 % it delivered 9 J/cm², below §5's
+        # 10 J/cm² floor. RESOLVED (OI-HEXTILE-25, 2026-09-25): CW is continuous, the pair is a parse
+        # error, and this block delivers the trial's 36 J/cm².
         zones: ["Frontal Left", "Frontal Right"]
         # §5 gives "right or bilateral PFC"; Maiello's own laterality is not
         # stated in the source, so the bilateral option is taken and named
@@ -56,10 +38,10 @@ protocol "PBM — Anxiety (Maiello 2019, low-irradiance CW)" {
         # NIR-only fidelity gap: the trial used a single NIR wavelength, and
         # this protocol delivers 660nm alongside it whether or not the evidence
         # did. The constraint is in the LANGUAGE AND COMPILER, not the wire:
-        # np_mod_pbm_base_params_t already carries cur_a (660nm) and cur_b
-        # (808nm) as separate current registers, but NPPS has one `intensity`
-        # field per PBM block with no per-channel form, so hubCompiler.ts
-        # writes the same register value into both. The `wavelength` enum also
+        # np_mod_pbm_base_params_t already carries irr_a (660nm) and irr_b
+        # (808nm) as separate irradiance fields, but NPPS has one
+        # `irradiance_mw_cm2` per PBM block with no per-channel form, so
+        # hubCompiler.ts writes the same value into both. The `wavelength` enum also
         # has no 808-only value. Whether the tile's driver supports independent
         # per-channel current is a separate, open question (OI-HEXTILE-07).
     }

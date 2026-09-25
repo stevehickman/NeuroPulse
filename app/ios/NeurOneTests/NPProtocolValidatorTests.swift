@@ -54,7 +54,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     func testValidProtocolAccepted() {
         let pbm = NPPBMTranscranialParams(
-            intensityPercent: 75,
+            irradianceMWcm2: 302,
             frequencyHz: 20,
             dutyCyclePercent: 25
         )
@@ -326,7 +326,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     // MARK: - testZeroDurationRejected (intended-behavior spec)
 
     func testZeroDurationRejected() {
-        let pbm = NPPBMTranscranialParams(intensityPercent: 75, frequencyHz: 20, dutyCyclePercent: 25)
+        let pbm = NPPBMTranscranialParams(irradianceMWcm2: 302, frequencyHz: 20, dutyCyclePercent: 25)
         let def = protocolWith(.pbmTranscranial(pbm), durationSeconds: 0)
         let result = hardwareOnlyValidator().validate(def)
 
@@ -340,12 +340,12 @@ final class NPProtocolValidatorTests: XCTestCase {
     // MARK: - testDoseOverLimitRejected (intended-behavior spec)
 
     func testDoseOverLimitRejected() {
-        // 100% CW intensity = 200 mW/cm² × 3600s / 1000 = 720 J/cm² — over the 10 J/cm² limit.
+        // 200 mW/cm² CW (continuous) × 3600 s / 1000 = 720 J/cm² — over the 10 J/cm² limit.
         var limits = NPLimitsSet(name: "Dose-capped", level: .global)
         limits.pbmTranscranial = NPPBMTranscranialLimits(maxSessionDoseJCm2: 10.0)
         let validator = NPProtocolValidator(resolvedLimits: limits)
 
-        let pbm = NPPBMTranscranialParams(intensityPercent: 100, frequencyHz: 0, dutyCyclePercent: 25)
+        let pbm = NPPBMTranscranialParams(irradianceMWcm2: 200, frequencyHz: 0, dutyCyclePercent: 100)
         let def = protocolWith(.pbmTranscranial(pbm), durationSeconds: 60 * 60)
         let result = validator.validate(def)
 
@@ -359,17 +359,37 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     func testConfiguredIntensityLimitRejected() {
         var limits = NPLimitsSet(name: "Capped", level: .global)
-        limits.pbmTranscranial = NPPBMTranscranialLimits(maxIntensityPercent: 50)
+        limits.pbmTranscranial = NPPBMTranscranialLimits(maxIrradianceMWcm2: 200)
         let validator = NPProtocolValidator(resolvedLimits: limits)
 
-        let pbm = NPPBMTranscranialParams(intensityPercent: 80, frequencyHz: 20, dutyCyclePercent: 25)
+        let pbm = NPPBMTranscranialParams(irradianceMWcm2: 322, frequencyHz: 20, dutyCyclePercent: 25)
         let def = protocolWith(.pbmTranscranial(pbm))
         let result = validator.validate(def)
 
-        XCTAssertFalse(result.isValid, "Intensity above the configured dosage limit must be rejected.")
+        XCTAssertFalse(result.isValid, "Irradiance above the configured dosage limit must be rejected.")
         XCTAssertTrue(
-            result.errors.contains { $0.parameterKey == "intensityPercent" },
-            "Rejection must cite the intensity parameter."
+            result.errors.contains { $0.parameterKey == "irradianceMWcm2" },
+            "Rejection must cite the irradiance parameter."
         )
+    }
+
+    // MARK: - OI-HEXTILE-25: R-4 is two ceilings on the on-state irradiance
+
+    func testPulsedIrradianceOverPeakCeilingRejected() {
+        let ok = NPPBMTranscranialParams(irradianceMWcm2: 400, frequencyHz: 40, dutyCyclePercent: 25)
+        XCTAssertFalse(hardwareOnlyValidator().validate(protocolWith(.pbmTranscranial(ok)))
+            .errors.contains { $0.parameterKey == "irradianceMWcm2" }, "400 mW/cm² pulsed is at the peak ceiling.")
+        var over = ok
+        over.irradianceMWcm2 = 401
+        XCTAssertTrue(hardwareOnlyValidator().validate(protocolWith(.pbmTranscranial(over)))
+            .errors.contains { $0.parameterKey == "irradianceMWcm2" }, "401 mW/cm² pulsed must be rejected.")
+    }
+
+    func testCWIrradianceOverContinuousCeilingRejectedAndDutyIgnored() {
+        let over = NPPBMTranscranialParams(irradianceMWcm2: 322, frequencyHz: 0, dutyCyclePercent: 100)
+        let r = hardwareOnlyValidator().validate(protocolWith(.pbmTranscranial(over)))
+        XCTAssertTrue(r.errors.contains { $0.parameterKey == "irradianceMWcm2" }, "322 mW/cm² CW exceeds 200.")
+        XCTAssertFalse(r.errors.contains { $0.parameterKey == "dutyCyclePercent" },
+                       "CW is continuous: 100 % is not a duty error.")
     }
 }

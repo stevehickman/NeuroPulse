@@ -259,9 +259,11 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
               { value: '660_808_1064nm', label: t('WEB_WL_660_808_1064') },
             ]}
           />
-          <SliderField label={t('WEB_MOD_INTENSITY')} value={p.intensityPercent} min={10} max={100} unit="%" onChange={v => update<typeof params>({ ...p, intensityPercent: v })} />
-          <FrequencyField label={t('MODALITY_FREQUENCY')} value={p.frequencyHz} min={0} max={100} onChange={v => update<typeof params>({ ...p, frequencyHz: v })} />
-          <SliderField label={t('MODALITY_DUTY_CYCLE')} value={p.dutyCyclePercent} min={5} max={100} unit="%" onChange={v => update<typeof params>({ ...p, dutyCyclePercent: v })} />
+          <SliderField label={t('WEB_MOD_IRRADIANCE')} value={p.irradianceMWcm2} min={1} max={p.frequencyHz <= 0 ? 200 : 400} step={1} unit=" mW/cm²" onChange={v => update<typeof params>({ ...p, irradianceMWcm2: v })} />
+          <FrequencyField label={t('MODALITY_FREQUENCY')} value={p.frequencyHz} min={0} max={100} onChange={v => update<typeof params>({ ...p, frequencyHz: v, dutyCyclePercent: v <= 0 ? 100 : Math.min(p.dutyCyclePercent, 25) })} />
+          {p.frequencyHz > 0 && (
+            <SliderField label={t('MODALITY_DUTY_CYCLE')} value={p.dutyCyclePercent} min={5} max={25} unit="%" onChange={v => update<typeof params>({ ...p, dutyCyclePercent: v })} />
+          )}
         </div>
       );
     }

@@ -8,7 +8,14 @@ protocol "Vascular Baseline" {
     duration: 30m
 
     pbm_transcranial {
-        intensity: 80%
+        # ⚠ NOT RUNNABLE AS WRITTEN — RE-AUTHOR FROM EVIDENCE (principal,
+        # 2026-09-25). This block carried `intensity: 80%` CW, which at the
+        # library's authoring scale (100 % = 403 mW/cm²) is 322 mW/cm²
+        # continuous: over R-4's 200 mW/cm² CW ceiling (OI-SESPWR-02). It is
+        # kept as written so the breach stays visible; every validator and the
+        # hub refuse it. It runs once a clinical owner sets an irradiance from
+        # a cited source.
+        irradiance_mw_cm2: 322
         frequency: 0Hz  # CW
         zones: ["All"]
         wavelength: "660_808nm"

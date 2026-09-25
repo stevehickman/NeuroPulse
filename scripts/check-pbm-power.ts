@@ -13,7 +13,7 @@
  *
  * ── The "~6 tiles" figure is itself the thing to distrust ─────────────────────
  *
- * §9.2's ~6 assumes 6.25 W/tile — 100 % intensity, 25 % duty, both channels. No
+ * §9.2's ~6 assumes 6.25 W/tile — full drive, 25 % duty, both channels. No
  * authored protocol runs there. Real per-tile draw across the library spans
  * 1.2 W to 20.0 W, so the true concurrency limit spans 2 to 32 tiles. A governor
  * expressed as a tile count is wrong in both directions; it must be watts
@@ -46,13 +46,24 @@ export const TILE_W: Record<string, number> = {
   "660_808_1064nm": 22.95,
 };
 
+/** On-state irradiance at that same full 150 mA drive, mW/cm², per channel, by
+ *  wavelength set (NP-HW-HEXTILE-001 §4.3.1–§4.3.2): T1-A 403; T1-C 269 per
+ *  660/808 channel; CH_C 28. Protocols state absolute irradiance
+ *  (`irradiance_mw_cm2`, OI-HEXTILE-25), so drive — and draw — is modelled as
+ *  irradiance ÷ this, linear in current. Design targets, OI-HEXTILE-02. */
+export const FULL_DRIVE_MW_CM2: Record<string, number> = {
+  "660_808nm": 403,
+  "1064nm": 28,
+  "660_808_1064nm": 269,
+};
+
 /** Watts available to emitters: the R-10 T1 peak envelope (45–50 W) less the
  *  ~6–8 W non-PBM overhead of NP-HW-HEXTILE-001 §9.1. */
 export const AVAILABLE_W = 40.0;
 
 export type Row = {
   file: string; name: string; sockets: number | null; wavelength: string;
-  intensity: number; cw: boolean; duty: number | null; perTileW: number;
+  irradiance: number; cw: boolean; duty: number | null; perTileW: number;
   requiredW: number | null; maxConcurrent: number; groups: number | null;
   durationS: number | null; zoneLabel: string; notes: string[];
 };
@@ -92,21 +103,16 @@ export function analyse(): Row[] {
     const body = blk[1];
     const notes: string[] = [];
 
-    const intensity = num(field(body, "intensity"), 100);
+    const wavelength = field(body, "wavelength") ?? "660_808nm";
+    const irradiance = num(field(body, "irradiance_mw_cm2"), FULL_DRIVE_MW_CM2[wavelength] ?? 403);
     const freqHz = num(field(body, "frequency"), 0);
     const dutyRaw = field(body, "duty_cycle");
     const duty = dutyRaw === undefined ? null : num(dutyRaw, 100);
-    const wavelength = field(body, "wavelength") ?? "660_808nm";
     const zoneSpec = field(body, "zones") ?? "all";
+    // CW is continuous (OI-HEXTILE-25): a CW block takes no duty_cycle — the
+    // parsers refuse the pair — so OI-SESPWR-03's two readings are now one.
     const cw = freqHz === 0;
-
-    if (cw && duty !== null) {
-      // NP-NPPS-REF-001 §4.1: `frequency: 0` selects CW, and CW means 100 % duty.
-      // The compiler emits freq_code 0x00 and the duty register independently
-      // (hubCompiler.ts freqCode/dutyReg), so which one wins is unspecified.
-      // Reported at the CW reading — the higher draw — and flagged. OI-SESPWR-03.
-      notes.push("CW+duty ambiguous");
-    }
+    if (cw && duty !== null) notes.push("CW with duty_cycle — refused by every parser");
 
     let sockets: number | null;
     let zoneLabel: string;
@@ -129,14 +135,14 @@ export function analyse(): Row[] {
     }
 
     const base = TILE_W[wavelength] ?? 25.0;
-    const peak = (base * intensity) / 100;
+    const peak = base * irradiance / (FULL_DRIVE_MW_CM2[wavelength] ?? 403);
     const perTileW = cw ? peak : (peak * (duty ?? 100)) / 100;
     const maxConcurrent = Math.max(1, Math.floor(AVAILABLE_W / perTileW));
     const durM = /\n {4}duration:\s*(\d+)([ms])/.exec(text);
     const durationS = durM ? Number(durM[1]) * (durM[2] === "m" ? 60 : 1) : null;
 
     rows.push({
-      file, name: nameM[1], sockets, wavelength, intensity, cw, duty, perTileW,
+      file, name: nameM[1], sockets, wavelength, irradiance, cw, duty, perTileW,
       requiredW: sockets === null ? null : sockets * perTileW,
       maxConcurrent,
       groups: sockets === null ? null : Math.ceil(sockets / maxConcurrent),

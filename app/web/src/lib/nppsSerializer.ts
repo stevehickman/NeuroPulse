@@ -57,11 +57,13 @@ function serializeModalityFields(mp: NPModalityParams): string[] {
   switch (mp.type) {
     case 'pbm_transcranial': {
       const p = mp.params;
+      // Absolute irradiance (OI-HEXTILE-25). CW is continuous, so a CW block
+      // carries no duty_cycle — the parser refuses the pair.
       const lines: string[] = [
-        `intensity: ${p.intensityPercent}%`,
+        `irradiance_mw_cm2: ${p.irradianceMWcm2}`,
         `frequency: ${formatHz(p.frequencyHz)}`,
-        `duty_cycle: ${p.dutyCyclePercent}%`,
       ];
+      if (p.frequencyHz > 0) lines.push(`duty_cycle: ${p.dutyCyclePercent}%`);
       // `named` and `clinician_selected` are the internal discriminant, and only
       // one of them is also surface syntax. Writing p.zones unguarded emitted
       // the bare word `named` whenever zoneRefs was missing, producing a file

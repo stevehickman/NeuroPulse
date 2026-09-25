@@ -189,7 +189,7 @@ static void test_nothing_electrical(void)
     np_mod_pbm_base_params_t p;
     reset();
     memset(&p, 0, sizeof p);
-    p.cur_a = 0x40U;
+    p.irr_a = 0x40U;
     add(NP_MOD_PBM_BASE, &p, sizeof p);
     np_chan_decl_build(&g_desc, &d);
     check(!d.send_limits && !d.send_waveforms && !d.geom_bes && !d.geom_tdcs &&

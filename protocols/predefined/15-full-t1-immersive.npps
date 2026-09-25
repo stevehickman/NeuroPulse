@@ -8,7 +8,7 @@ protocol "Full T1 Immersive" {
     duration: 30m
 
     pbm_transcranial {
-        intensity: 75%
+        irradiance_mw_cm2: 302  # was intensity: 75% at 100 % = 403 mW/cm² (OI-HEXTILE-25, 2026-09-25)
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["All"]

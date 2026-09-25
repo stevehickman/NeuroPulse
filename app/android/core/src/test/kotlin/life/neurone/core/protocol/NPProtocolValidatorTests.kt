@@ -28,7 +28,7 @@ class NPProtocolValidatorTests {
 
     @Test
     fun validProtocolAccepted() {
-        val pbm = NPPBMTranscranialParams(intensityPercent = 75.0, frequencyHz = 20.0, dutyCyclePercent = 25)
+        val pbm = NPPBMTranscranialParams(irradianceMWcm2 = 302.0, frequencyHz = 20.0, dutyCyclePercent = 25)
         val result = hardwareOnlyValidator().validate(protocolWith(NPModalityParams.PbmTranscranial(pbm)))
         assertTrue(result.isValid, "A minimal in-bounds PBM protocol must validate as success.")
         assertTrue(result.errors.isEmpty(), "Valid protocol must produce no errors.")
@@ -304,7 +304,7 @@ class NPProtocolValidatorTests {
 
     @Test
     fun zeroDurationRejected() {
-        val pbm = NPPBMTranscranialParams(intensityPercent = 75.0, frequencyHz = 20.0, dutyCyclePercent = 25)
+        val pbm = NPPBMTranscranialParams(irradianceMWcm2 = 302.0, frequencyHz = 20.0, dutyCyclePercent = 25)
         val result = hardwareOnlyValidator().validate(protocolWith(NPModalityParams.PbmTranscranial(pbm), durationSeconds = 0))
         assertFalse(result.isValid, "A protocol with 0-second duration must be rejected.")
         assertTrue(result.errors.any { it.parameterKey == "duration" }, "Zero-duration rejection must cite the duration parameter.")
@@ -312,11 +312,11 @@ class NPProtocolValidatorTests {
 
     @Test
     fun doseOverLimitRejected() {
-        // 100% CW intensity = 200 mW/cm² × 3600s / 1000 = 720 J/cm² — over the 10 J/cm² limit.
+        // 200 mW/cm² CW (continuous) × 3600 s / 1000 = 720 J/cm² — over the 10 J/cm² limit.
         val limits = NPLimitsSet(name = "Dose-capped", level = NPLimitsSet.LimitLevel.GLOBAL,
             pbmTranscranial = NPPBMTranscranialLimits(maxSessionDoseJCm2 = 10.0))
         val validator = NPProtocolValidator(limits)
-        val pbm = NPPBMTranscranialParams(intensityPercent = 100.0, frequencyHz = 0.0, dutyCyclePercent = 25)
+        val pbm = NPPBMTranscranialParams(irradianceMWcm2 = 200.0, frequencyHz = 0.0, dutyCyclePercent = 100)
         val result = validator.validate(protocolWith(NPModalityParams.PbmTranscranial(pbm), durationSeconds = 60 * 60))
         assertTrue(
             result.errors.any { it.modality == NPModalityType.PBM_TRANSCRANIAL && it.parameterKey.lowercase().contains("dose") },
@@ -327,12 +327,12 @@ class NPProtocolValidatorTests {
     @Test
     fun configuredIntensityLimitRejected() {
         val limits = NPLimitsSet(name = "Capped", level = NPLimitsSet.LimitLevel.GLOBAL,
-            pbmTranscranial = NPPBMTranscranialLimits(maxIntensityPercent = 50.0))
+            pbmTranscranial = NPPBMTranscranialLimits(maxIrradianceMWcm2 = 200.0))
         val validator = NPProtocolValidator(limits)
-        val pbm = NPPBMTranscranialParams(intensityPercent = 80.0, frequencyHz = 20.0, dutyCyclePercent = 25)
+        val pbm = NPPBMTranscranialParams(irradianceMWcm2 = 322.0, frequencyHz = 20.0, dutyCyclePercent = 25)
         val result = validator.validate(protocolWith(NPModalityParams.PbmTranscranial(pbm)))
-        assertFalse(result.isValid, "Intensity above the configured dosage limit must be rejected.")
-        assertTrue(result.errors.any { it.parameterKey == "intensityPercent" }, "Rejection must cite the intensity parameter.")
+        assertFalse(result.isValid, "Irradiance above the configured dosage limit must be rejected.")
+        assertTrue(result.errors.any { it.parameterKey == "irradianceMWcm2" }, "Rejection must cite the irradiance parameter.")
     }
 
     @Test
@@ -343,9 +343,28 @@ class NPProtocolValidatorTests {
         assertTrue(result.errors.any { it.parameterKey == "modalities" })
     }
 
+    // OI-HEXTILE-25: R-4 is two ceilings on the on-state irradiance.
+    @Test
+    fun pulsedIrradianceOverPeakCeilingRejected() {
+        val ok = NPPBMTranscranialParams(irradianceMWcm2 = 400.0, frequencyHz = 40.0, dutyCyclePercent = 25)
+        assertFalse(hardwareOnlyValidator().validate(protocolWith(NPModalityParams.PbmTranscranial(ok)))
+            .errors.any { it.parameterKey == "irradianceMWcm2" }, "400 mW/cm² pulsed is at the peak ceiling.")
+        val over = ok.copy(irradianceMWcm2 = 401.0)
+        assertTrue(hardwareOnlyValidator().validate(protocolWith(NPModalityParams.PbmTranscranial(over)))
+            .errors.any { it.parameterKey == "irradianceMWcm2" }, "401 mW/cm² pulsed must be rejected.")
+    }
+
+    @Test
+    fun cwIrradianceOverContinuousCeilingRejectedAndDutyIgnored() {
+        val over = NPPBMTranscranialParams(irradianceMWcm2 = 322.0, frequencyHz = 0.0, dutyCyclePercent = 100)
+        val r = hardwareOnlyValidator().validate(protocolWith(NPModalityParams.PbmTranscranial(over)))
+        assertTrue(r.errors.any { it.parameterKey == "irradianceMWcm2" }, "322 mW/cm² CW exceeds 200.")
+        assertFalse(r.errors.any { it.parameterKey == "dutyCyclePercent" }, "CW is continuous: 100 % is not a duty error.")
+    }
+
     @Test
     fun dutyCycleOverHardwareCeilingRejected() {
-        val pbm = NPPBMTranscranialParams(intensityPercent = 75.0, frequencyHz = 20.0, dutyCyclePercent = 40)
+        val pbm = NPPBMTranscranialParams(irradianceMWcm2 = 302.0, frequencyHz = 20.0, dutyCyclePercent = 40)
         val result = hardwareOnlyValidator().validate(protocolWith(NPModalityParams.PbmTranscranial(pbm)))
         assertFalse(result.isValid, "PBM duty cycle above 25% must be rejected.")
         assertTrue(result.errors.any { it.parameterKey == "dutyCyclePercent" })

@@ -487,7 +487,7 @@ anodes and which cathodes, and a bitmap's dedup property — its whole reason to
 
 **Costs of option A, all versioned per `REQ-FWHUB-10`:** `NP_HUB_PROTO_TARGET_MAX` 16 → 32;
 `np_mod_bes_tacs_params_t` gains `electrode_area_mcm2` (+2 B) — a **length change**, so
-`NP_HUB_PROTO_VERSION` 3 → 4; the parser gains three rejections (either side empty, sides overlap,
+`NP_HUB_PROTO_VERSION` bump (3 → 4 when written; **4 → 5** now that `OI-HEXTILE-25` took v4, 2026-09-25); the parser gains three rejections (either side empty, sides overlap,
 `target_len` ≠ 32); `hubCompiler.ts` gains `electrodeSetsTarget()` and the `.npps` grammar needs a way to
 name sockets for tES, which today it names by 10-20 site. T2's 21-channel clinical tACS needs a
 *channel per electrode*, not two sides — a third kind, deliberately not designed here.

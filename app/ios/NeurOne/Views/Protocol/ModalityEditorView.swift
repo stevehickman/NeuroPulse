@@ -283,12 +283,12 @@ struct PBMTranscranialParamsView: View {
                 }
             }
 
-            // Intensity
+            // Irradiance — absolute, mW/cm² (OI-HEXTILE-25)
             SliderRow(
-                label: String(localized: "VALIDATE_PARAM_INTENSITY"),
-                value: $params.intensityPercent,
-                range: 0...100,
-                format: { "\(Int($0))%" }
+                label: String(localized: "VALIDATE_PARAM_IRRADIANCE"),
+                value: $params.irradianceMWcm2,
+                range: 1...(params.frequencyHz <= 0 ? 200 : 400),
+                format: { "\(Int($0)) mW/cm²" }
             )
 
             // Frequency
@@ -299,6 +299,8 @@ struct PBMTranscranialParamsView: View {
                         ForEach(freqPresets, id: \.0) { preset in
                             Button {
                                 params.frequencyHz = preset.1
+                                // CW is continuous; a pulsed mode starts under 25 %.
+                                params.dutyCyclePercent = preset.1 <= 0 ? 100 : min(params.dutyCyclePercent, 25)
                             } label: {
                                 Text(preset.0)
                                     .font(.caption)

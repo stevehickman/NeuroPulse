@@ -17,7 +17,7 @@
  *
  * Header offsets (64 bytes, no padding):
  *   0:  uint32 magic             (NP_HUB_PROTO_MAGIC = 0x4E504850)
- *   4:  uint16 version           (NP_HUB_PROTO_VERSION = 0x0003)
+ *   4:  uint16 version           (NP_HUB_PROTO_VERSION = 0x0004)
  *   6:  uint8  flags             (bit0=T2_tier, bit1=autonomous)
  *   7:  uint8  cmd_count
  *   8:  uint8[16] session_uuid
@@ -80,7 +80,9 @@ const PROTO_MAGIC = 0x4E504850;
 // v3 (OI-CHARGE-04): np_mod_tdcs_params_t grew electrode_area_mcm2, 6 → 8
 // bytes. Must track NP_HUB_PROTO_VERSION in firmware/hub_control/include/
 // np_hub_config.h — the hub rejects any other value as NP_HUB_ERR_BAD_VERSION.
-const PROTO_VERSION = 0x0003;
+// v4 (OI-HEXTILE-25): the transcranial PBM params carry mW/cm² (uint16), not
+// current codes — base 4 → 6 bytes, smart 6 → 9 — and CW is continuous.
+const PROTO_VERSION = 0x0004;
 const PROTO_UUID_LEN = 16;
 const PROTO_SERIAL_LEN = 32;
 const PROTO_SIG_LEN = 64;
@@ -472,6 +474,19 @@ function dutyReg(pct: number): number {
   return Math.min(Math.round(pct * 2), 0x32);
 }
 
+/** Transcranial PBM duty register: CW is continuous (0xC8 = 100 %); pulsed is
+ *  capped at 0x32 = 25 % (OI-HEXTILE-25). */
+function pbmDutyReg(p: PBMTranscranialParams): number {
+  return p.frequencyHz <= 0 ? 0xC8 : dutyReg(p.dutyCyclePercent);
+}
+
+/** Irradiance in mW/cm² as a little-endian uint16 (the hub refuses anything over
+ *  R-4, so saturating here only protects the encoding). */
+function irr16(mWcm2: number): [number, number] {
+  const v = Math.max(0, Math.min(0xFFFF, Math.round(mWcm2)));
+  return [v & 0xFF, (v >> 8) & 0xFF];
+}
+
 /** Convert intensity percent 0–100 to 0–255 LED current register. */
 function intensityReg(pct: number): number {
   return Math.min(Math.round(pct / 100 * 255), 255);
@@ -549,18 +564,24 @@ function encodePBMTranscranial(
   const useSmart = p.wavelength !== '660_808nm';
   const modType  = useSmart ? NP_MOD_PBM_SMART : NP_MOD_PBM_BASE;
   const target: CmdTarget = { kind: 'sockets', sockets: resolvePbmSockets(p, opts) };
-  const cur      = intensityReg(p.intensityPercent);
-  const duty     = dutyReg(p.dutyCyclePercent);
+  // Absolute irradiance, mW/cm² (OI-HEXTILE-25): the hub knows which tile it is
+  // driving and converts to a current code there, refusing what it cannot
+  // deliver as written. No percentage-of-capability scale exists on the wire.
+  const irr      = irr16(p.irradianceMWcm2);
+  const off: [number, number] = [0, 0];
+  const duty     = pbmDutyReg(p);
   const fc       = freqCode(p.frequencyHz);
 
   let params: Uint8Array;
   if (useSmart) {
-    // np_mod_pbm_smart_params_t: 6 bytes
-    const chMask = p.wavelength === '1064nm' ? 0x04 : 0x07;  // 0x07 = all 3 channels
-    params = new Uint8Array([fc, duty, cur, cur, cur, chMask]);
+    // np_mod_pbm_smart_params_t: 9 bytes — fc, duty, irr_a, irr_b, irr_c (u16 LE), ch_mask
+    const only1064 = p.wavelength === '1064nm';
+    const chMask = only1064 ? 0x04 : 0x07;  // 0x07 = all 3 channels
+    const ab = only1064 ? off : irr;
+    params = new Uint8Array([fc, duty, ...ab, ...ab, ...irr, chMask]);
   } else {
-    // np_mod_pbm_base_params_t: 4 bytes
-    params = new Uint8Array([fc, duty, cur, cur]);
+    // np_mod_pbm_base_params_t: 6 bytes — fc, duty, irr_a, irr_b (u16 LE)
+    params = new Uint8Array([fc, duty, ...irr, ...irr]);
   }
   return { modType, target, params };
 }

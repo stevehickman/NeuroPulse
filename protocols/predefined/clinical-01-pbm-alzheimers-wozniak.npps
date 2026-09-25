@@ -13,13 +13,13 @@ protocol "PBM — Alzheimer's 40Hz (Woźniak-Mitał 2026)" {
         # ⚠ IRRADIANCE NOT DERIVABLE FROM THIS TRIAL. Woźniak-Mitał 2026 states
         # 150 mW TOTAL POWER and no emitting area, so no mW/cm² follows from it
         # — power ÷ scalp area is the wrong denominator (irradiance is per unit
-        # of ILLUMINATED APERTURE, not per unit of head). The 30% below is
-        # therefore inherited from the pre-split file and is NOT evidence-
-        # sourced. §1's own band is 0.1–0.3 W/cm²; the companion Chun 2026
+        # of ILLUMINATED APERTURE, not per unit of head). The 121 mW/cm² below
+        # is the pre-split file's 30 % at the library's authoring scale (100 % =
+        # 403 mW/cm²) — inherited, NOT evidence-sourced. §1's own band is 0.1–0.3 W/cm²; the companion Chun 2026
         # protocol sits at the top of it with a stated figure.
         # Resolve either from the primary paper's aperture, or by adopting the
         # section band. Tracked with the other unjustified values.
-        intensity: 30%
+        irradiance_mw_cm2: 121
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["Vault (excl. Occipital)"]

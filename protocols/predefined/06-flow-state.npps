@@ -8,7 +8,7 @@ protocol "Flow State" {
     duration: 25m
 
     pbm_transcranial {
-        intensity: 80%
+        irradiance_mw_cm2: 322  # was intensity: 80% at 100 % = 403 mW/cm² (OI-HEXTILE-25, 2026-09-25)
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["Frontal"]
@@ -16,7 +16,7 @@ protocol "Flow State" {
     }
 
     pbm_transcranial {
-        intensity: 75%
+        irradiance_mw_cm2: 302  # was intensity: 75% at 100 % = 403 mW/cm² (OI-HEXTILE-25, 2026-09-25)
         frequency: 6Hz
         duty_cycle: 25%
         zones: ["Posterior"]

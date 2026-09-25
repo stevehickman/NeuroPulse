@@ -42,8 +42,8 @@ static uint16_t params_size_for(np_hub_mod_type_t t)
  * array of NP_ELEM_* values. Returns the count (0..3), or -1 if the params
  * are malformed.
  *
- * Base modules have no channel mask: an emitter is asked for iff its current
- * register is non-zero. Smart modules light exactly the ch_mask channels, and
+ * Base modules have no channel mask: an emitter is asked for iff its commanded
+ * irradiance is non-zero. Smart modules light exactly the ch_mask channels, and
  * ch_mask bits above bit 2 name channels no module has.
  */
 static int required_emitters(np_hub_mod_type_t t, const uint8_t *params,
@@ -53,8 +53,8 @@ static int required_emitters(np_hub_mod_type_t t, const uint8_t *params,
     if (t == NP_MOD_PBM_BASE) {
         const np_mod_pbm_base_params_t *p =
             (const np_mod_pbm_base_params_t *)(const void *)params;
-        if (p->cur_a != 0U) { out[n++] = NP_ELEM_LED_660; }
-        if (p->cur_b != 0U) { out[n++] = NP_ELEM_LED_808; }
+        if (p->irr_a != 0U) { out[n++] = NP_ELEM_LED_660; }
+        if (p->irr_b != 0U) { out[n++] = NP_ELEM_LED_808; }
     } else {
         const np_mod_pbm_smart_params_t *p =
             (const np_mod_pbm_smart_params_t *)(const void *)params;

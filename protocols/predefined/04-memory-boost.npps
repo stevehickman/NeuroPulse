@@ -19,15 +19,15 @@ protocol "Memory Boost" {
         # (NP-BIB-1064-001 Entry 12.1): 1064nm, CW, right PFC, 8 min.
         # Theta entrainment is unchanged and lives in the audio, EEG and HRV
         # channels below, where entrainment evidence does exist.
-        intensity: 100%
+        irradiance_mw_cm2: 28
         frequency: 0Hz
-        duty_cycle: 25%
-        # duty_cycle: 25% is the firmware-enforced ceiling for the 1064nm
-        # channel (np_pbm_drive_set_duty(), NP-FW-PBM1064-001 Section 5).
-        # True CW is therefore NOT achievable, and Yao 2022 used CW; that paper
-        # states explicitly that pulsed 1064nm working-memory effects have not
-        # been confirmed in a registered trial. frequency: 0Hz selects the
-        # closest available mode, not literature CW output.
+        # 28 mW/cm² is what this block's former `intensity: 100%` meant on CH_C
+        # (NP-HW-HEXTILE-001 §4.3.2), stated in absolute terms (OI-HEXTILE-25).
+        # CW is CONTINUOUS as of 2026-09-25: Yao 2022 used CW, and pulsed 1064nm
+        # working-memory effects have not been confirmed in a registered trial,
+        # so the former 25 % duty cap made this block deliver a mode the source
+        # does not support. It no longer does. The irradiance shortfall below
+        # is unchanged.
         interval_on: 8m
         interval_off: 22m
         repeat: 1

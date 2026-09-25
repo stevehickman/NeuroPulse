@@ -5,7 +5,7 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: 9ae4245dd34235cdfcf70679ef107ff7f8f821f0c84c81ac2a2897c8da40f418
+// sources-sha256: b223e72c17f23d61b677b072740b099254c69eacd5cf504786b49bc9ed79ede6
 var __create = Object.create;
 var __getProtoOf = Object.getPrototypeOf;
 var __defProp = Object.defineProperty;
@@ -1888,7 +1888,7 @@ function defaultParams(type) {
       zones: "named",
       zoneRefs: ["All"],
       wavelength: "660_808nm",
-      intensityPercent: 75,
+      irradianceMWcm2: 300,
       frequencyHz: 40,
       dutyCyclePercent: 25
     },
@@ -2627,6 +2627,9 @@ class Parser {
     if ("__intensity" in raw) {
       const intensityVal = raw["__intensity"];
       delete raw["__intensity"];
+      if (typeName === "pbm_transcranial") {
+        throw new NPPSParseError("pbm_transcranial takes irradiance_mw_cm2 (on-state mW/cm²), not intensity — " + "a percentage of emitter capability has no fixed meaning (NP-NPPS-REF-001 §4.1)", this.current.line);
+      }
       const percentTypes = new Set([
         "pbm_transcranial",
         "pbm_intranasal",
@@ -2878,7 +2881,7 @@ class Parser {
   }
   parsePBMTranscranialLimits() {
     return this.parseLimitsSubBlock({
-      max_intensity: (v) => ({ maxIntensityPercent: Number(v) }),
+      max_irradiance_mw_cm2: (v) => ({ maxIrradianceMWcm2: Number(v) }),
       max_frequency: (v) => ({ maxFrequencyHz: Number(v) }),
       max_duty_cycle: (v) => ({ maxDutyCyclePercent: Number(v) }),
       max_session_dose: (v) => ({ maxSessionDoseJCm2: Number(v) }),
@@ -3189,12 +3192,19 @@ class Parser {
           }
           zones = "clinician_selected";
         }
+        if ("intensity_percent" in raw) {
+          throw new NPPSParseError("pbm_transcranial takes irradiance_mw_cm2 (on-state mW/cm²), not intensity_percent", line);
+        }
+        const frequencyHz = num("frequency_hz", d.frequencyHz);
+        if (frequencyHz <= 0 && "duty_cycle_percent" in raw) {
+          throw new NPPSParseError("pbm_transcranial: frequency 0 is continuous wave (100 % on-time); remove duty_cycle", line);
+        }
         const params = {
           zones,
           wavelength: str("wavelength", d.wavelength),
-          intensityPercent: num("intensity_percent", d.intensityPercent),
-          frequencyHz: num("frequency_hz", d.frequencyHz),
-          dutyCyclePercent: num("duty_cycle_percent", d.dutyCyclePercent)
+          irradianceMWcm2: num("irradiance_mw_cm2", d.irradianceMWcm2),
+          frequencyHz,
+          dutyCyclePercent: frequencyHz <= 0 ? 100 : num("duty_cycle_percent", d.dutyCyclePercent)
         };
         if (zoneRefs)
           params.zoneRefs = zoneRefs;
@@ -3674,7 +3684,6 @@ var T2_ONLY_MODALITY_TYPES = new Set([
   "hd_tdcs",
   "cervical_vns"
 ]);
-var PBM_PEAK_MW_CM2 = 400;
 var PROTOCOLS = {};
 var PROTOCOL_IDS = [];
 var ZONES = [];
@@ -3709,8 +3718,8 @@ function buildModalities(def, durationSeconds) {
   const out = {};
   const pbm = findParam(def.modalities, "pbm_transcranial");
   if (pbm) {
-    const dutyCycle = pbm.dutyCyclePercent / 100;
-    const avgIrradianceMWcm2 = PBM_PEAK_MW_CM2 * (pbm.intensityPercent / 100) * dutyCycle;
+    const dutyCycle = pbm.frequencyHz <= 0 ? 1 : pbm.dutyCyclePercent / 100;
+    const avgIrradianceMWcm2 = pbm.irradianceMWcm2 * dutyCycle;
     const dose_jcm2 = avgIrradianceMWcm2 * durationSeconds / 1000;
     out.pbm = {
       active: true,

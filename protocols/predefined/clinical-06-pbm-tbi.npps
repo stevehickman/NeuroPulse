@@ -27,12 +27,11 @@ protocol "PBM — TBI (chronic) + Intranasal (Naeser 2011/2014)" {
         # 200 mW/cm² CW ceiling. DURATION IS DERIVED: 13 J/cm² ÷ 22 mW/cm²
         # = 591 s, so 10 min reproduces the stated dose (13.2 J/cm²).
         #
-        # TARGET IRRADIANCE: 22 mW/cm² CW. PROVISIONAL, NOT THE AUTHORED
-        # VALUE: 22 ÷ 403 (NP-HW-HEXTILE-001 §4.3.1). Becomes
-        # `irradiance_mw_cm2: 22`.
-        intensity: 5.5%
+        # TARGET IRRADIANCE: 22 mW/cm² CW, authored as absolute irradiance
+        # (OI-HEXTILE-25, 2026-09-25). CW is continuous, so the trial's
+        # 13 J/cm² is delivered, not the 3.3 a 25 % reading of CW gave.
+        irradiance_mw_cm2: 22
         frequency: 0Hz
-        duty_cycle: 25%
         zones: ["Vault (excl. Occipital)"]
         wavelength: "660_808nm"
     }

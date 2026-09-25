@@ -172,9 +172,19 @@ export interface PBMTranscranialParams {
   zones: 'named' | 'clinician_selected';
   zoneRefs?: string[];   // names of NPZoneDefinition entries in the namespace
   wavelength: '660_808nm' | '1064nm' | '660_808_1064nm';
-  intensityPercent: number;
-  frequencyHz: number;
+  // On-state irradiance at the scalp face, mW/cm², per lit wavelength channel —
+  // an ABSOLUTE quantity, never a fraction of what the emitter can do
+  // (OI-HEXTILE-25; NP-NPPS-REF-001 §4.1). Pulsed: ≤ 400 (R-4 peak). CW: ≤ 200.
+  irradianceMWcm2: number;
+  frequencyHz: number;          // 0 = continuous wave
+  // Pulsed duty, ≤ 25 %. Continuous means continuous: a CW block runs at 100 %
+  // on-time and the parser stores 100 here (see pbmOnFraction()).
   dutyCyclePercent: number;
+}
+
+/** Fraction of time a transcranial PBM channel is on: 1 for CW, duty for pulsed. */
+export function pbmOnFraction(p: Pick<PBMTranscranialParams, 'frequencyHz' | 'dutyCyclePercent'>): number {
+  return p.frequencyHz <= 0 ? 1 : p.dutyCyclePercent / 100;
 }
 
 export interface PBMIntranasalParams {
@@ -318,7 +328,7 @@ export function defaultParams<T extends NPModalityTypeId>(type: T): ModalityPara
       zones: 'named',
       zoneRefs: ['All'],
       wavelength: '660_808nm',
-      intensityPercent: 75,
+      irradianceMWcm2: 300,
       frequencyHz: 40,
       dutyCyclePercent: 25,
     },

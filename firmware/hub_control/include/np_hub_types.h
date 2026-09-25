@@ -234,22 +234,34 @@ typedef struct {
 
 /* ── PBM base zone module (NP_MOD_PBM_BASE) ─────────────────────────────────── */
 
+/*
+ * Transcranial PBM is commanded in ABSOLUTE irradiance, not in current
+ * (OI-HEXTILE-25, NP-HW-HEXTILE-001 Rev 14 §4.3.3): each irr_* field is the
+ * on-state irradiance at the scalp face, in mW/cm², of that wavelength channel.
+ * The hub converts it to a CUR register code for the module type it is driving
+ * and refuses a command it cannot deliver as written — over R-4's ceiling for
+ * its mode, or beyond what the tile can emit (np_pbm_irradiance.h).
+ *
+ * freq_code 0x00 is CW, and CW means CONTINUOUS: the hub drives it at 100 %
+ * on-time whatever `duty` says.  Pulsed modes keep the 25 % duty ceiling.
+ * Multi-byte fields are little-endian.
+ */
 typedef struct __attribute__((packed)) {
-    uint8_t freq_code;     /* 0x00=CW 0x01=2Hz 0x06=6Hz 0x0A=10Hz 0x14=20Hz 0x28=40Hz */
-    uint8_t duty;          /* duty register value ≤ 0x32 (25%); firmware-enforced */
-    uint8_t cur_a;         /* 660nm LED current register */
-    uint8_t cur_b;         /* 808nm LED current register */
+    uint8_t  freq_code;     /* 0x00=CW; else pulse frequency in Hz               */
+    uint8_t  duty;          /* pulsed: ≤ 0x32 (25%), firmware-enforced; CW: ignored */
+    uint16_t irr_a;         /* 660nm on-state irradiance, mW/cm² (0 = off)        */
+    uint16_t irr_b;         /* 808nm on-state irradiance, mW/cm² (0 = off)        */
 } np_mod_pbm_base_params_t;
 
 /* ── PBM smart zone module (NP_MOD_PBM_SMART) ───────────────────────────────── */
 
 typedef struct __attribute__((packed)) {
-    uint8_t freq_code;
-    uint8_t duty;          /* ≤ 0x32 for all channels; firmware-enforced */
-    uint8_t cur_a;         /* 660nm */
-    uint8_t cur_b;         /* 808nm */
-    uint8_t cur_c;         /* 1064nm */
-    uint8_t ch_mask;       /* channel enable: bit0=660nm, bit1=808nm, bit2=1064nm */
+    uint8_t  freq_code;     /* as above                                           */
+    uint8_t  duty;          /* as above, for all channels                         */
+    uint16_t irr_a;         /* 660nm, mW/cm²                                      */
+    uint16_t irr_b;         /* 808nm, mW/cm²                                      */
+    uint16_t irr_c;         /* 1064nm, mW/cm²                                     */
+    uint8_t  ch_mask;       /* channel enable: bit0=660nm, bit1=808nm, bit2=1064nm */
 } np_mod_pbm_smart_params_t;
 
 /* ── Intranasal Y-probe (NP_MOD_INTRANASAL) ─────────────────────────────────── */

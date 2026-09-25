@@ -58,7 +58,10 @@ data class NPSessionProtocol(
                             frequencyHz = p.params.frequencyHz,
                             dutyCyclePercent = p.params.dutyCyclePercent,
                             durationSeconds = duration,
-                            targetDoseJoules = duration.toDouble() * (p.params.intensityPercent / 100.0) * 0.4,
+                            // J/cm² from the absolute irradiance and the fraction of
+                            // time on (OI-HEXTILE-25) — CW is continuous.
+                            targetDoseJoules = duration.toDouble() * (p.params.irradianceMWcm2 / 1000.0) *
+                                p.params.onFraction,
                         ),
                     )
                     is NPModalityParams.PbmIntranasal -> configs.add(

@@ -27,9 +27,14 @@ sealed class PbmTranscranialParams
     public ZoneSelection Zones { get; init; } = ZoneSelection.All;
     public int[]? CustomZones { get; init; }
     public Wavelength WavelengthMode { get; init; } = Wavelength.Base660_808nm;
-    public double IntensityPercent { get; init; } = 75;
+    // On-state irradiance at the scalp face, mW/cm², per lit wavelength channel —
+    // absolute, never a fraction of emitter capability (OI-HEXTILE-25).
+    public double IrradianceMWcm2 { get; init; } = 300;
     public double FrequencyHz { get; init; } = 20;     // 0 = CW
-    public int DutyCyclePercent { get; init; } = 25;   // ≤25
+    public int DutyCyclePercent { get; init; } = 25;   // ≤25 pulsed; CW is continuous (100)
+
+    /// <summary>Fraction of time the channel is on: 1 for CW, duty for pulsed.</summary>
+    public double OnFraction => FrequencyHz <= 0 ? 1.0 : DutyCyclePercent / 100.0;
 
     public int[] ResolvedZones => Zones switch
     {

@@ -448,7 +448,7 @@ struct NPPSParser {
         switch key {
         case "pbm_transcranial":
             var lim = NPPBMTranscranialLimits()
-            if let v = fields["max_intensity"]?.asPercent   { lim.maxIntensityPercent = v }
+            if let v = fields["max_irradiance_mw_cm2"]?.asDouble { lim.maxIrradianceMWcm2 = v }
             if let v = fields["max_frequency"]?.asHz        { lim.maxFrequencyHz = v }
             if let v = fields["max_duty_cycle"]?.asPercent  { lim.maxDutyCyclePercent = Int(v) }
             if let v = fields["max_session_dose"]?.asDouble { lim.maxSessionDoseJCm2 = v }
@@ -935,9 +935,27 @@ struct NPPSParser {
         switch name {
         case "pbm_transcranial":
             var p = NPPBMTranscranialParams()
-            if let v = fields["intensity"]?.asPercent { p.intensityPercent = v }
+            // Absolute irradiance (OI-HEXTILE-25): a percentage of emitter
+            // capability has no fixed meaning, so it is refused, not scaled.
+            if fields["intensity"] != nil || fields["intensity_percent"] != nil {
+                throw NPPSError(
+                    message: "pbm_transcranial takes irradiance_mw_cm2 (on-state mW/cm²), not intensity — "
+                        + "a percentage of emitter capability has no fixed meaning (NP-NPPS-REF-001 §4.1)",
+                    line: line)
+            }
+            if let v = fields["irradiance_mw_cm2"]?.asDouble { p.irradianceMWcm2 = v }
             if let v = fields["frequency"]?.asHz { p.frequencyHz = v }
-            if let v = fields["duty_cycle"]?.asPercent { p.dutyCyclePercent = Int(v) }
+            // Continuous means continuous: a duty cycle beside CW contradicts it.
+            if p.frequencyHz <= 0 {
+                if fields["duty_cycle"] != nil || fields["duty_cycle_percent"] != nil {
+                    throw NPPSError(
+                        message: "pbm_transcranial: frequency 0 is continuous wave (100 % on-time); remove duty_cycle",
+                        line: line)
+                }
+                p.dutyCyclePercent = 100
+            } else if let v = fields["duty_cycle"]?.asPercent {
+                p.dutyCyclePercent = Int(v)
+            }
             if let v = fields["zones"] {
                 p.target = try parsePBMTarget(v, line: line)
             }
@@ -1428,7 +1446,7 @@ struct NPPSSerializer {
 
         if let lim = limits.pbmTranscranial {
             lines.append("    pbm_transcranial {")
-            if let v = lim.maxIntensityPercent   { lines.append("        max_intensity: \(Int(v))%") }
+            if let v = lim.maxIrradianceMWcm2    { lines.append("        max_irradiance_mw_cm2: \(formatIrradiance(v))") }
             if let v = lim.maxFrequencyHz         { lines.append("        max_frequency: \(formatHz(v))") }
             if let v = lim.maxDutyCyclePercent    { lines.append("        max_duty_cycle: \(v)%") }
             if let v = lim.maxSessionDoseJCm2     { lines.append("        max_session_dose: \(v)") }
@@ -1595,7 +1613,7 @@ struct NPPSSerializer {
         switch params {
         case .pbmTranscranial(let p):
             var lines: [String] = []
-            lines.append("intensity: \(Int(p.intensityPercent))%")
+            lines.append("irradiance_mw_cm2: \(formatIrradiance(p.irradianceMWcm2))")
             lines.append("frequency: \(formatHz(p.frequencyHz))")
             if p.frequencyHz > 0 {
                 lines.append("duty_cycle: \(p.dutyCyclePercent)%")
@@ -1780,6 +1798,11 @@ struct NPPSSerializer {
         if seconds % 3600 == 0 { return "\(seconds / 3600)h" }
         if seconds % 60 == 0   { return "\(seconds / 60)m" }
         return "\(seconds)s"
+    }
+
+    /// mW/cm² without a spurious ".0" — `irradiance_mw_cm2: 36`.
+    private func formatIrradiance(_ v: Double) -> String {
+        v == Double(Int(v)) ? "\(Int(v))" : "\(v)"
     }
 
     private func formatHz(_ hz: Double) -> String {

@@ -4,7 +4,7 @@ import Foundation
 // All fields are Optional — nil means "no limit at this tier; defer to lower priority or hardware max".
 
 struct NPPBMTranscranialLimits: Codable, Equatable {
-    var maxIntensityPercent: Double?        // 0–100
+    var maxIrradianceMWcm2: Double?         // on-state, mW/cm² (absolute — OI-HEXTILE-25)
     var maxFrequencyHz: Double?
     var maxDutyCyclePercent: Int?           // ≤25 always enforced by hardware, this adds a tighter ceiling
     var maxSessionDoseJCm2: Double?         // J/cm² per zone per session
@@ -171,7 +171,7 @@ enum NPLimitSource: CustomStringConvertible, Equatable {
 }
 
 struct NPPBMTranscranialSources: Equatable {
-    var maxIntensityPercent: NPLimitSource?
+    var maxIrradianceMWcm2: NPLimitSource?
     var maxFrequencyHz: NPLimitSource?
     var maxDutyCyclePercent: NPLimitSource?
     var maxSessionDoseJCm2: NPLimitSource?
@@ -339,14 +339,14 @@ extension NPLimitsSet {
     ) -> (NPPBMTranscranialLimits?, NPPBMTranscranialSources?) {
         guard i != nil || h != nil || g != nil else { return (nil, nil) }
         let lim = NPPBMTranscranialLimits(
-            maxIntensityPercent:  i?.maxIntensityPercent  ?? h?.maxIntensityPercent  ?? g?.maxIntensityPercent,
+            maxIrradianceMWcm2:   i?.maxIrradianceMWcm2   ?? h?.maxIrradianceMWcm2   ?? g?.maxIrradianceMWcm2,
             maxFrequencyHz:       i?.maxFrequencyHz       ?? h?.maxFrequencyHz       ?? g?.maxFrequencyHz,
             maxDutyCyclePercent:  i?.maxDutyCyclePercent  ?? h?.maxDutyCyclePercent  ?? g?.maxDutyCyclePercent,
             maxSessionDoseJCm2:   i?.maxSessionDoseJCm2   ?? h?.maxSessionDoseJCm2   ?? g?.maxSessionDoseJCm2,
             maxDailyDoseJCm2:     i?.maxDailyDoseJCm2     ?? h?.maxDailyDoseJCm2     ?? g?.maxDailyDoseJCm2
         )
         let sources = NPPBMTranscranialSources(
-            maxIntensityPercent:  src(i?.maxIntensityPercent,  h?.maxIntensityPercent,  g?.maxIntensityPercent),
+            maxIrradianceMWcm2:   src(i?.maxIrradianceMWcm2,   h?.maxIrradianceMWcm2,   g?.maxIrradianceMWcm2),
             maxFrequencyHz:       src(i?.maxFrequencyHz,       h?.maxFrequencyHz,       g?.maxFrequencyHz),
             maxDutyCyclePercent:  src(i?.maxDutyCyclePercent,  h?.maxDutyCyclePercent,  g?.maxDutyCyclePercent),
             maxSessionDoseJCm2:   src(i?.maxSessionDoseJCm2,   h?.maxSessionDoseJCm2,   g?.maxSessionDoseJCm2),

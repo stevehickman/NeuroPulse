@@ -35,7 +35,8 @@ np_pbm_status_t np_pbm_drive_startup(uint8_t slot,
                                                const np_pbm_preset_t *preset);
 
 /*
- * Set duty on one or all channels.  Clamps to NP_PBM_DUTY_MAX_REG.
+ * Set duty on one or all channels.  Clamps each channel by its frequency code:
+ * pulsed ≤ NP_PBM_DUTY_MAX_REG (25 %), CW ≤ NP_PBM_DUTY_FULL_REG (100 %).
  * ch_mask: bitmask (NP_PBM_CH_A_EN etc.); 0xFF = all enabled channels.
  */
 np_pbm_status_t np_pbm_drive_set_duty(uint8_t slot,
@@ -44,7 +45,8 @@ np_pbm_status_t np_pbm_drive_set_duty(uint8_t slot,
                                                 uint8_t duty);
 
 /*
- * Set PWM frequency code on all enabled channels.
+ * Set PWM frequency code on all enabled channels.  A channel moved off CW has
+ * its duty brought under NP_PBM_DUTY_MAX_REG first (OI-HEXTILE-25).
  */
 np_pbm_status_t np_pbm_drive_set_freq(uint8_t slot,
                                                 np_pbm_drv_slot_t *drv,

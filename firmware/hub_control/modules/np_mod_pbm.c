@@ -22,6 +22,7 @@
 #include "np_session_log.h"
 #include "np_safety_spi.h"
 #include "np_socket_dispatch.h"   /* socket entry points + NP_HEXMAP_MAX_SOCKETS */
+#include "np_pbm_irradiance.h"    /* mW/cm² → CUR codes, R-4/R-5 refusal (OI-HEXTILE-25) */
 #include <string.h>
 
 /* Pull in existing PBM detection and drive infrastructure. */
@@ -68,11 +69,28 @@ static np_mod_pbm_state_t s_state[NP_HUB_ZONE_SLOT_COUNT];
 static np_pbm_cal_t s_cal[NP_HUB_ZONE_SLOT_COUNT][NP_PBM_WL_COUNT];
 static bool             s_cal_loaded = false;
 
-/* ── Duty ceiling enforcement ────────────────────────────────────────────────── */
+/* ── Irradiance → drive command (OI-HEXTILE-25) ──────────────────────────────── */
 
-static uint8_t clamp_duty(uint8_t duty)
+/*
+ * Commands carry on-state irradiance in mW/cm², not current.  Resolve it for
+ * the module type being driven; a command over R-4/R-5 or beyond the tile's
+ * reach is refused here and never reaches a driver.  Duty is CW → 100 %,
+ * pulsed → ≤ 25 % (np_pbm_irradiance.h).
+ */
+static np_hub_status_t resolve_smart(const np_mod_pbm_smart_params_t *p,
+                                     np_pbm_drive_cmd_t *cmd)
 {
-    return (duty > NP_PBM_DUTY_MAX_REG) ? NP_PBM_DUTY_MAX_REG : duty;
+    const uint16_t irr[3] = { p->irr_a, p->irr_b, p->irr_c };
+    return np_pbm_irr_resolve(NP_MOD_PBM_SMART, p->freq_code, p->duty, irr,
+                              p->ch_mask, cmd);
+}
+
+static np_hub_status_t resolve_base(const np_mod_pbm_base_params_t *p,
+                                    np_pbm_drive_cmd_t *cmd)
+{
+    const uint16_t irr[3] = { p->irr_a, p->irr_b, 0U };
+    return np_pbm_irr_resolve(NP_MOD_PBM_BASE, p->freq_code, p->duty, irr,
+                              0U, cmd);
 }
 
 /* ── Detect ──────────────────────────────────────────────────────────────────── */
@@ -178,16 +196,20 @@ np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t le
         const np_mod_pbm_smart_params_t *p =
             (const np_mod_pbm_smart_params_t *)params;
 
-        uint8_t duty = clamp_duty(p->duty);
+        np_pbm_drive_cmd_t cmd;
+        if (resolve_smart(p, &cmd) != NP_HUB_OK) {
+            return NP_HUB_ERR_INVALID_ARG;
+        }
+        const uint8_t duty = cmd.duty;
         np_pbm_drv_slot_t *drv = &s_state[slot].drv;
 
         /* Bring up the driver IC (CONFIG → CUR → FREQ → DUTY=0 → CH_ENABLE →
          * STATUS check).  freq_hz is left 0 here; the exact PWM frequency code
          * from the session descriptor is applied below via drive_set_freq(). */
         np_pbm_preset_t preset = {
-            .cur_a        = p->cur_a,
-            .cur_b        = p->cur_b,
-            .cur_c        = p->cur_c,
+            .cur_a        = cmd.cur[0],
+            .cur_b        = cmd.cur[1],
+            .cur_c        = cmd.cur[2],
             .freq_hz      = 0U,
             .duty         = duty,
             .channel_mask = p->ch_mask,
@@ -212,10 +234,13 @@ np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t le
         const np_mod_pbm_base_params_t *p =
             (const np_mod_pbm_base_params_t *)params;
 
-        uint8_t duty = clamp_duty(p->duty);
+        np_pbm_drive_cmd_t cmd;
+        if (resolve_base(p, &cmd) != NP_HUB_OK) {
+            return NP_HUB_ERR_INVALID_ARG;
+        }
         np_hub_status_t rc = np_mod_pbm_hal_pwm_set(slot,
-                                                      p->cur_a, p->cur_b,
-                                                      p->freq_code, duty);
+                                                      cmd.cur[0], cmd.cur[1],
+                                                      cmd.freq_code, cmd.duty);
         if (rc != NP_HUB_OK) {
             return NP_HUB_ERR_MOD_FAULT;
         }
@@ -320,13 +345,18 @@ np_hub_status_t np_mod_pbm_socket_drive(uint16_t          socket_id,
         const np_mod_pbm_smart_params_t *p =
             (const np_mod_pbm_smart_params_t *)params;
         const uint8_t     addr = (uint8_t)socket_id;   /* < 128, fits */
-        const uint8_t     duty = clamp_duty(p->duty);
         np_pbm_drv_slot_t *drv = &s_sock_drv[socket_id];
 
+        np_pbm_drive_cmd_t cmd;
+        if (resolve_smart(p, &cmd) != NP_HUB_OK) {
+            return NP_HUB_ERR_INVALID_ARG;
+        }
+        const uint8_t duty = cmd.duty;
+
         np_pbm_preset_t preset = {
-            .cur_a        = p->cur_a,
-            .cur_b        = p->cur_b,
-            .cur_c        = p->cur_c,
+            .cur_a        = cmd.cur[0],
+            .cur_b        = cmd.cur[1],
+            .cur_c        = cmd.cur[2],
             .freq_hz      = 0U,
             .duty         = duty,
             .channel_mask = p->ch_mask,
@@ -343,9 +373,13 @@ np_hub_status_t np_mod_pbm_socket_drive(uint16_t          socket_id,
     if (mod_type == NP_MOD_PBM_BASE && len == sizeof(np_mod_pbm_base_params_t)) {
         const np_mod_pbm_base_params_t *p =
             (const np_mod_pbm_base_params_t *)params;
+        np_pbm_drive_cmd_t cmd;
+        if (resolve_base(p, &cmd) != NP_HUB_OK) {
+            return NP_HUB_ERR_INVALID_ARG;
+        }
         s_sock_type[socket_id] = NP_MOD_PBM_BASE;
-        return (np_mod_pbm_hal_socket_pwm_set(socket_id, p->cur_a, p->cur_b,
-                                              p->freq_code, clamp_duty(p->duty))
+        return (np_mod_pbm_hal_socket_pwm_set(socket_id, cmd.cur[0], cmd.cur[1],
+                                              cmd.freq_code, cmd.duty)
                 == NP_HUB_OK) ? NP_HUB_OK : NP_HUB_ERR_MOD_FAULT;
     }
 

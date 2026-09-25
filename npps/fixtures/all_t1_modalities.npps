@@ -7,7 +7,7 @@ protocol "All T1 Modalities" {
     duration: 30m
 
     pbm_transcranial {
-        intensity: 75%
+        irradiance_mw_cm2: 302
         frequency: 20Hz
         duty_cycle: 25%
         zones: ["All"]

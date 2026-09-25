@@ -260,8 +260,8 @@ console.log(`R_cav ${R_CAVITY_OPTIMISTIC} / τ ${TAU_FACE_MAX}: peak ${sens(R_CA
 const amb = sessionDose(BUDGET_W, refTileW, 20, R_CAVITY_CONSERVATIVE, TAU_FACE_MIN, 35);
 console.log(`Ambient 35 °C (NP-ENV-OPRANGE-001 derate threshold): peak ${amb.peakUnclampedC.toFixed(1)} °C, CEM43 ${fmt(amb.cem43)}`);
 console.log(
-  `\nOI-SESPWR-03 moves the heat of 6 of ${rows.length} protocols by 4×, exactly as it moves their power ` +
-  `(NP-SES-PWR-001 §2.4) — the CW reading is used throughout, per D-3 there.`,
+  `\nOI-SESPWR-03 no longer moves any protocol's heat: CW is continuous and a CW block takes no ` +
+  `duty_cycle (OI-HEXTILE-25), so the CW reading NP-SES-PWR-001 D-3 used is now the only one.`,
 );
 console.log(
   `\nSR-FAN-03's fan-loss case is NOT modelled: PBM halts or trickles to ~4.5 mW/cm² on fan loss ` +

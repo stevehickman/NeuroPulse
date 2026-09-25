@@ -80,9 +80,11 @@ env:
   # NP-SOUP-LFS-001 Rev 4 (OI-LFS-05/-06/-08/-09) then added two Class B
   # targets, np_cfg_store_tests and np_lfs_log_instance_tests: 10 + 34 = 44,
   # re-derived with `ctest -N` on the tree.
-  NP_TOTAL_TEST_COUNT: '44'
+  # NP-HW-HEXTILE-001 Rev 14 (OI-HEXTILE-25) then added one Class B target,
+  # np_pbm_irradiance_tests: 10 + 35 = 45, re-derived with `ctest -N`.
+  NP_TOTAL_TEST_COUNT: '45'
   NP_SAFETY_TEST_COUNT: '10'
-  NP_CLASS_B_TEST_COUNT: '34'
+  NP_CLASS_B_TEST_COUNT: '35'
 
 jobs:
   host-tests-all:

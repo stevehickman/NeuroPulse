@@ -16,34 +16,31 @@ protocol "PBM — Alzheimer's 1064nm (deep-cortical channel)" {
         # 0.1–0.3 W/cm²) rather than the cognitive one."
         #
         # WHAT CHANGED, AND WHAT DID NOT. The commanded parameters are almost
-        # unchanged — intensity is still 100%, which on this channel means "all
-        # the drive CH_C has". What changed is the TARGET, the CONDITION and the
-        # ZONE. This is a claim-and-targeting change, not a power change.
+        # unchanged — this block carried `intensity: 100%`, which on this channel
+        # meant "all the drive CH_C has": 28 mW/cm² (NP-HW-HEXTILE-001 §4.3.2).
+        # Since 2026-09-25 that is stated as the absolute irradiance it always was
+        # (OI-HEXTILE-25). What changed at re-authoring is the TARGET, the
+        # CONDITION and the ZONE — a claim-and-targeting change, not a power change.
         #
-        # THE SHORTFALL NARROWS BUT DOES NOT CLOSE. NP-HW-HEXTILE-001 §4.3.2
-        # gives CH_C 28 mW/cm² peak at 30 sites, and the 1064 duty is
-        # firmware-capped at 25% (np_pbm_drive_set_duty), so 7.0 mW/cm² average:
+        # THE SHORTFALL NARROWS BUT DOES NOT CLOSE. CH_C gives 28 mW/cm² at 30
+        # sites. CW is now CONTINUOUS (OI-HEXTILE-25 — it was capped at 25 % duty
+        # until 2026-09-25, 7.0 mW/cm² average), so 28 mW/cm² average:
         #
         #                          irradiance      dose delivered   dose target
         #   §3 cognitive (old)     8.9× short      3.4 J/cm²        60  (18×)
-        #   §1 Alzheimer's (new)   3.6× short      2.5 J/cm²        20  (7.9×)
+        #   §1 Alzheimer's, 25 %   3.6× short      2.5 J/cm²        20  (7.9×)
+        #   §1 Alzheimer's, CW     3.6× short     10.1 J/cm²        20  (2.0×)
         #
-        # Better on both axes, and the target is one the architecture could
-        # plausibly reach with a better emitter — which §3's could not, at any
-        # tile population (OI-HEXTILE-21: η_wp ≈ 4.8% is an emitter wall, not a
-        # power or layout shortfall). It is still NOT reachable today.
-        #
-        # ONE FIGURE WORTH KNOWING: at 7.0 mW/cm² average it would take 48 min
-        # to reach §1's 20 J/cm² dose floor. If true CW were available — §1 says
-        # "CW is acceptable at 1060 nm" — it would take 11.9 min, inside the
-        # firmware's 36 J/cm²/session cap (OI-SES-01). So the duty cap, not the
-        # session length, is what puts §1's dose band out of reach.
-        intensity: 100%
+        # The target is one the architecture could plausibly reach with a better
+        # emitter — which §3's could not, at any tile population (OI-HEXTILE-21:
+        # η_wp ≈ 4.8% is an emitter wall, not a power or layout shortfall). It is
+        # still NOT reachable today: irradiance is 3.6× under §1's 0.1 W/cm² floor
+        # whatever the mode, and 6 min delivers half the 20 J/cm² floor, which
+        # 11.9 min of CW would reach.
+        irradiance_mw_cm2: 28
         frequency: 0Hz
-        duty_cycle: 25%
-        # frequency: 0Hz requests CW, which §1 permits at 1060nm. The 25% duty
-        # cap means it is not delivered. Written explicitly so
-        # scripts/check-pbm-power.ts sees the OI-SESPWR-03 CW+duty ambiguity.
+        # frequency: 0Hz is CW, which §1 permits at 1060nm, and CW now means
+        # continuous: 100 % on-time. A CW block takes no duty_cycle.
         zones: ["Vault (excl. Occipital)"]
         # §1's site is "whole-head (bilateral frontal, temporal, parietal +
         # midline)", so the right-lateralized zone this protocol used under the

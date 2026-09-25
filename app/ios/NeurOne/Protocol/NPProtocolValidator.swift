@@ -413,8 +413,27 @@ struct NPProtocolValidator {
             }
         }
 
-        // Hardware: duty cycle ≤ 25%
-        if p.dutyCyclePercent > NPHardwareLimits.pbmDutyCycleMaxPercent {
+        // Hardware: R-4 is two ceilings on the on-state irradiance — 400 mW/cm²
+        // pulsed at ≤ 25 % duty, 200 mW/cm² continuous (OI-HEXTILE-25).
+        let cw = p.frequencyHz <= 0
+        let irrCeiling = cw ? NPHardwareLimits.pbmCWMaxMWcm2 : NPHardwareLimits.pbmPulsedPeakMWcm2
+        if p.irradianceMWcm2 > irrCeiling {
+            result.addError(
+                modality: m, param: "irradianceMWcm2", displayName: String(localized: "VALIDATE_PARAM_IRRADIANCE"),
+                actual: "\(Int(p.irradianceMWcm2)) mW/cm²",
+                limit: "\(Int(irrCeiling)) mW/cm²",
+                source: .hardware,
+                message: String(
+                    format: cw ? String(localized: "VALIDATE_MSG_PBM_TRANSCRANIAL_IRRADIANCE_CW")
+                               : String(localized: "VALIDATE_MSG_PBM_TRANSCRANIAL_IRRADIANCE_PEAK"),
+                    String(describing: Int(p.irradianceMWcm2)),
+                    String(describing: Int(irrCeiling))
+                )
+            )
+        }
+
+        // Hardware: pulsed duty cycle ≤ 25% (CW is continuous — no duty applies)
+        if !cw && p.dutyCyclePercent > NPHardwareLimits.pbmDutyCycleMaxPercent {
             result.addError(
                 modality: m, param: "dutyCyclePercent", displayName: String(localized: "VALIDATE_PARAM_DUTY_CYCLE"),
                 actual: "\(p.dutyCyclePercent)%",
@@ -437,16 +456,16 @@ struct NPProtocolValidator {
             )
         }
 
-        // Dosage: max intensity
-        if let maxI = lim?.maxIntensityPercent, p.intensityPercent > maxI {
+        // Dosage: max irradiance (absolute, mW/cm²)
+        if let maxI = lim?.maxIrradianceMWcm2, p.irradianceMWcm2 > maxI {
             result.addError(
-                modality: m, param: "intensityPercent", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
-                actual: "\(Int(p.intensityPercent))%",
-                limit: "\(Int(maxI))%",
-                source: srcs?.maxIntensityPercent ?? .global_,
+                modality: m, param: "irradianceMWcm2", displayName: String(localized: "VALIDATE_PARAM_IRRADIANCE"),
+                actual: "\(Int(p.irradianceMWcm2)) mW/cm²",
+                limit: "\(Int(maxI)) mW/cm²",
+                source: srcs?.maxIrradianceMWcm2 ?? .global_,
                 message: String(
-                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYPERCENT_2"),
-                    String(describing: Int(p.intensityPercent)),
+                    format: String(localized: "VALIDATE_MSG_PBM_TRANSCRANIAL_IRRADIANCE"),
+                    String(describing: Int(p.irradianceMWcm2)),
                     String(describing: Int(maxI))
                 )
             )
@@ -468,7 +487,7 @@ struct NPProtocolValidator {
         }
 
         // Dosage: max duty cycle (configured limit, tighter than hardware 25%)
-        if let maxDC = lim?.maxDutyCyclePercent, p.dutyCyclePercent > maxDC {
+        if !cw, let maxDC = lim?.maxDutyCyclePercent, p.dutyCyclePercent > maxDC {
             result.addError(
                 modality: m, param: "dutyCyclePercent", displayName: String(localized: "VALIDATE_PARAM_DUTY_CYCLE"),
                 actual: "\(p.dutyCyclePercent)%",
@@ -483,13 +502,9 @@ struct NPProtocolValidator {
         }
 
         // Dosage: max session dose J/cm² (ISC-47).
-        // Estimated irradiance: CW path uses pbmCWMaxMWcm2; pulsed path scales by duty cycle.
-        // Dose (J/cm²) = irradiance (mW/cm²) × intensity_fraction × duration (s) / 1000.
+        // Dose (J/cm²) = on-state irradiance (mW/cm²) × fraction of time on × duration (s) / 1000.
         if let maxDose = lim?.maxSessionDoseJCm2, let dur = totalDurationSeconds, dur > 0 {
-            let peakMWcm2: Double = p.frequencyHz == 0
-                ? NPHardwareLimits.pbmCWMaxMWcm2                                        // CW
-                : NPHardwareLimits.pbmPulsedPeakMWcm2 * Double(p.dutyCyclePercent) / 100 // pulsed avg
-            let estimatedDose = peakMWcm2 * (p.intensityPercent / 100.0) * Double(dur) / 1000.0
+            let estimatedDose = p.irradianceMWcm2 * p.onFraction * Double(dur) / 1000.0
             if estimatedDose > maxDose {
                 result.addError(
                     modality: m, param: "sessionDoseJCm2", displayName: String(localized: "VALIDATE_PARAM_SESSION_DOSE"),

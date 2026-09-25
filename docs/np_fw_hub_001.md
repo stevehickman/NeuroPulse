@@ -420,7 +420,7 @@ Each command in the body is:
 ```
 
 Constants (`np_hub_config.h`): magic `NP_HUB_PROTO_MAGIC` = `0x4E504850` (`"NPHP"`); version
-`NP_HUB_PROTO_VERSION` = 3; UUID 16 B; serial 32 B ASCII; signature 64 B; at most
+`NP_HUB_PROTO_VERSION` = 4; UUID 16 B; serial 32 B ASCII; signature 64 B; at most
 `NP_HUB_PROTO_CMD_MAX` = 64 commands; at most `NP_HUB_PROTO_PARAMS_MAX` = 64 params bytes per
 command; target block at most `NP_HUB_PROTO_TARGET_MAX` = 16 B.
 
@@ -498,7 +498,8 @@ parser does not partially populate.
 |---|---|---|
 | 1 | original; `slot_mask` byte addressing | — |
 | 2 | `slot_id` + variable target block; socket-mask targeting | 80 sockets do not fit in five bits, and are not slots |
-| **3** | `np_mod_tdcs_params_t` grew `electrode_area_mcm2` (6 → 8 B) — `OI-CHARGE-04` | a v2 descriptor's tDCS block is a *different length* for the same modality code. Left at v2, the only symptom would be `NP_HUB_ERR_INVALID_ARG` out of the stim handler at dispatch, which reads as a **corrupt** descriptor. `NP_HUB_ERR_BAD_VERSION` at header verification says what actually happened. |
+| 3 | `np_mod_tdcs_params_t` grew `electrode_area_mcm2` (6 → 8 B) — `OI-CHARGE-04` | a v2 descriptor's tDCS block is a *different length* for the same modality code. Left at v2, the only symptom would be `NP_HUB_ERR_INVALID_ARG` out of the stim handler at dispatch, which reads as a **corrupt** descriptor. `NP_HUB_ERR_BAD_VERSION` at header verification says what actually happened. |
+| **4** | `np_mod_pbm_base_params_t` 4 → 6 B and `np_mod_pbm_smart_params_t` 6 → 9 B: transcranial PBM carries on-state irradiance in mW/cm² (`uint16`) instead of `CUR` codes, and CW is continuous — `OI-HEXTILE-25` (2026-09-25) | the same reason as v3: a v3 PBM block is a different length for the same modality code |
 
 `REQ-FWHUB-10`: **any change to a per-modality parameter struct's length bumps
 `NP_HUB_PROTO_VERSION`.** The rule is length, not semantics — a struct that changes meaning at the

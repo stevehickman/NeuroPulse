@@ -81,14 +81,25 @@
 #define NP_PBM_CONFIG_PWM_MODE      (1U << 1)
 #define NP_PBM_CONFIG_SYNC_EN       (1U << 2)
 
-/* ── Duty cycle ceiling (25%, IEC 60601 peak pulsed limit) ──────────────────── */
+/* ── Duty cycle ceiling (25% pulsed; CW is continuous) ─────────────────────── */
 
 /*
  * DUTY register encodes 0.5% per LSB: 0x00=0%, 0x32=25%, 0xC8=100%.
- * Hub firmware never writes > NP_PBM_DUTY_MAX_REG to any DUTY register.
+ * A PULSED channel is never written above NP_PBM_DUTY_MAX_REG (R-4: 400 mW/cm²
+ * peak at ≤ 25 % duty).  A CW channel runs at NP_PBM_DUTY_FULL_REG: continuous
+ * means continuous, and R-4's CW ceiling (200 mW/cm²) is enforced on the
+ * irradiance, not the duty (OI-HEXTILE-25; np_pbm_irradiance.h).  Which ceiling
+ * applies is decided by the channel's frequency code, so a channel leaving CW
+ * is re-clamped to 25 % (np_pbm_drive_set_freq).
  */
-#define NP_PBM_DUTY_MAX_REG         0x32U   /* 50 decimal; 25% duty           */
-#define NP_PBM_DUTY_FULL_REG        0xC8U   /* 200 decimal; 100% (CW ref)     */
+#define NP_PBM_DUTY_MAX_REG         0x32U   /* 50 decimal; 25% duty, pulsed   */
+#define NP_PBM_DUTY_FULL_REG        0xC8U   /* 200 decimal; 100%, CW          */
+
+/* The duty a channel at `fcode` is written with, for a requested `duty`:
+ * CW → always 100 %; pulsed → min(duty, 25 %). */
+#define NP_PBM_DUTY_MAX_FOR(fcode, duty)                                        \
+    (((fcode) == NP_PBM_FREQ_CODE_CW) ? (uint8_t)NP_PBM_DUTY_FULL_REG :         \
+     (((duty) > NP_PBM_DUTY_MAX_REG) ? (uint8_t)NP_PBM_DUTY_MAX_REG : (uint8_t)(duty)))
 
 /* ── PWM frequency codes ─────────────────────────────────────────────────────── */
 

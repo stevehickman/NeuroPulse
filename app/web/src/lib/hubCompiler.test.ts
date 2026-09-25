@@ -39,6 +39,7 @@ const TARGET_SOCKET_MASK = 0x01;
 const SLOT_NONE = 0xff;
 
 const NP_MOD_PBM_BASE = 0x01;
+const NP_MOD_PBM_SMART = 0x02;
 const NP_MOD_EEG = 0x04;
 
 // ─── Blob reader ───────────────────────────────────────────────────────────────
@@ -123,7 +124,7 @@ function pbmProtocol(params: Partial<PBMTranscranialParams>): NPProtocolDefiniti
         params: {
           zones: 'named',
           wavelength: '660_808nm',
-          intensityPercent: 80,
+          irradianceMWcm2: 322,
           frequencyHz: 40,
           dutyCyclePercent: 25,
           ...params,
@@ -157,13 +158,47 @@ describe('hub protocol v3 wire format', () => {
     // pins from the other side — the hub rejects anything else as
     // NP_HUB_ERR_BAD_VERSION before it reads a single command.
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['Frontal Left'] }), { zones });
-    expect(readBlob(blob).version).toBe(3);
+    expect(readBlob(blob).version).toBe(4);
   });
 
   it('emits a 14-byte command header with a target block', () => {
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['Frontal Left'] }), { zones });
-    // 1 continuous command: header + cmdhdr + 16-byte mask + 4 params + sig.
-    expect(blob.length).toBe(HEADER_LEN + CMD_HDR_LEN + SOCKET_MASK_BYTES + 4 + SIG_LEN);
+    // 1 continuous command: header + cmdhdr + 16-byte mask + 6 params + sig
+    // (np_mod_pbm_base_params_t: fc, duty, irr_a u16, irr_b u16 — OI-HEXTILE-25).
+    expect(blob.length).toBe(HEADER_LEN + CMD_HDR_LEN + SOCKET_MASK_BYTES + 6 + SIG_LEN);
+  });
+});
+
+describe('transcranial PBM is commanded in absolute irradiance (OI-HEXTILE-25)', () => {
+  const u16 = (b: Uint8Array, i: number) => b[i] | (b[i + 1] << 8);
+
+  it('base: fc, duty, then irr_a and irr_b as little-endian mW/cm²', () => {
+    const cmds = readBlob(compileProtocol(pbmProtocol({ zoneRefs: ['All'], irradianceMWcm2: 322 }), { zones }).blob).cmds;
+    const p = cmds.find(c => c.modType === NP_MOD_PBM_BASE)!.params;
+    expect(p).toHaveLength(6);
+    expect([p[0], p[1]]).toEqual([40, 0x32]);
+    expect([u16(p, 2), u16(p, 4)]).toEqual([322, 322]);
+  });
+
+  it('CW is continuous: duty 0xC8 whatever the duty field holds', () => {
+    const cmds = readBlob(compileProtocol(
+      pbmProtocol({ zoneRefs: ['All'], irradianceMWcm2: 36, frequencyHz: 0, dutyCyclePercent: 25 }), { zones }).blob).cmds;
+    const p = cmds.find(c => c.modType === NP_MOD_PBM_BASE)!.params;
+    expect([p[0], p[1]]).toEqual([0x00, 0xC8]);
+    expect(u16(p, 2)).toBe(36);
+  });
+
+  it('pulsed duty is still capped at 25 %', () => {
+    const cmds = readBlob(compileProtocol(pbmProtocol({ zoneRefs: ['All'], dutyCyclePercent: 90 }), { zones }).blob).cmds;
+    expect(cmds.find(c => c.modType === NP_MOD_PBM_BASE)!.params[1]).toBe(0x32);
+  });
+
+  it('1064nm-only: smart block, irradiance on CH_C only, mask 0x04', () => {
+    const cmds = readBlob(compileProtocol(
+      pbmProtocol({ zoneRefs: ['All'], wavelength: '1064nm', irradianceMWcm2: 28, frequencyHz: 0 }), { zones }).blob).cmds;
+    const p = cmds.find(c => c.modType === NP_MOD_PBM_SMART)!.params;
+    expect(p).toHaveLength(9);
+    expect([u16(p, 2), u16(p, 4), u16(p, 6), p[8]]).toEqual([0, 0, 28, 0x04]);
   });
 });
 
@@ -369,7 +404,7 @@ describe('slot-addressed fixed devices', () => {
 // wire change should move them.
 describe('parameter block sizes match the firmware structs', () => {
   const EXPECTED: Record<string, { size: number; slot: number | null; params: object }> = {
-    pbm_transcranial:   { size: 4,  slot: null, params: { zones: 'named', zoneRefs: ['All'], wavelength: '660_808nm', intensityPercent: 50, frequencyHz: 40, dutyCyclePercent: 25 } },
+    pbm_transcranial:   { size: 6,  slot: null, params: { zones: 'named', zoneRefs: ['All'], wavelength: '660_808nm', irradianceMWcm2: 200, frequencyHz: 40, dutyCyclePercent: 25 } },
     pbm_intranasal:     { size: 5,  slot: 9,    params: { intensityPercent: 60, frequencyHz: 10, dutyCyclePercent: 25 } },
     eeg_neurofeedback:  { size: 5,  slot: 5,    params: { channels: 'all', band: 'alpha', closedLoopEnabled: false } },
     bes_tacs:           { size: 7,  slot: 17,   params: { frequencyHz: 10, intensityMilliamps: 0.8, waveform: 'sinusoidal' } },
@@ -477,7 +512,7 @@ describe('mixed-target protocols', () => {
     const eeg = cmds.find(c => c.modType === NP_MOD_EEG)!;
 
     expect(socketsInMask(pbm.socketMask)).toEqual(zones.get('Occipital Left')!.sockets);
-    expect(pbm.params).toHaveLength(4);
+    expect(pbm.params).toHaveLength(6);
     expect(eeg.slotId).toBe(5);
     expect(eeg.params).toHaveLength(5);
   });

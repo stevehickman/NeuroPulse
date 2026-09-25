@@ -125,9 +125,14 @@ struct NPPBMTranscranialParams: Codable, Equatable {
     /// for any target the parser did not recognise.
     var target: NPPBMTarget = .named(["All"])
     var wavelength: Wavelength = .base660_808nm
-    var intensityPercent: Double = 75
+    /// On-state irradiance at the scalp face, mW/cm², per lit wavelength channel —
+    /// absolute, never a fraction of emitter capability (OI-HEXTILE-25).
+    var irradianceMWcm2: Double = 300
     var frequencyHz: Double = 20        // 0 = CW
-    var dutyCyclePercent: Int = 25      // ≤25, only shown when frequencyHz > 0
+    var dutyCyclePercent: Int = 25      // ≤25 pulsed; CW is continuous and the parser stores 100
+
+    /// Fraction of time the channel is on: 1 for CW, duty for pulsed.
+    var onFraction: Double { frequencyHz <= 0 ? 1 : Double(dutyCyclePercent) / 100 }
 
     /// The sockets this modality drives, as the firmware bitmap. Throws — with a
     /// message naming the zone or selector at fault — rather than falling back to

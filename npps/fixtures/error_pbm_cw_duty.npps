@@ -1,0 +1,13 @@
+# ERROR FIXTURE — frequency 0 is continuous wave, 100 % on-time; a duty_cycle
+# beside it contradicts it (OI-HEXTILE-25, closes OI-SESPWR-03). Parsing MUST fail.
+protocol "CW with a duty cycle" {
+    duration: 10m
+
+    pbm_transcranial {
+        irradiance_mw_cm2: 36
+        frequency: 0Hz
+        duty_cycle: 25%
+        zones: ["All"]
+        wavelength: "660_808nm"
+    }
+}

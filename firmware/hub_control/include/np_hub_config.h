@@ -17,7 +17,12 @@
  * at command dispatch, which reads as a corrupt descriptor rather than an
  * out-of-date one.  NP_HUB_ERR_BAD_VERSION at header verification says what
  * actually happened.  v2: socket-addressed targets.                          */
-#define NP_HUB_PROTO_VERSION        0x0003U
+/* v4 (OI-HEXTILE-25): the transcranial PBM params carry on-state irradiance in
+ * mW/cm² (uint16) instead of current codes — np_mod_pbm_base_params_t 4 → 6
+ * bytes, np_mod_pbm_smart_params_t 6 → 9 — and CW is continuous.  Bumped for
+ * the same reason as v3: a v3 PBM block is a different length for the same
+ * modality code, and "out of date" should say so at the header.            */
+#define NP_HUB_PROTO_VERSION        0x0004U
 #define NP_HUB_PROTO_UUID_LEN       16U            /* session UUID (UHDR key) */
 #define NP_HUB_PROTO_SERIAL_LEN     32U            /* ASCII device serial — replay guard */
 #define NP_HUB_PROTO_SIG_LEN        64U            /* Ed25519 signature */

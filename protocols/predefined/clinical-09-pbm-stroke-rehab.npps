@@ -10,9 +10,8 @@ protocol "PBM — Stroke (chronic rehab)" {
     duration: 15m
 
     pbm_transcranial {
-        intensity: 40%
+        irradiance_mw_cm2: 161  # was intensity: 40% at 100 % = 403 mW/cm² (OI-HEXTILE-25, 2026-09-25)
         frequency: 0Hz
-        duty_cycle: 25%
         # Perilesional cortex is patient-specific — it depends where the stroke
         # was — so no predefined zone can be correct here (§9). The operator
         # must select the sockets over the lesion margin plus midline before

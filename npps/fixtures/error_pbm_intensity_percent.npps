@@ -1,0 +1,14 @@
+# ERROR FIXTURE — pbm_transcranial states absolute irradiance (irradiance_mw_cm2);
+# `intensity` is a percentage of emitter capability, which has no fixed meaning
+# across tile types (OI-HEXTILE-25, NP-NPPS-REF-001 Rev 17). Parsing MUST fail.
+protocol "PBM in percent" {
+    duration: 10m
+
+    pbm_transcranial {
+        intensity: 80%
+        frequency: 40Hz
+        duty_cycle: 25%
+        zones: ["All"]
+        wavelength: "660_808nm"
+    }
+}

@@ -11,13 +11,13 @@ class NPLimitsStoreTests {
     @Test
     fun resolvePrefersIndividualThenHelmetThenGlobal() {
         val global = NPLimitsSet(
-            name = "g", pbmTranscranial = NPPBMTranscranialLimits(maxIntensityPercent = 90.0, maxSessionDoseJCm2 = 30.0),
+            name = "g", pbmTranscranial = NPPBMTranscranialLimits(maxIrradianceMWcm2 = 90.0, maxSessionDoseJCm2 = 30.0),
         )
-        val helmet = NPLimitsSet(name = "h", pbmTranscranial = NPPBMTranscranialLimits(maxIntensityPercent = 80.0))
-        val individual = NPLimitsSet(name = "i", pbmTranscranial = NPPBMTranscranialLimits(maxIntensityPercent = 70.0))
+        val helmet = NPLimitsSet(name = "h", pbmTranscranial = NPPBMTranscranialLimits(maxIrradianceMWcm2 = 80.0))
+        val individual = NPLimitsSet(name = "i", pbmTranscranial = NPPBMTranscranialLimits(maxIrradianceMWcm2 = 70.0))
 
         val r = resolveLimits(global, helmet, individual).pbmTranscranial!!
-        assertEquals(70.0, r.maxIntensityPercent) // individual wins
+        assertEquals(70.0, r.maxIrradianceMWcm2) // individual wins
         assertEquals(30.0, r.maxSessionDoseJCm2)  // falls through to global (only it set this field)
     }
 
@@ -111,22 +111,22 @@ class NPLimitsStoreTests {
     fun globalLimitsPersistAcrossReloadViaNpps() {
         val kv = InMemoryKeyValueStore()
         val s1 = NPLimitsStore(kv)
-        s1.saveGlobalLimits(NPLimitsSet(name = "g", pbmTranscranial = NPPBMTranscranialLimits(maxIntensityPercent = 60.0)))
+        s1.saveGlobalLimits(NPLimitsSet(name = "g", pbmTranscranial = NPPBMTranscranialLimits(maxIrradianceMWcm2 = 60.0)))
         val s2 = NPLimitsStore(kv)
-        assertEquals(60.0, s2.globalLimits?.pbmTranscranial?.maxIntensityPercent)
+        assertEquals(60.0, s2.globalLimits?.pbmTranscranial?.maxIrradianceMWcm2)
     }
 
     @Test
     fun makeValidatorEnforcesResolvedLimits() {
         val store = NPLimitsStore(InMemoryKeyValueStore())
-        store.saveGlobalLimits(NPLimitsSet(name = "g", pbmTranscranial = NPPBMTranscranialLimits(maxIntensityPercent = 50.0)))
+        store.saveGlobalLimits(NPLimitsSet(name = "g", pbmTranscranial = NPPBMTranscranialLimits(maxIrradianceMWcm2 = 50.0)))
         val def = NPProtocolDefinition(
             name = "hot",
             modalities = listOf(
-                NPProtocolModality(params = NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(intensityPercent = 80.0))),
+                NPProtocolModality(params = NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(irradianceMWcm2 = 80.0))),
             ),
         )
         val result = store.makeValidator().validate(def)
-        assertTrue(result.errors.any { it.parameterKey == "intensityPercent" })
+        assertTrue(result.errors.any { it.parameterKey == "irradianceMWcm2" })
     }
 }

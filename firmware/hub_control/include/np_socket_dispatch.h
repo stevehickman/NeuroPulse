@@ -61,8 +61,8 @@
 #include "np_module_map.h"   /* NP_HEXMAP_MAX_SOCKETS */
 
 /* Largest params block any socket-addressable mod_type defines
- * (np_mod_pbm_smart_params_t, 6 bytes). */
-#define NP_SOCK_DISP_PARAMS_MAX   6U
+ * (np_mod_pbm_smart_params_t, 9 bytes since OI-HEXTILE-25 moved it to mW/cm²). */
+#define NP_SOCK_DISP_PARAMS_MAX   9U
 
 /* Read-only per-socket view — what the power governor sees. */
 typedef struct {

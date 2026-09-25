@@ -50,7 +50,7 @@ fun LimitsSettingsScreen(
 ) {
     val existing = store.globalLimits
 
-    var pbmIntensity by remember { mutableStateOf(existing?.pbmTranscranial?.maxIntensityPercent.toField()) }
+    var pbmIrradiance by remember { mutableStateOf(existing?.pbmTranscranial?.maxIrradianceMWcm2.toField()) }
     var pbmDose by remember { mutableStateOf(existing?.pbmTranscranial?.maxSessionDoseJCm2.toField()) }
     var besMa by remember { mutableStateOf(existing?.besTacs?.maxIntensityMilliamps.toField()) }
     var tdcsMa by remember { mutableStateOf(existing?.tdcs?.maxIntensityMilliamps.toField()) }
@@ -65,7 +65,7 @@ fun LimitsSettingsScreen(
         val updated = base.copy(
             name = globalName,
             pbmTranscranial = (base.pbmTranscranial ?: NPPBMTranscranialLimits()).copy(
-                maxIntensityPercent = pbmIntensity.toDoubleOrNull(),
+                maxIrradianceMWcm2 = pbmIrradiance.toDoubleOrNull(),
                 maxSessionDoseJCm2 = pbmDose.toDoubleOrNull(),
             ),
             besTacs = (base.besTacs ?: NPBESTacsLimits()).copy(maxIntensityMilliamps = besMa.toDoubleOrNull()),
@@ -95,7 +95,7 @@ fun LimitsSettingsScreen(
         )
         Spacer(Modifier.height(12.dp))
 
-        NumberField(stringResource(R.string.limits_pbm_max_intensity), pbmIntensity) { pbmIntensity = it }
+        NumberField(stringResource(R.string.limits_pbm_max_irradiance), pbmIrradiance) { pbmIrradiance = it }
         NumberField(stringResource(R.string.limits_pbm_max_session_dose_j_cm), pbmDose) { pbmDose = it }
         NumberField(stringResource(R.string.limits_bes_tacs_max_current_ma), besMa) { besMa = it }
         NumberField(stringResource(R.string.limits_tdcs_max_current_ma), tdcsMa) { tdcsMa = it }

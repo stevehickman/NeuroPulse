@@ -157,7 +157,7 @@ static void test_wire_layout(void)
      * electrode_area_mcm2, so a v2 descriptor's tDCS block is a different
      * length for the same modality code.  hubCompiler.ts PROTO_VERSION must
      * move with this constant or every descriptor is rejected as BAD_VERSION. */
-    check(NP_HUB_PROTO_VERSION == 0x0003U, "layout: protocol version is v3");
+    check(NP_HUB_PROTO_VERSION == 0x0004U, "layout: protocol version is v4");
 }
 
 /* ── Slot-addressed commands still work ───────────────────────────────────────── */

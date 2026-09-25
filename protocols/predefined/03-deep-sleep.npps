@@ -10,7 +10,7 @@ protocol "Deep Sleep" {
     duration: 45m
 
     pbm_transcranial {
-        intensity: 60%
+        irradiance_mw_cm2: 242  # was intensity: 60% at 100 % = 403 mW/cm² (OI-HEXTILE-25, 2026-09-25)
         frequency: 2Hz
         duty_cycle: 25%
         zones: ["Posterior"]

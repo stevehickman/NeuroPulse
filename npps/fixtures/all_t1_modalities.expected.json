@@ -22,7 +22,7 @@
             "All"
           ],
           "wavelength": "660_808nm",
-          "intensityPercent": 75,
+          "irradianceMWcm2": 302,
           "frequencyHz": 20,
           "dutyCyclePercent": 25
         },

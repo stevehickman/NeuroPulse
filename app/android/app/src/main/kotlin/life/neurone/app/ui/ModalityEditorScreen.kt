@@ -159,9 +159,15 @@ private fun ParamControls(modality: NPProtocolModality, onParams: (NPModalityPar
 
 @Composable
 private fun PbmTranscranial(p: NPPBMTranscranialParams, on: (NPPBMTranscranialParams) -> Unit) {
-    NumField(stringResource(R.string.and_modality_intensity), p.intensityPercent) { on(p.copy(intensityPercent = it)) }
-    NumField(stringResource(R.string.and_modality_frequency_hz_0_cw), p.frequencyHz) { on(p.copy(frequencyHz = it)) }
-    IntField(stringResource(R.string.and_modality_duty_cycle), p.dutyCyclePercent) { on(p.copy(dutyCyclePercent = it)) }
+    // Absolute on-state irradiance (OI-HEXTILE-25). CW (0 Hz) is continuous, so
+    // it has no duty cycle to edit.
+    NumField(stringResource(R.string.and_modality_irradiance), p.irradianceMWcm2) { on(p.copy(irradianceMWcm2 = it)) }
+    NumField(stringResource(R.string.and_modality_frequency_hz_0_cw), p.frequencyHz) {
+        on(p.copy(frequencyHz = it, dutyCyclePercent = if (it <= 0.0) 100 else minOf(p.dutyCyclePercent, 25)))
+    }
+    if (p.frequencyHz > 0.0) {
+        IntField(stringResource(R.string.and_modality_duty_cycle), p.dutyCyclePercent) { on(p.copy(dutyCyclePercent = it)) }
+    }
     // A zone is a named set of modules, not one of five fixed slots. The picker
     // offers the authored zone names plus clinician_selected; multi-zone targets
     // are authored in .npps until the multi-select picker lands (NP-CFG-UI-001).

@@ -10,7 +10,7 @@ protocol "PBM — Autism (pediatric, 40Hz)" {
     duration: 6m
 
     pbm_transcranial {
-        intensity: 20%
+        irradiance_mw_cm2: 81  # was intensity: 20% at 100 % = 403 mW/cm² (OI-HEXTILE-25, 2026-09-25)
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["Temporal Left", "Temporal Right"]

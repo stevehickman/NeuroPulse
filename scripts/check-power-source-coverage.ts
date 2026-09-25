@@ -17,11 +17,11 @@
  * 1. **The demand distribution is a cliff, not a slope.** Coverage does not rise
  *    smoothly with watts. Sorting the library by demand shows a dense band and
  *    then a long gap, and the study's recommendation turns on where the gap sits.
- * 2. **`OI-SESPWR-03` is worth up to 4× on a fifth of the library.** Protocols
- *    setting both `frequency: 0Hz` and `duty_cycle:` are undefined; `analyse()`
- *    reports the CW reading (higher) per `NP-SES-PWR-001` D-3. This script
- *    reports coverage under BOTH readings, so a source can only ever be sized
- *    against a figure whose uncertainty is visible on the same line.
+ * 2. **`OI-SESPWR-03` was worth up to 4× on a fifth of the library.** Protocols
+ *    setting both `frequency: 0Hz` and `duty_cycle:` were undefined. Since
+ *    OI-HEXTILE-25 CW is continuous and the pair is a parse error, so the two
+ *    readings coincide; the duty column is kept so that a regression — a CW
+ *    block that somehow carries a duty — would show up on the same line.
  *
  *   bun scripts/check-power-source-coverage.ts
  *
