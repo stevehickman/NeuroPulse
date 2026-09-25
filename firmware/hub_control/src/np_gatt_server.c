@@ -10,6 +10,7 @@
 
 #include <string.h>
 
+#include "np_consumables.h"
 #include "np_cvns_fault_summary.h"
 #include "np_warranty_token.h"
 
@@ -38,17 +39,22 @@ static np_hub_status_t read_warranty_token(uint8_t *buf, size_t cap, size_t *len
  * One row per characteristic the hub answers.  Add a row only with its
  * producer (np_gatt_server.h, "only what the hub produces"). */
 static const np_gatt_char_t k_table[] = {
+    { NP_GATT_ID_CONSUMABLE_STATUS,
+      NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_NOTIFY,
+      (uint8_t)NP_CONS_WIRE_LEN, (uint8_t)NP_CONS_RESET_LEN,
+      np_cons_read, np_cons_on_reset_write },
+
     { NP_GATT_ID_WARRANTY_TOKEN, NP_GATT_PROP_READ,
-      (uint8_t)NP_WARRANTY_TOKEN_LEN, read_warranty_token, NULL },
+      (uint8_t)NP_WARRANTY_TOKEN_LEN, 0u, read_warranty_token, NULL },
 
     { NP_GATT_ID_CVNS_FAULT_STATUS, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
-      (uint8_t)NP_CVFS_FRAME_MAX, np_cvfs_read, NULL },
+      (uint8_t)NP_CVFS_FRAME_MAX, 0u, np_cvfs_read, NULL },
 
     { NP_GATT_ID_CVNS_REENABLE_CONFIRM, NP_GATT_PROP_WRITE,
-      1u, NULL, np_cvfs_on_reenable_confirm_write },
+      0u, 1u, NULL, np_cvfs_on_reenable_confirm_write },
 
     { NP_GATT_ID_ACTIVE_USER, NP_GATT_PROP_WRITE,
-      4u, NULL, np_cvfs_on_active_user_write },
+      0u, 4u, NULL, np_cvfs_on_active_user_write },
 };
 
 #define K_TABLE_LEN (sizeof(k_table) / sizeof(k_table[0]))
@@ -139,7 +145,7 @@ np_att_status_t np_gatt_on_write(uint16_t id, const uint8_t *data, size_t len)
     if ((c->props & NP_GATT_PROP_WRITE) == 0U || c->write == NULL) {
         return NP_ATT_WRITE_NOT_PERMITTED;
     }
-    if (data == NULL || len != c->max_len) {
+    if (data == NULL || len != c->write_len) {
         return NP_ATT_INVALID_VALUE_LENGTH;
     }
     return (c->write(data, len) == NP_HUB_OK) ? NP_ATT_OK : NP_ATT_APP_REFUSED;

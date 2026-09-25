@@ -34,7 +34,10 @@ struct NeurOneApp: App {
         _edfLoader       = StateObject(wrappedValue: EDFDownloader(gatt: g))
         _shdrUpload      = StateObject(wrappedValue: SHDRUploader(gatt: g))
         _backup          = StateObject(wrappedValue: UHDRBackupScheduler(keyManager: km))
-        _consumable      = StateObject(wrappedValue: ConsumableTracker(countsProvider: g))
+        // OI-ACC-08: the hub owns the count; Mark replaced tells it to zero it.
+        _consumable      = StateObject(wrappedValue: ConsumableTracker(
+            countsProvider: g,
+            onReplaced: { [weak g] kind in g?.requestConsumableReset(kind: kind) }))
         _ota             = StateObject(wrappedValue: OTAManager(gatt: g))
         _setupMgr        = StateObject(wrappedValue: HardwareSetupManager(gatt: g))
         _protocolLibrary = StateObject(wrappedValue: NPProtocolLibrary())

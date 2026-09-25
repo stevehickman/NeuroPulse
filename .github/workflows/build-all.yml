@@ -86,9 +86,11 @@ env:
   # 10 + 36 = 46, re-derived with `ctest -N` on the tree.
   # GitHub #381 (OI-WA-03) then added np_gatt_server_tests:
   # 10 + 37 = 47, re-derived with `ctest -N` on the tree.
-  NP_TOTAL_TEST_COUNT: '47'
+  # OI-ACC-08 then added np_consumables_tests:
+  # 10 + 38 = 48, re-derived with `ctest -N` on the tree.
+  NP_TOTAL_TEST_COUNT: '48'
   NP_SAFETY_TEST_COUNT: '10'
-  NP_CLASS_B_TEST_COUNT: '37'
+  NP_CLASS_B_TEST_COUNT: '38'
 
 jobs:
   host-tests-all:

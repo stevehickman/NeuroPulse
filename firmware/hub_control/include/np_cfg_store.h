@@ -79,6 +79,7 @@ typedef enum {
     NP_CFG_FILE_UKMD,       /* ukmd.rec — NP-FW-EMMC-002 §C.3, D-22          */
     NP_CFG_FILE_SESSION_COUNT, /* device session count — EMMC-SHDR-09, OI-LFS-12 */
     NP_CFG_FILE_WARRANTY_TOKEN, /* warranty token — NP-FW-EMMC-002 §A.2, OI-WA-03 */
+    NP_CFG_FILE_CONSUMABLES,   /* consumable session counts — OI-ACC-08 */
     NP_CFG_FILE_COUNT
 } np_cfg_file_t;
 

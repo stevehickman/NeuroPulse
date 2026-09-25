@@ -54,6 +54,13 @@ static const np_cfg_file_desc_t s_files[NP_CFG_FILE_COUNT] = {
     [NP_CFG_FILE_WARRANTY_TOKEN] = { NP_CFG_POLICY_REPLICATED,
                            { NP_CFG_REPLICA_DIR_A "/wtoken.rec",
                              NP_CFG_REPLICA_DIR_B "/wtoken.rec" } },
+    /* OI-ACC-08: per-consumable session counts since replacement.  A count
+     * that went backwards after a torn write would skip a prompt (the
+     * intranasal sleeve's is one session), so REPLICATED.  Rewritten once per
+     * session end and per replacement; it bounds no emission (REQ-LFS-01). */
+    [NP_CFG_FILE_CONSUMABLES] = { NP_CFG_POLICY_REPLICATED,
+                           { NP_CFG_REPLICA_DIR_A "/consum.rec",
+                             NP_CFG_REPLICA_DIR_B "/consum.rec" } },
 };
 
 /* ── RAM state — all of it lost at a reboot, and np_cfg_store_bind() is one ── */

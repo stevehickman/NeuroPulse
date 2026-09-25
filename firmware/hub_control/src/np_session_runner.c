@@ -21,6 +21,7 @@
 #include "np_protocol.h"
 #include "np_module_registry.h"
 #include "np_socket_dispatch.h"
+#include "np_consumables.h"
 #include "np_chan_decl.h"
 #include "np_stim_xcheck.h"
 #include "np_session_log.h"
@@ -537,6 +538,12 @@ np_hub_status_t np_runner_run(void)
 
     np_log_session_end(&s_ctx.uhdr, &s_ctx.shdr);
     np_log_flush();
+
+    /* OI-ACC-08: advance the consumable count of every modality this session
+     * drove (the mask holds accepted drive commands only), persisted here —
+     * not left to the heartbeat — so an unplug straight after the session
+     * cannot lose the intranasal sleeve's one-session count. */
+    np_cons_on_session_end(s_ctx.uhdr.mods_active_mask);
 
     s_ctx.state = (s_ctx.abort_reason == NP_ABORT_NONE)
                   ? NP_SESSION_COMPLETE

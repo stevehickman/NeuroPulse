@@ -299,6 +299,7 @@ if(NP_BUILD_TESTS)
         tests/np_gatt_server_tests.c
         src/np_gatt_server.c
         src/np_warranty_token.c
+        src/np_consumables.c
         src/np_cvns_fault_summary.c
         src/np_transport.c
     )
@@ -311,6 +312,28 @@ if(NP_BUILD_TESTS)
     target_compile_options(np_gatt_server_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
     target_link_libraries(np_gatt_server_tests m)
+
+    # OI-ACC-08 (#381): the CONSUMABLE_STATUS producer — increment rule,
+    # replacement reset, persistence (never zero over an unreadable record,
+    # never an older snapshot over a newer one) and change-only notification.
+    # Links the real GATT server so the wire bytes are read through 0x0007.
+    add_executable(np_consumables_tests
+        tests/np_consumables_tests.c
+        src/np_consumables.c
+        src/np_gatt_server.c
+        src/np_warranty_token.c
+        src/np_cvns_fault_summary.c
+        src/np_transport.c
+    )
+    target_include_directories(np_consumables_tests PRIVATE
+        include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../cervical_vns/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
+        $<TARGET_PROPERTY:np_littlefs,INTERFACE_INCLUDE_DIRECTORIES>
+    )
+    target_compile_options(np_consumables_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+    target_link_libraries(np_consumables_tests m)
 
     # Hub ↔ cervical VNS library integration + cardiac-interlock config.
     # Links the real np_cervical_vns library sources directly (host build).
@@ -356,6 +379,7 @@ set(HUB_SOURCES
     src/np_cvns_fault_summary.c   # NP-SW-FAULTMSG-001 §9.6: offline-fault summary + GATT handlers
     src/np_gatt_server.c          # OI-WA-03 / #381: BLE GATT service table + dispatch
     src/np_warranty_token.c       # OI-WA-03: NP-FW-EMMC-002 §A warranty token
+    src/np_consumables.c          # OI-ACC-08: CONSUMABLE_STATUS session counts
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
     src/np_lfs_instance.c         # OI-LFS-01: EMMC-FS-01 littlefs instance + mount validator
     src/np_cfg_store.c            # OI-LFS-06/-08/-09: Config store — the littlefs caller rules

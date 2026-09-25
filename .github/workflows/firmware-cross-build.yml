@@ -192,7 +192,8 @@ env:
   # 34 → 35: np_module_registry_tests (NP-FW-HUB-001 Rev 8, OI-FWHUB-16).
   # 35 → 36: np_stim_xcheck_tests (NP-FW-HUB-001 Rev 9, OI-FMEA-09).
   # 36 → 37: np_gatt_server_tests (GitHub #381, OI-WA-03).
-  NP_CLASS_B_TEST_COUNT: '37'
+  # 37 → 38: np_consumables_tests (GitHub #381, OI-ACC-08).
+  NP_CLASS_B_TEST_COUNT: '38'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  This job always

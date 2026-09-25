@@ -104,6 +104,21 @@ class ConsumableTrackerTests {
         assertFalse(tracker.states[1].isLow)
     }
 
+    // OI-ACC-08: the hub owns the count, so Mark replaced must reach it — otherwise the hub's
+    // next absolute count restores the replaced part's sessions.
+    @Test
+    fun markReplacedTellsTheHub() {
+        val replaced = mutableListOf<Int>()
+        val tracker = ConsumableTracker(
+            FakeCountsProvider(listOf(0, 40, 0, 0)), InMemoryKeyValueStore(),
+            onReplaced = { replaced += it },
+        )
+        tracker.markReplaced(1)
+        assertEquals(listOf(1), replaced)
+        tracker.markReplaced(99) // out of range: nothing local, nothing sent
+        assertEquals(listOf(1), replaced)
+    }
+
     @Test
     fun duplicateCountUpdatesAreIgnored() {
         val provider = FakeCountsProvider(listOf(0, 37, 0, 0))

@@ -39,6 +39,12 @@ class ConsumableTracker(
     countsProvider: ConsumableCountsProviding,
     private val store: KeyValueStore,
     private val onReminderNotification: (ConsumableReminder) -> Unit = {},
+    /**
+     * Tells the hub a part was replaced (OI-ACC-08): the hub owns the count, and without this
+     * its next CONSUMABLE_STATUS notification would restore the old one. The :app wires it to
+     * NeurOneGattManager.requestConsumableReset.
+     */
+    private val onReplaced: (Int) -> Unit = {},
 ) {
     companion object {
         const val SNOOZE_KEY = "np.consumable.snooze-counts"
@@ -114,6 +120,7 @@ class ConsumableTracker(
         }
         persistSnooze()
         recomputeReminders()
+        onReplaced(consumableIndex)
     }
 
     // ── Session start gate ───────────────────────────────────────────────

@@ -211,6 +211,7 @@ static void test_uuids_match_the_apps(void)
      * to each other and to this. */
     static const struct { uint16_t id; const char *s; } k[] = {
         { NP_GATT_ID_SERVICE,               "4E455550-0001-1000-8000-00805F9B34FB" },
+        { NP_GATT_ID_CONSUMABLE_STATUS,     "4E455550-0007-1000-8000-00805F9B34FB" },
         { NP_GATT_ID_WARRANTY_TOKEN,        "4E455550-0010-1000-8000-00805F9B34FB" },
         { NP_GATT_ID_CVNS_FAULT_STATUS,     "4E455550-0014-1000-8000-00805F9B34FB" },
         { NP_GATT_ID_CVNS_REENABLE_CONFIRM, "4E455550-0015-1000-8000-00805F9B34FB" },
@@ -234,24 +235,26 @@ static void test_table_is_what_the_hub_produces(void)
 {
     size_t n = 0U;
     const np_gatt_char_t *t = np_gatt_table(&n);
-    check(n == 4U, "table: four characteristics, each with a producer");
+    check(n == 5U, "table: five characteristics, each with a producer");
 
     bool coherent = true;
     bool pending_absent = true;
     for (size_t i = 0U; i < n; i++) {
         bool r = (t[i].props & NP_GATT_PROP_READ) != 0U;
         bool w = (t[i].props & NP_GATT_PROP_WRITE) != 0U;
+        bool nt = (t[i].props & NP_GATT_PROP_NOTIFY) != 0U;
         if (r != (t[i].read != NULL) || w != (t[i].write != NULL) ||
-            t[i].max_len == 0U || t[i].max_len > NP_GATT_VALUE_MAX) {
+            (r || nt) != (t[i].max_len != 0U) || w != (t[i].write_len != 0U) ||
+            t[i].max_len > NP_GATT_VALUE_MAX || t[i].write_len > NP_GATT_VALUE_MAX) {
             coherent = false;
         }
-        /* OI-ACC-08 / OI-ACC-07: no producer yet, so not published. */
-        if (t[i].id == 0x0007U || t[i].id == 0x0013U) {
+        /* OI-ACC-07: no producer yet, so not published. */
+        if (t[i].id == 0x0013U) {
             pending_absent = false;
         }
     }
     check(coherent, "table: a handler exists iff its property does; lengths in range");
-    check(pending_absent, "table: 0x0007 and 0x0013 are not published without a producer");
+    check(pending_absent, "table: 0x0013 is not published without a producer");
 
     reset_world();
     check(np_gatt_init() == NP_HUB_OK && g_registers == 1 &&
@@ -268,7 +271,7 @@ static void test_access_rules(void)
     const uint8_t one = 0x01U;
     reset_world();
 
-    check(np_gatt_on_read(0x0007U, 0U, buf, sizeof buf, &len) == NP_ATT_ATTRIBUTE_NOT_FOUND,
+    check(np_gatt_on_read(0x0013U, 0U, buf, sizeof buf, &len) == NP_ATT_ATTRIBUTE_NOT_FOUND,
           "access: an unpublished id is not found on read");
     check(np_gatt_on_write(0x000FU, &one, 1U) == NP_ATT_ATTRIBUTE_NOT_FOUND,
           "access: an unpublished id is not found on write");

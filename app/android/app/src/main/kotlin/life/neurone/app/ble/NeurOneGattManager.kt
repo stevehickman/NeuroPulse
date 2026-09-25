@@ -5,6 +5,7 @@ import life.neurone.core.ble.GattUuids
 import life.neurone.core.ble.OtaOpcode
 import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.consumable.ConsumableResetQueue
 import life.neurone.core.models.ActiveUserTag
 import life.neurone.core.models.CervicalFaultLedger
 import life.neurone.core.models.CervicalFaultRecord
@@ -103,6 +104,10 @@ class NeurOneGattManager(
     val cardiacWarningAcknowledged: StateFlow<Boolean> = _cardiacWarningAcknowledged
 
     private var activeUserCharPresent = false
+    private var consumableCharPresent = false
+
+    /** Replacements not yet written to the hub (OI-ACC-08); persisted, flushed at connect. */
+    private val consumableResets = ConsumableResetQueue(ledgerStore)
 
     /**
      * The person using the device, from the active individual profile. Sent whenever it
@@ -183,6 +188,9 @@ class NeurOneGattManager(
         // Name the person before the fault summary is read: the summary is theirs.
         activeUserCharPresent = GattUuids.activeUser in characteristics
         sendActiveUserTag()
+        // Replacements marked while disconnected, before the counts are read (OI-ACC-08).
+        consumableCharPresent = GattUuids.consumableStatus in characteristics
+        flushConsumableResets()
         if (GattUuids.cvnsFaultStatus in characteristics) {
             central.enableNotifications(GattUuids.cvnsFaultStatus)
             central.read(GattUuids.cvnsFaultStatus)
@@ -315,7 +323,21 @@ class NeurOneGattManager(
         return true
     }
 
+    /**
+     * The wearer replaced a consumable (ConsumableTracker.markReplaced). The hub owns the count,
+     * so it is told to zero it: written now if connected, else queued for the next connect.
+     */
+    fun requestConsumableReset(kind: Int) {
+        consumableResets.add(kind)
+        flushConsumableResets()
+    }
+
     // ── Internals ────────────────────────────────────────────────────────
+
+    private fun flushConsumableResets() {
+        if (!consumableCharPresent || _connectionState.value != ConnectionState.CONNECTED) return
+        consumableResets.drain { central.write(GattUuids.consumableStatus, it) }
+    }
 
     private val cervicalFaultLedgerKey: String
         get() = CERVICAL_FAULT_LEDGER_KEY + "." + (activeUserTag?.toString() ?: "unnamed")
@@ -356,6 +378,7 @@ class NeurOneGattManager(
         _unacknowledgedCervicalFaults.value = emptyList()
         _cardiacWarningAcknowledged.value = false
         activeUserCharPresent = false
+        consumableCharPresent = false
         // Reset the SHDR upload trigger — it is tied to a live connection; the hub
         // re-signals 0x01 on reconnect (retry on next USB-C session, iOS parity).
         _shdrUploadPending.value = false

@@ -15,6 +15,7 @@ object GattUuids {
     val hrvCoherence: UUID     = UUID.fromString("4E455550-0004-1000-8000-00805F9B34FB") // NOTIFY 4B
     val pacerPhase: UUID       = UUID.fromString("4E455550-0005-1000-8000-00805F9B34FB") // NOTIFY 4B
     val impedanceResult: UUID  = UUID.fromString("4E455550-0006-1000-8000-00805F9B34FB") // NOTIFY 4B
+    // + WRITE 1B: the kind index, zeroes that count on replacement (OI-ACC-08, ConsumableReset.kt)
     val consumableStatus: UUID = UUID.fromString("4E455550-0007-1000-8000-00805F9B34FB") // READ/NOTIFY 8B
 
     // Write characteristics — Mode 2 protocol upload, Mode 4 EDF request, OTA, calibration

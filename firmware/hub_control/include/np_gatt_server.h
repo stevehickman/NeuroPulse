@@ -22,13 +22,13 @@
  * publishing those with nothing behind them would let the app believe it had
  * found a working hub, and it is the same false-green the platform layer's
  * traps exist to refuse.  Each is added with its producer.  Notably absent:
- *   - CONSUMABLE_STATUS (0x0007) — no increment rule or reset path (OI-ACC-08)
  *   - CVNS_PAD_STATUS  (0x0013) — the electrode-to-side mapping it reports is
  *     an open hardware item (OI-ACC-07 → OI-CVNSHW-01, -06)
  *   - the protocol upload (0x0008) — np_transport_feed() is its handler, and
  *     binding it is a separate change (OI-HUB-MAIN-01)
- * scripts/check-consumable-triggers.ts fails the build if either of the first
- * two appears in firmware without its §2.3 row being updated.
+ * scripts/check-consumable-triggers.ts fails the build if the first appears in
+ * firmware without its §2.3 row being updated, and if CONSUMABLE_STATUS
+ * (published since 2026-09-25, np_consumables.h) disappears from it.
  *
  * ── Tier ────────────────────────────────────────────────────────────────────
  * The cervical characteristics are T2-only in the app table, and are published
@@ -51,6 +51,7 @@
 
 /* ── Ids (the XXXX of the UUID) ──────────────────────────────────────────────── */
 #define NP_GATT_ID_SERVICE                0x0001u
+#define NP_GATT_ID_CONSUMABLE_STATUS      0x0007u  /* READ/NOTIFY 8 B, WRITE 1 B — OI-ACC-08 */
 #define NP_GATT_ID_WARRANTY_TOKEN         0x0010u  /* READ 32 B — OI-WA-03        */
 #define NP_GATT_ID_CVNS_FAULT_STATUS      0x0014u  /* READ/NOTIFY 4+8n — FAULTMSG */
 #define NP_GATT_ID_CVNS_REENABLE_CONFIRM  0x0015u  /* WRITE 1 B                   */
@@ -91,7 +92,8 @@ typedef np_hub_status_t (*np_gatt_write_fn)(const uint8_t *data, size_t len);
 typedef struct {
     uint16_t          id;
     uint8_t           props;     /* NP_GATT_PROP_* */
-    uint8_t           max_len;   /* bytes; also the exact length of every write */
+    uint8_t           max_len;   /* longest READ / NOTIFY value, bytes         */
+    uint8_t           write_len; /* exact length of every WRITE; 0 without WRITE */
     np_gatt_read_fn   read;      /* non-NULL iff props has READ  */
     np_gatt_write_fn  write;     /* non-NULL iff props has WRITE */
 } np_gatt_char_t;
@@ -123,8 +125,8 @@ np_att_status_t np_gatt_on_read(uint16_t id, uint16_t offset,
 
 /*
  * np_gatt_on_write — the stack's WRITE REQUEST callback.  Every write here is
- * fixed-length: a value of any other length is refused before the handler
- * sees it.  Prepared (long) writes are not supported, and are not needed.
+ * fixed-length (the row's write_len): a value of any other length is refused
+ * before the handler sees it.  Prepared (long) writes are not supported, and are not needed.
  */
 np_att_status_t np_gatt_on_write(uint16_t id, const uint8_t *data, size_t len);
 

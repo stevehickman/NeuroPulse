@@ -99,6 +99,9 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
 
     /// Where the acknowledgement point is kept.  `internal` so tests can inject a suite.
     var cervicalFaultLedgerDefaults: UserDefaults = .standard
+
+    /// Where replacements not yet written to the hub are queued (OI-ACC-08). Injectable for tests.
+    var consumableResetDefaults: UserDefaults = .standard
     static let cervicalFaultLedgerKey = "np.cvns.fault-ledger.last-acknowledged-session"
 
     /// Whether this connection's blanket warning has been read (reset on disconnect).
@@ -488,6 +491,23 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         p.writeValue(Data([0x01]), for: char, type: .withResponse)
     }
 
+    // MARK: - Consumable replacement (OI-ACC-08)
+
+    /// The wearer replaced a consumable (ConsumableTracker.markReplaced). The hub owns the
+    /// count, so it is told to zero it: written now if connected, else queued for the next
+    /// connect.
+    func requestConsumableReset(kind: Int) {
+        ConsumableResetQueue(defaults: consumableResetDefaults).add(kind)
+        flushConsumableResets()
+    }
+
+    private func flushConsumableResets() {
+        guard let char = consumableStatusChar, let p = peripheral else { return }
+        ConsumableResetQueue(defaults: consumableResetDefaults).drain { value in
+            p.writeValue(value, for: char, type: .withResponse)
+        }
+    }
+
     // MARK: - Private helpers
 
     private func clearCharacteristicHandles() {
@@ -591,6 +611,9 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
 
             case NPUUID.consumableStatus:
                 consumableStatusChar = char
+                // Replacements marked while disconnected go first, so the read below and the
+                // notification after it already carry the zero (OI-ACC-08).
+                flushConsumableResets()
                 peripheral.setNotifyValue(true, for: char)
                 peripheral.readValue(for: char)
 

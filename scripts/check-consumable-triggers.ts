@@ -53,6 +53,12 @@
  *                     firmware code references it, because then the declaration is a lie about
  *                     the code and the row should say where the hub produces it.
  *
+ * And its mirror, a declared presence:
+ *
+ *   FIRMWARE_PUBLISHED  a producer that left FIRMWARE_PENDING because the hub now publishes it.
+ *                     Fails when no live firmware code references it any more — the §2.3 row
+ *                     says where the hub produces it, and that must stay true.
+ *
  * ── The reach, stated narrowly ───────────────────────────────────────────────
  *
  * This checks that each trigger is DECLARED in an admissible shape and that its producer EXISTS.
@@ -116,16 +122,23 @@ const ENGINE_FILES: Record<Platform, string[]> = {
  */
 const FIRMWARE_PENDING: Array<{ producer: string; match: RegExp; oi: string; note: string }> = [
   {
-    producer: "CONSUMABLE_STATUS",
-    match: /consumable_status|4e455550-0007/i,
-    oi: "OI-ACC-08",
-    note: "the hub GATT server (np_gatt_server.c) does not publish the per-kind counts, because no increment or epoch rule is specified (#381)",
-  },
-  {
     producer: "CVNS_PAD_STATUS",
     match: /cvns_pad_status|4e455550-0013/i,
     oi: "OI-ACC-07",
     note: "the hub does not publish the failed-pad mask or its side mapping yet",
+  },
+];
+
+ /**
+ * Hub-side producers that WERE pending and are now published. Same text match as
+ * FIRMWARE_PENDING, in the other direction.
+ */
+const FIRMWARE_PUBLISHED: Array<{ producer: string; match: RegExp; oi: string; where: string }> = [
+  {
+    producer: "CONSUMABLE_STATUS",
+    match: /consumable_status|4e455550-0007/i,
+    oi: "OI-ACC-08",
+    where: "firmware/hub_control/src/np_consumables.c, row 0x0007 of np_gatt_server.c (#381)",
   },
 ];
 
@@ -475,6 +488,17 @@ function audit(root: string): Audit {
       notes.push(`pending ${f.producer} has no hub producer — ${f.oi}: ${f.note}`);
     }
   }
+  for (const f of FIRMWARE_PUBLISHED) {
+    const hit = fw.find((rel) => f.match.test(stripComments(read(rel) ?? "")));
+    if (!hit) {
+      v.push(
+        `published: ${f.producer} is declared produced by the hub (${f.oi}: ${f.where}) but no firmware ` +
+          `code references it — restore the producer, or move it back to FIRMWARE_PENDING and say so in the §2.3 row`,
+      );
+    } else {
+      notes.push(`published ${f.producer} — hub producer in ${hit} (${f.oi})`);
+    }
+  }
 
   return { violations: v, rows, notes };
 }
@@ -529,7 +553,8 @@ if (process.argv.includes("--self-test")) {
     [CONSUMABLE_STATUS.android.file]: "object U {\n    val consumableStatus: UUID = X\n    val cvnsPadStatus: UUID = Y\n}\n",
     [ENGINE_FILES.ios[0]!]: "let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)\n",
     [ENGINE_FILES.android[0]!]: "class ConsumableTracker {}\n",
-    "firmware/hub/np_x.c": "/* CONSUMABLE_STATUS in a comment must not count */\nvoid f(void) {}\n",
+    "firmware/hub/np_x.c": "/* CVNS_PAD_STATUS in a comment must not count */\nvoid f(void) {}\n",
+    "firmware/hub/np_cons.c": "#define NP_GATT_ID_CONSUMABLE_STATUS 0x0007u\n",
     ...over,
   });
   const expect = (label: string, root: string, needle: string | null) => {
@@ -576,7 +601,8 @@ if (process.argv.includes("--self-test")) {
   // Declared absences must break when the absence ends.
   expect("an exemption the row no longer needs is caught", build(base({ [DOC]: table([HYDRO.replace("mechanism: not named", "mechanism: dehydration of the gel under wear"), row.pads, row.cervical, row.covers]) })), "now passes it");
   expect("an exemption naming no row is caught", build(base({ [DOC]: table([row.pads, row.cervical, row.covers]), [KIND_FILE.ios]: IOS_KINDS([["vnsPads", 30]]), [KIND_FILE.android]: AND_KINDS([["VNS_PADS", 30]]) })), "names no §2.3 row");
-  expect("a hub producer appearing flips its pending declaration", build(base({ "firmware/hub/np_gatt.c": "#define NP_GATT_CONSUMABLE_STATUS_UUID 7\n" })), "now references it");
+  expect("a hub producer appearing flips its pending declaration", build(base({ "firmware/hub/np_gatt.c": "#define NP_GATT_CVNS_PAD_STATUS_UUID 0x13\n" })), "now references it");
+  expect("a published hub producer disappearing is caught", build(base({ "firmware/hub/np_cons.c": "/* NP_GATT_ID_CONSUMABLE_STATUS */\nvoid g(void) {}\n" })), "no firmware code references it");
   expect("a hub producer appearing by UUID flips its pending declaration", build(base({ "firmware/hub/np_gatt.c": "static const char *u = \"4E455550-0013-1000\";\n" })), "CVNS_PAD_STATUS is declared unpublished");
 
   rmSync(box, { recursive: true, force: true });
@@ -587,7 +613,7 @@ if (process.argv.includes("--self-test")) {
     process.exit(1);
   }
   console.log("  extractors proven on both enums and both sessionLimit tables; a well-formed tree passes;");
-  console.log("  T1–T8 each proven to fire; a stale exemption and a stale firmware-pending proven to fire");
+  console.log("  T1–T8 each proven to fire; a stale exemption, a stale firmware-pending and a lost firmware-published proven to fire");
   console.log("SELF-TEST PASS — the checker has teeth.");
   process.exit(0);
 }
