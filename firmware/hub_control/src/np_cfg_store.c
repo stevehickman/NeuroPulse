@@ -47,6 +47,20 @@ static const np_cfg_file_desc_t s_files[NP_CFG_FILE_COUNT] = {
     [NP_CFG_FILE_SESSION_COUNT] = { NP_CFG_POLICY_REPLICATED,
                            { NP_CFG_REPLICA_DIR_A "/sesscnt.rec",
                              NP_CFG_REPLICA_DIR_B "/sesscnt.rec" } },
+    /* OI-WA-03: the 256-bit warranty token (NP-FW-EMMC-002 §A.2).  Nothing
+     * re-answers it — a lost token cannot be regenerated as the same value —
+     * so it is REPLICATED, like ukmd.rec.  Written once per device life (and
+     * once per factory reset); it bounds nothing (REQ-LFS-01). */
+    [NP_CFG_FILE_WARRANTY_TOKEN] = { NP_CFG_POLICY_REPLICATED,
+                           { NP_CFG_REPLICA_DIR_A "/wtoken.rec",
+                             NP_CFG_REPLICA_DIR_B "/wtoken.rec" } },
+    /* OI-ACC-08: per-consumable session counts since replacement.  A count
+     * that went backwards after a torn write would skip a prompt (the
+     * intranasal sleeve's is one session), so REPLICATED.  Rewritten once per
+     * session end and per replacement; it bounds no emission (REQ-LFS-01). */
+    [NP_CFG_FILE_CONSUMABLES] = { NP_CFG_POLICY_REPLICATED,
+                           { NP_CFG_REPLICA_DIR_A "/consum.rec",
+                             NP_CFG_REPLICA_DIR_B "/consum.rec" } },
 };
 
 /* ── RAM state — all of it lost at a reboot, and np_cfg_store_bind() is one ── */
@@ -569,13 +583,22 @@ static size_t envelope_build(uint8_t *env, uint32_t gen, const uint8_t *payload,
 }
 
 /* Read both copies.  valid[c] says whether copy c verified. */
+/*
+ * Read both copies.  `why[c]` says what became of copy c when it is not valid:
+ * NP_HUB_ERR_NOT_PRESENT (the entry does not exist), NP_HUB_ERR_STORE_IO (a
+ * read failed, or the remount it forced did) or NP_HUB_ERR_STORE_INTEGRITY
+ * (the bytes were read and refused).  NP_HUB_OK when valid.
+ */
 static void read_replicas(np_cfg_file_t file, size_t len, bool valid[2],
-                          uint32_t gen[2])
+                          uint32_t gen[2], np_hub_status_t why[2])
 {
     for (unsigned c = 0U; c < 2U; c++) {
-        size_t got = 0U;
         valid[c] = false;
         gen[c]   = 0U;
+        why[c]   = NP_HUB_ERR_STORE_IO;
+    }
+    for (unsigned c = 0U; c < 2U; c++) {
+        size_t got = 0U;
         if (s_remount_pending) {
             /* The first copy's read failed: the cache is suspect, and the
              * second copy must not be read through it (#1205).  Remount now,
@@ -584,13 +607,17 @@ static void read_replicas(np_cfg_file_t file, size_t len, bool valid[2],
                 return;
             }
         }
-        if (read_whole(file, c, s_env[c], sizeof(s_env[c]), &got) != NP_HUB_OK) {
+        np_hub_status_t st = read_whole(file, c, s_env[c], sizeof(s_env[c]), &got);
+        if (st != NP_HUB_OK) {
+            why[c] = st;
             continue;
         }
         if (envelope_valid(s_env[c], got, len, &gen[c])) {
             valid[c] = true;
+            why[c]   = NP_HUB_OK;
         } else {
             s_stats.integrity_fails++;
+            why[c] = NP_HUB_ERR_STORE_INTEGRITY;
         }
     }
 }
@@ -598,12 +625,21 @@ static void read_replicas(np_cfg_file_t file, size_t len, bool valid[2],
 static np_hub_status_t replicated_read_locked(np_cfg_file_t file,
                                               uint8_t *payload, size_t len)
 {
-    bool     valid[2];
-    uint32_t gen[2];
-    read_replicas(file, len, valid, gen);
+    bool            valid[2];
+    uint32_t        gen[2];
+    np_hub_status_t why[2];
+    read_replicas(file, len, valid, gen, why);
 
     if (!valid[0] && !valid[1]) {
-        return NP_HUB_ERR_NOT_PRESENT;
+        /* Absent only if BOTH entries are absent.  A copy that could not be
+         * read, or was read and refused, is not an absence, and a caller that
+         * creates a record on absence (np_warranty_token) must not be told it
+         * is one: it would overwrite a record it merely failed to read. */
+        if (why[0] == NP_HUB_ERR_NOT_PRESENT && why[1] == NP_HUB_ERR_NOT_PRESENT) {
+            return NP_HUB_ERR_NOT_PRESENT;
+        }
+        return (why[0] == NP_HUB_ERR_STORE_IO || why[1] == NP_HUB_ERR_STORE_IO)
+                   ? NP_HUB_ERR_STORE_IO : NP_HUB_ERR_STORE_INTEGRITY;
     }
     unsigned good = (valid[0] && (!valid[1] || gen[0] >= gen[1])) ? 0U : 1U;
     unsigned other = 1U - good;
@@ -636,9 +672,10 @@ static np_hub_status_t replicated_write_locked(np_cfg_file_t file,
                                                const uint8_t *payload,
                                                size_t len)
 {
-    bool     valid[2];
-    uint32_t gen[2];
-    read_replicas(file, len, valid, gen);
+    bool            valid[2];
+    uint32_t        gen[2];
+    np_hub_status_t why[2];
+    read_replicas(file, len, valid, gen, why);
 
     uint32_t newest = 0U;
     for (unsigned c = 0U; c < 2U; c++) {

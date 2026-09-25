@@ -78,6 +78,8 @@ typedef enum {
     NP_CFG_FILE_MAP3,       /* Map 3 journal — NP-FW-NVRAM-001 §4.2          */
     NP_CFG_FILE_UKMD,       /* ukmd.rec — NP-FW-EMMC-002 §C.3, D-22          */
     NP_CFG_FILE_SESSION_COUNT, /* device session count — EMMC-SHDR-09, OI-LFS-12 */
+    NP_CFG_FILE_WARRANTY_TOKEN, /* warranty token — NP-FW-EMMC-002 §A.2, OI-WA-03 */
+    NP_CFG_FILE_CONSUMABLES,   /* consumable session counts — OI-ACC-08 */
     NP_CFG_FILE_COUNT
 } np_cfg_file_t;
 
@@ -213,9 +215,16 @@ np_hub_status_t np_cfg_store_journal_read(np_cfg_file_t file, uint8_t *buf,
  * higher generation (A on a tie), and REPAIR the other one if it is missing,
  * invalid or older — so a copy lost to upstream #1210, a torn write or a bad
  * block is restored the first time the record is used, rather than being
- * discovered when its twin fails too.  NP_HUB_ERR_NOT_PRESENT if neither
- * copy is valid.  A failed repair does not fail the read: the caller already
- * has a verified record, and the repair is retried on the next read.
+ * discovered when its twin fails too.  A failed repair does not fail the
+ * read: the caller already has a verified record, and the repair is retried
+ * on the next read.  When neither copy is valid the status says why:
+ *   NP_HUB_ERR_NOT_PRESENT      neither entry exists — never written, or both
+ *                               entries lost
+ *   NP_HUB_ERR_STORE_IO         a copy could not be read (remount pending)
+ *   NP_HUB_ERR_STORE_INTEGRITY  every copy that exists was read and refused
+ * Only the first is an absence.  A caller that creates the record when it is
+ * absent (np_warranty_token) must treat the other two as "unknown", never as
+ * "absent" — until 2026-09-25 all three were reported as NP_HUB_ERR_NOT_PRESENT.
  */
 #define NP_CFG_REPLICA_MAX_PAYLOAD   256U
 

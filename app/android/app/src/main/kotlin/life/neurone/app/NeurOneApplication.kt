@@ -108,6 +108,8 @@ class NeurOneApplication : Application() {
         consumableTracker = ConsumableTracker(
             GattConsumableCountsProvider(gattManager.session, bleScope),
             keyValueStore,
+            // OI-ACC-08: the hub owns the count; Mark replaced tells it to zero it.
+            onReplaced = { gattManager.requestConsumableReset(it) },
         )
         protocolUploader = ProtocolUploader(gattManager, AndroidProtocolSigner())
         researchSuggestionStore = ResearchSuggestionStore(keyValueStore)

@@ -84,9 +84,13 @@ env:
   # 10 + 35 = 45, re-derived with `ctest -N` on the tree.
   # NP-FW-HUB-001 Rev 9 (OI-FMEA-09) then added np_stim_xcheck_tests:
   # 10 + 36 = 46, re-derived with `ctest -N` on the tree.
-  NP_TOTAL_TEST_COUNT: '46'
+  # GitHub #381 (OI-WA-03) then added np_gatt_server_tests:
+  # 10 + 37 = 47, re-derived with `ctest -N` on the tree.
+  # OI-ACC-08 then added np_consumables_tests:
+  # 10 + 38 = 48, re-derived with `ctest -N` on the tree.
+  NP_TOTAL_TEST_COUNT: '48'
   NP_SAFETY_TEST_COUNT: '10'
-  NP_CLASS_B_TEST_COUNT: '36'
+  NP_CLASS_B_TEST_COUNT: '38'
 
 jobs:
   host-tests-all:

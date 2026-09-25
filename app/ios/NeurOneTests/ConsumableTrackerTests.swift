@@ -256,6 +256,22 @@ final class ConsumableTrackerDirectTests: XCTestCase {
         XCTAssertEqual(tracker.inventory.states[idx].snoozeCount, 0)
     }
 
+    // MARK: Mark replaced reaches the hub (OI-ACC-08)
+
+    /// The hub owns the count; without this call its next absolute count restores the
+    /// replaced part's sessions.
+    func testMarkReplacedTellsTheHub() {
+        var replaced: [Int] = []
+        let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [0, 44, 0, 0]),
+                                        defaults: testDefaults,
+                                        onReplaced: { replaced.append($0) })
+        tracker.markReplaced(consumableIndex: ConsumableKind.electrodeHydrogel.rawValue)
+        XCTAssertEqual(replaced, [ConsumableKind.electrodeHydrogel.rawValue])
+        tracker.markReplaced(consumableIndex: 99)
+        XCTAssertEqual(replaced, [ConsumableKind.electrodeHydrogel.rawValue],
+                       "An out-of-range index changes nothing locally and sends nothing.")
+    }
+
     // MARK: Reactive update on new counts from provider
 
     func testInventoryUpdatesWhenProviderPushesNewCounts() {

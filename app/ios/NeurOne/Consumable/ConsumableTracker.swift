@@ -24,10 +24,16 @@ final class ConsumableTracker: ObservableObject {
     private var cancellable: AnyCancellable?
     private let countsProvider: ConsumableCountsProviding
     private let defaults: UserDefaults
+    /// Tells the hub a part was replaced (OI-ACC-08): the hub owns the count, and without this
+    /// its next CONSUMABLE_STATUS notification would restore the old one. NeurOneApp wires it to
+    /// NeurOneGATTManager.requestConsumableReset(kind:).
+    private let onReplaced: ((Int) -> Void)?
 
-    init(countsProvider: ConsumableCountsProviding, defaults: UserDefaults = .standard) {
+    init(countsProvider: ConsumableCountsProviding, defaults: UserDefaults = .standard,
+         onReplaced: ((Int) -> Void)? = nil) {
         self.countsProvider = countsProvider
         self.defaults = defaults
+        self.onReplaced = onReplaced
         loadPersistedSnooze()   // must come before observeCounts — the publisher delivers its
         observeCounts()          // current value synchronously, which calls persistSnooze();
     }                            // loading first ensures snooze counts survive restart
@@ -84,6 +90,7 @@ final class ConsumableTracker: ObservableObject {
         inventory.states[consumableIndex].resetAfterReplacement()
         persistSnooze()
         recomputeReminders()
+        onReplaced?(consumableIndex)
     }
 
     // MARK: - Session start gate

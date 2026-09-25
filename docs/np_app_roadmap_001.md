@@ -138,7 +138,11 @@ When characterisation passes:
 
 ## 5. BLE GATT Service Definition
 
-Custom BLE GATT service UUID and characteristic layout (to be assigned at firmware implementation stage):
+Custom BLE GATT service: UUID `4E455550-0001-1000-8000-00805F9B34FB`; each characteristic is `4E455550-XXXX-1000-8000-00805F9B34FB` with the id in the second group (assigned in the apps' `NPUUID` / `GattUuids`, and built from the same base by the hub, `firmware/hub_control/include/np_gatt_server.h`).
+
+**What the hub publishes (2026-09-25, GitHub #381):** only characteristics it has a producer for — `CONSUMABLE_STATUS` (0x0007), `WARRANTY_TOKEN` (0x0010), `CVNS_FAULT_STATUS` (0x0014), `CVNS_REENABLE_CONFIRM` (0x0015) and `ACTIVE_USER` (0x0016). The others below are parsed by the apps and not yet published; each is added with its producer. `CVNS_PAD_STATUS` waits on `OI-ACC-07`. The BLE host stack under the server is a platform trap until the radio is selected.
+
+Characteristic layout:
 
 | Characteristic | Direction | Length | Content |
 |---------------|-----------|--------|---------|
@@ -147,10 +151,11 @@ Custom BLE GATT service UUID and characteristic layout (to be assigned at firmwa
 | HRV_COHERENCE | NOTIFY | 4 bytes | Coherence score × 100 (uint16) + RMSSD ms (uint16) |
 | PACER_PHASE | NOTIFY | 2 bytes | Phase (uint8: 0=inhale, 1=exhale) + elapsed % (uint8) |
 | IMPEDANCE_RESULT | NOTIFY | 2 bytes | Pass/fail flags per electrode (uint16 bitmask) |
-| CONSUMABLE_STATUS | READ/NOTIFY | 8 bytes | Per-consumable session counts (4× uint16) |
+| CONSUMABLE_STATUS | READ/NOTIFY + WRITE | 8 bytes (write: 1 byte) | Per-consumable session counts since replacement (4× uint16 LE: intranasal sleeves, hydrogel tips, VNS clip pads, audio cup foam). The hub owns them: each advances by one at the end of a session that drove its modality (intranasal, EEG, auricular VNS, audio). **WRITE** one byte, the kind index 0–3, when the wearer marks that part replaced: the hub zeroes it and notifies the zero. SHDR (`OI-ACC-08`, `firmware/hub_control/include/np_consumables.h`) |
 | CVNS_PAD_STATUS | NOTIFY | 4 bytes | T2 only, optional. Failed-electrode bitmask (uint8) + check (uint8: 0 = pre-enable, 1 = mid-session) + side of the neck of electrode 1's and electrode 2's pad (2× uint8: 1 = left, 2 = right). Hub supplies the side; UHDR, display only (`OI-ACC-07`) |
 | CVNS_FAULT_STATUS | READ/NOTIFY | 4 + 8n bytes | T2 only, optional (`0x0014`). Version + hub re-enable state + n (≤ 4) + flags (bit 0 = the active user's cervical VNS is withheld; bit 1 = someone on this device has an outstanding cardiac cutoff), then per record: session counter (uint32) + fault kind (uint8) + failing-pad side mask (uint8) + 2 reserved. The active user's own records; UHDR (`NP-SW-FAULTMSG-001` §9.3) |
 | CVNS_REENABLE_CONFIRM | WRITE | 1 byte | T2 only, optional (`0x0015`). `0x01` = the wearer confirms resuming after a cardiac cutoff (`REQ-CVNS-09`); accepted only while the hub awaits it |
+| WARRANTY_TOKEN | READ | 32 bytes | `0x0010`. The 256-bit TRNG warranty token (`NP-FW-EMMC-002` §A): generated at the first read, persisted in the Config partition, never user-linked. SHDR-class device identity (`OI-WA-03`) |
 | ACTIVE_USER | WRITE | 4 bytes | Optional (`0x0016`). Opaque little-endian tag from the active individual profile; scopes a cardiac cutoff to that person. Forwarded to the safety MCU only while no session runs |
 
 Notification interval: 100ms for SESSION_STATE and PACER_PHASE; 5s for HRV_COHERENCE; event-driven for IMPEDANCE_RESULT, CONSUMABLE_STATUS and CVNS_PAD_STATUS (on a change of result within a session attempt, and at each new attempt).

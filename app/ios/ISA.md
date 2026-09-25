@@ -183,7 +183,7 @@ The NeurOne iOS app is App Store-live at Month 12, passing App Store review on f
 - [x] ISC-98: `ConsumableTracker` correctly maps `gatt.session.consumableSessionCounts` (4 × UInt16 from GATT) to the four consumable types: intranasal sleeves, electrode hydrogel tips, VNS clip pads, audio cup foam.
 - [x] ISC-99: `ConsumableTracker.blockingReminders` returns non-empty when any consumable is at or past its session limit — these block `sessionIsBlocked`.
 - [x] ISC-100: `ConsumableView` shows each consumable with a remaining-sessions progress bar, a "Reorder" button that opens the NeurOne store URL, and the triggered reminder text.
-- [ ] ISC-101: Blocking reminders cannot be dismissed from `ConsumableView` — only a GATT-confirmed consumable replacement (session count reset) clears them.
+- [ ] ISC-101: Blocking reminders cannot be dismissed from `ConsumableView` — only a GATT-confirmed consumable replacement (session count reset) clears them. *(2026-09-25, #381: the reset now exists — Mark replaced writes the kind to `CONSUMABLE_STATUS` 0x0007 and the hub notifies the zero, `ConsumableReset.swift`; the item stays open until verified against hardware.)*
 - [x] ISC-102: Performance-critical reminders (electrode hydrogel tips degrading) can be snoozed at most 3 times — tracked in `UserDefaults` per consumable type.
 - [x] ISC-103: Comfort/longevity reminders can be snoozed at most 5 times.
 - [x] ISC-104: Each reminder includes the GATT-measured session count that triggered it (e.g. "Your intranasal sleeves have been used 30 times").
