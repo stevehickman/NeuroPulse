@@ -53,8 +53,9 @@ static class SessionProtocolCompiler
 
             NPModalityParams.PbmIntranasal m => new PbmIntranasalConfig
             {
+                IrradianceMWcm2 = m.P.IrradianceMWcm2,
                 FrequencyHz = m.P.FrequencyHz,
-                DutyCyclePercent = m.P.DutyCyclePercent,
+                DutyCyclePercent = m.P.FrequencyHz <= 0 ? 100 : m.P.DutyCyclePercent,
                 DurationSeconds = sessionDurationSeconds
             },
 
@@ -101,12 +102,14 @@ static class SessionProtocolCompiler
                     AudioEntrainmentParams.NoiseType.Brown => "brown",
                     _ => null
                 },
+                LevelDba = m.P.LevelDba,
                 EegAdaptive = m.P.EegAdaptive,
                 UseBoneConductionForPacer = m.P.BoneConductionPacer
             },
 
             NPModalityParams.VisualStimulation m => new VisualStimConfig
             {
+                IrradianceMWcm2 = m.P.IrradianceMWcm2,
                 FrequencyHz = m.P.FrequencyHz,
                 Mode = VisualModeRawValue(m.P.Mode),
                 EnableModeFInvisibleNir = m.P.EnableModeF,

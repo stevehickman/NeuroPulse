@@ -186,6 +186,12 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
         when (key) {
             "pbm_transcranial" -> {
                 val lim = NPPBMTranscranialLimits()
+                if ("max_intensity" in fields) {
+                    throw NPPSError(
+                        "max_intensity is a percentage of a part's output and is retired here — use max_irradiance_mw_cm2 (absolute)",
+                        currentLine(),
+                    )
+                }
                 fields["max_irradiance_mw_cm2"]?.asDouble?.let { lim.maxIrradianceMWcm2 = it }
                 fields["max_frequency"]?.asHz?.let { lim.maxFrequencyHz = it }
                 fields["max_duty_cycle"]?.asPercent?.let { lim.maxDutyCyclePercent = it.toInt() }
@@ -195,7 +201,13 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             }
             "pbm_intranasal" -> {
                 val lim = NPPBMIntranasalLimits()
-                fields["max_intensity"]?.asPercent?.let { lim.maxIntensityPercent = it }
+                if ("max_intensity" in fields) {
+                    throw NPPSError(
+                        "max_intensity is a percentage of a part's output and is retired here — use max_irradiance_mw_cm2 (absolute)",
+                        currentLine(),
+                    )
+                }
+                fields["max_irradiance_mw_cm2"]?.asDouble?.let { lim.maxIrradianceMWcm2 = it }
                 fields["max_session_dose"]?.asDouble?.let { lim.maxSessionDoseJCm2 = it }
                 fields["max_session_duration"]?.asTime?.let { lim.maxSessionDurationSeconds = it }
                 limitsSet.pbmIntranasal = lim
@@ -232,7 +244,13 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             }
             "audio_entrainment" -> {
                 val lim = NPAudioEntrainmentLimits()
-                fields["max_intensity"]?.asPercent?.let { lim.maxVolumePercent = it }
+                if ("max_intensity" in fields) {
+                    throw NPPSError(
+                        "max_intensity is a percentage of a part's output and is retired here — use max_level_dba (absolute)",
+                        currentLine(),
+                    )
+                }
+                fields["max_level_dba"]?.asDouble?.let { lim.maxLevelDba = it }
                 fields["max_binaural_beats"]?.asHz?.let { lim.maxBinauralBeatsHz = it }
                 fields["max_isochronic_tones"]?.asHz?.let { lim.maxIsochronicTonesHz = it }
                 limitsSet.audioEntrainment = lim
@@ -767,9 +785,25 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
 
             "pbm_intranasal" -> {
                 val p = NPPBMIntranasalParams()
-                fields["intensity"]?.asPercent?.let { p.intensityPercent = it }
+                if ("intensity" in fields || "intensity_percent" in fields) {
+                    throw NPPSError(
+                        "pbm_intranasal takes irradiance_mw_cm2 (on-state mW/cm²), not intensity — a percentage of a part's output changes meaning when the part changes (NP-NPPS-REF-001 §4)",
+                        currentLine(),
+                    )
+                }
+                fields["irradiance_mw_cm2"]?.asDouble?.let { p.irradianceMWcm2 = it }
                 fields["frequency"]?.asHz?.let { p.frequencyHz = it }
-                fields["duty_cycle"]?.asPercent?.let { p.dutyCyclePercent = it.toInt() }
+                if (p.frequencyHz <= 0.0) {
+                    if ("duty_cycle" in fields || "duty_cycle_percent" in fields) {
+                        throw NPPSError(
+                            "pbm_intranasal: frequency 0 is continuous wave (100 % on-time); remove duty_cycle",
+                            currentLine(),
+                        )
+                    }
+                    p.dutyCyclePercent = 100
+                } else {
+                    fields["duty_cycle"]?.asPercent?.let { p.dutyCyclePercent = it.toInt() }
+                }
                 return NPModalityParams.PbmIntranasal(p)
             }
 
@@ -859,7 +893,13 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
                     }
                 }
                 fields["carrier_hz"]?.asHz?.let { p.carrierHz = it }
-                fields["volume"]?.asPercent?.let { p.volumePercent = it }
+                if ("volume" in fields || "volume_percent" in fields) {
+                    throw NPPSError(
+                        "audio_entrainment takes level_dba (A-weighted dB at the ear), not volume — a percentage of a part's output changes meaning when the part changes (NP-NPPS-REF-001 §4)",
+                        currentLine(),
+                    )
+                }
+                fields["level_dba"]?.asDouble?.let { p.levelDba = it }
                 fields["eeg_adaptive"]?.asBool?.let { p.eegAdaptive = it }
                 fields["bone_conduction_pacer"]?.asBool?.let { p.boneConductionPacer = it }
                 return NPModalityParams.AudioEntrainment(p)
@@ -867,6 +907,13 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
 
             "visual_stimulation" -> {
                 val p = NPVisualStimParams()
+                if ("intensity" in fields || "intensity_percent" in fields) {
+                    throw NPPSError(
+                        "visual_stimulation takes irradiance_mw_cm2 (corneal mW/cm²), not intensity — a percentage of a part's output changes meaning when the part changes (NP-NPPS-REF-001 §4)",
+                        currentLine(),
+                    )
+                }
+                fields["irradiance_mw_cm2"]?.asDouble?.let { p.irradianceMWcm2 = it }
                 fields["frequency"]?.asHz?.let { p.frequencyHz = it }
                 fields["mode"]?.asIdent?.let { m ->
                     when (m) {

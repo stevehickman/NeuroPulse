@@ -146,9 +146,10 @@ struct NPPBMTranscranialParams: Codable, Equatable {
 // MARK: PBM Intranasal
 
 struct NPPBMIntranasalParams: Codable, Equatable {
-    var intensityPercent: Double = 60
-    var frequencyHz: Double = 40
-    var dutyCyclePercent: Int = 25
+    /// On-state irradiance at the probe exit face, mW/cm² — absolute (NP-NPPS-REF-001 Rev 18 §4.2).
+    var irradianceMWcm2: Double = 22
+    var frequencyHz: Double = 40        // 0 = CW
+    var dutyCyclePercent: Int = 25      // ≤25 pulsed; CW is continuous and the parser stores 100
 }
 
 // MARK: EEG Neurofeedback
@@ -312,7 +313,8 @@ struct NPAudioEntrainmentParams: Codable, Equatable {
     var isochronicTonesHz: Double? = nil
     var noiseType: NoiseType? = .pink
     var carrierHz: Double = 440
-    var volumePercent: Double = 60
+    /// A-weighted level at the ear, dBA — absolute (NP-NPPS-REF-001 Rev 18 §4.7).
+    var levelDba: Double = 60
     var eegAdaptive: Bool = true
     var boneConductionPacer: Bool = true
 }
@@ -359,6 +361,8 @@ struct NPVisualStimParams: Codable, Equatable {
         }
     }
 
+    /// On-state corneal irradiance, mW/cm² — absolute (NP-NPPS-REF-001 Rev 18 §4.8).
+    var irradianceMWcm2: Double = 1
     var frequencyHz: Double = 40        // 0.5–100 Hz
     var mode: VisualMode = .binocular
     var emdrCadenceHz: Double = 1.0

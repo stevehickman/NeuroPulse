@@ -10,7 +10,7 @@ protocol "Hyphenated Tags" {
         binaural_hz: 4Hz
         noise: brown
         carrier_hz: 200Hz
-        volume: 50%
+        level_dba: 58
         eeg_adaptive: false
         bone_conduction_pacer: false
     }

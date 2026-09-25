@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 56 (current)  
+**Revision:** 57 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
@@ -222,12 +222,15 @@ signed descriptor**, and both are **commanded-dose** limits — what the protoco
 ADC measurement. Derivations, citations and the provisional status of the 150: `docs/np_dt_001.md`
 §3.2.1 (DI-SAFE-01 / DI-SAFE-01a).
 
-**PBM is commanded in absolute irradiance, and CW is continuous** (Rev 56, `OI-HEXTILE-25`). A
-transcranial PBM protocol states on-state mW/cm² (`irradiance_mw_cm2`), never a percentage of an
-emitter's capability, which differs by tile type and by part. `frequency: 0` means 100 % on-time,
-and a duty cycle beside it is a parse error. The hub **refuses**, never clamps, a request over
-either PBM ceiling or beyond the tile's reach. Full rules: `docs/np_hw_hextile_001.md` §4.3.3 and
-`NP-NPPS-REF-001` §4.1.
+**Every emission is commanded in absolute terms, and CW is continuous** (Rev 56 `OI-HEXTILE-25`,
+Rev 57). A protocol states what reaches the person, never a percentage of a part's capability, which
+changes meaning when the part does: PBM transcranial and intranasal state on-state mW/cm² (at the
+scalp; at the probe exit face), visual states corneal mW/cm² per channel (`irradiance_mw_cm2`), and
+audio states dBA at the ear (`level_dba`). `frequency: 0` means 100 % on-time, and a duty cycle beside
+it is a parse error. The hub **refuses**, never clamps, a request over a ceiling, beyond the part's
+reach, or for a part not yet characterised — which today is **every intranasal, visual and audio
+request** (`OI-NASAL-06`, `OI-VIS-ABS-01`, `OI-AUDIOHW-01`; bone conduction has no unit yet,
+`OI-AUDIOHW-11`). Full rules: `docs/np_hw_hextile_001.md` §4.3.3 and `NP-NPPS-REF-001` §4.
 
 **Do not answer a modality question from this roster alone** — wavelengths, counts, materials,
 consumables, evidence and per-modality open items are in `docs/reference/modality-stack.md`.

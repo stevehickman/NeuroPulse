@@ -125,8 +125,9 @@ function validateModality(
 
     case 'pbm_intranasal': {
       const l = lim.pbmIntranasal;
-      // Hardware
-      if (p.params.dutyCyclePercent > hw.pbmDutyCycleMaxPercent) {
+      // Hardware: pulsed duty ≤ 25 %. CW is continuous. No irradiance ceiling
+      // exists for the probe yet (OI-NASAL-02), so none is checked here.
+      if (p.params.frequencyHz > 0 && p.params.dutyCyclePercent > hw.pbmDutyCycleMaxPercent) {
         issues.push(issue(
           'error', 'pbm_intranasal', 'dutyCyclePercent', t('VALIDATE_PARAM_DUTY_CYCLE'),
           `${p.params.dutyCyclePercent}%`, `${hw.pbmDutyCycleMaxPercent}%`, 'hardware',
@@ -134,11 +135,11 @@ function validateModality(
         ));
       }
       // Dosage
-      if (l?.maxIntensityPercent != null && p.params.intensityPercent > l.maxIntensityPercent) {
+      if (l?.maxIrradianceMWcm2 != null && p.params.irradianceMWcm2 > l.maxIrradianceMWcm2) {
         issues.push(issue(
-          'error', 'pbm_intranasal', 'intensityPercent', t('VALIDATE_PARAM_INTENSITY'),
-          `${p.params.intensityPercent}%`, `${l.maxIntensityPercent}%`, 'global',
-          t('VALIDATE_MSG_PBM_INTRANASAL_INTENSITYPERCENT', { 0: p.params.intensityPercent, 1: l.maxIntensityPercent })
+          'error', 'pbm_intranasal', 'irradianceMWcm2', t('VALIDATE_PARAM_IRRADIANCE'),
+          `${p.params.irradianceMWcm2} mW/cm²`, `${l.maxIrradianceMWcm2} mW/cm²`, 'global',
+          t('VALIDATE_MSG_PBM_INTRANASAL_IRRADIANCE', { 0: p.params.irradianceMWcm2, 1: l.maxIrradianceMWcm2 })
         ));
       }
       break;
@@ -299,11 +300,11 @@ function validateModality(
 
     case 'audio_entrainment': {
       const l = lim.audioEntrainment;
-      if (l?.maxVolumePercent != null && p.params.volumePercent > l.maxVolumePercent) {
+      if (l?.maxLevelDba != null && p.params.levelDba > l.maxLevelDba) {
         issues.push(issue(
-          'error', 'audio_entrainment', 'volumePercent', t('VALIDATE_PARAM_VOLUME'),
-          `${p.params.volumePercent}%`, `${l.maxVolumePercent}%`, 'global',
-          t('VALIDATE_MSG_AUDIO_ENTRAINMENT_VOLUMEPERCENT', { 0: p.params.volumePercent, 1: l.maxVolumePercent })
+          'error', 'audio_entrainment', 'levelDba', t('VALIDATE_PARAM_LEVEL'),
+          `${p.params.levelDba} dBA`, `${l.maxLevelDba} dBA`, 'global',
+          t('VALIDATE_MSG_AUDIO_ENTRAINMENT_LEVEL', { 0: p.params.levelDba, 1: l.maxLevelDba })
         ));
       }
       if (

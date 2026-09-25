@@ -5,7 +5,7 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: b223e72c17f23d61b677b072740b099254c69eacd5cf504786b49bc9ed79ede6
+// sources-sha256: 1edc85a9d23c5f1ad241034a936e33790ad4b14f2997cd59ed2b4200bf59212d
 var __create = Object.create;
 var __getProtoOf = Object.getPrototypeOf;
 var __defProp = Object.defineProperty;
@@ -1893,9 +1893,9 @@ function defaultParams(type) {
       dutyCyclePercent: 25
     },
     pbm_intranasal: {
-      intensityPercent: 60,
+      irradianceMWcm2: 22,
       frequencyHz: 10,
-      dutyCyclePercent: 50
+      dutyCyclePercent: 25
     },
     eeg_neurofeedback: {
       channels: "all",
@@ -1922,11 +1922,12 @@ function defaultParams(type) {
     audio_entrainment: {
       binauralBeatsHz: 40,
       carrierHz: 200,
-      volumePercent: 70,
+      levelDba: 60,
       eegAdaptive: true,
       boneConductionPacer: false
     },
     visual_stimulation: {
+      irradianceMWcm2: 1,
       frequencyHz: 40,
       mode: "binocular",
       emdrCadenceHz: 1,
@@ -2630,11 +2631,10 @@ class Parser {
       if (typeName === "pbm_transcranial") {
         throw new NPPSParseError("pbm_transcranial takes irradiance_mw_cm2 (on-state mW/cm²), not intensity — " + "a percentage of emitter capability has no fixed meaning (NP-NPPS-REF-001 §4.1)", this.current.line);
       }
-      const percentTypes = new Set([
-        "pbm_transcranial",
-        "pbm_intranasal",
-        "visual_stimulation"
-      ]);
+      if (typeName === "pbm_intranasal" || typeName === "visual_stimulation") {
+        throw new NPPSParseError(`${typeName} takes irradiance_mw_cm2 (on-state mW/cm²), not intensity — ` + "a percentage of a part's output changes meaning when the part changes (NP-NPPS-REF-001 §4)", this.current.line);
+      }
+      const percentTypes = new Set;
       const mATypes = new Set([
         "bes_tacs",
         "tdcs",
@@ -2882,6 +2882,9 @@ class Parser {
   parsePBMTranscranialLimits() {
     return this.parseLimitsSubBlock({
       max_irradiance_mw_cm2: (v) => ({ maxIrradianceMWcm2: Number(v) }),
+      max_intensity: () => {
+        throw new NPPSParseError("max_intensity is a percentage of a part's output and is retired here — use max_irradiance_mw_cm2 (absolute)", this.current.line);
+      },
       max_frequency: (v) => ({ maxFrequencyHz: Number(v) }),
       max_duty_cycle: (v) => ({ maxDutyCyclePercent: Number(v) }),
       max_session_dose: (v) => ({ maxSessionDoseJCm2: Number(v) }),
@@ -2890,7 +2893,10 @@ class Parser {
   }
   parsePBMIntranasalLimits() {
     return this.parseLimitsSubBlock({
-      max_intensity: (v) => ({ maxIntensityPercent: Number(v) }),
+      max_irradiance_mw_cm2: (v) => ({ maxIrradianceMWcm2: Number(v) }),
+      max_intensity: () => {
+        throw new NPPSParseError("max_intensity is a percentage of a part's output and is retired here — use max_irradiance_mw_cm2 (absolute)", this.current.line);
+      },
       max_session_dose: (v) => ({ maxSessionDoseJCm2: Number(v) }),
       max_session_duration: (v) => ({ maxSessionDurationSeconds: Number(v) })
     });
@@ -2927,7 +2933,10 @@ class Parser {
   }
   parseAudioEntrainmentLimits() {
     return this.parseLimitsSubBlock({
-      max_intensity: (v) => ({ maxVolumePercent: Number(v) }),
+      max_level_dba: (v) => ({ maxLevelDba: Number(v) }),
+      max_intensity: () => {
+        throw new NPPSParseError("max_intensity is a percentage of a part's output and is retired here — use max_level_dba (absolute)", this.current.line);
+      },
       max_frequency: (v) => ({ maxBinauralBeatsHz: Number(v) }),
       max_binaural_beats: (v) => ({ maxBinauralBeatsHz: Number(v) }),
       max_isochronic_tones: (v) => ({ maxIsochronicTonesHz: Number(v) })
@@ -3212,12 +3221,19 @@ class Parser {
       }
       case "pbm_intranasal": {
         const d = def;
+        if ("intensity_percent" in raw) {
+          throw new NPPSParseError("pbm_intranasal takes irradiance_mw_cm2 (on-state mW/cm²), not intensity_percent", line);
+        }
+        const frequencyHz = num("frequency_hz", d.frequencyHz);
+        if (frequencyHz <= 0 && "duty_cycle_percent" in raw) {
+          throw new NPPSParseError("pbm_intranasal: frequency 0 is continuous wave (100 % on-time); remove duty_cycle", line);
+        }
         return {
           type: "pbm_intranasal",
           params: {
-            intensityPercent: num("intensity_percent", d.intensityPercent),
-            frequencyHz: num("frequency_hz", d.frequencyHz),
-            dutyCyclePercent: num("duty_cycle_percent", d.dutyCyclePercent)
+            irradianceMWcm2: num("irradiance_mw_cm2", d.irradianceMWcm2),
+            frequencyHz,
+            dutyCyclePercent: frequencyHz <= 0 ? 100 : num("duty_cycle_percent", d.dutyCyclePercent)
           }
         };
       }
@@ -3276,9 +3292,12 @@ class Parser {
       }
       case "audio_entrainment": {
         const d = def;
+        if ("volume_percent" in raw) {
+          throw new NPPSParseError("audio_entrainment takes level_dba (A-weighted dB at the ear), not volume — " + "a percentage of the driver's output changes meaning when the driver changes", line);
+        }
         const params = {
           carrierHz: num("carrier_hz", d.carrierHz),
-          volumePercent: num("volume_percent", d.volumePercent),
+          levelDba: num("level_dba", d.levelDba),
           eegAdaptive: bool("eeg_adaptive", d.eegAdaptive),
           boneConductionPacer: bool("bone_conduction_pacer", d.boneConductionPacer)
         };
@@ -3298,6 +3317,7 @@ class Parser {
         return {
           type: "visual_stimulation",
           params: {
+            irradianceMWcm2: num("irradiance_mw_cm2", d.irradianceMWcm2),
             frequencyHz: num("frequency_hz", d.frequencyHz),
             mode: str("mode", d.mode),
             emdrCadenceHz: num("emdr_cadence_hz", d.emdrCadenceHz),

@@ -68,13 +68,12 @@ NPPS source fields are snake_case shorthand. The expected JSON uses camelCase re
 
 | NPPS source field | Expected JSON key |
 |---|---|
-| `intensity: 80%` (optical, except `pbm_transcranial`) | `intensityPercent`: 80 |
-| `irradiance_mw_cm2: 322` (`pbm_transcranial` — absolute, OI-HEXTILE-25) | `irradianceMWcm2`: 322 |
+| `irradiance_mw_cm2: 322` (`pbm_transcranial`, `pbm_intranasal`, `visual_stimulation` — absolute) | `irradianceMWcm2`: 322 |
 | `frequency: 40Hz` | `frequencyHz`: 40 |
 | `duty_cycle: 25%` | `dutyCyclePercent`: 25 |
 | `binaural_hz: 40Hz` | `binauralBeatsHz`: 40 |
 | `carrier_hz: 440Hz` | `carrierHz`: 440 |
-| `volume: 70%` | `volumePercent`: 70 |
+| `level_dba: 61` (`audio_entrainment` — absolute, Rev 18) | `levelDba`: 61 |
 | `emdr_cadence: 1Hz` | `emdrCadenceHz`: 1 |
 | `closed_loop: true` | `closedLoopEnabled`: true |
 | `intensity: 0.8mA` | `intensityMA`: 0.8 |
@@ -108,6 +107,9 @@ NPPS source fields are snake_case shorthand. The expected JSON uses camelCase re
 | `compound_idents` | Tri-wavelength compound ident (660_808_1064nm) |
 | `error_pbm_intensity_percent` | **Error fixture** -- `pbm_transcranial` with `intensity:`; transcranial PBM is absolute irradiance only (OI-HEXTILE-25) |
 | `error_pbm_cw_duty` | **Error fixture** -- `frequency: 0Hz` with `duty_cycle:`; CW is continuous, so the pair is refused (OI-HEXTILE-25) |
+| `error_pbm_intranasal_intensity` | **Error fixture** -- `pbm_intranasal` with `intensity:`; every emission is absolute (Rev 18) |
+| `error_visual_intensity` | **Error fixture** -- `visual_stimulation` with `intensity:`; corneal irradiance only (Rev 18) |
+| `error_audio_volume_percent` | **Error fixture** -- `audio_entrainment` with `volume:`; `level_dba` only (Rev 18) |
 | `hyphenated_tags` | Hyphenated tags (wind-down, all-modalities, deep-sleep) |
 
 ## Condition link vectors

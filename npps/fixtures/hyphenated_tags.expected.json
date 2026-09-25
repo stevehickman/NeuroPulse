@@ -22,7 +22,7 @@
         "enabled": true,
         "params": {
           "carrierHz": 200,
-          "volumePercent": 50,
+          "levelDba": 58,
           "eegAdaptive": false,
           "boneConductionPacer": false,
           "binauralBeatsHz": 4,

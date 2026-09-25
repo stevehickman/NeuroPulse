@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-AUDIO-001
-**Revision:** 4
-**Date:** 2026-09-24
+**Revision:** 5
+**Date:** 2026-09-25
 **Status:** DRAFT — **requirements-grade. Every geometric and acoustic value an FAI would inspect is absent, and §8 says which, rather than supplying a placeholder.**
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -134,7 +134,8 @@ change surfaces as a disagreement with a document rather than with a driver.
 |---|---|---|
 | Hub slot | `NP_HUB_SLOT_AUDIO`, module type `NP_MOD_AUDIO` = `0x08` | `firmware/hub_control/include/np_hub_types.h` |
 | Transport | I²S from the hub codec via SAI; both paths from the same codec | `NP-FW-HUB-001` §8.5 |
-| Command block | `np_mod_audio_params_t` — `mode` (0 binaural, 1 isochronic, 2 pink, 3 brown, 4 off), `carrier_hz`, `beat_mhz`, `volume_pct`, `bone_conduct_en`, `eeg_adaptive` | `np_hub_types.h` |
+| Command block | `np_mod_audio_params_t` — `mode` (0 binaural, 1 isochronic, 2 pink, 3 brown, 4 off), `carrier_hz`, `beat_mhz`, `level_dba` (**A-weighted level at the ear**, Rev 5; was `volume_pct`, an uncalibrated 0–100 scale), `bone_conduct_en`, `eeg_adaptive` | `np_hub_types.h` |
+| Level → drive | `np_audio_dba_to_pct()`: amplitude = 100 × 10^((L − L_fs)/20), floored, where L_fs = `NP_AUDIO_DBA_FS`, the level at the ear at full drive. **It is 0 — the driver is uncalibrated (`OI-AUDIOHW-01`) — so every non-silent request returns `NP_HUB_ERR_UNCHARACTERISED`.** A request with `bone_conduct_en` set is refused likewise: bone conduction has no SPL to state a level in (`OI-AUDIOHW-11`) | `np_emission_cal.h/.c`; `np_mod_audio.c` |
 | Adaptive band map | delta/theta/alpha/beta/gamma → 2/6/10/20/40 Hz (`k_band_beat_mhz`), retuned every `NP_AUDIO_ADAPT_INTERVAL_MS` | `NP-FW-HUB-001` §8.5 |
 | Safety enable | `NP_SAFETY_EN_AUDIO` = **0** — no bit is requested and `slot_to_safety_bit()` returns 0 | `firmware/hub_control/include/np_hub_config.h`; §5 |
 | Condition telemetry | `np_mod_audio_hal_mesh_impedance()` → float Ω | `firmware/hub_control/modules/np_mod_audio.c` |
@@ -161,8 +162,10 @@ Two exposure limits that a reader may expect here are deliberately **not** state
 document in the set states them and inventing them is the failure this document exists to avoid:
 
 - **Acoustic output limit.** There is no dB SPL ceiling, no exposure-duration model and no
-  hearing-conservation reference anywhere in the document set. `volume_pct` is a 0–100 scale in the
-  wire format with no calibration to sound pressure. **`OI-AUDIOHW-01`.**
+  hearing-conservation reference anywhere in the document set. Until Rev 5 the wire carried
+  `volume_pct`, a 0–100 scale with no calibration to sound pressure; it now carries `level_dba`, so a
+  ceiling has a unit to be written in — but none is, and the hub cannot convert dBA to drive until the
+  driver is calibrated, so it refuses. **`OI-AUDIOHW-01`.**
 - **Bone-conduction drive limit.** Likewise absent, and it is the less familiar of the two: bone
   conduction bypasses the ear canal, so an air-conduction limit does not transfer to it unexamined.
   **`OI-AUDIOHW-02`.**
@@ -306,8 +309,9 @@ So there are three options, not two:
 
 #### 6.4.2 A use the record had not noticed — the microphone is also what `OI-AUDIOHW-01` is missing
 
-`OI-AUDIOHW-01` records that no acoustic output ceiling exists and that `volume_pct` is an
-**uncalibrated** 0–100 wire field. Any ceiling written against `volume_pct` has to assume a driver
+`OI-AUDIOHW-01` records that no acoustic output ceiling exists and that `volume_pct` was an
+**uncalibrated** 0–100 wire field (replaced in Rev 5 by `level_dba`, which the hub refuses until the
+driver is calibrated). Any ceiling written against `volume_pct` has to assume a driver
 sensitivity, a cup and a fit; the level actually delivered to a given wearer varies with all three,
 and most of all with the seal this item is about. An in-cup microphone measures the level in the
 wearer's own cup on the wearer's own fit — which is what a ceiling needs to be enforced as a
@@ -521,6 +525,7 @@ Against `NP-FAI-001` §2:
 | **OI-AUDIOHW-08** | **DECIDED 2026-09-24 (principal, Rev 4) — option B: one in-cup microphone per side, measurement only, no anti-noise; bound as `REQ-AUDIO-14`–`16` (§3.1); succeeded by `OI-AUDIOHW-09` and `-10`.** Analysed in Rev 3 (§6.4), recommendation B. The measurement needs the microphone, not the noise cancelling (§6.4.1); the microphone is also the only route found to a measured level for `OI-AUDIOHW-01` (§6.4.2); anti-noise sits in the band of every shipped carrier (§6.4.3), adds output and instability hazards (§6.4.4), and needs a low-latency loop the hub's SAI/DMA path cannot provide, which would decide `REQ-AUDIO-04a` by force (§6.4.5); bystander audio has no consent subject, so raw audio must be excluded structurally (§6.4.6); and no requirement states what ambient noise costs a session, so under `CLAUDE.md` §18 nothing yet requires anti-noise (§6.4.8). **As raised:** **Add noise cancelling with an in-cup (feedback) microphone, or decide not to.** Intended for session quality; also the only measurement found for the foam's loss of seal (`OI-ACC-04`, §6.1) and a candidate for mesh fouling if the mic sits on the ear side of the mesh (`OI-ACC-05`, §6.2). **It reverses a property the record states — there is no microphone anywhere in the design** — so it carries: a privacy decision (on-device processing only, a seal score out, no audio stored; the score depends on the wearer's head and is presumptively UHDR); an acoustic-safety one (anti-noise adds output and can howl when the seal breaks, which makes `OI-AUDIOHW-01` more pressing); and placement, cable and power consequences for `OI-AUDIOHW-05` and `-07`. Microphones put no current, light or field into the assembly, so `REQ-AUDIO-12` is not triggered | EE + Acoustic + Privacy | — (decided) |
 | **OI-AUDIOHW-09** | **Select the in-cup microphone** (`REQ-AUDIO-14`). Decide analogue vs digital (PDM) output knowing that a PDM part runs a clock of the order of a megahertz beside the temporal EEG sites and is a new source for `NP-EMC-CAV-001`'s analysis; confirm the hub codec (`NP-HW-HUB-001`) has an input per cup; add the microphone conductors to `OI-AUDIOHW-07`'s cable; fix the position within the front volume, and decide whether it goes on the ear side of the mesh (only `OI-ACC-05`'s candidate needs that). The cable change is a module interface under `REQ-UPG-03` and lands on both tiers | EE + Acoustic + EMC | A11 tooling; `OI-ACC-04` closure |
 | **OI-AUDIOHW-10** | **Implement the seal measurement in firmware.** Microphone HAL (a new entry beside `OI-AUDIO-01…08`), the probe signal and its level (bounded by `OI-AUDIOHW-01`), the powered capture window, reduction to a seal score, and `REQ-AUDIO-15`'s containment: decide whether a CI gate in the manner of `scripts/check-redaction-shape.ts` enforces that no sample leaves the reduction call. The dB criterion is `OI-ACC-04`'s, not this item's | FW + Privacy | `OI-ACC-04` closure |
+| **OI-AUDIOHW-11** | **Bone conduction has no absolute unit to command it in** (Rev 5). Protocols now state audio as dBA at the ear, and a bone-conduction transducer produces no air-borne SPL, so `level_dba` does not describe it; the hub refuses any request with `bone_conduct_en` set, which **blocks four predefined protocols** (05, 10, 11, 15 — each uses `bone_conduction_pacer` for the HRV breathing cue, `REQ-AUDIO-11`). Decide the quantity (vibratory force level at the mastoid, dB re 1 µN, per the audiometric bone-conduction reference, or another) and the calibration of the element that realises it. Distinct from `OI-AUDIOHW-02`, which is the *ceiling* in whatever unit this item picks | Systems + Acoustic | The four protocols above; `OI-AUDIOHW-02` |
 
 > **On the `OI-AUDIOHW-` prefix.** `OI-AUDIO-01…08` is already in use, in
 > `firmware/hub_control/modules/np_mod_audio.c`, for the audio **HAL stubs**. Open-item IDs are
@@ -550,3 +555,4 @@ Against `NP-FAI-001` §2:
 | 2 | 2026-09-23 | NeurOne Systems Engineering | **Foam prompt re-scoped by principal decision (§6.1, §8).** Comfort and hygiene replacement is at the user's discretion; the prompt covers loss of seal only, measured by the in-cup microphone of noise cancelling the programme intends to add. **Raises `OI-AUDIOHW-08`** (add ANC with a feedback mic, or decide not to) — it reverses the record's *no microphone anywhere in the design*, so privacy, acoustic-safety and placement consequences are listed with it. **No requirement added, no value set, no threshold changed.** |
 | 3 | 2026-09-24 | NeurOne Systems Engineering | **`OI-AUDIOHW-08` analysed; not decided (§6.4).** Separates the measurement from the noise cancelling: the foam's seal (`OI-ACC-04`) needs an in-cup microphone and a probe tone, not an anti-noise loop. States three options — **A** feedback/hybrid ANC, **B** in-cup microphone for measurement only, **C** no microphone — and **recommends B**. New findings: the microphone is also the only route to a measured in-cup level for `OI-AUDIOHW-01` (§6.4.2); every predefined protocol's 440 Hz carrier sits in feedback ANC's band, so A changes what the modality delivers (§6.4.3); A needs a low-latency loop the hub SAI/DMA chain cannot provide, deciding `REQ-AUDIO-04a` by force (§6.4.5); bystanders are neither `CLAUDE.md` §6.0 consent subject, so raw audio must be excluded structurally (§6.4.6); a PDM microphone is a new clocked source for `NP-EMC-CAV-001`. Two placement conditions recorded for A or B (§6.4.7), two conditional hazards added to §7, one row to §8. **No requirement added, no value set, no threshold or constant changed, no cost stated.** |
 | 4 | 2026-09-24 | NeurOne Systems Engineering | **`OI-AUDIOHW-08` DECIDED (principal): option B** — one in-cup microphone per side, measurement only, no anti-noise. Adds §3.1, the first requirements that originate in this document, each with what fails and its trace (`CLAUDE.md` §18): `REQ-AUDIO-14` (the microphone, measurement only), `REQ-AUDIO-15` (raw audio excluded by design — bystanders are neither §6.0 consent subject), `REQ-AUDIO-16` (the seal is the dominant leak; no fully open-back cup). The ear-side-of-mesh placement stays a condition, because `OI-ACC-05`'s candidate is not adopted. §7: probe-tone hazard live, anti-noise hazard retired in place. Raises `OI-AUDIOHW-09` (microphone selection, including analogue vs PDM and hub codec inputs) and `OI-AUDIOHW-10` (seal-measurement firmware). **No value set; the foam's `150` unchanged; no cost stated; `REQ-AUDIO-04a` and `REQ-AUDIO-12` unaffected.** |
+| 5 | 2026-09-25 | NeurOne Systems Engineering | **Audio is commanded in absolute level** (principal direction 2026-09-25, *"all emissions … must be specified in absolute terms to be safe from HW part changes"*; `NP-NPPS-REF-001` Rev 18). A protocol states `level_dba`, the A-weighted level at the ear; `volume` / `volume_percent` are parse errors, and so is `max_intensity` in the limits block (now `max_level_dba`). §4's command block carries `level_dba` in place of `volume_pct`, and `np_audio_dba_to_pct()` converts against the driver's level at full drive — **uncalibrated (`OI-AUDIOHW-01`), so the hub refuses every non-silent audio request**. The predefined values are **PROVISIONAL**: `round(60 + 20·log10(pct/60))` dBA, anchoring the old 60 % default at 60 dBA (conversational level), not a measurement. **Raises `OI-AUDIOHW-11`**: bone conduction has no SPL, so it has no unit yet and is refused. **No ceiling is set; `OI-AUDIOHW-01` and `-02` unchanged.** |

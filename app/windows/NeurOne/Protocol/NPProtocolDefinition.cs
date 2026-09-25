@@ -51,7 +51,8 @@ sealed class PbmTranscranialParams
 
 sealed class PbmIntranasalParams
 {
-    public double IntensityPercent { get; init; } = 60;
+    // On-state irradiance at the probe exit face, mW/cm² — absolute (NP-NPPS-REF-001 Rev 18).
+    public double IrradianceMWcm2 { get; init; } = 22;
     public double FrequencyHz { get; init; } = 40;
     public int DutyCyclePercent { get; init; } = 25;
 }
@@ -110,13 +111,16 @@ sealed class AudioEntrainmentParams
     public double? IsochronicTonesHz { get; init; }
     public NoiseType? NoiseTypeMode { get; init; } = NoiseType.Pink;
     public double CarrierHz { get; init; } = 440;
-    public double VolumePercent { get; init; } = 60;
+    // A-weighted level at the ear, dBA — absolute (NP-NPPS-REF-001 Rev 18).
+    public double LevelDba { get; init; } = 60;
     public bool EegAdaptive { get; init; } = true;
     public bool BoneConductionPacer { get; init; } = true;
 }
 
 sealed class VisualStimParams
 {
+    // On-state corneal irradiance, mW/cm² — absolute (NP-NPPS-REF-001 Rev 18).
+    public double IrradianceMWcm2 { get; init; } = 1;
     public enum VisualMode { Binocular, Emdr, RetinalPbm, ModeF }
 
     public double FrequencyHz { get; init; } = 40;

@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 17
+**Revision:** 18
 **Date:** 2026-09-25  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
@@ -14,6 +14,8 @@
 **IEC 62304 Class:** —
 
 ---
+
+> **Rev 18 (2026-09-25) — every emission is specified in absolute terms (principal: "to be safe from hardware part changes").** Rev 17 did this for `pbm_transcranial`; Rev 18 finishes it. **`pbm_intranasal`** takes `irradiance_mw_cm2` (on-state, at the probe exit face) and follows the transcranial CW rule — `frequency: 0` is continuous and a `duty_cycle` beside it is a parse error. **`visual_stimulation`** takes `irradiance_mw_cm2` (on-state corneal irradiance per lit channel — the quantity IEC 62471 assesses). **`audio_entrainment`** takes **`level_dba`** (A-weighted level at the ear — the unit hearing-conservation limits are written in), replacing `volume`. `intensity` on either optical block and `volume` on the audio block are **parse errors**; so is the retired `max_intensity` in the `pbm_transcranial`, `pbm_intranasal` and `audio_entrainment` limits blocks, which the parsers would otherwise have *skipped silently* as an unknown key — dropping a clinician's ceiling with no error. The limits fields are `max_irradiance_mw_cm2` and `max_level_dba`. **No absolute conversion existed for any old value**: the probe has no emitter (`OI-NASAL-06`), the audio driver is uncalibrated (`OI-AUDIOHW-01`) and no visual level was ever authored. Shipped values are therefore **PROVISIONAL, from evidence** (principal direction): intranasal from the evidence database's irradiance for each protocol's condition; audio by one stated rule (60 dBA at the median authored 60 %, % as amplitude — the record holds no level evidence); visual 1 mW/cm², under half of IEC 62471's exempt-group IR corneal limit. Each carries its provenance in a comment, and **the hub refuses all three modalities until the fitted part is characterised** (`np_emission_cal.h`) — nothing is emitted on an assumed scale. Hub protocol **v5**. §4, §4.2, §4.7, §4.8, §7 and §12 updated; three error fixtures added.
 
 > **Rev 17 (2026-09-25) — `pbm_transcranial` states its light in absolute terms, and CW means continuous (OI-HEXTILE-25, principal direction).** Two rules, both binding on all four runtimes and the hub. **(i) `irradiance_mw_cm2` replaces `intensity` on `pbm_transcranial`.** A percentage is a fraction of *an emitter's capability* — which differs by tile type (T1-A reaches ~403 mW/cm² at full drive, a T1-C 660/808 channel ~269, CH_C 28) and moves with the part `OI-HEXTILE-02` has not selected — so `intensity: 80%` never had a fixed meaning; `NP-SES-PWR-001` §2.3 recorded five disagreeing reference constants for it. The field is the on-state irradiance at the scalp face in mW/cm², per lit wavelength channel; `intensity` and `intensity_percent` on this block are now **parse errors**, not aliases (the other optical blocks keep `intensity`). The limits field follows: `max_irradiance_mw_cm2` replaces `max_intensity` in the `pbm_transcranial` limits sub-block. **(ii) `frequency: 0` is continuous wave, and continuous means 100 % on-time.** A `duty_cycle` beside it contradicted it and was undefined (`OI-SESPWR-03`, a 4× swing on a fifth of the library); the pair is now a **parse error**, and the parsers store 100 % for a CW block. The ceilings are R-4's two, on the irradiance: **≤ 400 mW/cm² pulsed at ≤ 25 % duty, ≤ 200 mW/cm² CW** — enforced by every validator and, refusing rather than clamping, by the hub (`np_pbm_irradiance.c`). The hub wire format carries mW/cm², so the protocol version is **v4**. **The shipped library is migrated**: blocks whose source trial states an irradiance carry it (the files had recorded those targets in comments since August); the rest carry their percentage at the scale they were authored against, 100 % = 403 mW/cm² (1064 nm blocks: 100 % = CH_C's 28 mW/cm²), each with a comment saying so. `Vascular Baseline` converts to **322 mW/cm² CW, over R-4's CW ceiling**; it is kept as written, refused everywhere, and awaits re-authoring from evidence (`OI-SESPWR-02`). §4, §4.1, §7 and §12 updated; `npps/fixtures` gains two error fixtures.
 
@@ -396,12 +398,12 @@ The following short names are accepted anywhere and map to the canonical name:
 | `binaural_hz` | `binaural_beats_hz` |
 | `isochronic_hz` | `isochronic_tones_hz` |
 | `noise` | `noise_type` |
-| `volume` | `volume_percent` |
+| `volume` | Modality field (retired) | `audio_entrainment` | **Parse error since Rev 18** — a percentage of the driver's output. Use `level_dba`. |
 | `breathing_rate` | `resonance_breathing_rate` |
 | `ramp` | `ramp_seconds` |
 | `emdr_cadence` | `emdr_cadence_hz` |
 
-The `intensity` alias is context-dependent: it maps to `intensity_percent` for optical modalities (`pbm_intranasal`, `visual_stimulation`), and `intensity_milliamps` for electrical modalities (`bes_tacs`, `tdcs`, `vns_hrv`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `tms`). For `pbm_deep_1170nm` use `intensity_mw_cm2:` directly; for `vibrotactile_40hz` use `intensity_g:` directly. **`pbm_transcranial` has no `intensity` at all** (Rev 17): it takes `irradiance_mw_cm2`, and `intensity` or `intensity_percent` on that block is a parse error.
+The `intensity` alias is context-dependent: it maps to `intensity_milliamps` for the electrical modalities listed next, and **no optical block accepts it** — every optical emission is absolute `irradiance_mw_cm2` (Rev 17/18). Historically it mapped to `intensity_percent` for the optical blocks, and `intensity_milliamps` for electrical modalities (`bes_tacs`, `tdcs`, `vns_hrv`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `tms`). For `pbm_deep_1170nm` use `intensity_mw_cm2:` directly; for `vibrotactile_40hz` use `intensity_g:` directly. **`pbm_transcranial` has no `intensity` at all** (Rev 17): it takes `irradiance_mw_cm2`, and `intensity` or `intensity_percent` on that block is a parse error.
 ---
 
 ### 4.1 PBM Transcranial
@@ -410,7 +412,7 @@ Photobiomodulation via scalp-facing LED zones.
 
 | Field | Canonical | Type | Values |
 |-------|-----------|------|--------|
-| `irradiance_mw_cm2` | `irradiance_mw_cm2` | number | On-state irradiance at the scalp face, **mW/cm²**, per lit wavelength channel. Pulsed ≤ 400; CW ≤ 200 (R-4). Default 300. **No short alias; `intensity` is a parse error here** (Rev 17) |
+| `irradiance_mw_cm2` | Modality field (canonical) | `pbm_transcranial`, `pbm_intranasal`, `visual_stimulation` | On-state irradiance, mW/cm², per lit channel — at the scalp face, the probe exit face, or the cornea. Absolute (Rev 17/18). No alias. |
 | `frequency` | `frequency_hz` | number | 0 (CW) or 0.5–100 |
 | `duty_cycle` | `duty_cycle_percent` | number | 1–25 (firmware max). **Pulsed only** — with `frequency: 0` it is a parse error (Rev 17) |
 | `zones` | `zones` | string array \| `clinician_selected` | A **named-zone-reference array** (§8), or the keyword `clinician_selected` |
@@ -462,13 +464,15 @@ Bilateral intranasal probe.
 
 | Field | Canonical | Type | Values |
 |-------|-----------|------|--------|
-| `intensity` | `intensity_percent` | number | 0–100 |
+| `irradiance_mw_cm2` | `irradiance_mw_cm2` | number | On-state irradiance at the probe exit face, **mW/cm²**, per channel. No ceiling exists yet (`OI-NASAL-02`). **`intensity` is a parse error here** (Rev 18) |
 | `frequency` | `frequency_hz` | number | 0 (CW) or 0.5–100 |
-| `duty_cycle` | `duty_cycle_percent` | number | 1–25 |
+| `duty_cycle` | `duty_cycle_percent` | number | 1–25. **Pulsed only** — with `frequency: 0` it is a parse error: CW is continuous (Rev 18) |
+
+The hub converts to drive for the probe fitted and **refuses every intranasal command until the probe's emitter is characterised** (`OI-NASAL-06`, `np_emission_cal.h`).
 
 ```
 pbm_intranasal {
-    intensity: 60%
+    irradiance_mw_cm2: 100
     frequency: 40Hz
     duty_cycle: 25%
     interval_on: 15m
@@ -609,9 +613,11 @@ Over-ear planar magnetic + bone conduction.
 | `isochronic_hz` | `isochronic_tones_hz` | number (optional) | 0.5–100 |
 | `noise` | `noise_type` | string (optional) | `pink` `brown` `none` |
 | `carrier_hz` | `carrier_hz` | number | Hz of carrier tone for binaural beats |
-| `volume` | `volume_percent` | number | 0–100 |
+| `level_dba` | `level_dba` | number | A-weighted level at the ear, **dBA** — absolute (Rev 18). No ceiling exists yet (`OI-AUDIOHW-01`). **`volume` is a parse error** |
 | `eeg_adaptive` | `eeg_adaptive` | bool | Adjust frequency in real time based on EEG |
-| `bone_conduction_pacer` | `bone_conduction_pacer` | bool | Use bone conduction for breathing pacer cue |
+| `bone_conduction_pacer` | `bone_conduction_pacer` | bool | Use bone conduction for breathing pacer cue. **Bone conduction has no SPL, so no absolute unit yet**: the hub refuses it until one is defined (`OI-AUDIOHW-11`) |
+
+The hub converts `level_dba` to the fitted driver's setting and **refuses audible output until the driver is calibrated** (`OI-AUDIOHW-01`, `np_emission_cal.h`).
 
 Optional fields (`binaural_hz`, `isochronic_hz`, `noise`) may be omitted when not needed. `noise: none` is also accepted and has the same effect as omitting the field.
 
@@ -620,7 +626,7 @@ audio_entrainment {
     binaural_hz: 10Hz
     noise: pink
     carrier_hz: 440Hz
-    volume: 60%
+    level_dba: 60
     eeg_adaptive: true
     bone_conduction_pacer: false
 }
@@ -631,7 +637,7 @@ audio_entrainment {
     isochronic_hz: 40Hz
     binaural_hz: 40Hz
     carrier_hz: 440Hz
-    volume: 65%
+    level_dba: 61
     eeg_adaptive: true
     bone_conduction_pacer: false
 }
@@ -645,7 +651,7 @@ audio_entrainment {
 
 | Field | Canonical | Type | Values |
 |-------|-----------|------|--------|
-| `intensity` | `intensity_percent` | number | 0–100 |
+| `irradiance_mw_cm2` | `irradiance_mw_cm2` | number | On-state **corneal** irradiance, **mW/cm²**, per lit channel — the quantity IEC 62471 assesses (Rev 18). **`intensity` is a parse error here.** The hub refuses until the lens emitters are characterised (`OI-VIS-ABS-01`) |
 | `frequency` | `frequency_hz` | number | 0–100 (0 = off / Mode F) |
 | `mode` | `mode` | string | `binocular` `emdr` `retinal_pbm` `mode_f` |
 | `emdr_cadence` | `emdr_cadence_hz` | number | L/R alternation rate in Hz |
@@ -653,6 +659,7 @@ audio_entrainment {
 
 ```
 visual_stimulation {
+    irradiance_mw_cm2: 1
     frequency: 40Hz
     mode: binocular
     emdr_cadence: 1Hz
@@ -1056,7 +1063,7 @@ limits "T1 Home Defaults" {
 | | `max_duty_cycle` | % |
 | | `max_session_dose` | J/cm² |
 | | `max_daily_dose` | J/cm² |
-| `pbm_intranasal` | `max_intensity` | % |
+| `pbm_intranasal` | `max_irradiance_mw_cm2` | mW/cm² (Rev 18 — was `max_intensity` %, now a parse error) |
 | | `max_session_dose` | J/cm² |
 | | `max_session_duration` | seconds |
 | `eeg_neurofeedback` | `allowed_bands` | array of band names |
@@ -1073,7 +1080,7 @@ limits "T1 Home Defaults" {
 | | `max_frequency` | Hz |
 | | `max_session_duration` | seconds |
 | | `allowed_protocols` | array of protocol names |
-| `audio_entrainment` | `max_intensity` | % |
+| `audio_entrainment` | `max_level_dba` | dBA (Rev 18 — was `max_intensity` %, now a parse error) |
 | | `max_binaural_beats` | Hz |
 | | `max_isochronic_tones` | Hz |
 | `visual_stimulation` | `max_frequency` | Hz |
@@ -1449,11 +1456,11 @@ Reading the table:
 | `id` | Metadata field | `protocol`, `composite`, `zone`, `condition` | Stable UUID. Its **presence marks the entry as predefined** (shipped, read-only). |
 | `individual` | Enum value | `limits` → `level` | Per-user limits; the most specific level, overrides `helmet`. Requires `individual_id`. |
 | `individual_id` | Limits field | `limits` | User ID the limits block applies to, when `level: individual`. |
-| `intensity` | Modality field (alias) | most modalities | **Context-dependent alias.** Maps to `intensity_percent` for optical modalities and `intensity_milliamps` for electrical ones (§4, Field aliases). Not available on `pbm_deep_1170nm` or `vibrotactile_40hz`; **a parse error on `pbm_transcranial`**, which takes `irradiance_mw_cm2` (Rev 17). |
+| `intensity` | Modality field (alias) | most modalities | **Electrical alias only.** Maps to `intensity_milliamps` on electrical blocks (§4, Field aliases). No optical or acoustic block accepts it: **a parse error on `pbm_transcranial`** (Rev 17), **on `pbm_intranasal` and `visual_stimulation`** (Rev 18) — each takes `irradiance_mw_cm2` — and not available on `pbm_deep_1170nm` or `vibrotactile_40hz`. |
 | `intensity_g` | Modality field | `vibrotactile_40hz` | Drive amplitude in G (acceleration), 0.6–1.2. Use directly — `intensity` does not alias to it. |
 | `intensity_milliamps` | Modality field (canonical) | electrical modalities | Canonical name `intensity` resolves to for `bes_tacs`, `tdcs`, `vns_hrv`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `tms`. |
 | `intensity_mw_cm2` | Modality field | `pbm_deep_1170nm` | Irradiance in mW/cm², ≤1000. Use directly — `intensity` does not alias to it. |
-| `intensity_percent` | Modality field (canonical) | optical modalities | Canonical name `intensity` resolves to for `pbm_intranasal`, `visual_stimulation`. **Not `pbm_transcranial`** since Rev 17 — a parse error there. |
+| `intensity_percent` | Modality field (retired) | — | **No block accepts it since Rev 18** — every optical emission is `irradiance_mw_cm2`. A parse error on `pbm_transcranial`, `pbm_intranasal` and `visual_stimulation`. |
 | `intensity_percent_mt` | Modality field | `tms` | Stimulator output as % of motor threshold, 80–120 typical. |
 | `intensity_scale` | Layer field | `layer` | Multiplier applied to every modality intensity in the referenced protocol, 0.0–2.0. Default `1.0`. |
 | `interval_count` | Metadata field | `protocol` | Alternative to `duration`: run for N modality intervals instead of a fixed wall time. |
@@ -1470,6 +1477,7 @@ Reading the table:
 | `led_660` | Element type | `zone` → `types` | 660–670 nm LED element (CH_A). |
 | `led_808` | Element type | `zone` → `types` | 808–830 nm LED element (CH_B). |
 | `level` | Limits field | `limits` | Which tier of the limits hierarchy this block sits in: `global`, `helmet` or `individual`. |
+| `level_dba` | Modality field (canonical) | `audio_entrainment` | A-weighted level at the ear, dBA — absolute (Rev 18). No alias. |
 | `limits` | Top-level block | file | Per-modality safety constraints (§7). Extracted separately by `parseNPPSLimits()`; the name string is optional. |
 | `link` | Condition field | `condition` | **Required.** URL to an external definition of the condition, opened in an external browser. |
 | `linked_ear` | Enum value | `qeeg_21ch` → `reference` | Linked-ear (A1/A2) normative reference — the A1/A2 contacts sit on the VNS clips. |
@@ -1483,8 +1491,9 @@ Reading the table:
 | `max_frequency` | Limits field | `limits` → several modality sub-blocks | Ceiling on `frequency`, in Hz. |
 | `max_intensity` | Limits field | `limits` → most modality sub-blocks | Ceiling on that modality's intensity, in the modality's own unit (%, mA, mW/cm² or G). Not `pbm_transcranial`, which takes `max_irradiance_mw_cm2` (Rev 17). |
 | `max_intensity_pct_mt` | Limits field | `limits` → `tms` | Ceiling on `intensity_percent_mt`, in % MT. |
-| `max_irradiance_mw_cm2` | Limits field | `limits` → `pbm_transcranial` | Ceiling on `irradiance_mw_cm2`, mW/cm² (Rev 17 — replaces `max_intensity` for this block). |
+| `max_irradiance_mw_cm2` | Limits field | `limits` → `pbm_transcranial`, `pbm_intranasal` | Ceiling on `irradiance_mw_cm2`, mW/cm² (replaces `max_intensity` there, which is now a parse error). |
 | `max_isochronic_tones` | Limits field | `limits` → `audio_entrainment` | Ceiling on `isochronic_hz`, in Hz. |
+| `max_level_dba` | Limits field | `limits` → `audio_entrainment` | Ceiling on `level_dba`, dBA (Rev 18). |
 | `max_pulses_per_day` | Limits field | `limits` → `tms` | Ceiling on total TMS pulses per day. |
 | `max_pulses_per_session` | Limits field | `limits` → `tms` | Ceiling on `pulse_count` for one session. |
 | `max_session_dose` | Limits field | `limits` → `pbm_transcranial`, `pbm_intranasal` | Ceiling on PBM dose for one session, in J/cm². |
@@ -1557,7 +1566,7 @@ Reading the table:
 | `vns_contact` | Element type | `zone` → `types` | Auricular VNS clip contact element. |
 | `vns_hrv` | Modality block | `protocol`, `limits` | Auricular vagus nerve stimulation with HRV biofeedback (§4.6). |
 | `volume` | Modality field (alias) | `audio_entrainment` | Alias of `volume_percent` — output level, 0–100. |
-| `volume_percent` | Modality field (canonical) | `audio_entrainment` | Canonical name behind `volume`. |
+| `volume_percent` | Modality field (retired) | `audio_entrainment` | **Parse error since Rev 18.** Use `level_dba`. |
 | `waveform` | Modality field | `bes_tacs`, `clinical_tacs` | Stimulation waveform: `sinusoidal`, `square` or `triangular`. |
 | `wavelength` | Modality field | `pbm_transcranial` | Which PBM emitter channels to drive. |
 | `zone` | Top-level block | file | Defines a named set of modules by socket address (§8). **The only way a zone is defined** — nothing outside a `.npps` file supplies one. Populates the namespace; referenced by name from `pbm_transcranial`'s `zones`. A name defined twice across the tree is an error and binds to neither definition (§1.6). |

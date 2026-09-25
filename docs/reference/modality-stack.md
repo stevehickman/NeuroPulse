@@ -34,6 +34,7 @@
 - Hub dock storage (in hub tooling from day one — prevents Y-junction fracture)
 - Hygiene sleeve consumable: 30-pack $19/pack or $19/mo subscription
 - Silicone over-mold at Y-junction for impact protection
+- **Commanded in absolute irradiance — mW/cm² at the probe exit face (`irradiance_mw_cm2`), never a percentage of the emitter** (2026-09-25, `NP-NPPS-REF-001` Rev 18). CW is continuous. **The hub refuses every intranasal request until the emitter is characterised (`OI-NASAL-06`)**; no mucosal exposure ceiling exists (`OI-NASAL-02`, BLOCKING). Predefined values are PROVISIONAL, from evidence
 
 **3. EEG Neurofeedback**
 - 8-ch semi-dry hydrogel · Fp1/2, F3/4, C3/4, P3/4
@@ -84,6 +85,7 @@
 - Driver impedance monitors mesh fouling (detects both acoustic degradation AND RF shielding loss simultaneously)
 - Mesh cleaning brush in box
 - Silicone isolator for bone conduction piezoelectric element
+- **Commanded in absolute level — dBA at the ear (`level_dba`), never a volume percentage** (2026-09-25, `NP-NPPS-REF-001` Rev 18). **The hub refuses every audio request until the driver is calibrated (`OI-AUDIOHW-01`), and refuses bone conduction outright: it has no SPL, so no unit yet (`OI-AUDIOHW-11`)**. Predefined values are PROVISIONAL
 - In-cup microphone per side, **measurement only** — foam seal and in-cup level; **no noise cancelling**; raw audio never stored or transmitted (decided 2026-09-24, `NP-HW-AUDIO-001` §3.1 `REQ-AUDIO-14`–`16`, `OI-AUDIOHW-08`)
 
 **8. Visual Stimulation**
@@ -96,6 +98,7 @@
 - Photoparoxysmal EEG detection at Oz → goggle halt <200ms
 - **Mode F (invisible NIR retinal walk):** 808–830nm daily retinal PBM during normal-looking wear
 - EMDR L/R alternation · photic driving 0.5–100Hz
+- **Commanded in absolute corneal irradiance per lit channel — mW/cm² (`irradiance_mw_cm2`), the quantity IEC 62471 assesses** (2026-09-25, `NP-NPPS-REF-001` Rev 18). **The hub refuses every lit request until the lens emitters are characterised and the level reaches the HAL (`OI-VIS-ABS-01`)**. Predefined protocols carry a PROVISIONAL 1 mW/cm², under half the IEC 62471 exempt-group IR corneal limit
 
 **Snap-on shade system:**
 - S1 opaque (<0.5% VLT, included in box, instant cutoff for immersive sessions)

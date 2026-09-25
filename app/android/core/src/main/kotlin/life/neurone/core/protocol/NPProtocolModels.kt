@@ -98,8 +98,11 @@ data class NPPBMTranscranialParams(
 }
 
 data class NPPBMIntranasalParams(
-    var intensityPercent: Double = 60.0,
+    /** On-state irradiance at the probe exit face, mW/cm² — absolute (NP-NPPS-REF-001 Rev 18 §4.2). */
+    var irradianceMWcm2: Double = 22.0,
+    /** 0 = continuous wave. */
     var frequencyHz: Double = 40.0,
+    /** Pulsed duty ≤ 25 %. CW is continuous: the parser stores 100. */
     var dutyCyclePercent: Int = 25,
 )
 
@@ -166,7 +169,8 @@ data class NPAudioEntrainmentParams(
     var isochronicTonesHz: Double? = null,
     var noiseType: NoiseType? = NoiseType.PINK,
     var carrierHz: Double = 440.0,
-    var volumePercent: Double = 60.0,
+    /** A-weighted level at the ear, dBA — absolute (NP-NPPS-REF-001 Rev 18 §4.7). */
+    var levelDba: Double = 60.0,
     var eegAdaptive: Boolean = true,
     var boneConductionPacer: Boolean = true,
 ) {
@@ -177,6 +181,8 @@ data class NPAudioEntrainmentParams(
 }
 
 data class NPVisualStimParams(
+    /** On-state corneal irradiance, mW/cm² — absolute (NP-NPPS-REF-001 Rev 18 §4.8). */
+    var irradianceMWcm2: Double = 1.0,
     var frequencyHz: Double = 40.0,
     var mode: VisualMode = VisualMode.BINOCULAR,
     var emdrCadenceHz: Double = 1.0,
@@ -460,7 +466,8 @@ data class NPPBMTranscranialLimits(
 )
 
 data class NPPBMIntranasalLimits(
-    var maxIntensityPercent: Double? = null,
+    /** On-state irradiance ceiling, mW/cm² (absolute). */
+    var maxIrradianceMWcm2: Double? = null,
     var maxSessionDoseJCm2: Double? = null,
     var maxSessionDurationSeconds: Int? = null,
 )
@@ -492,7 +499,8 @@ data class NPVNSHRVLimits(
 )
 
 data class NPAudioEntrainmentLimits(
-    var maxVolumePercent: Double? = null,
+    /** dBA at the ear (absolute). */
+    var maxLevelDba: Double? = null,
     var maxBinauralBeatsHz: Double? = null,
     var maxIsochronicTonesHz: Double? = null,
 )

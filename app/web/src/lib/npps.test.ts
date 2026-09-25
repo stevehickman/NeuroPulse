@@ -28,7 +28,7 @@ protocol "Gamma Focus" {
         binaural_hz: 40Hz
         noise: none
         carrier_hz: 440Hz
-        volume: 70%
+        level_dba: 61
         eeg_adaptive: false
         bone_conduction_pacer: false
     }
@@ -68,7 +68,7 @@ protocol "All T1 Modalities" {
     }
 
     pbm_intranasal {
-        intensity: 60%
+        irradiance_mw_cm2: 100
         frequency: 40Hz
         duty_cycle: 25%
     }
@@ -103,7 +103,7 @@ protocol "All T1 Modalities" {
         binaural_hz: 40Hz
         noise: pink
         carrier_hz: 440Hz
-        volume: 60%
+        level_dba: 60
         eeg_adaptive: true
         bone_conduction_pacer: true
     }
@@ -395,7 +395,7 @@ describe('pbm_transcranial is absolute irradiance; CW is continuous (OI-HEXTILE-
   });
 
   it('keeps intensity for the other optical blocks', () => {
-    const src = `protocol "T" {\n    duration: 5m\n    pbm_intranasal {\n        intensity: 60%\n    }\n}\n`;
+    const src = `protocol "T" {\n    duration: 5m\n    pbm_intranasal {\n        irradiance_mw_cm2: 100\n    }\n}\n`;
     expect(() => parseNPPS(src)).not.toThrow();
   });
 
@@ -417,6 +417,35 @@ describe('pbm_transcranial is absolute irradiance; CW is continuous (OI-HEXTILE-
     expect(out).toContain('irradiance_mw_cm2: 36');
     expect(out).not.toMatch(/duty_cycle/);
     expect(pbmOf(out)).toMatchObject({ irradianceMWcm2: 36, dutyCyclePercent: 100 });
+  });
+});
+
+describe('every emission ceiling is absolute (Rev 18)', () => {
+  // The limits parser skips unknown keys for forward compatibility, so a retired
+  // percentage ceiling would be DROPPED silently — a clinician's limit gone with
+  // no error. It is refused instead.
+  it.each([
+    ['pbm_transcranial', 'max_irradiance_mw_cm2'],
+    ['pbm_intranasal', 'max_irradiance_mw_cm2'],
+    ['audio_entrainment', 'max_level_dba'],
+  ])('%s refuses the retired max_intensity and names %s', (block, field) => {
+    const src = `limits "L" {\n    level: global\n    ${block} {\n        max_intensity: 80\n    }\n}\n`;
+    expect(() => parseNPPSLimits(src)).toThrow(new RegExp(field));
+  });
+
+  it.each([
+    ['pbm_intranasal', '        intensity: 60%'],
+    ['visual_stimulation', '        intensity: 50%'],
+    ['audio_entrainment', '        volume: 60%'],
+  ])('%s refuses a percentage emission', (block, body) => {
+    expect(() => parseNPPS(`protocol "T" {\n    duration: 5m\n    ${block} {\n${body}\n    }\n}\n`)).toThrow();
+  });
+
+  it('pbm_intranasal: CW is continuous, and a duty beside it is refused', () => {
+    const cw = `protocol "T" {\n    duration: 5m\n    pbm_intranasal {\n        irradiance_mw_cm2: 22\n        frequency: 0Hz\n    }\n}\n`;
+    const p = (parseNPPS(cw)[0] as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
+    expect(p.modalities[0].modalityParams.params).toMatchObject({ irradianceMWcm2: 22, dutyCyclePercent: 100 });
+    expect(() => parseNPPS(cw.replace('frequency: 0Hz', 'frequency: 0Hz\n        duty_cycle: 25%'))).toThrow(/continuous/);
   });
 });
 
@@ -672,12 +701,12 @@ describe('canonical field names shared by every runtime', () => {
     expect(p.syncToVisual).toBe(true);
   });
 
-  it('audio limits max_intensity / max_binaural_beats / max_isochronic_tones', () => {
+  it('audio limits max_level_dba / max_binaural_beats / max_isochronic_tones', () => {
     const lim = parseNPPSLimits(
-      `limits "L" {\n    level: global\n    audio_entrainment {\n        max_intensity: 85\n        max_binaural_beats: 100\n        max_isochronic_tones: 90\n    }\n}\n`,
+      `limits "L" {\n    level: global\n    audio_entrainment {\n        max_level_dba: 85\n        max_binaural_beats: 100\n        max_isochronic_tones: 90\n    }\n}\n`,
     );
     expect(lim!.audioEntrainment).toMatchObject({
-      maxVolumePercent: 85,
+      maxLevelDba: 85,
       maxBinauralBeatsHz: 100,
       maxIsochronicTonesHz: 90,
     });

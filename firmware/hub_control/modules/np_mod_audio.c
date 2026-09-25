@@ -22,6 +22,7 @@
  *   OI-AUDIO-08: np_mod_audio_hal_mesh_impedance() → float ohm (fouling detect)
  */
 
+#include "np_emission_cal.h"
 #include "np_hub_types.h"
 #include "np_module_registry.h"
 #include <string.h>
@@ -104,24 +105,41 @@ np_hub_status_t np_mod_audio_control(uint8_t slot, const void *params, uint16_t 
 
     const np_mod_audio_params_t *p = (const np_mod_audio_params_t *)params;
 
+    /* Level is ABSOLUTE — dBA at the ear — and is converted to the driver's
+     * volume setting by np_audio_dba_to_pct().  The driver is uncalibrated
+     * (OI-AUDIOHW-01), so any audible request is refused rather than played at
+     * an assumed loudness.  Bone conduction has no SPL at all, so it has no
+     * absolute unit yet (OI-AUDIOHW-11) and cannot be enabled. */
+    if (p->bone_conduct_en != 0U) {
+        return NP_HUB_ERR_UNCHARACTERISED;
+    }
+    int vol = 0;
+    if (p->mode <= 3U) {
+        vol = np_audio_dba_to_pct(p->level_dba);
+        if (vol < 0) {
+            return NP_HUB_ERR_UNCHARACTERISED;
+        }
+    }
+    const uint8_t volume_pct = (uint8_t)vol;
+
     s_state.mode         = p->mode;
     s_state.carrier_hz   = p->carrier_hz;
     s_state.beat_mhz     = p->beat_mhz;
-    s_state.vol_pct      = p->volume_pct;
+    s_state.vol_pct      = volume_pct;
     s_state.eeg_adaptive = (p->eeg_adaptive != 0U);
 
     switch (p->mode) {
     case 0: /* binaural */
-        np_mod_audio_hal_set_binaural(p->carrier_hz, p->beat_mhz, p->volume_pct);
+        np_mod_audio_hal_set_binaural(p->carrier_hz, p->beat_mhz, volume_pct);
         break;
     case 1: /* isochronic */
-        np_mod_audio_hal_set_isochronic(p->carrier_hz, p->volume_pct);
+        np_mod_audio_hal_set_isochronic(p->carrier_hz, volume_pct);
         break;
     case 2: /* pink noise */
-        np_mod_audio_hal_set_noise(0U, p->volume_pct);
+        np_mod_audio_hal_set_noise(0U, volume_pct);
         break;
     case 3: /* brown noise */
-        np_mod_audio_hal_set_noise(1U, p->volume_pct);
+        np_mod_audio_hal_set_noise(1U, volume_pct);
         break;
     default:
         np_mod_audio_hal_stop_planar();
@@ -130,7 +148,7 @@ np_hub_status_t np_mod_audio_control(uint8_t slot, const void *params, uint16_t 
 
     if (p->bone_conduct_en) {
         /* Bone conduction at carrier frequency for breathing pacer / sync cue */
-        np_mod_audio_hal_bone_set(p->carrier_hz, p->volume_pct);
+        np_mod_audio_hal_bone_set(p->carrier_hz, volume_pct);
         s_state.bone_on = true;
     } else if (s_state.bone_on) {
         np_mod_audio_hal_bone_stop();

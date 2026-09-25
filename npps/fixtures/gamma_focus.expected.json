@@ -40,7 +40,7 @@
         "enabled": true,
         "params": {
           "carrierHz": 440,
-          "volumePercent": 70,
+          "levelDba": 61,
           "eegAdaptive": false,
           "boneConductionPacer": false,
           "binauralBeatsHz": 40
@@ -54,6 +54,7 @@
         "type": "visual_stimulation",
         "enabled": true,
         "params": {
+          "irradianceMWcm2": 1,
           "frequencyHz": 40,
           "mode": "binocular",
           "emdrCadenceHz": 1,

@@ -19,12 +19,13 @@ protocol "Gamma Focus" {
         binaural_hz: 40Hz
         noise: none
         carrier_hz: 440Hz
-        volume: 70%
+        level_dba: 61
         eeg_adaptive: false
         bone_conduction_pacer: false
     }
 
     visual_stimulation {
+        irradiance_mw_cm2: 1
         frequency: 40Hz
         mode: binocular
         emdr_cadence: 1Hz

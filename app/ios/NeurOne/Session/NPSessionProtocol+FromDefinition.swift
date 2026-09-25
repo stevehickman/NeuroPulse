@@ -34,6 +34,7 @@ extension NPSessionProtocol {
                 )))
             case .pbmIntranasal(let p):
                 modalities.append(.pbmIntranasal(PBMIntranasalConfig(
+                    irradianceMWcm2: p.irradianceMWcm2,
                     frequencyHz: p.frequencyHz,
                     dutyCyclePercent: p.dutyCyclePercent,
                     durationSeconds: durationSeconds
@@ -75,11 +76,13 @@ extension NPSessionProtocol {
                     binauralBeatHz: p.binauralBeatsHz,
                     isochronicToneHz: p.isochronicTonesHz,
                     noiseType: p.noiseType?.rawValue,
+                    levelDba: p.levelDba,
                     eegAdaptive: p.eegAdaptive,
                     useBoneConductionForPacer: p.boneConductionPacer
                 )))
             case .visualStimulation(let p):
                 modalities.append(.visualStimulation(VisualStimConfig(
+                    irradianceMWcm2: p.irradianceMWcm2,
                     frequencyHz: p.frequencyHz,
                     mode: p.mode.sessionWireName,
                     enableModeFInvisibleNIR: p.enableModeF,

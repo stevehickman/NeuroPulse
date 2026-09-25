@@ -66,6 +66,7 @@ data class NPSessionProtocol(
                     )
                     is NPModalityParams.PbmIntranasal -> configs.add(
                         ModalityConfig.PbmIntranasal(
+                            irradianceMWcm2 = p.params.irradianceMWcm2,
                             frequencyHz = p.params.frequencyHz,
                             dutyCyclePercent = p.params.dutyCyclePercent,
                             durationSeconds = duration,
@@ -108,12 +109,14 @@ data class NPSessionProtocol(
                             binauralBeatHz = p.params.binauralBeatsHz,
                             isochronicToneHz = p.params.isochronicTonesHz,
                             noiseType = p.params.noiseType?.rawValue,
+                            levelDba = p.params.levelDba,
                             eegAdaptive = p.params.eegAdaptive,
                             useBoneConductionForPacer = p.params.boneConductionPacer,
                         ),
                     )
                     is NPModalityParams.VisualStimulation -> configs.add(
                         ModalityConfig.VisualStimulation(
+                            irradianceMWcm2 = p.params.irradianceMWcm2,
                             frequencyHz = p.params.frequencyHz,
                             mode = p.params.mode.sessionWireName,
                             enableModeFInvisibleNIR = p.params.enableModeF,
@@ -152,6 +155,8 @@ sealed class ModalityConfig {
     @Serializable
     @SerialName("pbm_intranasal")
     data class PbmIntranasal(
+        /** On-state irradiance at the probe exit face, mW/cm² — absolute. */
+        val irradianceMWcm2: Double,
         val frequencyHz: Double,
         val dutyCyclePercent: Int,
         val durationSeconds: Int,
@@ -207,6 +212,8 @@ sealed class ModalityConfig {
         val binauralBeatHz: Double? = null,
         val isochronicToneHz: Double? = null,
         val noiseType: String? = null,
+        /** A-weighted level at the ear, dBA — absolute. */
+        val levelDba: Double,
         val eegAdaptive: Boolean = true,
         val useBoneConductionForPacer: Boolean = true,
     ) : ModalityConfig()
@@ -214,6 +221,8 @@ sealed class ModalityConfig {
     @Serializable
     @SerialName("visual_stimulation")
     data class VisualStimulation(
+        /** On-state corneal irradiance, mW/cm² — absolute. */
+        val irradianceMWcm2: Double,
         val frequencyHz: Double,
         val mode: String = "binocular",
         val enableModeFInvisibleNIR: Boolean = false,

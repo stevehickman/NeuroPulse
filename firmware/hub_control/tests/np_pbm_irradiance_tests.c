@@ -22,6 +22,7 @@
 #include "np_pbm_config.h"
 #include "np_pbm_drive.h"
 #include "np_pbm_hal.h"
+#include "np_emission_cal.h"
 
 static int g_failures = 0;
 
@@ -200,6 +201,20 @@ static void test_leaving_cw_reclamps_first(void)
           "entering CW writes no duty (the caller sets it)");
 }
 
+/* ── Non-cranial emitters: absolute in, refused until characterised ─────────── */
+
+static void test_uncharacterised_emitters_refuse(void)
+{
+    check(NP_INS_IRR_FS_DMW == 0U && NP_VIS_IRR_FS_UW == 0U && NP_AUDIO_DBA_FS == 0U,
+          "no intranasal, visual or audio part is characterised yet");
+    check(np_ins_irr_to_code(0U) == 0, "intranasal 0 mW/cm² is off, not refused");
+    check(np_ins_irr_to_code(22U) < 0, "intranasal 22 mW/cm² refused: no emitter (OI-NASAL-06)");
+    check(np_vis_irr_to_level(0U) == 0, "visual 0 µW/cm² is off");
+    check(np_vis_irr_to_level(1000U) < 0, "visual 1 mW/cm² refused: lens emitters uncharacterised");
+    check(np_audio_dba_to_pct(0U) == 0, "0 dBA is the silent sentinel");
+    check(np_audio_dba_to_pct(60U) < 0, "60 dBA refused: driver uncalibrated (OI-AUDIOHW-01)");
+}
+
 int main(void)
 {
     test_ceilings_by_mode();
@@ -209,6 +224,7 @@ int main(void)
     test_channel_rules();
     test_drive_duty_by_mode();
     test_leaving_cw_reclamps_first();
+    test_uncharacterised_emitters_refuse();
 
     printf("\n%s: %d failure(s)\n", g_failures ? "FAILED" : "PASSED", g_failures);
     return g_failures ? 1 : 0;

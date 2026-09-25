@@ -12,7 +12,7 @@ struct NPPBMTranscranialLimits: Codable, Equatable {
 }
 
 struct NPPBMIntranasalLimits: Codable, Equatable {
-    var maxIntensityPercent: Double?
+    var maxIrradianceMWcm2: Double?         // on-state mW/cm² (absolute)
     var maxSessionDoseJCm2: Double?
     var maxSessionDurationSeconds: Int?
 }
@@ -44,7 +44,7 @@ struct NPVNSHRVLimits: Codable, Equatable {
 }
 
 struct NPAudioEntrainmentLimits: Codable, Equatable {
-    var maxVolumePercent: Double?
+    var maxLevelDba: Double?                // dBA at the ear (absolute)
     var maxBinauralBeatsHz: Double?
     var maxIsochronicTonesHz: Double?
 }
@@ -179,7 +179,7 @@ struct NPPBMTranscranialSources: Equatable {
 }
 
 struct NPPBMIntranasalSources: Equatable {
-    var maxIntensityPercent: NPLimitSource?
+    var maxIrradianceMWcm2: NPLimitSource?
     var maxSessionDoseJCm2: NPLimitSource?
     var maxSessionDurationSeconds: NPLimitSource?
 }
@@ -211,7 +211,7 @@ struct NPVNSHRVSources: Equatable {
 }
 
 struct NPAudioEntrainmentSources: Equatable {
-    var maxVolumePercent: NPLimitSource?
+    var maxLevelDba: NPLimitSource?
     var maxBinauralBeatsHz: NPLimitSource?
     var maxIsochronicTonesHz: NPLimitSource?
 }
@@ -360,12 +360,12 @@ extension NPLimitsSet {
     ) -> (NPPBMIntranasalLimits?, NPPBMIntranasalSources?) {
         guard i != nil || h != nil || g != nil else { return (nil, nil) }
         let lim = NPPBMIntranasalLimits(
-            maxIntensityPercent:        i?.maxIntensityPercent        ?? h?.maxIntensityPercent        ?? g?.maxIntensityPercent,
+            maxIrradianceMWcm2:         i?.maxIrradianceMWcm2         ?? h?.maxIrradianceMWcm2         ?? g?.maxIrradianceMWcm2,
             maxSessionDoseJCm2:         i?.maxSessionDoseJCm2         ?? h?.maxSessionDoseJCm2         ?? g?.maxSessionDoseJCm2,
             maxSessionDurationSeconds:  i?.maxSessionDurationSeconds  ?? h?.maxSessionDurationSeconds  ?? g?.maxSessionDurationSeconds
         )
         let sources = NPPBMIntranasalSources(
-            maxIntensityPercent:        src(i?.maxIntensityPercent,        h?.maxIntensityPercent,        g?.maxIntensityPercent),
+            maxIrradianceMWcm2:         src(i?.maxIrradianceMWcm2,         h?.maxIrradianceMWcm2,         g?.maxIrradianceMWcm2),
             maxSessionDoseJCm2:         src(i?.maxSessionDoseJCm2,         h?.maxSessionDoseJCm2,         g?.maxSessionDoseJCm2),
             maxSessionDurationSeconds:  src(i?.maxSessionDurationSeconds,  h?.maxSessionDurationSeconds,  g?.maxSessionDurationSeconds)
         )
@@ -449,12 +449,12 @@ extension NPLimitsSet {
     ) -> (NPAudioEntrainmentLimits?, NPAudioEntrainmentSources?) {
         guard i != nil || h != nil || g != nil else { return (nil, nil) }
         let lim = NPAudioEntrainmentLimits(
-            maxVolumePercent:      i?.maxVolumePercent      ?? h?.maxVolumePercent      ?? g?.maxVolumePercent,
+            maxLevelDba:           i?.maxLevelDba           ?? h?.maxLevelDba           ?? g?.maxLevelDba,
             maxBinauralBeatsHz:    i?.maxBinauralBeatsHz    ?? h?.maxBinauralBeatsHz    ?? g?.maxBinauralBeatsHz,
             maxIsochronicTonesHz:  i?.maxIsochronicTonesHz  ?? h?.maxIsochronicTonesHz  ?? g?.maxIsochronicTonesHz
         )
         let sources = NPAudioEntrainmentSources(
-            maxVolumePercent:      src(i?.maxVolumePercent,      h?.maxVolumePercent,      g?.maxVolumePercent),
+            maxLevelDba:           src(i?.maxLevelDba,           h?.maxLevelDba,           g?.maxLevelDba),
             maxBinauralBeatsHz:    src(i?.maxBinauralBeatsHz,    h?.maxBinauralBeatsHz,    g?.maxBinauralBeatsHz),
             maxIsochronicTonesHz:  src(i?.maxIsochronicTonesHz,  h?.maxIsochronicTonesHz,  g?.maxIsochronicTonesHz)
         )

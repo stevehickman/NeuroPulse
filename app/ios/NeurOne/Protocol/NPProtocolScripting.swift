@@ -448,6 +448,9 @@ struct NPPSParser {
         switch key {
         case "pbm_transcranial":
             var lim = NPPBMTranscranialLimits()
+            if fields["max_intensity"] != nil {
+                throw NPPSError(message: "max_intensity is a percentage of a part's output and is retired here — use max_irradiance_mw_cm2 (absolute)", line: currentLine)
+            }
             if let v = fields["max_irradiance_mw_cm2"]?.asDouble { lim.maxIrradianceMWcm2 = v }
             if let v = fields["max_frequency"]?.asHz        { lim.maxFrequencyHz = v }
             if let v = fields["max_duty_cycle"]?.asPercent  { lim.maxDutyCyclePercent = Int(v) }
@@ -457,7 +460,10 @@ struct NPPSParser {
 
         case "pbm_intranasal":
             var lim = NPPBMIntranasalLimits()
-            if let v = fields["max_intensity"]?.asPercent           { lim.maxIntensityPercent = v }
+            if fields["max_intensity"] != nil {
+                throw NPPSError(message: "max_intensity is a percentage of a part's output and is retired here — use max_irradiance_mw_cm2 (absolute)", line: currentLine)
+            }
+            if let v = fields["max_irradiance_mw_cm2"]?.asDouble { lim.maxIrradianceMWcm2 = v }
             if let v = fields["max_session_dose"]?.asDouble         { lim.maxSessionDoseJCm2 = v }
             if let v = fields["max_session_duration"]?.asTime       { lim.maxSessionDurationSeconds = v }
             limitsSet.pbmIntranasal = lim
@@ -510,7 +516,10 @@ struct NPPSParser {
 
         case "audio_entrainment":
             var lim = NPAudioEntrainmentLimits()
-            if let v = fields["max_intensity"]?.asPercent        { lim.maxVolumePercent = v }
+            if fields["max_intensity"] != nil {
+                throw NPPSError(message: "max_intensity is a percentage of a part's output and is retired here — use max_level_dba (absolute)", line: currentLine)
+            }
+            if let v = fields["max_level_dba"]?.asDouble { lim.maxLevelDba = v }
             if let v = fields["max_binaural_beats"]?.asHz        { lim.maxBinauralBeatsHz = v }
             if let v = fields["max_isochronic_tones"]?.asHz      { lim.maxIsochronicTonesHz = v }
             limitsSet.audioEntrainment = lim
@@ -971,9 +980,23 @@ struct NPPSParser {
 
         case "pbm_intranasal":
             var p = NPPBMIntranasalParams()
-            if let v = fields["intensity"]?.asPercent  { p.intensityPercent = v }
+            if fields["intensity"] != nil || fields["intensity_percent"] != nil {
+                throw NPPSError(
+                    message: "pbm_intranasal takes irradiance_mw_cm2 (on-state mW/cm²), not intensity — a percentage of a part's output changes meaning when the part changes (NP-NPPS-REF-001 §4)",
+                    line: line)
+            }
+            if let v = fields["irradiance_mw_cm2"]?.asDouble { p.irradianceMWcm2 = v }
             if let v = fields["frequency"]?.asHz       { p.frequencyHz = v }
-            if let v = fields["duty_cycle"]?.asPercent { p.dutyCyclePercent = Int(v) }
+            if p.frequencyHz <= 0 {
+                if fields["duty_cycle"] != nil || fields["duty_cycle_percent"] != nil {
+                    throw NPPSError(
+                        message: "pbm_intranasal: frequency 0 is continuous wave (100 % on-time); remove duty_cycle",
+                        line: line)
+                }
+                p.dutyCyclePercent = 100
+            } else if let v = fields["duty_cycle"]?.asPercent {
+                p.dutyCyclePercent = Int(v)
+            }
             return .pbmIntranasal(p)
 
         case "eeg_neurofeedback":
@@ -1054,13 +1077,24 @@ struct NPPSParser {
                 }
             }
             if let v = fields["carrier_hz"]?.asHz   { p.carrierHz = v }
-            if let v = fields["volume"]?.asPercent  { p.volumePercent = v }
+            if fields["volume"] != nil || fields["volume_percent"] != nil {
+                throw NPPSError(
+                    message: "audio_entrainment takes level_dba (A-weighted dB at the ear), not volume — a percentage of a part's output changes meaning when the part changes (NP-NPPS-REF-001 §4)",
+                    line: line)
+            }
+            if let v = fields["level_dba"]?.asDouble { p.levelDba = v }
             if let v = fields["eeg_adaptive"]?.asBool          { p.eegAdaptive = v }
             if let v = fields["bone_conduction_pacer"]?.asBool  { p.boneConductionPacer = v }
             return .audioEntrainment(p)
 
         case "visual_stimulation":
             var p = NPVisualStimParams()
+            if fields["intensity"] != nil || fields["intensity_percent"] != nil {
+                throw NPPSError(
+                    message: "visual_stimulation takes irradiance_mw_cm2 (corneal mW/cm²), not intensity — a percentage of a part's output changes meaning when the part changes (NP-NPPS-REF-001 §4)",
+                    line: line)
+            }
+            if let v = fields["irradiance_mw_cm2"]?.asDouble { p.irradianceMWcm2 = v }
             if let v = fields["frequency"]?.asHz { p.frequencyHz = v }
             if let v = fields["mode"]?.asIdent {
                 switch v {
@@ -1455,7 +1489,7 @@ struct NPPSSerializer {
         }
         if let lim = limits.pbmIntranasal {
             lines.append("    pbm_intranasal {")
-            if let v = lim.maxIntensityPercent        { lines.append("        max_intensity: \(Int(v))%") }
+            if let v = lim.maxIrradianceMWcm2         { lines.append("        max_irradiance_mw_cm2: \(formatIrradiance(v))") }
             if let v = lim.maxSessionDoseJCm2         { lines.append("        max_session_dose: \(v)") }
             if let v = lim.maxSessionDurationSeconds  { lines.append("        max_session_duration: \(formatTime(v))") }
             lines.append("    }")
@@ -1492,7 +1526,7 @@ struct NPPSSerializer {
         }
         if let lim = limits.audioEntrainment {
             lines.append("    audio_entrainment {")
-            if let v = lim.maxVolumePercent       { lines.append("        max_intensity: \(Int(v))%") }
+            if let v = lim.maxLevelDba            { lines.append("        max_level_dba: \(formatIrradiance(v))") }
             if let v = lim.maxBinauralBeatsHz     { lines.append("        max_binaural_beats: \(formatHz(v))") }
             if let v = lim.maxIsochronicTonesHz   { lines.append("        max_isochronic_tones: \(formatHz(v))") }
             lines.append("    }")
@@ -1629,11 +1663,13 @@ struct NPPSSerializer {
             return lines
 
         case .pbmIntranasal(let p):
-            return [
-                "intensity: \(Int(p.intensityPercent))%",
-                "frequency: \(formatHz(p.frequencyHz))",
-                "duty_cycle: \(p.dutyCyclePercent)%"
+            var lines = [
+                "irradiance_mw_cm2: \(formatIrradiance(p.irradianceMWcm2))",
+                "frequency: \(formatHz(p.frequencyHz))"
             ]
+            // CW is continuous: a CW block takes no duty_cycle (Rev 18).
+            if p.frequencyHz > 0 { lines.append("duty_cycle: \(p.dutyCyclePercent)%") }
+            return lines
 
         case .eegNeurofeedback(let p):
             var lines: [String] = []
@@ -1680,13 +1716,14 @@ struct NPPSSerializer {
             if let it = p.isochronicTonesHz { lines.append("isochronic_hz: \(formatHz(it))") }
             if let nt = p.noiseType { lines.append("noise: \(nt.rawValue)") } else { lines.append("noise: none") }
             lines.append("carrier_hz: \(formatHz(p.carrierHz))")
-            lines.append("volume: \(Int(p.volumePercent))%")
+            lines.append("level_dba: \(formatIrradiance(p.levelDba))")
             lines.append("eeg_adaptive: \(p.eegAdaptive)")
             lines.append("bone_conduction_pacer: \(p.boneConductionPacer)")
             return lines
 
         case .visualStimulation(let p):
             var lines: [String] = []
+            lines.append("irradiance_mw_cm2: \(formatIrradiance(p.irradianceMWcm2))")
             lines.append("frequency: \(formatHz(p.frequencyHz))")
             lines.append("mode: \(p.mode.rawValue)")
             if p.mode == .emdr { lines.append("emdr_cadence: \(formatHz(p.emdrCadenceHz))") }

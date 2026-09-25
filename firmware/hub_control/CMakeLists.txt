@@ -248,6 +248,7 @@ if(NP_BUILD_TESTS)
     add_executable(np_pbm_irradiance_tests
         tests/np_pbm_irradiance_tests.c
         src/np_pbm_irradiance.c
+        src/np_emission_cal.c
         ../pbm/src/np_pbm_drive.c
     )
     target_include_directories(np_pbm_irradiance_tests PRIVATE include ../pbm/include)
@@ -335,6 +336,7 @@ set(HUB_SOURCES
 
     modules/np_mod_pbm.c
     src/np_pbm_irradiance.c       # OI-HEXTILE-25: mW/cm² → CUR codes, R-4/R-5 refusal
+    src/np_emission_cal.c         # absolute intranasal/visual/audio → drive; refuses until characterised
     modules/np_mod_eeg.c
     modules/np_mod_stim.c
     modules/np_mod_vns.c

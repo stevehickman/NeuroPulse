@@ -1,0 +1,12 @@
+# ERROR FIXTURE — audio_entrainment states an absolute level (level_dba);
+# `volume` is a percentage of the driver's output, which changes meaning when the
+# driver changes (NP-NPPS-REF-001 Rev 18). Parsing MUST fail.
+protocol "Audio in percent" {
+    duration: 10m
+
+    audio_entrainment {
+        binaural_hz: 10Hz
+        carrier_hz: 200Hz
+        volume: 60%
+    }
+}

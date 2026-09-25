@@ -27,7 +27,11 @@ protocol "PBM — Alzheimer's 40Hz (Woźniak-Mitał 2026)" {
     }
 
     pbm_intranasal {
-        intensity: 60%
+        # PROVISIONAL (2026-09-25, every emission absolute): was 60 %. No intranasal irradiance is in the source or
+        # the database; 100 mW/cm² is §1's band floor (0.1–0.3 W/cm², a scalp
+        # figure). No mucosal ceiling exists (OI-NASAL-02); the hub refuses until
+        # the probe is characterised (OI-NASAL-06).
+        irradiance_mw_cm2: 100
         frequency: 40Hz
         duty_cycle: 25%
     }

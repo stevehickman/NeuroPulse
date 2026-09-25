@@ -85,11 +85,12 @@ function serializeModalityFields(mp: NPModalityParams): string[] {
     }
     case 'pbm_intranasal': {
       const p = mp.params;
-      return [
-        `intensity: ${p.intensityPercent}%`,
+      const lines = [
+        `irradiance_mw_cm2: ${p.irradianceMWcm2}`,
         `frequency: ${formatHz(p.frequencyHz)}`,
-        `duty_cycle: ${p.dutyCyclePercent}%`,
       ];
+      if (p.frequencyHz > 0) lines.push(`duty_cycle: ${p.dutyCyclePercent}%`);
+      return lines;
     }
     case 'eeg_neurofeedback': {
       const p = mp.params;
@@ -136,7 +137,7 @@ function serializeModalityFields(mp: NPModalityParams): string[] {
       if (p.isochronicTonesHz !== undefined) lines.push(`isochronic_hz: ${formatHz(p.isochronicTonesHz)}`);
       lines.push(p.noiseType !== undefined ? `noise: ${p.noiseType}` : `noise: none`);
       lines.push(`carrier_hz: ${formatHz(p.carrierHz)}`);
-      lines.push(`volume: ${p.volumePercent}%`);
+      lines.push(`level_dba: ${p.levelDba}`);
       lines.push(`eeg_adaptive: ${p.eegAdaptive}`);
       lines.push(`bone_conduction_pacer: ${p.boneConductionPacer}`);
       return lines;
@@ -144,6 +145,7 @@ function serializeModalityFields(mp: NPModalityParams): string[] {
     case 'visual_stimulation': {
       const p = mp.params;
       return [
+        `irradiance_mw_cm2: ${p.irradianceMWcm2}`,
         `frequency: ${formatHz(p.frequencyHz)}`,
         `mode: ${p.mode}`,
         `emdr_cadence: ${formatHz(p.emdrCadenceHz)}`,

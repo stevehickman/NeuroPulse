@@ -188,9 +188,11 @@ export function pbmOnFraction(p: Pick<PBMTranscranialParams, 'frequencyHz' | 'du
 }
 
 export interface PBMIntranasalParams {
-  intensityPercent: number;
-  frequencyHz: number;
-  dutyCyclePercent: number;
+  // On-state irradiance at the probe exit face, mW/cm², per channel — absolute
+  // (NP-NPPS-REF-001 Rev 18 §4.2). No ceiling exists yet (OI-NASAL-02).
+  irradianceMWcm2: number;
+  frequencyHz: number;          // 0 = continuous wave
+  dutyCyclePercent: number;     // pulsed ≤ 25 %; CW is continuous and stored as 100
 }
 
 export interface EEGNeurofeedbackParams {
@@ -232,12 +234,17 @@ export interface AudioEntrainmentParams {
   isochronicTonesHz?: number;
   noiseType?: 'pink' | 'brown';
   carrierHz: number;
-  volumePercent: number;
+  // A-weighted level at the ear, dBA — absolute, not a fraction of the driver's
+  // output (NP-NPPS-REF-001 Rev 18 §4.7). No ceiling exists yet (OI-AUDIOHW-01).
+  levelDba: number;
   eegAdaptive: boolean;
   boneConductionPacer: boolean;
 }
 
 export interface VisualStimParams {
+  // On-state corneal irradiance, mW/cm², per lit channel — absolute
+  // (NP-NPPS-REF-001 Rev 18 §4.8).
+  irradianceMWcm2: number;
   frequencyHz: number;
   mode: 'binocular' | 'emdr' | 'retinal_pbm' | 'mode_f';
   emdrCadenceHz: number;
@@ -333,9 +340,9 @@ export function defaultParams<T extends NPModalityTypeId>(type: T): ModalityPara
       dutyCyclePercent: 25,
     },
     pbm_intranasal: {
-      intensityPercent: 60,
+      irradianceMWcm2: 22,
       frequencyHz: 10,
-      dutyCyclePercent: 50,
+      dutyCyclePercent: 25,
     },
     eeg_neurofeedback: {
       channels: 'all',
@@ -362,11 +369,12 @@ export function defaultParams<T extends NPModalityTypeId>(type: T): ModalityPara
     audio_entrainment: {
       binauralBeatsHz: 40,
       carrierHz: 200,
-      volumePercent: 70,
+      levelDba: 60,
       eegAdaptive: true,
       boneConductionPacer: false,
     },
     visual_stimulation: {
+      irradianceMWcm2: 1,
       frequencyHz: 40,
       mode: 'binocular',
       emdrCadenceHz: 1,

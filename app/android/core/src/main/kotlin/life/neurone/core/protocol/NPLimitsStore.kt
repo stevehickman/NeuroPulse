@@ -33,7 +33,7 @@ fun resolveLimits(global: NPLimitsSet?, helmet: NPLimitsSet?, individual: NPLimi
     return NPLimitsSet(name = "Resolved", level = NPLimitsSet.LimitLevel.GLOBAL).apply {
         pbmTranscranial = merge(individual?.pbmTranscranial, helmet?.pbmTranscranial, global?.pbmTranscranial) { i, h, g ->
             NPPBMTranscranialLimits(
-                maxIntensityPercent = pick(i?.maxIntensityPercent, h?.maxIntensityPercent, g?.maxIntensityPercent),
+                maxIrradianceMWcm2 = pick(i?.maxIrradianceMWcm2, h?.maxIrradianceMWcm2, g?.maxIrradianceMWcm2),
                 maxFrequencyHz = pick(i?.maxFrequencyHz, h?.maxFrequencyHz, g?.maxFrequencyHz),
                 maxDutyCyclePercent = pick(i?.maxDutyCyclePercent, h?.maxDutyCyclePercent, g?.maxDutyCyclePercent),
                 maxSessionDoseJCm2 = pick(i?.maxSessionDoseJCm2, h?.maxSessionDoseJCm2, g?.maxSessionDoseJCm2),
@@ -42,7 +42,7 @@ fun resolveLimits(global: NPLimitsSet?, helmet: NPLimitsSet?, individual: NPLimi
         }
         pbmIntranasal = merge(individual?.pbmIntranasal, helmet?.pbmIntranasal, global?.pbmIntranasal) { i, h, g ->
             NPPBMIntranasalLimits(
-                maxIntensityPercent = pick(i?.maxIntensityPercent, h?.maxIntensityPercent, g?.maxIntensityPercent),
+                maxIrradianceMWcm2 = pick(i?.maxIrradianceMWcm2, h?.maxIrradianceMWcm2, g?.maxIrradianceMWcm2),
                 maxSessionDoseJCm2 = pick(i?.maxSessionDoseJCm2, h?.maxSessionDoseJCm2, g?.maxSessionDoseJCm2),
                 maxSessionDurationSeconds = pick(i?.maxSessionDurationSeconds, h?.maxSessionDurationSeconds, g?.maxSessionDurationSeconds),
             )
@@ -79,7 +79,7 @@ fun resolveLimits(global: NPLimitsSet?, helmet: NPLimitsSet?, individual: NPLimi
         }
         audioEntrainment = merge(individual?.audioEntrainment, helmet?.audioEntrainment, global?.audioEntrainment) { i, h, g ->
             NPAudioEntrainmentLimits(
-                maxVolumePercent = pick(i?.maxVolumePercent, h?.maxVolumePercent, g?.maxVolumePercent),
+                maxLevelDba = pick(i?.maxLevelDba, h?.maxLevelDba, g?.maxLevelDba),
                 maxBinauralBeatsHz = pick(i?.maxBinauralBeatsHz, h?.maxBinauralBeatsHz, g?.maxBinauralBeatsHz),
                 maxIsochronicTonesHz = pick(i?.maxIsochronicTonesHz, h?.maxIsochronicTonesHz, g?.maxIsochronicTonesHz),
             )

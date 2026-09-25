@@ -16,7 +16,12 @@ protocol "Full T1 Immersive" {
     }
 
     pbm_intranasal {
-        intensity: 60%
+        # PROVISIONAL (2026-09-25, every emission absolute): was 60 % of an uncharacterised probe. No intranasal
+        # irradiance exists in the evidence record; 100 mW/cm² is the floor of
+        # pbm_neuro_protocols.md §1's 40 Hz band (0.1–0.3 W/cm², a SCALP figure).
+        # No mucosal ceiling exists (OI-NASAL-02); the hub refuses until the probe
+        # is characterised (OI-NASAL-06).
+        irradiance_mw_cm2: 100
         frequency: 40Hz
         duty_cycle: 25%
         interval_on: 15m
@@ -47,12 +52,18 @@ protocol "Full T1 Immersive" {
         isochronic_hz: 40Hz
         noise: pink
         carrier_hz: 440Hz
-        volume: 60%
+        level_dba: 60  # PROVISIONAL (2026-09-25, every emission absolute): was volume 60% — 60 dBA at the median authored 60 %, % as amplitude; no level evidence in the record (OI-AUDIOHW-01)
         eeg_adaptive: true
         bone_conduction_pacer: true
     }
 
     visual_stimulation {
+        # PROVISIONAL (2026-09-25, every emission absolute): corneal irradiance per lit
+        # channel. No level was ever authored; 1 mW/cm² sits under half of IEC 62471's
+        # exempt-group IR corneal limit (10 mW/cm² beyond 1,000 s) — CLAUDE.md §3's
+        # 50 % rule. The hub refuses until the lens emitters are characterised
+        # (OI-VIS-ABS-01).
+        irradiance_mw_cm2: 1
         frequency: 40Hz
         mode: binocular
         emdr_cadence: 1Hz

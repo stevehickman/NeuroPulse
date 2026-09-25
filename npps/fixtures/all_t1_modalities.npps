@@ -15,7 +15,7 @@ protocol "All T1 Modalities" {
     }
 
     pbm_intranasal {
-        intensity: 60%
+        irradiance_mw_cm2: 100
         frequency: 40Hz
         duty_cycle: 25%
     }
@@ -49,12 +49,13 @@ protocol "All T1 Modalities" {
         binaural_hz: 40Hz
         noise: pink
         carrier_hz: 440Hz
-        volume: 60%
+        level_dba: 60
         eeg_adaptive: true
         bone_conduction_pacer: true
     }
 
     visual_stimulation {
+        irradiance_mw_cm2: 1
         frequency: 40Hz
         mode: binocular
         emdr_cadence: 1Hz

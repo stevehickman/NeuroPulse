@@ -10,7 +10,7 @@ export interface PBMTranscranialLimits {
 }
 
 export interface PBMIntranasalLimits {
-  maxIntensityPercent?: number;
+  maxIrradianceMWcm2?: number;       // on-state, mW/cm² (absolute)
   maxSessionDoseJCm2?: number;
   maxSessionDurationSeconds?: number;
 }
@@ -42,7 +42,7 @@ export interface VNSHRVLimits {
 }
 
 export interface AudioEntrainmentLimits {
-  maxVolumePercent?: number;
+  maxLevelDba?: number;              // dBA at the ear (absolute)
   maxBinauralBeatsHz?: number;
   maxIsochronicTonesHz?: number;
 }

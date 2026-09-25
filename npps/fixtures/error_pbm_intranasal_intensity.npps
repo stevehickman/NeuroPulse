@@ -1,0 +1,12 @@
+# ERROR FIXTURE — pbm_intranasal states absolute irradiance (irradiance_mw_cm2);
+# `intensity` is a percentage of an uncharacterised probe (NP-NPPS-REF-001 Rev 18).
+# Parsing MUST fail.
+protocol "Intranasal in percent" {
+    duration: 10m
+
+    pbm_intranasal {
+        intensity: 60%
+        frequency: 40Hz
+        duty_cycle: 25%
+    }
+}

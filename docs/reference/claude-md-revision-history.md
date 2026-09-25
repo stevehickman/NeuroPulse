@@ -19,6 +19,33 @@
 
 ## Current revision
 
+**Rev 57 (2026-09-25) — §3's Rev 56 paragraph is widened from PBM to every emission. No ceiling
+changes; `OI-VIS-ABS-01` and `OI-AUDIOHW-11` raised.**
+
+**What changed.** A principal direction: *"all emissions (including intranasal PBM) must be specified
+in absolute terms to be safe from HW part changes."* Rev 56 made transcranial PBM absolute and left
+three emitters on percentages. Intranasal now states mW/cm² at the probe exit face, visual states
+corneal mW/cm² per lit channel (the quantity IEC 62471 assesses), and audio states dBA at the ear
+(`NP-NPPS-REF-001` Rev 18). The percentage fields are parse errors, and so is `max_intensity` in the
+three limits blocks that used to take it: silently skipping it would have dropped a clinician's
+ceiling. CW is continuous on the intranasal block too.
+
+**The consequence in the core.** None of the three parts has a measured output, so each full-scale
+constant is zero and the hub refuses every intranasal, visual and audio request until the part is
+characterised (`OI-NASAL-06`, `OI-VIS-ABS-01`, `OI-AUDIOHW-01`). Bone conduction produces no SPL and
+has no unit yet, so it is refused outright (`OI-AUDIOHW-11`). That blocks four predefined protocols'
+breathing cue. The predefined values are PROVISIONAL, from evidence. A reader who assumed these
+modalities run today would be wrong, which is why this is stated in §3 and not only in the reference.
+
+**What it does not change.** Every §3 ceiling. No intranasal ceiling (`OI-NASAL-02`) and no acoustic
+ceiling (`OI-AUDIOHW-01`, `-02`) is created. The visual IEC 62471 row is unchanged.
+
+**Corrects Rev 56 in one respect.** The Android limits store still merged transcranial limits under
+the retired percentage field after Rev 56. Only the code was wrong, not the entry, and the code is
+fixed.
+
+## Earlier revisions
+
 **Rev 56 (2026-09-25) — §3 gains one paragraph: PBM is commanded in absolute irradiance, and CW is
 continuous. The PBM ceilings in the table are unchanged; `OI-HEXTILE-25` closed.**
 
@@ -42,8 +69,6 @@ which reading won.
 **What it does not change.** R-4's 400 mW/cm² pulsed (≤ 25 % duty) and 200 mW/cm² CW, R-5, and
 every other §3 ceiling. Hardware limit B (`REQ-TDRV-02`) was re-derived so continuous CW can run;
 its bound, ≤ 200 mW/cm² average, is unchanged (`NP-SOUP-LFS-001` §13.15).
-
-## Earlier revisions
 
 **Rev 55 (2026-09-24) — §2.3 gains a paragraph naming the gate that enforces its trigger rule. No
 locked decision changed; `OI-ACC-06` closed, `OI-ACC-09` raised.**

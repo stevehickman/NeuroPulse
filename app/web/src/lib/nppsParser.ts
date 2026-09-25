@@ -543,9 +543,16 @@ class Parser {
           this.current.line,
         );
       }
-      const percentTypes = new Set([
-        'pbm_transcranial', 'pbm_intranasal', 'visual_stimulation',
-      ]);
+      // Every emission is absolute (Rev 18): the optical blocks take
+      // irradiance_mw_cm2, and a percentage of a part's capability is refused.
+      if (typeName === 'pbm_intranasal' || typeName === 'visual_stimulation') {
+        throw new NPPSParseError(
+          `${typeName} takes irradiance_mw_cm2 (on-state mW/cm²), not intensity — ` +
+          'a percentage of a part\'s output changes meaning when the part changes (NP-NPPS-REF-001 §4)',
+          this.current.line,
+        );
+      }
+      const percentTypes = new Set<string>();
       const mATypes = new Set([
         'bes_tacs', 'tdcs', 'vns_hrv', 'clinical_tacs', 'hd_tdcs', 'cervical_vns', 'tms',
       ]);
@@ -773,6 +780,7 @@ class Parser {
   private parsePBMTranscranialLimits(): PBMTranscranialLimits {
     return this.parseLimitsSubBlock<PBMTranscranialLimits>({
       max_irradiance_mw_cm2: v => ({ maxIrradianceMWcm2: Number(v) }),
+      max_intensity: () => { throw new NPPSParseError('max_intensity is a percentage of a part\'s output and is retired here — use max_irradiance_mw_cm2 (absolute)', this.current.line); },
       max_frequency: v => ({ maxFrequencyHz: Number(v) }),
       max_duty_cycle: v => ({ maxDutyCyclePercent: Number(v) }),
       max_session_dose: v => ({ maxSessionDoseJCm2: Number(v) }),
@@ -782,7 +790,8 @@ class Parser {
 
   private parsePBMIntranasalLimits(): PBMIntranasalLimits {
     return this.parseLimitsSubBlock<PBMIntranasalLimits>({
-      max_intensity: v => ({ maxIntensityPercent: Number(v) }),
+      max_irradiance_mw_cm2: v => ({ maxIrradianceMWcm2: Number(v) }),
+      max_intensity: () => { throw new NPPSParseError('max_intensity is a percentage of a part\'s output and is retired here — use max_irradiance_mw_cm2 (absolute)', this.current.line); },
       max_session_dose: v => ({ maxSessionDoseJCm2: Number(v) }),
       max_session_duration: v => ({ maxSessionDurationSeconds: Number(v) }),
     });
@@ -824,7 +833,8 @@ class Parser {
 
   private parseAudioEntrainmentLimits(): AudioEntrainmentLimits {
     return this.parseLimitsSubBlock<AudioEntrainmentLimits>({
-      max_intensity: v => ({ maxVolumePercent: Number(v) }),
+      max_level_dba: v => ({ maxLevelDba: Number(v) }),
+      max_intensity: () => { throw new NPPSParseError('max_intensity is a percentage of a part\'s output and is retired here — use max_level_dba (absolute)', this.current.line); },
       max_frequency: v => ({ maxBinauralBeatsHz: Number(v) }),
       max_binaural_beats: v => ({ maxBinauralBeatsHz: Number(v) }),
       max_isochronic_tones: v => ({ maxIsochronicTonesHz: Number(v) }),
@@ -1113,12 +1123,20 @@ class Parser {
       }
       case 'pbm_intranasal': {
         const d = def as PBMIntranasalParams;
+        if ('intensity_percent' in raw) {
+          throw new NPPSParseError('pbm_intranasal takes irradiance_mw_cm2 (on-state mW/cm²), not intensity_percent', line);
+        }
+        const frequencyHz = num('frequency_hz', d.frequencyHz);
+        if (frequencyHz <= 0 && 'duty_cycle_percent' in raw) {
+          throw new NPPSParseError(
+            'pbm_intranasal: frequency 0 is continuous wave (100 % on-time); remove duty_cycle', line);
+        }
         return {
           type: 'pbm_intranasal',
           params: {
-            intensityPercent: num('intensity_percent', d.intensityPercent),
-            frequencyHz: num('frequency_hz', d.frequencyHz),
-            dutyCyclePercent: num('duty_cycle_percent', d.dutyCyclePercent),
+            irradianceMWcm2: num('irradiance_mw_cm2', d.irradianceMWcm2),
+            frequencyHz,
+            dutyCyclePercent: frequencyHz <= 0 ? 100 : num('duty_cycle_percent', d.dutyCyclePercent),
           },
         };
       }
@@ -1180,9 +1198,16 @@ class Parser {
       }
       case 'audio_entrainment': {
         const d = def as AudioEntrainmentParams;
+        // Absolute level (Rev 18): a volume percentage is a fraction of the
+        // driver's output and changes meaning when the driver does.
+        if ('volume_percent' in raw) {
+          throw new NPPSParseError(
+            'audio_entrainment takes level_dba (A-weighted dB at the ear), not volume — ' +
+            'a percentage of the driver\'s output changes meaning when the driver changes', line);
+        }
         const params: AudioEntrainmentParams = {
           carrierHz: num('carrier_hz', d.carrierHz),
-          volumePercent: num('volume_percent', d.volumePercent),
+          levelDba: num('level_dba', d.levelDba),
           eegAdaptive: bool('eeg_adaptive', d.eegAdaptive),
           boneConductionPacer: bool('bone_conduction_pacer', d.boneConductionPacer),
         };
@@ -1199,6 +1224,7 @@ class Parser {
         return {
           type: 'visual_stimulation',
           params: {
+            irradianceMWcm2: num('irradiance_mw_cm2', d.irradianceMWcm2),
             frequencyHz: num('frequency_hz', d.frequencyHz),
             mode: str('mode', d.mode) as VisualStimParams['mode'],
             emdrCadenceHz: num('emdr_cadence_hz', d.emdrCadenceHz),

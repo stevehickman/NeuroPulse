@@ -405,13 +405,13 @@ describe('slot-addressed fixed devices', () => {
 describe('parameter block sizes match the firmware structs', () => {
   const EXPECTED: Record<string, { size: number; slot: number | null; params: object }> = {
     pbm_transcranial:   { size: 6,  slot: null, params: { zones: 'named', zoneRefs: ['All'], wavelength: '660_808nm', irradianceMWcm2: 200, frequencyHz: 40, dutyCyclePercent: 25 } },
-    pbm_intranasal:     { size: 5,  slot: 9,    params: { intensityPercent: 60, frequencyHz: 10, dutyCyclePercent: 25 } },
+    pbm_intranasal:     { size: 7,  slot: 9,    params: { irradianceMWcm2: 22, frequencyHz: 10, dutyCyclePercent: 25 } },
     eeg_neurofeedback:  { size: 5,  slot: 5,    params: { channels: 'all', band: 'alpha', closedLoopEnabled: false } },
     bes_tacs:           { size: 7,  slot: 17,   params: { frequencyHz: 10, intensityMilliamps: 0.8, waveform: 'sinusoidal' } },
     tdcs:               { size: 8,  slot: 18,   params: { intensityMilliamps: 1.5, electrodePairs: [['F3', 'F4']], rampSeconds: 30, electrodeAreaCm2: 35 } },
     vns_hrv:            { size: 9,  slot: 8,    params: { frequencyHz: 20, intensityMilliamps: 1, hrvProtocol: 'standalone' } },
-    audio_entrainment:  { size: 8,  slot: 6,    params: { carrierHz: 200, binauralBeatsHz: 10, volumePercent: 50, boneConductionPacer: false, eegAdaptive: false } },
-    visual_stimulation: { size: 9,  slot: 7,    params: { mode: 'binocular', frequencyHz: 10, emdrCadenceHz: 1, enableModeF: false } },
+    audio_entrainment:  { size: 8,  slot: 6,    params: { carrierHz: 200, binauralBeatsHz: 10, levelDba: 58, boneConductionPacer: false, eegAdaptive: false } },
+    visual_stimulation: { size: 11, slot: 7,    params: { irradianceMWcm2: 1, mode: 'binocular', frequencyHz: 10, emdrCadenceHz: 1, enableModeF: false } },
     qeeg_21ch:          { size: 8,  slot: 11,   params: { montage: 'standard_1020', reference: 'linked_ear', sloretaEnabled: true } },
     tms:                { size: 10, slot: 12,   params: { tmsProtocol: 'rTMS', target: 'DLPFC_L', frequencyHz: 10, intensityPercentMT: 110, pulseCount: 3000 } },
     pbm_deep_1170nm:    { size: 5,  slot: 13,   params: { intensityMWcm2: 500, frequencyHz: 40, dutyCyclePercent: 25 } },

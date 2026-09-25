@@ -528,8 +528,9 @@ struct NPProtocolValidator {
         let lim = resolvedLimits.pbmIntranasal
         let srcs = sourceMap.pbmIntranasal
 
-        // Hardware: duty cycle ≤ 25%
-        if p.dutyCyclePercent > NPHardwareLimits.pbmDutyCycleMaxPercent {
+        // Hardware: pulsed duty ≤ 25%. CW is continuous. No intranasal irradiance
+        // ceiling exists yet (OI-NASAL-02), so none is checked.
+        if p.frequencyHz > 0 && p.dutyCyclePercent > NPHardwareLimits.pbmDutyCycleMaxPercent {
             result.addError(
                 modality: m, param: "dutyCyclePercent", displayName: String(localized: "VALIDATE_PARAM_DUTY_CYCLE"),
                 actual: "\(p.dutyCyclePercent)%",
@@ -543,16 +544,16 @@ struct NPProtocolValidator {
             )
         }
 
-        // Dosage: max intensity
-        if let maxI = lim?.maxIntensityPercent, p.intensityPercent > maxI {
+        // Dosage: max irradiance (absolute, mW/cm²)
+        if let maxI = lim?.maxIrradianceMWcm2, p.irradianceMWcm2 > maxI {
             result.addError(
-                modality: m, param: "intensityPercent", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
-                actual: "\(Int(p.intensityPercent))%",
-                limit: "\(Int(maxI))%",
-                source: srcs?.maxIntensityPercent ?? .global_,
+                modality: m, param: "irradianceMWcm2", displayName: String(localized: "VALIDATE_PARAM_IRRADIANCE"),
+                actual: "\(Int(p.irradianceMWcm2)) mW/cm²",
+                limit: "\(Int(maxI)) mW/cm²",
+                source: srcs?.maxIrradianceMWcm2 ?? .global_,
                 message: String(
-                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYPERCENT"),
-                    String(describing: Int(p.intensityPercent)),
+                    format: String(localized: "VALIDATE_MSG_PBM_INTRANASAL_IRRADIANCE"),
+                    String(describing: Int(p.irradianceMWcm2)),
                     String(describing: Int(maxI))
                 )
             )
@@ -954,17 +955,17 @@ struct NPProtocolValidator {
         let lim = resolvedLimits.audioEntrainment
         let srcs = sourceMap.audioEntrainment
 
-        // Dosage: max volume
-        if let maxVol = lim?.maxVolumePercent, p.volumePercent > maxVol {
+        // Dosage: max level (absolute, dBA at the ear)
+        if let maxL = lim?.maxLevelDba, p.levelDba > maxL {
             result.addError(
-                modality: m, param: "volumePercent", displayName: String(localized: "VALIDATE_PARAM_VOLUME"),
-                actual: "\(Int(p.volumePercent))%",
-                limit: "\(Int(maxVol))%",
-                source: srcs?.maxVolumePercent ?? .global_,
+                modality: m, param: "levelDba", displayName: String(localized: "VALIDATE_PARAM_LEVEL"),
+                actual: "\(Int(p.levelDba)) dBA",
+                limit: "\(Int(maxL)) dBA",
+                source: srcs?.maxLevelDba ?? .global_,
                 message: String(
-                    format: String(localized: "VALIDATE_MSG_GENERAL_VOLUMEPERCENT"),
-                    String(describing: Int(p.volumePercent)),
-                    String(describing: Int(maxVol))
+                    format: String(localized: "VALIDATE_MSG_AUDIO_ENTRAINMENT_LEVEL"),
+                    String(describing: Int(p.levelDba)),
+                    String(describing: Int(maxL))
                 )
             )
         }

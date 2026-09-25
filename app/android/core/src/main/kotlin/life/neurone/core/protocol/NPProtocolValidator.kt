@@ -401,16 +401,18 @@ class NPProtocolValidator(private val resolvedLimits: NPLimitsSet) {
     private fun validatePBMIntranasal(p: NPPBMIntranasalParams, interval: NPIntervalConfig, r: NPValidationResult) {
         val m = NPModalityType.PBM_INTRANASAL
         val lim = resolvedLimits.pbmIntranasal
-        if (p.dutyCyclePercent > NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT) {
+        // Pulsed duty ≤ 25 %; CW is continuous. No intranasal irradiance ceiling
+        // exists yet (OI-NASAL-02), so none is checked.
+        if (p.frequencyHz > 0.0 && p.dutyCyclePercent > NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT) {
             r.addError(m, "dutyCyclePercent", "Duty Cycle", "${p.dutyCyclePercent}%",
                 "${NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT}%", NPLimitSource.HARDWARE,
                 "Intranasal PBM duty cycle ${p.dutyCyclePercent}% exceeds firmware-enforced maximum of " +
                     "${NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT}%.")
         }
-        lim?.maxIntensityPercent?.let { maxI ->
-            if (p.intensityPercent > maxI) r.addError(m, "intensityPercent", "Intensity",
-                "${p.intensityPercent.toInt()}%", "${maxI.toInt()}%", dosageSource,
-                "Intranasal PBM intensity ${p.intensityPercent.toInt()}% exceeds limit of ${maxI.toInt()}%.")
+        lim?.maxIrradianceMWcm2?.let { maxI ->
+            if (p.irradianceMWcm2 > maxI) r.addError(m, "irradianceMWcm2", "Irradiance",
+                "${fmt1(p.irradianceMWcm2)} mW/cm²", "${fmt1(maxI)} mW/cm²", dosageSource,
+                "Intranasal PBM irradiance ${fmt1(p.irradianceMWcm2)} mW/cm² exceeds limit of ${fmt1(maxI)} mW/cm².")
         }
         lim?.maxSessionDurationSeconds?.let { maxDur ->
             if (!interval.isContinuous && interval.intervalOnSeconds > maxDur) r.addError(m,
@@ -543,10 +545,10 @@ class NPProtocolValidator(private val resolvedLimits: NPLimitsSet) {
     private fun validateAudio(p: NPAudioEntrainmentParams, r: NPValidationResult) {
         val m = NPModalityType.AUDIO_ENTRAINMENT
         val lim = resolvedLimits.audioEntrainment
-        lim?.maxVolumePercent?.let { maxVol ->
-            if (p.volumePercent > maxVol) r.addError(m, "volumePercent", "Volume",
-                "${p.volumePercent.toInt()}%", "${maxVol.toInt()}%", dosageSource,
-                "Audio volume ${p.volumePercent.toInt()}% exceeds limit of ${maxVol.toInt()}%.")
+        lim?.maxLevelDba?.let { maxL ->
+            if (p.levelDba > maxL) r.addError(m, "levelDba", "Level",
+                "${fmt1(p.levelDba)} dBA", "${fmt1(maxL)} dBA", dosageSource,
+                "Audio level ${fmt1(p.levelDba)} dBA exceeds limit of ${fmt1(maxL)} dBA.")
         }
         val bb = p.binauralBeatsHz
         lim?.maxBinauralBeatsHz?.let { maxBB ->

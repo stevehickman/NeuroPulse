@@ -22,7 +22,11 @@
  * bytes, np_mod_pbm_smart_params_t 6 → 9 — and CW is continuous.  Bumped for
  * the same reason as v3: a v3 PBM block is a different length for the same
  * modality code, and "out of date" should say so at the header.            */
-#define NP_HUB_PROTO_VERSION        0x0004U
+/* v5 (2026-09-25): every emission is absolute — np_mod_intranasal_params_t
+ * carries mW/cm² (5 → 7 B), np_mod_visual_params_t gains corneal µW/cm² (9 → 11 B),
+ * and np_mod_audio_params_t's volume_pct becomes level_dba (same length, new
+ * meaning — bumped anyway, since two lengths changed in the same revision). */
+#define NP_HUB_PROTO_VERSION        0x0005U
 #define NP_HUB_PROTO_UUID_LEN       16U            /* session UUID (UHDR key) */
 #define NP_HUB_PROTO_SERIAL_LEN     32U            /* ASCII device serial — replay guard */
 #define NP_HUB_PROTO_SIG_LEN        64U            /* Ed25519 signature */

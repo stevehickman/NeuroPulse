@@ -22,6 +22,7 @@
  */
 
 #include "np_hub_config.h"
+#include "np_emission_cal.h"
 #include "np_hub_types.h"
 #include "np_module_registry.h"
 #include "np_safety_spi.h"
@@ -118,6 +119,21 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
         return NP_HUB_ERR_SAFETY_REJECTED;
     }
 
+    /* Level is ABSOLUTE — corneal irradiance, µW/cm² — and is converted by
+     * np_vis_irr_to_level().  The lens emitters are not characterised
+     * (OI-VIS-ABS-01), so every lit request is refused rather than driven at an
+     * assumed brightness.  This includes Mode F's former fixed "CW at 10%",
+     * which was itself a fraction of the part's output. */
+    if (p->irr_uw_cm2 == 0U) {
+        return NP_HUB_ERR_INVALID_ARG;                 /* lights nothing */
+    }
+    if (np_vis_irr_to_level(p->irr_uw_cm2) < 0) {
+        return NP_HUB_ERR_UNCHARACTERISED;
+    }
+#if NP_VIS_IRR_FS_UW != 0
+#error "Visual level is not plumbed to the HAL: np_mod_visual_hal_led_set() takes no level. Add one before characterising the lens emitters (OI-VIS-ABS-01)."
+#endif
+
     uint16_t zone_mask = (uint16_t)((uint16_t)p->zone_mask_lo |
                                     ((uint16_t)(p->zone_mask_hi & 0x0FU) << 8));
 
@@ -125,7 +141,7 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
     /* Mode F: NIR retinal PBM — gated on RISK-03 Q-13 regulatory opinion.
      * 808-830nm at ≤ MPE, runs concurrently with photic; wl=1 (808nm) only. */
     if (p->mode_f_enable) {
-        (void)np_mod_visual_hal_led_set(zone_mask, 1U, 0U, 10U); /* CW at 10% */
+        (void)np_mod_visual_hal_led_set(zone_mask, 1U, 0U, 10U); /* unreachable until OI-VIS-ABS-01: see the level guard above */
     }
 #endif
 

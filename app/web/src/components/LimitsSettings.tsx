@@ -697,7 +697,7 @@ function LimitsSummary({ limits }: { limits: NPLimitsSet; compact?: boolean }) {
   }
   if (limits.audioEntrainment) {
     const l = limits.audioEntrainment;
-    if (l.maxVolumePercent != null) chips.push(t('WEB_CHIP_AUDIO_VOLUME', { 0: l.maxVolumePercent }));
+    if (l.maxLevelDba != null) chips.push(t('WEB_CHIP_AUDIO_LEVEL', { 0: l.maxLevelDba }));
   }
   if (limits.clinicalTacs) {
     const l = limits.clinicalTacs;
@@ -977,12 +977,12 @@ function VisualLimitsEditor({
         {limits.pbmIntranasal && (
           <>
             <LimitField
-              label={t('WEB_LIM_MAX_INTENSITY')}
-              value={limits.pbmIntranasal.maxIntensityPercent}
-              unit="%"
-              min={0} max={100} step={5}
-              onChange={v => patchModality('pbmIntranasal', { maxIntensityPercent: v })}
-              onClear={() => patchModality('pbmIntranasal', { maxIntensityPercent: undefined })}
+              label={t('WEB_LIM_MAX_IRRADIANCE')}
+              value={limits.pbmIntranasal.maxIrradianceMWcm2}
+              unit="mW/cm²"
+              min={0} max={400} step={1}
+              onChange={v => patchModality('pbmIntranasal', { maxIrradianceMWcm2: v })}
+              onClear={() => patchModality('pbmIntranasal', { maxIrradianceMWcm2: undefined })}
             />
             <LimitField
               label={t('WEB_LIM_MAX_SESSION_DURATION')}
@@ -1159,12 +1159,12 @@ function VisualLimitsEditor({
         {limits.audioEntrainment && (
           <>
             <LimitField
-              label={t('WEB_LIM_MAX_VOLUME')}
-              value={limits.audioEntrainment.maxVolumePercent}
-              unit="%"
-              min={0} max={100} step={5}
-              onChange={v => patchModality('audioEntrainment', { maxVolumePercent: v })}
-              onClear={() => patchModality('audioEntrainment', { maxVolumePercent: undefined })}
+              label={t('WEB_LIM_MAX_LEVEL')}
+              value={limits.audioEntrainment.maxLevelDba}
+              unit="dBA"
+              min={0} max={100} step={1}
+              onChange={v => patchModality('audioEntrainment', { maxLevelDba: v })}
+              onClear={() => patchModality('audioEntrainment', { maxLevelDba: undefined })}
             />
             <LimitField
               label={t('WEB_LIM_MAX_BINAURAL')}

@@ -8,6 +8,12 @@ protocol "Retinal Health" {
     duration: 3m
 
     visual_stimulation {
+        # PROVISIONAL (2026-09-25, every emission absolute): corneal irradiance per lit
+        # channel. No level was ever authored; 1 mW/cm² sits under half of IEC 62471's
+        # exempt-group IR corneal limit (10 mW/cm² beyond 1,000 s) — CLAUDE.md §3's
+        # 50 % rule. The hub refuses until the lens emitters are characterised
+        # (OI-VIS-ABS-01).
+        irradiance_mw_cm2: 1
         frequency: 0Hz  # CW
         mode: mode_f
         enable_mode_f: true

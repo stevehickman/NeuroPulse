@@ -22,8 +22,10 @@ protocol "PBM — Stroke (chronic rehab)" {
     }
 
     pbm_intranasal {
-        intensity: 50%
+        # PROVISIONAL (2026-09-25, every emission absolute): was 50 %. ~20 mW/cm² is §9's stated irradiance for this
+        # protocol ("~0.02 W/cm²", transcranial + intranasal). CW, so continuous.
+        # The hub refuses until the probe is characterised (OI-NASAL-06).
+        irradiance_mw_cm2: 20
         frequency: 0Hz
-        duty_cycle: 25%
     }
 }

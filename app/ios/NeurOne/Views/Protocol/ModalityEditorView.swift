@@ -343,11 +343,12 @@ struct PBMIntranasalParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // Irradiance — absolute, mW/cm² at the probe exit face (Rev 18)
             SliderRow(
-                label: String(localized: "VALIDATE_PARAM_INTENSITY"),
-                value: $params.intensityPercent,
-                range: 0...100,
-                format: { "\(Int($0))%" }
+                label: String(localized: "VALIDATE_PARAM_IRRADIANCE"),
+                value: $params.irradianceMWcm2,
+                range: 1...400,
+                format: { "\(Int($0)) mW/cm²" }
             )
             SliderRow(
                 label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
@@ -618,11 +619,12 @@ struct AudioEntrainmentParamsView: View {
                 .pickerStyle(.segmented)
             }
 
+            // Level — absolute, dBA at the ear (Rev 18)
             SliderRow(
-                label: String(localized: "VALIDATE_PARAM_VOLUME"),
-                value: $params.volumePercent,
+                label: String(localized: "VALIDATE_PARAM_LEVEL"),
+                value: $params.levelDba,
                 range: 0...100,
-                format: { "\(Int($0))%" }
+                format: { "\(Int($0)) dBA" }
             )
             Toggle("MODALITY_EEG_ADAPTIVE_FREQUENCY", isOn: $params.eegAdaptive).font(.caption)
             Toggle("MODALITY_BONE_CONDUCTION_BREATHING_PACER", isOn: $params.boneConductionPacer).font(.caption)
@@ -637,6 +639,13 @@ struct VisualStimParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // Irradiance — absolute, mW/cm² at the cornea (Rev 18)
+            SliderRow(
+                label: String(localized: "VALIDATE_PARAM_IRRADIANCE"),
+                value: $params.irradianceMWcm2,
+                range: 0.01...10,
+                format: { String(format: "%.2f mW/cm²", $0) }
+            )
             SliderRow(
                 label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
                 value: $params.frequencyHz,

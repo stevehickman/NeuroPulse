@@ -19,7 +19,7 @@ protocol "taVNS + Tones — Tinnitus (paired)" {
         isochronic_hz: 8Hz
         noise: none
         carrier_hz: 440Hz
-        volume: 50%
+        level_dba: 58  # PROVISIONAL (2026-09-25, every emission absolute): was volume 50% — 60 dBA at the median authored 60 %, % as amplitude; no level evidence in the record (OI-AUDIOHW-01)
         eeg_adaptive: false
         bone_conduction_pacer: false
     }

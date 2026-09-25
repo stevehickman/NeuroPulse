@@ -54,6 +54,7 @@ struct PBMTranscranialConfig: Codable {
 }
 
 struct PBMIntranasalConfig: Codable {
+    var irradianceMWcm2: Double    // on-state at the probe exit face — absolute
     var frequencyHz: Double
     var dutyCyclePercent: Int
     var durationSeconds: Int
@@ -105,11 +106,13 @@ struct NeuralAudioConfig: Codable {
     var binauralBeatHz: Double?
     var isochronicToneHz: Double?
     var noiseType: String?         // "pink", "brown", or nil
+    var levelDba: Double           // A-weighted level at the ear — absolute
     var eegAdaptive: Bool = true
     var useBoneConductionForPacer: Bool = true
 }
 
 struct VisualStimConfig: Codable {
+    var irradianceMWcm2: Double    // on-state corneal irradiance — absolute
     var frequencyHz: Double        // 0.5–100 Hz
     var mode: String = "binocular" // "binocular", "emdr", "retinalPBM"
     var enableModeFInvisibleNIR: Bool = false

@@ -38,13 +38,15 @@ protocol "PBM — TBI (chronic) + Intranasal (Naeser 2011/2014)" {
 
     pbm_intranasal {
         # Naeser's protocol is transcranial + bilateral intranasal, so this
-        # block is part of the trial, not an addition. Its 60% is NOT
-        # evidence-sourced and cannot be: no intranasal irradiance appears in
-        # §6, and the intranasal Y-probe (A12) has no owning specification
-        # document at all, so there is no device capability figure to check a
-        # value against either (NP-ART-001 §3.2, OI-ART-04).
-        intensity: 60%
+        # block is part of the trial, not an addition. Its former 60% was NOT
+        # evidence-sourced and could not be: no intranasal irradiance appears in
+        # §6, and the probe has no capability figure to check a value against
+        # (NP-HW-NASAL-001, OI-NASAL-06).
+        # PROVISIONAL (2026-09-25, every emission absolute): was 60 %. 22 mW/cm² is Naeser's stated irradiance
+        # (§6) — the same trial this block belongs to, stated for its transcranial
+        # arm; no intranasal-specific figure is published in the record. CW, so
+        # continuous. The hub refuses until the probe is characterised (OI-NASAL-06).
+        irradiance_mw_cm2: 22
         frequency: 0Hz
-        duty_cycle: 25%
     }
 }

@@ -34,7 +34,7 @@ protocol "Flow State" {
         isochronic_hz: 6Hz
         noise: none
         carrier_hz: 440Hz
-        volume: 65%
+        level_dba: 61  # PROVISIONAL (2026-09-25, every emission absolute): was volume 65% — 60 dBA at the median authored 60 %, % as amplitude; no level evidence in the record (OI-AUDIOHW-01)
         eeg_adaptive: true
         bone_conduction_pacer: false
     }

@@ -1,0 +1,12 @@
+# ERROR FIXTURE — visual_stimulation states absolute corneal irradiance
+# (irradiance_mw_cm2); `intensity` is a percentage of the lens emitters' output
+# (NP-NPPS-REF-001 Rev 18). Parsing MUST fail.
+protocol "Visual in percent" {
+    duration: 10m
+
+    visual_stimulation {
+        intensity: 50%
+        frequency: 40Hz
+        mode: binocular
+    }
+}

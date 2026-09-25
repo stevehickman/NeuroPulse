@@ -11,10 +11,16 @@
  *   OI-INS-01: np_mod_ins_hal_auth_check() → bool (pogo-pin optical code match)
  *   OI-INS-02: np_mod_ins_hal_pd_contact() → bool (photodiode contact check)
  *   OI-INS-03: np_mod_ins_hal_pwm_set(side, cur_660, cur_808, freq, duty)
+ *
+ * Commands carry ABSOLUTE irradiance (mW/cm² at the probe exit face) and are
+ * converted to CUR codes by np_ins_irr_to_code().  No emitter is characterised
+ * (OI-NASAL-06), so every non-zero request is refused NP_HUB_ERR_UNCHARACTERISED
+ * rather than driven on an assumed scale.  CW is continuous (100 % on-time).
  *   OI-INS-04: np_mod_ins_hal_pwm_stop(side)
  *   OI-INS-05: np_mod_ins_hal_pd_read(side, wl) → uint16_t (dose ADC)
  */
 
+#include "np_emission_cal.h"
 #include "np_hub_types.h"
 #include "np_module_registry.h"
 #include "np_safety_spi.h"
@@ -23,7 +29,8 @@
 
 #include "np_sw02_platform_hal.h"
 
-#define INS_DUTY_MAX 0x32U  /* 25%, same ceiling as zone modules */
+#define INS_DUTY_MAX 0x32U  /* 25%, same ceiling as zone modules — pulsed only */
+#define INS_DUTY_FULL 0xC8U /* 100%: CW is continuous */
 
 /* ── State ───────────────────────────────────────────────────────────────────── */
 
@@ -88,15 +95,27 @@ np_hub_status_t np_mod_intranasal_control(uint8_t slot, const void *params, uint
     }
 
     const np_mod_intranasal_params_t *p = (const np_mod_intranasal_params_t *)params;
-    uint8_t duty = (p->duty > INS_DUTY_MAX) ? INS_DUTY_MAX : p->duty;
+    if (p->irr_660 == 0U && p->irr_808 == 0U) {
+        return NP_HUB_ERR_INVALID_ARG;                 /* lights nothing */
+    }
+    const int c660 = np_ins_irr_to_code(p->irr_660);
+    const int c808 = np_ins_irr_to_code(p->irr_808);
+    if (c660 < 0 || c808 < 0) {
+        return NP_HUB_ERR_UNCHARACTERISED;             /* OI-NASAL-06 */
+    }
+    const uint8_t cur_660 = (uint8_t)c660;
+    const uint8_t cur_808 = (uint8_t)c808;
+    /* Continuous means continuous: CW at 100 %; pulsed capped at 25 %. */
+    uint8_t duty = (p->freq_code == 0U) ? INS_DUTY_FULL
+                 : ((p->duty > INS_DUTY_MAX) ? INS_DUTY_MAX : p->duty);
 
     np_hub_status_t rc = NP_HUB_OK;
 
     if (p->side == 0U || p->side == 1U) { /* bilateral or left */
-        rc = np_mod_ins_hal_pwm_set(0U, p->cur_660, p->cur_808, p->freq_code, duty);
+        rc = np_mod_ins_hal_pwm_set(0U, cur_660, cur_808, p->freq_code, duty);
     }
     if (rc == NP_HUB_OK && (p->side == 0U || p->side == 2U)) { /* bilateral or right */
-        rc = np_mod_ins_hal_pwm_set(1U, p->cur_660, p->cur_808, p->freq_code, duty);
+        rc = np_mod_ins_hal_pwm_set(1U, cur_660, cur_808, p->freq_code, duty);
     }
 
     if (rc != NP_HUB_OK) { return NP_HUB_ERR_MOD_FAULT; }

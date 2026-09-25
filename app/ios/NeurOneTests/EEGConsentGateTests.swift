@@ -61,7 +61,7 @@ final class EEGConsentGateTests: XCTestCase {
                 NPProtocolModality(params: .audioEntrainment(
                     NPAudioEntrainmentParams(binauralBeatsHz: 20, isochronicTonesHz: nil,
                                              noiseType: .pink, carrierHz: 440,
-                                             volumePercent: 60, eegAdaptive: true,
+                                             levelDba: 60, eegAdaptive: true,
                                              boneConductionPacer: true)))
             ]))
     }

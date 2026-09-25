@@ -487,9 +487,10 @@ function irr16(mWcm2: number): [number, number] {
   return [v & 0xFF, (v >> 8) & 0xFF];
 }
 
-/** Convert intensity percent 0–100 to 0–255 LED current register. */
-function intensityReg(pct: number): number {
-  return Math.min(Math.round(pct / 100 * 255), 255);
+/** mW/cm² as µW/cm², little-endian uint16 (corneal irradiance is sub-mW/cm²). */
+function uw16(mWcm2: number): [number, number] {
+  const v = Math.max(0, Math.min(0xFFFF, Math.round(mWcm2 * 1000)));
+  return [v & 0xFF, (v >> 8) & 0xFF];
 }
 
 // ─── Zone → socket resolution ─────────────────────────────────────────────────
@@ -587,15 +588,16 @@ function encodePBMTranscranial(
 }
 
 function encodePBMIntranasal(p: PBMIntranasalParams): EncodedParams {
-  // np_mod_intranasal_params_t: 5 bytes
-  // side=0 (bilateral), freq_code, duty, cur_660, cur_808
-  const cur  = intensityReg(p.intensityPercent);
-  const duty = dutyReg(p.dutyCyclePercent);
+  // np_mod_intranasal_params_t: 7 bytes — side=0 (bilateral), freq_code, duty,
+  // irr_660, irr_808 (u16 LE, mW/cm²). Absolute: the hub converts for the probe
+  // fitted, and refuses until it is characterised (OI-NASAL-06). CW is continuous.
+  const irr  = irr16(p.irradianceMWcm2);
+  const duty = p.frequencyHz <= 0 ? 0xC8 : dutyReg(p.dutyCyclePercent);
   const fc   = freqCode(p.frequencyHz);
   return {
     modType: NP_MOD_INTRANASAL,
     target: slotTarget(SLOT_INTRANASAL),
-    params: new Uint8Array([0x00, fc, duty, cur, cur]),
+    params: new Uint8Array([0x00, fc, duty, ...irr, ...irr]),
   };
 }
 
@@ -698,7 +700,9 @@ function encodeVNSHRV(p: VNSHRVParams): EncodedParams {
 }
 
 function encodeAudio(p: AudioEntrainmentParams): EncodedParams {
-  // np_mod_audio_params_t: 8 bytes (mode, carrier_hz×2, beat_mhz×2, volume_pct, bone_conduct_en, eeg_adaptive)
+  // np_mod_audio_params_t: 8 bytes (mode, carrier_hz×2, beat_mhz×2, level_dba, bone_conduct_en, eeg_adaptive).
+  // level_dba is absolute — dBA at the ear — and the hub converts it for the
+  // driver fitted, refusing until the driver is calibrated (OI-AUDIOHW-01).
   let mode = 4;  // off
   let beatMhz = 0;
   if (p.binauralBeatsHz !== undefined)   { mode = 0; beatMhz = Math.round(p.binauralBeatsHz * 1000); }
@@ -706,21 +710,23 @@ function encodeAudio(p: AudioEntrainmentParams): EncodedParams {
   else if (p.noiseType === 'pink')  mode = 2;
   else if (p.noiseType === 'brown') mode = 3;
 
-  const volPct = Math.min(p.volumePercent, 100);
+  const levelDba = Math.max(0, Math.min(Math.round(p.levelDba), 255));
   const buf = new Uint8Array(8);
   const dv  = new DataView(buf.buffer);
   dv.setUint8(0, mode);
   dv.setUint16(1, Math.min(p.carrierHz, 0xFFFF), true);
   dv.setUint16(3, Math.min(beatMhz, 0xFFFF), true);
-  dv.setUint8(5, volPct);
+  dv.setUint8(5, levelDba);
   dv.setUint8(6, p.boneConductionPacer ? 1 : 0);
   dv.setUint8(7, p.eegAdaptive ? 1 : 0);
   return { modType: NP_MOD_AUDIO, target: slotTarget(SLOT_AUDIO), params: buf };
 }
 
 function encodeVisual(p: VisualStimParams): EncodedParams {
-  // np_mod_visual_params_t: 9 bytes
-  // mode, freq_hz, duty_pct, wl_select, zone_mask_lo, zone_mask_hi, emdr_rate, mode_f_enable, shade_req
+  // np_mod_visual_params_t: 11 bytes
+  // mode, freq_hz, duty_pct, wl_select, zone_mask_lo, zone_mask_hi, emdr_rate, mode_f_enable, shade_req,
+  // irr_uw_cm2 (u16 LE) — corneal irradiance, absolute; the hub refuses until the
+  // lens emitters are characterised (OI-VIS-ABS-01).
   const modeMap: Record<VisualStimParams['mode'], number> = {
     binocular:   0,
     emdr:        1,
@@ -744,6 +750,7 @@ function encodeVisual(p: VisualStimParams): EncodedParams {
       emdrRate,
       p.enableModeF ? 1 : 0,
       shadeReq,
+      ...uw16(p.irradianceMWcm2),
     ]),
   };
 }

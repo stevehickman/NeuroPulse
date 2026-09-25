@@ -193,9 +193,14 @@ private fun ZoneDropdown(target: NPPBMTarget, on: (NPPBMTarget) -> Unit) {
 
 @Composable
 private fun PbmIntranasal(p: NPPBMIntranasalParams, on: (NPPBMIntranasalParams) -> Unit) {
-    NumField(stringResource(R.string.and_modality_intensity), p.intensityPercent) { on(p.copy(intensityPercent = it)) }
-    NumField(stringResource(R.string.and_modality_frequency_hz), p.frequencyHz) { on(p.copy(frequencyHz = it)) }
-    IntField(stringResource(R.string.and_modality_duty_cycle), p.dutyCyclePercent) { on(p.copy(dutyCyclePercent = it)) }
+    NumField(stringResource(R.string.and_modality_irradiance), p.irradianceMWcm2) { on(p.copy(irradianceMWcm2 = it)) }
+    NumField(stringResource(R.string.and_modality_frequency_hz), p.frequencyHz) {
+        on(p.copy(frequencyHz = it, dutyCyclePercent = if (it <= 0.0) 100 else minOf(p.dutyCyclePercent, 25)))
+    }
+    // CW (0 Hz) is continuous: no duty cycle to edit.
+    if (p.frequencyHz > 0.0) {
+        IntField(stringResource(R.string.and_modality_duty_cycle), p.dutyCyclePercent) { on(p.copy(dutyCyclePercent = it)) }
+    }
 }
 
 @Composable
@@ -236,13 +241,14 @@ private fun Vns(p: NPVNSHRVParams, on: (NPVNSHRVParams) -> Unit) {
 private fun Audio(p: NPAudioEntrainmentParams, on: (NPAudioEntrainmentParams) -> Unit) {
     NumField(stringResource(R.string.and_modality_binaural_beat_hz), p.binauralBeatsHz ?: 0.0) { on(p.copy(binauralBeatsHz = it.takeIf { v -> v > 0 })) }
     NumField(stringResource(R.string.and_modality_isochronic_tone_hz), p.isochronicTonesHz ?: 0.0) { on(p.copy(isochronicTonesHz = it.takeIf { v -> v > 0 })) }
-    NumField(stringResource(R.string.and_modality_volume), p.volumePercent) { on(p.copy(volumePercent = it)) }
+    NumField(stringResource(R.string.and_modality_level_dba), p.levelDba) { on(p.copy(levelDba = it)) }
     ToggleRow(stringResource(R.string.and_modality_eeg_adaptive), p.eegAdaptive) { on(p.copy(eegAdaptive = it)) }
     ToggleRow(stringResource(R.string.and_modality_bone_conduction_pacer), p.boneConductionPacer) { on(p.copy(boneConductionPacer = it)) }
 }
 
 @Composable
 private fun Visual(p: NPVisualStimParams, on: (NPVisualStimParams) -> Unit) {
+    NumField(stringResource(R.string.and_modality_irradiance), p.irradianceMWcm2) { on(p.copy(irradianceMWcm2 = it)) }
     NumField(stringResource(R.string.and_modality_frequency_hz), p.frequencyHz) { on(p.copy(frequencyHz = it)) }
     EnumDropdown(stringResource(R.string.validate_param_mode), p.mode, NPVisualStimParams.VisualMode.entries, { it.rawValue }) { on(p.copy(mode = it)) }
     NumField(stringResource(R.string.and_modality_emdr_cadence_hz), p.emdrCadenceHz) { on(p.copy(emdrCadenceHz = it)) }

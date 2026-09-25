@@ -48,6 +48,7 @@ sealed class PbmTranscranialConfig : ModalityConfig
 // case pbmIntranasal(PBMIntranasalConfig)
 sealed class PbmIntranasalConfig : ModalityConfig
 {
+    public required double IrradianceMWcm2 { get; init; }   // on-state, probe exit face — absolute
     public required double FrequencyHz { get; init; }
     public required int DutyCyclePercent { get; init; }
     public required int DurationSeconds { get; init; }
@@ -99,6 +100,7 @@ sealed class NeuralAudioConfig : ModalityConfig
     public double? BinauralBeatHz { get; init; }
     public double? IsochronicToneHz { get; init; }
     public string? NoiseType { get; init; }
+    public required double LevelDba { get; init; }          // A-weighted, at the ear — absolute
     public bool EegAdaptive { get; init; } = true;
     public bool UseBoneConductionForPacer { get; init; } = true;
 }
@@ -106,6 +108,7 @@ sealed class NeuralAudioConfig : ModalityConfig
 // case visualStimulation(VisualStimConfig)
 sealed class VisualStimConfig : ModalityConfig
 {
+    public required double IrradianceMWcm2 { get; init; }   // on-state corneal — absolute
     public required double FrequencyHz { get; init; }       // 0.5–100 Hz
     public string Mode { get; init; } = "binocular";
     [JsonPropertyName("enableModeFInvisibleNIR")]

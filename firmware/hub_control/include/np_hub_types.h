@@ -64,6 +64,10 @@ typedef enum {
      * reopened, so this is how a reused counter is reported — distinctly, so the
      * logger can move to the next unused counter instead of losing the session. */
     NP_HUB_ERR_LOG_EXISTS           = -24,
+    /* An emission was commanded in absolute units for a part whose output has
+     * not been characterised, so no drive setting can be derived from it
+     * (np_emission_cal.h).  Refused rather than guessed. */
+    NP_HUB_ERR_UNCHARACTERISED      = -25,
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -266,12 +270,15 @@ typedef struct __attribute__((packed)) {
 
 /* ── Intranasal Y-probe (NP_MOD_INTRANASAL) ─────────────────────────────────── */
 
+/* Absolute, like the cranial tiles: on-state irradiance at the probe exit face,
+ * mW/cm², per channel (NP-NPPS-REF-001 Rev 18 §4.2).  freq_code 0 = CW, which
+ * is continuous (100 % on-time); pulsed duty ≤ 25 %.  Little-endian. */
 typedef struct __attribute__((packed)) {
-    uint8_t side;          /* 0=bilateral, 1=left, 2=right */
-    uint8_t freq_code;
-    uint8_t duty;          /* ≤ 0x32 */
-    uint8_t cur_660;       /* 660nm current register */
-    uint8_t cur_808;       /* 808nm current register */
+    uint8_t  side;         /* 0=bilateral, 1=left, 2=right */
+    uint8_t  freq_code;    /* 0x00=CW; else pulse frequency in Hz */
+    uint8_t  duty;         /* pulsed ≤ 0x32 (25%); CW: ignored */
+    uint16_t irr_660;      /* 660nm on-state irradiance, mW/cm² (0 = off) */
+    uint16_t irr_808;      /* 808nm on-state irradiance, mW/cm² (0 = off) */
 } np_mod_intranasal_params_t;
 
 /* ── EEG (NP_MOD_EEG) ───────────────────────────────────────────────────────── */
@@ -329,7 +336,9 @@ typedef struct __attribute__((packed)) {
     uint8_t  mode;           /* 0=binaural, 1=isochronic, 2=pink, 3=brown, 4=off */
     uint16_t carrier_hz;     /* carrier frequency Hz (binaural/isochronic) */
     uint16_t beat_mhz;       /* beat / modulation frequency mHz */
-    uint8_t  volume_pct;     /* 0–100 */
+    uint8_t  level_dba;      /* A-weighted level at the ear, dBA (0 = silent) —
+                              * absolute, not a fraction of the driver's output
+                              * (NP-NPPS-REF-001 Rev 18 §4.7) */
     uint8_t  bone_conduct_en;/* 1=enable mastoid bone conduction */
     uint8_t  eeg_adaptive;   /* 1=lock beat_mhz to EEG dominant band output */
 } np_mod_audio_params_t;
@@ -346,6 +355,8 @@ typedef struct __attribute__((packed)) {
     uint8_t  emdr_rate_mhz;  /* EMDR L/R alternation rate mHz */
     uint8_t  mode_f_enable;  /* 1=Mode F (NIR retinal walk, 808-830nm) */
     uint8_t  shade_req;      /* 0=none, 1=S1_opaque */
+    uint16_t irr_uw_cm2;     /* on-state corneal irradiance, µW/cm², per lit
+                              * channel — absolute (NP-NPPS-REF-001 Rev 18 §4.8) */
 } np_mod_visual_params_t;
 
 /* ── Cervical VNS T2 (NP_MOD_CVNS) ─────────────────────────────────────────── */

@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 4
-**Date:** 2026-09-24
+**Revision:** 5
+**Date:** 2026-09-25
 **Status:** RELEASED as a design output under `21 CFR §820.30(d)`. **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
 **Author:** NeurOne Firmware Engineering
@@ -420,7 +420,7 @@ Each command in the body is:
 ```
 
 Constants (`np_hub_config.h`): magic `NP_HUB_PROTO_MAGIC` = `0x4E504850` (`"NPHP"`); version
-`NP_HUB_PROTO_VERSION` = 4; UUID 16 B; serial 32 B ASCII; signature 64 B; at most
+`NP_HUB_PROTO_VERSION` = 5; UUID 16 B; serial 32 B ASCII; signature 64 B; at most
 `NP_HUB_PROTO_CMD_MAX` = 64 commands; at most `NP_HUB_PROTO_PARAMS_MAX` = 64 params bytes per
 command; target block at most `NP_HUB_PROTO_TARGET_MAX` = 16 B.
 
@@ -500,6 +500,7 @@ parser does not partially populate.
 | 2 | `slot_id` + variable target block; socket-mask targeting | 80 sockets do not fit in five bits, and are not slots |
 | 3 | `np_mod_tdcs_params_t` grew `electrode_area_mcm2` (6 → 8 B) — `OI-CHARGE-04` | a v2 descriptor's tDCS block is a *different length* for the same modality code. Left at v2, the only symptom would be `NP_HUB_ERR_INVALID_ARG` out of the stim handler at dispatch, which reads as a **corrupt** descriptor. `NP_HUB_ERR_BAD_VERSION` at header verification says what actually happened. |
 | **4** | `np_mod_pbm_base_params_t` 4 → 6 B and `np_mod_pbm_smart_params_t` 6 → 9 B: transcranial PBM carries on-state irradiance in mW/cm² (`uint16`) instead of `CUR` codes, and CW is continuous — `OI-HEXTILE-25` (2026-09-25) | the same reason as v3: a v3 PBM block is a different length for the same modality code |
+| **5** | `np_mod_intranasal_params_t` 5 → 7 B (`irr_660`/`irr_808`, mW/cm² at the probe exit face, `uint16`, replace the `CUR` codes) and `np_mod_visual_params_t` gains `irr_uw_cm2` (corneal µW/cm², `uint16`); `np_mod_audio_params_t` carries `level_dba` in place of `volume_pct` at the same length — every emission absolute, `NP-NPPS-REF-001` Rev 18 (2026-09-25) | two blocks change length (as v3). The audio block does not, and is exactly the case the rule below warns of: it is caught because it shipped in the same version |
 
 `REQ-FWHUB-10`: **any change to a per-modality parameter struct's length bumps
 `NP_HUB_PROTO_VERSION`.** The rule is length, not semantics — a struct that changes meaning at the
@@ -1054,7 +1055,13 @@ runtime setting — a runtime gate on an uncleared regulatory question is a gate
 
 Bilateral Y-probe, 660 nm + 808–830 nm per side. Authentication is an **optical/resistive pogo-pin
 sleeve code — no NFC, no RF, no EMF at the scalp**, consistent with CLAUDE.md §1's wired-first
-principle. Duty ceiling `INS_DUTY_MAX` = 25 %, the same ceiling as the cranial tiles.
+principle. Pulsed duty ceiling `INS_DUTY_MAX` = 25 %, the same ceiling as the cranial tiles; **CW is
+continuous** (`INS_DUTY_FULL`, 100 %). Since v5 the command carries **absolute irradiance** at the probe
+exit face, converted by `np_ins_irr_to_code()` (`np_emission_cal.c`). **No emitter is characterised
+(`OI-NASAL-06`), so every non-zero request returns `NP_HUB_ERR_UNCHARACTERISED` (−25)** — the audio
+(`OI-AUDIOHW-01`; bone conduction `OI-AUDIOHW-11`) and visual (`OI-VIS-ABS-01`) modules refuse the same
+way. The visual module also carries a compile-time `#error` against setting its constant before
+`np_mod_visual_hal_led_set()` takes a level.
 
 Detection requires **both** `auth_check()` and `pd_contact()`. This is the only authenticated
 consumable path in the firmware (CLAUDE.md §2.3 — hygiene sleeves).
@@ -1339,6 +1346,7 @@ have absorbed.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 5 | 2026-09-25 | NeurOne Firmware Engineering | **Wire protocol v4 and v5 recorded (§4.5).** v4 (`OI-HEXTILE-25`, transcranial PBM in mW/cm²) had been added to the table without a revision; v5 makes every other emission absolute (`NP-NPPS-REF-001` Rev 18): intranasal mW/cm² at the exit face, visual corneal µW/cm², audio dBA at the ear. New module `np_emission_cal.c` and status `NP_HUB_ERR_UNCHARACTERISED`: all three full-scale constants are zero, so the hub refuses rather than drive an assumed scale (§8.7). Intranasal CW is continuous. |
 | 4 | 2026-09-24 | NeurOne Firmware Engineering | **§6.6 added — the per-session recording limit, with proposed IFU text.** `OI-LFS-11` (`NP-SOUP-LFS-001` Rev 7 §13.10) made each session's UHDR record one file, and littlefs caps a file at 2 GiB − 1: about **49 hours** of recording with EEG at ≈12 kB/s. At the limit recording stops for the rest of that session; the session is not stopped, and other sessions are unaffected. §6.6 derives the figure, states the behaviour from the code, and gives plain-language IFU text. No IFU exists yet, so `OI-FWHUB-13` carries the text to it. §6.5 gains the `OI-LFS-11` update note. Rev 3 → 4. |
 | 3 | 2026-09-23 | NeurOne Firmware Engineering | **BES/tACS geometry gate (`NP-FW-MMSOCK-001` P-5, C-1) and the area-hand-off defect.** New `NP_SESSION_STATUS_GEOM_REQ_BES` (bit 4, previously unused) and a third arm of the safety MCU's geometry gate — **Class C, pending SW-01 review**; no enable-word bit and no frame byte moves. The hub arms it for every BES/tACS session and sends the fixed pad area (D-28; `REQ-FWHUB-36`). **Found while writing it:** the area frame was sent only in sessions holding HD-tDCS or tDCS, so VNS, cervical-VNS and BES areas were silently dropped elsewhere and the MCU enforced 25 cm² — 50× loose on the auricular clip (`RISK-FWHUB-15`, fixed; `REQ-FWHUB-37`). The scan moved to `src/np_chan_decl.c` (D-29) with `np_chan_decl_tests` (Class B 31 → 32, total 39 → 40); every mutation of the send rule, the BES arming and the two Class C gate lines is caught. §5.4, §7.4, §10.1, §11, §12 updated. Cross-compiled for both processors on arm-none-eabi-gcc 13.2.1. |
 | 2 | 2026-09-23 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-01` — the socket dispatch registry — and moves its blocking status to the power governor rather than lifting it.** New §3.4: `src/np_socket_dispatch.c`, a 128-entry socket-indexed registry beside the slot registry, with no fallback between the two (`REQ-FWHUB-31`); admission is all-or-nothing across mod-type, params, placement against the live `np_module_map` inventory, power, and driver faults with rollback (`REQ-FWHUB-32`, `-33`); the registry owns `NP_SAFETY_EN_PBM_CRANIAL`, requesting it after a command's sockets are configured and releasing it only when none is active, or at once when a stop fails (`REQ-FWHUB-34`). Driver seam: `np_mod_pbm_socket_drive()` / `_stop()` in `np_mod_pbm.c`, and one new platform seam `np_mod_pbm_hal_socket_pwm_set()` (SW-02 census 97 → 98). **§5.6 rewritten: opening the path makes `NP-HW-HEXTILE-001` §9.3's governor requirement live** — `scripts/check-pbm-power.ts` reads 20 of 23 predefined transcranial protocols over the 40 W budget — and that governor cannot be written (`OI-HEXTILE-09`, `OI-SESPWR-03`, `OI-HEXTILE-02`), so `np_pbm_power_admit()` ships **refusing every load** (`REQ-FWHUB-35`, D-27). **Transcranial PBM therefore still does not execute**; `OI-FWHUB-09` (blocking) replaces `OI-FWHUB-01` as the reason, and `REQ-FWHUB-25/26` stay in §10.2 against it. New `NP_HUB_ERR_POWER_BUDGET` (−18). `np_socket_dispatch_tests` (Class B 30 → 31, total 38 → 39): 14 cases linking the real module map and socket expansion, and the production governor renamed so what ships is asserted closed; seven mutations of the dispatcher and governor each caught (three survived the first draft of the suite and each gained a case). Raised: `OI-FWHUB-10` (socket telemetry and dose metering), `-11` (`HUB-REQ-C05` cluster gate not commanded), `-12` (the PBM I²C stub's five-slot bound). `OI-FWHUB-05` unblocked. Risks `RISK-FWHUB-12…14` added; `RISK-FWHUB-01` re-described. Decisions D-24…D-27. |

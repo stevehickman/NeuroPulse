@@ -77,7 +77,7 @@ class NPPSSerializer {
         }
         limits.pbmIntranasal?.let { lim ->
             lines.add("    pbm_intranasal {")
-            lim.maxIntensityPercent?.let { lines.add("        max_intensity: ${it.toInt()}%") }
+            lim.maxIrradianceMWcm2?.let { lines.add("        max_irradiance_mw_cm2: ${formatIrradiance(it)}") }
             lim.maxSessionDoseJCm2?.let { lines.add("        max_session_dose: ${formatDouble(it)}") }
             lim.maxSessionDurationSeconds?.let { lines.add("        max_session_duration: ${formatTime(it)}") }
             lines.add("    }")
@@ -114,7 +114,7 @@ class NPPSSerializer {
         }
         limits.audioEntrainment?.let { lim ->
             lines.add("    audio_entrainment {")
-            lim.maxVolumePercent?.let { lines.add("        max_intensity: ${it.toInt()}%") }
+            lim.maxLevelDba?.let { lines.add("        max_level_dba: ${formatIrradiance(it)}") }
             lim.maxBinauralBeatsHz?.let { lines.add("        max_binaural_beats: ${formatHz(it)}") }
             lim.maxIsochronicTonesHz?.let { lines.add("        max_isochronic_tones: ${formatHz(it)}") }
             lines.add("    }")
@@ -246,10 +246,11 @@ class NPPSSerializer {
 
         is NPModalityParams.PbmIntranasal -> {
             val p = params.params
-            listOf(
-                "intensity: ${p.intensityPercent.toInt()}%",
+            // CW is continuous: a CW block takes no duty_cycle (Rev 18).
+            listOfNotNull(
+                "irradiance_mw_cm2: ${formatIrradiance(p.irradianceMWcm2)}",
                 "frequency: ${formatHz(p.frequencyHz)}",
-                "duty_cycle: ${p.dutyCyclePercent}%",
+                if (p.frequencyHz > 0) "duty_cycle: ${p.dutyCyclePercent}%" else null,
             )
         }
 
@@ -310,7 +311,7 @@ class NPPSSerializer {
             val nt = p.noiseType
             if (nt != null) lines.add("noise: ${nt.rawValue}") else lines.add("noise: none")
             lines.add("carrier_hz: ${formatHz(p.carrierHz)}")
-            lines.add("volume: ${p.volumePercent.toInt()}%")
+            lines.add("level_dba: ${formatIrradiance(p.levelDba)}")
             lines.add("eeg_adaptive: ${p.eegAdaptive}")
             lines.add("bone_conduction_pacer: ${p.boneConductionPacer}")
             lines
@@ -319,6 +320,7 @@ class NPPSSerializer {
         is NPModalityParams.VisualStimulation -> {
             val p = params.params
             val lines = ArrayList<String>()
+            lines.add("irradiance_mw_cm2: ${formatIrradiance(p.irradianceMWcm2)}")
             lines.add("frequency: ${formatHz(p.frequencyHz)}")
             lines.add("mode: ${p.mode.rawValue}")
             if (p.mode == NPVisualStimParams.VisualMode.EMDR) {

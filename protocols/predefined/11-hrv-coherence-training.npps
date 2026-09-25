@@ -19,7 +19,7 @@ protocol "HRV Coherence Training" {
     audio_entrainment {
         noise: pink
         carrier_hz: 440Hz
-        volume: 40%
+        level_dba: 56  # PROVISIONAL (2026-09-25, every emission absolute): was volume 40% — 60 dBA at the median authored 60 %, % as amplitude; no level evidence in the record (OI-AUDIOHW-01)
         eeg_adaptive: false
         bone_conduction_pacer: true
     }
