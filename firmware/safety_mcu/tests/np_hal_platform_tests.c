@@ -41,6 +41,7 @@ TIM_TypeDef  np_hal_fake_tim2;
 TIM_TypeDef  np_hal_fake_tim3;
 ADC_TypeDef  np_hal_fake_adc1;
 EXTI_TypeDef np_hal_fake_exti;
+IWDG_TypeDef np_hal_fake_iwdg;
 uint8_t      np_hal_fake_otp[1024];
 uint8_t      np_hal_fake_uid[12];
 
@@ -526,6 +527,41 @@ static void test_device_uid_read(void)
     check(ok, "device UID read is byte-for-byte and clamped to NP_DEVICE_UID_LEN");
 }
 
+/* ══ IWDG (NP-RISK-002 OI-RISK2-05) ════════════════════════════════════════════
+ * The fake keeps one value per register, so only the LAST key written to KR is
+ * observable: the start key (0xCCCC) and the access key (0x5555) are not.  What
+ * IS asserted is the timeout arithmetic — the thing a wrong constant silently
+ * changes — and that both calls leave the refresh key.  That the IWDG actually
+ * runs and resets a stalled loop is a silicon measurement (OI-SWCI-49).      */
+static void test_iwdg_start_programs_timeout(void)
+{
+    memset(&np_hal_fake_iwdg, 0, sizeof(np_hal_fake_iwdg));
+    np_hal_iwdg_start();
+    check(np_hal_fake_iwdg.PR == 3U,
+          "iwdg_start: prescaler /32 (PR=3) → 1 ms per count at LSI 32 kHz");
+    check(np_hal_fake_iwdg.RLR == (uint32_t)(NP_SAFETY_IWDG_TIMEOUT_MS - 1U),
+          "iwdg_start: reload = NP_SAFETY_IWDG_TIMEOUT_MS - 1");
+    check(np_hal_fake_iwdg.KR == 0xAAAAU, "iwdg_start: ends with a refresh");
+    check(NP_SAFETY_IWDG_TIMEOUT_MS <= NP_SAFETY_WDG_TIMEOUT_MS,
+          "iwdg timeout is not slower than the heartbeat watchdog");
+}
+
+static void test_iwdg_start_bounded_if_sr_sticks(void)
+{
+    /* SR never clearing must not hang the boot: the wait is capped. */
+    memset(&np_hal_fake_iwdg, 0, sizeof(np_hal_fake_iwdg));
+    np_hal_fake_iwdg.SR = 0x3U;
+    np_hal_iwdg_start();
+    check(np_hal_fake_iwdg.KR == 0xAAAAU, "iwdg_start returns even if SR never clears");
+}
+
+static void test_iwdg_refresh_key(void)
+{
+    np_hal_fake_iwdg.KR = 0U;
+    np_hal_iwdg_refresh();
+    check(np_hal_fake_iwdg.KR == 0xAAAAU, "iwdg_refresh writes the reload key 0xAAAA");
+}
+
 int main(void)
 {
     printf("=== SW-01 platform layer host tests (NP-SW-CI-001 phase 7) ===\n");
@@ -550,6 +586,10 @@ int main(void)
 
     test_adc_failsafe_value_actually_cuts();
     test_adc_full_scale_does_not_cut();
+
+    test_iwdg_start_programs_timeout();
+    test_iwdg_start_bounded_if_sr_sticks();
+    test_iwdg_refresh_key();
 
     printf("=== %s ===\n", (g_failures == 0) ? "ALL PASS" : "FAILURES PRESENT");
     return (g_failures == 0) ? 0 : 1;

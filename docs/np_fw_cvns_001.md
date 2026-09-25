@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 7
-**Date:** 2026-09-23
+**Revision:** 8
+**Date:** 2026-09-25
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -12,10 +12,18 @@
 **Related Issues:** GitHub Issue #24; GitHub Issue #343 (§9 FAI serial disposition); GitHub Issue #332 (A14 hardware specification — issued 2026-09-20 as NP-HW-CVNS-001)
 **Gate:** NP-COORD-001 G3-08
 **IEC 62304 Class:** SW-01 Class C (safety MCU) / SW-02 Class B (main processor)
-**Supersedes:** NP-FW-CVNS-001 Rev 6
+**Supersedes:** NP-FW-CVNS-001 Rev 7
 **Parent Document:** NP-SW-001
 
 ---
+
+**Rev 8 (2026-09-25): the safety MCU's cardiac interlock is no longer blind before it arms or after R-peaks stop (`NP-RISK-002` OI-RISK2-05, principal decision; GitHub #437).**
+- **§5.4 step 3, pre-arm hold.** `NP_SAFETY_EN_CVNS` is withheld until 8 intervals arm the baseline. Before this, CVNS was granted on request, and the interlock could not fire until armed.
+- **§5.4 step 4, staleness.** While CVNS is granted, 3 s with no R-peak edge is a cardiac cutoff.
+- **§5.4 preamble corrected.** The check runs every main-loop iteration; there is no TIM6 ISR.
+- Firmware: `np_cardiac_interlock.c`, `NP_CARDIAC_RPEAK_STALE_MS`, `np_cardiac_interlock_arm_reset()`, called by main on each new CVNS request. Host-tested (`np_cardiac_interlock_tests`, 6 new tests; mutations caught). `NP-FMEA-001` Rev 12 re-authors §3.5 against it.
+- **Operational effect:** cervical VNS starts about 8 heartbeats after the hub requests it. The hub waits without faulting.
+- **Not done here:** the safety MCU does not report *which* condition cut. A staleness cut and a heart-rate cut both set CARDIAC with fault slot 10. The hub's UHDR `fault_reason` comes from its own PPG path, which records `DATA_LOSS` only at its 10 s timer. Distinguishing the two in the heartbeat reply would need a wire-format change, which is left for the owner to decide.
 
 **Rev 7 (2026-09-23): §13 re-scored — RISK-25 is S5 × P2 = ALARP, not "Critical (S4) … Low" (`NP-RISK-002` §4.3).**
 - **Severity.** "Critical (S4)" mixed two scale levels. `NP-RM-001` §4.1 names cardiac arrhythmia
@@ -331,9 +339,9 @@ Host-test coverage: `firmware/safety_mcu/tests/np_cardiac_interlock_tests.c` (`n
 
 ### 5.4 Cardiac interlock monitoring loop
 
-Once stimulation is enabled, the safety MCU runs a 200 Hz interrupt-driven loop (TIM6 5 ms ISR):
+While cervical VNS is requested, the safety MCU runs this check on **every main-loop iteration** (`np_cardiac_interlock_tick()`). *Rev 8 correction: Rev 1 described a 200 Hz TIM6 ISR, and there is none. The cutoff lands within one main-loop iteration, and bench latency against the 100 ms specification is FAI-CV02.*
 
-**Per ISR execution:**
+**Per iteration:**
 
 1. Compute `window_hr_bpm` = 60,000,000 / mean(R-R intervals currently in the ring buffer, in µs).
 2. If `|window_hr_bpm − baseline_hr_bpm| > NP_CARDIAC_HR_DELTA_BPM` (15 BPM). The comparison is **signed** — `int16_t`, per FMEA-M05-02 — so a fall below baseline is compared by magnitude rather than underflowing to a large positive value. The threshold is a strict `>`: a delta of exactly 15 BPM holds:
@@ -342,7 +350,8 @@ Once stimulation is enabled, the safety MCU runs a 200 Hz interrupt-driven loop 
    c. Start the `NP_CARDIAC_LOCKOUT_MS` (30 s) re-enable lockout. Re-enable is refused for the whole window; after it expires, re-enable additionally requires explicit app confirmation and a repeat impedance check (§5.5, CLAUDE.md §4.2).
    d. Send FAULT SPI notification to main processor on next SPI transaction.
    e. **(Rev 6)** Record the cutoff in safety-MCU flash for the active user (§5.4.1), once every channel is off. The CARDIAC status withholds `NP_SAFETY_EN_CVNS` **only** (`NP_CARDIAC_BLOCK_MASK`). Every other channel stays grantable.
-3. **Conservative hold.** The safety MCU will not fire a cutoff at all until the baseline has armed — that is, until `NP_CARDIAC_BASELINE_BEATS` (8) intervals have accumulated. This is stricter than Rev 1's "fewer than 3 valid intervals" rule, which described the *main processor's* data-loss handling (`NP_CVNS_DATA_LOSS_TIMEOUT_S`, §6). The safety MCU has **no** warning flag and **no** 10 s soft-cutoff timer; it holds, silently and unconditionally, until armed. Re-enable invalidates the baseline, so the hold applies again after every cutoff.
+3. **Pre-arm hold (Rev 8, principal 2026-09-25, `NP-RISK-002` OI-RISK2-05).** Until `NP_CARDIAC_BASELINE_BEATS` (8) fresh intervals have armed the baseline, the safety MCU **withholds `NP_SAFETY_EN_CVNS`**. The hold is silent: no status bit, no lockout and no NV write. The hub reads an absent grant as request latency, not as a fault (`np_mod_cvns.c`), and holds its stimulation at 0 until granted. A new CVNS request re-arms from fresh beats (`np_cardiac_interlock_arm_reset()`), and so does every re-enable. *Rev 7 and earlier: the MCU would not fire a cutoff until armed, but it still granted CVNS, so a session whose R-peaks never arrived ran with no Class C monitoring. The hub's `NP_CVNS_DATA_LOSS_TIMEOUT_S` hold (§6) is a separate, Class B mechanism.* Superseded text, retained: **Conservative hold.** The safety MCU will not fire a cutoff at all until the baseline has armed — that is, until `NP_CARDIAC_BASELINE_BEATS` (8) intervals have accumulated. This is stricter than Rev 1's "fewer than 3 valid intervals" rule, which described the *main processor's* data-loss handling (`NP_CVNS_DATA_LOSS_TIMEOUT_S`, §6). The safety MCU has **no** warning flag and **no** 10 s soft-cutoff timer; it holds, silently and unconditionally, until armed. Re-enable invalidates the baseline, so the hold applies again after every cutoff.
+4. **Staleness cutoff (Rev 8, same decision).** While CVNS is granted and the baseline is armed, **no R-peak edge for `NP_CARDIAC_RPEAK_STALE_MS` (3 s)** triggers step 2a–2e exactly as a heart-rate excursion does: CVNS withheld, CARDIAC and CUTOFF set, fault slot 10, 30 s lockout, and the cutoff persisted for the active user. 3 s is an R-R interval of 20 BPM, which is non-physiological for an eligible patient, so a live rhythm never trips it. A lost R-peak stream (cable, PPG or main-processor fault) is therefore caught by Class C code within 3 s, rather than only by the hub's 10 s Class B timer. It is evaluated only while CVNS is granted, so it cannot re-trip on lockout expiry.
 
 #### 5.4.1 Persistence and per-user scope (Rev 6)
 

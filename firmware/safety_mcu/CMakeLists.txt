@@ -154,6 +154,7 @@ if(NP_BUILD_TESTS)
         platform/np_hal_gpio.c
         platform/np_hal_spi.c
         platform/np_hal_otp.c
+        platform/np_hal_iwdg.c
         src/np_thermal_interlock.c
     )
     np_host_test(np_hal_platform_tests)
@@ -292,6 +293,7 @@ set(PLATFORM_SOURCES
     platform/np_hal_impedance.c
     platform/np_hal_otp.c
     platform/np_hal_nv.c
+    platform/np_hal_iwdg.c     # IWDG — NP-RISK-002 OI-RISK2-05 (adds 2 np_hal_* symbols)
 )
 
 # ── CPU flags (Cortex-M0+, no FPU) ────────────────────────────────────────────

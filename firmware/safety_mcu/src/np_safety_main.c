@@ -61,6 +61,7 @@ extern void np_thermal_interlock_tick(np_safety_state_t *state);
 extern void np_cardiac_interlock_tick(np_safety_state_t *state);
 extern void np_cardiac_interlock_reenable(np_safety_state_t *state);
 extern void np_cardiac_interlock_restore(bool cutoff_pending);
+extern void np_cardiac_interlock_arm_reset(void);
 extern bool np_cardiac_interlock_nv_request(bool *pending_out);
 extern void np_cardiac_interlock_nv_done(bool written);
 extern void np_cardiac_interlock_user_changed(np_safety_state_t *state, bool new_user_blocked);
@@ -86,6 +87,7 @@ extern void np_tier_identity_build_report(np_safety_tier_report_t *out,
 /* ── Shared safety state ─────────────────────────────────────────────────── */
 static np_safety_state_t s_state;
 static bool              s_prev_session_active = false;
+static bool              s_prev_cvns_active    = false;   /* CVNS request edge → arm reset */
 static uint8_t           s_bad_cmd_count = 0U; /* consecutive bad-magic/checksum sig frames */
 /* s_prior_latch_reported: true once prior fault is reported to hub on the
  * first heartbeat reply.  Prevents np_fault_latch_commit() from overwriting
@@ -235,6 +237,14 @@ int main(void)
      * requests CVNS — see np_cardiac_interlock_restore(). */
     np_nv_state_init();
     np_cardiac_interlock_restore(np_nv_cardiac_blocked(np_nv_current_user()));
+
+    /* Independent watchdog: started HERE, after init and immediately before the
+     * loop, and refreshed at exactly one point at the loop's end.  Init grants
+     * nothing (s_state is zeroed, every enable preset HIGH), so a hang during
+     * init leaves stimulation off; starting earlier would put the boot-time
+     * Ed25519 tier-record verify inside an unmeasured timeout (OI-SWCI-49).
+     * NP-FMEA-001 FMEA-M02-02/-05, NP-RISK-002 OI-RISK2-05.                  */
+    np_hal_iwdg_start();
 
     /* ── Main polling loop ─────────────────────────────────────────────── */
     for (;;) {
@@ -425,8 +435,13 @@ int main(void)
         np_thermal_interlock_tick(&s_state);
         np_impedance_check_poll(&s_state);
         if (s_state.cvns_active) {
+            /* A new CVNS request re-arms on fresh beats (OI-RISK2-05). */
+            if (!s_prev_cvns_active) {
+                np_cardiac_interlock_arm_reset();
+            }
             np_cardiac_interlock_tick(&s_state);
         }
+        s_prev_cvns_active = s_state.cvns_active;
 
         /* OI-CHARGE-03 fail-safe geometry gate: block CLIN_STIM while the hub
          * requires an electrode-geometry override that has not yet been
@@ -616,6 +631,11 @@ int main(void)
         } else if (s_state.status & NP_SAFETY_STATUS_FAULT) {
             np_fault_latch_commit(&s_state);
         }
+
+        /* The ONLY IWDG refresh.  Reached once per iteration, after
+         * np_gpio_mgr_apply() has written this iteration's decision to the pins;
+         * an iteration that never gets here resets the MCU. */
+        np_hal_iwdg_refresh();
     }
 
     return 0; /* unreachable */

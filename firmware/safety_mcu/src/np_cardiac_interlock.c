@@ -13,6 +13,23 @@
  * FMEA-M05-02 mitigation: HR delta comparison uses int16_t signed arithmetic
  * to prevent underflow when current HR < baseline HR (MISRA C:2012 Rule 10.1).
  *
+ * Class C self-sufficiency (NP-RISK-002 OI-RISK2-05, principal 2026-09-25).
+ * Two rules keep this interlock from being blind while cervical VNS runs:
+ *   - PRE-ARM HOLD: until NP_CARDIAC_BASELINE_BEATS intervals have armed the
+ *     baseline, NP_SAFETY_EN_CVNS is withheld.  Before this, CVNS was granted
+ *     as soon as requested and the interlock could not fire until armed — so a
+ *     session whose R-peaks never arrived ran with no Class C cardiac
+ *     monitoring at all.  The hold is silent (no status, no lockout): the hub
+ *     reads an absent grant as request latency, not a fault.
+ *   - STALENESS: while CVNS is granted, no R-peak edge for
+ *     NP_CARDIAC_RPEAK_STALE_MS cuts it exactly as a cardiac event does
+ *     (lockout, CARDIAC status, persisted).  Before this, a lost R-peak stream
+ *     froze the HR at its last 8-beat mean and only the hub's Class B timer
+ *     could stop stimulation.
+ * np_cardiac_interlock_arm_reset() is called on each new CVNS request so a
+ * baseline and last-edge time left over from an earlier session can neither
+ * grant early nor trip at once.
+ *
  * Power-cycle persistence (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01): a cutoff the
  * app has not yet acknowledged survives a power-on reset.  This module does not
  * touch flash itself — writing stalls the core, so np_safety_main.c does it
@@ -38,6 +55,7 @@ static uint32_t s_rr_buf[NP_RR_BUF_SIZE];   /* RR intervals in µs */
 static uint8_t  s_rr_head;
 static uint8_t  s_rr_count;
 static uint32_t s_last_capture;              /* TIM2 count at last R-peak */
+static uint32_t s_last_edge_ms;              /* SysTick ms at last R-peak (staleness) */
 static bool     s_first_beat_seen;           /* guard: skip phantom first RR */
 
 static int16_t  s_baseline_bpm;             /* beats per minute, signed */
@@ -63,6 +81,7 @@ np_safe_status_t np_cardiac_interlock_init(void)
     s_rr_head              = 0U;
     s_rr_count             = 0U;
     s_last_capture         = 0U;
+    s_last_edge_ms         = 0U;
     s_first_beat_seen      = false;
     s_baseline_bpm         = 0;
     s_baseline_valid       = false;
@@ -73,6 +92,36 @@ np_safe_status_t np_cardiac_interlock_init(void)
     s_nv_value             = false;
     s_restored_pending     = false;
     return NP_SAFE_OK;
+}
+
+/*
+ * np_cardiac_interlock_arm_reset — called by main on the rising edge of a CVNS
+ * request.  Discards the baseline and the R-R buffer, so the new request must
+ * re-arm on fresh beats (pre-arm hold).  That is also why an edge time left from
+ * an earlier session cannot trip staleness: staleness is evaluated only once
+ * armed, and arming takes NP_CARDIAC_BASELINE_BEATS fresh edges, each of which
+ * rewrites s_last_edge_ms.  Lockout, cutoff and a restored cutoff are NOT
+ * touched: this re-arms monitoring, it never clears a cutoff.
+ */
+void np_cardiac_interlock_arm_reset(void)
+{
+    s_baseline_valid  = false;
+    s_rr_count        = 0U;
+    s_rr_head         = 0U;
+    s_first_beat_seen = false;
+}
+
+/* Trip: the one cutoff path, shared by the HR-delta and staleness conditions. */
+static void cardiac_cutoff(np_safety_state_t *state, uint32_t now_ms)
+{
+    s_cutoff_active      = true;
+    s_lockout_active     = true;
+    s_lockout_start_ms   = now_ms;
+    state->granted_mask &= (uint16_t)~NP_SAFETY_EN_CVNS;
+    state->status       |= NP_SAFETY_STATUS_CARDIAC | NP_SAFETY_STATUS_CUTOFF;
+    state->fault_slot    = 10U; /* slot index for CVNS */
+    s_nv_request         = true;  /* persist AFTER the */
+    s_nv_value           = true;  /* GPIO cutoff (main) */
 }
 
 /*
@@ -239,6 +288,7 @@ void np_cardiac_interlock_tick(np_safety_state_t *state)
         }
         s_first_beat_seen = true;
         s_last_capture    = capture;
+        s_last_edge_ms    = now_ms;
 
         /* Establish baseline after NP_CARDIAC_BASELINE_BEATS valid intervals */
         if (!s_baseline_valid && s_rr_count >= NP_CARDIAC_BASELINE_BEATS) {
@@ -248,7 +298,22 @@ void np_cardiac_interlock_tick(np_safety_state_t *state)
         }
     }
 
-    if (!s_baseline_valid || !state->cvns_active || s_lockout_active) {
+    if (!state->cvns_active || s_lockout_active) {
+        return;
+    }
+
+    /* PRE-ARM HOLD (OI-RISK2-05): no Class C baseline, no cervical grant. */
+    if (!s_baseline_valid) {
+        state->granted_mask &= (uint16_t)~NP_SAFETY_EN_CVNS;
+        return;
+    }
+
+    /* STALENESS (OI-RISK2-05): only while CVNS is actually granted — under a
+     * CARDIAC cutoff it is already withheld, so lockout expiry cannot re-trip. */
+    if (!s_cutoff_active &&
+        (state->granted_mask & NP_SAFETY_EN_CVNS) != 0U &&
+        (now_ms - s_last_edge_ms) >= NP_CARDIAC_RPEAK_STALE_MS) {
+        cardiac_cutoff(state, now_ms);
         return;
     }
 
@@ -276,14 +341,6 @@ void np_cardiac_interlock_tick(np_safety_state_t *state)
     }
 
     if ((uint16_t)delta_bpm > NP_CARDIAC_HR_DELTA_BPM && !s_cutoff_active) {
-        s_cutoff_active                           = true;
-        s_lockout_active                          = true;
-        s_lockout_start_ms                        = now_ms;
-        state->granted_mask                      &= (uint16_t)~NP_SAFETY_EN_CVNS;
-        state->status                            |= NP_SAFETY_STATUS_CARDIAC |
-                                                    NP_SAFETY_STATUS_CUTOFF;
-        state->fault_slot                         = 10U; /* slot index for CVNS */
-        s_nv_request                              = true;  /* persist AFTER the */
-        s_nv_value                                = true;  /* GPIO cutoff (main) */
+        cardiac_cutoff(state, now_ms);
     }
 }

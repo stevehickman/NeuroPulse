@@ -39,6 +39,7 @@ extern void             np_cardiac_interlock_reenable(np_safety_state_t *state);
 extern void             np_cardiac_interlock_restore(bool cutoff_pending);
 extern bool             np_cardiac_interlock_nv_request(bool *pending_out);
 extern void             np_cardiac_interlock_nv_done(bool written);
+extern void             np_cardiac_interlock_arm_reset(void);
 extern void             np_cardiac_interlock_user_changed(np_safety_state_t *state,
                                                           bool new_user_blocked);
 /* The grant computation, linked in so the scope of a cardiac cutoff is tested
@@ -106,12 +107,26 @@ static void reset_all(np_safety_state_t *st, bool cvns_active, uint32_t capture0
     st->cvns_active  = cvns_active;
 }
 
+/* Model the heartbeat grant between ticks: np_spi_watchdog_tick() re-derives
+ * granted_mask from the hub's request on every valid frame, withholding CVNS
+ * only under CARDIAC.  Before OI-RISK2-05 the interlock never withheld CVNS
+ * except by cutting it, so the harness could leave the mask alone; the pre-arm
+ * hold now clears the bit on every unarmed tick, and without this re-grant a
+ * cleared bit would stick and read as a cutoff. */
+static void regrant(np_safety_state_t *st)
+{
+    if (st->cvns_active && (st->status & NP_SAFETY_STATUS_CARDIAC) == 0U) {
+        st->granted_mask |= NP_SAFETY_EN_CVNS;
+    }
+}
+
 /* Deliver one R-peak arriving rr_us after the previous one. */
 static void beat(np_safety_state_t *st, uint32_t rr_us)
 {
     g_capture      += rr_us;
     g_edge_pending  = true;
     g_tick_ms      += 1U;
+    regrant(st);
     np_cardiac_interlock_tick(st);
 }
 
@@ -119,6 +134,7 @@ static void beat(np_safety_state_t *st, uint32_t rr_us)
 static void idle_tick(np_safety_state_t *st, uint32_t dt_ms)
 {
     g_tick_ms += dt_ms;
+    regrant(st);
     np_cardiac_interlock_tick(st);
 }
 
@@ -133,9 +149,18 @@ static void establish_baseline(np_safety_state_t *st, uint32_t rr_us)
     }
 }
 
+/* A cutoff is the CARDIAC status (with CVNS withheld).  Before OI-RISK2-05 a
+ * withheld CVNS bit could only mean a cutoff; the pre-arm hold now withholds it
+ * silently too, so "withheld" alone no longer distinguishes the two. */
 static bool cutoff_fired(const np_safety_state_t *st)
 {
-    return (st->granted_mask & NP_SAFETY_EN_CVNS) == 0U;
+    return (st->status & NP_SAFETY_STATUS_CARDIAC) != 0U &&
+           (st->granted_mask & NP_SAFETY_EN_CVNS) == 0U;
+}
+
+static bool cvns_granted(const np_safety_state_t *st)
+{
+    return (st->granted_mask & NP_SAFETY_EN_CVNS) != 0U;
 }
 
 /* ── Tests ───────────────────────────────────────────────────────────────────── */
@@ -424,8 +449,12 @@ static void test_rolling_baseline_absorbs_slow_drift(void)
     for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE; i++) { beat(&st, RR_75_BPM); }
     check(!cutoff_fired(&st), "refresh: 15 BPM drift holds");
 
-    /* Let the observation window elapse — baseline should become 75. */
-    idle_tick(&st, NP_CARDIAC_OBS_MS);
+    /* Let the observation window elapse — baseline should become 75.  The
+     * window ends on a BEAT: an idle 5 s with no R-peak is now, correctly, an
+     * R-peak staleness cutoff (NP_CARDIAC_RPEAK_STALE_MS, OI-RISK2-05), which
+     * is not what this test is about. */
+    g_tick_ms += NP_CARDIAC_OBS_MS - 1U;
+    beat(&st, RR_75_BPM);
     check(!cutoff_fired(&st), "refresh: no cutoff on the refresh tick");
 
     /* A further 12 BPM rise (75 → 87) is under threshold against the REFRESHED
@@ -578,7 +607,12 @@ static void test_user_change_scopes_the_cutoff(void)
     st.requested_mask = NP_SAFETY_EN_CVNS;
     np_spi_watchdog_tick(&st, NULL, NULL);
     np_cardiac_interlock_tick(&st);
-    check((st.granted_mask & NP_SAFETY_EN_CVNS) != 0U, "user: Bob is granted cervical VNS");
+    /* Bob has no baseline yet (user_changed clears it), so the pre-arm hold
+     * withholds CVNS until his own beats arm the interlock (OI-RISK2-05). */
+    check(!cvns_granted(&st) && !cutoff_fired(&st),
+          "user: Bob is held, not cut, until his baseline arms");
+    establish_baseline(&st, RR_60_BPM);
+    check(cvns_granted(&st), "user: Bob is granted cervical VNS once armed");
 
     np_cardiac_interlock_user_changed(&st, true);           /* back to Alice */
     np_spi_watchdog_tick(&st, NULL, NULL);
@@ -587,8 +621,114 @@ static void test_user_change_scopes_the_cutoff(void)
           "user: Alice's cutoff re-asserted on her next CVNS request");
 }
 
+/* ── Class C self-sufficiency (NP-RISK-002 OI-RISK2-05) ───────────────────────── */
+
+/* PRE-ARM HOLD: CVNS is withheld until the baseline arms — silently (no CARDIAC,
+ * no lockout, no NV write) — and granted from the tick that arms it. */
+static void test_prearm_hold_withholds_then_grants(void)
+{
+    np_safety_state_t st;
+    bool nv = false;
+    reset_all(&st, true, 0U);
+
+    beat(&st, RR_60_BPM);                                    /* prime */
+    check(!cvns_granted(&st), "pre-arm: CVNS withheld before any interval");
+    for (uint8_t i = 0U; i + 1U < NP_CARDIAC_BASELINE_BEATS; i++) { beat(&st, RR_60_BPM); }
+    check(!cvns_granted(&st), "pre-arm: CVNS withheld at 7 intervals");
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) == 0U &&
+          !np_cardiac_interlock_nv_request(&nv),
+          "pre-arm: the hold is silent (no CARDIAC, no persisted cutoff)");
+    beat(&st, RR_60_BPM);                                    /* 8th interval arms */
+    check(cvns_granted(&st), "pre-arm: CVNS granted on the tick that arms");
+}
+
+/* No R-peaks ever: CVNS is never granted, and nothing false-trips a lockout. */
+static void test_no_rpeaks_never_granted(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    for (uint8_t i = 0U; i < 60U; i++) { idle_tick(&st, 1000U); }
+    check(!cvns_granted(&st), "no R-peaks: CVNS never granted over 60 s");
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) == 0U,
+          "no R-peaks: no cardiac lockout without an armed baseline");
+}
+
+/* STALENESS: once armed and granted, no edge for NP_CARDIAC_RPEAK_STALE_MS cuts
+ * exactly like a cardiac event — lockout and a persisted cutoff. */
+static void test_stale_rpeak_cuts_off(void)
+{
+    np_safety_state_t st;
+    bool nv = false;
+    reset_all(&st, true, 0U);
+    establish_baseline(&st, RR_60_BPM);
+    check(cvns_granted(&st), "stale: armed and granted");
+
+    idle_tick(&st, NP_CARDIAC_RPEAK_STALE_MS - 1U);
+    check(!cutoff_fired(&st), "stale: no cutoff 1 ms before the stale limit");
+    idle_tick(&st, 1U);
+    check(cutoff_fired(&st), "stale: cutoff at exactly the stale limit");
+    check(st.fault_slot == 10U, "stale: CVNS fault slot recorded");
+    check(np_cardiac_interlock_nv_request(&nv) && nv, "stale: cutoff persisted like a cardiac event");
+
+    np_cardiac_interlock_reenable(&st);
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) != 0U, "stale: lockout refuses re-enable");
+}
+
+/* A live rhythm never trips staleness: beats 1 s apart, 60 s of them. */
+static void test_live_rhythm_never_stale(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    establish_baseline(&st, RR_60_BPM);
+    for (uint8_t i = 0U; i < 60U; i++) {
+        g_tick_ms += 999U;
+        beat(&st, RR_60_BPM);
+    }
+    check(!cutoff_fired(&st) && cvns_granted(&st), "live: 60 s at 60 BPM never stale");
+}
+
+/* A new CVNS request re-arms: an old baseline cannot grant early, and an old
+ * last-edge time cannot trip staleness the moment the request starts. */
+static void test_arm_reset_on_new_request(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    establish_baseline(&st, RR_60_BPM);
+
+    g_tick_ms += 600000U;                   /* ten minutes between sessions */
+    np_cardiac_interlock_arm_reset();
+    idle_tick(&st, 1U);
+    check(!cutoff_fired(&st), "arm reset: an old edge time does not trip the new request");
+    check(!cvns_granted(&st), "arm reset: an old baseline does not grant the new request");
+    establish_baseline(&st, RR_60_BPM);
+    check(cvns_granted(&st), "arm reset: granted after fresh beats arm it");
+}
+
+/* arm_reset re-arms monitoring; it must never clear a live cutoff. */
+static void test_arm_reset_keeps_cutoff(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    establish_baseline(&st, RR_60_BPM);
+    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE && !cutoff_fired(&st); i++) { beat(&st, RR_120_BPM); }
+    check(cutoff_fired(&st), "arm reset: cutoff fired");
+    np_cardiac_interlock_arm_reset();
+    idle_tick(&st, 1U);
+    check(cutoff_fired(&st), "arm reset: a live cutoff survives a new request");
+    /* ...and so does its lockout: re-enable is still refused inside 30 s. */
+    np_cardiac_interlock_reenable(&st);
+    check(cutoff_fired(&st), "arm reset: the 30 s lockout survives a new request");
+}
+
 int main(void)
 {
+    test_prearm_hold_withholds_then_grants();
+    test_no_rpeaks_never_granted();
+    test_stale_rpeak_cuts_off();
+    test_live_rhythm_never_stale();
+    test_arm_reset_on_new_request();
+    test_arm_reset_keeps_cutoff();
+
     test_no_cutoff_before_baseline();
     test_priming_beat_produces_no_interval();
     test_baseline_arms_at_eight_intervals_not_five();

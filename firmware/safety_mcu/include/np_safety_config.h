@@ -48,6 +48,17 @@
 /* ── Watchdog timing ─────────────────────────────────────────────────────── */
 #define NP_SAFETY_WDG_TIMEOUT_MS    1500U  /* heartbeat missed → cutoff */
 #define NP_SAFETY_HEARTBEAT_EXP_MS  200U   /* expected period from main processor */
+
+/* Hardware independent watchdog (IWDG) — backstop for a hung SAFETY-MCU main
+ * loop, which the heartbeat watchdog above cannot see because it runs in that
+ * same loop (NP-FMEA-001 FMEA-M02-02/-05, NP-RISK-002 OI-RISK2-05).  Nominal
+ * timeout at LSI = 32 kHz; the LSI's 29.5–34 kHz spread puts the real value at
+ * ~941–1085 ms.  PROVISIONAL: it must exceed the main loop's worst-case
+ * iteration, which includes an Ed25519 verify (np_session_sig_verify) and a
+ * 40 ms flash page erase and has never been measured on silicon — measure and
+ * tighten under OI-SWCI-49.  It is kept at or under the heartbeat timeout so
+ * the backstop is never slower than the primary.                             */
+#define NP_SAFETY_IWDG_TIMEOUT_MS   1000U
 #define NP_SAFETY_SYSTICK_HZ        1000U  /* 1ms SysTick resolution */
 
 /* ── Stimulation enable GPIOs (active-LOW open-drain) ────────────────────── */
@@ -101,6 +112,13 @@
 #define NP_CARDIAC_OBS_MS       5000U       /* observation window */
 #define NP_CARDIAC_LOCKOUT_MS   30000U      /* re-enable lockout */
 #define NP_CARDIAC_BASELINE_BEATS 8U        /* beats to establish baseline */
+/* R-peak staleness (NP-RISK-002 OI-RISK2-05, principal 2026-09-25).  While
+ * cervical VNS is granted, no R-peak edge for this long cuts it exactly as a
+ * cardiac event does.  3 s is an R-R interval of 20 BPM — non-physiological for
+ * a patient eligible for cervical VNS — so a live rhythm never trips it, and a
+ * lost R-peak stream (cable, PPG, or main-processor fault) is caught by Class C
+ * code rather than only by the hub's Class B 10 s timer. */
+#define NP_CARDIAC_RPEAK_STALE_MS 3000U
 
 /* What a cardiac cutoff blocks (principal, 2026-09-22): ONLY what the interlock
  * exists for.  The cardiac rhythm interlock is specified for cervical VNS
