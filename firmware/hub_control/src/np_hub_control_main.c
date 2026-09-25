@@ -58,6 +58,7 @@
 #include "np_safety_spi.h"
 #include "np_cvns_reenable.h"
 #include "np_cvns_fault_summary.h"
+#include "np_gatt_server.h"     /* OI-WA-03: BLE GATT service */
 #include "FreeRTOS.h"
 #include "task.h"
 #include "event_groups.h"
@@ -526,6 +527,13 @@ void np_hub_control_app_main(void)
      * the last-named user from the UHDR partition, which the backend has just
      * opened.  Before the heartbeat task starts polling it. */
     np_cvfs_init();
+
+    /* OI-WA-03 (#381): publish the GATT service.  After np_cvfs_init(), so the
+     * first CVNS_FAULT_STATUS read serves the persisted summary rather than an
+     * empty one; before the scheduler, so no central is served by a half-built
+     * hub.  A failed registration leaves the hub without BLE — Mode 3 and USB-C
+     * need none of it — so it is not fatal. */
+    (void)np_gatt_init();
 
     np_mod_reg_init();
     np_mod_reg_scan();

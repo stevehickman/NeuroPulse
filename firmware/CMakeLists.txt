@@ -101,6 +101,7 @@
 #                             → np_transport_tests        (OI-HUB-MAIN-01)
 #                             → np_mod_cvns_tests         (hub ↔ CVNS library)
 #                             → np_cvns_fault_summary_tests (NP-SW-FAULTMSG-001 §9.6)
+#                             → np_gatt_server_tests      (OI-WA-03 GATT server + warranty token)
 #                             → np_module_map_tests       (hex zone-module addressing/NVRAM map)
 #                             → np_protocol_tests         (hub protocol v2 socket-mask targets)
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
@@ -413,6 +414,14 @@ if(NP_BUILD_TESTS)
     # Moves the Class B count 29 → 30 and the repo total 37 → 38.
     add_test(NAME np_cvns_fault_summary_tests
         COMMAND np_cvns_fault_summary_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # OI-WA-03 / GitHub #381: the BLE GATT server — the published table (UUIDs
+    # compared with the apps' strings), ATT access rules, long reads, the
+    # warranty token's provision-once / never-regenerate rule, and the three
+    # cervical fault-summary rows end to end.
+    add_test(NAME np_gatt_server_tests
+        COMMAND np_gatt_server_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_zone_notify_tests

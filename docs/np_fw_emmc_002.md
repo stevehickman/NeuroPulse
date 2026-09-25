@@ -42,6 +42,8 @@ typedef struct {
 
 Generated at first device activation (first successful USB-C pairing with the NeurOne app). Generated using the i.MX RT1062 TRNG peripheral with health tests per NIST SP 800-90B. Stored in the Config partition under the AES-256-XTS SHDR key (same key used for SHDR partition). Not stored in UHDR. Not derived from any user-identifying input.
 
+> **Implementation (2026-09-25, GitHub #381, `OI-WA-03`).** `firmware/hub_control/src/np_warranty_token.c`, not the `firmware/warranty/` path §A.2 names, because the record is an `np_cfg_store` file and that module lives in the hub. "First activation" is implemented as the first time the app READs the `warrantyToken` characteristic. The record is the §A.2 struct serialised little-endian (64 bytes) and is kept REPLICATED (`wtoken.rec`, two copies in two metadata pairs). **A token is generated only when neither copy exists**; a copy that cannot be read, or is refused, is reported and never overwritten, because a new token would orphan the device's registration and split its SHDR history. The TRNG seam, `np_warranty_hal_trng_generate()`, is a platform trap until the RNGB driver exists.
+
 ### A.4 Warranty registration flow
 
 1. App sends the warranty token (not the device serial number, not the user's email) to the warranty registration API.

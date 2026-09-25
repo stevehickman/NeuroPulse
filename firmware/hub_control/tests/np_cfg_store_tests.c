@@ -650,6 +650,22 @@ static void test_replicated_record_survives_one_lost_entry(void)
     np_cfg_store_stats(&st);
     ASSERT(st.repairs == 3U, "the stale copy was not brought forward");
 
+    /* Both copies PRESENT and both damaged: not an absence.  A caller that
+     * creates the record on absence (np_warranty_token, OI-WA-03) would
+     * otherwise overwrite a record it had merely failed to read. */
+    for (unsigned c = 0U; c < 2U; c++) {
+        ASSERT(raw_open(&f, c == 0U ? "ra/ukmd.rec" : "rb/ukmd.rec",
+                        LFS_O_WRONLY) == 0, "raw open for damage");
+        ASSERT(lfs_file_seek(&g_lfs, &f, 40, LFS_SEEK_SET) == 40, "seek");
+        ASSERT(lfs_file_write(&g_lfs, &f, junk, sizeof(junk)) == (lfs_ssize_t)sizeof(junk),
+               "raw write");
+        ASSERT(lfs_file_close(&g_lfs, &f) == 0, "raw close");
+    }
+    ASSERT(np_cfg_store_replicated_read(NP_CFG_FILE_UKMD, r, UKMD_BYTES)
+               == NP_HUB_ERR_STORE_INTEGRITY,
+           "two present-but-damaged copies were reported as something other than "
+           "an integrity failure");
+
     /* Both entries gone: the one outcome replication cannot prevent, and it
      * must be reported as an absence, never as some other record. */
     ASSERT(lfs_remove(&g_lfs, "ra/ukmd.rec") == 0, "remove A");

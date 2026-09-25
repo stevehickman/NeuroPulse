@@ -18,19 +18,20 @@
  *
  * ── What this header is NOT ─────────────────────────────────────────────────
  *
- * It is not the whole SW-02 platform contract.  Thirty-three further symbols are
+ * It is not the whole SW-02 platform contract.  Thirty-six further symbols are
  * declared in the module header that owns them and are already single-sourced
  * there — np_anon_hal_* (np_anon_scratch.h), np_cvns_hal_impedance_{start,poll}
  * (np_cvns_reenable.h), np_factory_reset_hal_* (np_factory_reset.h),
  * np_hexmap_nvram_* (np_module_map.h), np_log_hal_part_* (np_log_backend.h),
- * np_cvfs_hal_* (np_cvns_fault_summary.h),
+ * np_cvfs_hal_load/_save (np_cvns_fault_summary.h), np_gatt_hal_*
+ * (np_gatt_server.h), np_warranty_hal_trng_generate (np_warranty_token.h),
  * np_safety_hal_spi_transfer (np_safety_spi.h), np_uhdr_hal_* (np_uhdr_key.h)
  * and np_za_platform_* (np_zone_announce.h).  They are deliberately NOT
  * restated here: a second declaration of an already single-sourced symbol is a
  * second place to get it wrong.  firmware/platform/src/np_platform_stub.c
- * includes those nine headers directly.
+ * includes those eleven headers directly.
  *
- * The full SW-02 platform contract is therefore this file plus those nine
+ * The full SW-02 platform contract is therefore this file plus those eleven
  * headers, and the count that tracks it is NP_SW02_PLATFORM_SYMBOL_COUNT below.
  */
 
@@ -50,9 +51,9 @@ extern "C" {
 
 /*
  * Total number of symbols the SW-02 platform layer owes: the 64 declared in
- * this file plus the 34 declared in the nine module headers named above.
+ * this file plus the 36 declared in the eleven module headers named above.
  *
- * This is not decoration.  firmware/platform/ defines all 98 as traps rather
+ * This is not decoration.  firmware/platform/ defines all 100 as traps rather
  * than drivers, and the cross-build asserts that the number of definitions it
  * emits equals this constant (NP-SW-CI-001 §4.8).  The count can only change by
  * editing this line, which is the point: a platform symbol appearing or
@@ -86,8 +87,15 @@ extern "C" {
  * np_cfg_store — first-party code, not a platform driver.  Its two callers
  * (bring-up and the cervical fault summary) read np_session_count_load() and
  * np_log_session_count() instead.
+ *
+ * 98 → 100 on 2026-09-25 (OI-WA-03, GitHub #381): the BLE GATT server.
+ * np_gatt_hal_register() and np_gatt_hal_notify() (np_gatt_server.h, the BLE
+ * host stack under the service table) and np_warranty_hal_trng_generate()
+ * (np_warranty_token.h, NP-FW-EMMC-002 §A.3) are added — three seams, all
+ * silicon.  np_cvfs_hal_notify() is RETIRED as a seam: it is a row of the
+ * server's table, defined in np_gatt_server.c.  +3 − 1 = +2.
  */
-#define NP_SW02_PLATFORM_SYMBOL_COUNT   98
+#define NP_SW02_PLATFORM_SYMBOL_COUNT   100
 
 /* ── Core clock (OI-SWCI-41) ──────────────────────────────────────────────────
  *

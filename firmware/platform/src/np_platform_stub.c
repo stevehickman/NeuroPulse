@@ -52,11 +52,13 @@
 /* The 65 symbols with no other declaring header. */
 #include "np_sw02_platform_hal.h"
 
-/* The 33 already single-sourced by the module that owns them.  Included rather
+/* The 36 already single-sourced by the module that owns them.  Included rather
  * than restated so the compiler — not this file — is what checks them. */
 #include "np_anon_scratch.h"     /* np_anon_hal_*          (5) */
 #include "np_cvns_reenable.h"    /* np_cvns_hal_impedance_ (2) */
-#include "np_cvns_fault_summary.h" /* np_cvfs_hal_*        (3) */
+#include "np_cvns_fault_summary.h" /* np_cvfs_hal_load/_save (2) */
+#include "np_gatt_server.h"      /* np_gatt_hal_*          (2) */
+#include "np_warranty_token.h"   /* np_warranty_hal_*      (1) */
 #include "np_factory_reset.h"    /* np_factory_reset_hal_* (5) */
 #include "np_module_map.h"       /* np_hexmap_nvram_*      (2) */
 #include "np_log_backend.h"      /* np_log_hal_part_*      (3) */
@@ -602,8 +604,9 @@ bool np_cvns_hal_impedance_poll(bool *passed_out)
  * Cervical offline-fault summary (NP-SW-FAULTMSG-001 §9.6) —
  * np_cvns_fault_summary.h.  The UHDR blob store waits on the UHDR partition's
  * littlefs file glue (OI-LOG-05..07; the instance's parameters, OI-LFS-05, are
- * np_lfs_log_instance.h); the notification waits on the BLE GATT server
- * (OI-WA-03).
+ * np_lfs_log_instance.h).  The notification, np_cvfs_hal_notify(), left this
+ * file on 2026-09-25: it is a row of the GATT server's table and is defined in
+ * np_gatt_server.c (OI-WA-03, #381).
  * ──────────────────────────────────────────────────────────────────────────*/
 
 np_hub_status_t np_cvfs_hal_load(uint8_t *buf, size_t cap, size_t *len_out)
@@ -621,9 +624,38 @@ np_hub_status_t np_cvfs_hal_save(const uint8_t *buf, size_t len)
     NP_PLATFORM_TRAP();
 }
 
-void np_cvfs_hal_notify(const uint8_t *frame, size_t len)
+/* ────────────────────────────────────────────────────────────────────────────
+ * BLE GATT server (OI-WA-03, #381) — np_gatt_server.h.  The service table and
+ * every read/write/notify decision are first-party code; these two are the BLE
+ * host stack under them, which no hardware exists to run (antennas in the hub,
+ * CLAUDE.md §4.1; radio and stack not selected).
+ * ──────────────────────────────────────────────────────────────────────────*/
+
+np_hub_status_t np_gatt_hal_register(const np_gatt_char_t *table, size_t count)
 {
-    (void)frame;
+    (void)table;
+    (void)count;
+    NP_PLATFORM_TRAP();
+}
+
+void np_gatt_hal_notify(uint16_t id, const uint8_t *data, size_t len)
+{
+    (void)id;
+    (void)data;
+    (void)len;
+    NP_PLATFORM_TRAP();
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Warranty-token TRNG (NP-FW-EMMC-002 §A.3) — np_warranty_token.h.  The RNGB
+ * driver with SP 800-90B health tests; the same silicon OI-UHDRK-01 and
+ * OI-ANON-AES-01 wait on.  A trap, never a counter or a constant: a plausible
+ * value here would give every device the same token.
+ * ──────────────────────────────────────────────────────────────────────────*/
+
+np_hub_status_t np_warranty_hal_trng_generate(uint8_t *buf, size_t len)
+{
+    (void)buf;
     (void)len;
     NP_PLATFORM_TRAP();
 }

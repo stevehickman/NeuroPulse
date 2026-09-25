@@ -119,7 +119,7 @@ const FIRMWARE_PENDING: Array<{ producer: string; match: RegExp; oi: string; not
     producer: "CONSUMABLE_STATUS",
     match: /consumable_status|4e455550-0007/i,
     oi: "OI-ACC-08",
-    note: "no hub GATT server publishes the per-kind counts, and no increment or epoch rule is specified (#381)",
+    note: "the hub GATT server (np_gatt_server.c) does not publish the per-kind counts, because no increment or epoch rule is specified (#381)",
   },
   {
     producer: "CVNS_PAD_STATUS",
