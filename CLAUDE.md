@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 56 (current)  
+**Revision:** 57 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -52,7 +52,7 @@ Plain paths, not `@import`s: nothing below loads until it is `Read`.
 | Accessories + companion SW · durability · service network | `docs/reference/{accessories-roadmap,durability-maintenance,service-network}.md` |
 | Competitive position · regulatory strategy · clinical evidence · marketing | `docs/reference/{competitive-position,regulatory-strategy,clinical,marketing-notes}.md` |
 | Open items · locked-decision log · document + firmware register | `docs/status/{pending-decisions,completed-decisions,document-register}.md` |
-| Formal DHF index (**source of truth** where the status logs disagree; dedup is `OI-CONV-07`) | `docs/np_dhf_001.md` |
+| Formal DHF index: the **single maintained index**, gated by `scripts/check-dhf-index.ts`. `document-register.md` is frozen history (`OI-CONV-07`, closed) | `docs/np_dhf_001.md` |
 | Manufactured artifacts + which spec / risk register / FAI exists | `docs/np_art_001.md` |
 | FAI programme | `docs/np_fai_001.md` |
 | Risk: ISO 14971 index · hex-tile · shell/socket/hub | `docs/np_risk_002.md` · `_003` · `_004` |

@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-EMC-EMIRR-001
-**Revision:** 1
-**Date:** 2026-09-23
+**Revision:** 2
+**Date:** 2026-09-25
 **Status:** DRAFT — procedure written, **never run. This document contains no measured data**, and nothing in it may be quoted as a measurement.
 **Effective Date:** —
 **Author:** NeurOne EMC / Systems Engineering
@@ -84,7 +84,7 @@ with published EMIRR data for other parts; it is not the figure of record.
   50 Ω termination by < 0.05 dB; no inductor and no ferrite, because the fixture must not import a
   filter the product does not have.
 - **No input RC network, no series resistor on the injected pins** (Configuration A, §4.4).
-- ADS1299 supplies from **linear regulators** on the board; SPI, DRDY, START and CLK leave through
+- ADS1299 supplies from **linear regulators** on the board; SPI, `DRDY#`, START and CLK leave through
   a bulkhead with **per-line RC filtering, sized so that §6.2 control 2 passes** (the control is the
   requirement; the filter is only the means).
   *Why:* the measured artifact must enter through the pin under test. RF reaching the digital or
@@ -260,4 +260,5 @@ of any kind** — a bench component, no wearer — so neither UHDR nor SHDR appl
 
 | Rev | Date | Author | Change |
 |-----|------|--------|--------|
+| 2 | 2026-09-25 | NeurOne Systems Engineering | **Naming only (`NP-CONV-001` §1.1, `OI-CONV-02` sweep, GitHub #394).** The ADS1299's data-ready output is active-low on the part, so it is `DRDY#`, not `DRDY`. No requirement, filter or test changes. |
 | 1 | 2026-09-23 | NeurOne EMC / Systems Engineering | **Initial issue, for `OI-EMCCAV-01` (GitHub #398).** Specifies the bench measurement of ADS1299 EMIRR over 420 MHz – 3 GHz: the model-consistent definition (on/off-keyed, µVpp RTI, §2), a pin-terminated 50 Ω injection fixture with ingress control (§4, §6.2), 41 log-spaced points + the four `NP-EMC-CAV-001` mode frequencies, a four-level descent that measures rather than assumes the rectification slope (§5), a common-mode check on the §5.1 model's structure (§6.3), and the disposition of each outcome back to `REQ-CAV-01` (§7). **Contains no measured data; the measurement is pending.** |

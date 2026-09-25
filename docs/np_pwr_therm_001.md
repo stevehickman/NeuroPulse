@@ -422,7 +422,7 @@ calculation.* This is that calculation.
 
 | Ref | Quantity | Value |
 |---|---|---|
-| **SPEC-TMS-01** | coil | figure-8, **2 wings in series**, wing mean radius **25 mm**, **10 turns/wing**, 6 × 1.5 mm (9 mm²) copper strip. **L = 18.2 µH**, `R_ac` = 11.7 mΩ, Q = 69, 0.251 mT per amp-turn at the wing centre |
+| **SPEC-TMS-01** | coil | figure-8, **2 wings in series**, wing mean radius **25 mm**, **10 turns/wing**, 6 × 1.5 mm (9 mm²) copper strip. **L = 18.2 µH**, `R_ac` = 11.7 mΩ, Q = 69, 0.251 mT per ampere of coil current (10 turns) at the wing centre *(corrected 2026-09-25, GitHub #394: this read "0.251 mT per amp-turn". μ₀/2a at a = 25 mm is 0.0251 mT per amp-turn, so 0.251 mT is per **ampere** of coil current over 10 turns — the reading `I_peak` = 1,989 A for 0.5 T depends on. No figure changes)* |
 | **SPEC-TMS-02** | energy store | **28 µF at 1,600 V**, **biphasic with bank recovery** — not a topology preference; see §8.3 |
 | **SPEC-TMS-03** | pulse | series-LC ring **T = 142 µs** (monophasic ~71 µs, biphasic ~142 µs); `I_peak` = **1,989 A**; dB/dt = **22.1 kT/s** at the design point |
 | **SPEC-TMS-04** | supply | **169 W** average recharge at 10 Hz / 0.5 T / biphasic-recovered (η_net 0.40, η_psu 0.85). **423 W** monophasic. With ~7 W of device: **176 W** |
