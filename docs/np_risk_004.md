@@ -166,10 +166,10 @@ buffer**."* Read that way, the firmware and `NP-DRV-SHELL-002` §6 do not disagr
 | Node | Name under `NP-CONV-001` §1.1 | Active level | Undriven state held by | Specified in |
 |---|---|---|---|---|
 | Safety-MCU pin | `PBM_CRANIAL_EN#` | LOW | external **pull-up** → HIGH → disabled | `np_safety_config.h:7-8`, `np_safety_hal.h` (`np_hal_gpio_write_pin`) |
-| Inverting-buffer output | `PBM_CRANIAL_EN` *(proposed)* | HIGH | buffer output LOW, plus a receiver-side **pull-down** *(proposed)* | **Nowhere.** Firmware comment only (`np_gpio_mgr.c:5-7`) |
+| Inverting-buffer output | `PBM_CRANIAL_PERMIT` *(proposed)* | HIGH | buffer output LOW, plus a receiver-side **pull-down** *(proposed)* | **Nowhere.** Firmware comment only (`np_gpio_mgr.c:5-7`) |
 | Per-cluster Class B gate | `SAFE_EN[n]` | HIGH | **pull-down** → LOW → disabled | `NP-DRV-SHELL-002` §6 |
 
-Each cluster's 24 V load switch conducts only when `PBM_CRANIAL_EN` **AND** `SAFE_EN[n]` are both
+Each cluster's 24 V load switch conducts only when `PBM_CRANIAL_PERMIT` **AND** `SAFE_EN[n]` are both
 HIGH. Both nets are active-high downstream of the inverter. So `SAFE_EN[n]` needs **no rename**, and
 SH2-DRC-13's *"defaults LOW at reset"* is the safe state, as `NP-DRV-SHELL-002` §6 says.
 
@@ -190,14 +190,22 @@ questions: what fails if it is not met, and where that is traceable.
    output goes HIGH, so one fault reaches *enabled*. On a shared rail, the same fault de-powers the
    buffer instead. *Traced:* IEC 60601-1 single-fault condition. The pull-up *value* is already
    `NP-SW-CI-001` **OI-SWCI-27**. This item adds its *supply domain* to that review.
-3. **Put a pull-down at every receiver of an active-high enable** (`PBM_CRANIAL_EN` and
+3. **Put a pull-down at every receiver of an active-high enable** (`PBM_CRANIAL_PERMIT` and
    `SAFE_EN[n]`). *Fails:* an open connector or an unpowered driver would otherwise leave the gate
    input floating. *Traced:* `NP-DRV-SHELL-002` §6 already relies on this pull-down for
    `SAFE_EN[n]` (*"this one relies on a pull-down and a de-energized gate"*) but specifies no value
    or placement.
 4. **Split the name at the inverter.** The MCU pin stays `PBM_CRANIAL_EN#`, and no firmware
    identifier is renamed, so `NP-CONV-001` §3's Class C boundary holds. Hardware documents call the
-   buffer output `PBM_CRANIAL_EN`. `NP-HW-HUB-001` §3.1's diagram, which today shows
+   buffer output `PBM_CRANIAL_PERMIT`.
+   **The two names must differ in their stem, not just in the `#`.** A one-character difference
+   is the defect `NP-CONV-001` §1.3 retired `_n` for: it vanishes in a plain-text diff and in
+   many fonts. It has already happened to this line. `NP-FW-HUB-001`'s References cite
+   `NP-HW-HUB-001` §7.2's active-low cranial line as `PBM_CRANIAL_EN`, with the `#` dropped.
+   *PERMIT* was chosen for three reasons. It occurs nowhere else in the tree, and *ARM* (the
+   obvious alternative) collides with the processor architecture. It also states the net's role:
+   the Class C tier *permits* the lattice, while the Class B `SAFE_EN[n]` *enables* each cluster,
+   and a cluster runs only with both. `NP-HW-HUB-001` §3.1's diagram, which today shows
    `PBM_CRANIAL_EN#` gating the LED drive stage directly, is redrawn with the buffer.
    **OI-FMEA-01's pass criterion is restated against a named node.** As written, it passes on the
    unsafe pin level.
@@ -205,7 +213,7 @@ questions: what fails if it is not met, and where that is traceable.
 **What the proposal does NOT settle.** Carry these into the re-assessment:
 
 - **Residual single fault.** An open pull-up, or a pin shorted to GND, with the buffer powered,
-  reaches *enabled* on `PBM_CRANIAL_EN`. This is the pin-level form of `NP-HW-HUB-001`
+  reaches *enabled* on `PBM_CRANIAL_PERMIT`. This is the pin-level form of `NP-HW-HUB-001`
   **OI-HUB-C21**: one bit at Hamming distance 1 from enabled. **The safety MCU does not read its
   enable pins back today.** The primitive exists (`np_hal_pin_read()`, `np_hal_internal.h`), but
   its only caller is the SPI NSS watch in `np_hal_spi.c`. Nothing detects a pin stuck LOW against a
@@ -259,7 +267,7 @@ All `SH2-DRC-*` items are recorded, with reviewer and evidence, in `NP-REV-SHELL
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
-| 4 | 2026-09-25 | NeurOne Systems Engineering | **Proposed resolution for `RISK-SHELL-03` recorded, not adopted (GitHub #437). New §2.2.** The two polarity conventions describe two nets joined by an inverting buffer. That buffer is stated only in `np_gpio_mgr.c:5-7` and is specified in no hardware document. `PBM_CRANIAL_EN#` (MCU pin, active-low, pull-up) is inverted to an active-high net that ANDs with the active-high `SAFE_EN[n]`, so SH2-DRC-13's "defaults LOW" is safe and no rename is needed. The proposal requires four things: the buffer specified in hardware, the pull-up and buffer on one rail (supply domain added to `OI-SWCI-27`), a pull-down at every active-high receiver, and the name split at the inverter. **Found in passing:** `NP-FMEA-001` OI-FMEA-01's pass criterion "all stimulation GPIO LOW" is the *enabled* level at the MCU pin, and no enable-pin read-back exists in the safety MCU. **No score, mitigation, firmware line or signal name changed; `OI-RISK4-01` stays OPEN with the owner.** |
+| 4 | 2026-09-25 | NeurOne Systems Engineering | **Proposed resolution for `RISK-SHELL-03` recorded, not adopted (GitHub #437). New §2.2.** The two polarity conventions describe two nets joined by an inverting buffer. That buffer is stated only in `np_gpio_mgr.c:5-7` and is specified in no hardware document. `PBM_CRANIAL_EN#` (MCU pin, active-low, pull-up) is inverted to an active-high net that ANDs with the active-high `SAFE_EN[n]`, so SH2-DRC-13's "defaults LOW" is safe and no rename is needed. The proposal requires four things: the buffer specified in hardware, the pull-up and buffer on one rail (supply domain added to `OI-SWCI-27`), a pull-down at every active-high receiver, and the name split at the inverter, with the buffer output named `PBM_CRANIAL_PERMIT` so the two names differ in their stem, not only in the `#`. **Found in passing:** `NP-FMEA-001` OI-FMEA-01's pass criterion "all stimulation GPIO LOW" is the *enabled* level at the MCU pin, and no enable-pin read-back exists in the safety MCU. **No score, mitigation, firmware line or signal name changed; `OI-RISK4-01` stays OPEN with the owner.** |
 | 3 | 2026-09-25 | NeurOne Systems Engineering | **Label only (GitHub #331): A6 was called the "L0 outer bowl"; it is the outer bowl, stations L2 + L3.** `NP-HELMET-GEOM-001` §2 owns the radial stack and puts L0 at the scalp face. `NP-TOOL-SHELL-002` §1.4 records the collision. No hazard, score or mitigation changes. `NP-TOOL-SHELL-002` §5.6 asks `OI-RISK4-05` to check whether RISK-20's CFRP scope shrinks to the outer-bowl lip seat, because the ~80 socket rims are on the glass-filled PBT inner bowl. §5.2 finds no hazard row for a session enabled with the bowls open (`OI-TSHELL2-02`). Neither is decided here. |
 | 2 | 2026-08-16 | SmartyPants / PAI | **`RISK-SHELL-03` basis changed by the OI-HUB-C07 decision; no score re-assessed, no hazard added or removed.** `OI-HUB-C07` / `OI-HEXTILE-13` closed 2026-08-16 (`NP-HW-HUB-001` Rev 4 §7.2.1): the cranial PBM safety enable is **one Class C broadcast bit**, and the 18 per-cluster `SAFE_EN[n]` gates are retained as **IEC 62304 Class B** availability gates in series with it. The conflicted `SAFE_EN[n]` line is therefore no longer a Class C stimulation enable, which changes what the entry's consequence column describes. **The entry stays OPEN, stays CRITICAL, and is deliberately NOT re-scored** — re-scoring is hazard analysis rather than editorial correction, per the `NP-FMEA-001` Rev 4 precedent; the standing score holds until `OI-RISK4-01` re-assesses it. New §2.1 records the changed basis in full, including that the safety claim now rests on the **Class C broadcast line's** own reset polarity — the same unresolved convention question (`OI-CONV-01`, `OI-FMEA-01`) one level up. `OI-RISK4-01` updated: it no longer waits on OI-HUB-C07, and gains two inputs — the Class C line's reset polarity, and **`HUB-REQ-C05`** (`NP-HW-HUB-001` §7.2.2), which requires the Class B gate to be commanded from a tier above the cluster controller carrying it. Verification map updated to say the item still has no verification defined and why. **No firmware changed; no other register touched.** |
 | 1 | 2026-08-11 | NeurOne Quality | Initial release. Holds the shell/routing/hub subset of the retired `NP-RISK-001` risk file per `NP-RISK-002` §3: RISK-10, -12, -13, -17, -18, -20, -21, -22, -26 carried with their original IDs, plus six new hazards under prefixed IDs (RISK-SHELL-01…04, RISK-HUB-01…03). **Problem analysis (§1) records that the interconnect stopped being a cable and became a distributed system** — 18 active controllers laminated into L1 — which deleted the cable risks (RISK-11) and created system ones, chiefly an unbudgeted continuous heat source behind ~59 % of the outward thermal resistance. **§1.2 records the pattern by which the ≥ 15 mm PBM-to-EEG separation requirement was correctly withdrawn**: 15 mm was a proxy for < 5 µVpp, the proxy became unsatisfiable, and the threshold was kept while the mechanism was replaced. **§1.3 records `RISK-SHELL-03`, the only CRITICAL entry** — `SAFE_EN[n]` polarity is inverted between `NP-DRV-SHELL-002` §6 and the safety MCU, so a power-on reset that is safe under one convention is *stimulation enabled at reset* under the other; it was found by applying a naming convention, not by review. §1.4 names two hub hazards created by their own mitigations. Raises OI-RISK4-01…05. |
