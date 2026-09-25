@@ -200,8 +200,9 @@ questions: what fails if it is not met, and where that is traceable.
    buffer output `PBM_CRANIAL_PERMIT`.
    **The two names must differ in their stem, not just in the `#`.** A one-character difference
    is the defect `NP-CONV-001` §1.3 retired `_n` for: it vanishes in a plain-text diff and in
-   many fonts. It has already happened to this line. `NP-FW-HUB-001`'s References cite
-   `NP-HW-HUB-001` §7.2's active-low cranial line as `PBM_CRANIAL_EN`, with the `#` dropped.
+   many fonts. It has already happened to this line. Until its Rev 10, `NP-FW-HUB-001`'s
+   References cited `NP-HW-HUB-001` §7.2's active-low cranial line as `PBM_CRANIAL_EN`, with the
+   `#` dropped.
    *PERMIT* was chosen for three reasons. It occurs nowhere else in the tree, and *ARM* (the
    obvious alternative) collides with the processor architecture. It also states the net's role:
    the Class C tier *permits* the lattice, while the Class B `SAFE_EN[n]` *enables* each cluster,
