@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-RISK-004
-**Revision:** 2
-**Date:** 2026-08-16
+**Revision:** 3
+**Date:** 2026-09-25
 **Status:** ACTIVE
 **Effective Date:** 2026-08-16
 **Author:** NeurOne Quality (interim: Steve Hickman, CEO)
@@ -18,7 +18,7 @@
 ---
 
 **Artifacts covered:** **A3** socket + 19-contact array · **A4** cluster controller board (18 off) ·
-**A5** L1 inner-bowl laminate · **A6** L0 outer bowl and EMF stack · **A7** cluster clamp plate and
+**A5** L1 inner-bowl laminate · **A6** outer bowl (stations L2 + L3) and EMF stack · **A7** cluster clamp plate and
 actuator · **A8** hub enclosure · **A9** Hub PCB Rev C.
 
 ---
@@ -188,5 +188,6 @@ All `SH2-DRC-*` items are recorded, with reviewer and evidence, in `NP-REV-SHELL
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 3 | 2026-09-25 | NeurOne Systems Engineering | **Label only (GitHub #331): A6 was called the "L0 outer bowl"; it is the outer bowl, stations L2 + L3.** `NP-HELMET-GEOM-001` §2 owns the radial stack and puts L0 at the scalp face. `NP-TOOL-SHELL-002` §1.4 records the collision. No hazard, score or mitigation changes. `NP-TOOL-SHELL-002` §5.6 asks `OI-RISK4-05` to check whether RISK-20's CFRP scope shrinks to the outer-bowl lip seat, because the ~80 socket rims are on the glass-filled PBT inner bowl. §5.2 finds no hazard row for a session enabled with the bowls open (`OI-TSHELL2-02`). Neither is decided here. |
 | 2 | 2026-08-16 | SmartyPants / PAI | **`RISK-SHELL-03` basis changed by the OI-HUB-C07 decision; no score re-assessed, no hazard added or removed.** `OI-HUB-C07` / `OI-HEXTILE-13` closed 2026-08-16 (`NP-HW-HUB-001` Rev 4 §7.2.1): the cranial PBM safety enable is **one Class C broadcast bit**, and the 18 per-cluster `SAFE_EN[n]` gates are retained as **IEC 62304 Class B** availability gates in series with it. The conflicted `SAFE_EN[n]` line is therefore no longer a Class C stimulation enable, which changes what the entry's consequence column describes. **The entry stays OPEN, stays CRITICAL, and is deliberately NOT re-scored** — re-scoring is hazard analysis rather than editorial correction, per the `NP-FMEA-001` Rev 4 precedent; the standing score holds until `OI-RISK4-01` re-assesses it. New §2.1 records the changed basis in full, including that the safety claim now rests on the **Class C broadcast line's** own reset polarity — the same unresolved convention question (`OI-CONV-01`, `OI-FMEA-01`) one level up. `OI-RISK4-01` updated: it no longer waits on OI-HUB-C07, and gains two inputs — the Class C line's reset polarity, and **`HUB-REQ-C05`** (`NP-HW-HUB-001` §7.2.2), which requires the Class B gate to be commanded from a tier above the cluster controller carrying it. Verification map updated to say the item still has no verification defined and why. **No firmware changed; no other register touched.** |
 | 1 | 2026-08-11 | NeurOne Quality | Initial release. Holds the shell/routing/hub subset of the retired `NP-RISK-001` risk file per `NP-RISK-002` §3: RISK-10, -12, -13, -17, -18, -20, -21, -22, -26 carried with their original IDs, plus six new hazards under prefixed IDs (RISK-SHELL-01…04, RISK-HUB-01…03). **Problem analysis (§1) records that the interconnect stopped being a cable and became a distributed system** — 18 active controllers laminated into L1 — which deleted the cable risks (RISK-11) and created system ones, chiefly an unbudgeted continuous heat source behind ~59 % of the outward thermal resistance. **§1.2 records the pattern by which the ≥ 15 mm PBM-to-EEG separation requirement was correctly withdrawn**: 15 mm was a proxy for < 5 µVpp, the proxy became unsatisfiable, and the threshold was kept while the mechanism was replaced. **§1.3 records `RISK-SHELL-03`, the only CRITICAL entry** — `SAFE_EN[n]` polarity is inverted between `NP-DRV-SHELL-002` §6 and the safety MCU, so a power-on reset that is safe under one convention is *stimulation enabled at reset* under the other; it was found by applying a naming convention, not by review. §1.4 names two hub hazards created by their own mitigations. Raises OI-RISK4-01…05. |
