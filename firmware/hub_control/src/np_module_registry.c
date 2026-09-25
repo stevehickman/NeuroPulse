@@ -282,15 +282,71 @@ void np_mod_reg_shutdown_all(void)
     }
 }
 
-np_hub_status_t np_mod_reg_rescan_zone(uint8_t zone_slot)
+/*
+ * np_mod_reg_rescan_slot — see the header for the contract (OI-FWHUB-16).
+ *
+ * Re-probes one accessory slot and acts ONLY on a change in presence or type.
+ * The previous body (np_mod_reg_rescan_zone) refused every slot >= 5, so every
+ * idle rescan task_module_detect issued for slots 7..18 was a silent no-op. A
+ * naive widening of the bound would have been worse than the bug: it shut down
+ * and re-ran init() on every present module each NP_DETECT_ACCESSORY_POLL_MS —
+ * writing an SHDR auth record from np_mod_intranasal_init() and np_mod_cvns_init()
+ * twice a second, re-running ADS1299 self-calibration, and zeroing both
+ * stimulation channels' state from np_mod_stim_init().
+ *
+ * Write order on a change: `initialized` is cleared before any other field and
+ * set only after init() succeeds, so np_mod_reg_get() — which requires both
+ * present and initialized — returns NULL rather than a half-written entry.
+ */
+np_hub_status_t np_mod_reg_rescan_slot(uint8_t slot)
 {
-    if (zone_slot >= NP_HUB_ZONE_SLOT_COUNT) {
+    /* Retired zone slots 0-4 are refused: the parser rejects them as targets,
+     * so re-probing them could only re-initialise a driver nothing can address. */
+    if (slot < NP_HUB_SLOT_FIRST_VALID || slot >= NP_HUB_SLOT_MAX) {
         return NP_HUB_ERR_INVALID_ARG;
     }
-    /* Shut down any previous occupant of this slot. */
-    if (s_registry[zone_slot].present && s_registry[zone_slot].shutdown != NULL) {
-        (void)s_registry[zone_slot].shutdown(zone_slot);
+
+    np_mod_entry_t   *e    = &s_registry[slot];
+    np_hub_mod_type_t type = NP_MOD_NONE;
+    bool now_present = (k_slot_probes[slot].detect(slot, &type) == NP_HUB_OK &&
+                        type != NP_MOD_NONE);
+
+    /* Unchanged: leave the entry — and the driver — alone.  A module whose init()
+     * failed is NOT retried here; it stays unresolvable until it is re-seated,
+     * which is what bounds the SHDR auth records a faulty accessory can write. */
+    if (now_present == e->present && (!now_present || type == e->type)) {
+        if (!now_present) {
+            return NP_HUB_ERR_NOT_PRESENT;
+        }
+        return e->initialized ? NP_HUB_OK : NP_HUB_ERR_MOD_INIT;
     }
-    memset(&s_registry[zone_slot], 0, sizeof(np_mod_entry_t));
-    return probe_and_register(zone_slot);
+
+    /* Changed: retire the previous occupant first. */
+    bool was_live = e->present && e->initialized;
+    e->initialized = false;
+    if (was_live && e->shutdown != NULL) {
+        (void)e->shutdown(slot);
+    }
+
+    if (!now_present) {
+        e->present = false;
+        return NP_HUB_ERR_NOT_PRESENT;
+    }
+
+    e->type      = type;
+    e->slot      = slot;
+    e->init      = k_slot_probes[slot].init;
+    e->control   = k_slot_probes[slot].control;
+    e->telemetry = k_slot_probes[slot].telemetry;
+    e->shutdown  = k_slot_probes[slot].shutdown;
+    e->present   = true;
+
+    /* The intranasal and cervical VNS drivers write their SHDR auth record from
+     * init() — once per insertion, because this is the only path to it. */
+    np_hub_status_t rc = e->init(slot);
+    if (rc != NP_HUB_OK) {
+        return (rc == NP_HUB_ERR_NOT_PRESENT) ? NP_HUB_ERR_MOD_INIT : rc;
+    }
+    e->initialized = true;
+    return NP_HUB_OK;
 }

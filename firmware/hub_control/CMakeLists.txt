@@ -135,6 +135,17 @@ if(NP_BUILD_TESTS)
     target_compile_options(np_chan_decl_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
 
+    # OI-FWHUB-16: the module registry's single-slot rescan — accessory hot-plug,
+    # change-only re-init (no SHDR auth flood), retired zone slots refused.
+    # Links the production registry against per-slot driver doubles.
+    add_executable(np_module_registry_tests
+        tests/np_module_registry_tests.c
+        src/np_module_registry.c
+    )
+    target_include_directories(np_module_registry_tests PRIVATE include)
+    target_compile_options(np_module_registry_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+
     add_executable(np_mod_stim_tests
         tests/np_mod_stim_tests.c
         modules/np_mod_stim.c

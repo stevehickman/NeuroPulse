@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 7
+**Revision:** 8
 **Date:** 2026-09-25
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -16,6 +16,19 @@
 **Parent Document:** `NP-SW-001`
 
 ---
+
+> **Rev 8 (2026-09-25) — `OI-FWHUB-16` closed: an accessory attached after boot is registered
+> again.** `task_module_detect` re-probed slots 7–18 through a rescan that refused every slot ≥ 5, and
+> it discarded the return value. So goggles, the auricular VNS clip, the intranasal probe, cervical VNS
+> and every T2 unit were seen only by the boot scan. The rescan is now `np_mod_reg_rescan_slot()`. It
+> accepts slots 5–18, refuses the retired zone slots 0–4, and re-initialises a slot **only when its
+> presence or type changes**. Widening the bound alone would have re-run `init()` twice a second on
+> every attached module, writing an SHDR auth record each time from the intranasal and cervical VNS
+> drivers (§3.2, D-30). The idle check now also covers LOADING, VERIFYING, PAUSED and STOPPING, and is
+> re-read before every slot (§2.2, D-31). New `np_module_registry_tests` (Class B 34 → 35) fails
+> 120 checks against the old registry. **What gets worse:** detection now actually probes, so
+> `REQ-FWHUB-03`'s rule — no probe during a session — is live for the first time. It holds only by a
+> state check, not by exclusion (`OI-FWHUB-17`).
 
 > **Rev 7 (2026-09-25) — the wire format is diffed, the scan stops writing made-up SHDR records,
 > the PBM stub takes a socket index, and `OI-FWHUB-04` is recorded closed (#384).** None of this
@@ -249,7 +262,7 @@ comment a reader starts from is cheap to make and invisible to every other check
 | `task_hub_control` | 3 (`..._PRIO_CONTROL`) | 1024 | waits on `NP_EV_SESSION_START`, then `np_runner_run()` until the session completes or aborts |
 | `task_protocol_rx` | 2 (`..._PRIO_CONTROL - 1`) | 1024 | blocks in `np_hal_proto_queue_receive()` on `portMAX_DELAY`; on a blob calls `np_runner_load()` (which verifies the signature and posts `NP_EV_SESSION_START`), then **zeroes the receive buffer** so no plaintext protocol is left in RAM |
 | `task_telemetry` | 2 | 512 | `np_log_flush()` on the `NP_LOG_UHDR_FLUSH_MS` / `NP_LOG_SHDR_FLUSH_MS` intervals, so the runner never blocks on eMMC |
-| `task_module_detect` | 1 | 512 | polls for insertion/removal while idle; yields immediately while a session is `NP_SESSION_RUNNING` |
+| `task_module_detect` | 1 | 512 | every `NP_DETECT_ACCESSORY_POLL_MS` (500 ms), re-probes accessory slots 7–18 with `np_mod_reg_rescan_slot()` (§3.2) while the runner is `IDLE`, `COMPLETE` or `FAULT`. The state is re-read before each slot, and the pass stops as soon as a session is in flight. **(Rev 8.** It used to skip only `RUNNING`, and every rescan it issued was refused: `OI-FWHUB-16`.) |
 
 Receiving and running are **separate tasks on purpose**: `np_runner_run()` blocks for the whole
 session, so a single task doing both could not accept the next protocol until the current one
@@ -262,7 +275,11 @@ for `NP_SAFETY_WATCHDOG_MS` (1500 ms) is what makes the safety MCU cut every sti
 The priority ordering below it is a consequence: telemetry and detection exist to be preempted.
 
 `REQ-FWHUB-03`: `task_module_detect` must not run a probe concurrently with a session. Probing
-drives `GAIN_SEL` and reads impedance on lines a running session owns.
+drives `GAIN_SEL` and reads impedance on lines a running session owns. **Rev 8: this is not fully
+met** (§10.2). The task is the lowest priority, so a session can start between its state check and
+a probe. Re-reading the state before each slot narrows the window to one `detect()` call; it does
+not close it. Until Rev 8 the rule held only because every accessory rescan was refused.
+`OI-FWHUB-17`.
 
 ### 2.3 Transport framing
 
@@ -366,7 +383,46 @@ headset is fitted), not a logging detail. It belongs with the other socket-path 
 `OI-FWHUB-10`. Accessories that do authenticate, the intranasal probe and the cervical VNS cuff,
 write `np_log_shdr_zone_auth()` from their own `init()`.
 
-`np_mod_reg_rescan_zone()` re-probes a single slot on a hot-plug event without a full rescan.
+`np_mod_reg_rescan_slot()` re-probes one slot without a full rescan. `task_module_detect` calls it
+for slots 7–18 while idle (§2.2). **(Rev 8, `OI-FWHUB-16`.** It was `np_mod_reg_rescan_zone()`, which
+refused every slot ≥ `NP_HUB_ZONE_SLOT_COUNT`. The detect task discarded the refusal, so no
+accessory attached after boot was ever registered.) The contract:
+
+| Detect result vs. registry entry | Action | Returns |
+|---|---|---|
+| slot 0–4, or ≥ `NP_HUB_SLOT_MAX` | nothing — `detect()` is not called | `INVALID_ARG` |
+| unchanged, absent | nothing | `NOT_PRESENT` |
+| unchanged, present | nothing beyond `detect()` | `OK`, or `MOD_INIT` if its `init()` had failed |
+| newly present | register; call `init()` | `OK` / `MOD_INIT` |
+| removed | `shutdown()` if it was initialised; deregister | `NOT_PRESENT` |
+| type changed | `shutdown()` the old occupant; `init()` the new one | `OK` / `MOD_INIT` |
+
+**Why only on a change (D-30).** A rescan that re-ran `init()` every poll would write an SHDR auth
+record twice a second for as long as the intranasal probe or cervical VNS unit stayed attached, since
+both drivers write one from `init()` (§8.7, §8.8). It would also re-run ADS1299 self-calibration and
+zero both stimulation channels' state (`np_mod_stim_init()` clears BES and tDCS together). **Only
+`detect()` repeats** on an unchanged slot. A failed `init()` is **not retried** until the module is
+removed and re-seated, which bounds the auth records a faulty accessory can write to one per
+insertion. The entry fails closed meanwhile, because `np_mod_reg_get()` requires `initialized`.
+
+**The fixed slots are harmless to rescan.** EEG, audio, BES/tACS and tDCS always report present, so
+a rescan of any of them calls only `detect()`. The loop still starts at `VISUAL`, so EEG (an ADS1299
+ID read) and audio are not polled. `BES_TACS` and `TDCS` fall inside the loop and are no-ops.
+
+**The retired zone slots are refused.** The parser rejects them as targets, so a re-probe could only
+re-initialise a driver nothing can address. The boot scan still probes them; since Rev 7 it writes
+no SHDR record for them (`OI-FWHUB-05`). `np_hub_zone_insert_cb()` used to be the only caller in 0–4. It
+is now a deliberate no-op: `np_za_init()` has no caller in the hub, so nothing registers it
+(`OI-FWHUB-18`).
+
+**Write order on a change.** `initialized` is cleared before any other field and set only after
+`init()` succeeds, so a reader in `task_hub_control` gets `NULL`, not a half-written entry. That is
+an ordering argument, not a lock, and it is part of `OI-FWHUB-17`.
+
+Pinned by `np_module_registry_tests`, which links the production registry against per-slot driver
+doubles: hot-plug on every accessory slot, 100 unchanged polls → one `init()`, removal → one
+`shutdown()`, type change, failed-init no-retry, fixed-slot no-op, retired-slot refusal. Built with
+`-DRESCAN_FN=np_mod_reg_rescan_zone` against the Rev 7 registry, it fails 120 checks.
 
 ### 3.3 The two registries that have never been joined
 
@@ -1311,6 +1367,7 @@ this line.
 | `REQ-FWHUB-34` | A socket stop is always admitted; `NP_SAFETY_EN_PBM_CRANIAL` is requested only after a command's sockets are all configured and released only when none is active — or at once, with every socket stopped, when a stop fails | §3.4; `np_socket_dispatch_tests` |
 | `REQ-FWHUB-35` | No socket drive command is admitted without `np_pbm_power_admit()`, and the definition that ships refuses every load until the `OI-HEXTILE-09` governor exists | §5.6; `np_socket_dispatch_tests` links the production definition and asserts it |
 | `REQ-FWHUB-36` | **(Rev 3)** A session containing a BES/tACS command arms `NP_SESSION_STATUS_GEOM_REQ_BES`, so the safety MCU grants BES/tACS only after an area for that channel has been applied. *Fails without it:* BES/tACS is enforced against the 25 cm² fallback on trust — 24× permissive on a T1-B lattice electrode (`NP-FW-MMSOCK-001` §3.6.1). *Traced to:* DI-SAFE-01a; `OI-MMSOCK-02` | §5.4, §7.4; `np_chan_decl_tests`, `np_charge_monitor_tests`, `np_safety_spi_proto_tests` |
+| `REQ-FWHUB-38` | **(Rev 8)** While no session is in flight, every accessory slot (7–18) is re-probed, and a slot is re-initialised only when its presence or type changes. *Fails without it:* an accessory attached after boot is never usable (CLAUDE.md §1's field-upgradeable modules; `OI-FWHUB-16`). Re-initialising unchanged slots instead writes an SHDR auth record twice a second per attached intranasal or cervical VNS unit (§5 SHDR, `NP-FW-EMMC-002` §G wear) | §3.2; `np_module_registry_tests` |
 | `REQ-FWHUB-37` | **(Rev 3)** Every electrode area the runner computes is sent to the safety MCU. *Fails without it:* the MCU enforces its 25 cm² fallback in place of the fixed VNS / cervical-VNS / BES areas — 50× looser than designed on the auricular clip. *Traced to:* DI-SAFE-01a; `OI-CHARGE-07` | §5.4; `np_chan_decl_tests` (falsified against the old send rule) |
 
 | `REQ-FWHUB-28` | **(Rev 7)** The wire format has a mechanical agreement check against `hubCompiler.ts`, falsified in both directions per `NP-CONV-001` §8. *Fails without it:* the two implementations agree only by inspection, and a length or offset drift surfaces on a device as `INVALID_ARG` | §4.6; `scripts/check-hub-wire-format.ts` (15 perturbation fixtures) |
@@ -1325,6 +1382,7 @@ code everywhere would be describing, not specifying.
 | `REQ-FWHUB-25` | A verified socket-addressed command reaches the addressed emitters | **Rev 2: the path exists (§3.4, `REQ-FWHUB-31…34`) and every drive is refused at the power gate (§5.6).** Was: `dispatch_command()` dropped every non-`SLOT` target kind (`OI-FWHUB-01`, closed) | **`OI-FWHUB-09`** (blocking) |
 | `REQ-FWHUB-26` | Every modality in CLAUDE.md §3's T1 roster has a dispatchable path | as `REQ-FWHUB-25`: transcranial PBM is dispatchable and not admitted | **`OI-FWHUB-09`** |
 | `REQ-FWHUB-27` | Every source file's `Document:` banner cites a revision of this document that exists | three files cite Rev 2 | `OI-FWHUB-02` (fixed in this change) |
+| `REQ-FWHUB-03` | Module detection does not probe while a session is running | **Rev 8:** held by a state check re-read per slot, not by exclusion — a session starting between the check and the probe is not prevented. Vacuously met before Rev 8, because every accessory rescan was refused | **`OI-FWHUB-17`** |
 | ~~`REQ-FWHUB-28`~~ | *Moved to §10.1 in Rev 7 — met.* | — | `OI-FWHUB-03` (closed) |
 
 ### 10.3 Design review checklist
@@ -1377,6 +1435,8 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | D-27 | The power governor ships refusing every load rather than as a plausible approximation | §5.6 |
 | D-28 | **(Rev 3)** BES/tACS is gated on its own bit, with its area the fixed pad constant rather than an authored field — no wire-format change while T1 tES stays on pads (`NP-FW-MMSOCK-001` P-1) | §5.4 |
 | D-29 | **(Rev 3)** The runner's geometry scan is a pure, host-tested function rather than inline in an ARM-only loop | §5.4 |
+| D-30 | **(Rev 8)** The accessory rescan acts only on a presence or type change, and does not retry a failed `init()` until the module is re-seated. Retired zone slots 0–4 are refused, not re-probed | §3.2 |
+| D-31 | **(Rev 8)** Detection runs only in `IDLE`, `COMPLETE` and `FAULT`, and re-reads the state before each slot — not only outside `RUNNING` | §2.2 |
 
 ---
 
@@ -1415,6 +1475,9 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | ~~**`OI-FWHUB-12`**~~ | ✅ **CLOSED 2026-09-25 (Rev 7).** *Was:* `firmware/pbm/src/np_pbm_hal.c` bounded its I²C shadow and PD reads to `slot < 5`, so a smart tile above socket 4 failed its driver startup (`NP_PBM_ERR_I2C_WRITE`) and metered no dose. The stub now takes a socket index over `NP_PBM_SOCKET_DOMAIN` (128, derived from `NP_PBM_SOCKET_MASK_BYTES`). `np_pbm_hal.h` records that the tunnelled HAL replacing it keeps the socket index (`NP-HW-HUB-001` §9.2). `np_pbm_session_desc_tests` drives socket 77 end to end and refuses 128, and fails four checks against the pre-fix stub. `np_module_map_tests` pins `NP_PBM_SOCKET_DOMAIN == NP_HEXMAP_MAX_SOCKETS` | — (closed) | — |
 | **`OI-FWHUB-14`** | **The EEG sample path's documented calling context is incompatible with the logger.** §8.2 and `np_mod_eeg.c` say `np_log_eeg_sample_block()` is called from the DMA ISR. That function now drains the adaptation ring and `s_uhdr_buf` (§6.5, Rev 5), and it has always appended to the backend's staging. All three are shared with the task-side logger and none is synchronized. From an ISR, a block landing during a task's `uhdr_write()` corrupts the record under construction. No caller exists, and the function is not in the linked image. Decide the hand-off: an ISR-to-task queue that calls the logger from the session runner's context, or a lock that the logger's hot path can afford | FW | **Any caller of `np_log_eeg_sample_block()` (EEG waveform logging)** |
 | ~~**`OI-FWHUB-15`**~~ | ✅ **CLOSED 2026-09-24 (Rev 6)** — `np_log_session_end()` drains the adaptation ring before the session-end record (§6.5); pinned by `np_log_backend_tests`. *Was:* **Adaptation events still queued when a session ends are lost.** `np_session_runner` calls `np_log_session_end()` and then `np_log_flush()`. The session-end call closes the session's UHDR file (`OI-LFS-11`). The flush then drains the adaptation ring into `s_uhdr_buf`, and its append is refused with `NP_HUB_ERR_NO_SESSION`. The next session start discards that buffer before it opens its own file. The events reach no file, and nothing reports the loss. Before `OI-LFS-11` they landed after the session-end record in the single UHDR file: out of order, but kept. Likely fix: drain the ring at the top of `np_log_session_end()`, so the events precede the session-end record | — (closed) | — |
+| ~~**`OI-FWHUB-16`**~~ | ✅ **CLOSED 2026-09-24 (Rev 8)** — `np_mod_reg_rescan_slot()` accepts slots 5–18 and re-initialises only on a change (§3.2, D-30); pinned by `np_module_registry_tests`, which fails 120 checks against the old registry. *Was:* **no accessory attached after boot was ever registered.** `task_module_detect` looped slots 7–18 through `np_mod_reg_rescan_zone()`, which returned `INVALID_ARG` for any slot ≥ 5, and discarded the return. Only the boot scan saw goggles, the VNS clip, the intranasal probe, cervical VNS or a T2 unit. Nothing caught it because the registry had no host test and the caller is ARM-only | — (closed) | — |
+| **`OI-FWHUB-17`** | **Detection is kept off a session by a state check, not by exclusion (`REQ-FWHUB-03`).** `task_module_detect` is the lowest priority. A session can start between its state read and a `detect()`, and the registry entry it rewrites is read by `task_hub_control` without a lock. Rev 8 re-reads the state per slot and orders the entry writes so a reader sees `NULL` rather than a torn entry, which narrows the window to one probe. Close it with a lock the runner holds from `np_runner_load()` to session end, which the detect task takes around each rescan. Dormant until Rev 8, because every accessory rescan was refused | FW | **Hardware bring-up** — before any accessory `detect()` drives a line a session owns |
+| **`OI-FWHUB-18`** | **The retired zone-announce hooks are dead code.** `np_hub_zone_insert_cb()` / `np_hub_zone_remove_cb()` have no caller (`np_za_init()` is never called by the hub) and no declaration. Rev 8 made the insert hook a documented no-op instead of letting it call a rescan that now refuses slots 0–4. Delete both with the `firmware/zone_announce/` ZONE_ID path, or wire them to the socket lattice if that path returns | FW | — |
 | ~~`OI-FWHUB-02`~~ | ✅ **CLOSED 2026-09-13 in the same change.** Three files cited `NP-FW-HUB-001 Rev 2` against a document with no Rev 1. Re-pointed to Rev 1 §8.9 and §6.4 | FW | — |
 | ~~**`OI-FWHUB-03`**~~ | ✅ **CLOSED 2026-09-25 (Rev 7).** *Was:* no mechanical agreement check between §4 and `hubCompiler.ts`. **§4.6** now tabulates the per-modality blocks. **`scripts/check-hub-wire-format.ts`** diffs §4's constants and table, the `np_hub_config.h`/`np_hub_types.h` defines, enums and packed-struct layouts, and **the compiler's own output**, which it runs for all 16 modality encodings and decodes at the firmware's field offsets. Falsified on 15 single-corner perturbations (a field reordered, a struct grown or unpacked, a table byte count, a compiler buffer one byte long, a stale compiler version, and so on). The self-test passes an unperturbed copy first. Wired as `tooling-ci.yml:hub-wire-format` (`REQ-FWHUB-28`) | — (closed) | — |
 | ~~**`OI-FWHUB-04`**~~ | ✅ **CLOSED 2026-09-25 (Rev 7) — reordered, by Rev 5.** *Was:* on overflow, `uhdr_write()`/`shdr_write()` flushed *before* appending the full buffer, so the sync covered none of it. **Fixed in Rev 5 (#425):** every path now appends and then syncs through `uhdr_drain()`/`shdr_drain()`, and `np_log_backend_tests` covers it (§6.5). Rev 5 left this row open, so Rev 7 records the closure. No further code change | — (closed) | — |
@@ -1480,6 +1543,7 @@ have absorbed.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 8 | 2026-09-25 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-16`: accessories attached after boot are registered again (§2.2, §3.2, §10, §11, §13).** `task_module_detect` re-probed slots 7–18 through `np_mod_reg_rescan_zone()`, which refused any slot ≥ `NP_HUB_ZONE_SLOT_COUNT` (5), and it discarded the `INVALID_ARG`. Only the boot scan ever registered goggles, the auricular VNS clip, the intranasal probe, cervical VNS or a T2 unit. **Renamed `np_mod_reg_rescan_slot()`**, since it is no longer zone-specific. It accepts `NP_HUB_SLOT_FIRST_VALID`..`NP_HUB_SLOT_MAX − 1`, refuses the retired zone slots 0–4 without probing, and re-initialises only on a presence or type change (D-30). A failed `init()` is not retried until the module is re-seated. Widening the bound alone would have flooded SHDR: the intranasal and cervical VNS `init()` each write an auth record, and the poll runs every 500 ms. It would also have re-run ADS1299 self-calibration and zeroed both stimulation channels every poll. `task_module_detect` now probes only in `IDLE`/`COMPLETE`/`FAULT`, re-reads the state before each slot (D-31), and asserts it never receives `INVALID_ARG` again. `np_hub_zone_insert_cb()` is a documented no-op (`OI-FWHUB-18`). **New host target `np_module_registry_tests`** (Class B 34 → 35, repo total 44 → 45, re-derived with `ctest -N`): the production registry against per-slot driver doubles. **Falsified:** built against the Rev 7 registry with `-DRESCAN_FN=np_mod_reg_rescan_zone`, it fails 120 checks. `np_hub_control_main.c` and `np_module_registry.c` cross-compile for Cortex-M7 with `-Werror`. `REQ-FWHUB-38` added. **Named downside:** `REQ-FWHUB-03` held vacuously while every rescan was refused. It is now live and held only by a state check, so it moves to §10.2 as not fully met (`OI-FWHUB-17`, blocking hardware bring-up). `np_mod_reg_rescan_slot()` takes the slot only, matching Rev 7's removal of the SHDR callback from `np_mod_reg_scan()`. |
 | 7 | 2026-09-25 | NeurOne Firmware Engineering | **Issue #384, non-blocking half: closes `OI-FWHUB-03`, `-05` and `-12`; records `-04` closed (fixed by Rev 5, #425); does the labelling half of `-06`.** **New §4.6**: per-modality code, parameter struct, byte count and target. **`scripts/check-hub-wire-format.ts`** diffs §4, `np_hub_config.h`/`np_hub_types.h` (defines, enums, packed-struct sizes and offsets) and `hubCompiler.ts`'s actual output, decoded at the firmware's offsets for all 16 encodings. Falsified on 15 single-corner perturbations and wired as `tooling-ci.yml:hub-wire-format`, so `REQ-FWHUB-28` moves to §10.1. **`np_module_registry`**: the per-zone-slot SHDR auth callback and its parameter are removed, because the records were made up from a retired ladder (§3.2, `-05`); §2.1 row 7 and the bring-up gate's rationale follow. **`firmware/pbm`**: the HAL stub is addressed over `NP_PBM_SOCKET_DOMAIN` (128), and `np_pbm_session_desc_tests` drives socket 77 (`-12`). **Status line → DRAFT — pending approval** (`-06`; approval still open). `OI-FWHUB-10` gains the per-socket SHDR inventory question. No requirement weakened; `REQ-FWHUB-25/26` remain unmet against `OI-FWHUB-09` (#335). Rev 6 → 7. |
 | 6 | 2026-09-24 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-15` (§6.5, §13).** `np_log_session_end()` now calls `np_adapt_log_flush()` before it writes the session-end record and closes the UHDR file. Adaptation events still queued when a session ends therefore land in that session's file, ahead of its session-end record. Before, the runner's following `np_log_flush()` drained them into a closed file, the append was refused (`NP_HUB_ERR_NO_SESSION`), and the next session start dropped the buffer, with nothing reporting the loss. `np_log_backend_tests` gains 1 case, run in the runner's order (end, then flush). Removing the drain fails its two positive checks. A third check, that nothing reaches the next session's file, guards against a fix that moves the events there. Host suite: 43/44; `np_lfs_log_instance_tests` fails on unmodified `main` too. The ARM cross-build is clean. No classification, record format or wire format changed; no new test target. |
 | 5 | 2026-09-24 | NeurOne Firmware Engineering | **The session logger appends before it syncs and keeps log order (§6.1, §6.5, §8.2, §13).** Two defects in `np_session_log.c` predate `OI-LFS-11` and were found during it (NP-SOUP-LFS-001 Rev 7 §13.10). (1) A full 4 KiB UHDR or SHDR buffer was synced and then appended, so the sync covered none of it. Both partitions now go through `uhdr_drain()`/`shdr_drain()`, which append and then sync. (2) EEG sample blocks were appended straight to the HAL ahead of records in `s_uhdr_buf` and the adaptation ring. They now drain both first, append only, and keep the zero-copy path for the samples. (3) Found by (2)'s test: `np_log_flush()` skipped the UHDR sync whenever the buffer was empty, so EEG data could miss the 30 s bound. It now always syncs UHDR. `np_log_backend_tests` gains 4 cases and the host hook `np_log_test_synced_len()`. Reverting each fix fails the case named for it (five mutants), and the pre-fix file fails 5 checks (`NP-CONV-001` §8). Host suite and ARM cross-build pass; the one other ctest failure, `np_lfs_log_instance_tests`, fails identically on the unmodified base (3 of 3 under ctest; it passes most standalone runs, and one crashed with a bus error) and links none of these files. Raised `OI-FWHUB-14` (EEG ISR context vs a single-context logger) and `OI-FWHUB-15` (adaptation events queued at session end are lost). No classification, record format or wire format changed; no new test target. |
