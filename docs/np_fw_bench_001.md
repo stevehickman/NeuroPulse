@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-BENCH-001
-**Revision:** 1
-**Date:** 2026-08-26
+**Revision:** 2
+**Date:** 2026-09-25
 **Status:** DESIGN STUDY — not a release baseline. Every behaviour below is a proposed engineering commitment traced to a cited source; **no threshold in this document is measured, and the two the gate needs do not exist anywhere in the document set** (§4.4, `OI-BENCH-01`). See §11 (Decisions) and §12 (Open Items).
 **Effective Date:** —
 **Author:** NeurOne Firmware + Safety Engineering
@@ -376,7 +376,12 @@ an **absence of a wire**:
 
 **This is checkable mechanically, and per `NP-CONV-001` §8 it should be.** The required check is:
 *no bench-mode identifier appears anywhere under `firmware/safety_mcu/`, and no new bit is allocated
-in `session_status`.* Per §8 of that document the probe must be **falsified before it is trusted** —
+in `session_status`.* **(Rev 2: `session_status` is now fully allocated.** Bits 3 and 4 are the tDCS and
+BES/tACS geometry gates, and bits 5–7 carry the heartbeat sequence counter, `NP_SESSION_STATUS_SEQ_*`,
+from `NP-FMEA-001` OI-FMEA-12 (a). The counter is not a predicate: the hub advances it on every frame
+whatever its state, so it cannot carry bench mode. The check's second clause therefore compares against
+the allocation as of Rev 2, not the "three allocated" of Rev 1, and with no spare bit a bench predicate
+would need a new wire field, which the first clause still catches.) Per §8 of that document the probe must be **falsified before it is trusted** —
 introduce the symbol into a safety-MCU translation unit and confirm the check fails. Specified here,
 not written: `OI-BENCH-04`.
 
@@ -674,4 +679,5 @@ check that keeps the bypass out of the Class C tier is specified but not written
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 2 | 2026-09-25 | NeurOne Firmware + Safety Engineering | §7.2 annotated: `session_status` bits 5–7 are now the heartbeat sequence counter (`NP-FMEA-001` OI-FMEA-12 (a), `NP-FW-HUB-001` Rev 11 §7.1), and bits 3–4 were already allocated. The counter carries no hub state, so §7.2's structural argument stands; the specified check's baseline moves to the Rev 2 allocation. No design change. |
 | 1 | 2026-08-26 | NeurOne Firmware + Safety Engineering | Initial release. Specifies the head-presence gate (D-1…D-4) and its bench/service bypass (D-5…D-9) against the principal decision of 2026-08-26. **Corrects three claims in its own scoping brief:** the safety MCU can read neither candidate head-presence sensor (its impedance AFE covers only the four tES channels; the ADS1299 and the PD2 TIA are both hub-side), which is what decides the Class B classification; `SEAT#` has no firmware consumer and no safety-MCU input, so the module-swap stop is specified today as Class B and not as an enable-line drop (`OI-BENCH-06`); and neither `clinical-09` nor `07-vascular-baseline` is a bench workflow — the first needs the absent `NP-CFG-UI-001` (`OI-BENCH-07`), the second is a therapeutic session. **Falsifies the obvious threshold:** `NP-FAI-001` FAI-IPX-01 accepts an off-head headset at *"All EEG channels < 10 kΩ"*, so 10 kΩ cannot be reused as `Z_HP`; the gate's thresholds are not derivable from this repository (`OI-BENCH-01`, blocking). Applies `OI-EMMC2-11`'s row-set-aggregation lesson to the bench-mode audit record, and `NP-FW-EMMC-002` §H's record-denominated-window precedent to the credential's expiry. No code changed. |

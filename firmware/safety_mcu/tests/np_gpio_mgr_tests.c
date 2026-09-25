@@ -18,6 +18,12 @@
  *      is active) rather than accumulating it                    (FMEA-M01-01)
  *   5. heartbeat loss clears granted_mask at exactly the timeout, and the next
  *      apply() disables all ten lines                            (FMEA-M02-05)
+ *   6. heartbeat sequence gate: a repeated, replayed or backward frame does
+ *      not count as a beat, so a stuck hub still trips the watchdog
+ *                                                    (FMEA-M02-03, OI-FMEA-12)
+ *   7. tick liveness: SysTick stopped, slowed or sped up against TIM2 latches
+ *      an all-channel FAULT that nothing but a reset clears
+ *                                                    (FMEA-M02-02, OI-FMEA-12)
  *
  * np_hal_gpio_write_pin() is a recording double here, not the real driver:
  * the fake register file keeps only the last BSRR write per port, so it cannot
@@ -53,6 +59,8 @@ extern void             np_spi_watchdog_tick(np_safety_state_t              *sta
                                              const np_safety_rx_ext_frame_t *rx,
                                              np_safety_tx_frame_t           *tx);
 extern void             np_spi_watchdog_check(np_safety_state_t *state);
+extern bool             np_spi_watchdog_seq_accept(uint8_t seq);
+extern void             np_spi_watchdog_tick_liveness(np_safety_state_t *state);
 
 /* ── The ten enable lines and the protocol bit that must drive each ─────────
  * Mirrors np_gpio_mgr_apply() by NAME, not by position: a transposed pair in
@@ -97,6 +105,11 @@ void np_hal_gpio_write_pin(void *port, uint16_t pin, int state)
 }
 
 uint32_t np_hal_get_tick_ms(void) { return g_tick_ms; }
+
+/* TIM2's live 1 MHz count, advanced independently of g_tick_ms so §7 can stop,
+ * slow or wrap either one. */
+static uint32_t g_tim2_us;
+uint32_t np_hal_tim2_now_us(void) { return g_tim2_us; }
 
 static void rec_reset(void)
 {
@@ -282,6 +295,262 @@ static void test_heartbeat_timeout_across_tick_wrap(void)
     check(st.granted_mask == 0U, "check: timeout still fires across the 32-bit tick wrap");
 }
 
+/* ══ 6. heartbeat sequence gate (FMEA-M02-03, OI-FMEA-12 (a)) ══════════════ */
+
+/* Feed one well-formed heartbeat at g_tick_ms the way np_safety_main.c does:
+ * the tick (watchdog reset + grant) runs only when the counter is accepted. */
+static bool beat(np_safety_state_t *st, uint8_t seq)
+{
+    bool live = np_spi_watchdog_seq_accept(seq);
+    if (live) { np_spi_watchdog_tick(st, NULL, NULL); }
+    np_spi_watchdog_check(st);
+    return live;
+}
+
+static void test_seq_startup_and_run(void)
+{
+    np_safety_state_t st;
+    uint8_t i;
+    int ok = 1;
+
+    memset(&st, 0, sizeof(st));
+    g_tick_ms = 100U;
+    (void)np_spi_watchdog_init();
+    st.requested_mask = NP_SAFETY_EN_ALL_MASK;
+
+    check(!beat(&st, 5U), "seq: first frame after init is not accepted");
+    check(!beat(&st, 6U), "seq: second (one forward step) is not accepted");
+    check(beat(&st, 7U) && st.granted_mask == NP_SAFETY_EN_ALL_MASK,
+          "seq: third (two forward steps) is accepted and grants");
+    for (i = 0U; i < 20U; i++) {
+        if (!beat(&st, (uint8_t)(i & 7U))) { ok = 0; }    /* 7 -> 0 wraps */
+    }
+    check(ok, "seq: a live counter stays accepted across the 7 -> 0 wrap");
+    check(beat(&st, (uint8_t)(0xF8U | 4U)), "seq: bits above the 3-bit counter are ignored (3 -> 4)");
+}
+
+static void test_seq_stuck_buffer_trips_watchdog(void)
+{
+    np_safety_state_t st;
+    uint32_t t0;
+    int ok = 1;
+
+    memset(&st, 0, sizeof(st));
+    g_tick_ms = 1000U;
+    (void)np_spi_watchdog_init();
+    st.requested_mask = NP_SAFETY_EN_ALL_MASK;
+    (void)beat(&st, 0U); (void)beat(&st, 1U);
+    check(beat(&st, 2U), "stuck: live before the hang");
+    t0 = g_tick_ms;
+
+    /* The hub hangs and its SPI re-sends the last buffer every 200 ms. */
+    while (g_tick_ms < t0 + NP_SAFETY_WDG_TIMEOUT_MS - 200U) {
+        g_tick_ms += 200U;
+        if (beat(&st, 2U)) { ok = 0; }
+    }
+    check(ok, "stuck: a repeated counter is never accepted");
+    check(st.granted_mask == NP_SAFETY_EN_ALL_MASK, "stuck: no cutoff before the timeout");
+    g_tick_ms = t0 + NP_SAFETY_WDG_TIMEOUT_MS;
+    (void)beat(&st, 2U);
+    check(st.granted_mask == 0U && (st.status & NP_SAFETY_STATUS_WATCHDOG) != 0U,
+          "stuck: the watchdog fires at the timeout despite well-formed frames");
+    g_tick_ms += 10000U;
+    (void)beat(&st, 2U);
+    check(st.granted_mask == 0U, "stuck: and stays cut while the replay continues");
+}
+
+static void test_seq_two_buffer_replay_never_accepted(void)
+{
+    np_safety_state_t st;
+    uint8_t i;
+    int ok = 1;
+
+    memset(&st, 0, sizeof(st));
+    g_tick_ms = 1000U;
+    (void)np_spi_watchdog_init();
+    (void)beat(&st, 3U); (void)beat(&st, 4U);
+    check(beat(&st, 5U), "ping-pong: live before the hang");
+    for (i = 0U; i < 40U; i++) {                 /* 4, 5, 4, 5, ... */
+        g_tick_ms += 200U;
+        if (beat(&st, (uint8_t)(4U + (i & 1U)))) { ok = 0; }
+    }
+    check(ok, "ping-pong: a two-buffer replay is never accepted (steps +7, +1)");
+    check(st.granted_mask == 0U, "ping-pong: the watchdog has cut everything");
+}
+
+static void test_seq_lost_frames_and_steps(void)
+{
+    g_tick_ms = 1000U;
+    (void)np_spi_watchdog_init();
+    (void)np_spi_watchdog_seq_accept(0U); (void)np_spi_watchdog_seq_accept(1U);
+    check(np_spi_watchdog_seq_accept(2U), "steps: live run");
+    check(np_spi_watchdog_seq_accept(4U), "steps: one lost frame (+2) stays accepted");
+    check(np_spi_watchdog_seq_accept(7U), "steps: two lost frames (+3) stay accepted");
+    check(!np_spi_watchdog_seq_accept(3U), "steps: three lost frames (+4) restart the run");
+    check(!np_spi_watchdog_seq_accept(4U), "steps: ... one step after the restart is not enough");
+    check(np_spi_watchdog_seq_accept(5U), "steps: ... two are");
+    check(!np_spi_watchdog_seq_accept(4U), "steps: a backward step (+7) restarts the run");
+    check(!np_spi_watchdog_seq_accept(4U), "steps: a repeat (+0) restarts the run");
+    (void)np_spi_watchdog_seq_accept(5U);
+    check(np_spi_watchdog_seq_accept(6U), "steps: a hub reset recovers after two forward steps");
+    (void)np_spi_watchdog_init();
+    check(!np_spi_watchdog_seq_accept(7U), "steps: init forgets the previous counter");
+    /* After init no counter is known, so the first frame is no step at all:
+     * 1 then 2 is one forward step, not two, whatever init left in last. */
+    (void)np_spi_watchdog_init();
+    (void)np_spi_watchdog_seq_accept(1U);
+    check(!np_spi_watchdog_seq_accept(2U),
+          "steps: the first frame after init starts a run, it does not extend one");
+}
+
+/* ══ 7. tick liveness: SysTick against TIM2 (FMEA-M02-02, OI-FMEA-12 (b)) ═══ */
+
+static void live_init(np_safety_state_t *st, uint32_t ms, uint32_t us)
+{
+    memset(st, 0, sizeof(*st));
+    st->fault_slot = NP_FAULT_SLOT_NONE;
+    g_tick_ms = ms;
+    g_tim2_us = us;
+    (void)np_spi_watchdog_init();
+    st->requested_mask = NP_SAFETY_EN_ALL_MASK;
+    st->granted_mask   = NP_SAFETY_EN_ALL_MASK;
+}
+
+static bool tick_faulted(const np_safety_state_t *st)
+{
+    return st->granted_mask == 0U &&
+           (st->status & (NP_SAFETY_STATUS_FAULT | NP_SAFETY_STATUS_CUTOFF)) ==
+               (NP_SAFETY_STATUS_FAULT | NP_SAFETY_STATUS_CUTOFF) &&
+           st->fault_slot == NP_FAULT_SLOT_TICK;
+}
+
+static void test_liveness_agreeing_clocks(void)
+{
+    np_safety_state_t st;
+    uint32_t i;
+    int ok = 1;
+
+    /* TIM2 starts 1 s before its 32-bit wrap, so the run crosses it. */
+    live_init(&st, 50000U, 0xFFFFFFFFU - 1000000U);
+    for (i = 0U; i < 5000U; i++) {               /* 5 s in 1 ms loop steps */
+        g_tick_ms += 1U;
+        g_tim2_us += 1000U;
+        np_spi_watchdog_tick_liveness(&st);
+        if (st.granted_mask != NP_SAFETY_EN_ALL_MASK) { ok = 0; }
+    }
+    check(ok, "liveness: agreeing clocks never fault, across the TIM2 wrap");
+
+    /* A 40 ms loop stall (flash erase) advances both alike. */
+    g_tick_ms += 40U;
+    g_tim2_us += 40000U;
+    np_spi_watchdog_tick_liveness(&st);
+    check(st.granted_mask == NP_SAFETY_EN_ALL_MASK, "liveness: a long iteration is not a fault");
+}
+
+static void test_liveness_frozen_systick(void)
+{
+    np_safety_state_t st;
+
+    live_init(&st, 1000U, 0U);
+    g_tim2_us = NP_SAFETY_TICK_CHECK_MS * 1000U - 1U;
+    np_spi_watchdog_tick_liveness(&st);
+    check(st.granted_mask == NP_SAFETY_EN_ALL_MASK,
+          "frozen SysTick: nothing before a full window of TIM2");
+    g_tim2_us = NP_SAFETY_TICK_CHECK_MS * 1000U;
+    np_spi_watchdog_tick_liveness(&st);
+    check(tick_faulted(&st), "frozen SysTick: FAULT + CUTOFF + TICK slot after one window");
+}
+
+static void test_liveness_frozen_tim2(void)
+{
+    np_safety_state_t st;
+
+    live_init(&st, 1000U, 777U);
+    g_tick_ms = 1000U + NP_SAFETY_TICK_CHECK_MS;
+    np_spi_watchdog_tick_liveness(&st);
+    check(tick_faulted(&st), "frozen TIM2: FAULT after one window of SysTick");
+}
+
+static void test_liveness_tolerance_edges(void)
+{
+    np_safety_state_t st;
+
+    /* SysTick slow by exactly the tolerance: accepted. */
+    live_init(&st, 0U, 0U);
+    g_tim2_us = NP_SAFETY_TICK_CHECK_MS * 1000U;
+    g_tick_ms = NP_SAFETY_TICK_CHECK_MS - NP_SAFETY_TICK_TOL_MS;
+    np_spi_watchdog_tick_liveness(&st);
+    check(st.granted_mask == NP_SAFETY_EN_ALL_MASK, "slow SysTick: exactly the tolerance passes");
+
+    /* One more millisecond slow: fault. */
+    live_init(&st, 0U, 0U);
+    g_tim2_us = NP_SAFETY_TICK_CHECK_MS * 1000U;
+    g_tick_ms = NP_SAFETY_TICK_CHECK_MS - NP_SAFETY_TICK_TOL_MS - 1U;
+    np_spi_watchdog_tick_liveness(&st);
+    check(tick_faulted(&st), "slow SysTick: tolerance + 1 ms faults");
+
+    /* SysTick fast by tolerance + 1: fault (a fast tick shortens the lockout). */
+    live_init(&st, 0U, 0U);
+    g_tick_ms = NP_SAFETY_TICK_CHECK_MS + NP_SAFETY_TICK_TOL_MS + 1U;
+    g_tim2_us = NP_SAFETY_TICK_CHECK_MS * 1000U;
+    np_spi_watchdog_tick_liveness(&st);
+    check(tick_faulted(&st), "fast SysTick: tolerance + 1 ms faults");
+
+    /* Fast by exactly the tolerance: accepted. */
+    live_init(&st, 0U, 0U);
+    g_tick_ms = NP_SAFETY_TICK_CHECK_MS + NP_SAFETY_TICK_TOL_MS;
+    g_tim2_us = NP_SAFETY_TICK_CHECK_MS * 1000U;
+    np_spi_watchdog_tick_liveness(&st);
+    check(st.granted_mask == NP_SAFETY_EN_ALL_MASK, "fast SysTick: exactly the tolerance passes");
+}
+
+static void test_liveness_is_a_rate(void)
+{
+    np_safety_state_t st;
+    uint32_t i;
+    int ok = 1;
+
+    /* SysTick 5 % slow for 10 s: inside the 10 % tolerance in every window.
+     * The check re-references each window, so the error does not accumulate
+     * (10 s would otherwise be 500 ms apart). */
+    live_init(&st, 0U, 0U);
+    for (i = 1U; i <= 10000U; i++) {
+        g_tim2_us += 1000U;
+        g_tick_ms  = (i * 95U) / 100U;
+        np_spi_watchdog_tick_liveness(&st);
+        if (st.granted_mask != NP_SAFETY_EN_ALL_MASK) { ok = 0; }
+    }
+    check(ok, "rate: a 5 % slow SysTick never faults over 10 s (tolerance is per window)");
+}
+
+static void test_liveness_latch(void)
+{
+    np_safety_state_t st;
+
+    live_init(&st, 1000U, 0U);
+    g_tim2_us = NP_SAFETY_TICK_CHECK_MS * 1000U;
+    np_spi_watchdog_tick_liveness(&st);                 /* SysTick frozen: fault */
+    check(tick_faulted(&st), "latch: faulted");
+
+    /* SysTick recovers, and another module clears FAULT and re-grants. */
+    g_tick_ms += 5000U;
+    g_tim2_us += 5000000U;
+    st.status       = NP_SAFETY_STATUS_OK;
+    st.fault_slot   = NP_FAULT_SLOT_SIG_FAIL;
+    st.granted_mask = NP_SAFETY_EN_ALL_MASK;
+    np_spi_watchdog_tick_liveness(&st);
+    check(tick_faulted(&st), "latch: re-asserted every call, even after the clocks agree again");
+
+    np_spi_watchdog_tick(&st, NULL, NULL);
+    check(st.granted_mask == 0U, "latch: a heartbeat tick grants nothing while latched");
+
+    live_init(&st, 1000U, 0U);
+    g_tick_ms += NP_SAFETY_TICK_CHECK_MS;
+    g_tim2_us += NP_SAFETY_TICK_CHECK_MS * 1000U;
+    np_spi_watchdog_tick_liveness(&st);
+    check(st.granted_mask == NP_SAFETY_EN_ALL_MASK, "latch: only init (a reset) clears it");
+}
+
 int main(void)
 {
     test_init_disables_all();
@@ -291,6 +560,16 @@ int main(void)
     test_tick_overwrites_granted_mask();
     test_heartbeat_loss_cuts_all();
     test_heartbeat_timeout_across_tick_wrap();
+    test_seq_startup_and_run();
+    test_seq_stuck_buffer_trips_watchdog();
+    test_seq_two_buffer_replay_never_accepted();
+    test_seq_lost_frames_and_steps();
+    test_liveness_agreeing_clocks();
+    test_liveness_frozen_systick();
+    test_liveness_frozen_tim2();
+    test_liveness_tolerance_edges();
+    test_liveness_is_a_rate();
+    test_liveness_latch();
 
     printf("\n%s: %d failure(s)\n", g_failures ? "FAILED" : "OK", g_failures);
     return g_failures ? 1 : 0;

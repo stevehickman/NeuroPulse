@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 10
+**Revision:** 11
 **Date:** 2026-09-25
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -679,7 +679,8 @@ These are **enum values and never bit flags.** `np_safety_session_status_bits()`
 writing a state enum into the heartbeat's `session_status` byte was a live bug: `NP_SESSION_RUNNING`
 (= 3) asserts `ACTIVE|CVNS_REENABLE`, and `NP_SESSION_PAUSED` (= 4) asserts `GEOM_REQUIRED`.
 `REQ-FWHUB-11`: **the `session_status` byte is only ever built by
-`np_safety_session_status_bits()`.**
+`np_safety_session_status_bits()`, followed by `np_safety_session_status_with_seq()`**, which places
+the heartbeat sequence counter in bits 5–7 (Rev 11, §7.1).
 
 That mapping carries one non-obvious rule. `ACTIVE` is asserted for `RUNNING`, `PAUSED` **and**
 `STOPPING`. The safety MCU resets per-session state — session signature, charge accumulator,
@@ -1098,6 +1099,18 @@ Hub sends `np_safety_tx_ext_frame_t`: magic (`0xBE`, `0xA7`), enable mask, `sess
 `channel_count`, checksum, `current_ua[14]`, extended checksum. The MCU simultaneously returns its
 8-byte reply; the hub reads the first 8 bytes and discards the remaining 30 slave zero bytes.
 
+**Heartbeat sequence counter (Rev 11, `NP-FMEA-001` OI-FMEA-12 (a)).** Bits 5–7 of `session_status`
+carry a 3-bit counter (`NP_SESSION_STATUS_SEQ_*`, `np_spi_wire_types.h`) that
+`np_safety_spi_heartbeat()` advances on **every** frame it builds, including one whose transfer fails,
+so a retry is never a repeat. `REQ-FWHUB-42`: **the hub never sends two consecutive heartbeats with
+the same counter.** The safety MCU resets its heartbeat watchdog only once the counter has made two
+consecutive forward steps of 1–3 (`np_spi_watchdog_seq_accept()`), so a hung hub whose SPI keeps
+re-sending one buffer, or alternating two, trips the 1.5 s watchdog. Consequences for the hub: the
+first grant after a safety-MCU reset, or after three or more consecutive lost frames, arrives two
+heartbeats later (400 ms); and the watchdog now tolerates at most **four** consecutive lost
+heartbeats, not six. The counter is not a predicate: it carries no hub state, so it does not open the
+path `NP-FW-BENCH-001` §7.2 closes.
+
 `current_ua[]` carries **commanded** current magnitudes from the session descriptor — **not**
 ADC-measured values. This matters for classification: a commanded magnitude is a device-configuration
 fact (SHDR class); a measured one would be a statement about tissue.
@@ -1137,7 +1150,8 @@ While `set_geom_required` / `set_geom_required_tdcs` / `set_geom_required_bes` i
 carries the corresponding `session_status` bit (2, 3, 4) and the MCU keeps that channel **out of
 `granted_mask`** until it has applied a valid electrode-area command. A lost or delayed area command
 therefore fails **closed**. All three are cleared on session end/abort and by
-`np_safety_spi_disable_all()`. Bits 5–7 of `session_status` remain unused. See §5.4.
+`np_safety_spi_disable_all()`. Bits 5–7 of `session_status` carry the heartbeat sequence counter
+(Rev 11, §7.1); no flag bit is free. See §5.4.
 
 ### 7a. Cervical VNS re-enable manager
 
@@ -1431,7 +1445,7 @@ this line.
 | `REQ-FWHUB-08` | `hubCompiler.ts` emits exactly §4; on disagreement the compiler is wrong | `hubCompiler.ts` |
 | `REQ-FWHUB-09` | A failed parse leaves the descriptor undefined; no partial population | `np_protocol.c` |
 | `REQ-FWHUB-10` | A parameter-struct length change bumps `NP_HUB_PROTO_VERSION` | §4.5 |
-| `REQ-FWHUB-11` | `session_status` is built only by `np_safety_session_status_bits()` | `np_safety_spi.h` |
+| `REQ-FWHUB-11` | `session_status` is built only by `np_safety_session_status_bits()`, then `np_safety_session_status_with_seq()` (Rev 11) | `np_safety_spi.h` |
 | `REQ-FWHUB-12` | `abort_reason` is authoritative on the runner context, not the record | `np_session_runner.c` |
 | `REQ-FWHUB-13` | A field on neither classification list is UHDR | §6.2 |
 | `REQ-FWHUB-14` | No SHDR suppression is conditional on the event being suppressed | §6.3 |
@@ -1459,6 +1473,7 @@ this line.
 | `REQ-FWHUB-39` | **(Rev 9)** Every dispatched command is written to UHDR as a commanded-dose record (§6.1 `0x19`), refused commands marked refused. *Fails without it:* the device log cannot reconstruct what was commanded, so FMEA-M03-02's cross-check has no record to be audited against (`OI-FMEA-09` (a)) | `np_session_runner.c`, `np_log_command()`; `np_log_backend_tests` (layout, UHDR-only) |
 | `REQ-FWHUB-40` | **(Rev 9)** Session start makes an SHDR `SESSION_OPEN` marker and the UHDR start record durable before any command is dispatched. *Fails without it:* an unclean session end cannot be told from a clean one in a truncated log, and a reader infers state from an absence (CLAUDE.md §5.1; `OI-FMEA-09` (c)) | `np_log_session_start()`; `np_log_backend_tests` (synced before return, OPEN/END pairing) |
 | `REQ-FWHUB-41` | **(Rev 9)** Delivered BES/tACS or tDCS current exceeding commanded raises an SHDR divergence flag: once per channel per session, a flag with no magnitude or timestamp, and not raised by a ramp-down the driver is still running. *Fails without it:* FMEA-M03-02's residual score rests on a control that does not exist (`NP-FMEA-001` §3.3). The thresholds are placeholders and are not part of this requirement (§8.3.1) | `np_stim_xcheck.c`; `np_stim_xcheck_tests`, `np_mod_stim_tests` |
+| `REQ-FWHUB-42` | **(Rev 11)** Consecutive heartbeats never carry the same `session_status` sequence counter (bits 5–7): it advances on every frame built, including one whose transfer failed. *Fails without it:* the safety MCU's sequence gate (`NP-FMEA-001` FMEA-M02-03) rejects the repeat as a stuck buffer, so a retried frame stops resetting the watchdog and a live hub trips a 1.5 s all-channel cutoff. *Traceable to:* `NP-FMEA-001` FMEA-M02-03, OI-FMEA-12 (a); verified by `np_cvns_reenable_tests` (*seq:* checks) and by the counter increment in `np_safety_spi_heartbeat()` preceding the transfer | `np_safety_spi.c` |
 | `REQ-FWHUB-28` | **(Rev 7)** The wire format has a mechanical agreement check against `hubCompiler.ts`, falsified in both directions per `NP-CONV-001` §8. *Fails without it:* the two implementations agree only by inspection, and a length or offset drift surfaces on a device as `INVALID_ARG` | §4.6; `scripts/check-hub-wire-format.ts` (15 perturbation fixtures) |
 
 ### 10.2 Requirements the code does NOT currently meet
@@ -1632,6 +1647,7 @@ have absorbed.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 11 | 2026-09-25 | NeurOne Firmware Engineering | **Heartbeat sequence counter (`NP-FMEA-001` OI-FMEA-12 (a), principal decision 2026-09-25).** §7.1: `session_status` bits 5–7 carry a 3-bit counter the hub advances on every heartbeat (`np_safety_session_status_with_seq()`, `np_spi_wire_types.h` `NP_SESSION_STATUS_SEQ_*`); the safety MCU resets its watchdog only on a forward run of it. New `REQ-FWHUB-42`; `REQ-FWHUB-11` restated to name the second helper; §7.4's "bits 5–7 remain unused" corrected. Frame length and checksums are unchanged. Hub consequences stated in §7.1: first grant two beats later after a reset or a run restart, and four (not six) consecutive lost heartbeats tolerated. Verified by 4 new checks in `np_cvns_reenable_tests`, 2 mutations caught. |
 | 10 | 2026-09-25 | NeurOne Firmware Engineering | **Signal name corrected; nothing else changes (GitHub #437).** The References line cited `NP-HW-HUB-001` §7.2's active-low Class C cranial enable as `PBM_CRANIAL_EN`, without the `#` that `NP-CONV-001` §1.1 requires. It now reads `PBM_CRANIAL_EN#`. `NP-RISK-004` §2.2 cites the dropped `#` as evidence that two names differing only in `#` get confused, which is why its proposed name for the inverting-buffer output is `PBM_CRANIAL_PERMIT`. No requirement, figure or firmware changes. |
 | 9 | 2026-09-25 | NeurOne Firmware Engineering | **GitHub #386, `OI-FMEA-09` (a)–(c) built.** (a) UHDR `0x19` commanded-dose record per dispatched command (`REQ-FWHUB-39`). (b) **New §8.3.1**, `src/np_stim_xcheck.c`: the commanded-versus-delivered cross-check for BES/tACS and tDCS, with one SHDR flag `0xD1` per channel per session and the tDCS ramp-down held (`REQ-FWHUB-41`). (c) SHDR `0x86` `SESSION_OPEN`, synced with the UHDR start record before dispatch (`REQ-FWHUB-40`). New host target `np_stim_xcheck_tests` (Class B 35 → 36); `np_mod_stim_tests` +3, `np_log_backend_tests` +10 and two overflow cases rebased on the now-empty start buffer. Mutation-tested, nine single faults, each caught. **Not closed:** placeholder thresholds, the `OI-STIM-06` read is a stub, VNS/cVNS/T2 uncovered, flag-only (no cutoff). All four stay on `OI-FMEA-09` |
 | 8 | 2026-09-25 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-16`: accessories attached after boot are registered again (§2.2, §3.2, §10, §11, §13).** `task_module_detect` re-probed slots 7–18 through `np_mod_reg_rescan_zone()`, which refused any slot ≥ `NP_HUB_ZONE_SLOT_COUNT` (5), and it discarded the `INVALID_ARG`. Only the boot scan ever registered goggles, the auricular VNS clip, the intranasal probe, cervical VNS or a T2 unit. **Renamed `np_mod_reg_rescan_slot()`**, since it is no longer zone-specific. It accepts `NP_HUB_SLOT_FIRST_VALID`..`NP_HUB_SLOT_MAX − 1`, refuses the retired zone slots 0–4 without probing, and re-initialises only on a presence or type change (D-30). A failed `init()` is not retried until the module is re-seated. Widening the bound alone would have flooded SHDR: the intranasal and cervical VNS `init()` each write an auth record, and the poll runs every 500 ms. It would also have re-run ADS1299 self-calibration and zeroed both stimulation channels every poll. `task_module_detect` now probes only in `IDLE`/`COMPLETE`/`FAULT`, re-reads the state before each slot (D-31), and asserts it never receives `INVALID_ARG` again. `np_hub_zone_insert_cb()` is a documented no-op (`OI-FWHUB-18`). **New host target `np_module_registry_tests`** (Class B 34 → 35, repo total 44 → 45, re-derived with `ctest -N`): the production registry against per-slot driver doubles. **Falsified:** built against the Rev 7 registry with `-DRESCAN_FN=np_mod_reg_rescan_zone`, it fails 120 checks. `np_hub_control_main.c` and `np_module_registry.c` cross-compile for Cortex-M7 with `-Werror`. `REQ-FWHUB-38` added. **Named downside:** `REQ-FWHUB-03` held vacuously while every rescan was refused. It is now live and held only by a state check, so it moves to §10.2 as not fully met (`OI-FWHUB-17`, blocking hardware bring-up). `np_mod_reg_rescan_slot()` takes the slot only, matching Rev 7's removal of the SHDR callback from `np_mod_reg_scan()`. |

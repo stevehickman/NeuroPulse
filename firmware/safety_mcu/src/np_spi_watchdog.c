@@ -18,15 +18,69 @@
  * np_safety_hal.h.  The 1500 ms NP_SAFETY_WDG_TIMEOUT_MS below is in the same
  * unit by contract, not by coincidence.                                     */
 
+/* HAL: np_hal_tim2_now_us — TIM2's free-running 1 MHz count, the independent
+ * timebase the tick-liveness check compares SysTick against (OI-FMEA-12 (b)). */
+
 /* ── Module state ────────────────────────────────────────────────────────── */
 static uint32_t s_last_beat_ms  = 0U;
 static bool     s_watchdog_fired = false;
+
+/* Sequence gate (OI-FMEA-12 (a)): counter on the last well-formed heartbeat,
+ * and how many consecutive forward steps end at it. */
+static bool     s_seq_seen = false;
+static uint8_t  s_seq_last = 0U;
+static uint8_t  s_seq_run  = 0U;
+
+/* Tick liveness (OI-FMEA-12 (b)): both counters at the last comparison. */
+static uint32_t s_live_ref_ms = 0U;
+static uint32_t s_live_ref_us = 0U;
+static bool     s_tick_fault  = false;
 
 np_safe_status_t np_spi_watchdog_init(void)
 {
     s_last_beat_ms  = np_hal_get_tick_ms();
     s_watchdog_fired = false;
+    s_seq_seen = false;
+    s_seq_last = 0U;
+    s_seq_run  = 0U;
+    s_live_ref_ms = s_last_beat_ms;
+    s_live_ref_us = np_hal_tim2_now_us();
+    s_tick_fault  = false;
     return NP_SAFE_OK;
+}
+
+/*
+ * np_spi_watchdog_seq_accept — called for every heartbeat that passed magic
+ * and both checksums, with the 3-bit counter from its session_status byte.
+ * Returns true if the frame is live evidence of the hub: only then may the
+ * caller act on the frame's fields and call np_spi_watchdog_tick().
+ *
+ * NP-FMEA-001 FMEA-M02-03, OI-FMEA-12 (a).  A repeated counter (a stuck
+ * buffer) or a backward step restarts the run; a forward step of
+ * 1..NP_SAFETY_SEQ_MAX_STEP (up to two lost frames) extends it.  A frame is
+ * accepted once the run reaches NP_SAFETY_SEQ_RUN_MIN, which a two-buffer
+ * replay cannot build.  A replayed ring of three or more buffers with advancing
+ * counters is NOT distinguishable from a live hub by the counter alone.
+ */
+bool np_spi_watchdog_seq_accept(uint8_t seq)
+{
+    uint8_t step;
+
+    seq &= (uint8_t)(NP_HEARTBEAT_SEQ_MODULUS - 1U);
+    step = (uint8_t)((uint8_t)(seq - s_seq_last) &
+                     (uint8_t)(NP_HEARTBEAT_SEQ_MODULUS - 1U));
+
+    if (s_seq_seen && (step >= 1U) && (step <= NP_SAFETY_SEQ_MAX_STEP)) {
+        if (s_seq_run < NP_SAFETY_SEQ_RUN_MIN) {
+            s_seq_run++;
+        }
+    } else {
+        s_seq_run = 0U;
+    }
+    s_seq_seen = true;
+    s_seq_last = seq;
+
+    return s_seq_run >= NP_SAFETY_SEQ_RUN_MIN;
 }
 
 /*
@@ -105,4 +159,52 @@ void np_spi_watchdog_check(np_safety_state_t *state)
         state->granted_mask  = 0U;
         state->status       |= NP_SAFETY_STATUS_WATCHDOG | NP_SAFETY_STATUS_CUTOFF;
     }
+}
+
+/*
+ * np_spi_watchdog_tick_liveness — called every main-loop iteration.  Compares
+ * the SysTick millisecond count, which times the heartbeat watchdog, the
+ * cardiac lockout and the R-peak staleness cutoff, against TIM2's independent
+ * 1 MHz count.
+ *
+ * NP-FMEA-001 FMEA-M02-02, OI-FMEA-12 (b).  A stopped or slowed SysTick
+ * freezes np_hal_get_tick_ms(), so the heartbeat watchdog can never elapse,
+ * while the main loop keeps running and keeps refreshing the IWDG.  Once
+ * either counter has advanced NP_SAFETY_TICK_CHECK_MS, the two elapsed times
+ * must agree within NP_SAFETY_TICK_TOL_MS.  Otherwise an all-channel FAULT is
+ * latched.  The latch is held HERE and re-asserted on every call, not left to
+ * the status byte, because another module may later overwrite fault_slot and
+ * clear FAULT (np_session_sig_reenable() does so for a SIG_FAIL slot).  Only a
+ * reset clears it.  A stopped TIM2 with a live SysTick trips the same check.
+ */
+void np_spi_watchdog_tick_liveness(np_safety_state_t *state)
+{
+    uint32_t now_ms = np_hal_get_tick_ms();
+    uint32_t now_us = np_hal_tim2_now_us();
+    uint32_t d_ms   = now_ms - s_live_ref_ms;      /* unsigned wrap-around safe */
+    uint32_t d_us   = now_us - s_live_ref_us;
+    uint32_t us_ms  = d_us / 1000U;
+    uint32_t diff;
+
+    if (s_tick_fault) {
+        state->granted_mask = 0U;
+        state->status      |= NP_SAFETY_STATUS_FAULT | NP_SAFETY_STATUS_CUTOFF;
+        state->fault_slot   = NP_FAULT_SLOT_TICK;
+        return;
+    }
+
+    if ((d_ms < NP_SAFETY_TICK_CHECK_MS) && (us_ms < NP_SAFETY_TICK_CHECK_MS)) {
+        return;
+    }
+
+    diff = (d_ms > us_ms) ? (d_ms - us_ms) : (us_ms - d_ms);
+    if (diff > NP_SAFETY_TICK_TOL_MS) {
+        s_tick_fault        = true;
+        state->granted_mask = 0U;
+        state->status      |= NP_SAFETY_STATUS_FAULT | NP_SAFETY_STATUS_CUTOFF;
+        state->fault_slot   = NP_FAULT_SLOT_TICK;
+    }
+
+    s_live_ref_ms = now_ms;
+    s_live_ref_us = now_us;
 }

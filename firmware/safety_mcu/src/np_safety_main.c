@@ -14,7 +14,8 @@
  * Active-LOW open-drain: LOW = stimulation enabled; HIGH = disabled.
  * np_hal_gpio_init() + np_gpio_mgr_init() set all enables HIGH immediately.
  * Stimulation can only be enabled after:
- *   1. Valid heartbeat received with magic + checksum pass
+ *   1. Valid heartbeat received with magic + checksum pass, and its sequence
+ *      counter on a forward run (np_spi_watchdog_seq_accept, OI-FMEA-12 (a))
  *   2. Watchdog has not timed out (np_spi_watchdog_check passes)
  *   3. All active interlock checks pass for requested channels
  *   4. Session descriptor signature verified (if session_active bit set)
@@ -44,7 +45,9 @@ extern np_safe_status_t np_tier_identity_init(void);
 extern void np_spi_watchdog_tick(np_safety_state_t             *state,
                                  const np_safety_rx_ext_frame_t *rx,
                                  np_safety_tx_frame_t           *tx);
-extern void np_spi_watchdog_check(np_safety_state_t *state);   /* MUST call every loop */
+extern void np_spi_watchdog_check(np_safety_state_t *state);          /* MUST call every loop */
+extern bool np_spi_watchdog_seq_accept(uint8_t seq);
+extern void np_spi_watchdog_tick_liveness(np_safety_state_t *state);   /* MUST call every loop */
 extern void np_charge_monitor_accumulate(uint8_t channel, uint32_t current_ua, uint32_t dt_us);
 extern void np_charge_monitor_tick(np_safety_state_t *state);
 extern void np_charge_monitor_reset_session(np_safety_state_t *state);
@@ -67,6 +70,8 @@ extern void np_cardiac_interlock_nv_done(bool written);
 extern void np_cardiac_interlock_user_changed(np_safety_state_t *state, bool new_user_blocked);
 extern void np_impedance_check_request(uint16_t requested_mask);
 extern void np_impedance_check_poll(np_safety_state_t *state);
+extern void np_impedance_check_reset_session(void);
+extern void np_impedance_check_gate(np_safety_state_t *state);
 extern bool np_impedance_check_build_cvns_report(np_safety_imp_report_t *out);
 extern void np_session_sig_reset(np_safety_state_t *state);
 extern void np_session_sig_reenable(np_safety_state_t *state);
@@ -253,7 +258,8 @@ int main(void)
         memset(&tx, 0, sizeof(tx));
         tx.fault_slot = s_state.fault_slot;
 
-        bool valid_frame = false;
+        bool valid_frame = false;   /* well formed: magic + both checksums   */
+        bool live_frame  = false;   /* well formed AND sequence-accepted      */
         bool cvns_reenable_confirm = false;
 
         /* ── Session signature command frame (102 bytes) ─────────────────── */
@@ -302,6 +308,16 @@ int main(void)
                 ext_checksum_ok(&rx)) {
 
                 valid_frame = true;
+                /* OI-FMEA-12 (a), FMEA-M02-03: well formed is not new.  A
+                 * repeated or replayed frame is not acted on and does not
+                 * reset the watchdog.  It still counts toward charge below
+                 * (valid_frame), because over-counting is the safe direction. */
+                live_frame = np_spi_watchdog_seq_accept(
+                    (uint8_t)((rx.session_status & NP_SESSION_STATUS_SEQ_MASK)
+                              >> NP_SESSION_STATUS_SEQ_SHIFT));
+            }
+
+            if (live_frame) {
                 cvns_reenable_confirm =
                     (rx.session_status & NP_SESSION_STATUS_CVNS_REENABLE) != 0U;
 
@@ -326,17 +342,24 @@ int main(void)
                 /* Reset watchdog on valid heartbeat */
                 np_spi_watchdog_tick(&s_state, &rx, &tx);
             }
-            /* Invalid frame: watchdog continues counting; no enable granted */
+            /* Invalid or not-live frame: watchdog continues counting; no
+             * enable granted */
         }
 
         /* Watchdog timeout check — MUST run every iteration regardless of SPI */
         np_spi_watchdog_check(&s_state);
+
+        /* SysTick against TIM2 (OI-FMEA-12 (b), FMEA-M02-02): a frozen SysTick
+         * would blind the check above.  Every iteration, after the only grant
+         * (the tick above) and before the GPIO write. */
+        np_spi_watchdog_tick_liveness(&s_state);
 
         /* Detect session_active 0→1 transition: reset per-session state */
         if (s_state.session_active && !s_prev_session_active) {
             np_session_sig_reenable(&s_state);   /* clear prior sig fault if recoverable */
             np_session_sig_reset(&s_state);      /* sets NP_SAFETY_STATUS_SIG_PENDING */
             np_charge_monitor_reset_session(&s_state);
+            np_impedance_check_reset_session();  /* no pass carries over */
             np_impedance_check_request(s_state.requested_mask);
             s_bad_cmd_count = 0U;               /* reset corruption counter for new session */
         }
@@ -422,7 +445,7 @@ int main(void)
          * ACTIVE clear, but honoring re-enable only inside an active session
          * ensures a stale/teardown frame can never clear the Class C cardiac
          * latch outside a session. */
-        if (valid_frame && cvns_reenable_confirm && s_state.session_active &&
+        if (live_frame && cvns_reenable_confirm && s_state.session_active &&
             (s_state.status & NP_SAFETY_STATUS_CARDIAC) != 0U) {
             np_cardiac_interlock_reenable(&s_state);
             np_impedance_check_request(NP_SAFETY_EN_CVNS);
@@ -454,6 +477,12 @@ int main(void)
          * the accumulate loop, and for the same reason — an unmonitored channel
          * must not be an energised one.                                       */
         np_charge_monitor_decl_gate(&s_state);
+
+        /* Impedance gate (FMEA-M05-07, OI-FMEA-12 (d)): withhold every
+         * impedance-checked channel that has not passed this session, pending
+         * or failed.  Before the accumulate loop and the GPIO write, like the
+         * two gates above.                                                   */
+        np_impedance_check_gate(&s_state);
 
         /* SW01-M10 tier gate (REQ-UPG-01, OI-UPG-01): withhold every T2 enable
          * line unless this unit's signed tier identity is T2.  After the

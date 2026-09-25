@@ -525,6 +525,48 @@ static void test_session_status_bits(void)
           "bits: hub lockout matches MCU NP_CARDIAC_LOCKOUT_MS (30000)");
 }
 
+/* ── Tests: heartbeat sequence counter (NP-FMEA-001 OI-FMEA-12 (a)) ─────────── */
+
+static void test_session_status_seq(void)
+{
+    uint8_t seq;
+    int     ok = 1;
+
+    check(NP_SESSION_STATUS_SEQ_SHIFT == 5U && NP_SESSION_STATUS_SEQ_MASK == 0xE0U &&
+              NP_HEARTBEAT_SEQ_MODULUS == 8U,
+          "seq: counter is session_status bits 5-7, modulus 8 (wire contract)");
+
+    /* The flag helper never touches the counter's bits, for any input. */
+    {
+        int st;
+        unsigned f;
+        for (st = (int)NP_SESSION_IDLE; st <= (int)NP_SESSION_FAULT; st++) {
+            for (f = 0U; f < 16U; f++) {
+                uint8_t b = np_safety_session_status_bits((np_session_state_t)st,
+                                                          (f & 1U) != 0U, (f & 2U) != 0U,
+                                                          (f & 4U) != 0U, (f & 8U) != 0U);
+                if ((b & NP_SESSION_STATUS_SEQ_MASK) != 0U) { ok = 0; }
+            }
+        }
+        check(ok, "seq: np_safety_session_status_bits never sets bits 5-7");
+    }
+
+    /* The counter lands in bits 5-7 and keeps every flag bit. */
+    ok = 1;
+    for (seq = 0U; seq < 16U; seq++) {
+        uint8_t b = np_safety_session_status_with_seq(0x1FU, seq);
+        if ((b & 0x1FU) != 0x1FU) { ok = 0; }
+        if (((b & NP_SESSION_STATUS_SEQ_MASK) >> NP_SESSION_STATUS_SEQ_SHIFT) !=
+            (seq & 7U)) { ok = 0; }
+    }
+    check(ok, "seq: counter in bits 5-7 (mod 8), flag bits 0-4 preserved");
+
+    /* A stale counter in the input is replaced, not OR-merged. */
+    check(np_safety_session_status_with_seq((uint8_t)(0xE0U | NP_SESSION_STATUS_ACTIVE), 2U)
+              == (uint8_t)((2U << 5) | NP_SESSION_STATUS_ACTIVE),
+          "seq: an existing counter value is replaced, not OR-merged");
+}
+
 /* ── Main ───────────────────────────────────────────────────────────────────── */
 
 int main(void)
@@ -550,6 +592,7 @@ int main(void)
     test_confirmation_single_use();
     test_new_cutoff_during_impedance_restarts();
     test_session_status_bits();
+    test_session_status_seq();
 
     if (g_failures == 0) {
         printf("ALL TESTS PASSED\n");

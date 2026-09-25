@@ -251,9 +251,15 @@ void np_hal_spi_get_user(np_safety_user_cmd_t *cmd_out);
  * np_hal_tim2_get_capture()  The count latched at the most recent R-peak edge,
  *                            in microseconds.  Free-running, so it wraps; the
  *                            caller takes unsigned differences.
+ *
+ * np_hal_tim2_now_us()       The live count, in microseconds.  The independent
+ *                            timebase np_spi_watchdog_tick_liveness() checks
+ *                            np_hal_get_tick_ms() against (NP-FMEA-001
+ *                            OI-FMEA-12 (b)).  Same wrap rule.
  */
 void     np_hal_tim2_init(void);
 uint32_t np_hal_tim2_get_capture(void);
+uint32_t np_hal_tim2_now_us(void);
 
 /* ── R-peak edge flag ─────────────────────────────────────────────────────────
  *

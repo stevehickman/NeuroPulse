@@ -68,11 +68,23 @@
  * channel with no declared geometry: it was always checked against the 25 cm²
  * NP_ELECTRODE_AREA_CM2 fallback, which is ~24x permissive for a ≤1.02 cm²
  * T1-B lattice electrode.  Its own bit, for the same per-channel reason bit 3
- * is separate from bit 2.  Bits 5–7 remain unused.                          */
+ * is separate from bit 2.                                                   */
 #define NP_SESSION_STATUS_GEOM_REQ_BES   (1U << 4)  /* OI-MMSOCK-02: session needs a BES/tACS
                                                      * electrode-geometry declaration; safety
                                                      * MCU must not grant BES_TACS until a
                                                      * valid area command has been applied */
+
+/* NP-FMEA-001 OI-FMEA-12 (a), FMEA-M02-03: bits 5–7 carry a 3-bit heartbeat
+ * sequence counter.  The hub advances it by one on EVERY heartbeat it sends,
+ * including one whose transfer failed, so a retry is never a repeat.  Magic
+ * and checksums show a frame is well formed, not that it is new: a hung hub
+ * whose SPI keeps re-sending its last buffer would otherwise hold the 1.5 s
+ * watchdog off indefinitely.  The safety MCU resets the watchdog only on a
+ * forward run of the counter (np_spi_watchdog_seq_accept()).  The field sits
+ * inside the base checksum (bytes [0..5]), and the frame length is unchanged. */
+#define NP_SESSION_STATUS_SEQ_SHIFT      5U
+#define NP_SESSION_STATUS_SEQ_MASK       (7U << NP_SESSION_STATUS_SEQ_SHIFT)
+#define NP_HEARTBEAT_SEQ_MODULUS         8U
 
 /* ── Session signature command constants ────────────────────────────────── */
 
