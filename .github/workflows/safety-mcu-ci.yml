@@ -74,7 +74,7 @@ env:
   # must select.  The count assertion is the point: a silently-shrinking test
   # selection is the OI-SWCI-09 failure mode, and `ctest` exits 0 on a subset
   # just as happily as on the whole suite.
-  NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock|hal_platform|nv_state|tier_identity|tier_identity_nokey)_tests$'
+  NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock|hal_platform|nv_state|tier_identity|tier_identity_nokey|gpio_mgr)_tests$'
   # The count lives here and in the assertion step — and NOT in the `host-tests`
   # job `name:`, which is what a required status check matches on.  The job used
   # to be called "Safety MCU host tests (6 targets)".  A required context is an
@@ -99,7 +99,11 @@ env:
   # np_tier_identity_tests with a test authority key, and
   # np_tier_identity_nokey_tests with the all-zero placeholder the image ships
   # with, which a keyed build cannot exercise.
-  NP_SAFETY_TEST_COUNT: '10'
+  #
+  # NP-FMEA-001 OI-FMEA-11 moved this 10 → 11: np_gpio_mgr_tests, the first
+  # host coverage of np_gpio_mgr.c (the only writer of the ten enable lines)
+  # and of np_spi_watchdog_check()'s heartbeat-loss cutoff.
+  NP_SAFETY_TEST_COUNT: '11'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  Always runs, always

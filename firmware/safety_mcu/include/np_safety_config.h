@@ -25,9 +25,12 @@
  * host-test build must not pull an ARM CMSIS core header into an x86 compile.
  * That gate is exact rather than convenient: every macro guarded by it —
  * NP_EN_*_PORT, NP_RPEAK_IN_PORT, NP_CARDIAC_TIM, NP_NTC_ADC_INSTANCE,
- * NP_SAFETY_SPI_INSTANCE — is used in np_gpio_mgr.c alone, and np_gpio_mgr.c is
- * in no host-test target.  A host test that starts using one of them fails to
- * compile on the undeclared symbol, which is the loud outcome, not a silent one.
+ * NP_SAFETY_SPI_INSTANCE — is used in np_gpio_mgr.c alone.  A host test that
+ * starts using one of them fails to compile on the undeclared symbol, which is
+ * the loud outcome, not a silent one.  The one deliberate exception is
+ * np_gpio_mgr_tests (NP-FMEA-001 OI-FMEA-11), which force-includes
+ * tests/np_gpio_mgr_test_ports.h to give GPIOA/GPIOB opaque host addresses;
+ * that header #errors under STM32G071xx, so the cross build cannot see it.
  */
 #if defined(STM32G071xx)
 #  include "stm32g0xx.h"
