@@ -160,6 +160,11 @@ unsigned    np_log_test_close_count(np_log_part_t part);  /* HAL closes       */
 uint64_t    np_log_test_last_segment(np_log_part_t part); /* last opened id   */
 /* Bytes captured into the file opened `nth` (0-based) on `part`. */
 size_t      np_log_test_segment_len(np_log_part_t part, unsigned nth);
+/* OI-FWHUB-19: called before every medium append (sync = false) and every
+ * sync (true), so a test can check the logger lock is held there and play a
+ * preempting task at the point a real one would land.  NULL clears it. */
+typedef void (*np_log_test_io_hook_fn)(np_log_part_t part, bool sync);
+void        np_log_test_set_io_hook(np_log_test_io_hook_fn fn);
 #endif
 
 #endif /* NP_LOG_BACKEND_H */

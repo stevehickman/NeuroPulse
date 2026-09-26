@@ -250,6 +250,13 @@ typedef struct {
 static host_part_t h_uhdr;
 static host_part_t h_shdr;
 
+static np_log_test_io_hook_fn h_io_hook;   /* OI-FWHUB-19 */
+
+void np_log_test_set_io_hook(np_log_test_io_hook_fn fn)
+{
+    h_io_hook = fn;
+}
+
 static host_part_t *host_for(np_log_part_t p)
 {
     return (p == NP_LOG_PART_UHDR) ? &h_uhdr : &h_shdr;
@@ -292,6 +299,7 @@ np_hub_status_t np_log_hal_part_close(np_log_part_t part)
 np_hub_status_t np_log_hal_part_append(np_log_part_t part, const uint8_t *buf, size_t len)
 {
     host_part_t *h = host_for(part);
+    if (h_io_hook != NULL) { h_io_hook(part, false); }
     if (h->fail_next) {
         h->fail_next = false;
         return NP_HUB_ERR_GENERIC;
@@ -310,6 +318,7 @@ np_hub_status_t np_log_hal_part_append(np_log_part_t part, const uint8_t *buf, s
 np_hub_status_t np_log_hal_part_sync(np_log_part_t part)
 {
     host_part_t *h = host_for(part);
+    if (h_io_hook != NULL) { h_io_hook(part, true); }
     h->syncs++;
     h->synced_len = h->len;   /* a sync covers exactly what was appended before it */
     return NP_HUB_OK;

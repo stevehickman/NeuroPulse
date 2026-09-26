@@ -10,9 +10,11 @@
  * If the buffer fills during a session, the fault counter in SHDR increments
  * and the oldest unflushed event is overwritten (newest wins).
  *
- * NOT single-context as linked: the ring is drained both by np_log_session_end()
- * in the runner task and by np_log_flush() in task_telemetry, with no lock.
- * (Nothing queues an event yet.)  NP-FW-HUB-001 OI-FWHUB-19.
+ * Shared by more than one task: the ring is drained both by np_log_session_end()
+ * in the runner task and by np_log_flush() in task_telemetry.  Every function
+ * here therefore runs under the session logger's recursive lock
+ * (np_log_lock(), OI-FWHUB-19, NP-FW-HUB-001 §6.7).  (Nothing queues an event
+ * yet.)
  */
 
 #include "np_session_log.h"   /* pulls in np_adaptation_log.h transitively */
@@ -34,6 +36,7 @@ bool np_adapt_log_event(const np_adaptation_event_t *event)
 {
     if (event == NULL) { return false; }
 
+    np_log_lock();
     uint32_t next = (s_write + 1U) & NP_ADAPT_LOG_MASK;
     if (next == s_read) {
         /* Buffer full — advance read pointer (lose oldest), count overrun. */
@@ -43,20 +46,26 @@ bool np_adapt_log_event(const np_adaptation_event_t *event)
 
     s_ring[s_write] = *event;
     s_write = next;
-    return (s_overrun_count == 0U);
+    bool ok = (s_overrun_count == 0U);
+    np_log_unlock();
+    return ok;
 }
 
 void np_adapt_log_flush(void)
 {
+    np_log_lock();
     while (s_read != s_write) {
         np_log_adapt_event(&s_ring[s_read]);
         s_read = (s_read + 1U) & NP_ADAPT_LOG_MASK;
     }
+    np_log_unlock();
 }
 
 void np_adapt_log_reset(void)
 {
+    np_log_lock();
     s_write = 0U;
     s_read  = 0U;
     s_overrun_count = 0U;
+    np_log_unlock();
 }

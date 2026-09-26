@@ -160,9 +160,30 @@ void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass);
 /*
  * np_log_shdr_fault — write a module fault event to SHDR.
  * Contains only device-condition data: no HR, no EEG values.
+ *
+ * NEVER BLOCKS (OI-FWHUB-19).  The safety heartbeat calls this, so it does not
+ * take the logger lock.  It copies the record into a queue of
+ * NP_LOG_FAULT_QUEUE_MAX entries under the critical section set with
+ * np_log_set_fault_crit(), stamped with the session count in force now, and
+ * the next logger call to take the lock writes it to s_shdr_buf.  The SHDR
+ * record layout is unchanged.  A full queue keeps what it holds and counts the
+ * newer faults it could not take (np_log_shdr_fault_dropped()).
  */
+#define NP_LOG_FAULT_QUEUE_MAX  32U
+
 void np_log_shdr_fault(uint8_t slot, np_hub_mod_type_t type,
                         uint8_t fault_code, uint32_t session_ms);
+
+/* Faults refused by a full queue since np_log_init().  Not written to SHDR. */
+uint32_t np_log_shdr_fault_dropped(void);
+
+/* The fault queue's critical section.  On target it masks the kernel-aware
+ * interrupts (portSET_INTERRUPT_MASK_FROM_ISR), which is legal from a task or
+ * from an ISR at or below configMAX_SYSCALL_INTERRUPT_PRIORITY.  NULL (the
+ * default, and host) masks nothing. */
+typedef uint32_t (*np_log_crit_enter_fn)(void);
+typedef void     (*np_log_crit_exit_fn)(uint32_t saved);
+void np_log_set_fault_crit(np_log_crit_enter_fn enter, np_log_crit_exit_fn exit_fn);
 
 /*
  * np_log_adapt_event — write one closed-loop adaptation event to UHDR.
@@ -177,6 +198,26 @@ void np_log_adapt_event(const np_adaptation_event_t *event);
  * Called on session end and periodically by the hub control task.
  */
 void np_log_flush(void);
+
+/*
+ * THE LOGGER LOCK (OI-FWHUB-19, NP-FW-HUB-001 §6.7).  Four tasks call the
+ * logger: the runner (records, session boundaries), task_telemetry (the
+ * periodic flush), task_module_detect (accessory auth records) and the safety
+ * heartbeat (cVNS fault records).  Every entry point above except
+ * np_log_session_count(), the np_log_set_*() hooks and np_log_shdr_fault()
+ * holds this lock for its whole body, and so do the adaptation ring's
+ * functions.  It must be RECURSIVE: np_log_flush() drains the ring, which
+ * writes each event through np_log_adapt_event().  On target it is a FreeRTOS
+ * recursive mutex, installed by np_hub_control_app_main() before the scheduler
+ * starts; NULL (the default, and host) locks nothing.  Never take it from an
+ * ISR, and never from task_safety_heartbeat: the holder can be inside an eMMC
+ * sync (REQ-FWHUB-02).  np_log_lock() / np_log_unlock() are for
+ * np_adaptation_log.c.
+ */
+typedef void (*np_log_lock_fn)(void);
+void np_log_set_lock(np_log_lock_fn lock, np_log_lock_fn unlock);
+void np_log_lock(void);
+void np_log_unlock(void);
 
 /* ── HAL stubs (OI-LOG-01 through OI-LOG-04) ─────────────────────────────────── */
 

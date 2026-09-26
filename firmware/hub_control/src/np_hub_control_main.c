@@ -27,8 +27,9 @@
  *     would backpressure for the session's duration rather than for the handoff.
  *
  *   task_telemetry  (prio 2 — NORMAL)
- *     Calls np_log_flush() on NP_LOG_UHDR_FLUSH_MS / NP_LOG_SHDR_FLUSH_MS
- *     intervals to ensure eMMC write-through without blocking the runner.
+ *     Calls np_log_flush() every NP_LOG_UHDR_FLUSH_MS to ensure eMMC
+ *     write-through.  It holds the logger lock across the sync, so a runner
+ *     record logged meanwhile waits for it (OI-FWHUB-19); the heartbeat does not.
  *
  *   task_module_detect  (prio 1 — LOW)
  *     Polls the accessory slots for insertion/removal while no session holds
@@ -64,6 +65,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "event_groups.h"
+#include "semphr.h"
 #include <string.h>
 
 #include "np_sw02_platform_hal.h"
@@ -118,6 +120,34 @@ static bool log_in_isr(void)
     bool in_isr = (xPortIsInsideInterrupt() != pdFALSE);
     configASSERT(!in_isr);
     return in_isr;
+}
+
+/* OI-FWHUB-19: the session logger's lock and its fault queue's critical
+ * section (np_session_log.h).  Recursive, because np_log_flush() drains the
+ * adaptation ring through np_log_adapt_event().  A mutex, so a runner waiting
+ * on task_telemetry's sync lends it its priority.  The heartbeat never takes
+ * it: its SHDR faults go through the queue, whose critical section only raises
+ * BASEPRI for a few stores. */
+static SemaphoreHandle_t s_log_mutex;
+
+static void log_lock(void)
+{
+    (void)xSemaphoreTakeRecursive(s_log_mutex, portMAX_DELAY);
+}
+
+static void log_unlock(void)
+{
+    (void)xSemaphoreGiveRecursive(s_log_mutex);
+}
+
+static uint32_t log_crit_enter(void)
+{
+    return (uint32_t)portSET_INTERRUPT_MASK_FROM_ISR();
+}
+
+static void log_crit_exit(uint32_t saved)
+{
+    portCLEAR_INTERRUPT_MASK_FROM_ISR(saved);
 }
 
 /* ── task_safety_heartbeat ────────────────────────────────────────────────────── */
@@ -519,6 +549,15 @@ void np_hub_control_app_main(void)
 
     np_mod_reg_init();
     np_mod_reg_scan();
+
+    /* OI-FWHUB-19: the logger lock goes in after the scan and before the first
+     * task is created.  Everything above runs in one context, and a recursive
+     * mutex taken before the scheduler has a current task would compare its
+     * NULL holder with a NULL current task and count a recursion it never took. */
+    s_log_mutex = xSemaphoreCreateRecursiveMutex();
+    configASSERT(s_log_mutex != NULL);
+    np_log_set_fault_crit(log_crit_enter, log_crit_exit);
+    np_log_set_lock(log_lock, log_unlock);
 
     g_hub_events = xEventGroupCreate();
     configASSERT(g_hub_events != NULL);

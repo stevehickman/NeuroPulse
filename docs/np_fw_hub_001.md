@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 13
+**Revision:** 14
 **Date:** 2026-09-26
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -16,6 +16,24 @@
 **Parent Document:** `NP-SW-001`
 
 ---
+
+> **Rev 14 (2026-09-26) — the session logger has a lock, and the heartbeat never waits on it
+> (#384, `OI-FWHUB-19` closed; new §6.7).**
+> - **Every logger entry point holds one recursive lock** (`np_log_set_lock()`; a FreeRTOS
+>   recursive mutex on target), and so do the adaptation ring's functions. A runner record can no
+>   longer land inside `task_telemetry`'s drain, and a detect-task auth record can no longer tear an
+>   SHDR record under construction (`REQ-FWHUB-44`).
+> - **`np_log_shdr_fault()` never takes that lock** (`REQ-FWHUB-45`). The heartbeat calls it, and
+>   the holder can be inside an eMMC sync. It copies the record into a 32-entry queue under a
+>   critical section a few stores long, and the next caller to take the lock writes it. The SHDR
+>   record layout is unchanged. A full queue keeps the faults it holds and counts the rest.
+> - **What this costs.** The runner now waits for `task_telemetry`'s periodic sync when it logs
+>   during one (priority inheritance lifts telemetry for the wait). It already waited for its own
+>   syncs on buffer overflow. §2.2's "the runner never blocks on eMMC" was never true, and it is
+>   corrected.
+> - **Not closed here:** the heartbeat's worst case is still unmeasured (`FWHUB-DRC-02`, hardware).
+>   The lock is not in any host test's scheduler, so what the host tests show is that the lock is
+>   *held* at every entry and every medium operation, not that FreeRTOS enforces it.
 
 > **Rev 12 (2026-09-26) — module detection is kept off a session by exclusion, the EEG logger path
 > refuses an ISR caller, and the dead zone-announce hooks are gone (#384).**
@@ -305,7 +323,7 @@ comment a reader starts from is cheap to make and invisible to every other check
 | `task_safety_heartbeat` | 4 (`NP_HUB_TASK_PRIO_HEARTBEAT`) | 256 | one SPI heartbeat every `NP_SAFETY_HEARTBEAT_MS` (200 ms); mirrors the cVNS re-enable bit; hands the granted mask, MCU status and MCU impedance report to `np_mod_cvns`; posts `NP_EV_SAFETY_FAULT` on a fault reply |
 | `task_hub_control` | 3 (`..._PRIO_CONTROL`) | 1024 | waits on `NP_EV_SESSION_START`, then `np_runner_run()` until the session completes or aborts |
 | `task_protocol_rx` | 2 (`..._PRIO_CONTROL - 1`) | 1024 | blocks in `np_hal_proto_queue_receive()` on `portMAX_DELAY`; on a blob calls `np_runner_load()` (which verifies the signature and posts `NP_EV_SESSION_START`), then **zeroes the receive buffer** so no plaintext protocol is left in RAM |
-| `task_telemetry` | 2 | 512 | `np_log_flush()` on the `NP_LOG_UHDR_FLUSH_MS` / `NP_LOG_SHDR_FLUSH_MS` intervals, so the runner never blocks on eMMC |
+| `task_telemetry` | 2 | 512 | `np_log_flush()` every `NP_LOG_UHDR_FLUSH_MS` (30 s), under the logger lock (§6.7). **(Rev 14.** This row said "so the runner never blocks on eMMC". It does: on its own buffer overflows, and now on this task's sync when it logs during one. `NP_LOG_SHDR_FLUSH_MS` is defined and not used by any task.) |
 | `task_module_detect` | 1 | 512 | every `NP_DETECT_ACCESSORY_POLL_MS` (500 ms), re-probes accessory slots 7–18 with `np_mod_reg_rescan_slot()` (§3.2) while the runner is `IDLE`, `COMPLETE` or `FAULT`. The state is re-read before each slot, and the pass stops as soon as a session is in flight. **(Rev 8.** It used to skip only `RUNNING`, and every rescan it issued was refused: `OI-FWHUB-16`.) |
 
 Receiving and running are **separate tasks on purpose**: `np_runner_run()` blocks for the whole
@@ -1126,6 +1144,71 @@ far below this limit, and a new locale key needs all eleven locales (CLAUDE.md �
 ever legitimately runs near 49 hours, that key becomes worth adding, and this section is where its
 figure comes from.
 
+### 6.7 Concurrency — the logger lock and the fault queue *(Rev 14, `OI-FWHUB-19`)*
+
+**Who calls the logger.** Four tasks, on the linked image:
+
+| Task | Priority | Logger calls |
+|---|---|---|
+| `task_safety_heartbeat` | 4 | `np_log_shdr_fault()` through `log_cvns_event()` |
+| `task_hub_control` (runner) | 3 | session start and end, `np_log_command()`, `np_log_telemetry()`, `np_log_shdr_fault()` (and module drivers' faults), `np_log_flush()` |
+| `task_telemetry` | 2 | `np_log_flush()` every 30 s |
+| `task_module_detect` | 1 | `np_log_shdr_zone_auth()` through accessory `init()` |
+
+The EEG drain task (§8.2) will be a fifth when the DMA driver exists (`OI-EEG-03`).
+
+**The rule.** Every entry point that touches logger state holds **one recursive lock** for its
+whole body: `np_log_session_start()`, `_session_end()`, `_command()`, `_telemetry()`,
+`_eeg_sample_block()`, `_shdr_zone_auth()`, `_adapt_event()`, `_flush()` and `_init()`. So do
+`np_adapt_log_event()`, `_flush()` and `_reset()`. The lock must be recursive, because
+`np_log_flush()` drains the adaptation ring and the ring writes each event through
+`np_log_adapt_event()`. On target it is a FreeRTOS recursive mutex. It is installed by
+`np_hub_control_app_main()` after the registry scan and before the first `xTaskCreate()`. Bring-up
+is single-context, and a recursive mutex taken before the scheduler has a current task would see a
+NULL holder equal to a NULL current task. `np_log_eeg_sample_block()` makes its ISR check before it
+takes the lock, because a mutex cannot be taken from an interrupt (`REQ-FWHUB-43`).
+
+**The exception: SHDR faults.** The heartbeat must never block beyond one period
+(`REQ-FWHUB-02`), and the lock's holder can be inside an eMMC sync. `np_log_session_start()` alone
+syncs twice and can probe up to `NP_LOG_SESSION_PROBE_MAX` file names. So `np_log_shdr_fault()`
+never takes the lock, for any caller. It stamps the record with the session count in force and
+copies it into a queue of `NP_LOG_FAULT_QUEUE_MAX` (32) entries. The copy runs under a critical
+section that raises BASEPRI (`portSET_INTERRUPT_MASK_FROM_ISR`) for a few stores. That is legal from
+a task or from an ISR at or below `configMAX_SYSCALL_INTERRUPT_PRIORITY`. The **outermost** take of
+the lock moves the queue into `s_shdr_buf`, in order. So queued faults are written at the runner's
+tick rate during a session, ahead of the record the taker is about to write. In particular they are
+written before `SESSION_END` for the session they were logged in. Idle, they are written by the next
+periodic flush.
+
+**What changes in SHDR.** The record layout does not change. A fault record can now follow an SHDR
+record that was logged after it, within one drain. SHDR records carry the session count and no
+timestamp (§6.3), so no reader could order records within a session anyway. A fault still precedes
+its session's `SESSION_END`, which is the ordering `REQ-FWHUB-40`'s OPEN/END pairing depends on.
+
+**A full queue** keeps the faults it holds and counts the newer ones it refuses
+(`np_log_shdr_fault_dropped()`, cleared by `np_log_init()`). The first fault of a burst is the
+diagnostic one. The refused count is **not** written to SHDR, because that would be a new SHDR
+field and would need classifying under CLAUDE.md §5.1 first. The queue does not fill in practice:
+the heartbeat logs cVNS re-enable *transitions*, a handful per cutoff under a 30 s lockout, and the
+runner drains the queue every tick.
+
+**What it costs the runner.** A runner record logged during `task_telemetry`'s sync waits for that
+sync. Priority inheritance lifts telemetry to 3 for the wait. The runner already waited for its own
+syncs on a 4 KiB overflow, so this adds a wait of the same kind, once per 30 s. Stimulation safety
+does not depend on the runner's tick: the safety MCU owns every enable line (CLAUDE.md §4.2).
+
+**Verified on the host** by `np_log_backend_tests`, with a counting stub lock and an I/O hook in
+the backend's host model. Each entry above takes the lock and releases it balanced.
+`np_log_shdr_fault()` takes it zero times. No eMMC append or sync runs with it free. A fault
+injected at the point a heartbeat would preempt `task_telemetry`'s UHDR sync neither takes the lock
+nor touches the SHDR stream, and the next holder writes it once, with the count it was logged
+under. A fault queued in a session precedes that session's `SESSION_END`. A full queue keeps the
+oldest 32 faults in order and counts 8 drops of 40. **Falsified:** seven mutants each fail it: the
+command record unlocked, the flush unlocked, the ring's producer unlocked, a fault that takes the
+lock, a fault written straight into the buffer, a take that does not drain the queue, and a full
+queue that overwrites its oldest entry. **Not verified:** that FreeRTOS enforces the lock (no host
+test runs the tasks), and the heartbeat's worst case on hardware (`FWHUB-DRC-02`).
+
 ## 7. Safety MCU interface
 
 The hub is always SPI master; the STM32G071 is slave. Two frame types.
@@ -1277,7 +1360,8 @@ touching any of them. The ISR check is the hook set by `np_log_set_isr_check()`.
 silently dropping a block. `np_log_backend_tests` pins the refusal. **Not built:** the queue and
 the task that drains it. They wait on the DMA driver (`OI-EEG-03`), and no call site exists. The
 queue must be deep enough to absorb the drain task waiting on a UHDR sync. **The task side is not
-single-context either** (`OI-FWHUB-19`), so the drain task inherits that item. This driver handles
+single-context either** (`OI-FWHUB-19`, closed in Rev 14): the drain task takes the logger lock
+like every other caller (§6.7). This driver handles
 configuration, impedance reads and band-power computation for adaptive feedback.
 
 Self-calibration at session start routes the ADS1299 internal reference to all channels for one
@@ -1519,6 +1603,8 @@ this line.
 | `REQ-FWHUB-41` | **(Rev 9)** Delivered BES/tACS or tDCS current exceeding commanded raises an SHDR divergence flag: once per channel per session, a flag with no magnitude or timestamp, and not raised by a ramp-down the driver is still running. *Fails without it:* FMEA-M03-02's residual score rests on a control that does not exist (`NP-FMEA-001` §3.3). The thresholds are placeholders and are not part of this requirement (§8.3.1) | `np_stim_xcheck.c`; `np_stim_xcheck_tests`, `np_mod_stim_tests` |
 | `REQ-FWHUB-42` | **(Rev 11)** Consecutive heartbeats never carry the same `session_status` sequence counter (bits 5–7): it advances on every frame built, including one whose transfer failed. *Fails without it:* the safety MCU's sequence gate (`NP-FMEA-001` FMEA-M02-03) rejects the repeat as a stuck buffer, so a retried frame stops resetting the watchdog and a live hub trips a 1.5 s all-channel cutoff. *Traceable to:* `NP-FMEA-001` FMEA-M02-03, OI-FMEA-12 (a); verified by `np_cvns_reenable_tests` (*seq:* checks) and by the counter increment in `np_safety_spi_heartbeat()` preceding the transfer | `np_safety_spi.c` |
 | `REQ-FWHUB-43` | **(Rev 12)** `np_log_eeg_sample_block()` called from an ISR is refused before it touches the adaptation ring, `s_uhdr_buf` or the backend staging. *Fails without it:* a block landing during a task's `uhdr_write()` corrupts the UHDR record under construction, and the session file is no longer parseable past it (§6.5). Traceable to §6.5's ordering argument, which holds only for callers that cannot interrupt one another | §8.2; `np_log_backend_tests` |
+| `REQ-FWHUB-44` | **(Rev 14)** Every session-logger and adaptation-ring entry point that touches logger state holds the logger lock for its whole body, and every eMMC append and sync runs under it. *Fails without it:* `task_hub_control` preempts `task_telemetry` mid-drain and writes `s_uhdr_buf` / `s_uhdr_pos` under it, tearing a UHDR record or losing buffered bytes, and the session file is not parseable past the tear (§6.5's ordering argument holds only for callers that cannot interleave). Traceable to §6.5 and to `OI-FWHUB-19`'s four-task census (§6.7) | §6.7; `np_log_backend_tests` |
+| `REQ-FWHUB-45` | **(Rev 14)** `np_log_shdr_fault()` never takes the logger lock. It queues the record under a critical section and returns. The next lock holder writes it, before the `SESSION_END` of the session it was logged in. *Fails without it:* the heartbeat waits behind an eMMC sync, and a wait past `NP_SAFETY_WATCHDOG_MS` makes the safety MCU cut every channel (`REQ-FWHUB-02`). A fault written after `SESSION_END` would read as belonging to no session (`REQ-FWHUB-40`) | §6.7; `np_log_backend_tests` |
 | `REQ-FWHUB-28` | **(Rev 7)** The wire format has a mechanical agreement check against `hubCompiler.ts`, falsified in both directions per `NP-CONV-001` §8. *Fails without it:* the two implementations agree only by inspection, and a length or offset drift surfaces on a device as `INVALID_ARG` | §4.6; `scripts/check-hub-wire-format.ts` (15 perturbation fixtures) |
 
 ### 10.2 Requirements the code does NOT currently meet
@@ -1588,6 +1674,7 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | D-31 | **(Rev 8)** Detection runs only in `IDLE`, `COMPLETE` and `FAULT`, and re-reads the state before each slot — not only outside `RUNNING`. **Superseded by D-32 (Rev 12)** | §2.2 |
 | D-32 | **(Rev 12)** Detection and the session exclude each other through a lease claimed at load and released at session end, with the lock held across each single-slot probe. A mutex, not a binary semaphore, so the waiting loader lends its priority to the probe | §2.2 |
 | D-33 | **(Rev 12)** The EEG DMA ISR hands blocks to a task through a queue and never calls the logger. The alternative, an ISR-safe logger lock, would mean a critical section around a path that appends to eMMC staging | §8.2 |
+| D-34 | **(Rev 14)** One recursive logger mutex for every task, plus a critical-section fault queue that the heartbeat uses instead of the mutex. Rejected: moving the periodic flush into the runner, which removes one of four callers and leaves the heartbeat and detect tasks racing; and a queue for every record, which copies the 12 KB/s EEG path | §6.7 |
 
 ---
 
@@ -1610,6 +1697,7 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | `RISK-FWHUB-11` | Boot-time module authentication is not evidenced in fleet telemetry | Low | **was unmitigated — the records were discarded.** Fixed 2026-09-14 (§2.1) and held by `scripts/check-hub-bringup-order.ts`, falsified against the pre-fix commit | Accepted; records-integrity only, no emission path |
 | `RISK-FWHUB-10` | Per-tile PBM drive magnitude bounded only by a thermal cutoff | Medium | carried, not closed — `OI-NVRAM-10`; re-derive §9 before a differing tile variant ships. **2026-09-24: control decided** — a hardware peak-current reference and gate-duty limit per tile channel (`NP-HW-HEXTILE-001` D-9, `REQ-TDRV-01`/`-02`, `NP-SOUP-LFS-001` §13.14). This row closes when `OI-HEXTILE-24` verifies them on hardware | **Open** (control decided, not built) |
 | `RISK-FWHUB-15` | **(Rev 3)** A fixed electrode area (VNS 0.5 cm², cervical VNS 2 cm², BES 25 cm²) is computed and not sent, so the Class C per-phase ceiling is enforced against the 25 cm² fallback | Medium — **was live** in every session without HD-tDCS or tDCS; no rated dose reached even the intended ceiling (VNS ~3 %) | **Fixed in Rev 3**: every computed area is sent (`REQ-FWHUB-37`), held by `np_chan_decl_tests`, falsified against the old rule | Accepted |
+| `RISK-FWHUB-17` | **(Rev 14)** An SHDR fault record is lost because the fault queue was full | Low — records-integrity only; the fault's interlock acted regardless | 32-entry queue drained on every lock take (§6.7); the oldest faults are kept; refusals counted by `np_log_shdr_fault_dropped()` | Accepted. The count is not in SHDR (a new SHDR field, CLAUDE.md §5.1) |
 | `RISK-FWHUB-16` | **(Rev 3)** BES/tACS reaches an electrode smaller than 25 cm² and is enforced against the fallback | High | **not reachable** — tES is not socket-addressable (`REQ-FWHUB-33`); own geometry gate, fail-closed (`REQ-FWHUB-36`); a lattice electrode's area arrives with a tES socket target (`NP-FW-MMSOCK-001` P-2) | Accepted pending SW-01 review |
 
 ---
@@ -1629,7 +1717,7 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | ~~**`OI-FWHUB-16`**~~ | ✅ **CLOSED 2026-09-24 (Rev 8)** — `np_mod_reg_rescan_slot()` accepts slots 5–18 and re-initialises only on a change (§3.2, D-30); pinned by `np_module_registry_tests`, which fails 120 checks against the old registry. *Was:* **no accessory attached after boot was ever registered.** `task_module_detect` looped slots 7–18 through `np_mod_reg_rescan_zone()`, which returned `INVALID_ARG` for any slot ≥ 5, and discarded the return. Only the boot scan saw goggles, the VNS clip, the intranasal probe, cervical VNS or a T2 unit. Nothing caught it because the registry had no host test and the caller is ARM-only | — (closed) | — |
 | ~~**`OI-FWHUB-17`**~~ | ✅ **CLOSED 2026-09-26 (Rev 12)** — the session lease (§2.2, D-32): claimed by `np_runner_load()`, released at session end, and its lock held across each single-slot rescan. `REQ-FWHUB-03` is met by exclusion. Pinned by `np_session_lease_tests`, which each of four mutants fails. *Was:* Detection is kept off a session by a state check, not by exclusion (`REQ-FWHUB-03`). `task_module_detect` is the lowest priority. A session can start between its state read and a `detect()`, and the registry entry it rewrites is read by `task_hub_control` without a lock. Rev 8 re-reads the state per slot and orders the entry writes so a reader sees `NULL` rather than a torn entry, which narrows the window to one probe. Close it with a lock the runner holds from `np_runner_load()` to session end, which the detect task takes around each rescan. Dormant until Rev 8, because every accessory rescan was refused | FW | — |
 | ~~**`OI-FWHUB-18`**~~ | ✅ **CLOSED 2026-09-26 (Rev 12)** — both hooks deleted from `np_hub_control_main.c`; absent from the linked `np_application.elf`. *Was:* The retired zone-announce hooks are dead code. `np_hub_zone_insert_cb()` / `np_hub_zone_remove_cb()` have no caller (`np_za_init()` is never called by the hub) and no declaration. Rev 8 made the insert hook a documented no-op instead of letting it call a rescan that now refuses slots 0–4. Delete both with the `firmware/zone_announce/` ZONE_ID path, or wire them to the socket lattice if that path returns | FW | — |
-| **`OI-FWHUB-19`** | **The session logger is shared by four tasks without a lock.** `np_session_log.c` and the adaptation ring assume one context (§6.5), and until Rev 12 `np_adaptation_log.c` said "runner task only. No mutex required". The linked image calls them from four tasks. `task_telemetry` (prio 2) runs `np_log_flush()`, which drains the ring and `s_uhdr_buf`. `task_hub_control` (prio 3) can preempt it mid-drain with `np_log_command()` / `np_log_telemetry()`, which write `s_uhdr_buf` and `s_uhdr_pos` under it. `task_safety_heartbeat` (prio 4) writes SHDR through `log_cvns_event()` → `np_log_shdr_fault()`. `task_module_detect` writes SHDR auth records through accessory `init()`, and the session lease keeps it off a session but not off the flush. Any interleaving can tear a record or lose buffered bytes. **A logger mutex is the obvious fix and not a free one.** The heartbeat must never block beyond one period (`REQ-FWHUB-02`), and a mutex would put it behind an eMMC sync. `np_log_session_start()` alone can sync twice and probe up to `NP_LOG_SESSION_PROBE_MAX` file names. Decide between a mutex plus an SHDR event queue for the heartbeat, moving the periodic flush into the runner's context, or another scheme. Then measure the heartbeat's worst case (`FWHUB-DRC-02`). The EEG drain task (§8.2) inherits this | FW | **Hardware bring-up** — before a session writes a UHDR file that is read back |
+| ~~**`OI-FWHUB-19`**~~ | ✅ **CLOSED 2026-09-26 (Rev 14, D-34).** Every logger and adaptation-ring entry point holds one recursive lock (`REQ-FWHUB-44`). `np_log_shdr_fault()` never takes it: it queues the record under a critical section, and the next lock holder writes it (`REQ-FWHUB-45`, §6.7). Pinned by `np_log_backend_tests`, falsified by seven mutants. **Still open elsewhere:** the heartbeat's worst case on hardware is `FWHUB-DRC-02`. *Was:* The session logger is shared by four tasks without a lock. `np_session_log.c` and the adaptation ring assume one context (§6.5), and until Rev 12 `np_adaptation_log.c` said "runner task only. No mutex required". The linked image calls them from four tasks. `task_telemetry` (prio 2) runs `np_log_flush()`, which drains the ring and `s_uhdr_buf`. `task_hub_control` (prio 3) can preempt it mid-drain with `np_log_command()` / `np_log_telemetry()`, which write `s_uhdr_buf` and `s_uhdr_pos` under it. `task_safety_heartbeat` (prio 4) writes SHDR through `log_cvns_event()` → `np_log_shdr_fault()`. `task_module_detect` writes SHDR auth records through accessory `init()`, and the session lease keeps it off a session but not off the flush. Any interleaving can tear a record or lose buffered bytes. **A logger mutex is the obvious fix and not a free one.** The heartbeat must never block beyond one period (`REQ-FWHUB-02`), and a mutex would put it behind an eMMC sync. `np_log_session_start()` alone can sync twice and probe up to `NP_LOG_SESSION_PROBE_MAX` file names. Decide between a mutex plus an SHDR event queue for the heartbeat, moving the periodic flush into the runner's context, or another scheme. Then measure the heartbeat's worst case (`FWHUB-DRC-02`). The EEG drain task (§8.2) inherits this | — (closed) | — |
 | ~~`OI-FWHUB-02`~~ | ✅ **CLOSED 2026-09-13 in the same change.** Three files cited `NP-FW-HUB-001 Rev 2` against a document with no Rev 1. Re-pointed to Rev 1 §8.9 and §6.4 | FW | — |
 | ~~**`OI-FWHUB-03`**~~ | ✅ **CLOSED 2026-09-25 (Rev 7).** *Was:* no mechanical agreement check between §4 and `hubCompiler.ts`. **§4.6** now tabulates the per-modality blocks. **`scripts/check-hub-wire-format.ts`** diffs §4's constants and table, the `np_hub_config.h`/`np_hub_types.h` defines, enums and packed-struct layouts, and **the compiler's own output**, which it runs for all 16 modality encodings and decodes at the firmware's field offsets. Falsified on 15 single-corner perturbations (a field reordered, a struct grown or unpacked, a table byte count, a compiler buffer one byte long, a stale compiler version, and so on). The self-test passes an unperturbed copy first. Wired as `tooling-ci.yml:hub-wire-format` (`REQ-FWHUB-28`) | — (closed) | — |
 | ~~**`OI-FWHUB-04`**~~ | ✅ **CLOSED 2026-09-25 (Rev 7) — reordered, by Rev 5.** *Was:* on overflow, `uhdr_write()`/`shdr_write()` flushed *before* appending the full buffer, so the sync covered none of it. **Fixed in Rev 5 (#425):** every path now appends and then syncs through `uhdr_drain()`/`shdr_drain()`, and `np_log_backend_tests` covers it (§6.5). Rev 5 left this row open, so Rev 7 records the closure. No further code change | — (closed) | — |
@@ -1695,6 +1783,7 @@ have absorbed.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 14 | 2026-09-26 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-19` (#384): the session logger has a lock, and the heartbeat never waits on it (new §6.7; §2.2, §8.2, §10.1, §11, §12, §13).** `np_session_log.c` and `np_adaptation_log.c` take one recursive lock at every entry point that touches logger state (`REQ-FWHUB-44`). It is installed as a FreeRTOS recursive mutex by `np_hub_control_app_main()` after the scan and before the first task. `np_log_shdr_fault()` never takes it. It queues the record (32 entries, critical section by BASEPRI), and the outermost take drains the queue into `s_shdr_buf` (`REQ-FWHUB-45`). SHDR record layout unchanged. New `np_log_set_lock()`, `np_log_set_fault_crit()`, `np_log_shdr_fault_dropped()`, and a host-only I/O hook `np_log_test_set_io_hook()`. `np_log_backend_tests` gains four cases (20 checks). **Falsified:** seven mutants each fail it. D-34 and `RISK-FWHUB-17` added. §2.2's "the runner never blocks on eMMC" corrected. No new test target: host suite 53/53. **Not run:** the ARM cross-build (no toolchain in this environment). `np_hub_control_main.c` was syntax-checked against the FreeRTOS POSIX port only. `FWHUB-DRC-02` (heartbeat worst case) stays a hardware check |
 | 13 | 2026-09-26 | NeurOne Firmware Engineering | **`NP_HUB_PROTO_VERSION` 3 → 1 (§4.1, §4.5, `REQ-FWHUB-10`).** No session has been created on any device, so the format has no earlier shape to tell apart, and the pre-release v2 and v3 layouts are folded into v1. `REQ-FWHUB-10` now applies from the first shipped descriptor. The firmware (`np_hub_config.h`), the compiler (`hubCompiler.ts`), both test suites and `check-hub-wire-format.ts`'s self-test move with it, and the parser now refuses 0, 2 and 3. The Rev 1 note that the version "is at 3" is left as the historical record |
 | 12 | 2026-09-26 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-17`, `-14` and `-18` (#384); raises `-19` (§2.2, §3.2, §8.2, §10, §11, §13).** (1) **`OI-FWHUB-17`:** new `src/np_session_lease.c`. `np_runner_load()` claims the lease before touching the descriptor, and every load failure releases it. `np_runner_run()` releases it after setting the final state. `task_module_detect` holds its lock (a FreeRTOS mutex) across each single-slot rescan. `REQ-FWHUB-03` moves from §10.2 to §10.1. D-32 supersedes D-31. A second protocol landing between a load and its run is now refused `SESSION_ACTIVE`; before, it replaced the loaded descriptor. **New host target `np_session_lease_tests`** (Class B 40 → 41, total 51 → 52, re-derived with `ctest -N`). **Falsified:** four mutants each fail it: an unlocked claim, a probe that ignores the lease, a probe that drops the lock early, and a claim that ignores a held lease. (2) **`OI-FWHUB-14`, closed by decision (D-33):** the EEG DMA ISR queues blocks to a task and never calls the logger. `np_log_eeg_sample_block()` now returns `np_hub_status_t` and refuses an ISR caller before touching any state (`REQ-FWHUB-43`). The ISR check is injected through `np_log_set_isr_check()`, and on target it asserts. `np_log_backend_tests` gains the case, and deleting the check fails 2 of its checks. (3) **`OI-FWHUB-18`:** `np_hub_zone_insert_cb()` / `np_hub_zone_remove_cb()` deleted. Host suite 52/52. ARM cross-build (arm-none-eabi-gcc 13.2.1): 0 errors, 0 warnings, both ELFs link, and the lease is in `np_application.elf`. **Raised `OI-FWHUB-19`:** the logger is called from four tasks without a lock, and a mutex would put the heartbeat behind an eMMC sync. |
 | 11 | 2026-09-25 | NeurOne Firmware Engineering | **Heartbeat sequence counter (`NP-FMEA-001` OI-FMEA-12 (a), principal decision 2026-09-25).** §7.1: `session_status` bits 5–7 carry a 3-bit counter the hub advances on every heartbeat (`np_safety_session_status_with_seq()`, `np_spi_wire_types.h` `NP_SESSION_STATUS_SEQ_*`); the safety MCU resets its watchdog only on a forward run of it. New `REQ-FWHUB-42`; `REQ-FWHUB-11` restated to name the second helper; §7.4's "bits 5–7 remain unused" corrected. Frame length and checksums are unchanged. Hub consequences stated in §7.1: first grant two beats later after a reset or a run restart, and four (not six) consecutive lost heartbeats tolerated. Verified by 4 new checks in `np_cvns_reenable_tests`, 2 mutations caught. |
