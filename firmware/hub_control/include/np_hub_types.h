@@ -502,7 +502,7 @@ typedef struct {
 
 typedef struct {
     uint8_t  active_mode;       /* current mode — SHDR */
-    uint8_t  hall_state;        /* 0=goggles on, 1=lifted — SHDR */
+    bool     goggle_seated;     /* Hall: goggles in wear position — SHDR */
     bool     eye_open;          /* IR proximity — UHDR */
     bool     ppx_halt;          /* photoparoxysmal halt in effect — SHDR */
 } np_telem_visual_t;
