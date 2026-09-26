@@ -4,7 +4,9 @@
  *
  * Performs a 1kHz AC impedance check before enabling VNS and tDCS channels.
  * Injects a test current for NP_IMPEDANCE_TEST_MS and measures the
- * voltage response.  Rejects enable if Z > NP_IMPEDANCE_MAX_OHM.
+ * voltage response.  Rejects enable if Z > NP_IMPEDANCE_MAX_OHM, or if Z is
+ * below the channel's minimum (k_imp_min_ohm, NP-FMEA-001 FMEA-M06-02): 0 Ω is
+ * an AFE fault, not a contact.
  *
  * The safety MCU drives the test signal via a dedicated low-level test
  * current source.  The impedance measurement is performed while stimulation
@@ -43,6 +45,23 @@ static const uint16_t k_imp_en_bit[NP_IMP_CHANNELS] = {
     NP_SAFETY_EN_BES_TACS,
     NP_SAFETY_EN_CVNS,
 };
+
+/* Minimum impedance floor (NP-FMEA-001 FMEA-M06-02, OI-FMEA-13 (ii)); the
+ * values and their sources are in np_safety_config.h. */
+static const uint32_t k_imp_min_ohm[NP_IMP_CHANNELS] = {
+    NP_IMPEDANCE_MIN_OHM_VNS_HRV,
+    NP_IMPEDANCE_MIN_OHM_TDCS,
+    NP_IMPEDANCE_MIN_OHM_BES_TACS,
+    NP_IMPEDANCE_MIN_OHM_CVNS,
+};
+_Static_assert((NP_IMPEDANCE_MIN_OHM_VNS_HRV  > 0U) && (NP_IMPEDANCE_MIN_OHM_TDCS > 0U) &&
+               (NP_IMPEDANCE_MIN_OHM_BES_TACS > 0U) && (NP_IMPEDANCE_MIN_OHM_CVNS > 0U),
+               "a zero floor would let a 0 ohm AFE fault pass");
+_Static_assert((NP_IMPEDANCE_MIN_OHM_VNS_HRV  < NP_IMPEDANCE_MAX_OHM) &&
+               (NP_IMPEDANCE_MIN_OHM_TDCS     < NP_IMPEDANCE_MAX_OHM) &&
+               (NP_IMPEDANCE_MIN_OHM_BES_TACS < NP_IMPEDANCE_MAX_OHM) &&
+               (NP_IMPEDANCE_MIN_OHM_CVNS     < NP_IMPEDANCE_MAX_OHM),
+               "an impedance floor at or above the maximum passes nothing");
 
 static bool     s_test_pending[NP_IMP_CHANNELS];
 static uint32_t s_test_start_ms[NP_IMP_CHANNELS];
@@ -108,7 +127,8 @@ void np_impedance_check_request(uint16_t requested_mask)
 
 /*
  * np_impedance_check_poll — poll pending impedance tests.
- * Clears the enable bit for any channel that fails the check.
+ * Clears the enable bit for any channel that fails the check: above
+ * NP_IMPEDANCE_MAX_OHM, or below the channel's floor.
  */
 void np_impedance_check_poll(np_safety_state_t *state)
 {
@@ -120,7 +140,9 @@ void np_impedance_check_poll(np_safety_state_t *state)
             s_test_pending[i] = false;
             uint32_t z_ohm    = np_hal_impedance_read_ohm(i);
 
-            if (z_ohm > NP_IMPEDANCE_MAX_OHM) {
+            /* Out of window on either side fails.  Below the floor is an AFE
+             * fault or a short (FMEA-M06-02); it is not a good contact. */
+            if ((z_ohm > NP_IMPEDANCE_MAX_OHM) || (z_ohm < k_imp_min_ohm[i])) {
                 s_failed[i]          = true;
                 state->granted_mask &= (uint16_t)~k_imp_en_bit[i];
                 state->status       |= NP_SAFETY_STATUS_IMPEDANCE;

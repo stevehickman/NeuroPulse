@@ -304,7 +304,9 @@ void np_hal_iwdg_refresh(void);
  * np_hal_impedance_result_ready() True once that channel's result is available.
  * np_hal_impedance_read_ohm()     Contact impedance in OHMS.  The interlock
  *                                 rejects enable above NP_IMPEDANCE_MAX_OHM
- *                                 (10 000 Ω), so the unit is the gate.
+ *                                 (10 000 Ω) and below the channel's
+ *                                 NP_IMPEDANCE_MIN_OHM_* floor (FMEA-M06-02),
+ *                                 so the unit is the gate.
  * np_hal_impedance_read_cvns_electrode_ohm()
  *                                 Per-electrode cervical-VNS impedance in ohms.
  *                                 electrode 0 = left, 1 = right.  Feeds the hub
