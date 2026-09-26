@@ -174,6 +174,7 @@ jobs:
         docs/**
         scripts/check-doc-filenames.ts
         scripts/check-dhf-index.ts
+        scripts/check-md-tables.ts
         .github/workflows/tooling-ci.yml
       NP_SCOPE_SIMULATOR: |
         simulator/**
@@ -375,6 +376,7 @@ jobs:
           assert scope.docnaming.paths true  docs/superseded/np_risk_001.docx
           assert scope.docnaming.paths true  scripts/check-doc-filenames.ts
           assert scope.docnaming.paths true  scripts/check-dhf-index.ts
+          assert scope.docnaming.paths true  scripts/check-md-tables.ts
           assert scope.docnaming.paths false app/web/src/main.ts
           assert scope.simulator.paths true  simulator/server/index.js
           assert scope.simulator.paths true  simulator/js/ui.js
@@ -629,6 +631,16 @@ jobs:
 
       - name: Every controlled Markdown document is in the DHF at its own revision
         run: bun scripts/check-dhf-index.ts
+
+      # A row with the wrong cell count reads fine raw and renders wrongly:
+      # blank columns, or cells past the header silently dropped. PR #451 merged
+      # a 4-cell DHF history row into the 7-column master index, and nothing
+      # above could see it. Same population (docs/**), so the same job.
+      - name: Guard self-test (prove the table-shape rule can fail)
+        run: bun scripts/check-md-tables.ts --self-test
+
+      - name: Every Markdown table row in docs/ has its header's cell count
+        run: bun scripts/check-md-tables.ts
 
   section-refs:
     name: CLAUDE.md section citations resolve (repo-wide)

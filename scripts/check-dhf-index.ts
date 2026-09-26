@@ -18,7 +18,16 @@
  *   A. every docs/*.md carrying `**Document:**` and an integer `**Revision:**`
  *      has a master-index row in NP-DHF-001: first cell = its serial, and a
  *      link `](./<file>)` in the row;
- *   B. that row's Rev cell begins with the same integer.
+ *   B. that row's Rev cell begins with the same integer;
+ *   C. NP-DHF-001's own document-history table (the first table under a
+ *      `## … History` heading) has a row for the DHF's current revision.
+ *
+ * C was added after PR #451 (2026-09-26): the Rev 102 history row landed in the
+ * master index instead of the history table, and A and B, which read only rows
+ * whose first cell is a serial, could not see it. The misplaced row itself is
+ * caught by check-md-tables.ts (wrong cell count). C catches the other half:
+ * the history table left without an entry for the revision being published,
+ * whether the row was misplaced or never written.
  *
  * Out of scope, deliberately:
  *   - .docx / .pdf: the revision text inside a Word file is not reliably
@@ -62,30 +71,42 @@ if (process.argv.includes("--self-test")) {
     else if (needle && !out.includes(needle)) failures.push(`${label} — output lacked ${JSON.stringify(needle)}`);
   };
   const DHF_HEAD = "**Document:** NP-DHF-001\n**Revision:** 1\n\n| ID | T | Rev | Date | File | S | C |\n|---|---|---|---|---|---|---|\n";
+  const HIST = (rev: string) => `\n## 9. Document History\n\n| Rev | Date | Author | Description |\n|---|---|---|---|\n| ${rev} | 2026-01-01 | A | d |\n`;
 
   // Conforming: both documents indexed at their revision (DHF indexes itself).
   reset();
   write("np_foo_001.md", doc("NP-FOO-001", "3"));
-  write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md") + dhfRow("**NP-FOO-001**", "**3**", "np_foo_001.md"));
+  write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md") + dhfRow("**NP-FOO-001**", "**3**", "np_foo_001.md") + HIST("1"));
   expect("conforming tree accepted", 0, "B (Rev agrees with file):  PASS");
 
   // Rule A: a controlled document with no row.
   reset();
   write("np_foo_001.md", doc("NP-FOO-001", "3"));
-  write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md"));
+  write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md") + HIST("1"));
   expect("rule A rejects an unindexed document", 1, "NP-FOO-001 has no master-index row");
 
   // Rule A: a struck-through row is history and does not count.
   reset();
   write("np_foo_001.md", doc("NP-FOO-001", "3"));
-  write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md") + dhfRow("~~NP-FOO-001~~", "3", "np_foo_001.md"));
+  write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md") + dhfRow("~~NP-FOO-001~~", "3", "np_foo_001.md") + HIST("1"));
   expect("rule A ignores a struck-through row", 1, "NP-FOO-001 has no master-index row");
 
   // Rule B: stale Rev cell. 13 must not match 1 by prefix.
   reset();
   write("np_foo_001.md", doc("NP-FOO-001", "13"));
-  write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md") + dhfRow("NP-FOO-001", "1", "np_foo_001.md"));
+  write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md") + dhfRow("NP-FOO-001", "1", "np_foo_001.md") + HIST("1"));
   expect("rule B rejects a stale Rev cell", 1, "NP-FOO-001: DHF Rev 1, file Rev 13");
+
+  // Rule C: the history row for the current revision was put in the index (#451).
+  reset();
+  write("np_dhf_001.md", DHF_HEAD.replace("**Revision:** 1", "**Revision:** 2")
+    + dhfRow("NP-DHF-001", "2", "np_dhf_001.md") + "| 2 | 2026-01-02 | A | misplaced |\n" + HIST("1"));
+  expect("rule C rejects a history table with no row for the current Rev", 1, "no row for Rev 2");
+
+  // Rule C: no history table at all.
+  reset();
+  write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md"));
+  expect("rule C rejects a DHF with no document-history table", 1, "no document-history table");
 
   // Empty scope must not read as success.
   reset();
@@ -100,7 +121,7 @@ if (process.argv.includes("--self-test")) {
     for (const f of failures) console.error("  " + f);
     process.exit(1);
   }
-  console.log("  rules A and B each proven to reject; conforming tree proven to pass");
+  console.log("  rules A, B and C each proven to reject; conforming tree proven to pass");
   console.log("SELF-TEST PASS — the checker has teeth.");
   process.exit(0);
 }
@@ -131,6 +152,24 @@ for (const r of readFileSync(DHF, "utf8").split("\n")) {
   rows.set(key, [...(rows.get(key) ?? []), (cells[2] ?? "").replace(/[*\s]/g, "")]);
 }
 
+// Rule C: the document-history table carries the DHF's current revision.
+const violC: string[] = [];
+{
+  const L = readFileSync(DHF, "utf8").split("\n");
+  const h = L.findIndex((l) => /^##\s.*History\s*$/.test(l));
+  let t = h < 0 ? -1 : L.findIndex((l, i) => i > h && l.trimStart().startsWith("|"));
+  if (t < 0) violC.push(`C: ${DHF} has no document-history table (a table under a "## … History" heading)`);
+  else {
+    const revs: string[] = [];
+    for (let i = t + 2; i < L.length && L[i].trimStart().startsWith("|"); i++) {
+      revs.push(L[i].split("|")[1]?.replace(/[*\s]/g, "") ?? "");
+    }
+    if (!revs.includes(self.rev)) {
+      violC.push(`C: ${DHF} is Rev ${self.rev}, and its document-history table (line ${t + 1}) has no row for Rev ${self.rev}`);
+    }
+  }
+}
+
 const violA: string[] = [], violB: string[] = [];
 let scanned = 0;
 for (const e of readdirSync("docs").sort()) {
@@ -155,8 +194,10 @@ console.log(`A (indexed):               ${violA.length ? "FAIL" : "PASS"}`);
 violA.forEach((v) => console.log("   " + v));
 console.log(`B (Rev agrees with file):  ${violB.length ? "FAIL" : "PASS"}`);
 violB.forEach((v) => console.log("   " + v));
-if (violA.length + violB.length) {
+console.log(`C (DHF history has its Rev): ${violC.length ? "FAIL" : "PASS"}`);
+violC.forEach((v) => console.log("   " + v));
+if (violA.length + violB.length + violC.length) {
   console.log("\nFix: set the row's Rev and Date from the file's front matter, or add the row.");
   console.log("editscripts/patch_conv07_dhf_reconcile.py does both mechanically.");
 }
-process.exit(violA.length + violB.length ? 1 : 0);
+process.exit(violA.length + violB.length + violC.length ? 1 : 0);
