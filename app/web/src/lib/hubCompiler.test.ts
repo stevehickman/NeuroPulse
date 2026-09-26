@@ -149,15 +149,15 @@ function eegProtocol(): NPProtocolDefinition {
 
 // ─── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('hub protocol v3 wire format', () => {
-  it('emits protocol version 3', () => {
-    // OI-CHARGE-04 bumped v2 → v3 (np_mod_tdcs_params_t grew
-    // electrode_area_mcm2). Must match NP_HUB_PROTO_VERSION in
+describe('hub protocol v1 wire format', () => {
+  it('emits protocol version 1', () => {
+    // No descriptor has shipped, so the format has one version (NP-FW-HUB-001
+    // §4.5). Must match NP_HUB_PROTO_VERSION in
     // firmware/hub_control/include/np_hub_config.h, which np_protocol_tests.c
     // pins from the other side — the hub rejects anything else as
     // NP_HUB_ERR_BAD_VERSION before it reads a single command.
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['Frontal Left'] }), { zones });
-    expect(readBlob(blob).version).toBe(3);
+    expect(readBlob(blob).version).toBe(1);
   });
 
   it('emits a 14-byte command header with a target block', () => {

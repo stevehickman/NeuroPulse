@@ -55,6 +55,7 @@ data class NPSessionProtocol(
                     is NPModalityParams.PbmTranscranial -> configs.add(
                         ModalityConfig.PbmTranscranial(
                             zones = p.params.resolvedZones,
+                            wavelength = p.params.wavelength.rawValue,
                             frequencyHz = p.params.frequencyHz,
                             dutyCyclePercent = p.params.dutyCyclePercent,
                             durationSeconds = duration,
@@ -140,6 +141,12 @@ sealed class ModalityConfig {
     @SerialName("pbm_transcranial")
     data class PbmTranscranial(
         val zones: List<Int>,
+        /**
+         * The NPPS `wavelength` token, carried verbatim. Without it a "1064nm"
+         * protocol compiled to the same config as a "660_808nm" one
+         * (OI-PBMCH-04, NP-FEAS-PBMCH-001 §7.3).
+         */
+        val wavelength: String,
         val frequencyHz: Double,
         val dutyCyclePercent: Int,
         val durationSeconds: Int,

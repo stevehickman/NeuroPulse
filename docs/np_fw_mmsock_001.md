@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-MMSOCK-001
-**Revision:** 2
-**Date:** 2026-09-23
+**Revision:** 3
+**Date:** 2026-09-26
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Firmware Engineering
@@ -486,8 +486,8 @@ anodes and which cathodes, and a bitmap's dedup property — its whole reason to
 | C — keep slot targets; resolve `electrode_pair` to sockets on the hub | no wire change | rejected: the pair → socket map depends on shell geometry and `REG-1`; putting it on the hub is the topological-map-behind-a-boundary problem `NP-HW-HUB-001` §4.5.1 rejected for clusters |
 
 **Costs of option A, all versioned per `REQ-FWHUB-10`:** `NP_HUB_PROTO_TARGET_MAX` 16 → 32;
-`np_mod_bes_tacs_params_t` gains `electrode_area_mcm2` (+2 B) — a **length change**, so
-`NP_HUB_PROTO_VERSION` 3 → 4; the parser gains three rejections (either side empty, sides overlap,
+`np_mod_bes_tacs_params_t` gains `electrode_area_mcm2` (+2 B) — a **length change**. That bumps
+`NP_HUB_PROTO_VERSION` only if a descriptor has shipped by then; before that, the version stays at 1 (`NP-FW-HUB-001` Rev 13 §4.5); the parser gains three rejections (either side empty, sides overlap,
 `target_len` ≠ 32); `hubCompiler.ts` gains `electrodeSetsTarget()` and the `.npps` grammar needs a way to
 name sockets for tES, which today it names by 10-20 site. T2's 21-channel clinical tACS needs a
 *channel per electrode*, not two sides — a third kind, deliberately not designed here.
@@ -703,5 +703,6 @@ P-3 as decided.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 3 | 2026-09-26 | NeurOne Firmware Engineering | §5.1 option A's cost list no longer plans `NP_HUB_PROTO_VERSION` 3 → 4. The hub protocol is at 1 until a descriptor ships (`NP-FW-HUB-001` Rev 13 §4.5), so the length change bumps the version only if one has shipped by then |
 | 2 | 2026-09-23 | NeurOne Firmware Engineering | **P-1…P-6 accepted by the principal as recommended; P-5 built.** Class C change C-1 — `NP_SESSION_STATUS_GEOM_REQ_BES` and a third geometry-gate arm — implemented and **pending SW-01 review**, taking the BES area from the fixed pad constant rather than an authored wire field, because `OI-CHARGE-07` makes a fixed part's area a device property and P-1 keeps T1 tES on pads. Building it found the runner sent electrode areas only in sessions with tDCS or HD-tDCS, so a VNS-only session was enforced 50× looser than designed — fixed (`NP-FW-HUB-001` Rev 3). §3.6.1's description of the BES default corrected in the banner, not rewritten. `OI-MMSOCK-01` closed; `-02` implemented; `-09` decided; new `-10` (build the tACS socket target), **`-11` (no T1 tES pad hardware exists)**, `-12` (propagate P-1/P-6 before socket tooling). §11.1 lists the code. |
 | 1 | 2026-09-23 | NeurOne Firmware Engineering | **Initial issue.** Answers which modality combinations may share one hex-tile socket by reducing the socket to two physical lanes — optical and one `ELEC` conductor (§2). **Verdicts:** multi-wavelength PBM supported; PBM + EEG and PBM + tES at a T1-B **recommended allow** (no traced hazard; tES adds ≤ 40 mW against ≥ 1.3 W of LED heat); EEG + tES on one electrode and two electrical channels on one electrode **must not**, each traced (ADS1299 full scale and REQ-EMI-08; per-channel ceilings cannot see a superposition). **Two findings larger than the question:** the BES/tACS channel has **no geometry gate** and would enforce a ≤ 1.02 cm² pod against the 25 cm² default, **24.5× fail-open** (`OI-MMSOCK-02`, Class C change C-1 recommended now); and **no T1-B pod can carry any of the 14 shipped tDCS protocols** under DI-SAFE-01 — 8.0–24.0 cm² needed, 9 of 14 more than a whole tile face (`OI-MMSOCK-01`, principal). Specifies, without building, a per-(socket, lane) record that makes both must-nots unrepresentable, lane-scoped enable ownership, a two-bitmap tES target (wire v4) and a Class B area cross-check; states the SW-01 review scope (C-1…C-4; no enable-word or frame-layout change). No SHDR field added. Code: two test additions and one comment — no behaviour change. Five questions put to the principal (P-1…P-5); eight open items; six risk rows. **Amended within the same unmerged change (2026-09-23):** new §3.8 — more electrodes per tile: it moves §3.4's must-not from the socket to the electrode and resolves §3.5 across electrodes, but fixes neither §3.6 finding (four pods total 4.08 cm² against the library's smallest 8.0 cm²); recommends two electrodes, one dual-rated, if co-sited record-and-stimulate is wanted; P-6 and `OI-MMSOCK-09`, linked to `OI-EEGNET-19`/`-20`. Rev 1 is issued once, describing what merges. |

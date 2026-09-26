@@ -20,7 +20,7 @@
  *
  * Header offsets (64 bytes, no padding):
  *   0:  uint32 magic             (NP_HUB_PROTO_MAGIC = 0x4E504850)
- *   4:  uint16 version           (NP_HUB_PROTO_VERSION = 0x0003)
+ *   4:  uint16 version           (NP_HUB_PROTO_VERSION = 0x0001)
  *   6:  uint8  flags             (bit0=T2_tier, bit1=autonomous)
  *   7:  uint8  cmd_count
  *   8:  uint8[16] session_uuid
@@ -80,10 +80,10 @@ import { NPHardwareLimits } from './hardwareLimits';
 // ─── Wire format constants (mirrors np_hub_config.h) ─────────────────────────
 
 const PROTO_MAGIC = 0x4E504850;
-// v3 (OI-CHARGE-04): np_mod_tdcs_params_t grew electrode_area_mcm2, 6 → 8
-// bytes. Must track NP_HUB_PROTO_VERSION in firmware/hub_control/include/
-// np_hub_config.h — the hub rejects any other value as NP_HUB_ERR_BAD_VERSION.
-const PROTO_VERSION = 0x0003;
+// 1 until a descriptor has shipped (NP-FW-HUB-001 §4.5). Must track
+// NP_HUB_PROTO_VERSION in firmware/hub_control/include/np_hub_config.h — the
+// hub rejects any other value as NP_HUB_ERR_BAD_VERSION.
+const PROTO_VERSION = 0x0001;
 const PROTO_UUID_LEN = 16;
 const PROTO_SERIAL_LEN = 32;
 const PROTO_SIG_LEN = 64;

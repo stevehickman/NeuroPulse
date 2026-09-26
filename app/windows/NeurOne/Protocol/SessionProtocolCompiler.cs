@@ -42,6 +42,7 @@ static class SessionProtocolCompiler
             NPModalityParams.PbmTranscranial m => new PbmTranscranialConfig
             {
                 Zones = m.P.ResolvedZones,
+                Wavelength = WavelengthRawValue(m.P.WavelengthMode),
                 FrequencyHz = m.P.FrequencyHz,
                 DutyCyclePercent = m.P.DutyCyclePercent,
                 DurationSeconds = sessionDurationSeconds,
@@ -140,6 +141,17 @@ static class SessionProtocolCompiler
         EegNeurofeedbackParams.EegBand.AlphaTheta => "alphaTheta",
         EegNeurofeedbackParams.EegBand.GammaTheta => "gammaTheta",
         _ => "alpha"
+    };
+
+    // The NPPS `wavelength` token. No fallback: substituting a default
+    // wavelength is the defect OI-PBMCH-04 records (NP-FEAS-PBMCH-001 §7.3),
+    // so an unmapped member refuses to compile.
+    private static string WavelengthRawValue(PbmTranscranialParams.Wavelength w) => w switch
+    {
+        PbmTranscranialParams.Wavelength.Base660_808nm     => "660_808nm",
+        PbmTranscranialParams.Wavelength.Smart1064nm       => "1064nm",
+        PbmTranscranialParams.Wavelength.Tri660_808_1064nm => "660_808_1064nm",
+        _ => throw new ArgumentOutOfRangeException(nameof(w), w, "unmapped PBM wavelength")
     };
 
     private static string WaveformRawValue(BesTacsParams.Waveform w) => w switch

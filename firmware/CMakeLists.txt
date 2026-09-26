@@ -371,6 +371,13 @@ if(NP_BUILD_TESTS)
         COMMAND np_socket_dispatch_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    # OI-PBMCH-03: the socket path's per-channel disable latch
+    # (NP-FW-PBM1064-001 §6.5) — a base tile's latched channel at setpoint 0,
+    # held across re-drive and stop, released only at session load.
+    add_test(NAME np_mod_pbm_chlatch_tests
+        COMMAND np_mod_pbm_chlatch_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     # OI-MMSOCK-02: the electrode areas, waveform classes and geometry gates
     # the runner declares to the safety MCU (NP-FW-HUB-001 §5.4).
     add_test(NAME np_chan_decl_tests

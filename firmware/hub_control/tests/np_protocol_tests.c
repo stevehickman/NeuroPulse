@@ -153,11 +153,10 @@ static void test_wire_layout(void)
           "layout: v2 command header is 14 bytes (12 + target_kind + target_len)");
     check(NP_HUB_SOCKET_MASK_BYTES * 8U == 128U,
           "layout: socket bitmap covers the full 7-bit socket domain");
-    /* OI-CHARGE-04 bumped v2 → v3: np_mod_tdcs_params_t grew
-     * electrode_area_mcm2, so a v2 descriptor's tDCS block is a different
-     * length for the same modality code.  hubCompiler.ts PROTO_VERSION must
-     * move with this constant or every descriptor is rejected as BAD_VERSION. */
-    check(NP_HUB_PROTO_VERSION == 0x0003U, "layout: protocol version is v3");
+    /* 1 until a descriptor has shipped (NP-FW-HUB-001 §4.5).  hubCompiler.ts
+     * PROTO_VERSION must move with this constant or every descriptor is
+     * rejected as BAD_VERSION. */
+    check(NP_HUB_PROTO_VERSION == 0x0001U, "layout: protocol version is v1");
 }
 
 /* ── Slot-addressed commands still work ───────────────────────────────────────── */
@@ -506,17 +505,22 @@ static void test_expected_len_accounts_for_target(void)
 
 /* ── Rejections ───────────────────────────────────────────────────────────────── */
 
-static void test_rejects_v1_blob(void)
+static void test_rejects_other_versions(void)
 {
-    blob_t b;
-    blob_begin(&b, 0x0001U);
-    blob_add_cmd(&b, NP_MOD_AUDIO, NP_HUB_SLOT_AUDIO,
-                 0U, 0U, NP_PROTO_TARGET_SLOT, NULL, 0U, NULL, 0U);
-    size_t len = blob_finish(&b);
+    /* 0 was never issued; 2 and 3 were pre-release numbers for layouts now
+     * folded into v1.  Any of them is refused, not reinterpreted. */
+    static const uint16_t k_versions[] = { 0x0000U, 0x0002U, 0x0003U };
+    for (size_t i = 0; i < sizeof k_versions / sizeof k_versions[0]; i++) {
+        blob_t b;
+        blob_begin(&b, k_versions[i]);
+        blob_add_cmd(&b, NP_MOD_AUDIO, NP_HUB_SLOT_AUDIO,
+                     0U, 0U, NP_PROTO_TARGET_SLOT, NULL, 0U, NULL, 0U);
+        size_t len = blob_finish(&b);
 
-    np_session_desc_t desc;
-    check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_ERR_BAD_VERSION,
-          "reject: a v1 blob is refused, not reinterpreted as v2");
+        np_session_desc_t desc;
+        check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_ERR_BAD_VERSION,
+              "reject: a blob of any version but v1 is refused");
+    }
 }
 
 static void test_rejects_retired_zone_slots(void)
@@ -857,7 +861,7 @@ int main(void)
 
     test_high_slots_are_addressable();
 
-    test_rejects_v1_blob();
+    test_rejects_other_versions();
     test_rejects_retired_zone_slots();
     test_rejects_slot_id_on_socket_target();
     test_rejects_bad_target_kind();

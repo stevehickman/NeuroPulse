@@ -31,5 +31,18 @@ protocol "PBM — Mild Cognitive Impairment (Papi 2022)" {
         duty_cycle: 25%
         zones: ["Frontal Left", "Frontal Right"]
         wavelength: "660_808nm"
+        # NIR-only fidelity gap: the trial used a single NIR wavelength
+        # (850nm, Papi 2022),
+        # and this protocol delivers 660nm alongside it whether or not the
+        # evidence did. The constraint is in the LANGUAGE AND COMPILER, not the
+        # wire: np_mod_pbm_base_params_t already carries cur_a (660nm) and cur_b
+        # (808nm) as separate current registers, but NPPS has one `intensity`
+        # field per PBM block with no per-channel form, so hubCompiler.ts
+        # writes the same register value into both. The `wavelength` enum also
+        # has no 808-only value. Whether the tile's driver supports independent
+        # per-channel current is a separate, open question (OI-HEXTILE-07).
+        # Unwanted 660nm dose as authored: 42.7 J/cm², 71 % of R-7's 60 J/cm²
+        # (NP-FEAS-PBMCH-001 §9.2 — MODELLED on OI-HEXTILE-02's design-target
+        # emitters, not measured). Annotation added under OI-PBMCH-06.
     }
 }

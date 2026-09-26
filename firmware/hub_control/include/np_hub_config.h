@@ -10,14 +10,12 @@
 /* ── Protocol binary format ───────────────────────────────────────────────────── */
 
 #define NP_HUB_PROTO_MAGIC          0x4E504850UL   /* "NPHP" — NeurOne Hub Protocol */
-/* v3 (OI-CHARGE-04, 2026-09-09): np_mod_tdcs_params_t grew electrode_area_mcm2
- * (6 → 8 bytes).  Bumped rather than left at v2 because a v2 descriptor's tDCS
- * block is a different length for the same modality code — without the bump the
- * only symptom would be NP_HUB_ERR_INVALID_ARG out of the stim module handler
- * at command dispatch, which reads as a corrupt descriptor rather than an
- * out-of-date one.  NP_HUB_ERR_BAD_VERSION at header verification says what
- * actually happened.  v2: socket-addressed targets.                          */
-#define NP_HUB_PROTO_VERSION        0x0003U
+/* 1 until a descriptor has shipped.  No session has been created yet, so there
+ * is no older blob for the hub to tell apart: the socket-mask target block and
+ * np_mod_tdcs_params_t's electrode_area_mcm2 (OI-CHARGE-04), once v2 and v3, are
+ * part of v1.  REQ-FWHUB-10's bump-on-length-change applies from the first
+ * shipped descriptor (NP-FW-HUB-001 §4.5).                                   */
+#define NP_HUB_PROTO_VERSION        0x0001U
 #define NP_HUB_PROTO_UUID_LEN       16U            /* session UUID (UHDR key) */
 #define NP_HUB_PROTO_SERIAL_LEN     32U            /* ASCII device serial — replay guard */
 #define NP_HUB_PROTO_SIG_LEN        64U            /* Ed25519 signature */

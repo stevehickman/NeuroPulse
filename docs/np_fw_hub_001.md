@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 12
+**Revision:** 13
 **Date:** 2026-09-26
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -578,7 +578,7 @@ Each command in the body is:
 ```
 
 Constants (`np_hub_config.h`): magic `NP_HUB_PROTO_MAGIC` = `0x4E504850` (`"NPHP"`); version
-`NP_HUB_PROTO_VERSION` = 3; UUID 16 B; serial 32 B ASCII; signature 64 B; at most
+`NP_HUB_PROTO_VERSION` = 1; UUID 16 B; serial 32 B ASCII; signature 64 B; at most
 `NP_HUB_PROTO_CMD_MAX` = 64 commands; at most `NP_HUB_PROTO_PARAMS_MAX` = 64 params bytes per
 command; target block at most `NP_HUB_PROTO_TARGET_MAX` = 16 B.
 
@@ -652,14 +652,20 @@ parser does not partially populate.
 
 ### 4.5 Versioning
 
-| Version | Change | Why bumped rather than absorbed |
-|---|---|---|
-| 1 | original; `slot_mask` byte addressing | — |
-| 2 | `slot_id` + variable target block; socket-mask targeting | 80 sockets do not fit in five bits, and are not slots |
-| **3** | `np_mod_tdcs_params_t` grew `electrode_area_mcm2` (6 → 8 B) — `OI-CHARGE-04` | a v2 descriptor's tDCS block is a *different length* for the same modality code. Left at v2, the only symptom would be `NP_HUB_ERR_INVALID_ARG` out of the stim handler at dispatch, which reads as a **corrupt** descriptor. `NP_HUB_ERR_BAD_VERSION` at header verification says what actually happened. |
+**One version, until a descriptor ships** (*Rev 13*). No session has been created on any device,
+so there is no older blob for the hub to tell apart from the current one. The two reshapes below
+were numbered v2 and v3 while in development, and both are now **part of v1**. A hub that sees 2
+or 3 refuses the blob as `NP_HUB_ERR_BAD_VERSION`, the same as any other value.
 
-`REQ-FWHUB-10`: **any change to a per-modality parameter struct's length bumps
-`NP_HUB_PROTO_VERSION`.** The rule is length, not semantics — a struct that changes meaning at the
+| Version | Content |
+|---|---|
+| **1** | `slot_id` + variable target block with socket-mask targeting (was pre-release v2: 80 sockets do not fit in five bits, and are not slots); `np_mod_tdcs_params_t` with `electrode_area_mcm2`, 8 B (was pre-release v3, `OI-CHARGE-04`). The original `slot_mask` byte addressing never shipped and has no number |
+
+`REQ-FWHUB-10`: **from the first shipped descriptor on, any change to a per-modality parameter
+struct's length bumps `NP_HUB_PROTO_VERSION`.** Before that, a length change keeps the version at 1,
+because no shipped blob exists in the older shape. The reason for bumping still holds once a
+descriptor ships: a stale descriptor then fails at header verification as `NP_HUB_ERR_BAD_VERSION`,
+not at dispatch as `NP_HUB_ERR_INVALID_ARG`, which reads as corruption. The rule is length, not semantics — a struct that changes meaning at the
 same length is caught by the signature only if the app also changed, which is not a guarantee.
 
 ### 4.6 Per-modality parameter blocks *(Rev 7, `OI-FWHUB-03`)*
@@ -1482,7 +1488,7 @@ this line.
 | `REQ-FWHUB-07` | Slot numbers and enable-bit positions are append-only; never reused or compacted | §3.1 |
 | `REQ-FWHUB-08` | `hubCompiler.ts` emits exactly §4; on disagreement the compiler is wrong | `hubCompiler.ts` |
 | `REQ-FWHUB-09` | A failed parse leaves the descriptor undefined; no partial population | `np_protocol.c` |
-| `REQ-FWHUB-10` | A parameter-struct length change bumps `NP_HUB_PROTO_VERSION` | §4.5 |
+| `REQ-FWHUB-10` | From the first shipped descriptor, a parameter-struct length change bumps `NP_HUB_PROTO_VERSION` (1 until then) | §4.5 |
 | `REQ-FWHUB-11` | `session_status` is built only by `np_safety_session_status_bits()`, then `np_safety_session_status_with_seq()` (Rev 11) | `np_safety_spi.h` |
 | `REQ-FWHUB-12` | `abort_reason` is authoritative on the runner context, not the record | `np_session_runner.c` |
 | `REQ-FWHUB-13` | A field on neither classification list is UHDR | §6.2 |
@@ -1689,6 +1695,7 @@ have absorbed.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 13 | 2026-09-26 | NeurOne Firmware Engineering | **`NP_HUB_PROTO_VERSION` 3 → 1 (§4.1, §4.5, `REQ-FWHUB-10`).** No session has been created on any device, so the format has no earlier shape to tell apart, and the pre-release v2 and v3 layouts are folded into v1. `REQ-FWHUB-10` now applies from the first shipped descriptor. The firmware (`np_hub_config.h`), the compiler (`hubCompiler.ts`), both test suites and `check-hub-wire-format.ts`'s self-test move with it, and the parser now refuses 0, 2 and 3. The Rev 1 note that the version "is at 3" is left as the historical record |
 | 12 | 2026-09-26 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-17`, `-14` and `-18` (#384); raises `-19` (§2.2, §3.2, §8.2, §10, §11, §13).** (1) **`OI-FWHUB-17`:** new `src/np_session_lease.c`. `np_runner_load()` claims the lease before touching the descriptor, and every load failure releases it. `np_runner_run()` releases it after setting the final state. `task_module_detect` holds its lock (a FreeRTOS mutex) across each single-slot rescan. `REQ-FWHUB-03` moves from §10.2 to §10.1. D-32 supersedes D-31. A second protocol landing between a load and its run is now refused `SESSION_ACTIVE`; before, it replaced the loaded descriptor. **New host target `np_session_lease_tests`** (Class B 40 → 41, total 51 → 52, re-derived with `ctest -N`). **Falsified:** four mutants each fail it: an unlocked claim, a probe that ignores the lease, a probe that drops the lock early, and a claim that ignores a held lease. (2) **`OI-FWHUB-14`, closed by decision (D-33):** the EEG DMA ISR queues blocks to a task and never calls the logger. `np_log_eeg_sample_block()` now returns `np_hub_status_t` and refuses an ISR caller before touching any state (`REQ-FWHUB-43`). The ISR check is injected through `np_log_set_isr_check()`, and on target it asserts. `np_log_backend_tests` gains the case, and deleting the check fails 2 of its checks. (3) **`OI-FWHUB-18`:** `np_hub_zone_insert_cb()` / `np_hub_zone_remove_cb()` deleted. Host suite 52/52. ARM cross-build (arm-none-eabi-gcc 13.2.1): 0 errors, 0 warnings, both ELFs link, and the lease is in `np_application.elf`. **Raised `OI-FWHUB-19`:** the logger is called from four tasks without a lock, and a mutex would put the heartbeat behind an eMMC sync. |
 | 11 | 2026-09-25 | NeurOne Firmware Engineering | **Heartbeat sequence counter (`NP-FMEA-001` OI-FMEA-12 (a), principal decision 2026-09-25).** §7.1: `session_status` bits 5–7 carry a 3-bit counter the hub advances on every heartbeat (`np_safety_session_status_with_seq()`, `np_spi_wire_types.h` `NP_SESSION_STATUS_SEQ_*`); the safety MCU resets its watchdog only on a forward run of it. New `REQ-FWHUB-42`; `REQ-FWHUB-11` restated to name the second helper; §7.4's "bits 5–7 remain unused" corrected. Frame length and checksums are unchanged. Hub consequences stated in §7.1: first grant two beats later after a reset or a run restart, and four (not six) consecutive lost heartbeats tolerated. Verified by 4 new checks in `np_cvns_reenable_tests`, 2 mutations caught. |
 | 10 | 2026-09-25 | NeurOne Firmware Engineering | **Signal name corrected; nothing else changes (GitHub #437).** The References line cited `NP-HW-HUB-001` §7.2's active-low Class C cranial enable as `PBM_CRANIAL_EN`, without the `#` that `NP-CONV-001` §1.1 requires. It now reads `PBM_CRANIAL_EN#`. `NP-RISK-004` §2.2 cites the dropped `#` as evidence that two names differing only in `#` get confused, which is why its proposed name for the inverting-buffer output is `PBM_CRANIAL_PERMIT`. No requirement, figure or firmware changes. |

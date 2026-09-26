@@ -25,6 +25,7 @@ extension NPSessionProtocol {
             case .pbmTranscranial(let p):
                 modalities.append(.pbmTranscranial(PBMTranscranialConfig(
                     socketMask: try p.resolveSocketMask(clinicianSockets: clinicianSockets),
+                    wavelength: p.wavelength.rawValue,
                     frequencyHz: p.frequencyHz,
                     dutyCyclePercent: p.dutyCyclePercent,
                     durationSeconds: durationSeconds,
