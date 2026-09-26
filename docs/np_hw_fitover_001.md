@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-FITOVER-001
-**Revision:** 1
-**Date:** 2026-09-14
+**Revision:** 2
+**Date:** 2026-09-26
 **Status:** DRAFT — **DEFERRED CONCEPT. Not on the development plan, not funded, not scheduled.** Specifies an assembly the programme has deliberately chosen not to build. No tooling, firmware, BOM or schedule commitment follows from this document.
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -190,6 +190,13 @@ carries three different documented meanings across one file (*"goggles off head"
 clarity defect. On an assembly with a second removable optic in the cavity it becomes load-bearing,
 because *"seated"* acquires a second thing it could mean.
 
+> **Rev 2 (2026-09-26).** `OI-BENCH-08` is closed (`NP-FW-BENCH-001` Rev 3). The predicate now
+> measures **goggle seating on the headset**, and it is renamed `np_mod_visual_hal_goggle_seated()`
+> with positive, fail-safe sense. The argument above still holds, and more sharply. The Hall element
+> and its magnet are unplaced (`OI-BENCH-12`), and the only magnets `NP-TOOL-LENS-001` places are the
+> shade-retention N42s. A removable optic carrying magnets of its own would be a third candidate
+> actuator. Whether that concern survives therefore depends on where `OI-BENCH-12` puts the element.
+
 **Consequence:** `REQ-FITOVER-03` cannot be met by re-using the committed interlock. It needs either
 a sensing path that cannot see the spectacle lens, or a fourth layer, and either is a new safety case
 with a new hazard analysis — not an inherited one.
@@ -295,7 +302,8 @@ The questions in §7 are recorded as **preconditions**, not as open items, preci
 appear on anyone's blocking list. They become open items on the day the demand gate lifts, and not
 before.
 
-One item **already open elsewhere** is cross-referenced rather than duplicated: `OI-BENCH-08`
-(`NP-FW-BENCH-001`) is worth closing on the committed assembly regardless of this document — §5.1
-says why it would become load-bearing here, which strengthens an existing case rather than making a
-new one.
+One item **open elsewhere** at Rev 1 was cross-referenced rather than duplicated: `OI-BENCH-08`
+(`NP-FW-BENCH-001`) was worth closing on the committed assembly regardless of this document — §5.1
+says why it would become load-bearing here, which strengthened an existing case rather than making a
+new one. **Rev 2:** it closed on 2026-09-26 (`NP-FW-BENCH-001` Rev 3). Its successor,
+`OI-BENCH-12` (where the Hall element and its magnet are), is the item this document now depends on.

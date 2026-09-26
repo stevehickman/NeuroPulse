@@ -6,6 +6,8 @@
  * Safety interlocks (all three layers independently enforced):
  *   1. IR proximity sensor: eye-open detection before enable
  *   2. Hall sensor: goggle lift → instant LED cutoff (GPIO interrupt, not polled)
+ *      — REQ-FWHUB-21.  No ISR exists yet; the only cutoff in this file is the
+ *      telemetry poll below.
  *   3. Hardware current limit: IEC 62471 MPE ceiling; hardware-enforced by safety MCU
  *   4. ADS1299 Oz channel: photoparoxysmal EEG detection → halt <200ms
  *
@@ -16,7 +18,21 @@
  *   OI-VIS-01: np_mod_visual_hal_led_set(zone_mask, wl, freq_hz, duty_pct)
  *   OI-VIS-02: np_mod_visual_hal_led_stop()
  *   OI-VIS-03: np_mod_visual_hal_ir_eye_open() → bool
- *   OI-VIS-04: np_mod_visual_hal_hall_lifted() → bool  (goggles off head)
+ *   OI-VIS-04: np_mod_visual_hal_goggle_seated() → bool  (see below)
+ *
+ * What the Hall sensor measures (NP-FW-BENCH-001 OI-BENCH-08, closed):
+ *   np_mod_visual_hal_goggle_seated() is true iff the Hall element reads its
+ *   actuating magnet, i.e. the goggle assembly is in its lowered wear position
+ *   on the headset.  It is a fact about the goggle-to-headset mechanism and
+ *   NOTHING ELSE: a headset lying on a bench with its goggles lowered reads
+ *   seated.  It is not head presence (that is NP-FW-BENCH-001 §4's EEG gate)
+ *   and not eye presence (that is the IR sensor, OI-VIS-03).
+ *   Positive sense on purpose: a driver that faults, or cannot tell, returns
+ *   false, and false refuses emission.  The former _hall_lifted() had the
+ *   permissive answer as its zero value.
+ *   Where the element and its magnet are is not yet specified anywhere
+ *   (OI-BENCH-12); the six shade-retention N42s per lens rim are the only
+ *   magnets NP-TOOL-LENS-001 places, and they are not this magnet.
  *   OI-VIS-05: np_mod_visual_hal_emdr_set(rate_mhz) — L/R alternation
  *   OI-VIS-06: np_mod_visual_hal_mpe_check() → bool (false = MPE exceeded)
  */
@@ -55,7 +71,7 @@ np_hub_status_t np_mod_visual_detect(uint8_t slot, np_hub_mod_type_t *type_out)
 {
     (void)slot;
     /* Goggles detected by Hall sensor: magnet present → goggles seated. */
-    if (!np_mod_visual_hal_hall_lifted()) {
+    if (np_mod_visual_hal_goggle_seated()) {
         *type_out = NP_MOD_VISUAL;
         return NP_HUB_OK;
     }
@@ -97,8 +113,10 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
 
     const np_mod_visual_params_t *p = (const np_mod_visual_params_t *)params;
 
-    /* Safety check 1: Hall sensor — goggles must be on head */
-    if (np_mod_visual_hal_hall_lifted()) {
+    /* Safety check 1: Hall sensor — goggles must be seated in the wear
+     * position.  This says nothing about a head being present; eye presence is
+     * check 2, and only for the retinal modes. */
+    if (!np_mod_visual_hal_goggle_seated()) {
         return NP_HUB_ERR_SAFETY_REJECTED;
     }
 
@@ -166,13 +184,13 @@ np_hub_status_t np_mod_visual_telemetry(uint8_t slot, np_telem_record_t *out)
     out->slot     = NP_HUB_SLOT_VISUAL;
 
     np_telem_visual_t *v = &out->data.visual;
-    v->active_mode = s_state.last_mode;                    /* SHDR */
-    v->hall_state  = np_mod_visual_hal_hall_lifted() ? 1U : 0U; /* SHDR */
-    v->eye_open    = np_mod_visual_hal_ir_eye_open();      /* UHDR */
-    v->ppx_halt    = s_state.ppx_halt;                     /* SHDR */
+    v->active_mode   = s_state.last_mode;                  /* SHDR */
+    v->goggle_seated = np_mod_visual_hal_goggle_seated();  /* SHDR */
+    v->eye_open      = np_mod_visual_hal_ir_eye_open();    /* UHDR */
+    v->ppx_halt      = s_state.ppx_halt;                   /* SHDR */
 
-    /* Hall lifted during active session: cut immediately */
-    if (s_state.active && v->hall_state) {
+    /* Goggles lifted during active session: cut immediately */
+    if (s_state.active && !v->goggle_seated) {
         np_mod_visual_hal_led_stop();
         np_safety_spi_request_disable(NP_SAFETY_EN_VISUAL);
         s_state.active = false;
