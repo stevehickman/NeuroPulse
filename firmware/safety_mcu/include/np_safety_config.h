@@ -277,6 +277,27 @@
 #define NP_IMPEDANCE_TEST_MS    50U
 #define NP_IMPEDANCE_MAX_OHM    10000U  /* above this → contacts not confirmed */
 
+/* Minimum impedance floor per checked channel (NP-FMEA-001 FMEA-M06-02,
+ * OI-FMEA-13 (ii)).  A reading BELOW the floor fails the check exactly as one
+ * above NP_IMPEDANCE_MAX_OHM does.  0 Ω is physically impossible for any skin
+ * electrode, and it is what np_hal_impedance_read_ohm() returns when the sense
+ * node sits at ADC full scale (a shorted sense leg or a stuck converter), so
+ * without a floor an AFE fault reads as a perfect contact and grants.
+ *
+ *   VNS_HRV, CVNS  500 Ω — the auricular contact floor the hub already applies
+ *                  (VNS_CONTACT_MIN_OHM, np_mod_vns.c) and the cervical gel
+ *                  minimum FMEA-M06-02's mitigation names.
+ *   tDCS, BES_TACS 1 Ω  — rejects 0 Ω only.  No tES floor is derivable from
+ *                  anything in this repository, and a guessed one would refuse
+ *                  well-wetted pads; the derived floor is OI-FMEA-14.
+ *
+ * Like the maximum, these are read through the uncalibrated reference leg
+ * (OI-SWCI-34).  Indexed by impedance-check channel, 0..3.                  */
+#define NP_IMPEDANCE_MIN_OHM_VNS_HRV   500U
+#define NP_IMPEDANCE_MIN_OHM_TDCS      1U
+#define NP_IMPEDANCE_MIN_OHM_BES_TACS  1U
+#define NP_IMPEDANCE_MIN_OHM_CVNS      500U
+
 /* Impedance analog front end — ALL PROVISIONAL, recorded as OI-SWCI-34.
  *
  * Unlike SPI1/TIM2/ADC1/GPIO, which this file already named before phase 7,

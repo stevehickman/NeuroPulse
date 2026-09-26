@@ -9,6 +9,8 @@
  *
  * Also the enable gate (np_impedance_check_gate, NP-FMEA-001 FMEA-M05-07,
  * OI-FMEA-12 (d)): a channel is withheld until its check passes this session.
+ * And the minimum-impedance floor (NP-FMEA-001 FMEA-M06-02, OI-FMEA-13 (ii)):
+ * 0 Ω, and anything below a channel's floor, fails like an over-limit reading.
  *
  * These tests exercise np_impedance_check.c with mocked HAL stubs; they do NOT
  * require ARM cross-compilation or SPI hardware.
@@ -301,6 +303,68 @@ static void test_gate_cvns_reenable_rechecks(void)
           "cvns: the re-enable's repeat impedance check withholds CVNS until it passes");
 }
 
+/* ══ Minimum-impedance floor (FMEA-M06-02, OI-FMEA-13 (ii)) ═══════════════ */
+
+/* One channel, one reading: does the check grant it, and is IMPEDANCE set? */
+static bool floor_grants(uint8_t ch, uint16_t bit, uint32_t ohm, bool *status_set)
+{
+    np_safety_state_t st;
+
+    gate_session(&st, bit);
+    g_read_ohm[ch] = ohm; g_result_ready[ch] = true;
+    bool granted = (iterate(&st) & bit) != 0U;
+    if (status_set != NULL) {
+        *status_set = (st.status & NP_SAFETY_STATUS_IMPEDANCE) != 0U;
+    }
+    return granted;
+}
+
+static void test_floor_rejects_zero_and_below(void)
+{
+    static const struct { uint8_t ch; uint16_t bit; uint32_t min; const char *name; } k[] = {
+        { 0U,      NP_SAFETY_EN_VNS_HRV,  NP_IMPEDANCE_MIN_OHM_VNS_HRV,  "VNS_HRV"  },
+        { TDCS_CH, NP_SAFETY_EN_TDCS,     NP_IMPEDANCE_MIN_OHM_TDCS,     "tDCS"     },
+        { 2U,      NP_SAFETY_EN_BES_TACS, NP_IMPEDANCE_MIN_OHM_BES_TACS, "BES_TACS" },
+        { CVNS_CH, NP_SAFETY_EN_CVNS,     NP_IMPEDANCE_MIN_OHM_CVNS,     "CVNS"     },
+    };
+    char name[96];
+    bool status;
+
+    for (unsigned n = 0U; n < sizeof(k) / sizeof(k[0]); n++) {
+        snprintf(name, sizeof(name), "floor: %s at 0 ohm is refused (AFE fault)", k[n].name);
+        check(!floor_grants(k[n].ch, k[n].bit, 0U, &status), name);
+        snprintf(name, sizeof(name), "floor: %s at 0 ohm sets IMPEDANCE status", k[n].name);
+        check(status, name);
+        snprintf(name, sizeof(name), "floor: %s at min-1 is refused", k[n].name);
+        check(!floor_grants(k[n].ch, k[n].bit, k[n].min - 1U, NULL), name);
+        snprintf(name, sizeof(name), "floor: %s at min is granted", k[n].name);
+        check(floor_grants(k[n].ch, k[n].bit, k[n].min, NULL), name);
+        snprintf(name, sizeof(name), "floor: %s at min+1 is granted", k[n].name);
+        check(floor_grants(k[n].ch, k[n].bit, k[n].min + 1U, NULL), name);
+        snprintf(name, sizeof(name), "floor: %s at max is granted", k[n].name);
+        check(floor_grants(k[n].ch, k[n].bit, NP_IMPEDANCE_MAX_OHM, NULL), name);
+        snprintf(name, sizeof(name), "floor: %s at max+1 is refused", k[n].name);
+        check(!floor_grants(k[n].ch, k[n].bit, NP_IMPEDANCE_MAX_OHM + 1U, NULL), name);
+    }
+}
+
+static void test_floor_fail_is_not_regranted(void)
+{
+    np_safety_state_t st;
+    unsigned i;
+    int ok = 1;
+
+    /* A below-floor result is a FAIL for the gate, not a pending check: 50
+     * re-granting heartbeats never enable, and nothing auto-retries. */
+    gate_session(&st, NP_SAFETY_EN_CVNS);
+    g_read_ohm[CVNS_CH] = 0U; g_result_ready[CVNS_CH] = true;
+    for (i = 0U; i < 50U; i++) {
+        if ((iterate(&st) & NP_SAFETY_EN_CVNS) != 0U) { ok = 0; }
+    }
+    check(ok, "floor: a 0 ohm CVNS fail stays withheld across 50 heartbeats");
+    check(g_starts[CVNS_CH] == 1U, "floor: a below-floor fail is not auto-retried");
+}
+
 int main(void)
 {
     test_report_invalid_before_measurement();
@@ -311,6 +375,8 @@ int main(void)
     test_gate_fail_is_not_regranted();
     test_gate_pass_does_not_carry_over();
     test_gate_cvns_reenable_rechecks();
+    test_floor_rejects_zero_and_below();
+    test_floor_fail_is_not_regranted();
 
     if (g_failures == 0) { printf("ALL TESTS PASSED\n"); return 0; }
     printf("%d TEST(S) FAILED\n", g_failures);
