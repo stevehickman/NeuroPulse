@@ -130,10 +130,26 @@ void np_log_telemetry(const np_telem_record_t *rec);
  * np_log_eeg_sample_block — append a block of raw EEG samples to the UHDR
  * EDF+ channel file.  samples[] is 24-bit big-endian ADS1299 output,
  * n_samples × NP_EEG_CHANNELS × NP_EEG_SAMPLE_BYTES bytes.
+ *
+ * TASK CONTEXT ONLY — NEVER FROM AN ISR (OI-FWHUB-14, NP-FW-HUB-001 §8.2).
+ * It drains the adaptation ring and s_uhdr_buf and appends to the backend's
+ * staging, all shared with the task-side logger and none safe to touch from an
+ * interrupt.  The EEG DMA ISR hands each completed buffer to a task through a
+ * queue, and that task calls this.  Called from an ISR (as reported by the
+ * hook set with np_log_set_isr_check()) it returns NP_HUB_ERR_GENERIC and
+ * touches no logger state; the target's hook also asserts.
+ *
+ * Returns NP_HUB_OK when the block was handed down, NP_HUB_ERR_INVALID_ARG
+ * for a NULL or empty block.
  */
-void np_log_eeg_sample_block(const uint8_t *samples,
-                              uint16_t       n_samples,
-                              uint32_t       session_ms);
+np_hub_status_t np_log_eeg_sample_block(const uint8_t *samples,
+                                         uint16_t       n_samples,
+                                         uint32_t       session_ms);
+
+/* Reports whether the caller is running in interrupt context (OI-FWHUB-14).
+ * NULL (the default, and host) reports task context. */
+typedef bool (*np_log_in_isr_fn)(void);
+void np_log_set_isr_check(np_log_in_isr_fn fn);
 
 /*
  * np_log_shdr_zone_auth — write zone module authentication result to SHDR.

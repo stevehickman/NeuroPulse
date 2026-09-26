@@ -18,6 +18,8 @@
  *   - §6.5 at the logger: an EEG sample block lands after every UHDR record
  *     logged before it (buffered or still in the adaptation ring), and a full
  *     4 KiB buffer is appended before the sync that must cover it
+ *   - OI-FWHUB-14: an EEG block logged from an ISR is refused before it
+ *     touches any logger state
  *
  * No FreeRTOS, no hardware; the LittleFS-file HAL is host-modeled in
  * np_log_backend.c (NPTEST_HOST).  IEC 62304 Class B — SW-02 hub control.
@@ -506,6 +508,43 @@ static void test_flush_syncs_eeg_blocks(void)
           "record buffer empty");
 }
 
+static bool s_fake_in_isr;
+static bool fake_in_isr(void) { return s_fake_in_isr; }
+
+static void test_eeg_block_refused_from_isr(void)
+{
+    /* OI-FWHUB-14: from an ISR the call must leave every piece of logger state
+     * as it found it — the record buffer, the adaptation ring and the backend
+     * staging a task may be part-way through. */
+    logger_session_open();
+    log_vns(100U);                                      /* buffered, not handed down */
+    np_adaptation_event_t ev;
+    memset(&ev, 0, sizeof ev);
+    ev.session_ms = 150U;
+    (void)np_adapt_log_event(&ev);                      /* queued in the ring */
+    const size_t before = np_log_test_captured_len(NP_LOG_PART_UHDR);
+
+    uint8_t samples[NP_EEG_CHANNELS * NP_EEG_SAMPLE_BYTES];
+    memset(samples, 0x3C, sizeof samples);
+    np_log_set_isr_check(fake_in_isr);
+    s_fake_in_isr = true;
+    np_hub_status_t rc = np_log_eeg_sample_block(samples, 1U, 200U);
+    check(rc == NP_HUB_ERR_GENERIC, "isr: a block logged from an ISR is refused");
+    check(np_log_test_captured_len(NP_LOG_PART_UHDR) == before,
+          "isr: the refusal hands nothing down (buffer, ring and block all held back)");
+
+    s_fake_in_isr = false;
+    np_log_flush();
+    check(np_log_test_captured_len(NP_LOG_PART_UHDR) ==
+              before + VNS_REC_BYTES + ADAPT_REC_BYTES,
+          "isr: the task-side records are intact and the refused block never lands");
+    check(np_log_eeg_sample_block(samples, 1U, 300U) == NP_HUB_OK,
+          "isr: from task context the same call is accepted");
+    check(np_log_eeg_sample_block(NULL, 1U, 300U) == NP_HUB_ERR_INVALID_ARG,
+          "isr: a NULL block is INVALID_ARG");
+    np_log_set_isr_check(NULL);
+}
+
 static void test_uhdr_overflow_syncs_after_append(void)
 {
     /* Records are serialized field by field, so the overflow can fall inside
@@ -744,6 +783,7 @@ int main(void)
     test_count_committed_before_file();
     test_eeg_block_keeps_time_order();
     test_flush_syncs_eeg_blocks();
+    test_eeg_block_refused_from_isr();
     test_uhdr_overflow_syncs_after_append();
     test_shdr_overflow_syncs_after_append();
     test_session_end_keeps_queued_adapt_events();

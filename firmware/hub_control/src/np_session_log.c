@@ -315,11 +315,23 @@ void np_log_telemetry(const np_telem_record_t *rec)
     }
 }
 
-void np_log_eeg_sample_block(const uint8_t *samples,
-                              uint16_t       n_samples,
-                              uint32_t       session_ms)
+static np_log_in_isr_fn s_in_isr;    /* OI-FWHUB-14 */
+
+void np_log_set_isr_check(np_log_in_isr_fn fn)
 {
-    if (samples == NULL || n_samples == 0U) { return; }
+    s_in_isr = fn;
+}
+
+np_hub_status_t np_log_eeg_sample_block(const uint8_t *samples,
+                                         uint16_t       n_samples,
+                                         uint32_t       session_ms)
+{
+    /* OI-FWHUB-14: refused from an ISR before anything is touched.  The ring,
+     * s_uhdr_buf and the backend staging below are unsynchronized state the
+     * task-side logger may be part-way through; the DMA ISR queues the block
+     * to a task instead (§8.2). */
+    if (s_in_isr != NULL && s_in_isr()) { return NP_HUB_ERR_GENERIC; }
+    if (samples == NULL || n_samples == 0U) { return NP_HUB_ERR_INVALID_ARG; }
 
     /* Every UHDR record logged before this block goes to the file before it —
      * the adaptation ring first, since its events reach s_uhdr_buf only when
@@ -341,6 +353,7 @@ void np_log_eeg_sample_block(const uint8_t *samples,
     np_log_hal_uhdr_append(hdr, sizeof(hdr));
     np_log_hal_uhdr_append(samples,
                            (size_t)n_samples * NP_EEG_CHANNELS * NP_EEG_SAMPLE_BYTES);
+    return NP_HUB_OK;
 }
 
 void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass)

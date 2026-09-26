@@ -10,7 +10,9 @@
  * If the buffer fills during a session, the fault counter in SHDR increments
  * and the oldest unflushed event is overwritten (newest wins).
  *
- * Called from the session runner task only.  No mutex required.
+ * NOT single-context as linked: the ring is drained both by np_log_session_end()
+ * in the runner task and by np_log_flush() in task_telemetry, with no lock.
+ * (Nothing queues an event yet.)  NP-FW-HUB-001 OI-FWHUB-19.
  */
 
 #include "np_session_log.h"   /* pulls in np_adaptation_log.h transitively */
