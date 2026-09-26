@@ -42,7 +42,10 @@
  * safe direction: every error path in this file returns NP_HAL_IMP_FAILSAFE_OHM,
  * which is above the limit and therefore refuses the enable.  Returning 0 on
  * error — the intuitive "nothing measured" value — would read as a perfect
- * contact and GRANT the enable.  Same shape as the ADC fail-safe in
+ * contact and GRANT the enable.  (Since NP-FMEA-001 FMEA-M06-02 the consumer
+ * also refuses readings below a per-channel floor, so 0 Ω no longer grants;
+ * the high direction remains the rule, because it does not depend on a floor
+ * whose tES value is still OI-FMEA-14.)  Same shape as the ADC fail-safe in
  * np_hal_adc.c, opposite direction, for the same kind of reason: the consumer's
  * comparison decides which way is safe, not the driver's intuition.
  *
@@ -116,7 +119,9 @@ static uint32_t np_hal_imp_count_to_ohm(uint32_t count)
         return NP_HAL_IMP_FAILSAFE_OHM;
     }
     if (count >= NP_HAL_IMP_FULL_SCALE) {
-        return 0U;                       /* dead short across the sense leg */
+        /* Dead short across the sense leg, or a converter stuck at full scale.
+         * 0 Ω: the consumer's floor refuses it (FMEA-M06-02). */
+        return 0U;
     }
     return ((uint32_t)NP_IMP_SENSE_R_OHM * (NP_HAL_IMP_FULL_SCALE - count)) / count;
 }
