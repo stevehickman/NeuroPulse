@@ -7,12 +7,16 @@
  * Return convention: 0 = all PASS, non-zero = count of failed assertions.
  */
 
+/* gmtime_r is POSIX, not C11; the writer's own gmtime is checked against it. */
+#define _POSIX_C_SOURCE 200809L
+
 #include "np_edf_writer.h"
 #include "np_edf_anon_gate.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <time.h>
 
 /* ── Test infrastructure ─────────────────────────────────────────────────────── */
 
@@ -42,16 +46,90 @@ static void make_token(uint8_t token[32], uint8_t seed)
 
 /* ── Test 1: generate + validate 100 headers ─────────────────────────────────── */
 
+/* Session timestamps for the 100 files.  The writer converts them with its own
+   libc-free gmtime (np_edf_writer.c), so the set pins the calendar edges that a
+   hand-rolled conversion gets wrong: the epoch, 2000-02-29 (divisible by 400,
+   leap), 2100-03-01 (divisible by 100, not leap), the last second of a day and
+   of a year, and the last representable uint32 second (2106-02-07 06:28:15).
+   The remaining slots are spread over 1970..2106 by a fixed LCG. */
+static const uint32_t k_edge_ts[] = {
+    0U,           /* 1970-01-01 00:00:00 */
+    86399U,       /* 1970-01-01 23:59:59 */
+    951782400U,   /* 2000-02-29 00:00:00 */
+    951868799U,   /* 2000-02-29 23:59:59 */
+    978307199U,   /* 2000-12-31 23:59:59 */
+    1709208000U,  /* 2024-02-29 12:00:00 */
+    1790208000U,  /* 2026-09-24 00:00:00 */
+    4107542399U,  /* 2100-02-28 23:59:59 */
+    4107542400U,  /* 2100-03-01 00:00:00 */
+    0xFFFFFFFFU,  /* 2106-02-07 06:28:15 */
+};
+
+static uint32_t session_ts_for(int i)
+{
+    const int n_edge = (int)(sizeof(k_edge_ts) / sizeof(k_edge_ts[0]));
+    if (i < n_edge) {
+        return k_edge_ts[i];
+    }
+    uint32_t x = (uint32_t)i * 2654435761U;  /* Knuth multiplicative hash */
+    return x ^ (x >> 13);
+}
+
+/* Checks startdate, starttime and the "Startdate DD-MMM-YYYY" subfield of
+   local_recording_id against the host C library's gmtime_r. */
+static void check_dates_against_libc(const np_edf_header_t *h, uint32_t ts)
+{
+    static const char *mon[12] = {
+        "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+        "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
+    };
+    time_t t = (time_t)ts;
+    struct tm tm;
+    if (gmtime_r(&t, &tm) == NULL) {
+        ASSERT(0, "host gmtime_r failed");
+        return;
+    }
+
+    char want[32];
+    snprintf(want, sizeof(want), "%02d.%02d.%02d",
+             tm.tm_mday, tm.tm_mon + 1, (tm.tm_year + 1900) % 100);
+    if (memcmp(h->startdate, want, NP_EDF_STARTDATE_LEN) != 0) {
+        printf("  ts=%u startdate got '%.8s' want '%s'\n",
+               (unsigned)ts, h->startdate, want);
+        ASSERT(0, "startdate disagrees with gmtime_r");
+    }
+
+    snprintf(want, sizeof(want), "%02d.%02d.%02d",
+             tm.tm_hour, tm.tm_min, tm.tm_sec);
+    if (memcmp(h->starttime, want, NP_EDF_STARTTIME_LEN) != 0) {
+        printf("  ts=%u starttime got '%.8s' want '%s'\n",
+               (unsigned)ts, h->starttime, want);
+        ASSERT(0, "starttime disagrees with gmtime_r");
+    }
+
+    snprintf(want, sizeof(want), "Startdate %02d-%s-%04d ",
+             tm.tm_mday, mon[tm.tm_mon], tm.tm_year + 1900);
+    if (memcmp(h->local_recording_id, want, strlen(want)) != 0) {
+        printf("  ts=%u recording_id got '%.22s' want '%s'\n",
+               (unsigned)ts, h->local_recording_id, want);
+        ASSERT(0, "recording_id Startdate disagrees with gmtime_r");
+    }
+}
+
+/* OI-EMMC2-05: 100 files, each with its own token and session time, all of
+   which must pass the §E.4 validator and carry the correct EDF+ date/time. */
 static void test_write_100_headers(void)
 {
     int failures_before = g_fail_count;
     for (int i = 0; i < 100; i++) {
         uint8_t token[32];
         make_token(token, (uint8_t)i);
+        uint32_t ts = session_ts_for(i);
 
         np_edf_header_t header;
-        ASSERT_OK(np_edf_write_header(&header, token, "1.0.0", (uint32_t)0));
+        ASSERT_OK(np_edf_write_header(&header, token, "1.0.0", ts));
         ASSERT_OK(np_edf_validate_privacy_header(&header));
+        check_dates_against_libc(&header, ts);
     }
     if (g_fail_count == failures_before) {
         printf("PASS: 100/100 header generation tests\n");
