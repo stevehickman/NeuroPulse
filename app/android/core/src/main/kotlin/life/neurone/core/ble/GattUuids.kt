@@ -24,7 +24,8 @@ object GattUuids {
     val otaCommand: UUID       = UUID.fromString("4E455550-000A-1000-8000-00805F9B34FB") // WRITE/NOTIFY
     val otaStatus: UUID        = UUID.fromString("4E455550-000B-1000-8000-00805F9B34FB") // NOTIFY
     val calibrationCmd: UUID   = UUID.fromString("4E455550-000C-1000-8000-00805F9B34FB") // WRITE
-    val zoneModuleStatus: UUID = UUID.fromString("4E455550-000D-1000-8000-00805F9B34FB") // READ/NOTIFY 5B
+    // READ/NOTIFY — socket-keyed status frames (np_zone_notify.h v2; ZoneModuleFrame.kt)
+    val zoneModuleStatus: UUID = UUID.fromString("4E455550-000D-1000-8000-00805F9B34FB")
     val shdrUploadStatus: UUID = UUID.fromString("4E455550-000E-1000-8000-00805F9B34FB") // NOTIFY
     val sessionStop: UUID      = UUID.fromString("4E455550-000F-1000-8000-00805F9B34FB") // WRITE 1B (0x01 = stop)
 
@@ -32,6 +33,11 @@ object GattUuids {
     // (NP-FW-EMMC-002 Rev A §A, OI-WA-03). NOT in `all` — hub firmware not yet
     // implemented; omitting it prevents allCharacteristicsResolved from blocking.
     val warrantyToken: UUID    = UUID.fromString("4E455550-0010-1000-8000-00805F9B34FB") // READ 32B
+
+    // Socket geometry — READ/NOTIFY, fragmented 8-byte records (np_zone_notify.h v2). Read once
+    // at link; subscribed so a lattice-changing OTA can re-publish. SHDR-class. NOT in `all` —
+    // optional until hub firmware ships it (OI-WA-03). Mirrors iOS NPUUID.socketMap.
+    val socketMap: UUID        = UUID.fromString("4E455550-0012-1000-8000-00805F9B34FB") // READ/NOTIFY
 
     // Current hub firmware version — READ/NOTIFY 4B little-endian uint32.
     // NOT in `all` — optional until hub firmware ships it (OI-WA-03).

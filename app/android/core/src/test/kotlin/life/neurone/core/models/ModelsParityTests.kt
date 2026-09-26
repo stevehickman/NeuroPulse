@@ -36,6 +36,7 @@ class ModelsParityTests {
         assertEquals("4e455550-000f-1000-8000-00805f9b34fb", GattUuids.sessionStop.toString())
         assertEquals("4e455550-0010-1000-8000-00805f9b34fb", GattUuids.warrantyToken.toString())
         assertEquals("4e455550-0011-1000-8000-00805f9b34fb", GattUuids.firmwareVersion.toString())
+        assertEquals("4e455550-0012-1000-8000-00805f9b34fb", GattUuids.socketMap.toString())
     }
 
     @Test

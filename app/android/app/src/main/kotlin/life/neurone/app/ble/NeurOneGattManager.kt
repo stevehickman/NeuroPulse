@@ -13,6 +13,10 @@ import life.neurone.core.models.CervicalFaultStatus
 import life.neurone.core.models.CervicalPadStatus
 import life.neurone.core.models.OtaStatusPacket
 import life.neurone.core.models.SessionState
+import life.neurone.core.models.SocketMap
+import life.neurone.core.models.SocketMapFrameAssembler
+import life.neurone.core.models.ZoneModuleConfiguration
+import life.neurone.core.models.ZoneModuleFrameAssembler
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -56,8 +60,19 @@ class NeurOneGattManager(
     private val _allCharacteristicsResolved = MutableStateFlow(false)
     val allCharacteristicsResolved: StateFlow<Boolean> = _allCharacteristicsResolved
 
-    private val _zoneModules = MutableStateFlow<List<Int>>(listOf(0, 0, 0, 0, 0))
-    val zoneModules: StateFlow<List<Int>> = _zoneModules
+    /**
+     * Live socket-keyed module inventory (ZONE_MODULE_STATUS). Sparse and variable-length —
+     * replaces the retired fixed five-slot list (NP-HFE-002 OI-HFE2-02). SHDR-class.
+     */
+    private val _zoneModules = MutableStateFlow(ZoneModuleConfiguration.EMPTY)
+    val zoneModules: StateFlow<ZoneModuleConfiguration> = _zoneModules
+
+    /** This helmet's socket geometry (SOCKET_MAP), read once at link. SHDR-class. */
+    private val _socketMap = MutableStateFlow(SocketMap.EMPTY)
+    val socketMap: StateFlow<SocketMap> = _socketMap
+
+    private val zoneFrameAssembler = ZoneModuleFrameAssembler()
+    private val socketMapAssembler = SocketMapFrameAssembler()
 
     private val _otaStatus = MutableStateFlow<OtaStatusPacket?>(null)
     val otaStatus: StateFlow<OtaStatusPacket?> = _otaStatus
@@ -160,7 +175,7 @@ class NeurOneGattManager(
         central.discoverCharacteristics(
             GattUuids.service,
             GattUuids.all + listOf(
-                GattUuids.warrantyToken, GattUuids.firmwareVersion, GattUuids.cvnsPadStatus,
+                GattUuids.warrantyToken, GattUuids.firmwareVersion, GattUuids.socketMap, GattUuids.cvnsPadStatus,
                 GattUuids.cvnsFaultStatus, GattUuids.cvnsReenableConfirm, GattUuids.activeUser,
             ),
         )
@@ -183,6 +198,15 @@ class NeurOneGattManager(
         GattUuids.all.forEach { central.enableNotifications(it) }
         if (GattUuids.warrantyToken in characteristics) central.read(GattUuids.warrantyToken)
         if (GattUuids.firmwareVersion in characteristics) central.read(GattUuids.firmwareVersion)
+        // Inventory is read, not only awaited: the hub notifies on change, and nothing may have
+        // changed since the last link (iOS parity).
+        if (GattUuids.zoneModuleStatus in characteristics) central.read(GattUuids.zoneModuleStatus)
+        // Optional — hub firmware not yet shipped (OI-WA-03). Read once at link; subscribed so a
+        // lattice-changing OTA can re-publish.
+        if (GattUuids.socketMap in characteristics) {
+            central.enableNotifications(GattUuids.socketMap)
+            central.read(GattUuids.socketMap)
+        }
         // Optional — T2 cervical accessory only, and hub firmware not yet shipped.
         if (GattUuids.cvnsPadStatus in characteristics) central.enableNotifications(GattUuids.cvnsPadStatus)
         // Name the person before the fault summary is read: the summary is theirs.
@@ -209,6 +233,17 @@ class NeurOneGattManager(
             // SHDR upload bookkeeping only; never touches session state. Publish the
             // pending trigger (0x01 = upload pending) for the SHDR upload pipeline.
             _shdrUploadPending.value = value.isNotEmpty() && value[0] == 0x01.toByte()
+            return
+        }
+        if (uuid == GattUuids.socketMap) {
+            // Device geometry — SHDR-class, never session state.
+            applySocketMap(value)
+            return
+        }
+        if (uuid == GattUuids.zoneModuleStatus) {
+            // Socket occupancy, module type and module health are COMPONENT facts — SHDR-class,
+            // handled here so they can never be folded into the UHDR session record.
+            applyZoneModuleStatus(value)
             return
         }
         if (uuid == GattUuids.cvnsPadStatus) {
@@ -238,9 +273,6 @@ class NeurOneGattManager(
             }
             GattUuids.consumableStatus -> GattParser.parseConsumableStatus(value)?.let { counts ->
                 _session.value = _session.value.copy(consumableSessionCounts = counts)
-            }
-            GattUuids.zoneModuleStatus -> GattParser.parseZoneModuleStatus(value)?.let {
-                _zoneModules.value = it
             }
             GattUuids.otaStatus -> GattParser.parseOtaStatus(value)?.let { _otaStatus.value = it }
             GattUuids.firmwareVersion -> GattParser.parseFirmwareVersion(value)?.let {
@@ -278,6 +310,25 @@ class NeurOneGattManager(
      */
     fun acknowledgeCervicalPadAlert() {
         _cervicalPadAlert.value = null
+    }
+
+    /**
+     * Decode one ZONE_MODULE_STATUS fragment and fold it into the inventory. Malformed frames
+     * are dropped whole — presence gates placement checks, so a frame that is not exactly
+     * well-formed must not be partially believed. A multi-fragment snapshot is committed only
+     * when its final fragment arrives.
+     */
+    fun applyZoneModuleStatus(value: ByteArray) {
+        val frame = GattParser.parseZoneModuleStatus(value) ?: return
+        val complete = zoneFrameAssembler.accept(frame) ?: return
+        _zoneModules.value = _zoneModules.value.applying(complete)
+    }
+
+    /** Decode one SOCKET_MAP fragment; a completed run replaces the map wholesale. */
+    fun applySocketMap(value: ByteArray) {
+        val frame = GattParser.parseSocketMap(value) ?: return
+        val complete = socketMapAssembler.accept(frame) ?: return
+        _socketMap.value = _socketMap.value.applying(complete)
     }
 
     /** Decodes CVNS_FAULT_STATUS; a malformed frame changes nothing. */
@@ -371,6 +422,13 @@ class NeurOneGattManager(
         _connectionState.value = ConnectionState.DISCONNECTED
         _allCharacteristicsResolved.value = false
         _session.value = SessionState.EMPTY   // clear stale UHDR display state
+        // Clear the inventory rather than zeroing a fixed shape: the hub sends a fresh snapshot
+        // on reconnect, and a stale "present" socket would let a placement gate pass on a module
+        // pulled while disconnected. The map goes too — the next link may be another helmet.
+        _zoneModules.value = ZoneModuleConfiguration.EMPTY
+        zoneFrameAssembler.reset()
+        _socketMap.value = SocketMap.EMPTY
+        socketMapAssembler.reset()
         _hubFirmwareVersion.value = null
         _warrantyToken.value = null
         _cervicalPadAlert.value = null

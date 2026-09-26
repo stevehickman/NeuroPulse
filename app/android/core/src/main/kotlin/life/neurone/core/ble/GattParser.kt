@@ -7,6 +7,8 @@ import life.neurone.core.models.HRVData
 import life.neurone.core.models.OtaStatusPacket
 import life.neurone.core.models.PacerPhase
 import life.neurone.core.models.SessionStatus
+import life.neurone.core.models.SocketMapFrame
+import life.neurone.core.models.ZoneModuleFrame
 
 // Port of iOS GATTParser — little-endian, matching hub firmware layout.
 // All parsers return null (never throw) on short or malformed input.
@@ -69,11 +71,15 @@ object GattParser {
         return (0 until 4).map { data.leUInt16(it * 2) }
     }
 
-    /** ZONE_MODULE_STATUS: 5 bytes — one uint8 per zone slot (0=absent, 1–5=zone ID confirmed) */
-    fun parseZoneModuleStatus(data: ByteArray): List<Int>? {
-        if (data.size < 5) return null
-        return (0 until 5).map { data[it].toInt() and 0xFF }
-    }
+    /**
+     * ZONE_MODULE_STATUS: v2 header + n × 3-byte socket-keyed status records (np_zone_notify.h).
+     * One fragment; feed it to ZoneModuleFrameAssembler. SHDR-class. null if malformed —
+     * including the retired 5-byte one-byte-per-slot payload, which decodes as version 0.
+     */
+    fun parseZoneModuleStatus(data: ByteArray): ZoneModuleFrame? = ZoneModuleFrame.fromWire(data)
+
+    /** SOCKET_MAP: v2 header + n × 8-byte socket geometry records. One fragment. SHDR-class. null if malformed. */
+    fun parseSocketMap(data: ByteArray): SocketMapFrame? = SocketMapFrame.fromWire(data)
 
     /** FIRMWARE_VERSION: uint32 little-endian — bits [23:16]=major [15:8]=minor [7:0]=patch */
     fun parseFirmwareVersion(data: ByteArray): FirmwareVersion? =
