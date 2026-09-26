@@ -68,6 +68,7 @@ import {
 } from "./check-thermal-sink";
 import { R_OUT_CURRENT } from "./thermal-outward-path";
 import { analyse } from "./check-pbm-power";
+import { OVERHEAD_W_MID } from "./pbm-model";
 
 const VALIDATE_ONLY = process.argv.includes("--validate");
 
@@ -181,7 +182,7 @@ function reportCeiling() {
 
 function reportT1Peak() {
   rule("§1b  What this does to CLAUDE.md §4.5's T1-peak row");
-  const OVERHEAD_W = 7.0;  // NP-HW-HEXTILE-001 §9.1 non-PBM overhead, 6-8 W
+  const OVERHEAD_W = OVERHEAD_W_MID;  // NP-HW-HEXTILE-001 §9.1 non-PBM overhead, 6-8 W
   const agg = aggregateW(WITH_SPREADER).w;
   const at6 = admissibleW(6, WITH_SPREADER);
   console.log(`  §4.5 reads "T1 peak ~45-50 W, min 20 V/3 A (65 W)". Net of the ~${f0(OVERHEAD_W)} W`);
@@ -493,7 +494,9 @@ function reportCoilThermal() {
 // §6  CLAUDE.md §4.5, re-derived
 // ---------------------------------------------------------------------------
 
-const OVERHEAD_W = 7.0;
+// NP-HW-HEXTILE-001 §9.1's 6–8 W band, at its midpoint, from hardware/np_pbm_model.json
+// (OI-PWRSRC-13) — the same constant check-thermal-bowl.ts reads.
+const OVERHEAD_W = OVERHEAD_W_MID;
 
 function reportPowerTable() {
   rule("§6  CLAUDE.md §4.5 re-derived — the two T2 rows, and the row that was missing");

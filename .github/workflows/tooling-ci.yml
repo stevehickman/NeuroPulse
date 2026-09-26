@@ -132,6 +132,7 @@ jobs:
       lfscallers: ${{ steps.scope.outputs.lfscallers }}
       benchboundary: ${{ steps.scope.outputs.benchboundary }}
       map2shdr: ${{ steps.scope.outputs.map2shdr }}
+      pbmmodel: ${{ steps.scope.outputs.pbmmodel }}
     env:
       # Eight independent surfaces, eight lists. A simulator-only change should
       # not run the Python gate, and vice versa. Blank lines and `#` comments
@@ -309,6 +310,17 @@ jobs:
         ci/shdr/shdr_fleet_schema.sql
         scripts/check-map2-shdr-boundary.ts
         .github/workflows/tooling-ci.yml
+      # The PBM model single-source gate (NP-PWRSRC-001 OI-PWRSRC-13, #440).
+      # Three edits break it: a value changed in the JSON without regenerating
+      # the header, a hand edit to the generated header, and a literal
+      # re-declaration of a model constant in any script. The third can land in
+      # any file under scripts/, so the directory, not a list of today's
+      # consumers — a new audit that forks OVERHEAD_W is the case worth seeing.
+      NP_SCOPE_PBMMODEL: |
+        hardware/np_pbm_model.json
+        firmware/hub_control/include/np_pbm_model.generated.h
+        scripts/**
+        .github/workflows/tooling-ci.yml
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -343,6 +355,7 @@ jobs:
           printf '%s\n' "$NP_SCOPE_LFSCALLERS" > scope.lfscallers.paths
           printf '%s\n' "$NP_SCOPE_BENCHBOUNDARY" > scope.benchboundary.paths
           printf '%s\n' "$NP_SCOPE_MAP2SHDR" > scope.map2shdr.paths
+          printf '%s\n' "$NP_SCOPE_PBMMODEL" > scope.pbmmodel.paths
 
       # A well-formed pattern that matches nothing is a typo, not a scope
       # decision: `simluator/**` would silently take the whole surface out of
@@ -350,7 +363,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths scope.benchboundary.paths scope.map2shdr.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths scope.benchboundary.paths scope.map2shdr.paths scope.pbmmodel.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -485,6 +498,15 @@ jobs:
           assert scope.map2shdr.paths false docs/np_fw_nvram_001.md
           assert scope.map2shdr.paths false ci/test_shdr_schema.py
 
+          # The PBM model gate. The source, the emitted header and any script
+          # are in; the rest of the hub's headers and the documents are not.
+          assert scope.pbmmodel.paths true  hardware/np_pbm_model.json
+          assert scope.pbmmodel.paths true  firmware/hub_control/include/np_pbm_model.generated.h
+          assert scope.pbmmodel.paths true  scripts/pbm-model.ts
+          assert scope.pbmmodel.paths false firmware/hub_control/include/np_hub_config.h
+          assert scope.pbmmodel.paths false hardware/np_socket_map.json
+          assert scope.pbmmodel.paths false docs/np_pwrsrc_001.md
+
       - name: Changed files
         id: diff
         env:
@@ -543,6 +565,7 @@ jobs:
           emit lfscallers scope.lfscallers.paths
           emit benchboundary scope.benchboundary.paths
           emit map2shdr  scope.map2shdr.paths
+          emit pbmmodel  scope.pbmmodel.paths
 
   scripts-check:
     name: scripts/ type-check
@@ -888,6 +911,28 @@ jobs:
       # (OI-NVRAM-09).
       - name: No file names Map 2 and SHDR together, and no SHDR name marks a sync
         run: bun scripts/check-map2-shdr-boundary.ts
+
+  pbm-model:
+    name: PBM power/thermal constants have one source, emitted to C (NP-PWRSRC-001 OI-PWRSRC-13)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.pbmmodel != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Guard self-test (prove the model, header and fork rules can fail)
+        run: bun scripts/check-pbm-model.ts --self-test
+
+      # The runtime governor (OI-FWHUB-09) reads the C header; the audits read
+      # the JSON. "The countermeasure is not care" (NP-PWRSRC-001 §11 item 5).
+      - name: hardware/np_pbm_model.json, the C header and scripts/ agree
+        run: bun scripts/check-pbm-model.ts
 
   tcap-map:
     name: the T2 cap electrode map matches its specification (NP-HW-TCAP-001 §3)

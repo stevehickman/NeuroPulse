@@ -79,6 +79,7 @@ import {
 import {
   R_GAP_STAGNANT, R_ABSORBER, R_CAV_AMB_R1,
 } from "./thermal-outward-path";
+import { OVERHEAD_W_MID } from "./pbm-model";
 
 const VALIDATE_ONLY = process.argv.includes("--validate");
 const A = TILE_AREA;
@@ -169,8 +170,9 @@ export function admissibleTotalW(a: Alloc, amb: number, kt: number): number {
 // §3  Power: CLAUDE.md §4.5 peaks, net of the non-PBM overhead
 // ---------------------------------------------------------------------------
 // NP-HW-HEXTILE-001 §9.1 puts non-PBM overhead at 6–8 W; check-power-envelope.ts
-// takes 7.0 and sites it in the hub (NP-PWRSRC-001 §4.4's hub row).
-const OVERHEAD_W = 7.0;
+// takes the midpoint and sites it in the hub (NP-PWRSRC-001 §4.4's hub row). One
+// constant for both, from hardware/np_pbm_model.json (OI-PWRSRC-13).
+const OVERHEAD_W = OVERHEAD_W_MID;
 export const PEAKS = [
   { id: "T1 peak lo", w: 45 }, { id: "T1 peak hi", w: 50 },
   { id: "T2 peak lo", w: 70 }, { id: "T2 peak hi", w: 74 },

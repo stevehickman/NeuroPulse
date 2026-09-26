@@ -1,12 +1,23 @@
-# NP-FW-M09-ARCH-001 — Architecture Decision: Operating-Envelope Gate as SW01-M09 vs. extending SW01-M04
+# NP-FW-M09-ARCH-001 — Architecture Decision: Operating-Envelope Gate as a new SW-01 module (SW01-M11) vs. extending SW01-M04
 
 **Program:** NeurOne firmware / Safety MCU
 **Status:** DRAFT decision note (settles **OI-POE-02**). Recommends a home for the predictive
 operating-envelope admission/derate function defined in NP-FW-POE-001.
 **Sources:** NP-FW-POE-001, NP-FMEA-001 §3 (SW01-M01…M08 module set + interlock pattern), NP-SW-001 §5.1,
 NP-REQ-FANHEALTH-001 (SR-FAN), NP-ENV-OPRANGE-001.
-**Decision:** **New module SW01-M09** (not an extension of SW01-M04).
-**Date:** 2026-07-21
+**Decision:** **New module SW01-M11** (not an extension of SW01-M04). *Numbered SW01-M09 until 2026-09-26 — see the note below.*
+**Date:** 2026-07-21 (module renumbered SW01-M09 → SW01-M11 on 2026-09-26, GitHub #440)
+
+> **Renumbering note (2026-09-26, GitHub #440, `NP-FMEA-001` `OI-FMEA-10`).** This note first assigned
+> the operating-envelope gate the ID **SW01-M09**. That ID was then taken by a shipped module, the
+> flash-persisted cardiac-cutoff log `firmware/safety_mcu/src/np_nv_state.c`, and SW01-M10 by the
+> tier-identity gate `np_tier_identity.c`. The gate is unbuilt and appears in no code, test, FMEA
+> section or `NP-SW-001` §5.1 row, so it moves, not the shipped module: **the operating-envelope
+> gate is SW01-M11** and its FMEA section will be **FMEA-M11-xx**. Two things deliberately keep
+> the old number. The **document serial** `NP-FW-M09-ARCH-001` and its filename stay as issued
+> (`NP-CONV-001` §4.0.4 binds new issues, and a serial resolving to one file is not a collision).
+> The open items **`OI-M09-01`…`-04`** keep their IDs (`NP-CONV-001` §6: open items are never
+> renumbered); their text now says SW01-M11. Anywhere else, "SW01-M09" means `np_nv_state.c`.
 
 ---
 
@@ -16,7 +27,7 @@ NP-FW-POE-001 adds a **predictive, ambient-based operating-envelope gate**: read
 baseline), consult the per-modality envelope table + the descriptor's signed POE block, compute a duty
 ceiling / admission decision (`min(TABLE, POE, SR-FAN)`), deny enable when out of range. Where should this
 Class C logic live — folded into **SW01-M04** (the existing junction-NTC thermal interlock), or a **new
-SW01-M09**?
+SW01-M11**?
 
 ## 2. Decision drivers
 
@@ -37,13 +48,13 @@ job is a clean sensor→throttle loop; **re-opens the certified junction interlo
 with admission logic (more state, larger stack/MISRA surface); breaks the "one checker, one concern"
 pattern.
 
-**B — New SW01-M09 "Operating-Envelope Admission Gate."** *Pros:* the envelope gate is *exactly* another
+**B — New SW01-M11 "Operating-Envelope Admission Gate."** *Pros:* the envelope gate is *exactly* another
 member of the existing interlock-checker family (like M06 impedance — an independent check that feeds M01's
 enable and M08's fault latch); **freezes M04**, so the scalp-burn interlock is not re-verified; isolates
 predictive-gate failure modes from the reactive cutoff; single responsibility. *Cons:* one more Class C
 unit to spec/verify.
 
-## 4. Decision — **B, new SW01-M09**
+## 4. Decision — **B, new SW01-M11**
 
 The deciding factor is that **SW-01 is already structured as independent interlock checkers that each own
 one safety concern and feed M01 (enable) + M08 (fault)**. The operating-envelope gate is one more such
@@ -54,7 +65,7 @@ matches the architecture the whole Class C design already rests on.
 
 ## 5. Module responsibilities & interfaces
 
-**SW01-M09 — Operating-Envelope Admission Gate (Class C):**
+**SW01-M11 — Operating-Envelope Admission Gate (Class C):**
 - Read ambient (session-start baseline + coarse re-reads; no reading → fail-safe worst-case ambient).
 - Consult the provisioned envelope **table** (authoritative) + the verified descriptor **POE** block.
 - Compute `envelope_ceiling = min( TABLE_clamp(ambient, active_modalities), POE_clamp(ambient) )` and the
@@ -69,14 +80,14 @@ cutoff (65 °C). Owns the thermal PWM actuator.
 
 M04 owns the thermal duty actuator, so **M04 applies the composed clamp**:
 `effective_duty = min( M04_junction_throttle, M09_envelope_ceiling, SR-FAN_ceiling )`.
-M09 *computes and publishes* its ceiling; M04 *consumes* it. This keeps one actuator authority while
+M11 *computes and publishes* its ceiling; M04 *consumes* it. This keeps one actuator authority while
 separating concerns.
 
 ### 5.2 Independence property (defense in depth)
 
-M04's junction **cutoff (65 °C)** does **not** depend on M09: it reads only its own NTC. So a predictive-gate
+M04's junction **cutoff (65 °C)** does **not** depend on M11: it reads only its own NTC. So a predictive-gate
 fault (bad table, POE parse error, ambient-sensor fault) can lower or fail-safe the ceiling but **cannot
-disable the reactive cutoff**. Conversely M09's admission deny does not depend on M04. Two independent
+disable the reactive cutoff**. Conversely M11's admission deny does not depend on M04. Two independent
 layers, as the interlock family intends.
 
 ## 6. SR-FAN allocation (refines OI-FAN, keeps the split coherent)
@@ -84,30 +95,30 @@ layers, as the interlock family intends.
 SR-FAN (NP-REQ-FANHEALTH-001) splits along the same reactive/predictive line:
 - **Reactive face-temperature throttle** (Path B1, scalp-facing NTC) → **belongs with M04** (real-time, same
   character as the junction throttle; adds one NTC channel to M04, not a new module).
-- **Fan-health-driven derate to the natural-convection ceiling** (Path B2) + the ambient envelope → **M09**
-  (predictive/admission; the SR-FAN ceiling is one more term M09 folds into its published ceiling).
+- **Fan-health-driven derate to the natural-convection ceiling** (Path B2) + the ambient envelope → **M11**
+  (predictive/admission; the SR-FAN ceiling is one more term M11 folds into its published ceiling).
 
-Net: **M04 = reactive real-time thermal throttles (junction + face NTC); M09 = predictive envelope/admission
+Net: **M04 = reactive real-time thermal throttles (junction + face NTC); M11 = predictive envelope/admission
 + fan-health-derate.** Clean two-axis split. (Flag this back to OI-FAN so the SR-FAN implementation lands in
 the same shape.)
 
 ## 7. Consequences
 
-- New **SW01-M09** row in NP-SW-001 §5.1; new unit-test spec (100 % branch on safety paths); new FMEA
-  section **FMEA-M09-xx** (import the five POE failure modes from NP-FW-POE-001 §9); traceability entries.
+- New **SW01-M11** row in NP-SW-001 §5.1; new unit-test spec (100 % branch on safety paths); new FMEA
+  section **FMEA-M11-xx** (import the five POE failure modes from NP-FW-POE-001 §9); traceability entries.
 - **M04 stays frozen** except the optional face-NTC channel (a small, separately-verified addition if SR-FAN
   Path B1 is chosen) — the certified junction interlock is not otherwise touched.
 - Enable-arbitration (M01) gains one more checker input; fault-latch (M08) gains the out-of-range reason.
-- The `min()` composition point is documented in M04; M09 is a pure computer/checker (no actuator ownership).
+- The `min()` composition point is documented in M04; M11 is a pure computer/checker (no actuator ownership).
 
 ## 8. Follow-ups
 
 | ID | Description | Owner |
 |----|-------------|-------|
-| OI-M09-01 | Author the SW01-M09 unit-test spec + FMEA-M09 section under change control (NP-SW-001, NP-FMEA-001) | Quality + FW |
-| OI-M09-02 | Confirm the M09→M04 ceiling-publish interface (shared-memory value + validity/stale flag; M09 fault → M04 uses SR-FAN/junction only) | FW |
-| OI-M09-03 | Route SR-FAN Path-B1 face-NTC to M04 and Path-B2 fan-derate to M09 per §6; update NP-REQ-FANHEALTH-001 allocation | FW |
-| OI-M09-04 | Decide whether M09 admission runs once at start or also on coarse mid-session ambient re-reads (and the re-read cadence) | FW + Thermal |
+| OI-M09-01 | Author the SW01-M11 unit-test spec + FMEA-M11 section under change control (NP-SW-001, NP-FMEA-001) | Quality + FW |
+| OI-M09-02 | Confirm the M11→M04 ceiling-publish interface (shared-memory value + validity/stale flag; M11 fault → M04 uses SR-FAN/junction only) | FW |
+| OI-M09-03 | Route SR-FAN Path-B1 face-NTC to M04 and Path-B2 fan-derate to M11 per §6; update NP-REQ-FANHEALTH-001 allocation | FW |
+| OI-M09-04 | Decide whether M11 admission runs once at start or also on coarse mid-session ambient re-reads (and the re-read cadence) | FW + Thermal |
 
 ## 9. Cross-references
 

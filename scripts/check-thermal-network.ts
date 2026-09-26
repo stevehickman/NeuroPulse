@@ -19,6 +19,10 @@
  */
 
 import {
+  FACE_LIMIT_C as PBM_FACE_LIMIT_C, CEM43_REVIEW_LINE as PBM_CEM43_REVIEW_LINE,
+  CEM43_CONCERN_LINE as PBM_CEM43_CONCERN_LINE,
+} from "./pbm-model";
+import {
   R_OUT_R1, R_OUT_CURRENT, R_GAP_STAGNANT, R_ABSORBER, R_OUT_VACATED, R_OUT_SUBSTITUTED,
 } from "./thermal-outward-path";
 
@@ -648,9 +652,11 @@ const cem43Rate = (tC: number) => (tC >= 43 ? 0.5 ** (43 - tC) : 0.25 ** (43 - t
 /** CLAUDE.md §4.2 / IEC 60601-1 applied-part limit, and the temperature the
  *  derate band exists to hold the face AT — so it is the right rate to use
  *  inside the band, not a pessimistic overlay. */
-const FACE_LIMIT_C = 42.0;
-/** NP-PWRSRC-001 §5.5's reference lines. */
-const CEM43_REVIEW_LINE = 2.0, CEM43_CONCERN_LINE = 40.0;
+const FACE_LIMIT_C = PBM_FACE_LIMIT_C;
+/** NP-PWRSRC-001 §5.5's reference lines. Both this and FACE_LIMIT_C come from
+ *  hardware/np_pbm_model.json (OI-PWRSRC-13), the source check-thermal-dose.ts
+ *  reads, so the two audits cannot quote different lines. */
+const CEM43_REVIEW_LINE = PBM_CEM43_REVIEW_LINE, CEM43_CONCERN_LINE = PBM_CEM43_CONCERN_LINE;
 
 /** Linear duty derate as specified: 1.0 at T_full, 0.0 at T_block. */
 function dutyLinear(ambC: number): number {
