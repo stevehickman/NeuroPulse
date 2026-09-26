@@ -291,8 +291,10 @@
  *                  anything in this repository, and a guessed one would refuse
  *                  well-wetted pads; the derived floor is OI-FMEA-14.
  *
- * Like the maximum, these are read through the uncalibrated reference leg
- * (OI-SWCI-34).  Indexed by impedance-check channel, 0..3.                  */
+ * ADOPTED by the principal 2026-09-26 as interim values, to stand until
+ * evidence supports different ones (OI-FMEA-14).  Like the maximum, they are
+ * read through the uncalibrated reference leg (OI-SWCI-34).  Indexed by
+ * impedance-check channel, 0..3.                                            */
 #define NP_IMPEDANCE_MIN_OHM_VNS_HRV   500U
 #define NP_IMPEDANCE_MIN_OHM_TDCS      1U
 #define NP_IMPEDANCE_MIN_OHM_BES_TACS  1U
