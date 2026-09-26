@@ -2,14 +2,14 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-BENCH-001
-**Revision:** 2
-**Date:** 2026-09-25
+**Revision:** 3
+**Date:** 2026-09-26
 **Status:** DESIGN STUDY — not a release baseline. Every behaviour below is a proposed engineering commitment traced to a cited source; **no threshold in this document is measured, and the two the gate needs do not exist anywhere in the document set** (§4.4, `OI-BENCH-01`). See §11 (Decisions) and §12 (Open Items).
 **Effective Date:** —
 **Author:** NeurOne Firmware + Safety Engineering
 **Approved By:** — (pending design review)
 **References:** CLAUDE.md §3 (modality stack), §4 (hardware, safety architecture, status indicators), §5 (UHDR/SHDR), §6 (consent subjects); `NP-SW-001` Rev 3 §3 (SW-01/SW-02/SW-03 classification); `NP-HW-HEXTILE-001` Rev 8 §7.2–7.3 (19-position socket, `SEAT#`, contact sequencing); `NP-HW-HUB-001` Rev 6 (cluster-controller fan-out; `ALERT#`/`SEAT#` aggregation); `NP-DRV-SHELL-002` Rev 4 §3.3a, §5.1.3a (analog front end on the cluster controller); `NP-RISK-003` Rev 1 (RISK-14 dual photodiode); `NP-RISK-004` Rev 2 (RISK-SHELL-01, RISK-18); `NP-FAI-001` Rev 1 §3, §5; `NP-FW-EMMC-002` Rev 2 §G, §H (record-denominated windows; SHDR aggregation limit); `NP-FW-PBM1064-001` Rev 4 (PD1/PD2 dose metering); `NP-NPPS-REF-001` Rev 14 §4.1 (`zones`); `NP-HEX-ZM-001` Rev 3 §4a (`check_placement`, gate SW-1); `NP-HFE-002` Rev 2 §7.5; `NP-CONV-001` Rev 6 §4, §6, §8; `firmware/safety_mcu/` (SW-01); `firmware/hub_control/` (SW-02); `ci/shdr/shdr_fleet_schema.sql`
-**Related Issues:** —
+**Related Issues:** GitHub #445
 **Gate:** — (no programme gate; the gate this document specifies is a *session* precondition, not an `NP-COORD-001` milestone)
 **IEC 62304 Class:** **SW-02 Class B** — both the head-presence gate and its bypass. The classification is argued in §5, and the argument turns on the gate never being the sole barrier for any hazard in the tree. **No SW-01 (Class C) source file changes, and no bit is added to any Class C wire format.**
 **Supersedes:** None — new document.
@@ -126,16 +126,28 @@ pre-start gate.
 | **EEG electrode contact impedance** | Hub, ADS1299 — `np_mod_eeg_hal_read_impedance(ch)` (`np_mod_eeg.c:57`, `OI-EEG-05`) | AC impedance between a semi-dry hydrogel tip and whatever it touches, at ≤8 cranial sites (Fp1/2, F3/4, C3/4, P3/4 — CLAUDE.md §3 modality 3) | **PRIMARY.** Active measurement; present in every shipped configuration including Core; already taken at session start, since the ADS1299 internal-reference self-calibration runs *"at every session start"* (CLAUDE.md §3) |
 | **PD2 scalp-facing photodiode** | Cluster-controller TIA/ADC via socket pin 14 `PD2_K` (`NP-HW-HEXTILE-001` §7.2); `NP_ELEM_PD_BACK` in `np_module_map.h:230` | Backscattered **tissue** optical power — RISK-14 Option B, `NP-RISK-003` | **IN-SESSION CORROBORATOR ONLY** — see §4.2 for why it cannot be a pre-start gate |
 | **tES contact impedance** | **Safety MCU**, `np_impedance_check.c`, 1 kHz / 50 ms, reject above `NP_IMPEDANCE_MAX_OHM` | Contact at the VNS clip, tDCS/BES pads, cervical pads | **ALREADY A CLASS C GATE, UNCHANGED.** Not part of the head-presence gate — it is upstream of it and stricter (§7 item 3) |
-| **IR proximity (940 nm) + Hall, at the lens** | Hub — `np_mod_visual_hal_ir_eye_open()`, `np_mod_visual_hal_hall_lifted()` (`np_mod_visual.c`, `OI-VIS-03`/`-04`) | Eye-open, and goggle seating | **ALREADY A PER-MODALITY GATE, UNCHANGED.** Lens-only, and semantically ambiguous in-tree — see the note below |
+| **IR proximity (940 nm) + Hall, at the lens** | Hub — `np_mod_visual_hal_ir_eye_open()`, `np_mod_visual_hal_goggle_seated()` (`np_mod_visual.c`, `OI-VIS-03`/`-04`) | Eye-open, and goggle seating on the headset | **ALREADY A PER-MODALITY GATE, UNCHANGED.** Lens-only. The Hall predicate was semantically ambiguous in-tree until Rev 3 — see the note below |
 
 > **A naming defect in the visual interlock, recorded because the head-presence gate must not repeat
-> it.** `np_mod_visual.c` uses `np_mod_visual_hal_hall_lifted()` for three different propositions
-> within one file: its HAL comment at `OI-VIS-04` reads *"goggles off head"*, its detect path reads
-> *"magnet present → goggles seated"* (line 63), and its control path comments *"goggles must be on
-> head"* (line 106). *Goggles seated on the headset* and *headset on a head* are different physical
-> facts, and one predicate cannot be both. Not fixed here — no code changes with this document — but
-> the head-presence predicate specified below is named for what it measures, not for what it is
-> hoped to imply. `OI-BENCH-08`.
+> it.** `np_mod_visual.c` used `np_mod_visual_hal_hall_lifted()` for three different propositions
+> within one file: its HAL comment at `OI-VIS-04` read *"goggles off head"*, its detect path read
+> *"magnet present → goggles seated"*, and its control path commented *"goggles must be on head"*.
+> *Goggles seated on the headset* and *headset on a head* are different physical facts, and one
+> predicate cannot be both. The head-presence predicate specified below is named for what it
+> measures, not for what it is hoped to imply.
+>
+> **Rev 3 — resolved (`OI-BENCH-08`, closed).** A Hall element can report one thing: whether its
+> actuating magnet is in range. So the predicate measures **goggle seating** — the goggle assembly in
+> its lowered wear position on the headset — and nothing about a head or an eye. It is renamed
+> **`np_mod_visual_hal_goggle_seated()`**, and its sense is inverted on purpose: `true` means seated,
+> so a driver that faults or cannot tell returns `false`, and `false` refuses emission. The old
+> `_hall_lifted()` had the permissive answer as its zero value. The three call sites were already
+> consistent in polarity (each treated `true` as *magnet absent*), so no call site changes behaviour.
+> Only the proposition was wrong. The telemetry field `hall_state` (`1` = lifted) became
+> `goggle_seated`; it is never logged, so no SHDR record changes. **The rename exposes a gap it does
+> not close:** no document places the Hall element or its magnet. `NP-TOOL-LENS-001` places only the
+> six N42 shade-retention magnets per lens rim, and a sensor meant to detect goggle lift must not
+> read those. `OI-BENCH-12`.
 
 **No new sensor is proposed.** That is a finding, not an economy: the pre-hex cost work already
 records the InGaAs photodiode pair as the dominant recoverable BOM term (CLAUDE.md §2.1 note 3,
@@ -382,8 +394,36 @@ from `NP-FMEA-001` OI-FMEA-12 (a). The counter is not a predicate: the hub advan
 whatever its state, so it cannot carry bench mode. The check's second clause therefore compares against
 the allocation as of Rev 2, not the "three allocated" of Rev 1, and with no spare bit a bench predicate
 would need a new wire field, which the first clause still catches.) Per §8 of that document the probe must be **falsified before it is trusted** —
-introduce the symbol into a safety-MCU translation unit and confirm the check fails. Specified here,
-not written: `OI-BENCH-04`.
+introduce the symbol into a safety-MCU translation unit and confirm the check fails.
+
+**Rev 3 — written and falsified (`OI-BENCH-04`, closed).** The check is
+`scripts/check-bench-boundary.ts`, which the `bench-boundary` job in `tooling-ci.yml` runs on any
+change under `firmware/`. It has two clauses:
+
+- **A.** No identifier naming the bypass, the service credential or the head-presence gate (`bench`,
+  `service_mode`/`_auth`/`_cred`/`_key`/`_window` and their `svc_` forms, `head_presen*`, `Z_HP`,
+  `T_HP`) may appear in the SW-01 build. The scan covers `firmware/safety_mcu/`, `firmware/common/`
+  and `firmware/cmake/stm32g071.cmake`. Comments and string literals are stripped first, because the
+  Class C tree legitimately says "bench test" in prose ten times. CMake keeps its quoted strings,
+  because a quoted `-DNP_BENCH_…` is live. `firmware/common/` is in scope because it is compiled into
+  SW-01 and defines `np_safety_rx_ext_frame_t`. Head presence is included as well as bench mode
+  because §5 (i) places the gate in SW-02 too.
+- **B.** Every `NP_SESSION_STATUS_*` define in `firmware/` must match the Rev 2 allocation by value.
+  A new name, a changed value, a disagreeing duplicate or a missing name fails. Every
+  `session_status` field must stay a plain `uint8_t`, because widening the field gains bits that no
+  define would show.
+
+**Falsified in both directions.** The self-test builds its own fixtures and runs from outside the
+repository. It fails on 11 mutations: the §7.2 case itself (`s_bench_mode` in a safety-MCU `.c`), a
+bench field in the shared frame, a head-presence and a service-credential identifier in SW-01, a
+quoted CMake flag, a toolchain-file flag, an innocuously-named new status define, a shrunk sequence
+mask, a disagreeing duplicate, a widened field, and a removed allocation. It passes on prose,
+string and assembly-comment mentions in SW-01 and on bench identifiers under `firmware/hub_control/`,
+where bench mode is required to live. Against the real tree, appending `static bool s_bench_mode;` to
+`np_spi_watchdog.c` and narrowing `NP_SESSION_STATUS_SEQ_MASK` to `3U << 5` each failed the gate.
+Clause A is a name check, so a bypass under an innocuous name passes it. With the byte full, that
+bypass needs a new frame field, and clause B together with `check-hub-wire-format.ts` and the frame
+size assertions is what sees one. Neither clause alone closes the boundary.
 
 ---
 
@@ -613,7 +653,7 @@ duration cap so "runs to completion" cannot be unbounded, and the window is chec
 | ID | Sev | Hazard | Cause | Consequence | Control | Owner | Status |
 |---|---|---|---|---|---|---|---|
 | **RISK-BENCH-01** | **HIGH** | A user enters bench mode from published instructions and runs a protocol while wearing the helmet | Bypass mechanisms that are secrets-by-obscurity are defeated by description | The head-presence gate is void for the population least able to judge the risk | D-5 credential is unforgeable from its own description; D-4 keeps the sensor live; exit-on-reacquisition aborts (§10.3); D-8 annunciation | FW + Security | **MITIGATED — unverified** |
-| **RISK-BENCH-02** | **HIGH** | A future change routes a bench predicate into SW-01 | A `session_status` bit is cheap to add and the link already carries three | SW-01 ceases to be an independent backstop, voiding `NP-SW-001` §3.2's Class B basis for SW-02 | §7.2 structural absence + the CI check of `OI-BENCH-04`, falsified in both directions per `NP-CONV-001` §8 | FW + Quality | **OPEN — check not written** |
+| **RISK-BENCH-02** | **HIGH** | A future change routes a bench predicate into SW-01 | A `session_status` bit is cheap to add and the link already carries three | SW-01 ceases to be an independent backstop, voiding `NP-SW-001` §3.2's Class B basis for SW-02 | §7.2 structural absence + the CI check of `OI-BENCH-04`, falsified in both directions per `NP-CONV-001` §8 | FW + Quality | **MITIGATED — check written and falsified (Rev 3, `OI-BENCH-04`)** |
 | **RISK-BENCH-03** | MEDIUM | Head-presence false negative blocks a legitimate session | `RISK-18`'s shape on a new sensor; `Z_HP` is not derivable today | User cannot start a session with functional hardware | Two thresholds not one (§4.3); `K` of `N`; debounce; pause-not-abort | FW | **OPEN — thresholds not derivable (`OI-BENCH-01`)** |
 | **RISK-BENCH-04** | MEDIUM | Head-presence false positive on a bench (wet fixture, phantom, operator's hand) | A conductive load is not a head, and impedance cannot tell them apart | Benign for the gate; **hazardous for exit** — a false positive aborts a legitimate bench run | Accepted in the safe direction. FAI functional tests must use a phantom whose impedance is characterised, or accept the abort | FW + Quality | **ACCEPTED — direction is safe** |
 | **RISK-BENCH-05** | MEDIUM | Ocular exposure to a bench operator from the lens | IR eye-open and the photoparoxysmal halt are presence-conditioned and degrade off-head | Retinal exposure with two of three layers weakened | **D-6** — the visual modality is not available in bench mode at all | FW + Safety | **MITIGATED by exclusion** |
@@ -631,14 +671,15 @@ duration cap so "runs to completion" cannot be unbounded, and the window is chec
 | **OI-BENCH-01** | **`Z_HP`, `K` and the debounce depth `T_HP` are not derivable from anything in this repository.** `NP_IMPEDANCE_MAX_OHM` is a tES pad limit read through an uncalibrated reference leg (`OI-SWCI-34`); `NP-FAI-001` FAI-IPX-01 accepts an **off-head** headset at *"< 10 kΩ"*, which falsifies reusing that figure; `eeg_impedance_trend` stores only a slope, by design. Needs a measured off-head/on-head distribution across head sizes, hair types and tip age | FW + Clinical | **The gate shipping** |
 | **OI-BENCH-02** | Debounce for the head-presence gate must be decided **jointly with `OI-HEXTILE-08`**, which holds the `SEAT#` debounce requirement re-scoped from `ZONE_ID`. Two presence-like signals debounced by different rules on the same session-start path is how `RISK-18` recurs | FW | The gate shipping |
 | **OI-BENCH-03** | **Where does the hub's service-authority public key live, and how is it provisioned?** The existing Ed25519 root is in OTP on the STM32G071 (`np_hal_otp_read_pubkey`), which is the wrong side of the boundary — §5(iii) forbids relaying the bypass decision to SW-01. No hub-side key store is specified anywhere | FW + Security | **Bench mode shipping** |
-| **OI-BENCH-04** | **Write and falsify the CI check** that no bench-mode identifier appears under `firmware/safety_mcu/` and that `session_status` gains no bit. Per `NP-CONV-001` §8 the probe must be falsified in both directions before it is trusted | FW + CI | `RISK-BENCH-02` |
+| **OI-BENCH-04** | **CLOSED 2026-09-26 (Rev 3, GitHub #445).** ~~Write and falsify the CI check that no bench-mode identifier appears under `firmware/safety_mcu/` and that `session_status` gains no bit.~~ Written as `scripts/check-bench-boundary.ts` and run by `tooling-ci.yml` `bench-boundary`. It is falsified in both directions by its self-test and against the real tree (§7.2). Its scope is wider than the item asked: `firmware/common/`, the G071 toolchain file and head-presence identifiers are included, and field width is checked as well as defines | FW + CI | — |
 | **OI-BENCH-05** | Bench-mode LED pattern — must be structurally distinct from a session pulse (which mirrors session frequency across 0.5–100 Hz), not merely a different rate, and must survive stealth mode. Belongs with `NP-HFE-002` | HFE | Annunciation |
 | **OI-BENCH-06** | **The module-swap stop's owning tier is unstated.** `SEAT#` has no firmware consumer, the safety MCU has no input for it, and `NP-HW-HUB-001` aggregates it at the cluster controller (Class B). Whether the stop should be Class C is a real question this document does not answer. Contradicts the framing under which bench mode was scoped | Safety + EE | Module-swap stop shipping |
 | **OI-BENCH-07** | **`NP-CFG-UI-001` does not exist.** It is cited twice by `NP-NPPS-REF-001` as the owner of operator socket selection, and `clinical-09` is unrunnable without it. It must also carry the selection-persists-across-doff/don requirement from §9.2 | App + Clinical | `clinical-09` operability (not this study) |
-| **OI-BENCH-08** | `np_mod_visual_hal_hall_lifted()` is documented as *"goggles off head"* at `OI-VIS-04`, used as *"magnet present → goggles seated"* at `np_mod_visual.c:63`, and commented *"goggles must be on head"* at line 106. Three propositions, one predicate. Decide which it measures and rename it | FW | Ocular interlock clarity |
+| **OI-BENCH-08** | **CLOSED 2026-09-26 (Rev 3, GitHub #445).** ~~`np_mod_visual_hal_hall_lifted()` is documented as "goggles off head", used as "magnet present → goggles seated", and commented "goggles must be on head". Decide which it measures and rename it.~~ It measures **goggle seating on the headset** and nothing about a head. It is renamed `np_mod_visual_hal_goggle_seated()`, positive sense, so `false` on fault refuses emission. No call site changes behaviour (§4.1 note). The physical referent is still unspecified, which is `OI-BENCH-12` | FW | — |
 | **OI-BENCH-09** | Does an emitter-driving **self-test** — e.g. exercising the PD1/PD2 fouling-vs-aging discriminator — count as a protocol for gating purposes? If it does, every such self-test needs bench mode; if it does not, it needs its own bounded exemption | FW | Predictive maintenance on the bench |
 | **OI-BENCH-10** | **Configuration assumption, stated rather than assumed:** every shipped configuration includes EEG electrodes (CLAUDE.md §2.1 — Core is 4-ch EEG, every other row includes 8-ch or 21-ch). If a PBM-only build is ever configured it has **no pre-start presence sensor at all**, and D-2 would have to be reopened | Systems | Any PBM-only configuration |
 | **OI-BENCH-11** | No field anywhere distinguishes an engineering firmware image from a shipped one — `firmware_history` records a version string only. `RISK-BENCH-09` has no detection, only a prohibition | FW + Quality | Fleet build provenance |
+| **OI-BENCH-12** | **Where is the goggle Hall element, and what magnet actuates it?** Raised by closing `OI-BENCH-08` (Rev 3). No document places either. `NP-TOOL-LENS-001` Rev 2 places only the six N42 shade-retention magnets per lens rim (F-03/F-04), and a Hall element within range of those reads **shade attached**, not goggles lowered. That fault is permissive whenever a shade is on. The element needs a stated position and a dedicated actuating magnet, with a separation from the F-03 pockets derived like F-05's ≥ 8 mm. Only then does `np_mod_visual_hal_goggle_seated()` have a physical referent | ME + EE | The Hall driver (`OI-VIS-04`) |
 
 ---
 
@@ -669,9 +710,11 @@ in the tree, and (iii) the bypass never crosses the SPI link, so SW-01's behavio
 and out of bench mode. That last property is what makes the never-bypassable list structural rather
 than asserted: the restriction is an absence of a wire, and it is mechanically checkable.
 
-**Open items.** Eleven, of which three are blocking: `OI-BENCH-01` (the gate's thresholds are not
-derivable), `OI-BENCH-03` (no hub-side service-authority key store exists), and `OI-BENCH-04` (the CI
-check that keeps the bypass out of the Class C tier is specified but not written).
+**Open items.** Twelve raised, ten open. `OI-BENCH-04` (the CI check that keeps the bypass out of the
+Class C tier) and `OI-BENCH-08` (the Hall predicate's meaning) closed at Rev 3, and `OI-BENCH-12` (the
+Hall element and magnet are unplaced) was raised in closing the second. Two are blocking:
+`OI-BENCH-01` (the gate's thresholds are not derivable) and `OI-BENCH-03` (no hub-side
+service-authority key store exists).
 
 ---
 
@@ -679,5 +722,6 @@ check that keeps the bypass out of the Class C tier is specified but not written
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 3 | 2026-09-26 | NeurOne Firmware + Safety Engineering | **`OI-BENCH-04` and `OI-BENCH-08` closed; `OI-BENCH-12` raised (GitHub #445).** (1) The §7.2 check is written as `scripts/check-bench-boundary.ts` and run by `tooling-ci.yml` `bench-boundary`. It is falsified in both directions by a hermetic self-test (11 fail cases, 2 pass cases) and against the real tree. `RISK-BENCH-02` moves to MITIGATED. (2) The Hall predicate measures goggle seating on the headset. `np_mod_visual_hal_hall_lifted()` is renamed `np_mod_visual_hal_goggle_seated()` with positive sense, so a faulted driver's `false` refuses emission, and telemetry `hall_state` becomes `goggle_seated`. Call-site polarity was already consistent, so no behaviour changes. (3) No document places the Hall element or its magnet, and the only placed magnets are the shade-retention N42s (`OI-BENCH-12`). SW-02 source changed in `np_mod_visual.c`, `np_hub_types.h` and the platform seam header, stub and trap comment. **No SW-01 file changed.** |
 | 2 | 2026-09-25 | NeurOne Firmware + Safety Engineering | §7.2 annotated: `session_status` bits 5–7 are now the heartbeat sequence counter (`NP-FMEA-001` OI-FMEA-12 (a), `NP-FW-HUB-001` Rev 11 §7.1), and bits 3–4 were already allocated. The counter carries no hub state, so §7.2's structural argument stands; the specified check's baseline moves to the Rev 2 allocation. No design change. |
 | 1 | 2026-08-26 | NeurOne Firmware + Safety Engineering | Initial release. Specifies the head-presence gate (D-1…D-4) and its bench/service bypass (D-5…D-9) against the principal decision of 2026-08-26. **Corrects three claims in its own scoping brief:** the safety MCU can read neither candidate head-presence sensor (its impedance AFE covers only the four tES channels; the ADS1299 and the PD2 TIA are both hub-side), which is what decides the Class B classification; `SEAT#` has no firmware consumer and no safety-MCU input, so the module-swap stop is specified today as Class B and not as an enable-line drop (`OI-BENCH-06`); and neither `clinical-09` nor `07-vascular-baseline` is a bench workflow — the first needs the absent `NP-CFG-UI-001` (`OI-BENCH-07`), the second is a therapeutic session. **Falsifies the obvious threshold:** `NP-FAI-001` FAI-IPX-01 accepts an off-head headset at *"All EEG channels < 10 kΩ"*, so 10 kΩ cannot be reused as `Z_HP`; the gate's thresholds are not derivable from this repository (`OI-BENCH-01`, blocking). Applies `OI-EMMC2-11`'s row-set-aggregation lesson to the bench-mode audit record, and `NP-FW-EMMC-002` §H's record-denominated-window precedent to the credential's expiry. No code changed. |

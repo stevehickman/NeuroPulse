@@ -439,7 +439,7 @@ bool np_mod_visual_hal_ir_eye_open(void)
     NP_PLATFORM_TRAP();
 }
 
-bool np_mod_visual_hal_hall_lifted(void)
+bool np_mod_visual_hal_goggle_seated(void)
 {
     NP_PLATFORM_TRAP();
 }

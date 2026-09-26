@@ -22,8 +22,13 @@
 /* entirely from here, to establish the partition at all (NP-SW-CI-001 §4.10).  */
 #define NP_OCRAM_BASE           0x20200000UL    /* OCRAM2 base (dedicated)     */
 #define NP_OCRAM_SIZE           (512U * 1024U)  /* 512 KiB, partition-independent */
-#define NP_SCRATCH_SRAM_BASE    0x20270000UL    /* ⚠ UNUSED — see OI-SWCI-44   */
-#define NP_SCRATCH_SRAM_SIZE    (64U * 1024U)   /* ⚠ overlaps .app_staging     */
+/*                                                                             */
+/* There is NO scratch SRAM window.  NP_SCRATCH_SRAM_BASE/_SIZE (64 KiB at     */
+/* 0x20270000) were deleted 2026-09-26, closing OI-SWCI-44: residue of the     */
+/* pre-Defect-C map, referenced by nothing, and lying inside .app_staging and  */
+/* over the bootloader stack — a buffer placed there would be overwritten by   */
+/* the next image the bootloader stages.  Every OCRAM2 byte is owned by        */
+/* bootloader_imxrt1062.ld; scratch storage is eMMC (NP_SCRATCH_LBA_* below).  */
 
 /* ── i.MX RT1062 FlexRAM partition (NP-SW-CI-001 §4.10, closes OI-SWCI-39) ─── */
 /*                                                                             */

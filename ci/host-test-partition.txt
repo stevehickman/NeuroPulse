@@ -1,0 +1,81 @@
+# ci/host-test-partition.txt — every CMake host-test target, and which half owns it.
+#
+# NP-SW-CI-001 §6.10, OI-SWCI-14 + OI-SWCI-37. One line per `add_test(NAME …)`
+# in the NP_BUILD_TESTS build, as `<class> <ctest name>`:
+#
+#   C  Class C — run by safety-mcu-ci.yml, selected by `ctest -R "$NP_SAFETY_TESTS"`
+#   B  Class B — run by firmware-cross-build.yml, selected by `-E "$NP_SAFETY_TESTS"`
+#
+# Why a NAME list and not just the counts. The three NP_*_TEST_COUNT variables
+# catch a target added or lost; they cannot catch a target renamed, or one
+# target swapped for another, or a target moved between halves while a second
+# moves the other way — 11 + 38 = 49 holds across every one of those.
+#
+# What enforces it:
+#   scripts/check-ci-scope.ts (correspondence E, every PR touching firmware/,
+#     ci/, scripts/ or a workflow) — this list equals the add_test() names the
+#     CMake host build registers; every workflow's copy of NP_SAFETY_TESTS is
+#     byte-identical; that regex puts every name in the half this file says;
+#     and every NP_*_TEST_COUNT copy equals the count of its class here.
+#   build-all.yml (weekly) — the same list diffed against `ctest -N` of a real
+#     configure, which is the backstop for a test the static parse cannot see
+#     (one registered from a foreach() or a function, say).
+#
+# Adding a host test: add the add_test(), add the line here, and bump the
+# count(s) in the workflows. The gate names every place that disagrees.
+# Moving a target between halves is a Class C / Class B decision (IEC 62304),
+# not a CI edit — the regex, this file and both counts change together.
+#
+# Sorted by class, then by name. Blank lines and `#` comments are ignored.
+
+C np_cardiac_interlock_tests
+C np_charge_monitor_tests
+C np_fault_latch_privacy_tests
+C np_gpio_mgr_tests
+C np_hal_platform_tests
+C np_impedance_report_tests
+C np_nv_state_tests
+C np_safety_spi_proto_tests
+C np_thermal_interlock_tests
+C np_tier_identity_nokey_tests
+C np_tier_identity_tests
+
+B np_accel_shdr_tests
+B np_anon_tests
+B np_app_cache_agreement_tests
+B np_app_clock_agreement_tests
+B np_app_link_agreement_tests
+B np_bootloader_app_image_tests
+B np_bootloader_flexram_tests
+B np_bootloader_mem_tests
+B np_cfg_store_tests
+B np_chan_decl_tests
+B np_consumables_tests
+B np_crypto_tests
+B np_cvns_fai_tests
+B np_cvns_fault_summary_tests
+B np_cvns_reenable_tests
+B np_edf_tests
+B np_factory_reset_tests
+B np_freertos_smoke_tests
+B np_gatt_server_tests
+B np_hd_fai_tests
+B np_hrv_session_tests
+B np_lfs_config_tests
+B np_lfs_log_instance_tests
+B np_lfs_powerloss_tests
+B np_log_backend_tests
+B np_mod_cvns_tests
+B np_mod_stim_tests
+B np_module_map_tests
+B np_module_registry_tests
+B np_ota_tests
+B np_pbm_cal_bridge_tests
+B np_pbm_session_desc_tests
+B np_protocol_tests
+B np_socket_dispatch_tests
+B np_stim_xcheck_tests
+B np_transport_tests
+B np_uhdr_key_tests
+B np_zone_announce_tests
+B np_zone_notify_tests

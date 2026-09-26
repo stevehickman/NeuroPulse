@@ -12,8 +12,8 @@
  * present", or "impedance OK" is the right one — that is the same trade with
  * the failure hidden instead of avoided.  A stub that answers plausibly is
  * indistinguishable at the call site from a driver that is wrong, and several
- * of these seams gate stimulation: np_mod_visual_hal_hall_lifted() returning
- * "not lifted", np_mod_vns_hal_impedance_check() returning a passing value, or
+ * of these seams gate stimulation: np_mod_visual_hal_goggle_seated() returning
+ * "seated", np_mod_vns_hal_impedance_check() returning a passing value, or
  * np_proto_hal_get_proto_pubkey() returning a zero key each converts a missing
  * driver into a defeated interlock.
  *

@@ -228,7 +228,7 @@ extern void  np_mod_audio_hal_bone_stop(void);
 extern float np_mod_audio_hal_mesh_impedance(void);
 
 /* ── Visual stimulation (np_mod_visual.c) ───────────────────────────────────
- * np_mod_visual_hal_hall_lifted() and _ir_eye_open() feed two of the three
+ * np_mod_visual_hal_goggle_seated() and _ir_eye_open() feed two of the three
  * independent layers behind the IEC 62471 MPE ceiling (CLAUDE.md §4.2).  The
  * third is a hardware current limit that no software can defeat, which is the
  * only reason a trap here is a safe failure rather than an unsafe one. */
@@ -236,7 +236,7 @@ extern np_hub_status_t np_mod_visual_hal_led_set(uint16_t zone_mask, uint8_t wl_
                                                  uint8_t freq_hz, uint8_t duty_pct);
 extern void np_mod_visual_hal_led_stop(void);
 extern bool np_mod_visual_hal_ir_eye_open(void);
-extern bool np_mod_visual_hal_hall_lifted(void);
+extern bool np_mod_visual_hal_goggle_seated(void);  /* false on any fault */
 extern void np_mod_visual_hal_emdr_set(uint8_t rate_mhz);
 extern bool np_mod_visual_hal_mpe_check(void);
 

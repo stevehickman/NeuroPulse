@@ -130,6 +130,7 @@ jobs:
       bringup: ${{ steps.scope.outputs.bringup }}
       consumables: ${{ steps.scope.outputs.consumables }}
       lfscallers: ${{ steps.scope.outputs.lfscallers }}
+      benchboundary: ${{ steps.scope.outputs.benchboundary }}
     env:
       # Eight independent surfaces, eight lists. A simulator-only change should
       # not run the Python gate, and vice versa. Blank lines and `#` comments
@@ -174,6 +175,7 @@ jobs:
         docs/**
         scripts/check-doc-filenames.ts
         scripts/check-dhf-index.ts
+        scripts/check-md-tables.ts
         .github/workflows/tooling-ci.yml
       NP_SCOPE_SIMULATOR: |
         simulator/**
@@ -285,6 +287,16 @@ jobs:
         firmware/**
         scripts/check-lfs-caller-rules.ts
         .github/workflows/tooling-ci.yml
+      # The bench-boundary gate (NP-FW-BENCH-001 OI-BENCH-04, RISK-BENCH-02).
+      # Two edits break it: a bench identifier appearing in the SW-01 build
+      # (firmware/safety_mcu, firmware/common, firmware/cmake/stm32g071.cmake)
+      # and an NP_SESSION_STATUS_* define or session_status field changing
+      # anywhere in firmware/ — the hub declares two of the bits. So the whole
+      # firmware tree. It opens no document.
+      NP_SCOPE_BENCHBOUNDARY: |
+        firmware/**
+        scripts/check-bench-boundary.ts
+        .github/workflows/tooling-ci.yml
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -317,6 +329,7 @@ jobs:
           printf '%s\n' "$NP_SCOPE_BRINGUP" > scope.bringup.paths
           printf '%s\n' "$NP_SCOPE_CONSUMABLES" > scope.consumables.paths
           printf '%s\n' "$NP_SCOPE_LFSCALLERS" > scope.lfscallers.paths
+          printf '%s\n' "$NP_SCOPE_BENCHBOUNDARY" > scope.benchboundary.paths
 
       # A well-formed pattern that matches nothing is a typo, not a scope
       # decision: `simluator/**` would silently take the whole surface out of
@@ -324,7 +337,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths scope.benchboundary.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -375,6 +388,7 @@ jobs:
           assert scope.docnaming.paths true  docs/superseded/np_risk_001.docx
           assert scope.docnaming.paths true  scripts/check-doc-filenames.ts
           assert scope.docnaming.paths true  scripts/check-dhf-index.ts
+          assert scope.docnaming.paths true  scripts/check-md-tables.ts
           assert scope.docnaming.paths false app/web/src/main.ts
           assert scope.simulator.paths true  simulator/server/index.js
           assert scope.simulator.paths true  simulator/js/ui.js
@@ -435,6 +449,16 @@ jobs:
           assert scope.lfscallers.paths true  scripts/check-lfs-caller-rules.ts
           assert scope.lfscallers.paths false docs/np_soup_lfs_001.md
           assert scope.lfscallers.paths false app/web/src/main.ts
+          # The bench-boundary gate. A safety-MCU source is where a bypass would
+          # land; the G071 toolchain file is where a build flag would; the hub
+          # config declares two session_status bits; a document is outside it.
+          assert scope.benchboundary.paths true  firmware/safety_mcu/src/np_spi_watchdog.c
+          assert scope.benchboundary.paths true  firmware/common/include/np_spi_wire_types.h
+          assert scope.benchboundary.paths true  firmware/cmake/stm32g071.cmake
+          assert scope.benchboundary.paths true  firmware/hub_control/include/np_hub_config.h
+          assert scope.benchboundary.paths true  scripts/check-bench-boundary.ts
+          assert scope.benchboundary.paths false docs/np_fw_bench_001.md
+          assert scope.benchboundary.paths false app/web/src/main.ts
 
       - name: Changed files
         id: diff
@@ -492,6 +516,7 @@ jobs:
           emit bringup   scope.bringup.paths
           emit consumables scope.consumables.paths
           emit lfscallers scope.lfscallers.paths
+          emit benchboundary scope.benchboundary.paths
 
   scripts-check:
     name: scripts/ type-check
@@ -629,6 +654,16 @@ jobs:
 
       - name: Every controlled Markdown document is in the DHF at its own revision
         run: bun scripts/check-dhf-index.ts
+
+      # A row with the wrong cell count reads fine raw and renders wrongly:
+      # blank columns, or cells past the header silently dropped. PR #451 merged
+      # a 4-cell DHF history row into the 7-column master index, and nothing
+      # above could see it. Same population (docs/**), so the same job.
+      - name: Guard self-test (prove the table-shape rule can fail)
+        run: bun scripts/check-md-tables.ts --self-test
+
+      - name: Every Markdown table row in docs/ has its header's cell count
+        run: bun scripts/check-md-tables.ts
 
   section-refs:
     name: CLAUDE.md section citations resolve (repo-wide)
@@ -781,6 +816,28 @@ jobs:
       # comment-stripping in the reporting path" — and kept none of it.
       - name: No reporting path varies its shape with a sensitive predicate
         run: bun scripts/check-redaction-shape.ts
+
+  bench-boundary:
+    name: bench mode cannot reach the Class C tier (NP-FW-BENCH-001 §7.2)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.benchboundary != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Guard self-test (prove both clauses fail, and prose in SW-01 does not)
+        run: bun scripts/check-bench-boundary.ts --self-test
+
+      # §7.2 states the boundary as the absence of a wire and asks for the
+      # absence to be checked, not asserted (OI-BENCH-04).
+      - name: No bench identifier in SW-01, and session_status has gained no bit
+        run: bun scripts/check-bench-boundary.ts
 
   tcap-map:
     name: the T2 cap electrode map matches its specification (NP-HW-TCAP-001 §3)

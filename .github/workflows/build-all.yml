@@ -17,14 +17,15 @@ name: Build All / Test All
 #      fire on it.  A repo with only scoped triggers can sit broken for months
 #      and look green, because nothing ran.
 #
-# It also re-checks the host-test PARTITION.  firmware-host-tests.yml was
-# absorbed and retired (OI-SWCI-09); its 25 targets were split 6 (Class C,
-# safety-mcu-ci.yml) + 19 (Class B, firmware-cross-build.yml).  NP-SW-CI-001
-# phase 1 added np_bootloader_mem_tests to the Class B side, so the arithmetic
-# is now 6 + 20 = 26.  Nothing in either scoped workflow can see the other side
-# of that split, so the weekly run is the only place it is actually checked.  A
-# reduced target count that still shows green is precisely the failure mode
-# the absorption risked.
+# It also re-checks the host-test PARTITION against a real configure.  The
+# retired firmware-host-tests.yml's targets were split between safety-mcu-ci.yml
+# (Class C) and firmware-cross-build.yml (Class B) (OI-SWCI-09).  Neither scoped
+# workflow runs the other side of that split, so this is the only place a real
+# `ctest -N` of the whole suite is compared against it.  A reduced target count
+# that still shows green is precisely the failure mode the absorption risked.
+# The live split is not restated here: it is ci/host-test-partition.txt, by name
+# and by class (OI-SWCI-14).  Restating its arithmetic in prose is how this
+# header, and safety-mcu-ci.yml's, went stale (OI-SWCI-24).
 #
 # ── Failure policy ────────────────────────────────────────────────────────────
 # A red build-all does not block any PR — it is not a PR check.  It means
@@ -90,8 +91,16 @@ env:
   # 10 + 38 = 48, re-derived with `ctest -N` on the tree.
   # NP-FMEA-001 OI-FMEA-11 then added np_gpio_mgr_tests, a Class C target:
   # 11 + 38 = 49, re-derived with `ctest -N` on the tree.
-  # GitHub #447 (OI-HRV-05) then added np_hrv_session_tests:
-  # 11 + 39 = 50, re-derived with `ctest -N` on the tree.
+  #
+  # From 2026-09-26 (GitHub #446, OI-SWCI-37) the history above stops growing.
+  # These three counts, and the NP_SAFETY_TESTS regex, are checked on EVERY PR
+  # that touches a workflow, firmware/, scripts/ or ci/ by
+  # scripts/check-ci-scope.ts (correspondence E): each copy must equal the count
+  # of its class in ci/host-test-partition.txt, and the regex must be identical
+  # in all three files.  A copy left behind now fails the PR that left it,
+  # instead of this job a week later.  Adding a target is: the add_test(), one
+  # line in the manifest, and the count(s) the gate names.
+  # GitHub #447 (OI-HRV-05) then added np_hrv_session_tests: 11 + 39 = 50.
   NP_TOTAL_TEST_COUNT: '50'
   NP_SAFETY_TEST_COUNT: '11'
   NP_CLASS_B_TEST_COUNT: '39'
@@ -121,10 +130,14 @@ jobs:
       - name: Build
         run: cmake --build build/host-tests
 
-      # The partition guard.  Asserts three things the scoped workflows cannot:
-      # the total still matches NP_TOTAL_TEST_COUNT, the two halves still sum to
-      # it, and they do not overlap.  Any of add-a-test / rename-a-test /
-      # broaden-the-regex trips this, which is the point.
+      # The partition guard.  Asserts what the scoped workflows cannot: the
+      # total still matches NP_TOTAL_TEST_COUNT, the two halves still sum to it,
+      # they do not overlap, and each half is EXACTLY the names
+      # ci/host-test-partition.txt gives its class.  The counts catch a target
+      # added or lost; only the name comparison catches one renamed, swapped,
+      # or moved between halves while another moves back (OI-SWCI-14).  The
+      # same manifest is checked statically on every PR by check-ci-scope.ts;
+      # this is the backstop for a test that its add_test() parse cannot see.
       - name: Assert host-test partition still sums to the expected total
         run: |
           count() { ctest --test-dir build/host-tests -N "$@" | sed -n 's/^Total Tests: //p'; }
@@ -152,6 +165,17 @@ jobs:
           sort -u /tmp/np-safety.txt /tmp/np-classb.txt > /tmp/np-union.txt
           if ! diff -u /tmp/np-all.txt /tmp/np-union.txt; then
             echo "::error::a ctest target belongs to neither scoped workflow (diff above)."; rc=1
+          fi
+
+          # By name, against the manifest (OI-SWCI-14).  `-` lines are in the
+          # manifest and not registered; `+` lines are registered and not listed.
+          awk '$1 == "C" { print $2 }' ci/host-test-partition.txt | sort -u > /tmp/np-manifest-c.txt
+          awk '$1 == "B" { print $2 }' ci/host-test-partition.txt | sort -u > /tmp/np-manifest-b.txt
+          if ! diff -u /tmp/np-manifest-c.txt /tmp/np-safety.txt; then
+            echo "::error::Class C selection differs from ci/host-test-partition.txt by name (diff above)."; rc=1
+          fi
+          if ! diff -u /tmp/np-manifest-b.txt /tmp/np-classb.txt; then
+            echo "::error::Class B selection differs from ci/host-test-partition.txt by name (diff above)."; rc=1
           fi
           exit $rc
 
