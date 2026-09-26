@@ -11,7 +11,7 @@ name: Safety MCU CI (STM32G071, Class C)
 # `workflow_run`, which only fires on the default branch, runs in base-repo
 # context, and does not attach cleanly to a pull request's check list.
 #
-# ── Host-test targets owned by this workflow (6 of the repo's 25) ─────────────
+# ── Host-test targets owned by this workflow (the Class C half) ──────────────
 # Absorbed from the retired firmware-host-tests.yml (OI-SWCI-09).  These are
 # the firmware/safety_mcu/ targets registered by the NP_BUILD_TESTS branch of
 # firmware/CMakeLists.txt:
@@ -23,10 +23,17 @@ name: Safety MCU CI (STM32G071, Class C)
 #   np_cardiac_interlock_tests    (SW01-M05 Class C cardiac interlock)
 #   np_hal_platform_tests         (SW-01 platform layer)
 #   np_nv_state_tests             (SW01-M09 cardiac-cutoff state across power-on, OI-FAULTMSG-01)
+#   np_tier_identity_tests        (SW01-M10 tier identity, OI-UPG-01)
+#   np_tier_identity_nokey_tests  (SW01-M10, all-zero shipped placeholder key)
+#   np_gpio_mgr_tests             (np_gpio_mgr.c + heartbeat-loss cutoff, OI-FMEA-11)
 #
-# The remaining 19 belong to firmware-cross-build.yml.  6 + 19 = 25, disjoint;
-# build-all.yml re-checks that partition every week so the split cannot rot
-# into lost coverage.
+# Every other host test belongs to firmware-cross-build.yml; the halves are
+# disjoint.  This header states no arithmetic any more: it read "6 of the
+# repo's 25" and "6 + 19 = 25" long after the tree reached 11 + 38 = 49
+# (OI-SWCI-24, closed 2026-09-26).  The record is ci/host-test-partition.txt,
+# checked against add_test() and every count copy on each PR by
+# scripts/check-ci-scope.ts (correspondence E), and against a real `ctest -N`
+# weekly by build-all.yml.
 #
 # ── Scoping: why there is no `paths:` filter here any more ────────────────────
 # NP-SW-CI-001 §5.0 still governs: this workflow triggers on what it actually

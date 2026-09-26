@@ -2,6 +2,13 @@
 /**
  * check-ci-scope.ts — a relevance list must cover what the job it gates actually reads.
  *
+ * CI-Kind: gate
+ * CI-Self-Test: bun scripts/check-ci-scope.ts --self-test
+ * CI-Scans: every PR-triggered workflow job, against the CMake build graph it configures and the CI-Scan-Paths of the gates it runs; ci/required-checks.txt against job names; ci/host-test-partition.txt against add_test() and every workflow's partition env
+ * CI-Scan-Paths: .github/workflows/** firmware/** scripts/** ci/**
+ *   (Declared here, not at the end: gatesOf() and check-gate-coverage.ts read
+ *   only a file's first 80 lines, and this header outgrew them.)
+ *
  * NP-SW-CI-001 §5.0, OI-SWCI-08. The governing principle is "build only what the
  * change could have affected", and its cost is enumerated path lists that can
  * drift from the thing they are meant to describe. Five instances of that drift
@@ -18,7 +25,7 @@
  * Audit-dependence is the defect, not any one of those five. This file is the
  * mechanical comparison that was missing.
  *
- * ── The two correspondences it checks ────────────────────────────────────────
+ * ── The five correspondences it checks ───────────────────────────────────────
  *
  * A. BUILD GRAPH ↔ relevance list. For every PR-triggered job that runs `cmake
  *    -B`, the add_subdirectory() closure of the CMakeLists it configures is
@@ -32,6 +39,27 @@
  *    gate. `<tree>` is the limiting case — a gate that walks from the repository
  *    root — and is satisfiable ONLY by a job with no relevance gate at all,
  *    which is exactly §5.0's argument for check-section-refs made checkable.
+ *
+ * C. Required status-check contexts ↔ job names (OI-SWCI-26, OI-SWCI-23).
+ *    ci/required-checks.txt lists the exact strings the `Safety` ruleset
+ *    requires. Each must be the `name:` of exactly one job in a PR-triggered,
+ *    un-`paths:`-filtered workflow, with no `strategy:`; none may name a job
+ *    that never runs on pull_request (build-all.yml). Every job carrying the
+ *    in-file "required-status-check CONTEXT" warning must be listed, and every
+ *    listed job must carry it. A rename that used to un-gate the branch with no
+ *    error anywhere now fails here. The LIVE ruleset is not read — CI holds no
+ *    admin token — so manifest ↔ ruleset stays a runbook step (§6.7.8).
+ *
+ * D. Every relevance list covers its own workflow file (OI-SWCI-25). A
+ *    workflow edit is the change most likely to break that workflow.
+ *
+ * E. Host-test partition (OI-SWCI-37, OI-SWCI-14). ci/host-test-partition.txt
+ *    names every host test and its class. It must equal the add_test() names
+ *    of the NP_BUILD_TESTS graph; every workflow's NP_SAFETY_TESTS must be
+ *    byte-identical; that regex must put each name in its listed half; and
+ *    every NP_{SAFETY,CLASS_B,TOTAL}_TEST_COUNT copy — build-all.yml's
+ *    included, though it is not PR-triggered, because a stale copy there is
+ *    the second OI-SWCI-37 instance — must equal the manifest's count.
  *
  * ── Where it is deliberately weaker than it could be ─────────────────────────
  *
@@ -55,11 +83,6 @@
  * This does NOT check that a relevance list is minimal. Over-broad scoping costs
  * runner minutes; under-broad scoping costs coverage, silently. Only the second
  * is a correctness question, and only the second is checked here.
- *
- * CI-Kind: gate
- * CI-Self-Test: bun scripts/check-ci-scope.ts --self-test
- * CI-Scans: every PR-triggered workflow job, against the CMake build graph it configures and the CI-Scan-Paths of the gates it runs
- * CI-Scan-Paths: .github/workflows/** firmware/** scripts/** ci/**
  */
 import {
   readFileSync, readdirSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync,
@@ -117,6 +140,12 @@ const listCovers = (list: string[], target: string): boolean =>
 type Job = {
   wf: string;
   id: string;
+  /** The job's own `name:` — the check context GitHub reports. null = none (the id is used). */
+  name: string | null;
+  /** A `strategy:` renames the check to "name (value)" per leg. */
+  hasStrategy: boolean;
+  /** Carries the in-file "required-status-check CONTEXT" warning comment. */
+  requiredMarker: boolean;
   ifExpr: string;
   runs: string[];
   /** Raw NP_SCOPE_* block scalars declared on this job. */
@@ -130,6 +159,10 @@ type Workflow = {
   prTriggered: boolean;
   /** Workflow-level `pull_request: paths:` — applies to every job in the file. */
   prPaths: string[] | null;
+  /** Top-level `env:` scalars (NP_SAFETY_TESTS and the test counts live here). */
+  env: Map<string, string>;
+  /** Partition variables assigned anywhere BUT top-level env — invisible to E. */
+  nestedPartitionEnv: string[];
   jobs: Job[];
 };
 
@@ -227,6 +260,10 @@ function parseWorkflow(file: string, text: string): Workflow {
       const to = s + 1 < starts.length ? starts[s + 1]!.at : lines.length;
       const body = lines.slice(from + 1, to);
       const ifLine = body.find((l) => /^\s{4}if:\s/.test(l)) ?? "";
+      const nameLine = body.map((l) => /^ {4}name:\s*(.+?)\s*$/.exec(l)).find((m) => m);
+      const name = nameLine ? nameLine[1]!.replace(/^(['"])(.*)\1$/, "$2") : null;
+      const hasStrategy = body.some((l) => /^ {4}strategy:/.test(l));
+      const requiredMarker = body.some((l) => /^\s*#.*required-status-check CONTEXT/.test(l));
 
       const scopeEnv = new Map<string, string[]>();
       for (let i = 0; i < body.length; i++) {
@@ -263,10 +300,29 @@ function parseWorkflow(file: string, text: string): Workflow {
         if (d) bind(d[1]!, d[2]!);
       }
 
-      jobs.push({ wf: file, id: starts[s]!.id, ifExpr: ifLine, runs, scopeEnv, outputs });
+      jobs.push({
+        wf: file, id: starts[s]!.id, name, hasStrategy, requiredMarker,
+        ifExpr: ifLine, runs, scopeEnv, outputs,
+      });
     }
   }
-  return { file, prTriggered, prPaths, jobs };
+
+  // ── top-level env: ──────────────────────────────────────────────────────
+  const env = new Map<string, string>();
+  const envIdx = lines.findIndex((l) => /^env:\s*$/.test(l));
+  if (envIdx >= 0) {
+    for (let i = envIdx + 1; i < lines.length; i++) {
+      const l = lines[i]!;
+      if (l.trim() === "" || /^\s*#/.test(l)) continue;
+      if (l.search(/\S/) === 0) break;
+      const m = /^  ([A-Za-z0-9_]+):\s*(.*?)\s*$/.exec(l);
+      if (m) env.set(m[1]!, m[2]!.replace(/^(['"])(.*)\1$/, "$2"));
+    }
+  }
+  const nestedPartitionEnv = lines
+    .filter((l) => /^ {3,}(NP_SAFETY_TESTS|NP_[A-Z_]+_TEST_COUNT):/.test(l))
+    .map((l) => l.trim().split(":")[0]!);
+  return { file, prTriggered, prPaths, env, nestedPartitionEnv, jobs };
 }
 
 /**
@@ -322,7 +378,9 @@ const normalise = (p: string): string => {
 };
 
 /** add_subdirectory() targets of one CMakeLists, for the given -D settings. */
-function subdirsOf(text: string, dirRel: string, defs: Map<string, string>): string[] {
+function subdirsOf(
+  text: string, dirRel: string, defs: Map<string, string>, tests: string[] = [],
+): string[] {
   const found: string[] = [];
   const stack: { active: boolean; taken: boolean }[] = [];
   const active = () => stack.every((s) => s.active);
@@ -354,6 +412,12 @@ function subdirsOf(text: string, dirRel: string, defs: Map<string, string>): str
     // `return()` inside the NP_BUILD_TESTS branch is what makes the host-test
     // and cross-compile module sets DIFFERENT sets. Missing it would merge them.
     if (/^return\s*\(/.test(line)) { if (active()) break; continue; }
+    // add_test(NAME x …) — correspondence E compares these to
+    // ci/host-test-partition.txt. Only the literal NAME form is read; a test
+    // registered through a variable, foreach() or function() is invisible here,
+    // and build-all.yml's diff against `ctest -N` is the backstop for that.
+    const t = /^add_test\s*\(\s*NAME\s+([A-Za-z0-9_.-]+)/.exec(line);
+    if (t) { if (active()) tests.push(t[1]!); continue; }
     if (/^add_subdirectory\s*\(/.test(line)) {
       if (!active()) continue;
       const arg = argsOf().split(/\s+/)[0]!.replace(/^["']|["']$/g, "");
@@ -375,7 +439,15 @@ function optionDefaults(text: string, into: Map<string, string>): void {
   }
 }
 
-type Build = { job: Job; srcRel: string; modules: string[] };
+type Build = {
+  job: Job;
+  srcRel: string;
+  modules: string[];
+  /** Configured with NP_BUILD_TESTS on: the host-test build. */
+  hostTests: boolean;
+  /** add_test() names registered by the configured graph. */
+  tests: string[];
+};
 
 /** The `cmake -B <bin> [flags] <src>` invocations in a job, resolved to modules. */
 function buildsOf(root: string, job: Job): Build[] {
@@ -401,13 +473,14 @@ function buildsOf(root: string, job: Job): Build[] {
     if (defs.has("CMAKE_TOOLCHAIN_FILE")) defs.set("CMAKE_CROSSCOMPILING", "1");
 
     const modules: string[] = [];
+    const tests: string[] = [];
     const seen = new Set<string>();
     const visit = (dirRel: string) => {
       const f = join(root, dirRel, "CMakeLists.txt");
       if (!existsSync(f)) return;
       const text = readFileSync(f, "utf8");
       optionDefaults(text, defs);
-      for (const child of subdirsOf(text, dirRel, defs)) {
+      for (const child of subdirsOf(text, dirRel, defs, tests)) {
         if (seen.has(child)) continue;
         seen.add(child);
         modules.push(child);
@@ -415,7 +488,7 @@ function buildsOf(root: string, job: Job): Build[] {
       }
     };
     visit(srcRel);
-    out.push({ job, srcRel, modules });
+    out.push({ job, srcRel, modules, hostTests: truthy(defs.get("NP_BUILD_TESTS")), tests });
   }
   return out;
 }
@@ -478,6 +551,21 @@ function invokes(cmd: string, gate: string): boolean {
   return new RegExp(`^(?:(?:bun|python3|python|node|sh|bash)\\s+)*${esc}(?:\\s|$)`).test(cmd);
 }
 
+// ── Checked-in manifests (correspondences C and E) ───────────────────────────
+
+const REQUIRED_CHECKS = "ci/required-checks.txt";
+const TEST_PARTITION = "ci/host-test-partition.txt";
+
+/** Non-comment, non-blank lines of a manifest, or null if it does not exist. */
+function readManifest(root: string, rel: string): string[] | null {
+  const f = join(root, rel);
+  if (!existsSync(f)) return null;
+  return cleanList(readFileSync(f, "utf8"));
+}
+
+const dupes = (xs: string[]): string[] =>
+  [...new Set(xs.filter((x, i) => xs.indexOf(x) !== i))];
+
 // ── The audit ────────────────────────────────────────────────────────────────
 
 type Report = {
@@ -487,6 +575,10 @@ type Report = {
   gates: Gate[];
   moduleOwners: Map<string, string[]>;
   gateOwners: Map<string, string[]>;
+  /** C — required context → the one job that reports it. */
+  contexts: Map<string, string>;
+  /** E — host-test partition as checked, or null if there is no manifest. */
+  partition: { c: number; b: number; regexCopies: string[]; countCopies: string[] } | null;
 };
 
 function audit(root: string): Report {
@@ -615,7 +707,206 @@ function audit(root: string): Report {
     }
   }
 
-  return { violations, workflows, builds, gates, moduleOwners, gateOwners };
+  // ── C. required contexts ↔ job names (OI-SWCI-26, OI-SWCI-23) ────────
+  //
+  // A required context is an exact string. A job renamed, or given a matrix,
+  // stops reporting under it, and GitHub says nothing. The failure is a PR
+  // waiting forever, or — once someone edits the ruleset to match — the old
+  // gate silently gone. This makes the in-repo half of that contract checked.
+  const contexts = new Map<string, string>();
+  const marked = workflows.flatMap((w) => w.jobs.filter((j) => j.requiredMarker).map((j) => ({ w, j })));
+  const required = readManifest(root, REQUIRED_CHECKS);
+  if (required === null) {
+    for (const { w, j } of marked) {
+      violations.push(
+        `C: ${w.file}:${j.id} carries the required-status-check CONTEXT warning, but ` +
+          `${REQUIRED_CHECKS} does not exist — the warning is a convention nothing checks`,
+      );
+    }
+  } else {
+    for (const d of dupes(required)) violations.push(`C: ${REQUIRED_CHECKS} lists '${d}' more than once`);
+    const ctxOf = (j: Job) => j.name ?? j.id;
+    for (const ctx of new Set(required)) {
+      const hits = pr.flatMap((w) => w.jobs.filter((j) => ctxOf(j) === ctx).map((j) => ({ w, j })));
+      const offPr = workflows
+        .filter((w) => !w.prTriggered)
+        .flatMap((w) => w.jobs.filter((j) => ctxOf(j) === ctx).map((j) => `${w.file}:${j.id}`));
+      if (!hits.length) {
+        violations.push(
+          offPr.length
+            ? `C: '${ctx}' is required, but it is the name of ${offPr.join(", ")}, which does not run ` +
+                `on pull_request and so never reports on any PR — requiring it blocks every PR ` +
+                `permanently (OI-SWCI-23)`
+            : `C: '${ctx}' is required, but no pull_request-triggered job is named that — it was ` +
+                `renamed or removed, and every PR now waits forever for a check that cannot report ` +
+                `(OI-SWCI-26). Rename it back, or change ${REQUIRED_CHECKS} and the Safety ruleset together`,
+        );
+        continue;
+      }
+      if (hits.length > 1) {
+        violations.push(
+          `C: '${ctx}' is the name of ${hits.length} jobs (${hits.map((h) => `${h.w.file}:${h.j.id}`).join(", ")}) ` +
+            `— either one reporting satisfies the requirement, so it gates neither`,
+        );
+        continue;
+      }
+      const { w, j } = hits[0]!;
+      const where = `${w.file}:${j.id}`;
+      contexts.set(ctx, where);
+      if (w.prPaths) {
+        violations.push(
+          `C: '${ctx}' (${where}) is required, but ${w.file} has a workflow-level pull_request paths: ` +
+            `filter — on an out-of-scope PR it never reports, and the PR waits forever (§6.7.1)`,
+        );
+      }
+      if (j.hasStrategy) {
+        violations.push(
+          `C: '${ctx}' (${where}) is required, but the job has a strategy: — a matrix reports as ` +
+            `'${ctx} (<value>)', which never matches the required string (§6.7.8)`,
+        );
+      }
+      if (!j.requiredMarker) {
+        violations.push(
+          `C: '${ctx}' (${where}) is required, but the job does not carry the in-file ` +
+            `"required-status-check CONTEXT" warning — the next person to rename it will not know`,
+        );
+      }
+    }
+    const req = new Set(required);
+    for (const { w, j } of marked) {
+      if (!req.has(ctxOf(j))) {
+        violations.push(
+          `C: ${w.file}:${j.id} ('${ctxOf(j)}') carries the required-status-check CONTEXT warning ` +
+            `but is not in ${REQUIRED_CHECKS} — either the warning is stale or the manifest is`,
+        );
+      }
+    }
+  }
+
+  // ── D. every relevance list re-runs on an edit to its own workflow (OI-SWCI-25)
+  //
+  // A workflow edit is the change most likely to break that workflow. A list
+  // that does not cover its own file skips its jobs on exactly that PR — the
+  // web-ci.yml case observed on PR #261.
+  for (const wf of pr) {
+    const self = `.github/workflows/${wf.file}`;
+    for (const j of wf.jobs) {
+      for (const [env, list] of j.scopeEnv) {
+        if (!listCovers(list, self)) {
+          violations.push(
+            `D: ${wf.file}:${j.id} ${env} does not cover ${self} — an edit to this workflow ` +
+              `skips the jobs it gates, on the one PR most likely to break them (OI-SWCI-25)`,
+          );
+        }
+      }
+    }
+  }
+
+  // ── E. host-test partition ↔ add_test() ↔ NP_SAFETY_TESTS ↔ counts ────
+  //   (OI-SWCI-37, OI-SWCI-14)
+  //
+  // The regex and three counts each live in several workflow files. Twice a
+  // copy was missed and a guard caught the symptom a round-trip later, or not
+  // at all for a week. Counts alone cannot see a rename or a swap.
+  let partition: Report["partition"] = null;
+  // E compares top-level copies only. A copy moved into a job's or a step's
+  // env: would drop out of the comparison without a word, which is the silent
+  // shrinkage this correspondence exists to stop — so it is refused outright.
+  for (const w of workflows) {
+    for (const k of w.nestedPartitionEnv) {
+      violations.push(
+        `E: ${w.file} assigns ${k} below the top level — correspondence E reads only the ` +
+          `workflow's top-level env:, so this copy is compared with nothing. Move it up`,
+      );
+    }
+  }
+  const regexCopies = workflows.filter((w) => w.env.has("NP_SAFETY_TESTS"));
+  const manifest = readManifest(root, TEST_PARTITION);
+  if (manifest === null) {
+    if (regexCopies.length) {
+      violations.push(
+        `E: ${regexCopies.map((w) => w.file).join(", ")} declare NP_SAFETY_TESTS, but ` +
+          `${TEST_PARTITION} does not exist — the partition is checked against nothing`,
+      );
+    }
+  } else {
+    const entries: { cls: "C" | "B"; name: string }[] = [];
+    for (const line of manifest) {
+      const m = /^([CB])\s+([A-Za-z0-9_.-]+)$/.exec(line);
+      if (!m) { violations.push(`E: ${TEST_PARTITION}: malformed line '${line}' (want 'C <name>' or 'B <name>')`); continue; }
+      entries.push({ cls: m[1] as "C" | "B", name: m[2]! });
+    }
+    const names = entries.map((e) => e.name);
+    for (const d of dupes(names)) violations.push(`E: ${TEST_PARTITION} lists ${d} more than once`);
+
+    const hostBuilds = builds.filter((b) => b.hostTests);
+    if (!hostBuilds.length) {
+      violations.push(`E: no PR-triggered job configures the host-test build (-DNP_BUILD_TESTS=ON) — ${TEST_PARTITION} is compared against nothing`);
+    } else {
+      const registered = new Set(hostBuilds.flatMap((b) => b.tests));
+      const listed = new Set(names);
+      for (const t of [...registered].sort()) {
+        if (!listed.has(t)) {
+          violations.push(`E: ${t} is registered by add_test() but not in ${TEST_PARTITION} — say which half owns it (C or B), and move the count(s)`);
+        }
+      }
+      for (const t of [...listed].sort()) {
+        if (!registered.has(t)) {
+          violations.push(`E: ${TEST_PARTITION} lists ${t}, which no add_test() registers — renamed or removed without the manifest (OI-SWCI-14)`);
+        }
+      }
+    }
+
+    const values = [...new Set(regexCopies.map((w) => w.env.get("NP_SAFETY_TESTS")!))];
+    if (!regexCopies.length) {
+      violations.push(`E: ${TEST_PARTITION} exists but no workflow declares NP_SAFETY_TESTS — nothing selects by it`);
+    } else if (values.length > 1) {
+      violations.push(
+        `E: NP_SAFETY_TESTS differs between workflows — ` +
+          regexCopies.map((w) => `${w.file}: ${w.env.get("NP_SAFETY_TESTS")}`).join(" | ") +
+          ` — the Class C and Class B selections no longer partition the suite (OI-SWCI-37)`,
+      );
+    } else {
+      let re: RegExp | null = null;
+      try { re = new RegExp(values[0]!); } catch (e) {
+        violations.push(`E: NP_SAFETY_TESTS is not a valid regex: ${(e as Error).message}`);
+      }
+      if (re) {
+        for (const e of entries) {
+          const isC = re.test(e.name);
+          if (isC !== (e.cls === "C")) {
+            violations.push(
+              `E: ${e.name} is class ${e.cls} in ${TEST_PARTITION}, but NP_SAFETY_TESTS ` +
+                `${isC ? "selects" : "does not select"} it — it runs in the ${isC ? "Class C" : "Class B"} ` +
+                `workflow (OI-SWCI-37)`,
+            );
+          }
+        }
+      }
+    }
+
+    const nC = entries.filter((e) => e.cls === "C").length;
+    const nB = entries.length - nC;
+    const countCopies: string[] = [];
+    for (const [key, want] of [
+      ["NP_SAFETY_TEST_COUNT", nC], ["NP_CLASS_B_TEST_COUNT", nB], ["NP_TOTAL_TEST_COUNT", nC + nB],
+    ] as const) {
+      for (const w of workflows) {
+        const got = w.env.get(key);
+        if (got === undefined) continue;
+        countCopies.push(`${w.file}:${key}`);
+        if (got !== String(want)) {
+          violations.push(
+            `E: ${w.file} ${key} is '${got}', but ${TEST_PARTITION} gives ${want} — ` +
+              `one copy of the count was moved and this one was not (OI-SWCI-37)`,
+          );
+        }
+      }
+    }
+    partition = { c: nC, b: nB, regexCopies: regexCopies.map((w) => w.file), countCopies };
+  }
+
+  return { violations, workflows, builds, gates, moduleOwners, gateOwners, contexts, partition };
 }
 
 // ── Self-test ────────────────────────────────────────────────────────────────
@@ -643,6 +934,8 @@ if (process.argv.includes("--self-test")) {
     list?: string[];
     gatedRuns?: string[];
     ungatedRuns?: string[];
+    /** Omit the self-entry correspondence D requires — only D's own cases want this. */
+    noSelf?: boolean;
   }) => {
     const on = opts.prPaths
       ? `on:\n  pull_request:\n    paths:\n${opts.prPaths.map((p) => `      - '${p}'`).join("\n")}\n`
@@ -651,7 +944,8 @@ if (process.argv.includes("--self-test")) {
     if (opts.list) {
       s +=
         `  changes:\n    runs-on: ubuntu-latest\n    outputs:\n      relevant: x\n    env:\n` +
-        `      NP_SCOPE_PATHS: |\n${opts.list.map((p) => `        ${p}`).join("\n")}\n` +
+        `      NP_SCOPE_PATHS: |\n${[...opts.list, ...(opts.noSelf ? [] : [".github/workflows/**"])]
+          .map((p) => `        ${p}`).join("\n")}\n` +
         `    steps:\n      - run: printf '%s\\n' "$NP_SCOPE_PATHS" > scope.paths\n` +
         `      - run: |\n          relevant=$(scripts/ci-changed-scope.sh --relevant scope.paths changed.txt)\n`;
     }
@@ -670,10 +964,11 @@ if (process.argv.includes("--self-test")) {
   };
 
   const CONFIGURE = "cmake -B build/h -G Ninja -DNP_BUILD_TESTS=ON -DCMAKE_CROSSCOMPILING=OFF firmware";
-  const ROOT_CMAKE = (subdirs: string[], crossOnly: string[] = []) =>
+  const ROOT_CMAKE = (subdirs: string[], crossOnly: string[] = [], tests: string[] = []) =>
     `cmake_minimum_required(VERSION 3.20)\nproject(t C)\n` +
     `option(NP_BUILD_TESTS "t" OFF)\n` +
-    `if(NP_BUILD_TESTS)\n${subdirs.map((s) => `    add_subdirectory(${s})`).join("\n")}\n    return()\nendif()\n` +
+    `if(NP_BUILD_TESTS)\n${subdirs.map((s) => `    add_subdirectory(${s})`).join("\n")}\n` +
+    `${tests.map((t) => `    add_test(NAME ${t}\n        COMMAND ${t})`).join("\n")}\n    return()\nendif()\n` +
     `${crossOnly.map((s) => `add_subdirectory(${s})`).join("\n")}\n`;
   const MODULE = "add_library(x STATIC x.c)\n";
   const GATE = (scanPaths: string | null) =>
@@ -974,6 +1269,206 @@ if (process.argv.includes("--self-test")) {
     "no PR-triggered job runs it",
   );
 
+  // ── C. required contexts ↔ job names ──────────────────────────────────
+  const MARK = "    # ⚠ This string is a required-status-check CONTEXT (NP-SW-CI-001 §6.7.8).\n";
+  /** A workflow of named jobs, in the firmware workflows' shape. */
+  const NAMED = (opts: {
+    pr?: boolean;
+    prPaths?: string[];
+    jobs: { id: string; name?: string; marker?: boolean; matrix?: boolean }[];
+  }) => {
+    const on = opts.prPaths
+      ? `on:\n  pull_request:\n    paths:\n${opts.prPaths.map((p) => `      - '${p}'`).join("\n")}\n`
+      : `on:\n${opts.pr === false ? "  schedule:\n    - cron: '0 0 * * 0'\n" : "  push:\n  pull_request:\n"}`;
+    return `name: t\n${on}jobs:\n` + opts.jobs.map((j) =>
+      `  ${j.id}:\n` +
+      (j.name ? `    name: ${j.name}\n` : "") +
+      (j.marker ? MARK : "") +
+      `    runs-on: ubuntu-latest\n` +
+      (j.matrix ? `    strategy:\n      matrix:\n        leg: [a, b]\n` : "") +
+      `    steps:\n      - name: Checkout\n        run: true\n`).join("");
+  };
+  const REQ = (...ctx: string[]) => `# header\n\n${ctx.join("\n")}\n`;
+  expect(
+    "a required context naming one marked PR job passes",
+    build({
+      "ci/required-checks.txt": REQ("Class C scope", "Safety MCU host tests (Class C)"),
+      ".github/workflows/s.yml": NAMED({ jobs: [
+        { id: "changes", name: "Class C scope", marker: true },
+        { id: "host-tests", name: "Safety MCU host tests (Class C)", marker: true },
+      ] }),
+    }),
+    null,
+  );
+  // THE OI-SWCI-26 defect: a job renamed (here, a count put back in its name).
+  expect(
+    "a required context no job reports any more is caught",
+    build({
+      "ci/required-checks.txt": REQ("Safety MCU host tests (Class C)"),
+      ".github/workflows/s.yml": NAMED({ jobs: [
+        { id: "host-tests", name: "Safety MCU host tests (12 targets)", marker: true },
+      ] }),
+    }),
+    "no pull_request-triggered job is named that",
+  );
+  expect(
+    "a matrix on a required job is caught",
+    build({
+      "ci/required-checks.txt": REQ("Cross"),
+      ".github/workflows/s.yml": NAMED({ jobs: [{ id: "x", name: "Cross", marker: true, matrix: true }] }),
+    }),
+    "has a strategy:",
+  );
+  // OI-SWCI-23: build-all.yml added "for completeness".
+  expect(
+    "a required context that only a non-PR workflow reports is caught",
+    build({
+      "ci/required-checks.txt": REQ("CMake host tests (unfiltered)"),
+      ".github/workflows/build-all.yml": NAMED({ pr: false, jobs: [{ id: "h", name: "CMake host tests (unfiltered)" }] }),
+    }),
+    "OI-SWCI-23",
+  );
+  expect(
+    "a required job in a paths:-filtered workflow is caught",
+    build({
+      "ci/required-checks.txt": REQ("Cross"),
+      ".github/workflows/s.yml": NAMED({ prPaths: ["firmware/**"], jobs: [{ id: "x", name: "Cross", marker: true }] }),
+    }),
+    "workflow-level pull_request paths",
+  );
+  expect(
+    "two PR jobs sharing a required name are caught",
+    build({
+      "ci/required-checks.txt": REQ("Cross"),
+      ".github/workflows/a.yml": NAMED({ jobs: [{ id: "x", name: "Cross", marker: true }] }),
+      ".github/workflows/b.yml": NAMED({ jobs: [{ id: "y", name: "Cross", marker: true }] }),
+    }),
+    "is the name of 2 jobs",
+  );
+  expect(
+    "a required job without the in-file warning is caught",
+    build({
+      "ci/required-checks.txt": REQ("Cross"),
+      ".github/workflows/s.yml": NAMED({ jobs: [{ id: "x", name: "Cross" }] }),
+    }),
+    "does not carry the in-file",
+  );
+  expect(
+    "a marked job missing from the manifest is caught",
+    build({
+      "ci/required-checks.txt": REQ("Cross"),
+      ".github/workflows/s.yml": NAMED({ jobs: [
+        { id: "x", name: "Cross", marker: true },
+        { id: "y", name: "Other", marker: true },
+      ] }),
+    }),
+    "is not in ci/required-checks.txt",
+  );
+  expect(
+    "a marked job with no manifest at all is caught",
+    build({ ".github/workflows/s.yml": NAMED({ jobs: [{ id: "x", name: "Cross", marker: true }] }) }),
+    "does not exist",
+  );
+
+  // ── D. a relevance list covers its own workflow ────────────────────────
+  // The web-ci.yml shape observed on PR #261.
+  expect(
+    "a relevance list that omits its own workflow is caught",
+    build({ ".github/workflows/w.yml": WF({ list: ["app/web/**"], noSelf: true, gatedRuns: ["true"] }) }),
+    "does not cover .github/workflows/w.yml",
+  );
+  expect(
+    "an exact self-entry satisfies it",
+    build({ ".github/workflows/w.yml": WF({ list: ["app/web/**", ".github/workflows/w.yml"], noSelf: true, gatedRuns: ["true"] }) }),
+    null,
+  );
+  expect(
+    "another workflow's file does not",
+    build({ ".github/workflows/w.yml": WF({ list: ["app/web/**", ".github/workflows/v.yml"], noSelf: true, gatedRuns: ["true"] }) }),
+    "does not cover .github/workflows/w.yml",
+  );
+
+  // ── E. host-test partition ─────────────────────────────────────────────
+  const SAFETY_RE = "^np_(alpha|beta)_tests$";
+  /** A host-test workflow in the firmware shape: top-level env, gated configure. */
+  const PART_WF = (env: Record<string, string>) =>
+    `name: t\non:\n  pull_request:\nenv:\n` +
+    Object.entries(env).map(([k, v]) => `  ${k}: '${v}'\n`).join("") +
+    WF({ list: ["firmware/CMakeLists.txt", "firmware/alpha/**"], gatedRuns: [CONFIGURE] })
+      .replace(/^name: t\non:\n  pull_request:\n/, "");
+  const PART = (lines: string[]) => `# header\n${lines.join("\n")}\n`;
+  const partTree = (o: {
+    tests?: string[]; manifest?: string[] | null; safety?: string; safety2?: string;
+    cCount?: string; bCount?: string; total?: string;
+  }) => {
+    const files: Record<string, string> = {
+      "firmware/CMakeLists.txt": ROOT_CMAKE(["alpha"], [], o.tests ?? ["np_alpha_tests", "np_beta_tests", "np_gamma_tests"]),
+      "firmware/alpha/CMakeLists.txt": MODULE,
+      ".github/workflows/c.yml": PART_WF({ NP_SAFETY_TESTS: o.safety ?? SAFETY_RE, NP_SAFETY_TEST_COUNT: o.cCount ?? "2" }),
+      ".github/workflows/b.yml": PART_WF({ NP_SAFETY_TESTS: o.safety2 ?? SAFETY_RE, NP_CLASS_B_TEST_COUNT: o.bCount ?? "1" }),
+      ".github/workflows/all.yml": `name: t\non:\n  schedule:\n    - cron: '0 0 * * 0'\nenv:\n` +
+        `  NP_SAFETY_TESTS: '${SAFETY_RE}'\n  NP_TOTAL_TEST_COUNT: '${o.total ?? "3"}'\njobs:\n` +
+        `  h:\n    runs-on: ubuntu-latest\n    steps:\n      - run: true\n`,
+    };
+    if (o.manifest !== null) {
+      files["ci/host-test-partition.txt"] = PART(o.manifest ?? ["C np_alpha_tests", "C np_beta_tests", "B np_gamma_tests"]);
+    }
+    return build(files);
+  };
+  expect("a consistent partition passes", partTree({}), null);
+  // OI-SWCI-14: a rename keeps every count true and changes the suite.
+  expect(
+    "a renamed test is caught although every count still holds",
+    partTree({ tests: ["np_alpha_tests", "np_beta_tests", "np_delta_tests"] }),
+    "np_delta_tests is registered by add_test() but not in",
+  );
+  expect(
+    "a manifest entry nothing registers is caught",
+    partTree({ tests: ["np_alpha_tests", "np_beta_tests", "np_delta_tests"] }),
+    "lists np_gamma_tests, which no add_test() registers",
+  );
+  // OI-SWCI-37, the phase-7 miss: one copy of the regex not updated.
+  expect(
+    "one workflow's NP_SAFETY_TESTS drifting from the others is caught",
+    partTree({ safety2: "^np_(alpha)_tests$" }),
+    "NP_SAFETY_TESTS differs between workflows",
+  );
+  expect(
+    "a regex that puts a test in the other half from the manifest is caught",
+    partTree({ manifest: ["C np_alpha_tests", "B np_beta_tests", "C np_gamma_tests"], cCount: "2", bCount: "1" }),
+    "np_gamma_tests is class C",
+  );
+  // OI-SWCI-37 second instance: the total's copy in build-all.yml left behind.
+  expect(
+    "a stale count copy in a non-PR workflow is caught",
+    partTree({ total: "2" }),
+    "all.yml NP_TOTAL_TEST_COUNT is '2'",
+  );
+  expect("a stale Class B count is caught", partTree({ bCount: "2" }), "NP_CLASS_B_TEST_COUNT is '2'");
+  expect("a missing manifest while the regex exists is caught", partTree({ manifest: null }), "does not exist");
+  expect(
+    "a partition variable hidden in a job-level env: is caught",
+    (() => {
+      const root = partTree({});
+      const f = join(root, ".github/workflows/b.yml");
+      writeFileSync(f, readFileSync(f, "utf8").replace(
+        "    needs: changes\n", "    needs: changes\n    env:\n      NP_CLASS_B_TEST_COUNT: '7'\n"));
+      return root;
+    })(),
+    "assigns NP_CLASS_B_TEST_COUNT below the top level",
+  );
+  expect(
+    "a test registered in an if() the host build does not take is not expected",
+    build({
+      "firmware/CMakeLists.txt": ROOT_CMAKE(["alpha"], [], ["np_alpha_tests", "np_beta_tests", "np_gamma_tests"])
+        .replace("    return()", "    if(NP_NEVER)\n        add_test(NAME np_off_tests COMMAND x)\n    endif()\n    return()"),
+      "firmware/alpha/CMakeLists.txt": MODULE,
+      "ci/host-test-partition.txt": PART(["C np_alpha_tests", "C np_beta_tests", "B np_gamma_tests"]),
+      ".github/workflows/c.yml": PART_WF({ NP_SAFETY_TESTS: SAFETY_RE }),
+    }),
+    null,
+  );
+
   // ── Shapes this file refuses to guess at ───────────────────────────────
   expectThrow(
     "an unsupported pattern shape in a relevance list is a hard error",
@@ -1010,9 +1505,12 @@ if (process.argv.includes("--self-test")) {
     for (const f of failures) console.error("  " + f);
     process.exit(1);
   }
-  console.log("  21 case(s): both correspondences proven to fire and proven NOT to over-fire —");
-  console.log("  the union rule, the weekly-backstop exclusion, the NP_BUILD_TESTS/cross split,");
-  console.log("  prefix coverage in both directions, <tree>, and two unparseable shapes");
+  console.log("  45 case(s): all five correspondences proven to fire and proven NOT to over-fire —");
+  console.log("  A/B: the union rule, the weekly-backstop exclusion, the NP_BUILD_TESTS/cross split,");
+  console.log("  prefix coverage in both directions, <tree>, and two unparseable shapes;");
+  console.log("  C: rename, matrix, non-PR (build-all), paths:-filtered, duplicate, marker both ways;");
+  console.log("  D: own workflow omitted, exact self-entry, another workflow's file;");
+  console.log("  E: rename under unchanged counts, regex drift, class mismatch, stale count copies, a copy hidden below top level");
   console.log("SELF-TEST PASS — the checker has teeth.");
   process.exit(0);
 }
@@ -1020,7 +1518,7 @@ if (process.argv.includes("--self-test")) {
 // ── Production run ───────────────────────────────────────────────────────────
 
 const ROOT = join(import.meta.dir, "..");
-const { violations, workflows, builds, gates, moduleOwners, gateOwners } = audit(ROOT);
+const { violations, workflows, builds, gates, moduleOwners, gateOwners, contexts, partition } = audit(ROOT);
 
 const prWorkflows = workflows.filter((w) => w.prTriggered);
 const prJobs = prWorkflows.reduce((n, w) => n + w.jobs.length, 0);
@@ -1031,6 +1529,15 @@ if (prJobs === 0 || gates.length === 0) {
     "check-ci-scope: found no PR-triggered jobs or no gates at all — refusing to pass vacuously.",
   );
   process.exit(2);
+}
+// C and E are silent on a tree with no manifest and no marker. In THIS tree
+// both exist, and losing either must fail rather than quietly switch the
+// correspondence off.
+for (const rel of [REQUIRED_CHECKS, TEST_PARTITION]) {
+  if (!existsSync(join(ROOT, rel))) {
+    console.error(`check-ci-scope: ${rel} is missing — refusing to pass with its correspondence switched off.`);
+    process.exit(2);
+  }
 }
 
 console.log(
@@ -1052,6 +1559,17 @@ for (const [key, owners] of [...gateOwners].sort()) {
   console.log(`  ${key.padEnd(58)} ${[...new Set(owners)].join(", ")}`);
 }
 
+console.log(`\nC — required status-check contexts (${REQUIRED_CHECKS}) → the one job that reports each:`);
+for (const [ctx, where] of contexts) console.log(`  ${ctx.padEnd(48)} ${where}`);
+console.log(`\nD — every relevance list in a PR-triggered workflow covers its own workflow file`);
+if (partition) {
+  console.log(
+    `\nE — host-test partition (${TEST_PARTITION}): ${partition.c} Class C + ${partition.b} Class B = ` +
+      `${partition.c + partition.b}; NP_SAFETY_TESTS identical in ${partition.regexCopies.join(", ")}; ` +
+      `counts agree in ${partition.countCopies.join(", ")}`,
+  );
+}
+
 if (violations.length) {
   console.error(`\n${violations.length} scope-drift violation(s):\n`);
   for (const v of violations) console.error("  " + v);
@@ -1062,5 +1580,8 @@ if (violations.length) {
   );
   process.exit(1);
 }
-console.log("\nEvery build-graph module and every declared scan population is gated. PASS");
+console.log(
+  "\nEvery build-graph module and every declared scan population is gated; every required\n" +
+    "context names one reportable job; the host-test partition agrees everywhere it is written. PASS",
+);
 process.exit(0);

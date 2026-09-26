@@ -1,0 +1,44 @@
+# ci/required-checks.txt — the exact status-check contexts the `Safety` ruleset requires on main.
+#
+# NP-SW-CI-001 §6.7.8 (where the ruleset was applied) and §6.10 (this file),
+# OI-SWCI-26. A required context is an EXACT string match against a job's
+# rendered `name:`. When a job is renamed, or gains a `strategy: matrix:` (which
+# renames its check to "name (value)"), the ruleset keeps waiting on the old
+# string. Nothing reports the mismatch. Every PR then waits forever on a check
+# that no longer exists, or, if the ruleset is edited to match, the old gate
+# silently stops applying.
+#
+# What enforces it — scripts/check-ci-scope.ts, correspondence C:
+#   · every line here is the `name:` of exactly one job in a pull_request-
+#     triggered workflow with no workflow-level `paths:` filter (a filtered
+#     workflow never reports on an out-of-scope PR, so requiring it deadlocks —
+#     §6.7.1), and that job has no `strategy:`;
+#   · no line names a job in a workflow that does not run on pull_request.
+#     build-all.yml is the standing case: it is schedule + workflow_dispatch
+#     only, so requiring it would block every PR permanently (OI-SWCI-23);
+#   · every job carrying the in-file "required-status-check CONTEXT" warning is
+#     listed here, and every job listed here carries it.
+#
+# What does NOT enforce it: agreement with the LIVE ruleset. CI holds no admin
+# token and should not. This file is the in-repo half of the contract; the
+# ruleset is the other half, and changing one means changing the other in the
+# same operation (§6.7.8). Read-only comparison, from an admin workstation:
+#
+#   diff <(grep -v '^#' ci/required-checks.txt | sed '/^$/d' | sort) \
+#        <(gh api repos/stevehickman/NeuroPulse/rulesets/16412379 \
+#            --jq '.rules[] | select(.type=="required_status_checks")
+#                  | .parameters.required_status_checks[].context' | sort)
+#
+# Expect no output. Blank lines and `#` comments are ignored; a line is the
+# context verbatim, including spaces and punctuation.
+
+# firmware-cross-build.yml — Class B
+Class B scope
+CMake host tests (Class B)
+Bootloader (i.MX RT1062)
+Main firmware (i.MX RT1062, Class B)
+
+# safety-mcu-ci.yml — Class C
+Class C scope
+Safety MCU host tests (Class C)
+Cross-compile (STM32G071, Cortex-M0+, Class C)

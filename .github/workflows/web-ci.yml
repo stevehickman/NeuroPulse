@@ -54,6 +54,13 @@ jobs:
         # string. --check-tree would in fact reject the entry now, since every
         # pattern must match something tracked.
         scripts/ci-changed-scope.sh
+        # This workflow itself (OI-SWCI-25, closed 2026-09-26). It was absent
+        # from the retired `paths:` list and phase 6 preserved that faithfully,
+        # so an edit to this file skipped the job it defines — observed on PR
+        # #261. A workflow edit is the change most likely to break the workflow.
+        # scripts/check-ci-scope.ts (correspondence D) now fails any relevance
+        # list that does not cover its own workflow file.
+        .github/workflows/web-ci.yml
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -97,6 +104,8 @@ jobs:
           # generates its locale files from. iOS sources must not.
           assert true  locales/en.json
           assert false app/ios/NeurOne/ContentView.swift
+          # OI-SWCI-25: an edit to this workflow re-runs it.
+          assert true  .github/workflows/web-ci.yml
 
       - name: Changed files
         id: diff
