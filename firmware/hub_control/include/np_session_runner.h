@@ -55,7 +55,10 @@ void np_runner_init(EventGroupHandle_t hub_events);
 /*
  * np_runner_load — verify protocol and install it into the runner context.
  * Posts NP_EV_SESSION_START on success.
- * Returns NP_HUB_ERR_SESSION_ACTIVE if a session is already running.
+ * Returns NP_HUB_ERR_SESSION_ACTIVE if a session is already loaded, running or
+ * stopping.  Claims the session lease (np_session_lease.h, OI-FWHUB-17), which
+ * np_runner_run() releases when the session ends and any failure here releases
+ * at once; module detection does not probe while it is held.
  */
 np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len);
 

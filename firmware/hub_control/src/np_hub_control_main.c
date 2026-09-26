@@ -31,8 +31,8 @@
  *     intervals to ensure eMMC write-through without blocking the runner.
  *
  *   task_module_detect  (prio 1 — LOW)
- *     Polls the accessory slots for insertion/removal while no session is in
- *     flight (IDLE / COMPLETE / FAULT), re-initialising a slot only when its
+ *     Polls the accessory slots for insertion/removal while no session holds
+ *     the session lease (OI-FWHUB-17), re-initialising a slot only when its
  *     presence or type changes (OI-FWHUB-16).
  *
  * Entry: np_hub_control_app_main() — called by the main processor's
@@ -51,6 +51,7 @@
 #include "np_module_registry.h"
 #include "np_protocol.h"
 #include "np_session_runner.h"
+#include "np_session_lease.h"   /* OI-FWHUB-17: detect/session exclusion */
 #include "np_session_log.h"
 #include "np_log_backend.h"
 #include "np_session_count.h"   /* OI-LFS-12: persisted device session count */
@@ -108,6 +109,16 @@ static EventGroupHandle_t g_hub_events;
  * OI-SWCI-46 decided there does not need to be — three comments in this
  * codebase described a placement the compiler was never asked for. */
 static uint8_t g_proto_buf[NP_HUB_PROTO_BLOB_MAX];
+
+/* OI-FWHUB-14: the logger is task-context only (np_session_log.h).  An ISR
+ * caller is a programming error the logger refuses; the assert makes it loud at
+ * bring-up instead of a silently missing EEG block. */
+static bool log_in_isr(void)
+{
+    bool in_isr = (xPortIsInsideInterrupt() != pdFALSE);
+    configASSERT(!in_isr);
+    return in_isr;
+}
 
 /* ── task_safety_heartbeat ────────────────────────────────────────────────────── */
 
@@ -373,20 +384,17 @@ static void task_telemetry(void *arg)
 /* ── task_module_detect ───────────────────────────────────────────────────────── */
 
 /*
- * True when no session is in flight, so a probe cannot touch lines a session
- * owns (REQ-FWHUB-03).  Until 2026-09-24 the task skipped only RUNNING, which
- * left LOADING/VERIFYING/PAUSED/STOPPING open to a registry change under a
- * loaded protocol — harmless only because every accessory rescan was being
- * refused (OI-FWHUB-16).  A module pulled mid-session is its driver's own
+ * REQ-FWHUB-03: no probe while a session is loaded, running or stopping.  Held
+ * by EXCLUSION (OI-FWHUB-17): each probe runs inside np_lease_probe_begin() /
+ * np_lease_probe_end(), which is refused while np_runner_load() holds the
+ * session lease, and a claim arriving mid-probe waits for that probe to end.
+ * Until Rev 12 this was a state check re-read per slot (D-31), which narrowed
+ * the window to one probe but could not close it: this task is the lowest
+ * priority, so a session could start between the read and the detect().  The
+ * lease also covers the gap between a load and np_runner_run(), when the state
+ * still reads IDLE.  A module pulled mid-session is its driver's own
  * interlock's business (Hall sensor, impedance, cardiac), not this poll's.
  */
-static bool detect_may_probe(void)
-{
-    np_session_state_t st = np_runner_get_state();
-    return st == NP_SESSION_IDLE || st == NP_SESSION_COMPLETE ||
-           st == NP_SESSION_FAULT;
-}
-
 static void task_module_detect(void *arg)
 {
     (void)arg;
@@ -398,59 +406,23 @@ static void task_module_detect(void *arg)
          * SHDR record; the fixed BES/tACS and tDCS slots in this range are
          * no-ops.  EEG and audio (5, 6) are fixed silicon and not polled.
          *
-         * The state is re-checked before EACH slot, not once per pass: this task
-         * is the lowest priority, so a session can start while it is part-way
-         * through the pass and hand the CPU back each time the runner blocks.
-         * That narrows the window to one probe; it does not close it — see
-         * OI-FWHUB-17.
+         * The lease is taken per slot, not per pass, so a load waits for at
+         * most one probe, never a whole pass.
          *
          * The return value is informational — NOT_PRESENT and MOD_INIT are the
          * slot's state, not an error of the poll — but it must never again be
          * INVALID_ARG, which is what every call returned before OI-FWHUB-16. */
         for (uint8_t slot = NP_HUB_SLOT_VISUAL; slot < NP_HUB_SLOT_MAX; slot++) {
-            if (!detect_may_probe()) {
+            if (!np_lease_probe_begin()) {
                 break;
             }
             np_hub_status_t rc = np_mod_reg_rescan_slot(slot);
+            np_lease_probe_end();
             configASSERT(rc != NP_HUB_ERR_INVALID_ARG);
             (void)rc;
         }
 
         vTaskDelay(pdMS_TO_TICKS(NP_DETECT_ACCESSORY_POLL_MS));
-    }
-}
-
-/* ── Zone announce callbacks (RETIRED) ────────────────────────────────────────── */
-
-/*
- * These were the np_zone_announce insert/remove hooks for the five retired
- * zone-module slots 0-4.  Nothing registers them: np_za_init() has no caller in
- * the hub, and no header declares these functions.  They are kept as deliberate
- * no-ops rather than deleted so the retirement is visible here, and so that if
- * the ZONE_ID path is ever wired back it does not silently re-initialise a PBM
- * driver the parser can no longer address (NP_HUB_SLOT_FIRST_VALID).
- *
- * The insert hook used to call the single-slot rescan for slots 0-4 — the only
- * range that rescan accepted.  np_mod_reg_rescan_slot() now refuses 0-4, so the
- * call is removed rather than left to fail silently.  The remove hook's
- * shutdown() is kept: stopping an output is always safe.  Deletion is
- * OI-FWHUB-18, with the zone_announce retirement.
- */
-void np_hub_zone_insert_cb(uint8_t zone_id, bool announcement_done)
-{
-    (void)zone_id;
-    (void)announcement_done;
-}
-
-void np_hub_zone_remove_cb(uint8_t zone_id)
-{
-    if (zone_id == 0U || zone_id > NP_HUB_ZONE_SLOT_COUNT) {
-        return;
-    }
-    uint8_t slot = (uint8_t)(zone_id - 1U);
-    np_mod_entry_t *mod = np_mod_reg_get(slot);
-    if (mod != NULL && mod->shutdown != NULL) {
-        (void)mod->shutdown(slot);
     }
 }
 
@@ -527,6 +499,7 @@ void np_hub_control_app_main(void)
     (void)np_session_count_load(&session_count);
     np_log_init(session_count);
     np_log_set_count_commit(np_session_count_commit);
+    np_log_set_isr_check(log_in_isr);   /* OI-FWHUB-14 */
 
     /* NP-SW-FAULTMSG-001 §9.6: reload the cervical offline-fault summary and
      * the last-named user from the UHDR partition, which the backend has just

@@ -146,6 +146,17 @@ if(NP_BUILD_TESTS)
     target_compile_options(np_module_registry_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
 
+    # OI-FWHUB-17: the session lease that keeps module detection off a session
+    # by exclusion (REQ-FWHUB-03).  Pure C; the lock is injected, so the stub
+    # lock can observe a claim contending with a probe in progress.
+    add_executable(np_session_lease_tests
+        tests/np_session_lease_tests.c
+        src/np_session_lease.c
+    )
+    target_include_directories(np_session_lease_tests PRIVATE include)
+    target_compile_options(np_session_lease_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+
     add_executable(np_mod_stim_tests
         tests/np_mod_stim_tests.c
         modules/np_mod_stim.c
@@ -385,6 +396,7 @@ set(HUB_SOURCES
     src/np_module_registry.c
     src/np_protocol.c
     src/np_session_runner.c
+    src/np_session_lease.c
     src/np_session_log.c
     src/np_log_backend.c          # OI-LOG-01..04: session-log eMMC backing
     src/np_transport.c            # OI-HUB-MAIN-01: BLE/USB-C protocol transport

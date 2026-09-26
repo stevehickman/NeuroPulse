@@ -74,6 +74,7 @@ B np_ota_tests
 B np_pbm_cal_bridge_tests
 B np_pbm_session_desc_tests
 B np_protocol_tests
+B np_session_lease_tests
 B np_socket_dispatch_tests
 B np_stim_xcheck_tests
 B np_transport_tests

@@ -18,6 +18,7 @@
  */
 
 #include "np_session_runner.h"
+#include "np_session_lease.h"
 #include "np_protocol.h"
 #include "np_module_registry.h"
 #include "np_socket_dispatch.h"
@@ -31,6 +32,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "event_groups.h"
+#include "semphr.h"
 #include <string.h>
 #include <limits.h>
 
@@ -52,6 +54,14 @@ extern void     np_mod_cvns_tick(uint32_t now_ms, uint32_t now_s);
 
 static np_runner_ctx_t     s_ctx;
 static EventGroupHandle_t  s_events;
+
+/* The session lease's lock (OI-FWHUB-17, np_session_lease.h).  A mutex, not a
+ * binary semaphore: the lowest-priority detect task holds it across a probe,
+ * and priority inheritance lifts it over a waiting task_protocol_rx. */
+static SemaphoreHandle_t   s_lease_mutex;
+
+static void lease_lock(void)   { (void)xSemaphoreTake(s_lease_mutex, portMAX_DELAY); }
+static void lease_unlock(void) { (void)xSemaphoreGive(s_lease_mutex); }
 
 /* ── Internal helpers ─────────────────────────────────────────────────────────── */
 
@@ -282,15 +292,25 @@ void np_runner_init(EventGroupHandle_t hub_events)
     memset(&s_ctx, 0, sizeof(s_ctx));
     s_events = hub_events;
     s_ctx.state = NP_SESSION_IDLE;
+
+    s_lease_mutex = xSemaphoreCreateMutex();
+    configASSERT(s_lease_mutex != NULL);
+    np_lease_init(lease_lock, lease_unlock);
 }
 
 np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
 {
-    if (s_ctx.state == NP_SESSION_RUNNING || s_ctx.state == NP_SESSION_STOPPING) {
-        return NP_HUB_ERR_SESSION_ACTIVE;
-    }
     if (proto_buf == NULL || proto_len == 0U) {
         return NP_HUB_ERR_INVALID_ARG;
+    }
+    /* REQ-FWHUB-03 (OI-FWHUB-17): claim the session lease BEFORE touching the
+     * descriptor.  It is held from here until np_runner_run() has set the final
+     * state, so it also covers the gap between this load and the run, which the
+     * old RUNNING/STOPPING check did not: a second blob landing there replaced
+     * the loaded descriptor.  The claim waits for a module probe in progress to
+     * end, and no probe starts while it is held. */
+    if (np_lease_claim() != NP_HUB_OK) {
+        return NP_HUB_ERR_SESSION_ACTIVE;
     }
 
     memset(&s_ctx, 0, sizeof(s_ctx));
@@ -302,6 +322,7 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
                                                        &s_ctx.desc);
     if (rc != NP_HUB_OK) {
         s_ctx.state = NP_SESSION_IDLE;
+        np_lease_release();
         return rc;
     }
 
@@ -314,6 +335,7 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
     if (rc != NP_HUB_OK) {
         memset(&s_ctx.desc, 0, sizeof(s_ctx.desc));
         s_ctx.state = NP_SESSION_IDLE;
+        np_lease_release();
         return rc;
     }
 
@@ -548,6 +570,10 @@ np_hub_status_t np_runner_run(void)
     s_ctx.state = (s_ctx.abort_reason == NP_ABORT_NONE)
                   ? NP_SESSION_COMPLETE
                   : NP_SESSION_FAULT;
+
+    /* Every output is stopped and the records are closed: module detection may
+     * probe again (OI-FWHUB-17). */
+    np_lease_release();
 
     return (s_ctx.abort_reason == NP_ABORT_NONE) ? NP_HUB_OK : NP_HUB_ERR_SAFETY_FAULT;
 }

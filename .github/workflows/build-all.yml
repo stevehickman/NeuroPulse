@@ -102,9 +102,10 @@ env:
   # line in the manifest, and the count(s) the gate names.
   # GitHub #447 (OI-HRV-05) then added np_hrv_session_tests: 11 + 39 = 50.
   # GitHub #444 (OI-NVRAM-08) then added np_map3_record_tests: 11 + 40 = 51.
-  NP_TOTAL_TEST_COUNT: '51'
+  # NP-FW-HUB-001 Rev 12 (OI-FWHUB-17) then added np_session_lease_tests: 11 + 41 = 52.
+  NP_TOTAL_TEST_COUNT: '52'
   NP_SAFETY_TEST_COUNT: '11'
-  NP_CLASS_B_TEST_COUNT: '40'
+  NP_CLASS_B_TEST_COUNT: '41'
 
 jobs:
   host-tests-all:

@@ -3,9 +3,11 @@
  * Document: NP-FW-HUB-001 Rev 1 §8.2
  *
  * The ADS1299 is fixed hardware — always present (detect always returns OK).
- * EEG waveform data is DMA-driven and written directly to UHDR via
- * np_log_eeg_sample_block() from the DMA ISR; this driver handles configuration,
- * impedance reads, and band-power computation for adaptive feedback.
+ * EEG waveform data is DMA-driven.  The DMA ISR does NOT log: it queues each
+ * completed buffer to a task, which calls np_log_eeg_sample_block() (OI-FWHUB-14,
+ * NP-FW-HUB-001 §8.2 — the logger is not ISR-safe and refuses an ISR caller).
+ * This driver handles configuration, impedance reads, and band-power computation
+ * for adaptive feedback.
  *
  * EEG self-calibration at session start:  ADS1299 internal reference is routed
  * to all channels for one calibration epoch; gain/offset coefficients are stored
