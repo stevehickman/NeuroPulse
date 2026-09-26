@@ -7,6 +7,7 @@ import life.neurone.core.models.SessionStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class GattParserTests {
 
@@ -68,11 +69,26 @@ class GattParserTests {
     }
 
     @Test
-    fun parseZoneModuleStatusDecodesFiveSlots() {
+    fun parseZoneModuleStatusRejectsRetiredFiveSlotPayload() {
+        // The retired one-byte-per-slot payload has no version byte, so its first slot is read as
+        // the version and anything but 0x02 is rejected.
+        assertNull(GattParser.parseZoneModuleStatus(byteArrayOf(1, 2, 0, 4, 5)))
+        assertNull(GattParser.parseZoneModuleStatus(byteArrayOf(0, 0, 0, 0, 0)))
+        // A first slot of 2 passes the version check, but 5 bytes cannot hold a 4-byte header
+        // plus one 3-byte record: it is rejected, or at most decodes to zero records.
+        assertNull(GattParser.parseZoneModuleStatus(byteArrayOf(2, 2, 3, 4, 5)))
         assertEquals(
-            listOf(1, 2, 0, 4, 5),
-            GattParser.parseZoneModuleStatus(byteArrayOf(1, 2, 0, 4, 5)),
+            emptyList(),
+            GattParser.parseZoneModuleStatus(byteArrayOf(2, 2, 0, 0, 5))?.records ?: emptyList(),
         )
+    }
+
+    @Test
+    fun parseZoneModuleStatusDecodesSocketKeyedRecords() {
+        // v2, delta+last, fragment 0, 1 record: socket 47, EEG, present.
+        val frame = GattParser.parseZoneModuleStatus(byteArrayOf(0x02, 0x02, 0x00, 0x01, 47, 0x02, 0x01))!!
+        assertEquals(listOf(47), frame.records.map { it.socketId })
+        assertTrue(frame.records.single().isPresent)
     }
 
     @Test
