@@ -355,10 +355,13 @@ void Bootloader_Reset(void)
     if (NP_SNVS_LPGPR1 & NP_SNVS_RESET_IN_PROGRESS) {
         /* A WARM reset (watchdog, software) interrupted factory reset R-4..R-9.
          * A POWER LOSS in the same window clears LPGPR1 and does not reach
-         * this branch: that case is undetected today (OI-NVRAM-05, open;
-         * NP-FW-NVRAM-001 §3.4.1 specifies the durable marker it needs).
-         * Re-sanitize all data partitions, then complete the reset.
-         * Device remains in factory-reset state until app re-initialises. */
+         * this branch; the application's np_factory_reset_boot_check() finds
+         * it instead, from the durable marker in Config (NP-FW-NVRAM-001
+         * §3.4.1 option A, OI-NVRAM-05).
+         * Re-sanitize all data partitions.  This leaves Config with no
+         * filesystem, which np_factory_reset_boot_check() reads as a reset
+         * still running, so the application completes R-5..R-10 (new salt,
+         * new warranty token) before it mounts UHDR or SHDR. */
         np_status_t wipe = np_emmc_switch_partition(NP_EMMC_USER_AREA);
         if (wipe == NP_OK) wipe = np_emmc_erase(NP_UHDR_LBA_START, NP_UHDR_SIZE_LBA);
         if (wipe == NP_OK) wipe = np_emmc_erase(NP_SHDR_LBA_START, NP_SHDR_SIZE_LBA);

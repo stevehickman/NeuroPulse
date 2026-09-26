@@ -149,8 +149,9 @@
 /* the SNVS low-power domain loses this register on a power removal           */
 /* (NP-FW-NVRAM-001 §3.4, D-4).  If set on boot, a reset was interrupted by   */
 /* a WATCHDOG OR SOFTWARE RESET, and SANITIZE is re-run.  A reset interrupted  */
-/* by POWER LOSS clears the flag and is NOT detected here — OI-NVRAM-05, open; */
-/* the durable marker it needs is specified in NP-FW-NVRAM-001 §3.4.1.        */
+/* by POWER LOSS clears the flag and is not detected HERE: the application's  */
+/* np_factory_reset_boot_check() detects it from the durable marker in Config */
+/* (NP-FW-NVRAM-001 §3.4.1 option A, OI-NVRAM-05).                            */
 #define NP_SNVS_LPGPR1          (*(volatile uint32_t *)(NP_SNVS_BASE + 0x6CU))
 #define NP_SNVS_RESET_IN_PROGRESS  (1UL << 0U)
 

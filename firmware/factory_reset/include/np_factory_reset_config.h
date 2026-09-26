@@ -8,9 +8,9 @@
  * battery, coin cell or VBAT rail, so a power removal clears the register
  * (NP-FW-NVRAM-001 §3.4, D-4).  The bootloader therefore detects a reset
  * interrupted during R-5..R-10 by a watchdog or software reset, and re-runs
- * the SANITIZE/zero sequence.  A reset interrupted by POWER LOSS is not
- * detected — OI-NVRAM-05, open; the durable marker it needs is specified in
- * NP-FW-NVRAM-001 §3.4.1.  Until 2026-09-26 this comment said the domain was
+ * the SANITIZE/zero sequence.  A reset interrupted by POWER LOSS is detected
+ * instead by the durable marker in Config and np_factory_reset_boot_check()
+ * (NP-FW-NVRAM-001 §3.4.1 option A, OI-NVRAM-05).  Until 2026-09-26 this comment said the domain was
  * battery-backed, which the hardware is not (CLAUDE.md §4.5: no RTC backup).
  *
  * SNVS base and register-access pattern match firmware/bootloader/include/

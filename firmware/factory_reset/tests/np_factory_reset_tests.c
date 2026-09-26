@@ -25,6 +25,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 /* Host-side backing for SNVS_LPGPR1 (see np_factory_reset_config.h). */
 volatile uint32_t np_fr_host_snvs_lpgpr1 = 0U;
@@ -163,6 +164,115 @@ int main(void)
     np_factory_reset_resume_after_powerloss();
     check(np_factory_reset_is_in_progress() == false,
           "resume clears flag when transient fault recovers");
+
+    /* ── OI-NVRAM-05 option A: the durable marker (NP-FW-NVRAM-001 §3.4.1) ── */
+
+    /* 15: the marker is written before the first erase, and the whole
+     * sequence leaves Config with no marker. */
+    begin_case();
+    check(np_factory_reset_execute() == NP_RESET_OK, "execute with marker returns OK");
+    check(strcmp(np_fr_host_hal.trace, "MUSCW") == 0,
+          "R-3 marker precedes R-5/R-6/R-7 erases and R-10 write (trace MUSCW)");
+    check(np_fr_host_hal.marker_state == NP_FR_MARKER_ABSENT,
+          "a completed reset leaves no marker");
+
+    /* 16: a reset that cannot write its marker does not start. */
+    begin_case();
+    np_fr_host_hal.fail_marker_write = -1;
+    check(np_factory_reset_execute() == NP_RESET_ERR_MARKER,
+          "execute returns ERR_MARKER when the marker cannot be written");
+    check(np_fr_host_hal.trace_len == 0U,
+          "nothing is erased when the marker write fails");
+    check(np_factory_reset_is_in_progress() == false,
+          "flag cleared when the reset never started");
+    check(np_factory_reset_boot_check() == NP_FR_BOOT_NONE,
+          "boot after a reset that never started: nothing to resume");
+
+    /* 17: THE OI-NVRAM-05 CASE.  A power cut after each medium-touching step.
+     * A cut is modelled by failing the NEXT step (execute stops with the
+     * medium exactly as that step left it) and then clearing LPGPR1, which is
+     * what a power removal does to it.  The old design's only signal — the
+     * flag — reads false every time; the boot check must still complete the
+     * reset, every time. */
+    {
+        static const struct { const char *after; int which; } cut[] = {
+            { "M (marker only)",           1 },
+            { "U (UHDR purged)",           2 },
+            { "S (SHDR zeroed)",           3 },
+            { "C (Config zeroed)",         4 },
+            { "C, salt and token drawn",   5 },
+        };
+        for (unsigned i = 0U; i < sizeof(cut) / sizeof(cut[0]); i++) {
+            begin_case();
+            switch (cut[i].which) {
+            case 1: np_fr_host_hal.fail_sanitize_uhdr = -1; break;
+            case 2: np_fr_host_hal.fail_zero_shdr     = -1; break;
+            case 3: np_fr_host_hal.fail_zero_config   = -1; break;
+            case 4: np_fr_host_hal.trng_fail_on_call  = 1;  break;
+            default: np_fr_host_hal.fail_write_config = -1; break;
+            }
+            (void)np_factory_reset_execute();
+            np_fr_host_snvs_lpgpr1 = 0U;                  /* the power loss */
+            np_fr_host_hal_control_t medium = np_fr_host_hal;
+            np_fr_host_hal_reset();                       /* a fresh boot   */
+            np_fr_host_hal.marker_state = medium.marker_state;
+
+            char name[160];
+            snprintf(name, sizeof(name),
+                     "power cut after %s: flag reads clear (old design misses it)",
+                     cut[i].after);
+            check(np_factory_reset_is_in_progress() == false, name);
+            snprintf(name, sizeof(name),
+                     "power cut after %s: boot check completes the reset", cut[i].after);
+            check(np_factory_reset_boot_check() == NP_FR_BOOT_RESUMED, name);
+            snprintf(name, sizeof(name),
+                     "power cut after %s: resume re-runs R-5..R-10 (trace USCW)",
+                     cut[i].after);
+            check(strcmp(np_fr_host_hal.trace, "USCW") == 0, name);
+            check(np_fr_host_hal.marker_state == NP_FR_MARKER_ABSENT &&
+                  np_factory_reset_is_in_progress() == false,
+                  "resumed reset leaves no marker and no flag");
+        }
+    }
+
+    /* 18: the boot-check matrix. */
+    begin_case();
+    check(np_factory_reset_boot_check() == NP_FR_BOOT_NONE &&
+          np_fr_host_hal.trace_len == 0U,
+          "no flag, no marker: boot normally, erase nothing");
+
+    begin_case();
+    np_fr_host_snvs_lpgpr1 = NP_FR_RESET_IN_PROGRESS;
+    check(np_factory_reset_boot_check() == NP_FR_BOOT_RESUMED,
+          "flag set (warm reset), marker absent: resumes");
+
+    begin_case();
+    np_fr_host_hal.marker_state = NP_FR_MARKER_NO_STORE;
+    check(np_factory_reset_boot_check() == NP_FR_BOOT_RESUMED &&
+          strcmp(np_fr_host_hal.trace, "USCW") == 0,
+          "Config with no filesystem: the whole R-5..R-10 re-runs");
+
+    begin_case();
+    np_fr_host_hal.marker_state = NP_FR_MARKER_UNKNOWN;
+    check(np_factory_reset_boot_check() == NP_FR_BOOT_UNKNOWN &&
+          np_fr_host_hal.trace_len == 0U,
+          "Config unreadable: UNKNOWN, and nothing is erased");
+
+    begin_case();
+    np_fr_host_snvs_lpgpr1 = NP_FR_RESET_IN_PROGRESS;
+    np_fr_host_hal.marker_state = NP_FR_MARKER_UNKNOWN;
+    check(np_factory_reset_boot_check() == NP_FR_BOOT_UNKNOWN &&
+          np_fr_host_hal.trace_len == 0U,
+          "flag set but Config unreadable: still UNKNOWN, nothing erased");
+
+    begin_case();
+    np_fr_host_hal.marker_state = NP_FR_MARKER_PRESENT;
+    np_fr_host_hal.fail_zero_shdr = -1;
+    check(np_factory_reset_boot_check() == NP_FR_BOOT_RESUME_FAILED,
+          "resume that cannot finish: RESUME_FAILED");
+    check(np_factory_reset_is_in_progress() == true &&
+          np_fr_host_hal.marker_state == NP_FR_MARKER_PRESENT,
+          "failed resume leaves flag set and marker present: next boot retries");
 
     printf("\n%s (%d failure(s))\n",
            g_failures == 0 ? "ALL TESTS PASSED" : "TESTS FAILED",
