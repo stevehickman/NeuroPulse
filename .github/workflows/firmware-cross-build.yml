@@ -13,7 +13,7 @@ name: Firmware Cross-Compile (ARM)
 # branch, runs in base-repo context, and does not attach cleanly to a pull
 # request's check list — fragile in exactly the situation the gate exists for.
 #
-# ── Host-test targets owned by this workflow (25 of the repo's 32) ────────────
+# ── Host-test targets owned by this workflow (the Class B half) ──────────────
 # Registered by the NP_BUILD_TESTS branch of firmware/CMakeLists.txt:
 #   firmware/bootloader      → np_bootloader_mem_tests (freestanding memcpy/
 #                              memset, NP-SW-CI-001 §4.2 — see the note below)
@@ -67,14 +67,14 @@ name: Firmware Cross-Compile (ARM)
 #                              on their real geometry, L-1/L-2 swept, the
 #                              ECR-EMMC-002 evidence — OI-LFS-05)
 #
-# The other 7 (firmware/safety_mcu) belong to safety-mcu-ci.yml.  7 + 29 = 36,
-# disjoint; build-all.yml re-checks that partition weekly.  (This line read
-# "7 + 23 = 30" until phase 9.  It was stale from phase 8, which added a target
-# and updated NP_CLASS_B_TEST_COUNT here but not build-all.yml's
-# NP_TOTAL_TEST_COUNT — so the weekly backstop's partition assertion had been
-# failing on the real total of 31 ever since.  OI-SWCI-37's shape, found by
-# counting rather than by CI, because nothing surfaces a red build-all:
-# OI-SWCI-10.)
+# The Class C targets (firmware/safety_mcu) belong to safety-mcu-ci.yml; the two
+# halves are disjoint.  The list above is orientation, not the record: the
+# authoritative split, by name and by class, is ci/host-test-partition.txt, and
+# this header deliberately states no arithmetic.  It used to, and was wrong for
+# most of its life — "7 + 29 = 36" when the tree had 11 + 38 = 49, and "7 + 23 =
+# 30" before that (OI-SWCI-24, closed 2026-09-26).  scripts/check-ci-scope.ts
+# (correspondence E) checks the manifest against add_test() and every count
+# copy on each PR; build-all.yml diffs it against a real `ctest -N` weekly.
 #
 # ── Partial host-test coverage, and why it is partial ─────────────────────────
 # firmware/bootloader has THREE host test targets: np_bootloader_mem_tests
@@ -171,6 +171,15 @@ env:
   # guard fires on the SYMPTOM, one CI round-trip later, and only because the
   # counts happen to be asserted. Raised as OI-SWCI-37: hoist this to one
   # source, or add a guard that diffs the three copies directly.
+  #
+  # CLOSED 2026-09-26 (GitHub #446) with the guard, not the hoist.
+  # scripts/check-ci-scope.ts (correspondence E) fails any PR on which the
+  # three copies differ, or on which this regex puts a target in the other
+  # half from ci/host-test-partition.txt.  The hoist was not taken: a workflow's
+  # top-level `env:` cannot read a file, so a single source would move the value
+  # into a step that every job must run first — more machinery in three
+  # required checks than a gate that runs in seconds.  Edit all three copies
+  # together; the gate names any you miss.
   NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock|hal_platform|nv_state|tier_identity|tier_identity_nokey|gpio_mgr)_tests$'
   # The count the selection must match.  It lives here and in the assertion step
   # below — and NOT in the `host-tests` job `name:`, which is what a required
