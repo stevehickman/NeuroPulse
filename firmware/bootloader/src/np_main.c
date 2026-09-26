@@ -337,11 +337,14 @@ void Bootloader_Reset(void)
     /* B-1: Zero the Scratch partition (power-loss safety) ──────────────── */
     zero_scratch_partition();
 
-    /* Anonymization power-loss recovery (NP-FW-EMMC-002 §D.6) ──────────── */
-    /* If a research anonymization run was interrupted by power loss, the    */
-    /* SNVS_LPGPR2 in-progress flag is still set.  The per-run AES key lived */
-    /* only in SRAM and is gone, so the staged Scratch ciphertext is already */
-    /* unreadable; SANITIZE Scratch (via erase) anyway and clear the flag.   */
+    /* Anonymization reset recovery (NP-FW-EMMC-002 §D.6) ────────────────── */
+    /* If a research anonymization run was interrupted by a WARM reset, the  */
+    /* SNVS_LPGPR2 in-progress flag is still set.  A POWER LOSS clears it —  */
+    /* there is no VBAT rail (NP-FW-NVRAM-001 §3.4) — and that case is       */
+    /* covered by zero_scratch_partition() above, which runs on every boot.  */
+    /* The per-run AES key lived only in SRAM and is gone either way, so the */
+    /* staged Scratch ciphertext is already unreadable; erase Scratch anyway */
+    /* and clear the flag.                                                   */
     /* This must run before the OTA_PENDING check so recovery is unconditional*/
     /* with respect to the boot path taken below.                            */
     if (NP_SNVS_LPGPR2 & NP_SNVS_ANON_IN_PROGRESS) {
@@ -350,7 +353,10 @@ void Bootloader_Reset(void)
     }
     /* Check for interrupted factory reset — re-run SANITIZE before completing boot */
     if (NP_SNVS_LPGPR1 & NP_SNVS_RESET_IN_PROGRESS) {
-        /* Power was lost during factory reset R-4..R-9.
+        /* A WARM reset (watchdog, software) interrupted factory reset R-4..R-9.
+         * A POWER LOSS in the same window clears LPGPR1 and does not reach
+         * this branch: that case is undetected today (OI-NVRAM-05, open;
+         * NP-FW-NVRAM-001 §3.4.1 specifies the durable marker it needs).
          * Re-sanitize all data partitions, then complete the reset.
          * Device remains in factory-reset state until app re-initialises. */
         np_status_t wipe = np_emmc_switch_partition(NP_EMMC_USER_AREA);

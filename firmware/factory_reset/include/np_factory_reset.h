@@ -20,12 +20,19 @@
  *   R-11 Clear SNVS_LPGPR1 bit 0 (reset_in_progress = 0).
  *   R-12 Reboot (no-op in host builds; NVIC_SystemReset() in real firmware).
  *
- * Power-loss resilience: if the bootloader finds LPGPR1 bit 0 set on boot,
- * a reset was interrupted between R-3 and R-11.  The bootloader (or this
- * module via np_factory_reset_resume_after_powerloss()) re-runs R-5..R-10
- * before completing boot.  Those steps are idempotent: re-SANITIZing an
- * already-erased partition and re-deriving salt/token leaves the device in
- * the same clean factory state.
+ * Interrupted-reset resilience: if the bootloader finds LPGPR1 bit 0 set on
+ * boot, a reset was interrupted between R-3 and R-11 by a WARM reset.  The
+ * bootloader (or this module via np_factory_reset_resume_after_powerloss())
+ * re-runs R-5..R-10 before completing boot.  Those steps are idempotent:
+ * re-SANITIZing an already-erased partition and re-deriving salt/token leaves
+ * the device in the same clean factory state.
+ *
+ * POWER LOSS IS NOT COVERED.  LPGPR1 has no VBAT supply and is cleared by a
+ * power removal (NP-FW-NVRAM-001 §3.4), so a cable pull between R-3 and R-11
+ * boots with the flag clear and the reset silently abandoned (OI-NVRAM-05,
+ * open).  The function below is named for the case it was written for; it
+ * runs for the warm-reset case only until the durable marker of
+ * NP-FW-NVRAM-001 §3.4.1 exists.
  */
 
 #ifndef NP_FACTORY_RESET_H
@@ -55,14 +62,16 @@ np_reset_status_t np_factory_reset_execute(void);
 
 /*
  * Returns true if SNVS_LPGPR1 bit 0 (reset_in_progress) is set, indicating a
- * factory reset is in progress or was interrupted by power loss.  Safe to call
- * on any platform; reads the SNVS register only.
+ * factory reset is in progress or was interrupted by a warm reset.  false does
+ * NOT mean no reset was interrupted: a power loss clears the flag (OI-NVRAM-05).
+ * Safe to call on any platform; reads the SNVS register only.
  */
 bool np_factory_reset_is_in_progress(void);
 
 /*
- * Resume an interrupted factory reset after power loss.  Called by the
- * bootloader when np_factory_reset_is_in_progress() is true.  Re-runs the
+ * Resume an interrupted factory reset.  Called by the bootloader when
+ * np_factory_reset_is_in_progress() is true, which today means a warm reset
+ * interrupted it; a power loss is not detected (OI-NVRAM-05).  Re-runs the
  * idempotent data-wipe and re-derivation steps R-5..R-10, then clears the
  * reset_in_progress flag (R-11).  Does NOT reboot — the bootloader continues
  * its normal boot flow afterwards and the application detects the factory

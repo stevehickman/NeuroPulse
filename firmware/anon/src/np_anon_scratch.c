@@ -99,8 +99,11 @@ np_anon_status_t np_anon_scratch_init(np_anon_scratch_ctx_t *ctx)
     }
 
     /*
-     * Set the in-progress flag BEFORE any scratch write so a power loss during
+     * Set the in-progress flag BEFORE any scratch write so a WARM reset during
      * the very first write is still detected and SANITIZE'd by the bootloader.
+     * A power loss clears the flag (no VBAT rail, NP-FW-NVRAM-001 §3.4); that
+     * case is covered because the bootloader erases Scratch on every boot
+     * (EMMC-SCR-01), not by this flag (OI-NVRAM-05).
      */
     NP_SNVS_LPGPR2 |= NP_SNVS_ANON_IN_PROGRESS;
 
@@ -201,7 +204,9 @@ void np_anon_scratch_complete(np_anon_scratch_ctx_t *ctx)
 void np_anon_scratch_resume_after_powerloss(void)
 {
     /*
-     * Power-loss recovery path (called by the bootloader).  The SRAM key is
+     * Interrupted-run recovery path (called by the bootloader when the flag
+     * survived, i.e. after a warm reset; after a power loss the flag is clear
+     * and the every-boot Scratch erase does this job).  The SRAM key is
      * gone, so any staged Scratch ciphertext is already unreadable; SANITIZE
      * it anyway to physically remove the bytes, then clear the flag.
      */

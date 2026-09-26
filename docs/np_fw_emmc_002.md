@@ -2,14 +2,14 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 3
-**Date:** 2026-09-13
+**Revision:** 4
+**Date:** 2026-09-26
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
 **References:** NP-PRIV-REM-001 STEP-01 through STEP-06, STEP-10; NP-PRIV-001 Rev 1 findings CRITICAL-01, HIGH-03, HIGH-04, MEDIUM-04, MEDIUM-05; NP-PRIV-001 Rev 2 finding HIGH-01 (§G, §H); NP-MOD-ID-001 Rev 1 §7, §7.5.1, §A.2–§A.5 (the precedent §H follows); CLAUDE.md §5.1, §5.2, §6.0; **added at Rev 3:** NP-FW-NVRAM-001 Rev 2 §3.3(b), §3.3.1.4, D-22 (the §C.3 correction), NP-FW-EMMC-001 `EMMC-FS-01`; `firmware/shdr/`; `ci/shdr/shdr_fleet_schema.sql` Rev E
-**Related Issues:** —
+**Related Issues:** #444 (`OI-NVRAM-05`, Rev 4); #100 (`OI-EMMC2-07`)
 **Gate:** —
 **IEC 62304 Class:** SW-02 Class B (main processor)
 **Supersedes:** N/A — this is a delta specification to NP-FW-EMMC-001 Rev 1
@@ -82,7 +82,7 @@ The reset is orchestrated by the app via a signed reset command sent to the hub,
 ```
 R-1  App issues signed FACTORY_RESET command (Ed25519, same signing infrastructure as session descriptors)
 R-2  Hub verifies signature — rejects unsigned reset attempts
-R-3  Hub sets reset_in_progress flag in SNVS_LPGPR1 (survives warm reset)
+R-3  Hub sets reset_in_progress flag in SNVS_LPGPR1 (survives warm reset ONLY — see B.4)
 R-4  Hub suspends all active sessions and closes all open file handles
 R-5  Hub issues eMMC SANITIZE (CMD38, SANITIZE_START) on UHDR partition
      → NIST SP 800-88 "Purge" — all UHDR blocks overwritten to media-specific pattern
@@ -96,6 +96,17 @@ R-12 Hub reboots — device presents as factory-new to the next owner
 ```
 
 ### B.4 Power-loss resilience
+
+> **Rev 4 correction (2026-09-26, `NP-FW-NVRAM-001` §3.4 and §3.4.1, `OI-NVRAM-05`).** The second
+> bullet below is **true for a warm reset (watchdog, software) and false for a power loss.** The
+> headset has no battery, coin cell or `VBAT` rail, so SNVS_LPGPR1 is cleared by a power removal.
+> A cable pull during R-4 … R-9 therefore boots with the flag clear, the bootloader does not resume,
+> and the device comes up partly erased with the previous owner's warranty token intact, which is
+> the HIGH-03 outcome §B exists to prevent. The bullets are retained as written (`NP-CONV-001` §7).
+> The durable marker this needs is specified in `NP-FW-NVRAM-001` §3.4.1, with three options and a
+> recommendation, and **the choice is a principal decision**. Until it is made, a factory reset
+> interrupted by power loss is **not** detected. The third bullet's claim that the bootloader
+> "re-runs R-10" depends on the same flag and has the same limit.
 
 If power is lost during the reset sequence:
 - Steps R-1 through R-3: reset has not started; on next boot, no reset occurs, user must reinitiate.
@@ -284,6 +295,12 @@ If any step fails, the entire sequence is aborted: key is zeroed, Scratch is san
 An `anon_in_progress` flag is set in SNVS_LPGPR2 at step D.5.1 and cleared at D.5.6. On boot, if this flag is set, the bootloader:
 1. Issues SANITIZE on the Scratch partition before completing boot.
 2. The k_scratch key is in SRAM only and is lost on power-off — even if Scratch is recovered before SANITIZE, it is unreadable without the key.
+
+> **Rev 4 correction (2026-09-26, `OI-NVRAM-05`).** The flag survives a **warm** reset only. A power
+> loss clears it, because SNVS has no `VBAT` supply. That case is still covered, but by a different
+> control. The bootloader erases Scratch on **every** boot (`EMMC-SCR-01`, `zero_scratch_partition()`),
+> and item 2 holds whatever the flag says. The flag is redundant for power loss, not wrong, and no
+> change is needed beyond this statement.
 
 ---
 
@@ -915,13 +932,14 @@ authorising §H. **OI-EMMC2-13.**
 
 ## Change Control
 
-This delta document (NP-FW-EMMC-002 Rev 3) is under change control per NP-QMS-DC-001 Rev 1. It will be incorporated into NP-FW-EMMC-001 Rev 2. Until that is released, this document takes precedence over conflicting sections of NP-FW-EMMC-001 Rev 1.
+This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC-001 Rev 1. It will be incorporated into NP-FW-EMMC-001 Rev 2. Until that is released, this document takes precedence over conflicting sections of NP-FW-EMMC-001 Rev 1.
 
 ### Revision history
 
 | Rev | Date | Description |
 |---|---|---|
-| **3** | **2026-09-13** | **§C.3's UKMD record address corrected — it named a byte offset the filesystem owns.** The block read *"Config partition offset 0x1000"*; `EMMC-FS-01` mounts LittleFS over all 4,096 blocks of the 16 MiB Config partition, so no offset inside it is stable and the address could never have been honoured. Raised as `OI-NVRAM-02` by `NP-FW-NVRAM-001` Rev 1 §3.3(b), decided by its Rev 2 **D-22**: the record becomes a **named LittleFS file**, `ukmd.rec`. **No code changed and none could have**: `np_uhdr_key.c` has always reached the record through `np_uhdr_hal_config_read_ukmd()`/`_write_ukmd()`, so the offset was a specification-side artifact only — which is why the correction is made here rather than deferred with the `NP-FW-EMMC-001` clause changes, which are a `.docx` edit raised as `ECR-EMMC-001`. Struct layout, 192-byte size, the `NP_UHDR_UKMD_RECORD_SIZE` static assertion and the §C.4 unlock sequence are unchanged; no privacy, classification or safety claim in §A–§H is affected. Rev 2 → 3. |
+| **4** | **2026-09-26** | **§B.4 and §D.6 corrected: the SNVS in-progress flags survive a warm reset, not a power loss** (GitHub #444, `NP-FW-NVRAM-001` Rev 3 §3.4.1, `OI-NVRAM-05`). The headset has no `VBAT` rail, so SNVS_LPGPR1/LPGPR2 are cleared by a power removal. §D.6's power-loss case is covered anyway, by the every-boot Scratch erase. **§B.4's is not.** A cable pull during R-4 … R-9 leaves a partly-erased device with the old warranty token, undetected. The durable marker is specified in `NP-FW-NVRAM-001` §3.4.1, and the principal must choose between its options. The original bullets are retained with a correction note above them, and R-3's annotation is sharpened. **Open items:** `OI-EMMC2-05` (EDF+ 100-header test, commit `81f5bf5`) and `OI-EMMC2-07` (SHDR schema gate, #100) are marked closed in place with their re-run evidence. `-07`'s row states that the schema freeze is still blocked by `OI-EMMC2-08` and `-11`. No behaviour change. |
+| 3 | 2026-09-13 | **§C.3's UKMD record address corrected — it named a byte offset the filesystem owns.** The block read *"Config partition offset 0x1000"*; `EMMC-FS-01` mounts LittleFS over all 4,096 blocks of the 16 MiB Config partition, so no offset inside it is stable and the address could never have been honoured. Raised as `OI-NVRAM-02` by `NP-FW-NVRAM-001` Rev 1 §3.3(b), decided by its Rev 2 **D-22**: the record becomes a **named LittleFS file**, `ukmd.rec`. **No code changed and none could have**: `np_uhdr_key.c` has always reached the record through `np_uhdr_hal_config_read_ukmd()`/`_write_ukmd()`, so the offset was a specification-side artifact only — which is why the correction is made here rather than deferred with the `NP-FW-EMMC-001` clause changes, which are a `.docx` edit raised as `ECR-EMMC-001`. Struct layout, 192-byte size, the `NP_UHDR_UKMD_RECORD_SIZE` static assertion and the §C.4 unlock sequence are unchanged; no privacy, classification or safety claim in §A–§H is affected. Rev 2 → 3. |
 | 2 | 2026-08-12 | **§H added — SHDR accelerometer characterisation programme.** Principal decision: raw impact data may be collected into SHDR under a time-boxed, opt-in, warranty-owner-consented programme fed only into predictive-maintenance model training, because §G's two thresholds are unvalidated guesses and §G.3 prohibits every field that could validate them — the spec forecloses the evidence needed to make itself correct. Follows `NP-MOD-ID-001` §7's four decisions (CHAR-1…CHAR-4) and adds five of its own (CHAR-A1…CHAR-A5). **The consent argument rests on there being no identifiable subject** (`NP-MOD-ID-001` §7.5.1) and is *stronger* here than in the precedent: a duty map at least requires the device to be worn; **a drop does not**, so an impact histogram is frequently not a record of the wearer's behaviour at all. **§G.2's thresholds are now labelled UNVALIDATED PLACEHOLDERS** wherever they appear (this document, `firmware/shdr/include/np_accel_shdr.h`, `ci/shdr/shdr_fleet_schema.sql`) — OI-EMMC2-09. **The rolling maintenance window is corrected from days to session gaps** (OI-EMMC2-10): "7-day" is not implementable on a device with no clock that survives a disconnect, which is the same fact that makes §H.3's expiry a record budget rather than a calendar. **§H.7 records that §G.3's prohibition is already defeated by aggregation** over `shdr_accel_records`' per-gap rows (OI-EMMC2-11) — stated so the description of §H is honest, deliberately not fixed. Implementation landed with the specification: `firmware/shdr/` (§G and §H modes from the first line), SHDR schema Rev E, `CHAR-01` CI gate whose exemption is *derived from* its own verdict and therefore self-revoking, falsified in both directions by `ci/test_shdr_char_gate_selftest.py`. Provenance discrepancy in the Rev 1 front matter noted, not resolved (OI-EMMC2-14). |
 | 1 | 2026-06-02 (§G: 2026-06-03) | Initial release. §A warranty token, §B factory reset, §C two-layer UHDR key, §D Scratch encryption, §E EDF+ header policy, §F Mode F. §G added 2026-06-03. |
 

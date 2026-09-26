@@ -49,8 +49,10 @@
 /* SNVS general-purpose registers survive warm reset but not power-off.  The  */
 /* flag is set before the first scratch write and cleared only after the      */
 /* post-run SANITIZE completes.  If the bootloader finds it set on boot, an   */
-/* anonymization run was interrupted (power loss) and the Scratch partition   */
-/* is SANITIZE'd before the flag is cleared.                                  */
+/* anonymization run was interrupted by a WARM reset and the Scratch          */
+/* partition is SANITIZE'd before the flag is cleared.  After a power loss    */
+/* the flag reads clear; the bootloader's every-boot Scratch erase covers it  */
+/* (EMMC-SCR-01, NP-FW-NVRAM-001 §3.4, OI-NVRAM-05).                          */
 /*                                                                            */
 /* NOTE: np_config.h (included above) already defines NP_SNVS_LPGPR2 as the   */
 /* MMIO dereference.  The host-override block below uses #undef + #define     */

@@ -42,7 +42,7 @@
  *     A Map 2 word is `map2`, or `map` followed by `2`, as a word of an
  *     identifier split on `_` and camelCase: `Map2Store`, `moduleMap2`,
  *     `np_map_2_read`, `map2.ts`. That is a NAMING RULE this gate depends on,
- *     recorded as D-25 in NP-FW-NVRAM-001: Map 2's code carries `Map2` in the
+ *     recorded as D-26 in NP-FW-NVRAM-001: Map 2's code carries `Map2` in the
  *     name of every file, type and module that holds it. `bitmap2d` is one
  *     word, so it is not Map 2.
  *
