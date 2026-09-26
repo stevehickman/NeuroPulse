@@ -519,7 +519,7 @@ if (process.argv.includes("--self-test")) {
     // Vacuity first: an agreeing tree must pass, or every failure proves nothing.
     ["the real tree, copied, passes", undefined, null],
     // DOC corner.
-    ["doc: §4.1 version changed", { file: DOC, from: "`NP_HUB_PROTO_VERSION` = 3", to: "`NP_HUB_PROTO_VERSION` = 4" }, "version (§4.1)"],
+    ["doc: §4.1 version changed", { file: DOC, from: "`NP_HUB_PROTO_VERSION` = 1", to: "`NP_HUB_PROTO_VERSION` = 4" }, "version (§4.1)"],
     ["doc: §4.6 byte count changed", { file: DOC, from: "| `np_mod_tdcs_params_t` | 8 |", to: "| `np_mod_tdcs_params_t` | 6 |" }, "§4.6 says 6 bytes"],
     ["doc: §4.6 row dropped", { file: DOC, from: /\n\| `0x10` \| `NP_MOD_VIBROTACTILE`[^\n]*/, to: "" }, "NP_MOD_VIBROTACTILE (16) has no"],
     ["doc: §4.6 slot changed", { file: DOC, from: "`NP_HUB_SLOT_TMS` (12)", to: "`NP_HUB_SLOT_PBM_1170NM` (13)" }, "slot_id is 12"],
@@ -532,7 +532,7 @@ if (process.argv.includes("--self-test")) {
     ["firmware: a params struct unpacked", { file: TYPES, from: /typedef struct __attribute__\(\(packed\)\) \{(\s+uint8_t  gain_reg)/, to: "typedef struct {$1" }, "is not packed"],
     // COMPILER corner.
     ["compiler: tDCS block one byte long", { file: COMPILER, from: "const buf = new Uint8Array(8);\n  const dv  = new DataView(buf.buffer);\n  dv.setUint8(0, resolveElectrodePair", to: "const buf = new Uint8Array(9);\n  const dv  = new DataView(buf.buffer);\n  dv.setUint8(0, resolveElectrodePair" }, "tdcs: NP_MOD_TDCS params_len is 9"],
-    ["compiler: version constant stale", { file: COMPILER, from: "const PROTO_VERSION = 0x0003;", to: "const PROTO_VERSION = 0x0002;" }, "PROTO_VERSION = 2"],
+    ["compiler: version constant stale", { file: COMPILER, from: "const PROTO_VERSION = 0x0001;", to: "const PROTO_VERSION = 0x0002;" }, "PROTO_VERSION = 2"],
     ["compiler: a slot constant wrong", { file: COMPILER, from: "const SLOT_TMS          = 12;", to: "const SLOT_TMS          = 13;" }, "SLOT_TMS = 13"],
     ["compiler: target kinds swapped", { file: COMPILER, from: "const TARGET_SOCKET_MASK = 0x01;", to: "const TARGET_SOCKET_MASK = 0x02;" }, "TARGET_SOCKET_MASK = 2"],
     ["compiler: header field at the wrong offset", { file: COMPILER, from: "dv.setUint16(4, PROTO_VERSION, true);", to: "dv.setUint16(5, PROTO_VERSION, true);" }, "header version reads"],
