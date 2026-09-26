@@ -10,11 +10,11 @@ import CryptoKit
 
 struct NPSessionProtocol: Codable {
     var id: UUID = UUID()
-    /// v2: cranial targeting is a socket bitmap, not five zone-slot indices
-    /// (NP-HEX-ZM-001). The blob SHAPE changed, so the version had to move with
-    /// it — a hub reading a v2 blob as v1 would read a 16-byte mask where it
-    /// expects a zone list.
-    var schemaVersion: UInt8 = 2
+    /// 1 on every platform. No session has been created yet, so the format has
+    /// no earlier version to be told apart from: the socket-bitmap targeting
+    /// (NP-HEX-ZM-001) and the `wavelength` field (OI-PBMCH-04) are part of v1.
+    /// Bump this only once a shipped blob exists in the older shape.
+    var schemaVersion: UInt8 = 1
     var name: String
     var modalities: [ModalityConfig]
     var totalDurationSeconds: Int

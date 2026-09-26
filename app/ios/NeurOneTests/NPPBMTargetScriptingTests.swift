@@ -196,8 +196,8 @@ final class NPPBMTargetScriptingTests: XCTestCase {
             modalities: [NPProtocolModality(params: .pbmTranscranial(params))]
         )
         let wire = try NPSessionProtocol(from: definition)
-        XCTAssertEqual(wire.schemaVersion, 2,
-                       "the blob shape changed; the hub must not read a v2 blob as v1")
+        XCTAssertEqual(wire.schemaVersion, 1,
+                       "every platform writes session format v1 (Android and Windows too)")
         guard case .pbmTranscranial(let config)? = wire.modalities.first else {
             return XCTFail("expected a PBM transcranial modality on the wire")
         }
