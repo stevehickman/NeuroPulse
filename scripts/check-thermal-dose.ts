@@ -47,49 +47,44 @@
  */
 import { analyse, type Row } from "./check-pbm-power";
 import { R_OUT_CURRENT } from "./thermal-outward-path";
+import {
+  AVAILABLE_W, T_AMBIENT_NOMINAL_C, TAU_FACE_MIN, TAU_FACE_MAX, R_CAVITY_CONSERVATIVE,
+  R_CAVITY_OPTIMISTIC, CALIB_FACE_RISE_C, CALIB_TILE_W, FACE_LIMIT_C, CEM43_REVIEW_LINE,
+  CEM43_CONCERN_LINE,
+} from "./pbm-model";
 
 // ── Provisional thermal constants ────────────────────────────────────────────
-// Replace from OI-PWR-01's verification-grade CFD. Sources named per constant.
+// Replace from OI-PWR-01's verification-grade CFD — in hardware/np_pbm_model.json,
+// which records each one's source and status, and from which the C runtime's
+// copy is emitted (OI-PWRSRC-13). Re-exported under the names this script has
+// always used. NONE is a derived figure; none should be quoted as one.
+//
+//   T_AMBIENT_NOMINAL_C    nominal ambient (NP-ENV-OPRANGE-001)
+//   TAU_FACE_MIN/MAX       τ_face 35–45 min (NP-THERM-CFD-R1-001 §4)
+//   R_CAVITY_*             sealed-cavity °C/W (NP-PWR-BUDGET-001 §3.2)
+//   CALIB_*                the one published point: one T1-std tile at 6.25 W,
+//                          25 °C ambient → 30.7 °C face (NP-THERM-CFD-R1-001 §5.1)
+//   FACE_LIMIT_C           applied-part limit, hardware-enforced (DI-SAFE-08/-13);
+//                          NOT changed by anything in NP-PWRSRC-001
+//   BUDGET_W               watts to emitters under the R-10 envelope — the
+//                          cascading budget. The same number as check-pbm-power's
+//                          AVAILABLE_W, and now the same constant
+//   CEM43_*_LINE           ⚠ LITERATURE VALUES, NOT PROJECT FIGURES, placeholders
+//                          pending a sourced clinical input (OI-PWRSRC-02). Printed
+//                          as reference lines only; the DERIVED quantity is the dose
+export {
+  T_AMBIENT_NOMINAL_C, TAU_FACE_MIN, TAU_FACE_MAX, R_CAVITY_CONSERVATIVE, R_CAVITY_OPTIMISTIC,
+  CALIB_FACE_RISE_C, CALIB_TILE_W, FACE_LIMIT_C, CEM43_REVIEW_LINE, CEM43_CONCERN_LINE,
+};
+export const BUDGET_W = AVAILABLE_W;
 
-/** Nominal ambient. NP-ENV-OPRANGE-001 gates PBM full ≤ +35 °C, derate +35→+43. */
-export const T_AMBIENT_NOMINAL_C = 25.0;
-
-/** Face-temperature time constant, minutes. NP-THERM-CFD-R1-001 §4:
- *  "τ_face ≈ 35–45 min (order tens of minutes)". */
-export const TAU_FACE_MIN = 35.0;
-export const TAU_FACE_MAX = 45.0;
-
-/** Sealed-cavity thermal resistance seen by aggregate emitter power, °C/W.
- *  NP-PWR-BUDGET-001 §3.2: 10 % residual over ~0.1 m² of vault at
- *  0.23–0.41 m²K/W, so ΔT_cavity = P_total × R with R in °C/W numerically equal. */
-export const R_CAVITY_CONSERVATIVE = 0.41;
-export const R_CAVITY_OPTIMISTIC = 0.23;
 /** OI-THCOOL-21: the outward path with the Layer 4 absorber deleted (0.335).
  *  R_CAVITY_CONSERVATIVE is DELIBERATELY left at the as-was 0.41: this is a
  *  thermal-injury audit, 0.41 still bounds the current path from above, and a
  *  dose bound is not loosened by a capability re-baseline. The current figure
- *  is printed beside it so the size of the conservatism is visible. */
+ *  is printed beside it so the size of the conservatism is visible. Derived by
+ *  thermal-outward-path.ts from the layer stack, so it is not a model constant. */
 export const R_CAVITY_CURRENT = R_OUT_CURRENT;
-
-/** The one published calibration point: NP-THERM-CFD-R1-001 §5.1, single T1-std
- *  tile, 25 °C ambient → face 30.7 °C, i.e. a 5.7 °C total rise. */
-export const CALIB_FACE_RISE_C = 5.7;
-/** Per-tile draw the calibration point corresponds to (NP-HW-HEXTILE-001 §9.2). */
-export const CALIB_TILE_W = 6.25;
-
-/** Applied-part limit, hardware-enforced. NP-DT-001 DI-SAFE-08 / DI-SAFE-13.
- *  NOT changed by anything in NP-PWRSRC-001. */
-export const FACE_LIMIT_C = 42.0;
-
-/** Watts to emitters under the R-10 envelope — the cascading budget. */
-export const BUDGET_W = 40.0;
-
-/** ⚠ INJURY THRESHOLDS ARE LITERATURE VALUES, NOT PROJECT FIGURES, AND ARE
- *  PLACEHOLDERS PENDING A SOURCED CLINICAL INPUT (NP-PWRSRC-001 OI-PWRSRC-03).
- *  They are printed as reference lines only. The DERIVED quantity this script
- *  produces is the dose; the thresholds are an overlay on it. */
-export const CEM43_REVIEW_LINE = 2.0;   // conservative device-safety practice
-export const CEM43_CONCERN_LINE = 40.0; // region where skin injury is discussed
 
 /** Course length for the repeated-exposure case: the Alzheimer's dosing pattern
  *  cited in the protocol library — 108 sessions over 56 days. */

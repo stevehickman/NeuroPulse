@@ -136,7 +136,7 @@ envelope is unaffected. **This is the field that keeps the clamp confined to PBM
 1. **App (SW-03, Class B):** compute protocol envelope = ∩ of activated modules' envelopes from the table;
    emit the POE block; Ed25519-sign the descriptor.
 2. **SW-01 verify (M07):** signature + length check (existing). Reject unsigned/truncated.
-3. **SW-01 admission (thermal gate, extends M04):** read ambient (§6); compute
+3. **SW-01 admission (thermal gate, SW01-M11 — `NP-FW-M09-ARCH-001`):** read ambient (§6); compute
    `clamp = min( table_clamp(ambient, active_modalities, MCU_table_version), POE_clamp(ambient), SR-FAN ceiling )`.
    If `clamp == 0` (blocked) → deny enable, reason `NP_POE_OUT_OF_RANGE`, and **set the §6.1 hysteresis
    latch**; while that latch is set the admission test is `ambient ≤ T_block_eff − Δ`, not
@@ -319,7 +319,7 @@ a worse place to deliver "a higher-dose protocol may still run" than a screen. W
 | Item | Owner / Class | Verification |
 |------|---------------|--------------|
 | POE block compute + sign | SW-03 (B) | app==MCU table parity test for identical inputs |
-| MCU table + `min()` clamp + fail-safe | SW-01 (**C**), extends SW01-M04 (or new SW01-M09) | unit: interpolation, min-logic, skew fallback, absent-POE fallback, no-ambient fail-safe; 100 % branch |
+| MCU table + `min()` clamp + fail-safe | SW-01 (**C**), new SW01-M11 (NP-FW-M09-ARCH-001; numbered SW01-M09 until 2026-09-26) | unit: interpolation, min-logic, skew fallback, absent-POE fallback, no-ambient fail-safe; 100 % branch |
 | Session-runner derate | SW-02 (B) | integration: ambient sweep → smooth derate → MCU backstop only at edge |
 | §6.1 hysteresis latch | SW-01 (**C**) | unit: set on ambient denial; margined test while set; cleared only after `t_dwell` below `T_block_eff − Δ`; latch never admits above `T_block_eff`. Integration: dither ambient ±0.5 °C across the edge → exactly one transition; mid-session crossing **terminates** and does not resume |
 | Efficacy-floor refusal | SW-02 (**B**), SW-03 presents | unit: `duty_floor_pct` recompute + max(); refusal at the per-protocol edge for 40/60/120 J/cm²; bit5-clear and `dose_full_dJ`=0 both bypass; **negative test that no floor path can raise `effective_duty`**; Mode 3 (no app) still refuses |
@@ -330,7 +330,7 @@ a worse place to deliver "a higher-dose protocol may still run" than a screen. W
 | ID | Description | Owner |
 |----|-------------|-------|
 | OI-POE-01 | Assign the envelope-table format + version scheme; provisioning path into SW-01 config (mirror Steinhart-Hart coeff provisioning) | FW |
-| OI-POE-02 | **Settled → NP-FW-M09-ARCH-001: new module SW01-M09** (matches the interlock-checker pattern, freezes the certified M04 junction interlock). Residual: OI-M09-01…04 there | FW + Quality |
+| OI-POE-02 | **Settled → NP-FW-M09-ARCH-001: new module SW01-M11** (renumbered from SW01-M09 on 2026-09-26, GitHub #440 — that ID is the shipped `np_nv_state.c`; matches the interlock-checker pattern, freezes the certified M04 junction interlock). Residual: OI-M09-01…04 there | FW + Quality |
 | OI-POE-03 | Wire the app POE compute to the *same* table artifact the MCU is provisioned from (single source, versioned) | FW + App |
 | OI-POE-04 | Fill table values once THERM-1a (C3/C4) + datasheet bounds land (NP-ENV-OPRANGE OI-OPR-01…03) | Thermal + EE |
 | OI-POE-05 | Add these failure modes to NP-FMEA-001 (or a hardware/firmware sibling) under change control | Quality |

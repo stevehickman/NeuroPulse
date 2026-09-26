@@ -31,24 +31,18 @@
  */
 import { readFileSync, readdirSync } from "fs";
 import { join } from "path";
+import { TILE_W, AVAILABLE_W } from "./pbm-model";
 
 const DIR = "protocols/predefined";
 
 /** Per-tile electrical draw at 100 % intensity and full 150 mA drive, by wavelength
- *  set. From NP-HW-HEXTILE-001 §4.2 (emitter allocation) and §4.3 (V_f targets):
- *  660 nm 2.10 V, 808 nm 1.60 V, 1064 nm 1.40 V, all at 150 mA.
- *  T1-A 45+45 = 25.0 W; T1-C 30/30/30 = 22.95 W; 1064-only on T1-C = 6.3 W.
- *  NOTE these inherit OI-HEXTILE-02 (no emitter is selected) and OI-HEXTILE-20
- *  (whether R-5's 600 mW/cm² aggregate ceiling makes 25.0 W unreachable). */
-export const TILE_W: Record<string, number> = {
-  "660_808nm": 25.0,
-  "1064nm": 6.3,
-  "660_808_1064nm": 22.95,
-};
-
-/** Watts available to emitters: the R-10 T1 peak envelope (45–50 W) less the
- *  ~6–8 W non-PBM overhead of NP-HW-HEXTILE-001 §9.1. */
-export const AVAILABLE_W = 40.0;
+ *  set, and the watts available to emitters (R-10 T1 peak envelope less the ~6–8 W
+ *  non-PBM overhead of NP-HW-HEXTILE-001 §9.1). Both now live in
+ *  hardware/np_pbm_model.json, the one source the C governor is emitted from too
+ *  (OI-PWRSRC-13); each value's derivation is recorded beside it there. They still
+ *  inherit OI-HEXTILE-02 (no emitter is selected) and OI-HEXTILE-20. Re-exported so
+ *  the scripts that import them from here keep working. */
+export { TILE_W, AVAILABLE_W };
 
 export type Row = {
   file: string; name: string; sockets: number | null; wavelength: string;
@@ -128,7 +122,7 @@ export function analyse(): Row[] {
       sockets = all.length; zoneLabel = zoneSpec;
     }
 
-    const base = TILE_W[wavelength] ?? 25.0;
+    const base = TILE_W[wavelength] ?? TILE_W["660_808nm"];
     const peak = (base * intensity) / 100;
     const perTileW = cw ? peak : (peak * (duty ?? 100)) / 100;
     const maxConcurrent = Math.max(1, Math.floor(AVAILABLE_W / perTileW));

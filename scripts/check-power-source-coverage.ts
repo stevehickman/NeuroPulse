@@ -28,12 +28,14 @@
  * CI-Kind: report
  */
 import { analyse, type Row } from "./check-pbm-power";
+import { OVERHEAD_W_MAX } from "./pbm-model";
 
 /** Non-PBM overhead subtracted from every source envelope before comparing it to
  *  emitter demand: NP-HW-HEXTILE-001 §9.1 gives ~6–8 W (processor stack, EEG
  *  front end, safety MCU, fan, hub logic). The conservative end is used, which
- *  reproduces `check-pbm-power.ts`'s 40 W from the R-10 mid-envelope of 48 W. */
-const OVERHEAD_W = 8.0;
+ *  reproduces `check-pbm-power.ts`'s 40 W from the R-10 mid-envelope of 48 W.
+ *  From hardware/np_pbm_model.json (OI-PWRSRC-13). */
+const OVERHEAD_W = OVERHEAD_W_MAX;
 
 type Source = { id: string; label: string; envelopeW: number; mode3: boolean };
 

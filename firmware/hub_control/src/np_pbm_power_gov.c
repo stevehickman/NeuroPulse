@@ -35,9 +35,20 @@
  * rather than a missing registry. Replacing this body is OI-FWHUB-09.
  *
  * Stops never come here: np_sock_disp_command() admits a stop before asking.
+ *
+ * ── Where the governor's numbers come from (OI-PWRSRC-13) ───────────────────
+ *
+ * np_pbm_model.generated.h carries the per-tile watts, the emitter budget, the
+ * non-PBM overhead, the provisional 28 W thermal ceiling and the thermal
+ * constants, emitted from hardware/np_pbm_model.json — the same file the
+ * TypeScript audits read. scripts/check-pbm-model.ts fails CI if the two
+ * disagree. When OI-FWHUB-09 replaces this body it reads those macros and
+ * carries no literal of its own; the include is here now so the header is
+ * compiled by the ARM cross-build from the day it exists.
  */
 
 #include "np_socket_dispatch.h"
+#include "np_pbm_model.generated.h"
 
 bool np_pbm_power_admit(const np_session_cmd_t      *cmd,
                         const np_sock_disp_socket_t *current)
