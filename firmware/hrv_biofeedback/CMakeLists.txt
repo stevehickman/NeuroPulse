@@ -20,6 +20,32 @@ cmake_minimum_required(VERSION 3.20)
 
 project(np_hrv_biofeedback C)
 
+# ── Host unit tests (no ARM toolchain required) ────────────────────────────────
+# Build with -DNP_BUILD_TESTS=ON from the firmware super-project.  The first
+# host target for this library (NP-SW-CI-001 OI-SWCI-05): the taVNS
+# configuration gate, where a refused frequency used to leave the previous
+# session's stimulus armed (NP-FW-HRV-001 OI-HRV-05).  Pure C + libm; no
+# FreeRTOS, no platform HAL — the taVNS callbacks are the module's own stubs.
+option(NP_BUILD_TESTS "Build host-native unit tests (no ARM toolchain needed)" OFF)
+
+if(NP_BUILD_TESTS)
+    add_executable(np_hrv_session_tests
+        tests/np_hrv_session_tests.c
+        src/np_hrv_ppg.c
+        src/np_hrv_coherence.c
+        src/np_hrv_pacer.c
+        src/np_hrv_tavns_sync.c
+        src/np_hrv_eeg_biofeedback.c
+        src/np_hrv_session.c
+    )
+    target_include_directories(np_hrv_session_tests PRIVATE include)
+    target_compile_options(np_hrv_session_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g)
+    target_link_libraries(np_hrv_session_tests m)
+
+    return()
+endif()
+
 # ── Toolchain guard ────────────────────────────────────────────────────────────
 if(NOT CMAKE_CROSSCOMPILING)
     message(FATAL_ERROR

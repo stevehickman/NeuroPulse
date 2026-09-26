@@ -284,6 +284,10 @@ static void test_fault_slot_constants(void)
     check(NP_FAULT_SLOT_SIG_FAIL    == 0xFDU, "NP_FAULT_SLOT_SIG_FAIL == 0xFD");
     check(NP_FAULT_SLOT_UNPROV      == 0xFEU, "NP_FAULT_SLOT_UNPROV == 0xFE");
     check(NP_FAULT_SLOT_SIG_CORRUPT == 0xFCU, "NP_FAULT_SLOT_SIG_CORRUPT == 0xFC");
+    check(NP_FAULT_SLOT_KEY_CRC     == 0xF8U, "NP_FAULT_SLOT_KEY_CRC == 0xF8");
+    check(NP_FAULT_SLOT_KEY_CRC     != NP_FAULT_SLOT_TICK,     "KEY_CRC != TICK");
+    check(NP_FAULT_SLOT_KEY_CRC     != NP_FAULT_SLOT_NVSTATE,  "KEY_CRC != NVSTATE");
+    check(NP_FAULT_SLOT_KEY_CRC     != NP_FAULT_SLOT_HUB_NTC,  "KEY_CRC != HUB_NTC");
 
     /* Escalation limits must be ≥1 to be meaningful */
     check(NP_SAFETY_SIG_BAD_CMD_MAX >= 1U, "NP_SAFETY_SIG_BAD_CMD_MAX >= 1");

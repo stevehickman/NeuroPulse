@@ -6,6 +6,7 @@
  */
 
 #include "np_app_image.h"
+#include "np_signature.h"
 
 #ifndef NP_APP_IMAGE_HOST_TEST
 
@@ -48,4 +49,24 @@ np_status_t np_app_image_size_check(uint32_t image_size, uint32_t staging_size)
     }
 
     return NP_OK;
+}
+
+np_status_t np_app_image_verify_staged(const np_image_header_t *hdr,
+                                       const uint8_t *staged,
+                                       uint32_t staging_size)
+{
+    if (hdr == NULL || staged == NULL) {
+        return NP_ERR_GENERIC;
+    }
+
+    /* The hash below reads hdr->image_size bytes from `staged`; bound that by
+     * what the staging area holds before reading a byte of it. */
+    np_status_t ret = np_app_image_size_check(hdr->image_size, staging_size);
+    if (ret != NP_OK) {
+        return ret;
+    }
+
+    /* Non-NULL image data: header CRC, magic, size, SHA-256 of the staged
+     * bytes against the header, then Ed25519 over that header. */
+    return np_signature_verify(hdr, staged);
 }

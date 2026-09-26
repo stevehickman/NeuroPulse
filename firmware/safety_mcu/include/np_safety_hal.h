@@ -337,6 +337,17 @@ uint32_t np_hal_impedance_read_cvns_electrode_ohm(uint8_t electrode);
 void np_hal_otp_read_pubkey(uint8_t *buf, uint8_t len);
 
 /*
+ * np_hal_otp_read_pubkey_crc()
+ *                           Return the 32-bit word stored little-endian at OTP
+ *                           offset NP_OTP_PUBKEY_CRC_OFFSET: the CRC-32
+ *                           (np_crc32) of the 32 key bytes, written with the key
+ *                           at manufacture (NP-FMEA-001 OI-FMEA-03).  VERBATIM —
+ *                           an erased word is returned as 0xFFFFFFFF, and the
+ *                           caller treats any mismatch as a corrupt key.
+ */
+uint32_t np_hal_otp_read_pubkey_crc(void);
+
+/*
  * np_hal_otp_read_tier_record()
  *                           Copy the tier-identity record window (OTP offset
  *                           NP_TIER_OTP_OFFSET, NP_TIER_RECORD_LEN bytes) into

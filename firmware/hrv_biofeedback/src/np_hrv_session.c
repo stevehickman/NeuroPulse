@@ -110,6 +110,24 @@ np_hrv_status_t np_hrv_session_start(np_hrv_session_t *sess, uint32_t now_ms)
         return NP_HRV_ERR_SESSION_ACTIVE;
     }
 
+    /* Validate the taVNS stimulus BEFORE anything is marked running
+     * (OI-HRV-05).  0 still selects the default; any other out-of-range value
+     * — the 1–25 Hz window is NP_TAVNS_DEFAULT_FREQ_HZ's ceiling, and a
+     * shipped protocol asked for 30 Hz (GitHub #386) — refuses the session
+     * rather than starting it with taVNS silently unconfigured. */
+    if (sess->config.protocol == NP_HRV_PROTO_TAVNS_SYNC) {
+        np_hrv_status_t st = np_hrv_tavns_init(
+            &sess->tavns,
+            sess->config.tavns_freq_hz    ? sess->config.tavns_freq_hz
+                                          : NP_TAVNS_DEFAULT_FREQ_HZ,
+            sess->config.tavns_current_ua ? sess->config.tavns_current_ua
+                                          : NP_TAVNS_DEFAULT_CURRENT_UA,
+            tavns_enable, tavns_disable);
+        if (st != NP_HRV_OK) {
+            return st;
+        }
+    }
+
     sess->running                  = true;
     sess->start_ms                 = now_ms;
     sess->last_coherence_update_ms = now_ms;
@@ -125,16 +143,6 @@ np_hrv_status_t np_hrv_session_start(np_hrv_session_t *sess, uint32_t now_ms)
     float init_rate = (sess->config.pacer_rate_bpm > 0.0f)
                        ? sess->config.pacer_rate_bpm : 0.0f;
     np_hrv_pacer_init(&sess->pacer, init_rate, 0.0f, pacer_phase_change);
-
-    /* Initialize taVNS if needed. */
-    if (sess->config.protocol == NP_HRV_PROTO_TAVNS_SYNC) {
-        np_hrv_tavns_init(&sess->tavns,
-                           sess->config.tavns_freq_hz   ? sess->config.tavns_freq_hz
-                                                        : NP_TAVNS_DEFAULT_FREQ_HZ,
-                           sess->config.tavns_current_ua ? sess->config.tavns_current_ua
-                                                         : NP_TAVNS_DEFAULT_CURRENT_UA,
-                           tavns_enable, tavns_disable);
-    }
 
     /* Initialize EEG buffer for dual biofeedback. */
     if (sess->config.protocol == NP_HRV_PROTO_EEG_DUAL) {

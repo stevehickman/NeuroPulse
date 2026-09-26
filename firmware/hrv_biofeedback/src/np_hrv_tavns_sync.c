@@ -25,10 +25,16 @@ np_hrv_status_t np_hrv_tavns_init(np_tavns_state_t  *tavns,
                                    np_tavns_enable_cb_t  enable_cb,
                                    np_tavns_disable_cb_t disable_cb)
 {
-    if (stim_freq_hz < 1U || stim_freq_hz > NP_TAVNS_DEFAULT_FREQ_HZ) {
-        return NP_HRV_ERR_INVALID_ARG;
-    }
-    if (stim_current_ua < 100U || stim_current_ua > NP_TAVNS_MAX_CURRENT_UA) {
+    /* OI-HRV-05: a rejected configuration must leave NOTHING armed.  The
+     * callbacks and stimulus parameters are module statics, so returning early
+     * without clearing them kept the PREVIOUS session's enable callback, rate
+     * and current live — and np_hrv_tavns_process_rr() would fire them. */
+    if (stim_freq_hz < 1U || stim_freq_hz > NP_TAVNS_DEFAULT_FREQ_HZ ||
+        stim_current_ua < 100U || stim_current_ua > NP_TAVNS_MAX_CURRENT_UA) {
+        s_enable_cb       = NULL;
+        s_disable_cb      = NULL;
+        s_stim_freq_hz    = 0U;
+        s_stim_current_ua = 0U;
         return NP_HRV_ERR_INVALID_ARG;
     }
 
@@ -69,14 +75,16 @@ void np_hrv_tavns_process_rr(np_tavns_state_t *tavns,
                                uint16_t          rr_ms,
                                uint32_t          now_ms)
 {
-    /* Compute dRR relative to the most recent entry in the slope buffer.       */
-    /* The previous RR is retrieved from the slot before the current write pos. */
-    uint8_t prev_idx = (uint8_t)((tavns->slope_buf_idx + NP_TAVNS_INSP_SLOPE_WIN - 1U)
-                                   % NP_TAVNS_INSP_SLOPE_WIN);
-    int16_t prev_rr  = (tavns->rr_slope_buf[prev_idx] != 0)
-                        ? tavns->rr_slope_buf[prev_idx]
-                        : (int16_t)rr_ms;
-    int16_t drr = (int16_t)rr_ms - prev_rr;
+    /* dRR against the previous R-R INTERVAL.  This used to read the previous
+     * interval out of rr_slope_buf, which holds dRR values, not intervals: the
+     * first dRR was 0, so every later "previous RR" read 0 and fell back to
+     * rr_ms itself, and dRR stayed 0 for the whole session.  The mean slope
+     * never crossed the hysteresis and the inspiration gate never opened.
+     * Found writing the first host test (OI-HRV-05's control case). */
+    int16_t drr = (tavns->last_rr_ms != 0U)
+                  ? (int16_t)((int32_t)rr_ms - (int32_t)tavns->last_rr_ms)
+                  : 0;
+    tavns->last_rr_ms = rr_ms;
 
     push_slope(tavns, drr);
 

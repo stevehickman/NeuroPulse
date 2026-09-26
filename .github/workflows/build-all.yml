@@ -90,9 +90,11 @@ env:
   # 10 + 38 = 48, re-derived with `ctest -N` on the tree.
   # NP-FMEA-001 OI-FMEA-11 then added np_gpio_mgr_tests, a Class C target:
   # 11 + 38 = 49, re-derived with `ctest -N` on the tree.
-  NP_TOTAL_TEST_COUNT: '49'
+  # GitHub #447 (OI-HRV-05) then added np_hrv_session_tests:
+  # 11 + 39 = 50, re-derived with `ctest -N` on the tree.
+  NP_TOTAL_TEST_COUNT: '50'
   NP_SAFETY_TEST_COUNT: '11'
-  NP_CLASS_B_TEST_COUNT: '38'
+  NP_CLASS_B_TEST_COUNT: '39'
 
 jobs:
   host-tests-all:

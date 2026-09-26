@@ -111,6 +111,35 @@ void np_hal_otp_read_pubkey(uint8_t *buf, uint8_t len)
     }
 }
 
+/* ── Root key integrity word (SW01-M07, NP-FMEA-001 OI-FMEA-03) ────────────── */
+/*
+ * CRC-32 (IEEE 802.3, np_crc32) of the 32 key bytes, written little-endian by
+ * the same manufacturing step that writes the key, in the double word directly
+ * after it.  Read VERBATIM: no erased-state translation.  An erased word reads
+ * 0xFFFFFFFF, which is the CRC of no 32-byte key a caller will ever compare it
+ * with in practice, so a provisioned key with no CRC fails the integrity check
+ * — correct, because a key whose programming step never finished is a corrupt
+ * device, not an unprovisioned one (same rule as the partial-window case in
+ * np_hal_otp_read_pubkey()).
+ */
+_Static_assert((NP_OTP_PUBKEY_CRC_OFFSET % 8U) == 0U,
+               "key CRC must start on an OTP double-word");
+_Static_assert(NP_OTP_PUBKEY_CRC_OFFSET >= (NP_HAL_OTP_PUBKEY_OFF + NP_ED25519_PUB_KEY_LEN),
+               "key CRC overlaps the root session key");
+_Static_assert((NP_OTP_PUBKEY_CRC_OFFSET + 8U) <= NP_TIER_OTP_OFFSET,
+               "key CRC double-word overlaps the tier-identity record");
+
+uint32_t np_hal_otp_read_pubkey_crc(void)
+{
+    const volatile uint8_t *otp =
+        (const volatile uint8_t *)(NP_HAL_OTP_BASE + NP_OTP_PUBKEY_CRC_OFFSET);
+
+    return (uint32_t)otp[0]
+         | ((uint32_t)otp[1] << 8U)
+         | ((uint32_t)otp[2] << 16U)
+         | ((uint32_t)otp[3] << 24U);
+}
+
 /* ── Tier-identity record window (SW01-M10, OI-UPG-01) ─────────────────────── */
 /*
  * Same OTP window, at NP_TIER_OTP_OFFSET.  Copied verbatim — see
