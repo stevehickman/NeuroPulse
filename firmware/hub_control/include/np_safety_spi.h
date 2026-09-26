@@ -83,6 +83,20 @@ static inline uint8_t np_safety_session_status_bits(np_session_state_t state,
     return bits;
 }
 
+/*
+ * np_safety_session_status_with_seq — place the 3-bit heartbeat sequence
+ * counter in session_status bits 5–7 (NP-FMEA-001 OI-FMEA-12 (a)).  Only the
+ * low three bits of seq are used, and the flag bits 0–4 are kept as given.
+ * The safety MCU resets its heartbeat watchdog only when this counter makes a
+ * forward run, so np_safety_spi_heartbeat() advances it on every frame.
+ */
+static inline uint8_t np_safety_session_status_with_seq(uint8_t bits, uint8_t seq)
+{
+    return (uint8_t)((bits & (uint8_t)~NP_SESSION_STATUS_SEQ_MASK) |
+                     ((uint8_t)(seq << NP_SESSION_STATUS_SEQ_SHIFT) &
+                      (uint8_t)NP_SESSION_STATUS_SEQ_MASK));
+}
+
 /* ── API ─────────────────────────────────────────────────────────────────────── */
 
 /*

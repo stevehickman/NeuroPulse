@@ -4,7 +4,7 @@
  * Document: NP-SW-001 Rev 1 — SW-01 Class C; NP-SW-CI-001 §4.4 (OI-SWCI-17)
  *           NP-FW-CVNS-001 Rev 2 §5; CLAUDE.md §4.2 (cervical VNS cardiac interlock)
  *
- * Implements np_hal_tim2_init(), np_hal_tim2_get_capture(),
+ * Implements np_hal_tim2_init(), np_hal_tim2_get_capture(), np_hal_tim2_now_us(),
  * np_hal_rpeak_edge_pending() and np_hal_rpeak_edge_clear(), plus the
  * EXTI4_15 interrupt handler.
  *
@@ -147,6 +147,13 @@ void EXTI4_15_IRQHandler(void)
 uint32_t np_hal_tim2_get_capture(void)
 {
     return s_capture_us;
+}
+
+/* The live TIM2 count, for the tick-liveness check (OI-FMEA-12 (b)).  CNT is a
+ * 32-bit register read, single-copy atomic on ARMv6-M. */
+uint32_t np_hal_tim2_now_us(void)
+{
+    return NP_CARDIAC_TIM->CNT;
 }
 
 bool np_hal_rpeak_edge_pending(void)

@@ -9,6 +9,11 @@
  * The safety MCU drives the test signal via a dedicated low-level test
  * current source.  The impedance measurement is performed while stimulation
  * output is disabled (pre-enable check, not during session).
+ *
+ * That last sentence is enforced only since np_impedance_check_gate()
+ * (NP-FMEA-001 Rev 13, FMEA-M05-07, OI-FMEA-12 (d)): before it, a channel was
+ * granted while its test ran, and a failed channel was re-granted by the next
+ * heartbeat.
  */
 
 #include "np_safety_config.h"
@@ -42,6 +47,15 @@ static const uint16_t k_imp_en_bit[NP_IMP_CHANNELS] = {
 static bool     s_test_pending[NP_IMP_CHANNELS];
 static uint32_t s_test_start_ms[NP_IMP_CHANNELS];
 
+/* Enable gate (NP-FMEA-001 FMEA-M05-07, OI-FMEA-12 (d)).  A channel is granted
+ * only once its check has PASSED this session.  Before this, the check was not
+ * a gate: np_spi_watchdog_tick() grants requested_mask without reference to
+ * impedance, so a channel was enabled while its test was pending, and a failed
+ * channel, cut on the one iteration its result arrived, was re-granted by the
+ * next heartbeat. */
+static bool     s_passed[NP_IMP_CHANNELS];   /* passed since the session began   */
+static bool     s_failed[NP_IMP_CHANNELS];   /* last result failed; no auto-retry */
+
 /* OI-CVNS-HUB-11: latest per-electrode CVNS impedance for the hub cross-check. */
 static uint16_t s_cvns_kohm_x100[NP_SAFETY_IMP_CVNS_ELECTRODES];
 static bool     s_cvns_report_valid;   /* a CVNS measurement completed this session */
@@ -59,6 +73,8 @@ np_safe_status_t np_impedance_check_init(void)
     for (uint8_t i = 0U; i < NP_IMP_CHANNELS; i++) {
         s_test_pending[i]  = false;
         s_test_start_ms[i] = 0U;
+        s_passed[i]        = false;
+        s_failed[i]        = false;
     }
     for (uint8_t e = 0U; e < NP_SAFETY_IMP_CVNS_ELECTRODES; e++) {
         s_cvns_kohm_x100[e] = 0U;
@@ -79,6 +95,7 @@ void np_impedance_check_request(uint16_t requested_mask)
             np_hal_impedance_start_test(i);
             s_test_pending[i]  = true;
             s_test_start_ms[i] = 0U;  /* HAL drives timing */
+            s_passed[i]        = false;   /* withheld until this test passes */
         }
     }
     /* OI-CVNS-HUB-11: a fresh CVNS check is starting — invalidate the previous
@@ -104,6 +121,7 @@ void np_impedance_check_poll(np_safety_state_t *state)
             uint32_t z_ohm    = np_hal_impedance_read_ohm(i);
 
             if (z_ohm > NP_IMPEDANCE_MAX_OHM) {
+                s_failed[i]          = true;
                 state->granted_mask &= (uint16_t)~k_imp_en_bit[i];
                 state->status       |= NP_SAFETY_STATUS_IMPEDANCE;
                 state->fault_slot    = k_imp_slot[i];
@@ -112,6 +130,7 @@ void np_impedance_check_poll(np_safety_state_t *state)
                  * hub does not see a persistent fault after a recheck succeeds.
                  * Without this clear, a single impedance failure latches the bit
                  * permanently across all subsequent session attempts. */
+                s_passed[i]    = true;
                 state->status &= (uint8_t)~NP_SAFETY_STATUS_IMPEDANCE;
             }
 
@@ -128,6 +147,46 @@ void np_impedance_check_poll(np_safety_state_t *state)
                 }
                 s_cvns_report_valid = true;
             }
+        }
+    }
+}
+
+/*
+ * np_impedance_check_reset_session — forget every result.  Called on the
+ * session 0→1 transition BEFORE np_impedance_check_request(), so a pass from
+ * an earlier session never enables a channel in this one.
+ */
+void np_impedance_check_reset_session(void)
+{
+    for (uint8_t i = 0U; i < NP_IMP_CHANNELS; i++) {
+        s_passed[i] = false;
+        s_failed[i] = false;
+    }
+}
+
+/*
+ * np_impedance_check_gate — called every main-loop iteration, after the
+ * heartbeat grant and before the GPIO write (NP-FMEA-001 FMEA-M05-07,
+ * OI-FMEA-12 (d)).  Withholds each impedance-checked channel that has not
+ * passed this session: pending (a result that never comes keeps it withheld,
+ * so a stuck measurement fails closed) and failed alike.  A failed channel
+ * stays withheld until a new check is requested: at the next session start,
+ * or, for CVNS, on the cardiac re-enable.
+ *
+ * A channel first requested mid-session, with no test run or pending, has a
+ * test started here, and is withheld until it passes.
+ */
+void np_impedance_check_gate(np_safety_state_t *state)
+{
+    for (uint8_t i = 0U; i < NP_IMP_CHANNELS; i++) {
+        uint16_t bit = k_imp_en_bit[i];
+
+        if ((state->requested_mask & bit) != 0U &&
+            !s_passed[i] && !s_failed[i] && !s_test_pending[i]) {
+            np_impedance_check_request(bit);
+        }
+        if (!s_passed[i]) {
+            state->granted_mask &= (uint16_t)~bit;
         }
     }
 }

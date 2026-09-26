@@ -64,6 +64,9 @@ static bool     g_edge_pending;
 
 uint32_t np_hal_get_tick_ms(void)      { return g_tick_ms; }
 uint32_t np_hal_tim2_get_capture(void) { return g_capture; }
+/* Linked for np_spi_watchdog.c's tick-liveness check, which no test here
+ * calls; the SysTick-vs-TIM2 comparison is np_gpio_mgr_tests §7. */
+uint32_t np_hal_tim2_now_us(void)      { return g_capture; }
 bool     np_hal_rpeak_edge_pending(void) { return g_edge_pending; }
 void     np_hal_rpeak_edge_clear(void) { g_edge_pending = false; }
 

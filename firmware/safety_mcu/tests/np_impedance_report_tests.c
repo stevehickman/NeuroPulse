@@ -7,6 +7,9 @@
  * (np_impedance_check_build_cvns_report).  The hub cross-validates this against
  * its own per-electrode measurement (OI-CVNS-HUB-09).
  *
+ * Also the enable gate (np_impedance_check_gate, NP-FMEA-001 FMEA-M05-07,
+ * OI-FMEA-12 (d)): a channel is withheld until its check passes this session.
+ *
  * These tests exercise np_impedance_check.c with mocked HAL stubs; they do NOT
  * require ARM cross-compilation or SPI hardware.
  *
@@ -28,6 +31,8 @@ extern np_safe_status_t np_impedance_check_init(void);
 extern void             np_impedance_check_request(uint16_t requested_mask);
 extern void             np_impedance_check_poll(np_safety_state_t *state);
 extern bool             np_impedance_check_build_cvns_report(np_safety_imp_report_t *out);
+extern void             np_impedance_check_reset_session(void);
+extern void             np_impedance_check_gate(np_safety_state_t *state);
 
 /* ── Mocked HAL stubs ──────────────────────────────────────────────────────────
  * These DEFINE symbols DECLARED in np_safety_hal.h (included above), which is
@@ -38,7 +43,11 @@ static uint32_t g_read_ohm[16];
 static uint32_t g_electrode_ohm[NP_SAFETY_IMP_CVNS_ELECTRODES];
 
 uint32_t np_hal_get_tick_ms(void) { return 0U; }
-void     np_hal_impedance_start_test(uint8_t channel) { (void)channel; }
+static unsigned g_starts[16];
+void     np_hal_impedance_start_test(uint8_t channel)
+{
+    if (channel < 16U) { g_starts[channel]++; }
+}
 bool     np_hal_impedance_result_ready(uint8_t channel)
 {
     return (channel < 16U) ? g_result_ready[channel] : false;
@@ -68,6 +77,7 @@ static void reset_mocks(void)
     memset(g_result_ready, 0, sizeof(g_result_ready));
     memset(g_read_ohm, 0, sizeof(g_read_ohm));
     memset(g_electrode_ohm, 0, sizeof(g_electrode_ohm));
+    memset(g_starts, 0, sizeof(g_starts));
 }
 
 static uint16_t report_checksum(const np_safety_imp_report_t *r)
@@ -182,12 +192,125 @@ static void test_report_reinvalidated_on_new_request(void)
           "report: invalidated on a fresh CVNS request until re-measured");
 }
 
+/* ══ Enable gate (FMEA-M05-07, OI-FMEA-12 (d)) ═════════════════════════════ */
+
+#define TDCS_CH 1U            /* impedance-check index of tDCS */
+#define GOOD_OHM 1000U
+#define BAD_OHM  (NP_IMPEDANCE_MAX_OHM + 1U)
+
+/* One main-loop iteration as np_safety_main.c orders it: the heartbeat grant
+ * (granted = requested, as np_spi_watchdog_tick does with no fault), then the
+ * poll, then the gate.  Returns the mask the GPIO write would see. */
+static uint16_t iterate(np_safety_state_t *st)
+{
+    st->granted_mask = st->requested_mask;
+    np_impedance_check_poll(st);
+    np_impedance_check_gate(st);
+    return st->granted_mask;
+}
+
+static void gate_session(np_safety_state_t *st, uint16_t mask)
+{
+    reset_mocks();
+    (void)np_impedance_check_init();
+    memset(st, 0, sizeof(*st));
+    st->requested_mask = mask;
+    np_impedance_check_reset_session();
+    np_impedance_check_request(mask);
+}
+
+static void test_gate_pending_then_pass(void)
+{
+    np_safety_state_t st;
+    unsigned i;
+    int ok = 1;
+
+    gate_session(&st, NP_SAFETY_EN_TDCS | NP_SAFETY_EN_PBM_CRANIAL | NP_SAFETY_EN_VISUAL);
+    for (i = 0U; i < 50U; i++) {
+        if ((iterate(&st) & NP_SAFETY_EN_TDCS) != 0U) { ok = 0; }
+    }
+    check(ok, "gate: withheld while the check is pending (a result that never comes)");
+    check((st.granted_mask & (NP_SAFETY_EN_PBM_CRANIAL | NP_SAFETY_EN_VISUAL)) ==
+              (NP_SAFETY_EN_PBM_CRANIAL | NP_SAFETY_EN_VISUAL),
+          "gate: channels with no impedance check are untouched");
+    check(g_starts[TDCS_CH] == 1U, "gate: a pending check is not restarted");
+    check(g_starts[0] == 0U && g_starts[2] == 0U && g_starts[CVNS_CH] == 0U,
+          "gate: no check is started for a channel nobody requested");
+
+    g_read_ohm[TDCS_CH] = GOOD_OHM; g_result_ready[TDCS_CH] = true;
+    check((iterate(&st) & NP_SAFETY_EN_TDCS) != 0U, "gate: granted in the iteration it passes");
+    check((iterate(&st) & NP_SAFETY_EN_TDCS) != 0U, "gate: and stays granted");
+}
+
+static void test_gate_fail_is_not_regranted(void)
+{
+    np_safety_state_t st;
+    unsigned i;
+    int ok = 1;
+
+    gate_session(&st, NP_SAFETY_EN_TDCS);
+    g_read_ohm[TDCS_CH] = BAD_OHM; g_result_ready[TDCS_CH] = true;
+    (void)iterate(&st);
+    check((st.status & NP_SAFETY_STATUS_IMPEDANCE) != 0U, "fail: IMPEDANCE status set");
+    for (i = 0U; i < 50U; i++) {           /* 50 heartbeats that each re-grant */
+        if ((iterate(&st) & NP_SAFETY_EN_TDCS) != 0U) { ok = 0; }
+    }
+    check(ok, "fail: withheld on every later heartbeat (the pre-fix code re-granted)");
+    check(g_starts[TDCS_CH] == 1U, "fail: a failed channel is not auto-retried");
+
+    /* A new request (the next session, or CVNS re-enable) is the only retry. */
+    g_result_ready[TDCS_CH] = false;
+    np_impedance_check_request(NP_SAFETY_EN_TDCS);
+    check((iterate(&st) & NP_SAFETY_EN_TDCS) == 0U, "fail: re-request withholds until its result");
+    g_read_ohm[TDCS_CH] = GOOD_OHM; g_result_ready[TDCS_CH] = true;
+    check((iterate(&st) & NP_SAFETY_EN_TDCS) != 0U, "fail: a passing re-check grants");
+}
+
+static void test_gate_pass_does_not_carry_over(void)
+{
+    np_safety_state_t st;
+
+    gate_session(&st, NP_SAFETY_EN_TDCS);
+    g_read_ohm[TDCS_CH] = GOOD_OHM; g_result_ready[TDCS_CH] = true;
+    check((iterate(&st) & NP_SAFETY_EN_TDCS) != 0U, "carry: passed in session 1");
+
+    /* Session 2 starts WITHOUT tDCS requested; tDCS is added mid-session. */
+    g_result_ready[TDCS_CH] = false;
+    np_impedance_check_reset_session();
+    np_impedance_check_request(0U);
+    st.requested_mask = NP_SAFETY_EN_TDCS;
+    check((iterate(&st) & NP_SAFETY_EN_TDCS) == 0U,
+          "carry: session 1's pass does not enable tDCS in session 2");
+    check(g_starts[TDCS_CH] == 2U, "carry: a mid-session first request starts a check");
+    (void)iterate(&st);
+    check(g_starts[TDCS_CH] == 2U, "carry: ... once");
+    g_result_ready[TDCS_CH] = true;
+    check((iterate(&st) & NP_SAFETY_EN_TDCS) != 0U, "carry: granted once that check passes");
+}
+
+static void test_gate_cvns_reenable_rechecks(void)
+{
+    np_safety_state_t st;
+
+    gate_session(&st, NP_SAFETY_EN_CVNS);
+    g_read_ohm[CVNS_CH] = GOOD_OHM; g_result_ready[CVNS_CH] = true;
+    check((iterate(&st) & NP_SAFETY_EN_CVNS) != 0U, "cvns: passed");
+    g_result_ready[CVNS_CH] = false;
+    np_impedance_check_request(NP_SAFETY_EN_CVNS);      /* cardiac re-enable */
+    check((iterate(&st) & NP_SAFETY_EN_CVNS) == 0U,
+          "cvns: the re-enable's repeat impedance check withholds CVNS until it passes");
+}
+
 int main(void)
 {
     test_report_invalid_before_measurement();
     test_report_valid_after_cvns_poll();
     test_report_rounds_and_survives_gate_fail();
     test_report_reinvalidated_on_new_request();
+    test_gate_pending_then_pass();
+    test_gate_fail_is_not_regranted();
+    test_gate_pass_does_not_carry_over();
+    test_gate_cvns_reenable_rechecks();
 
     if (g_failures == 0) { printf("ALL TESTS PASSED\n"); return 0; }
     printf("%d TEST(S) FAILED\n", g_failures);

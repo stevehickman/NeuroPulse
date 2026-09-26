@@ -69,6 +69,11 @@ static volatile bool     s_tier_refused = false;
  */
 static volatile uint16_t s_channel_ua[NP_SAFETY_MAX_CHANNELS];
 
+/* Heartbeat sequence counter (NP-FMEA-001 OI-FMEA-12 (a), FMEA-M02-03),
+ * carried in session_status bits 5–7.  Advanced on every heartbeat built,
+ * whether or not its transfer succeeds, so a retry is never a repeat. */
+static uint8_t s_beat_seq = 0U;
+
 /* s_requested_mask is protected by the FreeRTOS task-level critical section
  * (taskENTER_CRITICAL / taskEXIT_CRITICAL).  These functions are called from
  * task context only — never from an ISR — so the task variants are correct. */
@@ -216,6 +221,9 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
                                                       s_cvns_reenable,
                                                       s_geom_required_tdcs,
                                                       s_geom_required_bes);
+    tx.session_status = np_safety_session_status_with_seq(tx.session_status,
+                                                           s_beat_seq);
+    s_beat_seq = (uint8_t)((s_beat_seq + 1U) & (NP_HEARTBEAT_SEQ_MODULUS - 1U));
     tx.enable_lo     = (uint8_t)(requested_enable_mask & 0xFFU);
     tx.enable_hi     = (uint8_t)((requested_enable_mask >> 8) & 0xFFU);
 

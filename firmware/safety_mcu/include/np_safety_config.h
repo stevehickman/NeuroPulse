@@ -61,6 +61,35 @@
 #define NP_SAFETY_IWDG_TIMEOUT_MS   1000U
 #define NP_SAFETY_SYSTICK_HZ        1000U  /* 1ms SysTick resolution */
 
+/* Heartbeat sequence gate (NP-FMEA-001 FMEA-M02-03, OI-FMEA-12 (a)).  A
+ * well-formed heartbeat resets the watchdog only once the 3-bit counter in
+ * session_status (NP_SESSION_STATUS_SEQ_*) has made NP_SAFETY_SEQ_RUN_MIN
+ * consecutive forward steps of 1..NP_SAFETY_SEQ_MAX_STEP.  A repeat (step 0)
+ * or a backward step (step 4..7) restarts the run.  Why each number:
+ *   - MAX_STEP 3 tolerates two lost frames between accepted beats without
+ *     restarting the run, and stays under half the modulus (8) so a backward
+ *     step can never alias as a forward one.
+ *   - RUN_MIN 2 is the smallest run that a two-buffer replay (X, X+1, X, ...)
+ *     cannot build: its steps alternate +1 and +7.  RUN_MIN 1 would accept
+ *     every second frame of that replay.
+ * Cost: after a reset or a restarted run, the first two well-formed beats are
+ * not accepted (400 ms at the 200 ms period); the watchdog still fires at
+ * NP_SAFETY_WDG_TIMEOUT_MS after the last ACCEPTED beat.                    */
+#define NP_SAFETY_SEQ_MAX_STEP      3U
+#define NP_SAFETY_SEQ_RUN_MIN       2U
+
+/* Tick liveness (NP-FMEA-001 FMEA-M02-02, OI-FMEA-12 (b)).  Every
+ * NP_SAFETY_TICK_CHECK_MS (on either counter) the SysTick millisecond count is
+ * compared with TIM2's independent 1 MHz count.  A disagreement larger than
+ * NP_SAFETY_TICK_TOL_MS latches an all-channel FAULT (NP_FAULT_SLOT_TICK).
+ * Both counters run from SYSCLK, so their ratio is exact by construction and
+ * the tolerance only has to absorb 1 ms quantisation and read skew; 10 % of
+ * the window catches a stopped SysTick within ~100 ms and a SysTick running
+ * more than 10 % slow or fast.  NOT caught: SYSCLK itself slowing, which
+ * slows both counters alike (see NP-FMEA-001 FMEA-M02-02).                  */
+#define NP_SAFETY_TICK_CHECK_MS     100U
+#define NP_SAFETY_TICK_TOL_MS       10U
+
 /* ── Stimulation enable GPIOs (active-LOW open-drain) ────────────────────── */
 /* One line per allocated NP_SAFETY_EN_* bit (10 since NP-HW-HUB-001 Rev 3
  * §7.2).  GPIO pin numbering is per-port and does NOT track enable-bit
@@ -287,6 +316,7 @@
 #define NP_FAULT_SLOT_SIG_CORRUPT   0xFCU  /* repeated corrupt session sig command frames */
 #define NP_FAULT_SLOT_HUB_NTC      0xFBU  /* hub NTC thermal cutoff (all channels) */
 #define NP_FAULT_SLOT_NVSTATE     0xFAU  /* non-volatile safety state could not be written */
+#define NP_FAULT_SLOT_TICK        0xF9U  /* SysTick disagrees with TIM2 (OI-FMEA-12 (b)) */
 
 /* ── Tier identity (SW01-M10, NP-REG-UPG-001 §7.5, OI-UPG-01) ────────────── */
 /*
