@@ -39,6 +39,9 @@ abstract class ModalityConfig { }
 sealed class PbmTranscranialConfig : ModalityConfig
 {
     public required int[] Zones { get; init; }            // active zone indices 0–4
+    // The NPPS `wavelength` token, carried verbatim (OI-PBMCH-04): without it a
+    // "1064nm" protocol compiled to the same config as a "660_808nm" one.
+    public required string Wavelength { get; init; }
     public required double FrequencyHz { get; init; }     // 0 = CW
     public required int DutyCyclePercent { get; init; }   // ≤25 (firmware-enforced)
     public required int DurationSeconds { get; init; }

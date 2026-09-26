@@ -204,6 +204,24 @@ final class NPPBMTargetScriptingTests: XCTestCase {
         XCTAssertEqual(config.socketMask.socketIDs, [72, 73, 74, 77, 78])
     }
 
+    /// OI-PBMCH-04: the wavelength selection used to be dropped here, so a
+    /// "1064nm" protocol compiled to the same config as a "660_808nm" one.
+    func testWireProtocolCarriesTheWavelength() throws {
+        for wavelength in NPPBMTranscranialParams.Wavelength.allCases {
+            var params = NPPBMTranscranialParams()
+            params.wavelength = wavelength
+            let definition = NPProtocolDefinition(
+                name: "Wire Test",
+                modalities: [NPProtocolModality(params: .pbmTranscranial(params))]
+            )
+            let wire = try NPSessionProtocol(from: definition)
+            guard case .pbmTranscranial(let config)? = wire.modalities.first else {
+                return XCTFail("expected a PBM transcranial modality on the wire")
+            }
+            XCTAssertEqual(config.wavelength, wavelength.rawValue)
+        }
+    }
+
     func testWireProtocolRefusesAnUnresolvableTarget() {
         var params = NPPBMTranscranialParams()
         params.target = .named(["Left Frontal"])   // not a zone; the correct name is "Frontal Left"

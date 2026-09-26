@@ -307,6 +307,44 @@ np_hub_status_t np_mod_pbm_shutdown(uint8_t slot)
 static np_hub_mod_type_t s_sock_type[NP_HEXMAP_MAX_SOCKETS];
 static np_pbm_drv_slot_t s_sock_drv[NP_HEXMAP_MAX_SOCKETS];
 
+/*
+ * Per-channel disable latch (OI-PBMCH-03). NP-FW-PBM1064-001 §6.5 disables ONE
+ * channel on its per-wavelength dose limit and lets the session continue on the
+ * others. A smart tile does that with a CH_ENABLE write; a base tile (T1-A) has
+ * no CH_ENABLE and its params struct no ch_mask, so the only expression of
+ * "off" for one channel is that channel's current setpoint at 0.
+ *
+ * The latch is session-scoped and survives re-drives: a later command for the
+ * same socket (a new session step, a type-switch re-drive) must not quietly
+ * re-light a channel that has already reached its limit. It is cleared only by
+ * np_mod_pbm_socket_clear_channel_latches(), at session load.
+ *
+ * SETPOINT 0 IS NOMINAL, NOT PROVEN, ZERO on a base tile. Whether cur = 0
+ * produces zero emission depends on FET leakage and the string's minimum
+ * conduction current, both part properties of an emitter OI-HEXTILE-02 has not
+ * selected. OI-PBMCH-01 owns that question; if "off" must be provably off, the
+ * base struct gains a ch_mask byte and this path writes it instead.
+ *
+ * NOT YET TRIGGERED on the socket path: no socket-path dose metering exists
+ * (OI-FWHUB-10), so nothing calls np_mod_pbm_socket_disable_channel() in
+ * production yet. This is the actuator that metering will drive.
+ */
+static np_mod_pbm_base_params_t s_sock_base[NP_HEXMAP_MAX_SOCKETS];
+static uint8_t                  s_sock_ch_off[NP_HEXMAP_MAX_SOCKETS];
+
+#define NP_MOD_PBM_BASE_CH_MASK  (NP_PBM_CH_A_EN | NP_PBM_CH_B_EN)
+
+static np_hub_status_t base_pwm_apply(uint16_t socket_id)
+{
+    const np_mod_pbm_base_params_t *p   = &s_sock_base[socket_id];
+    const uint8_t                   off = s_sock_ch_off[socket_id];
+    const uint8_t cur_a = (off & NP_PBM_CH_A_EN) ? 0U : p->cur_a;
+    const uint8_t cur_b = (off & NP_PBM_CH_B_EN) ? 0U : p->cur_b;
+    return (np_mod_pbm_hal_socket_pwm_set(socket_id, cur_a, cur_b,
+                                          p->freq_code, clamp_duty(p->duty))
+            == NP_HUB_OK) ? NP_HUB_OK : NP_HUB_ERR_MOD_FAULT;
+}
+
 np_hub_status_t np_mod_pbm_socket_drive(uint16_t          socket_id,
                                         np_hub_mod_type_t mod_type,
                                         const void       *params,
@@ -321,6 +359,7 @@ np_hub_status_t np_mod_pbm_socket_drive(uint16_t          socket_id,
             (const np_mod_pbm_smart_params_t *)params;
         const uint8_t     addr = (uint8_t)socket_id;   /* < 128, fits */
         const uint8_t     duty = clamp_duty(p->duty);
+        const uint8_t     mask = (uint8_t)(p->ch_mask & (uint8_t)~s_sock_ch_off[socket_id]);
         np_pbm_drv_slot_t *drv = &s_sock_drv[socket_id];
 
         np_pbm_preset_t preset = {
@@ -329,24 +368,21 @@ np_hub_status_t np_mod_pbm_socket_drive(uint16_t          socket_id,
             .cur_c        = p->cur_c,
             .freq_hz      = 0U,
             .duty         = duty,
-            .channel_mask = p->ch_mask,
+            .channel_mask = mask,
         };
         s_sock_type[socket_id] = NP_MOD_PBM_SMART;
         if (np_pbm_drive_startup(addr, drv, &preset) != NP_PBM_OK ||
-            np_pbm_drive_set_freq(addr, drv, p->ch_mask, p->freq_code) != NP_PBM_OK ||
-            np_pbm_drive_set_duty(addr, drv, p->ch_mask, duty) != NP_PBM_OK) {
+            np_pbm_drive_set_freq(addr, drv, mask, p->freq_code) != NP_PBM_OK ||
+            np_pbm_drive_set_duty(addr, drv, mask, duty) != NP_PBM_OK) {
             return NP_HUB_ERR_MOD_FAULT;
         }
         return NP_HUB_OK;
     }
 
     if (mod_type == NP_MOD_PBM_BASE && len == sizeof(np_mod_pbm_base_params_t)) {
-        const np_mod_pbm_base_params_t *p =
-            (const np_mod_pbm_base_params_t *)params;
+        memcpy(&s_sock_base[socket_id], params, sizeof s_sock_base[socket_id]);
         s_sock_type[socket_id] = NP_MOD_PBM_BASE;
-        return (np_mod_pbm_hal_socket_pwm_set(socket_id, p->cur_a, p->cur_b,
-                                              p->freq_code, clamp_duty(p->duty))
-                == NP_HUB_OK) ? NP_HUB_OK : NP_HUB_ERR_MOD_FAULT;
+        return base_pwm_apply(socket_id);
     }
 
     return NP_HUB_ERR_INVALID_ARG;
@@ -366,4 +402,50 @@ np_hub_status_t np_mod_pbm_socket_stop(uint16_t socket_id)
     }
     s_sock_type[socket_id] = NP_MOD_NONE;
     return rc;
+}
+
+/*
+ * Disable one channel of a socket for the rest of the session (NP-FW-PBM1064-001
+ * §6.5; OI-PBMCH-03). ch_bit is one of NP_PBM_CH_{A,B,C}_EN. The latch is set
+ * BEFORE the hardware write, so a failed write still keeps the channel off at
+ * the next re-drive, and the caller learns of the failure from the return.
+ *
+ * A socket with nothing driving is latched only. A base tile has no CH_C:
+ * latching it is recorded and satisfied without a write.
+ */
+np_hub_status_t np_mod_pbm_socket_disable_channel(uint16_t socket_id, uint8_t ch_bit)
+{
+    if (socket_id >= NP_HEXMAP_MAX_SOCKETS ||
+        ch_bit == 0U || (ch_bit & (uint8_t)~NP_PBM_CH_ALL_EN) != 0U) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    s_sock_ch_off[socket_id] |= ch_bit;
+
+    switch (s_sock_type[socket_id]) {
+    case NP_MOD_PBM_SMART: {
+        np_pbm_drv_slot_t *drv = &s_sock_drv[socket_id];
+        return (np_pbm_drive_set_ch_enable((uint8_t)socket_id, drv,
+                                           (uint8_t)(drv->ch_enable & (uint8_t)~ch_bit))
+                == NP_PBM_OK) ? NP_HUB_OK : NP_HUB_ERR_MOD_FAULT;
+    }
+    case NP_MOD_PBM_BASE:
+        if ((ch_bit & NP_MOD_PBM_BASE_CH_MASK) == 0U) {
+            return NP_HUB_OK;
+        }
+        return base_pwm_apply(socket_id);
+    default:
+        return NP_HUB_OK;
+    }
+}
+
+/* Channels latched off on this socket this session (NP_PBM_CH_*_EN bits). */
+uint8_t np_mod_pbm_socket_disabled_channels(uint16_t socket_id)
+{
+    return (socket_id < NP_HEXMAP_MAX_SOCKETS) ? s_sock_ch_off[socket_id] : 0U;
+}
+
+/* Session load: every channel may be driven again. Drives no hardware. */
+void np_mod_pbm_socket_clear_channel_latches(void)
+{
+    memset(s_sock_ch_off, 0, sizeof s_sock_ch_off);
 }

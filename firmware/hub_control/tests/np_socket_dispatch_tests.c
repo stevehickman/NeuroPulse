@@ -163,6 +163,8 @@ np_hub_status_t np_mod_pbm_socket_stop(uint16_t socket_id)
     return ((int)socket_id == g_fail_stop_socket) ? NP_HUB_ERR_MOD_FAULT : NP_HUB_OK;
 }
 
+void np_mod_pbm_socket_clear_channel_latches(void) {}
+
 static int count_ops(char op)
 {
     int n = 0;

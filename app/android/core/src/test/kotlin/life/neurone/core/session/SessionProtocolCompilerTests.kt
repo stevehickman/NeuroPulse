@@ -56,6 +56,27 @@ class SessionProtocolCompilerTests {
         assertEquals(1200, pbm.durationSeconds)
     }
 
+    /** OI-PBMCH-04: the wavelength selection used to be dropped by fromDefinition. */
+    @Test
+    fun fromDefinitionCarriesTheWavelength() {
+        for (wavelength in NPPBMTranscranialParams.Wavelength.entries) {
+            val def = NPProtocolDefinition(
+                name = "Wavelength",
+                modalities = listOf(
+                    NPProtocolModality(
+                        params = NPModalityParams.PbmTranscranial(
+                            NPPBMTranscranialParams(wavelength = wavelength),
+                        ),
+                    ),
+                ),
+            )
+            val pbm = NPSessionProtocol.fromDefinition(def).modalities.first() as ModalityConfig.PbmTranscranial
+            assertEquals(wavelength.rawValue, pbm.wavelength)
+        }
+        val jsonText = String(SessionProtocolCompiler(fakeSigner).compile(pbmDefinition()).payload, Charsets.UTF_8)
+        assertTrue(jsonText.contains("\"wavelength\":\"660_808nm\""))
+    }
+
     @Test
     fun disabledModalitiesAreDropped() {
         val def = NPProtocolDefinition(

@@ -121,6 +121,21 @@ if(NP_BUILD_TESTS)
     target_compile_options(np_socket_dispatch_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
 
+    # OI-PBMCH-03 / NP-FW-PBM1064-001 §6.5: the per-channel disable latch on
+    # the socket path. np_mod_pbm.c is linked real; its driver, HAL, logging
+    # and dose seams are doubles in the test.
+    add_executable(np_mod_pbm_chlatch_tests
+        tests/np_mod_pbm_chlatch_tests.c
+        modules/np_mod_pbm.c
+    )
+    target_include_directories(np_mod_pbm_chlatch_tests PRIVATE
+        include
+        ../pbm/include
+        ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}
+    )
+    target_compile_options(np_mod_pbm_chlatch_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+
     # OI-MMSOCK-02 / NP-FW-HUB-001 §5.4: which electrode areas, waveform
     # classes and geometry gates the runner declares to the safety MCU.
     # Extracted from np_runner_run(), which no host test can reach.

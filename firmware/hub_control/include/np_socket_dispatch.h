@@ -99,6 +99,12 @@ np_hub_status_t np_mod_pbm_socket_drive(uint16_t          socket_id,
                                         const void       *params,
                                         uint16_t          len);
 np_hub_status_t np_mod_pbm_socket_stop(uint16_t socket_id);
+/* Per-channel disable latch (NP-FW-PBM1064-001 §6.5, OI-PBMCH-03). ch_bit is
+ * one of NP_PBM_CH_{A,B,C}_EN. Session-scoped: survives stop and re-drive,
+ * cleared at session load by np_sock_disp_reset(). */
+np_hub_status_t np_mod_pbm_socket_disable_channel(uint16_t socket_id, uint8_t ch_bit);
+uint8_t         np_mod_pbm_socket_disabled_channels(uint16_t socket_id);
+void            np_mod_pbm_socket_clear_channel_latches(void);
 
 /* ── API ──────────────────────────────────────────────────────────────────── */
 

@@ -47,6 +47,10 @@ struct PBMTranscranialConfig: Codable {
     /// Replaces the five zone-slot indices, which named hardware that no longer
     /// exists.
     var socketMask: NPSocketMask
+    /// The NPPS `wavelength` token ("660_808nm", "1064nm", "660_808_1064nm"),
+    /// carried verbatim. Without it a "1064nm" protocol compiled to the same
+    /// config as a "660_808nm" one (OI-PBMCH-04, NP-FEAS-PBMCH-001 §7.3).
+    var wavelength: String
     var frequencyHz: Double     // 0 = CW, >0 = pulsed
     var dutyCyclePercent: Int   // ≤25 (firmware-enforced for pulsed)
     var durationSeconds: Int

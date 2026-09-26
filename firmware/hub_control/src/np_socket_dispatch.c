@@ -119,6 +119,8 @@ void np_sock_disp_reset(void)
 {
     memset(s_sock, 0, sizeof s_sock);
     s_active_count = 0U;
+    /* A new session may drive every channel again (OI-PBMCH-03). */
+    np_mod_pbm_socket_clear_channel_latches();
 }
 
 np_hub_status_t np_sock_disp_command(const np_session_cmd_t *cmd)
