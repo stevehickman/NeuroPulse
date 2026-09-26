@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HEXTILE-001
-**Revision:** 15
-**Date:** 2026-09-25
+**Revision:** 16
+**Date:** 2026-09-26
 **Status:** DESIGN STUDY — not a tooling baseline. Every numeric value below is a proposed engineering commitment, not a measured or locked figure. See §10 (Decisions) and §11 (Open Items).
 **Effective Date:** —
 **Author:** NeurOne Hardware Engineering
@@ -16,6 +16,34 @@
 **Parent Document:** NP-HEX-ZM-001
 
 ---
+
+> **Rev 16 (2026-09-26): `OI-HEXTILE-01` was two dimensions read as one. The directed 1.0 mm is the bezel's *height*, and §3 needs its *width*. No figure in §3 or §4 changes. The item is re-scoped, not closed.**
+>
+> **What it was.** §3 and §11 recorded a *"bezel width conflict"*: 2.5 mm here, 1.0 mm in
+> `NP-THERM-BEZEL-001`. `NP-RISK-003` `OI-RISK3-01` and `NP-TOOL-HEXTILE-001` `OI-THEX-02` then asked
+> for the directed 1.0 mm (principal direction, 2026-08-11) to be *propagated into §3*. GitHub #330
+> carried that request.
+>
+> **Why it is not a conflict.** `NP-THERM-BEZEL-001` §1 defines its quantity as the bezel **height**
+> `h_b`, which *"sets the module-face-to-scalp air gap `s`"*. §4.2 uses it only as `R_gap = s/k_air`, a
+> thickness normal to the scalp. `NP-HELMET-GEOM-001` §2 stacks it radially, as a land **+1.0 mm proud
+> of the face**, and `NP-THERM-CFD-001` sweeps it as the air-gap thickness. §3 uses its figure as a
+> **lateral width** in the plane of the tile (`W_a = W − 2·bezel`), and so does its source, the
+> `NP-HEX-ZM-001` §3.1 column *"Active coverage (2.5 mm bezel)"*. A height does not set an active-field
+> area. Writing 1.0 mm into §3 would have moved A_a, every §4.3 irradiance figure and the §4.1 pitch
+> ceiling on a quantity that governs none of them.
+>
+> **What replaced it.** **Height `h_b` = 1.0 mm is settled** by the direction, and it binds the tile
+> (`NP-TOOL-HEXTILE-001` F-TH-09a). **Lateral width is open.** It has no derivation anywhere in the set:
+> 2.5 mm is a column-header input. §3 keeps it as the working assumption, because it is the figure
+> §4's numbers were computed against, and changing it is a design decision that nothing here makes.
+> Under `CLAUDE.md` §18, an unsupported figure found in a derivation chain is raised as an open item,
+> not retired, so `OI-HEXTILE-01` is re-scoped to the width.
+>
+> **One arithmetic slip is corrected on the way** (flagged in `cad/CAD_PARTS_LIST.md` L-2(b)). §3
+> said a 1.0 mm band would give *"12.15 cm² (+14.5 %)"*. The correct figure is **12.51 cm²
+> (+17.9 %)** (W_a = 38.0 mm); 12.15 cm² back-solves to a 1.27 mm band. It is a what-if and moves
+> nothing.
 
 > **Rev 15 (2026-09-25): bookkeeping only. `OI-HEXTILE-13` is marked closed in §11, where it had stayed open after 2026-08-16.** `NP-HW-HUB-001` OI-HUB-C07 closed it on that date. This document's §8.4.1 status line, finding 3, `NP-RISK-004` §2.1 and `NP-DRV-SHELL-002` §6 all record the closure, and the §11 row was the one place that did not. Found during the GitHub #437 triage. No decision, figure or requirement changes.
 
@@ -304,13 +332,15 @@ Specifies the electrical design of the universal 40 mm hex tile as populated for
 | Tile flat-to-flat, W | 40.00 mm | R-1 |
 | Tile circumradius, a = W/√3 | 23.09 mm | |
 | Tile area, (√3/2)·W² | 13.86 cm² | NP-HEX-ZM-001 §3.1 |
-| Perimeter bezel (assumed) | 2.50 mm | NP-HEX-ZM-001 §3.1 coverage column — **conflicts with NP-THERM-BEZEL-001's 1.0 mm; see OI-HEXTILE-01** |
+| Perimeter bezel **lateral width** (assumed) | 2.50 mm | NP-HEX-ZM-001 §3.1 coverage column, an assumed input with no derivation — **OI-HEXTILE-01**. *Not* the 1.0 mm of NP-THERM-BEZEL-001, which is the bezel **height** (face-to-scalp standoff) and does not enter this table (Rev 16) |
 | **Active field** flat-to-flat, W_a = W − 2·bezel | **35.00 mm** | |
 | Active field circumradius, a_a | 20.21 mm | |
 | **Active field area, A_a** | **10.61 cm²** | (√3/2)·35² = 1061 mm² |
 | Active fraction | 76.6 % | matches the 77 % in NP-HEX-ZM-001 §3.1 ✓ |
 
-The 2.5 mm bezel is the **conservative** choice of the two conflicting figures in the existing document set: it yields the smaller active field and therefore the tighter irradiance and thermal budgets. If OI-HEXTILE-01 resolves to 1.0 mm, A_a rises to 12.15 cm² (+14.5 %) and every irradiance figure below improves; no conclusion in this document is invalidated by that direction of change.
+The bezel has two dimensions, and only one of them is set. Its **height** `h_b` = **1.0 mm** (principal direction 2026-08-11; `NP-THERM-BEZEL-001` §4.5) is the face-to-scalp standoff. It governs the thermal decoupling and pod travel, and it does not appear in this table. Its **lateral width**, the band this table subtracts, has no derived value in the document set. The 2.5 mm used here is the `NP-HEX-ZM-001` §3.1 column input, carried as the working assumption (**OI-HEXTILE-01**).
+
+The width's direction of change is not free. A narrower band enlarges A_a: at 1.0 mm, W_a = 38.0 mm and A_a = **12.51 cm² (+17.9 %)**. That lowers every §4.3 irradiance figure at a given drive current, which **loosens the thermal and aggregate-ceiling budgets but moves §4.3.1's design point away from the 400 mW/cm² ceiling**. It also raises the §4.1 pitch ceiling. The band cannot be narrowed freely either, because the perimeter band also has to hold the co-moulded gasket and its retention groove (`NP-TOOL-HEXTILE-001` F-TH-06/F-TH-07, THEX-MDR-08; the retired F-05 gasket alone was 2.5 mm wide). *(Rev 16: this paragraph previously treated the 1.0 mm height as a competing width and gave its A_a as 12.15 cm² (+14.5 %), which was also an arithmetic slip.)*
 
 ---
 
@@ -410,7 +440,7 @@ Two results worth stating plainly:
 
 The retired 6 mm-pitch design claimed ±15–25 % irradiance variation. At 3.80 mm pitch the source spacing is 37 % smaller and the emitter count per unit area is 2.7× higher, so variation should improve materially — but **this document does not assert a number.** Uniformity depends on emitter beam angle, PDMS diffuser scattering coefficient, and window standoff, none of which is fixed yet. The claim is deferred to the illumination model (**OI-HEXTILE-04**); the GATE-2 coupling bench in NP-HEX-ZM-001 §7 is the measurement that settles it.
 
-What can be said without a model: the **inter-tile** seam, not the intra-tile pitch, is now the dominant uniformity term. A 2.5 mm bezel on each of two adjacent tiles puts 5 mm of unpopulated width between the outermost emitters of neighbouring tiles — larger than the 3.8 mm intra-tile pitch. Whole-vault uniformity is therefore a bezel problem, which is a second and stronger reason to resolve OI-HEXTILE-01 toward the 1.0 mm figure if thermal analysis permits.
+What can be said without a model: the **inter-tile** seam, not the intra-tile pitch, is now the dominant uniformity term. A 2.5 mm bezel band on each of two adjacent tiles puts 5 mm of unpopulated width between the outermost emitters of neighbouring tiles — larger than the 3.8 mm intra-tile pitch. Whole-vault uniformity is therefore a bezel-**width** problem, which is a reason for OI-HEXTILE-01 to derive the narrowest band that still holds the gasket and groove. *(Rev 16: this sentence previously pointed at "the 1.0 mm figure". That figure is the bezel height, which does not change the seam.)*
 
 ### 4.5 T1-B — why it is a masking derivation, not a separate layout
 
@@ -1168,7 +1198,7 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 
 | ID | Description | Blocking |
 |---|---|---|
-| **OI-HEXTILE-01** | **Bezel width conflict:** NP-HEX-ZM-001 §3.1 assumes 2.5 mm; NP-THERM-BEZEL-001 Rev 1 sets 1.0 mm. This document uses the conservative 2.5 mm. Resolution changes A_a by ±14.5 % and every irradiance figure with it, and governs inter-tile uniformity (§4.4) | FPC artwork; **all §4 irradiance figures** |
+| **OI-HEXTILE-01** | **Derive the bezel lateral width.** *Re-scoped Rev 16: this row was a "bezel width conflict" between the 2.5 mm here and NP-THERM-BEZEL-001's 1.0 mm. That 1.0 mm is the bezel **height** (face-to-scalp standoff), is directed (2026-08-11), and is not a width, so there was no conflict to propagate.* The width is the band `W_a = W − 2·bezel` subtracts in §3. The only figure in the set is the 2.5 mm column input of NP-HEX-ZM-001 §3.1, which has no derivation, and this document uses it as the working assumption. A derivation must fit the co-moulded gasket and retention groove (`NP-TOOL-HEXTILE-001` F-TH-06/-07, THEX-MDR-08) and the PDMS window edge bead inside the band. It must also say what the result does to A_a and to every §4.3 irradiance figure (1.0 mm would give 12.51 cm², +17.9 %), to §4.1's pitch ceiling and `OI-HEXTILE-22`, and to the §4.4 inter-tile seam | FPC artwork; **all §4 irradiance figures**; `NP-TOOL-HEXTILE-001` F-TH-09b, F-TH-06 |
 | **OI-HEXTILE-02** | Select 660–670 nm and 808–830 nm emitters for the base tile. §4.3's V_f and radiant-flux figures are design targets, not datasheet values. V_f binning ≤±0.1 V per `NP-PROC-FPC-001` **§2.1** (*corrected Rev 9 — this row cited §4.2, which is the Hirose connector; §2.1 is the binning specification, and as of that document's Rev 4 it states the string-construction dependency in §8.1.1 caveat 1 rather than leaving it implied*). Selection closes the string-length divisibility slack in §8.1. **Status at Rev 9: still open, and the blocker is upstream of this document.** Part selection cannot precede `OI-LED-W1`, the NIR wavelength decision, whose owners are **SAB** (science), **Regulatory Counsel** (RISK-03 scope and the published *"810nm"* claim) and **EE Lead** (cost) — open since 2026-07-28 with a decision brief written (`docs/status/pending-decisions.md` §13.2d). Two corrected inputs the owners now have that they did not: elevated V_f is **not** disqualifying on the 24 V rail (§8.1.1, §13.2e(b)), and the only shortlisted in-window part, SFH 4703AS, is **discontinued** while matching the published 810 nm claim on its own centroid specification. One input that is now **verified** (Rev 10): the **Luminus SST-06-IRD-810 / SST-10-IRD-810** dual-junction family, found by re-running the Option C search without the V_f filter and assessed in `NP-PROC-FPC-001` Rev 5 §2.6.3 against the manufacturer's datasheets. **In-window on centroid (λ_c 810 nm typ) on an ACTIVE part**, clearing §2.3 on package, θ_jc, DC current and pulse handling, meeting §2.1's ±0.10 V bin as a standard shipping condition, and giving `V_f` = **2.82 V at 150 mA** — below §8.1.1's dead band, N = 8 at 5.9 % overhead. **It does not clear everything, and this item must not be closed as though it did:** **neither datasheet publishes an L70 figure at all** against §2.3's ≥ 80,000 h, and the shipped wavelength bin spans λ_p 800–830 nm whose lower 8 nm is **below** the 808 nm window. *(Rev 11: a third failure was recorded here — `T_j` max 115 °C against §2.3's ≥ 125 °C. That requirement was never derived and is **RETIRED** at `NP-PROC-FPC-001` Rev 7, so it is not a failure and needs no waiver.)* **Its radiant flux at 150 mA is ~220 mW against §4.3's 95 mW design target**, which moves §4.3.1's operating point rather than validating it — 45 emitters × 220 mW is ~2.3× R-4's ceiling, so the same irradiance arrives at ~65 mA or at fewer sites (interacts with `OI-HEXTILE-20`). **And it does not fit §4.1's lattice** — `OI-HEXTILE-22`. GitHub #333 | FPC artwork; emitter procurement; §4.3 validity; `NP-FAI-HEXFPC-001`; `OI-HUB-C08` term **U** |
 | **OI-HEXTILE-03** | Verify the 21-minute 1064 nm minimum session (§4.3.2) against `protocols/predefined/clinical-03-pbm-cognitive-1064.npps` and the NP-BIB-1064-001 evidence base. A 40 mm tile cannot deliver 36 J/cm² faster. **⚠ Reframed at Rev 7 — this item is stated as a session-length check, and session length is the symptom.** The 21 minutes is a consequence of CH_C's 28 mW/cm², and no protocol re-timing fixes an irradiance that is 9× below what the protocol specifies. **The irradiance-reachability half is split out as `OI-HEXTILE-21`; this item retains only the protocol-authoring verification**, which is still worth doing and is now downstream of OI-HEXTILE-21's answer | 1064 nm protocol authoring; interacts with REG-1. **Sequence after `OI-HEXTILE-21`** |
 | **OI-HEXTILE-04** | Illumination model for intra-tile uniformity at 3.80 mm pitch — needs emitter beam angle (OI-HEXTILE-02), PDMS diffuser scattering, and window standoff (SCAN-1) | Uniformity claim; GATE-2 bench design |
@@ -1239,5 +1269,5 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 - **Evidence:** `docs/pbm_neuro_protocols.md` — MASTER SUMMARY (0.02–0.3 W/cm², 10–120 J/cm², 6–30 min) and dosimetry lesson 1; the basis for OI-HEXTILE-21
 - **Protocol library audit:** NP-SES-PWR-001 (`docs/np_ses_pwr_001.md`) — §9's ceiling measured against every authored protocol; §2.1 corrects the "~6 tiles" figure to a 2–32 range, §3 the zone-granularity defect, §4 what cascading can and cannot rescue. Script: `scripts/check-pbm-power.ts`
 - **Competitive:** `docs/reference/competitive-position.md` — the comparative form of the irradiance and dose-metering arguments at §6.4 and §9.3
-- **Thermal:** NP-THERM-CFD-R1-001 (Path B1, scalp-facing NTC), NP-THERM-BEZEL-001 (bezel conflict, OI-HEXTILE-01)
+- **Thermal:** NP-THERM-CFD-R1-001 (Path B1, scalp-facing NTC), NP-THERM-BEZEL-001 (bezel **height** 1.0 mm; the lateral width is OI-HEXTILE-01)
 - **Tooling:** the universal hex-tile mould gains a standard rigidizer cavity (§6.3); NP-TOOL-ZM-SM-001 (SUPERSEDED) needs no successor

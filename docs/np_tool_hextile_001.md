@@ -2,14 +2,14 @@
 
 **Project:** NeurOne
 **Document:** NP-TOOL-HEXTILE-001
-**Revision:** 1
-**Date:** 2026-08-11
+**Revision:** 2
+**Date:** 2026-09-26
 **Status:** DRAFT — Pre-Tooling. **Must be signed off before mould design commences.**
 **Effective Date:** —
 **Author:** NeurOne Mechanical Engineering
 **Approved By:** —
-**References:** NP-HEX-ZM-001 Rev 2 §3 (geometry), §4a (type taxonomy, SMART-1), §5.4a (cluster clamps), §6 (one universal mould), §7 (GATE-1, GATE-2, MECH-2); NP-HW-HEXTILE-001 Rev 3 §3–§7 (bezel, emitter layout, socket interface), D-3, D-5, OI-HEXTILE-01…17; NP-DRV-SHELL-002 Rev 2 §5.1 (19-contact array, REQ-SKT-01), §8.1–8.2 (clamp decoupling, zero dynamic flex); NP-THERM-BEZEL-001 Rev 1 §4.5 (bezel 1.0 mm — the only calculated figure); NP-TOOL-ZM-001 Rev 1 (superseded — feature-checklist pattern and the four features that carry forward); NP-TOOL-ZM-SM-001 Rev 1 (superseded — F-SM-03 confirmed unnecessary); NP-RISK-003 Rev 1; NP-FAI-001 Rev 1 §4–§5; NP-ART-001 Rev 1 §2.1; NP-PROC-SUP-001 Rev 1; ISO 10993-5; ISO 17049:2013
-**Related Issues:** —
+**References:** NP-HEX-ZM-001 Rev 2 §3 (geometry), §4a (type taxonomy, SMART-1), §5.4a (cluster clamps), §6 (one universal mould), §7 (GATE-1, GATE-2, MECH-2); NP-HW-HEXTILE-001 Rev 16 §3–§7 (bezel width, emitter layout, socket interface), D-3, D-5, OI-HEXTILE-01…17; NP-DRV-SHELL-002 Rev 2 §5.1 (19-contact array, REQ-SKT-01), §8.1–8.2 (clamp decoupling, zero dynamic flex); NP-THERM-BEZEL-001 Rev 1 §1, §4.2, §4.5 (bezel **height** 1.0 mm, the only calculated bezel figure); NP-HELMET-GEOM-001 §2 (bezel land +1.0 mm radial); NP-TOOL-ZM-001 Rev 1 (superseded — feature-checklist pattern and the four features that carry forward); NP-TOOL-ZM-SM-001 Rev 1 (superseded — F-SM-03 confirmed unnecessary); NP-RISK-003 Rev 1; NP-FAI-001 Rev 1 §4–§5; NP-ART-001 Rev 1 §2.1; NP-PROC-SUP-001 Rev 1; ISO 10993-5; ISO 17049:2013
+**Related Issues:** GitHub #330
 **Gate:** NP-COORD-001 G2 (pre-tooling) — mould design review, §4
 **IEC 62304 Class:** N/A
 **Supersedes:** **NP-TOOL-ZM-001 Rev 1** and **NP-TOOL-ZM-SM-001 Rev 1** — the position-unique mould family and its smart-module variant. Feature disposition in §1.2.
@@ -68,7 +68,7 @@ to the socket.
 
 ## 2. Mandatory feature checklist
 
-Every feature below is **MANDATORY** and must appear in the mould design review (§4) before steel is
+Every feature below is **MANDATORY** (ten rows: F-TH-09 is split into a height and a width at Rev 2) and must appear in the mould design review (§4) before steel is
 cut. Omission after first cut costs $15–40 k and 6–8 weeks per feature — this consolidated list is
 the control for `RISK-23`.
 
@@ -82,7 +82,8 @@ the control for `RISK-23`.
 | **F-TH-06** | **Co-moulded perimeter gasket** — Shore 40–50 A UV-stable medical-grade silicone (ISO 10993-5), D-section, continuous around the full hex perimeter, compressed ~20 % when seated. No user re-sealing action. Must hold IPX4 after ≥ 10 swap cycles per tile. **Section dimensions TBD pending the bezel decision** — the gasket and the bezel compete for the same perimeter band. | RISK-16, RISK-19 | `NP-TOOL-ZM-001` F-05 (carried) | ☐ **BLOCKED** |
 | **F-TH-07** | **Gasket retention groove** — 0.5 mm undercut around the hex perimeter accepting the gasket D-section heel; silicone primer applied to the groove before co-moulding. Mechanical retention plus chemical bond against delamination over the swap cycle count. | RISK-19 | `NP-TOOL-ZM-001` F-06 (carried) | ☐ |
 | **F-TH-08** | **NTC pocket** — location for the per-tile thermistor that drives the 62 °C junction hardware throttle, plus the scalp-facing NTC co-located with PD2 required by `NP-REQ-FANHEALTH-001` Path B1. **Two thermal sensing locations, not one** — the retired module had only the junction-side sensor, and FMEA-G07-01 is the record of why that was insufficient. | RISK-26 | `NP-REQ-FANHEALTH-001` §4a | ☐ |
-| **F-TH-09** | **Bezel** — the non-emitting perimeter band between the active field and the tile edge. **1.0 mm** (principal direction 2026-08-11; `NP-THERM-BEZEL-001` §4.5 is the only calculated value — module-face ceiling ~45.5 °C). **`NP-HW-HEXTILE-001` §3 still carries 2.5 mm as `OI-HEXTILE-01` and must be co-revised before this feature is dimensioned.** The difference is 14.5 % of active field area. | RISK-HEX-02 | `NP-THERM-BEZEL-001` §4.5 | ☐ **BLOCKED** |
+| **F-TH-09a** | **Bezel height** — the sacrificial land standing proud of the emitting face, which holds the face off the scalp. **`h_b` = 1.0 mm** (principal direction 2026-08-11; `NP-THERM-BEZEL-001` §4.5, the only calculated bezel figure, gives a module-face ceiling of ~45.5 °C; `NP-HELMET-GEOM-001` §2 carries it as +1.0 ± 0.2 mm). It is the air-gap decoupler between the 62 °C junction and the 42 °C scalp, and the impact land. **The same land on every tile type.** It does its thermal job only on optical tiles (T1-A/C, T2-D). On T1-B the spring electrode protrudes past the land plane through its own bezel-free aperture into skin contact (`NP-THERM-BEZEL-001` §1, §3), so the land never caps the electrode. BEZEL-1b is still open: it must confirm that the pod seats at 80–120 g with the offset. BEZEL-1a (comfort/fit, 0.6 mm fallback) is still open and can move the value. | RISK-HEX-02, RISK-26 | `NP-THERM-BEZEL-001` §4.5 | ☐ |
+| **F-TH-09b** | **Bezel lateral width** — the non-emitting perimeter band between the active field and the tile edge, which `NP-HW-HEXTILE-001` §3 subtracts to get the active field. **No derived value exists.** `NP-HW-HEXTILE-001` §3 assumes 2.5 mm from an `NP-HEX-ZM-001` §3.1 column header, and every §4.3 irradiance figure rests on it. The band must hold F-TH-06 and F-TH-07 (THEX-MDR-08). **`OI-HEXTILE-01` owns the derivation.** *(Rev 2: split from a single F-TH-09 that set "1.0 mm" against a 2.5 mm "conflict". The 1.0 mm is the height above, so the width was never decided.)* | RISK-HEX-02 | `NP-HW-HEXTILE-001` §3, OI-HEXTILE-01 | ☐ **BLOCKED** |
 
 ---
 
@@ -113,7 +114,7 @@ All twelve items must be closed before steel is cut. Pattern retained from `NP-T
 | THEX-MDR-05 | F-TH-04 baffle height ≥ LED stack + 0.3 mm **and** the baffle footprint does not push emitter count below the dose requirement at the final bezel | Open — depends on OI-HEXTILE-01, OI-HEXTILE-04 |
 | THEX-MDR-06 | F-TH-04/F-TH-05 optical isolation: first-article opaque-tape test reads < 1 % of the normal LED-on signal at PD1 | Open |
 | THEX-MDR-07 | F-TH-05 PD2 aperture position derived for the 40 mm face and co-located in XY with PD1 | Open — **BLOCKED, `OI-RISK3-02`** |
-| THEX-MDR-08 | F-TH-06 gasket section and F-TH-09 bezel jointly fit the available perimeter band | Open — **BLOCKED, `OI-HEXTILE-01`** |
+| THEX-MDR-08 | F-TH-06 gasket section, F-TH-07 groove and the PDMS window edge bead jointly fit the F-TH-09b perimeter band, **and** the F-TH-06 compressed gasket height is consistent with the F-TH-09a 1.0 mm land | Open — **BLOCKED, `OI-HEXTILE-01`** (width) |
 | THEX-MDR-09 | F-TH-06 perimeter length against the per-tile seam-length budget | Open — **BLOCKED, `OI-THEX-03`** |
 | THEX-MDR-10 | F-TH-08 both NTC locations present — junction-side and scalp-facing co-located with PD2 | Open |
 | THEX-MDR-11 | Draft, gate and ejector positions do not intersect the F-TH-04 baffle, F-TH-05 aperture or F-TH-07 groove | Open |
@@ -139,7 +140,7 @@ defined and that apply to this part regardless:
 | | Retired family | Hex tile |
 |---|---|---|
 | Moulds | 5 position-unique + 1 smart variant | **1** |
-| Features that could be omitted before first cut | 8 × 6 tools | 9 × 1 tool |
+| Features that could be omitted before first cut | 8 × 6 tools | 10 × 1 tool (Rev 2: F-TH-09 split) |
 | Colour SKUs in moulded stock | 5 | **1** |
 | Service inventory | 6 part numbers | 1 body, N element populations |
 
@@ -152,7 +153,7 @@ This is the return `NP-HEX-ZM-001` §6 claimed, and §1's prohibition on variant
 | ID | Description | Owner | Blocking |
 |---|---|---|---|
 | **OI-THEX-01** | **GATE-1 and GATE-2 must pass before this mould is cut.** GATE-1: curvature-scan bench validates Δκ ≈ 0.0039 across the 5th–95th percentile head map — until it does, a rigid 40 mm tile's seating against a real skull is unmeasured. GATE-2: PBM coupling at the temporal worst case, which is also the Option-A-vs-B go/no-go — a NO-GO changes the part, not the tooling. | ME + Optical | **Steel cut** |
-| **OI-THEX-02** | Dimension F-TH-09 once `OI-HEXTILE-01` propagates the 1.0 mm bezel into `NP-HW-HEXTILE-001` §3. The value is directed; only the propagation is outstanding. Blocks F-TH-06 as well, since gasket and bezel share the perimeter band. | HW EE + ME | F-TH-06, F-TH-09 |
+| **OI-THEX-02** | **Re-scoped Rev 2.** *Was: "dimension F-TH-09 once `OI-HEXTILE-01` propagates the 1.0 mm bezel into `NP-HW-HEXTILE-001` §3 — the value is directed; only the propagation is outstanding."* That premise did not hold. The directed 1.0 mm is the bezel **height** (F-TH-09a, now dimensioned), and `NP-HW-HEXTILE-001` §3 needs the **width**, which nothing has decided (`NP-HW-HEXTILE-001` Rev 16). **Now:** dimension F-TH-09b once `OI-HEXTILE-01` derives the bezel lateral width, jointly with the F-TH-06 section and F-TH-07 groove that share the band. This is engineering work, not a propagation. | HW EE + ME | F-TH-06, F-TH-09b |
 | **OI-THEX-03** | **Set the per-tile seam-length budget** (`NP-HEX-ZM-001` §6, `RISK-HEX-01`). ~30 seals in series carry one IPX4 claim and no budget exists. Feeds FAI-IPX-05. | ME + Quality | IPX4 claim; F-TH-06 |
 | **OI-THEX-04** | Re-derive the F-TH-05 PD2 aperture position and diameter for the 40 mm face (`OI-RISK3-02`). | Optical + ME | F-TH-05; THEX-MDR-07 |
 | **OI-THEX-05** | Confirm the F-TH-01 orientation key is tactilely discriminable **in situ** — on the head, by touch, by a user with tremor. `NP-TOOL-ZM-001` F-02/F-03 solved a version of this with a raised numeral and braille and were validated by an eyes-closed test; the requirement survived their retirement and currently has no HFE evidence behind it. | HFE + ME | Accessibility claim |
@@ -165,3 +166,4 @@ This is the return `NP-HEX-ZM-001` §6 claimed, and §1's prohibition on variant
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 1 | 2026-08-11 | NeurOne Mechanical Engineering | Initial release. Replaces `NP-TOOL-ZM-001` Rev 1 and `NP-TOOL-ZM-SM-001` Rev 1 — six position-unique tools become **one universal mould**, which `NP-HEX-ZM-001` §6 names as the tooling win the hex-tile decision was taken for. §1.2 dispositions all eight retired features individually: **F-01 key, F-02 numeral and F-03 braille all retire for one reason** — identity moved from the module to the socket, so a module can no longer name its own position; **F-08's eject lever moves to a different part** (cluster clamp) and its ≤1 N accessibility figure has **no equivalent in the replacement**, which is carried as RISK-22; four features carry forward as F-TH-04…07. Records that **`NP-TOOL-ZM-001` F-04's *POSITION LOCKED* PD2 coordinates are void** — they were the centre of a 66 × 78 mm array and are the clearest instance of a locked number surviving an architecture change unnoticed (`OI-RISK3-02`). Adds four features the hex architecture requires: F-TH-01 orientation-only key, F-TH-02 19-contact staggered pad pocket, F-TH-03 spring-plunger landing, F-TH-08 **two** NTC locations. §1 and §3 prohibit any type-specific mould variant or per-type colour, which is what protects the one-mould return. Three features (F-TH-05, -06, -09) and four review items open BLOCKED with their blockers named. Raises OI-THEX-01…06. |
+| 2 | 2026-09-26 | NeurOne Mechanical Engineering | **F-TH-09 split into F-TH-09a height and F-TH-09b lateral width. `OI-THEX-02` re-scoped (GitHub #330).** Rev 1 set F-TH-09 to *"1.0 mm"* and blocked it on propagating that value into `NP-HW-HEXTILE-001` §3, whose 2.5 mm was called a conflict. **The two figures are different dimensions.** `NP-THERM-BEZEL-001` §1 defines `h_b` as the face-to-scalp air gap, and `NP-HELMET-GEOM-001` §2 stacks it radially. §3's 2.5 mm is the in-plane band subtracted from the active field. **F-TH-09a (height, 1.0 mm) is dimensioned and no longer blocked.** **F-TH-09b (width) stays BLOCKED**, because no document derives it, and `OI-HEXTILE-01` is re-scoped to own that derivation. THEX-MDR-08 now names the groove and window bead as occupants of the band, and ties the gasket height to the 1.0 mm land. §1.2 does not change. No other figure changes, no feature is added to or removed from the mould, and the one-tool rule is untouched: the land is the same on every type, and the T1-B electrode protrudes past it (`NP-THERM-BEZEL-001` §3). |
