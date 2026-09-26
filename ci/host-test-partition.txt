@@ -65,6 +65,7 @@ B np_lfs_config_tests
 B np_lfs_log_instance_tests
 B np_lfs_powerloss_tests
 B np_log_backend_tests
+B np_map3_record_tests
 B np_mod_cvns_tests
 B np_mod_stim_tests
 B np_module_map_tests

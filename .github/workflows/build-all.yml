@@ -101,9 +101,10 @@ env:
   # instead of this job a week later.  Adding a target is: the add_test(), one
   # line in the manifest, and the count(s) the gate names.
   # GitHub #447 (OI-HRV-05) then added np_hrv_session_tests: 11 + 39 = 50.
-  NP_TOTAL_TEST_COUNT: '50'
+  # GitHub #444 (OI-NVRAM-08) then added np_map3_record_tests: 11 + 40 = 51.
+  NP_TOTAL_TEST_COUNT: '51'
   NP_SAFETY_TEST_COUNT: '11'
-  NP_CLASS_B_TEST_COUNT: '39'
+  NP_CLASS_B_TEST_COUNT: '40'
 
 jobs:
   host-tests-all:
