@@ -243,7 +243,7 @@ remaining gap stays with MECH-2 and the HFE formative.** It also decides the pad
 the tile's back face and the socket's spring-array tooling. **Blocked behind OI-HUB-C17c**, which is
 itself blocked behind the module heat-sink design.
 
-### L-2. Bezel height — **RESOLVED 2026-08-11 (principal direction): `h_b` = 1.0 mm** (closes OI-HEXTILE-01 on the value)
+### L-2. Bezel height — **RESOLVED 2026-08-11 (principal direction): `h_b` = 1.0 mm** (closes the bezel **height**; `OI-HEXTILE-01`, the lateral width, stays open. See the correction below)
 
 **Why 2.5 mm was never a real competitor.** It is not a calculation. It appears in NP-HEX-ZM-001 §3.1
 only as a **table column header** — *"Active coverage (2.5 mm bezel)"* — i.e. an assumed input to the
@@ -282,6 +282,15 @@ patient-protective direction, and it is the direction that lets the fan do its j
 | d | T1-C three-channel aggregate falls **566 → ~480 mW/cm²** against the 600 mW/cm² ceiling — margin **5.7% → 20%** | better |
 | e | Inter-tile seam falls from 5.0 mm to **2.0 mm** of unpopulated width between neighbouring tiles — now **below** the 3.80 mm intra-tile pitch instead of above it. HEXTILE §4.4's *"whole-vault uniformity is a bezel problem"* resolves in the good direction | better |
 | f | Electrode-pod travel consumed rises 5% → **8%** of one-sided travel | accepted |
+
+> **Correction (2026-09-26, GitHub #330; `NP-HW-HEXTILE-001` Rev 16).** Consequences **a, c, d and e**
+> read `h_b` as the bezel's **lateral width**. `h_b` is its **height**, the face-to-scalp standoff
+> (`NP-THERM-BEZEL-001` §1, §4.2; `NP-HELMET-GEOM-001` §2, +1.0 mm radial), and it does not set the
+> active field. They are what-ifs for a **1.0 mm band width**, which nothing has decided. The width
+> is still the 2.5 mm assumption, now owned as `OI-HEXTILE-01` re-scoped. None of them is to be
+> propagated on the strength of this decision. **(b)** is correct arithmetic and is fixed in
+> `NP-HW-HEXTILE-001` §3. **(f)** is a height consequence and stands. This decision closes the bezel
+> **height**, not `OI-HEXTILE-01`.
 
 **Still open, and not closed by this decision:** BEZEL-1a (comfort/fit test 0.6 vs 1.0 mm across
 52–62 cm heads — it can still reject 1.0 mm on point-load or fit-gap grounds, with 0.6 mm as the

@@ -2,14 +2,14 @@
 
 **Project:** NeurOne
 **Document:** NP-RISK-003
-**Revision:** 1
-**Date:** 2026-08-11
+**Revision:** 2
+**Date:** 2026-09-26
 **Status:** ACTIVE
 **Effective Date:** 2026-08-11
 **Author:** NeurOne Quality (interim: Steve Hickman, CEO)
 **Approved By:** Steve Hickman, CEO
-**References:** NP-RISK-002 Rev 1 §3 (disposition source); NP-RM-001 Rev 1 §4 (scales); NP-HEX-ZM-001 Rev 2 §3, §4a, §6, §7; NP-HW-HEXTILE-001 Rev 3 §3–§7, D-3, OI-HEXTILE-01…17; NP-TOOL-HEXTILE-001 Rev 1; NP-FAI-001 Rev 1 §4–§5; NP-ART-001 Rev 1 §2.1; NP-OPT-PSF-001 Rev 1; NP-THERM-BEZEL-001 Rev 1 §4.5; ISO 14971:2019
-**Related Issues:** —
+**References:** NP-RISK-002 Rev 1 §3 (disposition source); NP-RM-001 Rev 1 §4 (scales); NP-HEX-ZM-001 Rev 2 §3, §4a, §6, §7; NP-HW-HEXTILE-001 Rev 16 §3–§7, D-3, OI-HEXTILE-01…17; NP-TOOL-HEXTILE-001 Rev 2; NP-FAI-001 Rev 1 §4–§5; NP-ART-001 Rev 1 §2.1; NP-OPT-PSF-001 Rev 1; NP-THERM-BEZEL-001 Rev 1 §4.5; ISO 14971:2019
+**Related Issues:** GitHub #330
 **Gate:** NP-COORD-001 G2 (pre-tooling)
 **IEC 62304 Class:** N/A
 **Supersedes:** Partially supersedes `NP-RISK-001` Rev 3 — the tile-facing subset, per `NP-RISK-002` §3
@@ -53,13 +53,20 @@ still fit on it.
 The retired module's optical furniture — a baffled PD1 with a 1.0 mm aperture and 2.0–3.0 mm height,
 a PD2 aperture at the array centre, an NTC, and a continuous 2.5 mm gasket bead — was sized against
 a 5,148 mm² face. A 40 mm hex has an area of ~1,039 mm² before the bezel takes its share, and the
-bezel decision itself is unsettled (**OI-HEXTILE-01**: 2.5 mm in `NP-HW-HEXTILE-001` §3, 1.0 mm in
-`NP-THERM-BEZEL-001` §4.5, with 1.0 mm directed on 2026-08-11 and not yet propagated).
+bezel's **lateral width**, the share it takes, is undecided (**OI-HEXTILE-01**). The only figure is
+2.5 mm, an assumed column input in `NP-HEX-ZM-001` §3.1 that `NP-HW-HEXTILE-001` §3 carries.
 
-At 2.5 mm bezel the active field is **14.5 % smaller** than at 1.0 mm. That single unpropagated
-decision moves every irradiance figure, the emitter count, the baffle's share of the face, and
-therefore the accept criteria of an FAI checklist that cannot yet be written. It is the highest-
-leverage open item on this artifact and it is not a hard question — it is an unpropagated answer.
+The bezel's **height** is decided: 1.0 mm, directed on 2026-08-11 on the strength of
+`NP-THERM-BEZEL-001` §4.5. It is the face-to-scalp standoff and does not change the active field.
+*(Rev 2: Rev 1 read that 1.0 mm as a competing width, "not yet propagated", and called this "an
+unpropagated answer" rather than a hard question. It is the reverse. The height was answered, and
+the width was never asked. See `NP-HW-HEXTILE-001` Rev 16.)*
+
+Between a 2.5 mm and a 1.0 mm band the active field differs by **17.9 %** (10.61 vs 12.51 cm²).
+The width therefore moves every irradiance figure, the emitter count, the baffle's share of the face,
+and so the accept criteria of an FAI checklist that cannot yet be written. It is the highest-leverage
+open item on this artifact, and it now needs a derivation: the band has to hold the gasket, the
+retention groove and the window edge bead (`NP-TOOL-HEXTILE-001` F-TH-09b, THEX-MDR-08).
 
 ### 1.3 Why the seal-count increase is not a linear scaling
 
@@ -101,7 +108,7 @@ Scales per `NP-RM-001` §4. Status: **MITIGATED** (controls in place, residual a
 | **RISK-19** | HIGH | Gasket delaminates from the tile body | Adhesion failure under repeated insertion | Loss of seal → RISK-16 | 0.5 mm undercut retention groove + silicone primer; 50-cycle extraction test | ME | **MITIGATED** |
 | **RISK-23** | HIGH | A mandatory moulded feature is omitted before first cut | Cumulative feature complexity on one small part | Tooling modification: $15–40 k and 6–8 weeks per feature | Consolidated mandatory-feature checklist — `NP-TOOL-HEXTILE-001` §2 and its mould design review | ME | **MITIGATED** |
 | **RISK-HEX-01** | **HIGH** | No per-tile seam-length budget exists for the ~30-seal IPX4 claim | Requirement stated in `NP-HEX-ZM-001` §6, never set | The IPX4 claim rests on an unbudgeted series of seals | **None yet.** `NP-TOOL-HEXTILE-001` OI-THEX-03 owns it | ME + Quality | **OPEN — new** |
-| **RISK-HEX-02** | MEDIUM | Optical furniture does not fit the 40 mm face at the final bezel | Baffle, PD1, PD2 aperture, NTC and gasket groove sized against a 5,148 mm² face; the hex face is ~1,039 mm² before bezel | Either emitter count falls below dose requirement, or the baffle is shortened and RISK-06 returns | Blocked on **OI-HEXTILE-01** (bezel 1.0 vs 2.5 mm) and **OI-HEXTILE-04** (intra-tile uniformity model) | ME + Optical | **OPEN — new** |
+| **RISK-HEX-02** | MEDIUM | Optical furniture does not fit the 40 mm face at the final bezel | Baffle, PD1, PD2 aperture, NTC and gasket groove sized against a 5,148 mm² face; the hex face is ~1,039 mm² before bezel | Either emitter count falls below dose requirement, or the baffle is shortened and RISK-06 returns | Blocked on **OI-HEXTILE-01** (bezel lateral width, underived; 2.5 mm assumed) and **OI-HEXTILE-04** (intra-tile uniformity model) | ME + Optical | **OPEN — new** |
 | **RISK-HEX-03** | MEDIUM | T1-B has no emitter count | Electrode pod diameter, and hence depopulated ring count, deferred (`OI-HEXTILE-05`) | PBM coverage at electrode sites is unquantified — the stated reason T1-B keeps PBM at all | `OI-HEXTILE-05`; T1-B layout deferred to a later `NP-HW-HEXTILE-001` revision | HW EE | **OPEN — new** |
 
 ---
@@ -124,7 +131,7 @@ Scales per `NP-RM-001` §4. Status: **MITIGATED** (controls in place, residual a
 
 | ID | Description | Owner | Blocking |
 |---|---|---|---|
-| **OI-RISK3-01** | **Propagate the 1.0 mm bezel decision into `NP-HW-HEXTILE-001` §3 (OI-HEXTILE-01).** This is not an engineering question — the value was directed on 2026-08-11 on the strength of the only calculated figure in the set (`NP-THERM-BEZEL-001` §4.5). Until it lands, the active field area, every irradiance figure, the emitter count and RISK-HEX-02 all sit on a 14.5 % ambiguity. | HW EE | **RISK-HEX-02; every tile FAI criterion** |
+| **OI-RISK3-01** | **Derive the bezel lateral width (OI-HEXTILE-01).** *Re-scoped Rev 2. Was: "propagate the 1.0 mm bezel decision into `NP-HW-HEXTILE-001` §3 … this is not an engineering question".* The directed 1.0 mm is the bezel height (`NP-THERM-BEZEL-001` §1, §4.2), and §3 subtracts a width, so there was nothing to propagate. The width has no derivation in the set, which makes this an engineering question. Until it is answered, the active field area, every irradiance figure, the emitter count and RISK-HEX-02 all sit on a 17.9 % ambiguity (2.5 mm vs 1.0 mm band). | HW EE + ME | **RISK-HEX-02; every tile FAI criterion** |
 | **OI-RISK3-02** | Re-derive the PD2 aperture position for the 40 mm hex face. The retired coordinates are the geometric centre of a 66 × 78 mm array and are meaningless here; `NP-TOOL-ZM-001` F-04 marked them POSITION LOCKED, which is exactly the kind of inherited number that survives an architecture change unnoticed. | Optical + ME | RISK-14; mould geometry |
 | **OI-RISK3-03** | Set the per-tile seam-length budget (RISK-HEX-01). | ME + Quality | IPX4 claim |
 | **OI-RISK3-04** | Re-score RISK-16 formally against the `NP-RM-001` §4 scales. It is carried at HIGH here on the reasoning in §1.3; `NP-RISK-002` OI-RISK2-01 holds the systematic re-scoring, and this one should not wait for it. | Quality | ISO 14971 currency |
@@ -136,3 +143,4 @@ Scales per `NP-RM-001` §4. Status: **MITIGATED** (controls in place, residual a
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 1 | 2026-08-11 | NeurOne Quality | Initial release. Holds the tile-facing subset of the retired `NP-RISK-001` risk file per `NP-RISK-002` §3: RISK-02, -03, -04, -05, -06, -08, -14, -16, -19, -23 carried with their original IDs and meanings, plus three new hazards under prefixed IDs (RISK-HEX-01…03). **Problem analysis (§1) states the governing trade — one part repeated ~30 times instead of five unique parts — and identifies the two rows where it costs**: perimeter seals rise 5 → ~30 for a series IPX4 claim with no seam-length budget, and the emitting face shrinks ~3× while carrying the same optical furniture. **RISK-16 is carried at raised severity** (LOW → HIGH) on that basis. Records that the unpropagated bezel decision (OI-HEXTILE-01, 1.0 vs 2.5 mm, a 14.5 % swing in active area) is the highest-leverage open item on this artifact and is an unpropagated answer rather than an open question. Raises OI-RISK3-01…04. |
+| 2 | 2026-09-26 | NeurOne Quality | **§1.2 and `OI-RISK3-01` corrected (GitHub #330). The bezel "conflict" was a height and a width read as one number.** Rev 1 called the 1.0 mm (`NP-THERM-BEZEL-001`) and 2.5 mm (`NP-HW-HEXTILE-001` §3) figures conflicting values of one bezel. It asked for the directed 1.0 mm to be propagated into §3, as *"an unpropagated answer"*. The 1.0 mm is the bezel **height**, the face-to-scalp standoff, and it is settled. §3's 2.5 mm is the in-plane **width** that sets the active field, and **nothing derives it**. The open item is therefore re-scoped from a propagation to a derivation, and the ambiguity it carries is corrected from 14.5 % to **17.9 %** (10.61 vs 12.51 cm²). RISK-HEX-02 is still OPEN with the same blocker, now named correctly. No hazard, severity, control or status changes. |
