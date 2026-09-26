@@ -97,6 +97,7 @@ typedef struct {
     uint32_t         stim_start_ms;    /* time stim gate opened                  */
     uint32_t         stim_duration_ms; /* actual duration of last stim window    */
     int16_t          rr_slope_buf[NP_TAVNS_INSP_SLOPE_WIN]; /* dRR/dt values     */
+    uint16_t         last_rr_ms;       /* previous R-R interval; 0 = none yet     */
     uint8_t          slope_buf_idx;
     int32_t          slope_sum;        /* running sum for fast average            */
     bool             safety_mcu_granted; /* safety MCU has confirmed stim enable  */

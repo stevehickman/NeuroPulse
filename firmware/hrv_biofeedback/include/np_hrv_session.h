@@ -69,6 +69,9 @@ np_hrv_session_t *np_hrv_session_create(const np_hrv_session_config_t *config,
 /*
  * Start a previously created session.
  * Returns NP_HRV_ERR_SESSION_ACTIVE if already running.
+ * Returns NP_HRV_ERR_INVALID_ARG, and does NOT start, for a taVNS session whose
+ * tavns_freq_hz is outside 1–NP_TAVNS_DEFAULT_FREQ_HZ or whose current is out
+ * of range (0 selects the default for either).  OI-HRV-05.
  */
 np_hrv_status_t np_hrv_session_start(np_hrv_session_t *sess, uint32_t now_ms);
 

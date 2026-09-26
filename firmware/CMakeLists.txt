@@ -113,6 +113,7 @@
 #   firmware/zone_announce/   → np_zone_announce_tests    (module-status frame encoder)
 #                             → np_zone_notify_tests      (app-notify dispatch)
 #   firmware/pbm/      → np_pbm_session_desc_tests (NP-SES-1064-001 v5 wire format)
+#   firmware/hrv_biofeedback/ → np_hrv_session_tests  (OI-HRV-05 taVNS config gate)
 #   firmware/cervical_vns/    → np_cvns_fai_tests         (FAI CV01..CV06, cardiac interlock)
 #   firmware/sloreta_hdtdcs/  → np_hd_fai_tests           (FAI montage + sLORETA algorithm)
 #   firmware/vendor/freertos/ → np_freertos_smoke_tests   (kernel + config, POSIX port)
@@ -230,6 +231,7 @@ if(NP_BUILD_TESTS)
     add_subdirectory(hub_control) # OI-CVNS-HUB-01: CVNS re-enable manager tests
     add_subdirectory(zone_announce) # module-status frame encoder (app notify path)
     add_subdirectory(pbm)  # NP-SES-1064-001 v5: session descriptor wire format
+    add_subdirectory(hrv_biofeedback) # OI-HRV-05 / OI-SWCI-05: taVNS config gate
     add_subdirectory(cervical_vns)   # NP-FW-CVNS-001 §9: main-processor FAI item
                                   # suite (FAI-CV01..CV03 software limbs). NOT the
                                   # Class C cardiac interlock -- that is
@@ -446,6 +448,12 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_pbm_session_desc_tests
         COMMAND np_pbm_session_desc_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # NP-FW-HRV-001 OI-HRV-05; answers NP-SW-CI-001 OI-SWCI-05.  The first HRV
+    # host target.  Moves the Class B count 38 → 39 and the repo total 49 → 50.
+    add_test(NAME np_hrv_session_tests
+        COMMAND np_hrv_session_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_cvns_fai_tests

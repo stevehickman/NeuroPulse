@@ -31,6 +31,7 @@
 
 #include "../platform/np_hal_internal.h"
 #include "../include/np_safety_protocol.h"
+#include "np_crypto.h"
 
 /* ── Fake register file storage ───────────────────────────────────────────── */
 GPIO_TypeDef np_hal_fake_gpioa;
@@ -66,6 +67,13 @@ typedef enum {
     K_NONE = 0, K_HEARTBEAT, K_SIG_CMD, K_CHAN_LIMIT, K_CHAN_WAVE, K_USER
 } kind_t;
 extern int np_hal_spi_classify(uint16_t len);
+
+/* Real Class C module linked in to prove the root key integrity check
+ * (OI-FMEA-03) against the real OTP driver. */
+extern np_safe_status_t np_session_sig_init(void);
+extern np_safe_status_t np_session_sig_verify(np_safety_state_t *state,
+                                               const uint8_t *hash,
+                                               const uint8_t *sig);
 
 /* Real Class C module linked in to prove the ADC fail-safe DIRECTION. */
 extern np_safe_status_t np_thermal_interlock_init(void);
@@ -392,6 +400,139 @@ static void test_otp_clamps_len(void)
           "otp_read_pubkey clamps to NP_ED25519_PUB_KEY_LEN and cannot overrun the caller's buffer");
 }
 
+/* ══ 4a. ROOT KEY INTEGRITY (NP-FMEA-001 OI-FMEA-03) ═══════════════════════════
+ * Drives the REAL np_session_sig.c through the REAL OTP driver.  The CRC word is
+ * programmed by the manufacturing step beside the key; init must refuse a key
+ * whose CRC does not match, and the first session attempt must report that as
+ * a corrupt key — not as "unprovisioned" and not as a bad session signature.
+ * No valid signature is needed: every case below is decided before Ed25519.  */
+static void otp_program_key(uint8_t seed, bool with_crc, uint32_t crc_xor)
+{
+    uint8_t  i;
+    uint32_t crc;
+
+    memset(np_hal_fake_otp, 0xFF, sizeof(np_hal_fake_otp));
+    for (i = 0U; i < NP_ED25519_PUB_KEY_LEN; i++) {
+        np_hal_fake_otp[i] = (uint8_t)(seed + (i * 7U));
+    }
+    if (with_crc) {
+        crc = np_crc32(np_hal_fake_otp, NP_ED25519_PUB_KEY_LEN) ^ crc_xor;
+        np_hal_fake_otp[NP_OTP_PUBKEY_CRC_OFFSET + 0U] = (uint8_t)(crc);
+        np_hal_fake_otp[NP_OTP_PUBKEY_CRC_OFFSET + 1U] = (uint8_t)(crc >> 8U);
+        np_hal_fake_otp[NP_OTP_PUBKEY_CRC_OFFSET + 2U] = (uint8_t)(crc >> 16U);
+        np_hal_fake_otp[NP_OTP_PUBKEY_CRC_OFFSET + 3U] = (uint8_t)(crc >> 24U);
+    }
+}
+
+/* Returns the fault slot the first session attempt reports after init. */
+static uint8_t first_session_fault_slot(void)
+{
+    np_safety_state_t st;
+    uint8_t hash[NP_SESSION_HASH_LEN];
+    uint8_t sig[NP_ED25519_SIG_LEN];
+
+    memset(&st, 0, sizeof(st));
+    st.fault_slot = NP_FAULT_SLOT_NONE;
+    memset(hash, 0x11, sizeof(hash));
+    memset(sig,  0x00, sizeof(sig));   /* never a valid signature */
+
+    (void)np_session_sig_init();
+    (void)np_session_sig_verify(&st, hash, sig);
+    return st.fault_slot;
+}
+
+static void test_key_crc_read_little_endian(void)
+{
+    memset(np_hal_fake_otp, 0xFF, sizeof(np_hal_fake_otp));
+    np_hal_fake_otp[NP_OTP_PUBKEY_CRC_OFFSET + 0U] = 0x78U;
+    np_hal_fake_otp[NP_OTP_PUBKEY_CRC_OFFSET + 1U] = 0x56U;
+    np_hal_fake_otp[NP_OTP_PUBKEY_CRC_OFFSET + 2U] = 0x34U;
+    np_hal_fake_otp[NP_OTP_PUBKEY_CRC_OFFSET + 3U] = 0x12U;
+    check(np_hal_otp_read_pubkey_crc() == 0x12345678UL,
+          "key CRC word is read little-endian from NP_OTP_PUBKEY_CRC_OFFSET");
+
+    memset(np_hal_fake_otp, 0xFF, sizeof(np_hal_fake_otp));
+    check(np_hal_otp_read_pubkey_crc() == 0xFFFFFFFFUL,
+          "an erased key CRC word is returned verbatim, not translated");
+}
+
+static void test_key_crc_good_key_reaches_ed25519(void)
+{
+    otp_program_key(0x21U, true, 0U);
+    check(first_session_fault_slot() == NP_FAULT_SLOT_SIG_FAIL,
+          "a key with a matching CRC is loaded: a bad signature fails as SIG_FAIL");
+}
+
+static void test_key_crc_mismatch_is_refused(void)
+{
+    uint8_t bit;
+    int     all_refused = 1;
+
+    /* Every single-bit error in the stored CRC word. */
+    for (bit = 0U; bit < 32U; bit++) {
+        otp_program_key(0x21U, true, (uint32_t)1UL << bit);
+        if (first_session_fault_slot() != NP_FAULT_SLOT_KEY_CRC) { all_refused = 0; }
+    }
+    check(all_refused, "every single-bit CRC error refuses the key as KEY_CRC");
+
+    /* A bit flip in the key itself, CRC computed over the original. */
+    otp_program_key(0x21U, true, 0U);
+    np_hal_fake_otp[13] ^= 0x04U;
+    check(first_session_fault_slot() == NP_FAULT_SLOT_KEY_CRC,
+          "a bit flip in the stored key is caught by its CRC before first use");
+}
+
+static void test_key_crc_missing_is_refused(void)
+{
+    /* Key programmed, CRC double word left erased: the programming step did not
+     * finish.  A corrupt device, not an unprovisioned one. */
+    otp_program_key(0x21U, false, 0U);
+    check(first_session_fault_slot() == NP_FAULT_SLOT_KEY_CRC,
+          "a programmed key with an erased CRC word is refused as KEY_CRC");
+}
+
+extern void np_session_sig_test_flip_ram_key_bit(void);
+
+/* FMEA-M07-02: the RAM copy is re-checked before every verification, not only
+ * at init — OTP cannot change, SRAM can. */
+static void test_key_crc_rechecked_per_verify(void)
+{
+    np_safety_state_t st;
+    uint8_t hash[NP_SESSION_HASH_LEN];
+    uint8_t sig[NP_ED25519_SIG_LEN];
+
+    otp_program_key(0x21U, true, 0U);
+    (void)np_session_sig_init();
+    np_session_sig_test_flip_ram_key_bit();
+
+    memset(&st, 0, sizeof(st));
+    st.fault_slot = NP_FAULT_SLOT_NONE;
+    memset(hash, 0x11, sizeof(hash));
+    memset(sig, 0x00, sizeof(sig));
+    (void)np_session_sig_verify(&st, hash, sig);
+    check(st.fault_slot == NP_FAULT_SLOT_KEY_CRC,
+          "a RAM key corrupted after init is caught by the per-verify CRC re-check");
+
+    memset(&st, 0, sizeof(st));
+    (void)np_session_sig_verify(&st, hash, sig);
+    check(st.fault_slot == NP_FAULT_SLOT_KEY_CRC,
+          "the corrupted key stays unloaded on the next attempt");
+}
+
+static void test_key_crc_unprovisioned_stays_unprov(void)
+{
+    memset(np_hal_fake_otp, 0xFF, sizeof(np_hal_fake_otp));
+    check(first_session_fault_slot() == NP_FAULT_SLOT_UNPROV,
+          "a blank OTP still reports UNPROV, not KEY_CRC");
+
+    /* And a KEY_CRC verdict does not stick across a re-init onto blank OTP. */
+    otp_program_key(0x21U, true, 1U);
+    (void)first_session_fault_slot();
+    memset(np_hal_fake_otp, 0xFF, sizeof(np_hal_fake_otp));
+    check(first_session_fault_slot() == NP_FAULT_SLOT_UNPROV,
+          "re-init clears a previous KEY_CRC verdict");
+}
+
 /* ══ 5. THE ADC FAIL-SAFE DIRECTION ════════════════════════════════════════════
  * np_hal_adc.c returns 0 on every error path, on the claim that the consumer's
  * descending NTC table maps 0 to ~110 °C and therefore cuts.  That claim is
@@ -583,6 +724,13 @@ int main(void)
     test_tier_record_read_verbatim_from_its_offset();
     test_tier_record_clamps_len();
     test_device_uid_read();
+
+    test_key_crc_read_little_endian();
+    test_key_crc_good_key_reaches_ed25519();
+    test_key_crc_mismatch_is_refused();
+    test_key_crc_missing_is_refused();
+    test_key_crc_rechecked_per_verify();
+    test_key_crc_unprovisioned_stays_unprov();
 
     test_adc_failsafe_value_actually_cuts();
     test_adc_full_scale_does_not_cut();

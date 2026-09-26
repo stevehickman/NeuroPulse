@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HRV-001
-**Revision:** 1
-**Date:** 2026-05-11
+**Revision:** 2
+**Date:** 2026-09-26
 **Status:** BASELINED
 **Effective Date:** 2026-05-11
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -14,6 +14,7 @@
 **IEC 62304 Class:** SW-02 Class B (main processor)
 **Supersedes:** —
 **Parent Document:** NP-SW-001
+**Change Summary:** Rev 2 (2026-09-26, GitHub #447) — **Two taVNS defects found by the library's first host test (`np_hrv_session_tests`); the §10 gate closure's "taVNS inspiration-phase timing fully specified and implemented" was not true of the code.** (1) **§5.1 as implemented never opened the gate.** `np_hrv_tavns_process_rr()` read the "previous R-R interval" out of the slope buffer, which holds dRR values, so dRR was 0 for the whole session and the mean slope never crossed −5 ms/beat. The state now carries `last_rr_ms`. (2) **OI-HRV-05, firmware half:** an out-of-range `tavns_freq_hz` or current was refused by `np_hrv_tavns_init()` *before* it reset its module-static callback, rate and current, and `np_hrv_session_start()` ignored the refusal and started the session anyway. With (1) fixed, the next inspiration would have fired the previous session's enable at the previous session's rate. A refused configuration now disarms everything, and the session refuses to start (§5.2 item 4). Neither defect reached a stimulation line: the enable callbacks are still stubs (OI-HRV-01), and the safety MCU owns every enable. Rev 1 (2026-05-11): initial release.
 
 ---
 
@@ -191,7 +192,7 @@ The respiratory signal is extracted from the R-R interval series using the Respi
 - **Inspiration**: sympathetic withdrawal → HR increases → RR interval shortens → `dRR/dt < 0`
 - **Expiration**: parasympathetic rebound → HR decreases → RR interval lengthens → `dRR/dt > 0`
 
-A sliding buffer of `NP_TAVNS_INSP_SLOPE_WIN` (6) consecutive R-R differences is maintained. The mean of this buffer gives `slope` (ms/beat):
+A sliding buffer of `NP_TAVNS_INSP_SLOPE_WIN` (6) consecutive R-R differences is maintained. Each difference is taken against the previous R-R **interval** (`last_rr_ms`), and the first interval of a session contributes 0. *(Rev 2: the implementation took it against the previous buffer entry, a difference rather than an interval, so the slope stayed at 0 and the gate never opened.)* The mean of this buffer gives `slope` (ms/beat):
 
 | Condition | Phase detected |
 |-----------|---------------|
@@ -206,6 +207,8 @@ A sliding buffer of `NP_TAVNS_INSP_SLOPE_WIN` (6) consecutive R-R differences is
 2. **Safety MCU veto**: `np_tavns_enable_cb_t` requests enable from the safety MCU via SPI. The safety MCU independently checks clip impedance. If `np_hrv_tavns_safety_mcu_response(tavns, false)` is called (impedance check failed), `np_hrv_tavns_force_disable()` runs.
 
 3. **Maximum current**: `stim_current_ua` is validated at `np_hrv_tavns_init()` against `NP_TAVNS_MAX_CURRENT_UA` (2000 µA). Values above the limit are rejected with `NP_HRV_ERR_INVALID_ARG`.
+
+4. **A refused stimulus refuses the session** (Rev 2, OI-HRV-05). `np_hrv_tavns_init()` rejects a frequency outside 1–`NP_TAVNS_DEFAULT_FREQ_HZ` (25 Hz) or a current outside 100–2000 µA with `NP_HRV_ERR_INVALID_ARG`, and on rejection it **clears** its enable/disable callbacks, rate and current, so nothing from an earlier session stays armed. `np_hrv_session_start()` runs that validation before marking the session running and returns the error without starting. A value of 0 in either field still selects the default.
 
 ### 5.3 State machine
 
@@ -321,4 +324,4 @@ This document and its accompanying firmware (`firmware/hrv_biofeedback/`) satisf
 | OI-HRV-02 | Config partition API for persisting personalised resonance frequency (feeds output of `np_hrv_pacer_sweep_finalise`) must be wired in application layer | FW team | RF personalisation |
 | OI-HRV-03 | UHDR session record commit to eMMC must call storage layer AES-256-XTS write — `end_cb` currently returns raw plaintext record | FW/Storage team | UHDR compliance |
 | OI-HRV-04 | SHDR coherence trend slope write after each session (uses `np_hrv_coherence_trend_t`) must call SHDR storage API | FW team | SHDR compliance |
-| OI-HRV-05 | `NP_TAVNS_DEFAULT_FREQ_HZ` (25 Hz) vs user-configurable range 1–25 Hz: app layer must validate and pass `tavns_freq_hz` in `np_hrv_session_config_t` | App team | Protocol 1 |
+| OI-HRV-05 | `NP_TAVNS_DEFAULT_FREQ_HZ` (25 Hz) vs user-configurable range 1–25 Hz: app layer must validate and pass `tavns_freq_hz` in `np_hrv_session_config_t` — **Firmware half CLOSED 2026-09-26 (Rev 2, §5.2 item 4, GitHub #447):** firmware no longer trusts the app to validate. An out-of-range frequency or current refuses the session and leaves nothing armed. `np_hrv_session_tests` covers 30 Hz (#386's value), 26 Hz, both current bounds, and the accepted edges. **Open:** the app still has to send a valid value, or the user gets a refused session. That is #386 `OI-NPPS-LIMITS-01` (a shipped 30 Hz protocol) | App team | Protocol 1 |

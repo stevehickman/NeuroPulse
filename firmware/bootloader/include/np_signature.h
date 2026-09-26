@@ -33,8 +33,10 @@ np_status_t np_signature_verify(const np_image_header_t *header,
 /* Compute SHA-256 of `len` bytes at `data`, store 32-byte digest in `out`.  */
 void np_sha256(const uint8_t *data, size_t len, uint8_t out[NP_SHA256_SIZE]);
 
-/* Compute SHA-512 of `len` bytes at `data`, store 64-byte digest in `out`.  */
-void np_sha512(const uint8_t *data, size_t len, uint8_t out[NP_SHA512_SIZE]);
+/* Nonzero if `pk` encodes a point of order dividing 8 (either sign bit,       */
+/* canonical or not).  np_signature_verify() refuses every such key: under a   */
+/* cofactorless verify they admit forged signatures.  Exposed for the test.    */
+int np_signature_key_is_small_order(const uint8_t pk[NP_ED25519_PUBKEY_SIZE]);
 
 /* CRC32 (IEEE 802.3) over `len` bytes starting at `data`.                   */
 uint32_t np_crc32(const uint8_t *data, size_t len);

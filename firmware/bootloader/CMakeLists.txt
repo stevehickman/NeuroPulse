@@ -54,9 +54,23 @@ set(BOOTLOADER_SOURCES
     src/np_flexram.c    # FlexRAM ITCM/DTCM/OCRAM partition (NP-SW-CI-001 §4.10)
 )
 
+# Monocypher 4.0.2 — Ed25519 verify for np_signature.c (NP-SW-CI-001
+# OI-SWCI-15).  The same vendored SOUP the safety MCU links through np_crypto,
+# compiled here directly: np_crypto's own np_sha256/np_crc32 would collide with
+# np_signature.c's, and the bootloader needs nothing else from it.  Monocypher
+# includes only <stddef.h> and <stdint.h>, so -nostdlib costs it nothing.
+set(NP_BL_MONOCYPHER ${CMAKE_CURRENT_SOURCE_DIR}/../crypto/vendor/monocypher)
+set(NP_BL_MONOCYPHER_SOURCES
+    ${NP_BL_MONOCYPHER}/monocypher.c
+    ${NP_BL_MONOCYPHER}/monocypher-ed25519.c
+)
+# SOUP: -w on these two sources only, the Monocypher precedent in
+# firmware/crypto.  No first-party translation unit loses a diagnostic.
+set_source_files_properties(${NP_BL_MONOCYPHER_SOURCES} PROPERTIES COMPILE_OPTIONS "-w")
+
 if(CMAKE_CROSSCOMPILING)
 
-add_executable(np_bootloader ${BOOTLOADER_SOURCES})
+add_executable(np_bootloader ${BOOTLOADER_SOURCES} ${NP_BL_MONOCYPHER_SOURCES})
 
 # OI-SWCI-35, closed 2026-09-01.  CMake gives a cross-compiled executable no
 # suffix, so this target produced a file named `np_bootloader` while the block
@@ -71,7 +85,7 @@ add_executable(np_bootloader ${BOOTLOADER_SOURCES})
 # workflow, because either alone is a single point of silent failure.
 set_target_properties(np_bootloader PROPERTIES SUFFIX ".elf")
 
-target_include_directories(np_bootloader PRIVATE include)
+target_include_directories(np_bootloader PRIVATE include ${NP_BL_MONOCYPHER})
 
 # ── Compiler flags ─────────────────────────────────────────────────────────
 # Cortex-M7 with hardware double-precision FPU
@@ -228,11 +242,21 @@ if(NP_BUILD_TESTS)
     target_compile_definitions(np_bootloader_flexram_tests PRIVATE
         NP_FLEXRAM_HOST_TEST)
 
+    # OI-SWCI-15 adds np_signature.c (which the post-copy gate calls) and
+    # Monocypher, which is both np_signature.c's verifier and the test's signer.
+    # The test key is force-included so np_signature.c verifies against a key
+    # the test holds the private half of; the cross build never sees that header.
     add_executable(np_bootloader_app_image_tests
         tests/np_bootloader_app_image_tests.c
         src/np_app_image.c
+        src/np_signature.c
+        ${NP_BL_MONOCYPHER_SOURCES}
     )
-    target_include_directories(np_bootloader_app_image_tests PRIVATE include)
+    set_source_files_properties(src/np_signature.c tests/np_bootloader_app_image_tests.c
+        PROPERTIES COMPILE_OPTIONS
+        "-include;${CMAKE_CURRENT_SOURCE_DIR}/tests/np_bootloader_test_key.h")
+    target_include_directories(np_bootloader_app_image_tests PRIVATE include
+        ${NP_BL_MONOCYPHER})
     target_compile_options(np_bootloader_app_image_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g)
     target_compile_definitions(np_bootloader_app_image_tests PRIVATE

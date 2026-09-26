@@ -67,4 +67,28 @@ uint32_t np_app_max_image_size(void);
  */
 np_status_t np_app_image_size_check(uint32_t image_size, uint32_t staging_size);
 
+/*
+ * Is the image now sitting in the staging area the image the header signs?
+ * NP-SW-CI-001 OI-SWCI-15.
+ *
+ * Called by load_and_jump() AFTER the copy out of the eMMC bank and BEFORE the
+ * jump.  verify_bank_header() authenticates the header in the bank and
+ * nothing more — it passes NULL image data, so no byte of the image itself was
+ * ever hashed at boot.  A bit flip in the bank, a short or wrong eMMC read, or
+ * a copy that landed somewhere else would all have reached the entry point
+ * under a boot record that says "verified".  This closes that: the bytes that
+ * are about to execute are hashed where they will execute, and the header that
+ * names their hash is re-authenticated in the same call — so the header
+ * load_and_jump() re-read is itself verified, not trusted because an earlier
+ * read of the same sector was.
+ *
+ * Returns NP_OK, or the first failure: the staging size check above, then
+ * np_signature_verify()'s header CRC / magic / size / image hash / Ed25519
+ * results.  `staged` NULL is refused — the NULL-means-skip-the-hash convention
+ * of np_signature_verify() must never be reachable from the jump path.
+ */
+np_status_t np_app_image_verify_staged(const np_image_header_t *hdr,
+                                       const uint8_t *staged,
+                                       uint32_t staging_size);
+
 #endif /* NP_APP_IMAGE_H */

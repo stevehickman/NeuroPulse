@@ -21,7 +21,9 @@
  *
  *       If OTA_PENDING is NOT set: verify the selected bank's signature.
  *
- *  B-4  If verification passes → prepare Scratch (zero it) → jump to firmware.
+ *  B-4  If verification passes → copy the image to OCRAM staging → hash the
+ *       staged copy and re-verify its header (OI-SWCI-15) → invalidate the
+ *       I-cache → jump to firmware.
  *
  *  B-5  If the primary bank fails → try the other bank.
  *
@@ -162,16 +164,15 @@ static void zero_scratch_partition(void)
 
 /* ── Read and verify a firmware bank ──────────────────────────────────────── */
 /* Returns NP_OK if the bank's Ed25519 signature and header CRC are valid.    */
-/* The full image SHA-256 is NOT recomputed here (it would require 128 MiB   */
-/* of eMMC reads); instead we verify only the header + Ed25519.  The image   */
-/* SHA-256 embedded in the header was verified when the image was written    */
-/* (np_ota_write_bank writes sector-by-sector with readback verify).         */
-/*                                                                            */
-/* For the cold-boot path (no OTA), we trust that:                           */
-/*   1. Factory firmware was signed with the manufacturing root key.         */
-/*   2. Bank A is write-protected in production (cannot be modified).        */
-/*   3. The Ed25519 signature over (sha256 || version || size) is sufficient */
-/*      to authenticate the image without re-hashing 128 MiB at boot.       */
+/* The image SHA-256 is NOT computed here: this is the cheap early check that */
+/* decides whether a bank is worth copying.  The image itself is hashed after */
+/* the copy, in load_and_jump(), over the bytes that will execute — the only */
+/* place the hash means what the boot record says (OI-SWCI-15).              */
+/* (This comment used to say the Ed25519 signature was "sufficient to        */
+/* authenticate the image without re-hashing 128 MiB at boot".  It was not:  */
+/* the signature covers a hash, and nothing compared that hash with the      */
+/* bytes executed.  What is hashed is image_size bytes, at most the 440 KiB  */
+/* staging area, not the 128 MiB bank.)                                      */
 static np_status_t verify_bank_header(np_bank_t bank)
 {
     static uint8_t sector_buf[NP_EMMC_SECTOR_SIZE];
@@ -237,6 +238,24 @@ static np_status_t load_and_jump(np_bank_t bank)
     /* Load firmware into OCRAM */
     ret = np_emmc_read(np_emmc_bank_lba(bank) + 1U, app_dest, app_sectors);
     if (ret != NP_OK) return ret;
+
+    /* OI-SWCI-15: verify what will EXECUTE, not what was in the bank.
+     * verify_bank_header() authenticated the bank's header only; this hashes
+     * the staged copy and re-authenticates the header this function read.  On
+     * failure the caller falls through to the other bank or DFU exactly as for
+     * a bank whose header failed. */
+    ret = np_app_image_verify_staged(&hdr, app_dest, np_app_max_image_size());
+    if (ret != NP_OK) return ret;
+
+    /* OI-SWCI-15, cache half.  The I-cache is on (SystemInit and possibly the
+     * boot ROM enable it) and nothing establishes what it holds for the staging
+     * range, so invalidate it before any instruction there is fetched:
+     * ICIALLU (0xE000EF50), then DSB/ISB below before the jump.  No D-cache
+     * clean is needed while the D-cache stays OFF (NP-SW-CI-001 §4.14, which
+     * np_app_cache_assert_state() enforces in the application); enabling it
+     * anywhere upstream of this line makes a clean of the staging range
+     * mandatory here. */
+    *((volatile uint32_t *)0xE000EF50UL) = 0U;
 
     /* Relocate vector table to application's vectors */
     /* SCB_VTOR = 0xE000ED08 */

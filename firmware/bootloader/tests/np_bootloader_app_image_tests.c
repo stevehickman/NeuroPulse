@@ -55,6 +55,8 @@
  */
 
 #include "np_app_image.h"
+#include "np_signature.h"
+#include "monocypher-ed25519.h"   /* the test's signer (OI-SWCI-15 cases) */
 
 #include <stdio.h>
 #include <stdint.h>
@@ -352,6 +354,199 @@ static void test_predicate_is_pure(void)
            "np_app_image_size_check is not deterministic");
 }
 
+/* ══ OI-SWCI-15 — the staged copy is what gets verified ═══════════════════════
+ *
+ * np_app_image_verify_staged() is the gate load_and_jump() now runs between the
+ * copy and the jump.  Images are signed here with Monocypher's RFC 8032 signer
+ * under the test key in np_bootloader_test_key.h, and verified by the
+ * BOOTLOADER'S OWN Ed25519 in np_signature.c — so T7 is also the first check
+ * that the self-contained verifier accepts a signature from an independent
+ * implementation, which no host test did before.
+ */
+#define STAGE_LEN   4096U
+#define STAGE_AREA  (STAGE_LEN + 1024U)   /* staging area larger than the image */
+
+static uint8_t           g_sk[64];
+static uint8_t           g_sk_rogue[64];
+static uint8_t           g_stage[STAGE_AREA];
+static np_image_header_t g_hdr;
+
+static void fill_image(uint8_t *dst, uint32_t len)
+{
+    for (uint32_t i = 0U; i < len; i++) {
+        dst[i] = (uint8_t)((i * 31U) + 7U);
+    }
+}
+
+static void le32(uint8_t *p, uint32_t v)
+{
+    p[0] = (uint8_t)v; p[1] = (uint8_t)(v >> 8U);
+    p[2] = (uint8_t)(v >> 16U); p[3] = (uint8_t)(v >> 24U);
+}
+
+/* Build g_hdr for `len` bytes of g_stage exactly as the signing host would. */
+static void sign_header(const uint8_t sk[64], uint32_t version, uint32_t len)
+{
+    uint8_t msg[40];
+
+    memset(&g_hdr, 0, sizeof(g_hdr));
+    g_hdr.magic      = NP_IMAGE_MAGIC;
+    g_hdr.version    = version;
+    g_hdr.image_size = len;
+    g_hdr.header_crc32 = np_crc32((const uint8_t *)&g_hdr, 12U);
+    np_sha256(g_stage, len, g_hdr.image_sha256);
+
+    memcpy(msg, g_hdr.image_sha256, 32U);
+    le32(&msg[32], version);
+    le32(&msg[36], len);
+    crypto_ed25519_sign(g_hdr.signature, sk, msg, sizeof(msg));
+}
+
+static void rehash_crc(void)
+{
+    g_hdr.header_crc32 = np_crc32((const uint8_t *)&g_hdr, 12U);
+}
+
+static void stage_good(void)
+{
+    memset(g_stage, 0xEE, sizeof(g_stage));
+    fill_image(g_stage, STAGE_LEN);
+    sign_header(g_sk, 0x00010203U, STAGE_LEN);
+}
+
+static np_status_t verify(void)
+{
+    return np_app_image_verify_staged(&g_hdr, g_stage, STAGE_AREA);
+}
+
+/* T7 — the test key is the key the verifier was built with, and a correctly
+ * signed, correctly staged image passes. */
+static void test_staged_good_image_passes(void)
+{
+    uint8_t seed[32], pk[32];
+
+    for (uint32_t i = 0U; i < 32U; i++) { seed[i] = (uint8_t)(NP_FW_TEST_SEED_FIRST + i); }
+    crypto_ed25519_key_pair(g_sk, pk, seed);
+    ASSERT(memcmp(pk, g_np_fw_public_key, 32U) == 0,
+           "test seed does not derive the key compiled into np_signature.c");
+
+    for (uint32_t i = 0U; i < 32U; i++) { seed[i] = (uint8_t)(0x40U + i); }
+    crypto_ed25519_key_pair(g_sk_rogue, pk, seed);
+
+    stage_good();
+    ASSERT(verify() == NP_OK,
+           "a correctly signed image staged intact was refused");
+}
+
+/* T8 — a corrupted STAGED copy is refused even though the header, which is
+ * all verify_bank_header() ever checked, is perfect.  This is the defect. */
+static void test_staged_corruption_refused(void)
+{
+    static const uint32_t where[] = { 0U, 4U, 7U, 1000U, STAGE_LEN / 2U, STAGE_LEN - 1U };
+
+    for (uint32_t k = 0U; k < sizeof(where) / sizeof(where[0]); k++) {
+        stage_good();
+        g_stage[where[k]] ^= 0x01U;
+        if (verify() != NP_ERR_BAD_IMAGE_HASH) {
+            printf("FAIL [%s] a bit flip at staged offset %u was not refused\n",
+                   __func__, where[k]);
+            g_fail_count++;
+        }
+    }
+
+    /* A short copy: the last sector never arrived. */
+    stage_good();
+    memset(&g_stage[STAGE_LEN - 512U], 0xEE, 512U);
+    ASSERT(verify() == NP_ERR_BAD_IMAGE_HASH, "a truncated staged copy was accepted");
+
+    /* Bytes past image_size are not part of the image and must not matter. */
+    stage_good();
+    g_stage[STAGE_LEN] ^= 0xFFU;
+    ASSERT(verify() == NP_OK, "a byte beyond image_size changed the verdict");
+}
+
+/* T9 — the header load_and_jump() re-read is itself re-authenticated, not
+ * trusted because an earlier read of the same sector verified. */
+static void test_reread_header_is_reauthenticated(void)
+{
+    /* Version changed, header CRC recomputed so only Ed25519 can catch it. */
+    stage_good();
+    g_hdr.version ^= 0x1U;
+    rehash_crc();
+    ASSERT(verify() == NP_ERR_BAD_SIGNATURE, "a re-read header with a changed version was accepted");
+
+    /* A consistent header + image signed by someone else. */
+    stage_good();
+    sign_header(g_sk_rogue, 0x00010203U, STAGE_LEN);
+    ASSERT(verify() == NP_ERR_BAD_SIGNATURE, "an image signed by a foreign key was accepted");
+
+    /* Hash field swapped for the hash of what is staged: CRC does not cover it,
+     * so only the signature can refuse it. */
+    stage_good();
+    g_stage[10] ^= 0x80U;
+    np_sha256(g_stage, STAGE_LEN, g_hdr.image_sha256);
+    ASSERT(verify() == NP_ERR_BAD_SIGNATURE,
+           "a header whose hash was rewritten to match a modified image was accepted");
+
+    /* Header CRC broken. */
+    stage_good();
+    g_hdr.header_crc32 ^= 1U;
+    ASSERT(verify() == NP_ERR_BAD_HEADER_CRC, "a header with a bad CRC was accepted");
+}
+
+/* T10 — the size bound is applied before the hash reads a byte, and the
+ * NULL-skips-the-hash convention of np_signature_verify() is unreachable. */
+static void test_staged_bounds_and_null(void)
+{
+    stage_good();
+    ASSERT(np_app_image_verify_staged(&g_hdr, g_stage, STAGE_LEN - 1U) == NP_ERR_IMAGE_TOO_LARGE,
+           "an image larger than the staging area reached the hash");
+    ASSERT(np_app_image_verify_staged(&g_hdr, g_stage, STAGE_LEN) == NP_OK,
+           "an exact-fit staged image was refused");
+    ASSERT(np_app_image_verify_staged(&g_hdr, NULL, STAGE_AREA) != NP_OK,
+           "NULL staged data was accepted — the hash would have been skipped");
+    ASSERT(np_app_image_verify_staged(NULL, g_stage, STAGE_AREA) != NP_OK,
+           "a NULL header was accepted");
+}
+
+/* T11 — every small-order key is refused, including the shipped placeholder,
+ * and a forgery that a cofactorless verify would accept under the identity key
+ * never reaches it.  The list in np_signature.c is re-derived here from first
+ * principles only by its members' defining property: each is a public key
+ * under which R = S*B verifies for S = 0 on any message. */
+static void test_small_order_keys_refused(void)
+{
+    static const uint8_t placeholder[32] = { [31] = 0x01U };   /* np_signature.c's */
+    uint8_t identity[32] = { 0x01U };
+    uint8_t k[32];
+
+    ASSERT(np_signature_key_is_small_order(identity), "identity key (y=1) not flagged");
+    memcpy(k, identity, 32U); k[31] |= 0x80U;
+    ASSERT(np_signature_key_is_small_order(k), "identity key with sign bit set not flagged");
+    memset(k, 0, 32U);
+    ASSERT(np_signature_key_is_small_order(k), "all-zero key (y=0, order 4) not flagged");
+    ASSERT(!np_signature_key_is_small_order(g_np_fw_public_key), "the real test key was flagged");
+
+    /* The placeholder the cross build links, byte for byte: y = 2^248, which
+     * is not the identity and not a curve point, so it must fail CLOSED by
+     * failing to decode — not by this guard. */
+    ASSERT(np_signature_key_is_small_order(placeholder) == 0,
+           "the placeholder (y = 2^248) was mistaken for a small-order key");
+    {
+        uint8_t fsig[64] = { 0x01U };
+        uint8_t fmsg[40] = { 0 };
+        ASSERT(crypto_ed25519_check(fsig, placeholder, fmsg, sizeof(fmsg)) != 0,
+               "the placeholder key verified a signature — it must fail closed");
+    }
+
+    /* Forgery under the identity: S = 0, R = encode(0*B) = identity.  For
+     * A = identity, S*B - H*A = identity = R for every H. */
+    uint8_t sig[64] = { 0x01U };
+    uint8_t msg[40] = { 0 };
+    ASSERT(crypto_ed25519_check(sig, identity, msg, sizeof(msg)) == 0,
+           "control: Monocypher alone does accept the identity-key forgery");
+}
+
 int main(void)
 {
     if (load_linker_script() != 0) {
@@ -365,6 +560,12 @@ int main(void)
     test_empty_image();
     test_stack_overwrite_band_rejected();
     test_predicate_is_pure();
+
+    test_staged_good_image_passes();
+    test_staged_corruption_refused();
+    test_reread_header_is_reauthenticated();
+    test_staged_bounds_and_null();
+    test_small_order_keys_refused();
 
     if (g_fail_count == 0) {
         printf("PASS: all np_bootloader_app_image tests "

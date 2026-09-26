@@ -60,6 +60,7 @@ B np_factory_reset_tests
 B np_freertos_smoke_tests
 B np_gatt_server_tests
 B np_hd_fai_tests
+B np_hrv_session_tests
 B np_lfs_config_tests
 B np_lfs_log_instance_tests
 B np_lfs_powerloss_tests

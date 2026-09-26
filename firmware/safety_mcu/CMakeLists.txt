@@ -156,9 +156,11 @@ if(NP_BUILD_TESTS)
         platform/np_hal_otp.c
         platform/np_hal_iwdg.c
         src/np_thermal_interlock.c
+        src/np_session_sig.c    # OI-FMEA-03: root key CRC, via the real OTP driver
     )
     np_host_test(np_hal_platform_tests)
     target_include_directories(np_hal_platform_tests PRIVATE platform)
+    target_link_libraries(np_hal_platform_tests PRIVATE np_crypto)
     target_compile_definitions(np_hal_platform_tests PRIVATE NP_HAL_HOST_TEST)
 
     # np_gpio_mgr_tests: SW01-M01 / SW01-M02 cutoff path (NP-FMEA-001 OI-FMEA-11).

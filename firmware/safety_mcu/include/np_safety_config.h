@@ -327,6 +327,11 @@
 
 /* ── Session signature (SW01-M07) ───────────────────────────────────────── */
 #define NP_ED25519_PUB_KEY_LEN  32U  /* manufacturing root public key (OTP) */
+/* CRC-32 of the root key, little-endian, in the OTP double word after it
+ * (NP-FMEA-001 OI-FMEA-03).  Programmed with the key; verified by
+ * np_session_sig_init() before the key is ever used.  A production-programming
+ * contract like the key's own offset (OI-SWCI-30), not a silicon fact.       */
+#define NP_OTP_PUBKEY_CRC_OFFSET 0x20U
 /* NP_ED25519_SIG_LEN and NP_SESSION_HASH_LEN are in firmware/common/include/np_spi_wire_types.h,
  * included transitively via np_safety_protocol.h. */
 
@@ -340,6 +345,7 @@
 #define NP_FAULT_SLOT_HUB_NTC      0xFBU  /* hub NTC thermal cutoff (all channels) */
 #define NP_FAULT_SLOT_NVSTATE     0xFAU  /* non-volatile safety state could not be written */
 #define NP_FAULT_SLOT_TICK        0xF9U  /* SysTick disagrees with TIM2 (OI-FMEA-12 (b)) */
+#define NP_FAULT_SLOT_KEY_CRC     0xF8U  /* OTP root key fails its CRC-32 (OI-FMEA-03) */
 
 /* ── Tier identity (SW01-M10, NP-REG-UPG-001 §7.5, OI-UPG-01) ────────────── */
 /*

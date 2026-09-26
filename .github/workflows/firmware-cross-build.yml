@@ -92,9 +92,11 @@ name: Firmware Cross-Compile (ARM)
 # and a green check would prove nothing about the code that changed.  Honest
 # silence beats a vacuous pass.
 #
-# firmware/hrv_biofeedback still has NO host test target at all, and that too
-# is deliberate rather than drift — see OI-SWCI-05, which records whether it
-# warrants one as an open question, not a defect in this file.
+# firmware/hrv_biofeedback has ONE host test target, np_hrv_session_tests
+# (GitHub #447).  OI-SWCI-05 left "does it warrant one?" open; the answer was a
+# defect only a host test could see — a refused taVNS frequency left the
+# previous session's stimulus armed (OI-HRV-05) — and the inspiration gate it
+# guards had never been able to open.  Closed there.
 #
 # Read the NP_BUILD_TESTS branch of firmware/CMakeLists.txt literally: it ends
 # in return(), so every add_subdirectory() below that point is cross-compile-
@@ -202,7 +204,8 @@ env:
   # 35 → 36: np_stim_xcheck_tests (NP-FW-HUB-001 Rev 9, OI-FMEA-09).
   # 36 → 37: np_gatt_server_tests (GitHub #381, OI-WA-03).
   # 37 → 38: np_consumables_tests (GitHub #381, OI-ACC-08).
-  NP_CLASS_B_TEST_COUNT: '38'
+  # 38 → 39: np_hrv_session_tests (GitHub #447, OI-HRV-05; answers OI-SWCI-05).
+  NP_CLASS_B_TEST_COUNT: '39'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  This job always

@@ -16,6 +16,18 @@
  * granted_mask while SIG_PENDING is set.  See np_safety_protocol.h.
  *
  * OTP HAL stub: np_hal_otp_read_pubkey(buf, len) reads the 32-byte key.
+ *
+ * KEY INTEGRITY (NP-FMEA-001 OI-FMEA-03).  The key's CRC-32 is programmed into
+ * OTP beside it and checked at init, before the key can reach
+ * np_ed25519_verify(), and the RAM copy is re-checked against that CRC before
+ * every verification (FMEA-M07-02).  A mismatch leaves the key unloaded and the first
+ * session attempt faults with NP_FAULT_SLOT_KEY_CRC — distinct from
+ * NP_FAULT_SLOT_UNPROV (never programmed) and NP_FAULT_SLOT_SIG_FAIL (this
+ * session's signature is bad), so a corrupted key sector is diagnosed as
+ * itself.  Both directions refuse stimulation; the CRC changes the diagnosis,
+ * not the safety outcome.  What it catches is a key that is WRONG but still
+ * looks like a key: without it, every signed session on that unit fails as a
+ * signature error and escalates to the NP_SIG_FAIL_MAX hard lock.
  */
 
 #include "np_crypto.h"
@@ -32,6 +44,8 @@
 /* ── Module state ─────────────────────────────────────────────────────────── */
 static uint8_t  s_pubkey[NP_ED25519_PUB_KEY_LEN];
 static bool     s_pubkey_loaded;
+static bool     s_pubkey_crc_bad;   /* programmed key failed its CRC-32      */
+static uint32_t s_pubkey_crc;       /* verified CRC, re-checked per verify   */
 static bool     s_session_verified;
 static uint8_t  s_sig_fail_count;  /* consecutive Ed25519 failures this power-cycle */
 
@@ -49,8 +63,19 @@ np_safe_status_t np_session_sig_init(void)
     for (i = 0U; i < NP_ED25519_PUB_KEY_LEN; i++) {
         if (s_pubkey[i] != 0U) { all_zero = false; break; }
     }
+    s_pubkey_loaded  = false;
+    s_pubkey_crc_bad = false;
     if (!all_zero) {
-        s_pubkey_loaded = true;
+        /* OI-FMEA-03: verify before first use.  Only a key whose CRC matches
+         * is loaded; the unprovisioned sentinel above is exempt because it is
+         * never loaded at all. */
+        s_pubkey_crc = np_hal_otp_read_pubkey_crc();
+        if (np_crc32(s_pubkey, NP_ED25519_PUB_KEY_LEN) == s_pubkey_crc) {
+            s_pubkey_loaded = true;
+        } else {
+            s_pubkey_crc_bad = true;
+            (void)memset(s_pubkey, 0, sizeof(s_pubkey));
+        }
     }
 
     s_session_verified = false;
@@ -82,7 +107,21 @@ np_safe_status_t np_session_sig_verify(np_safety_state_t *state,
                                         const uint8_t *sig)
 {
     if (!s_pubkey_loaded) {
-        state->fault_slot = NP_FAULT_SLOT_UNPROV;  /* OTP never programmed */
+        state->fault_slot = s_pubkey_crc_bad
+                          ? NP_FAULT_SLOT_KEY_CRC   /* key corrupt (OI-FMEA-03) */
+                          : NP_FAULT_SLOT_UNPROV;   /* OTP never programmed     */
+        state->status    |= NP_SAFETY_STATUS_FAULT;
+        return NP_SAFE_ERR_FAULT;
+    }
+
+    /* FMEA-M07-02: "before every signature verification".  The OTP is
+     * immutable; the RAM copy is not.  A copy that no longer matches the CRC
+     * it was loaded against is unloaded, and this and every later attempt
+     * report KEY_CRC until a power cycle re-reads OTP. */
+    if (np_crc32(s_pubkey, NP_ED25519_PUB_KEY_LEN) != s_pubkey_crc) {
+        s_pubkey_loaded  = false;
+        s_pubkey_crc_bad = true;
+        state->fault_slot = NP_FAULT_SLOT_KEY_CRC;
         state->status    |= NP_SAFETY_STATUS_FAULT;
         return NP_SAFE_ERR_FAULT;
     }
@@ -104,6 +143,17 @@ np_safe_status_t np_session_sig_verify(np_safety_state_t *state,
     state->status      &= (uint8_t)~NP_SAFETY_STATUS_SIG_PENDING;
     return NP_SAFE_OK;
 }
+
+#ifdef NP_HAL_HOST_TEST
+/* Host-test hook ONLY (np_hal_platform_tests defines NP_HAL_HOST_TEST; the
+ * cross build never does): flip one bit of the loaded RAM key so the
+ * per-verification re-check above can be exercised.  Not declared in any
+ * header. */
+void np_session_sig_test_flip_ram_key_bit(void)
+{
+    s_pubkey[5] ^= 0x10U;
+}
+#endif
 
 bool np_session_sig_is_verified(void)
 {
