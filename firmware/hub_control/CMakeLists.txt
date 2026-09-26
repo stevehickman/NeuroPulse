@@ -233,9 +233,11 @@ if(NP_BUILD_TESTS)
         tests/np_lfs_sweep.c
         src/np_cfg_store.c
         src/np_session_count.c        # OI-LFS-12: the persisted session count
+        src/np_reset_marker.c         # OI-NVRAM-05: the durable factory-reset marker
         src/np_lfs_instance.c
     )
-    target_include_directories(np_cfg_store_tests PRIVATE include tests)
+    target_include_directories(np_cfg_store_tests PRIVATE include tests
+        ${CMAKE_CURRENT_SOURCE_DIR}/../factory_reset/include)
     target_link_libraries(np_cfg_store_tests PRIVATE np_littlefs np_crypto)
     target_compile_definitions(np_cfg_store_tests PRIVATE NPTEST_HOST)
     target_compile_options(np_cfg_store_tests PRIVATE
@@ -335,6 +337,19 @@ if(NP_BUILD_TESTS)
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
     target_link_libraries(np_consumables_tests m)
 
+    # OI-NVRAM-08: the Map 3 journal record and its version-tolerant scan.
+    # The CI check that a journal written under version n loses no record
+    # under n+1 (NP-FW-NVRAM-001 Rev 3 §7.2), run against the production
+    # reader and falsified against four readers that break the rule.
+    add_executable(np_map3_record_tests
+        tests/np_map3_record_tests.c
+        src/np_map3_record.c
+    )
+    target_include_directories(np_map3_record_tests PRIVATE include)
+    target_link_libraries(np_map3_record_tests PRIVATE np_crypto)
+    target_compile_options(np_map3_record_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+
     # Hub ↔ cervical VNS library integration + cardiac-interlock config.
     # Links the real np_cervical_vns library sources directly (host build).
     set(NP_CVNS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../cervical_vns)
@@ -383,6 +398,8 @@ set(HUB_SOURCES
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
     src/np_lfs_instance.c         # OI-LFS-01: EMMC-FS-01 littlefs instance + mount validator
     src/np_cfg_store.c            # OI-LFS-06/-08/-09: Config store — the littlefs caller rules
+    src/np_map3_record.c          # OI-NVRAM-08: Map 3 journal record + version-tolerant scan
+    src/np_reset_marker.c         # OI-NVRAM-05: durable factory-reset marker in Config
     src/np_lfs_log_instance.c     # OI-LFS-05: UHDR/SHDR littlefs instances + mount validator
     src/np_session_count.c        # OI-LFS-12: device session count persisted in Config
     src/np_pbm_cal_bridge.c       # OI-HUB-C06: UID-keyed calibration -> pbm seams
@@ -410,6 +427,7 @@ target_include_directories(np_hub_control
     PRIVATE ${NP_PLATFORM_INCLUDE_DIRS}
             ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}  # np_sw02_platform_hal.h (OI-SWCI-40)
             ${NP_BOOTLOADER_INCLUDE_DIR}   # np_config.h: partition sizes (np_log_backend.c)
+            ${CMAKE_CURRENT_SOURCE_DIR}/../factory_reset/include  # np_reset_marker.c: the HAL it implements
 )
 
 # ── Compiler flags ─────────────────────────────────────────────────────────────

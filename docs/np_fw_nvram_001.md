@@ -2,20 +2,43 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-NVRAM-001
-**Revision:** 2
-**Date:** 2026-09-13
-**Status:** DESIGN STUDY — not a release baseline. Every behaviour below is a proposed engineering commitment traced to a cited source. **No new part is proposed and no code changed with this document.** Rev 2 resolves the store defects Rev 1 found (§3.3.1) so Map 3 can be built at all. See §11 (Decisions), §13 (Open items).
+**Revision:** 3
+**Date:** 2026-09-26
+**Status:** DESIGN STUDY — not a release baseline. Every behaviour below is a proposed engineering commitment traced to a cited source. **No new part is proposed.** Rev 3 writes and falsifies the two CI checks §7.2 and §8.3 asked for, and corrects every claim that an SNVS flag survives power loss. Rev 2 resolves the store defects Rev 1 found (§3.3.1) so Map 3 can be built at all. See §11 (Decisions), §13 (Open items).
 **Effective Date:** —
 **Author:** NeurOne Firmware + Data Architecture
 **Approved By:** — (pending design review)
 **References:** CLAUDE.md §4 (processor stack, safety architecture, power), §5 (UHDR/SHDR), §6 (consent subjects); `NP-FW-EMMC-001` Rev 2 §4 (partition layout), §5.2 (LittleFS instance parameters), §9 (Config/Calibration partition), §12 (session data classification), §14 (write-endurance monitoring), §16 (processor ownership); `NP-FW-EMMC-002` Rev 2 §A (warranty token), §B.2 (factory reset R-7), §C.3 (Config UKMD record), §G.2 (record-denominated windows), §H.3.1–H.3.2 (no wall clock); `NP-MOD-ID-001` Rev 1 §4 (`module_ref`), §5 (on-module odometer, MODID-4), §6 (history portability, MODID-5/6), §7.5.1.1 (the two absences), §9 (open items); `NP-HW-HEXTILE-001` Rev 8 §6.2 (U1 on-module MCU), §6.4 (driver + metering BOM), §7.2–7.3 (19-position socket, `SEAT#`, contact sequencing); `NP-DRV-SHELL-002` Rev 4 §5.1.4 (UID EEPROM deleted), §6 (`SAFE_EN[n]`), §10.1 (interconnect BOM); `NP-HEX-ZM-001` Rev 3 §4a (SMART-1, `check_placement`), §5.4a (cluster clamp); `NP-COST-001` Rev 2 §6 (OI-HEXTILE-06 options); `NP-NPPS-REF-001` Rev 14 §1.6 (no build-time cache of protocol content); `NP-SW-001` Rev 3 §3.2 (Class B rationale for SW-02), §5.2 (SW-02 module inventory), §9.4 (SOUP); `NP-CONV-001` Rev 6 §4, §6, §8; `firmware/hub_control/include/np_module_map.h`; `firmware/hub_control/src/np_module_map.c`; `firmware/bootloader/include/np_config.h`; `firmware/hub_control/include/np_log_backend.h`; **added at Rev 2:** `NP-SOUP-LFS-001` Rev 1 (LittleFS SOUP record + hazard analysis), `NP-FW-HUB-001` Rev 1 §6.5 (log durability model), `NP-CONV-001` Rev 6 §7 (how a document revises its own position)
-**Related Issues:** #339 (`OI-NVRAM-01`, `-02`, `-03`, `-12`, `-13`)
+**Related Issues:** #339 (`OI-NVRAM-01`, `-02`, `-03`, `-12`, `-13`); #444 (`OI-NVRAM-04`, `-05`, `-06`, `-08`, `-09`, `OI-HEXMAP-01`)
 **Gate:** — (no programme gate; this document specifies the resolution of `OI-HEXMAP-01`)
 **IEC 62304 Class:** **SW-02 Class B.** Argued in §9, and the argument turns on the fact that the Class C processor has no electrical path to the store. **No SW-01 source changes and no bit added to any Class C wire format.**
 **Supersedes:** None — new document.
 **Parent Document:** `NP-FW-EMMC-001`
 
 ---
+
+> **⚠ REV 3 (2026-09-26, GitHub #444) — the two invariants now have CI checks, and the SNVS claims are corrected.**
+>
+> 1. **`OI-NVRAM-08` CLOSED.** The Map 3 row now exists in code (`np_map3_record.{h,c}`), and
+>    `np_map3_record_tests` is the check that a journal written under version *n* loses no record
+>    under *n+1*. It is falsified in both directions (§7.2.1). Writing it forced one layout decision:
+>    §3.3.1.5's two padding bytes become a `len` + `ver` header, so every row describes itself
+>    (**D-25**).
+> 2. **`OI-NVRAM-09` CLOSED.** `scripts/check-map2-shdr-boundary.ts` checks that no file names Map 2
+>    and SHDR together, and that no SHDR name marks a sync boundary or a per-window delta (§8.3.1). It
+>    depends on one naming rule (**D-26**) and is falsified in both directions.
+> 3. **`OI-NVRAM-05` CLOSED.** Every comment and specification clause that called an SNVS flag a
+>    power-loss recovery flag now says warm-reset only. The anonymisation half needs nothing more,
+>    because Scratch is erased on every boot. For the factory-reset half, the principal chose
+>    §3.4.1's option A (**D-27**): a replicated marker in Config, written before the first erase. It
+>    is implemented and tested, and its bring-up call site waits on #340 (`OI-NVRAM-17`).
+> 4. **Two findings.** `np_cfg_store_journal_read()` takes a fixed record length, so it cannot read
+>    the grown row D-24 budgets for (`OI-NVRAM-16`). `np_factory_reset_config.h` described the SNVS
+>    domain as *"battery-backed"*, and it is not.
+>
+> `OI-NVRAM-04`, `-06` and `OI-HEXMAP-01` stay open. `-04` needs a connector dimension shared with #437,
+> `-06` needs a decision on §6.5 that is not this revision's to take, and the HAL binding needs the block
+> device (#340).
 
 > **⚠ REV 2 — the store is now buildable, and the reason the Rev 1 defect existed is worth keeping.**
 >
@@ -361,6 +384,12 @@ fault_flags   1 B      reserved       1 B      crc32(uid ‖ payload) 4 B
                                                                   ── 30 B → padded to 32
 ```
 
+> **Rev 3 (D-25): the two padding bytes are a header.** Offset 0 is `len` (the row's total bytes,
+> CRC included) and offset 1 is `ver` (the layout version, ≥ 1). Version 1 is still exactly this
+> 32-byte row. The CRC is still the last four bytes, now over `len ‖ ver ‖ uid ‖ payload`. The header
+> is what lets a reader step by the row's own length, so a longer row written by newer firmware
+> neither shifts every row after it nor ends the scan. `np_map3_record.h` holds the byte map.
+
 **File bound: 49,152 B (48 KiB) = 1,536 rows.** Not `file_max`, deliberately: 16,384 B of headroom
 means a future version that grows the row to 40 B still fits (1,536 × 40 = 61,440 < 65,536) without
 re-deciding the bound, and §7.2's rule is that a **record's** version policy is tail-additive forever
@@ -403,6 +432,81 @@ storage-layer one. Both are recorded: **`OI-NVRAM-05`**, and it is blocking for 
 verification in `NP-MOD-ID-001` §10, which asserts that reset rotates every ref. **For this HAL the
 conclusion is simply that there is no register that survives a cable pull, so every durability
 property must be carried in the eMMC record itself.** **D-4.**
+
+### 3.4.1 The correction, and the marker the factory reset still needs — added at Rev 3
+
+**What was corrected (2026-09-26, #444).** Every place that described `LPGPR1` or `LPGPR2` as a
+power-loss flag now says warm-reset only. That covers `np_config.h`, `np_main.c`,
+`np_factory_reset.h`, `np_factory_reset_config.h`, `np_anon_config.h`, `np_anon_scratch.c`, and
+`NP-FW-EMMC-002` §B.4 and §D.6 (its Rev 4). The worst of them was `np_factory_reset_config.h`, which
+said the SNVS domain was *"battery-backed"*. It is not. The flags keep working for the case they
+really cover, a watchdog or software reset mid-sequence. No behaviour changed.
+
+**The anonymisation half is closed by what already exists.** The bootloader erases Scratch on every
+boot (`EMMC-SCR-01`, `zero_scratch_partition()`), and the per-run key was SRAM-only, so a power loss
+mid-run leaves nothing readable and nothing to detect. `LPGPR2` is redundant, as the table above
+said, and now its comments say so.
+
+**The factory-reset half is open, and this is what it costs.** A cable pull between R-3 and R-11
+boots with `LPGPR1` clear. The bootloader does not resume, and the device comes up in whatever state
+the sequence reached:
+
+| Power lost during | State at next boot | Consequence |
+|---|---|---|
+| R-4, or R-5 before SANITIZE completes | UHDR partly purged, SHDR and Config intact | The old warranty token and SHDR history survive. The next owner's usage attaches to the previous owner's pseudonym, which is exactly NP-PRIV-001 HIGH-03, the finding §B exists to close. Any UHDR that SANITIZE did not reach is still decryptable by the previous owner's key, because `ukmd.rec` is still in Config |
+| R-6 | UHDR purged, SHDR partly zeroed, Config intact | The old token survives beside a partial SHDR history |
+| R-7 | UHDR and SHDR gone, Config partly zeroed | Config may not mount. What the hub does with an unmountable Config in the field is unspecified; `np_cfg_store_format()` is manufacture-only |
+| R-8 … R-10 | Config zeroed, new salt or token not yet written | No token, so no SHDR linkage. Recoverable only by a reset that nothing will now start |
+
+**Specification of the marker (a requirement, not yet a design).** A factory reset must leave
+durable evidence that it has started, before its first destructive step, in a place that (a)
+survives a power removal, (b) the bootloader can read before mounting anything the reset erases, and
+(c) is erased or cleared only after R-10 has committed. `LPGPR1` fails (a). Three candidates meet it:
+
+| Option | Where the marker lives | For | Against |
+|---|---|---|---|
+| **A — the reset's own last erase** | A small `REPLICATED` file in Config, written at R-3 before R-5. Config is already erased last (R-7), so the marker outlives UHDR and SHDR | No new region and no hardware. The store, the replica envelope and the power-loss sweep already exist | A power loss **inside** R-7 can erase the marker along with Config. Closing that window needs a boot rule: an unmountable Config finishes the reset (R-7 … R-10). That rule also fires on a Config lost for any other reason. The cost there is low, because `ukmd.rec` is in Config and UHDR without it is already unreadable, but the rule mints a new warranty token and so de-links SHDR. That is a warranty-owner consequence, and the principal must accept it |
+| **B — outside the erased set** | An eMMC boot or RPMB region, or a reserved LBA outside all four partitions | The marker is untouched by every erase, so no window remains | A partition-layout change to `NP-FW-EMMC-001` (a `.docx`, `OI-CONV-04`), and a second store with its own power-loss argument |
+| **C — keep SNVS, give it a supply** | A `VBAT` feed to the SNVS domain, e.g. from the 22 F hub supercapacitor (CLAUDE.md §4.5) through a diode | Every existing caller becomes correct as written, and the RTC gains a backup domain too | A hardware change with its own hold-up arithmetic. It also changes §5's no-clock premise, which `NP-MOD-ID-001` §7.5.1.1 and TIME-01 rest on, so it reopens a privacy decision |
+
+**Recommendation: A**, with the unmountable-Config rule stated as a decision rather than left
+implicit. It needs no hardware and no `.docx` change, and it reuses a store that has already been
+power-loss swept. Its one residual window is the one whose outcome (UHDR already unreadable) is
+least harmful.
+
+**Decided 2026-09-26: option A (principal). D-27.** Implemented the same day:
+
+- **The marker.** `NP_CFG_FILE_RESET_MARKER` is a `REPLICATED` Config file (`ra/reset.mrk`,
+  `rb/reset.mrk`) holding an 8-byte constant, with no time, count or identity in it.
+  `np_factory_reset_execute()` writes it at R-3, after setting `LPGPR1` and **before R-5**. **A reset
+  that cannot write its marker does not start.** It clears the flag and returns
+  `NP_RESET_ERR_MARKER` with nothing erased. The store never removes the marker: R-7's erase of the
+  whole partition takes it, so it adds one create per reset and no delete (`OI-LFS-08`).
+- **The boot rule.** `np_factory_reset_boot_check()` runs at bring-up before UHDR or SHDR is
+  mounted. It completes the reset (R-5 … R-10, then clears the flag) when **any** of these holds:
+  `LPGPR1` is set (a warm reset), the marker is present (a power loss between R-3 and R-7), or
+  Config holds **no filesystem** (a power loss between R-7 and R-10's commit). It re-runs from
+  **R-5**, not R-7, so an old SHDR history can never be uploaded under the token R-9 mints. A Config
+  lost for another reason also takes the no-filesystem branch. That is the accepted cost of option
+  A: UHDR is already unreadable without `ukmd.rec`, and the device gets a new warranty token.
+- **Unknown is not absent.** Until this change, `np_cfg_store_mount()` returned `STORE_IO` both for
+  a partition with no filesystem and for one that could not be read. It now returns
+  `STORE_INTEGRITY` for the first. A read fault reports `NP_FR_BOOT_UNKNOWN`, and nothing is
+  erased. The distinction puts a requirement on the unwritten block device (`OI-LOG-05..07`): a
+  read fault must come back as `LFS_ERR_IO`, never `LFS_ERR_CORRUPT`.
+- **Verified.** `np_factory_reset_tests` (58 checks, previously 24) confirms the marker precedes
+  every erase. It simulates a power cut after each medium-touching step, with `LPGPR1` cleared as a
+  power removal clears it, and the boot check completes the reset every time. A flag-only boot
+  check, the pre-change design, fails 18 of those checks. `np_cfg_store_tests` adds a
+  `test_reset_marker_is_durable` case covering the marker's survival across a power cycle and the
+  loss of one copy. It also covers zeroed and erased Config (`NO_STORE`), a superblock read fault
+  (`UNKNOWN`), and a 24-cut power-loss sweep of the marker write (0 violations: every cut leaves the
+  marker absent or present). Reverting the mount distinction fails the two no-filesystem checks.
+- **Not wired yet.** Nothing mounts Config at bring-up until a block device exists (#340), so the
+  boot check has no call site in `np_hub_control_app_main()` yet. It must precede
+  `np_log_backend_init()`, the first thing that touches UHDR or SHDR. **`OI-NVRAM-17`.** The
+  bootloader's `LPGPR1` branch is unchanged. It erases all three partitions, which leaves Config
+  with no filesystem, so the application's boot check finishes R-8 … R-10 after it.
 
 ### 3.5 Sizing, and the ceiling nobody has hit yet
 
@@ -767,6 +871,39 @@ four-map architecture forces:
 and asserts no record is lost — and per `NP-CONV-001` §8 that check must be **falsified in both
 directions** before it is trusted.
 
+#### 7.2.1 The check, as written — added at Rev 3 (`OI-NVRAM-08` closed)
+
+`firmware/hub_control/tests/np_map3_record_tests.c` (ctest `np_map3_record_tests`, Class B) checks
+the production reader, `np_map3_scan()`. **Version tolerance is a property of the scan, not a
+per-version branch.** The scan steps by each row's own `len`, accepts any `ver ≥ 1`, decodes the
+version-1 fields at their fixed offsets and skips a newer row's tail (D-25). So the reader that
+firmware *n+1* will run is this code, and the check can bind it before *n+1* exists.
+`check_no_record_lost()` requires every row back, in order, with every version-1 field intact, in
+five scenarios:
+
+| | Scenario | What it models |
+|---|---|---|
+| S1 | 40 rows written under v1, read after the update | The version bump over an unsynced history |
+| S2 | S1 plus 20 v2 rows (+8 B) and 5 v3 rows (+16 B) | The updated firmware appending to that history |
+| S3 | S2, read by a reader that knows only v1 | Boot-bank rollback after an update |
+| S4 | S2 with a partial last row | A torn append costs that row and no earlier one (L-4) |
+| S5 | 1,536 v1 rows, exactly 49,152 bytes | D-24's bound, all rows back |
+
+The future rows are built only as §7.2 allows. The real v1 encoder writes the row, the tail goes
+between the v1 fields and the CRC, and the header and CRC are rewritten. The check is **falsified in
+both directions**. It passes the production reader, and it **fails** each of four readers that break
+the rule in a way someone could plausibly write: **M1** reject-and-rebuild (the blob's policy,
+RISK-NVRAM-01's cause), **M2** fixed stride, **M3** exact length and **M4** version ceiling. Each
+mutant is also shown to read a pure-v1 journal correctly, so a failure is proven to come from
+versioning and not from a broken mutant. By hand, the production scan was patched to refuse
+`ver > NP_MAP3_VERSION`, and the check failed.
+
+**What it does not cover.** The check is on the codec. It does not go through `np_cfg_store`, whose
+`np_cfg_store_journal_read()` takes a fixed `rec_len` and so cannot read a journal whose rows differ
+in length. At version 1 every row is 32 B and nothing is lost. **Before any version grows the row,
+the store needs a variable-length journal read, or the file needs a converter per rule 2.**
+`OI-NVRAM-16`.
+
 ### 7.3 The unknown pair: it is a limits problem, not an identity problem
 
 A module reports a `(major, minor)` the hub cannot find in Map 1. The brief's flow is right — check for
@@ -879,6 +1016,39 @@ is the user's, it is not a source for any SHDR upload path, and no code may read
 SHDR.** That is the same code-structural independence CLAUDE.md §6 already requires between
 `SHDRUploader` and `ConsentStore`, applied to a new pair. **D-19.** `OI-NVRAM-09` — this needs a
 check, and the existing `warranty-nojoin-ci.yml` is the pattern to follow.
+
+#### 8.3.1 The check, as written — added at Rev 3 (`OI-NVRAM-09` closed)
+
+`scripts/check-map2-shdr-boundary.ts`, run by the `tooling-ci.yml` job `map2-shdr-boundary`, follows
+`warranty-nojoin-ci.yml`'s pattern: a self-test that must go red runs before the gate. It has two
+clauses:
+
+- **A (D-19).** No non-test source file under `app/` or `firmware/` names both Map 2 and SHDR. The
+  scan strips comments and strings, but it keeps `#include`, `import` and `require` targets and the
+  file's own path. So a Map 2 reader that calls an uploader fails, and so does an uploader that
+  imports Map 2.
+- **B (D-18).** No column of `ci/shdr/shdr_fleet_schema.sql`, which is the upload's field list, and
+  no identifier in a firmware SHDR source names a sync, a watermark, `synced_upto` or
+  `retired_upto`, a window's ends, the Map 3 ordinal or journal, or a bare delta. A rate
+  (`*_delta_per_cycle`) passes. **TIME-01 cannot catch any of these**, because an ordinal is an
+  integer. The app's SHDR code is deliberately not in B. `SHDRUploader.lastUploadedAt` is the phone
+  dating its own uploads, which §8.2 says it can always do. The rule is that such a date does not
+  travel.
+
+**D-26, the naming rule clause A depends on.** Map 2's code carries `Map2` (or `map2`, `map_2`) as a
+word in the name of every file, type and module that holds it. A Map 2 under another name is
+invisible to clause A, so the rule is a decision, not a convention. Map 2 does not exist in code
+yet, which makes clause A preventive. Its vacuity guard asserts that the SHDR writer population is
+being seen.
+
+**Reach.** Clause A is per file, so a value that crosses through a helper file that names neither
+map passes it. Clause B is a name check, so a delta uploaded under an innocuous column name passes
+it. Neither clause alone closes D-19. Together they make crossing it an edit a reviewer sees
+flagged. **Falsified in both directions.** A hermetic self-test covers legitimate shapes (a Map 2
+store alone, the independence test, the app's own upload date, firmware SHDR's §G/§H windows, a
+per-session rate) and 20 seeded violations. By hand against the real tree, a schema column
+`sessions_since_sync`, a Kotlin `import …ModuleMap2Store` in `ShdrUploader.kt` and a
+`np_shdr_synced_upto` in `np_accel_shdr.h` each turned the gate red.
 
 ### 8.4 Where the brief's suspicion lands
 
@@ -1066,6 +1236,9 @@ are decisions, and no amount of firmware work substitutes for either.
 | **D-22** *(Rev 2)* | **The UKMD record is a named LittleFS file, not "Config partition offset 0x1000".** A byte offset into a mounted partition names a block the filesystem owns and may relocate. Safe to correct because no code ever used it — `np_uhdr_hal_config_read_ukmd()` has always abstracted it. `NP-FW-EMMC-002` §C.3 corrected in the same change. §3.3.1.4 |
 | **D-23** *(Rev 2)* | **Widen the Config specification, do not forbid the write.** `EMMC-CFG-01`'s contents list and `EMMC-CFG-02`'s normal-operation whitelist gain the `"NPMP"` blob and the Map 3 journal. `np_module_map_persist()` is correct and the specification predates the hex-tile architecture; the divergence had to become a decision rather than stay silent. §3.3.1.4 |
 | **D-24** *(Rev 2)* | **Map 3 is a 32-byte record in a 49,152-byte file — 1,536 rows, ~19 per socket at 80 sockets.** 32 B so eight records fit one program unit and none straddles it; 48 KiB not `file_max` so a future 40-byte row still fits without re-deciding the bound. Stated assumption: one row per module per session — 19 days of margin at home cadence, 1.6 days at clinic cadence, beyond which §6.3 degrades to totals-plus-`detail_lost` rather than failing. Closes `OI-NVRAM-13`. §3.3.1.5 |
+| **D-25** *(Rev 3)* | **The Map 3 row describes itself: §3.3.1.5's two padding bytes are `len` and `ver`, and the reader steps by `len`.** Version 1 stays exactly 32 B. A later version appends before the CRC; offsets [2, 28) are fixed for ever, and `reserved` is never reused. The reader accepts any `ver ≥ 1` and skips a tail it does not know. This is what makes §7.2's rule enforceable, and `np_map3_record_tests` enforces it (`OI-NVRAM-08`) |
+| **D-26** *(Rev 3)* | **Map 2's code carries `Map2` as a word in the name of every file, type and module that holds it.** `check-map2-shdr-boundary.ts` clause A finds Map 2 by that name and cannot find it otherwise (`OI-NVRAM-09`, §8.3.1) |
+| **D-27** *(Rev 3, principal 2026-09-26)* | **A factory reset keeps durable evidence that it started, in the Config partition it erases last (§3.4.1 option A).** Written at R-3 before any erase, and a reset that cannot write it does not start. At boot, the SNVS flag, the marker **or a Config with no filesystem** completes the reset from R-5. An unreadable Config does not. Accepted consequence: a Config lost for any other reason also resets the device and mints a new warranty token (`OI-NVRAM-05`) |
 
 ---
 
@@ -1076,14 +1249,14 @@ Scales per `NP-RM-001` §4. Status: **MITIGATED** (controls in place, residual a
 
 | ID | Sev | Hazard | Cause | Consequence | Control | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| **RISK-NVRAM-01** | **HIGH** | Unsynced module history is destroyed by a firmware update | Map 3 inherits the inventory blob's reject-and-rebuild policy, which is correct for a cache and fatal for a record | Irrecoverable loss of the only on-device record of module usage; Map 2 totals silently regress below Map 4 | **D-5** separate file, separate version, tail-additive reader; **D-7** declare-the-gap; **D-14** reconcile by `max` so a regression cannot be written back | FW | **OPEN — `OI-NVRAM-08` check not written** |
-| **RISK-NVRAM-02** | **HIGH** | A per-window delta plus an app-side clock reconstructs per-socket usage over time in SHDR | Map 3's natural output is a delta; the initiating party holds a clock; `TIME-01` inspects for time *types* and an ordinal is an integer | `NP-MOD-ID-001` §7.5.1.1's registrant-scoped consent model loses the absence it rests on, in every configuration | **D-18** totals only, no boundary field; **D-19** structural separation of Map 2 from any SHDR writer | FW + Privacy | **OPEN — no CI guard (`OI-NVRAM-09`)** |
+| **RISK-NVRAM-01** | **HIGH** | Unsynced module history is destroyed by a firmware update | Map 3 inherits the inventory blob's reject-and-rebuild policy, which is correct for a cache and fatal for a record | Irrecoverable loss of the only on-device record of module usage; Map 2 totals silently regress below Map 4 | **D-5** separate file, separate version, tail-additive reader; **D-7** declare-the-gap; **D-14** reconcile by `max` so a regression cannot be written back | FW | **MITIGATED — `OI-NVRAM-08` check written and falsified (Rev 3, §7.2.1, D-25). Residual: a row that grows needs `OI-NVRAM-16` first** |
+| **RISK-NVRAM-02** | **HIGH** | A per-window delta plus an app-side clock reconstructs per-socket usage over time in SHDR | Map 3's natural output is a delta; the initiating party holds a clock; `TIME-01` inspects for time *types* and an ordinal is an integer | `NP-MOD-ID-001` §7.5.1.1's registrant-scoped consent model loses the absence it rests on, in every configuration | **D-18** totals only, no boundary field; **D-19** structural separation of Map 2 from any SHDR writer | FW + Privacy | **MITIGATED — `check-map2-shdr-boundary.ts`, falsified (Rev 3, §8.3.1, D-26). Residual: a name check; see the reach it states** |
 | **RISK-NVRAM-03** | **HIGH** | The store this HAL needs cannot legally exist as specified | `EMMC-CFG-02`'s raw journal area has no address space inside a LittleFS instance that owns all 16 MiB | Either the journal is built on corrupting writes, or it is not built and Map 3 has no high-frequency substrate | None yet — it is a specification decision, not a firmware one | FW + Quality | **OPEN — `OI-NVRAM-01`, BLOCKING** |
 | **RISK-NVRAM-04** | **HIGH** | A tile is driven against substituted limits | Unknown `(major, minor)`; nearest-known-minor substitution is the tempting recovery | Over- or under-drive of an emitter whose specifics the minor exists to track; only backstop is the 62 °C thermal cutoff | **D-17** absolute substitution ban; present-and-unclassified state; `check_placement()` refusal | FW + Safety | **MITIGATED — but see `OI-NVRAM-10`** *(2026-09-24: a hardware optical bound is decided, `NP-HW-HEXTILE-001` D-9, not yet built — `OI-HEXTILE-24`)* |
 | **RISK-NVRAM-05** | MEDIUM | A torn write discards a good inventory unnecessarily | `np_hexmap_nvram_write()` implemented as truncate-then-write | One spurious full re-poll per interrupted write; user-visible bring-up delay, no data loss | **D-6** contract on the HAL, plus a power-fail-injection test at each program-unit offset | FW | **ALARP — test not written** |
 | **RISK-NVRAM-06** | MEDIUM | Config partition wears out early | Per-event journalling implemented as full-blob rewrite: 25.2 MB/session, ~4.6 years at clinic rate (§3.5) | eMMC `PRE_EOL_INFO` reaches 0x03 and `EMMC-WE-02` blocks session start | **D-5** small append records instead of blob rewrite; `EMMC-WE-01` already logs the wear indicator every boot | FW | **MITIGATED by design choice** |
 | **RISK-NVRAM-07** | MEDIUM | Map 3 outgrows the file it shares with the inventory | `file_max` on Config is 65,536 B; the blob takes 14,012 at 80 sockets, leaving 644 B/module and no warning until a write fails | Silent truncation or a run-time write failure mid-session | **D-5** separate file with an explicit stated bound; **D-12** degrade-with-flag when it is reached | FW | **MITIGATED — bound not yet chosen (`OI-NVRAM-13`)** |
-| **RISK-NVRAM-08** | MEDIUM | An interrupted factory reset is not detected | `NP_SNVS_RESET_IN_PROGRESS` survives a warm reset, not a power removal, and there is no `VBAT` rail | Device boots with UHDR/SHDR/Config half-erased — the exact outcome `np_main.c` says must not happen | None. Recorded, not fixed here | FW + Privacy | **OPEN — `OI-NVRAM-05`** |
+| **RISK-NVRAM-08** | MEDIUM | An interrupted factory reset is not detected | `NP_SNVS_RESET_IN_PROGRESS` survives a warm reset, not a power removal, and there is no `VBAT` rail | Device boots with UHDR/SHDR/Config half-erased — the exact outcome `np_main.c` says must not happen | **D-27**: a durable Config marker written before the first erase; the boot check completes the reset on the marker or on a Config with no filesystem, and never on an unreadable one. Power-cut simulation at every step and a 24-cut sweep of the marker write | FW + Privacy | **MITIGATED — implemented and host-tested (Rev 3, §3.4.1). Residual: not called at bring-up until Config is mounted (`OI-NVRAM-17`, #340); target eMMC behaviour unverified (`OI-LFS-07`)** |
 | **RISK-NVRAM-09** | MEDIUM | The filesystem every durability claim rests on is unmanaged SOUP | `NP-SW-001` §9.4 lists LittleFS as *"2.x"*, Class B, verification *"Power-loss testing per LittleFS test suite"* — no vendored copy, no pinned tag, no SHA, no §7.1.2 anomaly evaluation, and nothing under `firmware/vendor/` | Every atomicity property in §4 is asserted against a component with no configuration identity | None yet | FW + Quality | **OPEN — `OI-NVRAM-12`, BLOCKING** |
 | **RISK-NVRAM-10** | LOW | Map 4's layout does not fit the part actually fitted | `NP-MOD-ID-001` §5.2 sizes four 32-byte slots at **exactly** 128 B, against ATtiny424/426/427; CLAUDE.md §3 still names the retired design's **ATtiny402** for the on-module MCU | Fewer slots than the crash-safety argument assumes, or no room for a version field | `NP-HW-HEXTILE-001` §6.2 selects ATtiny426/427-class, which is the governing document | FW + EE | **MITIGATED — documentation drift only (`OI-NVRAM-14`)** |
 
@@ -1097,17 +1270,19 @@ Scales per `NP-RM-001` §4. Status: **MITIGATED** (controls in place, residual a
 | ~~**OI-NVRAM-02**~~ | ✅ **CLOSED 2026-09-13 (Rev 2, D-22).** The UKMD record is a named LittleFS file; `NP-FW-EMMC-002` §C.3 corrected in the same change. Safe because no code ever used the offset — `np_uhdr_key.c` reaches the record through `np_uhdr_hal_config_read_ukmd()`/`_write_ukmd()`, so it was a spec-side artifact only | — (closed) | — |
 | **OI-NVRAM-03** | **DECIDED at Rev 2 (D-23) — widen, do not forbid**, as Rev 1 predicted. The write is correct and the specification predates the hex-tile architecture. Carried in `ECR-EMMC-001` with `OI-NVRAM-01`; the decision no longer waits on anything | Quality | Documentation consistency |
 | **OI-NVRAM-04** | **The pad-length stagger between contact group 3 and `SEAT#` is not dimensioned**, and no extraction-velocity assumption is stated, so the pre-break warning window has no duration. §4.3 designs around its absence; any future use of `SEAT#` as a timing signal needs this number | EE + ME | Any pre-break notification |
-| **OI-NVRAM-05** | **`NP_SNVS_RESET_IN_PROGRESS` and `NP_SNVS_ANON_IN_PROGRESS` are documented as power-loss recovery flags and can only be warm-reset flags** — the SNVS LP domain has no `VBAT` supply. The factory-reset case is the serious one: a power loss during R-4…R-9 is undetected and the device boots half-erased | FW + Privacy | **`NP-MOD-ID-001` §10's factory-reset rotation test** |
+| ~~**OI-NVRAM-05**~~ | ✅ **CLOSED 2026-09-26 (Rev 3, #444; option A chosen by the principal, D-27).** Every comment and clause that called either flag a power-loss flag says warm-reset only. The anonymisation half needs nothing more. The factory-reset half is fixed by a durable Config marker written before the first erase, and by `np_factory_reset_boot_check()`, which completes the reset on the flag, the marker or a Config with no filesystem, and never on an unreadable one. `np_cfg_store_mount()` now tells those last two apart. Tested by a power cut at every step, with a flag-only mutant failing, and by a power-loss sweep of the marker write (§3.4.1). **Continues as `OI-NVRAM-17`** (the bring-up call site) | — (closed) | — (`NP-MOD-ID-001` §10's rotation test is unblocked by design; it still needs a runnable image) |
 | **OI-NVRAM-06** | Map 4's one-write-per-session-end cadence means **a session interrupted by tile extraction contributes nothing to that tile's odometer**. Quantify whether that matters for `NP-MOD-ID-001` §7.4's model, or accept and document it | FW | Odometer fidelity |
 | **OI-NVRAM-07** | Map 3's ordinal indexing gives predictive maintenance a trajectory with unknown, non-uniform spacing in time. This is `OI-EMMC2-13`'s general defect acquiring another instance; recorded so the review gate does not discover it | FW + Data | `NP-MOD-ID-001` §7.4 review gate |
-| **OI-NVRAM-08** | **Write and falsify the CI check** that a journal written under version *n* loses no record when read under *n+1*. Per `NP-CONV-001` §8 it must be falsified in both directions before it is trusted | FW + CI | `RISK-NVRAM-01` |
-| **OI-NVRAM-09** | **Write and falsify the CI check** that no code path reads Map 2 and writes SHDR, and that no SHDR column or upload field names a sync boundary or a per-window delta. `warranty-nojoin-ci.yml` is the pattern; note that `TIME-01` cannot catch this because an ordinal is an integer | FW + Privacy | `RISK-NVRAM-02` |
+| ~~**OI-NVRAM-08**~~ | ✅ **CLOSED 2026-09-26 (Rev 3, #444).** Written as `np_map3_record_tests` over the new `np_map3_record` codec (§7.2.1, D-25). It is falsified in both directions: it passes the production scan and fails four rule-breaking readers, each of which is shown correct on a pure-v1 journal. It surfaced `OI-NVRAM-16`. ~~Write and falsify the CI check that a journal written under version *n* loses no record when read under *n+1*~~ | — (closed) | — |
+| ~~**OI-NVRAM-09**~~ | ✅ **CLOSED 2026-09-26 (Rev 3, #444).** Written as `scripts/check-map2-shdr-boundary.ts` and run by `tooling-ci.yml` `map2-shdr-boundary` (§8.3.1). It depends on D-26's naming rule, and it is falsified in both directions by a hermetic self-test and by hand against the real tree. Its reach is stated: per file, and by name. ~~Write and falsify the CI check that no code path reads Map 2 and writes SHDR, and that no SHDR column or upload field names a sync boundary or a per-window delta~~ | — (closed) | — |
 | ~~**OI-NVRAM-10**~~ | **✅ CLOSED 2026-09-24 — decided (`NP-SOUP-LFS-001` Rev 10 §13.14; `NP-HW-HEXTILE-001` Rev 13 D-9).** Safety + Hardware Engineering chose options A and B together. Each tile CH_A/CH_B stage is regulated to a fixed hardware reference that caps on-irradiance at ≤ 400 mW/cm² (`REQ-TDRV-01`), and a gate-path limiter holds conduction ≤ 50 % over any window ≥ 250 ms, which caps the average at the 200 mW/cm² CW ceiling (`REQ-TDRV-02`). No Map 1 range, register or firmware can move either. **Decided, not built:** until `OI-HEXTILE-24` verifies the circuit, the thermal cut remains the only non-firmware bound, and §9's re-derivation condition still applies. *(Rev 8 note: 2026-09-24, `NP-SOUP-LFS-001` Rev 8 §13.12: **answered — no.** The safety MCU owns the PBM enable lines and their thermal cut only; the tile's on-current is set by hardware but unregulated, and Map 1 reaches drive through Class B firmware. The drive stage is specified inconsistently — `NP-HW-HEXTILE-001` `OI-HEXTILE-23`. Three options, not chosen, in §13.12.)* **Is there a Class C bound on per-tile emitter drive current that is independent of Map 1's ranges?** If not, a wrong range is bounded only by the 62 °C thermal cutoff — a thermal limit standing in for an optical one — and §9's classification must be re-derived before any tile variant with differing ranges ships | Safety + EE | — (closed; implementation `OI-HEXTILE-24`) |
 | ~~**OI-NVRAM-11**~~ | ✅ **CLOSED 2026-09-13 (Rev 2).** The comment now derives `REC_BYTES` = 175 and gives blob(80) = 14,012 and blob(128) = 22,412, the values the macros compute and the tests assert. **A second stale claim in the same comment was found and corrected with it** — it placed the UKMD record *"at offset 0x1000"*, the address D-22 retires; the comment now states that everything on Config is a LittleFS file and that the binding per-file bound is `file_max` = 65,536 B, not the partition size | — (closed) | — |
 | **OI-NVRAM-12** | **SUPERSEDED 2026-09-13 by `NP-SOUP-LFS-001` Rev 1**, which brings LittleFS under SOUP management, replaces `NP-SW-001` §9.4's cell, and performs the hazard analysis. Two findings come back to this document: **LittleFS is not merely unmanaged, it is absent** — two `lfs_` tokens in all of `firmware/`, both comments — so §4's guarantees rest on a component that is nominated rather than integrated; and **§9's Class B argument is a property of `np_module_map`'s reject-and-rebuild policy, not of LittleFS**, which is the policy §7.2 specifies Map 3 to invert. That is now `REQ-LFS-01`: no value bounding an emission may be stored under a tail-additive policy. Continues as `OI-LFS-01` (pin + vendor — **CLOSED 2026-09-14**, littlefs `v2.11.3` vendored with per-file SHA-256 and a tested configuration) and `OI-LFS-02` (§7.1.2 evaluation + a falsified power-loss injection test), **which inherits the blocking status** | FW + Quality | **`OI-LFS-02` remains BLOCKING for any claim of power-loss atomicity — closing `OI-LFS-01` moved that status, it did not lift it** |
 | ~~**OI-NVRAM-13**~~ | ✅ **CLOSED 2026-09-13 (Rev 2, D-24, §3.3.1.5).** 32-byte record (eight per 256-byte program unit, none straddling), 49,152-byte file, 1,536 rows, ~19 per socket at 80 sockets. Assumption stated as required: one row per module per session — 19 days of margin at home cadence, **1.6 days at clinic cadence**, stated rather than rounded away, and bounded by §6.3's degrade-to-totals policy rather than by a failure | — (closed) | — |
 | **OI-NVRAM-14** | CLAUDE.md §3 still names **ATtiny402** as the on-module MCU, which `NP-HW-HEXTILE-001` §6.2 identifies as the retired design's part (10-bit ADC) and replaces with ATtiny426/427-class. `NP-MOD-ID-001` §5.2 sizes Map 4 at exactly 128 B against the latter, with zero slack. Correct the CLAUDE.md bullet | Systems | Map 4 storage budget |
 | **OI-NVRAM-15** | `NP-MOD-ID-001` is **DRAFT**, *"pending principal approval and the two BLOCKING open items in §9"*. This document builds on MODID-4/5/6 as though settled. If the odometer, the ref derivation or the coarsening rule changes, §6 and §8 change with them | Principal | This document's §6 and §8 |
+| **OI-NVRAM-16** | *(Rev 3)* **`np_cfg_store_journal_read()` cannot read a journal whose rows differ in length.** It takes one fixed `rec_len` and runs the per-record check on each `rec_len`-byte slice. D-24 budgets a future 40-byte row and D-25 makes the row self-describing, but the first version that grows the row would have every v1 row after the first read back misaligned through the store. **Before any Map 3 version grows the row, either the store gains a variable-length journal read that steps by a caller-supplied length, or rule 2's converter rewrites the file.** `check-lfs-caller-rules.ts` R5 governs who may call the reader, and a new read path must be added under it. Not a defect at version 1, where every row is 32 B | FW | Any Map 3 version with a row longer than 32 B |
+| **OI-NVRAM-17** | *(Rev 3)* **`np_factory_reset_boot_check()` has no call site.** Bring-up does not mount Config, because no block device is bound (#340). When it does, `np_hub_control_app_main()` must call the boot check **before `np_log_backend_init()`**, the first step that touches UHDR or SHDR. It must refuse to mount either on `RESUME_FAILED` or `UNKNOWN`. `scripts/check-hub-bringup-order.ts` should gain that ordering constraint in the same change. Until then, a power-cut reset is detected by code that nothing runs | FW | Option A in force on a device |
 
 ---
 
@@ -1196,6 +1371,15 @@ case of that; `ukmd.rec` is.
 `OI-NVRAM-05` remains open and still blocks `NP-MOD-ID-001` §10's factory-reset rotation test; it is a
 factory-reset correctness question rather than a storage-layer one, and Rev 2 does not touch it.
 
+> **Update 2026-09-26 (Rev 3, #444).** Both CI checks this section counted in §10.3 now exist and are
+> falsified: `np_map3_record_tests` (`OI-NVRAM-08`, over the new `np_map3_record` codec) and
+> `check-map2-shdr-boundary.ts` (`OI-NVRAM-09`). `RISK-NVRAM-01` and `-02` move to MITIGATED.
+> `OI-NVRAM-05` is closed. The principal chose option A (D-27), and the durable marker and boot
+> check are implemented and tested (§3.4.1). Two new items: `OI-NVRAM-16` must land before Map 3's
+> row can grow, and `OI-NVRAM-17` is the boot check's bring-up call site. **Still not built:** Map 3's owner (sync, watermarks, the §6.3
+> journal-full policy) and the `np_hexmap_nvram_*` binding (`OI-HEXMAP-01`, waiting on #340's block
+> device).
+
 ---
 
 ## 15. Revision history
@@ -1204,3 +1388,4 @@ factory-reset correctness question rather than a storage-layer one, and Rev 2 do
 |---|---|---|---|
 | 1 | 2026-08-27 | NeurOne Firmware + Data Architecture | Initial release. Specifies the hub NVRAM HAL under the four-map module record — the resolution of `OI-HEXMAP-01` — with twenty decisions (D-1…D-20), ten risk rows and fifteen open items. **Corrects six claims in its own scoping brief:** Map 4's substrate is not open and is not inside `OI-HEXTILE-06` (which is a photodiode-population decision) — `NP-HW-HEXTILE-001` D-3 and `NP-MOD-ID-001` MODID-4 already specify it, at **$0.00 BOM**; the module-change power cut is a per-cluster `SAFE_EN[n]` emitter-rail cut, not a hub power loss, which makes the atomicity requirement broader rather than narrower; `SEAT#` cannot supply a last-gasp write window because it has no firmware consumer, sits at Class B, and its pre-break interval is undimensioned; the version-bump window closes at the first unsynced Map 3 row, not at first ship, because a cache and a record need opposite policies; and two documents cited as house-style precedent are not on `main` (`NP-FEAS-PBMCH-001` in PR #292, `NP-FW-BENCH-001` in PR #297 — an initial reading that the former did not exist at all was itself wrong, and is corrected in §1), so the in-force no-wall-clock precedent used here is `NP-FW-EMMC-002` §H.3.1–H.3.2. **Four defects found on the store itself:** `EMMC-CFG-02`'s raw journal area has no address space inside a LittleFS instance owning all 16 MiB (`OI-NVRAM-01`, blocking); `NP-FW-EMMC-002` §C.3's offset-`0x1000` UKMD address has the same problem; the two SNVS power-loss recovery flags can only be warm-reset flags on a device with no `VBAT` rail (`OI-NVRAM-05`); and LittleFS is the only Class B SOUP item that is neither vendored, pinned nor anomaly-evaluated (`OI-NVRAM-12`, blocking). **Privacy finding:** a per-window delta becomes a timestamped count in the hands of the only party that can date the window's ends, so no sync-boundary field or delta may be uploaded — this walks around `TIME-01` rather than breaching it, and `NP-MOD-ID-001` §7.5.1.1's consent model rests on exactly that absence. No code changed with this document. |
 | 2 | 2026-09-13 | NeurOne Firmware Engineering | **Resolves the store defects Rev 1 found, so Map 3 can be built (Issue #339).** Rev 1 recorded four defects and deliberately stopped; `OI-NVRAM-01` was blocking Map 3, and a blocking item nobody may resolve is a design that cannot start. **D-21: the Config journal is LittleFS files, and `EMMC-CFG-02`'s raw-write region is void — its *justification* refuted, not outweighed.** At `EMMC-FS-01`'s `prog_size` of 256 B an append costs one 256-byte program inside the current block; a raw region cannot offer a smaller program unit, because the unit belongs to the eMMC and not to the filesystem. The cost the clause was aimed at is `np_module_map_persist()` rewriting 14,012 bytes to record a 16-byte fact, which **D-5 already removes** by giving Map 3 its own file — *the raw region was aimed at the right symptom and the wrong cause*. Two further grounds: carving the region shrinks `block_count` and so **relocates the UKMD record**, whose loss makes a user's UHDR permanently unmountable with no NeurOne-held second copy — free today, but the window closes at first **provisioning**, not first ship, the same boundary error §7.2 corrects for the version bump; and a raw region means re-implementing commit ordering, per-record CRC and wear levelling by hand at Class B, which is the wrong answer to `OI-NVRAM-12`. **D-22 closes `OI-NVRAM-02`** — the UKMD record becomes a named file and `NP-FW-EMMC-002` §C.3 is corrected here, provably safe because `np_uhdr_key.c` has always reached it through a HAL and never through the offset. **D-23 decides `OI-NVRAM-03`** by widening rather than forbidding, as Rev 1 predicted. **D-24 closes `OI-NVRAM-13`**: 32-byte record (eight per program unit, none straddling), 49,152-byte file, 1,536 rows, ~19 per socket, against a stated assumption of one row per module per session — 19 days of margin at home cadence and **1.6 days at clinic cadence, stated rather than rounded away**, bounded by §6.3's degrade-to-totals-plus-`detail_lost` rather than by a failure. **`OI-NVRAM-12` is superseded by `NP-SOUP-LFS-001` Rev 1**, which brings LittleFS under SOUP management and returns two findings to this document: it is **not in the tree at all** (two `lfs_` tokens in `firmware/`, both comments), so §4's guarantees rest on a nominated rather than integrated component; and **§9's Class B argument is a property of `np_module_map`'s reject-and-rebuild policy rather than of LittleFS** — the policy §7.2 specifies Map 3 to invert — now constrained by `REQ-LFS-01`. Per `NP-CONV-001` §7 every Rev 1 finding in §3.3 is retained verbatim and §3.3.1 sits after it. `NP-FW-EMMC-001` is not edited (it is a `.docx`, `OI-CONV-04`); its three clause changes are raised as `ECR-EMMC-001` with replacement text. **No code changed with this revision.** Rev 1 → 2. |
+| 3 | 2026-09-26 | NeurOne Firmware + Data Architecture | **The two invariants get CI checks, and the SNVS claims are corrected (GitHub #444).** **`OI-NVRAM-08` closed:** the Map 3 row is now code (`np_map3_record.{h,c}`), and `np_map3_record_tests` checks that a journal written under version *n* loses no record under *n+1*. Across an upgrade, appended newer rows, a rollback, a torn tail and the D-24 bound, it is falsified in both directions against four rule-breaking readers (§7.2.1). **D-25:** §3.3.1.5's two padding bytes become `len` + `ver`, so the scan steps by the row's own length and accepts every version. **`OI-NVRAM-09` closed:** `scripts/check-map2-shdr-boundary.ts` (`tooling-ci.yml` `map2-shdr-boundary`) checks that no file names Map 2 and SHDR together, and that no SHDR column or firmware SHDR identifier names a sync boundary, watermark, ordinal or per-window delta (§8.3.1). **D-26** is the Map 2 naming rule it depends on. It is falsified by a hermetic self-test and by hand against the real tree. **`OI-NVRAM-05`:** every claim that `LPGPR1`/`LPGPR2` survive power loss is corrected in six firmware files and in `NP-FW-EMMC-002` Rev 4 §B.4/§D.6, including a comment calling the SNVS domain *"battery-backed"*. The anonymisation half needs nothing more. For the factory-reset half, §3.4.1 specifies three options. **The principal chose A (D-27), and it is implemented.** A replicated Config marker is written at R-3 before the first erase, a reset that cannot write it does not start, and `np_factory_reset_boot_check()` completes the reset on the flag, the marker or a Config with no filesystem. `np_cfg_store_mount()` now tells "no filesystem" from "unreadable", and the second never erases. **New:** `OI-NVRAM-16`, since the store's fixed-length journal read cannot read a grown row, and `OI-NVRAM-17`, since the boot check has no bring-up call site until Config is mounted (#340). `RISK-NVRAM-01`/`-02`/`-08` move to MITIGATED. `OI-NVRAM-04`, `-06` and `OI-HEXMAP-01` stay open. SW-02 code changed: the new codec and test, one ctest target (Class B 39 → 40), comment corrections in the bootloader and anon modules, and the factory reset's R-3 marker, boot check and `NP_RESET_ERR_MARKER` in `np_factory_reset`. It also adds `np_reset_marker.c`, and in `np_cfg_store` one file-table row and the mount-error distinction. **The factory reset's behaviour changed as D-27 specifies. No SW-01 file changed.** Rev 2 → 3. |

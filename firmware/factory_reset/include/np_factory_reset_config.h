@@ -3,11 +3,15 @@
  * NeurOne Device Factory Reset — Hardware Configuration
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
  *
- * SNVS_LPGPR1 holds the factory-reset-in-progress flag.  It survives warm
- * resets and brief power loss (battery-backed SNVS domain), allowing the
- * bootloader to detect a reset that was interrupted by power loss during
- * steps R-5..R-10 and re-run the SANITIZE/zero sequence before completing
- * boot.
+ * SNVS_LPGPR1 holds the factory-reset-in-progress flag.  It survives WARM
+ * resets only.  The SNVS domain is NOT battery-backed: the headset has no
+ * battery, coin cell or VBAT rail, so a power removal clears the register
+ * (NP-FW-NVRAM-001 §3.4, D-4).  The bootloader therefore detects a reset
+ * interrupted during R-5..R-10 by a watchdog or software reset, and re-runs
+ * the SANITIZE/zero sequence.  A reset interrupted by POWER LOSS is detected
+ * instead by the durable marker in Config and np_factory_reset_boot_check()
+ * (NP-FW-NVRAM-001 §3.4.1 option A, OI-NVRAM-05).  Until 2026-09-26 this comment said the domain was
+ * battery-backed, which the hardware is not (CLAUDE.md §4.5: no RTC backup).
  *
  * SNVS base and register-access pattern match firmware/bootloader/include/
  * np_config.h (NP_SNVS_BASE, *(volatile uint32_t *)address).  LPGPR1 is the
@@ -20,7 +24,7 @@
 #include <stdint.h>
 
 /* ── SNVS Low Power General Purpose Register 1 ───────────────────────────── */
-/* Survives warm resets and battery-backed power loss.                         */
+/* Survives warm resets only — no VBAT rail (NP-FW-NVRAM-001 §3.4).           */
 /* Holds the factory-reset-in-progress flag (bit 0).                           */
 #define NP_FR_SNVS_BASE             0x400D4000UL
 

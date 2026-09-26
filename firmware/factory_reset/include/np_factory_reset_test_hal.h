@@ -43,7 +43,22 @@ typedef struct {
     int      fail_zero_config;
     int      fail_write_config;
     int      trng_fail_on_call;
+    int      fail_marker_write;
 
+    /* The durable marker's medium, modelled (OI-NVRAM-05, option A): a
+     * successful marker write makes it PRESENT, a successful R-7 zero makes
+     * Config NO_STORE, a successful R-10 write makes it ABSENT.  A test sets
+     * it directly to model the state a power loss left behind. */
+    np_fr_marker_state_t marker_state;
+
+    /* Order of medium-touching steps, one letter each: M marker write,
+     * U UHDR sanitize, S SHDR zero, C Config zero, W Config defaults write.
+     * Lets a test assert the marker precedes the first erase. */
+    char     trace[64];
+    uint32_t trace_len;
+
+    uint32_t calls_marker_write;
+    uint32_t calls_marker_state;
     uint32_t calls_sanitize_uhdr;
     uint32_t calls_zero_shdr;
     uint32_t calls_zero_config;

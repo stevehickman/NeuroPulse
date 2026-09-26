@@ -61,6 +61,15 @@ static const np_cfg_file_desc_t s_files[NP_CFG_FILE_COUNT] = {
     [NP_CFG_FILE_CONSUMABLES] = { NP_CFG_POLICY_REPLICATED,
                            { NP_CFG_REPLICA_DIR_A "/consum.rec",
                              NP_CFG_REPLICA_DIR_B "/consum.rec" } },
+    /* OI-NVRAM-05 option A: the durable factory-reset marker (NP-FW-NVRAM-001
+     * §3.4.1).  Written at R-3 before the first erase; never removed through
+     * the store — R-7 erases the partition it lives in — so it adds one create
+     * per reset and no delete (OI-LFS-08).  REPLICATED so one lost entry does
+     * not lose the evidence that a reset was running.  It bounds nothing
+     * (REQ-LFS-01). */
+    [NP_CFG_FILE_RESET_MARKER] = { NP_CFG_POLICY_REPLICATED,
+                           { NP_CFG_REPLICA_DIR_A "/reset.mrk",
+                             NP_CFG_REPLICA_DIR_B "/reset.mrk" } },
 };
 
 /* ── RAM state — all of it lost at a reboot, and np_cfg_store_bind() is one ── */
@@ -352,8 +361,14 @@ static np_hub_status_t mount_locked(void)
         return st;
     }
     memset(s_lfs, 0, sizeof(*s_lfs));
-    if (lfs_mount(s_lfs, s_cfg) != 0) {
-        return NP_HUB_ERR_STORE_IO;
+    int merr = lfs_mount(s_lfs, s_cfg);
+    if (merr != 0) {
+        /* No superblock is not the same as an unreadable medium.  The first
+         * is what R-7's erase leaves and what np_factory_reset_boot_check()
+         * completes a reset on; the second must never be read as an absence
+         * (NP-FW-NVRAM-001 §3.4.1, OI-NVRAM-05). */
+        return (merr == LFS_ERR_CORRUPT) ? NP_HUB_ERR_STORE_INTEGRITY
+                                         : NP_HUB_ERR_STORE_IO;
     }
     s_mounted         = true;
     s_live            = true;

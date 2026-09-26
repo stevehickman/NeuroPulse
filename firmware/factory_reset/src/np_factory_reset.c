@@ -162,8 +162,17 @@ np_reset_status_t np_factory_reset_execute(void)
      * performed at the hub layer before this function is called; this module
      * accepts unconditionally and documents the assumption. */
 
-    /* R-3: set reset_in_progress so an interrupted reset is detected at boot. */
+    /* R-3: set reset_in_progress (warm reset), then write the durable marker
+     * (power loss — NP-FW-NVRAM-001 §3.4.1 option A, OI-NVRAM-05).  The marker
+     * MUST be durable before the first erase: a reset whose start is not on
+     * the medium could be cut by a power loss and never resumed.  So a reset
+     * that cannot write it does not start — nothing has been erased yet, and
+     * the flag is cleared so a warm reset does not resume what never began. */
     np_fr_set_in_progress();
+    if (np_factory_reset_hal_marker_write() != NP_RESET_OK) {
+        np_fr_clear_in_progress();
+        return NP_RESET_ERR_MARKER;
+    }
 
     /* R-4: suspend sessions — no-op.  This function is only invoked when no
      * stimulation session is active (enforced by the hub layer), so there is
@@ -185,6 +194,40 @@ np_reset_status_t np_factory_reset_execute(void)
 
     /* Reached only on the host build (np_fr_reboot is a no-op there). */
     return NP_RESET_OK;
+}
+
+np_fr_boot_t np_factory_reset_boot_check(void)
+{
+    /* Read the marker FIRST, so Config's state is known whatever the flag
+     * says.  Then decide.  Any one of three signs means a reset was running:
+     *
+     *   SNVS flag     a warm reset interrupted R-3..R-11
+     *   PRESENT       a power loss (or any reset) between R-3 and R-7
+     *   NO_STORE      a power loss between R-7 and R-10's commit — or a
+     *                 Config lost some other way, which is accepted (§3.4.1):
+     *                 UHDR is already unreadable without ukmd.rec
+     *
+     * UNKNOWN is not one of them.  An unreadable Config is never taken as
+     * permission to erase, and never as proof that nothing was running. */
+    np_fr_marker_state_t m = np_factory_reset_hal_marker_state();
+    bool flag = np_factory_reset_is_in_progress();
+
+    if (m == NP_FR_MARKER_UNKNOWN) {
+        return NP_FR_BOOT_UNKNOWN;
+    }
+    if (!flag && m == NP_FR_MARKER_ABSENT) {
+        return NP_FR_BOOT_NONE;
+    }
+
+    /* Re-run from R-5 even when only Config is missing: R-5 and R-6 are
+     * idempotent, and running them means an old SHDR history can never be
+     * uploaded under the warranty token R-9 is about to mint. */
+    np_fr_set_in_progress();
+    if (np_fr_wipe_and_rederive() != NP_RESET_OK) {
+        return NP_FR_BOOT_RESUME_FAILED;   /* flag stays set: next boot retries */
+    }
+    np_fr_clear_in_progress();
+    return NP_FR_BOOT_RESUMED;
 }
 
 void np_factory_reset_resume_after_powerloss(void)
@@ -229,25 +272,65 @@ static np_reset_status_t np_fr_host_step(int *fail_remaining, uint32_t *call_cou
     return NP_RESET_OK;
 }
 
+static void np_fr_host_trace(char c)
+{
+    if (np_fr_host_hal.trace_len + 1U < sizeof(np_fr_host_hal.trace)) {
+        np_fr_host_hal.trace[np_fr_host_hal.trace_len++] = c;
+        np_fr_host_hal.trace[np_fr_host_hal.trace_len] = '\0';
+    }
+}
+
+np_reset_status_t np_factory_reset_hal_marker_write(void)
+{
+    np_reset_status_t st = np_fr_host_step(&np_fr_host_hal.fail_marker_write,
+                                           &np_fr_host_hal.calls_marker_write,
+                                           NP_RESET_ERR_MARKER);
+    if (st == NP_RESET_OK) {
+        np_fr_host_trace('M');
+        np_fr_host_hal.marker_state = NP_FR_MARKER_PRESENT;
+    }
+    return st;
+}
+
+np_fr_marker_state_t np_factory_reset_hal_marker_state(void)
+{
+    np_fr_host_hal.calls_marker_state++;
+    return np_fr_host_hal.marker_state;
+}
+
 np_reset_status_t np_factory_reset_hal_sanitize_uhdr(void)   /* OI-RESET-01 */
 {
-    return np_fr_host_step(&np_fr_host_hal.fail_sanitize_uhdr,
-                           &np_fr_host_hal.calls_sanitize_uhdr,
-                           NP_RESET_ERR_SANITIZE);
+    np_reset_status_t st = np_fr_host_step(&np_fr_host_hal.fail_sanitize_uhdr,
+                                           &np_fr_host_hal.calls_sanitize_uhdr,
+                                           NP_RESET_ERR_SANITIZE);
+    if (st == NP_RESET_OK) {
+        np_fr_host_trace('U');
+    }
+    return st;
 }
 
 np_reset_status_t np_factory_reset_hal_zero_shdr(void)       /* OI-RESET-02 */
 {
-    return np_fr_host_step(&np_fr_host_hal.fail_zero_shdr,
-                           &np_fr_host_hal.calls_zero_shdr,
-                           NP_RESET_ERR_SANITIZE);
+    np_reset_status_t st = np_fr_host_step(&np_fr_host_hal.fail_zero_shdr,
+                                           &np_fr_host_hal.calls_zero_shdr,
+                                           NP_RESET_ERR_SANITIZE);
+    if (st == NP_RESET_OK) {
+        np_fr_host_trace('S');
+    }
+    return st;
 }
 
 np_reset_status_t np_factory_reset_hal_zero_config(void)     /* OI-RESET-03 */
 {
-    return np_fr_host_step(&np_fr_host_hal.fail_zero_config,
-                           &np_fr_host_hal.calls_zero_config,
-                           NP_RESET_ERR_SANITIZE);
+    np_reset_status_t st = np_fr_host_step(&np_fr_host_hal.fail_zero_config,
+                                           &np_fr_host_hal.calls_zero_config,
+                                           NP_RESET_ERR_SANITIZE);
+    if (st == NP_RESET_OK) {
+        /* R-7 erases the partition the marker lives in. */
+        np_fr_host_trace('C');
+        np_fr_host_hal.marker_state = NP_FR_MARKER_NO_STORE;
+    }
+    return st;
 }
 
 np_reset_status_t np_factory_reset_hal_trng_generate(uint8_t *buf, size_t len) /* OI-RESET-04 */
@@ -274,9 +357,15 @@ np_reset_status_t np_factory_reset_hal_write_config_defaults( /* OI-RESET-05 */
     if (trng_salt == NULL || warranty_token == NULL) {
         return NP_RESET_ERR_CONFIG;
     }
-    return np_fr_host_step(&np_fr_host_hal.fail_write_config,
-                           &np_fr_host_hal.calls_write_config,
-                           NP_RESET_ERR_CONFIG);
+    np_reset_status_t st = np_fr_host_step(&np_fr_host_hal.fail_write_config,
+                                           &np_fr_host_hal.calls_write_config,
+                                           NP_RESET_ERR_CONFIG);
+    if (st == NP_RESET_OK) {
+        /* R-10 formats Config and commits the defaults: no marker. */
+        np_fr_host_trace('W');
+        np_fr_host_hal.marker_state = NP_FR_MARKER_ABSENT;
+    }
+    return st;
 }
 
 #endif /* NPTEST_HOST */

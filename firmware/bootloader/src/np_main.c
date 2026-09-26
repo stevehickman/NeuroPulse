@@ -337,11 +337,14 @@ void Bootloader_Reset(void)
     /* B-1: Zero the Scratch partition (power-loss safety) ──────────────── */
     zero_scratch_partition();
 
-    /* Anonymization power-loss recovery (NP-FW-EMMC-002 §D.6) ──────────── */
-    /* If a research anonymization run was interrupted by power loss, the    */
-    /* SNVS_LPGPR2 in-progress flag is still set.  The per-run AES key lived */
-    /* only in SRAM and is gone, so the staged Scratch ciphertext is already */
-    /* unreadable; SANITIZE Scratch (via erase) anyway and clear the flag.   */
+    /* Anonymization reset recovery (NP-FW-EMMC-002 §D.6) ────────────────── */
+    /* If a research anonymization run was interrupted by a WARM reset, the  */
+    /* SNVS_LPGPR2 in-progress flag is still set.  A POWER LOSS clears it —  */
+    /* there is no VBAT rail (NP-FW-NVRAM-001 §3.4) — and that case is       */
+    /* covered by zero_scratch_partition() above, which runs on every boot.  */
+    /* The per-run AES key lived only in SRAM and is gone either way, so the */
+    /* staged Scratch ciphertext is already unreadable; erase Scratch anyway */
+    /* and clear the flag.                                                   */
     /* This must run before the OTA_PENDING check so recovery is unconditional*/
     /* with respect to the boot path taken below.                            */
     if (NP_SNVS_LPGPR2 & NP_SNVS_ANON_IN_PROGRESS) {
@@ -350,9 +353,15 @@ void Bootloader_Reset(void)
     }
     /* Check for interrupted factory reset — re-run SANITIZE before completing boot */
     if (NP_SNVS_LPGPR1 & NP_SNVS_RESET_IN_PROGRESS) {
-        /* Power was lost during factory reset R-4..R-9.
-         * Re-sanitize all data partitions, then complete the reset.
-         * Device remains in factory-reset state until app re-initialises. */
+        /* A WARM reset (watchdog, software) interrupted factory reset R-4..R-9.
+         * A POWER LOSS in the same window clears LPGPR1 and does not reach
+         * this branch; the application's np_factory_reset_boot_check() finds
+         * it instead, from the durable marker in Config (NP-FW-NVRAM-001
+         * §3.4.1 option A, OI-NVRAM-05).
+         * Re-sanitize all data partitions.  This leaves Config with no
+         * filesystem, which np_factory_reset_boot_check() reads as a reset
+         * still running, so the application completes R-5..R-10 (new salt,
+         * new warranty token) before it mounts UHDR or SHDR. */
         np_status_t wipe = np_emmc_switch_partition(NP_EMMC_USER_AREA);
         if (wipe == NP_OK) wipe = np_emmc_erase(NP_UHDR_LBA_START, NP_UHDR_SIZE_LBA);
         if (wipe == NP_OK) wipe = np_emmc_erase(NP_SHDR_LBA_START, NP_SHDR_SIZE_LBA);

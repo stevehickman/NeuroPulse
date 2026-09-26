@@ -205,7 +205,8 @@ env:
   # 36 → 37: np_gatt_server_tests (GitHub #381, OI-WA-03).
   # 37 → 38: np_consumables_tests (GitHub #381, OI-ACC-08).
   # 38 → 39: np_hrv_session_tests (GitHub #447, OI-HRV-05; answers OI-SWCI-05).
-  NP_CLASS_B_TEST_COUNT: '39'
+  # 39 → 40: np_map3_record_tests (GitHub #444, OI-NVRAM-08).
+  NP_CLASS_B_TEST_COUNT: '40'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  This job always

@@ -47,6 +47,8 @@
 #include <string.h>
 
 #include "np_cfg_store.h"
+#include "np_factory_reset.h"
+#include "np_reset_marker.h"
 #include "np_crypto.h"        /* np_crc32 — a checker independent of the store */
 #include "np_lfs_config.h"
 #include "np_lfs_instance.h"
@@ -985,6 +987,118 @@ static void test_session_count_is_persisted(void)
            "a power loss during the count commit made it go backwards or lost it");
 }
 
+/* ── OI-NVRAM-05 option A: the durable factory-reset marker ─────────────────
+ * NP-FW-NVRAM-001 §3.4.1.  What np_factory_reset_boot_check() completes a
+ * reset on must be readable from the medium after a power loss, and what it
+ * must NOT complete a reset on (an unreadable medium) must stay distinct. */
+
+static np_fr_marker_state_t marker_state_after_reboot(void)
+{
+    np_cfg_store_unmount();
+    np_powerbd_power_cycle(&g_bd);
+    reboot();
+    np_fr_marker_state_t m = np_factory_reset_hal_marker_state();
+    np_cfg_store_unmount();
+    return m;
+}
+
+static void s_marker_baseline(void)
+{
+    ASSERT(np_cfg_store_format() == NP_HUB_OK && np_cfg_store_mount() == NP_HUB_OK,
+           "baseline format/mount");
+    np_cfg_store_unmount();
+}
+
+static void s_marker_write(void)
+{
+    if (np_cfg_store_mount() != NP_HUB_OK) { return; }
+    (void)np_factory_reset_hal_marker_write();
+    np_cfg_store_unmount();
+}
+
+static int v_marker(const char *what, long cut, np_powerbd_tear_t tear)
+{
+    /* A cut during R-3 happens before any erase.  Either the reset had not
+     * started (ABSENT, and the user re-issues it) or it had (PRESENT, and the
+     * boot completes it).  Anything else would either erase on an unreadable
+     * store or lose the store the reset has not yet erased. */
+    np_fr_marker_state_t m = np_factory_reset_hal_marker_state();
+    np_cfg_store_unmount();
+    if (m == NP_FR_MARKER_ABSENT || m == NP_FR_MARKER_PRESENT) {
+        return 0;
+    }
+    finding(what, cut, tear, "marker state %d after a cut during its write — "
+            "neither absent nor present", (int)m);
+    return 1;
+}
+
+static void test_reset_marker_is_durable(void)
+{
+    /* The decision table, without a medium. */
+    ASSERT(np_reset_marker_classify(NP_HUB_ERR_STORE_INTEGRITY, NP_HUB_OK) ==
+           NP_FR_MARKER_NO_STORE, "no filesystem must classify as NO_STORE");
+    ASSERT(np_reset_marker_classify(NP_HUB_ERR_STORE_IO, NP_HUB_OK) ==
+           NP_FR_MARKER_UNKNOWN, "an unreadable medium must classify as UNKNOWN");
+    ASSERT(np_reset_marker_classify(NP_HUB_OK, NP_HUB_ERR_NOT_PRESENT) ==
+           NP_FR_MARKER_ABSENT, "no marker must classify as ABSENT");
+    ASSERT(np_reset_marker_classify(NP_HUB_OK, NP_HUB_OK) ==
+           NP_FR_MARKER_PRESENT, "a marker must classify as PRESENT");
+    ASSERT(np_reset_marker_classify(NP_HUB_OK, NP_HUB_ERR_STORE_INTEGRITY) ==
+           NP_FR_MARKER_PRESENT, "a refused copy is a begun write: PRESENT");
+    ASSERT(np_reset_marker_classify(NP_HUB_OK, NP_HUB_ERR_STORE_IO) ==
+           NP_FR_MARKER_UNKNOWN, "a read fault must classify as UNKNOWN");
+
+    /* A formatted Config holds no marker. */
+    fresh();
+    ASSERT(marker_state_after_reboot() == NP_FR_MARKER_ABSENT,
+           "a freshly formatted Config reads as a running reset");
+
+    /* R-3 writes it, and it survives a power cycle — the property LPGPR1
+     * does not have. */
+    ASSERT(np_cfg_store_mount() == NP_HUB_OK, "mount");
+    ASSERT(np_factory_reset_hal_marker_write() == NP_RESET_OK, "marker write");
+    ASSERT(marker_state_after_reboot() == NP_FR_MARKER_PRESENT,
+           "the marker did not survive a power cycle");
+
+    /* One lost entry (#1210) does not lose the evidence. */
+    ASSERT(np_cfg_store_mount() == NP_HUB_OK, "mount");
+    ASSERT(lfs_remove(&g_lfs, "ra/reset.mrk") == 0, "raw remove of copy A");
+    ASSERT(marker_state_after_reboot() == NP_FR_MARKER_PRESENT,
+           "losing one copy lost the marker");
+
+    /* R-7 zeroes the partition: no filesystem, which completes the reset. */
+    memset(g_media, 0x00, sizeof(g_media));
+    ASSERT(marker_state_after_reboot() == NP_FR_MARKER_NO_STORE,
+           "a zeroed Config did not read as NO_STORE");
+    np_powerbd_wipe(&g_bd);
+    ASSERT(marker_state_after_reboot() == NP_FR_MARKER_NO_STORE,
+           "an erased Config did not read as NO_STORE");
+
+    /* An unreadable medium is NOT an empty one.  Before 2026-09-26 the store
+     * reported both as NP_HUB_ERR_STORE_IO, and option A's boot rule would
+     * have erased a device on a read fault. */
+    fresh();
+    ASSERT(np_factory_reset_hal_marker_write() == NP_RESET_OK, "marker write");
+    np_cfg_store_unmount();
+    np_powerbd_power_cycle(&g_bd);
+    reboot();
+    np_powerbd_fail_reads(&g_bd, 0, 1000);
+    np_powerbd_fail_reads(&g_bd, 1, 1000);
+    np_fr_marker_state_t m = np_factory_reset_hal_marker_state();
+    np_powerbd_fail_reads(&g_bd, 0, 0);
+    np_powerbd_fail_reads(&g_bd, 1, 0);
+    np_cfg_store_unmount();
+    ASSERT(m == NP_FR_MARKER_UNKNOWN,
+           "a read fault on the superblock was reported as a state to act on");
+
+    /* A power loss during the marker write: absent or present, nothing else. */
+    np_sweep_result_t r = run("R-3 reset marker write", s_marker_baseline,
+                              s_marker_write, v_marker, false);
+    ASSERT(r.ops > 0 && r.missed_cuts == 0, "marker sweep did not run as measured");
+    ASSERT(r.violations == 0,
+           "a power loss during the marker write left Config in neither state");
+}
+
 int main(void)
 {
     printf("np_cfg_store_tests — NP-SOUP-LFS-001 Rev 4 §13 "
@@ -999,6 +1113,7 @@ int main(void)
     test_replicated_record_survives_one_lost_entry();
     test_store_orderings_survive_power_loss();
     test_session_count_is_persisted();
+    test_reset_marker_is_durable();
 
     np_sweep_release();
     printf("  totals   %ld programs, %ld erases, %ld syncs, %ld reads, %ld cuts\n",

@@ -144,14 +144,23 @@
 #define NP_BOOT_MAX_ATTEMPTS    3U
 
 /* ── SNVS_LPGPR1 — factory reset in-progress flag ────────────────────────── */
-/* Set at factory-reset step R-3, cleared at R-11 (NP-FW-EMMC-002 Rev 1 §B).  */
-/* If set on boot, a reset was interrupted by power loss; re-run SANITIZE.    */
+/* Set at factory-reset step R-3, cleared at R-11 (NP-FW-EMMC-002 §B).        */
+/* WARM-RESET ONLY.  The headset has no battery, coin cell or VBAT rail, so   */
+/* the SNVS low-power domain loses this register on a power removal           */
+/* (NP-FW-NVRAM-001 §3.4, D-4).  If set on boot, a reset was interrupted by   */
+/* a WATCHDOG OR SOFTWARE RESET, and SANITIZE is re-run.  A reset interrupted  */
+/* by POWER LOSS clears the flag and is not detected HERE: the application's  */
+/* np_factory_reset_boot_check() detects it from the durable marker in Config */
+/* (NP-FW-NVRAM-001 §3.4.1 option A, OI-NVRAM-05).                            */
 #define NP_SNVS_LPGPR1          (*(volatile uint32_t *)(NP_SNVS_BASE + 0x6CU))
 #define NP_SNVS_RESET_IN_PROGRESS  (1UL << 0U)
 
 /* ── SNVS_LPGPR2 — anonymization in-progress flag ────────────────────────── */
 /* Set while the research anonymization pipeline holds an encrypted extract in */
-/* the Scratch partition (NP-FW-EMMC-002 Rev 1 §D).                           */
+/* the Scratch partition (NP-FW-EMMC-002 §D).  WARM-RESET ONLY, like LPGPR1.  */
+/* Power-loss recovery does not depend on it: zero_scratch_partition() erases */
+/* Scratch on EVERY boot (EMMC-SCR-01), and the per-run key was SRAM-only.    */
+/* The flag is redundant, not wrong (NP-FW-NVRAM-001 §3.4, OI-NVRAM-05).      */
 #define NP_SNVS_LPGPR2          (*(volatile uint32_t *)(NP_SNVS_BASE + 0x70U))
 #define NP_SNVS_ANON_IN_PROGRESS   (1UL << 0U)
 

@@ -103,6 +103,7 @@
 #                             → np_cvns_fault_summary_tests (NP-SW-FAULTMSG-001 §9.6)
 #                             → np_gatt_server_tests      (OI-WA-03 GATT server + warranty token)
 #                             → np_consumables_tests      (OI-ACC-08 CONSUMABLE_STATUS producer)
+#                             → np_map3_record_tests      (OI-NVRAM-08 Map 3 journal version rule)
 #                             → np_module_map_tests       (hex zone-module addressing/NVRAM map)
 #                             → np_protocol_tests         (hub protocol v2 socket-mask targets)
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
@@ -436,6 +437,12 @@ if(NP_BUILD_TESTS)
     # OI-ACC-08 (#381): the CONSUMABLE_STATUS producer.
     add_test(NAME np_consumables_tests
         COMMAND np_consumables_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # OI-NVRAM-08 (#444): a Map 3 journal written under version n loses no
+    # record when read under n+1, falsified against four rule-breaking readers.
+    add_test(NAME np_map3_record_tests
+        COMMAND np_map3_record_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_zone_notify_tests

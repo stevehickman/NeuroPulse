@@ -80,6 +80,7 @@ typedef enum {
     NP_CFG_FILE_SESSION_COUNT, /* device session count — EMMC-SHDR-09, OI-LFS-12 */
     NP_CFG_FILE_WARRANTY_TOKEN, /* warranty token — NP-FW-EMMC-002 §A.2, OI-WA-03 */
     NP_CFG_FILE_CONSUMABLES,   /* consumable session counts — OI-ACC-08 */
+    NP_CFG_FILE_RESET_MARKER,  /* factory reset in progress — OI-NVRAM-05  */
     NP_CFG_FILE_COUNT
 } np_cfg_file_t;
 
@@ -147,6 +148,16 @@ np_hub_status_t np_cfg_store_format(void);
  * Validate the instance, mount it, and confirm both replica directories exist
  * (creating any that are missing — which happens at most once per directory
  * for the life of the partition, and is counted as churn).
+ *   NP_HUB_OK                   mounted
+ *   NP_HUB_ERR_STORE_INTEGRITY  the partition holds no filesystem (littlefs
+ *                               found no valid superblock) — what a factory
+ *                               reset's R-7 erase leaves behind
+ *   NP_HUB_ERR_STORE_IO         the medium could not be read
+ * The two failures are distinct on purpose: np_factory_reset_boot_check()
+ * completes an interrupted reset on the first and never on the second.
+ * That makes a requirement on the block device this store will be bound to
+ * (OI-LOG-05..07, unwritten): a read FAULT must be returned as LFS_ERR_IO,
+ * never as LFS_ERR_CORRUPT, which littlefs would pass up as "no filesystem".
  */
 np_hub_status_t np_cfg_store_mount(void);
 
