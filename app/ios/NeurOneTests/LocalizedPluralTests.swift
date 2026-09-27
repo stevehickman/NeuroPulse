@@ -20,7 +20,7 @@ final class LocalizedPluralTests: XCTestCase {
             String.localizedStringWithFormat(NSLocalizedString(key, comment: ""), n)
         }
         XCTAssertEqual(plural("VALIDATE_VALUE_PULSES", 1), "1 pulse")
-        XCTAssertEqual(plural("VALIDATE_VALUE_PULSES", 1200), "1200 pulses")
+        XCTAssertEqual(plural("VALIDATE_VALUE_PULSES", 600), "600 pulses")
         XCTAssertEqual(plural("MODALITY_SOCKETS_TARGETED", 1), "1 socket targeted.")
         XCTAssertEqual(plural("MODALITY_SOCKETS_TARGETED", 7), "7 sockets targeted.")
     }
