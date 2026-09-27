@@ -35,8 +35,8 @@ struct HRVBreathingRingView: View {
 
     private var phaseLabel: String {
         switch phase {
-        case .inhale: return "Inhale"
-        case .exhale: return "Exhale"
+        case .inhale: return String(localized: "SESSION_BREATH_INHALE")
+        case .exhale: return String(localized: "SESSION_BREATH_EXHALE")
         }
     }
 

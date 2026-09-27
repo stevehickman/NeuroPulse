@@ -76,7 +76,7 @@ struct AudioStatusView: View {
                 Image(systemName: audioMgr.isPlaying ? "airpodspro" : "airpodspro.chargingcase")
                     .font(.system(size: 32))
                     .foregroundColor(audioMgr.isPlaying ? .cyan : .gray)
-                Text(audioMgr.isPlaying ? "Audio sync active" : "Audio sync idle")
+                Text(audioMgr.isPlaying ? String(localized: "WATCH_AUDIO_SYNC_ACTIVE") : String(localized: "WATCH_AUDIO_SYNC_IDLE"))
                     .font(.system(size: 13, weight: .medium))
                     .foregroundColor(.white)
                 Text(String(localized: "WATCH_AIRPODS_HINT"))
@@ -115,8 +115,8 @@ struct HapticStatusView: View {
     }
 
     private var hapticStatusLabel: String {
-        if !hapticMgr.isAvailable { return "Not available" }
-        return hapticMgr.isPlaying ? "Haptic cue active" : "Haptic cue idle"
+        if !hapticMgr.isAvailable { return String(localized: "WATCH_HAPTIC_NOT_AVAILABLE") }
+        return hapticMgr.isPlaying ? String(localized: "WATCH_HAPTIC_CUE_ACTIVE") : String(localized: "WATCH_HAPTIC_CUE_IDLE")
     }
 
     @ViewBuilder

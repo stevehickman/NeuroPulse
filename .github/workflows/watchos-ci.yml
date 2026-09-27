@@ -5,17 +5,28 @@ name: watchOS CI (xcodebuild)
 # spec is the source of truth and a stale committed .xcodeproj cannot drift.
 # Since Issue #189 ios-ci.yml does the same, so both Apple targets follow one
 # convention: project.yml is committed, the .xcodeproj is not.
-# There is no watchOS unit-test target yet, so this is a build gate only.
+# There is no watchOS unit-test target yet, so this is a build gate plus one
+# check on the built bundle: that the String Catalog was compiled into it.
 
 on:
   push:
     paths:
       - 'app/watchos/**'
       - 'app/NeurOneShared/**'
+      # The watch bundles app/ios/NeurOne/Localizable.xcstrings, which is
+      # generated from locales/*.json and not committed (CLAUDE.md §17). A string
+      # edit touches nothing under app/watchos/**, so without these entries a
+      # canonical change the watch renders would not run this workflow.
+      - 'locales/**'
+      - 'scripts/sync-locales.ts'
+      - '.github/workflows/watchos-ci.yml'
   pull_request:
     paths:
       - 'app/watchos/**'
       - 'app/NeurOneShared/**'
+      - 'locales/**'
+      - 'scripts/sync-locales.ts'
+      - '.github/workflows/watchos-ci.yml'
   workflow_dispatch:
 
 # Least privilege. This build gate only checks out the repo and compiles it;
@@ -44,6 +55,16 @@ jobs:
             echo "No Xcode 16 found; using default: $(xcode-select -p)"
           fi
           xcodebuild -version
+
+      # project.yml's preGenCommand and the scheme pre-action both run bun.
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # MUST run before `xcodegen generate` and before any xcodebuild call.
+      - name: Generate locale files from canonical locales/*.json
+        run: bun scripts/sync-locales.ts
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -82,4 +103,39 @@ jobs:
             -scheme NeurOneWatch \
             -destination 'generic/platform=watchOS Simulator' \
             -configuration Debug \
+            -derivedDataPath build/DerivedData \
             CODE_SIGNING_ALLOWED=NO
+
+      # A green build is not evidence the strings shipped. With no catalogue
+      # in Copy Bundle Resources the watch builds cleanly and renders every
+      # `String(localized: "WATCH_…")` as its raw key. So this reads the built
+      # bundle. For every canonical locale the compiled
+      # <locale>.lproj/Localizable.strings must hold the probe key, and its value
+      # must equal locales/<locale>.json. Comparing the values proves each table
+      # is fed from its own locale file, not from an English fallback.
+      - name: Assert the bundle carries the compiled strings
+        env:
+          APP: build/DerivedData/Build/Products/Debug-watchsimulator/NeurOneWatch.app
+          KEY: WATCH_AIRPODS_HINT
+        run: |
+          set -eu
+          test -d "$APP" || { echo "::error::no built app at $APP"; exit 1; }
+          n=0
+          for json in locales/*.json; do
+            loc=$(basename "$json" .json)
+            case "$loc" in _*) continue ;; esac
+            table="$APP/$loc.lproj/Localizable.strings"
+            want=$(bun -e 'const [f, k] = process.argv.slice(1); process.stdout.write(JSON.parse(require("fs").readFileSync(f, "utf8"))[k] ?? "")' "$json" "$KEY")
+            test -n "$want" || { echo "::error::$KEY missing from $json"; exit 1; }
+            got=$(plutil -extract "$KEY" raw -o - "$table") \
+              || { echo "::error::$KEY not compiled into $table"; exit 1; }
+            if [ "$got" != "$want" ]; then
+              echo "::error::$loc: bundle has '$got', locales/$loc.json has '$want'"
+              exit 1
+            fi
+            n=$((n + 1))
+          done
+          # All eleven locales are required (CLAUDE.md §17). A count below that
+          # means the loop saw fewer locale files, not that the bundle was checked.
+          test "$n" -eq 11 || { echo "::error::checked $n locale(s), expected 11"; exit 1; }
+          echo "$KEY compiled into all $n locale tables, each matching its locales/*.json value"
