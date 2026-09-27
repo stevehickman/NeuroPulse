@@ -46,6 +46,17 @@
  *   R6  No emission-limit consumer (LIMIT_CONSUMERS) names the journal at all:
  *       not its file id, not the journal API, not its path. A consumer that
  *       cannot name Map 3 cannot read a limit out of it. (OI-LFS-03)
+ *   R7  The struct lfs_file_config that cfg_open() passes to
+ *       lfs_file_opencfg() has static storage duration: the last argument is
+ *       `&name`, and `name` is declared at file scope or `static` inside the
+ *       opener. littlefs keeps that pointer and reads attrs/attr_count through
+ *       it at every sync and close (lfs.h: "must remain allocated while the
+ *       file is open"). A stack copy was the OI-LFS-13 defect (#472): every
+ *       close read a dead frame as its attribute list, and LFS_MKTAG's
+ *       unmasked size can turn that into a CRC-valid tag of another type.
+ *       Anything R7 cannot resolve to a static object — a compound literal, a
+ *       pointer parameter, a name it cannot find — fails, rather than being
+ *       assumed safe. (OI-LFS-13)
  *
  * ── The reach, stated narrowly ───────────────────────────────────────────────
  *
@@ -232,6 +243,59 @@ function run(root: string): { code: number; lines: string[] } {
   const opener = functionSpan(storeCode, /static\s+np_hub_status_t\s+cfg_open\s*\(/);
   if (!opener) return refuse("np_cfg_store.c has no cfg_open() — the open-handle registry cannot be located");
 
+  // ── R7: the file config outlives the handle ────────────────────────────────
+  const openerBody = storeCode.slice(opener[0], opener[1]);
+  const call = /\blfs_file_opencfg\s*\(/.exec(openerBody);
+  if (call) {
+    const at = `${STORE_C}:${lineOf(storeCode, opener[0] + call.index)}`;
+    const args: string[] = [];
+    let depth = 0;
+    let cur = "";
+    for (let i = call.index + call[0].length; i < openerBody.length; i++) {
+      const c = openerBody[i]!;
+      if ((c === "," || c === ")") && depth === 0) {
+        args.push(cur.trim());
+        cur = "";
+        if (c === ")") break;
+        continue;
+      }
+      if (c === "(" || c === "[" || c === "{") depth++;
+      if (c === ")" || c === "]" || c === "}") depth--;
+      cur += c;
+    }
+    const last = args[args.length - 1] ?? "";
+    const named = /^&\s*([A-Za-z_]\w*)$/.exec(last);
+    if (args.length !== 5 || !named) {
+      violations.push(
+        `R7 ${at}: lfs_file_opencfg()'s config argument is \`${last}\`, not \`&name\` — its storage duration cannot be established, ` +
+          "and littlefs reads it again at every sync and close (OI-LFS-13)",
+      );
+    } else {
+      const id = named[1]!;
+      const decl = new RegExp(`\\b(static\\s+)?(?:const\\s+)?struct\\s+lfs_file_config\\s+${id}\\b`);
+      const local = decl.exec(openerBody);
+      let fileScope: RegExpExecArray | null = null;
+      for (const m of storeCode.matchAll(new RegExp(decl.source, "g"))) {
+        const before = storeCode.slice(0, m.index!);
+        if ((before.match(/\{/g) ?? []).length === (before.match(/\}/g) ?? []).length) {
+          fileScope = m as RegExpExecArray;
+          break;
+        }
+      }
+      if (local && !local[1]) {
+        violations.push(
+          `R7 ${at}: \`${id}\` is an automatic struct lfs_file_config in cfg_open() — littlefs keeps the pointer and reads it at every ` +
+            "sync and close, after this frame is gone. Declare it at file scope or `static` (OI-LFS-13, #472)",
+        );
+      } else if (!local && !fileScope) {
+        violations.push(
+          `R7 ${at}: no declaration of \`${id}\` as a struct lfs_file_config at file scope or static in cfg_open() — ` +
+            "its storage duration cannot be established (OI-LFS-13)",
+        );
+      }
+    }
+  }
+
   // ── R1, R2, R3, R5, R6 across the population ───────────────────────────────
   const files = walk(join(root, "firmware"), []);
   let storeCalls = 0;
@@ -322,7 +386,7 @@ function run(root: string): { code: number; lines: string[] } {
   lines.push(
     `check-lfs-caller-rules: OK — ${files.length} firmware files; littlefs called only by ${Object.keys(LFS_CALLERS).length} listed callers; ` +
       `one opener; no remove/rename/stat in the Config store; tail-additive = [${tail.join(", ")}]; ` +
-      `${Object.keys(JOURNAL_READERS).length} journal reader(s); no limit consumer names the journal.`,
+      `${Object.keys(JOURNAL_READERS).length} journal reader(s); no limit consumer names the journal; the opener's file config is static.`,
   );
   return { code: 0, lines };
 }
@@ -336,15 +400,16 @@ if (process.argv.includes("--self-test")) {
   type Tree = Record<string, string>;
   const header = (extra = "") =>
     `typedef enum {\n    NP_CFG_FILE_NPMP = 0,\n    NP_CFG_FILE_MAP3,\n    NP_CFG_FILE_UKMD,\n${extra}    NP_CFG_FILE_COUNT\n} np_cfg_file_t;\n`;
-  const store = (o: { npmpPolicy?: string; extraRow?: string; body?: string; opener?: string } = {}) =>
+  const store = (o: { npmpPolicy?: string; extraRow?: string; body?: string; opener?: string; fcfg?: string } = {}) =>
     `static const np_cfg_file_desc_t s_files[NP_CFG_FILE_COUNT] = {\n` +
     `    [NP_CFG_FILE_NPMP] = { ${o.npmpPolicy ?? "NP_CFG_POLICY_REBUILD"}, { "npmp.bin", NULL } },\n` +
     `    [NP_CFG_FILE_MAP3] = { NP_CFG_POLICY_TAIL_ADDITIVE, { "map3.jrn", NULL } },\n` +
     `    [NP_CFG_FILE_UKMD] = { NP_CFG_POLICY_REPLICATED, { "ra/ukmd.rec", "rb/ukmd.rec" } },\n` +
     (o.extraRow ?? "") +
     `};\n\n` +
+    (o.fcfg ?? `static struct lfs_file_config s_fcfg;\n\n`) +
     `static np_hub_status_t cfg_open(np_cfg_file_t f, unsigned c, lfs_file_t *h, int fl)\n{\n` +
-    (o.opener ?? `    int err = lfs_file_opencfg(s_lfs, h, s_files[f].path[c], fl, &fcfg);\n    return err;\n`) +
+    (o.opener ?? `    int err = lfs_file_opencfg(s_lfs, h, s_files[f].path[c], fl, &s_fcfg);\n    return err;\n`) +
     `}\n\nstatic int reader(void)\n{\n    lfs_file_read(s_lfs, 0, 0, 0);\n    lfs_file_close(s_lfs, 0);\n${o.body ?? ""}    return 0;\n}\n`;
   const consumers: Tree = Object.fromEntries(
     LIMIT_CONSUMERS.map((c) => [c.endsWith("/") ? `${c}src/placeholder.c` : c, "int c_(void) { return 0; }\n"]),
@@ -439,6 +504,30 @@ if (process.argv.includes("--self-test")) {
   expect("R6 ignores the journal named only in a limit consumer's comment",
     edit({ "firmware/pbm/src/np_pbm_zone.c": "/* never read map3.jrn here — REQ-LFS-01 */\nint z(void) { return 0; }\n" }), 0, "OK");
 
+  // R7 — the file config outlives the handle (OI-LFS-13)
+  const opencfg = (arg: string, decl = "") =>
+    `${decl}    int err = lfs_file_opencfg(s_lfs, h,\n        s_files[f].path[c], fl,\n        ${arg});\n    return err;\n`;
+  expect("R7 rejects a stack config — the #472 shape",
+    edit({ [STORE_C]: store({ fcfg: "", opener: opencfg("&fcfg", "    struct lfs_file_config fcfg;\n    memset(&fcfg, 0, sizeof(fcfg));\n") }) }),
+    1, "is an automatic struct lfs_file_config");
+  expect("R7 accepts a function-scope static",
+    edit({ [STORE_C]: store({ fcfg: "", opener: opencfg("&fcfg", "    static struct lfs_file_config fcfg;\n") }) }), 0, "OK");
+  expect("R7 accepts a file-scope config without `static`",
+    edit({ [STORE_C]: store({ fcfg: "struct lfs_file_config g_fcfg;\n\n", opener: opencfg("&g_fcfg") }) }), 0, "OK");
+  expect("R7 rejects a compound literal",
+    edit({ [STORE_C]: store({ opener: opencfg("&(struct lfs_file_config){ .buffer = s_cache }") }) }), 1, "not `&name`");
+  expect("R7 rejects a config passed through a pointer",
+    edit({ [STORE_C]: store({ opener: opencfg("cfgp") }) }), 1, "not `&name`");
+  expect("R7 rejects a name it cannot find",
+    edit({ [STORE_C]: store({ opener: opencfg("&nowhere") }) }), 1, "no declaration of `nowhere`");
+  expect("R7 is not satisfied by `static` in a comment",
+    edit({ [STORE_C]: store({ fcfg: "", opener: opencfg("&fcfg", "    /* static */ struct lfs_file_config fcfg;\n") }) }),
+    1, "is an automatic struct lfs_file_config");
+  expect("R7 is not satisfied by a same-named static in another function",
+    edit({ [STORE_C]: store({ fcfg: "", opener: opencfg("&fcfg", "    struct lfs_file_config fcfg;\n"),
+      body: "    static struct lfs_file_config fcfg;\n" }) }),
+    1, "is an automatic struct lfs_file_config");
+
   // Vacuity
   expect("refuses when the store is absent", mkdtempSync(join(box, "empty-")), 2, "refusing to pass vacuously");
   expect("refuses when the file table is absent", edit({ [STORE_C]: "int x;\n" }), 2, "no s_files");
@@ -453,7 +542,7 @@ if (process.argv.includes("--self-test")) {
     for (const f of failures) console.error("  " + f);
     process.exit(1);
   }
-  console.log(`  ${cases} case(s): R1–R6 each proven to reject, prose proven not to count,`);
+  console.log(`  ${cases} case(s): R1–R7 each proven to reject, prose proven not to count,`);
   console.log("  tests/ and vendor/ proven out of population, and 4 vacuity refusals.");
   console.log("SELF-TEST PASS — the checker has teeth.");
   process.exit(0);
