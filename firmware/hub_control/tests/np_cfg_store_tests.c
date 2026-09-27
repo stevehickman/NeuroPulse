@@ -212,7 +212,8 @@ static uint8_t g_raw_cache[NP_LFS_FILE_BUFFER_SIZE];
 
 static int raw_open(lfs_file_t *f, const char *path, int flags)
 {
-    struct lfs_file_config fcfg;
+    /* static: littlefs reads it again at sync/close (lfs.h lifetime rule). */
+    static struct lfs_file_config fcfg;
     memset(&fcfg, 0, sizeof(fcfg));
     fcfg.buffer = g_raw_cache;
     return lfs_file_opencfg(&g_lfs, f, path, flags, &fcfg);

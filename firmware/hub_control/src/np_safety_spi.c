@@ -76,7 +76,10 @@ static uint8_t s_beat_seq = 0U;
 
 /* s_requested_mask is protected by the FreeRTOS task-level critical section
  * (taskENTER_CRITICAL / taskEXIT_CRITICAL).  These functions are called from
- * task context only — never from an ISR — so the task variants are correct. */
+ * task context only — never from an ISR — so the task variants are correct.
+ * The one exception is np_safety_spi_request_disable_from_isr(), which takes
+ * the _FROM_ISR critical section.  The task section masks the same kernel-aware
+ * interrupts, so a task read-modify-write cannot interleave with the ISR's. */
 
 /* ── Checksum ─────────────────────────────────────────────────────────────────── */
 
@@ -464,6 +467,13 @@ void np_safety_spi_request_disable(uint16_t channel_mask)
     taskENTER_CRITICAL();
     s_requested_mask &= ~channel_mask;
     taskEXIT_CRITICAL();
+}
+
+void np_safety_spi_request_disable_from_isr(uint16_t channel_mask)
+{
+    UBaseType_t saved = taskENTER_CRITICAL_FROM_ISR();
+    s_requested_mask &= ~channel_mask;
+    taskEXIT_CRITICAL_FROM_ISR(saved);
 }
 
 void np_safety_spi_disable_all(void)

@@ -50,10 +50,12 @@ extern "C" {
 #endif
 
 /*
- * Total number of symbols the SW-02 platform layer owes: the 64 declared in
- * this file plus the 36 declared in the eleven module headers named above.
+ * Total number of symbols the SW-02 platform layer owes: those declared in
+ * this file plus those declared in the eleven module headers named above.  The
+ * split is not restated here; it read "64 + 36 = 100" while the constant was
+ * 102, which is why a count belongs in one place.
  *
- * This is not decoration.  firmware/platform/ defines all 100 as traps rather
+ * This is not decoration.  firmware/platform/ defines every one as a trap rather
  * than drivers, and the cross-build asserts that the number of definitions it
  * emits equals this constant (NP-SW-CI-001 §4.8).  The count can only change by
  * editing this line, which is the point: a platform symbol appearing or
@@ -100,8 +102,14 @@ extern "C" {
  * self-test, np_mod_pbm_hal_socket_selftest_pd1().  Both are served by the
  * socket's cluster controller (NP-HW-HUB-001 §9.3) and take the socket index,
  * like np_mod_pbm_hal_socket_pwm_set().
+ *
+ * 102 → 103 on 2026-09-27 (NP-FW-HUB-001 Rev 18, OI-FWHUB-26):
+ * np_mod_visual_hal_hall_irq_register(), the goggle Hall edge interrupt.
+ * REQ-FWHUB-21 required the cutoff to be an interrupt, and RISK-FWHUB-09
+ * listed that interrupt as its control.  Until now no seam could deliver one,
+ * so the only in-session cutoff was the telemetry poll.
  */
-#define NP_SW02_PLATFORM_SYMBOL_COUNT   102
+#define NP_SW02_PLATFORM_SYMBOL_COUNT   103
 
 /* ── Core clock (OI-SWCI-41) ──────────────────────────────────────────────────
  *
@@ -265,6 +273,28 @@ extern bool np_mod_visual_hal_ir_eye_open(void);
 extern bool np_mod_visual_hal_goggle_seated(void);  /* false on any fault */
 extern void np_mod_visual_hal_emdr_set(uint8_t rate_mhz);
 extern bool np_mod_visual_hal_mpe_check(void);
+
+/* Goggle Hall edge interrupt (OI-VIS-07; NP-FW-HUB-001 §8.6, REQ-FWHUB-21).
+ *
+ * Registers the handler the platform calls, in ISR context, on every
+ * transition of np_mod_visual_hal_goggle_seated() from true to false, and on
+ * any fault that leaves the element unreadable.  The predicate is positive-sense
+ * so that a fault answers "not seated", and this edge must be positive-sense
+ * for the same reason: losing the sensor fires it.  The contract:
+ *   - the not-seated edge is not debounced: a debounce is latency on the one
+ *     edge this exists to shorten.  Debouncing the seated edge is the driver's
+ *     choice, because nothing emits on it;
+ *   - the interrupt is kernel-aware (at or below
+ *     configMAX_SYSCALL_INTERRUPT_PRIORITY), because the handler calls
+ *     np_safety_spi_request_disable_from_isr();
+ *   - np_mod_visual_hal_led_stop() is callable from that ISR;
+ *   - NULL disarms the interrupt;
+ *   - a return other than NP_HUB_OK means no edge will be delivered, and the
+ *     caller refuses emission.
+ * Where the element and its magnet sit is OI-BENCH-12 and is below this line.
+ * The seam states what the edge means, not which pin carries it. */
+typedef void (*np_mod_visual_unseated_isr_t)(void);
+extern np_hub_status_t np_mod_visual_hal_hall_irq_register(np_mod_visual_unseated_isr_t on_unseated);
 
 /* ── Cervical VNS bridge (np_mod_cvns.c) — T2 ───────────────────────────────
  * np_mod_cvns_hal_now_ms() is also called by np_session_runner.c and

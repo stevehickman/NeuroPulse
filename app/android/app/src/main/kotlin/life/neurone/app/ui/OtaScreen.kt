@@ -83,14 +83,16 @@ fun OtaScreen(
     }
 }
 
+// Same OTA_PHASE_* keys iOS `OTAPhase.description` uses. An unrecognised phase byte renders as
+// idle, as iOS `OTAPhase(rawPacketByte:)` does.
 @StringRes
 private fun phaseLabel(phase: OtaPhase?): Int = when (phase) {
-    OtaPhase.IDLE, null -> R.string.ota_up_to_date
-    OtaPhase.RECEIVING -> R.string.ota_phase_transferring
+    OtaPhase.IDLE, null -> R.string.ota_phase_idle
+    OtaPhase.PREPARING -> R.string.ota_phase_preparing
+    OtaPhase.TRANSFERRING -> R.string.ota_phase_transferring
     OtaPhase.VERIFYING -> R.string.ota_phase_verifying
-    OtaPhase.COMMITTING -> R.string.ota_phase_applying
     OtaPhase.VERIFIED -> R.string.ota_phase_verified
-    OtaPhase.REBOOTING -> R.string.ota_hub_is_restarting_do_not_disconnect
+    OtaPhase.APPLYING -> R.string.ota_phase_applying
     OtaPhase.COMPLETE -> R.string.ota_phase_complete
     OtaPhase.FAILED -> R.string.ota_phase_failed
 }

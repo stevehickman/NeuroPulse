@@ -107,6 +107,7 @@
 #                             → np_module_map_tests       (hex zone-module addressing/NVRAM map)
 #                             → np_protocol_tests         (hub protocol v2 socket-mask targets)
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
+#                             → np_mod_visual_tests       (OI-FWHUB-26 goggle Hall edge interrupt)
 #                             → np_module_registry_tests  (OI-FWHUB-16 accessory rescan)
 #                             → np_session_lease_tests    (OI-FWHUB-17 detect/session exclusion)
 #                             → np_pbm_socket_telem_tests (OI-FWHUB-10 socket dose metering + tile health)
@@ -369,6 +370,11 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_mod_stim_tests
         COMMAND np_mod_stim_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # OI-FWHUB-26 / REQ-FWHUB-21: the goggle Hall edge interrupt (NP-FW-HUB-001 §8.6).
+    add_test(NAME np_mod_visual_tests
+        COMMAND np_mod_visual_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     # OI-FWHUB-01: socket-indexed dispatch — all-or-nothing placement/power/

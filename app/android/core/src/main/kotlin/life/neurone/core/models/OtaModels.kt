@@ -1,20 +1,26 @@
 package life.neurone.core.models
 
-// Port of app/ios/NeurOne/Models/OTAModels.swift.
-// Wire values are frozen — hub firmware contract (docs/status/completed-decisions.md OTA entry).
+// Port of app/ios/NeurOne/Models/OTAModels.swift (docs/status/completed-decisions.md OTA entry).
 
+// OTA_STATUS notify byte 0. The hub firmware does not yet emit this characteristic, so the
+// contract is the iOS `OTAPhase` enum; `ModelsParityTests` reads that Swift source and fails
+// on any divergence in name or value. Order follows the app-driven sequence
+// INITIATE → CHUNK… → VERIFY → (hub: VERIFIED) → COMMIT → reboot → COMPLETE, so COMMIT is only
+// ever sent after 0x04 and nothing "committing" can precede it.
 enum class OtaPhase(val rawValue: Int) {
     IDLE(0x00),
-    RECEIVING(0x01),
-    VERIFYING(0x02),
-    COMMITTING(0x03),
-    VERIFIED(0x04),
-    REBOOTING(0x05),
-    COMPLETE(0x06),
+    PREPARING(0x01),     // Hub clearing Scratch partition
+    TRANSFERRING(0x02),  // Receiving firmware chunks
+    VERIFYING(0x03),     // Hub computing SHA-256 + Ed25519 check
+    VERIFIED(0x04),      // Signature OK; awaiting COMMIT opcode from app
+    APPLYING(0x05),      // Writing inactive bank + staging boot swap + about to reset
+    COMPLETE(0x06),      // Post-reboot, running from new bank
     FAILED(0xFF);
 
+    // Matches iOS: every non-idle, non-terminal phase is busy, including VERIFIED — the
+    // update is mid-flight there, waiting on the app's COMMIT.
     val isBusy: Boolean
-        get() = this == RECEIVING || this == VERIFYING || this == COMMITTING || this == REBOOTING
+        get() = this != IDLE && !isTerminal
 
     val isTerminal: Boolean
         get() = this == COMPLETE || this == FAILED
