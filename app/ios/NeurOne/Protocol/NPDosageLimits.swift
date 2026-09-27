@@ -118,14 +118,6 @@ struct NPLimitsSet: Codable, Identifiable, Equatable {
         case global     = "global"
         case helmet     = "helmet"
         case individual = "individual"
-
-        var displayName: String {
-            switch self {
-            case .global:     return "Global"
-            case .helmet:     return "Helmet"
-            case .individual: return "Individual"
-            }
-        }
     }
 
     // MARK: Per-modality limits — nil = no limits configured at this tier
@@ -146,7 +138,7 @@ struct NPLimitsSet: Codable, Identifiable, Equatable {
 
     // MARK: Convenience
     static var unlimited: NPLimitsSet {
-        NPLimitsSet(name: "Unlimited", level: .global)
+        NPLimitsSet(name: String(localized: "LIMITS_DEFAULT_NAME_UNLIMITED"), level: .global)
     }
 }
 
@@ -286,7 +278,7 @@ extension NPLimitsSet {
         helmet: NPLimitsSet?,
         individual: NPLimitsSet?
     ) -> (limits: NPLimitsSet, sources: NPLimitSourceMap) {
-        var r = NPLimitsSet(name: "Resolved", level: .global)
+        var r = NPLimitsSet(name: String(localized: "LIMITS_DEFAULT_NAME_RESOLVED"), level: .global)
         var src = NPLimitSourceMap()
 
         (r.pbmTranscranial, src.pbmTranscranial) = mergePBMTranscranial(

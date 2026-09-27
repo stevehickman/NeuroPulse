@@ -29,7 +29,7 @@ struct ProtocolComposerView: View {
                 layersSection
                 scriptPreviewSection
             }
-            .navigationTitle(existing == nil ? "Compose Protocol" : "Edit Composition")
+            .navigationTitle(LocalizedStringKey(existing == nil ? "PROTOCOL_COMPOSER_COMPOSE_PROTOCOL" : "PROTOCOL_COMPOSER_EDIT_COMPOSITION"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
             .sheet(isPresented: $showLayerPicker) {
@@ -48,9 +48,9 @@ struct ProtocolComposerView: View {
                 scriptPreviewSheet
             }
             .alert("PROTOCOL_COMPOSER_CANNOT_SAVE", isPresented: $showSaveError) {
-                Button("OK", role: .cancel) {}
+                Button("COMMON_OK", role: .cancel) {}
             } message: {
-                Text(saveError ?? "Please fill in required fields.")
+                Text(saveError ?? String(localized: "PROTOCOL_EDITOR_FILL_REQUIRED_FIELDS"))
             }
         }
     }
@@ -215,12 +215,12 @@ struct ProtocolComposerView: View {
 
     private func attemptSave() {
         guard !draft.name.trimmingCharacters(in: .whitespaces).isEmpty else {
-            saveError = "Composition name cannot be empty."
+            saveError = String(localized: "WEB_ERROR_COMPOSITE_NAME_REQUIRED")
             showSaveError = true
             return
         }
         guard !draft.layers.isEmpty else {
-            saveError = "Composition must have at least one layer."
+            saveError = String(localized: "WEB_ERROR_NEED_ONE_LAYER")
             showSaveError = true
             return
         }

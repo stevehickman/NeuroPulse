@@ -226,5 +226,20 @@
   },
   "SETUP_TITLE_SAFETY": {
     "legal_review_required": true
+  },
+  "UNDER16_AVAILABLE_HEADER": {
+    "legal_review_required": true
+  },
+  "UNDER16_FOOTER": {
+    "legal_review_required": true
+  },
+  "UNDER16_INTRO": {
+    "legal_review_required": true
+  },
+  "UNDER16_TITLE": {
+    "legal_review_required": true
+  },
+  "UNDER16_UNAVAILABLE_HEADER": {
+    "legal_review_required": true
   }
 }

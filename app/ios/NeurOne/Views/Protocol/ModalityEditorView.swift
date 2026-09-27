@@ -202,7 +202,7 @@ struct PBMTranscranialParamsView: View {
         var displayName: String {
             switch self {
             case .zone(let name):         return name
-            case .clinicianSelected:      return "Clinician selects at session start"
+            case .clinicianSelected:      return String(localized: "MODALITY_TARGET_CLINICIAN_SELECTS")
             case .asAuthored(let label):  return label
             }
         }
@@ -241,11 +241,11 @@ struct PBMTranscranialParamsView: View {
     /// the one a retired selector cannot produce.
     private var targetSummary: String {
         if case .clinicianSelected = params.target {
-            return "Sockets chosen by the operator at session start."
+            return String(localized: "MODALITY_TARGET_OPERATOR_CHOOSES")
         }
         do {
             let mask = try params.resolveSocketMask()
-            return "\(mask.socketCount) socket\(mask.socketCount == 1 ? "" : "s") targeted."
+            return String(format: String(localized: "MODALITY_TARGET_SOCKETS_TARGETED"), String(mask.socketCount))
         } catch {
             return error.localizedDescription
         }
@@ -540,7 +540,8 @@ struct VNSHRVParamsView: View {
                 HStack {
                     Text("UI_MOD_BREATHING_RATE").font(.caption).foregroundColor(.secondary)
                     Spacer()
-                    Text(String(format: "%.1f breaths/min", params.resonanceBreathingRate))
+                    Text(String(format: String(localized: "MODALITY_BREATHS_PER_MIN"),
+                                NPNumberFormatter.decimal1(Float(params.resonanceBreathingRate))))
                         .font(.caption)
                 }
                 Slider(value: $params.resonanceBreathingRate, in: 4...7, step: 0.5)
@@ -601,16 +602,10 @@ struct AudioEntrainmentParamsView: View {
             // Noise
             VStack(alignment: .leading, spacing: 4) {
                 Text("MODALITY_NOISE").font(.caption).foregroundColor(.secondary)
-                Picker("MODALITY_NOISE", selection: Binding(
-                    get: { params.noiseType?.rawValue ?? "none" },
-                    set: { val in
-                        if val == "none" { params.noiseType = nil }
-                        else { params.noiseType = NPAudioEntrainmentParams.NoiseType(rawValue: val) }
-                    }
-                )) {
-                    Text("UI_NONE").tag("none")
+                Picker("MODALITY_NOISE", selection: $params.noiseType) {
+                    Text("UI_NONE").tag(NPAudioEntrainmentParams.NoiseType?.none)
                     ForEach(NPAudioEntrainmentParams.NoiseType.allCases) { nt in
-                        Text(nt.displayName).tag(nt.rawValue)
+                        Text(nt.displayName).tag(NPAudioEntrainmentParams.NoiseType?.some(nt))
                     }
                 }
                 .pickerStyle(.segmented)
@@ -961,14 +956,15 @@ struct IntervalConfigView: View {
                 HStack {
                     Text("UI_MOD_REPEAT").font(.caption).foregroundColor(.secondary)
                     Spacer()
+                    // Tagged by "repeats until the end": nil repeatCount.
                     Picker("UI_MOD_REPEAT", selection: Binding(
-                        get: { interval.repeatCount == nil ? "until_end" : "custom" },
-                        set: { val in
-                            interval.repeatCount = val == "until_end" ? nil : 5
+                        get: { interval.repeatCount == nil },
+                        set: { untilEnd in
+                            interval.repeatCount = untilEnd ? nil : 5
                         }
                     )) {
-                        Text("MODALITY_UNTIL_END").tag("until_end")
-                        Text("MODALITY_CUSTOM_COUNT").tag("custom")
+                        Text("MODALITY_UNTIL_END").tag(true)
+                        Text("MODALITY_CUSTOM_COUNT").tag(false)
                     }
                     .pickerStyle(.menu)
                     .font(.caption)

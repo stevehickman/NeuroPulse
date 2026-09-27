@@ -67,7 +67,8 @@ private struct ConditionChip: View {
         .buttonStyle(.plain)
         .accessibilityLabel(
             isAllowed
-                ? "\(condition.name). Opens a definition on \(condition.verdict.host ?? "")."
+                ? String(format: String(localized: "CONDITION_LINK_A11Y_OPENS_ON"),
+                         condition.name, condition.verdict.host ?? "")
                 : "\(condition.name). \(condition.verdict.reason.blockedMessage)"
         )
     }
@@ -146,14 +147,14 @@ struct ConditionLinkConfirmation: View {
 
     private var blockedText: String {
         condition.definition == nil
-            ? verdict.reason.blockedMessage + " This condition is not in the registry."
+            ? verdict.reason.blockedMessage + String(localized: "WEB_CONDITION_NOT_IN_REGISTRY")
             : verdict.reason.blockedMessage
     }
 
     private var actions: some View {
         HStack {
             Spacer()
-            Button(verdict.allowed ? "Cancel" : "Close") { dismiss() }
+            Button(LocalizedStringKey(verdict.allowed ? "COMMON_CANCEL" : "COMMON_CLOSE")) { dismiss() }
                 .keyboardShortcut(.cancelAction)
 
             if verdict.allowed {

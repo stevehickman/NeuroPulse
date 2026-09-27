@@ -2,10 +2,11 @@ import SwiftUI
 
 // MARK: - LimitLevel (view-level enum mirrors NPLimitsSet.LimitLevel)
 
+/// The raw value is the tab's locale key, rendered through LocalizedStringKey.
 private enum LimitTab: String, CaseIterable {
-    case global     = "Global"
-    case helmet     = "Helmet"
-    case individual = "Individual"
+    case global     = "LIMITS_CHAIN_GLOBAL"
+    case helmet     = "WEB_TAB_HELMET"
+    case individual = "WEB_TAB_INDIVIDUAL"
 }
 
 // MARK: - LimitsSettingsView
@@ -37,7 +38,7 @@ struct LimitsSettingsView: View {
             VStack(spacing: 0) {
                 Picker("LIMITS_LEVEL", selection: $selectedTab) {
                     ForEach(LimitTab.allCases, id: \.self) {
-                        Text($0.rawValue).tag($0)
+                        Text(LocalizedStringKey($0.rawValue)).tag($0)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -69,9 +70,9 @@ struct LimitsSettingsView: View {
                 .environmentObject(limitsStore)
             }
             .alert("LIMITS_SCRIPT_ERROR", isPresented: $showScriptError) {
-                Button("OK", role: .cancel) {}
+                Button("COMMON_OK", role: .cancel) {}
             } message: {
-                Text(scriptError ?? "Unknown error")
+                Text(scriptError ?? String(localized: "COMMON_UNKNOWN_ERROR"))
             }
             // Add Helmet
             .alert("LIMITS_ADD_HELMET", isPresented: $showAddHelmet) {
@@ -80,7 +81,7 @@ struct LimitsSettingsView: View {
                 Button("UI_ADD") {
                     guard !newHelmetSerial.trimmingCharacters(in: .whitespaces).isEmpty else { return }
                     let serial = newHelmetSerial.trimmingCharacters(in: .whitespaces)
-                    var lim = NPLimitsSet(name: "Helmet \(serial)", level: .helmet)
+                    var lim = NPLimitsSet(name: String(format: String(localized: "LIMITS_DEFAULT_NAME_HELMET"), serial), level: .helmet)
                     lim.helmetId = serial
                     limitsStore.saveHelmetLimits(lim, forHelmet: serial)
                     newHelmetSerial = ""
@@ -122,7 +123,7 @@ struct LimitsSettingsView: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Button("LIMITS_CONFIGURE_GLOBAL_LIMITS") {
-                        editingLimits = NPLimitsSet(name: "Global", level: .global)
+                        editingLimits = NPLimitsSet(name: String(localized: "LIMITS_CHAIN_GLOBAL"), level: .global)
                         onSaveLimits = { limitsStore.saveGlobalLimits($0); revalidate() }
                         showEditor = true
                     }
@@ -343,14 +344,14 @@ struct LimitsSettingsView: View {
         var parts: [String] = []
         if limits.pbmTranscranial != nil    { parts.append("PBM") }
         if limits.besTacs != nil            { parts.append("BES") }
-        if limits.tdcs != nil               { parts.append("tDCS") }
+        if limits.tdcs != nil               { parts.append(String(localized: "WEB_LIM_SECTION_TDCS")) }
         if limits.vnsHrv != nil             { parts.append("VNS") }
-        if limits.visualStimulation != nil  { parts.append("Visual") }
+        if limits.visualStimulation != nil  { parts.append(String(localized: "WEB_TAB_VISUAL")) }
         if limits.tms != nil                { parts.append("TMS") }
-        if limits.hdTdcs != nil             { parts.append("HD-tDCS") }
-        if limits.cervicalVns != nil        { parts.append("Cervical VNS") }
-        if parts.isEmpty { return "No modality limits configured" }
-        return "Limits: " + parts.joined(separator: ", ")
+        if limits.hdTdcs != nil             { parts.append(String(localized: "WEB_LIM_SECTION_HD_TDCS")) }
+        if limits.cervicalVns != nil        { parts.append(String(localized: "MODALITY_CERVICAL_VNS_NAME")) }
+        if parts.isEmpty { return String(localized: "WEB_NO_MODALITY_LIMITS") }
+        return String(format: String(localized: "LIMITS_SUMMARY"), parts.joined(separator: ", "))
     }
 
     private func revalidate() {
@@ -366,9 +367,10 @@ struct LimitsEditorView: View {
     var onSave: (NPLimitsSet) -> Void
     @Environment(\.dismiss) private var dismiss
 
+    /// The raw value is the tab's locale key, rendered through LocalizedStringKey.
     enum EditorMode: String, CaseIterable {
-        case visual = "Visual"
-        case script = "Script"
+        case visual = "WEB_TAB_VISUAL"
+        case script = "UI_TAB_SCRIPT"
     }
     @State private var viewMode: EditorMode = .visual
     @State private var scriptText: String = ""
@@ -380,7 +382,7 @@ struct LimitsEditorView: View {
             VStack(spacing: 0) {
                 Picker("VALIDATE_PARAM_MODE", selection: $viewMode) {
                     ForEach(EditorMode.allCases, id: \.self) {
-                        Text($0.rawValue).tag($0)
+                        Text(LocalizedStringKey($0.rawValue)).tag($0)
                     }
                 }
                 .pickerStyle(.segmented)

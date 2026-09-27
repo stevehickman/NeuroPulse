@@ -12,16 +12,16 @@ struct Under16View: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    // MARK: - User-visible strings (prepared for Localizable.strings; literals for now)
+    // MARK: - User-visible strings
 
+    /// Resolved on each read, so a language change is picked up (localization.md §17.3).
     enum Strings {
-        static let title          = "Some Features Need Age Confirmation"
-        static let intro          = "You can still use NeurOne, but a few features rely"
-            + " on health-related data that, by law, requires you to be at least 16 years old to consent to."
-        static let unavailableHdr = "Not available without age confirmation"
-        static let availableHdr   = "Available to everyone"
-        static let footer         = "If you are 16 or older, go back and confirm your age to unlock all features."
-        static let backLabel      = "Back"
+        static var title: String          { String(localized: "UNDER16_TITLE") }
+        static var intro: String          { String(localized: "UNDER16_INTRO") }
+        static var unavailableHdr: String { String(localized: "UNDER16_UNAVAILABLE_HEADER") }
+        static var availableHdr: String   { String(localized: "UNDER16_AVAILABLE_HEADER") }
+        static var footer: String         { String(localized: "UNDER16_FOOTER") }
+        static var backLabel: String      { String(localized: "COMMON_BACK") }
     }
 
     private struct FeatureLine: Identifiable {

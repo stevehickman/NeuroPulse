@@ -1323,7 +1323,7 @@ enum SocketLattice {
     static let maxSocketID = ${max}
 
     /// Inclusive id range, for error messages and UI hints.
-    static var rangeLabel: String { "\(minSocketID)\u{2013}\(maxSocketID)" }
+    static var rangeLabel: String { "\\(minSocketID)\u{2013}\\(maxSocketID)" }
 
     static func isValid(_ socketID: Int) -> Bool {
         socketID >= minSocketID && socketID <= maxSocketID

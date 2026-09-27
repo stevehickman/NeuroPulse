@@ -138,6 +138,14 @@ gate's reach stays legible. Those three generate nothing today because they read
 yet; each becomes a generator target when it does, not another committed copy. watchOS is not a
 fourth target: it bundles the iOS catalogue itself (§17.4).
 
+Covered Kotlin and Swift are scanned **per string literal**, not only at render call sites, so English
+returned from a `when`/`switch` or a computed property is caught where it is written. A literal is
+exempt only by category: a key, an identifier, an SF Symbol or other lookup name, a format string, a
+comparison operand, a dictionary or subscript key, a log message, or text that is only units and
+numbers (§17.3). Three iOS files inside covered trees are in `PENDING_PATHS` for the per-literal Swift
+scan (`ConsentModels.swift`, `NPProtocolDefinition.swift`, `NPProtocolValidator.swift`). The
+render-site scan still runs on them.
+
 ### 17.7 Translation (GitHub #191)
 
 Every locale file starts with the English value for every key. Translation happens as late as

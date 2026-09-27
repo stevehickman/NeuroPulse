@@ -28,11 +28,12 @@
  *      communicates through tones, LEDs and numeric status; text is the app's
  *      job. A locale reference appearing under firmware/ means that boundary
  *      moved, which is a decision, not a detail.
- *   2. COVERED non-firmware paths embed no user-facing prose. In TSX and
- *      Swift, "user-facing" means the literal reaches a render API — JSX text,
- *      a placeholder/title/aria-label attribute, SwiftUI Text/Button/Section/
- *      navigationTitle and friends. In Kotlin it means ANY string literal in a
- *      covered file (see kotlinStringLiterals for why). Not every string: an
+ *   2. COVERED non-firmware paths embed no user-facing prose. In TSX,
+ *      "user-facing" means the literal reaches a render API — JSX text or a
+ *      placeholder/title/aria-label attribute. In Kotlin and Swift it means ANY
+ *      string literal in a covered file (see kotlinStringLiterals and
+ *      swiftStringLiterals for why); Swift's render-site patterns still run and
+ *      name the call site when they match. Not every string: an
  *      identifier, a CSS class, a part number or a unit symbol is not prose
  *      (see isProse, isIdentifierLiteral).
  *   3. Every key referenced by code exists in locales/en.json, and every key in
@@ -51,13 +52,14 @@
  *
  * ── The reach, stated narrowly ───────────────────────────────────────────────
  *
- * This is a TEXT scan, not a parse. For TSX and Swift it reads the literal at
- * a render call site and cannot follow a string that arrives through a
- * variable, so `Text(someEnglishConstant)` passes. Swift has exactly that hole
- * today: a helper that returns English from a `switch` is not seen. Kotlin is
- * scanned per literal and does not have it. That limit is real and is the reason
- * COVERED_PATHS is a list rather than "everything": inside those trees the
- * pattern is literal-at-the-call-site, which is what makes the scan sound.
+ * This is a TEXT scan, not a parse. For TSX it reads the literal at a render
+ * call site and cannot follow a string that arrives through a variable, so
+ * `{someEnglishConstant}` passes. Kotlin and Swift are scanned per literal and
+ * do not have that hole: English returned from a `when`/`switch` or a computed
+ * property is seen where it is written. What the per-literal scans cannot do is
+ * know that a literal is NOT copy, so each exempts categories (identifiers,
+ * keys, symbols, comparisons, diagnostics) that are narrow by construction.
+ * That limit is the reason COVERED_PATHS is a list rather than "everything".
  *
  * PENDING_PATHS names the code this rule has NOT yet reached, with the reason.
  * Those trees are not silently excluded — they are excluded on the record, and
@@ -78,9 +80,10 @@ const ROOT = join(import.meta.dir, "..");
 const LOCALES_DIR = join(ROOT, "locales");
 
 /**
- * Trees where the rule is ENFORCED. The scan is literal-at-the-call-site, so a
- * tree only belongs here once its UI actually renders keys rather than passing
- * English through a variable.
+ * Trees where the rule is ENFORCED. A tree only belongs here once its UI
+ * actually renders keys. For TSX the scan is literal-at-the-call-site, so
+ * English passed through a variable is not seen; Kotlin and Swift are scanned
+ * per literal.
  */
 const COVERED_PATHS = [
   "app/web/src/",
@@ -97,8 +100,16 @@ const COVERED_PATHS = [
 /**
  * Code this rule has NOT reached yet, and why. Listed so the gate's reach is
  * legible: each entry is work, not an exemption on principle.
+ *
+ * An entry inside a covered tree is skipped by the per-literal Swift scan only
+ * (swiftStringLiterals); the render-site scan still runs on it, so it is no less
+ * checked than before that scan existed. An entry that is not a real path
+ * prefix ("app/android/app/ (outside ui/)") matches nothing and only documents.
  */
 const PENDING_PATHS: Array<[string, string]> = [
+  ["app/ios/NeurOne/Models/ConsentModels.swift", "enum raw values are persisted Codable identifiers written into stored consent records (displayName already keys the text), but ClinicianUseCaseTier.rawValue is still rendered by ConsentDashboardView and monthlyPrice carries §6.1 prices in English units; needs a tier displayName and a keyed price format, decided against commercial-model.md §6.1"],
+  ["app/ios/NeurOne/Protocol/NPProtocolDefinition.swift", "mixes .npps/Codable wire tokens (encode(\"single\"), \"binocular\", \"zones: []\") with a few display strings (\"\\(n) intervals\", author \"NeurOne\"); the wire tokens need a positional rule of their own before the display strings can be migrated without noise"],
+  ["app/ios/NeurOne/Protocol/NPProtocolValidator.swift", "violation actual/limit values are composed English with units (\"\\(n) pulses\", \"Outside \\(min)–\\(max) Hz\", \"disabled\"/\"required\"), rendered in the validation list; each call site needs its own keyed format with {0}"],
   ["app/android/core/", "a pure-JVM module by design (no Android plugin, ISC-2..4), so it cannot reference R.string at all; its display text needs a key-to-resource indirection first"],
   ["app/android/app/ (outside ui/)", "BLE, upload and signing code — diagnostics and protocol constants, not rendered text"],
   ["app/windows/", "protocol/session logic only today; no localized UI layer exists to point at a key"],
@@ -152,6 +163,7 @@ function isProse(raw: string): boolean {
     "Hz", "kHz", "mA", "uA", "mW", "cm", "mm", "nm", "ms", "sec", "min",
     "BPM", "MT", "px", "em", "rem", "id", "px", "T1", "T2", "EEG", "PBM",
     "MB", "KB", "GB", "DFU", "USB", "LED", "NIR", "TMS", "VNS", "HRV",
+    "Fp",                                   // 10-20 electrode designations: Fp1, Fp2
   ]);
   return words.some((w) => !NOT_PROSE.has(w));
 }
@@ -270,6 +282,192 @@ function acceptKotlinLiteral(lit: Literal): boolean {
   return isProse(text);
 }
 
+/**
+ * Swift is scanned by LITERAL too, for the reason Kotlin is (see
+ * kotlinStringLiterals).
+ *
+ * SWIFT_RENDER and SWIFT_NAMED_ARG read only a literal written AT the call
+ * site. The watch's session screen reached its view through a computed
+ * property, and the consumable table through a static helper:
+ *
+ *     private var statusLabel: String {
+ *         switch status { case .idle: return "Idle" ... }   // Text(statusLabel)
+ *     }
+ *
+ * and the gate reported the tree clean. So in covered Swift every string
+ * literal is copy unless it shows it is not, by its text or by the one position
+ * it sits in (swiftLiteralIsNotCopy). The render-site patterns stay: they name
+ * the call site in the report, and their tests pin the older contract.
+ */
+interface SwiftLiteral extends Literal { before: string; after: string; }
+
+/**
+ * Every Swift string literal in `body`, in source order, with the source just
+ * before and after it (for the positional exemptions).
+ *
+ * A tokenizer for the same reason as Kotlin's: `\(...)` interpolations hold
+ * expressions and those can hold literals, `Text("\(on ? "On" : "Off") mode")`.
+ * Each literal is yielded with its interpolations blanked, and literals nested
+ * in an interpolation are yielded on their own. `"""` multi-line and `#"..."#`
+ * raw literals are read (and flagged `raw`), so their quotes cannot pair wrong.
+ */
+function swiftStringLiterals(body: string): SwiftLiteral[] {
+  const out: SwiftLiteral[] = [];
+  const n = body.length;
+  let i = 0;
+
+  const skipInterpolation = (): void => {
+    let depth = 1;
+    while (i < n && depth > 0) {
+      const c = body[i]!;
+      if (c === '"' || (c === "#" && /^#+"/.test(body.slice(i, i + 8)))) { readLiteral(); continue; }
+      if (c === "(") depth++;
+      else if (c === ")") depth--;
+      i++;
+    }
+  };
+
+  const readLiteral = (): void => {
+    const start = i;
+    let hashes = "";
+    while (body[i] === "#") { hashes += "#"; i++; }
+    const multi = body.startsWith('"""', i);
+    const close = (multi ? '"""' : '"') + hashes;
+    i += multi ? 3 : 1;
+    const esc = "\\" + hashes;
+    let text = "";
+    while (i < n) {
+      if (body.startsWith(close, i)) { i += close.length; break; }
+      const c = body[i]!;
+      if (!multi && c === "\n") break;                       // unterminated: stop at EOL
+      if (body.startsWith(esc + "(", i)) { i += esc.length + 1; skipInterpolation(); text += " "; continue; }
+      if (body.startsWith(esc, i)) { text += body.slice(i, i + esc.length + 1); i += esc.length + 1; continue; }
+      text += c;
+      i++;
+    }
+    out.push({
+      text,
+      index: start,
+      raw: multi || hashes.length > 0,
+      before: body.slice(Math.max(0, start - 160), start),
+      after: body.slice(i, i + 16),
+    });
+  };
+
+  while (i < n) {
+    const c = body[i]!;
+    if (c === '"' || (c === "#" && /^#+"/.test(body.slice(i, i + 8)))) { readLiteral(); continue; }
+    i++;
+  }
+  return out;
+}
+
+/**
+ * Argument labels whose value is a name the code looks up, never text a person
+ * reads: SF Symbols, asset and resource names, defaults and dictionary keys,
+ * field identifiers (`param:`), log subsystems. Only the label directly before
+ * the literal counts, so `Label("Settings", systemImage: "gear")` still flags
+ * "Settings". The value may
+ * be a ternary, `systemName: on ? "wifi" : "wifi.slash"`: both branches are
+ * names, and the condition cannot hold a comma, a paren or a newline.
+ */
+const SWIFT_NON_COPY_ARG =
+  /\b(systemName|systemImage|symbol|icon|param|parameterKey|forKey|key|named|forResource|withExtension|suiteName|subsystem|category|identifier|withIdentifier)\s*:\s*(?:[^,()\n"]*\?\s*(?:"[^"\n]*"\s*:\s*)?)?$/;
+
+/**
+ * Where a literal is read by a developer, not a person: os.Logger messages go to
+ * the unified log, and `debugDescription:` is a DecodingError's context. Neither
+ * reaches a screen; a string that does is shown through a key.
+ */
+const SWIFT_DIAGNOSTIC_ARG =
+  /(?:\blogger\.(?:trace|debug|info|notice|warning|error|fault|critical|log)\(\s*|\bdebugDescription\s*:\s*)$/;
+
+/**
+ * Where a literal is COMPARED rather than shown: an `==`/`!=` operand, a
+ * `hasPrefix`/`hasSuffix` argument, a `switch` case pattern, and a Picker
+ * `.tag(...)`. A value a person reads is never matched against.
+ */
+const SWIFT_COMPARED =
+  /(?:[=!]=\s*|\.(?:hasPrefix|hasSuffix|tag)\(\s*|\bcase\s+(?:"[^"\n]*"\s*,\s*)*)$/;
+
+/**
+ * A C/Foundation format specifier: "%.1f", "%d:%02d", "%lld", "%@". Blanked
+ * before the prose test so the length modifier in "%lld" is not read as a word.
+ */
+const FORMAT_SPEC = /%(\d+\$)?[-+ #0]*\d*(\.\d+)?(ll|l|h|hh|q|z|t|j)?[dDiuUxXoOfFeEgGcCsSpaA@%]/g;
+
+/**
+ * Swift identifier shapes isIdentifierLiteral does not already cover: a
+ * camelCase property name (`chargeDensityMCcm2`) and a lowercase kebab slug
+ * (`intranasal-sleeves`). Neither has a space, and neither is how copy is cased.
+ */
+function isSwiftIdentifierLiteral(text: string): boolean {
+  return /^[a-z][a-z0-9]*[A-Z][A-Za-z0-9]*$/.test(text) || /^[a-z0-9]+(-[a-z0-9]+)+$/.test(text);
+}
+
+/**
+ * Source spans whose literals never render as copy, as [start, end) offsets:
+ *   - `#Preview` blocks: Xcode canvas fixtures, not shipped screens;
+ *   - the body of a computed property or function NAMED for an SF Symbol
+ *     (`var systemImage: String`, `func iconName(for:)`), which returns a
+ *     symbol name from a `switch` — the same shape as the copy this scan exists
+ *     for, told apart only by what the member is for.
+ * A span is the brace-matched block after the declaration. Braces inside string
+ * literals are not special-cased; none occurs in a covered symbol member.
+ */
+function swiftNonCopySpans(body: string): Array<[number, number]> {
+  const spans: Array<[number, number]> = [];
+  const DECL =
+    /#Preview\b[^{]*\{|\b(?:var|func)\s+\w*(?:[Ii]con|[Ss]ymbol|[Ss]ystemImage|[Ss]ystemName)(?:Name)?\b[^{=]*\{/g;
+  for (const m of body.matchAll(DECL)) {
+    let i = m.index! + m[0].length;
+    let depth = 1;
+    while (i < body.length && depth > 0) {
+      if (body[i] === "{") depth++;
+      else if (body[i] === "}") depth--;
+      i++;
+    }
+    spans.push([m.index!, i]);
+  }
+  return spans;
+}
+
+/**
+ * Is this Swift literal something other than copy? Each clause is a category,
+ * and each is narrow on purpose:
+ *   - its TEXT: a locale key, an identifier (isIdentifierLiteral,
+ *     isSwiftIdentifierLiteral), a lowercase enum raw value (`case tdcs =
+ *     "tdcs"`), or nothing but format specifiers, numbers, units and glyphs once
+ *     those are removed ("%d:%02d", "20 min · 40 Hz", localization.md §17.3);
+ *   - its POSITION: the value of a lookup label (SWIFT_NON_COPY_ARG), a
+ *     diagnostic sink (SWIFT_DIAGNOSTIC_ARG), a comparison (SWIFT_COMPARED), a
+ *     subscript key (`message["phase"]`), or a dictionary-literal key
+ *     (`["phase": p]`), which is how WCSession payloads are addressed; and a
+ *     literal continued with `+` from one of those;
+ *   - its SPAN: inside a #Preview or a symbol-named member (swiftNonCopySpans).
+ * A capitalised raw value (`case all = "All"`) is NOT exempt: it is rendered
+ * through `.rawValue`. A multi-line or raw literal is NOT exempt, unlike
+ * Kotlin's: none exists in covered Swift, and one that appears is a decision.
+ */
+function swiftLiteralIsNotCopy(lit: SwiftLiteral, continuesExempt: boolean): "text" | "position" | false {
+  const text = lit.text;
+  if (KEY_RE.test(text)) return "text";
+  if (isIdentifierLiteral(text) || isSwiftIdentifierLiteral(text)) return "text";
+  if (/^[a-z][a-z0-9]*$/.test(text) && /\bcase\s+\w+\s*=\s*$/.test(lit.before)) return "text";
+  if (!isProse(text.replace(FORMAT_SPEC, " "))) return "text";
+  if (SWIFT_NON_COPY_ARG.test(lit.before)) return "position";
+  if (SWIFT_DIAGNOSTIC_ARG.test(lit.before)) return "position";
+  if (SWIFT_COMPARED.test(lit.before)) return "position";
+  // Subscript key: `x["phase"]`, `dict?["phase"]`, `payload()["phase"]`.
+  if (/[\w)\]?!]\[\s*$/.test(lit.before) && /^\s*\]/.test(lit.after)) return "position";
+  // Dictionary-literal key: `["phase": p, "status": s]`. The opening `[` or a
+  // `,` before it and a `:` after it; a ternary's `? "a" :` has neither.
+  if (/[\[,]\s*$/.test(lit.before) && /^\s*:(?!:)/.test(lit.after)) return "position";
+  // `"first part " + "second"` inherits the first part's position.
+  if (continuesExempt && /"\s*\+\s*$/.test(lit.before)) return "position";
+  return false;
+}
+
 /** Render sites in SwiftUI. */
 const SWIFT_RENDER =
   /\b(Text|Button|Label|TextField|SecureField|Toggle|Picker|Section|NavigationLink|Link|LabeledContent|navigationTitle|navigationBarTitle|alert|confirmationDialog|accessibilityLabel|accessibilityHint|help)\(\s*"([^"]{2,})"/g;
@@ -328,6 +526,9 @@ function scanSource(file: string, rawBody: string): Violation[] {
   }
 
   if (file.endsWith(".swift")) {
+    // Render-site matches first, so a literal they name is reported by call
+    // site; the literal scan then reports every other literal once.
+    const seen = new Set<number>();
     for (const m of body.matchAll(SWIFT_RENDER)) {
       const text = m[2]!;
       if (accept(text)) out.push({ file, line: lineOf(body, m.index!), text, why: `${m[1]}(...)` });
@@ -335,6 +536,19 @@ function scanSource(file: string, rawBody: string): Violation[] {
     for (const m of body.matchAll(SWIFT_NAMED_ARG)) {
       const text = m[2]!;
       if (accept(text)) out.push({ file, line: lineOf(body, m.index!), text, why: `${m[1]}:` });
+    }
+    for (const v of out) seen.add(v.line * 100000 + v.text.length);
+    const spans = swiftNonCopySpans(body);
+    let prevPositional = false;
+    const pending = PENDING_PATHS.some(([p]) => file.startsWith(p));
+    for (const lit of pending ? [] : swiftStringLiterals(body)) {
+      if (spans.some(([a, b]) => lit.index >= a && lit.index < b)) continue;
+      const why = swiftLiteralIsNotCopy(lit, prevPositional);
+      prevPositional = why === "position";
+      if (why) continue;
+      const line = lineOf(body, lit.index);
+      if (seen.has(line * 100000 + lit.text.length)) continue;
+      out.push({ file, line, text: lit.text, why: "string literal" });
     }
     return out;
   }
@@ -946,6 +1160,43 @@ function selfTest(): void {
     ['            OptionalDoubleField(label: String(localized: "LIMITS_MAX_INTENSITY"), unit: "%", value: b)', false],
     ['            Image(systemName: "waveform.path.ecg")', false],   // SF Symbol, not text
     ['            InfoRow(title: "HRV Biofeedback", detail: "Coherence training.")', true],
+    // ── Per-literal scan (swiftStringLiterals) ──
+    // The regression the render-site scan missed: English returned from a
+    // computed property and rendered later as Text(statusLabel). This is
+    // SessionStatusView.swift before its migration, verbatim in shape.
+    ['    private var statusLabel: String {\n        if !mgr.isPhoneReachable { return "Not connected" }\n        switch session.status {\n        case .idle:      return "Idle"\n        }\n    }', true],
+    ['        case 0: return "Intranasal sleeves"', true],                     // ConsumableName.name(for:)
+    ['    static let title = "Some Features Need Age Confirmation"', true],   // a table of English
+    ['    case all = "All"', true],                                           // capitalised raw value renders via .rawValue
+    ['            Text(on ? "Hub connected" : "Hub not connected")', true],   // a ternary at a render site
+    ['            .navigationTitle(isNew ? "New Protocol" : "Edit Protocol")', true],
+    ['            Text("\\(on ? "Stimulation on" : "off") now")', true],       // a literal nested in an interpolation
+    ['    var displayName: String { switch self { case .a: return "Alpha" } }', true],  // not a symbol-named member
+    ['    let s = "Return the hub " + "to the case"', true],                  // a continuation inherits copy, too
+    ['            Text(ok ? "wifi" : "offline")', true],                        // no systemName: label, so a bare word is copy
+    ['            print("Session stopped")', true],                             // print is not an exempt sink
+    ['            Label("Settings", systemImage: "gear")', true],               // only the label directly before counts
+    // What the per-literal scan must NOT flag: each exemption, once.
+    ['        case .idle: return String(localized: "WATCH_STATUS_IDLE")', false],
+    ['            Image(systemName: on ? "wifi" : "wifi.slash")', false],
+    ['            Image(systemName: granted ? "checkmark.circle.fill" : "circle")', false],
+    ['    var systemImage: String {\n        switch self { case .a: return "brain" }\n    }', false],
+    ['    private func iconName(for s: Step) -> String {\n        switch s { case .w: return "sparkles" }\n    }', false],
+    ['            Text(String(format: "%d:%02d", m, s))', false],             // format strings
+    ['            let n = String(format: "%lld", count)', false],
+    ['        case .gamma: return "20 min · 40 Hz"', false],                    // units and numbers (§17.3)
+    ['        let phase = message["phase"] as? String', false],                // WCSession subscript key
+    ['        session.sendMessage(["phase": p, "status": s], replyHandler: nil)', false],  // dictionary-literal keys
+    ['    case tdcs = "tdcs"', false],                                          // lowercase raw value
+    ['        case .intranasalSleeves: return "intranasal-sleeves"', false],   // kebab slug
+    ['        modality: m, param: "chargeDensityMCcm2", displayName: x', false],
+    ['            Self.logger.error("EDF download failed: \\(desc, privacy: .public)")', false],
+    ['            debugDescription: "Socket mask must be " + "(\\(n) bytes)."', false],  // continuation of a diagnostic
+    ['                        if val == "none" { params.noiseType = nil }', false],
+    ['                    Text("UI_NONE").tag("none")', false],
+    ['#Preview("Allowed") {\n    ConditionChip(name: "Major Depressive Disorder")\n}', false],
+    ['    static let key = "np.onboarding.age-confirmed"', false],
+    ['    let channels = ["Fp1", "Fp2", "F3"]', false],                        // 10-20 designations
   ];
   for (const [src, shouldFlag] of swiftCases) {
     const flagged = scanSource("x.swift", src).length > 0;
