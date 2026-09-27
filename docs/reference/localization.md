@@ -93,8 +93,20 @@ grammar keywords that are English by definition and read as compiler output.
 **`locales/*.json` is the single source of truth, and the only place a user-facing string is
 committed.** The three per-platform files are build outputs: git-ignored, and regenerated from
 canonical by each app's own build — a Vite plugin (`canonicalLocales`) for web, the `syncLocales`
-Gradle task for Android, and on iOS a **scheme build pre-action** plus the NeurOne target's first
-build phase. All shell out to the one generator, `bun scripts/sync-locales.ts`.
+Gradle task for Android, and on each Apple target a **scheme build pre-action** plus the target's
+first build phase. All shell out to the one generator, `bun scripts/sync-locales.ts`.
+
+**watchOS bundles the iOS String Catalog in place.** `app/watchos/project.yml` references
+`app/ios/NeurOne/Localizable.xcstrings` rather than having the generator emit a watch copy, so one
+output, one `.gitignore` line and one `--verify-untracked` pathspec cover both Apple targets. The
+watch spec carries the same three hooks as the iOS one: `preGenCommand`, the target build phase and
+the scheme pre-action. It names the catalogue as the directory `../ios/NeurOne` filtered by
+`includes` to that one file, because XcodeGen reads `knownRegions` only out of a catalogue it
+meets while scanning a directory. A plain file-path entry bundles all eleven `.lproj` but leaves
+`knownRegions` at `en` + `Base`. Until this was in place the watch bundle held no catalogue at all
+(zero `.lproj`), and every `String(localized:)` in `NeurOneWatch` rendered its raw key off a green
+build. `watchos-ci.yml` now asserts on the built bundle, not the exit status. It checks one `.lproj`
+per locale, and that `WATCH_RMSSD` resolves to its `en.json` text.
 
 **A generated resource must exist before the build plan is computed, not merely before the phase
 that consumes it.** This is why iOS takes two hooks and not one. Xcode plans the build first, so a
@@ -107,9 +119,11 @@ which must precede *any* `xcodebuild` invocation) creates the file in time; the 
 it fresh within an open session. Gradle needs no equivalent because a generated res `srcDir` is a
 declared task output, and Vite's `buildStart` runs before module resolution.
 
-**A build needs `bun` on `PATH`** — that is now true of the Android and iOS builds, not just the
-web one, and CI installs it on every leg that compiles either (`android-ci`, `ios-ci`, and both
-compiled CodeQL legs). A canonical edit also triggers those workflows, which it no longer would by
+**A build needs `bun` on `PATH`** — that is now true of the Android, iOS and watchOS builds, not
+just the web one, and CI installs it on every leg that compiles any of them (`android-ci`,
+`ios-ci`, `watchos-ci`, and both compiled CodeQL legs). For XcodeGen it is needed even earlier:
+each Apple spec's `preGenCommand` runs the generator, so `xcodegen generate` itself fails without
+it. A canonical edit also triggers those workflows, which it no longer would by
 path alone.
 
 ### 17.5 Why the generated files are not committed
@@ -128,8 +142,10 @@ makes the hand-edit unrepresentable rather than merely detectable. `bun scripts/
 `bun scripts/check-locale-strings.ts` enforces all of the above and fails CI on a violation; its
 `PENDING_PATHS` names the code the rule has not yet reached — the pure-JVM `:core` Android module
 (no Android plugin by design, so it cannot name `R.string`), Windows, and the simulator — so the
-gate's reach stays legible. Those three, and watchOS, generate nothing today because they read no
-locale file yet; each becomes a fourth generator target when it does, not a fourth committed copy.
+gate's reach stays legible. Those three generate nothing today because they read no locale file
+yet. Each becomes a fourth generator target when it does, not a fourth committed copy. watchOS is
+not among them. It is in `COVERED_PATHS` and ships the iOS catalogue (§17.4), which is a second
+consumer of an existing output rather than a new generator target.
 
 ### 17.7 Translation (GitHub #191)
 

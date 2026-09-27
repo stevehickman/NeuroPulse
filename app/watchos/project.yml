@@ -1,7 +1,33 @@
+# XcodeGen spec for the NeurOne watchOS app. `NeurOneWatch.xcodeproj` is
+# GENERATED from this file and is not committed; bootstrap with
+# `cd app/watchos && xcodegen generate`.
+#
+# The watch ships the SAME String Catalog as the iOS app,
+# app/ios/NeurOne/Localizable.xcstrings, referenced in place rather than copied
+# (CLAUDE.md §17.4). Until this spec named it, the watch bundle carried no
+# catalogue at all — zero .lproj folders — and every String(localized:) in
+# NeurOneWatch rendered its raw key ("WATCH_RMSSD") off a green build. The three
+# hooks below mirror app/ios/project.yml, whose comments record why each is
+# needed; the short form is that the catalogue is git-ignored, so it must exist
+# on disk before XcodeGen reads the tree AND before Xcode plans the build.
 name: NeurOneWatch
 
 options:
   bundleIdPrefix: life.neurone
+  # Generate the catalogue BEFORE XcodeGen reads the source tree. Against a
+  # checkout where it does not exist yet, XcodeGen silently drops the Resources
+  # entry below (so every key renders raw) and collapses knownRegions — which it
+  # reads out of the catalogue itself — to `en` + `Base`. Neither fails the
+  # build. Same command as app/ios/project.yml's preGenCommand.
+  preGenCommand: |
+    set -eu
+    export PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+    if ! command -v bun >/dev/null 2>&1; then
+      echo "error: bun not found. app/ios/NeurOne/Localizable.xcstrings is generated from locales/*.json;" >&2
+      echo "note: install bun (https://bun.sh), then re-run xcodegen generate." >&2
+      exit 1
+    fi
+    bun "$(git rev-parse --show-toplevel)/scripts/sync-locales.ts"
   deploymentTarget:
     watchOS: "10.0"
   createIntermediateGroups: true
@@ -44,6 +70,21 @@ targets:
         excludes:
           - "**/.DS_Store"
           - "**/*.md"
+      # The generated String Catalog, shared with the iOS app. Referenced in
+      # place: one generator output, one git-ignore line and one
+      # --verify-untracked pathspec cover both Apple targets, where a watch copy
+      # would add a second output to keep in step. It exists here only because
+      # the preGenCommand above has just run.
+      #
+      # Named as the DIRECTORY filtered to the one file, not as the file path.
+      # XcodeGen derives knownRegions only from a catalogue it meets while
+      # scanning a directory; an explicit single-file entry bundles all eleven
+      # .lproj but leaves knownRegions at `en` + `Base`, so Xcode's project
+      # localization list would show English only.
+      - path: ../ios/NeurOne
+        includes:
+          - "Localizable.xcstrings"
+        buildPhase: resources
 
     settings:
       base:
@@ -54,9 +95,43 @@ targets:
     dependencies:
       - package: NeurOneShared
 
+    # Keeps the catalogue fresh within an open Xcode session. It cannot make a
+    # clean build work — Xcode plans the build before any phase runs, so a
+    # catalogue created here is in no plan — which is the scheme pre-action's
+    # job below. Same arrangement, and same reasoning, as the NeurOne target in
+    # app/ios/project.yml.
+    preBuildScripts:
+      - name: "Generate localized strings"
+        basedOnDependencyAnalysis: false
+        script: |
+          set -eu
+          export PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+          if ! command -v bun >/dev/null 2>&1; then
+            echo "error: bun not found. Localizable.xcstrings is generated from locales/*.json;"
+            echo "note: install bun (https://bun.sh), or run \"bun scripts/sync-locales.ts\" from the repository root."
+            exit 1
+          fi
+          cd "${SRCROOT}/../.."
+          bun scripts/sync-locales.ts
+
 schemes:
   NeurOneWatch:
     build:
+      # Runs before Xcode computes the build plan, the only point at which a
+      # git-ignored generated resource can still enter it (see
+      # app/ios/project.yml's scheme for the CI run that proved it).
+      preActions:
+        - name: "Generate localized strings"
+          settingsTarget: NeurOneWatch
+          script: |
+            set -eu
+            export PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+            if ! command -v bun >/dev/null 2>&1; then
+              echo "error: bun not found. Run 'bun scripts/sync-locales.ts' from the repository root."
+              exit 1
+            fi
+            cd "${SRCROOT}/../.."
+            bun scripts/sync-locales.ts
       targets:
         NeurOneWatch: all
     run:

@@ -5,7 +5,7 @@
  * Source of truth: locales/*.json (flat key-value per BCP 47 locale) — the ONLY
  * copy of any user-facing string that is committed to the repository.
  * Build outputs (all three are generated at build time and git-ignored):
- *   - Apple:   app/ios/NeurOne/Localizable.xcstrings (String Catalog)
+ *   - Apple:   app/ios/NeurOne/Localizable.xcstrings (String Catalog; iOS + watchOS)
  *   - Web:     app/web/src/generated/locales/*.json (copy)
  *   - Android: <buildDir>/generated/res/locales/values-<qualifier>/strings.xml
  *
@@ -85,6 +85,11 @@ const LOCALES_DIR = join(ROOT, "locales");
  * AFTER this script or the catalogue is in no project at all — and XcodeGen
  * also reads the project's knownRegions out of this very file. project.yml's
  * preGenCommand and ios-ci.yml's explicit step both enforce that order.
+ *
+ * The watchOS app bundles this same file in place (app/watchos/project.yml);
+ * there is deliberately no watch copy, so this one output — and its one
+ * GENERATED_PATHSPECS entry — covers both Apple targets. watchos-ci.yml and the
+ * watch spec's preGenCommand enforce the same ordering for it.
  */
 const XCSTRINGS_OUT = join(ROOT, "app", "ios", "NeurOne", "Localizable.xcstrings");
 

@@ -5,17 +5,27 @@ name: watchOS CI (xcodebuild)
 # spec is the source of truth and a stale committed .xcodeproj cannot drift.
 # Since Issue #189 ios-ci.yml does the same, so both Apple targets follow one
 # convention: project.yml is committed, the .xcodeproj is not.
-# There is no watchOS unit-test target yet, so this is a build gate only.
+# There is no watchOS unit-test target yet, so this is a build gate plus one
+# assertion on the built bundle (the localized strings, below).
 
 on:
   push:
     paths:
       - 'app/watchos/**'
       - 'app/NeurOneShared/**'
+      # The watch bundles the String Catalog generated from canonical
+      # locales/*.json (CLAUDE.md §17.4), so a canonical edit — or a generator
+      # change — is a watch build input that touches nothing under app/watchos/.
+      - 'locales/**'
+      - 'scripts/sync-locales.ts'
+      - '.github/workflows/watchos-ci.yml'
   pull_request:
     paths:
       - 'app/watchos/**'
       - 'app/NeurOneShared/**'
+      - 'locales/**'
+      - 'scripts/sync-locales.ts'
+      - '.github/workflows/watchos-ci.yml'
   workflow_dispatch:
 
 # Least privilege. This build gate only checks out the repo and compiles it;
@@ -44,6 +54,23 @@ jobs:
             echo "No Xcode 16 found; using default: $(xcode-select -p)"
           fi
           xcodebuild -version
+
+      # project.yml's preGenCommand, the target's first build phase and the
+      # scheme pre-action all shell out to bun, and fail without it.
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # MUST run before XcodeGen and before any xcodebuild invocation. The watch
+      # bundles the git-ignored app/ios/NeurOne/Localizable.xcstrings; generate
+      # the project against a checkout without it and XcodeGen silently drops
+      # the Resources entry and collapses knownRegions to en + Base, and the app
+      # renders raw keys ("WATCH_RMSSD") off a green build. The preGenCommand
+      # runs the same generator; this step keeps the ordering visible here, as
+      # the matching step in ios-ci.yml does.
+      - name: Generate locale files from canonical locales/*.json
+        run: bun scripts/sync-locales.ts
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -82,4 +109,29 @@ jobs:
             -scheme NeurOneWatch \
             -destination 'generic/platform=watchOS Simulator' \
             -configuration Debug \
+            -derivedDataPath build/watchos-dd \
             CODE_SIGNING_ALLOWED=NO
+
+      # A green build is not evidence the strings shipped: before the catalogue
+      # was in the spec this job built green with zero .lproj in the bundle.
+      # Assert on the artifact — every canonical locale is bundled, and a key
+      # the watch renders resolves to its English text, not to itself.
+      - name: Assert the bundle carries the localized strings
+        run: |
+          set -eu
+          APP=build/watchos-dd/Build/Products/Debug-watchsimulator/NeurOneWatch.app
+          test -d "$APP" || { echo "::error::$APP was not produced"; exit 1; }
+          want=$(ls locales/*.json | grep -v '/_' | wc -l | tr -d ' ')
+          got=$(find "$APP" -maxdepth 1 -name '*.lproj' | wc -l | tr -d ' ')
+          echo "locales/*.json: $want   bundled .lproj: $got"
+          if [ "$got" -ne "$want" ]; then
+            echo "::error::NeurOneWatch.app bundles $got .lproj, expected $want (one per locales/*.json)"
+            exit 1
+          fi
+          value=$(plutil -extract WATCH_RMSSD raw -o - "$APP/en.lproj/Localizable.strings")
+          expected=$(bun -e 'console.log(JSON.parse(await Bun.file("locales/en.json").text()).WATCH_RMSSD)')
+          echo "WATCH_RMSSD -> $value"
+          if [ "$value" != "$expected" ]; then
+            echo "::error::en WATCH_RMSSD resolves to '$value', expected '$expected'"
+            exit 1
+          fi
