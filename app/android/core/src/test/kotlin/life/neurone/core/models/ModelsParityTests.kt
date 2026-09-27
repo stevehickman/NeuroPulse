@@ -3,6 +3,7 @@ package life.neurone.core.models
 import life.neurone.core.ble.CalibrationOpcode
 import life.neurone.core.ble.GattUuids
 import life.neurone.core.ble.OtaOpcode
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -102,13 +103,35 @@ class ModelsParityTests {
         assertEquals(0xFF, OtaPhase.FAILED.rawValue)
     }
 
+    /**
+     * The hub firmware does not emit OTA_STATUS yet, so the iOS `OTAPhase` enum is the only
+     * other statement of this wire table. Read it from source rather than restating it here:
+     * a hard-coded copy is how Android drifted to RECEIVING/COMMITTING/REBOOTING on 0x01, 0x03
+     * and 0x05 while this file still passed.
+     */
     @Test
-    fun otaPhaseBusyAndTerminalSemantics() {
-        assertTrue(OtaPhase.RECEIVING.isBusy)
-        assertTrue(OtaPhase.VERIFYING.isBusy)
-        assertFalse(OtaPhase.VERIFIED.isBusy)
-        assertTrue(OtaPhase.COMPLETE.isTerminal)
-        assertTrue(OtaPhase.FAILED.isTerminal)
+    fun otaPhaseTableMatchesIosOtaPhaseSource() {
+        val swift = File(repoRoot(), "app/ios/NeurOne/Models/OTAModels.swift").readText()
+        val body = swift.substringAfter("enum OTAPhase").substringBefore("init(rawPacketByte")
+        val ios = Regex("""case\s+(\w+)\s*=\s*0x([0-9A-Fa-f]{2})""").findAll(body)
+            .associate { it.groupValues[1].uppercase() to it.groupValues[2].toInt(16) }
+
+        // Guard against the regex silently matching nothing (or a truncated enum).
+        assertEquals(8, ios.size, "parsed iOS OTAPhase cases: $ios")
+        assertEquals(ios, OtaPhase.entries.associate { it.name to it.rawValue })
+    }
+
+    @Test
+    fun otaPhaseBusyAndTerminalSemanticsMatchIos() {
+        // iOS: isTerminal = complete || failed; isBusy = anything but idle/complete/failed.
+        val notBusy = setOf(OtaPhase.IDLE, OtaPhase.COMPLETE, OtaPhase.FAILED)
+        val terminal = setOf(OtaPhase.COMPLETE, OtaPhase.FAILED)
+        for (p in OtaPhase.entries) {
+            assertEquals(p !in notBusy, p.isBusy, "$p.isBusy")
+            assertEquals(p in terminal, p.isTerminal, "$p.isTerminal")
+        }
+        // VERIFIED is mid-update (awaiting the app's COMMIT), not settled.
+        assertTrue(OtaPhase.VERIFIED.isBusy)
         assertFalse(OtaPhase.VERIFIED.isTerminal)
     }
 
@@ -152,5 +175,14 @@ class ModelsParityTests {
         assertEquals(ClinicianUseCaseTier.FULL_CLINICAL, UHDRElement.HRV_TIME_SERIES.minimumTier)
         assertEquals(ClinicianUseCaseTier.ASSESS, UHDRElement.EEG_WAVEFORMS.minimumTier)
         assertEquals(ClinicianUseCaseTier.MONITOR, UHDRElement.SESSION_DURATION.minimumTier)
+    }
+
+    private fun repoRoot(): File {
+        var dir = File(System.getProperty("user.dir")).absoluteFile
+        while (!File(dir, "app/ios/NeurOne/Models/OTAModels.swift").exists()) {
+            dir = dir.parentFile
+                ?: error("could not locate the repo root from ${System.getProperty("user.dir")}")
+        }
+        return dir
     }
 }

@@ -106,6 +106,26 @@ class GattParserTests {
         assertEquals(false, pkt.isError)
     }
 
+    @Test
+    fun parseOtaStatusDecodesEveryPhaseByte() {
+        // Same bytes as iOS GATTParserTests.testParseOTAStatus: 0x02 is TRANSFERRING, and a
+        // 0x05 packet carrying error 0x0102 is APPLYING.
+        val expected = mapOf(
+            0x00 to OtaPhase.IDLE, 0x01 to OtaPhase.PREPARING, 0x02 to OtaPhase.TRANSFERRING,
+            0x03 to OtaPhase.VERIFYING, 0x04 to OtaPhase.VERIFIED, 0x05 to OtaPhase.APPLYING,
+            0x06 to OtaPhase.COMPLETE, 0xFF to OtaPhase.FAILED,
+        )
+        for ((byte, phase) in expected) {
+            val pkt = GattParser.parseOtaStatus(byteArrayOf(byte.toByte(), 0x37, 0x00, 0x00))
+            assertEquals(phase, pkt!!.phase, "phase byte 0x%02X".format(byte))
+        }
+        val err = GattParser.parseOtaStatus(byteArrayOf(0x05, 0x00, 0x02, 0x01))!!
+        assertEquals(OtaPhase.APPLYING, err.phase)
+        assertEquals(0x0102, err.errorCode)
+        assertTrue(err.isError)
+        assertNull(GattParser.parseOtaStatus(byteArrayOf(0x07, 0, 0, 0))!!.phase)
+    }
+
     // ── Short input returns null, never throws (per-parser) ─────────────
 
     @Test
