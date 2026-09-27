@@ -95,7 +95,10 @@ static bool build_log(np_log_part_t part, lfs_size_t rmw)
 
 static int open_file(lfs_file_t *f, const char *path, int flags)
 {
-    struct lfs_file_config fcfg;
+    /* static: littlefs keeps the pointer and reads attrs/attr_count again at
+     * every sync and close (lfs.h: "must remain allocated while the file is
+     * open").  A stack copy is a dangling read at lfs_file_close. */
+    static struct lfs_file_config fcfg;
     memset(&fcfg, 0, sizeof(fcfg));
     fcfg.buffer = g_fcache;
     return lfs_file_opencfg(&g_lfs, f, path, flags, &fcfg);
