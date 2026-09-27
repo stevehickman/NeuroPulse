@@ -1,0 +1,86 @@
+# ci/host-test-floors.txt — per-target executed-line floor for every host test.
+#
+# NP-SW-CI-001 §6.14, OI-SWCI-14 (second half). One line per target in
+# ci/host-test-partition.txt, as `<ctest name> <lines>`:
+# the number of distinct in-repo source lines that target executes when it
+# runs ALONE on a --coverage build. Measured, not chosen.
+#
+# Why. The partition manifest catches a target renamed or swapped; it cannot
+# catch a target that still passes after cases were deleted from it. Deleting
+# a case removes the lines only it reached, so this count falls below the floor.
+# It does not see a pure duplicate case, or an assertion weakened on the same
+# line — see the header of scripts/check-host-test-floors.ts.
+#
+# What enforces it:
+#   safety-mcu-ci.yml / firmware-cross-build.yml, job host-tests (every relevant
+#     PR) — scripts/check-host-test-floors.ts --class C / --class B on a
+#     --coverage build; a target below its floor fails the job. Above passes.
+#   build-all.yml (weekly) — the same for all targets at once.
+#   scripts/check-ci-scope.ts (correspondence E, every PR) — this file names
+#     exactly the targets in ci/host-test-partition.txt, so a new target
+#     without a floor fails its own PR.
+#
+# Adding a host test: add its line here too. To measure every floor:
+#   cmake -B build/cov -G Ninja -DCMAKE_BUILD_TYPE=Debug -DNP_BUILD_TESTS=ON \
+#         -DCMAKE_CROSSCOMPILING=OFF \
+#         -DCMAKE_C_FLAGS=--coverage -DCMAKE_EXE_LINKER_FLAGS=--coverage firmware
+#   cmake --build build/cov
+#   bun scripts/check-host-test-floors.ts build/cov --write
+# Lowering a floor is deliberate: do it in the PR that removed the coverage,
+# and say why. Raising one after adding cases is welcome, never required.
+
+np_cardiac_interlock_tests 507
+np_charge_monitor_tests 518
+np_fault_latch_privacy_tests 107
+np_gpio_mgr_tests 402
+np_hal_platform_tests 862
+np_impedance_report_tests 268
+np_nv_state_tests 415
+np_safety_spi_proto_tests 355
+np_thermal_interlock_tests 138
+np_tier_identity_nokey_tests 586
+np_tier_identity_tests 876
+np_accel_shdr_tests 335
+np_anon_tests 302
+np_app_cache_agreement_tests 84
+np_app_clock_agreement_tests 84
+np_app_link_agreement_tests 202
+np_bootloader_app_image_tests 968
+np_bootloader_flexram_tests 84
+np_bootloader_mem_tests 139
+np_cfg_store_tests 2644
+np_chan_decl_tests 209
+np_consumables_tests 346
+np_crypto_tests 700
+np_cvns_fai_tests 309
+np_cvns_fault_summary_tests 405
+np_cvns_reenable_tests 367
+np_edf_tests 349
+np_factory_reset_tests 270
+np_freertos_smoke_tests 690
+np_gatt_server_tests 484
+np_hd_fai_tests 878
+np_hrv_session_tests 226
+np_lfs_config_tests 255
+np_lfs_log_instance_tests 2270
+np_lfs_powerloss_tests 1952
+np_log_backend_tests 999
+np_map3_record_tests 260
+np_mod_cvns_tests 896
+np_mod_pbm_chlatch_tests 277
+np_mod_stim_tests 256
+np_mod_visual_tests 174
+np_module_map_tests 957
+np_module_registry_tests 244
+np_ota_tests 92
+np_pbm_cal_bridge_tests 426
+np_pbm_session_desc_tests 977
+np_protocol_tests 511
+np_session_lease_tests 115
+np_pbm_socket_telem_tests 835
+np_socket_dispatch_tests 561
+np_stim_xcheck_tests 199
+np_transport_tests 209
+np_uhdr_key_tests 431
+np_zone_announce_tests 444
+np_zone_notify_tests 372

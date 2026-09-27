@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 126
+**Revision:** 127
 **Date:** 2026-09-27
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | QMS Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | Design History File Index (this document) | 126 | 2026-09-27 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | Design History File Index (this document) | 127 | 2026-09-27 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 1 | 2026-05-13 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan — Rev 2 (PR #217) accepted SR-FAN-01..06 fan-health thermal interlock into §6.2; Rev 3 adds §5.2.1 ZONE_ID debounce requirement (RISK-18), closing the corresponding pending-decisions.md item | 10 | 2026-09-26 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -317,7 +317,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-SES-PWR-001 | PBM Session Power Audit — Predefined Protocol Library Against the Concurrency Ceiling | 1 | 2026-08-21 | [np_ses_pwr_001.md](./np_ses_pwr_001.md) | DESIGN STUDY | SES |
 | NP-SOUP-CMSIS-001 | CMSIS SOUP Anomaly Evaluation — Safety MCU (SW-01, Class C) | 1 | 2026-08-09 | [np_soup_cmsis_001.md](./np_soup_cmsis_001.md) | DRAFT | SPEC-FW |
 | NP-SOUP-LFS-001 | LittleFS SOUP Record and Hazard Analysis — Hub Storage (SW-02, Class B) | 14 | 2026-09-27 | [np_soup_lfs_001.md](./np_soup_lfs_001.md) | DRAFT | SPEC-FW |
-| NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 31 | 2026-09-27 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |
+| NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 32 | 2026-09-27 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |
 | NP-SW-PORTAL-API-001 | Device-Facing Consent Channel — Study Descriptors and Clinician Portal | 2 | 2026-09-14 | [np_sw_portal_api_001.md](./np_sw_portal_api_001.md) | DRAFT | APP |
 | NP-THERM-COOL-001 | Cooling Architecture Options for the Sealed Cavity — Airflow, Liquid, Stored Coolth, and the Ambient Lever | 16 | 2026-09-23 | [np_therm_cool_001.md](./np_therm_cool_001.md) | DRAFT | SPEC-HW |
 
@@ -586,3 +586,4 @@ Planned near-term additions:
 | 124 | 2026-09-27 | NeurOne Quality | **Revision-log repair, editorial only.** Two rows in this table were out of place. (1) **Two rows were numbered 102.** The second, PR #452's NP-FW-BENCH-001 entry, was authored as Rev 102 in parallel with PR #451's, and merged after PR #453's Rev 103 without raising this document's revision. It is relabelled `103a`, with a note in the row, and moved directly after Rev 103, whose file first carried its change. It is not renumbered, because that would shift the already-published Revs 104–123. (2) **Row 99** (GitHub #331) had landed after Rev 103. It is moved back between 98 and 100. No row's content, no indexed document's revision, date or status, and no other file changed. |
 | 125 | 2026-09-27 | NeurOne Firmware Engineering | **NP-SW-CI-001 Rev 29 → 30 (§6.13): `OI-SWCI-22` and `OI-SWCI-36` decided, with one ruleset session to apply both.** **OI-SWCI-22:** the `Safety` ruleset gains a `pull_request` rule with zero approvals, and its admin bypass moves from `always` to `pull_request`. §6.10's recommendation kept `always`, which would have left the admin's direct push open. **OI-SWCI-36:** the Class C cross-build job is renamed `Cross-build and link (STM32G071, Cortex-M0+, Class C)` in `safety-mcu-ci.yml` and `ci/required-checks.txt`, and correspondence C was falsified. The ruleset edit comes before the merge, so the window blocks PRs rather than un-gating them. Both items stay open until Steve applies §6.13.3. No firmware behaviour changed |
 | 126 | 2026-09-27 | NeurOne Firmware Engineering | **NP-SW-CI-001 Rev 30 → 31 (§6.13.5): `OI-SWCI-22` and `OI-SWCI-36` CLOSED.** Steve applied the §6.13.3 ruleset edit before #486 merged. The rules in force on `main` now include `pull_request` (0 approvals), the admin bypass is `pull_request`-only, and the manifest comparison is empty with the renamed Class C context. The UI also set `require_extra_approval_for_unattributed_changes: true`. It is recorded, and its effect is not yet known. No code or workflow changes |
+| 127 | 2026-09-27 | NeurOne Firmware Engineering | **NP-SW-CI-001 Rev 31 → 32 (§6.14): `OI-SWCI-14` CLOSED.** The per-target floor is built as an executed-line count, because the 55 host suites share no case-reporting form. `scripts/check-host-test-floors.ts` runs each target alone on a `--coverage` build and compares the distinct in-repo lines it executed with `ci/host-test-floors.txt`. It runs inside both required host-test jobs (Class C and Class B) on every relevant PR, and for all 55 weekly in `build-all.yml`. `check-ci-scope.ts` correspondence E requires a floor for every partition entry. Falsified: removing one case from `np_thermal_interlock_tests` took it from 138 to 126 lines. `firmware/cmake/np_platform_census.cmake`, named by no relevance list, is added to the Class B list. No firmware behaviour changed; no ruleset changed |
