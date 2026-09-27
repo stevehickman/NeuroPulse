@@ -6,8 +6,12 @@
  * Safety interlocks (all three layers independently enforced):
  *   1. IR proximity sensor: eye-open detection before enable
  *   2. Hall sensor: goggle lift → instant LED cutoff (GPIO interrupt, not polled)
- *      — REQ-FWHUB-21.  No ISR exists yet; the only cutoff in this file is the
- *      telemetry poll below.
+ *      — REQ-FWHUB-21.  hall_unseated_isr() below, armed by init() through
+ *      np_mod_visual_hal_hall_irq_register() (OI-VIS-07).  Emission is refused
+ *      unless the interrupt is armed.  The telemetry poll stays as a backstop
+ *      for a missed edge; it is not the control.  The seam is a trap, and the
+ *      edge-to-dark time is unmeasured, until OI-BENCH-12 places the element
+ *      and OI-FWHUB-26 measures it (NP-FW-HUB-001 Rev 18).
  *   3. Hardware current limit: IEC 62471 MPE ceiling; hardware-enforced by safety MCU
  *   4. ADS1299 Oz channel: photoparoxysmal EEG detection → halt <200ms
  *
@@ -35,6 +39,7 @@
  *   magnets NP-TOOL-LENS-001 places, and they are not this magnet.
  *   OI-VIS-05: np_mod_visual_hal_emdr_set(rate_mhz) — L/R alternation
  *   OI-VIS-06: np_mod_visual_hal_mpe_check() → bool (false = MPE exceeded)
+ *   OI-VIS-07: np_mod_visual_hal_hall_irq_register(isr) — the not-seated edge
  */
 
 #include "np_hub_config.h"
@@ -51,10 +56,29 @@
 typedef struct {
     bool    active;
     bool    ppx_halt;    /* photoparoxysmal halt — set by EEG interrupt */
+    bool    hall_irq_armed;
     uint8_t last_mode;
 } np_mod_visual_state_t;
 
 static np_mod_visual_state_t s_state;
+
+/* Set by the Hall ISR, and only there.  It is the one field the ISR writes, so
+ * s_state stays task-only.  control() clears it before its seated check and
+ * reads it after its enable request.  An edge anywhere in between is therefore
+ * seen, which a second call to goggle_seated() would not guarantee: the goggle
+ * can be lifted and lowered again inside that window. */
+static volatile bool s_hall_cut;
+
+/* The goggle Hall edge (REQ-FWHUB-21).  ISR context: no logging, no runner
+ * call, no task-level critical section.  It only takes emission away, and it
+ * does so here rather than deferring to a task, because a deferral is the
+ * poll period again. */
+static void hall_unseated_isr(void)
+{
+    np_mod_visual_hal_led_stop();
+    np_safety_spi_request_disable_from_isr(NP_SAFETY_EN_VISUAL);
+    s_hall_cut = true;
+}
 
 /* Called from EEG ISR / task when photoparoxysmal pattern detected at Oz. */
 void np_mod_visual_ppx_halt(void)
@@ -84,7 +108,12 @@ np_hub_status_t np_mod_visual_init(uint8_t slot)
 {
     (void)slot;
     memset(&s_state, 0, sizeof(s_state));
+    s_hall_cut = false;
     np_mod_visual_hal_led_stop();
+    /* A goggle that cannot report its own lift is still detected and still
+     * reports telemetry.  It never emits: control() refuses it. */
+    s_state.hall_irq_armed =
+        (np_mod_visual_hal_hall_irq_register(hall_unseated_isr) == NP_HUB_OK);
     return NP_HUB_OK;
 }
 
@@ -114,8 +143,14 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
     const np_mod_visual_params_t *p = (const np_mod_visual_params_t *)params;
 
     /* Safety check 1: Hall sensor — goggles must be seated in the wear
-     * position.  This says nothing about a head being present; eye presence is
-     * check 2, and only for the retinal modes. */
+     * position, and the lift interrupt must be armed to take that back.  This
+     * says nothing about a head being present; eye presence is check 2, and
+     * only for the retinal modes.  The latch is cleared BEFORE the seated read,
+     * so a lift after the read is caught after the enable below. */
+    if (!s_state.hall_irq_armed) {
+        return NP_HUB_ERR_SAFETY_REJECTED;
+    }
+    s_hall_cut = false;
     if (!np_mod_visual_hal_goggle_seated()) {
         return NP_HUB_ERR_SAFETY_REJECTED;
     }
@@ -170,6 +205,16 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
     s_state.last_mode = p->mode;
     np_safety_spi_request_enable(NP_SAFETY_EN_VISUAL);
 
+    /* The ISR may have fired between the seated read and here.  If so, it
+     * already stopped the LEDs and cleared the bit, but the led_set() and
+     * request_enable() above ran after it and undid both. */
+    if (s_hall_cut) {
+        np_mod_visual_hal_led_stop();
+        np_safety_spi_request_disable(NP_SAFETY_EN_VISUAL);
+        s_state.active = false;
+        return NP_HUB_ERR_SAFETY_REJECTED;
+    }
+
     return NP_HUB_OK;
 }
 
@@ -189,8 +234,11 @@ np_hub_status_t np_mod_visual_telemetry(uint8_t slot, np_telem_record_t *out)
     v->eye_open      = np_mod_visual_hal_ir_eye_open();    /* UHDR */
     v->ppx_halt      = s_state.ppx_halt;                   /* SHDR */
 
-    /* Goggles lifted during active session: cut immediately */
-    if (s_state.active && !v->goggle_seated) {
+    /* Backstop, not the control: the Hall ISR has already cut.  This catches a
+     * missed edge, and it clears `active` after an edge whose goggle has since
+     * been lowered again.  Re-seating never resumes emission; that takes a new
+     * control() command. */
+    if (s_state.active && (s_hall_cut || !v->goggle_seated)) {
         np_mod_visual_hal_led_stop();
         np_safety_spi_request_disable(NP_SAFETY_EN_VISUAL);
         s_state.active = false;
