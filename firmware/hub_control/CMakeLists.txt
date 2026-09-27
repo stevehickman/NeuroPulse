@@ -209,6 +209,26 @@ if(NP_BUILD_TESTS)
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
     target_link_libraries(np_mod_stim_tests PRIVATE m)
 
+    # OI-FWHUB-26 / REQ-FWHUB-21: the goggle Hall edge interrupt, the enable
+    # window it can land in, and the telemetry backstop (NP-FW-HUB-001 §8.6).
+    add_executable(np_mod_visual_tests
+        tests/np_mod_visual_tests.c
+        modules/np_mod_visual.c
+    )
+    # FreeRTOS headers only, for np_session_runner.h's types: nothing here
+    # calls the kernel, so none of it is linked (the POSIX port's config branch,
+    # as np_freertos_smoke_tests selects it; gnu11 for the port's prototypes).
+    target_include_directories(np_mod_visual_tests PRIVATE
+        include
+        ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/../vendor/freertos/kernel/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../vendor/freertos/portable/ThirdParty/GCC/Posix
+    )
+    target_compile_definitions(np_mod_visual_tests PRIVATE
+        NP_FREERTOS_POSIX_HOST _GNU_SOURCE)
+    target_compile_options(np_mod_visual_tests PRIVATE
+        -std=gnu11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+
     # OI-FMEA-09 / FMEA-M03-02: the commanded-versus-delivered stimulation
     # cross-check. Pure C; the runner that calls it compiles in no host test.
     add_executable(np_stim_xcheck_tests

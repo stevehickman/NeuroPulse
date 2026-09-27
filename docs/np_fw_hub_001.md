@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 17
+**Revision:** 18
 **Date:** 2026-09-27
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -16,6 +16,19 @@
 **Parent Document:** `NP-SW-001`
 
 ---
+
+> **Rev 18 (2026-09-27) — the goggle Hall cutoff is now an interrupt (§8.6).**
+> - **`REQ-FWHUB-21` was listed as met and was not.** No ISR existed. The only in-session cutoff
+>   ran in `np_mod_visual_telemetry()`, so a lifted goggle emitted until the next telemetry tick.
+>   `RISK-FWHUB-09` was **Accepted** on the interrupt as its control.
+> - **Built:** a platform seam, `np_mod_visual_hal_hall_irq_register()` (a trap like every other
+>   seam; census 102 → 103). An ISR in `np_mod_visual.c` stops the LEDs and clears the visual
+>   enable request through the new `np_safety_spi_request_disable_from_isr()`. A goggle whose
+>   interrupt cannot be armed never emits (D-42). A latch closes the window between `control()`'s
+>   seated read and its enable request. The telemetry cut stays, as a backstop.
+> - **`RISK-FWHUB-09` is no longer Accepted.** It is **Open until `OI-FWHUB-26`**: the edge's
+>   source is a trap, the element has no position (`OI-BENCH-12`), and no edge-to-dark time has
+>   been measured.
 
 > **Rev 17 (2026-09-27) — emitting maintenance tests are dock-only, and all maintenance data is
 > SHDR (#384; §6.9).**
@@ -1663,13 +1676,42 @@ dominant EEG band, which the EEG driver posts via `np_mod_audio_set_eeg_band()`.
 than CLAUDE.md §4.2's table names for this modality and is stated here as the code has it:
 
 1. IR proximity — eye-open detection before enable
-2. Hall sensor — goggle lift → instant LED cutoff, **GPIO interrupt, not polled**
+2. Hall sensor — goggle lift → instant LED cutoff, **GPIO interrupt, not polled** (Rev 18)
 3. hardware current limit at the IEC 62471 MPE ceiling, enforced by the safety MCU
 4. ADS1299 Oz photoparoxysmal detection → `np_mod_visual_ppx_halt()`, < 200 ms
 
 Layer 2 being an interrupt rather than a poll is the requirement (`REQ-FWHUB-21`): at
 `NP_DETECT_VISUAL_POLL_MS` = 200 ms, a polled Hall would allow up to a full poll period of emission
 into a lifted goggle.
+
+**Until Rev 18 layer 2 was a poll.** The only in-session cutoff was in `np_mod_visual_telemetry()`,
+and no seam could deliver an interrupt. It is now built as follows:
+
+- **The seam.** `np_mod_visual_hal_hall_irq_register(isr)` in `np_sw02_platform_hal.h`. The
+  platform calls `isr` on every transition of `np_mod_visual_hal_goggle_seated()` from true to false,
+  and on any fault that leaves the element unreadable. The predicate is positive-sense, and so is
+  the edge: losing the sensor fires it. The not-seated edge is not debounced. The interrupt is
+  kernel-aware, `np_mod_visual_hal_led_stop()` must be callable from it, and `NULL` disarms it. The
+  seam says what the edge means, not which pin carries it. That is why it can be specified while
+  `OI-BENCH-12` (where the element and its magnet are) is open.
+- **The handler.** `hall_unseated_isr()` stops the LEDs, then clears `NP_SAFETY_EN_VISUAL` through
+  `np_safety_spi_request_disable_from_isr()`. The task variant takes `taskENTER_CRITICAL`, which is
+  illegal in an interrupt. The next heartbeat carries the cleared bit. The LEDs are dark before that.
+  The ISR can only take emission away; there is no ISR-side enable.
+- **Fail-closed arming (D-42).** `init()` registers the handler. If registration fails, the goggle
+  is still detected and still reports telemetry, but `control()` refuses every emitting command.
+- **The window.** `control()` clears a latch before its seated read and checks it after its enable
+  request. An edge between the two would otherwise have its cut undone by the `led_set()` and
+  `request_enable()` that follow it. Re-reading `goggle_seated()` would not close this window,
+  because the goggle can be lifted and lowered again inside it.
+- **Re-seating never resumes emission.** A new command is needed. The telemetry check stays as a
+  backstop for a missed edge, and it clears the session's `active` flag after an edge.
+
+`np_mod_visual_tests` pins all of this. Built against the Rev 17 driver, it fails 8 of 13 checks.
+
+**Not established:** the edge's source. The seam is a trap, the element has no position, and no
+edge-to-dark time exists (`OI-FWHUB-26`). Until those exist, `REQ-FWHUB-21` is met by SW-02 and by
+nothing beneath it.
 
 **Mode F (NIR retinal walk) is gated at compile time**: `NP_MODE_F_REGULATORY_CLEARED` is **0** and
 must stay 0 until the `RISK-03` Q-13 regulatory opinion letter is received
@@ -1793,7 +1835,7 @@ this line.
 | `REQ-FWHUB-18` | Session-signature ordering per §7.3; no non-zero enable before `SIG_PENDING` clears | `np_safety_spi.c` |
 | `REQ-FWHUB-19` | `np_cvns_reenable_bit_active()` is the only source of the re-enable bit | §7a |
 | `REQ-FWHUB-20` | Firmware stimulation caps are secondary to the MCU charge-density limit and are stated as such | §8.3 |
-| `REQ-FWHUB-21` | Goggle Hall cutoff is interrupt-driven, not polled | §8.6 |
+| `REQ-FWHUB-21` | Goggle Hall cutoff is interrupt-driven, not polled. **(Rev 18)** Listed here as met until Rev 18, when no interrupt existed. *Fails without it:* up to one `NP_DETECT_VISUAL_POLL_MS` (200 ms) of emission into a lifted goggle. *Traceable to:* `RISK-FWHUB-09`; CLAUDE.md §4.2 (visual interlock layers) | §8.6; `np_mod_visual_tests`. The edge source beneath the seam is `OI-FWHUB-26` |
 | `REQ-FWHUB-22` | Mode F is compile-time gated at `NP_MODE_F_REGULATORY_CLEARED` = 0 | §8.6 |
 | `REQ-FWHUB-23` | cVNS PPG rate is compile-time asserted; cardiac baseline is not descriptor-waivable | §8.8 |
 | `REQ-FWHUB-24` | Promoting a T2 stub to a real driver re-opens `OI-TACS-02` and `OI-TCAP-01/02` first | §8.9 |
@@ -1892,6 +1934,7 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | D-37 | **(Rev 16)** **Supersedes D-35.** LED health comes from the warranty owner's LED-emission maintenance test, run as a signed maintenance session in a detected dock (Rev 17: docked only), not from an automatic idle self-test. The idle pass never emits. Principal decision, 2026-09-27 | §6.9 |
 | D-41 | **(Rev 17)** All maintenance data is SHDR, because no maintenance output can come from a person: emission only in a hub-detected dock that physically excludes a head, and verdicts only away from it. Principal decision, 2026-09-27 | §6.9 |
 | D-38 | **(Rev 16)** The tile record is latest state: one row per (device, socket), no session count, no run identifier, written by the idle pass over every occupied tile and never by a maintenance run. Principal decision, 2026-09-27 | §6.8, §6.9 |
+| D-42 | **(Rev 18)** A goggle whose Hall interrupt cannot be armed never emits. Detection and telemetry still run. Rejected: falling back to the telemetry poll, which is the defect `REQ-FWHUB-21` exists to exclude | §8.6 |
 | D-39 | **(Rev 16)** Maintenance tests are the warranty owner's, gated in the app. The gate is not a safety control and the hub does not enforce it | §6.9 |
 | D-40 | **(Rev 16)** F9 is SHDR as originally decided (`NP-FW-PBM1064-001` §9.3): the ratio trend slope and fouling/aging flag, per tile, through the latest-state record only. Principal, 2026-09-27, reversing that day's UHDR ruling | §6.8 |
 | D-36 | **(Rev 15)** A socket that cannot be metered, or whose NTC cannot be read, is not lit. Both fail closed, like the power governor (D-27) | §6.8 |
@@ -1914,7 +1957,7 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | `RISK-FWHUB-06` | A cardiac re-enable happens before the MCU lockout expires | High | hub window strictly contains the MCU window; MCU denies independently (§7a) | Accepted |
 | `RISK-FWHUB-07` | An SHDR record discloses user biology by redaction *shape* | Medium | unconditional suppression (§6.3); `check-redaction-shape.ts`; `FWHUB-DRC-11` | Accepted |
 | `RISK-FWHUB-08` | Log records lost on power loss | Low | bounded to one flush interval (§6.5) — **the bound is now exercised against the `lfs_config` contract and still not against the medium.** `NP-SOUP-LFS-001` Rev 2 pins and vendors littlefs `v2.11.3` (closing `OI-LFS-01`), which resolves "not in the tree" and resolves nothing about the bound; `OI-LFS-02` now blocks reliance on it. The log partitions' own instance parameters are additionally unstated — `OI-LFS-05` | **Open until `OI-LFS-02`** **Update 2026-09-14: `OI-LFS-02` closed** — `NP-SOUP-LFS-001` §12, 90 interrupted runs on the flushed-append path, 0 violations, falsified in both directions. What remains open is narrower and is stated as such: the eMMC behind the XTS layer (`OI-LFS-07`), the log partitions’ own instance parameters (`OI-LFS-05`), and a post-power-loss hang, which a sweep cannot see. |
-| `RISK-FWHUB-09` | Emission into a lifted goggle | High | Hall cutoff is a GPIO interrupt, plus three independent layers (§8.6) | Accepted |
+| `RISK-FWHUB-09` | Emission into a lifted goggle | High | Hall cutoff is a GPIO interrupt, plus three independent layers (§8.6). **Rev 18: the interrupt did not exist until this revision**, and the only in-session cutoff was the telemetry poll. It is now a seam, an ISR and a fail-closed arming rule (D-42), pinned by `np_mod_visual_tests` | **Open until `OI-FWHUB-26`** (was Accepted on a control that did not exist). The edge source is a trap; the element has no position (`OI-BENCH-12`); edge-to-dark time unmeasured |
 | `RISK-FWHUB-11` | Boot-time module authentication is not evidenced in fleet telemetry | Low | **was unmitigated — the records were discarded.** Fixed 2026-09-14 (§2.1) and held by `scripts/check-hub-bringup-order.ts`, falsified against the pre-fix commit | Accepted; records-integrity only, no emission path |
 | `RISK-FWHUB-10` | Per-tile PBM drive magnitude bounded only by a thermal cutoff | Medium | carried, not closed — `OI-NVRAM-10`; re-derive §9 before a differing tile variant ships. **2026-09-24: control decided** — a hardware peak-current reference and gate-duty limit per tile channel (`NP-HW-HEXTILE-001` D-9, `REQ-TDRV-01`/`-02`, `NP-SOUP-LFS-001` §13.14). This row closes when `OI-HEXTILE-24` verifies them on hardware | **Open** (control decided, not built) |
 | `RISK-FWHUB-15` | **(Rev 3)** A fixed electrode area (VNS 0.5 cm², cervical VNS 2 cm², BES 25 cm²) is computed and not sent, so the Class C per-phase ceiling is enforced against the 25 cm² fallback | Medium — **was live** in every session without HD-tDCS or tDCS; no rated dose reached even the intended ceiling (VNS ~3 %) | **Fixed in Rev 3**: every computed area is sent (`REQ-FWHUB-37`), held by `np_chan_decl_tests`, falsified against the old rule | Accepted |
@@ -1932,6 +1975,7 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | **`OI-FWHUB-09`** | **The concurrent-power governor `np_pbm_power_admit()` refuses every load.** Deliberately (§5.6). Replace its body with the watts-against-PD-contract governor `NP-HW-HEXTILE-001` §9.3 requires. Needs: `OI-HEXTILE-09` designed; `OI-SESPWR-03` (`0Hz` + duty) defined; a PD-contract seam on SW-02; per-tile watts from selected emitters (`OI-HEXTILE-02`). The compiler-side half of the same check is `OI-HEXTILE-09`'s, not this document's. When it lands, `REQ-FWHUB-35`'s second clause is rewritten, not deleted, and `RISK-FWHUB-12` is re-scored | FW + EE Lead | **BLOCKING — any T1 transcranial PBM session; `REQ-FWHUB-25`, `-26`** |
 | ~~**`OI-FWHUB-10`**~~ | ✅ **CLOSED 2026-09-27 (Rev 15).** The socket path has metering, a pre-drive NTC check, a UHDR socket record and SHDR counts, and an idle tile health pass. Each field is classified by the principal's rulings (§6.8, F1–F14; `REQ-FWHUB-46…48`). The SHDR inventory question moved here from `-05` is answered: occupancy and kind are SHDR-class, from the idle pass only, with no UID. **The claim this item blocked is still not verified on hardware.** The cluster frame behind the two new seams is target HAL, and the photodiode may not respond at 660/808 nm (`OI-HEXTILE-26`). What remains is `OI-FWHUB-20…22`. *Was:* Socket-path telemetry and dose metering do not exist. The runner's telemetry loop and `np_telem_pbm_t` are slot-indexed (five zone entries); no per-socket NTC, PD1/PD2 or J/cm² reaches SHDR or UHDR, and the slot path's pre-drive NTC over-temperature check has no socket equivalent. Needs `np_hub_cluster_read_frame()` (`NP-HW-HUB-001` §9.3) and a socket-indexed telemetry record. The 42 °C / 62 °C hardware limits are unaffected — they are enforced below this processor. Blocks CLAUDE.md §3's dual-PD dose-metering claim for the lattice, not safety. *Rev 7:* also owns whether a per-socket **inventory** record reaches SHDR (moved here from `OI-FWHUB-05`) — a new SHDR field, so classified under CLAUDE.md §5.1 first. The PBM HAL stub now serves PD reads over the socket domain (`OI-FWHUB-12`), so the accessor this item needs no longer stops at socket 4 | — (closed) | — |
 | **`OI-FWHUB-20`** | **Rev 16: re-scoped by the principal's decisions (§6.9).** The LED-emission test is allowed, as a signed maintenance session, **in a hub-detected dock only** (Rev 17). **Build:** (a) the maintenance session kind in the descriptor (§4) and `hubCompiler.ts`, verified like any protocol; (b) its start condition: the dock, read by the hub (`OI-FWHUB-25`), checked at start and throughout, with loss of the dock ending the test; (c) the test setpoint, pulse and PD1 normaliser, derived rather than placeholders; (d) the power admission for a one-tile test pulse while the governor refuses every load (`OI-FWHUB-09`). Until then the test is `REFUSED` (`REQ-FWHUB-49`) and `np_mod_pbm_hal_socket_selftest_pd1()` has no caller. | FW + EE + Safety | Any LED-emission maintenance test |
+| **`OI-FWHUB-26`** | **(Rev 18) The goggle Hall edge has no source.** SW-02 now handles the edge (§8.6), and `np_mod_visual_hal_hall_irq_register()` is a trap. Needs: (a) the element and its magnet placed (`OI-BENCH-12`), because an element that a shade magnet actuates fires on the wrong event; (b) the part and its output, and whether that output can raise a GPIO edge. An analogue or I²C sensor needs a comparator or a threshold interrupt, and a latency of its own; (c) the driver behind the seam, meeting its contract; (d) a measured edge-to-dark time on hardware. Per `NP-CONV-001` §7.1, no latency figure is stated until something derives one: `REQ-FWHUB-21`'s only derived bound is "less than one poll period". `RISK-FWHUB-09` stays open until (a)–(d) close | EE + ME + FW | `RISK-FWHUB-09`; any visual session on hardware |
 | **`OI-FWHUB-25`** | **The maintenance dock does not exist.** D-41 and `REQ-FWHUB-49` rest on two properties of it. (1) **It physically excludes a head**: it closes over the inner bowl so that no scalp, face or eye can face a tile, and light does not escape (IEC 62471 then need not be derived for an open tile). (2) **The hub detects it from hardware**, for example a keyed contact, a Hall element with a dedicated magnet, or an ID on the dock's USB-C or pogo interface. The signal must be one a person cannot produce while wearing the helmet, fail closed to "not docked", and be readable by the hub continuously. Needs mechanical and electrical design, a seam in `np_sw02_platform_hal.h`, and a hazard row (`NP-RISK-004`) for a dock detected as present when it is not | ME + EE + FW | Any LED-emission maintenance test (`OI-FWHUB-20`) |
 | **`OI-FWHUB-21`** | **The PBM library's session summary is not SHDR-writable as shaped.** `np_pbm_shdr_summary_t` (`firmware/pbm`, `NP-FW-PBM1064-001` §7) lists each session's active sockets, which is F1 and F13b, both UHDR. Its SHDR write is omitted today. Reshape it to counts with no location (F13, as `0x88` does), or retire it in favour of the hub's records. *(Rev 16: the fouling/aging flag is no longer reopened, because F9 is SHDR as originally decided. Its computation is `OI-FWHUB-24`.)* | FW | Before the PBM library's session engine writes SHDR |
 | **`OI-FWHUB-23`** | **The app side of maintenance self-tests is not built.** Needs: a transport message carrying a `np_maint_request_t` (not a session blob) and serviced in `task_module_detect` under the lease; a result notification; the app's maintenance section on web, iOS and Android, with tile and test selection, result display and the warranty-owner gate (D-39); and locale keys in all eleven locales (CLAUDE.md §17). The fleet schema needs an upserted per-(device, socket) table for `0x87` | App + FW | The warranty owner running a self-test |
@@ -2011,6 +2055,7 @@ have absorbed.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 18 | 2026-09-27 | NeurOne Firmware Engineering | **The goggle Hall cutoff is an interrupt (§8.6, §10.1, §11, §12, §13).** `REQ-FWHUB-21` was listed as met, and `RISK-FWHUB-09` was Accepted, on a GPIO interrupt that did not exist. The only in-session cutoff was the telemetry poll. New platform seam `np_mod_visual_hal_hall_irq_register()` (trap; census 102 → 103). New `np_safety_spi_request_disable_from_isr()`. `np_mod_visual.c` gains the ISR, fail-closed arming (D-42) and a latch that closes the seated-read-to-enable window. The telemetry cut stays as a backstop. `RISK-FWHUB-09` moved to **Open until `OI-FWHUB-26`**, which is raised for the edge source, gated on `OI-BENCH-12`. New host target `np_mod_visual_tests` (Class B 43 → 44, total 54 → 55; `ci/host-test-partition.txt` and both workflows). **Falsified:** the Rev 17 driver fails 8 of 13 checks, and three mutants are each caught. `np_sw02_platform_hal.h`'s split sentence ("64 + 36 = 100" against a constant of 102) is removed. Host suite 54/55; the failure is `np_lfs_log_instance_tests`, which fails identically on unmodified `origin/main` (f21cb11) on this host. **ARM cross-build** (arm-none-eabi-gcc 14.2.1): 0 errors, 0 warnings. The census asserts 103 seams trapped, and `hall_unseated_isr`, `np_safety_spi_request_disable_from_isr` and the seam are all in `np_application.elf` |
 | 17 | 2026-09-27 | NeurOne Firmware Engineering | **Emitting maintenance tests are dock-only; all maintenance data is SHDR (#384; §6.9, §10.1, §11, §13).** The principal dropped Rev 16's head-presence route: the LED-emission test runs only in a dock the hub detects from hardware. The principal also ruled that all maintenance data is SHDR (D-41), which Rev 16 had recorded as pending. It is adopted on three conditions: the dock excludes a head, the hub reads the dock itself, and away from the dock only verdicts are kept. `REQ-FWHUB-49` and D-37 restated; `OI-FWHUB-20` re-scoped; `OI-FWHUB-25` (the dock) raised. No code behaviour changed: the LED test was and stays refused, and the non-emitting tests already keep verdicts only. Comments in `np_pbm_socket_telem.h/.c` and `np_sw02_platform_hal.h` follow |
 | 16 | 2026-09-27 | NeurOne Firmware Engineering | **Maintenance self-tests and F9 (#384; new §6.9; §6.8, §10.1, §11, §13).** The principal decided that self-tests run outside sessions from the app's maintenance section, over any tiles and any tests, for the warranty owner only. Emitting tests run as a signed maintenance session, on head or docked. Results are latest state per tile. New `np_pst_maint_run()`: the non-emitting tests (probe, calibration source, NTC plausible; the reading is discarded) run under the lease per socket; the LED test is refused (`REQ-FWHUB-49`). The idle pass no longer emits and runs the non-emitting tests. `0x87` becomes a 12-byte latest-state record with four verdicts and **no session count**. F9 is back to SHDR as originally decided (D-40); `NP-FW-PBM1064-001` Rev 5 and `data-architecture-detail.md` follow. D-37 supersedes D-35; D-38, D-39. `OI-FWHUB-20` re-scoped; `-21` narrowed; `-23` (app side) and `-24` (F9 computation) raised. **Recorded as pending, not adopted:** "all maintenance data to SHDR", which conflicts with CLAUDE.md §5.1 and `NP-FW-BENCH-001` D-9 for biology-bearing outputs on a head; no test in the catalogue has one. `np_pbm_socket_telem_tests` 29 → 36 checks; 8 mutants caught. Host suite 54/54. ARM cross-build not run |
 | 15 | 2026-09-27 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-10` (#384): socket-path metering, telemetry and the idle tile health pass, classified by the principal's field rulings (new §6.8; §6.1, §10.1, §11, §12, §13).** New `src/np_pbm_socket_telem.c`. `np_mod_pbm_socket_drive()` gains a pre-drive NTC check and a metering slot (`REQ-FWHUB-46`). The runner meters every driven socket at 10 Hz, latching a wavelength at its dose limit and a hot or unreadable tile whole (`REQ-FWHUB-47`). New records: UHDR `0x1A` PBM socket, SHDR `0x87` PBM tile health (idle pass over every occupied socket) and SHDR `0x88` PBM session counts (every session). Driving faults reach SHDR without the socket. No SHDR record from session data carries a socket (`REQ-FWHUB-48`). PBM library: `pd_valid[]` in the dose state; the ratio no longer reaches SHDR, and `np_pbm_socket_shdr_t.pd_ratio` is removed (`NP-FW-PBM1064-001` Rev 5). Two platform seams (census 100 → 102). New host target `np_pbm_socket_telem_tests` (Class B 42 → 43, total 53 → 54; `ci/host-test-partition.txt` and both workflows). `np_mod_pbm_chlatch_tests` gains four cases. **Falsified:** 16 mutants, each caught. D-35, D-36, `RISK-FWHUB-18`. Raised `OI-FWHUB-20…22`. Host suite 54/54. **Not run:** the ARM cross-build (no toolchain in this environment), so the census and the `.bss` budget for the 32-slot pool are unchecked on target |

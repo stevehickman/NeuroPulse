@@ -1,6 +1,7 @@
 package life.neurone.core.setup
 
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.models.ZoneModuleConfiguration
 
 // Port of the state-machine core of iOS HardwareSetupManager (the pure, testable part —
 // GATT-async confirmation stays in the :app ViewModel). Guides first-session hardware setup:
@@ -13,7 +14,7 @@ enum class SetupStep(val index: Int) {
     BLE_CONFIRMATION(1),        // Hub BLE pairing confirmation
     BOA_DIAL(2),                // Fit — 52–62 cm head range
     ELECTRODE_PODS(3),          // Spring-decoupled pods, 80–120 g contact force
-    ZONE_MODULES(4),            // Zone module insertion + bone-conduction confirmation
+    ZONE_MODULES(4),            // Zone module insertion; the app confirms each socket (NP-HFE-002)
     IMPEDANCE_CHECK(5),         // ADS1299 electrode impedance
     ADS1299_CALIBRATION(6),     // ADS1299 internal reference self-calibration
     HYDRATION_CAPS(7),          // Remove moisture-barrier hydration caps before use
@@ -93,5 +94,28 @@ class SetupFlow(private val store: KeyValueStore) {
             passCount = passCount,
             failedElectrodes = failed,
         )
+    }
+
+    sealed interface ZoneModuleResult {
+        data object Passed : ZoneModuleResult
+        /** A module is seated but unidentified. Carries the 1-based socket ids, ascending. */
+        data class Faulted(val socketIds: List<Int>) : ZoneModuleResult
+        /** The hub reports no populated socket: nothing installed, or nothing reported yet. */
+        data object NoneDetected : ZoneModuleResult
+    }
+
+    /**
+     * Evaluate the zone-module step. Port of iOS `HardwareSetupManager.confirmZoneModules`.
+     *
+     * A build is a configuration choice (NP-HEX-ZM-001 §4a), so there is no expected module
+     * count to check against. The step passes when no socket is faulted and at least one is
+     * populated. A faulted socket blocks even when others are present. Whether a protocol has
+     * the modules it needs is the firmware placement check's question, not this step's.
+     */
+    fun evaluateZoneModules(configuration: ZoneModuleConfiguration): ZoneModuleResult {
+        val faulted = configuration.faultedSockets.map { it.socketId }
+        if (faulted.isNotEmpty()) return ZoneModuleResult.Faulted(faulted)
+        if (configuration.presentSockets.isEmpty()) return ZoneModuleResult.NoneDetected
+        return ZoneModuleResult.Passed
     }
 }

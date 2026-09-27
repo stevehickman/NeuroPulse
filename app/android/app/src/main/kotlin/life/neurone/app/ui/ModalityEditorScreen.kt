@@ -48,6 +48,7 @@ import life.neurone.core.protocol.NPTDCSParams
 import life.neurone.core.protocol.NPVNSHRVParams
 import life.neurone.core.protocol.NPVisualStimParams
 import life.neurone.core.protocol.NPZoneRegistry
+import androidx.annotation.StringRes
 import androidx.compose.ui.res.stringResource
 import life.neurone.app.R
 
@@ -344,7 +345,11 @@ private fun <T> EnumDropdown(
 private fun fmt(v: Double): String = if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString()
 
 @Composable
-private fun modalityLabel(type: NPModalityType): String = stringResource(
+private fun modalityLabel(type: NPModalityType): String = stringResource(modalityNameRes(type))
+
+/** The one display name per modality (`MODALITY_<ID>_NAME`, CLAUDE.md §17). */
+@StringRes
+internal fun modalityNameRes(type: NPModalityType): Int =
     when (type) {
         NPModalityType.PBM_TRANSCRANIAL -> R.string.modality_pbm_transcranial_name
         NPModalityType.PBM_INTRANASAL -> R.string.modality_pbm_intranasal_name
@@ -361,5 +366,4 @@ private fun modalityLabel(type: NPModalityType): String = stringResource(
         NPModalityType.HD_TDCS -> R.string.modality_hd_tdcs_name
         NPModalityType.CERVICAL_VNS -> R.string.modality_cervical_vns_name
         NPModalityType.VIBROTACTILE_40HZ -> R.string.modality_vibrotactile_40hz_name
-    },
-)
+    }

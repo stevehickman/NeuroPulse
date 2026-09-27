@@ -473,6 +473,12 @@ bool np_mod_visual_hal_mpe_check(void)
     NP_PLATFORM_TRAP();
 }
 
+np_hub_status_t np_mod_visual_hal_hall_irq_register(np_mod_visual_unseated_isr_t on_unseated)
+{
+    (void)on_unseated;
+    NP_PLATFORM_TRAP();
+}
+
 /* ────────────────────────────────────────────────────────────────────────────
  * Cervical VNS bridge (T2)
  * ──────────────────────────────────────────────────────────────────────────*/
