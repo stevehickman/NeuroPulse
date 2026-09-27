@@ -2,12 +2,12 @@
 
 **Project:** NeurOne
 **Document:** NP-FEAS-FNIRS-001
-**Revision:** 1
-**Date:** 2026-07-13
+**Revision:** 2
+**Date:** 2026-09-27
 **Status:** EXPLORATORY — feasibility assessment only; creates no locked decision. Feeds a go/no-go on adding an fNIRS brain-monitoring modality.
 **Author:** SmartyPants (competitive analysis, Neurode Labs comparison)
 **Approved By:** — (pending Steve Hickman review)
-**References:** CLAUDE.md §3 (modality 1 PBM Transcranial, modality 6 PPG/HRV), §9 (competitive position — Neurode gap note); NP-HW-FPC-001 Rev 5 (dual-PD, 1064nm InGaAs); NP-FW-PBM1064-001 Rev 1 (per-channel dose metering, InGaAs PD coefficients); NP-HW-HUB-001 Rev 2 (DG2788A per-slot TIA gain switch); RISK-03 (NP-REG-PBM1064-001 — marketing/regulatory gate)
+**References:** CLAUDE.md §3 (modality 1 PBM Transcranial, modality 6 PPG/HRV), §9 (competitive position — Neurode gap note); NP-HW-FPC-001 Rev 5 (dual-PD, 1064nm InGaAs); NP-FW-PBM1064-001 Rev 1 (per-channel dose metering, InGaAs PD coefficients); NP-HW-HUB-001 Rev 2 (DG2788A per-slot TIA gain switch); RISK-03 (NP-REG-PBM1064-001 — marketing/regulatory gate); NP-HW-HEXTILE-001 §4.1/§5.1/§8.1 (emitter lattice, PD1/PD2 at site 0, per-channel strings); NP-HEX-ZM-001 §3 (40 mm tile); NP-HW-EEGNET-001 §1.9.4 (four-pod separation table)
 **Related:** Neurode headband competitive analysis (2026-07-13); GitHub Issue #193 (breath-hold coupling bench — §6 step 1)
 **Gate:** —
 **IEC 62304 Class:** — (would inherit SW-02 Class B if built)
@@ -52,8 +52,14 @@ Good fNIRS wants one wavelength **below** and one **above** the ~805 nm isosbest
 - 660 nm is at the short edge of the optical window (higher blood/water absorption, shallower penetration).
 → The stock pair supports **total-hemoglobin / blood-volume** trends (both chromophores rise/fall together with perfusion) but gives a **poorly conditioned** HbO₂/HbR split. Clean oximetry wants either **660 + 1064 nm** (smart-module only) or a **new ~850 nm emitter** added to the module spec — a BOM/mold change, not free.
 
-**Risk B — Source–detector geometry. Requires cross-zone reads.**
-PD1/PD2 are **co-located with the LED array** to measure near-field backscatter (mm depth) for dose metering — exactly the wrong geometry for fNIRS, which needs cm-scale separation to reach cortex. A detector directly under a source samples skin/skull, not brain. Path forward: read a **detector on an adjacent/further zone module** while a source zone drives (6 mm pitch × N LEDs, or ~30 mm cross-zone). A **short + long** separation pair additionally enables scalp-signal regression (superficial-hemodynamics removal — standard fNIRS practice). This is a firmware routing + calibration change; no new detector part if reusing zone PDs.
+**Risk B — Source–detector geometry. Requires cross-tile reads.**
+PD1/PD2 are **co-located with the LED array** to measure near-field backscatter (mm depth) for dose metering — exactly the wrong geometry for fNIRS, which needs cm-scale separation to reach cortex. A detector directly under a source samples skin/skull, not brain. Path forward: read a detector on a **neighbouring tile** while a source tile drives. *(Rev 2 correction: Rev 1 gave this as "~30 mm cross-zone", a figure from the retired five-zone layout. On the hex-tile lattice it does not hold.)* The geometry is:
+
+- **Centre to centre is 40.0 mm.** The tile is 40 mm flat-to-flat (NP-HEX-ZM-001 §3), so neighbouring tile centres are 40.0 mm apart. PD1/PD2 sit at site 0, the tile centre (NP-HW-HEXTILE-001 D-2, §5.1).
+- **The source is the whole tile, not a point.** Each wavelength is driven as one channel of series strings through one FET (NP-HW-HEXTILE-001 §8.1), so a single emitter cannot be lit alone. The emitters of one channel span the 91-site lattice, out to ring 5 at 19.0 mm (5 × 3.80 mm, §4.1). Seen from the neighbour's PD, they sit **~21–59 mm** away, with the centroid at 40.0 mm.
+- **So the cross-tile read overshoots the 25–35 mm window at its centroid, and is not a single separation at all.** Diffuse-light falloff weights the detected signal toward the nearest emitters, so the measurement mixes depths. No one separation figure describes it.
+
+An in-window separation exists elsewhere: the **diagonal of a four-pod T1-B tile, 29.0 mm** (NP-HW-EEGNET-001 §1.9.4). That needs a *third* PD, because D-2 keeps PD1/PD2 co-located, and a third PD needs socket contacts the closed 19-contact budget does not have (`OI-EEGNET-22`). A **short + long** separation pair additionally enables scalp-signal regression (superficial-hemodynamics removal — standard fNIRS practice). The cross-tile read is a firmware routing + calibration change with no new detector part. An in-window read is not.
 
 **Risk C — Far-field SNR.**
 Detected power at 3 cm through scalp/skull is orders of magnitude below the near-field dose signal the current TIAs (47/22 kΩ) are tuned for. Recovering it needs a higher-gain TIA path and **modulated / time-multiplexed detection** to reject ambient and separate wavelengths. The DG2788A per-slot gain switch is a foothold; a dedicated high-gain fNIRS acquisition mode would likely be needed.
@@ -65,7 +71,7 @@ Scalp fNIRS at cm separation must get photons out and back through hair-gapped s
 
 ## 5. Recommended build scope (if pursued)
 
-**Tier 1 — "Brain activity visualization" (marketing-grade, matches Neurode's claim):** single-wavelength or total-Hb blood-volume trend, cross-zone long-separation read, mBLL on M7. Firmware + calibration only. Delivers the real-time visualization differentiator, pairs with the existing EEG closed loop (electrical + hemodynamic fusion — which Neurode *cannot* do; it has no EEG).
+**Tier 1 — "Brain activity visualization" (marketing-grade, matches Neurode's claim):** single-wavelength or total-Hb blood-volume trend, cross-tile long-separation read, mBLL on M7. Firmware + calibration only, **at the cross-tile geometry**, which is outside the 25–35 mm window (§4 Risk B). An in-window read needs a third PD and socket contacts (`OI-EEGNET-22`). Delivers the real-time visualization differentiator, pairs with the existing EEG closed loop (electrical + hemodynamic fusion — which Neurode *cannot* do; it has no EEG).
 
 **Tier 2 — Quantitative HbO₂/HbR oximetry:** requires resolving Risk A — either restrict to smart-module (660 + 1064 nm) headsets, or add a ~850 nm emitter to the zone-module spec. Module BOM/mold change; regulatory scope expansion.
 
@@ -73,7 +79,7 @@ Scalp fNIRS at cm separation must get photons out and back through hair-gapped s
 
 ## 6. Suggested next steps (bench, before any spec)
 
-1. **Coupling/SNR sanity bench (GitHub Issue #193):** existing zone modules — drive one zone's LED, read an **adjacent** zone's scalp-facing PD (~30 mm separation), measure detectable ΔOD during a **breath-hold / Valsalva** (global CO₂ → large hemodynamic swing). If a breath-hold signal is not recoverable through hair, Tier 1 is not viable on stock optics — kill early.
+1. **Coupling/SNR sanity bench (GitHub Issue #193):** existing tiles — drive one tile's channel, read a **neighbouring** tile's scalp-facing PD2 (40.0 mm centre to centre, ~21–59 mm per emitter; §4 Risk B), measure detectable ΔOD during a **breath-hold / Valsalva** (global CO₂ → large hemodynamic swing). If a breath-hold signal is not recoverable through hair, Tier 1 is not viable on stock optics — kill early. A **positive** result is weaker than it looks: the read is not at an in-window separation, so it shows coupling through hair, not cortical sensitivity.
 2. **Firmware spike:** time-multiplexed source-encoding mode + mBLL; reuse the DG2788A gain path in a high-gain acquisition profile.
 3. **Regulatory scope (RISK-03 counsel):** confirm "brain-activity / blood-flow visualization" as a **wellness** claim; any oximetry/clinical framing is a separate gate.
 4. **Data classification (before any storage code):** fNIRS raw optical + derived hemodynamic time series describe the **person** → **UHDR**. LED/PD calibration drift → **SHDR**. Add rows to the NP-FW-EMMC-001 §12 session-data classification table if built.
@@ -83,3 +89,12 @@ Scalp fNIRS at cm separation must get photons out and back through hair-gapped s
 ## 7. Bottom line
 
 fNIRS is the only Neurode feature category NeurOne lacks, and NeurOne is unusually well-positioned to add it because the **sources, a detector class, a switchable-gain front-end, and the compute already ship**. A blood-volume-trend "brain visualization" is a firmware-plus-geometry effort; true oximetry needs a wavelength fix (660 + 1064 nm, or add ~850 nm). The gating unknown is empirical — **far-field coupling through hair (Risk D)** — and is answerable with a one-afternoon breath-hold bench on existing modules before any spec is written.
+
+---
+
+## 8. Revision History
+
+| Rev | Date | Author | Change |
+|---|---|---|---|
+| 1 | 2026-07-13 | SmartyPants | First issue |
+| 2 | 2026-09-27 | NeurOne Systems Engineering | **Separation corrected (§4 Risk B, §6 step 1).** Rev 1 gave the cross-zone read as "~30 mm", a figure from the retired five-zone layout, and `NP-HW-EEGNET-001` §1.9.4 gives it as 40.0 mm. On the hex-tile lattice it is 40.0 mm centre to centre, and each emitter sits ~21–59 mm from the neighbour's PD, because a channel lights the whole tile. The in-window 29.0 mm four-pod diagonal and its third-PD cost (`OI-EEGNET-22`) are now cited. The §6 bench is restated for tiles, and a positive result there no longer implies cortical sensitivity. §5 Tier 1 now states that "firmware + calibration only" holds only at the out-of-window cross-tile geometry. No other conclusion changed |
