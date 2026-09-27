@@ -592,8 +592,8 @@ struct NPProtocolValidator {
         if let requireCL = lim?.requireClosedLoop, requireCL, !p.closedLoopEnabled {
             result.addError(
                 modality: m, param: "closedLoopEnabled", displayName: String(localized: "VALIDATE_PARAM_CLOSED_LOOP"),
-                actual: "disabled",
-                limit: "required",
+                actual: String(localized: "VALIDATE_VALUE_DISABLED"),
+                limit: String(localized: "VALIDATE_VALUE_REQUIRED"),
                 source: srcs?.requireClosedLoop ?? .global_,
                 message: String(localized: "VALIDATE_MSG_GENERAL_CLOSEDLOOPENABLED")
             )
@@ -1021,7 +1021,9 @@ struct NPProtocolValidator {
                 result.addError(
                     modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                     actual: "\(formatHz(p.frequencyHz))",
-                    limit: "Outside \(Int(NPHardwareLimits.visualHighRiskMinHz))–\(Int(NPHardwareLimits.visualHighRiskMaxHz)) Hz",
+                    limit: String(format: String(localized: "VALIDATE_LIMIT_OUTSIDE_HZ"),
+                                  String(Int(NPHardwareLimits.visualHighRiskMinHz)),
+                                  String(Int(NPHardwareLimits.visualHighRiskMaxHz))),
                     source: srcs?.blockHighRiskRange ?? .global_,
                     message: msg
                 )
@@ -1029,7 +1031,9 @@ struct NPProtocolValidator {
                 result.addWarning(
                     modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                     actual: "\(formatHz(p.frequencyHz))",
-                    limit: "Outside \(Int(NPHardwareLimits.visualHighRiskMinHz))–\(Int(NPHardwareLimits.visualHighRiskMaxHz)) Hz",
+                    limit: String(format: String(localized: "VALIDATE_LIMIT_OUTSIDE_HZ"),
+                                  String(Int(NPHardwareLimits.visualHighRiskMinHz)),
+                                  String(Int(NPHardwareLimits.visualHighRiskMaxHz))),
                     source: .hardware,
                     message: msg
                 )
@@ -1111,8 +1115,10 @@ struct NPProtocolValidator {
         if let maxPulses = lim?.maxPulsesPerSession, p.pulseCount > maxPulses {
             result.addError(
                 modality: m, param: "pulseCount", displayName: String(localized: "VALIDATE_PARAM_PULSE_COUNT"),
-                actual: "\(p.pulseCount) pulses",
-                limit: "\(maxPulses) pulses",
+                actual: String.localizedStringWithFormat(
+                    NSLocalizedString("VALIDATE_VALUE_PULSES", comment: ""), p.pulseCount),
+                limit: String.localizedStringWithFormat(
+                    NSLocalizedString("VALIDATE_VALUE_PULSES", comment: ""), maxPulses),
                 source: srcs?.maxPulsesPerSession ?? .global_,
                 message: String(
                     format: String(localized: "VALIDATE_MSG_GENERAL_PULSECOUNT"),

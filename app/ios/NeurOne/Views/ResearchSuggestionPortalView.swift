@@ -142,7 +142,10 @@ struct SuggestionRow: View {
                 store.toggleParticipationIntent(on: suggestion.id)
             } label: {
                 Label(
-                    suggestion.hasParticipationIntent ? "Would participate" : "\(suggestion.participationIntentCount) interested",
+                    suggestion.hasParticipationIntent
+                        ? String(localized: "PORTAL_WOULD_PARTICIPATE")
+                        : String(format: String(localized: "PORTAL_INTERESTED_COUNT"),
+                                 String(suggestion.participationIntentCount)),
                     systemImage: suggestion.hasParticipationIntent ? "person.fill.checkmark" : "person"
                 )
                 .font(.caption)
@@ -241,7 +244,7 @@ struct SuggestionDetailView: View {
                     suggestion.voteCount += suggestion.didVote ? 1 : -1
                 } label: {
                     Label(
-                        suggestion.didVote ? "Voted" : "Vote for this",
+                        suggestion.didVote ? String(localized: "PORTAL_VOTE_DONE") : String(localized: "PORTAL_VOTE_FOR_THIS"),
                         systemImage: suggestion.didVote ? "hand.thumbsup.fill" : "hand.thumbsup"
                     )
                     .frame(maxWidth: .infinity)
@@ -255,7 +258,9 @@ struct SuggestionDetailView: View {
                     suggestion.participationIntentCount += suggestion.hasParticipationIntent ? 1 : -1
                 } label: {
                     Label(
-                        suggestion.hasParticipationIntent ? "Would participate" : "Would participate?",
+                        suggestion.hasParticipationIntent
+                            ? String(localized: "PORTAL_WOULD_PARTICIPATE")
+                            : String(localized: "PORTAL_WOULD_PARTICIPATE_QUESTION"),
                         systemImage: suggestion.hasParticipationIntent ? "person.fill.checkmark" : "person.badge.plus"
                     )
                     .frame(maxWidth: .infinity)

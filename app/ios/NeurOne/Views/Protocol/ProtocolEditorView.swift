@@ -5,6 +5,13 @@ import SwiftUI
 enum EditorViewMode: String, CaseIterable {
     case visual = "Visual"
     case script = "Script"
+
+    var title: String {
+        switch self {
+        case .visual: return String(localized: "WEB_TAB_VISUAL")
+        case .script: return String(localized: "UI_TAB_SCRIPT")
+        }
+    }
 }
 
 // MARK: - ProtocolEditorView
@@ -39,7 +46,7 @@ struct ProtocolEditorView: View {
             VStack(spacing: 0) {
                 Picker("PROTOCOL_EDITOR_VIEW_MODE", selection: $viewMode) {
                     ForEach(EditorViewMode.allCases, id: \.self) {
-                        Text($0.rawValue).tag($0)
+                        Text($0.title).tag($0)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -55,7 +62,9 @@ struct ProtocolEditorView: View {
                     scriptEditor
                 }
             }
-            .navigationTitle(existing == nil ? "New Protocol" : "Edit Protocol")
+            .navigationTitle(existing == nil
+                             ? String(localized: "UI_NEW_PROTOCOL")
+                             : String(localized: "PROTOCOL_EDITOR_EDIT_PROTOCOL"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
             .sheet(isPresented: $showAddModality) {
@@ -72,7 +81,7 @@ struct ProtocolEditorView: View {
             .alert("PROTOCOL_EDITOR_CANNOT_SAVE", isPresented: $showSaveError) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text(saveError ?? "Please fill in required fields.")
+                Text(saveError ?? String(localized: "COMMON_FILL_REQUIRED_FIELDS"))
             }
             .onChange(of: viewMode) { _, newMode in
                 if newMode == .script {
@@ -333,13 +342,13 @@ struct ProtocolEditorView: View {
         }
 
         guard !draft.name.trimmingCharacters(in: .whitespaces).isEmpty else {
-            saveError = "Protocol name cannot be empty."
+            saveError = String(localized: "WEB_ERROR_NAME_REQUIRED")
             showSaveError = true
             return
         }
 
         guard !draft.modalities.filter({ $0.enabled }).isEmpty else {
-            saveError = "Protocol must have at least one enabled modality."
+            saveError = String(localized: "PROTOCOL_EDITOR_NEED_ONE_MODALITY")
             showSaveError = true
             return
         }
@@ -347,7 +356,7 @@ struct ProtocolEditorView: View {
         let validation = limitsStore.makeValidator().validate(draft)
         if !validation.errors.isEmpty {
             let descriptions = validation.errors.map { "• \($0.message)" }.joined(separator: "\n")
-            saveError = "Fix the following errors before saving:\n\n\(descriptions)"
+            saveError = String(format: String(localized: "PROTOCOL_EDITOR_FIX_ERRORS"), descriptions)
             showSaveError = true
             return
         }

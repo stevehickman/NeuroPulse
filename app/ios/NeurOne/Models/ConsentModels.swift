@@ -11,12 +11,23 @@ enum ClinicianUseCaseTier: String, CaseIterable, Codable {
     case fullClinical = "Full Clinical" // $299/mo — + HRV, closed-loop events, outcomes
     case research    = "Research"       // $599/mo/study — IRB-defined custom
 
+    /// Display text. `rawValue` stays the persisted Codable value: it is written
+    /// into stored grants, so it cannot double as the thing on screen.
+    var displayName: String {
+        switch self {
+        case .monitor:      return String(localized: "CLINICIAN_TIER_MONITOR")
+        case .assess:       return String(localized: "CLINICIAN_TIER_ASSESS")
+        case .fullClinical: return String(localized: "CLINICIAN_TIER_FULL_CLINICAL")
+        case .research:     return String(localized: "CLINICIAN_TIER_RESEARCH")
+        }
+    }
+
     var monthlyPrice: String {
         switch self {
-        case .monitor:      return "$49/month/patient"
-        case .assess:       return "$149/month/patient"
-        case .fullClinical: return "$299/month/patient"
-        case .research:     return "$599/month/study"
+        case .monitor:      return String(format: String(localized: "CLINICIAN_TIER_PRICE_PER_PATIENT"), "$49")
+        case .assess:       return String(format: String(localized: "CLINICIAN_TIER_PRICE_PER_PATIENT"), "$149")
+        case .fullClinical: return String(format: String(localized: "CLINICIAN_TIER_PRICE_PER_PATIENT"), "$299")
+        case .research:     return String(format: String(localized: "CLINICIAN_TIER_PRICE_PER_STUDY"), "$599")
         }
     }
 

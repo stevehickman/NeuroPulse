@@ -202,7 +202,7 @@ struct PBMTranscranialParamsView: View {
         var displayName: String {
             switch self {
             case .zone(let name):         return name
-            case .clinicianSelected:      return "Clinician selects at session start"
+            case .clinicianSelected:      return String(localized: "PBM_TARGET_CLINICIAN_SELECTED")
             case .asAuthored(let label):  return label
             }
         }
@@ -241,11 +241,12 @@ struct PBMTranscranialParamsView: View {
     /// the one a retired selector cannot produce.
     private var targetSummary: String {
         if case .clinicianSelected = params.target {
-            return "Sockets chosen by the operator at session start."
+            return String(localized: "MODALITY_TARGET_OPERATOR_AT_START")
         }
         do {
             let mask = try params.resolveSocketMask()
-            return "\(mask.socketCount) socket\(mask.socketCount == 1 ? "" : "s") targeted."
+            return String.localizedStringWithFormat(
+                NSLocalizedString("MODALITY_SOCKETS_TARGETED", comment: ""), mask.socketCount)
         } catch {
             return error.localizedDescription
         }
@@ -540,7 +541,8 @@ struct VNSHRVParamsView: View {
                 HStack {
                     Text("UI_MOD_BREATHING_RATE").font(.caption).foregroundColor(.secondary)
                     Spacer()
-                    Text(String(format: "%.1f breaths/min", params.resonanceBreathingRate))
+                    Text(String(format: String(localized: "MODALITY_BREATHS_PER_MIN"),
+                                String(format: "%.1f", params.resonanceBreathingRate)))
                         .font(.caption)
                 }
                 Slider(value: $params.resonanceBreathingRate, in: 4...7, step: 0.5)

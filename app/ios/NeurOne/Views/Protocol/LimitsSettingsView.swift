@@ -6,6 +6,14 @@ private enum LimitTab: String, CaseIterable {
     case global     = "Global"
     case helmet     = "Helmet"
     case individual = "Individual"
+
+    var title: String {
+        switch self {
+        case .global:     return String(localized: "WEB_TAB_GLOBAL")
+        case .helmet:     return String(localized: "WEB_TAB_HELMET")
+        case .individual: return String(localized: "WEB_TAB_INDIVIDUAL")
+        }
+    }
 }
 
 // MARK: - LimitsSettingsView
@@ -37,7 +45,7 @@ struct LimitsSettingsView: View {
             VStack(spacing: 0) {
                 Picker("LIMITS_LEVEL", selection: $selectedTab) {
                     ForEach(LimitTab.allCases, id: \.self) {
-                        Text($0.rawValue).tag($0)
+                        Text($0.title).tag($0)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -71,7 +79,7 @@ struct LimitsSettingsView: View {
             .alert("LIMITS_SCRIPT_ERROR", isPresented: $showScriptError) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text(scriptError ?? "Unknown error")
+                Text(scriptError ?? String(localized: "COMMON_UNKNOWN_ERROR"))
             }
             // Add Helmet
             .alert("LIMITS_ADD_HELMET", isPresented: $showAddHelmet) {
@@ -341,16 +349,17 @@ struct LimitsSettingsView: View {
 
     private func limitsSummaryText(_ limits: NPLimitsSet) -> String {
         var parts: [String] = []
-        if limits.pbmTranscranial != nil    { parts.append("PBM") }
-        if limits.besTacs != nil            { parts.append("BES") }
-        if limits.tdcs != nil               { parts.append("tDCS") }
-        if limits.vnsHrv != nil             { parts.append("VNS") }
-        if limits.visualStimulation != nil  { parts.append("Visual") }
-        if limits.tms != nil                { parts.append("TMS") }
-        if limits.hdTdcs != nil             { parts.append("HD-tDCS") }
-        if limits.cervicalVns != nil        { parts.append("Cervical VNS") }
-        if parts.isEmpty { return "No modality limits configured" }
-        return "Limits: " + parts.joined(separator: ", ")
+        // Each modality has exactly one name (CLAUDE.md §17): MODALITY_<ID>_NAME.
+        if limits.pbmTranscranial != nil    { parts.append(NPModalityType.pbmTranscranial.displayName) }
+        if limits.besTacs != nil            { parts.append(NPModalityType.besTacs.displayName) }
+        if limits.tdcs != nil               { parts.append(NPModalityType.tdcs.displayName) }
+        if limits.vnsHrv != nil             { parts.append(NPModalityType.vnsHRV.displayName) }
+        if limits.visualStimulation != nil  { parts.append(NPModalityType.visualStimulation.displayName) }
+        if limits.tms != nil                { parts.append(NPModalityType.tms.displayName) }
+        if limits.hdTdcs != nil             { parts.append(NPModalityType.hdTdcs.displayName) }
+        if limits.cervicalVns != nil        { parts.append(NPModalityType.cervicalVns.displayName) }
+        if parts.isEmpty { return String(localized: "WEB_NO_MODALITY_LIMITS") }
+        return String(format: String(localized: "LIMITS_CHAIN_ACTIVE"), parts.joined(separator: ", "))
     }
 
     private func revalidate() {
@@ -369,6 +378,13 @@ struct LimitsEditorView: View {
     enum EditorMode: String, CaseIterable {
         case visual = "Visual"
         case script = "Script"
+
+        var title: String {
+            switch self {
+            case .visual: return String(localized: "WEB_TAB_VISUAL")
+            case .script: return String(localized: "UI_TAB_SCRIPT")
+            }
+        }
     }
     @State private var viewMode: EditorMode = .visual
     @State private var scriptText: String = ""
@@ -380,7 +396,7 @@ struct LimitsEditorView: View {
             VStack(spacing: 0) {
                 Picker("VALIDATE_PARAM_MODE", selection: $viewMode) {
                     ForEach(EditorMode.allCases, id: \.self) {
-                        Text($0.rawValue).tag($0)
+                        Text($0.title).tag($0)
                     }
                 }
                 .pickerStyle(.segmented)

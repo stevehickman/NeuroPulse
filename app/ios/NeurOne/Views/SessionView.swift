@@ -201,7 +201,7 @@ struct SessionView: View {
         case (.running, .completed):
             let durationSecs = runningStartedAt.map { UInt32(max(0, Date().timeIntervalSince($0))) } ?? 0
             let record = CompletedSessionSummary(
-                protocolName: "Protocol \(runningProtocolID)",
+                protocolName: String(format: String(localized: "SESSION_PROTOCOL_LABEL"), String(runningProtocolID)),
                 durationSeconds: durationSecs,
                 adaptationEvents: [],
                 completedAt: Date(),
