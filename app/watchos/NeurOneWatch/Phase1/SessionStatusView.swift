@@ -53,12 +53,12 @@ struct SessionStatusView: View {
         }
         .sheet(isPresented: $showPresetPicker) { presetPickerView }
         .alert("WATCH_IMPEDANCE_CHECK", isPresented: $showImpedanceAlert) {
-            Button("OK", role: .cancel) {}
+            Button(String(localized: "COMMON_OK"), role: .cancel) {}
         } message: {
             impedanceAlertMessage
         }
         .alert("WATCH_CONSUMABLE_LOW", isPresented: $showConsumableAlert) {
-            Button("OK", role: .cancel) {}
+            Button(String(localized: "COMMON_OK"), role: .cancel) {}
         } message: {
             consumableAlertMessage
         }
@@ -100,12 +100,12 @@ struct SessionStatusView: View {
     }
 
     private var statusLabel: String {
-        if !mgr.isPhoneReachable { return "Not connected" }
+        if !mgr.isPhoneReachable { return String(localized: "SESSION_NOT_CONNECTED") }
         switch session.status {
-        case .idle:      return "Idle"
-        case .running:   return "Session active"
-        case .paused:    return "Paused"
-        case .completed: return "Complete"
+        case .idle:      return String(localized: "SESSION_STATUS_READY")
+        case .running:   return String(localized: "SESSION_STATUS_ACTIVE")
+        case .paused:    return String(localized: "SESSION_STATUS_PAUSED")
+        case .completed: return String(localized: "SESSION_STATUS_COMPLETE")
         }
     }
 
@@ -238,9 +238,9 @@ enum PresetProtocol: Int, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .gamma: return "Gamma Clarity"
-        case .alpha: return "Alpha Calm"
-        case .sleep: return "Sleep Deep"
+        case .gamma: return String(localized: "WATCH_PRESET_GAMMA_CLARITY_NAME")
+        case .alpha: return String(localized: "SETUP_STARTER_ALPHA_CALM_NAME")
+        case .sleep: return String(localized: "SETUP_STARTER_SLEEP_DEEP_NAME")
         }
     }
 
@@ -256,11 +256,11 @@ enum PresetProtocol: Int, CaseIterable, Identifiable {
 enum ConsumableName {
     static func name(for index: Int) -> String {
         switch index {
-        case 0: return "Intranasal sleeves"
-        case 1: return "Electrode hydrogel tips"
-        case 2: return "VNS clip pads"
-        case 3: return "Audio cup foam"
-        default: return "Consumable"
+        case 0: return String(localized: "CONSUMABLE_INTRANASAL_NAME")
+        case 1: return String(localized: "CONSUMABLE_HYDROGEL_NAME")
+        case 2: return String(localized: "CONSUMABLE_VNS_NAME")
+        case 3: return String(localized: "CONSUMABLE_AUDIO_NAME")
+        default: return String(localized: "WATCH_CONSUMABLE_GENERIC")
         }
     }
 }
