@@ -143,6 +143,10 @@ jobs:
         firmware/CMakeLists.txt
         .github/workflows/safety-mcu-ci.yml
         scripts/ci-changed-scope.sh
+        # The executed-line floors and their checker (OI-SWCI-14): raising a floor
+        # or changing the checker must re-run the job that enforces it.
+        ci/host-test-floors.txt
+        scripts/check-host-test-floors.ts
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -186,6 +190,8 @@ jobs:
           assert true  firmware/crypto/np_sha256.c
           assert true  firmware/common/include/np_spi_wire_types.h
           assert false firmware/bootloader/src/np_main.c
+          assert true  ci/host-test-floors.txt
+          assert false firmware/cmake/np_platform_census.cmake
           assert false docs/np_sw_ci_001.md
 
       - name: Changed files
@@ -293,6 +299,30 @@ jobs:
           ctest --test-dir build/host-tests \
                 -R "$NP_SAFETY_TESTS" \
                 --output-on-failure --no-tests=error
+
+      # Executed-line floor (NP-SW-CI-001 OI-SWCI-14).  The selection guard above
+      # proves every Class C target RAN; this proves none of them shrank.  A
+      # separate --coverage build, so the gating build above stays exactly as it
+      # was.  Each target runs alone with its .gcda cleared, and the distinct
+      # in-repo lines it executed must be at least its line in
+      # ci/host-test-floors.txt.  A deleted case drops below it; see the header of
+      # scripts/check-host-test-floors.ts for what it cannot see.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Floor checker self-test
+        run: bun scripts/check-host-test-floors.ts --self-test
+
+      - name: Assert every Class C target still executes at least its floor
+        run: |
+          cmake -B build/host-cov -G Ninja \
+                -DCMAKE_BUILD_TYPE=Debug -DNP_BUILD_TESTS=ON -DCMAKE_CROSSCOMPILING=OFF \
+                -DCMAKE_C_FLAGS=--coverage -DCMAKE_EXE_LINKER_FLAGS=--coverage \
+                firmware
+          cmake --build build/host-cov
+          bun scripts/check-host-test-floors.ts build/host-cov --class C
 
       - name: Upload test output on failure
         if: failure()

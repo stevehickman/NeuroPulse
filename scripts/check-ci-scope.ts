@@ -60,6 +60,8 @@
  *    every NP_{SAFETY,CLASS_B,TOTAL}_TEST_COUNT copy — build-all.yml's
  *    included, though it is not PR-triggered, because a stale copy there is
  *    the second OI-SWCI-37 instance — must equal the manifest's count.
+ *    ci/host-test-floors.txt must name exactly the manifest's targets; the
+ *    floors themselves are measured weekly by scripts/check-host-test-floors.ts.
  *
  * ── Where it is deliberately weaker than it could be ─────────────────────────
  *
@@ -555,6 +557,7 @@ function invokes(cmd: string, gate: string): boolean {
 
 const REQUIRED_CHECKS = "ci/required-checks.txt";
 const TEST_PARTITION = "ci/host-test-partition.txt";
+const TEST_FLOORS = "ci/host-test-floors.txt";
 
 /** Non-comment, non-blank lines of a manifest, or null if it does not exist. */
 function readManifest(root: string, rel: string): string[] | null {
@@ -901,6 +904,27 @@ function audit(root: string): Report {
               `one copy of the count was moved and this one was not (OI-SWCI-37)`,
           );
         }
+      }
+    }
+    // The executed-line floors (OI-SWCI-14, second half) are MEASURED weekly by
+    // build-all.yml; only their name set is checkable here. A target added
+    // without a floor would otherwise be unfloored until someone noticed.
+    const floorLines = readManifest(root, TEST_FLOORS);
+    if (floorLines !== null) {
+      const floored: string[] = [];
+      for (const line of floorLines) {
+        const m = /^([A-Za-z0-9_.-]+)\s+(\d+)$/.exec(line);
+        if (!m) { violations.push(`E: ${TEST_FLOORS}: malformed line '${line}' (want '<name> <lines>')`); continue; }
+        floored.push(m[1]!);
+      }
+      for (const d of dupes(floored)) violations.push(`E: ${TEST_FLOORS} lists ${d} more than once`);
+      for (const t of names) {
+        if (!floored.includes(t)) {
+          violations.push(`E: ${t} is in ${TEST_PARTITION} but has no floor in ${TEST_FLOORS} — measure it with scripts/check-host-test-floors.ts --write (OI-SWCI-14)`);
+        }
+      }
+      for (const t of floored) {
+        if (!names.includes(t)) violations.push(`E: ${TEST_FLOORS} has a floor for ${t}, which ${TEST_PARTITION} does not list`);
       }
     }
     partition = { c: nC, b: nB, regexCopies: regexCopies.map((w) => w.file), countCopies };
@@ -1398,7 +1422,7 @@ if (process.argv.includes("--self-test")) {
       .replace(/^name: t\non:\n  pull_request:\n/, "");
   const PART = (lines: string[]) => `# header\n${lines.join("\n")}\n`;
   const partTree = (o: {
-    tests?: string[]; manifest?: string[] | null; safety?: string; safety2?: string;
+    tests?: string[]; manifest?: string[] | null; safety?: string; safety2?: string; floors?: string[];
     cCount?: string; bCount?: string; total?: string;
   }) => {
     const files: Record<string, string> = {
@@ -1413,6 +1437,7 @@ if (process.argv.includes("--self-test")) {
     if (o.manifest !== null) {
       files["ci/host-test-partition.txt"] = PART(o.manifest ?? ["C np_alpha_tests", "C np_beta_tests", "B np_gamma_tests"]);
     }
+    if (o.floors) files["ci/host-test-floors.txt"] = PART(o.floors);
     return build(files);
   };
   expect("a consistent partition passes", partTree({}), null);
@@ -1446,6 +1471,20 @@ if (process.argv.includes("--self-test")) {
   );
   expect("a stale Class B count is caught", partTree({ bCount: "2" }), "NP_CLASS_B_TEST_COUNT is '2'");
   expect("a missing manifest while the regex exists is caught", partTree({ manifest: null }), "does not exist");
+  const FLOORS = ["np_alpha_tests 10", "np_beta_tests 20", "np_gamma_tests 30"];
+  expect("a floor for every partition entry passes", partTree({ floors: FLOORS }), null);
+  // OI-SWCI-14: a new target must arrive with its floor, not a week later.
+  expect(
+    "a partition entry with no floor is caught",
+    partTree({ floors: FLOORS.slice(0, 2) }),
+    "np_gamma_tests is in ci/host-test-partition.txt but has no floor",
+  );
+  expect(
+    "a floor for a target the partition does not list is caught",
+    partTree({ floors: [...FLOORS, "np_delta_tests 5"] }),
+    "has a floor for np_delta_tests",
+  );
+  expect("a floor with no number is caught", partTree({ floors: [...FLOORS.slice(0, 2), "np_gamma_tests"] }), "malformed line 'np_gamma_tests'");
   expect(
     "a partition variable hidden in a job-level env: is caught",
     (() => {
@@ -1510,7 +1549,8 @@ if (process.argv.includes("--self-test")) {
   console.log("  prefix coverage in both directions, <tree>, and two unparseable shapes;");
   console.log("  C: rename, matrix, non-PR (build-all), paths:-filtered, duplicate, marker both ways;");
   console.log("  D: own workflow omitted, exact self-entry, another workflow's file;");
-  console.log("  E: rename under unchanged counts, regex drift, class mismatch, stale count copies, a copy hidden below top level");
+  console.log("  E: rename under unchanged counts, regex drift, class mismatch, stale count copies, a copy hidden below top level,");
+  console.log("     a target with no floor, a floor with no target, a malformed floor");
   console.log("SELF-TEST PASS — the checker has teeth.");
   process.exit(0);
 }
@@ -1531,9 +1571,9 @@ if (prJobs === 0 || gates.length === 0) {
   process.exit(2);
 }
 // C and E are silent on a tree with no manifest and no marker. In THIS tree
-// both exist, and losing either must fail rather than quietly switch the
+// all three exist, and losing any must fail rather than quietly switch the
 // correspondence off.
-for (const rel of [REQUIRED_CHECKS, TEST_PARTITION]) {
+for (const rel of [REQUIRED_CHECKS, TEST_PARTITION, TEST_FLOORS]) {
   if (!existsSync(join(ROOT, rel))) {
     console.error(`check-ci-scope: ${rel} is missing — refusing to pass with its correspondence switched off.`);
     process.exit(2);
@@ -1566,7 +1606,7 @@ if (partition) {
   console.log(
     `\nE — host-test partition (${TEST_PARTITION}): ${partition.c} Class C + ${partition.b} Class B = ` +
       `${partition.c + partition.b}; NP_SAFETY_TESTS identical in ${partition.regexCopies.join(", ")}; ` +
-      `counts agree in ${partition.countCopies.join(", ")}`,
+      `counts agree in ${partition.countCopies.join(", ")}; every target has a floor in ${TEST_FLOORS}`,
   );
 }
 

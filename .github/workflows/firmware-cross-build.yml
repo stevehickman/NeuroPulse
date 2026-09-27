@@ -259,8 +259,17 @@ jobs:
         firmware/application/**
         firmware/CMakeLists.txt
         firmware/cmake/arm-none-eabi.cmake
+        # Run by firmware/platform/CMakeLists.txt as a `cmake -P` script (the SW-02
+        # platform trap census), so no include() edge shows it to the scope gate.
+        # Listed by name, not as firmware/cmake/**, so a Class C toolchain edit
+        # still does not rebuild Class B (OI-SWCI-14's glob note).
+        firmware/cmake/np_platform_census.cmake
         .github/workflows/firmware-cross-build.yml
         scripts/ci-changed-scope.sh
+        # The executed-line floors and their checker (OI-SWCI-14): raising a floor
+        # or changing the checker must re-run the job that enforces it.
+        ci/host-test-floors.txt
+        scripts/check-host-test-floors.ts
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -305,6 +314,9 @@ jobs:
           assert true  firmware/crypto/np_sha256.c
           assert false firmware/safety_mcu/src/np_gpio_mgr.c
           assert false docs/np_sw_ci_001.md
+          assert true  firmware/cmake/np_platform_census.cmake
+          assert true  ci/host-test-floors.txt
+          assert false firmware/cmake/stm32g071.cmake
 
       - name: Changed files
         id: diff
@@ -408,6 +420,30 @@ jobs:
           ctest --test-dir build/host-tests \
                 -E "$NP_SAFETY_TESTS" \
                 --output-on-failure --no-tests=error
+
+      # Executed-line floor (NP-SW-CI-001 OI-SWCI-14).  The selection guard above
+      # proves every Class B target RAN; this proves none of them shrank.  A
+      # separate --coverage build, so the gating build above stays exactly as it
+      # was.  Each target runs alone with its .gcda cleared, and the distinct
+      # in-repo lines it executed must be at least its line in
+      # ci/host-test-floors.txt.  A deleted case drops below it; see the header of
+      # scripts/check-host-test-floors.ts for what it cannot see.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Floor checker self-test
+        run: bun scripts/check-host-test-floors.ts --self-test
+
+      - name: Assert every Class B target still executes at least its floor
+        run: |
+          cmake -B build/host-cov -G Ninja \
+                -DCMAKE_BUILD_TYPE=Debug -DNP_BUILD_TESTS=ON -DCMAKE_CROSSCOMPILING=OFF \
+                -DCMAKE_C_FLAGS=--coverage -DCMAKE_EXE_LINKER_FLAGS=--coverage \
+                firmware
+          cmake --build build/host-cov
+          bun scripts/check-host-test-floors.ts build/host-cov --class B
 
       - name: Upload test output on failure
         if: failure()

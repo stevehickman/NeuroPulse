@@ -24,7 +24,8 @@ name: Build All / Test All
 # `ctest -N` of the whole suite is compared against it.  A reduced target count
 # that still shows green is precisely the failure mode the absorption risked.
 # The live split is not restated here: it is ci/host-test-partition.txt, by name
-# and by class (OI-SWCI-14).  Restating its arithmetic in prose is how this
+# and by class (OI-SWCI-14), and each target's executed-line floor is
+# ci/host-test-floors.txt.  Restating its arithmetic in prose is how this
 # header, and safety-mcu-ci.yml's, went stale (OI-SWCI-24).
 #
 # ── Failure policy ────────────────────────────────────────────────────────────
@@ -186,6 +187,24 @@ jobs:
 
       - name: Run all tests
         run: ctest --test-dir build/host-tests --output-on-failure --no-tests=error
+
+      # The executed-line floor for all 55 targets at once (OI-SWCI-14).  The
+      # scoped jobs each check their own class on the PR; this is the backstop
+      # for what no PR changes: a runner-image gcc that counts lines differently
+      # moves every floor at once, and shows here first.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Assert every target still executes at least its floor
+        run: |
+          cmake -B build/host-cov -G Ninja \
+                -DCMAKE_BUILD_TYPE=Debug -DNP_BUILD_TESTS=ON -DCMAKE_CROSSCOMPILING=OFF \
+                -DCMAKE_C_FLAGS=--coverage -DCMAKE_EXE_LINKER_FLAGS=--coverage \
+                firmware
+          cmake --build build/host-cov
+          bun scripts/check-host-test-floors.ts build/host-cov
 
       - name: Upload test output on failure
         if: failure()

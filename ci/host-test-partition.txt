@@ -21,8 +21,9 @@
 #     configure, which is the backstop for a test the static parse cannot see
 #     (one registered from a foreach() or a function, say).
 #
-# Adding a host test: add the add_test(), add the line here, and bump the
-# count(s) in the workflows. The gate names every place that disagrees.
+# Adding a host test: add the add_test(), add the line here, bump the
+# count(s) in the workflows, and add its measured floor to
+# ci/host-test-floors.txt. The gate names every place that disagrees.
 # Moving a target between halves is a Class C / Class B decision (IEC 62304),
 # not a CI edit — the regex, this file and both counts change together.
 #
