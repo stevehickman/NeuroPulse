@@ -2,9 +2,9 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-LFS-001
-**Revision:** 13
+**Revision:** 14
 **Date:** 2026-09-27
-**Status:** DRAFT — the hazard analysis (§4–§6) is complete and does not depend on a version. **Rev 13 builds `OI-LFS-13`'s prevention (§13.17): caller rule R7 fails any `lfs_file_opencfg()` config without static storage, falsified against the pre-#472 store, and a sanitized Class B host-test leg runs in CI. `OI-LFS-13` is left with its consequence analysis only.** **Rev 12 raises and closes `OI-LFS-14` (§13.16): every sweep verifier checked atomicity but never durability, so a rollback past a flush that had returned passed. Each verifier now requires what the mutation was told was durable. The RMW evidence goes from 1 catch of 2 exposed tears to 8 of 8, and `L-1`'s durable half is asserted for the first time.** **Rev 11 raises `OI-LFS-13` (§13.15): the Config store handed littlefs a file config on its own stack, so every close read a dead frame as the file's attribute list. The code is fixed (#472). What stays open is whether the tags it could have written are a failure class §6.2 names, how the caller rules stop it recurring, and a sanitizer re-run of §13's evidence.** **Rev 10 closes `OI-LFS-04` (§13.14): Safety + Hardware Engineering chose options A and B together — a fixed-reference regulating stage and a hardware gate-duty limit on each tile channel, `REQ-TDRV-01`/`-02` — so that once built, per-tile optical output is bounded by hardware no stored value can move.** **Rev 9 closes `OI-LFS-12` (§13.13): the device session count is persisted in the Config partition as a replicated record, committed before each session's UHDR file is created.** **Rev 8 narrows the last two items (§13.11, §13.12): `OI-LFS-07` gets its host-decidable half — `erase()` may be a no-op on the eMMC, shown by sweep — and a silicon bring-up protocol with pass criteria; `OI-LFS-04` gets an answer — there is no Class C bound on per-tile drive magnitude — and the options that would create one, for Safety + EE to choose.** **Rev 7 closes `OI-LFS-11` (§13.10): UHDR logs are one file per session, as `EMMC-UHDR-12`/`-13` specify, so no file approaches littlefs's 2 GiB `file_max`; SHDR stays one file because its whole partition is 512 MiB.** **Rev 6 closes `OI-LFS-10` and applies `ECR-EMMC-002` (§13.9): the Config instance takes `EMMC-FS-01`'s remaining values, and `NP-FW-EMMC-001` Rev 3 now prints `read_size`/`prog_size` 512 in all three columns — so all three littlefs instances match their specification exactly.** **Rev 5 decides the first half of `OI-LFS-10`: the Config instance moves to `read_size`/`prog_size` 512, the XTS data unit, and `cache_size` follows to 512 (§13.8); `RISK-LFS-08` closed.** **Rev 4 builds the caller rules §11 asked for and closes five items (§13): `OI-LFS-03`, `-05`, `-06`, `-08`, `-09`.** The Config store (`np_cfg_store`) makes each rule a property of its API, a CI gate makes going around it fail, the UHDR/SHDR instances have parameters and a validator, and upstream #1205 is reproduced on `v2.11.3` and shown not to reach a caller. It also finds that `EMMC-FS-01` states every parameter Rev 2 said it did not, and that a `prog_size` below the 512-byte XTS unit loses committed data — which is the Config instance as built (`OI-LFS-10`). `OI-LFS-07` (the eMMC) and `OI-LFS-04` (Safety + EE) stay open. **Rev 3 closed `OI-LFS-02`: the IEC 62304 §7.1.2 anomaly evaluation is performed (§11) and the NeurOne power-loss injection test against `L-1…L-4` is written, run and falsified in both directions (§12).** `L-1…L-4` may now be relied on **against the `struct lfs_config` contract** — which is what they were stated against — and not against the eMMC beneath it, which no host test can reach and which is raised as `OI-LFS-07`. Rev 2 closed `OI-LFS-01` (littlefs `v2.11.3` pinned and vendored at `firmware/vendor/littlefs/`); Rev 1 performed the hazard analysis.
+**Status:** DRAFT — the hazard analysis (§4–§6) is complete and does not depend on a version. **Rev 14 closes `OI-LFS-13` (§13.18): the defect's one new failure class is a rollback of an acknowledged write to valid older content, which no integrity check sees. §6.1's Class B stands, bounded on the emission path by the power-on poll, now `REQ-LFS-02`. §5.3 is amended, and `RISK-LFS-09` is raised for the non-emission instances.** **Rev 13 builds `OI-LFS-13`'s prevention (§13.17): caller rule R7 fails any `lfs_file_opencfg()` config without static storage, falsified against the pre-#472 store, and a sanitized Class B host-test leg runs in CI. `OI-LFS-13` is left with its consequence analysis only.** **Rev 12 raises and closes `OI-LFS-14` (§13.16): every sweep verifier checked atomicity but never durability, so a rollback past a flush that had returned passed. Each verifier now requires what the mutation was told was durable. The RMW evidence goes from 1 catch of 2 exposed tears to 8 of 8, and `L-1`'s durable half is asserted for the first time.** **Rev 11 raises `OI-LFS-13` (§13.15): the Config store handed littlefs a file config on its own stack, so every close read a dead frame as the file's attribute list. The code is fixed (#472). What stays open is whether the tags it could have written are a failure class §6.2 names, how the caller rules stop it recurring, and a sanitizer re-run of §13's evidence.** **Rev 10 closes `OI-LFS-04` (§13.14): Safety + Hardware Engineering chose options A and B together — a fixed-reference regulating stage and a hardware gate-duty limit on each tile channel, `REQ-TDRV-01`/`-02` — so that once built, per-tile optical output is bounded by hardware no stored value can move.** **Rev 9 closes `OI-LFS-12` (§13.13): the device session count is persisted in the Config partition as a replicated record, committed before each session's UHDR file is created.** **Rev 8 narrows the last two items (§13.11, §13.12): `OI-LFS-07` gets its host-decidable half — `erase()` may be a no-op on the eMMC, shown by sweep — and a silicon bring-up protocol with pass criteria; `OI-LFS-04` gets an answer — there is no Class C bound on per-tile drive magnitude — and the options that would create one, for Safety + EE to choose.** **Rev 7 closes `OI-LFS-11` (§13.10): UHDR logs are one file per session, as `EMMC-UHDR-12`/`-13` specify, so no file approaches littlefs's 2 GiB `file_max`; SHDR stays one file because its whole partition is 512 MiB.** **Rev 6 closes `OI-LFS-10` and applies `ECR-EMMC-002` (§13.9): the Config instance takes `EMMC-FS-01`'s remaining values, and `NP-FW-EMMC-001` Rev 3 now prints `read_size`/`prog_size` 512 in all three columns — so all three littlefs instances match their specification exactly.** **Rev 5 decides the first half of `OI-LFS-10`: the Config instance moves to `read_size`/`prog_size` 512, the XTS data unit, and `cache_size` follows to 512 (§13.8); `RISK-LFS-08` closed.** **Rev 4 builds the caller rules §11 asked for and closes five items (§13): `OI-LFS-03`, `-05`, `-06`, `-08`, `-09`.** The Config store (`np_cfg_store`) makes each rule a property of its API, a CI gate makes going around it fail, the UHDR/SHDR instances have parameters and a validator, and upstream #1205 is reproduced on `v2.11.3` and shown not to reach a caller. It also finds that `EMMC-FS-01` states every parameter Rev 2 said it did not, and that a `prog_size` below the 512-byte XTS unit loses committed data — which is the Config instance as built (`OI-LFS-10`). `OI-LFS-07` (the eMMC) and `OI-LFS-04` (Safety + EE) stay open. **Rev 3 closed `OI-LFS-02`: the IEC 62304 §7.1.2 anomaly evaluation is performed (§11) and the NeurOne power-loss injection test against `L-1…L-4` is written, run and falsified in both directions (§12).** `L-1…L-4` may now be relied on **against the `struct lfs_config` contract** — which is what they were stated against — and not against the eMMC beneath it, which no host test can reach and which is raised as `OI-LFS-07`. Rev 2 closed `OI-LFS-01` (littlefs `v2.11.3` pinned and vendored at `firmware/vendor/littlefs/`); Rev 1 performed the hazard analysis.
 **Effective Date:** —
 **Author:** NeurOne Firmware Engineering
 **Approved By:** — (DRAFT, not approved)
@@ -15,6 +15,17 @@
 **Supersedes:** None — new document. It replaces the single verification cell that `NP-SW-001` §9.4 previously carried for this component.
 **Pinned version:** littlefs **v2.11.3** (tag commit `6cb4e86540eca0d9ba62500a298385c9d863c8be`), vendored at `firmware/vendor/littlefs/` with per-file SHA-256 — `firmware/vendor/littlefs/VERSION` is the SOUP record proper, and this document is its hazard analysis.
 **Review Cadence:** On any change to the pinned version, on first integration, and at G2. §11 is re-run in full on any tag change — a §7.1.2 evaluation is a statement about one version and carries forward to no other.
+
+---
+
+> **⚠ REV 14 (2026-09-27) — `OI-LFS-13` CLOSED (§13.18).** Read from littlefs's source, the forged
+> tags reach only USERATTR, GLOBALS and CRC-class types, never a name, struct, delete or tail. The one
+> new failure class is **E4: an acknowledged write rolled back at the next fetch of its metadata pair** to that file's
+> previous valid content. **§6.1's Class B stands.** The emission-path blob has no writer yet, and
+> when it has one, E4 yields the same module's earlier calibration, provided the power-on poll runs
+> first: **`REQ-LFS-02`**, which binds `OI-HEXMAP-01`. §5.3 now says step 2 handles *wrong* and the
+> poll handles *stale*. **`RISK-LFS-09`** raised: the reset marker's R-3→R-5 reliance, and the warranty
+> token re-provisioning.
 
 ---
 
@@ -406,6 +417,16 @@ only the first is a property of this component:
 step 2 converts every integrity failure into an absence rather than a wrong value. §6.2 is about what
 happens when step 2 stops holding.
 
+**Rev 14 amendment (§13.18) — *stale* is not *wrong*, and step 2 does not see it.** A blob that is
+this device's own earlier write carries a valid CRC. `L-3`'s old-or-new permits it after any power
+loss during a replace, and a rolled-back commit (§13.18, E4) produces it even after the replace was
+acknowledged. Steps 1 and 2 pass it. What bounds it is the **power-on poll** (NP-HEX-ZM-001 §4):
+every socket's UID is compared with the stored one, and a socket whose module changed is cleared and
+re-inventoried, calibration included. A stale record can therefore only describe the module now in
+that socket, with its own earlier calibration. That is a dose-metering error the size of the module's
+drift between calibrations, bounded by step 3 and not by anything stored. **This holds only if
+nothing uses a restored record before the poll has run: `REQ-LFS-02`** (§13.18.2).
+
 ---
 
 ## 6. Conclusions
@@ -604,13 +625,14 @@ of the component is recorded, compiled and tested; that `L-5` is enforced rather
 | ID | Hazard | Sev | Mitigation | Residual |
 |---|---|---|---|---|
 | `RISK-LFS-01` | Session records silently truncated or lost | Low | flush bound (`NP-FW-HUB-001` §6.5); per-record tags make truncation detectable | Accepted |
-| `RISK-LFS-02` | Corrupted safe range reaches emitter drive | **High** | blob CRC → reject-and-rebuild → empty inventory (§5.3); 62 °C throttle as the last bound | **Conditional** on `REQ-LFS-01`; re-derive if it is ever breached |
+| `RISK-LFS-02` | Corrupted safe range reaches emitter drive | **High** | blob CRC → reject-and-rebuild → empty inventory (§5.3); **a *stale* valid blob (power loss, or a rolled-back commit) is bounded by the power-on UID poll, `REQ-LFS-02` (Rev 14, §13.18)**; 62 °C throttle as the last bound | **Conditional** on `REQ-LFS-01`; re-derive if it is ever breached |
 | `RISK-LFS-03` | Atomicity claims relied on before the component is **verified** | Medium | this document; `OI-LFS-02` blocks the reliance, not the design. **Rev 2 narrowed the hazard and did not remove it** — the component now exists, which removes the "before it exists" half and makes the remaining half easier to misread, since a populated `firmware/vendor/littlefs/` looks like an answer. §7.5 is the mitigation for that reading. **Rev 3 narrows it a second time and again does not remove it**: `L-1…L-4` are now exercised against the `lfs_config` contract (§12), so what remains is reliance on them *against the eMMC*, which is a different and un-narrowed claim | **Reduced to `RISK-LFS-06` at Rev 3** — the contract half is discharged; the medium half continues as `OI-LFS-07` |
 | `RISK-LFS-04` | An unpinned version reaches the SBOM and the 510(k) submission | Medium | ~~`OI-LFS-01` blocks #75's entry~~ — **CLOSED at Rev 2.** `v2.11.3` + commit `6cb4e865` + per-file SHA-256 is an SBOM entry | **Closed 2026-09-14** |
 | `RISK-LFS-06` | **The `lfs_config` contract holds and the eMMC does not honour it.** Every `L-1…L-4` result in §12 is conditional on the medium behaving as `struct lfs_config` says a block device behaves — atomic-per-`prog_size` programs, erase-to-`0xFF`, no reordering. An eMMC's FTL is free to tear inside a 512 B sector and to answer an erase however it likes (upstream #1083, unanswered) | **Medium** | `OI-LFS-07` — power-loss injection on hardware at bring-up, on the real eMMC behind the real XTS layer. Until then §12.5 bounds what may be cited | **Open** — Rev 4: also carries the traversal-time measurement (§13.1.4) |
 | `RISK-LFS-07` | **A Config file disappears silently and no integrity check fires** — upstream #1210's orphaned `INLINE` tag, whose data carries a valid CRC. The worst instance is `ukmd.rec`: its loss makes that user's UHDR permanently unmountable, with no NeurOne-held second copy (`NP-FW-NVRAM-001` §3.3.1.1). Not an emission path; a total loss of the user's own property | **Medium** | `OI-LFS-08` — bound the Config directory's create/delete churn, and give `ukmd.rec` a durability story that does not depend on one filesystem entry. ~~Nothing mitigates it today~~ **Rev 4 (§13.4):** the store never removes or renames, so churn is one create per file for the partition's life; `ukmd.rec` is two enveloped copies in two metadata pairs, repaired from its twin on first use | **Reduced** — #1210 was not reproduced, so the mitigation is shown bounding the trigger and replicating the victim, not preventing the defect. Both copies lost remains possible and is reported as an absence |
 | `RISK-LFS-05` | The log partitions are mounted with parameters nobody chose — a `block_count` three orders of magnitude larger than Config's, against a `lookahead_size` sized for Config | Medium | ~~`OI-LFS-05`~~ — **Rev 4:** `np_lfs_log_instance` applies and validates `EMMC-FS-01`'s UHDR/SHDR columns (with `ECR-EMMC-002`'s deviation), and `L-1`/`L-2` are swept on the real geometry (§13.1) | **Closed 2026-09-24** |
 | `RISK-LFS-08` | **A program smaller than the XTS data unit tears committed data.** The encryption layer must read-modify-write the whole 512-byte unit, so a power loss damages bytes littlefs has already synced — breaking the property `L-1…L-4` rest on from below the contract | Medium | Log instances: `prog_size` 512, validated and `_Static_assert`ed (§13.1.3, `ECR-EMMC-002`). ~~**Config instance: not mitigated** — built at 256 per `EMMC-FS-01`, shown to lose a durable Map 3 record under the RMW model~~ **Rev 5: Config instance moved to 512** (§13.8), `_Static_assert`ed and pinned by `np_lfs_config_tests` | **Closed 2026-09-24 (Rev 5)** — the Config instance is at 512 too (§13.8), and the sweep that found the Config loss now passes on the instance as built |
+| `RISK-LFS-09` | **An acknowledged Config write is rolled back, at the next fetch of its metadata pair, to that file's previous valid content** (§13.18, E4), and no integrity check fires. The worst instance acts irreversibly on the acknowledgement: the reset marker written at R-3 reads absent after a power loss once R-5 has sanitized UHDR, so the device boots half-reset. SHDR, the warranty token and Config are kept, and a new owner inherits the previous warranty owner's identity (CLAUDE.md §6.0). Others: a warranty token re-provisioned (SHDR identity changes), the session count and consumable counts regressing (prompts delayed), and Map 3 records lost. **Not an emission path**: the emission instance is `RISK-LFS-02`, bounded by `REQ-LFS-02` | Medium *(proposed — for the Quality Lead to rate)* | the #472 mechanism: fixed, and recurrence blocked by R7 (§13.17). The RMW route: `prog_size` 512 (`OI-LFS-10`). Replicated files survive one rolled-back pair (the newer generation wins) | **Open** on `OI-LFS-07`: a medium that breaks the `lfs_config` contract can produce E4, and no host test reaches it. Whether the reset sequence should re-verify the marker before R-5 is a design question for `NP-FW-NVRAM-001` §3.4.1, not decided here |
 
 ---
 
@@ -630,7 +652,7 @@ of the component is recorded, compiled and tested; that `L-5` is enforced rather
 | ~~`OI-LFS-10`~~ | **✅ CLOSED 2026-09-24 (Rev 5 §13.8, Rev 6 §13.9).** The Config instance disagreed with `EMMC-FS-01` on five fields, and its `prog_size` 256 lost committed data under the 512-byte XTS read-modify-write. **Decided by the principal in two steps:** `read_size`/`prog_size` 512 with `cache_size` 512 (Rev 5); then `EMMC-FS-01`'s `lookahead_size` 64, `block_cycles` 200, `name_max` 64, `attr_max` 256 and `metadata_max` 4,096 (Rev 6). `ECR-EMMC-002` applied: `NP-FW-EMMC-001` Rev 3 prints 512 in all three columns. The Config instance now equals the specification exactly. `RISK-LFS-08` closed | — (closed) | — |
 | ~~`OI-LFS-11`~~ | **✅ CLOSED 2026-09-24 (Rev 7, §13.10).** The log backend's one append file per partition could not pass littlefs's 2 GiB `file_max` on the 6,903 MiB UHDR partition. **Decided:** the layout `NP-FW-EMMC-001` already specified — UHDR one file per session (`EMMC-UHDR-12`/`-13`, `/uhdr/sessions/<count>`), created exclusively, opened at session start and closed at session end; SHDR one file, which cannot reach `file_max` because its partition is 512 MiB. A single session file is capped at `file_max` (≈49 h at 12 kB/s) and fails that session closed. New seam `np_log_hal_part_close()` | — (closed) | — |
 | ~~`OI-LFS-12`~~ | **✅ CLOSED 2026-09-24 (Rev 9, §13.13).** The device session count was incremented at session start but never persisted. **Done:** it is a Config file kept `REPLICATED` by `np_cfg_store` (`np_session_count`), committed at session start before the session's UHDR file is created, and loaded at boot. `np_hal_get_device_session_count()` retired (census 99 → 98); the cervical fault summary now records the current session's count | — (closed) | — |
-| **`OI-LFS-13`** | **A caller broke littlefs's file-config lifetime rule (raised 2026-09-27, Rev 11, §13.15).** `cfg_open()` passed `lfs_file_opencfg()` a stack `struct lfs_file_config`. littlefs keeps the pointer and reads `attrs`/`attr_count` at every sync and close (`lfs.h`: *"must remain allocated while the file is open"*), so every Config-store close read a dead frame as its attribute list. Introduced `8efe539` (#424); **code fixed `74d6c78` (#472)**, with two test helpers. **Open:** (1) **consequence** — `LFS_MKTAG` does not mask size (`lfs.c:342`), so the garbage could have written a CRC-valid tag of another type or for another file into a Config metadata pair; whether §5.3/§6.2, which argue from integrity failures, cover it is unassessed. No medium has been written. (2) ~~**prevention**~~ — **done Rev 13 (§13.17):** caller rule R7 (static storage for the opencfg config, falsified on the pre-#472 store) and a sanitized Class B CI leg (`NP-SW-CI-001` §6.11; required-check decision `OI-SWCI-50`). (3) ~~**evidence**~~ — **discharged Rev 12 (§13.16):** §13's sweeps re-run on the fixed code under ASan + UBSan, counts recorded | FW | Closing §6.2's classification at G2 |
+| ~~`OI-LFS-13`~~ | **✅ CLOSED 2026-09-27 (Rev 14, §13.18). A caller broke littlefs's file-config lifetime rule** (raised Rev 11, §13.15): `cfg_open()` passed `lfs_file_opencfg()` a stack config, read at every close and dirty sync. Code fixed #472; (2) prevention: R7 and a sanitized CI leg (Rev 13, §13.17); (3) evidence re-run under ASan + UBSan (Rev 12, §13.16). **(1) consequence, answered in §13.18:** the forged tags can reach only USERATTR, GLOBALS and CRC-class types, never name, struct, splice or tail. The new failure class is **E4, rollback of an acknowledged write** to that file's previous valid content, which no integrity check sees. §6.1's Class B stands: the emission-path file (`npmp.bin`) has no writer yet, and once written, E4 gives only the same module's earlier record, given the power-on poll, now **`REQ-LFS-02`**. §5.3 amended. Non-emission instances (reset marker half-reset, warranty token re-provisioned, counts regressing) raised as **`RISK-LFS-09`**. Exposure: none — no target build ran the store | — (closed) | — |
 | ~~`OI-LFS-14`~~ | **✅ RAISED AND CLOSED 2026-09-27 (Rev 12, §13.16).** Every sweep verifier checked atomicity, never durability: a cut had to leave *a* consistent state, not the one already acknowledged, so a rollback past a flush that had returned passed, and `L-1`'s durable half was never asserted. **Done:** a durability floor in every verifier in §12, §13.1 and the store suite (flushes, appends, rename, replace, replicated write, count commit, reset marker); 16 flushes instead of 4 in the §13.1 log workload; `rmw_exposed` in the tear model, required > 0 before a loss is required. RMW sweeps: 8 caught of 8 exposed (was 1 of 2); every control 0 under the floor. Falsified both ways | — (closed) | — |
 
 ---
@@ -644,6 +666,7 @@ of the component is recorded, compiled and tested; that `L-5` is enforced rather
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 14 | 2026-09-27 | NeurOne Firmware Engineering | **`OI-LFS-13` CLOSED — the consequence analysis (§13.18).** From the vendored source: the dead config was read at every close (a no-op under `LFS_NO_MALLOC`) and at every dirty sync, where `LFS_MKTAG`'s unmasked size lets garbage forge only USERATTR, GLOBALS and CRC-class tags, never name, struct, splice or tail. Four outcome classes: E1 error, E2 processor stop (power-loss equivalent), E3 persistent write failure (fails closed), and **E4 rollback of an acknowledged write** at the next fetch of its metadata pair, which no integrity check sees. Each Config file is assessed against E4. The only emission-path file, `npmp.bin`, has no writer yet (`OI-HEXMAP-01`); when written, E4 yields the same module's earlier record given the power-on poll, now **`REQ-LFS-02`** (restored records unused until the poll confirms the UID). §5.3 amended (*stale* is not *wrong*); `RISK-LFS-02` gains the stale path. **`RISK-LFS-09`** raised: the reset marker acknowledged at R-3 can read absent after R-5 sanitizes UHDR (half-reset), the warranty token can be re-provisioned, and counts regress. The defect would have been systematic per build, not random. Exposure none. No code changes. Rev 13 → 14. |
 | 13 | 2026-09-27 | NeurOne Firmware Engineering | **`OI-LFS-13` item (2) done — prevention built (§13.17).** `scripts/check-lfs-caller-rules.ts` gains **R7**: the `struct lfs_file_config` that `cfg_open()` passes to `lfs_file_opencfg()` must be `&name` with static storage (file scope or `static` in the opener), and anything unresolvable fails. The self-test grows to 30 cases, 8 new. Falsified against the pre-#472 `np_cfg_store.c`, it fails at the defect's line. `firmware-cross-build.yml` gains `CMake host tests (Class B, ASan + UBSan)`: the full Class B selection with UB fatal, behind two canaries and an every-binary-instrumented check (`NP-SW-CI-001` Rev 26 §6.11), not yet required (`OI-SWCI-50`). `OI-LFS-13` stays open on item (1). No firmware changes. Rev 12 → 13. |
 | 12 | 2026-09-27 | NeurOne Firmware Engineering | **`OI-LFS-14` RAISED AND CLOSED — the sweep verifiers now test durability, not only atomicity (§13.16).** Each mutation counts calls that returned success before the cut, and each verifier requires that much to survive: §12's log, blob and journal; §13.1's log and store journal; the store suite's blob, journal, `ukmd.rec`, session count and reset marker. The §13.1 log workload flushes 16 × 8 instead of 4 × 32. `np_powerbd_t.rmw_exposed` / `np_sweep_result_t.exposed` count tears that reach committed bytes, and both expected-loss sweeps require one. The RMW evidence goes from 1 caught of 2 exposed to 8 of 8 on both geometries, and every control holds at 0 under the floor. Falsified: removing the floor drops catches to 1; forcing it makes every safe sweep fail; disabling the counter fires both new assertions. §3 corrected: `L-1`'s durable half was first asserted here. `OI-LFS-13` item (3) discharged by the ASan + UBSan re-run. Test code only. Rev 11 → 12. |
 | 11 | 2026-09-27 | NeurOne Firmware Engineering | **`OI-LFS-13` RAISED — the Config store broke littlefs's file-config lifetime rule (§13.15).** `cfg_open()` passed a stack `struct lfs_file_config` to `lfs_file_opencfg()`. littlefs reads `attrs`/`attr_count` through it at every sync and close, so each close read a dead frame. Found as a macOS-only failure of `np_lfs_log_instance_tests` that looked like §13.1.3's evidence failing to reproduce; it reproduces unchanged once the struct outlives the handle. Code fixed in #472 (`np_cfg_store.c` file-scope `s_fcfg`; two test helpers `static`). Raised rather than closed because `LFS_MKTAG` does not mask size, so the defect could write CRC-valid tags that no integrity check sees, and because no caller rule or CI leg would have caught it. No test or code changes in this revision. Rev 10 → 11. |
@@ -1711,3 +1734,123 @@ raised as `NP-SW-CI-001` `OI-SWCI-50`. The design and its falsification are `NP-
 
 **`OI-LFS-13` now has one item left: (1), the consequence.** Whether the CRC-valid tags the defect
 could have written are a failure class §5.3 and §6.2 name. That is analysis, and no tool closes it.
+
+### 13.18 `OI-LFS-13` item (1) — what the defect could do, and whether §5.3 and §6.2 cover it (Rev 14, 2026-09-27)
+
+**The question.** Could the dangling file config have produced a failure that §5.3's argument does
+not name? §5.3 turns on step 2: every *integrity failure* becomes an absence. The defect wrote
+through littlefs's own commit path, with valid CRCs.
+
+**Answer, in one line.** §6.1's Class B classification stands. The defect's only new failure class
+is **an acknowledged write rolled back to that file's previous, valid content at the next fetch of its metadata pair** — the next open in that directory, or the next mount.
+§5.3 did not name that class, and it was reachable before the defect: a power loss during a replace
+leaves the old blob, which `L-3` permits. For the one emission-path file it is bounded by the
+power-on poll, which becomes `REQ-LFS-02`. Its non-emission instances are records and consent
+harms, raised as `RISK-LFS-09`.
+
+#### 13.18.1 What was reachable (littlefs `v2.11.3`, read from the vendored source)
+
+**Where the dead frame was read.** Two dereferences of `file->cfg` run after `cfg_open()` returns:
+
+- **Every close, `lfs.c:3260`: `if (!file->cfg->buffer)`.** It only decides whether to call
+  `lfs_free()`, and under `LFS_NO_MALLOC` (`np_lfs_config.h:53`, reaching `lfs.c` through
+  `-DLFS_DEFINES=np_lfs_config.h`) `lfs_free()` is a no-op. **No effect.**
+- **Every sync of a dirty handle, `lfs.c:3474–3476`: the commit's `LFS_FROM_USERATTRS` entry, built
+  from `attr_count` and `attrs`.** It runs only under `if (file->flags & LFS_F_DIRTY)` (`lfs.c:3441`),
+  so **read-only handles never reached it**. Every store write did: replace, journal append, each
+  replicated copy.
+
+**What the commit could contain.** `LFS_MKTAG(type, id, size)` does not mask its arguments
+(`lfs.c:342`), so high bits of a garbage `size` or `attr_count` OR into the id and type fields. OR
+only adds bits, so a forged tag's type is always a superset of its base:
+
+| Forged from | Base type | Reachable type classes | What each does |
+|---|---|---|---|
+| each `attrs[i]` (`lfs.c:1060`) | `0x300 + attrs[i].type` | `0x3xx` USERATTR · `0x7xx` GLOBALS, including `0x7ff` MOVESTATE | USERATTR on any id: nothing in `firmware/` reads user attributes. MOVESTATE: its data XORs into the global state at mount (`lfs_dir_getgstate`, `lfs.c:1396`) |
+| the `LFS_FROM_USERATTRS` entry itself | `0x102` | `0x1xx` · `0x3xx` · **`0x5xx` CRC** · `0x7xx` | A type that is no longer `0x102` is written raw as a tag (`lfs.c:1069–1070`) |
+| bit 31 of either | — | "from disk" (`lfs_dir_commitattr`, `lfs.c:1622`) | The buffer is read as a `(block, off)` address in the **Config** instance: an error if out of range, junk bytes if not. It cannot read outside the Config partition, so `UHDR` is not reachable |
+
+Unreachable from either base, because OR cannot clear a bit: NAME (`0x0xx`), STRUCT (`0x2xx`), SPLICE
+(`0x4xx`, so no CREATE and no DELETE) and TAIL (`0x6xx`). **The defect could not forge a file's
+name, its data pointer, a delete or a directory link.**
+
+**The consequence classes, and where each lands:**
+
+| Class | Mechanism | Outcome | Covered by |
+|---|---|---|---|
+| **E1 — Error** | `NOSPC` from an oversized forged tag, or `CORRUPT` from an out-of-range disk read | the write returns an error, and the caller knows | the store's failure handling (§13.2), an absence |
+| **E2 — Stop** | a wild read through `attrs` or `buffer` faults on target | the processor stops mid-commit | `L-1…L-4`: equivalent to a power loss (§12). The safety MCU owns every enable line (CLAUDE.md §4.2), so a main-processor fault cannot enable stimulation |
+| **E3 — Persistent write failure** | a forged MOVESTATE leaves a pending move to a garbage pair | every later write's consistency pass can fail, until format | an absence of every later update. Fails closed: the reset marker cannot be written, so a reset does not start |
+| **E4 — Rollback after acknowledgement** | a forged CRC-class tag mid-commit. At the next fetch of that pair — the next path lookup or mount — the CRC it claims cannot match (`lfs.c:1194–1208`, 2⁻³² otherwise), so the scan stops there | **that commit and every later commit in the same metadata pair are discarded**. Each file in the pair reads back its last earlier valid content, and every integrity check passes | **nothing in §5.3 named it** — see §13.18.2 |
+
+**The defect would have been systematic, not random.** The garbage is whatever the store's caller
+left on the stack at `cfg_close()`, and on one build that is the same call path every time. A given
+target build would have shown one class on every write, or none. Host builds showed exactly this:
+Linux gcc was always clean, and macOS was always wrong. **The worst case is E4 on every write of every
+session: a Config partition that acknowledges every update and reverts all of them at each boot.**
+
+**Exposure: none.** No target build has run the store. The defect existed from `8efe539` to `74d6c78`
+and was exercised only by host tests.
+
+#### 13.18.2 E4 against each Config file
+
+E4 turns an acknowledged update into the state before it. For any file written under `L-3`'s
+old-or-new rule, that is the state a power loss during the write already leaves. **What is new is
+timing, not the state itself:** the rollback lands *after* the caller has acted on the
+acknowledgement. The analysis is per file, and is against the writers that exist at `9a55773`.
+
+| File | Writer in the tree | E4 gives | Emission path? | Result |
+|---|---|---|---|---|
+| `npmp.bin` (REBUILD) | **none** — `np_hexmap_nvram_write()` is an unimplemented extern (`OI-HEXMAP-01`) | when written: the same device's earlier blob | **yes — the only one** | bounded by the power-on poll, **`REQ-LFS-02`** below |
+| `map3.jrn` (TAIL_ADDITIVE) | none | acknowledged records lost | no — `REQ-LFS-01`, enforced by R4–R6 | history loss. `L-4`'s bound is broken from above, not below. `RISK-LFS-09` |
+| `ukmd.rec` (REPLICATED) | none in `firmware/` yet | two pairs, and the newer generation wins (`np_cfg_store.c:681`). One pair rolled back is **repaired** from the other; both rolled back gives the old envelope | no | the same as a power loss before the write. §5.1's `RISK-LFS-07` covers its absence |
+| `sesscnt.rec` (REPLICATED) | `np_session_count.c` | the count repeats | no (`REQ-LFS-01`, §13.13) | the logger steps past an existing session file (§13.10). **SHDR's only time-like reference can repeat**: `RISK-LFS-09` |
+| consumables (REPLICATED) | `np_consumables.c` | per-kind session counts go back | no | exposure-count prompts (CLAUDE.md §2.3) are **delayed**, by up to every increment since the last durable write. Under systematic E4 they never fire. `RISK-LFS-09` |
+| warranty token (REPLICATED) | `np_warranty_token.c` | if the first provisioning is rolled back in both copies, the next boot finds **no token and provisions a new one** (`np_warranty_token.c:81`) | no | the device's SHDR identity changes. Under systematic E4 it changes **every boot**, which breaks the warranty-owner link that SHDR consent rests on (CLAUDE.md §6.0). `RISK-LFS-09` |
+| reset marker (REPLICATED) | `np_reset_marker.c` | a marker acknowledged at R-3 reads **absent** after a power loss in R-5…R-7 | no | **the one case where acting on the acknowledgement is irreversible.** R-5 sanitizes UHDR on the strength of the marker, and R-6/R-7 have not run. The device boots half-reset: UHDR gone as intended, and SHDR, the warranty token and Config kept. A new owner's device then carries the previous warranty owner's identity. That defeats `OI-NVRAM-05`'s reason for the marker. `RISK-LFS-09` |
+
+**The emission path, in full.** When `npmp.bin` is persisted, E4 gives the hub an earlier blob that
+the same device wrote, with a valid CRC, so step 2 does not fire. NP-HEX-ZM-001 §4 specifies what
+happens next. The hub polls every socket for its UID at power-on, and `np_module_map_apply_poll()`
+clears and re-inventories any socket whose UID differs from the stored one. That clears the
+calibration too (`np_module_map.c:272–300`). So a stale record can only ever describe **the module now
+in that socket**:
+
+- **inventory** — the element list of the same UID, which is a property of the module and does not
+  change
+- **calibration** — the same module's previous coefficients, which pass the same plausibility check
+  on load (`np_module_map.c:685`)
+
+The emission consequence is a calibration one update older than it should be. Under systematic E4
+it is the first calibration ever persisted. That is a dose-metering error the size of the module's
+drift between the two calibrations, not a wrong module's value. Nothing stored bounds it. The bounds
+are the ones `OI-NVRAM-10` already names: the 62 °C thermal cut today, and `REQ-TDRV-01`/`-02` once
+built. **The staleness bound depends on an ordering nothing yet enforces.** `np_module_map_restore()`,
+`_apply_poll()` and `_persist()` have no call sites in `firmware/`, so boot integration is
+`OI-HEXMAP-01`'s. A restore that fed a session before the poll ran would hand a stale record for
+**whatever module was in that socket when the blob was written**, possibly a different one. Hence:
+
+> **`REQ-LFS-02` — A record restored from `npmp.bin` is used for nothing until the power-on poll has
+> confirmed that socket's UID in the current boot.** What fails if it is not met: a rolled-back or
+> power-cut-old blob hands a present module another module's inventory and calibration. Step 2
+> cannot see that, because the blob is valid. Where it traces to: NP-HEX-ZM-001 §4 (the power-on poll
+> and the UID comparison), and §5.3 here. It binds `OI-HEXMAP-01`'s boot integration, which must
+> cite it when it closes.
+
+#### 13.18.3 Disposition
+
+- **§6.1 — Class B stands.** No stored value reaches `granted_mask`. The emission-path file has no
+  writer today, and once it does, E4 is bounded to the same module's earlier calibration, given
+  `REQ-LFS-02`.
+- **§5.3 is amended** (Rev 14): step 2 handles *wrong*; *stale* is bounded by the poll, and the
+  amendment says so. The gap predates this defect, because `L-3`'s old-or-new already produces a
+  stale blob.
+- **§6.2 is unchanged.** Its point, that the argument rests on caller policy, now covers one more
+  caller obligation: `REQ-LFS-02`.
+- **`RISK-LFS-02`** gains the stale path and `REQ-LFS-02` as a mitigation. **`RISK-LFS-09`** is raised
+  for the non-emission instances, with a proposed severity for the Quality Lead to rate.
+- **The mechanism is closed** by #472 (the fix) and R7 (§13.17, recurrence). E4 by other routes is
+  not closed: the RMW tear (`OI-LFS-10`, closed by `prog_size` 512) and a medium that breaks the
+  contract (`OI-LFS-07`, open) can both produce it. `RISK-LFS-09` stays open on `OI-LFS-07`.
+
+`OI-LFS-13` **CLOSED** (Rev 14).
