@@ -509,7 +509,7 @@ function swiftCopyLiterals(body: string): Literal[] {
     const prev = lits[k - 1];
     const continues = prev !== undefined &&
       /^\s*\+\s*$/.test(body.slice(prev.end ?? prev.index, lit.index));
-    const context = contexts[k] ?? (continues ? previous : null);
+    const context: string | null = contexts[k] ?? (continues ? previous : null);
     previous = context;
 
     const text = lit.text.replaceAll(HOLE, " ");
