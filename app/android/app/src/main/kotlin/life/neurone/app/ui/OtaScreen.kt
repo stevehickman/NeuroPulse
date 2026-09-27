@@ -1,5 +1,6 @@
 package life.neurone.app.ui
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -56,7 +57,7 @@ fun OtaScreen(
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp)) {
                         Text(stringResource(R.string.ota_update_status), style = MaterialTheme.typography.labelMedium)
-                        Text(phaseLabel(status.phase), style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(phaseLabel(status.phase)), style = MaterialTheme.typography.titleMedium)
                         if (status.phase?.isBusy == true) {
                             Spacer(Modifier.height(8.dp))
                             LinearProgressIndicator(
@@ -82,13 +83,16 @@ fun OtaScreen(
     }
 }
 
-private fun phaseLabel(phase: OtaPhase?): String = when (phase) {
-    OtaPhase.IDLE, null -> "Up to date"
-    OtaPhase.RECEIVING -> "Downloading update…"
-    OtaPhase.VERIFYING -> "Verifying signature…"
-    OtaPhase.COMMITTING -> "Installing…"
-    OtaPhase.VERIFIED -> "Verified"
-    OtaPhase.REBOOTING -> "Restarting hub…"
-    OtaPhase.COMPLETE -> "Update complete"
-    OtaPhase.FAILED -> "Update failed"
+// Same OTA_PHASE_* keys iOS `OTAPhase.description` uses. An unrecognised phase byte renders as
+// idle, as iOS `OTAPhase(rawPacketByte:)` does.
+@StringRes
+private fun phaseLabel(phase: OtaPhase?): Int = when (phase) {
+    OtaPhase.IDLE, null -> R.string.ota_phase_idle
+    OtaPhase.PREPARING -> R.string.ota_phase_preparing
+    OtaPhase.TRANSFERRING -> R.string.ota_phase_transferring
+    OtaPhase.VERIFYING -> R.string.ota_phase_verifying
+    OtaPhase.VERIFIED -> R.string.ota_phase_verified
+    OtaPhase.APPLYING -> R.string.ota_phase_applying
+    OtaPhase.COMPLETE -> R.string.ota_phase_complete
+    OtaPhase.FAILED -> R.string.ota_phase_failed
 }
