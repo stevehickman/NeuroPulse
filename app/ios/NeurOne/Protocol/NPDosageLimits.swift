@@ -121,9 +121,9 @@ struct NPLimitsSet: Codable, Identifiable, Equatable {
 
         var displayName: String {
             switch self {
-            case .global:     return "Global"
-            case .helmet:     return "Helmet"
-            case .individual: return "Individual"
+            case .global:     return String(localized: "VALIDATE_SOURCE_GLOBAL")
+            case .helmet:     return String(localized: "VALIDATE_SOURCE_HELMET")
+            case .individual: return String(localized: "VALIDATE_SOURCE_INDIVIDUAL")
             }
         }
     }

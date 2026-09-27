@@ -6,6 +6,14 @@ enum LibraryFilter: String, CaseIterable {
     case all        = "All"
     case predefined = "Predefined"
     case mine       = "Mine"
+
+    var title: String {
+        switch self {
+        case .all:        return String(localized: "WEB_FILTER_ALL")
+        case .predefined: return String(localized: "UI_FILTER_PREDEFINED")
+        case .mine:       return String(localized: "UI_FILTER_MINE")
+        }
+    }
 }
 
 // MARK: - ProtocolMenuView
@@ -97,7 +105,7 @@ struct ProtocolMenuView: View {
             } message: {
                 if let entry = unavailableAlert {
                     let avail = library.availability(for: entry)
-                    Text(avail.unavailableReason ?? "This protocol requires hardware not currently available.")
+                    Text(avail.unavailableReason ?? String(localized: "PROTOCOL_MENU_HARDWARE_UNAVAILABLE"))
                 }
             }
             .alert("PROTOCOL_MENU_DELETE_PROTOCOL", isPresented: Binding(
@@ -266,7 +274,7 @@ struct ProtocolMenuView: View {
 
             Picker("PROTOCOL_MENU_FILTER", selection: $filter) {
                 ForEach(LibraryFilter.allCases, id: \.self) {
-                    Text($0.rawValue).tag($0)
+                    Text($0.title).tag($0)
                 }
             }
             .pickerStyle(.segmented)
@@ -359,7 +367,7 @@ struct ProtocolMenuView: View {
 
     private func duplicateButton(for entry: NPProtocolEntry) -> some View {
         Button {
-            let dup = entry.duplicated(newName: "Copy of \(entry.name)")
+            let dup = entry.duplicated(newName: String(format: String(localized: "PROTOCOL_MENU_COPY_OF"), entry.name))
             library.save(dup)
         } label: {
             Label("PROTOCOL_MENU_DUPLICATE", systemImage: "plus.square.on.square")
@@ -379,7 +387,7 @@ struct ProtocolMenuView: View {
         Divider()
 
         Button {
-            let dup = entry.duplicated(newName: "Copy of \(entry.name)")
+            let dup = entry.duplicated(newName: String(format: String(localized: "PROTOCOL_MENU_COPY_OF"), entry.name))
             library.save(dup)
         } label: {
             Label("PROTOCOL_MENU_DUPLICATE", systemImage: "plus.square.on.square")
@@ -435,7 +443,7 @@ struct ProtocolMenuView: View {
         VStack(spacing: 16) {
             Picker("PROTOCOL_MENU_FILTER", selection: $filter) {
                 ForEach(LibraryFilter.allCases, id: \.self) {
-                    Text($0.rawValue).tag($0)
+                    Text($0.title).tag($0)
                 }
             }
             .pickerStyle(.segmented)
@@ -447,7 +455,9 @@ struct ProtocolMenuView: View {
                 .foregroundColor(.secondary)
             Text("PROTOCOL_MENU_NO_PROTOCOLS_FOUND")
                 .font(.headline)
-            Text(filter == .mine ? "Create your first protocol using the + button above." : "Try a different search term.")
+            Text(filter == .mine
+                 ? String(localized: "WEB_NO_PROTOCOLS_CREATE_FIRST")
+                 : String(localized: "PROTOCOL_MENU_TRY_DIFFERENT_SEARCH"))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

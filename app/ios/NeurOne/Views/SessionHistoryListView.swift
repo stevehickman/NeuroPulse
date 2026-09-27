@@ -146,12 +146,11 @@ private struct SessionRecordRow: View {
         guard let date = SessionRecord.dayFormatter.date(from: record.sessionDay) else {
             return record.sessionDay
         }
-        let cal = Calendar.current
-        if cal.isDateInToday(date)     { return "Today" }
-        if cal.isDateInYesterday(date) { return "Yesterday" }
+        // The system renders "Today" / "Yesterday" itself, in the user's locale.
         let f = DateFormatter()
         f.dateStyle = .medium
         f.timeStyle = .none
+        f.doesRelativeDateFormatting = true
         return f.string(from: date)
     }
 

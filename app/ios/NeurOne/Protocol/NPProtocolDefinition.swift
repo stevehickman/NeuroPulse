@@ -689,7 +689,8 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
                 let sec = s % 60
                 return sec == 0 ? "\(m)m" : "\(m)m \(sec)s"
             case .intervalCount(let n):
-                return "\(n) intervals"
+                return String.localizedStringWithFormat(
+                    NSLocalizedString("PROTOCOL_TIMING_INTERVALS", comment: ""), n)
             }
         }
     }

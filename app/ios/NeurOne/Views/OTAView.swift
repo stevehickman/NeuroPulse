@@ -52,7 +52,9 @@ struct OTAView: View {
                 Image(systemName: gatt.connectionState == .connected ? "wifi" : "wifi.slash")
                     .foregroundColor(gatt.connectionState == .connected ? .green : .secondary)
                     .accessibilityHidden(true)
-                Text(gatt.connectionState == .connected ? "Hub connected" : "Hub not connected")
+                Text(gatt.connectionState == .connected
+                     ? String(localized: "SESSION_CONN_INDICATOR_CONNECTED")
+                     : String(localized: "SESSION_CONN_INDICATOR_DISCONNECTED"))
                     .font(.subheadline)
             }
         }

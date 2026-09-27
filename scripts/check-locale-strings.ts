@@ -28,13 +28,15 @@
  *      communicates through tones, LEDs and numeric status; text is the app's
  *      job. A locale reference appearing under firmware/ means that boundary
  *      moved, which is a decision, not a detail.
- *   2. COVERED non-firmware paths embed no user-facing prose. In TSX and
- *      Swift, "user-facing" means the literal reaches a render API — JSX text,
- *      a placeholder/title/aria-label attribute, SwiftUI Text/Button/Section/
- *      navigationTitle and friends. In Kotlin it means ANY string literal in a
- *      covered file (see kotlinStringLiterals for why). Not every string: an
- *      identifier, a CSS class, a part number or a unit symbol is not prose
- *      (see isProse, isIdentifierLiteral).
+ *   2. COVERED non-firmware paths embed no user-facing prose. In TSX,
+ *      "user-facing" means the literal reaches a render API — JSX text or a
+ *      placeholder/title/aria-label attribute. In Kotlin and Swift it means
+ *      ANY string literal in a covered file (see kotlinStringLiterals and
+ *      swiftStringLiterals for why), and in Swift a persisted `.rawValue`
+ *      handed to a render API too. Not every string: an identifier, a CSS
+ *      class, a part number, a unit symbol or an SF Symbol name is not prose
+ *      (see isProse, isIdentifierLiteral, acceptKotlinLiteral,
+ *      swiftNotCopyContext).
  *   3. Every key referenced by code exists in locales/en.json, and every key in
  *      en.json is referenced by code. Both directions matter — a missing key
  *      renders as the key itself, and an orphan key is untranslated weight that
@@ -51,13 +53,16 @@
  *
  * ── The reach, stated narrowly ───────────────────────────────────────────────
  *
- * This is a TEXT scan, not a parse. For TSX and Swift it reads the literal at
- * a render call site and cannot follow a string that arrives through a
- * variable, so `Text(someEnglishConstant)` passes. Swift has exactly that hole
- * today: a helper that returns English from a `switch` is not seen. Kotlin is
- * scanned per literal and does not have it. That limit is real and is the reason
- * COVERED_PATHS is a list rather than "everything": inside those trees the
- * pattern is literal-at-the-call-site, which is what makes the scan sound.
+ * This is a TEXT scan, not a parse. For TSX it reads the literal at a render
+ * call site and cannot follow a string that arrives through a variable, so
+ * `{someEnglishConstant}` passes. Kotlin and Swift are scanned per literal and
+ * do not have that hole: a helper returning English from a `when`/`switch` is
+ * seen where it is written. What they cannot see is English assembled from
+ * something that is not a literal — an identifier's `.capitalized`, say. The
+ * Swift exclusions are contexts (swiftNotCopyContext), so a new kind of
+ * identifier position is flagged until someone names it there. That limit is
+ * real and is the reason COVERED_PATHS is a list rather than "everything".
+ * PENDING_SWIFT_FILES names the covered Swift still on the render-site scan.
  *
  * PENDING_PATHS names the code this rule has NOT yet reached, with the reason.
  * Those trees are not silently excluded — they are excluded on the record, and
@@ -106,6 +111,24 @@ const PENDING_PATHS: Array<[string, string]> = [
 ];
 
 /**
+ * Covered Swift files the LITERAL rule has not reached yet, named one by one.
+ * They are still held to the render-site scan it replaced (SWIFT_RENDER,
+ * SWIFT_NAMED_ARG), so nothing here lost the coverage it had. This is a
+ * migration backlog, not an exemption: an entry leaves when its copy is keyed.
+ */
+const PENDING_SWIFT_FILES: Array<[string, string]> = [
+  ...[
+    "app/watchos/NeurOneWatch/NeurOneWatchApp.swift",
+    "app/watchos/NeurOneWatch/Phase1/HRVBreathingRingView.swift",
+    "app/watchos/NeurOneWatch/Phase1/SessionStatusView.swift",
+    "app/watchos/NeurOneWatch/Phase3/HapticSyncManager.swift",
+  ].map((f): [string, string] => [f,
+    "the watch target bundles no string catalog (app/watchos/project.yml sources only " +
+    "NeurOneWatch/), so a key renders as the raw key on the watch — its existing WATCH_* " +
+    "keys already do. Keying this copy first would turn English into key names."]),
+];
+
+/**
  * Deliberately English, everywhere. These are not translated, and keying them
  * would add noise without adding reach.
  *
@@ -124,7 +147,7 @@ const DIAGNOSTIC_FILES = [
 ];
 
 /** A locale key: SCREAMING_SNAKE, which no prose string looks like. */
-const KEY_RE = /^[A-Z][A-Z0-9_]*$/;
+export const KEY_RE = /^[A-Z][A-Z0-9_]*$/;
 
 /**
  * Prose = translatable words a person reads.
@@ -140,11 +163,13 @@ const KEY_RE = /^[A-Z][A-Z0-9_]*$/;
  * interpolation" — text inside ${...} or \(...) is an expression, not copy, and
  * counting it would flag "\(count)%" as prose because `count` contains letters.
  */
-function isProse(raw: string): boolean {
+export function isProse(raw: string): boolean {
   const outside = raw
     .replace(/\$\{[^}]*\}/g, " ")        // TS/JS and Kotlin ${...}
     .replace(/\$[A-Za-z_]\w*/g, " ")      // Kotlin's bare $identifier form
-    .replace(/\\\([^)]*\)/g, " ");       // Swift interpolation
+    .replace(/\\\([^)]*\)/g, " ")        // Swift interpolation
+    // 10-20 electrode designations ("Fp1", "Cz", "PO8") are labels, not words.
+    .replace(/\b(Fp|AF|FC|FT|CP|TP|PO|[FCTPOA])(\d{1,2}|z)\b/g, " ");
   const words = outside.match(/[A-Za-z]{2,}/g);
   if (!words) return false;
   // Unit symbols and designations that survive the word test on their own.
@@ -152,6 +177,7 @@ function isProse(raw: string): boolean {
     "Hz", "kHz", "mA", "uA", "mW", "cm", "mm", "nm", "ms", "sec", "min",
     "BPM", "MT", "px", "em", "rem", "id", "px", "T1", "T2", "EEG", "PBM",
     "MB", "KB", "GB", "DFU", "USB", "LED", "NIR", "TMS", "VNS", "HRV",
+    "mC", "uC", "NeurOne",
   ]);
   return words.some((w) => !NOT_PROSE.has(w));
 }
@@ -185,7 +211,7 @@ const JSX_ATTR = /\b(title|placeholder|aria-label|alt|label)=(?:"([^"]*)"|'([^']
  * (localization.md §17.3). There is no exemption for log or exception
  * messages; none exists in covered code, and one that appears is a decision.
  */
-interface Literal { text: string; index: number; raw: boolean; }
+interface Literal { text: string; index: number; raw: boolean; end?: number; }
 
 /**
  * Every Kotlin string literal in `body`, in source order.
@@ -258,7 +284,7 @@ function kotlinStringLiterals(body: string): Literal[] {
  * URIs. A bare word such as "none" or "Verified" is NOT an identifier here:
  * it renders, so it is copy.
  */
-function isIdentifierLiteral(text: string): boolean {
+export function isIdentifierLiteral(text: string): boolean {
   return /^[\w.\-\/:]+$/.test(text) && /\w[._\/:]\w/.test(text);
 }
 
@@ -270,19 +296,270 @@ function acceptKotlinLiteral(lit: Literal): boolean {
   return isProse(text);
 }
 
-/** Render sites in SwiftUI. */
-const SWIFT_RENDER =
-  /\b(Text|Button|Label|TextField|SecureField|Toggle|Picker|Section|NavigationLink|Link|LabeledContent|navigationTitle|navigationBarTitle|alert|confirmationDialog|accessibilityLabel|accessibilityHint|help)\(\s*"([^"]{2,})"/g;
+/**
+ * Every Swift string literal in `body`, in source order.
+ *
+ * Swift's literal grammar differs from Kotlin's in every place a regex breaks:
+ *   - interpolation is `\(...)`, parenthesis-balanced, and may hold literals of
+ *     its own: `"\(on ? "Stimulation on" : "off")"`;
+ *   - `"""` opens a multi-line literal that runs to the next `"""`;
+ *   - `#"..."#` is a raw literal (any number of `#`), where `\` is ordinary text
+ *     and interpolation is spelled `\#(...)` with the same count of `#`;
+ *   - there are no character literals, so `'` is never a delimiter;
+ *   - block comments NEST: an inner `/*` needs its own close before the outer one ends.
+ * Comments are handled here rather than by stripComments, whose `//` rule would
+ * cut a literal such as `"a // b"` in half.
+ *
+ * Each literal is yielded with each interpolation replaced by HOLE, so a caller
+ * can tell `"zone:\(name)"` (an identifier with a value in it) from
+ * `"zone \(name)"` (a word and a value). The literals inside an interpolation
+ * are yielded on their own. `raw` marks a `#"` literal.
+ */
+/** Stands in for an interpolation in a Swift literal's text; see acceptSwiftLiteral. */
+const HOLE = "\u0001";
+
+export function swiftStringLiterals(body: string): Literal[] {
+  const out: Literal[] = [];
+  const n = body.length;
+  let i = 0;
+
+  /** Skip a comment starting at i, if any. Returns whether one was skipped. */
+  const skipComment = (): boolean => {
+    if (body.startsWith("//", i)) {
+      const end = body.indexOf("\n", i);
+      i = end < 0 ? n : end;
+      return true;
+    }
+    if (body.startsWith("/*", i)) {
+      let depth = 0;
+      while (i < n) {
+        if (body.startsWith("/*", i)) { depth++; i += 2; continue; }
+        if (body.startsWith("*/", i)) { depth--; i += 2; if (depth === 0) break; continue; }
+        i++;
+      }
+      return true;
+    }
+    return false;
+  };
+
+  /** Skip an interpolation body; i is just past its `(`. Stops past the matching `)`. */
+  const skipInterpolation = (): void => {
+    let depth = 1;
+    while (i < n && depth > 0) {
+      if (skipComment()) continue;
+      if (atLiteral()) { readLiteral(); continue; }
+      const c = body[i]!;
+      if (c === "(") depth++;
+      else if (c === ")") depth--;
+      i++;
+    }
+  };
+
+  /** Does a literal (plain, multi-line or raw) open at i? */
+  const atLiteral = (): boolean => {
+    if (body[i] === '"') return true;
+    if (body[i] !== "#") return false;
+    let j = i;
+    while (body[j] === "#") j++;
+    return body[j] === '"';
+  };
+
+  const readLiteral = (): void => {
+    const start = i;
+    let hashes = 0;
+    while (body[i] === "#") { hashes++; i++; }
+    const multi = body.startsWith('"""', i);
+    const open = multi ? '"""' : '"';
+    i += open.length;
+    const close = open + "#".repeat(hashes);
+    const escape = "\\" + "#".repeat(hashes);
+    let text = "";
+    while (i < n) {
+      if (body.startsWith(close, i)) { i += close.length; break; }
+      if (!multi && body[i] === "\n") break;               // unterminated: stop at EOL
+      if (body.startsWith(escape, i)) {
+        const after = i + escape.length;
+        if (body[after] === "(") { i = after + 1; skipInterpolation(); text += HOLE; continue; }
+        text += body.slice(i, after + 1);
+        i = after + 1;
+        continue;
+      }
+      text += body[i]!;
+      i++;
+    }
+    out.push({ text, index: start, raw: hashes > 0, end: i });
+  };
+
+  while (i < n) {
+    if (skipComment()) continue;
+    if (atLiteral()) { readLiteral(); continue; }
+    i++;
+  }
+  return out;
+}
 
 /**
- * Prose reaching a view through a NAMED ARGUMENT rather than a SwiftUI view's
- * first positional one. The project's own field wrappers take `label:`,
- * `title:`, `message:`, `detail:` — SWIFT_RENDER never sees those, which is how
- * 102 English strings in LimitsSettingsView, ModalityEditorView, Under16View
- * and the portal passed the gate. `systemName:`/`icon:`/`param:`/`key:` are
- * excluded on purpose: SF Symbol names and field identifiers, not text.
+ * Swift is scanned by LITERAL too, for the same reason Kotlin is.
+ *
+ * The render-site scan this replaced matched `Text("...")`, a list of SwiftUI
+ * views and `label:`/`title:`-style arguments. It could not see copy returned
+ * from a helper and rendered through a variable:
+ *
+ *     private var summary: String {
+ *         if parts.isEmpty { return "No modality limits configured" }   // passed
+ *     }
+ *
+ * The first run of the literal rule found that shape in 21 covered files.
+ *
+ * A literal is copy unless its TEXT or its CONTEXT shows it is not. Each context
+ * below is a category in the covered tree. None is a single string:
+ *
+ *   - an SF Symbol name: the argument of `systemName:`, `systemImage:`, or the
+ *     project's `symbol:`/`icon:` parameters (including both arms of a ternary
+ *     there), or a `return` inside a property or function whose name says it
+ *     yields a symbol (`var systemImage`, `func iconName`);
+ *   - an identifier by position: an `enum` raw value (`case x = "..."`, the
+ *     persisted Codable form, see SWIFT_RAWVALUE_RENDER for the other half), a
+ *     `.tag(...)` selection value, a subscript key (`message["alert"]`), an
+ *     `encode(...)` wire token, a `.npps` block name (a `.named([...])` zone,
+ *     an `NPLimitsSet(name:)`, which NPProtocolScripting writes back out as
+ *     `limits "<name>" {`, so keying it would make a saved script depend on
+ *     the locale it was saved in), a `case "..."` pattern, the right of
+ *     `==`/`!=`,
+ *     a `hasPrefix`/`hasSuffix` operand, and the `param:`, `parameterKey:`,
+ *     `forKey:`, `subsystem:`, `category:` arguments;
+ *   - a diagnostic that never renders: os.Logger levels, `print`, `fatalError`,
+ *     `precondition*`, `assert*`, and a `DecodingError` `debugDescription:`;
+ *   - anything inside a `#Preview` (it does not ship).
+ *
+ * Unlike Kotlin, a raw `#"..."#` literal is NOT exempt. No covered Swift uses
+ * one for `.npps` source, so there is no category to exempt.
  */
+const SWIFT_SYMBOL_ARG = /\b(systemName|systemImage|symbol|icon)\s*:\s*[^,(){}]*$/;
+const SWIFT_IDENT_ARG = /\b(param|parameterKey|forKey|subsystem|category|debugDescription|target|source)\s*:\s*$/;
+const SWIFT_DIAGNOSTIC_CALL =
+  /(\blogger\.(trace|debug|info|notice|warning|error|critical|fault)|\bprint|\bfatalError|\bprecondition|\bpreconditionFailure|\bassert|\bassertionFailure)\(\s*$/;
+const SWIFT_POSITIONAL_IDENT =
+  /(\.tag|\bencode|\bhasPrefix|\bhasSuffix)\(\s*$|\.named\(\[\s*$|\bNPLimitsSet\(\s*name:\s*$|\w\[\s*$|\bcase\s+$|[=!]=\s*$/;
+const SWIFT_RAW_VALUE = /\bcase\s+\w+\s*=\s*$/;
+const SWIFT_DECODED_DEFAULT = /\bdecode\w*\([^()]*\)\s*\?\?\s*$/;
+/** A `return` inside one of these yields a symbol name or a wire token. */
+const SWIFT_IDENT_DECL_NAME = /symbol|icon|systemImage|slug|wireName/i;
+const SWIFT_SYMBOL_DECL = /\b(?:var|func)\s+(\w+)/g;
+
+/** Index ranges of `#Preview { ... }` / `#Preview("name") { ... }` bodies. */
+function swiftPreviewRanges(body: string, lits: Literal[]): Array<[number, number]> {
+  const inLiteral = (i: number) => lits.some((l) => i >= l.index && i < (l.end ?? l.index));
+  const out: Array<[number, number]> = [];
+  for (const m of body.matchAll(/#Preview\b/g)) {
+    let i = m.index!;
+    let depth = 0;
+    let opened = false;
+    for (; i < body.length; i++) {
+      if (inLiteral(i)) continue;
+      if (body[i] === "{") { depth++; opened = true; }
+      else if (body[i] === "}" && --depth === 0 && opened) break;
+    }
+    out.push([m.index!, i]);
+  }
+  return out;
+}
+
+/** Why a Swift literal is not copy, or null if it is. `body` is the whole file. */
+function swiftNotCopyContext(body: string, lit: Literal): string | null {
+  const before = body.slice(Math.max(0, lit.index - 160), lit.index);
+  if (SWIFT_SYMBOL_ARG.test(before)) return "symbol";
+  if (SWIFT_IDENT_ARG.test(before)) return "identifier argument";
+  if (SWIFT_DIAGNOSTIC_CALL.test(before)) return "diagnostic";
+  if (SWIFT_POSITIONAL_IDENT.test(before)) return "identifier position";
+  if (SWIFT_RAW_VALUE.test(before)) return "raw value";
+  if (SWIFT_DECODED_DEFAULT.test(before)) return "decoded default";
+  if (/\breturn\s*$/.test(before)) {
+    let name = "";
+    for (const m of body.slice(0, lit.index).matchAll(SWIFT_SYMBOL_DECL)) name = m[1]!;
+    if (SWIFT_IDENT_DECL_NAME.test(name)) return "symbol";
+  }
+  return null;
+}
+
+/**
+ * The Swift literals in `body` that are user-facing copy.
+ *
+ * Two rules need the whole file, not one literal:
+ *   - A literal CONTINUED by `+` keeps the context of the literal it continues,
+ *     so a `debugDescription:` split over two lines stays a diagnostic.
+ *   - A bare value is an identifier if the same file uses that exact text in an
+ *     identifier position. `"none"` returned from a Picker binding's `get:` is
+ *     the value its `.tag("none")` and `val == "none"` name, not a word on
+ *     screen. Raw values do not propagate this way: `case global = "Global"`
+ *     must not license a `"Global"` shown elsewhere.
+ */
+function swiftCopyLiterals(body: string): Literal[] {
+  const lits = swiftStringLiterals(body);
+  const previews = swiftPreviewRanges(body, lits);
+  const contexts = lits.map((l) => swiftNotCopyContext(body, l));
+  const identifiers = new Set(
+    lits.filter((_, k) => contexts[k] === "identifier position" || contexts[k] === "decoded default")
+      .map((l) => l.text),
+  );
+  const out: Literal[] = [];
+  let previous: string | null = null;
+  for (let k = 0; k < lits.length; k++) {
+    const lit = lits[k]!;
+    const prev = lits[k - 1];
+    const continues = prev !== undefined &&
+      /^\s*\+\s*$/.test(body.slice(prev.end ?? prev.index, lit.index));
+    const context = contexts[k] ?? (continues ? previous : null);
+    previous = context;
+
+    const text = lit.text.replaceAll(HOLE, " ");
+    if (KEY_RE.test(text)) continue;
+    // An interpolation inside an identifier is part of it: "zone:\(name)".
+    if (isIdentifierLiteral(lit.text.replaceAll(HOLE, "x"))) continue;
+    if (!isProse(text)) continue;
+    if (previews.some(([a, b]) => lit.index >= a && lit.index <= b)) continue;
+    if (context !== null) continue;
+    if (identifiers.has(lit.text)) continue;
+    out.push({ ...lit, text });
+  }
+  return out;
+}
+
+/**
+ * The render-site scan the literal rule replaced, kept for PENDING_SWIFT_FILES
+ * only. The project's field wrappers take `label:`/`title:`/`message:`/
+ * `detail:`, which is why the named-argument half exists.
+ */
+const SWIFT_RENDER =
+  /\b(Text|Button|Label|TextField|SecureField|Toggle|Picker|Section|NavigationLink|Link|LabeledContent|navigationTitle|navigationBarTitle|alert|confirmationDialog|accessibilityLabel|accessibilityHint|help)\(\s*"([^"]{2,})"/g;
 const SWIFT_NAMED_ARG = /\b(label|title|message|detail|placeholder|prompt|caption|footer|header)\s*:\s*"([^"]{2,})"/g;
+
+/**
+ * The other half of the raw-value exclusion. A raw value is excluded above
+ * because it is persisted, so it must not also be what a person reads:
+ * `Text(freq.rawValue)` renders the Codable value "Weekly" verbatim, in
+ * English, next to a `displayName` that was keyed for exactly this. So is
+ * `String(format: String(localized: "X_FORMAT"), tier.rawValue)`: the format
+ * is translated, the tier name in it is not. Both are violations.
+ */
+const SWIFT_RAWVALUE_RENDER =
+  /\b(Text|Button|Label|Toggle|Section|LabeledContent|navigationTitle)\(\s*(?:verbatim:\s*)?[\w.$]*\.rawValue\s*\)/g;
+
+/** `.rawValue` among the arguments of a localized `String(format:)`. */
+function swiftRawValueInLocalizedFormat(body: string): number[] {
+  const out: number[] = [];
+  for (const m of body.matchAll(/String\(\s*format:\s*String\(\s*localized:/g)) {
+    let depth = 0;
+    let i = m.index! + "String".length;
+    for (; i < body.length; i++) {
+      if (body[i] === "(") depth++;
+      else if (body[i] === ")" && --depth === 0) break;
+    }
+    const span = body.slice(m.index!, i);
+    for (const r of span.matchAll(/\w\.rawValue\b/g)) out.push(m.index! + r.index!);
+  }
+  return out;
+}
 
 interface Violation { file: string; line: number; text: string; why: string; }
 
@@ -328,13 +605,25 @@ function scanSource(file: string, rawBody: string): Violation[] {
   }
 
   if (file.endsWith(".swift")) {
-    for (const m of body.matchAll(SWIFT_RENDER)) {
-      const text = m[2]!;
-      if (accept(text)) out.push({ file, line: lineOf(body, m.index!), text, why: `${m[1]}(...)` });
+    // Tokenized from the RAW body: the tokenizer skips comments itself, and
+    // stripComments would cut a literal holding "//" in half.
+    if (PENDING_SWIFT_FILES.some(([f]) => f === file)) {
+      for (const m of body.matchAll(SWIFT_RENDER)) {
+        if (accept(m[2]!)) out.push({ file, line: lineOf(body, m.index!), text: m[2]!, why: `${m[1]}(...)` });
+      }
+      for (const m of body.matchAll(SWIFT_NAMED_ARG)) {
+        if (accept(m[2]!)) out.push({ file, line: lineOf(body, m.index!), text: m[2]!, why: `${m[1]}:` });
+      }
+      return out;
     }
-    for (const m of body.matchAll(SWIFT_NAMED_ARG)) {
-      const text = m[2]!;
-      if (accept(text)) out.push({ file, line: lineOf(body, m.index!), text, why: `${m[1]}:` });
+    for (const lit of swiftCopyLiterals(rawBody)) {
+      out.push({ file, line: lineOf(rawBody, lit.index), text: lit.text, why: "string literal" });
+    }
+    for (const m of body.matchAll(SWIFT_RAWVALUE_RENDER)) {
+      out.push({ file, line: lineOf(body, m.index!), text: m[0], why: "rawValue rendered" });
+    }
+    for (const at of swiftRawValueInLocalizedFormat(body)) {
+      out.push({ file, line: lineOf(body, at), text: ".rawValue", why: "rawValue in a localized format" });
     }
     return out;
   }
@@ -430,6 +719,25 @@ function checkEmbedded(files: string[]): Violation[] {
     out.push(...scanSource(f, body));
   }
   return out;
+}
+
+/**
+ * (2a) PENDING_SWIFT_FILES does not rot. An entry must name a tracked, covered
+ * file that the literal rule still flags: a file that was fixed, renamed or
+ * deleted would otherwise stay on the list, and a later edit to it would be
+ * scanned by the weaker render-site rule without anyone deciding that.
+ */
+export function stalePendingSwift(files: string[], read: (f: string) => string | null): string[] {
+  const errs: string[] = [];
+  for (const [f] of PENDING_SWIFT_FILES) {
+    const body = files.includes(f) ? read(f) : null;
+    if (body === null || !isCovered(f)) {
+      errs.push(`${f}: listed in PENDING_SWIFT_FILES but not a tracked covered file — remove the entry`);
+    } else if (swiftCopyLiterals(body).length === 0) {
+      errs.push(`${f}: listed in PENDING_SWIFT_FILES but the literal rule finds nothing — remove the entry`);
+    }
+  }
+  return errs;
 }
 
 /** (3) Key usage is bidirectional: none missing, none orphaned. */
@@ -946,12 +1254,79 @@ function selfTest(): void {
     ['            OptionalDoubleField(label: String(localized: "LIMITS_MAX_INTENSITY"), unit: "%", value: b)', false],
     ['            Image(systemName: "waveform.path.ecg")', false],   // SF Symbol, not text
     ['            InfoRow(title: "HRV Biofeedback", detail: "Coherence training.")', true],
+    // The regression the render-site scan missed: copy returned from a
+    // `switch` and rendered later through a variable. (ModalityEditorView,
+    // LimitsSettingsView, SessionStatusView all shipped this shape.)
+    ['        switch target {\n        case .clinicianSelected: return "Clinician selects at session start"\n        }', true],
+    ['        if parts.isEmpty { return "No modality limits configured" }', true],
+    ['        saveError = "Protocol name cannot be empty."', true],
+    // A ternary inside a render call: the first argument is not a literal.
+    ['            Text(connected ? "Hub connected" : "Hub not connected")', true],
+    ['            Button(allowed ? "Cancel" : "Close") { dismiss() }', true],
+    // Literals nested in an interpolation are found; the interpolation is not prose.
+    ['        let s = "\\(on ? "Stimulation on" : "off")"', true],
+    ['        let s = "\\(on ? "ON" : "OFF") \\(unit)"', false],
+    ['            Text("\\(value, specifier: "%.1f") Hz")', false],
+    // Multi-line and raw literals are literals too.
+    ['        let s = """\n            Fix the following errors\n            """', true],
+    ['        let s = #"Say "hello" to \\#(name)"#', true],
+    ['        let s = #"\\d+"#', false],
+    // Quotes inside a raw literal do not close it. Paired as a plain literal,
+    // this reads as "x " and " y", and the copy between them is missed.
+    ['        let s = #"x "Copy here" y"#', true],
+    // A `+` continuation is copy when what it continues is copy.
+    ['        static let intro = "You can still use NeurOne, but"\n            + " a few features rely on health data."', true],
+    // A persisted raw value rendered verbatim is English on every locale.
+    ['                Text(freq.rawValue).tag(freq)', true],
+    ['        Text(String(format: String(localized: "TIER_FORMAT"),\n                    tier.rawValue, tier.monthlyPrice))', true],
+    ['                Text(freq.displayName).tag(freq)', false],
+    // SF Symbol names, by argument and by the declaration they are returned from.
+    ['            Image(systemName: on ? "wifi" : "wifi.slash")', false],
+    ['            Label("UI_DELETE", systemImage: "trash")', false],
+    ['    var systemImage: String {\n        switch self {\n        case .pbmIntranasal: return "nose"\n        }\n    }', false],
+    // Identifiers by position.
+    ['    case weekly = "Weekly"', false],
+    ['        if host == "localhost" { return true }', false],
+    ['        if let alert = message["alert"] as? String {}', false],
+    ['        return NPProtocolEntry.syntheticID("zone:\\(z.name)")', false],
+    ['    var target: NPPBMTarget = .named(["All"])', false],
+    ['        editingLimits = NPLimitsSet(name: "Global", level: .global)', false],
+    ['        let t = try c.decodeIfPresent(String.self, forKey: .timingType) ?? "duration"', false],
+    // The same text in an identifier position elsewhere in the file makes a bare value an identifier...
+    ['        get: { params.noiseType?.rawValue ?? "none" }\n        Text("UI_NONE").tag("none")', false],
+    // ...and without one, a bare word renders, so it is copy.
+    ['        get: { params.noiseType?.rawValue ?? "none" }', true],
+    // Diagnostics that never render.
+    ['        Self.logger.error("EDF download failed: \\(error)")', false],
+    ['            throw DecodingError.dataCorrupted(.init(codingPath: p,\n                debugDescription: "Socket mask must be hex "\n                    + "(\\(n) bytes); got \\(hex.count)."))', false],
+    ['#Preview("Allowed") {\n    ConditionChipsView(conditions: ["Major Depressive Disorder", "Insomnia"])\n}', false],
+    // Comments are not code, and Swift block comments nest.
+    ['        /* outer /* inner */ return "Still a comment" */', false],
+    ['        let url = "https://neurone.life" // Visit the site', false],
+    ['        let s = "a // b is not a comment"', true],
   ];
   for (const [src, shouldFlag] of swiftCases) {
     const flagged = scanSource("x.swift", src).length > 0;
     if (flagged !== shouldFlag) {
       console.error(`self-test FAILED: ${JSON.stringify(src)} -> flagged=${flagged}, expected ${shouldFlag}`);
       bad++;
+    }
+  }
+  // PENDING_SWIFT_FILES cannot outlive its reason. Driven with a fake reader,
+  // since whether today's entries still have copy is a fact about the tree.
+  {
+    const [pendingFile] = PENDING_SWIFT_FILES[0]!;
+    const pendingCases: Array<[string, string[], string | null, boolean]> = [
+      ["still has copy", [pendingFile], 'return "Haptic cue idle"', false],
+      ["fixed, still listed", [pendingFile], 'return String(localized: "WATCH_HAPTIC_IDLE")', true],
+      ["deleted, still listed", [], null, true],
+    ];
+    for (const [name, files, body, shouldFlag] of pendingCases) {
+      const flagged = stalePendingSwift(files, () => body).some((e) => e.startsWith(pendingFile + ":"));
+      if (flagged !== shouldFlag) {
+        console.error(`self-test FAILED: pending case "${name}" -> flagged=${flagged}, expected ${shouldFlag}`);
+        bad++;
+      }
     }
   }
   const kotlinCases: Array<[string, boolean]> = [
@@ -1120,6 +1495,9 @@ function main(): void {
 
   const fw = checkFirmware(files, keys);
   const embedded = checkEmbedded(files);
+  const pending = stalePendingSwift(files, (f) => {
+    try { return readFileSync(join(ROOT, f), "utf-8"); } catch { return null; }
+  });
   const usage = checkKeyUsage(files, keys);
   const parity = checkLocaleParity(canonical);
   const interp = checkInterpolationSyntax(canonical);
@@ -1148,6 +1526,11 @@ function main(): void {
       console.error(`  ${v.file}:${v.line}  ${v.why}  ${JSON.stringify(v.text)}`);
     }
     failed += embedded.length;
+  }
+  if (pending.length) {
+    console.error("\nPENDING_SWIFT_FILES is out of date:");
+    for (const e of pending) console.error(`  ${e}`);
+    failed += pending.length;
   }
   if (usage.length) {
     console.error("\nLOCALE KEY USAGE:");
@@ -1188,6 +1571,13 @@ function main(): void {
   );
   console.log("not yet covered (migration backlog, see PENDING_PATHS):");
   for (const [p, why] of PENDING_PATHS) console.log(`  ${p} — ${why}`);
+  console.log("covered, but not yet under the Swift literal rule (see PENDING_SWIFT_FILES):");
+  const byReason = new Map<string, string[]>();
+  for (const [p, why] of PENDING_SWIFT_FILES) byReason.set(why, [...(byReason.get(why) ?? []), p]);
+  for (const [why, paths] of byReason) {
+    for (const p of paths) console.log(`  ${p}`);
+    console.log(`    — ${why}`);
+  }
 }
 
 // Imported by scripts/translations.ts for the ledger; run only when invoked.

@@ -166,7 +166,7 @@ struct ConsentDashboardView: View {
                                             differential.clinicianName, differential.organization))
                                     .font(.subheadline.bold())
                                 Text(String(format: String(localized: "EXPANSION_TIER_CHANGE_FORMAT"),
-                                            differential.fromTier.rawValue, differential.toTier.rawValue))
+                                            differential.fromTier.displayName, differential.toTier.displayName))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                 if let asked = request.questionSentAt {
@@ -645,7 +645,7 @@ struct ClinicianExpansionRequestView: View {
                         d.clinicianName, d.organization))
                 .font(.title3.bold())
             Text(String(format: String(localized: "EXPANSION_TIER_CHANGE_FORMAT"),
-                        d.fromTier.rawValue, d.toTier.rawValue))
+                        d.fromTier.displayName, d.toTier.displayName))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             Text(String(format: String(localized: "EXPANSION_PRICE_FORMAT"), d.toTier.monthlyPrice))
@@ -841,7 +841,7 @@ struct NewClinicianGrantView: View {
                 Picker("CLINICIAN_GRANT_TIER_PICKER", selection: $selectedTier) {
                     ForEach(ClinicianUseCaseTier.allCases, id: \.self) { tier in
                         Text(String(format: String(localized: "CLINICIAN_GRANT_TIER_FORMAT"),
-                                    tier.rawValue, tier.monthlyPrice)).tag(tier)
+                                    tier.displayName, tier.monthlyPrice)).tag(tier)
                     }
                 }
                 .pickerStyle(.inline)
@@ -929,7 +929,7 @@ struct NewClinicianGrantView: View {
                                 name, organization))
                         .font(.title3.bold())
                     Text(String(format: String(localized: "CLINICIAN_GRANT_TIER_FORMAT"),
-                                selectedTier.rawValue, selectedTier.monthlyPrice))
+                                selectedTier.displayName, selectedTier.monthlyPrice))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

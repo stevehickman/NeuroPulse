@@ -170,7 +170,7 @@ struct ConsentOnboardingView: View {
                             .textFieldStyle(.roundedBorder)
                         Picker("CONSENT_CONTACT_FREQUENCY", selection: $draft.contactFrequency) {
                             ForEach(ContactFrequency.allCases, id: \.self) { freq in
-                                Text(freq.rawValue).tag(freq)
+                                Text(freq.displayName).tag(freq)
                             }
                         }
                         .pickerStyle(.segmented)
