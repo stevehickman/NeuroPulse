@@ -48,7 +48,7 @@ np_app_link_agreement_tests 202
 np_bootloader_app_image_tests 968
 np_bootloader_flexram_tests 84
 np_bootloader_mem_tests 139
-np_cfg_store_tests 2644
+np_cfg_store_tests 2816
 np_chan_decl_tests 209
 np_consumables_tests 346
 np_crypto_tests 700
@@ -65,7 +65,7 @@ np_lfs_config_tests 255
 np_lfs_log_instance_tests 2270
 np_lfs_powerloss_tests 1952
 np_log_backend_tests 999
-np_map3_record_tests 260
+np_map3_record_tests 263
 np_mod_cvns_tests 896
 np_mod_pbm_chlatch_tests 277
 np_mod_stim_tests 256

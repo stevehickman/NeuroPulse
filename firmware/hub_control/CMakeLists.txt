@@ -304,6 +304,7 @@ if(NP_BUILD_TESTS)
         src/np_cfg_store.c
         src/np_session_count.c        # OI-LFS-12: the persisted session count
         src/np_reset_marker.c         # OI-NVRAM-05: the durable factory-reset marker
+        src/np_map3_record.c          # OI-NVRAM-16: rows of differing length
         src/np_lfs_instance.c
     )
     target_include_directories(np_cfg_store_tests PRIVATE include tests

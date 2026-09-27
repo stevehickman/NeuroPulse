@@ -73,6 +73,47 @@ size_t np_map3_encode(const np_map3_rec_t *rec, uint8_t *out, size_t cap)
     return NP_MAP3_V1_BYTES;
 }
 
+/*
+ * Verify the row that starts at `p`, with `left` bytes to the end of the
+ * image.  Returns its length, or 0 and the reason in *end.  The one place a
+ * row is judged: np_map3_scan() and np_map3_row_len() cannot disagree.
+ */
+static size_t row_check(const uint8_t *p, size_t left, np_map3_end_t *end)
+{
+    if (left < NP_MAP3_V1_BYTES) {
+        *end = NP_MAP3_END_TORN;
+        return 0U;
+    }
+    /* Step by the row's own length — never by the length this reader would
+     * have written.  A row shorter than version 1 cannot exist. */
+    size_t rl = p[0];
+    if (rl < NP_MAP3_V1_BYTES) {
+        *end = NP_MAP3_END_BAD_LEN;
+        return 0U;
+    }
+    if (rl > left) {
+        /* A length that runs past the image: the tail is torn mid-row. */
+        *end = NP_MAP3_END_TORN;
+        return 0U;
+    }
+    if (get_u32(&p[rl - NP_MAP3_CRC_BYTES]) !=
+        crc32_le(p, rl - NP_MAP3_CRC_BYTES)) {
+        *end = NP_MAP3_END_BAD_CRC;
+        return 0U;
+    }
+    if (p[1] == 0U) {
+        *end = NP_MAP3_END_BAD_VER;
+        return 0U;
+    }
+    return rl;
+}
+
+size_t np_map3_row_len(const uint8_t *p, size_t left)
+{
+    np_map3_end_t end;
+    return (p == NULL) ? 0U : row_check(p, left, &end);
+}
+
 void np_map3_scan(const uint8_t *buf, size_t len, np_map3_row_fn cb, void *ctx,
                   np_map3_scan_t *out)
 {
@@ -80,32 +121,9 @@ void np_map3_scan(const uint8_t *buf, size_t len, np_map3_row_fn cb, void *ctx,
     size_t off = 0U;
 
     while (buf != NULL && off < len) {
-        size_t left = len - off;
         const uint8_t *p = buf + off;
-
-        if (left < NP_MAP3_V1_BYTES) {
-            s.end = NP_MAP3_END_TORN;
-            break;
-        }
-        /* Step by the row's own length — never by the length this reader
-         * would have written.  A row shorter than version 1 cannot exist. */
-        size_t rl = p[0];
-        if (rl < NP_MAP3_V1_BYTES) {
-            s.end = NP_MAP3_END_BAD_LEN;
-            break;
-        }
-        if (rl > left) {
-            /* A length that runs past the image: the tail is torn mid-row. */
-            s.end = NP_MAP3_END_TORN;
-            break;
-        }
-        if (get_u32(&p[rl - NP_MAP3_CRC_BYTES]) !=
-            crc32_le(p, rl - NP_MAP3_CRC_BYTES)) {
-            s.end = NP_MAP3_END_BAD_CRC;
-            break;
-        }
-        if (p[1] == 0U) {
-            s.end = NP_MAP3_END_BAD_VER;
+        size_t rl = row_check(p, len - off, &s.end);
+        if (rl == 0U) {
             break;
         }
 

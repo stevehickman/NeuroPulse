@@ -565,6 +565,54 @@ np_hub_status_t np_cfg_store_journal_read(np_cfg_file_t file, uint8_t *buf,
                                    ctx));
 }
 
+static np_hub_status_t journal_rows_locked(np_cfg_file_t file, uint8_t *buf,
+                                           size_t cap, uint32_t *out_count,
+                                           size_t *out_bytes,
+                                           np_cfg_record_step_fn step,
+                                           void *ctx)
+{
+    size_t len = 0U;
+    np_hub_status_t st = read_whole(file, 0U, buf, cap, &len);
+    if (st != NP_HUB_OK) {
+        return st;
+    }
+    uint32_t n = 0U;
+    size_t off = 0U;
+    while (off < len) {
+        size_t left = len - off;
+        size_t rl = step(buf + off, left, n, ctx);
+        if (rl == 0U || rl > left) {
+            /* The valid prefix ends here, as in the fixed-length reader.  A
+             * step that claims more bytes than remain is treated the same
+             * way: the store never reads past what it read. */
+            s_stats.integrity_fails++;
+            break;
+        }
+        off += rl;
+        n++;
+    }
+    *out_count = n;
+    *out_bytes = off;
+    return NP_HUB_OK;
+}
+
+np_hub_status_t np_cfg_store_journal_read_rows(np_cfg_file_t file, uint8_t *buf,
+                                               size_t cap, uint32_t *out_count,
+                                               size_t *out_bytes,
+                                               np_cfg_record_step_fn step,
+                                               void *ctx)
+{
+    if (!file_ok(file) || s_files[file].policy != NP_CFG_POLICY_TAIL_ADDITIVE ||
+        buf == NULL || out_count == NULL || out_bytes == NULL || step == NULL ||
+        s_lfs == NULL) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    *out_count = 0U;
+    *out_bytes = 0U;
+    WITH_STORE(journal_rows_locked(file, buf, cap, out_count, out_bytes, step,
+                                   ctx));
+}
+
 /* ── REPLICATED ────────────────────────────────────────────────────────────── */
 
 static uint8_t s_env[2][NP_CFG_REPLICA_MAX];
