@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 120
+**Revision:** 121
 **Date:** 2026-09-27
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | QMS Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | Design History File Index (this document) | 120 | 2026-09-27 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | Design History File Index (this document) | 121 | 2026-09-27 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 1 | 2026-05-13 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan — Rev 2 (PR #217) accepted SR-FAN-01..06 fan-health thermal interlock into §6.2; Rev 3 adds §5.2.1 ZONE_ID debounce requirement (RISK-18), closing the corresponding pending-decisions.md item | 10 | 2026-09-26 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -317,7 +317,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-SES-PWR-001 | PBM Session Power Audit — Predefined Protocol Library Against the Concurrency Ceiling | 1 | 2026-08-21 | [np_ses_pwr_001.md](./np_ses_pwr_001.md) | DESIGN STUDY | SES |
 | NP-SOUP-CMSIS-001 | CMSIS SOUP Anomaly Evaluation — Safety MCU (SW-01, Class C) | 1 | 2026-08-09 | [np_soup_cmsis_001.md](./np_soup_cmsis_001.md) | DRAFT | SPEC-FW |
 | NP-SOUP-LFS-001 | LittleFS SOUP Record and Hazard Analysis — Hub Storage (SW-02, Class B) | 13 | 2026-09-27 | [np_soup_lfs_001.md](./np_soup_lfs_001.md) | DRAFT | SPEC-FW |
-| NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 28 | 2026-09-27 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |
+| NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 29 | 2026-09-27 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |
 | NP-SW-PORTAL-API-001 | Device-Facing Consent Channel — Study Descriptors and Clinician Portal | 2 | 2026-09-14 | [np_sw_portal_api_001.md](./np_sw_portal_api_001.md) | DRAFT | APP |
 | NP-THERM-COOL-001 | Cooling Architecture Options for the Sealed Cavity — Airflow, Liquid, Stored Coolth, and the Ambient Lever | 16 | 2026-09-23 | [np_therm_cool_001.md](./np_therm_cool_001.md) | DRAFT | SPEC-HW |
 
@@ -580,3 +580,4 @@ Planned near-term additions:
 | 118 | 2026-09-27 | NeurOne Firmware Engineering | **NP-SOUP-LFS-001 Rev 12 → 13 and NP-SW-CI-001 Rev 25 → 26: `OI-LFS-13`'s prevention is built.** `check-lfs-caller-rules.ts` gains R7: the littlefs file config must have static storage. It is falsified against the pre-#472 Config store. `firmware-cross-build.yml` gains a sanitized Class B host-test leg (ASan + UBSan, UB fatal) behind canaries and an instrumentation check. It is not yet a required check: `OI-SWCI-50` raised. `OI-LFS-13` stays open on its consequence analysis. No firmware behaviour changed |
 | 119 | 2026-09-27 | NeurOne Firmware Engineering | **NP-SW-CI-001 Rev 26 → 27 (§6.12): `OI-SWCI-50` decided — the sanitized Class B leg is a required context.** Its first Linux gcc runs were green (44/44 under ASan + UBSan with UB fatal, on PR #478 and on `main` `9a55773`). `CMake host tests (Class B, ASan + UBSan)` is added to `ci/required-checks.txt`, and the job carries the required-context warning. Correspondence C was falsified in both directions. The `Safety` ruleset edit is Steve's admin action (§6.12.3) and is still pending, so `OI-SWCI-50` stays open until it is made. No firmware behaviour changed |
 | 120 | 2026-09-27 | NeurOne Firmware Engineering | **NP-SW-CI-001 Rev 27 → 28 (§6.12.4): `OI-SWCI-50` CLOSED.** Steve added `CMake host tests (Class B, ASan + UBSan)` to the `Safety` ruleset, so eight contexts are now required. The comparison with `ci/required-checks.txt` came back empty twice: once from Steve's admin workstation, and once against the public rules-in-force endpoint for `main`. No code or workflow changes |
+| 121 | 2026-09-27 | NeurOne Firmware Engineering | **NP-SW-CI-001 Rev 28 → 29 (§6.12.4): runbook step 4 observed.** On docs-only PR #482, `CMake host tests (Class B, ASan + UBSan)` reported `skipped` along with every other required context. The two scope jobs reported `success`. All eight were terminal before the merge, so a skipped required context does not block. No code or workflow changes |
