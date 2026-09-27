@@ -33,6 +33,7 @@ import life.neurone.app.NeurOneApplication
 import life.neurone.core.consumable.ConsumableKind
 import life.neurone.core.consumable.ConsumableState
 import life.neurone.core.consumable.ReminderPriority
+import androidx.annotation.StringRes
 import androidx.compose.ui.res.stringResource
 import life.neurone.app.R
 
@@ -40,11 +41,12 @@ import life.neurone.app.R
 // blocking badge, an order link, and snooze/replaced actions. Fed by the core
 // ConsumableTracker (measurement-triggered per CLAUDE.md §5.2). Counts are SHDR-class.
 
-private fun ConsumableKind.displayName(): String = when (this) {
-    ConsumableKind.INTRANASAL_SLEEVES -> "Intranasal sleeves"
-    ConsumableKind.ELECTRODE_HYDROGEL -> "Electrode hydrogel tips"
-    ConsumableKind.VNS_PADS -> "VNS clip pads"
-    ConsumableKind.AUDIO_CUP_FOAM -> "Audio cup foam"
+@StringRes
+private fun ConsumableKind.displayNameRes(): Int = when (this) {
+    ConsumableKind.INTRANASAL_SLEEVES -> R.string.consumable_intranasal_name
+    ConsumableKind.ELECTRODE_HYDROGEL -> R.string.consumable_hydrogel_name
+    ConsumableKind.VNS_PADS -> R.string.consumable_vns_name
+    ConsumableKind.AUDIO_CUP_FOAM -> R.string.consumable_audio_name
 }
 
 @Composable
@@ -106,7 +108,7 @@ private fun ConsumableCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(state.kind.displayName(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                Text(stringResource(state.kind.displayNameRes()), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                 if (state.isLow) {
                     val blocking = state.kind.reminderPriority == ReminderPriority.SAFETY_BLOCKING
                     Badge(if (blocking) stringResource(R.string.consumable_replace_now) else stringResource(R.string.consumable_low), if (blocking) Color(0xFFD32F2F) else Color(0xFFF9A825))

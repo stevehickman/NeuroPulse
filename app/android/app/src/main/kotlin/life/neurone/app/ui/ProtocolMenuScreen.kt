@@ -39,6 +39,7 @@ import life.neurone.core.protocol.id
 import life.neurone.core.protocol.isComposite
 import life.neurone.core.protocol.name
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import life.neurone.app.R
 
@@ -241,11 +242,17 @@ private fun Badge(text: String, color: Color) {
 
 
 /** UI-side mapping of ProtocolAvailability → display reason (parity with iOS unavailableReason). */
-private fun unavailableReason(availability: ProtocolAvailability, eegUnavailableMessage: String): String? =
-    when (availability) {
+@Composable
+private fun unavailableReason(availability: ProtocolAvailability, eegUnavailableMessage: String): String? {
+    val context = LocalContext.current
+    return when (availability) {
         is ProtocolAvailability.Available -> null
         is ProtocolAvailability.EegConsentRequired -> eegUnavailableMessage
         is ProtocolAvailability.Unavailable ->
-            if (availability.missingModalities.isEmpty()) "No device connected."
-            else "Requires: " + availability.missingModalities.joinToString(", ") { it.rawValue }
+            if (availability.missingModalities.isEmpty()) stringResource(R.string.protocol_avail_no_device)
+            else stringResource(
+                R.string.protocol_avail_requires,
+                availability.missingModalities.joinToString(", ") { context.getString(modalityNameRes(it)) },
+            )
     }
+}

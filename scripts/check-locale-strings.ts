@@ -28,11 +28,13 @@
  *      communicates through tones, LEDs and numeric status; text is the app's
  *      job. A locale reference appearing under firmware/ means that boundary
  *      moved, which is a decision, not a detail.
- *   2. COVERED non-firmware paths embed no user-facing prose. "User-facing"
- *      means the literal reaches a render API — JSX text, a placeholder/title/
- *      aria-label attribute, SwiftUI Text/Button/Section/navigationTitle and
- *      friends. Not every string: an identifier, a CSS class, a part number or
- *      a unit symbol is not prose (see isProse).
+ *   2. COVERED non-firmware paths embed no user-facing prose. In TSX and
+ *      Swift, "user-facing" means the literal reaches a render API — JSX text,
+ *      a placeholder/title/aria-label attribute, SwiftUI Text/Button/Section/
+ *      navigationTitle and friends. In Kotlin it means ANY string literal in a
+ *      covered file (see kotlinStringLiterals for why). Not every string: an
+ *      identifier, a CSS class, a part number or a unit symbol is not prose
+ *      (see isProse, isIdentifierLiteral).
  *   3. Every key referenced by code exists in locales/en.json, and every key in
  *      en.json is referenced by code. Both directions matter — a missing key
  *      renders as the key itself, and an orphan key is untranslated weight that
@@ -49,9 +51,11 @@
  *
  * ── The reach, stated narrowly ───────────────────────────────────────────────
  *
- * This is a TEXT scan, not a parse. It reads the literal at a render call site
- * and cannot follow a string that arrives through a variable, so
- * `Text(someEnglishConstant)` passes. That limit is real and is the reason
+ * This is a TEXT scan, not a parse. For TSX and Swift it reads the literal at
+ * a render call site and cannot follow a string that arrives through a
+ * variable, so `Text(someEnglishConstant)` passes. Swift has exactly that hole
+ * today: a helper that returns English from a `switch` is not seen. Kotlin is
+ * scanned per literal and does not have it. That limit is real and is the reason
  * COVERED_PATHS is a list rather than "everything": inside those trees the
  * pattern is literal-at-the-call-site, which is what makes the scan sound.
  *
@@ -164,11 +168,107 @@ const JSX_TEXT = /(?<![=!<>-])>([^<>{}]*?)</g;
 const JSX_ATTR = /\b(title|placeholder|aria-label|alt|label)=(?:"([^"]*)"|'([^']*)')/g;
 
 /**
- * Render sites in Compose. `stringResource(...)` is itself @Composable, so the
- * literal at one of these is always inside a composable and always replaceable.
+ * Kotlin is scanned by LITERAL, not by render call site.
+ *
+ * The first version matched only `Text("...")`, `Button("...")` and friends, and
+ * missed the shape Compose code actually uses for enumerated copy: a helper that
+ * returns English from a `when`, rendered later through a variable.
+ *
+ *     private fun phaseLabel(p: OtaPhase): String = when (p) {
+ *         OtaPhase.FAILED -> "Update failed"          // never reaches Text("...")
+ *     }
+ *
+ * SetupWizardScreen.kt and OtaScreen.kt shipped 30+ such strings past the gate.
+ * So in covered Kotlin every string literal is copy unless it shows it is not:
+ * a locale key (KEY_RE), an identifier (isIdentifierLiteral), or a raw `"""`
+ * literal, which in this tree is `.npps` source and English by definition
+ * (localization.md §17.3). There is no exemption for log or exception
+ * messages; none exists in covered code, and one that appears is a decision.
  */
-const KOTLIN_RENDER =
-  /\b(Text|Button|OutlinedButton|TextButton|Label|TextField|OutlinedTextField|Badge|Tab|AlertDialog|Snackbar)\(\s*"([^"]{2,})"/g;
+interface Literal { text: string; index: number; raw: boolean; }
+
+/**
+ * Every Kotlin string literal in `body`, in source order.
+ *
+ * A tokenizer, not a regex, because literals nest inside templates:
+ * `"${if (on) "On" else "Off"} mode"`. A `"[^"]*"` regex pairs the wrong quotes
+ * there. Each literal is yielded with its `${...}` and `$name` templates blanked,
+ * and the literals nested inside a template are yielded on their own. A char
+ * literal `'"'` is skipped so its quote does not open a string.
+ */
+function kotlinStringLiterals(body: string): Literal[] {
+  const out: Literal[] = [];
+  const n = body.length;
+  let i = 0;
+
+  const skipChar = (): void => {
+    const end = body.indexOf("'", body[i + 1] === "\\" ? i + 3 : i + 2);
+    i = end < 0 ? n : end + 1;
+  };
+
+  const skipTemplate = (): void => {
+    let depth = 1;
+    while (i < n && depth > 0) {
+      const c = body[i]!;
+      if (c === '"') { readLiteral(); continue; }
+      if (c === "'") { skipChar(); continue; }
+      if (c === "{") depth++;
+      else if (c === "}") depth--;
+      i++;
+    }
+  };
+
+  const readLiteral = (): void => {
+    const start = i;
+    const raw = body.startsWith('"""', i);
+    const quote = raw ? '"""' : '"';
+    i += quote.length;
+    let text = "";
+    while (i < n) {
+      if (body.startsWith(quote, i)) { i += quote.length; break; }
+      const c = body[i]!;
+      if (!raw && c === "\n") break;                        // unterminated: stop at EOL
+      if (!raw && c === "\\") { text += body.slice(i, i + 2); i += 2; continue; }
+      if (c === "$" && body[i + 1] === "{") { i += 2; skipTemplate(); text += " "; continue; }
+      if (c === "$" && /[A-Za-z_]/.test(body[i + 1] ?? "")) {
+        i++;
+        while (i < n && /\w/.test(body[i]!)) i++;
+        text += " ";
+        continue;
+      }
+      text += c;
+      i++;
+    }
+    out.push({ text, index: start, raw });
+  };
+
+  while (i < n) {
+    const c = body[i]!;
+    if (c === '"') { readLiteral(); continue; }
+    if (c === "'") { skipChar(); continue; }
+    i++;
+  }
+  return out;
+}
+
+/**
+ * A literal shaped like an identifier rather than copy: no whitespace, and at
+ * least one `.`, `_`, `/` or `:` joining its parts. Store keys
+ * (`np.onboarding.age-confirmed`), `.npps` tokens (`eeg_review`), paths and
+ * URIs. A bare word such as "none" or "Verified" is NOT an identifier here:
+ * it renders, so it is copy.
+ */
+function isIdentifierLiteral(text: string): boolean {
+  return /^[\w.\-\/:]+$/.test(text) && /\w[._\/:]\w/.test(text);
+}
+
+function acceptKotlinLiteral(lit: Literal): boolean {
+  if (lit.raw) return false;
+  const text = lit.text;
+  if (KEY_RE.test(text)) return false;
+  if (isIdentifierLiteral(text)) return false;
+  return isProse(text);
+}
 
 /** Render sites in SwiftUI. */
 const SWIFT_RENDER =
@@ -219,9 +319,10 @@ function scanSource(file: string, rawBody: string): Violation[] {
   const body = stripComments(rawBody);
 
   if (file.endsWith(".kt")) {
-    for (const m of body.matchAll(KOTLIN_RENDER)) {
-      const text = m[2]!;
-      if (accept(text)) out.push({ file, line: lineOf(body, m.index!), text, why: `${m[1]}(...)` });
+    for (const lit of kotlinStringLiterals(body)) {
+      if (acceptKotlinLiteral(lit)) {
+        out.push({ file, line: lineOf(body, lit.index), text: lit.text, why: "string literal" });
+      }
     }
     return out;
   }
@@ -860,6 +961,25 @@ function selfTest(): void {
     // Kotlin's bare $identifier form: the only prose here is the variable name.
     ['            Text("+ $protocolName")', false],
     ['            Text("${count}%")', false],
+    // The regression the render-site scan missed: copy returned from a `when`
+    // and rendered later through a variable.
+    ['    OtaPhase.FAILED -> "Update failed"', true],
+    ['private fun label(): String = "Insert the zone modules"', true],
+    ['    OtaPhase.FAILED -> R.string.ota_phase_failed', false],
+    ['.ifEmpty { "none" }', true],                                   // a bare word renders
+    ['    if (empty) "No device connected." else "Requires: " + names', true],
+    ['    Log.d(TAG, "Return the hub to the case")', true],           // a code word inside prose is still prose
+    // Literals nested in a template are found; the template text is not prose.
+    ['    Text("${if (on) "Stimulation on" else "off"}")', true],
+    ['    Text("${if (on) "ON" else "OFF"}")', false],
+    ['    val q = \'"\'; val t = "x"', false],                        // char literal does not open a string
+    // Identifiers, keys and units are not copy.
+    ['const val AGE_CONFIRMED = "np.onboarding.age-confirmed"', false],
+    ['    "adherence_monitoring" -> stringResource(R.string.x)', false],
+    ['    @Suppress("UNUSED_EXPRESSION") session', false],
+    ['    rmssd?.let { "$it ms" } ?: "—"', false],
+    // A raw string in covered Kotlin is .npps source (§17.3).
+    ['const val T = """protocol "New Protocol" {\n    author: "You"\n}"""', false],
   ];
   for (const [src, shouldFlag] of kotlinCases) {
     const flagged = scanSource("x.kt", src).length > 0;
