@@ -27,6 +27,8 @@ typedef struct {
     long cuts;         /* cuts that actually fired              */
     long missed_cuts;  /* armed indices that did not fire       */
     long violations;   /* verifier findings                     */
+    long exposed;      /* PARTIAL tears whose RMW unit reached committed
+                          bytes (np_powerbd_t.rmw_exposed, OI-LFS-14)  */
 } np_sweep_result_t;
 
 /* Returns the number of violations it found after one cut. */

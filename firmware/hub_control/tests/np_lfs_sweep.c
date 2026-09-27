@@ -122,6 +122,7 @@ np_sweep_result_t np_sweep_run(void (*baseline)(void), void (*mutate)(void),
     }
     r.ops = np_powerbd_ops_seen(g_bd);
 
+    const long exposed_before = g_bd->rmw_exposed;
     for (int t = 0; t < (int)NP_POWERBD_TEAR_MODEL_COUNT; t++) {
         for (long cut = 0; cut < r.ops; cut++) {
             bool fired = attempt(cut, (np_powerbd_tear_t)t);
@@ -135,5 +136,6 @@ np_sweep_result_t np_sweep_run(void (*baseline)(void), void (*mutate)(void),
             r.violations += verify(what, cut, (np_powerbd_tear_t)t);
         }
     }
+    r.exposed = g_bd->rmw_exposed - exposed_before;
     return r;
 }

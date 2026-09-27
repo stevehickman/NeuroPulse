@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 116
+**Revision:** 117
 **Date:** 2026-09-27
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | QMS Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | Design History File Index (this document) | 116 | 2026-09-27 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | Design History File Index (this document) | 117 | 2026-09-27 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 1 | 2026-05-13 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan — Rev 2 (PR #217) accepted SR-FAN-01..06 fan-health thermal interlock into §6.2; Rev 3 adds §5.2.1 ZONE_ID debounce requirement (RISK-18), closing the corresponding pending-decisions.md item | 10 | 2026-09-26 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -316,7 +316,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-PWR-BUDGET-001 | Power Budget — Reverse-Engineered from Safety Ceilings (Design Study) | 4 | 2026-08-21 | [np_pwr_budget_001.md](./np_pwr_budget_001.md) | DESIGN STUDY | SPEC-HW |
 | NP-SES-PWR-001 | PBM Session Power Audit — Predefined Protocol Library Against the Concurrency Ceiling | 1 | 2026-08-21 | [np_ses_pwr_001.md](./np_ses_pwr_001.md) | DESIGN STUDY | SES |
 | NP-SOUP-CMSIS-001 | CMSIS SOUP Anomaly Evaluation — Safety MCU (SW-01, Class C) | 1 | 2026-08-09 | [np_soup_cmsis_001.md](./np_soup_cmsis_001.md) | DRAFT | SPEC-FW |
-| NP-SOUP-LFS-001 | LittleFS SOUP Record and Hazard Analysis — Hub Storage (SW-02, Class B) | 11 | 2026-09-27 | [np_soup_lfs_001.md](./np_soup_lfs_001.md) | DRAFT | SPEC-FW |
+| NP-SOUP-LFS-001 | LittleFS SOUP Record and Hazard Analysis — Hub Storage (SW-02, Class B) | 12 | 2026-09-27 | [np_soup_lfs_001.md](./np_soup_lfs_001.md) | DRAFT | SPEC-FW |
 | NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 25 | 2026-09-26 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |
 | NP-SW-PORTAL-API-001 | Device-Facing Consent Channel — Study Descriptors and Clinician Portal | 2 | 2026-09-14 | [np_sw_portal_api_001.md](./np_sw_portal_api_001.md) | DRAFT | APP |
 | NP-THERM-COOL-001 | Cooling Architecture Options for the Sealed Cavity — Airflow, Liquid, Stored Coolth, and the Ambient Lever | 16 | 2026-09-23 | [np_therm_cool_001.md](./np_therm_cool_001.md) | DRAFT | SPEC-HW |
@@ -576,3 +576,4 @@ Planned near-term additions:
 | 114 | 2026-09-27 | NeurOne Firmware Engineering | **GitHub #384: emitting maintenance tests are dock-only; all maintenance data is SHDR — NP-FW-HUB-001 Rev 16 → 17, NP-FW-BENCH-001 Rev 4 → 5.** The principal dropped the head-presence route for LED-emission tests and ruled all maintenance data SHDR (D-41), on the basis that in a dock nothing measured comes from a person. It is adopted on three conditions: the dock physically excludes a head, the hub detects the dock from hardware, and off the dock only verdicts are kept. Raised `OI-FWHUB-25` (the dock). No code behaviour changed |
 | 115 | 2026-09-27 | NeurOne Firmware Engineering | **NP-FW-HUB-001 Rev 17 → 18: the goggle Hall cutoff is an interrupt.** `REQ-FWHUB-21` and `RISK-FWHUB-09`'s stated control (a GPIO interrupt) did not exist in code; the cutoff was polled at telemetry cadence. SW-02 gains the seam `np_mod_visual_hal_hall_irq_register()` (census 102 → 103), `np_safety_spi_request_disable_from_isr()`, and the ISR in `np_mod_visual.c`. `RISK-FWHUB-09` leaves Accepted for **Open until `OI-FWHUB-26`**, raised for the edge's hardware source, which waits on `NP-FW-BENCH-001` `OI-BENCH-12`. New host target `np_mod_visual_tests`: total 54 → 55 |
 | 116 | 2026-09-27 | NeurOne Firmware Engineering | **NP-SOUP-LFS-001 Rev 10 → 11: `OI-LFS-13` raised (§13.15).** The Config store's single opener passed littlefs a file config on its own stack. littlefs reads it again at every sync and close, so each close read a dead frame as the file's attribute list. The code was fixed in #472. It stays open because `LFS_MKTAG` does not mask size: the defect could have written CRC-valid tags that no integrity check sees. No caller rule or CI leg would have caught it, and §13's sweeps ran with it present. No code behaviour changed in this revision |
+| 117 | 2026-09-27 | NeurOne Firmware Engineering | **NP-SOUP-LFS-001 Rev 11 → 12: `OI-LFS-14` raised and closed (§13.16).** The littlefs sweep verifiers tested atomicity and never durability, so a rollback past a flush that had returned passed, and `L-1`'s durable half was never asserted. Every verifier in the three sweep suites now requires what the mutation was told was durable, and the tear model counts tears that reach committed bytes. The RMW evidence goes from 1 catch of 2 exposed tears to 8 of 8, and every control is 0. Test code only; no firmware behaviour changed |

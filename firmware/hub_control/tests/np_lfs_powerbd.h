@@ -138,6 +138,16 @@ typedef struct {
     long        total_syncs;
     long        total_reads;
     long        total_cuts;
+
+    /* PARTIAL tears whose read-modify-write unit reached programmed bytes
+     * OUTSIDE the program in flight (OI-LFS-14).  Only these can lose data that
+     * was already committed; a tear confined to the write in flight, or to
+     * erased bytes, cannot.  A sweep that expects the RMW unit to lose data
+     * must first show it put committed bytes in harm's way at least once —
+     * otherwise "lost nothing" means the workload missed the hazard, not that
+     * the hazard is absent.  "Programmed" is read as "not 0xFF": a byte that
+     * is erased in both states cannot be lost. */
+    long        rmw_exposed;
 } np_powerbd_t;
 
 #define NP_POWERBD_NO_CUT  (-1L)
