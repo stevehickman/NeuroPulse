@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 13
-**Date:** 2026-09-26
+**Revision:** 17
+**Date:** 2026-09-27
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
 **Author:** NeurOne Firmware Engineering
@@ -16,6 +16,76 @@
 **Parent Document:** `NP-SW-001`
 
 ---
+
+> **Rev 17 (2026-09-27) — emitting maintenance tests are dock-only, and all maintenance data is
+> SHDR (#384; §6.9).**
+> - **The LED-emission test runs only in a dock the hub detects from hardware**, and never on a
+>   head. The head-presence route of Rev 16 is dropped (principal).
+> - **All maintenance data is SHDR** (D-41), adopting the principal's Rev 16 proposal. It holds
+>   because no maintenance output can come from a person: an emitting test measures only the dock,
+>   and the dock physically excludes a head. Away from the dock a test keeps a verdict and discards
+>   the raw reading. Classification still never rests on a claim, which `NP-FW-BENCH-001` D-9
+>   requires: "docked" is a hardware signal the hub reads itself.
+> - **New hardware dependency:** the dock and its detection, which do not exist (`OI-FWHUB-25`).
+>   The LED test stays refused until they do.
+
+> **Rev 16 (2026-09-27) — maintenance self-tests for the warranty owner, and F9 back to SHDR (#384;
+> new §6.9).**
+> - **Maintenance self-tests** (`np_pst_maint_run()`, §6.9). The warranty owner picks tiles and tests
+>   from the app. The non-emitting tests (I²C probe, calibration source, NTC plausible) run here, on
+>   or off head. The **LED-emission** test must run as a signed maintenance session, with the
+>   head-presence gate passing or the helmet in a detected dock (principal, 2026-09-27). Neither
+>   exists yet, so it is refused (`REQ-FWHUB-49`, `OI-FWHUB-20`). **The automatic idle pass no
+>   longer tries to emit.** It runs the non-emitting tests on every occupied tile.
+> - **The tile record is latest state, not a log.** `0x87` drops the session count and gains one
+>   verdict per test, so the fleet upserts one row per (device, socket). A maintenance run writes no
+>   SHDR of its own. The next pass records the whole lattice, never the subset a person chose to
+>   test (D-38).
+> - **F9 is SHDR as originally decided**: the PD1/PD2 ratio trend slope and the fouling/aging flag,
+>   per tile, through the latest-state record only. No code computes them yet (`OI-FWHUB-24`).
+> - **Pending, not adopted:** the principal proposed that all maintenance data go to SHDR. That
+>   conflicts with CLAUDE.md §5.1 and `NP-FW-BENCH-001` D-9 for any biology-bearing output measured
+>   on a head. No test in the catalogue has such an output, so nothing built here depends on the
+>   answer (§6.9).
+
+> **Rev 15 (2026-09-27) — the socket lattice is metered, and what it records follows the
+> principal's field rulings (#384, `OI-FWHUB-10` closed; new §6.8).**
+> - **Dose metering on the socket path** (`src/np_pbm_socket_telem.c`, `REQ-FWHUB-47`). Every driven
+>   socket gets a `np_pbm_dose_tick()` every 100 ms against its module's UID-keyed calibration. A
+>   wavelength that reaches its limit is latched off, and an NTC at 62 °C, or one that can't be
+>   read, latches the whole tile off. **Before a socket is lit** its NTC is checked, and it gets a
+>   metering slot. A socket that fails either is not driven (`REQ-FWHUB-46`).
+> - **Where each field goes** was ruled field by field (§6.8, F1–F14). The rule that decides it: at
+>   80 sockets, a per-socket value that exists only for lit sockets reconstructs the treatment
+>   montage. So the session writes one UHDR record per socket (`0x1A`) and, to SHDR, only counts
+>   with no location (`0x88`, every session, PBM or not) and faults with no socket. Per-socket SHDR
+>   comes only from an **idle pass over every occupied socket** (`0x87`: tile kind, probe,
+>   calibration source, PD1-only self-test). `REQ-FWHUB-48`.
+> - **The PD1/PD2 ratio is UHDR** (F9). PD2 is scalp backscatter. The PBM library's SHDR write of it
+>   is removed, and so is its field in `np_pbm_socket_shdr_t` (`NP-FW-PBM1064-001` Rev 5).
+> - **Not closed here.** The self-test emits nothing until someone decides it may light a tile outside
+>   a session (`OI-FWHUB-20`). The PBM library's session summary still lists active sockets and must
+>   not be written as shaped (`OI-FWHUB-21`). The dose model integrates every wavelength from one PD
+>   pair (`OI-FWHUB-22`). The cluster frame behind the two new seams is target HAL, and it traps
+>   today. New host target `np_pbm_socket_telem_tests` (Class B 42 → 43, total 53 → 54).
+
+> **Rev 14 (2026-09-26) — the session logger has a lock, and the heartbeat never waits on it
+> (#384, `OI-FWHUB-19` closed; new §6.7).**
+> - **Every logger entry point holds one recursive lock** (`np_log_set_lock()`; a FreeRTOS
+>   recursive mutex on target), and so do the adaptation ring's functions. A runner record can no
+>   longer land inside `task_telemetry`'s drain, and a detect-task auth record can no longer tear an
+>   SHDR record under construction (`REQ-FWHUB-44`).
+> - **`np_log_shdr_fault()` never takes that lock** (`REQ-FWHUB-45`). The heartbeat calls it, and
+>   the holder can be inside an eMMC sync. It copies the record into a 32-entry queue under a
+>   critical section a few stores long, and the next caller to take the lock writes it. The SHDR
+>   record layout is unchanged. A full queue keeps the faults it holds and counts the rest.
+> - **What this costs.** The runner now waits for `task_telemetry`'s periodic sync when it logs
+>   during one (priority inheritance lifts telemetry for the wait). It already waited for its own
+>   syncs on buffer overflow. §2.2's "the runner never blocks on eMMC" was never true, and it is
+>   corrected.
+> - **Not closed here:** the heartbeat's worst case is still unmeasured (`FWHUB-DRC-02`, hardware).
+>   The lock is not in any host test's scheduler, so what the host tests show is that the lock is
+>   *held* at every entry and every medium operation, not that FreeRTOS enforces it.
 
 > **Rev 12 (2026-09-26) — module detection is kept off a session by exclusion, the EEG logger path
 > refuses an ISR caller, and the dead zone-announce hooks are gone (#384).**
@@ -305,7 +375,7 @@ comment a reader starts from is cheap to make and invisible to every other check
 | `task_safety_heartbeat` | 4 (`NP_HUB_TASK_PRIO_HEARTBEAT`) | 256 | one SPI heartbeat every `NP_SAFETY_HEARTBEAT_MS` (200 ms); mirrors the cVNS re-enable bit; hands the granted mask, MCU status and MCU impedance report to `np_mod_cvns`; posts `NP_EV_SAFETY_FAULT` on a fault reply |
 | `task_hub_control` | 3 (`..._PRIO_CONTROL`) | 1024 | waits on `NP_EV_SESSION_START`, then `np_runner_run()` until the session completes or aborts |
 | `task_protocol_rx` | 2 (`..._PRIO_CONTROL - 1`) | 1024 | blocks in `np_hal_proto_queue_receive()` on `portMAX_DELAY`; on a blob calls `np_runner_load()` (which verifies the signature and posts `NP_EV_SESSION_START`), then **zeroes the receive buffer** so no plaintext protocol is left in RAM |
-| `task_telemetry` | 2 | 512 | `np_log_flush()` on the `NP_LOG_UHDR_FLUSH_MS` / `NP_LOG_SHDR_FLUSH_MS` intervals, so the runner never blocks on eMMC |
+| `task_telemetry` | 2 | 512 | `np_log_flush()` every `NP_LOG_UHDR_FLUSH_MS` (30 s), under the logger lock (§6.7). **(Rev 14.** This row said "so the runner never blocks on eMMC". It does: on its own buffer overflows, and now on this task's sync when it logs during one. `NP_LOG_SHDR_FLUSH_MS` is defined and not used by any task.) |
 | `task_module_detect` | 1 | 512 | every `NP_DETECT_ACCESSORY_POLL_MS` (500 ms), re-probes accessory slots 7–18 with `np_mod_reg_rescan_slot()` (§3.2) while the runner is `IDLE`, `COMPLETE` or `FAULT`. The state is re-read before each slot, and the pass stops as soon as a session is in flight. **(Rev 8.** It used to skip only `RUNNING`, and every rescan it issued was refused: `OI-FWHUB-16`.) |
 
 Receiving and running are **separate tasks on purpose**: `np_runner_run()` blocks for the whole
@@ -430,7 +500,8 @@ A tile is identified by its UID in the `np_module_map` inventory, not by a pass/
 there is no result to log. A per-socket inventory record in SHDR would be a **new SHDR field**, and
 that is a CLAUDE.md §5.1 classification question (which socket a tile sits in can show how the
 headset is fitted), not a logging detail. It belongs with the other socket-path telemetry in
-`OI-FWHUB-10`. Accessories that do authenticate, the intranasal probe and the cervical VNS cuff,
+`OI-FWHUB-10`. **(Rev 15: answered.** The principal ruled occupancy and tile kind SHDR-class, written
+only by the idle pass over every occupied socket, with no UID: `0x87`, §6.8.) Accessories that do authenticate, the intranasal probe and the cervical VNS cuff,
 write `np_log_shdr_zone_auth()` from their own `init()`.
 
 `np_mod_reg_rescan_slot()` re-probes one slot without a full rescan. `task_module_detect` calls it
@@ -549,8 +620,8 @@ address, which the HAL tunnels through the socket's cluster controller (`NP-HW-H
 seam, `np_mod_pbm_hal_socket_pwm_set()` (`OI-PBM-HAL-04`; SW-02 census 97 → 98). Neither touches the
 safety enable.
 
-**What this registry does not do yet** — each raised, none silently absorbed: per-socket telemetry and
-dose metering (`OI-FWHUB-10`), commanding the per-cluster Class B gate (`OI-FWHUB-11`), and anything
+**What this registry does not do yet** — each raised, none silently absorbed: ~~per-socket telemetry and
+dose metering (`OI-FWHUB-10`)~~ (Rev 15: done by the driver and `np_pbm_socket_telem.c`, §6.8), commanding the per-cluster Class B gate (`OI-FWHUB-11`), and anything
 on hardware at all, since every seam beneath it is a platform trap.
 
 ---
@@ -881,7 +952,8 @@ Two 4 KiB static buffers (`s_uhdr_buf`, `s_shdr_buf`), each record prefixed by a
 | `0x11` session end | `0x16` visual | `0x81` PBM health | `0x84` NTC peak |
 | `0x12` EEG band | `0x17` EEG impedance | `0x82` fault | `0x85` EEG calibration |
 | `0x13` PBM dose | `0x18` adaptation event | | `0x86` session open *(Rev 9)* |
-| `0x14` VNS/HRV | `0x19` command *(Rev 9)* | | |
+| `0x14` VNS/HRV | `0x19` command *(Rev 9)* | `0x87` PBM tile health *(Rev 15)* | `0x88` PBM session counts *(Rev 15)* |
+| `0x1A` PBM socket *(Rev 15)* | | | |
 
 **`0x19` command — the commanded dose (Rev 9, `OI-FMEA-09`).** The runner writes one record per
 dispatched command: `session_ms` (4), `mod_type`, `target_kind`, `slot_id`, `accepted` (1 each),
@@ -1126,6 +1198,227 @@ far below this limit, and a new locale key needs all eleven locales (CLAUDE.md �
 ever legitimately runs near 49 hours, that key becomes worth adding, and this section is where its
 figure comes from.
 
+### 6.7 Concurrency — the logger lock and the fault queue *(Rev 14, `OI-FWHUB-19`)*
+
+**Who calls the logger.** Four tasks, on the linked image:
+
+| Task | Priority | Logger calls |
+|---|---|---|
+| `task_safety_heartbeat` | 4 | `np_log_shdr_fault()` through `log_cvns_event()` |
+| `task_hub_control` (runner) | 3 | session start and end, `np_log_command()`, `np_log_telemetry()`, `np_log_shdr_fault()` (and module drivers' faults), `np_log_flush()` |
+| `task_telemetry` | 2 | `np_log_flush()` every 30 s |
+| `task_module_detect` | 1 | `np_log_shdr_zone_auth()` through accessory `init()` |
+
+The EEG drain task (§8.2) will be a fifth when the DMA driver exists (`OI-EEG-03`).
+
+**The rule.** Every entry point that touches logger state holds **one recursive lock** for its
+whole body: `np_log_session_start()`, `_session_end()`, `_command()`, `_telemetry()`,
+`_eeg_sample_block()`, `_shdr_zone_auth()`, `_adapt_event()`, `_flush()` and `_init()`. So do
+`np_adapt_log_event()`, `_flush()` and `_reset()`. The lock must be recursive, because
+`np_log_flush()` drains the adaptation ring and the ring writes each event through
+`np_log_adapt_event()`. On target it is a FreeRTOS recursive mutex. It is installed by
+`np_hub_control_app_main()` after the registry scan and before the first `xTaskCreate()`. Bring-up
+is single-context, and a recursive mutex taken before the scheduler has a current task would see a
+NULL holder equal to a NULL current task. `np_log_eeg_sample_block()` makes its ISR check before it
+takes the lock, because a mutex cannot be taken from an interrupt (`REQ-FWHUB-43`).
+
+**The exception: SHDR faults.** The heartbeat must never block beyond one period
+(`REQ-FWHUB-02`), and the lock's holder can be inside an eMMC sync. `np_log_session_start()` alone
+syncs twice and can probe up to `NP_LOG_SESSION_PROBE_MAX` file names. So `np_log_shdr_fault()`
+never takes the lock, for any caller. It stamps the record with the session count in force and
+copies it into a queue of `NP_LOG_FAULT_QUEUE_MAX` (32) entries. The copy runs under a critical
+section that raises BASEPRI (`portSET_INTERRUPT_MASK_FROM_ISR`) for a few stores. That is legal from
+a task or from an ISR at or below `configMAX_SYSCALL_INTERRUPT_PRIORITY`. The **outermost** take of
+the lock moves the queue into `s_shdr_buf`, in order. So queued faults are written at the runner's
+tick rate during a session, ahead of the record the taker is about to write. In particular they are
+written before `SESSION_END` for the session they were logged in. Idle, they are written by the next
+periodic flush.
+
+**What changes in SHDR.** The record layout does not change. A fault record can now follow an SHDR
+record that was logged after it, within one drain. SHDR records carry the session count and no
+timestamp (§6.3), so no reader could order records within a session anyway. A fault still precedes
+its session's `SESSION_END`, which is the ordering `REQ-FWHUB-40`'s OPEN/END pairing depends on.
+
+**A full queue** keeps the faults it holds and counts the newer ones it refuses
+(`np_log_shdr_fault_dropped()`, cleared by `np_log_init()`). The first fault of a burst is the
+diagnostic one. The refused count is **not** written to SHDR, because that would be a new SHDR
+field and would need classifying under CLAUDE.md §5.1 first. The queue does not fill in practice:
+the heartbeat logs cVNS re-enable *transitions*, a handful per cutoff under a 30 s lockout, and the
+runner drains the queue every tick.
+
+**What it costs the runner.** A runner record logged during `task_telemetry`'s sync waits for that
+sync. Priority inheritance lifts telemetry to 3 for the wait. The runner already waited for its own
+syncs on a 4 KiB overflow, so this adds a wait of the same kind, once per 30 s. Stimulation safety
+does not depend on the runner's tick: the safety MCU owns every enable line (CLAUDE.md §4.2).
+
+**Verified on the host** by `np_log_backend_tests`, with a counting stub lock and an I/O hook in
+the backend's host model. Each entry above takes the lock and releases it balanced.
+`np_log_shdr_fault()` takes it zero times. No eMMC append or sync runs with it free. A fault
+injected at the point a heartbeat would preempt `task_telemetry`'s UHDR sync neither takes the lock
+nor touches the SHDR stream, and the next holder writes it once, with the count it was logged
+under. A fault queued in a session precedes that session's `SESSION_END`. A full queue keeps the
+oldest 32 faults in order and counts 8 drops of 40. **Falsified:** seven mutants each fail it: the
+command record unlocked, the flush unlocked, the ring's producer unlocked, a fault that takes the
+lock, a fault written straight into the buffer, a take that does not drain the queue, and a full
+queue that overwrites its oldest entry. **Not verified:** that FreeRTOS enforces the lock (no host
+test runs the tasks), and the heartbeat's worst case on hardware (`FWHUB-DRC-02`).
+
+### 6.8 Socket-path PBM telemetry and its classification *(Rev 15, `OI-FWHUB-10`)*
+
+**The field rulings.** The principal ruled each field on 2026-09-27. Rulings apply to the socket
+lattice. The slot path's `0x13` / `0x81` records are unreachable and are left as the historical
+format. The rulings are also recorded in `data-architecture-detail.md` §5.1.
+
+| # | Field | Ruling | Why |
+|---|---|---|---|
+| F1 | IDs of the sockets driven (the montage) | UHDR | Where on the head was treated; the cVNS pad-side precedent |
+| F2 | Cumulative dose, J/cm², per socket per wavelength | UHDR | "PBM dose per zone"; fleet schema DOSE-01 |
+| F3 | Measured irradiance per socket per wavelength | UHDR | Treatment received |
+| F4 | Dose limit reached, per socket per wavelength | UHDR | Treatment received |
+| F5 | Raw PD1/PD2 counts per sample | Not stored | Dose is derived on the device; PD2 is tissue signal |
+| F6 | TIA gain used per sample | Not stored | Auto-ranging follows PD2 |
+| F7 | Per-socket NTC, now and session peak | UHDR | Scalp-contact temperature, and a hot socket is a lit socket |
+| F8 | Which socket throttled or was refused as hot | UHDR | A lit socket |
+| F9 | PD1/PD2 ratio **trend slope** against `K_ratio_nom`, and the fouling/aging flag | **SHDR** (Rev 16: as originally decided, `NP-FW-PBM1064-001` §9.3; ruled UHDR and reversed the same day) | Per tile, only in the idle latest-state record, never from session data. The per-session ratio series stays UHDR. *Residual:* §5.1 rule 1's positive demonstration is not on file, and PD2 is scalp backscatter. Not yet computed (`OI-FWHUB-24`) |
+| F10 | PD1 alone, against `K_PD1`, from the **LED-emission maintenance test** (Rev 16; was an idle self-test) | SHDR | Forward emission only, and the warranty owner runs it outside sessions (§6.9) |
+| F11 | Driving faults (OCP, driver, STATUS register) | SHDR as modality + code, no socket | Happen only on lit sockets |
+| F11b | I²C probe failure, from a probe of every occupied socket | SHDR with socket | Independent of what was lit |
+| F12 | Calibration source per module | SHDR, at inventory time | Device state |
+| F13 | Per-session event counts | SHDR | Counts with no location |
+| F13b | Number of sockets active in a session | UHDR | A protocol parameter; derivable from the `0x1A` records |
+| F14 | Occupancy: tile kind, module changed | SHDR-class, idle pass only | "Where a module sits" (fleet schema); no UID (`OI-UPG-07`) |
+
+**Session side — `np_pbm_socket_telem.c`, runner context.**
+- `np_mod_pbm_socket_drive()` reads the socket's NTC first. At or over `NP_PBM_THERMAL_CUTOFF_C`
+  (65 °C), or unreadable, the drive is refused before the tile is written. It then takes a metering
+  slot (`np_pst_track()`, 32 slots, the PBM library's own session bound). With no slot, the drive
+  is refused too, so no socket is lit unmetered (`REQ-FWHUB-46`). A refusal writes nothing to SHDR
+  except its count. The dispatcher rolls the command back as it does any driver fault (§3.4).
+- `np_pst_dose_poll()`, every runner iteration, runs `np_pbm_dose_tick()` for each driven socket
+  once per `NP_PBM_DOSE_TICK_MS` (100 ms). It catches up at most 10 ticks. Past that the gap is not
+  integrated, so dose is under-counted, never over-counted. Calibration is loaded by module UID
+  when the socket is first driven in the session (OI-HUB-C06). A newly reached wavelength limit
+  latches that channel (`np_mod_pbm_socket_disable_channel()`, 660 → A, 808 → B, 1064 → C).
+  `np_pbm_dose_tick()` stops at the first new limit, so each further limit follows within a tick.
+  An NTC at or over `NP_PBM_THERMAL_FAULT_C` (62 °C), or unreadable, latches every channel and
+  counts one throttle (`REQ-FWHUB-47`). The hardware limits below this processor are unaffected.
+- **"Not measured" is not zero.** A PD that cannot be read clears that wavelength's `PD_VALID`
+  bit, books no dose, and writes irradiance 0. A base tile's 1064 nm row is always not measured,
+  because the tile has no 1064 nm emitter.
+- **`0x1A` PBM socket (UHDR)**, one per tracked socket at the runner's 1 s telemetry interval and
+  once more at session end: `session_ms` (4), socket (1), kind (1), flags (1: PD valid ×3, limit
+  ×3, throttled, NTC valid), NTC (4), NTC peak (4), dose ×3 (12), irradiance ×3 (12). That is
+  40 B with the tag.
+- **`0x88` PBM session counts (SHDR)**, at **every** session end, PBM or not: session count (4),
+  throttle events (2), pre-drive refusals (2), drive faults (2). Written unconditionally so that
+  its presence is not a function of the modality (CLAUDE.md §5.1 rule 2).
+- **A driving fault** reaches SHDR through `np_log_shdr_fault()` as `NP_HUB_SLOT_NONE`, the
+  modality and `NP_PBM_SHDR_EV_DRIVE_FAULT` (`0x02`). The PBM library's own fault seam
+  (`np_pbm_hal_shdr_log_fault()`, a stub) now states the same contract for its target
+  implementation.
+
+**Idle side — `task_module_detect`, under the session lease.** `np_pst_health_step()` checks one
+socket per lease hold. The pass is pending from boot, and `np_pst_health_request()` asks for
+another. It runs the **non-emitting** maintenance tests (§6.9) on every occupied PBM tile and writes
+that tile's **latest state** as **`0x87` PBM tile health (SHDR)**: socket (1), kind (1), flags (1:
+first pass since boot, module changed since the last pass), four verdicts (probe, calibration, NTC,
+LED; `np_maint_verdict_t`), calibration source (1), PD1 ×3 (3, 255 = not measured). That is 12 B.
+**Rev 16:** the session count is gone, so the fleet can upsert one row per (device, socket) without
+the rows becoming a timeline (D-38). The pass **never emits**: the LED verdict and PD1 values are
+the latest from a maintenance run, and today always `NOT_RUN`, `REFUSED` or not measured. No module
+UID is written (`OI-UPG-07`). **The pass reads no session state**, so the bytes it writes are the
+same whichever sockets a session lit, and a test pins that. The module map has no production call
+site yet (`OI-HEXMAP-02`), so on today's image the pass finds no occupied socket and writes
+nothing.
+
+**Two new platform seams** (census 100 → 102): `np_mod_pbm_hal_socket_ntc_read()` and
+`np_mod_pbm_hal_socket_selftest_pd1()`. Both are served by the socket's cluster controller from
+`np_hub_cluster_read_frame()` (`NP-HW-HUB-001` §9.3). Both trap on today's image, as every
+undriven seam does. The socket path is closed at the power gate (`OI-FWHUB-09`), so nothing
+reaches the NTC seam in a session. **The self-test seam must return an error without driving the
+tile until `OI-FWHUB-20` is decided.**
+
+**Verified on the host** by `np_pbm_socket_telem_tests` (Rev 16: 36 checks; the real logger,
+backend host model, dose model and session lease; the module map, driver and seams as doubles) and
+by four new cases in `np_mod_pbm_chlatch_tests`. **Falsified:** 16 mutants in Rev 15 and 8 more in
+Rev 16 (§6.9), each caught. They cover:
+- the health pass skipping a socket a session lit;
+- the socket record written to SHDR;
+- the counts skipped for a session with no PBM;
+- an unreadable NTC treated as cool, in the tick and before the drive;
+- a base tile booking 1064 nm;
+- a full pool admitting a drive, and a failed track ignored;
+- a dose limit not latched;
+- `PD_VALID` set before the reads;
+- a stopped socket still ticked, and a stop that does not untrack;
+- an electrode tile given a health record;
+- a module swap not flagged;
+- a drive fault carrying its socket, and the pre-drive check removed.
+
+**Not verified:** any of it on hardware, including CLAUDE.md §3's dual-PD dose-metering claim.
+The photodiode may not respond at 660/808 nm at all (`OI-HEXTILE-26`, #435), in which case those
+rows read "not measured".
+
+### 6.9 Maintenance self-tests *(Rev 16)*
+
+**What the principal decided (2026-09-27).** There is a self-test function outside sessions. It is
+selected from a maintenance section of the app, over **all tiles or any subset**, and **all tests
+or any subset**. It is for warranty owners to diagnose their own device. The four design questions
+were answered as follows:
+
+| Question | Decision | Consequence |
+|---|---|---|
+| How does an emitting test reach the hardware? | **As a signed maintenance session**, through the normal session path | The safety MCU, charge ceilings, thermal cutoff and signature check apply unchanged. No Class C change, and no app-side path around the safety MCU (CLAUDE.md §4.2). Non-emitting tests need no session |
+| Which tests may emit? | **Non-emitting tests anywhere. Emitting tests only in a dock the hub detects from hardware — never on a head** (Rev 17; Rev 16 also allowed the head-presence gate) | A bare-bench LED test would shine an invisible 808 nm source at whoever holds the helmet, and an on-head one would measure the wearer. In a closed dock it measures only the dock |
+| How are results recorded? | **One latest-state row per tile in SHDR, and no per-run log** | `0x87` carries no session count and no run identifier. A run writes no SHDR of its own; the next idle pass writes every occupied tile (D-38). What remains is a diff between two uploads, which is far coarser than a log |
+| Who may run tests and see results? | **The warranty owner only** | An app-side gate. The hub cannot tell who holds the phone, and the gate is not a safety control, because no test here emits or drives current |
+
+**The catalogue** (`np_maint_test_t`). Every output is a device verdict. The NTC test keeps a verdict
+and discards the reading.
+
+| Test | Emits? | Runs where | Output | Class |
+|---|---|---|---|---|
+| `PROBE` — I²C probe of a smart tile's MCU | no | anywhere | pass / fail / n.a. (base tile) | SHDR (F11b) |
+| `CAL` — the module's calibration source | no | anywhere | pass = factory, fail = defaults | SHDR (F12) |
+| `NTC` — reads, is finite, is below `NP_PBM_THERMAL_FAULT_C` | no | anywhere | pass / fail; **reading discarded** | SHDR (verdict) |
+| `LED` — PD1 per wavelength at a fixed test setpoint | **yes** | signed maintenance session, **docked only** | PD1 × `K_PD1`, percent of expected | SHDR (F10) — **refused in this build** |
+
+**`np_pst_maint_run()`** takes a 128-bit socket mask and a test mask. It runs the selected tests on
+each selected socket that holds a PBM tile, **one socket per session-lease hold**, so a load waits
+for one tile at most and no test runs while a session holds the lease. Empty and non-PBM sockets are
+skipped. It reports each tile's state through a callback for the app to display. The emitting test
+is answered `REFUSED`, and a verdict already earned is kept. It then requests a health pass. **Not
+built:** the transport message, the result notification and the app's maintenance section, with its
+warranty-owner gate (`OI-FWHUB-23`); and the maintenance session kind and the emitting path
+(`OI-FWHUB-20`).
+
+**All maintenance data is SHDR (Rev 17, D-41).** The principal ruled that everything a maintenance
+run produces is SHDR. The Rev 16 objection was that a biology-bearing measurement taken on a head
+says the same about the wearer in a maintenance run as in a therapy session. That objection falls
+away once no maintenance output can be taken from a person, which three conditions guarantee:
+1. **An emitting test runs only in the dock**, and the dock physically excludes a head, for example
+   by closing over the inner bowl. PD1, PD2 and every emitter then see the dock's surfaces, not a
+   scalp.
+2. **"Docked" is a hardware signal the hub reads itself**, never the app's or the user's say-so. That
+   is what keeps this compatible with `NP-FW-BENCH-001` D-9, which forbids classifying by a claimed
+   mode: the condition is physical, and the hub verifies it.
+3. **Away from the dock, a test keeps a verdict and discards the raw reading.** The NTC test already
+   works this way, and a future non-emitting test that reads electrode impedance, or anything else
+   that touches skin, must too.
+
+A test that cannot meet all three does not belong in the maintenance catalogue.
+
+**Verified on the host** by `np_pbm_socket_telem_tests`. **Falsified:** 8 mutants, each caught. They
+cover:
+- a run writing SHDR per run;
+- the session count put back in `0x87`;
+- a run ignoring the lease;
+- a run ignoring the socket selection;
+- a run ignoring the test selection;
+- the emitting test not refused;
+- the idle pass writing only the tested tiles;
+- the NTC test ignoring the fault threshold.
+
 ## 7. Safety MCU interface
 
 The hub is always SPI master; the STM32G071 is slave. Two frame types.
@@ -1277,7 +1570,8 @@ touching any of them. The ISR check is the hook set by `np_log_set_isr_check()`.
 silently dropping a block. `np_log_backend_tests` pins the refusal. **Not built:** the queue and
 the task that drains it. They wait on the DMA driver (`OI-EEG-03`), and no call site exists. The
 queue must be deep enough to absorb the drain task waiting on a UHDR sync. **The task side is not
-single-context either** (`OI-FWHUB-19`), so the drain task inherits that item. This driver handles
+single-context either** (`OI-FWHUB-19`, closed in Rev 14): the drain task takes the logger lock
+like every other caller (§6.7). This driver handles
 configuration, impedance reads and band-power computation for adaptive feedback.
 
 Self-calibration at session start routes the ADS1299 internal reference to all channels for one
@@ -1519,6 +1813,12 @@ this line.
 | `REQ-FWHUB-41` | **(Rev 9)** Delivered BES/tACS or tDCS current exceeding commanded raises an SHDR divergence flag: once per channel per session, a flag with no magnitude or timestamp, and not raised by a ramp-down the driver is still running. *Fails without it:* FMEA-M03-02's residual score rests on a control that does not exist (`NP-FMEA-001` §3.3). The thresholds are placeholders and are not part of this requirement (§8.3.1) | `np_stim_xcheck.c`; `np_stim_xcheck_tests`, `np_mod_stim_tests` |
 | `REQ-FWHUB-42` | **(Rev 11)** Consecutive heartbeats never carry the same `session_status` sequence counter (bits 5–7): it advances on every frame built, including one whose transfer failed. *Fails without it:* the safety MCU's sequence gate (`NP-FMEA-001` FMEA-M02-03) rejects the repeat as a stuck buffer, so a retried frame stops resetting the watchdog and a live hub trips a 1.5 s all-channel cutoff. *Traceable to:* `NP-FMEA-001` FMEA-M02-03, OI-FMEA-12 (a); verified by `np_cvns_reenable_tests` (*seq:* checks) and by the counter increment in `np_safety_spi_heartbeat()` preceding the transfer | `np_safety_spi.c` |
 | `REQ-FWHUB-43` | **(Rev 12)** `np_log_eeg_sample_block()` called from an ISR is refused before it touches the adaptation ring, `s_uhdr_buf` or the backend staging. *Fails without it:* a block landing during a task's `uhdr_write()` corrupts the UHDR record under construction, and the session file is no longer parseable past it (§6.5). Traceable to §6.5's ordering argument, which holds only for callers that cannot interrupt one another | §8.2; `np_log_backend_tests` |
+| `REQ-FWHUB-44` | **(Rev 14)** Every session-logger and adaptation-ring entry point that touches logger state holds the logger lock for its whole body, and every eMMC append and sync runs under it. *Fails without it:* `task_hub_control` preempts `task_telemetry` mid-drain and writes `s_uhdr_buf` / `s_uhdr_pos` under it, tearing a UHDR record or losing buffered bytes, and the session file is not parseable past the tear (§6.5's ordering argument holds only for callers that cannot interleave). Traceable to §6.5 and to `OI-FWHUB-19`'s four-task census (§6.7) | §6.7; `np_log_backend_tests` |
+| `REQ-FWHUB-45` | **(Rev 14)** `np_log_shdr_fault()` never takes the logger lock. It queues the record under a critical section and returns. The next lock holder writes it, before the `SESSION_END` of the session it was logged in. *Fails without it:* the heartbeat waits behind an eMMC sync, and a wait past `NP_SAFETY_WATCHDOG_MS` makes the safety MCU cut every channel (`REQ-FWHUB-02`). A fault written after `SESSION_END` would read as belonging to no session (`REQ-FWHUB-40`) | §6.7; `np_log_backend_tests` |
+| `REQ-FWHUB-46` | **(Rev 15)** A lattice socket is lit only after its NTC reads below `NP_PBM_THERMAL_CUTOFF_C` and it holds a metering slot. An unreadable NTC refuses the drive. *Fails without it:* a tile already at cutoff is re-lit, which the slot path's pre-drive check prevented and the socket path lacked (`OI-FWHUB-10`). And a socket lit without metering has no per-wavelength dose limit (`NP-FW-PBM1064-001` §6.5). *Traceable to:* §8.1's slot-path check; `NP-FW-PBM1064-001` §6.5 | §6.8; `np_mod_pbm_chlatch_tests` |
+| `REQ-FWHUB-47` | **(Rev 15)** Every driven lattice socket is metered each `NP_PBM_DOSE_TICK_MS`. A wavelength that reaches its dose limit is latched off, and an NTC at or over `NP_PBM_THERMAL_FAULT_C`, or unreadable, latches every channel. *Fails without it:* `NP-FW-PBM1064-001` §6.5's per-wavelength dose limits and the run-time thermal throttle are not enforced anywhere on the lattice. *Traceable to:* `NP-FW-PBM1064-001` §6.5; `NP-HW-HUB-001` §9.3 (the 10 Hz dose tick) | §6.8; `np_pbm_socket_telem_tests` |
+| `REQ-FWHUB-48` | **(Rev 15)** No SHDR record written from session data carries a lattice socket. Per-socket SHDR comes only from the idle pass over every occupied socket, and the PBM session-count record is written at every session end. *Fails without it:* SHDR reconstructs the treatment montage and, from it, the indication (CLAUDE.md §5.1 rule 2; fleet schema DOSE-01; principal rulings F1, F8, F11, F13b of 2026-09-27) | §6.8; `np_pbm_socket_telem_tests` (the pass is byte-identical before and after a session), `np_mod_pbm_chlatch_tests` |
+| `REQ-FWHUB-49` | **(Rev 16; Rev 17: docked only)** A maintenance test that emits runs only as a signed maintenance session with the helmet in a dock the hub detects from hardware, never on a head; until that path exists it is refused. No maintenance test runs while a session holds the lease, and away from the dock a maintenance test records a verdict, never a raw reading. *Fails without it:* an app request lights a tile outside every session interlock, contrary to CLAUDE.md §4.2's "no app-side path may bypass" the safety MCU; off the dock an invisible 808 nm source faces whoever holds the helmet (`NP-FW-BENCH-001` §7.1 rows 4–5); and a reading taken from a person would be SHDR under D-41, whose premise is that none is. *Traceable to:* CLAUDE.md §4.2, §5.1; IEC 62471; `NP-FW-BENCH-001` §7.1, D-9; principal decisions 2026-09-27 | §6.9; `np_pbm_socket_telem_tests` |
 | `REQ-FWHUB-28` | **(Rev 7)** The wire format has a mechanical agreement check against `hubCompiler.ts`, falsified in both directions per `NP-CONV-001` §8. *Fails without it:* the two implementations agree only by inspection, and a length or offset drift surfaces on a device as `INVALID_ARG` | §4.6; `scripts/check-hub-wire-format.ts` (15 perturbation fixtures) |
 
 ### 10.2 Requirements the code does NOT currently meet
@@ -1588,6 +1888,14 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | D-31 | **(Rev 8)** Detection runs only in `IDLE`, `COMPLETE` and `FAULT`, and re-reads the state before each slot — not only outside `RUNNING`. **Superseded by D-32 (Rev 12)** | §2.2 |
 | D-32 | **(Rev 12)** Detection and the session exclude each other through a lease claimed at load and released at session end, with the lock held across each single-slot probe. A mutex, not a binary semaphore, so the waiting loader lends its priority to the probe | §2.2 |
 | D-33 | **(Rev 12)** The EEG DMA ISR hands blocks to a task through a queue and never calls the logger. The alternative, an ISR-safe logger lock, would mean a critical section around a path that appends to eMMC staging | §8.2 |
+| D-35 | **(Rev 15)** LED health reaches SHDR from an idle self-test over every occupied socket, not from session data. A session-derived value would upload an update pattern that follows the lit sockets. Principal decision, 2026-09-27 | §6.8 |
+| D-37 | **(Rev 16)** **Supersedes D-35.** LED health comes from the warranty owner's LED-emission maintenance test, run as a signed maintenance session in a detected dock (Rev 17: docked only), not from an automatic idle self-test. The idle pass never emits. Principal decision, 2026-09-27 | §6.9 |
+| D-41 | **(Rev 17)** All maintenance data is SHDR, because no maintenance output can come from a person: emission only in a hub-detected dock that physically excludes a head, and verdicts only away from it. Principal decision, 2026-09-27 | §6.9 |
+| D-38 | **(Rev 16)** The tile record is latest state: one row per (device, socket), no session count, no run identifier, written by the idle pass over every occupied tile and never by a maintenance run. Principal decision, 2026-09-27 | §6.8, §6.9 |
+| D-39 | **(Rev 16)** Maintenance tests are the warranty owner's, gated in the app. The gate is not a safety control and the hub does not enforce it | §6.9 |
+| D-40 | **(Rev 16)** F9 is SHDR as originally decided (`NP-FW-PBM1064-001` §9.3): the ratio trend slope and fouling/aging flag, per tile, through the latest-state record only. Principal, 2026-09-27, reversing that day's UHDR ruling | §6.8 |
+| D-36 | **(Rev 15)** A socket that cannot be metered, or whose NTC cannot be read, is not lit. Both fail closed, like the power governor (D-27) | §6.8 |
+| D-34 | **(Rev 14)** One recursive logger mutex for every task, plus a critical-section fault queue that the heartbeat uses instead of the mutex. Rejected: moving the periodic flush into the runner, which removes one of four callers and leaves the heartbeat and detect tasks racing; and a queue for every record, which copies the 12 KB/s EEG path | §6.7 |
 
 ---
 
@@ -1610,6 +1918,8 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | `RISK-FWHUB-11` | Boot-time module authentication is not evidenced in fleet telemetry | Low | **was unmitigated — the records were discarded.** Fixed 2026-09-14 (§2.1) and held by `scripts/check-hub-bringup-order.ts`, falsified against the pre-fix commit | Accepted; records-integrity only, no emission path |
 | `RISK-FWHUB-10` | Per-tile PBM drive magnitude bounded only by a thermal cutoff | Medium | carried, not closed — `OI-NVRAM-10`; re-derive §9 before a differing tile variant ships. **2026-09-24: control decided** — a hardware peak-current reference and gate-duty limit per tile channel (`NP-HW-HEXTILE-001` D-9, `REQ-TDRV-01`/`-02`, `NP-SOUP-LFS-001` §13.14). This row closes when `OI-HEXTILE-24` verifies them on hardware | **Open** (control decided, not built) |
 | `RISK-FWHUB-15` | **(Rev 3)** A fixed electrode area (VNS 0.5 cm², cervical VNS 2 cm², BES 25 cm²) is computed and not sent, so the Class C per-phase ceiling is enforced against the 25 cm² fallback | Medium — **was live** in every session without HD-tDCS or tDCS; no rated dose reached even the intended ceiling (VNS ~3 %) | **Fixed in Rev 3**: every computed area is sent (`REQ-FWHUB-37`), held by `np_chan_decl_tests`, falsified against the old rule | Accepted |
+| `RISK-FWHUB-18` | **(Rev 15)** The UHDR lattice dose is wrong, because the dose model integrates every wavelength from one PD pair | Medium — the user's dose record; the per-wavelength limits trip early (conservatively), not late | Recorded as measured, per wavelength, with `PD_VALID`; a base tile's 1064 nm row is not measured (§6.8) | **Open until `OI-FWHUB-22`** |
+| `RISK-FWHUB-17` | **(Rev 14)** An SHDR fault record is lost because the fault queue was full | Low — records-integrity only; the fault's interlock acted regardless | 32-entry queue drained on every lock take (§6.7); the oldest faults are kept; refusals counted by `np_log_shdr_fault_dropped()` | Accepted. The count is not in SHDR (a new SHDR field, CLAUDE.md §5.1) |
 | `RISK-FWHUB-16` | **(Rev 3)** BES/tACS reaches an electrode smaller than 25 cm² and is enforced against the fallback | High | **not reachable** — tES is not socket-addressable (`REQ-FWHUB-33`); own geometry gate, fail-closed (`REQ-FWHUB-36`); a lattice electrode's area arrives with a tES socket target (`NP-FW-MMSOCK-001` P-2) | Accepted pending SW-01 review |
 
 ---
@@ -1620,7 +1930,13 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 |---|---|---|---|
 | ~~**`OI-FWHUB-01`**~~ | ✅ **CLOSED 2026-09-23 (Rev 2).** *Was:* transcranial PBM had no dispatchable path — `np_mod_pbm_*` reachable only through the rejected slots 0–4, socket commands dropped by `dispatch_command()`. **Resolved by the socket dispatch registry (§3.4)**, the firmware half of `OI-HUB-SOCKET-01`, with `np_socket_dispatch_tests` (Class B 30 → 31). **The blocking status moves rather than lifts:** every drive is refused at the power gate until `OI-FWHUB-09` | — (closed) | — |
 | **`OI-FWHUB-09`** | **The concurrent-power governor `np_pbm_power_admit()` refuses every load.** Deliberately (§5.6). Replace its body with the watts-against-PD-contract governor `NP-HW-HEXTILE-001` §9.3 requires. Needs: `OI-HEXTILE-09` designed; `OI-SESPWR-03` (`0Hz` + duty) defined; a PD-contract seam on SW-02; per-tile watts from selected emitters (`OI-HEXTILE-02`). The compiler-side half of the same check is `OI-HEXTILE-09`'s, not this document's. When it lands, `REQ-FWHUB-35`'s second clause is rewritten, not deleted, and `RISK-FWHUB-12` is re-scored | FW + EE Lead | **BLOCKING — any T1 transcranial PBM session; `REQ-FWHUB-25`, `-26`** |
-| **`OI-FWHUB-10`** | **Socket-path telemetry and dose metering do not exist.** The runner's telemetry loop and `np_telem_pbm_t` are slot-indexed (five zone entries); no per-socket NTC, PD1/PD2 or J/cm² reaches SHDR or UHDR, and the slot path's pre-drive NTC over-temperature check has no socket equivalent. Needs `np_hub_cluster_read_frame()` (`NP-HW-HUB-001` §9.3) and a socket-indexed telemetry record. The 42 °C / 62 °C hardware limits are unaffected — they are enforced below this processor. **Blocks CLAUDE.md §3's dual-PD dose-metering claim for the lattice, not safety.** *Rev 7:* also owns whether a per-socket **inventory** record reaches SHDR (moved here from `OI-FWHUB-05`) — a new SHDR field, so classified under CLAUDE.md §5.1 first. The PBM HAL stub now serves PD reads over the socket domain (`OI-FWHUB-12`), so the accessor this item needs no longer stops at socket 4 | FW | Before `OI-FWHUB-09` admits a load |
+| ~~**`OI-FWHUB-10`**~~ | ✅ **CLOSED 2026-09-27 (Rev 15).** The socket path has metering, a pre-drive NTC check, a UHDR socket record and SHDR counts, and an idle tile health pass. Each field is classified by the principal's rulings (§6.8, F1–F14; `REQ-FWHUB-46…48`). The SHDR inventory question moved here from `-05` is answered: occupancy and kind are SHDR-class, from the idle pass only, with no UID. **The claim this item blocked is still not verified on hardware.** The cluster frame behind the two new seams is target HAL, and the photodiode may not respond at 660/808 nm (`OI-HEXTILE-26`). What remains is `OI-FWHUB-20…22`. *Was:* Socket-path telemetry and dose metering do not exist. The runner's telemetry loop and `np_telem_pbm_t` are slot-indexed (five zone entries); no per-socket NTC, PD1/PD2 or J/cm² reaches SHDR or UHDR, and the slot path's pre-drive NTC over-temperature check has no socket equivalent. Needs `np_hub_cluster_read_frame()` (`NP-HW-HUB-001` §9.3) and a socket-indexed telemetry record. The 42 °C / 62 °C hardware limits are unaffected — they are enforced below this processor. Blocks CLAUDE.md §3's dual-PD dose-metering claim for the lattice, not safety. *Rev 7:* also owns whether a per-socket **inventory** record reaches SHDR (moved here from `OI-FWHUB-05`) — a new SHDR field, so classified under CLAUDE.md §5.1 first. The PBM HAL stub now serves PD reads over the socket domain (`OI-FWHUB-12`), so the accessor this item needs no longer stops at socket 4 | — (closed) | — |
+| **`OI-FWHUB-20`** | **Rev 16: re-scoped by the principal's decisions (§6.9).** The LED-emission test is allowed, as a signed maintenance session, **in a hub-detected dock only** (Rev 17). **Build:** (a) the maintenance session kind in the descriptor (§4) and `hubCompiler.ts`, verified like any protocol; (b) its start condition: the dock, read by the hub (`OI-FWHUB-25`), checked at start and throughout, with loss of the dock ending the test; (c) the test setpoint, pulse and PD1 normaliser, derived rather than placeholders; (d) the power admission for a one-tile test pulse while the governor refuses every load (`OI-FWHUB-09`). Until then the test is `REFUSED` (`REQ-FWHUB-49`) and `np_mod_pbm_hal_socket_selftest_pd1()` has no caller. | FW + EE + Safety | Any LED-emission maintenance test |
+| **`OI-FWHUB-25`** | **The maintenance dock does not exist.** D-41 and `REQ-FWHUB-49` rest on two properties of it. (1) **It physically excludes a head**: it closes over the inner bowl so that no scalp, face or eye can face a tile, and light does not escape (IEC 62471 then need not be derived for an open tile). (2) **The hub detects it from hardware**, for example a keyed contact, a Hall element with a dedicated magnet, or an ID on the dock's USB-C or pogo interface. The signal must be one a person cannot produce while wearing the helmet, fail closed to "not docked", and be readable by the hub continuously. Needs mechanical and electrical design, a seam in `np_sw02_platform_hal.h`, and a hazard row (`NP-RISK-004`) for a dock detected as present when it is not | ME + EE + FW | Any LED-emission maintenance test (`OI-FWHUB-20`) |
+| **`OI-FWHUB-21`** | **The PBM library's session summary is not SHDR-writable as shaped.** `np_pbm_shdr_summary_t` (`firmware/pbm`, `NP-FW-PBM1064-001` §7) lists each session's active sockets, which is F1 and F13b, both UHDR. Its SHDR write is omitted today. Reshape it to counts with no location (F13, as `0x88` does), or retire it in favour of the hub's records. *(Rev 16: the fouling/aging flag is no longer reopened, because F9 is SHDR as originally decided. Its computation is `OI-FWHUB-24`.)* | FW | Before the PBM library's session engine writes SHDR |
+| **`OI-FWHUB-23`** | **The app side of maintenance self-tests is not built.** Needs: a transport message carrying a `np_maint_request_t` (not a session blob) and serviced in `task_module_detect` under the lease; a result notification; the app's maintenance section on web, iOS and Android, with tile and test selection, result display and the warranty-owner gate (D-39); and locale keys in all eleven locales (CLAUDE.md §17). The fleet schema needs an upserted per-(device, socket) table for `0x87` | App + FW | The warranty owner running a self-test |
+| **`OI-FWHUB-24`** | **F9 is SHDR and nothing computes it.** The PD1/PD2 ratio **trend slope** and the fouling/aging flag need a per-module ratio history (NVRAM, keyed by UID like the calibration record), a slope over it (`NP-FW-PBM1064-001` §9.3 says 30 sessions), and a field in `0x87`. They reach SHDR only through the idle latest-state record, because a per-socket value from session data says which sockets were lit. *Residual carried with the ruling:* CLAUDE.md §5.1 rule 1's positive demonstration of no user biology content is not on file, and PD2 is scalp backscatter | FW | F9 reaching SHDR |
+| **`OI-FWHUB-22`** | **The dose model integrates every wavelength from one PD pair.** `np_pbm_dose_tick()` reads PD channels 0 and 1 for each of the three wavelengths, so on a smart tile the whole optical reading is booked three times, once per wavelength. The per-wavelength limits therefore trip early, which is conservative, and the UHDR dose per wavelength is wrong (`RISK-FWHUB-18`). A per-wavelength reading needs the cluster frame to time-multiplex the channels, or a model that splits one reading. It is `NP-HW-HUB-001` §9.3's and `NP-FW-PBM1064-001` §6's to specify | FW + EE | Before a lattice dose figure is shown to a user or cited |
 | **`OI-FWHUB-11`** | **`HUB-REQ-C05` is not implemented.** `NP-HW-HUB-001` §7.2.2 requires the per-cluster Class B `SAFE_EN[n]` gate to be commanded by this processor, not by the cluster controller it gates. The dispatcher does not command it: that needs the `socket_id → (cluster, channel)` table (`OI-HUB-C10`, not yet generated) and a settled gate polarity (`OI-RISK4-01`). Availability only — the Class C cranial bit is in series | FW + EE Lead | Hardware bring-up |
 | **`OI-FWHUB-13`** | **The per-session recording limit must reach the user documentation.** §6.6 states it (about 49 hours per session; recording stops, the session does not) and gives proposed IFU text, but no IFU or in-app help document exists yet (`NP-QMS-DC-001`: labelling and IFU *TBD*). When that document is created, §6.6's text goes into it, and the figure is re-derived if `file_max` or the EEG data rate changes | FW + Regulatory | IFU authoring |
 | ~~**`OI-FWHUB-12`**~~ | ✅ **CLOSED 2026-09-25 (Rev 7).** *Was:* `firmware/pbm/src/np_pbm_hal.c` bounded its I²C shadow and PD reads to `slot < 5`, so a smart tile above socket 4 failed its driver startup (`NP_PBM_ERR_I2C_WRITE`) and metered no dose. The stub now takes a socket index over `NP_PBM_SOCKET_DOMAIN` (128, derived from `NP_PBM_SOCKET_MASK_BYTES`). `np_pbm_hal.h` records that the tunnelled HAL replacing it keeps the socket index (`NP-HW-HUB-001` §9.2). `np_pbm_session_desc_tests` drives socket 77 end to end and refuses 128, and fails four checks against the pre-fix stub. `np_module_map_tests` pins `NP_PBM_SOCKET_DOMAIN == NP_HEXMAP_MAX_SOCKETS` | — (closed) | — |
@@ -1629,7 +1945,7 @@ pipelining client · `FWHUB-DRC-04` every §4.4 rejection has a negative test ·
 | ~~**`OI-FWHUB-16`**~~ | ✅ **CLOSED 2026-09-24 (Rev 8)** — `np_mod_reg_rescan_slot()` accepts slots 5–18 and re-initialises only on a change (§3.2, D-30); pinned by `np_module_registry_tests`, which fails 120 checks against the old registry. *Was:* **no accessory attached after boot was ever registered.** `task_module_detect` looped slots 7–18 through `np_mod_reg_rescan_zone()`, which returned `INVALID_ARG` for any slot ≥ 5, and discarded the return. Only the boot scan saw goggles, the VNS clip, the intranasal probe, cervical VNS or a T2 unit. Nothing caught it because the registry had no host test and the caller is ARM-only | — (closed) | — |
 | ~~**`OI-FWHUB-17`**~~ | ✅ **CLOSED 2026-09-26 (Rev 12)** — the session lease (§2.2, D-32): claimed by `np_runner_load()`, released at session end, and its lock held across each single-slot rescan. `REQ-FWHUB-03` is met by exclusion. Pinned by `np_session_lease_tests`, which each of four mutants fails. *Was:* Detection is kept off a session by a state check, not by exclusion (`REQ-FWHUB-03`). `task_module_detect` is the lowest priority. A session can start between its state read and a `detect()`, and the registry entry it rewrites is read by `task_hub_control` without a lock. Rev 8 re-reads the state per slot and orders the entry writes so a reader sees `NULL` rather than a torn entry, which narrows the window to one probe. Close it with a lock the runner holds from `np_runner_load()` to session end, which the detect task takes around each rescan. Dormant until Rev 8, because every accessory rescan was refused | FW | — |
 | ~~**`OI-FWHUB-18`**~~ | ✅ **CLOSED 2026-09-26 (Rev 12)** — both hooks deleted from `np_hub_control_main.c`; absent from the linked `np_application.elf`. *Was:* The retired zone-announce hooks are dead code. `np_hub_zone_insert_cb()` / `np_hub_zone_remove_cb()` have no caller (`np_za_init()` is never called by the hub) and no declaration. Rev 8 made the insert hook a documented no-op instead of letting it call a rescan that now refuses slots 0–4. Delete both with the `firmware/zone_announce/` ZONE_ID path, or wire them to the socket lattice if that path returns | FW | — |
-| **`OI-FWHUB-19`** | **The session logger is shared by four tasks without a lock.** `np_session_log.c` and the adaptation ring assume one context (§6.5), and until Rev 12 `np_adaptation_log.c` said "runner task only. No mutex required". The linked image calls them from four tasks. `task_telemetry` (prio 2) runs `np_log_flush()`, which drains the ring and `s_uhdr_buf`. `task_hub_control` (prio 3) can preempt it mid-drain with `np_log_command()` / `np_log_telemetry()`, which write `s_uhdr_buf` and `s_uhdr_pos` under it. `task_safety_heartbeat` (prio 4) writes SHDR through `log_cvns_event()` → `np_log_shdr_fault()`. `task_module_detect` writes SHDR auth records through accessory `init()`, and the session lease keeps it off a session but not off the flush. Any interleaving can tear a record or lose buffered bytes. **A logger mutex is the obvious fix and not a free one.** The heartbeat must never block beyond one period (`REQ-FWHUB-02`), and a mutex would put it behind an eMMC sync. `np_log_session_start()` alone can sync twice and probe up to `NP_LOG_SESSION_PROBE_MAX` file names. Decide between a mutex plus an SHDR event queue for the heartbeat, moving the periodic flush into the runner's context, or another scheme. Then measure the heartbeat's worst case (`FWHUB-DRC-02`). The EEG drain task (§8.2) inherits this | FW | **Hardware bring-up** — before a session writes a UHDR file that is read back |
+| ~~**`OI-FWHUB-19`**~~ | ✅ **CLOSED 2026-09-26 (Rev 14, D-34).** Every logger and adaptation-ring entry point holds one recursive lock (`REQ-FWHUB-44`). `np_log_shdr_fault()` never takes it: it queues the record under a critical section, and the next lock holder writes it (`REQ-FWHUB-45`, §6.7). Pinned by `np_log_backend_tests`, falsified by seven mutants. **Still open elsewhere:** the heartbeat's worst case on hardware is `FWHUB-DRC-02`. *Was:* The session logger is shared by four tasks without a lock. `np_session_log.c` and the adaptation ring assume one context (§6.5), and until Rev 12 `np_adaptation_log.c` said "runner task only. No mutex required". The linked image calls them from four tasks. `task_telemetry` (prio 2) runs `np_log_flush()`, which drains the ring and `s_uhdr_buf`. `task_hub_control` (prio 3) can preempt it mid-drain with `np_log_command()` / `np_log_telemetry()`, which write `s_uhdr_buf` and `s_uhdr_pos` under it. `task_safety_heartbeat` (prio 4) writes SHDR through `log_cvns_event()` → `np_log_shdr_fault()`. `task_module_detect` writes SHDR auth records through accessory `init()`, and the session lease keeps it off a session but not off the flush. Any interleaving can tear a record or lose buffered bytes. **A logger mutex is the obvious fix and not a free one.** The heartbeat must never block beyond one period (`REQ-FWHUB-02`), and a mutex would put it behind an eMMC sync. `np_log_session_start()` alone can sync twice and probe up to `NP_LOG_SESSION_PROBE_MAX` file names. Decide between a mutex plus an SHDR event queue for the heartbeat, moving the periodic flush into the runner's context, or another scheme. Then measure the heartbeat's worst case (`FWHUB-DRC-02`). The EEG drain task (§8.2) inherits this | — (closed) | — |
 | ~~`OI-FWHUB-02`~~ | ✅ **CLOSED 2026-09-13 in the same change.** Three files cited `NP-FW-HUB-001 Rev 2` against a document with no Rev 1. Re-pointed to Rev 1 §8.9 and §6.4 | FW | — |
 | ~~**`OI-FWHUB-03`**~~ | ✅ **CLOSED 2026-09-25 (Rev 7).** *Was:* no mechanical agreement check between §4 and `hubCompiler.ts`. **§4.6** now tabulates the per-modality blocks. **`scripts/check-hub-wire-format.ts`** diffs §4's constants and table, the `np_hub_config.h`/`np_hub_types.h` defines, enums and packed-struct layouts, and **the compiler's own output**, which it runs for all 16 modality encodings and decodes at the firmware's field offsets. Falsified on 15 single-corner perturbations (a field reordered, a struct grown or unpacked, a table byte count, a compiler buffer one byte long, a stale compiler version, and so on). The self-test passes an unperturbed copy first. Wired as `tooling-ci.yml:hub-wire-format` (`REQ-FWHUB-28`) | — (closed) | — |
 | ~~**`OI-FWHUB-04`**~~ | ✅ **CLOSED 2026-09-25 (Rev 7) — reordered, by Rev 5.** *Was:* on overflow, `uhdr_write()`/`shdr_write()` flushed *before* appending the full buffer, so the sync covered none of it. **Fixed in Rev 5 (#425):** every path now appends and then syncs through `uhdr_drain()`/`shdr_drain()`, and `np_log_backend_tests` covers it (§6.5). Rev 5 left this row open, so Rev 7 records the closure. No further code change | — (closed) | — |
@@ -1695,6 +2011,10 @@ have absorbed.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 17 | 2026-09-27 | NeurOne Firmware Engineering | **Emitting maintenance tests are dock-only; all maintenance data is SHDR (#384; §6.9, §10.1, §11, §13).** The principal dropped Rev 16's head-presence route: the LED-emission test runs only in a dock the hub detects from hardware. The principal also ruled that all maintenance data is SHDR (D-41), which Rev 16 had recorded as pending. It is adopted on three conditions: the dock excludes a head, the hub reads the dock itself, and away from the dock only verdicts are kept. `REQ-FWHUB-49` and D-37 restated; `OI-FWHUB-20` re-scoped; `OI-FWHUB-25` (the dock) raised. No code behaviour changed: the LED test was and stays refused, and the non-emitting tests already keep verdicts only. Comments in `np_pbm_socket_telem.h/.c` and `np_sw02_platform_hal.h` follow |
+| 16 | 2026-09-27 | NeurOne Firmware Engineering | **Maintenance self-tests and F9 (#384; new §6.9; §6.8, §10.1, §11, §13).** The principal decided that self-tests run outside sessions from the app's maintenance section, over any tiles and any tests, for the warranty owner only. Emitting tests run as a signed maintenance session, on head or docked. Results are latest state per tile. New `np_pst_maint_run()`: the non-emitting tests (probe, calibration source, NTC plausible; the reading is discarded) run under the lease per socket; the LED test is refused (`REQ-FWHUB-49`). The idle pass no longer emits and runs the non-emitting tests. `0x87` becomes a 12-byte latest-state record with four verdicts and **no session count**. F9 is back to SHDR as originally decided (D-40); `NP-FW-PBM1064-001` Rev 5 and `data-architecture-detail.md` follow. D-37 supersedes D-35; D-38, D-39. `OI-FWHUB-20` re-scoped; `-21` narrowed; `-23` (app side) and `-24` (F9 computation) raised. **Recorded as pending, not adopted:** "all maintenance data to SHDR", which conflicts with CLAUDE.md §5.1 and `NP-FW-BENCH-001` D-9 for biology-bearing outputs on a head; no test in the catalogue has one. `np_pbm_socket_telem_tests` 29 → 36 checks; 8 mutants caught. Host suite 54/54. ARM cross-build not run |
+| 15 | 2026-09-27 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-10` (#384): socket-path metering, telemetry and the idle tile health pass, classified by the principal's field rulings (new §6.8; §6.1, §10.1, §11, §12, §13).** New `src/np_pbm_socket_telem.c`. `np_mod_pbm_socket_drive()` gains a pre-drive NTC check and a metering slot (`REQ-FWHUB-46`). The runner meters every driven socket at 10 Hz, latching a wavelength at its dose limit and a hot or unreadable tile whole (`REQ-FWHUB-47`). New records: UHDR `0x1A` PBM socket, SHDR `0x87` PBM tile health (idle pass over every occupied socket) and SHDR `0x88` PBM session counts (every session). Driving faults reach SHDR without the socket. No SHDR record from session data carries a socket (`REQ-FWHUB-48`). PBM library: `pd_valid[]` in the dose state; the ratio no longer reaches SHDR, and `np_pbm_socket_shdr_t.pd_ratio` is removed (`NP-FW-PBM1064-001` Rev 5). Two platform seams (census 100 → 102). New host target `np_pbm_socket_telem_tests` (Class B 42 → 43, total 53 → 54; `ci/host-test-partition.txt` and both workflows). `np_mod_pbm_chlatch_tests` gains four cases. **Falsified:** 16 mutants, each caught. D-35, D-36, `RISK-FWHUB-18`. Raised `OI-FWHUB-20…22`. Host suite 54/54. **Not run:** the ARM cross-build (no toolchain in this environment), so the census and the `.bss` budget for the 32-slot pool are unchecked on target |
+| 14 | 2026-09-26 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-19` (#384): the session logger has a lock, and the heartbeat never waits on it (new §6.7; §2.2, §8.2, §10.1, §11, §12, §13).** `np_session_log.c` and `np_adaptation_log.c` take one recursive lock at every entry point that touches logger state (`REQ-FWHUB-44`). It is installed as a FreeRTOS recursive mutex by `np_hub_control_app_main()` after the scan and before the first task. `np_log_shdr_fault()` never takes it. It queues the record (32 entries, critical section by BASEPRI), and the outermost take drains the queue into `s_shdr_buf` (`REQ-FWHUB-45`). SHDR record layout unchanged. New `np_log_set_lock()`, `np_log_set_fault_crit()`, `np_log_shdr_fault_dropped()`, and a host-only I/O hook `np_log_test_set_io_hook()`. `np_log_backend_tests` gains four cases (20 checks). **Falsified:** seven mutants each fail it. D-34 and `RISK-FWHUB-17` added. §2.2's "the runner never blocks on eMMC" corrected. No new test target: host suite 53/53. **Not run:** the ARM cross-build (no toolchain in this environment). `np_hub_control_main.c` was syntax-checked against the FreeRTOS POSIX port only. `FWHUB-DRC-02` (heartbeat worst case) stays a hardware check |
 | 13 | 2026-09-26 | NeurOne Firmware Engineering | **`NP_HUB_PROTO_VERSION` 3 → 1 (§4.1, §4.5, `REQ-FWHUB-10`).** No session has been created on any device, so the format has no earlier shape to tell apart, and the pre-release v2 and v3 layouts are folded into v1. `REQ-FWHUB-10` now applies from the first shipped descriptor. The firmware (`np_hub_config.h`), the compiler (`hubCompiler.ts`), both test suites and `check-hub-wire-format.ts`'s self-test move with it, and the parser now refuses 0, 2 and 3. The Rev 1 note that the version "is at 3" is left as the historical record |
 | 12 | 2026-09-26 | NeurOne Firmware Engineering | **Closes `OI-FWHUB-17`, `-14` and `-18` (#384); raises `-19` (§2.2, §3.2, §8.2, §10, §11, §13).** (1) **`OI-FWHUB-17`:** new `src/np_session_lease.c`. `np_runner_load()` claims the lease before touching the descriptor, and every load failure releases it. `np_runner_run()` releases it after setting the final state. `task_module_detect` holds its lock (a FreeRTOS mutex) across each single-slot rescan. `REQ-FWHUB-03` moves from §10.2 to §10.1. D-32 supersedes D-31. A second protocol landing between a load and its run is now refused `SESSION_ACTIVE`; before, it replaced the loaded descriptor. **New host target `np_session_lease_tests`** (Class B 40 → 41, total 51 → 52, re-derived with `ctest -N`). **Falsified:** four mutants each fail it: an unlocked claim, a probe that ignores the lease, a probe that drops the lock early, and a claim that ignores a held lease. (2) **`OI-FWHUB-14`, closed by decision (D-33):** the EEG DMA ISR queues blocks to a task and never calls the logger. `np_log_eeg_sample_block()` now returns `np_hub_status_t` and refuses an ISR caller before touching any state (`REQ-FWHUB-43`). The ISR check is injected through `np_log_set_isr_check()`, and on target it asserts. `np_log_backend_tests` gains the case, and deleting the check fails 2 of its checks. (3) **`OI-FWHUB-18`:** `np_hub_zone_insert_cb()` / `np_hub_zone_remove_cb()` deleted. Host suite 52/52. ARM cross-build (arm-none-eabi-gcc 13.2.1): 0 errors, 0 warnings, both ELFs link, and the lease is in `np_application.elf`. **Raised `OI-FWHUB-19`:** the logger is called from four tasks without a lock, and a mutex would put the heartbeat behind an eMMC sync. |
 | 11 | 2026-09-25 | NeurOne Firmware Engineering | **Heartbeat sequence counter (`NP-FMEA-001` OI-FMEA-12 (a), principal decision 2026-09-25).** §7.1: `session_status` bits 5–7 carry a 3-bit counter the hub advances on every heartbeat (`np_safety_session_status_with_seq()`, `np_spi_wire_types.h` `NP_SESSION_STATUS_SEQ_*`); the safety MCU resets its watchdog only on a forward run of it. New `REQ-FWHUB-42`; `REQ-FWHUB-11` restated to name the second helper; §7.4's "bits 5–7 remain unused" corrected. Frame length and checksums are unchanged. Hub consequences stated in §7.1: first grant two beats later after a reset or a run restart, and four (not six) consecutive lost heartbeats tolerated. Verified by 4 new checks in `np_cvns_reenable_tests`, 2 mutations caught. |

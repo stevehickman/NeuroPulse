@@ -109,6 +109,7 @@
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
 #                             → np_module_registry_tests  (OI-FWHUB-16 accessory rescan)
 #                             → np_session_lease_tests    (OI-FWHUB-17 detect/session exclusion)
+#                             → np_pbm_socket_telem_tests (OI-FWHUB-10 socket dose metering + tile health)
 #                             → np_socket_dispatch_tests  (OI-FWHUB-01 socket dispatch)
 #                             → np_chan_decl_tests        (OI-MMSOCK-02 electrode-geometry declarations)
 #                             → np_stim_xcheck_tests      (OI-FMEA-09 commanded-vs-delivered cross-check)
@@ -358,6 +359,12 @@ if(NP_BUILD_TESTS)
     # OI-FWHUB-17: module detection kept off a session by exclusion.
     add_test(NAME np_session_lease_tests
         COMMAND np_session_lease_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # OI-FWHUB-10: socket-path dose metering, the UHDR socket record, the SHDR
+    # per-session counts and the idle tile health pass (NP-FW-HUB-001 §6.8).
+    add_test(NAME np_pbm_socket_telem_tests
+        COMMAND np_pbm_socket_telem_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_mod_stim_tests

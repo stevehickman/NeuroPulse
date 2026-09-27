@@ -15,6 +15,15 @@
  *  SHDR: device health metrics only — no HR values, no EEG amplitudes,
  *        no timestamps (only unsigned session count).  Session open/end
  *        markers pair by count to expose an unclean end (OI-FMEA-09).
+ *
+ * CONCURRENCY (OI-FWHUB-19, NP-FW-HUB-001 §6.7).  Four tasks call this logger.
+ * Every entry point that touches logger state runs under one recursive lock
+ * (a FreeRTOS recursive mutex on target, injected by np_log_set_lock()), so a
+ * record is never torn and no buffered byte is lost to an interleaving.  The
+ * one exception is np_log_shdr_fault(): the safety heartbeat calls it, and the
+ * heartbeat must never wait behind an eMMC sync (REQ-FWHUB-02).  It copies the
+ * record into a fixed queue under a short critical section and returns; the
+ * next caller to take the lock moves the queue into s_shdr_buf.
  */
 
 #include "np_session_log.h"
@@ -33,6 +42,74 @@ static uint8_t  s_shdr_buf[LOG_BUF_SIZE];
 static size_t   s_shdr_pos = 0U;
 
 static uint32_t s_device_session_count = 0U;
+
+/* ── The logger lock (OI-FWHUB-19) ────────────────────────────────────────────── */
+
+static np_log_lock_fn s_lock;
+static np_log_lock_fn s_unlock;
+static unsigned       s_depth;          /* nesting; touched only by the holder */
+
+static void fault_queue_drain(void);
+
+/* Take the lock.  The outermost take also moves any queued SHDR faults into
+ * s_shdr_buf, so they are drained at the runner's tick rate during a session
+ * and ahead of whatever record the caller is about to write. */
+static void take(void)
+{
+    if (s_lock != NULL) { s_lock(); }
+    if (++s_depth == 1U) {
+        fault_queue_drain();
+    }
+}
+
+static void give(void)
+{
+    s_depth--;
+    if (s_unlock != NULL) { s_unlock(); }
+}
+
+void np_log_set_lock(np_log_lock_fn lock, np_log_lock_fn unlock)
+{
+    s_lock   = lock;
+    s_unlock = unlock;
+}
+
+void np_log_lock(void)   { take(); }
+void np_log_unlock(void) { give(); }
+
+/* ── The SHDR fault queue (OI-FWHUB-19) ──────────────────────────────────────── */
+
+typedef struct {
+    uint32_t count;       /* the session count in force when the fault was logged */
+    uint8_t  slot;
+    uint8_t  type;
+    uint8_t  code;
+} fault_entry_t;
+
+static fault_entry_t s_fq[NP_LOG_FAULT_QUEUE_MAX];
+static uint32_t      s_fq_head;
+static uint32_t      s_fq_len;
+static uint32_t      s_fq_dropped;
+
+static np_log_crit_enter_fn s_crit_enter;
+static np_log_crit_exit_fn  s_crit_exit;
+
+static uint32_t crit_enter(void) { return (s_crit_enter != NULL) ? s_crit_enter() : 0U; }
+static void     crit_exit(uint32_t saved) { if (s_crit_exit != NULL) { s_crit_exit(saved); } }
+
+void np_log_set_fault_crit(np_log_crit_enter_fn enter, np_log_crit_exit_fn exit_fn)
+{
+    s_crit_enter = enter;
+    s_crit_exit  = exit_fn;
+}
+
+uint32_t np_log_shdr_fault_dropped(void)
+{
+    uint32_t saved = crit_enter();
+    uint32_t n = s_fq_dropped;
+    crit_exit(saved);
+    return n;
+}
 
 /* ── Buffer hand-down ─────────────────────────────────────────────────────────── */
 
@@ -117,14 +194,22 @@ void np_log_set_count_commit(np_log_count_commit_fn fn)
 
 void np_log_init(uint32_t device_session_count)
 {
+    take();
     s_uhdr_pos             = 0U;
     s_shdr_pos             = 0U;
     s_device_session_count = device_session_count;
+    uint32_t saved = crit_enter();
+    s_fq_head    = 0U;
+    s_fq_len     = 0U;
+    s_fq_dropped = 0U;
+    crit_exit(saved);
+    give();
 }
 
 void np_log_session_start(const np_session_uhdr_record_t *rec)
 {
     if (rec == NULL) { return; }
+    take();
 
     /* Anything still buffered belongs to the previous session's file. */
     uhdr_drain();
@@ -160,12 +245,14 @@ void np_log_session_start(const np_session_uhdr_record_t *rec)
      * be lost with the session it marks would mark nothing. */
     uhdr_drain();
     shdr_drain();
+    give();
 }
 
 void np_log_command(const np_session_cmd_t *cmd, uint32_t session_ms,
                     bool accepted)
 {
     if (cmd == NULL || cmd->params_len > NP_HUB_PROTO_PARAMS_MAX) { return; }
+    take();
 
     const uint8_t mod_type = (uint8_t)cmd->mod_type;
     const uint8_t acc      = accepted ? 1U : 0U;
@@ -183,6 +270,7 @@ void np_log_command(const np_session_cmd_t *cmd, uint32_t session_ms,
     if (cmd->target_kind == NP_PROTO_TARGET_SOCKET_MASK) {
         uhdr_write(cmd->socket_mask, NP_HUB_SOCKET_MASK_BYTES);
     }
+    give();
 }
 
 void np_log_session_end(const np_session_uhdr_record_t *uhdr_rec,
@@ -191,7 +279,9 @@ void np_log_session_end(const np_session_uhdr_record_t *uhdr_rec,
     /* Adaptation events still in the ring belong to this session: move them
      * into the buffer while its file is open, ahead of the session-end record.
      * Left for the caller's np_log_flush(), they would reach a closed file and
-     * no file at all (OI-FWHUB-15). */
+     * no file at all (OI-FWHUB-15).  The lock is taken first, which also moves
+     * any queued SHDR fault into the buffer ahead of the session-end record. */
+    take();
     np_adapt_log_flush();
 
     if (uhdr_rec != NULL) {
@@ -218,11 +308,13 @@ void np_log_session_end(const np_session_uhdr_record_t *uhdr_rec,
     if (s_shdr_pos > 0U) {
         shdr_drain();
     }
+    give();
 }
 
 void np_log_telemetry(const np_telem_record_t *rec)
 {
     if (rec == NULL) { return; }
+    take();
 
     switch (rec->mod_type) {
 
@@ -313,6 +405,54 @@ void np_log_telemetry(const np_telem_record_t *rec)
     default:
         break;
     }
+    give();
+}
+
+/* ── Socket-path PBM (OI-FWHUB-10, NP-FW-HUB-001 §6.8) ─────────────────────── */
+
+void np_log_pbm_socket(const np_pst_socket_record_t *rec, uint32_t session_ms)
+{
+    if (rec == NULL || rec->socket_id >= (NP_HUB_SOCKET_MASK_BYTES * 8U)) { return; }
+    take();
+    const uint8_t sock = (uint8_t)rec->socket_id;
+    uhdr_u8(NP_LOG_TAG_UHDR_PBM_SOCKET);
+    uhdr_write(&session_ms,             sizeof(session_ms));
+    uhdr_write(&sock,                   1U);
+    uhdr_write(&rec->mod_type,          1U);
+    uhdr_write(&rec->flags,             1U);
+    uhdr_write(&rec->ntc_c,             sizeof(rec->ntc_c));
+    uhdr_write(&rec->ntc_peak_c,        sizeof(rec->ntc_peak_c));
+    uhdr_write(rec->dose_J_cm2,         sizeof(rec->dose_J_cm2));
+    uhdr_write(rec->irradiance_mW_cm2,  sizeof(rec->irradiance_mW_cm2));
+    give();
+}
+
+void np_log_shdr_pbm_socket_health(const np_pst_health_record_t *rec)
+{
+    if (rec == NULL || rec->socket_id >= (NP_HUB_SOCKET_MASK_BYTES * 8U)) { return; }
+    take();
+    const uint8_t sock = (uint8_t)rec->socket_id;
+    shdr_u8(NP_LOG_TAG_SHDR_PBM_TILE_HEALTH);
+    shdr_write(&sock,                   1U);
+    shdr_write(&rec->mod_type,          1U);
+    shdr_write(&rec->health_flags,      1U);
+    shdr_write(rec->verdict,            sizeof(rec->verdict));
+    shdr_write(&rec->cal_source,        1U);
+    shdr_write(rec->pd1_pct,            sizeof(rec->pd1_pct));
+    give();
+}
+
+void np_log_shdr_pbm_session_counts(const np_pst_counts_t *counts)
+{
+    np_pst_counts_t zero = { 0U, 0U, 0U };
+    const np_pst_counts_t *c = (counts != NULL) ? counts : &zero;
+    take();
+    shdr_u8(NP_LOG_TAG_SHDR_PBM_COUNTS);
+    shdr_write(&s_device_session_count, sizeof(s_device_session_count));
+    shdr_write(&c->throttle_events,     sizeof(c->throttle_events));
+    shdr_write(&c->predrive_refusals,   sizeof(c->predrive_refusals));
+    shdr_write(&c->drive_faults,        sizeof(c->drive_faults));
+    give();
 }
 
 static np_log_in_isr_fn s_in_isr;    /* OI-FWHUB-14 */
@@ -332,6 +472,7 @@ np_hub_status_t np_log_eeg_sample_block(const uint8_t *samples,
      * to a task instead (§8.2). */
     if (s_in_isr != NULL && s_in_isr()) { return NP_HUB_ERR_GENERIC; }
     if (samples == NULL || n_samples == 0U) { return NP_HUB_ERR_INVALID_ARG; }
+    take();
 
     /* Every UHDR record logged before this block goes to the file before it —
      * the adaptation ring first, since its events reach s_uhdr_buf only when
@@ -353,11 +494,13 @@ np_hub_status_t np_log_eeg_sample_block(const uint8_t *samples,
     np_log_hal_uhdr_append(hdr, sizeof(hdr));
     np_log_hal_uhdr_append(samples,
                            (size_t)n_samples * NP_EEG_CHANNELS * NP_EEG_SAMPLE_BYTES);
+    give();
     return NP_HUB_OK;
 }
 
 void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass)
 {
+    take();
     shdr_u8(NP_LOG_TAG_SHDR_ZONE_AUTH);
     shdr_write(&s_device_session_count, sizeof(s_device_session_count));
     shdr_write(&slot, 1U);
@@ -365,6 +508,7 @@ void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass)
     shdr_write(&t, 1U);
     uint8_t p = pass ? 1U : 0U;
     shdr_write(&p, 1U);
+    give();
 }
 
 void np_log_shdr_fault(uint8_t slot, np_hub_mod_type_t type,
@@ -373,24 +517,66 @@ void np_log_shdr_fault(uint8_t slot, np_hub_mod_type_t type,
     /* session_ms is NOT written to SHDR — SHDR never contains timestamps.
      * Only the session count (monotonic device state) is logged. */
     (void)session_ms;
-    shdr_u8(NP_LOG_TAG_SHDR_FAULT);
-    shdr_write(&s_device_session_count, sizeof(s_device_session_count));
-    shdr_write(&slot, 1U);
-    uint8_t t = (uint8_t)type;
-    shdr_write(&t, 1U);
-    shdr_write(&fault_code, 1U);
+
+    /* Never takes the logger lock (OI-FWHUB-19): the heartbeat calls this, and
+     * the lock can be held across an eMMC sync.  The record is queued under a
+     * critical section a few stores long, with the session count in force now,
+     * and written by the next take().  A full queue keeps the faults already in
+     * it — the first of a burst is the diagnostic one — and counts the rest. */
+    fault_entry_t e;
+    e.count = s_device_session_count;
+    e.slot  = slot;
+    e.type  = (uint8_t)type;
+    e.code  = fault_code;
+
+    uint32_t saved = crit_enter();
+    if (s_fq_len < NP_LOG_FAULT_QUEUE_MAX) {
+        s_fq[(s_fq_head + s_fq_len) % NP_LOG_FAULT_QUEUE_MAX] = e;
+        s_fq_len++;
+    } else {
+        s_fq_dropped++;
+    }
+    crit_exit(saved);
+}
+
+/* Called with the lock held, by the outermost take() only.  Each entry leaves
+ * the queue under the critical section and is serialized outside it, so a
+ * fault logged mid-drain is queued, not lost; the record layout is unchanged. */
+static void fault_queue_drain(void)
+{
+    for (;;) {
+        fault_entry_t e;
+        uint32_t saved = crit_enter();
+        if (s_fq_len == 0U) {
+            crit_exit(saved);
+            return;
+        }
+        e = s_fq[s_fq_head];
+        s_fq_head = (s_fq_head + 1U) % NP_LOG_FAULT_QUEUE_MAX;
+        s_fq_len--;
+        crit_exit(saved);
+
+        shdr_u8(NP_LOG_TAG_SHDR_FAULT);
+        shdr_write(&e.count, sizeof(e.count));
+        shdr_write(&e.slot, 1U);
+        shdr_write(&e.type, 1U);
+        shdr_write(&e.code, 1U);
+    }
 }
 
 void np_log_adapt_event(const np_adaptation_event_t *event)
 {
     if (event == NULL) { return; }
+    take();
     /* UHDR only — no SHDR routing for adaptation events (NP-PRIV-REM-001 STEP-33). */
     uhdr_u8(NP_LOG_TAG_UHDR_ADAPT_EVENT);
     uhdr_write(event, sizeof(np_adaptation_event_t));
+    give();
 }
 
 void np_log_flush(void)
 {
+    take();                 /* also moves queued SHDR faults into the buffer */
     np_adapt_log_flush();   /* drain the adaptation ring buffer first */
     /* UHDR syncs whether or not s_uhdr_buf holds anything: EEG sample blocks
      * reach the HAL without passing through it, so an empty buffer does not
@@ -399,4 +585,5 @@ void np_log_flush(void)
     if (s_shdr_pos > 0U) {
         shdr_drain();
     }
+    give();
 }

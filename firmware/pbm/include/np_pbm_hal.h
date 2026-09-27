@@ -114,6 +114,14 @@ uint32_t np_pbm_hal_now_ms(void);
  * Write np_pbm_shdr_fault_entry_t to SHDR partition.
  * Caller provides pointer to populated entry; function appends to SHDR log.
  * No-op in stub implementation.
+ *
+ * CONTRACT FOR THE TARGET IMPLEMENTATION (NP-FW-HUB-001 §6.8, F11/F11b). A
+ * driving fault (OCP, driver fault, STATUS register) happens only on a lit
+ * socket, so it reaches SHDR as modality + fault_reason only: socket_id,
+ * channel and status_reg_value are dropped. The one exception is
+ * NP_PBM_FAULT_I2C_LOST from a probe that covers EVERY occupied socket, which
+ * may keep socket_id (F11b). An entry with fault_reason NP_PBM_FAULT_NONE is
+ * dropped whole: that shape used to smuggle the PD1/PD2 ratio (F9, UHDR).
  */
 void np_pbm_hal_shdr_log_fault(const np_pbm_shdr_fault_entry_t *entry);
 

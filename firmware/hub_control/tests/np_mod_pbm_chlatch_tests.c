@@ -18,6 +18,10 @@
  * Setpoint 0 on a base tile is NOMINAL zero; whether it is provably zero
  * emission is OI-PBMCH-01's question, not these tests'.
  *
+ * OI-FWHUB-10 adds the socket path's pre-drive checks to the same target: a hot
+ * or unreadable NTC, or no metering slot, refuses the drive before the tile is
+ * written, and a driver fault reaches SHDR as modality + code with no socket.
+ *
  * np_mod_pbm.c is linked real; every HAL, driver and logging seam below it is a
  * double. No FreeRTOS, no hardware. IEC 62304 Class B — SW-02 hub control.
  */
@@ -116,12 +120,39 @@ np_pbm_status_t np_pbm_drive_disable_all(uint8_t slot, np_pbm_drv_slot_t *drv)
 
 /* ── Doubles: seams only the retired slot path reaches ─────────────────────── */
 
+static int     g_faults;
+static uint8_t g_fault_slot, g_fault_type, g_fault_code;
 void np_log_shdr_fault(uint8_t slot, np_hub_mod_type_t type,
                        uint8_t fault_code, uint32_t session_ms)
 {
-    (void)slot; (void)type; (void)fault_code; (void)session_ms;
+    (void)session_ms;
+    g_faults++;
+    g_fault_slot = slot; g_fault_type = (uint8_t)type; g_fault_code = fault_code;
 }
 void np_safety_spi_request_disable(uint16_t channel_mask) { (void)channel_mask; }
+
+/* OI-FWHUB-10: the pre-drive NTC check and the metering slot. A cool NTC and
+ * a tracker that always has room keep these tests on the latch. */
+static float g_ntc = 25.0f;
+static bool  g_ntc_fail, g_track_full;
+static int   g_tracked, g_untracked, g_refusals, g_drive_faults;
+np_hub_status_t np_mod_pbm_hal_socket_ntc_read(uint16_t socket_id, float *temp_c_out)
+{
+    (void)socket_id;
+    if (g_ntc_fail) { return NP_HUB_ERR_GENERIC; }
+    *temp_c_out = g_ntc;
+    return NP_HUB_OK;
+}
+np_hub_status_t np_pst_track(uint16_t socket_id, np_hub_mod_type_t mod_type)
+{
+    (void)socket_id; (void)mod_type;
+    if (g_track_full) { return NP_HUB_ERR_GENERIC; }
+    g_tracked++;
+    return NP_HUB_OK;
+}
+void np_pst_untrack_driving(uint16_t socket_id) { (void)socket_id; g_untracked++; }
+void np_pst_note_predrive_refusal(void) { g_refusals++; }
+void np_pst_note_drive_fault(void) { g_drive_faults++; }
 np_hub_status_t np_mod_pbm_hal_pwm_set(uint8_t slot, uint8_t cur_a, uint8_t cur_b,
                                        uint8_t freq_code, uint8_t duty)
 {
@@ -174,6 +205,9 @@ static void setup(void)
     g_pwm_fail   = false;
     g_startup_mask = g_freq_mask = g_duty_mask = g_ch_enable_written = 0U;
     g_ch_enable_writes = 0;
+    g_ntc = 25.0f; g_ntc_fail = false; g_track_full = false;
+    g_tracked = g_untracked = g_refusals = g_drive_faults = 0;
+    g_faults = 0; g_fault_slot = g_fault_type = g_fault_code = 0U;
 }
 
 static np_hub_status_t drive_base(uint16_t s)
@@ -320,6 +354,49 @@ static void test_invalid_args(void)
           "out-of-range query reports nothing");
 }
 
+/* ── OI-FWHUB-10: the pre-drive checks and the F11 fault ───────────────────── */
+
+static void test_predrive_refusals(void)
+{
+    printf("\n[pre-drive: a hot or unreadable NTC, or no metering slot, lights nothing]\n");
+    setup();
+    g_ntc = (float)NP_PBM_THERMAL_CUTOFF_C;
+    check(drive_base(12U) == NP_HUB_ERR_MOD_FAULT && g_pwm_writes == 0 &&
+          g_refusals == 1 && g_tracked == 0,
+          "NTC at the cutoff: refused before any PWM write, counted, not tracked");
+    check(g_faults == 0, "the refusal writes no SHDR fault (which socket is UHDR, F8)");
+
+    setup();
+    g_ntc_fail = true;
+    np_mod_pbm_smart_params_t p = smart_params(NP_PBM_CH_ALL_EN);
+    check(np_mod_pbm_socket_drive(12U, NP_MOD_PBM_SMART, &p, sizeof p) == NP_HUB_ERR_MOD_FAULT &&
+          g_startup_mask == 0U && g_refusals == 1,
+          "unreadable NTC: treated as hot, the smart tile is never started");
+
+    setup();
+    g_track_full = true;
+    check(drive_base(12U) == NP_HUB_ERR_MOD_FAULT && g_pwm_writes == 0,
+          "no metering slot: refused before the tile is lit, so nothing runs unmetered");
+}
+
+static void test_drive_fault_is_shdr_without_socket(void)
+{
+    printf("\n[drive fault: SHDR gets modality + code, never the socket (F11)]\n");
+    setup();
+    g_pwm_fail = true;
+    check(drive_base(77U) == NP_HUB_ERR_MOD_FAULT && g_drive_faults == 1 && g_faults == 1,
+          "a failed base drive is counted and logged once");
+    check(g_fault_slot == NP_HUB_SLOT_NONE && g_fault_type == NP_MOD_PBM_BASE &&
+          g_fault_code == NP_PBM_SHDR_EV_DRIVE_FAULT,
+          "the SHDR fault carries NP_HUB_SLOT_NONE, the modality and the drive-fault code");
+
+    setup();
+    check(drive_base(77U) == NP_HUB_OK && g_tracked == 1 && g_faults == 0,
+          "a good drive is tracked for metering and logs no fault");
+    (void)np_mod_pbm_socket_stop(77U);
+    check(g_untracked == 1, "a stop tells the meter the socket is dark");
+}
+
 int main(void)
 {
     printf("=== np_mod_pbm per-channel disable latch (OI-PBMCH-03) ===\n");
@@ -332,6 +409,8 @@ int main(void)
     test_idle_socket_latches_only();
     test_clear_is_the_only_release();
     test_invalid_args();
+    test_predrive_refusals();
+    test_drive_fault_is_shdr_without_socket();
     printf("\n%s — %d failure(s)\n", g_failures ? "FAILED" : "PASSED", g_failures);
     return g_failures ? 1 : 0;
 }

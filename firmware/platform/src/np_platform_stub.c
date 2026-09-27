@@ -142,6 +142,24 @@ np_hub_status_t np_mod_pbm_hal_socket_pwm_set(uint16_t socket_id,
     NP_PLATFORM_TRAP();
 }
 
+np_hub_status_t np_mod_pbm_hal_socket_ntc_read(uint16_t socket_id,
+                                               float   *temp_c_out)
+{
+    (void)socket_id;
+    (void)temp_c_out;
+    NP_PLATFORM_TRAP();
+}
+
+np_hub_status_t np_mod_pbm_hal_socket_selftest_pd1(uint16_t  socket_id,
+                                                   uint8_t   wl_idx,
+                                                   uint16_t *counts_out)
+{
+    (void)socket_id;
+    (void)wl_idx;
+    (void)counts_out;
+    NP_PLATFORM_TRAP();
+}
+
 float np_mod_pbm_hal_ntc_read(uint8_t slot)
 {
     (void)slot;

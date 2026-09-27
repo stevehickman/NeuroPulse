@@ -20,6 +20,11 @@
  *     4 KiB buffer is appended before the sync that must cover it
  *   - OI-FWHUB-14: an EEG block logged from an ISR is refused before it
  *     touches any logger state
+ *   - OI-FWHUB-19: every logger entry point holds the logger lock, every
+ *     medium operation happens under it, and np_log_shdr_fault() never takes
+ *     it: a heartbeat fault landing mid-sync is queued, drained by the next
+ *     holder with the count it was logged under, ahead of SESSION_END, and a
+ *     full queue keeps the oldest and counts the rest
  *
  * No FreeRTOS, no hardware; the LittleFS-file HAL is host-modeled in
  * np_log_backend.c (NPTEST_HOST).  IEC 62304 Class B — SW-02 hub control.
@@ -759,6 +764,196 @@ static void test_command_record_layout(void)
           "command: an out-of-range params_len or NULL writes nothing");
 }
 
+/* ── OI-FWHUB-19: the logger lock and the heartbeat's fault queue ──────────── */
+
+#define FAULT_REC_BYTES (1U + sizeof(uint32_t) + 3U)
+
+static unsigned g_locks, g_unlocks;
+static int      g_depth;
+static unsigned g_io_unlocked;        /* medium ops seen with the lock free */
+
+static void stub_lock(void)   { g_locks++;   g_depth++; }
+static void stub_unlock(void) { g_unlocks++; g_depth--; }
+
+static void lock_stub_install(void)
+{
+    g_locks = g_unlocks = 0U;
+    g_depth = 0;
+    g_io_unlocked = 0U;
+    np_log_set_lock(stub_lock, stub_unlock);
+}
+
+static void lock_stub_remove(void)
+{
+    np_log_set_lock(NULL, NULL);
+    np_log_test_set_io_hook(NULL);
+}
+
+static void io_needs_lock(np_log_part_t part, bool sync)
+{
+    (void)part; (void)sync;
+    if (g_depth <= 0) { g_io_unlocked++; }
+}
+
+/* Runs fn once and reports whether it took the lock and left it balanced. */
+static bool locks_balanced(void (*fn)(void))
+{
+    unsigned l0 = g_locks;
+    fn();
+    return g_locks > l0 && g_locks == g_unlocks && g_depth == 0;
+}
+
+static np_adaptation_event_t g_ev;
+static void call_command(void)
+{
+    np_session_cmd_t c;
+    memset(&c, 0, sizeof c);
+    c.mod_type = NP_MOD_TDCS;
+    np_log_command(&c, 1U, true);
+}
+static void call_telemetry(void) { log_vns(5U); }
+static void call_eeg(void)
+{
+    uint8_t blk[NP_EEG_CHANNELS * NP_EEG_SAMPLE_BYTES];
+    memset(blk, 0x11, sizeof blk);
+    (void)np_log_eeg_sample_block(blk, 1U, 6U);
+}
+static void call_zone(void)        { np_log_shdr_zone_auth(7U, NP_MOD_VISUAL, true); }
+static void call_adapt_rec(void)   { np_log_adapt_event(&g_ev); }
+static void call_adapt_queue(void) { (void)np_adapt_log_event(&g_ev); }
+static void call_adapt_flush(void) { np_adapt_log_flush(); }
+static void call_flush(void)       { np_log_flush(); }
+static void call_start(void)       { np_log_session_start(&g_rec); }
+static void call_end(void)
+{
+    np_session_shdr_record_t shdr;
+    memset(&shdr, 0, sizeof shdr);
+    np_log_session_end(&g_rec, &shdr);
+}
+static void call_adapt_reset(void) { np_adapt_log_reset(); }
+
+static void test_every_entry_takes_the_lock(void)
+{
+    logger_session_open();
+    memset(&g_ev, 0, sizeof g_ev);
+    lock_stub_install();
+    np_log_test_set_io_hook(io_needs_lock);
+
+    check(locks_balanced(call_command),    "lock: np_log_command holds it");
+    check(locks_balanced(call_telemetry),  "lock: np_log_telemetry holds it");
+    check(locks_balanced(call_eeg),        "lock: np_log_eeg_sample_block holds it");
+    check(locks_balanced(call_zone),       "lock: np_log_shdr_zone_auth holds it");
+    check(locks_balanced(call_adapt_rec),  "lock: np_log_adapt_event holds it");
+    check(locks_balanced(call_adapt_queue),"lock: np_adapt_log_event holds it");
+    check(locks_balanced(call_adapt_flush),"lock: np_adapt_log_flush holds it");
+    check(locks_balanced(call_flush),      "lock: np_log_flush holds it");
+    check(locks_balanced(call_end),        "lock: np_log_session_end holds it");
+    check(locks_balanced(call_start),      "lock: np_log_session_start holds it");
+    check(locks_balanced(call_adapt_reset),"lock: np_adapt_log_reset holds it");
+
+    unsigned l0 = g_locks;
+    np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS, 0x42U, 0U);
+    check(g_locks == l0,
+          "lock: np_log_shdr_fault never takes it (the heartbeat calls it, "
+          "REQ-FWHUB-02)");
+
+    call_end();
+    check(g_io_unlocked == 0U,
+          "lock: every eMMC append and sync above ran with the lock held");
+    lock_stub_remove();
+}
+
+/* The heartbeat preempts task_telemetry inside its UHDR sync. */
+static unsigned g_preempts;
+static size_t   g_shdr_at_preempt;
+static unsigned g_locks_at_preempt;
+static void heartbeat_mid_sync(np_log_part_t part, bool sync)
+{
+    if (part == NP_LOG_PART_UHDR && sync && g_preempts == 0U) {
+        g_preempts++;
+        g_locks_at_preempt = g_locks;
+        g_shdr_at_preempt  = np_log_test_captured_len(NP_LOG_PART_SHDR);
+        np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS, 0x5AU, 0U);
+        check(g_locks == g_locks_at_preempt &&
+              np_log_test_captured_len(NP_LOG_PART_SHDR) == g_shdr_at_preempt,
+              "fault queue: a heartbeat fault mid-sync neither waits on the "
+              "lock nor touches the SHDR stream");
+    }
+}
+
+static bool shdr_ends_with_fault(uint32_t count, uint8_t slot, uint8_t code)
+{
+    size_t n = np_log_test_captured_len(NP_LOG_PART_SHDR);
+    if (n < FAULT_REC_BYTES) { return false; }
+    const uint8_t *r = np_log_test_captured(NP_LOG_PART_SHDR) + n - FAULT_REC_BYTES;
+    uint32_t c;
+    memcpy(&c, r + 1U, sizeof c);
+    return r[0] == NP_LOG_TAG_SHDR_FAULT && c == count && r[5] == slot &&
+           r[6] == (uint8_t)NP_MOD_CVNS && r[7] == code;
+}
+
+static void test_heartbeat_fault_mid_sync_is_queued(void)
+{
+    logger_session_open();                         /* session 1 */
+    lock_stub_install();
+    g_preempts = 0U;
+    np_log_test_set_io_hook(heartbeat_mid_sync);
+
+    log_vns(10U);
+    np_log_flush();                                /* telemetry's periodic flush */
+    size_t after_first = np_log_test_captured_len(NP_LOG_PART_SHDR);
+    check(g_preempts == 1U && after_first == g_shdr_at_preempt,
+          "fault queue: the preempted flush does not write the fault into the "
+          "buffer it is draining");
+
+    np_log_flush();                                /* the next holder */
+    check(np_log_test_captured_len(NP_LOG_PART_SHDR) ==
+              after_first + FAULT_REC_BYTES &&
+          shdr_ends_with_fault(1U, NP_HUB_SLOT_CVNS, 0x5AU),
+          "fault queue: the next holder writes it once, in the unchanged "
+          "record layout, with the session count it was logged under");
+    lock_stub_remove();
+    call_end();
+}
+
+static void test_queued_fault_precedes_session_end(void)
+{
+    logger_session_open();
+    np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS, 0x33U, 0U);
+    size_t base = np_log_test_captured_len(NP_LOG_PART_SHDR);
+    call_end();
+    const uint8_t *cap = np_log_test_captured(NP_LOG_PART_SHDR) + base;
+    uint32_t c;
+    memcpy(&c, cap + 1U, sizeof c);
+    check(np_log_test_captured_len(NP_LOG_PART_SHDR) > base + FAULT_REC_BYTES &&
+          cap[0] == NP_LOG_TAG_SHDR_FAULT && c == 1U && cap[7] == 0x33U &&
+          cap[FAULT_REC_BYTES] == NP_LOG_TAG_SHDR_SESSION_END,
+          "fault queue: a fault queued in a session is written before that "
+          "session's SESSION_END, under its count");
+}
+
+static void test_fault_queue_full_keeps_oldest(void)
+{
+    logger_session_open();
+    size_t base = np_log_test_captured_len(NP_LOG_PART_SHDR);
+    for (unsigned i = 0U; i < NP_LOG_FAULT_QUEUE_MAX + 8U; i++) {
+        np_log_shdr_fault((uint8_t)i, NP_MOD_CVNS, (uint8_t)i, 0U);
+    }
+    check(np_log_shdr_fault_dropped() == 8U,
+          "fault queue: faults past NP_LOG_FAULT_QUEUE_MAX are counted as dropped");
+    np_log_flush();
+    const uint8_t *cap = np_log_test_captured(NP_LOG_PART_SHDR) + base;
+    size_t n = np_log_test_captured_len(NP_LOG_PART_SHDR) - base;
+    check(n == NP_LOG_FAULT_QUEUE_MAX * FAULT_REC_BYTES &&
+          cap[7] == 0U &&
+          cap[(NP_LOG_FAULT_QUEUE_MAX - 1U) * FAULT_REC_BYTES + 7U] ==
+              (uint8_t)(NP_LOG_FAULT_QUEUE_MAX - 1U),
+          "fault queue: a full queue keeps the oldest faults, in order");
+    np_log_init(0U);
+    check(np_log_shdr_fault_dropped() == 0U,
+          "fault queue: np_log_init() clears the drop count");
+}
+
 int main(void)
 {
     printf("── np_log_backend_tests (OI-LOG-01..04) ──\n");
@@ -789,6 +984,10 @@ int main(void)
     test_session_end_keeps_queued_adapt_events();
     test_session_open_marker_is_durable_before_return();
     test_command_record_layout();
+    test_every_entry_takes_the_lock();
+    test_heartbeat_fault_mid_sync_is_queued();
+    test_queued_fault_precedes_session_end();
+    test_fault_queue_full_keeps_oldest();
 
     if (g_failures == 0) {
         printf("ALL TESTS PASSED\n");

@@ -41,6 +41,7 @@ name: Firmware Cross-Compile (ARM)
 #                            → np_session_lease_tests (OI-FWHUB-17 detect/session exclusion)
 #                            → np_socket_dispatch_tests (OI-FWHUB-01 socket dispatch)
 #                            → np_mod_pbm_chlatch_tests (OI-PBMCH-03 per-channel disable)
+#                            → np_pbm_socket_telem_tests (OI-FWHUB-10 socket dose + tile health)
 #                            → np_chan_decl_tests     (OI-MMSOCK-02 geometry declarations)
 #                            → np_pbm_cal_bridge_tests (OI-HUB-C06: np_module_map's
 #                              UID-keyed calibration reaching a pbm session)
@@ -210,7 +211,8 @@ env:
   # 39 → 40: np_map3_record_tests (GitHub #444, OI-NVRAM-08).
   # 40 → 41: np_session_lease_tests (NP-FW-HUB-001 Rev 12, OI-FWHUB-17).
   # 41 → 42: np_mod_pbm_chlatch_tests (GitHub #436, OI-PBMCH-03).
-  NP_CLASS_B_TEST_COUNT: '42'
+  # 42 → 43: np_pbm_socket_telem_tests (NP-FW-HUB-001 Rev 15, OI-FWHUB-10).
+  NP_CLASS_B_TEST_COUNT: '43'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  This job always
