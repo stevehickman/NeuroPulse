@@ -200,6 +200,16 @@ void np_safety_spi_request_enable(uint16_t channel_mask);
 void np_safety_spi_request_disable(uint16_t channel_mask);
 
 /*
+ * np_safety_spi_request_disable_from_isr — the same clear, callable from an
+ * ISR at or below configMAX_SYSCALL_INTERRUPT_PRIORITY.  The task variant uses
+ * taskENTER_CRITICAL, which is illegal in an interrupt.  First caller: the
+ * goggle Hall edge (np_mod_visual.c, NP-FW-HUB-001 §8.6, REQ-FWHUB-21).
+ * There is deliberately no ISR-side enable: an interrupt may only take
+ * stimulation away.
+ */
+void np_safety_spi_request_disable_from_isr(uint16_t channel_mask);
+
+/*
  * np_safety_spi_disable_all — atomically set requested_enable_mask to 0.
  * Used on session abort or fault.
  */
