@@ -210,8 +210,12 @@ static void test_parameters_are_pinned(void)
 
 #define REC_SIZE   32U
 #define LOG_BASE   160U
-#define LOG_BATCH  32U
-#define LOG_BATCHES 4U
+/* 16 flushes of 8 records, not 4 of 32: the same 128 records, but each flush
+ * is one more metadata commit, and a commit that lands on the odd half of a
+ * 512-byte RMW unit is the only op whose tear can reach bytes that are already
+ * committed (OI-LFS-14).  More flushes, more chances for §4's evidence. */
+#define LOG_BATCH  8U
+#define LOG_BATCHES 16U
 #define LOG_PATH   "session.log"
 
 static void rec_build(uint8_t out[REC_SIZE], uint32_t ordinal, uint8_t gen)
@@ -250,10 +254,17 @@ static void log_baseline(void)
     (void)lfs_unmount(&g_lfs);
 }
 
+/* Flushes that RETURNED SUCCESS in the current attempt (OI-LFS-14).  L-1 says
+ * lfs_file_sync is durable, so every batch counted here must survive the cut.
+ * A global, not a local: the cut longjmps out of the mutation, and a flush that
+ * was interrupted never reaches the increment. */
+static volatile uint32_t g_log_acked;
+
 static void log_append(void)
 {
     lfs_file_t f;
     uint8_t rec[REC_SIZE];
+    g_log_acked = 0U;
     if (lfs_mount(&g_lfs, &g_cfg) != 0) { return; }
     if (open_file(&f, LOG_PATH, LFS_O_WRONLY | LFS_O_APPEND) != 0) {
         (void)lfs_unmount(&g_lfs);
@@ -264,7 +275,9 @@ static void log_append(void)
             rec_build(rec, LOG_BASE + (b * LOG_BATCH) + i, 1U);
             (void)lfs_file_write(&g_lfs, &f, rec, REC_SIZE);
         }
-        (void)lfs_file_sync(&g_lfs, &f);
+        if (lfs_file_sync(&g_lfs, &f) == 0) {
+            g_log_acked++;
+        }
     }
     (void)lfs_file_close(&g_lfs, &f);
     (void)lfs_unmount(&g_lfs);
@@ -297,6 +310,8 @@ static int log_verify(const char *what, long cut, np_powerbd_tear_t tear)
             why = "read failed or not a whole number of records";
         } else if (!boundary) {
             why = "not a flush boundary (L-1)";
+        } else if (recs < (size_t)(LOG_BASE + g_log_acked * LOG_BATCH)) {
+            why = "a flush that had returned was rolled back (L-1: sync is durable)";
         } else {
             uint8_t expect[REC_SIZE];
             for (size_t i = 0U; i < recs && why == NULL; i++) {
@@ -330,8 +345,9 @@ static np_sweep_result_t sweep(const char *label, bool expect)
     np_sweep_result_t r = np_sweep_run(log_baseline, log_append, label,
                                        log_verify);
     g_expect = false;
-    printf("  %-34s %3ld ops x 3 = %4ld attempts, %4ld cuts, %4ld violations\n",
-           label, r.ops, r.attempts, r.cuts, r.violations);
+    printf("  %-34s %3ld ops x 3 = %4ld attempts, %4ld cuts, %4ld violations,"
+           " %3ld exposed\n", label, r.ops, r.attempts, r.cuts, r.violations,
+           r.exposed);
     return r;
 }
 
@@ -381,13 +397,20 @@ static void jrn_baseline(void)
     np_cfg_store_unmount();
 }
 
+/* Journal appends the store acknowledged in the current attempt (OI-LFS-14). */
+static volatile uint32_t g_jrn_acked;
+
 static void jrn_append(void)
 {
     uint8_t rec[REC_SIZE];
+    g_jrn_acked = 0U;
     if (np_cfg_store_mount() != NP_HUB_OK) { return; }
     for (uint32_t i = 40U; i < 44U; i++) {
         rec_build(rec, i, 3U);
-        (void)np_cfg_store_journal_append(NP_CFG_FILE_MAP3, rec, REC_SIZE);
+        if (np_cfg_store_journal_append(NP_CFG_FILE_MAP3, rec, REC_SIZE) ==
+            NP_HUB_OK) {
+            g_jrn_acked++;
+        }
     }
     np_cfg_store_unmount();
 }
@@ -402,17 +425,19 @@ static int jrn_verify(const char *what, long cut, np_powerbd_tear_t tear)
                                        &n, rec_ok, NULL);
         np_cfg_store_unmount();
     }
-    if (st == NP_HUB_OK && n >= 40U) {
+    /* L-4 bounds the loss to the record in flight: every append the store
+     * acknowledged before the cut is durable, not only the 40 of the baseline. */
+    if (st == NP_HUB_OK && n >= 40U + g_jrn_acked) {
         return 0;
     }
     if (g_expect && g_shown < 2) {
         g_shown++;
-        printf("           caught: [%s] cut@%ld %s: %u of 40 durable records "
+        printf("           caught: [%s] cut@%ld %s: %u of %u durable records "
                "(status %d)\n", what, cut, np_powerbd_tear_name(tear),
-               (unsigned)n, st);
+               (unsigned)n, 40U + g_jrn_acked, st);
     } else if (!g_expect) {
-        printf("FAIL [%s] cut@%ld: %u of 40 durable records\n", what, cut,
-               (unsigned)n);
+        printf("FAIL [%s] cut@%ld: %u of %u durable records\n", what, cut,
+               (unsigned)n, 40U + g_jrn_acked);
     }
     return 1;
 }
@@ -436,8 +461,9 @@ static np_sweep_result_t config_journal_sweep(lfs_size_t rmw, const char *label,
     g_shown  = 0;
     np_sweep_result_t r = np_sweep_run(jrn_baseline, jrn_append, label, jrn_verify);
     g_expect = false;
-    printf("  %-34s %3ld ops x 3 = %4ld attempts, %4ld cuts, %4ld violations\n",
-           label, r.ops, r.attempts, r.cuts, r.violations);
+    printf("  %-34s %3ld ops x 3 = %4ld attempts, %4ld cuts, %4ld violations,"
+           " %3ld exposed\n", label, r.ops, r.attempts, r.cuts, r.violations,
+           r.exposed);
     return r;
 }
 
@@ -458,6 +484,10 @@ static void test_prog_smaller_than_xts_unit_breaks_the_contract(void)
     bind_sparse(g_cfg.block_count, 256U, 512U);
     np_sweep_bind(&g_bd, reboot_raw);
     np_sweep_result_t bad = sweep("SHDR prog 256 / XTS RMW 512", true);
+    ASSERT(bad.exposed > 0,
+           "no PARTIAL tear under the 512-byte RMW unit reached a committed "
+           "byte — the workload never met the hazard, so (b) cannot speak "
+           "either way; change the workload, not the assertion below");
     ASSERT(bad.violations > 0,
            "prog_size 256 under a 512-byte RMW unit lost nothing.  Either the "
            "model no longer tears the neighbouring half-unit, or the deviation "
@@ -504,6 +534,10 @@ static void test_prog_smaller_than_xts_unit_breaks_the_contract(void)
     g_cfg.unlock  = host_unlock;
     np_sweep_bind(&g_bd, reboot_raw);
     np_sweep_result_t c2 = sweep("Config prog 256 / XTS RMW 512", true);
+    ASSERT(c2.exposed > 0,
+           "no PARTIAL tear on the Config geometry at prog 256 reached a "
+           "committed byte — the workload never met the hazard, so (e) cannot "
+           "speak either way; change the workload, not the assertion below");
     ASSERT(c2.violations > 0,
            "the Config geometry at prog 256 survived a 512-byte RMW unit — "
            "OI-LFS-10's evidence no longer reproduces; re-examine the decision");

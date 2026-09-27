@@ -350,6 +350,21 @@ static bool attempt(long cut_at, np_powerbd_tear_t tear, void (*body)(void))
 
 static const char LOG_MAGIC[4] = { 'N', 'P', 'L', 'R' };
 
+/*
+ * What the mutation had been TOLD was durable when the cut fired (OI-LFS-14).
+ * Each counts calls that returned success in the current attempt: log flushes,
+ * journal appends, and whether the blob replacement completed.  L-1 says a
+ * flush is durable and L-4 bounds the loss to the record in flight, so the
+ * verifiers require at least this much to survive — a check that "some flush
+ * boundary survived" passes a rollback past a flush that had already returned.
+ * Globals, not locals: the cut longjmps out of the mutation, and an
+ * interrupted call never reaches its increment.  Every mutation resets the one
+ * its verifier reads, falsifications included.
+ */
+static volatile uint32_t g_log_acked;
+static volatile uint32_t g_jrn_acked;
+static volatile bool     g_blob_acked;
+
 static void log_baseline(void)
 {
     lfs_file_t file;
@@ -382,6 +397,7 @@ static void log_append_batches(void)
     lfs_file_t file;
     uint8_t    rec[REC_SIZE];
 
+    g_log_acked = 0U;
     if (mount_fresh() != 0) { return; }
     if (open_file(&file, LOG_PATH, LFS_O_WRONLY | LFS_O_APPEND) != 0) {
         lfs_unmount(&g_lfs);
@@ -393,7 +409,9 @@ static void log_append_batches(void)
             record_build(rec, LOG_MAGIC, ordinal, 1U);
             lfs_file_write(&g_lfs, &file, rec, REC_SIZE);
         }
-        lfs_file_sync(&g_lfs, &file);
+        if (lfs_file_sync(&g_lfs, &file) == 0) {
+            g_log_acked++;
+        }
     }
     lfs_file_close(&g_lfs, &file);
     lfs_unmount(&g_lfs);
@@ -407,6 +425,7 @@ static void log_rewrite_in_place(void)
     lfs_file_t file;
     uint8_t    rec[REC_SIZE];
 
+    g_log_acked = 0U;       /* no append here: the floor stays the baseline */
     if (mount_fresh() != 0) { return; }
     if (open_file(&file, LOG_PATH, LFS_O_WRONLY) != 0) {
         lfs_unmount(&g_lfs);
@@ -482,9 +501,11 @@ static int log_verify(const char *what, long cut_at, np_powerbd_tear_t tear)
                 "boundary (L-1: a flush commits the exact buffered tail)", recs);
         violations++;
     }
-    if (recs < LOG_BASE_RECS) {
-        finding(what, cut_at, tear, "only %zu of %u previously flushed records "
-                "survived (L-1)", recs, LOG_BASE_RECS);
+    const size_t durable = LOG_BASE_RECS + ((size_t)g_log_acked * LOG_BATCH);
+    if (recs < durable) {
+        finding(what, cut_at, tear, "only %zu of %zu flushed records survived — "
+                "a flush that had returned was rolled back (L-1: sync is "
+                "durable)", recs, durable);
         violations++;
     }
 
@@ -550,9 +571,10 @@ static void blob_baseline(void)
  * and it is the ordering the OI-LOG-05..07 glue must use. */
 static void blob_replace_atomic(void)
 {
+    g_blob_acked = false;
     if (mount_fresh() != 0) { return; }
     blob_write(BLOB_TMP, 2U, LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC);
-    lfs_rename(&g_lfs, BLOB_TMP, BLOB_PATH);
+    g_blob_acked = (lfs_rename(&g_lfs, BLOB_TMP, BLOB_PATH) == 0);
     lfs_unmount(&g_lfs);
 }
 
@@ -560,6 +582,7 @@ static void blob_replace_atomic(void)
  * a window in which npmp.bin does not exist, and blob_verify() must find it. */
 static void blob_replace_unsafe(void)
 {
+    g_blob_acked = false;   /* judged on the window, as before */
     if (mount_fresh() != 0) { return; }
     lfs_remove(&g_lfs, BLOB_PATH);
     blob_write(BLOB_PATH, 2U, LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC);
@@ -594,6 +617,11 @@ static int blob_verify(const char *what, long cut_at, np_powerbd_tear_t tear)
     if (gen != 1 && gen != 2) {
         finding(what, cut_at, tear, "npmp.bin is neither the old blob nor the "
                 "new one (read %d bytes, generation %d) (L-3)", (int)got, gen);
+        return 1;
+    }
+    if (g_blob_acked && gen != 2) {
+        finding(what, cut_at, tear, "the rename had returned, and npmp.bin is "
+                "still the old blob — the replacement was not durable (L-3)");
         return 1;
     }
     return 0;
@@ -637,6 +665,7 @@ static void jrn_append(void)
     lfs_file_t file;
     uint8_t    rec[REC_SIZE];
 
+    g_jrn_acked = 0U;
     if (mount_fresh() != 0) { return; }
     if (open_file(&file, JRN_PATH, LFS_O_WRONLY | LFS_O_APPEND) != 0) {
         lfs_unmount(&g_lfs);
@@ -645,7 +674,9 @@ static void jrn_append(void)
     for (uint32_t i = 0U; i < JRN_APPENDS; i++) {
         record_build(rec, JRN_MAGIC, JRN_BASE_RECS + i, 1U);
         lfs_file_write(&g_lfs, &file, rec, REC_SIZE);
-        lfs_file_sync(&g_lfs, &file);
+        if (lfs_file_sync(&g_lfs, &file) == 0) {
+            g_jrn_acked++;
+        }
     }
     lfs_file_close(&g_lfs, &file);
     lfs_unmount(&g_lfs);
@@ -663,6 +694,7 @@ static void jrn_truncate_and_rebuild(void)
     lfs_file_t file;
     uint8_t    rec[REC_SIZE];
 
+    g_jrn_acked = 0U;       /* judged against the baseline, as before */
     if (mount_fresh() != 0) { return; }
     if (open_file(&file, JRN_PATH, LFS_O_WRONLY | LFS_O_TRUNC) != 0) {
         lfs_unmount(&g_lfs);
@@ -712,9 +744,11 @@ static int jrn_verify(const char *what, long cut_at, np_powerbd_tear_t tear)
 
     /* L-4: the loss is bounded to the record in flight.  Every record that was
      * already durable must still be there, intact and in order. */
-    if (recs < JRN_BASE_RECS) {
-        finding(what, cut_at, tear, "%zu of %u durable records survived — a "
-                "torn write cost more than one record (L-4)", recs, JRN_BASE_RECS);
+    const size_t durable = JRN_BASE_RECS + (size_t)g_jrn_acked;
+    if (recs < durable) {
+        finding(what, cut_at, tear, "%zu of %zu durable records survived — a "
+                "torn write cost more than the record in flight (L-4)", recs,
+                durable);
         violations++;
     }
     for (size_t i = 0U; i < recs; i++) {

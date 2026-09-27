@@ -152,6 +152,12 @@ static int np_powerbd_prog(const struct lfs_config *c, lfs_block_t block,
                 if (last > bd->block_size) {
                     last = bd->block_size;
                 }
+                for (lfs_off_t q = first; q < last; q++) {
+                    if ((q < off || q >= off + size) && base[q] != 0xFFU) {
+                        bd->rmw_exposed++;
+                        break;
+                    }
+                }
                 memset(base + first, NP_POWERBD_INDETERMINATE, last - first);
             }
             break;
