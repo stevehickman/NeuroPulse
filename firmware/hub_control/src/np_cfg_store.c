@@ -94,6 +94,13 @@ static bool                     s_open[NP_CFG_FILE_COUNT][2];
  * lock is held from open to close. */
 static uint8_t                  s_file_cache[NP_LFS_FILE_BUFFER_SIZE];
 
+/* The file config every handle is opened with.  NOT a local in cfg_open():
+ * littlefs keeps the pointer and reads attrs/attr_count again at every sync
+ * and close (lfs.h: "must remain allocated while the file is open"), so a
+ * stack copy is read after its frame is gone.  One suffices for the same
+ * reason one cache does. */
+static struct lfs_file_config   s_fcfg;
+
 static np_cfg_store_stats_t     s_stats;
 
 /* ── Replica envelope ──────────────────────────────────────────────────────────
@@ -197,12 +204,11 @@ static np_hub_status_t cfg_open(np_cfg_file_t file, unsigned copy,
         return NP_HUB_ERR_STORE_BUSY;
     }
 
-    struct lfs_file_config fcfg;
-    memset(&fcfg, 0, sizeof(fcfg));
-    fcfg.buffer = s_file_cache;
+    memset(&s_fcfg, 0, sizeof(s_fcfg));
+    s_fcfg.buffer = s_file_cache;
 
     int err = lfs_file_opencfg(s_lfs, handle, s_files[file].path[copy], flags,
-                               &fcfg);
+                               &s_fcfg);
     if (err == LFS_ERR_NOENT) {
         return NP_HUB_ERR_NOT_PRESENT;
     }
