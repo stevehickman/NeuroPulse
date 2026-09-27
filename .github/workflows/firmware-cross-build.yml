@@ -417,6 +417,120 @@ jobs:
           path: build/host-tests/
           retention-days: 7
 
+  # The same Class B selection, built with AddressSanitizer + UndefinedBehavior-
+  # Sanitizer (NP-SOUP-LFS-001 OI-LFS-13, item 2).  Why a second job: the
+  # OI-LFS-13 defect — np_cfg_store handing littlefs a stack file config that
+  # every close then read after the frame was gone — passed `host-tests` above
+  # for three days, because gcc's stack happened to hold harmless values there.
+  # A plain build can only fail on UB by luck; this one fails on it by design.
+  #
+  # A SEPARATE job, never a `strategy: matrix:` on host-tests: a matrix renames
+  # that job's check to "name (value)" and silently un-gates the branch
+  # (NP-SW-CI-001 §6.7.8).  NOT yet a required context — adding it to
+  # ci/required-checks.txt is a ruleset change made in the same operation
+  # (§6.7.8), and it is left for that decision.  Deliberately NOT
+  # continue-on-error: a sanitizer finding must show red.
+  #
+  # Leak detection is OFF (detect_leaks=0), and only that: firmware/ allocates
+  # nothing on the heap (LFS_NO_MALLOC; FreeRTOS's heap is a static pool), so a
+  # leak here can only be in a test harness, which is not what this job is for.
+  # UB is made fatal with -fno-sanitize-recover=all — without it UBSan prints
+  # and the test still passes, which is the green-without-evidence shape.
+  host-tests-sanitized:
+    name: CMake host tests (Class B, ASan + UBSan)
+    runs-on: ubuntu-latest
+    needs: changes
+    # Same scope rule as host-tests, for the same reasons.
+    if: ${{ !cancelled() && needs.changes.outputs.relevant != 'false' }}
+    env:
+      NP_SAN_FLAGS: -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer
+      ASAN_OPTIONS: detect_leaks=0:halt_on_error=1:abort_on_error=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y cmake ninja-build gcc
+
+      # The sanitizers must be shown to trip before a pass means anything: a
+      # flag typo, a runtime option that downgrades a finding to a message, or a
+      # toolchain without the runtime would all leave every test green.  Each
+      # canary is a one-line defect that MUST abort under these exact flags.
+      - name: Canaries — ASan and UBSan must each fail a known defect
+        run: |
+          mkdir -p canary
+          printf '#include <stdlib.h>\nint main(void){volatile char *p=malloc(4);p[4]=1;return 0;}\n' > canary/asan.c
+          printf '#include <limits.h>\nint main(int c,char**v){(void)v;volatile int x=INT_MAX;return x+c;}\n' > canary/ubsan.c
+          for k in asan ubsan; do
+            gcc $NP_SAN_FLAGS -o canary/$k canary/$k.c
+            if ./canary/$k; then
+              echo "::error::the $k canary exited 0 — this build cannot detect what it claims to"
+              exit 1
+            fi
+            echo "$k canary tripped, as required"
+          done
+
+      - name: Configure (sanitized host test build)
+        run: |
+          cmake -B build/host-tests-san \
+                -G Ninja \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DNP_BUILD_TESTS=ON \
+                -DCMAKE_CROSSCOMPILING=OFF \
+                "-DCMAKE_C_FLAGS=$NP_SAN_FLAGS" \
+                "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined" \
+                firmware
+
+      - name: Build
+        run: cmake --build build/host-tests-san
+
+      - name: Assert test selection covers every Class B target
+        run: |
+          ctest --test-dir build/host-tests-san -N -E "$NP_SAFETY_TESTS" | tee selection.txt
+          selected=$(sed -n 's/^Total Tests: //p' selection.txt)
+          echo "selected=${selected} expected=${NP_CLASS_B_TEST_COUNT}"
+          if [ "${selected}" != "${NP_CLASS_B_TEST_COUNT}" ]; then
+            echo "::error::ctest selection drift — expected ${NP_CLASS_B_TEST_COUNT} Class B targets, matched ${selected}."
+            exit 1
+          fi
+
+      # The canaries prove the flags work; this proves the flags reached the
+      # binaries ctest will run.  A CMakeLists that overwrote CMAKE_C_FLAGS for
+      # one target would leave it uninstrumented and still green.
+      # nm writes to a file rather than a pipe: under the runner's pipefail,
+      # `nm | grep -q` fails when grep exits early and nm takes SIGPIPE, even
+      # though the symbol is there.
+      - name: Assert every selected test binary is instrumented
+        run: |
+          ctest --test-dir build/host-tests-san -E "$NP_SAFETY_TESTS" --show-only=json-v1 > tests.json
+          python3 -c 'import json; [print(t["command"][0]) for t in json.load(open("tests.json"))["tests"]]' \
+            | sort -u > binaries.txt
+          count=$(wc -l < binaries.txt | tr -d " ")
+          echo "binaries=${count} expected=${NP_CLASS_B_TEST_COUNT}"
+          if [ "${count}" != "${NP_CLASS_B_TEST_COUNT}" ]; then
+            echo "::error::expected ${NP_CLASS_B_TEST_COUNT} test binaries to inspect, found ${count}"
+            exit 1
+          fi
+          bad=0
+          while read -r exe; do
+            nm "$exe" > syms.txt
+            if ! grep -q '__asan_init' syms.txt || ! grep -q '__ubsan_handle' syms.txt; then
+              echo "::error::$exe is not instrumented with both ASan and UBSan"
+              bad=1
+            fi
+          done < binaries.txt
+          exit $bad
+
+      - name: Run tests
+        run: |
+          ctest --test-dir build/host-tests-san \
+                -E "$NP_SAFETY_TESTS" \
+                --output-on-failure --no-tests=error
+
   bootloader:
     name: Bootloader (i.MX RT1062)
     # ⚠ This string is a required-status-check CONTEXT (NP-SW-CI-001 §6.7.8).
