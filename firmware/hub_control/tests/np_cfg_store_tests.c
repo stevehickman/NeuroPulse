@@ -44,6 +44,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "np_cfg_store.h"
@@ -1135,6 +1136,32 @@ static void test_reset_marker_is_durable(void)
     np_cfg_store_unmount();
     ASSERT(m == NP_FR_MARKER_UNKNOWN,
            "a read fault on the superblock was reported as a state to act on");
+
+    /* R-3's read-back reads the MEDIUM, in the same boot as the write
+     * (NP-SOUP-LFS-001 §13.18, RISK-LFS-09).  np_factory_reset_execute()
+     * refuses to start R-5 unless marker_state() says PRESENT straight after
+     * the write, so marker_state() must see a write the medium did not keep —
+     * not the store's or littlefs's memory of having made it.  The medium is
+     * put back to its pre-write bytes after an acknowledged write: an E4
+     * rollback or an OI-LFS-07 dropped program, seen from the medium. */
+    {
+        uint8_t *before = malloc(sizeof(g_media));
+        ASSERT(before != NULL, "host out of memory");
+        if (before != NULL) {
+            fresh();
+            ASSERT(np_cfg_store_mount() == NP_HUB_OK, "mount");
+            memcpy(before, g_media, sizeof(g_media));
+            ASSERT(np_factory_reset_hal_marker_write() == NP_RESET_OK, "marker write");
+            ASSERT(np_factory_reset_hal_marker_state() == NP_FR_MARKER_PRESENT,
+                   "a kept marker did not read back PRESENT in the same boot");
+            memcpy(g_media, before, sizeof(g_media));     /* the write is lost */
+            ASSERT(np_factory_reset_hal_marker_state() == NP_FR_MARKER_ABSENT,
+                   "a marker the medium did not keep still read back PRESENT — "
+                   "R-3's read-back would let R-5 purge UHDR on it");
+            np_cfg_store_unmount();
+            free(before);
+        }
+    }
 
     /* A power loss during the marker write: absent or present, nothing else. */
     np_sweep_result_t r = run("R-3 reset marker write", s_marker_baseline,

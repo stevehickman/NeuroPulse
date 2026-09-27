@@ -188,6 +188,37 @@ int main(void)
     check(np_factory_reset_boot_check() == NP_FR_BOOT_NONE,
           "boot after a reset that never started: nothing to resume");
 
+    /* 16a: the marker is read back before the first erase — exactly once. */
+    begin_case();
+    check(np_factory_reset_execute() == NP_RESET_OK, "execute with a durable marker returns OK");
+    check(np_fr_host_hal.calls_marker_state == 1U,
+          "R-3 reads the marker back exactly once (RISK-LFS-09)");
+
+    /* 16b: THE RISK-LFS-09 CASE.  The marker write is acknowledged and is not
+     * durable.  Without the read-back, R-5 would purge UHDR on a marker a
+     * power loss would then show absent, and the boot check would not resume:
+     * a half-reset device.  With it, the reset does not start. */
+    begin_case();
+    np_fr_host_hal.marker_write_not_durable = true;
+    check(np_factory_reset_execute() == NP_RESET_ERR_MARKER,
+          "execute refuses when an acknowledged marker does not read back");
+    check(strcmp(np_fr_host_hal.trace, "M") == 0,
+          "nothing is erased after a marker that did not read back (trace M)");
+    check(np_fr_host_hal.calls_sanitize_uhdr == 0U,
+          "R-5 never runs on an unverified marker");
+    check(np_factory_reset_is_in_progress() == false,
+          "flag cleared when the reset never started");
+    check(np_factory_reset_boot_check() == NP_FR_BOOT_NONE,
+          "boot after the refused reset: nothing to resume, nothing erased");
+
+    /* 16c: a read-back that cannot tell (UNKNOWN) is not PRESENT either. */
+    begin_case();
+    np_fr_host_hal.marker_write_not_durable = true;
+    np_fr_host_hal.marker_state = NP_FR_MARKER_UNKNOWN;
+    check(np_factory_reset_execute() == NP_RESET_ERR_MARKER &&
+          np_fr_host_hal.calls_sanitize_uhdr == 0U,
+          "an UNKNOWN read-back refuses the reset before R-5");
+
     /* 17: THE OI-NVRAM-05 CASE.  A power cut after each medium-touching step.
      * A cut is modelled by failing the NEXT step (execute stops with the
      * medium exactly as that step left it) and then clearing LPGPR1, which is

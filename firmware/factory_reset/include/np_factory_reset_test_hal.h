@@ -51,6 +51,11 @@ typedef struct {
      * it directly to model the state a power loss left behind. */
     np_fr_marker_state_t marker_state;
 
+    /* The marker write returns OK but the medium keeps its prior state — an
+     * acknowledged write that is not durable (NP-SOUP-LFS-001 §13.18 E4, a
+     * discarded commit; or OI-LFS-07, a medium that drops the program). */
+    bool     marker_write_not_durable;
+
     /* Order of medium-touching steps, one letter each: M marker write,
      * U UHDR sanitize, S SHDR zero, C Config zero, W Config defaults write.
      * Lets a test assert the marker precedes the first erase. */
