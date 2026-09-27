@@ -29,6 +29,7 @@
 #include "np_session_log.h"
 #include "np_adaptation_log.h"
 #include "np_log_backend.h"    /* per-session UHDR files (OI-LFS-11) */
+#include "np_log_hrv.h"        /* HRV session record (OI-HRV-03) */
 #include <string.h>
 
 /* ── Internal buffers (flushed to eMMC by HAL) ───────────────────────────────── */
@@ -405,6 +406,28 @@ void np_log_telemetry(const np_telem_record_t *rec)
     default:
         break;
     }
+    give();
+}
+
+/* ── HRV session record (OI-HRV-03, NP-FW-HRV-001 §8.1) ───────────────────── */
+
+void np_log_hrv_session(const np_hrv_session_record_t *rec,
+                        np_hrv_status_t                reason)
+{
+    if (rec == NULL) { return; }
+    take();
+    const int8_t r = (int8_t)reason;
+    uhdr_u8(NP_LOG_TAG_UHDR_HRV_SESSION);
+    uhdr_write(&r,                     1U);
+    uhdr_write(&rec->duration_s,       sizeof(rec->duration_s));
+    uhdr_write(&rec->protocol,         sizeof(rec->protocol));
+    uhdr_write(&rec->target_rate_bpm,  sizeof(rec->target_rate_bpm));
+    uhdr_write(&rec->mean_coherence,   sizeof(rec->mean_coherence));
+    uhdr_write(&rec->min_coherence,    sizeof(rec->min_coherence));
+    uhdr_write(&rec->max_coherence,    sizeof(rec->max_coherence));
+    uhdr_write(&rec->mean_rmssd_ms,    sizeof(rec->mean_rmssd_ms));
+    uhdr_write(&rec->rr_sample_count,  sizeof(rec->rr_sample_count));
+    uhdr_write(&rec->tavns_stim_count, sizeof(rec->tavns_stim_count));
     give();
 }
 

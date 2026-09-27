@@ -189,6 +189,7 @@ if(NP_BUILD_TESTS)
     target_include_directories(np_pbm_socket_telem_tests PRIVATE
         include
         ../pbm/include
+        ../hrv_biofeedback/include    # np_log_hrv.h (OI-HRV-03)
         ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}
         ${NP_BOOTLOADER_INCLUDE_DIR}
     )
@@ -253,6 +254,7 @@ if(NP_BUILD_TESTS)
     target_include_directories(np_log_backend_tests PRIVATE
         include
         ${NP_BOOTLOADER_INCLUDE_DIR}   # np_config.h: partition sizes
+        ../hrv_biofeedback/include     # np_log_hrv.h: the HRV session record (OI-HRV-03)
     )
     target_compile_options(np_log_backend_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)

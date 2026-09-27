@@ -38,6 +38,7 @@
 #define NP_LOG_TAG_UHDR_ADAPT_EVENT     0x18U  /* closed-loop adaptation event (STEP-33) */
 #define NP_LOG_TAG_UHDR_COMMAND         0x19U  /* commanded dose: one dispatched command (OI-FMEA-09) */
 #define NP_LOG_TAG_UHDR_PBM_SOCKET      0x1AU  /* one lattice socket's dose + NTC (OI-FWHUB-10, F1–F8) */
+#define NP_LOG_TAG_UHDR_HRV_SESSION     0x1BU  /* HRV session record at session end (OI-HRV-03, np_log_hrv.h) */
 
 #define NP_LOG_TAG_SHDR_SESSION_END     0x80U
 #define NP_LOG_TAG_SHDR_PBM_HEALTH      0x81U

@@ -25,6 +25,9 @@
  *     it: a heartbeat fault landing mid-sync is queued, drained by the next
  *     holder with the count it was logged under, ahead of SESSION_END, and a
  *     full queue keeps the oldest and counts the rest
+ *   - OI-HRV-03: the HRV session record reaches this session's UHDR file, in
+ *     its documented layout, ahead of SESSION_END, and nowhere in SHDR; outside
+ *     a session it is lost, never written into the next session's file
  *
  * No FreeRTOS, no hardware; the LittleFS-file HAL is host-modeled in
  * np_log_backend.c (NPTEST_HOST).  IEC 62304 Class B — SW-02 hub control.
@@ -37,6 +40,7 @@
 
 #include "../include/np_log_backend.h"
 #include "../include/np_session_log.h"
+#include "../include/np_log_hrv.h"
 
 static int g_failures = 0;
 
@@ -764,6 +768,99 @@ static void test_command_record_layout(void)
           "command: an out-of-range params_len or NULL writes nothing");
 }
 
+/* ── OI-HRV-03: the HRV session record ────────────────────────────────────── */
+
+#define HRV_REC_BYTES 31U
+
+static np_hrv_session_record_t hrv_record(void)
+{
+    np_hrv_session_record_t r;
+    memset(&r, 0xEE, sizeof r);             /* padding and reserved: must not leak */
+    r.session_start_unix = 0xDEADBEEFU;     /* not written (np_log_hrv.h)          */
+    r.duration_s       = 0x00000258U;       /* 600 s */
+    r.protocol         = NP_HRV_PROTO_TAVNS_SYNC;
+    r.target_rate_bpm  = 5.5f;
+    r.mean_coherence   = 2.25f;
+    r.min_coherence    = 0.5f;
+    r.max_coherence    = 6.75f;
+    r.mean_rmssd_ms    = 42.0f;
+    r.rr_sample_count  = 0x0321U;
+    r.tavns_stim_count = 0x0077U;
+    return r;
+}
+
+static bool hrv_record_at(const uint8_t *c, const np_hrv_session_record_t *r,
+                          np_hrv_status_t reason)
+{
+    uint32_t dur;
+    float    rate, mean, lo, hi, rmssd;
+    uint16_t rr, st;
+    memcpy(&dur,   c + 2U,  4U);
+    memcpy(&rate,  c + 7U,  4U);
+    memcpy(&mean,  c + 11U, 4U);
+    memcpy(&lo,    c + 15U, 4U);
+    memcpy(&hi,    c + 19U, 4U);
+    memcpy(&rmssd, c + 23U, 4U);
+    memcpy(&rr,    c + 27U, 2U);
+    memcpy(&st,    c + 29U, 2U);
+    return c[0] == NP_LOG_TAG_UHDR_HRV_SESSION && (int8_t)c[1] == (int8_t)reason &&
+           dur == r->duration_s && c[6] == r->protocol &&
+           rate == r->target_rate_bpm && mean == r->mean_coherence &&
+           lo == r->min_coherence && hi == r->max_coherence &&
+           rmssd == r->mean_rmssd_ms && rr == r->rr_sample_count &&
+           st == r->tavns_stim_count;
+}
+
+static void test_hrv_session_record(void)
+{
+    logger_session_open();                             /* session 1 */
+    const size_t base  = np_log_test_captured_len(NP_LOG_PART_UHDR);
+    const size_t sbase = np_log_test_captured_len(NP_LOG_PART_SHDR);
+
+    np_hrv_session_record_t r = hrv_record();
+    np_log_hrv_session(&r, NP_HRV_OK);
+    np_session_shdr_record_t shdr;
+    memset(&shdr, 0, sizeof shdr);
+    np_log_session_end(&g_rec, &shdr);
+
+    const uint8_t *cap = np_log_test_captured(NP_LOG_PART_UHDR) + base;
+    check(np_log_test_captured_len(NP_LOG_PART_UHDR) > base + HRV_REC_BYTES &&
+          hrv_record_at(cap, &r, NP_HRV_OK),
+          "hrv record: every field, in the documented order, in the session's "
+          "UHDR file (OI-HRV-03)");
+    check(cap[HRV_REC_BYTES] == NP_LOG_TAG_UHDR_SESSION_END,
+          "hrv record: exactly 31 bytes, and ahead of SESSION_END; the "
+          "unset start time, the padding and reserved are not written");
+    check(np_log_test_segment_len(NP_LOG_PART_UHDR, 0U) ==
+              np_log_test_captured_len(NP_LOG_PART_UHDR),
+          "hrv record: committed into session 1's file, the one it describes");
+
+    const uint8_t *sc = np_log_test_captured(NP_LOG_PART_SHDR) + sbase;
+    size_t sn = np_log_test_captured_len(NP_LOG_PART_SHDR) - sbase;
+    bool leaked = false;
+    for (size_t i = 0U; i < sn; i++) {
+        if (sc[i] == NP_LOG_TAG_UHDR_HRV_SESSION) { leaked = true; }
+    }
+    check(!leaked && sn > 0U && sc[0] == NP_LOG_TAG_SHDR_SESSION_END,
+          "hrv record: UHDR only; SHDR gets the session end and nothing of it");
+
+    /* After the session: UHDR has no file, so the record is buffered and the
+     * next session_start drains it into nothing — never into session 2. */
+    np_log_hrv_session(&r, NP_HRV_OK);
+    memset(&g_rec, 0, sizeof g_rec);
+    np_log_session_start(&g_rec);                      /* session 2 */
+    check(np_log_test_segment_len(NP_LOG_PART_UHDR, 1U) == START_REC_BYTES,
+          "hrv record: one logged outside a session never lands in the next "
+          "session's file");
+
+    size_t before = np_log_test_captured_len(NP_LOG_PART_UHDR);
+    np_log_hrv_session(NULL, NP_HRV_OK);
+    np_log_flush();
+    check(np_log_test_captured_len(NP_LOG_PART_UHDR) == before,
+          "hrv record: NULL writes nothing");
+    np_log_session_end(&g_rec, &shdr);
+}
+
 /* ── OI-FWHUB-19: the logger lock and the heartbeat's fault queue ──────────── */
 
 #define FAULT_REC_BYTES (1U + sizeof(uint32_t) + 3U)
@@ -831,6 +928,12 @@ static void call_end(void)
     np_log_session_end(&g_rec, &shdr);
 }
 static void call_adapt_reset(void) { np_adapt_log_reset(); }
+static void call_hrv(void)
+{
+    np_hrv_session_record_t r;
+    memset(&r, 0, sizeof r);
+    np_log_hrv_session(&r, NP_HRV_OK);
+}
 
 static void test_every_entry_takes_the_lock(void)
 {
@@ -850,6 +953,7 @@ static void test_every_entry_takes_the_lock(void)
     check(locks_balanced(call_end),        "lock: np_log_session_end holds it");
     check(locks_balanced(call_start),      "lock: np_log_session_start holds it");
     check(locks_balanced(call_adapt_reset),"lock: np_adapt_log_reset holds it");
+    check(locks_balanced(call_hrv),        "lock: np_log_hrv_session holds it");
 
     unsigned l0 = g_locks;
     np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS, 0x42U, 0U);
@@ -984,6 +1088,7 @@ int main(void)
     test_session_end_keeps_queued_adapt_events();
     test_session_open_marker_is_durable_before_return();
     test_command_record_layout();
+    test_hrv_session_record();
     test_every_entry_takes_the_lock();
     test_heartbeat_fault_mid_sync_is_queued();
     test_queued_fault_precedes_session_end();

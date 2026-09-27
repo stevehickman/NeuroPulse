@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HRV-001
-**Revision:** 2
-**Date:** 2026-09-26
+**Revision:** 3
+**Date:** 2026-09-27
 **Status:** BASELINED
 **Effective Date:** 2026-05-11
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -14,7 +14,7 @@
 **IEC 62304 Class:** SW-02 Class B (main processor)
 **Supersedes:** —
 **Parent Document:** NP-SW-001
-**Change Summary:** Rev 2 (2026-09-26, GitHub #447) — **Two taVNS defects found by the library's first host test (`np_hrv_session_tests`); the §10 gate closure's "taVNS inspiration-phase timing fully specified and implemented" was not true of the code.** (1) **§5.1 as implemented never opened the gate.** `np_hrv_tavns_process_rr()` read the "previous R-R interval" out of the slope buffer, which holds dRR values, so dRR was 0 for the whole session and the mean slope never crossed −5 ms/beat. The state now carries `last_rr_ms`. (2) **OI-HRV-05, firmware half:** an out-of-range `tavns_freq_hz` or current was refused by `np_hrv_tavns_init()` *before* it reset its module-static callback, rate and current, and `np_hrv_session_start()` ignored the refusal and started the session anyway. With (1) fixed, the next inspiration would have fired the previous session's enable at the previous session's rate. A refused configuration now disarms everything, and the session refuses to start (§5.2 item 4). Neither defect reached a stimulation line: the enable callbacks are still stubs (OI-HRV-01), and the safety MCU owns every enable. Rev 1 (2026-05-11): initial release.
+**Change Summary:** Rev 3 (2026-09-27) — **OI-HRV-03 CLOSED: the session record reaches UHDR.** The hub's `end_cb` (`np_mod_vns.c`) discarded the finalised `np_hrv_session_record_t`, so no HRV session summary was ever stored. It now commits it through the hub session logger, `np_log_hrv_session()` (new UHDR tag `0x1B`, `NP-FW-HUB-001` Rev 19 §6.1). The logger appends to this session's file on the UHDR partition, which `np_uhdr_key_unlock()` mounts AES-256-XTS under the user's biometric-derived key. That is the storage layer's AES-256-XTS write, and the logger never sees key material. §8.1 now states the serialized layout (31 bytes, field by field) and that `session_start_unix` is not written. `np_log_backend_tests` pins the layout and the routing: UHDR only, ahead of `SESSION_END`, and never in another session's file. **Two gaps found while closing it, raised and not fixed:** nothing feeds PPG samples to the HRV session or ticks it, so on today's firmware the committed record carries a duration and a protocol and zero statistics (**OI-HRV-07**). The §8.1 R-R interval series has no writer (**OI-HRV-06**). — Rev 2 (2026-09-26, GitHub #447) — **Two taVNS defects found by the library's first host test (`np_hrv_session_tests`); the §10 gate closure's "taVNS inspiration-phase timing fully specified and implemented" was not true of the code.** (1) **§5.1 as implemented never opened the gate.** `np_hrv_tavns_process_rr()` read the "previous R-R interval" out of the slope buffer, which holds dRR values, so dRR was 0 for the whole session and the mean slope never crossed −5 ms/beat. The state now carries `last_rr_ms`. (2) **OI-HRV-05, firmware half:** an out-of-range `tavns_freq_hz` or current was refused by `np_hrv_tavns_init()` *before* it reset its module-static callback, rate and current, and `np_hrv_session_start()` ignored the refusal and started the session anyway. With (1) fixed, the next inspiration would have fired the previous session's enable at the previous session's rate. A refused configuration now disarms everything, and the session refuses to start (§5.2 item 4). Neither defect reached a stimulation line: the enable callbacks are still stubs (OI-HRV-01), and the safety MCU owns every enable. Rev 1 (2026-05-11): initial release.
 
 ---
 
@@ -261,9 +261,20 @@ Written to UHDR partition at session end, encrypted with biometric-derived AES-2
 
 | Data element | Format | Notes |
 |---|---|---|
-| R-R interval time series | `uint16_t[]` in EDF+ annotation | Full session record |
-| Coherence score array | `float[]` | One per 5-second update |
-| Session record (`np_hrv_session_record_t`) | 48-byte struct | Duration, protocol, mean/min/max coherence, RMSSD, RR count, taVNS count |
+| R-R interval time series | `uint16_t[]` in EDF+ annotation | Full session record. **No writer exists** (OI-HRV-06) |
+| Coherence score array | `float[]` | One per 5-second update. The hub's 1 s `0x14` VNS/HRV telemetry record carries the current coherence, RMSSD and HR, read through HAL stubs `OI-VNS-07…09` |
+| Session record (`np_hrv_session_record_t`) | UHDR record `0x1B`, 31 bytes serialized | Duration, protocol, mean/min/max coherence, RMSSD, RR count, taVNS count. Committed since Rev 3 (§8.1.1) |
+
+#### 8.1.1 Session record commit path (Rev 3, OI-HRV-03)
+
+The library does not write storage. `np_hrv_session_stop()` builds the record and passes it to the `end_cb` given to `np_hrv_session_create()`. On the hub that is `vns_hrv_session_end_cb()` in `firmware/hub_control/modules/np_mod_vns.c`, which calls `np_log_hrv_session()` (`firmware/hub_control/include/np_log_hrv.h`).
+
+- **Encryption.** The session logger appends plaintext to the UHDR partition, which `np_uhdr_key_unlock()` has mounted AES-256-XTS under the user's biometric-derived key (`NP-FW-EMMC-002` §C). Encryption happens at the mounted block device. Neither the HRV library nor the logger holds or sees the key (`np_log_backend.h`, "Encryption boundary").
+- **Which file.** The record goes into the session file that is open when it is logged. The runner stops every module before `np_log_session_end()`, and stopping the VNS module (`control(NULL)`) is what calls `np_hrv_session_stop()`. So the record lands in the session it describes, ahead of `SESSION_END`. An auto-complete from `np_hrv_session_tick()` fires during the session, and the later stop is then a no-op, so the record is written once. If the record is logged outside a session, UHDR accepts no append and the record is lost. It is never written into another session's file.
+- **Layout** after tag `0x1B`, each field little-endian: reason (1, `np_hrv_status_t` as `int8`), `duration_s` (4), `protocol` (1), `target_rate_bpm` (4), `mean_coherence` (4), `min_coherence` (4), `max_coherence` (4), `mean_rmssd_ms` (4), `rr_sample_count` (2), `tavns_stim_count` (2). That is 31 bytes with the tag. The record is serialized field by field, so struct padding and `reserved[8]` never reach the medium.
+- **`session_start_unix` is not written.** The library never sets it, because the device has no RTC backup (CLAUDE.md §4.5). A zero written there would read as a 1970 start time. The session file's `0x10` start record already carries the session's start time.
+- **The statistics are valid only when the library saw data.** With no coherence update, the library leaves mean, min and max coherence and RMSSD at 0. A reader must treat `rr_sample_count = 0` as "no data" and never as a measured zero. On today's firmware that is every record (OI-HRV-07).
+- **UHDR only.** Nothing from this record reaches SHDR. The SHDR coherence trend slope is §8.2 and OI-HRV-04.
 
 ### 8.2 SHDR (System Health Data Record)
 
@@ -322,6 +333,8 @@ This document and its accompanying firmware (`firmware/hrv_biofeedback/`) satisf
 |----|-------------|-------|---------|
 | OI-HRV-01 | Platform HAL stubs (`np_platform_tavns_enable`, `np_platform_tavns_disable`, `np_platform_pacer_phase_notify`) must be implemented before integration testing | FW team | Integration test |
 | OI-HRV-02 | Config partition API for persisting personalised resonance frequency (feeds output of `np_hrv_pacer_sweep_finalise`) must be wired in application layer | FW team | RF personalisation |
-| OI-HRV-03 | UHDR session record commit to eMMC must call storage layer AES-256-XTS write — `end_cb` currently returns raw plaintext record | FW/Storage team | UHDR compliance |
+| ~~OI-HRV-03~~ | ✅ **CLOSED 2026-09-27 (Rev 3, §8.1.1).** The hub's `end_cb` commits the record through `np_log_hrv_session()` (UHDR tag `0x1B`) into this session's file on the AES-256-XTS-mounted UHDR partition. `np_log_backend_tests` pins the layout, the UHDR-only routing, the order ahead of `SESSION_END`, and the loss outside a session (never misfiled). *Was:* UHDR session record commit to eMMC must call storage layer AES-256-XTS write — `end_cb` currently returns raw plaintext record | FW/Storage team | — |
 | OI-HRV-04 | SHDR coherence trend slope write after each session (uses `np_hrv_coherence_trend_t`) must call SHDR storage API | FW team | SHDR compliance |
 | OI-HRV-05 | `NP_TAVNS_DEFAULT_FREQ_HZ` (25 Hz) vs user-configurable range 1–25 Hz: app layer must validate and pass `tavns_freq_hz` in `np_hrv_session_config_t` — **Firmware half CLOSED 2026-09-26 (Rev 2, §5.2 item 4, GitHub #447):** firmware no longer trusts the app to validate. An out-of-range frequency or current refuses the session and leaves nothing armed. `np_hrv_session_tests` covers 30 Hz (#386's value), 26 Hz, both current bounds, and the accepted edges. **Open:** the app still has to send a valid value, or the user gets a refused session. That is #386 `OI-NPPS-LIMITS-01` (a shipped 30 Hz protocol) | App team | Protocol 1 |
+| OI-HRV-06 | **§8.1's R-R interval series has no writer.** The row specifies the full-session `uint16_t[]` series as an EDF+ annotation. Nothing in `firmware/hrv_biofeedback/`, `firmware/edf/` or `firmware/hub_control/` writes it, so a stored HRV session has a summary (`0x1B`) and 1 s telemetry snapshots (`0x14`), and no series. Found while closing OI-HRV-03 | FW team | UHDR completeness |
+| OI-HRV-07 | **No task feeds or ticks the HRV session.** `np_hrv_session_push_ppg()`, `np_hrv_session_push_eeg()` and `np_hrv_session_tick()` have no caller outside the library. `np_mod_vns.c`'s banner says the library "runs as a separate FreeRTOS thread", but no such task is created. So on today's firmware no coherence is computed, the taVNS gate never opens, the session never auto-completes, and every committed `0x1B` record has zero statistics (`rr_sample_count = 0`, §8.1.1). No stimulation consequence: the safety MCU owns the enable. Found while closing OI-HRV-03 | FW team | Integration test |
