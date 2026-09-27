@@ -35,6 +35,7 @@
 # firmware-cross-build.yml — Class B
 Class B scope
 CMake host tests (Class B)
+CMake host tests (Class B, ASan + UBSan)
 Bootloader (i.MX RT1062)
 Main firmware (i.MX RT1062, Class B)
 
