@@ -104,9 +104,10 @@ env:
   # GitHub #444 (OI-NVRAM-08) then added np_map3_record_tests: 11 + 40 = 51.
   # NP-FW-HUB-001 Rev 12 (OI-FWHUB-17) then added np_session_lease_tests: 11 + 41 = 52.
   # GitHub #436 (OI-PBMCH-03) then added np_mod_pbm_chlatch_tests: 11 + 42 = 53.
-  NP_TOTAL_TEST_COUNT: '53'
+  # NP-FW-HUB-001 Rev 15 (OI-FWHUB-10) then added np_pbm_socket_telem_tests: 11 + 43 = 54.
+  NP_TOTAL_TEST_COUNT: '54'
   NP_SAFETY_TEST_COUNT: '11'
-  NP_CLASS_B_TEST_COUNT: '42'
+  NP_CLASS_B_TEST_COUNT: '43'
 
 jobs:
   host-tests-all:

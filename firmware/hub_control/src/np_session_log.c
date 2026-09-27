@@ -408,6 +408,54 @@ void np_log_telemetry(const np_telem_record_t *rec)
     give();
 }
 
+/* ── Socket-path PBM (OI-FWHUB-10, NP-FW-HUB-001 §6.8) ─────────────────────── */
+
+void np_log_pbm_socket(const np_pst_socket_record_t *rec, uint32_t session_ms)
+{
+    if (rec == NULL || rec->socket_id >= (NP_HUB_SOCKET_MASK_BYTES * 8U)) { return; }
+    take();
+    const uint8_t sock = (uint8_t)rec->socket_id;
+    uhdr_u8(NP_LOG_TAG_UHDR_PBM_SOCKET);
+    uhdr_write(&session_ms,             sizeof(session_ms));
+    uhdr_write(&sock,                   1U);
+    uhdr_write(&rec->mod_type,          1U);
+    uhdr_write(&rec->flags,             1U);
+    uhdr_write(&rec->ntc_c,             sizeof(rec->ntc_c));
+    uhdr_write(&rec->ntc_peak_c,        sizeof(rec->ntc_peak_c));
+    uhdr_write(rec->dose_J_cm2,         sizeof(rec->dose_J_cm2));
+    uhdr_write(rec->irradiance_mW_cm2,  sizeof(rec->irradiance_mW_cm2));
+    give();
+}
+
+void np_log_shdr_pbm_socket_health(const np_pst_health_record_t *rec)
+{
+    if (rec == NULL || rec->socket_id >= (NP_HUB_SOCKET_MASK_BYTES * 8U)) { return; }
+    take();
+    const uint8_t sock = (uint8_t)rec->socket_id;
+    shdr_u8(NP_LOG_TAG_SHDR_PBM_TILE_HEALTH);
+    shdr_write(&s_device_session_count, sizeof(s_device_session_count));
+    shdr_write(&sock,                   1U);
+    shdr_write(&rec->mod_type,          1U);
+    shdr_write(&rec->health_flags,      1U);
+    shdr_write(&rec->probe,             1U);
+    shdr_write(&rec->cal_source,        1U);
+    shdr_write(rec->pd1_pct,            sizeof(rec->pd1_pct));
+    give();
+}
+
+void np_log_shdr_pbm_session_counts(const np_pst_counts_t *counts)
+{
+    np_pst_counts_t zero = { 0U, 0U, 0U };
+    const np_pst_counts_t *c = (counts != NULL) ? counts : &zero;
+    take();
+    shdr_u8(NP_LOG_TAG_SHDR_PBM_COUNTS);
+    shdr_write(&s_device_session_count, sizeof(s_device_session_count));
+    shdr_write(&c->throttle_events,     sizeof(c->throttle_events));
+    shdr_write(&c->predrive_refusals,   sizeof(c->predrive_refusals));
+    shdr_write(&c->drive_faults,        sizeof(c->drive_faults));
+    give();
+}
+
 static np_log_in_isr_fn s_in_isr;    /* OI-FWHUB-14 */
 
 void np_log_set_isr_check(np_log_in_isr_fn fn)

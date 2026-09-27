@@ -103,8 +103,9 @@ float np_pbm_dose_aggregate_irradiance(const np_pbm_dose_state_t *dose);
  * fouling_out:  true if PD1 attenuated ≥20% below nominal, PD2 stable.
  * aging_out:    true if both PD1 and PD2 attenuated proportionally.
  *
- * Writes alert flags to SHDR (ratio slope only; no raw ADC counts).
- * This function only evaluates wavelength index NP_WL_1064NM (most diagnostic).
+ * Writes NOTHING to SHDR (NP-FW-HUB-001 §6.8, F9): PD2 is scalp backscatter,
+ * so the ratio is UHDR. socket_id and device_session_count are unused and kept
+ * for the signature. Evaluates wavelength index NP_WL_1064NM only.
  */
 void np_pbm_dose_evaluate_ratio(
     uint8_t                        socket_id,

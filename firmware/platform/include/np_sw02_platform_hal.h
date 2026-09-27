@@ -94,8 +94,14 @@ extern "C" {
  * (np_warranty_token.h, NP-FW-EMMC-002 §A.3) are added — three seams, all
  * silicon.  np_cvfs_hal_notify() is RETIRED as a seam: it is a row of the
  * server's table, defined in np_gatt_server.c.  +3 − 1 = +2.
+ *
+ * 100 → 102 on 2026-09-27 (NP-FW-HUB-001 Rev 15, OI-FWHUB-10): the socket
+ * path's NTC read, np_mod_pbm_hal_socket_ntc_read(), and the idle PD1
+ * self-test, np_mod_pbm_hal_socket_selftest_pd1().  Both are served by the
+ * socket's cluster controller (NP-HW-HUB-001 §9.3) and take the socket index,
+ * like np_mod_pbm_hal_socket_pwm_set().
  */
-#define NP_SW02_PLATFORM_SYMBOL_COUNT   100
+#define NP_SW02_PLATFORM_SYMBOL_COUNT   102
 
 /* ── Core clock (OI-SWCI-41) ──────────────────────────────────────────────────
  *
@@ -167,6 +173,24 @@ extern uint16_t        np_mod_pbm_hal_pd_read(uint8_t slot, uint8_t wl_idx);
 extern np_hub_status_t np_mod_pbm_hal_socket_pwm_set(uint16_t socket_id,
                                                      uint8_t cur_a, uint8_t cur_b,
                                                      uint8_t freq_code, uint8_t duty);
+
+/* The socket's NTC in °C, from the cluster frame (NP-HW-HUB-001 §9.2, §9.3).
+ * NP_HUB_OK with *temp_c_out set, or an error with it untouched; a caller
+ * treats an unreadable NTC as too hot.  OI-PBM-HAL-05 (np_mod_pbm.c pre-drive
+ * check, np_pbm_socket_telem.c dose tick). */
+extern np_hub_status_t np_mod_pbm_hal_socket_ntc_read(uint16_t socket_id,
+                                                      float   *temp_c_out);
+
+/* The idle LED-health self-test (NP-FW-HUB-001 §6.8, F10): the cluster
+ * controller drives one wavelength of the tile at its fixed test setpoint for
+ * its fixed pulse and returns the PD1 (forward, behind the PDMS window) count.
+ * PD2 is never read here.  NP_HUB_OK with *counts_out set; any error means "not
+ * measured" and is recorded as such.  WHETHER THIS MAY EMIT AT ALL outside a
+ * session is OI-FWHUB-20: until it is decided, the target implementation must
+ * return an error without driving the tile.  OI-PBM-HAL-06. */
+extern np_hub_status_t np_mod_pbm_hal_socket_selftest_pd1(uint16_t  socket_id,
+                                                          uint8_t   wl_idx,
+                                                          uint16_t *counts_out);
 
 /* ── PBM intranasal (np_mod_intranasal.c) ───────────────────────────────── */
 extern bool            np_mod_ins_hal_auth_check(void);

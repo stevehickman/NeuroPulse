@@ -129,6 +129,11 @@ typedef struct {
     float pd2_counts[NP_PBM_WL_COUNT];         /* last ADC reading, PD2        */
     float ratio_current;    /* PD1/PD2 for most recent dose tick                  */
     bool  dose_limit_hit[NP_PBM_WL_COUNT]; /* channel disabled on limit        */
+    /* True iff the most recent tick read both PDs for this wavelength. False
+     * means "not measured", never zero dose: a PD that cannot be read (no
+     * cluster frame yet, or OI-HEXTILE-26's non-responding part) must not be
+     * recorded as darkness (NP-FW-HUB-001 §6.8, OI-FWHUB-10). */
+    bool  pd_valid[NP_PBM_WL_COUNT];
 } np_pbm_dose_state_t;
 
 /* ── Per-zone preset (from session descriptor) ───────────────────────────────── */
@@ -268,12 +273,21 @@ typedef struct {
     uint16_t eeg_adapt_event_count;  /* number of freq code changes during session */
 } np_pbm_session_record_t;
 
-/* ── SHDR session summary (no user biology) ──────────────────────────────────── */
+/* ── Session summary — NOT SHDR-WRITABLE AS SHAPED (OI-FWHUB-21) ─────────────────
+ *
+ * Built by np_pbm_session_build_shdr_summary() and never written: the SHDR call
+ * is omitted in write_shdr_summary(). It must not be written as it stands. The
+ * principal's rulings of 2026-09-27 (NP-FW-HUB-001 §6.8) make its per-session
+ * list of ACTIVE sockets (socket_id per entry, active_socket_count) UHDR: the
+ * set of sockets lit in a session is the wearer's treatment montage (F1, F13b).
+ * The mean PD1/PD2 ratio it used to carry is UHDR too, because PD2 is scalp
+ * backscatter (F9); the field is removed. What SHDR may carry from a session is
+ * counts with no location (F13) and faults with no socket (F11); per-socket
+ * probe, calibration source and LED health come from the idle health pass over
+ * EVERY occupied socket (F10, F11b, F12), in np_pbm_socket_telem.c. */
 
-/* Per-socket device-health entry — device condition only, no user biology. */
 typedef struct {
     uint8_t socket_id;
-    float   pd_ratio;          /* mean PD1/PD2 ratio for this socket, this session */
     uint8_t i2c_probe_pass;    /* 1 = probe ACKed at session preflight             */
     /*
      * np_cal_source_t for the module that occupied this socket during this

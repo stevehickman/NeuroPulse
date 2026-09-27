@@ -53,6 +53,7 @@
 #include "np_protocol.h"
 #include "np_session_runner.h"
 #include "np_session_lease.h"   /* OI-FWHUB-17: detect/session exclusion */
+#include "np_pbm_socket_telem.h" /* OI-FWHUB-10: idle tile health pass */
 #include "np_session_log.h"
 #include "np_log_backend.h"
 #include "np_session_count.h"   /* OI-LFS-12: persisted device session count */
@@ -450,6 +451,22 @@ static void task_module_detect(void *arg)
             np_lease_probe_end();
             configASSERT(rc != NP_HUB_ERR_INVALID_ARG);
             (void)rc;
+        }
+
+        /* OI-FWHUB-10: the idle tile health pass (§6.8) — every occupied
+         * lattice socket, one socket per lease hold, never during a session.
+         * Pending from boot.  What it writes to SHDR comes from the idle pass
+         * alone, never from session data, so it says nothing about which
+         * sockets a session lit. */
+        while (np_pst_health_pending()) {
+            if (!np_lease_probe_begin()) {
+                break;
+            }
+            bool done = np_pst_health_step();
+            np_lease_probe_end();
+            if (done) {
+                break;
+            }
         }
 
         vTaskDelay(pdMS_TO_TICKS(NP_DETECT_ACCESSORY_POLL_MS));

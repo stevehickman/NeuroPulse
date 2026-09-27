@@ -22,6 +22,7 @@
 #include "np_session_log.h"
 #include "np_safety_spi.h"
 #include "np_socket_dispatch.h"   /* socket entry points + NP_HEXMAP_MAX_SOCKETS */
+#include "np_pbm_socket_telem.h"  /* OI-FWHUB-10: metering + counts */
 #include <string.h>
 
 /* Pull in existing PBM detection and drive infrastructure. */
@@ -325,9 +326,9 @@ static np_pbm_drv_slot_t s_sock_drv[NP_HEXMAP_MAX_SOCKETS];
  * selected. OI-PBMCH-01 owns that question; if "off" must be provably off, the
  * base struct gains a ch_mask byte and this path writes it instead.
  *
- * NOT YET TRIGGERED on the socket path: no socket-path dose metering exists
- * (OI-FWHUB-10), so nothing calls np_mod_pbm_socket_disable_channel() in
- * production yet. This is the actuator that metering will drive.
+ * Driven by the socket path's dose metering since OI-FWHUB-10
+ * (np_pbm_socket_telem.c): a wavelength's dose limit latches its channel, and
+ * an NTC over NP_PBM_THERMAL_FAULT_C latches all of them.
  */
 static np_mod_pbm_base_params_t s_sock_base[NP_HEXMAP_MAX_SOCKETS];
 static uint8_t                  s_sock_ch_off[NP_HEXMAP_MAX_SOCKETS];
@@ -345,6 +346,36 @@ static np_hub_status_t base_pwm_apply(uint16_t socket_id)
             == NP_HUB_OK) ? NP_HUB_OK : NP_HUB_ERR_MOD_FAULT;
 }
 
+/*
+ * Before any tile is lit (OI-FWHUB-10): the slot path's pre-drive NTC check,
+ * for the socket, and a metering slot. An unreadable NTC is treated as a hot
+ * one. Neither refusal writes SHDR: which socket was refused is UHDR (F8), and
+ * the count is F13's (np_log_shdr_pbm_session_counts()).
+ */
+static np_hub_status_t socket_predrive(uint16_t socket_id, np_hub_mod_type_t mod_type)
+{
+    float t = 0.0f;
+    if (np_mod_pbm_hal_socket_ntc_read(socket_id, &t) != NP_HUB_OK ||
+        !(t < (float)NP_PBM_THERMAL_CUTOFF_C)) {
+        np_pst_note_predrive_refusal();
+        return NP_HUB_ERR_MOD_FAULT;
+    }
+    if (np_pst_track(socket_id, mod_type) != NP_HUB_OK) {
+        return NP_HUB_ERR_MOD_FAULT;   /* would be driven unmetered */
+    }
+    return NP_HUB_OK;
+}
+
+/* A drive the driver could not complete: SHDR gets the modality and the code,
+ * never the socket (F11 — a driving fault happens only on a lit socket). */
+static np_hub_status_t socket_drive_fault(np_hub_mod_type_t mod_type)
+{
+    np_pst_note_drive_fault();
+    np_log_shdr_fault(NP_HUB_SLOT_NONE, mod_type, NP_PBM_SHDR_EV_DRIVE_FAULT,
+                      0U /* ts suppressed */);
+    return NP_HUB_ERR_MOD_FAULT;
+}
+
 np_hub_status_t np_mod_pbm_socket_drive(uint16_t          socket_id,
                                         np_hub_mod_type_t mod_type,
                                         const void       *params,
@@ -353,8 +384,19 @@ np_hub_status_t np_mod_pbm_socket_drive(uint16_t          socket_id,
     if (socket_id >= NP_HEXMAP_MAX_SOCKETS || params == NULL) {
         return NP_HUB_ERR_INVALID_ARG;
     }
+    const bool smart = (mod_type == NP_MOD_PBM_SMART &&
+                        len == sizeof(np_mod_pbm_smart_params_t));
+    const bool base  = (mod_type == NP_MOD_PBM_BASE &&
+                        len == sizeof(np_mod_pbm_base_params_t));
+    if (!smart && !base) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    np_hub_status_t pre = socket_predrive(socket_id, mod_type);
+    if (pre != NP_HUB_OK) {
+        return pre;
+    }
 
-    if (mod_type == NP_MOD_PBM_SMART && len == sizeof(np_mod_pbm_smart_params_t)) {
+    if (smart) {
         const np_mod_pbm_smart_params_t *p =
             (const np_mod_pbm_smart_params_t *)params;
         const uint8_t     addr = (uint8_t)socket_id;   /* < 128, fits */
@@ -374,18 +416,15 @@ np_hub_status_t np_mod_pbm_socket_drive(uint16_t          socket_id,
         if (np_pbm_drive_startup(addr, drv, &preset) != NP_PBM_OK ||
             np_pbm_drive_set_freq(addr, drv, mask, p->freq_code) != NP_PBM_OK ||
             np_pbm_drive_set_duty(addr, drv, mask, duty) != NP_PBM_OK) {
-            return NP_HUB_ERR_MOD_FAULT;
+            return socket_drive_fault(mod_type);
         }
         return NP_HUB_OK;
     }
 
-    if (mod_type == NP_MOD_PBM_BASE && len == sizeof(np_mod_pbm_base_params_t)) {
-        memcpy(&s_sock_base[socket_id], params, sizeof s_sock_base[socket_id]);
-        s_sock_type[socket_id] = NP_MOD_PBM_BASE;
-        return base_pwm_apply(socket_id);
-    }
-
-    return NP_HUB_ERR_INVALID_ARG;
+    memcpy(&s_sock_base[socket_id], params, sizeof s_sock_base[socket_id]);
+    s_sock_type[socket_id] = NP_MOD_PBM_BASE;
+    return (base_pwm_apply(socket_id) == NP_HUB_OK) ? NP_HUB_OK
+                                                   : socket_drive_fault(mod_type);
 }
 
 np_hub_status_t np_mod_pbm_socket_stop(uint16_t socket_id)
@@ -401,6 +440,7 @@ np_hub_status_t np_mod_pbm_socket_stop(uint16_t socket_id)
         rc = np_mod_pbm_hal_socket_pwm_set(socket_id, 0U, 0U, 0U, 0U);
     }
     s_sock_type[socket_id] = NP_MOD_NONE;
+    np_pst_untrack_driving(socket_id);
     return rc;
 }
 

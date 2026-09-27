@@ -22,6 +22,7 @@
 #include "np_protocol.h"
 #include "np_module_registry.h"
 #include "np_socket_dispatch.h"
+#include "np_pbm_socket_telem.h"  /* OI-FWHUB-10: socket dose metering */
 #include "np_consumables.h"
 #include "np_chan_decl.h"
 #include "np_stim_xcheck.h"
@@ -315,6 +316,7 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
 
     memset(&s_ctx, 0, sizeof(s_ctx));
     np_sock_disp_reset();
+    np_pst_session_reset();   /* OI-FWHUB-10: no dose carries across sessions */
     s_ctx.state = NP_SESSION_LOADING;
 
     s_ctx.state = NP_SESSION_VERIFYING;
@@ -483,9 +485,14 @@ np_hub_status_t np_runner_run(void)
         process_stops(now_ms);
         np_sock_disp_process_stops(now_ms);
 
+        /* OI-FWHUB-10: dose metering and the NTC throttle for every driven
+         * lattice socket, at NP_PBM_DOSE_TICK_MS. */
+        np_pst_dose_poll(now_ms);
+
         /* Trigger telemetry snapshot */
         if (now_ms - last_telem_ms >= NP_RUNNER_TELEM_INTERVAL_MS) {
             last_telem_ms = now_ms;
+            np_pst_log_telemetry(now_ms);   /* UHDR only (§6.8) */
             np_telem_record_t rec;
             for (uint8_t slot = 0U; slot < NP_HUB_SLOT_MAX; slot++) {
                 np_mod_entry_t *mod = np_mod_reg_get(slot);
@@ -557,6 +564,16 @@ np_hub_status_t np_runner_run(void)
     s_ctx.shdr.duration_s   = total_ms / 1000U;
     s_ctx.shdr.abort_reason = (uint8_t)s_ctx.abort_reason;
     s_ctx.shdr.mods_active_mask = s_ctx.uhdr.mods_active_mask;
+
+    /* OI-FWHUB-10: each lattice socket's final dose into this session's file,
+     * and this session's PBM counts to SHDR — every session, PBM or not, so the
+     * record's presence says nothing about the modality (§6.8, F13). */
+    np_pst_log_telemetry(total_ms);
+    {
+        np_pst_counts_t pbm_counts;
+        np_pst_get_counts(&pbm_counts);
+        np_log_shdr_pbm_session_counts(&pbm_counts);
+    }
 
     np_log_session_end(&s_ctx.uhdr, &s_ctx.shdr);
     np_log_flush();

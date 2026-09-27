@@ -52,7 +52,6 @@ static void write_combined_shdr(const np_pbm_t2_ctx_t *ctx,
     shdr.pbm1064_shdr.fault_reason        = (uint8_t)fault_reason;
     for (uint8_t i = 0; i < ctx->pbm1064.active_socket_count; i++) {
         shdr.pbm1064_shdr.sockets[i].socket_id      = ctx->pbm1064.active_socket_id[i];
-        shdr.pbm1064_shdr.sockets[i].pd_ratio       = ctx->pbm1064.dose[i].ratio_current;
         shdr.pbm1064_shdr.sockets[i].i2c_probe_pass = ctx->pbm1064.drv[i].initialized ? 1U : 0U;
         /* Per-socket calibration provenance, carried through from the inner
          * 1064nm session's UID-keyed load (OI-HUB-C06) — not a session-wide

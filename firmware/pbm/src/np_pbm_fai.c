@@ -350,7 +350,9 @@ np_pbm_fai_result_t np_pbm_fai_sm11(void)
     /*
      * Verify that:
      * (a) Raw PD1/PD2 counts are stored in np_pbm_dose_state_t (UHDR path).
-     * (b) Only the ratio (not raw counts) is passed to np_pbm_hal_shdr_log_fault.
+     * (b) ratio_current is populated on-device. It reaches no SHDR path: PD2 is
+     *     scalp backscatter, so the ratio is UHDR (NP-FW-HUB-001 §6.8, F9;
+     *     until 2026-09-27 this clause said the ratio went to SHDR).
      * (c) The SHDR session summary contains no per-sample PD counts.
      * (d) The UHDR session record contains per-zone, per-wavelength dose.
      *
@@ -431,7 +433,7 @@ np_pbm_fai_result_t np_pbm_fai_sm11(void)
     return fai_pass("FAI-SM-11",
         "UHDR/SHDR data routing boundary test",
         "PD1/PD2 raw counts captured in dose_state (UHDR); "
-        "ratio_current (not raw counts) in SHDR fault log; "
+        "ratio_current populated on-device and written to no SHDR path (F9); "
         "np_pbm_shdr_summary_t contains no per-sample PD count fields, "
         "sized to the per-socket entry budget; "
         "UHDR session record contains per-socket per-wavelength dose (J/cm²).");

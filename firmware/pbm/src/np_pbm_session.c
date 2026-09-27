@@ -201,14 +201,14 @@ void np_pbm_session_build_shdr_summary(const np_pbm_session_ctx_t *ctx,
     out->fault_reason        = (uint8_t)fault_reason;
     out->thermal_event_count = ctx->ch_c_throttled || ctx->ch_b_throttled ? 1U : 0U;
 
-    /* Mean PD1/PD2 ratio, I2C probe pass and calibration provenance, per active
-     * socket (device metrics — no user biology). cal_source is per socket, not
+    /* I2C probe pass and calibration provenance, per active socket. NOT
+     * SHDR-writable as shaped (np_pbm_types.h, OI-FWHUB-21); the PD1/PD2 ratio
+     * this used to copy is UHDR (F9) and is gone. cal_source is per socket, not
      * per session: calibration is keyed to module UID (OI-HUB-C06), so a
      * session can legitimately mix FACTORY and DEFAULT sockets, and this is the
      * shape the fleet schema's per-(socket, module_uid, wavelength) row wants. */
     for (uint8_t i = 0; i < ctx->active_socket_count; i++) {
         out->sockets[i].socket_id      = ctx->active_socket_id[i];
-        out->sockets[i].pd_ratio       = ctx->dose[i].ratio_current;
         out->sockets[i].i2c_probe_pass = ctx->drv[i].initialized ? 1U : 0U;
         out->sockets[i].cal_source     = ctx->active_cal_source[i];
     }

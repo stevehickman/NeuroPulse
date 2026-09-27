@@ -101,6 +101,7 @@ np_pbm_status_t np_pbm_dose_tick(
     const float tick_duration_s = (float)NP_PBM_DOSE_TICK_MS / 1000.0f;
 
     for (uint8_t w = 0; w < NP_PBM_WL_COUNT; w++) {
+        dose->pd_valid[w] = false;
         if (dose->dose_limit_hit[w]) {
             continue; /* channel already disabled for this wavelength */
         }
@@ -108,6 +109,7 @@ np_pbm_status_t np_pbm_dose_tick(
         uint16_t pd1_raw = 0, pd2_raw = 0;
         if (!np_pbm_hal_adc_read_pd(socket_id, 0, &pd1_raw)) { continue; }
         if (!np_pbm_hal_adc_read_pd(socket_id, 1, &pd2_raw)) { continue; }
+        dose->pd_valid[w] = true;
 
         dose->pd1_counts[w] = (float)pd1_raw;
         dose->pd2_counts[w] = (float)pd2_raw;
@@ -196,22 +198,16 @@ void np_pbm_dose_evaluate_ratio(
     }
 
     /*
-     * Write only the ratio (device metric — no user biology) to SHDR.
-     * The fault entry records ratio and session count; no raw PD counts.
+     * Nothing from here reaches SHDR (NP-FW-HUB-001 §6.8, principal ruling
+     * 2026-09-27, F9). PD2 faces the scalp and measures backscattered tissue
+     * power, so the PD1/PD2 ratio carries the wearer's skin, hair and
+     * perfusion — it is UHDR. Until then this wrote the ratio, packed into
+     * status_reg_value, with the socket, as an SHDR fault entry. LED health
+     * reaches SHDR only from the idle PD1 self-test (np_pbm_socket_telem.c,
+     * F10). The flags stay for the caller's on-device use.
      */
-    if (*fouling_out || *aging_out) {
-        np_pbm_shdr_fault_entry_t fe = {
-            .device_session_count = device_session_count,
-            .socket_id            = socket_id,
-            .channel              = 2U,  /* CH_C (1064nm) */
-            .fault_reason         = *fouling_out ? NP_PBM_FAULT_NONE :
-                                                    NP_PBM_FAULT_NONE,
-            /* Ratio encoded as 8-bit fixed-point ×100 for SHDR compactness. */
-            .status_reg_value     = (uint8_t)(ratio * 100.0f > 255.0f ?
-                                              255U : (uint8_t)(ratio * 100.0f)),
-        };
-        np_pbm_hal_shdr_log_fault(&fe);
-    }
+    (void)socket_id;
+    (void)device_session_count;
 }
 
 /* ── Aggregate irradiance throttle cascade ───────────────────────────────────── */

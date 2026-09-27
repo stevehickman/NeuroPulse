@@ -23,6 +23,7 @@
 
 #include "np_hub_types.h"
 #include "np_adaptation_log.h"
+#include "np_pbm_socket_telem.h"
 
 /* ── Log record type tags (written as first byte of each serialized record) ───── */
 
@@ -36,6 +37,7 @@
 #define NP_LOG_TAG_UHDR_EEG_IMPEDANCE   0x17U
 #define NP_LOG_TAG_UHDR_ADAPT_EVENT     0x18U  /* closed-loop adaptation event (STEP-33) */
 #define NP_LOG_TAG_UHDR_COMMAND         0x19U  /* commanded dose: one dispatched command (OI-FMEA-09) */
+#define NP_LOG_TAG_UHDR_PBM_SOCKET      0x1AU  /* one lattice socket's dose + NTC (OI-FWHUB-10, F1–F8) */
 
 #define NP_LOG_TAG_SHDR_SESSION_END     0x80U
 #define NP_LOG_TAG_SHDR_PBM_HEALTH      0x81U
@@ -44,6 +46,8 @@
 #define NP_LOG_TAG_SHDR_NTC_PEAK        0x84U
 #define NP_LOG_TAG_SHDR_EEG_CAL         0x85U
 #define NP_LOG_TAG_SHDR_SESSION_OPEN    0x86U  /* dirty-session marker (OI-FMEA-09) */
+#define NP_LOG_TAG_SHDR_PBM_TILE_HEALTH 0x87U  /* idle pass, one occupied socket (OI-FWHUB-10, F10–F12, F14) */
+#define NP_LOG_TAG_SHDR_PBM_COUNTS      0x88U  /* per-session PBM counts, no location (OI-FWHUB-10, F13) */
 
 /* ── API ─────────────────────────────────────────────────────────────────────── */
 
@@ -125,6 +129,41 @@ void np_log_command(const np_session_cmd_t *cmd, uint32_t session_ms,
  * EEG waveform data is logged separately via np_log_eeg_sample_block().
  */
 void np_log_telemetry(const np_telem_record_t *rec);
+
+/*
+ * np_log_pbm_socket — one lattice socket's telemetry to UHDR (OI-FWHUB-10).
+ * UHDR ONLY: which socket was lit, and what it delivered, is the treatment
+ * montage (NP-FW-HUB-001 §6.8, F1–F4, F7, F8).
+ *
+ * Layout after NP_LOG_TAG_UHDR_PBM_SOCKET: session_ms (4), socket_id (1),
+ * mod_type (1), flags (1, NP_PST_FLAG_*), ntc_c (4), ntc_peak_c (4),
+ * dose_J_cm2[3] (12), irradiance_mW_cm2[3] (12) — 40 bytes with the tag.
+ * A wavelength whose PD_VALID bit is clear was not measured; its irradiance
+ * is written 0 and must not be read as darkness.
+ */
+void np_log_pbm_socket(const np_pst_socket_record_t *rec, uint32_t session_ms);
+
+/*
+ * np_log_shdr_pbm_socket_health — one occupied socket's idle health record
+ * to SHDR (F10, F11b, F12, F14).  Written by the idle pass over EVERY occupied
+ * socket, never from session data, so its presence says nothing about which
+ * sockets were lit.  No module UID (OI-UPG-07), no timestamp.
+ *
+ * Layout after NP_LOG_TAG_SHDR_PBM_TILE_HEALTH: session_count (4),
+ * socket_id (1), mod_type (1), health_flags (1), probe (1), cal_source (1),
+ * pd1_pct[3] (3) — 13 bytes with the tag.
+ */
+void np_log_shdr_pbm_socket_health(const np_pst_health_record_t *rec);
+
+/*
+ * np_log_shdr_pbm_session_counts — this session's PBM counts to SHDR (F13).
+ * Written at EVERY session end, whether or not PBM ran, so its presence is
+ * not a function of the modality (CLAUDE.md §5.1 rule 2).  Counts only.
+ *
+ * Layout after NP_LOG_TAG_SHDR_PBM_COUNTS: session_count (4),
+ * throttle_events (2), predrive_refusals (2), drive_faults (2) — 11 bytes.
+ */
+void np_log_shdr_pbm_session_counts(const np_pst_counts_t *counts);
 
 /*
  * np_log_eeg_sample_block — append a block of raw EEG samples to the UHDR

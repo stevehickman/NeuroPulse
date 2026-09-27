@@ -172,6 +172,29 @@ if(NP_BUILD_TESTS)
     target_compile_options(np_session_lease_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
 
+    # OI-FWHUB-10: socket-path dose metering, the UHDR socket record, the SHDR
+    # per-session counts and the idle tile health pass. The logger, its backend
+    # host model and the PBM dose model are linked real, so the tests read the
+    # bytes each record puts on the medium; the module map, the socket driver
+    # and every HAL seam are doubles.
+    add_executable(np_pbm_socket_telem_tests
+        tests/np_pbm_socket_telem_tests.c
+        src/np_pbm_socket_telem.c
+        src/np_session_log.c
+        src/np_adaptation_log.c
+        src/np_log_backend.c
+        ../pbm/src/np_pbm_dose.c
+    )
+    target_include_directories(np_pbm_socket_telem_tests PRIVATE
+        include
+        ../pbm/include
+        ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}
+        ${NP_BOOTLOADER_INCLUDE_DIR}
+    )
+    target_compile_options(np_pbm_socket_telem_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+    target_link_libraries(np_pbm_socket_telem_tests PRIVATE m)
+
     add_executable(np_mod_stim_tests
         tests/np_mod_stim_tests.c
         modules/np_mod_stim.c
@@ -430,6 +453,7 @@ set(HUB_SOURCES
     src/np_lfs_log_instance.c     # OI-LFS-05: UHDR/SHDR littlefs instances + mount validator
     src/np_session_count.c        # OI-LFS-12: device session count persisted in Config
     src/np_pbm_cal_bridge.c       # OI-HUB-C06: UID-keyed calibration -> pbm seams
+    src/np_pbm_socket_telem.c     # OI-FWHUB-10: socket dose metering + tile health
     src/np_socket_dispatch.c      # OI-FWHUB-01: socket-indexed dispatch registry
     src/np_chan_decl.c            # OI-MMSOCK-02: electrode-geometry declarations to the safety MCU
     src/np_stim_xcheck.c          # OI-FMEA-09: commanded-vs-delivered stimulation cross-check
