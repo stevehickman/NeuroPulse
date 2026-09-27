@@ -166,9 +166,9 @@ extension View {
     func hapticUnavailableOverlay(manager: HapticSyncManager) -> some View {
         self.overlay {
             if !manager.isAvailable {
-                unavailableBanner("Haptic cue unavailable on this device.")
+                unavailableBanner(String(localized: "WATCH_HAPTIC_UNAVAILABLE_DEVICE"))
             } else if manager.thermalState == .serious || manager.thermalState == .critical {
-                unavailableBanner("Haptic cue paused — Watch temperature elevated.")
+                unavailableBanner(String(localized: "WATCH_HAPTIC_PAUSED"))
             }
         }
     }
