@@ -42,4 +42,4 @@ Main firmware (i.MX RT1062, Class B)
 # safety-mcu-ci.yml — Class C
 Class C scope
 Safety MCU host tests (Class C)
-Cross-compile (STM32G071, Cortex-M0+, Class C)
+Cross-build and link (STM32G071, Cortex-M0+, Class C)

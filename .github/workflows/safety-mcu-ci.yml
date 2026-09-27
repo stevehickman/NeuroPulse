@@ -303,22 +303,14 @@ jobs:
           retention-days: 7
 
   cross-build:
-    # THE NAME NOW UNDERCLAIMS, AND IS KEPT ANYWAY — read this before "fixing" it.
-    #
-    # It was "Compile" and not "Build" deliberately, because until phase 7 this
+    # Renamed 2026-09-27 (OI-SWCI-36, NP-SW-CI-001 §6.13). Until phase 7 this
     # leg proved every Class C translation unit compiled for STM32G071 and NOT
-    # that a linkable image existed — it did not (Defect E, §4.4).  Phase 7
-    # closed Defect E: the leg now LINKS np_safety_mcu.elf and reports its size.
-    #
-    # The honest name would now be "Cross-build".  Renaming it is deliberately
-    # NOT done here, because this string is a required-status-check context
-    # (§6.7.8, OI-SWCI-26): a required context is an exact string match whose
-    # mismatch produces no error anywhere — the check simply never satisfies and
-    # every PR waits forever.  Underclaiming in a job name is a documentation
-    # cost; un-gating the branch that guards every stimulation enable GPIO is a
-    # safety cost.  The rename is a coordinated change — edit this line and the
-    # `Safety` ruleset in the same operation — and is tracked as OI-SWCI-36.
-    name: Cross-compile (STM32G071, Cortex-M0+, Class C)
+    # that a linkable image existed — it did not (Defect E, §4.4) — so it was
+    # named "Cross-compile". Phase 7 closed Defect E: the leg LINKS
+    # np_safety_mcu.elf and reports its size, and the old name underclaimed.
+    # The name was held for seven weeks only because it is a required context;
+    # the rename landed together with the `Safety` ruleset edit (§6.13.3).
+    name: Cross-build and link (STM32G071, Cortex-M0+, Class C)
     # ⚠ This string is a required-status-check CONTEXT (NP-SW-CI-001 §6.7.8).
     # Renaming it, or adding a `strategy: matrix:` to this job (which renames
     # the check to "name (value)"), un-gates the branch SILENTLY: the required
