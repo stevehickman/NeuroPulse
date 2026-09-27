@@ -426,10 +426,9 @@ jobs:
   #
   # A SEPARATE job, never a `strategy: matrix:` on host-tests: a matrix renames
   # that job's check to "name (value)" and silently un-gates the branch
-  # (NP-SW-CI-001 §6.7.8).  NOT yet a required context — adding it to
-  # ci/required-checks.txt is a ruleset change made in the same operation
-  # (§6.7.8), and it is left for that decision.  Deliberately NOT
-  # continue-on-error: a sanitizer finding must show red.
+  # (NP-SW-CI-001 §6.7.8).  A REQUIRED context since OI-SWCI-50 (§6.12): it is
+  # in ci/required-checks.txt and the `Safety` ruleset.  Deliberately NOT
+  # continue-on-error: a sanitizer finding must show red, and now blocks.
   #
   # Leak detection is OFF (detect_leaks=0), and only that: firmware/ allocates
   # nothing on the heap (LFS_NO_MALLOC; FreeRTOS's heap is a static pool), so a
@@ -438,6 +437,11 @@ jobs:
   # and the test still passes, which is the green-without-evidence shape.
   host-tests-sanitized:
     name: CMake host tests (Class B, ASan + UBSan)
+    # ⚠ This string is a required-status-check CONTEXT (NP-SW-CI-001 §6.7.8).
+    # Renaming it, or adding a `strategy: matrix:` to this job (which renames
+    # the check to "name (value)"), un-gates the branch SILENTLY: the required
+    # context stops matching and nothing reports the mismatch. Change it only
+    # together with the ruleset.
     runs-on: ubuntu-latest
     needs: changes
     # Same scope rule as host-tests, for the same reasons.
