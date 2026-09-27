@@ -28,6 +28,7 @@
 #include "np_hub_types.h"
 #include "np_module_registry.h"
 #include "np_safety_spi.h"
+#include "np_log_hrv.h"
 #include <string.h>
 
 /* From firmware/hrv_biofeedback/ */
@@ -66,16 +67,19 @@ static np_mod_vns_state_t s_state;
 
 /*
  * Session-end callback (np_hrv_session_create requires it non-NULL).  The HRV
- * library builds the finalized UHDR record and passes it here; the storage
- * commit path lives outside this driver, so there is nothing to do but
- * acknowledge.  The context is released by vns_hrv_session_stop() immediately
- * after np_hrv_session_stop() returns.
+ * library builds the finalized UHDR record and passes it here, and it is
+ * committed to this session's UHDR file (OI-HRV-03): the logger appends it to
+ * the partition np_uhdr_key_unlock() mounted AES-256-XTS under the user's
+ * key.  It fires from np_hrv_session_stop(), which this driver reaches from
+ * control(NULL), and the runner stops every module before
+ * np_log_session_end(), so the record lands in the session it describes.
+ * The context is released by vns_hrv_session_stop() immediately after
+ * np_hrv_session_stop() returns.
  */
 static void vns_hrv_session_end_cb(const np_hrv_session_record_t *record,
                                    np_hrv_status_t                reason)
 {
-    (void)record;
-    (void)reason;
+    np_log_hrv_session(record, reason);
 }
 
 /* Start the HRV biofeedback session for protocol `proto` (caller ensures > 0). */

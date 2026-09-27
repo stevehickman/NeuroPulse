@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 18
+**Revision:** 19
 **Date:** 2026-09-27
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -16,6 +16,14 @@
 **Parent Document:** `NP-SW-001`
 
 ---
+
+> **Rev 19 (2026-09-27) — the HRV session record reaches UHDR (§6.1, §8.4; `NP-FW-HRV-001` Rev 3,
+> `OI-HRV-03`).**
+> - **The VNS driver's HRV `end_cb` discarded the record.** No HRV session summary was ever stored.
+> - **Built:** `np_log_hrv_session()` (`include/np_log_hrv.h`), a UHDR-only record with the new tag
+>   `0x1B`, written under the logger lock. `vns_hrv_session_end_cb()` calls it. The record lands in
+>   the session it describes because the runner stops every module before `np_log_session_end()`.
+>   `np_log_backend_tests` gains its layout, routing and lock cases. No new host target.
 
 > **Rev 18 (2026-09-27) — the goggle Hall cutoff is now an interrupt (§8.6).**
 > - **`REQ-FWHUB-21` was listed as met and was not.** No ISR existed. The only in-session cutoff
@@ -966,7 +974,7 @@ Two 4 KiB static buffers (`s_uhdr_buf`, `s_shdr_buf`), each record prefixed by a
 | `0x12` EEG band | `0x17` EEG impedance | `0x82` fault | `0x85` EEG calibration |
 | `0x13` PBM dose | `0x18` adaptation event | | `0x86` session open *(Rev 9)* |
 | `0x14` VNS/HRV | `0x19` command *(Rev 9)* | `0x87` PBM tile health *(Rev 15)* | `0x88` PBM session counts *(Rev 15)* |
-| `0x1A` PBM socket *(Rev 15)* | | | |
+| `0x1A` PBM socket *(Rev 15)* | `0x1B` HRV session *(Rev 19)* | | |
 
 **`0x19` command — the commanded dose (Rev 9, `OI-FMEA-09`).** The runner writes one record per
 dispatched command: `session_ms` (4), `mod_type`, `target_kind`, `slot_id`, `accepted` (1 each),
@@ -975,6 +983,13 @@ false when the registry refused the command, so a refused drive is on the record
 never as delivered. The module caps are fixed firmware constants, so this record and the firmware
 version reproduce the commanded current the safety MCU integrated. UHDR only: it is the treatment
 the person received ("protocol parameters used", `data-architecture-detail.md` §5.1).
+
+**`0x1B` HRV session (Rev 19, `OI-HRV-03`).** `np_mod_vns.c`'s HRV `end_cb` writes one record when
+the HRV library ends its session: the library's `np_hrv_session_record_t`, serialized field by field
+in 31 bytes with the tag. Its layout and reader rules are `NP-FW-HRV-001` §8.1.1. The library does not
+set `session_start_unix`, so that field is not written. UHDR only: coherence, RMSSD and the R-R count
+describe the person. The tag is defined with the others in `np_session_log.h`. The declaration is in
+`np_log_hrv.h`, so the logger's main header does not depend on the HRV library's types.
 
 **`0x86` session open — the dirty-session marker (Rev 9, `OI-FMEA-09`).** `np_log_session_start()`
 writes `SESSION_OPEN` with the device session count. It then appends and syncs both it and the UHDR
@@ -1658,6 +1673,13 @@ the start/stop interface.
 The HRV session uses `np_mod_vns_hal_now_ms()`, the same free-running millisecond clock the session
 start/stop/tick timing uses — see the §5.3 note on clock domains.
 
+**The HRV session record is committed to UHDR (Rev 19, `OI-HRV-03`).** The library's `end_cb` fires
+from `np_hrv_session_stop()`, which `control(NULL)` reaches. It calls `np_log_hrv_session()` (§6.1,
+`0x1B`). The runner's shutdown stops every module before `np_log_session_end()`, so the record is in
+the session's file ahead of `SESSION_END`. **Nothing feeds the library PPG samples or ticks it**
+(`NP-FW-HRV-001` `OI-HRV-07`): the banner's "separate FreeRTOS thread" does not exist. Until it does,
+every record has zero statistics and `rr_sample_count = 0`.
+
 ### 8.5 Audio — `np_mod_audio.c`
 
 Over-ear planar magnetic (binaural beats, isochronic tones, pink/brown noise) and mastoid bone
@@ -2055,6 +2077,7 @@ have absorbed.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 19 | 2026-09-27 | NeurOne Firmware Engineering | **The HRV session record reaches UHDR (§6.1, §8.4; `NP-FW-HRV-001` Rev 3 closes `OI-HRV-03`).** `vns_hrv_session_end_cb()` discarded the finalised `np_hrv_session_record_t`. It now calls the new `np_log_hrv_session()` (`include/np_log_hrv.h`), which writes UHDR tag `0x1B` (31 bytes, field by field, no padding or `reserved`, no `session_start_unix`) under the logger lock. The record lands in the open session file, which the XTS-mounted UHDR partition encrypts at rest. `np_log_backend_tests` gains seven checks: the layout, UHDR-only routing, order ahead of `SESSION_END`, the loss outside a session (never misfiled into the next), NULL, and the lock. Two test targets gain `../hrv_biofeedback/include`. Host suite 55/55. **Not run:** the ARM cross-build (no toolchain in this environment); `np_mod_vns.c` was syntax-checked on host with `-Werror`. **Found, not fixed:** nothing feeds or ticks the HRV session (`OI-HRV-07`), and the R-R series has no writer (`OI-HRV-06`) |
 | 18 | 2026-09-27 | NeurOne Firmware Engineering | **The goggle Hall cutoff is an interrupt (§8.6, §10.1, §11, §12, §13).** `REQ-FWHUB-21` was listed as met, and `RISK-FWHUB-09` was Accepted, on a GPIO interrupt that did not exist. The only in-session cutoff was the telemetry poll. New platform seam `np_mod_visual_hal_hall_irq_register()` (trap; census 102 → 103). New `np_safety_spi_request_disable_from_isr()`. `np_mod_visual.c` gains the ISR, fail-closed arming (D-42) and a latch that closes the seated-read-to-enable window. The telemetry cut stays as a backstop. `RISK-FWHUB-09` moved to **Open until `OI-FWHUB-26`**, which is raised for the edge source, gated on `OI-BENCH-12`. New host target `np_mod_visual_tests` (Class B 43 → 44, total 54 → 55; `ci/host-test-partition.txt` and both workflows). **Falsified:** the Rev 17 driver fails 8 of 13 checks, and three mutants are each caught. `np_sw02_platform_hal.h`'s split sentence ("64 + 36 = 100" against a constant of 102) is removed. Host suite 54/55; the failure is `np_lfs_log_instance_tests`, which fails identically on unmodified `origin/main` (f21cb11) on this host. **ARM cross-build** (arm-none-eabi-gcc 14.2.1): 0 errors, 0 warnings. The census asserts 103 seams trapped, and `hall_unseated_isr`, `np_safety_spi_request_disable_from_isr` and the seam are all in `np_application.elf` |
 | 17 | 2026-09-27 | NeurOne Firmware Engineering | **Emitting maintenance tests are dock-only; all maintenance data is SHDR (#384; §6.9, §10.1, §11, §13).** The principal dropped Rev 16's head-presence route: the LED-emission test runs only in a dock the hub detects from hardware. The principal also ruled that all maintenance data is SHDR (D-41), which Rev 16 had recorded as pending. It is adopted on three conditions: the dock excludes a head, the hub reads the dock itself, and away from the dock only verdicts are kept. `REQ-FWHUB-49` and D-37 restated; `OI-FWHUB-20` re-scoped; `OI-FWHUB-25` (the dock) raised. No code behaviour changed: the LED test was and stays refused, and the non-emitting tests already keep verdicts only. Comments in `np_pbm_socket_telem.h/.c` and `np_sw02_platform_hal.h` follow |
 | 16 | 2026-09-27 | NeurOne Firmware Engineering | **Maintenance self-tests and F9 (#384; new §6.9; §6.8, §10.1, §11, §13).** The principal decided that self-tests run outside sessions from the app's maintenance section, over any tiles and any tests, for the warranty owner only. Emitting tests run as a signed maintenance session, on head or docked. Results are latest state per tile. New `np_pst_maint_run()`: the non-emitting tests (probe, calibration source, NTC plausible; the reading is discarded) run under the lease per socket; the LED test is refused (`REQ-FWHUB-49`). The idle pass no longer emits and runs the non-emitting tests. `0x87` becomes a 12-byte latest-state record with four verdicts and **no session count**. F9 is back to SHDR as originally decided (D-40); `NP-FW-PBM1064-001` Rev 5 and `data-architecture-detail.md` follow. D-37 supersedes D-35; D-38, D-39. `OI-FWHUB-20` re-scoped; `-21` narrowed; `-23` (app side) and `-24` (F9 computation) raised. **Recorded as pending, not adopted:** "all maintenance data to SHDR", which conflicts with CLAUDE.md §5.1 and `NP-FW-BENCH-001` D-9 for biology-bearing outputs on a head; no test in the catalogue has one. `np_pbm_socket_telem_tests` 29 → 36 checks; 8 mutants caught. Host suite 54/54. ARM cross-build not run |
