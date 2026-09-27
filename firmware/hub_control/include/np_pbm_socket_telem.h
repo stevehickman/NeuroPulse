@@ -18,11 +18,24 @@
  *     every session end whatever ran; each driving fault as modality + code
  *     with no socket (F11, np_mod_pbm.c).
  *   IDLE, every OCCUPIED socket → SHDR (np_log_shdr_pbm_socket_health()):
- *     tile kind and UID change (F14), I²C probe (F11b), calibration source
- *     (F12), PD1-only self-test (F10).  Run from task_module_detect under the
- *     session lease, never from session data, so what it records has nothing
- *     to do with which sockets were lit.  The self-test does not emit until
- *     OI-FWHUB-20 says it may (np_sw02_platform_hal.h).
+ *     one latest-state row per tile — kind and UID change (F14), and the
+ *     latest verdict of each maintenance test: I²C probe (F11b), calibration
+ *     source (F12), NTC plausible, PD1 LED emission (F10).  Run from
+ *     task_module_detect under the session lease, never from session data.
+ *     No session count and no run identifier: SHDR holds the latest state per
+ *     tile, not a log of who tested what, or when (§6.9, principal 2026-09-27).
+ *
+ * MAINTENANCE SELF-TESTS (§6.9).  The warranty owner selects tiles and tests
+ * from the app's maintenance section (np_pst_maint_run()).  NON-EMITTING tests
+ * — probe, calibration source, NTC plausibility — run here, on or off head.
+ * The EMITTING test (LED emission, read on PD1) must run as a signed
+ * maintenance session through the normal session path, and only with the
+ * head-presence gate passing or the helmet in a detected dock (principal
+ * 2026-09-27).  Neither the maintenance session kind, the gate's thresholds
+ * (OI-BENCH-01) nor dock detection exists, so this build REFUSES the emitting
+ * test (OI-FWHUB-20).  Nothing that could carry the wearer's biology (PD2,
+ * electrode impedance, an NTC temperature) is a test output: the NTC test
+ * reports a verdict and the reading is discarded.
  *
  * Dose metering: np_pbm_dose_tick() per driven socket every
  * NP_PBM_DOSE_TICK_MS, with the module's UID-keyed calibration (OI-HUB-C06),
@@ -33,7 +46,7 @@
  * are unaffected.
  *
  * Runner context only for the session functions; task_module_detect, under
- * the lease, for the health functions.  No lock of its own: the lease keeps
+ * the lease, for the health and maintenance functions.  No lock of its own: the lease keeps
  * the two apart (REQ-FWHUB-03).  IEC 62304 Class B — SW-02 hub control.
  */
 
@@ -47,12 +60,6 @@
  * socket is ever driven unmetered. */
 #define NP_PST_MAX_TRACKED   32U   /* == NP_PBM_SESSION_MAX_ACTIVE_SOCKETS, asserted */
 
-/* F10's normaliser: the PD1 self-test reading, times the module's K_PD1, as a
- * percentage of this.  UNVALIDATED PLACEHOLDER — no derivation exists, because
- * the self-test's setpoint and pulse are not defined (OI-FWHUB-20).  Nothing
- * is compared against it on the device; it only scales the recorded value. */
-#define NP_PST_SELFTEST_NOMINAL_MW_CM2  100.0f
-
 /* SHDR fault code for a socket drive the driver could not complete (F11).
  * Written with NP_HUB_SLOT_NONE: which socket is UHDR. */
 #define NP_PBM_SHDR_EV_DRIVE_FAULT   0x02U
@@ -63,10 +70,26 @@
 #define NP_PST_FLAG_THROTTLED         0x40U
 #define NP_PST_FLAG_NTC_VALID         0x80U
 
-/* SHDR 0x87 values. */
-#define NP_PST_PROBE_FAIL             0U
-#define NP_PST_PROBE_PASS             1U
-#define NP_PST_PROBE_NONE             0xFFU  /* base tile: no on-module MCU      */
+/* Maintenance tests (§6.9).  Bit n of a test mask selects test n. */
+typedef enum {
+    NP_MAINT_T_PROBE = 0,    /* I²C probe of a smart tile's MCU      (F11b) */
+    NP_MAINT_T_CAL   = 1,    /* the module's calibration source       (F12)  */
+    NP_MAINT_T_NTC   = 2,    /* NTC reads, finite, below fault; value discarded */
+    NP_MAINT_T_LED   = 3,    /* EMITTING: PD1 per wavelength          (F10)  */
+    NP_MAINT_T_COUNT = 4
+} np_maint_test_t;
+#define NP_MAINT_TEST_ALL        0x0FU
+#define NP_MAINT_TEST_EMITTING   (1U << NP_MAINT_T_LED)
+
+/* A test's latest verdict, as the app shows it and 0x87 records it. */
+typedef enum {
+    NP_MAINT_V_NOT_RUN = 0,  /* never run on this tile since boot          */
+    NP_MAINT_V_PASS    = 1,
+    NP_MAINT_V_FAIL    = 2,
+    NP_MAINT_V_NA      = 3,  /* does not apply (a base tile has no MCU)   */
+    NP_MAINT_V_REFUSED = 4   /* not permitted now (emitting, OI-FWHUB-20) */
+} np_maint_verdict_t;
+
 #define NP_PST_PD1_NOT_MEASURED       0xFFU
 #define NP_PST_HEALTH_UID_CHANGED     0x01U
 #define NP_PST_HEALTH_FIRST_PASS      0x02U
@@ -82,14 +105,18 @@ typedef struct {
     float    irradiance_mW_cm2[3];
 } np_pst_socket_record_t;
 
-/* One SHDR tile-health record (F10, F11b, F12, F14). */
+/* One tile's latest state: the app's maintenance view and SHDR 0x87. */
 typedef struct {
     uint16_t socket_id;
-    uint8_t  mod_type;                 /* F14: tile kind                    */
-    uint8_t  health_flags;             /* NP_PST_HEALTH_*                   */
-    uint8_t  probe;                    /* NP_PST_PROBE_*        (F11b)      */
-    uint8_t  cal_source;               /* np_cal_source_t       (F12)       */
-    uint8_t  pd1_pct[3];               /* F10; NP_PST_PD1_NOT_MEASURED      */
+    uint8_t  mod_type;                    /* F14: tile kind                 */
+    uint8_t  health_flags;                /* NP_PST_HEALTH_*                */
+    uint8_t  verdict[NP_MAINT_T_COUNT];   /* np_maint_verdict_t, per test   */
+    uint8_t  cal_source;                  /* np_cal_source_t       (F12)    */
+    /* F10: PD1 × K_PD1 against the module's expected emission at the test
+     * setpoint, percent.  Written only by the maintenance session's emitting
+     * test (OI-FWHUB-20), whose setpoint, pulse and normaliser are not yet
+     * defined, so today always NP_PST_PD1_NOT_MEASURED. */
+    uint8_t  pd1_pct[3];
 } np_pst_health_record_t;
 
 /* Per-session counts, no location (F13). */
@@ -135,9 +162,44 @@ bool np_pst_get_record(uint16_t socket_id, np_pst_socket_record_t *out);
 void np_pst_health_request(void);
 bool np_pst_health_pending(void);
 
-/* Check one socket and, if it is occupied, write its SHDR health record.
- * Returns true when the pass is complete (the last socket was checked).  One
- * socket per call so the lease is held for one socket at a time. */
+/* Run the NON-EMITTING tests on one socket and, if it is occupied by a PBM
+ * tile, write its latest-state SHDR record.  Returns true when the pass is
+ * complete.  One socket per call so the lease is held for one socket at a
+ * time.  The pass never emits: a tile's LED verdict and PD1 values are the
+ * latest from a maintenance run, or NOT_RUN. */
 bool np_pst_health_step(void);
+
+/* ── Maintenance (app request; task_module_detect context) ──────────────── */
+
+typedef struct {
+    uint8_t socket_mask[NP_HUB_SOCKET_MASK_BYTES];   /* bit n = socket n */
+    uint8_t test_mask;                               /* NP_MAINT_TEST_*  */
+} np_maint_request_t;
+
+/* Called once per selected, occupied PBM socket with its updated state. */
+typedef void (*np_maint_result_fn)(const np_pst_health_record_t *rec, void *ctx);
+
+/*
+ * np_pst_maint_run — the warranty owner's self-test request (§6.9).
+ *
+ * Runs each selected test on each selected socket that holds a PBM tile, one
+ * socket per session-lease hold, and reports each socket's updated state
+ * through `on_result`.  Empty and non-PBM sockets are skipped.  Emitting tests
+ * are refused (NP_MAINT_V_REFUSED): they need a signed maintenance session
+ * under the head-presence gate or a detected dock (OI-FWHUB-20).  The latest
+ * state is kept in RAM and a health pass is requested, so SHDR receives the
+ * whole lattice's latest state, never a record of the subset tested.
+ *
+ * Returns NP_HUB_OK; NP_HUB_ERR_INVALID_ARG for NULL or an empty selection;
+ * NP_HUB_ERR_SESSION_ACTIVE if a session holds the lease (the run stops at the
+ * first socket it could not claim; sockets already tested keep their result).
+ *
+ * WHO MAY CALL: the app offers this only to the warranty owner (principal
+ * 2026-09-27).  The hub cannot tell who is holding the phone, and the gate is
+ * not a safety control — no test here emits or drives current.
+ */
+np_hub_status_t np_pst_maint_run(const np_maint_request_t *req,
+                                 np_maint_result_fn        on_result,
+                                 void                     *ctx);
 
 #endif /* NP_PBM_SOCKET_TELEM_H */

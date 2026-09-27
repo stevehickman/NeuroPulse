@@ -15,9 +15,13 @@
  *   - the socket record (0x1A) is UHDR only, byte for byte;
  *   - the per-session counts (0x88) are SHDR, carry no location, and are
  *     written even for a session with no PBM;
- *   - the idle health pass (0x87) writes one SHDR record per occupied PBM
- *     socket and none for an empty or non-PBM one, and WHAT IT WRITES DOES NOT
- *     DEPEND ON WHICH SOCKETS A SESSION LIT.
+ *   - the idle health pass (0x87) writes one latest-state SHDR record per
+ *     occupied PBM socket, none for an empty or non-PBM one, with no session
+ *     count, never emits, and WHAT IT WRITES DOES NOT DEPEND ON WHICH SOCKETS
+ *     A SESSION LIT;
+ *   - a maintenance run (§6.9) runs only the selected tests on the selected
+ *     PBM tiles, refuses the emitting test, writes no SHDR itself (the next
+ *     pass records the whole lattice), and never runs under a session.
  *
  * The logger, its backend host model and the PBM dose model are real; the
  * module map, the socket driver and every HAL seam are doubles.
@@ -33,6 +37,7 @@
 #include "np_module_map.h"
 #include "np_pbm_socket_telem.h"
 #include "np_session_log.h"
+#include "np_session_lease.h"
 #include "np_log_backend.h"
 #include "np_pbm_config.h"
 #include "np_pbm_dose.h"
@@ -184,7 +189,7 @@ np_pbm_status_t np_pbm_drive_set_duty(uint8_t slot, np_pbm_drv_slot_t *drv,
 /* ── Harness ───────────────────────────────────────────────────────────────── */
 
 #define SOCK_REC_BYTES    40U
-#define HEALTH_REC_BYTES  13U
+#define HEALTH_REC_BYTES  12U
 #define COUNTS_REC_BYTES  11U
 
 static np_session_uhdr_record_t g_rec;
@@ -386,7 +391,10 @@ static void test_session_counts_shdr(void)
           "shdr 0x88: written the same shape for a session with no PBM (rule 2)");
 }
 
-/* ── Idle side ─────────────────────────────────────────────────────────────── */
+/* ── Idle side and maintenance ─────────────────────────────────────────── */
+
+/* 0x87 offsets after the tag. */
+enum { H_SOCK = 1, H_KIND = 2, H_FLAGS = 3, H_V = 4, H_CAL = 8, H_PD1 = 9 };
 
 static void run_pass(void)
 {
@@ -406,41 +414,119 @@ static size_t pass_bytes(uint8_t *out, size_t cap)
     return n;
 }
 
-static void test_health_pass(void)
+static void lattice(void)
 {
-    fresh();
     map_clear();
     map_put(3U, 0xA1U, true);
     map_put(7U, 0xB2U, false);
     map_put_electrode(9U, 0xC3U);
-    g_selftest_ok = false;
-    g_probe_ack   = true;
+    g_probe_ack = true;
+    g_ntc_c = 30.0f; g_ntc_fail = false;
+}
 
+static void test_health_pass(void)
+{
+    fresh();
+    lattice();
     size_t u0 = np_log_test_captured_len(NP_LOG_PART_UHDR);
     uint8_t b[256];
     size_t n = pass_bytes(b, sizeof b);
-    check(n == 2U * HEALTH_REC_BYTES && b[0] == NP_LOG_TAG_SHDR_PBM_TILE_HEALTH &&
-          b[5] == 3U && b[HEALTH_REC_BYTES + 5U] == 7U,
-          "shdr 0x87: one record per occupied PBM socket, none for empty or electrode sockets");
-    check(b[6] == NP_MOD_PBM_SMART && b[8] == NP_PST_PROBE_PASS &&
-          b[HEALTH_REC_BYTES + 6U] == NP_MOD_PBM_BASE &&
-          b[HEALTH_REC_BYTES + 8U] == NP_PST_PROBE_NONE,
+    const uint8_t *r3 = b, *r7 = b + HEALTH_REC_BYTES;
+    check(n == 2U * HEALTH_REC_BYTES && r3[0] == NP_LOG_TAG_SHDR_PBM_TILE_HEALTH &&
+          r3[H_SOCK] == 3U && r7[H_SOCK] == 7U,
+          "shdr 0x87: one 12-byte record per occupied PBM socket, none for empty or electrode sockets");
+    check(r3[H_KIND] == NP_MOD_PBM_SMART && r3[H_V + NP_MAINT_T_PROBE] == NP_MAINT_V_PASS &&
+          r7[H_KIND] == NP_MOD_PBM_BASE && r7[H_V + NP_MAINT_T_PROBE] == NP_MAINT_V_NA,
           "shdr 0x87: tile kind (F14) and the probe (F11b) — a base tile has none");
-    check(b[7] == NP_PST_HEALTH_FIRST_PASS && b[9] == NP_CAL_DEFAULT &&
-          b[10] == NP_PST_PD1_NOT_MEASURED && b[12] == NP_PST_PD1_NOT_MEASURED,
-          "shdr 0x87: first pass, calibration source (F12), self-test not measured (OI-FWHUB-20)");
+    check(r3[H_FLAGS] == NP_PST_HEALTH_FIRST_PASS && r3[H_CAL] == NP_CAL_DEFAULT &&
+          r3[H_V + NP_MAINT_T_CAL] == NP_MAINT_V_FAIL && r3[H_V + NP_MAINT_T_NTC] == NP_MAINT_V_PASS,
+          "shdr 0x87: calibration source (F12, defaults → FAIL) and NTC plausible, first pass");
+    check(r3[H_V + NP_MAINT_T_LED] == NP_MAINT_V_NOT_RUN && r3[H_PD1] == NP_PST_PD1_NOT_MEASURED &&
+          r3[H_PD1 + 2U] == NP_PST_PD1_NOT_MEASURED,
+          "shdr 0x87: the idle pass never emits — LED NOT_RUN, PD1 not measured");
+    uint32_t cnt = 1U;
+    bool has_count = false;
+    for (size_t k = 0U; k + 4U <= HEALTH_REC_BYTES; k++) {
+        has_count = has_count || (memcmp(r3 + k, &cnt, 4U) == 0);
+    }
+    check(!has_count, "shdr 0x87: no session count in the record, so the rows are no timeline");
     check(np_log_test_captured_len(NP_LOG_PART_UHDR) == u0,
           "shdr 0x87: the health pass writes nothing to UHDR");
 
-    g_selftest_ok = true;                               /* 1000 counts × 0.12 = 120 % of 100 */
-    g_map[3].uid.b[0] = 0xA9U;                          /* a different module at socket 3 */
+    g_ntc_c = (float)NP_PBM_THERMAL_FAULT_C;             /* a tile sitting hot */
+    g_map[3].uid.b[0] = 0xA9U;                            /* and a swapped module */
     n = pass_bytes(b, sizeof b);
-    check(n == 2U * HEALTH_REC_BYTES && b[7] == NP_PST_HEALTH_UID_CHANGED &&
-          b[HEALTH_REC_BYTES + 7U] == 0U,
-          "shdr 0x87: a swapped module is flagged; an unchanged one is not");
-    check(b[10] == 120U && b[12] == 88U &&
-          b[HEALTH_REC_BYTES + 10U] == 120U && b[HEALTH_REC_BYTES + 12U] == NP_PST_PD1_NOT_MEASURED,
-          "shdr 0x87: PD1 self-test × K_PD1 as % of nominal (F10); a base tile has no 1064 test");
+    check(r3[H_FLAGS] == NP_PST_HEALTH_UID_CHANGED && r7[H_FLAGS] == 0U &&
+          r3[H_V + NP_MAINT_T_NTC] == NP_MAINT_V_FAIL,
+          "shdr 0x87: a swapped module is flagged; an NTC at the fault threshold fails");
+}
+
+typedef struct { unsigned n; np_pst_health_record_t last[8]; } results_t;
+static void collect(const np_pst_health_record_t *rec, void *ctx)
+{
+    results_t *r = (results_t *)ctx;
+    if (r->n < 8U) { r->last[r->n] = *rec; }
+    r->n++;
+}
+
+static np_maint_request_t req_for(const uint16_t *socks, unsigned n, uint8_t tests)
+{
+    np_maint_request_t q;
+    memset(&q, 0, sizeof q);
+    for (unsigned i = 0U; i < n; i++) {
+        q.socket_mask[socks[i] / 8U] |= (uint8_t)(1U << (socks[i] % 8U));
+    }
+    q.test_mask = tests;
+    return q;
+}
+
+static void test_maint_run(void)
+{
+    fresh();
+    lattice();
+    uint8_t warm[256];
+    (void)pass_bytes(warm, sizeof warm);
+
+    const uint16_t pick[] = { 3U, 9U, 60U };             /* smart, electrode, empty */
+    np_maint_request_t q = req_for(pick, 3U, (uint8_t)(1U << NP_MAINT_T_PROBE));
+    results_t r = { 0 };
+    size_t s0 = np_log_test_captured_len(NP_LOG_PART_SHDR);
+    g_probe_ack = false;
+    check(np_pst_maint_run(&q, collect, &r) == NP_HUB_OK && r.n == 1U &&
+          r.last[0].socket_id == 3U && r.last[0].verdict[NP_MAINT_T_PROBE] == NP_MAINT_V_FAIL &&
+          r.last[0].verdict[NP_MAINT_T_NTC] == NP_MAINT_V_NOT_RUN,
+          "maint: only the selected test on the selected PBM tiles; empty/electrode skipped");
+    np_log_flush();
+    check(np_log_test_captured_len(NP_LOG_PART_SHDR) == s0 && np_pst_health_pending(),
+          "maint: the run itself writes no SHDR — it asks for a pass instead");
+
+    uint8_t b[256];
+    size_t n = pass_bytes(b, sizeof b);
+    check(n == 2U * HEALTH_REC_BYTES && b[H_SOCK] == 3U && b[HEALTH_REC_BYTES + H_SOCK] == 7U,
+          "maint: the following pass records the whole lattice, not the subset tested");
+
+    q = req_for(pick, 1U, NP_MAINT_TEST_ALL);
+    memset(&r, 0, sizeof r);
+    g_probe_ack = true;
+    (void)np_pst_maint_run(&q, collect, &r);
+    check(r.n == 1U && r.last[0].verdict[NP_MAINT_T_LED] == NP_MAINT_V_REFUSED &&
+          r.last[0].pd1_pct[0] == NP_PST_PD1_NOT_MEASURED &&
+          r.last[0].verdict[NP_MAINT_T_PROBE] == NP_MAINT_V_PASS,
+          "maint: the emitting LED test is refused (OI-FWHUB-20); the others still run");
+
+    np_maint_request_t none;
+    memset(&none, 0, sizeof none);
+    none.test_mask = NP_MAINT_TEST_ALL;
+    check(np_pst_maint_run(&none, collect, &r) == NP_HUB_ERR_INVALID_ARG &&
+          np_pst_maint_run(&q, collect, &r) == NP_HUB_OK &&
+          np_pst_maint_run(NULL, collect, &r) == NP_HUB_ERR_INVALID_ARG,
+          "maint: an empty selection or NULL is refused");
+
+    (void)np_lease_claim();                              /* a session is loaded */
+    memset(&r, 0, sizeof r);
+    check(np_pst_maint_run(&q, collect, &r) == NP_HUB_ERR_SESSION_ACTIVE && r.n == 0U,
+          "maint: nothing runs while a session holds the lease");
+    np_lease_release();
 }
 
 /* The property the idle pass exists for: what it writes is the same whatever a
@@ -448,11 +534,8 @@ static void test_health_pass(void)
 static void test_health_pass_ignores_sessions(void)
 {
     fresh();
-    map_clear();
-    map_put(3U, 0xA1U, true);
-    map_put(7U, 0xB2U, false);
+    lattice();
     map_put(40U, 0xD4U, true);
-    g_selftest_ok = true;
     uint8_t warm[256];
     (void)pass_bytes(warm, sizeof warm);                /* first-pass flags out of the way */
 
@@ -485,6 +568,7 @@ int main(void)
     test_no_socket_driven_unmetered();
     test_session_counts_shdr();
     test_health_pass();
+    test_maint_run();
     test_health_pass_ignores_sessions();
 
     if (g_failures == 0) {

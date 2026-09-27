@@ -433,11 +433,10 @@ void np_log_shdr_pbm_socket_health(const np_pst_health_record_t *rec)
     take();
     const uint8_t sock = (uint8_t)rec->socket_id;
     shdr_u8(NP_LOG_TAG_SHDR_PBM_TILE_HEALTH);
-    shdr_write(&s_device_session_count, sizeof(s_device_session_count));
     shdr_write(&sock,                   1U);
     shdr_write(&rec->mod_type,          1U);
     shdr_write(&rec->health_flags,      1U);
-    shdr_write(&rec->probe,             1U);
+    shdr_write(rec->verdict,            sizeof(rec->verdict));
     shdr_write(&rec->cal_source,        1U);
     shdr_write(rec->pd1_pct,            sizeof(rec->pd1_pct));
     give();

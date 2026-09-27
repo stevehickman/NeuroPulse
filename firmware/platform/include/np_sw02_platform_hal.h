@@ -181,13 +181,15 @@ extern np_hub_status_t np_mod_pbm_hal_socket_pwm_set(uint16_t socket_id,
 extern np_hub_status_t np_mod_pbm_hal_socket_ntc_read(uint16_t socket_id,
                                                       float   *temp_c_out);
 
-/* The idle LED-health self-test (NP-FW-HUB-001 §6.8, F10): the cluster
+/* The LED-emission maintenance test (NP-FW-HUB-001 §6.9, F10): the cluster
  * controller drives one wavelength of the tile at its fixed test setpoint for
  * its fixed pulse and returns the PD1 (forward, behind the PDMS window) count.
  * PD2 is never read here.  NP_HUB_OK with *counts_out set; any error means "not
- * measured" and is recorded as such.  WHETHER THIS MAY EMIT AT ALL outside a
- * session is OI-FWHUB-20: until it is decided, the target implementation must
- * return an error without driving the tile.  OI-PBM-HAL-06. */
+ * measured".  Called ONLY from a signed maintenance session, with the
+ * head-presence gate passing or the helmet in a detected dock (principal
+ * 2026-09-27) — a path that does not exist yet (OI-FWHUB-20), so nothing calls
+ * it today and the target implementation must not be reachable any other way.
+ * OI-PBM-HAL-06. */
 extern np_hub_status_t np_mod_pbm_hal_socket_selftest_pd1(uint16_t  socket_id,
                                                           uint8_t   wl_idx,
                                                           uint16_t *counts_out);

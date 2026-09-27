@@ -15,6 +15,7 @@
 #include "np_pbm_hal.h"
 #include "np_pbm_types.h"
 #include "np_sw02_platform_hal.h"
+#include "np_session_lease.h"      /* maintenance runs outside sessions only */
 #include <string.h>
 
 typedef char _np_pst_pool_matches_pbm_bound[
@@ -251,12 +252,21 @@ bool np_pst_get_record(uint16_t socket_id, np_pst_socket_record_t *out)
     return true;
 }
 
-/* ── Idle health pass ────────────────────────────────────────────────────── */
+/* ── Idle health pass and maintenance tests (§6.9) ───────────────────────── */
 
-static bool            s_health_pending = true;   /* from boot */
-static uint16_t        s_health_next;
-static bool            s_health_seen[NP_HEXMAP_MAX_SOCKETS];
-static np_module_uid_t s_health_uid[NP_HEXMAP_MAX_SOCKETS];
+/* The latest state of each tile, RAM only.  A power cycle forgets it: the
+ * boot pass re-runs the non-emitting tests, and an LED verdict has to be
+ * earned again by a maintenance run. */
+typedef struct {
+    bool            seen;
+    np_module_uid_t uid;
+    uint8_t         led_verdict;           /* np_maint_verdict_t */
+    uint8_t         pd1_pct[NP_PBM_WL_COUNT];
+} tile_state_t;
+
+static bool         s_health_pending = true;   /* from boot */
+static uint16_t     s_health_next;
+static tile_state_t s_tile[NP_HEXMAP_MAX_SOCKETS];
 
 void np_pst_health_request(void)
 {
@@ -290,61 +300,70 @@ static np_hub_mod_type_t tile_kind(uint16_t socket_id)
     return led ? NP_MOD_PBM_BASE : NP_MOD_NONE;
 }
 
-static uint8_t pd1_pct(uint16_t socket_id, uint8_t wl, float k_pd1)
-{
-    uint16_t counts = 0U;
-    if (np_mod_pbm_hal_socket_selftest_pd1(socket_id, wl, &counts) != NP_HUB_OK ||
-        !(k_pd1 > 0.0f)) {
-        return NP_PST_PD1_NOT_MEASURED;
-    }
-    float pct = ((float)counts * k_pd1 / NP_PST_SELFTEST_NOMINAL_MW_CM2) * 100.0f;
-    if (!(pct >= 0.0f)) { return NP_PST_PD1_NOT_MEASURED; }
-    if (pct > 254.0f)   { pct = 254.0f; }
-    return (uint8_t)(pct + 0.5f);
-}
-
-static void health_one(uint16_t socket_id)
+/* A PBM tile at this socket: its kind, and the UID bookkeeping for F14. */
+static bool tile_open(uint16_t socket_id, np_pst_health_record_t *h)
 {
     np_module_uid_t uid;
     if (np_module_map_socket_uid(socket_id, &uid) != NP_HUB_OK ||
         np_module_uid_is_zero(&uid)) {
-        s_health_seen[socket_id] = false;   /* empty: no record (F14 is occupancy) */
-        return;
+        memset(&s_tile[socket_id], 0, sizeof s_tile[socket_id]);   /* empty */
+        return false;
     }
     np_hub_mod_type_t kind = tile_kind(socket_id);
     if (kind == NP_MOD_NONE) {
-        return;                              /* not a PBM tile */
+        return false;                                               /* not PBM */
     }
-
-    np_pst_health_record_t h;
-    memset(&h, 0, sizeof h);
-    h.socket_id = socket_id;
-    h.mod_type  = (uint8_t)kind;
-    if (!s_health_seen[socket_id]) {
-        h.health_flags |= NP_PST_HEALTH_FIRST_PASS;
-    } else if (!np_module_uid_equal(&uid, &s_health_uid[socket_id])) {
-        h.health_flags |= NP_PST_HEALTH_UID_CHANGED;
+    tile_state_t *t = &s_tile[socket_id];
+    if (t->seen && !np_module_uid_equal(&uid, &t->uid)) {
+        /* A different module: the old one's results are not this one's. */
+        memset(t, 0, sizeof *t);
+        t->seen = true;
+        h->health_flags |= NP_PST_HEALTH_UID_CHANGED;
     }
-    s_health_seen[socket_id] = true;
-    s_health_uid[socket_id]  = uid;
-
-    /* F11b: every occupied smart tile is probed, lit in a session or not. */
-    h.probe = (kind == NP_MOD_PBM_SMART)
-              ? (np_pbm_hal_i2c_probe((uint8_t)socket_id, NP_PBM_I2C_ADDR,
-                                      NP_PBM_I2C_PROBE_TIMEOUT_MS)
-                 ? NP_PST_PROBE_PASS : NP_PST_PROBE_FAIL)
-              : NP_PST_PROBE_NONE;
-
-    np_pbm_cal_t cal[NP_PBM_WL_COUNT];
-    h.cal_source = (uint8_t)load_cal(socket_id, cal);            /* F12 */
-
-    /* F10: PD1 only.  A base tile has no 1064 nm emitter to test. */
+    if (!t->seen) {
+        memset(t, 0, sizeof *t);
+        t->seen = true;
+        if ((h->health_flags & NP_PST_HEALTH_UID_CHANGED) == 0U) {
+            h->health_flags |= NP_PST_HEALTH_FIRST_PASS;
+        }
+    }
+    t->uid = uid;
+    h->socket_id = socket_id;
+    h->mod_type  = (uint8_t)kind;
     for (uint8_t w = 0U; w < NP_PBM_WL_COUNT; w++) {
-        h.pd1_pct[w] = (w == NP_WL_1064NM && kind != NP_MOD_PBM_SMART)
-                       ? NP_PST_PD1_NOT_MEASURED
-                       : pd1_pct(socket_id, w, cal[w].K_PD1);
+        h->pd1_pct[w] = (t->led_verdict == NP_MAINT_V_NOT_RUN ||
+                         t->led_verdict == NP_MAINT_V_REFUSED)
+                        ? NP_PST_PD1_NOT_MEASURED : t->pd1_pct[w];
     }
-    np_log_shdr_pbm_socket_health(&h);
+    h->verdict[NP_MAINT_T_LED] = t->led_verdict;
+    return true;
+}
+
+/* The non-emitting tests.  None has an output that could carry the wearer's
+ * biology: the probe and calibration source are device facts, and the NTC
+ * test keeps a verdict and discards the reading. */
+static void run_non_emitting(uint16_t socket_id, uint8_t test_mask,
+                             np_pst_health_record_t *h)
+{
+    if (test_mask & (1U << NP_MAINT_T_PROBE)) {
+        h->verdict[NP_MAINT_T_PROBE] =
+            (h->mod_type != (uint8_t)NP_MOD_PBM_SMART) ? NP_MAINT_V_NA
+            : np_pbm_hal_i2c_probe((uint8_t)socket_id, NP_PBM_I2C_ADDR,
+                                   NP_PBM_I2C_PROBE_TIMEOUT_MS)
+              ? NP_MAINT_V_PASS : NP_MAINT_V_FAIL;
+    }
+    if (test_mask & (1U << NP_MAINT_T_CAL)) {
+        np_pbm_cal_t cal[NP_PBM_WL_COUNT];
+        h->cal_source = (uint8_t)load_cal(socket_id, cal);
+        h->verdict[NP_MAINT_T_CAL] = (h->cal_source == (uint8_t)NP_CAL_FACTORY)
+                                     ? NP_MAINT_V_PASS : NP_MAINT_V_FAIL;
+    }
+    if (test_mask & (1U << NP_MAINT_T_NTC)) {
+        float t = 0.0f;
+        bool ok = (np_mod_pbm_hal_socket_ntc_read(socket_id, &t) == NP_HUB_OK) &&
+                  (t == t) && (t < (float)NP_PBM_THERMAL_FAULT_C);
+        h->verdict[NP_MAINT_T_NTC] = ok ? NP_MAINT_V_PASS : NP_MAINT_V_FAIL;
+    }
 }
 
 bool np_pst_health_step(void)
@@ -352,7 +371,13 @@ bool np_pst_health_step(void)
     if (!s_health_pending) {
         return true;
     }
-    health_one(s_health_next);
+    np_pst_health_record_t h;
+    memset(&h, 0, sizeof h);
+    if (tile_open(s_health_next, &h)) {
+        run_non_emitting(s_health_next,
+                         (uint8_t)(NP_MAINT_TEST_ALL & (uint8_t)~NP_MAINT_TEST_EMITTING), &h);
+        np_log_shdr_pbm_socket_health(&h);
+    }
     s_health_next++;
     if (s_health_next >= NP_HEXMAP_MAX_SOCKETS) {
         s_health_next    = 0U;
@@ -360,4 +385,59 @@ bool np_pst_health_step(void)
         return true;
     }
     return false;
+}
+
+static bool mask_has(const uint8_t *mask, uint16_t socket_id)
+{
+    return (mask[socket_id / 8U] & (uint8_t)(1U << (socket_id % 8U))) != 0U;
+}
+
+np_hub_status_t np_pst_maint_run(const np_maint_request_t *req,
+                                 np_maint_result_fn        on_result,
+                                 void                     *ctx)
+{
+    if (req == NULL || (req->test_mask & NP_MAINT_TEST_ALL) == 0U) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    bool any = false;
+    for (uint16_t i = 0U; i < NP_HUB_SOCKET_MASK_BYTES; i++) {
+        any = any || (req->socket_mask[i] != 0U);
+    }
+    if (!any) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+
+    np_hub_status_t rc = NP_HUB_OK;
+    for (uint16_t sock = 0U; sock < NP_HEXMAP_MAX_SOCKETS; sock++) {
+        if (!mask_has(req->socket_mask, sock)) {
+            continue;
+        }
+        if (!np_lease_probe_begin()) {
+            rc = NP_HUB_ERR_SESSION_ACTIVE;   /* never test under a session */
+            break;
+        }
+        np_pst_health_record_t h;
+        memset(&h, 0, sizeof h);
+        if (tile_open(sock, &h)) {
+            run_non_emitting(sock, req->test_mask, &h);
+            if (req->test_mask & NP_MAINT_TEST_EMITTING) {
+                /* OI-FWHUB-20: an emitting test needs a signed maintenance
+                 * session with the head-presence gate passing or a detected
+                 * dock.  Neither exists, so it is refused, and a verdict
+                 * already earned is kept. */
+                h.verdict[NP_MAINT_T_LED] = NP_MAINT_V_REFUSED;
+                if (s_tile[sock].led_verdict == NP_MAINT_V_NOT_RUN) {
+                    s_tile[sock].led_verdict = NP_MAINT_V_REFUSED;
+                }
+            }
+            if (on_result != NULL) {
+                on_result(&h, ctx);
+            }
+        }
+        np_lease_probe_end();
+    }
+    /* SHDR gets the whole lattice's latest state from the next pass, never a
+     * record of the subset this run tested. */
+    np_pst_health_request();
+    return rc;
 }

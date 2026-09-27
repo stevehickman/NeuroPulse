@@ -144,14 +144,17 @@ void np_log_telemetry(const np_telem_record_t *rec);
 void np_log_pbm_socket(const np_pst_socket_record_t *rec, uint32_t session_ms);
 
 /*
- * np_log_shdr_pbm_socket_health — one occupied socket's idle health record
- * to SHDR (F10, F11b, F12, F14).  Written by the idle pass over EVERY occupied
- * socket, never from session data, so its presence says nothing about which
- * sockets were lit.  No module UID (OI-UPG-07), no timestamp.
+ * np_log_shdr_pbm_socket_health — one occupied PBM tile's LATEST STATE to
+ * SHDR (F10, F11b, F12, F14; §6.9).  Written by the idle pass over EVERY
+ * occupied socket, never from session data and never per maintenance run, so
+ * it says nothing about which sockets were lit or which a person chose to
+ * test.  No module UID (OI-UPG-07), no timestamp, and no session count: the
+ * fleet upserts one row per (device, socket), and a count would turn those
+ * rows back into a timeline (principal 2026-09-27).
  *
- * Layout after NP_LOG_TAG_SHDR_PBM_TILE_HEALTH: session_count (4),
- * socket_id (1), mod_type (1), health_flags (1), probe (1), cal_source (1),
- * pd1_pct[3] (3) — 13 bytes with the tag.
+ * Layout after NP_LOG_TAG_SHDR_PBM_TILE_HEALTH: socket_id (1), mod_type (1),
+ * health_flags (1), verdict[4] (probe, cal, NTC, LED; np_maint_verdict_t),
+ * cal_source (1), pd1_pct[3] (3) — 12 bytes with the tag.
  */
 void np_log_shdr_pbm_socket_health(const np_pst_health_record_t *rec);
 

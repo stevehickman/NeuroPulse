@@ -180,6 +180,7 @@ if(NP_BUILD_TESTS)
     add_executable(np_pbm_socket_telem_tests
         tests/np_pbm_socket_telem_tests.c
         src/np_pbm_socket_telem.c
+        src/np_session_lease.c        # maintenance runs claim the lease per socket
         src/np_session_log.c
         src/np_adaptation_log.c
         src/np_log_backend.c
