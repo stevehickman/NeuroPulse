@@ -40,9 +40,10 @@
  *       PINNED_TAIL_ADDITIVE, and every NP_CFG_FILE_* has a row. A second
  *       journal, or a rebuild cache quietly moved to tail-additive, is a
  *       REQ-LFS-01 decision and fails here until it is made. (OI-LFS-03)
- *   R5  np_cfg_store_journal_read() — the only reader of a tail-additive file —
- *       is called only from JOURNAL_READERS, each listed with why what it
- *       reads is history and not a limit. (OI-LFS-03)
+ *   R5  np_cfg_store_journal_read() and np_cfg_store_journal_read_rows() —
+ *       the only readers of a tail-additive file — are called only from
+ *       JOURNAL_READERS, each listed with why what it reads is history and not
+ *       a limit. (OI-LFS-03; the second reader is OI-NVRAM-16's)
  *   R6  No emission-limit consumer (LIMIT_CONSUMERS) names the journal at all:
  *       not its file id, not the journal API, not its path. A consumer that
  *       cannot name Map 3 cannot read a limit out of it. (OI-LFS-03)
@@ -335,10 +336,10 @@ function run(root: string): { code: number; lines: string[] } {
 
     // R5
     if (rel !== STORE_C && rel !== STORE_H) {
-      for (const m of code.matchAll(/\bnp_cfg_store_journal_read\s*\(/g)) {
+      for (const m of code.matchAll(/\b(np_cfg_store_journal_read(?:_rows)?)\s*\(/g)) {
         if (!(rel in JOURNAL_READERS)) {
           violations.push(
-            `R5 ${rel}:${lineOf(code, m.index!)}: np_cfg_store_journal_read() from a file not in JOURNAL_READERS. ` +
+            `R5 ${rel}:${lineOf(code, m.index!)}: ${m[1]}() from a file not in JOURNAL_READERS. ` +
               "Map 3's journal is history, never a limit (REQ-LFS-01) — add the file with the reason what it reads is history",
           );
         }
@@ -495,6 +496,9 @@ if (process.argv.includes("--self-test")) {
   expect("R5 rejects an unlisted journal reader",
     edit({ "firmware/hub_control/src/np_hub_control_main.c": "int main_(void) { return np_cfg_store_journal_read(NP_CFG_FILE_MAP3, 0,0,0,0,0,0); }\n" }),
     1, "R5 firmware/hub_control/src/np_hub_control_main.c");
+  expect("R5 rejects an unlisted variable-length journal reader (OI-NVRAM-16)",
+    edit({ "firmware/hub_control/src/np_hub_control_main.c": "int main_(void) { return np_cfg_store_journal_read_rows(NP_CFG_FILE_MAP3, 0,0,0,0,0,0); }\n" }),
+    1, "np_cfg_store_journal_read_rows() from a file not in JOURNAL_READERS");
 
   // R6
   expect("R6 rejects a limit consumer naming the journal id",

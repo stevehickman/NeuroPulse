@@ -118,6 +118,14 @@ typedef bool (*np_cfg_verify_fn)(const uint8_t *buf, size_t len, void *ctx);
 typedef bool (*np_cfg_record_verify_fn)(const uint8_t *rec, size_t rec_len,
                                         uint32_t index, void *ctx);
 
+/* Per-record check for a journal whose records describe their own length
+ * (OI-NVRAM-16).  `left` is the number of bytes from `rec` to the end of the
+ * journal.  Returns the length of the verified record that starts at `rec`,
+ * or 0 when no verified record starts there.  A return of 0, or of more than
+ * `left`, ends the valid prefix. */
+typedef size_t (*np_cfg_record_step_fn)(const uint8_t *rec, size_t left,
+                                        uint32_t index, void *ctx);
+
 /* ── Lifecycle ─────────────────────────────────────────────────────────────────
  *
  * np_cfg_store_bind() is a REBOOT: it forgets every piece of RAM state —
@@ -195,10 +203,19 @@ np_hub_status_t np_cfg_store_replace(np_cfg_file_t file, const uint8_t *buf,
  * a torn write costs one record).  The bytes past the valid prefix in `buf`
  * are unspecified and must not be read.
  *
- * REQ-LFS-01: the output of this function is HISTORY.  It must never become
+ * np_cfg_store_journal_read_rows: the same, for a journal whose records are
+ * not all one length (OI-NVRAM-16).  The store steps by the length `step`
+ * returns for each record, never by a length fixed at the call, so a row that
+ * a later firmware version grew neither misaligns every record after it nor
+ * ends the scan.  `*out_count` is the valid prefix in records and
+ * `*out_bytes` the same prefix in bytes.  Map 3 needs this reader from the
+ * first version whose row is longer than 32 bytes (NP-FW-NVRAM-001 D-24,
+ * D-25), and np_map3_row_len() is the step it supplies.
+ *
+ * REQ-LFS-01: the output of both readers is HISTORY.  It must never become
  * the source of a limit.  scripts/check-lfs-caller-rules.ts restricts who may
- * call it, and each permitted caller is listed there with the reason it reads
- * history rather than a bound.
+ * call either one, and each permitted caller is listed there with the reason
+ * it reads history rather than a bound.
  */
 np_hub_status_t np_cfg_store_journal_append(np_cfg_file_t file,
                                             const uint8_t *rec, size_t rec_len);
@@ -208,6 +225,12 @@ np_hub_status_t np_cfg_store_journal_read(np_cfg_file_t file, uint8_t *buf,
                                           uint32_t *out_count,
                                           np_cfg_record_verify_fn verify,
                                           void *ctx);
+
+np_hub_status_t np_cfg_store_journal_read_rows(np_cfg_file_t file, uint8_t *buf,
+                                               size_t cap, uint32_t *out_count,
+                                               size_t *out_bytes,
+                                               np_cfg_record_step_fn step,
+                                               void *ctx);
 
 /* ── REPLICATED records ────────────────────────────────────────────────────────
  *

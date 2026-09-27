@@ -58,7 +58,8 @@
  *
  * ── What this file is NOT ─────────────────────────────────────────────────────
  * Storage.  It encodes and scans bytes; np_cfg_store owns the file
- * (NP_CFG_FILE_MAP3, tail-additive).  Nor is it the journal-full policy
+ * (NP_CFG_FILE_MAP3, tail-additive) and reads it with
+ * np_cfg_store_journal_read_rows(), stepping by np_map3_row_len().  Nor is it the journal-full policy
  * (§6.3), the watermarks (§6.1) or sync — those are Map 3's owner's, and they
  * are not written yet.  Its output is HISTORY: REQ-LFS-01 forbids reading a
  * limit out of it.
@@ -144,5 +145,14 @@ size_t np_map3_encode(const np_map3_rec_t *rec, uint8_t *out, size_t cap);
  */
 void np_map3_scan(const uint8_t *buf, size_t len, np_map3_row_fn cb, void *ctx,
                   np_map3_scan_t *out);
+
+/*
+ * The length of the verified row that starts at `p`, with `left` bytes to the
+ * end of the journal, or 0 when no verified row starts there.  It applies
+ * exactly the test np_map3_scan() applies, and it is the step Map 3 hands to
+ * np_cfg_store_journal_read_rows() so the store walks a journal of mixed row
+ * lengths by each row's own `len` (OI-NVRAM-16).
+ */
+size_t np_map3_row_len(const uint8_t *p, size_t left);
 
 #endif /* NP_MAP3_RECORD_H */
