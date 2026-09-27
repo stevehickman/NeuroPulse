@@ -85,6 +85,10 @@ const LOCALES_DIR = join(ROOT, "locales");
  * AFTER this script or the catalogue is in no project at all — and XcodeGen
  * also reads the project's knownRegions out of this very file. project.yml's
  * preGenCommand and ios-ci.yml's explicit step both enforce that order.
+ *
+ * The watchOS app bundles this same file (app/watchos/project.yml references
+ * it by path, and runs this script in its own preGenCommand), so moving it
+ * breaks two projects, not one.
  */
 const XCSTRINGS_OUT = join(ROOT, "app", "ios", "NeurOne", "Localizable.xcstrings");
 

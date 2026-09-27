@@ -704,6 +704,19 @@ static void finding(const char *what, long cut, np_powerbd_tear_t tear,
     printf("\n");
 }
 
+/*
+ * What the store had ACKNOWLEDGED when the cut fired (OI-LFS-14).  Each is
+ * set only when the store call returned NP_HUB_OK in the current attempt, and
+ * each verifier then requires the acknowledged state: "old or new" is the
+ * right answer only while the call is still in flight.  Globals, not locals:
+ * the cut longjmps out of the mutation.  Every mutation resets the one its
+ * verifier reads, falsifications included.
+ */
+static volatile bool     g_blob_acked;
+static volatile uint32_t g_jrn_acked;
+static volatile bool     g_ukmd_acked;
+static volatile bool     g_count_acked;
+
 /* L-3 — the in-place replacement. */
 
 static void s_blob_baseline(void)
@@ -717,9 +730,11 @@ static void s_blob_baseline(void)
 
 static void s_blob_replace(void)
 {
+    g_blob_acked = false;
     if (np_cfg_store_mount() != NP_HUB_OK) { return; }
     blob_build(g_blob, 2U);
-    (void)np_cfg_store_replace(NP_CFG_FILE_NPMP, g_blob, BLOB_BYTES);
+    g_blob_acked = (np_cfg_store_replace(NP_CFG_FILE_NPMP, g_blob, BLOB_BYTES) ==
+                    NP_HUB_OK);
     np_cfg_store_unmount();
 }
 
@@ -727,6 +742,7 @@ static void s_blob_replace(void)
  * because the store has no way to express it. */
 static void s_blob_remove_then_write(void)
 {
+    g_blob_acked = false;   /* judged on the window, as before */
     if (np_cfg_store_mount() != NP_HUB_OK) { return; }
     (void)lfs_remove(&g_lfs, "npmp.bin");
     blob_build(g_blob, 2U);
@@ -753,6 +769,11 @@ static int v_blob(const char *what, long cut, np_powerbd_tear_t tear)
         finding(what, cut, tear, "npmp.bin is neither generation (L-3)");
         return 1;
     }
+    if (g_blob_acked && g_rb[4] != 2U) {
+        finding(what, cut, tear, "the replace had returned OK and npmp.bin is "
+                "still generation 1 — it was not durable (L-3)");
+        return 1;
+    }
     return 0;
 }
 
@@ -777,10 +798,14 @@ static void s_jrn_baseline(void)
 static void s_jrn_append(void)
 {
     uint8_t rec[REC_SIZE];
+    g_jrn_acked = 0U;
     if (np_cfg_store_mount() != NP_HUB_OK) { return; }
     for (uint32_t i = 0U; i < JRN_ADD; i++) {
         rec_build(rec, JRN_BASE + i);
-        (void)np_cfg_store_journal_append(NP_CFG_FILE_MAP3, rec, REC_SIZE);
+        if (np_cfg_store_journal_append(NP_CFG_FILE_MAP3, rec, REC_SIZE) ==
+            NP_HUB_OK) {
+            g_jrn_acked++;
+        }
     }
     np_cfg_store_unmount();
 }
@@ -796,9 +821,9 @@ static int v_jrn(const char *what, long cut, np_powerbd_tear_t tear)
                                                    sizeof(g_jrn), REC_SIZE, &n,
                                                    rec_verify, NULL);
     np_cfg_store_unmount();
-    if (st != NP_HUB_OK || n < JRN_BASE) {
+    if (st != NP_HUB_OK || n < JRN_BASE + g_jrn_acked) {
         finding(what, cut, tear, "%u of %u durable records survived (status %d) "
-                "(L-4)", (unsigned)n, JRN_BASE, st);
+                "(L-4)", (unsigned)n, JRN_BASE + g_jrn_acked, st);
         return 1;
     }
     return 0;
@@ -819,14 +844,17 @@ static void s_ukmd_baseline(void)
 
 static void s_ukmd_write(void)
 {
+    g_ukmd_acked = false;
     if (np_cfg_store_mount() != NP_HUB_OK) { return; }
-    (void)np_cfg_store_replicated_write(NP_CFG_FILE_UKMD, g_u2, UKMD_BYTES);
+    g_ukmd_acked = (np_cfg_store_replicated_write(NP_CFG_FILE_UKMD, g_u2,
+                                                  UKMD_BYTES) == NP_HUB_OK);
     np_cfg_store_unmount();
 }
 
 /* FALSIFICATION: both copies destroyed before either is rewritten. */
 static void s_ukmd_remove_both_then_write(void)
 {
+    g_ukmd_acked = false;   /* judged on the window, as before */
     if (np_cfg_store_mount() != NP_HUB_OK) { return; }
     (void)lfs_remove(&g_lfs, "ra/ukmd.rec");
     (void)lfs_remove(&g_lfs, "rb/ukmd.rec");
@@ -853,6 +881,12 @@ static int v_ukmd(const char *what, long cut, np_powerbd_tear_t tear)
     if (memcmp(r, g_u1, UKMD_BYTES) != 0 && memcmp(r, g_u2, UKMD_BYTES) != 0) {
         np_cfg_store_unmount();
         finding(what, cut, tear, "ukmd.rec is neither the old record nor the new");
+        return 1;
+    }
+    if (g_ukmd_acked && memcmp(r, g_u2, UKMD_BYTES) != 0) {
+        np_cfg_store_unmount();
+        finding(what, cut, tear, "the replicated write had returned OK and "
+                "ukmd.rec is still the old record — it was not durable");
         return 1;
     }
     /* After the first read has repaired the pair, a second read must agree
@@ -935,8 +969,9 @@ static void s_count_baseline(void)
 
 static void s_count_advance(void)
 {
+    g_count_acked = false;
     if (np_cfg_store_mount() != NP_HUB_OK) { return; }
-    (void)np_session_count_commit(42U);
+    g_count_acked = (np_session_count_commit(42U) == NP_HUB_OK);
     np_cfg_store_unmount();
 }
 
@@ -948,7 +983,7 @@ static int v_count(const char *what, long cut, np_powerbd_tear_t tear)
         st = np_session_count_load(&c);
         np_cfg_store_unmount();
     }
-    if (st == NP_HUB_OK && (c == 41U || c == 42U)) {
+    if (st == NP_HUB_OK && (c == 42U || (c == 41U && !g_count_acked))) {
         return 0;
     }
     finding(what, cut, tear, "session count is %u (status %d) — it went "
@@ -1010,10 +1045,14 @@ static void s_marker_baseline(void)
     np_cfg_store_unmount();
 }
 
+/* np_factory_reset.h: NP_RESET_OK "only once it is durable" (OI-LFS-14). */
+static volatile bool g_marker_acked;
+
 static void s_marker_write(void)
 {
+    g_marker_acked = false;
     if (np_cfg_store_mount() != NP_HUB_OK) { return; }
-    (void)np_factory_reset_hal_marker_write();
+    g_marker_acked = (np_factory_reset_hal_marker_write() == NP_RESET_OK);
     np_cfg_store_unmount();
 }
 
@@ -1025,8 +1064,13 @@ static int v_marker(const char *what, long cut, np_powerbd_tear_t tear)
      * store or lose the store the reset has not yet erased. */
     np_fr_marker_state_t m = np_factory_reset_hal_marker_state();
     np_cfg_store_unmount();
-    if (m == NP_FR_MARKER_ABSENT || m == NP_FR_MARKER_PRESENT) {
+    if (m == NP_FR_MARKER_PRESENT || (m == NP_FR_MARKER_ABSENT && !g_marker_acked)) {
         return 0;
+    }
+    if (m == NP_FR_MARKER_ABSENT) {
+        finding(what, cut, tear, "the marker write had returned NP_RESET_OK and "
+                "the marker is absent — an acknowledged reset would be dropped");
+        return 1;
     }
     finding(what, cut, tear, "marker state %d after a cut during its write — "
             "neither absent nor present", (int)m);

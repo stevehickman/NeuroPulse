@@ -107,6 +107,12 @@ which must precede *any* `xcodebuild` invocation) creates the file in time; the 
 it fresh within an open session. Gradle needs no equivalent because a generated res `srcDir` is a
 declared task output, and Vite's `buildStart` runs before module resolution.
 
+**The watch app bundles that same file.** `app/watchos/project.yml` names
+`../ios/NeurOne/Localizable.xcstrings` as a resource and runs the generator in its own
+`preGenCommand` and scheme pre-action, so there is no watch copy. `watchos-ci.yml` then reads the
+built bundle and checks that every locale's compiled table carries a probe key, because a green
+build proves nothing here: without the resource the watch builds cleanly and renders raw keys.
+
 **A build needs `bun` on `PATH`** — that is now true of the Android and iOS builds, not just the
 web one, and CI installs it on every leg that compiles either (`android-ci`, `ios-ci`, and both
 compiled CodeQL legs). A canonical edit also triggers those workflows, which it no longer would by
@@ -128,8 +134,9 @@ makes the hand-edit unrepresentable rather than merely detectable. `bun scripts/
 `bun scripts/check-locale-strings.ts` enforces all of the above and fails CI on a violation; its
 `PENDING_PATHS` names the code the rule has not yet reached — the pure-JVM `:core` Android module
 (no Android plugin by design, so it cannot name `R.string`), Windows, and the simulator — so the
-gate's reach stays legible. Those three, and watchOS, generate nothing today because they read no
-locale file yet; each becomes a fourth generator target when it does, not a fourth committed copy.
+gate's reach stays legible. Those three generate nothing today because they read no locale file
+yet; each becomes a generator target when it does, not another committed copy. watchOS is not a
+fourth target: it bundles the iOS catalogue itself (§17.4).
 
 ### 17.7 Translation (GitHub #191)
 
