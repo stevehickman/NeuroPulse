@@ -1,6 +1,9 @@
 package life.neurone.core.setup
 
 import life.neurone.core.common.InMemoryKeyValueStore
+import life.neurone.core.models.ZoneModuleConfiguration
+import life.neurone.core.models.ZoneModuleStatus
+import life.neurone.core.models.ZoneModuleType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -86,5 +89,38 @@ class SetupFlowTests {
         assertTrue(SetupStep.ZONE_MODULES.requiresHardwareConfirmation)
         assertFalse(SetupStep.BOA_DIAL.requiresHardwareConfirmation)
         assertTrue(SetupStep.SAFETY_ACKNOWLEDGEMENT.requiresSafetyAcknowledgement)
+    }
+
+    private fun socket(id: Int, present: Boolean, fault: Boolean = false) = ZoneModuleStatus(
+        socketId = id,
+        moduleType = if (present) ZoneModuleType.PBM_BASE else if (fault) ZoneModuleType.UNKNOWN else ZoneModuleType.ABSENT,
+        isPresent = present,
+        hasFault = fault,
+    )
+
+    private fun config(vararg s: ZoneModuleStatus) = ZoneModuleConfiguration(s.associateBy { it.socketId })
+
+    @Test
+    fun zoneModulesPassWithAnyPopulatedSocketAndNoFault() {
+        // Not "all five slots": one module among many reported sockets is a valid build.
+        val r = flow().evaluateZoneModules(config(socket(12, true), socket(40, false), socket(77, false)))
+        assertEquals(SetupFlow.ZoneModuleResult.Passed, r)
+    }
+
+    @Test
+    fun zoneModulesFaultedSocketBlocksEvenWhenOthersPresent() {
+        val r = flow().evaluateZoneModules(
+            config(socket(3, true), socket(61, false, fault = true), socket(9, false, fault = true)),
+        )
+        assertEquals(SetupFlow.ZoneModuleResult.Faulted(listOf(9, 61)), r)
+    }
+
+    @Test
+    fun zoneModulesNoneDetectedWhenEmptyOrAllEmptySockets() {
+        assertEquals(SetupFlow.ZoneModuleResult.NoneDetected, flow().evaluateZoneModules(ZoneModuleConfiguration.EMPTY))
+        assertEquals(
+            SetupFlow.ZoneModuleResult.NoneDetected,
+            flow().evaluateZoneModules(config(socket(1, false), socket(2, false))),
+        )
     }
 }
