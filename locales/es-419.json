@@ -839,6 +839,7 @@
   "SETUP_ERROR_SAFETY_ACK_REQUIRED": "Please read and acknowledge the safety information to continue.",
   "SETUP_ERROR_TIMEOUT": "Hardware confirmation timed out. Ensure the hub is connected and powered.",
   "SETUP_ERROR_ZONE_MISSING": "A module is seated but could not be identified in {0}. Re-seat it and wait for this phone to confirm.",
+  "SETUP_FINISH_BUTTON": "Finish",
   "SETUP_IMPEDANCE_FAIL_A11Y": "{0}: check contact",
   "SETUP_IMPEDANCE_PASS_A11Y": "{0}: signal good",
   "SETUP_INSTR_BLE": "Power on the hub and connect via Bluetooth or USB-C. The green power LED should be breathing steadily. Tap Confirm once connected.",

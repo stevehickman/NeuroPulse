@@ -30,6 +30,7 @@ import life.neurone.core.protocol.NPProtocolDefinition
 import life.neurone.core.protocol.NPProtocolEntry
 import life.neurone.core.protocol.NPProtocolLibrary
 import life.neurone.core.protocol.NPTimingMode
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import life.neurone.app.R
 
@@ -60,6 +61,7 @@ fun ProtocolEditorScreen(
     }
 
     val untitledName = stringResource(R.string.protocol_editor_untitled)
+    val context = LocalContext.current
 
     fun save() {
         val updated = existing.copy(
@@ -106,7 +108,8 @@ fun ProtocolEditorScreen(
         Spacer(Modifier.height(16.dp))
         Text(
             stringResource(R.string.protocol_editor_modalities) + existing.modalities.filter { it.enabled }
-                .joinToString(", ") { it.modalityType.rawValue }.ifEmpty { "none" },
+                .joinToString(", ") { context.getString(modalityNameRes(it.modalityType)) }
+                .ifEmpty { stringResource(R.string.ui_none) },
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(8.dp))

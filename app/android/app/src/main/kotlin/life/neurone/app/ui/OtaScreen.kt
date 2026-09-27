@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import life.neurone.core.models.OtaPhase
 import life.neurone.core.models.OtaStatusPacket
+import androidx.annotation.StringRes
 import androidx.compose.ui.res.stringResource
 import life.neurone.app.R
 
@@ -56,7 +57,7 @@ fun OtaScreen(
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp)) {
                         Text(stringResource(R.string.ota_update_status), style = MaterialTheme.typography.labelMedium)
-                        Text(phaseLabel(status.phase), style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(phaseLabel(status.phase)), style = MaterialTheme.typography.titleMedium)
                         if (status.phase?.isBusy == true) {
                             Spacer(Modifier.height(8.dp))
                             LinearProgressIndicator(
@@ -82,13 +83,14 @@ fun OtaScreen(
     }
 }
 
-private fun phaseLabel(phase: OtaPhase?): String = when (phase) {
-    OtaPhase.IDLE, null -> "Up to date"
-    OtaPhase.RECEIVING -> "Downloading update…"
-    OtaPhase.VERIFYING -> "Verifying signature…"
-    OtaPhase.COMMITTING -> "Installing…"
-    OtaPhase.VERIFIED -> "Verified"
-    OtaPhase.REBOOTING -> "Restarting hub…"
-    OtaPhase.COMPLETE -> "Update complete"
-    OtaPhase.FAILED -> "Update failed"
+@StringRes
+private fun phaseLabel(phase: OtaPhase?): Int = when (phase) {
+    OtaPhase.IDLE, null -> R.string.ota_up_to_date
+    OtaPhase.RECEIVING -> R.string.ota_phase_transferring
+    OtaPhase.VERIFYING -> R.string.ota_phase_verifying
+    OtaPhase.COMMITTING -> R.string.ota_phase_applying
+    OtaPhase.VERIFIED -> R.string.ota_phase_verified
+    OtaPhase.REBOOTING -> R.string.ota_hub_is_restarting_do_not_disconnect
+    OtaPhase.COMPLETE -> R.string.ota_phase_complete
+    OtaPhase.FAILED -> R.string.ota_phase_failed
 }
