@@ -13,6 +13,10 @@
  *        then write the durable marker to Config (survives power loss).  If
  *        the marker cannot be written the reset does not start: the flag is
  *        cleared and NP_RESET_ERR_MARKER returned with nothing erased.
+ *        The marker is then READ BACK (np_factory_reset_hal_marker_state(),
+ *        a fresh mount) and the reset starts only if it reads PRESENT: an
+ *        acknowledged write the medium did not keep is refused the same way,
+ *        before R-5 purges anything (NP-SOUP-LFS-001 §13.18, RISK-LFS-09).
  *   R-4  Suspend sessions (no-op: only called when no session is active).
  *   R-5  eMMC SANITIZE on UHDR partition (NIST SP 800-88 "Purge").
  *   R-6  Zero SHDR partition.

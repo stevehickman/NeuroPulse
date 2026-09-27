@@ -174,6 +174,22 @@ np_reset_status_t np_factory_reset_execute(void)
         return NP_RESET_ERR_MARKER;
     }
 
+    /* R-3 verify: read the marker back from the medium before anything is
+     * erased (NP-SOUP-LFS-001 §13.18, RISK-LFS-09).  An acknowledged write
+     * is not yet a durable one: a commit littlefs later discards (a CRC it
+     * cannot match, §13.18 E4) or a medium that drops an acknowledged program
+     * (OI-LFS-07) reads back as the state BEFORE the write.  R-5 purges UHDR
+     * irreversibly on the strength of this marker, so its presence is checked
+     * where it matters — on a fresh mount — and not taken from the write's
+     * return code.  Only PRESENT proceeds: ABSENT, NO_STORE and UNKNOWN all
+     * mean the reset has no durable start, and nothing has been erased yet.
+     * Once verified, nothing else writes Config before R-7 (R-5 and R-6 erase
+     * other partitions), so no later commit can take the marker with it. */
+    if (np_factory_reset_hal_marker_state() != NP_FR_MARKER_PRESENT) {
+        np_fr_clear_in_progress();
+        return NP_RESET_ERR_MARKER;
+    }
+
     /* R-4: suspend sessions — no-op.  This function is only invoked when no
      * stimulation session is active (enforced by the hub layer), so there is
      * nothing to suspend.  Kept as an explicit step for spec traceability. */
@@ -287,7 +303,9 @@ np_reset_status_t np_factory_reset_hal_marker_write(void)
                                            NP_RESET_ERR_MARKER);
     if (st == NP_RESET_OK) {
         np_fr_host_trace('M');
-        np_fr_host_hal.marker_state = NP_FR_MARKER_PRESENT;
+        if (!np_fr_host_hal.marker_write_not_durable) {
+            np_fr_host_hal.marker_state = NP_FR_MARKER_PRESENT;
+        }
     }
     return st;
 }
