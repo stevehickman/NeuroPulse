@@ -2,9 +2,9 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-NVRAM-001
-**Revision:** 5
+**Revision:** 6
 **Date:** 2026-09-27
-**Status:** DESIGN STUDY — not a release baseline. Every behaviour below is a proposed engineering commitment traced to a cited source. **No new part is proposed.** Rev 5 gives the Config store a journal reader that steps by each row's own length, closing `OI-NVRAM-16` (§7.2.1). Rev 4 makes R-3 read its marker back before the first erase (§3.4.1). Rev 3 writes and falsifies the two CI checks §7.2 and §8.3 asked for, and corrects every claim that an SNVS flag survives power loss. Rev 2 resolves the store defects Rev 1 found (§3.3.1) so Map 3 can be built at all. See §11 (Decisions), §13 (Open items).
+**Status:** DESIGN STUDY — not a release baseline. Every behaviour below is a proposed engineering commitment traced to a cited source. **No new part is proposed.** Rev 6 closes `OI-NVRAM-04`: nothing in this document needs the `SEAT#` pre-break window's duration, and the stagger dimension moves to the document whose own mechanism needs it (§4.3.1). Rev 5 gives the Config store a journal reader that steps by each row's own length, closing `OI-NVRAM-16` (§7.2.1). Rev 4 makes R-3 read its marker back before the first erase (§3.4.1). Rev 3 writes and falsifies the two CI checks §7.2 and §8.3 asked for, and corrects every claim that an SNVS flag survives power loss. Rev 2 resolves the store defects Rev 1 found (§3.3.1) so Map 3 can be built at all. See §11 (Decisions), §13 (Open items).
 **Effective Date:** —
 **Author:** NeurOne Firmware + Data Architecture
 **Approved By:** — (pending design review)
@@ -16,6 +16,22 @@
 **Parent Document:** `NP-FW-EMMC-001`
 
 ---
+
+> **⚠ REV 6 (2026-09-27, GitHub #444) — `OI-NVRAM-04` CLOSED: the missing dimension is re-homed, not invented.**
+>
+> `OI-NVRAM-04` asked for the pad-length stagger between contact group 3 and `SEAT#`, and an
+> extraction velocity, so that the pre-break window would have a duration. Asked the CLAUDE.md §18
+> question, *what fails here if that number is missing?*, the answer is nothing. **D-8** already makes
+> every record durable without a warning, and §4.3.1 shows that a dimensioned window would still not
+> make a last-gasp write possible. The hub does not lose power on extraction, so no Map 3 write needs
+> the window. The tile cannot see `SEAT#`, and the bus that would tell it breaks with its supply, so no
+> Map 4 write can use the window. **No figure is written here, and no extraction velocity is assumed.**
+>
+> The stagger dimension is still required, but by `NP-HW-HEXTILE-001` §7.3's own mechanism, not by
+> this document. That mechanism needs returns before supplies, and `SEAT#` last under worst-case tilt.
+> Nothing tracked that dimension, so it is raised there as **`OI-HEXTILE-28`** (Rev 18), coupled to
+> `NP-DRV-SHELL-002` `OI-SHELL2-12` (#437). **Still open under #444:** `-06`, `-07` (in #443), `-17`
+> and `OI-HEXMAP-01`.
 
 > **⚠ REV 5 (2026-09-27, GitHub #444) — `OI-NVRAM-16` CLOSED: the store can read a grown Map 3 row.**
 >
@@ -674,12 +690,44 @@ It cannot be used, for three independent reasons, any one of which is sufficient
 > correctness never depends on one.** Every record is already durable, or it is not yet claimed to
 > exist. **D-8.** `OI-NVRAM-04` records the missing dimension, because if a future revision wants a
 > pre-break notification for any purpose, that is the number it will need.
+>
+> *Rev 6: `OI-NVRAM-04` is closed. §4.3.1 says why this document never needed the number, and where
+> the dimension now lives.*
 
 A related consequence for Map 4, which *does* lose power on extraction: the same absence means the
 module firmware cannot schedule its EEPROM write for the moment of removal either. `NP-MOD-ID-001`
 §5.3's cadence — **one update per session end** — is therefore not merely convenient, it is the only
 cadence available, and the cost is bounded and should be written down: **a session interrupted by a
 tile being pulled mid-run contributes nothing to that tile's odometer.** `OI-NVRAM-06`.
+
+
+#### 4.3.1 Why the window's duration is not this document's number — added at Rev 6 (`OI-NVRAM-04` closed)
+
+§4.3 gave three reasons the window cannot be used, and the third was that its duration is unknown.
+That made `OI-NVRAM-04` read as though dimensioning the stagger would re-open a last-gasp write. It
+would not. Suppose the stagger were dimensioned and an extraction speed agreed. The window would then
+have a duration, and neither record could use it:
+
+| Record | Where the write lands | Why a window of any duration does not help |
+|---|---|---|
+| **Map 3 + inventory** | Hub Config partition | **No hub-side store loses power on extraction.** §4.1: `SAFE_EN[n]` removes a cluster's 24 V emitter rail, and the hub stays on USB-C. A Map 3 row is written from hub-side session state, which the hub still holds after the tile is gone. The write has no deadline to meet |
+| **Map 4** | The tile's `U1` EEPROM | **The tile cannot see the warning.** `NP-HW-HEXTILE-001` §7.2 specifies `SEAT#` as *"tied to PGND on the module through 1 kΩ"*, direction module → socket. It is sensed at the socket and aggregated at the cluster controller, and nothing routes it to `U1`. To act on it, the tile would have to be commanded over I2C. But `SDA`, `SCL` and `VCC_3V3` are all in contact group 3 (§7.3), and the window **ends when group 3 breaks**. So the command path and the tile's supply are lost at the same instant, which is the end of the window. A pre-break Map 4 write would need a new module-side sense line or a hold-up supply, and that is a design change, not a missing number |
+
+So **D-8 does not rest on the number's absence**, and CLAUDE.md §18 applies. Nothing in this document
+fails if the stagger stays undimensioned, so this document states no requirement on it. **No
+extraction-velocity assumption is raised either.** Nothing in the document set consumes one, and any
+future pre-break consumer must bring its own requirement and derivation, not borrow a figure recorded
+here.
+
+**The stagger dimension is still required, but by a different mechanism and in a different place.**
+`NP-HW-HEXTILE-001` §7.3 promises two properties. Every return mates before any supply. `SEAT#` mates
+last, even under the worst-case tilt that the ±0.5 mm Z tolerance permits across two rows. Each gap
+between contact groups must exceed that worst-case height differential, and all of the gaps must fit
+inside the spring pin's usable working deflection. That deflection is itself unspecified
+(`NP-DRV-SHELL-002` `OI-SHELL2-12`). These properties carry `RISK-SHELL-01`'s control (`SH2-DRC-10b`),
+so the requirement is real, and no document tracked it. It is raised in the owning document as
+**`NP-HW-HEXTILE-001` `OI-HEXTILE-28`**. It is dimensioned for mating-order margin, **not as a timing
+window**.
 
 ---
 
@@ -1269,7 +1317,7 @@ are decisions, and no amount of firmware work substitutes for either.
 | **D-5** | **Map 3 is a separate file with its own magic, version and policy** — reached independently from `file_max` (§3.5), from cache-versus-record (§7.2), and from write granularity (§3.5) |
 | **D-6** | **`np_hexmap_nvram_write()` must never destroy the live record before the replacement is durable.** No truncate-in-place; LittleFS's copy-on-write commit supplies A/B semantics without a second slot |
 | **D-7** | **Fail-closed means "declare the gap", not "report zero", for a record.** An unreadable journal reports *unknown since ordinal S*; a fabricated zero would drive Map 2's totals backwards |
-| **D-8** | **No last-gasp write.** `SEAT#` has no firmware consumer, is aggregated at Class B, and its pre-break window is undimensioned. Correctness never depends on advance warning |
+| **D-8** | **No last-gasp write.** `SEAT#` has no firmware consumer, is aggregated at Class B, and its pre-break window is undimensioned. Correctness never depends on advance warning *(Rev 6: the undimensioned window is not what D-8 rests on. A dimensioned one would support no write either, §4.3.1.)* |
 | **D-9** | **Every ordinal is the existing Config eMMC session counter plus a per-record `seq`.** No new counter, no wall-clock field, ever |
 | **D-10** | **The control software initiates every sync.** The helmet cannot know which peer holds Map 2 for these modules |
 | **D-11** | **Acknowledgement precedes retirement; retirement is a watermark advance, not an erase.** A peer that loses its own store can re-request from a lower watermark |
@@ -1319,7 +1367,7 @@ Scales per `NP-RM-001` §4. Status: **MITIGATED** (controls in place, residual a
 | **OI-NVRAM-01** | **DECIDED at Rev 2 (§3.3.1, D-21) — DOWNGRADED from BLOCKING to a documentation action.** The journal is LittleFS files; the raw region is void and its "no LittleFS overhead" rationale is refuted by `prog_size` arithmetic, not merely outweighed. **Map 3 is now implementable against this document.** What remains is landing `ECR-EMMC-001`'s three clause changes in `NP-FW-EMMC-001`, which is a `.docx` and so not edited here (`OI-CONV-04`). Replacement text is given in §3.3.1.4 | Quality | Documentation consistency — **no longer blocking Map 3** |
 | ~~**OI-NVRAM-02**~~ | ✅ **CLOSED 2026-09-13 (Rev 2, D-22).** The UKMD record is a named LittleFS file; `NP-FW-EMMC-002` §C.3 corrected in the same change. Safe because no code ever used the offset — `np_uhdr_key.c` reaches the record through `np_uhdr_hal_config_read_ukmd()`/`_write_ukmd()`, so it was a spec-side artifact only | — (closed) | — |
 | **OI-NVRAM-03** | **DECIDED at Rev 2 (D-23) — widen, do not forbid**, as Rev 1 predicted. The write is correct and the specification predates the hex-tile architecture. Carried in `ECR-EMMC-001` with `OI-NVRAM-01`; the decision no longer waits on anything | Quality | Documentation consistency |
-| **OI-NVRAM-04** | **The pad-length stagger between contact group 3 and `SEAT#` is not dimensioned**, and no extraction-velocity assumption is stated, so the pre-break warning window has no duration. §4.3 designs around its absence; any future use of `SEAT#` as a timing signal needs this number | EE + ME | Any pre-break notification |
+| ~~**OI-NVRAM-04**~~ | ✅ **CLOSED 2026-09-27 (Rev 6, #444). Re-homed, not dimensioned.** Nothing in this document requires the pre-break window's duration. The hub loses no power on extraction, the tile cannot observe `SEAT#`, and the I2C command path breaks with the tile's supply at the end of the window, so even a dimensioned window supports no write (§4.3.1). D-8 stands on its own. No extraction velocity is assumed. The stagger dimension *is* required by `NP-HW-HEXTILE-001` §7.3's mating order and `SEAT#`-last guarantee, and it is raised there as **`OI-HEXTILE-28`**. Original text: ~~The pad-length stagger between contact group 3 and `SEAT#` is not dimensioned, and no extraction-velocity assumption is stated, so the pre-break warning window has no duration. §4.3 designs around its absence; any future use of `SEAT#` as a timing signal needs this number~~ | — (closed; continues as `OI-HEXTILE-28`) | — |
 | ~~**OI-NVRAM-05**~~ | ✅ **CLOSED 2026-09-26 (Rev 3, #444; option A chosen by the principal, D-27).** Every comment and clause that called either flag a power-loss flag says warm-reset only. The anonymisation half needs nothing more. The factory-reset half is fixed by a durable Config marker written before the first erase, and by `np_factory_reset_boot_check()`, which completes the reset on the flag, the marker or a Config with no filesystem, and never on an unreadable one. `np_cfg_store_mount()` now tells those last two apart. Tested by a power cut at every step, with a flag-only mutant failing, and by a power-loss sweep of the marker write (§3.4.1). **Continues as `OI-NVRAM-17`** (the bring-up call site) | — (closed) | — (`NP-MOD-ID-001` §10's rotation test is unblocked by design; it still needs a runnable image) |
 | **OI-NVRAM-06** | Map 4's one-write-per-session-end cadence means **a session interrupted by tile extraction contributes nothing to that tile's odometer**. Quantify whether that matters for `NP-MOD-ID-001` §7.4's model, or accept and document it | FW | Odometer fidelity |
 | **OI-NVRAM-07** | Map 3's ordinal indexing gives predictive maintenance a trajectory with unknown, non-uniform spacing in time. This is `OI-EMMC2-13`'s general defect acquiring another instance; recorded so the review gate does not discover it | FW + Data | `NP-MOD-ID-001` §7.4 review gate |
@@ -1445,3 +1493,4 @@ factory-reset correctness question rather than a storage-layer one, and Rev 2 do
 | 3 | 2026-09-26 | NeurOne Firmware + Data Architecture | **The two invariants get CI checks, and the SNVS claims are corrected (GitHub #444).** **`OI-NVRAM-08` closed:** the Map 3 row is now code (`np_map3_record.{h,c}`), and `np_map3_record_tests` checks that a journal written under version *n* loses no record under *n+1*. Across an upgrade, appended newer rows, a rollback, a torn tail and the D-24 bound, it is falsified in both directions against four rule-breaking readers (§7.2.1). **D-25:** §3.3.1.5's two padding bytes become `len` + `ver`, so the scan steps by the row's own length and accepts every version. **`OI-NVRAM-09` closed:** `scripts/check-map2-shdr-boundary.ts` (`tooling-ci.yml` `map2-shdr-boundary`) checks that no file names Map 2 and SHDR together, and that no SHDR column or firmware SHDR identifier names a sync boundary, watermark, ordinal or per-window delta (§8.3.1). **D-26** is the Map 2 naming rule it depends on. It is falsified by a hermetic self-test and by hand against the real tree. **`OI-NVRAM-05`:** every claim that `LPGPR1`/`LPGPR2` survive power loss is corrected in six firmware files and in `NP-FW-EMMC-002` Rev 4 §B.4/§D.6, including a comment calling the SNVS domain *"battery-backed"*. The anonymisation half needs nothing more. For the factory-reset half, §3.4.1 specifies three options. **The principal chose A (D-27), and it is implemented.** A replicated Config marker is written at R-3 before the first erase, a reset that cannot write it does not start, and `np_factory_reset_boot_check()` completes the reset on the flag, the marker or a Config with no filesystem. `np_cfg_store_mount()` now tells "no filesystem" from "unreadable", and the second never erases. **New:** `OI-NVRAM-16`, since the store's fixed-length journal read cannot read a grown row, and `OI-NVRAM-17`, since the boot check has no bring-up call site until Config is mounted (#340). `RISK-NVRAM-01`/`-02`/`-08` move to MITIGATED. `OI-NVRAM-04`, `-06` and `OI-HEXMAP-01` stay open. SW-02 code changed: the new codec and test, one ctest target (Class B 39 → 40), comment corrections in the bootloader and anon modules, and the factory reset's R-3 marker, boot check and `NP_RESET_ERR_MARKER` in `np_factory_reset`. It also adds `np_reset_marker.c`, and in `np_cfg_store` one file-table row and the mount-error distinction. **The factory reset's behaviour changed as D-27 specifies. No SW-01 file changed.** Rev 2 → 3. |
 | 4 | 2026-09-27 | NeurOne Firmware Engineering | **R-3 reads the factory-reset marker back before the first erase (§3.4.1, D-27 unchanged).** From `NP-SOUP-LFS-001` §13.18 (`OI-LFS-13`): a Config write the store acknowledged can still be rolled back, and R-5's UHDR purge was the one step that acted on the marker's acknowledgement. `np_factory_reset_execute()` now calls `np_factory_reset_hal_marker_state()` after the write and starts only on `PRESENT`; anything else returns `NP_RESET_ERR_MARKER` with nothing erased. Tested and falsified in `np_factory_reset_tests` (a host medium that does not keep an acknowledged write) and `np_cfg_store_tests` (the real store, medium rolled back after the write). SW-02 code changed: `np_factory_reset.c`, its test HAL and tests, and `np_cfg_store_tests.c`. No SW-01 file changed. `NP-FW-EMMC-002` Rev 5 carries the step. Rev 3 → 4. |
 | 5 | 2026-09-27 | NeurOne Firmware Engineering | **`OI-NVRAM-16` CLOSED (GitHub #444, §7.2.1).** `np_cfg_store` gains `np_cfg_store_journal_read_rows()`, a tail-additive journal reader that steps by the length a caller-supplied check returns (`np_cfg_record_step_fn`) and ends the valid prefix on 0 or on a length past the end. `np_map3_record` gains `np_map3_row_len()`, which factors out the single-row test `np_map3_scan()` already made, so the scan and the store step share one rule. `np_cfg_store_tests` case 9 appends a 40-byte v2 row among v1 rows through the real store and reads all ten back. It is falsified in both directions: the fixed-length reader on the same file must lose rows, and a reader clamped to 32 bytes fails five assertions. `scripts/check-lfs-caller-rules.ts` R5 matches both reader names, and its self-test grows to 31 cases. `RISK-NVRAM-01`'s residual is removed. SW-02 code changed: `np_cfg_store.{h,c}`, `np_map3_record.{h,c}` (a refactor of the scan, with behaviour unchanged, as `np_map3_record_tests` shows), `np_cfg_store_tests.c` and its CMake sources. No new ctest target; the executed-line floors of `np_cfg_store_tests` (2,644 → 2,816) and `np_map3_record_tests` (260 → 263) are re-measured in `ci/host-test-floors.txt`. No SW-01 file changed. `OI-NVRAM-04`, `-06`, `-17` and `OI-HEXMAP-01` stay open. Rev 4 → 5. |
+| 6 | 2026-09-27 | NeurOne Firmware Engineering | **`OI-NVRAM-04` CLOSED (GitHub #444, §4.3.1): re-homed, not dimensioned.** Under CLAUDE.md §18, nothing in this document requires the `SEAT#` pre-break window's duration. D-8 does not rest on the number's absence either: the hub loses no power on extraction, so no Map 3 write has a deadline. The tile cannot observe `SEAT#` (`NP-HW-HEXTILE-001` §7.2), and the I2C command path is in contact group 3, whose break ends the window, so no Map 4 write can use a window of any duration. No stagger figure and no extraction velocity is written. The stagger dimension is required by `NP-HW-HEXTILE-001` §7.3's own mating order and `SEAT#`-last guarantee, and no document tracked it, so it is raised there as `OI-HEXTILE-28` (Rev 18), coupled to `NP-DRV-SHELL-002` `OI-SHELL2-12` (#437). New §4.3.1; §4.3 and D-8 annotated. No code changed. `OI-NVRAM-06`, `-07`, `-17` and `OI-HEXMAP-01` stay open. Rev 5 → 6. |
