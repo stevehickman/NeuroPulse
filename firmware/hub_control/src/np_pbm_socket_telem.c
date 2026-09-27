@@ -422,8 +422,8 @@ np_hub_status_t np_pst_maint_run(const np_maint_request_t *req,
             run_non_emitting(sock, req->test_mask, &h);
             if (req->test_mask & NP_MAINT_TEST_EMITTING) {
                 /* OI-FWHUB-20: an emitting test needs a signed maintenance
-                 * session with the head-presence gate passing or a detected
-                 * dock.  Neither exists, so it is refused, and a verdict
+                 * session with the helmet in a hub-detected dock, never on a
+                 * head.  Neither exists, so it is refused, and a verdict
                  * already earned is kept. */
                 h.verdict[NP_MAINT_T_LED] = NP_MAINT_V_REFUSED;
                 if (s_tile[sock].led_verdict == NP_MAINT_V_NOT_RUN) {

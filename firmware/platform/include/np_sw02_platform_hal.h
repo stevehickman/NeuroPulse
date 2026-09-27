@@ -185,10 +185,10 @@ extern np_hub_status_t np_mod_pbm_hal_socket_ntc_read(uint16_t socket_id,
  * controller drives one wavelength of the tile at its fixed test setpoint for
  * its fixed pulse and returns the PD1 (forward, behind the PDMS window) count.
  * PD2 is never read here.  NP_HUB_OK with *counts_out set; any error means "not
- * measured".  Called ONLY from a signed maintenance session, with the
- * head-presence gate passing or the helmet in a detected dock (principal
- * 2026-09-27) — a path that does not exist yet (OI-FWHUB-20), so nothing calls
- * it today and the target implementation must not be reachable any other way.
+ * measured".  Called ONLY from a signed maintenance session with the helmet in
+ * a dock the hub detects from hardware, never on a head (principal 2026-09-27)
+ * — a path that does not exist yet (OI-FWHUB-20), so nothing calls it today
+ * and the target implementation must not be reachable any other way.
  * OI-PBM-HAL-06. */
 extern np_hub_status_t np_mod_pbm_hal_socket_selftest_pd1(uint16_t  socket_id,
                                                           uint8_t   wl_idx,

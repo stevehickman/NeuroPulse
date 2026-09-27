@@ -29,13 +29,14 @@
  * from the app's maintenance section (np_pst_maint_run()).  NON-EMITTING tests
  * — probe, calibration source, NTC plausibility — run here, on or off head.
  * The EMITTING test (LED emission, read on PD1) must run as a signed
- * maintenance session through the normal session path, and only with the
- * head-presence gate passing or the helmet in a detected dock (principal
- * 2026-09-27).  Neither the maintenance session kind, the gate's thresholds
- * (OI-BENCH-01) nor dock detection exists, so this build REFUSES the emitting
- * test (OI-FWHUB-20).  Nothing that could carry the wearer's biology (PD2,
- * electrode impedance, an NTC temperature) is a test output: the NTC test
- * reports a verdict and the reading is discarded.
+ * maintenance session through the normal session path, and ONLY with the
+ * helmet in a dock the hub detects from hardware — never on a head (principal
+ * 2026-09-27, Rev 17).  The dock physically excludes a head, so an emitting
+ * test can only ever measure the dock.  Neither the maintenance session kind
+ * nor dock detection exists, so this build REFUSES the emitting test
+ * (OI-FWHUB-20).  All maintenance data is SHDR (§6.9, D-41).  That holds
+ * because nothing measured off the dock can come from a person: away from it,
+ * a test keeps a verdict and discards the raw reading (the NTC test does).
  *
  * Dose metering: np_pbm_dose_tick() per driven socket every
  * NP_PBM_DOSE_TICK_MS, with the module's UID-keyed calibration (OI-HUB-C06),
@@ -186,7 +187,7 @@ typedef void (*np_maint_result_fn)(const np_pst_health_record_t *rec, void *ctx)
  * socket per session-lease hold, and reports each socket's updated state
  * through `on_result`.  Empty and non-PBM sockets are skipped.  Emitting tests
  * are refused (NP_MAINT_V_REFUSED): they need a signed maintenance session
- * under the head-presence gate or a detected dock (OI-FWHUB-20).  The latest
+ * with the helmet in a hub-detected dock (OI-FWHUB-20).  The latest
  * state is kept in RAM and a health pass is requested, so SHDR receives the
  * whole lattice's latest state, never a record of the subset tested.
  *
