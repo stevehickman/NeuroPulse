@@ -62,7 +62,6 @@
  * Swift exclusions are contexts (swiftNotCopyContext), so a new kind of
  * identifier position is flagged until someone names it there. That limit is
  * real and is the reason COVERED_PATHS is a list rather than "everything".
- * PENDING_SWIFT_FILES names the covered Swift still on the render-site scan.
  *
  * PENDING_PATHS names the code this rule has NOT yet reached, with the reason.
  * Those trees are not silently excluded — they are excluded on the record, and
@@ -108,24 +107,6 @@ const PENDING_PATHS: Array<[string, string]> = [
   ["app/android/app/ (outside ui/)", "BLE, upload and signing code — diagnostics and protocol constants, not rendered text"],
   ["app/windows/", "protocol/session logic only today; no localized UI layer exists to point at a key"],
   ["simulator/", "developer harness, not shipped UI"],
-];
-
-/**
- * Covered Swift files the LITERAL rule has not reached yet, named one by one.
- * They are still held to the render-site scan it replaced (SWIFT_RENDER,
- * SWIFT_NAMED_ARG), so nothing here lost the coverage it had. This is a
- * migration backlog, not an exemption: an entry leaves when its copy is keyed.
- */
-const PENDING_SWIFT_FILES: Array<[string, string]> = [
-  ...[
-    "app/watchos/NeurOneWatch/NeurOneWatchApp.swift",
-    "app/watchos/NeurOneWatch/Phase1/HRVBreathingRingView.swift",
-    "app/watchos/NeurOneWatch/Phase1/SessionStatusView.swift",
-    "app/watchos/NeurOneWatch/Phase3/HapticSyncManager.swift",
-  ].map((f): [string, string] => [f,
-    "the watch target bundles no string catalog (app/watchos/project.yml sources only " +
-    "NeurOneWatch/), so a key renders as the raw key on the watch — its existing WATCH_* " +
-    "keys already do. Keying this copy first would turn English into key names."]),
 ];
 
 /**
@@ -526,15 +507,6 @@ function swiftCopyLiterals(body: string): Literal[] {
 }
 
 /**
- * The render-site scan the literal rule replaced, kept for PENDING_SWIFT_FILES
- * only. The project's field wrappers take `label:`/`title:`/`message:`/
- * `detail:`, which is why the named-argument half exists.
- */
-const SWIFT_RENDER =
-  /\b(Text|Button|Label|TextField|SecureField|Toggle|Picker|Section|NavigationLink|Link|LabeledContent|navigationTitle|navigationBarTitle|alert|confirmationDialog|accessibilityLabel|accessibilityHint|help)\(\s*"([^"]{2,})"/g;
-const SWIFT_NAMED_ARG = /\b(label|title|message|detail|placeholder|prompt|caption|footer|header)\s*:\s*"([^"]{2,})"/g;
-
-/**
  * The other half of the raw-value exclusion. A raw value is excluded above
  * because it is persisted, so it must not also be what a person reads:
  * `Text(freq.rawValue)` renders the Codable value "Weekly" verbatim, in
@@ -607,15 +579,6 @@ function scanSource(file: string, rawBody: string): Violation[] {
   if (file.endsWith(".swift")) {
     // Tokenized from the RAW body: the tokenizer skips comments itself, and
     // stripComments would cut a literal holding "//" in half.
-    if (PENDING_SWIFT_FILES.some(([f]) => f === file)) {
-      for (const m of body.matchAll(SWIFT_RENDER)) {
-        if (accept(m[2]!)) out.push({ file, line: lineOf(body, m.index!), text: m[2]!, why: `${m[1]}(...)` });
-      }
-      for (const m of body.matchAll(SWIFT_NAMED_ARG)) {
-        if (accept(m[2]!)) out.push({ file, line: lineOf(body, m.index!), text: m[2]!, why: `${m[1]}:` });
-      }
-      return out;
-    }
     for (const lit of swiftCopyLiterals(rawBody)) {
       out.push({ file, line: lineOf(rawBody, lit.index), text: lit.text, why: "string literal" });
     }
@@ -719,25 +682,6 @@ function checkEmbedded(files: string[]): Violation[] {
     out.push(...scanSource(f, body));
   }
   return out;
-}
-
-/**
- * (2a) PENDING_SWIFT_FILES does not rot. An entry must name a tracked, covered
- * file that the literal rule still flags: a file that was fixed, renamed or
- * deleted would otherwise stay on the list, and a later edit to it would be
- * scanned by the weaker render-site rule without anyone deciding that.
- */
-export function stalePendingSwift(files: string[], read: (f: string) => string | null): string[] {
-  const errs: string[] = [];
-  for (const [f] of PENDING_SWIFT_FILES) {
-    const body = files.includes(f) ? read(f) : null;
-    if (body === null || !isCovered(f)) {
-      errs.push(`${f}: listed in PENDING_SWIFT_FILES but not a tracked covered file — remove the entry`);
-    } else if (swiftCopyLiterals(body).length === 0) {
-      errs.push(`${f}: listed in PENDING_SWIFT_FILES but the literal rule finds nothing — remove the entry`);
-    }
-  }
-  return errs;
 }
 
 /** (3) Key usage is bidirectional: none missing, none orphaned. */
@@ -1312,23 +1256,6 @@ function selfTest(): void {
       bad++;
     }
   }
-  // PENDING_SWIFT_FILES cannot outlive its reason. Driven with a fake reader,
-  // since whether today's entries still have copy is a fact about the tree.
-  {
-    const [pendingFile] = PENDING_SWIFT_FILES[0]!;
-    const pendingCases: Array<[string, string[], string | null, boolean]> = [
-      ["still has copy", [pendingFile], 'return "Haptic cue idle"', false],
-      ["fixed, still listed", [pendingFile], 'return String(localized: "WATCH_HAPTIC_IDLE")', true],
-      ["deleted, still listed", [], null, true],
-    ];
-    for (const [name, files, body, shouldFlag] of pendingCases) {
-      const flagged = stalePendingSwift(files, () => body).some((e) => e.startsWith(pendingFile + ":"));
-      if (flagged !== shouldFlag) {
-        console.error(`self-test FAILED: pending case "${name}" -> flagged=${flagged}, expected ${shouldFlag}`);
-        bad++;
-      }
-    }
-  }
   const kotlinCases: Array<[string, boolean]> = [
     ['            Text("Save Changes")', true],
     ['            Text(stringResource(R.string.web_save_changes))', false],
@@ -1495,9 +1422,6 @@ function main(): void {
 
   const fw = checkFirmware(files, keys);
   const embedded = checkEmbedded(files);
-  const pending = stalePendingSwift(files, (f) => {
-    try { return readFileSync(join(ROOT, f), "utf-8"); } catch { return null; }
-  });
   const usage = checkKeyUsage(files, keys);
   const parity = checkLocaleParity(canonical);
   const interp = checkInterpolationSyntax(canonical);
@@ -1526,11 +1450,6 @@ function main(): void {
       console.error(`  ${v.file}:${v.line}  ${v.why}  ${JSON.stringify(v.text)}`);
     }
     failed += embedded.length;
-  }
-  if (pending.length) {
-    console.error("\nPENDING_SWIFT_FILES is out of date:");
-    for (const e of pending) console.error(`  ${e}`);
-    failed += pending.length;
   }
   if (usage.length) {
     console.error("\nLOCALE KEY USAGE:");
@@ -1571,13 +1490,6 @@ function main(): void {
   );
   console.log("not yet covered (migration backlog, see PENDING_PATHS):");
   for (const [p, why] of PENDING_PATHS) console.log(`  ${p} — ${why}`);
-  console.log("covered, but not yet under the Swift literal rule (see PENDING_SWIFT_FILES):");
-  const byReason = new Map<string, string[]>();
-  for (const [p, why] of PENDING_SWIFT_FILES) byReason.set(why, [...(byReason.get(why) ?? []), p]);
-  for (const [why, paths] of byReason) {
-    for (const p of paths) console.log(`  ${p}`);
-    console.log(`    — ${why}`);
-  }
 }
 
 // Imported by scripts/translations.ts for the ledger; run only when invoked.
