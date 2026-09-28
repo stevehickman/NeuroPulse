@@ -83,6 +83,14 @@ Two further consumers, so the engagement is not sized off the contact count alon
 **Action:** extend the existing Issue #5 engagement — do not open a second one — and treat
 it as gating socket tooling release, not only public claims.
 
+**Evidence record, 2026-09-28.** `NP-BIB-PBMIRR-001` Rev 1 reviewed the published record for
+600–1100 nm and found **no statute or regulation that sets a PBM irradiance limit**. The nearest
+references are the laser skin limit (200 × C_A mW/cm² time-averaged: **200 at 660 nm**, ~329 at
+808, 1000 at 1064), IEC 62471 (skin limited only below 10 s) and IEC 60601-1 Table 24 (**43 °C**
+for contact ≥ 10 min, labelling above 41 °C). Against them, R-4's 200 mW/cm² CW sits at zero
+margin at 660 nm, and `OI-SESPWR-02`'s ~322 mW/cm² CW would exceed the 660 nm reference if no clamp
+exists. `NP-REG-PBM1064-001` Rev 2 §6A carries these to counsel as Q14–Q18.
+
 ## 13.2 Moderate
 
 | Issue | Status |
