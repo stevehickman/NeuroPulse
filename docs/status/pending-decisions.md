@@ -541,6 +541,108 @@ It is the one shortlisted square package that **fits** §4.1's lattice (`OI-HEXT
 EE Lead). `OI-HEXTILE-02` now also waits on `OI-HEXTILE-29` for CH_A. (g) item 2, the SFH 4703AS
 PCN, is Procurement's.
 
+#### (k) A dimmer 660 nm part, compared on what the protocols need (2026-09-28, GitHub #333)
+
+**The question is set by the protocols, not by R-4 alone.** Every transcranial protocol drives CH_A
+through `wavelength: "660_808nm"`. `hubCompiler.ts` maps `intensity` linearly onto the 8-bit
+`CUR_A` register (0–180 mA, 0.71 mA per step) and writes the same value to both channels, so a
+protocol's irradiance comes from **analog current**. The authored CH_A targets run from **22 mW/cm²**
+(`clinical-06` TBI, 5.5 %) through 30–36 (Maiello, Cassano) and 285–310 (Papi, Chun, Wang) to
+**~322 mW/cm²** at the library's 80 % maximum. At T1-A's 45 sites on 10.61 cm², that is
+**5.2–75.9 mW per emitter**, and 94.3 mW at R-4's 400.
+
+| CH_A candidate | Grade | mW per mA | Current for 22 → 322 → 400 mW/cm² at 45 sites | `CUR_A` codes | Inside rated range? |
+|---|---|---|---|---|---|
+| GH CSSRM5.24 | datasheet | ~1.5 (at 100–150 mA) | all below 100 mA | — | **✗ for every target.** The floor is `N` × 15 mW/cm² |
+| GH DASPA2.24 (OSCONIQ P 2226) | **lead** | ~1.10 | 4.7 → 69 → 86 mA | 7 → 98 → 121 | ✓ if its minimum is ≤ ~5 mA (250 mA max) |
+| Luminus MP-2835-1100-DR | **lead** | ~1.05 | 4.9 → 72 → 90 mA | 7 → 102 → 127 | ✓ if its minimum is ≤ ~5 mA (maximum unknown) |
+| §4.3 design target | target | 0.63 | 8.2 → 120 → 149 mA | 12 → 170 → 211 | ✓ by construction |
+
+**Why fewer GH sites is not the answer.** It fixes R-4 and breaks the library. At 24 sites the
+channel cannot go below 353 mW/cm², which is above every authored target. At 6 sites it still
+cannot go below 88. `OI-HEXTILE-29`'s way out (a) is withdrawn.
+
+**Between the two leads, GH DASPA2.24 is the one to verify first.**
+- **Package:** 2.2 × 2.6 mm fits §4.1's lattice in any orientation. The 2835 part must be
+  row-aligned.
+- **Current headroom:** it has a stated 250 mA maximum.
+- **Forward voltage:** ~2.15 V is the CH_A design target's own string, N = 11.
+- **Against it:** one distributor lists it **obsolete**, so its lifecycle status is the first
+  question.
+
+**Both are leads, not evidence.** The figures come from search summaries and distributor pages,
+because ams-osram.com, lumileds.com, luminus.com, mouser.com and media.digikey.com are all blocked
+from this session. **The mW-per-mA figures assume flux is linear in current**, which is optimistic
+at 5–10 mA. A third candidate, the Lumileds LUXEON SunPlus 2835 Deep Red (DS237, binned at 120 mA),
+turned up with no radiant power figure at all.
+
+**What a supplied datasheet must show before either lead replaces GH CSSRM5.24:**
+1. The rated **minimum current** is ≤ ~5 mA.
+2. Flux is linear enough at 5–10 mA for a 7-code setting to mean the authored dose. One code is
+   ±7 % there.
+3. The `V_f` groups meet §2.1.
+4. The wavelength bin sits against 660–670 nm.
+5. An L70 figure exists.
+6. The part is not obsolete.
+
+**Two consequences that hold whichever part wins.**
+- **Channel matching.** The shared `intensity` register means CH_A and CH_B deliver irradiance
+  in the ratio of their mW-per-mA slopes. A 1.1 mW/mA red part beside a ~1.5 mW/mA NIR part
+  (Luminus SST-10) gives about 1.3× more NIR than red at every setting. Matched slopes, or
+  per-channel scaling, is an input to `OI-HEXTILE-07` and `OI-PBMCH-06`.
+- **The protocol anchor.** The 403 mW/cm² anchor assumes the design-target emitter at 150 mA. It
+  re-derives against whichever part is chosen (`OI-HEXTILE-25`(d)).
+
+**⚠ Superseded in part by (l):** GH DASPA2.24's datasheet rates a 30 mA minimum, so it is no longer
+the lead. Its row above is kept as the lead-grade record.
+
+#### (l) The three dimmer 660 nm datasheets, read against the protocols (2026-09-28, GitHub #333)
+
+The GH DASPA2.24 (v1.5, 2021), Luminus MP-2835 Colors (PDS-003017 Rev 6, July 2026) and Lumileds
+DS237 (2018) datasheets were supplied. Their relative-flux curves were digitised
+(`NP-HW-HEXTILE-001` §4.3 Rev 22 note). Each figure is typical, at 45 sites on 10.61 cm²,
+`CUR_A` at 0.706 mA per code.
+
+| Target (mW/cm²) | Protocol | GH DASPA2.24 | MP-2835-1100-DR | L1SP-DRD (SunPlus) |
+|---|---|---|---|---|
+| 22 | `clinical-06` TBI | ✗ below rated 30 mA | ~5.2 mA (7 codes), **extrapolated** | ✗ below plotted 25 mA |
+| 30 | `clinical-05` Maiello | ✗ | ~7.0 mA (10), **extrapolated** | ✗ |
+| 36 | `clinical-04` Cassano | ✗ | ~8.4 mA (12), **extrapolated** | ✗ |
+| 81 | `clinical-07` autism | ✗ | 18.9 mA (27) | ✗ |
+| 121 | `clinical-01` Wozniak | ✗ (floor ~125) | 28 mA (40) | 30 mA (43) |
+| 161 | `clinical-09` stroke | 38.5 mA | 36.8 mA | 40.1 mA |
+| 322 | library maximum (80 %) | 77 mA | 72 mA | 80 mA |
+| 400 | R-4 ceiling | 96 mA | 88 mA | 100 mA |
+
+| | GH DASPA2.24 | MP-2835-1100-DR | L1SP-DRD |
+|---|---|---|---|
+| Rated minimum current | **30 mA** (*"Do not use below 30 mA"*) | none stated | none stated |
+| Lowest point characterised | 30 mA | 10 mA | 25 mA |
+| Protocols out of reach on datasheet evidence | 5 | 3 | 4 |
+| Flux spread in one order | 89–130 mW (one code) | 8 mW power bins (6F / 6G / 6H) | 0.05 µmol/s PPF bins |
+| Wavelength | peak 660 typ; centroid 646–666, one group | dominant 650–665; **RA bin 660–665 orderable** | peak 650–670, one bin |
+| `V_f` | 2.15 V typ at 100 mA; groups F / G / H, 0.2 V | 2.0 V typ at 60 mA; bins C3 / D3 / E3, 0.2 V | 2.15 V typ at 120 mA; bins B–E, 0.2 V |
+| `I_F` max · `T_j` max | 250 mA · 125 °C | 200 mA · 115 °C | 250 mA · 125 °C |
+| L70 | not given | not given | not given |
+| Package · §4.1 fit | 2.2 × 2.6 mm · any rotation | 3.5 × 2.8 mm · row-aligned | 3.5 × 2.8 mm · row-aligned |
+| Datasheet currency | v1.5, 2021; one distributor lists obsolete | Rev 6, July 2026 | 2018 |
+
+**MP-2835-1100-DR delivers the most of the library.** It is the only part characterised down to
+81 mW/cm², the only one with a rating that does not forbid the bottom three, and the only one with
+a wavelength bin inside 660–670 nm. Its flux reads 0.16, 0.24 and 0.32 of its 60 mA value at 10, 15
+and 20 mA, which is linear through the origin. **The bottom three protocols still rest on
+extrapolation.** Two things close them: a bench characterisation at 3–10 mA (flux against current,
+part-to-part spread, temperature drift), and Luminus confirming in writing that no minimum
+operating current applies. Against it: a row-aligned package, a 115 °C junction limit, silver-plated
+pads (MSL 3), and a 0.70 mm domed lens that the optical stack has not been checked against.
+
+**GH DASPA2.24 is out as the lead.** Its 30 mA rating is a floor, not a gap in characterisation.
+Five protocols sit below it at 45 sites.
+
+**Still open whichever part is chosen:** L70 (no datasheet gives one), the §8.1.1 string rule at the
+chosen part's `V_f` bins, the channel-matching ratio in (k), and `OI-HEXTILE-25`(d)'s anchor.
+**Nothing is selected.** `OI-HEXTILE-02` stays open.
+
 ## 13.2b tFUS / LIFU — modality watch (elevated to MEDIUM 2026-05-13)
 
 Science basis confirmed: PIEZO1 mechanosensitive ion channel mechanism (PNAS 2023); strong safety record (n > 400 human subjects, no serious AEs at MI < 1.9); first wearable coupling breakthrough (MiniUlTra bioadhesive hydrogel, Nature Communications 2025). Cannot enter T1 (no wellness regulatory pathway for brain-targeted therapeutic ultrasound). T2 add-on requires 510(k) predicate, which does not yet exist.
