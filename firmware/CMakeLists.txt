@@ -105,6 +105,7 @@
 #                             → np_consumables_tests      (OI-ACC-08 CONSUMABLE_STATUS producer)
 #                             → np_map3_record_tests      (OI-NVRAM-08 Map 3 journal version rule)
 #                             → np_module_map_tests       (hex zone-module addressing/NVRAM map)
+#                             → np_hexmap_inventory_tests (OI-HEXMAP-02 tile UID + inventory)
 #                             → np_protocol_tests         (hub protocol v2 socket-mask targets)
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
 #                             → np_mod_visual_tests       (OI-FWHUB-26 goggle Hall edge interrupt)
@@ -337,6 +338,12 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_module_map_tests
         COMMAND np_module_map_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # OI-HEXMAP-02: the module inventory_fn and the one-socket poll, through
+    # the real np_module_map, against simulated tiles.
+    add_test(NAME np_hexmap_inventory_tests
+        COMMAND np_hexmap_inventory_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     # OI-HUB-C06: np_module_map's UID-keyed calibration record reaching a

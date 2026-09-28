@@ -40,8 +40,8 @@ extern "C" {
  * every socket to the zero UID and loads firmware defaults — the behaviour that
  * predates OI-HUB-C06 — so an un-bridged build is degraded, never wrong.
  *
- * np_module_map itself has no production call site yet (it is wired in with
- * OI-HEXMAP-02), which is why this bridge is not invoked from
+ * np_module_map itself has no production call site yet (OI-HEXMAP-03; the
+ * inventory_fn it needed, OI-HEXMAP-02, is np_hexmap_inventory.c), which is why this bridge is not invoked from
  * np_hub_control_app_main() in this revision. It is exercised by
  * np_pbm_cal_bridge_tests.
  */

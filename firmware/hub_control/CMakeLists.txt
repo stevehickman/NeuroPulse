@@ -59,6 +59,17 @@ if(NP_BUILD_TESTS)
     target_include_directories(np_module_map_tests PRIVATE include ../pbm/include)
     target_compile_options(np_module_map_tests PRIVATE -Wall -Wextra -std=c11)
 
+    # OI-HEXMAP-02: tile identity + element inventory over the socket I2C
+    # seam, driving the real np_module_map. The seam is a simulated tile per
+    # socket in the test; np_pbm_hal.c is deliberately not linked.
+    add_executable(np_hexmap_inventory_tests
+        tests/np_hexmap_inventory_tests.c
+        src/np_hexmap_inventory.c
+        src/np_module_map.c
+    )
+    target_include_directories(np_hexmap_inventory_tests PRIVATE include ../pbm/include)
+    target_compile_options(np_hexmap_inventory_tests PRIVATE -Wall -Wextra -std=c11)
+
     # PBM calibration bridge: np_module_map's UID-keyed record -> the pbm
     # library's injected provider/resolver (OI-HUB-C06). Needs both include
     # trees, which is exactly why the bridge lives here and not in either library.
@@ -473,6 +484,7 @@ set(HUB_SOURCES
     src/np_consumables.c          # OI-ACC-08: CONSUMABLE_STATUS session counts
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
     src/np_hexmap_nvram.c         # OI-HEXMAP-01: npmp.bin on Config through np_cfg_store
+    src/np_hexmap_inventory.c     # OI-HEXMAP-02: tile UID + element inventory over the socket seam
     src/np_lfs_instance.c         # OI-LFS-01: EMMC-FS-01 littlefs instance + mount validator
     src/np_cfg_store.c            # OI-LFS-06/-08/-09: Config store — the littlefs caller rules
     src/np_map3_record.c          # OI-NVRAM-08: Map 3 journal record + version-tolerant scan
