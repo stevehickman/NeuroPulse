@@ -216,6 +216,13 @@ static uint32_t crc32(const uint8_t *data, size_t len)
     return ~crc;
 }
 
+/* The same function, for the tile identity block (np_hexmap_inventory.c,
+ * OI-HEXMAP-02), so the hub keeps one CRC-32 implementation. */
+uint32_t np_hexmap_crc32(const uint8_t *data, size_t len)
+{
+    return crc32(data, len);
+}
+
 /* ── Init ─────────────────────────────────────────────────────────────────────── */
 
 np_hub_status_t np_module_map_init(const np_socket_geom_t *geom, uint16_t n_sockets)

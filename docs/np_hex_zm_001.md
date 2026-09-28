@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-HEX-ZM-001
-**Revision:** 8
+**Revision:** 9
 **Date:** 2026-09-28
 **Status:** DESIGN STUDY — Option A committed as baseline, Option B documented as future path. NOT a locked tooling baseline; gated by the curvature-scan go/no-go (§7).
 **Effective Date:** 2026-08-04
@@ -28,6 +28,7 @@
 | **7** | **2026-09-26** | NeurOne Firmware Engineering | **The Protocol v2 bullet's `NP_HUB_PROTO_VERSION` = `0x0002` is superseded.** The hub protocol is `0x0001` until a descriptor ships (`NP-FW-HUB-001` Rev 13 §4.5), and this layout is part of v1. |
 | **6** | **2026-09-24** | NeurOne Thermal / EMC | **§5.6.1 lists two sweeps owned by `NP-THERM-SINK-001` Rev 2 §7.1 (GitHub #399, `OI-EMCCAV-02`):** **`EMF-1-SINK-1`** (the spreader film's effect on the Helmholtz coil-drive → field transfer, fluxgate bench) and **`EMF-1-SINK-2`** (external RF with and without the film, edges as built). Listed in the same way as `EMF-1e`: the row points to the owner, and the criterion stays there. No other text in this document changes; nothing measured. |
 | **8** | **2026-09-28** | NeurOne Firmware Engineering | **`OI-HEXMAP-01` CLOSED (§7, §4a NVRAM bullet).** The Config-partition NVRAM HAL for the module map is `firmware/hub_control/src/np_hexmap_nvram.c`, over `np_cfg_store` (`npmp.bin`, a rebuild cache), specified and evidenced in `NP-FW-NVRAM-001` Rev 11 §4.2.1. A record restored from it is used for nothing until the power-on poll confirms its socket's UID (`NP-SOUP-LFS-001` `REQ-LFS-02`, enforced in `np_module_map` as D-32). One integration seam remains: `OI-HEXMAP-02`'s `inventory_fn`, which the poll needs before anything calls `restore()`. |
+| **9** | **2026-09-28** | NeurOne Firmware Engineering | **`OI-HEXMAP-02` CLOSED (§4 power-on poll bullet, §4.1 new, §7).** The module `inventory_fn` is `firmware/hub_control/src/np_hexmap_inventory.c`: a tile reports its UID and element types in a **CRC-32-sealed identity block** at register `0x40`, read over the socket-indexed `np_pbm_hal_i2c_read()` seam, so it holds whichever transport `OI-HUB-C15` settles. The poll reads the 10-byte header each pass; only a UID new to the socket makes the callback re-read the whole block, which is accepted only if it is intact, names the **same UID and count** as the header, and holds only element types this image knows. Every failure applies the socket as empty. **The block layout is the hub's half of a tile-side contract, handed to `OI-HEXTILE-07` as a binding input** (`NP-HW-HEXTILE-001` Rev 23). Verified by `np_hexmap_inventory_tests` (49 checks against the real `np_module_map`; 10 mutants killed). **New `OI-HEXMAP-03`:** the production call sites (a firmware geometry table, `init` + `restore` + a poll pass at boot, `persist`) are still not built, and wait on #340, a driven I2C seam and that table. |
 | **3** | **2026-08-18** | NeurOne Mechanical + Hardware Engineering | **`OI-HEXTILE-14` closed — §5.4a's MECH-2 comparison table given its disposition, and the one place that still quoted a pre-SYM-1 figure as live corrected.** Rev 2 annotated the MECH-2 table *"do not size hardware off this table"* but left the flower row reading 12 boards / $76.08; peers had already sized off it. **Decision: the table is KEPT, not corrected in place, and the design figure is added to it as a fourth row — 18 boards / $114.12 under CLUSTER-1 + SYM-1 + CONTIG-1.** Correcting the flower row would have destroyed the table's purpose (it compares cluster *units* under one fixed no-symmetry assumption, which is the reasoning behind CLUSTER-1); leaving the correction in prose alone had already demonstrably failed. The MECH-2 open item, which still quoted **$76.08** as a live BOM gradient against the triad, now reads **$114.12**. No mechanical, geometric or cluster-shape decision changed — CLUSTER-1, SYM-1 and CONTIG-1 are untouched, and per-board *cost* remains void under `NP-HW-HUB-001` §8 / OI-HUB-C15, so this fixes the count, not the rate. Peer closure: `NP-HW-HUB-001` **Rev 6**, `NP-DRV-SHELL-002` **Rev 4**, `NP-HW-HEXTILE-001` **Rev 6** (HT-DRC-20 ✓). |
 | 1 | 2026-07-15 | NeurOne Mechanical Engineering | Initial release. Option A (rigid median-curved 40 mm hexagon) committed as baseline, Option B (semi-flex) recorded as future path. Hex lattice geometry (§3), module-type taxonomy + SMART-1 (§4a), addressing and wire format (§4/§4b), two-layer shell + EMF seam (§5), cluster clamps (§5.4a), gates (§7). **CLUSTER-1 (7-hex flower as the cluster unit) was added to §5.4a on 2026-07-30 without a revision bump** — a bookkeeping lapse corrected at Rev 2, which registers this document into the DHF index for the first time. |
 | **2** | **2026-08-04** | NeurOne Mechanical + Hardware Engineering | **Front matter brought to `docs/FRONT_MATTER_TEMPLATES.md` (the title carried the revision, and Document/Revision/Effective Date/Author/Approved By/References/Gate/Class fields were absent); revision history added; document registered in NP-DHF-001 §5.2 and `docs/status/document-register.md` for the first time.** Content changes, all in §4a and §5.4a: **two new principal directions recorded — SYM-1** (cluster partition mirror-symmetric about the sagittal midline) and **CONTIG-1** (a cluster's petals must form a contiguous arc; no pendant petal), with their derivations and mechanical rationale. **CLUSTER-1 itself is unchanged.** The §5.4a "30 tiles ≈ 4 clusters / 4–10 cluster clamps" figures are annotated as **retired-30-socket-lattice values that do not rescale** — NP-HW-HEXTILE-001 Rev 1 had carried them to the 80-socket lattice and sized hardware off them; the count under the standing decisions is **18** (six forced midline clusters + six lateral mirror pairs, provably minimal). §4a's `ceil(n/8)` cluster-board cost model reconciled as a *capacity floor* rather than a board count, with board count = cluster count and the tier BOM restated at **$114.12** at n = 80; the §5.4a MECH-2 comparison table annotated as pre-SYM-1 and marked "do not size hardware off this table". Peer documents (NP-HW-HUB-001, NP-DRV-SHELL-002) deliberately **not** modified — their stale counts are routed to their own revisions via OI-HEXTILE-14. No firmware changed. |
@@ -472,7 +473,7 @@ Cortex-M7 `-Werror` clean; CI test #12). Summary:
   module is re-inventoried (element-type list per minor address streamed into
   NVRAM) **only when its UID differs** from the one stored for that socket.
   Unchanged modules are never re-inventoried. Fail-closed on bad/oversized/absent
-  inventory.
+  inventory. *(Rev 9: how a module reports them is §4.1.)*
 - **Resolution:** `(socket:element)` → ~~lobe/side/~~x-y/type. **Groups:** ~~8 predefined
   (L/R × frontal/temporal/parietal/occipital) +~~ user socket-sets + address-sets,
   each with an element-type include/exclude filter. Protocol authors manipulate
@@ -521,8 +522,80 @@ Cortex-M7 `-Werror` clean; CI test #12). Summary:
   the HAL is built, `np_hexmap_nvram.c` over `np_cfg_store` — `NP-FW-NVRAM-001`
   Rev 11 §4.2.1 — and a restored record answers nothing until the power-on poll
   confirms its UID, `REQ-LFS-02`. One seam remains: the module I2C
-  `inventory_fn`, OI-HEXMAP-02.)*
+  `inventory_fn`, OI-HEXMAP-02.)* *(Rev 9: `inventory_fn` built, §4.1. What
+  remains is the call sites, OI-HEXMAP-03.)*
 - **Privacy:** module UID is a component identifier (SHDR-class); nothing is UHDR.
+
+### 4.1 How a module reports its UID and elements (Rev 9, closes OI-HEXMAP-02)
+
+Every tile type carries a driver MCU (`NP-HW-HEXTILE-001` **D-3**), so identity is a
+register read on every type, with no UID EEPROM and no `ZONE_ID` ladder
+(`NP-DRV-SHELL-002` §5.1.4). The tile register map (`NP-FW-PBM1064-001` §5.1,
+`0x00`–`0x0D`) has no identity registers, so the hub defines them here. **This is the
+hub's half of the contract. `OI-HEXTILE-07`'s on-module firmware spec must implement it
+byte for byte.** The block starts at **`0x40`**, clear of `0x00`–`0x0D` and of the PD
+readback registers **D-4** adds after them. The tile auto-increments the register
+pointer across it:
+
+| Offset | Bytes | Field | Rule |
+|---|---|---|---|
+| 0 | 1 | format | `0x01` |
+| 1 | 8 | UID | factory-written; never all-`0x00` (the map's "empty") or all-`0xFF` (a floating bus) |
+| 9 | 1 | `elem_count` | 0 … 128 (`NP_HEXMAP_MAX_ELEMENTS`) |
+| 10 | n | `elem_type[n]` | `np_elem_type_t`, in `element_id` order |
+| 10+n | 4 | CRC-32 | IEEE 802.3 reflected, little-endian, over bytes 0 … 9+n (the blob's implementation, `np_hexmap_crc32()`) |
+
+The block describes the part, not its state, so it is immutable and a repeated read
+returns the same bytes. At most 142 bytes, so one transaction reads it. **Health is not
+in the block.** It is the `STATUS` register (`0x00`), read on every poll.
+
+**How the hub reads it** (`np_hexmap_inventory.c`, over the socket-indexed
+`np_pbm_hal_i2c_read()`). The poll reads only the 10-byte header and `STATUS`, and
+passes both to `np_module_map_apply_poll()`. That is what keeps an unchanged module from
+being re-inventoried. Only when the header names a UID new to the socket does the
+`inventory_fn` re-read the whole block from offset 0. It accepts the block only if:
+
+1. the CRC holds, and the format byte inside it is `0x01`;
+2. it names the **same UID and count as the header** the poll is about to store. A module
+   swapped, or a UID mis-read, between the two reads would otherwise have another
+   module's element types stored under its UID, and PBM and tES targets are resolved
+   from those types;
+3. every element type is one this image knows. An unknown type **rejects the module
+   whole**. It is not mapped to `NP_ELEM_NONE`, because that record would be cached
+   under the UID and never re-inventoried after a hub update that knows the type, and
+   `check_placement()` cannot reason about a type it cannot name.
+
+**Every failure leaves the socket empty**, including a socket that held a module on the
+last pass: an I2C error, a bad format, a reserved UID, an oversized count, a CRC or
+cross-read mismatch. A socket the hub cannot read never keeps answering from its old
+record.
+
+**Topology.** The seam is socket-indexed (`NP-HW-HUB-001` §9.2). Whether the target HAL
+tunnels through a cluster controller (HUB §5.2) or drives **D-7**'s LPI2C/PCA9548A tree
+with UID-derived addresses is `OI-HUB-C15`'s decision, and nothing here changes with it.
+Under D-7 the hub must read this UID *before* the module has its dynamic address. That
+is a transport-layer question for `OI-HUB-C15` and `OI-HEXTILE-07`, not a change to the
+block.
+
+**What is not built (OI-HEXMAP-03).** No production code calls the poll yet. Three things
+are missing:
+
+- a production `np_socket_geom_t` table, because `scripts/sync-socket-map.ts` emits no
+  firmware C (§4 above);
+- a driven I2C seam. On today's target image `np_pbm_hal_i2c_read()` is the simulated
+  stub in `firmware/pbm/src/np_pbm_hal.c`, which refuses any read past register `0x0D`,
+  so the header read fails and every socket would be applied as empty. That fails
+  closed;
+- the Config block device (#340), without which `restore()` and `persist()` have no store.
+
+**Verification.** `np_hexmap_inventory_tests` has 49 checks against the real
+`np_module_map` and simulated tiles, run under ASan and UBSan. They cover: first sight,
+no re-inventory across polls, swap, removal, a read fault on a present module, a corrupt
+block, a swap between the header and block reads, an unknown type, reserved UIDs, the
+full 128-element block, an unwired socket, and a restored record confirmed by the poll
+without a re-inventory. **Falsified:** 10 mutants, each removing one guard (UID/count
+binding, CRC, block format, header format, type check, all-`0x00` UID, all-`0xFF` UID,
+count cap, the fail-closed apply on a read fault). Each one fails at least one check.
 
 ### 4b. Protocol wire format carries sockets (NP Hub Protocol v2 — DELIVERED)
 
@@ -1452,7 +1525,8 @@ through the parting-plane seam. That is an external-illumination measurement (`E
 | GATE-1 | Curvature-scan bench (5–95th pct head map) validates Δκ≈0.0039 | Tooling |
 | GATE-2 | PBM coupling bench: rigid 40 mm coupon at temporal worst case meets dose spec | Tooling; go/no-go A-vs-B |
 | ~~OI-HEXMAP-01~~ | ✅ **CLOSED 2026-09-28 (Rev 8).** `np_hexmap_nvram_read/write` are `firmware/hub_control/src/np_hexmap_nvram.c` over `np_cfg_store` (`npmp.bin`, rebuild cache). Every read is content-checked, the replacement is atomic, and a restored record is unused until the poll confirms its UID (`REQ-LFS-02`, `NP-FW-NVRAM-001` Rev 11 §4.2.1, D-32). Call sites wait on OI-HEXMAP-02 and the block device (#340). ~~Config-partition NVRAM HAL for the module map~~ | — (closed) |
-| OI-HEXMAP-02 | Module I2C/1-wire `inventory_fn` | FW integration |
+| ~~OI-HEXMAP-02~~ | ✅ **CLOSED 2026-09-28 (Rev 9, §4.1).** `np_hexmap_inventory_read` (the `inventory_fn`) and `np_hexmap_poll_socket` are `firmware/hub_control/src/np_hexmap_inventory.c`. They read a CRC-sealed identity block at register `0x40` over the socket-indexed I2C seam, bind the whole-block read to the header's UID and count, reject unknown element types, and apply every failure as an empty socket. The tile side of the block is a binding input to `OI-HEXTILE-07`. ~~Module I2C/1-wire `inventory_fn`~~ | — (closed) |
+| OI-HEXMAP-03 | **Production call sites for the module map** (raised Rev 9). A firmware `np_socket_geom_t` table generated from `hardware/np_socket_map.json` (the generator emits no C today). At boot: `np_module_map_init()`, `np_module_map_restore()`, then one `np_hexmap_poll_socket()` pass over every wired socket under the probe lease, then `np_module_map_persist()` once if anything changed. The same pass on hot-plug. Needs #340 (block device), a driven `np_pbm_hal_i2c_read()` (today the target links the simulated stub, which fails closed), and `OI-HEXTILE-07` tile firmware that implements §4.1 | FW integration; UID-keyed calibration on target (`OI-HUB-C06`) |
 | REG-1 | Socket lattice registers to 10-20 (8–9 T1, ~19 T2 scalp) within tolerance, without violating the coverage/bezel budget. **§3.4 measured the real interior surface → ~80-socket v1 lattice.** Fix the row boundaries against shell CAD before re-cutting the generated artifacts. **Scope narrowed by ZONE-1 (§3.3, 2026-07-30): row boundaries ONLY.** The four "lobe boundary" constants this row used to also cover are deleted, not re-tuned — lobes are not a system concept. Whether a zone named "Frontal Left" actually covers the frontal lobe is a clinical review of `00-zones.npps` against the registered lattice, not a constant to fix here. **Which row boundaries, concretely:** where each coronal row sits along the nasion→inion arc — set by `ROW_WIDTHS = [3,6,7,8,9,8,9,8,7,6,5,4]` at `ROW_PITCH_MM_MEASURED = 34.6` in `scripts/sync-socket-map.ts`, spanning ~8–94 % of the arc. Post-ZONE-1 that arc placement is **documentation only** — the generator now states outright that "no code reads it, because nothing downstream of the lattice is derived from where a row falls on the arc" — so the row→10-20 mapping is an unverified scan observation, which is precisely what REG-1 must establish against shell CAD plus a measured rim-to-nasion registration. **No longer blocks Hub PCB tooling (2026-07-29):** NP-HW-HUB-001 Rev 3 §4.3 makes the hub socket-count-agnostic across 30–128, so REG-1 moving the count re-tools only inner-bowl cluster boards. | Lattice design; EEG/tES placement; **artifact regeneration**; **clinical-03 evidence-grade claim gate** (`protocols/predefined/clinical-03-pbm-cognitive-1064.npps` — "Grade A"/gold-standard wording withheld until REG-1 lands and the zone is re-authored to the 1–2 module Fp2/F4 footprint the literature actually describes; see `docs/status/pending-decisions.md` §13.2c) |
 | SCAN-1 | Confirm `SHELL_WALL_MM` proxy is moot now that the interior is scanned directly; measure the actual clear-window thickness + module face standoff for the emitting-face dose distance (§3.4) | Dose budget; emitting-face position |
 | ACT-1 | Set the **active-surface boundary** deliberately from the over-ear audio-cup footprint + clinical coverage targets (≥ Neuronic active area); it defines which boundary tiles are element-masked (§3.4) | Active-surface descriptor; masking |

@@ -60,6 +60,7 @@ np_factory_reset_tests 291
 np_freertos_smoke_tests 690
 np_gatt_server_tests 484
 np_hd_fai_tests 878
+np_hexmap_inventory_tests 534
 np_hrv_session_tests 226
 np_lfs_config_tests 255
 np_lfs_log_instance_tests 2270
