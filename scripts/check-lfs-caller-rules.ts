@@ -117,6 +117,7 @@ const JOURNAL_READERS: Record<string, string> = {
  */
 const LIMIT_CONSUMERS = [
   "firmware/hub_control/src/np_module_map.c",
+  "firmware/hub_control/src/np_hexmap_nvram.c", // OI-HEXMAP-01: npmp.bin, the emission-path cache
   "firmware/hub_control/src/np_pbm_power_gov.c",
   "firmware/hub_control/src/np_pbm_cal_bridge.c",
   "firmware/hub_control/src/np_socket_dispatch.c",

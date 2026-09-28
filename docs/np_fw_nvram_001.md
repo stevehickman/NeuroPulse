@@ -2,9 +2,9 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-NVRAM-001
-**Revision:** 10
+**Revision:** 11
 **Date:** 2026-09-28
-**Status:** DESIGN STUDY — not a release baseline. Every behaviour below is a proposed engineering commitment traced to a cited source. **No new part is proposed.** Rev 10 closes `OI-NVRAM-18`: the hub decides that a mate happened, from its previous observation of the socket, and `U1` applies the increment at most once per power-up, so `mate_cycles_observed` no longer depends on a completed session (D-31, `NP-MOD-ID-001` §5.3.1). Rev 9 closes `OI-NVRAM-17`: the factory-reset boot check is called at bring-up before anything opens UHDR or SHDR or reads Config, and a result that does not permit them opens neither (§3.4.1). Rev 8 closes `OI-NVRAM-07`: the trajectory's axes are use, not time, SHDR already carries month-granular calendar age per module, and only sub-month cadence is missing, which no modelled mechanism needs; §7.4's fit must carry presence and calendar age beside exposure (D-30, §5.3.1). Rev 7 closes `OI-NVRAM-06`: the session an extraction interrupts is lost from Map 4 and not from the hub, so §7.4's model is unaffected if its exposure is hub-sourced (D-28), and §6.5 stops flagging that shortfall as a fault (D-29, §6.5.1). Rev 6 closes `OI-NVRAM-04`: nothing in this document needs the `SEAT#` pre-break window's duration, and the stagger dimension moves to the document whose own mechanism needs it (§4.3.1). Rev 5 gives the Config store a journal reader that steps by each row's own length, closing `OI-NVRAM-16` (§7.2.1). Rev 4 makes R-3 read its marker back before the first erase (§3.4.1). Rev 3 writes and falsifies the two CI checks §7.2 and §8.3 asked for, and corrects every claim that an SNVS flag survives power loss. Rev 2 resolves the store defects Rev 1 found (§3.3.1) so Map 3 can be built at all. See §11 (Decisions), §13 (Open items).
+**Status:** DESIGN STUDY — not a release baseline. Every behaviour below is a proposed engineering commitment traced to a cited source. **No new part is proposed.** Rev 11 closes `OI-HEXMAP-01`: `np_hexmap_nvram_read/write` are bound to `npmp.bin` through `np_cfg_store` as first-party code, not platform seams, and `REQ-LFS-02` is a property of `np_module_map` itself, so a restored record answers nothing until the power-on poll confirms its UID (D-32, §4.2.1). Rev 10 closes `OI-NVRAM-18`: the hub decides that a mate happened, from its previous observation of the socket, and `U1` applies the increment at most once per power-up, so `mate_cycles_observed` no longer depends on a completed session (D-31, `NP-MOD-ID-001` §5.3.1). Rev 9 closes `OI-NVRAM-17`: the factory-reset boot check is called at bring-up before anything opens UHDR or SHDR or reads Config, and a result that does not permit them opens neither (§3.4.1). Rev 8 closes `OI-NVRAM-07`: the trajectory's axes are use, not time, SHDR already carries month-granular calendar age per module, and only sub-month cadence is missing, which no modelled mechanism needs; §7.4's fit must carry presence and calendar age beside exposure (D-30, §5.3.1). Rev 7 closes `OI-NVRAM-06`: the session an extraction interrupts is lost from Map 4 and not from the hub, so §7.4's model is unaffected if its exposure is hub-sourced (D-28), and §6.5 stops flagging that shortfall as a fault (D-29, §6.5.1). Rev 6 closes `OI-NVRAM-04`: nothing in this document needs the `SEAT#` pre-break window's duration, and the stagger dimension moves to the document whose own mechanism needs it (§4.3.1). Rev 5 gives the Config store a journal reader that steps by each row's own length, closing `OI-NVRAM-16` (§7.2.1). Rev 4 makes R-3 read its marker back before the first erase (§3.4.1). Rev 3 writes and falsifies the two CI checks §7.2 and §8.3 asked for, and corrects every claim that an SNVS flag survives power loss. Rev 2 resolves the store defects Rev 1 found (§3.3.1) so Map 3 can be built at all. See §11 (Decisions), §13 (Open items).
 **Effective Date:** —
 **Author:** NeurOne Firmware + Data Architecture
 **Approved By:** — (pending design review)
@@ -16,6 +16,32 @@
 **Parent Document:** `NP-FW-EMMC-001`
 
 ---
+
+> **⚠ REV 11 (2026-09-28, GitHub #444) — `OI-HEXMAP-01` CLOSED: the module map's blob has a store, and a restored record waits for the poll.**
+>
+> `np_hexmap_nvram_read()` and `np_hexmap_nvram_write()` were a pair of platform traps. They are now
+> `firmware/hub_control/src/np_hexmap_nvram.c`, which reaches `npmp.bin` through `np_cfg_store` as a
+> `REBUILD` file: every read is content-checked by `np_module_map_blob_verify()` (magic, socket count,
+> exact length, CRC-32), a write is an in-place replacement littlefs commits at close (L-3), and a blob
+> the map would refuse is never written. They are first-party code, the way the session count became
+> in `OI-LFS-12`, so the SW-02 platform census goes **103 → 101**.
+>
+> **`REQ-LFS-02` is enforced by the module, not by a boot ordering (D-32).** A valid blob can be old,
+> and then it describes whatever module was in the socket when it was written. Each socket record now
+> carries a RAM-only `confirmed` flag that `load()` leaves false. Until `np_module_map_apply_poll()`
+> reports the same UID for that socket in this boot, the record answers nothing: resolve,
+> resolve_group, check_placement, get_cal, set_cal and socket_uid all treat the socket as empty. A
+> matching poll confirms it without re-inventory, and a different UID replaces it. So the future boot
+> integration cannot break the rule by calling in the wrong order.
+>
+> **Evidence (§4.2.1):** `np_module_map_tests` gains the rule across all six readers, falsified by
+> reducing the check to `module_present` (10 failures). `np_cfg_store_tests` case 10 drives
+> `persist()`/`restore()` through the real store on the 80-socket, 14,012-byte blob. It covers a reboot,
+> a module swapped while the hub was off, medium damage restoring an **empty** map, a refused write that
+> leaves the live blob alone, and a power cut at every op of `persist()` (35 ops × 3 tear models, 105
+> cuts, 0 violations). **What is still not built:** the call sites. The power-on poll needs
+> `OI-HEXMAP-02`'s `inventory_fn`, and the store needs #340's block device. Until then every restore
+> reads an unbound store and leaves the map empty, which is the first-boot path.
 
 > **⚠ REV 10 (2026-09-28, GitHub #444) — `OI-NVRAM-18` CLOSED: a mate is counted when it happens, not at session end.**
 >
@@ -754,6 +780,42 @@ single append. The discipline is instead:
 **A torn append degrades to: the torn record fails its CRC, is discarded, and every record before it
 survives.** Nothing before the tear is at risk, which is the property (a) cannot offer and is the
 whole reason for the split. **D-5.**
+
+#### 4.2.1 The blob's binding as built — added at Rev 11 (`OI-HEXMAP-01` closed)
+
+(a) was written before a store existed. `NP-SOUP-LFS-001` Rev 4 §13 then built one and replaced
+write-new-then-publish with an in-place `O_TRUNC` rewrite that littlefs commits atomically at close.
+Rename is a delete, and create/delete churn is upstream #1210's trigger (§14, update of 2026-09-24).
+**D-6's property is unchanged: the live blob is never destroyed before its replacement is durable.**
+Only the mechanism that provides it has changed. This section records the binding that now sits on
+it.
+
+| Concern | Where it is enforced | Evidence |
+|---|---|---|
+| The file and its policy | `np_hexmap_nvram.c` names only `NP_CFG_FILE_NPMP` (`npmp.bin`, `NP_CFG_POLICY_REBUILD`). It calls no littlefs function (`check-lfs-caller-rules.ts` R1), and it is listed as a limit consumer, so it can never name the Map 3 journal (R6) | the gate |
+| Atomic replace (D-6, L-3) | `np_cfg_store_replace()` | `np_cfg_store_tests` case 10: a power cut at every op of `np_module_map_persist()`, 35 ops × 3 tear models, 105 cuts, 0 violations. The verifier requires the old blob or the new one, byte for byte, and the new one whenever `persist()` had returned OK |
+| Content verified on every read (`OI-LFS-09`) | `np_module_map_blob_verify()`: magic, a socket count in 1…128, a length exactly equal to what that count serializes to, CRC-32. It is the same CRC `load()` checks, with one implementation. Version and geometry stay `load()`'s, because they mean "rebuild" for a reason other than damage | case 10: one bit flipped on the medium restores `NP_HUB_ERR_STORE_INTEGRITY` and an empty map. Falsified: with the check reduced to `true`, the damage, short-buffer and refused-write assertions fail |
+| Never write what could not be read back | `np_hexmap_nvram_write()` runs the same check first | case 10: a headerless blob and a NULL blob are refused, and the live blob is unchanged |
+| Every failure empties the map | `np_module_map_restore()`, unchanged | case 10: never written, damaged. Either way the next poll must re-inventory |
+| **A valid blob can be old (`REQ-LFS-02`)** | **D-32**: `np_module_map`'s per-record `confirmed` flag. It is RAM only, false after `load()`, and set only by `apply_poll()` seeing the same UID or inventorying a new one | `np_module_map_tests` `test_restored_record_unused_until_poll`: all six readers refuse before the poll, a different UID is re-inventoried and neither module gets the stored calibration, and a second restore un-confirms. Falsified with the check reduced to `module_present`: 10 failures. Case 10 repeats the swap through the real store |
+
+**What `REQ-LFS-02` asked of the boot integration, and why it is met before that integration exists.**
+`NP-SOUP-LFS-001` §13.18.2 requires that a restored record be used for nothing until the power-on
+poll has confirmed its socket's UID in the current boot. It says the rule binds `OI-HEXMAP-01`'s boot
+integration, and that this item must cite it when it closes. A boot ordering would meet the rule only
+while every caller kept to it. That is the caller-convention shape `np_module_map_restore()`'s own
+contract already refuses ("a property of restore() itself, not of a caller convention"). So the
+rule lives in the module. A caller that consults the map before the poll has run gets
+`NP_HUB_ERR_NOT_PRESENT`, never another module's inventory or calibration. The cache still does its
+job: a confirmed record costs no inventory transaction (`"Unchanged modules are never
+re-inventoried"`).
+
+**What is not built, and is not this item's.** Nothing in `firmware/` yet calls `restore()`,
+`apply_poll()` or `persist()`. The poll needs the module link's `inventory_fn` (`NP-HEX-ZM-001`
+`OI-HEXMAP-02`), and the store needs a block device (#340, `OI-LOG-05..07`). Until #340, the
+store is unbound, `np_hexmap_nvram_read()` returns `NP_HUB_ERR_INVALID_ARG` and `restore()` leaves
+the map empty. That is the first-boot path, and it is correct. §10.2's three consequences therefore
+still hold **on target**. They now wait on those two items, not on this one.
 
 **Fail-closed means something different for a record than for a cache, and the difference must be
 stated.** For the inventory, fail-closed is "assume nothing is present and re-poll" — availability is
@@ -1504,6 +1566,11 @@ This is the larger number, and it is not a storage number.
 `OI-HEXMAP-01` is open. `np_hexmap_nvram_read/write` are unimplemented externs. Until they exist,
 `np_module_map_persist()` and `_restore()` cannot function, with three consequences:
 
+*Rev 11: `OI-HEXMAP-01` is closed (§4.2.1), and the functions exist and are tested through the real
+store. The three consequences below still hold on target until the call sites exist, which waits on
+`OI-HEXMAP-02` (the poll's `inventory_fn`) and #340 (the block device).*
+
+
 1. **Every boot re-inventories every socket**, defeating the design property `apply_poll()` was built
    around — *"Unchanged modules are never re-inventoried."* At ~80 sockets over the module I2C link
    this is bring-up latency the user waits through, on every power-on, forever.
@@ -1584,6 +1651,7 @@ are decisions, and no amount of firmware work substitutes for either.
 | **D-28** *(Rev 7)* | **Every per-session value `NP-MOD-ID-001` §7.2 admits is accumulated by the hub while the session runs, never read from `U1` once at session end and never computed as a difference of Map 4 reads.** Map 4 has no socket field and loses the session an extraction interrupts, so any other source drops those sessions from §7.4's exposure covariate, possibly not at random. With this rule the Map 4 loss reaches §7.4's model only through the carried-in baseline, within MODID-6's 250-session rounding. No polling interval is set (`OI-NVRAM-06`, §6.5.1) |
 | **D-29** *(Rev 7)* | **A session interrupted by extraction is a benign Map 4 shortfall, not a §6.5 anomaly.** The hub sets Map 3 `fault_flags` bit 0 (`NP_MAP3_FAULT_UNSEATED_AT_CLOSE`) on a row it closes after the module has stopped answering on its socket. Map 4 is compared against the carried-in baseline plus unflagged rows only, counting a session once per ordinal. Only a shortfall below that is an anomaly. The difference is never written into Map 4, and the flag is never uploaded (§6.5.1, §8.1) |
 | **D-30** *(Rev 8)* | **`NP-MOD-ID-001` §7.4's fit carries presence (`module_session_count`) and calendar age (`last_seen_month` − `module_manufacture_date`, months, same `module_life` row) as covariates beside exposure.** Without them, idle aging in a rarely-driven socket reads as a socket effect, the false positive §7.4's decision rule turns on. Both are already in SHDR: **no field, no clock finer than `TIME-01`'s month and no Map 3 change** is added, and sub-month cadence stays unrecoverable (D-18). The gate states the assumption it cannot test: cadence acts only through the measured thermal fields. §5.3.1 |
+| **D-32** *(Rev 11)* | **`REQ-LFS-02` is a property of `np_module_map`, not of the boot sequence.** Every socket record carries a RAM-only `confirmed` flag. `load()` leaves it false, and it is set only when `apply_poll()` sees the record's UID in that socket or inventories a new module there. Every reader (resolve, resolve_group, check_placement, get_cal, set_cal, socket_uid) answers only from a record that is present **and** confirmed. The alternative, an ordering rule on the boot integration ("poll before anything reads the map"), was rejected. Nothing enforces an ordering but its callers, and the failure it guards against, a valid old blob, is invisible to every check below it. §4.2.1 |
 | **D-31** *(Rev 10)* | **A mate is decided by the hub and applied by `U1`, and is written when it happens, not at session end.** The hub counts a mate when a poll returns a UID and its previous observation of that socket (this power-on, or the valid inventory cache at boot) was empty or a different UID. It never counts a first observation. `U1` honours the increment at most once per power-up, because every genuine mate power-cycles it (`VCC_3V3` is in contact group 3). A count of `U1` power-ups alone was rejected, because every hub power cycle would add a mate to every seated tile. The count is a lower bound, and it adds no field. **D-20** holds: nothing about the event is stored. `NP-MOD-ID-001` §5.3.1 |
 
 ---
@@ -1726,7 +1794,8 @@ factory-reset correctness question rather than a storage-layer one, and Rev 2 do
 > check are implemented and tested (§3.4.1). Two new items: `OI-NVRAM-16` must land before Map 3's
 > row can grow, and `OI-NVRAM-17` is the boot check's bring-up call site. **Still not built:** Map 3's owner (sync, watermarks, the §6.3
 > journal-full policy) and the `np_hexmap_nvram_*` binding (`OI-HEXMAP-01`, waiting on #340's block
-> device).
+> device). *(Rev 11: the binding is built and `OI-HEXMAP-01` is closed, §4.2.1. Its call sites wait
+> on `OI-HEXMAP-02` and #340.)*
 
 > **Update 2026-09-27 (Rev 5, #444).** `OI-NVRAM-16` is closed: `np_cfg_store_journal_read_rows()`
 > with `np_map3_row_len()` reads a journal whose rows differ in length, and `np_cfg_store_tests`
@@ -1748,3 +1817,4 @@ factory-reset correctness question rather than a storage-layer one, and Rev 2 do
 | 8 | 2026-09-28 | NeurOne Firmware Engineering | **`OI-NVRAM-07` CLOSED (GitHub #443, §5.3.1): the trajectory lacks cadence, not time.** `NP-MOD-ID-001` §7.4's covariates are use: exposure (hub-accumulated, D-28), presence and thermal history, none of which needs a clock. Idle-aging mechanisms act over months, and SHDR's `module_life` row already holds `module_manufacture_date` and a month-truncated `last_seen_month`, so calendar age is known to about a month within `TIME-01`. Only sub-month cadence is missing. It stays missing (D-18), and its physical effect is temperature, which the NTC measures. **D-30:** the §7.4 fit carries presence and calendar age beside exposure, because a rarely-driven socket otherwise shows idle aging as a socket effect. No field, clock or Map 3 change. §5.3's closing paragraph annotated; the link to `OI-EMMC2-13` corrected (that item is about threshold provenance and stays open). `NP-MOD-ID-001` §7.4 carries the note. `OI-NVRAM-17`, `-18` and `OI-HEXMAP-01` stay open. Rev 7 → 8. |
 | 9 | 2026-09-28 | NeurOne Firmware Engineering | **`OI-NVRAM-17` CLOSED (GitHub #444, §3.4.1): the boot check has its bring-up call site.** `np_hub_control_app_main()` calls `np_factory_reset_boot_check()` before anything opens UHDR or SHDR or reads Config, and reads the result through the new `np_factory_reset_boot_permits_data()` (`NONE`/`RESUMED` permit, everything else refuses). A refusal calls the new `np_log_backend_refuse()` (no file opened, appends and flushes fail closed, `session_begin` returns `NP_HUB_ERR_STORE_IO`) and the new `np_cvfs_init_unpersisted()` (fault summary in RAM, no UHDR load or save). `scripts/check-hub-bringup-order.ts`: 4 → 10 ordering constraints plus a when-present rule (`np_cfg_store_bind()` before the check, for #340); self-test 11 → 25 cases. Until #340 binds a block device every boot reads `UNKNOWN` and refuses, which is fail-closed and documented. Tests: `np_factory_reset_tests` cases 19–20, `np_log_backend_tests` `test_refuse_opens_nothing`, `np_cvns_fault_summary_tests` `test_unpersisted_never_touches_uhdr`. Three mutants each caught. Host suite 55/55, and the sanitized leg passes on the four touched targets. Executed-line floors raised for the three touched targets. `RISK-NVRAM-08` residual updated. **`OI-NVRAM-19` raised and decided (principal, option b):** a refused boot admits no session. `np_runner_load()` returns the new `NP_HUB_ERR_BOOT_REFUSED` before the lease, `np_log_backend_admits_sessions()` is the flag, and gate rule 3 holds the order. SW-02 only. No SW-01 file changed. Rev 8 → 9. |
 | 10 | 2026-09-28 | NeurOne Firmware Engineering | **`OI-NVRAM-18` CLOSED (GitHub #444, D-31): `mate_cycles_observed` has an increment point.** It is resolved in `NP-MOD-ID-001` §5.3.1 (MODID-4a), which is the document the item named. `U1` sees every mate, because `VCC_3V3` is in contact group 3, but it cannot tell a mate from the hub powering up. The hub can tell them apart, but only for mates it saw. So the hub counts a mate when a poll finds a UID where its previous observation of the socket (this power-on, or the valid inventory cache at boot) was empty or a different UID, and never from a first observation. `U1` writes the increment at once and honours it at most once per power-up, which makes a retry idempotent and bounds the writes. The count is a lower bound, and §5.3.1 names what it misses. No field, no upload and no event record is added (D-20). No mate-limit threshold or prompt is set: any prompt is an exposure count under CLAUDE.md §2.3 and needs its own design. `NP-MOD-ID-001` §5.2, §8.3, §9 (`OI-MODID-09`, `distinct_socket_count` has no computation) and §10 updated. §6.5.1 annotated. No code changed: no module firmware exists yet (`NP-HW-HEXTILE-001` `OI-HEXTILE-07`). `OI-HEXMAP-01` stays open. Rev 9 → 10. |
+| 11 | 2026-09-28 | NeurOne Firmware Engineering | **`OI-HEXMAP-01` CLOSED (GitHub #444, §4.2.1, D-32): the module map's blob has a store, and a restored record waits for the poll.** `np_hexmap_nvram_read/write` move from platform traps to first-party code, `firmware/hub_control/src/np_hexmap_nvram.c`, over `np_cfg_store` (`npmp.bin`, `REBUILD`). The census goes 103 → 101, the way `OI-LFS-12` retired the session-count seam. Reads are content-checked by the new `np_module_map_blob_verify()` (magic, socket count, exact length, CRC-32, one CRC implementation), writes are the store's atomic in-place replacement, and a blob the map would refuse is never written. **`REQ-LFS-02` (NP-SOUP-LFS-001 §13.18.2) is cited and met as a module property (D-32).** A RAM-only `confirmed` flag, false after `load()`, gates all six inventory readers until `apply_poll()` sees the same UID in this boot. A different UID is re-inventoried, and no module gets the stored calibration. An ordering rule on the boot integration was rejected, because only its callers enforce it. Evidence: `np_module_map_tests` (the rule across all six readers; with the check reduced to `module_present`, 10 failures) and `np_cfg_store_tests` case 10 (end to end on the 80-socket 14,012-byte blob: reboot, swap, damage → empty map, refused write, and a power cut at every op of `persist()`: 105 cuts, 0 violations). `check-lfs-caller-rules.ts` lists the new file as a limit consumer (R6). **Not built:** the call sites, which wait on `OI-HEXMAP-02` (`inventory_fn`) and #340 (block device). §10.2 and §14 annotated. Rev 10 → 11. |

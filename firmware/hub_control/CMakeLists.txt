@@ -307,6 +307,8 @@ if(NP_BUILD_TESTS)
         src/np_session_count.c        # OI-LFS-12: the persisted session count
         src/np_reset_marker.c         # OI-NVRAM-05: the durable factory-reset marker
         src/np_map3_record.c          # OI-NVRAM-16: rows of differing length
+        src/np_hexmap_nvram.c         # OI-HEXMAP-01: npmp.bin through the store
+        src/np_module_map.c           # OI-HEXMAP-01: persist/restore end to end
         src/np_lfs_instance.c
     )
     target_include_directories(np_cfg_store_tests PRIVATE include tests
@@ -470,6 +472,7 @@ set(HUB_SOURCES
     src/np_warranty_token.c       # OI-WA-03: NP-FW-EMMC-002 §A warranty token
     src/np_consumables.c          # OI-ACC-08: CONSUMABLE_STATUS session counts
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
+    src/np_hexmap_nvram.c         # OI-HEXMAP-01: npmp.bin on Config through np_cfg_store
     src/np_lfs_instance.c         # OI-LFS-01: EMMC-FS-01 littlefs instance + mount validator
     src/np_cfg_store.c            # OI-LFS-06/-08/-09: Config store — the littlefs caller rules
     src/np_map3_record.c          # OI-NVRAM-08: Map 3 journal record + version-tolerant scan

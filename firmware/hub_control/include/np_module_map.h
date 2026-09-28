@@ -574,6 +574,16 @@ np_hub_status_t np_module_map_persist(void);
  * np_module_map_restore — restore inventory via the NVRAM HAL
  * (np_hexmap_nvram_read → load).
  *
+ * REQ-LFS-02 (NP-SOUP-LFS-001 §13.18.2): a restored record is a CACHE ENTRY,
+ * not a present module. Until np_module_map_apply_poll() reports the same UID
+ * for its socket in this boot, the record answers nothing: resolve,
+ * resolve_group, check_placement, get_cal, set_cal and socket_uid all treat
+ * the socket as empty. The poll confirms a matching record without
+ * re-inventorying it, which is all the cache is for, and replaces a different
+ * one. The rule is a property of this module rather than of a boot ordering,
+ * so a caller that consults the map before the poll has run gets NOT_PRESENT,
+ * never another module's inventory or calibration.
+ *
  * FAIL-CLOSED CONTRACT: on ANY failure — HAL read error, bad magic, wrong blob
  * version, geometry mismatch, CRC mismatch — the inventory is left EMPTY and the
  * error is returned. It is never left holding stale or partially-applied records.
@@ -587,14 +597,38 @@ np_hub_status_t np_module_map_persist(void);
  */
 np_hub_status_t np_module_map_restore(void);
 
-/* ── NVRAM HAL (OI-HEXMAP-01 — platform-provided; test-injected) ─────────────── */
+/*
+ * np_module_map_blob_verify — the integrity half of load(), with no map state:
+ * magic, a socket count in 1..NP_HEXMAP_MAX_SOCKETS, a length exactly equal to
+ * what that count serializes to, and the CRC-32. It does NOT check the blob
+ * version or this helmet's geometry; those are load()'s, because they say
+ * "rebuild" for a reason other than damage. This is the content check the
+ * Config store runs on every read of npmp.bin (OI-LFS-09), so the CRC has one
+ * implementation, here.
+ */
+bool np_module_map_blob_verify(const uint8_t *buf, size_t len);
+
+/* ── NVRAM HAL (OI-HEXMAP-01 — np_hexmap_nvram.c; test-injected) ────────────── */
 
 /*
- * Read/write the module-map region of the Config/NVRAM partition. On target
- * these wrap the LittleFS Config partition access; tests inject stubs.
- * np_hexmap_nvram_read sets *read_len to the number of bytes read.
+ * Read/write the module-map blob, npmp.bin, on the Config partition
+ * (NP-FW-NVRAM-001 D-1, D-2). Defined in np_hexmap_nvram.c over np_cfg_store as
+ * a REBUILD-policy file: a read is content-verified by
+ * np_module_map_blob_verify() and a write is an in-place replacement that
+ * littlefs commits atomically at close (L-3). They are first-party code, not
+ * platform seams. Host tests that link np_module_map.c without the store
+ * inject their own definitions instead.
+ *
+ * np_hexmap_nvram_read sets *read_len to the number of bytes read. Every
+ * failure — never written, a read fault, a refused content check, a store not
+ * yet bound — is returned as an error, and np_module_map_restore() turns every
+ * error into an empty inventory. None of them means "use what you have".
+ *
+ * A successful read is NOT a current one. REQ-LFS-02: a blob can be valid and
+ * old, so every record restored from it is unusable until the power-on poll
+ * confirms its socket's UID (np_module_map_apply_poll()).
  */
-extern np_hub_status_t np_hexmap_nvram_read(uint8_t *buf, size_t len, size_t *read_len);
-extern np_hub_status_t np_hexmap_nvram_write(const uint8_t *buf, size_t len);
+np_hub_status_t np_hexmap_nvram_read(uint8_t *buf, size_t len, size_t *read_len);
+np_hub_status_t np_hexmap_nvram_write(const uint8_t *buf, size_t len);
 
 #endif /* NP_MODULE_MAP_H */

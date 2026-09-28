@@ -18,20 +18,20 @@
  *
  * ── What this header is NOT ─────────────────────────────────────────────────
  *
- * It is not the whole SW-02 platform contract.  Thirty-six further symbols are
+ * It is not the whole SW-02 platform contract.  Thirty-four further symbols are
  * declared in the module header that owns them and are already single-sourced
  * there — np_anon_hal_* (np_anon_scratch.h), np_cvns_hal_impedance_{start,poll}
  * (np_cvns_reenable.h), np_factory_reset_hal_* (np_factory_reset.h),
- * np_hexmap_nvram_* (np_module_map.h), np_log_hal_part_* (np_log_backend.h),
+ * np_log_hal_part_* (np_log_backend.h),
  * np_cvfs_hal_load/_save (np_cvns_fault_summary.h), np_gatt_hal_*
  * (np_gatt_server.h), np_warranty_hal_trng_generate (np_warranty_token.h),
  * np_safety_hal_spi_transfer (np_safety_spi.h), np_uhdr_hal_* (np_uhdr_key.h)
  * and np_za_platform_* (np_zone_announce.h).  They are deliberately NOT
  * restated here: a second declaration of an already single-sourced symbol is a
  * second place to get it wrong.  firmware/platform/src/np_platform_stub.c
- * includes those eleven headers directly.
+ * includes those ten headers directly.
  *
- * The full SW-02 platform contract is therefore this file plus those eleven
+ * The full SW-02 platform contract is therefore this file plus those ten
  * headers, and the count that tracks it is NP_SW02_PLATFORM_SYMBOL_COUNT below.
  */
 
@@ -51,7 +51,7 @@ extern "C" {
 
 /*
  * Total number of symbols the SW-02 platform layer owes: those declared in
- * this file plus those declared in the eleven module headers named above.  The
+ * this file plus those declared in the ten module headers named above.  The
  * split is not restated here; it read "64 + 36 = 100" while the constant was
  * 102, which is why a count belongs in one place.
  *
@@ -108,8 +108,15 @@ extern "C" {
  * REQ-FWHUB-21 required the cutoff to be an interrupt, and RISK-FWHUB-09
  * listed that interrupt as its control.  Until now no seam could deliver one,
  * so the only in-session cutoff was the telemetry poll.
+ *
+ * 103 → 101 on 2026-09-28 (NP-FW-NVRAM-001 Rev 11, OI-HEXMAP-01):
+ * np_hexmap_nvram_read() and np_hexmap_nvram_write() RETIRED as seams, the way
+ * np_hal_get_device_session_count() was.  npmp.bin is a Config-partition file,
+ * and np_hexmap_nvram.c now reaches it through np_cfg_store — first-party code,
+ * not a platform driver.  np_module_map.h stops being one of the module headers
+ * named above.
  */
-#define NP_SW02_PLATFORM_SYMBOL_COUNT   103
+#define NP_SW02_PLATFORM_SYMBOL_COUNT   101
 
 /* ── Core clock (OI-SWCI-41) ──────────────────────────────────────────────────
  *
