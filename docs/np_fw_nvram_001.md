@@ -2,9 +2,9 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-NVRAM-001
-**Revision:** 6
+**Revision:** 7
 **Date:** 2026-09-27
-**Status:** DESIGN STUDY — not a release baseline. Every behaviour below is a proposed engineering commitment traced to a cited source. **No new part is proposed.** Rev 6 closes `OI-NVRAM-04`: nothing in this document needs the `SEAT#` pre-break window's duration, and the stagger dimension moves to the document whose own mechanism needs it (§4.3.1). Rev 5 gives the Config store a journal reader that steps by each row's own length, closing `OI-NVRAM-16` (§7.2.1). Rev 4 makes R-3 read its marker back before the first erase (§3.4.1). Rev 3 writes and falsifies the two CI checks §7.2 and §8.3 asked for, and corrects every claim that an SNVS flag survives power loss. Rev 2 resolves the store defects Rev 1 found (§3.3.1) so Map 3 can be built at all. See §11 (Decisions), §13 (Open items).
+**Status:** DESIGN STUDY — not a release baseline. Every behaviour below is a proposed engineering commitment traced to a cited source. **No new part is proposed.** Rev 7 closes `OI-NVRAM-06`: the session an extraction interrupts is lost from Map 4 and not from the hub, so §7.4's model is unaffected if its exposure is hub-sourced (D-28), and §6.5 stops flagging that shortfall as a fault (D-29, §6.5.1). Rev 6 closes `OI-NVRAM-04`: nothing in this document needs the `SEAT#` pre-break window's duration, and the stagger dimension moves to the document whose own mechanism needs it (§4.3.1). Rev 5 gives the Config store a journal reader that steps by each row's own length, closing `OI-NVRAM-16` (§7.2.1). Rev 4 makes R-3 read its marker back before the first erase (§3.4.1). Rev 3 writes and falsifies the two CI checks §7.2 and §8.3 asked for, and corrects every claim that an SNVS flag survives power loss. Rev 2 resolves the store defects Rev 1 found (§3.3.1) so Map 3 can be built at all. See §11 (Decisions), §13 (Open items).
 **Effective Date:** —
 **Author:** NeurOne Firmware + Data Architecture
 **Approved By:** — (pending design review)
@@ -16,6 +16,23 @@
 **Parent Document:** `NP-FW-EMMC-001`
 
 ---
+
+> **⚠ REV 7 (2026-09-27, GitHub #444) — `OI-NVRAM-06` CLOSED: the interrupted session is accepted, bounded, and kept out of the fault flag.**
+>
+> A tile pulled mid-session never makes its session-end Map 4 write, so that session is missing from
+> the part's odometer. The hub still holds the session and writes its Map 3 row (§4.3.1). §6.5.1
+> answers the question the item asked. **It does not matter to `NP-MOD-ID-001` §7.4's model**, because
+> Map 4 has no socket field, so every per-socket row the model fits is already the hub's. Map 4
+> reaches the model only through a carried-in baseline, which MODID-6 already rounds down by up to
+> 249 sessions. **D-28** makes that hold: every per-session value §7.2 admits is accumulated by the hub
+> while the session runs, never read from the tile at session end or differenced from Map 4.
+>
+> Answering it found a consequence that does matter. Each interrupted session leaves Map 2 one session
+> ahead of Map 4, which is §6.5's *Map 4 < Map 2* row, and that row calls it a fault. **D-29** marks the
+> interrupted row with `fault_flags` bit 0 (`NP_MAP3_FAULT_UNSEATED_AT_CLOSE`) and compares Map 4 only
+> against unflagged rows. A module moved without a completed session never records its mate cycle, and
+> that is raised as **`OI-NVRAM-18`** against `NP-MOD-ID-001` §5.3. **Still open under #444:** `-07` (in
+> #443), `-17` and `OI-HEXMAP-01`.
 
 > **⚠ REV 6 (2026-09-27, GitHub #444) — `OI-NVRAM-04` CLOSED: the missing dimension is re-homed, not invented.**
 >
@@ -700,6 +717,9 @@ module firmware cannot schedule its EEPROM write for the moment of removal eithe
 cadence available, and the cost is bounded and should be written down: **a session interrupted by a
 tile being pulled mid-run contributes nothing to that tile's odometer.** `OI-NVRAM-06`.
 
+*Rev 7: `OI-NVRAM-06` is closed. §6.5.1 bounds the loss, shows that `NP-MOD-ID-001` §7.4's model does
+not see it (D-28), and keeps it out of §6.5's anomaly flag (D-29).*
+
 
 #### 4.3.1 Why the window's duration is not this document's number — added at Rev 6 (`OI-NVRAM-04` closed)
 
@@ -856,7 +876,7 @@ not seen the sessions the part ran on someone else's helmet.
 |---|---|---|
 | Map 4 > Map 2 | The normal carried-in case (§6.4) | **Map 4 seeds Map 2.** Reconcile by `max`, never by sum — summing double-counts every session both already knew about |
 | Map 4 = Map 2 | Steady state | No action |
-| **Map 4 < Map 2** | The part reports *less* than this fleet already recorded | **Anomaly. Keep Map 2's value; never write the lower value back to the module; flag it.** Three causes are plausible — a replaced or reflashed `U1`, a slot recovered to an older generation after a power-loss during write, or a record transplanted between modules (which `NP-MOD-ID-001` §5.2's CRC-over-UID should already have caught). All three are device-condition events worth knowing about and none of them licenses a rollback |
+| **Map 4 < Map 2** | The part reports *less* than this fleet already recorded | **Anomaly. Keep Map 2's value; never write the lower value back to the module; flag it.** Three causes are plausible — a replaced or reflashed `U1`, a slot recovered to an older generation after a power-loss during write, or a record transplanted between modules (which `NP-MOD-ID-001` §5.2's CRC-over-UID should already have caught). All three are device-condition events worth knowing about and none of them licenses a rollback *(Rev 7: a fourth, benign cause is a session interrupted by extraction. The comparison excludes it, so it is not flagged, §6.5.1, D-29.)* |
 
 > **The magnitude of a divergence must never be uploaded, only its existence.** `NP-MOD-ID-001` §6.3
 > establishes that an exact counter value is a join key across fleets — *"if fleet A's last reported
@@ -866,6 +886,81 @@ not seen the sessions the part ran on someone else's helmet.
 > **D-14.** This is `OI-MODID-02`'s bucket-width question acquiring a second consumer, and the widths
 > must be chosen once for both.
 
+
+#### 6.5.1 The session an extraction interrupts — added at Rev 7 (`OI-NVRAM-06` closed)
+
+**What is lost, and what bounds it.** `U1` writes Map 4 once, at session end (`NP-MOD-ID-001` §5.3).
+Until then it holds the session's accumulation in RAM. A tile pulled mid-session loses `VCC_3V3`
+before that write, and §4.3.1 shows that no warning can move the write earlier. So for that session
+Map 4 misses the `session_count` increment and the session's `emitter_on_seconds`,
+`thermal_seconds_over_threshold` and `throttle_events`. It misses `peak_ntc_celsius_ever` only if the
+session set a new lifetime peak. `pd_ratio_last` stays one session stale. Nothing earlier is at risk,
+because no write is in progress and the four-slot rotation holds the last good record. **Each
+extraction costs at most one session's contribution.** The number of such losses cannot exceed the
+number of extractions, which is the module's mate-cycle count.
+
+So Map 4 is a **lower bound** on the part's use. It is never above the truth and never goes
+backwards. It falls short by exactly the contributions of interrupted sessions. §6.5 reconciles by `max`, so
+wherever Map 2 holds the higher count, that is the count kept.
+
+**The hub does not lose the session.** It keeps its session state after the tile is gone (§4.3.1), so
+the interrupted session's Map 3 row is written from hub state like any other.
+
+**Does it matter to `NP-MOD-ID-001` §7.4's model?** The model is
+`degradation_rate ~ exposure + module_kind + (1 | socket)`, fitted on §7.2's per-socket, per-session
+rows. Taking each input in turn:
+
+| Input | Where it comes from | Does the Map 4 loss reach it? |
+|---|---|---|
+| `exposure` (§7.2's `emitter_on_seconds` and the thermal fields, per socket per session) | **The hub.** Map 4 has no socket field (`NP-MOD-ID-001` §5.2), so a per-socket figure can only be the hub's. Attributing a Map 4 delta to a socket would need a read before and after the session in the same socket, and an extraction makes the second read impossible | **No, provided D-28 holds.** The interrupted session is in the data with the exposure it actually had |
+| `socket` | The hub's inventory | No |
+| `module_kind` | `major`, in the inventory blob | No |
+| `degradation_rate` (the response) | PD metering the hub reads during sessions, and `pd_ratio_last` | At most one session's lag on a module whose last session was interrupted. The next completed session replaces it |
+| Carried-in baseline, for a module that arrived from another fleet (§6.4) | **Map 4** | **Yes, and it is the only path.** MODID-6 rounds the baseline down to the nearest 250 sessions before it reaches SHDR (`NP-MOD-ID-001` §6.3), which already accepts up to 249 sessions of downward error. An undercount of *k* interrupted sessions is also downward and adds at most *k*. It is negligible while *k* ≪ 250, and *k* is bounded by the mate cycles the part saw elsewhere |
+
+**So the loss does not matter to the model, on one condition, and D-28 makes it a rule.** The
+condition is that exposure comes from the hub. **What fails without it** (CLAUDE.md §18): if a
+per-session value were read from `U1` once at session end, or computed as a difference of two Map 4
+reads, the interrupted sessions would drop out of the one covariate the model conditions on. Nothing
+makes that loss random. A tile that runs hot or uncomfortable is a plausible reason to pull it
+mid-session, so the missing rows could lean toward the thermally loaded tail the model exists to
+attribute. That is a plausible mechanism, not a measured one, and D-28 removes the need to know. D-28
+sets no polling interval. With in-session accumulation, a `U1`-local quantity is lost only for the
+time since the hub's last read, not for the session.
+
+**The consequence that does matter is §6.5's anomaly row.** Each interrupted session leaves Map 2 one
+session ahead of Map 4, and that is the *Map 4 < Map 2* case. §6.5 calls it an anomaly and lists three
+causes, all of them faults. Left alone, ordinary handling would raise the divergence boolean that §8.1
+sends to SHDR, and the real causes (a reflashed `U1`, a slot rolled back after a torn write) would be
+lost among the false ones. **D-29:**
+
+1. **The hub marks the row.** When the hub closes a module's Map 3 row and the module no longer
+   answers on its socket, it sets `fault_flags` bit 0, `NP_MAP3_FAULT_UNSEATED_AT_CLOSE`
+   (`np_map3_record.h`). The field already exists at version 1, so the row does not change and no
+   version is raised.
+2. **The comparison excludes flagged rows.** Map 4 is expected to be at least the carried-in baseline
+   plus the contributions of **unflagged** rows. A session is counted once per ordinal (§5.2), and it
+   counts toward that expectation only if the uid's last row for that ordinal is unflagged. A tile
+   pulled and re-seated in the same session was seated at session end, so `U1` wrote that session.
+3. **Only a shortfall below that expectation is an anomaly**, handled exactly as §6.5 says. A value
+   between the expectation and Map 2's full total is the interrupted-session shortfall, and it is not
+   flagged.
+4. **The difference is never written into Map 4.** Map 4 records what the part observed (§6.5). A
+   helmet adding sessions to it would make the carried-in baseline one fleet's claim instead of the
+   part's.
+
+**The flag stays off SHDR.** A count of mid-session extractions records how the wearer handles the
+helmet, which is the same class of object as the placement-event rate `NP-FW-EMMC-002` `OI-EMMC2-08`
+warns about. It lives in Map 3 and in Map 2, which is app-side and UHDR-class (D-19), and it is never
+uploaded. What reaches SHDR is §8.1's divergence boolean, now computed against the corrected
+expectation.
+
+**A gap this analysis found and does not close.** `NP-MOD-ID-001` §5.2 carries
+`mate_cycles_observed`, and nothing says when it is incremented. Under §5.3's one-write-per-session-end
+cadence, a module seated and removed without a completed session never records that mate. That is
+the insert-and-remove handling the ≥500-cycle contact rating is about. Mate cycles are not an input to
+§7.4's model, so they are outside `OI-NVRAM-06`'s question. The count belongs to the odometer's own
+design, which §1 leaves out of this document's scope. It is raised as **`OI-NVRAM-18`**.
 ---
 
 ## 7. Versioning, and the module the hub cannot classify
@@ -1066,7 +1161,8 @@ custody constraint that makes this a storage question and not only an upload que
 | `pd_ratio_last` | Map 4 | **SHDR** | The fouling-vs-aging discriminator; a property of the window and the emitter |
 | `seq`, `synced_upto`, `retired_upto` | Map 3 store | **Device-internal. Never uploaded in any form** | §8.2 |
 | `detail_lost` flag (§6.3) | Map 3 store | **SHDR** | A storage-condition boolean with no magnitude |
-| Map 2 → Map 4 divergence | Reconciliation (§6.5) | **SHDR as a boolean only** | Magnitude is a join key, `NP-MOD-ID-001` §6.3 |
+| Map 2 → Map 4 divergence | Reconciliation (§6.5) | **SHDR as a boolean only** | Magnitude is a join key, `NP-MOD-ID-001` §6.3. *(Rev 7: computed against the expectation that excludes interrupted sessions, §6.5.1, D-29)* |
+| `NP_MAP3_FAULT_UNSEATED_AT_CLOSE` *(Rev 7)* | Map 3 `fault_flags` bit 0, mirrored in Map 2 | **Device- and app-internal. Never uploaded in any form** | A count of mid-session extractions records how the wearer handles the helmet (compare `NP-FW-EMMC-002` `OI-EMMC2-08`). It is used only to compute the divergence boolean above (§6.5.1, D-29) |
 | Anything else | — | **Not stored here at all** | §3.2's custody rule: Config's key is NeurOne-derivable |
 
 ### 8.2 The finding this section exists for: a delta is a timestamped count once anyone can date its ends
@@ -1337,6 +1433,8 @@ are decisions, and no amount of firmware work substitutes for either.
 | **D-25** *(Rev 3)* | **The Map 3 row describes itself: §3.3.1.5's two padding bytes are `len` and `ver`, and the reader steps by `len`.** Version 1 stays exactly 32 B. A later version appends before the CRC; offsets [2, 28) are fixed for ever, and `reserved` is never reused. The reader accepts any `ver ≥ 1` and skips a tail it does not know. This is what makes §7.2's rule enforceable, and `np_map3_record_tests` enforces it (`OI-NVRAM-08`) |
 | **D-26** *(Rev 3)* | **Map 2's code carries `Map2` as a word in the name of every file, type and module that holds it.** `check-map2-shdr-boundary.ts` clause A finds Map 2 by that name and cannot find it otherwise (`OI-NVRAM-09`, §8.3.1) |
 | **D-27** *(Rev 3, principal 2026-09-26)* | **A factory reset keeps durable evidence that it started, in the Config partition it erases last (§3.4.1 option A).** Written at R-3 before any erase, and a reset that cannot write it does not start. At boot, the SNVS flag, the marker **or a Config with no filesystem** completes the reset from R-5. An unreadable Config does not. Accepted consequence: a Config lost for any other reason also resets the device and mints a new warranty token (`OI-NVRAM-05`) |
+| **D-28** *(Rev 7)* | **Every per-session value `NP-MOD-ID-001` §7.2 admits is accumulated by the hub while the session runs, never read from `U1` once at session end and never computed as a difference of Map 4 reads.** Map 4 has no socket field and loses the session an extraction interrupts, so any other source drops those sessions from §7.4's exposure covariate, possibly not at random. With this rule the Map 4 loss reaches §7.4's model only through the carried-in baseline, within MODID-6's 250-session rounding. No polling interval is set (`OI-NVRAM-06`, §6.5.1) |
+| **D-29** *(Rev 7)* | **A session interrupted by extraction is a benign Map 4 shortfall, not a §6.5 anomaly.** The hub sets Map 3 `fault_flags` bit 0 (`NP_MAP3_FAULT_UNSEATED_AT_CLOSE`) on a row it closes after the module has stopped answering on its socket. Map 4 is compared against the carried-in baseline plus unflagged rows only, counting a session once per ordinal. Only a shortfall below that is an anomaly. The difference is never written into Map 4, and the flag is never uploaded (§6.5.1, §8.1) |
 
 ---
 
@@ -1369,7 +1467,7 @@ Scales per `NP-RM-001` §4. Status: **MITIGATED** (controls in place, residual a
 | **OI-NVRAM-03** | **DECIDED at Rev 2 (D-23) — widen, do not forbid**, as Rev 1 predicted. The write is correct and the specification predates the hex-tile architecture. Carried in `ECR-EMMC-001` with `OI-NVRAM-01`; the decision no longer waits on anything | Quality | Documentation consistency |
 | ~~**OI-NVRAM-04**~~ | ✅ **CLOSED 2026-09-27 (Rev 6, #444). Re-homed, not dimensioned.** Nothing in this document requires the pre-break window's duration. The hub loses no power on extraction, the tile cannot observe `SEAT#`, and the I2C command path breaks with the tile's supply at the end of the window, so even a dimensioned window supports no write (§4.3.1). D-8 stands on its own. No extraction velocity is assumed. The stagger dimension *is* required by `NP-HW-HEXTILE-001` §7.3's mating order and `SEAT#`-last guarantee, and it is raised there as **`OI-HEXTILE-28`**. Original text: ~~The pad-length stagger between contact group 3 and `SEAT#` is not dimensioned, and no extraction-velocity assumption is stated, so the pre-break warning window has no duration. §4.3 designs around its absence; any future use of `SEAT#` as a timing signal needs this number~~ | — (closed; continues as `OI-HEXTILE-28`) | — |
 | ~~**OI-NVRAM-05**~~ | ✅ **CLOSED 2026-09-26 (Rev 3, #444; option A chosen by the principal, D-27).** Every comment and clause that called either flag a power-loss flag says warm-reset only. The anonymisation half needs nothing more. The factory-reset half is fixed by a durable Config marker written before the first erase, and by `np_factory_reset_boot_check()`, which completes the reset on the flag, the marker or a Config with no filesystem, and never on an unreadable one. `np_cfg_store_mount()` now tells those last two apart. Tested by a power cut at every step, with a flag-only mutant failing, and by a power-loss sweep of the marker write (§3.4.1). **Continues as `OI-NVRAM-17`** (the bring-up call site) | — (closed) | — (`NP-MOD-ID-001` §10's rotation test is unblocked by design; it still needs a runnable image) |
-| **OI-NVRAM-06** | Map 4's one-write-per-session-end cadence means **a session interrupted by tile extraction contributes nothing to that tile's odometer**. Quantify whether that matters for `NP-MOD-ID-001` §7.4's model, or accept and document it | FW | Odometer fidelity |
+| ~~**OI-NVRAM-06**~~ | ✅ **CLOSED 2026-09-27 (Rev 7, #444, §6.5.1).** **Quantified, accepted and documented.** Each extraction loses at most one session's contribution from Map 4, so Map 4 is a lower bound that never goes backwards. The loss **does not reach `NP-MOD-ID-001` §7.4's model**, because Map 4 has no socket field and the model's per-socket exposure is the hub's, which **D-28** now requires. Map 4 enters the model only through a carried-in baseline, which MODID-6 already rounds down by up to 249 sessions. The shortfall *would* have raised §6.5's anomaly flag on ordinary handling, so **D-29** marks the interrupted row (`NP_MAP3_FAULT_UNSEATED_AT_CLOSE`) and excludes it from the comparison. The mate-cycle gap it found continues as `OI-NVRAM-18`. Original text: ~~Map 4's one-write-per-session-end cadence means **a session interrupted by tile extraction contributes nothing to that tile's odometer**. Quantify whether that matters for `NP-MOD-ID-001` §7.4's model, or accept and document it~~ | — (closed) | — |
 | **OI-NVRAM-07** | Map 3's ordinal indexing gives predictive maintenance a trajectory with unknown, non-uniform spacing in time. This is `OI-EMMC2-13`'s general defect acquiring another instance; recorded so the review gate does not discover it | FW + Data | `NP-MOD-ID-001` §7.4 review gate |
 | ~~**OI-NVRAM-08**~~ | ✅ **CLOSED 2026-09-26 (Rev 3, #444).** Written as `np_map3_record_tests` over the new `np_map3_record` codec (§7.2.1, D-25). It is falsified in both directions: it passes the production scan and fails four rule-breaking readers, each of which is shown correct on a pure-v1 journal. It surfaced `OI-NVRAM-16`. ~~Write and falsify the CI check that a journal written under version *n* loses no record when read under *n+1*~~ | — (closed) | — |
 | ~~**OI-NVRAM-09**~~ | ✅ **CLOSED 2026-09-26 (Rev 3, #444).** Written as `scripts/check-map2-shdr-boundary.ts` and run by `tooling-ci.yml` `map2-shdr-boundary` (§8.3.1). It depends on D-26's naming rule, and it is falsified in both directions by a hermetic self-test and by hand against the real tree. Its reach is stated: per file, and by name. ~~Write and falsify the CI check that no code path reads Map 2 and writes SHDR, and that no SHDR column or upload field names a sync boundary or a per-window delta~~ | — (closed) | — |
@@ -1381,6 +1479,7 @@ Scales per `NP-RM-001` §4. Status: **MITIGATED** (controls in place, residual a
 | **OI-NVRAM-15** | `NP-MOD-ID-001` is **DRAFT**, *"pending principal approval and the two BLOCKING open items in §9"*. This document builds on MODID-4/5/6 as though settled. If the odometer, the ref derivation or the coarsening rule changes, §6 and §8 change with them | Principal | This document's §6 and §8 |
 | ~~**OI-NVRAM-16**~~ | ✅ **CLOSED 2026-09-27 (Rev 5, #444).** `np_cfg_store_journal_read_rows()` steps by the length a caller-supplied check returns, and `np_map3_row_len()` is Map 3's check, the same row test `np_map3_scan()` makes. `np_cfg_store_tests` case 9 reads a journal of v1 rows with a 40-byte v2 row among them back whole through the real store. The fixed-length reader on the same file must lose rows, and a reader clamped to 32 bytes fails the case. `check-lfs-caller-rules.ts` R5 governs both readers (§7.2.1). ~~**`np_cfg_store_journal_read()` cannot read a journal whose rows differ in length.** It takes one fixed `rec_len` and runs the per-record check on each `rec_len`-byte slice. D-24 budgets a future 40-byte row and D-25 makes the row self-describing, but the first version that grows the row would have every v1 row after the first read back misaligned through the store. **Before any Map 3 version grows the row, either the store gains a variable-length journal read that steps by a caller-supplied length, or rule 2's converter rewrites the file.** `check-lfs-caller-rules.ts` R5 governs who may call the reader, and a new read path must be added under it. Not a defect at version 1, where every row is 32 B~~ | — (closed) | — |
 | **OI-NVRAM-17** | *(Rev 3)* **`np_factory_reset_boot_check()` has no call site.** Bring-up does not mount Config, because no block device is bound (#340). When it does, `np_hub_control_app_main()` must call the boot check **before `np_log_backend_init()`**, the first step that touches UHDR or SHDR. It must refuse to mount either on `RESUME_FAILED` or `UNKNOWN`. `scripts/check-hub-bringup-order.ts` should gain that ordering constraint in the same change. Until then, a power-cut reset is detected by code that nothing runs | FW | Option A in force on a device |
+| **OI-NVRAM-18** | *(Rev 7)* **`mate_cycles_observed` has no specified increment point.** `NP-MOD-ID-001` §5.2 carries the field, and §5.3's cadence writes Map 4 only at session end. A module seated and removed without a completed session therefore never records that mate, and that insert-and-remove handling is what the ≥500-cycle contact rating counts. Not an input to §7.4's model, so outside `OI-NVRAM-06`. Resolve in `NP-MOD-ID-001` §5.3, which this document does not re-open (§1). One candidate is a `U1` write on power-up after mating, which the four-slot rotation already protects against extraction. Not decided here | FW | Module firmware (`NP-HW-HEXTILE-001` `OI-HEXTILE-07`) |
 
 ---
 
@@ -1494,3 +1593,4 @@ factory-reset correctness question rather than a storage-layer one, and Rev 2 do
 | 4 | 2026-09-27 | NeurOne Firmware Engineering | **R-3 reads the factory-reset marker back before the first erase (§3.4.1, D-27 unchanged).** From `NP-SOUP-LFS-001` §13.18 (`OI-LFS-13`): a Config write the store acknowledged can still be rolled back, and R-5's UHDR purge was the one step that acted on the marker's acknowledgement. `np_factory_reset_execute()` now calls `np_factory_reset_hal_marker_state()` after the write and starts only on `PRESENT`; anything else returns `NP_RESET_ERR_MARKER` with nothing erased. Tested and falsified in `np_factory_reset_tests` (a host medium that does not keep an acknowledged write) and `np_cfg_store_tests` (the real store, medium rolled back after the write). SW-02 code changed: `np_factory_reset.c`, its test HAL and tests, and `np_cfg_store_tests.c`. No SW-01 file changed. `NP-FW-EMMC-002` Rev 5 carries the step. Rev 3 → 4. |
 | 5 | 2026-09-27 | NeurOne Firmware Engineering | **`OI-NVRAM-16` CLOSED (GitHub #444, §7.2.1).** `np_cfg_store` gains `np_cfg_store_journal_read_rows()`, a tail-additive journal reader that steps by the length a caller-supplied check returns (`np_cfg_record_step_fn`) and ends the valid prefix on 0 or on a length past the end. `np_map3_record` gains `np_map3_row_len()`, which factors out the single-row test `np_map3_scan()` already made, so the scan and the store step share one rule. `np_cfg_store_tests` case 9 appends a 40-byte v2 row among v1 rows through the real store and reads all ten back. It is falsified in both directions: the fixed-length reader on the same file must lose rows, and a reader clamped to 32 bytes fails five assertions. `scripts/check-lfs-caller-rules.ts` R5 matches both reader names, and its self-test grows to 31 cases. `RISK-NVRAM-01`'s residual is removed. SW-02 code changed: `np_cfg_store.{h,c}`, `np_map3_record.{h,c}` (a refactor of the scan, with behaviour unchanged, as `np_map3_record_tests` shows), `np_cfg_store_tests.c` and its CMake sources. No new ctest target; the executed-line floors of `np_cfg_store_tests` (2,644 → 2,816) and `np_map3_record_tests` (260 → 263) are re-measured in `ci/host-test-floors.txt`. No SW-01 file changed. `OI-NVRAM-04`, `-06`, `-17` and `OI-HEXMAP-01` stay open. Rev 4 → 5. |
 | 6 | 2026-09-27 | NeurOne Firmware Engineering | **`OI-NVRAM-04` CLOSED (GitHub #444, §4.3.1): re-homed, not dimensioned.** Under CLAUDE.md §18, nothing in this document requires the `SEAT#` pre-break window's duration. D-8 does not rest on the number's absence either: the hub loses no power on extraction, so no Map 3 write has a deadline. The tile cannot observe `SEAT#` (`NP-HW-HEXTILE-001` §7.2), and the I2C command path is in contact group 3, whose break ends the window, so no Map 4 write can use a window of any duration. No stagger figure and no extraction velocity is written. The stagger dimension is required by `NP-HW-HEXTILE-001` §7.3's own mating order and `SEAT#`-last guarantee, and no document tracked it, so it is raised there as `OI-HEXTILE-28` (Rev 18), coupled to `NP-DRV-SHELL-002` `OI-SHELL2-12` (#437). New §4.3.1; §4.3 and D-8 annotated. No code changed. `OI-NVRAM-06`, `-07`, `-17` and `OI-HEXMAP-01` stay open. Rev 5 → 6. |
+| 7 | 2026-09-27 | NeurOne Firmware Engineering | **`OI-NVRAM-06` CLOSED (GitHub #444, §6.5.1): quantified, accepted and documented.** A tile pulled mid-session misses its session-end Map 4 write, so each extraction loses at most one session's contribution, and Map 4 becomes a lower bound that never goes backwards. The hub keeps the session (§4.3.1). The loss does not reach `NP-MOD-ID-001` §7.4's model: Map 4 has no socket field, so the model's per-socket exposure is the hub's, and Map 4 enters only through a carried-in baseline that MODID-6 already rounds down by up to 249 sessions. **D-28** makes the condition a rule: §7.2's per-session values are accumulated by the hub during the session, never read from `U1` at session end or differenced from Map 4. **D-29:** the interrupted shortfall would otherwise raise §6.5's *Map 4 < Map 2* anomaly on ordinary handling. So the hub sets Map 3 `fault_flags` bit 0 (`NP_MAP3_FAULT_UNSEATED_AT_CLOSE`, defined in `np_map3_record.h`; the row layout and version are unchanged), and the comparison excludes flagged rows. The flag is never uploaded (§8.1). **`OI-NVRAM-18` raised:** `mate_cycles_observed` has no specified increment point, so a mate without a completed session is never recorded. It is to be resolved in `NP-MOD-ID-001` §5.3. §4.3 and §6.5 annotated. `OI-NVRAM-07`, `-17`, `-18` and `OI-HEXMAP-01` stay open. Rev 6 → 7. |

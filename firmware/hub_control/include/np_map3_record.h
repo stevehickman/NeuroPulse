@@ -89,6 +89,16 @@
 
 #define NP_MAP3_UID_LEN          8U
 
+/*
+ * fault_flags bit 0 (NP-FW-NVRAM-001 Rev 7 §6.5.1, D-29): the hub closed this
+ * row after the module had stopped answering on its socket, so the session
+ * was interrupted by extraction and U1 never made its session-end Map 4
+ * write.  Reconciliation leaves the row out of what Map 4 is expected to
+ * hold, so the shortfall is not reported as an anomaly.  Device- and
+ * app-internal: never uploaded (§8.1).  The other seven bits are unassigned.
+ */
+#define NP_MAP3_FAULT_UNSEATED_AT_CLOSE  0x01U
+
 /* The fields version 1 defines.  A later version adds members after these. */
 typedef struct {
     uint8_t  uid[NP_MAP3_UID_LEN];
