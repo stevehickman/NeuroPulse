@@ -82,12 +82,37 @@ typedef enum {
 np_hub_status_t np_log_backend_init(void);
 
 /*
+ * np_log_backend_refuse — bring the backend up with NEITHER partition usable.
+ * Bring-up calls this INSTEAD of np_log_backend_init() when
+ * np_factory_reset_boot_check() does not permit UHDR or SHDR to be mounted
+ * (NP_FR_BOOT_RESUME_FAILED or NP_FR_BOOT_UNKNOWN — OI-NVRAM-17,
+ * NP-FW-NVRAM-001 §3.4.1).  It opens nothing, and until np_log_backend_init()
+ * is called again every append and flush fails closed and
+ * np_log_backend_session_begin() refuses without touching the medium.  So a
+ * device whose reset may be half done never creates a UHDR session file or
+ * writes SHDR on top of what the reset has not yet erased.
+ */
+void np_log_backend_refuse(void);
+
+/*
+ * np_log_backend_admits_sessions — false after np_log_backend_refuse() until
+ * the next np_log_backend_init(), and also before either has been called.
+ * np_runner_load() refuses every protocol while it is false
+ * (NP_HUB_ERR_BOOT_REFUSED), so a boot that refused UHDR and SHDR runs no
+ * stimulation session at all (OI-NVRAM-19, principal decision 2026-09-28,
+ * option b).  A later log FAULT does not clear it: that is a different
+ * condition, and it keeps its existing behaviour.
+ */
+bool np_log_backend_admits_sessions(void);
+
+/*
  * np_log_backend_session_begin — end any open UHDR session file (flushing its
  * tail into IT, not into the new one) and create the file for
  * `session_counter`.  Clears a UHDR fault left by the previous session.
  * Returns the open error if the file could not be created —
  * NP_HUB_ERR_LOG_EXISTS when it already exists — and UHDR appends then fail
- * until the next session_begin.
+ * until the next session_begin.  After np_log_backend_refuse() it opens
+ * nothing and returns NP_HUB_ERR_STORE_IO.
  */
 np_hub_status_t np_log_backend_session_begin(uint64_t session_counter);
 

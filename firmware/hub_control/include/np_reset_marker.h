@@ -23,10 +23,13 @@
  * np_cfg_store.  np_reset_marker_classify() is the decision itself, separated
  * so it can be tested without a medium.
  *
- * Nothing here is wired into bring-up yet: Config is not mounted at boot until
- * a block device exists to mount (#340).  OI-NVRAM-17 records the call site
- * np_hub_control_app_main() needs — before np_log_backend_init(), which is the
- * first thing to touch UHDR or SHDR.
+ * Bring-up calls np_factory_reset_boot_check() from np_hub_control_app_main()
+ * before anything opens UHDR or SHDR or reads Config, and opens neither log
+ * partition on RESUME_FAILED or UNKNOWN (OI-NVRAM-17, closed 2026-09-28;
+ * scripts/check-hub-bringup-order.ts gates the order).  Until a block device
+ * exists to bind the store (#340), np_cfg_store_mount() returns
+ * NP_HUB_ERR_INVALID_ARG, which classifies as UNKNOWN: every boot refuses
+ * UHDR and SHDR, which is the fail-closed answer, not "no reset was running".
  */
 
 #ifndef NP_RESET_MARKER_H

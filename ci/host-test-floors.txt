@@ -53,10 +53,10 @@ np_chan_decl_tests 209
 np_consumables_tests 346
 np_crypto_tests 700
 np_cvns_fai_tests 309
-np_cvns_fault_summary_tests 405
+np_cvns_fault_summary_tests 443
 np_cvns_reenable_tests 367
 np_edf_tests 349
-np_factory_reset_tests 270
+np_factory_reset_tests 291
 np_freertos_smoke_tests 690
 np_gatt_server_tests 484
 np_hd_fai_tests 878
@@ -64,7 +64,7 @@ np_hrv_session_tests 226
 np_lfs_config_tests 255
 np_lfs_log_instance_tests 2270
 np_lfs_powerloss_tests 1952
-np_log_backend_tests 999
+np_log_backend_tests 1133
 np_map3_record_tests 263
 np_mod_cvns_tests 896
 np_mod_pbm_chlatch_tests 277

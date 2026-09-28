@@ -100,6 +100,16 @@
 void np_cvfs_init(void);
 
 /*
+ * np_cvfs_init_unpersisted — start EMPTY and never touch the UHDR partition:
+ * no np_cvfs_hal_load() now and no np_cvfs_hal_save() from any later poll.
+ * Faults are still recorded, framed and notified from RAM for this boot.
+ * Bring-up calls it instead of np_cvfs_init() when the factory-reset boot check
+ * does not permit UHDR to be mounted (OI-NVRAM-17).  np_cvfs_init() is the only
+ * way back to persisting.
+ */
+void np_cvfs_init_unpersisted(void);
+
+/*
  * np_cvfs_record_fault — a cervical session stopped on `kind`.  Attributed to
  * the current user (0 = unattributed).  `side_mask` is kept for
  * NP_CVNS_FAULT_IMPEDANCE only and forced to 0 otherwise.  NP_CVNS_FAULT_NONE

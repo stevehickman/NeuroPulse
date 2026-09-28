@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 19
-**Date:** 2026-09-27
+**Revision:** 20
+**Date:** 2026-09-28
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
 **Author:** NeurOne Firmware Engineering
@@ -346,20 +346,34 @@ decision and not a detail.
 application startup code **after** clocks, eMMC mount and USB-C PD negotiation are complete. It is
 not an `main()`; it never returns.
 
-Bring-up order is load-bearing, and `REQ-FWHUB-01` binds the four constraints marked **binding**
-below. This is the order the code runs.
+Bring-up order is load-bearing, and `REQ-FWHUB-01` binds the constraints marked **binding**
+below. This is the order the code runs. *(Rev 20: row 3a is new. The table lists the steps the
+constraints name, not every call. `np_session_count_load()`, `np_cvfs_init()`, `np_cons_init()` and
+`np_gatt_init()` run between rows 4 and 6.)*
 
 | # | Call | Note |
 |---|---|---|
 | 1 | `np_safety_spi_init()` | configures SPI3 **and drives `GAIN_SEL[0..4]` LOW** before any probe (`OI-PBM-HW-01` sequencing) — **binding** |
 | 2 | `np_cvns_reenable_init()` | the re-enable manager starts `IDLE` |
 | 3 | `np_transport_init()` | creates the consumer wait primitive before any task can feed it |
-| 4 | `np_log_backend_init()` | opens both partition log files — **binding** |
+| 3a | `np_factory_reset_boot_check()`, read through `np_factory_reset_boot_permits_data()` | completes a factory reset a power loss interrupted (`NP-FW-NVRAM-001` §3.4.1, D-27). Must precede row 4 and every step that reads Config or UHDR, because completing a reset erases them — **binding** (Rev 20, `OI-NVRAM-17`) |
+| 4 | `np_log_backend_init()`, **or** `np_log_backend_refuse()` when row 3a does not permit | opens the SHDR log file (UHDR files are per session); a refusal opens nothing and every UHDR/SHDR write fails closed — **binding** |
 | 5 | `np_log_init(device_session_count)` | reads the SHDR device session count that stamps SHDR records, **and zeroes both log buffers** — **binding** |
 | 6 | `np_mod_reg_init()` | zeroes the registry — **binding** |
 | 7 | `np_mod_reg_scan()` | populates it; the intranasal and cervical VNS drivers write their SHDR auth records from `init()` (Rev 7: the scan's own per-zone-slot callback is removed, `OI-FWHUB-05`) |
 | 8 | `xEventGroupCreate()` then `np_runner_init()` | the runner requires the event group to exist |
 | 9 | five `xTaskCreate()` calls, then `vTaskStartScheduler()` | which does not return |
+
+**Step 3a before everything that touches data** (Rev 20). The SNVS reset flag does not survive a
+power loss, because there is no `VBAT` rail, so a factory reset cut by a power loss is found only
+by the boot check reading Config's durable marker. On `RESUME_FAILED` or `UNKNOWN` the hub opens
+neither UHDR nor SHDR for that boot, and the cervical fault summary is RAM-only
+(`np_cvfs_init_unpersisted()`). Until #340 binds a block device the check always reads `UNKNOWN`,
+so every boot refuses. That is intended and fail-closed. The gate's when-present rule requires
+#340's `np_cfg_store_bind()` to come before the check. **A refused boot admits no session**
+(`NP-FW-NVRAM-001` `OI-NVRAM-19`, principal decision option b). `np_runner_load()` returns
+`NP_HUB_ERR_BOOT_REFUSED` before claiming the lease, and the gate's rule 3 holds that order.
+Until #340, no boot admits a session.
 
 **Step 1 before step 7** is not stylistic. The PBM gain-select lines float at reset; probing a zone
 slot with `GAIN_SEL` undriven reads an indeterminate transimpedance gain, and the detect result is
@@ -1837,7 +1851,7 @@ this line.
 
 | ID | Requirement | Where |
 |---|---|---|
-| `REQ-FWHUB-01` | Bring-up order per §2.1 — all four constraints, including `np_log_init()` before `np_mod_reg_scan()` | `np_hub_control_main.c`; gated by `scripts/check-hub-bringup-order.ts` |
+| `REQ-FWHUB-01` | Bring-up order per §2.1 — every **binding** constraint, including `np_log_init()` before `np_mod_reg_scan()` and (Rev 20) the factory-reset boot check before anything opens UHDR/SHDR or reads Config | `np_hub_control_main.c`; gated by `scripts/check-hub-bringup-order.ts` |
 | `REQ-FWHUB-02` | Heartbeat task holds highest priority and never blocks beyond one heartbeat period | §2.2 |
 | `REQ-FWHUB-03` | Module detection does not probe while a session is running | §2.2; **(Rev 12)** by exclusion, the session lease (`np_session_lease.c`); `np_session_lease_tests` |
 | `REQ-FWHUB-04` | One reassembler, one framing, both transports | `np_transport.c` |
@@ -2077,6 +2091,7 @@ have absorbed.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 20 | 2026-09-28 | NeurOne Firmware Engineering | **The factory-reset boot check gets its bring-up call site (§2.1 row 3a; `NP-FW-NVRAM-001` Rev 9 closes `OI-NVRAM-17`).** `np_hub_control_app_main()` calls `np_factory_reset_boot_check()` before `np_log_backend_init()`, `np_session_count_load()`, `np_cvfs_init()` and `np_cons_init()`. On a result `np_factory_reset_boot_permits_data()` refuses, it calls the new `np_log_backend_refuse()` and `np_cvfs_init_unpersisted()` instead, so neither UHDR nor SHDR is touched that boot, and `np_runner_load()` refuses every protocol with the new `NP_HUB_ERR_BOOT_REFUSED` (`OI-NVRAM-19`, principal: option b). Until #340 binds a block device every boot refuses (fail-closed), so no session runs. `REQ-FWHUB-01` now covers every binding row. `scripts/check-hub-bringup-order.ts`: 10 ordering constraints (was 4) and a when-present rule for #340's `np_cfg_store_bind()`, and rule 3 (`np_runner_load()` checks admission before the lease); self-test 25 cases. New checks in `np_log_backend_tests` and `np_cvns_fault_summary_tests`, and executed-line floors raised. No platform seam added. No SW-01 file changed. |
 | 19 | 2026-09-27 | NeurOne Firmware Engineering | **The HRV session record reaches UHDR (§6.1, §8.4; `NP-FW-HRV-001` Rev 3 closes `OI-HRV-03`).** `vns_hrv_session_end_cb()` discarded the finalised `np_hrv_session_record_t`. It now calls the new `np_log_hrv_session()` (`include/np_log_hrv.h`), which writes UHDR tag `0x1B` (31 bytes, field by field, no padding or `reserved`, no `session_start_unix`) under the logger lock. The record lands in the open session file, which the XTS-mounted UHDR partition encrypts at rest. `np_log_backend_tests` gains seven checks: the layout, UHDR-only routing, order ahead of `SESSION_END`, the loss outside a session (never misfiled into the next), NULL, and the lock. Two test targets gain `../hrv_biofeedback/include`. Host suite 55/55. **Not run:** the ARM cross-build (no toolchain in this environment); `np_mod_vns.c` was syntax-checked on host with `-Werror`. **Found, not fixed:** nothing feeds or ticks the HRV session (`OI-HRV-07`), and the R-R series has no writer (`OI-HRV-06`) |
 | 18 | 2026-09-27 | NeurOne Firmware Engineering | **The goggle Hall cutoff is an interrupt (§8.6, §10.1, §11, §12, §13).** `REQ-FWHUB-21` was listed as met, and `RISK-FWHUB-09` was Accepted, on a GPIO interrupt that did not exist. The only in-session cutoff was the telemetry poll. New platform seam `np_mod_visual_hal_hall_irq_register()` (trap; census 102 → 103). New `np_safety_spi_request_disable_from_isr()`. `np_mod_visual.c` gains the ISR, fail-closed arming (D-42) and a latch that closes the seated-read-to-enable window. The telemetry cut stays as a backstop. `RISK-FWHUB-09` moved to **Open until `OI-FWHUB-26`**, which is raised for the edge source, gated on `OI-BENCH-12`. New host target `np_mod_visual_tests` (Class B 43 → 44, total 54 → 55; `ci/host-test-partition.txt` and both workflows). **Falsified:** the Rev 17 driver fails 8 of 13 checks, and three mutants are each caught. `np_sw02_platform_hal.h`'s split sentence ("64 + 36 = 100" against a constant of 102) is removed. Host suite 54/55; the failure is `np_lfs_log_instance_tests`, which fails identically on unmodified `origin/main` (f21cb11) on this host. **ARM cross-build** (arm-none-eabi-gcc 14.2.1): 0 errors, 0 warnings. The census asserts 103 seams trapped, and `hall_unseated_isr`, `np_safety_spi_request_disable_from_isr` and the seam are all in `np_application.elf` |
 | 17 | 2026-09-27 | NeurOne Firmware Engineering | **Emitting maintenance tests are dock-only; all maintenance data is SHDR (#384; §6.9, §10.1, §11, §13).** The principal dropped Rev 16's head-presence route: the LED-emission test runs only in a dock the hub detects from hardware. The principal also ruled that all maintenance data is SHDR (D-41), which Rev 16 had recorded as pending. It is adopted on three conditions: the dock excludes a head, the hub reads the dock itself, and away from the dock only verdicts are kept. `REQ-FWHUB-49` and D-37 restated; `OI-FWHUB-20` re-scoped; `OI-FWHUB-25` (the dock) raised. No code behaviour changed: the LED test was and stays refused, and the non-emitting tests already keep verdicts only. Comments in `np_pbm_socket_telem.h/.c` and `np_sw02_platform_hal.h` follow |

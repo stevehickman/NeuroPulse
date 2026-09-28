@@ -34,12 +34,22 @@ typedef struct {
 static log_part_state_t s_uhdr;
 static log_part_state_t s_shdr;
 
+/* Set by np_log_backend_refuse(), cleared only by np_log_backend_init():
+ * the boot check did not permit UHDR or SHDR to be mounted (OI-NVRAM-17). */
+static bool s_refused;
+
+/* Set only by np_log_backend_init(): false at reset, so nothing is admitted
+ * before bring-up has decided (OI-NVRAM-19). */
+static bool s_admits_sessions;
+
 /* ── Init ─────────────────────────────────────────────────────────────────────── */
 
 np_hub_status_t np_log_backend_init(void)
 {
     memset(&s_uhdr, 0, sizeof s_uhdr);
     memset(&s_shdr, 0, sizeof s_shdr);
+    s_refused   = false;
+    s_admits_sessions = true;
     s_uhdr.part = NP_LOG_PART_UHDR;
     s_shdr.part = NP_LOG_PART_SHDR;
     s_uhdr.capacity_bytes = (uint64_t)NP_UHDR_SIZE_LBA * (uint64_t)NP_EMMC_SECTOR_SIZE;
@@ -52,6 +62,26 @@ np_hub_status_t np_log_backend_init(void)
     np_hub_status_t rc_s = np_log_hal_part_open(NP_LOG_PART_SHDR, 0U);
     if (rc_s == NP_HUB_OK) { s_shdr.opened = true; } else { s_shdr.faulted = true; }
     return rc_s;
+}
+
+void np_log_backend_refuse(void)
+{
+    memset(&s_uhdr, 0, sizeof s_uhdr);
+    memset(&s_shdr, 0, sizeof s_shdr);
+    s_uhdr.part    = NP_LOG_PART_UHDR;
+    s_shdr.part    = NP_LOG_PART_SHDR;
+    /* Faulted and never opened: append() and flush() already fail closed on
+     * that state.  session_begin is the one path that would open a file, so it
+     * checks s_refused itself. */
+    s_uhdr.faulted = true;
+    s_shdr.faulted = true;
+    s_refused      = true;
+    s_admits_sessions = false;
+}
+
+bool np_log_backend_admits_sessions(void)
+{
+    return s_admits_sessions;
 }
 
 /* ── Internal write path ──────────────────────────────────────────────────────── */
@@ -188,6 +218,12 @@ np_hub_status_t np_log_backend_session_begin(uint64_t session_counter)
      * reading it as "the new session failed" would refuse a session whose file
      * opened correctly. */
     (void)np_log_backend_session_end();
+
+    if (s_refused) {
+        /* OI-NVRAM-17: the boot check did not permit UHDR to be mounted.
+         * Never open a session file, and never clear the fault. */
+        return NP_HUB_ERR_STORE_IO;
+    }
 
     st->faulted       = false;     /* a new file: the previous one's fault does
                                     * not carry over */

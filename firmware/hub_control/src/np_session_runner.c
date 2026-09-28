@@ -27,6 +27,7 @@
 #include "np_chan_decl.h"
 #include "np_stim_xcheck.h"
 #include "np_session_log.h"
+#include "np_log_backend.h"   /* OI-NVRAM-19: np_log_backend_admits_sessions() */
 #include "np_safety_spi.h"
 #include "np_cvns_reenable.h"
 #include "np_cvns_config.h"       /* NP_CVNS_STIM_TICK_MS */
@@ -303,6 +304,16 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
 {
     if (proto_buf == NULL || proto_len == 0U) {
         return NP_HUB_ERR_INVALID_ARG;
+    }
+    /* OI-NVRAM-19 (principal decision 2026-09-28, option b): a boot whose
+     * factory-reset check refused UHDR and SHDR (RESUME_FAILED or UNKNOWN)
+     * runs no session, because a session is never run without its records.
+     * First, before the lease or the descriptor is touched, so a refused boot
+     * leaves no state behind.  Until #340 binds a block device this refuses
+     * every protocol on every boot — intended: bring-up fails loudly on a
+     * broken Config binding instead of stimulating unlogged. */
+    if (!np_log_backend_admits_sessions()) {
+        return NP_HUB_ERR_BOOT_REFUSED;
     }
     /* REQ-FWHUB-03 (OI-FWHUB-17): claim the session lease BEFORE touching the
      * descriptor.  It is held from here until np_runner_run() has set the final

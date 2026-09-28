@@ -73,8 +73,12 @@ static bool cap_equals(np_log_part_t part, const uint8_t *expect, size_t len)
 
 static void test_init_ok(void)
 {
+    /* Runs first in main(), so this is the state at reset (OI-NVRAM-19). */
+    check(!np_log_backend_admits_sessions(),
+          "init: no session is admitted before bring-up has decided");
     np_log_test_reset();
     check(np_log_backend_init() == NP_HUB_OK, "init: opens the SHDR log");
+    check(np_log_backend_admits_sessions(), "init: a permitted boot admits sessions");
     check(np_log_test_open_count(NP_LOG_PART_SHDR) == 1U &&
           np_log_test_open_count(NP_LOG_PART_UHDR) == 0U,
           "init: SHDR opened, UHDR NOT opened at boot (not mounted until unlock)");
@@ -82,6 +86,62 @@ static void test_init_ok(void)
           "init: UHDR starts empty");
     check(np_log_test_captured_len(NP_LOG_PART_SHDR) == 0U,
           "init: SHDR starts empty");
+}
+
+/* OI-NVRAM-17: when the factory-reset boot check does not permit UHDR or SHDR
+ * to be mounted, bring-up calls np_log_backend_refuse() instead of init.
+ * Nothing is opened, nothing is written, and a session cannot open a UHDR
+ * file — until np_log_backend_init() is called again. */
+static void test_refuse_opens_nothing(void)
+{
+    const uint8_t rec[] = { 0x10, 0x20, 0x30 };
+
+    (void)np_log_backend_init();       /* a refusal must override a prior init */
+    np_log_test_reset();
+    np_log_backend_refuse();
+    check(!np_log_backend_admits_sessions(),
+          "refuse: no stimulation session is admitted (OI-NVRAM-19, option b)");
+    check(np_log_test_open_count(NP_LOG_PART_SHDR) == 0U &&
+          np_log_test_open_count(NP_LOG_PART_UHDR) == 0U,
+          "refuse: neither partition's log file is opened");
+    check(np_log_backend_session_begin(1U) == NP_HUB_ERR_STORE_IO &&
+          np_log_test_open_count(NP_LOG_PART_UHDR) == 0U,
+          "refuse: session_begin opens no UHDR file");
+    check(np_log_hal_uhdr_append(rec, sizeof rec) != NP_HUB_OK &&
+          np_log_hal_shdr_append(rec, sizeof rec) != NP_HUB_OK,
+          "refuse: UHDR and SHDR appends fail closed");
+    check(np_log_hal_uhdr_flush() != NP_HUB_OK &&
+          np_log_hal_shdr_flush() != NP_HUB_OK,
+          "refuse: UHDR and SHDR flushes fail closed");
+    check(np_log_backend_session_end() == NP_HUB_OK,
+          "refuse: session_end with nothing open is harmless");
+    check(np_log_test_captured_len(NP_LOG_PART_UHDR) == 0U &&
+          np_log_test_captured_len(NP_LOG_PART_SHDR) == 0U &&
+          np_log_test_sync_count(NP_LOG_PART_UHDR) == 0U &&
+          np_log_test_sync_count(NP_LOG_PART_SHDR) == 0U,
+          "refuse: nothing reaches either partition");
+
+    /* The logger on top: a session start writes nothing to either. */
+    np_session_uhdr_record_t urec;
+    np_session_shdr_record_t srec;
+    memset(&urec, 0, sizeof urec);
+    memset(&srec, 0, sizeof srec);
+    np_log_init(0U);
+    np_log_session_start(&urec);
+    np_log_flush();
+    np_log_session_end(&urec, &srec);
+    check(np_log_test_open_count(NP_LOG_PART_UHDR) == 0U &&
+          np_log_test_captured_len(NP_LOG_PART_UHDR) == 0U &&
+          np_log_test_captured_len(NP_LOG_PART_SHDR) == 0U,
+          "refuse: a whole session through the logger writes nothing");
+
+    /* init is the only way back, and it clears the refusal. */
+    np_log_test_reset();
+    check(np_log_backend_init() == NP_HUB_OK &&
+          np_log_backend_session_begin(2U) == NP_HUB_OK,
+          "refuse: a later init clears the refusal");
+    check(np_log_backend_admits_sessions(), "refuse: and admits sessions again");
+    (void)np_log_backend_session_end();
 }
 
 static void test_append_flush_roundtrip(void)
@@ -192,6 +252,8 @@ static void test_write_failure_latches_fault(void)
     /* SHDR is unaffected by a UHDR fault. */
     check(np_log_hal_shdr_append(&one, 1U) == NP_HUB_OK,
           "fault: SHDR unaffected by UHDR fault");
+    check(np_log_backend_admits_sessions(),
+          "fault: a log fault is not a boot refusal (OI-NVRAM-19 scope)");
 }
 
 static void test_capacity_full(void)
@@ -1063,6 +1125,7 @@ int main(void)
     printf("── np_log_backend_tests (OI-LOG-01..04) ──\n");
 
     test_init_ok();
+    test_refuse_opens_nothing();
     test_append_flush_roundtrip();
     test_coalesce_small_appends();
     test_large_append_passthrough();

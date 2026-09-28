@@ -23,6 +23,10 @@ static uint8_t         s_count;
 static uint32_t        s_user;
 static bool            s_dirty;
 
+/* False after np_cvfs_init_unpersisted(): the boot check refused UHDR
+ * (OI-NVRAM-17), so nothing is loaded from or saved to it this boot. */
+static bool            s_persist;
+
 /* Owned by the poll task only (the heartbeat). */
 static uint8_t s_frame[NP_CVFS_FRAME_MAX];
 static size_t  s_frame_len;
@@ -99,6 +103,7 @@ void np_cvfs_init(void)
     np_transport_hal_exit_critical();
     s_frame_len = 0u;
     s_published = false;
+    s_persist   = true;
 
     if ((np_cvfs_hal_load(blob, sizeof blob, &len) != NP_HUB_OK) || (len < 10u)) {
         return;   /* nothing stored, or unreadable: start empty */
@@ -239,6 +244,18 @@ np_hub_status_t np_cvfs_build_frame(uint8_t  reenable_state,
     return NP_HUB_OK;
 }
 
+void np_cvfs_init_unpersisted(void)
+{
+    np_transport_hal_enter_critical();
+    s_count = 0u;
+    s_user  = NP_SAFETY_USER_UNSPECIFIED;
+    s_dirty = false;
+    np_transport_hal_exit_critical();
+    s_frame_len = 0u;
+    s_published = false;
+    s_persist   = false;
+}
+
 void np_cvfs_poll(uint8_t reenable_state, bool nv_valid, uint8_t nv_flags)
 {
     uint8_t frame[NP_CVFS_FRAME_MAX];
@@ -249,7 +266,7 @@ void np_cvfs_poll(uint8_t reenable_state, bool nv_valid, uint8_t nv_flags)
     dirty = s_dirty;
     np_transport_hal_exit_critical();
 
-    if (dirty) {
+    if (dirty && s_persist) {
         uint8_t         blob[NP_CVFS_BLOB_MAX];
         np_cvfs_entry_t snap[NP_CVFS_STORE_RECORDS];
         uint8_t         n;

@@ -106,6 +106,16 @@ bool np_factory_reset_is_in_progress(void);
 np_fr_boot_t np_factory_reset_boot_check(void);
 
 /*
+ * Whether a boot-check result permits UHDR and SHDR to be mounted
+ * (OI-NVRAM-17).  true for NP_FR_BOOT_NONE and NP_FR_BOOT_RESUMED only; false
+ * for NP_FR_BOOT_RESUME_FAILED, NP_FR_BOOT_UNKNOWN and any value outside the
+ * enum.  Bring-up opens the log partitions only when this is true, and
+ * otherwise calls np_log_backend_refuse().  The one place the rule is written,
+ * so a new outcome added to np_fr_boot_t is refused until someone decides it.
+ */
+bool np_factory_reset_boot_permits_data(np_fr_boot_t boot);
+
+/*
  * Resume an interrupted factory reset.  Called by the bootloader when
  * np_factory_reset_is_in_progress() is true, which means a warm reset
  * interrupted it.  A power loss is np_factory_reset_boot_check()'s case, which

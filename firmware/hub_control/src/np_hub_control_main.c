@@ -63,6 +63,7 @@
 #include "np_cvns_fault_summary.h"
 #include "np_gatt_server.h"     /* OI-WA-03: BLE GATT service */
 #include "np_consumables.h"     /* OI-ACC-08: CONSUMABLE_STATUS producer */
+#include "np_factory_reset.h"   /* OI-NVRAM-17: interrupted-reset boot check */
 #include "FreeRTOS.h"
 #include "task.h"
 #include "event_groups.h"
@@ -517,7 +518,9 @@ void np_hub_control_app_main(void)
      * s_shdr_pos = 0U and discarded the buffer they had been written into.  Boot-time
      * module authentication therefore never reached SHDR at all.
      *
-     * Two constraints pin the order and neither may be relaxed:
+     * Three constraints pin the order and none may be relaxed:
+     *   - np_factory_reset_boot_check() before anything opens UHDR or SHDR or
+     *     reads Config (OI-NVRAM-17, below).
      *   - np_safety_spi_init() FIRST, before any probe: it drives GAIN_SEL[0..4] LOW
      *     (OI-PBM-HW-01).  Those lines float at reset, and a zone probe with GAIN_SEL
      *     undriven reads an indeterminate transimpedance gain -- the detect result
@@ -525,17 +528,40 @@ void np_hub_control_app_main(void)
      *   - np_log_init() BEFORE np_mod_reg_scan(), so the records written during
      *     the scan carry the true session count and survive into the SHDR buffer.
      *
-     * scripts/check-hub-bringup-order.ts gates both against this function.
+     * scripts/check-hub-bringup-order.ts gates all three against this function.
      */
     np_safety_spi_init();
     np_cvns_reenable_init();   /* OI-CVNS-HUB-01: re-enable manager starts IDLE */
     np_transport_init();       /* OI-HUB-MAIN-01: protocol mailbox + wait primitive */
 
+    /* OI-NVRAM-17 (NP-FW-NVRAM-001 §3.4.1, D-27): finish a factory reset that
+     * a power loss interrupted, BEFORE anything touches UHDR, SHDR or Config.
+     * The SNVS flag does not survive a power loss (no VBAT rail), so the check
+     * also reads the durable marker in Config.  It may erase all three data
+     * partitions and write fresh Config defaults, which is why it also precedes
+     * np_session_count_load() and np_cons_init(): both would otherwise read the
+     * previous owner's Config.
+     *
+     * RESUME_FAILED or UNKNOWN means the reset may be half done, or that Config
+     * cannot say.  Neither UHDR nor SHDR is then opened for this boot:
+     * np_log_backend_refuse() opens nothing and makes session_begin refuse, and
+     * the UHDR-backed cervical fault summary is neither loaded nor saved (it
+     * starts empty and stays in RAM), and np_runner_load() admits no session
+     * (OI-NVRAM-19, option b).  The next boot retries.  Until a block
+     * device is bound (#340) np_cfg_store_mount() cannot succeed, so every boot
+     * takes the UNKNOWN branch — fail closed, never "no reset was running". */
+    const bool data_permitted =
+        np_factory_reset_boot_permits_data(np_factory_reset_boot_check());
+
     /* OI-LOG-01..04: open the UHDR/SHDR log files on the mounted partitions
      * before the session logger writes any record.  The first such records are
      * the accessory auth results written during np_mod_reg_scan() below -- which
      * is why this pair precedes the scan rather than following it. */
-    (void)np_log_backend_init();
+    if (data_permitted) {
+        (void)np_log_backend_init();
+    } else {
+        np_log_backend_refuse();
+    }
 
     /* OI-LFS-12: the device session count lives in the Config partition
      * (EMMC-SHDR-09), persisted by np_session_count through np_cfg_store.  An
@@ -550,8 +576,14 @@ void np_hub_control_app_main(void)
 
     /* NP-SW-FAULTMSG-001 §9.6: reload the cervical offline-fault summary and
      * the last-named user from the UHDR partition, which the backend has just
-     * opened.  Before the heartbeat task starts polling it. */
-    np_cvfs_init();
+     * opened.  Before the heartbeat task starts polling it.  When the boot
+     * check refused UHDR (OI-NVRAM-17) the summary starts empty and lives in
+     * RAM only: nothing is loaded from UHDR and no poll saves to it. */
+    if (data_permitted) {
+        np_cvfs_init();
+    } else {
+        np_cvfs_init_unpersisted();
+    }
 
     /* OI-ACC-08 (#381): load the consumable session counts from Config before
      * the GATT service can be read and before any session can end. */
