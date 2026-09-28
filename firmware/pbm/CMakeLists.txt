@@ -23,7 +23,9 @@ project(np_pbm C)
 # Build with -DNP_BUILD_TESTS=ON from the firmware super-project.
 # Exercises the session descriptor v5 wire format (NP-SES-1064-001 §1): pure C,
 # no FreeRTOS dependency, HAL calls are the deterministic stubs in
-# src/np_pbm_hal.c.
+# src/np_pbm_hal.c.  That file is a HOST-TEST DOUBLE and is linked only here
+# and into np_pbm_cal_bridge_tests (firmware/hub_control/CMakeLists.txt) — it
+# is deliberately absent from PBM1064_SOURCES below.
 option(NP_BUILD_TESTS "Build host-native unit tests (no ARM toolchain needed)" OFF)
 
 if(NP_BUILD_TESTS)
@@ -53,13 +55,21 @@ if(NOT CMAKE_CROSSCOMPILING)
 endif()
 
 # ── Sources ────────────────────────────────────────────────────────────────────
+# src/np_pbm_hal.c is NOT here, and must not come back (NP-SW-CI-001 §4.8.7).
+# It is the host-test double: its I2C seams serve a RAM register file, its probe
+# ACKs socket 0, its safety-MCU enable returns NP_PBM_OK.  Until 2026-09-28 it
+# was in this list, so np_application (which links np_pbm --whole-archive)
+# resolved every np_pbm_hal_* symbol to a plausible answer instead of a driver
+# or a trap.  On target those symbols are owed by the SW-02 platform layer:
+# firmware/platform/src/np_platform_stub.c defines each as a trap, and the
+# platform census (NP_SW02_PLATFORM_SYMBOL_COUNT) counts them.  Adding the file
+# back would fail the link on eighteen duplicate definitions.
 set(PBM1064_SOURCES
     src/np_pbm_detect.c
     src/np_pbm_drive.c
     src/np_pbm_dose.c
     src/np_pbm_session.c
     src/np_pbm_t2_combined.c
-    src/np_pbm_hal.c
     src/np_pbm_fai.c
 )
 

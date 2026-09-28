@@ -33,6 +33,14 @@ if(NOT NP_PLATFORM_HAL_HEADER MATCHES
         "np_sw02_platform_hal.h does not define NP_SW02_PLATFORM_SYMBOL_COUNT")
 endif()
 set(NP_SW02_PLATFORM_SYMBOL_COUNT ${CMAKE_MATCH_1})
+# The value above is read at CONFIGURE time, so the header must be a configure
+# dependency.  Without this line an incremental build keeps asserting whatever
+# the header said when CMake last ran: editing the constant alone did not re-run
+# configure, and the census compared the trap count against a stale EXPECTED —
+# measured 2026-09-28 (NP-SW-CI-001 §4.8.7), failing at 118 against a header that
+# said 119, and passing, by the same mechanism, a constant nobody had checked.
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+             ${CMAKE_CURRENT_SOURCE_DIR}/include/np_sw02_platform_hal.h)
 
 set(NP_PLATFORM_INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/include
