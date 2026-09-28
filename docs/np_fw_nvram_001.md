@@ -2,20 +2,36 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-NVRAM-001
-**Revision:** 7
-**Date:** 2026-09-27
-**Status:** DESIGN STUDY — not a release baseline. Every behaviour below is a proposed engineering commitment traced to a cited source. **No new part is proposed.** Rev 7 closes `OI-NVRAM-06`: the session an extraction interrupts is lost from Map 4 and not from the hub, so §7.4's model is unaffected if its exposure is hub-sourced (D-28), and §6.5 stops flagging that shortfall as a fault (D-29, §6.5.1). Rev 6 closes `OI-NVRAM-04`: nothing in this document needs the `SEAT#` pre-break window's duration, and the stagger dimension moves to the document whose own mechanism needs it (§4.3.1). Rev 5 gives the Config store a journal reader that steps by each row's own length, closing `OI-NVRAM-16` (§7.2.1). Rev 4 makes R-3 read its marker back before the first erase (§3.4.1). Rev 3 writes and falsifies the two CI checks §7.2 and §8.3 asked for, and corrects every claim that an SNVS flag survives power loss. Rev 2 resolves the store defects Rev 1 found (§3.3.1) so Map 3 can be built at all. See §11 (Decisions), §13 (Open items).
+**Revision:** 8
+**Date:** 2026-09-28
+**Status:** DESIGN STUDY — not a release baseline. Every behaviour below is a proposed engineering commitment traced to a cited source. **No new part is proposed.** Rev 8 closes `OI-NVRAM-07`: the trajectory's axes are use, not time, SHDR already carries month-granular calendar age per module, and only sub-month cadence is missing, which no modelled mechanism needs; §7.4's fit must carry presence and calendar age beside exposure (D-30, §5.3.1). Rev 7 closes `OI-NVRAM-06`: the session an extraction interrupts is lost from Map 4 and not from the hub, so §7.4's model is unaffected if its exposure is hub-sourced (D-28), and §6.5 stops flagging that shortfall as a fault (D-29, §6.5.1). Rev 6 closes `OI-NVRAM-04`: nothing in this document needs the `SEAT#` pre-break window's duration, and the stagger dimension moves to the document whose own mechanism needs it (§4.3.1). Rev 5 gives the Config store a journal reader that steps by each row's own length, closing `OI-NVRAM-16` (§7.2.1). Rev 4 makes R-3 read its marker back before the first erase (§3.4.1). Rev 3 writes and falsifies the two CI checks §7.2 and §8.3 asked for, and corrects every claim that an SNVS flag survives power loss. Rev 2 resolves the store defects Rev 1 found (§3.3.1) so Map 3 can be built at all. See §11 (Decisions), §13 (Open items).
 **Effective Date:** —
 **Author:** NeurOne Firmware + Data Architecture
 **Approved By:** — (pending design review)
 **References:** CLAUDE.md §4 (processor stack, safety architecture, power), §5 (UHDR/SHDR), §6 (consent subjects); `NP-FW-EMMC-001` Rev 2 §4 (partition layout), §5.2 (LittleFS instance parameters), §9 (Config/Calibration partition), §12 (session data classification), §14 (write-endurance monitoring), §16 (processor ownership); `NP-FW-EMMC-002` Rev 2 §A (warranty token), §B.2 (factory reset R-7), §C.3 (Config UKMD record), §G.2 (record-denominated windows), §H.3.1–H.3.2 (no wall clock); `NP-MOD-ID-001` Rev 1 §4 (`module_ref`), §5 (on-module odometer, MODID-4), §6 (history portability, MODID-5/6), §7.5.1.1 (the two absences), §9 (open items); `NP-HW-HEXTILE-001` Rev 8 §6.2 (U1 on-module MCU), §6.4 (driver + metering BOM), §7.2–7.3 (19-position socket, `SEAT#`, contact sequencing); `NP-DRV-SHELL-002` Rev 4 §5.1.4 (UID EEPROM deleted), §6 (`SAFE_EN[n]`), §10.1 (interconnect BOM); `NP-HEX-ZM-001` Rev 3 §4a (SMART-1, `check_placement`), §5.4a (cluster clamp); `NP-COST-001` Rev 2 §6 (OI-HEXTILE-06 options); `NP-NPPS-REF-001` Rev 14 §1.6 (no build-time cache of protocol content); `NP-SW-001` Rev 3 §3.2 (Class B rationale for SW-02), §5.2 (SW-02 module inventory), §9.4 (SOUP); `NP-CONV-001` Rev 6 §4, §6, §8; `firmware/hub_control/include/np_module_map.h`; `firmware/hub_control/src/np_module_map.c`; `firmware/bootloader/include/np_config.h`; `firmware/hub_control/include/np_log_backend.h`; **added at Rev 2:** `NP-SOUP-LFS-001` Rev 1 (LittleFS SOUP record + hazard analysis), `NP-FW-HUB-001` Rev 1 §6.5 (log durability model), `NP-CONV-001` Rev 6 §7 (how a document revises its own position)
-**Related Issues:** #339 (`OI-NVRAM-01`, `-02`, `-03`, `-12`, `-13`); #444 (`OI-NVRAM-04`, `-05`, `-06`, `-08`, `-09`, `-16`, `-17`, `OI-HEXMAP-01`)
+**Related Issues:** #339 (`OI-NVRAM-01`, `-02`, `-03`, `-12`, `-13`); #443 (`OI-NVRAM-07`); #444 (`OI-NVRAM-04`, `-05`, `-06`, `-08`, `-09`, `-16`, `-17`, `OI-HEXMAP-01`)
 **Gate:** — (no programme gate; this document specifies the resolution of `OI-HEXMAP-01`)
 **IEC 62304 Class:** **SW-02 Class B.** Argued in §9, and the argument turns on the fact that the Class C processor has no electrical path to the store. **No SW-01 source changes and no bit added to any Class C wire format.**
 **Supersedes:** None — new document.
 **Parent Document:** `NP-FW-EMMC-001`
 
 ---
+
+> **⚠ REV 8 (2026-09-28, GitHub #443) — `OI-NVRAM-07` CLOSED: the trajectory lacks cadence, not time, and nothing modelled needs cadence.**
+>
+> §5.3 said an ordinal-indexed trajectory is a weaker predictive-maintenance input than a clock-indexed
+> one. §5.3.1 checks that against `NP-MOD-ID-001` §7.4's model. Its covariates are use: drive time,
+> sessions seated and thermal history, all measured without a clock. Idle aging acts over months, and
+> SHDR's `module_life` row already holds `module_manufacture_date` and a month-truncated
+> `last_seen_month`, so calendar age is known to about a month within `TIME-01`. Only sub-month cadence
+> is missing. It stays missing (D-18), and its physical effect is heat, which the NTC measures.
+>
+> The finding the gate needed: a rarely-driven socket ages by the calendar and gains exposure slowly,
+> so idle aging reads as a socket effect in a fit on exposure alone. **D-30** puts presence and calendar
+> age in the §7.4 fit beside exposure, adds no field and no clock, and states the one assumption the
+> gate cannot test. `NP-MOD-ID-001` §7.4 carries the note. `OI-EMMC2-13` stays open: it is about
+> threshold provenance, and Map 3 was never an instance of it. **Still open under #444:** `-17`, `-18`
+> and `OI-HEXMAP-01`.
 
 > **⚠ REV 7 (2026-09-27, GitHub #444) — `OI-NVRAM-06` CLOSED: the interrupted session is accepted, bounded, and kept out of the fault flag.**
 >
@@ -799,7 +815,70 @@ The one place where this is a real loss rather than a rephrasing is **predictive
 CLAUDE.md §5's Phase 2 LSTM is specified over *trajectories*, and a trajectory indexed by an ordinal
 whose spacing in time is unknown and non-uniform is a weaker input than one indexed by a clock. That
 is a known, recorded gap for the whole programme (`OI-EMMC2-13`), not something this document
-introduces, and the honest position is that Map 3 inherits it rather than solves it. `OI-NVRAM-07`.
+introduces, and the honest position is that Map 3 inherits it rather than solves it. `OI-NVRAM-07`. *(Rev 8: that
+paragraph overstated the loss. SHDR already holds a month-granular calendar axis per module, and the
+part it lacks is sub-month spacing, which no modelled mechanism needs; §5.3.1, D-30.)*
+
+#### 5.3.1 What the trajectory actually lacks — added at Rev 8 (`OI-NVRAM-07` closed)
+
+`OI-NVRAM-07` recorded the paragraph above as a gap so that the `NP-MOD-ID-001` §7.4 review gate
+would not discover it. Asked what fails, and where it is traceable (CLAUDE.md §18), the gap is
+narrower than that paragraph says, and it is not the one §5.3 names.
+
+**The model's axes are use, not time.** §7.4 fits
+`degradation_rate ~ exposure + module_kind + (1 | socket)`. Each input is on a clock-free axis:
+
+| Axis | What it measures | Where it comes from | Needs a clock? |
+|---|---|---|---|
+| Order | Which reading came first, for one module on one helmet | Session ordinal and `seq` (§5.2) | No |
+| Exposure | Drive time: `emitter_on_seconds`, `thermal_seconds_over_threshold`, `throttle_events` | Hub, accumulated in session (D-28). Seconds of elapsed tick time inside a powered session, which the RT1062 counts without a wall clock | No |
+| Presence | Sessions the module sat in the helmet, driven or not | The count of its per-session rows (D-24: one row per module per session); `module_session_count` | No |
+| Thermal history | What cadence does to the part: heat soak across back-to-back sessions | `peak_ntc_celsius`, `thermal_seconds_over_threshold`, read by the NTC while it happens | No |
+
+Emitter wear, window fouling and thermal cycling are all use-driven. Each is on one of those axes,
+and an ordinal-indexed series in those units is not a weaker input than a clock-indexed one. It is
+the right index. A clock would add only the idle time between sessions.
+
+**Idle time is the only thing missing, and SHDR already carries it at the resolution it matters.**
+Mechanisms that run while the part sits unused (EEPROM retention, `NP-MOD-ID-001` §5.4 /
+`OI-MODID-03`; emitter and encapsulant shelf aging; humidity) act over months and years. The fleet
+schema already holds a calendar axis for each module in one row of `module_life`:
+`module_manufacture_date` and the month-truncated `last_seen_month` (`ci/shdr/shdr_fleet_schema.sql`).
+The schema's own comment says the manufacture date is there to measure *calendar lifespan*. So a
+module's calendar age is known fleet-side to about a month, which is within `TIME-01`'s rule and adds
+nothing to it. §5.3 was right that the *helmet* has no clock. It was wrong to conclude that the
+*model* has none.
+
+**What remains unavailable is sub-month spacing: cadence.** No row says whether 30 sessions took a
+week or a month. That is exactly what §8.2 and D-18 forbid, and what `NP-MOD-ID-001` §7.5.1.1 makes
+the foundation of registrant-scoped consent. It is not recovered, and **no field is added to recover
+it**. Nothing on the table above needs it. Cadence acts on the part through temperature, and the NTC
+reads temperature directly.
+
+**The confound the gate must not discover late.** Presence and exposure differ by socket. A module in
+a rarely-driven socket builds presence and calendar age at the helmet's rate, and builds exposure
+slowly. If idle aging contributes anything, that module shows more degradation *per unit exposure*,
+which the §7.4 model as written attributes to the socket. A spurious socket effect is exactly the
+false positive the gate's decision rule turns on. So **D-30**:
+
+1. **The §7.4 fit carries presence and calendar age as covariates beside exposure.** Calendar age is
+   `last_seen_month` minus `module_manufacture_date`, in
+   months. Both come from the same `module_life` row as `module_session_count`, which is presence
+   fleet-side. A socket effect that disappears when they enter is idle
+   aging, not position.
+2. **No new field, no finer clock and no Map 3 change.** Both covariates are already in SHDR. Map 3's
+   row, version and upload rule (D-18) are untouched.
+3. **The gate states one assumption it cannot test.** Cadence within a month is taken to act only
+   through the measured thermal fields. A mechanism that needs sub-month spacing and leaves no thermal
+   trace is outside what this fleet data can see. It would be characterised on the bench, never by
+   adding a clock to SHDR.
+
+The same holds for CLAUDE.md §5.2's Phase 2 LSTM (`docs/reference/data-architecture-detail.md`
+§5.2). A sequence stepped by session ordinal, with exposure, presence and month-granular calendar
+age as features, has every axis the modelled mechanisms act on. **`OI-EMMC2-13` is not closed by
+this.** Its subject is derived flags whose thresholds carry no provenance, and nothing here changes
+that. Rev 1 filed `OI-NVRAM-07` as an instance of it, and that link was wrong: an ordinal series is
+not a thresholded flag.
 
 ---
 
@@ -1435,6 +1514,7 @@ are decisions, and no amount of firmware work substitutes for either.
 | **D-27** *(Rev 3, principal 2026-09-26)* | **A factory reset keeps durable evidence that it started, in the Config partition it erases last (§3.4.1 option A).** Written at R-3 before any erase, and a reset that cannot write it does not start. At boot, the SNVS flag, the marker **or a Config with no filesystem** completes the reset from R-5. An unreadable Config does not. Accepted consequence: a Config lost for any other reason also resets the device and mints a new warranty token (`OI-NVRAM-05`) |
 | **D-28** *(Rev 7)* | **Every per-session value `NP-MOD-ID-001` §7.2 admits is accumulated by the hub while the session runs, never read from `U1` once at session end and never computed as a difference of Map 4 reads.** Map 4 has no socket field and loses the session an extraction interrupts, so any other source drops those sessions from §7.4's exposure covariate, possibly not at random. With this rule the Map 4 loss reaches §7.4's model only through the carried-in baseline, within MODID-6's 250-session rounding. No polling interval is set (`OI-NVRAM-06`, §6.5.1) |
 | **D-29** *(Rev 7)* | **A session interrupted by extraction is a benign Map 4 shortfall, not a §6.5 anomaly.** The hub sets Map 3 `fault_flags` bit 0 (`NP_MAP3_FAULT_UNSEATED_AT_CLOSE`) on a row it closes after the module has stopped answering on its socket. Map 4 is compared against the carried-in baseline plus unflagged rows only, counting a session once per ordinal. Only a shortfall below that is an anomaly. The difference is never written into Map 4, and the flag is never uploaded (§6.5.1, §8.1) |
+| **D-30** *(Rev 8)* | **`NP-MOD-ID-001` §7.4's fit carries presence (`module_session_count`) and calendar age (`last_seen_month` − `module_manufacture_date`, months, same `module_life` row) as covariates beside exposure.** Without them, idle aging in a rarely-driven socket reads as a socket effect, the false positive §7.4's decision rule turns on. Both are already in SHDR: **no field, no clock finer than `TIME-01`'s month and no Map 3 change** is added, and sub-month cadence stays unrecoverable (D-18). The gate states the assumption it cannot test: cadence acts only through the measured thermal fields. §5.3.1 |
 
 ---
 
@@ -1468,7 +1548,7 @@ Scales per `NP-RM-001` §4. Status: **MITIGATED** (controls in place, residual a
 | ~~**OI-NVRAM-04**~~ | ✅ **CLOSED 2026-09-27 (Rev 6, #444). Re-homed, not dimensioned.** Nothing in this document requires the pre-break window's duration. The hub loses no power on extraction, the tile cannot observe `SEAT#`, and the I2C command path breaks with the tile's supply at the end of the window, so even a dimensioned window supports no write (§4.3.1). D-8 stands on its own. No extraction velocity is assumed. The stagger dimension *is* required by `NP-HW-HEXTILE-001` §7.3's mating order and `SEAT#`-last guarantee, and it is raised there as **`OI-HEXTILE-28`**. Original text: ~~The pad-length stagger between contact group 3 and `SEAT#` is not dimensioned, and no extraction-velocity assumption is stated, so the pre-break warning window has no duration. §4.3 designs around its absence; any future use of `SEAT#` as a timing signal needs this number~~ | — (closed; continues as `OI-HEXTILE-28`) | — |
 | ~~**OI-NVRAM-05**~~ | ✅ **CLOSED 2026-09-26 (Rev 3, #444; option A chosen by the principal, D-27).** Every comment and clause that called either flag a power-loss flag says warm-reset only. The anonymisation half needs nothing more. The factory-reset half is fixed by a durable Config marker written before the first erase, and by `np_factory_reset_boot_check()`, which completes the reset on the flag, the marker or a Config with no filesystem, and never on an unreadable one. `np_cfg_store_mount()` now tells those last two apart. Tested by a power cut at every step, with a flag-only mutant failing, and by a power-loss sweep of the marker write (§3.4.1). **Continues as `OI-NVRAM-17`** (the bring-up call site) | — (closed) | — (`NP-MOD-ID-001` §10's rotation test is unblocked by design; it still needs a runnable image) |
 | ~~**OI-NVRAM-06**~~ | ✅ **CLOSED 2026-09-27 (Rev 7, #444, §6.5.1).** **Quantified, accepted and documented.** Each extraction loses at most one session's contribution from Map 4, so Map 4 is a lower bound that never goes backwards. The loss **does not reach `NP-MOD-ID-001` §7.4's model**, because Map 4 has no socket field and the model's per-socket exposure is the hub's, which **D-28** now requires. Map 4 enters the model only through a carried-in baseline, which MODID-6 already rounds down by up to 249 sessions. The shortfall *would* have raised §6.5's anomaly flag on ordinary handling, so **D-29** marks the interrupted row (`NP_MAP3_FAULT_UNSEATED_AT_CLOSE`) and excludes it from the comparison. The mate-cycle gap it found continues as `OI-NVRAM-18`. Original text: ~~Map 4's one-write-per-session-end cadence means **a session interrupted by tile extraction contributes nothing to that tile's odometer**. Quantify whether that matters for `NP-MOD-ID-001` §7.4's model, or accept and document it~~ | — (closed) | — |
-| **OI-NVRAM-07** | Map 3's ordinal indexing gives predictive maintenance a trajectory with unknown, non-uniform spacing in time. This is `OI-EMMC2-13`'s general defect acquiring another instance; recorded so the review gate does not discover it | FW + Data | `NP-MOD-ID-001` §7.4 review gate |
+| ~~**OI-NVRAM-07**~~ | ✅ **CLOSED 2026-09-28 (Rev 8, #443, §5.3.1, D-30).** The trajectory lacks cadence, not time. §7.4's covariates are use (exposure, presence, thermal history), all clock-free, and SHDR's `module_life` row already gives calendar age to a month (`module_manufacture_date`, `last_seen_month`). Only sub-month spacing is missing; it stays missing (D-18) and its physical effect is measured by the NTC. The gate's real exposure was a spurious socket effect from idle aging in rarely-driven sockets; D-30 puts presence and calendar age in the fit and `NP-MOD-ID-001` §7.4 records it. Not an instance of `OI-EMMC2-13`, which stays open. ~~Map 3's ordinal indexing gives predictive maintenance a trajectory with unknown, non-uniform spacing in time. This is `OI-EMMC2-13`'s general defect acquiring another instance; recorded so the review gate does not discover it~~ | FW + Data | — (closed) |
 | ~~**OI-NVRAM-08**~~ | ✅ **CLOSED 2026-09-26 (Rev 3, #444).** Written as `np_map3_record_tests` over the new `np_map3_record` codec (§7.2.1, D-25). It is falsified in both directions: it passes the production scan and fails four rule-breaking readers, each of which is shown correct on a pure-v1 journal. It surfaced `OI-NVRAM-16`. ~~Write and falsify the CI check that a journal written under version *n* loses no record when read under *n+1*~~ | — (closed) | — |
 | ~~**OI-NVRAM-09**~~ | ✅ **CLOSED 2026-09-26 (Rev 3, #444).** Written as `scripts/check-map2-shdr-boundary.ts` and run by `tooling-ci.yml` `map2-shdr-boundary` (§8.3.1). It depends on D-26's naming rule, and it is falsified in both directions by a hermetic self-test and by hand against the real tree. Its reach is stated: per file, and by name. ~~Write and falsify the CI check that no code path reads Map 2 and writes SHDR, and that no SHDR column or upload field names a sync boundary or a per-window delta~~ | — (closed) | — |
 | ~~**OI-NVRAM-10**~~ | **✅ CLOSED 2026-09-24 — decided (`NP-SOUP-LFS-001` Rev 10 §13.14; `NP-HW-HEXTILE-001` Rev 13 D-9).** Safety + Hardware Engineering chose options A and B together. Each tile CH_A/CH_B stage is regulated to a fixed hardware reference that caps on-irradiance at ≤ 400 mW/cm² (`REQ-TDRV-01`), and a gate-path limiter holds conduction ≤ 50 % over any window ≥ 250 ms, which caps the average at the 200 mW/cm² CW ceiling (`REQ-TDRV-02`). No Map 1 range, register or firmware can move either. **Decided, not built:** until `OI-HEXTILE-24` verifies the circuit, the thermal cut remains the only non-firmware bound, and §9's re-derivation condition still applies. *(Rev 8 note: 2026-09-24, `NP-SOUP-LFS-001` Rev 8 §13.12: **answered — no.** The safety MCU owns the PBM enable lines and their thermal cut only; the tile's on-current is set by hardware but unregulated, and Map 1 reaches drive through Class B firmware. The drive stage is specified inconsistently — `NP-HW-HEXTILE-001` `OI-HEXTILE-23`. Three options, not chosen, in §13.12.)* **Is there a Class C bound on per-tile emitter drive current that is independent of Map 1's ranges?** If not, a wrong range is bounded only by the 62 °C thermal cutoff — a thermal limit standing in for an optical one — and §9's classification must be re-derived before any tile variant with differing ranges ships | Safety + EE | — (closed; implementation `OI-HEXTILE-24`) |
@@ -1594,3 +1674,4 @@ factory-reset correctness question rather than a storage-layer one, and Rev 2 do
 | 5 | 2026-09-27 | NeurOne Firmware Engineering | **`OI-NVRAM-16` CLOSED (GitHub #444, §7.2.1).** `np_cfg_store` gains `np_cfg_store_journal_read_rows()`, a tail-additive journal reader that steps by the length a caller-supplied check returns (`np_cfg_record_step_fn`) and ends the valid prefix on 0 or on a length past the end. `np_map3_record` gains `np_map3_row_len()`, which factors out the single-row test `np_map3_scan()` already made, so the scan and the store step share one rule. `np_cfg_store_tests` case 9 appends a 40-byte v2 row among v1 rows through the real store and reads all ten back. It is falsified in both directions: the fixed-length reader on the same file must lose rows, and a reader clamped to 32 bytes fails five assertions. `scripts/check-lfs-caller-rules.ts` R5 matches both reader names, and its self-test grows to 31 cases. `RISK-NVRAM-01`'s residual is removed. SW-02 code changed: `np_cfg_store.{h,c}`, `np_map3_record.{h,c}` (a refactor of the scan, with behaviour unchanged, as `np_map3_record_tests` shows), `np_cfg_store_tests.c` and its CMake sources. No new ctest target; the executed-line floors of `np_cfg_store_tests` (2,644 → 2,816) and `np_map3_record_tests` (260 → 263) are re-measured in `ci/host-test-floors.txt`. No SW-01 file changed. `OI-NVRAM-04`, `-06`, `-17` and `OI-HEXMAP-01` stay open. Rev 4 → 5. |
 | 6 | 2026-09-27 | NeurOne Firmware Engineering | **`OI-NVRAM-04` CLOSED (GitHub #444, §4.3.1): re-homed, not dimensioned.** Under CLAUDE.md §18, nothing in this document requires the `SEAT#` pre-break window's duration. D-8 does not rest on the number's absence either: the hub loses no power on extraction, so no Map 3 write has a deadline. The tile cannot observe `SEAT#` (`NP-HW-HEXTILE-001` §7.2), and the I2C command path is in contact group 3, whose break ends the window, so no Map 4 write can use a window of any duration. No stagger figure and no extraction velocity is written. The stagger dimension is required by `NP-HW-HEXTILE-001` §7.3's own mating order and `SEAT#`-last guarantee, and no document tracked it, so it is raised there as `OI-HEXTILE-28` (Rev 18), coupled to `NP-DRV-SHELL-002` `OI-SHELL2-12` (#437). New §4.3.1; §4.3 and D-8 annotated. No code changed. `OI-NVRAM-06`, `-07`, `-17` and `OI-HEXMAP-01` stay open. Rev 5 → 6. |
 | 7 | 2026-09-27 | NeurOne Firmware Engineering | **`OI-NVRAM-06` CLOSED (GitHub #444, §6.5.1): quantified, accepted and documented.** A tile pulled mid-session misses its session-end Map 4 write, so each extraction loses at most one session's contribution, and Map 4 becomes a lower bound that never goes backwards. The hub keeps the session (§4.3.1). The loss does not reach `NP-MOD-ID-001` §7.4's model: Map 4 has no socket field, so the model's per-socket exposure is the hub's, and Map 4 enters only through a carried-in baseline that MODID-6 already rounds down by up to 249 sessions. **D-28** makes the condition a rule: §7.2's per-session values are accumulated by the hub during the session, never read from `U1` at session end or differenced from Map 4. **D-29:** the interrupted shortfall would otherwise raise §6.5's *Map 4 < Map 2* anomaly on ordinary handling. So the hub sets Map 3 `fault_flags` bit 0 (`NP_MAP3_FAULT_UNSEATED_AT_CLOSE`, defined in `np_map3_record.h`; the row layout and version are unchanged), and the comparison excludes flagged rows. The flag is never uploaded (§8.1). **`OI-NVRAM-18` raised:** `mate_cycles_observed` has no specified increment point, so a mate without a completed session is never recorded. It is to be resolved in `NP-MOD-ID-001` §5.3. §4.3 and §6.5 annotated. `OI-NVRAM-07`, `-17`, `-18` and `OI-HEXMAP-01` stay open. Rev 6 → 7. |
+| 8 | 2026-09-28 | NeurOne Firmware Engineering | **`OI-NVRAM-07` CLOSED (GitHub #443, §5.3.1): the trajectory lacks cadence, not time.** `NP-MOD-ID-001` §7.4's covariates are use: exposure (hub-accumulated, D-28), presence and thermal history, none of which needs a clock. Idle-aging mechanisms act over months, and SHDR's `module_life` row already holds `module_manufacture_date` and a month-truncated `last_seen_month`, so calendar age is known to about a month within `TIME-01`. Only sub-month cadence is missing. It stays missing (D-18), and its physical effect is temperature, which the NTC measures. **D-30:** the §7.4 fit carries presence and calendar age beside exposure, because a rarely-driven socket otherwise shows idle aging as a socket effect. No field, clock or Map 3 change. §5.3's closing paragraph annotated; the link to `OI-EMMC2-13` corrected (that item is about threshold provenance and stays open). `NP-MOD-ID-001` §7.4 carries the note. `OI-NVRAM-17`, `-18` and `OI-HEXMAP-01` stay open. Rev 7 → 8. |
