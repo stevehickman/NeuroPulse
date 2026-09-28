@@ -35,6 +35,7 @@ name: Firmware Cross-Compile (ARM)
 #                            → np_mod_cvns_tests      (hub ↔ CVNS library)
 #                            → np_cvns_fault_summary_tests (NP-SW-FAULTMSG-001 §9.6)
 #                            → np_module_map_tests    (hex zone-module addressing/NVRAM map)
+#                            → np_hexmap_inventory_tests (OI-HEXMAP-02 tile UID + inventory)
 #                            → np_protocol_tests      (hub protocol v2 socket-mask targets)
 #                            → np_mod_stim_tests      (BES/tACS + tDCS slot dispatch)
 #                            → np_mod_visual_tests    (OI-FWHUB-26 goggle Hall edge interrupt)
@@ -214,7 +215,7 @@ env:
   # 41 → 42: np_mod_pbm_chlatch_tests (GitHub #436, OI-PBMCH-03).
   # 42 → 43: np_pbm_socket_telem_tests (NP-FW-HUB-001 Rev 15, OI-FWHUB-10).
   # 43 → 44: np_mod_visual_tests (NP-FW-HUB-001 Rev 18, OI-FWHUB-26).
-  NP_CLASS_B_TEST_COUNT: '44'
+  NP_CLASS_B_TEST_COUNT: '45'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  This job always

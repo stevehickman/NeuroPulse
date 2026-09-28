@@ -608,6 +608,13 @@ np_hub_status_t np_module_map_restore(void);
  */
 bool np_module_map_blob_verify(const uint8_t *buf, size_t len);
 
+/*
+ * np_hexmap_crc32 — the CRC-32 (IEEE 802.3, reflected) the blob uses, exported
+ * so the tile identity block (np_hexmap_inventory.h, OI-HEXMAP-02) is checked
+ * by the same implementation rather than a second copy.
+ */
+uint32_t np_hexmap_crc32(const uint8_t *data, size_t len);
+
 /* ── NVRAM HAL (OI-HEXMAP-01 — np_hexmap_nvram.c; test-injected) ────────────── */
 
 /*

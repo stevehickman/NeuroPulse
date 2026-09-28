@@ -50,8 +50,9 @@
  *
  * The ZONE_ID resistor ladder this detector polls is itself retired
  * (NP-HEX-ZM-001 replaced it with np_module_map's UID auto-inventory). Porting
- * detection onto that is blocked on OI-HEXMAP-02 (the module I2C/1-wire
- * inventory_fn does not exist yet). Until it lands, slot index doubles as socket
+ * detection onto that is blocked on OI-HEXMAP-03 (the module map's production
+ * call sites; the inventory_fn itself, OI-HEXMAP-02, is np_hexmap_inventory.c).
+ * Until it lands, slot index doubles as socket
  * index through np_za_slot_socket_id(), so the notify path is already
  * socket-keyed and np_module_map can be swapped in underneath without touching
  * the wire format or the app.
@@ -87,7 +88,7 @@ static np_za_ctx_t s_ctx;
 
 /* Socket id for a legacy slot index. Identity while the ZONE_ID ladder is still
  * the detector; the seam exists so np_module_map's real socket ids drop in here
- * (OI-HEXMAP-02) without touching the notify path or the wire format. */
+ * (OI-HEXMAP-03) without touching the notify path or the wire format. */
 static uint8_t np_za_slot_socket_id(uint8_t slot_index)
 {
     return slot_index;
@@ -103,7 +104,7 @@ static uint8_t np_za_slot_socket_id(uint8_t slot_index)
  *
  * These five entries are the retired ZONE_ID ladder's fixed positions, which is
  * all this transitional detector can describe. When detection moves to
- * np_module_map (OI-HEXMAP-02) this table is replaced wholesale by that module's
+ * np_module_map (OI-HEXMAP-03) this table is replaced wholesale by that module's
  * np_socket_geom_t geometry — same wire format, ~80 entries instead of 5, and
  * real x/y from the shell CAD.
  */
@@ -113,7 +114,7 @@ static const np_zn_socket_desc_t s_legacy_socket_map[NP_ZONE_COUNT] = {
      * ladder's fixed positions, approximated on the scan-grounded surface — the
      * ladder itself only reports WHICH of five, so anything finer would be
      * invented. Real per-socket coordinates arrive with np_module_map's geometry
-     * table (OI-HEXMAP-02); hardware/np_socket_map.json is where they are
+     * table (OI-HEXMAP-03); hardware/np_socket_map.json is where they are
      * derived today. */
     /* slot 0 — ZM-01 Frontal Left  */ { 0u,  119, -44, -38, true },
     /* slot 1 — ZM-02 Frontal Right */ { 1u,  119,  44, -38, true },
@@ -143,7 +144,7 @@ static void notify_app(uint8_t slot_index, bool present, bool fault)
      * base tile from a T1-B electrode tile. Report the type as unidentified
      * rather than guessing one; the app then confirms position without claiming
      * a type. Real types arrive with np_module_map's UID inventory
-     * (OI-HEXMAP-02). Note this is UNKNOWN-but-present, which is a different
+     * (OI-HEXMAP-03). Note this is UNKNOWN-but-present, which is a different
      * record than fault (present clear) — a seated module we simply can't name. */
     st.module_type = present ? NP_ZN_MODULE_UNKNOWN : NP_ZN_MODULE_NONE;
     st.present     = present;
