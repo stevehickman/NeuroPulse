@@ -593,6 +593,56 @@ turned up with no radiant power figure at all.
 - **The protocol anchor.** The 403 mW/cm² anchor assumes the design-target emitter at 150 mA. It
   re-derives against whichever part is chosen (`OI-HEXTILE-25`(d)).
 
+**⚠ Superseded in part by (l):** GH DASPA2.24's datasheet rates a 30 mA minimum, so it is no longer
+the lead. Its row above is kept as the lead-grade record.
+
+#### (l) The three dimmer 660 nm datasheets, read against the protocols (2026-09-28, GitHub #333)
+
+The GH DASPA2.24 (v1.5, 2021), Luminus MP-2835 Colors (PDS-003017 Rev 6, July 2026) and Lumileds
+DS237 (2018) datasheets were supplied. Their relative-flux curves were digitised
+(`NP-HW-HEXTILE-001` §4.3 Rev 22 note). Each figure is typical, at 45 sites on 10.61 cm²,
+`CUR_A` at 0.706 mA per code.
+
+| Target (mW/cm²) | Protocol | GH DASPA2.24 | MP-2835-1100-DR | L1SP-DRD (SunPlus) |
+|---|---|---|---|---|
+| 22 | `clinical-06` TBI | ✗ below rated 30 mA | ~5.2 mA (7 codes), **extrapolated** | ✗ below plotted 25 mA |
+| 30 | `clinical-05` Maiello | ✗ | ~7.0 mA (10), **extrapolated** | ✗ |
+| 36 | `clinical-04` Cassano | ✗ | ~8.4 mA (12), **extrapolated** | ✗ |
+| 81 | `clinical-07` autism | ✗ | 18.9 mA (27) | ✗ |
+| 121 | `clinical-01` Wozniak | ✗ (floor ~125) | 28 mA (40) | 30 mA (43) |
+| 161 | `clinical-09` stroke | 38.5 mA | 36.8 mA | 40.1 mA |
+| 322 | library maximum (80 %) | 77 mA | 72 mA | 80 mA |
+| 400 | R-4 ceiling | 96 mA | 88 mA | 100 mA |
+
+| | GH DASPA2.24 | MP-2835-1100-DR | L1SP-DRD |
+|---|---|---|---|
+| Rated minimum current | **30 mA** (*"Do not use below 30 mA"*) | none stated | none stated |
+| Lowest point characterised | 30 mA | 10 mA | 25 mA |
+| Protocols out of reach on datasheet evidence | 5 | 3 | 4 |
+| Flux spread in one order | 89–130 mW (one code) | 8 mW power bins (6F / 6G / 6H) | 0.05 µmol/s PPF bins |
+| Wavelength | peak 660 typ; centroid 646–666, one group | dominant 650–665; **RA bin 660–665 orderable** | peak 650–670, one bin |
+| `V_f` | 2.15 V typ at 100 mA; groups F / G / H, 0.2 V | 2.0 V typ at 60 mA; bins C3 / D3 / E3, 0.2 V | 2.15 V typ at 120 mA; bins B–E, 0.2 V |
+| `I_F` max · `T_j` max | 250 mA · 125 °C | 200 mA · 115 °C | 250 mA · 125 °C |
+| L70 | not given | not given | not given |
+| Package · §4.1 fit | 2.2 × 2.6 mm · any rotation | 3.5 × 2.8 mm · row-aligned | 3.5 × 2.8 mm · row-aligned |
+| Datasheet currency | v1.5, 2021; one distributor lists obsolete | Rev 6, July 2026 | 2018 |
+
+**MP-2835-1100-DR delivers the most of the library.** It is the only part characterised down to
+81 mW/cm², the only one with a rating that does not forbid the bottom three, and the only one with
+a wavelength bin inside 660–670 nm. Its flux reads 0.16, 0.24 and 0.32 of its 60 mA value at 10, 15
+and 20 mA, which is linear through the origin. **The bottom three protocols still rest on
+extrapolation.** Two things close them: a bench characterisation at 3–10 mA (flux against current,
+part-to-part spread, temperature drift), and Luminus confirming in writing that no minimum
+operating current applies. Against it: a row-aligned package, a 115 °C junction limit, silver-plated
+pads (MSL 3), and a 0.70 mm domed lens that the optical stack has not been checked against.
+
+**GH DASPA2.24 is out as the lead.** Its 30 mA rating is a floor, not a gap in characterisation.
+Five protocols sit below it at 45 sites.
+
+**Still open whichever part is chosen:** L70 (no datasheet gives one), the §8.1.1 string rule at the
+chosen part's `V_f` bins, the channel-matching ratio in (k), and `OI-HEXTILE-25`(d)'s anchor.
+**Nothing is selected.** `OI-HEXTILE-02` stays open.
+
 ## 13.2b tFUS / LIFU — modality watch (elevated to MEDIUM 2026-05-13)
 
 Science basis confirmed: PIEZO1 mechanosensitive ion channel mechanism (PNAS 2023); strong safety record (n > 400 human subjects, no serious AEs at MI < 1.9); first wearable coupling breakthrough (MiniUlTra bioadhesive hydrogel, Nature Communications 2025). Cannot enter T1 (no wellness regulatory pathway for brain-targeted therapeutic ultrasound). T2 add-on requires 510(k) predicate, which does not yet exist.
