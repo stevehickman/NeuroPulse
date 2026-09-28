@@ -49,11 +49,14 @@
 
 #include "np_platform_trap.h"
 
-/* The 65 symbols with no other declaring header. */
+/* The symbols with no other declaring header. */
 #include "np_sw02_platform_hal.h"
 
-/* The 34 already single-sourced by the module that owns them.  Included rather
- * than restated so the compiler — not this file — is what checks them. */
+/* The rest, already single-sourced by the module header that owns them.
+ * Included rather than restated so the compiler — not this file — is what
+ * checks them.  No split is stated here: NP_SW02_PLATFORM_SYMBOL_COUNT is the
+ * one count, and the census asserts it (this line read "65" and "34" while the
+ * constant was 101). */
 #include "np_anon_scratch.h"     /* np_anon_hal_*          (5) */
 #include "np_cvns_reenable.h"    /* np_cvns_hal_impedance_ (2) */
 #include "np_cvns_fault_summary.h" /* np_cvfs_hal_load/_save (2) */
@@ -61,6 +64,7 @@
 #include "np_warranty_token.h"   /* np_warranty_hal_*      (1) */
 #include "np_factory_reset.h"    /* np_factory_reset_hal_* (5) */
 #include "np_log_backend.h"      /* np_log_hal_part_*      (3) */
+#include "np_pbm_hal.h"          /* np_pbm_hal_*          (18) */
 #include "np_safety_spi.h"       /* np_safety_hal_spi_*    (1) */
 #include "np_uhdr_key.h"         /* np_uhdr_hal_*          (8) */
 #include "np_zone_announce.h"    /* np_za_platform_*       (4) */
@@ -169,6 +173,157 @@ uint16_t np_mod_pbm_hal_pd_read(uint8_t slot, uint8_t wl_idx)
 {
     (void)slot;
     (void)wl_idx;
+    NP_PLATFORM_TRAP();
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * 1064 nm smart-module PBM HAL (OI-PBM-01..03, OI-PBM-07/-08) — np_pbm_hal.h
+ *
+ * Until 2026-09-28 these eighteen resolved in np_application from
+ * firmware/pbm/src/np_pbm_hal.c, the host-test double: a 14-byte RAM register
+ * file behind the I2C seams, an ACK on socket 0, NP_PBM_OK from the safety-MCU
+ * enable request, nominal photodiode counts, and an SHDR fault log that
+ * discarded its entry.  That file says "Do NOT call these stubs in production
+ * firmware", and the image linked it anyway, because np_pbm is linked
+ * --whole-archive and the file was in PBM1064_SOURCES.  Every one of those
+ * answers is plausible, which is the failure np_platform_trap.h exists to
+ * refuse.  np_pbm_hal.c now builds only into np_pbm_session_desc_tests and
+ * np_pbm_cal_bridge_tests.
+ *
+ * These are the symbols the image's objects reference, not the whole header:
+ * np_pbm_hal_tia_gain_boot_init() has no caller in the image, so it is not
+ * owed and not counted.  np_pbm_hal_adc_read_zone_id() is RETIRED in the
+ * header (NP-HW-HUB-001 Rev 3), but np_mod_pbm.c and np_pbm_detect.c still
+ * call it, so it still has to resolve.  Here it resolves to a halt.
+ * ──────────────────────────────────────────────────────────────────────────*/
+
+bool np_pbm_hal_adc_read_zone_id(uint8_t slot, uint16_t *counts_out)
+{
+    (void)slot;
+    (void)counts_out;
+    NP_PLATFORM_TRAP();
+}
+
+bool np_pbm_hal_adc_read_pd(uint8_t slot, uint8_t pd_ch, uint16_t *counts_out)
+{
+    (void)slot;
+    (void)pd_ch;
+    (void)counts_out;
+    NP_PLATFORM_TRAP();
+}
+
+np_pbm_status_t np_pbm_hal_i2c_mux_enable(uint8_t slot, bool enable)
+{
+    (void)slot;
+    (void)enable;
+    NP_PLATFORM_TRAP();
+}
+
+np_pbm_status_t np_pbm_hal_i2c_write(uint8_t slot, uint8_t reg_addr,
+                                     const uint8_t *data, uint8_t len)
+{
+    (void)slot;
+    (void)reg_addr;
+    (void)data;
+    (void)len;
+    NP_PLATFORM_TRAP();
+}
+
+np_pbm_status_t np_pbm_hal_i2c_read(uint8_t slot, uint8_t reg_addr,
+                                    uint8_t *data, uint8_t len)
+{
+    (void)slot;
+    (void)reg_addr;
+    (void)data;
+    (void)len;
+    NP_PLATFORM_TRAP();
+}
+
+bool np_pbm_hal_i2c_probe(uint8_t slot, uint8_t i2c_addr, uint32_t timeout_ms)
+{
+    (void)slot;
+    (void)i2c_addr;
+    (void)timeout_ms;
+    NP_PLATFORM_TRAP();
+}
+
+np_pbm_status_t np_pbm_hal_safety_mcu_enable(uint8_t slot, bool enable)
+{
+    (void)slot;
+    (void)enable;
+    NP_PLATFORM_TRAP();
+}
+
+np_pbm_status_t np_pbm_hal_ntc_read(uint8_t slot, float *temp_c_out)
+{
+    (void)slot;
+    (void)temp_c_out;
+    NP_PLATFORM_TRAP();
+}
+
+uint32_t np_pbm_hal_now_ms(void)
+{
+    NP_PLATFORM_TRAP();
+}
+
+void np_pbm_hal_shdr_log_fault(const np_pbm_shdr_fault_entry_t *entry)
+{
+    (void)entry;
+    NP_PLATFORM_TRAP();
+}
+
+void np_pbm_hal_zone_announce(uint8_t slot_index)
+{
+    (void)slot_index;
+    NP_PLATFORM_TRAP();
+}
+
+np_pbm_status_t np_pbm_hal_tia_gain_set(uint8_t slot, np_tia_gain_t gain)
+{
+    (void)slot;
+    (void)gain;
+    NP_PLATFORM_TRAP();
+}
+
+void np_pbm_hal_t2_throttle_request(uint8_t pct)
+{
+    (void)pct;
+    NP_PLATFORM_TRAP();
+}
+
+np_pbm_status_t np_pbm_hal_t2_1170_enable(bool enable)
+{
+    (void)enable;
+    NP_PLATFORM_TRAP();
+}
+
+np_pbm_status_t np_pbm_hal_t2_1170_set_duty(uint8_t duty_pct)
+{
+    (void)duty_pct;
+    NP_PLATFORM_TRAP();
+}
+
+np_pbm_status_t np_pbm_hal_t2_1170_get_dose(float *dose_J_cm2_out)
+{
+    (void)dose_J_cm2_out;
+    NP_PLATFORM_TRAP();
+}
+
+np_pbm_status_t np_pbm_hal_t2_1170_get_temp(float *tec_temp_c_out)
+{
+    (void)tec_temp_c_out;
+    NP_PLATFORM_TRAP();
+}
+
+np_pbm_status_t np_pbm_hal_t2_sloreta_get_target(int16_t *mni_x_out,
+                                                 int16_t *mni_y_out,
+                                                 int16_t *mni_z_out,
+                                                 bool    *valid_out)
+{
+    (void)mni_x_out;
+    (void)mni_y_out;
+    (void)mni_z_out;
+    (void)valid_out;
     NP_PLATFORM_TRAP();
 }
 

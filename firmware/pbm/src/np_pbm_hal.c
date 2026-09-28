@@ -17,6 +17,13 @@
  *
  * Replace this file entirely with real peripheral driver code before hardware
  * bring-up.  Do NOT call these stubs in production firmware.
+ *
+ * HOST-TEST DOUBLE ONLY (NP-SW-CI-001 §4.8.7, 2026-09-28).  Built into
+ * np_pbm_session_desc_tests and np_pbm_cal_bridge_tests, and nowhere else.
+ * It is not in np_pbm's target sources: np_application resolves np_pbm_hal_*
+ * to the traps in firmware/platform/src/np_platform_stub.c, because a stub
+ * that answers plausibly is indistinguishable at the call site from a driver
+ * that is wrong (firmware/platform/include/np_platform_trap.h).
  */
 
 #include "np_pbm_hal.h"

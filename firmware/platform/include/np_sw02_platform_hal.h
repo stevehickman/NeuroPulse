@@ -18,20 +18,20 @@
  *
  * ── What this header is NOT ─────────────────────────────────────────────────
  *
- * It is not the whole SW-02 platform contract.  Thirty-four further symbols are
- * declared in the module header that owns them and are already single-sourced
- * there — np_anon_hal_* (np_anon_scratch.h), np_cvns_hal_impedance_{start,poll}
+ * It is not the whole SW-02 platform contract.  Further symbols are declared in
+ * the module header that owns them and are already single-sourced there —
+ * np_anon_hal_* (np_anon_scratch.h), np_cvns_hal_impedance_{start,poll}
  * (np_cvns_reenable.h), np_factory_reset_hal_* (np_factory_reset.h),
- * np_log_hal_part_* (np_log_backend.h),
+ * np_log_hal_part_* (np_log_backend.h), np_pbm_hal_* (np_pbm_hal.h),
  * np_cvfs_hal_load/_save (np_cvns_fault_summary.h), np_gatt_hal_*
  * (np_gatt_server.h), np_warranty_hal_trng_generate (np_warranty_token.h),
  * np_safety_hal_spi_transfer (np_safety_spi.h), np_uhdr_hal_* (np_uhdr_key.h)
  * and np_za_platform_* (np_zone_announce.h).  They are deliberately NOT
  * restated here: a second declaration of an already single-sourced symbol is a
  * second place to get it wrong.  firmware/platform/src/np_platform_stub.c
- * includes those ten headers directly.
+ * includes those eleven headers directly.
  *
- * The full SW-02 platform contract is therefore this file plus those ten
+ * The full SW-02 platform contract is therefore this file plus those eleven
  * headers, and the count that tracks it is NP_SW02_PLATFORM_SYMBOL_COUNT below.
  */
 
@@ -51,7 +51,7 @@ extern "C" {
 
 /*
  * Total number of symbols the SW-02 platform layer owes: those declared in
- * this file plus those declared in the ten module headers named above.  The
+ * this file plus those declared in the eleven module headers named above.  The
  * split is not restated here; it read "64 + 36 = 100" while the constant was
  * 102, which is why a count belongs in one place.
  *
@@ -115,8 +115,17 @@ extern "C" {
  * and np_hexmap_nvram.c now reaches it through np_cfg_store — first-party code,
  * not a platform driver.  np_module_map.h stops being one of the module headers
  * named above.
+ *
+ * 101 → 119 on 2026-09-28 (NP-SW-CI-001 Rev 33 §4.8.7): the eighteen
+ * np_pbm_hal_* symbols np_application references, declared in np_pbm_hal.h,
+ * the eleventh module header.  They were always owed.  The census did not
+ * count them because the image resolved them from firmware/pbm/src/np_pbm_hal.c,
+ * the host-test double, which answers plausibly: an ACK on socket 0, a RAM
+ * register file behind I2C, NP_PBM_OK from the safety-MCU enable request.
+ * That file is now host-test only.  np_pbm_hal_tia_gain_boot_init() is declared
+ * in the same header but has no caller in the image, so it is not owed.
  */
-#define NP_SW02_PLATFORM_SYMBOL_COUNT   101
+#define NP_SW02_PLATFORM_SYMBOL_COUNT   119
 
 /* ── Core clock (OI-SWCI-41) ──────────────────────────────────────────────────
  *
