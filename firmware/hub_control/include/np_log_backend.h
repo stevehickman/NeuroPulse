@@ -95,6 +95,17 @@ np_hub_status_t np_log_backend_init(void);
 void np_log_backend_refuse(void);
 
 /*
+ * np_log_backend_admits_sessions — false after np_log_backend_refuse() until
+ * the next np_log_backend_init(), and also before either has been called.
+ * np_runner_load() refuses every protocol while it is false
+ * (NP_HUB_ERR_BOOT_REFUSED), so a boot that refused UHDR and SHDR runs no
+ * stimulation session at all (OI-NVRAM-19, principal decision 2026-09-28,
+ * option b).  A later log FAULT does not clear it: that is a different
+ * condition, and it keeps its existing behaviour.
+ */
+bool np_log_backend_admits_sessions(void);
+
+/*
  * np_log_backend_session_begin — end any open UHDR session file (flushing its
  * tail into IT, not into the new one) and create the file for
  * `session_counter`.  Clears a UHDR fault left by the previous session.

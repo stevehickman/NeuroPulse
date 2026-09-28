@@ -546,7 +546,8 @@ void np_hub_control_app_main(void)
      * cannot say.  Neither UHDR nor SHDR is then opened for this boot:
      * np_log_backend_refuse() opens nothing and makes session_begin refuse, and
      * the UHDR-backed cervical fault summary is neither loaded nor saved (it
-     * starts empty and stays in RAM).  The next boot retries.  Until a block
+     * starts empty and stays in RAM), and np_runner_load() admits no session
+     * (OI-NVRAM-19, option b).  The next boot retries.  Until a block
      * device is bound (#340) np_cfg_store_mount() cannot succeed, so every boot
      * takes the UNKNOWN branch — fail closed, never "no reset was running". */
     const bool data_permitted =

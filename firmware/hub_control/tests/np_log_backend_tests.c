@@ -73,8 +73,12 @@ static bool cap_equals(np_log_part_t part, const uint8_t *expect, size_t len)
 
 static void test_init_ok(void)
 {
+    /* Runs first in main(), so this is the state at reset (OI-NVRAM-19). */
+    check(!np_log_backend_admits_sessions(),
+          "init: no session is admitted before bring-up has decided");
     np_log_test_reset();
     check(np_log_backend_init() == NP_HUB_OK, "init: opens the SHDR log");
+    check(np_log_backend_admits_sessions(), "init: a permitted boot admits sessions");
     check(np_log_test_open_count(NP_LOG_PART_SHDR) == 1U &&
           np_log_test_open_count(NP_LOG_PART_UHDR) == 0U,
           "init: SHDR opened, UHDR NOT opened at boot (not mounted until unlock)");
@@ -92,8 +96,11 @@ static void test_refuse_opens_nothing(void)
 {
     const uint8_t rec[] = { 0x10, 0x20, 0x30 };
 
+    (void)np_log_backend_init();       /* a refusal must override a prior init */
     np_log_test_reset();
     np_log_backend_refuse();
+    check(!np_log_backend_admits_sessions(),
+          "refuse: no stimulation session is admitted (OI-NVRAM-19, option b)");
     check(np_log_test_open_count(NP_LOG_PART_SHDR) == 0U &&
           np_log_test_open_count(NP_LOG_PART_UHDR) == 0U,
           "refuse: neither partition's log file is opened");
@@ -133,6 +140,7 @@ static void test_refuse_opens_nothing(void)
     check(np_log_backend_init() == NP_HUB_OK &&
           np_log_backend_session_begin(2U) == NP_HUB_OK,
           "refuse: a later init clears the refusal");
+    check(np_log_backend_admits_sessions(), "refuse: and admits sessions again");
     (void)np_log_backend_session_end();
 }
 
@@ -244,6 +252,8 @@ static void test_write_failure_latches_fault(void)
     /* SHDR is unaffected by a UHDR fault. */
     check(np_log_hal_shdr_append(&one, 1U) == NP_HUB_OK,
           "fault: SHDR unaffected by UHDR fault");
+    check(np_log_backend_admits_sessions(),
+          "fault: a log fault is not a boot refusal (OI-NVRAM-19 scope)");
 }
 
 static void test_capacity_full(void)

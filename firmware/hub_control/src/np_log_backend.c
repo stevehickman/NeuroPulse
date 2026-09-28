@@ -38,6 +38,10 @@ static log_part_state_t s_shdr;
  * the boot check did not permit UHDR or SHDR to be mounted (OI-NVRAM-17). */
 static bool s_refused;
 
+/* Set only by np_log_backend_init(): false at reset, so nothing is admitted
+ * before bring-up has decided (OI-NVRAM-19). */
+static bool s_admits_sessions;
+
 /* ── Init ─────────────────────────────────────────────────────────────────────── */
 
 np_hub_status_t np_log_backend_init(void)
@@ -45,6 +49,7 @@ np_hub_status_t np_log_backend_init(void)
     memset(&s_uhdr, 0, sizeof s_uhdr);
     memset(&s_shdr, 0, sizeof s_shdr);
     s_refused   = false;
+    s_admits_sessions = true;
     s_uhdr.part = NP_LOG_PART_UHDR;
     s_shdr.part = NP_LOG_PART_SHDR;
     s_uhdr.capacity_bytes = (uint64_t)NP_UHDR_SIZE_LBA * (uint64_t)NP_EMMC_SECTOR_SIZE;
@@ -71,6 +76,12 @@ void np_log_backend_refuse(void)
     s_uhdr.faulted = true;
     s_shdr.faulted = true;
     s_refused      = true;
+    s_admits_sessions = false;
+}
+
+bool np_log_backend_admits_sessions(void)
+{
+    return s_admits_sessions;
 }
 
 /* ── Internal write path ──────────────────────────────────────────────────────── */

@@ -64,7 +64,7 @@ np_hrv_session_tests 226
 np_lfs_config_tests 255
 np_lfs_log_instance_tests 2270
 np_lfs_powerloss_tests 1952
-np_log_backend_tests 1123
+np_log_backend_tests 1133
 np_map3_record_tests 263
 np_mod_cvns_tests 896
 np_mod_pbm_chlatch_tests 277

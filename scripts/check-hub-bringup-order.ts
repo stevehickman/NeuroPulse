@@ -53,9 +53,10 @@
  *
  * Rule 1a, checked only once the first call exists:
  *   np_cfg_store_bind → np_factory_reset_boot_check
- *     Until #340 binds a store the check reads UNKNOWN and every boot refuses
- *     UHDR/SHDR (fail-closed, intended).  A bind added after the check would
- *     leave the device refusing forever while looking wired.
+ *     Until #340 binds a store every boot reads UNKNOWN and refuses; a bind
+ *     after the check would keep refusing forever while looking wired.
+ * Rule 3: np_runner_load() calls np_log_backend_admits_sessions() before
+ *   np_lease_claim(), so a refused boot runs no session (OI-NVRAM-19, b).
  *
  * ── Rule 2: the banner's task count matches the code ─────────────────────────
  *
@@ -65,15 +66,13 @@
  * one comment a reader starts from is cheap to make and invisible to every
  * other check, so it is counted here instead of read.
  *
- *   bun scripts/check-hub-bringup-order.ts
- *   bun scripts/check-hub-bringup-order.ts --self-test
- *
+ *   bun scripts/check-hub-bringup-order.ts [--self-test]
  * Exits non-zero listing each violation; exits 2 rather than passing vacuously
  * if the entry point or any named call cannot be found.
  *
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-hub-bringup-order.ts --self-test
- * CI-Scans: np_hub_control_app_main()'s call order and the file banner's task count
+ * CI-Scans: np_hub_control_app_main()'s call order, the file banner's task count, and np_runner_load()'s admission order
  * CI-Scan-Paths: firmware/hub_control/** scripts/check-hub-bringup-order.ts
  */
 
@@ -89,6 +88,15 @@ const ROOT =
 
 const MAIN_C = "firmware/hub_control/src/np_hub_control_main.c";
 const ENTRY = "np_hub_control_app_main";
+
+/** Rule 3: the admission check np_runner_load() must make before the lease. */
+const RUNNER_C = "firmware/hub_control/src/np_session_runner.c";
+const RUNNER_ENTRY = "np_runner_load";
+const RUNNER_ORDER: readonly [string, string, string] = [
+  "np_log_backend_admits_sessions",
+  "np_lease_claim",
+  "a boot that refused UHDR/SHDR admits no session, and the refusal comes before any state is touched (OI-NVRAM-19, option b)",
+];
 
 /** A must be called before B, and the reason the order matters. */
 const ORDER: ReadonlyArray<readonly [string, string, string]> = [
@@ -143,8 +151,8 @@ function stripNonCode(src: string): string {
 }
 
 /** The body of `void <ENTRY>(void) { ... }`, brace-matched. Null if absent. */
-function entryBody(code: string): string | null {
-  const sig = new RegExp(`\\b${ENTRY}\\s*\\([^)]*\\)\\s*\\{`).exec(code);
+function entryBody(code: string, name: string = ENTRY): string | null {
+  const sig = new RegExp(`\\b${name}\\s*\\([^)]*\\)\\s*\\{`).exec(code);
   if (!sig) return null;
   let depth = 0;
   const start = sig.index + sig[0].length;
@@ -222,6 +230,27 @@ function run(root: string): { code: number; lines: string[] } {
     }
   }
 
+  // Rule 3 — np_runner_load()'s admission order.  Vacuity refuses here too.
+  let runnerSrc: string;
+  try {
+    runnerSrc = readFileSync(join(root, RUNNER_C), "utf8");
+  } catch {
+    return { code: 2, lines: [`check-hub-bringup-order: cannot read ${RUNNER_C} — refusing to pass vacuously.`] };
+  }
+  const runnerBody = entryBody(stripNonCode(runnerSrc), RUNNER_ENTRY);
+  const [ra, rb, rwhy] = RUNNER_ORDER;
+  if (runnerBody === null || callAt(runnerBody, ra) < 0 || callAt(runnerBody, rb) < 0) {
+    return {
+      code: 2,
+      lines: [
+        `check-hub-bringup-order: ${RUNNER_ENTRY}() in ${RUNNER_C} is absent or does not call both ${ra}() and ${rb}() — refusing to pass vacuously.`,
+      ],
+    };
+  }
+  if (callAt(runnerBody, ra) > callAt(runnerBody, rb)) {
+    violations.push(`  ${RUNNER_ENTRY}(): ${ra}() must be called before ${rb}() — ${rwhy}`);
+  }
+
   const declared = bannerTaskCount(src);
   const actual = (body.match(/\bxTaskCreate\s*\(/g) ?? []).length;
   if (declared === null) {
@@ -236,17 +265,18 @@ function run(root: string): { code: number; lines: string[] } {
 
   out.push(
     `scanned: ${ORDER.length + ORDER_WHEN_PRESENT.length + 1} rule(s) — ${ORDER.length} ordering constraint(s) ` +
-      `+ ${ORDER_WHEN_PRESENT.length} when-present constraint(s) + 1 task-count rule — against ${ENTRY}() in ${MAIN_C}`,
+      `+ ${ORDER_WHEN_PRESENT.length} when-present constraint(s) + 1 task-count rule — against ${ENTRY}() in ${MAIN_C}; ` +
+      `+ 1 admission-order rule against ${RUNNER_ENTRY}() in ${RUNNER_C}`,
   );
 
   if (violations.length === 0) {
     out.push(
       `${ENTRY}() brings subsystems up in the order its correctness depends on, ` +
-        `and the banner's task count (${declared}) matches the code.`,
+        `the banner's task count (${declared}) matches the code, and ${RUNNER_ENTRY}() admits no session on a refused boot.`,
     );
     return { code: 0, lines: out };
   }
-  out.push(`check-hub-bringup-order: ${violations.length} violation(s) in ${MAIN_C}:`, ...violations);
+  out.push(`check-hub-bringup-order: ${violations.length} violation(s) in ${MAIN_C} / ${RUNNER_C}:`, ...violations);
   return { code: 1, lines: out };
 }
 
@@ -289,10 +319,16 @@ if (process.argv.includes("--self-test")) {
     return `${banner}void ${entry}(void)\n{\n${body}\n}\n`;
   };
 
-  const build = (body: string): string => {
+  const runnerC = (calls: string[] = [RUNNER_ORDER[0], RUNNER_ORDER[1]]): string =>
+    `np_hub_status_t ${RUNNER_ENTRY}(const uint8_t *p, size_t n)\n{\n` +
+    calls.map((c) => `    (void)${c}();`).join("\n") +
+    "\n    return 0;\n}\n";
+
+  const build = (body: string, runner: string | null = runnerC()): string => {
     const root = mkdtempSync(join(box, "t-"));
     mkdirSync(join(root, "firmware/hub_control/src"), { recursive: true });
     writeFileSync(join(root, MAIN_C), body);
+    if (runner !== null) writeFileSync(join(root, RUNNER_C), runner);
     return root;
   };
 
@@ -353,6 +389,14 @@ if (process.argv.includes("--self-test")) {
     expect(`rule 1a accepts: ${a} before ${b}`, build(mainC({ order: before })), 0, "order its correctness depends on");
   }
 
+  // Rule 3 — the admission check after the lease is rejected; a runner that
+  // does not make it, or no runner file at all, REFUSES.
+  expect("rule 3 rejects the admission check after the lease",
+    build(mainC({}), runnerC([RUNNER_ORDER[1], RUNNER_ORDER[0]])), 1, `${RUNNER_ORDER[0]}() must be called before`);
+  expect("rule 3 refuses a runner with no admission check (OI-NVRAM-19)",
+    build(mainC({}), runnerC([RUNNER_ORDER[1]])), 2, "refusing to pass vacuously");
+  expect("rule 3 refuses when the runner file is absent", build(mainC({}), null), 2, `cannot read ${RUNNER_C}`);
+
   // The OI-NVRAM-17 shape before this constraint existed: no boot check at all
   // must REFUSE, not pass.
   expect(
@@ -394,9 +438,10 @@ if (process.argv.includes("--self-test")) {
     for (const f of failures) console.error("  " + f);
     process.exit(1);
   }
-  console.log(`  ${ORDER.length + 2 * ORDER_WHEN_PRESENT.length + 10} case(s): all ${ORDER.length} ordering constraints proven to reject,`);
+  console.log(`  ${ORDER.length + 2 * ORDER_WHEN_PRESENT.length + 13} case(s): all ${ORDER.length} ordering constraints proven to reject,`);
   console.log(`  ${ORDER_WHEN_PRESENT.length} when-present constraint(s) proven to reject and to accept, the OI-FWHUB-07 shape,`);
   console.log("  3 task-count cases, 4 vacuity refusals (one the missing OI-NVRAM-17 boot check),");
+  console.log("  3 np_runner_load() admission cases (OI-NVRAM-19),");
   console.log("  and comment text proven not to count as a call.");
   console.log("SELF-TEST PASS — the checker has teeth.");
   process.exit(0);

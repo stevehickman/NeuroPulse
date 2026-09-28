@@ -64,6 +64,11 @@ typedef enum {
      * reopened, so this is how a reused counter is reported — distinctly, so the
      * logger can move to the next unused counter instead of losing the session. */
     NP_HUB_ERR_LOG_EXISTS           = -24,
+    /* The factory-reset boot check did not permit UHDR/SHDR this boot
+     * (RESUME_FAILED or UNKNOWN), so no stimulation session is admitted:
+     * a session is never run without its records (OI-NVRAM-19, option b).
+     * Clears only at a boot the check permits. */
+    NP_HUB_ERR_BOOT_REFUSED         = -25,
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════
