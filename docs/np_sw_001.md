@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 10
-**Date:** 2026-09-26  
+**Revision:** 11
+**Date:** 2026-09-28  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -11,11 +11,13 @@
 **References:** —  
 **Related Issues:** GitHub Issue #33  
 **Gate:** —  
-**IEC 62304 Class:** SW-01 Class C, SW-02 Class B, SW-03 Class B  
+**IEC 62304 Class:** SW-01 Class C, SW-02 Class B, SW-03 Class B, SW-04 Class B  
 **Applicable Standard:** IEC 62304:2006 + AMD1:2015 — Medical Device Software: Software Lifecycle Processes  
 **Next Review:** 2027-05-13 or upon significant architecture change
 
 ---
+
+**Rev 11 (2026-09-28):** **§2 and §3.1 register a fourth software item: SW-04, the hex-tile on-module firmware, Class B.** It runs on U1, the tinyAVR 2-series MCU that `NP-HW-HEXTILE-001` D-3 fits to every tile. It is specified in `NP-FW-HEXTILE-001` Rev 1, which closes `OI-HEXTILE-07`. Its Class B rationale is §3.1's for SW-02, one level down. Its optical output is bounded independently of it by the tile's hardware peak and duty limits (D-9), the per-cluster `VLED` gates and SW-01's cranial cut. The residual is stated there: D-9 is decided, not built (`OI-HEXTILE-24`). No code exists. No other item, class or requirement changes.
 
 **Rev 10 (2026-09-26):** **§9.4 SOUP: the FreeRTOS-Kernel row no longer says its smoke test "passes in `firmware-host-tests` CI".** That workflow was retired on 2026-08-08 (NP-SW-CI-001 OI-SWCI-09). The row now names the job that runs the test, and the manifest that records its class. No other change. NP-SW-CI-001 OI-SWCI-13, GitHub #446.
 
@@ -35,18 +37,20 @@ This Software Development Plan defines the software lifecycle processes, safety 
 
 ## 2. Software System Overview
 
-The NeurOne device contains three software items:
+The NeurOne device contains four software items:
 
 | Software item | ID | Platform | Language | Repo path |
 |---|---|---|---|---|
 | Safety MCU firmware | SW-01 | STM32G071 (Cortex-M0+, bare-metal) | C (C11) | `firmware/` (safety-critical modules) |
 | Main processor firmware | SW-02 | NXP i.MX RT1062 (Cortex-M7, FreeRTOS) | C (C11) | `firmware/` (all non-safety-MCU modules) |
 | iOS/Android application | SW-03 | iOS (Swift) / Android (Kotlin) | Swift / Kotlin | `app/` |
+| Hex-tile on-module firmware | SW-04 | tinyAVR 2-series (U1 on every tile, `NP-HW-HEXTILE-001` D-3), bare-metal | C (C11) | — (not yet written; spec `NP-FW-HEXTILE-001`) |
 
 All three software items interact:
 - SW-02 communicates with SW-01 via SPI heartbeat (200ms interval) and stimulation enable commands
 - SW-02 communicates with SW-03 via USB-C (wired, primary) and BLE GATT (wireless)
 - SW-03 signs session protocols; SW-01 and SW-02 reject unsigned protocols
+- SW-02 commands SW-04 over I2C, one instance per fitted tile (up to 80). SW-04 has no path to SW-01 or SW-03, and its only unsolicited output is the wire-ORed `ALERT#` line
 
 ---
 
@@ -60,6 +64,7 @@ Per IEC 62304 §4.3, each software item is classified based on the severity of h
 |---|---|---|
 | **SW-01 — Safety MCU firmware** | **Class C** | Directly controls all stimulation enable GPIO lines. A software failure (incorrect enable, failure to disable, incorrect current calculation) could cause patient harm up to and including serious injury or death (cervical VNS cardiac arrhythmia, tDCS charge density overdose, PBM thermal burn). No independent hardware backstop for Safety MCU failure. |
 | **SW-02 — Main processor firmware** | **Class B** | Orchestrates session protocols, EEG signal processing, and device management. Software failure could lead to incorrect session delivery; however, SW-01 provides an independent hardware backstop (SPI heartbeat watchdog, hardware GPIO ownership). Injury severity limited by SW-01 hardware controls. |
+| **SW-04 — Hex-tile on-module firmware** | **Class B** | Drives one tile's emitter gates on SW-02's command and cuts them locally on over-temperature. A failure (a gate held on, a wrong setpoint, a missed thermal cut) is bounded by independent hardware: the tile's drive stage caps peak current and conducting fraction outside U1 (`NP-HW-HEXTILE-001` D-9, `REQ-TDRV-01`/`-02`); the per-cluster `VLED` gates; and SW-01's cranial enable, in series with all of them. **Residual:** D-9 is decided, not built (`OI-HEXTILE-24`), so until it passes its bench test the bound on a wedged SW-04 is the cluster gate, SW-01's cut and the 62 °C thermal cut. Specified in `NP-FW-HEXTILE-001` §4. |
 | **SW-03 — iOS/Android application** | **Class B** | Signs session protocols and manages UHDR/SHDR. A failure (unsigned protocol accepted by device — but firmware rejects; UHDR data loss) could cause harm through incorrect clinical decisions or loss of data, but SW-01 and SW-02 provide independent stimulation safety. |
 
 ### 3.2 Legacy of safety (Class B rationale for SW-02/SW-03)
@@ -460,3 +465,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 7 | 2026-09-14 | NeurOne Firmware Engineering | **§9.4 SOUP: the LittleFS row gets its verification — `OI-LFS-02` CLOSED** (NP-SOUP-LFS-001 Rev 3). The row has now been rewritten three times, and the sequence is the point: Rev 5 replaced *"2.x"* / *"Power-loss testing per LittleFS test suite"* with a cell that honestly recorded an absence; Rev 6 replaced the absence with a pinned, vendored, configured component that **still had not been tested**; Rev 7 records what NeurOne ran. Two activities: the **IEC 62304 §7.1.2 anomaly evaluation** against `v2.11.3` (NP-SOUP-LFS-001 §11 — thirteen items, three applicable, none reaching an emission) and the **power-loss injection test** against `L-1…L-4` (§12 — `np_lfs_powerloss_tests`, Class B 28 → 29, repo 35 → 36; 456 interrupted runs, 0 violations; falsified in both directions, including one perturbation that was **not** caught and is recorded as such). **The discipline Rev 5 established is kept**: the cell still says what NeurOne has not run. `L-1…L-4` hold against the `struct lfs_config` contract and not against the eMMC beneath it (`OI-LFS-07`), nothing calls the library, and the evaluation produced two unmet **caller** obligations (`OI-LFS-08`, `OI-LFS-09`) rather than a verdict on the component — which is NP-SOUP-LFS-001 §6.2’s finding arriving a second time by a different route. No requirement, classification or safety claim in §§1-8 changed. |
 | 6 | 2026-09-14 | NeurOne Firmware Engineering | **§9.4 SOUP: the LittleFS row gets a version — `v2.11.3`, pinned and vendored, closing `OI-LFS-01`** (NP-SOUP-LFS-001 Rev 2). Rev 5 replaced a cell reading *"2.x"* / *"Power-loss testing per LittleFS test suite"* with a cell that honestly recorded an absence; this revision replaces the absence. Five byte-exact files at `firmware/vendor/littlefs/` with per-file SHA-256 verified by two independent downloads, upstream's test suite deliberately NOT vendored — **precisely because the defective cell cited it**, and vendoring it would make that citation look discharged. The tag is chosen on a safety argument, not recency: `v2.11.3` is the first release carrying upstream `488e84bb`, a fix for data corruption from two open write handles on one file. The configuration is recorded, compiled and tested (`np_lfs_config_tests`, Class B 27 → 28, repo 34 → 35; 19 falsified rejections). **The verification cell still says what NeurOne has NOT run**, which is the whole discipline Rev 5 established: no power-loss behaviour has been exercised, nothing calls the library, §7.1.2 is undischarged, and `OI-LFS-02` inherits the BLOCKING status rather than the classification becoming settled. One finding from building it: `LFS_NO_ASSERT` beside a replacement `LFS_ASSERT` removes the *definition* of `lfs_mlist_isopen` while keeping the *call* — and that assertion is the run-time detector for the corruption the pinned tag was chosen for. No requirement, classification or safety claim in §§1-8 changed. |
 | 5 | 2026-09-13 | NeurOne Firmware Engineering | **§9.4 SOUP: the LittleFS row replaced, and NP-SOUP-LFS-001 Rev 1 issued as its record and hazard analysis** — closing the substance of `OI-NVRAM-12` (Issue #339). The row had read *"2.x"* with the verification *"Power-loss testing per LittleFS test suite"*: no version, and a cell recording that an upstream project tests its own code rather than anything NeurOne did. **Checking it found more than "unmanaged": the component is not in the tree.** Two `lfs_` tokens exist in all of `firmware/`, both comments in `np_log_backend.h` naming the `OI-LOG-06/07` seams — no source, no link, no caller. Every power-loss atomicity guarantee in `NP-FW-NVRAM-001` §4, `EMMC-FS-01` and `NP-FW-HUB-001` §6.5 therefore rests on a component that is nominated rather than integrated, in a way the SOUP table concealed. **The §7.1.2 evaluation is deliberately not recorded**, because it evaluates the anomaly list for the version in use and there is none; the blocking action (`OI-LFS-01`, pin + vendor) is recorded instead of a conclusion. **The hazard analysis is performed and is version-independent**, and its finding is carried into a second Class B SOUP note above: Class B holds, but on a property of `np_module_map`'s reject-and-rebuild policy rather than of LittleFS, and `NP-FW-NVRAM-001` §7.2 specifies Map 3 to need the opposite policy — hence `REQ-LFS-01`. Feeds #75 (`NP-SBOM-001`). No requirement, classification or safety claim in §§1-8 changed. |
+| 11 | 2026-09-28 | NeurOne Firmware Engineering | **SW-04 registered: the hex-tile on-module firmware, Class B (§2, §3.1).** `NP-HW-HEXTILE-001` `OI-HEXTILE-07` named this registration as what the firmware specification blocked. `NP-FW-HEXTILE-001` Rev 1 is that specification. The Class B rationale is the independent hardware bound on each tile (D-9), the per-cluster gates and SW-01's cranial cut. The residual is carried with it: D-9 is not yet built. No module table (§5) is added, because no code exists. No other item, class or requirement changes. |
