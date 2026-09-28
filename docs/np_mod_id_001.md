@@ -171,7 +171,7 @@ Layout: **four 32-byte slots**, written round-robin.
 | `version` | 1 | format version |
 | `seq` | 1 | monotonic; newest valid slot wins |
 | `session_count` | 4 | uint32 |
-| `mate_cycles_observed` | 2 | uint16; ≥500 rating, ample headroom |
+| `mate_cycles_observed` | 2 | uint16; ≥500 rating, ample headroom; a lower bound, incremented per §5.3.1 |
 | `emitter_on_seconds` | 4 | uint32 — see §7, characterisation-window field |
 | `thermal_seconds_over_threshold` | 4 | uint32 |
 | `peak_ntc_celsius_ever` | 1 | uint8, offset-encoded |
@@ -190,7 +190,8 @@ transferring one part's history to another.
 
 ### 5.3 Write-endurance budget
 
-Cadence is one update per session end.
+Cadence is one update per session end, plus at most one mate write per `U1`
+power-up (§5.3.1).
 
 | Case | Sessions/yr | Writes/slot/yr | Years to 100,000 |
 |---|---|---|---|
@@ -205,6 +206,84 @@ one slot, and `newest valid CRC wins` recovers the previous good record. Stating
 this plainly matters, because a future reviewer who reads the rotation as an
 endurance workaround may "optimise" it away and remove the power-loss
 protection with it.
+
+#### 5.3.1 When `mate_cycles_observed` is incremented (added 2026-09-28, NP-FW-NVRAM-001 Rev 10, closes OI-NVRAM-18)
+
+§5.2 carried the field and nothing said when it moves. Under the session-end
+cadence alone, a module seated and removed without a completed session never
+records that mate. That insert-and-remove handling is what the ≥500-cycle
+contact rating counts.
+
+**Neither side can count a mate alone.**
+
+- **`U1` sees every mate but cannot tell one from a power-up.** `VCC_3V3` is in
+  contact group 3 (NP-HW-HEXTILE-001 §7.3), so every extraction removes the
+  tile's supply and every insertion is a `U1` power-up. But the hub's own power
+  cycles, including every USB-C disconnect, power up every seated tile as well.
+  A count of power-ups would add a "mate" to all ~80 tiles each time the device
+  is unplugged. That is an overcount by the device's power-cycle rate, not a
+  mate count.
+- **The hub can tell a mate from a power-up, but only for what it saw.** The
+  poll behind `np_module_map_apply_poll()` already distinguishes a module new to
+  a socket from one that was there before (NP-HEX-ZM-001 §4). The hub cannot see
+  a module lifted and re-seated in the same socket while it was off.
+
+**Rule (MODID-4a).** The hub decides that a mate happened. `U1` applies the
+increment, at most once per power-up.
+
+1. **The hub counts a mate** for socket *s* when a poll returns a non-zero UID
+   *u* and the hub's previous observation of *s* was **either an empty poll or a
+   different UID**. The previous observation is the last poll in this power-on.
+   At boot, it is the socket's record in the persisted inventory cache
+   (NP-FW-NVRAM-001 §4, §7.2). So a tile swapped into a socket while the hub was off
+   is counted, and a tile seated while the hub ran is counted.
+2. **No mate is counted without a valid previous observation.** If the
+   inventory cache is absent or invalid (first boot, factory reset, blob version
+   change), the first poll of every socket is a first observation, not a mate. A
+   re-poll after a failed inventory is not a mate either, because no empty poll
+   intervened. Both cases would otherwise add a false mate to every tile, or
+   repeat one.
+3. **The hub sends `U1` one mate-increment command** after that module's UID and
+   odometer read succeed (§8.3). `U1` increments `mate_cycles_observed` and writes
+   the full record to the next slot at once, through the same four-slot rotation
+   and CRC. It does not wait for session end, because waiting is the gap this
+   rule closes.
+4. **`U1` honours the command at most once per power-up** and replies with
+   success to any repeat without writing. A genuine mate always power-cycles
+   `U1` (group 3 carries its supply), so the latch loses no real mate. It makes a
+   retried or duplicated command idempotent, and it bounds the mate writes to one
+   per power-up. The endurance of §5.3's table is unchanged in any realistic
+   case. At the 500-cycle rating, the mate writes add 125 writes per slot over
+   the part's life.
+5. **The hub keeps nothing about the event.** It sends the command and writes no
+   log row, no Map 3 field and no timestamp (NP-FW-NVRAM-001 **D-20**). The count
+   exists only as `U1`'s running total. What reaches SHDR, and whether
+   `*_mate_cycles_observed` should reach it at all, stays the live judgment that
+   §8.4 leaves to OI-EMMC2-08. This rule adds no field and no upload.
+
+**What the count cannot see.** It is a lower bound, as the field's name says,
+and any consumer must treat it as one.
+
+- **A tile lifted and re-seated in the same socket while the hub is off** is not
+  counted. The cache shows the same UID, so there is no evidence of a mate.
+- **A clamp release that unloads a neighbour's contacts without breaking them.**
+  Releasing a cluster loosens 3–7 tiles (NP-HEX-ZM-001 §5.4a). A tile that stays
+  powered through it has not re-mated as far as anything can observe, although
+  its spring pins went through a compression cycle.
+- **A contact break too short to reset `U1`**, if the decoupling holds it up
+  through the break. It is not counted, and it is not a completed extraction
+  either.
+- **A mate write interrupted by a second extraction** loses that one increment.
+  Newest-valid-CRC recovers the previous record, as for any interrupted write.
+
+**What this does not decide.** It defines the count and no consumer of it. The
+`flags` mate-limit bit has no threshold, and no prompt is specified. A
+maintenance prompt driven by this count is an **exposure count** under CLAUDE.md
+§2.3 and §5.2. It must name its mechanism (contact plating wear and spring-pin
+fatigue) and carry the blind spots above. It needs design work of its own, not
+a threshold copied from the 500-cycle rating. The count is also not a dose or
+seating control. A marginally seated tile is caught by `SEAT#` and the PD1/PD2
+ratio (RISK-SHELL-01), whatever its mate count says.
 
 ### 5.4 Retention derating — OPEN
 
@@ -554,8 +633,8 @@ Consequences for §7.4:
 
 | Area | Work |
 |---|---|
-| On-module (U1) | Odometer record, 4-slot rotation, CRC over UID ‖ payload, I2C read/write commands |
-| `hub_control` | Odometer read at inventory, baseline seeding, coarsening before SHDR write |
+| On-module (U1) | Odometer record, 4-slot rotation, CRC over UID ‖ payload, I2C read/write commands; mate-increment command honoured at most once per power-up (§5.3.1) |
+| `hub_control` | Odometer read at inventory, baseline seeding, coarsening before SHDR write; mate detection from the previous observation of each socket, never from a first observation (§5.3.1) |
 | Config partition | `fleet_key` record; enrolment import/export |
 | Factory reset | No new step — R-7 already destroys the key (§4.3). Add a **test** asserting it does |
 
@@ -579,6 +658,7 @@ item is unaffected and remains a live judgment.
 | **OI-MODID-03** | EEPROM retention derating at the module's actual time-at-temperature distribution vs the 55 °C / 40-year figure (§5.4) | Module firmware release |
 | **OI-MODID-04** | `fleet_key` enrolment UX and its authentication requirements; behaviour when an owner sells one device out of a group | App + firmware |
 | **OI-MODID-05** | N and M for the §7.3 window, and the effect-size threshold for the §7.4 decision rule | Programme start |
+| **OI-MODID-09** | *(added 2026-09-28, found while closing NP-FW-NVRAM-001 OI-NVRAM-18)* **`distinct_socket_count` has no specified computation.** §5.2 carries it as a uint8, but the odometer holds net totals only, never history. So `U1` has no socket list to tell a new socket from a revisited one, and it cannot see its socket number at all unless the hub tells it. Specify who computes the count and from what, or retire the field under CLAUDE.md §18 if nothing requires it. Keep D-20 in view: a per-socket list would be a placement history | Module firmware release |
 
 ## 10. Verification
 
@@ -591,6 +671,8 @@ Proposed gate **MOD-ID-1** (NP-COORD-001):
 | Factory reset rotates every ref | Integration test over the R-1…R-12 sequence |
 | Odometer survives power loss mid-write | Injected power-fail at each slot offset; newest-valid-CRC recovery asserted |
 | Odometer rejects a transplanted record | CRC-over-UID negative test |
+| Mate counted from the hub's previous observation only (§5.3.1) | Hub test: an empty→present or UID-change poll sends one increment; a first observation after an absent or invalid cache sends none; a re-poll after a failed inventory sends none |
+| `U1` honours one mate increment per power-up (§5.3.1) | Module test: a repeated command in one power-up writes once, and a power-cycle re-arms it |
 | Carried-in baselines are coarsened on upload | Assert uploaded value ≡ 0 mod bucket width |
 | Extended fields stop at window expiry | Build-time expiry test with a clock past the boundary |
 | Extended fields absent without opt-in | Upload from a non-opted-in device asserted to carry none of §7.2 |
