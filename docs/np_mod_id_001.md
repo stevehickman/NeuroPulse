@@ -354,6 +354,22 @@ degradation_rate ~ exposure + module_kind + (1 | socket)
 The second outcome is the goal, not a disappointment: it would license reverting
 to the strictest data set with evidence rather than assumption.
 
+**Idle aging must be in the fit (added 2026-09-28, NP-FW-NVRAM-001 Rev 8
+§5.3.1, D-30).** A module in a rarely-driven socket ages by the calendar and
+gains exposure slowly. If idle aging contributes anything, that module shows
+more degradation per unit exposure, and the model above attributes it to the
+socket. That is a false positive on the outcome the table turns on. The fit
+therefore carries two more covariates beside exposure. **Presence** is
+`module_session_count`, the sessions the module sat in the helmet whether
+driven or not. **Calendar age** is `last_seen_month` minus
+`module_manufacture_date`, in months. Both come from the same `module_life`
+row and are already in SHDR, so no field and no clock finer than `TIME-01`'s
+month is added. The one axis missing is sub-month cadence, and it stays
+missing (§7.5.1.1). The gate states the assumption it cannot test: cadence
+acts on the part only through the measured thermal fields (§7.2). A mechanism
+that needs sub-month spacing and leaves no thermal trace is characterised on
+the bench, never by adding a clock to SHDR.
+
 ### 7.5 Consent: opt-in, with reciprocity (CHAR-3)
 
 The extended set is collected **only from devices whose operator has
