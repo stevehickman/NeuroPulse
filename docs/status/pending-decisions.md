@@ -352,7 +352,7 @@ Lead** on cost. All three now decide against a corrected electrical premise.
 
 | # | Item | Owner |
 |---|---|---|
-| 1 | **PARTIAL 2026-09-21 — done for the in-window candidate, still open for the other three.** **Read Vf at 120–180 mA off the `IF = f(VF)` curve** for GH CSSRM5.24 (660 nm), SFH 4718A, L1IZ-0850 and any in-window candidate. **Performed for the Luminus SST-06/SST-10-IRD-810 family** against its own datasheets (§13.2e(i)): `V_f` = **2.82 V / 2.85 V at 150 mA**, self-validated at the trace's own 350 mA reference. **The three parts this item names by name are untouched** — their datasheets have not been read at the operating point, so `NP-HW-HEXTILE-001` §4.3's specified 11 × 2.10 V and 14 × 1.60 V still rest on design targets, and that is the half of this item that blocks `OI-HEXTILE-02`. **The blocker is narrow (2026-09-22): a session cannot *fetch* a datasheet, but one *supplied into it* works — that is exactly how the Luminus read was done. This item is three handed-over documents away: the `IF = f(VF)` curves for GH CSSRM5.24, SFH 4718A and L1IZ-0850.** The read itself is mechanical and self-validating | EE Lead |
+| 1 | ✅ **DONE 2026-09-28 — read for all three named parts (§13.2e(j)). One of the three reads fails its self-check, so the L1IZ-0850 string length is still a bracket.** *Was:* **PARTIAL 2026-09-21 — done for the in-window candidate, still open for the other three.** **Read Vf at 120–180 mA off the `IF = f(VF)` curve** for GH CSSRM5.24 (660 nm), SFH 4718A, L1IZ-0850 and any in-window candidate. **Performed for the Luminus SST-06/SST-10-IRD-810 family** against its own datasheets (§13.2e(i)): `V_f` = **2.82 V / 2.85 V at 150 mA**, self-validated at the trace's own 350 mA reference. **The three parts this item names by name are untouched** — their datasheets have not been read at the operating point, so `NP-HW-HEXTILE-001` §4.3's specified 11 × 2.10 V and 14 × 1.60 V still rest on design targets, and that is the half of this item that blocks `OI-HEXTILE-02`. **The blocker is narrow (2026-09-22): a session cannot *fetch* a datasheet, but one *supplied into it* works — that is exactly how the Luminus read was done. This item is three handed-over documents away: the `IF = f(VF)` curves for GH CSSRM5.24, SFH 4718A and L1IZ-0850.** The read itself is mechanical and self-validating | EE Lead |
 | 2 | **OPEN, unchanged.** **Confirm SFH 4703AS EOL against a PCN**, and confirm it applies to the exact orderable variant. The 2026-09-21 pass re-confirmed the EOL status at the same strength it already held — vendor status fields — and retrieved no PCN. **Note (2026-09-22): this one is not an egress problem at all** — a Product Discontinuation Notice is obtained by **asking ams-OSRAM or an authorised distributor**, not by downloading a public page, so no amount of session network access would discharge it. It is a procurement action, which is why the owner column reads Procurement. **`NP-PROC-FPC-001` §2.6.2 now records the part as discontinued at that stated strength**, which is what stops it being designed in; it does not discharge this item | Procurement |
 | 3 | ✅ **DONE 2026-09-21 — search re-run and the candidate verified** (§13.2e(h) then (i)). The OSLON Black 810 nm family resolves to the one part already shortlisted and it is EOL; the **Luminus SST-06-IRD-810 / SST-10-IRD-810** family was found instead, and its datasheets were then read rather than summarised. Full assessment in `NP-PROC-FPC-001` Rev 5 §2.6.3. **The search is closed; what it produced is a candidate with three open requirement failures (T_j, L70, wavelength bin) and a lattice-fit problem, not a part to select** | EE Lead + Procurement |
 | 4 | ✅ **DONE 2026-09-21 — `NP-PROC-FPC-001` Rev 4** (GitHub #333). All five corrections applied in place: the "2000mA DC / 11× margin" row now reads **1000 mA DC / 5.6×** with the 2 A figure identified as `I_FSM` surge at D = 0.005; "Vf=3.55V @1A" is marked not a datasheet value (**typ 3.3 V / max 4.0 V at 1 A, 10 ms**); **centroid 810 nm** added alongside the 820 nm peak; the "DigiKey, Mouser stocked" row replaced with **DISCONTINUED**, at the stated strength of three vendor status fields and explicitly not a PCN; and the CRITICAL FINDING is **WITHDRAWN and retained**, with its 15 V anchor restated against D-6's 24 V rail. The standing practice this row cited — that the `.docx` is not hand-edited — was **read too broadly**: `np_tool_shell_001.docx` carries an in-place PARTIALLY SUPERSEDED banner from 2026-08-18, so the set's own precedent is to correct a `.docx` in place and retain what it replaces. This pass followed it | Hardware Engineering |
@@ -501,6 +501,45 @@ unwritable.**
 **Documents changed by this pass:** this entry (§13.2d banner, §13.2e new); `NP-HW-HEXTILE-001` Rev 3
 → **Rev 4** (§8.1 string budget generalised; OI-HEXTILE-18/17 raised). **No decision was taken on
 OI-LED-W1, OI-LED-01, OI-HEXTILE-02 or RISK-03.**
+
+#### (j) `OI-LED-01` read for the three parts it names, and the 660 nm primary's own problem (2026-09-28, GitHub #333)
+
+**The three datasheets (g) item 1 asked for were supplied**: ams-OSRAM GH CSSRM5.24 v1.1, SFH 4718A
+v1.5 and Lumileds DS190 (the supplied copy is dated 2018-01-09). Each `IF = f(VF)` trace is a vector
+path, which was extracted, calibrated against the plot's own axes, interpolated and checked against
+the tabulated `V_f`. The full record is in `NP-PROC-FPC-001` Rev 9 §2.6.3 and
+`NP-HW-HEXTILE-001` Rev 20 §8.1.1.
+
+| Part | `V_f` at 120 / 150 / 180 mA | Self-check | N on 24 V | Was specified |
+|---|---|---|---|---|
+| GH CSSRM5.24 (660 nm) | 1.77 / **1.78** / 1.80 V | ✓ 1.990 V at 700 mA vs 1.99 typ | **13** | 11 × 2.10 V |
+| SFH 4718A (850 nm centroid) | 1.39 / **1.41** / 1.43 V | ✓ 1.744 V at 1 A vs 1.75 typ | **16** | 14 × 1.60 V |
+| L1IZ-0850 | 2.83 / 2.87 / 2.91 V as traced | **✗ 3.455 V at 1 A vs 3.2 typ** | **9 or 8** | — |
+
+**The L1IZ-0850 read is the one that did not close.** The plotted device is 0.26 V above the
+datasheet's own typical, so the trace is a sample, not the typical. Anchoring its shape to the
+typical gives 2.62 V, and the honest figure is the bracket 2.62–2.87 V. The later DS190 revision
+that `OI-LED-04` cites (2018-06-19) may reconcile the two. It has not been read.
+
+**What the reads change.** The specified string lengths were design targets, and neither survives.
+§8.1.1's **±2-site allocation slack** fails at the datasheet N for most candidates. **Binning
+separates the parts more than wavelength does.** GH ships in 0.10 V groups, SFH 4718A has no `V_f`
+groups, and L1IZ bins are 0.5 V, so neither NIR part meets §2.1 without an agreement (`OI-LED-06`).
+
+**The finding that matters most is about the 660 nm primary, which was not in question.** At
+~233 mW per emitter at 150 mA (2.5× §4.3's target), a 45-site CH_A needs ~60 mA to sit at R-4's
+400 mW/cm². The datasheet rates `I_F` **min 100 mA**, and at 100 mA the channel is still ~663 mW/cm².
+**`OI-HEXTILE-29` is raised**: `I_cap` has no legal value for this part at this site count. Its
+datasheet also offers **no wavelength bin** (one centroid group, 646–666 nm) and **no L70 figure**.
+Its ordering code in `NP-PROC-FPC-001` §2.6.1 (`-V8V9-1-1-700-R33`) is not one the datasheet lists.
+It is the one shortlisted square package that **fits** §4.1's lattice (`OI-HEXTILE-22`).
+
+**Also corrected, from the same datasheets:** SFH 4718A's beam is **40°**, not 80°, which weakens
+`OI-LED-02`'s "both wide-angle" premise. Its centroid is 850 nm, and 860 nm is the peak.
+
+**Still not decided, and still not a session's to decide:** `OI-LED-W1` (SAB, Regulatory Counsel,
+EE Lead). `OI-HEXTILE-02` now also waits on `OI-HEXTILE-29` for CH_A. (g) item 2, the SFH 4703AS
+PCN, is Procurement's.
 
 ## 13.2b tFUS / LIFU — modality watch (elevated to MEDIUM 2026-05-13)
 
