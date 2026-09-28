@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HEXTILE-001
-**Revision:** 18
-**Date:** 2026-09-27
+**Revision:** 19
+**Date:** 2026-09-28
 **Status:** DESIGN STUDY — not a tooling baseline. Every numeric value below is a proposed engineering commitment, not a measured or locked figure. See §10 (Decisions) and §11 (Open Items).
 **Effective Date:** —
 **Author:** NeurOne Hardware Engineering
@@ -16,6 +16,17 @@
 **Parent Document:** NP-HEX-ZM-001
 
 ---
+
+> **Rev 19 (2026-09-28): two geometry statements under `OI-HEXTILE-22` are corrected. No ✗ changes, no emitter is selected, and nothing is decided.** GitHub #333.
+>
+> §4.1 said a 45° package rotation clears the 3.45 mm Luminus part by ~0.03 mm. **It does not.** At 45°
+> the largest square that fits is `p/√2` = 2.69 mm, the worst orientation. No uniform rotation beats
+> `p√3/2` = 3.29 mm, and a per-sublattice search found nothing better, so **rotation is closed as a
+> way out**. `OI-HEXTILE-22`'s second way out said a 2835 package's 3.5 mm axis "already exceeds
+> 3.29 mm". That bound is for a **square**. A rectangle needs a **3.80 × 3.29 mm envelope, long axis on
+> a lattice row**, and a 2835 fits it. The item's three ways out are unchanged. The second one is
+> less restrictive than it was written. The site placement margin those clearances must exceed is
+> still unstated.
 
 > **Rev 18 (2026-09-27): §7.3's pad-length stagger has an order and no dimension. `OI-HEXTILE-28` raised. No figure is set and nothing is decided.**
 >
@@ -397,7 +408,38 @@ Pitch is set to **3.80 mm**, not the 4.04 mm ceiling, leaving 1.2 mm of clearanc
 > so for them the conflict is not resolvable by spending the 1.2 mm boundary clearance — it costs a
 > ring (n = 4, 61 sites, 5.05 mm available) or a different package. **The pitch and the emitter
 > package have to be chosen together, and §4.3's irradiance figures depend on the outcome of both.**
-> A 45° package rotation clears the 3.45 mm part by ~0.03 mm, which is not a manufacturable margin.
+> ~~A 45° package rotation clears the 3.45 mm part by ~0.03 mm, which is not a manufacturable margin.~~
+>
+> **⚠ CORRECTED Rev 19 (2026-09-28, GitHub #333): the struck sentence is wrong, and so is the "≤ 3.29 mm"
+> reading of a rectangular package. Neither correction changes a ✗ in the table.**
+>
+> - **Rotation is no escape, and 45° is the worst orientation.** Two identical squares of side `s`, at
+>   centre separation `p` along a direction at angle `α` to the package edges, clear iff
+>   `p · max(|cos α|, |sin α|) ≥ s`. Rotating every package by `θ` puts the three neighbour directions
+>   at `−θ`, `60° − θ` and `120° − θ`, which modulo 90° are three points 30° apart. One of them is
+>   always within 15° of the package diagonal, so **`s ≤ p · cos 30° = p√3/2 = 3.29 mm` for every
+>   `θ`**, and that bound is reached at `θ = 0` (mod 30°). At `θ = 45°` the 0° neighbour sits on the
+>   diagonal and **`s ≤ p/√2 = 2.69 mm`**. The 3.45 mm part overlaps by 0.76 mm there. It does not
+>   clear by 0.03 mm.
+> - **Per-sublattice orientation does no better, on a numeric search.** §4.2's 3-colouring allows a
+>   separate angle per colour. A separating-axis check over both relative angles on a 3° grid found
+>   no arrangement above 3.29 mm. That is a search, not a proof. The **density bound** holds for any
+>   orientations: `s² ≤ (√3/2)·p²`, so `s ≤ 3.54 mm`. It is exact only as the array grows, so it
+>   corroborates rather than proves. SST-06/10 at maximum material (3.65 mm), SFH 4718A (3.75 mm)
+>   and SFH 4703AS (3.85 mm) all exceed it, so **no orientation scheme of any kind** seats them at
+>   3.80 mm.
+> - **A rectangle fits an envelope, not a single axis.** An `L × W` package with `L` along a lattice
+>   row clears its row neighbour iff `L ≤ p`, and clears its 60°/120° neighbours at
+>   `(p/2, p√3/2)` iff `W ≤ p√3/2` (for `L > p/2`). So the site envelope is **3.80 × 3.29 mm,
+>   long axis on a row**, and a square package is the special case `≤ 3.29 mm`. A **2835**
+>   package (3.5 × 2.8 mm) therefore **fits** row-aligned, with 0.30 mm and 0.49 mm clearance. It
+>   overlaps only when turned across the row. The L1IZ-0850 row's 2.19 mm is the long-axis-across
+>   figure. Row-aligned, its minimum pitch is `max(1.90, 1.37 · 2/√3)` = **1.90 mm**. Either way the
+>   ✓ stands.
+>
+> No document states a placement tolerance or courtyard for these sites, so none of these
+> clearances is yet a pass. That margin is part of `OI-HEXTILE-22` and is not set here (CLAUDE.md
+> §18).
 
 This independently reproduces the estimate NP-HEX-ZM-001 §3.1 carried without deriving — *"the densest tile (tri-wavelength PBM ~90 elements at ~3.5 mm pitch)"*. That the row-construction guess and this packing derivation agree at ~90 is the same two-independent-ways corroboration the parent document applied to the socket count.
 
@@ -1248,7 +1290,7 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 | **OI-HEXTILE-27** | **Is drive current regulated per channel or per string? §6.2 and §8.1 disagree** (raised Rev 17, 2026-09-27, from `NP-FEAS-FNIRS-001` Rev 2 §4 Risk B). §6.2 lists one FET (Q1–Q3), one sense resistor (R1–R3) and one U3 **per channel**. `REQ-TDRV-01` is written per channel, and `OI-HEXTILE-24`(b) sizes R1–R3 per channel. But T1-A carries **4 CH_A strings and 3 CH_B strings** (§8.1.1 worked example). §8.1 and §8.1.1 both say shorter strings double *"the parallel strings and sense resistors"*, which follows only if each string has its own sense resistor. The two readings are different circuits. **(i) Per channel:** the strings are paralleled under one regulator, so their current split rests on V_f matching alone (the ±0.10 V bin, RISK-08). Q1/Q2 and U3 then carry the whole channel current, ~600 mA at 4 × 150 mA, not the 180 mA at which §6.2 computes FET dissipation. **(ii) Per string:** one U3 and one sense resistor per string (7 on T1-A), with `I_cap` and `REQ-TDRV-01` restated per string, at a rigidizer-area and §6.4 BOM cost. **Why it reaches beyond the circuit:** under (i), any future per-string on/off control forces the whole channel `I_cap` through the strings left on. With 1 of 4 CH_A strings on, that is ~4× per-emitter current, above the emitter rating and R-4's local 400 mW/cm² peak. So per-string switching is safe only under (ii). `NP-FEAS-FNIRS-001` proposes per-string switching as an fNIRS source; this item neither adopts nor rules it out. **Nothing is decided here** | **Owner:** EE + Safety. **Blocking:** `OI-HEXTILE-24` (U3 selection); §6.2; §6.4; any per-string drive control |
 | **OI-HEXTILE-28** | **Dimension §7.3's pad-length stagger** (raised Rev 18, 2026-09-27, from `NP-FW-NVRAM-001` `OI-NVRAM-04`, GitHub #444 / #437). §7.3 fixes the mating **order** of the four groups and gives no length difference between any two of them. The dimension is required by §7.3's own mechanism, not by a timing consumer. (a) Each gap between successive groups must exceed the worst-case height differential across the array: the ±0.5 mm Z tolerance, tilt across both staggered rows (the two-row consequence above), and the curved-pair variation `NP-DRV-SHELL-002` §5.1.6a computes. Otherwise a return can trail a supply, or `SEAT#` can read home while group 3 is still partial, which is `RISK-SHELL-01`'s silent under-read. (b) The sum of the gaps, plus the wipe each group needs, must fit inside the spring pin's **usable working deflection**. That deflection is unspecified (`NP-DRV-SHELL-002` `OI-SHELL2-12`), so this item cannot close before that one reports from the `SH2-DRC-08` bench. (c) State it as a pad-artwork requirement that `SH2-DRC-05a` checks and `SH2-DRC-10b` verifies on the bench. **Do not derive it from a timing requirement.** `NP-FW-NVRAM-001` §4.3.1 shows that no firmware needs the break-first interval's duration, and any future consumer of that interval must state its own extraction-velocity basis. **Do not set a number from typical pogo-pin practice ahead of (b).** Couples to `OI-SHELL2-13`, since a single-point `SEAT#` bounds what (a) can guarantee | Pad artwork release; `SH2-DRC-05a`, `SH2-DRC-10b` |
 | **OI-HEXTILE-26** | **Does the fitted photodiode respond at 660 nm and 808 nm?** (raised Rev 14, 2026-09-25, from `NP-CONV-001` `OI-CONV-08` (b), GitHub #394). §5.1 fits Hamamatsu G12180-010A to every tile on the premise *"InGaAs is broadband (600–1700 nm)"*. The part's published range is **0.9–1.7 µm**, which excludes CH_A (660 nm) and CH_B (808 nm), and T1-A carries nothing else. **Confirm from the datasheet's spectral-response curve** the responsivity at 660, 808–830 and 1064 nm. If it is negligible at 660/808, then: (i) PD1/PD2 cannot meter CH_A or CH_B on any tile, so the dose claim and the RISK-14 fouling/ageing discriminator (R-8) have no sensor on the flagship tile; (ii) §5.1's one-SKU trade reverses, and T1-A needs a silicon (or extended-range) PD, with its own K coefficients; (iii) T1-C needs both a Si and an InGaAs PD, or one extended-range part. The listings also give the package as **metal TO-18, φ1.0 mm**, not SMD, so the inherited 1.6 mm annular-ring pad needs re-checking. **Dose-metering path: not relaxed, not retired, nothing selected here.** Also owns correcting `NP-PROC-FPC-1064-001` §4.1–§4.2 (`OI-PBM-HW-09`) and `NP-FW-PBM1064-001` §6.1's *"InGaAs is broadband"* | **Owner:** EE Lead + Optical. **Blocking:** **PD selection for every tile; GATE-2 bench; `NP-FAI-HEXFPC-001`** |
-| **OI-HEXTILE-22** | **§4.1's 3.80 mm lattice pitch was never checked against the footprint of the emitter that sits on each site, and most of the shortlist does not fit it** (raised Rev 10, GitHub #333). A triangular lattice of pitch `p` puts the 60° neighbour at `(p/2, p√3/2)`; at p = 3.80 mm that is **(1.90, 3.29) mm**, so two axis-aligned square packages clear each other only at **≤ 3.29 mm**. Luminus SST-06/SST-10-IRD-810 is 3.45 mm square (**3.65 mm at maximum material**, +0.20/−0.00) and needs ≥ 4.21 mm; **ams-OSRAM SFH 4718A (3.75 mm) needs ≥ 4.33 mm and SFH 4703AS (3.85 mm) needs ≥ 4.45 mm** — both above §4.1's own **4.04 mm** ceiling at n = 5, so for them it is not resolvable by spending the 1.2 mm boundary clearance. **Only Lumileds L1IZ-0850 (1.9 × 1.37 mm) fits**, and only with its long axis on the 60° axis — which is the 850 nm part, the one that fails the wavelength window. A 45° package rotation clears the 3.45 mm part by ~0.03 mm and is not a manufacturable margin. **Three ways out and this item does not pick one:** drop to n = 4 (61 sites, 5.05 mm available, and every §4.3 irradiance figure re-derives on the lower count); hold 91 sites and require a ≤ 3.29 mm package, which is a procurement constraint `NP-PROC-FPC-001` §2.3 does not currently state (it says only *“SMD 2835 or equivalent”* — and 2835 is 2.8 × 3.5 mm, whose 3.5 mm axis already exceeds 3.29 mm); or re-derive the pitch jointly with the part under `OI-HEXTILE-02`. **Sequence before `OI-HEXTILE-02` and `OI-HEXTILE-04`** — beam angle and uniformity are both downstream of whichever pitch survives | §4.1 pitch; **all §4.3 irradiance figures**; FPC artwork; `OI-HEXTILE-02` part selection; `NP-PROC-FPC-001` §2.3 package requirement |
+| **OI-HEXTILE-22** | **§4.1's 3.80 mm lattice pitch was never checked against the footprint of the emitter that sits on each site, and most of the shortlist does not fit it** (raised Rev 10, GitHub #333). A triangular lattice of pitch `p` puts the 60° neighbour at `(p/2, p√3/2)`; at p = 3.80 mm that is **(1.90, 3.29) mm**, so two axis-aligned square packages clear each other only at **≤ 3.29 mm**. Luminus SST-06/SST-10-IRD-810 is 3.45 mm square (**3.65 mm at maximum material**, +0.20/−0.00) and needs ≥ 4.21 mm; **ams-OSRAM SFH 4718A (3.75 mm) needs ≥ 4.33 mm and SFH 4703AS (3.85 mm) needs ≥ 4.45 mm** — both above §4.1's own **4.04 mm** ceiling at n = 5, so for them it is not resolvable by spending the 1.2 mm boundary clearance. **Only Lumileds L1IZ-0850 (1.9 × 1.37 mm) fits**, and only with its long axis on the 60° axis — which is the 850 nm part, the one that fails the wavelength window. ~~A 45° package rotation clears the 3.45 mm part by ~0.03 mm and is not a manufacturable margin.~~ **Corrected Rev 19 (§4.1 note): no rotation helps.** Uniform rotation is bounded by `p√3/2` = 3.29 mm at every angle, and 45° is the worst case at `p/√2` = 2.69 mm. A per-sublattice search found nothing above 3.29 mm, and the three parts at or above 3.65 mm exceed even the orientation-free density bound of 3.54 mm. **Three ways out and this item does not pick one:** drop to n = 4 (61 sites, 5.05 mm available, and every §4.3 irradiance figure re-derives on the lower count); hold 91 sites and require a ≤ 3.29 mm package, which is a procurement constraint `NP-PROC-FPC-001` §2.3 does not currently state (it says only *“SMD 2835 or equivalent”* — ~~and 2835 is 2.8 × 3.5 mm, whose 3.5 mm axis already exceeds 3.29 mm~~ **corrected Rev 19: ≤ 3.29 mm binds a *square*. The general constraint is a 3.80 × 3.29 mm envelope with the long axis on a lattice row, and a 2835 fits it with 0.30 / 0.49 mm clearance.** The site placement tolerance or courtyard that those clearances must exceed is stated nowhere and belongs to this item); or re-derive the pitch jointly with the part under `OI-HEXTILE-02`. **Sequence before `OI-HEXTILE-02` and `OI-HEXTILE-04`** — beam angle and uniformity are both downstream of whichever pitch survives | §4.1 pitch; **all §4.3 irradiance figures**; FPC artwork; `OI-HEXTILE-02` part selection; `NP-PROC-FPC-001` §2.3 package requirement |
 
 ---
 
