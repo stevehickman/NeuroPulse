@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 58 (current)  
+**Revision:** 59 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -159,12 +159,19 @@ cloud + FHIR R4 + LSL + scripting API · anonymized session tag.
 
 | Modality | Ceiling |
 |----------|---------|
-| PBM scalp | **400 mW/cm² peak pulsed** (≤25% duty, firmware-enforced) · 200 mW/cm² CW · 42 °C limit (IEC 60601) |
+| PBM scalp | **400 mW/cm² peak** · **200 mW/cm² time-averaged** (CW is where the two meet) · duty and mode are the protocol's · 42 °C limit (IEC 60601) |
 | PBM deep (T2) | ≤1,000 mW/cm² (1170 nm, TEC-stabilised) |
 | BES / tACS | 0.5–40 Hz · ≤1 mA T1 / ≤4 mA T2 · charge-balanced biphasic · **40 µC/cm² per phase** |
 | tDCS | 0.1–2 mA DC · **150 mC/cm² per session** hardware limit · 30 s ramp · ≤3 electrode pairs |
 | VNS (auricular) | 1–25 Hz · ≤2 mA · biphasic charge-balanced · **40 µC/cm² per phase** |
 | Visual | IEC 62471 MPE at 50% of exempt-group threshold · photoparoxysmal halt <200 ms |
+
+**A PBM ceiling refuses a protocol. It never reshapes one** (principal, 2026-09-28). Duty, mode and
+irradiance are the protocol's, because a pulse train clamped to fit is a different stimulus from the
+one authored. A protocol outside a ceiling is rejected before it is signed, and if the hardware cannot
+deliver one inside them, the hardware is redesigned. The 25 % duty cap this row carried until Rev 59
+is retired; the time-averaged 200 keeps the bound it stood for. **The code, the language and U4 still
+clamp** (`OI-HEXTILE-30`, `-31` in `docs/np_hw_hextile_001.md`).
 
 **The charge ceiling is two ceilings, one per waveform class.** DC channels (tDCS, HD-tDCS) have
 **150 mC/cm² per session** per electrode. Charge-balanced channels (BES/tACS, VNS, cVNS, clinical
