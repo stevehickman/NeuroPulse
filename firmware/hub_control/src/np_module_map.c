@@ -28,6 +28,16 @@ typedef char _np_hexmap_elem_fits[(NP_HEXMAP_MAX_ELEMENTS <=
 typedef struct {
     np_module_uid_t uid;           /* zero = empty socket                        */
     bool            module_present;/* module plugged AND inventoried cleanly     */
+    /*
+     * REQ-LFS-02 (NP-SOUP-LFS-001 §13.18.2): true once a poll in THIS boot has
+     * reported this record's UID for this socket. RAM only — never serialized,
+     * so every record np_module_map_load() restores starts false. A restored
+     * blob can be valid and still old (a power cut before the last persist, or
+     * littlefs's E4 rollback), and then it describes whatever module was in the
+     * socket when it was written. Until the poll confirms the UID, the record
+     * is used for nothing: see record_live().
+     */
+    bool            confirmed;
     uint8_t         health;
     uint8_t         elem_count;     /* valid entries in elem_type[]              */
     uint8_t         elem_type[NP_HEXMAP_MAX_ELEMENTS];  /* np_elem_type_t values */
@@ -224,7 +234,20 @@ np_hub_status_t np_module_map_init(const np_socket_geom_t *geom, uint16_t n_sock
 
 static void clear_record(np_socket_record_t *r)
 {
-    memset(r, 0, sizeof(*r));  /* uid zeroed, module_present false, count 0 */
+    memset(r, 0, sizeof(*r));  /* uid zeroed, module_present false, count 0,
+                                  confirmed false */
+}
+
+/*
+ * The one test every reader of the inventory applies (REQ-LFS-02). A record is
+ * live when it names a cleanly inventoried module AND the power-on / hot-plug
+ * poll has confirmed that module's UID in this socket since boot. Restored but
+ * unconfirmed records stay in the map, because they are what lets the poll
+ * skip re-inventory of an unchanged module; they are simply not answered from.
+ */
+static bool record_live(const np_socket_record_t *r)
+{
+    return r->module_present && r->confirmed;
 }
 
 /* Drop the whole inventory, keeping the bound geometry and n_sockets. Used by
@@ -268,8 +291,11 @@ np_hub_status_t np_module_map_apply_poll(uint16_t                 socket_id,
         return NP_HUB_OK;
     }
 
-    /* Same module as last time in this socket — refresh health only, no re-inventory. */
+    /* Same module as last time in this socket — refresh health only, no
+     * re-inventory. This is also the point at which a record restored from
+     * npmp.bin becomes usable (REQ-LFS-02): the poll has now seen its UID. */
     if (r->module_present && np_module_uid_equal(&r->uid, reported_uid)) {
+        r->confirmed = true;
         return NP_HUB_OK;
     }
 
@@ -301,6 +327,7 @@ np_hub_status_t np_module_map_apply_poll(uint16_t                 socket_id,
     r->health         = health;
     r->elem_count     = count;
     r->module_present = true;
+    r->confirmed      = true;   /* inventoried from the module itself, now */
     memcpy(r->elem_type, types, count);
     if (changed_out != NULL) {
         *changed_out = true;
@@ -320,7 +347,7 @@ np_hub_status_t np_module_map_resolve(np_hex_addr_t addr, np_physical_loc_t *out
         return NP_HUB_ERR_NOT_PRESENT;
     }
     const np_socket_record_t *r = &s_map.rec[addr.socket_id];
-    if (!r->module_present || addr.element_id >= r->elem_count) {
+    if (!record_live(r) || addr.element_id >= r->elem_count) {
         return NP_HUB_ERR_NOT_PRESENT;
     }
     const np_socket_geom_t *g = &s_map.geom[addr.socket_id];
@@ -393,7 +420,7 @@ static bool emit_socket(uint16_t socket_id, uint64_t mask, bool exclude,
         return true;                   /* skip missing sockets, not an overflow */
     }
     const np_socket_record_t *r = &s_map.rec[socket_id];
-    if (!r->module_present) {
+    if (!record_live(r)) {
         return true;
     }
     for (uint8_t e = 0; e < r->elem_count; e++) {
@@ -483,7 +510,7 @@ static bool socket_has_type(uint16_t socket_id, uint64_t type_mask)
         return false;
     }
     const np_socket_record_t *r = &s_map.rec[socket_id];
-    if (!r->module_present) {
+    if (!record_live(r)) {
         return false;
     }
     for (uint8_t e = 0; e < r->elem_count; e++) {
@@ -534,7 +561,7 @@ static np_socket_record_t *find_by_uid(const np_module_uid_t *uid)
     }
     for (uint16_t s = 0; s < s_map.n_sockets; s++) {
         np_socket_record_t *r = &s_map.rec[s];
-        if (r->module_present && np_module_uid_equal(&r->uid, uid)) {
+        if (record_live(r) && np_module_uid_equal(&r->uid, uid)) {
             return r;
         }
     }
@@ -583,7 +610,7 @@ np_hub_status_t np_module_map_socket_uid(uint16_t socket_id, np_module_uid_t *ui
         return NP_HUB_ERR_INVALID_ARG;
     }
     const np_socket_record_t *r = &s_map.rec[socket_id];
-    if (!r->module_present || np_module_uid_is_zero(&r->uid)) {
+    if (!record_live(r) || np_module_uid_is_zero(&r->uid)) {
         return NP_HUB_ERR_NOT_PRESENT;
     }
     *uid_out = r->uid;
@@ -700,6 +727,28 @@ np_hub_status_t np_module_map_load(const uint8_t *buf, size_t buf_len)
         }
     }
     return NP_HUB_OK;
+}
+
+bool np_module_map_blob_verify(const uint8_t *buf, size_t len)
+{
+    if (buf == NULL || len < (size_t)NP_HEXMAP_HDR_BYTES + NP_HEXMAP_CRC_BYTES) {
+        return false;
+    }
+    if (get_u32(&buf[0]) != NP_HEXMAP_NVRAM_MAGIC) {
+        return false;
+    }
+    uint16_t n = get_u16(&buf[6]);
+    if (n == 0u || n > NP_HEXMAP_MAX_SOCKETS) {
+        return false;
+    }
+    size_t total = (size_t)NP_HEXMAP_HDR_BYTES +
+                   (size_t)n * NP_HEXMAP_REC_BYTES +
+                   (size_t)NP_HEXMAP_CRC_BYTES;
+    if (len != total) {
+        return false;
+    }
+    return get_u32(&buf[total - NP_HEXMAP_CRC_BYTES]) ==
+           crc32(buf, total - NP_HEXMAP_CRC_BYTES);
 }
 
 np_hub_status_t np_module_map_persist(void)

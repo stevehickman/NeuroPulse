@@ -52,7 +52,7 @@
 /* The 65 symbols with no other declaring header. */
 #include "np_sw02_platform_hal.h"
 
-/* The 36 already single-sourced by the module that owns them.  Included rather
+/* The 34 already single-sourced by the module that owns them.  Included rather
  * than restated so the compiler — not this file — is what checks them. */
 #include "np_anon_scratch.h"     /* np_anon_hal_*          (5) */
 #include "np_cvns_reenable.h"    /* np_cvns_hal_impedance_ (2) */
@@ -60,7 +60,6 @@
 #include "np_gatt_server.h"      /* np_gatt_hal_*          (2) */
 #include "np_warranty_token.h"   /* np_warranty_hal_*      (1) */
 #include "np_factory_reset.h"    /* np_factory_reset_hal_* (5) */
-#include "np_module_map.h"       /* np_hexmap_nvram_*      (2) */
 #include "np_log_backend.h"      /* np_log_hal_part_*      (3) */
 #include "np_safety_spi.h"       /* np_safety_hal_spi_*    (1) */
 #include "np_uhdr_key.h"         /* np_uhdr_hal_*          (8) */
@@ -715,25 +714,6 @@ np_reset_status_t np_factory_reset_hal_write_config_defaults(
 {
     (void)trng_salt;
     (void)warranty_token;
-    NP_PLATFORM_TRAP();
-}
-
-/* ────────────────────────────────────────────────────────────────────────────
- * Hex module-map NVRAM — np_module_map.h
- * ──────────────────────────────────────────────────────────────────────────*/
-
-np_hub_status_t np_hexmap_nvram_read(uint8_t *buf, size_t len, size_t *read_len)
-{
-    (void)buf;
-    (void)len;
-    (void)read_len;
-    NP_PLATFORM_TRAP();
-}
-
-np_hub_status_t np_hexmap_nvram_write(const uint8_t *buf, size_t len)
-{
-    (void)buf;
-    (void)len;
     NP_PLATFORM_TRAP();
 }
 

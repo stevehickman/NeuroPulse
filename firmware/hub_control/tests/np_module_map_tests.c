@@ -153,6 +153,20 @@ static void plug_eeg(uint16_t socket, uint8_t seed)
     (void)np_module_map_apply_poll(socket, &u, 0x00, inv_cb, NULL, &changed);
 }
 
+/*
+ * REQ-LFS-02: the power-on poll re-reports the module a restored record names.
+ * Returns the number of inventory callbacks the poll caused — 0 means the
+ * restored record was confirmed from the cache, which is what the cache is for.
+ */
+static int confirm_pbm(uint16_t socket, uint8_t seed)
+{
+    inv_set(PBM_TILE, (uint8_t)PBM_TILE_N);   /* zeroes g_inv_calls */
+    np_module_uid_t u = uid_of(seed);
+    bool changed = false;
+    (void)np_module_map_apply_poll(socket, &u, 0x00, inv_cb, NULL, &changed);
+    return changed ? -1 : g_inv_calls;
+}
+
 /* ── NVRAM HAL stubs (test-controlled) ────────────────────────────────────────── */
 
 static uint8_t g_nvram[NP_HEXMAP_HDR_BYTES +
@@ -493,8 +507,12 @@ static void test_nvram_roundtrip(void)
     check(np_module_map_resolve(a0, &loc) == NP_HUB_ERR_NOT_PRESENT, "records cleared by re-init");
 
     check(np_module_map_load(buf, (size_t)wrote) == NP_HUB_OK, "load ok");
+    check(np_module_map_resolve(a0, &loc) == NP_HUB_ERR_NOT_PRESENT,
+          "REQ-LFS-02: a loaded record resolves nothing before the poll");
+    check(confirm_pbm(SOCK_TL, (uint8_t)(0x10 + SOCK_TL)) == 0,
+          "the poll confirms the loaded record without re-inventory");
     check(np_module_map_resolve(a0, &loc) == NP_HUB_OK && loc.elem_type == NP_ELEM_LED_660,
-          "loaded inventory resolves");
+          "loaded inventory resolves once confirmed");
 }
 
 static void test_nvram_reject_bad(void)
@@ -528,6 +546,10 @@ static void test_nvram_hal_persist_restore(void)
     check(np_module_map_restore() == NP_HUB_OK, "restore via HAL ok");
     np_physical_loc_t loc;
     np_hex_addr_t a = { SOCK_OR, 2 };
+    check(np_module_map_resolve(a, &loc) == NP_HUB_ERR_NOT_PRESENT,
+          "REQ-LFS-02: a restored record resolves nothing before the poll");
+    check(confirm_pbm(SOCK_OR, (uint8_t)(0x10 + SOCK_OR)) == 0,
+          "the poll confirms the restored record without re-inventory");
     check(np_module_map_resolve(a, &loc) == NP_HUB_OK && loc.elem_type == NP_ELEM_LED_1064,
           "restored inventory resolves occipital-R elem 2");
 
@@ -769,6 +791,9 @@ static void test_nvram_full_occupancy_roundtrip(void)
 
     check(np_module_map_load(buf, (size_t)wrote) == NP_HUB_OK,
           "load full 128-socket blob ok");
+    check(confirm_pbm(SOCK_HI_LAST, (uint8_t)(SOCK_HI_LAST + 1u)) == 0 &&
+          confirm_pbm(SOCK_HI_FIRST, (uint8_t)(SOCK_HI_FIRST + 1u)) == 0,
+          "sockets 127 and 64 confirmed from the cache");
     check(np_module_map_resolve(a, &loc) == NP_HUB_OK && loc.elem_type == NP_ELEM_LED_660,
           "socket 127 survives the NVRAM round-trip");
     np_hex_addr_t a64 = { SOCK_HI_FIRST, 2 };
@@ -781,6 +806,8 @@ static void test_nvram_full_occupancy_roundtrip(void)
     check(g_nvram_len == NP_HEXMAP_NVRAM_MAX_BYTES, "HAL received the full 22412-byte blob");
     full_geom_init();
     check(np_module_map_restore() == NP_HUB_OK, "restore full-occupancy blob via HAL");
+    check(confirm_pbm(SOCK_HI_LAST, (uint8_t)(SOCK_HI_LAST + 1u)) == 0,
+          "socket 127 confirmed after HAL restore");
     check(np_module_map_resolve(a, &loc) == NP_HUB_OK,
           "socket 127 resolves after HAL restore");
 }
@@ -1184,6 +1211,9 @@ static void test_cal_survives_nvram_roundtrip(void)
     check(np_module_map_load(buf, (size_t)wrote) == NP_HUB_OK, "cal: load blob back");
 
     float out[NP_HEXMAP_CAL_FLOATS] = { 0 };
+    check(np_module_map_get_cal(&u, out) == NP_HUB_ERR_NOT_PRESENT,
+          "cal: REQ-LFS-02 — a restored calibration is unused before the poll");
+    check(confirm_pbm(5, 0x88) == 0, "cal: the poll confirms socket 5's module");
     check(np_module_map_get_cal(&u, out) == NP_HUB_OK,
           "cal: record survives the NVRAM round-trip");
     int same = 1;
@@ -1191,6 +1221,115 @@ static void test_cal_survives_nvram_roundtrip(void)
         if (out[i] != in[i]) { same = 0; }
     }
     check(same, "cal: every coefficient survives the float round-trip bit-exactly");
+}
+
+/*
+ * REQ-LFS-02 (NP-SOUP-LFS-001 §13.18.2). A blob can be valid and old — a power
+ * cut before the last persist, or littlefs's E4 rollback — and then its record
+ * for a socket names whatever module was there when it was written. No CRC can
+ * see that. So a restored record answers NOTHING until the poll has confirmed
+ * its UID in this boot, through every reader, and a poll that finds a different
+ * module replaces the record rather than confirming it.
+ *
+ * Falsified: with record_live() reduced to `r->module_present`, the six
+ * "before the poll" checks and the "re-restore" check fail.
+ */
+static void test_restored_record_unused_until_poll(void)
+{
+    full_geom_init();
+    (void)plug_pbm(10, 0x41);
+    (void)plug_pbm(11, 0x42);
+    float cal[NP_HEXMAP_CAL_FLOATS];
+    fill_cal(cal, 0.200f);
+    np_module_uid_t old_mod = uid_of(0x41);
+    check(np_module_map_set_cal(&old_mod, cal) == NP_HUB_OK, "REQ-LFS-02: seed cal");
+    check(np_module_map_persist() == NP_HUB_OK, "REQ-LFS-02: persist");
+
+    full_geom_init();                               /* power cycle */
+    check(np_module_map_restore() == NP_HUB_OK, "REQ-LFS-02: restore");
+
+    np_physical_loc_t loc;
+    np_hex_addr_t     a10 = { 10, 0 };
+    check(np_module_map_resolve(a10, &loc) == NP_HUB_ERR_NOT_PRESENT,
+          "REQ-LFS-02: resolve refuses before the poll");
+    np_hex_addr_t out[16];
+    uint16_t      n = 99;
+    const uint16_t both[] = { 10, 11 };
+    check(resolve_sockets(both, 2, 0, false, out, 16, &n) == NP_HUB_OK && n == 0,
+          "REQ-LFS-02: resolve_group emits nothing before the poll");
+    np_placement_req_t req[] = { { 10, NP_ELEM_BIT(NP_ELEM_LED_660) } };
+    uint16_t fc = 0;
+    check(np_module_map_check_placement(req, 1, NULL, 0, &fc) == NP_HUB_ERR_NOT_PRESENT &&
+          fc == 1, "REQ-LFS-02: placement is unmet before the poll");
+    float got[NP_HEXMAP_CAL_FLOATS];
+    check(np_module_map_get_cal(&old_mod, got) == NP_HUB_ERR_NOT_PRESENT,
+          "REQ-LFS-02: get_cal refuses before the poll");
+    check(np_module_map_set_cal(&old_mod, cal) == NP_HUB_ERR_NOT_PRESENT,
+          "REQ-LFS-02: set_cal refuses before the poll");
+    np_module_uid_t who;
+    check(np_module_map_socket_uid(10, &who) == NP_HUB_ERR_NOT_PRESENT,
+          "REQ-LFS-02: socket_uid refuses before the poll");
+
+    /* The stale case: socket 10 now holds a DIFFERENT module. The poll must
+     * re-inventory, and neither module may be handed the stored calibration. */
+    check(confirm_pbm(10, 0x55) == -1 && g_inv_calls == 1,
+          "REQ-LFS-02: a different UID is re-inventoried, not confirmed");
+    np_module_uid_t new_mod = uid_of(0x55);
+    check(np_module_map_get_cal(&new_mod, got) == NP_HUB_ERR_NOT_PRESENT,
+          "REQ-LFS-02: the new module does not inherit the stored calibration");
+    check(np_module_map_get_cal(&old_mod, got) == NP_HUB_ERR_NOT_PRESENT,
+          "REQ-LFS-02: the departed module's stored calibration is gone");
+    check(np_module_map_resolve(a10, &loc) == NP_HUB_OK,
+          "REQ-LFS-02: the re-inventoried module resolves");
+
+    /* Socket 11 now empty: the restored record is cleared, never confirmed. */
+    np_module_uid_t zero;
+    memset(&zero, 0, sizeof(zero));
+    bool changed = false;
+    (void)np_module_map_apply_poll(11, &zero, 0x00, NULL, NULL, &changed);
+    np_hex_addr_t a11 = { 11, 0 };
+    check(changed && np_module_map_resolve(a11, &loc) == NP_HUB_ERR_NOT_PRESENT,
+          "REQ-LFS-02: an empty poll clears the restored record");
+
+    /* Confirmation is per boot: a second restore un-confirms everything. */
+    check(np_module_map_persist() == NP_HUB_OK, "REQ-LFS-02: persist again");
+    check(np_module_map_restore() == NP_HUB_OK, "REQ-LFS-02: re-restore");
+    check(np_module_map_resolve(a10, &loc) == NP_HUB_ERR_NOT_PRESENT,
+          "REQ-LFS-02: a re-restored record is unconfirmed again");
+    check(confirm_pbm(10, 0x55) == 0 && np_module_map_resolve(a10, &loc) == NP_HUB_OK,
+          "REQ-LFS-02: and the poll confirms it from the cache");
+}
+
+/* The store's content check is the blob's own integrity check (OI-HEXMAP-01):
+ * a valid blob passes, and every single-field corruption, a truncation and an
+ * over-length buffer fail. Version and geometry are load()'s, not this one's. */
+static void test_blob_verify(void)
+{
+    populate_all();
+    static uint8_t buf[NP_HEXMAP_NVRAM_MAX_BYTES + 4];
+    int wrote = np_module_map_serialize(buf, sizeof(buf));
+    check(wrote > 0 && np_module_map_blob_verify(buf, (size_t)wrote),
+          "blob_verify: a serialized blob passes");
+    check(!np_module_map_blob_verify(NULL, (size_t)wrote), "blob_verify: NULL fails");
+    check(!np_module_map_blob_verify(buf, (size_t)wrote - 1u),
+          "blob_verify: a truncated blob fails");
+    check(!np_module_map_blob_verify(buf, (size_t)wrote + 1u),
+          "blob_verify: trailing bytes fail");
+    buf[0] ^= 0x01u;
+    check(!np_module_map_blob_verify(buf, (size_t)wrote), "blob_verify: bad magic fails");
+    buf[0] ^= 0x01u;
+    buf[NP_HEXMAP_HDR_BYTES + 3] ^= 0x80u;
+    check(!np_module_map_blob_verify(buf, (size_t)wrote), "blob_verify: body flip fails");
+    buf[NP_HEXMAP_HDR_BYTES + 3] ^= 0x80u;
+    buf[6] = 0; buf[7] = 0;
+    check(!np_module_map_blob_verify(buf, (size_t)wrote), "blob_verify: zero sockets fails");
+    buf[6] = 0xFF; buf[7] = 0x00;
+    check(!np_module_map_blob_verify(buf, (size_t)wrote),
+          "blob_verify: a socket count past MAX fails");
+    buf[6] = (uint8_t)N_SOCK; buf[7] = 0;
+    buf[4] ^= 0x01u;                        /* version: load()'s business */
+    check(np_module_map_blob_verify(buf, (size_t)wrote) == false,
+          "blob_verify: a version flip breaks the CRC like any other byte");
 }
 
 static void test_socket_uid_lookup(void)
@@ -1271,6 +1410,10 @@ int main(void)
     test_cal_cleared_when_occupant_changes();
     test_cal_survives_nvram_roundtrip();
     test_socket_uid_lookup();
+
+    /* OI-HEXMAP-01: the restore contract and the store's content check. */
+    test_restored_record_unused_until_poll();
+    test_blob_verify();
     test_cal_length_matches_pbm_library();
 
     if (g_failures == 0) {

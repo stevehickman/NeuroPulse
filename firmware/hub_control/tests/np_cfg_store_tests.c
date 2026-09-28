@@ -29,6 +29,12 @@
  *   9. OI-NVRAM-16   a Map 3 journal whose rows differ in length is read back
  *                    whole through np_cfg_store_journal_read_rows(), and the
  *                    fixed-length reader is shown losing rows on the same file
+ *  10. OI-HEXMAP-01  np_module_map_persist()/_restore() end to end through
+ *                    np_hexmap_nvram.c and this store: the blob survives a
+ *                    reboot, a damaged or absent blob restores an EMPTY map,
+ *                    a blob the map would refuse is never written, and a
+ *                    power cut during persist leaves the old blob or the new
+ *                    one (L-3, through the real caller)
  *
  * The instance is the real one: np_lfs_config_apply() / _validate(), EMMC-FS-01's
  * 4,096 x 4,096 geometry, over NeurOne's own block device (np_lfs_powerbd.c).
@@ -59,6 +65,7 @@
 #include "np_lfs_powerbd.h"
 #include "np_lfs_sweep.h"
 #include "np_map3_record.h"
+#include "np_module_map.h"
 #include "np_session_count.h"
 
 static int g_fail_count = 0;
@@ -721,6 +728,7 @@ static volatile bool     g_blob_acked;
 static volatile uint32_t g_jrn_acked;
 static volatile bool     g_ukmd_acked;
 static volatile bool     g_count_acked;
+static volatile bool     g_npmp_acked;
 
 /* L-3 — the in-place replacement. */
 
@@ -1334,6 +1342,236 @@ static void test_journal_rows_of_differing_length(void)
     np_cfg_store_unmount();
 }
 
+/* ── 10. OI-HEXMAP-01 — the module map's blob, through the real caller ─────
+ * NP-FW-NVRAM-001 D-1/D-2; NP-SOUP-LFS-001 REQ-LFS-02.  Everything above
+ * tested npmp.bin with a synthetic blob written straight to the store.  This
+ * case drives np_module_map_persist() and _restore(), which reach the store
+ * only through np_hexmap_nvram_read/write — the binding OI-HEXMAP-01 asked
+ * for — on the real helmet's 80 sockets (14,012 bytes). */
+
+#define MAP_SOCKETS 80U
+
+static np_socket_geom_t g_geom[MAP_SOCKETS];
+static int              g_map_inv_calls;
+static uint8_t          g_npmp_old[NP_HEXMAP_NVRAM_MAX_BYTES];
+static uint8_t          g_npmp_new[NP_HEXMAP_NVRAM_MAX_BYTES];
+static uint8_t          g_npmp_rb[NP_HEXMAP_NVRAM_MAX_BYTES];
+static size_t           g_npmp_len;
+
+static np_hub_status_t map_inv(uint16_t socket_id, void *ctx, uint8_t *types_out,
+                               uint8_t max, uint8_t *count_out)
+{
+    (void)socket_id;
+    (void)ctx;
+    static const uint8_t tile[] = { NP_ELEM_LED_660, NP_ELEM_LED_808,
+                                    NP_ELEM_NTC, NP_ELEM_PD_FORWARD };
+    g_map_inv_calls++;
+    if (max < sizeof(tile)) {
+        return NP_HUB_ERR_CMD_TOO_MANY;
+    }
+    memcpy(types_out, tile, sizeof(tile));
+    *count_out = (uint8_t)sizeof(tile);
+    return NP_HUB_OK;
+}
+
+static np_module_uid_t map_uid(uint8_t seed)
+{
+    np_module_uid_t u;
+    for (unsigned i = 0U; i < NP_HEXMAP_UID_LEN; i++) {
+        u.b[i] = (uint8_t)(seed + 3U * i);
+    }
+    return u;
+}
+
+/* Power-on: bind the geometry, empty map. */
+static void map_boot(void)
+{
+    for (unsigned s = 0U; s < MAP_SOCKETS; s++) {
+        g_geom[s].present_in_helmet = true;
+        g_geom[s].x_mm = (int16_t)s;
+        g_geom[s].y_mm = 0;
+    }
+    (void)np_module_map_init(g_geom, (uint16_t)MAP_SOCKETS);
+}
+
+/* Seat generation `gen` of the helmet: a module in every even socket, its
+ * UID and calibration both derived from gen, so two generations differ in
+ * every seated record. */
+static void map_seat(uint8_t gen)
+{
+    map_boot();
+    for (unsigned s = 0U; s < MAP_SOCKETS; s += 2U) {
+        np_module_uid_t u = map_uid((uint8_t)(gen * 0x40U + s));
+        (void)np_module_map_apply_poll((uint16_t)s, &u, 0U, map_inv, NULL, NULL);
+        float cal[NP_HEXMAP_CAL_FLOATS];
+        for (unsigned c = 0U; c < NP_HEXMAP_CAL_FLOATS; c++) {
+            cal[c] = 0.1f * (float)gen + 0.001f * (float)(c + 1U);
+        }
+        (void)np_module_map_set_cal(&u, cal);
+    }
+}
+
+/* The power-on poll re-reports socket 0's generation-`gen` module; returns
+ * the inventory calls it cost (0 = the restored record was confirmed). */
+static int map_confirm0(uint8_t gen)
+{
+    np_module_uid_t u = map_uid((uint8_t)(gen * 0x40U));
+    g_map_inv_calls = 0;
+    (void)np_module_map_apply_poll(0U, &u, 0U, map_inv, NULL, NULL);
+    return g_map_inv_calls;
+}
+
+static void s_npmp_baseline(void)
+{
+    ASSERT(np_cfg_store_format() == NP_HUB_OK && np_cfg_store_mount() == NP_HUB_OK,
+           "baseline format/mount");
+    map_seat(1U);
+    ASSERT(np_module_map_persist() == NP_HUB_OK, "baseline persist");
+    np_cfg_store_unmount();
+}
+
+static void s_npmp_persist(void)
+{
+    g_npmp_acked = false;
+    if (np_cfg_store_mount() != NP_HUB_OK) { return; }
+    map_seat(2U);
+    g_npmp_acked = (np_module_map_persist() == NP_HUB_OK);
+    np_cfg_store_unmount();
+}
+
+static int v_npmp(const char *what, long cut, np_powerbd_tear_t tear)
+{
+    if (np_cfg_store_mount() != NP_HUB_OK) {
+        finding(what, cut, tear, "MOUNT FAILED after the cut");
+        return 1;
+    }
+    size_t len = 0U;
+    np_hub_status_t rd = np_hexmap_nvram_read(g_npmp_rb, sizeof(g_npmp_rb), &len);
+    map_boot();
+    np_hub_status_t rs = np_module_map_restore();
+    np_cfg_store_unmount();
+    if (rd != NP_HUB_OK || rs != NP_HUB_OK || len != g_npmp_len) {
+        finding(what, cut, tear, "npmp.bin lost (read %d, restore %d) — the "
+                "live blob went before its replacement was durable (L-3)", rd, rs);
+        return 1;
+    }
+    bool is_old = (memcmp(g_npmp_rb, g_npmp_old, len) == 0);
+    bool is_new = (memcmp(g_npmp_rb, g_npmp_new, len) == 0);
+    if (!is_old && !is_new) {
+        finding(what, cut, tear, "npmp.bin is neither generation (L-3)");
+        return 1;
+    }
+    if (g_npmp_acked && !is_new) {
+        finding(what, cut, tear, "persist returned OK and npmp.bin is still "
+                "the old blob — it was not durable");
+        return 1;
+    }
+    return 0;
+}
+
+static void test_module_map_blob_through_the_store(void)
+{
+    np_physical_loc_t loc;
+    const np_hex_addr_t a0 = { 0U, 1U };
+    size_t len = 0U;
+
+    /* The two generations' exact bytes, for the sweep's verifier. */
+    map_seat(1U);
+    int n = np_module_map_serialize(g_npmp_old, sizeof(g_npmp_old));
+    map_seat(2U);
+    ASSERT(np_module_map_serialize(g_npmp_new, sizeof(g_npmp_new)) == n && n > 0,
+           "serialize both generations");
+    g_npmp_len = (size_t)n;
+    ASSERT(g_npmp_len == 14012U, "80 sockets serialize to 14,012 bytes "
+           "(NP-FW-NVRAM-001 OI-NVRAM-11)");
+
+    /* A new device: nothing stored, and restore leaves the map empty. */
+    fresh();
+    map_boot();
+    ASSERT(np_module_map_restore() == NP_HUB_ERR_NOT_PRESENT,
+           "a never-written blob must restore as absent");
+    ASSERT(map_confirm0(1U) == 1, "after a failed restore the poll must "
+           "re-inventory: the map was not empty");
+
+    /* Persist, reboot, restore: the cache survives, and REQ-LFS-02 holds. */
+    map_seat(1U);
+    ASSERT(np_module_map_persist() == NP_HUB_OK, "persist through the store");
+    np_cfg_store_unmount();
+    reboot();
+    ASSERT(np_cfg_store_mount() == NP_HUB_OK, "remount");
+    map_boot();
+    ASSERT(np_module_map_restore() == NP_HUB_OK, "restore after a reboot");
+    ASSERT(np_module_map_resolve(a0, &loc) == NP_HUB_ERR_NOT_PRESENT,
+           "REQ-LFS-02: a restored record resolved before the poll confirmed it");
+    ASSERT(map_confirm0(1U) == 0, "the poll re-inventoried an unchanged module "
+           "— the restored cache was not used");
+    ASSERT(np_module_map_resolve(a0, &loc) == NP_HUB_OK &&
+           loc.elem_type == NP_ELEM_LED_808, "the confirmed record resolves");
+    np_module_uid_t u0 = map_uid(0x40U);
+    float cal[NP_HEXMAP_CAL_FLOATS];
+    ASSERT(np_module_map_get_cal(&u0, cal) == NP_HUB_OK &&
+           cal[0] == 0.1f + 0.001f, "the calibration survived the reboot");
+
+    /* A module swapped while the hub was off: the stale record is replaced,
+     * and its calibration reaches neither module. */
+    map_boot();
+    ASSERT(np_module_map_restore() == NP_HUB_OK, "restore again");
+    ASSERT(map_confirm0(3U) == 1, "a different module was confirmed from the "
+           "cache instead of being inventoried");
+    np_module_uid_t u3 = map_uid(0xC0U);
+    ASSERT(np_module_map_get_cal(&u3, cal) == NP_HUB_ERR_NOT_PRESENT &&
+           np_module_map_get_cal(&u0, cal) == NP_HUB_ERR_NOT_PRESENT,
+           "a stored calibration outlived the swap");
+
+    /* A blob the map would refuse is never written, and the live one stays. */
+    uint8_t junk[64];
+    memset(junk, 0xA5, sizeof(junk));
+    ASSERT(np_hexmap_nvram_write(junk, sizeof(junk)) == NP_HUB_ERR_INVALID_ARG,
+           "a blob with no valid header was written");
+    ASSERT(np_hexmap_nvram_write(NULL, 0U) == NP_HUB_ERR_INVALID_ARG,
+           "a NULL blob was written");
+    ASSERT(np_hexmap_nvram_read(g_npmp_rb, sizeof(g_npmp_rb), &len) == NP_HUB_OK &&
+           len == g_npmp_len && memcmp(g_npmp_rb, g_npmp_old, len) == 0,
+           "a refused write disturbed the live blob");
+    ASSERT(np_hexmap_nvram_read(NULL, 0U, &len) == NP_HUB_ERR_INVALID_ARG &&
+           np_hexmap_nvram_read(g_npmp_rb, sizeof(g_npmp_rb), NULL)
+               == NP_HUB_ERR_INVALID_ARG, "a NULL read argument was accepted");
+
+    /* Too small a buffer is a refusal, never a truncated success. */
+    ASSERT(np_hexmap_nvram_read(g_npmp_rb, g_npmp_len - 1U, &len) != NP_HUB_OK &&
+           len == 0U, "a short buffer read back part of the blob as success");
+
+    /* Damage on the medium (OI-LFS-09): the content check refuses, and the
+     * map comes back EMPTY rather than holding what was read. */
+    np_module_uid_t probe = map_uid(0x40U + 2U);   /* socket 2, generation 1 */
+    long blk = find_block(probe.b, NP_HEXMAP_UID_LEN);
+    ASSERT(blk >= 0, "the blob's bytes were not found on the medium");
+    if (blk >= 0) {
+        uint8_t *p = g_media + ((size_t)blk * NP_LFS_CFG_BLOCK_SIZE);
+        for (size_t o = 0U; o + NP_HEXMAP_UID_LEN <= NP_LFS_CFG_BLOCK_SIZE; o++) {
+            if (memcmp(p + o, probe.b, NP_HEXMAP_UID_LEN) == 0) {
+                p[o] ^= 0x01U;
+                break;
+            }
+        }
+    }
+    np_cfg_store_unmount();
+    reboot();
+    ASSERT(np_cfg_store_mount() == NP_HUB_OK, "remount after damage");
+    map_boot();
+    ASSERT(np_module_map_restore() == NP_HUB_ERR_STORE_INTEGRITY,
+           "a damaged blob was not refused by its content check");
+    ASSERT(map_confirm0(1U) == 1, "a refused blob left records in the map");
+    np_cfg_store_unmount();
+
+    /* A power cut at every op of np_module_map_persist(). */
+    np_sweep_result_t r = run("module-map persist", s_npmp_baseline,
+                              s_npmp_persist, v_npmp, false);
+    ASSERT(r.ops > 0 && r.missed_cuts == 0, "persist sweep did not run as measured");
+    ASSERT(r.violations == 0,
+           "a power loss during np_module_map_persist() lost or tore the blob");
+}
+
 int main(void)
 {
     printf("np_cfg_store_tests — NP-SOUP-LFS-001 Rev 4 §13 "
@@ -1350,6 +1588,7 @@ int main(void)
     test_session_count_is_persisted();
     test_reset_marker_is_durable();
     test_journal_rows_of_differing_length();
+    test_module_map_blob_through_the_store();
 
     np_sweep_release();
     printf("  totals   %ld programs, %ld erases, %ld syncs, %ld reads, %ld cuts\n",
