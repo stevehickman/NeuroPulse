@@ -246,6 +246,18 @@ np_fr_boot_t np_factory_reset_boot_check(void)
     return NP_FR_BOOT_RESUMED;
 }
 
+bool np_factory_reset_boot_permits_data(np_fr_boot_t boot)
+{
+    /* Fail closed: name the two outcomes that permit, refuse everything else. */
+    switch (boot) {
+    case NP_FR_BOOT_NONE:
+    case NP_FR_BOOT_RESUMED:
+        return true;
+    default:
+        return false;
+    }
+}
+
 void np_factory_reset_resume_after_powerloss(void)
 {
     /* Re-run the idempotent R-5..R-10 core.  If it succeeds, clear the flag

@@ -20,7 +20,7 @@
  * NP-CONV-001 §8: a convention worth writing down is worth a script, and a probe
  * must be falsified before it is trusted. `--self-test` below does that.
  *
- * ── Rule 1: four ordering constraints ────────────────────────────────────────
+ * ── Rule 1: ordering constraints ─────────────────────────────────────────────
  *
  * Each is a real dependency, not a style preference. Stated as "A must appear
  * before B inside np_hub_control_app_main()":
@@ -42,6 +42,20 @@
  *
  *   np_mod_reg_init     →  np_mod_reg_scan
  *     The registry must be zeroed before it is populated.
+ *
+ *   np_factory_reset_boot_check → np_log_backend_init, np_log_backend_refuse,
+ *     np_cvfs_init, np_session_count_load, np_cons_init;  and
+ *   np_factory_reset_boot_permits_data → np_log_backend_init
+ *     OI-NVRAM-17 (NP-FW-NVRAM-001 §3.4.1).  A reset cut by a power loss is
+ *     found only by the boot check, and finishing it erases UHDR, SHDR and
+ *     Config, so it precedes everything that opens or reads them.  The log
+ *     partitions open only on the predicate's answer.
+ *
+ * Rule 1a, checked only once the first call exists:
+ *   np_cfg_store_bind → np_factory_reset_boot_check
+ *     Until #340 binds a store the check reads UNKNOWN and every boot refuses
+ *     UHDR/SHDR (fail-closed, intended).  A bind added after the check would
+ *     leave the device refusing forever while looking wired.
  *
  * ── Rule 2: the banner's task count matches the code ─────────────────────────
  *
@@ -82,6 +96,17 @@ const ORDER: ReadonlyArray<readonly [string, string, string]> = [
   ["np_log_backend_init", "np_log_init", "the partition log files must be open before the logger is initialised"],
   ["np_log_init", "np_mod_reg_scan", "SHDR auth records written during the scan must carry the true session count and survive np_log_init()'s buffer reset (OI-FWHUB-07)"],
   ["np_mod_reg_init", "np_mod_reg_scan", "the registry must be zeroed before it is populated"],
+  ["np_factory_reset_boot_check", "np_log_backend_init", "an interrupted factory reset must be completed before SHDR is opened (OI-NVRAM-17)"],
+  ["np_factory_reset_boot_check", "np_log_backend_refuse", "the refusal is the boot check's answer, so it cannot precede it (OI-NVRAM-17)"],
+  ["np_factory_reset_boot_check", "np_cvfs_init", "an interrupted factory reset must be completed before UHDR is read (OI-NVRAM-17)"],
+  ["np_factory_reset_boot_check", "np_session_count_load", "an interrupted factory reset must be completed before Config is read (OI-NVRAM-17)"],
+  ["np_factory_reset_boot_check", "np_cons_init", "an interrupted factory reset must be completed before Config is read (OI-NVRAM-17)"],
+  ["np_factory_reset_boot_permits_data", "np_log_backend_init", "the log partitions open only on a result that permits them — never on RESUME_FAILED or UNKNOWN (OI-NVRAM-17)"],
+];
+
+/** Checked only when the first call is present (Rule 1a). */
+const ORDER_WHEN_PRESENT: ReadonlyArray<readonly [string, string, string]> = [
+  ["np_cfg_store_bind", "np_factory_reset_boot_check", "the boot check reads Config through the store, so the store must be bound first or every boot reads UNKNOWN (OI-NVRAM-17, #340)"],
 ];
 
 /** Strip comments and string literals so a call named only in prose never counts. */
@@ -190,6 +215,13 @@ function run(root: string): { code: number; lines: string[] } {
     }
   }
 
+  for (const [a, b, why] of ORDER_WHEN_PRESENT) {
+    const at = callAt(body, a);
+    if (at >= 0 && at > callAt(body, b)) {
+      violations.push(`  ${a}() must be called before ${b}() — ${why}`);
+    }
+  }
+
   const declared = bannerTaskCount(src);
   const actual = (body.match(/\bxTaskCreate\s*\(/g) ?? []).length;
   if (declared === null) {
@@ -203,8 +235,8 @@ function run(root: string): { code: number; lines: string[] } {
   }
 
   out.push(
-    `scanned: ${ORDER.length + 1} rule(s) — ${ORDER.length} ordering constraint(s) ` +
-      `+ 1 task-count rule — against ${ENTRY}() in ${MAIN_C}`,
+    `scanned: ${ORDER.length + ORDER_WHEN_PRESENT.length + 1} rule(s) — ${ORDER.length} ordering constraint(s) ` +
+      `+ ${ORDER_WHEN_PRESENT.length} when-present constraint(s) + 1 task-count rule — against ${ENTRY}() in ${MAIN_C}`,
   );
 
   if (violations.length === 0) {
@@ -225,20 +257,28 @@ function run(root: string): { code: number; lines: string[] } {
 if (process.argv.includes("--self-test")) {
   const box = mkdtempSync(join(tmpdir(), "np-bringup-"));
 
+  const CORRECT = [
+    "np_safety_spi_init",
+    "np_transport_init",
+    "np_factory_reset_boot_check",
+    "np_factory_reset_boot_permits_data",
+    "np_log_backend_init",
+    "np_log_backend_refuse",
+    "np_session_count_load",
+    "np_log_init",
+    "np_cvfs_init",
+    "np_cons_init",
+    "np_mod_reg_init",
+    "np_mod_reg_scan",
+  ];
+
   const mainC = (opts: {
     order?: string[];
     banner?: string | null;
     tasks?: number;
     entry?: string;
   }): string => {
-    const calls = opts.order ?? [
-      "np_safety_spi_init",
-      "np_transport_init",
-      "np_log_backend_init",
-      "np_log_init",
-      "np_mod_reg_init",
-      "np_mod_reg_scan",
-    ];
+    const calls = opts.order ?? CORRECT;
     const banner =
       opts.banner === null ? "/*\n * NeurOne Hub.\n */\n" : `/*\n * ${opts.banner ?? "Five"} tasks:\n */\n`;
     const entry = opts.entry ?? ENTRY;
@@ -279,29 +319,48 @@ if (process.argv.includes("--self-test")) {
   // The correct order passes.
   expect("correct bring-up accepted", build(mainC({})), 0, "order its correctness depends on");
 
-  // Rule 1 — each of the four constraints, inverted one at a time.
-  const inverted: Record<string, string[]> = {
-    "GAIN_SEL before the probe": [
-      "np_log_backend_init", "np_log_init", "np_mod_reg_init",
-      "np_mod_reg_scan", "np_safety_spi_init",
-    ],
-    "log files before the logger": [
-      "np_safety_spi_init", "np_log_init", "np_log_backend_init",
-      "np_mod_reg_init", "np_mod_reg_scan",
-    ],
-    // The OI-FWHUB-07 regression, exactly as it stood before 2026-09-14.
-    "logger before the scan (OI-FWHUB-07)": [
-      "np_safety_spi_init", "np_mod_reg_init", "np_mod_reg_scan",
-      "np_log_backend_init", "np_log_init",
-    ],
-    "registry zeroed before the probe": [
-      "np_safety_spi_init", "np_log_backend_init", "np_log_init",
-      "np_mod_reg_scan", "np_mod_reg_init",
-    ],
-  };
-  for (const [label, order] of Object.entries(inverted)) {
-    expect(`rule 1 rejects: ${label}`, build(mainC({ order })), 1, "must be called before");
+  // Rule 1 — every constraint, inverted one at a time: A is moved to just
+  // after B, everything else stays where the correct order puts it.
+  for (const [a, b] of ORDER) {
+    const order = CORRECT.filter((c) => c !== a);
+    order.splice(order.indexOf(b) + 1, 0, a);
+    expect(`rule 1 rejects: ${a} after ${b}`, build(mainC({ order })), 1, `${a}() must be called before ${b}()`);
   }
+
+  // The OI-FWHUB-07 regression, exactly as it stood before 2026-09-14: the
+  // logger pair after the scan.
+  expect(
+    "rule 1 rejects the OI-FWHUB-07 shape",
+    build(mainC({
+      order: [
+        "np_safety_spi_init", "np_factory_reset_boot_check", "np_factory_reset_boot_permits_data",
+        "np_session_count_load", "np_cvfs_init", "np_cons_init", "np_mod_reg_init", "np_mod_reg_scan",
+        "np_log_backend_init", "np_log_backend_refuse", "np_log_init",
+      ],
+    })),
+    1,
+    "OI-FWHUB-07",
+  );
+
+  // Rule 1a — the when-present constraint: rejected after, accepted before
+  // (its absence is the correct fixture above, which passes).
+  for (const [a, b] of ORDER_WHEN_PRESENT) {
+    const after = [...CORRECT];
+    after.splice(after.indexOf(b) + 1, 0, a);
+    expect(`rule 1a rejects: ${a} after ${b}`, build(mainC({ order: after })), 1, `${a}() must be called before ${b}()`);
+    const before = [...CORRECT];
+    before.splice(before.indexOf(b), 0, a);
+    expect(`rule 1a accepts: ${a} before ${b}`, build(mainC({ order: before })), 0, "order its correctness depends on");
+  }
+
+  // The OI-NVRAM-17 shape before this constraint existed: no boot check at all
+  // must REFUSE, not pass.
+  expect(
+    "refuses when the factory-reset boot check is absent (OI-NVRAM-17)",
+    build(mainC({ order: CORRECT.filter((c) => c !== "np_factory_reset_boot_check") })),
+    2,
+    "does not call np_factory_reset_boot_check",
+  );
 
   // Rule 2 — the OI-FWHUB-08 regression, and a banner with no count at all.
   expect("rule 2 rejects an undercounted banner", build(mainC({ banner: "Four", tasks: 5 })), 1, "task-count");
@@ -313,7 +372,7 @@ if (process.argv.includes("--self-test")) {
   expect("refuses when the entry point is absent", build(mainC({ entry: "some_other_main" })), 2, "refusing to pass vacuously");
   expect(
     "refuses when a named call is absent",
-    build(mainC({ order: ["np_safety_spi_init", "np_log_backend_init", "np_log_init", "np_mod_reg_init"] })),
+    build(mainC({ order: CORRECT.filter((c) => c !== "np_mod_reg_scan") })),
     2,
     "does not call np_mod_reg_scan",
   );
@@ -335,8 +394,10 @@ if (process.argv.includes("--self-test")) {
     for (const f of failures) console.error("  " + f);
     process.exit(1);
   }
-  console.log("  11 case(s): all 4 ordering constraints proven to reject, 3 task-count cases,");
-  console.log("  3 vacuity refusals, and comment text proven not to count as a call.");
+  console.log(`  ${ORDER.length + 2 * ORDER_WHEN_PRESENT.length + 10} case(s): all ${ORDER.length} ordering constraints proven to reject,`);
+  console.log(`  ${ORDER_WHEN_PRESENT.length} when-present constraint(s) proven to reject and to accept, the OI-FWHUB-07 shape,`);
+  console.log("  3 task-count cases, 4 vacuity refusals (one the missing OI-NVRAM-17 boot check),");
+  console.log("  and comment text proven not to count as a call.");
   console.log("SELF-TEST PASS — the checker has teeth.");
   process.exit(0);
 }

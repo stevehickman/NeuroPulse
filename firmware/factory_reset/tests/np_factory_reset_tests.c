@@ -305,6 +305,34 @@ int main(void)
           np_fr_host_hal.marker_state == NP_FR_MARKER_PRESENT,
           "failed resume leaves flag set and marker present: next boot retries");
 
+    /* 19: which boot-check results permit UHDR/SHDR to be mounted
+     * (OI-NVRAM-17).  Bring-up opens the log partitions on this answer. */
+    check(np_factory_reset_boot_permits_data(NP_FR_BOOT_NONE) == true,
+          "NONE permits UHDR/SHDR");
+    check(np_factory_reset_boot_permits_data(NP_FR_BOOT_RESUMED) == true,
+          "RESUMED permits UHDR/SHDR (the factory state)");
+    check(np_factory_reset_boot_permits_data(NP_FR_BOOT_RESUME_FAILED) == false,
+          "RESUME_FAILED refuses UHDR/SHDR");
+    check(np_factory_reset_boot_permits_data(NP_FR_BOOT_UNKNOWN) == false,
+          "UNKNOWN refuses UHDR/SHDR");
+    check(np_factory_reset_boot_permits_data((np_fr_boot_t)99) == false,
+          "a value outside the enum refuses (fail closed)");
+
+    /* 20: end to end, the decision on each boot-check path. */
+    begin_case();
+    np_fr_host_hal.marker_state = NP_FR_MARKER_UNKNOWN;
+    check(np_factory_reset_boot_permits_data(np_factory_reset_boot_check()) == false,
+          "Config unreadable at boot: UHDR/SHDR are not mounted");
+    begin_case();
+    np_fr_host_hal.marker_state = NP_FR_MARKER_PRESENT;
+    np_fr_host_hal.fail_zero_shdr = -1;
+    check(np_factory_reset_boot_permits_data(np_factory_reset_boot_check()) == false,
+          "resume failed at boot: UHDR/SHDR are not mounted");
+    begin_case();
+    np_fr_host_hal.marker_state = NP_FR_MARKER_PRESENT;
+    check(np_factory_reset_boot_permits_data(np_factory_reset_boot_check()) == true,
+          "interrupted reset completed at boot: the factory state is mounted");
+
     printf("\n%s (%d failure(s))\n",
            g_failures == 0 ? "ALL TESTS PASSED" : "TESTS FAILED",
            g_failures);

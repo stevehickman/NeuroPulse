@@ -32,6 +32,7 @@ static uint8_t  g_store[NP_CVFS_BLOB_MAX];
 static size_t   g_store_len;
 static bool     g_save_fails;
 static int      g_saves;
+static int      g_loads;
 
 static uint8_t  g_notified[NP_CVFS_FRAME_MAX];
 static size_t   g_notified_len;
@@ -44,6 +45,7 @@ static int             g_confirms;
 
 np_hub_status_t np_cvfs_hal_load(uint8_t *buf, size_t cap, size_t *len_out)
 {
+    g_loads++;
     if (g_store_len > cap) { return NP_HUB_ERR_GENERIC; }
     memcpy(buf, g_store, g_store_len);
     *len_out = g_store_len;
@@ -353,6 +355,43 @@ static void test_reenable_confirm_write(void)
           "confirm: a rejection outside the confirm window reaches the app as a failed write");
 }
 
+/* OI-NVRAM-17: the boot check refused UHDR.  The summary still works from
+ * RAM, but nothing is loaded from UHDR and no poll saves to it. */
+static void test_unpersisted_never_touches_uhdr(void)
+{
+    uint8_t f[NP_CVFS_FRAME_MAX];
+    size_t  len;
+    reset_world();
+    np_cvfs_set_user(0xC0FFEEu);
+    (void)np_cvfs_record_fault(5u, NP_CVNS_FAULT_HR_CHANGE, 0u);
+    np_cvfs_poll(1u, true, 0x01u);             /* a stored blob exists */
+    check(g_saves == 1 && g_store_len > 0u, "unpersisted: setup stored a blob");
+
+    g_loads = 0;
+    g_saves = 0;
+    g_notifies = 0;
+    np_cvfs_init_unpersisted();
+    check(g_loads == 0, "unpersisted: the stored blob is not loaded");
+    len = frame_now(1u, true, 0x01u, f);
+    check(len == NP_CVFS_HEADER_LEN && np_cvfs_current_user() == 0u,
+          "unpersisted: starts empty with no user named");
+
+    (void)np_cvfs_record_fault(7u, NP_CVNS_FAULT_IMPEDANCE, NP_CVFS_SIDE_LEFT);
+    np_cvfs_poll(1u, true, 0x01u);
+    np_cvfs_poll(1u, true, 0x01u);
+    check(g_saves == 0, "unpersisted: no poll saves to UHDR");
+    len = frame_now(1u, true, 0x01u, f);
+    check(len == NP_CVFS_HEADER_LEN + NP_CVFS_RECORD_LEN && counter_at(f, 0u) == 7u,
+          "unpersisted: the fault is still framed from RAM");
+    check(g_notifies == 1, "unpersisted: and still notified");
+
+    np_cvfs_init();                            /* the next permitted boot */
+    len = frame_now(1u, true, 0x01u, f);
+    check(g_loads == 1 && np_cvfs_current_user() == 0xC0FFEEu &&
+          len == NP_CVFS_HEADER_LEN + NP_CVFS_RECORD_LEN && counter_at(f, 0u) == 5u,
+          "unpersisted: the next np_cvfs_init() loads the blob the refused boot left alone");
+}
+
 int main(void)
 {
     printf("── np_cvns_fault_summary_tests (NP-SW-FAULTMSG-001 §9.6) ──\n");
@@ -369,6 +408,7 @@ int main(void)
     test_notify_only_on_change();
     test_active_user_write();
     test_reenable_confirm_write();
+    test_unpersisted_never_touches_uhdr();
     if (g_failures == 0) {
         printf("ALL TESTS PASSED\n");
         return 0;
