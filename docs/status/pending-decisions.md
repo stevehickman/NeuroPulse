@@ -541,6 +541,58 @@ It is the one shortlisted square package that **fits** §4.1's lattice (`OI-HEXT
 EE Lead). `OI-HEXTILE-02` now also waits on `OI-HEXTILE-29` for CH_A. (g) item 2, the SFH 4703AS
 PCN, is Procurement's.
 
+#### (k) A dimmer 660 nm part, compared on what the protocols need (2026-09-28, GitHub #333)
+
+**The question is set by the protocols, not by R-4 alone.** Every transcranial protocol drives CH_A
+through `wavelength: "660_808nm"`. `hubCompiler.ts` maps `intensity` linearly onto the 8-bit
+`CUR_A` register (0–180 mA, 0.71 mA per step) and writes the same value to both channels, so a
+protocol's irradiance comes from **analog current**. The authored CH_A targets run from **22 mW/cm²**
+(`clinical-06` TBI, 5.5 %) through 30–36 (Maiello, Cassano) and 285–310 (Papi, Chun, Wang) to
+**~322 mW/cm²** at the library's 80 % maximum. At T1-A's 45 sites on 10.61 cm², that is
+**5.2–75.9 mW per emitter**, and 94.3 mW at R-4's 400.
+
+| CH_A candidate | Grade | mW per mA | Current for 22 → 322 → 400 mW/cm² at 45 sites | `CUR_A` codes | Inside rated range? |
+|---|---|---|---|---|---|
+| GH CSSRM5.24 | datasheet | ~1.5 (at 100–150 mA) | all below 100 mA | — | **✗ for every target.** The floor is `N` × 15 mW/cm² |
+| GH DASPA2.24 (OSCONIQ P 2226) | **lead** | ~1.10 | 4.7 → 69 → 86 mA | 7 → 98 → 121 | ✓ if its minimum is ≤ ~5 mA (250 mA max) |
+| Luminus MP-2835-1100-DR | **lead** | ~1.05 | 4.9 → 72 → 90 mA | 7 → 102 → 127 | ✓ if its minimum is ≤ ~5 mA (maximum unknown) |
+| §4.3 design target | target | 0.63 | 8.2 → 120 → 149 mA | 12 → 170 → 211 | ✓ by construction |
+
+**Why fewer GH sites is not the answer.** It fixes R-4 and breaks the library. At 24 sites the
+channel cannot go below 353 mW/cm², which is above every authored target. At 6 sites it still
+cannot go below 88. `OI-HEXTILE-29`'s way out (a) is withdrawn.
+
+**Between the two leads, GH DASPA2.24 is the one to verify first.**
+- **Package:** 2.2 × 2.6 mm fits §4.1's lattice in any orientation. The 2835 part must be
+  row-aligned.
+- **Current headroom:** it has a stated 250 mA maximum.
+- **Forward voltage:** ~2.15 V is the CH_A design target's own string, N = 11.
+- **Against it:** one distributor lists it **obsolete**, so its lifecycle status is the first
+  question.
+
+**Both are leads, not evidence.** The figures come from search summaries and distributor pages,
+because ams-osram.com, lumileds.com, luminus.com, mouser.com and media.digikey.com are all blocked
+from this session. **The mW-per-mA figures assume flux is linear in current**, which is optimistic
+at 5–10 mA. A third candidate, the Lumileds LUXEON SunPlus 2835 Deep Red (DS237, binned at 120 mA),
+turned up with no radiant power figure at all.
+
+**What a supplied datasheet must show before either lead replaces GH CSSRM5.24:**
+1. The rated **minimum current** is ≤ ~5 mA.
+2. Flux is linear enough at 5–10 mA for a 7-code setting to mean the authored dose. One code is
+   ±7 % there.
+3. The `V_f` groups meet §2.1.
+4. The wavelength bin sits against 660–670 nm.
+5. An L70 figure exists.
+6. The part is not obsolete.
+
+**Two consequences that hold whichever part wins.**
+- **Channel matching.** The shared `intensity` register means CH_A and CH_B deliver irradiance
+  in the ratio of their mW-per-mA slopes. A 1.1 mW/mA red part beside a ~1.5 mW/mA NIR part
+  (Luminus SST-10) gives about 1.3× more NIR than red at every setting. Matched slopes, or
+  per-channel scaling, is an input to `OI-HEXTILE-07` and `OI-PBMCH-06`.
+- **The protocol anchor.** The 403 mW/cm² anchor assumes the design-target emitter at 150 mA. It
+  re-derives against whichever part is chosen (`OI-HEXTILE-25`(d)).
+
 ## 13.2b tFUS / LIFU — modality watch (elevated to MEDIUM 2026-05-13)
 
 Science basis confirmed: PIEZO1 mechanosensitive ion channel mechanism (PNAS 2023); strong safety record (n > 400 human subjects, no serious AEs at MI < 1.9); first wearable coupling breakthrough (MiniUlTra bioadhesive hydrogel, Nature Communications 2025). Cannot enter T1 (no wellness regulatory pathway for brain-targeted therapeutic ultrasound). T2 add-on requires 510(k) predicate, which does not yet exist.
