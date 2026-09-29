@@ -1,6 +1,6 @@
 // ─── PBM wavelength mapping rules ─────────────────────────────────────────────
 //
-// A protocol states the wavelength its source used (NP-NPPS-REF-001 §3.1a):
+// A protocol states the wavelength its source used (NP-NPPS-REF-001 §4.1a):
 // `wavelength: "810nm"`. The helmet has a small, fixed set of emitter channels
 // (element types led_660 / led_808 / led_1064). These rules say which channel,
 // if any, may deliver a requested wavelength. They are CONFIGURATION, not

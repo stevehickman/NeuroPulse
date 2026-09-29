@@ -1,4 +1,4 @@
-// Protocol eligibility for per-wavelength PBM blocks (NP-NPPS-REF-001 §3.1a, §7a).
+// Protocol eligibility for per-wavelength PBM blocks (NP-NPPS-REF-001 §4.1a, §7a).
 //
 // The operator-facing contract: a protocol is offered only when the fitted
 // helmet can deliver every block, under the wavelength rules in force. When a

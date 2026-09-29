@@ -92,7 +92,7 @@ export interface NPWavelengthProblem {
  * What ONE modality block needs from each socket it targets.
  *
  * For transcranial PBM this depends on the block, not the modality type: each
- * block names one wavelength (NP-NPPS-REF-001 §3.1a), and the wavelength rules
+ * block names one wavelength (NP-NPPS-REF-001 §4.1a), and the wavelength rules
  * say which emitter element delivers it. So an 810 nm block needs a socket
  * providing led_808 and nothing else; a legacy '660_808nm' block still needs
  * both. Every other modality uses MODALITY_REQUIREMENTS unchanged.

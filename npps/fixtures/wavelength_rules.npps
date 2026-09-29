@@ -1,0 +1,11 @@
+# A user's wavelength rules: the 808 nm channel accepts up to 860 nm (NP-NPPS-REF-001 §7a).
+wavelength_rules "Lab A" {
+    level: user
+    description: "Accept 850nm protocols on the 808nm channel"
+
+    channel "led_808" {
+        nominal_nm: 808
+        min_nm: 798
+        max_nm: 860
+    }
+}

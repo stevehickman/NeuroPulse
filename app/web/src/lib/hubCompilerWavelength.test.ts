@@ -1,5 +1,5 @@
 // Hub compiler — one wavelength per PBM block, block start offsets, and
-// parallel blocks sharing a tile (NP-NPPS-REF-001 §3.1a, §5).
+// parallel blocks sharing a tile (NP-NPPS-REF-001 §4.1a, §5).
 //
 // What is pinned here, and why each matters:
 //   - A single wavelength drives ONE channel; the other is commanded to 0,

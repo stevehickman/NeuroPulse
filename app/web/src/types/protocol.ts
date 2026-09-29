@@ -176,7 +176,7 @@ export interface PBMTranscranialParams {
   // '660_808_1064nm'). Which emitter channel delivers a single wavelength is
   // decided by the wavelength rules (wavelengthRules.ts), never by this field;
   // a value no rule accepts makes the protocol ineligible and uncompilable
-  // (NP-NPPS-REF-001 §3.1a).
+  // (NP-NPPS-REF-001 §4.1a).
   wavelength: string;
   intensityPercent: number;
   frequencyHz: number;

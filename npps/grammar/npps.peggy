@@ -41,11 +41,14 @@
 //                 | { kind: 'limits',    limits:    LimitsNode    }
 //                 | { kind: 'zone',      zone:      ZoneNode      }
 //                 | { kind: 'condition', condition: ConditionNode }
+//                 | { kind: 'wavelength_rules', wavelengthRules: WavelengthRulesNode }
 //   ProtocolNode  = { name: string, fields: Field[], modalities: ModalityBlock[] }
 //   CompositeNode = { name: string, fields: Field[], layers: LayerBlock[] }
 //   LimitsNode    = { name: string|null, fields: Field[], modalityLimits: ModalityBlock[] }
 //   ZoneNode      = { name: string, fields: Field[] }
 //   ConditionNode = { name: string, fields: Field[] }
+//   WavelengthRulesNode = { name: string, fields: Field[], channels: ChannelBlock[] }
+//   ChannelBlock  = { name: string, fields: Field[] }
 //   ModalityBlock = { type: string, fields: Field[] }
 //   LayerBlock    = { name: string, fields: Field[] }
 //   Field         = { key: string, value: Value }
@@ -72,6 +75,7 @@ Entry
   / LimitsEntry
   / ZoneEntry
   / ConditionEntry
+  / WavelengthRulesEntry
 
 // ─────────────────────────── Protocol ────────────────────────────
 
@@ -154,6 +158,38 @@ ConditionEntry
     { return { kind: 'condition', condition: { name, fields } }; }
 
 ConditionField
+  = _ f:Field _ { return { key: f.key, value: f.value }; }
+
+// ─────────────────────── Wavelength rules ────────────────────────
+//
+// Rev 5 (2026-09-29, NP-NPPS-REF-001 §7a). Maps a protocol's stated PBM
+// wavelength onto an emitter channel:
+//   wavelength_rules "Name" { level: global|user  description: "…"
+//     channel "led_808" { nominal_nm: 808  min_nm: 798  max_nm: 840 } … }
+// The channel name, the level and the numeric fields are checked by the
+// runtimes, not here: this grammar fixes the shape, as it does for zones.
+
+WavelengthRulesEntry
+  = "wavelength_rules" __ name:StringLiteral _ "{" _ members:WavelengthRulesMember* _ "}" _
+    {
+      const fields = [];
+      const channels = [];
+      for (const m of members) {
+        if (m._type === 'channel') channels.push({ name: m.name, fields: m.fields });
+        else fields.push({ key: m.key, value: m.value });
+      }
+      return { kind: 'wavelength_rules', wavelengthRules: { name, fields, channels } };
+    }
+
+WavelengthRulesMember
+  = _ c:ChannelBlock _ { return c; }
+  / _ f:Field _        { return { _type: 'field', ...f }; }
+
+ChannelBlock
+  = "channel" __ name:StringLiteral _ "{" _ fields:ChannelField* _ "}" _
+    { return { _type: 'channel', name, fields }; }
+
+ChannelField
   = _ f:Field _ { return { key: f.key, value: f.value }; }
 
 // ─────────────────────────── Limits ──────────────────────────────

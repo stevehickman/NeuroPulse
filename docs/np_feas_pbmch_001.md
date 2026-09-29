@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FEAS-PBMCH-001
-**Revision:** 3
-**Date:** 2026-09-28
+**Revision:** 4
+**Date:** 2026-09-29
 **Status:** EXPLORATORY — costed feasibility study. Creates no locked decision and no design input. Feeds a go/no-go on making CH_A (660 nm) and CH_B (808 nm) independently commandable end to end.
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -16,6 +16,8 @@
 **Parent Document:** NP-HW-HEXTILE-001
 
 ---
+
+> **Rev 4 (2026-09-29) — the language change is made, by principal direction, in a form this study did not list.** `NP-NPPS-REF-001` Rev 17: a `pbm_transcranial` block states **one wavelength exactly as its source used it** (`wavelength: "810nm"`, §4.1a). User-editable `wavelength_rules` (§7a) decide which channel delivers it. Several wavelengths are several blocks, run in parallel or in series with a new `start` field (§5). This is §6.1's option (b) generalised from a fixed enum to any stated wavelength, and separate blocks give per-channel magnitude, which was option (a)'s advantage, without its nested block. **§6.1's warning is closed by construction:** an unknown or unmapped wavelength is refused, never defaulted, so an `"808nm"` protocol cannot silently turn 660 nm back on. The web compiler's actual defect was worse than the one §6.1 feared: any value other than `"660_808nm"` compiled to all three channels. The iOS, Android and Windows parsers are not yet ported (`NP-NPPS-REF-001` Rev 17 banner). The study's findings and costs are otherwise unchanged.
 
 > **⚠ READ FIRST — the headline result, and the premise correction that produces it.**
 >
@@ -928,3 +930,4 @@ Append-only per `NP-CONV-001` §6.
 | 1 | 2026-08-26 | NeurOne Systems Engineering | First issue. Costed six-layer study of independent 660/808 nm channel control. **Corrects the premise it was given:** the T1-A tile does not drive both channels from one current register — separate FETs, separate sense resistors, separate series strings of different length and a per-channel register map are all already specified, so the BOM delta is **$0.00** and the socket delta is **0 contacts**; the collapse is one line of `hubCompiler.ts` writing one register value into two registers. Recommends **NPPS option (b)** — extend the `wavelength` enum — at **≈12–19 days**, sequenced before the absolute-irradiance change, with three binding conditions: one commit across five runtimes, unknown-enum fallback becomes an error, and command-gated dose attribution lands with it. Finds **eight** affected protocols (not six) and **three** dual-wavelength counter-examples (not one); verifies the unwanted 660 nm channel at **exactly 50.0 % of optical** and **56.8 % of electrical** tile power, delivering **49.5–64.6 J/cm²** in the worst cases — **at or over R-7's 60 J/cm² limit in two protocols**. Finds `np_pbm1064_dose_tick()` reads one broadband photodiode per wavelength, so per-wavelength dose is **modelled, not measured**, and would report non-zero dose for a disabled channel. Raises **OI-PBMCH-01…07** |
 | 2 | 2026-09-26 | NeurOne Systems Engineering + Firmware | **GitHub #436: the three items that could be done now.** **`OI-PBMCH-04` closed:** `wavelength` reaches the session JSON on iOS, Windows and Android. Android was also affected, which Rev 1 missed. **`OI-PBMCH-06` closed:** the three unannotated single-NIR protocols carry the fidelity-gap note, and `clinical-07` (pediatric) also carries a caution. **`OI-PBMCH-03` actuator built:** a session-scoped per-channel disable latch on the socket path (setpoint 0 on base tiles, `CH_ENABLE` on smart tiles), with host test `np_mod_pbm_chlatch_tests`. Its trigger waits on `OI-FWHUB-10`. **Left open, each on its stated dependency:** `OI-PBMCH-01` / `OI-HEXTILE-07` (after `OI-HEXTILE-02`), `-02` (Option 2 only), `-05` (after `OI-SESPWR-03`) and `-07` (RISK-03 counsel). The study's findings and recommendation are unchanged |
 | 3 | 2026-09-28 | NeurOne Firmware Engineering | **`OI-PBMCH-01`'s firmware half answered by `NP-FW-HEXTILE-001` Rev 1 §5.3.** `CUR` = 0 holds the gate off on the tile, so a zero setpoint is a firmware "off", not a regulate-to-zero request. The hardware half (FET leakage into an unselected emitter, and so whether a `ch_mask` byte is needed) stays open after `OI-HEXTILE-02`. The row's owner and blocking cells are updated. No finding or recommendation of the study changes |
+| 4 | 2026-09-29 | NeurOne Firmware Engineering | **The language change is made** (`NP-NPPS-REF-001` Rev 17): one stated wavelength per block, user-editable wavelength rules, and `start` for series. It generalises §6.1 option (b), and separate blocks supply option (a)'s per-channel magnitude. §6.1's defaulting hazard is closed by refusal. Banner only; no finding changed |

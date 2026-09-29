@@ -1,4 +1,4 @@
-// PBM wavelength mapping rules (NP-NPPS-REF-001 §3.1a, §7a).
+// PBM wavelength mapping rules (NP-NPPS-REF-001 §4.1a, §7a).
 //
 // The rules decide which emitter channel may deliver a protocol's stated
 // wavelength. The tests below pin the three properties the feature rests on:

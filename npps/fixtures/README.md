@@ -11,6 +11,8 @@ Each fixture is a pair of files:
 
 Error fixtures have only a `.npps` file and no `.expected.json`. These inputs are expected to fail parsing.
 
+`startOffsetSeconds` appears only when a block sets `start` (NP-NPPS-REF-001 Rev 17 §5). A file holding only a `wavelength_rules` block (`wavelength_rules.npps`) has no `.expected.json`: it is checked by the grammar validator, and its parse by `wavelengthRules.test.ts`.
+
 ## Normalized JSON schema
 
 ### Single protocol (`"kind": "single"`)
@@ -33,7 +35,7 @@ Error fixtures have only a `.npps` file and no `.expected.json`. These inputs ar
         "type": "modality_block_name",
         "enabled": true,
         "params": { "...alias-resolved camelCase keys...": "value" },
-        "interval": { "intervalOnSeconds": 0, "intervalOffSeconds": 0 }
+        "interval": { "intervalOnSeconds": 0, "intervalOffSeconds": 0, "startOffsetSeconds": 240 }
       }
     ]
   }

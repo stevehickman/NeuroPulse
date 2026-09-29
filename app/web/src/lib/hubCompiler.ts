@@ -666,7 +666,7 @@ function encodePBMTranscranial(
     return { modType: NP_MOD_PBM_SMART, target, params: new Uint8Array([fc, duty, cur, cur, cur, chMask]) };
   }
 
-  // One wavelength per block (NP-NPPS-REF-001 §3.1a): the rules pick the one
+  // One wavelength per block (NP-NPPS-REF-001 §4.1a): the rules pick the one
   // channel that delivers it, and every other channel is commanded to 0, which
   // the tile holds as gate-off (NP-FW-HEXTILE-001 §5.3). A value the rules do
   // not accept is REFUSED. The old path sent anything that was not

@@ -1,7 +1,7 @@
 # ─── PBM wavelength mapping rules — shipped defaults ─────────────────────────
 #
 # A protocol states the wavelength its source used, one per PBM block
-# (`wavelength: "810nm"`, NP-NPPS-REF-001 §3.1a). The helmet has three emitter
+# (`wavelength: "810nm"`, NP-NPPS-REF-001 §4.1a). The helmet has three emitter
 # channels. These rules say which channel may deliver a requested wavelength.
 # A requested wavelength no channel accepts is NOT moved to the nearest channel:
 # the protocol is shown as unsupported, and the compiler refuses it.

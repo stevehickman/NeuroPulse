@@ -15,7 +15,7 @@ interface ExpectedModality {
   type: string;
   enabled: boolean;
   params: Record<string, unknown>;
-  interval: { intervalOnSeconds: number; intervalOffSeconds: number };
+  interval: { intervalOnSeconds: number; intervalOffSeconds: number; startOffsetSeconds?: number };
 }
 
 interface ExpectedProtocol {
@@ -71,6 +71,10 @@ function normalizeModality(m: any): ExpectedModality {
     interval: {
       intervalOnSeconds: m.interval.intervalOnSeconds as number,
       intervalOffSeconds: m.interval.intervalOffSeconds as number,
+      // Present only when a block sets `start` (NP-NPPS-REF-001 §5).
+      ...(m.interval.startOffsetSeconds !== undefined
+        ? { startOffsetSeconds: m.interval.startOffsetSeconds as number }
+        : {}),
     },
   };
 }
@@ -110,7 +114,7 @@ describe('shared NPPS fixtures', () => {
           const expMod = exp.modalities[i];
           expect(actual.type).toBe(expMod.type);
           expect(actual.enabled).toBe(expMod.enabled);
-          expect(actual.interval).toMatchObject(expMod.interval);
+          expect(actual.interval).toEqual(expMod.interval);
           for (const [key, value] of Object.entries(expMod.params)) {
             expect(actual.params[key]).toEqual(value);
           }
