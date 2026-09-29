@@ -125,11 +125,13 @@ describe('predefined NPPS library', () => {
     // cap is still enforced until OI-HEXTILE-31. 250 mW/cm² is inside the
     // time average at 808 nm (≈329) since OI-HEXTILE-32 adopted the reference
     // skin limit, so in the validator the duty cap is the only refusal. One
-    // entry per block. (The validator cannot see the 250:
+    // entry per block. Wang 2023 is the same case: CW at 310 mW/cm² at 820nm
+    // (≈348 allowed), one block. (The validator cannot see the 250 or the 310:
     // `intensity` is not irradiance yet, which OI-HEXTILE-31's pre-signing
     // refusal also has to fix.)
     const WAIVED = [
       'taVNS — Stroke Motor Rehab (paired): frequencyHz = 30 Hz (limit 1–25 Hz (hardware))',
+      'PBM — Anxiety (Wang 2023, high-irradiance): dutyCyclePercent = 100% (limit 25% (hardware))',
       'PBM — Depression (Schiffer 2009, high-irradiance): dutyCyclePercent = 100% (limit 25% (hardware))',
       'PBM — Depression (Schiffer 2009, high-irradiance): dutyCyclePercent = 100% (limit 25% (hardware))',
     ];
