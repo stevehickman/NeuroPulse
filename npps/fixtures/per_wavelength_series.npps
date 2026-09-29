@@ -1,0 +1,33 @@
+# One wavelength per PBM block, run in series with `start` (NP-NPPS-REF-001 §4.1a, §5).
+protocol "Per-Wavelength Series" {
+    id: "90000001-0000-0000-0000-000000000000"
+    description: "Two 810nm blocks, one after the other"
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["pbm", "series"]
+    duration: 8m
+
+    pbm_transcranial {
+        wavelength: "810nm"
+        intensity: 62%
+        frequency: 0Hz
+        duty_cycle: 100%
+        zones: ["Frontal Left"]
+        interval_on: 4m
+        interval_off: 0s
+        repeat: 1
+    }
+
+    pbm_transcranial {
+        wavelength: "810nm"
+        intensity: 62%
+        frequency: 0Hz
+        duty_cycle: 100%
+        zones: ["Frontal Right"]
+        start: 4m
+        interval_on: 4m
+        interval_off: 0s
+        repeat: 1
+    }
+}

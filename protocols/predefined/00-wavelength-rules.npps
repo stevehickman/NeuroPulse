@@ -1,0 +1,48 @@
+# ─── PBM wavelength mapping rules — shipped defaults ─────────────────────────
+#
+# A protocol states the wavelength its source used, one per PBM block
+# (`wavelength: "810nm"`, NP-NPPS-REF-001 §4.1a). The helmet has three emitter
+# channels. These rules say which channel may deliver a requested wavelength.
+# A requested wavelength no channel accepts is NOT moved to the nearest channel:
+# the protocol is shown as unsupported, and the compiler refuses it.
+#
+# These are configuration, not physics and not a safety limit. The safety terms
+# (CLAUDE.md §3) are evaluated on the channel actually driven. A user may loosen
+# or tighten any window (NP-NPPS-REF-001 §7a); a user rule for a channel
+# replaces the default for that channel only.
+#
+# Each window is the channel's band in CLAUDE.md §3 (660–670 nm, 808–830 nm,
+# 1064 nm) widened by 10 nm on each side. 10 nm is roughly half the FWHM of a
+# red or NIR LED, so a requested centroid inside the window still falls within
+# the emitter's half-maximum spectrum. UNVALIDATED DEFAULT: nothing measured
+# sets it, and the emitters are not yet selected (OI-HEXTILE-02).
+#
+# What the defaults accept, for orientation: 810, 820, 823 and 830 nm deliver
+# on the 808 nm channel. 850 nm, 633 nm and 640 nm are unsupported. 1060 and
+# 1070 nm deliver on the 1064 nm channel; 1080 nm is unsupported.
+#
+# app/web/src/lib/wavelengthRules.ts carries the same values as
+# DEFAULT_WAVELENGTH_RULES; wavelengthRules.test.ts fails if the two differ.
+
+wavelength_rules "NeurOne default wavelength mapping" {
+    level: global
+    description: "Channel band from CLAUDE.md §3 widened 10 nm each side. Unvalidated default; user-editable."
+
+    channel "led_660" {
+        nominal_nm: 660
+        min_nm: 650
+        max_nm: 680
+    }
+
+    channel "led_808" {
+        nominal_nm: 808
+        min_nm: 798
+        max_nm: 840
+    }
+
+    channel "led_1064" {
+        nominal_nm: 1064
+        min_nm: 1054
+        max_nm: 1074
+    }
+}

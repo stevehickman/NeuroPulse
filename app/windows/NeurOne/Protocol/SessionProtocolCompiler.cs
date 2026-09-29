@@ -37,12 +37,20 @@ static class SessionProtocolCompiler
     // modalities return null — not yet mapped to hub wire format.
     private static ModalityConfig? CompileModality(NPProtocolModality mod, int sessionDurationSeconds)
     {
+        // This session wire has no per-block timing: every config runs from 0. A
+        // block with a `start` would be delivered at the wrong time, so it is
+        // refused rather than flattened (NP-NPPS-REF-001 §5; OI-AND-WIRE-01's
+        // shared-schema work is where per-block timing lands).
+        if (mod.Interval.StartOffsetSeconds > 0)
+            throw new NotSupportedException(
+                "This protocol times a block with `start`, which the session wire cannot express yet. Refused, not reshaped.");
+
         return mod.Params switch
         {
             NPModalityParams.PbmTranscranial m => new PbmTranscranialConfig
             {
                 Zones = m.P.ResolvedZones,
-                Wavelength = WavelengthRawValue(m.P.WavelengthMode),
+                Wavelength = WavelengthRawValue(m.P.Wavelength),
                 FrequencyHz = m.P.FrequencyHz,
                 DutyCyclePercent = m.P.DutyCyclePercent,
                 DurationSeconds = sessionDurationSeconds,
@@ -143,16 +151,18 @@ static class SessionProtocolCompiler
         _ => "alpha"
     };
 
-    // The NPPS `wavelength` token. No fallback: substituting a default
-    // wavelength is the defect OI-PBMCH-04 records (NP-FEAS-PBMCH-001 §7.3),
-    // so an unmapped member refuses to compile.
-    private static string WavelengthRawValue(PbmTranscranialParams.Wavelength w) => w switch
+    // The NPPS `wavelength` token, carried verbatim. No fallback: substituting a
+    // default wavelength is the defect OI-PBMCH-04 records (NP-FEAS-PBMCH-001 §7.3).
+    // A value that is not a wavelength, or that no wavelength rule maps onto a
+    // channel, refuses to compile (NP-NPPS-REF-001 §4.1a, §7a).
+    private static string WavelengthRawValue(string w)
     {
-        PbmTranscranialParams.Wavelength.Base660_808nm     => "660_808nm",
-        PbmTranscranialParams.Wavelength.Smart1064nm       => "1064nm",
-        PbmTranscranialParams.Wavelength.Tri660_808_1064nm => "660_808_1064nm",
-        _ => throw new ArgumentOutOfRangeException(nameof(w), w, "unmapped PBM wavelength")
-    };
+        if (WavelengthRulesEngine.ResolveChannels(w, WavelengthRulesEngine.Default, out var refusal) is null)
+            throw new NotSupportedException(refusal == "invalid"
+                ? $"PBM wavelength '{w}' is not a wavelength: write one value such as \"810nm\"."
+                : $"No emitter channel delivers {w} under the wavelength rules in force. Refused, not moved to the nearest channel.");
+        return w;
+    }
 
     private static string WaveformRawValue(BesTacsParams.Waveform w) => w switch
     {

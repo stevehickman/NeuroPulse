@@ -57,6 +57,8 @@ data class NPIntervalConfig(
     val intervalOnSeconds: Int,
     val intervalOffSeconds: Int,
     val repeatCount: Int?,
+    /** Offset of the block's first on-period from session start (NP-NPPS-REF-001 §5). 0 = none. */
+    val startOffsetSeconds: Int = 0,
 ) {
     val isContinuous: Boolean get() = intervalOnSeconds == 0
 
@@ -80,13 +82,25 @@ data class NPPBMTranscranialParams(
     var dutyCyclePercent: Int = 25,
 ) {
 
-    enum class Wavelength(val rawValue: String) {
-        BASE_660_808NM("660_808nm"),
-        SMART_1064NM("1064nm"),
-        TRI_660_808_1064("660_808_1064nm");
-
+    /**
+     * The stated wavelength, carried exactly as written (NP-NPPS-REF-001 Rev 17 §4.1a):
+     * one wavelength per block ("810nm"), or a legacy channel name. An open value, not
+     * a closed enum, so a script's wavelength is never replaced by a default. The three
+     * legacy names stay as named constants for the editor's dropdown.
+     */
+    data class Wavelength(val rawValue: String) {
+        /** True when the value drives CH_C under the shipped rules (a 1064 nm smart module). */
         val requiresSmartModule: Boolean
-            get() = this == SMART_1064NM || this == TRI_660_808_1064
+            get() = NPWavelengthRulesEngine.requiresSmartModule(rawValue)
+
+        override fun toString(): String = rawValue
+
+        companion object {
+            val BASE_660_808NM = Wavelength("660_808nm")
+            val SMART_1064NM = Wavelength("1064nm")
+            val TRI_660_808_1064 = Wavelength("660_808_1064nm")
+            val entries: List<Wavelength> = listOf(BASE_660_808NM, SMART_1064NM, TRI_660_808_1064)
+        }
     }
 }
 

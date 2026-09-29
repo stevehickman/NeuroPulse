@@ -9,6 +9,9 @@ struct NPIntervalConfig: Codable, Equatable {
     var intervalOffSeconds: Int
     /// nil = run until session end
     var repeatCount: Int?
+    /// Offset of the block's first on-period from session start (NP-NPPS-REF-001 §5).
+    /// Optional so protocols persisted before Rev 17 still decode. nil or 0 = none.
+    var startOffsetSeconds: Int? = nil
 
     static let continuous = NPIntervalConfig(intervalOnSeconds: 0, intervalOffSeconds: 0, repeatCount: nil)
 
@@ -101,22 +104,45 @@ extension NPPBMTarget {
 
 struct NPPBMTranscranialParams: Codable, Equatable {
 
-    enum Wavelength: String, Codable, CaseIterable, Equatable, Identifiable {
+    /// The stated wavelength, carried exactly as written (NP-NPPS-REF-001 Rev 17 §4.1a):
+    /// one wavelength per block ("810nm"), or a legacy channel name. It is an open value,
+    /// not a closed enum, so a script's wavelength is never replaced by a default. The
+    /// three legacy names stay as static members for the editor's picker.
+    struct Wavelength: RawRepresentable, Codable, Hashable, CaseIterable, Identifiable {
+        let rawValue: String
+        init(rawValue: String) { self.rawValue = rawValue }
         var id: String { rawValue }
-        case base660_808nm    = "660_808nm"
-        case smart1064nm      = "1064nm"
-        case tri660_808_1064  = "660_808_1064nm"
 
-        var displayName: String {
-            switch self {
-            case .base660_808nm: return String(localized: "PBM_WAVELENGTH_BASE660_808NM")
-            case .smart1064nm: return String(localized: "PBM_WAVELENGTH_SMART1064NM")
-            case .tri660_808_1064: return String(localized: "PBM_WAVELENGTH_TRI660_808_1064")
-            }
+        // Encoded as a bare string, exactly as the enum it replaces was, so protocols
+        // persisted before Rev 17 decode unchanged. Written out rather than left to
+        // synthesis, which could choose a keyed {"rawValue": …} form instead.
+        init(from decoder: Decoder) throws {
+            rawValue = try decoder.singleValueContainer().decode(String.self)
+        }
+        func encode(to encoder: Encoder) throws {
+            var c = encoder.singleValueContainer()
+            try c.encode(rawValue)
         }
 
+        static let base660_808nm   = Wavelength(rawValue: "660_808nm")
+        static let smart1064nm     = Wavelength(rawValue: "1064nm")
+        static let tri660_808_1064 = Wavelength(rawValue: "660_808_1064nm")
+        static let allCases: [Wavelength] = [.base660_808nm, .smart1064nm, .tri660_808_1064]
+
+        var displayName: String {
+            if self == .base660_808nm { return String(localized: "PBM_WAVELENGTH_BASE660_808NM") }
+            if self == .smart1064nm { return String(localized: "PBM_WAVELENGTH_SMART1064NM") }
+            if self == .tri660_808_1064 { return String(localized: "PBM_WAVELENGTH_TRI660_808_1064") }
+            return rawValue   // a stated wavelength such as "810nm" is its own label
+        }
+
+        /// True when the value drives CH_C under the shipped rules, so the socket needs a
+        /// 1064 nm (smart) module.
         var requiresSmartModule: Bool {
-            self == .smart1064nm || self == .tri660_808_1064
+            if case .success(let els) = NPWavelengthRules.default.resolveChannels(rawValue) {
+                return els.contains(.led1064)
+            }
+            return false
         }
     }
 

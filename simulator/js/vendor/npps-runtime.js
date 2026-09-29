@@ -5,7 +5,7 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: 9ae4245dd34235cdfcf70679ef107ff7f8f821f0c84c81ac2a2897c8da40f418
+// sources-sha256: f54eed68a098b08a935819e32c53357d3950044f5582445ae637cf4713814024
 var __create = Object.create;
 var __getProtoOf = Object.getPrototypeOf;
 var __defProp = Object.defineProperty;
@@ -2120,6 +2120,29 @@ function toSocketSet(raw) {
   return { sockets, invalid, duplicates };
 }
 
+// app/web/src/lib/wavelengthRules.ts
+var PBM_CHANNEL_ELEMENTS = ["led_660", "led_808", "led_1064"];
+function validateWavelengthRules(rules) {
+  const errors = [];
+  const seen = new Set;
+  for (const c of rules.channels) {
+    if (!PBM_CHANNEL_ELEMENTS.includes(c.element)) {
+      errors.push(`unknown channel '${String(c.element)}'`);
+      continue;
+    }
+    if (seen.has(c.element))
+      errors.push(`channel '${c.element}' has more than one rule`);
+    seen.add(c.element);
+    for (const [k, v] of [["nominal_nm", c.nominalNm], ["min_nm", c.minNm], ["max_nm", c.maxNm]]) {
+      if (!Number.isFinite(v) || v <= 0)
+        errors.push(`channel '${c.element}': ${k} must be a positive number`);
+    }
+    if (c.minNm > c.maxNm)
+      errors.push(`channel '${c.element}': min_nm ${c.minNm} is above max_nm ${c.maxNm}`);
+  }
+  return errors;
+}
+
 // app/web/src/lib/nppsParser.ts
 class NPPSParseError extends Error {
   line;
@@ -2136,6 +2159,8 @@ var KEYWORDS = new Set([
   "zone",
   "condition",
   "layer",
+  "wavelength_rules",
+  "channel",
   "pbm_transcranial",
   "pbm_intranasal",
   "pbm_deep_1170nm",
@@ -2175,6 +2200,9 @@ var KEYWORDS = new Set([
   "individual",
   "helmet_id",
   "individual_id",
+  "nominal_nm",
+  "min_nm",
+  "max_nm",
   "sockets",
   "types",
   "exclude_types",
@@ -2374,6 +2402,7 @@ class Parser {
   pos = 0;
   zones = [];
   conditions = [];
+  wavelengthRules = [];
   constructor(tokens) {
     this.tokens = tokens;
   }
@@ -2570,6 +2599,7 @@ class Parser {
     let intervalOnSeconds = 0;
     let intervalOffSeconds = 0;
     let repeatCount;
+    let startOffsetSeconds;
     const raw = {};
     while (!this.tryBrace()) {
       this.skipNewlines();
@@ -2590,6 +2620,15 @@ class Parser {
       }
       if (key === "interval_off") {
         intervalOffSeconds = this.readDurationSeconds();
+        this.skipNewlines();
+        continue;
+      }
+      if (key === "start") {
+        const line = keyTok.line;
+        startOffsetSeconds = this.readDurationSeconds();
+        if (!Number.isFinite(startOffsetSeconds) || startOffsetSeconds < 0) {
+          throw new NPPSParseError(`${typeName}: start must be a duration of zero or more`, line);
+        }
         this.skipNewlines();
         continue;
       }
@@ -2659,6 +2698,8 @@ class Parser {
     const interval = { intervalOnSeconds, intervalOffSeconds };
     if (repeatCount !== undefined)
       interval.repeatCount = repeatCount;
+    if (startOffsetSeconds !== undefined && startOffsetSeconds > 0)
+      interval.startOffsetSeconds = startOffsetSeconds;
     return { id, modalityParams: params, interval, enabled };
   }
   readKeyValue() {
@@ -2706,8 +2747,10 @@ class Parser {
         this.zones.push(this.parseZoneBlock());
       } else if (this.tryKeyword("condition")) {
         this.conditions.push(this.parseConditionBlock());
+      } else if (this.tryKeyword("wavelength_rules")) {
+        this.wavelengthRules.push(this.parseWavelengthRulesBlock());
       } else {
-        throw new NPPSParseError(`Expected 'protocol', 'composite', 'limits', 'zone', or 'condition', got '${String(this.current.value)}'`, this.current.line);
+        throw new NPPSParseError(`Expected 'protocol', 'composite', 'limits', 'zone', 'condition', or 'wavelength_rules', got '${String(this.current.value)}'`, this.current.line);
       }
       this.skipNewlines();
     }
@@ -3562,6 +3605,95 @@ class Parser {
       cond.code = code;
     return cond;
   }
+  parseWavelengthRulesBlock() {
+    const startLine = this.current.line;
+    this.skipNewlines();
+    if (this.current.type !== "STRING") {
+      throw new NPPSParseError(`Expected wavelength_rules name string, got ${this.current.type}`, this.current.line);
+    }
+    const name = this.current.value;
+    this.advance();
+    this.skipNewlines();
+    this.expect("LBRACE");
+    this.skipNewlines();
+    const rules = { name, level: "global", channels: [] };
+    while (!this.tryBrace()) {
+      this.skipNewlines();
+      if (this.ct() === "RBRACE")
+        break;
+      const keyTok = this.current;
+      if ((keyTok.type === "KEYWORD" || keyTok.type === "IDENT") && keyTok.value === "channel") {
+        this.advance();
+        rules.channels.push(this.parseWavelengthChannelRule());
+        this.skipNewlines();
+        continue;
+      }
+      const { key } = this.readKeyValue();
+      switch (key) {
+        case "level": {
+          const line = this.current.line;
+          const level = String(this.readAnyValue());
+          if (level !== "global" && level !== "user") {
+            throw new NPPSParseError(`wavelength_rules "${name}": level must be global or user, got '${level}'`, line);
+          }
+          rules.level = level;
+          break;
+        }
+        case "description":
+          rules.description = this.readString();
+          break;
+        default:
+          this.skipValue();
+          break;
+      }
+      this.skipNewlines();
+    }
+    const errors = validateWavelengthRules(rules);
+    if (errors.length > 0) {
+      throw new NPPSParseError(`wavelength_rules "${name}": ${errors.join("; ")}`, startLine);
+    }
+    return rules;
+  }
+  parseWavelengthChannelRule() {
+    this.skipNewlines();
+    const line = this.current.line;
+    if (this.current.type !== "STRING") {
+      throw new NPPSParseError(`Expected channel name string (e.g. "led_808"), got ${this.current.type}`, line);
+    }
+    const element = this.current.value;
+    this.advance();
+    if (!PBM_CHANNEL_ELEMENTS.includes(element)) {
+      throw new NPPSParseError(`unknown channel '${element}' — one of ${PBM_CHANNEL_ELEMENTS.join(", ")}`, line);
+    }
+    this.skipNewlines();
+    this.expect("LBRACE");
+    this.skipNewlines();
+    let nominalNm;
+    let minNm;
+    let maxNm;
+    while (!this.tryBrace()) {
+      const { key } = this.readKeyValue();
+      switch (key) {
+        case "nominal_nm":
+          nominalNm = this.readNumber();
+          break;
+        case "min_nm":
+          minNm = this.readNumber();
+          break;
+        case "max_nm":
+          maxNm = this.readNumber();
+          break;
+        default:
+          this.skipValue();
+          break;
+      }
+      this.skipNewlines();
+    }
+    if (nominalNm === undefined || minNm === undefined || maxNm === undefined) {
+      throw new NPPSParseError(`channel "${element}": nominal_nm, min_nm and max_nm are all required`, line);
+    }
+    return { element, nominalNm, minNm, maxNm };
+  }
   parseLayerBlock() {
     this.skipNewlines();
     if (this.current.type !== "STRING") {
@@ -3604,7 +3736,12 @@ function parseNPPSFile(text) {
   const tokens = tokenize(text);
   const parser = new Parser(tokens);
   const entries = parser.parse();
-  return { entries, zones: [...parser.zones], conditions: [...parser.conditions] };
+  return {
+    entries,
+    zones: [...parser.zones],
+    conditions: [...parser.conditions],
+    wavelengthRules: [...parser.wavelengthRules]
+  };
 }
 function buildNamespace(files) {
   const entries = [];

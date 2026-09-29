@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HEXTILE-001
-**Revision:** 1
+**Revision:** 2
 **Date:** 2026-09-28
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Firmware Engineering
 **Approved By:** — (pending design review)
-**References:** NP-HW-HEXTILE-001 Rev 24 (§6.2 driver topology, §6.5 firmware boundary, §7.2 pinout, §7.3 mating order, §8.3 3.3 V budget, §8.4 safety gating, D-3, D-4 not adopted, D-7, D-8, D-9); NP-FW-PBM1064-001 Rev 5 §5 (register map 0x00–0x0D, frequency codes, duty ceiling, hub startup and poll); NP-HEX-ZM-001 Rev 9 §4.1 (tile identity block); NP-MOD-ID-001 §5 (on-module odometer, MODID-4a mate count); NP-SOUP-LFS-001 §13.14 (`REQ-TDRV-01`/`-02`); NP-FEAS-PBMCH-001 (`OI-PBMCH-01`); NP-DRV-SHELL-002 §3.3a (front end on the cluster controller), REQ-EMI-03/-04; NP-SES-PWR-001 (`OI-SESPWR-03`); NP-SW-001 Rev 11; CLAUDE.md §3, §4.2, §18
+**References:** NP-HW-HEXTILE-001 Rev 24 (§6.2 driver topology, §6.5 firmware boundary, §7.2 pinout, §7.3 mating order, §8.3 3.3 V budget, §8.4 safety gating, D-3, D-4 not adopted, D-7, D-8, D-9); NP-FW-PBM1064-001 Rev 5 §5 (register map 0x00–0x0D, frequency codes, duty ceiling, hub startup and poll); NP-HEX-ZM-001 Rev 9 §4.1 (tile identity block); NP-MOD-ID-001 §5 (on-module odometer, MODID-4a mate count); NP-SOUP-LFS-001 §13.14 (`REQ-TDRV-01`/`-02`); NP-FEAS-PBMCH-001 (`OI-PBMCH-01`); NP-DRV-SHELL-002 §3.3a (front end on the cluster controller), REQ-EMI-03/-04; NP-SES-PWR-001 (`OI-SESPWR-03`); NP-SW-001 Rev 11; CLAUDE.md Rev 59 §3, §4.2, §18
 **Related Issues:** — (closes `NP-HW-HEXTILE-001` `OI-HEXTILE-07`; successor to the never-written NP-FW-ZM-TINY402-001, `OI-PBM-08`)
 **Gate:** GATE-2 (PBM coupling bench) — module bring-up
 **IEC 62304 Class:** SW-04 Class B (hex-tile on-module firmware; registered NP-SW-001 Rev 11)
@@ -16,6 +16,18 @@
 **Parent Document:** NP-HW-HEXTILE-001
 
 ---
+
+> **Rev 2 (2026-09-28): the tile delivers the duty and mode the hub commands. It never clamps
+> them, and CW is the gate held on (principal direction; CLAUDE.md Rev 59).** Rev 1 clamped every
+> DUTY write to 25 %, CW included, and held a CW channel off until a "carrier" was chosen. So a CW
+> protocol produced either a 25 % pulse train or nothing, and neither is the protocol that was
+> authored. **Both are withdrawn.** R-4 is now 400 mW/cm² peak, with the time average held to 200 mW/cm² per channel plus a weighted
+> sum across wavelengths, at
+> whatever duty the protocol specifies. A protocol outside that is refused before it is signed, never
+> reshaped (`NP-HW-HEXTILE-001` `OI-HEXTILE-31`). U1 has no emitter data, so it cannot tell a legal
+> duty from an illegal one, and it enforces neither. The bounds that hold against U1's own failure are
+> U3 (peak) and a U4 redesigned to bound the average (`OI-HEXTILE-30`). §5.2, §5.3, §5.5, §5.6, §13,
+> §14, §15 and §16 change. `OI-FWTILE-06` is retired: its premise that CW needs a carrier was wrong.
 
 > **Rev 1 (2026-09-28): the tile firmware is specified. This closes `OI-HEXTILE-07` as a
 > specification item. No tile firmware exists, no part is selected, and nothing is measured.**
@@ -39,7 +51,7 @@
 >   "regulate to zero" (§5.3). Whether an undriven gate emits nothing is still a part property and
 >   still waits on `OI-HEXTILE-02`.
 > - **`OI-HEXTILE-25`(c): which limit governs CW.** The 25 % firmware ceiling governs every mode, CW
->   included, on the tile as on the hub. R-4's 200 mW/cm² CW figure is a ceiling nothing requires the
+>   included, on the tile as on the hub. **⚠ WITHDRAWN Rev 2: it made CW undeliverable as CW.** R-4's 200 mW/cm² CW figure is a ceiling nothing requires the
 >   device to reach (§5.5).
 > - **`OI-HEXTILE-25`(d).** The register map now says that `CUR` codes above `I_cap` saturate in
 >   hardware (§5.4).
@@ -77,7 +89,7 @@ lists the tests this specification needs.
 
 | Source | What it binds here |
 |---|---|
-| `NP-FW-PBM1064-001` §5.1–§5.5 | Register addresses `0x00`–`0x0D`, their encodings, the frequency codes, and `NP_PBM_DUTY_MAX_REG` = `0x32`. **The hub code is written against this map** (`firmware/pbm/src/np_pbm_drive.c`), so this document keeps every address and encoding and defines only what was left undefined |
+| `NP-FW-PBM1064-001` §5.1–§5.5 | Register addresses `0x00`–`0x0D`, their encodings, the frequency codes, ~~and `NP_PBM_DUTY_MAX_REG` = `0x32`~~ (Rev 2: not binding on the tile, §5.5). **The hub code is written against this map** (`firmware/pbm/src/np_pbm_drive.c`), so this document keeps every address and encoding and defines only what was left undefined |
 | `NP-HEX-ZM-001` §4.1 | The identity block at `0x40`, byte for byte (§7) |
 | `NP-MOD-ID-001` §5.2, §5.3, §5.3.1 | The odometer record, its four-slot rotation, its CRC over UID ‖ payload, and MODID-4a (§8) |
 | `NP-HW-HEXTILE-001` §8.3 | ≤ 2 mA standby, ≤ 25 mA active per module on `VCC_3V3` (§10) |
@@ -85,7 +97,7 @@ lists the tests this specification needs.
 | `NP-HW-HEXTILE-001` D-9 | U3 caps the on-current and U4 caps the conducting fraction, in hardware. The firmware is inside those bounds and is not one of them (§4, §5.4) |
 | `NP-HW-HEXTILE-001` §7.2 | The pins U1 sees: `SDA`, `SCL`, `SYNC`, `ALERT#`, `VCC_3V3`, `DGND`. `PD1_K`, `PD2_K` and `NTC` go to the controller and not to U1 |
 | `NP-DRV-SHELL-002` REQ-EMI-03/-04 | Pulse phase is deterministic and locked to `SYNC`, and never dithered (§5.6) |
-| CLAUDE.md §3 | ≤ 25 % duty, firmware-enforced (§5.5) |
+| CLAUDE.md §3 (Rev 59) | 400 mW/cm² peak; the time average at ≤ 200 mW/cm² per channel plus a weighted sum across the tile's wavelengths; duty and mode are the protocol's. A ceiling refuses a protocol and never reshapes it (§5.5) |
 | CLAUDE.md §18 | Every requirement below states what fails without it and where it traces (§14) |
 
 ---
@@ -114,7 +126,7 @@ failure of U1 can take a tile outside what these independent bounds allow:
 | Tier | Mechanism | Holds when U1 is wedged or wrong? | Class |
 |---|---|---|---|
 | Fine | U1 gate control, this document | — | B (SW-04) |
-| Per-channel hardware | U3 caps on-current at `I_cap` (`REQ-TDRV-01`); U4 caps the conducting fraction at 50 % over any `T_w` ≥ 250 ms (`REQ-TDRV-02`) | **Yes.** U4 acts on the gate path, not in U1 | hardware risk control |
+| Per-channel hardware | U3 caps on-current at `I_cap` (`REQ-TDRV-01`); U4 caps the conducting fraction at 50 % over any `T_w` ≥ 250 ms (`REQ-TDRV-02`). **Rev 2: that form forbids CW and is to be redesigned to bound the 200 mW/cm² average instead (`OI-HEXTILE-30`)** | **Yes.** U4 acts on the gate path, not in U1 | hardware risk control |
 | Coarse | 18 per-cluster `VLED` gates, hub-commanded (`NP-HW-HEXTILE-001` D-8) | Yes | hardware, commanded by SW-02 (B) |
 | Hard | `NP_SAFETY_EN_PBM_CRANIAL`, in series with all of the above; cut on heartbeat loss in < 50 ms | Yes | SW-01 (C) |
 
@@ -154,8 +166,8 @@ column is what this document adds.
 | `0x00` | STATUS | R | per §5.7 | bit 0 `FAULT` = any of bits 1–4 set. Bits 1–4 are the **latched** `THERMAL`, `OCP_A`, `OCP_B`, `OCP_C` (§5.7), so a fault that has passed is still reported. Bit 5 `RESET_SEEN` (§5.7). Bits 6–7 read 0 |
 | `0x01` | CH_ENABLE | R/W | `0x00` | bit 0 CH_A (660 nm), bit 1 CH_B (808 nm), bit 2 CH_C (1064 nm). **A bit for a channel the tile does not populate is held 0** (§5.3). Cleared per channel on fault entry (§5.7) |
 | `0x02`–`0x04` | CUR_A/B/C | R/W | `0x00` | Commanded current, 0–255 → 0–180 mA (0.706 mA per code). **0 means the gate is never driven** (§5.3). Codes above `I_cap` saturate in hardware (§5.4) |
-| `0x05`–`0x07` | PWM_FREQ_A/B/C | R/W | `0x28` (40 Hz) | Codes of `NP-FW-PBM1064-001` §5.2 only. An unlisted code is refused, and the register keeps its previous value. **`0x00` (CW) is accepted and holds the channel off** until `OI-FWTILE-06` gives it a carrier (§5.5) |
-| `0x08`–`0x0A` | DUTY_A/B/C | R/W | `0x00` | 0.5 % per code. **A write above `0x32` is stored as `0x32`** and reads back as `0x32` (§5.5) |
+| `0x05`–`0x07` | PWM_FREQ_A/B/C | R/W | `0x28` (40 Hz) | Codes of `NP-FW-PBM1064-001` §5.2 only. An unlisted code is refused, and the register keeps its previous value. **`0x00` is CW: the gate is held on**, and `DUTY` does not apply (§5.5) |
+| `0x08`–`0x0A` | DUTY_A/B/C | R/W | `0x00` | 0.5 % per code, `0x00`–`0xC8` (0–100 %). **Stored as written, never clamped.** A write above `0xC8` is refused, and the register keeps its previous value (§5.5) |
 | `0x0B` | THERMAL | R/W | `62` | Local over-temperature threshold, °C. **A write above 62 is stored as 62** (§6) |
 | `0x0C` | FAULT_LATCH | R/W | per §5.7 | Same bit layout as STATUS bits 1–5. Writing `0xFF` clears every latched bit whose condition no longer holds (§5.7) |
 | `0x0D` | CONFIG | R/W | `0x00` | bit 0 `SOFT_RESET`, self-clearing (§11). bit 1 **retired**: *"PWM_mode"* was never given a meaning. The hub still writes it (`np_pbm_drive_startup()`), and the tile ignores it (CLAUDE.md §18). bit 2 `SYNC_EN` (§5.6) |
@@ -177,10 +189,10 @@ so one transaction reads or writes it.
 
 1. `CH_ENABLE` bit *x* is 1;
 2. `CUR_x` ≠ 0;
-3. `DUTY_x` ≠ 0;
+3. `DUTY_x` ≠ 0, for a pulsed code (CW ignores `DUTY`, §5.5);
 4. the tile populates channel *x*, as read from its own identity block at boot;
 5. no fault latched against channel *x* (§5.7);
-6. the channel's PWM is in its on-phase.
+6. the channel's PWM is in its on-phase (always, for CW).
 
 Otherwise the gate is **held** at its non-conducting level. It is driven there, not left
 unconfigured. The same holds for any other gate-path output U1 owns under `OI-FWTILE-02`, such as a
@@ -226,39 +238,47 @@ CH_A (`OI-HEXTILE-29`). U1 needs a setpoint output that U3 clamps. On a part wit
 filtered PWM, one pin per channel. That is **`OI-FWTILE-02`**, which must close with `OI-HEXTILE-24`.
 Until it does, this document fixes what `CUR` *means*, not how U1 produces it.
 
-### 5.5 Duty, and which limit governs CW
+### 5.5 Duty and CW: delivered as commanded
 
-**U1 clamps each DUTY write to `0x32` (25 %) in every mode, CW included, and stores the clamped
-value.** The hub already clamps (`np_pbm_drive_set_duty()`, `NP-FW-PBM1064-001` §5.5). The tile's
-clamp is the second copy of a ceiling CLAUDE.md §3 requires to be *firmware-enforced*, placed where
-a hub defect, or a hub build that skipped the clamp, cannot pass it. U4's 50 % sits behind both.
+**U1 stores each DUTY write as written, 0–100 %, and drives the gate to it.** It never clamps and
+never substitutes a nearby value. A write above `0xC8` (100 %) has no meaning, so it is refused. The
+register keeps its previous value and reads it back, so the hub can see that the write did not land.
 
-**`OI-HEXTILE-25`(c), decided for the tile: the 25 % ceiling governs CW.** The alternative was to
-lift the ceiling for CW so that R-4's 200 mW/cm² CW figure becomes reachable. Nothing requires that:
+**Frequency code `0x00` is CW, and CW is the gate held on.** While §5.3's conditions hold, the gate
+is on continuously. There is no carrier, and `DUTY` does not apply. Irradiance is set by `CUR` alone.
+A channel pulsed at any rate, however fast, is a different stimulus from CW, and so a different
+protocol (principal, 2026-09-28).
 
-- R-4's 200 mW/cm² is a **ceiling**. No protocol, requirement or claim in the set needs the device
-  to *reach* it, and none is cited for doing so.
-- Lifting it is a change to a CLAUDE.md §3 figure (≤ 25 % duty, firmware-enforced) in two images at
-  once. It would also move the tile's average irradiance from 100 to 200 mW/cm², onto a heat path
-  §9.3 has not closed. That is a decision for Safety, not a firmware default.
-- The conservative direction is the one already in force. Keeping it costs capability and no safety.
+**Why U1 enforces no duty ceiling.** CLAUDE.md §3 (Rev 59) bounds PBM at 400 mW/cm² peak, and bounds
+the time average at 200 mW/cm² per channel plus a weighted sum across the tile's wavelengths. It leaves
+duty to the protocol. Whether a duty is legal therefore depends on the irradiance at the commanded
+current, `DUTY` × *E*(`CUR`), and on the other channels. *E* is emitter data U1 does
+not hold (§5.4). A tile-side check would need a firmware copy of the emitter's flux curve, which can
+disagree with the part fitted. A tile-side clamp would do worse: it would deliver a stimulus nobody
+authored. The rule is **refuse, never reshape**, and refusal happens where the irradiance is known:
 
-**Reopening it** needs a stated need for CW above 100 mW/cm² average, a change to CLAUDE.md §3's
-wording, and the same change made to both `NP_PBM_DUTY_MAX_REG` and this clamp. U4 bounds the
-result at 50 % whatever is decided.
+| Where | What bounds it | State |
+|---|---|---|
+| Before signing | A protocol whose peak exceeds 400 or whose time average exceeds 200 mW/cm² is refused | **not built** (`OI-HEXTILE-31`) |
+| Hub | Today `NP_PBM_DUTY_MAX_REG` clamps to 25 %. It is the only firmware bound in force, so it is replaced by the pre-signing check, not deleted ahead of it | **still clamps** (`OI-HEXTILE-31`) |
+| Tile hardware, holding against U1's own failure | U3: peak ≤ 400 (`REQ-TDRV-01`). U4: today ≤ 50 % conduction, which forbids CW. To be redesigned to hold the average ≤ 200 and allow any duty, CW included, below it | **U4 redesign open** (`OI-HEXTILE-30`) |
 
-**Frequency code `0x00` (CW) under D-9.** D-9 makes CW a PWM at `I_cap`, not DC (`OI-HEXTILE-25`(b)).
-Under this clamp CW is at most 25 % of a carrier period, and that carrier is not set. The protocol
-language has not settled whether `frequency: 0` with a `duty_cycle` means CW or duty (`OI-SESPWR-03`).
-The carrier's frequency also places a spectral line the EEG artifact model must subtract
-(REQ-EMI-03/-04). Until **`OI-FWTILE-06`** sets it, U1 accepts code `0x00` and holds the channel
-off, so a CW protocol produces no emission rather than an undefined one.
+**Consequence to know until those close.** A pulsed duty above 25 % cannot reach the tile today:
+the language refuses it, and the compiler and the hub clamp it. **A CW command can.** The language
+allows `frequency: 0`, and nothing checks a CW protocol's `CUR` against R-4's average terms. So
+under this specification, a CW protocol at high intensity would be bounded only by U4, and U4 is
+neither built nor yet in its redesigned form. No tile exists, so nothing is exposed today. **This is
+why the pre-signing check is the first thing to build, before any tile firmware is written and
+before any clamp is removed** (`OI-HEXTILE-31`).
+
+**`OI-HEXTILE-25`(c) is re-answered.** No duty limit governs CW. CW is bounded by its irradiance,
+≤ 200 mW/cm², through `CUR`. Rev 1's answer is withdrawn.
 
 ### 5.6 Frequency, phase and `SYNC`
 
 - **Period and on-time.** For a code of *f* Hz the period is 1/*f*, and the on-phase is
-  `DUTY` × 0.5 % of it. At the longest legal case (2 Hz, 25 %) the on-phase is 125 ms, which is the
-  pulse `REQ-TDRV-02`'s 250 ms window was sized to pass.
+  `DUTY` × 0.5 % of it, at any duty from 0 to 100 %. `REQ-TDRV-02`'s 250 ms window was sized around a
+  25 % library and forbids any duty above 50 %, so it is part of U4's redesign (`OI-HEXTILE-30`).
 - **A change to `PWM_FREQ_x`, `DUTY_x` or `CUR_x` takes effect at the next period boundary.**
   Applied mid-period, a shorter period with the old on-time could run one pulse above the duty
   ceiling. U4 would bound it, but only at 50 %.
@@ -506,6 +526,7 @@ Each of these would be easy to add. None is added, because nothing requires it (
 | **A firmware copy of `I_cap`, or a `CUR` clamp** | §5.4 |
 | **Odometer fields U1 computes from its own gate time** | The hub owns every non-CRC field (§8.1). Two writers of one counter would disagree |
 | **A duty floor or a `THERMAL` floor** | A low value costs availability, not safety |
+| **A duty clamp, or any duty ceiling** | A clamp delivers a stimulus nobody authored. A ceiling needs emitter data U1 does not hold. Refusal happens before signing (§5.5) |
 | **Per-channel slope scaling on the tile** | CH_A and CH_B already have separate `CUR` registers. That they receive one value is the compiler's (`hubCompiler.ts` writes `intensity` into both). Matching unequal mW-per-mA slopes belongs there, not in U1 (`OI-PBMCH-06`) |
 
 ---
@@ -516,19 +537,19 @@ Each of these would be easy to add. None is added, because nothing requires it (
 |---|---|---|---|
 | **REQ-FWTILE-01** | Serve the identity block of `NP-HEX-ZM-001` §4.1 at `0x40`, byte for byte, from a factory-written image including its CRC. Never compute or rewrite it | The hub's `inventory_fn` rejects the tile, or accepts a corrupted one whose CRC was recomputed | `NP-HEX-ZM-001` §4.1; R-12 |
 | **REQ-FWTILE-02** | Drive a gate only under all six conditions of §5.3. `CUR` = 0 holds the gate off | "Off" on a base tile is undefined (`OI-PBMCH-01`); a corrupt tile or an unpopulated channel could be driven | NP-FEAS-PBMCH-001 §3.4, §6.2; `NP-HEX-ZM-001` §4.1 |
-| **REQ-FWTILE-03** | Store every DUTY write clamped to `0x32`, in every mode | A hub fault or a non-clamping build passes > 25 % duty to the gate, with only U4's 50 % behind it | CLAUDE.md §3 (≤ 25 %, firmware-enforced); `NP-FW-PBM1064-001` §5.5 |
+| **REQ-FWTILE-03** | Store every DUTY write as written (0–100 %), never clamped. Refuse a value above `0xC8`, keeping the previous value | A clamp delivers a different stimulus from the protocol, silently; an undefined code drives the gate to an undefined duty | CLAUDE.md §3 (Rev 59: duty is the protocol's; a ceiling refuses and never reshapes) |
 | **REQ-FWTILE-04** | `THERMAL` resets to 62 and is never stored above 62 | A register write raises a tile past the 62 °C junction limit | CLAUDE.md §4.2; R-9 |
 | **REQ-FWTILE-05** | At local temperature ≥ `THERMAL`: all gates off, latch, clear `CH_ENABLE`, assert `ALERT#`, with no bus transaction and no automatic resume. **Blocked on `OI-FWTILE-01`** | A tile heats past the limit while the bus is silent or the hub is slow | R-9; RISK-26 (on-module throttle); `NP-HW-HEXTILE-001` §6.5 |
 | **REQ-FWTILE-06** | `ALERT#` low while any of `THERMAL`, `OCP_A/B/C` is latched | A tile fault waits for an 80-tile poll to be seen | `NP-HW-HEXTILE-001` §7.2 pin 12; `NP-DRV-SHELL-002` (ALERT# reaches the safety MCU without a transaction) |
 | **REQ-FWTILE-07** | A fault clears the `CH_ENABLE` bits it reaches, and clearing a latch re-enables nothing | A cleared transient re-energises a channel the hub believes it disabled | `NP-FW-PBM1064-001` §5.4 (the hub re-enables explicitly) |
 | **REQ-FWTILE-08** | Standby ≤ 2 mA and active ≤ 25 mA per module, with standby the default state | The 80-tile lattice exceeds its logic budget (~1.0 W) | `NP-HW-HEXTILE-001` §8.3 |
-| **REQ-FWTILE-09** | Apply frequency, duty and current changes at a period boundary | A mid-period change runs one pulse above the duty ceiling | REQ-FWTILE-03 |
+| **REQ-FWTILE-09** | Apply frequency, duty and current changes at a period boundary | A mid-period change runs one pulse at neither the old duty nor the new one | REQ-FWTILE-03 (the commanded duty is what is delivered) |
 | **REQ-FWTILE-10** | No dithering. With `SYNC_EN` set, each period starts on `SYNC` | The PBM artifact is not a fixed, subtractable line | `NP-DRV-SHELL-002` REQ-EMI-03, REQ-EMI-04 |
 | **REQ-FWTILE-11** | The odometer per §8: newest valid slot wins; U1 computes the CRC over UID ‖ payload and owns the mate count; a mate is written at most once per power-up; lower counters are refused | Part history is lost on a torn write, transplanted between tiles, overcounted, or rolled back | `NP-MOD-ID-001` §5.2, §5.3, §5.3.1, §6 |
 | **REQ-FWTILE-12** | Brown-out detection and the watchdog are enabled by fuse, and every reset returns every register to off and sets `RESET_SEEN` | U1 runs erratically on the slow supply edge of every mate with `VLED` live; the hub integrates a dose a restarted tile is not delivering | `NP-HW-HEXTILE-001` §7.3 mating order; R-7 |
 | **REQ-FWTILE-13** | Report `FW_VERSION` at `0x0E` | The software configuration of a fielded device cannot be established per tile | IEC 62304 §8.1.1 (identification of configuration items) |
 | **REQ-FWTILE-14** | Mode S: answer at `0x30`. Mode D: per §9 items 1–5 when `OI-HUB-C15` adopts it | The hub's probe and inventory cannot reach the tile | `NP-HW-HEXTILE-001` D-7; `NP-HEX-ZM-001` §4.1 |
-| **REQ-FWTILE-15** | Refuse an unlisted `PWM_FREQ` code, and hold a channel off on `0x00` until `OI-FWTILE-06` | A protocol runs at an undefined frequency, or CW runs at an undefined carrier | `NP-FW-PBM1064-001` §5.2; `OI-SESPWR-03` |
+| **REQ-FWTILE-15** | Refuse an unlisted `PWM_FREQ` code. On `0x00` (CW), hold the gate on while §5.3 holds, with no carrier and `DUTY` not applied | A protocol runs at an undefined frequency; a CW protocol is delivered as a pulse train, which is a different stimulus | `NP-FW-PBM1064-001` §5.2; CLAUDE.md §3 (Rev 59) |
 
 ---
 
@@ -540,7 +561,8 @@ Nothing below has been run, because no tile firmware exists.
 |---|---|
 | REQ-FWTILE-01 | Host test of the register layer against `np_hexmap_inventory_tests`' reader: a factory image is accepted; a flipped byte fails the hub's CRC; a write to the region changes nothing |
 | REQ-FWTILE-02 | Host test over every combination of the six conditions: the gate output is on in exactly one |
-| REQ-FWTILE-03/-04 | Write `0xFF` to each DUTY and to `THERMAL`; read back `0x32` and 62 |
+| REQ-FWTILE-03/-04 | Write `0x64` (50 %) and `0xC8` to each DUTY and read them back unchanged; write `0xC9` and read back the previous value; write `0xFF` to `THERMAL` and read back 62 |
+| REQ-FWTILE-15 | Code `0x00` with `DUTY` = 0: the gate is continuously on for the whole capture, with no edges |
 | REQ-FWTILE-05/-06/-07 | Host test with a simulated temperature input, then the GATE-2 bench with a heated tile and the bus disconnected: the gates go off, `ALERT#` is asserted, and clearing the latch leaves `CH_ENABLE` = 0 |
 | REQ-FWTILE-08 | Bench: module current in each state, 3.3 V, over 25–62 °C (HT-DRC-12) |
 | REQ-FWTILE-09 | Logic-analyser capture of a frequency change: no on-phase exceeds the duty of either setting |
@@ -560,7 +582,7 @@ Nothing below has been run, because no tile firmware exists.
 | **OI-FWTILE-03** | **U1's package and part facts.** §6.2's SOIC-8/SOT-23-8 carries 6 I/O, and this firmware needs 8 to 15 (§12). Move §6.2 to a 20-pin-class part, and confirm the §12 part facts against DS40002311A. Size flash (4 KB or 8 KB) once the image exists | EE + FW | §6.2; rigidizer layout; §6.4 BOM |
 | **OI-FWTILE-04** | **Gate state without U1.** During every insertion `VLED` is live before `VCC_3V3` (§7.3), and during a reset U1's pins are high-impedance. Each gate and U4's input need a non-conducting default that holds with U1 unpowered | EE | rigidizer schematic; `OI-HEXTILE-24` |
 | **OI-FWTILE-05** | **What `OCP_x` detects under D-9.** U3 makes over-current a regulator fault, so the useful detections are *current while the gate is off* (a shorted FET, i.e. a stuck-on channel) and *current above `I_cap`'s tolerance* (U3 failed). Both need the sense nodes on U1's ADC and thresholds from `OI-HEXTILE-24`. If they are not routed, `OCP_x` reads 0 permanently, and a stuck-on channel is detected only by the hub from the PD reading of an undriven tile. Say which | EE + FW | STATUS bits 2–4; `np_pbm_drive_poll_status()` |
-| **OI-FWTILE-06** | **CW carrier.** Code `0x00` holds the channel off until this sets a carrier frequency. The carrier places a spectral line that REQ-EMI-03/-04 must account for, and it waits on `OI-SESPWR-03` (what `frequency: 0` with a duty means) | FW + EMC | every CW protocol; `OI-SESPWR-03` |
+| ~~**OI-FWTILE-06**~~ | **RETIRED Rev 2, wrong premise.** It assumed CW needed a carrier because of the 25 % clamp. CW is the gate held on (§5.5), so there is no carrier to choose. The CW + `duty_cycle` ambiguity in the language stays with `OI-SESPWR-03` and `OI-HEXTILE-31`. *Original:* **CW carrier.** Code `0x00` holds the channel off until this sets a carrier frequency. The carrier places a spectral line that REQ-EMI-03/-04 must account for, and it waits on `OI-SESPWR-03` (what `frequency: 0` with a duty means) | — | — (retired) |
 | **OI-FWTILE-07** | **Mode D addressing.** Specify the discovery and assignment exchange if `OI-HUB-C15` adopts D-7's shared segments, against §9 items 1–5 | FW (hub + tile) | `OI-HUB-C15`; HT-DRC-11 |
 | **OI-FWTILE-08** | **The hub's staged throttle sits at or above the tile's cut.** `NP-FW-PBM1064-001` §7.4 stages CH_C, then CH_B, from 62 °C, and the tile turns everything off at 62 °C. Restate the staging below 62 °C, or retire it | FW (hub) | `NP-FW-PBM1064-001` §7.4 |
 | **OI-FWTILE-09** | **No field update path for tile firmware.** A defect in SW-04 is fixed only by replacing or bench-reflashing each tile. Decide whether that is acceptable for a Class B item fitted up to 80 times per device, or whether a hub-driven update is needed (IEC 62304 §6) | FW + Quality | SW-04 maintenance plan |
@@ -572,3 +594,4 @@ Nothing below has been run, because no tile firmware exists.
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 1 | 2026-09-28 | NeurOne Firmware Engineering | First issue; closes `NP-HW-HEXTILE-001` `OI-HEXTILE-07` as a specification item. It extends the `NP-FW-PBM1064-001` §5.1 map without moving an address. Added: FW_VERSION, CMD, CMD_STATUS, the identity window at `0x40` and the odometer window at `0xE0`. No PD readback registers are defined, because D-4 was not adopted. It defines the six-condition gate rule, under which `CUR` = 0 holds the gate off (`OI-PBMCH-01`, firmware half). The tile clamps duty to 25 % in every mode, CW included (`OI-HEXTILE-25`(c) decided for the tile). `CUR` above `I_cap` saturates in U3 (`OI-HEXTILE-25`(d)). Also specified: the local over-temperature response, latch and `ALERT#` semantics, identity storage and the boot self-check, the odometer write rules, and the MODID-4a mate latch. Modes S and D addressing, the power states and the reset rules round it out. The firmware is registered as SW-04, Class B. Nine open items are raised, `OI-FWTILE-01`…`-09`. No code, no part, nothing measured |
+| 2 | 2026-09-28 | NeurOne Firmware Engineering | **Duty and CW are delivered as commanded (principal direction, CLAUDE.md Rev 59).** Rev 1's 25 % clamp is withdrawn: it applied to CW, so CW protocols were delivered as a pulse train or not at all. DUTY is stored as written, 0–100 %, and a value above 100 % is refused. Code `0x00` is the gate held on, with `DUTY` not applied. U1 enforces no duty ceiling, because legality depends on emitter data it does not hold, and a clamp reshapes the stimulus. §5.5 records where refusal happens instead, and what is not yet built (`OI-HEXTILE-30`, `-31`). `OI-HEXTILE-25`(c) re-answered. REQ-FWTILE-03, -09 and -15 rewritten. `OI-FWTILE-06` retired. No code |

@@ -418,6 +418,8 @@ draw; "thermal" is this model at R_sink 0.5 K/W; **"ideal"** repeats it with a p
 | PBM — TBI + Intranasal | 1.4 | 29 | 39 | >80 | power |
 | PBM — Autism (pediatric 40 Hz) | 1.3 | 32 | 45 | >80 | power |
 
+> **2026-09-29:** the Wang and Schiffer rows are v1.0 of those protocols. v2.0 of Schiffer is CW on the 808 nm channel only, two 4-min blocks in series, and is refused under the ceilings in force. v2.0 of Wang drives 808 nm only on the left half-lobe. Neither row has been re-run.
+
 **18 of 23 are thermally bound, not power bound.** `NP-HW-HEXTILE-001` §9 frames concurrency as a
 power question and §9.3 consequence 2 states the aggregate thermal risk *"cannot"* bind because
 "the power envelope permits ~6 tiles". That is the wrong way round for most of the library.

@@ -20,7 +20,7 @@
 - Tiled across the hex-socket lattice (NP-HEX-ZM-001) — zones are protocol-defined sets of sockets (`00-zones.npps`), not a fixed hardware slot count. Total LED count scales with how many T1-A (base PBM) tiles are populated in a given build/config.
 - 6mm inter-LED pitch → ±15–25% irradiance variation (near-uniform field)
 - 120–180mA per LED → L70 80,000–100,000 hours
-- **400 mW/cm² peak pulsed** (≤25% duty cycle, firmware-enforced) / 200 mW/cm² CW max
+- **Time-averaged ≤ 200 mW/cm² per channel, and Σ Ēᵢ / (200 × C_A(λᵢ)) ≤ 1 over the channels on one tile; 400 mW/cm² peak (a design figure)**, at whatever duty and mode the protocol specifies (CLAUDE.md Rev 59; basis `NP-BIB-PBMIRR-001` §3.1, unverified until `OI-BIBPBM-01`; full adoption of the reference is `OI-HEXTILE-32`). *Until Rev 59 this read "400 mW/cm² peak pulsed (≤25% duty cycle, firmware-enforced) / 200 mW/cm² CW max". The duty cap is retired, because a clamped pulse train is a different stimulus. A protocol outside a ceiling is refused, never reshaped. The code still clamps: `NP-HW-HEXTILE-001` `OI-HEXTILE-30`/`-31`.*
 - **Dual photodiode dose-metering (RISK-14 Option B):** PD1 behind PDMS window (measures forward emission) + PD2 on scalp-facing surface (measures backscattered tissue power). PD1/PD2 ratio separates PDMS fouling from LED aging in firmware. Pin 19 (PD2_CATHODE). BOM +$0.75–1.50/headset. T1 and T2 use identical zone module mold.
 - Plasma-activated anti-fouling PDMS optical windows. **PDMS–PI bond uses 75 nm SiO₂ interlayer (RF magnetron sputter) + O₂ plasma activation — achieves 174–860 N/m peel force.** 200-cycle IEC 60068-2-14 thermal cycling qualification required before production (BLOCKING).
 - Real-time J/cm² dose metering — primary differentiator over Vielight

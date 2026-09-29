@@ -1,0 +1,59 @@
+{
+  "kind": "single",
+  "protocol": {
+    "name": "Per-Wavelength Series",
+    "id": "90000001-0000-0000-0000-000000000000",
+    "description": "Two 810nm blocks, one after the other",
+    "author": "NeurOne",
+    "version": "1.0",
+    "isReadOnly": true,
+    "tags": [
+      "pbm",
+      "series"
+    ],
+    "timingMode": {
+      "type": "duration",
+      "seconds": 480
+    },
+    "modalityCount": 2,
+    "modalities": [
+      {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+          "zones": "named",
+          "zoneRefs": [
+            "Frontal Left"
+          ],
+          "wavelength": "810nm",
+          "intensityPercent": 62,
+          "frequencyHz": 0,
+          "dutyCyclePercent": 100
+        },
+        "interval": {
+          "intervalOnSeconds": 240,
+          "intervalOffSeconds": 0
+        }
+      },
+      {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+          "zones": "named",
+          "zoneRefs": [
+            "Frontal Right"
+          ],
+          "wavelength": "810nm",
+          "intensityPercent": 62,
+          "frequencyHz": 0,
+          "dutyCyclePercent": 100
+        },
+        "interval": {
+          "intervalOnSeconds": 240,
+          "intervalOffSeconds": 0,
+          "startOffsetSeconds": 240
+        }
+      }
+    ]
+  }
+}

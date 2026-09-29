@@ -21,8 +21,17 @@ extension NPSessionProtocol {
         var modalities: [ModalityConfig] = []
 
         for mod in definition.modalities where mod.enabled {
+            // The wire has no per-block timing: every config runs from 0. A block with
+            // `start` would run at the wrong time, so it is refused, not flattened
+            // (NP-NPPS-REF-001 §5; per-block timing lands with OI-AND-WIRE-01's schema).
+            if let start = mod.interval.startOffsetSeconds, start > 0 {
+                throw NPUnsupportedTimingError()
+            }
             switch mod.params {
             case .pbmTranscranial(let p):
+                if case .failure(let refusal) = NPWavelengthRules.default.resolveChannels(p.wavelength.rawValue) {
+                    throw refusal
+                }
                 modalities.append(.pbmTranscranial(PBMTranscranialConfig(
                     socketMask: try p.resolveSocketMask(clinicianSockets: clinicianSockets),
                     wavelength: p.wavelength.rawValue,
@@ -113,5 +122,33 @@ private extension NPVNSHRVParams.HRVProtocol {
         case .eegBiofeedback: return .dualEEGBiofeedback
         case .combinedPBM:    return .combinedPBM
         }
+    }
+}
+
+// MARK: - Refusals (NP-NPPS-REF-001 §4.1a, §5)
+//
+// Compiler diagnostics, English like hubCompiler.ts's on the web.
+
+/// Why a PBM block's wavelength cannot be delivered. Thrown by the session compiler.
+struct NPWavelengthRefusal: Error, LocalizedError, Equatable {
+    let value: String
+    let reason: NPWavelengthRules.Refusal
+
+    var errorDescription: String? {
+        switch reason {
+        case .invalid:
+            return "PBM wavelength '\(value)' is not a wavelength: write one value such as \"810nm\"."
+        case .unmapped:
+            return "No emitter channel delivers \(value) under the wavelength rules in force. " +
+                "Refused, not moved to the nearest channel."
+        }
+    }
+}
+
+/// A block the session wire cannot express. Refused rather than flattened.
+struct NPUnsupportedTimingError: Error, LocalizedError, Equatable {
+    var errorDescription: String? {
+        "This protocol times a block with `start`, which the session wire cannot express yet. " +
+            "Refused, not reshaped."
     }
 }

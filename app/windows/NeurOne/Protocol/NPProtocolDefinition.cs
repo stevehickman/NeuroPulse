@@ -12,6 +12,8 @@ sealed class NPIntervalConfig
     public int IntervalOffSeconds { get; init; }
     /// null = run until session end
     public int? RepeatCount { get; init; }
+    /// Offset of the block's first on-period from session start (NP-NPPS-REF-001 §5). 0 = none.
+    public int StartOffsetSeconds { get; init; }
 
     public static readonly NPIntervalConfig Continuous = new() { IntervalOnSeconds = 0, IntervalOffSeconds = 0 };
     public bool IsContinuous => IntervalOnSeconds == 0;
@@ -22,11 +24,12 @@ sealed class NPIntervalConfig
 sealed class PbmTranscranialParams
 {
     public enum ZoneSelection { All, Front, Rear, Custom }
-    public enum Wavelength { Base660_808nm, Smart1064nm, Tri660_808_1064nm }
 
     public ZoneSelection Zones { get; init; } = ZoneSelection.All;
     public int[]? CustomZones { get; init; }
-    public Wavelength WavelengthMode { get; init; } = Wavelength.Base660_808nm;
+    /// The stated wavelength, one per block ("810nm"), or a legacy channel name
+    /// ("660_808nm", "1064nm", "660_808_1064nm"). NP-NPPS-REF-001 §4.1a.
+    public string Wavelength { get; init; } = "660_808nm";
     public double IntensityPercent { get; init; } = 75;
     public double FrequencyHz { get; init; } = 20;     // 0 = CW
     public int DutyCyclePercent { get; init; } = 25;   // ≤25
@@ -41,7 +44,8 @@ sealed class PbmTranscranialParams
     };
 
     public bool RequiresSmartModule =>
-        WavelengthMode == Wavelength.Smart1064nm || WavelengthMode == Wavelength.Tri660_808_1064nm;
+        WavelengthRulesEngine.ResolveChannels(Wavelength, WavelengthRulesEngine.Default, out _)
+            ?.Contains(PbmChannelElement.Led1064) == true;
 }
 
 sealed class PbmIntranasalParams

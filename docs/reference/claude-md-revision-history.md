@@ -19,6 +19,62 @@
 
 ## Current revision
 
+**Rev 59 (2026-09-28) — §3's PBM scalp row: the 25 % duty cap is retired, and a PBM ceiling refuses a
+protocol instead of reshaping it. A locked decision changed, by principal direction.**
+
+**What changed.** The row read *"400 mW/cm² peak pulsed (≤25% duty, firmware-enforced) · 200 mW/cm²
+CW"*. It now reads *"400 mW/cm² peak · 200 mW/cm² time-averaged (CW is where the two meet) · duty and
+mode are the protocol's"*. A paragraph under the table states the rule: a ceiling refuses a protocol
+and never reshapes it, and if the hardware cannot deliver a protocol inside the ceilings, the hardware
+is redesigned.
+
+**Why.** The principal, 2026-09-28: *"Protocols that require continuous irradiation require continuous
+irradiation. Cycling on and off is a different stimulus and thus a different protocol"*, and *"the
+on/off pulsing must be allowed at whatever duty cycle the protocol requires … If we cannot meet the
+requirements of the protocols, then we need to redesign the hardware."* Prompted by
+`NP-FW-HEXTILE-001` Rev 1 §5.5, which applied the 25 % cap to CW and so made every CW protocol
+undeliverable as CW. The cap was in five places, and each one silently changed the stimulus:
+- the NPPS language allowed only 1–25 %;
+- `hubCompiler.ts` `dutyReg()` clamped with `Math.min`, so 50 % became 25 % with no error;
+- the hub's `NP_PBM_DUTY_MAX_REG`;
+- the tile spec;
+- D-9's U4 (`REQ-TDRV-02`) held conduction to ≤ 50 %, which forbids CW in hardware.
+
+The library had been authored around the cap. Schiffer 2009 and Wang 2023 were converted from CW to
+10 Hz / 25 %, and every pulsed PBM protocol carries 25 %.
+
+**What was kept, and what it rests on. Corrected before merge (2026-09-29).** As first drafted,
+this revision kept "400 peak · 200 time-averaged" and applied the 200 to each channel on its own. It
+said the 200 "keeps the bound it stood for". Neither figure had a recorded derivation (§13.1a). Then
+`NP-BIB-PBMIRR-001` (GitHub #501) supplied the conventional reference. The laser skin exposure limit
+is 200 × C_A mW/cm² time-averaged. It bounds the average, never a peak, and it **adds across
+wavelengths on the same tissue**. So:
+- **The per-channel draft was unsafe in combination.** 660 and 808 nm at 200 each would score 1.61
+  against the reference, where the old 25 % rule held that pair to 0.8.
+- **The row now carries both terms.** ≤ 200 per channel (the 660 nm value, held for every
+  wavelength), and Σ Ēᵢ / (200 × C_A(λᵢ)) ≤ 1 over the tile's channels.
+- **The 400 peak stays as a design figure** with no counterpart in the standards.
+- **Adopting the reference in full is the principal's decision** (`OI-HEXTILE-32`). It would allow up
+  to ≈ 329 at 808 nm. The C_A figures are unverified until `OI-BIBPBM-01`.
+- **Still a relaxation, and stated as one.** A single-channel pulsed protocol may now average 200
+  where the old rule allowed 100. At 660 nm that is the reference exactly, with no margin.
+- **Each wavelength is independently controlled, but not independent for safety** (principal,
+  2026-09-29). This was added to the same paragraph before merge, because it is the rule the
+  per-wavelength language change will be built against.
+- **The 42 °C attribution is corrected.** IEC 60601-1 states 43 °C (`OI-BIBPBM-03`), and the value
+  itself is unchanged.
+
+**What is not done.** The code, the language, the hub constant and U4 still clamp.
+`NP-HW-HEXTILE-001` Rev 25 raises `OI-HEXTILE-30`, U4's redesign to bound the average and not the
+conduction fraction. It also raises `OI-HEXTILE-31`: the language, the compiler, the hub, and
+re-deriving the library from its sources. The hub clamp is the only firmware bound in force until the
+average bound replaces it (CLAUDE.md §18: removing a hazard control is an ISO 14971 decision), so it
+is replaced, not deleted. **Still the principal's:** Schiffer (250) and Wang (310) as run in their
+trials are CW above the retained 200. Delivering them as CW needs that ceiling raised, which no
+hardware change can do.
+
+## Earlier revisions
+
 **Rev 58 (2026-09-25) — §1's shielding principle stops claiming a measurement that has never been
 made. No locked decision changed.**
 

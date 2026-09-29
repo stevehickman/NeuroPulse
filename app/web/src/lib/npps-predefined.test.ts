@@ -118,8 +118,19 @@ describe('predefined NPPS library', () => {
     // to 25 Hz here: that would put a number in a cited clinical protocol that
     // the citation does not support, which is the same class of move as
     // inflating a declared pad area to satisfy a ceiling.
+    //
+    // Schiffer 2009 ran CW (100% duty) at 250 mW/cm², 4 min at F3 then 4 min
+    // at F4. The protocol states exactly that and is refused: a PBM ceiling
+    // refuses a protocol and never reshapes one (CLAUDE.md §3). The 25% duty
+    // cap is still enforced until OI-HEXTILE-31, and 250 mW/cm² is over the
+    // 200 per-channel time average unless OI-HEXTILE-32 adopts the reference
+    // skin limit. One entry per block. (The validator cannot see the 250:
+    // `intensity` is not irradiance yet, which OI-HEXTILE-31's pre-signing
+    // refusal also has to fix.)
     const WAIVED = [
       'taVNS — Stroke Motor Rehab (paired): frequencyHz = 30 Hz (limit 1–25 Hz (hardware))',
+      'PBM — Depression (Schiffer 2009, high-irradiance): dutyCyclePercent = 100% (limit 25% (hardware))',
+      'PBM — Depression (Schiffer 2009, high-irradiance): dutyCyclePercent = 100% (limit 25% (hardware))',
     ];
 
     const failures: string[] = [];

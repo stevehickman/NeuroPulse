@@ -6,6 +6,9 @@
   "conditions": [
     "00-conditions.npps"
   ],
+  "wavelength_rules": [
+    "00-wavelength-rules.npps"
+  ],
   "protocols": [
     "01-gamma-focus.npps",
     "02-alpha-calm.npps",

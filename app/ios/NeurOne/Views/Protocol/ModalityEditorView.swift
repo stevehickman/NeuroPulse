@@ -272,7 +272,9 @@ struct PBMTranscranialParamsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(String(localized: "MODALITY_WAVELENGTH")).font(.caption).foregroundColor(.secondary)
                 Picker("MODALITY_WAVELENGTH", selection: $params.wavelength) {
-                    ForEach(NPPBMTranscranialParams.Wavelength.allCases) { wl in
+                    // A script's own wavelength ("810nm") stays selectable alongside the legacy names.
+                    ForEach(NPPBMTranscranialParams.Wavelength.allCases
+                            + (NPPBMTranscranialParams.Wavelength.allCases.contains(params.wavelength) ? [] : [params.wavelength])) { wl in
                         Text(wl.displayName + (wl.requiresSmartModule ? " ★" : "")).tag(wl)
                     }
                 }

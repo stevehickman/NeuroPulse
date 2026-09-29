@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 16
-**Date:** 2026-09-07  
+**Revision:** 17
+**Date:** 2026-09-29  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -14,6 +14,8 @@
 **IEC 62304 Class:** —
 
 ---
+
+> **Rev 17 (2026-09-29) — one wavelength per PBM block, a `start` on every modality block, and a new `wavelength_rules` block (principal direction).** An author states exactly what the protocol is, even a wavelength the helmet does not carry: `wavelength: "810nm"`, one value per `pbm_transcranial` block (§4.1a). Which emitter channel may deliver it is **configuration, not grammar**. A new top-level `wavelength_rules` block gives each channel an acceptance window (§7a). The defaults ship in `00-wavelength-rules.npps`, and a user may loosen or tighten them. A wavelength no window accepts is **refused**: never moved to the nearest channel, and never driven on all channels. That second outcome is what the web compiler did with any value other than `"660_808nm"` until this revision. Each wavelength is independently controlled, so a protocol may hold several PBM blocks. Every modality block gains `start` (§5), and blocks run in parallel or in series by their windows. Parallel PBM blocks sharing a tile are merged when the tile can deliver both exactly, and refused otherwise, because a tile takes one frequency, duty and schedule for all its channels. The three legacy channel names keep their meaning. **Implemented in full on the web runtime and in `npps.peggy` (NP-NPPS-GRAM-001 Rev 5).** **iOS and Android** parse all three forms: they carry the wavelength exactly as written, read and write `start`, and accept a `wavelength_rules` block without applying it. They compile against the shipped default rules only, and rules are edited in the web app for now. Their session wire and the Windows one are placeholder JSON (`OI-AND-WIRE-01`) with no per-block timing, so all three **refuse** a block with `start`, and a wavelength the default rules do not map, rather than flatten or move it. Windows has no NPPS parser, so it applies the same rules to a definition it is given. Both mobile parsers used to replace an unrecognised wavelength with `660_808nm` silently; they no longer do. Android `:core` is verified (303 tests). iOS and Windows are unbuilt here, because this environment has no Xcode and no `dotnet`.
 
 > **Rev 16 (2026-09-09) — `tdcs` gains `electrode_area_cm2`, the geometry the 40 µC/cm² charge-density ceiling divides by (OI-CHARGE-04).** The grammar had no way to say how big a tDCS pad is, so every runtime supplied its own assumption — 35 cm² on iOS and Android, none at all on the web — while the Class C safety MCU enforced against a 25 cm² default of its own. `electrode_pairs` was the only geometry-adjacent field and it names 10-20 *sites*, which say nothing about pad size. The field is therefore new grammar, not a renamed alias, and **it is not advisory**: it is compiled into the signed session descriptor and the safety MCU derives its charge limit from it, so a protocol declaring an area larger than the pads actually fitted raises the real ceiling on the device. A protocol declaring none is refused rather than defaulted. **It has no short alias and carries its unit in the key** (`electrode_area_cm2: 35`, never `35cm2`): the lexer's unit suffixes are `Hz % mA s m`, and since Rev 6 a digit-leading token that is not a number with a known suffix is a parse error rather than a silent identifier — so a `cm2` literal would fail loudly, but adding `cm2` to the lexer would have been a grammar-wide change for one field. §4.5 and §12 updated; all three runtimes read and write it.
 >
@@ -71,6 +73,7 @@
 3. [Protocol block](#3-protocol-block)
 4. [Modalities](#4-modalities)  
    4.1 [PBM Transcranial](#41-pbm-transcranial)  
+   4.1a [Wavelength — one per block](#41a-wavelength--one-per-block)  
    4.2 [PBM Intranasal](#42-pbm-intranasal)  
    4.3 [EEG Neurofeedback](#43-eeg-neurofeedback)  
    4.4 [BES / tACS](#44-bes--tacs)  
@@ -87,7 +90,8 @@
    4.15 [Vibrotactile 40Hz](#415-vibrotactile-40-hz)  
 5. [Intervals](#5-intervals)
 6. [Composite block](#6-composite-block)
-7. [Limits block](#7-limits-block)
+7. [Limits block](#7-limits-block)  
+   7a [Wavelength rules block](#7a-wavelength-rules-block)
 8. [Zone block](#8-zone-block)
 9. [Condition block](#9-condition-block)
 10. [Multi-block files](#10-multi-block-files)
@@ -410,9 +414,9 @@ Photobiomodulation via scalp-facing LED zones.
 |-------|-----------|------|--------|
 | `intensity` | `intensity_percent` | number | 0–100 |
 | `frequency` | `frequency_hz` | number | 0 (CW) or 0.5–100 |
-| `duty_cycle` | `duty_cycle_percent` | number | 1–25 (firmware max) |
+| `duty_cycle` | `duty_cycle_percent` | number | 0–100. The 25 % cap is retired (CLAUDE.md §3, Rev 59): duty is the protocol's. **The validator and the hub still refuse or clamp above 25 %** until `NP-HW-HEXTILE-001` `OI-HEXTILE-31` replaces the clamp with a pre-signing check |
 | `zones` | `zones` | string array \| `clinician_selected` | A **named-zone-reference array** (§8), or the keyword `clinician_selected` |
-| `wavelength` | `wavelength` | string | `"660_808nm"` `"1064nm"` `"660_808_1064nm"` — **quoted** (§2) |
+| `wavelength` | `wavelength` | string | **One wavelength**, e.g. `"810nm"` (§4.1a), or a legacy channel name `"660_808nm"` `"1064nm"` `"660_808_1064nm"`. **Quoted** (§2) |
 
 **Zones are module sets (Rev B).** With the module redesign a zone is a **named set of modules** (§8), not a fixed hardware index. The preferred way to target zones is to reference zone definitions by name:
 
@@ -440,6 +444,42 @@ Each string must match the `name` of a `zone` block in a loaded `.npps` file (§
 > Omitting `zones` defaults to `["All"]`, the whole-helmet zone in `00-zones.npps`.
 
 `frequency: 0` (or `0Hz`) selects continuous-wave (CW) mode.
+
+### 4.1a Wavelength — one per block
+
+**A `pbm_transcranial` block states one wavelength, exactly as the protocol's source used it**,
+whether or not the helmet carries it:
+
+```
+pbm_transcranial {
+    wavelength: "810nm"      # Schiffer 2009 used 810 nm; the helmet's channel is 808 nm
+    intensity: 62%
+    frequency: 0Hz
+    duty_cycle: 100%
+    zones: ["Frontal Left"]
+}
+```
+
+| Form | Meaning |
+|------|---------|
+| `"<N>nm"`, e.g. `"810nm"`, `"632.8nm"` | One requested wavelength. The wavelength rules (§7a) say which emitter channel delivers it. The block drives **that channel only**, and every other channel on the tile is commanded to zero, which the tile holds as gate-off (`NP-FW-HEXTILE-001` §5.3) |
+| `"660_808nm"`, `"1064nm"`, `"660_808_1064nm"` | **Legacy channel names**, kept so existing protocols keep their meaning. They name channels, not a source's wavelength. `"1064nm"` is both a legacy name and a single wavelength, and both readings drive CH_C alone |
+
+**Mapping is configuration, and a failed mapping is a refusal.** A wavelength no rule accepts is
+not delivered on the nearest channel. The protocol is shown as unavailable on every helmet, with a
+pointer to the rules rather than to modules, and the compiler refuses it. A value that is not a
+wavelength (`"red"`, `"810"`) is a validation error.
+
+**Several wavelengths, several blocks.** Each wavelength is independently controlled (CLAUDE.md
+§3), so a protocol that runs 660 nm and 810 nm writes two blocks. They may run in parallel or in
+series (§5). **Two blocks that share a tile at the same time must match in window, frequency and
+duty, and drive different channels.** The compiler then merges them into the one command the tile
+accepts. Anything else is refused, because a tile takes one frequency, one duty and one schedule
+for all its channels (`NP-FW-HUB-001` §4). Delivering one of the two, or averaging them, would be
+a stimulus nobody authored.
+
+**Safety terms are not relaxed by mapping.** They are evaluated on the channel actually driven,
+and they add across wavelengths on the same tissue (CLAUDE.md §3).
 
 ---
 
@@ -853,8 +893,31 @@ bes_tacs {
 | `interval_on` | duration | Active period. `0` = continuous. |
 | `interval_off` | duration | Rest period. `0` = continuous. |
 | `repeat` | int or `until_end` | Cycle count. Omit or use `until_end` for continuous cycling. |
+| `start` | duration | *(Rev 17)* Offset of the block's first on-period from the start of the session. Default `0`. A block that would start at or after the session's end is refused |
 
 Omitting `interval_on` / `interval_off` entirely means run continuously.
+
+**Parallel and series.** Every block's schedule is placed on the session timeline by `start`.
+Blocks whose windows overlap run in parallel; a block whose `start` is at or after another's end
+runs after it. Two sites treated one after the other, 4 minutes each:
+
+```
+pbm_transcranial {
+    wavelength: "810nm"
+    zones: ["Frontal Left"]
+    interval_on: 4m
+    interval_off: 0s
+    repeat: 1
+}
+pbm_transcranial {
+    wavelength: "810nm"
+    zones: ["Frontal Right"]
+    start: 4m
+    interval_on: 4m
+    interval_off: 0s
+    repeat: 1
+}
+```
 
 ---
 
@@ -1087,6 +1150,50 @@ limits "T1 Home Defaults" {
 
 ---
 
+## 7a. Wavelength rules block
+
+*(Rev 17.)* A protocol states a wavelength (§4.1a). The helmet has three emitter channels. A
+`wavelength_rules` block says which requested wavelengths each channel may deliver:
+
+```
+wavelength_rules "NeurOne default wavelength mapping" {
+    level: global
+    description: "Channel band from CLAUDE.md §3 widened 10 nm each side."
+    channel "led_660"  { nominal_nm: 660   min_nm: 650   max_nm: 680 }
+    channel "led_808"  { nominal_nm: 808   min_nm: 798   max_nm: 840 }
+    channel "led_1064" { nominal_nm: 1064  min_nm: 1054  max_nm: 1074 }
+}
+```
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `level` | `global` \| `user` | `global` is the shipped defaults (`protocols/predefined/00-wavelength-rules.npps`); `user` is a user's override |
+| `description` | string | Optional |
+| `channel "<element>" { … }` | block | One per channel: `"led_660"`, `"led_808"` or `"led_1064"`. A channel with no rule accepts nothing |
+| `nominal_nm` | number | The channel's nominal emission. Used only to choose between two accepting channels, nearest first |
+| `min_nm`, `max_nm` | number | The window, inclusive. A requested wavelength inside it may be delivered on this channel |
+
+**Resolution.** A user rule for a channel replaces the default for that channel only; untouched
+channels keep the default. When windows overlap, the channel whose nominal is nearest wins, and a
+tie goes to the earlier channel in the order 660, 808, 1064. So the answer never depends on the order
+rules are written in. A malformed block is a **parse error**, never a silent default: an unknown
+channel, a missing bound, `min_nm` above `max_nm`, a non-positive value, a duplicate channel, or a
+level other than `global` or `user`. An unreadable rule could otherwise widen what a channel accepts.
+
+**The shipped defaults are an unvalidated placeholder.** Each window is the channel's band in
+CLAUDE.md §3 widened by 10 nm, about half the FWHM of a red or NIR LED. Under them 810, 820, 823
+and 830 nm deliver on the 808 nm channel; 850, 633 and 640 nm do not; 1060 and 1070 nm deliver on
+1064 nm; 1080 nm does not. They are not a safety parameter, and a researcher may loosen or tighten
+them. The web app edits, restores and exports them (Helmet configuration → Wavelength rules), and
+the eligibility check and the compiler read the same resolved set.
+
+**Eligibility.** A protocol is offered only when every block can be delivered by the fitted
+modules under the rules in force. When a module swap would fix it, the shortfall names each socket
+and the parts that would. When no module can deliver the wavelength, it says so, and it names the
+rules, not a part.
+
+---
+
 ## 8. Zone block
 
 A **zone** is a named set of modules, **defined as an explicit list of socket (major) addresses**. With the hexagonal module redesign (NP-HEX-ZM-001) each helmet socket holds an interchangeable module, and a socket's id is the module's address — the *first half* of the two-level `(socket:element)` scheme. A zone lists the sockets whose modules it selects.
@@ -1205,7 +1312,7 @@ The shipped condition registry lives in `00-conditions.npps`. Every condition na
 
 ## 10. Multi-block files
 
-A single `.npps` file may contain any number of `protocol`, `composite`, `limits`, `zone`, and `condition` blocks in any order.
+A single `.npps` file may contain any number of `protocol`, `composite`, `limits`, `zone`, `condition` and `wavelength_rules` blocks in any order.
 
 ```
 # combined-sleep.npps
@@ -1230,7 +1337,7 @@ limits "Sleep Session Limits" {
 }
 ```
 
-When parsing, `protocol` and `composite` blocks produce protocol entries; `limits` blocks are extracted separately via `parseNPPSLimits()`; `zone` and `condition` blocks populate the namespace (§1.6). Unknown top-level blocks cause a parse error.
+When parsing, `protocol` and `composite` blocks produce protocol entries; `limits` blocks are extracted separately via `parseNPPSLimits()`; `zone` and `condition` blocks populate the namespace (§1.6); `wavelength_rules` blocks are extracted separately (§7a). Unknown top-level blocks cause a parse error.
 
 ---
 
@@ -1241,7 +1348,7 @@ Complete summary of NPPS Rev 2 (source of truth: `npps/grammar/npps.peggy`, NP-N
 ```
 # ── Top level ──────────────────────────────────────────────────────────────
 file        := entry*
-entry       := protocol | composite | limits | zone | condition
+entry       := protocol | composite | limits | zone | condition | wavelength_rules
 
 # ── Protocol ───────────────────────────────────────────────────────────────
 protocol    := 'protocol' STRING '{' proto_field* '}'
@@ -1254,12 +1361,13 @@ meta_field  := IDENT ':' value
 #   references := 'references' ':' REF_ARRAY
 
 typed_modality_block := TYPE_ID '{' modality_param* '}'
-modality_param       := IDENT ':' value
+modality_param       := IDENT ':' value      # includes interval_on, interval_off, repeat, start (§5)
 TYPE_ID              := 'pbm_transcranial' | 'pbm_intranasal' | 'eeg_neurofeedback'
                       | 'bes_tacs' | 'tdcs' | 'vns_hrv' | 'audio_entrainment'
                       | 'visual_stimulation' | 'qeeg_21ch' | 'tms' | 'pbm_deep_1170nm'
                       | 'clinical_tacs' | 'hd_tdcs' | 'cervical_vns' | 'vibrotactile_40hz'
-# 'wavelength' values are quoted strings: "660_808nm" | "1064nm" | "660_808_1064nm"
+# 'wavelength' values are quoted strings: one wavelength "<N>nm" (§4.1a),
+#   or a legacy channel name "660_808nm" | "1064nm" | "660_808_1064nm"
 # pbm_transcranial 'zones' value — exactly two forms (§4.1):
 #   STRING_ARRAY (named zone refs, each resolving to a `zone` block)
 #   | 'clinician_selected'
@@ -1288,6 +1396,13 @@ zone_field  := 'sockets' ':' INT_ARRAY                        # the zone's modul
 ELEM_TYPE   := 'led_660' | 'led_808' | 'led_1064' | 'led_1170'
              | 'eeg_electrode' | 'tes_electrode' | 'vns_contact' | 'ntc'
              | 'pd_forward' | 'pd_back' | 'ir_prox' | 'hall' | 'dual_electrode'
+
+# ── Wavelength rules (§7a) ─────────────────────────────────────────────────
+wavelength_rules := 'wavelength_rules' STRING '{' wl_member* '}'
+wl_member   := 'level' ':' ('global' | 'user') | 'description' ':' STRING
+             | 'channel' STRING '{' channel_field* '}'
+channel_field := 'nominal_nm' ':' NUMBER | 'min_nm' ':' NUMBER | 'max_nm' ':' NUMBER
+# channel STRING is "led_660" | "led_808" | "led_1064"; all three fields required
 
 # ── Condition (name → external definition link) ────────────────────────────
 condition   := 'condition' STRING '{' condition_field* '}'
@@ -1357,7 +1472,7 @@ Reading the table:
 | Keyword | Kind | Where it appears | Meaning |
 |---------|------|------------------|---------|
 | `%` | Unit suffix | any number | Percentage (0–100). Cosmetic — the parser reads the bare number. |
-| `"1064nm"` | Enum value (quoted) | `pbm_transcranial` → `wavelength` | Drive the 1064 nm channel only (smart zone module, CH_C). **Must be quoted** (§2) — digit-leading. |
+| `"1064nm"` | Enum value (quoted) | `pbm_transcranial` → `wavelength` | Drive the 1064 nm channel only (smart zone module, CH_C). A legacy channel name that is also a single wavelength; both readings drive CH_C alone (§4.1a). **Must be quoted** (§2) — digit-leading. |
 | `"660_808_1064nm"` | Enum value (quoted) | `pbm_transcranial` → `wavelength` | Drive all three PBM channels; requires 1064 nm smart zone modules. **Must be quoted** (§2) — digit-leading. |
 | `"660_808nm"` | Enum value (quoted) | `pbm_transcranial` → `wavelength` | Drive the 660 nm and 808–830 nm channels (base module, CH_A + CH_B). **Must be quoted** (§2) — digit-leading. |
 | `ACC` | Enum value | `tms` / `hd_tdcs` → `target` | Anterior cingulate cortex. A **deep** target — never focally reachable by a 4×1 ring (NP-FW-HD-001 §2.3). |
@@ -1386,6 +1501,7 @@ Reading the table:
 | `carrier_hz` | Modality field | `audio_entrainment` | Carrier tone frequency in Hz that the binaural beat is constructed on. |
 | `central` | Enum value | `eeg_neurofeedback` → `channels` | The central electrode group (C3/C4). |
 | `cervical_vns` | Modality block | `protocol`, `limits` | T2 accessory — cervical vagus trunk stimulation via neck gel electrodes (§4.14). |
+| `channel` | Wavelength-rules block | `wavelength_rules` | *(Rev 17)* One emitter channel's acceptance window: `channel "led_808" { … }`. The name is `"led_660"`, `"led_808"` or `"led_1064"` (§7a). |
 | `channel_count` | Modality field | `clinical_tacs` | Number of independent tACS channels used, 1–21 — one per T2 cap electrode. Validated in every runtime; out of range is an error, not a clamp (§4.12). |
 | `channels` | Modality field | `eeg_neurofeedback` | Which electrode group the neurofeedback loop reads. |
 | `clinical_tacs` | Modality block | `protocol`, `limits` | T2 clinical tACS — up to 21 independent arbitrary-waveform channels, ≤4 mA (§4.12). |
@@ -1406,7 +1522,7 @@ Reading the table:
 | `DLPFC_R` | Enum value | `tms` / `hd_tdcs` → `target` | Right dorsolateral prefrontal cortex. Surface-class target. |
 | `dual_electrode` | Element type | `zone` → `types` | Ag/AgCl contact dual-rated for both EEG recording and stimulation current. |
 | `duration` | Metadata / layer field | `protocol`, `composite`, `layer` | Fixed session length (protocol) or clip length (layer). A duration value — `m` suffix converts to seconds. Omit on a layer to run the referenced protocol to its natural end. |
-| `duty_cycle` | Modality field (alias) | `pbm_transcranial`, `pbm_intranasal`, `pbm_deep_1170nm` | Alias of `duty_cycle_percent` — pulsed duty cycle, 1–25 % (firmware max). |
+| `duty_cycle` | Modality field (alias) | `pbm_transcranial`, `pbm_intranasal`, `pbm_deep_1170nm` | Alias of `duty_cycle_percent` — pulsed duty cycle. `pbm_transcranial`: 0–100 %, the 25 % cap retired but still enforced until `OI-HEXTILE-31` (§4.1); the others 1–25 %. |
 | `duty_cycle_percent` | Modality field (canonical) | PBM modalities | Canonical name behind `duty_cycle`. |
 | `eeg_adaptive` | Modality field | `audio_entrainment` | Bool. Adjust entrainment frequency in real time from live EEG. |
 | `eeg_biofeedback` | Enum value | `vns_hrv` → `hrv_protocol` | Dual HRV + EEG biofeedback; pacer rate adapts to alpha/theta. |
@@ -1426,7 +1542,7 @@ Reading the table:
 | `front` | Enum value | `eeg_neurofeedback` → `channels` | The frontal electrode group. **Not** a `pbm_transcranial` zone selector — retired and rejected (§4.1). |
 | `gamma` | Enum value | `eeg_neurofeedback` → `band`; `limits` → `allowed_bands` | Gamma band (~30–100 Hz). |
 | `gamma_theta` | Enum value | `eeg_neurofeedback` → `band`; `limits` → `allowed_bands` | Coupled gamma/theta training band. |
-| `global` | Enum value | `limits` → `level` | Fleet-wide default limits — the base of the global → helmet → individual hierarchy. |
+| `global` | Enum value | `limits` → `level`; `wavelength_rules` → `level` | Fleet-wide default limits — the base of the global → helmet → individual hierarchy. For `wavelength_rules`, the shipped defaults (§7a). |
 | `hall` | Element type | `zone` → `types` | Hall-effect sensor element (goggle-lift detection). |
 | `hd_tdcs` | Modality block | `protocol`, `limits` | T2 sLORETA-guided high-definition tDCS, 4×1 ring montage (§4.13). |
 | `helmet` | Enum value | `limits` → `level` | Per-device limits; overrides `global` field by field. Requires `helmet_id`. |
@@ -1455,7 +1571,7 @@ Reading the table:
 | `led_1170` | Element type | `zone` → `types` | 1170 nm laser diode element (T2 deep PBM). |
 | `led_660` | Element type | `zone` → `types` | 660–670 nm LED element (CH_A). |
 | `led_808` | Element type | `zone` → `types` | 808–830 nm LED element (CH_B). |
-| `level` | Limits field | `limits` | Which tier of the limits hierarchy this block sits in: `global`, `helmet` or `individual`. |
+| `level` | Limits field; wavelength-rules field | `limits`; `wavelength_rules` | Which tier of the limits hierarchy this block sits in: `global`, `helmet` or `individual`. For `wavelength_rules`: `global` (shipped) or `user` (§7a). |
 | `limits` | Top-level block | file | Per-modality safety constraints (§7). Extracted separately by `parseNPPSLimits()`; the name string is optional. |
 | `link` | Condition field | `condition` | **Required.** URL to an external definition of the condition, opened in an external browser. |
 | `linked_ear` | Enum value | `qeeg_21ch` → `reference` | Linked-ear (A1/A2) normative reference — the A1/A2 contacts sit on the VNS clips. |
@@ -1470,6 +1586,7 @@ Reading the table:
 | `max_intensity` | Limits field | `limits` → most modality sub-blocks | Ceiling on that modality's intensity, in the modality's own unit (%, mA, mW/cm² or G). |
 | `max_intensity_pct_mt` | Limits field | `limits` → `tms` | Ceiling on `intensity_percent_mt`, in % MT. |
 | `max_isochronic_tones` | Limits field | `limits` → `audio_entrainment` | Ceiling on `isochronic_hz`, in Hz. |
+| `max_nm` | Wavelength-rules field | `wavelength_rules` → `channel` | *(Rev 17)* Upper end of the channel's window, nm, inclusive (§7a). |
 | `max_pulses_per_day` | Limits field | `limits` → `tms` | Ceiling on total TMS pulses per day. |
 | `max_pulses_per_session` | Limits field | `limits` → `tms` | Ceiling on `pulse_count` for one session. |
 | `max_session_dose` | Limits field | `limits` → `pbm_transcranial`, `pbm_intranasal` | Ceiling on PBM dose for one session, in J/cm². |
@@ -1478,6 +1595,7 @@ Reading the table:
 | `max_sessions_per_week` | Limits field | `limits` → `tms` | Ceiling on session count per week. |
 | `merge` | Enum value | `composite` → `conflict_resolution` | Modalities from all active layers run simultaneously. |
 | `min_frequency` | Limits field | `limits` → `bes_tacs`, `visual_stimulation` | Floor on `frequency`, in Hz. |
+| `min_nm` | Wavelength-rules field | `wavelength_rules` → `channel` | *(Rev 17)* Lower end of the channel's window, nm, inclusive (§7a). |
 | `mode` | Modality field | `visual_stimulation` | Visual delivery mode: `binocular`, `emdr` or `mode_f`. |
 | `mode_f` | Enum value | `visual_stimulation` → `mode`; `limits` → `allowed_modes` | Invisible NIR retinal PBM during normal-looking wear — no visible flicker. Distinct from the `enable_mode_f` field that switches it on, and from `retinal_pbm`, which is the deliberate retinal session rather than the passive one. |
 | `montage` | Modality field | `qeeg_21ch`, `hd_tdcs` | Electrode montage. `standard_1020` / `custom` on `qeeg_21ch`; `ring_4x1` / `bilateral_4x1` / `standard_2_electrode` on `hd_tdcs`. |
@@ -1485,6 +1603,7 @@ Reading the table:
 | `mW_cm2` | Unit suffix | any number | Irradiance in mW/cm². Cosmetic — the parser reads the bare number. |
 | `noise` | Modality field (alias) | `audio_entrainment` | Alias of `noise_type` — background noise bed. Optional; `none` is equivalent to omitting it. |
 | `noise_type` | Modality field (canonical) | `audio_entrainment` | Canonical name behind `noise`. |
+| `nominal_nm` | Wavelength-rules field | `wavelength_rules` → `channel` | *(Rev 17)* The channel's nominal emission, nm. Only breaks a tie between two accepting channels (§7a). |
 | `none` | Enum value | `audio_entrainment` → `noise` | No noise bed. Same effect as omitting the field. |
 | `ntc` | Element type | `zone` → `types` | NTC thermistor element (per-zone 42 °C thermal interlock). |
 | `override` | Enum value | `composite` → `conflict_resolution` | Later (higher-`start`) layers replace earlier ones for shared modality types. |
@@ -1519,7 +1638,7 @@ Reading the table:
 | `standalone` | Enum value | `vns_hrv` → `hrv_protocol` | Resonance breathing pacer only; coherence score displayed, no stimulation gating. |
 | `standard_1020` | Enum value | `qeeg_21ch` → `montage` | The international 10-20 electrode placement. The value both parsers accept; earlier revisions of §4.9 documented it as `10-20`, which no implementation ever mapped. |
 | `standard_2_electrode` | Enum value | `hd_tdcs` → `montage`; `limits` → `allowed_montages` | Conventional two-electrode montage — the T1-compatible fallback. |
-| `start` | Layer field | `layer` | Offset into the composite timeline at which the layer begins. A duration; default `0`. |
+| `start` | Layer field; interval field | `layer`; any modality block | Offset into the composite timeline at which the layer begins. In a modality block *(Rev 17)*, offset of the block's first on-period from the session start, which puts blocks in parallel or in series (§5). A duration; default `0`. |
 | `sync_to_audio` | Modality field | `vibrotactile_40hz` | Bool. Start/stop the pad in lockstep with the audio channel. |
 | `sync_to_visual` | Modality field | `vibrotactile_40hz` | Bool. Start/stop the pad in lockstep with the visual channel. |
 | `tags` | Metadata field | `protocol`, `composite` | Freeform string array of category labels. Accepts unquoted identifiers. |
@@ -1535,6 +1654,7 @@ Reading the table:
 | `true` | Boolean literal | any bool field | Boolean true. |
 | `types` | Zone field | `zone` | Optional element-type array restricting the zone to certain element types within the listed sockets. Mirrors firmware `np_elem_type_t`. |
 | `until_end` | Enum value | any modality block → `repeat` | Cycle the interval for the remainder of the session. |
+| `user` | Enum value | `wavelength_rules` → `level` | *(Rev 17)* A user's override of the shipped wavelength rules (§7a). |
 | `version` | Metadata field | `protocol`, `composite` | Semantic version string. Increment when protocol content changes. Default `"1.0"`. |
 | `vibrotactile_40hz` | Modality block | `protocol`, `limits` | Provisional — mastoid-placement LRA vibrotactile pad (§4.15). |
 | `visual_stimulation` | Modality block | `protocol`, `limits` | 108 micro-LEDs per lens with EMDR and Mode F support (§4.8). |
@@ -1544,7 +1664,8 @@ Reading the table:
 | `volume` | Modality field (alias) | `audio_entrainment` | Alias of `volume_percent` — output level, 0–100. |
 | `volume_percent` | Modality field (canonical) | `audio_entrainment` | Canonical name behind `volume`. |
 | `waveform` | Modality field | `bes_tacs`, `clinical_tacs` | Stimulation waveform: `sinusoidal`, `square` or `triangular`. |
-| `wavelength` | Modality field | `pbm_transcranial` | Which PBM emitter channels to drive. |
+| `wavelength` | Modality field | `pbm_transcranial` | One requested wavelength (`"810nm"`), mapped to a channel by the wavelength rules, or a legacy channel name (§4.1a). |
+| `wavelength_rules` | Top-level block | file | *(Rev 17)* Which requested wavelengths each emitter channel may deliver (§7a). Shipped defaults in `00-wavelength-rules.npps`; user-editable. |
 | `zone` | Top-level block | file | Defines a named set of modules by socket address (§8). **The only way a zone is defined** — nothing outside a `.npps` file supplies one. Populates the namespace; referenced by name from `pbm_transcranial`'s `zones`. A name defined twice across the tree is an error and binds to neither definition (§1.6). |
 | `zones` | Modality field | `pbm_transcranial` | Which modules to drive. Exactly two forms: a named-zone-reference string array (§8), or the keyword `clinician_selected`. Omitted, it defaults to `["All"]`. The five-slot selectors are retired and rejected (§4.1). |
 

@@ -171,7 +171,13 @@ export interface PBMTranscranialParams {
   // users, so nothing needs to keep parsing them.
   zones: 'named' | 'clinician_selected';
   zoneRefs?: string[];   // names of NPZoneDefinition entries in the namespace
-  wavelength: '660_808nm' | '1064nm' | '660_808_1064nm';
+  // One wavelength per block, exactly as the protocol's source states it
+  // ("810nm"), or one of the three legacy channel names ('660_808nm', '1064nm',
+  // '660_808_1064nm'). Which emitter channel delivers a single wavelength is
+  // decided by the wavelength rules (wavelengthRules.ts), never by this field;
+  // a value no rule accepts makes the protocol ineligible and uncompilable
+  // (NP-NPPS-REF-001 §4.1a).
+  wavelength: string;
   intensityPercent: number;
   frequencyHz: number;
   dutyCyclePercent: number;
@@ -409,6 +415,10 @@ export interface NPIntervalConfig {
   intervalOnSeconds: number;   // 0 = continuous
   intervalOffSeconds: number;
   repeatCount?: number;        // undefined = until_end
+  // Offset of this block's first on-period from the start of the session.
+  // Blocks with overlapping windows run in parallel; a block whose `start` is
+  // at or after another's end runs after it (NP-NPPS-REF-001 §5). Default 0.
+  startOffsetSeconds?: number;
 }
 
 // ─── Protocol modality block ───────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import { NPProtocolEntry, NPNamespace } from '../types/protocol';
+import { wavelengthRulesStore } from './wavelengthRulesStore';
 import {
   parseNPPSFile,
   buildNamespace,
@@ -16,6 +17,8 @@ interface Manifest {
   // protocol zone/condition references resolve.
   zones?: string[];
   conditions?: string[];
+  // PBM wavelength mapping defaults (NP-NPPS-REF-001 §7a).
+  wavelength_rules?: string[];
 }
 
 let _cached: NPProtocolEntry[] | null = null;
@@ -27,7 +30,11 @@ export async function loadPredefinedProtocols(): Promise<NPProtocolEntry[]> {
   try {
     const manifest = await fetch(MANIFEST_URL).then(r => r.json()) as Manifest;
     // Definition files first, then protocol/composite files.
-    const defFiles = [...(manifest.zones ?? []), ...(manifest.conditions ?? [])];
+    const defFiles = [
+      ...(manifest.zones ?? []),
+      ...(manifest.conditions ?? []),
+      ...(manifest.wavelength_rules ?? []),
+    ];
     const protoFiles = [...manifest.protocols, ...manifest.composites];
     const allFiles = [...defFiles, ...protoFiles];
 
@@ -37,7 +44,7 @@ export async function loadPredefinedProtocols(): Promise<NPProtocolEntry[]> {
           const text = await fetch(`${BASE_URL}${filename}`).then(r => r.text());
           return parseNPPSFile(text);
         } catch {
-          return { entries: [], zones: [], conditions: [] };
+          return { entries: [], zones: [], conditions: [], wavelengthRules: [] };
         }
       })
     );
@@ -49,6 +56,12 @@ export async function loadPredefinedProtocols(): Promise<NPProtocolEntry[]> {
     // refErrors below (NP-NPPS-REF-001 §1.6).
     if (errors.length > 0) console.error('[NPPS] duplicate definitions:', errors);
     if (refErrors.length > 0) console.error('[NPPS] unresolved references:', refErrors);
+
+    // The shipped wavelength defaults. The store keeps its built-in copy if the
+    // file is missing or invalid, so eligibility never runs against no rules.
+    const shippedRules = parsed.flatMap(p => p.wavelengthRules);
+    if (shippedRules.length === 1) wavelengthRulesStore.setDefaults(shippedRules[0]);
+    else if (shippedRules.length > 1) console.error('[NPPS] more than one wavelength_rules block ships');
 
     _cachedNamespace = namespace;
     _cached = namespace.entries;
