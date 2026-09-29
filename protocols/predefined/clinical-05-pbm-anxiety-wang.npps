@@ -13,11 +13,14 @@ protocol "PBM — Anxiety (Wang 2023, high-irradiance pulsed)" {
         # CONFIRMED from the source: 820nm, left DLPFC. The default wavelength
         # rules deliver 820nm on the 808nm channel alone (NP-NPPS-REF-001 §4.1a).
         wavelength: "820nm"
-        zones: ["Frontal Left"]
+        zones: ["Frontal Left (excl. midline)"]
         # Site fidelity gap: the DLPFC is a few centimetres across, and the
         # finest frontal zone is a 20-socket half-lobe (OI-SESPWR-01, gated on
         # REG-1). The earlier revision lit both frontal half-lobes ("forehead");
-        # the trial treated the left side only.
+        # the trial treated the left side only. The midline sockets are omitted
+        # so the left-only target does not spill into the right hemisphere
+        # (NP-OPT-PSF-001 §4; the lateralized-protocol audit in
+        # scripts/sync-socket-map.ts).
 
         # UNCONFIRMED — carried from the earlier revision until the paper is
         # read. The mode is not stated in anything read so far. The earlier

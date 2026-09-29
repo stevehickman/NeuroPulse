@@ -369,8 +369,10 @@ final class GATTParserTests: XCTestCase {
     // MARK: - Zones name a socket; the helmet only places it
 
     func testZoneNameComesFromTheAuthoredZoneFileNotTheWire() {
-        // Socket 1 is in "Frontal Left" per protocols/predefined/00-zones.npps.
-        // Nothing on the wire said so — the helmet sent coordinates only.
+        // Socket 1 is in "Frontal Left" per protocols/predefined/00-zones.npps,
+        // and, being off the midline, also in the smaller "Frontal Left (excl.
+        // midline)", which is therefore its most specific zone. Nothing on the
+        // wire said so — the helmet sent coordinates only.
         let map = SocketMap([
             SocketDescriptor(socketID: 1,
                              position: SocketPosition(forwardMm: 130, rightMm: -26,
@@ -380,7 +382,8 @@ final class GATTParserTests: XCTestCase {
         let status = ZoneModuleStatus(socketID: 1, moduleType: .eeg,
                                       isPresent: true, hasFault: false)
 
-        XCTAssertEqual(NPZoneRegistry.primaryZone(forSocket: 1), "Frontal Left")
+        XCTAssertEqual(NPZoneRegistry.primaryZone(forSocket: 1), "Frontal Left (excl. midline)")
+        XCTAssertTrue(NPZoneRegistry.zones(forSocket: 1).contains("Frontal Left"))
         XCTAssertTrue(map.label(for: 1).contains("1"))
         XCTAssertTrue(map.label(for: 1).localizedCaseInsensitiveContains("frontal"))
         XCTAssertTrue(map.spokenConfirmation(for: status)
