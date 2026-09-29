@@ -691,7 +691,7 @@ holds for any parts that get chosen.
 | clinical-05 Anxiety (Wang) | 820 | 77.0 | 10 Hz | 2.73 | 101.0 | 32.6 | 54 % |
 | clinical-07 Autism (Fradkin) | 850 | 20.0 | 40 Hz | 0.71 | 7.1 | 7.3 | 12 % |
 
-> **2026-09-29:** the Schiffer and Wang rows in this table describe v1.0 of those protocols. v2.0 states each trial as a single wavelength (`810nm`, `820nm`), so no 660 nm is driven. Schiffer is now CW at 250 mW/cm², 4 min at F3 then 4 min at F4, and is refused under the ceilings in force (`OI-HEXTILE-31`, `-32`). Wang is now the left half-lobe only, with its mode, irradiance and duration flagged unconfirmed.
+> **2026-09-29:** the Schiffer and Wang rows in this table describe v1.0 of those protocols. v2.0 states each trial as a single wavelength (`810nm`, `820nm`), so no 660 nm is driven. Schiffer is now CW at 250 mW/cm², 4 min at F3 then 4 min at F4, and is refused under the ceilings in force (`OI-HEXTILE-31`, and U4, `OI-HEXTILE-30`; `OI-HEXTILE-32` closed the same day by adopting the skin reference in full, so the average term, ≈ 329 at 808 nm, no longer refuses it). Wang is now the left half-lobe only, with its mode, irradiance and duration flagged unconfirmed.
 
 **Finding (F-4): in two of the eight, the unwanted 660 nm channel alone reaches or exceeds R-7's
 entire per-session 660 nm dose limit** — Cassano at 64.6 J/cm² (108 %) and Schiffer at exactly
@@ -720,7 +720,7 @@ authored duration × groups.
 | clinical-05 Anxiety (Wang) | 37 | 4.81 → 2.08 | 178 → 77 | 5 → 2 | 35m → **14m** |
 | clinical-07 Autism (Fradkin) | 10 | 1.25 → 0.54 | 12 → 5 | 1 → 1 | 6m → 6m |
 
-> **2026-09-29:** the Schiffer and Wang rows in this table describe v1.0 of those protocols. v2.0 states each trial as a single wavelength (`810nm`, `820nm`), so no 660 nm is driven. Schiffer is now CW at 250 mW/cm², 4 min at F3 then 4 min at F4, and is refused under the ceilings in force (`OI-HEXTILE-31`, `-32`). Wang is now the left half-lobe only, with its mode, irradiance and duration flagged unconfirmed.
+> **2026-09-29:** the Schiffer and Wang rows in this table describe v1.0 of those protocols. v2.0 states each trial as a single wavelength (`810nm`, `820nm`), so no 660 nm is driven. Schiffer is now CW at 250 mW/cm², 4 min at F3 then 4 min at F4, and is refused under the ceilings in force (`OI-HEXTILE-31`, and U4, `OI-HEXTILE-30`; `OI-HEXTILE-32` closed the same day by adopting the skin reference in full, so the average term, ≈ 329 at 808 nm, no longer refuses it). Wang is now the left half-lobe only, with its mode, irradiance and duration flagged unconfirmed.
 
 **Finding (F-5): two protocols move from over-budget to inside the 40 W envelope in a single pass**
 — Cassano (82 W → 36 W) and Maiello (68 W → 30 W). Both are CW trials at low irradiance whose

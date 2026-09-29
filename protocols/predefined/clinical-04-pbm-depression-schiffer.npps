@@ -1,6 +1,6 @@
 protocol "PBM — Depression (Schiffer 2009, high-irradiance)" {
     id: "30000052-0000-0000-0000-000000000000"
-    description: "Single-session 810nm PBM for major depression, as Schiffer 2009 ran it (open pilot, n=10): an LED cluster, continuous wave, 250 mW/cm², 4 min at F3 and then 4 min at F4, 60 J/cm² per site. This is the HIGH-IRRADIANCE arm of the §4 evidence, seven times Cassano 2018; see that protocol for the other end. REFUSED ON THIS HARDWARE TODAY: CW at 250 mW/cm² exceeds the 200 mW/cm² per-channel time-averaged ceiling (CLAUDE.md §3), and the validator still caps duty at 25% (OI-HEXTILE-31). It is not reshaped to fit. Whether it becomes runnable is OI-HEXTILE-32."
+    description: "Single-session 810nm PBM for major depression, as Schiffer 2009 ran it (open pilot, n=10): an LED cluster, continuous wave, 250 mW/cm², 4 min at F3 and then 4 min at F4, 60 J/cm² per site. This is the HIGH-IRRADIANCE arm of the §4 evidence, seven times Cassano 2018; see that protocol for the other end. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 250 mW/cm² CW is inside the time-averaged ceiling at 808nm (≈329, CLAUDE.md §3, OI-HEXTILE-32 closed)."
     author: "NeurOne"
     version: "2.0"
     readonly: true
@@ -19,9 +19,10 @@ protocol "PBM — Depression (Schiffer 2009, high-irradiance)" {
     # ceiling refuses a protocol and never reshapes one. The earlier revision
     # of this file ran 10 Hz at 25% duty for 16 min to keep the dose under the
     # ceiling. That is a different stimulus from the one Schiffer tested, so it
-    # is withdrawn. Adopting the reference skin limit in full (OI-HEXTILE-32)
-    # would allow 250 at 808nm (limit ≈328); the validator's 25% duty cap must
-    # also go (OI-HEXTILE-31), and U4 must be able to conduct CW (OI-HEXTILE-30).
+    # is withdrawn. The reference skin limit is adopted in full (OI-HEXTILE-32,
+    # closed 2026-09-29), so 250 at 808nm is inside the average term (≈329).
+    # What still refuses it: the validator's 25% duty cap (OI-HEXTILE-31), and
+    # U4, which cannot yet conduct CW (OI-HEXTILE-30).
     #
     # Site fidelity gap. F3 and F4 are single 10-20 sites. The finest frontal
     # zones are the 20-socket half-lobes, so each block lights far more than

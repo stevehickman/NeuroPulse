@@ -122,9 +122,10 @@ describe('predefined NPPS library', () => {
     // Schiffer 2009 ran CW (100% duty) at 250 mW/cm², 4 min at F3 then 4 min
     // at F4. The protocol states exactly that and is refused: a PBM ceiling
     // refuses a protocol and never reshapes one (CLAUDE.md §3). The 25% duty
-    // cap is still enforced until OI-HEXTILE-31, and 250 mW/cm² is over the
-    // 200 per-channel time average unless OI-HEXTILE-32 adopts the reference
-    // skin limit. One entry per block. (The validator cannot see the 250:
+    // cap is still enforced until OI-HEXTILE-31. 250 mW/cm² is inside the
+    // time average at 808 nm (≈329) since OI-HEXTILE-32 adopted the reference
+    // skin limit, so in the validator the duty cap is the only refusal. One
+    // entry per block. (The validator cannot see the 250:
     // `intensity` is not irradiance yet, which OI-HEXTILE-31's pre-signing
     // refusal also has to fix.)
     const WAIVED = [
