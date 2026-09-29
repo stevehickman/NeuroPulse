@@ -3,18 +3,18 @@
 
 **Project:** NeurOne  
 **Document:** NP-REG-PBM1064-001  
-**Revision:** 1
-**Date:** 2026-05-13  
+**Revision:** 2
+**Date:** 2026-09-28  
 **Status:** DRAFT  
 **Effective Date:** 2026-05-13  
 **Author:** NeurOne Regulatory Affairs  
 **Approved By:** Steve Hickman, CEO  
-**References:** docs/status/pending-decisions.md §13.1 (RISK-03 OPEN); NP-FW-PBM1064-001 Rev 1 §5.4; NP-SES-1064-001 Rev 1  
+**References:** docs/status/pending-decisions.md §13.1, §13.1a (RISK-03 OPEN); NP-FW-PBM1064-001 Rev 1 §5.4; NP-SES-1064-001 Rev 1; **NP-BIB-PBMIRR-001 Rev 1** (irradiance and temperature evidence record, Rev 2); NP-SES-PWR-001 `OI-SESPWR-02`; NP-HW-HEXTILE-001 §2 (R-4, R-5)  
 **Related Issues:** GitHub Issue #5 (existing RISK-03 engagement), GitHub Issue #56  
 **Gate:** —  
 **IEC 62304 Class:** —  
 **Prepared For:** Outside regulatory counsel (PBM/digital health specialist)  
-**Applicable Standard:** IEC 62471, FTC Act §5  
+**Applicable Standard:** IEC 62471, IEC 60825-1, IEC 60601-1, IEC 60601-2-57, ICNIRP 2013, FTC Act §5  
 
 ---
 
@@ -71,6 +71,15 @@ IEC 62471:2006 classifies photobiological hazards of lamps and lamp systems. The
 
 - **EH2 (Near-Infrared Radiation Hazard to the Eye):** Action spectrum covers 780–3000nm. The 1064nm irradiance from each zone module must be assessed against the EH2 MPE limit.
 - **EH1 (Thermal Hazard to the Eye):** Applies to retinal thermal exposure; relevant if any 1064nm irradiance reaches the eye aperture. The NeurOne goggle lens system provides hardware cutoff (Hall sensor + IR proximity sensor per §4.2 of CLAUDE.md) preventing scalp-module operation with goggles removed during goggle sessions, but scalp modules can operate independently.
+
+> **Correction, Rev 2 (2026-09-28).** Rev 1 of this section, and Q4 in §4.3, describe an IEC 62471
+> assessment of the 660/808nm channels as *"already obtained"*, with an *"existing Exempt Group
+> assessment"*. **No such assessment exists in the document set.** `docs/status/pending-decisions.md`
+> §13.1a traced the chain and found no IEC 62471 derivation anywhere, and RISK-03 itself is recorded
+> as *"not yet obtained"* (`NP-RISK-002`). The questions are kept as written so their numbering and
+> history hold, but **counsel should read every reference to an existing 660/808nm assessment as a
+> request that it be performed**, not as a premise. The wording is left in place as the record of
+> what Rev 1 asserted (`NP-CONV-001` §7).
 
 **Question for counsel:** At 400 mW/cm² peak pulsed (25% duty cycle, 100 mW/cm² average) at 1064nm applied to the scalp vertex/frontal zone, does the EH2 or EH1 IEC 62471 hazard classification change vs the 660/808nm assessment already obtained? Is a new IEC 62471 group classification required, or does the existing Exempt Group assessment extend to 1064nm at these parameters?
 
@@ -174,6 +183,58 @@ The primary human clinical evidence for 1064nm transcranial effects at cortical 
 
 ---
 
+## 6A. New Scope Item 5 — What Sets the Irradiance and Temperature Boundary (added Rev 2)
+
+### 6A.1 Why this is added
+
+Items 1–4 ask counsel to confirm or classify NeurOne's chosen ceilings. None asks **what external
+boundary, if any, those ceilings must sit under**. `NP-BIB-PBMIRR-001` Rev 1 reviewed the published
+record for 600–1100 nm and found **no statute or regulation that sets a PBM irradiance limit**. What
+exists is a definition (FDA: PBM is *"non-heating"*), exposure-limit standards written for laser and
+lamp safety, and a contact-temperature standard. The figures, with their source quality, are in
+that document's §2–§5. The ones this item turns on:
+
+| Reference | Value | NeurOne figure it bears on |
+|---|---|---|
+| Laser skin limit, 10 s–30,000 s (ICNIRP 2013 / IEC 60825-1 / ANSI Z136.1) | 200 × C_A mW/cm² time-averaged: **200 at 660 nm**, ≈ 329 at 808 nm, **1000 at 1064 nm** | R-4 200 mW/cm² CW at 660 nm (**zero margin**); `07-vascular-baseline` ~322 mW/cm² CW (`OI-SESPWR-02`) |
+| Same standards, multiple wavelengths | Assessed as a weighted sum of time-averaged irradiance, Σ Eᵢ/ELᵢ ≤ 1 | R-5, written as a sum of peaks (Q5) |
+| IEC 62471 skin thermal | Limited for exposures under 10 s only; beyond that it relies on pain avoidance | A head-worn device, possibly during sleep |
+| IEC 60601-1 (3rd ed.) Table 24 | **43 °C** for applied parts in contact ≥ 10 min; **labelling required above 41 °C** | CLAUDE.md §3's **42 °C**, attributed to IEC 60601 |
+| Heating onset (Zein, Selting & Hamblin 2018) | ~300 mW/cm² at 600–700 nm; ~750 mW/cm² at 800–900 nm | R-4 peak; `OI-HEXTILE-20` two channels at 806 mW/cm² |
+| Modelled scalp rise at 1064 nm (2025) | +0.38 °C at 100 mW/cm²; +3.76 °C at 1000 mW/cm²; asymptote ~10 min | 1064nm channel |
+| Skin colour (2025) | ~3× heating / thermal-injury risk in darker skin, red-weighted | No skin-type term in any NeurOne model |
+
+### 6A.2 Questions for Counsel
+
+Q13 is reserved for Mode F retinal PBM (`NP-FW-EMMC-002` Rev 1 §F) and is **not** written in this
+revision; the numbering below leaves it in place.
+
+1. **(Q14) Wellness eligibility and "non-heating".** Does the FDA 2023 draft guidance's definition
+   of PBM as light *"at an irradiance that does not induce heating"* bear on T1 as a general
+   wellness product, and does the 2026 *General Wellness* revision's exclusion of *"technologies,
+   like lasers or radiation, that could pose safety risks without regulatory controls"* reach an
+   LED array at 400 mW/cm² peak / 200 mW/cm² CW on the scalp? What evidence of "non-heating" would
+   FDA expect (skin-temperature rise, a bound, a test method)?
+2. **(Q15) Governing exposure framework for an LED array worn > 10 s.** IEC 62471 sets no skin limit
+   beyond 10 s. Should NeurOne assess scalp exposure against IEC 62471 alone, against the laser skin
+   limit as a conservative reference, or under IEC 60601-2-57 (2023; EN IEC 60601-2-57:2026 with
+   RG-1C) — and is the pain-avoidance assumption acceptable for a strapped-on device used during
+   sleep?
+3. **(Q16) The 660 nm CW margin.** R-4's 200 mW/cm² CW equals the laser skin limit at 660 nm. Is a
+   ceiling with zero margin to the conventional reference defensible, and if `OI-SESPWR-02` finds
+   no CW clamp, is `07-vascular-baseline` (~322 mW/cm² CW, `660_808nm`) a compliance defect under
+   any applicable standard, not only against R-4?
+4. **(Q17) The form of the aggregate ceiling.** The exposure standards assess multiple wavelengths as
+   a weighted sum of **time-averaged** irradiance. R-5 is a sum of **peaks**. Should R-5 be expressed
+   in the standards' form, and would that change the answer to Q5?
+5. **(Q18) Temperature limit and skin type.** Which temperature limit governs a PBM applied part
+   worn ≥ 10 min — IEC 60601-1 Table 24's 43 °C with its labelling duty above 41 °C, a particular
+   standard (IEC 60601-2-57), or neither for a wellness product? Is CLAUDE.md §3's 42 °C correctly
+   attributed? And does the published excess thermal risk in darker skin create a duty to derate,
+   test across skin types, or label?
+
+---
+
 ## 7. Marketing Copy Gate (Pending Opinion Receipt)
 
 Until counsel provides the expanded opinion letter covering all four scope items above, the following rules apply:
@@ -193,7 +254,7 @@ These gates are tracked in docs/status/pending-decisions.md §13.1 and §13.4. T
 
 ## 8. Deliverables Requested from Counsel
 
-The expanded opinion letter should address the following questions (consolidated from §§3–6 above):
+The expanded opinion letter should address the following questions (consolidated from §§3–6A above):
 
 | Q# | Topic | Scope item |
 |----|-------|-----------|
@@ -209,6 +270,12 @@ The expanded opinion letter should address the following questions (consolidated
 | Q10 | FTC substantiation: "deeper penetration at 1064nm" depth claim | §6 |
 | Q11 | FTC substantiation: "three independent penetration depths" system performance claim | §6 |
 | Q12 | Implied clinical outcome risk in depth-tier marketing language | §6 |
+| Q13 | *Reserved* — Mode F retinal PBM (`NP-FW-EMMC-002` Rev 1 §F); not yet written | — |
+| Q14 | FDA "non-heating" PBM definition and 2026 General Wellness exclusion applied to the T1 LED array | §6A |
+| Q15 | Governing exposure framework for an LED array worn > 10 s (IEC 62471, laser skin limit, IEC 60601-2-57) | §6A |
+| Q16 | 660nm CW ceiling at zero margin to the skin limit; `07-vascular-baseline` if no CW clamp exists | §6A |
+| Q17 | Aggregate ceiling as a weighted sum of averages vs a sum of peaks | §6A |
+| Q18 | Governing skin-contact temperature limit (43 °C / 41 °C labelling vs 42 °C) and skin-type duty | §6A |
 
 **Format required:** Written opinion letter on counsel letterhead; question-by-question responses; explicit statement of applicable standard or statute for each answer; statement of any material limitations or assumptions in the opinion.
 
@@ -247,6 +314,20 @@ Update docs/status/pending-decisions.md §13.4 and the risk register document (`
 | IEC TR 62778:2014 | Application of IEC 62471 for blue light hazard (reference) |
 | IEC 60825-1:2014 | Safety of laser products — T2 1170nm subsystem |
 | IEC TR 60825-14:2004 | User's guide for IEC 60825-1 |
-| IEC 60601-2-57:2011 | Therapeutic light source equipment — T2 relevance |
+| IEC 60601-2-57:2011 | Therapeutic light source equipment — T2 relevance. **Rev 2:** superseded by the 2023 edition (EN IEC 60601-2-57:2026 adds RG-1C); relevant to T1 as well (Q15) |
+| `docs/np_bib_pbmirr_001.md` (NP-BIB-PBMIRR-001 Rev 1) | Irradiance and temperature evidence record — supports Q14–Q18 |
+| IEC 60601-1 (3rd ed.) Table 24 | Applied-part temperature limits — Q18 |
+| ICNIRP 2013 laser and incoherent visible/IR guidelines; ANSI Z136.1 | Skin exposure limits — Q15–Q17 |
+| FDA draft guidance, *PBM Devices — Premarket Notification [510(k)] Submissions* (2023-01) | "Non-heating" definition — Q14 |
+| FDA *General Wellness: Policy for Low Risk Devices* (revised 2026-01-06) | Wellness eligibility — Q14 |
 | 21 CFR Part 1040 | Performance standards for light-emitting products |
 | FTC 2022 Enforcement Policy Statement on Health Claims | FTC substantiation framework |
+
+---
+
+## 11. Revision History
+
+| Rev | Date | Author | Change |
+|---|---|---|---|
+| 1 | 2026-05-13 | NeurOne Regulatory Affairs | First issue: scope items 1–4, Q1–Q12 |
+| 2 | 2026-09-28 | NeurOne Regulatory Affairs | Adds scope item 5 (§6A, Q14–Q18): what external irradiance and temperature boundary the PBM ceilings must sit under, from `NP-BIB-PBMIRR-001` Rev 1. Adds a correction banner to §3.2: the *"already obtained"* 660/808nm IEC 62471 assessment does not exist. Q13 (Mode F) stays reserved and unwritten. §8 and §10 extended. No existing question reworded |
