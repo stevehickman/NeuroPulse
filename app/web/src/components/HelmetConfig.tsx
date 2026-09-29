@@ -13,12 +13,21 @@
 // Every zone reference in this UI resolves to a zone defined in a .npps file.
 // There is no path here that produces a bare socket list masquerading as a zone.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   NPSimulatedInventoryProvider,
   type NPInventoryPreset,
   type NPHelmetInventory,
 } from '../lib/helmetInventory';
+import {
+  ELEMENT_TYPE_LABEL,
+} from '../lib/helmetInventory';
+import { wavelengthRulesStore } from '../lib/wavelengthRulesStore';
+import {
+  PBM_CHANNEL_ELEMENTS,
+  resolvePbmChannels,
+  type NPWavelengthRules,
+} from '../lib/wavelengthRules';
 import {
   evaluateProtocol,
   zonesForModality,
@@ -77,6 +86,15 @@ export function HelmetConfig({ entries }: { entries: NPProtocolEntry[] }) {
     [preset],
   );
 
+  // The wavelength rules in force (shipped defaults + the user's edits). Both
+  // this screen and the compiler read the same resolved set.
+  const [rules, setRules] = useState<NPWavelengthRules>(() => wavelengthRulesStore.resolved);
+  useEffect(() => {
+    const onChange = () => setRules(wavelengthRulesStore.resolved);
+    wavelengthRulesStore.addEventListener('change', onChange);
+    return () => wavelengthRulesStore.removeEventListener('change', onChange);
+  }, []);
+
   // Conditions actually referenced by at least one protocol — filtering by a
   // condition no protocol treats would only ever produce an empty list.
   const referencedConditions = useMemo(() => {
@@ -103,7 +121,7 @@ export function HelmetConfig({ entries }: { entries: NPProtocolEntry[] }) {
 
       const eligibility: NPEligibility =
         entry.kind === 'single' && inventory
-          ? evaluateProtocol(entry.protocol, inventory, zones, perModality)
+          ? evaluateProtocol(entry.protocol, inventory, zones, perModality, rules)
           : {
               eligible: !!inventory, degraded: false,
               requiresTargeting: [], clinicianTargeted: [],
@@ -112,7 +130,7 @@ export function HelmetConfig({ entries }: { entries: NPProtocolEntry[] }) {
 
       return { entry, conditions, eligibility };
     });
-  }, [entries, inventory, zones, targeting]);
+  }, [entries, inventory, zones, targeting, rules]);
 
   const visible = conditionFilter
     ? evaluated.filter(e => e.conditions.includes(conditionFilter))
@@ -149,6 +167,7 @@ export function HelmetConfig({ entries }: { entries: NPProtocolEntry[] }) {
               conditions={conditions}
               conditionRegistry={conditionRegistry}
               eligibility={eligibility}
+              rules={rules}
               inventory={inventory}
               zones={zones}
               targetedSockets={targeting[entryName(entry)] ?? []}
@@ -180,6 +199,8 @@ export function HelmetConfig({ entries }: { entries: NPProtocolEntry[] }) {
       </section>
 
       <ZonePane zones={zones} inventory={inventory} />
+
+      <WavelengthRulesPane rules={rules} />
     </div>
   );
 }
@@ -215,13 +236,14 @@ function InventoryPane({
 // ─── Protocol row ──────────────────────────────────────────────────────────────
 
 function ProtocolRow({
-  entry, conditions, conditionRegistry, eligibility, inventory, zones,
+  entry, conditions, conditionRegistry, eligibility, rules, inventory, zones,
   targetedSockets, onToggleSocket, expanded, onSelect,
 }: {
   entry: NPProtocolEntry;
   conditions: string[];
   conditionRegistry: ReadonlyMap<string, NPConditionDefinition>;
   eligibility: NPEligibility;
+  rules: NPWavelengthRules;
   inventory: NPHelmetInventory | null;
   zones: ReadonlyMap<string, NPZoneDefinition>;
   targetedSockets: number[];
@@ -297,13 +319,28 @@ function ProtocolRow({
         <p className="protocol-row-reason">{eligibility.summary}</p>
       )}
 
+      {/* Which channel delivers each stated wavelength, so a mapping is never
+          silent: "810nm is delivered by the 808nm LED". */}
+      {expanded && entry.kind === 'single' && (
+        <WavelengthMappingLines entry={entry} rules={rules} />
+      )}
+
       {expanded && eligibility.shortfalls.length > 0 && (
         <div className="shortfall-detail">
           {eligibility.shortfalls.map(s => (
-            <div key={s.modality} className="shortfall-modality">
+            <div key={`${s.modality}-${s.blockIndex}`} className="shortfall-modality">
               <div className="shortfall-modality-name">
                 {modalityName(s.modality)}
               </div>
+
+              {s.wavelengthProblem && (
+                <p className="shortfall-line unresolved">
+                  {s.wavelengthProblem.reason === 'invalid'
+                    ? t('WEB_ELIG_WAVELENGTH_INVALID', { 0: s.wavelengthProblem.value })
+                    : t('WEB_ELIG_WAVELENGTH_UNMAPPED', { 0: s.wavelengthProblem.value, 1: s.wavelengthProblem.rulesName })}
+                  {s.wavelengthProblem.reason === 'unmapped' && ` ${t('WEB_ELIG_WAVELENGTH_FIX')}`}
+                </p>
+              )}
 
               {s.unresolvedZones.map(z => (
                 <p key={z} className="shortfall-line unresolved">
@@ -333,6 +370,116 @@ function ProtocolRow({
         </div>
       )}
     </div>
+  );
+}
+
+function WavelengthMappingLines({ entry, rules }: { entry: NPProtocolEntry; rules: NPWavelengthRules }) {
+  if (entry.kind !== 'single') return null;
+  const lines = entry.protocol.modalities.flatMap(m => {
+    if (m.modalityParams.type !== 'pbm_transcranial') return [];
+    const w = m.modalityParams.params.wavelength;
+    const r = resolvePbmChannels(w, rules);
+    // Legacy channel names name their channels already; only a stated
+    // wavelength is mapped, and only a successful mapping is worth a line
+    // (a failed one is in the shortfall detail).
+    if (!r.ok || r.requestedNm === undefined) return [];
+    return [t('WEB_WL_MAPPED', { 0: w, 1: t(ELEMENT_TYPE_LABEL[r.elements[0]]) })];
+  });
+  if (lines.length === 0) return null;
+  return (
+    <div className="shortfall-detail">
+      {[...new Set(lines)].map(l => <p key={l} className="shortfall-line">{l}</p>)}
+    </div>
+  );
+}
+
+// ─── Wavelength rules ──────────────────────────────────────────────────────────
+
+/**
+ * Edit which requested wavelengths each emitter channel may deliver
+ * (NP-NPPS-REF-001 §7a). Loosening or tightening a window changes which
+ * protocols are offered above, immediately. An invalid window is refused by the
+ * store, never saved.
+ */
+function WavelengthRulesPane({ rules }: { rules: NPWavelengthRules }) {
+  const defaults = wavelengthRulesStore.defaults;
+  const edited = new Set((wavelengthRulesStore.userRules?.channels ?? []).map(c => c.element));
+  const [error, setError] = useState<string>('');
+
+  function update(element: (typeof PBM_CHANNEL_ELEMENTS)[number], field: 'minNm' | 'maxNm', value: string) {
+    const current = rules.channels.find(c => c.element === element)
+      ?? defaults.channels.find(c => c.element === element);
+    if (!current) return;
+    const n = Number(value);
+    const errors = wavelengthRulesStore.setChannel({ ...current, [field]: n });
+    setError(errors.join('; '));
+  }
+
+  return (
+    <section className="config-pane">
+      <header className="config-pane-header">
+        <h2>{t('WEB_PANE_WAVELENGTH_RULES')}</h2>
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={edited.size === 0}
+          onClick={() => { wavelengthRulesStore.resetChannel(); setError(''); }}
+        >
+          {t('WEB_WL_RULES_RESET_ALL')}
+        </button>
+      </header>
+      <p className="config-note">{t('WEB_WL_RULES_NOTE')}</p>
+
+      {PBM_CHANNEL_ELEMENTS.map(element => {
+        const rule = rules.channels.find(c => c.element === element);
+        const def = defaults.channels.find(c => c.element === element);
+        return (
+          <div key={element} className="wavelength-rule-row">
+            <span className="config-label">{t(ELEMENT_TYPE_LABEL[element])}</span>
+            <label>
+              {t('WEB_WL_RULES_FROM')}{' '}
+              <input
+                type="number"
+                value={rule?.minNm ?? ''}
+                onChange={e => update(element, 'minNm', e.target.value)}
+              />
+            </label>
+            <label>
+              {t('WEB_WL_RULES_TO')}{' '}
+              <input
+                type="number"
+                value={rule?.maxNm ?? ''}
+                onChange={e => update(element, 'maxNm', e.target.value)}
+              />
+            </label>
+            {def && (
+              <span className="config-note">
+                {t('WEB_WL_RULES_DEFAULT_WINDOW', { 0: def.minNm, 1: def.maxNm })}
+              </span>
+            )}
+            {edited.has(element) && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => { wavelengthRulesStore.resetChannel(element); setError(''); }}
+              >
+                {t('WEB_WL_RULES_RESET')}
+              </button>
+            )}
+          </div>
+        );
+      })}
+
+      {error && <p className="zone-editor-error">{error}</p>}
+
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={() => navigator.clipboard?.writeText(wavelengthRulesStore.exportUserRules())}
+      >
+        {t('WEB_WL_RULES_EXPORT')}
+      </button>
+    </section>
   );
 }
 

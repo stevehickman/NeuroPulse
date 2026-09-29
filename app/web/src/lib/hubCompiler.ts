@@ -76,6 +76,11 @@ import {
 } from '../types/protocol';
 import { isValidSocketId, NP_SOCKET_COUNT } from './socketMap.generated';
 import { NPHardwareLimits } from './hardwareLimits';
+import {
+  DEFAULT_WAVELENGTH_RULES,
+  resolvePbmChannels,
+  type NPWavelengthRules,
+} from './wavelengthRules';
 
 // ─── Wire format constants (mirrors np_hub_config.h) ─────────────────────────
 
@@ -173,6 +178,8 @@ const T2_MODALITY_TYPES = new Set([
 // ─── Internal session command ─────────────────────────────────────────────────
 
 interface SessionCmd {
+  /** Index of the modality block that produced the command (for the PBM overlap check). */
+  block?: number;
   modType: number;
   target: CmdTarget;
   startMs: number;
@@ -265,6 +272,12 @@ export interface CompileOptions {
    * cannot be predefined. Absent, such a protocol does not compile.
    */
   clinicianSockets?: readonly number[];
+  /**
+   * The wavelength rules in force (NP-NPPS-REF-001 §7a) — the same resolved set
+   * the eligibility check used, so what the operator was shown as runnable is
+   * what compiles. Defaults to the shipped rules.
+   */
+  wavelengthRules?: NPWavelengthRules;
 }
 
 /**
@@ -289,15 +302,15 @@ export function compileProtocol(
   const cmds: SessionCmd[] = [];
   let isT2 = false;
 
-  for (const modality of proto.modalities) {
-    if (!modality.enabled) continue;
+  proto.modalities.forEach((modality, blockIndex) => {
+    if (!modality.enabled) return;
 
     const mp = modality.modalityParams;
     if (T2_MODALITY_TYPES.has(mp.type)) isT2 = true;
 
     const generated = buildCommands(mp, modality.interval, sessionDurationMs, opts);
     for (const cmd of generated) {
-      cmds.push(cmd);
+      cmds.push({ ...cmd, block: blockIndex });
       // Fail loudly rather than silently truncating: dropping commands here
       // would produce a signed session missing entire later modalities with no
       // error surfaced to the clinician. The check is inside the loop so an
@@ -309,7 +322,9 @@ export function compileProtocol(
         );
       }
     }
-  }
+  });
+
+  mergeOverlappingPbm(cmds, sessionDurationMs);
 
   if (cmds.length === 0) {
     throw new Error('Protocol produces no commands — no enabled modalities');
@@ -378,6 +393,82 @@ export function compileProtocol(
   return { blob, sessionUuid, isT2, cmdCount: cmds.length };
 }
 
+// ─── Parallel PBM blocks on one tile ──────────────────────────────────────────
+
+/** Channel-current byte offsets inside each PBM params struct (NP-FW-HUB-001 §4). */
+const PBM_CUR_OFFSETS: Record<number, readonly number[]> = {
+  [NP_MOD_PBM_BASE]: [2, 3],       // cur_a (660), cur_b (808)
+  [NP_MOD_PBM_SMART]: [2, 3, 4],   // cur_a, cur_b, cur_c (1064); ch_mask at 5
+};
+
+function isPbmOn(c: SessionCmd): boolean {
+  return (c.modType === NP_MOD_PBM_BASE || c.modType === NP_MOD_PBM_SMART) && c.params.length > 0;
+}
+
+function socketsOf(c: SessionCmd): readonly number[] {
+  return c.target.kind === 'sockets' ? c.target.sockets : [];
+}
+
+/**
+ * Wavelengths are independently controlled (CLAUDE.md §3), so a protocol may
+ * run a 660 nm block and an 808 nm block at the same time on the same tiles.
+ * The hub's PBM command carries ONE frequency and ONE duty for all of a tile's
+ * channels, and a later command replaces an earlier one on that tile. So two
+ * blocks that overlap on a socket are:
+ *   - MERGED into one command when they have the same window, the same sockets,
+ *     the same frequency and duty, and drive different channels; otherwise
+ *   - REFUSED. Delivering one of them, or averaging them, would be a stimulus
+ *     nobody authored (CLAUDE.md §3: a ceiling refuses, never reshapes).
+ * Mutates `cmds` in place.
+ */
+function mergeOverlappingPbm(cmds: SessionCmd[], sessionDurationMs: number): void {
+  const endOf = (c: SessionCmd): number =>
+    c.durationMs > 0 ? c.startMs + c.durationMs
+      : sessionDurationMs > 0 ? sessionDurationMs : Number.POSITIVE_INFINITY;
+
+  const drop = new Set<SessionCmd>();
+  for (let i = 0; i < cmds.length; i++) {
+    const a = cmds[i];
+    if (!isPbmOn(a) || drop.has(a)) continue;
+    for (let j = i + 1; j < cmds.length; j++) {
+      const b = cmds[j];
+      if (!isPbmOn(b) || drop.has(b) || a.block === b.block) continue;
+      const sa = new Set(socketsOf(a));
+      const shared = socketsOf(b).filter(x => sa.has(x));
+      const overlapInTime = a.startMs < endOf(b) && b.startMs < endOf(a);
+      if (shared.length === 0 || !overlapInTime) continue;
+
+      const sameSockets = shared.length === sa.size && socketsOf(b).length === sa.size;
+      const sameWindow = a.startMs === b.startMs && a.durationMs === b.durationMs;
+      const sameTiming = a.params[0] === b.params[0] && a.params[1] === b.params[1];
+      const curs = PBM_CUR_OFFSETS[a.modType];
+      const disjoint = a.modType === b.modType &&
+        curs.every(k => a.params[k] === 0 || b.params[k] === 0);
+
+      if (!(sameSockets && sameWindow && sameTiming && disjoint)) {
+        throw new Error(
+          `Two PBM blocks overlap on socket${shared.length === 1 ? '' : 's'} ` +
+          `${shared.slice(0, 6).join(', ')}${shared.length > 6 ? ', …' : ''} ` +
+          `from ${Math.max(a.startMs, b.startMs) / 1000}s. A tile takes one frequency, ` +
+          `one duty and one schedule for all its channels, so blocks sharing a tile must ` +
+          `match in timing, frequency and duty and drive different wavelengths. ` +
+          `The protocol is refused rather than reshaped.`
+        );
+      }
+      const merged = new Uint8Array(a.params);
+      for (const k of curs) merged[k] = a.params[k] || b.params[k];
+      if (a.modType === NP_MOD_PBM_SMART) merged[5] = a.params[5] | b.params[5];
+      a.params = merged;
+      drop.add(b);
+      // b's stop, if it has one, matches a's (same sockets, same end).
+      const bStop = cmds.find(c => c.block === b.block && c.params.length === 0 &&
+        c.modType === b.modType && c.startMs === endOf(b));
+      if (bStop) drop.add(bStop);
+    }
+  }
+  for (let k = cmds.length - 1; k >= 0; k--) if (drop.has(cmds[k])) cmds.splice(k, 1);
+}
+
 // ─── Command generation ────────────────────────────────────────────────────────
 
 /**
@@ -394,9 +485,19 @@ function* buildCommands(
   const { modType, target, params } = encodeParams(mp, opts);
   if (modType === NP_MOD_NONE) return;
 
+  // A block's `start` shifts its whole schedule (NP-NPPS-REF-001 §5). Two
+  // blocks run in series when one's start is at or after the other's end.
+  const offsetMs = Math.round((interval.startOffsetSeconds ?? 0) * 1000);
+  if (sessionDurationMs > 0 && offsetMs >= sessionDurationMs) {
+    throw new Error(
+      `A block starts at ${offsetMs / 1000}s, at or after the session's end ` +
+      `(${sessionDurationMs / 1000}s). It would never run; remove it or lengthen the session.`
+    );
+  }
+
   const isContinuous = interval.intervalOnSeconds === 0;
   if (isContinuous) {
-    yield { modType, target, startMs: 0, durationMs: 0, params };
+    yield { modType, target, startMs: offsetMs, durationMs: 0, params };
     return;
   }
 
@@ -409,7 +510,7 @@ function* buildCommands(
 
   const STOP = new Uint8Array(0);
   for (let i = 0; i < maxRepeats; i++) {
-    const startMs = i * periodMs;
+    const startMs = offsetMs + i * periodMs;
     if (sessionDurationMs > 0 && startMs >= sessionDurationMs) break;
     yield { modType, target, startMs, durationMs: onMs, params };
     const stopMs = startMs + onMs;
@@ -549,23 +650,43 @@ function encodePBMTranscranial(
   p: PBMTranscranialParams,
   opts: CompileOptions,
 ): EncodedParams {
-  const useSmart = p.wavelength !== '660_808nm';
-  const modType  = useSmart ? NP_MOD_PBM_SMART : NP_MOD_PBM_BASE;
   const target: CmdTarget = { kind: 'sockets', sockets: resolvePbmSockets(p, opts) };
   const cur      = intensityReg(p.intensityPercent);
   const duty     = dutyReg(p.dutyCyclePercent);
   const fc       = freqCode(p.frequencyHz);
 
-  let params: Uint8Array;
-  if (useSmart) {
-    // np_mod_pbm_smart_params_t: 6 bytes
-    const chMask = p.wavelength === '1064nm' ? 0x04 : 0x07;  // 0x07 = all 3 channels
-    params = new Uint8Array([fc, duty, cur, cur, cur, chMask]);
-  } else {
+  // Legacy channel names keep their exact v2 encoding.
+  if (p.wavelength === '660_808nm') {
     // np_mod_pbm_base_params_t: 4 bytes
-    params = new Uint8Array([fc, duty, cur, cur]);
+    return { modType: NP_MOD_PBM_BASE, target, params: new Uint8Array([fc, duty, cur, cur]) };
   }
-  return { modType, target, params };
+  if (p.wavelength === '1064nm' || p.wavelength === '660_808_1064nm') {
+    // np_mod_pbm_smart_params_t: 6 bytes
+    const chMask = p.wavelength === '1064nm' ? 0x04 : 0x07;
+    return { modType: NP_MOD_PBM_SMART, target, params: new Uint8Array([fc, duty, cur, cur, cur, chMask]) };
+  }
+
+  // One wavelength per block (NP-NPPS-REF-001 §3.1a): the rules pick the one
+  // channel that delivers it, and every other channel is commanded to 0, which
+  // the tile holds as gate-off (NP-FW-HEXTILE-001 §5.3). A value the rules do
+  // not accept is REFUSED. The old path sent anything that was not
+  // '660_808nm' to the smart encoder with all three channels enabled.
+  const rules = opts.wavelengthRules ?? DEFAULT_WAVELENGTH_RULES;
+  const r = resolvePbmChannels(p.wavelength, rules);
+  if (!r.ok) {
+    throw new Error(
+      r.reason === 'invalid'
+        ? `PBM wavelength '${p.wavelength}' is not a wavelength: write one value such as "810nm".`
+        : `No emitter channel delivers ${p.wavelength} under the wavelength rules in force ` +
+          `("${rules.name}"). The protocol is refused, not moved to the nearest channel; ` +
+          `edit the rules if that mapping is intended.`
+    );
+  }
+  switch (r.elements[0]) {
+    case 'led_660':  return { modType: NP_MOD_PBM_BASE, target, params: new Uint8Array([fc, duty, cur, 0]) };
+    case 'led_808':  return { modType: NP_MOD_PBM_BASE, target, params: new Uint8Array([fc, duty, 0, cur]) };
+    case 'led_1064': return { modType: NP_MOD_PBM_SMART, target, params: new Uint8Array([fc, duty, 0, 0, cur, 0x04]) };
+  }
 }
 
 function encodePBMIntranasal(p: PBMIntranasalParams): EncodedParams {

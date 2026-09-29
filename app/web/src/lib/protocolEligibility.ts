@@ -30,6 +30,11 @@ import {
 } from './helmetInventory';
 import { toSocketSet, unionSockets, unionZoneSockets } from './socketSet';
 import { t, tPlural } from './i18n';
+import {
+  DEFAULT_WAVELENGTH_RULES,
+  resolvePbmChannels,
+  type NPWavelengthRules,
+} from './wavelengthRules';
 
 // ─── Modality requirements ─────────────────────────────────────────────────────
 
@@ -71,6 +76,43 @@ export const MODALITY_REQUIREMENTS: Record<NPModalityTypeId, NPModalityRequireme
   tms: { socketBased: false, requires: [] },
   vibrotactile_40hz: { socketBased: false, requires: [] },
 };
+
+/**
+ * Why a PBM block's wavelength cannot be delivered by ANY module, whatever is
+ * fitted: the value is not a wavelength, or no wavelength rule accepts it.
+ * Swapping modules cannot fix either; editing the rules can fix the second.
+ */
+export interface NPWavelengthProblem {
+  value: string;
+  reason: 'invalid' | 'unmapped';
+  rulesName: string;
+}
+
+/**
+ * What ONE modality block needs from each socket it targets.
+ *
+ * For transcranial PBM this depends on the block, not the modality type: each
+ * block names one wavelength (NP-NPPS-REF-001 §3.1a), and the wavelength rules
+ * say which emitter element delivers it. So an 810 nm block needs a socket
+ * providing led_808 and nothing else; a legacy '660_808nm' block still needs
+ * both. Every other modality uses MODALITY_REQUIREMENTS unchanged.
+ */
+export function requirementForModality(
+  modality: NPProtocolModality,
+  rules: NPWavelengthRules = DEFAULT_WAVELENGTH_RULES,
+): { requirement: NPModalityRequirement; wavelengthProblem?: NPWavelengthProblem } {
+  const mp = modality.modalityParams;
+  const base = MODALITY_REQUIREMENTS[mp.type];
+  if (mp.type !== 'pbm_transcranial') return { requirement: base };
+  const r = resolvePbmChannels(mp.params.wavelength, rules);
+  if (!r.ok) {
+    return {
+      requirement: { socketBased: true, requires: [] },
+      wavelengthProblem: { value: mp.params.wavelength, reason: r.reason, rulesName: rules.name },
+    };
+  }
+  return { requirement: { socketBased: true, requires: r.elements.map(e => [e as NPElementType]) } };
+}
 
 // ─── Coverage ──────────────────────────────────────────────────────────────────
 
@@ -116,8 +158,8 @@ export function zoneCoverageFor(
   zone: NPZoneDefinition,
   modality: NPModalityTypeId,
   inventory: NPHelmetInventory,
+  requirement: NPModalityRequirement = MODALITY_REQUIREMENTS[modality],
 ): NPZoneCoverage {
-  const requirement = MODALITY_REQUIREMENTS[modality];
   const satisfied: number[] = [];
   const missing: number[] = [];
 
@@ -201,6 +243,10 @@ export interface NPSocketShortfall {
 
 export interface NPModalityShortfall {
   modality: NPModalityTypeId;
+  /** Index of the block in protocol.modalities. A protocol may hold several PBM blocks. */
+  blockIndex: number;
+  /** Set when no module can deliver this block's wavelength (see NPWavelengthProblem). */
+  wavelengthProblem?: NPWavelengthProblem;
   /** Zones the protocol asked for that have no usable socket at all. */
   unsupportedZones: string[];
   /** Zone references that name a zone absent from the NPPS namespace. */
@@ -315,16 +361,30 @@ export function evaluateProtocol(
    * A modality only clears targeting once a non-empty selection is supplied.
    */
   targeting?: ReadonlyMap<NPModalityTypeId, readonly number[]>,
+  /** The wavelength rules in force: the shipped defaults merged with the user's. */
+  rules: NPWavelengthRules = DEFAULT_WAVELENGTH_RULES,
 ): NPEligibility {
   const shortfalls: NPModalityShortfall[] = [];
   const requiresTargeting: NPModalityTypeId[] = [];
   const clinicianTargeted: NPModalityTypeId[] = [];
   let degraded = false;
 
-  for (const modality of protocol.modalities) {
+  for (const [blockIndex, modality] of protocol.modalities.entries()) {
     const type = modality.modalityParams.type;
-    const requirement = MODALITY_REQUIREMENTS[type];
-    if (!requirement?.socketBased) continue;
+    if (!MODALITY_REQUIREMENTS[type]?.socketBased) continue;
+    if (!modality.enabled) continue;
+    const { requirement, wavelengthProblem } = requirementForModality(modality, rules);
+
+    // No module delivers this wavelength under these rules. Coverage is moot —
+    // every socket would read as "missing" with no candidate module, which
+    // would send the operator hunting for a part that does not exist.
+    if (wavelengthProblem) {
+      shortfalls.push({
+        modality: type, blockIndex, wavelengthProblem,
+        unsupportedZones: [], unresolvedZones: [], sockets: [], coverage: [],
+      });
+      continue;
+    }
 
     // Patient-specific target: no predefined zone can be correct, so the
     // protocol stays blocked until an operator supplies sockets.
@@ -335,11 +395,12 @@ export function evaluateProtocol(
         requiresTargeting.push(type);
         continue;
       }
-      const coverage = coverageForSockets(`Clinician selection`, chosen, type, inventory);
+      const coverage = coverageForSockets(`Clinician selection`, chosen, requirement, inventory);
       if (coverage.satisfied.length === 0 || coverage.missing.length > 0) {
         if (coverage.satisfied.length > 0) degraded = true;
         shortfalls.push({
           modality: type,
+          blockIndex,
           unsupportedZones: coverage.satisfied.length === 0 ? [coverage.zoneName] : [],
           unresolvedZones: [],
           coverage: [coverage],
@@ -350,7 +411,7 @@ export function evaluateProtocol(
     }
 
     const { zones, unresolved } = targetZones(modality, namespace);
-    const coverage = zones.map(z => zoneCoverageFor(z, type, inventory));
+    const coverage = zones.map(z => zoneCoverageFor(z, type, inventory, requirement));
 
     const unsupportedZones = coverage.filter(c => c.satisfied.length === 0).map(c => c.zoneName);
     const partial = coverage.filter(c => c.satisfied.length > 0 && c.missing.length > 0);
@@ -368,6 +429,7 @@ export function evaluateProtocol(
 
     shortfalls.push({
       modality: type,
+      blockIndex,
       unsupportedZones,
       unresolvedZones: unresolved,
       coverage,
@@ -378,7 +440,7 @@ export function evaluateProtocol(
   }
 
   const blocking = shortfalls.filter(
-    s => s.unsupportedZones.length > 0 || s.unresolvedZones.length > 0,
+    s => s.unsupportedZones.length > 0 || s.unresolvedZones.length > 0 || s.wavelengthProblem,
   );
   const eligible = blocking.length === 0 && requiresTargeting.length === 0;
 
@@ -404,10 +466,9 @@ function isClinicianSelected(modality: NPProtocolModality): boolean {
 function coverageForSockets(
   label: string,
   sockets: readonly number[],
-  modality: NPModalityTypeId,
+  requirement: NPModalityRequirement,
   inventory: NPHelmetInventory,
 ): NPZoneCoverage {
-  const requirement = MODALITY_REQUIREMENTS[modality];
   const satisfied: number[] = [];
   const missing: number[] = [];
 
@@ -437,6 +498,16 @@ function targetingSummary(modalities: NPModalityTypeId[]): string {
 }
 
 function summarize(blocking: NPModalityShortfall[]): string {
+  // A wavelength nothing can deliver outranks a socket shortfall: re-fitting
+  // modules cannot fix it, so leading with "N sockets need re-fitting" would
+  // send the operator to the parts drawer for nothing.
+  const wl = blocking.find(s => s.wavelengthProblem)?.wavelengthProblem;
+  if (wl) {
+    return wl.reason === 'invalid'
+      ? t('WEB_ELIG_WAVELENGTH_INVALID', { 0: wl.value })
+      : t('WEB_ELIG_WAVELENGTH_UNMAPPED', { 0: wl.value, 1: wl.rulesName });
+  }
+
   const first = blocking[0];
 
   if (first.unresolvedZones.length > 0) {
@@ -461,6 +532,7 @@ export function evaluateEntry(
   entry: NPProtocolEntry,
   inventory: NPHelmetInventory | null,
   namespace: ReadonlyMap<string, NPZoneDefinition>,
+  rules: NPWavelengthRules = DEFAULT_WAVELENGTH_RULES,
 ): NPEligibility {
   if (!inventory) {
     return {
@@ -469,7 +541,7 @@ export function evaluateEntry(
     };
   }
   if (entry.kind === 'single') {
-    return evaluateProtocol(entry.protocol, inventory, namespace);
+    return evaluateProtocol(entry.protocol, inventory, namespace, undefined, rules);
   }
 
   // A composite is eligible when every layer it references is eligible. Layers

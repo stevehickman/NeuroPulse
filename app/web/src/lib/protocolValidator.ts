@@ -11,6 +11,7 @@ import {
 } from '../types/limits';
 import { NPHardwareLimits } from './hardwareLimits';
 import { t } from './i18n';
+import { parsePbmWavelength } from './wavelengthRules';
 
 // ─── Result builder ────────────────────────────────────────────────────────────
 
@@ -71,6 +72,17 @@ function validateModality(
   switch (p.type) {
     case 'pbm_transcranial': {
       const l = lim.pbmTranscranial;
+      // The wavelength must be ONE wavelength ("810nm") or a legacy channel name.
+      // Whether the fitted helmet can deliver it is eligibility, which depends on
+      // the modules and the wavelength rules (protocolEligibility.ts); whether
+      // the value means anything at all is validity, and is checked here.
+      if (parsePbmWavelength(p.params.wavelength).kind === 'invalid') {
+        issues.push(issue(
+          'error', 'pbm_transcranial', 'wavelength', t('VALIDATE_PARAM_WAVELENGTH'),
+          p.params.wavelength, '"810nm"', 'hardware',
+          t('VALIDATE_MSG_PBM_TRANSCRANIAL_WAVELENGTH', { 0: p.params.wavelength })
+        ));
+      }
       // Hardware limits
       if (p.params.dutyCyclePercent > hw.pbmDutyCycleMaxPercent) {
         issues.push(issue(

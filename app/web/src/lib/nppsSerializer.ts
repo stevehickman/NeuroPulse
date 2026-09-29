@@ -1,3 +1,4 @@
+import type { NPWavelengthRules } from './wavelengthRules';
 import {
   NPProtocolEntry,
   NPProtocolDefinition,
@@ -220,6 +221,9 @@ function serializeModality(m: NPProtocolModality, level: number): string {
   for (const field of serializeModalityFields(m.modalityParams)) {
     lines.push(`${p}${INDENT}${field}`);
   }
+  if ((m.interval.startOffsetSeconds ?? 0) > 0) {
+    lines.push(`${p}${INDENT}start: ${formatTime(m.interval.startOffsetSeconds!)}`);
+  }
   if (!isContinuous(m.interval)) {
     lines.push(`${p}${INDENT}interval_on: ${formatTime(m.interval.intervalOnSeconds)}`);
     lines.push(`${p}${INDENT}interval_off: ${formatTime(m.interval.intervalOffSeconds)}`);
@@ -399,6 +403,27 @@ export function serializeNPPSLimits(limits: NPLimitsSet): string {
   if (limits.cervicalVns) writeModalityBlock('cervical_vns', limits.cervicalVns as Record<string, unknown>);
   if (limits.vibrotactile40hz) writeModalityBlock('vibrotactile_40hz', limits.vibrotactile40hz as Record<string, unknown>);
 
+  lines.push('}');
+  return lines.join('\n');
+}
+
+/**
+ * Serialize a wavelength rule set as a `wavelength_rules` block
+ * (NP-NPPS-REF-001 §7a). parseNPPSFile() reads it back unchanged.
+ */
+export function serializeWavelengthRules(rules: NPWavelengthRules): string {
+  const lines: string[] = [];
+  lines.push(`wavelength_rules ${str(rules.name)} {`);
+  lines.push(`${INDENT}level: ${rules.level}`);
+  if (rules.description) lines.push(`${INDENT}description: ${str(rules.description)}`);
+  for (const c of rules.channels) {
+    lines.push('');
+    lines.push(`${INDENT}channel ${str(c.element)} {`);
+    lines.push(`${INDENT}${INDENT}nominal_nm: ${c.nominalNm}`);
+    lines.push(`${INDENT}${INDENT}min_nm: ${c.minNm}`);
+    lines.push(`${INDENT}${INDENT}max_nm: ${c.maxNm}`);
+    lines.push(`${INDENT}}`);
+  }
   lines.push('}');
   return lines.join('\n');
 }
