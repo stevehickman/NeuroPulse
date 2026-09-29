@@ -1,44 +1,53 @@
-protocol "PBM — Anxiety (Wang 2023, high-irradiance pulsed)" {
+protocol "PBM — Anxiety (Wang 2023, high-irradiance)" {
     id: "30000051-0000-0000-0000-000000000000"
-    description: "820nm PBM to the left DLPFC for generalized anxiety, after Wang 2023 (double-blind sham-controlled RCT, n=36): a 2-week course, HAMA reduced vs sham (p=0.021), sustained at 8 weeks. Grade B. Only the wavelength, the site and the course length are confirmed from the source. The irradiance (0.31 W/cm², from the §5 database entry), the mode, the session length and the sessions per week are NOT confirmed, because the full text has not been read; see the block notes."
+    description: "820nm PBM to the left DLPFC for generalized anxiety, as Wang 2023 ran it (double-blind sham-controlled RCT, n=36, 33 analysed): a continuous-wave laser at 310 mW/cm², a 1 cm spot at F5, four 4-minute exposures a day 5 minutes apart, on 14 consecutive days. HAMA fell more than sham (p=0.021) and stayed lower at 8 weeks; HAMA response 11/16 active vs 2/17 sham. Grade B. One session here is one day of that course; the 14-day schedule is the user's to keep, since the language has no course field. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 310 mW/cm² CW is inside the time-averaged ceiling at 820nm (≈348, CLAUDE.md §3)."
     author: "NeurOne"
-    version: "2.0"
+    version: "2.1"
     readonly: true
-    tags: ["pbm", "clinical", "anxiety", "dlpfc", "wang2023"]
+    tags: ["pbm", "clinical", "anxiety", "dlpfc", "cw", "wang2023"]
     conditions: ["Generalized Anxiety Disorder"]
-    references: [["Wang 2023, Brain Res Bull, doi:10.1016/j.brainresbull.2023.110682 — double-blind RCT, n=36, 820nm to the left DLPFC, 2-week course, HAMA reduced vs sham (p=0.021), sustained 8 wk. THIS protocol's source trial. Irradiance, session length, schedule and mode unconfirmed.", "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"], ["PBM protocol database §5 — Anxiety / GAD (Grade B), section-level parameter bands (0.03–0.31 W/cm², 10–36 J/cm², 10–20 min)", "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"]]
-    duration: 7m
+    references: [["Wang H, Song P et al. 2023, Brain Res Bull 200:110682, doi:10.1016/j.brainresbull.2023.110682 — double-blind sham-controlled RCT, n=36 (16 active and 17 sham completed); 820nm diverging continuous laser, 310 mW/cm², 1 cm diameter spot at F5 (left DLPFC); 4 × 4 min daily at 5-min intervals, 16 min/day, 14 consecutive days; HAMA reduced vs sham (p=0.021), sustained to the 8-week follow-up. THIS protocol's source (§2.2 of the paper).", "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"], ["PBM protocol database §5 — Anxiety / GAD (Grade B)", "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"]]
+    duration: 31m
+
+    # Everything below is from §2.2 of the paper (read 2026-09-29), except
+    # where marked.
+    #
+    # Timing: four 4-min exposures with 5 min between them. The last off-period
+    # falls after the session ends, so the session is 4 × 4 + 3 × 5 = 31 min.
+    #
+    # Dose at the scalp: 310 mW/cm² × 240 s = 74.4 J/cm² per exposure,
+    # 297.6 J/cm² per day. (The paper's 10.4 J is its own estimate of energy at
+    # the cortex: 4.5 % transmission over the 0.785 cm² spot.)
+    #
+    # Why this is refused, and why it is left refused. CLAUDE.md §3: a PBM
+    # ceiling refuses a protocol and never reshapes one. v1.0 and v2.0 of this
+    # file ran 10 Hz at 25 % duty for 7 min, which is not what Wang tested.
+    # The average term allows 310 at 820nm (200 × C_A ≈ 348; NP-HW-HEXTILE-001
+    # D-10); the 400 peak is not reached. What refuses it is the
+    # validator's 25 % duty cap (OI-HEXTILE-31) and U4 (OI-HEXTILE-30).
 
     pbm_transcranial {
-        # CONFIRMED from the source: 820nm, left DLPFC. The default wavelength
-        # rules deliver 820nm on the 808nm channel alone (NP-NPPS-REF-001 §4.1a).
         wavelength: "820nm"
-        zones: ["Frontal Left (excl. midline)"]
-        # Site fidelity gap: the DLPFC is a few centimetres across, and the
-        # finest frontal zone is a 20-socket half-lobe (OI-SESPWR-01, gated on
-        # REG-1). The earlier revision lit both frontal half-lobes ("forehead");
-        # the trial treated the left side only. The midline sockets are omitted
-        # so the left-only target does not spill into the right hemisphere
-        # (NP-OPT-PSF-001 §4; the lateralized-protocol audit in
-        # scripts/sync-socket-map.ts).
-
-        # UNCONFIRMED — carried from the earlier revision until the paper is
-        # read. The mode is not stated in anything read so far. The earlier
-        # note that R-4 forced pulsed operation was an inference from the
-        # ceiling, not the source, and is withdrawn: if Wang ran CW at 0.31
-        # W/cm², this protocol must say so and be refused (CLAUDE.md §3), not
-        # be pulsed to fit.
-        frequency: 10Hz
-        duty_cycle: 25%
-        # UNCONFIRMED irradiance: 310 mW/cm² is the §5 database figure. 77% is
-        # also PROVISIONAL AS A MAPPING — 310 ÷ 403 against the only stated
-        # anchor (NP-HW-HEXTILE-001 §4.3.1), which NP-SES-PWR-001 §2.3 flags
-        # as unestablished. Becomes `irradiance_mw_cm2: 310` when confirmed.
+        # The default wavelength rules deliver 820nm on the 808nm channel alone
+        # (NP-NPPS-REF-001 §4.1a).
+        frequency: 0Hz
+        duty_cycle: 100%
         intensity: 77%
-        # UNCONFIRMED duration: 7 min is DERIVED, not sourced. At the
-        # unconfirmed mode and irradiance above it is the longest exposure
-        # inside §5's own 10–36 J/cm² band:
-        #   310 mW/cm² × 25% duty = 77.5 mW/cm² average × 420 s = 32.5 J/cm²
-        # Replace it with the paper's session length.
+        # PROVISIONAL, NOT THE AUTHORED VALUE: 310 ÷ 403 against the only
+        # stated anchor (NP-HW-HEXTILE-001 §4.3.1), which NP-SES-PWR-001 §2.3
+        # flags as an "if". Becomes `irradiance_mw_cm2: 310`.
+        zones: ["Frontal Left (excl. midline)"]
+        # Site fidelity gap. Wang treated F5 — between F3 and F7 — with a
+        # 0.785 cm² spot. This zone is 17 modules, so it lights several hundred
+        # times the trial's area (OI-SESPWR-01). Whether F5 lies inside this
+        # zone or at its temporal edge is not known until the sockets are
+        # registered to 10-20 sites (REG-1). The midline sockets are omitted so
+        # the left-only target does not spill into the right hemisphere
+        # (NP-OPT-PSF-001 §4).
+        #
+        # Source difference: the trial used a laser; the tile uses LEDs.
+        interval_on: 4m
+        interval_off: 5m
+        repeat: 4
     }
 }
