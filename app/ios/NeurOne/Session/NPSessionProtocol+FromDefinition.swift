@@ -124,3 +124,31 @@ private extension NPVNSHRVParams.HRVProtocol {
         }
     }
 }
+
+// MARK: - Refusals (NP-NPPS-REF-001 §4.1a, §5)
+//
+// Compiler diagnostics, English like hubCompiler.ts's on the web.
+
+/// Why a PBM block's wavelength cannot be delivered. Thrown by the session compiler.
+struct NPWavelengthRefusal: Error, LocalizedError, Equatable {
+    let value: String
+    let reason: NPWavelengthRules.Refusal
+
+    var errorDescription: String? {
+        switch reason {
+        case .invalid:
+            return "PBM wavelength '\(value)' is not a wavelength: write one value such as \"810nm\"."
+        case .unmapped:
+            return "No emitter channel delivers \(value) under the wavelength rules in force. " +
+                "Refused, not moved to the nearest channel."
+        }
+    }
+}
+
+/// A block the session wire cannot express. Refused rather than flattened.
+struct NPUnsupportedTimingError: Error, LocalizedError, Equatable {
+    var errorDescription: String? {
+        "This protocol times a block with `start`, which the session wire cannot express yet. " +
+            "Refused, not reshaped."
+    }
+}

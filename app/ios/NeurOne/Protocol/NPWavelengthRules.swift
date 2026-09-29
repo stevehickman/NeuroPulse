@@ -5,7 +5,9 @@ import Foundation
 //
 // A protocol states the wavelength its source used ("810nm"). These rules say
 // which emitter channel, if any, may deliver it. A wavelength no rule accepts
-// maps to NOTHING: never the nearest channel, never every channel. iOS reads
+// maps to NOTHING: never the nearest channel, never every channel. The refusal
+// types are in Session/NPSessionProtocol+FromDefinition.swift, beside the compiler
+// that throws them. iOS reads
 // only the shipped defaults; editing the rules is done in the web app for now,
 // and `wavelength_rules` blocks in a script are accepted and ignored here.
 
@@ -24,13 +26,11 @@ struct NPWavelengthChannelRule: Equatable {
 }
 
 struct NPWavelengthRules: Equatable {
-    let name: String
     let channels: [NPWavelengthChannelRule]
 
     /// Mirrors protocols/predefined/00-wavelength-rules.npps: each channel's band in
     /// CLAUDE.md §3 widened 10 nm each side. An UNVALIDATED DEFAULT, not a safety parameter.
     static let `default` = NPWavelengthRules(
-        name: "NeurOne default wavelength mapping",
         channels: [
             NPWavelengthChannelRule(element: .led660, nominalNm: 660, minNm: 650, maxNm: 680),
             NPWavelengthChannelRule(element: .led808, nominalNm: 808, minNm: 798, maxNm: 840),
@@ -76,29 +76,5 @@ struct NPWavelengthRules: Equatable {
             return .failure(NPWavelengthRefusal(value: value, reason: .unmapped))
         }
         return .success([element])
-    }
-}
-
-/// Why a PBM block's wavelength cannot be delivered. Thrown by the session compiler.
-struct NPWavelengthRefusal: Error, LocalizedError, Equatable {
-    let value: String
-    let reason: NPWavelengthRules.Refusal
-
-    var errorDescription: String? {
-        switch reason {
-        case .invalid:
-            return "PBM wavelength '\(value)' is not a wavelength: write one value such as \"810nm\"."
-        case .unmapped:
-            return "No emitter channel delivers \(value) under the wavelength rules in force. " +
-                "Refused, not moved to the nearest channel."
-        }
-    }
-}
-
-/// A block the session wire cannot express. Refused rather than flattened.
-struct NPUnsupportedTimingError: Error, LocalizedError, Equatable {
-    var errorDescription: String? {
-        "This protocol times a block with `start`, which the session wire cannot express yet. " +
-            "Refused, not reshaped."
     }
 }

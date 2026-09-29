@@ -1,41 +1,57 @@
 protocol "PBM — Depression (Schiffer 2009, high-irradiance)" {
     id: "30000052-0000-0000-0000-000000000000"
-    description: "Bilateral DLPFC 810nm PBM for major depressive disorder at the irradiance of Schiffer 2009 (crossover): 250 mW/cm², 60 J/cm², remission 6/10 at 2 weeks. Grade B. This is the HIGH-IRRADIANCE arm of the §4 evidence, seven times Cassano 2018; see that protocol for the other end. MODE AND DURATION ARE ADAPTED, NOT REPRODUCED — the trial ran CW for 4 min, which R-4 does not permit at this irradiance; see the notes on the modality block."
+    description: "Single-session 810nm PBM for major depression, as Schiffer 2009 ran it (open pilot, n=10): an LED cluster, continuous wave, 250 mW/cm², 4 min at F3 and then 4 min at F4, 60 J/cm² per site. This is the HIGH-IRRADIANCE arm of the §4 evidence, seven times Cassano 2018; see that protocol for the other end. REFUSED ON THIS HARDWARE TODAY: CW at 250 mW/cm² exceeds the 200 mW/cm² per-channel time-averaged ceiling (CLAUDE.md §3), and the validator still caps duty at 25% (OI-HEXTILE-31). It is not reshaped to fit. Whether it becomes runnable is OI-HEXTILE-32."
     author: "NeurOne"
-    version: "1.0"
+    version: "2.0"
     readonly: true
-    tags: ["pbm", "clinical", "depression", "dlpfc", "pulsed", "schiffer2009"]
+    tags: ["pbm", "clinical", "depression", "dlpfc", "cw", "schiffer2009"]
     conditions: ["Major Depressive Disorder"]
-    references: [["Schiffer 2009 — crossover, 810nm, 250 mW/cm², 60 J/cm², 4 min, remission 6/10 at 2 wk. THIS protocol\'s source trial (irradiance and dose reproduced; mode and duration adapted, see block notes).", "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"], ["PBM protocol database §4 — Depression (Grade B), section-level bands 0.03–0.25 W/cm², dose target ≥60 J/cm²/site", "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"]]
-    duration: 16m
+    references: [["Schiffer F et al. 2009, Behav Brain Funct 5:46 — open pilot, n=10, single treatment; 810nm LED cluster, CW, 250 mW/cm², 4 min at F3 then 4 min at F4, 60 J/cm² per site. THIS protocol\'s source.", "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"], ["PBM protocol database §4 — Depression (Grade B), section-level bands 0.03–0.25 W/cm², dose target ≥60 J/cm²/site", "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"]]
+    duration: 8m
+
+    # Two blocks in series, one per site, as the trial ran them. Each wavelength
+    # value is the source's own; the default wavelength rules deliver 810nm on
+    # the 808nm channel alone (NP-NPPS-REF-001 §4.1a, §7a).
+    #
+    # Dose check: 250 mW/cm² × 240 s = 60.0 J/cm² per site, the stated dose.
+    #
+    # Why this is refused, and why it is left refused. CLAUDE.md §3: a PBM
+    # ceiling refuses a protocol and never reshapes one. The earlier revision
+    # of this file ran 10 Hz at 25% duty for 16 min to keep the dose under the
+    # ceiling. That is a different stimulus from the one Schiffer tested, so it
+    # is withdrawn. Adopting the reference skin limit in full (OI-HEXTILE-32)
+    # would allow 250 at 808nm (limit ≈328); the validator's 25% duty cap must
+    # also go (OI-HEXTILE-31), and U4 must be able to conduct CW (OI-HEXTILE-30).
+    #
+    # Site fidelity gap. F3 and F4 are single 10-20 sites. The finest frontal
+    # zones are the 20-socket half-lobes, so each block lights far more than
+    # its site (OI-SESPWR-01, gated on REG-1).
 
     pbm_transcranial {
-        # MODE IS FORCED BY R-4, NOT CHOSEN, AND THIS IS THE ONE PLACE THIS
-        # PROTOCOL DEPARTS FROM ITS TRIAL. Schiffer ran CW at 250 mW/cm² for
-        # 4 min: 250 × 240 s = 60.0 J/cm², exactly the stated dose. But
-        # 250 mW/cm² exceeds R-4\'s 200 mW/cm² CW ceiling, so that operating
-        # point is not available. Pulsed at 25% duty keeps the peak inside
-        # R-4\'s 400 mW/cm² and preserves the DOSE by extending the exposure:
-        #   250 × 25% = 62.5 mW/cm² average × 960 s = 60.0 J/cm².
-        # Irradiance and dose are the trial\'s; the 4 → 16 min exposure is not.
-        # Whether a 16-minute pulsed exposure is therapeutically equivalent to
-        # a 4-minute CW one at the same dose is NOT established by this source.
-        frequency: 10Hz
-        duty_cycle: 25%
+        wavelength: "810nm"
+        frequency: 0Hz
+        duty_cycle: 100%
         intensity: 62%
         # PROVISIONAL, NOT THE AUTHORED VALUE: 250 ÷ 403 against the only
         # stated anchor (NP-HW-HEXTILE-001 §4.3.1), which NP-SES-PWR-001 §2.3
         # flags as an "if". Becomes `irradiance_mw_cm2: 250`.
-        zones: ["Frontal Left", "Frontal Right"]
-        wavelength: "660_808nm"
-        # NIR-only fidelity gap: the trial used a single NIR wavelength, and
-        # this protocol delivers 660nm alongside it whether or not the evidence
-        # did. The constraint is in the LANGUAGE AND COMPILER, not the wire:
-        # np_mod_pbm_base_params_t already carries cur_a (660nm) and cur_b
-        # (808nm) as separate current registers, but NPPS has one `intensity`
-        # field per PBM block with no per-channel form, so hubCompiler.ts
-        # writes the same register value into both. The `wavelength` enum also
-        # has no 808-only value. Whether the tile's driver supports independent
-        # per-channel current is a separate, open question (OI-HEXTILE-07).
+        zones: ["Frontal Left"]
+        # F3
+        interval_on: 4m
+        interval_off: 0s
+        repeat: 1
+    }
+
+    pbm_transcranial {
+        wavelength: "810nm"
+        frequency: 0Hz
+        duty_cycle: 100%
+        intensity: 62%
+        zones: ["Frontal Right"]
+        # F4, after F3
+        start: 4m
+        interval_on: 4m
+        interval_off: 0s
+        repeat: 1
     }
 }

@@ -77,7 +77,7 @@ NeurOne-relevant note: the device's native 660 + 810 + 1064 nm stack, 40 Hz puls
 - **Schedule:** single session for acute boost; daily/near-daily ×1 week for durable multi-week gains.
 
 ### 4. Depression (major depressive disorder) — Grade B
-**Evidence:** Cassano 2018 (DB RCT, n=21): 823 nm CW, 36 mW/cm², up to 65 J/cm², 20–30 min, 16 sessions/8 wk → HAM-D effect size 0.9–1.5. Schiffer 2009 (crossover): 810 nm, 250 mW/cm², 60 J/cm², 4 min → remission 6/10 at 2 wk. Disner 2016 (sham RCT): 1064 nm right forehead, benefit contingent on attention bias. Barrett 2025 (sham RCT, n=60): 1064 nm adjunct → +30% symptom reduction over sham. Henderson & Morries 2017 (retrospective): high-power 810/980 nm → robust response in 36/39. **Quality nuance:** Iosifescu 2022 (n=54, DB) *negative* at 830 nm — attributable to sub-threshold dose; a minimum dose threshold is explicitly invoked by the authors.
+**Evidence:** Cassano 2018 (DB RCT, n=21): 823 nm CW, 36 mW/cm², up to 65 J/cm², 20–30 min, 16 sessions/8 wk → HAM-D effect size 0.9–1.5. Schiffer 2009 (open pilot, n=10, *Behav Brain Funct* 5:46): 810 nm LED cluster, CW, 250 mW/cm², 4 min at F3 then 4 min at F4, 60 J/cm² per site, one session → HAM-D improved at 2 and 4 wk. *This entry earlier said "crossover" and "remission 6/10 at 2 wk"; neither is confirmed from the paper.* Disner 2016 (sham RCT): 1064 nm right forehead, benefit contingent on attention bias. Barrett 2025 (sham RCT, n=60): 1064 nm adjunct → +30% symptom reduction over sham. Henderson & Morries 2017 (retrospective): high-power 810/980 nm → robust response in 36/39. **Quality nuance:** Iosifescu 2022 (n=54, DB) *negative* at 830 nm — attributable to sub-threshold dose; a minimum dose threshold is explicitly invoked by the authors.
 **Protocol:**
 - **Wavelength:** 810–830 nm bilateral DLPFC; optionally 1064 nm to right PFC.
 - **Mode:** CW or 40 Hz.
@@ -86,7 +86,7 @@ NeurOne-relevant note: the device's native 660 + 810 + 1064 nm stack, 40 Hz puls
 - **Schedule:** 2–3×/week, 6–8 weeks; long-term augmentation tolerated.
 
 ### 5. Anxiety / GAD — Grade B
-**Evidence:** Maiello 2019 (open, n=15): 830 nm, 30 mW/cm², 36 J/cm², 20 min daily 8 wk → SIGH-A 17.3→8.5 (d=1.47). Wang 2023 (DB RCT, n=36): 820 nm, 0.31 W/cm², forehead → HAMA reduced vs sham (p=0.021), sustained 8 wk. Right-PFC 1064 nm (Barrett lineage) also anxiolytic.
+**Evidence:** Maiello 2019 (open, n=15): 830 nm, 30 mW/cm², 36 J/cm², 20 min daily 8 wk → SIGH-A 17.3→8.5 (d=1.47). Wang 2023 (DB RCT, n=36, *Brain Res Bull*, doi:10.1016/j.brainresbull.2023.110682): 820 nm to the **left DLPFC**, 2-week course → HAMA reduced vs sham (p=0.021), sustained 8 wk. *The 0.31 W/cm² irradiance, session length, sessions per week and CW or pulsed are not confirmed, because the full text has not been read. This entry earlier said "forehead"; the abstract names the left DLPFC.* Right-PFC 1064 nm (Barrett lineage) also anxiolytic.
 **Protocol:** 820–830 nm (or right-PFC 1064 nm); CW or 10 Hz; 0.03–0.31 W/cm²; 10–36 J/cm²; 10–20 min; right or bilateral PFC; daily, 8 weeks.
 
 ### 6. Traumatic brain injury (chronic) & post-concussion syndrome — Grade B
