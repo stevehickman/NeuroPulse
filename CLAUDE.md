@@ -172,6 +172,8 @@ one authored. A protocol outside a ceiling is rejected before it is signed, and 
 deliver one inside them, the hardware is redesigned. The 25 % duty cap is retired (Rev 59).
 
 **What the figures rest on** (`docs/np_bib_pbmirr_001.md`):
+- **Each wavelength is independently controlled, but not independent for safety** (principal,
+  2026-09-29). A protocol commands each wavelength on its own; the safety terms still sum them.
 - **The average is the bound.** The laser skin exposure limit, 200 × C_A mW/cm² time-averaged, is the
   conventional reference for LED arrays, not a legal limit. It adds across wavelengths on the same
   tissue. C_A is 1 at 660 nm, ≈ 1.64 at 808 nm and 5 at 1064 nm. These are working-knowledge figures,

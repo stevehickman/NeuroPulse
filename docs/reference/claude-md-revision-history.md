@@ -58,6 +58,9 @@ wavelengths on the same tissue**. So:
   to ≈ 329 at 808 nm. The C_A figures are unverified until `OI-BIBPBM-01`.
 - **Still a relaxation, and stated as one.** A single-channel pulsed protocol may now average 200
   where the old rule allowed 100. At 660 nm that is the reference exactly, with no margin.
+- **Each wavelength is independently controlled, but not independent for safety** (principal,
+  2026-09-29). This was added to the same paragraph before merge, because it is the rule the
+  per-wavelength language change will be built against.
 - **The 42 °C attribution is corrected.** IEC 60601-1 states 43 °C (`OI-BIBPBM-03`), and the value
   itself is unchanged.
 
