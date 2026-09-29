@@ -167,7 +167,7 @@ private fun PbmTranscranial(p: NPPBMTranscranialParams, on: (NPPBMTranscranialPa
     // offers the authored zone names plus clinician_selected; multi-zone targets
     // are authored in .npps until the multi-select picker lands (NP-CFG-UI-001).
     ZoneDropdown(p.target) { on(p.copy(target = it)) }
-    EnumDropdown(stringResource(R.string.modality_wavelength), p.wavelength, NPPBMTranscranialParams.Wavelength.entries, { it.rawValue }) { on(p.copy(wavelength = it)) }
+    EnumDropdown(stringResource(R.string.modality_wavelength), p.wavelength, (NPPBMTranscranialParams.Wavelength.entries + p.wavelength).distinct(), { it.rawValue }) { on(p.copy(wavelength = it)) }
 }
 
 @Composable

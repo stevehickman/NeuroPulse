@@ -6,6 +6,8 @@ import life.neurone.core.protocol.NPPBMTranscranialParams
 import life.neurone.core.protocol.NPProtocolDefinition
 import life.neurone.core.protocol.NPTimingMode
 import life.neurone.core.protocol.NPVNSHRVParams
+import life.neurone.core.protocol.NPPbmChannelResolution
+import life.neurone.core.protocol.NPWavelengthRulesEngine
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -51,6 +53,30 @@ data class NPSessionProtocol(
             }
             val configs = mutableListOf<ModalityConfig>()
             for (m in definition.modalities.filter { it.enabled }) {
+                // The wire has no per-block timing: every config runs from 0. A block
+                // with `start` would run at the wrong time, so it is refused, not
+                // flattened (NP-NPPS-REF-001 §5; per-block timing lands with
+                // OI-AND-WIRE-01's shared schema).
+                if (m.interval.startOffsetSeconds > 0) {
+                    throw IllegalArgumentException(
+                        "This protocol times a block with `start`, which the session wire cannot " +
+                            "express yet. Refused, not reshaped.",
+                    )
+                }
+                val pbm = m.params as? NPModalityParams.PbmTranscranial
+                if (pbm != null) {
+                    val r = NPWavelengthRulesEngine.resolveChannels(pbm.params.wavelength.rawValue)
+                    if (r is NPPbmChannelResolution.Refused) {
+                        throw IllegalArgumentException(
+                            if (r.reason == "invalid") {
+                                "PBM wavelength '${r.value}' is not a wavelength: write one value such as \"810nm\"."
+                            } else {
+                                "No emitter channel delivers ${r.value} under the wavelength rules in force. " +
+                                    "Refused, not moved to the nearest channel."
+                            },
+                        )
+                    }
+                }
                 when (val p = m.params) {
                     is NPModalityParams.PbmTranscranial -> configs.add(
                         ModalityConfig.PbmTranscranial(

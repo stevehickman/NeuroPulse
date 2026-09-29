@@ -96,6 +96,9 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
                     "limits" -> entries.add(NPProtocolEntry.Limits(parseLimitsBlock()))
                     "zone" -> entries.add(NPProtocolEntry.Zone(parseZoneBlock()))
                     "condition" -> entries.add(NPProtocolEntry.Condition(parseConditionBlock()))
+                    // NP-NPPS-REF-001 §7a. Accepted and not consumed on Android: this
+                    // runtime compiles against the shipped default rules only.
+                    "wavelength_rules" -> skipNamedBlock()
                     else -> throw NPPSError("Unexpected keyword: ${cur.value}", currentLine())
                 }
             } else {
@@ -106,6 +109,23 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             }
         }
         return entries
+    }
+
+    /** Consume `<keyword> "Name" { … }` without interpreting it, braces balanced. */
+    private fun skipNamedBlock() {
+        advance() // the block keyword
+        parseString()
+        expect(NPPSToken.LBrace)
+        var depth = 1
+        while (depth > 0) {
+            when (currentToken()) {
+                is NPPSToken.Eof -> throw NPPSError("Unterminated block", currentLine())
+                is NPPSToken.LBrace -> depth++
+                is NPPSToken.RBrace -> depth--
+                else -> {}
+            }
+            advance()
+        }
     }
 
     // MARK: Limits block -----------------------------------------------------
@@ -678,10 +698,15 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             is NPPSFieldValue.NumberWithUnit -> repeatCount = rv.value.toInt()
             else -> { /* no repeat / other → null */ }
         }
+        // `start` (NP-NPPS-REF-001 §5): offset of the block's first on-period.
+        // A negative offset is an error, as in the web reference — never clamped to 0.
+        val startOffset = fields["start"]?.asTime ?: 0
+        if (startOffset < 0) throw NPPSError("start must not be negative", currentLine())
         val interval = NPIntervalConfig(
             intervalOnSeconds = intervalOn,
             intervalOffSeconds = intervalOff,
             repeatCount = repeatCount,
+            startOffsetSeconds = startOffset,
         )
 
         val params = buildParams(name, fields)
@@ -734,13 +759,12 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
                     }
                     else -> { /* absent — keeps the default named target */ }
                 }
+                // Carried exactly as written (NP-NPPS-REF-001 §4.1a). This used to map
+                // any unrecognised value to 660_808nm, which silently changed the
+                // protocol; a value that is not a wavelength, or that no rule maps, is
+                // refused when the session is compiled instead.
                 fields["wavelength"]?.asIdent?.let { w ->
-                    p.wavelength = when (w) {
-                        "660_808nm" -> NPPBMTranscranialParams.Wavelength.BASE_660_808NM
-                        "1064nm" -> NPPBMTranscranialParams.Wavelength.SMART_1064NM
-                        "660_808_1064nm" -> NPPBMTranscranialParams.Wavelength.TRI_660_808_1064
-                        else -> NPPBMTranscranialParams.Wavelength.BASE_660_808NM
-                    }
+                    p.wavelength = NPPBMTranscranialParams.Wavelength(w)
                 }
                 return NPModalityParams.PbmTranscranial(p)
             }

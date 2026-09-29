@@ -34,7 +34,7 @@ struct NPPSLexer {
     private var pos: Int = 0
     private var line: Int = 1
 
-    private static let keywords: Set<String> = ["protocol", "composite", "layer", "limits", "zone", "condition"]
+    private static let keywords: Set<String> = ["protocol", "composite", "layer", "limits", "zone", "condition", "wavelength_rules"]
     private static let units: Set<String> = ["Hz", "mA", "G", "mW_cm2", "m", "s", "h", "%"]
 
     init(_ text: String) {
@@ -227,6 +227,10 @@ struct NPPSParser {
                     entries.append(.zone(try parseZoneBlock()))
                 } else if kw == "condition" {
                     entries.append(.condition(try parseConditionBlock()))
+                } else if kw == "wavelength_rules" {
+                    // NP-NPPS-REF-001 §7a. Accepted and ignored on iOS: this runtime
+                    // compiles against the shipped default rules only.
+                    try skipNamedBlock()
                 } else {
                     throw NPPSError(message: "Unexpected keyword: \(kw)", line: currentLine)
                 }
@@ -860,11 +864,17 @@ struct NPPSParser {
             else if case .number(let n) = rv { repeatCount = Int(n) }
             else if case .numberWithUnit(let n, _) = rv { repeatCount = Int(n) }
         }
-        let interval = NPIntervalConfig(
+        var interval = NPIntervalConfig(
             intervalOnSeconds: intervalOn,
             intervalOffSeconds: intervalOff,
             repeatCount: repeatCount
         )
+        // `start` (NP-NPPS-REF-001 §5): offset of the block's first on-period. A
+        // negative offset is an error, as in the web reference — never clamped to 0.
+        if let start = fields["start"].flatMap({ $0.asTime }) {
+            if start < 0 { throw NPPSError(message: "start must not be negative", line: blockLine) }
+            if start > 0 { interval.startOffsetSeconds = start }
+        }
 
         let params = try buildParams(name: name, fields: fields, line: blockLine)
         return NPProtocolModality(params: params, interval: interval, enabled: true)
@@ -941,13 +951,12 @@ struct NPPSParser {
             if let v = fields["zones"] {
                 p.target = try parsePBMTarget(v, line: line)
             }
+            // Carried exactly as written (NP-NPPS-REF-001 §4.1a). This used to map any
+            // unrecognised value to 660_808nm, which silently changed the protocol; a
+            // value that is not a wavelength, or that no rule maps, is refused when the
+            // session is compiled instead.
             if let v = fields["wavelength"]?.asIdent {
-                switch v {
-                case "660_808nm":      p.wavelength = .base660_808nm
-                case "1064nm":         p.wavelength = .smart1064nm
-                case "660_808_1064nm": p.wavelength = .tri660_808_1064
-                default:               p.wavelength = .base660_808nm
-                }
+                p.wavelength = NPPBMTranscranialParams.Wavelength(rawValue: v)
             }
             return .pbmTranscranial(p)
 
@@ -1250,6 +1259,28 @@ struct NPPSParser {
             advance()
         } else {
             throw NPPSError(message: "Expected \(token) but got \(currentToken)", line: currentLine)
+        }
+    }
+
+    /// Consume `<keyword> "Name" { … }` without interpreting it, braces balanced.
+    /// Used for `wavelength_rules`, which iOS accepts and does not consume.
+    mutating private func skipNamedBlock() throws {
+        advance() // the block keyword
+        _ = try parseString()
+        try expect(.lbrace)
+        var depth = 1
+        while depth > 0 {
+            switch currentToken {
+            case .eof:
+                throw NPPSError(message: "Unterminated block", line: currentLine)
+            case .lbrace:
+                depth += 1
+            case .rbrace:
+                depth -= 1
+            default:
+                break
+            }
+            advance()
         }
     }
 
@@ -1578,6 +1609,9 @@ struct NPPSSerializer {
         var lines: [String] = []
         lines.append("\(mod.modalityType.rawValue) {")
         lines.append(contentsOf: serializeParams(mod.params).map { "    \($0)" })
+        if let start = mod.interval.startOffsetSeconds, start > 0 {
+            lines.append("    start: \(formatTime(start))")
+        }
         if !mod.interval.isContinuous {
             lines.append("    interval_on: \(formatTime(mod.interval.intervalOnSeconds))")
             lines.append("    interval_off: \(formatTime(mod.interval.intervalOffSeconds))")

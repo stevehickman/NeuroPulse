@@ -210,6 +210,9 @@ class NPPSSerializer {
         val lines = ArrayList<String>()
         lines.add("${mod.modalityType.rawValue} {")
         serializeParams(mod.params).forEach { lines.add("    $it") }
+        if (mod.interval.startOffsetSeconds > 0) {
+            lines.add("    start: ${formatTime(mod.interval.startOffsetSeconds)}")
+        }
         if (!mod.interval.isContinuous) {
             lines.add("    interval_on: ${formatTime(mod.interval.intervalOnSeconds)}")
             lines.add("    interval_off: ${formatTime(mod.interval.intervalOffSeconds)}")
