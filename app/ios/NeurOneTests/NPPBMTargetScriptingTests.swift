@@ -64,7 +64,11 @@ final class NPPBMTargetScriptingTests: XCTestCase {
         // The regression this whole change exists for. Before: parsed as `.all`.
         let target = try parseTarget(zonesLine: #"zones: ["Frontal Right (excl. midline)"]"#)
         let mask = try target.resolve()
-        XCTAssertEqual(mask.socketIDs, [3, 6, 9, 10, 14, 15, 18, 19])
+        // Frontal Right minus midline 2, 13, 29 — every one of these has x > 0.
+        // Until 2026-09-29 this pinned [3, 6, 9, 10, 14, 15, 18, 19], a retired
+        // numbering in which 6, 10, 18 and 19 are LEFT-hemisphere sockets.
+        XCTAssertEqual(mask.socketIDs,
+                       [3, 7, 8, 9, 14, 15, 16, 21, 22, 23, 24, 30, 31, 32, 38, 39, 40])
         XCTAssertLessThan(mask.socketCount, SocketLattice.socketCount,
                           "a lateralized target must not light the whole vault")
     }

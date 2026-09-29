@@ -35,9 +35,13 @@ protocol "Memory Boost" {
         # the session run the audio / EEG / HRV channels only.
         zones: ["Frontal Right (excl. midline)"]
         # Yao 2022 stimulated a SINGLE right prefrontal site (F4). This zone is
-        # 8 modules (~111 cm2) and is the narrowest right-lateralized zone that
+        # 17 modules (~236 cm2) and is the narrowest right-lateralized zone that
         # exists pending gate REG-1 (10-20 socket registration). Spatial
         # generalisation beyond right F4 is not established by the source.
+        # Until 2026-09-29 the zone listed 8 sockets from a retired numbering,
+        # four of them left-hemisphere: this protocol drove left-frontal
+        # modules while claiming a right-only target. Re-cut to Frontal Right
+        # minus midline (00-zones.npps); the power draw more than doubles.
         wavelength: "1064nm"
         # REQUIRES A 1064nm-CAPABLE (T1-C / SMART) MODULE. On a base T1-A build
         # this protocol's PBM channel is not available. This is a change in the
@@ -50,7 +54,7 @@ protocol "Memory Boost" {
         #      (OI-HEXTILE-21).
         #  (2) DOSE - firmware caps this channel at 36 J/cm2/session (OI-SES-01)
         #      against the literature's 60 J/cm2/site.
-        #  (3) AREA - ~111 cm2 against a single ~13.6 cm2 evidence site.
+        #  (3) AREA - ~236 cm2 against a single ~13.6 cm2 evidence site.
         # Same disposition as clinical-03-pbm-cognitive-1064: state the gap,
         # withhold any evidence-grade or gold-standard claim. See
         # docs/status/pending-decisions.md Section 13.2c.
