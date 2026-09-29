@@ -114,7 +114,7 @@ The compiler does not resolve it: `freqCode(0)` emits `0x00` (CW) and `dutyReg(2
 
 **This is the largest finding in the document and it is not about power.**
 
-The zone vocabulary in `protocols/predefined/00-zones.npps` offers 14 zones, of which the smallest are 5 sockets:
+The zone vocabulary in `protocols/predefined/00-zones.npps` offers 15 zones, of which the smallest are 5 sockets:
 
 | Zone | Sockets | | Zone | Sockets |
 |---|---|---|---|---|
@@ -122,8 +122,9 @@ The zone vocabulary in `protocols/predefined/00-zones.npps` offers 14 zones, of 
 | Motor / SMA | 7 | | Posterior | 33 |
 | Frontal Right (excl. midline) | 8 | | Frontal | 37 |
 | Parietal L/R | 13 | | Vault (excl. Occipital) · All | 71 · 80 |
+| Frontal Left (excl. midline) | 17 | | | |
 
-**There is no DLPFC zone, no F3/F4 zone, and no zone corresponding to any single 10-20 site.** The finest frontal targeting available is a 20-socket half-lobe.
+**There is no DLPFC zone, no F3/F4 zone, and no zone corresponding to any single 10-20 site.** The finest frontal targeting available is a 20-socket half-lobe (17 without its midline sockets, the zone `clinical-05-pbm-anxiety-wang` uses since 2026-09-29).
 
 Against that, `docs/pbm_neuro_protocols.md` MASTER SUMMARY specifies sites at 10-20 resolution — *"Bilateral DLPFC (F3/F4)"* for depression, *"Right (or bilateral) PFC"* for cognitive enhancement, *"Prefrontal (F3/F4)"* for MCI. `clinical-04-pbm-depression.npps` is named **"PBM — Depression (DLPFC)"** and targets `["Frontal Left", "Frontal Right"]` — **37 sockets, ~9× the area its own title names.**
 

@@ -215,6 +215,12 @@ zone "Frontal Right (excl. midline)" {
     sockets: [3, 6, 9, 10, 14, 15, 18, 19]
 }
 
+zone "Frontal Left (excl. midline)" {
+    id: "4000000F-0000-0000-0000-000000000000"
+    description: "Frontal Left with the three frontal midline sockets (2, 13, 29) omitted; every other Frontal Left socket is kept, including the half-pitch ones beside the midline. A DIS-INCLUSION zone in the sense of the PR #210 membership ruling. Exists for clinical-05-pbm-anxiety-wang (Wang 2023, left DLPFC only), which the lateralized-protocol audit flagged: the midline modules would put half their cortical energy into the right hemisphere (NP-OPT-PSF-001 §4). The residual spill from the retained half-pitch sockets has not been modelled for this zone or for 820nm."
+    sockets: [1, 4, 5, 6, 10, 11, 12, 17, 18, 19, 20, 26, 27, 28, 35, 36, 37]
+}
+
 zone "Motor / SMA" {
     id: "4000000D-0000-0000-0000-000000000000"
     description: "Head sites for Parkinson's transcranial PBM. DERIVED FROM THE PROTOCOL, not from lobe boundaries: clinical-08-pbm-parkinsons.npps targets the head 'bilateral, midline over SMA/motor' (pbm_neuro_protocols.md §8, Grade C — Liebert 2021/2024) and explicitly not the whole vault, because whole-head irradiation would over-deliver well beyond the evidence. Primary motor cortex is the precentral gyrus at the central sulcus; the supplementary motor area is medial frontal just anterior to it. Row r4 sits at 39.3% of the nasion-inion arc — the precentral motor strip — and is the only row over the motor representation. This zone is that row (width 9) minus its two temporal sockets (25, 33), which are lateral to the motor representation: 26, 27, 28 (left), 29 (midline, over the SMA), 30, 31, 32 (right). Balanced bilateral with a midline site, exactly as the protocol requires. PROVISIONAL — final registration depends on gate REG-1 (NP-HEX-ZM-001 §7). Confirm against the shell CAD before any clinical dosing claim."

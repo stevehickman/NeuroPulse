@@ -746,13 +746,15 @@ const AGGREGATES: Record<string, string[]> = {
  * sockets (PROVISIONAL pending REG-1). "Frontal Right (excl. midline)" is
  * "Frontal Right" minus the shared midline sockets, for a lateralized protocol
  * that must stay off the midline (the PBM optical-resolution floor,
- * np_opt_psf_001). Both still have to reference real, deduplicated sockets —
+ * np_opt_psf_001). "Frontal Left (excl. midline)" is its left counterpart, for
+ * the left-DLPFC protocol clinical-05. All still have to reference real, deduplicated sockets —
  * they are exempt only from the union check, and must be listed here rather than
  * silently skipped.
  */
 const NON_UNION_ZONES = new Set([
   "Motor / SMA",
   "Frontal Right (excl. midline)",
+  "Frontal Left (excl. midline)",
 ]);
 
 /**
