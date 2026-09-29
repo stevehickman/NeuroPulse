@@ -190,7 +190,8 @@ The Zone Modules panel lists the predefined zones from `00-zones.npps`:
 | Posterior | Union of Parietal + Occipital (both hemispheres) |
 | Vault (excl. Occipital) | Union of Frontal + Temporal + Parietal — the "whole-head" PBM evidence site list |
 | Motor / SMA | Bilateral + midline strip over the precentral/SMA region (Parkinson's protocol) |
-| Frontal Right (excl. midline) | Frontal Right minus its 3 midline sockets — for single-hemisphere-only evidence |
+| Frontal Right (excl. midline) | Frontal Right minus its 3 midline sockets (2, 13, 29) — for single-hemisphere-only evidence |
+| Frontal Left (excl. midline) | Frontal Left minus the same 3 midline sockets — for single-hemisphere-only evidence |
 | All | Every socket on the helmet |
 
 **To install modules across a zone:**

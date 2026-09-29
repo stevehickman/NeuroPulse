@@ -2,8 +2,11 @@
 
 **Project:** NeurOne
 **Document:** NP-OPT-PSF-001
-**Revision:** 1
-**Date:** 2026-07-20
+**Revision:** 2
+**Date:** 2026-09-29 (Rev 1: 2026-07-20)
+**Revision note:** Rev 2 (2026-09-29): zone figures re-run on the current socket lattice with
+signed x read from `protocols/predefined/00-zones.npps`. The Rev 1 zone figures (16.3% / 3.6%,
+78%) were computed on a retired socket numbering and are marked superseded in place (§2.2, §4, §4.1)
 **Status:** ACTIVE — modelling result, not a measurement
 **Author:** NeurOne Systems
 **References:** NP-HEX-ZM-001 Rev 1 §3 (module geometry); `docs/pbm_neuro_protocols.md` §3; `docs/np_bib_1064_001.md`; `protocols/predefined/00-zones.npps`; PR #210 (zone membership ruling)
@@ -89,13 +92,20 @@ to one side. Both are fixed; the assertion is what would catch a recurrence.
 The CSF sweep matters most and was added after review pointed out that the original ±30% μs′
 sweep was probing the *insensitive* axis:
 
-| Scenario | Resolution floor (§3) | `Frontal Right` contralateral | narrowed |
-|---|---|---|---|
-| nominal | 26.2 mm | 16.3% | 3.6% |
-| μs′ −30% | 28.1 mm | 16.5% | 3.9% |
-| μs′ +30% | 24.9 mm | 16.1% | 3.4% |
-| **CSF 1 mm** | **24.0 mm** | 15.9% | 3.2% |
-| **CSF 4 mm** | **30.5 mm** | 16.9% | 4.5% |
+| Scenario | Resolution floor (§3) | ~~`Frontal Right` contralateral~~ *(superseded 2026-09-29: retired numbering)* | ~~narrowed~~ *(superseded 2026-09-29: retired numbering)* | `Frontal Right` contralateral, W=40, inclusive (20) → excl. midline (17), 2026-09-29 | W=34, same |
+|---|---|---|---|---|---|
+| nominal | 26.2 mm | ~~16.3%~~ | ~~3.6%~~ | **9.0% → 1.7%** | 9.3% → 2.1% |
+| μs′ −30% | 28.1 mm | ~~16.5%~~ | ~~3.9%~~ | 9.1% → 1.9% | 9.5% → 2.4% |
+| μs′ +30% | ~~24.9 mm~~ 25.0 mm | ~~16.1%~~ | ~~3.4%~~ | 8.9% → 1.6% | 9.2% → 2.0% |
+| **CSF 1 mm** | **24.0 mm** | ~~15.9%~~ | ~~3.2%~~ | 8.8% → 1.5% | 9.1% → 1.9% |
+| **CSF 4 mm** | **30.5 mm** | ~~16.9%~~ | ~~4.5%~~ | 9.4% → 2.2% | 9.8% → 2.7% |
+
+*2026-09-29 rerun (2×10⁶ photons per scenario).* The two struck columns were computed on a retired
+socket numbering, in which the listed `Frontal Right (excl. midline)` sockets 6, 10, 18 and 19 sat on
+the right; on the current lattice they are on the left (§4). The replacement columns use the current
+zone file. The resolution floors are unchanged except μs′ +30%, which reruns at **25.0 mm**
+(Rev 1 recorded 24.9 mm); the difference is within the seed tolerance above and changes no
+conclusion.
 
 Sub-arachnoid CSF is a low-scattering light pipe (μs′ = 0.03) and varies 1–5 mm across subjects
 and sulcal position, so it moves the answer about twice as much as a ±30% change in scattering
@@ -116,6 +126,10 @@ dominates. Doubling μs′ globally moves the module edge width by under 1 mm.
   attenuation.
 - **Socket pitch is taken as equal to module flat-to-flat width**, per the row structure in
   `scripts/sync-socket-map.ts`. Socket x/y remain PROVISIONAL until replaced from shell CAD.
+- **Zone membership and socket side come from the zone file** (2026-09-29). Since Rev 2 the
+  script reads each zone's socket list from `protocols/predefined/00-zones.npps` and uses each
+  socket's **signed** x (negative = left), not a hand-copied list and |x|. The Rev 1 zone figures
+  came from a hand-copied list in a retired numbering and are superseded (§2.2, §4, §4.1).
 - **This is a model, not a phantom measurement.** It is the first quantitative bound the repo has,
   and it should be checked against a tissue phantom before any external claim rests on it.
 
@@ -207,26 +221,46 @@ Applied to the `Frontal Right` socket list, weighting every module equally:
 
 | Zone | Sockets | Contralateral fraction at cortex |
 |---|---|---|
-| `Frontal Right` (inclusive, as shipped) | 11: `1, 3, 5, 6, 9, 10, 13, 14, 15, 18, 19` | **16.3%** (W=40) / 16.9% (W=34) |
-| `Frontal Right (excl. midline)` | 8: `3, 6, 9, 10, 14, 15, 18, 19` | **3.6%** (W=40) / 4.4% (W=34) |
-| **Reduction delivered by narrowing** | — | **12.7 pp absolute — 78% relative** (W=34: 12.5 pp, 74%) |
+| ~~`Frontal Right` (inclusive, as shipped)~~ *(superseded 2026-09-29: retired numbering)* | ~~11: `1, 3, 5, 6, 9, 10, 13, 14, 15, 18, 19`~~ | ~~16.3% (W=40) / 16.9% (W=34)~~ |
+| ~~`Frontal Right (excl. midline)`~~ *(superseded 2026-09-29: retired numbering; 6, 10, 18, 19 are left-side on the current lattice)* | ~~8: `3, 6, 9, 10, 14, 15, 18, 19`~~ | ~~3.6% (W=40) / 4.4% (W=34)~~ |
+| ~~Reduction delivered by narrowing~~ *(superseded 2026-09-29)* | — | ~~12.7 pp absolute — 78% relative (W=34: 12.5 pp, 74%)~~ |
+| `Frontal Right` (inclusive), current lattice, 2026-09-29 | 20, as listed in `00-zones.npps` | **9.0%** (W=40) / 9.3% (W=34) |
+| `Frontal Right (excl. midline)`, current lattice, 2026-09-29 | 17: `Frontal Right` minus the x = 0 sockets `2, 13, 29` | **1.7%** (W=40) / 2.1% (W=34) |
+| **Reduction delivered by narrowing**, 2026-09-29 | — | **7.3 pp absolute — ≈81% relative** (W=34: 7.2 pp, ≈77%) |
 
-Across the full sensitivity sweep the inclusive figure stays in 15.9–16.9% and the narrowed figure
-in 3.2–4.5%, so the relative reduction is 74–80% on every scenario run.
+~~Across the full sensitivity sweep the inclusive figure stays in 15.9–16.9% and the narrowed figure
+in 3.2–4.5%, so the relative reduction is 74–80% on every scenario run.~~ *(superseded 2026-09-29:
+retired numbering.)* **Current (2026-09-29):** across the full sensitivity sweep (§2.2, both widths)
+the inclusive figure stays in 8.8–9.8% and the excl.-midline figure in 1.5–2.7%, so the relative
+reduction is ≈72–83% on every scenario run.
 
 ### 4.1 What this does to PR #210's two inferences
 
+> **Flag (2026-09-29): the zone arithmetic below was done on a retired socket numbering.** The
+> 16.3%, 3.6% and 78% figures and PR #210's "3 of 11 modules" count all assumed the 11-socket
+> parent and the 8-socket `[3, 6, 9, 10, 14, 15, 18, 19]` subset; sockets 6, 10, 18 and 19 are
+> left-side on the current lattice. They are struck through in place, not deleted. On the current
+> lattice `Frontal Right` has 20 sockets, 3 of them on the midline (`2, 13, 29`): the geometric
+> estimate is 3 of 20 × 50% ≈ 7.5%, and the model gives **9.0%** (W=40; 9.3% at W=34), the gap
+> again being the medial diffusion term. Omitting the three midline sockets leaves **1.7%**
+> (W=34: 2.1%), a reduction of 7.3 pp, **≈81%** of the available reduction (W=34: 7.2 pp, ≈77%).
+> **Inference (2) stays REFUTED, more strongly than Rev 1 stated.** Inference (1) is unaffected:
+> the option (c) half-mask figures do not depend on zone membership and stand at 22.1% / 24.7%
+> (the 2026-09-29 rerun gives 22.1% / 24.6%, within seed tolerance), and the per-offset leak
+> fractions (50.0% midline / 9.2% half pitch / 0.6% one pitch) stand. Current zone figures: §4
+> table and §2.2.
+
 **PR #210's midline geometry was right.** A midline module really does put half its cortical
 energy contralateral — exactly 50%, as symmetry requires. The zone-level estimate of ~14% was
-slightly low: the true figure is 16.3%, because the retained right-hand sockets also spill
-medially. PR #210 reasoned "3 of 11 modules × ~50%" = 13.6%; the model adds 3 × 9.2% from the
-three half-pitch sockets and 3 × 0.6% from the full-pitch ones, giving 16.3%. Right order of
+slightly low: the true figure ~~is 16.3%~~ *(superseded 2026-09-29; see flag above)*, because the retained right-hand sockets also spill
+medially. PR #210 reasoned ~~"3 of 11 modules × ~50%" = 13.6%~~; the model adds 3 × 9.2% from the
+three half-pitch sockets and 3 × 0.6% from the full-pitch ones, giving ~~16.3%~~. Right order of
 magnitude, and the gap is precisely the diffusion term the geometric argument omitted.
 
 **Inference (2) is REFUTED.** A narrower zone is *not* "only partially effective". Narrowing
 removes 100% of each omitted module's contralateral contribution, and the medial spill from the
-retained sockets is small (3.6%) because contralateral fraction collapses fast with offset — 50%
-at the midline, 0.6% at one full pitch away. Option (b) buys **78% of the available reduction**.
+retained sockets is small (~~3.6%~~; 1.7% on the current lattice) because contralateral fraction collapses fast with offset — 50%
+at the midline, 0.6% at one full pitch away. Option (b) buys ~~**78% of the available reduction**~~ **≈81% of the available reduction** (2026-09-29).
 The expectation should be raised, not tempered.
 
 **Inference (1) is CONFIRMED, with a mechanism.** Modelling an aperture that lights only the

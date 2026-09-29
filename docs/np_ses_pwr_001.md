@@ -64,7 +64,7 @@ Scaled by each protocol's own `intensity`, then by `duty_cycle` for pulsed modes
 | PBM — Alzheimer's 40 Hz | 71 | 1.9 | 133 W | 21 | 3× |
 | Deep Sleep | 33 | 3.8 | 124 W | 10 | 3× |
 | PBM — Mild Cognitive Impairment | 37 | 1.9 | 69 W | 21 | 1.7× |
-| PBM — Cognitive Enhancement 1064 | 8 | 6.3 | 50 W | 6 | 1.25× |
+| PBM — Cognitive Enhancement 1064 | 8 ⚠ *stale: zone re-cut to 17 sockets 2026-09-29, row not recomputed* | 6.3 | 50 W | 6 | 1.25× |
 | **PBM — Parkinson's** | 7 | 3.1 | **22 W** | 12 | **fits** |
 | **PBM — Autism (pediatric)** | 10 | 1.3 | **13 W** | 32 | **fits** |
 | PBM — Stroke (chronic rehab) | operator | 10.0 | — | 4 | indeterminate |
@@ -120,9 +120,11 @@ The zone vocabulary in `protocols/predefined/00-zones.npps` offers 15 zones, of 
 |---|---|---|---|---|
 | Temporal L/R · Occipital L/R | 5 | | Frontal L/R | 20 |
 | Motor / SMA | 7 | | Posterior | 33 |
-| Frontal Right (excl. midline) | 8 | | Frontal | 37 |
+| Frontal Right (excl. midline) | 17 *(re-cut 2026-09-29; was 8)* | | Frontal | 37 |
 | Parietal L/R | 13 | | Vault (excl. Occipital) · All | 71 · 80 |
 | Frontal Left (excl. midline) | 17 | | | |
+
+> **Re-cut 2026-09-29.** `Frontal Right (excl. midline)` is now `Frontal Right` minus its x = 0 sockets: **17 sockets, ~236 cm²** (was 8, ~111 cm²). The old 8-socket list came from a retired row numbering that dropped the sign of x, and four of its sockets were left-hemisphere. `scripts/sync-socket-map.ts` now enforces parent-minus-midline for every "(excl. midline)" zone. The §2 and §4.1 rows for the 1064 nm protocol (now `04-memory-boost`) were computed on the 8-socket zone and are **stale**. They are marked in place, not recomputed; at 17 sockets the draw more than doubles.
 
 **There is no DLPFC zone, no F3/F4 zone, and no zone corresponding to any single 10-20 site.** The finest frontal targeting available is a 20-socket half-lobe (17 without its midline sockets, the zone `clinical-05-pbm-anxiety-wang` uses since 2026-09-29).
 
@@ -146,7 +148,7 @@ Cascading — rotating through socket groups over time — **preserves total del
 |---|---|---|---|
 | PBM — Autism · Parkinson's | 1 | 6m · 20m | **unchanged — already fit** |
 | PBM — MCI | 2 | 20m | 40m |
-| PBM — Cognitive 1064 | 2 | 8m | 16m |
+| PBM — Cognitive 1064 | 2 ⚠ *stale: from the 8-socket zone, see §3 note* | 8m | 16m |
 | PBM — Alzheimer's 40 Hz · Anxiety | 4 | 20m | 80m |
 | Gamma + Theta · Anxiety Relief | 5 | 20m | 1.7h |
 | Gamma Focus | 9 | 20m | 3.0h |

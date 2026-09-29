@@ -1612,10 +1612,13 @@ add_para(
     '1064 nm edge-spread function is about 26 mm (10–90%) at cortical depth. Two decisions follow, '
     'both already taken:')
 add_bullets([
-    'clinical-03 lateralization (2026-07-20): the protocol was retargeted from an 11-socket '
-    '"Frontal Right" zone that put 16.3% of its cortical energy contralateral, to an 8-socket '
-    '"Frontal Right (excl. midline)" zone at 3.6% — a 78% reduction, at a cost of one zone '
-    'definition and zero firmware. The audit that found it is now a build check in '
+    'clinical-03 lateralization (2026-07-20; zone re-cut 2026-09-29): the protocol was '
+    'retargeted from the "Frontal Right" zone to "Frontal Right (excl. midline)", at a cost of '
+    'one zone definition and zero firmware. On the current lattice (re-cut 2026-09-29, signed x) '
+    'the inclusive 20-socket zone puts 9.0% of its cortical energy contralateral and the '
+    '17-socket excl.-midline zone 1.7% (W = 40 mm nominal). The earlier 16.3% → 3.6% '
+    '(11 → 8 sockets) was computed on the wrong socket set, from a retired row numbering that '
+    'dropped the sign of x, and is superseded. The audit that found it is now a build check in '
     'scripts/sync-socket-map.ts: any protocol naming a bare single-hemisphere zone fails the run '
     'until it is narrowed or explicitly accepted with a reason.',
     'Partial-module inclusion is dominated and must not be revisited as a lateralization tool. '

@@ -40,6 +40,10 @@
  *       bun scripts/pbm-optical-psf.ts --json out.json
  */
 
+import { readFileSync } from "fs";
+import { join } from "path";
+import { NP_SOCKETS } from "../app/web/src/lib/socketMap.generated.ts";
+
 // ─── Tissue model ──────────────────────────────────────────────────────────────
 
 interface Layer {
@@ -491,21 +495,29 @@ function esfWidths(psf: (r: number) => number): { w10_90: number; w25_75: number
   };
 }
 
-// ─── Socket geometry (frontal rows only — this is where clinical-03 lives) ─────
+// ─── Socket geometry — read from the CURRENT lattice and zone file ────────────
+//
+// Until 2026-09-29 this section rebuilt socket x-offsets from a hardcoded 1-2-3-4-5-4
+// row structure and hardcoded both Frontal Right socket lists. That numbering was
+// retired when the lattice was re-cut, the lists were never re-cut with it, and the
+// §4 figures in NP-OPT-PSF-001 were computed on a lattice that no longer exists. Both
+// inputs are now read from their single sources, so a re-cut cannot strand this model.
 
-/** Socket id → horizontal offset in units of hex pitch, derived from the row structure. */
-const FRONTAL_X: Record<number, number> = (() => {
-  const widths = [1, 2, 3, 4, 5, 4];
-  const out: Record<number, number> = {};
-  let id = 1;
-  for (const w of widths) {
-    for (let col = 0; col < w; col++) out[id++] = col - (w - 1) / 2;
+/** Socket id → signed lateral offset in units of hex pitch (negative = left, 0 = midline). */
+const SOCKET_X = new Map<number, number>(NP_SOCKETS.map(s => [s.id, s.x]));
+
+function readZone(name: string): number[] {
+  const src = readFileSync(join(import.meta.dir, "..", "protocols", "predefined", "00-zones.npps"), "utf-8");
+  for (const m of src.matchAll(/zone\s+"((?:[^"\\]|\\.)*)"\s*\{([\s\S]*?)\n\}/g)) {
+    if (m[1] !== name) continue;
+    const list = /sockets:\s*\[([^\]]*)\]/.exec(m[2]!);
+    if (list) return [...list[1]!.matchAll(/\d+/g)].map(d => Number(d[0]));
   }
-  return out;
-})();
+  throw new Error(`zone "${name}" not found in 00-zones.npps`);
+}
 
-const FRONTAL_RIGHT = [1, 3, 5, 6, 9, 10, 13, 14, 15, 18, 19];
-const FRONTAL_RIGHT_STRICT = [3, 6, 9, 10, 14, 15, 18, 19];
+const FRONTAL_RIGHT = readZone("Frontal Right");
+const FRONTAL_RIGHT_STRICT = readZone("Frontal Right (excl. midline)");
 
 // ─── Main ──────────────────────────────────────────────────────────────────────
 
@@ -608,8 +620,10 @@ for (const sc of SCENARIOS) {
     const perOffset: Record<string, number> = {};
     for (const d of [0, 0.5, 1, 1.5, 2]) perOffset[`${d} pitch`] = Number((fOf(d) * 100).toFixed(1));
 
+    // SIGNED offset: a Right-zone socket with x < 0 sits in the left hemisphere and puts
+    // most of its energy contralateral. Taking |x| here would hide exactly that error.
     const zoneFrac = (ids: number[]) =>
-      ids.reduce((s, id) => s + fOf(Math.abs(FRONTAL_X[id])), 0) / ids.length;
+      ids.reduce((s, id) => s + fOf(SOCKET_X.get(id)!), 0) / ids.length;
 
     const inclusive = zoneFrac(FRONTAL_RIGHT);
     const strict = zoneFrac(FRONTAL_RIGHT_STRICT);

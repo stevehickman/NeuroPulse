@@ -921,6 +921,34 @@ function validateAgainstZoneFile(sockets: SocketGeometry[]): string[] {
     }
   }
 
+  // Every "<parent> (excl. midline)" zone must be exactly <parent> minus its x = 0
+  // sockets. The name is a claim about content, so it is held to it: on 2026-09-29
+  // "Frontal Right (excl. midline)" was found still listing a retired numbering's
+  // sockets, four of them LEFT hemisphere, and every per-zone check above passed it
+  // because each id still existed. Midline is read from the lattice (x = 0), never
+  // from a list, so a re-cut moves the expected set with it.
+  const midline = new Set(sockets.filter(s => Math.abs(s.x) < 1e-9).map(s => s.id));
+  for (const [name, ids] of actual) {
+    const m = /^(.+) \(excl\. midline\)$/.exec(name);
+    if (!m) continue;
+    const parent = actual.get(m[1]!);
+    if (!parent) {
+      errors.push(
+        `zone "${name}" narrows "${m[1]}", which is not in the zone file — an ` +
+        `(excl. midline) zone must name an existing parent zone.`,
+      );
+      continue;
+    }
+    const want = parent.filter(id => !midline.has(id));
+    if (JSON.stringify(ids) !== JSON.stringify(want)) {
+      errors.push(
+        `zone "${name}" is not "${m[1]}" minus its midline (x = 0) sockets\n` +
+        `    expected:  [${want}]\n` +
+        `    zone file: [${ids}]`,
+      );
+    }
+  }
+
   // "All" additionally means EVERY socket — pinned independently of the union,
   // so a part zone that lost a socket cannot quietly shrink "All" with it.
   const all = actual.get("All");
