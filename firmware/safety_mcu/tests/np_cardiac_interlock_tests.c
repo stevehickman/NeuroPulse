@@ -9,14 +9,16 @@
  * "cardiac interlock" coverage in the tree was np_cvns_fai_tests, which
  * exercises the MAIN PROCESSOR module (firmware/cervical_vns/) on the other
  * side of the SPI boundary and asserts on main-processor constants.  The two
- * sides are deliberately independent implementations that cross-validate at
- * ±5 BPM; a test of one is not a test of the other.
+ * sides are independent implementations; a test of one is not a test of the
+ * other.  (They do NOT cross-validate: the ±5 BPM check was never built, and
+ * the safety MCU never receives the main processor's baseline — NP-FW-CVNS-001
+ * Rev 9, OI-CVNS-10 closed.)
  *
  * PURPOSE: these tests PIN CURRENT BEHAVIOUR.  Several assertions encode
- * constants (NP_CARDIAC_BASELINE_BEATS = 8, NP_RR_BUF_SIZE = 8) that are the
- * subject of open item OI-CVNS-10 (safety-MCU 8 vs main-processor 5 baseline
- * window).  That is the point: whichever way OI-CVNS-10 resolves, the change
- * must surface here as a reviewed failing assertion rather than land silently.
+ * constants (NP_CARDIAC_BASELINE_BEATS = 8, NP_RR_BUF_SIZE = 8) and one pins a
+ * known defect (OI-CVNS-12: the 5 s baseline refresh absorbs a sustained
+ * fall).  The window length is now a parameter of OI-CVNS-12's redesign.  Any
+ * change must surface here as a reviewed failing assertion, not land silently.
  *
  * These tests mock the four HAL entry points; they do NOT require ARM
  * cross-compilation, TIM2, or an R-peak signal source.
@@ -226,7 +228,8 @@ static void test_priming_beat_produces_no_interval(void)
 
 /*
  * Pins NP_CARDIAC_BASELINE_BEATS = 8 by arithmetic that a 5-beat implementation
- * cannot pass (OI-CVNS-10 — the main processor uses 5).
+ * cannot pass (the main processor uses 5; OI-CVNS-10 closed, the length is
+ * now OI-CVNS-12's to choose).
  *
  * Sequence: prime, 5 × 1 s, then 1/2 s beats.  Ring buffer means (µs) and the
  * BPM each yields:
@@ -468,6 +471,54 @@ static void test_rolling_baseline_absorbs_slow_drift(void)
           "refresh: baseline advanced to 75 (86 BPM is within 15 of it)");
 }
 
+
+/*
+ * KNOWN DEFECT, PINNED — NP-FW-CVNS-001 OI-CVNS-12 (raised 2026-09-29 while
+ * resolving OI-CVNS-10).  A sustained 20 BPM fall is NEVER cut when the beats
+ * arrive in real time, although CLAUDE.md §4.2 requires a cutoff for an HR
+ * change > 15 BPM within 5 s and RISK-25's hazard is bradycardia.
+ *
+ * Mechanism: HR is the mean of the last 8 intervals, so a step reaches that
+ * mean one beat at a time.  70 → 50 BPM needs 6 of the 8 intervals at 1.2 s
+ * (7.2 s) before |mean − baseline| > 15, and the baseline refresh
+ * (NP_CARDIAC_OBS_MS = 5 s, unconditional while no cutoff is active) always
+ * lands first and adopts the part-moved mean.  Every refresh leaves less than
+ * 15 BPM still to travel, whatever the phase of the refresh.
+ *
+ * The second half is the control: the SAME fall with SysTick held back, so no
+ * refresh can land, cuts.  The threshold logic is sound; the refresh is what
+ * defeats it.  This test passes today by asserting the defect.  A fix for
+ * OI-CVNS-12 must fail its first check and is meant to: change it then, in the
+ * reviewed diff that closes the item.
+ */
+static void beat_realtime(np_safety_state_t *st, uint32_t rr_us)
+{
+    g_tick_ms += (rr_us / 1000U) - 1U;   /* beat() adds the last 1 ms */
+    beat(st, rr_us);
+}
+
+#define RR_70_BPM   857143U   /* 60 000 000 / 857 143 = 70 */
+#define RR_50_BPM  1200000U   /* 60 000 000 / 1 200 000 = 50 (a 20 BPM fall) */
+
+static void test_refresh_absorbs_sustained_fall_KNOWN_DEFECT(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+
+    beat_realtime(&st, RR_70_BPM);                                 /* prime */
+    for (uint8_t i = 0U; i < 30U; i++) { beat_realtime(&st, RR_70_BPM); }  /* ~26 s */
+    check(cvns_granted(&st) && !cutoff_fired(&st), "OI-CVNS-12: armed and granted at 70 BPM");
+
+    for (uint8_t i = 0U; i < 40U; i++) { beat_realtime(&st, RR_50_BPM); }  /* 48 s at 50 */
+    check(!cutoff_fired(&st) && cvns_granted(&st),
+          "OI-CVNS-12 KNOWN DEFECT: a sustained 70 -> 50 BPM fall is never cut in real time");
+
+    /* Control: the same fall, SysTick advanced 1 ms per beat — no refresh. */
+    reset_all(&st, true, 0U);
+    establish_baseline(&st, RR_70_BPM);
+    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE && !cutoff_fired(&st); i++) { beat(&st, RR_50_BPM); }
+    check(cutoff_fired(&st), "OI-CVNS-12 control: the same fall cuts when no refresh lands");
+}
 
 /* ── Power-cycle persistence (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01) ──────────
  * The interlock does not touch flash; it posts write requests and, at boot,
@@ -751,6 +802,7 @@ int main(void)
     test_restore_false_is_inert();
     test_cardiac_blocks_only_cvns();
     test_user_change_scopes_the_cutoff();
+    test_refresh_absorbs_sustained_fall_KNOWN_DEFECT();
 
     if (g_failures == 0) { printf("ALL TESTS PASSED\n"); return 0; }
     printf("%d TEST(S) FAILED\n", g_failures);
