@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HEXTILE-001
-**Revision:** 2
-**Date:** 2026-09-28
+**Revision:** 3
+**Date:** 2026-09-29
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Firmware Engineering
@@ -16,6 +16,10 @@
 **Parent Document:** NP-HW-HEXTILE-001
 
 ---
+
+> **Rev 3 (2026-09-29): R-4's average term is the laser skin reference in full, with no per-channel
+> 200 mW/cm² (`NP-HW-HEXTILE-001` D-10, `OI-HEXTILE-32` closed; CLAUDE.md Rev 60).** Nothing U1 does
+> changes, because U1 enforces no average (§5.5). §5.5's table and §2's CLAUDE.md row are restated.
 
 > **Rev 2 (2026-09-28): the tile delivers the duty and mode the hub commands. It never clamps
 > them, and CW is the gate held on (principal direction; CLAUDE.md Rev 59).** Rev 1 clamped every
@@ -97,7 +101,7 @@ lists the tests this specification needs.
 | `NP-HW-HEXTILE-001` D-9 | U3 caps the on-current and U4 caps the conducting fraction, in hardware. The firmware is inside those bounds and is not one of them (§4, §5.4) |
 | `NP-HW-HEXTILE-001` §7.2 | The pins U1 sees: `SDA`, `SCL`, `SYNC`, `ALERT#`, `VCC_3V3`, `DGND`. `PD1_K`, `PD2_K` and `NTC` go to the controller and not to U1 |
 | `NP-DRV-SHELL-002` REQ-EMI-03/-04 | Pulse phase is deterministic and locked to `SYNC`, and never dithered (§5.6) |
-| CLAUDE.md §3 (Rev 59) | 400 mW/cm² peak; the time average at ≤ 200 mW/cm² per channel plus a weighted sum across the tile's wavelengths; duty and mode are the protocol's. A ceiling refuses a protocol and never reshapes it (§5.5) |
+| CLAUDE.md §3 (Rev 60) | 400 mW/cm² peak; the time average held by the weighted sum Σ Ēᵢ / (200 × C_A(λᵢ)) ≤ 1 across the tile's wavelengths, with no separate per-channel figure; duty and mode are the protocol's. A ceiling refuses a protocol and never reshapes it (§5.5) |
 | CLAUDE.md §18 | Every requirement below states what fails without it and where it traces (§14) |
 
 ---
@@ -249,8 +253,8 @@ is on continuously. There is no carrier, and `DUTY` does not apply. Irradiance i
 A channel pulsed at any rate, however fast, is a different stimulus from CW, and so a different
 protocol (principal, 2026-09-28).
 
-**Why U1 enforces no duty ceiling.** CLAUDE.md §3 (Rev 59) bounds PBM at 400 mW/cm² peak, and bounds
-the time average at 200 mW/cm² per channel plus a weighted sum across the tile's wavelengths. It leaves
+**Why U1 enforces no duty ceiling.** CLAUDE.md §3 (Rev 60) bounds PBM at 400 mW/cm² peak, and bounds
+the time average by a weighted sum across the tile's wavelengths (200 mW/cm² for 660 nm alone). It leaves
 duty to the protocol. Whether a duty is legal therefore depends on the irradiance at the commanded
 current, `DUTY` × *E*(`CUR`), and on the other channels. *E* is emitter data U1 does
 not hold (§5.4). A tile-side check would need a firmware copy of the emitter's flux curve, which can
@@ -259,9 +263,9 @@ authored. The rule is **refuse, never reshape**, and refusal happens where the i
 
 | Where | What bounds it | State |
 |---|---|---|
-| Before signing | A protocol whose peak exceeds 400 or whose time average exceeds 200 mW/cm² is refused | **not built** (`OI-HEXTILE-31`) |
+| Before signing | A protocol whose peak exceeds 400 mW/cm², or whose time averages break the weighted sum, is refused | **not built** (`OI-HEXTILE-31`) |
 | Hub | Today `NP_PBM_DUTY_MAX_REG` clamps to 25 %. It is the only firmware bound in force, so it is replaced by the pre-signing check, not deleted ahead of it | **still clamps** (`OI-HEXTILE-31`) |
-| Tile hardware, holding against U1's own failure | U3: peak ≤ 400 (`REQ-TDRV-01`). U4: today ≤ 50 % conduction, which forbids CW. To be redesigned to hold the average ≤ 200 and allow any duty, CW included, below it | **U4 redesign open** (`OI-HEXTILE-30`) |
+| Tile hardware, holding against U1's own failure | U3: peak ≤ 400 (`REQ-TDRV-01`). U4: today ≤ 50 % conduction, which forbids CW. To be redesigned to hold each channel's average to 200 × C_A of its wavelength and allow any duty, CW included, below it | **U4 redesign open** (`OI-HEXTILE-30`) |
 
 **Consequence to know until those close.** A pulsed duty above 25 % cannot reach the tile today:
 the language refuses it, and the compiler and the hub clamp it. **A CW command can.** The language
@@ -595,3 +599,4 @@ Nothing below has been run, because no tile firmware exists.
 |---|---|---|---|
 | 1 | 2026-09-28 | NeurOne Firmware Engineering | First issue; closes `NP-HW-HEXTILE-001` `OI-HEXTILE-07` as a specification item. It extends the `NP-FW-PBM1064-001` §5.1 map without moving an address. Added: FW_VERSION, CMD, CMD_STATUS, the identity window at `0x40` and the odometer window at `0xE0`. No PD readback registers are defined, because D-4 was not adopted. It defines the six-condition gate rule, under which `CUR` = 0 holds the gate off (`OI-PBMCH-01`, firmware half). The tile clamps duty to 25 % in every mode, CW included (`OI-HEXTILE-25`(c) decided for the tile). `CUR` above `I_cap` saturates in U3 (`OI-HEXTILE-25`(d)). Also specified: the local over-temperature response, latch and `ALERT#` semantics, identity storage and the boot self-check, the odometer write rules, and the MODID-4a mate latch. Modes S and D addressing, the power states and the reset rules round it out. The firmware is registered as SW-04, Class B. Nine open items are raised, `OI-FWTILE-01`…`-09`. No code, no part, nothing measured |
 | 2 | 2026-09-28 | NeurOne Firmware Engineering | **Duty and CW are delivered as commanded (principal direction, CLAUDE.md Rev 59).** Rev 1's 25 % clamp is withdrawn: it applied to CW, so CW protocols were delivered as a pulse train or not at all. DUTY is stored as written, 0–100 %, and a value above 100 % is refused. Code `0x00` is the gate held on, with `DUTY` not applied. U1 enforces no duty ceiling, because legality depends on emitter data it does not hold, and a clamp reshapes the stimulus. §5.5 records where refusal happens instead, and what is not yet built (`OI-HEXTILE-30`, `-31`). `OI-HEXTILE-25`(c) re-answered. REQ-FWTILE-03, -09 and -15 rewritten. `OI-FWTILE-06` retired. No code |
+| 3 | 2026-09-29 | NeurOne Firmware Engineering | **R-4's average term restated after `NP-HW-HEXTILE-001` D-10 (`OI-HEXTILE-32` closed, principal).** The per-channel 200 mW/cm² is removed from §2 and §5.5 (the Rev 2 banner keeps it as history); the weighted sum is the whole average term. No register, behaviour or requirement of U1 changes |

@@ -19,6 +19,33 @@
 
 ## Current revision
 
+**Rev 60 (2026-09-29) — §3's PBM scalp row: the laser skin reference is adopted in full, and the
+per-channel 200 mW/cm² is removed. A principal decision, closing `OI-HEXTILE-32`.**
+
+**What changed.** The row read *"Time-averaged ≤ 200 mW/cm² per channel, and Σ Ēᵢ / (200 × C_A(λᵢ))
+≤ 1 over the channels on one tile"*. It now reads *"Time-averaged Σ Ēᵢ / (200 × C_A(λᵢ)) ≤ 1 over the
+channels on one tile (one channel alone: 200 at 660 nm, ≈ 329 at 808, ≈ 364 at 830)"*. The bullet that
+called full adoption an open decision now records it, and the 400 bullet gains one sentence.
+
+**Why.** Rev 59 held every wavelength to the reference's 660 nm value, which has no derivation of its
+own at 808–1064 nm. The principal chose the reference in full on 2026-09-29, knowing that
+`OI-BIBPBM-01`, `-03`, `-04` and counsel on RISK-03 were all still open. It lets Schiffer 2009
+(810 nm, 250 CW) and Wang 2023 (820 nm) be refused only by what the hardware and code cannot yet do,
+not by the average.
+
+**What it changes elsewhere, and what it leaves.**
+- **The 400 peak now carries load.** Above ≈ 850 nm, 400 < 200 × C_A, so the peak is what holds
+  1064 nm to 400 and not 1000. The 400 has no recorded derivation, and §18 would normally retire such
+  a figure. It is now a hazard control at 1064 nm, so it stays while `OI-BIBPBM-03` is open.
+- **Zero margin at every wavelength**, not only at 660 nm.
+- **The C_A figures gate code.** The pre-signing check (`OI-HEXTILE-31`) may not be released on
+  unverified constants (`OI-BIBPBM-01`).
+- **Scalp only.** The intranasal probe still has no exposure ceiling (`OI-NASAL-02`).
+- The residuals are listed in `NP-HW-HEXTILE-001` D-10. No code constant changed, because the
+  average check is not built.
+
+## Earlier revisions
+
 **Rev 59 (2026-09-28) — §3's PBM scalp row: the 25 % duty cap is retired, and a PBM ceiling refuses a
 protocol instead of reshaping it. A locked decision changed, by principal direction.**
 
