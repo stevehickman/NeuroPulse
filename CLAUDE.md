@@ -159,7 +159,7 @@ cloud + FHIR R4 + LSL + scripting API · anonymized session tag.
 
 | Modality | Ceiling |
 |----------|---------|
-| PBM scalp | **400 mW/cm² peak** · **200 mW/cm² time-averaged** (CW is where the two meet) · duty and mode are the protocol's · 42 °C limit (IEC 60601) |
+| PBM scalp | **Time-averaged ≤ 200 mW/cm² per channel, and Σ Ēᵢ / (200 × C_A(λᵢ)) ≤ 1 over the channels on one tile** · **400 mW/cm² peak** (a design figure) · duty and mode are the protocol's · 42 °C limit (IEC 60601-1 states 43 °C, `OI-BIBPBM-03`) |
 | PBM deep (T2) | ≤1,000 mW/cm² (1170 nm, TEC-stabilised) |
 | BES / tACS | 0.5–40 Hz · ≤1 mA T1 / ≤4 mA T2 · charge-balanced biphasic · **40 µC/cm² per phase** |
 | tDCS | 0.1–2 mA DC · **150 mC/cm² per session** hardware limit · 30 s ramp · ≤3 electrode pairs |
@@ -169,9 +169,19 @@ cloud + FHIR R4 + LSL + scripting API · anonymized session tag.
 **A PBM ceiling refuses a protocol. It never reshapes one** (principal, 2026-09-28). Duty, mode and
 irradiance are the protocol's, because a pulse train clamped to fit is a different stimulus from the
 one authored. A protocol outside a ceiling is rejected before it is signed, and if the hardware cannot
-deliver one inside them, the hardware is redesigned. The 25 % duty cap this row carried until Rev 59
-is retired; the time-averaged 200 keeps the bound it stood for. **The code, the language and U4 still
-clamp** (`OI-HEXTILE-30`, `-31` in `docs/np_hw_hextile_001.md`).
+deliver one inside them, the hardware is redesigned. The 25 % duty cap is retired (Rev 59).
+
+**What the figures rest on** (`docs/np_bib_pbmirr_001.md`):
+- **The average is the bound.** The laser skin exposure limit, 200 × C_A mW/cm² time-averaged, is the
+  conventional reference for LED arrays, not a legal limit. It adds across wavelengths on the same
+  tissue. C_A is 1 at 660 nm, ≈ 1.64 at 808 nm and 5 at 1064 nm. These are working-knowledge figures,
+  unverified until `OI-BIBPBM-01`.
+- **The per-channel 200 is held at the 660 nm value.** Adopting the reference in full (up to
+  ≈ 330–364 at 808–830 nm) is the principal's open decision (`OI-HEXTILE-32`).
+- **The 400 peak has no counterpart in the standards and no recorded derivation.** It is the
+  design point the tile is sized to (RISK-03).
+- **Still not built:** the code, the language and U4 clamp (`OI-HEXTILE-30`, `-31` in
+  `docs/np_hw_hextile_001.md`).
 
 **The charge ceiling is two ceilings, one per waveform class.** DC channels (tDCS, HD-tDCS) have
 **150 mC/cm² per session** per electrode. Charge-balanced channels (BES/tACS, VNS, cVNS, clinical

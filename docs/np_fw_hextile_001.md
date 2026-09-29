@@ -21,7 +21,8 @@
 > them, and CW is the gate held on (principal direction; CLAUDE.md Rev 59).** Rev 1 clamped every
 > DUTY write to 25 %, CW included, and held a CW channel off until a "carrier" was chosen. So a CW
 > protocol produced either a 25 % pulse train or nothing, and neither is the protocol that was
-> authored. **Both are withdrawn.** R-4 is now 400 mW/cm² peak and 200 mW/cm² time-averaged, at
+> authored. **Both are withdrawn.** R-4 is now 400 mW/cm² peak, with the time average held to 200 mW/cm² per channel plus a weighted
+> sum across wavelengths, at
 > whatever duty the protocol specifies. A protocol outside that is refused before it is signed, never
 > reshaped (`NP-HW-HEXTILE-001` `OI-HEXTILE-31`). U1 has no emitter data, so it cannot tell a legal
 > duty from an illegal one, and it enforces neither. The bounds that hold against U1's own failure are
@@ -96,7 +97,7 @@ lists the tests this specification needs.
 | `NP-HW-HEXTILE-001` D-9 | U3 caps the on-current and U4 caps the conducting fraction, in hardware. The firmware is inside those bounds and is not one of them (§4, §5.4) |
 | `NP-HW-HEXTILE-001` §7.2 | The pins U1 sees: `SDA`, `SCL`, `SYNC`, `ALERT#`, `VCC_3V3`, `DGND`. `PD1_K`, `PD2_K` and `NTC` go to the controller and not to U1 |
 | `NP-DRV-SHELL-002` REQ-EMI-03/-04 | Pulse phase is deterministic and locked to `SYNC`, and never dithered (§5.6) |
-| CLAUDE.md §3 (Rev 59) | 400 mW/cm² peak, 200 mW/cm² time-averaged, and duty and mode are the protocol's. A ceiling refuses a protocol and never reshapes it (§5.5) |
+| CLAUDE.md §3 (Rev 59) | 400 mW/cm² peak; the time average at ≤ 200 mW/cm² per channel plus a weighted sum across the tile's wavelengths; duty and mode are the protocol's. A ceiling refuses a protocol and never reshapes it (§5.5) |
 | CLAUDE.md §18 | Every requirement below states what fails without it and where it traces (§14) |
 
 ---
@@ -248,9 +249,10 @@ is on continuously. There is no carrier, and `DUTY` does not apply. Irradiance i
 A channel pulsed at any rate, however fast, is a different stimulus from CW, and so a different
 protocol (principal, 2026-09-28).
 
-**Why U1 enforces no duty ceiling.** CLAUDE.md §3 (Rev 59) bounds PBM at 400 mW/cm² peak and
-200 mW/cm² time-averaged, and leaves duty to the protocol. Whether a duty is legal therefore depends
-on the irradiance at the commanded current, `DUTY` × *E*(`CUR`) ≤ 200. *E* is emitter data U1 does
+**Why U1 enforces no duty ceiling.** CLAUDE.md §3 (Rev 59) bounds PBM at 400 mW/cm² peak, and bounds
+the time average at 200 mW/cm² per channel plus a weighted sum across the tile's wavelengths. It leaves
+duty to the protocol. Whether a duty is legal therefore depends on the irradiance at the commanded
+current, `DUTY` × *E*(`CUR`), and on the other channels. *E* is emitter data U1 does
 not hold (§5.4). A tile-side check would need a firmware copy of the emitter's flux curve, which can
 disagree with the part fitted. A tile-side clamp would do worse: it would deliver a stimulus nobody
 authored. The rule is **refuse, never reshape**, and refusal happens where the irradiance is known:
@@ -263,7 +265,7 @@ authored. The rule is **refuse, never reshape**, and refusal happens where the i
 
 **Consequence to know until those close.** A pulsed duty above 25 % cannot reach the tile today:
 the language refuses it, and the compiler and the hub clamp it. **A CW command can.** The language
-allows `frequency: 0`, and nothing checks a CW protocol's `CUR` against the 200 mW/cm² average. So
+allows `frequency: 0`, and nothing checks a CW protocol's `CUR` against R-4's average terms. So
 under this specification, a CW protocol at high intensity would be bounded only by U4, and U4 is
 neither built nor yet in its redesigned form. No tile exists, so nothing is exposed today. **This is
 why the pre-signing check is the first thing to build, before any tile firmware is written and

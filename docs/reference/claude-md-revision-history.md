@@ -43,10 +43,23 @@ undeliverable as CW. The cap was in five places, and each one silently changed t
 The library had been authored around the cap. Schiffer 2009 and Wang 2023 were converted from CW to
 10 Hz / 25 %, and every pulsed PBM protocol carries 25 %.
 
-**What was kept, and why it is not a new limit.** The 400 peak and the 200 CW ceilings stand. Only
-their coupling to a duty figure goes. Without the cap, a pulse train at 400 peak and 99 % duty would
-be CW at ~400, so the CW ceiling means anything only as a bound on the time average. The old rule was
-also inconsistent: it held pulsed trains to a 100 average while it allowed CW at 200.
+**What was kept, and what it rests on. Corrected before merge (2026-09-29).** As first drafted,
+this revision kept "400 peak · 200 time-averaged" and applied the 200 to each channel on its own. It
+said the 200 "keeps the bound it stood for". Neither figure had a recorded derivation (§13.1a). Then
+`NP-BIB-PBMIRR-001` (GitHub #501) supplied the conventional reference. The laser skin exposure limit
+is 200 × C_A mW/cm² time-averaged. It bounds the average, never a peak, and it **adds across
+wavelengths on the same tissue**. So:
+- **The per-channel draft was unsafe in combination.** 660 and 808 nm at 200 each would score 1.61
+  against the reference, where the old 25 % rule held that pair to 0.8.
+- **The row now carries both terms.** ≤ 200 per channel (the 660 nm value, held for every
+  wavelength), and Σ Ēᵢ / (200 × C_A(λᵢ)) ≤ 1 over the tile's channels.
+- **The 400 peak stays as a design figure** with no counterpart in the standards.
+- **Adopting the reference in full is the principal's decision** (`OI-HEXTILE-32`). It would allow up
+  to ≈ 329 at 808 nm. The C_A figures are unverified until `OI-BIBPBM-01`.
+- **Still a relaxation, and stated as one.** A single-channel pulsed protocol may now average 200
+  where the old rule allowed 100. At 660 nm that is the reference exactly, with no margin.
+- **The 42 °C attribution is corrected.** IEC 60601-1 states 43 °C (`OI-BIBPBM-03`), and the value
+  itself is unchanged.
 
 **What is not done.** The code, the language, the hub constant and U4 still clamp.
 `NP-HW-HEXTILE-001` Rev 25 raises `OI-HEXTILE-30`, U4's redesign to bound the average and not the
