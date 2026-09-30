@@ -43,9 +43,15 @@
  *   F. a serial has at most one live row. A second row for the same serial is
  *      either a stale copy or needs its serial cell disambiguated
  *      ("NP-X-001 (variant)"), as NP-HW-FPC-001 and NP-COORD-001 already do.
+ *   H. for a row whose File cell links a Markdown document directly under docs/
+ *      (`[…](./np_x_001.md)`), the Title equals that file's first `# ` heading,
+ *      bold and runs of whitespace ignored (principal, 2026-09-30). An exact match
+ *      leaves no gray area for a summary to creep back in. `.docx` rows and
+ *      docs/superseded/ rows are exempt: a Word file's heading is not reliably
+ *      extractable (OI-CONV-04), and a retired record keeps what it was written as.
  *
- * Rows that broke D–F before the rule existed are listed, one per line, in
- * GRANDFATHERED (`<serial> D:Title`, `<serial> E:Status`, `<serial> F`). A
+ * Rows that broke D–F or H before the rule existed are listed, one per line, in
+ * GRANDFATHERED (`<serial> D:Title`, `<serial> E:Status`, `<serial> F`, `<serial> H:Title`). A
  * listed row is reported but does not fail. The list only shrinks: an entry
  * whose row is now clean fails as stale, so it is deleted in the same PR that
  * cleans the row, and a row not on the list can never start failing quietly.
@@ -65,6 +71,7 @@
  */
 import { readdirSync, readFileSync, statSync, mkdirSync, mkdtempSync, writeFileSync, rmSync } from "fs";
 import { join, basename } from "path";
+import { existsSync } from "fs";
 import { tmpdir } from "os";
 
 // ── Self-test ────────────────────────────────────────────────────────────────
@@ -130,7 +137,7 @@ if (process.argv.includes("--self-test")) {
   expect("rule C rejects a DHF with no document-history table", 1, "no document-history table");
 
   // Rules D–F read §5 only. A §5 fixture with one clean row, plus a row under test.
-  const S5 = (extra: string) => DHF_HEAD.replace("| ID |", "## 5. Master Document Index\n\n| ID |")
+  const S5 = (extra: string) => "# T\n\n" + DHF_HEAD.replace("| ID |", "## 5. Master Document Index\n\n| ID |")
     + dhfRow("NP-DHF-001", "1", "np_dhf_001.md") + extra + "\n## 6. Other\n" + HIST("1");
   const row5 = (id: string, title: string, status: string) =>
     `| ${id} | ${title} | 1 | 2026-01-01 | [x](./none.md) | ${status} | QMS |\n`;
@@ -174,6 +181,22 @@ if (process.argv.includes("--self-test")) {
   write("np_dhf_001.md", S5(row5("NP-BAR-001", "Bar Spec", "DRAFT")));
   expect("rule G rejects a grandfathered entry whose row is now clean", 1, "stale");
 
+  // Rule H: a Markdown row's Title is its file's heading.
+  const S5h = (title: string, file: string) => S5(`| NP-BAR-001 | ${title} | 1 | 2026-01-01 | [${file}](./${file}) | DRAFT | QMS |\n`);
+  reset(); grand("");
+  write("np_bar_001.md", "# Bar   **Specification**\n\n**Document:** NP-BAR-001\n**Revision:** 1\n\n---\n");
+  write("np_dhf_001.md", S5h("**Bar Specification**", "np_bar_001.md"));
+  expect("rule H accepts a Title equal to the heading, bold and spacing ignored", 0, "H (Title is the file's heading):");
+
+  reset(); grand("");
+  write("np_bar_001.md", "# Bar Specification\n\n**Document:** NP-BAR-001\n**Revision:** 1\n\n---\n");
+  write("np_dhf_001.md", S5h("Bar Spec", "np_bar_001.md"));
+  expect("rule H rejects a Title that differs from the heading", 1, "NP-BAR-001 H:Title");
+
+  reset(); grand("");
+  write("np_dhf_001.md", S5h("Anything at all", "np_bar_001.docx"));
+  expect("rule H exempts a .docx row", 0, "H (Title is the file's heading):");
+
   // Rows outside §5 are not index rows for D–F.
   reset(); grand("");
   write("np_dhf_001.md", S5("") .replace("\n## 6. Other\n", "\n## 6. Other\n\n" + "| a | b | c | d | e | f | g |\n|---|---|---|---|---|---|---|\n"
@@ -195,7 +218,7 @@ if (process.argv.includes("--self-test")) {
     for (const f of failures) console.error("  " + f);
     process.exit(1);
   }
-  console.log("  rules A–G each proven to reject; conforming tree proven to pass");
+  console.log("  rules A–H each proven to reject; conforming tree proven to pass");
   console.log("SELF-TEST PASS — the checker has teeth.");
   process.exit(0);
 }
@@ -279,7 +302,8 @@ try {
   }
 } catch { /* no file: nothing is grandfathered */ }
 
-const violD: string[] = [], violE: string[] = [], violF: string[] = [], violG: string[] = [];
+const violD: string[] = [], violE: string[] = [], violF: string[] = [], violG: string[] = [], violH: string[] = [];
+const plain = (x: string) => x.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
 const held: string[] = [], hit = new Set<string>();
 const flag = (bucket: string[], key: string, msg: string) => {
   hit.add(key);
@@ -301,6 +325,12 @@ const flag = (bucket: string[], key: string, msg: string) => {
     if (REV_NOTE.test(status)) flag(violD, `${id} D:Status`, `${at}: Status carries a revision note: "${status.match(REV_NOTE)![0]}"`);
     if (title.length > TITLE_MAX) flag(violE, `${id} E:Title`, `${at}: Title is ${title.length} characters (max ${TITLE_MAX})`);
     if (status.length > STATUS_MAX) flag(violE, `${id} E:Status`, `${at}: Status is ${status.length} characters (max ${STATUS_MAX})`);
+    const md = (c[4] ?? "").match(/^\[[^\]]*\]\(\.\/([a-z0-9_]+\.md)\)$/)?.[1];
+    if (md && existsSync(join("docs", md))) {
+      const h1 = readFileSync(join("docs", md), "utf8").split("\n").find((l) => l.startsWith("# "));
+      const want = plain((h1 ?? "").slice(2));
+      if (plain(title) !== want) flag(violH, `${id} H:Title`, `${at}: Title is not ${md}'s heading "${want}"`);
+    }
     if (seen.has(id)) flag(violF, `${id} F`, `${at}: second live row for this serial (first at line ${seen.get(id)! + 1})`);
     else seen.set(id, i);
   }
@@ -324,17 +354,19 @@ console.log(`F (one row per serial):    ${violF.length ? "FAIL" : "PASS"}`);
 violF.forEach((v) => console.log("   " + v));
 console.log(`G (grandfathered list only shrinks): ${violG.length ? "FAIL" : "PASS"}`);
 violG.forEach((v) => console.log("   " + v));
+console.log(`H (Title is the file's heading): ${violH.length ? "FAIL" : "PASS"}`);
+violH.forEach((v) => console.log("   " + v));
 if (held.length) {
   console.log(`\n${held.length} grandfathered (reported, not failing; ${GRAND_FILE}):`);
   held.forEach((v) => console.log("   " + v));
 }
-if (violD.length + violE.length + violF.length) {
-  console.log("\nFix (D–F): the Title is the document's title and the Status is its status word plus at most");
+if (violD.length + violE.length + violF.length + violH.length) {
+  console.log("\nFix (D–F, H): the Title is the document's own heading and the Status is its status word plus at most");
   console.log("one short pointer (NP-CONV-001 §4.4). Change notes go in the document's history and NP-DHF-001 §9.");
 }
 if (violA.length + violB.length + violC.length) {
   console.log("\nFix: set the row's Rev and Date from the file's front matter, or add the row.");
   console.log("editscripts/patch_conv07_dhf_reconcile.py does both mechanically.");
 }
-const fails = violA.length + violB.length + violC.length + violD.length + violE.length + violF.length + violG.length;
+const fails = violA.length + violB.length + violC.length + violD.length + violE.length + violF.length + violG.length + violH.length;
 process.exit(fails ? 1 : 0);
