@@ -4,7 +4,7 @@
 **Document:** NP-PWR-BUDGET-001
 **Revision:** 4
 **Date:** 2026-08-21
-**Status:** DESIGN STUDY — not a tooling baseline. Every numeric value below is a derived engineering estimate with its assumption chain stated inline, not a measured or locked figure. See §7 (Decisions) and §8 (Open Items). **Does not modify CLAUDE.md §4.5** — that requires a principal decision (§7).
+**Status:** DRAFT — design study; not a tooling baseline. Every numeric value below is a derived engineering estimate with its assumption chain stated inline, not a measured or locked figure. See §7 (Decisions) and §8 (Open Items). **Does not modify CLAUDE.md §4.5** — that requires a principal decision (§7).
 **Effective Date:** —
 **Author:** NeurOne Hardware Engineering
 **Approved By:** — (pending design review)

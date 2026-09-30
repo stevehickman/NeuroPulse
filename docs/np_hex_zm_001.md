@@ -4,7 +4,7 @@
 **Document:** NP-HEX-ZM-001
 **Revision:** 9
 **Date:** 2026-09-28
-**Status:** DESIGN STUDY — Option A committed as baseline, Option B documented as future path. NOT a locked tooling baseline; gated by the curvature-scan go/no-go (§7).
+**Status:** DRAFT — design study; Option A committed as baseline, Option B documented as future path. NOT a locked tooling baseline; gated by the curvature-scan go/no-go (§7).
 **Effective Date:** 2026-08-04
 **Author:** NeurOne Mechanical + Hardware Engineering
 **Approved By:** — (design study; principal directions recorded inline)

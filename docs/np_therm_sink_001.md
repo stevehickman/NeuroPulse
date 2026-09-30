@@ -4,7 +4,7 @@
 **Document:** NP-THERM-SINK-001
 **Revision:** 3
 **Date:** 2026-09-23
-**Status:** DESIGN STUDY — **specification of the term `NP-THERM-CFD-N1-001` `OI-N1-02` declares BLOCKING.** It is a resistance-network study on the delivered 80-socket lattice, not a mesh CFD and not a bench measurement; `OI-R1-01` (mesh independence) and `OI-R1-02` (THERM-1b correlation) both remain open. It closes `OI-N1-02` by *recovering* the number rather than choosing one, and it changes the answer to `N1-D-1`.
+**Status:** DRAFT — design study; **specification of the term `NP-THERM-CFD-N1-001` `OI-N1-02` declares BLOCKING.** It is a resistance-network study on the delivered 80-socket lattice, not a mesh CFD and not a bench measurement; `OI-R1-01` (mesh independence) and `OI-R1-02` (THERM-1b correlation) both remain open. It closes `OI-N1-02` by *recovering* the number rather than choosing one, and it changes the answer to `N1-D-1`.
 **Effective Date:** —
 **Author:** NeurOne Thermal / Systems Engineering
 **Approved By:** — (pending design review)

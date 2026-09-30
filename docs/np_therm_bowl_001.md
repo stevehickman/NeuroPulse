@@ -4,7 +4,7 @@
 **Document:** NP-THERM-BOWL-001
 **Revision:** 2
 **Date:** 2026-09-23
-**Status:** DESIGN STUDY — answers `NP-EMC-CAV-001` `OI-EMCCAV-07` (GitHub #403). A resistance-network analysis on the model of record (`NP-THERM-SINK-001`); **asserts no measurement.** `EMF-1` has never run, and every dB figure used here is a design target.
+**Status:** DRAFT — design study; answers `NP-EMC-CAV-001` `OI-EMCCAV-07` (GitHub #403). A resistance-network analysis on the model of record (`NP-THERM-SINK-001`); **asserts no measurement.** `EMF-1` has never run, and every dB figure used here is a design target.
 **Effective Date:** —
 **Author:** NeurOne Thermal / Systems Engineering
 **Approved By:** — (pending design review)

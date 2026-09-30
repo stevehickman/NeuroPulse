@@ -4,7 +4,7 @@
 **Document:** NP-PWR-THERM-001
 **Revision:** 2
 **Date:** 2026-09-15
-**Status:** DESIGN STUDY — resolves the five threads grouped in issue #336 as far as the evidence reaches, and says explicitly where it stops. **Modifies no locked section.** CLAUDE.md §2.2 and §4.5 are read, re-derived and analysed; §9 says what §4.5 has to become and routes the edit, and §6 does the same for §2.2. Every figure is produced by `scripts/check-power-envelope.ts`, not transcribed.
+**Status:** DRAFT — design study; resolves the five threads grouped in issue #336 as far as the evidence reaches, and says explicitly where it stops. **Modifies no locked section.** CLAUDE.md §2.2 and §4.5 are read, re-derived and analysed; §9 says what §4.5 has to become and routes the edit, and §6 does the same for §2.2. Every figure is produced by `scripts/check-power-envelope.ts`, not transcribed.
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
 **Approved By:** — (pending design review)

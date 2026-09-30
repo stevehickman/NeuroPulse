@@ -4,7 +4,7 @@
 **Document:** NP-PWRSRC-001
 **Revision:** 3
 **Date:** 2026-09-26
-**Status:** DESIGN STUDY — not a tooling, firmware or release baseline. Every numeric value is derived from the cited specifications, from the authored protocol library, or from the two committed scripts named in §1; none is measured. **Modifies no locked section.** CLAUDE.md §2 (charger policy) and §4 (power table) are read, quoted and analysed but not edited — §12 and §13 say what they would have to become and route the change to the principal.
+**Status:** DRAFT — design study; not a tooling, firmware or release baseline. Every numeric value is derived from the cited specifications, from the authored protocol library, or from the two committed scripts named in §1; none is measured. **Modifies no locked section.** CLAUDE.md §2 (charger policy) and §4 (power table) are read, quoted and analysed but not edited — §12 and §13 say what they would have to become and route the change to the principal.
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
 **Approved By:** — (pending design review)

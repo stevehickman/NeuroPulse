@@ -3,6 +3,7 @@
 **Artifact under design:** the four-station mechanical layer stack (L0 per-module sealed
 faces → L1 socket layer → L2+L3 EMF stack + structural shell).
 **Brief:** `docs/np_helmet_geom_001.md` · **Effort:** E3 · **Date:** 2026-07-21
+**Status:** DRAFT
 
 ---
 
@@ -75,6 +76,8 @@ over per-module levers; CFRP outer bowl as specced.
 - **2026-07-21 Rev 1.2** — FMEA-RECON done (NP-FMEA-GEOM-001): mechanical failure modes moved into the
   NP-RM-001 S×P framework; new un-interlocked thermal-path failure mode FMEA-G07-01 raised
   (OI-GEOM-FMEA-01); G06-01 confirmed = RISK-20; ISC-11 added.
+- **2026-09-30** — Status line added: **DRAFT** (never approved; ISC-9 gates and RISK-20 still open; its
+  brief `NP-HELMET-GEOM-001` is DRAFT). No content changed (NP-DHF-001 Rev 148).
 
 ## Verification
 ISC-1..8, ISC-10, ISC-11 **MET** at the design-brief/analysis level. ISC-9 status: **BEZEL-1 resolved
