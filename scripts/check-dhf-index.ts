@@ -29,6 +29,27 @@
  * the history table left without an entry for the revision being published,
  * whether the row was misplaced or never written.
  *
+ * D, E and F were added at NP-CONV-001 Rev 11 (2026-09-30), which states what
+ * the Title and Status columns hold (§4.4). With no rule, each PR that bumped a
+ * document's revision pasted a "**Rev N (date): …**" note into its row, the next
+ * PR stacked its note in front, and cells grew to 6,000 characters. They read
+ * only §5, the master index:
+ *
+ *   D. no Title or Status cell carries a revision change note ("Rev N (date",
+ *      "Rev N:", "Rev N →"). That history belongs in the document's own
+ *      history table and in NP-DHF-001 §9;
+ *   E. a Title cell is at most TITLE_MAX characters and a Status cell at most
+ *      STATUS_MAX, so a summary or a history in prose is caught as well;
+ *   F. a serial has at most one live row. A second row for the same serial is
+ *      either a stale copy or needs its serial cell disambiguated
+ *      ("NP-X-001 (variant)"), as NP-HW-FPC-001 and NP-COORD-001 already do.
+ *
+ * Rows that broke D–F before the rule existed are listed, one per line, in
+ * GRANDFATHERED (`<serial> D:Title`, `<serial> E:Status`, `<serial> F`). A
+ * listed row is reported but does not fail. The list only shrinks: an entry
+ * whose row is now clean fails as stale, so it is deleted in the same PR that
+ * cleans the row, and a row not on the list can never start failing quietly.
+ *
  * Out of scope, deliberately:
  *   - .docx / .pdf: the revision text inside a Word file is not reliably
  *     extractable (NP-CONV-001 OI-CONV-04), so there is nothing to compare to.
@@ -39,7 +60,7 @@
  *
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-dhf-index.ts --self-test
- * CI-Scans: docs/*.md front matter and docs/np_dhf_001.md
+ * CI-Scans: docs/*.md front matter, docs/np_dhf_001.md and scripts/check-dhf-index.grandfathered
  * CI-Scan-Paths: docs/**
  */
 import { readdirSync, readFileSync, statSync, mkdirSync, mkdtempSync, writeFileSync, rmSync } from "fs";
@@ -108,6 +129,59 @@ if (process.argv.includes("--self-test")) {
   write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md"));
   expect("rule C rejects a DHF with no document-history table", 1, "no document-history table");
 
+  // Rules D–F read §5 only. A §5 fixture with one clean row, plus a row under test.
+  const S5 = (extra: string) => DHF_HEAD.replace("| ID |", "## 5. Master Document Index\n\n| ID |")
+    + dhfRow("NP-DHF-001", "1", "np_dhf_001.md") + extra + "\n## 6. Other\n" + HIST("1");
+  const row5 = (id: string, title: string, status: string) =>
+    `| ${id} | ${title} | 1 | 2026-01-01 | [x](./none.md) | ${status} | QMS |\n`;
+  const grand = (body: string) => writeFileSync(join(root, "scripts", "check-dhf-index.grandfathered"), body);
+  mkdirSync(join(root, "scripts"), { recursive: true });
+
+  reset(); grand("");
+  write("np_dhf_001.md", S5(row5("NP-BAR-001", "Bar Spec (base module)", "**SUPERSEDED 2026-09-25 by NP-BAR-002**")));
+  expect("a clean title with a parenthetical and a supersession pointer is accepted", 0, "D (no revision notes):");
+
+  reset(); grand("");
+  write("np_dhf_001.md", S5(row5("NP-BAR-001", "Bar Spec. **Rev 2 (2026-09-22):** closed OI-BAR-01", "DRAFT")));
+  expect("rule D rejects a revision note in Title", 1, "NP-BAR-001 D:Title");
+
+  reset(); grand("");
+  write("np_dhf_001.md", S5(row5("NP-BAR-001", "Bar Spec", "ACTIVE — Rev 2: field replaced")));
+  expect("rule D rejects a revision note in Status", 1, "NP-BAR-001 D:Status");
+
+  reset(); grand("");
+  write("np_dhf_001.md", S5(row5("NP-BAR-001", "Bar Spec — " + "x".repeat(200), "DRAFT")));
+  expect("rule E rejects an over-long Title", 1, "NP-BAR-001 E:Title");
+
+  reset(); grand("");
+  write("np_dhf_001.md", S5(row5("NP-BAR-001", "Bar Spec", "DRAFT — " + "y".repeat(100))));
+  expect("rule E rejects an over-long Status", 1, "NP-BAR-001 E:Status");
+
+  reset(); grand("");
+  write("np_dhf_001.md", S5(row5("NP-BAR-001", "Bar Spec", "DRAFT") + row5("**NP-BAR-001**", "Bar Spec", "DRAFT")));
+  expect("rule F rejects a serial with two live rows", 1, "NP-BAR-001 F");
+
+  reset(); grand("");
+  write("np_dhf_001.md", S5(row5("NP-BAR-001", "Bar Spec", "DRAFT") + row5("~~NP-BAR-001~~", "Bar Spec", "DRAFT")
+    + row5("NP-BAR-001 (variant)", "Bar Spec variant", "DRAFT")));
+  expect("rule F accepts a struck-through or disambiguated second row", 0, "F (one row per serial):");
+
+  reset(); grand("# comment\nNP-BAR-001 D:Title\nNP-BAR-001 E:Title\n");
+  write("np_dhf_001.md", S5(row5("NP-BAR-001", "Bar. **Rev 2 (2026-09-22):** " + "z".repeat(200), "DRAFT")));
+  expect("a grandfathered row is reported and does not fail", 0, "grandfathered");
+
+  reset(); grand("NP-BAR-001 D:Title\n");
+  write("np_dhf_001.md", S5(row5("NP-BAR-001", "Bar Spec", "DRAFT")));
+  expect("rule G rejects a grandfathered entry whose row is now clean", 1, "stale");
+
+  // Rows outside §5 are not index rows for D–F.
+  reset(); grand("");
+  write("np_dhf_001.md", S5("") .replace("\n## 6. Other\n", "\n## 6. Other\n\n" + "| a | b | c | d | e | f | g |\n|---|---|---|---|---|---|---|\n"
+    + row5("NP-BAR-001", "Bar. Rev 2 (2026-01-01): note", "DRAFT") + row5("NP-BAR-001", "Bar", "DRAFT")));
+  expect("rules D–F ignore rows outside §5", 0, "D (no revision notes):");
+
+  rmSync(join(root, "scripts"), { recursive: true, force: true });
+
   // Empty scope must not read as success.
   reset();
   write("np_dhf_001.md", "no front matter\n");
@@ -121,7 +195,7 @@ if (process.argv.includes("--self-test")) {
     for (const f of failures) console.error("  " + f);
     process.exit(1);
   }
-  console.log("  rules A, B and C each proven to reject; conforming tree proven to pass");
+  console.log("  rules A–G each proven to reject; conforming tree proven to pass");
   console.log("SELF-TEST PASS — the checker has teeth.");
   process.exit(0);
 }
@@ -189,6 +263,52 @@ for (const e of readdirSync("docs").sort()) {
   }
 }
 
+
+// Rules D–F: what the §5 master index's Title and Status cells hold (NP-CONV-001 §4.4).
+const TITLE_MAX = 150;
+const STATUS_MAX = 80;
+// "Rev N (2026-…", "Rev N:", "Rev N →", with or without bold. A bare "(Rev 11)" or
+// "at Rev 2" is not matched; E catches a history written in prose.
+const REV_NOTE = /\bRev\.?\s+[0-9A-Z][0-9A-Z.]*\**\s*(?:\(\s*\d{4}-\d{2}-\d{2}|:|→)/;
+const GRAND_FILE = "scripts/check-dhf-index.grandfathered";
+const grand = new Set<string>();
+try {
+  for (const l of readFileSync(GRAND_FILE, "utf8").split("\n")) {
+    const t = l.replace(/#.*/, "").trim();
+    if (t) grand.add(t);
+  }
+} catch { /* no file: nothing is grandfathered */ }
+
+const violD: string[] = [], violE: string[] = [], violF: string[] = [], violG: string[] = [];
+const held: string[] = [], hit = new Set<string>();
+const flag = (bucket: string[], key: string, msg: string) => {
+  hit.add(key);
+  if (grand.has(key)) held.push(`${key} — ${msg} (grandfathered)`);
+  else bucket.push(`${key} — ${msg}`);
+};
+{
+  const L = readFileSync(DHF, "utf8").split("\n");
+  const s5 = L.findIndex((l) => /^##\s+5\.\s/.test(l));
+  const e5 = s5 < 0 ? -1 : L.findIndex((l, i) => i > s5 && /^##\s/.test(l));
+  const seen = new Map<string, number>();
+  for (let i = s5 + 1; s5 >= 0 && i < (e5 < 0 ? L.length : e5); i++) {
+    const m = L[i].match(/^\|\s*\*{0,2}(NP-[A-Z0-9-]+?)\*{0,2}\s*\|/);
+    if (!m) continue;
+    const id = m[1], at = `line ${i + 1}`;
+    const c = L[i].split(/(?<!\\)\|/).slice(1, -1).map((x) => x.trim());
+    const title = c[1] ?? "", status = c[5] ?? "";
+    if (REV_NOTE.test(title)) flag(violD, `${id} D:Title`, `${at}: Title carries a revision note: "${title.match(REV_NOTE)![0]}"`);
+    if (REV_NOTE.test(status)) flag(violD, `${id} D:Status`, `${at}: Status carries a revision note: "${status.match(REV_NOTE)![0]}"`);
+    if (title.length > TITLE_MAX) flag(violE, `${id} E:Title`, `${at}: Title is ${title.length} characters (max ${TITLE_MAX})`);
+    if (status.length > STATUS_MAX) flag(violE, `${id} E:Status`, `${at}: Status is ${status.length} characters (max ${STATUS_MAX})`);
+    if (seen.has(id)) flag(violF, `${id} F`, `${at}: second live row for this serial (first at line ${seen.get(id)! + 1})`);
+    else seen.set(id, i);
+  }
+}
+for (const k of [...grand].sort()) {
+  if (!hit.has(k)) violG.push(`${k} — stale: the row is clean now; delete this line from ${GRAND_FILE}`);
+}
+
 console.log(`scanned: ${scanned} controlled Markdown documents against ${DHF} Rev ${self.rev}`);
 console.log(`A (indexed):               ${violA.length ? "FAIL" : "PASS"}`);
 violA.forEach((v) => console.log("   " + v));
@@ -196,8 +316,25 @@ console.log(`B (Rev agrees with file):  ${violB.length ? "FAIL" : "PASS"}`);
 violB.forEach((v) => console.log("   " + v));
 console.log(`C (DHF history has its Rev): ${violC.length ? "FAIL" : "PASS"}`);
 violC.forEach((v) => console.log("   " + v));
+console.log(`D (no revision notes):     ${violD.length ? "FAIL" : "PASS"}`);
+violD.forEach((v) => console.log("   " + v));
+console.log(`E (cell length):           ${violE.length ? "FAIL" : "PASS"}`);
+violE.forEach((v) => console.log("   " + v));
+console.log(`F (one row per serial):    ${violF.length ? "FAIL" : "PASS"}`);
+violF.forEach((v) => console.log("   " + v));
+console.log(`G (grandfathered list only shrinks): ${violG.length ? "FAIL" : "PASS"}`);
+violG.forEach((v) => console.log("   " + v));
+if (held.length) {
+  console.log(`\n${held.length} grandfathered (reported, not failing; ${GRAND_FILE}):`);
+  held.forEach((v) => console.log("   " + v));
+}
+if (violD.length + violE.length + violF.length) {
+  console.log("\nFix (D–F): the Title is the document's title and the Status is its status word plus at most");
+  console.log("one short pointer (NP-CONV-001 §4.4). Change notes go in the document's history and NP-DHF-001 §9.");
+}
 if (violA.length + violB.length + violC.length) {
   console.log("\nFix: set the row's Rev and Date from the file's front matter, or add the row.");
   console.log("editscripts/patch_conv07_dhf_reconcile.py does both mechanically.");
 }
-process.exit(violA.length + violB.length + violC.length ? 1 : 0);
+const fails = violA.length + violB.length + violC.length + violD.length + violE.length + violF.length + violG.length;
+process.exit(fails ? 1 : 0);

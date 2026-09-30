@@ -177,6 +177,7 @@ jobs:
         docs/**
         scripts/check-doc-filenames.ts
         scripts/check-dhf-index.ts
+        scripts/check-dhf-index.grandfathered
         scripts/check-md-tables.ts
         .github/workflows/tooling-ci.yml
       NP_SCOPE_SIMULATOR: |
@@ -414,6 +415,7 @@ jobs:
           assert scope.docnaming.paths true  docs/superseded/np_risk_001.docx
           assert scope.docnaming.paths true  scripts/check-doc-filenames.ts
           assert scope.docnaming.paths true  scripts/check-dhf-index.ts
+          assert scope.docnaming.paths true  scripts/check-dhf-index.grandfathered
           assert scope.docnaming.paths true  scripts/check-md-tables.ts
           assert scope.docnaming.paths false app/web/src/main.ts
           assert scope.simulator.paths true  simulator/server/index.js

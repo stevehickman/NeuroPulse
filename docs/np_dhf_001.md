@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 147
-**Date:** 2026-09-29
+**Revision:** 148
+**Date:** 2026-09-30
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | QMS Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | Design History File Index (this document) | 147 | 2026-09-29 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | Design History File Index (this document) | 148 | 2026-09-30 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 1 | 2026-05-13 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan — Rev 2 (PR #217) accepted SR-FAN-01..06 fan-health thermal interlock into §6.2; Rev 3 adds §5.2.1 ZONE_ID debounce requirement (RISK-18), closing the corresponding pending-decisions.md item **Rev 11 (2026-09-28): SW-04, the hex-tile on-module firmware, registered as Class B (§2, §3.1).** | 11 | 2026-09-28 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -305,7 +305,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-ANALYTICS-001 | NeurOne PostHog Analytics — Self-Hosted Configuration Reference | 1 | 2026-06-13 | [np_analytics_001.md](./np_analytics_001.md) | ACTIVE | APP |
 | NP-BIB-EMF-001 | EMF Shielding — Evidence Base and Claim Substantiation Record | 6 | 2026-09-23 | [np_bib_emf_001.md](./np_bib_emf_001.md) | ACTIVE | CLIN |
 | NP-COND-LINK-001 | NP-COND-LINK-001 — Condition external-link UI | 1 | 2026-07-18 | [np_cond_link_001.md](./np_cond_link_001.md) | ACTIVE | CLIN |
-| NP-CONV-001 | NeurOne Naming and Notation Conventions | 10 | 2026-09-25 | [np_conv_001.md](./np_conv_001.md) | ACTIVE | QMS |
+| NP-CONV-001 | NeurOne Naming and Notation Conventions | 11 | 2026-09-30 | [np_conv_001.md](./np_conv_001.md) | ACTIVE | QMS |
 | NP-HW-CVNS-001 | Cervical VNS Accessory — Electrode Assembly, Cable and Connector Hardware Specification | 2 | 2026-09-22 | [np_hw_cvns_001.md](./np_hw_cvns_001.md) | DRAFT | SPEC-HW |
 | NP-HW-EEGNET-001 | EEG Electrode Net — Architecture, Sizing, and Interference Control | 8 | 2026-08-31 | [np_hw_eegnet_001.md](./np_hw_eegnet_001.md) | DRAFT | SPEC-HW |
 | NP-HW-FITOVER-001 | Fit-Over Goggle Assembly — Concept Specification (Deferred) | 2 | 2026-09-26 | [np_hw_fitover_001.md](./np_hw_fitover_001.md) | DRAFT | SPEC-HW |
@@ -610,3 +610,4 @@ Planned near-term additions:
 | 145 | 2026-09-29 | NeurOne Firmware Engineering | **NP-NPPS-REF-001 Rev 16 → 17, NP-NPPS-GRAM-001 Rev 4 → 5 and NP-FEAS-PBMCH-001 Rev 3 → 4 (principal direction): protocol authors state exactly what a protocol is.** A PBM block states one wavelength as its source used it (`"810nm"`, §4.1a). A new `wavelength_rules` block (§7a) maps stated wavelengths onto emitter channels, with shipped defaults (`00-wavelength-rules.npps`: channel band ± 10 nm, an unvalidated default) that a user may loosen or tighten. Every modality block gains `start` (§5), so blocks run in parallel or in series. **Refused, never reshaped:** a wavelength no rule accepts, and parallel PBM blocks on one tile that differ in timing, frequency or duty or drive the same channel. This removes the web compiler's fallback that drove all three channels for any value other than `"660_808nm"`. Eligibility is per block; a fixable shortfall names the modules to swap, and an unmapped wavelength names the rules. **Implemented:** web runtime, grammar (parser regenerated reproducibly), simulator bundle; 394 web tests, three reintroduced defects each caught. **Not yet:** the iOS, Android and Windows parsers, so no shipped protocol uses the new forms |
 | 146 | 2026-09-29 | NeurOne Firmware Engineering | **CLAUDE.md Rev 59 → 60, NP-HW-HEXTILE-001 Rev 25 → 26, NP-FW-HEXTILE-001 Rev 2 → 3 (principal decision): `OI-HEXTILE-32` CLOSED, the laser skin reference adopted in full as R-4's average term.** The per-channel 200 mW/cm² is removed; Σ Ēᵢ / (200 × C_A(λᵢ)) ≤ 1 over the tile's channels is the whole average term. One channel alone: 200 at 660 nm (unchanged), ≈ 329 at 808, ≈ 364 at 830; 1064 nm is held to 400 by the peak, not the reference's 1000. **Recorded as a relaxation decided with its inputs open** (`NP-HW-HEXTILE-001` D-10): `OI-BIBPBM-01` gates the pre-signing check's C_A constants (`OI-HEXTILE-31`); counsel on RISK-03 is not commissioned; the 400 peak is now a hazard control at 1064 nm and may not be retired while `OI-BIBPBM-03` is open; `OI-BIBPBM-04` stays open. `OI-HEXTILE-30`'s per-channel U4 target becomes 200 × C_A of each channel. Scalp only; intranasal unchanged (`OI-NASAL-02`). Schiffer 2009 is now refused only by the duty cap and U4; its `.npps` notes and the NP-FEAS-PBMCH-001 Rev 4 notes are corrected. No code constant changes: the average check is not built (`OI-HEXTILE-31`) |
 | 147 | 2026-09-29 | NeurOne Quality | **NP-RISK-003 Rev 2 → 3, NP-RISK-002 Rev 6 → 7: RISK-03 brought up to CLAUDE.md Rev 59–60.** The control cell cited the retired "180 mA / 25 % duty". The consequence called a lower ceiling "a business risk, not a hardware one", which held only while the duty cap held the average to 100 mW/cm². The row now names both ceilings (peak, and the D-10 average term) and both directions of the consequence. It separates the controls in code (the hub's 25 % clamp), specified (U3, U4, the NTC throttle) and held by design (the 400 peak at 1064 nm). **Raised:** `OI-RISK3-05` (the thermal analyses took the retired cap as their input) and `OI-RISK3-06` (re-score). No score or status changes |
+| 148 | 2026-09-30 | NeurOne Systems Engineering | **NP-CONV-001 Rev 10 → 11: §4.4 states what a §5 row's Title and Status cells hold, and `scripts/check-dhf-index.ts` gains rules D–G to enforce it.** Title is the document's title; Status is a status word plus at most one short pointer; no revision notes in either (they belong in each document's history and in this §9); one live row per serial. The rows that already broke the rule (48 revision notes, 108 over-long cells, 3 duplicate serials: NP-APP-TELEMETRY-001, NP-FW-EMMC-002, NP-HW-CVNS-001) are listed in `scripts/check-dhf-index.grandfathered` and not yet cleaned. That list only shrinks. No row content changed in this revision. |
