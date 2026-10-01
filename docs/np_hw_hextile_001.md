@@ -4,7 +4,7 @@
 **Document:** NP-HW-HEXTILE-001
 **Revision:** 26
 **Date:** 2026-09-29
-**Status:** DESIGN STUDY — not a tooling baseline. Every numeric value below is a proposed engineering commitment, not a measured or locked figure. See §10 (Decisions) and §11 (Open Items).
+**Status:** DRAFT — design study; not a tooling baseline. Every numeric value below is a proposed engineering commitment, not a measured or locked figure. See §10 (Decisions) and §11 (Open Items).
 **Effective Date:** —
 **Author:** NeurOne Hardware Engineering
 **Approved By:** — (pending design review)

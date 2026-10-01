@@ -4,7 +4,7 @@
 **Document:** NP-FEAS-PBMCH-001
 **Revision:** 4
 **Date:** 2026-09-29
-**Status:** EXPLORATORY — costed feasibility study. Creates no locked decision and no design input. Feeds a go/no-go on making CH_A (660 nm) and CH_B (808 nm) independently commandable end to end.
+**Status:** DRAFT — exploratory; costed feasibility study. Creates no locked decision and no design input. Feeds a go/no-go on making CH_A (660 nm) and CH_B (808 nm) independently commandable end to end.
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
 **Approved By:** — (pending design review)

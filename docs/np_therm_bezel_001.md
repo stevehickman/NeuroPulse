@@ -1,7 +1,7 @@
 # NP-THERM-BEZEL-001 — THERM-1 / BEZEL-1 Coupling Analysis
 
 **Program:** NeurOne chassis / mechanical stack
-**Status:** ANALYSIS — first-order coupled thermal/optical model, not a measurement.
+**Status:** DRAFT — analysis; first-order coupled thermal/optical model, not a measurement.
 Closes the *scaling and trade direction* for THERM-1 and BEZEL-1; absolute scalp/junction
 temperatures still require the CFD + bench work named in §7.
 **Parent:** `docs/np_helmet_geom_001.md` (§2 stack-up, §5 impact strategy, §8 gates)

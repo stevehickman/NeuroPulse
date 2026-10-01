@@ -4,7 +4,7 @@
 **Document:** NP-FW-BENCH-001
 **Revision:** 5
 **Date:** 2026-09-27
-**Status:** DESIGN STUDY — not a release baseline. Every behaviour below is a proposed engineering commitment traced to a cited source; **no threshold in this document is measured, and the two the gate needs do not exist anywhere in the document set** (§4.4, `OI-BENCH-01`). See §11 (Decisions) and §12 (Open Items).
+**Status:** DRAFT — design study; not a release baseline. Every behaviour below is a proposed engineering commitment traced to a cited source; **no threshold in this document is measured, and the two the gate needs do not exist anywhere in the document set** (§4.4, `OI-BENCH-01`). See §11 (Decisions) and §12 (Open Items).
 **Effective Date:** —
 **Author:** NeurOne Firmware + Safety Engineering
 **Approved By:** — (pending design review)

@@ -1,7 +1,7 @@
 # NP-HELMET-GEOM-001 — Helmet Layer Geometry & Material Constraints
 
 **Program:** NeurOne chassis / mechanical stack
-**Status:** DESIGN STUDY — first physical-requirements derivation of the four-station
+**Status:** DRAFT — design study; first physical-requirements derivation of the four-station
 layer stack. Geometry basis is the scan-grounded inner surface (offset-outward
 method, principal decision). NOT a locked tooling baseline; gated by REG-1
 (10-20 registration), the PDMS thermal-cycle qual, and FMEA reconciliation (§9).

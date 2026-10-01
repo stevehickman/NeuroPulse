@@ -4,7 +4,7 @@
 **Document:** NP-SES-PWR-001
 **Revision:** 1
 **Date:** 2026-08-21
-**Status:** DESIGN STUDY — not a tooling or release baseline. Every figure is derived from the cited specifications and from the authored protocol files; none is measured. See §7 (Decisions) and §8 (Open Items).
+**Status:** DRAFT — design study; not a tooling or release baseline. Every figure is derived from the cited specifications and from the authored protocol files; none is measured. See §7 (Decisions) and §8 (Open Items).
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
 **Approved By:** — (pending design review)

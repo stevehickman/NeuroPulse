@@ -1,7 +1,7 @@
 # NP-THERM-CFD-R1-001 — THERM-1a First-Pass Analysis Results (C2 / C3 / C6) + BN-Boss Conductive-Export Study
 
 **Program:** NeurOne chassis / thermal
-**Status:** DESIGN STUDY — **1D closed-form + rough non-verification-grade axisymmetric FD.** Advances
+**Status:** DRAFT — design study; **1D closed-form + rough non-verification-grade axisymmetric FD.** Advances
 THERM-1a but does **not** close it: the verification-grade 2D-axisymmetric CFD (NP-THERM-CFD-001 §9
 step 2 — mesh-independence < 0.2 °C, contact conductances, curved geometry) and the THERM-1b
 scalp-phantom bench remain OPEN. Numbers are directional; multi-°C margins are robust to the modelling.
