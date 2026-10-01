@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-CONV-001
-**Revision:** 10
-**Date:** 2026-09-25
+**Revision:** 11
+**Date:** 2026-10-01
 **Status:** ACTIVE
 **Effective Date:** 2026-08-11
 **Author:** NeurOne Systems Engineering
@@ -385,6 +385,30 @@ What *is* retained inside `docs/superseded/` is the **revision label** each docu
 with (§1.1 proper) and a record of its former filename, in `docs/superseded/README.md`, so an
 external citation of the old name still leads somewhere.
 
+### 4.4 What a DHF index row holds (BINDING, added at Rev 11)
+
+> **An index row says which document, at which revision, in which state. It does not say what
+> changed.** What changed is the document's own revision history, and `NP-DHF-001` §9.
+
+`NP-DHF-001` §5 had no rule for its Title and Status columns. Each PR that bumped a document's
+revision edited its row by hand and many pasted a `**Rev N (date): …**` note into one of those two
+cells. The next PR stacked its note in front, so the cells only grew: at `NP-DHF-001` Rev 147,
+`NP-HW-HEXTILE-001`'s Title cell was 6,310 characters, and three serials each had two live rows
+that disagreed. A reader cannot find the title in such a row, and a history kept in two places
+drifts apart.
+
+| Column | Holds | Does not hold |
+|---|---|---|
+| **Title** | The document's title. For a Markdown document directly under `docs/`, **exactly its first `#` heading**, bold and spacing ignored (principal, 2026-09-30). For a `.docx` or a `docs/superseded/` row, the title as written, where a short parenthetical may tell two documents apart (`FPC Zone Module Specification (base module, ZM-01–ZM-05)`). At most 150 characters. | A revision note (`Rev N (date): …`, `Rev N: …`, `Rev N → N+1`), a scope summary, open-item status, or a list of sections. |
+| **Status** | One status word (`ACTIVE`, `DRAFT`, `SUPERSEDED`, …), plus at most one short pointer: the supersession date and successor (`SUPERSEDED 2026-09-25 by NP-TOOL-SHELL-002`), or one qualifier that changes how the document may be used (`DRAFT — requirements-grade`). At most 80 characters. | A revision note, the reasons for the status, or what the revision changed. |
+
+**One live row per serial.** A second row for the same serial is either a stale copy, which is
+deleted, or a different file under that serial, whose serial cell is then disambiguated
+(`NP-HW-FPC-001 (variant)`, `NP-COORD-001 (Rev 11)`). A struck-through row (`~~NP-…~~`) is history
+and is not counted.
+
+`scripts/check-dhf-index.ts` rules D–G enforce this (§8). An exact heading match is the rule, not a close one, because it leaves no gray area for a summary to creep back in. `NP-DHF-001` Rev 148 cleaned every row to this shape, so the check starts with no exceptions.
+
 ## 5. Section references
 
 > **`§N` with no space** — `§7.2`, `§8.2.1`, `§5.1.7`. The section sign goes immediately before
@@ -558,6 +582,7 @@ confirm the check fails.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| **11** | **2026-10-01** | NeurOne Systems Engineering | **§4.4 added (BINDING): what a `NP-DHF-001` index row holds.** The Title column holds the document's title, and for a Markdown document exactly its `#` heading (principal, 2026-09-30); the Status column holds a status word plus at most one short pointer; revision notes go in the document's history and `NP-DHF-001` §9, never in the row. One live row per serial. Enforced by `scripts/check-dhf-index.ts` rules D–G, with no exceptions: `NP-DHF-001` Rev 148 had already cleaned every row. |
 | **10** | **2026-09-25** | NeurOne Systems Engineering + principal | **OI-CONV-01 CLOSED (GitHub #437).** The polarity "conflict" was two nets joined by an inverting buffer that only a Class C source comment stated. `NP-RISK-004` §2.2 analysed it and was adopted by the principal the same day. The requirement is `NP-HW-HUB-001` HUB-REQ-C06. **§1.1 gains `PBM_CRANIAL_PERMIT`** as the buffer output's name, plus a rule: **across an inverter, the two sides take different stems, never the same stem with and without `#`.** `SAFE_EN[n]` is not renamed. No firmware identifier changes (§3). |
 | **9** | **2026-09-25** | NeurOne Systems Engineering + Quality | **Four open items closed and one raised (GitHub #394).** **`OI-CONV-08`**: the §7.1 sweep is finished (§7.1.1). Clusters (a)–(c) are dispositioned in their owning documents, and they went every way: three rows retired, two stand re-sourced, one hazard control stands, and six raised, one of them escalated to a dose-metering question (`OI-HEXTILE-26`). The three named gaps are closed: `.docx` scanned, prose scanned, and REQ-TMS verified by independent re-computation, which found a unit label to correct. **`OI-CONV-02`**: swept, one `#` added (`DRDY#`). **`OI-CONV-03`**: `NP-COORD-001` flattened and re-issued as Rev 12. **`OI-CONV-07`**: the DHF reconciled to the files and gated by `scripts/check-dhf-index.ts`, with the register frozen, not deleted. `OI-CONV-04`'s list loses `NP-COORD-001`. Raises **`OI-CONV-09`**. No rule changes. |
 | **8** | **2026-09-22** | NeurOne Systems Engineering | **§7.1 gains a second worked example, and it is the one that ends the other way; `OI-CONV-08` gains a disposition guide.** Rev 7 stated the rule from a single instance — `NP-PROC-FPC-001` §2.3's `Tj_max ≥ 125 °C`, retired — which risked reading as *"an unsourced requirement is a deletion candidate."* **`NP-EMC-CAV-001` (merged to `main` 2026-09-22, independently of this rule) is the counter-case and it is the more important one.** EMF Layer 4 presented with the **identical symptom**: `NP-BIB-EMF-001` §7.3 calls it *"the only layer in the stack whose benefit has never been stated in any measurable form, anywhere"*, its whole justification being the phrase *"cavity-resonance suppression"* repeated across three documents. But the derivation was **constructible** — the source was one document away and is not a radio (the **18 cluster controllers inside the envelope**, `NP-DRV-SHELL-002` §3.2, so edge rate not clock rate), the band is **420 MHz–3 GHz** with its lower edge a property of the wearer, and `REQ-CAV-02` now reads **loaded Q ≤ 20 = 26.2 dB**. **The requirement therefore stands and the component fails it**: Layer 4 supplies **0.26 dB**, 1.0 % of its own stated job, while the wearer's head supplies 49.8 dB. §7.1 now tabulates the two side by side and states the conclusion: **the disposition is decided by what the search returns, never by the symptom** — which is what the scope limit already forbade in the abstract and now demonstrates concretely. Had Layer 4's requirement been retired for want of a derivation, the one instrument that later measured the layer at 1 % would have gone with it, and an 18 % thermal cost would have been kept on the strength of a phrase. No rule changes; the two-question test, the retire-not-downgrade disposition, retire-is-not-delete and the scope limit are all unaltered. |
