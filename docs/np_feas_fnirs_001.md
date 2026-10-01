@@ -4,7 +4,7 @@
 **Document:** NP-FEAS-FNIRS-001
 **Revision:** 2
 **Date:** 2026-09-27
-**Status:** EXPLORATORY — feasibility assessment only; creates no locked decision. Feeds a go/no-go on adding an fNIRS brain-monitoring modality.
+**Status:** DRAFT — exploratory; feasibility assessment only; creates no locked decision. Feeds a go/no-go on adding an fNIRS brain-monitoring modality.
 **Author:** SmartyPants (competitive analysis, Neurode Labs comparison)
 **Approved By:** — (pending Steve Hickman review)
 **References:** CLAUDE.md §3 (modality 1 PBM Transcranial, modality 6 PPG/HRV), §9 (competitive position — Neurode gap note); NP-HW-FPC-001 Rev 5 (dual-PD, 1064nm InGaAs); NP-FW-PBM1064-001 Rev 1 (per-channel dose metering, InGaAs PD coefficients); NP-HW-HUB-001 Rev 2 (DG2788A per-slot TIA gain switch); RISK-03 (NP-REG-PBM1064-001 — marketing/regulatory gate); NP-HW-HEXTILE-001 §4.1/§5.1/§8.1 (emitter lattice, PD1/PD2 at site 0, per-channel strings); NP-HEX-ZM-001 §3 (40 mm tile); NP-HW-EEGNET-001 §1.9.4 (four-pod separation table)

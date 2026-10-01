@@ -4,7 +4,7 @@
 **Document:** NP-THERM-CFD-N1-001
 **Revision:** 2
 **Date:** 2026-09-23
-**Status:** DESIGN STUDY — **coupled N-tile resistance network on the delivered 80-socket lattice, validated against every published `NP-THERM-CFD-R1-001` figure.** It is **not** a mesh CFD and does not close `OI-R1-01`'s mesh-independence requirement. It closes the *question* `OI-PWR-01` was opened to answer, and finds that a mesh CFD could not have answered it — see §11.
+**Status:** DRAFT — design study; **coupled N-tile resistance network on the delivered 80-socket lattice, validated against every published `NP-THERM-CFD-R1-001` figure.** It is **not** a mesh CFD and does not close `OI-R1-01`'s mesh-independence requirement. It closes the *question* `OI-PWR-01` was opened to answer, and finds that a mesh CFD could not have answered it — see §11.
 **Effective Date:** —
 **Author:** NeurOne Thermal / Systems Engineering
 **Approved By:** — (pending design review)
