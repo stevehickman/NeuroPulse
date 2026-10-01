@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 8
-**Date:** 2026-09-25
+**Revision:** 9
+**Date:** 2026-09-29
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -12,10 +12,17 @@
 **Related Issues:** GitHub Issue #24; GitHub Issue #343 (§9 FAI serial disposition); GitHub Issue #332 (A14 hardware specification — issued 2026-09-20 as NP-HW-CVNS-001)
 **Gate:** NP-COORD-001 G3-08
 **IEC 62304 Class:** SW-01 Class C (safety MCU) / SW-02 Class B (main processor)
-**Supersedes:** NP-FW-CVNS-001 Rev 7
+**Supersedes:** NP-FW-CVNS-001 Rev 8
 **Parent Document:** NP-SW-001
 
 ---
+
+**Rev 9 (2026-09-29): OI-CVNS-10 closed as moot, and a defect larger than the question found behind it (new OI-CVNS-12).**
+- **OI-CVNS-10 (window 8 vs 5) is closed without changing either number.** Both candidates rested on the ±5 BPM main-vs-MCU baseline cross-check. That check was never built. The safety MCU's wire protocol has no baseline command, the main-processor module sends 0x13 through a stub, and `NP-FMEA-001` Rev 12 had already withdrawn the claim. With no comparison between them, the two windows need not agree and are not related. The MCU's window is a parameter of its own detector (§14.3).
+- **§5.3 step 5 and §6.3 corrected.** They still said the MCU rejects an enable when the baselines disagree. It does not.
+- **New OI-CVNS-12: the interlock misses most qualifying heart-rate changes.** The 5 s baseline refresh (`NP_CARDIAC_OBS_MS`) is unconditional. It adopts the mean before a step has finished moving through the 8-interval window. At 70 BPM, a sustained 20 BPM fall is never cut, and a 20 BPM rise is cut in about 30 % of cases. That rise is FAI-CV02's own test step. CLAUDE.md §4.2 requires a cutoff for any change over 15 BPM within 5 s. A 5-interval window is better but still fails (§14.5).
+- **Evidence.** A simulation that links the real `np_cardiac_interlock.c` (§14.5). A new host test pins the defect: `test_refresh_absorbs_sustained_fall_KNOWN_DEFECT` passes today by asserting it, and fails if the refresh is removed.
+- **No firmware behaviour, constant or threshold changed.** OI-CVNS-12 is a Class C design decision for the principal. `NP-RISK-002` Rev 8 records its effect on RISK-25 control C1.
 
 **Rev 8 (2026-09-25): the safety MCU's cardiac interlock is no longer blind before it arms or after R-peaks stop (`NP-RISK-002` OI-RISK2-05, principal decision; GitHub #437).**
 - **§5.4 step 3, pre-arm hold.** `NP_SAFETY_EN_CVNS` is withheld until 8 intervals arm the baseline. Before this, CVNS was granted on request, and the interlock could not fire until armed.
@@ -313,7 +320,7 @@ Debounce: any edge detected within 30 µs of the previous edge is discarded (`NP
 
 ### 5.3 Baseline establishment
 
-**Two independent baselines exist; do not conflate them.** The main processor computes its own baseline from PPG-derived R-peaks using the §3.4 constants in `firmware/cervical_vns/include/np_cvns_config.h`. The safety MCU computes its own, from the `RPEAK_IN` pulse train, using its own constants. The two sides are **deliberately separate implementations** — that is precisely what makes the ±5 BPM cross-validation in step 5 (`NP_CVNS_BASELINE_CROSSVAL_BPM`) a meaningful check rather than a computation compared against itself. Rev 1 of this section attributed the main processor's constants to the safety MCU; the safety MCU has never used them.
+**Two independent baselines exist; do not conflate them.** The main processor computes its own baseline from PPG-derived R-peaks using the §3.4 constants in `firmware/cervical_vns/include/np_cvns_config.h`. The safety MCU computes its own, from the `RPEAK_IN` pulse train, using its own constants. The two sides are **separate implementations**. *Rev 9: this sentence went on to say that separation is what made the ±5 BPM cross-validation in step 5 meaningful. No such cross-validation exists (step 5).* Rev 1 of this section attributed the main processor's constants to the safety MCU; the safety MCU has never used them.
 
 Safety MCU constants — the values that actually govern §5.3 and §5.4:
 
@@ -325,15 +332,15 @@ Safety MCU constants — the values that actually govern §5.3 and §5.4:
 | `NP_CARDIAC_OBS_MS` | 5 000 | `include/np_safety_config.h` | Rolling-baseline refresh window |
 | `NP_CARDIAC_LOCKOUT_MS` | 30 000 | `include/np_safety_config.h` | Re-enable lockout after a cutoff |
 
-> **OI-CVNS-10 — open.** The safety MCU uses an 8-interval baseline window; the main processor uses 5 (`NP_CVNS_BASELINE_BEATS_MIN`). Whether the two windows are *meant* to differ, and why, is not established anywhere. **Do not harmonise by editing one number to match the other** — see §14.
+> **OI-CVNS-10 — closed 2026-09-29 (Rev 9), moot.** The safety MCU uses an 8-interval window and the main processor uses 5 (`NP_CVNS_BASELINE_BEATS_MIN`). Nothing compares the two baselines, so they need not agree. The MCU's window is now a parameter of **OI-CVNS-12**, because the window and the 5 s refresh together decide what the interlock can detect. **Still do not harmonise by editing one number to match the other** (§14.3).
 
 Before stimulation is enabled:
 1. Safety MCU accumulates R-R intervals in a circular buffer of depth `NP_RR_BUF_SIZE` (8). The first R-peak after init or re-enable is a priming edge and produces no interval, so 8 intervals require 9 edges.
 2. **Not implemented on the safety MCU.** Rev 1 specified discarding intervals outside [`NP_CVNS_RR_MIN_VALID_MS`, `NP_CVNS_RR_MAX_VALID_MS`] (300–2000 ms); those are main-processor constants and the safety MCU applies no validity filter — every measured interval enters the buffer. A physiologically impossible interval is handled downstream instead, by saturating the BPM conversion at `INT16_MAX` (see `rr_to_bpm()`). Escalated as **OI-CVNS-11**.
 3. The baseline arms when `NP_CARDIAC_BASELINE_BEATS` (8) intervals have accumulated. There is no outlier-rejection criterion on the MCU side.
 4. Baseline HR (BPM) = 60,000,000 / mean(all intervals currently in the ring buffer, in µs). Because the buffer is 8 deep and arming requires 8 intervals, at the arming tick this is the mean of the last 8.
-5. The main processor confirms baseline via `NP_CVNS_SPI_CMD_HR_BASELINE_SET`. Both baselines must agree within `NP_CVNS_BASELINE_CROSSVAL_BPM` (5 BPM); if not, the safety MCU rejects the enable request.
-6. Once armed, the baseline is refreshed to the current rate every `NP_CARDIAC_OBS_MS` (5 s) so that slow physiological drift does not accumulate into a cutoff.
+5. **Not implemented (Rev 9).** This step said that the main processor confirms its baseline via `NP_CVNS_SPI_CMD_HR_BASELINE_SET`, and that the safety MCU rejects the enable if the two differ by more than `NP_CVNS_BASELINE_CROSSVAL_BPM` (5 BPM). The safety MCU never receives the main processor's baseline. Its wire protocol (`np_spi_wire_types.h`) has no baseline command, and `np_cvns_interlock.c` sends 0x13 through a stub that transmits nothing. `NP-FMEA-001` Rev 12 withdrew the same claim on 2026-09-25. Whether a cross-check is wanted is part of OI-CVNS-12.
+6. Once armed, the baseline is refreshed to the current rate every `NP_CARDIAC_OBS_MS` (5 s) so that slow physiological drift does not accumulate into a cutoff. **Rev 9: the refresh is unconditional. It also absorbs a sustained step that takes longer than 5 s to move the 8-interval mean past 15 BPM, which at resting rates is most steps (OI-CVNS-12, §14.5).**
 
 Host-test coverage: `firmware/safety_mcu/tests/np_cardiac_interlock_tests.c` (`np_cardiac_interlock_tests`).
 
@@ -438,7 +445,7 @@ Pan-Tompkins-derived bandpass detection on the PPG signal from the VNS accessory
 
 ### 6.3 Baseline HR computation
 
-Identical algorithm to the safety MCU (§5.3), running in parallel on the main processor. The main processor pushes its computed baseline to the safety MCU via `NP_CVNS_SPI_CMD_HR_BASELINE_SET` before requesting enable. The safety MCU cross-validates with its own R-peak GPIO-derived baseline; a > 5 BPM discrepancy blocks enable.
+Similar to the safety MCU's (§5.3), running in parallel on the main processor, but over 5 intervals (`NP_CVNS_BASELINE_BEATS_MIN`) of a 20-deep buffer and after the 300–2000 ms validity filter. The main processor calls `platform_spi_send(NP_CVNS_SPI_CMD_HR_BASELINE_SET, …)` before requesting enable. *Rev 9 correction: this paragraph said the safety MCU cross-validates that baseline and blocks enable on a > 5 BPM discrepancy. `platform_spi_send` is a stub, the hub↔MCU protocol has no such command, and the MCU never compares the two (§5.3 step 5).* This side has no heart-rate excursion cutoff of its own; its only cutoff is data loss (`NP_CVNS_DATA_LOSS_TIMEOUT_S`).
 
 ### 6.4 API summary
 
@@ -784,7 +791,7 @@ Hardware FAI (CV01 bench, CV02 timing, CV03 clinical) PENDING — blocking for T
 | Severity | **S5 — Critical** (`NP-RM-001` §4.1 names this harm as its S5 example). *Before 2026-09-23 this read "Critical (S4)", mixing two scale levels* |
 | Probability (unmitigated) | P3 — Occasional (documented in gammaCore predicate safety data) |
 | Risk (unmitigated) | S5 × P3 = **UNACCEPTABLE** |
-| Mitigation | Safety MCU TIM6 ISR fires every 5 ms; cardiac interlock GPIO cutoff < 5.1 ms from detection trigger. Baseline cross-validation blocks enable if main processor and safety MCU disagree. 30 s re-enable lockout. Re-enable requires explicit app confirmation. **(Rev 6)** The cutoff persists in safety-MCU flash across power loss, per user, failing closed (§5.4.1). It withholds cervical VNS only. gammaCore predicate demonstrated equivalent interlock concept safe in K163334/K173323. |
+| Mitigation | Safety MCU TIM6 ISR fires every 5 ms; cardiac interlock GPIO cutoff < 5.1 ms from detection trigger. ~~Baseline cross-validation blocks enable if main processor and safety MCU disagree.~~ *(Rev 9: never built, §5.3 step 5. **The detector itself misses most qualifying changes at resting rates, OI-CVNS-12 and `NP-RISK-002` OI-RISK2-08.** The TIM6 wording is Rev 1's; §5.4 records that there is no TIM6 ISR.)* 30 s re-enable lockout. Re-enable requires explicit app confirmation. **(Rev 6)** The cutoff persists in safety-MCU flash across power loss, per user, failing closed (§5.4.1). It withholds cervical VNS only. gammaCore predicate demonstrated equivalent interlock concept safe in K163334/K173323. |
 | Residual probability | **P2 — Remote** now, because no control is yet verified on hardware; **P1** target after FAI-CV02, silicon verification of §5.4.1, `OI-CVNS-11` and `OI-CVNSHW-03` (`NP-RISK-002` §4.3) |
 | Residual risk | **S5 × P2 = ALARP** (target S5 × P1, still ALARP). ALARP justification: `NP-RISK-002` §4.3.4. *Before 2026-09-23 this read "Low", which the `NP-RM-001` matrix cannot produce at S5* |
 | Verification | FAI-CV02: measured cutoff latency ≤ 100 ms (10 consecutive trials) |
@@ -805,8 +812,9 @@ Hardware FAI (CV01 bench, CV02 timing, CV03 clinical) PENDING — blocking for T
 | OI-CVNS-07 | FAI-CV01 anatomical phantom bench must be completed with T2 accessory prototype | HW team | Full G3-08 closure |
 | OI-CVNS-08 | STM32G071 pin map: §5.1 and `np_safety_config.h` disagree on every row. Nothing in-tree settles it. | HW/Embedded safety team | PCB layout (G1) |
 | OI-CVNS-09 | One CVNS enable line or two (per-electrode)? Clinical/regulatory question, not a code-style one. | Regulatory/Clinical + Embedded safety | PCB layout (G1); T2 510(k) |
-| OI-CVNS-10 | Cardiac baseline window: safety MCU 8 intervals vs main processor 5. Deliberate or accidental? | Embedded safety team | Class C design freeze |
+| ~~OI-CVNS-10~~ | ~~Cardiac baseline window: safety MCU 8 intervals vs main processor 5. Deliberate or accidental?~~ **CLOSED 2026-09-29 (Rev 9), moot:** the ±5 BPM cross-check that made the two related was never built. The MCU window moves to OI-CVNS-12 (§14.3) | Embedded safety team | — |
 | OI-CVNS-11 | Safety MCU applies no R-R validity filter (§5.3 step 2). Intended, or a gap? | Embedded safety team | Class C design freeze |
+| **OI-CVNS-12** | **The Class C cardiac interlock does not meet CLAUDE.md §4.2's "HR change > 15 BPM within 5 s".** The unconditional 5 s baseline refresh absorbs a sustained step before the 8-interval mean has moved 15 BPM. At 70 BPM a 20 BPM fall is never cut, and FAI-CV02's own +20 BPM step is cut in about 30 % of cases. Redesign the refresh, window and (optionally) cross-check together. **A principal decision on Class C behaviour** (§14.5) | Embedded safety team + principal | Class C design freeze; FAI-CV02; RISK-25 (`NP-RISK-002` OI-RISK2-08) |
 
 ### 14.1 OI-CVNS-08 — STM32G071 pin map
 
@@ -857,6 +865,21 @@ The safety MCU arms on 8 intervals (`NP_CARDIAC_BASELINE_BEATS`, ring buffer `NP
 
 **Do NOT harmonise by editing one number to match the other.** This is a safety parameter on a cardiac interlock; making the numbers equal is a change to interlock timing dressed as a tidy-up. `np_cardiac_interlock_tests.c` now pins the MCU's 8-interval arm point with assertions that a 5-interval implementation fails, so any change surfaces as a reviewed diff.
 
+#### 14.3.1 Disposition — closed 2026-09-29 (Rev 9), moot
+
+**The settlement condition could not be met, because its premise is false.** It asked for the two arming latencies to be reviewed against the ±5 BPM cross-validation tolerance. Candidate A's independence argument rested on the same check. The check does not exist:
+
+- The hub↔safety-MCU wire protocol (`firmware/common/include/np_spi_wire_types.h`) has four command types: session signature, channel limit, channel waveform and active user. None carries a heart rate.
+- `np_cvns_interlock_request_enable()` sends `NP_CVNS_SPI_CMD_HR_BASELINE_SET` through `platform_spi_send()`, a stub that transmits nothing.
+- The hub module (`np_mod_cvns.c`) gates cervical VNS on the heartbeat grant bit alone.
+- `NP-FMEA-001` Rev 12 withdrew the claim on 2026-09-25 (§3.5). This document still carried it until this revision (§5.3 step 5, §6.3).
+
+**So neither candidate stands.** The windows cannot be "deliberately different for independence", because nothing compares them. Their difference cannot be a harmful accident either, for the same reason. The main processor's 5 governs only its own Class B baseline gate. The origin of the MCU's 8 is still unrecorded, and it no longer matters.
+
+**What does matter is what the MCU's window does to detection, and that is OI-CVNS-12.** The analysis this item asked for, run against the real code, found that the window and the 5 s refresh together decide which heart-rate changes the interlock can see. At resting rates it misses most changes the requirement covers, at either length (§14.5).
+
+**The window is not changed here.** An 8-interval window tolerates single R-peak artefacts better, which matters while the MCU has no validity filter (OI-CVNS-11). A 5-interval window detects more. Choosing it in isolation would be the harmonising edit this item forbade, made for a new reason. It is a parameter of OI-CVNS-12's redesign.
+
 ### 14.4 OI-CVNS-11 — no R-R validity filter on the safety MCU
 
 Rev A §5.3 step 2 specified discarding intervals outside 300–2000 ms. Those bounds (`NP_CVNS_RR_MIN_VALID_MS` / `_MAX_VALID_MS`) are main-processor constants; the safety MCU has no equivalent and admits every measured interval into its ring buffer.
@@ -867,3 +890,45 @@ Rev A §5.3 step 2 specified discarding intervals outside 300–2000 ms. Those b
 | **B — a gap.** A stuck-high or noisy `RPEAK_IN` line injects garbage intervals straight into the baseline. | The saturation clamp is a *containment* measure, not rejection: a burst of impossible intervals still shifts the mean and can move the baseline or trip a cutoff. | Adding a filter adds Class C code and a new way to reject real beats (a false negative on a cardiac interlock is worse than a false positive). |
 
 **What would settle it:** an FMEA line for `RPEAK_IN` line faults (stuck high, stuck low, ringing) tracing what each does to the baseline and to cutoff behaviour. If the answer is "the main processor's Pan-Tompkins stage is the mitigation", that mitigation needs to be stated as a requirement on the SW-02 side rather than left implicit — at which point the ±5 BPM cross-validation's independence assumption should be re-examined.
+
+### 14.5 OI-CVNS-12 — the interlock misses most qualifying heart-rate changes
+
+**Requirement.** CLAUDE.md §4.2: *"HR change > 15 BPM within 5 s → GPIO cutoff < 100 ms"*. RISK-25's hazard is a baroreceptor or vagal reflex, which is bradycardia or asystole (§13).
+
+**Mechanism.** Three facts about `np_cardiac_interlock.c`, each correct on its own:
+
+1. Current HR is the mean of the last 8 R-R intervals, so a step change reaches it one beat at a time.
+2. The cutoff compares that mean with a baseline, and fires only when they differ by more than 15 BPM.
+3. While no cutoff is active, the baseline is reset to the current mean every 5 s (`NP_CARDIAC_OBS_MS`), unconditionally.
+
+If a step takes longer than 5 s to move the 8-interval mean past 15 BPM, a refresh always lands during the transition and adopts a part-moved mean. Less than 15 BPM is then left to travel. A 70 → 50 BPM fall needs 6 intervals at 1.2 s (7.2 s) to cross the threshold, so it is **never** cut. That holds whatever the phase of the refresh. Asystole is still caught, by the 3 s staleness cutoff (§5.4 step 4).
+
+**Evidence.** A host simulation (`firmware/safety_mcu/tests/analysis/run_oi_cvns_12_sim.sh`, fixed seed, reproduces every figure below) linked the unmodified `np_cardiac_interlock.c` to a mocked HAL, ticking every 1 ms with beats in real time. It ran 200 trials per cell, each with a random step time and refresh phase and no heart-rate variability. The table gives the percentage of sustained instantaneous steps that were cut within 40 s:
+
+| Start HR | Step | 8 intervals (as built) | 5 intervals | 8, refresh disabled | 5, refresh disabled |
+|---|---|---|---|---|---|
+| 60 | −20 | 0 % | 0 % | 100 % | 100 % |
+| 70 | −20 | **0 %** | 37 % | 100 % | 100 % |
+| 70 | −16 | 0 % | 0 % | 100 % | 72 % |
+| 70 | +20 (FAI-CV02's step) | **31 %** | 76 % | 100 % | 100 % |
+| 90 | −20 | 18 % | 55 % | 100 % | 100 % |
+| 90 | +16 | 18 % | 51 % | 100 % | 100 % |
+
+When a step is cut, the mean latency from the step is 3.4–6.5 s at N = 8. Steps of 40 BPM are usually cut, but a 40 BPM fall from 60 is cut in only 18 % of trials. Steps spread over 2.5–5 s do worse than instantaneous ones.
+
+**The window is a trade-off, not a fix.** With 120 s of steady rhythm at 50–100 BPM, R-R SD ≤ 50 ms and 1 % of beats missed or split, the 8-interval window false-tripped in 0–36 % of sessions. The 5-interval window false-tripped in 0–74 %. The worst case for both is 100 BPM. The 8-interval window absorbs a single artefact that the 5-interval one does not, which matters while the MCU has no validity filter (OI-CVNS-11).
+
+**Pinned.** `np_cardiac_interlock_tests.c` `test_refresh_absorbs_sustained_fall_KNOWN_DEFECT` asserts that the 70 → 50 fall is not cut in real time. As a control, it also asserts that the same fall *is* cut when SysTick is held back so that no refresh lands. With the refresh removed (mutation), the defect assertion fails. A fix is meant to fail it.
+
+**FAI-CV02 as written cannot pass.** Its procedure is the 70 → 90 BPM step, which is cut in about 30 % of trials. CV02-A also measures latency **from the first out-of-window R-peak**. Even with no refresh, the 8-interval mean needs 7 of those beats (about 4 s) before it crosses 15 BPM, so ≤ 100 ms is unreachable. CLAUDE.md §4.2 reads as "< 100 ms from detection", and detection time has no stated bound. The requirement needs a detection-time bound as well as a cutoff latency, and FAI-CV02 needs to measure each separately.
+
+**Candidates.** Each changes Class C behaviour on an S5 risk, so none is taken here.
+
+| Candidate | For | Against |
+|---|---|---|
+| **A — refresh only when stable.** Adopt the new mean only if it is within a band (e.g. ≤ 5 BPM) of the current baseline, or only if the last N intervals are within a band of each other | Keeps drift tracking for the slow changes it was written for, and stops absorbing a step in transit. Smallest code change | Picks a new constant (the band) that needs its own derivation, per CLAUDE.md §18. A slow ramp faster than the band still escapes |
+| **B — compare against a session baseline too.** Keep the rolling baseline for drift, but also cut on > 15 BPM against the baseline frozen at arming, or against the rolling baseline from 5 s earlier | Matches the literal requirement ("within 5 s" is a comparison 5 s apart). Detection no longer depends on the refresh phase | A fixed session baseline turns legitimate drift over a 120 s session into cutoffs. Needs a clinical view of how much drift a cervical session sees |
+| **C — shorter window plus a validity filter** (OI-CVNS-11) | Faster detection, and artefact rejection moves into Class C | Rejecting intervals can reject a real bradycardic beat, and a false negative is the worse failure on this interlock. On its own it does not remove the refresh race |
+| **D — build the ±5 BPM cross-check** (§5.3 step 5) | Restores the independence the document once claimed | Addresses neither detection sensitivity nor the refresh race. It is a separate question |
+
+**What would settle it.** A principal decision on the detection rule and its constants. Each constant needs a derivation that answers §18's two questions. The decision should be verified against the simulation above, extended with heart-rate variability and artefacts, and pinned by host tests. FAI-CV02 then needs amending to test detection time and cutoff latency separately. RISK-25 control C1 cannot be counted as effective until this closes (`NP-RISK-002` OI-RISK2-08).

@@ -29,7 +29,7 @@
 # Lowering a floor is deliberate: do it in the PR that removed the coverage,
 # and say why. Raising one after adding cases is welcome, never required.
 
-np_cardiac_interlock_tests 507
+np_cardiac_interlock_tests 524
 np_charge_monitor_tests 518
 np_fault_latch_privacy_tests 107
 np_gpio_mgr_tests 402
