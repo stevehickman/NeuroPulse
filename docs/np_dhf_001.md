@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 151
+**Revision:** 152
 **Date:** 2026-10-01
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 151 | 2026-10-01 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 152 | 2026-10-01 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 1 | 2026-05-13 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | 11 | 2026-09-28 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -147,7 +147,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-FW-HRV-001 | HRV Biofeedback Protocol Firmware Specification | 3 | 2026-09-27 | [np_fw_hrv_001.md](./np_fw_hrv_001.md) | BASELINED | SPEC-FW |
 | NP-FW-ZA-001 | Zone Module Bone Conduction Announcement Firmware | 1 | 2026-05-11 | [np_fw_za_001.md](./superseded/np_fw_za_001.md) | SUPERSEDED | SPEC-FW |
 | NP-FW-HD-001 | sLORETA-Guided HD-tDCS Firmware Specification | 6 | 2026-09-14 | [np_fw_hd_001.md](./np_fw_hd_001.md) | BASELINED | SPEC-FW |
-| NP-FW-CVNS-001 | Cervical VNS Safety Interlock Firmware Specification | 10 | 2026-10-01 | [np_fw_cvns_001.md](./np_fw_cvns_001.md) | BASELINED | SPEC-FW |
+| NP-FW-CVNS-001 | Cervical VNS Safety Interlock Firmware Specification | 11 | 2026-10-01 | [np_fw_cvns_001.md](./np_fw_cvns_001.md) | BASELINED | SPEC-FW |
 | NP-FW-PBM1064-001 | 1064nm Smart Zone Module Firmware Specification | 5 | 2026-09-27 | [np_fw_pbm1064_001.md](./np_fw_pbm1064_001.md) | BASELINED | SPEC-FW |
 | NP-FW-NVRAM-001 | Hub NVRAM Hardware Abstraction Layer and the On-Helmet Module Record | 11 | 2026-09-28 | [np_fw_nvram_001.md](./np_fw_nvram_001.md) | DRAFT | SPEC-FW |
 | NP-FW-BENCH-001 | Head-Presence Gate and Bench / Service Mode | 5 | 2026-09-27 | [np_fw_bench_001.md](./np_fw_bench_001.md) | DRAFT | SPEC-FW |
@@ -613,3 +613,4 @@ Planned near-term additions:
 | 149 | 2026-10-01 | NeurOne Systems Engineering | **NP-CONV-001 Rev 10 → 11: §4.4 states what a §5 row's Title and Status cells hold, and `scripts/check-dhf-index.ts` gains rules D–G to enforce what Rev 148 put right, with no exceptions.** Title is the document's title, and for a Markdown document directly under `docs/` exactly its `#` heading (principal, 2026-09-30); Status is a status word plus at most one short pointer; no revision notes in either (they belong in each document's history and in this §9); one live row per serial. No row content changed in this revision. |
 | 150 | 2026-10-01 | NeurOne Firmware Engineering | **NP-FW-CVNS-001 Rev 8 → 9, NP-RISK-002 Rev 7 → 8: `OI-CVNS-10` closed as moot, and `OI-CVNS-12` / `OI-RISK2-08` raised.** The 8-vs-5 baseline-window question rested on a ±5 BPM main-vs-MCU cross-check that was never built. Analysing the MCU window against the real code found a larger defect. The unconditional 5 s baseline refresh absorbs a sustained heart-rate step before the 8-interval mean has moved 15 BPM, so a 70 → 50 BPM fall is never cut, and FAI-CV02's +20 BPM step is cut in about 30 % of trials. The defect is pinned by a new host test (`test_refresh_absorbs_sustained_fall_KNOWN_DEFECT`, mutation-checked), and a reproducible simulation is committed (`firmware/safety_mcu/tests/analysis/`). RISK-25 is not re-scored (Quality Lead's act, owed). No firmware behaviour, constant or threshold changed |
 | 151 | 2026-10-01 | NeurOne Firmware Engineering + principal | **NP-FW-CVNS-001 Rev 9 → 10, NP-RISK-002 Rev 8 → 9, NP-HW-CVNS-001 Rev 2 → 3, NP-DT-001 Rev 5 → 6, NP-REG-CVNS-001 Rev 2 → 3; CLAUDE.md Rev 60 → 61: `OI-CVNS-12` closed by principal decision.** The safety MCU's cardiac interlock compares its 8-interval mean with an 18 s history of 1 s snapshots, not with a baseline refreshed every 5 s. The 18 s is derived as 1 s of snapshot phase, plus the 5 s spread, plus 8 intervals at the principal's 40 BPM floor. In simulation, every qualifying step and ramp is now cut (Rev 9: 0–100 %). CLAUDE.md §4.2, `REQ-CVNS-09`, DI-SAFE-03 and the proposed IFU warning state detection (≤ 18 s from onset) and cutoff (< 100 ms from detection) separately, and FAI-CV02 measures each and adds a falling step. Seven real-time host tests replace the known-defect pin, all mutation-checked, and the executed-line floor rises from 524 to 591. False trips rise; that is new `OI-CVNS-13`. RISK-25 is not re-scored (Quality Lead's act, still owed under `OI-RISK2-08`) |
+| 152 | 2026-10-01 | NeurOne Firmware Engineering + principal | **NP-FW-CVNS-001 Rev 10 → 11: `OI-CVNS-13` analysed, the hub's `RPEAK_IN` pulse gate fixed by principal decision, and the item left open for the residual.** The hub pulsed `RPEAK_IN` only for intervals inside 300–2000 ms. Below 60 BPM, one missed detection therefore hid the next real beat, and the safety MCU's 3 s staleness cutoff fired. In simulation, 61–64 % of 120 s sessions tripped at 50 BPM with 1 % of beats missed, against the ≤ 2 % in §14.5.1, whose simulation fed raw detections. The hub now pulses every peak ≥ 300 ms after the last, with no upper bound, and buffers only 300–2000 ms for its own baseline (§6.2 step 7, Class B). The same case now trips 0.3–0.7 %, and every qualifying step and dropped-beat case is still cut. Median, 12-interval, persistence and MCU-refractory levers were simulated against the Class C unit and are not taken (§14.6.1). The median is blind to dropped-beat bradycardia, and the 12-interval window exceeds the 18 s bound. No Class C code changed. The residual (missed detections at ≥ 70 BPM, split detections at 50–70 BPM) waits on measured A13 detection rates and a clinical acceptable nuisance rate. New host test `fai_rpeak_forwarding` is mutation-checked. New simulation `run_oi_cvns_13_sim.sh` |

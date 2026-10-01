@@ -43,6 +43,7 @@ struct np_cvns_interlock_ctx {
     np_cvns_fault_reason_t fault_reason;
     uint32_t               fault_time_s;    /* wall-clock seconds at cutoff      */
     uint32_t               last_rpeak_ms;   /* ms timestamp; for data-loss detect*/
+    uint32_t               rpeak_pulses;    /* RPEAK_IN pulses emitted (OI-CVNS-13)*/
 
     /* Callbacks */
     np_cvns_fault_cb_t fault_cb;
@@ -129,6 +130,10 @@ float                     np_cvns_interlock_baseline_hr(const np_cvns_interlock_
 float                     np_cvns_interlock_current_hr(const np_cvns_interlock_ctx_t *ctx);
 bool                      np_cvns_interlock_baseline_valid(const np_cvns_interlock_ctx_t *ctx);
 np_cvns_fault_reason_t    np_cvns_interlock_fault_reason(const np_cvns_interlock_ctx_t *ctx);
+/* RPEAK_IN pulses emitted to the safety MCU since init.  Every detected peak
+ * >= NP_CVNS_RR_MIN_VALID_MS after the last is pulsed, with no upper bound
+ * (NP-FW-CVNS-001 Rev 11 §14.6, OI-CVNS-13). */
+uint32_t                  np_cvns_interlock_rpeak_pulses(const np_cvns_interlock_ctx_t *ctx);
 
 uint32_t np_cvns_interlock_reenable_lockout_remaining_s(
                                      const np_cvns_interlock_ctx_t *ctx,

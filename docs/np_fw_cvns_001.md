@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 10
+**Revision:** 11
 **Date:** 2026-10-01
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
@@ -12,10 +12,22 @@
 **Related Issues:** GitHub Issue #24; GitHub Issue #343 (§9 FAI serial disposition); GitHub Issue #332 (A14 hardware specification — issued 2026-09-20 as NP-HW-CVNS-001)
 **Gate:** NP-COORD-001 G3-08
 **IEC 62304 Class:** SW-01 Class C (safety MCU) / SW-02 Class B (main processor)
-**Supersedes:** NP-FW-CVNS-001 Rev 9
+**Supersedes:** NP-FW-CVNS-001 Rev 10
 **Parent Document:** NP-SW-001
 
 ---
+
+**Rev 11 (2026-10-01): OI-CVNS-13 analysed. The hub now pulses `RPEAK_IN` for long intervals, and the item stays open for the residual rate (principal decision, 2026-10-01).**
+- **A false-trip path no simulation had modelled.** The hub (`np_cvns_interlock.c`, §6.2 step 7) pulsed `RPEAK_IN` only for intervals inside 300–2000 ms. Below 60 BPM, one missed detection makes an interval over 2000 ms, so the next real beat was not pulsed either. The safety MCU then saw a gap over 3 s, and its staleness cutoff (§5.4 step 4) fired. At 50 BPM with 1 % of beats missed, 61–64 % of 120 s sessions tripped. §14.5.1 reported ≤ 2 %, because its simulation fed the MCU raw detections.
+- **Changed (Class B):** the hub pulses every peak ≥ `NP_CVNS_RR_MIN_VALID_MS` after the last one, with no upper bound. Its own buffer filter is unchanged. At 50 BPM with 1 % missed, trips fall to 0.3–0.7 %. Every qualifying step and dropped-beat case is still cut (§14.6).
+- **No Class C code, constant or threshold changed.**
+- **Levers rejected, with evidence (§14.6):**
+  - A median estimator never detects a dropped-beat bradycardia (every 4th beat absent, 70 → 52.5 BPM: 0 %), and it misses some ±16 BPM steps.
+  - A 12-interval window breaks the 18 s detection bound (19.8 s).
+  - A 1 s persistence requirement barely helps.
+  - An MCU refractory adds nothing behind the hub's 300 ms bound.
+- **Still open: the residual.** It is missed detections at ≥ 70 BPM and split detections at 50–70 BPM. The safety MCU cannot filter a missed detection, because it is indistinguishable from a physiologically dropped beat, which is the hazard. What settles it is measured detection quality on A13 (FAI-CV03 or earlier) against a clinical acceptable nuisance rate (§14.6).
+- **Firmware:** `np_cvns_interlock.c` (step 7 split into forward and buffer decisions), plus the `rpeak_pulses` counter and `np_cvns_interlock_rpeak_pulses()`. Host test: `np_cvns_fai_tests` `fai_rpeak_forwarding`, which fails if the upper bound is restored on the pulse gate. Simulation: `firmware/safety_mcu/tests/analysis/run_oi_cvns_13_sim.sh`.
 
 **Rev 10 (2026-10-01): OI-CVNS-12 closed. The cardiac interlock compares against an 18 s history, not a refreshed baseline (principal decision, 2026-10-01).**
 - **The rule.** The safety MCU snapshots its 8-interval mean every 1 s and keeps 18 snapshots. It cuts when the current mean differs from **any** of them by more than 15 BPM. The unconditional 5 s baseline refresh (`NP_CARDIAC_OBS_MS`) is retired. That refresh was the race that absorbed a step in transit (§5.3 step 6, §5.4 step 2).
@@ -464,6 +476,7 @@ Pan-Tompkins-derived bandpass detection on the PPG signal from the VNS accessory
 4. Moving window integrate: 150 ms window.
 5. Adaptive threshold: 75% of running maximum over last 2 s; updated after each confirmed R-peak.
 6. Refractory period: 200 ms after each confirmed peak (prevents double-detection).
+7. **(Rev 11)** Forward and buffer are separate decisions. A peak ≥ `NP_CVNS_RR_MIN_VALID_MS` (300 ms) after the last detected peak is pulsed on `RPEAK_IN`, with **no upper bound**. Only an interval inside 300–2000 ms enters this side's R-R buffer (§6.3). A peak inside 300 ms is neither pulsed nor buffered, but it still becomes the last detected peak. *Rev 10 and earlier gated the pulse on 2000 ms as well. Below 60 BPM, one missed detection then hid the next real beat, and the safety MCU's 3 s staleness cutoff fired (OI-CVNS-13, §14.6).*
 
 ### 6.3 Baseline HR computation
 
@@ -837,9 +850,9 @@ Hardware FAI (CV01 bench, CV02 timing, CV03 clinical) PENDING — blocking for T
 | OI-CVNS-08 | STM32G071 pin map: §5.1 and `np_safety_config.h` disagree on every row. Nothing in-tree settles it. | HW/Embedded safety team | PCB layout (G1) |
 | OI-CVNS-09 | One CVNS enable line or two (per-electrode)? Clinical/regulatory question, not a code-style one. | Regulatory/Clinical + Embedded safety | PCB layout (G1); T2 510(k) |
 | ~~OI-CVNS-10~~ | ~~Cardiac baseline window: safety MCU 8 intervals vs main processor 5. Deliberate or accidental?~~ **CLOSED 2026-09-29 (Rev 9), moot:** the ±5 BPM cross-check that made the two related was never built. The MCU window moves to OI-CVNS-12 (§14.3) | Embedded safety team | — |
-| OI-CVNS-11 | Safety MCU applies no R-R validity filter (§5.3 step 2). Intended, or a gap? **(Rev 10)** Now also the main lever on OI-CVNS-13's false trips | Embedded safety team | Class C design freeze |
+| OI-CVNS-11 | Safety MCU applies no R-R validity filter (§5.3 step 2). Intended, or a gap? **(Rev 10)** Now also the main lever on OI-CVNS-13's false trips. *(Rev 11: behind the hub, an MCU 300 ms refractory changes no false-trip figure, because the hub's 300 ms bound already removes those edges (§14.6). Its value is independence from Class B only.)* | Embedded safety team | Class C design freeze |
 | ~~OI-CVNS-12~~ | ~~The Class C cardiac interlock does not meet CLAUDE.md §4.2's "HR change > 15 BPM within 5 s".~~ **CLOSED 2026-10-01 (Rev 10), principal decision.** The refresh is replaced by a comparison against an 18 s history of 1 s snapshots. The window stays at 8, and the cross-check is not built. CLAUDE.md §4.2 splits detection from cutoff, and FAI-CV02 is amended (§14.5.1) | Embedded safety team + principal | — |
-| **OI-CVNS-13** | **The lagged comparison false-trips more than the refresh did.** In simulation, at 100 BPM with 50 ms R-R SD and 1 % artefacts, 75 % of 120 s sessions trip (Rev 9 rule: 36 %). The simulation's jitter is white noise, which is pessimistic for real HRV. The real rate is unmeasured, and so is its clinical cost (30 s lockout + app confirmation per trip) (§14.6) | Embedded safety team + Clinical | T2 clinical release; FAI-CV03 |
+| **OI-CVNS-13** | **The lagged comparison false-trips more than the refresh did.** In simulation, at 100 BPM with 50 ms R-R SD and 1 % artefacts, 75 % of 120 s sessions trip (Rev 9 rule: 36 %). The simulation's jitter is white noise, which is pessimistic for real HRV. The real rate is unmeasured, and so is its clinical cost (30 s lockout + app confirmation per trip) (§14.6). **(Rev 11, principal 2026-10-01)** Analysed through the hub stage. The largest cause below 60 BPM was the hub's pulse gate, not the rule, and that is fixed (§6.2 step 7). Median, longer-window and persistence levers are rejected. **Open for the residual:** missed and split detections, which need measured A13 detection rates and a clinical acceptable nuisance rate | Embedded safety team + Clinical | T2 clinical release; FAI-CV03 |
 
 ### 14.1 OI-CVNS-08 — STM32G071 pin map
 
@@ -997,6 +1010,8 @@ All 120 cells (starts 50–110 BPM, steps ±16–40 BPM, instantaneous or ramped
 | 100 | 50 ms | 1 % | 36 % | 75 % |
 | 100 | 80 ms | 0 % | 49 % | 98 % |
 
+*(Rev 11: this table fed raw detections to the MCU. Through the hub's pulse gate as built, missed detections below 60 BPM tripped 36–94 % of sessions through the staleness cutoff. §14.6.1 has the figures and the fix.)*
+
 **The cost: more false trips.** The old refresh hid artefacts and HRV the same way it hid real steps. White-noise jitter overstates beat-to-beat variation compared with real HRV, which is correlated and falls as the rate rises. So these are upper-bound conditions, not predictions. A false trip is the fail-safe direction, but each one is a 30 s lockout, an app confirmation and a repeat impedance check. That cost is OI-CVNS-13.
 
 **Pinned** (`np_cardiac_interlock_tests`; beats in real time with the main loop ticking every 1 ms):
@@ -1014,18 +1029,71 @@ Each was mutation-checked. Executed lines rise from 524 to 591 (`ci/host-test-fl
 
 ### 14.6 OI-CVNS-13 — false trips under the lagged comparison
 
-**What is known.** §14.5.1's false-trip table: under white-noise jitter, a 120 s session at 100 BPM with 1 % artefacts trips 75 % of the time. At 70 BPM, 1 % artefacts give 6 %, and with no artefacts no trips occur up to 80 ms SD.
+*Rev 10 text, retained:*
 
-**What is not.**
-- The real R-R jitter and artefact rate at `RPEAK_IN`. They depend on A13's PPG and on the hub's Pan-Tompkins stage (`OI-CVNSHW-03`).
-- How often a cervical session runs at 100 BPM.
-- What a lockout costs a patient clinically.
+> **What is known.** §14.5.1's false-trip table: under white-noise jitter, a 120 s session at 100 BPM with 1 % artefacts trips 75 % of the time. At 70 BPM, 1 % artefacts give 6 %, and with no artefacts no trips occur up to 80 ms SD.
+>
+> **What is not.** The real R-R jitter and artefact rate at `RPEAK_IN`. They depend on A13's PPG and on the hub's Pan-Tompkins stage (`OI-CVNSHW-03`). How often a cervical session runs at 100 BPM. What a lockout costs a patient clinically.
+>
+> **Levers, none taken:** an R-R validity filter in Class C (OI-CVNS-11); a longer window, which slows detection; a requirement that the excursion persist across two snapshots, which adds up to 1 s of detection time. Each changes Class C behaviour on an S5 risk.
+>
+> **What would settle it:** a measured false-trip rate on recorded or bench R-peak trains from A13 (FAI-CV03 or earlier), set against a clinical judgement of an acceptable nuisance-cutoff rate. If the rate is not acceptable, OI-CVNS-11 is decided with it.
 
-**Levers, none taken:**
-- An R-R validity filter in Class C (OI-CVNS-11). Rejecting a doubled or split interval removes most of the artefact trips, but it risks rejecting a real bradycardic beat.
-- A longer window, which slows detection.
-- A requirement that the excursion persist across two snapshots, which adds up to 1 s of detection time.
+#### 14.6.1 Analysis (Rev 11)
 
-Each changes Class C behaviour on an S5 risk.
+**What §14.5.1 did not model.** The safety MCU does not see detections. It sees the pulses the hub emits, and step 7 of §6.2 decides which detections become pulses. §14.5.1's simulation fed raw detections to the MCU. The Rev 11 simulation (`firmware/safety_mcu/tests/analysis/run_oi_cvns_13_sim.sh`, fixed seed, 300 sessions per cell) puts the hub's rule in between, using its real constants. It links the real `np_cardiac_interlock.c`, and builds each Class C lever as an edited copy of it. It also separates missed detections from split ones, and adds two scenarios: a correlated heart-rate model (respiratory sinus arrhythmia, RSA) and physiologically dropped beats.
 
-**What would settle it:** a measured false-trip rate on recorded or bench R-peak trains from A13 (FAI-CV03 or earlier), set against a clinical judgement of an acceptable nuisance-cutoff rate. If the rate is not acceptable, OI-CVNS-11 is decided with it.
+**Finding: below 60 BPM, the hub caused most of the trips.** As built, the hub pulsed a peak only if its interval was 300–2000 ms. At 50 BPM, one missed detection makes a 2400 ms interval. That peak was not pulsed, so the MCU's gap ran from the previous pulse to the next one, 3600 ms. That exceeds `NP_CARDIAC_RPEAK_STALE_MS` (3 s), and the staleness cutoff fired. The 3 s staleness bound was chosen as a 20 BPM rhythm (§5.4 step 4). The hub's gate had silently lowered it to "any single interval over 2 s" for a one-beat dropout. Nobody chose that.
+
+False trips per 120 s session, 8-interval rule as built, white R-R jitter, artefact rate per beat:
+
+| HR | R-R SD | 1 % missed: hub as built | 1 % missed: hub Rev 11 | 3 % missed: as built | 3 % missed: Rev 11 | 1 % split | 3 % split |
+|---|---|---|---|---|---|---|---|
+| 50 | 20 ms | 60.7 % | **0.3 %** | 93.7 % | **6.3 %** | 5.0 % | 27.3 % |
+| 50 | 50 ms | 64.0 % | **0.7 %** | 93.7 % | **7.3 %** | 4.7 % | 30.0 % |
+| 60 | 20 ms | 36.3 % | **1.0 %** | 76.0 % | **7.7 %** | 9.0 % | 35.0 % |
+| 60 | 50 ms | 38.7 % | **1.7 %** | 78.7 % | **9.7 %** | 5.3 % | 32.0 % |
+| 70 | 20 ms | 4.0 % | 4.0 % | 27.3 % | 21.7 % | 3.0 % | 35.3 % |
+| 70 | 50 ms | 8.7 % | 8.3 % | 39.0 % | 39.0 % | 10.7 % | 47.7 % |
+| 100 | 20 ms | 21.7 % | 21.7 % | 74.0 % | 74.0 % | 5.0 % | 21.7 % |
+| 100 | 50 ms | 87.7 % | 87.7 % | 98.7 % | 98.7 % | 36.0 % | 75.7 % |
+
+The split columns are the same for both hubs. With no artefacts, no session trips except at 100 BPM with 50 ms SD (10.7 %). So §14.5.1's 50 BPM row (≤ 2 %) held only for raw detections. Through the hub as built, it was 61–94 % whenever detections were missed.
+
+**Correlated heart-rate variability.** RSA modulates R-R by ±5–15 %, with 10 ms of white jitter on top. At 0.25 Hz (spontaneous breathing), no session trips at 50, 70 or 100 BPM. At 0.1 Hz (paced breathing near the resonance frequency), none trip at 50 or 70 BPM. At 100 BPM, ±10 % trips 27 % and ±15 % trips 100 %. A 0.1 Hz swing is slow enough to pass through the 8-interval mean, and it is a real heart-rate change of about 20–30 BPM. Whether a cervical session would ever run with paced breathing at 100 BPM is a clinical question. It is recorded here because the platform's T1 HRV biofeedback (CLAUDE.md §3 ⑥) teaches exactly that breathing.
+
+**Decided (principal, 2026-10-01): the hub pulses long intervals.** §6.2 step 7 now pulses every peak ≥ 300 ms after the last detected peak, with no upper bound, and buffers only 300–2000 ms intervals for its own baseline. The bold cells above are the result.
+
+**What the change costs.** All 120 step and ramp cells are still cut in 100 % of trials, with a longest latency of 15.9 s for a final rate ≥ 40 BPM. With every 2nd, 3rd or 4th beat physiologically absent from 60, 70 or 90 BPM, every case is cut, with the same latencies as before. Two things are no longer cut *incidentally*, and the Quality Lead should see both when RISK-25 is re-scored (`NP-RISK-002` OI-RISK2-08):
+- **A 50 → 37.5 BPM rhythm** (every 4th beat absent from 50). This is a 12.5 BPM change, which does not qualify under CLAUDE.md §4.2, and it ends below the 40 BPM floor. The hub as built cut it through staleness. From 50 BPM, every 2nd or 3rd beat absent (→ 25 or 33 BPM) is still cut, at up to 10.8 s and 15.6 s, against 4.2 s and 5.4 s before.
+- **A single sinus pause of 2–3 s** at ≤ 60 BPM. The design bound for a pause is the 3 s staleness rule, and the MCU now applies that bound as specified.
+
+**Levers on the MCU side, each simulated against the unit (hub Rev 11 unless stated):**
+
+| Lever | Detection | False trips | Disposition |
+|---|---|---|---|
+| **Median of the 8 intervals** instead of their mean | **Never detects dropped-beat bradycardia:** every 4th beat absent from 70 (→ 52.5) or 90 (→ 67.5) is cut in 0 %. Up to 3 long intervals in 8 never move a median. It also misses the ±16 BPM steps in 9 of the 120 step cells, which are cut in 0 % of trials | Lower for missed detections (3 % missed at 100 BPM, 20 ms: 0.3 % vs 74 %). Higher for jitter (100 BPM, 50 ms, no artefacts: 46 % vs 10.7 %) and for 0.1 Hz RSA ±10 % at 100 BPM (96 % vs 27 %) | **Rejected.** A long interval is the signature of the hazard. Second-degree AV block is a vagal effect, so an estimator robust to long intervals is blind to the hazard |
+| **12-interval window**, with the history re-derived to 24 s (1 + 5 + 12 × 60/40) | All steps cut, but the longest latency is **19.8 s**, beyond CLAUDE.md §4.2's 18 s | The largest reduction with no blind spot: 1 % missed at 100 BPM, 20 ms: 13 % vs 22 %; 3 % split at 70 BPM, 50 ms: 24 % vs 48 %; no RSA trips | **Not taken.** It needs §4.2's detection bound raised to about 24 s. Held in reserve if the measured residual is unacceptable |
+| **Persistence:** the excursion must hold for 1 s (history 19) | All cut; the longest latency is 17.8 s, and the analytic bound becomes 19 s | Small: 1 % missed at 100 BPM, 20 ms: 17 % vs 22 % | **Not taken.** A missed detection stays in the window for 8 beats, so 1 s of persistence does not outlast it |
+| **MCU refractory:** ignore an edge < 300 ms after the last | Unchanged | Behind the hub: identical to the unit as built, because the hub's 300 ms bound already removes those edges. On raw detections: 1 % split at 100 BPM, 20 ms: 86 % → 4 % | **Left to OI-CVNS-11.** Its only value is independence from Class B |
+| **Ectopic or relative filter** (reject an interval far from the current mean) | Not simulated. A sustained 70 → 50 BPM step lengthens every interval by 40 %, so a filter tighter than that rejects the step itself | — | **Rejected** on that argument (§14.5 candidate C) |
+
+**What is left, and why Class C cannot remove it.** After the hub fix, two kinds of trip remain:
+- **Missed detections at ≥ 70 BPM.** One missed detection moves the 8-interval mean by HR / 9, which is 11 BPM at 100. Jitter does the rest.
+- **Split detections at 50–70 BPM**, whose two halves are both over 300 ms, so the hub forwards them. One split moves the mean by HR / 7.
+
+The MCU cannot tell a missed detection from a beat the heart did not make. Rejecting it on the MCU side is the median's blind spot again. A split only raises the rate, so merging short intervals cannot hide bradycardia. But a merge relative to the current mean would hide a sudden doubling of rate. It is not simulated or proposed here.
+
+#### 14.6.2 What settles the rest
+
+OI-CVNS-13 **stays open**. Its question is now about detection quality, not the rule:
+1. **Measure** the missed-detection and split-detection rates at `RPEAK_IN` on A13. Use recorded or bench PPG across 50–100 BPM, at rest and with motion (FAI-CV03 or earlier; `OI-CVNSHW-03`). Then run the measured R-R trains through `run_oi_cvns_13_sim.sh` in place of the synthetic ones.
+2. **Clinical:** set an acceptable nuisance-cutoff rate per session. Each trip costs a 30 s lockout, an app confirmation and a repeat impedance check.
+3. **Then one of:**
+   - the measured rate is acceptable, and the item closes;
+   - a SW-02 requirement on missed and split rates is derived from the acceptable rate (CLAUDE.md §18: it is required only once step 2 sets the rate);
+   - the 12-interval window with a ~24 s detection bound goes to the principal.
+
+No requirement figure is set here, because step 2 has not set a rate for one to derive from.
+
+**Pinned** (`np_cvns_fai_tests`, `fai_rpeak_forwarding`): at 50 BPM, a 2400 ms interval is pulsed and kept out of the hub's buffer, and a peak 250 ms after a beat is not pulsed. Restoring the 2000 ms bound on the pulse gate fails the test (mutation-checked).

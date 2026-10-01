@@ -52,7 +52,7 @@ np_cfg_store_tests 2816
 np_chan_decl_tests 209
 np_consumables_tests 346
 np_crypto_tests 700
-np_cvns_fai_tests 309
+np_cvns_fai_tests 394
 np_cvns_fault_summary_tests 443
 np_cvns_reenable_tests 367
 np_edf_tests 349
