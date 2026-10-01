@@ -115,9 +115,10 @@
  *                        timings that are all expressed in ms against it:
  *                          · the SPI heartbeat watchdog, NP_SAFETY_WDG_TIMEOUT_MS
  *                            = 1500 ms (np_spi_watchdog.c)
- *                          · the cardiac observation window, NP_CARDIAC_OBS_MS
- *                            = 5000 ms, and the ±15 BPM cutoff evaluated inside
- *                            it (np_cardiac_interlock.c)
+ *                          · the cardiac heart-rate snapshot cadence,
+ *                            NP_CARDIAC_HR_SNAP_MS = 1000 ms, which sets the
+ *                            18 s horizon of the ±15 BPM cutoff
+ *                            (np_cardiac_interlock.c)
  *                          · the cervical-VNS re-enable lockout,
  *                            NP_CARDIAC_LOCKOUT_MS = 30000 ms
  *                        A HAL that returned any other unit would not fail to

@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 150
+**Revision:** 151
 **Date:** 2026-10-01
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,13 +79,13 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 150 | 2026-10-01 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 151 | 2026-10-01 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 1 | 2026-05-13 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | 11 | 2026-09-28 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
 | NP-QMS-CAPA-001 | Corrective and Preventive Action Procedure | 1 | 2026-05-13 | [np_qms_capa_001.md](./np_qms_capa_001.md) | ACTIVE | QMS |
 | NP-DP-001 | Design and Development Plan | 1 | 2026-05-17 | [np_dp_001.md](./np_dp_001.md) | ACTIVE | QMS |
-| NP-DT-001 | Design Input/Output Traceability Matrix | 5 | 2026-09-25 | [np_dt_001.md](./np_dt_001.md) | DRAFT | QMS |
+| NP-DT-001 | Design Input/Output Traceability Matrix | 6 | 2026-10-01 | [np_dt_001.md](./np_dt_001.md) | DRAFT | QMS |
 | NP-HFE-001 | Human Factors Engineering Plan | 1 | 2026-07-27 | [np_hfe_001.md](./np_hfe_001.md) | ACTIVE | QMS |
 | NP-HFE-002 | Accessible Zone-Module Position Identification and Guided Placement | 2 | 2026-08-20 | [np_hfe_002.md](./np_hfe_002.md) | DRAFT | QMS |
 | NP-PMS-001 | Post-Market Surveillance Plan | 2 | 2026-07-27 | [np_pms_001.md](./np_pms_001.md) | ACTIVE | QMS |
@@ -117,7 +117,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-HW-AUDIO-001 | Audio Cup Assembly — Hardware Specification | 4 | 2026-09-24 | [np_hw_audio_001.md](./np_hw_audio_001.md) | DRAFT | SPEC-HW |
 | NP-HW-NASAL-001 | Intranasal Bilateral Y-Probe and Hygiene Sleeve — Hardware Specification | 2 | 2026-09-23 | [np_hw_nasal_001.md](./np_hw_nasal_001.md) | DRAFT | SPEC-HW |
 | NP-HW-VNSCLIP-001 | Auricular VNS / HRV Clip — Hardware Specification | 1 | 2026-09-20 | [np_hw_vnsclip_001.md](./np_hw_vnsclip_001.md) | DRAFT | SPEC-HW |
-| NP-HW-CVNS-001 | Cervical VNS Accessory — Electrode Assembly, Cable and Connector Hardware Specification | 2 | 2026-09-22 | [np_hw_cvns_001.md](./np_hw_cvns_001.md) | DRAFT | SPEC-HW |
+| NP-HW-CVNS-001 | Cervical VNS Accessory — Electrode Assembly, Cable and Connector Hardware Specification | 3 | 2026-10-01 | [np_hw_cvns_001.md](./np_hw_cvns_001.md) | DRAFT | SPEC-HW |
 | NP-HW-TMS-001 | TMS Focal Figure-8 Coil Applicator (T2) — Hardware Specification | 1 | 2026-09-20 | [np_hw_tms_001.md](./np_hw_tms_001.md) | DRAFT | SPEC-HW |
 | NP-HW-TACSDRV-001 | 21-Channel Clinical tACS Driver Stage (T2) — Hardware Specification | 4 | 2026-09-23 | [np_hw_tacsdrv_001.md](./np_hw_tacsdrv_001.md) | DRAFT | SPEC-HW |
 | NP-PROC-FPC-001 | Emitter Supply, Flex Laminate and Optical Window — Procurement Requirements | 9 | 2026-09-28 | [np_proc_fpc_001.docx](./np_proc_fpc_001.docx) | ACTIVE | PROC |
@@ -147,7 +147,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-FW-HRV-001 | HRV Biofeedback Protocol Firmware Specification | 3 | 2026-09-27 | [np_fw_hrv_001.md](./np_fw_hrv_001.md) | BASELINED | SPEC-FW |
 | NP-FW-ZA-001 | Zone Module Bone Conduction Announcement Firmware | 1 | 2026-05-11 | [np_fw_za_001.md](./superseded/np_fw_za_001.md) | SUPERSEDED | SPEC-FW |
 | NP-FW-HD-001 | sLORETA-Guided HD-tDCS Firmware Specification | 6 | 2026-09-14 | [np_fw_hd_001.md](./np_fw_hd_001.md) | BASELINED | SPEC-FW |
-| NP-FW-CVNS-001 | Cervical VNS Safety Interlock Firmware Specification | 9 | 2026-09-29 | [np_fw_cvns_001.md](./np_fw_cvns_001.md) | BASELINED | SPEC-FW |
+| NP-FW-CVNS-001 | Cervical VNS Safety Interlock Firmware Specification | 10 | 2026-10-01 | [np_fw_cvns_001.md](./np_fw_cvns_001.md) | BASELINED | SPEC-FW |
 | NP-FW-PBM1064-001 | 1064nm Smart Zone Module Firmware Specification | 5 | 2026-09-27 | [np_fw_pbm1064_001.md](./np_fw_pbm1064_001.md) | BASELINED | SPEC-FW |
 | NP-FW-NVRAM-001 | Hub NVRAM Hardware Abstraction Layer and the On-Helmet Module Record | 11 | 2026-09-28 | [np_fw_nvram_001.md](./np_fw_nvram_001.md) | DRAFT | SPEC-FW |
 | NP-FW-BENCH-001 | Head-Presence Gate and Bench / Service Mode | 5 | 2026-09-27 | [np_fw_bench_001.md](./np_fw_bench_001.md) | DRAFT | SPEC-FW |
@@ -191,7 +191,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-RISK-001 | Zone Module Risk Register (RISK-01 through RISK-26) | 3 (written as Rev C) | 2026-07-22 | [np_risk_001.docx](./superseded/np_risk_001.docx) | SUPERSEDED 2026-08-11 by NP-RISK-002/003/004 | RISK |
-| **NP-RISK-002** | Risk File Re-Baseline and NP-RISK-001 Disposition | 8 | 2026-09-29 | [np_risk_002.md](./np_risk_002.md) | ACTIVE | RISK |
+| **NP-RISK-002** | Risk File Re-Baseline and NP-RISK-001 Disposition | 9 | 2026-10-01 | [np_risk_002.md](./np_risk_002.md) | ACTIVE | RISK |
 | **NP-RISK-003** | Hex-Tile Module — Risk Register and Problem Analysis | 3 | 2026-09-29 | [np_risk_003.md](./np_risk_003.md) | ACTIVE | RISK |
 | **NP-RISK-004** | Shell, Socket, Interconnect and Hub — Risk Register and Problem Analysis | 4 | 2026-09-25 | [np_risk_004.md](./np_risk_004.md) | ACTIVE | RISK |
 | NP-FMEA-001 | SW-01 Safety MCU Unit-Level FMEA | 16 | 2026-09-26 | [np_fmea_001.md](./np_fmea_001.md) | DRAFT | RISK |
@@ -232,7 +232,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-REG-CVNS-001 | Cervical VNS 510(k) Pre-Submission (Q-Sub) Package | 2 | 2026-09-22 | [np_reg_cvns_001.md](./np_reg_cvns_001.md) | BASELINED | REG |
+| NP-REG-CVNS-001 | Cervical VNS 510(k) Pre-Submission (Q-Sub) Package | 3 | 2026-10-01 | [np_reg_cvns_001.md](./np_reg_cvns_001.md) | BASELINED | REG |
 | NP-SW-FAULTMSG-001 | Offline Fault Explanation | 3 | 2026-09-23 | [np_sw_faultmsg_001.md](./np_sw_faultmsg_001.md) | DRAFT | SPEC-FW |
 | NP-REG-PBM1064-001 | RISK-03 Regulatory Opinion — Scope Expansion Brief | 2 | 2026-09-28 | [np_reg_pbm1064_001.md](./np_reg_pbm1064_001.md) | DRAFT | REG |
 | NP-REG-UPG-001 | T1 → T2 Upgrade Path — Analysis and Decision | 3 | 2026-09-24 | [np_reg_upg_001.md](./np_reg_upg_001.md) | DRAFT | REG |
@@ -612,3 +612,4 @@ Planned near-term additions:
 | 148 | 2026-09-30 | NeurOne Quality | **§5 Title and Status cells cut back to a title and a status; duplicate rows merged.** Nothing constrained those two cells, so revision bumps had been appending their change notes to them (NP-HW-HEXTILE-001's Title had reached 6,310 characters and NP-FW-NVRAM-001's Status 3,160). **Title** is now the heading of the document's own file for every Markdown row, and the document's own title for `.docx`/`.pdf` rows. **Status** is now a status word, with at most one short successor pointer or scope phrase, and it is what the document's own `**Status:**` line says (principal direction, 2026-09-30). That changed 40 values: ACTIVE became what the file says for 12 documents (DRAFT for NP-DT-001, NP-API-001, NP-FMEA-001, NP-REG-PBM1064-001 and NP-LEGAL-BAA-001; BASELINED for NP-FW-HRV-001, NP-FW-HD-001, NP-FW-CVNS-001, NP-FW-PBM1064-001, NP-APP-ROADMAP-001, NP-TOOL-HUB-001 and NP-REG-CVNS-001); NP-FW-ZA-001 became SUPERSEDED, as every file in `docs/superseded/` is; NP-SES-1064-001 and NP-PROC-FPC-1064-001 became BASELINED, as their files say (they had read SUPERSEDED and PARTIALLY SUPERSEDED 2026-07-28); and **DESIGN STUDY is retired as a status**, because it describes a document rather than stating its status, so all 23 such rows now read DRAFT; EXPLORATORY is retired on the same ground, so NP-FEAS-FNIRS-001 and NP-FEAS-PBMCH-001 read DRAFT. Sixteen of those documents also called themselves DESIGN STUDY (or ANALYSIS, NP-THERM-BEZEL-001, or EXPLORATORY, the two FEAS studies) in their own `**Status:**` line and none has been approved, so those lines now begin `DRAFT — design study;` (or `analysis;`, `exploratory;`) with their description kept. NP-HELMET-GEOM-ISA had no Status line at all and gains `**Status:** DRAFT` (never approved; its ISC-9 gates and RISK-20 are open), recorded in its changelog. Before any note was cut, its revision was checked to be recorded in the document's own history and in this §9, so no record is lost; the Rev, Date, File and Category cells are untouched except in this document's own row and the NP-HW-CVNS-001 row described below. The removed text is in git at `9a02a40`. **Duplicates:** NP-APP-TELEMETRY-001 and NP-FW-EMMC-002 lose their §5.13 cross-listings, kept in §5.5 and §5.4 with a pointer line under §5.13; NP-HW-CVNS-001's §5.3 row, malformed since a Rev 2 note was added as its own cell (it had lost its File link), takes the complete row from §5.15, and the §5.15 duplicate is removed. No name is changed and no §9 row is rewritten (NP-CONV-001 §1.1). |
 | 149 | 2026-10-01 | NeurOne Systems Engineering | **NP-CONV-001 Rev 10 → 11: §4.4 states what a §5 row's Title and Status cells hold, and `scripts/check-dhf-index.ts` gains rules D–G to enforce what Rev 148 put right, with no exceptions.** Title is the document's title, and for a Markdown document directly under `docs/` exactly its `#` heading (principal, 2026-09-30); Status is a status word plus at most one short pointer; no revision notes in either (they belong in each document's history and in this §9); one live row per serial. No row content changed in this revision. |
 | 150 | 2026-10-01 | NeurOne Firmware Engineering | **NP-FW-CVNS-001 Rev 8 → 9, NP-RISK-002 Rev 7 → 8: `OI-CVNS-10` closed as moot, and `OI-CVNS-12` / `OI-RISK2-08` raised.** The 8-vs-5 baseline-window question rested on a ±5 BPM main-vs-MCU cross-check that was never built. Analysing the MCU window against the real code found a larger defect. The unconditional 5 s baseline refresh absorbs a sustained heart-rate step before the 8-interval mean has moved 15 BPM, so a 70 → 50 BPM fall is never cut, and FAI-CV02's +20 BPM step is cut in about 30 % of trials. The defect is pinned by a new host test (`test_refresh_absorbs_sustained_fall_KNOWN_DEFECT`, mutation-checked), and a reproducible simulation is committed (`firmware/safety_mcu/tests/analysis/`). RISK-25 is not re-scored (Quality Lead's act, owed). No firmware behaviour, constant or threshold changed |
+| 151 | 2026-10-01 | NeurOne Firmware Engineering + principal | **NP-FW-CVNS-001 Rev 9 → 10, NP-RISK-002 Rev 8 → 9, NP-HW-CVNS-001 Rev 2 → 3, NP-DT-001 Rev 5 → 6, NP-REG-CVNS-001 Rev 2 → 3; CLAUDE.md Rev 60 → 61: `OI-CVNS-12` closed by principal decision.** The safety MCU's cardiac interlock compares its 8-interval mean with an 18 s history of 1 s snapshots, not with a baseline refreshed every 5 s. The 18 s is derived as 1 s of snapshot phase, plus the 5 s spread, plus 8 intervals at the principal's 40 BPM floor. In simulation, every qualifying step and ramp is now cut (Rev 9: 0–100 %). CLAUDE.md §4.2, `REQ-CVNS-09`, DI-SAFE-03 and the proposed IFU warning state detection (≤ 18 s from onset) and cutoff (< 100 ms from detection) separately, and FAI-CV02 measures each and adds a falling step. Seven real-time host tests replace the known-defect pin, all mutation-checked, and the executed-line floor rises from 524 to 591. False trips rise; that is new `OI-CVNS-13`. RISK-25 is not re-scored (Quality Lead's act, still owed under `OI-RISK2-08`) |

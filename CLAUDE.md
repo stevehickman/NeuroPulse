@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 60 (current)  
+**Revision:** 61 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -224,7 +224,7 @@ evidence and open items are in `docs/reference/modality-stack.md`.
 | PBM scalp | IEC 60601 42°C limit | NTC per zone → hardware current throttle at 62°C junction |
 | TMS | Coil protection | EMF cancellation gated off 5ms before pulse, 50ms hold |
 | VNS | Contact confirmation | Safety MCU reads impedance; holds if contacts not confirmed |
-| Cervical VNS (T2) | Cardiac rhythm interlock | Safety MCU owns enable GPIO; monitors R-peak GPIO; HR change >15 BPM within 5s → GPIO cutoff <100ms; 30s re-enable lockout + app confirm + repeat impedance |
+| Cervical VNS (T2) | Cardiac rhythm interlock | Safety MCU owns enable GPIO; monitors R-peak GPIO; HR change >15 BPM within 5s, ending ≥40 BPM → **detected ≤18s from onset** (8-beat mean vs an 18s history, `OI-CVNS-12`) → GPIO cutoff **<100ms from detection**; 30s re-enable lockout + app confirm + repeat impedance |
 | T2 lines (cVNS, TMS, 1170 nm, clinical stim) | Tier identity (`REQ-UPG-01`) | Safety MCU withholds unless its signed, UID-bound OTP record says T2; fail-closed to T1. Not in force until `OI-UPG-08` |
 | All | Firmware anti-fragility | CSPRNG session protocol signing |
 
