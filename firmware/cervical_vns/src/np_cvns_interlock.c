@@ -102,8 +102,21 @@ static bool pt_process_sample(np_cvns_interlock_ctx_t *ctx,
     /* Step 6: adaptive threshold. */
     ctx->pt_threshold = NP_CVNS_PT_THRESHOLD_FRAC * ctx->pt_running_max;
 
-    /* Step 7: peak detection with refractory period. */
-    bool peak_detected = false;
+    /* Step 7: peak detection with refractory period.
+     *
+     * Two decisions, with different bounds (NP-FW-CVNS-001 Rev 11 §14.6,
+     * OI-CVNS-13, principal 2026-10-01):
+     *   - FORWARD to the safety MCU (RPEAK_IN) every peak >= RR_MIN_VALID_MS
+     *     after the last detected peak.  There is no upper bound.  Until Rev 11
+     *     the pulse was gated on RR_MAX_VALID_MS too, so after one missed
+     *     detection below 60 BPM (an interval > 2000 ms) the next real beat was
+     *     not pulsed either, the MCU saw a gap > 3 s, and its staleness cutoff
+     *     fired: 61-64 % of 120 s sessions at 50 BPM with 1 % missed beats, in
+     *     simulation.  A long interval is either a missed detection or a real
+     *     pause, and the Class C interlock is the side that must see both.
+     *   - BUFFER only intervals inside [RR_MIN_VALID_MS, RR_MAX_VALID_MS], for
+     *     this side's own baseline.  Unchanged. */
+    bool peak_forward = false;
     uint32_t since_last = timestamp_ms - ctx->pt_last_peak_ms;
 
     if (ctx->pt_integrated > ctx->pt_threshold &&
@@ -112,6 +125,10 @@ static bool pt_process_sample(np_cvns_interlock_ctx_t *ctx,
         /* Compute R-R interval. */
         uint32_t rr_ms = since_last;
 
+        if (rr_ms >= NP_CVNS_RR_MIN_VALID_MS) {
+            peak_forward = true;
+        }
+
         if (rr_ms >= NP_CVNS_RR_MIN_VALID_MS &&
             rr_ms <= NP_CVNS_RR_MAX_VALID_MS) {
 
@@ -119,7 +136,6 @@ static bool pt_process_sample(np_cvns_interlock_ctx_t *ctx,
             if (ctx->baseline_beats_accumulated < UINT8_MAX) {
                 ctx->baseline_beats_accumulated++;
             }
-            peak_detected = true;
         }
 
         ctx->pt_last_peak_ms = timestamp_ms;
@@ -129,7 +145,7 @@ static bool pt_process_sample(np_cvns_interlock_ctx_t *ctx,
         ctx->pt_running_max = ctx->pt_integrated;
     }
 
-    return peak_detected;
+    return peak_forward;
 }
 
 /* ── Lifecycle ───────────────────────────────────────────────────────────────── */
@@ -176,6 +192,7 @@ void np_cvns_interlock_push_ppg(np_cvns_interlock_ctx_t *ctx,
     if (peak) {
         /* Pulse the R-peak GPIO to the safety MCU. */
         platform_rpeak_gpio_pulse();
+        ctx->rpeak_pulses++;
 
         /* Once enough beats have accumulated, update baseline. */
         if (!ctx->baseline_valid &&
@@ -359,6 +376,11 @@ bool np_cvns_interlock_baseline_valid(const np_cvns_interlock_ctx_t *ctx)
 float np_cvns_interlock_current_hr(const np_cvns_interlock_ctx_t *ctx)
 {
     return ctx ? rr_mean_bpm(&ctx->rr_buf, NP_CVNS_BASELINE_BEATS_MIN) : 0.0f;
+}
+
+uint32_t np_cvns_interlock_rpeak_pulses(const np_cvns_interlock_ctx_t *ctx)
+{
+    return ctx ? ctx->rpeak_pulses : 0U;
 }
 
 np_cvns_fault_reason_t np_cvns_interlock_fault_reason(const np_cvns_interlock_ctx_t *ctx)

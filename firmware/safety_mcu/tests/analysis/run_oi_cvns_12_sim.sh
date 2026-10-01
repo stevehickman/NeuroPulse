@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Reproduces NP-FW-CVNS-001 Rev 10 §14.5.1 (OI-CVNS-12, closed): detection and
 # false-trip figures for the cardiac interlock AS BUILT, the lagged comparison
-# (8-interval mean vs every 1 s snapshot of it in the last 12 s). Host gcc only;
+# (8-interval mean vs every 1 s snapshot of it in the last 18 s). Host gcc only;
 # nothing is written inside the repository.
 #
 # The Rev 9 figures for the unconditional 5 s refresh it replaced (window 8 and

@@ -485,6 +485,64 @@ static int fai_ramp_arithmetic(void)
 
 /* ── Main ────────────────────────────────────────────────────────────────────── */
 
+/* ── RPEAK_IN forwarding (NP-FW-CVNS-001 Rev 11 §14.6, OI-CVNS-13) ─────────── */
+/*
+ * Feeds np_cvns_interlock_push_ppg() a synthetic pulse train at the PPG rate:
+ * one 20 ms pulse per beat, zero between.  Each pulse is one detected peak.
+ * Returns the number of RPEAK_IN pulses the train produced.
+ */
+static uint32_t feed_beats(np_cvns_interlock_ctx_t *ctx, uint32_t *t_ms,
+                           const uint32_t *rr_ms, uint32_t n)
+{
+    const uint32_t step_ms = 1000U / NP_CVNS_PPG_SAMPLE_RATE_HZ;
+    uint32_t before = np_cvns_interlock_rpeak_pulses(ctx);
+    for (uint32_t b = 0U; b < n; b++) {
+        for (uint32_t ms = 0U; ms < rr_ms[b]; ms += step_ms) {
+            np_cvns_interlock_push_ppg(ctx, (ms < 20U) ? 4000U : 0U, *t_ms + ms);
+        }
+        *t_ms += rr_ms[b];
+    }
+    return np_cvns_interlock_rpeak_pulses(ctx) - before;
+}
+
+static void fai_rpeak_forwarding(void)
+{
+    printf("\n[RPEAK_IN forwarding — OI-CVNS-13]\n");
+
+    np_cvns_interlock_ctx_t interlock;
+    np_cvns_interlock_config_t cfg = { .ppg_sample_rate_hz = NP_CVNS_PPG_SAMPLE_RATE_HZ,
+                                       .now_s = 0U };
+    ASSERT_OK(np_cvns_interlock_init(&interlock, cfg, test_fault_cb));
+    uint32_t t_ms = 1000U;
+
+    /* 50 BPM steady: every beat is forwarded and buffered. */
+    uint32_t steady[10];
+    for (uint32_t i = 0U; i < 10U; i++) { steady[i] = 1200U; }
+    ASSERT_EQ(feed_beats(&interlock, &t_ms, steady, 10U), 10U);
+    ASSERT_APPROX(np_cvns_interlock_current_hr(&interlock), 50.0f, 0.5f);
+
+    /* One missed detection at 50 BPM.  feed_beats() pulses at the start of
+     * each period, so the beat below opens a 2400 ms interval (outside
+     * NP_CVNS_RR_MAX_VALID_MS) and the next one closes it.  The closing peak is
+     * still pulsed, so the safety MCU sees a 2.4 s interval, not a > 3 s gap
+     * that its staleness cutoff (NP_CARDIAC_RPEAK_STALE_MS) would read as a
+     * lost R-peak stream.  Until Rev 11 that peak was dropped (mutation:
+     * restore the upper bound on the pulse gate and the second ASSERT_EQ
+     * fails). */
+    uint32_t missed[2] = { 2400U, 1200U };
+    ASSERT_EQ(feed_beats(&interlock, &t_ms, &missed[0], 1U), 1U);
+    ASSERT_EQ(feed_beats(&interlock, &t_ms, &missed[1], 1U), 1U);
+    /* ... and the 2400 ms interval is kept out of this side's own buffer. */
+    ASSERT_APPROX(np_cvns_interlock_current_hr(&interlock), 50.0f, 0.5f);
+    printf("  50 BPM, one missed detection (2400 ms): pulsed, not buffered (correct)\n");
+
+    /* A spurious peak 250 ms after a beat (< NP_CVNS_RR_MIN_VALID_MS) is not
+     * pulsed.  The lower bound is unchanged. */
+    uint32_t split[2] = { 250U, 950U };
+    ASSERT_EQ(feed_beats(&interlock, &t_ms, split, 2U), 1U);
+    printf("  spurious peak 250 ms after a beat: not pulsed (correct)\n");
+}
+
 int main(void)
 {
     printf("=== NP-FW-CVNS-001 §9 — Cervical VNS FAI item software checks ===\n");
@@ -494,6 +552,7 @@ int main(void)
 
     fai_safety_constants();
     fai_rr_buffer();
+    fai_rpeak_forwarding();
     fai_cv01_procedure_doc();
     fai_cv02_interlock_state_machine();
     fai_cv03_procedure_doc();
