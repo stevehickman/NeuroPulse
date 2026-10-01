@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 153
+**Revision:** 154
 **Date:** 2026-10-01
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 153 | 2026-10-01 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 154 | 2026-10-01 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 1 | 2026-05-13 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | 11 | 2026-09-28 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -191,10 +191,10 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-RISK-001 | Zone Module Risk Register (RISK-01 through RISK-26) | 3 (written as Rev C) | 2026-07-22 | [np_risk_001.docx](./superseded/np_risk_001.docx) | SUPERSEDED 2026-08-11 by NP-RISK-002/003/004 | RISK |
-| **NP-RISK-002** | Risk File Re-Baseline and NP-RISK-001 Disposition | 10 | 2026-10-01 | [np_risk_002.md](./np_risk_002.md) | ACTIVE | RISK |
+| **NP-RISK-002** | Risk File Re-Baseline and NP-RISK-001 Disposition | 11 | 2026-10-01 | [np_risk_002.md](./np_risk_002.md) | ACTIVE | RISK |
 | **NP-RISK-003** | Hex-Tile Module — Risk Register and Problem Analysis | 3 | 2026-09-29 | [np_risk_003.md](./np_risk_003.md) | ACTIVE | RISK |
 | **NP-RISK-004** | Shell, Socket, Interconnect and Hub — Risk Register and Problem Analysis | 4 | 2026-09-25 | [np_risk_004.md](./np_risk_004.md) | ACTIVE | RISK |
-| NP-FMEA-001 | SW-01 Safety MCU Unit-Level FMEA | 17 | 2026-10-01 | [np_fmea_001.md](./np_fmea_001.md) | DRAFT | RISK |
+| NP-FMEA-001 | SW-01 Safety MCU Unit-Level FMEA | 18 | 2026-10-01 | [np_fmea_001.md](./np_fmea_001.md) | DRAFT | RISK |
 
 **Note:** The risk register (RISK-01 through RISK-25; 23 MITIGATED, 2 OPEN: RISK-03 regulatory opinion, RISK-20 CFRP Ra confirmation) is formally under QMS change control per NP-RM-001 §5.1. All future risk register updates require change control per NP-QMS-DC-001. Privacy risks identified in NP-PRIV-001 Rev 1 are tracked separately in NP-PRIV-REM-001 Rev 1 (not in the device safety risk register, as they are programme-level operational risks rather than device safety hazards).
 
@@ -615,3 +615,4 @@ Planned near-term additions:
 | 151 | 2026-10-01 | NeurOne Firmware Engineering + principal | **NP-FW-CVNS-001 Rev 9 → 10, NP-RISK-002 Rev 8 → 9, NP-HW-CVNS-001 Rev 2 → 3, NP-DT-001 Rev 5 → 6, NP-REG-CVNS-001 Rev 2 → 3; CLAUDE.md Rev 60 → 61: `OI-CVNS-12` closed by principal decision.** The safety MCU's cardiac interlock compares its 8-interval mean with an 18 s history of 1 s snapshots, not with a baseline refreshed every 5 s. The 18 s is derived as 1 s of snapshot phase, plus the 5 s spread, plus 8 intervals at the principal's 40 BPM floor. In simulation, every qualifying step and ramp is now cut (Rev 9: 0–100 %). CLAUDE.md §4.2, `REQ-CVNS-09`, DI-SAFE-03 and the proposed IFU warning state detection (≤ 18 s from onset) and cutoff (< 100 ms from detection) separately, and FAI-CV02 measures each and adds a falling step. Seven real-time host tests replace the known-defect pin, all mutation-checked, and the executed-line floor rises from 524 to 591. False trips rise; that is new `OI-CVNS-13`. RISK-25 is not re-scored (Quality Lead's act, still owed under `OI-RISK2-08`) |
 | 152 | 2026-10-01 | NeurOne Firmware Engineering + principal | **NP-FW-CVNS-001 Rev 10 → 11: `OI-CVNS-13` analysed, the hub's `RPEAK_IN` pulse gate fixed by principal decision, and the item left open for the residual.** The hub pulsed `RPEAK_IN` only for intervals inside 300–2000 ms. Below 60 BPM, one missed detection therefore hid the next real beat, and the safety MCU's 3 s staleness cutoff fired. In simulation, 61–64 % of 120 s sessions tripped at 50 BPM with 1 % of beats missed, against the ≤ 2 % in §14.5.1, whose simulation fed raw detections. The hub now pulses every peak ≥ 300 ms after the last, with no upper bound, and buffers only 300–2000 ms for its own baseline (§6.2 step 7, Class B). The same case now trips 0.3–0.7 %, and every qualifying step and dropped-beat case is still cut. Median, 12-interval, persistence and MCU-refractory levers were simulated against the Class C unit and are not taken (§14.6.1). The median is blind to dropped-beat bradycardia, and the 12-interval window exceeds the 18 s bound. No Class C code changed. The residual (missed detections at ≥ 70 BPM, split detections at 50–70 BPM) waits on measured A13 detection rates and a clinical acceptable nuisance rate. New host test `fai_rpeak_forwarding` is mutation-checked. New simulation `run_oi_cvns_13_sim.sh` |
 | 153 | 2026-10-01 | NeurOne Systems Engineering | **NP-FMEA-001 Rev 16 → 17, NP-RISK-002 Rev 9 → 10: FMEA-M05-04 corrected to the redesigned cardiac interlock.** The row, and the §3.5 description, still said the safety MCU's baseline refreshes every 5 s. `NP-FW-CVNS-001` Rev 10 (OI-CVNS-12) retired that refresh for a comparison against an 18 s history of 1 s snapshots. M05-04 now states what the history does to a wrong arming mean: it can add a false cutoff while it is in the history, and cannot alone hide one. No failure mode added, no score changed, no code changed. `NP-RISK-002` OI-RISK2-08's note on M05-04 is discharged; its items 1 and 2 stay open |
+| 154 | 2026-10-01 | NeurOne Systems Engineering | **NP-FMEA-001 Rev 17 → 18, NP-RISK-002 Rev 10 → 11: `OI-RISK2-08` item 2 done.** New FMEA-M05-09 covers a qualifying heart-rate change absorbed in transit, the failure mode `OI-CVNS-12` found and no SW01-M05 row covered. Initial S5, ≥ P2, UNACCEPTABLE, as built until `NP-FW-CVNS-001` Rev 9. The residual on the 18 s history is proposed at S5×P1 = 5 ALARP, for Quality Lead approval. It names two residuals for the RISK-25 re-score: a change ending at 20–40 BPM is not guaranteed to be cut, and a change spread over more than 5 s is outside the requirement. Item 1, the re-score, is still owed. No score in the risk file changed, and no code changed |
