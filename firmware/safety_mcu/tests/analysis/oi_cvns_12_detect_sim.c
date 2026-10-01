@@ -1,14 +1,15 @@
 /*
  * OI-CVNS-12 detection simulation — NOT a test, NOT built by CMake.
- * Document: NP-FW-CVNS-001 Rev 9 §14.5 (the table there is this program's output).
+ * Document: NP-FW-CVNS-001 Rev 10 §14.5.1 (the tables there are this program's
+ * output against the unit as built; Rev 9 §14.5's are its output at 69ea5e7).
  *
  * Links the real Class C unit (np_cardiac_interlock.c) against a mocked HAL,
  * ticks the main loop every 1 ms with R-peaks in real time, and reports:
  *   mode 0 — the share of sustained HR steps / ramps that are cut, and latency;
  *   mode 1 — the share of 120 s steady-rhythm sessions that false-trip, with
  *            R-R jitter and missed / split R-peaks.
- * Window length and the 5 s refresh are varied by compiling edited COPIES of
- * the unit (run_oi_cvns_12_sim.sh); the unit itself is never modified.
+ * Rev 9 varied the window length and the 5 s refresh by compiling edited
+ * COPIES of the unit; Rev 10 runs the unit as built.  It is never modified.
  * Fixed seed, so every run reproduces the published figures.
  */
 #include <stdint.h>

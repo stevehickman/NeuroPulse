@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-REG-CVNS-001
-**Revision:** 2
-**Date:** 2026-09-22
+**Revision:** 3
+**Date:** 2026-10-01
 **Status:** BASELINED
 **Effective Date:** 2026-05-11
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -218,7 +218,7 @@ The following standards are proposed for the NeurOne Pro Cervical VNS Accessory:
 
 ### 7.3 Warnings (proposed)
 
-- Cardiac monitoring: safety MCU monitors cardiac rhythm during stimulation; device will automatically stop if heart rate changes by more than 15 BPM during the 5-second observation window. If cutoff occurs, do not restart without medical consultation.
+- Cardiac monitoring: safety MCU monitors cardiac rhythm during stimulation; device will automatically stop if heart rate changes by more than 15 BPM. A change is detected within about 18 seconds of when it began, for a heart rate that ends at 40 BPM or above, and stimulation stops within 0.1 s of detection. If cutoff occurs, do not restart without medical consultation.
 - Do not use while driving or operating heavy machinery.
 - Do not use over broken or irritated skin.
 - Discomfort at stimulation site is expected and reversible; reduce current level if discomfort is excessive.
@@ -291,3 +291,4 @@ NeurOne will request that FDA consider bundling the Q-Sub for all three modaliti
 |---------|------|--------|---------|
 | Rev 1 | 2026-05-11 | NeurOne Regulatory Affairs | Initial baseline; Issue #24 |
 | Rev 2 | 2026-09-22 | NeurOne Regulatory Affairs | §2.4 consumable row: *"single-use"* restated as a performance guarantee with reuse permitted, by principal decision (`OI-ACC-03`, `NP-HW-CVNS-001` `OI-CVNSHW-05`). *"Single-use"* on a medical device reads as *"do not reuse"*, which was not the intent. Consequences for the submission: the biocompatibility basis must cover repeat application (`OI-CVNSHW-07`), and the IFU must tell the user to replace a pad the device refuses (`OI-ACC-07`) — §7.4 added with that text. Predicate comparison (§3.2 electrode row) unaffected. |
+| Rev 3 | 2026-10-01 | NeurOne Firmware Engineering | §7.3's proposed cardiac-monitoring warning no longer cites a "5-second observation window". That window was the safety MCU's baseline refresh, retired by principal decision (`NP-FW-CVNS-001` Rev 10, OI-CVNS-12). The warning now states the detection time and the stop time separately (CLAUDE.md Rev 61 §4.2). Proposed text only; nothing filed. |

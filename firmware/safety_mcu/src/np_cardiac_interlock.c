@@ -5,7 +5,12 @@
  * Monitors R-peak GPIO pulses from the main processor (RPEAK_IN, PA8).
  * Uses TIM2 at 1MHz to capture RR intervals with 1µs resolution.
  *
- * Cutoff condition: HR change > NP_CARDIAC_HR_DELTA_BPM within a 5s window.
+ * Cutoff condition: the current 8-interval mean differs by more than
+ *   NP_CARDIAC_HR_DELTA_BPM from any 1 s snapshot of it in the last 18 s
+ *   (NP-FW-CVNS-001 Rev 10 §5.4, OI-CVNS-12, principal 2026-10-01).  Until
+ *   Rev 10 the comparison was against a baseline refreshed unconditionally
+ *   every 5 s, which adopted a step part-way through the 8-interval window:
+ *   a sustained 70 -> 50 BPM fall was never cut.
  * Cutoff response: CVNS_ENABLE_L/R GPIO cleared within <5.1ms worst-case
  *   (SysTick ISR at 200Hz = 5ms period, TIM6 compare ISR latency <0.1ms).
  *   Specified cutoff time: <100ms (FAI-CV02).
@@ -58,8 +63,13 @@ static uint32_t s_last_capture;              /* TIM2 count at last R-peak */
 static uint32_t s_last_edge_ms;              /* SysTick ms at last R-peak (staleness) */
 static bool     s_first_beat_seen;           /* guard: skip phantom first RR */
 
-static int16_t  s_baseline_bpm;             /* beats per minute, signed */
-static uint32_t s_baseline_established_ms;
+/* Heart-rate history (OI-CVNS-12): one snapshot of the 8-interval mean every
+ * NP_CARDIAC_HR_SNAP_MS, the oldest overwritten first.  s_hist_count == 0 means
+ * "seed from the current mean on the next armed tick". */
+static int16_t  s_hist_bpm[NP_CARDIAC_HR_HIST_LEN];   /* beats per minute, signed */
+static uint8_t  s_hist_head;
+static uint8_t  s_hist_count;
+static uint32_t s_hist_last_ms;
 static bool     s_baseline_valid;
 static bool     s_lockout_active;
 static uint32_t s_lockout_start_ms;         /* stored start (not end) for wrap safety */
@@ -83,7 +93,12 @@ np_safe_status_t np_cardiac_interlock_init(void)
     s_last_capture         = 0U;
     s_last_edge_ms         = 0U;
     s_first_beat_seen      = false;
-    s_baseline_bpm         = 0;
+    for (uint8_t i = 0U; i < NP_CARDIAC_HR_HIST_LEN; i++) {
+        s_hist_bpm[i] = 0;
+    }
+    s_hist_head            = 0U;
+    s_hist_count           = 0U;
+    s_hist_last_ms         = 0U;
     s_baseline_valid       = false;
     s_lockout_active       = false;
     s_lockout_start_ms     = 0U;
@@ -243,6 +258,44 @@ static int16_t current_hr_bpm(void)
     return rr_to_bpm(sum / (uint32_t)n);
 }
 
+/* History: restart from one snapshot (arming, re-arming after a lockout). */
+static void hist_seed(int16_t bpm, uint32_t now_ms)
+{
+    s_hist_bpm[0]  = bpm;
+    s_hist_head    = (uint8_t)(1U % NP_CARDIAC_HR_HIST_LEN);
+    s_hist_count   = 1U;
+    s_hist_last_ms = now_ms;
+}
+
+static void hist_push(int16_t bpm, uint32_t now_ms)
+{
+    s_hist_bpm[s_hist_head] = bpm;
+    s_hist_head = (uint8_t)((s_hist_head + 1U) % NP_CARDIAC_HR_HIST_LEN);
+    if (s_hist_count < NP_CARDIAC_HR_HIST_LEN) {
+        s_hist_count++;
+    }
+    s_hist_last_ms = now_ms;
+}
+
+/* Largest |cur − snapshot| over the history (order-independent).  Signed
+ * arithmetic, so a fall compares by magnitude (FMEA-M05-02).  Every mean is in
+ * [0, INT16_MAX] (rr_to_bpm saturates), so each difference fits in int32_t and
+ * its magnitude in uint16_t. */
+static uint16_t hist_max_delta(int16_t cur_bpm)
+{
+    uint16_t max_delta = 0U;
+    for (uint8_t i = 0U; i < s_hist_count; i++) {
+        int32_t d = (int32_t)cur_bpm - (int32_t)s_hist_bpm[i];
+        if (d < 0) {
+            d = -d;
+        }
+        if ((uint16_t)d > max_delta) {
+            max_delta = (uint16_t)d;
+        }
+    }
+    return max_delta;
+}
+
 void np_cardiac_interlock_tick(np_safety_state_t *state)
 {
     uint32_t now_ms = np_hal_get_tick_ms();
@@ -265,10 +318,14 @@ void np_cardiac_interlock_tick(np_safety_state_t *state)
         return;
     }
 
-    /* Clear lockout if elapsed — use elapsed subtraction for wrap safety at ~49 days */
+    /* Clear lockout if elapsed — use elapsed subtraction for wrap safety at ~49 days.
+     * The history is discarded with it: no snapshot was taken during the
+     * lockout, so its entries are the pre-event rates, and comparing the
+     * post-event rate with them would re-trip at once and restart the lockout. */
     if (s_lockout_active && ((now_ms - s_lockout_start_ms) >= NP_CARDIAC_LOCKOUT_MS)) {
         s_lockout_active = false;
         s_cutoff_active  = false;  /* re-arm interlock for subsequent events */
+        s_hist_count     = 0U;
     }
 
     /* Capture R-peak if signalled by main processor */
@@ -290,11 +347,11 @@ void np_cardiac_interlock_tick(np_safety_state_t *state)
         s_last_capture    = capture;
         s_last_edge_ms    = now_ms;
 
-        /* Establish baseline after NP_CARDIAC_BASELINE_BEATS valid intervals */
+        /* Establish baseline after NP_CARDIAC_BASELINE_BEATS valid intervals:
+         * the arming mean is the first history snapshot. */
         if (!s_baseline_valid && s_rr_count >= NP_CARDIAC_BASELINE_BEATS) {
-            s_baseline_bpm            = current_hr_bpm();
-            s_baseline_valid          = true;
-            s_baseline_established_ms = now_ms;
+            hist_seed(current_hr_bpm(), now_ms);
+            s_baseline_valid = true;
         }
     }
 
@@ -317,30 +374,29 @@ void np_cardiac_interlock_tick(np_safety_state_t *state)
         return;
     }
 
-    /* Compute current HR once; reuse below for both baseline refresh and delta
+    /* Compute current HR once; reuse below for both the snapshot and the
      * comparison.  Computing twice risks a different result if an R-peak edge
      * arrives between the two calls (ring buffer updates mid-tick). */
     int16_t cur_bpm = current_hr_bpm();
 
-    /* Refresh rolling baseline every observation window, but ONLY when no cutoff
-     * is active.  Refreshing after a cutoff event would adopt the elevated
-     * post-event HR as the new resting baseline, desensitising the interlock
-     * for subsequent events.  Gate: s_cutoff_active = true during and after
-     * the event until explicit reenable clears it. */
-    if (!s_cutoff_active &&
-        (now_ms - s_baseline_established_ms) >= NP_CARDIAC_OBS_MS &&
-        s_rr_count >= NP_CARDIAC_BASELINE_BEATS) {
-        s_baseline_bpm            = cur_bpm;
-        s_baseline_established_ms = now_ms;
+    /* Snapshot the current mean every NP_CARDIAC_HR_SNAP_MS.  No snapshot is
+     * taken under a cutoff: the lockout returns above, and its expiry empties
+     * the history, so the first armed tick after it reseeds here. */
+    if (s_hist_count == 0U) {
+        hist_seed(cur_bpm, now_ms);
+    } else if ((now_ms - s_hist_last_ms) >= NP_CARDIAC_HR_SNAP_MS) {
+        hist_push(cur_bpm, now_ms);
     }
 
-    /* Compare current HR to baseline — int16_t prevents underflow (FMEA-M05-02) */
-    int16_t delta_bpm = (int16_t)(cur_bpm - s_baseline_bpm);
-    if (delta_bpm < 0) {
-        delta_bpm = (int16_t)-delta_bpm;
-    }
+    /* Compare the current HR with every snapshot in the horizon (OI-CVNS-12).
+     * There is no baseline refresh to race: a step stays visible against the
+     * last pre-change snapshot until that snapshot is 18 s old, which outlasts
+     * a change spread over 5 s plus the 8-interval transit at any rate down to
+     * 40 BPM (derivation at NP_CARDIAC_HR_HIST_LEN).  Signed, so a fall
+     * compares by magnitude (FMEA-M05-02). */
+    uint16_t delta_bpm = hist_max_delta(cur_bpm);
 
-    if ((uint16_t)delta_bpm > NP_CARDIAC_HR_DELTA_BPM && !s_cutoff_active) {
+    if (delta_bpm > NP_CARDIAC_HR_DELTA_BPM && !s_cutoff_active) {
         cardiac_cutoff(state, now_ms);
     }
 }

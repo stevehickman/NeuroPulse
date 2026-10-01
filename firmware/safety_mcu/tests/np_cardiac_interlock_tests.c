@@ -15,10 +15,11 @@
  * Rev 9, OI-CVNS-10 closed.)
  *
  * PURPOSE: these tests PIN CURRENT BEHAVIOUR.  Several assertions encode
- * constants (NP_CARDIAC_BASELINE_BEATS = 8, NP_RR_BUF_SIZE = 8) and one pins a
- * known defect (OI-CVNS-12: the 5 s baseline refresh absorbs a sustained
- * fall).  The window length is now a parameter of OI-CVNS-12's redesign.  Any
- * change must surface here as a reviewed failing assertion, not land silently.
+ * constants (NP_CARDIAC_BASELINE_BEATS = 8, NP_RR_BUF_SIZE = 8,
+ * NP_CARDIAC_HR_HIST_LEN = 18).  The OI-CVNS-12 group runs beats in real time
+ * and pins the lagged comparison that replaced the 5 s baseline refresh
+ * (NP-FW-CVNS-001 Rev 10).  Any change must surface here as a reviewed failing
+ * assertion, not land silently.
  *
  * These tests mock the four HAL entry points; they do NOT require ARM
  * cross-compilation, TIM2, or an R-peak signal source.
@@ -57,9 +58,10 @@ extern void             np_spi_watchdog_tick(np_safety_state_t              *sta
 /* g_capture is the free-running 1 MHz TIM2 count; g_tick_ms is the 1 kHz
  * SysTick.  They are advanced INDEPENDENTLY on purpose: a test can deliver a
  * physiologically realistic R-R interval (1 s of TIM2) while advancing SysTick
- * by only 1 ms, so the 5 s rolling-baseline refresh (NP_CARDIAC_OBS_MS) does
- * not fire unless the test asks for it.  That isolates the delta comparison
- * from the refresh path. */
+ * by only 1 ms, so no heart-rate snapshot (NP_CARDIAC_HR_SNAP_MS) is taken
+ * unless the test asks for it: the history holds only the arming mean.  That
+ * isolates the delta comparison from the history.  beat_realtime() advances
+ * both together, which is what OI-CVNS-12 was found with. */
 static uint32_t g_tick_ms;
 static uint32_t g_capture;
 static bool     g_edge_pending;
@@ -440,84 +442,168 @@ static void test_reenable_forces_fresh_baseline(void)
           "fresh baseline: CARDIAC status stays clear while disarmed");
 }
 
-/*
- * Pins the rolling-baseline refresh (NP_CARDIAC_OBS_MS = 5 s): once the
- * observation window elapses with no cutoff active, the baseline adopts the
- * current rate, so a slow drift does not accumulate into a cutoff.
- */
-static void test_rolling_baseline_absorbs_slow_drift(void)
+/* ── OI-CVNS-12: lagged comparison, beats in real time (NP-FW-CVNS-001 Rev 10) ──
+ * Until Rev 10 the baseline was refreshed to the current mean every 5 s,
+ * unconditionally, and adopted a step part-way through the 8-interval window:
+ * a sustained 70 -> 50 BPM fall was never cut.  The cutoff now compares the
+ * current mean with every 1 s snapshot of it from the last 18 s (horizon
+ * NP_CARDIAC_HR_HIST_LEN x NP_CARDIAC_HR_SNAP_MS: 1 s of snapshot phase + the
+ * 5 s spread CLAUDE.md §4.2 allows + 8 intervals at the 40 BPM floor).  These tests advance SysTick with TIM2, so snapshots
+ * land as they would on the bench. */
+static void beat_realtime(np_safety_state_t *st, uint32_t rr_us)
+{
+    /* The main loop runs between beats, so a snapshot lands on its 1 s
+     * cadence rather than only on a beat. */
+    for (uint32_t ms = 1U; ms < rr_us / 1000U; ms++) { idle_tick(st, 1U); }
+    beat(st, rr_us);                     /* beat() adds the last 1 ms */
+}
+
+#define RR_70_BPM   857143U   /* 60 000 000 / 857 143 = 69.99 → 69 (BPM truncates) */
+#define RR_50_BPM  1200000U   /* 60 000 000 / 1 200 000 = 50 (a 20 BPM fall) */
+#define RR_54_BPM  1111112U   /* 60 000 000 / 1 111 112 = 53.99 → 53 (16 below 69) */
+#define RR_56_BPM  1071428U   /* 60 000 000 / 1 071 428 = 56.00 → 56 */
+#define RR_52_BPM  1153846U   /* 60 000 000 / 1 153 846 = 52.00 → 52 */
+#define RR_40_BPM  1500000U   /* 60 000 000 / 1 500 000 = 40 (the horizon floor) */
+#ifndef PRE_FLOOR_RAMP
+#define PRE_FLOOR_RAMP 44U
+#endif
+#define RR_90_BPM   666667U   /* 60 000 000 /   666 667 = 89.99 → 89 */
+
+/* Arm at rr0 in real time and run `pre` beats after the priming edge, then
+ * step to rr1 for n beats.  Returns the number of post-step beats before the
+ * cutoff, or 0 if none. */
+static uint32_t realtime_step(np_safety_state_t *st, uint32_t rr0, uint32_t pre,
+                              uint32_t rr1, uint32_t n)
+{
+    reset_all(st, true, 0U);
+    beat_realtime(st, rr0);                                          /* prime */
+    for (uint32_t i = 0U; i < pre; i++) { beat_realtime(st, rr0); }
+    if (!cvns_granted(st) || cutoff_fired(st)) { return 0xFFFFFFFFU; }
+    for (uint32_t i = 1U; i <= n; i++) {
+        beat_realtime(st, rr1);
+        if (cutoff_fired(st)) { return i; }
+    }
+    return 0U;
+}
+
+/* The case OI-CVNS-12 was raised on, which the 5 s refresh never cut.  The
+ * RISK-25 hazard direction.  Cut on the 6th post-step interval, the first at
+ * which the 8-interval mean has moved more than 15 BPM (7.2 s). */
+static void test_sustained_fall_cut_in_real_time(void)
+{
+    np_safety_state_t st;
+    uint32_t k = realtime_step(&st, RR_70_BPM, 30U, RR_50_BPM, 40U);
+    check(k == 6U, "OI-CVNS-12: a sustained 70 -> 50 BPM fall is cut, on interval 6");
+}
+
+/* FAI-CV02's own step, cut by the as-built rule in about 30 % of trials. */
+static void test_fai_cv02_rise_cut_in_real_time(void)
+{
+    np_safety_state_t st;
+    uint32_t k = realtime_step(&st, RR_70_BPM, 30U, RR_90_BPM, 40U);
+    check(k > 0U && k <= TEST_RR_BUF_SIZE, "OI-CVNS-12: FAI-CV02's 70 -> 90 BPM rise is cut");
+}
+
+/* A step only just over the threshold needs all 8 post-step intervals.  A
+ * band-gated refresh (candidate A) would still have absorbed part of it. */
+static void test_marginal_fall_cut_in_real_time(void)
+{
+    np_safety_state_t st;
+    uint32_t k = realtime_step(&st, RR_70_BPM, 30U, RR_54_BPM, 40U);
+    check(k == TEST_RR_BUF_SIZE, "OI-CVNS-12: a 70 -> 54 BPM fall is cut once the window has turned over");
+}
+
+/* The horizon floor, instantaneous: a 56 -> 40 BPM fall needs all 8 intervals
+ * at 1.5 s, 12 s of transit, and the pre-step snapshot must still be in the
+ * history.  The worst case is the last pre-step snapshot landing just over
+ * 0.5 s after the last pre-step beat.  29 beats after arming puts it 509 ms
+ * after (armed on edge 9, 1071 ms per beat, snapshots every 1000 ms from
+ * arming), so it must outlive +11.5 s: a horizon of 11 fails this (mutation-
+ * checked).  An instantaneous step needs only 12 s; the 5 s spread is what
+ * takes the horizon to 18, and the next test pins that. */
+static void test_floor_fall_to_40_cut_in_real_time(void)
+{
+    np_safety_state_t st;
+    uint32_t k = realtime_step(&st, RR_56_BPM, 29U, RR_40_BPM, 40U);
+    check(k == TEST_RR_BUF_SIZE, "OI-CVNS-12: a 56 -> 40 BPM fall (the floor) is cut");
+}
+
+/* A change spread over the requirement's whole 5 s, in its worst shape: part
+ * of it at onset (rr0 -> rr_mid), the rest by mid_ms later (rr_mid -> rr1, from
+ * the last interval that STARTS within mid_ms).  The mid rate is within 15 BPM
+ * of both ends, so only the snapshot taken before onset can see the change,
+ * and it must outlive the spread plus all 8 intervals at rr1.  rr0 for `pre`
+ * beats after the priming edge.  Returns the number of post-onset beats before
+ * the cutoff, or 0 if none. */
+static uint32_t realtime_two_stage(np_safety_state_t *st, uint32_t rr0, uint32_t pre,
+                                   uint32_t rr_mid, uint32_t mid_ms, uint32_t rr1, uint32_t n)
+{
+    reset_all(st, true, 0U);
+    beat_realtime(st, rr0);                                          /* prime */
+    for (uint32_t i = 0U; i < pre; i++) { beat_realtime(st, rr0); }
+    if (!cvns_granted(st) || cutoff_fired(st)) { return 0xFFFFFFFFU; }
+    uint32_t t_ms = 0U;
+    for (uint32_t i = 1U; i <= n; i++) {
+        uint32_t rr = ((t_ms + rr_mid / 1000U) <= mid_ms) ? rr_mid : rr1;
+        beat_realtime(st, rr);
+        t_ms += rr / 1000U;
+        if (cutoff_fired(st)) { return i; }
+    }
+    return 0U;
+}
+
+/* The horizon floor with the 5 s spread: 56 -> 52 BPM, then -> 40 BPM from
+ * the interval starting 4.6 s later.  52 keeps the 7-of-8 mean at 41, so the
+ * cut needs all 8 intervals at 40: 16.6 s after the last 56 beat.  The 56
+ * snapshot can be up to 1 s older than the first 52 interval's end.
+ * PRE_FLOOR_RAMP puts it at its worst phase here, so NP_CARDIAC_HR_HIST_LEN =
+ * 16 fails this and 17 and 18 pass (mutation-checked).  The 18th second is the
+ * analytic allowance for a change whose final rate starts at exactly +5 s
+ * (NP-FW-CVNS-001 §5.4), which a realisable beat train here does not reach.
+ * A linear 56 -> 40 ramp over 5 s needs only 14 s. */
+static void test_floor_two_stage_to_40_cut_in_real_time(void)
+{
+    np_safety_state_t st;
+    uint32_t k = realtime_two_stage(&st, RR_56_BPM, PRE_FLOOR_RAMP,
+                                    RR_52_BPM, 5000U, RR_40_BPM, 40U);
+    check(k > 0U && k < 0xFFFFFFFFU,
+          "OI-CVNS-12: 56 -> 52 -> 40 BPM within 5 s (the floor) is cut");
+}
+
+/* Slow drift is still not a cutoff: 60 -> 90 BPM at 1 BPM per 2 s.  No 18 s
+ * span holds more than about 9 BPM of it, so the history keeps up. */
+static void test_slow_drift_not_cut(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    beat_realtime(&st, RR_60_BPM);
+    for (uint8_t i = 0U; i < 30U; i++) { beat_realtime(&st, RR_60_BPM); }
+    double t_s = 0.0;
+    while (t_s < 60.0) {
+        double hr = 60.0 + t_s / 2.0;
+        uint32_t rr = (uint32_t)(60000000.0 / hr);
+        beat_realtime(&st, rr);
+        t_s += (double)rr / 1e6;
+    }
+    check(!cutoff_fired(&st) && cvns_granted(&st), "OI-CVNS-12: a 30 BPM drift over 60 s is not cut");
+}
+
+/* After a lockout expires, the history is reseeded: the pre-event snapshots
+ * must not re-trip a still-elevated rate and restart the lockout, which would
+ * make re-enable unreachable. */
+static void test_lockout_expiry_reseeds_history(void)
 {
     np_safety_state_t st;
     reset_all(&st, true, 0U);
     establish_baseline(&st, RR_60_BPM);
-
-    /* Drift to 75 BPM (delta exactly 15, below the fire threshold). */
-    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE; i++) { beat(&st, RR_75_BPM); }
-    check(!cutoff_fired(&st), "refresh: 15 BPM drift holds");
-
-    /* Let the observation window elapse — baseline should become 75.  The
-     * window ends on a BEAT: an idle 5 s with no R-peak is now, correctly, an
-     * R-peak staleness cutoff (NP_CARDIAC_RPEAK_STALE_MS, OI-RISK2-05), which
-     * is not what this test is about. */
-    g_tick_ms += NP_CARDIAC_OBS_MS - 1U;
-    beat(&st, RR_75_BPM);
-    check(!cutoff_fired(&st), "refresh: no cutoff on the refresh tick");
-
-    /* A further 12 BPM rise (75 → 87) is under threshold against the REFRESHED
-     * baseline but would be 27 against the original 60 — so no cutoff here
-     * proves the refresh happened. */
-    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE; i++) { beat(&st, 690000U); } /* 86 BPM */
-    check(!cutoff_fired(&st),
-          "refresh: baseline advanced to 75 (86 BPM is within 15 of it)");
-}
-
-
-/*
- * KNOWN DEFECT, PINNED — NP-FW-CVNS-001 OI-CVNS-12 (raised 2026-09-29 while
- * resolving OI-CVNS-10).  A sustained 20 BPM fall is NEVER cut when the beats
- * arrive in real time, although CLAUDE.md §4.2 requires a cutoff for an HR
- * change > 15 BPM within 5 s and RISK-25's hazard is bradycardia.
- *
- * Mechanism: HR is the mean of the last 8 intervals, so a step reaches that
- * mean one beat at a time.  70 → 50 BPM needs 6 of the 8 intervals at 1.2 s
- * (7.2 s) before |mean − baseline| > 15, and the baseline refresh
- * (NP_CARDIAC_OBS_MS = 5 s, unconditional while no cutoff is active) always
- * lands first and adopts the part-moved mean.  Every refresh leaves less than
- * 15 BPM still to travel, whatever the phase of the refresh.
- *
- * The second half is the control: the SAME fall with SysTick held back, so no
- * refresh can land, cuts.  The threshold logic is sound; the refresh is what
- * defeats it.  This test passes today by asserting the defect.  A fix for
- * OI-CVNS-12 must fail its first check and is meant to: change it then, in the
- * reviewed diff that closes the item.
- */
-static void beat_realtime(np_safety_state_t *st, uint32_t rr_us)
-{
-    g_tick_ms += (rr_us / 1000U) - 1U;   /* beat() adds the last 1 ms */
-    beat(st, rr_us);
-}
-
-#define RR_70_BPM   857143U   /* 60 000 000 / 857 143 = 70 */
-#define RR_50_BPM  1200000U   /* 60 000 000 / 1 200 000 = 50 (a 20 BPM fall) */
-
-static void test_refresh_absorbs_sustained_fall_KNOWN_DEFECT(void)
-{
-    np_safety_state_t st;
-    reset_all(&st, true, 0U);
-
-    beat_realtime(&st, RR_70_BPM);                                 /* prime */
-    for (uint8_t i = 0U; i < 30U; i++) { beat_realtime(&st, RR_70_BPM); }  /* ~26 s */
-    check(cvns_granted(&st) && !cutoff_fired(&st), "OI-CVNS-12: armed and granted at 70 BPM");
-
-    for (uint8_t i = 0U; i < 40U; i++) { beat_realtime(&st, RR_50_BPM); }  /* 48 s at 50 */
-    check(!cutoff_fired(&st) && cvns_granted(&st),
-          "OI-CVNS-12 KNOWN DEFECT: a sustained 70 -> 50 BPM fall is never cut in real time");
-
-    /* Control: the same fall, SysTick advanced 1 ms per beat — no refresh. */
-    reset_all(&st, true, 0U);
-    establish_baseline(&st, RR_70_BPM);
-    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE && !cutoff_fired(&st); i++) { beat(&st, RR_50_BPM); }
-    check(cutoff_fired(&st), "OI-CVNS-12 control: the same fall cuts when no refresh lands");
+    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE && !cutoff_fired(&st); i++) { beat(&st, RR_120_BPM); }
+    check(cutoff_fired(&st), "reseed: cutoff fired");
+    g_tick_ms += NP_CARDIAC_LOCKOUT_MS;
+    beat(&st, RR_120_BPM);                 /* lockout expires; still at 120 */
+    beat(&st, RR_120_BPM);
+    np_cardiac_interlock_reenable(&st);
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) == 0U,
+          "reseed: re-enable reachable at a still-elevated rate after lockout");
 }
 
 /* ── Power-cycle persistence (NP-SW-FAULTMSG-001 P1, OI-FAULTMSG-01) ──────────
@@ -794,7 +880,6 @@ int main(void)
     test_impossible_rr_saturates_rather_than_wrapping();
     test_reenable_refused_during_lockout();
     test_reenable_forces_fresh_baseline();
-    test_rolling_baseline_absorbs_slow_drift();
     test_cutoff_posts_pending_write();
     test_reenable_posts_clear_write();
     test_restored_cutoff_latent_without_cvns();
@@ -802,7 +887,13 @@ int main(void)
     test_restore_false_is_inert();
     test_cardiac_blocks_only_cvns();
     test_user_change_scopes_the_cutoff();
-    test_refresh_absorbs_sustained_fall_KNOWN_DEFECT();
+    test_sustained_fall_cut_in_real_time();
+    test_fai_cv02_rise_cut_in_real_time();
+    test_marginal_fall_cut_in_real_time();
+    test_floor_fall_to_40_cut_in_real_time();
+    test_floor_two_stage_to_40_cut_in_real_time();
+    test_slow_drift_not_cut();
+    test_lockout_expiry_reseeds_history();
 
     if (g_failures == 0) { printf("ALL TESTS PASSED\n"); return 0; }
     printf("%d TEST(S) FAILED\n", g_failures);

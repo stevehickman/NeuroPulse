@@ -19,6 +19,38 @@
 
 ## Current revision
 
+**Rev 61 (2026-10-01) — §4.2's cervical VNS interlock row: detection and cutoff are stated
+separately, and the detector behind them is redesigned. A principal decision, closing `OI-CVNS-12`.**
+
+**What changed.** The row read *"HR change >15 BPM within 5s → GPIO cutoff <100ms"*. It now reads
+*"HR change >15 BPM within 5s, ending ≥40 BPM → detected ≤18s from onset (8-beat mean vs an 18s
+history) → GPIO cutoff <100ms from detection"*.
+
+**Why.** The old row had two problems.
+- **The 100 ms was unmeetable as written.** It gave a cutoff time and no detection time, so it read as
+  100 ms from the change. The safety MCU's 8-interval mean needs several post-change beats before it
+  can see a 15 BPM change. At resting rates that takes seconds, under any rule.
+- **The rule did not catch the changes the row named.** `NP-FW-CVNS-001` Rev 9 found that the
+  interlock's unconditional 5 s baseline refresh absorbed a step in transit. A 70 → 50 BPM fall, the
+  RISK-25 hazard direction, was never cut.
+
+The principal chose three things on 2026-10-01:
+- a comparison against every 1 s snapshot of the mean from the last 18 s;
+- a 40 BPM floor for the slowest final rate that must be resolved;
+- this split wording.
+
+**What it changes elsewhere, and what it leaves.**
+- **The 18 s is derived, not chosen.** It is 1 s of snapshot phase, plus the 5 s this row allows a
+  change to take, plus 8 intervals at 40 BPM (`NP-FW-CVNS-001` §5.3).
+- **More nuisance cutoffs.** The old refresh hid artefacts as well as real steps
+  (`NP-FW-CVNS-001` OI-CVNS-13).
+- **Not re-scored.** RISK-25's re-score is still the Quality Lead's to make (`NP-RISK-002`
+  OI-RISK2-08).
+- **The other figures stand.** The 15 BPM threshold, the 100 ms, the 30 s lockout and the re-enable
+  conditions are unchanged.
+
+## Earlier revisions
+
 **Rev 60 (2026-09-29) — §3's PBM scalp row: the laser skin reference is adopted in full, and the
 per-channel 200 mW/cm² is removed. A principal decision, closing `OI-HEXTILE-32`.**
 
@@ -43,8 +75,6 @@ not by the average.
 - **Scalp only.** The intranasal probe still has no exposure ceiling (`OI-NASAL-02`).
 - The residuals are listed in `NP-HW-HEXTILE-001` D-10. No code constant changed, because the
   average check is not built.
-
-## Earlier revisions
 
 **Rev 59 (2026-09-28) — §3's PBM scalp row: the 25 % duty cap is retired, and a PBM ceiling refuses a
 protocol instead of reshaping it. A locked decision changed, by principal direction.**

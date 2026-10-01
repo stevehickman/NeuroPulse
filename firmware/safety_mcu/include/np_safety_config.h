@@ -138,7 +138,24 @@
 #define NP_CARDIAC_TIM          TIM2
 #define NP_CARDIAC_TIM_HZ       1000000UL   /* 1µs resolution */
 #define NP_CARDIAC_HR_DELTA_BPM 15U         /* cutoff threshold */
-#define NP_CARDIAC_OBS_MS       5000U       /* observation window */
+/* Lagged comparison (NP-FW-CVNS-001 Rev 10 §5.4, OI-CVNS-12, principal
+ * 2026-10-01).  Every NP_CARDIAC_HR_SNAP_MS the current 8-interval mean is
+ * snapshotted into a history of NP_CARDIAC_HR_HIST_LEN entries; the cutoff
+ * fires when the current mean differs by > NP_CARDIAC_HR_DELTA_BPM from ANY
+ * snapshot in it.  Replaces the unconditional 5 s baseline refresh
+ * (NP_CARDIAC_OBS_MS, retired), which absorbed a step part-way through the
+ * window, so a sustained 70 -> 50 BPM fall was never cut.
+ *
+ * Horizon derivation (HIST_LEN x SNAP_MS = 18 s).  A change that only just
+ * exceeds 15 BPM is seen only once all 8 intervals in the mean are at the new
+ * rate, and only against a snapshot taken before the change began.  That
+ * snapshot must outlive:  1 s  (it can be one snapshot period older than the
+ * change)  +  5 s  (CLAUDE.md §4.2: the change may be spread over 5 s)
+ * +  8 x 60 / 40 = 12 s  (8 intervals at the 40 BPM floor, principal).
+ * Below 40 BPM a change of just over 15 BPM can outlast the horizon; the 3 s
+ * staleness cutoff catches a rate below 20 BPM. */
+#define NP_CARDIAC_HR_SNAP_MS   1000U       /* snapshot cadence */
+#define NP_CARDIAC_HR_HIST_LEN  18U         /* snapshots kept -> 18 s horizon */
 #define NP_CARDIAC_LOCKOUT_MS   30000U      /* re-enable lockout */
 #define NP_CARDIAC_BASELINE_BEATS 8U        /* beats to establish baseline */
 /* R-peak staleness (NP-RISK-002 OI-RISK2-05, principal 2026-09-25).  While

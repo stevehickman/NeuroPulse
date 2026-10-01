@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-DT-001
-**Revision:** 5
-**Date:** 2026-09-25
+**Revision:** 6
+**Date:** 2026-10-01
 **Status:** DRAFT
 **Effective Date:** 2026-06-07
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -16,6 +16,8 @@
 **Parent Document:** NP-QMS-DC-001
 
 ---
+
+**Rev 6 (2026-10-01):** **DI-SAFE-03 follows CLAUDE.md Rev 61 §4.2** (`NP-FW-CVNS-001` Rev 10, OI-CVNS-12 closed by principal decision). Detection (≤ 18 s from onset, for a change ending at ≥ 40 BPM) and cutoff (≤ 100 ms from detection) are stated separately, and the "5 s rolling observation window" is gone with the refresh it named. The ±5 BPM cross-validation is struck: it was never built (`NP-FW-CVNS-001` Rev 9 §5.3 step 5).
 
 **Rev 5 (2026-09-25):** **DO-HW-06 re-pointed: `NP-TOOL-SHELL-001` is superseded by `NP-TOOL-SHELL-002` Rev 1** (GitHub #331, `OI-ART-01`). The architecture that document tooled was replaced, so its successor takes a new serial (`NP-CONV-001` §4). The DO-HW-06 row keeps its superseded status text, marked as such. No design input changes, and no traceability link is added or removed: the shell tooling output still traces to the same inputs, and its geometry is still blocked on `MECH-1`.
 
@@ -151,7 +153,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-SAFE-01 | Safety | **DC commanded-dose limit: 150 mC/cm² per session per electrode**, hardware-enforced by safety MCU STM32G071; app and main processor cannot override. Covers the DC channels only — tDCS and HD-tDCS. Enforced against the electrode area declared in the signed descriptor (OI-CHARGE-04), not an assumed one. | **Liebetanz et al. 2009** (measured rat epicranial DC lesion threshold 52,400 C/m² = 5,240 mC/cm²; ceiling is 35× below it) · **`docs/tdcs_database_full.csv`** (conventional large-pad human tDCS envelope; the most-exposed large RCT protocol in it is Brunoni ELECT-TDCS 2013/2017, 2 mA × 30 min on 25 cm² = 144 mC/cm²) · see §3.2.1 | Safety-Critical | T1+T2 |
 | DI-SAFE-01a | Safety | **Pulsed/AC commanded-dose limit: 40 µC/cm² per phase per electrode**, hardware-enforced by the same monitor. Covers the charge-balanced biphasic channels — BES/tACS, VNS, cervical VNS, clinical tACS. Phase charge is amplitude × phase width, evaluated per heartbeat against the commanded amplitude; it is NOT integrated over the session, because net delivered charge on these waveforms is ~zero and a session integral of \|I\| is not a dose. | **Shannon 1992** / **McCreery et al. 1990** (reversible charge-injection limits for pulsed neural stimulation) · see §3.2.1 | Safety-Critical | T1+T2 |
 | DI-SAFE-02 | Safety | SPI heartbeat watchdog: safety MCU receives 200 ms heartbeat; 1.5 s timeout without heartbeat → all stimulation GPIO cutoff ≤50 ms; fault latch requires explicit clear | CLAUDE.md §4.2; NP-SW-001 SW01-M02 | Safety-Critical | T1+T2 |
-| DI-SAFE-03 | Safety | Cervical VNS cardiac interlock: HR change >15 BPM within 5 s rolling observation window → CVNS GPIO cutoff ≤100 ms; 30 s lockout; baseline cross-validation PPG vs GPIO-timer within ±5 BPM | CLAUDE.md §4.2; NP-FW-CVNS-001 Rev 1; NP-SW-001 SW01-M05 | Safety-Critical | T2 |
+| DI-SAFE-03 | Safety | Cervical VNS cardiac interlock: HR change >15 BPM within 5 s, ending ≥40 BPM → detected ≤18 s from onset → CVNS GPIO cutoff ≤100 ms from detection; 30 s lockout; ~~baseline cross-validation PPG vs GPIO-timer within ±5 BPM~~ (never built) | CLAUDE.md §4.2; NP-FW-CVNS-001 Rev 10 §5.3–§5.4; NP-SW-001 SW01-M05 | Safety-Critical | T2 |
 | DI-SAFE-04 | Safety | Photoparoxysmal EEG detection at Oz electrode → goggle LED hard cutoff ≤200 ms; clinician-unlock required to re-enable for 3–30 Hz frequency range | CLAUDE.md §3 modality 8; NP-SW-001 SW01-M06 | Safety-Critical | T1+T2 |
 | DI-SAFE-05 | Safety | Visual retinal safety: IEC 62471 MPE ceiling enforced by 3 independent hardware layers — IR proximity sensor, Hall sensor (goggle lift), and hardware current limit; 50% of exempt group threshold | CLAUDE.md §3 modality 8 | Safety-Critical | T1+T2 |
 | DI-SAFE-06 | Safety | Session protocol: Ed25519 cryptographic signature required before any stimulation GPIO enable; headset rejects unsigned or corrupted protocol descriptors | CLAUDE.md §4.2; NP-SW-001 SW01-M07 | Safety-Critical | T1+T2 |
