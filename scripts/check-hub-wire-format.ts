@@ -71,6 +71,7 @@ const COMPILER_DEPS = [
   "app/web/src/lib/socketMap.generated.ts",
   "app/web/src/lib/hardwareLimits.ts",
   "app/web/src/lib/wavelengthRules.ts",
+  "app/web/src/lib/pbmDrive.ts",
 ];
 
 const read = (root: string, rel: string): string => readFileSync(join(root, rel), "utf8");
