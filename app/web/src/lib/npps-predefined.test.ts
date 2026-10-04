@@ -129,11 +129,35 @@ describe('predefined NPPS library', () => {
     // (≈348 allowed), one block. (The validator cannot see the 250 or the 310:
     // `intensity` is not irradiance yet, which OI-HEXTILE-31's pre-signing
     // refusal also has to fix.)
+    // OI-SESPWR-03 (2026-10-04): the parser refuses `frequency: 0` with a duty
+    // other than 100 %, and reads a CW block as 100 % duty, written or not. The
+    // library's CW blocks therefore state CW and are refused by the 25 % duty
+    // cap until OI-HEXTILE-31, as Schiffer and Wang already were: Cassano 2018
+    // (36 mW/cm² CW), Maiello, Memory Boost (Yao 2022), Alzheimer's 1064 nm, Naeser TBI transcranial + intranasal, stroke rehab
+    // transcranial + intranasal, and Vascular Baseline. Before this, each of
+    // them parsed as 25 % duty and passed, which was a pulsed stimulus
+    // standing in for the CW its own source used. Vascular Baseline is also
+    // far over R-4's CW ceiling (OI-SESPWR-02).
+    // Rev 18 (absolute intensity): one entry per CW BLOCK, and a wavelength is its own block,
+    // so Vascular Baseline (660 + 808 nm) lists twice and TBI and stroke list once per block
+    // (scalp + two intranasal channels).
     const WAIVED = [
       'taVNS — Stroke Motor Rehab (paired): frequencyHz = 30 Hz (limit 1–25 Hz (hardware))',
       'PBM — Anxiety (Wang 2023, high-irradiance): dutyCyclePercent = 100% (limit 25% (hardware))',
       'PBM — Depression (Schiffer 2009, high-irradiance): dutyCyclePercent = 100% (limit 25% (hardware))',
       'PBM — Depression (Schiffer 2009, high-irradiance): dutyCyclePercent = 100% (limit 25% (hardware))',
+      'Memory Boost: dutyCyclePercent = 100% (limit 25% (hardware))',
+      "PBM — Alzheimer's 1064nm (deep-cortical channel): dutyCyclePercent = 100% (limit 25% (hardware))",
+      'PBM — Anxiety (Maiello 2019, low-irradiance CW): dutyCyclePercent = 100% (limit 25% (hardware))',
+      'PBM — Depression (Cassano 2018, low-irradiance CW): dutyCyclePercent = 100% (limit 25% (hardware))',
+      'PBM — Stroke (chronic rehab): dutyCyclePercent = 100% (limit 25% (hardware))',
+      'PBM — Stroke (chronic rehab): dutyCyclePercent = 100% (limit 25% (hardware))',
+      'PBM — Stroke (chronic rehab): dutyCyclePercent = 100% (limit 25% (hardware))',
+      'PBM — TBI (chronic) + Intranasal (Naeser 2011/2014): dutyCyclePercent = 100% (limit 25% (hardware))',
+      'PBM — TBI (chronic) + Intranasal (Naeser 2011/2014): dutyCyclePercent = 100% (limit 25% (hardware))',
+      'PBM — TBI (chronic) + Intranasal (Naeser 2011/2014): dutyCyclePercent = 100% (limit 25% (hardware))',
+      'Vascular Baseline: dutyCyclePercent = 100% (limit 25% (hardware))',
+      'Vascular Baseline: dutyCyclePercent = 100% (limit 25% (hardware))',
     ];
 
     const failures: string[] = [];

@@ -46,10 +46,10 @@ protocol "PBM — Alzheimer's 1064nm (deep-cortical channel)" {
         # this block rather than reducing it (CLAUDE.md §3).
         irradiance: 100mW_cm2
         frequency: 0Hz
-        duty_cycle: 25%
-        # frequency: 0Hz requests CW, which §1 permits at 1060nm. The 25% duty
-        # cap means it is not delivered. Written explicitly so
-        # scripts/check-pbm-power.ts sees the OI-SESPWR-03 CW+duty ambiguity.
+        # frequency: 0Hz requests CW, which §1 permits at 1060nm. CW has no
+        # duty cycle, so none is written (OI-SESPWR-03). The hardware's 25% cap
+        # means CW is not delivered, and the validator refuses the protocol
+        # until OI-HEXTILE-31 replaces the cap.
         zones: ["Vault (excl. Occipital)"]
         # §1's site is "whole-head (bilateral frontal, temporal, parietal +
         # midline)", so the right-lateralized zone this protocol used under the

@@ -247,7 +247,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-MOD-EXT-001 | Additional Modalities Specification | 1 | 2026-05-02 | [np_mod_ext_001.docx](./superseded/np_mod_ext_001.docx) | SUPERSEDED by individual firmware specs and CLAUDE.md | CLIN |
 | NP-BIB-001 | Clinical Evidence Bibliography (39 entries, 12 modality sections) | — | 2026-05-02 | [np_bib_001.docx](./np_bib_001.docx) | ACTIVE | CLIN |
 | NP-BIB-1064-001 | 1064nm Transcranial PBM — Clinical Evidence Bibliography Addendum | 1 | 2026-05-13 | [np_bib_1064_001.md](./np_bib_1064_001.md) | ACTIVE | CLIN |
-| NP-BIB-PBMIRR-001 | PBM Irradiance and Temperature — Regulatory Limits and Safety Evidence Record | 1 | 2026-09-28 | [np_bib_pbmirr_001.md](./np_bib_pbmirr_001.md) | DRAFT | CLIN |
+| NP-BIB-PBMIRR-001 | PBM Irradiance and Temperature — Regulatory Limits and Safety Evidence Record | 4 | 2026-10-04 | [np_bib_pbmirr_001.md](./np_bib_pbmirr_001.md) | DRAFT | CLIN |
 | NP-SBIR-001 | SBIR Phase I Draft | — | 2026-05-02 | [np_sbir_001.docx](./np_sbir_001.docx) | ACTIVE | CLIN |
 | — | Researcher Candidate List | — | 2026-05-02 | [neurone_researchers.docx](./neurone_researchers.docx) | ACTIVE | CLIN |
 

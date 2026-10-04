@@ -124,12 +124,12 @@ export function analyse(): Row[] {
       const blockCw = freqHz === 0;
       cw = cw || blockCw;
       if (d !== null) duty = d;
-      if (blockCw && d !== null && d < 100) {
-        // NP-NPPS-REF-001 §4.1: `frequency: 0` selects CW, and CW means 100 % duty.
-        // The compiler emits freq_code 0x00 and the duty register independently
-        // (hubCompiler.ts freqCode/dutyReg), so which one wins is unspecified.
-        // Reported at the CW reading — the higher draw — and flagged. OI-SESPWR-03.
-        if (!notes.includes("CW+duty ambiguous")) notes.push("CW+duty ambiguous");
+      if (blockCw && d !== null && d !== 100) {
+        // NP-NPPS-REF-001 §4.1 Rev 18: `frequency: 0` selects CW, CW has no duty, and
+        // nppsParser.ts refuses a duty other than 100 % beside it (OI-SESPWR-03,
+        // closed). A hit here is a file the parser will not load. Reported at the CW
+        // reading, the only one there is.
+        if (!notes.includes("CW+duty: refused by the parser")) notes.push("CW+duty: refused by the parser");
       }
       const blockW = chanW(ch) * frac * (blockCw ? 1 : (d ?? 100) / 100);
 

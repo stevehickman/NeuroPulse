@@ -18,7 +18,6 @@ protocol "PBM — Stroke (chronic rehab)" {
         wavelength: "810nm"
         irradiance: 20mW_cm2
         frequency: 0Hz
-        duty_cycle: 25%
         # Perilesional cortex is patient-specific — it depends where the stroke
         # was — so no predefined zone can be correct here (§9). The operator
         # must select the sockets over the lesion margin plus midline before
@@ -35,13 +34,11 @@ protocol "PBM — Stroke (chronic rehab)" {
         wavelength: "660nm"
         irradiance: 50mW_cm2
         frequency: 0Hz
-        duty_cycle: 25%
     }
 
     pbm_intranasal {
         wavelength: "808nm"
         irradiance: 50mW_cm2
         frequency: 0Hz
-        duty_cycle: 25%
     }
 }

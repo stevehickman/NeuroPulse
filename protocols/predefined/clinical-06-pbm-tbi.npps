@@ -33,7 +33,6 @@ protocol "PBM — TBI (chronic) + Intranasal (Naeser 2011/2014)" {
         wavelength: "810nm"
         irradiance: 22mW_cm2
         frequency: 0Hz
-        duty_cycle: 25%
         zones: ["Vault (excl. Occipital)"]
     }
 
@@ -50,13 +49,11 @@ protocol "PBM — TBI (chronic) + Intranasal (Naeser 2011/2014)" {
         wavelength: "660nm"
         irradiance: 60mW_cm2
         frequency: 0Hz
-        duty_cycle: 25%
     }
 
     pbm_intranasal {
         wavelength: "808nm"
         irradiance: 60mW_cm2
         frequency: 0Hz
-        duty_cycle: 25%
     }
 }

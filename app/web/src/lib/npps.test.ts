@@ -861,3 +861,36 @@ describe('absolute intensity: irradiance in mW/cm², volume in dB', () => {
     expect(serializeProtocol(entry)).toContain('irradiance: 12.5mW_cm2');
   });
 });
+
+describe('CW with a duty cycle (OI-SESPWR-03)', () => {
+  const pbm = (body: string, kind = 'pbm_transcranial') => `
+protocol "CW" {
+    duration: 10m
+    ${kind} {
+        ${kind === 'pbm_intranasal' ? 'wavelength: "660nm"\n        irradiance: 60mW_cm2' : 'wavelength: "808nm"\n        irradiance: 300mW_cm2'}
+        ${body}
+    }
+}
+`;
+  const paramsOf = (src: string, kind = 'pbm_transcranial') => {
+    const [entry] = parseNPPS(src);
+    const m = (entry as { kind: 'single'; protocol: NPProtocolDefinition })
+      .protocol.modalities.find(x => x.modalityParams.type === kind)!;
+    return m.modalityParams.params as { frequencyHz: number; dutyCyclePercent: number };
+  };
+
+  it('refuses frequency 0 with a duty other than 100 %', () => {
+    expect(() => parseNPPS(pbm('frequency: 0Hz\n duty_cycle: 25%'))).toThrow(/continuous wave.*no duty/s);
+    expect(() => parseNPPS(pbm('frequency: 0\n duty_cycle: 50%', 'pbm_intranasal'))).toThrow(/no duty/);
+  });
+
+  it('reads CW as 100 % duty whether the duty is omitted or written', () => {
+    expect(paramsOf(pbm('frequency: 0Hz')).dutyCyclePercent).toBe(100);
+    expect(paramsOf(pbm('frequency: 0Hz\n duty_cycle: 100%')).dutyCyclePercent).toBe(100);
+  });
+
+  it('leaves a pulsed block alone', () => {
+    const p = paramsOf(pbm('frequency: 40Hz\n duty_cycle: 25%'));
+    expect(p).toMatchObject({ frequencyHz: 40, dutyCyclePercent: 25 });
+  });
+});

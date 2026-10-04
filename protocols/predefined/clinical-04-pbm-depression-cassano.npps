@@ -16,10 +16,10 @@ protocol "PBM — Depression (Cassano 2018, low-irradiance CW)" {
         wavelength: "823nm"
         irradiance: 36mW_cm2
         frequency: 0Hz
-        duty_cycle: 25%
-        # duty_cycle written explicitly so scripts/check-pbm-power.ts sees the
-        # OI-SESPWR-03 CW+duty ambiguity — omitting it does not remove the
-        # ambiguity (the parser defaults to 25 either way), only hides it.
+        # CW has no duty cycle, so none is written (OI-SESPWR-03: the parser
+        # refuses `frequency: 0` with a duty other than 100 %). The parser reads
+        # this block as CW at 100 % duty; the hardware's 25 % cap then refuses
+        # it until OI-HEXTILE-31 replaces the cap.
         # DURATION IS DERIVED. The trial gives 20–30 min and "up to 65 J/cm²".
         # 36 mW/cm² × 1800 s = 64.8 J/cm², so 30 min is the end of the range
         # that reaches the stated dose AND clears §4's "≥60 J/cm² per site, do
