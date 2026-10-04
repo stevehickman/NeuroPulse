@@ -16,6 +16,8 @@
 | `## 13.3 Structural` | Accepted and managed — not blocking |
 | `## 13.4 Pending decisions` | **Must resolve before tooling is cut** |
 
+**Choices with no derivation, measurement or checked source** are indexed by choice, not by item, in `docs/status/unjustified-choices.md` (`CLAUDE.md` §19). Each row there points back at the open item here or in the owning document.
+
 Recipes that answer most questions without loading the file:
 
 - One open item by ID: `grep -n 'OI-HEXTILE-06' docs/status/pending-decisions.md`
