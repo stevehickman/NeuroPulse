@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 155
-**Date:** 2026-10-01
+**Revision:** 156
+**Date:** 2026-10-04
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -79,8 +79,8 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 155 | 2026-10-01 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
-| NP-QMS-DC-001 | Design Controls Procedure | 1 | 2026-05-13 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 156 | 2026-10-04 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-QMS-DC-001 | Design Controls Procedure | 2 | 2026-10-04 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | 11 | 2026-09-28 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
 | NP-QMS-CAPA-001 | Corrective and Preventive Action Procedure | 1 | 2026-05-13 | [np_qms_capa_001.md](./np_qms_capa_001.md) | ACTIVE | QMS |
@@ -617,3 +617,4 @@ Planned near-term additions:
 | 153 | 2026-10-01 | NeurOne Systems Engineering | **NP-FMEA-001 Rev 16 → 17, NP-RISK-002 Rev 9 → 10: FMEA-M05-04 corrected to the redesigned cardiac interlock.** The row, and the §3.5 description, still said the safety MCU's baseline refreshes every 5 s. `NP-FW-CVNS-001` Rev 10 (OI-CVNS-12) retired that refresh for a comparison against an 18 s history of 1 s snapshots. M05-04 now states what the history does to a wrong arming mean: it can add a false cutoff while it is in the history, and cannot alone hide one. No failure mode added, no score changed, no code changed. `NP-RISK-002` OI-RISK2-08's note on M05-04 is discharged; its items 1 and 2 stay open |
 | 154 | 2026-10-01 | NeurOne Systems Engineering | **NP-FMEA-001 Rev 17 → 18, NP-RISK-002 Rev 10 → 11: `OI-RISK2-08` item 2 done.** New FMEA-M05-09 covers a qualifying heart-rate change absorbed in transit, the failure mode `OI-CVNS-12` found and no SW01-M05 row covered. Initial S5, ≥ P2, UNACCEPTABLE, as built until `NP-FW-CVNS-001` Rev 9. The residual on the 18 s history is proposed at S5×P1 = 5 ALARP, for Quality Lead approval. It names two residuals for the RISK-25 re-score: a change ending at 20–40 BPM is not guaranteed to be cut, and a change spread over more than 5 s is outside the requirement. Item 1, the re-score, is still owed. No score in the risk file changed, and no code changed |
 | 155 | 2026-10-01 | NeurOne Systems Engineering | **NP-FMEA-001 Rev 18 → 19: OI-FMEA-02's pass criterion restated to FAI-CV02 as amended (`NP-FW-CVNS-001` Rev 10, §9).** The *"<5.1 ms worst-case"* criterion assumed a TIM6 ISR that does not exist and is struck through in place. The item now carries CV02-A (cutoff ≤ 100 ms from detection) and CV02-F (every step cut, detection ≤ 18 s from onset), matching CLAUDE.md §4.2 (Rev 61). Documentation alignment only: no risk score, failure mode or code changed. §5 NP-FMEA-001 row updated |
+| 156 | 2026-10-04 | NeurOne Systems Engineering | **NP-QMS-DC-001 Rev 1 → 2: §8.2 allows the revision history record to live in a linked history file.** Procedure wording only; no change to the change-order process or approvals. §5 NP-QMS-DC-001 row updated |
