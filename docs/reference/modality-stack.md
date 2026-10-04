@@ -140,3 +140,28 @@
 
 ---
 
+### §3 — PBM scalp ceiling: what the figures rest on
+
+> Relocated verbatim from CLAUDE.md §3 (Rev 62). CLAUDE.md §3 keeps the ceilings table, the rule that
+> a ceiling refuses a protocol and never reshapes one, and the two hazard-control sentences (zero
+> margin; the 400 peak). Derivation: `docs/np_bib_pbmirr_001.md`.
+
+- **Each wavelength is independently controlled, but not independent for safety** (principal,
+  2026-09-29). A protocol commands each wavelength on its own; the safety terms still sum them.
+- **The average is the bound.** The laser skin exposure limit, 200 × C_A mW/cm² time-averaged, is the
+  conventional reference for LED arrays, not a legal limit. It adds across wavelengths on the same
+  tissue. C_A is 1 at 660 nm, ≈ 1.64 at 808 nm and 5 at 1064 nm. These are working-knowledge figures,
+  unverified until `OI-BIBPBM-01`.
+- **The reference is adopted in full** (principal, 2026-09-29, `OI-HEXTILE-32`, Rev 60). There is
+  no separate per-channel 200: the weighted sum is the whole average term, and it runs at **zero
+  margin** to the reference at every wavelength. Its inputs were still open when it was decided
+  (`OI-BIBPBM-01`, `-03`, `-04`, counsel on RISK-03), so the C_A constants gate the pre-signing
+  check (`OI-HEXTILE-31`).
+- **The 400 peak has no counterpart in the standards and no recorded derivation.** It is the
+  design point the tile is sized to (RISK-03). **Since Rev 60 it is also the only thing holding
+  1064 nm to 400 and not 1000**, so it is a hazard control there and may not be raised or retired
+  while `OI-BIBPBM-03` is open (CLAUDE.md §18).
+- **Still not built:** the code, the language and U4 clamp (`OI-HEXTILE-30`, `-31` in
+  `docs/np_hw_hextile_001.md`).
+
+---

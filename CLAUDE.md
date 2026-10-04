@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 61 (current)  
+**Revision:** 62 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -30,7 +30,7 @@ Plain paths, not `@import`s: nothing below loads until it is `Read`.
 |---|------|
 | §2 in full (every figure), §6.1 | `docs/reference/commercial-model.md` |
 | §3 | `docs/reference/modality-stack.md` |
-| §4.3 · §4.4 · §4.5 · §4.7 | `docs/reference/hardware-detail.md` |
+| §4.1 · §4.2 (cVNS figures) · §4.3 · §4.4 · §4.5 · §4.7 | `docs/reference/hardware-detail.md` |
 | §5.1 – §5.3 (per-field UHDR/SHDR rulings) | `docs/reference/data-architecture-detail.md` |
 | §6.2 · §6.3 | `docs/reference/consent-engine.md` |
 | §17 | `docs/reference/localization.md` |
@@ -82,21 +82,20 @@ Two-tier platform sharing a single chassis, processor stack, app, and USB-C conn
 - No mandatory subscription — all core functions offline-capable permanently
 - UHDR/SHDR data separation (user health data never accessed by NeurOne)
 
-**T1 → T2 is a new unit, never a conversion** (decided 2026-09-23 → `docs/np_reg_upg_001.md` §7):
+**T1 → T2 is a new unit, never a conversion** (→ `docs/np_reg_upg_001.md` §7):
 1. **A T1 unit never enables a T2 modality or unlocks a T2 feature, whatever is attached**
-   (`REQ-UPG-01`). The gate is a signed tier identity written once at manufacture (`REQ-UPG-02`),
-   not physical absence. The firmware gate exists but is **not in force**, so every unit is T1
-   until `OI-UPG-08`. The software gate is not built (`OI-UPG-01`). `NP_PROTO_FLAG_T2_TIER` is
-   app-computed and decides nothing.
+   (`REQ-UPG-01`). The gate is a signed tier identity written once at manufacture (`REQ-UPG-02`).
+   It is **not in force**, so every unit is T1 until `OI-UPG-08`, and the software gate is not
+   built (`OI-UPG-01`). `NP_PROTO_FLAG_T2_TIER` is app-computed and decides nothing.
 2. **Modules carry over to the purchaser's T2** (`REQ-UPG-03`): a change to a tile socket,
    accessory port or lens mount lands on both tiers or neither.
 3. **"Field-upgradeable" means within a tier.** Never present T1 as upgradeable to Pro.
 
 ---
 
-## 2. CONFIGURATIONS + PRICING (🔓 retail UNLOCKED 2026-08-16; charger policy §2.2 still locked) → `docs/reference/commercial-model.md`
+## 2. CONFIGURATIONS + PRICING (🔓 retail unlocked; charger policy §2.2 still locked) → `docs/reference/commercial-model.md`
 
-**Every §2 figure and table is in `docs/reference/commercial-model.md` §2.1–§2.3** (Rev 47) — retail
+**Every §2 figure and table is in `docs/reference/commercial-model.md` §2.1–§2.3** — retail
 in force, BOM/COGS/GM%, modalities per configuration, box contents, the implied ladder, the charger
 table and its intent signals, every consumable's price/interval/margin. **§2 holds no number.** The
 six configurations, by tier (§1: T1 is FDA-exempt wellness, T2 a 510(k) target) — **T1:** Core — EEG
@@ -113,10 +112,10 @@ reading `docs/np_cost_001.md`.**
 
 ### 2.1a Implied retail ladder (implied, NOT set) → `docs/reference/commercial-model.md` §2.1a
 
-**Break-even binds before margin does:** every T1 break-even already exceeds its price in force, so
-no margin target is reachable today and the binding number is break-even, not the target. Both Pro
-rows are profitable, so Pro is where the *target*, not the cost, is the thing to question. The T1 and
-T2 ladders **collide** (`OI-COST-08`), and every competitive price claim is live again (`OI-COST-09`).
+Retail is unlocked but no price is set, and **break-even binds before margin does** (every T1
+break-even already exceeds its price in force). The T1 and T2 ladders collide (`OI-COST-08`) and
+every competitive price claim is live again (`OI-COST-09`). Ladder and reasoning:
+`docs/reference/commercial-model.md` §2.1a.
 
 ### 2.2 Charger policy (locked) → `docs/reference/commercial-model.md` §2.2
 
@@ -128,16 +127,13 @@ never blocks.**
 ### 2.3 Consumables + recurring revenue → `docs/reference/commercial-model.md` §2.3
 
 Intranasal hygiene sleeves are the **only authenticated consumable** and the primary MRR driver.
-**Every consumable replacement prompt is measurement-triggered (§5.2), never calendar-triggered.**
-A calendar trigger is also unimplementable, because the device has no RTC backup (§4.5). A prompt
-qualifies as either a **condition measurement** of the part, or an **exposure count** that names
-its degradation mechanism and what it cannot see. **A threshold back-derived from a calendar
-interval is a calendar prompt**, and an unsupported threshold is labelled an unvalidated
-placeholder. A consumable with no measurement gets no prompt. Inventing a trigger is design work,
-not a documentation edit. **A new prompt needs a Trigger-column row before it ships**, and
-`scripts/check-consumable-triggers.ts` enforces it. Service and calibration visits are outside this
-rule and stay calendar-based. The full rule, the scope carve-out and every row are in
-`commercial-model.md` §2.3.
+**Every consumable replacement prompt is measurement-triggered (§5.2), never calendar-triggered**,
+and a calendar trigger is unimplementable anyway (no RTC backup, §4.5). A consumable with no
+measurement gets no prompt, and inventing a trigger is design work, not a documentation edit. **A
+threshold back-derived from a calendar interval is a calendar prompt.** A new prompt needs a
+Trigger-column row before it ships (`scripts/check-consumable-triggers.ts`). Service and calibration
+visits are outside the rule. The admissible trigger kinds, the scope carve-out and every row:
+`docs/reference/commercial-model.md` §2.3.
 
 ---
 
@@ -166,29 +162,19 @@ cloud + FHIR R4 + LSL + scripting API · anonymized session tag.
 | VNS (auricular) | 1–25 Hz · ≤2 mA · biphasic charge-balanced · **40 µC/cm² per phase** |
 | Visual | IEC 62471 MPE at 50% of exempt-group threshold · photoparoxysmal halt <200 ms |
 
-**A PBM ceiling refuses a protocol. It never reshapes one** (principal, 2026-09-28). Duty, mode and
+**A PBM ceiling refuses a protocol. It never reshapes one**. Duty, mode and
 irradiance are the protocol's, because a pulse train clamped to fit is a different stimulus from the
 one authored. A protocol outside a ceiling is rejected before it is signed, and if the hardware cannot
-deliver one inside them, the hardware is redesigned. The 25 % duty cap is retired (Rev 59).
+deliver one inside them, the hardware is redesigned.
 
-**What the figures rest on** (`docs/np_bib_pbmirr_001.md`):
-- **Each wavelength is independently controlled, but not independent for safety** (principal,
-  2026-09-29). A protocol commands each wavelength on its own; the safety terms still sum them.
-- **The average is the bound.** The laser skin exposure limit, 200 × C_A mW/cm² time-averaged, is the
-  conventional reference for LED arrays, not a legal limit. It adds across wavelengths on the same
-  tissue. C_A is 1 at 660 nm, ≈ 1.64 at 808 nm and 5 at 1064 nm. These are working-knowledge figures,
-  unverified until `OI-BIBPBM-01`.
-- **The reference is adopted in full** (principal, 2026-09-29, `OI-HEXTILE-32`, Rev 60). There is
-  no separate per-channel 200: the weighted sum is the whole average term, and it runs at **zero
-  margin** to the reference at every wavelength. Its inputs were still open when it was decided
-  (`OI-BIBPBM-01`, `-03`, `-04`, counsel on RISK-03), so the C_A constants gate the pre-signing
-  check (`OI-HEXTILE-31`).
-- **The 400 peak has no counterpart in the standards and no recorded derivation.** It is the
-  design point the tile is sized to (RISK-03). **Since Rev 60 it is also the only thing holding
-  1064 nm to 400 and not 1000**, so it is a hazard control there and may not be raised or retired
-  while `OI-BIBPBM-03` is open (§18).
-- **Still not built:** the code, the language and U4 clamp (`OI-HEXTILE-30`, `-31` in
-  `docs/np_hw_hextile_001.md`).
+**Two controls that bind PBM work** (the rest of the derivation, the C_A figures and the build
+status are in `docs/reference/modality-stack.md` §3, from `docs/np_bib_pbmirr_001.md`):
+- **The weighted sum is the whole average term, at zero margin at every wavelength.** There is no
+  separate per-channel 200, and each wavelength is commanded independently but summed for safety.
+  The C_A constants are unverified (`OI-BIBPBM-01`), so they gate the pre-signing check
+  (`OI-HEXTILE-31`). The check and the U4 clamp are not built (`OI-HEXTILE-30`).
+- **The 400 peak is a hazard control at 1064 nm** (it alone holds 1064 nm to 400, not 1000) and may
+  not be raised or retired while `OI-BIBPBM-03` is open (§18).
 
 **The charge ceiling is two ceilings, one per waveform class.** DC channels (tDCS, HD-tDCS) have
 **150 mC/cm² per session** per electrode. Charge-balanced channels (BES/tACS, VNS, cVNS, clinical
@@ -204,15 +190,20 @@ evidence and open items are in `docs/reference/modality-stack.md`.
 ## 4. HARDWARE SPECIFICATIONS (all locked)
 
 ### 4.1 Processor stack
-- **Main:** NXP i.MX RT1062 · Cortex-M7 · 600MHz · FPU+DSP+SIMD · 1MB on-chip SRAM + 32MB LPSDR4 · USB-HS OTG · FreeRTOS-Kernel V11.3.0 (LTS 202604.00, vendored `firmware/vendor/freertos/`) · ~1.1% CPU at full load (98.9% headroom for future ML)
-- **Safety MCU:** STM32G071 (NOT G031 — G031 has only 8KB SRAM, insufficient for EMF firmware) · Cortex-M0+ · 64MHz · 36KB SRAM · 128KB flash · bare-metal · owns all stimulation GPIO enable lines · +$0.45 BOM
-- **Storage:** 8GB industrial eMMC (SLC cache, 30,000+ P/E cycles) · LittleFS filesystem · firmware partition write-protected · separate UHDR/SHDR partitions from first firmware line
-- **Connectivity:** USB-C 3.2 Gen1 (default, zero RF, <1ms) · BT 5.3 LE Audio · Wi-Fi 6 · antennas in control hub NOT headset · single rear toggle
+- **Main:** NXP i.MX RT1062 (Cortex-M7, 600 MHz) · FreeRTOS · USB-HS OTG
+- **Safety MCU:** STM32G071 (**NOT G031**, whose 8 KB SRAM is too small for the EMF firmware) ·
+  bare-metal · **owns all stimulation GPIO enable lines**
+- **Storage:** 8 GB industrial eMMC · LittleFS · firmware partition write-protected · **separate
+  UHDR/SHDR partitions from the first firmware line**
+- **Connectivity:** USB-C 3.2 Gen1 is the default (zero RF) · BT 5.3 LE Audio · Wi-Fi 6 · **antennas
+  in the control hub, not the headset**
+
+Versions, clocks, memory sizes, CPU headroom, BOM delta and cycle counts: `docs/reference/hardware-detail.md` §4.1.
 
 ### 4.2 Safety architecture
 - Safety MCU physically owns all stimulation enable GPIO — app crash cannot cause unsafe stimulation
 - SPI heartbeat from main processor every 200ms; 1.5s watchdog → all-stimulation cutoff <50ms
-- Dual-processor isolation: IEC 62304 Class C (safety MCU, bare-metal — ~2,900 physical lines across 10 modules as of 2026-09; `wc -l firmware/safety_mcu/src/*.c` is the source of truth, not this line) + Class B (main processor) separately certified
+- Dual-processor isolation: IEC 62304 Class C (safety MCU, bare-metal; size: `wc -l firmware/safety_mcu/src/*.c`) + Class B (main processor) separately certified
 - Session protocol cryptographically signed by app — headset rejects unsigned or corrupted protocols
 
 **Modality-specific interlocks:**
@@ -224,7 +215,7 @@ evidence and open items are in `docs/reference/modality-stack.md`.
 | PBM scalp | IEC 60601 42°C limit | NTC per zone → hardware current throttle at 62°C junction |
 | TMS | Coil protection | EMF cancellation gated off 5ms before pulse, 50ms hold |
 | VNS | Contact confirmation | Safety MCU reads impedance; holds if contacts not confirmed |
-| Cervical VNS (T2) | Cardiac rhythm interlock | Safety MCU owns enable GPIO; monitors R-peak GPIO; HR change >15 BPM within 5s, ending ≥40 BPM → **detected ≤18s from onset** (8-beat mean vs an 18s history, `OI-CVNS-12`) → GPIO cutoff **<100ms from detection**; 30s re-enable lockout + app confirm + repeat impedance |
+| Cervical VNS (T2) | Cardiac rhythm interlock | Safety MCU owns enable GPIO; monitors R-peak GPIO; a heart-rate step cuts the GPIO; **detection and cutoff times are stated separately, and a cutoff time is never quoted without its detection time**; lockout, app confirm and repeat impedance before re-enable. All figures: `REQ-CVNS-09` (`docs/np_hw_cvns_001.md` §3), `docs/reference/hardware-detail.md` §4.2 |
 | T2 lines (cVNS, TMS, 1170 nm, clinical stim) | Tier identity (`REQ-UPG-01`) | Safety MCU withholds unless its signed, UID-bound OTP record says T2; fail-closed to T1. Not in force until `OI-UPG-08` |
 | All | Firmware anti-fragility | CSPRNG session protocol signing |
 
@@ -238,7 +229,7 @@ target is **35–45 dB ELF magnetic / 40–60 dB RF**. **These are design target
   it. That is what makes the claim *permanent*.
 - The shell is bonded to the EEG DRL output. The TMS coil site needs a **non-conductive CFRP
   window**.
-- **Layer 4 (absorber foam) is deleted** (`REQ-CAV-04`, 2026-09-23). **Never renumber:** `L5` stays
+- **Layer 4 (absorber foam) is deleted** (`REQ-CAV-04`). **Never renumber:** `L5` stays
   `L5`, because every historical "Layer 4" means the absorber. *"Five-layer keying"* is a retired
   RISK-15 scheme, not this stack. The binding 3 mm outer-bowl re-loft went with the deletion. The
   only documented way anything returns to that station is an insulating, non-magnetic pad under
@@ -361,12 +352,8 @@ alone.
 Screen **S1** carries L4 + L1 ("what you get back"). Screen **S2** carries L2 + L3 ("what you
 share").
 
-| Layer | In one line |
-|-------|-------------|
-| **L1 — Contact** | May we reach you about future research? (POA holders: human review) |
-| **L2 — Category** | Which of the 9 research areas? Each project is still a fresh decision |
-| **L3 — Blanket** | Pre-approve all NeurOne-reviewed research (k≥10, no IDs, no sub-weekly timestamps) |
-| **L4 — Results** | Plain-language results per study, **including null results**, plus the portal |
+L1 contact · L2 category (9 research areas) · L3 blanket · L4 results (including null results). The
+per-layer table is in `consent-engine.md` §6.2.
 
 Binding invariants (rationale in `consent-engine.md` §6.2.2–§6.2.5):
 - **L2 is scope and L3 is posture.** All nine L2 categories is not blanket consent, and
@@ -403,7 +390,7 @@ full on first use in each document, abbreviated thereafter. (`HDR` meaning a bin
 Signal names, document IDs, `§N` citation form and the other identifier families are
 `docs/np_conv_001.md` (NP-CONV-001).
 
-## 17. LOCALIZED STRINGS — CODE GENERATION RULE (locked 2026-09-03; single-source 2026-09-08) → `docs/reference/localization.md`
+## 17. LOCALIZED STRINGS — CODE GENERATION RULE (locked) → `docs/reference/localization.md`
 
 **Non-firmware code carries only a key. User-facing text goes in `locales/<bcp47>.json`**, the only
 committed copy. There are 11 locales, flat and sorted. The web, Apple and Android files are
@@ -421,7 +408,7 @@ committed copy. There are 11 locales, flat and sorted. The web, Apple and Androi
 
 Gates: `bun scripts/check-locale-strings.ts` · `bun scripts/sync-locales.ts --verify-untracked`.
 
-## 18. REQUIREMENTS — A REQUIREMENT MUST BE REQUIRED (locked 2026-09-21) → `docs/np_conv_001.md` §7.1
+## 18. REQUIREMENTS — A REQUIREMENT MUST BE REQUIRED (locked) → `docs/np_conv_001.md` §7.1
 
 **Do not write a requirement unless something requires it.** Before a number, limit, tolerance or
 "shall" enters a controlled document, its row must answer two questions. **What fails if it is not
