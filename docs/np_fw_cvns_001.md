@@ -20,7 +20,7 @@
 **Rev 14 (2026-10-04): OI-CVNS-14 CLOSED, candidate D built (principal): the hub now sends its own heart rate and the safety MCU cross-checks it at ±5 BPM (§14.7).**
 - **Built, host-tested, not run on silicon.** A new 12-byte wire command (`NP_SAFETY_CMD_HR_REPORT`, `np_safety_hr_report_cmd_t`) carries the hub's estimate. The MCU compares it with its own 8-interval mean on every armed tick (§5.4 step 5).
 - **Decided (principal, 2026-10-04):** a disagreement of more than 5 BPM **cuts and latches** exactly as a cardiac event does (lockout, CARDIAC and CUTOFF status, persisted cutoff, app confirmation and repeat impedance before re-enable). Source: the hub's PPG-derived heart rate.
-- **Fail-closed, the engineering reading of "cut and latch", not separately decided:** a hub that stops reporting after the check has agreed once cuts after 3 s, and before the first agreement the grant is only held back, silently. Both are stated in §14.7 as open for confirmation.
+- **Fail-closed, confirmed (principal, 2026-10-04):** a hub that stops reporting after the check has agreed once cuts and latches after 3 s, and before the first agreement the grant is only held back, silently. Making silence only a hold was considered and rejected (§14.7).
 - **What it does not close:** a fault inside the hub's own R-peak detector, which both sides then see identically (§14.7). **The ±5 BPM and the 3 s are chosen, not derived**, and the false-trip rate on a real heart rate is unmeasured: new item **OI-CVNS-15**.
 - **Changed:** `np_cardiac_interlock.c` (Class C), `np_hal_spi.c`, `np_safety_main.c`, `np_safety_config.h`, `np_spi_wire_types.h`, `np_cvns_interlock.c`, `np_mod_cvns.c`, `np_safety_spi.c`. **Not changed:** the 15 BPM threshold, the 18 s history, the 8-interval window, the staleness bound, the lockout.
 
@@ -1194,7 +1194,7 @@ No requirement figure is set here, because step 2 has not set a rate for one to 
 | No fresh report, agreed before, granted | cut and latch | Without this a hub that goes quiet switches the check off |
 | Report invalid (hub has no estimate) | same as no fresh report | The held estimate is cleared, not left standing |
 
-**Not confirmed by the principal, stated so it can be changed:** the last two rows. The decision was "cut and latch on disagreement". Treating silence as disagreement after an agreement, and as a hold before one, is the engineering reading of fail-closed on a cardiac interlock. Making silence only a hold is a one-line change, and it would let a hub that stops reporting disable the check.
+**Confirmed by the principal, 2026-10-04:** the last two rows. Silence after an agreement is a cut, and silence before one is a hold. *Considered and rejected: making silence only a hold.* It would cut the nuisance trips from a dropped frame or a stalled hub task, but a quiet hub would then switch the check off, and the hub faults most likely to cause a false rhythm (a SW-02 crash or timer fault) are the ones that stop the reports. It would also be the only Class C interlock that does not cut on a stale input, and a flapping hub would give on-off stimulation with no lockout. **If nuisance trips prove the problem, lengthen `NP_CARDIAC_XCHECK_STALE_MS` or send reports faster before relaxing the rule** (OI-CVNS-15 (a), (b)).
 
 **Constants (CLAUDE.md §18).**
 
