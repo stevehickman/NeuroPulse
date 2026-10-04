@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 11
-**Date:** 2026-10-01
+**Revision:** 12
+**Date:** 2026-10-04
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -12,10 +12,17 @@
 **Related Issues:** GitHub Issue #24; GitHub Issue #343 (§9 FAI serial disposition); GitHub Issue #332 (A14 hardware specification — issued 2026-09-20 as NP-HW-CVNS-001)
 **Gate:** NP-COORD-001 G3-08
 **IEC 62304 Class:** SW-01 Class C (safety MCU) / SW-02 Class B (main processor)
-**Supersedes:** NP-FW-CVNS-001 Rev 10
+**Supersedes:** NP-FW-CVNS-001 Rev 11
 **Parent Document:** NP-SW-001
 
 ---
+
+**Rev 12 (2026-10-04): §13 follows the RISK-25 re-score with C1 as redesigned (`NP-RISK-002` Rev 12 §4.3.5; OI-RISK2-08 closed).**
+- **Residual unchanged:** S5 × P2 = ALARP, target P1. The ratings were approved by the Quality Lead (interim: Steve Hickman, CEO) on 2026-10-01.
+- **Correction of record.** From 2026-09-23 until Rev 10, C1 as built gave a residual of S5 × P3 = UNACCEPTABLE (§14.5). No patient was exposed.
+- **New hazard 25-e:** a nuisance cutoff (OI-CVNS-13), scored S1 × P5 = ALARP.
+- **Clinical adequacy goes to `NP-RISK-002` OI-RISK2-09.** It covers the ≤ 18 s detection bound and the changes `REQ-CVNS-09` leaves out, and it now gates P1.
+- **No requirement, constant, threshold, test or firmware behaviour changed.**
 
 **Rev 11 (2026-10-01): OI-CVNS-13 analysed. The hub now pulses `RPEAK_IN` for long intervals, and the item stays open for the residual rate (principal decision, 2026-10-01).**
 - **A false-trip path no simulation had modelled.** The hub (`np_cvns_interlock.c`, §6.2 step 7) pulsed `RPEAK_IN` only for intervals inside 300–2000 ms. Below 60 BPM, one missed detection makes an interval over 2000 ms, so the next real beat was not pulsed either. The safety MCU then saw a gap over 3 s, and its staleness cutoff (§5.4 step 4) fired. At 50 BPM with 1 % of beats missed, 61–64 % of 120 s sessions tripped. §14.5.1 reported ≤ 2 %, because its simulation fed the MCU raw detections.
@@ -828,11 +835,11 @@ Hardware FAI (CV01 bench, CV02 timing, CV03 clinical) PENDING — blocking for T
 | Severity | **S5 — Critical** (`NP-RM-001` §4.1 names this harm as its S5 example). *Before 2026-09-23 this read "Critical (S4)", mixing two scale levels* |
 | Probability (unmitigated) | P3 — Occasional (documented in gammaCore predicate safety data) |
 | Risk (unmitigated) | S5 × P3 = **UNACCEPTABLE** |
-| Mitigation | Safety MCU TIM6 ISR fires every 5 ms; cardiac interlock GPIO cutoff < 5.1 ms from detection trigger. ~~Baseline cross-validation blocks enable if main processor and safety MCU disagree.~~ *(Rev 9: never built, §5.3 step 5. **The detector itself misses most qualifying changes at resting rates, OI-CVNS-12 and `NP-RISK-002` OI-RISK2-08.** The TIM6 wording is Rev 1's; §5.4 records that there is no TIM6 ISR.)* *(Rev 10: the detector is redesigned and detects every simulated qualifying change down to a 40 BPM endpoint (§14.5.1). It now false-trips more often (OI-CVNS-13). Not re-scored here.)* 30 s re-enable lockout. Re-enable requires explicit app confirmation. **(Rev 6)** The cutoff persists in safety-MCU flash across power loss, per user, failing closed (§5.4.1). It withholds cervical VNS only. gammaCore predicate demonstrated equivalent interlock concept safe in K163334/K173323. |
-| Residual probability | **P2 — Remote** now, because no control is yet verified on hardware; **P1** target after FAI-CV02, silicon verification of §5.4.1, `OI-CVNS-11` and `OI-CVNSHW-03` (`NP-RISK-002` §4.3) |
+| Mitigation | Safety MCU TIM6 ISR fires every 5 ms; cardiac interlock GPIO cutoff < 5.1 ms from detection trigger. ~~Baseline cross-validation blocks enable if main processor and safety MCU disagree.~~ *(Rev 9: never built, §5.3 step 5. **The detector itself misses most qualifying changes at resting rates, OI-CVNS-12 and `NP-RISK-002` OI-RISK2-08.** The TIM6 wording is Rev 1's; §5.4 records that there is no TIM6 ISR.)* *(Rev 10: the detector is redesigned and detects every simulated qualifying change down to a 40 BPM endpoint (§14.5.1). It now false-trips more often (OI-CVNS-13). Not re-scored here.)* *(Rev 12: re-scored in `NP-RISK-002` §4.3.5. The residual is unchanged, and nuisance cutoffs are scored as hazard 25-e.)* 30 s re-enable lockout. Re-enable requires explicit app confirmation. **(Rev 6)** The cutoff persists in safety-MCU flash across power loss, per user, failing closed (§5.4.1). It withholds cervical VNS only. gammaCore predicate demonstrated equivalent interlock concept safe in K163334/K173323. |
+| Residual probability | **P2 — Remote** now, because no control is yet verified on hardware; **P1** target after FAI-CV02, silicon verification of §5.4.1, `OI-CVNS-11` and `OI-CVNSHW-03` (`NP-RISK-002` §4.3). *(Rev 12: and `NP-RISK-002` OI-RISK2-09, the clinical adequacy of the §4.2 detection requirement)* |
 | Residual risk | **S5 × P2 = ALARP** (target S5 × P1, still ALARP). ALARP justification: `NP-RISK-002` §4.3.4. *Before 2026-09-23 this read "Low", which the `NP-RM-001` matrix cannot produce at S5* |
 | Verification | FAI-CV02: measured cutoff latency ≤ 100 ms from detection, and detection ≤ 18 s, for a rise and a fall (10 trials each; Rev 10) |
-| Status | **ALARP — re-scored 2026-09-23, approved by the Quality Lead (interim: Steve Hickman, CEO) 2026-09-23**; verification pending (FAI-CV02, silicon) |
+| Status | **ALARP — re-scored 2026-09-23, approved by the Quality Lead (interim: Steve Hickman, CEO) 2026-09-23**; **re-scored again with C1 as redesigned and approved 2026-10-01 (`NP-RISK-002` Rev 12 §4.3.5), with the rating unchanged**; verification pending (FAI-CV02, silicon) |
 
 ---
 
@@ -1025,7 +1032,7 @@ All 120 cells (starts 50–110 BPM, steps ±16–40 BPM, instantaneous or ramped
 
 Each was mutation-checked. Executed lines rise from 524 to 591 (`ci/host-test-floors.txt`).
 
-**Still open after closure:** RISK-25's re-score and the `NP-FMEA-001` row are owed by the Quality Lead (`NP-RISK-002` OI-RISK2-08, items 1–2). OI-CVNS-11 and OI-CVNS-13 remain. FAI-CV02 has not run.
+**Still open after closure:** ~~RISK-25's re-score and the `NP-FMEA-001` row are owed by the Quality Lead (`NP-RISK-002` OI-RISK2-08, items 1–2).~~ *(Rev 12: both done. `NP-FMEA-001` FMEA-M05-09 was added at Rev 18 there. RISK-25 was re-scored and approved on 2026-10-01 (`NP-RISK-002` Rev 12 §4.3.5), and OI-RISK2-08 is closed. Clinical adequacy of the detection requirement is `NP-RISK-002` OI-RISK2-09.)* OI-CVNS-11 and OI-CVNS-13 remain. FAI-CV02 has not run.
 
 ### 14.6 OI-CVNS-13 — false trips under the lagged comparison
 

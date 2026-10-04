@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 156
+**Revision:** 157
 **Date:** 2026-10-04
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 156 | 2026-10-04 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 157 | 2026-10-04 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 2 | 2026-10-04 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | 11 | 2026-09-28 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -147,7 +147,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-FW-HRV-001 | HRV Biofeedback Protocol Firmware Specification | 3 | 2026-09-27 | [np_fw_hrv_001.md](./np_fw_hrv_001.md) | BASELINED | SPEC-FW |
 | NP-FW-ZA-001 | Zone Module Bone Conduction Announcement Firmware | 1 | 2026-05-11 | [np_fw_za_001.md](./superseded/np_fw_za_001.md) | SUPERSEDED | SPEC-FW |
 | NP-FW-HD-001 | sLORETA-Guided HD-tDCS Firmware Specification | 6 | 2026-09-14 | [np_fw_hd_001.md](./np_fw_hd_001.md) | BASELINED | SPEC-FW |
-| NP-FW-CVNS-001 | Cervical VNS Safety Interlock Firmware Specification | 11 | 2026-10-01 | [np_fw_cvns_001.md](./np_fw_cvns_001.md) | BASELINED | SPEC-FW |
+| NP-FW-CVNS-001 | Cervical VNS Safety Interlock Firmware Specification | 12 | 2026-10-04 | [np_fw_cvns_001.md](./np_fw_cvns_001.md) | BASELINED | SPEC-FW |
 | NP-FW-PBM1064-001 | 1064nm Smart Zone Module Firmware Specification | 5 | 2026-09-27 | [np_fw_pbm1064_001.md](./np_fw_pbm1064_001.md) | BASELINED | SPEC-FW |
 | NP-FW-NVRAM-001 | Hub NVRAM Hardware Abstraction Layer and the On-Helmet Module Record | 11 | 2026-09-28 | [np_fw_nvram_001.md](./np_fw_nvram_001.md) | DRAFT | SPEC-FW |
 | NP-FW-BENCH-001 | Head-Presence Gate and Bench / Service Mode | 5 | 2026-09-27 | [np_fw_bench_001.md](./np_fw_bench_001.md) | DRAFT | SPEC-FW |
@@ -191,10 +191,10 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-RISK-001 | Zone Module Risk Register (RISK-01 through RISK-26) | 3 (written as Rev C) | 2026-07-22 | [np_risk_001.docx](./superseded/np_risk_001.docx) | SUPERSEDED 2026-08-11 by NP-RISK-002/003/004 | RISK |
-| **NP-RISK-002** | Risk File Re-Baseline and NP-RISK-001 Disposition | 11 | 2026-10-01 | [np_risk_002.md](./np_risk_002.md) | ACTIVE | RISK |
+| **NP-RISK-002** | Risk File Re-Baseline and NP-RISK-001 Disposition | 12 | 2026-10-04 | [np_risk_002.md](./np_risk_002.md) | ACTIVE | RISK |
 | **NP-RISK-003** | Hex-Tile Module — Risk Register and Problem Analysis | 3 | 2026-09-29 | [np_risk_003.md](./np_risk_003.md) | ACTIVE | RISK |
 | **NP-RISK-004** | Shell, Socket, Interconnect and Hub — Risk Register and Problem Analysis | 4 | 2026-09-25 | [np_risk_004.md](./np_risk_004.md) | ACTIVE | RISK |
-| NP-FMEA-001 | SW-01 Safety MCU Unit-Level FMEA | 20 | 2026-10-04 | [np_fmea_001.md](./np_fmea_001.md) | DRAFT | RISK |
+| NP-FMEA-001 | SW-01 Safety MCU Unit-Level FMEA | 21 | 2026-10-04 | [np_fmea_001.md](./np_fmea_001.md) | DRAFT | RISK |
 
 **Note:** The risk register (RISK-01 through RISK-25; 23 MITIGATED, 2 OPEN: RISK-03 regulatory opinion, RISK-20 CFRP Ra confirmation) is formally under QMS change control per NP-RM-001 §5.1. All future risk register updates require change control per NP-QMS-DC-001. Privacy risks identified in NP-PRIV-001 Rev 1 are tracked separately in NP-PRIV-REM-001 Rev 1 (not in the device safety risk register, as they are programme-level operational risks rather than device safety hazards).
 
