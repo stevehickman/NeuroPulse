@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 12
+**Revision:** 13
 **Date:** 2026-10-04
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
@@ -12,10 +12,15 @@
 **Related Issues:** GitHub Issue #24; GitHub Issue #343 (§9 FAI serial disposition); GitHub Issue #332 (A14 hardware specification — issued 2026-09-20 as NP-HW-CVNS-001)
 **Gate:** NP-COORD-001 G3-08
 **IEC 62304 Class:** SW-01 Class C (safety MCU) / SW-02 Class B (main processor)
-**Supersedes:** NP-FW-CVNS-001 Rev 11
+**Supersedes:** NP-FW-CVNS-001 Rev 12
 **Parent Document:** NP-SW-001
 
 ---
+
+**Rev 13 (2026-10-04): OI-CVNS-11 analysed (`RPEAK_IN` line faults). The item stays open for the principal decision.**
+- **Analysis only, from reading the code (§14.4.1). Nothing was run.** Stuck high, stuck low, a floating pin and a burst of ringing all end in a cutoff, which is the safe direction.
+- **One fault no MCU filter can catch:** a pulse train that looks like a healthy rhythm. The MCU then monitors a rhythm that is not the patient's (§14.4.1, case 5).
+- **No requirement, constant, threshold, test or firmware behaviour changed.**
 
 **Rev 12 (2026-10-04): §13 follows the RISK-25 re-score with C1 as redesigned (`NP-RISK-002` Rev 12 §4.3.5; OI-RISK2-08 closed).**
 - **Residual unchanged:** S5 × P2 = ALARP, target P1. The ratings were approved by the Quality Lead (interim: Steve Hickman, CEO) on 2026-10-01.
@@ -857,9 +862,10 @@ Hardware FAI (CV01 bench, CV02 timing, CV03 clinical) PENDING — blocking for T
 | OI-CVNS-08 | STM32G071 pin map: §5.1 and `np_safety_config.h` disagree on every row. Nothing in-tree settles it. | HW/Embedded safety team | PCB layout (G1) |
 | OI-CVNS-09 | One CVNS enable line or two (per-electrode)? Clinical/regulatory question, not a code-style one. | Regulatory/Clinical + Embedded safety | PCB layout (G1); T2 510(k) |
 | ~~OI-CVNS-10~~ | ~~Cardiac baseline window: safety MCU 8 intervals vs main processor 5. Deliberate or accidental?~~ **CLOSED 2026-09-29 (Rev 9), moot:** the ±5 BPM cross-check that made the two related was never built. The MCU window moves to OI-CVNS-12 (§14.3) | Embedded safety team | — |
-| OI-CVNS-11 | Safety MCU applies no R-R validity filter (§5.3 step 2). Intended, or a gap? **(Rev 10)** Now also the main lever on OI-CVNS-13's false trips. *(Rev 11: behind the hub, an MCU 300 ms refractory changes no false-trip figure, because the hub's 300 ms bound already removes those edges (§14.6). Its value is independence from Class B only.)* | Embedded safety team | Class C design freeze |
+| OI-CVNS-11 | Safety MCU applies no R-R validity filter (§5.3 step 2). Intended, or a gap? **(Rev 10)** Now also the main lever on OI-CVNS-13's false trips. *(Rev 11: behind the hub, an MCU 300 ms refractory changes no false-trip figure, because the hub's 300 ms bound already removes those edges (§14.6). Its value is independence from Class B only.)* **(Rev 13: line-fault analysis done, §14.4.1. Stuck, floating and ringing lines fail safe. The gap found is a plausible false rhythm, which no filter catches: OI-CVNS-14. The A or B choice is still the principal's.)** | Embedded safety team | Class C design freeze |
 | ~~OI-CVNS-12~~ | ~~The Class C cardiac interlock does not meet CLAUDE.md §4.2's "HR change > 15 BPM within 5 s".~~ **CLOSED 2026-10-01 (Rev 10), principal decision.** The refresh is replaced by a comparison against an 18 s history of 1 s snapshots. The window stays at 8, and the cross-check is not built. CLAUDE.md §4.2 splits detection from cutoff, and FAI-CV02 is amended (§14.5.1) | Embedded safety team + principal | — |
 | **OI-CVNS-13** | **The lagged comparison false-trips more than the refresh did.** In simulation, at 100 BPM with 50 ms R-R SD and 1 % artefacts, 75 % of 120 s sessions trip (Rev 9 rule: 36 %). The simulation's jitter is white noise, which is pessimistic for real HRV. The real rate is unmeasured, and so is its clinical cost (30 s lockout + app confirmation per trip) (§14.6). **(Rev 11, principal 2026-10-01)** Analysed through the hub stage. The largest cause below 60 BPM was the hub's pulse gate, not the rule, and that is fixed (§6.2 step 7). Median, longer-window and persistence levers are rejected. **Open for the residual:** missed and split detections, which need measured A13 detection rates and a clinical acceptable nuisance rate | Embedded safety team + Clinical | T2 clinical release; FAI-CV03 |
+| **OI-CVNS-14** | **(Rev 13) A plausible false rhythm on `RPEAK_IN` blinds the interlock.** Regular edges at a normal rate (a free-running pulse source or a SW-02 timer fault) keep staleness quiet, and the safety MCU monitors a rhythm that is not the patient's (§14.4.1, case 5). No R-R validity filter catches it. Closing it needs the ±5 BPM cross-check (§5.3 step 5, candidate D), which needs a wire command carrying a heart rate. Build it, or accept the residual with a stated mitigation? | Principal; embedded safety team | Class C design freeze |
 
 ### 14.1 OI-CVNS-08 — STM32G071 pin map
 
@@ -935,6 +941,32 @@ Rev A §5.3 step 2 specified discarding intervals outside 300–2000 ms. Those b
 | **B — a gap.** A stuck-high or noisy `RPEAK_IN` line injects garbage intervals straight into the baseline. | The saturation clamp is a *containment* measure, not rejection: a burst of impossible intervals still shifts the mean and can move the baseline or trip a cutoff. | Adding a filter adds Class C code and a new way to reject real beats (a false negative on a cardiac interlock is worse than a false positive). |
 
 **What would settle it:** an FMEA line for `RPEAK_IN` line faults (stuck high, stuck low, ringing) tracing what each does to the baseline and to cutoff behaviour. If the answer is "the main processor's Pan-Tompkins stage is the mitigation", that mitigation needs to be stated as a requirement on the SW-02 side rather than left implicit — at which point the ±5 BPM cross-validation's independence assumption should be re-examined.
+
+#### 14.4.1 Analysis (Rev 13): `RPEAK_IN` line faults
+
+This is the analysis the item named as what would settle it. It is a reading of `np_hal_rpeak.c` and `np_cardiac_interlock.c` as they stand. **No simulation or bench run backs it**, and none of it is verified on silicon.
+
+**What the code does.** PA8 is an input with a pull-down. Only the rising edge raises an interrupt, and the handler stores `TIM2->CNT` and sets one pending flag. The main loop takes at most one edge per tick. Two edges between ticks collapse into one capture, and the earlier one is lost. Every captured edge becomes an interval in the 8-interval ring buffer. `rr_to_bpm()` saturates an interval under 1831 µs to `INT16_MAX`. Staleness (§5.4 step 4) cuts a granted channel after 3 s with no edge.
+
+| # | Line fault | What the MCU sees | Outcome |
+|---|---|---|---|
+| 1 | **Stuck low** (open cable, SW-02 crash, pull-down wins) | No edges | Pre-arm: never granted. Armed: staleness cutoff at 3 s (FMEA-M05-01) |
+| 2 | **Stuck high** | One rising edge, then none | Same as 1. The level is never read, only edges |
+| 3 | **Floating or coupled noise** | Edges at random times | Short intervals saturate to `INT16_MAX`. The 8-interval mean jumps, so the cutoff fires, or arming never completes. Stimulation stops (FMEA-M05-08). Long intervals between bursts look like slow beats, so the result depends on the noise |
+| 4 | **Ringing** (several edges per true pulse) | A burst of sub-millisecond intervals, partly collapsed by the one-capture-per-tick rule | Same as 3. The burst saturates, and a single burst is enough to move the mean by more than 15 BPM |
+| 5 | **Plausible false rhythm** (a free-running pulse source at a normal rate, a SW-02 timer fault, or a stuck detector that re-fires) | Regular edges | **Nothing detects it.** Staleness never fires. The mean and the history follow the false rhythm, so a real vagal bradycardia is invisible. Hazard: S5 |
+
+**Findings.**
+1. Cases 1 to 4 already fail safe. The 300 ms refractory, which is the only candidate behind the hub (§14.6.1), would change case 4 only if the ringing edges are further than 300 ms apart, which a ringing line does not produce. The hub's own gate already removes them on the Class B side.
+2. **Case 5 is the real gap, and no R-R validity filter closes it.** The false intervals are inside any physiological range. Closing it needs an independent heart-rate observation, which is the ±5 BPM cross-check that does not exist (§5.3 step 5, candidate D, §14.3.1). That check would need a wire command that carries a heart rate. The four commands in `np_spi_wire_types.h` do not.
+3. Case 3 has a second effect. A noise burst that saturates the mean and trips the cutoff is a nuisance trip, and OI-CVNS-13 counts it. A validity filter would reduce those trips, but it would also be the first code on the MCU that rejects an interval. §14.5's candidate C argument applies: a real bradycardic beat can be rejected.
+
+**What this changes for the decision.**
+- **Candidate A** (filtering stays upstream) is supported for cases 1 to 4: they fail safe with no filter. If it is chosen, the mitigation that Pan-Tompkins and the pulse gate provide must be written as a SW-02 requirement, and the independence assumption in §5.3 re-examined, as §14.4 already says.
+- **Candidate B** (a gap) is not supported by this analysis. The gap that exists, case 5, is not the one B's filter addresses.
+- **New item OI-CVNS-14** (case 5): a false rhythm at a plausible rate blinds the interlock. It needs a principal decision on whether the ±5 BPM cross-check is built. It is recorded in `NP-FMEA-001` as FMEA-M05-10, proposed.
+
+**Still needed to close OI-CVNS-11:** the principal chooses A or B. A bench injection of cases 1 to 5 on A13 would turn this reading into evidence (FAI-CV03 or earlier).
 
 ### 14.5 OI-CVNS-12 — the interlock misses most qualifying heart-rate changes
 
