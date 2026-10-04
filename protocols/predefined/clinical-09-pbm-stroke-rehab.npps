@@ -12,7 +12,6 @@ protocol "PBM — Stroke (chronic rehab)" {
     pbm_transcranial {
         intensity: 40%
         frequency: 0Hz
-        duty_cycle: 25%
         # Perilesional cortex is patient-specific — it depends where the stroke
         # was — so no predefined zone can be correct here (§9). The operator
         # must select the sockets over the lesion margin plus midline before
@@ -25,6 +24,5 @@ protocol "PBM — Stroke (chronic rehab)" {
     pbm_intranasal {
         intensity: 50%
         frequency: 0Hz
-        duty_cycle: 25%
     }
 }

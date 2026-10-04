@@ -166,7 +166,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-APP-ISA-001 | Core iOS App ISA — Ideal State Artifact for Issue #51 | E4 | 2026-06-04 | [../app/ios/ISA.md](../app/ios/ISA.md) | ACTIVE | APP |
 | NP-APP-ROADMAP-001 | iOS App Development Roadmap | 5 | 2026-09-23 | [np_app_roadmap_001.md](./np_app_roadmap_001.md) | BASELINED | APP |
 | NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy | 2 | 2026-06-03 | [np_app_telemetry_001.md](./np_app_telemetry_001.md) | ACTIVE | APP |
-| NP-NPPS-REF-001 | NPPS Language Reference | 17 | 2026-09-29 | [np_npps_ref_001.md](./np_npps_ref_001.md) | ACTIVE | SES |
+| NP-NPPS-REF-001 | NPPS Language Reference | 18 | 2026-10-04 | [np_npps_ref_001.md](./np_npps_ref_001.md) | ACTIVE | SES |
 | NP-API-001 | T2 Clinical Scripting API Specification | 1 | 2026-06-07 | [np_api_001.md](./np_api_001.md) | DRAFT | APP |
 | NP-SIM-001 | Helmet Simulator — interactive 3D browser visualisation | v0.3.0 | 2026-05-17 | [../simulator/](../simulator/) | ACTIVE | SIM |
 
@@ -247,7 +247,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-MOD-EXT-001 | Additional Modalities Specification | 1 | 2026-05-02 | [np_mod_ext_001.docx](./superseded/np_mod_ext_001.docx) | SUPERSEDED by individual firmware specs and CLAUDE.md | CLIN |
 | NP-BIB-001 | Clinical Evidence Bibliography (39 entries, 12 modality sections) | — | 2026-05-02 | [np_bib_001.docx](./np_bib_001.docx) | ACTIVE | CLIN |
 | NP-BIB-1064-001 | 1064nm Transcranial PBM — Clinical Evidence Bibliography Addendum | 1 | 2026-05-13 | [np_bib_1064_001.md](./np_bib_1064_001.md) | ACTIVE | CLIN |
-| NP-BIB-PBMIRR-001 | PBM Irradiance and Temperature — Regulatory Limits and Safety Evidence Record | 3 | 2026-10-04 | [np_bib_pbmirr_001.md](./np_bib_pbmirr_001.md) | DRAFT | CLIN |
+| NP-BIB-PBMIRR-001 | PBM Irradiance and Temperature — Regulatory Limits and Safety Evidence Record | 4 | 2026-10-04 | [np_bib_pbmirr_001.md](./np_bib_pbmirr_001.md) | DRAFT | CLIN |
 | NP-SBIR-001 | SBIR Phase I Draft | — | 2026-05-02 | [np_sbir_001.docx](./np_sbir_001.docx) | ACTIVE | CLIN |
 | — | Researcher Candidate List | — | 2026-05-02 | [neurone_researchers.docx](./neurone_researchers.docx) | ACTIVE | CLIN |
 
@@ -315,7 +315,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-PRIV-ANALYSIS-003 | Privacy Analysis — Consumable Tracker Feature | 3 | 2026-06-08 | [np_priv_analysis_003.md](./np_priv_analysis_003.md) | ACTIVE | PRIV |
 | NP-PRIV-KEYSPLIT-001 | Analytics Gate Architecture — Design Spec | 1 | 2026-06-16 | [np_priv_keysplit_001.md](./np_priv_keysplit_001.md) | ACTIVE | PRIV |
 | NP-PWR-BUDGET-001 | Power Budget — Reverse-Engineered from Safety Ceilings (Design Study) | 4 | 2026-08-21 | [np_pwr_budget_001.md](./np_pwr_budget_001.md) | DRAFT | SPEC-HW |
-| NP-SES-PWR-001 | PBM Session Power Audit — Predefined Protocol Library Against the Concurrency Ceiling | 1 | 2026-08-21 | [np_ses_pwr_001.md](./np_ses_pwr_001.md) | DRAFT | SES |
+| NP-SES-PWR-001 | PBM Session Power Audit — Predefined Protocol Library Against the Concurrency Ceiling | 2 | 2026-10-04 | [np_ses_pwr_001.md](./np_ses_pwr_001.md) | DRAFT | SES |
 | NP-SOUP-CMSIS-001 | CMSIS SOUP Anomaly Evaluation — Safety MCU (SW-01, Class C) | 1 | 2026-08-09 | [np_soup_cmsis_001.md](./np_soup_cmsis_001.md) | DRAFT | SPEC-FW |
 | NP-SOUP-LFS-001 | LittleFS SOUP Record and Hazard Analysis — Hub Storage (SW-02, Class B) | 15 | 2026-09-28 | [np_soup_lfs_001.md](./np_soup_lfs_001.md) | DRAFT | SPEC-FW |
 | NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 33 | 2026-09-28 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |

@@ -95,11 +95,11 @@ export function analyse(): Row[] {
     const cw = freqHz === 0;
 
     if (cw && duty !== null) {
-      // NP-NPPS-REF-001 §4.1: `frequency: 0` selects CW, and CW means 100 % duty.
-      // The compiler emits freq_code 0x00 and the duty register independently
-      // (hubCompiler.ts freqCode/dutyReg), so which one wins is unspecified.
-      // Reported at the CW reading — the higher draw — and flagged. OI-SESPWR-03.
-      notes.push("CW+duty ambiguous");
+      // NP-NPPS-REF-001 §4.1 Rev 18: `frequency: 0` selects CW, CW has no duty, and
+      // nppsParser.ts refuses a duty other than 100 % beside it (OI-SESPWR-03,
+      // closed). A hit here is a file the parser will not load. Reported at the CW
+      // reading, the only one there is.
+      if (duty !== 100) notes.push("CW+duty: refused by the parser");
     }
 
     let sockets: number | null;

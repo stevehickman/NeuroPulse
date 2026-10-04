@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-BIB-PBMIRR-001
-**Revision:** 3
+**Revision:** 4
 **Date:** 2026-10-04
 **Status:** DRAFT — literature and regulatory review; asserts no measurement and sets no limit
 **Effective Date:** 2026-10-04
@@ -194,7 +194,7 @@ helmet adds conducted heat from the emitters that an open-air laser spot does no
 
 ### 5.1 The sub-group rule against the predefined protocol library (Rev 3, `OI-BIBPBM-05`)
 
-**Method** (reproducible by hand; no script is committed). Skin limit for a window T:
+**Method** (reproduced by `scripts/check-pbm-subgroup.ts`, a report script that always exits 0; `--strict` is not wired into CI). Skin limit for a window T:
 EL(T) = 1.1 × C_A × T^0.25 J/cm² for T ≤ 10 s, and 200 × C_A × T mW·s/cm² above. For each
 `pbm_transcranial` block in `protocols/predefined/`, peak irradiance = `intensity` × **403 mW/cm²**
 (the `NP-HW-HEXTILE-001` §4.3.1 full-drive anchor, as `NP-SES-PWR-001` §2.3 scales it), both
@@ -205,15 +205,15 @@ the unverified C_A weights (`OI-BIBPBM-01`). **Reading, not measurement.**
 
 | Group | Blocks | Longest uninterrupted ON | Worst score (660 + 808 weighted) | Reading |
 |---|---|---|---|---|
-| Pulsed, 2–40 Hz at 25 % duty | 16 blocks across 14 files (Gamma Focus … Parkinson's) | **≤ 125 ms** (2 Hz, `03-deep-sleep`); 6.25 ms at 40 Hz | **≤ 0.64** (660 alone ≤ 0.40) | Pass. The rule never binds on a pulsed block at 25 % duty |
-| CW, low irradiance (`clinical-04-cassano` 36, `clinical-05-maiello` 30, `clinical-06-tbi` 22 mW/cm²; the two 1064 nm blocks, whose CH_C channel gives 28 mW/cm², `NP-HW-HEXTILE-001` §4.3.2) | 5 | Whole session | ≤ 0.28 (1064 nm: far lower) | Pass, even read as CW |
+| Pulsed, 2–40 Hz at 25 % duty | 16 blocks across 14 files (Gamma Focus … Parkinson's) | **≤ 125 ms** (2 Hz, `03-deep-sleep`); 6.25 ms at 40 Hz | **≤ 0.66** | Pass. The rule never binds on a pulsed block at 25 % duty |
+| CW, low irradiance (`clinical-04-cassano` 36, `clinical-05-maiello` 30, `clinical-06-tbi` 22 mW/cm²; the two 1064 nm blocks, whose CH_C channel gives 28 mW/cm², `NP-HW-HEXTILE-001` §4.3.2) | 5 | Whole session | ≤ 0.29 (1064 nm: 0.03) | Pass, even read as CW |
 | CW, single NIR channel (`clinical-04-schiffer` 250 at 810 nm, `clinical-05-wang` 310 at 820 nm; 4 min ON) | 3 blocks | 4 min | 0.77 and 0.91 (single wavelength) | Pass |
-| CW, 80 % (`07-vascular-baseline`, ~322 mW/cm²) | 1 | 30 min | **2.56** (660 alone 1.59) | **Fails**, as it already fails the average term (`OI-SESPWR-02`) |
-| `frequency: 0Hz` with `duty_cycle: 25 %` (`clinical-09-stroke-rehab`, 40 % ≈ 161 mW/cm²) | 1 | Undefined (`OI-SESPWR-03`) | **1.28 if read as CW**; passes if read as 25 % duty | Verdict follows the `OI-SESPWR-03` reading |
+| CW, 80 % (`07-vascular-baseline`, ~322 mW/cm²) | 1 | 30 min | **2.65** | **Fails**, as it already fails the average term (`OI-SESPWR-02`) |
+| `clinical-09-stroke-rehab`, CW, 40 % ≈ 161 mW/cm² per channel | 1 | 900 s | **1.33** (read as CW, the only reading since `OI-SESPWR-03` closed) | **Fails** the rule, and the average term; the block is refused by the duty cap until `OI-HEXTILE-31` |
 
 **Findings.**
 
-1. **The sub-group rule changes no verdict in the library.** The two failing readings already fail
+1. **The sub-group rule changes no verdict in the library.** The two failing blocks already fail
    the average term (§3.1, D-10). No block sits in the 195.6–200 mW/cm² band at 660 nm where the
    rule and the average disagree.
 2. **The binding burst length is shorter than Rev 2 said.** Rev 2 gave 3.9 s for one channel at
@@ -240,7 +240,7 @@ the unverified C_A weights (`OI-BIBPBM-01`). **Reading, not measurement.**
 | **OI-BIBPBM-01** | **Verify every [K] figure against the purchased standards. OPEN, narrowed in Rev 2.** *Done against the ICNIRP texts and the FDA draft guidance (relabelled [P]):* C_A across 700–1400 nm (Table 3); the skin limit 2.0 × C_A kW/m² and its 3.5 mm aperture (Table 7); the large-area reduction applying above 1400 nm only; the ICNIRP repetitive-pulse rules (corrected, §3.1 item 1); the multiple-wavelength additivity statement (qualitative only); the incoherent skin and IR-eye limits; the FDA draft guidance, which has **no numeric heating or temperature criterion**. *Still open:* (a) the **Σ Eᵢ / ELᵢ ≤ 1 formula** as printed in IEC 60825-1 / ANSI Z136.1 (ICNIRP does not print it); (b) **ANSI Z136.1's** limiting aperture, repetitive-pulse rules and large-area footnote; (c) **IEC 60825-1** and **IEC 62471** as adopted, since ICNIRP's text is not theirs; (d) **IEC 60601-1 Table 24** and **IEC 60601-2-57** (2023 / EN 2026): any numeric heating or temperature criterion. (a)–(d) need the purchased standards | Regulatory Affairs · blocks citing any [K] row as verified |
 | **OI-BIBPBM-02** | R-5's form: the exposure standards assess multiple wavelengths as a weighted sum of time-averaged irradiance (§3.1). R-5 is a sum of peaks. Whether R-5 should be restated is counsel's and the owner's call (`NP-REG-PBM1064-001` Q17, `OI-PBMCH-07`) | Firmware + Safety · counsel |
 | **OI-BIBPBM-03** | The 42 °C skin limit of CLAUDE.md §3 / §4.2 is attributed to IEC 60601, which states 43 °C (≥ 10 min) and a labelling duty above 41 °C. Find the derivation or correct the attribution. **The value is not to be raised on this finding** (CLAUDE.md §18) | Safety · none |
-| **OI-BIBPBM-05** | **Burst-length limit from the sub-group rule. Library check done in Rev 3 (§5.1): no predefined protocol breaches it that does not already breach the average term.** ICNIRP's repetitive-exposure rule 2 (§3.1 item 1) bounds any run of ON pulses to 1.1 × C_A × T^0.25 J/cm² for T ≤ 10 s; uninterrupted bursts are limited to about 3.8 s at 660 nm (one channel) and about 2.0 s for a `660_808nm` tile at 403 mW/cm² on both channels. *Remaining:* (a) read the same rule in IEC 60825-1 and ANSI Z136.1 (`OI-BIBPBM-01`); (b) decide with counsel whether R-4 states a maximum ON time, or whether the pre-signing check scoring the worst window is enough (`OI-HEXTILE-30`, `OI-HEXTILE-31`); (c) fix `OI-SESPWR-03`, because the stroke-rehab verdict turns on it. **A ceiling refuses a protocol and never reshapes one** (CLAUDE.md §3). Sets no limit and changes no requirement | Firmware + Safety · counsel |
+| **OI-BIBPBM-05** | **Burst-length limit from the sub-group rule. Library check done in Rev 3 (§5.1): no predefined protocol breaches it that does not already breach the average term.** ICNIRP's repetitive-exposure rule 2 (§3.1 item 1) bounds any run of ON pulses to 1.1 × C_A × T^0.25 J/cm² for T ≤ 10 s; uninterrupted bursts are limited to about 3.8 s at 660 nm (one channel) and about 2.0 s for a `660_808nm` tile at 403 mW/cm² on both channels. *Remaining:* (a) read the same rule in IEC 60825-1 and ANSI Z136.1 (`OI-BIBPBM-01`); (b) decide with counsel whether R-4 states a maximum ON time, or whether the pre-signing check scoring the worst window is enough (`OI-HEXTILE-30`, `OI-HEXTILE-31`); (c) ~~fix `OI-SESPWR-03`~~ done 2026-10-04: CW has no duty and the parser refuses the pairing, so stroke-rehab reads as CW. `scripts/check-pbm-subgroup.ts` reports the library's scores on demand (a report script, not run by CI). **A ceiling refuses a protocol and never reshapes one** (CLAUDE.md §3). Sets no limit and changes no requirement | Firmware + Safety · counsel |
 | **OI-BIBPBM-04** | No skin-type (melanin) term found in any PBM dose or thermal model. The 2025 evidence puts darker-skinned users at ~3× thermal risk, concentrated at 660 nm. Decide whether dose, derating, or labelling addresses it | Safety + Clinical · counsel (Q18) |
 
 ---
@@ -277,4 +277,5 @@ the unverified C_A weights (`OI-BIBPBM-01`). **Reading, not measurement.**
 |---|---|---|---|
 | 1 | 2026-09-28 | NeurOne Regulatory Affairs | First issue. Literature and regulatory review of PBM irradiance and temperature boundaries, 600–1100 nm. Finds no statutory irradiance limit; records the laser skin limit, IEC 62471, IEC 60601-1 temperature limits and the heating literature; compares R-4, R-5, the 42 °C limit and `OI-SESPWR-02` against them. Raises `OI-BIBPBM-01`…`04`. Sets no limit and changes no requirement |
 | 2 | 2026-10-04 | NeurOne Regulatory Affairs | Reads the ICNIRP 2013 laser and incoherent guidelines and the FDA 2023 draft guidance in full (network policy now allows icnirp.org and fda.gov) and relabels the confirmed rows **[P]**. Confirms C_A, the skin limit and its aperture, the >1400 nm scope of the large-area reduction, the incoherent skin and IR-eye limits. **Corrects Rev 1 §3.1 item 1**: ICNIRP bounds every sub-group of pulses, not only the average. Finds the FDA guidance contains no numeric criterion. The weighted-sum formula stays [K]. Narrows `OI-BIBPBM-01` (still open: ANSI, IEC) and raises `OI-BIBPBM-05`. Sets no limit and changes no requirement |
+| 4 | 2026-10-04 | NeurOne Regulatory Affairs | Adds `scripts/check-pbm-subgroup.ts`, a build-time report that reproduces §5.1 for every `pbm_transcranial` block (`--strict` exits 1 above a score of 1 and is not wired into CI: `07-vascular-baseline` and `clinical-09-stroke-rehab` score above 1). Corrects §5.1's scores to the script's grid (Vascular Baseline 2.65, stroke rehab 1.33, pulsed ≤ 0.66). `OI-SESPWR-03` is closed, so the stroke-rehab block reads as CW. Sets no limit and changes no requirement |
 | 3 | 2026-10-04 | NeurOne Regulatory Affairs | Runs the ICNIRP sub-group rule against every `pbm_transcranial` block in the predefined library (§5.1, `OI-BIBPBM-05`): it changes no verdict. Corrects Rev 2's burst bound for a two-channel tile (about 2.0 s, not 3.9 s). `OI-BIBPBM-05` narrowed, not closed. Sets no limit and changes no requirement |

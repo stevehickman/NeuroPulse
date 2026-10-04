@@ -21,13 +21,16 @@ protocol "Memory Boost" {
         # channels below, where entrainment evidence does exist.
         intensity: 100%
         frequency: 0Hz
-        duty_cycle: 25%
-        # duty_cycle: 25% is the firmware-enforced ceiling for the 1064nm
-        # channel (np_pbm_drive_set_duty(), NP-FW-PBM1064-001 Section 5).
-        # True CW is therefore NOT achievable, and Yao 2022 used CW; that paper
-        # states explicitly that pulsed 1064nm working-memory effects have not
-        # been confirmed in a registered trial. frequency: 0Hz selects the
-        # closest available mode, not literature CW output.
+        # Yao 2022 used CW, and that paper states explicitly that pulsed 1064nm
+        # working-memory effects have not been confirmed in a registered trial.
+        # So this block is CW and states no duty cycle (OI-SESPWR-03: the
+        # parser refuses `frequency: 0` with a duty other than 100 %). The
+        # firmware's 25% duty ceiling for the 1064nm channel
+        # (np_pbm_drive_set_duty(), NP-FW-PBM1064-001 Section 5) means CW is not
+        # deliverable today, and the validator refuses the block until
+        # OI-HEXTILE-31 replaces the cap. Before 2026-10-04 this block wrote
+        # a duty of 25% and meant "the closest available mode"; that
+        # reading is no longer expressible.
         interval_on: 8m
         interval_off: 22m
         repeat: 1
