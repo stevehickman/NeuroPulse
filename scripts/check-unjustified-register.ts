@@ -154,7 +154,7 @@ function main(): number {
   const ids = new Set<string>();
   for (const l of bodyLines) for (const m of l.matchAll(OI_ID)) ids.add(m[0]);
   for (const id of [...ids].sort()) {
-    const re = new RegExp(`${escapeRegExp(id)}(?![A-Za-z0-9])`);
+    const re = new RegExp(`${RegExp.escape(id)}(?![A-Za-z0-9])`);
     if (!re.test(corpus)) errs.push(`R4 ${id} is cited in ${REGISTER} and recorded nowhere else under docs/`);
   }
 
