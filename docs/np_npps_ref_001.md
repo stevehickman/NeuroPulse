@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 17
-**Date:** 2026-09-29  
+**Revision:** 18
+**Date:** 2026-10-04  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -15,6 +15,8 @@
 
 ---
 
+> **Rev 18 (2026-10-04) — `frequency: 0` is CW, CW has no duty cycle, and a block that says otherwise does not parse (`OI-SESPWR-03`).** The compiler emitted `freqCode(0)` and `dutyReg(duty)` independently, so a block with `frequency: 0Hz` and `duty_cycle: 25%` meant CW to one reader and a 25 % pulse train to another, a 4× swing in power on a fifth of the library. §4.1 now states the rule for `pbm_transcranial`, `pbm_intranasal` and `pbm_deep_1170nm`: with `frequency: 0`, `duty_cycle` may be omitted or `100%`, and anything else is a parse error. A CW block parses with `duty_cycle_percent` = 100 whether the duty was written or defaulted. **Consequence the author will see:** the hardware's 25 % duty cap (`OI-HEXTILE-31`) then refuses every CW block in the validator, as it already refused Schiffer 2009 and Wang 2023. Six library protocols that wrote `duty_cycle: 25%` beside `frequency: 0Hz` now state CW and are refused, which is what their sources ran; none is silently a pulse train any more.
+>
 > **Rev 17 (2026-09-29) — one wavelength per PBM block, a `start` on every modality block, and a new `wavelength_rules` block (principal direction).** An author states exactly what the protocol is, even a wavelength the helmet does not carry: `wavelength: "810nm"`, one value per `pbm_transcranial` block (§4.1a). Which emitter channel may deliver it is **configuration, not grammar**. A new top-level `wavelength_rules` block gives each channel an acceptance window (§7a). The defaults ship in `00-wavelength-rules.npps`, and a user may loosen or tighten them. A wavelength no window accepts is **refused**: never moved to the nearest channel, and never driven on all channels. That second outcome is what the web compiler did with any value other than `"660_808nm"` until this revision. Each wavelength is independently controlled, so a protocol may hold several PBM blocks. Every modality block gains `start` (§5), and blocks run in parallel or in series by their windows. Parallel PBM blocks sharing a tile are merged when the tile can deliver both exactly, and refused otherwise, because a tile takes one frequency, duty and schedule for all its channels. The three legacy channel names keep their meaning. **Implemented in full on the web runtime and in `npps.peggy` (NP-NPPS-GRAM-001 Rev 5).** **iOS and Android** parse all three forms: they carry the wavelength exactly as written, read and write `start`, and accept a `wavelength_rules` block without applying it. They compile against the shipped default rules only, and rules are edited in the web app for now. Their session wire and the Windows one are placeholder JSON (`OI-AND-WIRE-01`) with no per-block timing, so all three **refuse** a block with `start`, and a wavelength the default rules do not map, rather than flatten or move it. Windows has no NPPS parser, so it applies the same rules to a definition it is given. Both mobile parsers used to replace an unrecognised wavelength with `660_808nm` silently; they no longer do. Android `:core` is verified (303 tests). iOS and Windows are unbuilt here, because this environment has no Xcode and no `dotnet`.
 
 > **Rev 16 (2026-09-09) — `tdcs` gains `electrode_area_cm2`, the geometry the 40 µC/cm² charge-density ceiling divides by (OI-CHARGE-04).** The grammar had no way to say how big a tDCS pad is, so every runtime supplied its own assumption — 35 cm² on iOS and Android, none at all on the web — while the Class C safety MCU enforced against a 25 cm² default of its own. `electrode_pairs` was the only geometry-adjacent field and it names 10-20 *sites*, which say nothing about pad size. The field is therefore new grammar, not a renamed alias, and **it is not advisory**: it is compiled into the signed session descriptor and the safety MCU derives its charge limit from it, so a protocol declaring an area larger than the pads actually fitted raises the real ceiling on the device. A protocol declaring none is refused rather than defaulted. **It has no short alias and carries its unit in the key** (`electrode_area_cm2: 35`, never `35cm2`): the lexer's unit suffixes are `Hz % mA s m`, and since Rev 6 a digit-leading token that is not a number with a known suffix is a parse error rather than a silent identifier — so a `cm2` literal would fail loudly, but adding `cm2` to the lexer would have been a grammar-wide change for one field. §4.5 and §12 updated; all three runtimes read and write it.
@@ -443,7 +445,7 @@ Each string must match the `name` of a `zone` block in a loaded `.npps` file (§
 > `custom_zones` and numeric `zones: [0, 1, 2]` are rejected, not accepted and ignored.
 > Omitting `zones` defaults to `["All"]`, the whole-helmet zone in `00-zones.npps`.
 
-`frequency: 0` (or `0Hz`) selects continuous-wave (CW) mode.
+`frequency: 0` (or `0Hz`) selects continuous-wave (CW) mode. **CW has no duty cycle (Rev 18, `OI-SESPWR-03`).** With `frequency: 0`, `duty_cycle` may be omitted or written `100%`; any other value is a parse error, and the block is read as 100 % duty either way. This holds for `pbm_transcranial`, `pbm_intranasal` and `pbm_deep_1170nm`. To pulse, give a frequency above 0.
 
 ### 4.1a Wavelength — one per block
 

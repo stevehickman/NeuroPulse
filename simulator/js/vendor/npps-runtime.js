@@ -5,7 +5,7 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: f54eed68a098b08a935819e32c53357d3950044f5582445ae637cf4713814024
+// sources-sha256: de3382baa5af72b6e3b9609841c4f4776a5d129d4f34116bf0e67723c409b4cb
 var __create = Object.create;
 var __getProtoOf = Object.getPrototypeOf;
 var __defProp = Object.defineProperty;
@@ -3210,6 +3210,17 @@ class Parser {
     function optStr(key) {
       return typeof raw[key] === "string" ? raw[key] : undefined;
     }
+    function pulseTrain(modality, defFreq, defDuty) {
+      const frequencyHz = num("frequency_hz", defFreq);
+      let dutyCyclePercent = num("duty_cycle_percent", defDuty);
+      if (frequencyHz === 0) {
+        if (typeof raw["duty_cycle_percent"] === "number" && raw["duty_cycle_percent"] !== 100) {
+          throw new NPPSParseError(`${modality}: frequency: 0 selects continuous wave, which has no duty cycle, but ` + `duty_cycle is ${raw["duty_cycle_percent"]}%. Remove duty_cycle for CW, or give ` + `a pulse frequency above 0 for a pulsed train`, line);
+        }
+        dutyCyclePercent = 100;
+      }
+      return { frequencyHz, dutyCyclePercent };
+    }
     switch (typeId) {
       case "pbm_transcranial": {
         const d = def;
@@ -3236,8 +3247,7 @@ class Parser {
           zones,
           wavelength: str("wavelength", d.wavelength),
           intensityPercent: num("intensity_percent", d.intensityPercent),
-          frequencyHz: num("frequency_hz", d.frequencyHz),
-          dutyCyclePercent: num("duty_cycle_percent", d.dutyCyclePercent)
+          ...pulseTrain("pbm_transcranial", d.frequencyHz, d.dutyCyclePercent)
         };
         if (zoneRefs)
           params.zoneRefs = zoneRefs;
@@ -3249,8 +3259,7 @@ class Parser {
           type: "pbm_intranasal",
           params: {
             intensityPercent: num("intensity_percent", d.intensityPercent),
-            frequencyHz: num("frequency_hz", d.frequencyHz),
-            dutyCyclePercent: num("duty_cycle_percent", d.dutyCyclePercent)
+            ...pulseTrain("pbm_intranasal", d.frequencyHz, d.dutyCyclePercent)
           }
         };
       }
@@ -3368,8 +3377,7 @@ class Parser {
           type: "pbm_deep_1170nm",
           params: {
             intensityMWcm2: num("intensity_mw_cm2", d.intensityMWcm2),
-            frequencyHz: num("frequency_hz", d.frequencyHz),
-            dutyCyclePercent: num("duty_cycle_percent", d.dutyCyclePercent)
+            ...pulseTrain("pbm_deep_1170nm", d.frequencyHz, d.dutyCyclePercent)
           }
         };
       }
