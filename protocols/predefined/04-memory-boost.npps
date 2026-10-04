@@ -19,7 +19,13 @@ protocol "Memory Boost" {
         # (NP-BIB-1064-001 Entry 12.1): 1064nm, CW, right PFC, 8 min.
         # Theta entrainment is unchanged and lives in the audio, EEG and HRV
         # channels below, where entrainment evidence does exist.
-        intensity: 100%
+        # 250 mW/cm² is Yao 2022's stated irradiance (NP-BIB-1064-001 Entry 12.1;
+        # docs/pbm_neuro_protocols.md §3), written as the source gives it. The 1064nm
+        # channel delivers 28 mW/cm² at full drive (NP-HW-HEXTILE-001 §4.3.2), so the
+        # compiler REFUSES this block rather than reducing it: a request the hardware
+        # cannot reach is not clamped to what it can (CLAUDE.md §3). Before this
+        # revision the block was written as 100% of channel drive and ran at 28.
+        irradiance: 250mW_cm2
         frequency: 0Hz
         duty_cycle: 25%
         # duty_cycle: 25% is the firmware-enforced ceiling for the 1064nm
@@ -70,7 +76,7 @@ protocol "Memory Boost" {
         binaural_hz: 6Hz
         noise: brown
         carrier_hz: 440Hz
-        volume: 55%
+        volume: 67.5dB  # provisional dB SPL (UC-066)
         eeg_adaptive: true
         bone_conduction_pacer: false
     }

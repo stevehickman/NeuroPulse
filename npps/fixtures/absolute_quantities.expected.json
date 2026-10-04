@@ -1,19 +1,19 @@
 {
   "kind": "single",
   "protocol": {
-    "name": "Gamma Focus",
-    "id": "10000001-0000-0000-0000-000000000000",
-    "description": "40Hz multi-sensory protocol",
+    "name": "Absolute Quantities",
+    "id": "90000002-0000-0000-0000-000000000000",
+    "description": "Two independent wavelengths, an intranasal block and a level in dB",
     "author": "NeurOne",
     "version": "1.0",
     "isReadOnly": true,
     "tags": [
-      "focus",
-      "gamma"
+      "pbm",
+      "absolute"
     ],
     "timingMode": {
       "type": "duration",
-      "seconds": 1200
+      "seconds": 600
     },
     "modalityCount": 4,
     "modalities": [
@@ -22,13 +22,45 @@
         "enabled": true,
         "params": {
           "zones": "named",
-          "zoneRefs": [
-            "All"
-          ],
-          "wavelength": "808nm",
+          "wavelength": "660nm",
+          "irradianceMWcm2": 25,
           "frequencyHz": 40,
           "dutyCyclePercent": 25,
-          "irradianceMWcm2": 322
+          "zoneRefs": [
+            "Frontal Left"
+          ]
+        },
+        "interval": {
+          "intervalOnSeconds": 0,
+          "intervalOffSeconds": 0
+        }
+      },
+      {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+          "zones": "named",
+          "wavelength": "808nm",
+          "irradianceMWcm2": 300,
+          "frequencyHz": 40,
+          "dutyCyclePercent": 25,
+          "zoneRefs": [
+            "Frontal Left"
+          ]
+        },
+        "interval": {
+          "intervalOnSeconds": 0,
+          "intervalOffSeconds": 0
+        }
+      },
+      {
+        "type": "pbm_intranasal",
+        "enabled": true,
+        "params": {
+          "wavelength": "660nm",
+          "irradianceMWcm2": 12.5,
+          "frequencyHz": 40,
+          "dutyCyclePercent": 25
         },
         "interval": {
           "intervalOnSeconds": 0,
@@ -40,37 +72,10 @@
         "enabled": true,
         "params": {
           "carrierHz": 440,
+          "volumeDb": 72.5,
           "eegAdaptive": false,
           "boneConductionPacer": false,
-          "binauralBeatsHz": 40,
-          "volumeDb": 75
-        },
-        "interval": {
-          "intervalOnSeconds": 0,
-          "intervalOffSeconds": 0
-        }
-      },
-      {
-        "type": "visual_stimulation",
-        "enabled": true,
-        "params": {
-          "frequencyHz": 40,
-          "mode": "binocular",
-          "emdrCadenceHz": 1,
-          "enableModeF": false
-        },
-        "interval": {
-          "intervalOnSeconds": 60,
-          "intervalOffSeconds": 30
-        }
-      },
-      {
-        "type": "eeg_neurofeedback",
-        "enabled": true,
-        "params": {
-          "channels": "all",
-          "band": "gamma",
-          "closedLoopEnabled": true
+          "isochronicTonesHz": 40
         },
         "interval": {
           "intervalOnSeconds": 0,

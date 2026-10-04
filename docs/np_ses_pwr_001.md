@@ -17,6 +17,8 @@
 
 ---
 
+> **Rev 18 note (2026-10-04, `OI-NPPS-ABS-01`).** The tables below were computed before PBM intensity became absolute (`NP-NPPS-REF-001` Rev 18). They read the first PBM block of each file and a percentage of full drive. The library now has one block per wavelength and states irradiances in mW/cm², and `scripts/check-pbm-power.ts` reads every block against the per-channel table in `pbmDrive.ts`. **Re-run it before quoting any figure here**; the conclusions are unchanged in kind, but the per-protocol numbers moved (the pediatric autism protocol, for one, is now refused and no longer appears).
+
 > **⚠ READ FIRST — what this document is and is not.**
 >
 > `NP-HW-HEXTILE-001` §9 derives a concurrency ceiling of *"roughly six tiles… not eighty"* and raises **`OI-HEXTILE-09`**: nothing in the delivered v2 wire format prevents a protocol commanding more. That is stated as a *hypothetical gap*. This document asks whether it is an actual one, by running the arithmetic over the **authored protocol library** rather than over an imagined worst case.

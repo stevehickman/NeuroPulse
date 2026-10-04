@@ -84,7 +84,7 @@ export const MODALITY_REQUIREMENTS: Record<NPModalityTypeId, NPModalityRequireme
  */
 export interface NPWavelengthProblem {
   value: string;
-  reason: 'invalid' | 'unmapped';
+  reason: 'invalid' | 'retired' | 'unmapped';
   rulesName: string;
 }
 
@@ -94,8 +94,7 @@ export interface NPWavelengthProblem {
  * For transcranial PBM this depends on the block, not the modality type: each
  * block names one wavelength (NP-NPPS-REF-001 §4.1a), and the wavelength rules
  * say which emitter element delivers it. So an 810 nm block needs a socket
- * providing led_808 and nothing else; a legacy '660_808nm' block still needs
- * both. Every other modality uses MODALITY_REQUIREMENTS unchanged.
+ * providing led_808 and nothing else; a 660 nm block led_660 alone. Every other modality uses MODALITY_REQUIREMENTS unchanged.
  */
 export function requirementForModality(
   modality: NPProtocolModality,
@@ -503,7 +502,7 @@ function summarize(blocking: NPModalityShortfall[]): string {
   // send the operator to the parts drawer for nothing.
   const wl = blocking.find(s => s.wavelengthProblem)?.wavelengthProblem;
   if (wl) {
-    return wl.reason === 'invalid'
+    return wl.reason !== 'unmapped'
       ? t('WEB_ELIG_WAVELENGTH_INVALID', { 0: wl.value })
       : t('WEB_ELIG_WAVELENGTH_UNMAPPED', { 0: wl.value, 1: wl.rulesName });
   }

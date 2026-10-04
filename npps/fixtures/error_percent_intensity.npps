@@ -1,0 +1,10 @@
+protocol "Percent Intensity" {
+    id: "e0000001-0000-0000-0000-000000000000"
+    duration: 5m
+
+    pbm_transcranial {
+        wavelength: "808nm"
+        intensity: 80%
+        zones: ["All"]
+    }
+}

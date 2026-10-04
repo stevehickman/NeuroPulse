@@ -17,18 +17,18 @@ protocol "Gamma Focus" {
     duration: 20m
 
     pbm_transcranial {
-        intensity: 80%
+        irradiance: 322mW_cm2
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["All"]
-        wavelength: \"660_808nm\"
+        wavelength: \"808nm\"
     }
 
     audio_entrainment {
         binaural_hz: 40Hz
         noise: none
         carrier_hz: 440Hz
-        volume: 70%
+        volume: 75dB
         eeg_adaptive: false
         bone_conduction_pacer: false
     }
@@ -60,17 +60,18 @@ protocol "All T1 Modalities" {
     duration: 30m
 
     pbm_transcranial {
-        intensity: 75%
+        irradiance: 302mW_cm2
         frequency: 20Hz
         duty_cycle: 25%
         zones: ["All"]
-        wavelength: \"660_808nm\"
+        wavelength: \"808nm\"
     }
 
     pbm_intranasal {
-        intensity: 60%
+        irradiance: 60mW_cm2
         frequency: 40Hz
         duty_cycle: 25%
+        wavelength: "660nm"
     }
 
     eeg_neurofeedback {
@@ -103,7 +104,7 @@ protocol "All T1 Modalities" {
         binaural_hz: 40Hz
         noise: pink
         carrier_hz: 440Hz
-        volume: 60%
+        volume: 70dB
         eeg_adaptive: true
         bone_conduction_pacer: true
     }
@@ -204,7 +205,7 @@ protocol "Test" {
     const oldFormat = `
 protocol "Test" {
     timing { duration: 1200 }
-    pbm_transcranial { intensity: 80% }
+    pbm_transcranial { irradiance: 322mW_cm2 wavelength: "808nm" }
 }`.trim();
     expect(() => parseNPPS(oldFormat)).toThrow(NPPSParseError);
   });
@@ -254,12 +255,12 @@ describe('parser — new format', () => {
     const pbm = proto.modalities[0].modalityParams;
     expect(pbm.type).toBe('pbm_transcranial');
     if (pbm.type === 'pbm_transcranial') {
-      expect(pbm.params.intensityPercent).toBe(80);
+      expect(pbm.params.irradianceMWcm2).toBe(322);
       expect(pbm.params.frequencyHz).toBe(40);
       expect(pbm.params.dutyCyclePercent).toBe(25);
       expect(pbm.params.zones).toBe('named');
       expect(pbm.params.zoneRefs).toEqual(['All']);
-      expect(pbm.params.wavelength).toBe('660_808nm');
+      expect(pbm.params.wavelength).toBe('808nm');
     }
   });
 
@@ -392,11 +393,11 @@ describe('serializer', () => {
     const [entry] = parseNPPS(GAMMA_FOCUS_NPPS);
     const out = serializeProtocol(entry);
     expect(out).toContain('pbm_transcranial {');
-    expect(out).toContain('intensity: 80%');
+    expect(out).toContain('irradiance: 322mW_cm2');
     expect(out).toContain('frequency: 40Hz');
     expect(out).toContain('duty_cycle: 25%');
     expect(out).toContain('zones: ["All"]');
-    expect(out).toContain('wavelength: \"660_808nm\"');
+    expect(out).toContain('wavelength: \"808nm\"');
   });
 
   it('serializes interval fields inside modality block', () => {
@@ -631,12 +632,12 @@ describe('canonical field names shared by every runtime', () => {
     expect(p.syncToVisual).toBe(true);
   });
 
-  it('audio limits max_intensity / max_binaural_beats / max_isochronic_tones', () => {
+  it('audio limits max_volume_db / max_binaural_beats / max_isochronic_tones', () => {
     const lim = parseNPPSLimits(
-      `limits "L" {\n    level: global\n    audio_entrainment {\n        max_intensity: 85\n        max_binaural_beats: 100\n        max_isochronic_tones: 90\n    }\n}\n`,
+      `limits "L" {\n    level: global\n    audio_entrainment {\n        max_volume_db: 85\n        max_binaural_beats: 100\n        max_isochronic_tones: 90\n    }\n}\n`,
     );
     expect(lim!.audioEntrainment).toMatchObject({
-      maxVolumePercent: 85,
+      maxVolumeDb: 85,
       maxBinauralBeatsHz: 100,
       maxIsochronicTonesHz: 90,
     });
@@ -684,9 +685,9 @@ describe('quoted awkward values (JSON-leaning cleanup)', () => {
     expect((m.modalityParams.params as { montage: string }).montage).toBe('standard_1020');
   });
 
-  it('parses quoted compound wavelengths', () => {
-    for (const wl of ['660_808nm', '1064nm', '660_808_1064nm']) {
-      const m = modalityOf(proto(`    pbm_transcranial {\n        wavelength: "${wl}"\n    }`), 'pbm_transcranial');
+  it('parses one quoted wavelength per block', () => {
+    for (const wl of ['660nm', '808nm', '1064nm', '810nm']) {
+      const m = modalityOf(proto(`    pbm_transcranial {\n        wavelength: "${wl}"\n        irradiance: 300mW_cm2\n    }`), 'pbm_transcranial');
       expect((m.modalityParams.params as { wavelength: string }).wavelength).toBe(wl);
     }
   });
@@ -699,8 +700,8 @@ describe('quoted awkward values (JSON-leaning cleanup)', () => {
 
   it.each([
     ['montage: 10-20', '    qeeg_21ch {\n        montage: 10-20\n    }'],
-    ['wavelength: 660_808nm', '    pbm_transcranial {\n        wavelength: 660_808nm\n    }'],
-    ['wavelength: 1064nm', '    pbm_transcranial {\n        wavelength: 1064nm\n    }'],
+    ['wavelength: 660nm', '    pbm_transcranial {\n        wavelength: 660nm\n        irradiance: 300mW_cm2\n    }'],
+    ['wavelength: 1064nm', '    pbm_transcranial {\n        wavelength: 1064nm\n        irradiance: 300mW_cm2\n    }'],
   ])('rejects the unquoted form %s with a message naming the fix', (_label, body) => {
     expect(() => parseNPPS(proto(body))).toThrow(NPPSParseError);
     expect(() => parseNPPS(proto(body))).toThrow(/must be quoted/);
@@ -722,12 +723,12 @@ describe('quoted awkward values (JSON-leaning cleanup)', () => {
   });
 
   it('serializes quoted forms so they round-trip', () => {
-    const src = proto(`    pbm_transcranial {\n        zones: ["Frontal Left"]\n        wavelength: "660_808nm"\n    }`);
+    const src = proto(`    pbm_transcranial {\n        zones: ["Frontal Left"]\n        wavelength: "808nm"\n irradiance: 300mW_cm2 }`);
     const [entry] = parseNPPS(src);
     const out = serializeProtocol(entry);
-    expect(out).toContain('wavelength: "660_808nm"');
+    expect(out).toContain('wavelength: "808nm"');
     const m = modalityOf(out, 'pbm_transcranial');
-    expect((m.modalityParams.params as { wavelength: string }).wavelength).toBe('660_808nm');
+    expect((m.modalityParams.params as { wavelength: string }).wavelength).toBe('808nm');
   });
 });
 
@@ -743,7 +744,14 @@ describe('serialize → parse round-trip holds for every modality', () => {
   });
 
   it.each(ids)('%s survives serialize → parse with all fields defaulted', (id) => {
-    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    ${id} {\n    }\n}\n`);
+    // The dose-bearing fields have no default (a defaulted irradiance or sound
+    // level would deliver a stimulus nobody authored), so those blocks state them.
+    const SEED: Record<string, string> = {
+      pbm_transcranial: 'wavelength: "808nm"\n        irradiance: 300mW_cm2',
+      pbm_intranasal: 'wavelength: "660nm"\n        irradiance: 60mW_cm2',
+      audio_entrainment: 'volume: 72dB',
+    };
+    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    ${id} {\n        ${SEED[id] ?? ''}\n    }\n}\n`);
     const out = serializeProtocol(entry);
     expect(() => parseNPPS(out)).not.toThrow();
     // and is stable on a second cycle
@@ -751,7 +759,7 @@ describe('serialize → parse round-trip holds for every modality', () => {
   });
 
   it('a defaulted pbm_transcranial names its zones instead of emitting the tag', () => {
-    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        intensity: 80%\n    }\n}\n`);
+    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        irradiance: 322mW_cm2\n wavelength: "808nm" }\n}\n`);
     const out = serializeProtocol(entry);
     expect(out).toContain('zones: ["All"]');
     expect(out).not.toMatch(/^\s*zones:\s*named\s*$/m);
@@ -759,7 +767,7 @@ describe('serialize → parse round-trip holds for every modality', () => {
 
   it('clinician_selected still serializes as the bare keyword it is', () => {
     const [entry] = parseNPPS(
-      `protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        zones: clinician_selected\n    }\n}\n`,
+      `protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        zones: clinician_selected\n irradiance: 300mW_cm2 wavelength: "808nm" }\n}\n`,
     );
     const out = serializeProtocol(entry);
     expect(out).toContain('zones: clinician_selected');
@@ -767,10 +775,89 @@ describe('serialize → parse round-trip holds for every modality', () => {
   });
 
   it('an empty named ref list is reported as a caller bug, not written out', () => {
-    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        intensity: 80%\n    }\n}\n`);
+    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        irradiance: 322mW_cm2\n wavelength: "808nm" }\n}\n`);
     const proto = (entry as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
     const params = proto.modalities[0].modalityParams.params as { zoneRefs?: string[] };
     delete params.zoneRefs;
     expect(() => serializeProtocol(entry)).toThrow(/must list at least one zone/);
+  });
+});
+
+
+// ─── Absolute quantities (NP-NPPS-REF-001 §4.1b, §4.7) ───────────────────────
+
+describe('absolute intensity: irradiance in mW/cm², volume in dB', () => {
+  const proto = (body: string) => `protocol "T" {\n    duration: 5m\n${body}\n}\n`;
+  const modalityOf = (src: string, type: string) => {
+    const [entry] = parseNPPS(src);
+    return (entry as { kind: 'single'; protocol: NPProtocolDefinition }).protocol
+      .modalities.find(m => m.modalityParams.type === type)!;
+  };
+  const pbm = (body: string) => proto(`    pbm_transcranial {\n        ${body}\n    }`);
+  const params = (src: string) =>
+    modalityOf(src, 'pbm_transcranial').modalityParams.params as {
+      irradianceMWcm2: number; wavelength: string;
+    };
+
+  it('reads irradiance with its unit', () => {
+    expect(params(pbm('wavelength: "808nm"\n        irradiance: 36mW_cm2')).irradianceMWcm2).toBe(36);
+  });
+
+  it('accepts the canonical name with the unit in the key and a bare number', () => {
+    expect(params(pbm('wavelength: "808nm"\n        irradiance_mw_cm2: 36')).irradianceMWcm2).toBe(36);
+  });
+
+  it.each([
+    ['intensity: 80%', /percentage of a baseline/],
+    ['intensity_percent: 80', /percentage of a baseline/],
+    ['wavelength: "808nm"\n        irradiance: 80%', /in % is refused/],
+    ['wavelength: "808nm"\n        irradiance: 80', /needs its unit written/],
+    ['wavelength: "808nm"\n        irradiance: 80mA', /takes mW_cm2, not mA/],
+  ])('refuses %s', (body, message) => {
+    expect(() => parseNPPS(pbm(body))).toThrow(message);
+  });
+
+  it('requires an irradiance and a wavelength rather than defaulting them', () => {
+    expect(() => parseNPPS(pbm('wavelength: "808nm"'))).toThrow(/irradiance .* is required/);
+    expect(() => parseNPPS(pbm('irradiance: 300mW_cm2'))).toThrow(/wavelength is required/);
+  });
+
+  it('refuses the retired combined channel names and says what replaces them', () => {
+    for (const wl of ['660_808nm', '660_808_1064nm']) {
+      expect(() => parseNPPS(pbm(`wavelength: "${wl}"\n        irradiance: 300mW_cm2`)))
+        .toThrow(/retired.*Write one block per wavelength/);
+    }
+  });
+
+  it('puts a wavelength and an irradiance on every intranasal block too', () => {
+    const src = proto(`    pbm_intranasal {\n        wavelength: "660nm"\n        irradiance: 25mW_cm2\n    }`);
+    const p = modalityOf(src, 'pbm_intranasal').modalityParams.params as { irradianceMWcm2: number; wavelength: string };
+    expect(p).toMatchObject({ irradianceMWcm2: 25, wavelength: '660nm' });
+    expect(() => parseNPPS(proto(`    pbm_intranasal {\n        intensity: 60%\n    }`))).toThrow(/percentage of a baseline/);
+  });
+
+  it('reads audio volume in dB and refuses a percentage', () => {
+    const audio = (body: string) => proto(`    audio_entrainment {\n        carrier_hz: 440Hz\n        ${body}\n    }`);
+    const m = modalityOf(audio('volume: 72.5dB'), 'audio_entrainment');
+    expect((m.modalityParams.params as { volumeDb: number }).volumeDb).toBe(72.5);
+    expect(() => parseNPPS(audio('volume: 70%'))).toThrow(/in % is refused/);
+    expect(() => parseNPPS(audio('volume: 70'))).toThrow(/needs its unit written/);
+    expect(() => parseNPPS(audio('volume_percent: 70'))).toThrow(/percentage of a baseline/);
+    expect(() => parseNPPS(audio('binaural_hz: 10Hz'))).toThrow(/volume in dB SPL .* is required/);
+  });
+
+  it('refuses a percentage ceiling in limits rather than skipping it', () => {
+    for (const mod of ['pbm_transcranial', 'pbm_intranasal', 'audio_entrainment']) {
+      expect(() => parseNPPSLimits(`limits "L" {\n    level: global\n    ${mod} {\n        max_intensity: 80\n    }\n}\n`))
+        .toThrow(/max_intensity is a percentage ceiling and is retired/);
+    }
+    const lim = parseNPPSLimits(
+      `limits "L" {\n    level: global\n    pbm_transcranial {\n        max_irradiance_mw_cm2: 250\n    }\n}\n`);
+    expect(lim!.pbmTranscranial).toMatchObject({ maxIrradianceMWcm2: 250 });
+  });
+
+  it('round-trips the unit-bearing spelling', () => {
+    const [entry] = parseNPPS(pbm('wavelength: "660nm"\n        irradiance: 12.5mW_cm2'));
+    expect(serializeProtocol(entry)).toContain('irradiance: 12.5mW_cm2');
   });
 });

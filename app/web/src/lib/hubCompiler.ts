@@ -77,8 +77,14 @@ import {
 import { isValidSocketId, NP_SOCKET_COUNT } from './socketMap.generated';
 import { NPHardwareLimits } from './hardwareLimits';
 import {
+  PBM_FULL_SCALE_MW_CM2, INTRANASAL_FULL_SCALE_MW_CM2, irradianceToRegister, dbToVolumePercent,
+} from './pbmDrive';
+import {
   DEFAULT_WAVELENGTH_RULES,
+  PBM_CHANNEL_ELEMENTS,
   resolvePbmChannels,
+  retiredWavelengthMessage,
+  type NPPBMChannelElement,
   type NPWavelengthRules,
 } from './wavelengthRules';
 
@@ -399,14 +405,28 @@ export function compileProtocol(
 const PBM_CUR_OFFSETS: Record<number, readonly number[]> = {
   [NP_MOD_PBM_BASE]: [2, 3],       // cur_a (660), cur_b (808)
   [NP_MOD_PBM_SMART]: [2, 3, 4],   // cur_a, cur_b, cur_c (1064); ch_mask at 5
+  [NP_MOD_INTRANASAL]: [3, 4],     // cur_660, cur_808; side at 0
+};
+
+/** Where the frequency and duty bytes sit in each of those structs. */
+const PBM_TIMING_OFFSETS: Record<number, readonly [number, number]> = {
+  [NP_MOD_PBM_BASE]: [0, 1],
+  [NP_MOD_PBM_SMART]: [0, 1],
+  [NP_MOD_INTRANASAL]: [1, 2],
 };
 
 function isPbmOn(c: SessionCmd): boolean {
-  return (c.modType === NP_MOD_PBM_BASE || c.modType === NP_MOD_PBM_SMART) && c.params.length > 0;
+  return (c.modType === NP_MOD_PBM_BASE || c.modType === NP_MOD_PBM_SMART ||
+    c.modType === NP_MOD_INTRANASAL) && c.params.length > 0;
 }
 
+/**
+ * What a command lights: tile sockets, or for the probe its one slot (offset
+ * clear of the socket range so the two never compare equal).
+ */
 function socketsOf(c: SessionCmd): readonly number[] {
-  return c.target.kind === 'sockets' ? c.target.sockets : [];
+  if (c.target.kind === 'sockets') return c.target.sockets;
+  return c.target.kind === 'slot' ? [10_000 + c.target.slot] : [];
 }
 
 /**
@@ -440,7 +460,9 @@ function mergeOverlappingPbm(cmds: SessionCmd[], sessionDurationMs: number): voi
 
       const sameSockets = shared.length === sa.size && socketsOf(b).length === sa.size;
       const sameWindow = a.startMs === b.startMs && a.durationMs === b.durationMs;
-      const sameTiming = a.params[0] === b.params[0] && a.params[1] === b.params[1];
+      const [fo, dutyOff] = PBM_TIMING_OFFSETS[a.modType] ?? [0, 1];
+      const sameTiming = a.modType === b.modType &&
+        a.params[fo] === b.params[fo] && a.params[dutyOff] === b.params[dutyOff];
       const curs = PBM_CUR_OFFSETS[a.modType];
       const disjoint = a.modType === b.modType &&
         curs.every(k => a.params[k] === 0 || b.params[k] === 0);
@@ -536,7 +558,7 @@ function encodeParams(mp: NPModalityParams, opts: CompileOptions): EncodedParams
     // ── T1 modalities ────────────────────────────────────────────────────────
 
     case 'pbm_transcranial':     return encodePBMTranscranial(mp.params, opts);
-    case 'pbm_intranasal':       return encodePBMIntranasal(mp.params);
+    case 'pbm_intranasal':       return encodePBMIntranasal(mp.params, opts);
     case 'eeg_neurofeedback':    return encodeEEG(mp.params);
     case 'bes_tacs':             return encodeBESTacs(mp.params);
     case 'tdcs':                 return encodeTDCS(mp.params);
@@ -576,10 +598,6 @@ function dutyReg(pct: number): number {
   return Math.min(Math.round(pct * 2), 0x32);
 }
 
-/** Convert intensity percent 0–100 to 0–255 LED current register. */
-function intensityReg(pct: number): number {
-  return Math.min(Math.round(pct / 100 * 255), 255);
-}
 
 // ─── Zone → socket resolution ─────────────────────────────────────────────────
 
@@ -646,59 +664,67 @@ function targetIndex(t: TMSParams['target']): number {
 
 // ─── T1 encoders ─────────────────────────────────────────────────────────────
 
+/**
+ * The one emitter channel that delivers `wavelength` under `rules`, or a refusal
+ * naming why. A retired combined name, a non-wavelength and a wavelength no
+ * window accepts are three different mistakes and each says which it is.
+ */
+function resolveOneChannel(
+  wavelength: string, rules: NPWavelengthRules, allowed: readonly NPPBMChannelElement[], what: string,
+): NPPBMChannelElement {
+  const r = resolvePbmChannels(wavelength, rules);
+  if (!r.ok) {
+    if (r.reason === 'retired') throw new Error(`${what}: ${retiredWavelengthMessage(wavelength)}`);
+    throw new Error(
+      r.reason === 'invalid'
+        ? `${what} wavelength '${wavelength}' is not a wavelength: write one value such as "810nm".`
+        : `No emitter channel delivers ${wavelength} under the wavelength rules in force ` +
+          `("${rules.name}"). The protocol is refused, not moved to the nearest channel; ` +
+          `edit the rules if that mapping is intended.`
+    );
+  }
+  const ch = r.elements[0];
+  if (!allowed.includes(ch)) {
+    throw new Error(`${what} cannot be delivered on ${ch}: ${wavelength} maps to a channel it does not carry.`);
+  }
+  return ch;
+}
+
 function encodePBMTranscranial(
   p: PBMTranscranialParams,
   opts: CompileOptions,
 ): EncodedParams {
   const target: CmdTarget = { kind: 'sockets', sockets: resolvePbmSockets(p, opts) };
-  const cur      = intensityReg(p.intensityPercent);
-  const duty     = dutyReg(p.dutyCyclePercent);
-  const fc       = freqCode(p.frequencyHz);
-
-  // Legacy channel names keep their exact v2 encoding.
-  if (p.wavelength === '660_808nm') {
-    // np_mod_pbm_base_params_t: 4 bytes
-    return { modType: NP_MOD_PBM_BASE, target, params: new Uint8Array([fc, duty, cur, cur]) };
-  }
-  if (p.wavelength === '1064nm' || p.wavelength === '660_808_1064nm') {
-    // np_mod_pbm_smart_params_t: 6 bytes
-    const chMask = p.wavelength === '1064nm' ? 0x04 : 0x07;
-    return { modType: NP_MOD_PBM_SMART, target, params: new Uint8Array([fc, duty, cur, cur, cur, chMask]) };
-  }
+  const duty = dutyReg(p.dutyCyclePercent);
+  const fc   = freqCode(p.frequencyHz);
 
   // One wavelength per block (NP-NPPS-REF-001 §4.1a): the rules pick the one
   // channel that delivers it, and every other channel is commanded to 0, which
   // the tile holds as gate-off (NP-FW-HEXTILE-001 §5.3). A value the rules do
-  // not accept is REFUSED. The old path sent anything that was not
-  // '660_808nm' to the smart encoder with all three channels enabled.
+  // not accept is REFUSED, as is an irradiance that channel cannot reach.
   const rules = opts.wavelengthRules ?? DEFAULT_WAVELENGTH_RULES;
-  const r = resolvePbmChannels(p.wavelength, rules);
-  if (!r.ok) {
-    throw new Error(
-      r.reason === 'invalid'
-        ? `PBM wavelength '${p.wavelength}' is not a wavelength: write one value such as "810nm".`
-        : `No emitter channel delivers ${p.wavelength} under the wavelength rules in force ` +
-          `("${rules.name}"). The protocol is refused, not moved to the nearest channel; ` +
-          `edit the rules if that mapping is intended.`
-    );
-  }
-  switch (r.elements[0]) {
+  const ch = resolveOneChannel(p.wavelength, rules, PBM_CHANNEL_ELEMENTS, 'PBM');
+  const cur = irradianceToRegister(p.irradianceMWcm2, PBM_FULL_SCALE_MW_CM2[ch], ch);
+  switch (ch) {
     case 'led_660':  return { modType: NP_MOD_PBM_BASE, target, params: new Uint8Array([fc, duty, cur, 0]) };
     case 'led_808':  return { modType: NP_MOD_PBM_BASE, target, params: new Uint8Array([fc, duty, 0, cur]) };
     case 'led_1064': return { modType: NP_MOD_PBM_SMART, target, params: new Uint8Array([fc, duty, 0, 0, cur, 0x04]) };
   }
 }
 
-function encodePBMIntranasal(p: PBMIntranasalParams): EncodedParams {
+function encodePBMIntranasal(p: PBMIntranasalParams, opts: CompileOptions): EncodedParams {
   // np_mod_intranasal_params_t: 5 bytes
-  // side=0 (bilateral), freq_code, duty, cur_660, cur_808
-  const cur  = intensityReg(p.intensityPercent);
+  // side=0 (bilateral), freq_code, duty, cur_660, cur_808. The probe carries the
+  // two shorter channels only; a block names one of them.
+  const rules = opts.wavelengthRules ?? DEFAULT_WAVELENGTH_RULES;
+  const ch = resolveOneChannel(p.wavelength, rules, ['led_660', 'led_808'], 'Intranasal PBM');
+  const cur  = irradianceToRegister(p.irradianceMWcm2, INTRANASAL_FULL_SCALE_MW_CM2, 'the intranasal probe');
   const duty = dutyReg(p.dutyCyclePercent);
   const fc   = freqCode(p.frequencyHz);
   return {
     modType: NP_MOD_INTRANASAL,
     target: slotTarget(SLOT_INTRANASAL),
-    params: new Uint8Array([0x00, fc, duty, cur, cur]),
+    params: new Uint8Array([0x00, fc, duty, ch === 'led_660' ? cur : 0, ch === 'led_808' ? cur : 0]),
   };
 }
 
@@ -809,7 +835,7 @@ function encodeAudio(p: AudioEntrainmentParams): EncodedParams {
   else if (p.noiseType === 'pink')  mode = 2;
   else if (p.noiseType === 'brown') mode = 3;
 
-  const volPct = Math.min(p.volumePercent, 100);
+  const volPct = dbToVolumePercent(p.volumeDb);
   const buf = new Uint8Array(8);
   const dv  = new DataView(buf.buffer);
   dv.setUint8(0, mode);

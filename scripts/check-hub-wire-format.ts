@@ -232,14 +232,14 @@ function parseCompilerConsts(src: string): Map<string, number> {
  * PBM's, whose wavelength selects base vs smart, so PBM appears twice.
  */
 const FIXTURES: { label: string; type: string; params: object }[] = [
-  { label: "pbm_transcranial (660/808)", type: "pbm_transcranial", params: { zones: "named", zoneRefs: ["All"], wavelength: "660_808nm", intensityPercent: 50, frequencyHz: 40, dutyCyclePercent: 25 } },
-  { label: "pbm_transcranial (1064)", type: "pbm_transcranial", params: { zones: "named", zoneRefs: ["All"], wavelength: "1064nm", intensityPercent: 50, frequencyHz: 40, dutyCyclePercent: 25 } },
-  { label: "pbm_intranasal", type: "pbm_intranasal", params: { intensityPercent: 60, frequencyHz: 10, dutyCyclePercent: 25 } },
+  { label: "pbm_transcranial (660/808)", type: "pbm_transcranial", params: { zones: "named", zoneRefs: ["All"], wavelength: "808nm", irradianceMWcm2: 200, frequencyHz: 40, dutyCyclePercent: 25 } },
+  { label: "pbm_transcranial (1064)", type: "pbm_transcranial", params: { zones: "named", zoneRefs: ["All"], wavelength: "1064nm", irradianceMWcm2: 14, frequencyHz: 40, dutyCyclePercent: 25 } },
+  { label: "pbm_intranasal", type: "pbm_intranasal", params: { wavelength: "660nm", irradianceMWcm2: 60, frequencyHz: 10, dutyCyclePercent: 25 } },
   { label: "eeg_neurofeedback", type: "eeg_neurofeedback", params: { channels: "all", band: "alpha", closedLoopEnabled: false } },
   { label: "bes_tacs", type: "bes_tacs", params: { frequencyHz: 10, intensityMilliamps: 0.8, waveform: "sinusoidal" } },
   { label: "tdcs", type: "tdcs", params: { intensityMilliamps: 1.5, electrodePairs: [["F3", "F4"]], rampSeconds: 30, electrodeAreaCm2: 35 } },
   { label: "vns_hrv", type: "vns_hrv", params: { frequencyHz: 20, intensityMilliamps: 1, hrvProtocol: "standalone" } },
-  { label: "audio_entrainment", type: "audio_entrainment", params: { carrierHz: 200, binauralBeatsHz: 10, volumePercent: 50, boneConductionPacer: false, eegAdaptive: false } },
+  { label: "audio_entrainment", type: "audio_entrainment", params: { carrierHz: 200, binauralBeatsHz: 10, volumeDb: 65, boneConductionPacer: false, eegAdaptive: false } },
   { label: "visual_stimulation", type: "visual_stimulation", params: { mode: "binocular", frequencyHz: 10, emdrCadenceHz: 1, enableModeF: false } },
   { label: "qeeg_21ch", type: "qeeg_21ch", params: { montage: "standard_1020", reference: "linked_ear", sloretaEnabled: true } },
   { label: "tms", type: "tms", params: { tmsProtocol: "rTMS", target: "DLPFC_L", frequencyHz: 10, intensityPercentMT: 110, pulseCount: 3000 } },

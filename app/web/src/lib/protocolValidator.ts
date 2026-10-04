@@ -72,7 +72,8 @@ function validateModality(
   switch (p.type) {
     case 'pbm_transcranial': {
       const l = lim.pbmTranscranial;
-      // The wavelength must be ONE wavelength ("810nm") or a legacy channel name.
+      // The wavelength must be ONE wavelength ("810nm"); the retired combined
+      // channel names are invalid.
       // Whether the fitted helmet can deliver it is eligibility, which depends on
       // the modules and the wavelength rules (protocolEligibility.ts); whether
       // the value means anything at all is validity, and is checked here.
@@ -98,12 +99,21 @@ function validateModality(
           t('VALIDATE_MSG_PBM_TRANSCRANIAL_FREQUENCYHZ')
         ));
       }
-      // Dosage limits
-      if (l?.maxIntensityPercent != null && p.params.intensityPercent > l.maxIntensityPercent) {
+      // Irradiance is absolute now, so the 400 mW/cm² peak (CLAUDE.md §3) is
+      // checked directly rather than through a percentage of an unnamed baseline.
+      if (p.params.irradianceMWcm2 > hw.pbmPulsedPeakMWcm2) {
         issues.push(issue(
-          'error', 'pbm_transcranial', 'intensityPercent', t('VALIDATE_PARAM_INTENSITY'),
-          `${p.params.intensityPercent}%`, `${l.maxIntensityPercent}%`, 'global',
-          t('VALIDATE_MSG_PBM_TRANSCRANIAL_INTENSITYPERCENT', { 0: p.params.intensityPercent, 1: l.maxIntensityPercent })
+          'error', 'pbm_transcranial', 'irradianceMWcm2', t('VALIDATE_PARAM_IRRADIANCE'),
+          `${p.params.irradianceMWcm2} mW/cm²`, `${hw.pbmPulsedPeakMWcm2} mW/cm²`, 'hardware',
+          t('VALIDATE_MSG_PBM_TRANSCRANIAL_IRRADIANCE', { 0: p.params.irradianceMWcm2, 1: hw.pbmPulsedPeakMWcm2 })
+        ));
+      }
+      // Dosage limits
+      if (l?.maxIrradianceMWcm2 != null && p.params.irradianceMWcm2 > l.maxIrradianceMWcm2) {
+        issues.push(issue(
+          'error', 'pbm_transcranial', 'irradianceMWcm2', t('VALIDATE_PARAM_IRRADIANCE'),
+          `${p.params.irradianceMWcm2} mW/cm²`, `${l.maxIrradianceMWcm2} mW/cm²`, 'global',
+          t('VALIDATE_MSG_PBM_TRANSCRANIAL_IRRADIANCE', { 0: p.params.irradianceMWcm2, 1: l.maxIrradianceMWcm2 })
         ));
       }
       if (l?.maxFrequencyHz != null && p.params.frequencyHz > l.maxFrequencyHz) {
@@ -134,11 +144,11 @@ function validateModality(
         ));
       }
       // Dosage
-      if (l?.maxIntensityPercent != null && p.params.intensityPercent > l.maxIntensityPercent) {
+      if (l?.maxIrradianceMWcm2 != null && p.params.irradianceMWcm2 > l.maxIrradianceMWcm2) {
         issues.push(issue(
-          'error', 'pbm_intranasal', 'intensityPercent', t('VALIDATE_PARAM_INTENSITY'),
-          `${p.params.intensityPercent}%`, `${l.maxIntensityPercent}%`, 'global',
-          t('VALIDATE_MSG_PBM_INTRANASAL_INTENSITYPERCENT', { 0: p.params.intensityPercent, 1: l.maxIntensityPercent })
+          'error', 'pbm_intranasal', 'irradianceMWcm2', t('VALIDATE_PARAM_IRRADIANCE'),
+          `${p.params.irradianceMWcm2} mW/cm²`, `${l.maxIrradianceMWcm2} mW/cm²`, 'global',
+          t('VALIDATE_MSG_PBM_INTRANASAL_IRRADIANCE', { 0: p.params.irradianceMWcm2, 1: l.maxIrradianceMWcm2 })
         ));
       }
       break;
@@ -299,11 +309,11 @@ function validateModality(
 
     case 'audio_entrainment': {
       const l = lim.audioEntrainment;
-      if (l?.maxVolumePercent != null && p.params.volumePercent > l.maxVolumePercent) {
+      if (l?.maxVolumeDb != null && p.params.volumeDb > l.maxVolumeDb) {
         issues.push(issue(
-          'error', 'audio_entrainment', 'volumePercent', t('VALIDATE_PARAM_VOLUME'),
-          `${p.params.volumePercent}%`, `${l.maxVolumePercent}%`, 'global',
-          t('VALIDATE_MSG_AUDIO_ENTRAINMENT_VOLUMEPERCENT', { 0: p.params.volumePercent, 1: l.maxVolumePercent })
+          'error', 'audio_entrainment', 'volumeDb', t('VALIDATE_PARAM_VOLUME'),
+          `${p.params.volumeDb} dB SPL`, `${l.maxVolumeDb} dB SPL`, 'global',
+          t('VALIDATE_MSG_AUDIO_ENTRAINMENT_VOLUMEDB', { 0: p.params.volumeDb, 1: l.maxVolumeDb })
         ));
       }
       if (

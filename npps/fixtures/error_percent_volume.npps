@@ -1,0 +1,9 @@
+protocol "Percent Volume" {
+    id: "e0000002-0000-0000-0000-000000000000"
+    duration: 5m
+
+    audio_entrainment {
+        carrier_hz: 440Hz
+        volume: 70%
+    }
+}

@@ -15,22 +15,13 @@ protocol "PBM — Anxiety (Maiello 2019, low-irradiance CW)" {
         #   30 mW/cm² × 1200 s = 36.0 J/cm², exactly the stated dose.
         # At 25% duty the same 20 minutes would deliver 9 J/cm² — below §5's
         # own 10 J/cm² floor. CW is the only mode that closes the arithmetic.
+        #
+        # 30 mW/cm² is Maiello 2019's stated irradiance, well inside the
+        # 200 mW/cm² CW ceiling. The trial used 830nm: one NIR wavelength, so
+        # one channel and no 660nm block.
+        wavelength: "830nm"
+        irradiance: 30mW_cm2
         frequency: 0Hz
-        # TARGET IRRADIANCE: 30 mW/cm² (Maiello 2019), well inside R-4's
-        # 200 mW/cm² CW ceiling.
-        #
-        # The 7% below is PROVISIONAL AND NOT THE AUTHORED VALUE. Percent has
-        # no defined absolute meaning; it is 30 ÷ 403, using the only anchor
-        # stated anywhere (NP-HW-HEXTILE-001 §4.3.1 puts full 150 mA drive at
-        # 403 mW/cm²), and NP-SES-PWR-001 §2.3 flags that anchor as an "if",
-        # not an established fact. When intensity becomes irradiance_mw_cm2
-        # this line becomes `irradiance_mw_cm2: 30` and the anchor stops
-        # mattering. The target above is the real value; 7% is its shadow.
-        #
-        # OPEN: 7% of full drive may be below the emitters' usable minimum —
-        # that is the `min` term of the module type map and is not knowable
-        # until OI-HEXTILE-02 selects a part.
-        intensity: 7.4%
         duty_cycle: 25%
         #
         # ⚠ OI-SESPWR-03 BITES HARDEST HERE, and the duty_cycle above is
@@ -43,24 +34,9 @@ protocol "PBM — Anxiety (Maiello 2019, low-irradiance CW)" {
         # emits freqCode(0) and dutyReg(25) independently and leaves the hub to
         # decide. If CW means full duty this delivers the trial's 36 J/cm²; if
         # the 25% is applied it delivers 9 J/cm², BELOW §5's own 10 J/cm² floor.
-        # The language cannot currently express "CW = full duty" — duty_cycle's
-        # documented range is 1–25 (§4.1) — so this cannot be resolved in the
-        # protocol file. For most protocols the ambiguity is a 4× power
-        # question; for this one it is the difference between reproducing the
-        # trial and under-dosing it.
         zones: ["Frontal Left", "Frontal Right"]
         # §5 gives "right or bilateral PFC"; Maiello's own laterality is not
         # stated in the source, so the bilateral option is taken and named
         # here rather than silently chosen.
-        wavelength: "660_808nm"
-        # NIR-only fidelity gap: the trial used a single NIR wavelength, and
-        # this protocol delivers 660nm alongside it whether or not the evidence
-        # did. The constraint is in the LANGUAGE AND COMPILER, not the wire:
-        # np_mod_pbm_base_params_t already carries cur_a (660nm) and cur_b
-        # (808nm) as separate current registers, but NPPS has one `intensity`
-        # field per PBM block with no per-channel form, so hubCompiler.ts
-        # writes the same register value into both. The `wavelength` enum also
-        # has no 808-only value. Whether the tile's driver supports independent
-        # per-channel current is a separate, open question (OI-HEXTILE-07).
     }
 }

@@ -7,16 +7,39 @@ protocol "Full T1 Immersive" {
     tags: [comprehensive, "all-modalities", advanced, T1]
     duration: 30m
 
+    # PBM irradiances below are this preset's former percentages restated in mW/cm²:
+    # scalp blocks against 403 mW/cm² per channel at full drive (NP-HW-HEXTILE-001
+    # §4.3.1), intranasal blocks against a 100 mW/cm² placeholder for a probe that has
+    # no specification (OI-ART-04). They are conversions, not evidence-sourced figures
+    # (register rows UC-064, UC-065). Each wavelength is its own block, so either
+    # can be removed or retuned alone.
     pbm_transcranial {
-        intensity: 75%
+        wavelength: "660nm"
+        irradiance: 302.2mW_cm2
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["All"]
-        wavelength: "660_808nm"
+    }
+    pbm_transcranial {
+        wavelength: "808nm"
+        irradiance: 302.2mW_cm2
+        frequency: 40Hz
+        duty_cycle: 25%
+        zones: ["All"]
     }
 
     pbm_intranasal {
-        intensity: 60%
+        wavelength: "660nm"
+        irradiance: 60mW_cm2
+        frequency: 40Hz
+        duty_cycle: 25%
+        interval_on: 15m
+        interval_off: 15m
+        repeat: 1
+    }
+    pbm_intranasal {
+        wavelength: "808nm"
+        irradiance: 60mW_cm2
         frequency: 40Hz
         duty_cycle: 25%
         interval_on: 15m
@@ -47,7 +70,7 @@ protocol "Full T1 Immersive" {
         isochronic_hz: 40Hz
         noise: pink
         carrier_hz: 440Hz
-        volume: 60%
+        volume: 70dB  # provisional dB SPL (UC-066)
         eeg_adaptive: true
         bone_conduction_pacer: true
     }

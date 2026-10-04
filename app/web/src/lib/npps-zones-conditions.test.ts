@@ -164,11 +164,11 @@ protocol "Depression DLPFC" {
     duration: 20m
 
     pbm_transcranial {
-        intensity: 80%
+        irradiance: 322mW_cm2
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["Left Frontal", "Right Frontal"]
-        wavelength: \"660_808nm\"
+        wavelength: \"808nm\"
     }
 }
 `;
@@ -214,7 +214,7 @@ describe('protocol conditions, references, and zone refs', () => {
 
   it('rejects a numeric zone list', () => {
     expect(() => parseNPPS(
-      'protocol "L" { id: "x" pbm_transcranial { zones: [1, 2] wavelength: \"660_808nm\" } }'
+      'protocol "L" { id: "x" pbm_transcranial { zones: [1, 2] wavelength: \"808nm\" irradiance: 300mW_cm2 } }'
     )).toThrow(/quoted zone names/);
   });
 });

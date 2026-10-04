@@ -1,5 +1,5 @@
 // NPPS PEG Grammar — NeurOne Protocol Script
-// NP-NPPS-GRAM-001 Rev 4
+// NP-NPPS-GRAM-001 Rev 6
 // Single source of truth for NPPS syntax.
 // Generate parser: bunx peggy npps.peggy --format es
 //
@@ -14,6 +14,25 @@
 // `conditions` / `references` fields. All loaded files share ONE namespace
 // (see NP-NPPS-REF-001 §1.6): a zone or condition defined in any file under the
 // protocol directory tree is referenceable by name from any other file.
+//
+// Rev 6 (2026-10-04): absolute quantities, one wavelength per block. Two new unit
+// suffixes, `mW_cm2` (already listed, now exercised) and `dB`, and four checks in
+// a protocol's modality blocks that this grammar now makes instead of leaving to
+// the runtimes — because each is a way to write a stimulus that does not say what
+// it is:
+//   - PBM irradiance and audio level are absolute: `irradiance: 300mW_cm2`,
+//     `volume: 72dB`. A percentage is a fraction of a baseline the hardware owns
+//     and can change, so `intensity: 80%` / `volume: 70%` are errors, as is a
+//     unit-less or wrong-unit value on the short names (the unit is the point).
+//   - `pbm_transcranial` and `pbm_intranasal` take ONE wavelength per block,
+//     `"<N>nm"`. The combined names `660_808nm` / `660_808_1064nm` welded
+//     independent emitters together and are errors; write one block per
+//     wavelength.
+//   - Those fields and `wavelength` are REQUIRED: defaulting an irradiance or a
+//     sound level would deliver a stimulus nobody authored.
+//   - In `limits`, a percentage `max_intensity` on the PBM and audio blocks is an
+//     error, not a skipped field: a ceiling dropped silently is no ceiling.
+// Everything else about a field's meaning is still the runtimes' to check.
 //
 // Rev 4 (2026-08-23): values are now JSON-shaped. A bare value may only be a
 // plain identifier [A-Za-z_][A-Za-z0-9_]*, a number (unit suffixes kept) or a
@@ -62,6 +81,78 @@ function makeNumber(sign, intPart, fracPart) {
   const raw = (sign || '') + intPart + (fracPart || '');
   return parseFloat(raw);
 }
+
+// -- Absolute-quantity checks (Rev 6). `fail` is Peggy's error(): it throws a
+// SyntaxError carrying the block's location. --
+
+const RETIRED_WAVELENGTHS = {
+  '660_808nm': ['660nm', '808nm'],
+  '660_808_1064nm': ['660nm', '808nm', '1064nm'],
+};
+
+function findField(fields, key) {
+  return fields.find(f => f.key === key);
+}
+
+function hasUnit(value, unit) {
+  return value !== null && typeof value === 'object' && 'number' in value && value.unit === unit;
+}
+
+// `short` carries its unit as a suffix and must; `canonical` has the unit in its
+// name and takes a bare number (or the matching suffix).
+function checkQuantity(type, fields, short, canonical, unit, example, fail) {
+  const s = findField(fields, short);
+  const c = findField(fields, canonical);
+  if (!s && !c) fail(`${type}: ${short} is required (${example}); a defaulted dose is a stimulus nobody authored`);
+  if (s && !hasUnit(s.value, unit)) {
+    const pct = s.value && typeof s.value === 'object' && s.value.unit === '%';
+    fail(pct
+      ? `${type}: ${short} in % is refused — a percentage is a fraction of a baseline the hardware can change; write ${example}`
+      : `${type}: ${short} must carry its unit, e.g. ${example}`);
+  }
+  if (c && typeof c.value !== 'number' && !hasUnit(c.value, unit)) {
+    fail(`${type}: ${canonical} takes a number in ${unit.replace('/', '_')}`);
+  }
+}
+
+function checkAbsoluteQuantities(type, fields, fail) {
+  const pbm = type === 'pbm_transcranial' || type === 'pbm_intranasal';
+  const audio = type === 'audio_entrainment';
+  const visual = type === 'visual_stimulation';
+  if (!pbm && !audio && !visual) return;
+
+  const retired = audio ? ['volume_percent'] : ['intensity', 'intensity_percent'];
+  for (const key of retired) {
+    if (findField(fields, key)) {
+      fail(`${type}: '${key}' is a percentage of a baseline the hardware owns and can change, so it does not state the stimulus` +
+        (audio ? ' — write the level in dB, e.g. volume: 72dB'
+          : visual ? ' — visual_stimulation has no percentage intensity and no absolute one is defined yet; remove it'
+            : ' — write irradiance in mW/cm², e.g. irradiance: 300mW_cm2'));
+    }
+  }
+  if (pbm) {
+    const w = findField(fields, 'wavelength');
+    if (!w) fail(`${type}: wavelength is required, one value per block, e.g. wavelength: "810nm"`);
+    if (typeof w.value !== 'string') fail(`${type}: wavelength must be a quoted string such as "810nm"`);
+    if (RETIRED_WAVELENGTHS[w.value]) {
+      fail(`${type}: wavelength "${w.value}" is retired — it welded independent emitters into one block; ` +
+        `write one block per wavelength (${RETIRED_WAVELENGTHS[w.value].map(x => '"' + x + '"').join(' and ')}), each with its own irradiance`);
+    }
+    if (!/^[0-9]+(\.[0-9]+)?nm$/.test(w.value)) fail(`${type}: wavelength "${w.value}" is not a wavelength such as "810nm"`);
+    checkQuantity(type, fields, 'irradiance', 'irradiance_mw_cm2', 'mW/cm2', 'irradiance: 300mW_cm2', fail);
+  }
+  if (audio) checkQuantity(type, fields, 'volume', 'volume_db', 'dB', 'volume: 72dB', fail);
+}
+
+function checkLimits(modalityLimits, fail) {
+  for (const m of modalityLimits) {
+    if ((m.type === 'pbm_transcranial' || m.type === 'pbm_intranasal' || m.type === 'audio_entrainment')
+        && findField(m.fields, 'max_intensity')) {
+      fail(`${m.type} limits: max_intensity is a percentage ceiling and is retired — write ` +
+        (m.type === 'audio_entrainment' ? 'max_volume_db' : 'max_irradiance_mw_cm2'));
+    }
+  }
+}
 }}
 
 // ─────────────────────────── Top-level ───────────────────────────
@@ -90,7 +181,10 @@ ProtocolBody
       const modalities = [];
       for (const m of members) {
         if (m._type === 'field') fields.push({ key: m.key, value: m.value });
-        else modalities.push({ type: m.type, fields: m.fields });
+        else {
+          checkAbsoluteQuantities(m.type, m.fields, msg => error(msg, m._loc));
+          modalities.push({ type: m.type, fields: m.fields });
+        }
       }
       return { fields, modalities };
     }
@@ -206,10 +300,11 @@ LimitsBody
       const fields = [];
       const modalityLimits = [];
       for (const m of members) {
-        if (m._type !== 'field') modalityLimits.push({ type: m.type, fields: m.fields });
+        if (m._type !== 'field') modalityLimits.push({ type: m.type, fields: m.fields, _loc: m._loc });
         else fields.push({ key: m.key, value: m.value });
       }
-      return { fields, modalityLimits };
+      checkLimits(modalityLimits, (msg) => error(msg));
+      return { fields, modalityLimits: modalityLimits.map(m => ({ type: m.type, fields: m.fields })) };
     }
 
 LimitsMember
@@ -220,7 +315,7 @@ LimitsMember
 
 ModalityBlock
   = type:ModalityType _ "{" _ fields:ModalityField* _ "}"
-    { return { _type: 'modality', type, fields }; }
+    { return { _type: 'modality', type, fields, _loc: location() }; }
 
 ModalityField
   = _ f:Field _ { return { key: f.key, value: f.value }; }
@@ -276,7 +371,8 @@ NumberWithUnit
     }
 
 UnitSuffix "unit suffix"
-  = "mW_cm2" { return 'mW/cm2'; }
+  = "mW_cm2" !IdentContinue { return 'mW/cm2'; }
+  / "dB"     !IdentContinue { return 'dB'; }
   / "Hz"     { return 'Hz'; }
   / "mA"     { return 'mA'; }
   / "%"      { return '%'; }

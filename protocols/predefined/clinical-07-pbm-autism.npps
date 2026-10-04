@@ -10,27 +10,24 @@ protocol "PBM — Autism (pediatric, 40Hz)" {
     duration: 6m
 
     pbm_transcranial {
-        intensity: 20%
+        # WAVELENGTH is §7's, "850 nm", exactly. The default wavelength rules
+        # window the 808nm channel at 798–840nm, so 850nm is NOT delivered and
+        # this protocol is shown as unavailable until the rule is widened
+        # (NP-NPPS-REF-001 §7a). It is not moved to the nearest channel. It
+        # previously drove 660 and 808nm, neither of which the trial used;
+        # that unwanted 660nm dose is gone with the 660_808nm name.
+        #
+        # IRRADIANCE is NOT in the source: Fradkin 2024 states ≤300 mW total,
+        # ~150 mW per emitter. 80.6 mW/cm² is this file's former 20%
+        # restated against 403 mW/cm² at full drive (register row UC-064).
+        #
+        # PEDIATRIC. docs/pbm_neuro_protocols.md §7 calls for "conservative
+        # dosing and tolerability titration". Do not raise irradiance or
+        # duration here.
+        wavelength: "850nm"
+        irradiance: 80.6mW_cm2
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["Temporal Left", "Temporal Right"]
-        wavelength: "660_808nm"
-        # NIR-only fidelity gap: the trial used a single NIR wavelength
-        # (850nm, Fradkin 2024),
-        # and this protocol delivers 660nm alongside it whether or not the
-        # evidence did. The constraint is in the LANGUAGE AND COMPILER, not the
-        # wire: np_mod_pbm_base_params_t already carries cur_a (660nm) and cur_b
-        # (808nm) as separate current registers, but NPPS has one `intensity`
-        # field per PBM block with no per-channel form, so hubCompiler.ts
-        # writes the same register value into both. The `wavelength` enum also
-        # has no 808-only value. Whether the tile's driver supports independent
-        # per-channel current is a separate, open question (OI-HEXTILE-07).
-        # Unwanted 660nm dose as authored: 7.3 J/cm², 12 % of R-7's 60 J/cm²
-        # (NP-FEAS-PBMCH-001 §9.2 — MODELLED on OI-HEXTILE-02's design-target
-        # emitters, not measured). Annotation added under OI-PBMCH-06.
-        # PEDIATRIC. docs/pbm_neuro_protocols.md §7 calls for "conservative
-        # dosing and tolerability titration"; the 660nm this protocol delivers
-        # is exposure the source trial did not give a child. Do not raise
-        # intensity or duration here before the per-channel form exists.
     }
 }

@@ -19,7 +19,7 @@ protocol "taVNS + Tones — Tinnitus (paired)" {
         isochronic_hz: 8Hz
         noise: none
         carrier_hz: 440Hz
-        volume: 50%
+        volume: 65dB  # provisional dB SPL (UC-066)
         eeg_adaptive: false
         bone_conduction_pacer: false
     }

@@ -7,20 +7,40 @@ protocol "Flow State" {
     tags: [flow, gamma, theta, performance, creative, multimodal]
     duration: 25m
 
+    # PBM irradiances below are this preset's former percentages restated in mW/cm²:
+    # scalp blocks against 403 mW/cm² per channel at full drive (NP-HW-HEXTILE-001
+    # §4.3.1), intranasal blocks against a 100 mW/cm² placeholder for a probe that has
+    # no specification (OI-ART-04). They are conversions, not evidence-sourced figures
+    # (register rows UC-064, UC-065). Each wavelength is its own block, so either
+    # can be removed or retuned alone.
     pbm_transcranial {
-        intensity: 80%
+        wavelength: "660nm"
+        irradiance: 322.4mW_cm2
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["Frontal"]
-        wavelength: "660_808nm"
+    }
+    pbm_transcranial {
+        wavelength: "808nm"
+        irradiance: 322.4mW_cm2
+        frequency: 40Hz
+        duty_cycle: 25%
+        zones: ["Frontal"]
     }
 
     pbm_transcranial {
-        intensity: 75%
+        wavelength: "660nm"
+        irradiance: 302.2mW_cm2
         frequency: 6Hz
         duty_cycle: 25%
         zones: ["Posterior"]
-        wavelength: "660_808nm"
+    }
+    pbm_transcranial {
+        wavelength: "808nm"
+        irradiance: 302.2mW_cm2
+        frequency: 6Hz
+        duty_cycle: 25%
+        zones: ["Posterior"]
     }
 
     eeg_neurofeedback {
@@ -34,7 +54,7 @@ protocol "Flow State" {
         isochronic_hz: 6Hz
         noise: none
         carrier_hz: 440Hz
-        volume: 65%
+        volume: 72.5dB  # provisional dB SPL (UC-066)
         eeg_adaptive: true
         bone_conduction_pacer: false
     }

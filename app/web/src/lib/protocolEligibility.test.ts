@@ -433,7 +433,7 @@ function pbmProtocol(zoneRefs: string[]): NPProtocolDefinition {
         type: 'pbm_transcranial',
         params: {
           zones: 'named', zoneRefs,
-          wavelength: '660_808nm', intensityPercent: 75, frequencyHz: 40, dutyCyclePercent: 25,
+          wavelength: '808nm', irradianceMWcm2: 302, frequencyHz: 40, dutyCyclePercent: 25,
         },
       },
     }],
@@ -494,21 +494,20 @@ describe('protocol eligibility', () => {
 
     const socket1 = result.shortfalls[0].sockets.find(s => s.socketId === 1)!;
     expect(socket1.fitted).toBe('ZM-EEG');
-    // Must suggest parts supplying BOTH wavelengths, never a part fixing only one.
+    // The block names one wavelength (808nm), so a candidate must supply that
+    // channel; a part that does not is never suggested.
     expect(socket1.candidateModules).toContain('ZM-PBM-DUAL');
     expect(socket1.candidateModules).not.toContain('ZM-EEG');
     expect(socket1.candidateModules).not.toContain('ZM-PBM-DEEP');
 
-    // Every candidate must supply BOTH wavelengths — that is the property worth
+    // Every candidate must supply the named channel — that is the property worth
     // pinning, rather than the exact part list, which grows as the catalogue does.
     for (const part of socket1.candidateModules) {
-      expect(MODULE_TYPES[part].elements).toEqual(
-        expect.arrayContaining(['led_660', 'led_808']),
-      );
+      expect(MODULE_TYPES[part].elements).toEqual(expect.arrayContaining(['led_808']));
     }
 
     expect(describeShortfall(socket1)).toContain(
-      'Socket 1: fitted ZM-EEG, needs 660nm LED + 808nm LED — fit ',
+      'Socket 1: fitted ZM-EEG, needs 808nm LED — fit ',
     );
   });
 

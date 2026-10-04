@@ -10,7 +10,13 @@ protocol "PBM — Stroke (chronic rehab)" {
     duration: 15m
 
     pbm_transcranial {
-        intensity: 40%
+        # §9: "810 nm (+ 633 nm) transcranial ... ~0.02 W/cm², ~13 J/cm²".
+        # 20 mW/cm² is that figure. The previous 40% was ~161 mW/cm², eight
+        # times what §9 states; it is corrected here, not preserved. The
+        # optional 633nm adjunct is not a wavelength the default rules deliver
+        # (below the 660nm window) and is left out rather than moved.
+        wavelength: "810nm"
+        irradiance: 20mW_cm2
         frequency: 0Hz
         duty_cycle: 25%
         # Perilesional cortex is patient-specific — it depends where the stroke
@@ -19,11 +25,22 @@ protocol "PBM — Stroke (chronic rehab)" {
         # this protocol can run. Whole-head irradiation is NOT the evidence
         # target and would silently substitute the wrong dose distribution.
         zones: clinician_selected
-        wavelength: "660_808nm"
     }
 
     pbm_intranasal {
-        intensity: 50%
+        # §9 says "+ intranasal" and no wavelength or irradiance. The 50 mW/cm²
+        # is the former 50% against a 100 mW/cm² placeholder for an unspecified
+        # probe (OI-ART-04, UC-065). Both channels the probe carries are
+        # driven, one block each.
+        wavelength: "660nm"
+        irradiance: 50mW_cm2
+        frequency: 0Hz
+        duty_cycle: 25%
+    }
+
+    pbm_intranasal {
+        wavelength: "808nm"
+        irradiance: 50mW_cm2
         frequency: 0Hz
         duty_cycle: 25%
     }

@@ -31,7 +31,7 @@ function protocol(...blocks: string[]): NPProtocolDefinition {
 
 const pbm = (wavelength: string, zone = 'Frontal Left') => `    pbm_transcranial {
         wavelength: "${wavelength}"
-        intensity: 50%
+        irradiance: 201.5mW_cm2
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["${zone}"]
@@ -93,9 +93,8 @@ describe('per-wavelength eligibility', () => {
     expect(e.shortfalls[0].wavelengthProblem?.reason).toBe('invalid');
   });
 
-  it('a legacy two-channel block still needs both channels', () => {
-    const e = evaluateProtocol(protocol(pbm('660_808nm')), helmet('eeg-only'), zones);
-    expect(e.shortfalls[0].sockets[0].missingElements).toEqual([['led_660'], ['led_808']]);
+  it('a retired combined name never reaches eligibility: the parser refuses it', () => {
+    expect(() => protocol(pbm('660_808nm'))).toThrow(/retired/);
   });
 
   it('each PBM block is reported on its own', () => {

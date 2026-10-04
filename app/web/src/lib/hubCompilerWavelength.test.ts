@@ -60,18 +60,20 @@ function protocol(body: string, duration = '10m'): NPProtocolDefinition {
   return entry.protocol;
 }
 
-const pbm = (fields: string) => `    pbm_transcranial {
-        intensity: 50%
+const pbm = (fields: string, irradiance = '201.5mW_cm2') => `    pbm_transcranial {
+        irradiance: ${irradiance}
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["Frontal Left"]
 ${fields}
     }`;
 
-// intensityReg(50) and the 40 Hz / 25 % codes, read back from a legacy compile
-// so these tests do not restate the encoder's arithmetic.
-const legacy = commands(protocol(pbm('        wavelength: "660_808nm"')))[0];
-const [FC, DUTY, CUR] = [legacy.params[0], legacy.params[1], legacy.params[2]];
+// The 40 Hz / 25 % codes and the register 201.5 mW/cm² becomes on a 660/808
+// channel, read back from a compile so these tests do not restate the encoder's
+// arithmetic. 14 mW/cm² is half of CH_C's 28 at full drive.
+const base = commands(protocol(pbm('        wavelength: "808nm"')))[0];
+const [FC, DUTY, CUR] = [base.params[0], base.params[1], base.params[3]];
+const CUR_C = commands(protocol(pbm('        wavelength: "1064nm"', '14mW_cm2')))[0].params[4];
 
 describe('one wavelength per block', () => {
   it('808 nm family drives only the 808 channel', () => {
@@ -88,15 +90,34 @@ describe('one wavelength per block', () => {
   });
 
   it('1070 nm drives only CH_C on a smart command', () => {
-    const [c] = commands(protocol(pbm('        wavelength: "1070nm"')));
+    const [c] = commands(protocol(pbm('        wavelength: "1070nm"', '14mW_cm2')));
     expect(c.modType).toBe(NP_MOD_PBM_SMART);
-    expect(c.params).toEqual([FC, DUTY, 0, 0, CUR, 0x04]);
+    expect(c.params).toEqual([FC, DUTY, 0, 0, CUR_C, 0x04]);
   });
 
-  it('legacy names keep their exact encoding', () => {
-    expect(legacy.params).toEqual([FC, DUTY, CUR, CUR]);
-    const [c] = commands(protocol(pbm('        wavelength: "1064nm"')));
-    expect(c.params).toEqual([FC, DUTY, CUR, CUR, CUR, 0x04]);
+  it('1064nm is a plain wavelength and drives CH_C alone', () => {
+    const [c] = commands(protocol(pbm('        wavelength: "1064nm"', '14mW_cm2')));
+    expect(c.params).toEqual([FC, DUTY, 0, 0, CUR_C, 0x04]);
+  });
+
+  it('the retired combined names are refused, and say which blocks replace them', () => {
+    for (const w of ['660_808nm', '660_808_1064nm']) {
+      expect(() => commands(protocol(pbm(`        wavelength: "${w}"`))), w).toThrow(/retired|Line/);
+    }
+  });
+
+  it('drives each channel from its own full-scale table: the same irradiance is a different register', () => {
+    // 28 mW/cm² is CH_C at full drive (255); on a 660/808 channel it is ~7 % of 403.
+    const c1064 = commands(protocol(pbm('        wavelength: "1064nm"', '28mW_cm2')))[0];
+    const c808 = commands(protocol(pbm('        wavelength: "808nm"', '28mW_cm2')))[0];
+    expect(c1064.params[4]).toBe(255);
+    expect(c808.params[3]).toBe(Math.round(28 / 403 * 255));
+  });
+
+  it('REFUSES an irradiance the channel cannot reach, rather than clamping it', () => {
+    expect(() => commands(protocol(pbm('        wavelength: "1064nm"', '250mW_cm2'))))
+      .toThrow(/exceeds what led_1064 delivers at full drive \(28 mW\/cm²\).*refused, not reduced/);
+    expect(() => commands(protocol(pbm('        wavelength: "808nm"', '404mW_cm2')))).toThrow(/exceeds what led_808/);
   });
 
   it('refuses a wavelength no rule accepts — never the nearest channel, never all channels', () => {
@@ -124,7 +145,7 @@ describe('start offsets', () => {
   it('blocks run in series: F3 side 0–4 min, then F4 side 4–8 min', () => {
     const block = (zone: string, start: string) => `    pbm_transcranial {
         wavelength: "810nm"
-        intensity: 50%
+        irradiance: 201.5mW_cm2
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["${zone}"]
@@ -172,10 +193,6 @@ describe('parallel blocks on the same tiles', () => {
     expect(() => commands(two('        wavelength: "808nm"', '        wavelength: "820nm"'))).toThrow(/overlap on socket/);
   });
 
-  it('refuses a legacy two-channel block overlapping a single-wavelength block', () => {
-    expect(() => commands(two('        wavelength: "660_808nm"', '        wavelength: "810nm"'))).toThrow(/overlap on socket/);
-  });
-
   it('refuses a partial socket overlap even with matching timing', () => {
     const p = protocol(`${pbm('        wavelength: "660nm"')}\n${pbm('        wavelength: "810nm"').replace('Frontal Left', 'Frontal')}`);
     expect(() => commands(p)).toThrow(/overlap on socket/);
@@ -187,20 +204,85 @@ describe('parallel blocks on the same tiles', () => {
   });
 });
 
+describe('intranasal probe blocks', () => {
+  const NP_MOD_INTRANASAL = 0x03;
+  const nasal = (wl: string, irr = '50mW_cm2', extra = '') => `    pbm_intranasal {
+        wavelength: "${wl}"
+        irradiance: ${irr}
+        frequency: 40Hz
+        duty_cycle: 25%
+${extra}    }`;
+
+  it('one wavelength drives its probe channel only', () => {
+    const [c] = commands(protocol(nasal('660nm')));
+    expect(c.modType).toBe(NP_MOD_INTRANASAL);
+    expect(c.params[3]).toBeGreaterThan(0);
+    expect(c.params[4]).toBe(0);
+    const [d] = commands(protocol(nasal('808nm')));
+    expect([d.params[3], d.params[4] > 0]).toEqual([0, true]);
+  });
+
+  it('660 nm and 808 nm blocks with identical timing merge into one probe command', () => {
+    const cmds = commands(protocol(`${nasal('660nm')}\n${nasal('808nm')}`));
+    expect(cmds).toHaveLength(1);
+    expect(cmds[0].params[3]).toBeGreaterThan(0);
+    expect(cmds[0].params[4]).toBeGreaterThan(0);
+  });
+
+  it('refuses two blocks on one channel and a wavelength the probe does not carry', () => {
+    expect(() => commands(protocol(`${nasal('660nm')}\n${nasal('660nm')}`))).toThrow(/overlap/);
+    expect(() => commands(protocol(nasal('1064nm')))).toThrow(/cannot be delivered on led_1064/);
+  });
+
+  it('refuses an irradiance above the probe full scale', () => {
+    expect(() => commands(protocol(nasal('660nm', '150mW_cm2')))).toThrow(/exceeds what the intranasal probe delivers/);
+  });
+});
+
+describe('audio level', () => {
+  const audio = (v: string) => protocol(`    audio_entrainment {\n        carrier_hz: 440Hz\n        isochronic_hz: 10Hz\n        volume: ${v}\n    }`);
+  it('maps dB SPL through the calibration line', () => {
+    // 40 + 0.5 × pct: 65 dB is wire value 50.
+    expect(commands(audio('65dB'))[0].params[5]).toBe(50);
+  });
+  it('refuses a level outside the calibrated range', () => {
+    expect(() => commands(audio('95dB'))).toThrow(/outside the range the drive can deliver/);
+    expect(() => commands(audio('30dB'))).toThrow(/outside the range/);
+  });
+});
+
 describe('the shipped library', () => {
-  it('every predefined protocol still compiles', () => {
+  // Protocols the hardware or the default wavelength rules cannot deliver are
+  // REFUSED with the reason, not reshaped to fit (CLAUDE.md §3). Each one is
+  // named here so a new refusal is a deliberate act, not a drift.
+  const REFUSED: Record<string, RegExp> = {
+    'Memory Boost': /exceeds what led_1064 delivers/,                         // Yao 2022: 250 mW/cm² vs CH_C's 28
+    "PBM — Alzheimer's 1064nm (deep-cortical channel)": /exceeds what led_1064 delivers/,
+    'PBM — Autism (pediatric, 40Hz)': /No emitter channel delivers 850nm/,  // §7 says 850 nm; the 808 window ends at 840
+  };
+
+  it('every predefined protocol compiles, except the ones refused for a stated reason', () => {
     const manifest = JSON.parse(fs.readFileSync(path.join(DIR, 'manifest.json'), 'utf8'));
     const files = [...manifest.zones, ...manifest.conditions, ...manifest.protocols]
       .map((f: string) => parseNPPSFile(fs.readFileSync(path.join(DIR, f), 'utf8')));
     const { namespace } = buildNamespace(files);
     let compiled = 0;
+    const refused: string[] = [];
     for (const entry of namespace.entries) {
       if (entry.kind !== 'single') continue;
       const clinician = entry.protocol.modalities.some(m =>
         (m.modalityParams.params as { zones?: string }).zones === 'clinician_selected');
-      compileProtocol(entry.protocol, { zones: namespace.zones, clinicianSockets: clinician ? [1] : undefined });
-      compiled++;
+      try {
+        compileProtocol(entry.protocol, { zones: namespace.zones, clinicianSockets: clinician ? [1] : undefined });
+        compiled++;
+      } catch (e) {
+        const why = REFUSED[entry.protocol.name];
+        expect(why, `${entry.protocol.name}: ${(e as Error).message}`).toBeDefined();
+        expect((e as Error).message).toMatch(why);
+        refused.push(entry.protocol.name);
+      }
     }
     expect(compiled).toBeGreaterThan(50);
+    expect(refused.sort()).toEqual(Object.keys(REFUSED).sort());
   });
 });

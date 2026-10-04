@@ -39,6 +39,8 @@ import {
 } from './socketSet';
 import {
   PBM_CHANNEL_ELEMENTS,
+  parsePbmWavelength,
+  retiredWavelengthMessage,
   validateWavelengthRules,
   type NPPBMChannelElement,
   type NPWavelengthChannelRule,
@@ -95,7 +97,7 @@ interface Token {
   type: TokenType;
   value: string | number | boolean;
   line: number;
-  unit?: string; // 's' | 'm' | 'Hz' | '%' | 'mA' — preserved from source for duration/unit-aware fields
+  unit?: string; // 's' | 'm' | 'Hz' | '%' | 'mA' | 'mW_cm2' | 'dB' — preserved from source for duration/unit-aware fields
 }
 
 // Classifies an identifier as KEYWORD rather than IDENT at tokenize time.
@@ -204,7 +206,7 @@ export function tokenize(text: string): Token[] {
       continue;
     }
 
-    // Numbers (including negative) — optionally followed by unit suffix (Hz, %, mA, s, m)
+    // Numbers (including negative) — optionally followed by unit suffix (Hz, %, mA, mW_cm2, dB, s, m)
     if ((text[pos] === '-' && pos + 1 < text.length && text[pos + 1] >= '0' && text[pos + 1] <= '9') || (text[pos] >= '0' && text[pos] <= '9')) {
       let numStr = '';
       if (text[pos] === '-') { numStr = '-'; pos++; }
@@ -223,6 +225,11 @@ export function tokenize(text: string): Token[] {
         else if (text[pos] === 'm' && (pos + 1 >= text.length || !/[a-zA-Z_0-9]/.test(text[pos + 1]))) { unit = 'm'; pos++; }
         else if (text.slice(pos, pos + 2) === 'Hz') { unit = 'Hz'; pos += 2; }
         else if (text.slice(pos, pos + 2) === 'mA') { unit = 'mA'; pos += 2; }
+        // Absolute-quantity units (NP-NPPS-REF-001 §4.1b, §4.7): irradiance in
+        // mW/cm² and sound level in dB. Each must end the token, so `dBx` and
+        // `mW_cm2x` stay lex errors rather than a unit with a stray tail.
+        else if (text.slice(pos, pos + 6) === 'mW_cm2' && !/[a-zA-Z_0-9]/.test(text[pos + 6] ?? '')) { unit = 'mW_cm2'; pos += 6; }
+        else if (text.slice(pos, pos + 2) === 'dB' && !/[a-zA-Z_0-9]/.test(text[pos + 2] ?? '')) { unit = 'dB'; pos += 2; }
       }
       // A digit-leading token that is not a number with a unit suffix is not a
       // value. Digit-leading compound identifiers (660_808nm, 1064nm) and
@@ -466,12 +473,68 @@ class Parser {
       binaural_hz: 'binaural_beats_hz',
       isochronic_hz: 'isochronic_tones_hz',
       noise: 'noise_type',
-      volume: 'volume_percent',
       breathing_rate: 'resonance_breathing_rate',
       ramp: 'ramp_seconds',
       emdr_cadence: 'emdr_cadence_hz',
     };
     return aliases[key] ?? key;
+  }
+
+  // Reads the value of a field that states an absolute quantity, or returns
+  // null when `key` is not one. The short names carry their unit as a suffix
+  // (`irradiance: 300mW_cm2`, `volume: 72dB`), as `intensity: 1.5mA` and
+  // `frequency: 40Hz` do, and the suffix is REQUIRED on them: it is what makes
+  // `volume: 70%` an error instead of a number whose baseline nobody can name.
+  // The canonical names carry the unit in the key and take a bare number.
+  private readAbsoluteQuantity(
+    typeName: string, key: string, line: number,
+  ): { canonical: string; value: number } | null {
+    const PBM = typeName === 'pbm_transcranial' || typeName === 'pbm_intranasal';
+    const spec: Record<string, { canonical: string; unit: string; types: boolean; viaSuffix: boolean }> = {
+      irradiance:        { canonical: 'irradiance_mw_cm2', unit: 'mW_cm2', types: PBM, viaSuffix: true },
+      irradiance_mw_cm2: { canonical: 'irradiance_mw_cm2', unit: 'mW_cm2', types: PBM, viaSuffix: false },
+      volume:            { canonical: 'volume_db', unit: 'dB', types: typeName === 'audio_entrainment', viaSuffix: true },
+      volume_db:         { canonical: 'volume_db', unit: 'dB', types: typeName === 'audio_entrainment', viaSuffix: false },
+    };
+    // Percent spellings that used to carry these quantities.
+    const retired =
+      (key === 'intensity' || key === 'intensity_percent') &&
+        (PBM || typeName === 'visual_stimulation') ||
+      (key === 'volume_percent' && typeName === 'audio_entrainment');
+    if (retired) {
+      const fix = typeName === 'audio_entrainment'
+        ? 'state the level in dB SPL, e.g. volume: 72dB'
+        : typeName === 'visual_stimulation'
+          ? 'visual_stimulation has no percentage intensity, and no absolute one is defined yet — remove the field'
+          : 'state irradiance in mW/cm², e.g. irradiance: 300mW_cm2';
+      throw new NPPSParseError(
+        `${typeName}: '${key}' is a percentage of a baseline the hardware owns and can change, ` +
+        `so it does not state the stimulus. ${fix} (NP-NPPS-REF-001 §4.1b).`,
+        line,
+      );
+    }
+    const sp = spec[key];
+    if (!sp || !sp.types) return null;
+    this.skipNewlines();
+    const t = this.current;
+    if (t.type !== 'NUMBER') {
+      throw new NPPSParseError(`${typeName}: ${key} must be a number${sp.viaSuffix ? ` with unit ${sp.unit}` : ''}`, line);
+    }
+    this.advance();
+    const unit = t.unit;
+    if (unit === '%') {
+      throw new NPPSParseError(`${typeName}: ${key} in % is refused — state it in ${sp.unit}`, line);
+    }
+    if (unit !== undefined && unit !== sp.unit) {
+      throw new NPPSParseError(`${typeName}: ${key} takes ${sp.unit}, not ${unit}`, line);
+    }
+    if (unit === undefined && sp.viaSuffix) {
+      throw new NPPSParseError(
+        `${typeName}: ${key} needs its unit written (${key}: ${t.value}${sp.unit}); ` +
+        `a bare number does not say what it measures`, line,
+      );
+    }
+    return { canonical: sp.canonical, value: t.value as number };
   }
 
   // Parse a typed modality block: pbm_transcranial { ... }
@@ -525,6 +588,16 @@ class Parser {
       }
       if (key === 'enabled') { enabled = this.readBool(); this.skipNewlines(); continue; }
 
+      // Absolute quantities (NP-NPPS-REF-001 §4.1b, §4.7). A percentage is a
+      // fraction of a baseline the hardware owns and can change, so it does not
+      // state the stimulus; it is refused here, not converted.
+      const quantity = this.readAbsoluteQuantity(typeName, key, keyTok.line);
+      if (quantity) {
+        raw[quantity.canonical] = quantity.value;
+        this.skipNewlines();
+        continue;
+      }
+
       // 'intensity' is ambiguous across modality types — defer to post-processing
       if (key === 'intensity') {
         raw['__intensity'] = this.readAnyValue();
@@ -553,20 +626,15 @@ class Parser {
     if ('__intensity' in raw) {
       const intensityVal = raw['__intensity'];
       delete raw['__intensity'];
-      const percentTypes = new Set([
-        'pbm_transcranial', 'pbm_intranasal', 'visual_stimulation',
-      ]);
       const mATypes = new Set([
         'bes_tacs', 'tdcs', 'vns_hrv', 'clinical_tacs', 'hd_tdcs', 'cervical_vns', 'tms',
       ]);
-      if (percentTypes.has(typeName)) {
-        raw['intensity_percent'] = intensityVal;
-      } else if (mATypes.has(typeName)) {
+      if (mATypes.has(typeName)) {
         raw['intensity_milliamps'] = intensityVal;
       } else if (typeName === 'vibrotactile_40hz') {
         raw['intensity_g'] = intensityVal;
       } else {
-        raw['intensity_percent'] = intensityVal; // safe fallback
+        throw new NPPSParseError(`${typeName}: 'intensity' is not a field of this modality`, this.current.line);
       }
     }
 
@@ -783,9 +851,21 @@ class Parser {
     return result as T;
   }
 
+  // A percentage ceiling cannot be honoured once the quantity it bounded is
+  // absolute, and the generic sub-block reader would skip it silently — a safety
+  // limit dropped without a word. Refuse it by name instead.
+  private retiredPercentLimit(modality: string, replacement: string): never {
+    throw new NPPSParseError(
+      `${modality} limits: max_intensity is a percentage ceiling and is retired; ` +
+      `write ${replacement} in the quantity's own unit (NP-NPPS-REF-001 §7).`,
+      this.current.line,
+    );
+  }
+
   private parsePBMTranscranialLimits(): PBMTranscranialLimits {
     return this.parseLimitsSubBlock<PBMTranscranialLimits>({
-      max_intensity: v => ({ maxIntensityPercent: Number(v) }),
+      max_irradiance_mw_cm2: v => ({ maxIrradianceMWcm2: Number(v) }),
+      max_intensity: () => this.retiredPercentLimit('pbm_transcranial', 'max_irradiance_mw_cm2'),
       max_frequency: v => ({ maxFrequencyHz: Number(v) }),
       max_duty_cycle: v => ({ maxDutyCyclePercent: Number(v) }),
       max_session_dose: v => ({ maxSessionDoseJCm2: Number(v) }),
@@ -795,7 +875,8 @@ class Parser {
 
   private parsePBMIntranasalLimits(): PBMIntranasalLimits {
     return this.parseLimitsSubBlock<PBMIntranasalLimits>({
-      max_intensity: v => ({ maxIntensityPercent: Number(v) }),
+      max_irradiance_mw_cm2: v => ({ maxIrradianceMWcm2: Number(v) }),
+      max_intensity: () => this.retiredPercentLimit('pbm_intranasal', 'max_irradiance_mw_cm2'),
       max_session_dose: v => ({ maxSessionDoseJCm2: Number(v) }),
       max_session_duration: v => ({ maxSessionDurationSeconds: Number(v) }),
     });
@@ -837,7 +918,8 @@ class Parser {
 
   private parseAudioEntrainmentLimits(): AudioEntrainmentLimits {
     return this.parseLimitsSubBlock<AudioEntrainmentLimits>({
-      max_intensity: v => ({ maxVolumePercent: Number(v) }),
+      max_volume_db: v => ({ maxVolumeDb: Number(v) }),
+      max_intensity: () => this.retiredPercentLimit('audio_entrainment', 'max_volume_db'),
       max_frequency: v => ({ maxBinauralBeatsHz: Number(v) }),
       max_binaural_beats: v => ({ maxBinauralBeatsHz: Number(v) }),
       max_isochronic_tones: v => ({ maxIsochronicTonesHz: Number(v) }),
@@ -1045,6 +1127,25 @@ class Parser {
     function optNum(key: string): number | undefined {
       return typeof raw[key] === 'number' ? (raw[key] as number) : undefined;
     }
+    // A dose-bearing field with no default. Defaulting an irradiance or a sound
+    // level would deliver a stimulus nobody authored, and silently.
+    function required(key: string, what: string): number {
+      const v = raw[key];
+      if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
+        throw new NPPSParseError(`${typeId}: ${what} is required and must be positive`, line);
+      }
+      return v;
+    }
+    function requiredWavelength(): string {
+      const w = raw['wavelength'];
+      if (typeof w !== 'string') {
+        throw new NPPSParseError(
+          `${typeId}: wavelength is required, one value per block, e.g. wavelength: "810nm"`, line);
+      }
+      const parsed = parsePbmWavelength(w);
+      if (parsed.kind === 'retired') throw new NPPSParseError(`${typeId}: ${retiredWavelengthMessage(w)}`, line);
+      return w;
+    }
     function optStr(key: string): string | undefined {
       return typeof raw[key] === 'string' ? (raw[key] as string) : undefined;
     }
@@ -1099,8 +1200,8 @@ class Parser {
         }
         const params: PBMTranscranialParams = {
           zones,
-          wavelength: str('wavelength', d.wavelength) as PBMTranscranialParams['wavelength'],
-          intensityPercent: num('intensity_percent', d.intensityPercent),
+          wavelength: requiredWavelength(),
+          irradianceMWcm2: required('irradiance_mw_cm2', 'irradiance (e.g. irradiance: 300mW_cm2)'),
           frequencyHz: num('frequency_hz', d.frequencyHz),
           dutyCyclePercent: num('duty_cycle_percent', d.dutyCyclePercent),
         };
@@ -1112,7 +1213,8 @@ class Parser {
         return {
           type: 'pbm_intranasal',
           params: {
-            intensityPercent: num('intensity_percent', d.intensityPercent),
+            wavelength: requiredWavelength(),
+            irradianceMWcm2: required('irradiance_mw_cm2', 'irradiance (e.g. irradiance: 25mW_cm2)'),
             frequencyHz: num('frequency_hz', d.frequencyHz),
             dutyCyclePercent: num('duty_cycle_percent', d.dutyCyclePercent),
           },
@@ -1178,7 +1280,7 @@ class Parser {
         const d = def as AudioEntrainmentParams;
         const params: AudioEntrainmentParams = {
           carrierHz: num('carrier_hz', d.carrierHz),
-          volumePercent: num('volume_percent', d.volumePercent),
+          volumeDb: required('volume_db', 'volume in dB SPL (e.g. volume: 72dB)'),
           eegAdaptive: bool('eeg_adaptive', d.eegAdaptive),
           boneConductionPacer: bool('bone_conduction_pacer', d.boneConductionPacer),
         };

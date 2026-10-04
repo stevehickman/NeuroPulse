@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 17
-**Date:** 2026-09-29  
+**Revision:** 18
+**Date:** 2026-10-04  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -14,6 +14,8 @@
 **IEC 62304 Class:** —
 
 ---
+
+> **Rev 18 (2026-10-04) — intensity is absolute, and every wavelength is its own block (principal direction).** Two rules, one change. **(i) A PBM irradiance and an audio level are stated in absolute units, never as a percentage.** `intensity: 80%` on `pbm_transcranial` / `pbm_intranasal` and `volume: 70%` on `audio_entrainment` are refused; the fields are `irradiance: 300mW_cm2` (peak irradiance at the scalp in mW/cm²) and `volume: 72dB` (sound pressure level at the ear in dB SPL), with canonical names `irradiance_mw_cm2` and `volume_db` (§4.1b, §4.7). A percentage is a fraction of a baseline, and the baseline belongs to the emitter, the driver and the tile: when any of them changes, the same "80%" is a different stimulus and nothing in the file says so. An absolute figure keeps its meaning. The conversion to a drive register is the compiler's, and it lives in one table (`app/web/src/lib/pbmDrive.ts`); when the hardware changes, that table changes and no protocol file does. **A request the hardware cannot reach is refused, never clamped** (CLAUDE.md §3). **(ii) The combined channel names `"660_808nm"` and `"660_808_1064nm"` are retired.** They welded two independent emitters into one block, so a protocol could not use one without the other. Each wavelength is a block with its own irradiance (§4.1a); `"1064nm"` was always a single wavelength and is read as one. `pbm_intranasal` gains the same `wavelength` field. **Grammar:** `npps.peggy` Rev 6 adds the `dB` unit suffix and makes these checks itself (NP-NPPS-GRAM-001 Rev 6), so a percentage or a combined name fails in the grammar, not only in a runtime. **Required, not defaulted:** `wavelength` and an irradiance on every PBM block, and a volume on every audio block: a defaulted dose is a stimulus nobody authored. **Limits:** `max_intensity` on the PBM and audio sub-blocks is retired for `max_irradiance_mw_cm2` and `max_volume_db`, and is refused, not skipped (§7). **Shipped library:** every PBM and audio block is rewritten. Irradiances are the ones the defining documents state (`docs/pbm_neuro_protocols.md`), where they state one; the rest are conversions of the old percentage and are marked as such (register rows UC-064 to UC-066). Three protocols are now refused rather than run degraded: Memory Boost and the 1064 nm Alzheimer's protocol (their source irradiance exceeds the 28 mW/cm² the 1064 nm channel delivers) and the pediatric autism protocol (its source wavelength, 850 nm, is outside the default 808 nm window). **Not changed:** TMS `intensity_percent_mt` is a percentage of a measured per-patient motor threshold, which is a stated baseline, and is left alone; `intensity_scale` on a composite layer multiplies the author's own absolute values and is left alone. **Implemented on the web runtime and in the grammar. iOS, Android and Windows do not read the new fields yet** (`OI-NPPS-ABS-01`); see §4.1b.
 
 > **Rev 17 (2026-09-29) — one wavelength per PBM block, a `start` on every modality block, and a new `wavelength_rules` block (principal direction).** An author states exactly what the protocol is, even a wavelength the helmet does not carry: `wavelength: "810nm"`, one value per `pbm_transcranial` block (§4.1a). Which emitter channel may deliver it is **configuration, not grammar**. A new top-level `wavelength_rules` block gives each channel an acceptance window (§7a). The defaults ship in `00-wavelength-rules.npps`, and a user may loosen or tighten them. A wavelength no window accepts is **refused**: never moved to the nearest channel, and never driven on all channels. That second outcome is what the web compiler did with any value other than `"660_808nm"` until this revision. Each wavelength is independently controlled, so a protocol may hold several PBM blocks. Every modality block gains `start` (§5), and blocks run in parallel or in series by their windows. Parallel PBM blocks sharing a tile are merged when the tile can deliver both exactly, and refused otherwise, because a tile takes one frequency, duty and schedule for all its channels. The three legacy channel names keep their meaning. **Implemented in full on the web runtime and in `npps.peggy` (NP-NPPS-GRAM-001 Rev 5).** **iOS and Android** parse all three forms: they carry the wavelength exactly as written, read and write `start`, and accept a `wavelength_rules` block without applying it. They compile against the shipped default rules only, and rules are edited in the web app for now. Their session wire and the Windows one are placeholder JSON (`OI-AND-WIRE-01`) with no per-block timing, so all three **refuse** a block with `start`, and a wavelength the default rules do not map, rather than flatten or move it. Windows has no NPPS parser, so it applies the same rules to a definition it is given. Both mobile parsers used to replace an unrecognised wavelength with `660_808nm` silently; they no longer do. Android `:core` is verified (303 tests). iOS and Windows are unbuilt here, because this environment has no Xcode and no `dotnet`.
 
@@ -74,6 +76,7 @@
 4. [Modalities](#4-modalities)  
    4.1 [PBM Transcranial](#41-pbm-transcranial)  
    4.1a [Wavelength — one per block](#41a-wavelength--one-per-block)  
+   4.1b [Absolute intensity](#41b-absolute-intensity)  
    4.2 [PBM Intranasal](#42-pbm-intranasal)  
    4.3 [EEG Neurofeedback](#43-eeg-neurofeedback)  
    4.4 [BES / tACS](#44-bes--tacs)  
@@ -229,7 +232,7 @@ identifier, a number, a boolean or a quoted string, each of which maps onto a JS
 | Plain identifier | `waveform: sinusoidal`, `target: DLPFC_L`, `tms_protocol: rTMS` |
 | Number, optionally with a unit suffix | `duration: 20m`, `frequency: 40Hz`, `intensity: 80%` |
 | Boolean | `closed_loop: true` |
-| **Starts with a digit and is not a plain number** | `wavelength: "660_808nm"`, `tags: ["1064nm"]` |
+| **Starts with a digit and is not a plain number** | `wavelength: "808nm"`, `tags: ["1064nm"]` |
 | **Contains a hyphen** | `tags: ["wind-down", "all-modalities"]` |
 
 Two lexer rules that used to admit the last two rows unquoted were removed, and the shipped
@@ -237,8 +240,8 @@ library was migrated. Unquoted, these now fail with a message naming the fix, ra
 mis-lexing:
 
 ```
-Unquoted value '660_808nm' — values that start with a digit and are not a plain
-number must be quoted, e.g. "660_808nm"
+Unquoted value '808nm' — values that start with a digit and are not a plain
+number must be quoted, e.g. "808nm"
 ```
 
 Unit suffixes and `#` comments are unaffected and remain part of the format.
@@ -250,17 +253,19 @@ Integer or floating-point. Optionally followed by a **unit suffix** that the lex
 | Suffix | Meaning | Example |
 |--------|---------|---------|
 | `Hz`   | Frequency in hertz | `40Hz` |
-| `%`    | Percentage (0–100) | `80%` |
+| `%`    | Percentage (0–100) | `25%` |
 | `mA`   | Current in milliamps | `1.5mA` |
+| `mW_cm2` | Irradiance in mW/cm² | `300mW_cm2` |
+| `dB`   | Sound pressure level in dB SPL | `72dB` |
 | `s`    | Duration in seconds | `30s` |
 | `m`    | Duration in minutes | `20m` |
 
-Unit suffixes are cosmetic on most numeric fields; the parser reads the raw number. **Duration fields** (`duration`, `start`, `interval_on`, `interval_off`) use the suffix to convert minutes to seconds automatically.
+Unit suffixes are cosmetic on most numeric fields; the parser reads the raw number. **Two fields are the exception: `irradiance` and `volume` REQUIRE their unit** (`mW_cm2`, `dB`), and a `%` or a wrong unit on them is an error (§4.1b). The unit is the point: it is what stops a percentage of an unnamed baseline passing as a dose. **Duration fields** (`duration`, `start`, `interval_on`, `interval_off`) use the suffix to convert minutes to seconds automatically.
 
 ```
 duration: 20m        # stored as 1200 seconds
 interval_on: 90s     # stored as 90 seconds
-intensity: 80%       # stored as 80
+irradiance: 300mW_cm2  # stored as 300 mW/cm²
 frequency: 40Hz      # stored as 40
 ```
 
@@ -357,11 +362,11 @@ protocol "Gamma Focus" {
     duration: 20m
 
     pbm_transcranial {
-        intensity: 80%
+        wavelength: "808nm"
+        irradiance: 300mW_cm2
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["All"]
-        wavelength: "660_808nm"
     }
 
     eeg_neurofeedback {
@@ -380,7 +385,8 @@ Each modality is a typed block. The block keyword is the modality type:
 
 ```
 pbm_transcranial {
-    intensity: 80%
+    wavelength: "808nm"
+    irradiance: 300mW_cm2
     frequency: 40Hz
     ...
 }
@@ -398,12 +404,13 @@ The following short names are accepted anywhere and map to the canonical name:
 | `binaural_hz` | `binaural_beats_hz` |
 | `isochronic_hz` | `isochronic_tones_hz` |
 | `noise` | `noise_type` |
-| `volume` | `volume_percent` |
+| `irradiance` | `irradiance_mw_cm2` (PBM; unit suffix `mW_cm2` required) |
+| `volume` | `volume_db` (audio; unit suffix `dB` required) |
 | `breathing_rate` | `resonance_breathing_rate` |
 | `ramp` | `ramp_seconds` |
 | `emdr_cadence` | `emdr_cadence_hz` |
 
-The `intensity` alias is context-dependent: it maps to `intensity_percent` for optical modalities (`pbm_transcranial`, `pbm_intranasal`, `visual_stimulation`), and `intensity_milliamps` for electrical modalities (`bes_tacs`, `tdcs`, `vns_hrv`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `tms`). For `pbm_deep_1170nm` use `intensity_mw_cm2:` directly; for `vibrotactile_40hz` use `intensity_g:` directly.
+The `intensity` alias is context-dependent: it maps to `intensity_milliamps` for electrical modalities (`bes_tacs`, `tdcs`, `vns_hrv`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `tms`). **It is refused on the optical modalities** (`pbm_transcranial`, `pbm_intranasal`, `visual_stimulation`): their intensity is `irradiance` (§4.1b), and `visual_stimulation` has no percentage intensity and, so far, no absolute one. For `pbm_deep_1170nm` use `intensity_mw_cm2:` directly; for `vibrotactile_40hz` use `intensity_g:` directly.
 ---
 
 ### 4.1 PBM Transcranial
@@ -412,21 +419,21 @@ Photobiomodulation via scalp-facing LED zones.
 
 | Field | Canonical | Type | Values |
 |-------|-----------|------|--------|
-| `intensity` | `intensity_percent` | number | 0–100 |
+| `irradiance` | `irradiance_mw_cm2` | number, `mW_cm2` | **Required.** Peak irradiance at the scalp, for this block's wavelength alone (§4.1b). ≤ 400 (CLAUDE.md §3) |
 | `frequency` | `frequency_hz` | number | 0 (CW) or 0.5–100 |
 | `duty_cycle` | `duty_cycle_percent` | number | 0–100. The 25 % cap is retired (CLAUDE.md §3, Rev 59): duty is the protocol's. **The validator and the hub still refuse or clamp above 25 %** until `NP-HW-HEXTILE-001` `OI-HEXTILE-31` replaces the clamp with a pre-signing check |
 | `zones` | `zones` | string array \| `clinician_selected` | A **named-zone-reference array** (§8), or the keyword `clinician_selected` |
-| `wavelength` | `wavelength` | string | **One wavelength**, e.g. `"810nm"` (§4.1a), or a legacy channel name `"660_808nm"` `"1064nm"` `"660_808_1064nm"`. **Quoted** (§2) |
+| `wavelength` | `wavelength` | string | **Required.** **One wavelength**, e.g. `"810nm"` (§4.1a). The combined names `"660_808nm"` and `"660_808_1064nm"` are retired. **Quoted** (§2) |
 
 **Zones are module sets (Rev B).** With the module redesign a zone is a **named set of modules** (§8), not a fixed hardware index. The preferred way to target zones is to reference zone definitions by name:
 
 ```
 pbm_transcranial {
-    intensity: 80%
+    wavelength: "808nm"
+    irradiance: 300mW_cm2
     frequency: 40Hz
     duty_cycle: 25%
     zones: ["Frontal Left", "Frontal Right"]   # named zone references (§8)
-    wavelength: "660_808nm"
 }
 ```
 
@@ -453,7 +460,7 @@ whether or not the helmet carries it:
 ```
 pbm_transcranial {
     wavelength: "810nm"      # Schiffer 2009 used 810 nm; the helmet's channel is 808 nm
-    intensity: 62%
+    irradiance: 250mW_cm2    # Schiffer 2009's stated irradiance
     frequency: 0Hz
     duty_cycle: 100%
     zones: ["Frontal Left"]
@@ -463,7 +470,9 @@ pbm_transcranial {
 | Form | Meaning |
 |------|---------|
 | `"<N>nm"`, e.g. `"810nm"`, `"632.8nm"` | One requested wavelength. The wavelength rules (§7a) say which emitter channel delivers it. The block drives **that channel only**, and every other channel on the tile is commanded to zero, which the tile holds as gate-off (`NP-FW-HEXTILE-001` §5.3) |
-| `"660_808nm"`, `"1064nm"`, `"660_808_1064nm"` | **Legacy channel names**, kept so existing protocols keep their meaning. They name channels, not a source's wavelength. `"1064nm"` is both a legacy name and a single wavelength, and both readings drive CH_C alone |
+| `"660_808nm"`, `"660_808_1064nm"` | **Retired (Rev 18).** They named channels, not a source's wavelength, and welded independent emitters into one block. Refused with the blocks that replace them: write `"660nm"` and `"808nm"` as two blocks, each with its own irradiance. |
+
+`"1064nm"` is an ordinary single wavelength: the default rules map it to the 1064 nm channel (CH_C).
 
 **Mapping is configuration, and a failed mapping is a refusal.** A wavelength no rule accepts is
 not delivered on the nearest channel. The protocol is shown as unavailable on every helmet, with a
@@ -478,8 +487,67 @@ accepts. Anything else is refused, because a tile takes one frequency, one duty 
 for all its channels (`NP-FW-HUB-001` §4). Delivering one of the two, or averaging them, would be
 a stimulus nobody authored.
 
+**Each block states its own irradiance (§4.1b).** Splitting a source that used 660 and 808 nm
+together means two blocks, and the author decides each wavelength's irradiance. A protocol whose
+source used one wavelength writes one block; it no longer drives a second channel the source did not.
+
 **Safety terms are not relaxed by mapping.** They are evaluated on the channel actually driven,
 and they add across wavelengths on the same tissue (CLAUDE.md §3).
+
+---
+
+### 4.1b Absolute intensity
+
+*(Rev 18.)* **A PBM block states how much light it delivers, in mW/cm², and an audio block how loud
+it is, in dB. Neither is ever a percentage.**
+
+```
+pbm_transcranial {
+    wavelength: "808nm"
+    irradiance: 300mW_cm2        # peak irradiance at the scalp, this wavelength alone
+    frequency: 40Hz
+    duty_cycle: 25%
+    zones: ["Vault (excl. Occipital)"]
+}
+```
+
+| Field | Canonical | Unit | Meaning |
+|-------|-----------|------|---------|
+| `irradiance` | `irradiance_mw_cm2` | `mW_cm2` | Peak irradiance at the scalp surface during the on-period, for the block's wavelength alone. The time average is this × duty (Chun 2026: 300 mW/cm² at 25 % is 75 mW/cm² average) |
+| `volume` | `volume_db` | `dB` | Sound pressure level at the ear in dB SPL (§4.7) |
+
+**Why not a percentage.** A percentage is a fraction of a baseline, and the baseline belongs to the
+hardware: the emitter, the driver current limit, the tile's emitter count, the amplifier gain. When
+any of them changes, "80 %" is a different stimulus and nothing in the protocol file says so. A
+figure in mW/cm² or dB keeps its meaning across hardware revisions, which is what lets a protocol be
+checked against a trial or a safety limit directly.
+
+**Rules.**
+
+- **The unit is required on the short names.** `irradiance: 300` and `volume: 72` are errors, as are
+  `irradiance: 80%` and `volume: 70%`. The canonical names (`irradiance_mw_cm2: 300`) carry the unit
+  in the key and take a bare number.
+- **The percentage spellings are refused**, not converted: `intensity` and `intensity_percent` on
+  `pbm_transcranial`, `pbm_intranasal` and `visual_stimulation`, and `volume_percent` on
+  `audio_entrainment`. Refusing is the point: a converted number would carry the old baseline along.
+- **Both fields, and `wavelength`, are required.** A defaulted irradiance or sound level is a
+  stimulus nobody authored.
+- **Irradiance is per wavelength.** The safety sum (CLAUDE.md §3) adds the blocks on one tile; it is
+  not in this field.
+- **The compiler converts, and refuses what the hardware cannot do.** `pbmDrive.ts` holds the
+  full-scale irradiance of each channel and the audio calibration. A block asking for more than its
+  channel delivers (a 250 mW/cm² block on the 1064 nm channel, which delivers 28) is refused, never
+  clamped, because a reduced dose is a different stimulus (CLAUDE.md §3). Those table values are
+  design targets or placeholders, not measurements (register rows UC-064 to UC-066).
+
+**What is not changed.** TMS `intensity_percent_mt` is a percentage of a **measured per-patient
+motor threshold**, a baseline that is stated and does not move with the hardware, so it stays.
+`intensity_scale` on a composite layer multiplies the referenced protocol's own absolute values.
+`visual_stimulation` has no percentage intensity and no absolute one yet.
+
+**Runtimes (Rev 18).** The grammar and the web runtime implement this. iOS, Android and Windows do not
+read `irradiance` or `volume: …dB` yet, and would run a block that carries them with their default
+dose, silently. Until they do, do not ship this library to those platforms (`OI-NPPS-ABS-01`).
 
 ---
 
@@ -489,13 +557,15 @@ Bilateral intranasal probe.
 
 | Field | Canonical | Type | Values |
 |-------|-----------|------|--------|
-| `intensity` | `intensity_percent` | number | 0–100 |
+| `wavelength` | `wavelength` | string | **Required.** One wavelength; the probe carries the 660 nm and 808 nm channels, so a value mapping to the 1064 nm channel is refused. Two wavelengths, two blocks |
+| `irradiance` | `irradiance_mw_cm2` | number, `mW_cm2` | **Required** (§4.1b) |
 | `frequency` | `frequency_hz` | number | 0 (CW) or 0.5–100 |
 | `duty_cycle` | `duty_cycle_percent` | number | 1–25 |
 
 ```
 pbm_intranasal {
-    intensity: 60%
+    wavelength: "660nm"
+    irradiance: 60mW_cm2
     frequency: 40Hz
     duty_cycle: 25%
     interval_on: 15m
@@ -636,7 +706,7 @@ Over-ear planar magnetic + bone conduction.
 | `isochronic_hz` | `isochronic_tones_hz` | number (optional) | 0.5–100 |
 | `noise` | `noise_type` | string (optional) | `pink` `brown` `none` |
 | `carrier_hz` | `carrier_hz` | number | Hz of carrier tone for binaural beats |
-| `volume` | `volume_percent` | number | 0–100 |
+| `volume` | `volume_db` | number, `dB` | **Required.** Sound pressure level at the ear, dB SPL (§4.1b). The drive's calibrated range is provisional (register row UC-066) |
 | `eeg_adaptive` | `eeg_adaptive` | bool | Adjust frequency in real time based on EEG |
 | `bone_conduction_pacer` | `bone_conduction_pacer` | bool | Use bone conduction for breathing pacer cue |
 
@@ -647,7 +717,7 @@ audio_entrainment {
     binaural_hz: 10Hz
     noise: pink
     carrier_hz: 440Hz
-    volume: 60%
+    volume: 70dB
     eeg_adaptive: true
     bone_conduction_pacer: false
 }
@@ -658,7 +728,7 @@ audio_entrainment {
     isochronic_hz: 40Hz
     binaural_hz: 40Hz
     carrier_hz: 440Hz
-    volume: 65%
+    volume: 72.5dB
     eeg_adaptive: true
     bone_conduction_pacer: false
 }
@@ -672,7 +742,7 @@ audio_entrainment {
 
 | Field | Canonical | Type | Values |
 |-------|-----------|------|--------|
-| `intensity` | `intensity_percent` | number | 0–100 |
+| `intensity` | — | — | **Refused (Rev 18).** There is no percentage intensity and no absolute one yet (§4.1b) |
 | `frequency` | `frequency_hz` | number | 0–100 (0 = off / Mode F) |
 | `mode` | `mode` | string | `binocular` `emdr` `retinal_pbm` `mode_f` |
 | `emdr_cadence` | `emdr_cadence_hz` | number | L/R alternation rate in Hz |
@@ -1002,7 +1072,7 @@ limits "T1 Home Defaults" {
     description: "Standard T1 safety limits."
 
     pbm_transcranial {
-        max_intensity: 100
+        max_irradiance_mw_cm2: 400
         max_frequency: 100
         max_duty_cycle: 25
         max_session_dose: 60.0
@@ -1036,7 +1106,7 @@ limits "T1 Home Defaults" {
     }
 
     audio_entrainment {
-        max_intensity: 85
+        max_volume_db: 80
         max_frequency: 100
         max_binaural_beats: 100
         max_isochronic_tones: 100
@@ -1097,16 +1167,16 @@ limits "T1 Home Defaults" {
 | `individual_id` | string | User ID (if `level: individual`) |
 | `description` | string | Human-readable label |
 
-**Per-modality sub-blocks** (all fields optional — omitted means unrestricted):
+**Per-modality sub-blocks** (all fields optional — omitted means unrestricted). *(Rev 18)* `max_intensity` on `pbm_transcranial`, `pbm_intranasal` and `audio_entrainment` is **refused**, not skipped: a ceiling dropped silently is no ceiling. Use `max_irradiance_mw_cm2` and `max_volume_db`.
 
 | Block | Field | Unit |
 |-------|-------|------|
-| `pbm_transcranial` | `max_intensity` | % |
+| `pbm_transcranial` | `max_irradiance_mw_cm2` | mW/cm² |
 | | `max_frequency` | Hz |
 | | `max_duty_cycle` | % |
 | | `max_session_dose` | J/cm² |
 | | `max_daily_dose` | J/cm² |
-| `pbm_intranasal` | `max_intensity` | % |
+| `pbm_intranasal` | `max_irradiance_mw_cm2` | mW/cm² |
 | | `max_session_dose` | J/cm² |
 | | `max_session_duration` | seconds |
 | `eeg_neurofeedback` | `allowed_bands` | array of band names |
@@ -1123,7 +1193,7 @@ limits "T1 Home Defaults" {
 | | `max_frequency` | Hz |
 | | `max_session_duration` | seconds |
 | | `allowed_protocols` | array of protocol names |
-| `audio_entrainment` | `max_intensity` | % |
+| `audio_entrainment` | `max_volume_db` | dB SPL |
 | | `max_binaural_beats` | Hz |
 | | `max_isochronic_tones` | Hz |
 | `visual_stimulation` | `max_frequency` | Hz |
@@ -1367,7 +1437,7 @@ TYPE_ID              := 'pbm_transcranial' | 'pbm_intranasal' | 'eeg_neurofeedba
                       | 'visual_stimulation' | 'qeeg_21ch' | 'tms' | 'pbm_deep_1170nm'
                       | 'clinical_tacs' | 'hd_tdcs' | 'cervical_vns' | 'vibrotactile_40hz'
 # 'wavelength' values are quoted strings: one wavelength "<N>nm" (§4.1a),
-#   or a legacy channel name "660_808nm" | "1064nm" | "660_808_1064nm"
+#   (the combined names "660_808nm" and "660_808_1064nm" are retired, Rev 18)
 # pbm_transcranial 'zones' value — exactly two forms (§4.1):
 #   STRING_ARRAY (named zone refs, each resolving to a `zone` block)
 #   | 'clinician_selected'
@@ -1418,6 +1488,7 @@ REF_ARRAY   := '[' (ref (',' ref)*)? ']'
 ref         := STRING | '[' STRING ',' STRING ']'        # url | [label, url]
 INT_ARRAY   := '[' (INT (',' INT)*)? ']'
 DURATION    := NUMBER ('s' | 'm')?   # bare number = seconds
+QUANTITY    := NUMBER ('mW_cm2' | 'dB')   # irradiance / sound level; the unit is REQUIRED on the short names (§4.1b)
 BOOL        := 'true' | 'false'
 LEVEL_ID    := 'global' | 'helmet' | 'individual'
 ```
@@ -1429,6 +1500,15 @@ hyphen tail of its bare-identifier rule (`wind-down`) were removed. A bare ident
 `[A-Za-z_][A-Za-z0-9_]*`; anything else is a quoted string, so every value maps onto a JSON
 scalar. `npps/fixtures/error_bare_compound_ident.npps`, `error_bare_hyphenated_ident.npps` and
 `error_bare_montage.npps` assert the unquoted forms are rejected.
+
+**Absolute quantities (Rev 18):** in a *protocol's* modality blocks the grammar itself refuses
+`intensity` / `intensity_percent` on the optical modalities, `volume_percent` on audio, a combined
+`wavelength` name, a `irradiance` or `volume` without its unit or with `%`, and the absence of
+`wavelength` and an irradiance on `pbm_transcranial` / `pbm_intranasal` or of a volume on
+`audio_entrainment`. In a `limits` block it refuses `max_intensity` on the PBM and audio sub-blocks.
+`npps/fixtures/error_percent_intensity.npps`, `error_percent_volume.npps`,
+`error_combined_wavelength.npps`, `error_unitless_irradiance.npps` and
+`error_missing_irradiance.npps` assert each refusal.
 
 **Forward compatibility:** unknown `meta_field` keys (and unknown fields in limits/zone/condition sub-blocks) are silently skipped. `limits` blocks accept an optional name string for existing files that omit it. The retired five-slot `zones` forms (`all`/`front`/`rear`/`custom` + `custom_zones`, and numeric `zones: [0,1]`) **do not parse** — they are rejected outright (§4.1), not accepted and ignored. They named zones no `.npps` file defines, or bypassed zone definitions altogether, which is why they went rather than being kept as a compatibility path.
 
@@ -1459,7 +1539,7 @@ Reading the table:
   suffixes (`Hz`, `mA`, `mW_cm2`).
 - Sort order is case-insensitive, so `%` and digit-leading tokens come first and `iTBS` sorts
   with the `i`s.
-- **Quoted entries are written with their quotes** (`"660_808nm"`, `"1064nm"`): those values must
+- **Quoted entries are written with their quotes** (`"1064nm"`): those values must
   be quoted in source (§2). Sorting ignores the quote mark.
 - **`name` is deliberately absent.** A `protocol`, `composite`, `limits`, `zone`, `condition` or
   `layer` name is declared *inline in the block header*, never as a `name:` field — §2's
@@ -1472,9 +1552,9 @@ Reading the table:
 | Keyword | Kind | Where it appears | Meaning |
 |---------|------|------------------|---------|
 | `%` | Unit suffix | any number | Percentage (0–100). Cosmetic — the parser reads the bare number. |
-| `"1064nm"` | Enum value (quoted) | `pbm_transcranial` → `wavelength` | Drive the 1064 nm channel only (smart zone module, CH_C). A legacy channel name that is also a single wavelength; both readings drive CH_C alone (§4.1a). **Must be quoted** (§2) — digit-leading. |
-| `"660_808_1064nm"` | Enum value (quoted) | `pbm_transcranial` → `wavelength` | Drive all three PBM channels; requires 1064 nm smart zone modules. **Must be quoted** (§2) — digit-leading. |
-| `"660_808nm"` | Enum value (quoted) | `pbm_transcranial` → `wavelength` | Drive the 660 nm and 808–830 nm channels (base module, CH_A + CH_B). **Must be quoted** (§2) — digit-leading. |
+| `"1064nm"` | Wavelength value (quoted) | `pbm_transcranial`, `pbm_intranasal` → `wavelength` | A single wavelength that the default rules map to the 1064 nm channel (CH_C, smart module). **Must be quoted** (§2) — digit-leading. |
+| `"660_808_1064nm"` | Retired value | `wavelength` | *(Rev 18)* Refused. Welded three independent emitters into one block; write `"660nm"`, `"808nm"` and `"1064nm"` as three blocks (§4.1a). |
+| `"660_808nm"` | Retired value | `wavelength` | *(Rev 18)* Refused. Welded two independent emitters into one block; write `"660nm"` and `"808nm"` as two blocks (§4.1a). |
 | `ACC` | Enum value | `tms` / `hd_tdcs` → `target` | Anterior cingulate cortex. A **deep** target — never focally reachable by a 4×1 ring (NP-FW-HD-001 §2.3). |
 | `all` | Enum value | `eeg_neurofeedback` → `channels` | Every electrode in the array. **Not** a `pbm_transcranial` zone selector — that form is retired and rejected (§4.1); the whole-helmet target is the named zone `"All"`. |
 | `allowed_bands` | Limits field | `limits` → `eeg_neurofeedback` | Array of the only EEG band names a protocol may select. |
@@ -1552,11 +1632,13 @@ Reading the table:
 | `id` | Metadata field | `protocol`, `composite`, `zone`, `condition` | Stable UUID. Its **presence marks the entry as predefined** (shipped, read-only). |
 | `individual` | Enum value | `limits` → `level` | Per-user limits; the most specific level, overrides `helmet`. Requires `individual_id`. |
 | `individual_id` | Limits field | `limits` | User ID the limits block applies to, when `level: individual`. |
-| `intensity` | Modality field (alias) | most modalities | **Context-dependent alias.** Maps to `intensity_percent` for optical modalities and `intensity_milliamps` for electrical ones (§4, Field aliases). Not available on `pbm_deep_1170nm` or `vibrotactile_40hz`. |
+| `intensity` | Modality field (alias) | electrical modalities | **Electrical only.** Maps to `intensity_milliamps` (§4, Field aliases). **Refused** on `pbm_transcranial`, `pbm_intranasal` and `visual_stimulation` (Rev 18, §4.1b): use `irradiance`. Not available on `pbm_deep_1170nm` or `vibrotactile_40hz`. |
+| `irradiance` | Modality field (alias) | `pbm_transcranial`, `pbm_intranasal` | Alias of `irradiance_mw_cm2` — peak irradiance at the scalp. The unit suffix `mW_cm2` is **required** (`irradiance: 300mW_cm2`); `%` and a bare number are errors (§4.1b). |
+| `irradiance_mw_cm2` | Modality field (canonical) | `pbm_transcranial`, `pbm_intranasal` | Peak irradiance at the scalp for the block's wavelength, mW/cm². Required. A bare number. |
 | `intensity_g` | Modality field | `vibrotactile_40hz` | Drive amplitude in G (acceleration), 0.6–1.2. Use directly — `intensity` does not alias to it. |
 | `intensity_milliamps` | Modality field (canonical) | electrical modalities | Canonical name `intensity` resolves to for `bes_tacs`, `tdcs`, `vns_hrv`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `tms`. |
 | `intensity_mw_cm2` | Modality field | `pbm_deep_1170nm` | Irradiance in mW/cm², ≤1000. Use directly — `intensity` does not alias to it. |
-| `intensity_percent` | Modality field (canonical) | optical modalities | Canonical name `intensity` resolves to for `pbm_transcranial`, `pbm_intranasal`, `visual_stimulation`. |
+| `intensity_percent` | Retired field | optical modalities | *(Rev 18)* Refused. A percentage of an unnamed baseline; replaced by `irradiance_mw_cm2` (§4.1b). |
 | `intensity_percent_mt` | Modality field | `tms` | Stimulator output as % of motor threshold, 80–120 typical. |
 | `intensity_scale` | Layer field | `layer` | Multiplier applied to every modality intensity in the referenced protocol, 0.0–2.0. Default `1.0`. |
 | `interval_count` | Metadata field | `protocol` | Alternative to `duration`: run for N modality intervals instead of a fixed wall time. |
@@ -1583,8 +1665,9 @@ Reading the table:
 | `max_daily_dose` | Limits field | `limits` → `pbm_transcranial` | Ceiling on cumulative PBM dose per day, in J/cm². |
 | `max_duty_cycle` | Limits field | `limits` → `pbm_transcranial` | Ceiling on `duty_cycle`, in %. |
 | `max_frequency` | Limits field | `limits` → several modality sub-blocks | Ceiling on `frequency`, in Hz. |
-| `max_intensity` | Limits field | `limits` → most modality sub-blocks | Ceiling on that modality's intensity, in the modality's own unit (%, mA, mW/cm² or G). |
+| `max_intensity` | Limits field | `limits` → most modality sub-blocks | Ceiling on that modality's intensity, in the modality's own unit (mA, mW/cm² or G). **Refused on `pbm_transcranial`, `pbm_intranasal` and `audio_entrainment`** (Rev 18): use `max_irradiance_mw_cm2` and `max_volume_db`. |
 | `max_intensity_pct_mt` | Limits field | `limits` → `tms` | Ceiling on `intensity_percent_mt`, in % MT. |
+| `max_irradiance_mw_cm2` | Limits field | `limits` → `pbm_transcranial`, `pbm_intranasal` | *(Rev 18)* Ceiling on `irradiance`, in mW/cm². |
 | `max_isochronic_tones` | Limits field | `limits` → `audio_entrainment` | Ceiling on `isochronic_hz`, in Hz. |
 | `max_nm` | Wavelength-rules field | `wavelength_rules` → `channel` | *(Rev 17)* Upper end of the channel's window, nm, inclusive (§7a). |
 | `max_pulses_per_day` | Limits field | `limits` → `tms` | Ceiling on total TMS pulses per day. |
@@ -1593,6 +1676,7 @@ Reading the table:
 | `max_session_duration` | Limits field | `limits` → most modality sub-blocks | Ceiling on session length for that modality, in seconds. |
 | `max_sessions_per_day` | Limits field | `limits` → `bes_tacs`, `tdcs` | Ceiling on session count per day. |
 | `max_sessions_per_week` | Limits field | `limits` → `tms` | Ceiling on session count per week. |
+| `max_volume_db` | Limits field | `limits` → `audio_entrainment` | *(Rev 18)* Ceiling on `volume`, in dB SPL. |
 | `merge` | Enum value | `composite` → `conflict_resolution` | Modalities from all active layers run simultaneously. |
 | `min_frequency` | Limits field | `limits` → `bes_tacs`, `visual_stimulation` | Floor on `frequency`, in Hz. |
 | `min_nm` | Wavelength-rules field | `wavelength_rules` → `channel` | *(Rev 17)* Lower end of the channel's window, nm, inclusive (§7a). |
@@ -1600,7 +1684,8 @@ Reading the table:
 | `mode_f` | Enum value | `visual_stimulation` → `mode`; `limits` → `allowed_modes` | Invisible NIR retinal PBM during normal-looking wear — no visible flicker. Distinct from the `enable_mode_f` field that switches it on, and from `retinal_pbm`, which is the deliberate retinal session rather than the passive one. |
 | `montage` | Modality field | `qeeg_21ch`, `hd_tdcs` | Electrode montage. `standard_1020` / `custom` on `qeeg_21ch`; `ring_4x1` / `bilateral_4x1` / `standard_2_electrode` on `hd_tdcs`. |
 | `MPFC` | Enum value | `tms` / `hd_tdcs` → `target` | Medial prefrontal cortex. |
-| `mW_cm2` | Unit suffix | any number | Irradiance in mW/cm². Cosmetic — the parser reads the bare number. |
+| `mW_cm2` | Unit suffix | `irradiance` | Irradiance in mW/cm². **Required** on `irradiance` (§4.1b); cosmetic elsewhere. |
+| `dB` | Unit suffix | `volume` | Sound pressure level in dB SPL. **Required** on `volume` (§4.1b). |
 | `noise` | Modality field (alias) | `audio_entrainment` | Alias of `noise_type` — background noise bed. Optional; `none` is equivalent to omitting it. |
 | `noise_type` | Modality field (canonical) | `audio_entrainment` | Canonical name behind `noise`. |
 | `nominal_nm` | Wavelength-rules field | `wavelength_rules` → `channel` | *(Rev 17)* The channel's nominal emission, nm. Only breaks a tie between two accepting channels (§7a). |
@@ -1661,10 +1746,11 @@ Reading the table:
 | `VLPFC_L` | Enum value | `tms` / `hd_tdcs` → `target` | Left ventrolateral prefrontal cortex. |
 | `vns_contact` | Element type | `zone` → `types` | Auricular VNS clip contact element. |
 | `vns_hrv` | Modality block | `protocol`, `limits` | Auricular vagus nerve stimulation with HRV biofeedback (§4.6). |
-| `volume` | Modality field (alias) | `audio_entrainment` | Alias of `volume_percent` — output level, 0–100. |
-| `volume_percent` | Modality field (canonical) | `audio_entrainment` | Canonical name behind `volume`. |
+| `volume` | Modality field (alias) | `audio_entrainment` | Alias of `volume_db`. The unit suffix `dB` is **required** (`volume: 72dB`); `%` and a bare number are errors (§4.1b). |
+| `volume_db` | Modality field (canonical) | `audio_entrainment` | Sound pressure level at the ear, dB SPL. Required. A bare number. |
+| `volume_percent` | Retired field | `audio_entrainment` | *(Rev 18)* Refused. Replaced by `volume_db`. |
 | `waveform` | Modality field | `bes_tacs`, `clinical_tacs` | Stimulation waveform: `sinusoidal`, `square` or `triangular`. |
-| `wavelength` | Modality field | `pbm_transcranial` | One requested wavelength (`"810nm"`), mapped to a channel by the wavelength rules, or a legacy channel name (§4.1a). |
+| `wavelength` | Modality field | `pbm_transcranial`, `pbm_intranasal` | **Required.** One requested wavelength (`"810nm"`), mapped to a channel by the wavelength rules (§4.1a). |
 | `wavelength_rules` | Top-level block | file | *(Rev 17)* Which requested wavelengths each emitter channel may deliver (§7a). Shipped defaults in `00-wavelength-rules.npps`; user-editable. |
 | `zone` | Top-level block | file | Defines a named set of modules by socket address (§8). **The only way a zone is defined** — nothing outside a `.npps` file supplies one. Populates the namespace; referenced by name from `pbm_transcranial`'s `zones`. A name defined twice across the tree is an error and binds to neither definition (§1.6). |
 | `zones` | Modality field | `pbm_transcranial` | Which modules to drive. Exactly two forms: a named-zone-reference string array (§8), or the keyword `clinician_selected`. Omitted, it defaults to `["All"]`. The five-slot selectors are retired and rejected (§4.1). |
@@ -1704,3 +1790,16 @@ Clinical presets are `clinical-NN-*.npps` (ids in the `30000xxx` band), each car
 | tACS essential tremor (cerebellar phase-locked) | Cerebellar placement; documented, not shipped as a preset. |
 
 *Reference material and parameters for excluded protocols remain in the two source docs; exclusion is about what ships as a runnable preset, not about the evidence.*
+
+### Irradiance and level in the shipped library (Rev 18)
+
+Each PBM block carries the irradiance its defining document states, where one does. Sourced
+(`docs/pbm_neuro_protocols.md`): Chun 2026 **300**, Papi 2022 **285**, Cassano 2018 **36**, Schiffer 2009
+**250**, Maiello 2019 **30**, Wang 2023 **310**, Naeser 2011/2014 **22**, Yao 2022 (1064 nm) **250** and
+§9 stroke **20** mW/cm². The 1064 nm Alzheimer's protocol states the low end of §1's band, **100**,
+because its trial states none. **Not sourced, and marked so in the file** (register rows UC-064 to
+UC-066): the ten wellness presets, Woźniak-Mitał (power only), Parkinson's, autism (power only), every
+intranasal block, and every audio level. No defining document states a sound level for any protocol.
+Where a trial used one wavelength the protocol has one block; where the document's protocol line gives
+two (Parkinson's: 810 + 660 nm) it has two.
+

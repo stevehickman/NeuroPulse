@@ -32,6 +32,8 @@
 import { readFileSync, readdirSync } from "fs";
 import { join } from "path";
 import { TILE_W, AVAILABLE_W } from "./pbm-model";
+import { PBM_FULL_SCALE_MW_CM2 } from "../app/web/src/lib/pbmDrive";
+import { DEFAULT_WAVELENGTH_RULES, mapWavelength, parsePbmWavelength } from "../app/web/src/lib/wavelengthRules";
 
 const DIR = "protocols/predefined";
 
@@ -46,7 +48,7 @@ export { TILE_W, AVAILABLE_W };
 
 export type Row = {
   file: string; name: string; sockets: number | null; wavelength: string;
-  intensity: number; cw: boolean; duty: number | null; perTileW: number;
+  irradiance: string; cw: boolean; duty: number | null; perTileW: number;
   requiredW: number | null; maxConcurrent: number; groups: number | null;
   durationS: number | null; zoneLabel: string; notes: string[];
 };
@@ -60,6 +62,13 @@ const num = (s: string | undefined, d: number): number => {
   if (s === undefined) return d;
   const v = parseFloat(s.replace(/[^\d.]/g, ""));
   return Number.isFinite(v) ? v : d;
+};
+
+/** The number at the start of a value, ignoring its unit suffix (`36mW_cm2` → 36). `num()` strips
+ *  every non-digit and would read the 2 of `cm2` as part of the number. */
+const leadingNumber = (s: string | undefined): number => {
+  const v = s === undefined ? NaN : parseFloat(s);
+  return Number.isFinite(v) ? v : 0;
 };
 
 function loadZones(): Map<string, number[]> {
@@ -81,59 +90,89 @@ export function analyse(): Row[] {
     if (!file.endsWith(".npps") || file.startsWith("00-")) continue;
     const text = readFileSync(join(DIR, file), "utf8");
     const nameM = /protocol\s+"([^"]+)"/.exec(text);
-    const blk = /pbm_transcranial\s*\{([\s\S]*?)\n {4}\}/.exec(text);
-    if (!nameM || !blk) continue;
-    const body = blk[1];
+    // One block per wavelength (NP-NPPS-REF-001 §4.1a): read ALL of them. Reading
+    // only the first would count a 660 nm block and miss its 808 nm partner.
+    const blocks = [...text.matchAll(/pbm_transcranial\s*\{([\s\S]*?)\n {4}\}/g)].map((m) => m[1].replace(/^\s*#.*$/gm, ""));   // comments may quote field names
+    if (!nameM || blocks.length === 0) continue;
     const notes: string[] = [];
 
-    const intensity = num(field(body, "intensity"), 100);
-    const freqHz = num(field(body, "frequency"), 0);
-    const dutyRaw = field(body, "duty_cycle");
-    const duty = dutyRaw === undefined ? null : num(dutyRaw, 100);
-    const wavelength = field(body, "wavelength") ?? "660_808nm";
-    const zoneSpec = field(body, "zones") ?? "all";
-    const cw = freqHz === 0;
+    // Electrical draw of ONE channel at full drive: the dual tile's 25 W is two
+    // channels, so half each; CH_C is the 1064-only tile's 6.3 W.
+    const chanW = (ch: string): number =>
+      ch === "led_1064" ? TILE_W["1064nm"] : TILE_W["660_808nm"] / 2;
 
-    if (cw && duty !== null) {
-      // NP-NPPS-REF-001 §4.1: `frequency: 0` selects CW, and CW means 100 % duty.
-      // The compiler emits freq_code 0x00 and the duty register independently
-      // (hubCompiler.ts freqCode/dutyReg), so which one wins is unspecified.
-      // Reported at the CW reading — the higher draw — and flagged. OI-SESPWR-03.
-      notes.push("CW+duty ambiguous");
-    }
+    const perSocketW = new Map<number, number>();
+    let unknownSockets = 0;
+    let anyClinician = false;
+    const wls: string[] = [];
+    const irrs: string[] = [];
+    let cw = false;
+    let duty: number | null = null;
+    for (const body of blocks) {
+      const wl = (field(body, "wavelength") ?? "").replace(/"/g, "");
+      const w = parsePbmWavelength(wl);
+      const ch = w.kind === "single" ? mapWavelength(w.nm, DEFAULT_WAVELENGTH_RULES) : null;
+      const irr = leadingNumber(field(body, "irradiance"));
+      wls.push(wl); irrs.push(`${irr}`);
+      if (ch === null) { notes.push(`${wl || "no wavelength"}: no channel delivers it — not counted`); continue; }
+      const frac = Math.min(1, irr / PBM_FULL_SCALE_MW_CM2[ch]);
+      const freqHz = num(field(body, "frequency"), 0);
+      const dutyRaw = field(body, "duty_cycle");
+      const d = dutyRaw === undefined ? null : num(dutyRaw, 100);
+      const blockCw = freqHz === 0;
+      cw = cw || blockCw;
+      if (d !== null) duty = d;
+      if (blockCw && d !== null) {
+        // NP-NPPS-REF-001 §4.1: `frequency: 0` selects CW, and CW means 100 % duty.
+        // The compiler emits freq_code 0x00 and the duty register independently
+        // (hubCompiler.ts freqCode/dutyReg), so which one wins is unspecified.
+        // Reported at the CW reading — the higher draw — and flagged. OI-SESPWR-03.
+        if (!notes.includes("CW+duty ambiguous")) notes.push("CW+duty ambiguous");
+      }
+      const blockW = chanW(ch) * frac * (blockCw ? 1 : (d ?? 100) / 100);
 
-    let sockets: number | null;
-    let zoneLabel: string;
-    if (zoneSpec.startsWith("[")) {
-      const names = [...zoneSpec.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
-      if (names.length) {
+      const zoneSpec = field(body, "zones") ?? "all";
+      let socketList: number[];
+      if (zoneSpec.startsWith("[")) {
+        const names = [...zoneSpec.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
         const missing = names.filter((n) => !zones.has(n));
         if (missing.length) notes.push(`unknown zone: ${missing.join(", ")}`);
-        sockets = [...new Set(names.flatMap((n) => zones.get(n) ?? []))].length;
-        zoneLabel = names.join(", ");
+        socketList = names.flatMap((n) => zones.get(n) ?? []);
+      } else if (zoneSpec.includes("clinician")) {
+        anyClinician = true; socketList = [];
+        if (!notes.includes("operator-selected — budget depends on the selection")) {
+          notes.push("operator-selected — budget depends on the selection");
+        }
       } else {
-        sockets = new Set([...zoneSpec.matchAll(/\d+/g)].map((d) => d[0])).size;
-        zoneLabel = "numeric indices";
+        socketList = all;
       }
-    } else if (zoneSpec.includes("clinician")) {
-      sockets = null; zoneLabel = "clinician_selected";
-      notes.push("operator-selected — budget depends on the selection");
-    } else {
-      sockets = all.length; zoneLabel = zoneSpec;
+      for (const sk of new Set(socketList)) perSocketW.set(sk, (perSocketW.get(sk) ?? 0) + blockW);
+      if (anyClinician) unknownSockets++;
     }
 
-    const base = TILE_W[wavelength] ?? TILE_W["660_808nm"];
-    const peak = (base * intensity) / 100;
-    const perTileW = cw ? peak : (peak * (duty ?? 100)) / 100;
+    const sockets: number | null = anyClinician ? null : perSocketW.size;
+    const zoneLabel = anyClinician ? "clinician_selected" : `${blocks.length} block(s)`;
+    const wavelength = [...new Set(wls)].join("+");
+    const irradiance = irrs.join("/");
+    // The hottest tile sets the concurrency; the library is summed per socket.
+    const perTileW = anyClinician
+      ? chanW("led_808") * Math.min(1, leadingNumber(field(blocks[0], "irradiance")) / PBM_FULL_SCALE_MW_CM2.led_808) * (cw ? 1 : (duty ?? 100) / 100)
+      : Math.max(0, ...perSocketW.values());
+    const requiredWsum = [...perSocketW.values()].reduce((x, y) => x + y, 0);
+    // Nothing deliverable (every wavelength unmapped): there is no draw to audit.
+    if (!anyClinician && perSocketW.size === 0) {
+      console.error(`check-pbm-power: ${nameM[1]}: no block is deliverable (${notes.join("; ")}) — skipped`);
+      continue;
+    }
     const maxConcurrent = Math.max(1, Math.floor(AVAILABLE_W / perTileW));
     const durM = /\n {4}duration:\s*(\d+)([ms])/.exec(text);
     const durationS = durM ? Number(durM[1]) * (durM[2] === "m" ? 60 : 1) : null;
 
     rows.push({
-      file, name: nameM[1], sockets, wavelength, intensity, cw, duty, perTileW,
-      requiredW: sockets === null ? null : sockets * perTileW,
+      file, name: nameM[1], sockets, wavelength, irradiance, cw, duty, perTileW,
+      requiredW: sockets === null ? null : requiredWsum,
       maxConcurrent,
-      groups: sockets === null ? null : Math.ceil(sockets / maxConcurrent),
+      groups: sockets === null ? null : Math.ceil((sockets || 0) / maxConcurrent),
       durationS, zoneLabel, notes,
     });
   }
