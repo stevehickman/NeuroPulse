@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 62 (current)  
+**Revision:** 63 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -52,6 +52,7 @@ Plain paths, not `@import`s: nothing below loads until it is `Read`.
 | Accessories + companion SW · durability · service network | `docs/reference/{accessories-roadmap,durability-maintenance,service-network}.md` |
 | Competitive position · regulatory strategy · clinical evidence · marketing | `docs/reference/{competitive-position,regulatory-strategy,clinical,marketing-notes}.md` |
 | Open items · locked-decision log · document + firmware register | `docs/status/{pending-decisions,completed-decisions,document-register}.md` |
+| **Every choice with no derivation, measurement or checked source**, and where it was decided (§19) | `docs/status/unjustified-choices.md` |
 | Formal DHF index: the **single maintained index**, gated by `scripts/check-dhf-index.ts`. `document-register.md` is frozen history (`OI-CONV-07`, closed) | `docs/np_dhf_001.md` |
 | Manufactured artifacts + which spec / risk register / FAI exists | `docs/np_art_001.md` |
 | FAI programme | `docs/np_fai_001.md` |
@@ -422,10 +423,34 @@ IEC 62471, the §3 charge ceilings) or a hazard control. It also does not reach 
 derivation exists but is uncited. **"I could not find the derivation" means raise an open item,
 never retire.** Removing a safety control is an ISO 14971 decision.
 
+## 19. UNJUSTIFIED CHOICES — THE REGISTER IS KEPT CURRENT (locked) → `docs/status/unjustified-choices.md`
+
+**Every choice that has no derivation, no measurement and no external citation has a row in
+`docs/status/unjustified-choices.md`, and the row is kept current in the same change that alters it.**
+A citation to an external source (a standard, a paper, a datasheet) is a justification, and it takes the
+choice out of the register. An internal document that restates the figure is not one. Checking an external
+citation against its source is tracked by its own open item, never by a row. The register is an index. The
+reasoning stays in the owning open item (OI), so a row points at it and never replaces it.
+
+- **Adding one adds a row.** A change that introduces a constant, limit, tolerance, threshold or
+  assumption with no derivation behind it, or that marks one `PROVISIONAL`, `PLACEHOLDER`,
+  `UNCALIBRATED` or `UNVALIDATED`, adds its row in that change. So does a change that finds an
+  existing one. **A row cites every source that bears on it** (the OI, the document section, each
+  GitHub issue or pull request that decided or discussed it), not the first one found.
+- **Justifying one moves its row.** A change that derives, measures or cites an external source for a
+  listed choice moves the row to the register's "Justified or retired" table in that change, with a link to the
+  justification. **A row is never deleted and its ID is never reused.**
+- **Retiring under §18 moves the row too.** "I could not find the derivation" still means a row and an
+  open item, never a retirement (§18).
+- **A marker outlives the row.** The gate keys on the marker, so a marked value whose choice is externally cited is
+  named in the "Justified or retired" table, and the marker stays until the open item that tracks the check closes.
+- **The gate is partial.** `scripts/check-unjustified-register.ts` fails a marked value the register
+  does not name. It cannot see an unmarked one. Marking it, or adding the row, is the author's duty.
+
 ---
 
 *When a locked decision changes, update the owning file, log it in
 `docs/status/completed-decisions.md`, and add an entry to
-`docs/reference/claude-md-revision-history.md`. Keep every section number (§1–§6, §16–§18) and every
+`docs/reference/claude-md-revision-history.md`. Keep every section number (§1–§6, §16–§19) and every
 subsection number in place, even when the content moves. `bun scripts/check-section-refs.ts` guards
 the citations that point at them.*

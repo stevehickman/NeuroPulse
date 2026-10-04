@@ -19,6 +19,33 @@
 
 ## Current revision
 
+**Rev 63 (2026-10-04) — new §19: the unjustified-choices register is kept current. A process rule; no design decision, limit or interlock changed.**
+
+**What was added.** `CLAUDE.md` §19 and a Document Map row. The register is `docs/status/unjustified-choices.md`,
+and its gate is `scripts/check-unjustified-register.ts` (`tooling-ci.yml` job `unjustified-register`).
+
+**Why.** Choices with no derivation, no measurement or no checked source were scattered across open-item
+rows in about thirty documents, firmware config headers, and `hardware/np_pbm_model.json`. Nothing
+listed them in one place, so revisiting one meant knowing where it had been marked. The nearest
+records each covered part of it: `pending-decisions.md` is organised by open item, `NP-CONV-001` §7.1.1 swept
+requirement rows once and is closed, and the JSON tags only the PBM model.
+
+**What counts as a justification (principal, same day).** A citation to an external source is one, so a choice that carries a citation has no row. Checking the citation against its source is a separate open item. The register moved four rows to its "Justified or retired" table on that basis. This entry was amended before Rev 63 reached `main`, so it still records what was believed when the revision was written.
+
+**What the rule says.** Adding an unjustified choice adds a row in the same change. Justifying one
+moves its row to the "Justified or retired" table with a link, and a row is never deleted. A row cites every
+source that bears on it. The register is an index and the owning open item stays the record.
+
+**What the gate can and cannot do.** It fails a firmware or hardware file that carries a `PROVISIONAL`,
+`PLACEHOLDER`, `UNCALIBRATED`, `UNVALIDATED` or `NOT DERIVED` marker the register does not name, and a
+register that cites an OI ID or path that nothing else records. It cannot see an unmarked choice, and the
+register was seeded from a keyword survey (its "Not surveyed" section lists what was not read).
+
+**What stays true.** Every section number is retained, and §18 is untouched: "could not find the
+derivation" still means an open item, never a retirement.
+
+## Earlier revisions
+
 **Rev 62 (2026-10-04) — CLAUDE.md slimmed: detail relocated to the files that own it. No design decision changed.**
 
 **What moved, and where.**

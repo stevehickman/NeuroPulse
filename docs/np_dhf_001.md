@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 159
+**Revision:** 160
 **Date:** 2026-10-04
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 159 | 2026-10-04 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 160 | 2026-10-04 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 2 | 2026-10-04 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | 11 | 2026-09-28 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -101,7 +101,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-DB-004 | Design Brief | 4 | 2026-05-07 | [np_db_004.docx](./superseded/np_db_004.docx) | SUPERSEDED by NP-DB-005 | REQ |
 | NP-DB-005 | Master Design Brief | 6 | 2026-08-11 | [np_db_005.docx](./np_db_005.docx) | DRAFT — PENDING APPROVAL | REQ |
 | NP-HEX-ZM-001 | Hexagonal Standardized Zone-Module Design Brief | 9 | 2026-09-28 | [np_hex_zm_001.md](./np_hex_zm_001.md) | DRAFT | REQ |
-| — | CLAUDE.md — Project Design Memory | 62 | 2026-10-04 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
+| — | CLAUDE.md — Project Design Memory | 63 | 2026-10-04 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
 
 **Note on CLAUDE.md:** CLAUDE.md serves as the living design authority document capturing all locked design decisions and pending items. It is under git version control and constitutes a design record for DHF purposes. Each revision (tracked by git commit) is a controlled design change. Rev 24 (2026-06-09) adds: OTA firmware update locked decision entry to §13.5 (opcode wire values, SPKI pinning, fingerprint-first ordering, 27 iOS + 21 firmware tests); OTA document entry in §14 document register; ISA progress updated to 36/164.
 

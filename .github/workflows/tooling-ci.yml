@@ -133,6 +133,7 @@ jobs:
       benchboundary: ${{ steps.scope.outputs.benchboundary }}
       map2shdr: ${{ steps.scope.outputs.map2shdr }}
       pbmmodel: ${{ steps.scope.outputs.pbmmodel }}
+      unjustified: ${{ steps.scope.outputs.unjustified }}
     env:
       # Eight independent surfaces, eight lists. A simulator-only change should
       # not run the Python gate, and vice versa. Blank lines and `#` comments
@@ -321,6 +322,21 @@ jobs:
         firmware/hub_control/include/np_pbm_model.generated.h
         scripts/**
         .github/workflows/tooling-ci.yml
+      # The unjustified-choices register gate (CLAUDE.md §19). It compares the
+      # register to every PROVISIONAL / PLACEHOLDER marker in firmware/,
+      # hardware/ and the comments of app/, protocols/, simulator/ and ci/, and
+      # to the OI IDs and paths it cites under docs/. A marker added in any of
+      # them and a row removed from the register are both edits it must see.
+      NP_SCOPE_UNJUSTIFIED: |
+        docs/**
+        firmware/**
+        hardware/**
+        app/**
+        protocols/**
+        simulator/**
+        ci/**
+        scripts/check-unjustified-register.ts
+        .github/workflows/tooling-ci.yml
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -356,6 +372,7 @@ jobs:
           printf '%s\n' "$NP_SCOPE_BENCHBOUNDARY" > scope.benchboundary.paths
           printf '%s\n' "$NP_SCOPE_MAP2SHDR" > scope.map2shdr.paths
           printf '%s\n' "$NP_SCOPE_PBMMODEL" > scope.pbmmodel.paths
+          printf '%s\n' "$NP_SCOPE_UNJUSTIFIED" > scope.unjustified.paths
 
       # A well-formed pattern that matches nothing is a typo, not a scope
       # decision: `simluator/**` would silently take the whole surface out of
@@ -363,7 +380,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths scope.benchboundary.paths scope.map2shdr.paths scope.pbmmodel.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths scope.benchboundary.paths scope.map2shdr.paths scope.pbmmodel.paths scope.unjustified.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -507,6 +524,17 @@ jobs:
           assert scope.pbmmodel.paths false hardware/np_socket_map.json
           assert scope.pbmmodel.paths false docs/np_pwrsrc_001.md
 
+          # The unjustified-choices register gate. The register, a firmware
+          # header that carries a marker, the hardware JSON, an app source and
+          # the script are in; the locale files are not, because the gate reads
+          # none of them.
+          assert scope.unjustified.paths true  docs/status/unjustified-choices.md
+          assert scope.unjustified.paths true  firmware/hub_control/include/np_hub_config.h
+          assert scope.unjustified.paths true  hardware/np_pbm_model.json
+          assert scope.unjustified.paths true  scripts/check-unjustified-register.ts
+          assert scope.unjustified.paths true  app/ios/NeurOne/Models/ConsumableInventory.swift
+          assert scope.unjustified.paths false locales/en.json
+
       - name: Changed files
         id: diff
         env:
@@ -566,6 +594,7 @@ jobs:
           emit benchboundary scope.benchboundary.paths
           emit map2shdr  scope.map2shdr.paths
           emit pbmmodel  scope.pbmmodel.paths
+          emit unjustified scope.unjustified.paths
 
   scripts-check:
     name: scripts/ type-check
@@ -933,6 +962,30 @@ jobs:
       # the JSON. "The countermeasure is not care" (NP-PWRSRC-001 §11 item 5).
       - name: hardware/np_pbm_model.json, the C header and scripts/ agree
         run: bun scripts/check-pbm-model.ts
+
+  unjustified-register:
+    name: every marked unjustified choice is in the register (CLAUDE.md §19)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.unjustified != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # No `bun install`: the checker reads source text with node builtins.
+
+      - name: Guard self-test (prove R1 and R5 and both marker forms can fail)
+        run: bun scripts/check-unjustified-register.ts --self-test
+
+      # A list of unjustified choices kept by reading goes stale exactly when a
+      # new PROVISIONAL constant lands without a row. This makes that fail.
+      - name: Every PROVISIONAL / PLACEHOLDER marker is named, and every cited ID and path exists
+        run: bun scripts/check-unjustified-register.ts
 
   tcap-map:
     name: the T2 cap electrode map matches its specification (NP-HW-TCAP-001 §3)
