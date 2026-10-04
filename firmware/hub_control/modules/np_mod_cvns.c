@@ -102,6 +102,10 @@ static np_cvns_interlock_ctx_t s_interlock;
 static np_cvns_stim_ctx_t      s_stim;
 static np_cvns_session_ctx_t   s_session;
 
+/* OI-CVNS-14: pacing of the heart-rate report to the safety MCU. */
+static bool     s_hr_report_sent;
+static uint32_t s_hr_report_ms;
+
 /* ── Driver state ────────────────────────────────────────────────────────────── */
 
 /* OI-CVNS-HUB-09: advisory per-electrode impedance measurement sub-state. */
@@ -662,6 +666,7 @@ np_hub_status_t np_mod_cvns_init(uint8_t slot)
 {
     (void)slot;
     memset(&s_state, 0, sizeof(s_state));
+    s_hr_report_sent = false;
     s_state.last_fault = NP_CVNS_FAULT_NONE;
 
     /* Drop any stale heartbeat snapshot (OI-CVNS-HUB-08) so a grant observed for
@@ -745,8 +750,26 @@ np_hub_status_t np_mod_cvns_control(uint8_t slot, const void *params, uint16_t l
     }
 
     s_state.active           = true;
+    s_hr_report_sent         = false;   /* report at the first tick of the session */
     s_state.last_fault       = NP_CVNS_FAULT_NONE;
     return NP_HUB_OK;
+}
+
+/* OI-CVNS-14: report the main processor's heart rate to the safety MCU. */
+static void cvns_send_hr_report(uint32_t now_ms)
+{
+    if (s_hr_report_sent && ((now_ms - s_hr_report_ms) < NP_CVNS_HR_REPORT_PERIOD_MS)) {
+        return;
+    }
+    s_hr_report_sent = true;
+    s_hr_report_ms   = now_ms;
+
+    uint16_t hr_x10 = 0U;
+    uint16_t age_ms = 0U;
+    const bool valid = np_cvns_interlock_hr_report(&s_interlock, now_ms,
+                                                   NP_SAFETY_HR_REPORT_INTERVALS,
+                                                   &hr_x10, &age_ms);
+    (void)np_safety_spi_send_hr_report(valid, hr_x10, age_ms);
 }
 
 /* ── Scheduler tick (OI-CVNS-HUB-07) ─────────────────────────────────────────── */
@@ -768,6 +791,11 @@ void np_mod_cvns_tick(uint32_t now_ms, uint32_t now_s)
      * library's SPI-response state BEFORE it advances this tick, so an enable
      * grant / impedance verdict lands the same tick the library consumes it. */
     cvns_apply_heartbeat(now_ms);
+
+    /* OI-CVNS-14: the second heart-rate observation for the safety MCU's ±5 BPM
+     * cross-check.  Sent about once a second while the driver is active; a lost
+     * frame only ages the MCU's held estimate (fail-closed on its side). */
+    cvns_send_hr_report(now_ms);
 
     np_cvns_session_tick(&s_session, now_ms, now_s);
 

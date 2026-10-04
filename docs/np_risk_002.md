@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-RISK-002
-**Revision:** 13
+**Revision:** 14
 **Date:** 2026-10-04
 **Status:** ACTIVE
 **Effective Date:** 2026-08-11
@@ -233,7 +233,7 @@ host-tested, but not one is verified on hardware:
 - FAI-CV02 (cutoff latency ≤ 100 ms) has not run.
 - The persistence log has not run on silicon.
 - The interlock's R-peak source has two open gaps: it depends on A13's PPG (`OI-CVNSHW-03`), and
-  the safety MCU has no R-R validity filter, by decision (`OI-CVNS-11`, closed 2026-10-04). A plausible false rhythm on `RPEAK_IN` is `OI-CVNS-14`.
+  the safety MCU has no R-R validity filter, by decision (`OI-CVNS-11`, closed 2026-10-04). A plausible false rhythm on `RPEAK_IN` was `OI-CVNS-14`, closed 2026-10-04 by building the ±5 BPM hub cross-check (host-tested, not run on silicon; its constants and false-trip rate are `OI-CVNS-15`).
 
 P1 is the target once those four close. The rating stays **ALARP** either way, because S5 × P1 is ALARP.
 
@@ -288,7 +288,7 @@ P1 is the target once those four close. The rating stays **ALARP** either way, b
    here so the ALARP rating has the §4.4 content it requires, not in place of that evaluation.
 
 **What would move the rating.**
-- **To P1:** FAI-CV02 passes, C4 runs on silicon, and `OI-CVNSHW-03` and `OI-CVNS-14` close.
+- **To P1:** FAI-CV02 passes, C4 runs on silicon, and `OI-CVNSHW-03` closes and `OI-CVNS-15` is settled (`OI-CVNS-14` closed 2026-10-04, built, not yet run on silicon).
 - **Worse:** a hardware result that breaks the < 100 ms cutoff, or a finding that A13's PPG
   degrades undetected.
 - **(Rev 8) Such a finding now exists, on the host rather than hardware:** C1 misses most qualifying
@@ -372,7 +372,7 @@ opened**: this is a design-stage finding corrected before any build.
 3. **It is not P1, for the same reasons as §4.3.1.** None of these has happened:
    - FAI-CV02 has not run.
    - C4 has not run on silicon.
-   - `OI-CVNSHW-03` and `OI-CVNS-14` are open. (`OI-CVNS-11` closed 2026-10-04.)
+   - `OI-CVNSHW-03` and `OI-CVNS-15` are open. (`OI-CVNS-11` and `OI-CVNS-14` closed 2026-10-04; the cross-check behind `OI-CVNS-14` is not run on silicon.)
 
    `OI-RISK2-09` joins them. A system-level P2 over a unit-level P1 is consistent: the unit row
    counts host verification of the rule, and this rating waits on the hardware and the R-peak
@@ -471,6 +471,7 @@ control effective 2026-05-13. That statement is amended, not withdrawn:
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| **14** | **2026-10-04** | **NeurOne Systems Engineering + principal** | **`OI-CVNS-14` closed: the ±5 BPM hub cross-check is built (`NP-FW-CVNS-001` Rev 14 §14.7), host-tested, not run on silicon; `OI-CVNS-15` raised for its constants and false-trip rate.** No score, control rating or acceptance changed: whether the control lowers RISK-25's probability is the Quality Lead's. |
 | **13** | **2026-10-04** | **NeurOne Systems Engineering + principal** | **`OI-CVNS-11` closed (candidate A) and `OI-CVNS-14` raised; wording follows `NP-FW-CVNS-001` Rev 13.** No score, control or acceptance changed. |
 | **12** | **2026-10-04** | **NeurOne Quality** | **RISK-25 re-scored with C1 as redesigned (§4.3.5), at the Quality Lead's direction; `OI-RISK2-08` CLOSED; ratings approved by the Quality Lead (interim: Steve Hickman, CEO) 2026-10-01.** **Residual unchanged at S5 × P2 = ALARP, target P1.** Detection ≤ 18 s from onset is the first stated bound on a latency the 8-interval mean always had, not a degradation, and its clinical adequacy is the new **`OI-RISK2-09`**. **Correction of record:** from Rev 5 until `NP-FW-CVNS-001` Rev 10, C1 as built gave a residual of S5 × P3 = UNACCEPTABLE. No patient was exposed and no CAPA is opened (development-mode posture). New hazard **25-e**, nuisance cutoff (OI-CVNS-13), is scored S1 × P5 = ALARP, with an ALARP justification. **25-c is now provisional** on the measured nuisance rate. `NP-FMEA-001` FMEA-M05-09's S5 × P1 = ALARP is approved (`NP-FMEA-001` Rev 21). `NP-FW-CVNS-001` §13 and §14.5 are updated to match (Rev 12). No requirement, threshold or code changed |
 | **11** | **2026-10-01** | **NeurOne Systems Engineering** | **`OI-RISK2-08` item 2 done: `NP-FMEA-001` Rev 18 adds FMEA-M05-09** (a qualifying heart-rate change absorbed in transit). The row scores the failure mode as built until `NP-FW-CVNS-001` Rev 9 as UNACCEPTABLE initial. It proposes S5 × P1 = ALARP on the redesigned C1, for Quality Lead approval. §4.3.4 lists the residuals the re-score should weigh. **Item 1 (the RISK-25 re-score) is still owed, so the item stays open.** No score changes here |

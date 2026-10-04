@@ -34,6 +34,15 @@ struct np_cvns_interlock_ctx {
     uint32_t pt_last_peak_ms;
     uint32_t pt_max_window_start_ms;
 
+    /* Intervals forwarded to the safety MCU (OI-CVNS-14): every peak pulsed on
+     * RPEAK_IN, with no upper bound, so the HR report mirrors what the MCU's own
+     * mean was built from.  rr_buf cannot serve: it drops intervals over
+     * NP_CVNS_RR_MAX_VALID_MS, which the MCU still sees. */
+    uint16_t fwd_rr_ms[NP_CVNS_FWD_RR_COUNT];
+    uint8_t  fwd_head;
+    uint8_t  fwd_count;
+    uint32_t fwd_last_ms;
+
     /* Baseline */
     float    baseline_hr_bpm;
     bool     baseline_valid;
@@ -128,6 +137,20 @@ float                     np_cvns_interlock_baseline_hr(const np_cvns_interlock_
  * 0 if no interval has been seen.  Not the safety MCU's value — the two sides
  * are independent implementations (NP-FW-CVNS-001 §5). */
 float                     np_cvns_interlock_current_hr(const np_cvns_interlock_ctx_t *ctx);
+/*
+ * Heart-rate estimate for the safety MCU's ±5 BPM cross-check (OI-CVNS-14).
+ * The mean of the last `n` intervals that were FORWARDED on RPEAK_IN, in 0.1 BPM,
+ * with the age of the newest one.  Returns false, and writes nothing, until n
+ * intervals exist or if the newest is older than UINT16_MAX ms: the frame then
+ * carries "no estimate".  `n` is NP_SAFETY_HR_REPORT_INTERVALS, the MCU's own
+ * span.  The estimate comes from this side's detector, not from the pulse train,
+ * so it follows a fault in the GPIO or timer path but NOT one in the detector:
+ * a detector that re-fires is seen identically on both sides (§14.7).
+ */
+bool                      np_cvns_interlock_hr_report(const np_cvns_interlock_ctx_t *ctx,
+                                                      uint32_t now_ms, uint8_t n,
+                                                      uint16_t *hr_x10_out,
+                                                      uint16_t *age_ms_out);
 bool                      np_cvns_interlock_baseline_valid(const np_cvns_interlock_ctx_t *ctx);
 np_cvns_fault_reason_t    np_cvns_interlock_fault_reason(const np_cvns_interlock_ctx_t *ctx);
 /* RPEAK_IN pulses emitted to the safety MCU since init.  Every detected peak

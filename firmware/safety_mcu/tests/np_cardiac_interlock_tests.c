@@ -10,9 +10,10 @@
  * exercises the MAIN PROCESSOR module (firmware/cervical_vns/) on the other
  * side of the SPI boundary and asserts on main-processor constants.  The two
  * sides are independent implementations; a test of one is not a test of the
- * other.  (They do NOT cross-validate: the ±5 BPM check was never built, and
- * the safety MCU never receives the main processor's baseline — NP-FW-CVNS-001
- * Rev 9, OI-CVNS-10 closed.)
+ * other.  (Until Rev 14 they did NOT cross-validate.  The ±5 BPM check is built
+ * as of OI-CVNS-14: the hub sends its own heart rate, np_safety_hr_report_cmd_t,
+ * and this unit compares it with its R-peak mean.  The HUB_* harness below
+ * stands in for a healthy hub; the OI-CVNS-14 group tests the check itself.)
  *
  * PURPOSE: these tests PIN CURRENT BEHAVIOUR.  Several assertions encode
  * constants (NP_CARDIAC_BASELINE_BEATS = 8, NP_RR_BUF_SIZE = 8,
@@ -43,6 +44,8 @@ extern void             np_cardiac_interlock_restore(bool cutoff_pending);
 extern bool             np_cardiac_interlock_nv_request(bool *pending_out);
 extern void             np_cardiac_interlock_nv_done(bool written);
 extern void             np_cardiac_interlock_arm_reset(void);
+extern void             np_cardiac_interlock_hr_report(bool valid, uint16_t hr_x10,
+                                                       uint16_t age_ms);
 extern void             np_cardiac_interlock_user_changed(np_safety_state_t *state,
                                                           bool new_user_blocked);
 /* The grant computation, linked in so the scope of a cardiac cutoff is tested
@@ -101,11 +104,66 @@ static void check(int cond, const char *name)
 #define RR_37_BPM    1621621U   /* 60 000 000 / 1 621 621 =  37 */
 #define RR_IMPOSSIBLE    915U   /* 60 000 000 /       915 = 65 573 → saturates */
 
+/* ── The hub, as the cross-check sees it (OI-CVNS-14) ────────────────────────────
+ * Every test below that predates the cross-check was written for the R-peak path
+ * alone.  To keep testing exactly that, the harness stands in for a HEALTHY hub:
+ * HUB_FOLLOW reports, before every tick, the mean of the last 8 intervals its
+ * detector accepted.  The detector refuses an interval under
+ * NP_CVNS_RR_MIN_VALID_MS (300 ms, §6.2 step 7), so a burst of impossible
+ * intervals reaches the MCU but not the hub's estimate.  A test of the
+ * cross-check itself takes control with HUB_SILENT or HUB_FIXED. */
+#define TEST_HUB_MIN_VALID_US   300000U
+typedef enum { HUB_FOLLOW = 0, HUB_SILENT, HUB_FIXED } hub_mode_t;
+static hub_mode_t g_hub_mode;
+static uint16_t   g_hub_fixed_x10;
+static uint32_t   g_hub_rr[TEST_RR_BUF_SIZE];
+static uint8_t    g_hub_head;
+static uint8_t    g_hub_count;
+
+static void hub_observe(uint32_t rr_us)
+{
+    if (rr_us < TEST_HUB_MIN_VALID_US) { return; }
+    g_hub_rr[g_hub_head] = rr_us;
+    g_hub_head = (uint8_t)((g_hub_head + 1U) % TEST_RR_BUF_SIZE);
+    if (g_hub_count < TEST_RR_BUF_SIZE) { g_hub_count++; }
+}
+
+static uint16_t hub_hr_x10(void)
+{
+    uint32_t sum = 0U;
+    for (uint8_t i = 0U; i < g_hub_count; i++) { sum += g_hub_rr[i]; }
+    return (uint16_t)(600000000UL / (sum / g_hub_count));
+}
+
+static void hub_send(void)
+{
+    switch (g_hub_mode) {
+    case HUB_FOLLOW:
+        if (g_hub_count >= TEST_RR_BUF_SIZE) {
+            np_cardiac_interlock_hr_report(true, hub_hr_x10(), 0U);
+        } else {
+            np_cardiac_interlock_hr_report(false, 0U, 0U);
+        }
+        break;
+    case HUB_FIXED:
+        np_cardiac_interlock_hr_report(true, g_hub_fixed_x10, 0U);
+        break;
+    case HUB_SILENT:
+    default:
+        break;
+    }
+}
+
 static void reset_all(np_safety_state_t *st, bool cvns_active, uint32_t capture0)
 {
     g_tick_ms      = 0U;
     g_capture      = capture0;
     g_edge_pending = false;
+    g_hub_mode     = HUB_FOLLOW;
+    g_hub_fixed_x10 = 0U;
+    memset(g_hub_rr, 0, sizeof(g_hub_rr));
+    g_hub_head     = 0U;
+    g_hub_count    = 0U;
     np_cardiac_interlock_init();
 
     memset(st, 0, sizeof(*st));
@@ -134,6 +192,8 @@ static void beat(np_safety_state_t *st, uint32_t rr_us)
     g_edge_pending  = true;
     g_tick_ms      += 1U;
     regrant(st);
+    hub_observe(rr_us);
+    hub_send();
     np_cardiac_interlock_tick(st);
 }
 
@@ -142,6 +202,7 @@ static void idle_tick(np_safety_state_t *st, uint32_t dt_ms)
 {
     g_tick_ms += dt_ms;
     regrant(st);
+    hub_send();
     np_cardiac_interlock_tick(st);
 }
 
@@ -860,6 +921,224 @@ static void test_arm_reset_keeps_cutoff(void)
     check(cutoff_fired(&st), "arm reset: the 30 s lockout survives a new request");
 }
 
+
+/* ══ OI-CVNS-14: the ±5 BPM hub cross-check ═══════════════════════════════════ */
+
+/* Case 5 of NP-FW-CVNS-001 §14.4.1: RPEAK_IN carries a perfectly regular 70 BPM
+ * rhythm (a free-running pulse source, a SW-02 timer fault) while the wearer's
+ * heart is at 50.  Staleness never fires and the 8-interval mean never moves, so
+ * before the cross-check nothing detected it.  Cut and latch, like a cardiac event. */
+static void test_xchk_false_rhythm_cuts_and_latches(void)
+{
+    np_safety_state_t st;
+    bool nv = false;
+    reset_all(&st, true, 0U);
+    g_hub_mode = HUB_FIXED;
+    g_hub_fixed_x10 = 500U;                                  /* hub: 50.0 BPM */
+    establish_baseline(&st, RR_75_BPM);                      /* MCU: 75 BPM, steady */
+    check(cutoff_fired(&st), "xchk: a false 75 BPM rhythm against a 50 BPM hub is cut");
+    check(st.fault_slot == CVNS_FAULT_SLOT, "xchk: CVNS fault slot recorded");
+    check((st.status & NP_SAFETY_STATUS_CUTOFF) != 0U, "xchk: CUTOFF status set");
+    check(np_cardiac_interlock_nv_request(&nv) && nv, "xchk: cutoff persisted like a cardiac event");
+    np_cardiac_interlock_reenable(&st);
+    check(cutoff_fired(&st), "xchk: the 30 s lockout refuses re-enable");
+}
+
+/* The tolerance is ">" 5 BPM, like the 15 BPM delta: exactly 5.0 holds. */
+static void test_xchk_tolerance_boundary(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    g_hub_mode = HUB_FIXED;
+    g_hub_fixed_x10 = 650U;                                  /* MCU 60 BPM; exactly +5.0 */
+    establish_baseline(&st, RR_60_BPM);
+    check(cvns_granted(&st) && !cutoff_fired(&st), "xchk: hub 5.0 BPM above the MCU holds");
+
+    reset_all(&st, true, 0U);
+    g_hub_mode = HUB_FIXED;
+    g_hub_fixed_x10 = 651U;                                  /* +5.1 */
+    establish_baseline(&st, RR_60_BPM);
+    check(cutoff_fired(&st), "xchk: hub 5.1 BPM above the MCU is cut");
+
+    reset_all(&st, true, 0U);
+    g_hub_mode = HUB_FIXED;
+    g_hub_fixed_x10 = 550U;                                  /* exactly -5.0 */
+    establish_baseline(&st, RR_60_BPM);
+    check(cvns_granted(&st) && !cutoff_fired(&st), "xchk: hub 5.0 BPM below the MCU holds");
+
+    reset_all(&st, true, 0U);
+    g_hub_mode = HUB_FIXED;
+    g_hub_fixed_x10 = 549U;                                  /* -5.1 */
+    establish_baseline(&st, RR_60_BPM);
+    check(cutoff_fired(&st), "xchk: hub 5.1 BPM below the MCU is cut (a fall compares by magnitude)");
+}
+
+/* Before the first agreement a missing report only holds the grant back,
+ * silently: no CARDIAC, no lockout, no persisted write, so the hub reads it as
+ * request latency (the hub's first report may be a beat behind the arming).
+ * The first fresh agreeing report grants. */
+static void test_xchk_first_report_late_withholds_silently(void)
+{
+    np_safety_state_t st;
+    bool nv = false;
+    reset_all(&st, true, 0U);
+    g_hub_mode = HUB_SILENT;
+    establish_baseline(&st, RR_60_BPM);
+    idle_tick(&st, 10U);
+    check(!cvns_granted(&st), "xchk first: armed with no report yet, CVNS is withheld");
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) == 0U && !np_cardiac_interlock_nv_request(&nv),
+          "xchk first: the hold is silent (no CARDIAC, nothing persisted)");
+    for (uint8_t i = 0U; i < 20U; i++) {                 /* 20 s, well past the stale bound */
+        g_tick_ms += 999U;
+        beat(&st, RR_60_BPM);
+    }
+    check(!cutoff_fired(&st) && (st.status & NP_SAFETY_STATUS_CARDIAC) == 0U,
+          "xchk first: waiting for a first report never latches");
+    np_cardiac_interlock_hr_report(true, 600U, 0U);
+    idle_tick(&st, 1U);
+    check(cvns_granted(&st), "xchk first: granted once the hub agrees");
+}
+
+/* No hub report at all: never granted, never a lockout (like no R-peaks). */
+static void test_xchk_no_report_never_granted(void)
+{
+    np_safety_state_t st;
+    bool nv = false;
+    reset_all(&st, true, 0U);
+    g_hub_mode = HUB_SILENT;
+    establish_baseline(&st, RR_60_BPM);
+    for (uint8_t i = 0U; i < 5U; i++) { beat(&st, RR_60_BPM); }
+    check(!cvns_granted(&st), "xchk: a silent hub never gets CVNS granted");
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) == 0U && !np_cardiac_interlock_nv_request(&nv),
+          "xchk: a silent hub before the grant is not a cutoff");
+}
+
+/* Fail-closed: a hub that goes quiet while CVNS runs cannot switch the check off.
+ * Reports stop; the held one stays good up to the bound and not a ms longer. */
+static void test_xchk_hub_going_quiet_cuts_off(void)
+{
+    np_safety_state_t st;
+    bool nv = false;
+    reset_all(&st, true, 0U);
+    establish_baseline(&st, RR_60_BPM);
+    check(cvns_granted(&st), "xchk quiet: granted with a healthy hub");
+
+    g_hub_mode = HUB_SILENT;
+    /* Keep the R-peak path alive (a beat each second) so only the hub is quiet. */
+    for (uint32_t t = 0U; t + 1000U < NP_CARDIAC_XCHECK_STALE_MS; t += 1000U) {
+        g_tick_ms += 999U;
+        beat(&st, RR_60_BPM);
+    }
+    check(!cutoff_fired(&st), "xchk quiet: still good inside the staleness bound");
+    g_tick_ms += NP_CARDIAC_XCHECK_STALE_MS;
+    beat(&st, RR_60_BPM);
+    check(cutoff_fired(&st), "xchk quiet: cut once the last report is stale");
+    check(np_cardiac_interlock_nv_request(&nv) && nv, "xchk quiet: persisted like a cardiac event");
+}
+
+/* The report is backdated by its own age_ms, and a report that is already too
+ * old on arrival, or one the hub marks invalid, never stands in for a fresh one. */
+static void test_xchk_report_age_and_validity(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    g_hub_mode = HUB_SILENT;
+    establish_baseline(&st, RR_60_BPM);
+
+    np_cardiac_interlock_hr_report(true, 600U, NP_CARDIAC_XCHECK_STALE_MS - 100U);
+    idle_tick(&st, 1U);
+    check(cvns_granted(&st), "xchk age: a 2.9 s old report is still fresh");
+    idle_tick(&st, 100U);
+    check(cutoff_fired(&st), "xchk age: ...and stale 100 ms later (backdated by age_ms)");
+
+    reset_all(&st, true, 0U);
+    g_hub_mode = HUB_SILENT;
+    establish_baseline(&st, RR_60_BPM);
+    np_cardiac_interlock_hr_report(true, 600U, NP_CARDIAC_XCHECK_STALE_MS);
+    idle_tick(&st, 1U);
+    check(!cvns_granted(&st), "xchk age: a report already at the bound on arrival is ignored");
+
+    reset_all(&st, true, 0U);
+    g_hub_mode = HUB_SILENT;
+    establish_baseline(&st, RR_60_BPM);
+    np_cardiac_interlock_hr_report(true, 600U, 0U);
+    idle_tick(&st, 1U);
+    check(cvns_granted(&st), "xchk valid: a fresh agreeing report grants");
+    np_cardiac_interlock_hr_report(false, 600U, 0U);        /* hub lost its estimate */
+    idle_tick(&st, 1U);
+    check(cutoff_fired(&st), "xchk valid: an invalid report clears the held one (not left standing)");
+}
+
+/* A heart rate that really moves, tracked by both sides, is not a disagreement. */
+static void test_xchk_tracking_a_real_change_is_not_a_trip(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    beat_realtime(&st, RR_70_BPM);
+    for (uint8_t i = 0U; i < 30U; i++) { beat_realtime(&st, RR_70_BPM); }
+    for (uint8_t i = 0U; i < 30U; i++) { beat_realtime(&st, RR_75_BPM); }   /* +5 BPM, within both limits */
+    check(cvns_granted(&st) && !cutoff_fired(&st),
+          "xchk: a real 70 -> 75 BPM change that both sides see is not cut");
+}
+
+/* After a cutoff and lockout the check restarts from nothing: re-enable needs a
+ * fresh, agreeing hub estimate as well as fresh beats. */
+static void test_xchk_reenable_needs_fresh_agreement(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    g_hub_mode = HUB_FIXED;
+    g_hub_fixed_x10 = 500U;
+    establish_baseline(&st, RR_75_BPM);
+    check(cutoff_fired(&st), "xchk reenable: cut");
+
+    /* A false rhythm that persists re-trips the moment the lockout expires and
+     * restarts it, so a re-enable straight after is still refused. */
+    idle_tick(&st, NP_CARDIAC_LOCKOUT_MS);
+    np_cardiac_interlock_reenable(&st);
+    check(cutoff_fired(&st), "xchk reenable: a persisting false rhythm restarts the lockout");
+
+    /* The hub goes quiet; the lockout runs out and is cleared. */
+    g_hub_mode = HUB_SILENT;
+    idle_tick(&st, NP_CARDIAC_LOCKOUT_MS);
+    idle_tick(&st, NP_CARDIAC_XCHECK_STALE_MS);
+    np_cardiac_interlock_reenable(&st);
+    check(!cutoff_fired(&st), "xchk reenable: cleared after a lockout with no disagreement");
+
+    /* Confirmation was reset: no report holds the grant, silently... */
+    establish_baseline(&st, RR_75_BPM);
+    check(!cvns_granted(&st) && !cutoff_fired(&st),
+          "xchk reenable: no report after re-enable holds the grant (confirmation was reset)");
+    /* ...and an agreeing one grants. */
+    np_cardiac_interlock_hr_report(true, 750U, 0U);
+    idle_tick(&st, 1U);
+    check(cvns_granted(&st), "xchk reenable: granted once the hub agrees");
+}
+
+/* The MCU's mean saturates at INT16_MAX; x10 must not overflow into agreement. */
+static void test_xchk_saturated_mean_cannot_agree(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    g_hub_mode = HUB_FIXED;
+    g_hub_fixed_x10 = 65535U;                                /* the largest a frame can say */
+    establish_baseline(&st, RR_IMPOSSIBLE);                  /* MCU: saturated */
+    check(!cvns_granted(&st) || cutoff_fired(&st),
+          "xchk: a saturated MCU mean never agrees with any hub value");
+}
+
+/* The cross-check is Class C scope: inactive means untouched. */
+static void test_xchk_inactive_does_nothing(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, false, 0U);
+    g_hub_mode = HUB_FIXED;
+    g_hub_fixed_x10 = 100U;
+    establish_baseline(&st, RR_60_BPM);
+    check(!cutoff_fired(&st) && (st.status & NP_SAFETY_STATUS_CARDIAC) == 0U,
+          "xchk: no cutoff while CVNS is not requested");
+}
+
 int main(void)
 {
     test_prearm_hold_withholds_then_grants();
@@ -894,6 +1173,17 @@ int main(void)
     test_floor_two_stage_to_40_cut_in_real_time();
     test_slow_drift_not_cut();
     test_lockout_expiry_reseeds_history();
+
+    test_xchk_false_rhythm_cuts_and_latches();
+    test_xchk_tolerance_boundary();
+    test_xchk_first_report_late_withholds_silently();
+    test_xchk_no_report_never_granted();
+    test_xchk_hub_going_quiet_cuts_off();
+    test_xchk_report_age_and_validity();
+    test_xchk_tracking_a_real_change_is_not_a_trip();
+    test_xchk_reenable_needs_fresh_agreement();
+    test_xchk_saturated_mean_cannot_agree();
+    test_xchk_inactive_does_nothing();
 
     if (g_failures == 0) { printf("ALL TESTS PASSED\n"); return 0; }
     printf("%d TEST(S) FAILED\n", g_failures);

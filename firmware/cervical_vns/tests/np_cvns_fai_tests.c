@@ -51,6 +51,7 @@ static int g_fail_count = 0;
     } while (0)
 
 #define ASSERT_OK(expr)           ASSERT((expr) == NP_CVNS_OK, #expr " != NP_CVNS_OK")
+#define ASSERT_TRUE(expr)         ASSERT((expr), #expr " is false")
 #define ASSERT_EQ(a, b)           ASSERT((a) == (b), #a " != " #b)
 #define ASSERT_APPROX(a, b, tol)  ASSERT(fabsf((float)(a) - (float)(b)) <= (float)(tol), \
                                           #a " not within " #tol " of " #b)
@@ -543,6 +544,69 @@ static void fai_rpeak_forwarding(void)
     printf("  spurious peak 250 ms after a beat: not pulsed (correct)\n");
 }
 
+
+/* ── Heart-rate report to the safety MCU (OI-CVNS-14) ───────────────────────── */
+/*
+ * np_cvns_interlock_hr_report() is what the hub sends for the MCU's ±5 BPM
+ * cross-check.  It must be built from the intervals that were FORWARDED, not from
+ * rr_buf: the MCU's own mean is built from every pulsed interval, including the
+ * ones over NP_CVNS_RR_MAX_VALID_MS that rr_buf drops.
+ */
+static void fai_hr_report(void)
+{
+    printf("\n[Hub HR report for the safety MCU — OI-CVNS-14]\n");
+
+    np_cvns_interlock_ctx_t interlock;
+    np_cvns_interlock_config_t cfg = { .ppg_sample_rate_hz = NP_CVNS_PPG_SAMPLE_RATE_HZ,
+                                       .now_s = 0U };
+    ASSERT_OK(np_cvns_interlock_init(&interlock, cfg, test_fault_cb));
+    uint16_t hr_x10 = 0U, age_ms = 0U;
+    const uint8_t span = 8U;   /* NP_SAFETY_HR_REPORT_INTERVALS: the MCU's own */
+
+    ASSERT_TRUE(!np_cvns_interlock_hr_report(&interlock, 0U, span, &hr_x10, &age_ms));
+
+    /* The first peak has no predecessor and yields no interval, so 8 beats give 7
+     * intervals: still no estimate.  The 9th gives the 8th. */
+    uint32_t t_ms = 1000U;
+    uint32_t steady[9];
+    for (uint32_t i = 0U; i < 9U; i++) { steady[i] = 1200U; }
+    feed_beats(&interlock, &t_ms, steady, 8U);
+    ASSERT_TRUE(!np_cvns_interlock_hr_report(&interlock, t_ms, span, &hr_x10, &age_ms));
+    feed_beats(&interlock, &t_ms, &steady[8], 1U);
+    ASSERT_TRUE(np_cvns_interlock_hr_report(&interlock, t_ms, span, &hr_x10, &age_ms));
+    ASSERT_APPROX(hr_x10, 500.0f, 3.0f);                      /* 50.0 BPM */
+    printf("  50 BPM steady: reports 50.0 once 8 intervals exist\n");
+
+    /* The age is that of the newest forwarded beat, and a stale one is "no estimate". */
+    ASSERT_TRUE(np_cvns_interlock_hr_report(&interlock, t_ms + 700U, span, &hr_x10, &age_ms));
+    ASSERT_TRUE(age_ms >= 700U && age_ms <= 700U + 1200U);
+    ASSERT_TRUE(!np_cvns_interlock_hr_report(&interlock, t_ms + 70000U, span, &hr_x10, &age_ms));
+
+    /* One missed detection: the 2400 ms interval IS in the report, as it is in the
+     * MCU's mean (mean of 7 x 1200 and 2400 = 1350 ms = 44.4 BPM), though
+     * rr_buf keeps it out. */
+    uint32_t missed[2] = { 2400U, 1200U };
+    feed_beats(&interlock, &t_ms, &missed[0], 1U);
+    feed_beats(&interlock, &t_ms, &missed[1], 1U);
+    ASSERT_TRUE(np_cvns_interlock_hr_report(&interlock, t_ms, span, &hr_x10, &age_ms));
+    /* Detection lands within a sample or two of each pulse, so not exactly 444. */
+    ASSERT_APPROX(hr_x10, 444.0f, 3.0f);
+    printf("  a pulsed 2400 ms interval is in the report (44.4), as in the MCU's mean\n");
+
+    /* A spurious peak 250 ms after a beat is not pulsed, so it is not in the report. */
+    uint32_t split[2] = { 250U, 950U };
+    feed_beats(&interlock, &t_ms, split, 2U);
+    ASSERT_TRUE(np_cvns_interlock_hr_report(&interlock, t_ms, span, &hr_x10, &age_ms));
+    ASSERT_TRUE(hr_x10 < 460U && hr_x10 > 430U);
+    printf("  a 250 ms spurious peak is not in the report (correct)\n");
+
+    /* Argument checks. */
+    ASSERT_TRUE(!np_cvns_interlock_hr_report(NULL, t_ms, span, &hr_x10, &age_ms));
+    ASSERT_TRUE(!np_cvns_interlock_hr_report(&interlock, t_ms, 0U, &hr_x10, &age_ms));
+    ASSERT_TRUE(!np_cvns_interlock_hr_report(&interlock, t_ms, (uint8_t)(NP_CVNS_FWD_RR_COUNT + 1U),
+                                             &hr_x10, &age_ms));
+}
+
 int main(void)
 {
     printf("=== NP-FW-CVNS-001 §9 — Cervical VNS FAI item software checks ===\n");
@@ -553,6 +617,7 @@ int main(void)
     fai_safety_constants();
     fai_rr_buffer();
     fai_rpeak_forwarding();
+    fai_hr_report();
     fai_cv01_procedure_doc();
     fai_cv02_interlock_state_machine();
     fai_cv03_procedure_doc();

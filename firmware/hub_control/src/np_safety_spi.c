@@ -551,6 +551,31 @@ np_hub_status_t np_safety_spi_send_active_user(uint32_t user_tag)
     return NP_HUB_OK;
 }
 
+np_hub_status_t np_safety_spi_send_hr_report(bool valid, uint16_t hr_x10,
+                                             uint16_t age_ms)
+{
+    np_safety_hr_report_cmd_t cmd;
+    uint8_t rx_dummy[NP_SAFETY_HR_REPORT_FRAME_LEN];
+
+    memset(&cmd, 0, sizeof(cmd));
+    cmd.cmd_magic[0] = NP_SAFETY_CMD_MAGIC_0;
+    cmd.cmd_magic[1] = NP_SAFETY_CMD_MAGIC_1;
+    cmd.cmd_type     = NP_SAFETY_CMD_HR_REPORT;
+    if (valid) {
+        cmd.flags  = NP_SAFETY_HR_FLAG_VALID;
+        cmd.hr_x10 = hr_x10;
+        cmd.age_ms = age_ms;
+    }
+    cmd.checksum = compute_checksum((const uint8_t *)&cmd,
+                                    NP_SAFETY_HR_REPORT_FRAME_LEN - 2U);
+
+    if (np_safety_hal_spi_transfer((const uint8_t *)&cmd, rx_dummy,
+                                   NP_SAFETY_HR_REPORT_FRAME_LEN) != NP_HUB_OK) {
+        return NP_HUB_ERR_TIMEOUT;
+    }
+    return NP_HUB_OK;
+}
+
 bool np_safety_spi_get_cvns_impedance(float out_kohm[], bool *valid_out)
 {
     bool valid = s_cvns_imp_valid;

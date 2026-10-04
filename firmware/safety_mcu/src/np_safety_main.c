@@ -62,6 +62,7 @@ extern void np_charge_monitor_phase_tick(np_safety_state_t *state,
                                          uint8_t            channel_count);
 extern void np_thermal_interlock_tick(np_safety_state_t *state);
 extern void np_cardiac_interlock_tick(np_safety_state_t *state);
+extern void np_cardiac_interlock_hr_report(bool valid, uint16_t hr_x10, uint16_t age_ms);
 extern void np_cardiac_interlock_reenable(np_safety_state_t *state);
 extern void np_cardiac_interlock_restore(bool cutoff_pending);
 extern void np_cardiac_interlock_arm_reset(void);
@@ -182,6 +183,17 @@ static bool user_cmd_checksum_ok(const np_safety_user_cmd_t *c)
     uint16_t sum = 0U;
     uint8_t  i;
     for (i = 0U; i < (uint8_t)(NP_SAFETY_USER_FRAME_LEN - 2U); i++) {
+        sum = (uint16_t)(sum + b[i]);
+    }
+    return (sum == c->checksum) && (c->reserved == 0U);
+}
+
+static bool hr_report_checksum_ok(const np_safety_hr_report_cmd_t *c)
+{
+    const uint8_t *b = (const uint8_t *)c;
+    uint16_t sum = 0U;
+    uint8_t  i;
+    for (i = 0U; i < (uint8_t)(NP_SAFETY_HR_REPORT_FRAME_LEN - 2U); i++) {
         sum = (uint16_t)(sum + b[i]);
     }
     return (sum == c->checksum) && (c->reserved == 0U);
@@ -645,6 +657,24 @@ int main(void)
                         s_state.status    |= NP_SAFETY_STATUS_FAULT;
                     }
                 }
+            }
+        }
+
+        /* Hub heart-rate report (OI-CVNS-14): the second observation for the
+         * cardiac interlock's cross-check.  Newest wins, accepted at any time —
+         * it carries no state to protect, and a bad frame is simply dropped, so
+         * the held estimate ages out and the check fails closed.  Taken before
+         * the next iteration's np_cardiac_interlock_tick().                  */
+        if (np_hal_spi_hr_report_ready()) {
+            np_safety_hr_report_cmd_t hcmd;
+            np_hal_spi_get_hr_report(&hcmd);
+            if (hcmd.cmd_magic[0] == NP_SAFETY_CMD_MAGIC_0 &&
+                hcmd.cmd_magic[1] == NP_SAFETY_CMD_MAGIC_1 &&
+                hcmd.cmd_type     == NP_SAFETY_CMD_HR_REPORT &&
+                hr_report_checksum_ok(&hcmd)) {
+                np_cardiac_interlock_hr_report(
+                    (hcmd.flags & NP_SAFETY_HR_FLAG_VALID) != 0U,
+                    hcmd.hr_x10, hcmd.age_ms);
             }
         }
 

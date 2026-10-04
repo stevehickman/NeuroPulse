@@ -84,6 +84,17 @@ void np_safety_spi_request_disable(uint16_t mask)
     g_last_disable_mask = mask;
 }
 
+/* OI-CVNS-14: the heart-rate report to the safety MCU's ±5 BPM cross-check. */
+static int      g_hr_report_calls;
+static bool     g_hr_report_valid;
+np_hub_status_t np_safety_spi_send_hr_report(bool valid, uint16_t hr_x10, uint16_t age_ms)
+{
+    (void)hr_x10; (void)age_ms;
+    g_hr_report_calls++;
+    g_hr_report_valid = valid;
+    return NP_HUB_OK;
+}
+
 /* OI-CHARGE-05 (c): the commanded-current publish that rides beside the enable. */
 static uint16_t g_last_chan_ua;
 void np_safety_spi_set_channel_current(uint8_t channel, uint16_t current_ua)
@@ -367,6 +378,29 @@ static void test_enable_asserted_when_delivering(void)
     check(np_mod_cvns_test_enable_requested(), "delivery: enable bit requested");
     check(g_enable_calls == 1 && g_last_enable_mask == NP_SAFETY_EN_CVNS,
           "delivery: enable mask is NP_SAFETY_EN_CVNS");
+}
+
+/* OI-CVNS-14: a report goes out at the first tick of a session, then no more
+ * often than NP_CVNS_HR_REPORT_PERIOD_MS.  With no beats seen it says "no
+ * estimate", which the MCU treats as no report. */
+static void test_hr_report_paced_and_invalid_without_beats(void)
+{
+    reset_mocks();
+    g_hr_report_calls = 0;
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+
+    np_mod_cvns_tick(0U, g_now_unix);
+    check(g_hr_report_calls == 1, "hr report: sent at the first tick of the session");
+    check(!g_hr_report_valid, "hr report: no estimate before any beat is seen");
+
+    for (uint32_t t = 100U; t < NP_CVNS_HR_REPORT_PERIOD_MS; t += 100U) {
+        np_mod_cvns_tick(t, g_now_unix);
+    }
+    check(g_hr_report_calls == 1, "hr report: not re-sent inside the period");
+    np_mod_cvns_tick(NP_CVNS_HR_REPORT_PERIOD_MS, g_now_unix);
+    check(g_hr_report_calls == 2, "hr report: re-sent when the period has elapsed");
 }
 
 static void test_terminal_stage_drops_enable(void)
@@ -853,6 +887,7 @@ int main(void)
     test_control_start_no_immediate_enable();
     test_tick_pre_delivery_no_enable();
     test_enable_asserted_when_delivering();
+    test_hr_report_paced_and_invalid_without_beats();
     test_terminal_stage_drops_enable();
     test_stop_drops_enable();
     test_fault_cb_disables_and_logs();

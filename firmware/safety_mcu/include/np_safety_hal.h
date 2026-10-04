@@ -242,6 +242,12 @@ void np_hal_spi_get_chan_wave(np_safety_chan_wave_cmd_t *cmd_out);
 bool np_hal_spi_user_ready(void);
 void np_hal_spi_get_user(np_safety_user_cmd_t *cmd_out);
 
+/* Hub heart-rate report (12 bytes, np_safety_hr_report_cmd_t) — the main
+ * processor's own HR estimate, the second observation for the cardiac interlock's
+ * ±5 BPM cross-check (OI-CVNS-14; NP-FW-CVNS-001 Rev 14 §14.7). */
+bool np_hal_spi_hr_report_ready(void);
+void np_hal_spi_get_hr_report(np_safety_hr_report_cmd_t *cmd_out);
+
 /* ── TIM2 capture (R-peak interval timing) ────────────────────────────────────
  *
  * np_hal_tim2_init()         TIM2 as a free-running 1 MHz up-counter with input
