@@ -323,14 +323,18 @@ jobs:
         scripts/**
         .github/workflows/tooling-ci.yml
       # The unjustified-choices register gate (CLAUDE.md §19). It compares the
-      # register to every PROVISIONAL / PLACEHOLDER marker in firmware/ and
-      # hardware/, and to the OI IDs and paths it cites under docs/. A marker
-      # added in firmware and a row removed from the register are both edits it
-      # must see, so firmware/**, hardware/** and docs/** are all in.
+      # register to every PROVISIONAL / PLACEHOLDER marker in firmware/,
+      # hardware/ and the comments of app/, protocols/, simulator/ and ci/, and
+      # to the OI IDs and paths it cites under docs/. A marker added in any of
+      # them and a row removed from the register are both edits it must see.
       NP_SCOPE_UNJUSTIFIED: |
         docs/**
         firmware/**
         hardware/**
+        app/**
+        protocols/**
+        simulator/**
+        ci/**
         scripts/check-unjustified-register.ts
         .github/workflows/tooling-ci.yml
     steps:
@@ -521,13 +525,15 @@ jobs:
           assert scope.pbmmodel.paths false docs/np_pwrsrc_001.md
 
           # The unjustified-choices register gate. The register, a firmware
-          # header that carries a marker, the hardware JSON and the script are in;
-          # the app trees are not, because the gate reads none of them.
+          # header that carries a marker, the hardware JSON, an app source and
+          # the script are in; the locale files are not, because the gate reads
+          # none of them.
           assert scope.unjustified.paths true  docs/status/unjustified-choices.md
           assert scope.unjustified.paths true  firmware/hub_control/include/np_hub_config.h
           assert scope.unjustified.paths true  hardware/np_pbm_model.json
           assert scope.unjustified.paths true  scripts/check-unjustified-register.ts
-          assert scope.unjustified.paths false app/web/src/main.ts
+          assert scope.unjustified.paths true  app/ios/NeurOne/Models/ConsumableInventory.swift
+          assert scope.unjustified.paths false locales/en.json
 
       - name: Changed files
         id: diff
