@@ -17,9 +17,11 @@
 
 ---
 
-**Rev 13 (2026-10-04): OI-CVNS-11 analysed (`RPEAK_IN` line faults). The item stays open for the principal decision.**
+**Rev 13 (2026-10-04): OI-CVNS-11 CLOSED, candidate A (principal): the safety MCU applies no R-R validity filter, and artefact rejection stays upstream. The `RPEAK_IN` line-fault analysis is §14.4.1.**
 - **Analysis only, from reading the code (§14.4.1). Nothing was run.** Stuck high, stuck low, a floating pin and a burst of ringing all end in a cutoff, which is the safe direction.
 - **One fault no MCU filter can catch:** a pulse train that looks like a healthy rhythm. The MCU then monitors a rhythm that is not the patient's (§14.4.1, case 5).
+- **Decided (principal, 2026-10-04): A.** The absence of an MCU filter is intended. It is recorded in §5.3 step 2 and §14.4.2 as a design decision, no longer as a gap.
+- **New item OI-CVNS-14** carries the one gap the analysis found. The decision does not touch it.
 - **No requirement, constant, threshold, test or firmware behaviour changed.**
 
 **Rev 12 (2026-10-04): §13 follows the RISK-25 re-score with C1 as redesigned (`NP-RISK-002` Rev 12 §4.3.5; OI-RISK2-08 closed).**
@@ -371,7 +373,7 @@ Safety MCU constants — the values that actually govern §5.3 and §5.4:
 
 Before stimulation is enabled:
 1. Safety MCU accumulates R-R intervals in a circular buffer of depth `NP_RR_BUF_SIZE` (8). The first R-peak after init or re-enable is a priming edge and produces no interval, so 8 intervals require 9 edges.
-2. **Not implemented on the safety MCU.** Rev 1 specified discarding intervals outside [`NP_CVNS_RR_MIN_VALID_MS`, `NP_CVNS_RR_MAX_VALID_MS`] (300–2000 ms); those are main-processor constants and the safety MCU applies no validity filter — every measured interval enters the buffer. A physiologically impossible interval is handled downstream instead, by saturating the BPM conversion at `INT16_MAX` (see `rr_to_bpm()`). Escalated as **OI-CVNS-11**.
+2. **Not implemented on the safety MCU.** Rev 1 specified discarding intervals outside [`NP_CVNS_RR_MIN_VALID_MS`, `NP_CVNS_RR_MAX_VALID_MS`] (300–2000 ms); those are main-processor constants and the safety MCU applies no validity filter — every measured interval enters the buffer. A physiologically impossible interval is handled downstream instead, by saturating the BPM conversion at `INT16_MAX` (see `rr_to_bpm()`). Decided as intended, not a gap (OI-CVNS-11 closed, §14.4.2).
 3. The baseline arms when `NP_CARDIAC_BASELINE_BEATS` (8) intervals have accumulated. There is no outlier-rejection criterion on the MCU side.
 4. Baseline HR (BPM) = 60,000,000 / mean(all intervals currently in the ring buffer, in µs). Because the buffer is 8 deep and arming requires 8 intervals, at the arming tick this is the mean of the last 8.
 5. **Not implemented (Rev 9).** This step said that the main processor confirms its baseline via `NP_CVNS_SPI_CMD_HR_BASELINE_SET`, and that the safety MCU rejects the enable if the two differ by more than `NP_CVNS_BASELINE_CROSSVAL_BPM` (5 BPM). The safety MCU never receives the main processor's baseline. Its wire protocol (`np_spi_wire_types.h`) has no baseline command, and `np_cvns_interlock.c` sends 0x13 through a stub that transmits nothing. `NP-FMEA-001` Rev 12 withdrew the same claim on 2026-09-25. Whether a cross-check is wanted is part of OI-CVNS-12.
@@ -862,7 +864,7 @@ Hardware FAI (CV01 bench, CV02 timing, CV03 clinical) PENDING — blocking for T
 | OI-CVNS-08 | STM32G071 pin map: §5.1 and `np_safety_config.h` disagree on every row. Nothing in-tree settles it. | HW/Embedded safety team | PCB layout (G1) |
 | OI-CVNS-09 | One CVNS enable line or two (per-electrode)? Clinical/regulatory question, not a code-style one. | Regulatory/Clinical + Embedded safety | PCB layout (G1); T2 510(k) |
 | ~~OI-CVNS-10~~ | ~~Cardiac baseline window: safety MCU 8 intervals vs main processor 5. Deliberate or accidental?~~ **CLOSED 2026-09-29 (Rev 9), moot:** the ±5 BPM cross-check that made the two related was never built. The MCU window moves to OI-CVNS-12 (§14.3) | Embedded safety team | — |
-| OI-CVNS-11 | Safety MCU applies no R-R validity filter (§5.3 step 2). Intended, or a gap? **(Rev 10)** Now also the main lever on OI-CVNS-13's false trips. *(Rev 11: behind the hub, an MCU 300 ms refractory changes no false-trip figure, because the hub's 300 ms bound already removes those edges (§14.6). Its value is independence from Class B only.)* **(Rev 13: line-fault analysis done, §14.4.1. Stuck, floating and ringing lines fail safe. The gap found is a plausible false rhythm, which no filter catches: OI-CVNS-14. The A or B choice is still the principal's.)** | Embedded safety team | Class C design freeze |
+| ~~OI-CVNS-11~~ | ~~Safety MCU applies no R-R validity filter (§5.3 step 2). Intended, or a gap?~~ **CLOSED 2026-10-04 (Rev 13), principal decision: candidate A, intended. Artefact rejection stays upstream (§14.4.2). The line-fault analysis found one residual gap, which is OI-CVNS-14.** | — | Closed |
 | ~~OI-CVNS-12~~ | ~~The Class C cardiac interlock does not meet CLAUDE.md §4.2's "HR change > 15 BPM within 5 s".~~ **CLOSED 2026-10-01 (Rev 10), principal decision.** The refresh is replaced by a comparison against an 18 s history of 1 s snapshots. The window stays at 8, and the cross-check is not built. CLAUDE.md §4.2 splits detection from cutoff, and FAI-CV02 is amended (§14.5.1) | Embedded safety team + principal | — |
 | **OI-CVNS-13** | **The lagged comparison false-trips more than the refresh did.** In simulation, at 100 BPM with 50 ms R-R SD and 1 % artefacts, 75 % of 120 s sessions trip (Rev 9 rule: 36 %). The simulation's jitter is white noise, which is pessimistic for real HRV. The real rate is unmeasured, and so is its clinical cost (30 s lockout + app confirmation per trip) (§14.6). **(Rev 11, principal 2026-10-01)** Analysed through the hub stage. The largest cause below 60 BPM was the hub's pulse gate, not the rule, and that is fixed (§6.2 step 7). Median, longer-window and persistence levers are rejected. **Open for the residual:** missed and split detections, which need measured A13 detection rates and a clinical acceptable nuisance rate | Embedded safety team + Clinical | T2 clinical release; FAI-CV03 |
 | **OI-CVNS-14** | **(Rev 13) A plausible false rhythm on `RPEAK_IN` blinds the interlock.** Regular edges at a normal rate (a free-running pulse source or a SW-02 timer fault) keep staleness quiet, and the safety MCU monitors a rhythm that is not the patient's (§14.4.1, case 5). No R-R validity filter catches it. Closing it needs the ±5 BPM cross-check (§5.3 step 5, candidate D), which needs a wire command carrying a heart rate. Build it, or accept the residual with a stated mitigation? | Principal; embedded safety team | Class C design freeze |
@@ -966,7 +968,21 @@ This is the analysis the item named as what would settle it. It is a reading of 
 - **Candidate B** (a gap) is not supported by this analysis. The gap that exists, case 5, is not the one B's filter addresses.
 - **New item OI-CVNS-14** (case 5): a false rhythm at a plausible rate blinds the interlock. It needs a principal decision on whether the ±5 BPM cross-check is built. It is recorded in `NP-FMEA-001` as FMEA-M05-10, proposed.
 
-**Still needed to close OI-CVNS-11:** the principal chooses A or B. A bench injection of cases 1 to 5 on A13 would turn this reading into evidence (FAI-CV03 or earlier).
+**Decision:** A, in §14.4.2. A bench injection of cases 1 to 5 on A13 would turn this reading into evidence (FAI-CV03 or earlier).
+
+#### 14.4.2 Disposition: closed 2026-10-04 (Rev 13), principal decision
+
+**Decided (principal, 2026-10-04): candidate A.** The safety MCU applies no R-R validity filter. Artefact rejection belongs upstream, in SW-02's R-peak detector and the hub's pulse gate (§6.2 step 7).
+
+**Why.** Line faults 1 to 4 (§14.4.1) fail safe without a filter. The one gap found, a plausible false rhythm, is not one a filter closes. A filter would add the first interval rejection to Class C, and on this interlock a false negative is the worse failure (§14.5, candidate C).
+
+**The upstream mitigation, stated.** Its existing source is §6.2 step 7: SW-02 does not pulse `RPEAK_IN` for a peak under `NP_CVNS_RR_MIN_VALID_MS` (300 ms) after the last detected peak, and pulses every later peak. **What fails without it:** a nuisance cutoff, a 30 s lockout, an app confirmation and a repeat impedance check (hazard 25-e in `NP-RISK-002`). It is not a hazard control, because the cutoff is the safe direction. So no new "shall" is written and no new figure is set. If the nuisance rate proves unacceptable, OI-CVNS-13 owns it (§14.6.2).
+
+**The independence assumption, re-examined.** §5.3 once claimed that the MCU and the hub cross-validate within ±5 BPM, which made their artefact handling independent. That check does not exist (§14.3.1). So the MCU and the hub are not independent for artefact rejection, and nothing in this document now claims that they are. The consequence that matters is OI-CVNS-14: both sides trust the same pulse train.
+
+**Not changed:** no firmware, constant, threshold or test. The MCU's 8-interval window stays at 8 (§14.3.1).
+
+**Follow-on:** `NP-FMEA-001` FMEA-M05-08 and -04 carry "justification pending OI-CVNS-11" and OI-FMEA-12 (c). Their ALARP acceptance is the Quality Lead's, and is owed against this decision.
 
 ### 14.5 OI-CVNS-12 — the interlock misses most qualifying heart-rate changes
 
