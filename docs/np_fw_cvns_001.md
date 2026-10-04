@@ -3,7 +3,7 @@
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
 **Revision:** 12
-**Date:** 2026-10-01
+**Date:** 2026-10-04
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -17,7 +17,7 @@
 
 ---
 
-**Rev 12 (2026-10-01): §13 follows the RISK-25 re-score with C1 as redesigned (`NP-RISK-002` Rev 12 §4.3.5; OI-RISK2-08 closed).**
+**Rev 12 (2026-10-04): §13 follows the RISK-25 re-score with C1 as redesigned (`NP-RISK-002` Rev 12 §4.3.5; OI-RISK2-08 closed).**
 - **Residual unchanged:** S5 × P2 = ALARP, target P1. The ratings were approved by the Quality Lead (interim: Steve Hickman, CEO) on 2026-10-01.
 - **Correction of record.** From 2026-09-23 until Rev 10, C1 as built gave a residual of S5 × P3 = UNACCEPTABLE (§14.5). No patient was exposed.
 - **New hazard 25-e:** a nuisance cutoff (OI-CVNS-13), scored S1 × P5 = ALARP.
