@@ -81,6 +81,11 @@ export function checkRows(rows: Row[]): string[] {
   return errs;
 }
 
+/** Escapes every regex metacharacter, backslash included, so an ID is matched literally. */
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function walk(dir: string, out: string[], skip: (p: string) => boolean): void {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
@@ -149,7 +154,7 @@ function main(): number {
   const ids = new Set<string>();
   for (const l of bodyLines) for (const m of l.matchAll(OI_ID)) ids.add(m[0]);
   for (const id of [...ids].sort()) {
-    const re = new RegExp(`${id.replace(/[-]/g, "\\-")}(?![A-Za-z0-9])`);
+    const re = new RegExp(`${escapeRegExp(id)}(?![A-Za-z0-9])`);
     if (!re.test(corpus)) errs.push(`R4 ${id} is cited in ${REGISTER} and recorded nowhere else under docs/`);
   }
 
@@ -176,6 +181,7 @@ function selfTest(): number {
   t("justified-only passes", checkRows(parseRegister("## Justified or retired\n| UC-002 | a | d | o | j |")).length === 0);
   t("source marker matches", SOURCE_MARKER.test("/* PROVISIONAL */") && !SOURCE_MARKER.test("NP_HUB_ERR_TIER_UNVERIFIED"));
   t("comment marker matches code comments only", COMMENT_MARKER.test("    // UNVALIDATED PLACEHOLDER — x") && !COMMENT_MARKER.test('TextField("CLINICIAN_GRANT_NAME_PLACEHOLDER", text: $n)'));
+  t("escapeRegExp neutralises backslashes and metacharacters", new RegExp(escapeRegExp("a\\b.c")).test("a\\b.c") && !new RegExp(escapeRegExp("a.c")).test("abc"));
   t("json marker matches", JSON_MARKER.test('"status": "placeholder"') && !JSON_MARKER.test('"status": "external-limit"'));
   if (!bad) console.log("self-test ok");
   return bad ? 1 : 0;
