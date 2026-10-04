@@ -315,7 +315,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-PRIV-ANALYSIS-003 | Privacy Analysis — Consumable Tracker Feature | 3 | 2026-06-08 | [np_priv_analysis_003.md](./np_priv_analysis_003.md) | ACTIVE | PRIV |
 | NP-PRIV-KEYSPLIT-001 | Analytics Gate Architecture — Design Spec | 1 | 2026-06-16 | [np_priv_keysplit_001.md](./np_priv_keysplit_001.md) | ACTIVE | PRIV |
 | NP-PWR-BUDGET-001 | Power Budget — Reverse-Engineered from Safety Ceilings (Design Study) | 4 | 2026-08-21 | [np_pwr_budget_001.md](./np_pwr_budget_001.md) | DRAFT | SPEC-HW |
-| NP-SES-PWR-001 | PBM Session Power Audit — Predefined Protocol Library Against the Concurrency Ceiling | 1 | 2026-08-21 | [np_ses_pwr_001.md](./np_ses_pwr_001.md) | DRAFT | SES |
+| NP-SES-PWR-001 | PBM Session Power Audit — Predefined Protocol Library Against the Concurrency Ceiling | 2 | 2026-10-04 | [np_ses_pwr_001.md](./np_ses_pwr_001.md) | DRAFT | SES |
 | NP-SOUP-CMSIS-001 | CMSIS SOUP Anomaly Evaluation — Safety MCU (SW-01, Class C) | 1 | 2026-08-09 | [np_soup_cmsis_001.md](./np_soup_cmsis_001.md) | DRAFT | SPEC-FW |
 | NP-SOUP-LFS-001 | LittleFS SOUP Record and Hazard Analysis — Hub Storage (SW-02, Class B) | 15 | 2026-09-28 | [np_soup_lfs_001.md](./np_soup_lfs_001.md) | DRAFT | SPEC-FW |
 | NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 33 | 2026-09-28 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |

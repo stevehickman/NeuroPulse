@@ -101,7 +101,9 @@ export function analyse(): Row[] {
     const chanW = (ch: string): number =>
       ch === "led_1064" ? TILE_W["1064nm"] : TILE_W["660_808nm"] / 2;
 
-    const perSocketW = new Map<number, number>();
+    // Blocks that start at different times are not concurrent (Schiffer's F3 then F4), so draw is
+    // summed per socket WITHIN a start offset and the worst phase is the protocol's draw.
+    const phases = new Map<string, Map<number, number>>();
     let unknownSockets = 0;
     let anyClinician = false;
     const wls: string[] = [];
@@ -122,7 +124,7 @@ export function analyse(): Row[] {
       const blockCw = freqHz === 0;
       cw = cw || blockCw;
       if (d !== null) duty = d;
-      if (blockCw && d !== null) {
+      if (blockCw && d !== null && d < 100) {
         // NP-NPPS-REF-001 §4.1: `frequency: 0` selects CW, and CW means 100 % duty.
         // The compiler emits freq_code 0x00 and the duty register independently
         // (hubCompiler.ts freqCode/dutyReg), so which one wins is unspecified.
@@ -146,11 +148,17 @@ export function analyse(): Row[] {
       } else {
         socketList = all;
       }
-      for (const sk of new Set(socketList)) perSocketW.set(sk, (perSocketW.get(sk) ?? 0) + blockW);
+      const phaseKey = (field(body, "start") ?? "0").trim();
+      const phase = phases.get(phaseKey) ?? new Map<number, number>();
+      phases.set(phaseKey, phase);
+      for (const sk of new Set(socketList)) phase.set(sk, (phase.get(sk) ?? 0) + blockW);
       if (anyClinician) unknownSockets++;
     }
 
-    const sockets: number | null = anyClinician ? null : perSocketW.size;
+    const phaseTotals = [...phases.values()].map((m) => [...m.values()].reduce((x, y) => x + y, 0));
+    const perSocketW = new Map<number, number>();
+    for (const m of phases.values()) for (const [sk, w] of m) perSocketW.set(sk, Math.max(perSocketW.get(sk) ?? 0, w));
+    const sockets: number | null = anyClinician ? null : Math.max(0, ...[...phases.values()].map((m) => m.size));
     const zoneLabel = anyClinician ? "clinician_selected" : `${blocks.length} block(s)`;
     const wavelength = [...new Set(wls)].join("+");
     const irradiance = irrs.join("/");
@@ -158,7 +166,7 @@ export function analyse(): Row[] {
     const perTileW = anyClinician
       ? chanW("led_808") * Math.min(1, leadingNumber(field(blocks[0], "irradiance")) / PBM_FULL_SCALE_MW_CM2.led_808) * (cw ? 1 : (duty ?? 100) / 100)
       : Math.max(0, ...perSocketW.values());
-    const requiredWsum = [...perSocketW.values()].reduce((x, y) => x + y, 0);
+    const requiredWsum = Math.max(0, ...phaseTotals);
     // Nothing deliverable (every wavelength unmapped): there is no draw to audit.
     if (!anyClinician && perSocketW.size === 0) {
       console.error(`check-pbm-power: ${nameM[1]}: no block is deliverable (${notes.join("; ")}) — skipped`);
