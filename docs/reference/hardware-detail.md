@@ -1,17 +1,41 @@
 # Hardware detail — shielding stack, fit system, power table, status indicators
 
-> Relocated from CLAUDE.md §4.3, §4.4, §4.5 and §4.7 (Rev 43) to slim the always-loaded core.
-> Content is verbatim; section numbers are unchanged, so an inbound `CLAUDE.md §4.5` citation lands
-> on the same material. **CLAUDE.md §4 keeps §4.1 (processor stack) and §4.2 (safety architecture)
-> in full** — §4.2 is one of the three live constraints and is cited more than any other hardware
-> section — plus §4.6 (the four operating modes) and the invariant of each section below.
+> Relocated from CLAUDE.md §4.1 and §4.2's cervical VNS row (Rev 62) and §4.3, §4.4, §4.5 and §4.7
+> (Rev 43), to slim the always-loaded core. Content is verbatim; section numbers are unchanged, so
+> an inbound `CLAUDE.md §4.5` citation lands on the same material. **CLAUDE.md §4 keeps §4.2 (the
+> safety architecture) and §4.6 (the four operating modes)** — §4.2 is one of the three live
+> constraints and is cited more than any other hardware section — plus the invariant of each section
+> here.
 >
-> **Read this file when:** specifying or reviewing the shielding stack, sizing or fitting the
+> **Read this file when:** reading processor-stack figures, specifying or reviewing the shielding stack, sizing or fitting the
 > headset, budgeting power or selecting a PD source, or working on the status-LED behaviour.
 >
 > Related: thermal work is `docs/np_therm_*`; the power budget derivation is
 > `docs/np_pwr_budget_001.md` and the source analysis `docs/np_pwrsrc_001.md`; charger *policy*
 > (which charger ships with which configuration) is `docs/reference/commercial-model.md` §2.2.
+
+### 4.1 Processor stack — detail
+
+> Relocated from CLAUDE.md §4.1 (Rev 62). CLAUDE.md §4.1 keeps the invariants: the part choices, the
+> safety MCU owning every stimulation enable line, and the separate UHDR/SHDR partitions.
+
+- **Main:** NXP i.MX RT1062 · Cortex-M7 · 600 MHz · FPU + DSP + SIMD · 1 MB on-chip SRAM + 32 MB
+  LPSDR4 · USB-HS OTG · FreeRTOS-Kernel V11.3.0 (LTS 202604.00, vendored `firmware/vendor/freertos/`)
+  · ~1.1% CPU at full load (98.9% headroom for future ML)
+- **Safety MCU:** STM32G071 (NOT G031: the G031 has only 8 KB SRAM, insufficient for the EMF
+  firmware) · Cortex-M0+ · 64 MHz · 36 KB SRAM · 128 KB flash · bare-metal · +$0.45 BOM
+- **Storage:** 8 GB industrial eMMC (SLC cache, 30,000+ P/E cycles) · LittleFS · firmware partition
+  write-protected
+- **Connectivity:** USB-C 3.2 Gen1 (default, zero RF, <1 ms) · BT 5.3 LE Audio · Wi-Fi 6 · antennas in
+  the control hub, not the headset · single rear toggle
+
+### 4.2 Cervical VNS cardiac interlock — where the figures are
+
+> Relocated from CLAUDE.md §4.2's table row (Rev 62). The row's detection and cutoff times are
+> **authoritative in `REQ-CVNS-09`** (`docs/np_hw_cvns_001.md` §3) and `NP-FW-CVNS-001` §5.3 (the 18 s
+> is derived there). Rev 61 (`OI-CVNS-12`) records why detection and cutoff are stated separately.
+> **Do not quote a cutoff time without its detection time**: the old row did, and read as 100 ms
+> from the change.
 
 ### 4.3 EMF shielding (4-layer passive + active)
 - Layer 1: CFRP outer (30–50dB RF)

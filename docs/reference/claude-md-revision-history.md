@@ -19,6 +19,31 @@
 
 ## Current revision
 
+**Rev 62 (2026-10-04) — CLAUDE.md slimmed: detail relocated to the files that own it. No design decision changed.**
+
+**What moved, and where.**
+- **§3 "What the figures rest on"** → `modality-stack.md` §3. CLAUDE.md keeps the two PBM controls: the
+  weighted sum is the whole average term at zero margin, and the 400 peak is a hazard control at
+  1064 nm that may not be raised or retired while `OI-BIBPBM-03` is open.
+- **§4.1 processor stack** (versions, clocks, memory, headroom, BOM delta, cycle counts) →
+  `hardware-detail.md` §4.1. The invariants stay.
+- **§4.2 cervical VNS interlock figures** → `REQ-CVNS-09` and `hardware-detail.md` §4.2 (a pointer).
+  The row keeps the rule that detection and cutoff are stated separately (Rev 61).
+- **§2.3** consumables rule → `commercial-model.md` §2.3, which already held the full text.
+- **§2.1a** commentary → `commercial-model.md` §2.1a, which already held it.
+- **§1** T1 → T2 list and **§6.2** layer table, trimmed to the invariants. `np_reg_upg_001.md` §7 and
+  `consent-engine.md` §6.2 hold the rest.
+- **Dates and revision parentheticals** removed from CLAUDE.md. They are in this file.
+
+**What stays true.** Every section and subsection number is retained, and no limit, interlock or
+hazard control was removed or reworded.
+
+**Known follow-up.** `REQ-CVNS-09`'s source cell cites `CLAUDE.md` §4.2, which now points back at it.
+The requirement's own row is where the figures live, so the cell wants a controlled revision of
+`NP-HW-CVNS-001` to cite `NP-FW-CVNS-001` §5.3 and Rev 61 instead. That is not made here.
+
+## Earlier revisions
+
 **Rev 61 (2026-10-01) — §4.2's cervical VNS interlock row: detection and cutoff are stated
 separately, and the detector behind them is redesigned. A principal decision, closing `OI-CVNS-12`.**
 
@@ -48,8 +73,6 @@ The principal chose three things on 2026-10-01:
   OI-RISK2-08).
 - **The other figures stand.** The 15 BPM threshold, the 100 ms, the 30 s lockout and the re-enable
   conditions are unchanged.
-
-## Earlier revisions
 
 **Rev 60 (2026-09-29) — §3's PBM scalp row: the laser skin reference is adopted in full, and the
 per-channel 200 mW/cm² is removed. A principal decision, closing `OI-HEXTILE-32`.**
