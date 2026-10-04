@@ -425,21 +425,25 @@ never retire.** Removing a safety control is an ISO 14971 decision.
 
 ## 19. UNJUSTIFIED CHOICES — THE REGISTER IS KEPT CURRENT (locked) → `docs/status/unjustified-choices.md`
 
-**Every choice that has no derivation, no measurement or no checked source has a row in
+**Every choice that has no derivation, no measurement and no external citation has a row in
 `docs/status/unjustified-choices.md`, and the row is kept current in the same change that alters it.**
-The register is an index. The reasoning stays in the owning open item (OI), so a row points at it and
-never replaces it.
+A citation to an external source (a standard, a paper, a datasheet) is a justification, and it takes the
+choice out of the register. An internal document that restates the figure is not one. Checking an external
+citation against its source is tracked by its own open item, never by a row. The register is an index. The
+reasoning stays in the owning open item (OI), so a row points at it and never replaces it.
 
 - **Adding one adds a row.** A change that introduces a constant, limit, tolerance, threshold or
   assumption with no derivation behind it, or that marks one `PROVISIONAL`, `PLACEHOLDER`,
   `UNCALIBRATED` or `UNVALIDATED`, adds its row in that change. So does a change that finds an
   existing one. **A row cites every source that bears on it** (the OI, the document section, each
   GitHub issue or pull request that decided or discussed it), not the first one found.
-- **Justifying one moves its row.** A change that derives, measures or source-checks a listed choice
-  moves the row to the register's "Justified or retired" table in that change, with a link to the
+- **Justifying one moves its row.** A change that derives, measures or cites an external source for a
+  listed choice moves the row to the register's "Justified or retired" table in that change, with a link to the
   justification. **A row is never deleted and its ID is never reused.**
 - **Retiring under §18 moves the row too.** "I could not find the derivation" still means a row and an
   open item, never a retirement (§18).
+- **A marker outlives the row.** The gate keys on the marker, so a marked value whose choice is externally cited is
+  named in the "Justified or retired" table, and the marker stays until the open item that tracks the check closes.
 - **The gate is partial.** `scripts/check-unjustified-register.ts` fails a marked value the register
   does not name. It cannot see an unmarked one. Marking it, or adding the row, is the author's duty.
 

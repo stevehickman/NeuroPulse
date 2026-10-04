@@ -30,6 +30,8 @@ listed them in one place, so revisiting one meant knowing where it had been mark
 records each covered part of it: `pending-decisions.md` is organised by open item, `NP-CONV-001` §7.1.1 swept
 requirement rows once and is closed, and the JSON tags only the PBM model.
 
+**What counts as a justification (principal, same day).** A citation to an external source is one, so a choice that carries a citation has no row. Checking the citation against its source is a separate open item. The register moved four rows to its "Justified or retired" table on that basis. This entry was amended before Rev 63 reached `main`, so it still records what was believed when the revision was written.
+
 **What the rule says.** Adding an unjustified choice adds a row in the same change. Justifying one
 moves its row to the "Justified or retired" table with a link, and a row is never deleted. A row cites every
 source that bears on it. The register is an index and the owning open item stays the record.
