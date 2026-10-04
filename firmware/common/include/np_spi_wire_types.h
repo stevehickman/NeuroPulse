@@ -398,6 +398,62 @@ typedef char _np_spi_user_cmd_size_check[
     (sizeof(np_safety_user_cmd_t) == NP_SAFETY_USER_FRAME_LEN) ? 1 : -1
 ];
 
+/* ── Hub heart-rate report (OI-CVNS-14, NP-FW-CVNS-001 Rev 14 §14.7) ─────────── */
+/*
+ * The main processor's own heart-rate estimate, sent while cervical VNS is in
+ * use so the safety MCU can compare it with the rate it measures itself from
+ * RPEAK_IN.  A plausible false rhythm on RPEAK_IN (a free-running pulse source,
+ * a SW-02 timer fault) is invisible to the MCU alone: staleness never fires and
+ * every interval is in range.  This frame is the second, independent observation
+ * that case 5 of §14.4.1 needed.
+ *
+ * hr_x10 is the mean of the last NP_CARDIAC_XCHECK_HR_INTERVALS R-R intervals
+ * the hub's detector accepted, in 0.1 BPM — the same span as the MCU's own mean
+ * (np_cardiac_interlock.c, NP_RR_BUF_SIZE), so a real change moves both
+ * estimates over the same number of beats.  age_ms is how old the newest of
+ * those beats was when the frame was built; the MCU backdates the report by it.
+ * flags bit 0 clear means the hub has no estimate: the MCU treats that exactly
+ * like no report.
+ *
+ * Distinguished from the 8/10/34/38/76/102-byte frames by its NSS-delineated
+ * transfer length (12).  Shares the 0xC0/0xDE command magic.  Accepted at any
+ * time (it carries no state the MCU must protect) and newest-wins.
+ * Checksum: additive sum of bytes [0..9], wrapping uint16.
+ *
+ * Privacy: hr_x10 is the wearer's heart rate — UHDR.  It is device-internal
+ * (hub → MCU), is never logged to SHDR, and is never forwarded.  The MCU keeps
+ * it in RAM only, and drops it with the session.
+ */
+#define NP_SAFETY_CMD_HR_REPORT       0x05U   /* cmd_type: hub heart-rate estimate */
+#define NP_SAFETY_HR_REPORT_FRAME_LEN 12U
+#define NP_SAFETY_HR_FLAG_VALID       (1U << 0)
+
+/* Averaging span of hr_x10 on the hub side: the number of most recent R-R
+ * intervals.  Shared so the hub's span and the MCU's own mean (NP_RR_BUF_SIZE,
+ * np_cardiac_interlock.c, which static-asserts equality) cannot drift apart. */
+#define NP_SAFETY_HR_REPORT_INTERVALS 8U
+
+typedef struct __attribute__((packed)) {
+    uint8_t  cmd_magic[2];     /* NP_SAFETY_CMD_MAGIC_0 / _1 */
+    uint8_t  cmd_type;         /* NP_SAFETY_CMD_HR_REPORT    */
+    uint8_t  flags;            /* NP_SAFETY_HR_FLAG_*        */
+    uint16_t hr_x10;           /* hub HR, 0.1 BPM, little-endian */
+    uint16_t age_ms;           /* age of the newest beat behind hr_x10 */
+    uint16_t reserved;         /* 0 */
+    uint16_t checksum;         /* sum of bytes [0..9], wrapping uint16 */
+} np_safety_hr_report_cmd_t;   /* 2+1+1+2+2+2+2 = 12 bytes */
+
+typedef char _np_spi_hr_report_size_check[
+    (sizeof(np_safety_hr_report_cmd_t) == NP_SAFETY_HR_REPORT_FRAME_LEN) ? 1 : -1
+];
+/* Field offsets are part of the wire format; both sides compile against this. */
+typedef char _np_spi_hr_report_layout_check[
+    (__builtin_offsetof(np_safety_hr_report_cmd_t, hr_x10)   == 4U &&
+     __builtin_offsetof(np_safety_hr_report_cmd_t, age_ms)   == 6U &&
+     __builtin_offsetof(np_safety_hr_report_cmd_t, checksum) == NP_SAFETY_HR_REPORT_FRAME_LEN - 2U)
+        ? 1 : -1
+];
+
 /* ── MCU→hub cardiac-status report (NP-SW-FAULTMSG-001 P4, blanket warning) ─ */
 /*
  * Two facts the app needs at connect, carried in the spare MISO window bytes

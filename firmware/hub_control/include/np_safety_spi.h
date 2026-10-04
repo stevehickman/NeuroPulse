@@ -291,6 +291,15 @@ bool np_safety_spi_get_cardiac_report(uint8_t *flags_out);
 np_hub_status_t np_safety_spi_send_active_user(uint32_t user_tag);
 
 /*
+ * np_safety_spi_send_hr_report — send the hub's own heart-rate estimate to the
+ * safety MCU for its ±5 BPM cross-check (np_safety_hr_report_cmd_t, OI-CVNS-14).
+ * valid=false sends "no estimate" (hr_x10 and age_ms are then sent as zero).
+ * The value is the wearer's heart rate: UHDR, device-internal, never logged.
+ */
+np_hub_status_t np_safety_spi_send_hr_report(bool valid, uint16_t hr_x10,
+                                             uint16_t age_ms);
+
+/*
  * np_safety_spi_get_tier — the unit's tier as the safety MCU established it
  * from its signed OTP tier identity (OI-UPG-01, REQ-UPG-01/-02):
  * NP_TIER_T1 / NP_TIER_T2, or NP_TIER_UNKNOWN until the first valid report.

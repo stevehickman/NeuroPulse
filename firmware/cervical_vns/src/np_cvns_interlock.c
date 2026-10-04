@@ -127,6 +127,19 @@ static bool pt_process_sample(np_cvns_interlock_ctx_t *ctx,
 
         if (rr_ms >= NP_CVNS_RR_MIN_VALID_MS) {
             peak_forward = true;
+            /* Remember it as the MCU will see it (OI-CVNS-14).  The very first
+             * peak has no predecessor: its "interval" is the time since boot, and
+             * the MCU skips it too (s_first_beat_seen).  Saturate rather than
+             * wrap: a gap over 65 s is a very slow rate, not a fast one. */
+            if (ctx->pt_last_peak_ms != 0U) {
+                ctx->fwd_rr_ms[ctx->fwd_head] =
+                    (rr_ms > (uint32_t)UINT16_MAX) ? UINT16_MAX : (uint16_t)rr_ms;
+                ctx->fwd_head = (uint8_t)((ctx->fwd_head + 1U) % NP_CVNS_FWD_RR_COUNT);
+                if (ctx->fwd_count < NP_CVNS_FWD_RR_COUNT) {
+                    ctx->fwd_count++;
+                }
+            }
+            ctx->fwd_last_ms = timestamp_ms;
         }
 
         if (rr_ms >= NP_CVNS_RR_MIN_VALID_MS &&
@@ -371,6 +384,37 @@ float np_cvns_interlock_baseline_hr(const np_cvns_interlock_ctx_t *ctx)
 bool np_cvns_interlock_baseline_valid(const np_cvns_interlock_ctx_t *ctx)
 {
     return ctx ? ctx->baseline_valid : false;
+}
+
+bool np_cvns_interlock_hr_report(const np_cvns_interlock_ctx_t *ctx,
+                                 uint32_t now_ms, uint8_t n,
+                                 uint16_t *hr_x10_out, uint16_t *age_ms_out)
+{
+    if ((ctx == NULL) || (hr_x10_out == NULL) || (age_ms_out == NULL) ||
+        (n == 0U) || (n > NP_CVNS_FWD_RR_COUNT) || (ctx->fwd_count < n)) {
+        return false;
+    }
+    const uint32_t age = now_ms - ctx->fwd_last_ms;
+    if (age > (uint32_t)UINT16_MAX) {
+        return false;
+    }
+
+    uint32_t sum_ms = 0U;
+    for (uint8_t i = 0U; i < n; i++) {
+        const uint8_t idx = (uint8_t)(((uint16_t)ctx->fwd_head +
+                                       NP_CVNS_FWD_RR_COUNT - 1U - i) %
+                                      NP_CVNS_FWD_RR_COUNT);
+        sum_ms += ctx->fwd_rr_ms[idx];
+    }
+    const uint32_t mean_ms = sum_ms / n;
+    if (mean_ms == 0U) {
+        return false;
+    }
+    /* 600 000 / mean_ms is BPM x 10, rounded to nearest.  mean_ms >= 300, so the
+     * result is <= 2000 and fits uint16_t. */
+    *hr_x10_out = (uint16_t)((600000UL + (mean_ms / 2U)) / mean_ms);
+    *age_ms_out = (uint16_t)age;
+    return true;
 }
 
 float np_cvns_interlock_current_hr(const np_cvns_interlock_ctx_t *ctx)

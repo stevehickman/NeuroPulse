@@ -56,6 +56,11 @@
 /* ── Module state ─────────────────────────────────────────────────────────── */
 #define NP_RR_BUF_SIZE   8U
 
+/* The hub averages the same number of intervals (OI-CVNS-14): a different span
+ * would make a real heart-rate change look like a disagreement. */
+_Static_assert(NP_RR_BUF_SIZE == NP_CARDIAC_XCHECK_HR_INTERVALS,
+               "hub and MCU heart-rate means must span the same number of intervals");
+
 static uint32_t s_rr_buf[NP_RR_BUF_SIZE];   /* RR intervals in µs */
 static uint8_t  s_rr_head;
 static uint8_t  s_rr_count;
@@ -74,6 +79,17 @@ static bool     s_baseline_valid;
 static bool     s_lockout_active;
 static uint32_t s_lockout_start_ms;         /* stored start (not end) for wrap safety */
 static bool     s_cutoff_active;
+
+/* Hub heart-rate report (OI-CVNS-14).  RAM only: the wearer's heart rate is
+ * UHDR and is never persisted or forwarded.  s_xchk_ms is the SysTick time of
+ * the beat behind the estimate (receipt time minus the frame's own age). */
+static bool     s_xchk_have;
+static uint16_t s_xchk_hr_x10;
+static uint32_t s_xchk_ms;
+/* True once a fresh, agreeing report has been seen since arming.  Before it, a
+ * missing report only holds the grant back (nothing has run, and the hub's first
+ * report may simply not have arrived); after it, a missing report cuts. */
+static bool     s_xchk_confirmed;
 
 /* Pending non-volatile write: a new "cutoff awaiting acknowledgement" value
  * that np_safety_main.c has not yet persisted. */
@@ -100,6 +116,10 @@ np_safe_status_t np_cardiac_interlock_init(void)
     s_hist_count           = 0U;
     s_hist_last_ms         = 0U;
     s_baseline_valid       = false;
+    s_xchk_have            = false;
+    s_xchk_confirmed       = false;
+    s_xchk_hr_x10          = 0U;
+    s_xchk_ms              = 0U;
     s_lockout_active       = false;
     s_lockout_start_ms     = 0U;
     s_cutoff_active        = false;
@@ -120,10 +140,50 @@ np_safe_status_t np_cardiac_interlock_init(void)
  */
 void np_cardiac_interlock_arm_reset(void)
 {
+    s_xchk_confirmed  = false;
     s_baseline_valid  = false;
     s_rr_count        = 0U;
     s_rr_head         = 0U;
     s_first_beat_seen = false;
+}
+
+/*
+ * np_cardiac_interlock_hr_report — the hub's heart-rate estimate arrived
+ * (OI-CVNS-14).  Newest wins.  A report without the valid flag, or whose own age
+ * is already past the staleness bound, clears the held estimate rather than
+ * leaving an older one to stand in for it.
+ */
+void np_cardiac_interlock_hr_report(bool valid, uint16_t hr_x10, uint16_t age_ms)
+{
+    if (!valid || (age_ms >= NP_CARDIAC_XCHECK_STALE_MS)) {
+        s_xchk_have = false;
+        return;
+    }
+    s_xchk_hr_x10 = hr_x10;
+    s_xchk_ms     = np_hal_get_tick_ms() - (uint32_t)age_ms;
+    s_xchk_have   = true;
+}
+
+typedef enum {
+    XCHK_NONE = 0,   /* no fresh hub estimate */
+    XCHK_AGREE,
+    XCHK_DISAGREE
+} xchk_t;
+
+/* Compare the MCU's own mean with the hub's estimate.  Both in 0.1 BPM; the
+ * MCU mean can be INT16_MAX (a saturated artefact interval), and 10x that fits
+ * in int32_t, so the difference cannot overflow.  Signed, so a fall compares by
+ * magnitude (FMEA-M05-02). */
+static xchk_t xchk_evaluate(int16_t cur_bpm, uint32_t now_ms)
+{
+    if (!s_xchk_have || ((now_ms - s_xchk_ms) >= NP_CARDIAC_XCHECK_STALE_MS)) {
+        return XCHK_NONE;
+    }
+    int32_t d = ((int32_t)cur_bpm * 10) - (int32_t)s_xchk_hr_x10;
+    if (d < 0) {
+        d = -d;
+    }
+    return (d > (int32_t)(NP_CARDIAC_XCHECK_BPM * 10U)) ? XCHK_DISAGREE : XCHK_AGREE;
 }
 
 /* Trip: the one cutoff path, shared by the HR-delta and staleness conditions. */
@@ -172,6 +232,7 @@ void np_cardiac_interlock_user_changed(np_safety_state_t *state, bool new_user_b
 {
     s_cutoff_active    = false;
     s_lockout_active   = false;
+    s_xchk_confirmed   = false;
     s_baseline_valid   = false;
     s_rr_count         = 0U;
     s_rr_head          = 0U;
@@ -218,6 +279,7 @@ void np_cardiac_interlock_reenable(np_safety_state_t *state)
     state->status    &= (uint8_t)~NP_SAFETY_STATUS_CARDIAC;
     state->status    &= (uint8_t)~NP_SAFETY_STATUS_CUTOFF;
     s_cutoff_active   = false;
+    s_xchk_confirmed  = false;  /* the hub must agree afresh as well */
     s_baseline_valid  = false;  /* force fresh baseline accumulation */
     s_rr_count        = 0U;
     s_rr_head         = 0U;
@@ -365,19 +427,44 @@ void np_cardiac_interlock_tick(np_safety_state_t *state)
         return;
     }
 
+    /* Current HR once, reused by the cross-check, the snapshot and the
+     * comparison.  Computing it more than once risks different results if an
+     * R-peak edge arrives between the calls (ring buffer updates mid-tick). */
+    int16_t cur_bpm = current_hr_bpm();
+
     /* STALENESS (OI-RISK2-05): only while CVNS is actually granted — under a
      * CARDIAC cutoff it is already withheld, so lockout expiry cannot re-trip. */
-    if (!s_cutoff_active &&
-        (state->granted_mask & NP_SAFETY_EN_CVNS) != 0U &&
+    const bool granted = (state->granted_mask & NP_SAFETY_EN_CVNS) != 0U;
+    if (!s_cutoff_active && granted &&
         (now_ms - s_last_edge_ms) >= NP_CARDIAC_RPEAK_STALE_MS) {
         cardiac_cutoff(state, now_ms);
         return;
     }
 
-    /* Compute current HR once; reuse below for both the snapshot and the
-     * comparison.  Computing twice risks a different result if an R-peak edge
-     * arrives between the two calls (ring buffer updates mid-tick). */
-    int16_t cur_bpm = current_hr_bpm();
+    /* HUB CROSS-CHECK (OI-CVNS-14).  The second, independent heart-rate
+     * observation: a false rhythm on RPEAK_IN at a plausible rate passes every
+     * other test here, but the hub's own estimate will not follow it.
+     *   - disagreement beyond NP_CARDIAC_XCHECK_BPM: cut and latch, granted or
+     *     not (principal, 2026-10-04) — the app can then say why;
+     *   - no fresh report before the first agreement: withhold the grant,
+     *     silently, as the pre-arm hold does (the hub's first report may be a
+     *     beat behind the arming);
+     *   - no fresh report after an agreement, while granted: cut and latch.
+     *     Fail-closed: a hub that goes quiet cannot switch the check off.     */
+    const xchk_t xchk = xchk_evaluate(cur_bpm, now_ms);
+    if (xchk == XCHK_AGREE) {
+        s_xchk_confirmed = true;
+    } else if (xchk == XCHK_DISAGREE) {
+        if (!s_cutoff_active) {
+            cardiac_cutoff(state, now_ms);
+        }
+        return;
+    } else if (!s_xchk_confirmed) {
+        state->granted_mask &= (uint16_t)~NP_SAFETY_EN_CVNS;
+    } else if (granted && !s_cutoff_active) {
+        cardiac_cutoff(state, now_ms);
+        return;
+    }
 
     /* Snapshot the current mean every NP_CARDIAC_HR_SNAP_MS.  No snapshot is
      * taken under a cutoff: the lockout returns above, and its expiry empties

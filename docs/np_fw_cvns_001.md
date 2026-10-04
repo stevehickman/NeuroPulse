@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 13
+**Revision:** 14
 **Date:** 2026-10-04
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
@@ -12,10 +12,17 @@
 **Related Issues:** GitHub Issue #24; GitHub Issue #343 (§9 FAI serial disposition); GitHub Issue #332 (A14 hardware specification — issued 2026-09-20 as NP-HW-CVNS-001)
 **Gate:** NP-COORD-001 G3-08
 **IEC 62304 Class:** SW-01 Class C (safety MCU) / SW-02 Class B (main processor)
-**Supersedes:** NP-FW-CVNS-001 Rev 12
+**Supersedes:** NP-FW-CVNS-001 Rev 13
 **Parent Document:** NP-SW-001
 
 ---
+
+**Rev 14 (2026-10-04): OI-CVNS-14 CLOSED, candidate D built (principal): the hub now sends its own heart rate and the safety MCU cross-checks it at ±5 BPM (§14.7).**
+- **Built, host-tested, not run on silicon.** A new 12-byte wire command (`NP_SAFETY_CMD_HR_REPORT`, `np_safety_hr_report_cmd_t`) carries the hub's estimate. The MCU compares it with its own 8-interval mean on every armed tick (§5.4 step 5).
+- **Decided (principal, 2026-10-04):** a disagreement of more than 5 BPM **cuts and latches** exactly as a cardiac event does (lockout, CARDIAC and CUTOFF status, persisted cutoff, app confirmation and repeat impedance before re-enable). Source: the hub's PPG-derived heart rate.
+- **Fail-closed, confirmed (principal, 2026-10-04):** a hub that stops reporting after the check has agreed once cuts and latches after 3 s, and before the first agreement the grant is only held back, silently. Making silence only a hold was considered and rejected (§14.7).
+- **What it does not close:** a fault inside the hub's own R-peak detector, which both sides then see identically (§14.7). **The ±5 BPM and the 3 s are chosen, not derived**, and the false-trip rate on a real heart rate is unmeasured: new item **OI-CVNS-15**.
+- **Changed:** `np_cardiac_interlock.c` (Class C), `np_hal_spi.c`, `np_safety_main.c`, `np_safety_config.h`, `np_spi_wire_types.h`, `np_cvns_interlock.c`, `np_mod_cvns.c`, `np_safety_spi.c`. **Not changed:** the 15 BPM threshold, the 18 s history, the 8-interval window, the staleness bound, the lockout.
 
 **Rev 13 (2026-10-04): OI-CVNS-11 CLOSED, candidate A (principal): the safety MCU applies no R-R validity filter, and artefact rejection stays upstream. The `RPEAK_IN` line-fault analysis is §14.4.1.**
 - **Analysis only, from reading the code (§14.4.1). Nothing was run.** Stuck high, stuck low, a floating pin and a burst of ringing all end in a cutoff, which is the safe direction.
@@ -368,6 +375,9 @@ Safety MCU constants — the values that actually govern §5.3 and §5.4:
 | `NP_CARDIAC_HR_SNAP_MS` | 1 000 | `include/np_safety_config.h` | Cadence of heart-rate snapshots (Rev 10) |
 | `NP_CARDIAC_HR_HIST_LEN` | 18 | `include/np_safety_config.h` | Snapshots kept, so the comparison horizon is 18 s (Rev 10; derivation below) |
 | `NP_CARDIAC_LOCKOUT_MS` | 30 000 | `include/np_safety_config.h` | Re-enable lockout after a cutoff |
+| `NP_CARDIAC_XCHECK_BPM` | 5 | `include/np_safety_config.h` | Hub cross-check tolerance, strict `>` (Rev 14; chosen, OI-CVNS-15) |
+| `NP_CARDIAC_XCHECK_STALE_MS` | 3 000 | `include/np_safety_config.h` | Age at which a hub report counts as no report (Rev 14; chosen, OI-CVNS-15) |
+| `NP_CARDIAC_XCHECK_HR_INTERVALS` | 8 | `include/np_safety_config.h` (= `NP_SAFETY_HR_REPORT_INTERVALS`) | The hub's averaging span; `_Static_assert`-equal to `NP_RR_BUF_SIZE` (Rev 14) |
 
 > **OI-CVNS-10 — closed 2026-09-29 (Rev 9), moot.** The safety MCU uses an 8-interval window and the main processor uses 5 (`NP_CVNS_BASELINE_BEATS_MIN`). Nothing compares the two baselines, so they need not agree. The MCU's window is now a parameter of **OI-CVNS-12**, because the window and the 5 s refresh together decide what the interlock can detect. **Still do not harmonise by editing one number to match the other** (§14.3).
 
@@ -376,7 +386,7 @@ Before stimulation is enabled:
 2. **Not implemented on the safety MCU.** Rev 1 specified discarding intervals outside [`NP_CVNS_RR_MIN_VALID_MS`, `NP_CVNS_RR_MAX_VALID_MS`] (300–2000 ms); those are main-processor constants and the safety MCU applies no validity filter — every measured interval enters the buffer. A physiologically impossible interval is handled downstream instead, by saturating the BPM conversion at `INT16_MAX` (see `rr_to_bpm()`). Decided as intended, not a gap (OI-CVNS-11 closed, §14.4.2).
 3. The baseline arms when `NP_CARDIAC_BASELINE_BEATS` (8) intervals have accumulated. There is no outlier-rejection criterion on the MCU side.
 4. Baseline HR (BPM) = 60,000,000 / mean(all intervals currently in the ring buffer, in µs). Because the buffer is 8 deep and arming requires 8 intervals, at the arming tick this is the mean of the last 8.
-5. **Not implemented (Rev 9).** This step said that the main processor confirms its baseline via `NP_CVNS_SPI_CMD_HR_BASELINE_SET`, and that the safety MCU rejects the enable if the two differ by more than `NP_CVNS_BASELINE_CROSSVAL_BPM` (5 BPM). The safety MCU never receives the main processor's baseline. Its wire protocol (`np_spi_wire_types.h`) has no baseline command, and `np_cvns_interlock.c` sends 0x13 through a stub that transmits nothing. `NP-FMEA-001` Rev 12 withdrew the same claim on 2026-09-25. Whether a cross-check is wanted is part of OI-CVNS-12.
+5. **(Rev 14) Built differently, §14.7.** The hub does not push a *baseline*; it sends its current heart-rate estimate about once a second, and the MCU compares it with its own mean on every armed tick (§5.4 step 5). *Superseded, retained: Rev 9 to Rev 13 text follows.* **Not implemented (Rev 9).** This step said that the main processor confirms its baseline via `NP_CVNS_SPI_CMD_HR_BASELINE_SET`, and that the safety MCU rejects the enable if the two differ by more than `NP_CVNS_BASELINE_CROSSVAL_BPM` (5 BPM). The safety MCU never receives the main processor's baseline. Its wire protocol (`np_spi_wire_types.h`) has no baseline command, and `np_cvns_interlock.c` sends 0x13 through a stub that transmits nothing. `NP-FMEA-001` Rev 12 withdrew the same claim on 2026-09-25. Whether a cross-check is wanted is part of OI-CVNS-12.
 6. **(Rev 10)** The arming mean is the first entry of a **heart-rate history**. Once armed, the current mean is appended every `NP_CARDIAC_HR_SNAP_MS` (1 s), and the oldest entry is overwritten after `NP_CARDIAC_HR_HIST_LEN` (18). §5.4 step 2 compares against every entry. Slow drift does not accumulate into a cutoff, because an entry older than 18 s is gone: a drift is cut only if it moves more than 15 BPM within 18 s. When a lockout expires, the history is emptied and reseeded from the current mean. No snapshot is taken during the lockout, so the stale entries are the pre-event rates, and comparing against them would re-trip at once and make re-enable unreachable. *Superseded, retained: Once armed, the baseline is refreshed to the current rate every `NP_CARDIAC_OBS_MS` (5 s) so that slow physiological drift does not accumulate into a cutoff. **Rev 9: the refresh is unconditional. It also absorbs a sustained step that takes longer than 5 s to move the 8-interval mean past 15 BPM, which at resting rates is most steps (OI-CVNS-12, §14.5).***
 
 **Horizon derivation (Rev 10, CLAUDE.md §18).** A change of just over 15 BPM crosses the threshold only when all 8 intervals in the mean are at the new rate. It is seen only against a snapshot taken before the change began, so that snapshot must still be in the history when the 8th interval lands:
@@ -407,6 +417,12 @@ While cervical VNS is requested, the safety MCU runs this check on **every main-
    e. **(Rev 6)** Record the cutoff in safety-MCU flash for the active user (§5.4.1), once every channel is off. The CARDIAC status withholds `NP_SAFETY_EN_CVNS` **only** (`NP_CARDIAC_BLOCK_MASK`). Every other channel stays grantable.
 3. **Pre-arm hold (Rev 8, principal 2026-09-25, `NP-RISK-002` OI-RISK2-05).** Until `NP_CARDIAC_BASELINE_BEATS` (8) fresh intervals have armed the baseline, the safety MCU **withholds `NP_SAFETY_EN_CVNS`**. The hold is silent: no status bit, no lockout and no NV write. The hub reads an absent grant as request latency, not as a fault (`np_mod_cvns.c`), and holds its stimulation at 0 until granted. A new CVNS request re-arms from fresh beats (`np_cardiac_interlock_arm_reset()`), and so does every re-enable. *Rev 7 and earlier: the MCU would not fire a cutoff until armed, but it still granted CVNS, so a session whose R-peaks never arrived ran with no Class C monitoring. The hub's `NP_CVNS_DATA_LOSS_TIMEOUT_S` hold (§6) is a separate, Class B mechanism.* Superseded text, retained: **Conservative hold.** The safety MCU will not fire a cutoff at all until the baseline has armed — that is, until `NP_CARDIAC_BASELINE_BEATS` (8) intervals have accumulated. This is stricter than Rev 1's "fewer than 3 valid intervals" rule, which described the *main processor's* data-loss handling (`NP_CVNS_DATA_LOSS_TIMEOUT_S`, §6). The safety MCU has **no** warning flag and **no** 10 s soft-cutoff timer; it holds, silently and unconditionally, until armed. Re-enable invalidates the baseline, so the hold applies again after every cutoff.
 4. **Staleness cutoff (Rev 8, same decision).** While CVNS is granted and the baseline is armed, **no R-peak edge for `NP_CARDIAC_RPEAK_STALE_MS` (3 s)** triggers step 2a–2e exactly as a heart-rate excursion does: CVNS withheld, CARDIAC and CUTOFF set, fault slot 10, 30 s lockout, and the cutoff persisted for the active user. 3 s is an R-R interval of 20 BPM, which is non-physiological for an eligible patient, so a live rhythm never trips it. A lost R-peak stream (cable, PPG or main-processor fault) is therefore caught by Class C code within 3 s, rather than only by the hub's 10 s Class B timer. It is evaluated only while CVNS is granted, so it cannot re-trip on lockout expiry.
+
+5. **Hub cross-check (Rev 14, OI-CVNS-14, principal 2026-10-04).** Once armed, after the staleness check and before the history comparison, the MCU compares its 8-interval mean with the hub's latest report (`np_safety_hr_report_cmd_t`, §14.7). Both are in 0.1 BPM, and the difference is formed in `int32_t`.
+   - **Disagreement** by more than `NP_CARDIAC_XCHECK_BPM` (5 BPM, strict `>`): cut and latch, steps 2a–2e, whether or not CVNS was yet granted.
+   - **No fresh report, no agreement yet since arming:** withhold `NP_SAFETY_EN_CVNS`, silently, as the pre-arm hold does (step 3).
+   - **No fresh report after an agreement, while granted:** cut and latch. A report is fresh for `NP_CARDIAC_XCHECK_STALE_MS` (3 s) from the beat behind it (the frame carries its own age).
+   - A re-enable, a new CVNS request and a change of active user each reset the "agreed once" state, so a re-armed interlock must be agreed with afresh.
 
 #### 5.4.1 Persistence and per-user scope (Rev 6)
 
@@ -495,6 +511,8 @@ Pan-Tompkins-derived bandpass detection on the PPG signal from the VNS accessory
 ### 6.3 Baseline HR computation
 
 Similar to the safety MCU's (§5.3), running in parallel on the main processor, but over 5 intervals (`NP_CVNS_BASELINE_BEATS_MIN`) of a 20-deep buffer and after the 300–2000 ms validity filter. The main processor calls `platform_spi_send(NP_CVNS_SPI_CMD_HR_BASELINE_SET, …)` before requesting enable. *Rev 9 correction: this paragraph said the safety MCU cross-validates that baseline and blocks enable on a > 5 BPM discrepancy. `platform_spi_send` is a stub, the hub↔MCU protocol has no such command, and the MCU never compares the two (§5.3 step 5).* This side has no heart-rate excursion cutoff of its own; its only cutoff is data loss (`NP_CVNS_DATA_LOSS_TIMEOUT_S`).
+
+**(Rev 14, OI-CVNS-14.)** The hub now also keeps the last 8 intervals it **forwarded** on `RPEAK_IN` (`fwd_rr_ms[]`, every peak at least 300 ms after the last, with no upper bound, the first peak skipped as the MCU skips it), and `np_cvns_interlock_hr_report()` returns their mean in 0.1 BPM with the age of the newest. `np_mod_cvns_tick()` sends it about once a second (`NP_CVNS_HR_REPORT_PERIOD_MS`) through `np_safety_spi_send_hr_report()`. The 20-deep `rr_buf` is not used: it drops intervals over 2000 ms, which the MCU still sees, and the two means would disagree after any missed detection.
 
 ### 6.4 API summary
 
@@ -867,7 +885,8 @@ Hardware FAI (CV01 bench, CV02 timing, CV03 clinical) PENDING — blocking for T
 | ~~OI-CVNS-11~~ | ~~Safety MCU applies no R-R validity filter (§5.3 step 2). Intended, or a gap?~~ **CLOSED 2026-10-04 (Rev 13), principal decision: candidate A, intended. Artefact rejection stays upstream (§14.4.2). The line-fault analysis found one residual gap, which is OI-CVNS-14.** | — | Closed |
 | ~~OI-CVNS-12~~ | ~~The Class C cardiac interlock does not meet CLAUDE.md §4.2's "HR change > 15 BPM within 5 s".~~ **CLOSED 2026-10-01 (Rev 10), principal decision.** The refresh is replaced by a comparison against an 18 s history of 1 s snapshots. The window stays at 8, and the cross-check is not built. CLAUDE.md §4.2 splits detection from cutoff, and FAI-CV02 is amended (§14.5.1) | Embedded safety team + principal | — |
 | **OI-CVNS-13** | **The lagged comparison false-trips more than the refresh did.** In simulation, at 100 BPM with 50 ms R-R SD and 1 % artefacts, 75 % of 120 s sessions trip (Rev 9 rule: 36 %). The simulation's jitter is white noise, which is pessimistic for real HRV. The real rate is unmeasured, and so is its clinical cost (30 s lockout + app confirmation per trip) (§14.6). **(Rev 11, principal 2026-10-01)** Analysed through the hub stage. The largest cause below 60 BPM was the hub's pulse gate, not the rule, and that is fixed (§6.2 step 7). Median, longer-window and persistence levers are rejected. **Open for the residual:** missed and split detections, which need measured A13 detection rates and a clinical acceptable nuisance rate | Embedded safety team + Clinical | T2 clinical release; FAI-CV03 |
-| **OI-CVNS-14** | **(Rev 13) A plausible false rhythm on `RPEAK_IN` blinds the interlock.** Regular edges at a normal rate (a free-running pulse source or a SW-02 timer fault) keep staleness quiet, and the safety MCU monitors a rhythm that is not the patient's (§14.4.1, case 5). No R-R validity filter catches it. Closing it needs the ±5 BPM cross-check (§5.3 step 5, candidate D), which needs a wire command carrying a heart rate. Build it, or accept the residual with a stated mitigation? | Principal; embedded safety team | Class C design freeze |
+| ~~OI-CVNS-14~~ | ~~(Rev 13) A plausible false rhythm on `RPEAK_IN` blinds the interlock.~~ **CLOSED 2026-10-04 (Rev 14), principal decision: build the ±5 BPM cross-check (candidate D), source the hub's PPG-derived heart rate, action cut and latch (§14.7).** Built and host-tested only. It closes a fault in the GPIO or timer path, not one in the hub's detector, and it adds nuisance trips that are not yet counted (OI-CVNS-15) | — | Closed |
+| **OI-CVNS-15** | **(Rev 14) The cross-check's constants are chosen, not derived, and its cost is unmeasured.** (a) ±5 BPM and the 3 s report staleness have no §18 derivation. (b) The false-trip rate on a moving, noisy heart rate is unmeasured, and `run_oi_cvns_13_sim.sh` was not extended. It adds trips on top of OI-CVNS-13's. (c) The hub's estimate comes from its own detector, so a detector that re-fires is seen identically by both sides; a separate PPG estimator would close it (§14.7). (d) FAI-CV02/-03 bench injection of `RPEAK_IN` now also needs a hub report source. (e) `NP-FMEA-001` FMEA-M05-10 is the Quality Lead's to re-score | Embedded safety team + Quality Lead + principal | Class C design freeze; FAI-CV03 |
 
 ### 14.1 OI-CVNS-08 — STM32G071 pin map
 
@@ -1152,3 +1171,43 @@ OI-CVNS-13 **stays open**. Its question is now about detection quality, not the 
 No requirement figure is set here, because step 2 has not set a rate for one to derive from.
 
 **Pinned** (`np_cvns_fai_tests`, `fai_rpeak_forwarding`): at 50 BPM, a 2400 ms interval is pulsed and kept out of the hub's buffer, and a peak 250 ms after a beat is not pulsed. Restoring the 2000 ms bound on the pulse gate fails the test (mutation-checked).
+
+### 14.7 OI-CVNS-14 — the ±5 BPM cross-check (Rev 14)
+
+**Decided (principal, 2026-10-04): build candidate D** (§14.5), reversing the Rev 10 "not built" (§14.5.1) and the Rev 13 "does not exist" (§14.4.2). Source of the second observation: **the hub's PPG-derived heart rate**. Action on disagreement: **cut and latch**. Scope of delivery: firmware, host tests and documents.
+
+**What it closes.** Case 5 of §14.4.1: regular edges at a plausible rate on `RPEAK_IN` that are not the wearer's heart (a free-running pulse source, a SW-02 timer fault, a stuck pulse driver). Staleness never fires and every interval is in range, so the MCU monitored a rhythm that was not the patient's. It now needs the hub's own estimate to agree within 5 BPM, which a fault in the pulse path cannot arrange.
+
+**What it does not close.** The hub's estimate is the mean of intervals **its own Pan-Tompkins detector produced** and forwarded, so a fault *inside the detector* is seen identically on both sides: a detector that re-fires at a plausible rate produces the same false rhythm in the pulse train and in the report. Closing that needs a separate estimator on the PPG (for example spectral), which this revision does not build (OI-CVNS-15 (c)). The earlier statement that the two sides are "independent for artefact rejection" is therefore **still not true for the detector**; it is true for the GPIO and timer path.
+
+**Wire.** `NP_SAFETY_CMD_HR_REPORT` (0x05), 12 bytes, in `np_spi_wire_types.h`: magic, type, flags (bit 0 valid), `hr_x10` (0.1 BPM), `age_ms`, reserved, additive checksum. The 12-byte length is distinct from the 8, 10, 34, 38, 76 and 102 already on the link, which is the whole demux. It is accepted at any time and newest wins; a frame with a bad checksum or magic is dropped, so the held estimate ages out and the check fails closed.
+
+**Hub side.** `np_cvns_interlock_hr_report()` averages the last `NP_SAFETY_HR_REPORT_INTERVALS` (8) forwarded intervals, the **same span** as the MCU's mean, so that a real change moves both estimates over the same beats. It reports "no estimate" until 8 exist and when the newest is older than 65 s. `np_mod_cvns_tick()` sends once a second from the first tick of a session. It is sent only while the CVNS driver is active.
+
+**MCU side.** `np_cardiac_interlock_hr_report()` stores the report, backdated by its age. `np_cardiac_interlock_tick()` evaluates it as §5.4 step 5.
+
+| Case | MCU action | Why |
+|---|---|---|
+| Fresh report, within 5 BPM | none; remembers "agreed once" | |
+| Fresh report, more than 5 BPM apart | cut and latch, granted or not | The decision. Latching before the grant lets the app say why a session did not start |
+| No fresh report, never agreed since arming | withhold the grant, silently | The hub's first report can be a beat behind the arming. A latch here would lock out every session whose first report is late |
+| No fresh report, agreed before, granted | cut and latch | Without this a hub that goes quiet switches the check off |
+| Report invalid (hub has no estimate) | same as no fresh report | The held estimate is cleared, not left standing |
+
+**Confirmed by the principal, 2026-10-04:** the last two rows. Silence after an agreement is a cut, and silence before one is a hold. *Considered and rejected: making silence only a hold.* It would cut the nuisance trips from a dropped frame or a stalled hub task, but a quiet hub would then switch the check off, and the hub faults most likely to cause a false rhythm (a SW-02 crash or timer fault) are the ones that stop the reports. It would also be the only Class C interlock that does not cut on a stale input, and a flapping hub would give on-off stimulation with no lockout. **If nuisance trips prove the problem, lengthen `NP_CARDIAC_XCHECK_STALE_MS` or send reports faster before relaxing the rule** (OI-CVNS-15 (a), (b)).
+
+**Constants (CLAUDE.md §18).**
+
+| Constant | Value | What fails if it is not met | Traceable to |
+|---|---|---|---|
+| `NP_CARDIAC_XCHECK_BPM` | 5 | Looser: a false rhythm within the tolerance of the real one goes undetected. Tighter: nuisance trips (30 s lockout and app confirmation each, hazard 25-e) | Principal decision, inherited from `NP_CVNS_BASELINE_CROSSVAL_BPM`. **No derivation: OI-CVNS-15 (a). Not retired, because the principal chose it.** |
+| `NP_CARDIAC_XCHECK_STALE_MS` | 3 000 | Longer: a silent hub is tolerated longer. Shorter: lost frames cut sessions. The hub sends about once a second, so two lost frames are tolerated | Chosen to match `NP_CARDIAC_RPEAK_STALE_MS`. **No derivation: OI-CVNS-15 (a)** |
+| `NP_CARDIAC_XCHECK_HR_INTERVALS` | 8 | A different span makes a real change look like a disagreement | `_Static_assert` against `NP_RR_BUF_SIZE` |
+
+**The interaction the document flagged and nobody analysed.** Both estimates are means over 8 intervals, so they move together over a real change, and their difference should stay small. But they are not the same instants: a report is up to 1 s old when it is sent, and up to 3 s old when the MCU stops trusting it. During a fast real change (a 15 BPM step is the interlock's job to cut) the two can differ by more than 5 BPM for a few seconds, and the cross-check will cut slightly before the 15 BPM rule would. **The rate at which this trips on a real, moving heart rate is not measured**, and neither the host tests nor `run_oi_cvns_13_sim.sh` cover it. It adds to OI-CVNS-13's nuisance rate and is OI-CVNS-15 (b). `test_xchk_tracking_a_real_change_is_not_a_trip` pins only a 70 → 75 BPM change that both sides see at once.
+
+**Privacy.** `hr_x10` is the wearer's heart rate, UHDR. It travels hub to MCU only, is held in MCU RAM only, and is never logged to SHDR or forwarded.
+
+**Evidence.** Host tests only. `np_cardiac_interlock_tests` (OI-CVNS-14 group: the false rhythm cut, the 5.0 / 5.1 BPM boundary on both sides, a late first report, a quiet hub, report age and validity, re-enable needing fresh agreement, a saturated mean) with three mutations checked (tolerance widened, silence-after-agreement not cut, agreement never remembered: each fails the group). `np_cvns_fai_tests` `fai_hr_report`, `np_mod_cvns_tests`, `np_hal_platform_tests` (frame classification). **Nothing is run on silicon, and no latency, SPI timing or bench injection is measured.** FAI-CV02 and FAI-CV03 need a hub report source on the bench from now on, because the MCU never grants CVNS without one.
+
+**Not changed:** the 15 BPM threshold, the 8-interval window, the 18 s history, the 3 s R-peak staleness, the 30 s lockout, `NP_CARDIAC_BLOCK_MASK`.

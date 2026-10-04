@@ -166,6 +166,32 @@
  * code rather than only by the hub's Class B 10 s timer. */
 #define NP_CARDIAC_RPEAK_STALE_MS 3000U
 
+/* Hub heart-rate cross-check (OI-CVNS-14, principal 2026-10-04; NP-FW-CVNS-001
+ * Rev 14 §14.7).  The MCU's 8-interval mean from RPEAK_IN is compared with the
+ * main processor's own estimate (np_safety_hr_report_cmd_t).  A disagreement of
+ * more than NP_CARDIAC_XCHECK_BPM cuts and latches CVNS exactly as a cardiac
+ * event does; before the grant it withholds the grant.
+ *
+ * NP_CARDIAC_XCHECK_BPM is the original ±5 BPM tolerance
+ * (NP_CVNS_BASELINE_CROSSVAL_BPM), chosen by the principal.  It is NOT yet
+ * derived against §18's two questions, and its false-trip rate on a real,
+ * moving heart rate is unmeasured: OI-CVNS-15.
+ *
+ * NP_CARDIAC_XCHECK_STALE_MS: a report older than this (backdated by its own
+ * age_ms) counts as no report.  While CVNS is granted, no fresh report cuts it
+ * (a hub that stops reporting must not silence the second observation); before
+ * the grant, no fresh report withholds it.  3 s is the R-peak staleness figure
+ * (NP_CARDIAC_RPEAK_STALE_MS) for the same reason and is likewise a chosen
+ * value, not a derived one: OI-CVNS-15.  The hub reports about once a second
+ * (NP_CVNS_HR_REPORT_PERIOD_MS), so two lost frames are tolerated.
+ *
+ * NP_CARDIAC_XCHECK_HR_INTERVALS is the hub's averaging span.  It must equal the
+ * MCU's NP_RR_BUF_SIZE so both estimates move over the same number of beats; a
+ * different span makes a real heart-rate change look like a disagreement. */
+#define NP_CARDIAC_XCHECK_BPM          5U
+#define NP_CARDIAC_XCHECK_STALE_MS     3000U
+#define NP_CARDIAC_XCHECK_HR_INTERVALS NP_SAFETY_HR_REPORT_INTERVALS
+
 /* What a cardiac cutoff blocks (principal, 2026-09-22): ONLY what the interlock
  * exists for.  The cardiac rhythm interlock is specified for cervical VNS
  * (CLAUDE.md §4.2 table; RISK-25, the carotid-sheath baroreceptor reflex), so

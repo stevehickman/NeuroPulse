@@ -48,6 +48,7 @@
 #define NP_CVNS_RR_MIN_VALID_MS       300u    /* ms; ≈200 BPM maximum HR         */
 #define NP_CVNS_RPEAK_DEBOUNCE_US     30u     /* µs; GPIO edge debounce          */
 #define NP_CVNS_BASELINE_CROSSVAL_BPM 5u      /* BPM; main vs safety MCU tolerance*/
+#define NP_CVNS_HR_REPORT_PERIOD_MS   1000u  /* ms; hub HR report to safety MCU (OI-CVNS-14) */
 #define NP_CVNS_DATA_LOSS_TIMEOUT_S   10u     /* s; max gap before soft cutoff   */
 
 /* ── Re-enable policy ────────────────────────────────────────────────────────── */
@@ -73,6 +74,7 @@
 #define NP_CVNS_PT_HISTORY_S          2u      /* s; running maximum history      */
 
 /* ── Context size bound (static_assert guard) ───────────────────────────────── */
+#define NP_CVNS_FWD_RR_COUNT              8u      /* forwarded R-R intervals kept (OI-CVNS-14) */
 #define NP_CVNS_INTERLOCK_CTX_SIZE_BYTES  256u
 #define NP_CVNS_STIM_CTX_SIZE_BYTES       128u
 #define NP_CVNS_SESSION_CTX_SIZE_BYTES    512u
