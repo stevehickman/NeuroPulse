@@ -20,7 +20,9 @@
  *      link `](./<file>)` in the row;
  *   B. that row's Rev cell begins with the same integer;
  *   C. NP-DHF-001's own document-history table (the first table under a
- *      `## … History` heading) has a row for the DHF's current revision.
+ *      `## … History` heading, or, where that section holds a pointer instead,
+ *      the first table in the linked `docs/reference/*-revision-history.md`
+ *      it names; NP-QMS-DC-001 §8.2) has a row for the DHF's current revision.
  *
  * C was added after PR #451 (2026-09-26): the Rev 102 history row landed in the
  * master index instead of the history table, and A and B, which read only rows
@@ -130,6 +132,25 @@ if (process.argv.includes("--self-test")) {
   write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md"));
   expect("rule C rejects a DHF with no document-history table", 1, "no document-history table");
 
+  // Rule C, linked form (NP-QMS-DC-001 §8.2): the table lives in the file the section points to.
+  const PTR = "\n## 9. Document History\n\nSee `docs/reference/np-dhf-001-revision-history.md`.\n";
+  const LINKED = (rev: string) => `# H\n\n| Rev | Date | Author | Description |\n|---|---|---|---|\n| ${rev} | 2026-01-01 | A | d |\n`;
+  reset();
+  mkdirSync(join(docs, "reference"), { recursive: true });
+  write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md") + PTR);
+  write("reference/np-dhf-001-revision-history.md", LINKED("1"));
+  expect("rule C accepts a history table in the linked file", 0, "C (DHF history has its Rev): PASS");
+
+  reset();
+  mkdirSync(join(docs, "reference"), { recursive: true });
+  write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md") + PTR);
+  write("reference/np-dhf-001-revision-history.md", LINKED("0"));
+  expect("rule C rejects a linked table with no row for the current Rev", 1, "no row for Rev 1");
+
+  reset();
+  write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md") + PTR);
+  expect("rule C rejects a pointer to a missing file", 1, "which does not exist");
+
   // Rules D–G read §5 only. A §5 fixture with one clean row, plus a row under test.
   const S5 = (extra: string) => "# T\n\n" + DHF_HEAD.replace("| ID |", "## 5. Master Document Index\n\n| ID |")
     + dhfRow("NP-DHF-001", "1", "np_dhf_001.md") + extra + "\n## 6. Other\n" + HIST("1");
@@ -215,20 +236,38 @@ for (const r of readFileSync(DHF, "utf8").split("\n")) {
   rows.set(key, [...(rows.get(key) ?? []), (cells[2] ?? "").replace(/[*\s]/g, "")]);
 }
 
-// Rule C: the document-history table carries the DHF's current revision.
+// Rule C: the document-history table carries the DHF's current revision. The table is either inline
+// under the history heading or, per NP-QMS-DC-001 §8.2 (Rev 2), in a linked file named by a backticked
+// docs/reference/*-revision-history.md path in that section.
 const violC: string[] = [];
 {
   const L = readFileSync(DHF, "utf8").split("\n");
   const h = L.findIndex((l) => /^##\s.*History\s*$/.test(l));
-  let t = h < 0 ? -1 : L.findIndex((l, i) => i > h && l.trimStart().startsWith("|"));
-  if (t < 0) violC.push(`C: ${DHF} has no document-history table (a table under a "## … History" heading)`);
-  else {
+  let src = L, where = DHF, from = h;
+  let t = -1;
+  if (h >= 0) {
+    let end = L.findIndex((l, i) => i > h && /^##\s/.test(l));
+    if (end < 0) end = L.length;
+    t = L.findIndex((l, i) => i > h && i < end && l.trimStart().startsWith("|"));
+    if (t < 0) {
+      const link = L.slice(h, end).join("\n").match(/`(docs\/reference\/[A-Za-z0-9._-]*revision-history\.md)`/)?.[1];
+      if (link && !existsSync(link)) violC.push(`C: ${DHF} points to ${link}, which does not exist`);
+      else if (link) {
+        src = readFileSync(link, "utf8").split("\n");
+        where = link;
+        t = src.findIndex((l) => l.trimStart().startsWith("|"));
+      }
+    }
+  }
+  if (t < 0) {
+    if (!violC.length) violC.push(`C: ${DHF} has no document-history table (a table under a "## … History" heading, or a linked docs/reference/*-revision-history.md)`);
+  } else {
     const revs: string[] = [];
-    for (let i = t + 2; i < L.length && L[i].trimStart().startsWith("|"); i++) {
-      revs.push(L[i].split("|")[1]?.replace(/[*\s]/g, "") ?? "");
+    for (let i = t + 2; i < src.length && src[i].trimStart().startsWith("|"); i++) {
+      revs.push(src[i].split("|")[1]?.replace(/[*\s]/g, "") ?? "");
     }
     if (!revs.includes(self.rev)) {
-      violC.push(`C: ${DHF} is Rev ${self.rev}, and its document-history table (line ${t + 1}) has no row for Rev ${self.rev}`);
+      violC.push(`C: ${DHF} is Rev ${self.rev}, and its document-history table (${where} line ${t + 1}) has no row for Rev ${self.rev}`);
     }
   }
 }
