@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-RISK-002
-**Revision:** 11
+**Revision:** 12
 **Date:** 2026-10-01
 **Status:** ACTIVE
 **Effective Date:** 2026-08-11
 **Author:** NeurOne Quality (interim: Steve Hickman, CEO)
 **Approved By:** Steve Hickman, CEO
-**References:** NP-RISK-001 Rev 3 (superseded — `docs/superseded/np_risk_001.docx`); NP-RM-001 Rev 1 §4 (scales), §8.1 (baseline), §8.2 (change control); NP-RISK-003 Rev 1; NP-RISK-004 Rev 1; NP-ART-001 Rev 3; NP-FAI-001 Rev 2 §2.1, §7; NP-HW-AUDIO-001 Rev 1 §7; NP-HW-NASAL-001 Rev 1 §7; NP-HW-VNSCLIP-001 Rev 1 §7; NP-HW-CVNS-001 Rev 1 §7; NP-HW-TMS-001 Rev 1 §7; NP-FMEA-001 Rev 4; NP-FMEA-GEOM-001 Rev 1; NP-QMS-DC-001 Rev 1; NP-QMS-CAPA-001 Rev 1; NP-DHF-001 Rev 27; ISO 14971:2019
+**References:** NP-RISK-001 Rev 3 (superseded — `docs/superseded/np_risk_001.docx`); NP-RM-001 Rev 1 §4 (scales), §8.1 (baseline), §8.2 (change control); NP-RISK-003 Rev 1; NP-RISK-004 Rev 1; NP-ART-001 Rev 3; NP-FAI-001 Rev 2 §2.1, §7; NP-HW-AUDIO-001 Rev 1 §7; NP-HW-NASAL-001 Rev 1 §7; NP-HW-VNSCLIP-001 Rev 1 §7; NP-HW-CVNS-001 Rev 1 §7; NP-HW-TMS-001 Rev 1 §7; NP-FMEA-001 Rev 20; NP-FW-CVNS-001 Rev 12; NP-FMEA-GEOM-001 Rev 1; NP-QMS-DC-001 Rev 1; NP-QMS-CAPA-001 Rev 1; NP-DHF-001 Rev 27; ISO 14971:2019
 **Related Issues:** GitHub Issue #343 (RISK-25 FAI-bench blocker restated); GitHub Issue #332 (A11–A15 hardware specifications — `OI-RISK2-02` unblocked)
 **Gate:** NP-COORD-001 G2
 **IEC 62304 Class:** N/A (hardware risk file)
@@ -241,7 +241,7 @@ P1 is the target once those four close. The rating stays **ALARP** either way, b
 
 | # | Control | Level | Status |
 |---|---|---|---|
-| C1 | Safety-MCU cardiac interlock: HR change > 15 BPM → CVNS enable cut **within one main-loop iteration** (`NP-FW-CVNS-001` §5.4). *Corrected 2026-09-25: this row said "computed worst case < 5.1 ms", which assumed a TIM6 ISR that does not exist* | 2 | Implemented, host-tested. **FAI-CV02 not run.** **(Rev 8) Does not detect most qualifying changes at resting rates:** the 5 s baseline refresh absorbs a step before the 8-interval mean has moved 15 BPM, so a sustained 70 → 50 BPM fall is never cut (`NP-FW-CVNS-001` OI-CVNS-12, §14.5; `OI-RISK2-08`). The host tests missed it because most of them advance SysTick 1 ms per beat, so no refresh lands. **(Rev 9) Redesigned 2026-10-01** by principal decision (`NP-FW-CVNS-001` Rev 10, OI-CVNS-12 closed). The cut is now against an 18 s history of 1 s snapshots, not a refreshed baseline, and every simulated qualifying change ending at ≥ 40 BPM is cut. Detection takes up to 18 s, and the cutoff is < 100 ms after detection (CLAUDE.md Rev 61 §4.2). Host-tested and mutation-checked. **FAI-CV02 not run. False trips are higher (`NP-FW-CVNS-001` OI-CVNS-13)** |
+| C1 | Safety-MCU cardiac interlock: HR change > 15 BPM → CVNS enable cut **within one main-loop iteration** (`NP-FW-CVNS-001` §5.4). *Corrected 2026-09-25: this row said "computed worst case < 5.1 ms", which assumed a TIM6 ISR that does not exist* | 2 | Implemented, host-tested. **FAI-CV02 not run.** **(Rev 8) Does not detect most qualifying changes at resting rates:** the 5 s baseline refresh absorbs a step before the 8-interval mean has moved 15 BPM, so a sustained 70 → 50 BPM fall is never cut (`NP-FW-CVNS-001` OI-CVNS-12, §14.5; `OI-RISK2-08`). The host tests missed it because most of them advance SysTick 1 ms per beat, so no refresh lands. **(Rev 9) Redesigned 2026-10-01** by principal decision (`NP-FW-CVNS-001` Rev 10, OI-CVNS-12 closed). The cut is now against an 18 s history of 1 s snapshots, not a refreshed baseline, and every simulated qualifying change ending at ≥ 40 BPM is cut. Detection takes up to 18 s, and the cutoff is < 100 ms after detection (CLAUDE.md Rev 61 §4.2). Host-tested and mutation-checked. **FAI-CV02 not run. False trips are higher (`NP-FW-CVNS-001` OI-CVNS-13)** **(Rev 12) Re-scored with C1 as redesigned (§4.3.5):** counted as effective on the host for every change `REQ-CVNS-09` requires it to detect. Whether that requirement is clinically adequate is `OI-RISK2-09` |
 | C2 | No enable until the baseline arms (8 intervals) (`NP-FW-CVNS-001` §5.4 step 3) | 2 | **Implemented 2026-09-25**, host-tested (`OI-RISK2-05`). *Corrected: until then this row read "Implemented", but the safety MCU granted CVNS on request and only its cutoff waited for arming. "Cross-validated against the hub's baseline" is withdrawn: the safety MCU never receives the hub's baseline* |
 | C2a | **R-peak staleness:** while CVNS is granted, 3 s with no R-peak edge is a cardiac cutoff (`NP-FW-CVNS-001` §5.4 step 4) | 2 | **Implemented 2026-09-25**, host-tested (`OI-RISK2-05`) |
 | C2b | **Safety-MCU IWDG:** a hung safety-MCU main loop resets within ~1 s, and the reset path holds every enable off | 2 | **Implemented 2026-09-25**, host-tested; timeout provisional, and running on silicon not yet shown (`NP-SW-CI-001` OI-SWCI-49) |
@@ -259,8 +259,9 @@ P1 is the target once those four close. The rating stays **ALARP** either way, b
 |---|---|---|---|---|---|
 | **25-a** | A power-loss-torn flash word raises a double-bit ECC NMI | **S1** | P2 | **ACCEPTABLE** | The NMI handler spins (`b .`), and there is no hardware watchdog. *(2026-09-25: an IWDG now exists, started just before the main loop. A spin inside the loop's gated NV write now resets the MCU instead of hanging, and a spin during the boot-time NV read happens before the IWDG starts. Both outcomes remain stimulation-off, so the rating is unchanged.)* **Every NV read runs with all enables off**: at boot before the main loop, or inside a write gated on `granted_mask == 0`. A hang is therefore fail-safe (no stimulation, and the hub's heartbeat detects the silent MCU). The harm is availability: the device hangs at every boot until serviced. Not a patient hazard |
 | **25-b** | A future safety-MCU update path erases NV pages 62–63, silently clearing every outstanding cutoff | S5 | P1 | **ALARP** | No such update path exists today. Control: the pages are reserved in the linker script, and `NP-FW-CVNS-001` §5.4.1 requires any update path to preserve them. **A verification test is owed by whichever change adds the path** (`OI-RISK2-07`, carried from `OI-RISK2-05`) |
-| **25-c** | Per-user scope trusts the named profile: the blocked person selects another profile and is not blocked | S5 | P2 | **ALARP** | Needs a deliberate act past two warnings (C6). A device-wide block was considered and rejected by the principal (2026-09-22), because it withholds a working therapy from people who had no event. That is the §4.4 item 3 trade-off, recorded in §4.3.4 |
+| **25-c** | Per-user scope trusts the named profile: the blocked person selects another profile and is not blocked | S5 | P2 | **ALARP** | Needs a deliberate act past two warnings (C6). A device-wide block was considered and rejected by the principal (2026-09-22), because it withholds a working therapy from people who had no event. That is the §4.4 item 3 trade-off, recorded in §4.3.4. *(Rev 12: **provisional on OI-CVNS-13.** The P2 rests on a deliberate act being rare. A nuisance cutoff (25-e) gives that act a motive, so a high measured nuisance rate re-opens this rating, §4.3.5)* |
 | **25-d** | A cervical cardiac cutoff leaves auricular VNS (`NP_SAFETY_EN_VNS`) available to the same person | S5 | P1 (provisional) | **ALARP (provisional)** | Auricular stimulation has its own contact interlock only. Whether a person who just had a cervical cardiac reflex should also be withheld auricular VNS is a **clinical** question this file cannot settle. The control, if required, is a one-line change to `NP_CARDIAC_BLOCK_MASK` (`OI-RISK2-06`) |
+| **25-e** | *(Rev 12)* **Nuisance cutoff:** C1 as redesigned cuts on heart-rate variability, missed or split R-peak detections, or artefacts, with no cardiac event, and cervical VNS is withheld for 30 s, then until app confirmation and a repeat impedance check (`NP-FW-CVNS-001` OI-CVNS-13) | **S1** | **P5** | **ALARP** | The failure is in the fail-safe direction: stimulation stops, and no injury or discomfort is expected. The harm is a lost or interrupted session. **P5 because almost every device will see one:** in simulation, 0–100 % of 120 s sessions trip under white-noise jitter, and 75 % at 100 BPM with 50 ms SD and 1 % artefacts (`NP-FW-CVNS-001` §14.5.1, §14.6). That jitter is pessimistic for real HRV, so the real rate is unmeasured, and the rating is provisional on it. The ALARP justification is §4.3.5. Its second effect is on 25-c, not here |
 
 #### 4.3.4 ALARP justification (`NP-RM-001` §4.4)
 
@@ -270,6 +271,7 @@ P1 is the target once those four close. The rating stays **ALARP** either way, b
    - A device-wide lockout rather than per user.
    - Dedicated cardiac sensing on A14, rather than A13's PPG (`OI-CVNSHW-03`).
    - Adding auricular VNS to the block mask (25-d).
+   - *(Rev 12)* Six rules for C1 and its R-peak input: a band-gated baseline refresh; the 18 s lagged comparison (taken, `NP-FW-CVNS-001` Rev 10); a median estimator; a 12-interval window; a longer horizon or a lower floor; and the hub's long-interval pulse gate (taken, Rev 11). The reasons for each are in `NP-FMEA-001` FMEA-M05-09's ALARP justification and `NP-FW-CVNS-001` §14.5.1 and §14.6.1.
 2. **Why the selected controls.** C1–C5 are level-2 controls in the Class C processor that owns the
    enable line (CLAUDE.md §4.2). No app-side path can release them.
 3. **Why further reduction is not reasonably practicable today.**
@@ -305,6 +307,120 @@ P1 is the target once those four close. The rating stays **ALARP** either way, b
 
   `NP-FW-CVNS-001` §14.6.1 adds two more: 50 → 37.5 BPM, and a 2–3 s pause at ≤ 60 BPM, are no
   longer cut incidentally.
+- **(Rev 12) Re-scored, §4.3.5.** The residual stays **S5 × P2 = ALARP**, and P1 is still the target.
+  The P1 list now has two more items:
+  - `OI-RISK2-09` closes. That is the clinical answer on whether `REQ-CVNS-09`'s detection
+    requirement is adequate for cervical VNS.
+  - FAI-CV02 passes as amended (`NP-FW-CVNS-001` Rev 10). That means CV02-A (cutoff ≤ 100 ms from
+    detection) and CV02-F (every rise and fall detected ≤ 18 s from onset).
+- **Worse (Rev 12):** a clinical answer that a change §4.2 leaves undetected is a cervical hazard.
+  A measured nuisance rate that makes profile switching (25-c) a likely response would also make it
+  worse.
+
+#### 4.3.5 RISK-25 re-scored with C1 as redesigned (Rev 12, 2026-10-01, `OI-RISK2-08` item 1)
+
+**Trigger (`NP-RM-001` §8.2 item 1).** The trigger has two parts:
+- **The audit finding.** C1 as built did not detect most qualifying heart-rate changes
+  (`NP-FW-CVNS-001` Rev 9, OI-CVNS-12; Rev 8 here).
+- **The design changes that followed:**
+  - the 18 s lagged comparison (`NP-FW-CVNS-001` Rev 10, principal decision 2026-10-01);
+  - the hub's long-interval `RPEAK_IN` pulse gate (Rev 11 there);
+  - the unit-level row for the failure mode (`NP-FMEA-001` FMEA-M05-09, Rev 18 there).
+
+The re-score was performed at the Quality Lead's direction on 2026-10-01. **Approval (§8.2 item 3):
+the ratings below were approved by the Quality Lead (interim: Steve Hickman, CEO) on 2026-10-01.**
+Approval covers four things: this subsection's ratings, hazard 25-e and its ALARP justification, the
+note on 25-c, and FMEA-M05-09's residual S5 × P1 = ALARP at unit level. It does not close the
+verification that would move RISK-25 to P1, or `OI-RISK2-09`.
+
+**Pre-change and post-change rating (§8.2 item 2).**
+
+| | Severity | Probability | Rating (`NP-RM-001` §4.3) |
+|---|---|---|---|
+| **As recorded, Rev 5 – Rev 11** | S5 | Initial P3; residual P2, scored on C1 as effective | Residual **S5 × P2 = ALARP** |
+| **Correction of record: C1 as built from 2026-09-23 until `NP-FW-CVNS-001` Rev 10** | S5 | Residual **P3**: no control reduced the probability for a sustained change at resting rates | Residual **S5 × P3 = UNACCEPTABLE** |
+| **Post-change (this re-score), C1 as redesigned** | **S5** | Initial **P3**; residual **P2** now, **P1** target | Initial **UNACCEPTABLE**; residual **S5 × P2 = ALARP** (target S5 × P1, still ALARP) |
+
+**Why the correction of record is P3.** Control C1 was the only one that acted on a heart-rate
+change, and for the RISK-25 hazard direction at resting rates it did not act. A 70 → 50 BPM fall was
+cut in 0 % of simulated trials, and FAI-CV02's 70 → 90 BPM rise in about 30 % (`NP-FW-CVNS-001`
+§14.5). The other controls did not stand in for it:
+- C2a acts only on a gap of 3 s or more, a rhythm below 20 BPM.
+- C3–C7 act after a cutoff that did not come.
+- C8 bounds the stimulus, and the initial P3 already assumes it.
+
+So the residual for that period equals the initial probability. This is the second time RISK-25's
+residual has rested on a control that did not perform as scored. The first was FMEA-M05-06's
+battery-backed lockout (§4.3.1).
+**No patient was exposed.** The firmware ran only on the host, no A14 unit exists, and T2 is not
+released. As at `NP-DHF-001` Rev 49, under the development-mode posture **no QMS/CAPA record is
+opened**: this is a design-stage finding corrected before any build.
+
+**Why the post-change residual is P2, unchanged.**
+1. **C1 now detects every change `REQ-CVNS-09` (`NP-HW-CVNS-001` §3; CLAUDE.md §4.2 since Rev 62 points there) requires it to detect, on the host.** Every 16–40
+   BPM step and 2.5–5 s ramp from 50–110 BPM is cut in 100 % of simulated trials. The longest
+   latency is 15.9 s for a final rate ≥ 40 BPM. Seven real-time host tests pin it, and each is
+   mutation-checked (`NP-FMEA-001` FMEA-M05-09). The unit-level residual is therefore S5 × P1.
+2. **Detection up to 18 s after onset is not a degradation of what Rev 5 scored.** Any detector on
+   an 8-interval mean needs about seven post-change beats before the mean has moved 15 BPM. The
+   "< 100 ms" in force at Rev 5 could never have held from onset. FAI-CV02's CV02-A counted it
+   from the first out-of-window R-peak, and it could not have passed as written even with no
+   refresh (`NP-FW-CVNS-001` §14.5).
+   The 18 s is the first stated bound on a latency the control always had. Whether that latency is
+   clinically adequate has never been answered, then or now, so it goes to `OI-RISK2-09`. It is not
+   folded into P.
+3. **It is not P1, for the same reasons as §4.3.1.** None of these has happened:
+   - FAI-CV02 has not run.
+   - C4 has not run on silicon.
+   - `OI-CVNS-11` and `OI-CVNSHW-03` are open.
+
+   `OI-RISK2-09` joins them. A system-level P2 over a unit-level P1 is consistent: the unit row
+   counts host verification of the rule, and this rating waits on the hardware and the R-peak
+   source.
+
+**Residuals the rule leaves.** They are carried in `OI-RISK2-09`, not scored as separate hazards.
+Each is a change that `REQ-CVNS-09` does not require the interlock to detect, so whether it is a
+cervical hazard is a clinical question, not a firmware one:
+- (i) A change ending between 20 and 40 BPM is not guaranteed to be cut. Below 20 BPM, C2a acts
+  (FMEA-M05-09).
+- (ii) A change spread over more than 5 s is not cut by design (`test_slow_drift_not_cut`).
+- (iii) 50 → 37.5 BPM with every 4th beat absent is no longer cut incidentally (`NP-FW-CVNS-001`
+  §14.6.1).
+- (iv) A single 2–3 s pause at ≤ 60 BPM is no longer cut incidentally (same section).
+
+**Hazard 25-e (nuisance cutoff): ALARP justification (`NP-RM-001` §4.4).**
+1. *Options considered* (`NP-FW-CVNS-001` §14.6, §14.6.1):
+   - The hub's long-interval pulse gate. Taken: 1 % missed detections at 50 BPM now trip 0.3–0.7 %
+     of sessions, against 61–64 % before.
+   - An R-R validity filter on the safety MCU (`OI-CVNS-11`). Open.
+   - A median estimator.
+   - A 12-interval window.
+   - A 1 s persistence requirement.
+   - An MCU refractory period.
+   - A shorter horizon, or a higher threshold.
+2. *Why the selected control:* the pulse gate removed the largest cause below 60 BPM with no loss of
+   detection. Every qualifying step and ramp is still cut.
+3. *Why further reduction is not reasonably practicable today.* Each of these was simulated and
+   rejected, or is held open:
+   - **The median** never detects dropped-beat bradycardia.
+   - **The 12-interval window** breaks the 18 s detection bound.
+   - **Persistence** barely helps.
+   - **The refractory** adds nothing behind the hub.
+   - **A shorter horizon or a higher threshold** lowers detection of an S5 hazard to reduce an S1
+     nuisance. That trade is not acceptable.
+   - **The residual cause** is missed and split detections. Class C cannot filter it, because a
+     missed detection is indistinguishable from a dropped beat. It needs measured A13 detection
+     rates (FAI-CV03 or earlier) and a clinical acceptable nuisance rate (`OI-CVNS-13`).
+4. *Residual:* S1 × P5 = ALARP. It is provisional, because the rate is a simulation upper bound and
+   the real rate is unmeasured.
+5. *Benefit versus risk:* a nuisance cutoff costs a session, and a missed cutoff risks a cardiac
+   event. The rule is weighted toward the second on purpose.
+
+**Effect on 25-c.** 25-c's P2 assumes that switching to another profile to get round a cutoff is a
+rare, deliberate act past two warnings. A frequent false cutoff gives a user a reason to do it. 25-c
+stays S5 × P2 = ALARP, **provisional on OI-CVNS-13's measured nuisance rate**. If that rate makes
+profile switching a likely response, 25-c is re-scored, and the device-wide lockout rejected in
+§4.3.4 has to be weighed again.
 
 ## 5. Risks the architecture change created
 
@@ -345,7 +461,8 @@ control effective 2026-05-13. That statement is amended, not withdrawn:
 | ~~**OI-RISK2-05**~~ | **✅ CLOSED 2026-09-25 (GitHub #437).** `NP-FMEA-001` Rev 12 re-derives FMEA-M05-01 to -05 and M02-02/-04 against the code. **Two missing controls were built by principal decision instead of scored away:** an **IWDG** (`np_hal_iwdg.c`), and a Class C **pre-arm hold and 3 s R-peak staleness cutoff** in `np_cardiac_interlock.c` (C2, C2a, C2b above). Rows whose controls still do not exist are routed to `NP-FMEA-001` **OI-FMEA-12** (no heartbeat sequence counter, no tick-liveness check, M05-07's SPI timeout); R-R validity filtering stays with `NP-FW-CVNS-001` OI-CVNS-11. **The update-path test obligation (hazard 25-b) moves to OI-RISK2-07** and is not dropped. Original text: **`NP-FMEA-001` §3.5 (SW01-M05) scores controls the code does not contain.** Found re-scoring RISK-25, and only FMEA-M05-06 is corrected here. FMEA-M05-01 claims a 10 s data-loss soft cutoff, and `NP-FW-CVNS-001` §5.4 item 3 says the safety MCU has none. FMEA-M05-03 describes `uint16_t` saturating arithmetic, and the code uses a signed `int16_t` comparison. FMEA-M05-04 says 5 baseline beats, and the code uses 8. §2's watchdog row relies on a hardware IWDG, and **the safety-MCU firmware configures no IWDG**. Each residual rating resting on these needs re-deriving from the implemented module, as `OI-FMEA-07` did for SW01-M03. Also: any future safety-MCU update path must carry a test that NV pages 62–63 survive it (hazard 25-b). **Added 2026-09-25 (Rev 6, GitHub #437): `NP-FMEA-001` FMEA-M02-05 now depends on this item.** Re-authored under OI-FMEA-11, its residual is **S5×P1 ALARP**. The scenario nothing backstops is a hung safety-MCU main loop, which runs neither the heartbeat check nor the pin writer. **An IWDG is the feasible further reduction whose absence leaves that ALARP justification incomplete.** FMEA-M02-02 and -04, and §3.2's "hardware TIM" claim (the code uses a SysTick counter), still stand unre-derived here | Quality + FW | RISK-25 moving to P1; FMEA-M02-05 ALARP justification |
 | **OI-RISK2-06** | **Clinical question for hazard 25-d:** should a cervical cardiac cutoff also withhold auricular VNS from the same person? If yes, add `NP_SAFETY_EN_VNS` to `NP_CARDIAC_BLOCK_MASK`. That is a one-line change, and the principal's "block only what it was meant to block" then has a clinical answer rather than an assumed one | Clinical + Safety | — |
 | **OI-RISK2-07** | **Hazard 25-b's owed verification, carried from OI-RISK2-05 when it closed (2026-09-25).** Any change that adds a safety-MCU firmware update path must carry a test that NV pages 62–63 (the persisted per-user cardiac cutoff) survive the update. No such path exists today | Quality + FW | The first safety-MCU update path |
-| **OI-RISK2-08** | **RISK-25 control C1 does not detect most of the heart-rate changes it exists to catch (raised 2026-09-29).** `NP-FW-CVNS-001` OI-CVNS-12: the safety MCU's unconditional 5 s baseline refresh absorbs a sustained step before the 8-interval mean has moved 15 BPM. At 70 BPM a 20 BPM fall, the RISK-25 hazard direction, is never cut, and FAI-CV02's own +20 BPM step is cut in about 30 % of trials. The residual P2 was scored on C1 as effective. **Owed:** (1) a re-score by the Quality Lead under `NP-RM-001` §8.2, with C1 as it actually performs; (2) an `NP-FMEA-001` SW01-M05 row for "qualifying change absorbed by the baseline refresh", which no row covers; (3) ~~the redesign itself, a principal decision on Class C behaviour (OI-CVNS-12)~~ **done 2026-10-01 (Rev 9):** the principal chose an 18 s lagged comparison (`NP-FW-CVNS-001` Rev 10). Items 1 and 2 remain owed, and the re-score should use C1 as redesigned. ~~`NP-FMEA-001` FMEA-M05-04's "the baseline refreshes every 5 s" is stale since then and belongs to item 2~~ **Corrected 2026-10-01 in `NP-FMEA-001` Rev 17 (Rev 10 here):** M05-04 now describes the 18 s history, with no score changed. ~~Item 2's new row is still owed.~~ Item 2 **done 2026-10-01 (Rev 11):** `NP-FMEA-001` Rev 18 adds FMEA-M05-09, with a residual of S5×P1 = 5 ALARP proposed for Quality Lead approval. **Only item 1, the re-score, remains.** §4.3.4 lists the inputs it should weigh | Quality Lead + principal + Embedded safety | T2 clinical release; FAI-CV02 |
+| ~~**OI-RISK2-08**~~ | **✅ CLOSED 2026-10-01 (Rev 12).** Item 1 is done: RISK-25 was re-scored with C1 as redesigned (§4.3.5), at the Quality Lead's direction. The ratings were approved by the Quality Lead (interim: Steve Hickman, CEO) on 2026-10-01. **The residual stays S5 × P2 = ALARP, with a P1 target.** The period when C1 as built missed most changes is corrected of record to S5 × P3 = UNACCEPTABLE, with no patient exposure and no CAPA. New hazard **25-e** (nuisance cutoff) is S1 × P5 = ALARP. 25-c is provisional on OI-CVNS-13. FMEA-M05-09's S5 × P1 is approved. **Carried forward:** the clinical adequacy of `REQ-CVNS-09`'s detection requirement goes to **OI-RISK2-09**, and FAI-CV02 still has not run. Original text: **RISK-25 control C1 does not detect most of the heart-rate changes it exists to catch (raised 2026-09-29).** `NP-FW-CVNS-001` OI-CVNS-12: the safety MCU's unconditional 5 s baseline refresh absorbs a sustained step before the 8-interval mean has moved 15 BPM. At 70 BPM a 20 BPM fall, the RISK-25 hazard direction, is never cut, and FAI-CV02's own +20 BPM step is cut in about 30 % of trials. The residual P2 was scored on C1 as effective. **Owed:** (1) a re-score by the Quality Lead under `NP-RM-001` §8.2, with C1 as it actually performs; (2) an `NP-FMEA-001` SW01-M05 row for "qualifying change absorbed by the baseline refresh", which no row covers; (3) ~~the redesign itself, a principal decision on Class C behaviour (OI-CVNS-12)~~ **done 2026-10-01 (Rev 9):** the principal chose an 18 s lagged comparison (`NP-FW-CVNS-001` Rev 10). Items 1 and 2 remain owed, and the re-score should use C1 as redesigned. ~~`NP-FMEA-001` FMEA-M05-04's "the baseline refreshes every 5 s" is stale since then and belongs to item 2~~ **Corrected 2026-10-01 in `NP-FMEA-001` Rev 17 (Rev 10 here):** M05-04 now describes the 18 s history, with no score changed. ~~Item 2's new row is still owed.~~ Item 2 **done 2026-10-01 (Rev 11):** `NP-FMEA-001` Rev 18 adds FMEA-M05-09, with a residual of S5×P1 = 5 ALARP proposed for Quality Lead approval. **Only item 1, the re-score, remains.** §4.3.4 lists the inputs it should weigh | Quality Lead + principal + Embedded safety | T2 clinical release; FAI-CV02 |
+| **OI-RISK2-09** | **Is `REQ-CVNS-09`'s cardiac detection requirement clinically adequate for cervical VNS? (raised 2026-10-01, Rev 12).** The requirement is: a change of > 15 BPM within 5 s, ending ≥ 40 BPM, detected ≤ 18 s from onset. C1 meets it on the host (§4.3.5). Nothing in the file says that a reflex caught at up to 18 s is caught in time, or that what the requirement leaves out is safe to leave out. Questions: (a) is detection ≤ 18 s from onset adequate for a vagally mediated bradycardia or arrhythmia during cervical stimulation? (b) is a change ending at 20–40 BPM a hazard the interlock must detect? (c) is a change spread over more than 5 s? (d) is 50 → 37.5 BPM with every 4th beat absent? (e) is a single 2–3 s pause at ≤ 60 BPM? Each "yes" is a requirement change through `REQ-CVNS-09` (`NP-HW-CVNS-001` §3), `docs/reference/hardware-detail.md` §4.2 and `NP-FW-CVNS-001`, with a derivation under CLAUDE.md §18. It is not a firmware tweak. Until this closes, RISK-25 cannot move to P1 | Clinical + Quality Lead | RISK-25 moving to P1; T2 clinical release |
 | **OI-RISK2-04** | RISK-03 (400 mW/cm² regulatory opinion) has been OPEN and externally blocked since 2026-05-06 with no counsel commissioned. It is the only risk in the file whose owner is the CEO. **Rev 7:** the question has grown. Counsel is now also asked about the average term adopted at zero margin (CLAUDE.md Rev 60), as `NP-REG-PBM1064-001` §6A Q14–Q18. | CEO / Regulatory Counsel | Irradiance ceiling; RSET values |
 
 ---
@@ -354,6 +471,7 @@ control effective 2026-05-13. That statement is amended, not withdrawn:
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| **12** | **2026-10-01** | **NeurOne Quality** | **RISK-25 re-scored with C1 as redesigned (§4.3.5), at the Quality Lead's direction; `OI-RISK2-08` CLOSED; ratings approved by the Quality Lead (interim: Steve Hickman, CEO) 2026-10-01.** **Residual unchanged at S5 × P2 = ALARP, target P1.** Detection ≤ 18 s from onset is the first stated bound on a latency the 8-interval mean always had, not a degradation, and its clinical adequacy is the new **`OI-RISK2-09`**. **Correction of record:** from Rev 5 until `NP-FW-CVNS-001` Rev 10, C1 as built gave a residual of S5 × P3 = UNACCEPTABLE. No patient was exposed and no CAPA is opened (development-mode posture). New hazard **25-e**, nuisance cutoff (OI-CVNS-13), is scored S1 × P5 = ALARP, with an ALARP justification. **25-c is now provisional** on the measured nuisance rate. `NP-FMEA-001` FMEA-M05-09's S5 × P1 = ALARP is approved (`NP-FMEA-001` Rev 20). `NP-FW-CVNS-001` §13 and §14.5 are updated to match (Rev 12). No requirement, threshold or code changed |
 | **11** | **2026-10-01** | **NeurOne Systems Engineering** | **`OI-RISK2-08` item 2 done: `NP-FMEA-001` Rev 18 adds FMEA-M05-09** (a qualifying heart-rate change absorbed in transit). The row scores the failure mode as built until `NP-FW-CVNS-001` Rev 9 as UNACCEPTABLE initial. It proposes S5 × P1 = ALARP on the redesigned C1, for Quality Lead approval. §4.3.4 lists the residuals the re-score should weigh. **Item 1 (the RISK-25 re-score) is still owed, so the item stays open.** No score changes here |
 | **10** | **2026-10-01** | **NeurOne Systems Engineering** | **`OI-RISK2-08`'s note on FMEA-M05-04 discharged by `NP-FMEA-001` Rev 17.** The row no longer describes the retired 5 s baseline refresh; it states the 18 s history and what a wrong arming mean does under it. No score changed here or there. **Items 1 (RISK-25 re-score) and 2 (a new SW01-M05 row) stay open**, so the item stays open |
 | **9** | **2026-10-01** | **NeurOne Firmware Engineering + principal** | **RISK-25 control C1 redesigned (`NP-FW-CVNS-001` Rev 10, OI-CVNS-12 closed by principal decision); `OI-RISK2-08` item 3 done, and items 1 and 2 still owed; not re-scored.** C1 now compares the 8-interval mean with an 18 s history of 1 s snapshots, and the 5 s refresh that absorbed steps in transit is retired. CLAUDE.md Rev 61 §4.2 states detection (≤ 18 s from onset) and cutoff (< 100 ms from detection) separately. §4.3.2 C1 and §4.3.4 record it. False trips are higher (`NP-FW-CVNS-001` OI-CVNS-13). No score changes. |
