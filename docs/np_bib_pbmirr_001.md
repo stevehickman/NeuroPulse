@@ -2,10 +2,10 @@
 
 **Project:** NeurOne
 **Document:** NP-BIB-PBMIRR-001
-**Revision:** 1
-**Date:** 2026-09-28
+**Revision:** 2
+**Date:** 2026-10-04
 **Status:** DRAFT — literature and regulatory review; asserts no measurement and sets no limit
-**Effective Date:** 2026-09-28
+**Effective Date:** 2026-10-04
 **Author:** NeurOne Regulatory Affairs
 **Approved By:** Pending — outside regulatory counsel review under RISK-03 (`NP-REG-PBM1064-001` Rev 2 §6A)
 **References:** CLAUDE.md §3, §4.2; `NP-REG-PBM1064-001`; `NP-HW-HEXTILE-001` §2 (R-4, R-5), §4.3.1, `OI-HEXTILE-20`; `NP-SES-PWR-001` §2.3, `OI-SESPWR-02`; `NP-FEAS-PBMCH-001` `OI-PBMCH-07`; `NP-RISK-002` RISK-03, `OI-RISK2-04`; `docs/status/pending-decisions.md` §13.1a; `NP-BIB-1064-001`; FDA draft guidance *Photobiomodulation (PBM) Devices — Premarket Notification [510(k)] Submissions* (2023-01); FDA *General Wellness: Policy for Low Risk Devices* (2016, revised 2026-01-06); ICNIRP 2013 laser guidelines; ICNIRP 2013 incoherent visible/IR guidelines; IEC 60825-1; ANSI Z136.1; IEC 62471; IEC 60601-1; IEC 60601-2-57
@@ -36,12 +36,18 @@ where it came from:
 
 | Label | Meaning |
 |---|---|
+| **[P]** | Confirmed against the primary text, read in full on 2026-10-04 (Rev 2): ICNIRP 2013 laser, ICNIRP 2013 incoherent, FDA 2023 draft guidance |
 | **[S]** | Confirmed against a search-result extract of the named source |
 | **[K]** | The standard's published formula, from working knowledge; not re-read in this review |
 | **[G]** | Grey literature (vendor or consumer material). Recorded because it states a number, not because it carries weight |
 
 **No [K] figure may be cited as verified until it is checked against the purchased standard**
 (`OI-BIBPBM-01`).
+
+**Rev 2 re-read the three freely available primary texts** (the ICNIRP PDFs and the FDA draft
+guidance) and relabelled what they confirm **[P]**. They are ICNIRP's documents, **not** the
+IEC or ANSI standards that adopt them, so a [P] row verifies ICNIRP's wording and says nothing
+about the standard's. The paywalled standards are still unread (§6, `OI-BIBPBM-01`).
 
 ---
 
@@ -54,7 +60,7 @@ safety, and a **contact-temperature** standard.
 
 | Source | What it says | Numeric limit |
 |---|---|---|
-| FDA draft guidance, *PBM Devices — 510(k) Submissions* (2023-01, **not final**) | Defines PBM as *"the application of light at an irradiance that does not induce heating with the goal of altering biological activity"*; covers class II PBM / LLLT devices **[S]** | **None found.** The boundary is "non-heating", undefined numerically in any extract seen |
+| FDA draft guidance, *PBM Devices — 510(k) Submissions* (2023-01, **not final**) | Defines PBM as *"the application of light at an irradiance that does not induce heating with the goal of altering biological activity"* **[P]**. Full text read in Rev 2. §J (thermal safety) names **masks and helmets** as devices that may raise tissue temperature to dangerous levels, and recommends skin-temperature measurements, built-in time limits (especially over-the-counter) and **tissue temperature sensors that shut off output**. §K (eye) says to measure output against the ocular MPE. Its listed test standards are ES60601-1 and 60601-1-2; it cites neither IEC 62471 nor IEC 60601-2-57 | **None.** The text contains no irradiance, fluence or temperature figure. "Non-heating" is never quantified |
 | FDA *General Wellness* guidance (2016; revised 2026-01-06) | A product is **not** low risk if it involves *"technologies, like lasers or radiation, that could pose safety risks without regulatory controls"*. Its worked example is a skin-rejuvenating laser **[S]** | None. An eligibility gate, not a limit |
 | 21 CFR 890.5500 (infrared lamp, code ILY); 21 CFR 878.5400 (low-level laser, aesthetic, code OLI) | Classification regulations **[S]** | None |
 | 21 CFR 1040.10 | Laser product performance standard | Applies to lasers only; not to LED arrays |
@@ -73,11 +79,15 @@ That is `NP-REG-PBM1064-001` Q14.
 ### 3.1 Laser skin exposure limit (ICNIRP 2013 / IEC 60825-1 / ANSI Z136.1)
 
 For 400–1400 nm and exposures from 10 s to 30,000 s, the skin limit is **E = 200 × C_A mW/cm²**
-(2000 × C_A W/m²) **[S]** for the base value, **[K]** for C_A:
+(2000 × C_A W/m²) **[P]** (ICNIRP 2013 laser, Table 7), averaged over a **3.5 mm limiting aperture**
+(for beams under 1 mm the actual, unaveraged exposure is compared). Below 10 s the limit is
+11 × C_A × t^0.25 kJ/m² (100 ns–10 s). C_A is **[P]** (ICNIRP 2013 laser, Table 3):
 
-- C_A = 1 for 400–700 nm
-- C_A = 10^(0.002 × (λ − 700)) for 700–1050 nm
-- C_A = 5 for 1050–1400 nm
+- C_A = 1 for 400 ≤ λ < 700 nm
+- C_A = 10^(0.002 × (λ − 700)) for 700 ≤ λ < 1050 nm
+- C_A = 5 for 1050 ≤ λ ≤ 1400 nm
+
+The 30,000 s (8.3 h) upper duration is the table's end; no limit is stated beyond it.
 
 | λ | Skin limit, CW or time-averaged |
 |---|---|
@@ -89,16 +99,23 @@ For 400–1400 nm and exposures from 10 s to 30,000 s, the skin limit is **E = 2
 
 Three properties of this limit decide how it may be used:
 
-1. **Pulsed exposure is bounded by its average.** For repetitive pulses the time-averaged
-   irradiance may not exceed the CW limit **[K]**. At these pulse durations the standards set no
-   separate peak ceiling. **A limit written as a peak has no counterpart in these standards.**
-2. **Multiple wavelengths add.** Where wavelengths act on the same tissue by the same (thermal)
-   mechanism, exposure is assessed as **Σ Eᵢ / ELᵢ ≤ 1** **[K]**, a weighted sum of averages, not a
-   sum of peaks.
+1. **Pulsed exposure is bounded by its average, and by every sub-group of pulses.** ICNIRP's
+   rules for repetitive exposure **[P]**: (1) each pulse must meet the single-pulse limit; (2) **the
+   exposure from any group of pulses delivered in time T must not exceed the limit for time T**,
+   with T varied from the pulse duration to the whole exposure; (3) a C_P factor for **retinal**
+   thermal limits only. Rev 1 read this as "the average may not exceed the CW limit, and there is
+   no peak ceiling". **That was incomplete.** Rule 2 uses the *time-dependent* skin limit for
+   T ≤ 10 s, so a long ON burst is bounded: radiant exposure ≤ 1.1 × C_A × T^0.25 J/cm². See §5.
+2. **Multiple wavelengths add, qualitatively.** ICNIRP states that exposures are *"considered
+   spectrally additive"* where the absorption site and the injury mechanism are the same, and that
+   the assumption is conservative for thermal injury **[P]**. **It does not print the
+   Σ Eᵢ / ELᵢ ≤ 1 formula.** The weighted-sum form used by R-4 and `OI-HEXTILE-31` is therefore
+   still **[K]** (it comes from the IEC and ANSI texts), and so are the C_A weights as applied
+   to it.
 3. **The large-area reduction does not apply in this band.** ICNIRP's reduction to 100 W/m²
    (10 mW/cm²) for exposed skin above 0.1 m², and the inverse-area rule from 0.01 to 0.1 m², apply
-   **above 1400 nm only** **[S]**. ANSI Z136.1's corresponding footnote should be checked for the
-   same restriction (`OI-BIBPBM-01`).
+   **above 1400 nm only** **[P]** (Table 7 note c and the text). ANSI Z136.1's corresponding footnote
+   is still unchecked (`OI-BIBPBM-01`).
 
 These are **laser** limits. Applying them to an LED array is the conventional conservative
 reference (it is how Barrett & Gonzalez-Lima justified their dose, §4), not a legal requirement.
@@ -106,13 +123,18 @@ reference (it is how Barrett & Gonzalez-Lima justified their dose, §4), not a l
 ### 3.2 Lamp safety (IEC 62471 / ICNIRP 2013 incoherent)
 
 - **Skin thermal, 380–3000 nm:** limited only for exposures **under 10 s** (radiant exposure
-  2 × 10⁴ · t^0.25 J/m²) **[K]**. Beyond 10 s the framework relies on **pain avoidance**: the person
+  2 × 10⁴ · t^0.25 J/m²) **[P]** (ICNIRP 2013 incoherent, eq. 22). Beyond 10 s the framework relies on **pain avoidance** (it says so: *"No limit is provided for longer exposure durations"*): the person
   moves away from a source that feels too hot. That assumption is weak for a device strapped to the
   head, worn by someone who may be asleep (`Deep Sleep` is in the library) or instructed to stay
   still.
-- **Eye, infrared, 780–3000 nm:** **10 mW/cm²** (100 W/m²) for exposures over 1000 s **[K]**.
+- **Eye, infrared, 780–3000 nm:** **10 mW/cm²** (100 W/m²) for exposures of 1000 s or more, and 18 × t^−0.75 × 10³ W/m² below that **[P]** (ICNIRP 2013 incoherent, eq. 20–21; the source is weighted by an IR action spectrum, eq. 19).
   This matters for any scalp-array light reaching the eyes near the forehead, and is separate from
   the goggle interlocks of CLAUDE.md §4.2.
+
+ICNIRP's incoherent guideline gives the same repetitive-exposure principle as the laser one:
+any exposure within the anticipated duration T must be under the limit for T, which for a pulse
+train is equivalent to comparing the **average over T** with the limit for T, and the analysis
+window is slid along the time axis so the worst position governs **[P]**.
 
 ### 3.3 Temperature limits
 
@@ -161,8 +183,8 @@ helmet adds conducted heat from the emitters that an open-air laser spot does no
 
 | NeurOne figure | Against the record | Reading |
 |---|---|---|
-| **200 mW/cm² CW** (R-4) at **660 nm** | = laser skin limit (200 × 1) | **Zero margin** at 660 nm. Below the limit at 808 nm and above |
-| **400 mW/cm² peak, ≤ 25 % duty** (R-4) | Averages ≤ 100 mW/cm²; within the pulsed rule at every wavelength | Consistent, but **the standards bound the average, not the peak**. The 400 figure still has no recorded derivation (RISK-03) |
+| **200 mW/cm² CW** (R-4) at **660 nm** | = laser skin limit (200 × 1) for T > 10 s. **Rev 2:** the sub-group rule (§3.1 item 1) applies the 10 s limit to a window of T ≤ 10 s, 1.1 × T^0.25 J/cm², which is **195.6 mW/cm² at T = 10 s** | **Zero margin** at 660 nm, and on a strict reading of ICNIRP's rule 2 a CW 200 mW/cm² exceeds the limit for windows of about 9.7–10 s by up to 2.2 %. The step at 10 s is the table's own (2.0 × C_A kW/m² against 11 × C_A × t^0.25 kJ/m² = 19.6 kJ/m²). Whether IEC 60825-1 and ANSI Z136.1 print the same step is unread (`OI-BIBPBM-05`). Below the limit at 808 nm and above |
+| **400 mW/cm² peak, ≤ 25 % duty** (R-4) | Averages ≤ 100 mW/cm². **Rev 2:** ICNIRP's sub-group rule bounds an **uninterrupted ON burst** at 400 mW/cm² to the T where 0.4 × T = 1.1 × C_A × T^0.25 J/cm²: **3.9 s at 660 nm, 7.5 s at 808 nm, 8.6 s at 830 nm**, and not binding at 1064 nm (above 10 s the limit is 1000 mW/cm² average). A burst is the longest run of ON pulses with no off-time between them | The average is within the rule at every wavelength. Rev 1's "the standards bound the average, not the peak" is **corrected**: they bound the average over every window, which limits burst length at 400. The 400 figure itself still has no recorded derivation (RISK-03). Whether any signed protocol has a burst this long is not checked here (`OI-BIBPBM-05`) |
 | **600 mW/cm² aggregate peak** (R-5) | 150 mW/cm² average at 25 % duty. Weighted sum at the §3.1 worst case (all at 660 nm) = 0.75; at full three-channel operation (100 average each at 660/808/1064) = 0.5 + 0.30 + 0.10 = **0.90** | Within the weighted-sum rule **if** duty holds. The standards' natural form for R-5 is a **weighted sum of averages**, not a sum of peaks (`OI-BIBPBM-02`) |
 | Two T1-A channels at 403 mW/cm² each (`OI-HEXTILE-20`), same spot, CW | 806 mW/cm² vs 200 (660) + 329 (808) | **Would exceed** both the skin limit and Hamblin's heating onset. Only reachable if CW and full current coincide |
 | `07-vascular-baseline`, `660_808nm`, **80 % CW** → **~322 mW/cm²** (`OI-SESPWR-02`) | Above the 660 nm skin limit (200) and above Hamblin's 600–700 nm heating onset (~300) | **If the CW clamp does not exist, this protocol exceeds the conventional skin reference at 660 nm**, not only R-4. Raises the priority of `OI-SESPWR-02`; decides nothing here |
@@ -176,9 +198,10 @@ helmet adds conducted heat from the emitters that an open-air laser spot does no
 
 | ID | Item | Owner · Blocking |
 |---|---|---|
-| **OI-BIBPBM-01** | **Verify every [K] figure against the purchased standards**: C_A across 700–1400 nm, the repetitive-pulse averaging rule, the multi-wavelength additivity rule, the limiting aperture for skin, ANSI Z136.1's large-area footnote and its wavelength range, and the IEC 62471 skin and IR-eye limits. Also obtain the full text of the FDA 2023 PBM draft guidance and IEC 60601-2-57 (2023 / EN 2026) and record any numeric heating or temperature criterion either contains | Regulatory Affairs · blocks citing any [K] row as verified |
+| **OI-BIBPBM-01** | **Verify every [K] figure against the purchased standards. OPEN, narrowed in Rev 2.** *Done against the ICNIRP texts and the FDA draft guidance (relabelled [P]):* C_A across 700–1400 nm (Table 3); the skin limit 2.0 × C_A kW/m² and its 3.5 mm aperture (Table 7); the large-area reduction applying above 1400 nm only; the ICNIRP repetitive-pulse rules (corrected, §3.1 item 1); the multiple-wavelength additivity statement (qualitative only); the incoherent skin and IR-eye limits; the FDA draft guidance, which has **no numeric heating or temperature criterion**. *Still open:* (a) the **Σ Eᵢ / ELᵢ ≤ 1 formula** as printed in IEC 60825-1 / ANSI Z136.1 (ICNIRP does not print it); (b) **ANSI Z136.1's** limiting aperture, repetitive-pulse rules and large-area footnote; (c) **IEC 60825-1** and **IEC 62471** as adopted, since ICNIRP's text is not theirs; (d) **IEC 60601-1 Table 24** and **IEC 60601-2-57** (2023 / EN 2026): any numeric heating or temperature criterion. (a)–(d) need the purchased standards | Regulatory Affairs · blocks citing any [K] row as verified |
 | **OI-BIBPBM-02** | R-5's form: the exposure standards assess multiple wavelengths as a weighted sum of time-averaged irradiance (§3.1). R-5 is a sum of peaks. Whether R-5 should be restated is counsel's and the owner's call (`NP-REG-PBM1064-001` Q17, `OI-PBMCH-07`) | Firmware + Safety · counsel |
 | **OI-BIBPBM-03** | The 42 °C skin limit of CLAUDE.md §3 / §4.2 is attributed to IEC 60601, which states 43 °C (≥ 10 min) and a labelling duty above 41 °C. Find the derivation or correct the attribution. **The value is not to be raised on this finding** (CLAUDE.md §18) | Safety · none |
+| **OI-BIBPBM-05** | **Burst-length limit from the sub-group rule.** ICNIRP's repetitive-exposure rule 2 (§3.1 item 1) bounds any run of ON pulses to the time-dependent limit 1.1 × C_A × T^0.25 J/cm² for T ≤ 10 s, which the 400 mW/cm² peak and the 200 mW/cm² CW figures do not respect on a strict reading (§5). Read the same rule in IEC 60825-1 and ANSI Z136.1 (`OI-BIBPBM-01`). If it holds, decide with counsel whether R-4 needs a maximum uninterrupted ON time, and check the signed protocol library for bursts above 3.9 s at 660 nm. **A ceiling refuses a protocol and never reshapes one** (CLAUDE.md §3). This item sets no limit and changes no requirement | Firmware + Safety · counsel |
 | **OI-BIBPBM-04** | No skin-type (melanin) term found in any PBM dose or thermal model. The 2025 evidence puts darker-skinned users at ~3× thermal risk, concentrated at 660 nm. Decide whether dose, derating, or labelling addresses it | Safety + Clinical · counsel (Q18) |
 
 ---
@@ -214,3 +237,4 @@ helmet adds conducted heat from the emitters that an open-air laser spot does no
 | Rev | Date | Author | Change |
 |---|---|---|---|
 | 1 | 2026-09-28 | NeurOne Regulatory Affairs | First issue. Literature and regulatory review of PBM irradiance and temperature boundaries, 600–1100 nm. Finds no statutory irradiance limit; records the laser skin limit, IEC 62471, IEC 60601-1 temperature limits and the heating literature; compares R-4, R-5, the 42 °C limit and `OI-SESPWR-02` against them. Raises `OI-BIBPBM-01`…`04`. Sets no limit and changes no requirement |
+| 2 | 2026-10-04 | NeurOne Regulatory Affairs | Reads the ICNIRP 2013 laser and incoherent guidelines and the FDA 2023 draft guidance in full (network policy now allows icnirp.org and fda.gov) and relabels the confirmed rows **[P]**. Confirms C_A, the skin limit and its aperture, the >1400 nm scope of the large-area reduction, the incoherent skin and IR-eye limits. **Corrects Rev 1 §3.1 item 1**: ICNIRP bounds every sub-group of pulses, not only the average. Finds the FDA guidance contains no numeric criterion. The weighted-sum formula stays [K]. Narrows `OI-BIBPBM-01` (still open: ANSI, IEC) and raises `OI-BIBPBM-05`. Sets no limit and changes no requirement |
