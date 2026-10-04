@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 156
+**Revision:** 157
 **Date:** 2026-10-04
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 156 | 2026-10-04 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 157 | 2026-10-04 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 2 | 2026-10-04 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | 11 | 2026-09-28 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -291,7 +291,7 @@ These thirteen documents are the design-study output of the helmet layer-geometr
 | NP-ENV-OPRANGE-001 | NP-ENV-OPRANGE-001 — Per-Modality Operating-Range Working Spec | 1 | 2026-07-21 | [np_env_oprange_001.md](./np_env_oprange_001.md) | DRAFT | REQ |
 | NP-FW-POE-001 | NP-FW-POE-001 — Protocol Operating-Envelope Encoding | 1 | 2026-07-21 | [np_fw_poe_001.md](./np_fw_poe_001.md) | DRAFT | SPEC-FW |
 | NP-FW-M09-ARCH-001 | NP-FW-M09-ARCH-001 — Architecture Decision: Operating-Envelope Gate as a new SW-01 module (SW01-M11) vs. extending SW01-M04 | 1 | 2026-07-21 | [np_fw_m09_arch_001.md](./np_fw_m09_arch_001.md) | DRAFT | SPEC-FW |
-| NP-EMC-CAV-001 | Enclosure Cavity Resonance — Source, Band, and the Layer 4 Requirement | 22 | 2026-09-24 | [np_emc_cav_001.md](./np_emc_cav_001.md) | ACTIVE | SPEC-HW |
+| NP-EMC-CAV-001 | Enclosure Cavity Resonance — Source, Band, and the Layer 4 Requirement | 23 | 2026-10-04 | [np_emc_cav_001.md](./np_emc_cav_001.md) | ACTIVE | SPEC-HW |
 
 ---
 
@@ -618,3 +618,4 @@ Planned near-term additions:
 | 154 | 2026-10-01 | NeurOne Systems Engineering | **NP-FMEA-001 Rev 17 → 18, NP-RISK-002 Rev 10 → 11: `OI-RISK2-08` item 2 done.** New FMEA-M05-09 covers a qualifying heart-rate change absorbed in transit, the failure mode `OI-CVNS-12` found and no SW01-M05 row covered. Initial S5, ≥ P2, UNACCEPTABLE, as built until `NP-FW-CVNS-001` Rev 9. The residual on the 18 s history is proposed at S5×P1 = 5 ALARP, for Quality Lead approval. It names two residuals for the RISK-25 re-score: a change ending at 20–40 BPM is not guaranteed to be cut, and a change spread over more than 5 s is outside the requirement. Item 1, the re-score, is still owed. No score in the risk file changed, and no code changed |
 | 155 | 2026-10-01 | NeurOne Systems Engineering | **NP-FMEA-001 Rev 18 → 19: OI-FMEA-02's pass criterion restated to FAI-CV02 as amended (`NP-FW-CVNS-001` Rev 10, §9).** The *"<5.1 ms worst-case"* criterion assumed a TIM6 ISR that does not exist and is struck through in place. The item now carries CV02-A (cutoff ≤ 100 ms from detection) and CV02-F (every step cut, detection ≤ 18 s from onset), matching CLAUDE.md §4.2 (Rev 61). Documentation alignment only: no risk score, failure mode or code changed. §5 NP-FMEA-001 row updated |
 | 156 | 2026-10-04 | NeurOne Systems Engineering | **NP-QMS-DC-001 Rev 1 → 2: §8.2 allows the revision history record to live in a linked history file.** Procedure wording only; no change to the change-order process or approvals. §5 NP-QMS-DC-001 row updated |
+| 157 | 2026-10-04 | NeurOne Systems Engineering | **NP-EMC-CAV-001 Rev 22 → 23: §11 revision table moved verbatim to `docs/reference/np-emc-cav-001-revision-history.md`, per `NP-QMS-DC-001` §8.2 (Rev 2).** Restructure only; no analysis, figure or requirement changed. §5 NP-EMC-CAV-001 row updated |
