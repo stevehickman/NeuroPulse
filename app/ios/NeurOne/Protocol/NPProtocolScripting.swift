@@ -995,7 +995,8 @@ struct NPPSParser {
         case .numberWithUnit(let x, let u):
             if u == "%" {
                 throw NPPSError(
-                    message: "\(modality): \(short) in % is refused — a percentage is a fraction of a baseline the hardware can change; write \(example)",
+                    message: "\(modality): \(short) in % is refused — a percentage is a fraction of a baseline "
+                           + "the hardware can change; write \(example)",
                     line: line)
             }
             guard u == unit else {
