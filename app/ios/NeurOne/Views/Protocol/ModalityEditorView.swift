@@ -272,7 +272,7 @@ struct PBMTranscranialParamsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(String(localized: "MODALITY_WAVELENGTH")).font(.caption).foregroundColor(.secondary)
                 Picker("MODALITY_WAVELENGTH", selection: $params.wavelength) {
-                    // A script's own wavelength ("810nm") stays selectable alongside the legacy names.
+                    // A script's own wavelength ("810nm") stays selectable alongside the three channels.
                     ForEach(NPPBMTranscranialParams.Wavelength.allCases
                             + (NPPBMTranscranialParams.Wavelength.allCases.contains(params.wavelength) ? [] : [params.wavelength])) { wl in
                         Text(wl.displayName + (wl.requiresSmartModule ? " ★" : "")).tag(wl)
@@ -286,12 +286,12 @@ struct PBMTranscranialParamsView: View {
                 }
             }
 
-            // Intensity
+            // Irradiance: absolute, mW/cm² at the scalp for this wavelength (Rev 18 §4.1b)
             SliderRow(
-                label: String(localized: "VALIDATE_PARAM_INTENSITY"),
-                value: $params.intensityPercent,
-                range: 0...100,
-                format: { "\(Int($0))%" }
+                label: String(localized: "VALIDATE_PARAM_IRRADIANCE"),
+                value: $params.irradianceMWcm2,
+                range: 1...400,
+                format: { "\(Int($0)) mW/cm²" }
             )
 
             // Frequency
@@ -344,11 +344,22 @@ struct PBMIntranasalParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(String(localized: "MODALITY_WAVELENGTH")).font(.caption).foregroundColor(.secondary)
+                Picker("MODALITY_WAVELENGTH", selection: $params.wavelength) {
+                    // The probe carries 660 and 808 nm; a script's own value stays selectable.
+                    ForEach([NPPBMTranscranialParams.Wavelength.nm660, .nm808]
+                            + ([.nm660, .nm808].contains(params.wavelength) ? [] : [params.wavelength])) { wl in
+                        Text(wl.displayName).tag(wl)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
             SliderRow(
-                label: String(localized: "VALIDATE_PARAM_INTENSITY"),
-                value: $params.intensityPercent,
-                range: 0...100,
-                format: { "\(Int($0))%" }
+                label: String(localized: "VALIDATE_PARAM_IRRADIANCE"),
+                value: $params.irradianceMWcm2,
+                range: 1...400,
+                format: { "\(Int($0)) mW/cm²" }
             )
             SliderRow(
                 label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
@@ -622,9 +633,9 @@ struct AudioEntrainmentParamsView: View {
 
             SliderRow(
                 label: String(localized: "VALIDATE_PARAM_VOLUME"),
-                value: $params.volumePercent,
-                range: 0...100,
-                format: { "\(Int($0))%" }
+                value: $params.volumeDb,
+                range: 40...90,
+                format: { "\(Int($0)) \(String(localized: "UNIT_DB_SPL"))" }
             )
             Toggle("MODALITY_EEG_ADAPTIVE_FREQUENCY", isOn: $params.eegAdaptive).font(.caption)
             Toggle("MODALITY_BONE_CONDUCTION_BREATHING_PACER", isOn: $params.boneConductionPacer).font(.caption)

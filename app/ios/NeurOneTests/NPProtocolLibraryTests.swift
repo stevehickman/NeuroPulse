@@ -239,16 +239,27 @@ final class NPProtocolLibraryTests: XCTestCase {
             duration: 10m
             pbm_transcranial {
                 wavelength: \(value)
-                intensity: 200mW_cm2
+                irradiance: 200mW_cm2
             }
         }
         """
     }
 
-    func testQuotedCompoundWavelengthsParse() throws {
-        for wl in ["660_808nm", "1064nm", "660_808_1064nm"] {
+    func testQuotedWavelengthsParse() throws {
+        for wl in ["660nm", "808nm", "1064nm"] {
             let entries = try parseEntries(wavelengthProtocol("\"\(wl)\""))
             XCTAssertEqual(entries.count, 1, "quoted wavelength \"\(wl)\" must parse")
+        }
+    }
+
+    /// Rev 18: the combined channel names are retired, and the refusal names the blocks that
+    /// replace them.
+    func testRetiredCombinedWavelengthsAreRefused() {
+        for wl in ["660_808nm", "660_808_1064nm"] {
+            XCTAssertThrowsError(try parseEntries(wavelengthProtocol("\"\(wl)\""))) { error in
+                let text = "\(error)"
+                XCTAssertTrue(text.contains("retired") && text.contains("one block per wavelength"), text)
+            }
         }
     }
 

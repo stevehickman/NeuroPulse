@@ -47,8 +47,8 @@ final class EEGConsentGateTests: XCTestCase {
             modalities: [
                 NPProtocolModality(params: .pbmTranscranial(
                     NPPBMTranscranialParams(target: .named(["All"]),
-                                            wavelength: .base660_808nm,
-                                            intensityPercent: 75, frequencyHz: 0,
+                                            wavelength: .nm808,
+                                            irradianceMWcm2: 302, frequencyHz: 0,
                                             dutyCyclePercent: 25)))
             ]))
     }
@@ -61,7 +61,7 @@ final class EEGConsentGateTests: XCTestCase {
                 NPProtocolModality(params: .audioEntrainment(
                     NPAudioEntrainmentParams(binauralBeatsHz: 20, isochronicTonesHz: nil,
                                              noiseType: .pink, carrierHz: 440,
-                                             volumePercent: 60, eegAdaptive: true,
+                                             volumeDb: 70, eegAdaptive: true,
                                              boneConductionPacer: true)))
             ]))
     }

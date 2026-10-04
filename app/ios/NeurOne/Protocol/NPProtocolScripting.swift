@@ -35,7 +35,7 @@ struct NPPSLexer {
     private var line: Int = 1
 
     private static let keywords: Set<String> = ["protocol", "composite", "layer", "limits", "zone", "condition", "wavelength_rules"]
-    private static let units: Set<String> = ["Hz", "mA", "G", "mW_cm2", "m", "s", "h", "%"]
+    private static let units: Set<String> = ["Hz", "mA", "G", "mW_cm2", "dB", "m", "s", "h", "%"]
 
     init(_ text: String) {
         self.source = Array(text)
@@ -452,7 +452,8 @@ struct NPPSParser {
         switch key {
         case "pbm_transcranial":
             var lim = NPPBMTranscranialLimits()
-            if let v = fields["max_intensity"]?.asPercent   { lim.maxIntensityPercent = v }
+            try refuseRetiredLimit(key, fields, replacement: "max_irradiance_mw_cm2")
+            if let v = fields["max_irradiance_mw_cm2"]?.asDouble { lim.maxIrradianceMWcm2 = v }
             if let v = fields["max_frequency"]?.asHz        { lim.maxFrequencyHz = v }
             if let v = fields["max_duty_cycle"]?.asPercent  { lim.maxDutyCyclePercent = Int(v) }
             if let v = fields["max_session_dose"]?.asDouble { lim.maxSessionDoseJCm2 = v }
@@ -461,7 +462,8 @@ struct NPPSParser {
 
         case "pbm_intranasal":
             var lim = NPPBMIntranasalLimits()
-            if let v = fields["max_intensity"]?.asPercent           { lim.maxIntensityPercent = v }
+            try refuseRetiredLimit(key, fields, replacement: "max_irradiance_mw_cm2")
+            if let v = fields["max_irradiance_mw_cm2"]?.asDouble    { lim.maxIrradianceMWcm2 = v }
             if let v = fields["max_session_dose"]?.asDouble         { lim.maxSessionDoseJCm2 = v }
             if let v = fields["max_session_duration"]?.asTime       { lim.maxSessionDurationSeconds = v }
             limitsSet.pbmIntranasal = lim
@@ -514,7 +516,8 @@ struct NPPSParser {
 
         case "audio_entrainment":
             var lim = NPAudioEntrainmentLimits()
-            if let v = fields["max_intensity"]?.asPercent        { lim.maxVolumePercent = v }
+            try refuseRetiredLimit(key, fields, replacement: "max_volume_db")
+            if let v = fields["max_volume_db"]?.asDouble         { lim.maxVolumeDb = v }
             if let v = fields["max_binaural_beats"]?.asHz        { lim.maxBinauralBeatsHz = v }
             if let v = fields["max_isochronic_tones"]?.asHz      { lim.maxIsochronicTonesHz = v }
             limitsSet.audioEntrainment = lim
@@ -939,30 +942,131 @@ struct NPPSParser {
         }
     }
 
+    // MARK: Absolute quantities (NP-NPPS-REF-001 Rev 18 §4.1b)
+
+    /// A percentage is a fraction of a baseline the hardware owns and can change, so it does
+    /// not state a stimulus. Refused, never converted.
+    private func refuseRetiredPercent(
+        _ modality: String, _ fields: [String: NPPSFieldValue], line: Int
+    ) throws {
+        let retired = modality == "audio_entrainment" ? ["volume_percent"] : ["intensity", "intensity_percent"]
+        for key in retired where fields[key] != nil {
+            let fix: String
+            switch modality {
+            case "audio_entrainment": fix = "write the level in dB, e.g. volume: 72dB"
+            case "visual_stimulation":
+                fix = "visual_stimulation has no percentage intensity and no absolute one is defined yet; remove it"
+            default: fix = "write irradiance in mW/cm², e.g. irradiance: 300mW_cm2"
+            }
+            throw NPPSError(
+                message: "\(modality): '\(key)' is a percentage of a baseline the hardware owns and can "
+                       + "change, so it does not state the stimulus — \(fix) (NP-NPPS-REF-001 §4.1b).",
+                line: line)
+        }
+    }
+
+    /// The short name carries its unit as a suffix and REQUIRES it; the canonical name has the
+    /// unit in the key and takes a bare number. Required: a defaulted dose is a stimulus
+    /// nobody authored.
+    private func absoluteQuantity(
+        _ modality: String, _ fields: [String: NPPSFieldValue],
+        short: String, canonical: String, unit: String, example: String, line: Int
+    ) throws -> Double {
+        if let v = fields[canonical] {
+            let n: Double
+            switch v {
+            case .number(let x): n = x
+            case .numberWithUnit(let x, let u):
+                guard u == unit else {
+                    throw NPPSError(message: "\(modality): \(canonical) takes \(unit), not \(u)", line: line)
+                }
+                n = x
+            default: throw NPPSError(message: "\(modality): \(canonical) must be a number", line: line)
+            }
+            guard n > 0 else { throw NPPSError(message: "\(modality): \(canonical) must be positive", line: line) }
+            return n
+        }
+        guard let v = fields[short] else {
+            throw NPPSError(
+                message: "\(modality): \(short) is required (\(example)); a defaulted dose is a stimulus nobody authored",
+                line: line)
+        }
+        switch v {
+        case .numberWithUnit(let x, let u):
+            if u == "%" {
+                throw NPPSError(
+                    message: "\(modality): \(short) in % is refused — a percentage is a fraction of a baseline the hardware can change; write \(example)",
+                    line: line)
+            }
+            guard u == unit else {
+                throw NPPSError(message: "\(modality): \(short) takes \(unit), not \(u)", line: line)
+            }
+            guard x > 0 else { throw NPPSError(message: "\(modality): \(short) must be positive", line: line) }
+            return x
+        case .number:
+            throw NPPSError(
+                message: "\(modality): \(short) needs its unit written (\(example)); a bare number does not say what it measures",
+                line: line)
+        default:
+            throw NPPSError(message: "\(modality): \(short) must be a number with unit \(unit)", line: line)
+        }
+    }
+
+    /// One wavelength per block, required. A retired combined name is refused with its replacement.
+    private func requiredWavelength(
+        _ modality: String, _ fields: [String: NPPSFieldValue], line: Int
+    ) throws -> NPPBMTranscranialParams.Wavelength {
+        guard let w = fields["wavelength"]?.asIdent else {
+            throw NPPSError(
+                message: "\(modality): wavelength is required, one value per block, e.g. wavelength: \"810nm\"",
+                line: line)
+        }
+        if NPWavelengthRules.retired[w] != nil {
+            throw NPPSError(message: "\(modality): \(NPWavelengthRules.retiredMessage(w))", line: line)
+        }
+        return NPPBMTranscranialParams.Wavelength(rawValue: w)
+    }
+
+    /// A percentage ceiling is refused, not skipped: a limit dropped silently is no limit.
+    private func refuseRetiredLimit(
+        _ modality: String, _ fields: [String: NPPSFieldValue], replacement: String
+    ) throws {
+        if fields["max_intensity"] != nil {
+            throw NPPSError(
+                message: "\(modality) limits: max_intensity is a percentage ceiling and is retired; write "
+                       + "\(replacement) (NP-NPPS-REF-001 §7).",
+                line: currentLine)
+        }
+    }
+
     private func buildParams(
         name: String, fields: [String: NPPSFieldValue], line: Int
     ) throws -> NPModalityParams {
         switch name {
         case "pbm_transcranial":
             var p = NPPBMTranscranialParams()
-            if let v = fields["intensity"]?.asPercent { p.intensityPercent = v }
+            try refuseRetiredPercent(name, fields, line: line)
+            p.irradianceMWcm2 = try absoluteQuantity(
+                name, fields, short: "irradiance", canonical: "irradiance_mw_cm2",
+                unit: "mW_cm2", example: "irradiance: 300mW_cm2", line: line)
             if let v = fields["frequency"]?.asHz { p.frequencyHz = v }
             if let v = fields["duty_cycle"]?.asPercent { p.dutyCyclePercent = Int(v) }
             if let v = fields["zones"] {
                 p.target = try parsePBMTarget(v, line: line)
             }
-            // Carried exactly as written (NP-NPPS-REF-001 §4.1a). This used to map any
-            // unrecognised value to 660_808nm, which silently changed the protocol; a
-            // value that is not a wavelength, or that no rule maps, is refused when the
-            // session is compiled instead.
-            if let v = fields["wavelength"]?.asIdent {
-                p.wavelength = NPPBMTranscranialParams.Wavelength(rawValue: v)
-            }
+            // Carried exactly as written and REQUIRED (NP-NPPS-REF-001 §4.1a). A retired
+            // combined name is refused here; a value no rule maps is refused when the
+            // session is compiled.
+            p.wavelength = try requiredWavelength(name, fields, line: line)
             return .pbmTranscranial(p)
 
         case "pbm_intranasal":
             var p = NPPBMIntranasalParams()
-            if let v = fields["intensity"]?.asPercent  { p.intensityPercent = v }
+            try refuseRetiredPercent(name, fields, line: line)
+            p.wavelength = try requiredWavelength(name, fields, line: line)
+            p.irradianceMWcm2 = try absoluteQuantity(
+                name, fields, short: "irradiance", canonical: "irradiance_mw_cm2",
+                unit: "mW_cm2", example: "irradiance: 25mW_cm2", line: line)
             if let v = fields["frequency"]?.asHz       { p.frequencyHz = v }
             if let v = fields["duty_cycle"]?.asPercent { p.dutyCyclePercent = Int(v) }
             return .pbmIntranasal(p)
@@ -1045,13 +1149,17 @@ struct NPPSParser {
                 }
             }
             if let v = fields["carrier_hz"]?.asHz   { p.carrierHz = v }
-            if let v = fields["volume"]?.asPercent  { p.volumePercent = v }
+            try refuseRetiredPercent(name, fields, line: line)
+            p.volumeDb = try absoluteQuantity(
+                name, fields, short: "volume", canonical: "volume_db",
+                unit: "dB", example: "volume: 72dB", line: line)
             if let v = fields["eeg_adaptive"]?.asBool          { p.eegAdaptive = v }
             if let v = fields["bone_conduction_pacer"]?.asBool  { p.boneConductionPacer = v }
             return .audioEntrainment(p)
 
         case "visual_stimulation":
             var p = NPVisualStimParams()
+            try refuseRetiredPercent(name, fields, line: line)
             if let v = fields["frequency"]?.asHz { p.frequencyHz = v }
             if let v = fields["mode"]?.asIdent {
                 switch v {
@@ -1459,7 +1567,7 @@ struct NPPSSerializer {
 
         if let lim = limits.pbmTranscranial {
             lines.append("    pbm_transcranial {")
-            if let v = lim.maxIntensityPercent   { lines.append("        max_intensity: \(Int(v))%") }
+            if let v = lim.maxIrradianceMWcm2    { lines.append("        max_irradiance_mw_cm2: \(v)") }
             if let v = lim.maxFrequencyHz         { lines.append("        max_frequency: \(formatHz(v))") }
             if let v = lim.maxDutyCyclePercent    { lines.append("        max_duty_cycle: \(v)%") }
             if let v = lim.maxSessionDoseJCm2     { lines.append("        max_session_dose: \(v)") }
@@ -1468,7 +1576,7 @@ struct NPPSSerializer {
         }
         if let lim = limits.pbmIntranasal {
             lines.append("    pbm_intranasal {")
-            if let v = lim.maxIntensityPercent        { lines.append("        max_intensity: \(Int(v))%") }
+            if let v = lim.maxIrradianceMWcm2         { lines.append("        max_irradiance_mw_cm2: \(v)") }
             if let v = lim.maxSessionDoseJCm2         { lines.append("        max_session_dose: \(v)") }
             if let v = lim.maxSessionDurationSeconds  { lines.append("        max_session_duration: \(formatTime(v))") }
             lines.append("    }")
@@ -1505,7 +1613,7 @@ struct NPPSSerializer {
         }
         if let lim = limits.audioEntrainment {
             lines.append("    audio_entrainment {")
-            if let v = lim.maxVolumePercent       { lines.append("        max_intensity: \(Int(v))%") }
+            if let v = lim.maxVolumeDb            { lines.append("        max_volume_db: \(v)") }
             if let v = lim.maxBinauralBeatsHz     { lines.append("        max_binaural_beats: \(formatHz(v))") }
             if let v = lim.maxIsochronicTonesHz   { lines.append("        max_isochronic_tones: \(formatHz(v))") }
             lines.append("    }")
@@ -1629,7 +1737,8 @@ struct NPPSSerializer {
         switch params {
         case .pbmTranscranial(let p):
             var lines: [String] = []
-            lines.append("intensity: \(Int(p.intensityPercent))%")
+            lines.append("wavelength: \"\(p.wavelength.rawValue)\"")
+            lines.append("irradiance: \(p.irradianceMWcm2)mW_cm2")
             lines.append("frequency: \(formatHz(p.frequencyHz))")
             if p.frequencyHz > 0 {
                 lines.append("duty_cycle: \(p.dutyCyclePercent)%")
@@ -1641,12 +1750,12 @@ struct NPPSSerializer {
             case .clinicianSelected:
                 lines.append("zones: clinician_selected")
             }
-            lines.append("wavelength: \"\(p.wavelength.rawValue)\"")
             return lines
 
         case .pbmIntranasal(let p):
             return [
-                "intensity: \(Int(p.intensityPercent))%",
+                "wavelength: \"\(p.wavelength.rawValue)\"",
+                "irradiance: \(p.irradianceMWcm2)mW_cm2",
                 "frequency: \(formatHz(p.frequencyHz))",
                 "duty_cycle: \(p.dutyCyclePercent)%"
             ]
@@ -1696,7 +1805,7 @@ struct NPPSSerializer {
             if let it = p.isochronicTonesHz { lines.append("isochronic_hz: \(formatHz(it))") }
             if let nt = p.noiseType { lines.append("noise: \(nt.rawValue)") } else { lines.append("noise: none") }
             lines.append("carrier_hz: \(formatHz(p.carrierHz))")
-            lines.append("volume: \(Int(p.volumePercent))%")
+            lines.append("volume: \(p.volumeDb)dB")
             lines.append("eeg_adaptive: \(p.eegAdaptive)")
             lines.append("bone_conduction_pacer: \(p.boneConductionPacer)")
             return lines

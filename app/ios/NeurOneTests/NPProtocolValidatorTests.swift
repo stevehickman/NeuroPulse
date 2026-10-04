@@ -22,8 +22,8 @@
 //        MCU's 25). The pre-flight was 2.8× more permissive than the thing that stops the
 //        session; these tests now pin the per-electrode model.
 //    (b) PBM session dose (J/cm²) — implemented 2026-06-04. Estimated dose formula:
-//        peakMWcm2 × intensityFraction × duration(s) / 1000. CW: pbmCWMaxMWcm2; pulsed: scaled
-//        by duty cycle. Checked against NPPBMTranscranialLimits.maxSessionDoseJCm2 when set.
+//        average irradiance × duration(s) / 1000, where the average is the stated irradiance (CW)
+//        or irradiance × duty (pulsed). Checked against NPPBMTranscranialLimits.maxSessionDoseJCm2 when set.
 //    (c) Zero-duration hard rejection — implemented 2026-06-04. dur ≤ 0 → .error (was .warning).
 
 import XCTest
@@ -54,7 +54,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     func testValidProtocolAccepted() {
         let pbm = NPPBMTranscranialParams(
-            intensityPercent: 75,
+            irradianceMWcm2: 302,
             frequencyHz: 20,
             dutyCyclePercent: 25
         )
@@ -326,7 +326,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     // MARK: - testZeroDurationRejected (intended-behavior spec)
 
     func testZeroDurationRejected() {
-        let pbm = NPPBMTranscranialParams(intensityPercent: 75, frequencyHz: 20, dutyCyclePercent: 25)
+        let pbm = NPPBMTranscranialParams(irradianceMWcm2: 302, frequencyHz: 20, dutyCyclePercent: 25)
         let def = protocolWith(.pbmTranscranial(pbm), durationSeconds: 0)
         let result = hardwareOnlyValidator().validate(def)
 
@@ -340,12 +340,12 @@ final class NPProtocolValidatorTests: XCTestCase {
     // MARK: - testDoseOverLimitRejected (intended-behavior spec)
 
     func testDoseOverLimitRejected() {
-        // 100% CW intensity = 200 mW/cm² × 3600s / 1000 = 720 J/cm² — over the 10 J/cm² limit.
+        // 200 mW/cm² CW × 3600s / 1000 = 720 J/cm² — over the 10 J/cm² limit.
         var limits = NPLimitsSet(name: "Dose-capped", level: .global)
         limits.pbmTranscranial = NPPBMTranscranialLimits(maxSessionDoseJCm2: 10.0)
         let validator = NPProtocolValidator(resolvedLimits: limits)
 
-        let pbm = NPPBMTranscranialParams(intensityPercent: 100, frequencyHz: 0, dutyCyclePercent: 25)
+        let pbm = NPPBMTranscranialParams(irradianceMWcm2: 200, frequencyHz: 0, dutyCyclePercent: 25)
         let def = protocolWith(.pbmTranscranial(pbm), durationSeconds: 60 * 60)
         let result = validator.validate(def)
 
@@ -359,16 +359,16 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     func testConfiguredIntensityLimitRejected() {
         var limits = NPLimitsSet(name: "Capped", level: .global)
-        limits.pbmTranscranial = NPPBMTranscranialLimits(maxIntensityPercent: 50)
+        limits.pbmTranscranial = NPPBMTranscranialLimits(maxIrradianceMWcm2: 50)
         let validator = NPProtocolValidator(resolvedLimits: limits)
 
-        let pbm = NPPBMTranscranialParams(intensityPercent: 80, frequencyHz: 20, dutyCyclePercent: 25)
+        let pbm = NPPBMTranscranialParams(irradianceMWcm2: 322, frequencyHz: 20, dutyCyclePercent: 25)
         let def = protocolWith(.pbmTranscranial(pbm))
         let result = validator.validate(def)
 
         XCTAssertFalse(result.isValid, "Intensity above the configured dosage limit must be rejected.")
         XCTAssertTrue(
-            result.errors.contains { $0.parameterKey == "intensityPercent" },
+            result.errors.contains { $0.parameterKey == "irradianceMWcm2" },
             "Rejection must cite the intensity parameter."
         )
     }

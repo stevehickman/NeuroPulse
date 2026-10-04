@@ -76,17 +76,23 @@ data class NPPBMTranscranialParams(
      * for any target the parser did not recognise.
      */
     var target: NPPBMTarget = NPPBMTarget.Named(listOf("All")),
-    var wavelength: Wavelength = Wavelength.BASE_660_808NM,
-    var intensityPercent: Double = 75.0,
+    var wavelength: Wavelength = Wavelength.NM_808,
+    /**
+     * Peak irradiance at the scalp in mW/cm² for THIS block's wavelength alone
+     * (NP-NPPS-REF-001 Rev 18 §4.1b). Absolute, never a percentage of a baseline
+     * the hardware owns.
+     */
+    var irradianceMWcm2: Double = 300.0,
     var frequencyHz: Double = 20.0,
     var dutyCyclePercent: Int = 25,
 ) {
 
     /**
      * The stated wavelength, carried exactly as written (NP-NPPS-REF-001 Rev 17 §4.1a):
-     * one wavelength per block ("810nm"), or a legacy channel name. An open value, not
-     * a closed enum, so a script's wavelength is never replaced by a default. The three
-     * legacy names stay as named constants for the editor's dropdown.
+     * one wavelength per block ("810nm"). The combined channel names "660_808nm" and
+     * "660_808_1064nm" are retired (Rev 18). An open value, not a closed enum, so a
+     * script's wavelength is never replaced by a default. The three emitter channels
+     * stay as named constants for the editor's dropdown.
      */
     data class Wavelength(val rawValue: String) {
         /** True when the value drives CH_C under the shipped rules (a 1064 nm smart module). */
@@ -96,16 +102,18 @@ data class NPPBMTranscranialParams(
         override fun toString(): String = rawValue
 
         companion object {
-            val BASE_660_808NM = Wavelength("660_808nm")
-            val SMART_1064NM = Wavelength("1064nm")
-            val TRI_660_808_1064 = Wavelength("660_808_1064nm")
-            val entries: List<Wavelength> = listOf(BASE_660_808NM, SMART_1064NM, TRI_660_808_1064)
+            val NM_660 = Wavelength("660nm")
+            val NM_808 = Wavelength("808nm")
+            val NM_1064 = Wavelength("1064nm")
+            val entries: List<Wavelength> = listOf(NM_660, NM_808, NM_1064)
         }
     }
 }
 
 data class NPPBMIntranasalParams(
-    var intensityPercent: Double = 60.0,
+    /** One wavelength per block; the probe carries the 660 and 808 nm channels. */
+    var wavelength: NPPBMTranscranialParams.Wavelength = NPPBMTranscranialParams.Wavelength.NM_660,
+    var irradianceMWcm2: Double = 60.0,
     var frequencyHz: Double = 40.0,
     var dutyCyclePercent: Int = 25,
 )
@@ -173,7 +181,8 @@ data class NPAudioEntrainmentParams(
     var isochronicTonesHz: Double? = null,
     var noiseType: NoiseType? = NoiseType.PINK,
     var carrierHz: Double = 440.0,
-    var volumePercent: Double = 60.0,
+    /** Sound pressure level at the ear in dB SPL (NP-NPPS-REF-001 Rev 18 §4.7). */
+    var volumeDb: Double = 75.0,
     var eegAdaptive: Boolean = true,
     var boneConductionPacer: Boolean = true,
 ) {
@@ -458,7 +467,7 @@ data class NPCompositeProtocol(
 // fields are nullable — null = "no limit configured at this tier".
 
 data class NPPBMTranscranialLimits(
-    var maxIntensityPercent: Double? = null,
+    var maxIrradianceMWcm2: Double? = null,
     var maxFrequencyHz: Double? = null,
     var maxDutyCyclePercent: Int? = null,
     var maxSessionDoseJCm2: Double? = null,
@@ -466,7 +475,7 @@ data class NPPBMTranscranialLimits(
 )
 
 data class NPPBMIntranasalLimits(
-    var maxIntensityPercent: Double? = null,
+    var maxIrradianceMWcm2: Double? = null,
     var maxSessionDoseJCm2: Double? = null,
     var maxSessionDurationSeconds: Int? = null,
 )
@@ -498,7 +507,7 @@ data class NPVNSHRVLimits(
 )
 
 data class NPAudioEntrainmentLimits(
-    var maxVolumePercent: Double? = null,
+    var maxVolumeDb: Double? = null,
     var maxBinauralBeatsHz: Double? = null,
     var maxIsochronicTonesHz: Double? = null,
 )

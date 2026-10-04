@@ -19,8 +19,11 @@ final class NPWavelengthRulesTests: XCTestCase {
         XCTAssertNil(rules.map(1080))
     }
 
-    func testLegacyNamesKeepTheirChannels() {
-        XCTAssertEqual(try rules.resolveChannels("660_808nm").get(), [.led660, .led808])
+    func testRetiredNamesAreRefusedAnd1064IsAPlainWavelength() {
+        for name in ["660_808nm", "660_808_1064nm"] {
+            guard case .failure(let refusal) = rules.resolveChannels(name) else { return XCTFail("\(name) must be refused") }
+            XCTAssertEqual(refusal.reason, .retired)
+        }
         XCTAssertEqual(try rules.resolveChannels("1064nm").get(), [.led1064])
     }
 
@@ -39,7 +42,7 @@ final class NPWavelengthRulesTests: XCTestCase {
             duration: 8m
             pbm_transcranial {
                 wavelength: "810nm"
-                intensity: 62%
+                irradiance: 250mW_cm2
                 frequency: 0Hz
                 duty_cycle: 100%
                 zones: ["Frontal Right"]
@@ -69,8 +72,8 @@ final class NPWavelengthRulesTests: XCTestCase {
     }
 
     func testWavelengthEncodesAsABareString() throws {
-        let data = try JSONEncoder().encode(NPPBMTranscranialParams.Wavelength.base660_808nm)
-        XCTAssertEqual(String(data: data, encoding: .utf8), "\"660_808nm\"")
+        let data = try JSONEncoder().encode(NPPBMTranscranialParams.Wavelength.nm808)
+        XCTAssertEqual(String(data: data, encoding: .utf8), "\"808nm\"")
         let back = try JSONDecoder().decode(NPPBMTranscranialParams.Wavelength.self, from: Data("\"810nm\"".utf8))
         XCTAssertEqual(back.rawValue, "810nm")
     }

@@ -38,7 +38,8 @@ data class NPWavelengthRules(
 
 sealed class NPParsedWavelength {
     abstract val value: String
-    data class Legacy(override val value: String, val elements: List<NPPBMChannelElement>) : NPParsedWavelength()
+    /** A combined channel name that welded independent emitters into one block (Rev 18). */
+    data class Retired(override val value: String, val replacement: List<String>) : NPParsedWavelength()
     data class Single(override val value: String, val nm: Double) : NPParsedWavelength()
     data class Invalid(override val value: String) : NPParsedWavelength()
 }
@@ -66,17 +67,27 @@ object NPWavelengthRulesEngine {
         ),
     )
 
-    /** The three multi-channel legacy names. They name channels, not a source's wavelength. */
-    val LEGACY: Map<String, List<NPPBMChannelElement>> = mapOf(
-        "660_808nm" to listOf(NPPBMChannelElement.LED_660, NPPBMChannelElement.LED_808),
-        "1064nm" to listOf(NPPBMChannelElement.LED_1064),
-        "660_808_1064nm" to listOf(NPPBMChannelElement.LED_660, NPPBMChannelElement.LED_808, NPPBMChannelElement.LED_1064),
+    /**
+     * The two combined channel names the language used to accept (NP-NPPS-REF-001 Rev 18).
+     * RETIRED: each wavelength is its own block. `"1064nm"` was never one of them in
+     * substance; it is a single wavelength the default rules map to the 1064 nm channel.
+     */
+    val RETIRED: Map<String, List<String>> = mapOf(
+        "660_808nm" to listOf("660nm", "808nm"),
+        "660_808_1064nm" to listOf("660nm", "808nm", "1064nm"),
     )
+
+    /** The refusal text for a retired name, naming the blocks that replace it. */
+    fun retiredMessage(value: String): String {
+        val blocks = (RETIRED[value] ?: emptyList()).joinToString(" and ") { "\"$it\"" }
+        return "wavelength \"$value\" is retired: it welded independent emitters into one block. " +
+            "Write one block per wavelength ($blocks), each with its own irradiance."
+    }
 
     private val SINGLE_NM = Regex("^([0-9]+(?:\\.[0-9]+)?)nm$")
 
     fun parse(value: String): NPParsedWavelength {
-        LEGACY[value]?.let { return NPParsedWavelength.Legacy(value, it) }
+        RETIRED[value]?.let { return NPParsedWavelength.Retired(value, it) }
         val m = SINGLE_NM.matchEntire(value) ?: return NPParsedWavelength.Invalid(value)
         val nm = m.groupValues[1].toDoubleOrNull()
         return if (nm != null && nm > 0.0) NPParsedWavelength.Single(value, nm) else NPParsedWavelength.Invalid(value)
@@ -127,7 +138,7 @@ object NPWavelengthRulesEngine {
 
     fun resolveChannels(value: String, rules: NPWavelengthRules = DEFAULT): NPPbmChannelResolution =
         when (val w = parse(value)) {
-            is NPParsedWavelength.Legacy -> NPPbmChannelResolution.Ok(w.elements, null)
+            is NPParsedWavelength.Retired -> NPPbmChannelResolution.Refused("retired", value, null)
             is NPParsedWavelength.Invalid -> NPPbmChannelResolution.Refused("invalid", value, null)
             is NPParsedWavelength.Single -> map(w.nm, rules)
                 ?.let { NPPbmChannelResolution.Ok(listOf(it), w.nm) }

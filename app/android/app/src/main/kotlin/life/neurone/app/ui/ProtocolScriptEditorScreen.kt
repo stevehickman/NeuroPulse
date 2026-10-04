@@ -94,11 +94,11 @@ const val NEW_PROTOCOL_TEMPLATE: String = """protocol "New Protocol" {
     duration: 20m
 
     pbm_transcranial {
-        intensity: 75%
+        wavelength: "808nm"
+        irradiance: 300mW_cm2
         frequency: 10Hz
         duty_cycle: 25%
         zones: ["All"]
-        wavelength: "660_808nm"
     }
 }
 """

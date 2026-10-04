@@ -31,7 +31,7 @@ class SessionProtocolCompilerTests {
                 params = NPModalityParams.PbmTranscranial(
                     NPPBMTranscranialParams(
                         target = NPPBMTarget.Named(listOf("Frontal Left")),
-                        intensityPercent = 80.0, frequencyHz = 40.0, dutyCyclePercent = 25,
+                        irradianceMWcm2 = 322.0, frequencyHz = 40.0, dutyCyclePercent = 25,
                     ),
                 ),
             ),
@@ -74,7 +74,7 @@ class SessionProtocolCompilerTests {
             assertEquals(wavelength.rawValue, pbm.wavelength)
         }
         val jsonText = String(SessionProtocolCompiler(fakeSigner).compile(pbmDefinition()).payload, Charsets.UTF_8)
-        assertTrue(jsonText.contains("\"wavelength\":\"660_808nm\""))
+        assertTrue(jsonText.contains("\"wavelength\":\"808nm\""))
     }
 
     @Test

@@ -503,10 +503,10 @@ struct LimitsEditorView: View {
             )
         ) {
             if workingLimits.pbmTranscranial != nil {
-                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "%", value: Binding(
-                    get: { workingLimits.pbmTranscranial?.maxIntensityPercent },
-                    set: { workingLimits.pbmTranscranial?.maxIntensityPercent = $0 }
-                ), range: 0...100)
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_IRRADIANCE"), unit: "mW/cm²", value: Binding(
+                    get: { workingLimits.pbmTranscranial?.maxIrradianceMWcm2 },
+                    set: { workingLimits.pbmTranscranial?.maxIrradianceMWcm2 = $0 }
+                ), range: 0...400)
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_FREQUENCY"), unit: "Hz", value: Binding(
                     get: { workingLimits.pbmTranscranial?.maxFrequencyHz },
                     set: { workingLimits.pbmTranscranial?.maxFrequencyHz = $0 }
@@ -536,10 +536,10 @@ struct LimitsEditorView: View {
             )
         ) {
             if workingLimits.pbmIntranasal != nil {
-                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "%", value: Binding(
-                    get: { workingLimits.pbmIntranasal?.maxIntensityPercent },
-                    set: { workingLimits.pbmIntranasal?.maxIntensityPercent = $0 }
-                ), range: 0...100)
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_IRRADIANCE"), unit: "mW/cm²", value: Binding(
+                    get: { workingLimits.pbmIntranasal?.maxIrradianceMWcm2 },
+                    set: { workingLimits.pbmIntranasal?.maxIrradianceMWcm2 = $0 }
+                ), range: 0...400)
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_SESSION_DOSE"), unit: "J/cm²", value: Binding(
                     get: { workingLimits.pbmIntranasal?.maxSessionDoseJCm2 },
                     set: { workingLimits.pbmIntranasal?.maxSessionDoseJCm2 = $0 }
@@ -669,10 +669,10 @@ struct LimitsEditorView: View {
             )
         ) {
             if workingLimits.audioEntrainment != nil {
-                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_VOLUME"), unit: "%", value: Binding(
-                    get: { workingLimits.audioEntrainment?.maxVolumePercent },
-                    set: { workingLimits.audioEntrainment?.maxVolumePercent = $0 }
-                ), range: 0...100)
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_VOLUME"), unit: String(localized: "UNIT_DB_SPL"), value: Binding(
+                    get: { workingLimits.audioEntrainment?.maxVolumeDb },
+                    set: { workingLimits.audioEntrainment?.maxVolumeDb = $0 }
+                ), range: 40...90)
                 OptionalDoubleField(label: String(localized: "LIMITS_MAX_BINAURAL_BEATS"), unit: "Hz", value: Binding(
                     get: { workingLimits.audioEntrainment?.maxBinauralBeatsHz },
                     set: { workingLimits.audioEntrainment?.maxBinauralBeatsHz = $0 }

@@ -38,10 +38,24 @@ extension NPSessionProtocol {
                     frequencyHz: p.frequencyHz,
                     dutyCyclePercent: p.dutyCyclePercent,
                     durationSeconds: durationSeconds,
-                    targetDoseJoules: Double(durationSeconds) * (p.intensityPercent / 100.0) * 0.4
+                    irradianceMWcm2: p.irradianceMWcm2,
+                    // J/cm²: irradiance × duty × time (CW is full duty).
+                    targetDoseJoules: p.irradianceMWcm2
+                        * (p.frequencyHz == 0 ? 1.0 : Double(p.dutyCyclePercent) / 100.0)
+                        * Double(durationSeconds) / 1000.0
                 )))
             case .pbmIntranasal(let p):
+                // The probe carries the 660 and 808 nm channels only (Rev 18).
+                switch NPWavelengthRules.default.resolveChannels(p.wavelength.rawValue) {
+                case .failure(let refusal): throw refusal
+                case .success(let els):
+                    if !els.contains(where: { $0 == .led660 || $0 == .led808 }) {
+                        throw NPWavelengthRefusal(value: p.wavelength.rawValue, reason: .unmapped)
+                    }
+                }
                 modalities.append(.pbmIntranasal(PBMIntranasalConfig(
+                    wavelength: p.wavelength.rawValue,
+                    irradianceMWcm2: p.irradianceMWcm2,
                     frequencyHz: p.frequencyHz,
                     dutyCyclePercent: p.dutyCyclePercent,
                     durationSeconds: durationSeconds
@@ -83,6 +97,7 @@ extension NPSessionProtocol {
                     binauralBeatHz: p.binauralBeatsHz,
                     isochronicToneHz: p.isochronicTonesHz,
                     noiseType: p.noiseType?.rawValue,
+                    volumeDb: p.volumeDb,
                     eegAdaptive: p.eegAdaptive,
                     useBoneConductionForPacer: p.boneConductionPacer
                 )))
@@ -136,6 +151,8 @@ struct NPWavelengthRefusal: Error, LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch reason {
+        case .retired:
+            return NPWavelengthRules.retiredMessage(value)
         case .invalid:
             return "PBM wavelength '\(value)' is not a wavelength: write one value such as \"810nm\"."
         case .unmapped:
@@ -150,5 +167,15 @@ struct NPUnsupportedTimingError: Error, LocalizedError, Equatable {
     var errorDescription: String? {
         "This protocol times a block with `start`, which the session wire cannot express yet. " +
             "Refused, not reshaped."
+    }
+}
+
+// Compiler diagnostics are English, like hubCompiler.ts's.
+extension NPWavelengthRules {
+    /// The refusal text for a retired name, naming the blocks that replace it.
+    static func retiredMessage(_ value: String) -> String {
+        let blocks = (retired[value] ?? []).map { "\"\($0)\"" }.joined(separator: " and ")
+        return "wavelength \"\(value)\" is retired: it welded independent emitters into one block. "
+            + "Write one block per wavelength (\(blocks)), each with its own irradiance."
     }
 }

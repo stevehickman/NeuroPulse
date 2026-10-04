@@ -33,7 +33,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
             modalities: [
                 NPProtocolModality(
                     params: .pbmTranscranial(NPPBMTranscranialParams(
-                        intensityPercent: 75,
+                        irradianceMWcm2: 302,
                         frequencyHz: 20,
                         dutyCyclePercent: 25
                     )),
@@ -100,7 +100,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
             modalities: [
                 NPProtocolModality(
                     params: .pbmTranscranial(NPPBMTranscranialParams(
-                        intensityPercent: 75,
+                        irradianceMWcm2: 302,
                         frequencyHz: 20,
                         dutyCyclePercent: 25
                     )),

@@ -68,7 +68,7 @@ class NPPSSerializer {
 
         limits.pbmTranscranial?.let { lim ->
             lines.add("    pbm_transcranial {")
-            lim.maxIntensityPercent?.let { lines.add("        max_intensity: ${it.toInt()}%") }
+            lim.maxIrradianceMWcm2?.let { lines.add("        max_irradiance_mw_cm2: ${formatDouble(it)}") }
             lim.maxFrequencyHz?.let { lines.add("        max_frequency: ${formatHz(it)}") }
             lim.maxDutyCyclePercent?.let { lines.add("        max_duty_cycle: $it%") }
             lim.maxSessionDoseJCm2?.let { lines.add("        max_session_dose: ${formatDouble(it)}") }
@@ -77,7 +77,7 @@ class NPPSSerializer {
         }
         limits.pbmIntranasal?.let { lim ->
             lines.add("    pbm_intranasal {")
-            lim.maxIntensityPercent?.let { lines.add("        max_intensity: ${it.toInt()}%") }
+            lim.maxIrradianceMWcm2?.let { lines.add("        max_irradiance_mw_cm2: ${formatDouble(it)}") }
             lim.maxSessionDoseJCm2?.let { lines.add("        max_session_dose: ${formatDouble(it)}") }
             lim.maxSessionDurationSeconds?.let { lines.add("        max_session_duration: ${formatTime(it)}") }
             lines.add("    }")
@@ -114,7 +114,7 @@ class NPPSSerializer {
         }
         limits.audioEntrainment?.let { lim ->
             lines.add("    audio_entrainment {")
-            lim.maxVolumePercent?.let { lines.add("        max_intensity: ${it.toInt()}%") }
+            lim.maxVolumeDb?.let { lines.add("        max_volume_db: ${formatDouble(it)}") }
             lim.maxBinauralBeatsHz?.let { lines.add("        max_binaural_beats: ${formatHz(it)}") }
             lim.maxIsochronicTonesHz?.let { lines.add("        max_isochronic_tones: ${formatHz(it)}") }
             lines.add("    }")
@@ -231,7 +231,8 @@ class NPPSSerializer {
         is NPModalityParams.PbmTranscranial -> {
             val p = params.params
             val lines = ArrayList<String>()
-            lines.add("intensity: ${p.intensityPercent.toInt()}%")
+            lines.add("wavelength: ${quote(p.wavelength.rawValue)}")
+            lines.add("irradiance: ${formatDouble(p.irradianceMWcm2)}mW_cm2")
             lines.add("frequency: ${formatHz(p.frequencyHz)}")
             if (p.frequencyHz > 0) lines.add("duty_cycle: ${p.dutyCyclePercent}%")
             when (val t = p.target) {
@@ -239,18 +240,14 @@ class NPPSSerializer {
                     lines.add("zones: [${t.zoneNames.joinToString(", ") { quote(it) }}]")
                 is NPPBMTarget.ClinicianSelected -> lines.add("zones: clinician_selected")
             }
-            // Quoted: a wavelength is digit-leading, so the bare form has not been
-            // a legal value since NP-NPPS-REF-001 Rev 6. Emitting it unquoted meant
-            // this serializer wrote NPPS text its own parser cannot read back, which
-            // is what broke saving and reloading a user protocol.
-            lines.add("wavelength: ${quote(p.wavelength.rawValue)}")
             lines
         }
 
         is NPModalityParams.PbmIntranasal -> {
             val p = params.params
             listOf(
-                "intensity: ${p.intensityPercent.toInt()}%",
+                "wavelength: ${quote(p.wavelength.rawValue)}",
+                "irradiance: ${formatDouble(p.irradianceMWcm2)}mW_cm2",
                 "frequency: ${formatHz(p.frequencyHz)}",
                 "duty_cycle: ${p.dutyCyclePercent}%",
             )
@@ -313,7 +310,7 @@ class NPPSSerializer {
             val nt = p.noiseType
             if (nt != null) lines.add("noise: ${nt.rawValue}") else lines.add("noise: none")
             lines.add("carrier_hz: ${formatHz(p.carrierHz)}")
-            lines.add("volume: ${p.volumePercent.toInt()}%")
+            lines.add("volume: ${formatDouble(p.volumeDb)}dB")
             lines.add("eeg_adaptive: ${p.eegAdaptive}")
             lines.add("bone_conduction_pacer: ${p.boneConductionPacer}")
             lines

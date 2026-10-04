@@ -2,6 +2,7 @@ package life.neurone.core.session
 
 import life.neurone.core.protocol.NPEEGNeurofeedbackParams
 import life.neurone.core.protocol.NPModalityParams
+import life.neurone.core.protocol.NPPBMChannelElement
 import life.neurone.core.protocol.NPPBMTranscranialParams
 import life.neurone.core.protocol.NPProtocolDefinition
 import life.neurone.core.protocol.NPTimingMode
@@ -63,19 +64,14 @@ data class NPSessionProtocol(
                             "express yet. Refused, not reshaped.",
                     )
                 }
-                val pbm = m.params as? NPModalityParams.PbmTranscranial
-                if (pbm != null) {
-                    val r = NPWavelengthRulesEngine.resolveChannels(pbm.params.wavelength.rawValue)
-                    if (r is NPPbmChannelResolution.Refused) {
-                        throw IllegalArgumentException(
-                            if (r.reason == "invalid") {
-                                "PBM wavelength '${r.value}' is not a wavelength: write one value such as \"810nm\"."
-                            } else {
-                                "No emitter channel delivers ${r.value} under the wavelength rules in force. " +
-                                    "Refused, not moved to the nearest channel."
-                            },
-                        )
-                    }
+                (m.params as? NPModalityParams.PbmTranscranial)?.let {
+                    requireDeliverable("PBM", it.params.wavelength.rawValue, NPPBMChannelElement.entries)
+                }
+                (m.params as? NPModalityParams.PbmIntranasal)?.let {
+                    requireDeliverable(
+                        "Intranasal PBM", it.params.wavelength.rawValue,
+                        listOf(NPPBMChannelElement.LED_660, NPPBMChannelElement.LED_808),
+                    )
                 }
                 when (val p = m.params) {
                     is NPModalityParams.PbmTranscranial -> configs.add(
@@ -85,11 +81,16 @@ data class NPSessionProtocol(
                             frequencyHz = p.params.frequencyHz,
                             dutyCyclePercent = p.params.dutyCyclePercent,
                             durationSeconds = duration,
-                            targetDoseJoules = duration.toDouble() * (p.params.intensityPercent / 100.0) * 0.4,
+                            irradianceMWcm2 = p.params.irradianceMWcm2,
+                            targetDoseJCm2 = p.params.irradianceMWcm2 *
+                                (if (p.params.frequencyHz == 0.0) 1.0 else p.params.dutyCyclePercent / 100.0) *
+                                duration / 1000.0,
                         ),
                     )
                     is NPModalityParams.PbmIntranasal -> configs.add(
                         ModalityConfig.PbmIntranasal(
+                            wavelength = p.params.wavelength.rawValue,
+                            irradianceMWcm2 = p.params.irradianceMWcm2,
                             frequencyHz = p.params.frequencyHz,
                             dutyCyclePercent = p.params.dutyCyclePercent,
                             durationSeconds = duration,
@@ -132,6 +133,7 @@ data class NPSessionProtocol(
                             binauralBeatHz = p.params.binauralBeatsHz,
                             isochronicToneHz = p.params.isochronicTonesHz,
                             noiseType = p.params.noiseType?.rawValue,
+                            volumeDb = p.params.volumeDb,
                             eegAdaptive = p.params.eegAdaptive,
                             useBoneConductionForPacer = p.params.boneConductionPacer,
                         ),
@@ -176,12 +178,18 @@ sealed class ModalityConfig {
         val frequencyHz: Double,
         val dutyCyclePercent: Int,
         val durationSeconds: Int,
-        val targetDoseJoules: Double,
+        /** Peak irradiance at the scalp, mW/cm², this wavelength alone (NP-NPPS-REF-001 Rev 18 §4.1b). */
+        val irradianceMWcm2: Double,
+        /** Scalp dose this block states, J/cm²: irradiance × duty × time. Not the old 0.4 W placeholder. */
+        val targetDoseJCm2: Double,
     ) : ModalityConfig()
 
     @Serializable
     @SerialName("pbm_intranasal")
     data class PbmIntranasal(
+        /** One wavelength per block; the probe carries 660 and 808 nm. */
+        val wavelength: String,
+        val irradianceMWcm2: Double,
         val frequencyHz: Double,
         val dutyCyclePercent: Int,
         val durationSeconds: Int,
@@ -237,6 +245,8 @@ sealed class ModalityConfig {
         val binauralBeatHz: Double? = null,
         val isochronicToneHz: Double? = null,
         val noiseType: String? = null,
+        /** Sound pressure level at the ear, dB SPL (NP-NPPS-REF-001 Rev 18 §4.7). */
+        val volumeDb: Double,
         val eegAdaptive: Boolean = true,
         val useBoneConductionForPacer: Boolean = true,
     ) : ModalityConfig()
@@ -249,6 +259,27 @@ sealed class ModalityConfig {
         val enableModeFInvisibleNIR: Boolean = false,
         val emdrCadenceHz: Double = 1.0,
     ) : ModalityConfig()
+}
+
+/**
+ * A PBM block must name ONE wavelength that a channel of this modality delivers under the
+ * wavelength rules in force. Refused, never moved to the nearest channel (NP-NPPS-REF-001
+ * §4.1a); a retired combined name says which blocks replace it.
+ */
+private fun requireDeliverable(what: String, wavelength: String, allowed: List<NPPBMChannelElement>) {
+    when (val r = NPWavelengthRulesEngine.resolveChannels(wavelength)) {
+        is NPPbmChannelResolution.Refused -> throw IllegalArgumentException(
+            when (r.reason) {
+                "retired" -> "$what: ${NPWavelengthRulesEngine.retiredMessage(r.value)}"
+                "invalid" -> "$what wavelength '${r.value}' is not a wavelength: write one value such as \"810nm\"."
+                else -> "No emitter channel delivers ${r.value} under the wavelength rules in force. " +
+                    "Refused, not moved to the nearest channel."
+            },
+        )
+        is NPPbmChannelResolution.Ok -> if (r.elements.none { it in allowed }) {
+            throw IllegalArgumentException("$what cannot be delivered on ${r.elements.first().rawValue}: ${r.elements.first().rawValue} is a channel it does not carry.")
+        }
+    }
 }
 
 // MARK: - resolved zone/channel helpers (port of NPProtocolDefinition computed props)

@@ -39,9 +39,12 @@ abstract class ModalityConfig { }
 sealed class PbmTranscranialConfig : ModalityConfig
 {
     public required int[] Zones { get; init; }            // active zone indices 0–4
-    // The NPPS `wavelength` token, carried verbatim (OI-PBMCH-04): without it a
-    // "1064nm" protocol compiled to the same config as a "660_808nm" one.
+    // The NPPS `wavelength` token, carried verbatim: one wavelength per block
+    // (NP-NPPS-REF-001 Rev 18; the combined names are retired).
     public required string Wavelength { get; init; }
+    // Peak irradiance at the scalp, mW/cm², this wavelength alone (Rev 18 §4.1b).
+    [JsonPropertyName("irradianceMWcm2")]
+    public required double IrradianceMwCm2 { get; init; }
     public required double FrequencyHz { get; init; }     // 0 = CW
     public required int DutyCyclePercent { get; init; }   // ≤25 (firmware-enforced)
     public required int DurationSeconds { get; init; }
@@ -51,6 +54,10 @@ sealed class PbmTranscranialConfig : ModalityConfig
 // case pbmIntranasal(PBMIntranasalConfig)
 sealed class PbmIntranasalConfig : ModalityConfig
 {
+    // One wavelength per block; the probe carries 660 and 808 nm.
+    public required string Wavelength { get; init; }
+    [JsonPropertyName("irradianceMWcm2")]
+    public required double IrradianceMwCm2 { get; init; }
     public required double FrequencyHz { get; init; }
     public required int DutyCyclePercent { get; init; }
     public required int DurationSeconds { get; init; }
@@ -102,6 +109,8 @@ sealed class NeuralAudioConfig : ModalityConfig
     public double? BinauralBeatHz { get; init; }
     public double? IsochronicToneHz { get; init; }
     public string? NoiseType { get; init; }
+    // Sound pressure level at the ear, dB SPL (NP-NPPS-REF-001 Rev 18 §4.7).
+    public required double VolumeDb { get; init; }
     public bool EegAdaptive { get; init; } = true;
     public bool UseBoneConductionForPacer { get; init; } = true;
 }

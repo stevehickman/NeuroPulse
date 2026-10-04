@@ -105,9 +105,10 @@ extension NPPBMTarget {
 struct NPPBMTranscranialParams: Codable, Equatable {
 
     /// The stated wavelength, carried exactly as written (NP-NPPS-REF-001 Rev 17 §4.1a):
-    /// one wavelength per block ("810nm"), or a legacy channel name. It is an open value,
-    /// not a closed enum, so a script's wavelength is never replaced by a default. The
-    /// three legacy names stay as static members for the editor's picker.
+    /// one wavelength per block ("810nm"). The combined names "660_808nm" and
+    /// "660_808_1064nm" are retired (Rev 18). It is an open value, not a closed enum, so a
+    /// script's wavelength is never replaced by a default. The three emitter channels stay
+    /// as static members for the editor's picker.
     struct Wavelength: RawRepresentable, Codable, Hashable, CaseIterable, Identifiable {
         let rawValue: String
         init(rawValue: String) { self.rawValue = rawValue }
@@ -124,15 +125,13 @@ struct NPPBMTranscranialParams: Codable, Equatable {
             try c.encode(rawValue)
         }
 
-        static let base660_808nm   = Wavelength(rawValue: "660_808nm")
-        static let smart1064nm     = Wavelength(rawValue: "1064nm")
-        static let tri660_808_1064 = Wavelength(rawValue: "660_808_1064nm")
-        static let allCases: [Wavelength] = [.base660_808nm, .smart1064nm, .tri660_808_1064]
+        static let nm660  = Wavelength(rawValue: "660nm")
+        static let nm808  = Wavelength(rawValue: "808nm")
+        static let nm1064 = Wavelength(rawValue: "1064nm")
+        static let allCases: [Wavelength] = [.nm660, .nm808, .nm1064]
 
         var displayName: String {
-            if self == .base660_808nm { return String(localized: "PBM_WAVELENGTH_BASE660_808NM") }
-            if self == .smart1064nm { return String(localized: "PBM_WAVELENGTH_SMART1064NM") }
-            if self == .tri660_808_1064 { return String(localized: "PBM_WAVELENGTH_TRI660_808_1064") }
+            if self == .nm1064 { return String(localized: "PBM_WAVELENGTH_SMART1064NM") }
             return rawValue   // a stated wavelength such as "810nm" is its own label
         }
 
@@ -150,8 +149,11 @@ struct NPPBMTranscranialParams: Codable, Equatable {
     /// old default was the five-slot `.all`, which silently became "every module"
     /// for any target the parser did not recognise.
     var target: NPPBMTarget = .named(["All"])
-    var wavelength: Wavelength = .base660_808nm
-    var intensityPercent: Double = 75
+    var wavelength: Wavelength = .nm808
+    /// Peak irradiance at the scalp in mW/cm² for THIS block's wavelength alone
+    /// (NP-NPPS-REF-001 Rev 18 §4.1b). Absolute, never a percentage of a baseline the
+    /// hardware owns.
+    var irradianceMWcm2: Double = 300
     var frequencyHz: Double = 20        // 0 = CW
     var dutyCyclePercent: Int = 25      // ≤25, only shown when frequencyHz > 0
 
@@ -167,7 +169,9 @@ struct NPPBMTranscranialParams: Codable, Equatable {
 // MARK: PBM Intranasal
 
 struct NPPBMIntranasalParams: Codable, Equatable {
-    var intensityPercent: Double = 60
+    /// One wavelength per block; the probe carries the 660 and 808 nm channels.
+    var wavelength: NPPBMTranscranialParams.Wavelength = .nm660
+    var irradianceMWcm2: Double = 60
     var frequencyHz: Double = 40
     var dutyCyclePercent: Int = 25
 }
@@ -333,7 +337,8 @@ struct NPAudioEntrainmentParams: Codable, Equatable {
     var isochronicTonesHz: Double? = nil
     var noiseType: NoiseType? = .pink
     var carrierHz: Double = 440
-    var volumePercent: Double = 60
+    /// Sound pressure level at the ear in dB SPL (NP-NPPS-REF-001 Rev 18 §4.7).
+    var volumeDb: Double = 75
     var eegAdaptive: Bool = true
     var boneConductionPacer: Bool = true
 }
