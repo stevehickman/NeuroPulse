@@ -19,8 +19,13 @@
  *      has a master-index row in NP-DHF-001: first cell = its serial, and a
  *      link `](./<file>)` in the row;
  *   B. that row's Rev cell begins with the same integer;
+ *   B+. the same for the row that indexes CLAUDE.md (its first cell is "—", so it has no
+ *      serial): the Rev cell must equal CLAUDE.md's `**Revision:**` integer. CLAUDE.md has
+ *      no Date field, so the Date cell cannot be checked from the file.
  *   C. NP-DHF-001's own document-history table (the first table under a
- *      `## … History` heading) has a row for the DHF's current revision.
+ *      `## … History` heading, or, where that section holds a pointer instead,
+ *      the first table in the linked `docs/reference/*-revision-history.md`
+ *      it names; NP-QMS-DC-001 §8.2) has a row for the DHF's current revision.
  *
  * C was added after PR #451 (2026-09-26): the Rev 102 history row landed in the
  * master index instead of the history table, and A and B, which read only rows
@@ -43,6 +48,10 @@
  *   F. a serial has at most one live row. A second row for the same serial is
  *      either a stale copy or needs its serial cell disambiguated
  *      ("NP-X-001 (variant)"), as NP-HW-FPC-001 and NP-COORD-001 already do.
+ *      D and E read every §5 index row (seven cells with a File link), not only rows that
+ *      start with a serial, so the CLAUDE.md row is covered.
+ *   H. every row of a §6 table headed "Repository path" holds a bare link, or "—" with at
+ *      most a parenthetical, in that column. Prose about the item goes in a note below.
  *   G. for a row whose File cell links a Markdown document directly under docs/
  *      (`[…](./np_x_001.md)`), the Title equals that file's first `# ` heading,
  *      bold and runs of whitespace ignored (principal, 2026-09-30). An exact match
@@ -130,6 +139,25 @@ if (process.argv.includes("--self-test")) {
   write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md"));
   expect("rule C rejects a DHF with no document-history table", 1, "no document-history table");
 
+  // Rule C, linked form (NP-QMS-DC-001 §8.2): the table lives in the file the section points to.
+  const PTR = "\n## 9. Document History\n\nSee `docs/reference/np-dhf-001-revision-history.md`.\n";
+  const LINKED = (rev: string) => `# H\n\n| Rev | Date | Author | Description |\n|---|---|---|---|\n| ${rev} | 2026-01-01 | A | d |\n`;
+  reset();
+  mkdirSync(join(docs, "reference"), { recursive: true });
+  write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md") + PTR);
+  write("reference/np-dhf-001-revision-history.md", LINKED("1"));
+  expect("rule C accepts a history table in the linked file", 0, "C (DHF history has its Rev): PASS");
+
+  reset();
+  mkdirSync(join(docs, "reference"), { recursive: true });
+  write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md") + PTR);
+  write("reference/np-dhf-001-revision-history.md", LINKED("0"));
+  expect("rule C rejects a linked table with no row for the current Rev", 1, "no row for Rev 1");
+
+  reset();
+  write("np_dhf_001.md", DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md") + PTR);
+  expect("rule C rejects a pointer to a missing file", 1, "which does not exist");
+
   // Rules D–G read §5 only. A §5 fixture with one clean row, plus a row under test.
   const S5 = (extra: string) => "# T\n\n" + DHF_HEAD.replace("| ID |", "## 5. Master Document Index\n\n| ID |")
     + dhfRow("NP-DHF-001", "1", "np_dhf_001.md") + extra + "\n## 6. Other\n" + HIST("1");
@@ -177,14 +205,46 @@ if (process.argv.includes("--self-test")) {
   const e = run();
   if (e.code === 0) failures.push("a DHF with no front matter was accepted");
 
+  // B+, D, E on the CLAUDE.md row (no serial), and H on §6. CLAUDE.md is read from the cwd.
+  const claudeRow = (rev: string, status: string) =>
+    `| — | CLAUDE.md — Project Design Memory | ${rev} | 2026-01-01 | [CLAUDE.md](../CLAUDE.md) | ${status} | REQ |\n`;
+  const withClaude = (rev: string, status: string) => {
+    writeFileSync(join(root, "CLAUDE.md"), `# C\n\n**Revision:** ${rev} (current)\n`);
+    reset();
+    write("np_dhf_001.md", S5(claudeRow(rev === "9" ? "9" : "8", status)));
+  };
+  withClaude("9", "ACTIVE");
+  expect("rule B+ accepts a CLAUDE.md row at the file's Rev", 0, "B (Rev agrees with file):  PASS");
+  withClaude("9", "ACTIVE");
+  write("np_dhf_001.md", S5(claudeRow("8", "ACTIVE")));
+  expect("rule B+ rejects a stale CLAUDE.md Rev", 1, "CLAUDE.md: DHF Rev 8, file Rev 9");
+  withClaude("9", "ACTIVE");
+  write("np_dhf_001.md", S5(claudeRow("9", "ACTIVE — **Rev 9 (2026-01-01) adds a thing.**")));
+  expect("rule D covers the CLAUDE.md row", 1, "D:Status");
+  write("np_dhf_001.md", S5(claudeRow("9", "ACTIVE — " + "x".repeat(90))));
+  expect("rule E covers the CLAUDE.md row", 1, "E:Status");
+  rmSync(join(root, "CLAUDE.md"), { force: true });
+
+  const S6 = (cell: string) => "# T\n\n" + DHF_HEAD + dhfRow("NP-DHF-001", "1", "np_dhf_001.md")
+    + "\n## 6. Firmware\n\n| Firmware item | Class | Document | Repository path |\n|---|---|---|---|\n"
+    + `| Thing | B | NP-X-001 | ${cell} |\n` + HIST("1");
+  reset();
+  write("np_dhf_001.md", S6("[firmware/x/](../firmware/x/)"));
+  expect("rule H accepts a bare link", 0, "H (§6 Repository path is a link): PASS");
+  write("np_dhf_001.md", S6("— (not yet written)"));
+  expect("rule H accepts a dash with a parenthetical", 0, "H (§6 Repository path is a link): PASS");
+  write("np_dhf_001.md", S6("[firmware/x/](../firmware/x/) — pinned 2026-09-14, NOT INTEGRATED"));
+  expect("rule H rejects prose after the link", 1, "Repository path is not a bare link");
+
   rmSync(root, { recursive: true, force: true });
   console.log("check-dhf-index self-test");
+
   if (failures.length) {
     console.error(`\nSELF-TEST FAIL — ${failures.length} assertion(s):`);
     for (const f of failures) console.error("  " + f);
     process.exit(1);
   }
-  console.log("  rules A–G each proven to reject; conforming tree proven to pass");
+  console.log("  rules A–H each proven to reject; conforming tree proven to pass");
   console.log("SELF-TEST PASS — the checker has teeth.");
   process.exit(0);
 }
@@ -215,20 +275,38 @@ for (const r of readFileSync(DHF, "utf8").split("\n")) {
   rows.set(key, [...(rows.get(key) ?? []), (cells[2] ?? "").replace(/[*\s]/g, "")]);
 }
 
-// Rule C: the document-history table carries the DHF's current revision.
+// Rule C: the document-history table carries the DHF's current revision. The table is either inline
+// under the history heading or, per NP-QMS-DC-001 §8.2 (Rev 2), in a linked file named by a backticked
+// docs/reference/*-revision-history.md path in that section.
 const violC: string[] = [];
 {
   const L = readFileSync(DHF, "utf8").split("\n");
   const h = L.findIndex((l) => /^##\s.*History\s*$/.test(l));
-  let t = h < 0 ? -1 : L.findIndex((l, i) => i > h && l.trimStart().startsWith("|"));
-  if (t < 0) violC.push(`C: ${DHF} has no document-history table (a table under a "## … History" heading)`);
-  else {
+  let src = L, where = DHF, from = h;
+  let t = -1;
+  if (h >= 0) {
+    let end = L.findIndex((l, i) => i > h && /^##\s/.test(l));
+    if (end < 0) end = L.length;
+    t = L.findIndex((l, i) => i > h && i < end && l.trimStart().startsWith("|"));
+    if (t < 0) {
+      const link = L.slice(h, end).join("\n").match(/`(docs\/reference\/[A-Za-z0-9._-]*revision-history\.md)`/)?.[1];
+      if (link && !existsSync(link)) violC.push(`C: ${DHF} points to ${link}, which does not exist`);
+      else if (link) {
+        src = readFileSync(link, "utf8").split("\n");
+        where = link;
+        t = src.findIndex((l) => l.trimStart().startsWith("|"));
+      }
+    }
+  }
+  if (t < 0) {
+    if (!violC.length) violC.push(`C: ${DHF} has no document-history table (a table under a "## … History" heading, or a linked docs/reference/*-revision-history.md)`);
+  } else {
     const revs: string[] = [];
-    for (let i = t + 2; i < L.length && L[i].trimStart().startsWith("|"); i++) {
-      revs.push(L[i].split("|")[1]?.replace(/[*\s]/g, "") ?? "");
+    for (let i = t + 2; i < src.length && src[i].trimStart().startsWith("|"); i++) {
+      revs.push(src[i].split("|")[1]?.replace(/[*\s]/g, "") ?? "");
     }
     if (!revs.includes(self.rev)) {
-      violC.push(`C: ${DHF} is Rev ${self.rev}, and its document-history table (line ${t + 1}) has no row for Rev ${self.rev}`);
+      violC.push(`C: ${DHF} is Rev ${self.rev}, and its document-history table (${where} line ${t + 1}) has no row for Rev ${self.rev}`);
     }
   }
 }
@@ -252,6 +330,19 @@ for (const e of readdirSync("docs").sort()) {
   }
 }
 
+// B+: the CLAUDE.md row has no serial, so the loop above never reaches it.
+if (existsSync("CLAUDE.md")) {
+  const want = readFileSync("CLAUDE.md", "utf8").match(/^\*\*Revision:\*\*\s*([0-9]+)/m)?.[1];
+  let found = 0;
+  for (const r of readFileSync(DHF, "utf8").split("\n")) {
+    if (!/^\|/.test(r) || !/\]\(\.\.\/CLAUDE\.md\)/.test(r)) continue;
+    found++;
+    const c = r.split(/(?<!\\)\|/).slice(1, -1).map((x) => x.trim());
+    const lead = (c[2] ?? "").replace(/[*\s]/g, "").match(/^[0-9]+/)?.[0];
+    if (want && lead !== want) violB.push(`B: CLAUDE.md: DHF Rev ${lead ?? JSON.stringify(c[2])}, file Rev ${want}`);
+  }
+  if (!found) violB.push(`B: CLAUDE.md has no master-index row in ${DHF} linking ../CLAUDE.md`);
+}
 
 // Rules D–G: what the §5 master index's Title and Status cells hold (NP-CONV-001 §4.4).
 const TITLE_MAX = 150;
@@ -268,15 +359,18 @@ const flag = (bucket: string[], key: string, msg: string) => bucket.push(`${key}
   const e5 = s5 < 0 ? -1 : L.findIndex((l, i) => i > s5 && /^##\s/.test(l));
   const seen = new Map<string, number>();
   for (let i = s5 + 1; s5 >= 0 && i < (e5 < 0 ? L.length : e5); i++) {
-    const m = L[i].match(/^\|\s*\*{0,2}(NP-[A-Z0-9-]+?)\*{0,2}\s*\|/);
-    if (!m) continue;
-    const id = m[1], at = `line ${i + 1}`;
+    if (!L[i].startsWith("|")) continue;
     const c = L[i].split(/(?<!\\)\|/).slice(1, -1).map((x) => x.trim());
+    // An index row: seven cells, a File link in the fifth. Header and separator rows have none.
+    if (c.length !== 7 || !/\]\(/.test(c[4] ?? "")) continue;
+    const m = c[0].match(/^\*{0,2}(NP-[A-Z0-9-]+?)\*{0,2}$/);
+    const id = m ? m[1] : `${c[0]} ${c[1].slice(0, 40)}`, at = `line ${i + 1}`;
     const title = c[1] ?? "", status = c[5] ?? "";
     if (REV_NOTE.test(title)) flag(violD, `${id} D:Title`, `${at}: Title carries a revision note: "${title.match(REV_NOTE)![0]}"`);
     if (REV_NOTE.test(status)) flag(violD, `${id} D:Status`, `${at}: Status carries a revision note: "${status.match(REV_NOTE)![0]}"`);
     if (title.length > TITLE_MAX) flag(violE, `${id} E:Title`, `${at}: Title is ${title.length} characters (max ${TITLE_MAX})`);
     if (status.length > STATUS_MAX) flag(violE, `${id} E:Status`, `${at}: Status is ${status.length} characters (max ${STATUS_MAX})`);
+    if (!m) continue; // G and F are for serial-bearing rows
     const md = (c[4] ?? "").match(/^\[[^\]]*\]\(\.\/([a-z0-9_]+\.md)\)$/)?.[1];
     if (md && existsSync(join("docs", md))) {
       const h1 = readFileSync(join("docs", md), "utf8").split("\n").find((l) => l.startsWith("# "));
@@ -285,6 +379,26 @@ const flag = (bucket: string[], key: string, msg: string) => bucket.push(`${key}
     }
     if (seen.has(id)) flag(violF, `${id} F`, `${at}: second live row for this serial (first at line ${seen.get(id)! + 1})`);
     else seen.set(id, i);
+  }
+}
+
+// Rule H: a §6 "Repository path" cell holds a link, not prose.
+const violH: string[] = [];
+{
+  const L = readFileSync(DHF, "utf8").split("\n");
+  const s6 = L.findIndex((l) => /^##\s+6\.\s/.test(l));
+  const e6 = s6 < 0 ? -1 : L.findIndex((l, i) => i > s6 && /^##\s/.test(l));
+  let col = -1;
+  for (let i = s6 + 1; s6 >= 0 && i < (e6 < 0 ? L.length : e6); i++) {
+    if (!L[i].startsWith("|")) { col = -1; continue; }
+    const c = L[i].split(/(?<!\\)\|/).slice(1, -1).map((x) => x.trim());
+    const k = c.findIndex((x) => x === "Repository path");
+    if (k >= 0) { col = k; continue; }
+    if (col < 0 || /^-+$/.test(c[0].replace(/[:\s]/g, ""))) continue;
+    const cell = c[col] ?? "";
+    if (!/^\[[^\]]+\]\([^)\s]+\)$/.test(cell) && !/^—(\s*\([^)]*\))?$/.test(cell)) {
+      violH.push(`line ${i + 1}: Repository path is not a bare link: "${cell.slice(0, 70)}${cell.length > 70 ? "…" : ""}"`);
+    }
   }
 }
 
@@ -303,6 +417,9 @@ console.log(`F (one row per serial):    ${violF.length ? "FAIL" : "PASS"}`);
 violF.forEach((v) => console.log("   " + v));
 console.log(`G (Title is the file's heading): ${violG.length ? "FAIL" : "PASS"}`);
 violG.forEach((v) => console.log("   " + v));
+console.log(`H (§6 Repository path is a link): ${violH.length ? "FAIL" : "PASS"}`);
+violH.forEach((v) => console.log("   " + v));
+if (violH.length) console.log("\nFix (H): the cell holds the link only; put prose about the item in a note under the §6 table.");
 if (violD.length + violE.length + violF.length + violG.length) {
   console.log("\nFix (D–G): the Title is the document's own heading and the Status is its status word plus at most");
   console.log("one short pointer (NP-CONV-001 §4.4). Change notes go in the document's history and NP-DHF-001 §9.");
@@ -311,5 +428,5 @@ if (violA.length + violB.length + violC.length) {
   console.log("\nFix: set the row's Rev and Date from the file's front matter, or add the row.");
   console.log("editscripts/patch_conv07_dhf_reconcile.py does both mechanically.");
 }
-const fails = violA.length + violB.length + violC.length + violD.length + violE.length + violF.length + violG.length;
+const fails = violA.length + violB.length + violC.length + violD.length + violE.length + violF.length + violG.length + violH.length;
 process.exit(fails ? 1 : 0);

@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-QMS-DC-001
-**Revision:** 1
-**Date:** 2026-05-13
+**Revision:** 2
+**Date:** 2026-10-04
 **Status:** ACTIVE
 **Effective Date:** 2026-05-13
 **Author:** Quality Lead (interim: Steve Hickman, CEO)
@@ -235,7 +235,9 @@ A change is minor if it:
 - Updates a document number or title to match an approved change
 - Adds clarifying language without changing technical requirements
 
-**Minor change process:** Single approver (document author + Quality Lead countersign). Documented in document revision history block.
+**Minor change process:** Single approver (document author + Quality Lead countersign). Documented in the document's revision history record.
+
+**Where the revision history record lives.** It is either (a) a revision history block inside the document, or (b) a linked history file under `docs/reference/`, named by a pointer in the document's own revision-history section. Under (b) the section stays in place under its original number, so existing `§N` citations resolve; the history file carries the table verbatim; and the pointer names the file. Moving the record between (a) and (b) moves no requirement and is a minor change: it takes a revision bump and a row in the record, in its new location. Neither form changes the audit trail of record, which remains GitHub commit history (`NP-QMS-001` §6.1).
 
 ### 8.3 Version control
 
@@ -330,3 +332,4 @@ Design transfer is the process of moving the device from design into production.
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 1 | 2026-05-13 | Interim Quality (CEO) | Initial release. Design controls procedure established at QMS formation. Applies retroactively to all in-progress design activities. |
+| 2 | 2026-10-04 | Interim Quality (CEO) | §8.2: the revision history record may be an inline block or a linked history file under `docs/reference/`, with a pointer left in the original section. Previously §8.2 named only an inline "document revision history block". No change to the change-order process, approvals or §8.3. |
