@@ -28,3 +28,4 @@ logged in `docs/status/completed-decisions.md`. Never quote a draft here as a de
 | File | Open item | Asks | Status |
 |------|-----------|------|--------|
 | `oi-risk2-06-clinical-question.md` | `OI-RISK2-06` | Should a cervical cardiac cutoff also withhold auricular VNS? | DRAFT, not sent |
+| `oi-risk2-09-cvns-detection-adequacy.md` | `OI-RISK2-09` | Is the `REQ-CVNS-09` cardiac detection requirement clinically adequate? Five sub-questions (a)–(e). | DRAFT, not sent |
