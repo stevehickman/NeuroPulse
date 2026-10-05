@@ -115,24 +115,28 @@ final class NPAbsoluteQuantityTests: XCTestCase {
                 NPProtocolModality(params: .audioEntrainment(audio)),
             ]
         )
-        let wire = try NPSessionProtocol(from: definition)
-        guard case .pbmTranscranial(let t) = wire.modalities[0],
-              case .pbmIntranasal(let n) = wire.modalities[1],
-              case .neuralAudio(let a) = wire.modalities[2] else { return XCTFail("unexpected wire modalities") }
-        XCTAssertEqual(t.irradianceMWcm2, 250)
-        XCTAssertEqual(n.irradianceMWcm2, 40)
-        XCTAssertEqual(a.volumeDb, 70)
+        // The wire carries a drive register, which the hub cannot read back as a percentage.
+        // 250 mW/cm² at 808 nm: round(250 / 403 × 255) = 158 in the second current byte.
+        let blob = try HubDescriptorCompiler.build(NPProtocolDefinition(
+            name: "abs", modalities: [NPProtocolModality(params: .pbmTranscranial(transcranial))])).blob
+        // header(64) + cmd_hdr(14) + socket mask(16) → params [freq, duty, cur_660, cur_808]
+        XCTAssertEqual(Array(blob.subdata(in: 94..<98)), [20, 50, 0, 158])
+        // Audio: 70 dB SPL → (70 − 40) / 0.5 = 60 % volume register.
+        let audioBlob = try HubDescriptorCompiler.build(NPProtocolDefinition(
+            name: "abs", modalities: [NPProtocolModality(params: .audioEntrainment(audio))])).blob
+        XCTAssertEqual(audioBlob[64 + 14 + 5], 60)
+        _ = nasal
 
         var retired = NPPBMTranscranialParams()
         retired.wavelength = NPPBMTranscranialParams.Wavelength(rawValue: "660_808nm")
         let bad = NPProtocolDefinition(name: "bad", modalities: [NPProtocolModality(params: .pbmTranscranial(retired))])
-        XCTAssertThrowsError(try NPSessionProtocol(from: bad)) { error in
+        XCTAssertThrowsError(try HubDescriptorCompiler.build(bad)) { error in
             XCTAssertTrue("\(error.localizedDescription)".contains("retired"))
         }
         var nasal1064 = NPPBMIntranasalParams()
         nasal1064.wavelength = .nm1064
         let probe = NPProtocolDefinition(name: "nasal", modalities: [NPProtocolModality(params: .pbmIntranasal(nasal1064))])
-        XCTAssertThrowsError(try NPSessionProtocol(from: probe))
+        XCTAssertThrowsError(try HubDescriptorCompiler.build(probe))
     }
 
     func testTheValidatorChecksThe400PeakDirectly() {

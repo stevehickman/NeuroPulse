@@ -1,150 +1,12 @@
 import Foundation
 import CryptoKit
 
-// Session protocol authoring and CSPRNG signing.
-// A session protocol defines all stimulation parameters for a single session.
-// It is cryptographically signed before upload to the hub; the hub firmware
-// rejects unsigned or corrupted protocols (NP-FW-EMMC-001 Rev A §8, CLAUDE.md §4.2).
-
-// MARK: - Protocol definition
-
-struct NPSessionProtocol: Codable {
-    var id: UUID = UUID()
-    /// 1 on every platform. No session has been created yet, so the format has
-    /// no earlier version to be told apart from: the socket-bitmap targeting
-    /// (NP-HEX-ZM-001) and the `wavelength` field (OI-PBMCH-04) are part of v1.
-    /// Bump this only once a shipped blob exists in the older shape.
-    var schemaVersion: UInt8 = 1
-    var name: String
-    var modalities: [ModalityConfig]
-    var totalDurationSeconds: Int
-    var createdAt: Date = Date()
-    var mode: OperatingMode = .mode2Programming
-
-    enum OperatingMode: UInt8, Codable {
-        case mode1Connected   = 1  // real-time streaming
-        case mode2Programming = 2  // pre-upload, run from hub
-        case mode3Autonomous  = 3  // offline, any USB-C PD power bank
-    }
-}
-
-// MARK: - Modality configurations
-
-enum ModalityConfig: Codable {
-    case pbmTranscranial(PBMTranscranialConfig)
-    case pbmIntranasal(PBMIntranasalConfig)
-    case eegNeurofeedback(EEGConfig)
-    case bes(BESConfig)
-    case tdcs(TDCSConfig)
-    case vnsHRV(VNSHRVConfig)
-    case neuralAudio(NeuralAudioConfig)
-    case visualStimulation(VisualStimConfig)
-}
-
-struct PBMTranscranialConfig: Codable {
-    /// Which sockets on the hex lattice this command drives — the firmware's
-    /// NP_PROTO_TARGET_SOCKET_MASK representation (16 bytes, LSB-first, 0-based).
-    /// Replaces the five zone-slot indices, which named hardware that no longer
-    /// exists.
-    var socketMask: NPSocketMask
-    /// The NPPS `wavelength` token ("660nm", "810nm", "1064nm"), carried verbatim.
-    /// One wavelength per block (NP-NPPS-REF-001 Rev 18); the combined names are retired.
-    var wavelength: String
-    /// Peak irradiance at the scalp, mW/cm², this wavelength alone (Rev 18 §4.1b).
-    var irradianceMWcm2: Double
-    var frequencyHz: Double     // 0 = CW, >0 = pulsed
-    var dutyCyclePercent: Int   // ≤25 (firmware-enforced for pulsed)
-    var durationSeconds: Int
-    var targetDoseJoules: Double  // J/cm²; hub closed-loop to this target
-}
-
-struct PBMIntranasalConfig: Codable {
-    /// One wavelength per block; the probe carries 660 and 808 nm.
-    var wavelength: String
-    var irradianceMWcm2: Double
-    var frequencyHz: Double
-    var dutyCyclePercent: Int
-    var durationSeconds: Int
-}
-
-struct EEGConfig: Codable {
-    var enabledChannels: [String]  // e.g. ["Fp1","Fp2","F3","F4","C3","C4","P3","P4"]
-    var sampleRateHz: Int = 500
-    var neurofeedbackBand: String  // e.g. "alpha", "theta", "gamma"
-    var closedLoopEnabled: Bool = true
-}
-
-struct BESConfig: Codable {
-    var frequencyHz: Double        // 0.5–40 Hz
-    var amplitudeMilliamps: Double // ≤1 mA
-    var durationSeconds: Int
-    var waveform: String = "sinusoidal"
-}
-
-struct TDCSConfig: Codable {
-    var amplitudeMilliamps: Double // 0.1–2 mA; 40 µC/cm² hard limit enforced by safety MCU
-    var durationSeconds: Int
-    var rampSeconds: Int = 30      // hardware-enforced in firmware
-    var electrodePairs: [[String]] // e.g. [["Fp1","P3"]] — 10-20 SITES, not pad geometry
-    /// OI-CHARGE-04: per-electrode pad area, cm². The hub converts this to the milli-cm²
-    /// of `np_mod_tdcs_params_t.electrode_area_mcm2` and hands it to the safety MCU, which
-    /// derives its 40 µC/cm² charge limit from it. Without it the MCU falls back to a
-    /// 25 cm² default that no app ever validated against — which is the defect this field
-    /// closes, so it is not optional and has no default here.
-    var electrodeAreaCm2: Double
-}
-
-struct VNSHRVConfig: Codable {
-    var frequencyHz: Double    // 1–25 Hz
-    var amplitudeMilliamps: Double  // ≤2 mA
-    var enableHRVBiofeedback: Bool = true
-    var resonanceBreathingRateDefault: Double = 6.0  // breaths/min
-    var hrvProtocol: HRVProtocol = .standalone
-
-    enum HRVProtocol: String, Codable {
-        case standalone            = "standalone"
-        case tavnsSynchronized     = "hrv_tavns_sync"
-        case dualEEGBiofeedback    = "hrv_eeg_biofeedback"
-        case combinedPBM           = "hrv_pbm"
-    }
-}
-
-struct NeuralAudioConfig: Codable {
-    var binauralBeatHz: Double?
-    var isochronicToneHz: Double?
-    var noiseType: String?         // "pink", "brown", or nil
-    /// Sound pressure level at the ear, dB SPL (NP-NPPS-REF-001 Rev 18 §4.7).
-    var volumeDb: Double
-    var eegAdaptive: Bool = true
-    var useBoneConductionForPacer: Bool = true
-}
-
-struct VisualStimConfig: Codable {
-    var frequencyHz: Double        // 0.5–100 Hz
-    var mode: String = "binocular" // "binocular", "emdr", "retinalPBM"
-    var enableModeFInvisibleNIR: Bool = false
-    var emdrCadenceHz: Double = 1.0
-}
-
-// MARK: - Signed protocol blob
-
-struct SignedProtocolBlob {
-    let payload: Data   // canonical JSON of NPSessionProtocol
-    let signature: Data // Ed25519 signature over SHA-256(payload) + schemaVersion + payloadSize
-    let publicKeyFingerprint: String  // hex, for hub key pinning
-
-    // Wire format: 4-byte magic + 4-byte payload length + payload + 64-byte Ed25519 sig
-    static let magic: [UInt8] = [0x4E, 0x50, 0x50, 0x52]  // "NPPR"
-
-    var wireFormat: Data {
-        var buf = Data(Self.magic)
-        var len = UInt32(payload.count).littleEndian
-        buf.append(Data(bytes: &len, count: 4))
-        buf.append(payload)
-        buf.append(signature)
-        return buf
-    }
-}
+// Session descriptor signing.
+//
+// The session descriptor is the binary blob of NP-FW-HUB-001 §4, written by
+// HubDescriptorCompiler (OI-AND-WIRE-01). The hub verifies Ed25519 over its raw signed region
+// and rejects unsigned or corrupted descriptors (CLAUDE.md §4.2). The JSON `NPSessionProtocol`
+// and its `NPPR` frame that used to live here were a format no hub could parse, and are gone.
 
 // MARK: - Protocol signer
 
@@ -155,18 +17,13 @@ struct SessionProtocolSigner {
 
     private static let keychainTag = "life.neurone.session-signing-key"
 
-    static func sign(_ proto: NPSessionProtocol) throws -> SignedProtocolBlob {
-        let payload = try JSONEncoder().encode(proto)
+    /// Ed25519 over the descriptor's raw signed region (NP-FW-HUB-001 §4.1) — the bytes, not a digest.
+    static func sign(_ region: Data) throws -> (signature: Data, fingerprint: String) {
         let signingKey = try loadOrCreateSigningKey()
-        let digest = SHA256.hash(data: payload)
-        let signature = try signingKey.signature(for: Data(digest))
+        let signature = try signingKey.signature(for: region)
         let fingerprint = Data(signingKey.publicKey.rawRepresentation).prefix(8)
             .map { String(format: "%02x", $0) }.joined()
-        return SignedProtocolBlob(
-            payload: payload,
-            signature: Data(signature),
-            publicKeyFingerprint: fingerprint
-        )
+        return (Data(signature), fingerprint)
     }
 
     private static func loadOrCreateSigningKey() throws -> Curve25519.Signing.PrivateKey {

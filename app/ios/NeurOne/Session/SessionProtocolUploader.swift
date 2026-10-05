@@ -2,8 +2,8 @@ import Foundation
 import Combine
 
 // Mode 2: Protocol upload to hub.
-// Signs the session protocol with the device's Ed25519 key, chunks it into
-// BLE MTU-sized packets, and uploads to the PROTOCOL_UPLOAD GATT characteristic.
+// Compiles the definition to the binary descriptor of NP-FW-HUB-001 §4 (OI-AND-WIRE-01), signs
+// it with the device's Ed25519 key, chunks it into BLE MTU-sized packets, and uploads to the PROTOCOL_UPLOAD GATT characteristic.
 // Hub firmware verifies the Ed25519 signature and rejects unsigned or corrupted protocols.
 
 enum UploadError: LocalizedError {
@@ -61,10 +61,18 @@ final class SessionProtocolUploader: ObservableObject {
     }
 
     // Upload an NPProtocolDefinition to the hub (Mode 2 Programming).
-    // Validates the definition against hardware safety limits, converts to
-    // the NPSessionProtocol wire format, signs, and uploads.
-    func upload(_ definition: NPProtocolDefinition) async throws {
-        try await send(try buildWireProtocol(from: definition))
+    // Validates the definition against hardware safety limits, compiles it to
+    // the §4 descriptor, signs, and uploads.
+    //
+    // `deviceSerial` is the 32-byte replay guard the hub checks (§4.2). No platform has a source
+    // for it yet (OI-AND-WIRE-02), so a nil serial is bench-only: a hub with a provisioned
+    // serial refuses the descriptor. `clinicianSockets` is the operator's choice for
+    // `clinician_selected` PBM targets.
+    func upload(_ definition: NPProtocolDefinition,
+                deviceSerial: Data? = nil,
+                clinicianSockets: [Int]? = nil) async throws {
+        try await send(try buildDescriptor(from: definition, deviceSerial: deviceSerial,
+                                           clinicianSockets: clinicianSockets))
     }
 
     /// Set by the "this is a different person" confirmation; consumed by the next cervical
@@ -99,30 +107,21 @@ final class SessionProtocolUploader: ObservableObject {
         }
     }
 
-    // Send an already-built wire protocol to the hub. PRIVATE on purpose: every upload enters
+    // Send an already-compiled descriptor to the hub. PRIVATE on purpose: every upload enters
     // through a definition (upload(_:) / programAutonomous(_:)), so it passes
-    // buildWireProtocol's checks — including the cervical gate — and the protocol menu shows
+    // buildDescriptor's checks — including the cervical gate — and the protocol menu shows
     // the same message or confirmation whichever mode it was sent in. A public wire-level
     // entry point was a way round that gate (NP-SW-FAULTMSG-001 §9.5).
-    private func send(_ proto: NPSessionProtocol) async throws {
+    private func send(_ descriptor: HubDescriptor) async throws {
         guard gatt.isHubConnected else { throw UploadError.bleNotReady }
         isUploading = true
         lastError = nil
         defer { isUploading = false }
 
-        let blob: SignedProtocolBlob
-        do {
-            blob = try SessionProtocolSigner.sign(proto)
-        } catch {
-            let err = UploadError.signingFailed(error)
-            lastError = err
-            throw err
-        }
-
         // Frame the blob per the hub's BLE chunking protocol (START/CONT/END
         // or a single SINGLE chunk). Chunking is a pure transform, separate
         // from the BLE write path, so it stays unit-testable.
-        let chunks = ProtocolChunker.chunk(blob.wireFormat)
+        let chunks = ProtocolChunker.chunk(descriptor.blob)
 
         // Send chunks sequentially via a recursive completion-handler chain:
         // each chunk's success callback dispatches the next. The final
@@ -172,23 +171,28 @@ final class SessionProtocolUploader: ObservableObject {
         }
     }
 
-    // Program a session protocol onto the hub for Mode 3 Autonomous use.
-    // Forces the protocol's operating mode to `.mode3Autonomous` so the hub
-    // runs it standalone from any USB-C PD power bank without a phone present
-    // (CLAUDE.md §4.6). Intended to be invoked from the setup flow.
-    func programAutonomous(_ definition: NPProtocolDefinition) async throws {
-        // Build with mode3Autonomous so the hub enters fully-autonomous operation.
-        try await send(try buildWireProtocol(from: definition, mode: .mode3Autonomous))
+    // Program a session onto the hub for Mode 3 Autonomous use, so it runs standalone from any
+    // USB-C PD power bank without a phone present (CLAUDE.md §4.6). Intended to be invoked from
+    // the setup flow.
+    //
+    // The header's `NP_PROTO_FLAG_AUTONOMOUS` bit (bit 1) says so. No firmware reader exists for it
+    // yet, so today the hub runs both modes the same way.
+    func programAutonomous(_ definition: NPProtocolDefinition,
+                           deviceSerial: Data? = nil,
+                           clinicianSockets: [Int]? = nil) async throws {
+        try await send(try buildDescriptor(from: definition, deviceSerial: deviceSerial,
+                                           clinicianSockets: clinicianSockets, autonomous: true))
     }
 
-    // Validate a definition against hardware safety limits and convert it to
-    // the NPSessionProtocol wire format. Sets lastError and throws on any
-    // failure so upload(_:NPProtocolDefinition) and programAutonomous(_:NPProtocolDefinition)
+    // Validate a definition against hardware safety limits and compile it to the signed §4
+    // descriptor. Sets lastError and throws on any failure so upload and programAutonomous
     // share identical error handling and both populate lastError consistently.
-    private func buildWireProtocol(
+    private func buildDescriptor(
         from definition: NPProtocolDefinition,
-        mode: NPSessionProtocol.OperatingMode = .mode2Programming
-    ) throws -> NPSessionProtocol {
+        deviceSerial: Data?,
+        clinicianSockets: [Int]?,
+        autonomous: Bool = false
+    ) throws -> HubDescriptor {
         guard gatt.isHubConnected else {
             let err = UploadError.bleNotReady
             lastError = err
@@ -201,14 +205,23 @@ final class SessionProtocolUploader: ObservableObject {
             lastError = err
             throw err
         }
-        // Target resolution can still throw here even though the validator ran:
-        // the validator reports an unresolvable target as an error, so in practice
-        // the guard above catches it first and this is the backstop that keeps a
-        // bad target from ever reaching a signed blob.
+        // Target resolution and drive-register conversion can still throw here even though the
+        // validator ran: this is the backstop that keeps a bad target from ever reaching a
+        // signed blob. A signing failure is its own case.
+        let unsigned: HubDescriptor
         do {
-            return try NPSessionProtocol(from: definition, mode: mode)
+            unsigned = try HubDescriptorCompiler.build(definition, deviceSerial: deviceSerial,
+                                                       clinicianSockets: clinicianSockets,
+                                                       autonomous: autonomous)
         } catch {
             let err = UploadError.targetUnresolvable(error)
+            lastError = err
+            throw err
+        }
+        do {
+            return try HubDescriptorCompiler.signed(unsigned)
+        } catch {
+            let err = UploadError.signingFailed(error)
             lastError = err
             throw err
         }
