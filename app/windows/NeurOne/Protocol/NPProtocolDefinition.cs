@@ -21,12 +21,53 @@ sealed class NPIntervalConfig
 
 // MARK: - Per-modality parameter types (mirror Swift NPXxxParams structs)
 
+/// Where a PBM transcranial command lands on the helmet lattice (NP-NPPS-REF-001 §4.1). Two forms and
+/// no default: the retired five-slot selector named hardware that no longer exists.
+abstract class PbmTarget
+{
+    /// Named zones from 00-zones.npps. Zones overlap at the midline by design; the mask deduplicates.
+    public sealed class Named(params string[] zoneNames) : PbmTarget
+    {
+        public string[] ZoneNames { get; } = zoneNames;
+    }
+
+    /// Patient-specific: the operator chooses sockets before the protocol can run.
+    public sealed class ClinicianSelected : PbmTarget { }
+
+    /// Resolve to sorted, deduplicated 1-based socket ids. Throws rather than falling back to any
+    /// default: a silently substituted target is wrong-site stimulation.
+    public int[] ResolveSockets(IReadOnlyList<int>? clinicianSockets = null)
+    {
+        switch (this)
+        {
+            case Named n:
+                if (n.ZoneNames.Length == 0)
+                    throw new HubCompileException("zones: [] names no zone");
+                var ids = new SortedSet<int>();
+                foreach (var zone in n.ZoneNames)
+                {
+                    var sockets = NPZoneRegistry.Sockets(zone)
+                        ?? throw new HubCompileException($"unknown zone '{zone}'");
+                    foreach (var id in sockets) ids.Add(id);
+                }
+                if (ids.Count == 0)
+                    throw new HubCompileException($"zones: {string.Join(", ", n.ZoneNames)} is empty");
+                return ids.ToArray();
+            case ClinicianSelected:
+                if (clinicianSockets is null || clinicianSockets.Count == 0)
+                    throw new HubCompileException("clinician_selected requires operator-chosen sockets");
+                return new SortedSet<int>(clinicianSockets).ToArray();
+            default:
+                throw new HubCompileException("PBM target is unhandled");
+        }
+    }
+}
+
 sealed class PbmTranscranialParams
 {
-    public enum ZoneSelection { All, Front, Rear, Custom }
-
-    public ZoneSelection Zones { get; init; } = ZoneSelection.All;
-    public int[]? CustomZones { get; init; }
+    /// Defaults to the whole vault. A default that resolves is deliberate: the retired default was
+    /// the five-slot ALL, which silently became "every module" for any target not recognised.
+    public PbmTarget Target { get; init; } = new PbmTarget.Named("All");
     /// The stated wavelength, one per block ("810nm"). The combined names "660_808nm" and
     /// "660_808_1064nm" are retired (NP-NPPS-REF-001 Rev 18); NP-NPPS-REF-001 §4.1a.
     public string Wavelength { get; init; } = "808nm";
@@ -35,15 +76,6 @@ sealed class PbmTranscranialParams
     public double IrradianceMwCm2 { get; init; } = 300;
     public double FrequencyHz { get; init; } = 20;     // 0 = CW
     public int DutyCyclePercent { get; init; } = 25;   // ≤25
-
-    public int[] ResolvedZones => Zones switch
-    {
-        ZoneSelection.All    => [0, 1, 2, 3, 4],
-        ZoneSelection.Front  => [0, 1, 2],
-        ZoneSelection.Rear   => [2, 3, 4],
-        ZoneSelection.Custom => CustomZones ?? [],
-        _ => [0, 1, 2, 3, 4]
-    };
 
     public bool RequiresSmartModule =>
         WavelengthRulesEngine.ResolveChannels(Wavelength, WavelengthRulesEngine.Default, out _)

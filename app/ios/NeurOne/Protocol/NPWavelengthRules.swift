@@ -6,7 +6,7 @@ import Foundation
 // A protocol states the wavelength its source used ("810nm"). These rules say
 // which emitter channel, if any, may deliver it. A wavelength no rule accepts
 // maps to NOTHING: never the nearest channel, never every channel. The refusal
-// types are in Session/NPSessionProtocol+FromDefinition.swift, beside the compiler
+// types are in Session/HubDescriptorCompiler.swift, beside the compiler
 // that throws them. iOS reads
 // only the shipped defaults; editing the rules is done in the web app for now,
 // and `wavelength_rules` blocks in a script are accepted and ignored here.

@@ -2,7 +2,7 @@
 //  SessionProtocolUploaderTests.swift
 //  NeurOneTests
 //
-//  Satisfies: ISC-35 (upload NPProtocolDefinition serialises to NPPR-magic wire blob),
+//  Satisfies: ISC-35 (upload NPProtocolDefinition serialises to the NP-FW-HUB-001 §4 descriptor, NPHP magic),
 //             ISC-35 (bleNotReady thrown when hub not connected),
 //             ISC-35 (validationFailed thrown for out-of-bounds protocol, GATT not called).
 //
@@ -17,13 +17,13 @@ import XCTest
 @MainActor
 final class SessionProtocolUploaderTests: XCTestCase {
 
-    // MARK: - ISC-35: NPPR magic in reassembled wire blob
+    // MARK: - ISC-35: NPHP magic in reassembled descriptor
 
     // upload(_:NPProtocolDefinition) must serialize the definition, sign it with
     // the session Ed25519 key, chunk it per the BLE framing spec, and deliver all
     // chunks to the GATT gateway. When chunks are reassembled the wire blob must
-    // open with the 4-byte NPPR magic: [0x4E, 0x50, 0x50, 0x52].
-    func testUploadDefinitionSendsNPPRBlob() async throws {
+    // open with the 4-byte NPHP magic (0x4E504850 little-endian): [0x50, 0x48, 0x50, 0x4E].
+    func testUploadDefinitionSendsTheBinaryDescriptor() async throws {
         let gateway = MockProtocolUploadGateway()
         let uploader = SessionProtocolUploader(gatt: gateway)
 
@@ -47,11 +47,11 @@ final class SessionProtocolUploaderTests: XCTestCase {
 
         XCTAssertTrue(gateway.uploadCallCount > 0, "uploadProtocol must be called at least once")
         let reassembled = gateway.reassembledPayload()
-        XCTAssertGreaterThanOrEqual(reassembled.count, 4, "Reassembled blob must contain at least the NPPR header")
+        XCTAssertGreaterThanOrEqual(reassembled.count, 4, "Reassembled blob must contain at least the descriptor header")
         XCTAssertEqual(
             Array(reassembled.prefix(4)),
-            [0x4E, 0x50, 0x50, 0x52],
-            "Reassembled wire blob must begin with NPPR magic bytes"
+            [0x50, 0x48, 0x50, 0x4E],
+            "Reassembled descriptor must begin with NPHP magic bytes"
         )
     }
 
@@ -81,30 +81,25 @@ final class SessionProtocolUploaderTests: XCTestCase {
         }
     }
 
-    // MARK: - ISC-35: Multi-chunk upload reassembles to valid NPPR blob
+    // MARK: - ISC-35: Multi-chunk upload reassembles to a valid NPHP descriptor
 
-    // A protocol definition whose serialized JSON exceeds the SINGLE-chunk limit
-    // (509-byte payload after NPPR magic + length-prefix + Ed25519 signature) must
-    // be split across multiple BLE writes. After reassembly the resulting blob must
-    // still begin with the NPPR magic bytes and be structurally valid.
-    func testUploadMultiChunkProtocolReassemblesWithNPPRMagic() async throws {
+    // A descriptor larger than the SINGLE-chunk limit (509 bytes) must be split across multiple
+    // BLE writes. After reassembly the blob must still begin with the NPHP magic and carry the
+    // whole descriptor. The descriptor has no name field, so size comes from commands: an
+    // interval block expands to an ON and a STOP per repeat (NP-FW-HUB-001 §4.1).
+    func testUploadMultiChunkProtocolReassemblesWithNPHPMagic() async throws {
         let gateway = MockProtocolUploadGateway()
         let uploader = SessionProtocolUploader(gatt: gateway)
 
-        // A 500-char name inflates the JSON body to ~700 bytes; the wire format
-        // (4-byte magic + 4-byte length + JSON + 64-byte Ed25519 signature) exceeds
-        // the 509-byte SINGLE-frame payload ceiling, forcing a START + END split.
+        // 20 min at 20 s on / 28 s off = 25 repeats: 25 ON commands (21 bytes) and 25 STOPs (14),
+        // plus the 64-byte header and 64-byte signature = 1003 bytes, a START + END split.
         let definition = NPProtocolDefinition(
-            name: String(repeating: "N", count: 500),
+            name: "Many commands",
             timingMode: .duration(20 * 60),
             modalities: [
                 NPProtocolModality(
-                    params: .pbmTranscranial(NPPBMTranscranialParams(
-                        irradianceMWcm2: 302,
-                        frequencyHz: 20,
-                        dutyCyclePercent: 25
-                    )),
-                    interval: .continuous,
+                    params: .besTacs(NPBESTacsParams(frequencyHz: 10, intensityMilliamps: 0.8, waveform: .sinusoidal)),
+                    interval: NPIntervalConfig(intervalOnSeconds: 20, intervalOffSeconds: 28, repeatCount: nil),
                     enabled: true
                 )
             ]
@@ -114,14 +109,19 @@ final class SessionProtocolUploaderTests: XCTestCase {
 
         XCTAssertGreaterThan(
             gateway.uploadCallCount, 1,
-            "A large protocol must be split across more than one BLE write"
+            "A large descriptor must be split across more than one BLE write"
         )
         let reassembled = gateway.reassembledPayload()
         XCTAssertEqual(
             Array(reassembled.prefix(4)),
-            [0x4E, 0x50, 0x50, 0x52],
-            "Reassembled multi-chunk blob must begin with NPPR magic bytes"
+            [0x50, 0x48, 0x50, 0x4E],
+            "Reassembled multi-chunk descriptor must begin with NPHP magic bytes"
         )
+        let onCommands: Int = 25 * (14 + 7)   // 14-byte command header + 7 params bytes
+        let stopCommands: Int = 25 * 14       // a STOP carries no params
+        let expectedSize: Int = 64 + onCommands + stopCommands + 64
+        XCTAssertEqual(reassembled.count, expectedSize,
+                       "header + 25 ON commands + 25 STOP commands + signature")
     }
 
     // MARK: - ISC-35: Validation guard — hardware safety ceiling
@@ -165,7 +165,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
     // Named test referenced in ISA Test Strategy table for ISC-35.
     // Verifies the core contract: upload(_:NPProtocolDefinition) signs the
     // protocol blob with the session Ed25519 key and delivers it to the
-    // GATT gateway. The NPPR magic bytes confirm the signed wire format reached
+    // GATT gateway. The NPHP magic bytes confirm the signed descriptor reached
     // the gateway rather than a raw/unsigned payload.
     @MainActor
     func testSignAndUpload() async throws {
@@ -192,13 +192,13 @@ final class SessionProtocolUploaderTests: XCTestCase {
 
         // Sign happened: GATT gateway was called at least once.
         XCTAssertTrue(gateway.uploadCallCount > 0, "uploadProtocol must be called after signing")
-        // Upload happened: reassembled blob carries NPPR magic from SignedProtocolBlob.wireFormat.
+        // Upload happened: reassembled blob carries NPHP magic from HubDescriptor.blob.
         let blob = gateway.reassembledPayload()
         XCTAssertGreaterThanOrEqual(blob.count, 4)
         XCTAssertEqual(
             Array(blob.prefix(4)),
-            [0x4E, 0x50, 0x50, 0x52],
-            "Signed wire blob must begin with NPPR magic bytes"
+            [0x50, 0x48, 0x50, 0x4E],
+            "Signed descriptor must begin with NPHP magic bytes"
         )
         // isUploading resets to false after completion (captured before autoclosure to satisfy
         // Swift 6 nonisolated autoclosure restriction for @MainActor properties).
