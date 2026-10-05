@@ -9,8 +9,8 @@ import java.security.MessageDigest
 import java.security.Signature
 
 // App-side Ed25519 implementation of the core ProtocolSigner (parity with iOS
-// SessionProtocolSigner, whose Curve25519 key lives in the Keychain). Signs the 32-byte
-// SHA-256 digest the SessionProtocolCompiler passes in.
+// SessionProtocolSigner, whose Curve25519 key lives in the Keychain). Signs the descriptor's
+// raw signed region: the hub verifies Ed25519 over the bytes, not over a digest (NP-FW-HUB-001 §4.4).
 //
 // Ed25519 in java.security requires Android 13 (API 33)+. On older devices this throws a
 // descriptive error until a BouncyCastle fallback + Keystore-persisted key are added
@@ -20,7 +20,7 @@ class AndroidProtocolSigner : ProtocolSigner {
 
     private val keyPair: KeyPair by lazy { KeyPairGenerator.getInstance("Ed25519").generateKeyPair() }
 
-    override fun sign(digest: ByteArray): SignatureResult {
+    override fun sign(message: ByteArray): SignatureResult {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             throw UnsupportedOperationException(
                 "Protocol signing needs Android 13+ (Ed25519). BouncyCastle fallback is OI-AND-SIGN-01.",
@@ -28,7 +28,7 @@ class AndroidProtocolSigner : ProtocolSigner {
         }
         val signature = Signature.getInstance("Ed25519").run {
             initSign(keyPair.private)
-            update(digest)
+            update(message)
             sign()
         }
         val fingerprint = MessageDigest.getInstance("SHA-256")

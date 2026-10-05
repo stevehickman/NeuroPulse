@@ -6,17 +6,17 @@ import life.neurone.core.protocol.NPModalityType
 import life.neurone.core.protocol.NPProtocolDefinition
 import life.neurone.core.session.ProtocolChunker
 import life.neurone.core.session.ProtocolSigner
-import life.neurone.core.session.SessionProtocolCompiler
+import life.neurone.core.session.HubDescriptorCompiler
 
-// Mode-2 protocol upload (parity with iOS SessionProtocolUploader): compile the definition
-// to the signed wire descriptor, chunk it to BLE-MTU frames, and write each to the hub's
+// Mode-2 protocol upload: compile the definition to the signed binary descriptor of
+// NP-FW-HUB-001 §4 (OI-AND-WIRE-01), chunk it to BLE-MTU frames, and write each to the hub's
 // PROTOCOL_UPLOAD characteristic. Compile + chunk are pure-JVM (unit-tested in :core); this
 // class only sequences the GATT writes.
 class ProtocolUploader(
     private val gatt: NeurOneGattManager,
     signer: ProtocolSigner,
 ) {
-    private val compiler = SessionProtocolCompiler(signer)
+    private val compiler = HubDescriptorCompiler(signer)
 
     sealed interface Result {
         data object Success : Result
@@ -34,14 +34,23 @@ class ProtocolUploader(
         differentPersonConfirmed = true
     }
 
-    fun upload(definition: NPProtocolDefinition): Result {
+    /**
+     * @param deviceSerial the 32-byte replay guard the hub checks (§4.2); null only on the bench,
+     *   where a hub with a provisioned serial refuses the descriptor (OI-AND-WIRE-02).
+     * @param clinicianSockets operator-chosen 1-based sockets for `clinician_selected` PBM targets.
+     */
+    fun upload(
+        definition: NPProtocolDefinition,
+        deviceSerial: ByteArray? = null,
+        clinicianSockets: List<Int>? = null,
+    ): Result {
         if (gatt.connectionState.value != ConnectionState.CONNECTED) {
             return Result.Failure("Hub not connected. Connect via USB-C or Bluetooth first.")
         }
         checkCervicalGate(definition)?.let { return it }
         return try {
-            val blob = compiler.compile(definition)
-            ProtocolChunker.chunk(blob.wireFormat).forEach { gatt.writeProtocolChunk(it) }
+            val blob = compiler.compile(definition, deviceSerial, clinicianSockets)
+            ProtocolChunker.chunk(blob.blob).forEach { gatt.writeProtocolChunk(it) }
             Result.Success
         } catch (e: Exception) {
             Result.Failure(e.message ?: "Protocol upload failed.")
