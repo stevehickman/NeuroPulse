@@ -95,10 +95,12 @@ targets:
       - path: ../../protocols/predefined
         type: folder
       # The generated String Catalog lives in app/NeurOneShared/Resources (shared with the
-      # watch), so it is not under NeurOne/ and needs its own entry. Deliberately NOT
-      # `optional: true`: see preGenCommand above.
-      - path: ../NeurOneShared/Resources/Localizable.xcstrings
-        buildPhase: resources
+      # watch), so it is not under NeurOne/ and needs its own entry. This is the DIRECTORY,
+      # not the single file: XcodeGen reads knownRegions only out of a catalogue it finds by
+      # scanning a directory, and a single-file entry collapses eleven locales to en + Base
+      # (the failure described under preGenCommand above). The directory holds only the
+      # generated catalogue. Deliberately NOT `optional: true`: see preGenCommand above.
+      - path: ../NeurOneShared/Resources
 
     settings:
       base:
