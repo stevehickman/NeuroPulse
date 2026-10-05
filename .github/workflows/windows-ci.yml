@@ -19,15 +19,12 @@ on:
       # Read by the tests: the web compiler's golden descriptors, and the shipped zones.
       - 'app/android/core/src/test/resources/hub-descriptor-golden.json'
       - 'protocols/predefined/**'
-      # Generated from the same lattice as the other platforms' SocketLattice files.
-      - 'scripts/sync-socket-map.ts'
       - '.github/workflows/windows-ci.yml'
   pull_request:
     paths:
       - 'app/windows/**'
       - 'app/android/core/src/test/resources/hub-descriptor-golden.json'
       - 'protocols/predefined/**'
-      - 'scripts/sync-socket-map.ts'
       - '.github/workflows/windows-ci.yml'
   workflow_dispatch:
 
@@ -55,15 +52,9 @@ jobs:
         with:
           dotnet-version: '8.0.x'   # NeurOne.csproj targets net8.0-windows10.0.19041.0
 
-      # SocketLattice.generated.cs is committed, and must match the lattice. This is the same
-      # freshness check the other platforms' generated lattices get.
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Generated socket lattice is current
-        run: bun scripts/sync-socket-map.ts --check
+      # `sync-socket-map.ts --check` (generated lattice freshness, SocketLattice.generated.cs
+      # included) runs in web-ci.yml on Linux. It is NOT run here: a Windows checkout converts
+      # line endings, so every generated file reads as stale.
 
       - name: Restore
         run: dotnet restore app/windows/NeurOne.Tests/NeurOne.Tests.csproj

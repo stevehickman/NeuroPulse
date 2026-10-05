@@ -348,7 +348,8 @@ enum HubDescriptorCompiler {
 
         case .pbmIntranasal(let p):
             let ch = try oneChannel(p.wavelength.rawValue, allowed: [.led660, .led808])
-            let cur = try PbmDrive.irradianceToRegister(p.irradianceMWcm2, fullScale: PbmDrive.intranasalFullScaleMWcm2, channel: "the intranasal probe")
+            let cur = try PbmDrive.irradianceToRegister(
+                p.irradianceMWcm2, fullScale: PbmDrive.intranasalFullScaleMWcm2, channel: "the intranasal probe")
             return Encoded(modType: modIntranasal, target: .slot(slotIntranasal),
                            params: [0x00, freqCode(p.frequencyHz), dutyReg(p.dutyCyclePercent),
                                     ch == .led660 ? cur : 0, ch == .led808 ? cur : 0])
@@ -451,7 +452,11 @@ enum HubDescriptorCompiler {
 
         case .tms(let p):
             let proto: UInt8
-            switch p.tmsProtocol { case .rTMS: proto = 0; case .TBS: proto = 1; case .iTBS: proto = 2 }
+            switch p.tmsProtocol {
+            case .rTMS: proto = 0
+            case .TBS: proto = 1
+            case .iTBS: proto = 2
+            }
             let isTbs = p.tmsProtocol != .rTMS
             let interTrain = isTbs ? 200 : jsRound(1000.0 / max(p.frequencyHz, 0.1))
             var b = [UInt8]()
@@ -477,7 +482,11 @@ enum HubDescriptorCompiler {
             let n = min(max(p.channelCount, 0), NPHardwareLimits.clinicalTacsMaxChannels)
             let fullMask = n == 0 ? 0 : (1 << n) - 1
             let wf: UInt8
-            switch p.waveform { case .sinusoidal: wf = 0; case .square: wf = 1; case .triangular: wf = 2 }
+            switch p.waveform {
+            case .sinusoidal: wf = 0
+            case .square: wf = 1
+            case .triangular: wf = 2
+            }
             var b = [UInt8]()
             b.appendLE(u16(min(jsRound(p.frequencyHz * 1000), 0xFFFF)))
             b.appendLE(u16(min(jsRound(p.intensityMilliamps * 1000), 4000)))
@@ -489,7 +498,11 @@ enum HubDescriptorCompiler {
 
         case .hdTdcs(let p):
             let montage: UInt8
-            switch p.montage { case .ring4x1: montage = 0; case .bilateral4x1: montage = 1; case .standard2el: montage = 2 }
+            switch p.montage {
+            case .ring4x1: montage = 0
+            case .bilateral4x1: montage = 1
+            case .standard2el: montage = 2
+            }
             var b = [UInt8]()
             b.append(targetIndex(p.target))
             b.append(montage)
