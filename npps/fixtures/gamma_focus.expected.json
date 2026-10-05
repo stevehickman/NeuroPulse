@@ -25,10 +25,10 @@
           "zoneRefs": [
             "All"
           ],
-          "wavelength": "660_808nm",
-          "intensityPercent": 80,
+          "wavelength": "808nm",
           "frequencyHz": 40,
-          "dutyCyclePercent": 25
+          "dutyCyclePercent": 25,
+          "irradianceMWcm2": 322
         },
         "interval": {
           "intervalOnSeconds": 0,
@@ -40,10 +40,10 @@
         "enabled": true,
         "params": {
           "carrierHz": 440,
-          "volumePercent": 70,
           "eegAdaptive": false,
           "boneConductionPacer": false,
-          "binauralBeatsHz": 40
+          "binauralBeatsHz": 40,
+          "volumeDb": 75
         },
         "interval": {
           "intervalOnSeconds": 0,

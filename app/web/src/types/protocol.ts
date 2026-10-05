@@ -172,19 +172,28 @@ export interface PBMTranscranialParams {
   zones: 'named' | 'clinician_selected';
   zoneRefs?: string[];   // names of NPZoneDefinition entries in the namespace
   // One wavelength per block, exactly as the protocol's source states it
-  // ("810nm"), or one of the three legacy channel names ('660_808nm', '1064nm',
-  // '660_808_1064nm'). Which emitter channel delivers a single wavelength is
+  // ("810nm"). The combined channel names '660_808nm' and '660_808_1064nm' are
+  // retired: each wavelength is its own block. Which emitter channel delivers it is
   // decided by the wavelength rules (wavelengthRules.ts), never by this field;
   // a value no rule accepts makes the protocol ineligible and uncompilable
   // (NP-NPPS-REF-001 §4.1a).
   wavelength: string;
-  intensityPercent: number;
+  // Peak irradiance at the scalp in mW/cm², for THIS block's wavelength alone
+  // (during the on-period; the time average is this × duty). Absolute, never a
+  // percentage: a percentage is a fraction of a baseline that moves when the
+  // emitter, driver or tile changes, so it does not state the stimulus
+  // (NP-NPPS-REF-001 §4.1b). The conversion to a drive current is the
+  // compiler's, per channel, and lives in one table (pbmDrive.ts).
+  irradianceMWcm2: number;
   frequencyHz: number;
   dutyCyclePercent: number;
 }
 
 export interface PBMIntranasalParams {
-  intensityPercent: number;
+  // One wavelength per block, as for pbm_transcranial; the probe carries the
+  // 660 and 808 nm channels only.
+  wavelength: string;
+  irradianceMWcm2: number;
   frequencyHz: number;
   dutyCyclePercent: number;
 }
@@ -228,7 +237,9 @@ export interface AudioEntrainmentParams {
   isochronicTonesHz?: number;
   noiseType?: 'pink' | 'brown';
   carrierHz: number;
-  volumePercent: number;
+  // Sound pressure level at the ear in dB SPL. Absolute: a 0–100 volume scale
+  // is a fraction of whatever the amplifier and driver can do (NP-NPPS-REF-001 §4.7).
+  volumeDb: number;
   eegAdaptive: boolean;
   boneConductionPacer: boolean;
 }
@@ -323,13 +334,14 @@ export function defaultParams<T extends NPModalityTypeId>(type: T): ModalityPara
       // coverage at all).
       zones: 'named',
       zoneRefs: ['All'],
-      wavelength: '660_808nm',
-      intensityPercent: 75,
+      wavelength: '808nm',
+      irradianceMWcm2: 300,
       frequencyHz: 40,
       dutyCyclePercent: 25,
     },
     pbm_intranasal: {
-      intensityPercent: 60,
+      wavelength: '660nm',
+      irradianceMWcm2: 60,
       frequencyHz: 10,
       dutyCyclePercent: 50,
     },
@@ -358,7 +370,7 @@ export function defaultParams<T extends NPModalityTypeId>(type: T): ModalityPara
     audio_entrainment: {
       binauralBeatsHz: 40,
       carrierHz: 200,
-      volumePercent: 70,
+      volumeDb: 75,
       eegAdaptive: true,
       boneConductionPacer: false,
     },

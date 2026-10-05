@@ -160,7 +160,7 @@ private fun ParamControls(modality: NPProtocolModality, onParams: (NPModalityPar
 
 @Composable
 private fun PbmTranscranial(p: NPPBMTranscranialParams, on: (NPPBMTranscranialParams) -> Unit) {
-    NumField(stringResource(R.string.and_modality_intensity), p.intensityPercent) { on(p.copy(intensityPercent = it)) }
+    NumField(stringResource(R.string.and_modality_irradiance), p.irradianceMWcm2) { on(p.copy(irradianceMWcm2 = it)) }
     NumField(stringResource(R.string.and_modality_frequency_hz_0_cw), p.frequencyHz) { on(p.copy(frequencyHz = it)) }
     IntField(stringResource(R.string.and_modality_duty_cycle), p.dutyCyclePercent) { on(p.copy(dutyCyclePercent = it)) }
     // A zone is a named set of modules, not one of five fixed slots. The picker
@@ -188,7 +188,8 @@ private fun ZoneDropdown(target: NPPBMTarget, on: (NPPBMTarget) -> Unit) {
 
 @Composable
 private fun PbmIntranasal(p: NPPBMIntranasalParams, on: (NPPBMIntranasalParams) -> Unit) {
-    NumField(stringResource(R.string.and_modality_intensity), p.intensityPercent) { on(p.copy(intensityPercent = it)) }
+    EnumDropdown(stringResource(R.string.modality_wavelength), p.wavelength, (listOf(NPPBMTranscranialParams.Wavelength.NM_660, NPPBMTranscranialParams.Wavelength.NM_808) + p.wavelength).distinct(), { it.rawValue }) { on(p.copy(wavelength = it)) }
+    NumField(stringResource(R.string.and_modality_irradiance), p.irradianceMWcm2) { on(p.copy(irradianceMWcm2 = it)) }
     NumField(stringResource(R.string.and_modality_frequency_hz), p.frequencyHz) { on(p.copy(frequencyHz = it)) }
     IntField(stringResource(R.string.and_modality_duty_cycle), p.dutyCyclePercent) { on(p.copy(dutyCyclePercent = it)) }
 }
@@ -231,7 +232,7 @@ private fun Vns(p: NPVNSHRVParams, on: (NPVNSHRVParams) -> Unit) {
 private fun Audio(p: NPAudioEntrainmentParams, on: (NPAudioEntrainmentParams) -> Unit) {
     NumField(stringResource(R.string.and_modality_binaural_beat_hz), p.binauralBeatsHz ?: 0.0) { on(p.copy(binauralBeatsHz = it.takeIf { v -> v > 0 })) }
     NumField(stringResource(R.string.and_modality_isochronic_tone_hz), p.isochronicTonesHz ?: 0.0) { on(p.copy(isochronicTonesHz = it.takeIf { v -> v > 0 })) }
-    NumField(stringResource(R.string.and_modality_volume), p.volumePercent) { on(p.copy(volumePercent = it)) }
+    NumField(stringResource(R.string.and_modality_volume_db), p.volumeDb) { on(p.copy(volumeDb = it)) }
     ToggleRow(stringResource(R.string.and_modality_eeg_adaptive), p.eegAdaptive) { on(p.copy(eegAdaptive = it)) }
     ToggleRow(stringResource(R.string.and_modality_bone_conduction_pacer), p.boneConductionPacer) { on(p.copy(boneConductionPacer = it)) }
 }

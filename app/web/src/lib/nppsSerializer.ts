@@ -59,7 +59,8 @@ function serializeModalityFields(mp: NPModalityParams): string[] {
     case 'pbm_transcranial': {
       const p = mp.params;
       const lines: string[] = [
-        `intensity: ${p.intensityPercent}%`,
+        `wavelength: ${str(p.wavelength)}`,
+        `irradiance: ${p.irradianceMWcm2}mW_cm2`,
         `frequency: ${formatHz(p.frequencyHz)}`,
         `duty_cycle: ${p.dutyCyclePercent}%`,
       ];
@@ -79,13 +80,13 @@ function serializeModalityFields(mp: NPModalityParams): string[] {
           'not a serialization choice.',
         );
       }
-      lines.push(`wavelength: ${str(p.wavelength)}`);
       return lines;
     }
     case 'pbm_intranasal': {
       const p = mp.params;
       return [
-        `intensity: ${p.intensityPercent}%`,
+        `wavelength: ${str(p.wavelength)}`,
+        `irradiance: ${p.irradianceMWcm2}mW_cm2`,
         `frequency: ${formatHz(p.frequencyHz)}`,
         `duty_cycle: ${p.dutyCyclePercent}%`,
       ];
@@ -135,7 +136,7 @@ function serializeModalityFields(mp: NPModalityParams): string[] {
       if (p.isochronicTonesHz !== undefined) lines.push(`isochronic_hz: ${formatHz(p.isochronicTonesHz)}`);
       lines.push(p.noiseType !== undefined ? `noise: ${p.noiseType}` : `noise: none`);
       lines.push(`carrier_hz: ${formatHz(p.carrierHz)}`);
-      lines.push(`volume: ${p.volumePercent}%`);
+      lines.push(`volume: ${p.volumeDb}dB`);
       lines.push(`eeg_adaptive: ${p.eegAdaptive}`);
       lines.push(`bone_conduction_pacer: ${p.boneConductionPacer}`);
       return lines;

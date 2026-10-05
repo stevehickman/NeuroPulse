@@ -111,7 +111,7 @@ class NPNamespaceTests {
             """
             protocol "P" {
                 conditions: ["C"]
-                pbm_transcranial { zones: ["Z"] }
+                pbm_transcranial { zones: ["Z"] irradiance: 300mW_cm2 wavelength: "808nm" }
             }
             """.trimIndent()
         )
@@ -134,7 +134,7 @@ class NPNamespaceTests {
                 """
                 protocol "P" {
                     conditions: ["Missing Condition"]
-                    pbm_transcranial { zones: ["Missing Zone"] }
+                    pbm_transcranial { zones: ["Missing Zone"] irradiance: 300mW_cm2 wavelength: "808nm" }
                 }
                 """.trimIndent()
             )
@@ -352,7 +352,7 @@ class NPLimitsRoundTripTests {
             name = "T1",
             level = NPLimitsSet.LimitLevel.GLOBAL,
             audioEntrainment = NPAudioEntrainmentLimits(
-                maxVolumePercent = 85.0,
+                maxVolumeDb = 85.0,
                 maxBinauralBeatsHz = 100.0,
                 maxIsochronicTonesHz = 90.0,
             ),
@@ -363,7 +363,7 @@ class NPLimitsRoundTripTests {
         val back = (NPPSParser(NPPSLexer(text).tokenize()).parse().single()
             as NPProtocolEntry.Limits).limits
 
-        assertEquals(85.0, back.audioEntrainment?.maxVolumePercent, "audio max_intensity:\n$text")
+        assertEquals(85.0, back.audioEntrainment?.maxVolumeDb, "audio max_intensity:\n$text")
         assertEquals(100.0, back.audioEntrainment?.maxBinauralBeatsHz, "max_binaural_beats:\n$text")
         assertEquals(90.0, back.audioEntrainment?.maxIsochronicTonesHz, "max_isochronic_tones:\n$text")
         assertEquals(120, back.tms?.maxIntensityPercentMT, "max_intensity_pct_mt:\n$text")

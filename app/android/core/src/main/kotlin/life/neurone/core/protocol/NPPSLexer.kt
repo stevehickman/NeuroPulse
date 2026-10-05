@@ -51,7 +51,7 @@ class NPPSLexer(text: String) {
     companion object {
         private val KEYWORDS: Set<String> =
             setOf("protocol", "composite", "layer", "limits", "zone", "condition", "wavelength_rules")
-        private val UNITS: Set<String> = setOf("Hz", "mA", "G", "mW_cm2", "m", "s", "h", "%")
+        private val UNITS: Set<String> = setOf("Hz", "mA", "G", "mW_cm2", "dB", "m", "s", "h", "%")
     }
 
     fun tokenize(): List<NPPSLexeme> {

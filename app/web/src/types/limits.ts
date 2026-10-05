@@ -2,7 +2,7 @@
 // All fields optional: undefined = not set at this level
 
 export interface PBMTranscranialLimits {
-  maxIntensityPercent?: number;      // 0–100%
+  maxIrradianceMWcm2?: number;       // mW/cm², per wavelength block
   maxFrequencyHz?: number;
   maxDutyCyclePercent?: number;      // ≤25 always (hardware cap)
   maxSessionDoseJCm2?: number;       // J/cm² per zone per session
@@ -10,7 +10,7 @@ export interface PBMTranscranialLimits {
 }
 
 export interface PBMIntranasalLimits {
-  maxIntensityPercent?: number;
+  maxIrradianceMWcm2?: number;
   maxSessionDoseJCm2?: number;
   maxSessionDurationSeconds?: number;
 }
@@ -42,7 +42,7 @@ export interface VNSHRVLimits {
 }
 
 export interface AudioEntrainmentLimits {
-  maxVolumePercent?: number;
+  maxVolumeDb?: number;              // dB SPL
   maxBinauralBeatsHz?: number;
   maxIsochronicTonesHz?: number;
 }

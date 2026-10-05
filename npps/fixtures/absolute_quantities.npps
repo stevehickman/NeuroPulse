@@ -1,0 +1,43 @@
+# Absolute intensity, one wavelength per PBM block (NP-NPPS-REF-001 §4.1a, §4.1b, §4.7).
+# Irradiance is mW/cm² at the scalp and volume is dB SPL; neither is a percentage of
+# anything, and 660nm and 808nm are separate blocks with separate irradiances.
+protocol "Absolute Quantities" {
+    id: "90000002-0000-0000-0000-000000000000"
+    description: "Two independent wavelengths, an intranasal block and a level in dB"
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["pbm", "absolute"]
+    duration: 10m
+
+    pbm_transcranial {
+        wavelength: "660nm"
+        irradiance: 25mW_cm2
+        frequency: 40Hz
+        duty_cycle: 25%
+        zones: ["Frontal Left"]
+    }
+
+    pbm_transcranial {
+        wavelength: "808nm"
+        irradiance_mw_cm2: 300
+        frequency: 40Hz
+        duty_cycle: 25%
+        zones: ["Frontal Left"]
+    }
+
+    pbm_intranasal {
+        wavelength: "660nm"
+        irradiance: 12.5mW_cm2
+        frequency: 40Hz
+        duty_cycle: 25%
+    }
+
+    audio_entrainment {
+        isochronic_hz: 40Hz
+        carrier_hz: 440Hz
+        volume: 72.5dB
+        eeg_adaptive: false
+        bone_conduction_pacer: false
+    }
+}

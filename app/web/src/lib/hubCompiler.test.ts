@@ -122,8 +122,8 @@ function pbmProtocol(params: Partial<PBMTranscranialParams>): NPProtocolDefiniti
         type: 'pbm_transcranial',
         params: {
           zones: 'named',
-          wavelength: '660_808nm',
-          intensityPercent: 80,
+          wavelength: '808nm',
+          irradianceMWcm2: 322,
           frequencyHz: 40,
           dutyCyclePercent: 25,
           ...params,
@@ -369,13 +369,13 @@ describe('slot-addressed fixed devices', () => {
 // wire change should move them.
 describe('parameter block sizes match the firmware structs', () => {
   const EXPECTED: Record<string, { size: number; slot: number | null; params: object }> = {
-    pbm_transcranial:   { size: 4,  slot: null, params: { zones: 'named', zoneRefs: ['All'], wavelength: '660_808nm', intensityPercent: 50, frequencyHz: 40, dutyCyclePercent: 25 } },
-    pbm_intranasal:     { size: 5,  slot: 9,    params: { intensityPercent: 60, frequencyHz: 10, dutyCyclePercent: 25 } },
+    pbm_transcranial:   { size: 4,  slot: null, params: { zones: 'named', zoneRefs: ['All'], wavelength: '808nm', irradianceMWcm2: 202, frequencyHz: 40, dutyCyclePercent: 25 } },
+    pbm_intranasal:     { size: 5,  slot: 9,    params: { wavelength: '660nm', irradianceMWcm2: 60, frequencyHz: 10, dutyCyclePercent: 25 } },
     eeg_neurofeedback:  { size: 5,  slot: 5,    params: { channels: 'all', band: 'alpha', closedLoopEnabled: false } },
     bes_tacs:           { size: 7,  slot: 17,   params: { frequencyHz: 10, intensityMilliamps: 0.8, waveform: 'sinusoidal' } },
     tdcs:               { size: 8,  slot: 18,   params: { intensityMilliamps: 1.5, electrodePairs: [['F3', 'F4']], rampSeconds: 30, electrodeAreaCm2: 35 } },
     vns_hrv:            { size: 9,  slot: 8,    params: { frequencyHz: 20, intensityMilliamps: 1, hrvProtocol: 'standalone' } },
-    audio_entrainment:  { size: 8,  slot: 6,    params: { carrierHz: 200, binauralBeatsHz: 10, volumePercent: 50, boneConductionPacer: false, eegAdaptive: false } },
+    audio_entrainment:  { size: 8,  slot: 6,    params: { carrierHz: 200, binauralBeatsHz: 10, volumeDb: 65, boneConductionPacer: false, eegAdaptive: false } },
     visual_stimulation: { size: 9,  slot: 7,    params: { mode: 'binocular', frequencyHz: 10, emdrCadenceHz: 1, enableModeF: false } },
     qeeg_21ch:          { size: 8,  slot: 11,   params: { montage: 'standard_1020', reference: 'linked_ear', sloretaEnabled: true } },
     tms:                { size: 10, slot: 12,   params: { tmsProtocol: 'rTMS', target: 'DLPFC_L', frequencyHz: 10, intensityPercentMT: 110, pulseCount: 3000 } },

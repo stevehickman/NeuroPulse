@@ -27,10 +27,12 @@ sealed class PbmTranscranialParams
 
     public ZoneSelection Zones { get; init; } = ZoneSelection.All;
     public int[]? CustomZones { get; init; }
-    /// The stated wavelength, one per block ("810nm"), or a legacy channel name
-    /// ("660_808nm", "1064nm", "660_808_1064nm"). NP-NPPS-REF-001 §4.1a.
-    public string Wavelength { get; init; } = "660_808nm";
-    public double IntensityPercent { get; init; } = 75;
+    /// The stated wavelength, one per block ("810nm"). The combined names "660_808nm" and
+    /// "660_808_1064nm" are retired (NP-NPPS-REF-001 Rev 18); NP-NPPS-REF-001 §4.1a.
+    public string Wavelength { get; init; } = "808nm";
+    /// Peak irradiance at the scalp in mW/cm², this wavelength alone (Rev 18 §4.1b).
+    /// Absolute, never a percentage of a baseline the hardware owns.
+    public double IrradianceMwCm2 { get; init; } = 300;
     public double FrequencyHz { get; init; } = 20;     // 0 = CW
     public int DutyCyclePercent { get; init; } = 25;   // ≤25
 
@@ -50,7 +52,9 @@ sealed class PbmTranscranialParams
 
 sealed class PbmIntranasalParams
 {
-    public double IntensityPercent { get; init; } = 60;
+    /// One wavelength per block; the probe carries the 660 and 808 nm channels.
+    public string Wavelength { get; init; } = "660nm";
+    public double IrradianceMwCm2 { get; init; } = 60;
     public double FrequencyHz { get; init; } = 40;
     public int DutyCyclePercent { get; init; } = 25;
 }
@@ -109,7 +113,8 @@ sealed class AudioEntrainmentParams
     public double? IsochronicTonesHz { get; init; }
     public NoiseType? NoiseTypeMode { get; init; } = NoiseType.Pink;
     public double CarrierHz { get; init; } = 440;
-    public double VolumePercent { get; init; } = 60;
+    /// Sound pressure level at the ear in dB SPL (NP-NPPS-REF-001 Rev 18 §4.7).
+    public double VolumeDb { get; init; } = 75;
     public bool EegAdaptive { get; init; } = true;
     public bool BoneConductionPacer { get; init; } = true;
 }

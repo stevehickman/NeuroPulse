@@ -5,7 +5,7 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: de3382baa5af72b6e3b9609841c4f4776a5d129d4f34116bf0e67723c409b4cb
+// sources-sha256: eee7b098538c2643dae696e65116a13d067824cc833df35a1674f810053315d0
 var __create = Object.create;
 var __getProtoOf = Object.getPrototypeOf;
 var __defProp = Object.defineProperty;
@@ -1887,13 +1887,14 @@ function defaultParams(type) {
     pbm_transcranial: {
       zones: "named",
       zoneRefs: ["All"],
-      wavelength: "660_808nm",
-      intensityPercent: 75,
+      wavelength: "808nm",
+      irradianceMWcm2: 300,
       frequencyHz: 40,
       dutyCyclePercent: 25
     },
     pbm_intranasal: {
-      intensityPercent: 60,
+      wavelength: "660nm",
+      irradianceMWcm2: 60,
       frequencyHz: 10,
       dutyCyclePercent: 50
     },
@@ -1922,7 +1923,7 @@ function defaultParams(type) {
     audio_entrainment: {
       binauralBeatsHz: 40,
       carrierHz: 200,
-      volumePercent: 70,
+      volumeDb: 75,
       eegAdaptive: true,
       boneConductionPacer: false
     },
@@ -2122,6 +2123,15 @@ function toSocketSet(raw) {
 
 // app/web/src/lib/wavelengthRules.ts
 var PBM_CHANNEL_ELEMENTS = ["led_660", "led_808", "led_1064"];
+var DEFAULT_WAVELENGTH_RULES = {
+  name: "NeurOne default wavelength mapping",
+  level: "global",
+  channels: [
+    { element: "led_660", nominalNm: 660, minNm: 650, maxNm: 680 },
+    { element: "led_808", nominalNm: 808, minNm: 798, maxNm: 840 },
+    { element: "led_1064", nominalNm: 1064, minNm: 1054, maxNm: 1074 }
+  ]
+};
 function validateWavelengthRules(rules) {
   const errors = [];
   const seen = new Set;
@@ -2141,6 +2151,39 @@ function validateWavelengthRules(rules) {
       errors.push(`channel '${c.element}': min_nm ${c.minNm} is above max_nm ${c.maxNm}`);
   }
   return errors;
+}
+var RETIRED_PBM_WAVELENGTHS = {
+  "660_808nm": ["660nm", "808nm"],
+  "660_808_1064nm": ["660nm", "808nm", "1064nm"]
+};
+var SINGLE_NM = /^([0-9]+(?:\.[0-9]+)?)nm$/;
+function parsePbmWavelength(value) {
+  const retired = RETIRED_PBM_WAVELENGTHS[value];
+  if (retired)
+    return { kind: "retired", value, replacement: retired };
+  const m = SINGLE_NM.exec(value);
+  if (m) {
+    const nm = Number(m[1]);
+    if (Number.isFinite(nm) && nm > 0)
+      return { kind: "single", value, nm };
+  }
+  return { kind: "invalid", value };
+}
+function retiredWavelengthMessage(value) {
+  const r = RETIRED_PBM_WAVELENGTHS[value];
+  const blocks = (r ?? []).map((w) => `"${w}"`).join(" and ");
+  return `wavelength "${value}" is retired: it welded independent emitters into one block. ` + `Write one block per wavelength (${blocks}), each with its own irradiance_mw_cm2.`;
+}
+function mapWavelength(nm, rules) {
+  let best = null;
+  for (const element of PBM_CHANNEL_ELEMENTS) {
+    const rule = rules.channels.find((c) => c.element === element);
+    if (!rule || nm < rule.minNm || nm > rule.maxNm)
+      continue;
+    if (!best || Math.abs(nm - rule.nominalNm) < Math.abs(nm - best.nominalNm))
+      best = rule;
+  }
+  return best ? best.element : null;
 }
 
 // app/web/src/lib/nppsParser.ts
@@ -2360,6 +2403,12 @@ function tokenize(text) {
           pos += 2;
         } else if (text.slice(pos, pos + 2) === "mA") {
           unit = "mA";
+          pos += 2;
+        } else if (text.slice(pos, pos + 6) === "mW_cm2" && !/[a-zA-Z_0-9]/.test(text[pos + 6] ?? "")) {
+          unit = "mW_cm2";
+          pos += 6;
+        } else if (text.slice(pos, pos + 2) === "dB" && !/[a-zA-Z_0-9]/.test(text[pos + 2] ?? "")) {
+          unit = "dB";
           pos += 2;
         }
       }
@@ -2583,12 +2632,45 @@ class Parser {
       binaural_hz: "binaural_beats_hz",
       isochronic_hz: "isochronic_tones_hz",
       noise: "noise_type",
-      volume: "volume_percent",
       breathing_rate: "resonance_breathing_rate",
       ramp: "ramp_seconds",
       emdr_cadence: "emdr_cadence_hz"
     };
     return aliases[key] ?? key;
+  }
+  readAbsoluteQuantity(typeName, key, line) {
+    const PBM = typeName === "pbm_transcranial" || typeName === "pbm_intranasal";
+    const spec = {
+      irradiance: { canonical: "irradiance_mw_cm2", unit: "mW_cm2", types: PBM, viaSuffix: true },
+      irradiance_mw_cm2: { canonical: "irradiance_mw_cm2", unit: "mW_cm2", types: PBM, viaSuffix: false },
+      volume: { canonical: "volume_db", unit: "dB", types: typeName === "audio_entrainment", viaSuffix: true },
+      volume_db: { canonical: "volume_db", unit: "dB", types: typeName === "audio_entrainment", viaSuffix: false }
+    };
+    const retired = (key === "intensity" || key === "intensity_percent") && (PBM || typeName === "visual_stimulation") || key === "volume_percent" && typeName === "audio_entrainment";
+    if (retired) {
+      const fix = typeName === "audio_entrainment" ? "state the level in dB SPL, e.g. volume: 72dB" : typeName === "visual_stimulation" ? "visual_stimulation has no percentage intensity, and no absolute one is defined yet — remove the field" : "state irradiance in mW/cm², e.g. irradiance: 300mW_cm2";
+      throw new NPPSParseError(`${typeName}: '${key}' is a percentage of a baseline the hardware owns and can change, ` + `so it does not state the stimulus. ${fix} (NP-NPPS-REF-001 §4.1b).`, line);
+    }
+    const sp = spec[key];
+    if (!sp || !sp.types)
+      return null;
+    this.skipNewlines();
+    const t2 = this.current;
+    if (t2.type !== "NUMBER") {
+      throw new NPPSParseError(`${typeName}: ${key} must be a number${sp.viaSuffix ? ` with unit ${sp.unit}` : ""}`, line);
+    }
+    this.advance();
+    const unit = t2.unit;
+    if (unit === "%") {
+      throw new NPPSParseError(`${typeName}: ${key} in % is refused — state it in ${sp.unit}`, line);
+    }
+    if (unit !== undefined && unit !== sp.unit) {
+      throw new NPPSParseError(`${typeName}: ${key} takes ${sp.unit}, not ${unit}`, line);
+    }
+    if (unit === undefined && sp.viaSuffix) {
+      throw new NPPSParseError(`${typeName}: ${key} needs its unit written (${key}: ${t2.value}${sp.unit}); ` + `a bare number does not say what it measures`, line);
+    }
+    return { canonical: sp.canonical, value: t2.value };
   }
   parseTypedModalityBlock(typeName) {
     this.skipNewlines();
@@ -2647,6 +2729,12 @@ class Parser {
         this.skipNewlines();
         continue;
       }
+      const quantity = this.readAbsoluteQuantity(typeName, key, keyTok.line);
+      if (quantity) {
+        raw[quantity.canonical] = quantity.value;
+        this.skipNewlines();
+        continue;
+      }
       if (key === "intensity") {
         raw["__intensity"] = this.readAnyValue();
         this.skipNewlines();
@@ -2666,11 +2754,6 @@ class Parser {
     if ("__intensity" in raw) {
       const intensityVal = raw["__intensity"];
       delete raw["__intensity"];
-      const percentTypes = new Set([
-        "pbm_transcranial",
-        "pbm_intranasal",
-        "visual_stimulation"
-      ]);
       const mATypes = new Set([
         "bes_tacs",
         "tdcs",
@@ -2680,14 +2763,12 @@ class Parser {
         "cervical_vns",
         "tms"
       ]);
-      if (percentTypes.has(typeName)) {
-        raw["intensity_percent"] = intensityVal;
-      } else if (mATypes.has(typeName)) {
+      if (mATypes.has(typeName)) {
         raw["intensity_milliamps"] = intensityVal;
       } else if (typeName === "vibrotactile_40hz") {
         raw["intensity_g"] = intensityVal;
       } else {
-        raw["intensity_percent"] = intensityVal;
+        throw new NPPSParseError(`${typeName}: 'intensity' is not a field of this modality`, this.current.line);
       }
     }
     const typeId = this.blockNameToTypeId(typeName);
@@ -2919,9 +3000,13 @@ class Parser {
     }
     return result;
   }
+  retiredPercentLimit(modality, replacement) {
+    throw new NPPSParseError(`${modality} limits: max_intensity is a percentage ceiling and is retired; ` + `write ${replacement} in the quantity's own unit (NP-NPPS-REF-001 §7).`, this.current.line);
+  }
   parsePBMTranscranialLimits() {
     return this.parseLimitsSubBlock({
-      max_intensity: (v) => ({ maxIntensityPercent: Number(v) }),
+      max_irradiance_mw_cm2: (v) => ({ maxIrradianceMWcm2: Number(v) }),
+      max_intensity: () => this.retiredPercentLimit("pbm_transcranial", "max_irradiance_mw_cm2"),
       max_frequency: (v) => ({ maxFrequencyHz: Number(v) }),
       max_duty_cycle: (v) => ({ maxDutyCyclePercent: Number(v) }),
       max_session_dose: (v) => ({ maxSessionDoseJCm2: Number(v) }),
@@ -2930,7 +3015,8 @@ class Parser {
   }
   parsePBMIntranasalLimits() {
     return this.parseLimitsSubBlock({
-      max_intensity: (v) => ({ maxIntensityPercent: Number(v) }),
+      max_irradiance_mw_cm2: (v) => ({ maxIrradianceMWcm2: Number(v) }),
+      max_intensity: () => this.retiredPercentLimit("pbm_intranasal", "max_irradiance_mw_cm2"),
       max_session_dose: (v) => ({ maxSessionDoseJCm2: Number(v) }),
       max_session_duration: (v) => ({ maxSessionDurationSeconds: Number(v) })
     });
@@ -2967,7 +3053,8 @@ class Parser {
   }
   parseAudioEntrainmentLimits() {
     return this.parseLimitsSubBlock({
-      max_intensity: (v) => ({ maxVolumePercent: Number(v) }),
+      max_volume_db: (v) => ({ maxVolumeDb: Number(v) }),
+      max_intensity: () => this.retiredPercentLimit("audio_entrainment", "max_volume_db"),
       max_frequency: (v) => ({ maxBinauralBeatsHz: Number(v) }),
       max_binaural_beats: (v) => ({ maxBinauralBeatsHz: Number(v) }),
       max_isochronic_tones: (v) => ({ maxIsochronicTonesHz: Number(v) })
@@ -3207,6 +3294,23 @@ class Parser {
     function optNum(key) {
       return typeof raw[key] === "number" ? raw[key] : undefined;
     }
+    function required(key, what) {
+      const v = raw[key];
+      if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) {
+        throw new NPPSParseError(`${typeId}: ${what} is required and must be positive`, line);
+      }
+      return v;
+    }
+    function requiredWavelength() {
+      const w = raw["wavelength"];
+      if (typeof w !== "string") {
+        throw new NPPSParseError(`${typeId}: wavelength is required, one value per block, e.g. wavelength: "810nm"`, line);
+      }
+      const parsed = parsePbmWavelength(w);
+      if (parsed.kind === "retired")
+        throw new NPPSParseError(`${typeId}: ${retiredWavelengthMessage(w)}`, line);
+      return w;
+    }
     function optStr(key) {
       return typeof raw[key] === "string" ? raw[key] : undefined;
     }
@@ -3245,8 +3349,8 @@ class Parser {
         }
         const params = {
           zones,
-          wavelength: str("wavelength", d.wavelength),
-          intensityPercent: num("intensity_percent", d.intensityPercent),
+          wavelength: requiredWavelength(),
+          irradianceMWcm2: required("irradiance_mw_cm2", "irradiance (e.g. irradiance: 300mW_cm2)"),
           ...pulseTrain("pbm_transcranial", d.frequencyHz, d.dutyCyclePercent)
         };
         if (zoneRefs)
@@ -3258,7 +3362,8 @@ class Parser {
         return {
           type: "pbm_intranasal",
           params: {
-            intensityPercent: num("intensity_percent", d.intensityPercent),
+            wavelength: requiredWavelength(),
+            irradianceMWcm2: required("irradiance_mw_cm2", "irradiance (e.g. irradiance: 25mW_cm2)"),
             ...pulseTrain("pbm_intranasal", d.frequencyHz, d.dutyCyclePercent)
           }
         };
@@ -3320,7 +3425,7 @@ class Parser {
         const d = def;
         const params = {
           carrierHz: num("carrier_hz", d.carrierHz),
-          volumePercent: num("volume_percent", d.volumePercent),
+          volumeDb: required("volume_db", "volume in dB SPL (e.g. volume: 72dB)"),
           eegAdaptive: bool("eeg_adaptive", d.eegAdaptive),
           boneConductionPacer: bool("bone_conduction_pacer", d.boneConductionPacer)
         };
@@ -3819,7 +3924,6 @@ var T2_ONLY_MODALITY_TYPES = new Set([
   "hd_tdcs",
   "cervical_vns"
 ]);
-var PBM_PEAK_MW_CM2 = 400;
 var PROTOCOLS = {};
 var PROTOCOL_IDS = [];
 var ZONES = [];
@@ -3827,10 +3931,12 @@ var LOAD_REPORT = { compositesSkipped: 0, duplicateDefinitions: [], unresolvedRe
 function slugFromFilename(filename) {
   return filename.replace(/\.npps$/, "");
 }
-function splitWavelength(wl) {
-  if (wl === "1064nm" || wl === "1170nm")
-    return [wl];
-  return wl.replace(/nm$/, "").split("_").map((n) => `${n}nm`);
+function channelLabel(wl) {
+  const w = parsePbmWavelength(wl);
+  if (w.kind !== "single")
+    return null;
+  const el = mapWavelength(w.nm, DEFAULT_WAVELENGTH_RULES);
+  return el ? el.replace("led_", "") + "nm" : null;
 }
 function findParam(modalities, type) {
   const m = modalities.find((m2) => m2.modalityParams.type === type);
@@ -3852,17 +3958,16 @@ function derivePhases(durationSeconds) {
 }
 function buildModalities(def, durationSeconds) {
   const out = {};
-  const pbm = findParam(def.modalities, "pbm_transcranial");
-  if (pbm) {
-    const dutyCycle = pbm.dutyCyclePercent / 100;
-    const avgIrradianceMWcm2 = PBM_PEAK_MW_CM2 * (pbm.intensityPercent / 100) * dutyCycle;
-    const dose_jcm2 = avgIrradianceMWcm2 * durationSeconds / 1000;
+  const pbmBlocks = def.modalities.filter((m) => m.modalityParams.type === "pbm_transcranial").map((m) => m.modalityParams.params);
+  if (pbmBlocks.length > 0) {
+    const first = pbmBlocks[0];
+    const dose_jcm2 = pbmBlocks.reduce((sum, b) => sum + b.irradianceMWcm2 * (b.dutyCyclePercent / 100) * durationSeconds / 1000, 0);
     out.pbm = {
       active: true,
-      zones: pbm.zoneRefs ?? [],
-      wavelengths: splitWavelength(pbm.wavelength),
-      frequency: pbm.frequencyHz,
-      dutyCycle,
+      zones: [...new Set(pbmBlocks.flatMap((b) => b.zoneRefs ?? []))],
+      wavelengths: [...new Set(pbmBlocks.map((b) => channelLabel(b.wavelength)).filter((x) => x !== null))],
+      frequency: first.frequencyHz,
+      dutyCycle: first.dutyCyclePercent / 100,
       dose_jcm2: Math.round(dose_jcm2 * 10) / 10
     };
   }

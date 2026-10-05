@@ -47,10 +47,11 @@ struct PBMTranscranialConfig: Codable {
     /// Replaces the five zone-slot indices, which named hardware that no longer
     /// exists.
     var socketMask: NPSocketMask
-    /// The NPPS `wavelength` token ("660_808nm", "1064nm", "660_808_1064nm"),
-    /// carried verbatim. Without it a "1064nm" protocol compiled to the same
-    /// config as a "660_808nm" one (OI-PBMCH-04, NP-FEAS-PBMCH-001 §7.3).
+    /// The NPPS `wavelength` token ("660nm", "810nm", "1064nm"), carried verbatim.
+    /// One wavelength per block (NP-NPPS-REF-001 Rev 18); the combined names are retired.
     var wavelength: String
+    /// Peak irradiance at the scalp, mW/cm², this wavelength alone (Rev 18 §4.1b).
+    var irradianceMWcm2: Double
     var frequencyHz: Double     // 0 = CW, >0 = pulsed
     var dutyCyclePercent: Int   // ≤25 (firmware-enforced for pulsed)
     var durationSeconds: Int
@@ -58,6 +59,9 @@ struct PBMTranscranialConfig: Codable {
 }
 
 struct PBMIntranasalConfig: Codable {
+    /// One wavelength per block; the probe carries 660 and 808 nm.
+    var wavelength: String
+    var irradianceMWcm2: Double
     var frequencyHz: Double
     var dutyCyclePercent: Int
     var durationSeconds: Int
@@ -109,6 +113,8 @@ struct NeuralAudioConfig: Codable {
     var binauralBeatHz: Double?
     var isochronicToneHz: Double?
     var noiseType: String?         // "pink", "brown", or nil
+    /// Sound pressure level at the ear, dB SPL (NP-NPPS-REF-001 Rev 18 §4.7).
+    var volumeDb: Double
     var eegAdaptive: Bool = true
     var useBoneConductionForPacer: Bool = true
 }

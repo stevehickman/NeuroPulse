@@ -33,14 +33,23 @@ static class WavelengthRulesEngine
             new WavelengthChannelRule(PbmChannelElement.Led1064, 1064, 1054, 1074),
         });
 
-    /// The three legacy channel names. They name channels, not a source's wavelength.
-    public static readonly IReadOnlyDictionary<string, PbmChannelElement[]> Legacy =
-        new Dictionary<string, PbmChannelElement[]>
+    /// The two combined channel names the language used to accept (NP-NPPS-REF-001 Rev 18).
+    /// RETIRED: each wavelength is its own block. "1064nm" was never one of them in substance;
+    /// it is a single wavelength the default rules map to the 1064 nm channel.
+    public static readonly IReadOnlyDictionary<string, string[]> Retired =
+        new Dictionary<string, string[]>
         {
-            ["660_808nm"] = new[] { PbmChannelElement.Led660, PbmChannelElement.Led808 },
-            ["1064nm"] = new[] { PbmChannelElement.Led1064 },
-            ["660_808_1064nm"] = new[] { PbmChannelElement.Led660, PbmChannelElement.Led808, PbmChannelElement.Led1064 },
+            ["660_808nm"] = new[] { "660nm", "808nm" },
+            ["660_808_1064nm"] = new[] { "660nm", "808nm", "1064nm" },
         };
+
+    /// The refusal text for a retired name, naming the blocks that replace it.
+    public static string RetiredMessage(string value)
+    {
+        var blocks = string.Join(" and ", (Retired.TryGetValue(value, out var r) ? r : Array.Empty<string>()).Select(w => $"\"{w}\""));
+        return $"wavelength \"{value}\" is retired: it welded independent emitters into one block. " +
+               $"Write one block per wavelength ({blocks}), each with its own irradiance.";
+    }
 
     private static readonly Regex SingleNm = new(@"^([0-9]+(?:\.[0-9]+)?)nm\z", RegexOptions.CultureInvariant);
 
@@ -58,11 +67,11 @@ static class WavelengthRulesEngine
         return best?.Element;
     }
 
-    /// The channels a `wavelength` value drives, or null with a reason ("invalid" or "unmapped").
+    /// The channels a `wavelength` value drives, or null with a reason ("invalid", "retired" or "unmapped").
     public static PbmChannelElement[]? ResolveChannels(string value, WavelengthRules rules, out string? refusal)
     {
         refusal = null;
-        if (Legacy.TryGetValue(value, out var legacy)) return legacy;
+        if (Retired.ContainsKey(value)) { refusal = "retired"; return null; }
         var m = SingleNm.Match(value);
         if (!m.Success || !double.TryParse(m.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var nm) || nm <= 0)
         {

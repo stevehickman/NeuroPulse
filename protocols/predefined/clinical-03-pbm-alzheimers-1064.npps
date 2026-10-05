@@ -16,8 +16,9 @@ protocol "PBM — Alzheimer's 1064nm (deep-cortical channel)" {
         # 0.1–0.3 W/cm²) rather than the cognitive one."
         #
         # WHAT CHANGED, AND WHAT DID NOT. The commanded parameters are almost
-        # unchanged — intensity is still 100%, which on this channel means "all
-        # the drive CH_C has". What changed is the TARGET, the CONDITION and the
+        # unchanged — the block previously asked for 100% drive, which on this
+        # channel meant "all the drive CH_C has", and now states the band's
+        # 100 mW/cm² as an absolute. What changed is the TARGET, the CONDITION and the
         # ZONE. This is a claim-and-targeting change, not a power change.
         #
         # THE SHORTFALL NARROWS BUT DOES NOT CLOSE. NP-HW-HEXTILE-001 §4.3.2
@@ -38,7 +39,12 @@ protocol "PBM — Alzheimer's 1064nm (deep-cortical channel)" {
         # "CW is acceptable at 1060 nm" — it would take 11.9 min, inside the
         # firmware's 36 J/cm²/session cap (OI-SES-01). So the duty cap, not the
         # session length, is what puts §1's dose band out of reach.
-        intensity: 100%
+        # 100 mW/cm² is the low end of §1's 0.1–0.3 W/cm² band. The source trial
+        # (Qi / Nizamutdinov 2021) states none, so the band is the only defining
+        # figure; it is the target the analysis above measures its 3.6× against.
+        # The channel delivers 28 mW/cm² at full drive, so the compiler REFUSES
+        # this block rather than reducing it (CLAUDE.md §3).
+        irradiance: 100mW_cm2
         frequency: 0Hz
         # frequency: 0Hz requests CW, which §1 permits at 1060nm. CW has no
         # duty cycle, so none is written (OI-SESPWR-03). The hardware's 25% cap

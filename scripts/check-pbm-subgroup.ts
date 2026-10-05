@@ -25,8 +25,10 @@
  *
  * What it does NOT do: it is not the pre-signing check (`OI-HEXTILE-30`/`-31`), it
  * sets no limit, and a pulse train is assumed periodic at the stated frequency and
- * duty. Irradiance is `intensity` × the §4.3 anchor for the channel, which is a
- * design target (`OI-HEXTILE-20`), not a measurement.
+ * duty. Irradiance is the block's own `irradiance` (NP-NPPS-REF-001 Rev 18), capped at what
+ * its channel delivers at full drive (the §4.3 anchor, a design target: `OI-HEXTILE-20`).
+ * Blocks that share zones, frequency, duty and start are one exposure, so their
+ * wavelengths are summed, as the rule requires.
  *
  *   bun scripts/check-pbm-subgroup.ts            # report, always exits 0
  *   bun scripts/check-pbm-subgroup.ts --strict   # exit 1 if any block scores above 1
@@ -74,14 +76,11 @@ const seconds = (s: string | undefined): number | null => {
   return m ? Number(m[1]) * { s: 1, m: 60, h: 3600 }[m[2] as "s" | "m" | "h"] : null;
 };
 
-/** Channels a block drives and their peak irradiance at its `intensity`. */
-function channels(wavelength: string, intensity: number): { nm: number[]; peak: number[] } {
-  const f = intensity / 100;
-  if (wavelength === "660_808nm") return { nm: [660, 808], peak: [ANCHOR_T1A * f, ANCHOR_T1A * f] };
-  if (wavelength === "1064nm") return { nm: [1064], peak: [ANCHOR_CH_C * f] };
+/** The wavelength a block states and the peak irradiance it delivers there, capped at its channel's full drive. */
+function channel(wavelength: string, irradiance: number): { nm: number; peak: number } {
   const nm = parseFloat(wavelength);
-  if (Number.isFinite(nm)) return { nm: [nm], peak: [(nm >= 1050 ? ANCHOR_CH_C : ANCHOR_T1A) * f] };
-  return { nm: [660, 808], peak: [ANCHOR_T1A * f, ANCHOR_T1A * f] };
+  const anchor = nm >= 1050 ? ANCHOR_CH_C : ANCHOR_T1A;
+  return { nm, peak: Math.min(irradiance, anchor) };
 }
 
 /** Worst Σ E/EL over windows, for a periodic train of ON width w every p seconds. */
@@ -109,27 +108,35 @@ export function analyse(): Block[] {
     if (!file.endsWith(".npps") || file.startsWith("00-")) continue;
     const text = readFileSync(join(DIR, file), "utf8");
     const sessionS = seconds(field(text, "duration")) ?? 1800;
+    const groups = new Map<string, { nm: number[]; peak: number[]; body: string; freq: number; duty: number; cw: boolean; refused: string | null }>();
     for (const m of text.matchAll(/(pbm_transcranial)\s*\{([\s\S]*?)\n {4}\}/g)) {
-      const body = m[2];
+      const body = m[2].replace(/^\s*#.*$/gm, "");
       const freq = number(field(body, "frequency"), 40);
       const dutyRaw = field(body, "duty_cycle");
       const cw = freq === 0;
       const duty = cw ? 100 : number(dutyRaw, 25);
-      const { nm, peak } = channels(
-        (field(body, "wavelength") ?? "660_808nm").replace(/"/g, ""),
-        number(field(body, "intensity"), 75),
+      const { nm, peak } = channel(
+        (field(body, "wavelength") ?? "").replace(/"/g, ""),
+        parseFloat(field(body, "irradiance") ?? "0") || 0,
       );
+      if (!Number.isFinite(nm) || peak <= 0) continue;
       const refused =
         cw && dutyRaw !== undefined && number(dutyRaw, 100) !== 100
           ? `frequency: 0 with duty_cycle ${dutyRaw}: nppsParser.ts refuses it (OI-SESPWR-03)`
           : null;
-      const p = cw ? 0 : 1 / freq;
-      const w = cw ? 0 : (duty / 100) * p;
-      const burstS = cw ? seconds(field(body, "interval_on")) ?? sessionS : w;
-      const { worst, worstT } = score(nm, peak, cw, p, w, cw ? burstS : sessionS);
+      const key = [field(body, "zones"), freq, duty, field(body, "start"), field(body, "interval_on")].join("|");
+      const g = groups.get(key) ?? { nm: [], peak: [], body, freq, duty, cw, refused };
+      g.nm.push(nm); g.peak.push(peak);
+      groups.set(key, g);
+    }
+    for (const g of groups.values()) {
+      const p = g.cw ? 0 : 1 / g.freq;
+      const w = g.cw ? 0 : (g.duty / 100) * p;
+      const burstS = g.cw ? seconds(field(g.body, "interval_on")) ?? sessionS : w;
+      const { worst, worstT } = score(g.nm, g.peak, g.cw, p, w, g.cw ? burstS : sessionS);
       out.push({
-        file, kind: m[1], wavelengths: nm, peakMwCm2: peak, frequencyHz: freq,
-        dutyPct: duty, cw, burstS, worst, worstT, refused,
+        file, kind: "pbm_transcranial", wavelengths: g.nm, peakMwCm2: g.peak, frequencyHz: g.freq,
+        dutyPct: g.duty, cw: g.cw, burstS, worst, worstT, refused: g.refused,
       });
     }
   }

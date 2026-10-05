@@ -32,10 +32,8 @@ protocol "PBM — Depression (Schiffer 2009, high-irradiance)" {
         wavelength: "810nm"
         frequency: 0Hz
         duty_cycle: 100%
-        intensity: 62%
-        # PROVISIONAL, NOT THE AUTHORED VALUE: 250 ÷ 403 against the only
-        # stated anchor (NP-HW-HEXTILE-001 §4.3.1), which NP-SES-PWR-001 §2.3
-        # flags as an "if". Becomes `irradiance_mw_cm2: 250`.
+        # 250 mW/cm² is Schiffer 2009's stated irradiance.
+        irradiance: 250mW_cm2
         zones: ["Frontal Left"]
         # F3
         interval_on: 4m
@@ -47,7 +45,7 @@ protocol "PBM — Depression (Schiffer 2009, high-irradiance)" {
         wavelength: "810nm"
         frequency: 0Hz
         duty_cycle: 100%
-        intensity: 62%
+        irradiance: 250mW_cm2
         zones: ["Frontal Right"]
         # F4, after F3
         start: 4m

@@ -1,0 +1,87 @@
+{
+  "kind": "single",
+  "protocol": {
+    "name": "Absolute Quantities",
+    "id": "90000002-0000-0000-0000-000000000000",
+    "description": "Two independent wavelengths, an intranasal block and a level in dB",
+    "author": "NeurOne",
+    "version": "1.0",
+    "isReadOnly": true,
+    "tags": [
+      "pbm",
+      "absolute"
+    ],
+    "timingMode": {
+      "type": "duration",
+      "seconds": 600
+    },
+    "modalityCount": 4,
+    "modalities": [
+      {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+          "zones": "named",
+          "wavelength": "660nm",
+          "irradianceMWcm2": 25,
+          "frequencyHz": 40,
+          "dutyCyclePercent": 25,
+          "zoneRefs": [
+            "Frontal Left"
+          ]
+        },
+        "interval": {
+          "intervalOnSeconds": 0,
+          "intervalOffSeconds": 0
+        }
+      },
+      {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+          "zones": "named",
+          "wavelength": "808nm",
+          "irradianceMWcm2": 300,
+          "frequencyHz": 40,
+          "dutyCyclePercent": 25,
+          "zoneRefs": [
+            "Frontal Left"
+          ]
+        },
+        "interval": {
+          "intervalOnSeconds": 0,
+          "intervalOffSeconds": 0
+        }
+      },
+      {
+        "type": "pbm_intranasal",
+        "enabled": true,
+        "params": {
+          "wavelength": "660nm",
+          "irradianceMWcm2": 12.5,
+          "frequencyHz": 40,
+          "dutyCyclePercent": 25
+        },
+        "interval": {
+          "intervalOnSeconds": 0,
+          "intervalOffSeconds": 0
+        }
+      },
+      {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+          "carrierHz": 440,
+          "volumeDb": 72.5,
+          "eegAdaptive": false,
+          "boneConductionPacer": false,
+          "isochronicTonesHz": 40
+        },
+        "interval": {
+          "intervalOnSeconds": 0,
+          "intervalOffSeconds": 0
+        }
+      }
+    ]
+  }
+}

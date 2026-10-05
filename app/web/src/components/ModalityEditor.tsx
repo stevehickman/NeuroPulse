@@ -254,12 +254,12 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
           />
           <SelectField label={t('MODALITY_WAVELENGTH')} value={p.wavelength} onChange={v => update<typeof params>({ ...p, wavelength: v as PBMTranscranialParams['wavelength'] })}
             options={[
-              { value: '660_808nm', label: t('WEB_WL_660_808') },
+              { value: '660nm', label: t('WEB_WL_660') },
+              { value: '808nm', label: t('WEB_WL_808') },
               { value: '1064nm', label: t('WEB_WL_1064') },
-              { value: '660_808_1064nm', label: t('WEB_WL_660_808_1064') },
             ]}
           />
-          <SliderField label={t('WEB_MOD_INTENSITY')} value={p.intensityPercent} min={10} max={100} unit="%" onChange={v => update<typeof params>({ ...p, intensityPercent: v })} />
+          <NumberField label={t('WEB_MOD_IRRADIANCE')} value={p.irradianceMWcm2} min={1} max={400} unit="mW/cm²" onChange={v => update<typeof params>({ ...p, irradianceMWcm2: v })} />
           <FrequencyField label={t('MODALITY_FREQUENCY')} value={p.frequencyHz} min={0} max={100} onChange={v => update<typeof params>({ ...p, frequencyHz: v })} />
           <SliderField label={t('MODALITY_DUTY_CYCLE')} value={p.dutyCyclePercent} min={5} max={100} unit="%" onChange={v => update<typeof params>({ ...p, dutyCyclePercent: v })} />
         </div>
@@ -270,7 +270,13 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
       const p = params.params as PBMIntranasalParams;
       return (
         <div className="param-grid">
-          <SliderField label={t('WEB_MOD_INTENSITY')} value={p.intensityPercent} min={10} max={100} unit="%" onChange={v => update<typeof params>({ ...p, intensityPercent: v })} />
+          <SelectField label={t('MODALITY_WAVELENGTH')} value={p.wavelength} onChange={v => update<typeof params>({ ...p, wavelength: v })}
+            options={[
+              { value: '660nm', label: t('WEB_WL_660') },
+              { value: '808nm', label: t('WEB_WL_808') },
+            ]}
+          />
+          <NumberField label={t('WEB_MOD_IRRADIANCE')} value={p.irradianceMWcm2} min={1} max={400} unit="mW/cm²" onChange={v => update<typeof params>({ ...p, irradianceMWcm2: v })} />
           <FrequencyField label={t('MODALITY_FREQUENCY')} value={p.frequencyHz} min={0} max={40} onChange={v => update<typeof params>({ ...p, frequencyHz: v })} />
           <SliderField label={t('MODALITY_DUTY_CYCLE')} value={p.dutyCyclePercent} min={5} max={100} unit="%" onChange={v => update<typeof params>({ ...p, dutyCyclePercent: v })} />
         </div>
@@ -444,7 +450,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
             ]}
           />
           <NumberField label={t('WEB_MOD_CARRIER')} value={p.carrierHz} min={80} max={1000} unit="Hz" onChange={v => update<typeof params>({ ...p, carrierHz: v })} />
-          <SliderField label={t('WEB_MOD_VOLUME')} value={p.volumePercent} min={0} max={100} unit="%" onChange={v => update<typeof params>({ ...p, volumePercent: v })} />
+          <NumberField label={t('WEB_MOD_VOLUME')} value={p.volumeDb} min={40} max={90} unit="dB SPL" onChange={v => update<typeof params>({ ...p, volumeDb: v })} />
           <CheckboxField label={t('WEB_MOD_EEG_ADAPTIVE')} value={p.eegAdaptive} onChange={v => update<typeof params>({ ...p, eegAdaptive: v })} />
           <CheckboxField label={t('WEB_MOD_BONE_CONDUCTION')} value={p.boneConductionPacer} onChange={v => update<typeof params>({ ...p, boneConductionPacer: v })} />
         </div>

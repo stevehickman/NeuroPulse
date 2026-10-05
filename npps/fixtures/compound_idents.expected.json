@@ -1,9 +1,9 @@
 {
   "kind": "single",
   "protocol": {
-    "name": "Compound Wavelengths",
+    "name": "Quoted Wavelength",
     "id": "00000000-0000-0000-0000-000000000003",
-    "description": "Tests quoted compound wavelength values",
+    "description": "Tests a quoted digit-leading wavelength value",
     "author": "test",
     "version": "1.0",
     "tags": [],
@@ -21,10 +21,10 @@
           "zoneRefs": [
             "All"
           ],
-          "wavelength": "660_808_1064nm",
-          "intensityPercent": 80,
+          "wavelength": "1064nm",
           "frequencyHz": 40,
-          "dutyCyclePercent": 25
+          "dutyCyclePercent": 25,
+          "irradianceMWcm2": 322
         },
         "interval": {
           "intervalOnSeconds": 0,

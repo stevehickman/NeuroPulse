@@ -138,6 +138,9 @@ describe('predefined NPPS library', () => {
     // them parsed as 25 % duty and passed, which was a pulsed stimulus
     // standing in for the CW its own source used. Vascular Baseline is also
     // far over R-4's CW ceiling (OI-SESPWR-02).
+    // Rev 18 (absolute intensity): one entry per CW BLOCK, and a wavelength is its own block,
+    // so Vascular Baseline (660 + 808 nm) lists twice and TBI and stroke list once per block
+    // (scalp + two intranasal channels).
     const WAIVED = [
       'taVNS — Stroke Motor Rehab (paired): frequencyHz = 30 Hz (limit 1–25 Hz (hardware))',
       'PBM — Anxiety (Wang 2023, high-irradiance): dutyCyclePercent = 100% (limit 25% (hardware))',
@@ -149,8 +152,11 @@ describe('predefined NPPS library', () => {
       'PBM — Depression (Cassano 2018, low-irradiance CW): dutyCyclePercent = 100% (limit 25% (hardware))',
       'PBM — Stroke (chronic rehab): dutyCyclePercent = 100% (limit 25% (hardware))',
       'PBM — Stroke (chronic rehab): dutyCyclePercent = 100% (limit 25% (hardware))',
+      'PBM — Stroke (chronic rehab): dutyCyclePercent = 100% (limit 25% (hardware))',
       'PBM — TBI (chronic) + Intranasal (Naeser 2011/2014): dutyCyclePercent = 100% (limit 25% (hardware))',
       'PBM — TBI (chronic) + Intranasal (Naeser 2011/2014): dutyCyclePercent = 100% (limit 25% (hardware))',
+      'PBM — TBI (chronic) + Intranasal (Naeser 2011/2014): dutyCyclePercent = 100% (limit 25% (hardware))',
+      'Vascular Baseline: dutyCyclePercent = 100% (limit 25% (hardware))',
       'Vascular Baseline: dutyCyclePercent = 100% (limit 25% (hardware))',
     ];
 

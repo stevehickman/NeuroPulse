@@ -32,10 +32,8 @@ protocol "PBM — Anxiety (Wang 2023, high-irradiance)" {
         # (NP-NPPS-REF-001 §4.1a).
         frequency: 0Hz
         duty_cycle: 100%
-        intensity: 77%
-        # PROVISIONAL, NOT THE AUTHORED VALUE: 310 ÷ 403 against the only
-        # stated anchor (NP-HW-HEXTILE-001 §4.3.1), which NP-SES-PWR-001 §2.3
-        # flags as an "if". Becomes `irradiance_mw_cm2: 310`.
+        # 310 mW/cm² is Wang 2023's stated irradiance.
+        irradiance: 310mW_cm2
         zones: ["Frontal Left (excl. midline)"]
         # Site fidelity gap. Wang treated F5 — between F3 and F7 — with a
         # 0.785 cm² spot. This zone is 17 modules, so it lights several hundred

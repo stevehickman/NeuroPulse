@@ -206,7 +206,8 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
         when (key) {
             "pbm_transcranial" -> {
                 val lim = NPPBMTranscranialLimits()
-                fields["max_intensity"]?.asPercent?.let { lim.maxIntensityPercent = it }
+                refuseRetiredLimit(key, fields, "max_irradiance_mw_cm2")
+                fields["max_irradiance_mw_cm2"]?.asDouble?.let { lim.maxIrradianceMWcm2 = it }
                 fields["max_frequency"]?.asHz?.let { lim.maxFrequencyHz = it }
                 fields["max_duty_cycle"]?.asPercent?.let { lim.maxDutyCyclePercent = it.toInt() }
                 fields["max_session_dose"]?.asDouble?.let { lim.maxSessionDoseJCm2 = it }
@@ -215,7 +216,8 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             }
             "pbm_intranasal" -> {
                 val lim = NPPBMIntranasalLimits()
-                fields["max_intensity"]?.asPercent?.let { lim.maxIntensityPercent = it }
+                refuseRetiredLimit(key, fields, "max_irradiance_mw_cm2")
+                fields["max_irradiance_mw_cm2"]?.asDouble?.let { lim.maxIrradianceMWcm2 = it }
                 fields["max_session_dose"]?.asDouble?.let { lim.maxSessionDoseJCm2 = it }
                 fields["max_session_duration"]?.asTime?.let { lim.maxSessionDurationSeconds = it }
                 limitsSet.pbmIntranasal = lim
@@ -252,7 +254,8 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             }
             "audio_entrainment" -> {
                 val lim = NPAudioEntrainmentLimits()
-                fields["max_intensity"]?.asPercent?.let { lim.maxVolumePercent = it }
+                refuseRetiredLimit(key, fields, "max_volume_db")
+                fields["max_volume_db"]?.asDouble?.let { lim.maxVolumeDb = it }
                 fields["max_binaural_beats"]?.asHz?.let { lim.maxBinauralBeatsHz = it }
                 fields["max_isochronic_tones"]?.asHz?.let { lim.maxIsochronicTonesHz = it }
                 limitsSet.audioEntrainment = lim
@@ -713,13 +716,114 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
         return NPProtocolModality(params = params, interval = interval, enabled = true)
     }
 
+    // MARK: Absolute quantities (NP-NPPS-REF-001 Rev 18 §4.1b) ----------------
+
+    /**
+     * A percentage is a fraction of a baseline the hardware owns and can change, so it
+     * does not state a stimulus. Refused, never converted.
+     */
+    private fun refuseRetiredPercent(modality: String, fields: Map<String, NPPSFieldValue>) {
+        val retired = when (modality) {
+            "audio_entrainment" -> listOf("volume_percent")
+            else -> listOf("intensity", "intensity_percent")
+        }
+        for (key in retired) {
+            if (fields.containsKey(key)) {
+                val fix = when (modality) {
+                    "audio_entrainment" -> "write the level in dB, e.g. volume: 72dB"
+                    "visual_stimulation" ->
+                        "visual_stimulation has no percentage intensity and no absolute one is defined yet; remove it"
+                    else -> "write irradiance in mW/cm², e.g. irradiance: 300mW_cm2"
+                }
+                throw NPPSError(
+                    "$modality: '$key' is a percentage of a baseline the hardware owns and can " +
+                        "change, so it does not state the stimulus — $fix (NP-NPPS-REF-001 §4.1b).",
+                    currentLine(),
+                )
+            }
+        }
+    }
+
+    /**
+     * The short name carries its unit as a suffix and REQUIRES it; the canonical name has the
+     * unit in the key and takes a bare number. Required: a defaulted dose is a stimulus nobody
+     * authored.
+     */
+    private fun absoluteQuantity(
+        modality: String,
+        fields: Map<String, NPPSFieldValue>,
+        short: String,
+        canonical: String,
+        unit: String,
+        example: String,
+    ): Double {
+        fields[canonical]?.let { v ->
+            val n = when (v) {
+                is NPPSFieldValue.Num -> v.value
+                is NPPSFieldValue.NumberWithUnit ->
+                    if (v.unit == unit) v.value else throw NPPSError("$modality: $canonical takes $unit, not ${v.unit}", currentLine())
+                else -> throw NPPSError("$modality: $canonical must be a number", currentLine())
+            }
+            if (!(n > 0.0)) throw NPPSError("$modality: $canonical must be positive", currentLine())
+            return n
+        }
+        val v = fields[short]
+            ?: throw NPPSError(
+                "$modality: $short is required ($example); a defaulted dose is a stimulus nobody authored",
+                currentLine(),
+            )
+        return when (v) {
+            is NPPSFieldValue.NumberWithUnit -> when {
+                v.unit == "%" -> throw NPPSError(
+                    "$modality: $short in % is refused — a percentage is a fraction of a baseline the hardware can change; write $example",
+                    currentLine(),
+                )
+                v.unit != unit -> throw NPPSError("$modality: $short takes $unit, not ${v.unit}", currentLine())
+                !(v.value > 0.0) -> throw NPPSError("$modality: $short must be positive", currentLine())
+                else -> v.value
+            }
+            is NPPSFieldValue.Num -> throw NPPSError(
+                "$modality: $short needs its unit written ($example); a bare number does not say what it measures",
+                currentLine(),
+            )
+            else -> throw NPPSError("$modality: $short must be a number with unit $unit", currentLine())
+        }
+    }
+
+    /** One wavelength per block, required. A retired combined name is refused with its replacement. */
+    private fun requiredWavelength(modality: String, fields: Map<String, NPPSFieldValue>): NPPBMTranscranialParams.Wavelength {
+        val w = fields["wavelength"]?.asIdent
+            ?: throw NPPSError(
+                "$modality: wavelength is required, one value per block, e.g. wavelength: \"810nm\"",
+                currentLine(),
+            )
+        if (NPWavelengthRulesEngine.RETIRED.containsKey(w)) {
+            throw NPPSError("$modality: ${NPWavelengthRulesEngine.retiredMessage(w)}", currentLine())
+        }
+        return NPPBMTranscranialParams.Wavelength(w)
+    }
+
+    /** A percentage ceiling is refused, not skipped: a limit dropped silently is no limit. */
+    private fun refuseRetiredLimit(modality: String, fields: Map<String, NPPSFieldValue>, replacement: String) {
+        if (fields.containsKey("max_intensity")) {
+            throw NPPSError(
+                "$modality limits: max_intensity is a percentage ceiling and is retired; write $replacement " +
+                    "(NP-NPPS-REF-001 §7).",
+                currentLine(),
+            )
+        }
+    }
+
     // MARK: Params builder ---------------------------------------------------
 
     private fun buildParams(name: String, fields: Map<String, NPPSFieldValue>): NPModalityParams {
         when (name) {
             "pbm_transcranial" -> {
                 val p = NPPBMTranscranialParams()
-                fields["intensity"]?.asPercent?.let { p.intensityPercent = it }
+                refuseRetiredPercent(name, fields)
+                p.irradianceMWcm2 = absoluteQuantity(
+                    name, fields, "irradiance", "irradiance_mw_cm2", "mW_cm2", "irradiance: 300mW_cm2",
+                )
                 fields["frequency"]?.asHz?.let { p.frequencyHz = it }
                 fields["duty_cycle"]?.asPercent?.let { p.dutyCyclePercent = it.toInt() }
                 // Exactly two forms (NP-NPPS-REF-001 §4.1): a named-zone array, or
@@ -763,15 +867,17 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
                 // any unrecognised value to 660_808nm, which silently changed the
                 // protocol; a value that is not a wavelength, or that no rule maps, is
                 // refused when the session is compiled instead.
-                fields["wavelength"]?.asIdent?.let { w ->
-                    p.wavelength = NPPBMTranscranialParams.Wavelength(w)
-                }
+                p.wavelength = requiredWavelength(name, fields)
                 return NPModalityParams.PbmTranscranial(p)
             }
 
             "pbm_intranasal" -> {
                 val p = NPPBMIntranasalParams()
-                fields["intensity"]?.asPercent?.let { p.intensityPercent = it }
+                refuseRetiredPercent(name, fields)
+                p.wavelength = requiredWavelength(name, fields)
+                p.irradianceMWcm2 = absoluteQuantity(
+                    name, fields, "irradiance", "irradiance_mw_cm2", "mW_cm2", "irradiance: 25mW_cm2",
+                )
                 fields["frequency"]?.asHz?.let { p.frequencyHz = it }
                 fields["duty_cycle"]?.asPercent?.let { p.dutyCyclePercent = it.toInt() }
                 return NPModalityParams.PbmIntranasal(p)
@@ -863,7 +969,8 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
                     }
                 }
                 fields["carrier_hz"]?.asHz?.let { p.carrierHz = it }
-                fields["volume"]?.asPercent?.let { p.volumePercent = it }
+                refuseRetiredPercent(name, fields)
+                p.volumeDb = absoluteQuantity(name, fields, "volume", "volume_db", "dB", "volume: 72dB")
                 fields["eeg_adaptive"]?.asBool?.let { p.eegAdaptive = it }
                 fields["bone_conduction_pacer"]?.asBool?.let { p.boneConductionPacer = it }
                 return NPModalityParams.AudioEntrainment(p)
@@ -871,6 +978,7 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
 
             "visual_stimulation" -> {
                 val p = NPVisualStimParams()
+                refuseRetiredPercent(name, fields)
                 fields["frequency"]?.asHz?.let { p.frequencyHz = it }
                 fields["mode"]?.asIdent?.let { m ->
                     when (m) {

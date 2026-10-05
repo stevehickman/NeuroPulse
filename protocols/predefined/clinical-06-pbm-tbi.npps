@@ -19,31 +19,41 @@ protocol "PBM — TBI (chronic) + Intranasal (Naeser 2011/2014)" {
         # unrunnable — a second one, next to clinical-03, at the same wall.
         # Longo 2020, Hipskind 2018 and Chao 2020 state no irradiance.
         #
-        # Naeser is also the better hardware match: 633+870nm is close to the
-        # T1-A tile's own 660+808nm pair, so this is one of the few protocols
-        # where driving both channels is what the evidence did.
-        #
-        # MODE IS THE TRIAL'S: Naeser is CW, and 22 mW/cm² is far inside R-4's
+        # MODE IS THE TRIAL'S: Naeser is CW, and 22 mW/cm² is far inside the
         # 200 mW/cm² CW ceiling. DURATION IS DERIVED: 13 J/cm² ÷ 22 mW/cm²
         # = 591 s, so 10 min reproduces the stated dose (13.2 J/cm²).
         #
-        # TARGET IRRADIANCE: 22 mW/cm² CW. PROVISIONAL, NOT THE AUTHORED
-        # VALUE: 22 ÷ 403 (NP-HW-HEXTILE-001 §4.3.1). Becomes
-        # `irradiance_mw_cm2: 22`.
-        intensity: 5.5%
+        # 22 mW/cm² is Naeser's stated irradiance. WAVELENGTH is §6's protocol
+        # line, "810 nm (± 633 nm adjunct)": one block at 810nm. Naeser itself
+        # ran 633 + 870nm, and neither is a wavelength the default rules deliver
+        # (633nm is below the 660nm window, 870nm above the 808nm one), so the
+        # optional adjunct is left out rather than moved to the nearest channel.
+        # To add it, write a second block with its own irradiance and widen the
+        # rule for the channel that should carry it.
+        wavelength: "810nm"
+        irradiance: 22mW_cm2
         frequency: 0Hz
         zones: ["Vault (excl. Occipital)"]
-        wavelength: "660_808nm"
     }
 
     pbm_intranasal {
         # Naeser's protocol is transcranial + bilateral intranasal, so this
-        # block is part of the trial, not an addition. Its 60% is NOT
+        # block is part of the trial, not an addition. Its 60 mW/cm² is NOT
         # evidence-sourced and cannot be: no intranasal irradiance appears in
         # §6, and the intranasal Y-probe (A12) has no owning specification
         # document at all, so there is no device capability figure to check a
-        # value against either (NP-ART-001 §3.2, OI-ART-04).
-        intensity: 60%
+        # value against either (NP-ART-001 §3.2, OI-ART-04). It is the former
+        # 60%, restated against a 100 mW/cm² placeholder (register row
+        # UC-065). The source names no wavelength for it, so both channels
+        # the probe carries are driven, one block each.
+        wavelength: "660nm"
+        irradiance: 60mW_cm2
+        frequency: 0Hz
+    }
+
+    pbm_intranasal {
+        wavelength: "808nm"
+        irradiance: 60mW_cm2
         frequency: 0Hz
     }
 }

@@ -54,15 +54,17 @@ static class SessionProtocolCompiler
                 FrequencyHz = m.P.FrequencyHz,
                 DutyCyclePercent = m.P.DutyCyclePercent,
                 DurationSeconds = sessionDurationSeconds,
-                // Dose formula (mirrors Swift buildSessionProtocol):
-                // peak irradiance ≈ 400 mW/cm² × dutyCycle(25%) = 100 mW/cm² average
-                // dose = durationSeconds × intensityFraction × 0.4 W/cm² = J/cm²
-                // 0.4 is the CW-equivalent irradiance at 100% intensity (W/cm²).
-                TargetDoseJoules = sessionDurationSeconds * (m.P.IntensityPercent / 100.0) * 0.4
+                IrradianceMwCm2 = m.P.IrradianceMwCm2,
+                // J/cm² = irradiance (mW/cm²) × duty (CW is full duty) × time (s) / 1000.
+                TargetDoseJoules = m.P.IrradianceMwCm2
+                    * (m.P.FrequencyHz == 0 ? 1.0 : m.P.DutyCyclePercent / 100.0)
+                    * sessionDurationSeconds / 1000.0
             },
 
             NPModalityParams.PbmIntranasal m => new PbmIntranasalConfig
             {
+                Wavelength = IntranasalWavelength(m.P.Wavelength),
+                IrradianceMwCm2 = m.P.IrradianceMwCm2,
                 FrequencyHz = m.P.FrequencyHz,
                 DutyCyclePercent = m.P.DutyCyclePercent,
                 DurationSeconds = sessionDurationSeconds
@@ -111,6 +113,7 @@ static class SessionProtocolCompiler
                     AudioEntrainmentParams.NoiseType.Brown => "brown",
                     _ => null
                 },
+                VolumeDb = m.P.VolumeDb,
                 EegAdaptive = m.P.EegAdaptive,
                 UseBoneConductionForPacer = m.P.BoneConductionPacer
             },
@@ -158,9 +161,23 @@ static class SessionProtocolCompiler
     private static string WavelengthRawValue(string w)
     {
         if (WavelengthRulesEngine.ResolveChannels(w, WavelengthRulesEngine.Default, out var refusal) is null)
-            throw new NotSupportedException(refusal == "invalid"
-                ? $"PBM wavelength '{w}' is not a wavelength: write one value such as \"810nm\"."
-                : $"No emitter channel delivers {w} under the wavelength rules in force. Refused, not moved to the nearest channel.");
+            throw new NotSupportedException(refusal switch
+            {
+                "retired" => WavelengthRulesEngine.RetiredMessage(w),
+                "invalid" => $"PBM wavelength '{w}' is not a wavelength: write one value such as \"810nm\".",
+                _ => $"No emitter channel delivers {w} under the wavelength rules in force. Refused, not moved to the nearest channel."
+            });
+        return w;
+    }
+
+    // The intranasal probe carries the 660 and 808 nm channels only: a wavelength that maps to
+    // 1064 nm is refused for it, as is anything WavelengthRawValue refuses.
+    private static string IntranasalWavelength(string w)
+    {
+        WavelengthRawValue(w);
+        var channels = WavelengthRulesEngine.ResolveChannels(w, WavelengthRulesEngine.Default, out _)!;
+        if (!channels.Any(c => c is PbmChannelElement.Led660 or PbmChannelElement.Led808))
+            throw new NotSupportedException($"Intranasal PBM cannot be delivered on {channels[0]}: it is a channel the probe does not carry.");
         return w;
     }
 

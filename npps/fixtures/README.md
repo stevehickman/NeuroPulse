@@ -9,7 +9,7 @@ Each fixture is a pair of files:
 - `<name>.npps` -- the NPPS source input
 - `<name>.expected.json` -- the normalized JSON output both parsers must produce
 
-Error fixtures have only a `.npps` file and no `.expected.json`. These inputs are expected to fail parsing.
+Error fixtures have only a `.npps` file and no `.expected.json`. These inputs are expected to fail parsing. Since Rev 6 of the grammar that includes the absolute-quantity refusals: `error_percent_intensity`, `error_percent_volume`, `error_combined_wavelength`, `error_unitless_irradiance` and `error_missing_irradiance`. `params` carries `irradianceMWcm2` and `volumeDb`, never a percentage.
 
 `startOffsetSeconds` appears only when a block sets `start` (NP-NPPS-REF-001 Rev 17 §5). A file holding only a `wavelength_rules` block (`wavelength_rules.npps`) has no `.expected.json`: it is checked by the grammar validator, and its parse by `wavelengthRules.test.ts`.
 

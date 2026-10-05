@@ -21,10 +21,10 @@
           "zoneRefs": [
             "All"
           ],
-          "wavelength": "660_808nm",
-          "intensityPercent": 75,
+          "wavelength": "808nm",
           "frequencyHz": 20,
-          "dutyCyclePercent": 25
+          "dutyCyclePercent": 25,
+          "irradianceMWcm2": 302
         },
         "interval": {
           "intervalOnSeconds": 0,
@@ -35,9 +35,10 @@
         "type": "pbm_intranasal",
         "enabled": true,
         "params": {
-          "intensityPercent": 60,
           "frequencyHz": 40,
-          "dutyCyclePercent": 25
+          "dutyCyclePercent": 25,
+          "irradianceMWcm2": 60,
+          "wavelength": "660nm"
         },
         "interval": {
           "intervalOnSeconds": 0,
@@ -107,11 +108,11 @@
         "enabled": true,
         "params": {
           "carrierHz": 440,
-          "volumePercent": 60,
           "eegAdaptive": true,
           "boneConductionPacer": true,
           "binauralBeatsHz": 40,
-          "noiseType": "pink"
+          "noiseType": "pink",
+          "volumeDb": 70
         },
         "interval": {
           "intervalOnSeconds": 0,

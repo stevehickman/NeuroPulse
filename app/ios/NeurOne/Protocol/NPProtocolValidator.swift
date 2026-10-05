@@ -437,16 +437,32 @@ struct NPProtocolValidator {
             )
         }
 
-        // Dosage: max intensity
-        if let maxI = lim?.maxIntensityPercent, p.intensityPercent > maxI {
+        // Irradiance is absolute now, so the 400 mW/cm² peak (CLAUDE.md §3) is checked
+        // directly rather than through a percentage of an unnamed baseline.
+        if p.irradianceMWcm2 > NPHardwareLimits.pbmPulsedPeakMWcm2 {
             result.addError(
-                modality: m, param: "intensityPercent", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
-                actual: "\(Int(p.intensityPercent))%",
-                limit: "\(Int(maxI))%",
-                source: srcs?.maxIntensityPercent ?? .global_,
+                modality: m, param: "irradianceMWcm2", displayName: String(localized: "VALIDATE_PARAM_IRRADIANCE"),
+                actual: "\(Int(p.irradianceMWcm2)) mW/cm²",
+                limit: "\(Int(NPHardwareLimits.pbmPulsedPeakMWcm2)) mW/cm²",
+                source: .hardware,
                 message: String(
-                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYPERCENT_2"),
-                    String(describing: Int(p.intensityPercent)),
+                    format: String(localized: "VALIDATE_MSG_PBM_TRANSCRANIAL_IRRADIANCE"),
+                    String(describing: Int(p.irradianceMWcm2)),
+                    String(describing: Int(NPHardwareLimits.pbmPulsedPeakMWcm2))
+                )
+            )
+        }
+
+        // Dosage: max irradiance
+        if let maxI = lim?.maxIrradianceMWcm2, p.irradianceMWcm2 > maxI {
+            result.addError(
+                modality: m, param: "irradianceMWcm2", displayName: String(localized: "VALIDATE_PARAM_IRRADIANCE"),
+                actual: "\(Int(p.irradianceMWcm2)) mW/cm²",
+                limit: "\(Int(maxI)) mW/cm²",
+                source: srcs?.maxIrradianceMWcm2 ?? .global_,
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_PBM_TRANSCRANIAL_IRRADIANCE"),
+                    String(describing: Int(p.irradianceMWcm2)),
                     String(describing: Int(maxI))
                 )
             )
@@ -484,12 +500,13 @@ struct NPProtocolValidator {
 
         // Dosage: max session dose J/cm² (ISC-47).
         // Estimated irradiance: CW path uses pbmCWMaxMWcm2; pulsed path scales by duty cycle.
-        // Dose (J/cm²) = irradiance (mW/cm²) × intensity_fraction × duration (s) / 1000.
+        // Dose (J/cm²) = average irradiance (mW/cm²) × duration (s) / 1000, where the average is
+        // the stated irradiance (CW) or irradiance × duty (pulsed).
         if let maxDose = lim?.maxSessionDoseJCm2, let dur = totalDurationSeconds, dur > 0 {
-            let peakMWcm2: Double = p.frequencyHz == 0
-                ? NPHardwareLimits.pbmCWMaxMWcm2                                        // CW
-                : NPHardwareLimits.pbmPulsedPeakMWcm2 * Double(p.dutyCyclePercent) / 100 // pulsed avg
-            let estimatedDose = peakMWcm2 * (p.intensityPercent / 100.0) * Double(dur) / 1000.0
+            let averageMWcm2: Double = p.frequencyHz == 0
+                ? p.irradianceMWcm2                                        // CW
+                : p.irradianceMWcm2 * Double(p.dutyCyclePercent) / 100     // pulsed avg
+            let estimatedDose = averageMWcm2 * Double(dur) / 1000.0
             if estimatedDose > maxDose {
                 result.addError(
                     modality: m, param: "sessionDoseJCm2", displayName: String(localized: "VALIDATE_PARAM_SESSION_DOSE"),
@@ -529,15 +546,15 @@ struct NPProtocolValidator {
         }
 
         // Dosage: max intensity
-        if let maxI = lim?.maxIntensityPercent, p.intensityPercent > maxI {
+        if let maxI = lim?.maxIrradianceMWcm2, p.irradianceMWcm2 > maxI {
             result.addError(
-                modality: m, param: "intensityPercent", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
-                actual: "\(Int(p.intensityPercent))%",
-                limit: "\(Int(maxI))%",
-                source: srcs?.maxIntensityPercent ?? .global_,
+                modality: m, param: "irradianceMWcm2", displayName: String(localized: "VALIDATE_PARAM_IRRADIANCE"),
+                actual: "\(Int(p.irradianceMWcm2)) mW/cm²",
+                limit: "\(Int(maxI)) mW/cm²",
+                source: srcs?.maxIrradianceMWcm2 ?? .global_,
                 message: String(
-                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYPERCENT"),
-                    String(describing: Int(p.intensityPercent)),
+                    format: String(localized: "VALIDATE_MSG_PBM_INTRANASAL_IRRADIANCE"),
+                    String(describing: Int(p.irradianceMWcm2)),
                     String(describing: Int(maxI))
                 )
             )
@@ -940,15 +957,15 @@ struct NPProtocolValidator {
         let srcs = sourceMap.audioEntrainment
 
         // Dosage: max volume
-        if let maxVol = lim?.maxVolumePercent, p.volumePercent > maxVol {
+        if let maxVol = lim?.maxVolumeDb, p.volumeDb > maxVol {
             result.addError(
-                modality: m, param: "volumePercent", displayName: String(localized: "VALIDATE_PARAM_VOLUME"),
-                actual: "\(Int(p.volumePercent))%",
-                limit: "\(Int(maxVol))%",
-                source: srcs?.maxVolumePercent ?? .global_,
+                modality: m, param: "volumeDb", displayName: String(localized: "VALIDATE_PARAM_VOLUME"),
+                actual: "\(Int(p.volumeDb)) \(String(localized: "UNIT_DB_SPL"))",
+                limit: "\(Int(maxVol)) \(String(localized: "UNIT_DB_SPL"))",
+                source: srcs?.maxVolumeDb ?? .global_,
                 message: String(
-                    format: String(localized: "VALIDATE_MSG_GENERAL_VOLUMEPERCENT"),
-                    String(describing: Int(p.volumePercent)),
+                    format: String(localized: "VALIDATE_MSG_AUDIO_ENTRAINMENT_VOLUMEDB"),
+                    String(describing: Int(p.volumeDb)),
                     String(describing: Int(maxVol))
                 )
             )

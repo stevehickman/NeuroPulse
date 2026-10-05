@@ -26,9 +26,9 @@
             "Frontal Left"
           ],
           "wavelength": "810nm",
-          "intensityPercent": 62,
           "frequencyHz": 0,
-          "dutyCyclePercent": 100
+          "dutyCyclePercent": 100,
+          "irradianceMWcm2": 250
         },
         "interval": {
           "intervalOnSeconds": 240,
@@ -44,9 +44,9 @@
             "Frontal Right"
           ],
           "wavelength": "810nm",
-          "intensityPercent": 62,
           "frequencyHz": 0,
-          "dutyCyclePercent": 100
+          "dutyCyclePercent": 100,
+          "irradianceMWcm2": 250
         },
         "interval": {
           "intervalOnSeconds": 240,

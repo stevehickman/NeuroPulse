@@ -25,7 +25,7 @@ class NPWavelengthRulesTests {
             duration: 8m
             pbm_transcranial {
                 wavelength: "810nm"
-                intensity: 62%
+                irradiance: 250mW_cm2
                 frequency: 0Hz
                 duty_cycle: 100%
                 zones: ["Frontal Right"]

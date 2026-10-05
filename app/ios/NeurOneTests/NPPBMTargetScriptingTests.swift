@@ -21,12 +21,12 @@ final class NPPBMTargetScriptingTests: XCTestCase {
             readonly: false
             duration: 10m
             pbm_transcranial {
-                intensity: 80%
+                irradiance: 322mW_cm2
                 frequency: 40Hz
                 duty_cycle: 25%
                 \(zonesLine)
         \(extra)
-                wavelength: "660_808nm"
+                wavelength: "808nm"
             }
         }
         """

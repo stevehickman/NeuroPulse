@@ -1,0 +1,10 @@
+protocol "Combined Wavelength" {
+    id: "e0000003-0000-0000-0000-000000000000"
+    duration: 5m
+
+    pbm_transcranial {
+        wavelength: "660_808nm"
+        irradiance: 300mW_cm2
+        zones: ["All"]
+    }
+}

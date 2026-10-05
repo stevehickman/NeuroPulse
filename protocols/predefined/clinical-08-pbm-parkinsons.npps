@@ -10,13 +10,26 @@ protocol "PBM — Parkinson's (transcranial)" {
     duration: 20m
 
     pbm_transcranial {
-        intensity: 50%
-        frequency: 40Hz
-        duty_cycle: 25%
         # §8 targets the head "bilateral, midline over SMA/motor" — not the
         # whole vault. Whole-head irradiation would over-deliver well beyond
         # the evidence.
+        #
+        # §8 gives wavelengths "810 nm + 634/660 nm transcranial", so two
+        # blocks, one per wavelength. §8 states NO irradiance: 201.5 mW/cm² is
+        # this file's former 50% restated against 403 mW/cm² at full drive
+        # (register row UC-064), not an evidence-sourced figure.
+        wavelength: "810nm"
+        irradiance: 201.5mW_cm2
+        frequency: 40Hz
+        duty_cycle: 25%
         zones: ["Motor / SMA"]
-        wavelength: "660_808nm"
+    }
+
+    pbm_transcranial {
+        wavelength: "660nm"
+        irradiance: 201.5mW_cm2
+        frequency: 40Hz
+        duty_cycle: 25%
+        zones: ["Motor / SMA"]
     }
 }

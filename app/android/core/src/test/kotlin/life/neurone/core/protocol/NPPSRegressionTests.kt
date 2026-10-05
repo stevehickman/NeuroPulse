@@ -52,15 +52,15 @@ class NPPSRegressionTests {
     @Test
     fun testQuotedWavelengthsParse() {
         for ((literal, expected) in listOf(
-            "660_808nm" to NPPBMTranscranialParams.Wavelength.BASE_660_808NM,
-            "1064nm" to NPPBMTranscranialParams.Wavelength.SMART_1064NM,
-            "660_808_1064nm" to NPPBMTranscranialParams.Wavelength.TRI_660_808_1064,
+            "660nm" to NPPBMTranscranialParams.Wavelength.NM_660,
+            "808nm" to NPPBMTranscranialParams.Wavelength.NM_808,
+            "1064nm" to NPPBMTranscranialParams.Wavelength.NM_1064,
         )) {
             val script = """
                 protocol "Wavelengths" {
                     version: "1.0"
                     pbm_transcranial {
-                        intensity: 75%
+                        irradiance: 302mW_cm2
                         wavelength: "$literal"
                     }
                 }
@@ -76,7 +76,7 @@ class NPPSRegressionTests {
             val script = """
                 protocol "Wavelengths" {
                     version: "1.0"
-                    pbm_transcranial { intensity: 75% wavelength: $literal }
+                    pbm_transcranial { irradiance: 302mW_cm2 wavelength: $literal }
                 }
             """.trimIndent()
             val e = assertFailsWith<NPPSError>("unquoted $literal must not parse") {
@@ -116,10 +116,11 @@ class NPPSRegressionTests {
                 version: "1.0"
                 tags: ["wind-down", "all-modalities"]
                 pbm_transcranial {
-                    intensity: 60%
+                    irradiance: 242mW_cm2
                     frequency: 10Hz
                     duty_cycle: 25%
-                }
+                    wavelength: "808nm"
+}
             }
         """.trimIndent()
 
@@ -149,10 +150,11 @@ class NPPSRegressionTests {
                 version: "1.0"
                 tags: ["wind-down"]
                 pbm_transcranial {
-                    intensity: 60%
+                    irradiance: 242mW_cm2
                     frequency: 10Hz
                     duty_cycle: 25%
-                }
+                    wavelength: "808nm"
+}
             }
         """.trimIndent()
 
@@ -186,16 +188,16 @@ class NPPSRegressionTests {
             protocol "Quoted Wavelength" {
                 version: "1.0"
                 pbm_transcranial {
-                    intensity: 75%
+                    irradiance: 302mW_cm2
                     frequency: 40Hz
                     duty_cycle: 25%
-                    wavelength: "660_808nm"
+                    wavelength: "808nm"
                 }
             }
         """.trimIndent()
 
         val p = pbmTranscranial(singleProtocol(script))
-        assertEquals(NPPBMTranscranialParams.Wavelength.BASE_660_808NM, p.wavelength)
+        assertEquals(NPPBMTranscranialParams.Wavelength.NM_808, p.wavelength)
     }
 
     /** Units, percents, and time values parse into the expected fields. */
@@ -247,11 +249,12 @@ class NPPSRegressionTests {
             protocol "Named Zones" {
                 version: "1.0"
                 pbm_transcranial {
-                    intensity: 75%
+                    irradiance: 302mW_cm2
                     frequency: 40Hz
                     duty_cycle: 25%
                     zones: ["Frontal Left", "Frontal Right"]
-                }
+                    wavelength: "808nm"
+}
             }
         """.trimIndent()
 
@@ -272,7 +275,7 @@ class NPPSRegressionTests {
         val script = """
             protocol "Clinician Selected" {
                 version: "1.0"
-                pbm_transcranial { intensity: 75% zones: clinician_selected }
+                pbm_transcranial { irradiance: 302mW_cm2 zones: clinician_selected wavelength: "808nm" }
             }
         """.trimIndent()
         assertEquals(NPPBMTarget.ClinicianSelected, pbmTranscranial(singleProtocol(script)).target)
@@ -288,7 +291,7 @@ class NPPSRegressionTests {
             val script = """
                 protocol "Retired" {
                     version: "1.0"
-                    pbm_transcranial { intensity: 75% zones: $form }
+                    pbm_transcranial { irradiance: 302mW_cm2 zones: $form wavelength: "808nm" }
                 }
             """.trimIndent()
             assertFailsWith<NPPSError>("zones: $form must not parse") {
@@ -306,7 +309,7 @@ class NPPSRegressionTests {
                 description: "House ceiling"
 
                 pbm_transcranial {
-                    max_intensity: 90%
+                    max_irradiance_mw_cm2: 363
                     max_frequency: 40Hz
                     max_duty_cycle: 25%
                 }
@@ -327,7 +330,7 @@ class NPPSRegressionTests {
         val lim = reparsed.limits
         assertEquals("Clinic Default", lim.name)
         assertEquals(NPLimitsSet.LimitLevel.GLOBAL, lim.level)
-        assertEquals(90.0, lim.pbmTranscranial?.maxIntensityPercent)
+        assertEquals(363.0, lim.pbmTranscranial?.maxIrradianceMWcm2)
         assertEquals(40.0, lim.pbmTranscranial?.maxFrequencyHz)
         assertEquals(1.0, lim.besTacs?.maxIntensityMilliamps)
         assertEquals(0.5, lim.besTacs?.minFrequencyHz)
@@ -374,9 +377,10 @@ class NPPSRegressionTests {
             protocol "Vascular" {
                 version: "1.0"
                 pbm_transcranial {
-                    intensity: 50%
+                    irradiance: 202mW_cm2
                     frequency: 0Hz
-                }
+                    wavelength: "808nm"
+}
             }
         """.trimIndent()
 

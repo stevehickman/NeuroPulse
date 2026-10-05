@@ -668,7 +668,7 @@ function LimitsSummary({ limits }: { limits: NPLimitsSet; compact?: boolean }) {
 
   if (limits.pbmTranscranial) {
     const l = limits.pbmTranscranial;
-    if (l.maxIntensityPercent != null) chips.push(t('WEB_CHIP_PBM_INTENSITY', { 0: l.maxIntensityPercent }));
+    if (l.maxIrradianceMWcm2 != null) chips.push(t('WEB_CHIP_PBM_IRRADIANCE', { 0: l.maxIrradianceMWcm2 }));
     if (l.maxFrequencyHz != null) chips.push(t('WEB_CHIP_PBM_FREQUENCY', { 0: l.maxFrequencyHz }));
     if (l.maxDutyCyclePercent != null) chips.push(t('WEB_CHIP_PBM_DUTY', { 0: l.maxDutyCyclePercent }));
   }
@@ -697,7 +697,7 @@ function LimitsSummary({ limits }: { limits: NPLimitsSet; compact?: boolean }) {
   }
   if (limits.audioEntrainment) {
     const l = limits.audioEntrainment;
-    if (l.maxVolumePercent != null) chips.push(t('WEB_CHIP_AUDIO_VOLUME', { 0: l.maxVolumePercent }));
+    if (l.maxVolumeDb != null) chips.push(t('WEB_CHIP_AUDIO_VOLUME_DB', { 0: l.maxVolumeDb }));
   }
   if (limits.clinicalTacs) {
     const l = limits.clinicalTacs;
@@ -922,13 +922,12 @@ function VisualLimitsEditor({
         {limits.pbmTranscranial && (
           <>
             <LimitField
-              label={t('WEB_LIM_MAX_INTENSITY')}
-              value={limits.pbmTranscranial.maxIntensityPercent}
-              unit="%"
-              min={0} max={100} step={5}
-              hint="0–100%"
-              onChange={v => patchModality('pbmTranscranial', { maxIntensityPercent: v })}
-              onClear={() => patchModality('pbmTranscranial', { maxIntensityPercent: undefined })}
+              label={t('WEB_LIM_MAX_IRRADIANCE')}
+              value={limits.pbmTranscranial.maxIrradianceMWcm2}
+              unit="mW/cm²"
+              min={0} max={400} step={5}
+              onChange={v => patchModality('pbmTranscranial', { maxIrradianceMWcm2: v })}
+              onClear={() => patchModality('pbmTranscranial', { maxIrradianceMWcm2: undefined })}
             />
             <LimitField
               label={t('WEB_LIM_MAX_FREQUENCY')}
@@ -977,12 +976,12 @@ function VisualLimitsEditor({
         {limits.pbmIntranasal && (
           <>
             <LimitField
-              label={t('WEB_LIM_MAX_INTENSITY')}
-              value={limits.pbmIntranasal.maxIntensityPercent}
-              unit="%"
-              min={0} max={100} step={5}
-              onChange={v => patchModality('pbmIntranasal', { maxIntensityPercent: v })}
-              onClear={() => patchModality('pbmIntranasal', { maxIntensityPercent: undefined })}
+              label={t('WEB_LIM_MAX_IRRADIANCE')}
+              value={limits.pbmIntranasal.maxIrradianceMWcm2}
+              unit="mW/cm²"
+              min={0} max={400} step={5}
+              onChange={v => patchModality('pbmIntranasal', { maxIrradianceMWcm2: v })}
+              onClear={() => patchModality('pbmIntranasal', { maxIrradianceMWcm2: undefined })}
             />
             <LimitField
               label={t('WEB_LIM_MAX_SESSION_DURATION')}
@@ -1160,11 +1159,11 @@ function VisualLimitsEditor({
           <>
             <LimitField
               label={t('WEB_LIM_MAX_VOLUME')}
-              value={limits.audioEntrainment.maxVolumePercent}
-              unit="%"
-              min={0} max={100} step={5}
-              onChange={v => patchModality('audioEntrainment', { maxVolumePercent: v })}
-              onClear={() => patchModality('audioEntrainment', { maxVolumePercent: undefined })}
+              value={limits.audioEntrainment.maxVolumeDb}
+              unit="dB SPL"
+              min={40} max={90} step={1}
+              onChange={v => patchModality('audioEntrainment', { maxVolumeDb: v })}
+              onClear={() => patchModality('audioEntrainment', { maxVolumeDb: undefined })}
             />
             <LimitField
               label={t('WEB_LIM_MAX_BINAURAL')}

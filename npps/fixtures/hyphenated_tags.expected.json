@@ -22,11 +22,11 @@
         "enabled": true,
         "params": {
           "carrierHz": 200,
-          "volumePercent": 50,
           "eegAdaptive": false,
           "boneConductionPacer": false,
           "binauralBeatsHz": 4,
-          "noiseType": "brown"
+          "noiseType": "brown",
+          "volumeDb": 65
         },
         "interval": {
           "intervalOnSeconds": 0,

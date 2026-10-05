@@ -25,10 +25,14 @@ import { serializeNPPS, serializeWavelengthRules } from './nppsSerializer';
 const DEFAULTS_FILE = path.resolve(__dirname, '../../../../protocols/predefined/00-wavelength-rules.npps');
 
 describe('parsePbmWavelength', () => {
-  it('keeps the three legacy channel names', () => {
-    expect(parsePbmWavelength('660_808nm')).toMatchObject({ kind: 'legacy', elements: ['led_660', 'led_808'] });
-    expect(parsePbmWavelength('1064nm')).toMatchObject({ kind: 'legacy', elements: ['led_1064'] });
-    expect(parsePbmWavelength('660_808_1064nm')).toMatchObject({ kind: 'legacy' });
+  it('retires the combined channel names and names their replacements', () => {
+    expect(parsePbmWavelength('660_808nm')).toMatchObject({ kind: 'retired', replacement: ['660nm', '808nm'] });
+    expect(parsePbmWavelength('660_808_1064nm')).toMatchObject({ kind: 'retired', replacement: ['660nm', '808nm', '1064nm'] });
+  });
+
+  it('reads 1064nm as the plain wavelength it is', () => {
+    expect(parsePbmWavelength('1064nm')).toEqual({ kind: 'single', value: '1064nm', nm: 1064 });
+    expect(resolvePbmChannels('1064nm', DEFAULT_WAVELENGTH_RULES)).toMatchObject({ ok: true, elements: ['led_1064'] });
   });
 
   it('reads one wavelength, including a decimal', () => {
@@ -109,8 +113,9 @@ describe('resolvePbmChannels / pbmRequirementGroups', () => {
   it('a single wavelength becomes one requirement group', () => {
     expect(pbmRequirementGroups('810nm', DEFAULT_WAVELENGTH_RULES)).toEqual([['led_808']]);
   });
-  it('a legacy name keeps its groups', () => {
-    expect(pbmRequirementGroups('660_808nm', DEFAULT_WAVELENGTH_RULES)).toEqual([['led_660'], ['led_808']]);
+  it('a retired combined name yields no group: it is refused, not expanded', () => {
+    expect(pbmRequirementGroups('660_808nm', DEFAULT_WAVELENGTH_RULES)).toBeNull();
+    expect(resolvePbmChannels('660_808nm', DEFAULT_WAVELENGTH_RULES)).toMatchObject({ ok: false, reason: 'retired' });
   });
   it('unmapped and invalid are distinct failures, and neither yields a group', () => {
     expect(resolvePbmChannels('850nm', DEFAULT_WAVELENGTH_RULES)).toMatchObject({ ok: false, reason: 'unmapped', requestedNm: 850 });
@@ -177,7 +182,7 @@ describe('the modality `start` field', () => {
     duration: 8m
     pbm_transcranial {
         wavelength: "810nm"
-        intensity: 62%
+        irradiance: 250mW_cm2
         frequency: 0Hz
         duty_cycle: 100%
         zones: ["Frontal Right"]

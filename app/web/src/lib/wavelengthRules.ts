@@ -106,37 +106,43 @@ export function validateWavelengthRules(rules: NPWavelengthRules): string[] {
 // ─── The `wavelength` field ────────────────────────────────────────────────────
 
 /**
- * The three multi-channel values the language had before per-wavelength blocks.
- * They name channels, not wavelengths, and are kept so existing protocols keep
- * their meaning. New protocols name one wavelength per block.
+ * The two multi-channel values the language used to accept. They named channels
+ * rather than wavelengths and welded two independent emitters into one block, so
+ * a protocol could not mix or match them. RETIRED: every wavelength is its own
+ * block now (NP-NPPS-REF-001 §4.1a), and these are refused with the spelling
+ * that replaces them. `"1064nm"` was never one of them in substance: it is a
+ * single wavelength, and the wavelength rules map it to the 1064 nm channel.
  */
-export const LEGACY_PBM_WAVELENGTHS: Record<string, readonly NPPBMChannelElement[]> = {
-  '660_808nm': ['led_660', 'led_808'],
-  '1064nm': ['led_1064'],
-  '660_808_1064nm': ['led_660', 'led_808', 'led_1064'],
+export const RETIRED_PBM_WAVELENGTHS: Record<string, readonly string[]> = {
+  '660_808nm': ['660nm', '808nm'],
+  '660_808_1064nm': ['660nm', '808nm', '1064nm'],
 };
 
 export type NPParsedWavelength =
-  | { kind: 'legacy'; value: string; elements: readonly NPPBMChannelElement[] }
+  | { kind: 'retired'; value: string; replacement: readonly string[] }
   | { kind: 'single'; value: string; nm: number }
   | { kind: 'invalid'; value: string };
 
 const SINGLE_NM = /^([0-9]+(?:\.[0-9]+)?)nm$/;
 
-/**
- * Classify a `wavelength` value. `"1064nm"` is a legacy channel name AND looks
- * like a single wavelength; it keeps its legacy meaning (drive CH_C), which is
- * also what a single 1064 nm request maps to under any rule set that accepts it.
- */
+/** Classify a `wavelength` value: one `"<N>nm"`, a retired channel name, or neither. */
 export function parsePbmWavelength(value: string): NPParsedWavelength {
-  const legacy = LEGACY_PBM_WAVELENGTHS[value];
-  if (legacy) return { kind: 'legacy', value, elements: legacy };
+  const retired = RETIRED_PBM_WAVELENGTHS[value];
+  if (retired) return { kind: 'retired', value, replacement: retired };
   const m = SINGLE_NM.exec(value);
   if (m) {
     const nm = Number(m[1]);
     if (Number.isFinite(nm) && nm > 0) return { kind: 'single', value, nm };
   }
   return { kind: 'invalid', value };
+}
+
+/** The refusal text for a retired channel name, naming the blocks that replace it. */
+export function retiredWavelengthMessage(value: string): string {
+  const r = RETIRED_PBM_WAVELENGTHS[value];
+  const blocks = (r ?? []).map(w => `"${w}"`).join(' and ');
+  return `wavelength "${value}" is retired: it welded independent emitters into one block. ` +
+    `Write one block per wavelength (${blocks}), each with its own irradiance_mw_cm2.`;
 }
 
 /**
@@ -157,12 +163,12 @@ export function mapWavelength(nm: number, rules: NPWavelengthRules): NPPBMChanne
 
 export type NPPbmChannelResolution =
   | { ok: true; elements: readonly NPPBMChannelElement[]; requestedNm?: number }
-  | { ok: false; reason: 'invalid' | 'unmapped'; value: string; requestedNm?: number };
+  | { ok: false; reason: 'invalid' | 'retired' | 'unmapped'; value: string; requestedNm?: number };
 
 /** Which channels a `wavelength` value drives under `rules`. */
 export function resolvePbmChannels(value: string, rules: NPWavelengthRules): NPPbmChannelResolution {
   const w = parsePbmWavelength(value);
-  if (w.kind === 'legacy') return { ok: true, elements: w.elements };
+  if (w.kind === 'retired') return { ok: false, reason: 'retired', value };
   if (w.kind === 'invalid') return { ok: false, reason: 'invalid', value };
   const element = mapWavelength(w.nm, rules);
   return element

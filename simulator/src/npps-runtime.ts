@@ -21,6 +21,7 @@
  */
 
 import { parseNPPSFile, buildNamespace, validateNamespaceReferences } from '../../app/web/src/lib/nppsParser';
+import { DEFAULT_WAVELENGTH_RULES, mapWavelength, parsePbmWavelength } from '../../app/web/src/lib/wavelengthRules';
 import type {
   NPProtocolDefinition,
   NPZoneDefinition,
@@ -35,11 +36,6 @@ const DEFAULT_BASE_URL = '../protocols/predefined/';
 const T2_ONLY_MODALITY_TYPES = new Set([
   'qeeg_21ch', 'tms', 'pbm_deep_1170nm', 'clinical_tacs', 'hd_tdcs', 'cervical_vns',
 ]);
-
-// Peak/limit constant from CLAUDE.md §3 modality 1 (PBM Transcranial), used only
-// to derive a plausible simulated dose display — real .npps files carry
-// intensity/duty/duration, not a precomputed J/cm² target.
-const PBM_PEAK_MW_CM2 = 400;
 
 export interface SimZone {
   name: string;
@@ -82,10 +78,12 @@ function slugFromFilename(filename: string): string {
   return filename.replace(/\.npps$/, '');
 }
 
-function splitWavelength(wl: string): string[] {
-  // '660_808nm' -> ['660nm','808nm']; '1064nm' -> ['1064nm']; '660_808_1064nm' -> all three
-  if (wl === '1064nm' || wl === '1170nm') return [wl];
-  return wl.replace(/nm$/, '').split('_').map(n => `${n}nm`);
+/** The emitter channel a block's wavelength drives, as the simulator names it ('808nm'). */
+function channelLabel(wl: string): string | null {
+  const w = parsePbmWavelength(wl);
+  if (w.kind !== 'single') return null;
+  const el = mapWavelength(w.nm, DEFAULT_WAVELENGTH_RULES);
+  return el ? el.replace('led_', '') + 'nm' : null;
 }
 
 function findParam<T extends NPModalityParams['type']>(
@@ -116,17 +114,21 @@ function derivePhases(durationSeconds: number) {
 export function buildModalities(def: NPProtocolDefinition, durationSeconds: number) {
   const out: Record<string, any> = {};
 
-  const pbm = findParam(def.modalities, 'pbm_transcranial');
-  if (pbm) {
-    const dutyCycle = pbm.dutyCyclePercent / 100;
-    const avgIrradianceMWcm2 = PBM_PEAK_MW_CM2 * (pbm.intensityPercent / 100) * dutyCycle;
-    const dose_jcm2 = (avgIrradianceMWcm2 * durationSeconds) / 1000; // mW/cm² * s -> mJ/cm² /1000 = J/cm²
+  // One block per wavelength: the display is the union of the blocks, and the
+  // dose is what the tissue receives from all of them (the Σ term of CLAUDE.md §3).
+  const pbmBlocks = def.modalities
+    .filter(m => m.modalityParams.type === 'pbm_transcranial')
+    .map(m => m.modalityParams.params as Extract<NPModalityParams, { type: 'pbm_transcranial' }>['params']);
+  if (pbmBlocks.length > 0) {
+    const first = pbmBlocks[0];
+    const dose_jcm2 = pbmBlocks.reduce(
+      (sum, b) => sum + (b.irradianceMWcm2 * (b.dutyCyclePercent / 100) * durationSeconds) / 1000, 0);
     out.pbm = {
       active: true,
-      zones: pbm.zoneRefs ?? [],
-      wavelengths: splitWavelength(pbm.wavelength),
-      frequency: pbm.frequencyHz,
-      dutyCycle,
+      zones: [...new Set(pbmBlocks.flatMap(b => b.zoneRefs ?? []))],
+      wavelengths: [...new Set(pbmBlocks.map(b => channelLabel(b.wavelength)).filter((x): x is string => x !== null))],
+      frequency: first.frequencyHz,
+      dutyCycle: first.dutyCyclePercent / 100,
       dose_jcm2: Math.round(dose_jcm2 * 10) / 10,
     };
   }
