@@ -45,16 +45,22 @@ static void check(int cond, const char *name)
 }
 
 /* ── Stubbed dependencies ─────────────────────────────────────────────────────
- * The serial HAL reports NOT_PRESENT so the replay guard is skipped (the parser
- * only compares when the stored serial reads back). The verifier always accepts:
+ * The serial HAL serves g_dev_serial (all zero, which is what blob_begin writes into the
+ * header), or fails when g_serial_rc says so. The verifier always accepts:
  * these tests are about the command body, and a real signature would have to be
  * recomputed for every mutated fixture, which would test the fixture builder
  * rather than the parser. */
 
+static uint8_t         g_dev_serial[NP_HUB_PROTO_SERIAL_LEN];
+static np_hub_status_t g_serial_rc = NP_HUB_OK;
+
 np_hub_status_t np_proto_hal_get_device_serial(uint8_t *buf, size_t len)
 {
-    (void)buf; (void)len;
-    return NP_HUB_ERR_NOT_PRESENT;
+    if (g_serial_rc != NP_HUB_OK) {
+        return g_serial_rc;
+    }
+    memcpy(buf, g_dev_serial, len < sizeof g_dev_serial ? len : sizeof g_dev_serial);
+    return NP_HUB_OK;
 }
 
 np_hub_status_t np_proto_hal_get_proto_pubkey(uint8_t *pub_key_out)
@@ -157,6 +163,32 @@ static void test_wire_layout(void)
      * PROTO_VERSION must move with this constant or every descriptor is
      * rejected as BAD_VERSION. */
     check(NP_HUB_PROTO_VERSION == 0x0001U, "layout: protocol version is v1");
+}
+
+/* ── Replay guard ─────────────────────────────────────────────────────────────── */
+
+static void test_replay_guard(void)
+{
+    const uint8_t params[5] = { 0xFF, 6, 2, 0, 3 };
+    blob_t b;
+    blob_begin(&b, NP_HUB_PROTO_VERSION);
+    blob_add_cmd(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG,
+                 0U, 0U, NP_PROTO_TARGET_SLOT, NULL, 0U, params, sizeof params);
+    size_t len = blob_finish(&b);
+    np_session_desc_t desc;
+
+    check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_OK,
+          "serial: a descriptor stamped with this device's serial is accepted");
+
+    g_dev_serial[31] = 0x01U;
+    check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_ERR_WRONG_DEVICE,
+          "serial: a descriptor stamped for another device is refused");
+    g_dev_serial[31] = 0x00U;
+
+    g_serial_rc = NP_HUB_ERR_NOT_PRESENT;
+    check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_ERR_WRONG_DEVICE,
+          "serial: a device that cannot read its serial accepts nothing (fail closed)");
+    g_serial_rc = NP_HUB_OK;
 }
 
 /* ── Slot-addressed commands still work ───────────────────────────────────────── */
@@ -869,6 +901,7 @@ int main(void)
     test_rejects_truncated_target();
     test_rejects_trailing_body_bytes();
     test_rejects_stop_deadline_overflow();
+    test_replay_guard();
 
     test_clin_tacs_channel_mask_spans_the_driver();
 

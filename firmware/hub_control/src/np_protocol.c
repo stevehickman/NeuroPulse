@@ -162,13 +162,12 @@ np_hub_status_t np_protocol_verify_and_parse(const uint8_t    *buf,
         return NP_HUB_ERR_BAD_SIGNATURE;
     }
 
-    /* Device serial replay guard */
+    /* Device serial replay guard. Fail closed: a serial that cannot be read is a device that
+     * cannot say which descriptors are its own, so it accepts none. */
     uint8_t stored_serial[NP_HUB_PROTO_SERIAL_LEN];
-    if (np_proto_hal_get_device_serial(stored_serial,
-                                        NP_HUB_PROTO_SERIAL_LEN) == NP_HUB_OK) {
-        if (memcmp(hdr->device_serial, stored_serial, NP_HUB_PROTO_SERIAL_LEN) != 0) {
-            return NP_HUB_ERR_WRONG_DEVICE;
-        }
+    if (np_proto_hal_get_device_serial(stored_serial, NP_HUB_PROTO_SERIAL_LEN) != NP_HUB_OK ||
+        memcmp(hdr->device_serial, stored_serial, NP_HUB_PROTO_SERIAL_LEN) != 0) {
+        return NP_HUB_ERR_WRONG_DEVICE;
     }
 
     /* Validate command body length */
