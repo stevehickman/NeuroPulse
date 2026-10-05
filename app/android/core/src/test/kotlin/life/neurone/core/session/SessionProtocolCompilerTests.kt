@@ -9,6 +9,7 @@ import life.neurone.core.protocol.NPTimingMode
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -128,5 +129,46 @@ class SessionProtocolCompilerTests {
             }
         }.toByteArray()
         assertContentEquals(blob.wireFormat, reassembled)
+    }
+
+    private fun pbmTo(target: NPPBMTarget) = NPProtocolDefinition(
+        name = "Target",
+        modalities = listOf(
+            NPProtocolModality(
+                params = NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(target = target)),
+            ),
+        ),
+    )
+
+    @Test
+    fun anUnresolvableTargetIsRefusedNeverSubstituted() {
+        // iOS throws NPSocketTargetError here; an empty zone list on the wire would
+        // be a protocol that stimulates nowhere, or wherever the hub defaults to.
+        assertFailsWith<life.neurone.core.protocol.NPPSError> {
+            NPSessionProtocol.fromDefinition(pbmTo(NPPBMTarget.Named(listOf("No Such Zone"))))
+        }
+        assertFailsWith<life.neurone.core.protocol.NPPSError> {
+            NPSessionProtocol.fromDefinition(pbmTo(NPPBMTarget.ClinicianSelected))
+        }
+        val chosen = NPSessionProtocol.fromDefinition(
+            pbmTo(NPPBMTarget.ClinicianSelected), clinicianSockets = listOf(7, 3),
+        ).modalities.first() as ModalityConfig.PbmTranscranial
+        assertContentEquals(listOf(3, 7), chosen.zones)
+    }
+
+    @Test
+    fun theProbeRefusalReadsLikeIosUnmapped() {
+        val nasal = NPProtocolDefinition(
+            name = "nasal",
+            modalities = listOf(NPProtocolModality(params = NPModalityParams.PbmIntranasal(
+                life.neurone.core.protocol.NPPBMIntranasalParams(
+                    wavelength = NPPBMTranscranialParams.Wavelength.NM_1064)))),
+        )
+        val e = assertFailsWith<IllegalArgumentException> { NPSessionProtocol.fromDefinition(nasal) }
+        assertEquals(
+            "No emitter channel delivers 1064nm under the wavelength rules in force. " +
+                "Refused, not moved to the nearest channel.",
+            e.message,
+        )
     }
 }

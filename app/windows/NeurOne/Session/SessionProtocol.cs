@@ -88,6 +88,9 @@ sealed class TdcsConfig : ModalityConfig
     public required int DurationSeconds { get; init; }
     public int RampSeconds { get; init; } = 30;              // hardware-enforced
     public required string[][] ElectrodePairs { get; init; }
+    /// OI-CHARGE-04: per-electrode pad area, cm². No default: a missing area is the defect
+    /// this field closes (iOS TDCSConfig.electrodeAreaCm2).
+    public required double ElectrodeAreaCm2 { get; init; }
 }
 
 // case vnsHRV(VNSHRVConfig)
