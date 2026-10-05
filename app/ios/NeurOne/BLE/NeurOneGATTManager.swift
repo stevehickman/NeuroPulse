@@ -80,6 +80,12 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     /// (NP-FW-EMMC-002 Rev A §A, OI-WA-03).
     @Published private(set) var warrantyToken: Data?
 
+    /// The hub's 32-byte replay-guard serial (NP-FW-HUB-001 §4.2), read from the encrypted-link
+    /// `deviceSerial` characteristic. Held in memory for this link only: it is neither persisted
+    /// nor uploaded, and is cleared on disconnect. nil until read, and on a hub that predates the
+    /// characteristic (OI-AND-WIRE-02) — a descriptor compiled without it is bench-only.
+    private(set) var deviceSerial: Data?
+
     /// Current hub firmware version decoded from FIRMWARE_VERSION characteristic (ISC-108).
     /// Encoded as uint32 little-endian — bits [23:16]=major [15:8]=minor [7:0]=patch.
     /// nil until the hub ships NPUUID.firmwareVersion (OI-WA-03); OTAView shows "Unknown".
@@ -167,6 +173,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     // Optional — not in NPUUID.all; hub firmware pending (OI-WA-03).
     private var socketMapChar:        CBCharacteristic?
     private var warrantyTokenChar:    CBCharacteristic?
+    private var deviceSerialChar:      CBCharacteristic?
     private var firmwareVersionChar:  CBCharacteristic?
     private var cvnsPadStatusChar:    CBCharacteristic?
     private var cvnsFaultStatusChar:  CBCharacteristic?
@@ -258,6 +265,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         socketMapAssembler.reset()
         allCharacteristicsResolved = false
         warrantyToken = nil
+        deviceSerial = nil
         hubFirmwareVersion = nil
         cervicalPadAlert = nil
         cervicalFaultStatus = nil
@@ -516,6 +524,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         otaStatusChar = nil;      zoneModuleStatusChar = nil; shdrUploadStatusChar = nil
         protocolUploadChar = nil; edfRequestChar = nil; otaCommandChar = nil
         calibrationCmdChar = nil; sessionStopChar = nil; warrantyTokenChar = nil
+        deviceSerialChar = nil
         socketMapChar = nil
         firmwareVersionChar = nil
         cvnsPadStatusChar = nil
@@ -578,7 +587,7 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             NPUUID.all + [NPUUID.warrantyToken, NPUUID.firmwareVersion,
                           NPUUID.socketMap, NPUUID.cvnsPadStatus,
                           NPUUID.cvnsFaultStatus, NPUUID.cvnsReenableConfirm,
-                          NPUUID.activeUser], for: service)
+                          NPUUID.activeUser, NPUUID.deviceSerial], for: service)
     }
 
     func peripheral(_ peripheral: CBPeripheral,
@@ -657,6 +666,11 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
                 warrantyTokenChar = char
                 peripheral.readValue(for: char)
 
+            case NPUUID.deviceSerial:
+                // Read once at link (OI-AND-WIRE-02).
+                deviceSerialChar = char
+                peripheral.readValue(for: char)
+
             case NPUUID.firmwareVersion:
                 // Optional — hub firmware not yet shipped (OI-WA-03).
                 firmwareVersionChar = char
@@ -709,6 +723,13 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             // Hub-provisioned TRNG token — SHDR-linked device identity.
             // applyWarrantyToken rejects payloads shorter than 32 bytes (NP-FW-EMMC-002 Rev A §A).
             applyWarrantyToken(data)
+            return
+        }
+
+        if characteristic.uuid == NPUUID.deviceSerial {
+            // Exactly 32 bytes or nothing: a short read must not be zero-padded into a serial
+            // that no hub holds.
+            deviceSerial = data.count == 32 ? data : nil
             return
         }
 

@@ -79,7 +79,7 @@ static class HubDescriptorCompiler
     // ── public entry points ──────────────────────────────────────────────────
 
     /// Compile and sign. Ed25519 covers the raw signed region and fills the last 64 bytes.
-    /// `deviceSerial` is the 32-byte replay guard the hub checks (§4.2); omitted only on the bench,
+    /// `deviceSerial` is the 32-byte replay guard the hub checks (§4.2); omitted only on the bench (`HubSerial.Parse` is the seam a transport fills),
     /// where a hub with a provisioned serial refuses the descriptor (OI-AND-WIRE-02).
     /// `clinicianSockets` are operator-chosen 1-based socket ids for `clinician_selected` targets.
     public static HubDescriptor Compile(

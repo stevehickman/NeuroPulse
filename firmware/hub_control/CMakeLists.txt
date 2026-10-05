@@ -393,6 +393,7 @@ if(NP_BUILD_TESTS)
     )
     target_include_directories(np_gatt_server_tests PRIVATE
         include
+        ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}  # np_sw02_platform_hal.h (OI-AND-WIRE-02: the serial seam)
         ${CMAKE_CURRENT_SOURCE_DIR}/../cervical_vns/include
         ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
         $<TARGET_PROPERTY:np_littlefs,INTERFACE_INCLUDE_DIRECTORIES>
@@ -415,6 +416,7 @@ if(NP_BUILD_TESTS)
     )
     target_include_directories(np_consumables_tests PRIVATE
         include
+        ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}  # np_gatt_server.c includes np_sw02_platform_hal.h (OI-AND-WIRE-02)
         ${CMAKE_CURRENT_SOURCE_DIR}/../cervical_vns/include
         ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
         $<TARGET_PROPERTY:np_littlefs,INTERFACE_INCLUDE_DIRECTORIES>

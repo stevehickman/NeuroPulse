@@ -23,12 +23,17 @@ protocol ProtocolUploadGateway: AnyObject {
     /// True while someone other than the active user has an outstanding cardiac cutoff: a
     /// protocol containing cervical VNS then needs the "this is a different person" confirmation.
     var cervicalOutstandingForAnotherUser: Bool { get }
+
+    /// The hub's 32-byte replay-guard serial (NP-FW-HUB-001 §4.2) once read over the encrypted
+    /// link, else nil (OI-AND-WIRE-02). Stamped into every descriptor the uploader compiles.
+    var deviceSerial: Data? { get }
 }
 
 extension ProtocolUploadGateway {
     /// Gateways with no cervical fault source never block.
     var cervicalRestartBlocked: Bool { false }
     var cervicalOutstandingForAnotherUser: Bool { false }
+    var deviceSerial: Data? { nil }
 }
 
 // NeurOneGATTManager satisfies this protocol without any code changes —

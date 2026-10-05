@@ -264,7 +264,7 @@ export interface CompiledProtocol {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export interface CompileOptions {
-  /** 32-byte device serial (replay guard); omit for dev/test (zeros). */
+  /** 32-byte device serial (replay guard); omit for dev/test (zeros). See hubSerial.ts (OI-AND-WIRE-02). */
   deviceSerial?: Uint8Array;
   /**
    * The zone namespace — `NPNamespace.zones`, loaded from every .npps file in

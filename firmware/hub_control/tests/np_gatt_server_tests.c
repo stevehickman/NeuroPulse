@@ -15,6 +15,7 @@
 
 #include "../include/np_gatt_server.h"
 #include "../include/np_warranty_token.h"
+#include "../include/np_hub_config.h"
 #include "../include/np_cvns_fault_summary.h"
 #include "../include/np_cfg_store.h"
 #include "../include/np_session_log.h"
@@ -56,6 +57,19 @@ void np_gatt_hal_notify(uint16_t id, const uint8_t *data, size_t len)
     memcpy(g_ntf, data, len);
     g_ntf_len = len;
     g_notifies++;
+}
+
+/* Device serial (OI-AND-WIRE-02): the same seam np_protocol.c compares against. */
+static uint8_t         g_serial[NP_HUB_PROTO_SERIAL_LEN];
+static np_hub_status_t g_serial_rc;
+
+np_hub_status_t np_proto_hal_get_device_serial(uint8_t *buf, size_t len)
+{
+    if (g_serial_rc != NP_HUB_OK) {
+        return g_serial_rc;
+    }
+    memcpy(buf, g_serial, len < sizeof g_serial ? len : sizeof g_serial);
+    return NP_HUB_OK;
 }
 
 /* TRNG */
@@ -161,6 +175,7 @@ static void reset_world(void)
     g_trng_stuck = false;
     g_trng_rc = NP_HUB_OK;
     g_trng_draws = 0;
+    g_serial_rc = NP_HUB_OK;
     memset(g_cfg_rec, 0, sizeof(g_cfg_rec));
     g_cfg_written = false;
     g_cfg_read_rc = NP_HUB_OK;
@@ -216,6 +231,7 @@ static void test_uuids_match_the_apps(void)
         { NP_GATT_ID_CVNS_FAULT_STATUS,     "4E455550-0014-1000-8000-00805F9B34FB" },
         { NP_GATT_ID_CVNS_REENABLE_CONFIRM, "4E455550-0015-1000-8000-00805F9B34FB" },
         { NP_GATT_ID_ACTIVE_USER,           "4E455550-0016-1000-8000-00805F9B34FB" },
+        { NP_GATT_ID_DEVICE_SERIAL,         "4E455550-0017-1000-8000-00805F9B34FB" },
     };
     bool ok = true;
     for (size_t i = 0U; i < sizeof(k) / sizeof(k[0]); i++) {
@@ -235,7 +251,7 @@ static void test_table_is_what_the_hub_produces(void)
 {
     size_t n = 0U;
     const np_gatt_char_t *t = np_gatt_table(&n);
-    check(n == 5U, "table: five characteristics, each with a producer");
+    check(n == 6U, "table: six characteristics, each with a producer");
 
     bool coherent = true;
     bool pending_absent = true;
@@ -415,6 +431,42 @@ static void test_warranty_provisioning_failures_leave_nothing(void)
 
 /* ── Cervical fault summary characteristics ───────────────────────────────── */
 
+/* ── Device serial (OI-AND-WIRE-02) ───────────────────────────────────────── */
+
+static void test_device_serial(void)
+{
+    uint8_t buf[64];
+    size_t  len = 0U;
+    reset_world();
+    for (size_t i = 0U; i < sizeof g_serial; i++) {
+        g_serial[i] = (uint8_t)(0x40U + i);
+    }
+
+    check(np_gatt_on_read(NP_GATT_ID_DEVICE_SERIAL, 0U, buf, sizeof buf, &len) == NP_ATT_OK &&
+          len == NP_HUB_PROTO_SERIAL_LEN && memcmp(buf, g_serial, len) == 0,
+          "serial: the read serves the bytes the protocol check compares with");
+
+    size_t n = 0U;
+    const np_gatt_char_t *t = np_gatt_table(&n);
+    bool enc = false;
+    for (size_t i = 0U; i < n; i++) {
+        if (t[i].id == NP_GATT_ID_DEVICE_SERIAL) {
+            enc = (t[i].props & NP_GATT_PROP_ENC) != 0U &&
+                  (t[i].props & (NP_GATT_PROP_WRITE | NP_GATT_PROP_NOTIFY)) == 0U;
+        }
+    }
+    check(enc, "serial: read-only, and the stack must require an encrypted link");
+
+    check(np_gatt_on_write(NP_GATT_ID_DEVICE_SERIAL, buf, 32U) == NP_ATT_WRITE_NOT_PERMITTED,
+          "serial: cannot be written");
+
+    g_serial_rc = NP_HUB_ERR_INVALID_ARG;
+    memset(buf, 0xAA, sizeof buf);
+    check(np_gatt_on_read(NP_GATT_ID_DEVICE_SERIAL, 0U, buf, sizeof buf, &len) == NP_ATT_APP_UNAVAILABLE,
+          "serial: an unreadable serial is unavailable, never a zero serial");
+    g_serial_rc = NP_HUB_OK;
+}
+
 static void test_active_user_write(void)
 {
     const uint8_t tag[4] = { 0x04U, 0x03U, 0x02U, 0x01U };
@@ -484,6 +536,7 @@ int main(void)
     test_warranty_long_read();
     test_warranty_never_regenerates_over_an_unreadable_token();
     test_warranty_provisioning_failures_leave_nothing();
+    test_device_serial();
     test_active_user_write();
     test_reenable_confirm_write();
     test_fault_status_read_and_notify_agree();
