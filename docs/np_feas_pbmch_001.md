@@ -112,7 +112,7 @@ app/web/src/lib/hubCompiler.ts:539-560
 written into `cur_a` and `cur_b`.** `encodePBMIntranasal` (`:562-573`) does the same into `cur_660`
 and `cur_808`.
 
-The upstream cause is the type: `PBMTranscranialParams` (`app/web/src/types/protocol.ts:156-175`)
+The upstream cause is the type: `PBMTranscranialParams` (`common/types/protocol.ts:156-175`)
 carries a single `intensityPercent: number` and a `wavelength` enum with exactly three members —
 `'660_808nm' | '1064nm' | '660_808_1064nm'` — **none of which names one of the two base channels
 alone.**

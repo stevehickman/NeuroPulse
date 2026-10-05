@@ -28,8 +28,8 @@
  *
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-map2-shdr-boundary.ts --self-test
- * CI-Scans: every non-test source file under app/ and firmware/ for Map 2 and SHDR identifiers together, every SHDR source's identifiers, and every column of the SHDR fleet schema, for sync-boundary and per-window-delta names
- * CI-Scan-Paths: app/** firmware/** ci/shdr/shdr_fleet_schema.sql scripts/check-map2-shdr-boundary.ts
+ * CI-Scans: every non-test source file under app/, common/ and firmware/ for Map 2 and SHDR identifiers together, every SHDR source's identifiers, and every column of the SHDR fleet schema, for sync-boundary and per-window-delta names
+ * CI-Scan-Paths: app/** common/** firmware/** ci/shdr/shdr_fleet_schema.sql scripts/check-map2-shdr-boundary.ts
  *
  * ── What is checked ──────────────────────────────────────────────────────────
  *
@@ -102,7 +102,7 @@ import { readFileSync, readdirSync, statSync, mkdtempSync, mkdirSync, writeFileS
 import { join, resolve } from "path";
 import { tmpdir } from "os";
 
-const SCAN_ROOTS = ["app", "firmware"];
+const SCAN_ROOTS = ["app", "common", "firmware"];
 const SCHEMA = "ci/shdr/shdr_fleet_schema.sql";
 
 const SOURCE_EXT = /\.(c|h|ts|tsx|js|mjs|swift|kt|kts|cs)$/;
@@ -421,7 +421,7 @@ if (process.argv.includes("--self-test")) {
       "class ShdrUploader { fun upload() { val delta = 1; val msg = \"Map2 never\" } }\n",
     "firmware/shdr/src/np_shdr_accel.c":
       '#include "np_shdr_accel.h"\nstatic uint32_t s_gap_index;\nvoid f(void) { (void)lfs_file_sync; }\n',
-    "app/web/src/lib/helmetInventory.ts": "export const uid = 1; // SHDR-class component identifier\n",
+    "common/lib/helmetInventory.ts": "export const uid = 1; // SHDR-class component identifier\n",
   };
   const build = (patch: Record<string, string | null>): string => {
     const root = mkdtempSync(join(box, "t-"));

@@ -73,8 +73,8 @@ import {
   CervicalVnsParams,
   VibrotactileParams,
   NPZoneDefinition,
-} from '../types/protocol';
-import { isValidSocketId, NP_SOCKET_COUNT } from './socketMap.generated';
+} from '../../../../common/types/protocol';
+import { isValidSocketId, NP_SOCKET_COUNT } from '../../../../common/lib/socketMap.generated';
 import { NPHardwareLimits } from './hardwareLimits';
 import {
   PBM_FULL_SCALE_MW_CM2, INTRANASAL_FULL_SCALE_MW_CM2, irradianceToRegister, dbToVolumePercent,
@@ -86,7 +86,7 @@ import {
   retiredWavelengthMessage,
   type NPPBMChannelElement,
   type NPWavelengthRules,
-} from './wavelengthRules';
+} from '../../../../common/lib/wavelengthRules';
 
 // ─── Wire format constants (mirrors np_hub_config.h) ─────────────────────────
 

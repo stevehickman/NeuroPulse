@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { validateProtocol } from './protocolValidator';
-import { defaultParams } from '../types/protocol';
-import type { NPProtocolDefinition, NPModalityTypeId } from '../types/protocol';
-import type { NPLimitsSet } from '../types/limits';
+import { defaultParams } from '../../../../common/types/protocol';
+import type { NPProtocolDefinition, NPModalityTypeId } from '../../../../common/types/protocol';
+import type { NPLimitsSet } from '../../../../common/types/limits';
 
 // OI-CHARGE-05 (b) — per-PHASE charge density for the charge-balanced modalities.
 //

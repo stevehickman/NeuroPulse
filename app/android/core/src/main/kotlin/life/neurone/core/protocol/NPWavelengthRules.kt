@@ -1,6 +1,6 @@
 package life.neurone.core.protocol
 
-// Port of app/web/src/lib/wavelengthRules.ts (the reference), NP-NPPS-REF-001
+// Port of common/lib/wavelengthRules.ts (the reference), NP-NPPS-REF-001
 // Rev 17 §4.1a and §7a.
 //
 // A protocol states the wavelength its source used (`wavelength: "810nm"`).

@@ -37,6 +37,8 @@ jobs:
       # ci-changed-scope.sh, so the reasoning lives next to the entries.
       NP_SCOPE_PATHS: |
         app/web/**
+        # common/ holds the sources the web app shares with the simulator bundle.
+        common/**
         locales/**
         npps/fixtures/**
         protocols/predefined/**
@@ -178,7 +180,7 @@ jobs:
       # script also refuses to emit a bundle containing any protocol content —
       # NP-NPPS-REF-001 §1.6 bans a build-time cache of the library, and this is
       # where that ban is mechanically enforced rather than merely documented.
-      # FIRST of the steps that read app/web/src — src/generated/locales/*.json is
+      # FIRST of the steps that read app/web/src or common/ — common/generated/locales/*.json is
       # a build output, not a committed file (CLAUDE.md §17), so a fresh checkout
       # does not have it and anything resolving i18n.ts's imports fails.
       #

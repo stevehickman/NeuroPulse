@@ -6,7 +6,7 @@
  * copy of any user-facing string that is committed to the repository.
  * Build outputs (all three are generated at build time and git-ignored):
  *   - Apple:   app/NeurOneShared/Resources/Localizable.xcstrings (String Catalog)
- *   - Web:     app/web/src/generated/locales/*.json (copy)
+ *   - Web:     common/generated/locales/*.json (copy; the web app and the simulator bundle both import it)
  *   - Android: <buildDir>/generated/res/locales/values-<qualifier>/strings.xml
  *
  * Pass --verify-untracked to assert that no output is committed (CI).
@@ -100,7 +100,7 @@ const XCSTRINGS_OUT = join(ROOT, "app", "NeurOneShared", "Resources", "Localizab
  * name one directory instead of a glob inside a source folder, and makes the
  * import site say where the file came from.
  */
-const WEB_LOCALES_OUT = join(ROOT, "app", "web", "src", "generated", "locales");
+const WEB_LOCALES_OUT = join(ROOT, "common", "generated", "locales");
 
 /**
  * Android needs no source-tree output at all: a generated res directory is a
@@ -458,7 +458,8 @@ function generateAndroidXml(
  */
 const GENERATED_PATHSPECS = [
   "app/NeurOneShared/Resources/Localizable.xcstrings",
-  "app/web/src/generated/",
+  "common/generated/",
+  "app/web/src/generated/", // pre-common/ location
   "app/android/app/build/",
   // Legacy output locations — retired 2026-09-08, still forbidden.
   "app/web/src/locales/*.json",

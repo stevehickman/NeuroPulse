@@ -4,11 +4,11 @@ import {
   NPCompositeLayer,
   NPProtocolEntry,
   entryIsPredefined,
-} from '../types/protocol';
+} from '../../../../common/types/protocol';
 import { protocolLibrary } from '../lib/protocolLibrary';
 import { serializeNPPS } from '../lib/nppsSerializer';
 import { ScriptEditor } from './ScriptEditor';
-import { t, tPlural } from '../lib/i18n';
+import { t, tPlural } from '../../../../common/lib/i18n';
 
 interface ProtocolComposerProps {
   existing?: NPCompositeProtocol;

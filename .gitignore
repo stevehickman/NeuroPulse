@@ -50,7 +50,7 @@ package-lock.json
 # `bun scripts/sync-locales.ts --verify-untracked` fails CI if one comes back.
 # (Android's output lands under app/android/app/build/, already ignored above.)
 app/NeurOneShared/Resources/Localizable.xcstrings
-app/web/src/generated/
+common/generated/
 
 # ── Xcode ─────────────────────────────────────────────────────────────────────
 app/ios/build/

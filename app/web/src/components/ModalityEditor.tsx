@@ -20,8 +20,8 @@ import {
   HDTdcsParams,
   CervicalVnsParams,
   VibrotactileParams,
-} from '../types/protocol';
-import { t } from '../lib/i18n';
+} from '../../../../common/types/protocol';
+import { t } from '../../../../common/lib/i18n';
 import { NPHardwareLimits } from '../lib/hardwareLimits';
 
 // ─── Interval Controls ─────────────────────────────────────────────────────────

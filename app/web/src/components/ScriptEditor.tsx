@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { t, tPlural } from '../lib/i18n';
+import { t, tPlural } from '../../../../common/lib/i18n';
 
 interface ScriptEditorProps {
   value: string;

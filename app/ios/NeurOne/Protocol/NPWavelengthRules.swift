@@ -1,6 +1,6 @@
 import Foundation
 
-// Swift port of app/web/src/lib/wavelengthRules.ts (the reference),
+// Swift port of common/lib/wavelengthRules.ts (the reference),
 // NP-NPPS-REF-001 Rev 17 §4.1a and §7a.
 //
 // A protocol states the wavelength its source used ("810nm"). These rules say

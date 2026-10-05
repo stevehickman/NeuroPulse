@@ -11,7 +11,7 @@ import { join } from "path";
  * would pass just as happily against a stale copy left behind by an older
  * build. locales/*.json is the file a person edits, so it is the file to test.
  */
-const LOCALES_DIR = join(__dirname, "..", "..", "..", "..", "locales");
+const LOCALES_DIR = join(__dirname, "..", "..", "locales");
 
 describe("i18n locale files", () => {
   it("all locale JSON files parse without error", () => {

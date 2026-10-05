@@ -10,11 +10,11 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { NPSimulatedInventoryProvider, type NPInventoryPreset } from './helmetInventory';
+import { NPSimulatedInventoryProvider, type NPInventoryPreset } from '../../../../common/lib/helmetInventory';
 import { evaluateProtocol } from './protocolEligibility';
-import { DEFAULT_WAVELENGTH_RULES, resolveWavelengthRules } from './wavelengthRules';
-import { parseNPPS, parseNPPSFile, buildNamespace } from './nppsParser';
-import type { NPProtocolDefinition } from '../types/protocol';
+import { DEFAULT_WAVELENGTH_RULES, resolveWavelengthRules } from '../../../../common/lib/wavelengthRules';
+import { parseNPPS, parseNPPSFile, buildNamespace } from '../../../../common/lib/nppsParser';
+import type { NPProtocolDefinition } from '../../../../common/types/protocol';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 const zones = buildNamespace([

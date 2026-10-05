@@ -100,6 +100,7 @@ jobs:
         scripts/ci-changed-scope.sh
       NP_SCOPE_JS: |
         app/web/**
+        common/**
         npps/**
         scripts/**
         simulator/**
@@ -176,6 +177,7 @@ jobs:
           assert scope.java.paths    false locales/en.json
           assert scope.js.paths      true  app/web/src/main.ts
           assert scope.js.paths      true  npps/grammar/npps-parser.mjs
+          assert scope.js.paths      true  common/lib/nppsParser.ts
           assert scope.js.paths      false firmware/safety_mcu/src/np_safety_main.c
           assert scope.python.paths  true  ci/test_shdr_schema.py
           assert scope.python.paths  true  editscripts/fix_risk_table.py

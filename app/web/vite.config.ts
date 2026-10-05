@@ -133,8 +133,12 @@ function canonicalLocales(): Plugin {
 
 export default defineConfig({
   plugins: [react(), canonicalLocales(), canonicalProtocols()],
+  // The sources the simulator bundle shares with this app live in <repo>/common/,
+  // outside this project root, so the dev server must be allowed to serve them.
+  server: { fs: { allow: [REPO_ROOT] } },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    // common/ tests run here: it has no package.json or node_modules of its own.
+    include: ['src/**/*.test.ts', '../../common/**/*.test.ts'],
   },
 });

@@ -1,4 +1,4 @@
-import type { NPWavelengthRules } from './wavelengthRules';
+import type { NPWavelengthRules } from '../../../../common/lib/wavelengthRules';
 import {
   NPProtocolEntry,
   NPProtocolDefinition,
@@ -12,9 +12,9 @@ import {
   NPConditionDefinition,
   referenceUrl,
   referenceLabel,
-} from '../types/protocol';
-import { describeInvalid, socketRangeLabel, toSocketSet } from './socketSet';
-import { NPLimitsSet } from '../types/limits';
+} from '../../../../common/types/protocol';
+import { describeInvalid, socketRangeLabel, toSocketSet } from '../../../../common/lib/socketSet';
+import { NPLimitsSet } from '../../../../common/types/limits';
 
 const INDENT = '    ';
 

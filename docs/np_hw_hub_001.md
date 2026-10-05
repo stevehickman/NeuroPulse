@@ -405,7 +405,7 @@ decode free. **This is rejected.**
 
 Socket numbering is anatomical and load-bearing downstream: the row-major lattice order in
 `NP-HEX-ZM-001` §3.2, the zone definitions in `protocols/predefined/00-zones.npps`, the generated
-`app/web/src/lib/socketMap.generated.ts`, and the REG-1 10-20 registration all depend on socket ids
+`common/lib/socketMap.generated.ts`, and the REG-1 10-20 registration all depend on socket ids
 meaning positions. Cluster boundaries, by contrast, follow inner-bowl FPC routing and curvature
 (and ideally the mechanical clusters of `NP-HEX-ZM-001` §5.4a, still open as MECH-2). Forcing
 anatomical numbering to follow wiring convenience would contort a clinical addressing scheme for a

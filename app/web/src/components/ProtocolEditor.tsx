@@ -5,12 +5,12 @@ import {
   NPProtocolModality,
   NPModalityTypeId,
   defaultParams,
-} from '../types/protocol';
-import { parseNPPS, NPPSParseError } from '../lib/nppsParser';
+} from '../../../../common/types/protocol';
+import { parseNPPS, NPPSParseError } from '../../../../common/lib/nppsParser';
 import { serializeNPPS } from '../lib/nppsSerializer';
 import { ModalityEditorBlock, ModalityPicker } from './ModalityEditor';
 import { ScriptEditor } from './ScriptEditor';
-import { t } from '../lib/i18n';
+import { t } from '../../../../common/lib/i18n';
 
 interface ProtocolEditorProps {
   existing?: NPProtocolEntry;

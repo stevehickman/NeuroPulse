@@ -227,7 +227,7 @@ bench.
 
 ### Socket addressing contract (app + protocol surface)
 - [x] ISC-74: `.npps` zone parsing enforces the documented numbering base - a `sockets:` entry outside `[NP_SOCKET_ID_MIN, NP_SOCKET_ID_MAX]`, or non-integer, is a parse error naming the id and the valid range. Covered by `npps-zones-conditions.test.ts` (0, negative, fractional, past-end, both range ends).
-- [x] ISC-75: Zone membership and zone unions are deduplicated everywhere app-side through one shared implementation (`app/web/src/lib/socketSet.ts`), reused by the parser, eligibility engine, inventory guard and config UI - no call site open-codes validation, dedup or union.
+- [x] ISC-75: Zone membership and zone unions are deduplicated everywhere app-side through one shared implementation (`common/lib/socketSet.ts`), reused by the parser, eligibility engine, inventory guard and config UI - no call site open-codes validation, dedup or union.
 - [x] ISC-76: Anti: no doc, zone file, app module, test or UI string carries an independent socket-count or id-bound literal; all read the generated constants.
 - [x] ISC-77: Every zone's socket membership is derived, not authored: the eight lobe zones from skull geography (central sulcus 50%, parieto-occipital 80%, temporal lateral 38-78%), the four aggregates as deduped unions of lobe zones, and "Motor / SMA" from the stated requirement of the only protocol that references it. `sync-socket-map.ts` diffs all thirteen against the lattice and additionally asserts "All" covers every socket.
 - [x] ISC-78: The serializer enforces the parser's contract — `serializeZone` canonicalises and rejects out-of-lattice ids, so the app cannot emit a `.npps` file it would refuse to read back.
@@ -369,7 +369,7 @@ bench.
   ids past the end of the lattice all parsed cleanly and then addressed nothing
   - or, worse, reached firmware where the major address is 7 bits. See ISC-74.
 - 2026-07-20 — **Zone membership and zone unions are sets, enforced by shared
-  code.** `app/web/src/lib/socketSet.ts` is the single implementation of
+  code.** `common/lib/socketSet.ts` is the single implementation of
   socket-id validation, canonicalisation (dedup + sort) and union; `nppsParser`,
   `protocolEligibility` (`zoneCoverageFor`, `coverageForSockets`,
   `targetSocketsFor`, shortfall aggregation), `helmetInventory` and the

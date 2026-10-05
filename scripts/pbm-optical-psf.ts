@@ -42,7 +42,7 @@
 
 import { readFileSync } from "fs";
 import { join } from "path";
-import { NP_SOCKETS } from "../app/web/src/lib/socketMap.generated.ts";
+import { NP_SOCKETS } from "../common/lib/socketMap.generated.ts";
 
 // ─── Tissue model ──────────────────────────────────────────────────────────────
 

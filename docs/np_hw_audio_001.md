@@ -322,7 +322,7 @@ This strengthens the case for having a microphone (A or B). It is no argument fo
 
 Feedback ANC does its work at low frequency, and that is where the shipped content lives: **every
 predefined protocol that sets a carrier sets `carrier_hz: 440Hz`** (`protocols/predefined/*.npps`),
-and the app's default is 200 Hz (`app/web/src/types/protocol.ts`). The feedback microphone hears the
+and the app's default is 200 Hz (`common/types/protocol.ts`). The feedback microphone hears the
 playback as well as the ambient noise, and a feedback loop cancels whatever it hears unless the
 playback is subtracted from its error signal first (playback compensation). That subtraction is
 only as accurate as the loop's model of the driver-to-mic path — **the same seal-dependent path**

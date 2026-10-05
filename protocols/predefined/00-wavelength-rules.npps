@@ -21,7 +21,7 @@
 # on the 808 nm channel. 850 nm, 633 nm and 640 nm are unsupported. 1060 and
 # 1070 nm deliver on the 1064 nm channel; 1080 nm is unsupported.
 #
-# app/web/src/lib/wavelengthRules.ts carries the same values as
+# common/lib/wavelengthRules.ts carries the same values as
 # DEFAULT_WAVELENGTH_RULES; wavelengthRules.test.ts fails if the two differ.
 
 wavelength_rules "NeurOne default wavelength mapping" {

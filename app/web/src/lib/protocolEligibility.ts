@@ -19,7 +19,7 @@ import type {
   NPProtocolModality,
   NPModalityTypeId,
   NPZoneDefinition,
-} from '../types/protocol';
+} from '../../../../common/types/protocol';
 import {
   MODULE_TYPES,
   ELEMENT_TYPE_LABEL,
@@ -27,14 +27,14 @@ import {
   type NPElementType,
   type NPHelmetInventory,
   type NPModuleType,
-} from './helmetInventory';
-import { toSocketSet, unionSockets, unionZoneSockets } from './socketSet';
-import { t, tPlural } from './i18n';
+} from '../../../../common/lib/helmetInventory';
+import { toSocketSet, unionSockets, unionZoneSockets } from '../../../../common/lib/socketSet';
+import { t, tPlural } from '../../../../common/lib/i18n';
 import {
   DEFAULT_WAVELENGTH_RULES,
   resolvePbmChannels,
   type NPWavelengthRules,
-} from './wavelengthRules';
+} from '../../../../common/lib/wavelengthRules';
 
 // ─── Modality requirements ─────────────────────────────────────────────────────
 

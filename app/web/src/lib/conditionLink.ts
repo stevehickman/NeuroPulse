@@ -15,8 +15,8 @@
 // built on top of that divergence would be a different policy on each platform.
 // The scan below is the same five steps in all four languages.
 
-import type { NPConditionDefinition } from '../types/protocol';
-import { t } from './i18n';
+import type { NPConditionDefinition } from '../../../../common/types/protocol';
+import { t } from '../../../../common/lib/i18n';
 
 export type NPLinkReason =
   | 'ok'

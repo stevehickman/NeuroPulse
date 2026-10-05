@@ -17,9 +17,9 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { groupByZone } from './SocketPicker';
-import { parseNPPSFile, buildNamespace } from '../lib/nppsParser';
-import { NP_SOCKETS } from '../lib/socketMap.generated';
-import type { NPZoneDefinition } from '../types/protocol';
+import { parseNPPSFile, buildNamespace } from '../../../../common/lib/nppsParser';
+import { NP_SOCKETS } from '../../../../common/lib/socketMap.generated';
+import type { NPZoneDefinition } from '../../../../common/types/protocol';
 
 const __repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 

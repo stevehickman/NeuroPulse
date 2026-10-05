@@ -3,8 +3,8 @@ import {
   NPIndividualProfile,
   resolveLimits,
   UNLIMITED_LIMITS,
-} from '../types/limits';
-import { parseNPPSLimits } from './nppsParser';
+} from '../../../../common/types/limits';
+import { parseNPPSLimits } from '../../../../common/lib/nppsParser';
 import { serializeNPPSLimits } from './nppsSerializer';
 
 // ─── Storage keys ──────────────────────────────────────────────────────────────
