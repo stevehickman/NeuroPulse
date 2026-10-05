@@ -35,10 +35,10 @@ extension NPSessionProtocol {
                 modalities.append(.pbmTranscranial(PBMTranscranialConfig(
                     socketMask: try p.resolveSocketMask(clinicianSockets: clinicianSockets),
                     wavelength: p.wavelength.rawValue,
+                    irradianceMWcm2: p.irradianceMWcm2,
                     frequencyHz: p.frequencyHz,
                     dutyCyclePercent: p.dutyCyclePercent,
                     durationSeconds: durationSeconds,
-                    irradianceMWcm2: p.irradianceMWcm2,
                     // J/cm²: irradiance × duty × time (CW is full duty).
                     targetDoseJoules: p.irradianceMWcm2
                         * (p.frequencyHz == 0 ? 1.0 : Double(p.dutyCyclePercent) / 100.0)
