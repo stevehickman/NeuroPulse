@@ -30,6 +30,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The compiler and its types are internal; the test project reads them directly. -->
+    <InternalsVisibleTo Include="NeurOne.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Ed25519 signing — wraps libsodium, matches CryptoKit Curve25519.Signing on iOS -->
     <PackageReference Include="NSec.Cryptography" Version="24.10.0" />
     <!-- DPAPI key protection (Windows-only, user-scope) -->
