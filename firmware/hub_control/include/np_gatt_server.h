@@ -56,11 +56,18 @@
 #define NP_GATT_ID_CVNS_FAULT_STATUS      0x0014u  /* READ/NOTIFY 4+8n — FAULTMSG */
 #define NP_GATT_ID_CVNS_REENABLE_CONFIRM  0x0015u  /* WRITE 1 B                   */
 #define NP_GATT_ID_ACTIVE_USER            0x0016u  /* WRITE 4 B                   */
+#define NP_GATT_ID_DEVICE_SERIAL          0x0017u  /* READ 32 B — OI-AND-WIRE-02  */
 
 /* ── Properties ──────────────────────────────────────────────────────────────── */
 #define NP_GATT_PROP_READ     0x01u
 #define NP_GATT_PROP_WRITE    0x02u   /* write with response */
 #define NP_GATT_PROP_NOTIFY   0x04u
+/* The stack must refuse access on a link that is not encrypted (ATT 0x0F,
+ * Insufficient Encryption).  Set on DEVICE_SERIAL: a stable hardware serial
+ * readable by any central in range is a tracking identifier.  Enforced by the
+ * platform seam (np_gatt_hal_register); a modifier, not an access mode, so it
+ * is only meaningful with READ or WRITE. */
+#define NP_GATT_PROP_ENC      0x08u
 
 /* Largest value any characteristic here carries (CVNS_FAULT_STATUS, 36 B). */
 #define NP_GATT_VALUE_MAX     36u

@@ -35,8 +35,9 @@ class ProtocolUploader(
     }
 
     /**
-     * @param deviceSerial the 32-byte replay guard the hub checks (§4.2); null only on the bench,
-     *   where a hub with a provisioned serial refuses the descriptor (OI-AND-WIRE-02).
+     * @param deviceSerial the 32-byte replay guard the hub checks (§4.2). Omitted, it is the one
+     *   read from the hub's DEVICE_SERIAL characteristic; null on both is bench-only, where a hub
+     *   with a provisioned serial refuses the descriptor (OI-AND-WIRE-02).
      * @param clinicianSockets operator-chosen 1-based sockets for `clinician_selected` PBM targets.
      */
     fun upload(
@@ -49,7 +50,7 @@ class ProtocolUploader(
         }
         checkCervicalGate(definition)?.let { return it }
         return try {
-            val blob = compiler.compile(definition, deviceSerial, clinicianSockets)
+            val blob = compiler.compile(definition, deviceSerial ?: gatt.deviceSerial, clinicianSockets)
             ProtocolChunker.chunk(blob.blob).forEach { gatt.writeProtocolChunk(it) }
             Result.Success
         } catch (e: Exception) {

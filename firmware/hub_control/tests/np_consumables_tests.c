@@ -38,6 +38,13 @@ static uint8_t  g_ntf[16];
 static size_t   g_ntf_len;
 static int      g_notifies;
 
+/* DEVICE_SERIAL (OI-AND-WIRE-02) is in the table this test links; nothing here reads it. */
+np_hub_status_t np_proto_hal_get_device_serial(uint8_t *buf, size_t len)
+{
+    memset(buf, 0, len);
+    return NP_HUB_OK;
+}
+
 np_hub_status_t np_gatt_hal_register(const np_gatt_char_t *table, size_t count)
 {
     (void)table;

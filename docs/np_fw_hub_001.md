@@ -697,6 +697,15 @@ session's records), the 32-byte device serial, `compiled_at_unix`, and `cmd_coun
 by every other (`NP_HUB_ERR_WRONG_DEVICE`). Without it, a validly-signed protocol captured from one
 headset would run on any headset.
 
+**How the app learns it (`OI-AND-WIRE-02`).** The hub publishes it as the `DEVICE_SERIAL` GATT
+characteristic (`0x0017`, READ, 32 B), served from `np_proto_hal_get_device_serial()`, the same
+seam `np_protocol_verify_and_parse()` compares against, so the value read is the value checked. The
+row carries `NP_GATT_PROP_ENC`, which the platform must enforce: a stable hardware serial readable by
+any central in range would be a tracking identifier, and the replay guard needs no secrecy from the
+paired phone, only from passers-by. The app keeps it in memory for the link and never persists,
+uploads or displays it. A hub whose HAL cannot produce it answers `NP_ATT_APP_UNAVAILABLE`, never a
+zero serial.
+
 ### 4.3 The target block
 
 `target_kind` (`np_proto_target_kind_t`) selects how the variable-length target block is read.

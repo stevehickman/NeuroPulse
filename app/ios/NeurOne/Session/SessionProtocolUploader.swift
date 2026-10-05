@@ -64,9 +64,9 @@ final class SessionProtocolUploader: ObservableObject {
     // Validates the definition against hardware safety limits, compiles it to
     // the §4 descriptor, signs, and uploads.
     //
-    // `deviceSerial` is the 32-byte replay guard the hub checks (§4.2). No platform has a source
-    // for it yet (OI-AND-WIRE-02), so a nil serial is bench-only: a hub with a provisioned
-    // serial refuses the descriptor. `clinicianSockets` is the operator's choice for
+    // `deviceSerial` is the 32-byte replay guard the hub checks (§4.2). Omitted, it is the one the
+    // gateway read from the hub's DEVICE_SERIAL characteristic (OI-AND-WIRE-02); nil on both is
+    // bench-only, since a hub with a provisioned serial refuses the descriptor. `clinicianSockets` is the operator's choice for
     // `clinician_selected` PBM targets.
     func upload(_ definition: NPProtocolDefinition,
                 deviceSerial: Data? = nil,
@@ -210,7 +210,7 @@ final class SessionProtocolUploader: ObservableObject {
         // signed blob. A signing failure is its own case.
         let unsigned: HubDescriptor
         do {
-            unsigned = try HubDescriptorCompiler.build(definition, deviceSerial: deviceSerial,
+            unsigned = try HubDescriptorCompiler.build(definition, deviceSerial: deviceSerial ?? gatt.deviceSerial,
                                                        clinicianSockets: clinicianSockets,
                                                        autonomous: autonomous)
         } catch {

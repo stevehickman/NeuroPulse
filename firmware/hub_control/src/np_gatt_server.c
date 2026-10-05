@@ -12,6 +12,8 @@
 
 #include "np_consumables.h"
 #include "np_cvns_fault_summary.h"
+#include "np_hub_config.h"
+#include "np_sw02_platform_hal.h"
 #include "np_warranty_token.h"
 
 /* 4E455550-0000-1000-8000-00805F9B34FB, least-significant byte first; the id
@@ -35,6 +37,22 @@ static np_hub_status_t read_warranty_token(uint8_t *buf, size_t cap, size_t *len
     return st;
 }
 
+/* The replay-guard serial the hub checks descriptors against (np_protocol.c,
+ * NP-FW-HUB-001 §4.2), so an app can stamp it into the descriptor header
+ * (OI-AND-WIRE-02).  Same source, same bytes: the value read here is by
+ * construction the value np_protocol_verify_and_parse() compares with. */
+static np_hub_status_t read_device_serial(uint8_t *buf, size_t cap, size_t *len_out)
+{
+    if (cap < NP_HUB_PROTO_SERIAL_LEN) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    np_hub_status_t st = np_proto_hal_get_device_serial(buf, NP_HUB_PROTO_SERIAL_LEN);
+    if (st == NP_HUB_OK) {
+        *len_out = NP_HUB_PROTO_SERIAL_LEN;
+    }
+    return st;
+}
+
 /* ── The table ───────────────────────────────────────────────────────────────
  * One row per characteristic the hub answers.  Add a row only with its
  * producer (np_gatt_server.h, "only what the hub produces"). */
@@ -46,6 +64,9 @@ static const np_gatt_char_t k_table[] = {
 
     { NP_GATT_ID_WARRANTY_TOKEN, NP_GATT_PROP_READ,
       (uint8_t)NP_WARRANTY_TOKEN_LEN, 0u, read_warranty_token, NULL },
+
+    { NP_GATT_ID_DEVICE_SERIAL, NP_GATT_PROP_READ | NP_GATT_PROP_ENC,
+      (uint8_t)NP_HUB_PROTO_SERIAL_LEN, 0u, read_device_serial, NULL },
 
     { NP_GATT_ID_CVNS_FAULT_STATUS, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
       (uint8_t)NP_CVFS_FRAME_MAX, 0u, np_cvfs_read, NULL },
@@ -63,6 +84,8 @@ _Static_assert(NP_CVFS_FRAME_MAX <= NP_GATT_VALUE_MAX,
                "NP_GATT_VALUE_MAX must hold the CVNS_FAULT_STATUS frame");
 _Static_assert(NP_WARRANTY_TOKEN_LEN <= NP_GATT_VALUE_MAX,
                "NP_GATT_VALUE_MAX must hold the warranty token");
+_Static_assert(NP_HUB_PROTO_SERIAL_LEN <= NP_GATT_VALUE_MAX,
+               "NP_GATT_VALUE_MAX must hold the device serial");
 
 static const np_gatt_char_t *find(uint16_t id)
 {

@@ -151,6 +151,20 @@ public class HubDescriptorCompilerTests
     }
 
     [Fact]
+    public void HubSerialIsThirtyTwoBytesOrNothing()
+    {
+        var v = Enumerable.Range(0x40, 32).Select(i => (byte)i).ToArray();
+        var s = HubSerial.Parse(v)!;
+        Assert.Equal(v, s);
+        v[0] = 0;
+        Assert.Equal(0x40, s[0]);
+        Assert.Null(HubSerial.Parse(new byte[31]));
+        Assert.Null(HubSerial.Parse(new byte[33]));
+        Assert.Null(HubSerial.Parse(null));
+        Assert.Equal(new Guid("4E455550-0017-1000-8000-00805F9B34FB"), HubSerial.CharacteristicUuid);
+    }
+
+    [Fact]
     public void HeaderMagicAndAutonomousFlag()
     {
         var plain = Build(Def(600, Pbm("808nm", 100))).Blob;
