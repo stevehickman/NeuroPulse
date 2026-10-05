@@ -18,11 +18,10 @@ import {
   resolveWavelengthRules,
   validateWavelengthRules,
   type NPWavelengthRules,
-} from '../../../../common/lib/wavelengthRules';
-import { parseNPPS, parseNPPSFile, NPPSParseError } from '../../../../common/lib/nppsParser';
-import { serializeNPPS, serializeWavelengthRules } from './nppsSerializer';
+} from './wavelengthRules';
+import { parseNPPSFile, NPPSParseError } from './nppsParser';
 
-const DEFAULTS_FILE = path.resolve(__dirname, '../../../../protocols/predefined/00-wavelength-rules.npps');
+const DEFAULTS_FILE = path.resolve(__dirname, '../../protocols/predefined/00-wavelength-rules.npps');
 
 describe('parsePbmWavelength', () => {
   it('retires the combined channel names and names their replacements', () => {
@@ -152,15 +151,6 @@ describe('the wavelength_rules block', () => {
     expect(fromFile).toEqual(DEFAULT_WAVELENGTH_RULES);
   });
 
-  it('round-trips through the serializer', () => {
-    const r: NPWavelengthRules = {
-      name: 'Lab A', level: 'user', description: 'looser red',
-      channels: [{ element: 'led_660', nominalNm: 660, minNm: 630, maxNm: 680 }],
-    };
-    const back = parseNPPSFile(serializeWavelengthRules(r)).wavelengthRules[0];
-    expect(back).toEqual(r);
-  });
-
   const reject = (body: string, why: RegExp) => {
     expect(() => parseNPPSFile(`wavelength_rules "x" {\n${body}\n}`)).toThrow(why);
   };
@@ -174,41 +164,5 @@ describe('the wavelength_rules block', () => {
       return;
     }
     throw new Error('expected a parse error');
-  });
-});
-
-describe('the modality `start` field', () => {
-  const src = (start: string) => `protocol "Series" {
-    duration: 8m
-    pbm_transcranial {
-        wavelength: "810nm"
-        irradiance: 250mW_cm2
-        frequency: 0Hz
-        duty_cycle: 100%
-        zones: ["Frontal Right"]
-        ${start}
-        interval_on: 4m
-        interval_off: 0s
-        repeat: 1
-    }
-}`;
-
-  it('parses to startOffsetSeconds and round-trips', () => {
-    const [entry] = parseNPPS(src('start: 4m'));
-    if (entry.kind !== 'single') throw new Error('expected a protocol');
-    expect(entry.protocol.modalities[0].interval.startOffsetSeconds).toBe(240);
-    const [again] = parseNPPS(serializeNPPS([entry]));
-    if (again.kind !== 'single') throw new Error('expected a protocol');
-    expect(again.protocol.modalities[0].interval.startOffsetSeconds).toBe(240);
-    expect(again.protocol.modalities[0].modalityParams).toEqual(entry.protocol.modalities[0].modalityParams);
-  });
-
-  it('is absent when omitted or zero, so existing protocols serialize unchanged', () => {
-    for (const s of ['', 'start: 0s']) {
-      const [entry] = parseNPPS(src(s));
-      if (entry.kind !== 'single') throw new Error('expected a protocol');
-      expect(entry.protocol.modalities[0].interval.startOffsetSeconds).toBeUndefined();
-      expect(serializeNPPS([entry])).not.toMatch(/start:/);
-    }
   });
 });

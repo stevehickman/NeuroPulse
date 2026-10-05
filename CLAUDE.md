@@ -477,6 +477,9 @@ script reading a file does not make that file shared.
 - **Generated shared files are written into `common/`.** `bun scripts/sync-locales.ts` writes
   `common/generated/locales/` (git-ignored) and `bun scripts/sync-socket-map.ts` writes
   `common/lib/socketMap.generated.ts`. A generator never writes a shared file into one app's tree.
+- **Tests of `common/` code live in `common/`**, beside the file (`common/lib/x.test.ts`), and run under the
+  web app's vitest (`app/web/vite.config.ts` includes `../../common`). A test that needs an app's code
+  (the web serializer, for example) is not a test of `common/`; it stays with the app.
 - **`common/` is the lowest layer.** It imports nothing outside `common/` (packages aside), so it may
   not depend on an app. If it needs one, the shared piece was cut in the wrong place.
 - **Nothing non-app reaches into `app/`.** An import, `require` or `#include` under `simulator/` or

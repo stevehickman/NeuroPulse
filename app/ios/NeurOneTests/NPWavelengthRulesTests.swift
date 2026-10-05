@@ -2,7 +2,7 @@ import XCTest
 @testable import NeurOne
 
 /// NP-NPPS-REF-001 Rev 17 §4.1a / §7a on iOS. Mirrors the web reference tests
-/// (app/web/src/lib/wavelengthRules.test.ts) for the cases this runtime acts on:
+/// (common/lib/wavelengthRules.test.ts) for the cases this runtime acts on:
 /// the defaults, the refusal of an unmapped or invalid wavelength, that a script's
 /// wavelength is carried exactly as written, and that `start` round-trips.
 final class NPWavelengthRulesTests: XCTestCase {

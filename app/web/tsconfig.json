@@ -14,8 +14,9 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "paths": { "vitest": ["./node_modules/vitest"] }
   },
-  "include": ["src"],
+  "include": ["src", "../../common"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

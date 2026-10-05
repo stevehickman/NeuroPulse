@@ -12,7 +12,7 @@ import kotlin.test.assertTrue
 
 /**
  * NP-NPPS-REF-001 Rev 17 §4.1a / §7a on Android. Mirrors the web reference tests
- * (app/web/src/lib/wavelengthRules.test.ts) for the cases this runtime acts on.
+ * (common/lib/wavelengthRules.test.ts) for the cases this runtime acts on.
  */
 class NPWavelengthRulesTests {
 
