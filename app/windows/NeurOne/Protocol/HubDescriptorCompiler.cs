@@ -5,7 +5,7 @@
 // is a port of that compiler (and of Android's HubDescriptorCompiler.kt and iOS's
 // HubDescriptorCompiler.swift). Where this and §4 disagree, §4 is right and this file is wrong
 // (REQ-FWHUB-08). NeurOne.Tests/HubDescriptorCompilerTests.cs diffs this compiler's output against
-// app/android/core/src/test/resources/hub-descriptor-golden.json, the web compiler's own bytes.
+// app/NeurOneShared/TestData/hub-descriptor-golden.json, the web compiler's own bytes.
 //
 // The hub has no JSON parser. The `NPPR` JSON blob this app used to send was a format no hub
 // could read.

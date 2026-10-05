@@ -6,7 +6,7 @@ options:
   # ordering app/ios/project.yml enforces, for the same reason.
   #
   # The watch bundles the one generated String Catalog,
-  # app/ios/NeurOne/Localizable.xcstrings (see the NeurOneWatch sources below).
+  # app/NeurOneShared/Resources/Localizable.xcstrings (see the NeurOneWatch sources below).
   # It is git-ignored (CLAUDE.md §17), so on a fresh checkout it does not exist
   # until scripts/sync-locales.ts writes it.
   #
@@ -24,7 +24,7 @@ options:
     set -eu
     export PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
     if ! command -v bun >/dev/null 2>&1; then
-      echo "error: bun not found. The watch bundles app/ios/NeurOne/Localizable.xcstrings, generated from locales/*.json;" >&2
+      echo "error: bun not found. The watch bundles app/NeurOneShared/Resources/Localizable.xcstrings, generated from locales/*.json;" >&2
       echo "note: install bun (https://bun.sh), then re-run xcodegen generate." >&2
       exit 1
     fi
@@ -76,7 +76,7 @@ targets:
       # against. Without it in Copy Bundle Resources the watch renders raw keys
       # and the build is still green.
       #
-      # This references the iOS output rather than having sync-locales.ts emit a
+      # This references the shared output (app/NeurOneShared/Resources) rather than having sync-locales.ts emit a
       # watch copy. Canonical has no notion of a per-app key subset, so a watch
       # copy would be the same file byte for byte: a second git-ignored output
       # for --verify-untracked to police, for no reduction in bundle weight.
@@ -85,7 +85,7 @@ targets:
       # the file is missing, instead of silently creating no file reference —
       # the failure app/ios/project.yml's comment describes. The preGenCommand
       # above makes it present; this makes its absence loud.
-      - path: ../ios/NeurOne/Localizable.xcstrings
+      - path: ../NeurOneShared/Resources/Localizable.xcstrings
         buildPhase: resources
 
     settings:

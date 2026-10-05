@@ -447,10 +447,29 @@ reasoning stays in the owning open item (OI), so a row points at it and never re
 - **The gate is partial.** `scripts/check-unjustified-register.ts` fails a marked value the register
   does not name. It cannot see an unmarked one. Marking it, or adding the row, is the author's duty.
 
+## 20. SHARED APP FILES — ONE HOME, `app/NeurOneShared/` (locked) → `scripts/check-shared-placement.ts`
+
+**A file whose content is common to more than one app (iOS, watchOS, Android, Windows, web) lives in
+`app/NeurOneShared/`, directly or in a subdirectory of it, and is never stored in one app's
+directory for the others to reach into.** Subdirectories are made as needed: `TestData/` for
+fixtures several apps' tests read (`hub-descriptor-golden.json`), `Resources/` for generated or
+hand-written resources several apps bundle (`Localizable.xcstrings`), `Sources/` for the Swift package.
+
+- **Decide at creation.** A new file that a second app will read, bundle or diff against is created in
+  `app/NeurOneShared/` the first time, and every reference points there.
+- **Moving is not copying.** Two copies of one file is a violation; keep one in `app/NeurOneShared/`.
+  A thin re-export shim (`@_exported import NeurOneShared`) is the one sanctioned residue at an old path.
+- **Scope.** Data and resource files (json, xcstrings, plist, xml, npps, csv and the like). An app's own
+  source, project spec, manifest and docs stay in its tree. Files a toolchain demands per app
+  (`Info.plist`, Gradle wrapper, lockfiles) are exempt by name in the checker.
+- **Enforced** by `bun scripts/check-shared-placement.ts` (CI job `shared-placement` in
+  `tooling-ci.yml`), which fails an `app/<A>/` file naming a data file under `app/<B>/` and any
+  identical content stored under two apps.
+
 ---
 
 *When a locked decision changes, update the owning file, log it in
 `docs/status/completed-decisions.md`, and add an entry to
-`docs/reference/claude-md-revision-history.md`. Keep every section number (§1–§6, §16–§19) and every
+`docs/reference/claude-md-revision-history.md`. Keep every section number (§1–§6, §16–§20) and every
 subsection number in place, even when the content moves. `bun scripts/check-section-refs.ts` guards
 the citations that point at them.*

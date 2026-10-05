@@ -13,7 +13,7 @@ on:
     paths:
       - 'app/watchos/**'
       - 'app/NeurOneShared/**'
-      # The watch bundles app/ios/NeurOne/Localizable.xcstrings, which is
+      # The watch bundles app/NeurOneShared/Resources/Localizable.xcstrings, which is
       # generated from locales/*.json and not committed (CLAUDE.md §17). A string
       # edit touches nothing under app/watchos/**, so without these entries a
       # canonical change the watch renders would not run this workflow.

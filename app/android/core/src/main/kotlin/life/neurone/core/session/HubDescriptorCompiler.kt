@@ -27,7 +27,7 @@ import kotlin.math.min
 // There is ONE wire format: the binary descriptor of NP-FW-HUB-001 §4, which
 // firmware/hub_control/src/np_protocol.c parses and app/web/src/lib/hubCompiler.ts
 // writes. This is a port of that compiler. Where the two disagree §4 is right and this
-// file is wrong (REQ-FWHUB-08); app/android/core/src/test/resources/hub-descriptor-golden.json
+// file is wrong (REQ-FWHUB-08); app/NeurOneShared/TestData/hub-descriptor-golden.json
 // holds the web compiler's own output for the same definitions and the test diffs against it.
 //
 // The hub carries no JSON parser. The "NPPR" JSON blobs the iOS, Android and Windows apps

@@ -5,7 +5,7 @@
  * Source of truth: locales/*.json (flat key-value per BCP 47 locale) — the ONLY
  * copy of any user-facing string that is committed to the repository.
  * Build outputs (all three are generated at build time and git-ignored):
- *   - Apple:   app/ios/NeurOne/Localizable.xcstrings (String Catalog)
+ *   - Apple:   app/NeurOneShared/Resources/Localizable.xcstrings (String Catalog)
  *   - Web:     app/web/src/generated/locales/*.json (copy)
  *   - Android: <buildDir>/generated/res/locales/values-<qualifier>/strings.xml
  *
@@ -68,7 +68,7 @@
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from "fs";
 import { execFileSync } from "child_process";
-import { join, basename, resolve } from "path";
+import { join, basename, dirname, resolve } from "path";
 
 const ROOT = join(import.meta.dir, "..");
 const LOCALES_DIR = join(ROOT, "locales");
@@ -90,7 +90,7 @@ const LOCALES_DIR = join(ROOT, "locales");
  * it by path, and runs this script in its own preGenCommand), so moving it
  * breaks two projects, not one.
  */
-const XCSTRINGS_OUT = join(ROOT, "app", "ios", "NeurOne", "Localizable.xcstrings");
+const XCSTRINGS_OUT = join(ROOT, "app", "NeurOneShared", "Resources", "Localizable.xcstrings");
 
 /**
  * The web copies go to a directory that is entirely generated — not alongside
@@ -457,7 +457,7 @@ function generateAndroidXml(
  * cheaper than diagnosing either.
  */
 const GENERATED_PATHSPECS = [
-  "app/ios/NeurOne/Localizable.xcstrings",
+  "app/NeurOneShared/Resources/Localizable.xcstrings",
   "app/web/src/generated/",
   "app/android/app/build/",
   // Legacy output locations — retired 2026-09-08, still forbidden.
@@ -522,6 +522,7 @@ function main(): void {
   ];
 
   for (const dir of [
+    dirname(XCSTRINGS_OUT),
     WEB_LOCALES_OUT,
     ...[...locales.keys()].map((l) => join(resOut, androidValuesDir(l))),
   ]) {

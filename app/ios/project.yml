@@ -16,7 +16,7 @@ options:
   bundleIdPrefix: life.neurone
   # Generate the locale files BEFORE XcodeGen reads the source tree.
   #
-  # `NeurOne/Localizable.xcstrings` is generated from `locales/*.json` and
+  # `app/NeurOneShared/Resources/Localizable.xcstrings` is generated from `locales/*.json` and
   # git-ignored (CLAUDE.md §17), and XcodeGen builds the project from what is on
   # disk when it runs. Generate the project against a checkout where the
   # catalogue does not exist yet and TWO things are silently lost: the Resources
@@ -32,7 +32,7 @@ options:
     set -eu
     export PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
     if ! command -v bun >/dev/null 2>&1; then
-      echo "error: bun not found. NeurOne/Localizable.xcstrings is generated from locales/*.json;" >&2
+      echo "error: bun not found. app/NeurOneShared/Resources/Localizable.xcstrings is generated from locales/*.json;" >&2
       echo "note: install bun (https://bun.sh), then re-run xcodegen generate." >&2
       exit 1
     fi
@@ -94,6 +94,11 @@ targets:
       # a missing manifest.
       - path: ../../protocols/predefined
         type: folder
+      # The generated String Catalog lives in app/NeurOneShared/Resources (shared with the
+      # watch), so it is not under NeurOne/ and needs its own entry. Deliberately NOT
+      # `optional: true`: see preGenCommand above.
+      - path: ../NeurOneShared/Resources/Localizable.xcstrings
+        buildPhase: resources
 
     settings:
       base:
