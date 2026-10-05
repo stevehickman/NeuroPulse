@@ -54,7 +54,7 @@ static void check(int cond, const char *name)
 np_hub_status_t np_proto_hal_get_device_serial(uint8_t *buf, size_t len)
 {
     (void)buf; (void)len;
-    return NP_HUB_ERR_NOT_PRESENT;   /* the replay guard then refuses everything; none is parsed here */
+    return NP_HUB_ERR_NOT_PRESENT;
 }
 
 np_hub_status_t np_proto_hal_get_proto_pubkey(uint8_t *pub_key_out)
