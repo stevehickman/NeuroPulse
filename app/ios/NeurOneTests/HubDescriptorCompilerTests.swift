@@ -17,10 +17,10 @@ final class HubDescriptorCompilerTests: XCTestCase {
     // MARK: - Golden vectors
 
     private static func golden(file: StaticString = #filePath) throws -> [String: String] {
-        // .../app/ios/NeurOneTests/<this file> → .../app/android/core/src/test/resources/
+        // .../app/ios/NeurOneTests/<this file> → .../app/NeurOneShared/TestData/
         var url = URL(fileURLWithPath: "\(file)")
         for _ in 0..<3 { url.deleteLastPathComponent() }   // → app/
-        url.appendPathComponent("android/core/src/test/resources/hub-descriptor-golden.json")
+        url.appendPathComponent("NeurOneShared/TestData/hub-descriptor-golden.json")
         let data = try Data(contentsOf: url)
         return try JSONDecoder().decode([String: String].self, from: data)
     }

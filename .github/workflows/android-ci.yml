@@ -18,6 +18,8 @@ on:
   push:
     paths:
       - 'app/android/**'
+      # :core's tests read the shared golden descriptors (OI-AND-WIRE-01).
+      - 'app/NeurOneShared/TestData/**'
       # res/values*/strings.xml is generated from canonical at build time and is
       # not committed (CLAUDE.md §17), so a string edit no longer touches
       # app/android/** — without these two entries a canonical change that
@@ -28,6 +30,7 @@ on:
   pull_request:
     paths:
       - 'app/android/**'
+      - 'app/NeurOneShared/TestData/**'
       - 'locales/**'
       - 'scripts/sync-locales.ts'
       - '.github/workflows/android-ci.yml'

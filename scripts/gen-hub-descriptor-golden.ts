@@ -3,7 +3,7 @@
  * gen-hub-descriptor-golden.ts — the web compiler's own descriptors, as the Android
  * compiler's golden vectors (OI-AND-WIRE-01).
  *
- *   bun scripts/gen-hub-descriptor-golden.ts   # rewrites app/android/core/src/test/resources/hub-descriptor-golden.json
+ *   bun scripts/gen-hub-descriptor-golden.ts   # rewrites app/NeurOneShared/TestData/hub-descriptor-golden.json
  *
  * The session UUID and compile time are pinned (0xAB x16, 1700000000) so the bytes are
  * reproducible. Run it when hubCompiler.ts changes, then update HubDescriptorCompilerTests.
@@ -52,5 +52,5 @@ for (const [k, d] of Object.entries(cases)) {
   const r = compileProtocol(d, { zones, clinicianSockets: [7, 3] });
   out[k] = Buffer.from(r.blob).toString('hex');
 }
-fs.writeFileSync(process.argv[2] ?? new URL('../app/android/core/src/test/resources/hub-descriptor-golden.json', import.meta.url).pathname, JSON.stringify(out, null, 1));
+fs.writeFileSync(process.argv[2] ?? new URL('../app/NeurOneShared/TestData/hub-descriptor-golden.json', import.meta.url).pathname, JSON.stringify(out, null, 1));
 console.log(Object.keys(out).length);

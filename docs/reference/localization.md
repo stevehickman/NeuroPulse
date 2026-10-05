@@ -108,7 +108,7 @@ it fresh within an open session. Gradle needs no equivalent because a generated 
 declared task output, and Vite's `buildStart` runs before module resolution.
 
 **The watch app bundles that same file.** `app/watchos/project.yml` names
-`../ios/NeurOne/Localizable.xcstrings` as a resource and runs the generator in its own
+`../NeurOneShared/Resources/Localizable.xcstrings` as a resource and runs the generator in its own
 `preGenCommand` and scheme pre-action, so there is no watch copy. `watchos-ci.yml` then reads the
 built bundle and checks that every locale's compiled table carries a probe key, because a green
 build proves nothing here: without the resource the watch builds cleanly and renders raw keys.

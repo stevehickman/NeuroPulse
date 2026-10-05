@@ -49,7 +49,7 @@ package-lock.json
 # which is how the String Catalog once accumulated 26 keys canonical never had;
 # `bun scripts/sync-locales.ts --verify-untracked` fails CI if one comes back.
 # (Android's output lands under app/android/app/build/, already ignored above.)
-app/ios/NeurOne/Localizable.xcstrings
+app/NeurOneShared/Resources/Localizable.xcstrings
 app/web/src/generated/
 
 # ── Xcode ─────────────────────────────────────────────────────────────────────

@@ -30,7 +30,7 @@ on:
       - 'protocols/predefined/**'
       # HubDescriptorCompilerTests diffs against the web compiler's golden descriptors, which
       # live beside Android's tests and are shared by all three native compilers (OI-AND-WIRE-01).
-      - 'app/android/core/src/test/resources/hub-descriptor-golden.json'
+      - 'app/NeurOneShared/TestData/hub-descriptor-golden.json'
       - '.github/workflows/ios-ci.yml'
   pull_request:
     paths:
@@ -41,7 +41,7 @@ on:
       - 'protocols/predefined/**'
       # HubDescriptorCompilerTests diffs against the web compiler's golden descriptors, which
       # live beside Android's tests and are shared by all three native compilers (OI-AND-WIRE-01).
-      - 'app/android/core/src/test/resources/hub-descriptor-golden.json'
+      - 'app/NeurOneShared/TestData/hub-descriptor-golden.json'
       - '.github/workflows/ios-ci.yml'
   workflow_dispatch:
 

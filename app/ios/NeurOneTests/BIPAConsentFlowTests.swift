@@ -142,7 +142,8 @@ final class BIPAConsentFlowTests: XCTestCase {
         let catalogURL = URL(fileURLWithPath: #filePath)   // .../app/ios/NeurOneTests/<thisfile>.swift
             .deletingLastPathComponent()                   // .../app/ios/NeurOneTests
             .deletingLastPathComponent()                   // .../app/ios
-            .appendingPathComponent("NeurOne/Localizable.xcstrings")
+            .deletingLastPathComponent()                   // .../app
+            .appendingPathComponent("NeurOneShared/Resources/Localizable.xcstrings")
 
         let data = try Data(contentsOf: catalogURL)
         let root = try JSONSerialization.jsonObject(with: data) as? [String: Any]

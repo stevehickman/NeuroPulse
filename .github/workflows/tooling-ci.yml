@@ -133,6 +133,7 @@ jobs:
       benchboundary: ${{ steps.scope.outputs.benchboundary }}
       map2shdr: ${{ steps.scope.outputs.map2shdr }}
       pbmmodel: ${{ steps.scope.outputs.pbmmodel }}
+      sharedplace: ${{ steps.scope.outputs.sharedplace }}
       unjustified: ${{ steps.scope.outputs.unjustified }}
     env:
       # Eight independent surfaces, eight lists. A simulator-only change should
@@ -317,6 +318,13 @@ jobs:
       # re-declaration of a model constant in any script. The third can land in
       # any file under scripts/, so the directory, not a list of today's
       # consumers — a new audit that forks OVERHEAD_W is the case worth seeing.
+      # The shared-file placement gate (CLAUDE.md §20) reads every tracked file under
+      # app/: the edit that breaks it is a data file added to one app's tree that a
+      # sibling then reads, which can land anywhere under app/.
+      NP_SCOPE_SHAREDPLACE: |
+        app/**
+        scripts/check-shared-placement.ts
+        .github/workflows/tooling-ci.yml
       NP_SCOPE_PBMMODEL: |
         hardware/np_pbm_model.json
         firmware/hub_control/include/np_pbm_model.generated.h
@@ -372,6 +380,7 @@ jobs:
           printf '%s\n' "$NP_SCOPE_BENCHBOUNDARY" > scope.benchboundary.paths
           printf '%s\n' "$NP_SCOPE_MAP2SHDR" > scope.map2shdr.paths
           printf '%s\n' "$NP_SCOPE_PBMMODEL" > scope.pbmmodel.paths
+          printf '%s\n' "$NP_SCOPE_SHAREDPLACE" > scope.sharedplace.paths
           printf '%s\n' "$NP_SCOPE_UNJUSTIFIED" > scope.unjustified.paths
 
       # A well-formed pattern that matches nothing is a typo, not a scope
@@ -380,7 +389,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths scope.benchboundary.paths scope.map2shdr.paths scope.pbmmodel.paths scope.unjustified.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths scope.benchboundary.paths scope.map2shdr.paths scope.pbmmodel.paths scope.sharedplace.paths scope.unjustified.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -523,6 +532,9 @@ jobs:
           assert scope.pbmmodel.paths false firmware/hub_control/include/np_hub_config.h
           assert scope.pbmmodel.paths false hardware/np_socket_map.json
           assert scope.pbmmodel.paths false docs/np_pwrsrc_001.md
+          assert scope.sharedplace.paths true  app/ios/NeurOne/Session/HubDescriptorCompiler.swift
+          assert scope.sharedplace.paths true  app/NeurOneShared/TestData/hub-descriptor-golden.json
+          assert scope.sharedplace.paths false firmware/hub_control/include/np_hub_config.h
 
           # The unjustified-choices register gate. The register, a firmware
           # header that carries a marker, the hardware JSON, an app source and
@@ -594,6 +606,7 @@ jobs:
           emit benchboundary scope.benchboundary.paths
           emit map2shdr  scope.map2shdr.paths
           emit pbmmodel  scope.pbmmodel.paths
+          emit sharedplace scope.sharedplace.paths
           emit unjustified scope.unjustified.paths
 
   scripts-check:
@@ -1209,3 +1222,27 @@ jobs:
       # REQ-LFS-01 (OI-LFS-03) and one-handle-per-file (OI-LFS-06).
       - name: littlefs caller rules and REQ-LFS-01
         run: bun scripts/check-lfs-caller-rules.ts
+
+  shared-placement:
+    name: files used by more than one app live in app/NeurOneShared (CLAUDE.md §20)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.sharedplace != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # No `bun install`: the checker reads source text with node builtins.
+
+      - name: Guard self-test (prove reach-across and duplicate content can fail)
+        run: bun scripts/check-shared-placement.ts --self-test
+
+      # hub-descriptor-golden.json sat under app/android/ while the iOS and Windows tests
+      # read it from there. This fails the next such file at the change that adds it.
+      - name: No app reaches into a sibling app's data files, and none is stored twice
+        run: bun scripts/check-shared-placement.ts

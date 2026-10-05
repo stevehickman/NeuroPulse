@@ -1,0 +1,125 @@
+#!/usr/bin/env bun
+/**
+ * check-shared-placement.ts — a file two apps use lives in app/NeurOneShared/.
+ *
+ * CLAUDE.md §20. A file whose content is common to more than one app (iOS, watchOS, Android,
+ * Windows, web) is placed in app/NeurOneShared/ — directly or in a subdirectory of it — and never
+ * in one app's directory, where the others reach across into a sibling's tree. The case that
+ * motivated the rule: hub-descriptor-golden.json lived under app/android/core/src/test/resources/
+ * while the iOS and Windows tests read it from there.
+ *
+ * Two mechanical checks over every tracked file under app/:
+ *
+ *   1. REACH-ACROSS. A file under app/<A>/ names a non-code file under app/<B>/ (B != A), as
+ *      `app/<B>/…` or `../<B>/…`. "Non-code" is the data and resource extensions in DATA_EXT:
+ *      source files (.swift .kt .cs .ts) are the app's own code, and a comment mentioning one is
+ *      prose. Mentions inside app/<B>/ itself are fine.
+ *   2. DUPLICATE. Two tracked files under different apps have identical, non-trivial content.
+ *      Identical content in two places is a shared file stored twice.
+ *
+ * Out of scope, stated rather than omitted: references from outside app/ (CI workflows, scripts/,
+ * docs/) — a workflow is not an app — and files that are the same only by build-tool convention
+ * (EXEMPT_NAMES). A name there is a decision, so it needs a reason beside it.
+ *
+ * Usage: bun scripts/check-shared-placement.ts [--self-test]
+ *
+ * CI-Kind: gate
+ * CI-Self-Test: bun scripts/check-shared-placement.ts --self-test
+ * CI-Scans: every tracked file under app/ for data files shared across apps outside app/NeurOneShared
+ * CI-Scan-Paths: app/** scripts/check-shared-placement.ts
+ */
+import { execFileSync } from "child_process";
+import { createHash } from "crypto";
+import { readFileSync } from "fs";
+import { basename, join, resolve } from "path";
+
+export const APP_DIRS = ["ios", "watchos", "macos", "android", "windows", "web"];
+export const SHARED = "NeurOneShared";
+const DATA_EXT = ["json", "xcstrings", "plist", "xcprivacy", "entitlements", "xml", "npps", "csv", "txt", "bin", "properties", "strings"];
+// Same-name, same-content files that each toolchain demands in its own tree.
+const EXEMPT_NAMES = new Set([
+  "Info.plist",            // per-target Xcode requirement
+  ".gitignore", ".gitattributes", ".DS_Store",
+  "gradle-wrapper.jar", "gradle-wrapper.properties", "gradlew", "gradlew.bat", // Gradle wrapper
+  "package-lock.json", "bun.lock", // per-package lockfiles
+]);
+const MIN_DUP_BYTES = 64;
+// A re-export shim ("@_exported import NeurOneShared") is the sanctioned way an app keeps a
+// file at its old path once the source has moved into NeurOneShared.
+const SHIM_MARK = "@_exported import NeurOneShared";
+// Project specs (project.yml, build.gradle.kts, *.csproj) and docs are per-app by nature, so
+// .yml/.yaml/.md are not in DATA_EXT: a mention of one in a comment is prose.
+
+export type Finding = { file: string; message: string };
+
+const appOf = (p: string): string | null => {
+  const m = /^app\/([^/]+)\//.exec(p);
+  return m && APP_DIRS.includes(m[1]) ? m[1] : null;
+};
+
+export function check(files: Map<string, string>): Finding[] {
+  const out: Finding[] = [];
+  const refRe = new RegExp(`(?:app/|\\.\\./)(${APP_DIRS.join("|")})/([A-Za-z0-9_./@+-]+?\\.(?:${DATA_EXT.join("|")}))(?![A-Za-z0-9_])`, "g");
+  const byHash = new Map<string, string[]>();
+  for (const [path, text] of files) {
+    const a = appOf(path);
+    if (!a) continue;
+    for (const m of text.matchAll(refRe)) {
+      if (m[1] !== a) {
+        out.push({ file: path, message: `reaches into app/${m[1]}/ for ${m[2]} — a file used by more than one app belongs in app/${SHARED}/` });
+      }
+    }
+    if (text.length >= MIN_DUP_BYTES && !EXEMPT_NAMES.has(basename(path)) && !text.includes(SHIM_MARK)) {
+      const h = createHash("sha256").update(text).digest("hex");
+      byHash.set(h, [...(byHash.get(h) ?? []), path]);
+    }
+  }
+  for (const paths of byHash.values()) {
+    if (new Set(paths.map(appOf)).size > 1) {
+      out.push({ file: paths[0], message: `identical content in ${paths.join(", ")} — move one copy to app/${SHARED}/ and delete the rest` });
+    }
+  }
+  return out;
+}
+
+function selfTest(): void {
+  const base = new Map<string, string>([
+    ["app/android/core/Foo.kt", "// reads app/NeurOneShared/TestData/golden.json\n"],
+    ["app/ios/Foo.swift", "// see ../NeurOneShared/Resources/x.xcstrings and app/ios/own.json\n"],
+  ]);
+  const expect = (name: string, files: Map<string, string>, want: number) => {
+    const got = check(files).length;
+    if (got !== want) { console.error(`self-test FAILED: ${name}: expected ${want} finding(s), got ${got}`); process.exit(1); }
+  };
+  expect("clean tree passes", base, 0);
+  expect("reach-across fails", new Map([...base, ["app/windows/T.cs", "// app/android/core/src/test/resources/golden.json"]]), 1);
+  expect("relative reach-across fails", new Map([...base, ["app/watchos/project.yml", "path: ../ios/NeurOne/Localizable.xcstrings"]]), 1);
+  expect("own-app reference passes", new Map([...base, ["app/android/a.kt", "// app/android/x/y.json"]]), 0);
+  expect("reference to code passes", new Map([...base, ["app/ios/b.swift", "// app/web/src/lib/hubCompiler.ts"]]), 0);
+  const body = "x".repeat(200);
+  const shim = "// moved\n@_exported import NeurOneShared\n" + body;
+  expect("shim duplicate passes", new Map([...base, ["app/ios/S.swift", shim], ["app/watchos/S.swift", shim]]), 0);
+  expect("duplicate fails", new Map([...base, ["app/ios/d.json", body], ["app/android/d.json", body]]), 1);
+  expect("exempt duplicate passes", new Map([...base, ["app/ios/Info.plist", body], ["app/watchos/Info.plist", body]]), 0);
+  expect("same app duplicate passes", new Map([...base, ["app/ios/d1.json", body], ["app/ios/d2.json", body]]), 0);
+  console.log("check-shared-placement self-test: ok");
+}
+
+if (import.meta.main) {
+  if (process.argv.includes("--self-test")) { selfTest(); process.exit(0); }
+  const root = resolve(import.meta.dir, "..");
+  const tracked = execFileSync("git", ["ls-files", "-z", "app"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
+  const files = new Map<string, string>();
+  for (const p of tracked) {
+    if (/\.(png|jpg|jar|ttf|otf|ico|a|so|dylib)$/i.test(p)) continue;
+    try { files.set(p, readFileSync(join(root, p), "utf8")); } catch { /* deleted or unreadable */ }
+  }
+  const findings = check(files);
+  console.log(`scanned: ${files.size} file(s) under app/`);
+  for (const f of findings) console.error(`${f.file}: ${f.message}`);
+  if (findings.length) {
+    console.error(`\n${findings.length} finding(s). CLAUDE.md §20: app files common to more than one app live in app/${SHARED}/.`);
+    process.exit(1);
+  }
+  console.log("check-shared-placement: ok");
+}

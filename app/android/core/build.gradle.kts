@@ -37,6 +37,12 @@ sourceSets.main {
     resources.srcDir(layout.buildDirectory.dir("generated/npps").map { it.asFile })
 }
 
+// Test data shared by every app lives in app/NeurOneShared/TestData, not under this module
+// (hub-descriptor-golden.json is read by the Android, iOS and Windows tests).
+sourceSets.test {
+    resources.srcDir(layout.projectDirectory.dir("../../NeurOneShared/TestData"))
+}
+
 tasks.named("processResources") { dependsOn(bundlePredefinedProtocols) }
 
 dependencies {
