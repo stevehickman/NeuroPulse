@@ -1,6 +1,7 @@
 package life.neurone.core.protocol
 
-import life.neurone.core.session.NPSessionProtocol
+import life.neurone.core.session.HubDescriptorCompiler
+import life.neurone.core.session.SignatureResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -95,17 +96,21 @@ class NPWavelengthRulesTests {
         assertFailsWith<NPPSError> { parse(series.replace("start: 4m", "start: -4m")) }
     }
 
+    private fun compile(d: NPProtocolDefinition) =
+        HubDescriptorCompiler({ SignatureResult(ByteArray(64), "00") }).compile(d)
+
     @Test
-    fun theSessionWireRefusesWhatItCannotExpress() {
+    fun theSessionWireCarriesBlockStartAndRefusesTheUnmapped() {
+        // `start` is on the wire now: the binary descriptor has a start_ms per command (§4.1).
         val proto = (parse(series)[0] as NPProtocolEntry.Single).protocol
-        assertFailsWith<IllegalArgumentException> { NPSessionProtocol.fromDefinition(proto) }
+        assertNotNull(compile(proto))
 
         val unmapped = (parse(series.replace("start: 4m\n", "").replace("810nm", "850nm"))[0]
             as NPProtocolEntry.Single).protocol
-        assertFailsWith<IllegalArgumentException> { NPSessionProtocol.fromDefinition(unmapped) }
+        assertFailsWith<IllegalArgumentException> { compile(unmapped) }
 
         val ok = (parse(series.replace("start: 4m\n", ""))[0] as NPProtocolEntry.Single).protocol
-        assertNotNull(NPSessionProtocol.fromDefinition(ok))
+        assertNotNull(compile(ok))
     }
 
     @Test

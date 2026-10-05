@@ -1,8 +1,7 @@
 package life.neurone.core.protocol
 
-import life.neurone.core.session.NPSessionProtocol
+import life.neurone.core.session.HubDescriptorCompiler
 import life.neurone.core.session.ProtocolSigner
-import life.neurone.core.session.SessionProtocolCompiler
 import life.neurone.core.session.SignatureResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -15,6 +14,8 @@ import kotlin.test.assertTrue
  * fixtures in npps/fixtures (the five error_* files and absolute_quantities).
  */
 class NPPSAbsoluteQuantityTests {
+    private val compiler = HubDescriptorCompiler({ life.neurone.core.session.SignatureResult(ByteArray(64), "00") })
+
 
     private fun parse(text: String): List<NPProtocolEntry> =
         NPPSParser(NPPSLexer(text).tokenize()).parse()
@@ -131,24 +132,27 @@ class NPPSAbsoluteQuantityTests {
                 NPProtocolModality(params = NPModalityParams.AudioEntrainment(NPAudioEntrainmentParams(volumeDb = 70.0))),
             ),
         )
-        val signer = ProtocolSigner { digest -> SignatureResult(signature = digest + digest, publicKeyFingerprint = "deadbeef") }
-        val json = String(SessionProtocolCompiler(signer).compile(def).payload, Charsets.UTF_8)
-        assertTrue(json.contains("\"irradianceMWcm2\":250.0"), json)
-        assertTrue(json.contains("\"irradianceMWcm2\":40.0"), json)
-        assertTrue(json.contains("\"volumeDb\":70.0"), json)
+        // 250 mW/cm² at 808 nm: round(250 / 403 × 255) = 158 (0x9E) in the second current byte.
+        // The wire carries a drive register, which the hub cannot read back as a percentage.
+        val blob = compiler.compile(def.copy(modalities = def.modalities.take(1))).blob
+        val params = blob.copyOfRange(64 + 14 + 16, 64 + 14 + 16 + 4)
+        assertEquals(listOf<Byte>(20, 50, 0, 158.toByte()), params.toList())
+        // Audio: 70 dB SPL → (70 − 40) / 0.5 = 60 % volume register.
+        val audio = compiler.compile(def.copy(modalities = def.modalities.drop(2))).blob
+        assertEquals(60.toByte(), audio[64 + 14 + 5])
 
         val bad = NPProtocolDefinition(
             name = "bad",
             modalities = listOf(NPProtocolModality(params = NPModalityParams.PbmTranscranial(
                 NPPBMTranscranialParams(wavelength = NPPBMTranscranialParams.Wavelength("660_808nm"))))),
         )
-        val e = assertFailsWith<IllegalArgumentException> { NPSessionProtocol.fromDefinition(bad) }
+        val e = assertFailsWith<IllegalArgumentException> { compiler.compile(bad) }
         assertTrue(e.message.orEmpty().contains("retired"))
         val nasal1064 = NPProtocolDefinition(
             name = "nasal",
             modalities = listOf(NPProtocolModality(params = NPModalityParams.PbmIntranasal(
                 NPPBMIntranasalParams(wavelength = NPPBMTranscranialParams.Wavelength.NM_1064)))),
         )
-        assertFailsWith<IllegalArgumentException> { NPSessionProtocol.fromDefinition(nasal1064) }
+        assertFailsWith<IllegalArgumentException> { compiler.compile(nasal1064) }
     }
 }
