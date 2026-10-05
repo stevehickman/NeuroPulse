@@ -74,7 +74,8 @@ enum NPUUID {
 
     // The hub's 32-byte replay-guard serial — READ 32B, encrypted link only (NP-FW-HUB-001 §4.2).
     // Stamped into the descriptor header so the hub does not refuse it WRONG_DEVICE (OI-AND-WIRE-02).
-    // Never persisted, never uploaded, never shown. NOT in NPUUID.all: READ-only, and the hub does not publish it until its BLE stack exists.
+    // Never persisted, never uploaded, never shown. NOT in NPUUID.all: READ-only, and the hub
+    // does not publish it until its BLE stack exists.
     static let deviceSerial        = CBUUID(string: "4E455550-0017-1000-8000-00805F9B34FB") // READ 32B
 
     // All characteristics required for a fully-operational session.
