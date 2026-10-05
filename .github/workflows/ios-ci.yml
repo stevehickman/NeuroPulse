@@ -28,6 +28,9 @@ on:
       # of that bundle. A protocol edit touches nothing under app/ios/**, so
       # without this entry it would not run the tests that load it.
       - 'protocols/predefined/**'
+      # HubDescriptorCompilerTests diffs against the web compiler's golden descriptors, which
+      # live beside Android's tests and are shared by all three native compilers (OI-AND-WIRE-01).
+      - 'app/android/core/src/test/resources/hub-descriptor-golden.json'
       - '.github/workflows/ios-ci.yml'
   pull_request:
     paths:
@@ -36,6 +39,9 @@ on:
       - 'locales/**'
       - 'scripts/sync-locales.ts'
       - 'protocols/predefined/**'
+      # HubDescriptorCompilerTests diffs against the web compiler's golden descriptors, which
+      # live beside Android's tests and are shared by all three native compilers (OI-AND-WIRE-01).
+      - 'app/android/core/src/test/resources/hub-descriptor-golden.json'
       - '.github/workflows/ios-ci.yml'
   workflow_dispatch:
 

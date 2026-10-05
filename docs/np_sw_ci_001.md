@@ -2996,7 +2996,7 @@ The second was not in the phase-6 brief; it was found by reading the contexts of
 
 **`build-all.yml` can never be a required check.** It is `schedule` + `workflow_dispatch` only, by design (§5.5), with no `pull_request` trigger — so it never reports on any PR and requiring it would block every PR unconditionally and permanently. It is recorded here, next to the required-checks list, because "add build-all for completeness" is exactly the kind of well-meant later edit that would wedge the repository. Its job names also carry counts (`CMake host tests (27 targets, unfiltered)`); that is harmless precisely because it is not requirable, and it should stay that way.
 
-Workflows still `paths:`-filtered and therefore **still not requirable**: `android-ci.yml`, `ios-ci.yml`, `watchos-ci.yml`, `shdr-schema-ci.yml`, `warranty-nojoin-ci.yml`. Converting them is the same mechanical change if they are ever wanted as required checks.
+Workflows still `paths:`-filtered and therefore **still not requirable**: `android-ci.yml`, `ios-ci.yml`, `windows-ci.yml` (added 2026-10-05, OI-AND-WIRE-01: `dotnet test app/windows/NeurOne.Tests` on `windows-latest`, whose tests diff the compiler against Android's shared golden file), `watchos-ci.yml`, `shdr-schema-ci.yml`, `warranty-nojoin-ci.yml`. Converting them is the same mechanical change if they are ever wanted as required checks.
 
 #### 6.7.8 Applying it — the runbook Steve runs, not CI
 
