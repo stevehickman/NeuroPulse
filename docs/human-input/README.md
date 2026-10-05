@@ -29,3 +29,4 @@ logged in `docs/status/completed-decisions.md`. Never quote a draft here as a de
 |------|-----------|------|--------|
 | `oi-risk2-06-clinical-question.md` | `OI-RISK2-06` | Should a cervical cardiac cutoff also withhold auricular VNS? | DRAFT, not sent |
 | `oi-risk2-09-cvns-detection-adequacy.md` | `OI-RISK2-09` | Is the `REQ-CVNS-09` cardiac detection requirement clinically adequate? Five sub-questions (a)–(e). | DRAFT, not sent |
+| `oi-risk2-04-counsel-engagement.md` | `OI-RISK2-04` | Commission outside regulatory counsel on the PBM irradiance ceilings (RISK-03)? Four open choices. | DRAFT, not sent |
