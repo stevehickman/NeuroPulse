@@ -101,6 +101,10 @@ targets:
       # (the failure described under preGenCommand above). The directory holds only the
       # generated catalogue. Deliberately NOT `optional: true`: see preGenCommand above.
       - path: ../NeurOneShared/Resources
+        # The project sets createIntermediateGroups: true, which builds groups out of the
+        # path's components; for a `../` path that left the catalogue out of the Resources
+        # phase (ios-ci: no CompileXCStrings step, every localized lookup unresolved).
+        createIntermediateGroups: false
 
     settings:
       base:
