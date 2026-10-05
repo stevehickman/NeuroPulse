@@ -85,6 +85,14 @@ class NeurOneGattManager(
     val warrantyToken: StateFlow<ByteArray?> = _warrantyToken
 
     /**
+     * The hub's 32-byte replay-guard serial (NP-FW-HUB-001 §4.2), read over the encrypted link.
+     * Memory only: neither persisted nor uploaded, and cleared on disconnect. null until read, and
+     * on a hub that predates the characteristic (OI-AND-WIRE-02).
+     */
+    @Volatile var deviceSerial: ByteArray? = null
+        private set
+
+    /**
      * Fires true when the hub signals a pending SHDR upload (SHDR_UPLOAD_STATUS
      * notifies 0x01). SHDR-class trigger only — carries no user biology and never
      * touches session state. Mirrors iOS NeurOneGATTManager.$shdrUploadPending
@@ -177,6 +185,7 @@ class NeurOneGattManager(
             GattUuids.all + listOf(
                 GattUuids.warrantyToken, GattUuids.firmwareVersion, GattUuids.socketMap, GattUuids.cvnsPadStatus,
                 GattUuids.cvnsFaultStatus, GattUuids.cvnsReenableConfirm, GattUuids.activeUser,
+                GattUuids.deviceSerial,
             ),
         )
     }
@@ -198,6 +207,7 @@ class NeurOneGattManager(
         GattUuids.all.forEach { central.enableNotifications(it) }
         if (GattUuids.warrantyToken in characteristics) central.read(GattUuids.warrantyToken)
         if (GattUuids.firmwareVersion in characteristics) central.read(GattUuids.firmwareVersion)
+        if (GattUuids.deviceSerial in characteristics) central.read(GattUuids.deviceSerial)
         // Inventory is read, not only awaited: the hub notifies on change, and nothing may have
         // changed since the last link (iOS parity).
         if (GattUuids.zoneModuleStatus in characteristics) central.read(GattUuids.zoneModuleStatus)
@@ -227,6 +237,11 @@ class NeurOneGattManager(
         // SHDR guards FIRST — structural UHDR/SHDR boundary (see class doc).
         if (uuid == GattUuids.warrantyToken) {
             applyWarrantyToken(value)
+            return
+        }
+        if (uuid == GattUuids.deviceSerial) {
+            // Exactly 32 bytes or nothing: a short read must not be zero-padded into a serial no hub holds.
+            deviceSerial = if (value.size == 32) value.copyOf() else null
             return
         }
         if (uuid == GattUuids.shdrUploadStatus) {
@@ -431,6 +446,7 @@ class NeurOneGattManager(
         socketMapAssembler.reset()
         _hubFirmwareVersion.value = null
         _warrantyToken.value = null
+        deviceSerial = null
         _cervicalPadAlert.value = null
         _cervicalFaultStatus.value = null
         _unacknowledgedCervicalFaults.value = emptyList()

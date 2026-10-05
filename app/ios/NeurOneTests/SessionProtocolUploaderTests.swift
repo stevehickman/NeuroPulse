@@ -55,6 +55,30 @@ final class SessionProtocolUploaderTests: XCTestCase {
         )
     }
 
+    // MARK: - OI-AND-WIRE-02: the hub's serial reaches the descriptor header
+
+    // The serial the gateway read from the hub is stamped at header offset 28 (§4.2), so the
+    // hub's WRONG_DEVICE replay guard accepts the descriptor.
+    func testUploadStampsTheGatewaysDeviceSerial() async throws {
+        let gateway = MockProtocolUploadGateway()
+        let serial = Data((0..<32).map { UInt8(0x40 + $0) })
+        gateway.deviceSerial = serial
+        let uploader = SessionProtocolUploader(gatt: gateway)
+
+        let definition = NPProtocolDefinition(
+            name: "Serial", timingMode: .duration(60),
+            modalities: [NPProtocolModality(
+                params: .pbmTranscranial(NPPBMTranscranialParams(
+                    irradianceMWcm2: 302, frequencyHz: 20, dutyCyclePercent: 25)),
+                interval: .continuous, enabled: true)])
+
+        try await uploader.upload(definition)
+
+        let blob = gateway.reassembledPayload()
+        XCTAssertGreaterThanOrEqual(blob.count, 60)
+        XCTAssertEqual(blob.subdata(in: 28..<60), serial)
+    }
+
     // MARK: - ISC-35: BLE-not-ready guard
 
     // upload(_:NPProtocolDefinition) must throw UploadError.bleNotReady before
@@ -309,6 +333,7 @@ private final class MockProtocolUploadGateway: ProtocolUploadGateway {
     var isHubConnected: Bool
     var cervicalRestartBlocked = false
     var cervicalOutstandingForAnotherUser = false
+    var deviceSerial: Data?
     private(set) var uploadCallCount = 0
     private var chunks: [Data] = []
 

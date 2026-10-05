@@ -140,7 +140,7 @@ When characterisation passes:
 
 Custom BLE GATT service: UUID `4E455550-0001-1000-8000-00805F9B34FB`; each characteristic is `4E455550-XXXX-1000-8000-00805F9B34FB` with the id in the second group (assigned in the apps' `NPUUID` / `GattUuids`, and built from the same base by the hub, `firmware/hub_control/include/np_gatt_server.h`).
 
-**What the hub publishes (2026-09-25, GitHub #381):** only characteristics it has a producer for — `CONSUMABLE_STATUS` (0x0007), `WARRANTY_TOKEN` (0x0010), `CVNS_FAULT_STATUS` (0x0014), `CVNS_REENABLE_CONFIRM` (0x0015) and `ACTIVE_USER` (0x0016). The others below are parsed by the apps and not yet published; each is added with its producer. `CVNS_PAD_STATUS` waits on `OI-ACC-07`. The BLE host stack under the server is a platform trap until the radio is selected.
+**What the hub publishes (2026-09-25, GitHub #381):** only characteristics it has a producer for — `CONSUMABLE_STATUS` (0x0007), `WARRANTY_TOKEN` (0x0010), `CVNS_FAULT_STATUS` (0x0014), `CVNS_REENABLE_CONFIRM` (0x0015), `ACTIVE_USER` (0x0016) and `DEVICE_SERIAL` (0x0017). The others below are parsed by the apps and not yet published; each is added with its producer. `CVNS_PAD_STATUS` waits on `OI-ACC-07`. The BLE host stack under the server is a platform trap until the radio is selected.
 
 Characteristic layout:
 
@@ -157,6 +157,7 @@ Characteristic layout:
 | CVNS_REENABLE_CONFIRM | WRITE | 1 byte | T2 only, optional (`0x0015`). `0x01` = the wearer confirms resuming after a cardiac cutoff (`REQ-CVNS-09`); accepted only while the hub awaits it |
 | WARRANTY_TOKEN | READ | 32 bytes | `0x0010`. The 256-bit TRNG warranty token (`NP-FW-EMMC-002` §A): generated at the first read, persisted in the Config partition, never user-linked. SHDR-class device identity (`OI-WA-03`) |
 | ACTIVE_USER | WRITE | 4 bytes | Optional (`0x0016`). Opaque little-endian tag from the active individual profile; scopes a cardiac cutoff to that person. Forwarded to the safety MCU only while no session runs |
+| DEVICE_SERIAL | READ | 32 bytes | Optional (`0x0017`), **encrypted link only** (`NP_GATT_PROP_ENC`: the stack refuses a read on an unencrypted link). The hub's replay-guard serial, the same bytes `np_protocol_verify_and_parse()` compares a descriptor's header against (`NP-FW-HUB-001` §4.2). The app stamps it into the descriptor it compiles so the hub does not refuse it `WRONG_DEVICE`. Held in memory for the link, never persisted, uploaded or displayed. SHDR-class device identity, not user data (`OI-AND-WIRE-02`) |
 
 Notification interval: 100ms for SESSION_STATE and PACER_PHASE; 5s for HRV_COHERENCE; event-driven for IMPEDANCE_RESULT, CONSUMABLE_STATUS and CVNS_PAD_STATUS (on a change of result within a session attempt, and at each new attempt).
 
