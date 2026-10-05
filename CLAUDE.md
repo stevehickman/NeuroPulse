@@ -59,6 +59,7 @@ Plain paths, not `@import`s: nothing below loads until it is `Read`.
 | Risk: ISO 14971 index · hex-tile · shell/socket/hub | `docs/np_risk_002.md` · `_003` · `_004` |
 | Hex-tile mould tooling · shell interconnect review | `docs/np_tool_hextile_001.md` · `docs/np_rev_shell_001.md` |
 | Is this figure / file the current one? | `docs/superseded/README.md` |
+| Questions drafted for a human reviewer (clinical, regulatory, principal); not design inputs | `docs/human-input/README.md` |
 
 The three `docs/status/` logs are large; each opens with grep recipes. Do not read them whole.
 
