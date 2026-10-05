@@ -667,7 +667,7 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
                 peripheral.readValue(for: char)
 
             case NPUUID.deviceSerial:
-                // Optional — absent on a hub that predates OI-AND-WIRE-02.
+                // Read once at link (OI-AND-WIRE-02).
                 deviceSerialChar = char
                 peripheral.readValue(for: char)
 

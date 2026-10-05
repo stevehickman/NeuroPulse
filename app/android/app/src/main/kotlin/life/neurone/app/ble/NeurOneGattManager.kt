@@ -87,7 +87,7 @@ class NeurOneGattManager(
     /**
      * The hub's 32-byte replay-guard serial (NP-FW-HUB-001 §4.2), read over the encrypted link.
      * Memory only: neither persisted nor uploaded, and cleared on disconnect. null until read, and
-     * on a hub that predates the characteristic (OI-AND-WIRE-02).
+     * before the read completes (OI-AND-WIRE-02).
      */
     @Volatile var deviceSerial: ByteArray? = null
         private set
