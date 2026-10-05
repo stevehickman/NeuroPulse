@@ -33,7 +33,7 @@ import { readFileSync, readdirSync } from "fs";
 import { join } from "path";
 import { TILE_W, AVAILABLE_W } from "./pbm-model";
 import { PBM_FULL_SCALE_MW_CM2 } from "../app/web/src/lib/pbmDrive";
-import { DEFAULT_WAVELENGTH_RULES, mapWavelength, parsePbmWavelength } from "../app/web/src/lib/wavelengthRules";
+import { DEFAULT_WAVELENGTH_RULES, mapWavelength, parsePbmWavelength } from "../common/lib/wavelengthRules";
 
 const DIR = "protocols/predefined";
 

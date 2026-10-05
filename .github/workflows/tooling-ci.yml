@@ -228,6 +228,7 @@ jobs:
         docs/np_fw_hub_001.md
         firmware/hub_control/include/**
         app/web/src/lib/**
+        common/lib/**
         scripts/check-hub-wire-format.ts
         .github/workflows/tooling-ci.yml
       # The hub bring-up gate (OI-FWHUB-07/-08). np_hub_control_app_main() is
@@ -246,6 +247,7 @@ jobs:
       # appearing under firmware/ (which the gate forbids outright).
       NP_SCOPE_LOCALESTRINGS: |
         app/**
+        common/**
         locales/**
         firmware/**
         scripts/check-locale-strings.ts
@@ -308,6 +310,7 @@ jobs:
       # opens no document.
       NP_SCOPE_MAP2SHDR: |
         app/**
+        common/**
         firmware/**
         ci/shdr/shdr_fleet_schema.sql
         scripts/check-map2-shdr-boundary.ts
@@ -320,9 +323,13 @@ jobs:
       # consumers — a new audit that forks OVERHEAD_W is the case worth seeing.
       # The shared-file placement gate (CLAUDE.md §20) reads every tracked file under
       # app/: the edit that breaks it is a data file added to one app's tree that a
-      # sibling then reads, which can land anywhere under app/.
+      # sibling then reads, which can land anywhere under app/. It also reads common/, simulator/
+      # and firmware/: the edit there is an import that crosses the app/common boundary.
       NP_SCOPE_SHAREDPLACE: |
         app/**
+        common/**
+        simulator/**
+        firmware/**
         scripts/check-shared-placement.ts
         .github/workflows/tooling-ci.yml
       NP_SCOPE_PBMMODEL: |
@@ -467,7 +474,7 @@ jobs:
           assert scope.wirefmt.paths   true  docs/np_fw_hub_001.md
           assert scope.wirefmt.paths   true  firmware/hub_control/include/np_hub_types.h
           assert scope.wirefmt.paths   true  app/web/src/lib/hubCompiler.ts
-          assert scope.wirefmt.paths   true  app/web/src/lib/socketMap.generated.ts
+          assert scope.wirefmt.paths   true  common/lib/socketMap.generated.ts
           assert scope.wirefmt.paths   false firmware/safety_mcu/src/np_safety_main.c
 
           assert scope.bringup.paths   true  firmware/hub_control/src/np_hub_control_main.c
@@ -534,7 +541,9 @@ jobs:
           assert scope.pbmmodel.paths false docs/np_pwrsrc_001.md
           assert scope.sharedplace.paths true  app/ios/NeurOne/Session/HubDescriptorCompiler.swift
           assert scope.sharedplace.paths true  app/NeurOneShared/TestData/hub-descriptor-golden.json
-          assert scope.sharedplace.paths false firmware/hub_control/include/np_hub_config.h
+          assert scope.sharedplace.paths true  common/lib/nppsParser.ts
+          assert scope.sharedplace.paths true  simulator/src/npps-runtime.ts
+          assert scope.sharedplace.paths false docs/np_art_001.md
 
           # The unjustified-choices register gate. The register, a firmware
           # header that carries a marker, the hardware JSON, an app source and

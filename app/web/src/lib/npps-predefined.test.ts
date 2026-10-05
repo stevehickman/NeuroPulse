@@ -5,9 +5,9 @@ import {
   parseNPPSFile,
   buildNamespace,
   validateNamespaceReferences,
-} from './nppsParser';
+} from '../../../../common/lib/nppsParser';
 import { validateProtocol } from './protocolValidator';
-import type { NPLimitsSet } from '../types/limits';
+import type { NPLimitsSet } from '../../../../common/types/limits';
 
 // Load the predefined library straight off disk and prove the whole set parses
 // and cross-references cleanly.

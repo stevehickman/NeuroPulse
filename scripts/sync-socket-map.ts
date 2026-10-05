@@ -6,7 +6,7 @@
  * protocols/predefined/00-zones.npps on every run.
  * Targets:
  *   - Shared:  hardware/np_socket_map.json   (all platforms read or embed this)
- *   - Web:     app/web/src/lib/socketMap.generated.ts
+ *   - Common:  common/lib/socketMap.generated.ts  (web app + simulator bundle)
  *
  * ── The lattice is MEASURED FROM A 3D SCAN, not idealized (2026-07-20) ────────
  *
@@ -124,7 +124,7 @@ import { join, dirname } from "path";
 const ROOT = join(import.meta.dir, "..");
 const ZONE_FILE = join(ROOT, "protocols", "predefined", "00-zones.npps");
 const JSON_OUT = join(ROOT, "hardware", "np_socket_map.json");
-const TS_OUT = join(ROOT, "app", "web", "src", "lib", "socketMap.generated.ts");
+const TS_OUT = join(ROOT, "common", "lib", "socketMap.generated.ts");
 const SWIFT_OUT = join(
   ROOT, "app", "ios", "NeurOne", "Models", "SocketLattice.generated.swift",
 );

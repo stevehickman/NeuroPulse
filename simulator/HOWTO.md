@@ -522,7 +522,7 @@ For clinicians or researchers who want to explore a specific combination rather 
 
 ## 11. Protocol Reference
 
-The Protocol dropdown is generated directly from every single (non-composite) protocol file in `protocols/predefined/*.npps` — the same files the rest of the NeurOne app reads, parsed with the real `app/web/src/lib/nppsParser.ts`. There is no separate hand-maintained protocol list in the simulator, so the dropdown always matches the real protocol set; regenerate it with `bun scripts/generate-simulator-data.ts` after editing any `.npps` file.
+The Protocol dropdown is generated directly from every single (non-composite) protocol file in `protocols/predefined/*.npps` — the same files the rest of the NeurOne app reads, parsed with the real `common/lib/nppsParser.ts`. There is no separate hand-maintained protocol list in the simulator, so the dropdown always matches the real protocol set; regenerate it with `bun scripts/generate-simulator-data.ts` after editing any `.npps` file.
 
 As of this writing that's **65 protocols** — the 15 numbered T1/T2 presets (`01-gamma-focus.npps` … `15-full-t1-immersive.npps`) plus 50 evidence-graded clinical protocols (`clinical-01-pbm-alzheimers.npps` … `clinical-50-tacs-wm-restoration.npps`). A representative sample:
 

@@ -8,7 +8,7 @@ import {
   NPSimulatedInventoryProvider,
   MODULE_TYPES,
   type NPSocketInventory,
-} from './helmetInventory';
+} from '../../../../common/lib/helmetInventory';
 import {
   evaluateProtocol,
   zoneCoverageFor,
@@ -18,7 +18,7 @@ import {
   describeShortfall,
   MODALITY_REQUIREMENTS,
 } from './protocolEligibility';
-import { NP_SOCKETS, NP_ROW_WIDTHS, NP_TILE_GEOMETRY } from './socketMap.generated';
+import { NP_SOCKETS, NP_ROW_WIDTHS, NP_TILE_GEOMETRY } from '../../../../common/lib/socketMap.generated';
 
 /**
  * Which side of the centreline a socket sits on, derived from its POSITION.
@@ -43,9 +43,9 @@ import {
   NP_SOCKET_NUMBERING_BASE,
   isValidSocketId,
   unionSockets,
-} from './socketSet';
-import { parseNPPSFile, buildNamespace } from './nppsParser';
-import type { NPProtocolDefinition, NPZoneDefinition } from '../types/protocol';
+} from '../../../../common/lib/socketSet';
+import { parseNPPSFile, buildNamespace } from '../../../../common/lib/nppsParser';
+import type { NPProtocolDefinition, NPZoneDefinition } from '../../../../common/types/protocol';
 
 const __repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 

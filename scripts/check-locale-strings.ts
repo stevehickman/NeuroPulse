@@ -88,6 +88,7 @@ const LOCALES_DIR = join(ROOT, "locales");
  */
 const COVERED_PATHS = [
   "app/web/src/",
+  "common/", // the sources the web app shares with the simulator bundle
   "app/ios/NeurOne/Views/",
   "app/ios/NeurOne/Onboarding/",
   "app/ios/NeurOne/Setup/",
@@ -122,7 +123,7 @@ const DIAGNOSTIC_FILES = [
   "app/ios/NeurOne/Protocol/NPProtocolScripting.swift",
   "app/ios/NeurOne/Protocol/NPNamespace.swift",
   "app/ios/NeurOne/Protocol/NPBundledProtocols.swift",
-  "app/web/src/lib/nppsParser.ts",
+  "common/lib/nppsParser.ts",
   "app/web/src/lib/nppsSerializer.ts",
   "app/web/src/lib/hubCompiler.ts",
 ];

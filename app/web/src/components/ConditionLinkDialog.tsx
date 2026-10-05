@@ -13,8 +13,8 @@ import {
   openConditionLink,
   type NPResolvedCondition,
 } from '../lib/conditionLink';
-import type { NPConditionDefinition } from '../types/protocol';
-import { t } from '../lib/i18n';
+import type { NPConditionDefinition } from '../../../../common/types/protocol';
+import { t } from '../../../../common/lib/i18n';
 
 interface ConditionChipsProps {
   conditions: readonly string[] | undefined;

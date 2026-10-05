@@ -4,9 +4,9 @@ import {
   entryId,
   entryIsReadOnly,
   requiredModalities,
-} from '../types/protocol';
+} from '../../../../common/types/protocol';
 import { loadPredefinedProtocols, getCachedPredefinedProtocols } from './predefinedProtocols';
-import { parseNPPS } from './nppsParser';
+import { parseNPPS } from '../../../../common/lib/nppsParser';
 import { serializeNPPS } from './nppsSerializer';
 
 export interface ProtocolAvailability {

@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { t } from '../lib/i18n';
+import { t } from '../../../../common/lib/i18n';
 import {
   NPLimitsSet,
   NPIndividualProfile,
   LimitLevel,
-} from '../types/limits';
+} from '../../../../common/types/limits';
 import { serializeNPPSLimits } from '../lib/nppsSerializer';
-import { parseNPPSLimits } from '../lib/nppsParser';
+import { parseNPPSLimits } from '../../../../common/lib/nppsParser';
 import { limitsStore } from '../lib/limitsStore';
 import { NPHardwareLimits } from '../lib/hardwareLimits';
 

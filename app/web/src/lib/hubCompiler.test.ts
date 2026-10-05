@@ -9,16 +9,16 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseNPPSFile } from './nppsParser';
+import { parseNPPSFile } from '../../../../common/lib/nppsParser';
 import { compileProtocol } from './hubCompiler';
-import { NP_SOCKETS } from './socketMap.generated';
+import { NP_SOCKETS } from '../../../../common/lib/socketMap.generated';
 import { NPHardwareLimits } from './hardwareLimits';
-import { defaultParams, MODALITY_META } from '../types/protocol';
+import { defaultParams, MODALITY_META } from '../../../../common/types/protocol';
 import type {
   NPProtocolDefinition,
   NPZoneDefinition,
   PBMTranscranialParams,
-} from '../types/protocol';
+} from '../../../../common/types/protocol';
 
 // ─── Real zone namespace ───────────────────────────────────────────────────────
 

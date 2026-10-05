@@ -39,11 +39,11 @@
 // socketMap.generated.ts. Selection and eligibility never depend on them.
 
 import { useMemo } from 'react';
-import { NP_SOCKETS, type NPSocketGeometry } from '../lib/socketMap.generated';
-import { NP_SOCKET_COUNT } from '../lib/socketSet';
-import type { NPHelmetInventory, NPElementType } from '../lib/helmetInventory';
-import type { NPZoneDefinition } from '../types/protocol';
-import { t } from '../lib/i18n';
+import { NP_SOCKETS, type NPSocketGeometry } from '../../../../common/lib/socketMap.generated';
+import { NP_SOCKET_COUNT } from '../../../../common/lib/socketSet';
+import type { NPHelmetInventory, NPElementType } from '../../../../common/lib/helmetInventory';
+import type { NPZoneDefinition } from '../../../../common/types/protocol';
+import { t } from '../../../../common/lib/i18n';
 
 interface SocketPickerProps {
   selected: ReadonlySet<number>;

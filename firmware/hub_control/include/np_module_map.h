@@ -159,7 +159,7 @@
  * Firmware socket_id is 0-based: 0 .. NP_HEXMAP_MAX_SOCKETS-1, indexing the
  * geometry table directly. The NPPS zone files under protocols/predefined/,
  * hardware/np_socket_map.json ("numberingBase": 1), and the generated app-side
- * map (app/web/src/lib/socketMap.generated.ts) are all 1-based, 1..80 (the shipped scan-grounded lattice; was 78 in the retired one).
+ * map (common/lib/socketMap.generated.ts) are all 1-based, 1..80 (the shipped scan-grounded lattice; was 78 in the retired one).
  *
  * The 80th (highest) 1-based socket maps to firmware socket_id 79 — comfortably
  * inside the 128 domain. Nothing in THIS module performs the +1/-1; it is

@@ -14,7 +14,7 @@ import fs from 'node:fs';
 // the scripts/ type-check (tsconfig.scripts.json) has not built, so it must not follow them.
 const WEB = new URL('../app/web/src/lib/', import.meta.url).pathname;
 const { compileProtocol } = (await import(WEB + 'hubCompiler.ts')) as any;
-const { parseNPPSFile } = (await import(WEB + 'nppsParser.ts')) as any;
+const { parseNPPSFile } = (await import(new URL('../common/lib/', import.meta.url).pathname + 'nppsParser.ts')) as any;
 const zones = new Map(parseNPPSFile(fs.readFileSync(new URL('../protocols/predefined/00-zones.npps', import.meta.url).pathname,'utf8')).zones.map((z:any)=>[z.name,z]));
 Date.now = () => 1_700_000_000_000;
 (globalThis.crypto as any).getRandomValues = (a: Uint8Array) => { a.fill(0xAB); return a; };

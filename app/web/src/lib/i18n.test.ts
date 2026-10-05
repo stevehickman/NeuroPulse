@@ -63,12 +63,12 @@ describe("i18n locale files", () => {
 
 describe("t() function", () => {
   it("returns key when translation is missing", async () => {
-    const { t } = await import("./i18n");
+    const { t } = await import("../../../../common/lib/i18n");
     expect(t("NONEXISTENT_KEY_12345")).toBe("NONEXISTENT_KEY_12345");
   });
 
   it("supports interpolation with named params", async () => {
-    const { t } = await import("./i18n");
+    const { t } = await import("../../../../common/lib/i18n");
     const result = t("TEST_WITH_PARAM", { "0": "hello" });
     expect(result).not.toContain("{0}");
   });
@@ -81,7 +81,7 @@ describe("pluralKey()", () => {
   };
 
   it("English: one and other", async () => {
-    const { pluralKey } = await import("./i18n");
+    const { pluralKey } = await import("../../../../common/lib/i18n");
     const has = family("ONE", "OTHER");
     expect(pluralKey("N", 1, "en", has)).toBe("N_ONE");
     expect(pluralKey("N", 2, "en", has)).toBe("N_OTHER");
@@ -89,14 +89,14 @@ describe("pluralKey()", () => {
   });
 
   it("an explicit _ZERO wins for 0 in every locale", async () => {
-    const { pluralKey } = await import("./i18n");
+    const { pluralKey } = await import("../../../../common/lib/i18n");
     const has = family("ZERO", "ONE", "OTHER");
     expect(pluralKey("N", 0, "en", has)).toBe("N_ZERO");
     expect(pluralKey("N", 0, "ru", has)).toBe("N_ZERO");
   });
 
   it("Russian selects few and many once the locale carries them", async () => {
-    const { pluralKey } = await import("./i18n");
+    const { pluralKey } = await import("../../../../common/lib/i18n");
     const has = family("ONE", "FEW", "MANY", "OTHER");
     expect(pluralKey("N", 1, "ru", has)).toBe("N_ONE");
     expect(pluralKey("N", 21, "ru", has)).toBe("N_ONE");
@@ -107,20 +107,20 @@ describe("pluralKey()", () => {
   });
 
   it("a category the locale does not carry yet falls back to _OTHER, never the raw key", async () => {
-    const { pluralKey } = await import("./i18n");
+    const { pluralKey } = await import("../../../../common/lib/i18n");
     const has = family("ONE", "OTHER");
     expect(pluralKey("N", 3, "ru", has)).toBe("N_OTHER");
     expect(pluralKey("N", 2, "ar", has)).toBe("N_OTHER");
   });
 
   it("Arabic two; Chinese never selects _ONE", async () => {
-    const { pluralKey } = await import("./i18n");
+    const { pluralKey } = await import("../../../../common/lib/i18n");
     expect(pluralKey("N", 2, "ar", family("ONE", "TWO", "OTHER"))).toBe("N_TWO");
     expect(pluralKey("N", 1, "zh-Hans", family("ONE", "OTHER"))).toBe("N_OTHER");
   });
 
   it("tPlural renders the count through the selected member", async () => {
-    const { tPlural } = await import("./i18n");
+    const { tPlural } = await import("../../../../common/lib/i18n");
     expect(tPlural("SCRIPT_LINE_COUNT", 1)).toBe("1 line");
     expect(tPlural("SCRIPT_LINE_COUNT", 3)).toBe("3 lines");
   });
@@ -129,14 +129,14 @@ describe("pluralKey()", () => {
 describe("supportedLocales", () => {
   it("exports exactly 11 locales", async () => {
     const { supportedLocales } = await import(
-      "../locales/supportedLocales"
+      "../../../../common/locales/supportedLocales"
     );
     expect(supportedLocales).toHaveLength(11);
   });
 
   it("every locale has non-empty bcp47 and displayName", async () => {
     const { supportedLocales } = await import(
-      "../locales/supportedLocales"
+      "../../../../common/locales/supportedLocales"
     );
     for (const loc of supportedLocales) {
       expect(loc.bcp47.length).toBeGreaterThan(0);
@@ -147,7 +147,7 @@ describe("supportedLocales", () => {
 
   it("Arabic has direction rtl", async () => {
     const { supportedLocales } = await import(
-      "../locales/supportedLocales"
+      "../../../../common/locales/supportedLocales"
     );
     const ar = supportedLocales.find((l) => l.bcp47 === "ar");
     expect(ar).toBeDefined();
@@ -155,13 +155,13 @@ describe("supportedLocales", () => {
   });
 
   it("findLocale falls back to en for unknown locale", async () => {
-    const { findLocale } = await import("../locales/supportedLocales");
+    const { findLocale } = await import("../../../../common/locales/supportedLocales");
     const result = findLocale("xx-YY");
     expect(result.bcp47).toBe("en");
   });
 
   it("findLocale matches es-MX to es-419", async () => {
-    const { findLocale } = await import("../locales/supportedLocales");
+    const { findLocale } = await import("../../../../common/locales/supportedLocales");
     const result = findLocale("es-MX");
     expect(result.bcp47).toBe("es-419");
   });

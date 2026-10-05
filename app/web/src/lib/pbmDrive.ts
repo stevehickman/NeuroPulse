@@ -13,7 +13,7 @@
 // nearest reachable value: a clamped pulse train is a different stimulus from
 // the one authored (CLAUDE.md §3).
 
-import type { NPPBMChannelElement } from './wavelengthRules';
+import type { NPPBMChannelElement } from '../../../../common/lib/wavelengthRules';
 
 /**
  * Peak irradiance at the scalp that each emitter channel delivers at full drive

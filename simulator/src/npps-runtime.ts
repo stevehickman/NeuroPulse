@@ -3,7 +3,7 @@
  *
  * This module is bundled to `simulator/js/vendor/npps-runtime.js` by
  * `scripts/build-simulator-runtime.ts`. **What is bundled is CODE, not
- * protocol content:** the real parser (`app/web/src/lib/nppsParser.ts`) plus the
+ * protocol content:** the real parser (`common/lib/nppsParser.ts`) plus the
  * transform below. Every zone, condition and protocol is fetched and parsed
  * from `protocols/predefined/` when the simulator loads.
  *
@@ -20,13 +20,13 @@
  * so the simulator must be served over HTTP. See HOWTO §3.
  */
 
-import { parseNPPSFile, buildNamespace, validateNamespaceReferences } from '../../app/web/src/lib/nppsParser';
-import { DEFAULT_WAVELENGTH_RULES, mapWavelength, parsePbmWavelength } from '../../app/web/src/lib/wavelengthRules';
+import { parseNPPSFile, buildNamespace, validateNamespaceReferences } from '../../common/lib/nppsParser';
+import { DEFAULT_WAVELENGTH_RULES, mapWavelength, parsePbmWavelength } from '../../common/lib/wavelengthRules';
 import type {
   NPProtocolDefinition,
   NPZoneDefinition,
   NPModalityParams,
-} from '../../app/web/src/types/protocol';
+} from '../../common/types/protocol';
 
 /** Where the shipped library lives, relative to `simulator/index.html`. */
 const DEFAULT_BASE_URL = '../protocols/predefined/';

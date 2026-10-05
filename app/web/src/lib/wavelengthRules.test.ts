@@ -18,8 +18,8 @@ import {
   resolveWavelengthRules,
   validateWavelengthRules,
   type NPWavelengthRules,
-} from './wavelengthRules';
-import { parseNPPS, parseNPPSFile, NPPSParseError } from './nppsParser';
+} from '../../../../common/lib/wavelengthRules';
+import { parseNPPS, parseNPPSFile, NPPSParseError } from '../../../../common/lib/nppsParser';
 import { serializeNPPS, serializeWavelengthRules } from './nppsSerializer';
 
 const DEFAULTS_FILE = path.resolve(__dirname, '../../../../protocols/predefined/00-wavelength-rules.npps');

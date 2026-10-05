@@ -18,16 +18,16 @@ import {
   NPSimulatedInventoryProvider,
   type NPInventoryPreset,
   type NPHelmetInventory,
-} from '../lib/helmetInventory';
+} from '../../../../common/lib/helmetInventory';
 import {
   ELEMENT_TYPE_LABEL,
-} from '../lib/helmetInventory';
+} from '../../../../common/lib/helmetInventory';
 import { wavelengthRulesStore } from '../lib/wavelengthRulesStore';
 import {
   PBM_CHANNEL_ELEMENTS,
   resolvePbmChannels,
   type NPWavelengthRules,
-} from '../lib/wavelengthRules';
+} from '../../../../common/lib/wavelengthRules';
 import {
   evaluateProtocol,
   zonesForModality,
@@ -37,8 +37,8 @@ import {
   MODALITY_REQUIREMENTS,
   type NPEligibility,
 } from '../lib/protocolEligibility';
-import { NP_SOCKETS } from '../lib/socketMap.generated';
-import { socketRangeLabel, toSocketSet, unionSockets } from '../lib/socketSet';
+import { NP_SOCKETS } from '../../../../common/lib/socketMap.generated';
+import { socketRangeLabel, toSocketSet, unionSockets } from '../../../../common/lib/socketSet';
 import { getPredefinedNamespace } from '../lib/predefinedProtocols';
 import { serializeZone } from '../lib/nppsSerializer';
 import { ConditionChips } from './ConditionLinkDialog';
@@ -50,8 +50,8 @@ import {
   type NPZoneDefinition,
   type NPModalityTypeId,
   type NPConditionDefinition,
-} from '../types/protocol';
-import { t, tPlural } from '../lib/i18n';
+} from '../../../../common/types/protocol';
+import { t, tPlural } from '../../../../common/lib/i18n';
 
 // Labels are resolved at render time, not at module load: `t` reads the
 // translations that initI18n() has loaded, and a module-level constant would

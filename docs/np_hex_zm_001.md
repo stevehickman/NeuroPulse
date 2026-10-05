@@ -245,7 +245,7 @@ Resulting membership: frontal 11, temporal 6, parietal 10, occipital 3 = 30.
 `scripts/sync-socket-map.ts` is the only place the inputs appear. It derives the
 lattice, asserts the row construction never exceeds the area bound, and emits
 `NP_SOCKET_COUNT`, `NP_SOCKET_NUMBERING_BASE`, `NP_SOCKET_ID_MIN/MAX` and
-`NP_TILE_GEOMETRY` to `app/web/src/lib/socketMap.generated.ts` and
+`NP_TILE_GEOMETRY` to `common/lib/socketMap.generated.ts` and
 `hardware/np_socket_map.json`.
 
 > ### 🔒 NUMBER-1 — DECIDED 2026-08-03 (principal): socket numbers are 1-based, project-wide

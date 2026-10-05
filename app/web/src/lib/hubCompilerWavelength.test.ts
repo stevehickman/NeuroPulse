@@ -14,10 +14,10 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseNPPS, parseNPPSFile, buildNamespace } from './nppsParser';
+import { parseNPPS, parseNPPSFile, buildNamespace } from '../../../../common/lib/nppsParser';
 import { compileProtocol } from './hubCompiler';
-import { DEFAULT_WAVELENGTH_RULES, resolveWavelengthRules } from './wavelengthRules';
-import type { NPProtocolDefinition, NPZoneDefinition } from '../types/protocol';
+import { DEFAULT_WAVELENGTH_RULES, resolveWavelengthRules } from '../../../../common/lib/wavelengthRules';
+import type { NPProtocolDefinition, NPZoneDefinition } from '../../../../common/types/protocol';
 
 const DIR = path.resolve(__dirname, '../../../../protocols/predefined');
 const zones: ReadonlyMap<string, NPZoneDefinition> = new Map(

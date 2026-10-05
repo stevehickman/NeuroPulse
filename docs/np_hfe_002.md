@@ -223,7 +223,7 @@ With the front and rear rim edges as natural landmarks, the 12 rows partition in
 
 This is the one feature whose *positions* depend on 10-20 registration, so it is **gated on REG-1** (OI-HFE2-01). Until REG-1 lands it must not be cut into tooling; L1(a)–(c) are not so gated, because they derive from lattice structure (row parity, row boundaries, midline) rather than from anatomy.
 
-**Counting depth summary — the number that decides whether L1 works.** Computed against the shipped `app/web/src/lib/socketMap.generated.ts`, not asserted:
+**Counting depth summary — the number that decides whether L1 works.** Computed against the shipped `common/lib/socketMap.generated.ts`, not asserted:
 
 ```
 row -> longitudinal count:  r0:1  r1:2  r2:1  r3:1  r4:2  r5:1

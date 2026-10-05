@@ -19,6 +19,14 @@
 
 ## Current revision
 
+**Rev 64 (2026-10-05) — §20 extended: a file shared by an app and a non-app build artifact lives in `common/`. A placement rule; no design decision, limit or interlock changed.**
+
+**What changed.** §20 was "shared app files, one home, `app/NeurOneShared/`". It is now two homes: `app/NeurOneShared/` for files shared only by apps, and **`common/` at the repository root for a file shared by an app and a build artifact that is not an app** (the simulator bundle, firmware). `scripts/` is not a build artifact, so a script reading a file does not make that file shared (principal, 2026-10-05).
+
+**Why.** The simulator bundle (`simulator/js/vendor/npps-runtime.js`) is built from nine web sources that lived under `app/web/src/`, so a non-app artifact reached into an app's tree, the very pattern §20 forbids between apps. They moved: `lib/{helmetInventory,i18n,nppsParser,socketMap.generated,socketSet,wavelengthRules}.ts`, `locales/supportedLocales.ts`, `types/{limits,protocol}.ts`, plus the generated `generated/locales/*.json`.
+
+**Consequences recorded.** (i) The generators write into `common/`: `sync-locales.ts` → `common/generated/locales/`, `sync-socket-map.ts` → `common/lib/socketMap.generated.ts`. (ii) `useTranslation()` was deleted from `i18n.ts`: it had no caller, and its `require("react")` could not resolve from `common/`. It had also been shipping a full React build inside the simulator bundle, which shrank from ~1,900 lines of vendored React to nothing. (iii) `check-shared-placement.ts` gained a non-app reach-in check and a `common/` reach-out check. `check-map2-shdr-boundary.ts` and `check-locale-strings.ts` now scan `common/`, which they would otherwise have stopped seeing. (iv) The relevance lists in `web-ci.yml`, `codeql.yml` and `tooling-ci.yml` gained `common/**`.
+
 **Rev 63 (2026-10-04) — new §19: the unjustified-choices register is kept current. A process rule; no design decision, limit or interlock changed.**
 
 **What was added.** `CLAUDE.md` §19 and a Document Map row. The register is `docs/status/unjustified-choices.md`,

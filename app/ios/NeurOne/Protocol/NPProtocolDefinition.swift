@@ -25,7 +25,7 @@ struct NPIntervalConfig: Codable, Equatable {
 /// Where a PBM transcranial command lands on the helmet lattice.
 ///
 /// Mirrors the web app's `PBMTranscranialParams.zones` + `zoneRefs`
-/// (app/web/src/types/protocol.ts), expressed as a sum type because the payload
+/// (common/types/protocol.ts), expressed as a sum type because the payload
 /// differs per case and "selector plus an optional side field" made invalid
 /// combinations representable.
 ///

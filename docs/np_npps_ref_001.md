@@ -1307,7 +1307,7 @@ zone "Frontal Left" {
 >
 > **Range.** Ids are **1-based** and run `1..N`, where N is the socket count derived from skull anatomy and tile size (NP-HEX-ZM-001 §3.1: a 62 cm skull gives a 429 cm² tileable vault, which a 40 mm hexagonal tile fills with **30** sockets — corroborated by both the area quotient and the row-by-row construction). The numbering base and the bound are both enforced, not merely documented — the parser rejects a `sockets:` entry outside the range, naming the offending id and the valid range. Do not hardcode the count: read `NP_SOCKET_COUNT` / `NP_SOCKET_ID_MIN` / `NP_SOCKET_ID_MAX` from `socketMap.generated.ts`, which `scripts/sync-socket-map.ts` emits.
 >
-> **A zone is a SET.** Repeated ids in a `sockets:` list are collapsed at parse time and the list is returned sorted, so every consumer receives canonical membership. Unions of zones dedup for the same reason: midline sockets are members of BOTH hemisphere zones of their lobe, so a bilateral protocol referencing `Frontal Left` + `Frontal Right` addresses the shared midline socket once, not twice. Use `unionSockets` / `unionZoneSockets` (`app/web/src/lib/socketSet.ts`) rather than concatenating.
+> **A zone is a SET.** Repeated ids in a `sockets:` list are collapsed at parse time and the list is returned sorted, so every consumer receives canonical membership. Unions of zones dedup for the same reason: midline sockets are members of BOTH hemisphere zones of their lobe, so a bilateral protocol referencing `Frontal Left` + `Frontal Right` addresses the shared midline socket once, not twice. Use `unionSockets` / `unionZoneSockets` (`common/lib/socketSet.ts`) rather than concatenating.
 
 ### Shipped zones
 

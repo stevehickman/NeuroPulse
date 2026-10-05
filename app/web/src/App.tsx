@@ -1,13 +1,13 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { NPProtocolEntry, NPCompositeProtocol } from './types/protocol';
+import { NPProtocolEntry, NPCompositeProtocol } from '../../../common/types/protocol';
 import { protocolLibrary, DeviceTier } from './lib/protocolLibrary';
 import { limitsStore } from './lib/limitsStore';
-import { NPLimitsSet } from './types/limits';
+import { NPLimitsSet } from '../../../common/types/limits';
 import { ProtocolMenu } from './components/ProtocolMenu';
 import { ProtocolEditor } from './components/ProtocolEditor';
 import { ProtocolComposer } from './components/ProtocolComposer';
 import { HelmetConfig } from './components/HelmetConfig';
-import { t } from './lib/i18n';
+import { t } from '../../../common/lib/i18n';
 
 // ─── Protocol Context ─────────────────────────────────────────────────────────
 

@@ -1,10 +1,10 @@
-import { NPProtocolEntry, NPNamespace } from '../types/protocol';
+import { NPProtocolEntry, NPNamespace } from '../../../../common/types/protocol';
 import { wavelengthRulesStore } from './wavelengthRulesStore';
 import {
   parseNPPSFile,
   buildNamespace,
   validateNamespaceReferences,
-} from './nppsParser';
+} from '../../../../common/lib/nppsParser';
 
 const MANIFEST_URL = '/protocols/predefined/manifest.json';
 const BASE_URL = '/protocols/predefined/';

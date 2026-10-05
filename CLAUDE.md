@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 63 (current)  
+**Revision:** 64 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -447,7 +447,7 @@ reasoning stays in the owning open item (OI), so a row points at it and never re
 - **The gate is partial.** `scripts/check-unjustified-register.ts` fails a marked value the register
   does not name. It cannot see an unmarked one. Marking it, or adding the row, is the author's duty.
 
-## 20. SHARED APP FILES — ONE HOME, `app/NeurOneShared/` (locked) → `scripts/check-shared-placement.ts`
+## 20. SHARED FILES — ONE HOME EACH: `app/NeurOneShared/` and `common/` (locked) → `scripts/check-shared-placement.ts`
 
 **A file whose content is common to more than one app (iOS, watchOS, Android, Windows, web) lives in
 `app/NeurOneShared/`, directly or in a subdirectory of it, and is never stored in one app's
@@ -465,6 +465,24 @@ hand-written resources several apps bundle (`Localizable.xcstrings`), `Sources/`
 - **Enforced** by `bun scripts/check-shared-placement.ts` (CI job `shared-placement` in
   `tooling-ci.yml`), which fails an `app/<A>/` file naming a data file under `app/<B>/` and any
   identical content stored under two apps.
+
+**A file shared by an app and a build artifact that is not an app (the simulator bundle, firmware)
+lives in `common/` at the repository root, never in an app's tree and never in `app/NeurOneShared/`.**
+`app/NeurOneShared/` is for apps only. `scripts/` is not a build artifact: it makes them, so a
+script reading a file does not make that file shared.
+
+- **Layout.** `common/` mirrors the old tree it was lifted from, so relative imports between its
+  files do not change (`lib/`, `types/`, `locales/`, `generated/`). Today it holds the TypeScript
+  the web app and the simulator bundle (`simulator/js/vendor/npps-runtime.js`) both build from.
+- **Generated shared files are written into `common/`.** `bun scripts/sync-locales.ts` writes
+  `common/generated/locales/` (git-ignored) and `bun scripts/sync-socket-map.ts` writes
+  `common/lib/socketMap.generated.ts`. A generator never writes a shared file into one app's tree.
+- **`common/` is the lowest layer.** It imports nothing outside `common/` (packages aside), so it may
+  not depend on an app. If it needs one, the shared piece was cut in the wrong place.
+- **Nothing non-app reaches into `app/`.** An import, `require` or `#include` under `simulator/` or
+  `firmware/` that names a path under `app/` is a violation. A comment naming one is prose.
+- **Never a React dependency.** `common/` has no `node_modules` above it, so a module needing React
+  or another package the web app installs belongs in the app, not here.
 
 ---
 

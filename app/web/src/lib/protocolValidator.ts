@@ -2,16 +2,16 @@ import {
   NPProtocolDefinition,
   NPProtocolEntry,
   NPProtocolModality,
-} from '../types/protocol';
+} from '../../../../common/types/protocol';
 import {
   NPLimitsSet,
   NPValidationIssue,
   NPValidationResult,
   LimitSource,
-} from '../types/limits';
+} from '../../../../common/types/limits';
 import { NPHardwareLimits } from './hardwareLimits';
-import { t } from './i18n';
-import { parsePbmWavelength } from './wavelengthRules';
+import { t } from '../../../../common/lib/i18n';
+import { parsePbmWavelength } from '../../../../common/lib/wavelengthRules';
 
 // ─── Result builder ────────────────────────────────────────────────────────────
 

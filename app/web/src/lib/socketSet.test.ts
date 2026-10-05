@@ -10,7 +10,7 @@ import {
   toSocketSet,
   unionSockets,
   unionZoneSockets,
-} from './socketSet';
+} from '../../../../common/lib/socketSet';
 
 describe('socket id validation', () => {
   it('accepts every id on the helmet', () => {

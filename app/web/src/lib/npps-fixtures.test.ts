@@ -1,10 +1,10 @@
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest';
-import { parseNPPS, NPPSParseError } from './nppsParser';
+import { parseNPPS, NPPSParseError } from '../../../../common/lib/nppsParser';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { NPProtocolDefinition, NPCompositeProtocol } from '../types/protocol';
+import type { NPProtocolDefinition, NPCompositeProtocol } from '../../../../common/types/protocol';
 
 const __fixturesDir = join(
   dirname(fileURLToPath(import.meta.url)),

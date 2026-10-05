@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './App.css';
-import { initI18n, getCurrentLocale } from './lib/i18n';
+import { initI18n, getCurrentLocale } from '../../../common/lib/i18n';
 
 initI18n().then(() => {
   const locale = getCurrentLocale();

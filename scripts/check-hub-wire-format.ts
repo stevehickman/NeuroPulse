@@ -68,9 +68,9 @@ const TYPES = "firmware/hub_control/include/np_hub_types.h";
 const COMPILER = "app/web/src/lib/hubCompiler.ts";
 /** The compiler's runtime imports — the self-test copies these beside it. */
 const COMPILER_DEPS = [
-  "app/web/src/lib/socketMap.generated.ts",
+  "common/lib/socketMap.generated.ts",
   "app/web/src/lib/hardwareLimits.ts",
-  "app/web/src/lib/wavelengthRules.ts",
+  "common/lib/wavelengthRules.ts",
   "app/web/src/lib/pbmDrive.ts",
 ];
 

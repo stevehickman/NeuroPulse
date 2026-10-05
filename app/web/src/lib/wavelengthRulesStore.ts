@@ -18,8 +18,8 @@ import {
   validateWavelengthRules,
   type NPWavelengthChannelRule,
   type NPWavelengthRules,
-} from './wavelengthRules';
-import { parseNPPSFile } from './nppsParser';
+} from '../../../../common/lib/wavelengthRules';
+import { parseNPPSFile } from '../../../../common/lib/nppsParser';
 import { serializeWavelengthRules } from './nppsSerializer';
 
 const STORAGE_KEY_USER = 'np_wavelength_rules_user';

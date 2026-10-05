@@ -9,7 +9,7 @@ import {
   linkBlockedMessage,
   type NPLinkReason,
 } from './conditionLink';
-import { parseNPPSFile, buildNamespace } from './nppsParser';
+import { parseNPPSFile, buildNamespace } from '../../../../common/lib/nppsParser';
 
 const __fixturesDir = join(
   dirname(fileURLToPath(import.meta.url)),

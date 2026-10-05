@@ -110,12 +110,6 @@ export function tPlural(
   return t(resolved, { "0": count, ...params });
 }
 
-export function useTranslation() {
-  const { useMemo } = require("react");
-  const locale = useMemo(() => currentLocale, []);
-  return { t, tPlural, locale };
-}
-
 export function getCurrentLocale(): LocaleInfo {
   return currentLocale;
 }

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { parseNPPS, parseNPPSLimits, tokenize, NPPSParseError } from './nppsParser';
+import { parseNPPS, parseNPPSLimits, tokenize, NPPSParseError } from '../../../../common/lib/nppsParser';
 import { serializeProtocol, serializeNPPS } from './nppsSerializer';
-import type { NPProtocolDefinition, NPCompositeProtocol } from '../types/protocol';
-import { MODALITY_META } from '../types/protocol';
+import type { NPProtocolDefinition, NPCompositeProtocol } from '../../../../common/types/protocol';
+import { MODALITY_META } from '../../../../common/types/protocol';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 

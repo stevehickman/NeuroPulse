@@ -10,17 +10,17 @@ import {
   entryTags,
   entryIsPredefined,
   entryIsReadOnly,
-} from '../types/protocol';
+} from '../../../../common/types/protocol';
 import { protocolLibrary, ProtocolAvailability } from '../lib/protocolLibrary';
 import { useProtocolContext } from '../App';
 import { limitsStore } from '../lib/limitsStore';
 import { validateEntry } from '../lib/protocolValidator';
-import { NPValidationResult } from '../types/limits';
+import { NPValidationResult } from '../../../../common/types/limits';
 import { LimitsSettings } from './LimitsSettings';
 import { ConditionChips } from './ConditionLinkDialog';
 import { getPredefinedNamespace } from '../lib/predefinedProtocols';
-import type { NPConditionDefinition } from '../types/protocol';
-import { t, tPlural } from '../lib/i18n';
+import type { NPConditionDefinition } from '../../../../common/types/protocol';
+import { t, tPlural } from '../../../../common/lib/i18n';
 
 // Stable identity so ConditionChips doesn't see a new Map every render.
 const NO_CONDITIONS: ReadonlyMap<string, NPConditionDefinition> = new Map();
