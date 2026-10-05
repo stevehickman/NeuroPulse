@@ -93,6 +93,9 @@ sealed class TdcsParams
     public double IntensityMilliamps { get; init; } = 1.0;
     public string[][] ElectrodePairs { get; init; } = [["Fp1", "P3"]];
     public int RampSeconds { get; init; } = 30;
+    /// Per-electrode pad area, cm² (OI-CHARGE-04). The safety MCU derives its 40 µC/cm² limit
+    /// from it. Mirrors NPHardwareLimits.tdcsDefaultElectrodeAreaCm2 on iOS.
+    public double ElectrodeAreaCm2 { get; init; } = 35.0;
 }
 
 sealed class VnsHrvParams

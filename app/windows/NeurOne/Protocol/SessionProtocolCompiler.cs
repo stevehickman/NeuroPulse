@@ -49,7 +49,7 @@ static class SessionProtocolCompiler
         {
             NPModalityParams.PbmTranscranial m => new PbmTranscranialConfig
             {
-                Zones = m.P.ResolvedZones,
+                Zones = RequireZones(m.P),
                 Wavelength = WavelengthRawValue(m.P.Wavelength),
                 FrequencyHz = m.P.FrequencyHz,
                 DutyCyclePercent = m.P.DutyCyclePercent,
@@ -91,7 +91,8 @@ static class SessionProtocolCompiler
                 AmplitudeMilliamps = m.P.IntensityMilliamps,
                 DurationSeconds = mod.Interval.IsContinuous ? sessionDurationSeconds : mod.Interval.IntervalOnSeconds,
                 RampSeconds = m.P.RampSeconds,
-                ElectrodePairs = m.P.ElectrodePairs
+                ElectrodePairs = m.P.ElectrodePairs,
+                ElectrodeAreaCm2 = m.P.ElectrodeAreaCm2
             },
 
             NPModalityParams.VnsHrv m => new VnsHrvConfig
@@ -165,9 +166,22 @@ static class SessionProtocolCompiler
             {
                 "retired" => WavelengthRulesEngine.RetiredMessage(w),
                 "invalid" => $"PBM wavelength '{w}' is not a wavelength: write one value such as \"810nm\".",
-                _ => $"No emitter channel delivers {w} under the wavelength rules in force. Refused, not moved to the nearest channel."
+                _ => UnmappedMessage(w)
             });
         return w;
+    }
+
+    private static string UnmappedMessage(string w) =>
+        $"No emitter channel delivers {w} under the wavelength rules in force. Refused, not moved to the nearest channel.";
+
+    // A target that names no zone is refused, never substituted (iOS throws NPSocketTargetError.emptyTarget).
+    // Windows still carries the five-slot selector; the named-zone / clinician-selected model is not ported.
+    private static int[] RequireZones(PbmTranscranialParams p)
+    {
+        var zones = p.ResolvedZones;
+        if (zones.Length == 0)
+            throw new NotSupportedException("PBM target resolves to no zones. Refused, not substituted.");
+        return zones;
     }
 
     // The intranasal probe carries the 660 and 808 nm channels only: a wavelength that maps to
@@ -177,7 +191,7 @@ static class SessionProtocolCompiler
         WavelengthRawValue(w);
         var channels = WavelengthRulesEngine.ResolveChannels(w, WavelengthRulesEngine.Default, out _)!;
         if (!channels.Any(c => c is PbmChannelElement.Led660 or PbmChannelElement.Led808))
-            throw new NotSupportedException($"Intranasal PBM cannot be delivered on {channels[0]}: it is a channel the probe does not carry.");
+            throw new NotSupportedException(UnmappedMessage(w));
         return w;
     }
 

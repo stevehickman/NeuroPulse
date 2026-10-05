@@ -47,6 +47,7 @@ data class NPSessionProtocol(
         fun fromDefinition(
             definition: NPProtocolDefinition,
             mode: OperatingMode = OperatingMode.MODE2_PROGRAMMING,
+            clinicianSockets: List<Int>? = null,
         ): NPSessionProtocol {
             val duration = when (val t = definition.timingMode) {
                 is NPTimingMode.Duration -> t.seconds
@@ -65,18 +66,20 @@ data class NPSessionProtocol(
                     )
                 }
                 (m.params as? NPModalityParams.PbmTranscranial)?.let {
-                    requireDeliverable("PBM", it.params.wavelength.rawValue, NPPBMChannelElement.entries)
+                    requireDeliverable(it.params.wavelength.rawValue, NPPBMChannelElement.entries)
                 }
                 (m.params as? NPModalityParams.PbmIntranasal)?.let {
                     requireDeliverable(
-                        "Intranasal PBM", it.params.wavelength.rawValue,
+                        it.params.wavelength.rawValue,
                         listOf(NPPBMChannelElement.LED_660, NPPBMChannelElement.LED_808),
                     )
                 }
                 when (val p = m.params) {
                     is NPModalityParams.PbmTranscranial -> configs.add(
                         ModalityConfig.PbmTranscranial(
-                            zones = p.params.resolvedZones,
+                            // Throws on an unknown zone or a missing clinician selection: a
+                            // substituted target is wrong-site stimulation (parity with iOS).
+                            zones = p.params.target.resolveSockets(clinicianSockets),
                             wavelength = p.params.wavelength.rawValue,
                             frequencyHz = p.params.frequencyHz,
                             dutyCyclePercent = p.params.dutyCyclePercent,
@@ -266,38 +269,27 @@ sealed class ModalityConfig {
  * wavelength rules in force. Refused, never moved to the nearest channel (NP-NPPS-REF-001
  * §4.1a); a retired combined name says which blocks replace it.
  */
-private fun requireDeliverable(what: String, wavelength: String, allowed: List<NPPBMChannelElement>) {
+private fun requireDeliverable(wavelength: String, allowed: List<NPPBMChannelElement>) {
     when (val r = NPWavelengthRulesEngine.resolveChannels(wavelength)) {
         is NPPbmChannelResolution.Refused -> throw IllegalArgumentException(
             when (r.reason) {
-                "retired" -> "$what: ${NPWavelengthRulesEngine.retiredMessage(r.value)}"
-                "invalid" -> "$what wavelength '${r.value}' is not a wavelength: write one value such as \"810nm\"."
-                else -> "No emitter channel delivers ${r.value} under the wavelength rules in force. " +
-                    "Refused, not moved to the nearest channel."
+                "retired" -> NPWavelengthRulesEngine.retiredMessage(r.value)
+                "invalid" -> "PBM wavelength '${r.value}' is not a wavelength: write one value such as \"810nm\"."
+                else -> unmappedMessage(r.value)
             },
         )
         is NPPbmChannelResolution.Ok -> if (r.elements.none { it in allowed }) {
-            throw IllegalArgumentException("$what cannot be delivered on ${r.elements.first().rawValue}: ${r.elements.first().rawValue} is a channel it does not carry.")
+            // Same text as iOS: the probe's refusal is the "unmapped" one.
+            throw IllegalArgumentException(unmappedMessage(wavelength))
         }
     }
 }
 
-// MARK: - resolved zone/channel helpers (port of NPProtocolDefinition computed props)
+private fun unmappedMessage(value: String) =
+    "No emitter channel delivers $value under the wavelength rules in force. " +
+        "Refused, not moved to the nearest channel."
 
-/**
- * The 1-based socket ids this modality drives.
- *
- * These used to be five hardware slot indices (0..4) from the retired
- * zone-module design. A zone is now a named set of sockets, so the ids are real
- * socket (major) addresses resolved through [NPZoneRegistry], which reads the
- * loaded `.npps` files — the same source iOS resolves against.
- *
- * A clinician-selected target has no answer without the operator's choice, so
- * it resolves to nothing here; callers that can run a session must go through
- * [NPPBMTarget.resolveSockets] with the chosen sockets and handle its error.
- */
-val NPPBMTranscranialParams.resolvedZones: List<Int>
-    get() = runCatching { target.resolveSockets() }.getOrDefault(emptyList())
+// MARK: - resolved zone/channel helpers (port of NPProtocolDefinition computed props)
 
 val NPEEGNeurofeedbackParams.resolvedChannels: List<String>
     get() = if (channels == NPEEGNeurofeedbackParams.ChannelSelection.CUSTOM && customChannels != null) customChannels!!
