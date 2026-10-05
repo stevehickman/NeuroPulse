@@ -52,8 +52,7 @@ re-scores** (RISK-18 and -21 drifted HIGH to MEDIUM, RISK-22 MEDIUM to HIGH) dur
 re-score batch should be diffed the same way against the register it changes, so a changed rating is
 one somebody chose.
 
-Also, `NP-RISK-002` §2 still says "**Nine** risks lose their referent". The §3 table has five
-(`OI-RISK2-03` has the same stale count). That sentence is worth fixing in the same revision.
+(`NP-RISK-002` §2 once said "nine" risks lose their referent. The table has five, and Rev 15 corrected the sentence.)
 
 ## 4. Decisions needed
 

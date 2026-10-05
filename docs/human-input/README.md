@@ -30,7 +30,7 @@ logged in `docs/status/completed-decisions.md`. Never quote a draft here as a de
 | `oi-risk2-06-clinical-question.md` | `OI-RISK2-06` | Should a cervical cardiac cutoff also withhold auricular VNS? | DRAFT, not sent |
 | `oi-risk2-09-cvns-detection-adequacy.md` | `OI-RISK2-09` | Is the `REQ-CVNS-09` cardiac detection requirement clinically adequate? Five sub-questions (a)–(e). | DRAFT, not sent |
 | `oi-risk2-04-counsel-engagement.md` | `OI-RISK2-04` | Commission outside regulatory counsel on the PBM irradiance ceilings (RISK-03)? Four open choices. | DRAFT, not sent |
-| `oi-risk2-03-second-reader.md` | `OI-RISK2-03` | Second reader: confirm or challenge the five RETIRED risk dispositions (the item says nine; the table has five). | DRAFT, not sent |
+| `oi-risk2-03-second-reader.md` | `OI-RISK2-03` | Second reader: confirm or challenge the five RETIRED risk dispositions (five, per the table). | DRAFT, not sent |
 | `oi-risk2-07-update-path-test.md` | `OI-RISK2-07` | Confirm the owed NV-pages-survive-update test, where it binds, and who carries it. Waits on the first safety-MCU update path. | DRAFT, not sent |
 | `oi-risk2-02-hazard-analysis-commission.md` | `OI-RISK2-02` | Commission the hazard analysis for A11, A12, A13 and A15: owners, register location, scope, order, DRAFT-spec handling. | DRAFT, not sent |
 | `oi-risk2-01-rescore-carried-risks.md` | `OI-RISK2-01` | Commission the S × P re-score of the carried risks: scope, order, scorer and approver, provisional inputs, record form. | DRAFT, not sent |

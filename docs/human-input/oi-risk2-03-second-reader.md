@@ -31,10 +31,10 @@ Quotes are shortened. The full rows are in `docs/np_risk_002.md` §3, lines 88�
 
 ## 3. Things the reader should know
 
-- **The item text is stale.** `OI-RISK2-03` says "**nine** RETIRED dispositions". The §3 table has **five**
-  (RISK-01, -07, -09, -11, -15). `NP-RISK-002` §3 itself says its first draft "claimed 9 retired and 15
-  carried, from memory rather than from the table", and the counts were then re-derived. So "nine" is a
-  leftover. **Please check the count too**: parse the Disposition column and confirm five.
+- **The count was corrected in `NP-RISK-002` Rev 15 (2026-10-05).** The item used to say "nine" RETIRED
+  dispositions, a figure from the first draft. §3's table has **five** (RISK-01, -07, -09, -11, -15), and
+  §3 itself says the first draft's counts were wrong. **Please still check the count yourself**: parse
+  the Disposition column and confirm five.
 - **RISK-24 is not retired** (CLOSED-CONFIRMED: the risk was real, and the design changed). It is outside
   the item's scope, but you may note whether it was filed under the right disposition.
 - **Retirement by "structurally eliminated" is the claim most easily wrong.** The same document found the
@@ -62,8 +62,7 @@ Mark a row **CHALLENGE** if you find any of these, and say which:
 ## 6. What happens after
 
 Quality records the outcome in `NP-RISK-002` §6 and the decisions log. A challenged row reopens as a
-hazard entry in `NP-RISK-003` or `-004`, scored by the Quality Lead (`NP-RM-001` §8.2). Quality should
-also correct the "nine" in `OI-RISK2-03` when it closes. Do **not** edit the disposition table to match
+hazard entry in `NP-RISK-003` or `-004`, scored by the Quality Lead (`NP-RM-001` §8.2). Do **not** edit the disposition table to match
 your reading. Silent edits to a retired row hide exactly the failure this review looks for.
 
 ## References
