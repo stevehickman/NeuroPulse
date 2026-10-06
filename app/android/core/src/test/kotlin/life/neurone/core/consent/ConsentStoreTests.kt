@@ -980,7 +980,7 @@ class ConsentStoreTests {
     /// use case promises access its tier cannot carry and the clamp silently removes it.
     @Test
     fun everyUseCaseIsReachableAtItsDeclaredTier() {
-        for (useCase in ConsentEngine.USE_CASE_LIBRARY) {
+        for (useCase in USE_CASE_LIBRARY) {
             assertTrue(
                 useCase.tier.uhdrElements.containsAll(useCase.requiredElements),
                 "${useCase.id} requires elements its declared tier does not carry",
@@ -994,9 +994,9 @@ class ConsentStoreTests {
     fun theUseCaseLibraryMatchesTheIosTable() {
         assertEquals(
             listOf("adherence_monitoring", "eeg_review", "hrv_outcomes"),
-            ConsentEngine.USE_CASE_LIBRARY.map { it.id },
+            USE_CASE_LIBRARY.map { it.id },
         )
-        for (useCase in ConsentEngine.USE_CASE_LIBRARY) {
+        for (useCase in USE_CASE_LIBRARY) {
             val upper = useCase.id.uppercase()
             assertEquals("CLINICIAN_USECASE_${upper}_NAME", useCase.titleKey)
             assertEquals("CLINICIAN_USECASE_${upper}_DESC", useCase.descriptionKey)

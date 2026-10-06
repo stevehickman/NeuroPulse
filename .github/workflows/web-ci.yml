@@ -63,6 +63,13 @@ jobs:
         app/ios/NeurOne/Protocol/NppsConstants.generated.swift
         app/windows/NeurOne/Protocol/NppsConstants.generated.cs
         firmware/hub_control/include/np_app_wire_constants.h
+        # The clinician use-case library is generated from app/NeurOneShared/Resources into iOS and Android and checked here.
+        scripts/sync-use-cases.ts
+        app/NeurOneShared/Resources/clinician-use-cases.json
+        app/ios/NeurOne/Consent/ClinicalUseCaseLibrary.generated.swift
+        app/android/core/src/main/kotlin/life/neurone/core/consent/ClinicalUseCaseLibrary.generated.kt
+        app/ios/NeurOne/Models/ConsentModels.swift
+        app/android/core/src/main/kotlin/life/neurone/core/models/ConsentModels.kt
         scripts/test-lateralization-audit.sh
         # The iOS String Catalog was listed here while it was committed, because
         # it was a SECOND source of truth that had already drifted once — 26 keys
@@ -245,6 +252,17 @@ jobs:
       - name: Shared constants in sync
         working-directory: .
         run: bun scripts/sync-constants.ts --check
+
+      # The clinician use-case library (CLAUDE.md §6.1) is one table in app/NeurOneShared/Resources, generated into
+      # iOS and Android. The generator refuses a table the apps cannot honour (an unknown element, a missing locale
+      # key) and --check fails if either generated file is stale or hand-edited.
+      - name: Use-case library generator self-test (prove a bad table can fail)
+        working-directory: .
+        run: bun scripts/sync-use-cases.ts --self-test
+
+      - name: Clinician use-case library in sync
+        working-directory: .
+        run: bun scripts/sync-use-cases.ts --check
 
       - name: Lateralization audit behaves (accept + reject paths)
         working-directory: .

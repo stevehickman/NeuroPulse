@@ -1,0 +1,27 @@
+{
+  "$comment": "The clinician use-case library (CLAUDE.md §6.1), once. A use case is one plain-language thing a clinician may do with a grant; the UHDR elements doing it needs are derived from it, never picked directly. A grant records the use-case IDs it was made from and iOS and Android read each other's grants, so both platforms must hold exactly this table: `bun scripts/sync-use-cases.ts` writes it into app/ios/NeurOne/Consent/ClinicalUseCaseLibrary.generated.swift and app/android/core/src/main/kotlin/life/neurone/core/consent/ClinicalUseCaseLibrary.generated.kt, and --check fails if either is stale. The library carries keys, not text (CLAUDE.md §17): a use case's name and description are the locale keys CLINICIAN_USECASE_<ID>_NAME and _DESC, derived from `id`. `tier` is the lowest tier that may select the use case (MONITOR, ASSESS or FULL_CLINICAL; RESEARCH has no library entries, its elements are IRB-defined per study descriptor, §6.3). `requiredElements` are UHDRElement names in UPPER_SNAKE_CASE.",
+  "useCases": [
+    {
+      "id": "adherence_monitoring",
+      "tier": "MONITOR",
+      "requiredElements": ["SESSION_TIMESTAMPS", "SESSION_DURATION", "PROTOCOL_PARAMETERS"]
+    },
+    {
+      "id": "eeg_review",
+      "tier": "ASSESS",
+      "requiredElements": [
+        "EEG_WAVEFORMS", "NEUROFEEDBACK_SCORES", "PBM_DOSE_LOGS",
+        "SESSION_TIMESTAMPS", "SESSION_DURATION", "PROTOCOL_PARAMETERS"
+      ]
+    },
+    {
+      "id": "hrv_outcomes",
+      "tier": "FULL_CLINICAL",
+      "requiredElements": [
+        "EEG_WAVEFORMS", "NEUROFEEDBACK_SCORES", "PBM_DOSE_LOGS", "HRV_TIME_SERIES",
+        "PPG_OPTICAL_SIGNAL", "CLOSED_LOOP_EVENTS", "OUTCOME_LOGS",
+        "SESSION_TIMESTAMPS", "SESSION_DURATION", "PROTOCOL_PARAMETERS"
+      ]
+    }
+  ]
+}

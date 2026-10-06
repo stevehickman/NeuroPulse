@@ -47,47 +47,6 @@ data class ClinicalUseCase(
  */
 object ConsentEngine {
 
-    /**
-     * All available clinical use cases. Must stay identical to iOS `ConsentEngine.USE_CASE_LIBRARY`
-     * in IDs, element sets and tiers.
-     */
-    val USE_CASE_LIBRARY: List<ClinicalUseCase> = listOf(
-        ClinicalUseCase(
-            id = "adherence_monitoring",
-            titleKey = "CLINICIAN_USECASE_ADHERENCE_MONITORING_NAME",
-            descriptionKey = "CLINICIAN_USECASE_ADHERENCE_MONITORING_DESC",
-            requiredElements = setOf(
-                UHDRElement.SESSION_TIMESTAMPS, UHDRElement.SESSION_DURATION,
-                UHDRElement.PROTOCOL_PARAMETERS,
-            ),
-            tier = ClinicianUseCaseTier.MONITOR,
-        ),
-        ClinicalUseCase(
-            id = "eeg_review",
-            titleKey = "CLINICIAN_USECASE_EEG_REVIEW_NAME",
-            descriptionKey = "CLINICIAN_USECASE_EEG_REVIEW_DESC",
-            requiredElements = setOf(
-                UHDRElement.EEG_WAVEFORMS, UHDRElement.NEUROFEEDBACK_SCORES,
-                UHDRElement.PBM_DOSE_LOGS, UHDRElement.SESSION_TIMESTAMPS,
-                UHDRElement.SESSION_DURATION, UHDRElement.PROTOCOL_PARAMETERS,
-            ),
-            tier = ClinicianUseCaseTier.ASSESS,
-        ),
-        ClinicalUseCase(
-            id = "hrv_outcomes",
-            titleKey = "CLINICIAN_USECASE_HRV_OUTCOMES_NAME",
-            descriptionKey = "CLINICIAN_USECASE_HRV_OUTCOMES_DESC",
-            requiredElements = setOf(
-                UHDRElement.EEG_WAVEFORMS, UHDRElement.NEUROFEEDBACK_SCORES,
-                UHDRElement.PBM_DOSE_LOGS, UHDRElement.HRV_TIME_SERIES,
-                UHDRElement.PPG_OPTICAL_SIGNAL, UHDRElement.CLOSED_LOOP_EVENTS,
-                UHDRElement.OUTCOME_LOGS, UHDRElement.SESSION_TIMESTAMPS,
-                UHDRElement.SESSION_DURATION, UHDRElement.PROTOCOL_PARAMETERS,
-            ),
-            tier = ClinicianUseCaseTier.FULL_CLINICAL,
-        ),
-    )
-
     /** Minimum necessary UHDR elements for a set of selected use cases (§6.1). */
     fun minimumNecessaryElements(selectedUseCaseIds: Set<String>): Set<UHDRElement> =
         USE_CASE_LIBRARY
