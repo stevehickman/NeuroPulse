@@ -63,21 +63,40 @@ final class HubDescriptorCompilerTests: XCTestCase {
         try check("pbm1064", def(1200, pbm("1064nm", 28)))
     }
 
-    /// OI-SESPWR-03: CW (frequency 0) has no duty cycle, so CW with a duty other than 100 % is refused.
+    /// OI-SESPWR-03: CW (frequency 0) has no duty cycle, so CW with a duty other than 100 % is refused,
+    /// on every PBM modality that carries both fields.
     func testRefusesCwWithADutyOtherThan100() throws {
-        func cw(_ duty: Int) -> NPProtocolDefinition {
-            var p = NPPBMTranscranialParams()
-            p.target = .named(["Frontal"])
-            p.wavelength = NPPBMTranscranialParams.Wavelength(rawValue: "808nm")
-            p.irradianceMWcm2 = 100
-            p.frequencyHz = 0
-            p.dutyCyclePercent = duty
-            return def(600, mod(.pbmTranscranial(p)))
+        func cw(_ kind: Int, _ duty: Int) -> NPProtocolDefinition {
+            switch kind {
+            case 0:
+                var p = NPPBMTranscranialParams()
+                p.target = .named(["Frontal"])
+                p.wavelength = NPPBMTranscranialParams.Wavelength(rawValue: "808nm")
+                p.irradianceMWcm2 = 100
+                p.frequencyHz = 0
+                p.dutyCyclePercent = duty
+                return def(600, mod(.pbmTranscranial(p)))
+            case 1:
+                var p = NPPBMIntranasalParams()
+                p.wavelength = .nm660
+                p.irradianceMWcm2 = 30
+                p.frequencyHz = 0
+                p.dutyCyclePercent = duty
+                return def(600, mod(.pbmIntranasal(p)))
+            default:
+                var p = NPDeepPBM1170Params()
+                p.intensityMWcm2 = 500
+                p.frequencyHz = 0
+                p.dutyCyclePercent = duty
+                return def(600, mod(.pbmDeep1170nm(p)))
+            }
         }
-        XCTAssertThrowsError(try build(cw(25))) { error in
-            XCTAssertTrue("\(error)".contains("no duty cycle"), "got: \(error)")
+        for kind in 0...2 {
+            XCTAssertThrowsError(try build(cw(kind, 25))) { error in
+                XCTAssertTrue("\(error)".contains("no duty cycle"), "modality \(kind): \(error)")
+            }
+            XCTAssertNoThrow(try build(cw(kind, 100)))
         }
-        XCTAssertNoThrow(try build(cw(100)))
     }
 
     func testParallelWavelengthsMergeIntoOneTileCommand() throws {

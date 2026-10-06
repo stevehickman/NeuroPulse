@@ -48,12 +48,21 @@ class HubDescriptorCompilerTests {
     }
 
     @Test fun refusesCwWithADutyOtherThan100() {
-        fun cw(duty: Int) = def(600, mod(NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(
-            target = NPPBMTarget.Named(listOf("Frontal")), wavelength = NPPBMTranscranialParams.Wavelength("808nm"),
-            irradianceMWcm2 = 100.0, frequencyHz = 0.0, dutyCyclePercent = duty))))
-        val e = assertFailsWith<IllegalArgumentException> { compiler.build(cw(25), null, listOf(7, 3)) }
-        assertTrue(e.message.orEmpty().contains("no duty cycle"))
-        compiler.build(cw(100), null, listOf(7, 3))
+        fun cw(kind: Int, duty: Int): NPProtocolDefinition = def(600, mod(when (kind) {
+            0 -> NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(
+                target = NPPBMTarget.Named(listOf("Frontal")), wavelength = NPPBMTranscranialParams.Wavelength("808nm"),
+                irradianceMWcm2 = 100.0, frequencyHz = 0.0, dutyCyclePercent = duty))
+            1 -> NPModalityParams.PbmIntranasal(NPPBMIntranasalParams(
+                wavelength = NPPBMTranscranialParams.Wavelength.NM_660, irradianceMWcm2 = 30.0,
+                frequencyHz = 0.0, dutyCyclePercent = duty))
+            else -> NPModalityParams.PbmDeep1170nm(NPDeepPBM1170Params(
+                intensityMWcm2 = 500.0, frequencyHz = 0.0, dutyCyclePercent = duty))
+        }))
+        for (kind in 0..2) {
+            val e = assertFailsWith<IllegalArgumentException> { compiler.build(cw(kind, 25), null, listOf(7, 3)) }
+            assertTrue(e.message.orEmpty().contains("no duty cycle"), "modality $kind: ${e.message}")
+            compiler.build(cw(kind, 100), null, listOf(7, 3))
+        }
     }
 
     @Test fun parallelWavelengthsMergeIntoOneTileCommand() = check("pbmMerged", def(600, pbm("660nm", 100.0), pbm("808nm", 200.0)))

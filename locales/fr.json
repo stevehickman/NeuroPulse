@@ -1096,6 +1096,7 @@
   "VALIDATE_MSG_HD_TDCS_INTENSITYMILLIAMPS": "HD-tDCS intensity {0} mA/electrode exceeds Bikson lab safety limit of {1} mA.",
   "VALIDATE_MSG_HD_TDCS_INTENSITYMILLIAMPS_2": "HD-tDCS intensity {0} mA exceeds limit of {1} mA.",
   "VALIDATE_MSG_HD_TDCS_MONTAGE": "HD-tDCS montage '{0}' is not in the allowed list: {1}.",
+  "VALIDATE_MSG_PBM_CW_DUTY": "PBM at 0 Hz is continuous wave, which has no duty cycle, but the duty is {0}%. Set it to 100% or give a pulse frequency above 0.",
   "VALIDATE_MSG_PBM_DEEP_1170NM_DUTYCYCLEPERCENT": "Deep PBM duty cycle {0}% exceeds firmware maximum of {1}%.",
   "VALIDATE_MSG_PBM_DEEP_1170NM_INTENSITYMWCM2": "Deep PBM intensity {0} mW/cm² exceeds limit of {1} mW/cm².",
   "VALIDATE_MSG_PBM_INTRANASAL_DUTYCYCLEPERCENT": "Intranasal PBM duty cycle {0}% exceeds firmware maximum of {1}%.",

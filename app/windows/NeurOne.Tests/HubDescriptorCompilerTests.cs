@@ -67,14 +67,34 @@ public class HubDescriptorCompilerTests
         Check("pbm1064", Def(1200, Pbm("1064nm", 28)));
     }
 
-    // OI-SESPWR-03: CW (frequency 0) has no duty cycle, so CW with a duty other than 100 % is refused.
-    [Fact]
-    public void RefusesCwWithADutyOtherThan100()
+    // OI-SESPWR-03: CW (frequency 0) has no duty cycle, so CW with a duty other than 100 % is refused,
+    // on every PBM modality that carries both fields.
+    private static NPProtocolDefinition Cw(int kind, int duty) => Def(600, Mod(kind switch
     {
-        var e = Assert.Throws<HubCompileException>(() =>
-            Build(Def(600, Pbm("808nm", 100, new PbmTarget.ClinicianSelected(), hz: 0, duty: 25))));
+        0 => new NPModalityParams.PbmTranscranial(new PbmTranscranialParams
+        {
+            Target = new PbmTarget.ClinicianSelected(), Wavelength = "808nm",
+            IrradianceMwCm2 = 100, FrequencyHz = 0, DutyCyclePercent = duty,
+        }),
+        1 => new NPModalityParams.PbmIntranasal(new PbmIntranasalParams
+        {
+            Wavelength = "660nm", IrradianceMwCm2 = 30, FrequencyHz = 0, DutyCyclePercent = duty,
+        }),
+        _ => new NPModalityParams.PbmDeep1170nm(new DeepPbm1170Params
+        {
+            IntensityMwCm2 = 500, FrequencyHz = 0, DutyCyclePercent = duty,
+        }),
+    }));
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void RefusesCwWithADutyOtherThan100(int kind)
+    {
+        var e = Assert.Throws<HubCompileException>(() => Build(Cw(kind, 25)));
         Assert.Contains("no duty cycle", e.Message);
-        Build(Def(600, Pbm("808nm", 100, new PbmTarget.ClinicianSelected(), hz: 0, duty: 100)));
+        Build(Cw(kind, 100));
     }
 
     [Fact]

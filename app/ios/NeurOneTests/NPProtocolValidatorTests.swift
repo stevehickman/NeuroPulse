@@ -337,6 +337,41 @@ final class NPProtocolValidatorTests: XCTestCase {
         )
     }
 
+    // MARK: - CW has no duty cycle (OI-SESPWR-03)
+
+    func testCwWithADutyOtherThan100Rejected() {
+        let cases: [NPModalityParams] = [
+            .pbmTranscranial(NPPBMTranscranialParams(irradianceMWcm2: 100, frequencyHz: 0, dutyCyclePercent: 25)),
+            .pbmIntranasal({
+                var p = NPPBMIntranasalParams()
+                p.irradianceMWcm2 = 30
+                p.frequencyHz = 0
+                p.dutyCyclePercent = 25
+                return p
+            }()),
+            .pbmDeep1170nm({
+                var p = NPDeepPBM1170Params()
+                p.intensityMWcm2 = 500
+                p.frequencyHz = 0
+                p.dutyCyclePercent = 25
+                return p
+            }())
+        ]
+        for params in cases {
+            let result = hardwareOnlyValidator().validate(protocolWith(params))
+            XCTAssertTrue(
+                result.errors.contains { $0.parameterKey == "dutyCyclePercent" },
+                "CW with a 25% duty must be rejected: \(params)"
+            )
+        }
+    }
+
+    func testPulsedBlockIsNotACwDutyError() {
+        let pbm = NPPBMTranscranialParams(irradianceMWcm2: 100, frequencyHz: 40, dutyCyclePercent: 25)
+        let result = hardwareOnlyValidator().validate(protocolWith(.pbmTranscranial(pbm)))
+        XCTAssertFalse(result.errors.contains { $0.parameterKey == "dutyCyclePercent" })
+    }
+
     // MARK: - testDoseOverLimitRejected (intended-behavior spec)
 
     func testDoseOverLimitRejected() {
@@ -345,7 +380,7 @@ final class NPProtocolValidatorTests: XCTestCase {
         limits.pbmTranscranial = NPPBMTranscranialLimits(maxSessionDoseJCm2: 10.0)
         let validator = NPProtocolValidator(resolvedLimits: limits)
 
-        let pbm = NPPBMTranscranialParams(irradianceMWcm2: 200, frequencyHz: 0, dutyCyclePercent: 25)
+        let pbm = NPPBMTranscranialParams(irradianceMWcm2: 200, frequencyHz: 0, dutyCyclePercent: 100)
         let def = protocolWith(.pbmTranscranial(pbm), durationSeconds: 60 * 60)
         let result = validator.validate(def)
 

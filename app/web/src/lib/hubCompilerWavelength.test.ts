@@ -288,17 +288,26 @@ describe('the shipped library', () => {
 });
 
 describe('CW with a duty cycle (OI-SESPWR-03)', () => {
-  const cw = (duty: number): NPProtocolDefinition => {
-    const def = protocol('    pbm_transcranial {\n        wavelength: "808nm"\n        irradiance: 100mW_cm2\n        frequency: 40Hz\n    }');
+  const BODIES: Record<string, string> = {
+    pbm_transcranial: '    pbm_transcranial {\n        wavelength: "808nm"\n        irradiance: 100mW_cm2\n        frequency: 40Hz\n    }',
+    pbm_intranasal: '    pbm_intranasal {\n        wavelength: "660nm"\n        irradiance: 30mW_cm2\n        frequency: 40Hz\n    }',
+    pbm_deep_1170nm: '    pbm_deep_1170nm {\n        intensity_mw_cm2: 500\n        frequency: 40Hz\n    }',
+  };
+  // The parser would refuse CW with a duty, so build the pulsed block and make it CW afterwards,
+  // as the editor does.
+  const cw = (kind: string, duty: number): NPProtocolDefinition => {
+    const def = protocol(BODIES[kind]);
     const params = def.modalities[0].modalityParams.params as { frequencyHz: number; dutyCyclePercent: number };
     params.frequencyHz = 0;
     params.dutyCyclePercent = duty;
     return def;
   };
-  it('refuses a definition built outside the parser with CW and a duty other than 100 %', () => {
-    expect(() => commands(cw(25))).toThrow(/continuous wave, which has no duty cycle/);
-  });
+  for (const kind of Object.keys(BODIES)) {
+    it(`${kind}: refuses a definition built outside the parser with CW and a duty other than 100 %`, () => {
+      expect(() => commands(cw(kind, 25))).toThrow(/continuous wave, which has no duty cycle/);
+    });
+  }
   it('compiles CW at 100 %', () => {
-    expect(commands(cw(100))[0].params[0]).toBe(0);
+    expect(commands(cw('pbm_transcranial', 100))[0].params[0]).toBe(0);
   });
 });
