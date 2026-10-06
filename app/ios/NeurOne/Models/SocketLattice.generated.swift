@@ -14,21 +14,21 @@ import Foundation
 enum SocketLattice {
 
     /// Number of sockets on this lattice.
-    static let socketCount = 80
+    static let NP_SOCKET_COUNT = 80
 
     /// Socket ids are 1-based — the numbering base every consumer honours.
-    static let numberingBase = 1
+    static let NP_SOCKET_NUMBERING_BASE = 1
 
     /// Inclusive lowest valid socket id.
-    static let minSocketID = 1
+    static let NP_SOCKET_ID_MIN = 1
 
     /// Inclusive highest valid socket id.
-    static let maxSocketID = 80
+    static let NP_SOCKET_ID_MAX = 80
 
     /// Inclusive id range, for error messages and UI hints.
-    static var rangeLabel: String { "\(minSocketID)\u{2013}\(maxSocketID)" }
+    static var rangeLabel: String { "\(NP_SOCKET_ID_MIN)\u{2013}\(NP_SOCKET_ID_MAX)" }
 
     static func isValid(_ socketID: Int) -> Bool {
-        socketID >= minSocketID && socketID <= maxSocketID
+        socketID >= NP_SOCKET_ID_MIN && socketID <= NP_SOCKET_ID_MAX
     }
 }

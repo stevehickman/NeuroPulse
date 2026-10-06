@@ -17,19 +17,19 @@ package life.neurone.core.protocol
 object SocketLattice {
 
     /** Number of sockets on this lattice. */
-    const val COUNT = 80
+    const val NP_SOCKET_COUNT = 80
 
     /** Socket ids are 1-based — the numbering base every consumer honours. */
-    const val NUMBERING_BASE = 1
+    const val NP_SOCKET_NUMBERING_BASE = 1
 
     /** Inclusive lowest valid socket id. */
-    const val MIN = 1
+    const val NP_SOCKET_ID_MIN = 1
 
     /** Inclusive highest valid socket id. */
-    const val MAX = 80
+    const val NP_SOCKET_ID_MAX = 80
 
     /** Inclusive id range, for error messages and UI hints. */
-    val rangeLabel: String get() = "$MIN–$MAX"
+    val rangeLabel: String get() = "$NP_SOCKET_ID_MIN–$NP_SOCKET_ID_MAX"
 
-    fun isValid(id: Int): Boolean = id in MIN..MAX
+    fun isValid(id: Int): Boolean = id in NP_SOCKET_ID_MIN..NP_SOCKET_ID_MAX
 }

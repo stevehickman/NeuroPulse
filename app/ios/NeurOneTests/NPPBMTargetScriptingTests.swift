@@ -69,7 +69,7 @@ final class NPPBMTargetScriptingTests: XCTestCase {
         // numbering in which 6, 10, 18 and 19 are LEFT-hemisphere sockets.
         XCTAssertEqual(mask.socketIDs,
                        [3, 7, 8, 9, 14, 15, 16, 21, 22, 23, 24, 30, 31, 32, 38, 39, 40])
-        XCTAssertLessThan(mask.socketCount, SocketLattice.socketCount,
+        XCTAssertLessThan(mask.socketCount, SocketLattice.NP_SOCKET_COUNT,
                           "a lateralized target must not light the whole vault")
     }
 

@@ -19,7 +19,7 @@ final class NPSocketMaskTests: XCTestCase {
 
     func testAllZoneCoversEveryFittedSocket() throws {
         let mask = try NPPBMTarget.named(["All"]).resolve()
-        XCTAssertEqual(mask.socketCount, SocketLattice.socketCount)
+        XCTAssertEqual(mask.socketCount, SocketLattice.NP_SOCKET_COUNT)
     }
 
     func testDisjointZonesUnionToTheSumOfTheirSockets() throws {
@@ -106,10 +106,10 @@ final class NPSocketMaskTests: XCTestCase {
         // NUMBER-1 (docs/np_hex_zm_001.md §3.3). Pinned here as well as in the
         // generator and the web suite because iOS holds its own copy of the
         // constant — a drift between the two would put every mask one tile off.
-        XCTAssertEqual(NPSocketID.NUMBERING_BASE, 1)
+        XCTAssertEqual(SocketLattice.NP_SOCKET_NUMBERING_BASE, 1)
         XCTAssertEqual(NPSocketID.minimum, 1)
-        XCTAssertEqual(NPSocketID.maximum, SocketLattice.socketCount)
-        XCTAssertEqual(NPSocketID.rangeLabel, "1–\(SocketLattice.socketCount)")
+        XCTAssertEqual(NPSocketID.maximum, SocketLattice.NP_SOCKET_COUNT)
+        XCTAssertEqual(NPSocketID.rangeLabel, "1–\(SocketLattice.NP_SOCKET_COUNT)")
     }
 
     func testSocketZeroDoesNotExist() {
@@ -131,8 +131,8 @@ final class NPSocketMaskTests: XCTestCase {
                                          "zone \(name) names socket \(socket)")
             }
         }
-        XCTAssertEqual(SocketLattice.minSocketID, 1)
-        XCTAssertEqual(SocketLattice.maxSocketID, SocketLattice.socketCount)
+        XCTAssertEqual(SocketLattice.NP_SOCKET_ID_MIN, 1)
+        XCTAssertEqual(SocketLattice.NP_SOCKET_ID_MAX, SocketLattice.NP_SOCKET_COUNT)
     }
 
     func testTheLowestAndHighestSocketsBothAddress() throws {
@@ -141,7 +141,7 @@ final class NPSocketMaskTests: XCTestCase {
         let lowest = try NPSocketMask(sockets: [NPSocketID.minimum], source: "test")
         XCTAssertEqual(lowest.socketIDs, [1])
         let highest = try NPSocketMask(sockets: [NPSocketID.maximum], source: "test")
-        XCTAssertEqual(highest.socketIDs, [SocketLattice.socketCount])
+        XCTAssertEqual(highest.socketIDs, [SocketLattice.NP_SOCKET_COUNT])
         XCTAssertEqual(highest.bytes.count, NPSocketMask.BYTE_COUNT)
     }
 
@@ -168,7 +168,7 @@ final class NPSocketMaskTests: XCTestCase {
     }
 
     func testSocketIdsOffThisLatticeAreRejected() {
-        for bad in [0, -1, SocketLattice.socketCount + 1, 128] {
+        for bad in [0, -1, SocketLattice.NP_SOCKET_COUNT + 1, 128] {
             XCTAssertThrowsError(
                 try NPSocketMask(sockets: [bad], source: "test"),
                 "socket \(bad) must not be addressable"

@@ -1312,21 +1312,21 @@ function emitKotlinLattice(sockets: SocketGeometry[]): string {
     "object SocketLattice {",
     "",
     "    /** Number of sockets on this lattice. */",
-    `    const val COUNT = ${sockets.length}`,
+    `    const val NP_SOCKET_COUNT = ${sockets.length}`,
     "",
     "    /** Socket ids are 1-based — the numbering base every consumer honours. */",
-    "    const val NUMBERING_BASE = 1",
+    "    const val NP_SOCKET_NUMBERING_BASE = 1",
     "",
     "    /** Inclusive lowest valid socket id. */",
-    `    const val MIN = ${min}`,
+    `    const val NP_SOCKET_ID_MIN = ${min}`,
     "",
     "    /** Inclusive highest valid socket id. */",
-    `    const val MAX = ${max}`,
+    `    const val NP_SOCKET_ID_MAX = ${max}`,
     "",
     "    /** Inclusive id range, for error messages and UI hints. */",
-    "    val rangeLabel: String get() = \"$MIN\u2013$MAX\"",
+    "    val rangeLabel: String get() = \"$NP_SOCKET_ID_MIN\u2013$NP_SOCKET_ID_MAX\"",
     "",
-    "    fun isValid(id: Int): Boolean = id in MIN..MAX",
+    "    fun isValid(id: Int): Boolean = id in NP_SOCKET_ID_MIN..NP_SOCKET_ID_MAX",
     "}",
     "",
   ].join("\n");
@@ -1350,21 +1350,21 @@ function emitCSharpLattice(sockets: SocketGeometry[]): string {
     "static class SocketLattice",
     "{",
     "    /// Number of sockets on this lattice.",
-    `    public const int Count = ${sockets.length};`,
+    `    public const int NP_SOCKET_COUNT = ${sockets.length};`,
     "",
     "    /// Socket ids are 1-based — the numbering base every consumer honours.",
-    "    public const int NumberingBase = 1;",
+    "    public const int NP_SOCKET_NUMBERING_BASE = 1;",
     "",
     "    /// Inclusive lowest valid socket id.",
-    `    public const int Min = ${min};`,
+    `    public const int NP_SOCKET_ID_MIN = ${min};`,
     "",
     "    /// Inclusive highest valid socket id.",
-    `    public const int Max = ${max};`,
+    `    public const int NP_SOCKET_ID_MAX = ${max};`,
     "",
     "    /// Inclusive id range, for error messages and UI hints.",
-    "    public static string RangeLabel => $\"{Min}\u2013{Max}\";",
+    "    public static string RangeLabel => $\"{NP_SOCKET_ID_MIN}\u2013{NP_SOCKET_ID_MAX}\";",
     "",
-    "    public static bool IsValid(int id) => id >= Min && id <= Max;",
+    "    public static bool IsValid(int id) => id >= NP_SOCKET_ID_MIN && id <= NP_SOCKET_ID_MAX;",
     "}",
     "",
   ].join("\n");
@@ -1384,22 +1384,22 @@ import Foundation
 enum SocketLattice {
 
     /// Number of sockets on this lattice.
-    static let socketCount = ${sockets.length}
+    static let NP_SOCKET_COUNT = ${sockets.length}
 
     /// Socket ids are 1-based — the numbering base every consumer honours.
-    static let numberingBase = 1
+    static let NP_SOCKET_NUMBERING_BASE = 1
 
     /// Inclusive lowest valid socket id.
-    static let minSocketID = ${min}
+    static let NP_SOCKET_ID_MIN = ${min}
 
     /// Inclusive highest valid socket id.
-    static let maxSocketID = ${max}
+    static let NP_SOCKET_ID_MAX = ${max}
 
     /// Inclusive id range, for error messages and UI hints.
-    static var rangeLabel: String { "\\(minSocketID)\\u{2013}\\(maxSocketID)" }
+    static var rangeLabel: String { "\\(NP_SOCKET_ID_MIN)\\u{2013}\\(NP_SOCKET_ID_MAX)" }
 
     static func isValid(_ socketID: Int) -> Bool {
-        socketID >= minSocketID && socketID <= maxSocketID
+        socketID >= NP_SOCKET_ID_MIN && socketID <= NP_SOCKET_ID_MAX
     }
 }
 `;

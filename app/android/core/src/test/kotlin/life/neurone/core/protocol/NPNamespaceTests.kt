@@ -65,7 +65,7 @@ class NPNamespaceTests {
 
     @Test
     fun zoneRejectsIdsThatNameNoSocket() {
-        for (bad in listOf("[0]", "[${SocketLattice.MAX + 1}]", "[1.5]", "[true]", "[\"x\"]")) {
+        for (bad in listOf("[0]", "[${SocketLattice.NP_SOCKET_ID_MAX + 1}]", "[1.5]", "[true]", "[\"x\"]")) {
             val e = assertFailsWith<NPPSError>("sockets: $bad must not parse") {
                 parse("""zone "Z" { sockets: $bad }""")
             }

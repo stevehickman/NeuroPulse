@@ -45,7 +45,7 @@ fn main() {
     // The helmet's socket numbering: `scripts/sync-socket-map.ts` writes it, and the parser's "is this a socket" check reads it.
     let map = read(&root.join("hardware/np_socket_map.json"));
     out.push_str("/// The helmet's socket ids, from hardware/np_socket_map.json.\npub mod socket_lattice {\n");
-    for (name, key) in [("SOCKET_NUMBERING_BASE", "numberingBase"), ("SOCKET_ID_MIN", "socketIdMin"), ("SOCKET_ID_MAX", "socketIdMax")] {
+    for (name, key) in [("NP_SOCKET_COUNT", "socketCount"), ("NP_SOCKET_NUMBERING_BASE", "numberingBase"), ("NP_SOCKET_ID_MIN", "socketIdMin"), ("NP_SOCKET_ID_MAX", "socketIdMax")] {
         out.push_str(&format!("    pub const {name}: i64 = {};\n", map[key].as_i64().unwrap_or_else(|| panic!("np_socket_map.json has no {key}"))));
     }
     out.push_str("}\n");
