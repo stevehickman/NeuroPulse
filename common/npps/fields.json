@@ -1,0 +1,166 @@
+{
+  "$comment": "NP-NPPS-REF-001 §4 as data: every modality's fields, their spellings, kinds and defaults. The Rust core (common/npps-core) reads this file; common/lib/nppsFieldTable.test.ts fails if defaultParams() in common/types/protocol.ts drifts from it. A runtime that reads a field not listed here, or lists one this file does not, has diverged. `json` is the name the field takes in the normalised parse output. Kinds: number, string, bool, optional_number, optional_string, string_array_optional, pairs, quantity (absolute, unit required on the short name), wavelength (one per block, required), zones (named list or clinician_selected), pulse_frequency and pulse_duty (CW has no duty cycle, OI-SESPWR-03).",
+  "version": 1,
+  "aliases": {
+    "frequency": "frequency_hz",
+    "duty_cycle": "duty_cycle_percent",
+    "closed_loop": "closed_loop_enabled",
+    "binaural_hz": "binaural_beats_hz",
+    "isochronic_hz": "isochronic_tones_hz",
+    "noise": "noise_type",
+    "breathing_rate": "resonance_breathing_rate",
+    "ramp": "ramp_seconds",
+    "emdr_cadence": "emdr_cadence_hz"
+  },
+  "intensity_alias": {
+    "$comment": "`intensity` is context-dependent (NP-NPPS-REF-001 §4). Optical modalities refuse it and pbm_deep_1170nm has no `intensity` at all: its field is intensity_mw_cm2.",
+    "intensity_milliamps": ["bes_tacs", "tdcs", "vns_hrv", "clinical_tacs", "hd_tdcs", "cervical_vns", "tms"],
+    "intensity_g": ["vibrotactile_40hz"]
+  },
+  "percent_refused": {
+    "$comment": "Spellings that used to carry an absolute quantity as a percentage (Rev 18).",
+    "intensity": ["pbm_transcranial", "pbm_intranasal", "visual_stimulation"],
+    "intensity_percent": ["pbm_transcranial", "pbm_intranasal", "visual_stimulation"],
+    "volume_percent": ["audio_entrainment"]
+  },
+  "retired_wavelengths": {
+    "660_808nm": ["660nm", "808nm"],
+    "660_808_1064nm": ["660nm", "808nm", "1064nm"]
+  },
+  "block_keys": ["interval_on", "interval_off", "start", "repeat", "enabled"],
+  "modalities": {
+    "pbm_transcranial": {
+      "section": "4.1",
+      "fields": [
+        { "key": "zones", "json": "zones", "kind": "zones", "default": { "zones": "named", "zoneRefs": ["All"] } },
+        { "key": "wavelength", "json": "wavelength", "kind": "wavelength", "required": true },
+        { "key": "irradiance_mw_cm2", "json": "irradianceMWcm2", "kind": "quantity", "short": "irradiance", "unit": "mW_cm2", "required": true, "example": "irradiance: 300mW_cm2" },
+        { "key": "frequency_hz", "json": "frequencyHz", "kind": "pulse_frequency", "default": 40 },
+        { "key": "duty_cycle_percent", "json": "dutyCyclePercent", "kind": "pulse_duty", "default": 25 }
+      ]
+    },
+    "pbm_intranasal": {
+      "section": "4.2",
+      "fields": [
+        { "key": "wavelength", "json": "wavelength", "kind": "wavelength", "required": true },
+        { "key": "irradiance_mw_cm2", "json": "irradianceMWcm2", "kind": "quantity", "short": "irradiance", "unit": "mW_cm2", "required": true, "example": "irradiance: 25mW_cm2" },
+        { "key": "frequency_hz", "json": "frequencyHz", "kind": "pulse_frequency", "default": 10 },
+        { "key": "duty_cycle_percent", "json": "dutyCyclePercent", "kind": "pulse_duty", "default": 50 }
+      ]
+    },
+    "eeg_neurofeedback": {
+      "section": "4.3",
+      "fields": [
+        { "key": "channels", "json": "channels", "kind": "string", "default": "all" },
+        { "key": "band", "json": "band", "kind": "string", "default": "alpha" },
+        { "key": "closed_loop_enabled", "json": "closedLoopEnabled", "kind": "bool", "default": true },
+        { "key": "custom_channels", "json": "customChannels", "kind": "string_array_optional" }
+      ]
+    },
+    "bes_tacs": {
+      "section": "4.4",
+      "fields": [
+        { "key": "frequency_hz", "json": "frequencyHz", "kind": "number", "default": 40 },
+        { "key": "intensity_milliamps", "json": "intensityMilliamps", "kind": "number", "default": 0.5 },
+        { "key": "waveform", "json": "waveform", "kind": "string", "default": "sinusoidal" }
+      ]
+    },
+    "tdcs": {
+      "section": "4.5",
+      "fields": [
+        { "key": "intensity_milliamps", "json": "intensityMilliamps", "kind": "number", "default": 1.0 },
+        { "key": "electrode_pairs", "json": "electrodePairs", "kind": "pairs", "default": [["Fp1", "Fp2"]] },
+        { "key": "ramp_seconds", "json": "rampSeconds", "kind": "number", "default": 30 },
+        { "key": "electrode_area_cm2", "json": "electrodeAreaCm2", "kind": "number", "default": 35 }
+      ]
+    },
+    "vns_hrv": {
+      "section": "4.6",
+      "fields": [
+        { "key": "frequency_hz", "json": "frequencyHz", "kind": "number", "default": 25 },
+        { "key": "intensity_milliamps", "json": "intensityMilliamps", "kind": "number", "default": 0.5 },
+        { "key": "hrv_protocol", "json": "hrvProtocol", "kind": "string", "default": "standalone" },
+        { "key": "resonance_breathing_rate", "json": "resonanceBreathingRate", "kind": "number", "default": 6 }
+      ]
+    },
+    "audio_entrainment": {
+      "section": "4.7",
+      "fields": [
+        { "key": "carrier_hz", "json": "carrierHz", "kind": "number", "default": 200 },
+        { "key": "volume_db", "json": "volumeDb", "kind": "quantity", "short": "volume", "unit": "dB", "required": true, "example": "volume: 72dB", "what": "volume in dB SPL (e.g. volume: 72dB)" },
+        { "key": "eeg_adaptive", "json": "eegAdaptive", "kind": "bool", "default": true },
+        { "key": "bone_conduction_pacer", "json": "boneConductionPacer", "kind": "bool", "default": false },
+        { "key": "binaural_beats_hz", "json": "binauralBeatsHz", "kind": "optional_number" },
+        { "key": "isochronic_tones_hz", "json": "isochronicTonesHz", "kind": "optional_number" },
+        { "key": "noise_type", "json": "noiseType", "kind": "optional_string" }
+      ]
+    },
+    "visual_stimulation": {
+      "section": "4.8",
+      "fields": [
+        { "key": "frequency_hz", "json": "frequencyHz", "kind": "number", "default": 40 },
+        { "key": "mode", "json": "mode", "kind": "string", "default": "binocular" },
+        { "key": "emdr_cadence_hz", "json": "emdrCadenceHz", "kind": "number", "default": 1 },
+        { "key": "enable_mode_f", "json": "enableModeF", "kind": "bool", "default": false }
+      ]
+    },
+    "qeeg_21ch": {
+      "section": "4.9",
+      "fields": [
+        { "key": "montage", "json": "montage", "kind": "string", "default": "standard_1020" },
+        { "key": "sloreta_enabled", "json": "sloretaEnabled", "kind": "bool", "default": true },
+        { "key": "reference", "json": "reference", "kind": "string", "default": "linked_ear" }
+      ]
+    },
+    "tms": {
+      "section": "4.10",
+      "fields": [
+        { "key": "tms_protocol", "json": "tmsProtocol", "kind": "string", "default": "rTMS" },
+        { "key": "frequency_hz", "json": "frequencyHz", "kind": "number", "default": 10 },
+        { "key": "intensity_percent_mt", "json": "intensityPercentMT", "kind": "number", "default": 110 },
+        { "key": "target", "json": "target", "kind": "string", "default": "DLPFC_L" },
+        { "key": "pulse_count", "json": "pulseCount", "kind": "number", "default": 3000 }
+      ]
+    },
+    "pbm_deep_1170nm": {
+      "section": "4.11",
+      "fields": [
+        { "key": "intensity_mw_cm2", "json": "intensityMWcm2", "kind": "number", "default": 500 },
+        { "key": "frequency_hz", "json": "frequencyHz", "kind": "pulse_frequency", "default": 10 },
+        { "key": "duty_cycle_percent", "json": "dutyCyclePercent", "kind": "pulse_duty", "default": 50 }
+      ]
+    },
+    "clinical_tacs": {
+      "section": "4.12",
+      "fields": [
+        { "key": "frequency_hz", "json": "frequencyHz", "kind": "number", "default": 40 },
+        { "key": "intensity_milliamps", "json": "intensityMilliamps", "kind": "number", "default": 2.0 },
+        { "key": "channel_count", "json": "channelCount", "kind": "number", "default": 8 },
+        { "key": "waveform", "json": "waveform", "kind": "string", "default": "sinusoidal" }
+      ]
+    },
+    "hd_tdcs": {
+      "section": "4.13",
+      "fields": [
+        { "key": "target", "json": "target", "kind": "string", "default": "DLPFC_L" },
+        { "key": "montage", "json": "montage", "kind": "string", "default": "ring_4x1" },
+        { "key": "intensity_milliamps", "json": "intensityMilliamps", "kind": "number", "default": 1.5 }
+      ]
+    },
+    "cervical_vns": {
+      "section": "4.14",
+      "fields": [
+        { "key": "frequency_hz", "json": "frequencyHz", "kind": "number", "default": 25 },
+        { "key": "intensity_milliamps", "json": "intensityMilliamps", "kind": "number", "default": 1.0 }
+      ]
+    },
+    "vibrotactile_40hz": {
+      "section": "4.15",
+      "fields": [
+        { "key": "intensity_g", "json": "intensityG", "kind": "number", "default": 0.9 },
+        { "key": "sync_to_audio", "json": "syncToAudio", "kind": "bool", "default": true },
+        { "key": "sync_to_visual", "json": "syncToVisual", "kind": "bool", "default": true }
+      ]
+    }
+  }
+}

@@ -37,6 +37,10 @@ options:
       exit 1
     fi
     bun "$(git rev-parse --show-toplevel)/scripts/sync-locales.ts"
+    # The shared NPPS core (OI-NPPS-CORE-01). The app links it as an XCFramework built from
+    # common/npps-ffi, and XcodeGen leaves a dependency that does not exist yet out of the project
+    # without failing, so it is built here, before the tree is read. Needs Rust.
+    "$(git rev-parse --show-toplevel)/scripts/build-npps-xcframework.sh"
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -117,6 +121,11 @@ targets:
       - package: NeurOneShared
       - package: PostHog
         product: PostHog
+      # The shared NPPS core's C ABI (common/npps-ffi), a static-library XCFramework built by
+      # scripts/build-npps-xcframework.sh. Static, so it is linked and not embedded.
+      - framework: Frameworks/NeurOneNppsCore.xcframework
+        link: true
+        embed: false
 
     # Keeps the generated Localizable.xcstrings fresh once it exists — for a
     # canonical edit made during an open Xcode session, this is what picks it up.

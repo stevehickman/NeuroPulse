@@ -310,13 +310,37 @@ class NPProtocolValidatorTests {
         assertTrue(result.errors.any { it.parameterKey == "duration" }, "Zero-duration rejection must cite the duration parameter.")
     }
 
+    // OI-SESPWR-03: CW (frequency 0) has no duty cycle, so CW with a duty other than 100 % is refused.
+    @Test
+    fun cwWithADutyOtherThan100Rejected() {
+        val cases = listOf(
+            NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(irradianceMWcm2 = 100.0, frequencyHz = 0.0, dutyCyclePercent = 25)),
+            NPModalityParams.PbmIntranasal(NPPBMIntranasalParams(irradianceMWcm2 = 30.0, frequencyHz = 0.0, dutyCyclePercent = 25)),
+            NPModalityParams.PbmDeep1170nm(NPDeepPBM1170Params(intensityMWcm2 = 500.0, frequencyHz = 0.0, dutyCyclePercent = 25)),
+        )
+        for (c in cases) {
+            val result = hardwareOnlyValidator().validate(protocolWith(c))
+            assertTrue(
+                result.errors.any { it.parameterKey == "dutyCyclePercent" && it.message.contains("no duty cycle") },
+                "CW with a 25% duty must be rejected: $c",
+            )
+        }
+    }
+
+    @Test
+    fun pulsedBlockIsNotACwDutyError() {
+        val pbm = NPPBMTranscranialParams(irradianceMWcm2 = 100.0, frequencyHz = 40.0, dutyCyclePercent = 25)
+        val result = hardwareOnlyValidator().validate(protocolWith(NPModalityParams.PbmTranscranial(pbm)))
+        assertTrue(result.errors.none { it.message.contains("no duty cycle") })
+    }
+
     @Test
     fun doseOverLimitRejected() {
         // 200 mW/cm² CW × 3600 s / 1000 = 720 J/cm² — over the 10 J/cm² limit.
         val limits = NPLimitsSet(name = "Dose-capped", level = NPLimitsSet.LimitLevel.GLOBAL,
             pbmTranscranial = NPPBMTranscranialLimits(maxSessionDoseJCm2 = 10.0))
         val validator = NPProtocolValidator(limits)
-        val pbm = NPPBMTranscranialParams(irradianceMWcm2 = 200.0, frequencyHz = 0.0, dutyCyclePercent = 25)
+        val pbm = NPPBMTranscranialParams(irradianceMWcm2 = 200.0, frequencyHz = 0.0, dutyCyclePercent = 100)
         val result = validator.validate(protocolWith(NPModalityParams.PbmTranscranial(pbm), durationSeconds = 60 * 60))
         assertTrue(
             result.errors.any { it.modality == NPModalityType.PBM_TRANSCRANIAL && it.parameterKey.lowercase().contains("dose") },

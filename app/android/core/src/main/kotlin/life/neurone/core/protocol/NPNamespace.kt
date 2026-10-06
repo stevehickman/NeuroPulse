@@ -1,5 +1,16 @@
 package life.neurone.core.protocol
 
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
+import life.neurone.core.npps.NppsCore
+
 /**
  * The one namespace every loaded `.npps` file shares (NP-NPPS-REF-001 §1.6).
  *
@@ -29,62 +40,30 @@ data class NPNamespaceBuild(
  * condition name is defined exactly once across the whole tree
  * (NP-NPPS-REF-001 §1.6).
  *
- * A name defined by two files is an ERROR, not a last-write-wins warning. The
- * tree is read recursively and nothing guarantees a stable traversal order
- * across platforms, file systems or bundle layouts, so "later" is not a property
- * this function has: last-write-wins bound the name to whichever definition the
- * traversal happened to reach last, which for a zone silently changes which
- * sockets a protocol doses.
+ * A name defined by two files is an ERROR, not a last-write-wins warning: the tree is read recursively
+ * and nothing guarantees a stable traversal order across platforms, so "later" is not a property this
+ * function has. A collision leaves the name UNBOUND — neither definition wins — and is reported in
+ * [NPNamespaceBuild.errors]. Anything referencing it then fails [validateNamespaceReferences] exactly as
+ * if the name had never been defined.
  *
- * So a collision leaves the name UNBOUND — neither definition wins — and is
- * reported in [NPNamespaceBuild.errors]. Anything referencing it then fails
- * [validateNamespaceReferences] exactly as if the name had never been defined.
- * Matches the web and iOS loaders.
+ * The folding is the shared NPPS core's (common/npps-core, OI-NPPS-CORE-01): this builds the request from
+ * the names it reads and maps the surviving names back to the caller's own definitions.
  */
 fun buildNamespace(entries: List<NPProtocolEntry>): NPNamespaceBuild {
+    val zoneDefs = entries.filterIsInstance<NPProtocolEntry.Zone>().map { it.zone }
+    val conditionDefs = entries.filterIsInstance<NPProtocolEntry.Condition>().map { it.condition }
+    val result = NppsCore.namespace(listOf(namespaceRequestFile(entries, zoneDefs.map { it.name }, conditionDefs.map { it.name })))
     val zones = LinkedHashMap<String, NPZoneDefinition>()
-    val conditions = LinkedHashMap<String, NPConditionDefinition>()
-    val errors = ArrayList<String>()
-    // Names seen at least twice: kept out of the namespace, so a third
-    // definition cannot re-bind a name already known to collide.
-    val collidedZones = HashSet<String>()
-    val collidedConditions = HashSet<String>()
-
-    for (e in entries) {
-        when (e) {
-            is NPProtocolEntry.Zone -> {
-                val name = e.zone.name
-                if (name in collidedZones) continue
-                if (zones.containsKey(name)) {
-                    errors.add(
-                        "Duplicate zone name '$name' — defined in more than one file; zone names " +
-                            "must be unique across the protocol directory. " +
-                            "The name is left undefined."
-                    )
-                    zones.remove(name)
-                    collidedZones.add(name)
-                    continue
-                }
-                zones[name] = e.zone
-            }
-            is NPProtocolEntry.Condition -> {
-                val name = e.condition.name
-                if (name in collidedConditions) continue
-                if (conditions.containsKey(name)) {
-                    errors.add(
-                        "Duplicate condition name '$name' — defined in more than one file; " +
-                            "condition names must be unique across the protocol directory. " +
-                            "The name is left undefined."
-                    )
-                    conditions.remove(name)
-                    collidedConditions.add(name)
-                    continue
-                }
-                conditions[name] = e.condition
-            }
-            else -> Unit
-        }
+    for (z in result["zones"]!!.jsonArray) {
+        val name = z.jsonObject["name"]!!.jsonPrimitive.content
+        zones[name] = zoneDefs.first { it.name == name }
     }
+    val conditions = LinkedHashMap<String, NPConditionDefinition>()
+    for (c in result["conditions"]!!.jsonArray) {
+        val name = c.jsonObject["name"]!!.jsonPrimitive.content
+        conditions[name] = conditionDefs.first { it.name == name }
+    }
+    val errors = result["errors"]!!.jsonArray.map { it.jsonPrimitive.content }
     return NPNamespaceBuild(NPNamespace(entries, zones, conditions), errors)
 }
 
@@ -95,35 +74,50 @@ fun buildNamespace(entries: List<NPProtocolEntry>): NPNamespaceBuild {
  * references; empty means everything resolves.
  */
 fun validateNamespaceReferences(ns: NPNamespace): List<String> {
-    val errors = ArrayList<String>()
+    val file = namespaceRequestFile(ns.entries, ns.zones.keys.toList(), ns.conditions.keys.toList())
+    return NppsCore.namespace(listOf(file))["referenceErrors"]!!.jsonArray.map { it.jsonPrimitive.content }
+}
 
-    fun checkConditions(owner: String, names: List<String>) {
-        for (c in names) {
-            if (!ns.conditions.containsKey(c)) {
-                errors.add("Protocol '$owner' references undefined condition '$c'")
-            }
-        }
-    }
-
-    for (entry in ns.entries) {
-        when (entry) {
-            is NPProtocolEntry.Single -> {
-                checkConditions(entry.protocol.name, entry.protocol.conditions)
-                for (m in entry.protocol.modalities) {
-                    val p = (m.params as? NPModalityParams.PbmTranscranial)?.params ?: continue
-                    val target = p.target as? NPPBMTarget.Named ?: continue
-                    for (z in target.zoneNames) {
-                        if (!ns.zones.containsKey(z)) {
-                            errors.add(
-                                "Protocol '${entry.protocol.name}' references undefined zone '$z'"
-                            )
+/**
+ * What the core's namespace reads of a parsed file: each protocol's and composite's name and `conditions`,
+ * the zones a `pbm_transcranial` block names, and the names of the zones and conditions defined.
+ */
+private fun namespaceRequestFile(
+    entries: List<NPProtocolEntry>,
+    zoneNames: List<String>,
+    conditionNames: List<String>,
+): JsonObject = buildJsonObject {
+    putJsonArray("entries") {
+        for (e in entries) when (e) {
+            is NPProtocolEntry.Single -> add(buildJsonObject {
+                put("kind", "single")
+                putJsonObject("protocol") {
+                    put("name", e.protocol.name)
+                    putJsonArray("conditions") { e.protocol.conditions.forEach { add(JsonPrimitive(it)) } }
+                    putJsonArray("modalities") {
+                        for (m in e.protocol.modalities) {
+                            val target = ((m.params as? NPModalityParams.PbmTranscranial)?.params?.target) as? NPPBMTarget.Named
+                                ?: continue
+                            add(buildJsonObject {
+                                put("type", "pbm_transcranial")
+                                putJsonObject("params") {
+                                    putJsonArray("zoneRefs") { target.zoneNames.forEach { add(JsonPrimitive(it)) } }
+                                }
+                            })
                         }
                     }
                 }
-            }
-            is NPProtocolEntry.Composite -> checkConditions(entry.composite.name, entry.composite.conditions)
+            })
+            is NPProtocolEntry.Composite -> add(buildJsonObject {
+                put("kind", "composite")
+                putJsonObject("composite") {
+                    put("name", e.composite.name)
+                    putJsonArray("conditions") { e.composite.conditions.forEach { add(JsonPrimitive(it)) } }
+                }
+            })
             else -> Unit
         }
     }
-    return errors
+    putJsonArray("zones") { zoneNames.forEach { add(buildJsonObject { put("name", it) }) } }
+    putJsonArray("conditions") { conditionNames.forEach { add(buildJsonObject { put("name", it) }) } }
 }

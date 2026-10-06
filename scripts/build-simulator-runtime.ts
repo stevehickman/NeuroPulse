@@ -38,7 +38,7 @@
  * than assumed by assertNoLocaleContent below.
  */
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync } from 'fs';
 import { createHash } from 'crypto';
 import { dirname, join, resolve } from 'path';
 import { tmpdir } from 'os';
@@ -102,6 +102,26 @@ function sourceGraph(entry: string): string[] {
     }
   }
   return [...seen].sort();
+}
+
+/**
+ * The Rust the bundle's parser is built from. The parser is the shared NPPS core (common/npps-core,
+ * OI-NPPS-CORE-01) run as WebAssembly, so an edit to it changes what the simulator parses without touching
+ * a TypeScript file in the import graph. The module itself is not in the bundle (it is a build output,
+ * scripts/build-npps-wasm.sh, served beside it), so the sources it is built from are fingerprinted instead.
+ */
+function rustSources(root: string = ROOT): string[] {
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (entry.name.endsWith('.rs') || entry.name === 'Cargo.toml') out.push(path);
+    }
+  };
+  for (const d of ['common/npps-core/src', 'common/npps-ffi/src']) walk(join(root, d));
+  for (const f of ['common/Cargo.toml', 'common/Cargo.lock', 'common/npps/fields.json']) out.push(join(root, f));
+  return out.sort();
 }
 
 /**
@@ -287,6 +307,22 @@ if (process.argv.includes('--self-test')) {
       fingerprintSources([...f.files, extra], f.root) !== BASE);
   }
 
+  // 3b. The parser is Rust now: editing the core must mark the bundle stale although no TypeScript changed.
+  {
+    const rust = rustSources();
+    expect('the Rust sources the parser is built from are fingerprinted',
+      rust.some((f) => f.endsWith('common/npps-core/src/parser.rs')) &&
+      rust.some((f) => f.endsWith('common/npps/fields.json')) && rust.length > 8);
+    const f = fixture('export const a = 1;', '{"COMMON_CANCEL":"Cancel"}');
+    const core = join(f.root, 'common/npps-core/src/parser.rs');
+    mkdirSync(dirname(core), { recursive: true });
+    writeFileSync(core, 'fn a() {}');
+    const before = fingerprintSources([...f.files, core], f.root);
+    writeFileSync(core, 'fn b() {}');
+    expect('editing the Rust the parser is built from changes the fingerprint',
+      fingerprintSources([...f.files, core], f.root) !== before);
+  }
+
   // 4. The graph the whole check rests on must actually reach the two files it
   //    exists to watch. Everything above can hold while this is false, and then
   //    the gate is watching nothing — the vacuity failure that outlived TOKEN-01.
@@ -326,13 +362,13 @@ if (process.argv.includes('--self-test')) {
     for (const f of failures) console.error('  ' + f);
     process.exit(1);
   }
-  console.log('  10 case(s): a source edit fires, a locale edit does not, the graph');
+  console.log('  12 case(s): a source edit fires, a locale edit does not, the graph');
   console.log('  reaches the parser and the runtime, and both content canaries bite.');
   console.log('SELF-TEST PASS — the staleness check has teeth.');
   process.exit(0);
 }
 
-const fingerprint = fingerprintSources(sourceGraph(ENTRY));
+const fingerprint = fingerprintSources([...sourceGraph(ENTRY), ...rustSources()]);
 
 // ── Check mode ────────────────────────────────────────────────────────────────
 //

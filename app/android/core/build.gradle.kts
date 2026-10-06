@@ -56,6 +56,28 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+// ── The shared NPPS core (OI-NPPS-CORE-01) ───────────────────────────────────
+// common/npps-jni is the JNI binding of the Rust core. The tests that call it (NppsCoreTests)
+// need the host build of it, so the test task builds it first and puts it on java.library.path.
+// cargo must be on PATH; a missing toolchain fails the build rather than skipping the tests,
+// because a skipped test is a parity check that silently stopped checking. Packaging the
+// library for a device (cargo-ndk, four ABIs, :app jniLibs) is not wired yet and is the next
+// step of the open item: it needs an NDK this module's CI does not have.
+val repoCommon: java.io.File = layout.projectDirectory.dir("../../../common").asFile
+val buildNppsCoreHost by tasks.registering(Exec::class) {
+    group = "build"
+    description = "Builds the host (JVM test) copy of the NPPS core's JNI library."
+    workingDir = repoCommon
+    commandLine("cargo", "build", "--release", "--locked", "-p", "neurone-npps-jni")
+    inputs.dir(File(repoCommon, "npps-core")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.dir(File(repoCommon, "npps-jni")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(File(repoCommon, "npps/fields.json"))
+    inputs.file(File(repoCommon, "Cargo.lock"))
+    outputs.dir(File(repoCommon, "target/release"))
+}
+
 tasks.test {
     useJUnitPlatform()
+    dependsOn(buildNppsCoreHost)
+    systemProperty("java.library.path", File(repoCommon, "target/release").absolutePath)
 }

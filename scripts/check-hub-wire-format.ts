@@ -2,7 +2,8 @@
 /**
  * check-hub-wire-format.ts — the hub session descriptor is diffed, not read.
  *
- * NP-FW-HUB-001 §4 specifies the wire format that `app/web/src/lib/hubCompiler.ts`
+ * NP-FW-HUB-001 §4 specifies the wire format that the shared NPPS core
+ * (`common/npps-core/src/compiler.rs`, run by the web app through `app/web/src/lib/hubCompiler.ts`)
  * writes and `firmware/hub_control/src/np_protocol.c` parses. Until this gate the
  * two implementations agreed only by inspection (OI-FWHUB-03) — the state that
  * made OI-DOC-01 expensive, and one NP-CONV-001 §8 forbids for a cross-artifact
@@ -18,13 +19,13 @@
  *  FIRMWARE  np_hub_config.h's defines, np_hub_types.h's enums, and the size
  *            and field offsets of every packed struct, computed from its
  *            declaration.
- *  COMPILER  what compileProtocol() WRITES. The compiler is run once per
- *            modality and its blob is decoded with the FIRMWARE's field
- *            offsets, so a header field written at the wrong offset, a
- *            parameter block of the wrong length or a mis-numbered slot is
- *            seen as the parser would see it. The compiler's mirrored
- *            constants (`const SLOT_TMS = 12;`) are also read statically,
- *            because a constant no fixture reaches is still a wire value.
+ *  COMPILER  what compileProtocol() WRITES, which is the Rust core's output (OI-NPPS-CORE-01).
+ *            The compiler is run once per modality, through the web wrapper and the
+ *            WebAssembly build (scripts/build-npps-wasm.sh), and its blob is decoded with the
+ *            FIRMWARE's field offsets, so a header field written at the wrong offset, a
+ *            parameter block of the wrong length or a mis-numbered slot is seen as the parser
+ *            would see it. The core's constants (`const SLOT_TMS: u32 = 12;` in compiler.rs) are
+ *            also read statically, because a constant no fixture reaches is still a wire value.
  *
  * ── What it checks ───────────────────────────────────────────────────────────
  *
@@ -47,9 +48,9 @@
  *
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-hub-wire-format.ts --self-test
- * CI-Scans: NP-FW-HUB-001 §4's wire format against np_hub_config.h, np_hub_types.h and hubCompiler.ts's output
- * CI-Scan-Paths: docs/np_fw_hub_001.md firmware/hub_control/include/** app/web/src/lib/** scripts/check-hub-wire-format.ts
- * CI-Self-Test-Reads-Tree: its fixtures are the real §4, headers and compiler with one perturbation each — the compiler is RUN, and a hand-written fixture compiler would only test itself
+ * CI-Scans: NP-FW-HUB-001 §4's wire format against np_hub_config.h, np_hub_types.h and the Rust NPPS core's compiled output
+ * CI-Scan-Paths: docs/np_fw_hub_001.md firmware/hub_control/include/** common/npps-core/** app/web/src/lib/** scripts/check-hub-wire-format.ts
+ * CI-Self-Test-Reads-Tree: its fixtures are the real §4, headers and compiler source with one perturbation each, and the real compiler's output with one byte tampered — the compiler is RUN, and a hand-written fixture compiler would only test itself
  */
 
 import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, copyFileSync } from "fs";
@@ -65,14 +66,16 @@ const ROOT =
 const DOC = "docs/np_fw_hub_001.md";
 const CONFIG = "firmware/hub_control/include/np_hub_config.h";
 const TYPES = "firmware/hub_control/include/np_hub_types.h";
-const COMPILER = "app/web/src/lib/hubCompiler.ts";
-/** The compiler's runtime imports — the self-test copies these beside it. */
-const COMPILER_DEPS = [
-  "common/lib/socketMap.generated.ts",
-  "app/web/src/lib/hardwareLimits.ts",
-  "common/lib/wavelengthRules.ts",
-  "app/web/src/lib/pbmDrive.ts",
-];
+/** The compiler: the Rust core, whose constants are read statically. */
+const COMPILER = "common/npps-core/src/compiler.rs";
+/** What runs it: the web wrapper over the WebAssembly build. Always the real tree's, since the self-test cannot rebuild Rust. */
+const RUNNER = "app/web/src/lib/hubCompiler.ts";
+/** The names the gate speaks in, and the Rust constants that carry them. Null: not a constant in the core. */
+const RUST_NAME: Record<string, string | null> = {
+  PROTO_MAGIC: "MAGIC", PROTO_VERSION: "VERSION", PROTO_UUID_LEN: null, PROTO_SERIAL_LEN: null,
+  PROTO_SIG_LEN: "SIG_LEN", PROTO_CMD_MAX: "CMD_MAX", SOCKET_MASK_BYTES: "SOCKET_MASK_BYTES",
+  SLOT_NONE: "SLOT_NONE", SLOT_FIRST_VALID: "SLOT_FIRST_VALID", HEADER_LEN: "HEADER_LEN", CMD_HDR_LEN: "CMD_HDR_LEN",
+};
 
 const read = (root: string, rel: string): string => readFileSync(join(root, rel), "utf8");
 const stripComments = (s: string): string =>
@@ -222,8 +225,8 @@ function parseDoc(text: string): DocSpec {
 /** Top-level `const NAME = <int>;` — the constants the compiler mirrors. */
 function parseCompilerConsts(src: string): Map<string, number> {
   const out = new Map<string, number>();
-  for (const m of stripComments(src).matchAll(/^const\s+(\w+)\s*=\s*(0[xX][0-9a-fA-F]+|\d+)\s*;/gm)) {
-    out.set(m[1]!, Number(m[2]));
+  for (const m of stripComments(src).matchAll(/^(?:pub\s+)?const\s+(\w+)\s*:\s*\w+\s*=\s*(0[xX][0-9a-fA-F_]+|\d[\d_]*)\s*;/gm)) {
+    out.set(m[1]!, Number(m[2]!.replace(/_/g, "")));
   }
   return out;
 }
@@ -268,18 +271,22 @@ function protocolFor(type: string, params: object): object {
 
 type Compiled = { label: string; blob: Uint8Array } | { label: string; error: string };
 
-async function runCompiler(root: string): Promise<Compiled[] | string> {
+/** The self-test's hook: a compiled blob with one thing wrong, as a miscompiling core would write it. */
+type Tamper = (label: string, blob: Uint8Array) => Uint8Array;
+
+async function runCompiler(tamper?: Tamper): Promise<Compiled[] | string> {
   let mod: { compileProtocol: (p: object, o: object) => { blob: Uint8Array } };
   try {
-    mod = await import(join(root, COMPILER));
+    mod = await import(join(ROOT, RUNNER));
   } catch (e) {
-    return `${COMPILER} did not load — ${(e as Error).message}`;
+    return `${RUNNER} did not load — ${(e as Error).message}`;
   }
   // One zone naming sockets 1..3 is enough: the bitmap is fixed-width.
   const zones = new Map([["All", { name: "All", sockets: [1, 2, 3] }]]);
   return FIXTURES.map((f) => {
     try {
-      return { label: f.label, blob: mod.compileProtocol(protocolFor(f.type, f.params), { zones }).blob };
+      const blob = mod.compileProtocol(protocolFor(f.type, f.params), { zones }).blob;
+      return { label: f.label, blob: tamper ? tamper(f.label, blob.slice()) : blob };
     } catch (e) {
       return { label: f.label, error: (e as Error).message };
     }
@@ -294,7 +301,7 @@ function readField(dv: DataView, base: number, f: Field): number {
   return dv.getUint32(base + f.offset, true);
 }
 
-export async function audit(root: string): Promise<{ violations: string[]; scanned: number }> {
+export async function audit(root: string, tamper?: Tamper): Promise<{ violations: string[]; scanned: number }> {
   const v: string[] = [];
   let doc: string, config: string, types: string, compilerSrc: string;
   try {
@@ -361,10 +368,12 @@ export async function audit(root: string): Promise<{ violations: string[]; scann
     if (d !== undefined && d !== f) {
       v.push(`${label}: ${DOC} §4 says ${d}, firmware says ${f} — §4 and np_protocol.c must be the same artifact`);
     }
-    if (cname !== null) {
-      const c = cc.get(cname);
-      if (c === undefined) v.push(`${COMPILER}: const ${cname} (${label}) not found`);
-      else if (c !== f) v.push(`${label}: ${COMPILER} ${cname} = ${c}, firmware says ${f} — the compiler is wrong (REQ-FWHUB-08)`);
+    const rust = cname === null ? null : RUST_NAME[cname];
+    if (rust === undefined) v.push(`this check has no Rust name for ${cname}`);
+    else if (rust !== null) {
+      const c = cc.get(rust);
+      if (c === undefined) v.push(`${COMPILER}: const ${rust} (${label}) not found`);
+      else if (c !== f) v.push(`${label}: ${COMPILER} ${rust} = ${c}, firmware says ${f} — the compiler is wrong (REQ-FWHUB-08)`);
     }
   }
   if (spec.magic === undefined) v.push(`${DOC} §4.1: magic did not parse`);
@@ -382,9 +391,9 @@ export async function audit(root: string): Promise<{ violations: string[]; scann
     if (name === "SLOT_MAX" && val !== fw("NP_HUB_SLOT_MAX")) {
       v.push(`${COMPILER}: SLOT_MAX = ${val}, firmware NP_HUB_SLOT_MAX = ${fw("NP_HUB_SLOT_MAX")}`);
     }
-    if (/^NP_MOD_/.test(name)) {
-      const f = modEnum!.get(name);
-      if (f === undefined) v.push(`${COMPILER}: ${name} is not a firmware np_hub_mod_type_t value`);
+    if (/^MOD_/.test(name)) {
+      const f = modEnum!.get(`NP_${name}`);
+      if (f === undefined) v.push(`${COMPILER}: ${name} is not a firmware np_hub_mod_type_t value (NP_${name})`);
       else if (f !== val) v.push(`${COMPILER}: ${name} = ${val}, firmware says ${f}`);
     }
   }
@@ -429,7 +438,7 @@ export async function audit(root: string): Promise<{ violations: string[]; scann
   }
 
   // B + C — the compiler's actual output, decoded at firmware offsets.
-  const compiled = await runCompiler(root);
+  const compiled = await runCompiler(tamper);
   if (typeof compiled === "string") {
     v.push(compiled);
     return { violations: v, scanned: spec.rows.length };
@@ -492,7 +501,7 @@ export async function audit(root: string): Promise<{ violations: string[]; scann
 // each, and must pass on the unperturbed copy.
 if (process.argv.includes("--self-test")) {
   const box = mkdtempSync(join(tmpdir(), "np-wirefmt-"));
-  const FILES = [DOC, CONFIG, TYPES, COMPILER, ...COMPILER_DEPS];
+  const FILES = [DOC, CONFIG, TYPES, COMPILER];
   let n = 0;
   const build = (edit?: { file: string; from: string | RegExp; to: string }): string => {
     const root = join(box, `t${n++}`);
@@ -511,8 +520,8 @@ if (process.argv.includes("--self-test")) {
   };
 
   const failures: string[] = [];
-  const expect = async (label: string, root: string, needle: string | null) => {
-    const { violations } = await audit(root);
+  const expect = async (label: string, root: string, needle: string | null, tamper?: Tamper) => {
+    const { violations } = await audit(root, tamper);
     if (needle === null) {
       if (violations.length) failures.push(`${label} — expected clean, got: ${violations[0]}`);
     } else if (!violations.some((x) => x.includes(needle))) {
@@ -535,21 +544,40 @@ if (process.argv.includes("--self-test")) {
     ["firmware: a mod type renumbered", { file: TYPES, from: "NP_MOD_TMS          = 0x0C", to: "NP_MOD_TMS          = 0x1C" }, "NP_MOD_TMS"],
     ["firmware: header fields reordered", { file: TYPES, from: /(uint8_t\s+flags;[^\n]*\n)(\s+uint8_t\s+cmd_count;[^\n]*\n)/, to: "$2$1" }, "cmd_count reads"],
     ["firmware: a params struct unpacked", { file: TYPES, from: /typedef struct __attribute__\(\(packed\)\) \{(\s+uint8_t  gain_reg)/, to: "typedef struct {$1" }, "is not packed"],
-    // COMPILER corner.
-    ["compiler: tDCS block one byte long", { file: COMPILER, from: "const buf = new Uint8Array(8);\n  const dv  = new DataView(buf.buffer);\n  dv.setUint8(0, resolveElectrodePair", to: "const buf = new Uint8Array(9);\n  const dv  = new DataView(buf.buffer);\n  dv.setUint8(0, resolveElectrodePair" }, "tdcs: NP_MOD_TDCS params_len is 9"],
-    ["compiler: version constant stale", { file: COMPILER, from: "const PROTO_VERSION = 0x0001;", to: "const PROTO_VERSION = 0x0002;" }, "PROTO_VERSION = 2"],
-    ["compiler: a slot constant wrong", { file: COMPILER, from: "const SLOT_TMS          = 12;", to: "const SLOT_TMS          = 13;" }, "SLOT_TMS = 13"],
-    ["compiler: target kinds swapped", { file: COMPILER, from: "const TARGET_SOCKET_MASK = 0x01;", to: "const TARGET_SOCKET_MASK = 0x02;" }, "TARGET_SOCKET_MASK = 2"],
-    ["compiler: header field at the wrong offset", { file: COMPILER, from: "dv.setUint16(4, PROTO_VERSION, true);", to: "dv.setUint16(5, PROTO_VERSION, true);" }, "header version reads"],
+    // COMPILER corner, the Rust source, read statically.
+    ["compiler: version constant stale", { file: COMPILER, from: "const VERSION: u16 = 1;", to: "const VERSION: u16 = 2;" }, "VERSION = 2"],
+    ["compiler: a slot constant wrong", { file: COMPILER, from: "const SLOT_TMS: u32 = 12;", to: "const SLOT_TMS: u32 = 13;" }, "SLOT_TMS = 13"],
+    ["compiler: target kinds swapped", { file: COMPILER, from: "const TARGET_SOCKET_MASK: u8 = 0x01;", to: "const TARGET_SOCKET_MASK: u8 = 0x02;" }, "TARGET_SOCKET_MASK = 2"],
   ];
   for (const [label, edit, needle] of cases) await expect(label, build(edit), needle);
+
+  // COMPILER corner, the bytes it writes. Rust cannot be rebuilt per fixture, so the real core's
+  // output is tampered the way a miscompiling core would write it, and the decode must catch it.
+  const cmdHeaderAt = (blob: Uint8Array, modType: number): number => {
+    const dv = new DataView(blob.buffer, blob.byteOffset, blob.byteLength);
+    let p = 64;
+    for (let i = 0; i < blob[7]!; i++) {
+      if (blob[p] === modType && dv.getUint16(p + 10, true) > 0) return p;
+      p += 14 + blob[p + 13]! + dv.getUint16(p + 10, true);
+    }
+    throw new Error(`self-test fixture did not apply: no command of mod_type ${modType}`);
+  };
+  const tampered: [string, Tamper, string][] = [
+    ["compiler: tDCS block one byte long",
+      (l, b) => { if (l === "tdcs") new DataView(b.buffer).setUint16(cmdHeaderAt(b, 0x06) + 10, 9, true); return b; },
+      "tdcs: NP_MOD_TDCS params_len is 9"],
+    ["compiler: header field at the wrong offset",
+      (_l, b) => { b[4] = 0; b[5] = 1; return b; },
+      "header version reads"],
+  ];
+  for (const [label, tamper, needle] of tampered) await expect(label, build(), needle, tamper);
 
   if (failures.length) {
     console.error("check-hub-wire-format self-test FAILED:");
     for (const f of failures) console.error(`  - ${f}`);
     process.exit(1);
   }
-  console.log(`check-hub-wire-format self-test PASS (${cases.length} fixtures)`);
+  console.log(`check-hub-wire-format self-test PASS (${cases.length + tampered.length} fixtures)`);
   process.exit(0);
 }
 
@@ -559,7 +587,7 @@ console.log(
     `and ${FIXTURES.length} compiled protocols decoded at firmware offsets`,
 );
 if (violations.length) {
-  console.error("\nNP-FW-HUB-001 §4, the firmware and hubCompiler.ts disagree:");
+  console.error("\nNP-FW-HUB-001 §4, the firmware and the Rust NPPS core disagree:");
   for (const x of violations) console.error(`  - ${x}`);
   console.error("\n§4 and np_protocol.c are one artifact; where the compiler differs, it is wrong (REQ-FWHUB-08).");
   process.exit(1);

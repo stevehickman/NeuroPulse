@@ -121,9 +121,11 @@ const PENDING_PATHS: Array<[string, string]> = [
  */
 const DIAGNOSTIC_FILES = [
   "app/ios/NeurOne/Protocol/NPProtocolScripting.swift",
+  "app/ios/NeurOne/Protocol/NPPSParser.swift",
   "app/ios/NeurOne/Protocol/NPNamespace.swift",
   "app/ios/NeurOne/Protocol/NPBundledProtocols.swift",
   "common/lib/nppsParser.ts",
+  "common/lib/nppsCore.ts",
   "app/web/src/lib/nppsSerializer.ts",
   "app/web/src/lib/hubCompiler.ts",
 ];

@@ -256,7 +256,7 @@ class NPProtocolLibrary(
     fun exportScript(entry: NPProtocolEntry): String = NPPSSerializer().serialize(entry)
 
     fun importScript(text: String): NPProtocolEntry {
-        val entries = NPPSParser(NPPSLexer(text).tokenize()).parse()
+        val entries = NPPSParser.parse(text)
         return entries.firstOrNull() ?: throw NPPSError("No protocol found in script", 0)
     }
 
@@ -283,7 +283,7 @@ class NPProtocolLibrary(
     private fun loadFromStore() {
         val text = kv.getString(USER_PROTOCOLS_KEY) ?: return
         if (text.isBlank()) return
-        val parsed = runCatching { NPPSParser(NPPSLexer(text).tokenize()).parse() }.getOrDefault(emptyList())
+        val parsed = runCatching { NPPSParser.parse(text) }.getOrDefault(emptyList())
         _userProtocols.clear()
         _userProtocols.addAll(parsed)
     }

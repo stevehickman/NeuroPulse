@@ -21,6 +21,7 @@
  */
 
 import { parseNPPSFile, buildNamespace, validateNamespaceReferences } from '../../common/lib/nppsParser';
+import { initNppsCore } from '../../common/lib/nppsCore';
 import { DEFAULT_WAVELENGTH_RULES, mapWavelength, parsePbmWavelength } from '../../common/lib/wavelengthRules';
 import type {
   NPProtocolDefinition,
@@ -258,6 +259,10 @@ export function buildLibrary(
  */
 export async function loadLibrary(baseUrl: string = DEFAULT_BASE_URL): Promise<void> {
   const base = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+
+  // The parser is the shared NPPS core as WebAssembly (OI-NPPS-CORE-01): a browser loads it before parsing.
+  // simulator/js/generated/neurone_npps.wasm is a build output: bun scripts/build-npps-wasm.sh.
+  await initNppsCore();
 
   const manifest = await fetch(`${base}manifest.json`).then(r => {
     if (!r.ok) throw new Error(`manifest.json: HTTP ${r.status}`);

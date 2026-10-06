@@ -63,6 +63,42 @@ final class HubDescriptorCompilerTests: XCTestCase {
         try check("pbm1064", def(1200, pbm("1064nm", 28)))
     }
 
+    /// OI-SESPWR-03: CW (frequency 0) has no duty cycle, so CW with a duty other than 100 % is refused,
+    /// on every PBM modality that carries both fields.
+    func testRefusesCwWithADutyOtherThan100() throws {
+        func cw(_ kind: Int, _ duty: Int) -> NPProtocolDefinition {
+            switch kind {
+            case 0:
+                var p = NPPBMTranscranialParams()
+                p.target = .named(["Frontal"])
+                p.wavelength = NPPBMTranscranialParams.Wavelength(rawValue: "808nm")
+                p.irradianceMWcm2 = 100
+                p.frequencyHz = 0
+                p.dutyCyclePercent = duty
+                return def(600, mod(.pbmTranscranial(p)))
+            case 1:
+                var p = NPPBMIntranasalParams()
+                p.wavelength = .nm660
+                p.irradianceMWcm2 = 30
+                p.frequencyHz = 0
+                p.dutyCyclePercent = duty
+                return def(600, mod(.pbmIntranasal(p)))
+            default:
+                var p = NPDeepPBM1170Params()
+                p.intensityMWcm2 = 500
+                p.frequencyHz = 0
+                p.dutyCyclePercent = duty
+                return def(600, mod(.pbmDeep1170nm(p)))
+            }
+        }
+        for kind in 0...2 {
+            XCTAssertThrowsError(try build(cw(kind, 25))) { error in
+                XCTAssertTrue("\(error)".contains("no duty cycle"), "modality \(kind): \(error)")
+            }
+            XCTAssertNoThrow(try build(cw(kind, 100)))
+        }
+    }
+
     func testParallelWavelengthsMergeIntoOneTileCommand() throws {
         try check("pbmMerged", def(600, pbm("660nm", 100), pbm("808nm", 200)))
     }
@@ -207,8 +243,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
         nasal.wavelength = .nm1064
         XCTAssertThrowsError(try build(def(600, mod(.pbmIntranasal(nasal))))) { e in
             XCTAssertEqual(e.localizedDescription,
-                           "No emitter channel delivers 1064nm under the wavelength rules in force. " +
-                           "Refused, not moved to the nearest channel.")
+                           "Intranasal PBM cannot be delivered on led_1064: 1064nm maps to a channel it does not carry.")
         }
     }
 

@@ -38,81 +38,85 @@ struct NPNamespaceBuild {
 /// reported in `errors`. Anything referencing it then fails
 /// `validateNamespaceReferences` exactly as if the name had never been defined.
 /// Matches the web and Android loaders.
+/// Fold parsed entries from any number of files into one namespace. A zone or condition name is defined
+/// exactly once across the whole tree (NP-NPPS-REF-001 §1.6).
+///
+/// A name defined by two files is an ERROR, not a last-write-wins warning: the tree is read recursively and
+/// nothing guarantees a stable traversal order across platforms, so "later" is not a property this function
+/// has. A collision leaves the name UNBOUND — neither definition wins — and is reported in
+/// `NPNamespaceBuild.errors`. Anything referencing it then fails `validateNamespaceReferences` exactly as if
+/// the name had never been defined.
+///
+/// The folding is the shared NPPS core's (common/npps-core, OI-NPPS-CORE-01): this builds the request from
+/// the names it reads and maps the surviving names back to the caller's own definitions.
 func buildNamespace(_ entries: [NPProtocolEntry]) -> NPNamespaceBuild {
-    var zones: [String: NPZoneDefinition] = [:]
-    var conditions: [String: NPConditionDefinition] = [:]
-    var errors: [String] = []
-    // Names seen at least twice: kept out of the namespace, so a third
-    // definition cannot re-bind a name already known to collide.
-    var collidedZones: Set<String> = []
-    var collidedConditions: Set<String> = []
-
+    var zoneDefs: [NPZoneDefinition] = []
+    var conditionDefs: [NPConditionDefinition] = []
     for entry in entries {
         switch entry {
-        case .zone(let z):
-            if collidedZones.contains(z.name) { continue }
-            if zones[z.name] != nil {
-                errors.append(
-                    "Duplicate zone name '\(z.name)' — defined in more than one file; zone names "
-                    + "must be unique across the protocol directory. The name is left undefined."
-                )
-                zones.removeValue(forKey: z.name)
-                collidedZones.insert(z.name)
-                continue
-            }
-            zones[z.name] = z
-        case .condition(let c):
-            if collidedConditions.contains(c.name) { continue }
-            if conditions[c.name] != nil {
-                errors.append(
-                    "Duplicate condition name '\(c.name)' — defined in more than one file; "
-                    + "condition names must be unique across the protocol directory. "
-                    + "The name is left undefined."
-                )
-                conditions.removeValue(forKey: c.name)
-                collidedConditions.insert(c.name)
-                continue
-            }
-            conditions[c.name] = c
-        default:
-            break
+        case .zone(let z): zoneDefs.append(z)
+        case .condition(let c): conditionDefs.append(c)
+        default: break
         }
+    }
+    let result = namespaceResult(entries: entries, zoneNames: zoneDefs.map { $0.name }, conditionNames: conditionDefs.map { $0.name })
+    var zones: [String: NPZoneDefinition] = [:]
+    for name in names(in: result["zones"]) {
+        zones[name] = zoneDefs.first { $0.name == name }
+    }
+    var conditions: [String: NPConditionDefinition] = [:]
+    for name in names(in: result["conditions"]) {
+        conditions[name] = conditionDefs.first { $0.name == name }
     }
     return NPNamespaceBuild(
         namespace: NPNamespace(entries: entries, zones: zones, conditions: conditions),
-        errors: errors
+        errors: result["errors"] as? [String] ?? []
     )
 }
 
-/// Cross-reference check: every protocol or composite `conditions` entry must
-/// resolve to a condition definition, and every `pbm_transcranial` named zone
-/// reference must resolve to a zone definition. Returns the unresolved
-/// references; empty means everything resolves.
+/// Cross-reference check: every protocol or composite `conditions` entry must resolve to a condition
+/// definition, and every `pbm_transcranial` named zone reference must resolve to a zone definition.
+/// Returns the unresolved references; empty means everything resolves.
 func validateNamespaceReferences(_ ns: NPNamespace) -> [String] {
-    var errors: [String] = []
+    let result = namespaceResult(entries: ns.entries, zoneNames: Array(ns.zones.keys), conditionNames: Array(ns.conditions.keys))
+    return result["referenceErrors"] as? [String] ?? []
+}
 
-    func checkConditions(owner: String, _ names: [String]) {
-        for name in names where ns.conditions[name] == nil {
-            errors.append("Protocol '\(owner)' references undefined condition '\(name)'")
-        }
-    }
+private func names(in value: Any?) -> [String] {
+    (value as? [[String: Any]] ?? []).compactMap { $0["name"] as? String }
+}
 
-    for entry in ns.entries {
+/// Runs the core's namespace over what it reads of a parsed file: each protocol's and composite's name and
+/// `conditions`, the zones a `pbm_transcranial` block names, and the names of the zones and conditions defined.
+private func namespaceResult(entries: [NPProtocolEntry], zoneNames: [String], conditionNames: [String]) -> [String: Any] {
+    var coreEntries: [[String: Any]] = []
+    for entry in entries {
         switch entry {
         case .single(let p):
-            checkConditions(owner: p.name, p.conditions)
+            var modalities: [[String: Any]] = []
             for modality in p.modalities {
-                guard case .pbmTranscranial(let params) = modality.params,
-                      case .named(let names) = params.target else { continue }
-                for name in names where ns.zones[name] == nil {
-                    errors.append("Protocol '\(p.name)' references undefined zone '\(name)'")
-                }
+                guard case .pbmTranscranial(let params) = modality.params, case .named(let zones) = params.target else { continue }
+                modalities.append(["type": "pbm_transcranial", "params": ["zoneRefs": zones]])
             }
+            coreEntries.append([
+                "kind": "single",
+                "protocol": ["name": p.name, "conditions": p.conditions, "modalities": modalities] as [String: Any]
+            ])
         case .composite(let c):
-            checkConditions(owner: c.name, c.conditions)
+            coreEntries.append(["kind": "composite", "composite": ["name": c.name, "conditions": c.conditions] as [String: Any]])
         default:
             break
         }
     }
-    return errors
+    let file: [String: Any] = [
+        "entries": coreEntries,
+        "zones": zoneNames.map { ["name": $0] },
+        "conditions": conditionNames.map { ["name": $0] }
+    ]
+    guard let request = try? JSONSerialization.data(withJSONObject: ["files": [file]]),
+          let data = try? NppsCore.namespace(requestJSON: request),
+          let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        return ["errors": ["the NPPS core could not build the namespace"]]
+    }
+    return object
 }

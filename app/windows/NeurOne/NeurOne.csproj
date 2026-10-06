@@ -30,6 +30,19 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      The shared NPPS core (common/npps-ffi, OI-NPPS-CORE-01), copied beside the assembly for
+      P/Invoke (Protocol/NppsCore.cs). Build it first:
+        cargo build -p neurone-npps-ffi in common/, release profile, locked
+      Conditional so a checkout without a Rust toolchain still restores and builds; a call into the
+      core then throws DllNotFoundException.
+    -->
+    <Content Include="../../../common/target/release/neurone_npps_ffi.dll"
+             Condition="Exists('../../../common/target/release/neurone_npps_ffi.dll')"
+             Link="neurone_npps_ffi.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The compiler and its types are internal; the test project reads them directly. -->
     <InternalsVisibleTo Include="NeurOne.Tests" />
   </ItemGroup>

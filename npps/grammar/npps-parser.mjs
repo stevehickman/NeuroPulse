@@ -44,7 +44,28 @@ function checkQuantity(type, fields, short, canonical, unit, example, fail) {
   }
 }
 
+function numberOf(f) {
+  if (!f) return undefined;
+  if (typeof f.value === 'number') return f.value;
+  if (f.value !== null && typeof f.value === 'object' && 'number' in f.value) return f.value.number;
+  return undefined;
+}
+
+// `frequency: 0` selects continuous wave, and CW has no duty cycle (OI-SESPWR-03).
+// A CW block that also states a duty other than 100 % contradicts itself.
+function checkContinuousWave(type, fields, fail) {
+  const freq = numberOf(findField(fields, 'frequency') || findField(fields, 'frequency_hz'));
+  const duty = numberOf(findField(fields, 'duty_cycle') || findField(fields, 'duty_cycle_percent'));
+  if (freq === 0 && duty !== undefined && duty !== 100) {
+    fail(`${type}: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is ${duty}%. ` +
+      `Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train`);
+  }
+}
+
 function checkAbsoluteQuantities(type, fields, fail) {
+  if (type === 'pbm_transcranial' || type === 'pbm_intranasal' || type === 'pbm_deep_1170nm') {
+    checkContinuousWave(type, fields, fail);
+  }
   const pbm = type === 'pbm_transcranial' || type === 'pbm_intranasal';
   const audio = type === 'audio_entrainment';
   const visual = type === 'visual_stimulation';

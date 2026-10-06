@@ -229,6 +229,13 @@ jobs:
         firmware/hub_control/include/**
         app/web/src/lib/**
         common/lib/**
+        # The compiler is the Rust core, built to WebAssembly and run by the gate.
+        common/npps-core/**
+        common/npps-ffi/**
+        common/npps/**
+        common/Cargo.toml
+        common/Cargo.lock
+        scripts/build-npps-wasm.sh
         scripts/check-hub-wire-format.ts
         .github/workflows/tooling-ci.yml
       # The hub bring-up gate (OI-FWHUB-07/-08). np_hub_control_app_main() is
@@ -669,6 +676,15 @@ jobs:
       # gate ever grows a dependency the probe fails loudly ("exited N on a clean
       # tree"), which is the direction a missing install should fail in.
 
+      # The population probe runs every gate on a clean tree, and check-hub-wire-format.ts runs the
+      # compiler, which is the Rust NPPS core as WebAssembly (OI-NPPS-CORE-01): without the module
+      # that one gate exits 1 here. Built the same way the gate's own job builds it.
+      - name: Build the NPPS core as WebAssembly (a probed gate runs it)
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          scripts/build-npps-wasm.sh
+
       # The meta-gate binds itself, so its falsification runs before it does.
       - name: Gate-coverage self-test
         run: bun scripts/check-gate-coverage.ts --self-test
@@ -1051,8 +1067,14 @@ jobs:
         with:
           bun-version: latest
 
-      # No `bun install`: the compiler's runtime imports are two local files,
-      # and its type-only imports are erased by Bun's transpiler.
+      # No `bun install`: the compiler's runtime imports are local files, and its type-only imports
+      # are erased by Bun's transpiler. The compiler is the Rust NPPS core, which the gate runs as
+      # WebAssembly through the web wrapper (OI-NPPS-CORE-01), so it is built first.
+      - name: Build the NPPS core as WebAssembly
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          scripts/build-npps-wasm.sh
 
       - name: Guard self-test (prove every corner can fail)
         run: bun scripts/check-hub-wire-format.ts --self-test

@@ -1,0 +1,17 @@
+[package]
+name = "neurone-npps-ffi"
+version = "0.1.0"
+edition = "2021"
+description = "C ABI of neurone-npps-core for Swift (iOS) and C# (Windows). Marshalling only: the contract is neurone_npps_core::api. OI-NPPS-CORE-01."
+publish = false
+
+[lib]
+name = "neurone_npps_ffi"
+# staticlib for iOS (an XCFramework slice), cdylib for Windows (P/Invoke), rlib for this crate's own tests.
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+neurone-npps-core = { path = "../npps-core" }
+
+[dev-dependencies]
+serde_json = "1"

@@ -452,7 +452,7 @@ Each string must match the `name` of a `zone` block in a loaded `.npps` file (§
 > `custom_zones` and numeric `zones: [0, 1, 2]` are rejected, not accepted and ignored.
 > Omitting `zones` defaults to `["All"]`, the whole-helmet zone in `00-zones.npps`.
 
-`frequency: 0` (or `0Hz`) selects continuous-wave (CW) mode. **CW has no duty cycle (Rev 18, `OI-SESPWR-03`).** With `frequency: 0`, `duty_cycle` may be omitted or written `100%`; any other value is a parse error, and the block is read as 100 % duty either way. This holds for `pbm_transcranial`, `pbm_intranasal` and `pbm_deep_1170nm`. To pulse, give a frequency above 0.
+`frequency: 0` (or `0Hz`) selects continuous-wave (CW) mode. **CW has no duty cycle (Rev 18, `OI-SESPWR-03`).** With `frequency: 0`, `duty_cycle` may be omitted or written `100%`; any other value is a parse error, and the block is read as 100 % duty either way. This holds for `pbm_transcranial`, `pbm_intranasal` and `pbm_deep_1170nm`. To pulse, give a frequency above 0. **Every runtime enforces it** (2026-10-06): the PEG grammar and the web, iOS and Android parsers refuse the block, and the iOS and Android validators and the web, iOS, Android and Windows hub compilers refuse a CW definition whose duty is not 100 %, because a definition built in an editor never passes a parser (Windows has none). The validators and compilers check all three modalities that carry both fields, and their tests assert it. The shared fixture `error_cw_with_duty` asserts the parse refusal.
 
 ### 4.1a Wavelength — one per block
 
@@ -549,7 +549,7 @@ motor threshold**, a baseline that is stated and does not move with the hardware
 
 **Runtimes (Rev 18).** The grammar and all four runtimes implement this, and the shared fixtures in
 `npps/fixtures` assert it on web and Android (the five `error_*` refusals and `absolute_quantities`).
-iOS and Windows are written to the same rules and unbuilt (`OI-NPPS-ABS-01`). The mobile and Windows
+iOS and Windows are written to the same rules and build and test green in CI (`OI-NPPS-ABS-01`, closed 2026-10-06; what it left open is `OI-NPPS-ABS-02`). The mobile and Windows
 session wires carry the absolute values as they are: `irradianceMWcm2` and `volumeDb`, an intranasal
 `wavelength`, and a scalp dose in J/cm² (irradiance × duty × time) in place of the old 0.4 W
 placeholder.

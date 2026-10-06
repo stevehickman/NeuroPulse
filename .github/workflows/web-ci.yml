@@ -42,7 +42,14 @@ jobs:
         locales/**
         npps/fixtures/**
         protocols/predefined/**
+        # The shared NPPS core (common/npps-core, in common/** above) is tested here against
+        # the web parser's own output, so the goldens it reads are build inputs (OI-NPPS-CORE-01).
+        app/NeurOneShared/TestData/npps-parse-golden.json
+        app/NeurOneShared/TestData/hub-descriptor-cases.json
+        app/NeurOneShared/TestData/hub-descriptor-golden.json
         scripts/build-simulator-runtime.ts
+        # Builds the WebAssembly the web compiler loads.
+        scripts/build-npps-wasm.sh
         simulator/src/**
         scripts/sync-locales.ts
         scripts/sync-socket-map.ts
@@ -226,11 +233,41 @@ jobs:
         working-directory: .
         run: bash scripts/test-lateralization-audit.sh
 
+      # The web app compiles protocols with the shared Rust NPPS core, loaded as WebAssembly
+      # (OI-NPPS-CORE-01): app/web/src/lib/hubCompiler.ts calls it, so the unit tests, the golden
+      # regeneration and the production build below all need the module, a git-ignored build output.
+      # The runner image ships rustup; this pins the channel so a stale image cannot change what is built.
+      - name: Build the NPPS core as WebAssembly
+        working-directory: .
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          scripts/build-npps-wasm.sh
+
       - name: TypeScript type-check
         run: bun run tsc --noEmit
 
       - name: Unit tests (Vitest)
         run: bun run vitest run --reporter=verbose
+
+      # OI-NPPS-CORE-01. The goldens are the web parser's and compiler's own output; the Rust
+      # core is diffed against them below. A stale golden would make that diff test yesterday's
+      # web, so regenerate and fail if anything changed.
+      - name: NPPS and hub-descriptor goldens are current
+        working-directory: .
+        run: |
+          bun scripts/gen-npps-parse-golden.ts --check
+          bun scripts/gen-hub-descriptor-golden.ts
+          git diff --exit-code -- app/NeurOneShared/TestData
+
+      - name: NPPS core (Rust) agrees with the web parser and compiler
+        working-directory: .
+        run: cargo test --manifest-path common/Cargo.toml --workspace --locked
+
+      # The C ABI (iOS, Windows) from a real C program against the committed header.
+      - name: NPPS core C ABI smoke test
+        working-directory: .
+        run: common/npps-ffi/tests/c/run.sh
 
       - name: Production build
         run: bun run build

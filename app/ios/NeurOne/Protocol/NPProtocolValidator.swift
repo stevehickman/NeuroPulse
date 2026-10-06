@@ -372,6 +372,24 @@ struct NPProtocolValidator {
 
     // MARK: Per-modality validators
 
+    /// `frequency: 0` is continuous wave and CW has no duty cycle (OI-SESPWR-03), so a CW block whose
+    /// duty is anything but 100 % contradicts itself. The parser refuses the same block; this catches
+    /// one built in the editor, which never passes the parser.
+    private func checkContinuousWave(
+        _ m: NPModalityType, frequencyHz: Double, dutyCyclePercent: Int,
+        into result: inout NPValidationResult
+    ) {
+        guard frequencyHz == 0, dutyCyclePercent != 100 else { return }
+        result.addError(
+            modality: m, param: "dutyCyclePercent", displayName: String(localized: "VALIDATE_PARAM_DUTY_CYCLE"),
+            actual: "\(dutyCyclePercent)%", limit: "100%", source: .hardware,
+            message: String(
+                format: String(localized: "VALIDATE_MSG_PBM_CW_DUTY"),
+                String(describing: dutyCyclePercent)
+            )
+        )
+    }
+
     private func validatePBMTranscranial(
         _ p: NPPBMTranscranialParams,
         interval: NPIntervalConfig,
@@ -412,6 +430,8 @@ struct NPProtocolValidator {
                 )
             }
         }
+
+        checkContinuousWave(m, frequencyHz: p.frequencyHz, dutyCyclePercent: p.dutyCyclePercent, into: &result)
 
         // Hardware: duty cycle ≤ 25%
         if p.dutyCyclePercent > NPHardwareLimits.pbmDutyCycleMaxPercent {
@@ -529,6 +549,8 @@ struct NPProtocolValidator {
         let m = NPModalityType.pbmIntranasal
         let lim = resolvedLimits.pbmIntranasal
         let srcs = sourceMap.pbmIntranasal
+
+        checkContinuousWave(m, frequencyHz: p.frequencyHz, dutyCyclePercent: p.dutyCyclePercent, into: &result)
 
         // Hardware: duty cycle ≤ 25%
         if p.dutyCyclePercent > NPHardwareLimits.pbmDutyCycleMaxPercent {
@@ -1217,6 +1239,8 @@ struct NPProtocolValidator {
                 )
             )
         }
+
+        checkContinuousWave(m, frequencyHz: p.frequencyHz, dutyCyclePercent: p.dutyCyclePercent, into: &result)
 
         // Hardware: duty cycle ≤ 25%
         if p.dutyCyclePercent > NPHardwareLimits.pbmDutyCycleMaxPercent {

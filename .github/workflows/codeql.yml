@@ -408,7 +408,10 @@ jobs:
       if: matrix.language == 'java-kotlin'
       shell: bash
       working-directory: app/android
-      run: gradle :core:assemble :app:assembleDebug --no-daemon --no-build-cache --stacktrace
+      # -PskipNppsCoreNative: :app packages the Rust NPPS core with cargo-ndk (OI-NPPS-CORE-01), which
+      # needs an NDK and the Rust Android targets. CodeQL reads the Kotlin sources, not the native
+      # library (Rust is not analysed here), so the packaging step is skipped.
+      run: gradle :core:assemble :app:assembleDebug -PskipNppsCoreNative --no-daemon --no-build-cache --stacktrace
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4

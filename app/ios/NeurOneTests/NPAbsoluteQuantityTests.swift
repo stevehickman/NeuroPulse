@@ -53,7 +53,7 @@ final class NPAbsoluteQuantityTests: XCTestCase {
     }
 
     func testRequiresIrradianceAndWavelengthRatherThanDefaultingThem() {
-        assertRefused(pbm("wavelength: \"808nm\""), contains: "irradiance is required")
+        assertRefused(pbm("wavelength: \"808nm\""), contains: "irradiance (e.g. irradiance: 300mW_cm2) is required")
         assertRefused(pbm("irradiance: 300mW_cm2"), contains: "wavelength is required")
     }
 
@@ -85,7 +85,7 @@ final class NPAbsoluteQuantityTests: XCTestCase {
         assertRefused(audio("volume: 70%"), contains: "in % is refused")
         assertRefused(audio("volume: 70"), contains: "needs its unit written")
         assertRefused(audio("volume_percent: 70"), contains: "percentage of a baseline")
-        assertRefused(audio("binaural_hz: 10Hz"), contains: "volume is required")
+        assertRefused(audio("binaural_hz: 10Hz"), contains: "is required and must be positive")
     }
 
     func testRefusesAPercentageCeilingInLimitsInsteadOfSkippingIt() throws {
@@ -145,5 +145,37 @@ final class NPAbsoluteQuantityTests: XCTestCase {
         let definition = NPProtocolDefinition(name: "hot", modalities: [NPProtocolModality(params: .pbmTranscranial(params))])
         let result = NPProtocolValidator(resolvedLimits: .unlimited).validate(definition)
         XCTAssertTrue(result.errors.contains { $0.parameterKey == "irradianceMWcm2" })
+    }
+
+    // OI-SESPWR-03: `frequency: 0` is CW and CW has no duty cycle.
+    func testRefusesCwWithADutyOtherThan100() {
+        let doses = [
+            "pbm_transcranial": "wavelength: \"808nm\"\nirradiance: 30mW_cm2",
+            "pbm_intranasal": "wavelength: \"660nm\"\nirradiance: 30mW_cm2",
+            "pbm_deep_1170nm": "intensity_mw_cm2: 500"
+        ]
+        for (modality, fields) in doses {
+            assertRefused("    \(modality) {\n\(fields)\nfrequency: 0Hz\nduty_cycle: 25%\n    }",
+                          contains: "continuous wave, which has no duty cycle")
+        }
+    }
+
+    func testReadsCwAs100PercentWhetherTheDutyIsWrittenOrNot() throws {
+        for extra in ["", "\nduty_cycle: 100%"] {
+            let entries = try parse(proto(pbm("wavelength: \"808nm\"\nirradiance: 30mW_cm2\nfrequency: 0Hz\(extra)")))
+            guard case .single(let p) = entries[0], case .pbmTranscranial(let params) = p.modalities[0].params else {
+                return XCTFail("expected one PBM protocol")
+            }
+            XCTAssertEqual(params.dutyCyclePercent, 100)
+        }
+    }
+
+    func testLeavesAPulsedBlockAlone() throws {
+        let entries = try parse(proto(pbm("wavelength: \"808nm\"\nirradiance: 30mW_cm2\nfrequency: 40Hz\nduty_cycle: 25%")))
+        guard case .single(let p) = entries[0], case .pbmTranscranial(let params) = p.modalities[0].params else {
+            return XCTFail("expected one PBM protocol")
+        }
+        XCTAssertEqual(params.frequencyHz, 40)
+        XCTAssertEqual(params.dutyCyclePercent, 25)
     }
 }

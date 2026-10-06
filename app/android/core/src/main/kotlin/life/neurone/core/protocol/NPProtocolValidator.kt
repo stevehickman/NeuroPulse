@@ -348,10 +348,24 @@ class NPProtocolValidator(private val resolvedLimits: NPLimitsSet) {
 
     // MARK: Per-modality validators
 
+    /**
+     * `frequency: 0` is continuous wave and CW has no duty cycle (OI-SESPWR-03), so a CW block whose
+     * duty is anything but 100 % contradicts itself. The parser refuses the same block; this catches
+     * one built in the editor, which never passes the parser.
+     */
+    private fun checkContinuousWave(m: NPModalityType, frequencyHz: Double, dutyCyclePercent: Int, r: NPValidationResult) {
+        if (frequencyHz == 0.0 && dutyCyclePercent != 100) {
+            r.addError(m, "dutyCyclePercent", "Duty Cycle", "$dutyCyclePercent%", "100%", NPLimitSource.HARDWARE,
+                "PBM at 0 Hz is continuous wave, which has no duty cycle, but the duty is $dutyCyclePercent%. " +
+                    "Set it to 100% or give a pulse frequency above 0.")
+        }
+    }
+
     private fun validatePBMTranscranial(p: NPPBMTranscranialParams, totalDurationSeconds: Int?, r: NPValidationResult) {
         val m = NPModalityType.PBM_TRANSCRANIAL
         val lim = resolvedLimits.pbmTranscranial
 
+        checkContinuousWave(m, p.frequencyHz, p.dutyCyclePercent, r)
         if (p.dutyCyclePercent > NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT) {
             r.addError(m, "dutyCyclePercent", "Duty Cycle", "${p.dutyCyclePercent}%",
                 "${NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT}%", NPLimitSource.HARDWARE,
@@ -400,6 +414,7 @@ class NPProtocolValidator(private val resolvedLimits: NPLimitsSet) {
     private fun validatePBMIntranasal(p: NPPBMIntranasalParams, interval: NPIntervalConfig, r: NPValidationResult) {
         val m = NPModalityType.PBM_INTRANASAL
         val lim = resolvedLimits.pbmIntranasal
+        checkContinuousWave(m, p.frequencyHz, p.dutyCyclePercent, r)
         if (p.dutyCyclePercent > NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT) {
             r.addError(m, "dutyCyclePercent", "Duty Cycle", "${p.dutyCyclePercent}%",
                 "${NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT}%", NPLimitSource.HARDWARE,
@@ -626,6 +641,7 @@ class NPProtocolValidator(private val resolvedLimits: NPLimitsSet) {
             "${p.intensityMWcm2.toInt()} mW/cm²", "${NPHardwareLimits.DEEP_PBM_MAX_MW_CM2.toInt()} mW/cm²",
             NPLimitSource.HARDWARE, "Deep PBM 1170nm intensity ${p.intensityMWcm2.toInt()} mW/cm² exceeds maximum of " +
                 "${NPHardwareLimits.DEEP_PBM_MAX_MW_CM2.toInt()} mW/cm².")
+        checkContinuousWave(m, p.frequencyHz, p.dutyCyclePercent, r)
         if (p.dutyCyclePercent > NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT) r.addError(m, "dutyCyclePercent", "Duty Cycle",
             "${p.dutyCyclePercent}%", "${NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT}%", NPLimitSource.HARDWARE,
             "Deep PBM duty cycle ${p.dutyCyclePercent}% exceeds firmware-enforced maximum of ${NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT}%.")

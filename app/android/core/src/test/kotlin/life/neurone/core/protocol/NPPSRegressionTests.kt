@@ -16,10 +16,8 @@ class NPPSRegressionTests {
 
     // Helpers -----------------------------------------------------------------
 
-    private fun lex(text: String): List<NPPSLexeme> = NPPSLexer(text).tokenize()
-
     private fun parse(text: String): List<NPProtocolEntry> =
-        NPPSParser(NPPSLexer(text).tokenize()).parse()
+        NPPSParser.parse(text)
 
     private fun singleProtocol(text: String): NPProtocolDefinition {
         val entries = parse(text)
@@ -80,7 +78,7 @@ class NPPSRegressionTests {
                 }
             """.trimIndent()
             val e = assertFailsWith<NPPSError>("unquoted $literal must not parse") {
-                NPPSParser(NPPSLexer(script).tokenize()).parse()
+                NPPSParser.parse(script)
             }
             assertTrue(
                 e.message.orEmpty().contains("must be quoted"),
@@ -89,24 +87,8 @@ class NPPSRegressionTests {
         }
     }
 
-    /** A number with a unit suffix still lexes as one token, including '%'. */
-    @Test
-    fun testUnitSuffixesLex() {
-        val unitTok = lex("300mW_cm2").map { it.token }.firstOrNull { it is NPPSToken.NumberWithUnit }
-        assertNotNull(unitTok, "300mW_cm2 should produce a NumberWithUnit token")
-        unitTok as NPPSToken.NumberWithUnit
-        assertEquals(300.0, unitTok.value)
-        assertEquals("mW_cm2", unitTok.unit)
-
-        // '%' was never consumed as a unit: the unit scanner takes only letters,
-        // digits and '_', so the '%' fell through to the unknown-character
-        // branch and was silently dropped.
-        val pct = lex("80%").map { it.token }.firstOrNull { it is NPPSToken.NumberWithUnit }
-        assertNotNull(pct, "80% should produce a NumberWithUnit token")
-        pct as NPPSToken.NumberWithUnit
-        assertEquals(80.0, pct.value)
-        assertEquals("%", pct.unit)
-    }
+    // Unit suffixes (300mW_cm2, 80%) lex as one number token: that is the core's lexer now, and its
+    // case is a unit test in common/npps-core/src/lexer.rs.
 
     /** Quoted hyphenated tags parse; the bare form is refused (Rev 6). */
     @Test
@@ -133,12 +115,12 @@ class NPPSRegressionTests {
         // The bare form is REFUSED, not skipped. The lexer used to discard the
         // hyphen silently, so `wind-down` became the two idents `wind` and
         // `down` — a tag split in half rather than an error. Rev 6 requires the
-        // quoted form, and the web parser and PEG grammar both reject the bare
-        // one.
-        val e = assertFailsWith<NPPSError> { lex("wind-down all-modalities") }
+        // quoted form, and the shared parser (the core) refuses the bare one with the
+        // message the web parser gives.
+        val e = assertFailsWith<NPPSError> { NPPSParser.parse("protocol \"P\" { tags: [wind-down, all-modalities] }") }
         assertTrue(
-            e.message.orEmpty().contains("must be quoted"),
-            "the error should name the fix, got: ${e.message}",
+            e.message.orEmpty().contains("Unexpected character: -"),
+            "the error should be the shared parser's, got: ${e.message}",
         )
     }
 
@@ -295,7 +277,7 @@ class NPPSRegressionTests {
                 }
             """.trimIndent()
             assertFailsWith<NPPSError>("zones: $form must not parse") {
-                NPPSParser(NPPSLexer(script).tokenize()).parse()
+                NPPSParser.parse(script)
             }
         }
     }
@@ -390,14 +372,14 @@ class NPPSRegressionTests {
         assertEquals(0.0, p.frequencyHz)
     }
 
-    /** An unknown modality inside a protocol throws NPPSError; unknown limits sub-blocks are ignored. */
+    /** An unknown modality inside a protocol throws NPPSError, and so does an unknown limits sub-block. */
     @Test
     fun testUnknownModalityThrowsButUnknownLimitsIgnored() {
         val badProtocol = """
             protocol "Bad" {
                 version: "1.0"
                 not_a_real_modality {
-                    intensity: 50%
+                    some_field: 1
                 }
             }
         """.trimIndent()
@@ -408,30 +390,40 @@ class NPPSRegressionTests {
             assertTrue(e.messageText.contains("Unknown modality"))
         }
 
-        val forwardCompatLimits = """
+        // The shared parser (the core, as the web parser before it) refuses a limits sub-block it does not know:
+        // a limit that is silently dropped is a safety ceiling that was never applied. (Android used to ignore
+        // it, for forward compatibility; a newer limits file is now an error to read, not a limit to lose.)
+        val unknownLimits = """
             limits "Forward" {
                 level: global
                 future_modality {
                     max_intensity: 10mA
                 }
+            }
+        """.trimIndent()
+        val refusal = assertFailsWith<NPPSError> { parse(unknownLimits) }
+        assertTrue(refusal.messageText.contains("future_modality"), refusal.message)
+
+        val limits = """
+            limits "Known" {
+                level: global
                 tdcs {
-                    max_intensity: 2.0mA
+                    max_intensity: 2.0
                 }
             }
         """.trimIndent()
-        val entry = parse(forwardCompatLimits).single()
+        val entry = parse(limits).single()
         assertTrue(entry is NPProtocolEntry.Limits)
         assertEquals(2.0, entry.limits.tdcs?.maxIntensityMilliamps)
     }
 
-    /** An empty protocol name throws with the correct message. */
+    /**
+     * The shared parser (the core, as the web parser before it) accepts an empty protocol name: whether a
+     * name is acceptable is the library's concern, and the parser states what the file says.
+     */
     @Test
-    fun testEmptyNameThrows() {
-        try {
-            parse("protocol \"\" { version: \"1.0\" }")
-            fail("empty protocol name should throw")
-        } catch (e: NPPSError) {
-            assertTrue(e.messageText.contains("cannot be empty"))
-        }
+    fun testEmptyNameParsesAsWritten() {
+        val entry = parse("protocol \"\" { version: \"1.0\" }").single()
+        assertEquals("", (entry as NPProtocolEntry.Single).protocol.name)
     }
 }

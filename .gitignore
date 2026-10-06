@@ -63,6 +63,8 @@ build/ios/
 # `cd app/watchos && xcodegen generate`; CI regenerates in ios-ci.yml and
 # watchos-ci.yml before any xcodebuild invocation.
 app/ios/*.xcodeproj/
+# The shared NPPS core as an XCFramework: a build output of scripts/build-npps-xcframework.sh.
+app/ios/Frameworks/
 app/watchos/*.xcodeproj/
 *.xcuserstate
 *.xcscmblueprint
@@ -102,3 +104,6 @@ build/host-tests/
 
 # Translator hand-off files from scripts/translations.ts export (#191) — never committed
 translation-export/
+
+# The NPPS core as WebAssembly (scripts/build-npps-wasm.sh); common/generated/ is already ignored above
+simulator/js/generated/

@@ -47,6 +47,24 @@ class HubDescriptorCompilerTests {
         check("pbm1064", def(1200, pbm("1064nm", 28.0)))
     }
 
+    @Test fun refusesCwWithADutyOtherThan100() {
+        fun cw(kind: Int, duty: Int): NPProtocolDefinition = def(600, mod(when (kind) {
+            0 -> NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(
+                target = NPPBMTarget.Named(listOf("Frontal")), wavelength = NPPBMTranscranialParams.Wavelength("808nm"),
+                irradianceMWcm2 = 100.0, frequencyHz = 0.0, dutyCyclePercent = duty))
+            1 -> NPModalityParams.PbmIntranasal(NPPBMIntranasalParams(
+                wavelength = NPPBMTranscranialParams.Wavelength.NM_660, irradianceMWcm2 = 30.0,
+                frequencyHz = 0.0, dutyCyclePercent = duty))
+            else -> NPModalityParams.PbmDeep1170nm(NPDeepPBM1170Params(
+                intensityMWcm2 = 500.0, frequencyHz = 0.0, dutyCyclePercent = duty))
+        }))
+        for (kind in 0..2) {
+            val e = assertFailsWith<IllegalArgumentException> { compiler.build(cw(kind, 25), null, listOf(7, 3)) }
+            assertTrue(e.message.orEmpty().contains("no duty cycle"), "modality $kind: ${e.message}")
+            compiler.build(cw(kind, 100), null, listOf(7, 3))
+        }
+    }
+
     @Test fun parallelWavelengthsMergeIntoOneTileCommand() = check("pbmMerged", def(600, pbm("660nm", 100.0), pbm("808nm", 200.0)))
 
     @Test fun clinicianSelectedSockets() = check("pbmClin", def(600, mod(NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(
@@ -115,8 +133,10 @@ class HubDescriptorCompilerTests {
         assertFailsWith<IllegalArgumentException> { // a block that starts after the session ends
             compiler.build(def(60, mod(NPModalityParams.BesTacs(NPBESTacsParams()), NPIntervalConfig(0, 0, null, startOffsetSeconds = 60))), null, null)
         }
-        assertFailsWith<NPPSError> { compiler.build(def(600, mod(NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(
-            target = NPPBMTarget.Named(listOf("No Such Zone")))))), null, null) }
+        // A zone the namespace does not hold is refused with the message every runtime gives.
+        val unknown = assertFailsWith<IllegalArgumentException> { compiler.build(def(600, mod(NPModalityParams.PbmTranscranial(
+            NPPBMTranscranialParams(target = NPPBMTarget.Named(listOf("No Such Zone")))))), null, null) }
+        assertTrue(unknown.message.orEmpty().contains("\"No Such Zone\", which is not in the zone namespace"))
         // Two PBM blocks on the same tile that differ in duty are not one stimulus.
         val other = mod(NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(
             target = NPPBMTarget.Named(listOf("Frontal")), wavelength = NPPBMTranscranialParams.Wavelength.NM_660,
