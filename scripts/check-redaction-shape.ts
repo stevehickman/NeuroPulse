@@ -56,7 +56,7 @@ import { tmpdir } from "os";
 
 /** Where the status bits are defined. Classification completeness is checked
  *  against this file, so a new bit cannot be added without a decision here. */
-const STATUS_HEADER = "firmware/hub_control/include/np_hub_config.h";
+const STATUS_HEADER = "firmware/common/include/np_spi_wire_types.h";
 
 type Sensitivity =
   /** Tells you something about the PERSON. Must never reach a reporting path. */

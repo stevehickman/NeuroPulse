@@ -43,7 +43,6 @@
 /* ── SPI (SPI1, slave) ────────────────────────────────────────────────────── */
 /* SPI1: PA5=SCK, PA6=MISO, PA7=MOSI, PA4=NSS (hardware NSS management)      */
 #define NP_SAFETY_SPI_INSTANCE  SPI1
-#define NP_SAFETY_FRAME_LEN     8U   /* MCU reply frame size (matches hub_config.h) */
 
 /* ── Watchdog timing ─────────────────────────────────────────────────────── */
 #define NP_SAFETY_WDG_TIMEOUT_MS    1500U  /* heartbeat missed → cutoff */
