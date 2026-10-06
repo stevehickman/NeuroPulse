@@ -18,7 +18,7 @@ all. The same `.npps` file must mean the same thing everywhere, so the meaning i
 | PBM wavelength rules | `src/wavelength.rs` | default rules only |
 | Hub-descriptor compiler (NP-FW-HUB-001 §4) | `src/compiler.rs` | all 15 encoders, interval expansion, PBM tile merge |
 | Serializer: models to `.npps` text | `src/serialize.rs` | every block (`protocol`, `composite`, `zone`, `condition`, `wavelength_rules`, `limits`); the inverse of the parser, held to it by a round trip |
-| Validator: hardware ceilings, dosage limits, charge density, cross-modality | `src/validate.rs`, `../npps/hardware-limits.json` | the union of the web, iOS and Android checks; returns locale keys and arguments, never text |
+| Validator: hardware ceilings, dosage limits, charge density, cross-modality | `src/validate.rs`, `../npps/constants.json` | the union of the web, iOS and Android checks; returns locale keys and arguments, never text |
 | Limit resolution: `individual ?? helmet ?? global`, field by field, with the tier of each value | `src/resolve.rs` | generic over every modality block; held to the web function's output over 300 tier combinations |
 
 ## How it is verified
@@ -89,7 +89,7 @@ cervical-VNS frequency range and interlock note, the vibrotactile frequency warn
 zone-resolution check (when the caller gives the namespace); the mobile ones lacked the layer intensity scale and the
 TMS-with-electrical-stimulation note. A configured limit is attributed to the level of the resolved set, or to the tier
 a per-field `limitSources` map names (iOS's `NPLimitSourceMap`); the web said `global` for all of them.
-`../npps/hardware-limits.json` holds every hardware ceiling once: the validator reads it and `scripts/sync-hardware-limits.ts` writes the web, Android and iOS constants from it, so an editor's slider range cannot differ from the validator's ceiling.
+`../npps/constants.json` holds every constant more than one runtime needs, once, in UPPER_SNAKE_CASE with the same spelling in every language: this crate takes them at build time (`build.rs`, so it has no copy to go stale) and `scripts/sync-constants.ts` writes the web, Android, iOS, Windows and C copies, so an editor's slider range cannot differ from the validator's ceiling and a status code means the same in every binding. The helmet's socket numbering is taken the same way from `hardware/np_socket_map.json`.
 
 ## Not yet in v0
 

@@ -247,7 +247,7 @@ enum NPPSModels {
         out.intensityMilliamps = p.dbl("intensityMilliamps", 1.0)
         if let pairs = p["electrodePairs"] as? [[String]] { out.electrodePairs = pairs }
         out.rampSeconds = p.int("rampSeconds", 30)
-        out.electrodeAreaCm2 = p.dbl("electrodeAreaCm2", NPHardwareLimits.tdcsDefaultElectrodeAreaCm2)
+        out.electrodeAreaCm2 = p.dbl("electrodeAreaCm2", NPHardwareLimits.TDCS_DEFAULT_ELECTRODE_AREA_CM2)
         return out
     }
 

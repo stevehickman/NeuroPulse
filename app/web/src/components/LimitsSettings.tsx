@@ -8,7 +8,7 @@ import {
 import { serializeNPPSLimits } from '../../../../common/lib/nppsSerializer';
 import { parseNPPSLimits } from '../../../../common/lib/nppsParser';
 import { limitsStore } from '../lib/limitsStore';
-import { NPHardwareLimits } from '../../../../common/lib/hardwareLimits.generated';
+import { NPHardwareLimits } from '../../../../common/lib/constants.generated';
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
 
@@ -942,8 +942,8 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_DUTY_CYCLE')}
               value={limits.pbmTranscranial.maxDutyCyclePercent}
               unit="%"
-              min={0} max={hw.pbmDutyCycleMaxPercent} step={1}
-              hint={`≤${hw.pbmDutyCycleMaxPercent}% hardware cap`}
+              min={0} max={hw.PBM_DUTY_CYCLE_MAX_PERCENT} step={1}
+              hint={`≤${hw.PBM_DUTY_CYCLE_MAX_PERCENT}% hardware cap`}
               onChange={v => patchModality('pbmTranscranial', { maxDutyCyclePercent: v })}
               onClear={() => patchModality('pbmTranscranial', { maxDutyCyclePercent: undefined })}
             />
@@ -1032,8 +1032,8 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.besTacs.maxIntensityMilliamps}
               unit="mA"
-              min={0} max={hw.besTacsMaxMilliamps} step={0.1}
-              hint={`Hardware max: ${hw.besTacsMaxMilliamps} mA`}
+              min={0} max={hw.BES_TACS_MAX_MILLIAMPS} step={0.1}
+              hint={`Hardware max: ${hw.BES_TACS_MAX_MILLIAMPS} mA`}
               onChange={v => patchModality('besTacs', { maxIntensityMilliamps: v })}
               onClear={() => patchModality('besTacs', { maxIntensityMilliamps: undefined })}
             />
@@ -1041,8 +1041,8 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MIN_FREQUENCY')}
               value={limits.besTacs.minFrequencyHz}
               unit="Hz"
-              min={hw.besTacsMinHz} max={hw.besTacsMaxHz} step={0.5}
-              hint={`Hardware min: ${hw.besTacsMinHz} Hz`}
+              min={hw.BES_TACS_MIN_HZ} max={hw.BES_TACS_MAX_HZ} step={0.5}
+              hint={`Hardware min: ${hw.BES_TACS_MIN_HZ} Hz`}
               onChange={v => patchModality('besTacs', { minFrequencyHz: v })}
               onClear={() => patchModality('besTacs', { minFrequencyHz: undefined })}
             />
@@ -1050,8 +1050,8 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_FREQUENCY')}
               value={limits.besTacs.maxFrequencyHz}
               unit="Hz"
-              min={hw.besTacsMinHz} max={hw.besTacsMaxHz} step={0.5}
-              hint={`Hardware max: ${hw.besTacsMaxHz} Hz`}
+              min={hw.BES_TACS_MIN_HZ} max={hw.BES_TACS_MAX_HZ} step={0.5}
+              hint={`Hardware max: ${hw.BES_TACS_MAX_HZ} Hz`}
               onChange={v => patchModality('besTacs', { maxFrequencyHz: v })}
               onClear={() => patchModality('besTacs', { maxFrequencyHz: undefined })}
             />
@@ -1087,8 +1087,8 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.tdcs.maxIntensityMilliamps}
               unit="mA"
-              min={hw.tdcsMinMilliamps} max={hw.tdcsMaxMilliamps} step={0.1}
-              hint={`Hardware: ${hw.tdcsMinMilliamps}–${hw.tdcsMaxMilliamps} mA`}
+              min={hw.TDCS_MIN_MILLIAMPS} max={hw.TDCS_MAX_MILLIAMPS} step={0.1}
+              hint={`Hardware: ${hw.TDCS_MIN_MILLIAMPS}–${hw.TDCS_MAX_MILLIAMPS} mA`}
               onChange={v => patchModality('tdcs', { maxIntensityMilliamps: v })}
               onClear={() => patchModality('tdcs', { maxIntensityMilliamps: undefined })}
             />
@@ -1124,8 +1124,8 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.vnsHrv.maxIntensityMilliamps}
               unit="mA"
-              min={0} max={hw.vnsMaxMilliamps} step={0.1}
-              hint={`Hardware max: ${hw.vnsMaxMilliamps} mA`}
+              min={0} max={hw.VNS_MAX_MILLIAMPS} step={0.1}
+              hint={`Hardware max: ${hw.VNS_MAX_MILLIAMPS} mA`}
               onChange={v => patchModality('vnsHrv', { maxIntensityMilliamps: v })}
               onClear={() => patchModality('vnsHrv', { maxIntensityMilliamps: undefined })}
             />
@@ -1133,8 +1133,8 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_FREQUENCY')}
               value={limits.vnsHrv.maxFrequencyHz}
               unit="Hz"
-              min={hw.vnsMinHz} max={hw.vnsMaxHz} step={1}
-              hint={`Hardware: ${hw.vnsMinHz}–${hw.vnsMaxHz} Hz`}
+              min={hw.VNS_MIN_HZ} max={hw.VNS_MAX_HZ} step={1}
+              hint={`Hardware: ${hw.VNS_MIN_HZ}–${hw.VNS_MAX_HZ} Hz`}
               onChange={v => patchModality('vnsHrv', { maxFrequencyHz: v })}
               onClear={() => patchModality('vnsHrv', { maxFrequencyHz: undefined })}
             />
@@ -1205,8 +1205,8 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_FREQUENCY')}
               value={limits.visualStimulation.maxFrequencyHz}
               unit="Hz"
-              min={0} max={hw.visualMaxHz} step={0.5}
-              hint={`Hardware max: ${hw.visualMaxHz} Hz`}
+              min={0} max={hw.VISUAL_MAX_HZ} step={0.5}
+              hint={`Hardware max: ${hw.VISUAL_MAX_HZ} Hz`}
               onChange={v => patchModality('visualStimulation', { maxFrequencyHz: v })}
               onClear={() => patchModality('visualStimulation', { maxFrequencyHz: undefined })}
             />
@@ -1297,8 +1297,8 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.clinicalTacs.maxIntensityMilliamps}
               unit="mA"
-              min={0} max={hw.clinicalTacsMaxMilliamps} step={0.5}
-              hint={`Hardware max: ${hw.clinicalTacsMaxMilliamps} mA`}
+              min={0} max={hw.CLINICAL_TACS_MAX_MILLIAMPS} step={0.5}
+              hint={`Hardware max: ${hw.CLINICAL_TACS_MAX_MILLIAMPS} mA`}
               onChange={v => patchModality('clinicalTacs', { maxIntensityMilliamps: v })}
               onClear={() => patchModality('clinicalTacs', { maxIntensityMilliamps: undefined })}
             />
@@ -1318,8 +1318,8 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_INTENSITY_ELECTRODE')}
               value={limits.hdTdcs.maxIntensityMilliamps}
               unit="mA"
-              min={0} max={hw.hdTdcsMaxMilliampsPerElectrode} step={0.1}
-              hint={`Hardware max: ${hw.hdTdcsMaxMilliampsPerElectrode} mA/electrode`}
+              min={0} max={hw.HD_TDCS_MAX_MILLIAMPS_PER_ELECTRODE} step={0.1}
+              hint={`Hardware max: ${hw.HD_TDCS_MAX_MILLIAMPS_PER_ELECTRODE} mA/electrode`}
               onChange={v => patchModality('hdTdcs', { maxIntensityMilliamps: v })}
               onClear={() => patchModality('hdTdcs', { maxIntensityMilliamps: undefined })}
             />
@@ -1346,8 +1346,8 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.cervicalVns.maxIntensityMilliamps}
               unit="mA"
-              min={0} max={hw.cervicalVnsMaxMilliamps} step={0.1}
-              hint={`Hardware max: ${hw.cervicalVnsMaxMilliamps} mA. Cardiac interlock always active.`}
+              min={0} max={hw.CERVICAL_VNS_MAX_MILLIAMPS} step={0.1}
+              hint={`Hardware max: ${hw.CERVICAL_VNS_MAX_MILLIAMPS} mA. Cardiac interlock always active.`}
               onChange={v => patchModality('cervicalVns', { maxIntensityMilliamps: v })}
               onClear={() => patchModality('cervicalVns', { maxIntensityMilliamps: undefined })}
             />
@@ -1375,8 +1375,8 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.vibrotactile40hz.maxIntensityG}
               unit="G"
-              min={hw.vibrotactileMinG} max={hw.vibrotactileMaxG} step={0.05}
-              hint={`Hardware: ${hw.vibrotactileMinG}–${hw.vibrotactileMaxG} G`}
+              min={hw.VIBROTACTILE_MIN_G} max={hw.VIBROTACTILE_MAX_G} step={0.05}
+              hint={`Hardware: ${hw.VIBROTACTILE_MIN_G}–${hw.VIBROTACTILE_MAX_G} G`}
               onChange={v => patchModality('vibrotactile40hz', { maxIntensityG: v })}
               onClear={() => patchModality('vibrotactile40hz', { maxIntensityG: undefined })}
             />

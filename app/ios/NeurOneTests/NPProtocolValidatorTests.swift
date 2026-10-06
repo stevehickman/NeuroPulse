@@ -12,11 +12,11 @@
 //        2026-09-09 by OI-CHARGE-04, ceiling re-sourced 2026-09-15 by OI-CHARGE-05.
 //        Formula: I(mA) × t(s) / A(cm²) where A is the area of ONE electrode, declared by
 //        the protocol as NPTDCSParams.electrodeAreaCm2 and carried to the safety MCU in the
-//        signed descriptor. Ceiling: NPHardwareLimits.tdcsMaxSessionChargeDensityMCcm2 (150),
+//        signed descriptor. Ceiling: NPHardwareLimits.TDCS_MAX_SESSION_CHARGE_DENSITY_MC_CM2 (150),
 //        renamed from tdcsMaxChargeDensityUCcm2 (40) — the old name's unit was wrong by
 //        1000× and its missing period hid that a per-PHASE pulsed figure was being applied
 //        to a DC session dose. The comparison is >=, matching the safety MCU's comparator.
-//        Until the correction this divided by tdcsDefaultElectrodeAreaCm2 × the count of every
+//        Until the correction this divided by TDCS_DEFAULT_ELECTRODE_AREA_CM2 × the count of every
 //        electrode in the montage — an app-side assumption the enforcer never saw, and a sum
 //        that under-reported the density at each electrode (70 cm² for one pair against the
 //        MCU's 25). The pre-flight was 2.8× more permissive than the thing that stops the

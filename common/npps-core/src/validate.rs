@@ -11,29 +11,15 @@
 //! rendered the way JavaScript renders them (`String(n)`, `toFixed(1)`), so every runtime prints the same
 //! digits.
 //!
-//! The limits a protocol is checked against are the hardware ceilings (`common/npps/hardware-limits.json`)
-//! and the caller's resolved `NPLimitsSet`.
+//! The limits a protocol is checked against are the hardware ceilings (`common/npps/constants.json`, as
+//! `constants::hardware_limits`) and the caller's resolved `NPLimitsSet`.
 
 use crate::js::num_string;
 use crate::wavelength::{parse_pbm_wavelength, Parsed};
 use serde_json::{json, Map, Value};
-use std::sync::OnceLock;
 
-static HARDWARE: &str = include_str!("../../npps/hardware-limits.json");
-
-fn hw_table() -> &'static Value {
-    static T: OnceLock<Value> = OnceLock::new();
-    T.get_or_init(|| serde_json::from_str(HARDWARE).expect("common/npps/hardware-limits.json is valid JSON"))
-}
-
-/// A hardware ceiling by name; a name the file does not hold is a bug in this module, caught by the tests.
-fn hw(name: &str) -> f64 {
-    hw_table()["limits"]
-        .as_array()
-        .and_then(|a| a.iter().find(|l| l["name"] == name))
-        .and_then(|l| l["value"].as_f64())
-        .unwrap_or_else(|| panic!("hardware-limits.json has no '{name}'"))
-}
+use crate::constants::hardware_limits as hw;
+use crate::constants::validation as threshold;
 
 // ─── Messages ──────────────────────────────────────────────────────────────────
 
@@ -141,8 +127,8 @@ fn session_duration(out: &mut Issues, kind: &str, l: &Value, interval: &Value, m
 /// editor, which never passes the parser.
 fn continuous_wave(out: &mut Issues, kind: &str, p: &Value) {
     let (freq, duty) = (f(p, "frequencyHz"), f(p, "dutyCyclePercent"));
-    if freq == 0.0 && duty != 100.0 {
-        out.push(Sev::Error, Some(kind), "dutyCyclePercent", "VALIDATE_PARAM_DUTY_CYCLE", s(format!("{}%", num_string(duty))), s("100%"), "hardware",
+    if freq == 0.0 && duty != threshold::CW_DUTY_CYCLE_PERCENT as f64 {
+        out.push(Sev::Error, Some(kind), "dutyCyclePercent", "VALIDATE_PARAM_DUTY_CYCLE", s(format!("{}%", num_string(duty))), s(format!("{}%", threshold::CW_DUTY_CYCLE_PERCENT)), "hardware",
             msg("VALIDATE_MSG_PBM_CW_DUTY", vec![n(duty)]));
     }
 }
@@ -166,20 +152,20 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
             let freq = f(p, "frequencyHz");
             let irr = f(p, "irradianceMWcm2");
             continuous_wave(out, kind, p);
-            if duty > hw("pbmDutyCycleMaxPercent") {
+            if duty > hw::PBM_DUTY_CYCLE_MAX_PERCENT {
                 out.push(Error, k, "dutyCyclePercent", "VALIDATE_PARAM_DUTY_CYCLE", s(format!("{}%", num_string(duty))),
-                    s(format!("{}%", num_string(hw("pbmDutyCycleMaxPercent")))), "hardware",
-                    msg("VALIDATE_MSG_PBM_TRANSCRANIAL_DUTYCYCLEPERCENT", vec![n(duty), n(hw("pbmDutyCycleMaxPercent"))]));
+                    s(format!("{}%", num_string(hw::PBM_DUTY_CYCLE_MAX_PERCENT))), "hardware",
+                    msg("VALIDATE_MSG_PBM_TRANSCRANIAL_DUTYCYCLEPERCENT", vec![n(duty), n(hw::PBM_DUTY_CYCLE_MAX_PERCENT)]));
             }
             if freq < 0.0 {
                 out.push(Error, k, "frequencyHz", "VALIDATE_PARAM_FREQUENCY", s(format!("{} Hz", num_string(freq))), s("≥0 Hz"), "hardware",
                     msg("VALIDATE_MSG_PBM_TRANSCRANIAL_FREQUENCYHZ", vec![]));
             }
             // Irradiance is absolute, so the 400 mW/cm² peak (CLAUDE.md §3) is checked directly.
-            if irr > hw("pbmPulsedPeakMWcm2") {
+            if irr > hw::PBM_PULSED_PEAK_MW_CM2 {
                 out.push(Error, k, "irradianceMWcm2", "VALIDATE_PARAM_IRRADIANCE", s(format!("{} mW/cm²", num_string(irr))),
-                    s(format!("{} mW/cm²", num_string(hw("pbmPulsedPeakMWcm2")))), "hardware",
-                    msg("VALIDATE_MSG_PBM_TRANSCRANIAL_IRRADIANCE", vec![n(irr), n(hw("pbmPulsedPeakMWcm2"))]));
+                    s(format!("{} mW/cm²", num_string(hw::PBM_PULSED_PEAK_MW_CM2))), "hardware",
+                    msg("VALIDATE_MSG_PBM_TRANSCRANIAL_IRRADIANCE", vec![n(irr), n(hw::PBM_PULSED_PEAK_MW_CM2)]));
             }
             if let Some(m) = lim(l, "maxIrradianceMWcm2").filter(|m| irr > *m) {
                 out.push(Error, k, "irradianceMWcm2", "VALIDATE_PARAM_IRRADIANCE", s(format!("{} mW/cm²", num_string(irr))),
@@ -209,10 +195,10 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
             let duty = f(p, "dutyCyclePercent");
             let irr = f(p, "irradianceMWcm2");
             continuous_wave(out, kind, p);
-            if duty > hw("pbmDutyCycleMaxPercent") {
+            if duty > hw::PBM_DUTY_CYCLE_MAX_PERCENT {
                 out.push(Error, k, "dutyCyclePercent", "VALIDATE_PARAM_DUTY_CYCLE", s(format!("{}%", num_string(duty))),
-                    s(format!("{}%", num_string(hw("pbmDutyCycleMaxPercent")))), "hardware",
-                    msg("VALIDATE_MSG_PBM_INTRANASAL_DUTYCYCLEPERCENT", vec![n(duty), n(hw("pbmDutyCycleMaxPercent"))]));
+                    s(format!("{}%", num_string(hw::PBM_DUTY_CYCLE_MAX_PERCENT))), "hardware",
+                    msg("VALIDATE_MSG_PBM_INTRANASAL_DUTYCYCLEPERCENT", vec![n(duty), n(hw::PBM_DUTY_CYCLE_MAX_PERCENT)]));
             }
             if let Some(m) = lim(l, "maxIrradianceMWcm2").filter(|m| irr > *m) {
                 out.push(Error, k, "irradianceMWcm2", "VALIDATE_PARAM_IRRADIANCE", s(format!("{} mW/cm²", num_string(irr))),
@@ -236,15 +222,15 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
             let l = &limits["besTacs"];
             let ma = f(p, "intensityMilliamps");
             let freq = f(p, "frequencyHz");
-            if ma > hw("besTacsMaxMilliamps") {
+            if ma > hw::BES_TACS_MAX_MILLIAMPS {
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),
-                    s(format!("{} mA", num_string(hw("besTacsMaxMilliamps")))), "hardware",
-                    msg("VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS", vec![n(ma), n(hw("besTacsMaxMilliamps"))]));
+                    s(format!("{} mA", num_string(hw::BES_TACS_MAX_MILLIAMPS))), "hardware",
+                    msg("VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS", vec![n(ma), n(hw::BES_TACS_MAX_MILLIAMPS)]));
             }
-            if freq < hw("besTacsMinHz") || freq > hw("besTacsMaxHz") {
+            if freq < hw::BES_TACS_MIN_HZ || freq > hw::BES_TACS_MAX_HZ {
                 out.push(Error, k, "frequencyHz", "VALIDATE_PARAM_FREQUENCY", s(format!("{} Hz", num_string(freq))),
-                    s(format!("{}–{} Hz", num_string(hw("besTacsMinHz")), num_string(hw("besTacsMaxHz")))), "hardware",
-                    msg("VALIDATE_MSG_BES_TACS_FREQUENCYHZ", vec![n(freq), n(hw("besTacsMinHz")), n(hw("besTacsMaxHz"))]));
+                    s(format!("{}–{} Hz", num_string(hw::BES_TACS_MIN_HZ), num_string(hw::BES_TACS_MAX_HZ))), "hardware",
+                    msg("VALIDATE_MSG_BES_TACS_FREQUENCYHZ", vec![n(freq), n(hw::BES_TACS_MIN_HZ), n(hw::BES_TACS_MAX_HZ)]));
             }
             if let Some(m) = lim(l, "maxIntensityMilliamps").filter(|m| ma > *m) {
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),
@@ -266,28 +252,28 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
             let pairs = p["electrodePairs"].as_array().map_or(0, Vec::len) as f64;
             let ramp = f(p, "rampSeconds");
             let area = f(p, "electrodeAreaCm2");
-            if ma < hw("tdcsMinMilliamps") || ma > hw("tdcsMaxMilliamps") {
+            if ma < hw::TDCS_MIN_MILLIAMPS || ma > hw::TDCS_MAX_MILLIAMPS {
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),
-                    s(format!("{}–{} mA", num_string(hw("tdcsMinMilliamps")), num_string(hw("tdcsMaxMilliamps")))), "hardware",
-                    msg("VALIDATE_MSG_TDCS_INTENSITYMILLIAMPS", vec![n(ma), n(hw("tdcsMinMilliamps")), n(hw("tdcsMaxMilliamps"))]));
+                    s(format!("{}–{} mA", num_string(hw::TDCS_MIN_MILLIAMPS), num_string(hw::TDCS_MAX_MILLIAMPS))), "hardware",
+                    msg("VALIDATE_MSG_TDCS_INTENSITYMILLIAMPS", vec![n(ma), n(hw::TDCS_MIN_MILLIAMPS), n(hw::TDCS_MAX_MILLIAMPS)]));
             }
-            if pairs > hw("tdcsMaxElectrodePairs") {
+            if pairs > hw::TDCS_MAX_ELECTRODE_PAIRS {
                 out.push(Error, k, "electrodePairs", "VALIDATE_PARAM_ELECTRODE_PAIRS", s(num_string(pairs)),
-                    s(format!("≤{}", num_string(hw("tdcsMaxElectrodePairs")))), "hardware",
-                    msg("VALIDATE_MSG_TDCS_ELECTRODEPAIRS", vec![n(pairs), n(hw("tdcsMaxElectrodePairs"))]));
+                    s(format!("≤{}", num_string(hw::TDCS_MAX_ELECTRODE_PAIRS))), "hardware",
+                    msg("VALIDATE_MSG_TDCS_ELECTRODEPAIRS", vec![n(pairs), n(hw::TDCS_MAX_ELECTRODE_PAIRS)]));
             }
-            if ramp < hw("tdcsRampSeconds") {
+            if ramp < hw::TDCS_RAMP_SECONDS {
                 out.push(Error, k, "rampSeconds", "VALIDATE_PARAM_RAMP_TIME", s(format!("{}s", num_string(ramp))),
-                    s(format!("{}s", num_string(hw("tdcsRampSeconds")))), "hardware",
-                    msg("VALIDATE_MSG_TDCS_RAMPSECONDS", vec![n(ramp), n(hw("tdcsRampSeconds"))]));
+                    s(format!("{}s", num_string(hw::TDCS_RAMP_SECONDS))), "hardware",
+                    msg("VALIDATE_MSG_TDCS_RAMPSECONDS", vec![n(ramp), n(hw::TDCS_RAMP_SECONDS)]));
             }
             // OI-CHARGE-04: the declared pad geometry the charge-density ceiling divides by. An undeclared or
             // unencodable area is an error, not a fallback: the hub refuses a 0 area and the safety MCU's
             // geometry gate holds tDCS off.
-            if !(area > 0.0) || area > hw("tdcsMaxElectrodeAreaCm2") {
+            if !(area > 0.0) || area > hw::TDCS_MAX_ELECTRODE_AREA_CM2 {
                 out.push(Error, k, "electrodeAreaCm2", "VALIDATE_PARAM_ELECTRODE_AREA", s(format!("{} cm²", num_string(area))),
-                    s(format!("0 < A ≤ {} cm²", num_string(hw("tdcsMaxElectrodeAreaCm2")))), "hardware",
-                    msg("VALIDATE_MSG_TDCS_ELECTRODEAREA", vec![n(area), n(hw("tdcsMaxElectrodeAreaCm2"))]));
+                    s(format!("0 < A ≤ {} cm²", num_string(hw::TDCS_MAX_ELECTRODE_AREA_CM2))), "hardware",
+                    msg("VALIDATE_MSG_TDCS_ELECTRODEAREA", vec![n(area), n(hw::TDCS_MAX_ELECTRODE_AREA_CM2)]));
             }
             if let Some(m) = lim(l, "maxIntensityMilliamps").filter(|m| ma > *m) {
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),
@@ -299,15 +285,15 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
             let l = &limits["vnsHrv"];
             let ma = f(p, "intensityMilliamps");
             let freq = f(p, "frequencyHz");
-            if ma > hw("vnsMaxMilliamps") {
+            if ma > hw::VNS_MAX_MILLIAMPS {
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),
-                    s(format!("{} mA", num_string(hw("vnsMaxMilliamps")))), "hardware",
-                    msg("VALIDATE_MSG_VNS_HRV_INTENSITYMILLIAMPS", vec![n(ma), n(hw("vnsMaxMilliamps"))]));
+                    s(format!("{} mA", num_string(hw::VNS_MAX_MILLIAMPS))), "hardware",
+                    msg("VALIDATE_MSG_VNS_HRV_INTENSITYMILLIAMPS", vec![n(ma), n(hw::VNS_MAX_MILLIAMPS)]));
             }
-            if freq < hw("vnsMinHz") || freq > hw("vnsMaxHz") {
+            if freq < hw::VNS_MIN_HZ || freq > hw::VNS_MAX_HZ {
                 out.push(Error, k, "frequencyHz", "VALIDATE_PARAM_FREQUENCY", s(format!("{} Hz", num_string(freq))),
-                    s(format!("{}–{} Hz", num_string(hw("vnsMinHz")), num_string(hw("vnsMaxHz")))), "hardware",
-                    msg("VALIDATE_MSG_VNS_HRV_FREQUENCYHZ", vec![n(freq), n(hw("vnsMinHz")), n(hw("vnsMaxHz"))]));
+                    s(format!("{}–{} Hz", num_string(hw::VNS_MIN_HZ), num_string(hw::VNS_MAX_HZ))), "hardware",
+                    msg("VALIDATE_MSG_VNS_HRV_FREQUENCYHZ", vec![n(freq), n(hw::VNS_MIN_HZ), n(hw::VNS_MAX_HZ)]));
             }
             if let Some(m) = lim(l, "maxIntensityMilliamps").filter(|m| ma > *m) {
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),
@@ -348,13 +334,13 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
             let l = &limits["visualStimulation"];
             let freq = f(p, "frequencyHz");
             let fs = s(format!("{} Hz", num_string(freq)));
-            if freq > hw("visualMaxHz") {
-                out.push(Error, k, "frequencyHz", "VALIDATE_PARAM_FREQUENCY", fs.clone(), s(format!("{} Hz", num_string(hw("visualMaxHz")))), "hardware",
-                    msg("VALIDATE_MSG_VISUAL_STIMULATION_FREQUENCYHZ", vec![n(freq), n(hw("visualMaxHz"))]));
+            if freq > hw::VISUAL_MAX_HZ {
+                out.push(Error, k, "frequencyHz", "VALIDATE_PARAM_FREQUENCY", fs.clone(), s(format!("{} Hz", num_string(hw::VISUAL_MAX_HZ))), "hardware",
+                    msg("VALIDATE_MSG_VISUAL_STIMULATION_FREQUENCYHZ", vec![n(freq), n(hw::VISUAL_MAX_HZ)]));
             }
             // Photoparoxysmal risk zone (3–30 Hz).
-            if freq >= hw("visualHighRiskMinHz") && freq <= hw("visualHighRiskMaxHz") {
-                let (lo, hi) = (n(hw("visualHighRiskMinHz")), n(hw("visualHighRiskMaxHz")));
+            if freq >= hw::VISUAL_HIGH_RISK_MIN_HZ && freq <= hw::VISUAL_HIGH_RISK_MAX_HZ {
+                let (lo, hi) = (n(hw::VISUAL_HIGH_RISK_MIN_HZ), n(hw::VISUAL_HIGH_RISK_MAX_HZ));
                 if l["blockHighRiskRange"].as_bool() == Some(true) {
                     out.push(Error, k, "frequencyHz", "VALIDATE_PARAM_FREQUENCY", fs.clone(),
                         msg("VALIDATE_MSG_VISUAL_STIMULATION_FREQUENCYHZ_2_ARG1", vec![lo.clone(), hi.clone()]), "@blockHighRiskRange",
@@ -403,8 +389,8 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
                 out.push(Error, k, "target", "VALIDATE_PARAM_TARGET", s(target), s(join(&l["allowedTargets"], "/")), "@allowedTargets",
                     msg("VALIDATE_MSG_TMS_TARGET", vec![s(target), s(join(&l["allowedTargets"], ", "))]));
             }
-            if pct > 120.0 {
-                out.push(Warning, k, "intensityPercentMT", "VALIDATE_PARAM_INTENSITY_MT", s(format!("{}% MT", num_string(pct))), s("≤120% MT"), "hardware",
+            if pct > threshold::TMS_HIGH_INTENSITY_PERCENT_MT as f64 {
+                out.push(Warning, k, "intensityPercentMT", "VALIDATE_PARAM_INTENSITY_MT", s(format!("{}% MT", num_string(pct))), s(format!("≤{}% MT", threshold::TMS_HIGH_INTENSITY_PERCENT_MT)), "hardware",
                     msg("VALIDATE_MSG_GENERAL_INTENSITYPERCENTMT", vec![n(pct)]));
             }
         }
@@ -412,20 +398,20 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
             let l = &limits["pbmDeep1170nm"];
             let i = f(p, "intensityMWcm2");
             let duty = f(p, "dutyCyclePercent");
-            if i > hw("pbmDeepMaxMWcm2") {
+            if i > hw::PBM_DEEP_MAX_MW_CM2 {
                 out.push(Error, k, "intensityMWcm2", "VALIDATE_PARAM_INTENSITY", s(format!("{} mW/cm²", num_string(i.trunc()))),
-                    s(format!("{} mW/cm²", num_string(hw("pbmDeepMaxMWcm2")))), "hardware",
-                    msg("VALIDATE_MSG_GENERAL_INTENSITYMWCM2_2", vec![n(i.trunc()), n(hw("pbmDeepMaxMWcm2"))]));
+                    s(format!("{} mW/cm²", num_string(hw::PBM_DEEP_MAX_MW_CM2))), "hardware",
+                    msg("VALIDATE_MSG_GENERAL_INTENSITYMWCM2_2", vec![n(i.trunc()), n(hw::PBM_DEEP_MAX_MW_CM2)]));
             }
             continuous_wave(out, kind, p);
             if let Some(m) = lim(l, "maxIntensityMWcm2").filter(|m| i > *m) {
                 out.push(Error, k, "intensityMWcm2", "VALIDATE_PARAM_INTENSITY", s(format!("{} mW/cm²", num_string(i))),
                     s(format!("{} mW/cm²", num_string(m))), "@maxIntensityMWcm2", msg("VALIDATE_MSG_PBM_DEEP_1170NM_INTENSITYMWCM2", vec![n(i), n(m)]));
             }
-            if duty > hw("pbmDutyCycleMaxPercent") {
+            if duty > hw::PBM_DUTY_CYCLE_MAX_PERCENT {
                 out.push(Error, k, "dutyCyclePercent", "VALIDATE_PARAM_DUTY_CYCLE", s(format!("{}%", num_string(duty))),
-                    s(format!("{}%", num_string(hw("pbmDutyCycleMaxPercent")))), "hardware",
-                    msg("VALIDATE_MSG_PBM_DEEP_1170NM_DUTYCYCLEPERCENT", vec![n(duty), n(hw("pbmDutyCycleMaxPercent"))]));
+                    s(format!("{}%", num_string(hw::PBM_DUTY_CYCLE_MAX_PERCENT))), "hardware",
+                    msg("VALIDATE_MSG_PBM_DEEP_1170NM_DUTYCYCLEPERCENT", vec![n(duty), n(hw::PBM_DUTY_CYCLE_MAX_PERCENT)]));
             }
             session_duration(out, kind, l, interval, "VALIDATE_MSG_GENERAL_SESSIONDURATION_4");
         }
@@ -433,17 +419,17 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
             let l = &limits["clinicalTacs"];
             let ma = f(p, "intensityMilliamps");
             let ch = f(p, "channelCount");
-            if ma > hw("clinicalTacsMaxMilliamps") {
+            if ma > hw::CLINICAL_TACS_MAX_MILLIAMPS {
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),
-                    s(format!("{} mA", num_string(hw("clinicalTacsMaxMilliamps")))), "hardware",
-                    msg("VALIDATE_MSG_CLINICAL_TACS_INTENSITYMILLIAMPS", vec![n(ma), n(hw("clinicalTacsMaxMilliamps"))]));
+                    s(format!("{} mA", num_string(hw::CLINICAL_TACS_MAX_MILLIAMPS))), "hardware",
+                    msg("VALIDATE_MSG_CLINICAL_TACS_INTENSITYMILLIAMPS", vec![n(ma), n(hw::CLINICAL_TACS_MAX_MILLIAMPS)]));
             }
             // OI-TACS-01: an out-of-range count is an error, not a quiet reduction: a clinician who authored 24
             // gets told, not obeyed in part.
-            if ch > hw("clinicalTacsMaxChannels") || ch < 1.0 {
+            if ch > hw::CLINICAL_TACS_MAX_CHANNELS || ch < 1.0 {
                 out.push(Error, k, "channelCount", "VALIDATE_PARAM_CHANNEL_COUNT", s(num_string(ch)),
-                    s(format!("1–{}", num_string(hw("clinicalTacsMaxChannels")))), "hardware",
-                    msg("VALIDATE_MSG_CLINICAL_TACS_CHANNELCOUNT", vec![n(ch), n(hw("clinicalTacsMaxChannels"))]));
+                    s(format!("1–{}", num_string(hw::CLINICAL_TACS_MAX_CHANNELS))), "hardware",
+                    msg("VALIDATE_MSG_CLINICAL_TACS_CHANNELCOUNT", vec![n(ch), n(hw::CLINICAL_TACS_MAX_CHANNELS)]));
             }
             if let Some(m) = lim(l, "maxIntensityMilliamps").filter(|m| ma > *m) {
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),
@@ -454,10 +440,10 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
         "hd_tdcs" => {
             let l = &limits["hdTdcs"];
             let ma = f(p, "intensityMilliamps");
-            if ma > hw("hdTdcsMaxMilliampsPerElectrode") {
+            if ma > hw::HD_TDCS_MAX_MILLIAMPS_PER_ELECTRODE {
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),
-                    s(format!("{} mA", num_string(hw("hdTdcsMaxMilliampsPerElectrode")))), "hardware",
-                    msg("VALIDATE_MSG_HD_TDCS_INTENSITYMILLIAMPS", vec![n(ma), n(hw("hdTdcsMaxMilliampsPerElectrode"))]));
+                    s(format!("{} mA", num_string(hw::HD_TDCS_MAX_MILLIAMPS_PER_ELECTRODE))), "hardware",
+                    msg("VALIDATE_MSG_HD_TDCS_INTENSITYMILLIAMPS", vec![n(ma), n(hw::HD_TDCS_MAX_MILLIAMPS_PER_ELECTRODE)]));
             }
             if let Some(m) = lim(l, "maxIntensityMilliamps").filter(|m| ma > *m) {
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),
@@ -475,19 +461,19 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
             let ma = f(p, "intensityMilliamps");
             let freq = f(p, "frequencyHz");
             // The cardiac interlock is always active at firmware level.
-            if ma > hw("cervicalVnsMaxMilliamps") {
+            if ma > hw::CERVICAL_VNS_MAX_MILLIAMPS {
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),
-                    s(format!("{} mA", num_string(hw("cervicalVnsMaxMilliamps")))), "hardware",
+                    s(format!("{} mA", num_string(hw::CERVICAL_VNS_MAX_MILLIAMPS))), "hardware",
                     msg("VALIDATE_MSG_CERVICAL_VNS_INTENSITYMILLIAMPS", vec![n(ma)]));
             }
             if let Some(m) = lim(l, "maxIntensityMilliamps").filter(|m| ma > *m) {
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),
                     s(format!("{} mA", num_string(m))), "@maxIntensityMilliamps", msg("VALIDATE_MSG_CERVICAL_VNS_INTENSITYMILLIAMPS_2", vec![n(ma), n(m)]));
             }
-            if freq < hw("vnsMinHz") || freq > hw("vnsMaxHz") {
+            if freq < hw::VNS_MIN_HZ || freq > hw::VNS_MAX_HZ {
                 out.push(Error, k, "frequencyHz", "VALIDATE_PARAM_FREQUENCY", s(fmt_hz(freq)),
-                    s(format!("{}–{}", fmt_hz(hw("vnsMinHz")), fmt_hz(hw("vnsMaxHz")))), "hardware",
-                    msg("VALIDATE_MSG_GENERAL_FREQUENCYHZ_2", vec![s(fmt_hz(freq)), n(hw("vnsMinHz")), n(hw("vnsMaxHz"))]));
+                    s(format!("{}–{}", fmt_hz(hw::VNS_MIN_HZ), fmt_hz(hw::VNS_MAX_HZ))), "hardware",
+                    msg("VALIDATE_MSG_GENERAL_FREQUENCYHZ_2", vec![s(fmt_hz(freq)), n(hw::VNS_MIN_HZ), n(hw::VNS_MAX_HZ)]));
             }
             session_duration(out, kind, l, interval, "VALIDATE_MSG_GENERAL_SESSIONDURATION");
             // Always say so: the interlock is the safety MCU's and no limit set can lift it.
@@ -497,16 +483,16 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
         "vibrotactile_40hz" => {
             let l = &limits["vibrotactile40hz"];
             let g = f(p, "intensityG");
-            if g > hw("vibrotactileMaxG") || g < hw("vibrotactileMinG") {
+            if g > hw::VIBROTACTILE_MAX_G || g < hw::VIBROTACTILE_MIN_G {
                 out.push(Error, k, "intensityG", "VALIDATE_PARAM_INTENSITY", s(format!("{} G", num_string(g))),
-                    s(format!("{}–{} G", num_string(hw("vibrotactileMinG")), num_string(hw("vibrotactileMaxG")))), "hardware",
-                    msg("VALIDATE_MSG_VIBROTACTILE_40HZ_INTENSITYG", vec![n(g), n(hw("vibrotactileMinG")), n(hw("vibrotactileMaxG"))]));
+                    s(format!("{}–{} G", num_string(hw::VIBROTACTILE_MIN_G), num_string(hw::VIBROTACTILE_MAX_G))), "hardware",
+                    msg("VALIDATE_MSG_VIBROTACTILE_40HZ_INTENSITYG", vec![n(g), n(hw::VIBROTACTILE_MIN_G), n(hw::VIBROTACTILE_MAX_G)]));
             }
             // The firmware locks the drive to 40 Hz; a model that states another frequency is told so. A `.npps`
             // file cannot state one, so this only fires for a model built in an editor.
-            if let Some(freq) = p["frequencyHz"].as_f64().filter(|x| (x - hw("vibrotactileFrequencyHz")).abs() > hw("vibrotactileFreqToleranceHz")) {
+            if let Some(freq) = p["frequencyHz"].as_f64().filter(|x| (x - hw::VIBROTACTILE_FREQUENCY_HZ).abs() > hw::VIBROTACTILE_FREQ_TOLERANCE_HZ) {
                 out.push(Warning, k, "frequencyHz", "VALIDATE_PARAM_FREQUENCY", s(fmt_hz(freq)),
-                    s(format!("{} Hz ±{} Hz", num_string(hw("vibrotactileFrequencyHz")), num_string(hw("vibrotactileFreqToleranceHz")))), "hardware",
+                    s(format!("{} Hz ±{} Hz", num_string(hw::VIBROTACTILE_FREQUENCY_HZ), num_string(hw::VIBROTACTILE_FREQ_TOLERANCE_HZ))), "hardware",
                     msg("VALIDATE_MSG_GENERAL_FREQUENCYHZ", vec![s(fmt_hz(freq))]));
             }
             if let Some(m) = lim(l, "maxIntensityG").filter(|m| g > *m) {
@@ -581,12 +567,12 @@ fn protocol(def: &Value, limits: &Value, ctx: &Context) -> Vec<Value> {
             // A zero or negative duration is nonsensical (ISC-47): an error, where a short one is only a warning.
             out.push(Error, None, "duration", "VALIDATE_PARAM_DURATION", s(format!("{}s", num_string(dur))), s("> 0s"), "hardware",
                 msg("VALIDATE_MSG_GENERAL_DURATION_3", vec![]));
-        } else if dur < 60.0 {
-            out.push(Warning, None, "duration", "VALIDATE_PARAM_DURATION", s(format!("{}s", num_string(dur))), s("60s"), "hardware",
+        } else if dur < threshold::SESSION_SHORT_WARNING_SECONDS as f64 {
+            out.push(Warning, None, "duration", "VALIDATE_PARAM_DURATION", s(format!("{}s", num_string(dur))), s(format!("{}s", threshold::SESSION_SHORT_WARNING_SECONDS)), "hardware",
                 msg("VALIDATE_MSG_GENERAL_DURATION", vec![]));
         }
-        if dur > 7200.0 {
-            out.push(Warning, None, "duration", "VALIDATE_PARAM_DURATION", s(format!("{}m", num_string((dur / 60.0).floor()))), s("120m"), "hardware",
+        if dur > threshold::SESSION_LONG_WARNING_SECONDS as f64 {
+            out.push(Warning, None, "duration", "VALIDATE_PARAM_DURATION", s(format!("{}m", num_string((dur / 60.0).floor()))), s(format!("{}m", threshold::SESSION_LONG_WARNING_SECONDS / 60)), "hardware",
                 msg("VALIDATE_MSG_GENERAL_DURATION_2", vec![]));
         }
     }
@@ -605,10 +591,10 @@ fn protocol(def: &Value, limits: &Value, ctx: &Context) -> Vec<Value> {
                 continue; // already reported by the per-modality check
             }
             let density = (f(&m["params"], "intensityMilliamps") * dur) / area;
-            if density >= hw("tdcsMaxSessionChargeDensityMCcm2") {
+            if density >= hw::TDCS_MAX_SESSION_CHARGE_DENSITY_MC_CM2 {
                 out.push(Error, Some("tdcs"), "chargeDensityMCcm2", "VALIDATE_PARAM_CHARGE_DENSITY",
-                    s(format!("{} mC/cm²", fixed1(density))), s(format!("{} mC/cm²", num_string(hw("tdcsMaxSessionChargeDensityMCcm2")))), "hardware",
-                    msg("VALIDATE_MSG_TDCS_CHARGEDENSITY", vec![s(fixed1(density)), n(hw("tdcsMaxSessionChargeDensityMCcm2"))]));
+                    s(format!("{} mC/cm²", fixed1(density))), s(format!("{} mC/cm²", num_string(hw::TDCS_MAX_SESSION_CHARGE_DENSITY_MC_CM2))), "hardware",
+                    msg("VALIDATE_MSG_TDCS_CHARGEDENSITY", vec![s(fixed1(density)), n(hw::TDCS_MAX_SESSION_CHARGE_DENSITY_MC_CM2)]));
             }
         }
     }
@@ -618,7 +604,6 @@ fn protocol(def: &Value, limits: &Value, ctx: &Context) -> Vec<Value> {
     // safety MCU enforces. The phase is the half-period of a periodic waveform and the pulse width of a pulse
     // train; VNS and cervical VNS author no pulse width, so the firmware's own 250 µs default is used.
     {
-        const PULSE_WIDTH_DEFAULT_S: f64 = 250e-6;
         // A sinusoid delivers 2/π of a rectangular phase of the same duration and peak; the safety MCU applies
         // the same factor, and omitting it would make the app 57 % stricter than the enforcer at 0.5 Hz.
         let sine_phase_factor = 2.0 / std::f64::consts::PI;
@@ -627,10 +612,10 @@ fn protocol(def: &Value, limits: &Value, ctx: &Context) -> Vec<Value> {
             let p = &m["params"];
             let half_period = |hz: f64| if hz > 0.0 { 1.0 / (2.0 * hz) } else { 0.0 };
             let (amplitude, phase, area, waveform) = match kind.as_str() {
-                "bes_tacs" => (f(p, "intensityMilliamps"), half_period(f(p, "frequencyHz")), hw("besElectrodeAreaCm2"), p["waveform"].as_str().unwrap_or("")),
-                "clinical_tacs" => (f(p, "intensityMilliamps"), half_period(f(p, "frequencyHz")), hw("besElectrodeAreaCm2"), p["waveform"].as_str().unwrap_or("")),
-                "vns_hrv" => (f(p, "intensityMilliamps"), PULSE_WIDTH_DEFAULT_S, hw("vnsElectrodeAreaCm2"), "square"),
-                "cervical_vns" => (f(p, "intensityMilliamps"), PULSE_WIDTH_DEFAULT_S, hw("cervicalVnsElectrodeAreaCm2"), "square"),
+                "bes_tacs" => (f(p, "intensityMilliamps"), half_period(f(p, "frequencyHz")), hw::BES_ELECTRODE_AREA_CM2, p["waveform"].as_str().unwrap_or("")),
+                "clinical_tacs" => (f(p, "intensityMilliamps"), half_period(f(p, "frequencyHz")), hw::BES_ELECTRODE_AREA_CM2, p["waveform"].as_str().unwrap_or("")),
+                "vns_hrv" => (f(p, "intensityMilliamps"), hw::VNS_DEFAULT_PULSE_WIDTH_SECONDS, hw::VNS_ELECTRODE_AREA_CM2, "square"),
+                "cervical_vns" => (f(p, "intensityMilliamps"), hw::VNS_DEFAULT_PULSE_WIDTH_SECONDS, hw::CERVICAL_VNS_ELECTRODE_AREA_CM2, "square"),
                 _ => continue,
             };
             if !(amplitude > 0.0) || !(phase > 0.0) || !(area > 0.0) {
@@ -641,10 +626,10 @@ fn protocol(def: &Value, limits: &Value, ctx: &Context) -> Vec<Value> {
             let phase_uc = if waveform == "sinusoidal" { rectangular * sine_phase_factor } else { rectangular };
             let density = phase_uc / area;
             // `>=`, matching the safety MCU's comparator exactly.
-            if density >= hw("pulsedMaxPhaseChargeDensityUCcm2") {
+            if density >= hw::PULSED_MAX_PHASE_CHARGE_DENSITY_UC_CM2 {
                 out.push(Error, Some(&kind), "phaseChargeDensityUCcm2", "VALIDATE_PARAM_PHASE_CHARGE_DENSITY",
-                    s(format!("{} µC/cm²", fixed1(density))), s(format!("{} µC/cm²", num_string(hw("pulsedMaxPhaseChargeDensityUCcm2")))), "hardware",
-                    msg("VALIDATE_MSG_PULSED_PHASECHARGE", vec![msg(&modality_name_key(&kind), vec![]), s(fixed1(density)), n(hw("pulsedMaxPhaseChargeDensityUCcm2"))]));
+                    s(format!("{} µC/cm²", fixed1(density))), s(format!("{} µC/cm²", num_string(hw::PULSED_MAX_PHASE_CHARGE_DENSITY_UC_CM2))), "hardware",
+                    msg("VALIDATE_MSG_PULSED_PHASECHARGE", vec![msg(&modality_name_key(&kind), vec![]), s(fixed1(density)), n(hw::PULSED_MAX_PHASE_CHARGE_DENSITY_UC_CM2)]));
             }
         }
     }

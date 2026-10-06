@@ -9,6 +9,10 @@
 
 pub mod api;
 pub mod compiler;
+/// Constants shared with every runtime, taken at build time from common/npps/constants.json (see build.rs).
+pub mod constants {
+    include!(concat!(env!("OUT_DIR"), "/constants.rs"));
+}
 pub mod error;
 pub mod js;
 pub mod lexer;

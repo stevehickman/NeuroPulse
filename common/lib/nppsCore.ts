@@ -10,6 +10,8 @@
  * module itself and tests and scripts need no setup.
  */
 
+import { NppsStatus } from './constants.generated';
+
 /** The core refused the input. `message` is the refusal the core wrote. */
 export class NppsRefusal extends Error {
   constructor(message: string) {
@@ -75,8 +77,6 @@ function core(): CoreExports {
   return instance;
 }
 
-// Return codes of neurone_npps.h.
-const OK = 0, REFUSED = 1, INTERNAL = 2;
 
 function call(
   entry: 'npps_parse_json' | 'npps_compile_json' | 'npps_namespace_json' | 'npps_serialize_json' | 'npps_validate_json' | 'npps_resolve_limits_json',
@@ -104,9 +104,9 @@ function call(
     const out = outPtr === 0 ? new Uint8Array(0) : new Uint8Array(wasm.memory.buffer, outPtr, outLen).slice();
     if (outPtr !== 0) wasm.npps_free(outPtr, outLen);
     switch (code) {
-      case OK: return out;
-      case REFUSED:
-      case INTERNAL:
+      case NppsStatus.OK: return out;
+      case NppsStatus.REFUSED:
+      case NppsStatus.INTERNAL_ERROR:
         throw new NppsRefusal(out.length > 0 ? new TextDecoder().decode(out) : 'the NPPS core refused the input');
       default:
         throw new NppsRefusal('the NPPS core was given an argument it cannot read');

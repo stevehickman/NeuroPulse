@@ -20,8 +20,10 @@
  * output buffer holds the refusal as UTF-8 text (the message the web parser or compiler gives);
  * it is released with npps_free() all the same. No call retains a pointer it is given.
  *
- * Return codes: 0 success, 1 refused (message in the buffer), 2 internal error (the core
- * panicked; message in the buffer), 3 bad argument (null pointer or non-UTF-8 input; no buffer).
+ * Return codes are the NPPS_STATUS_* macros of neurone_npps_status.h, which is generated from
+ * common/npps/constants.json (group NppsStatus) along with every other runtime's copy: success, refused
+ * (message in the buffer), internal error (the core panicked; message in the buffer), bad argument
+ * (null pointer or non-UTF-8 input; no buffer).
  *
  * Hand-maintained: common/npps-ffi/tests/c/run.sh compiles and runs a C program against it.
  */
@@ -30,6 +32,8 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
+#include "neurone_npps_status.h"
 
 #ifdef __cplusplus
 extern "C" {

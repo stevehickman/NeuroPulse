@@ -5,10 +5,7 @@ use neurone_npps_core::api;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::slice;
 
-const OK: i32 = 0;
-const REFUSED: i32 = 1;
-const INTERNAL: i32 = 2;
-const BAD_ARGUMENT: i32 = 3;
+use neurone_npps_core::constants::status::{BAD_ARGUMENT, INTERNAL_ERROR, OK, REFUSED};
 
 /// Hand `bytes` to the caller as a leaked boxed slice; `npps_free` takes it back.
 unsafe fn give(bytes: Vec<u8>, out: *mut *mut u8, out_len: *mut usize) {
@@ -42,7 +39,7 @@ unsafe fn call(
         }
         Err(_) => {
             give(b"the NPPS core panicked".to_vec(), out, out_len);
-            INTERNAL
+            INTERNAL_ERROR
         }
     }
 }

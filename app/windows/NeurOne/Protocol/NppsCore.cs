@@ -37,30 +37,27 @@ sealed class NppsCompileOptions
 
 static class NppsCore
 {
-    private const string Lib = "neurone_npps_ffi";
+    private const string LIB = "neurone_npps_ffi";
 
-    // Return codes of neurone_npps.h.
-    private const int Ok = 0, Refused = 1, Internal = 2;
-
-    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
     private static extern int npps_parse_json(byte[] src, nuint srcLen, out IntPtr output, out nuint outLen);
 
-    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
     private static extern int npps_compile_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
 
-    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
     private static extern void npps_free(IntPtr ptr, nuint len);
 
-    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
     private static extern int npps_namespace_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
 
-    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
     private static extern int npps_serialize_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
 
-    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
     private static extern int npps_validate_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
 
-    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
     private static extern int npps_resolve_limits_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
 
     private delegate int Entry(byte[] input, nuint inputLen, out IntPtr output, out nuint outLen);
@@ -146,8 +143,8 @@ static class NppsCore
             if (bytes.Length > 0) Marshal.Copy(output, bytes, 0, bytes.Length);
             return code switch
             {
-                Ok => bytes,
-                Refused or Internal => throw new NppsRefusal(
+                NppsStatus.OK => bytes,
+                NppsStatus.REFUSED or NppsStatus.INTERNAL_ERROR => throw new NppsRefusal(
                     bytes.Length > 0 ? Encoding.UTF8.GetString(bytes) : "the NPPS core refused the input"),
                 _ => throw new NppsRefusal("the NPPS core was given an argument it cannot read"),
             };

@@ -5,7 +5,15 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: f8dc99c8379a8de38a2567f37cfcca7e3f9a6896dc063cea21163719e72fa210
+// sources-sha256: 811f6b6185a103cb9e1d917b83d8550d34e30c8fe10ec8a2f636f5b4595b1be9
+// common/lib/constants.generated.ts
+var NppsStatus = {
+  OK: 0,
+  REFUSED: 1,
+  INTERNAL_ERROR: 2,
+  BAD_ARGUMENT: 3
+};
+
 // common/lib/nppsCore.ts
 class NppsRefusal extends Error {
   constructor(message) {
@@ -48,9 +56,6 @@ function core() {
   }
   return instance;
 }
-var OK = 0;
-var REFUSED = 1;
-var INTERNAL = 2;
 function call(entry, input) {
   const wasm = core();
   const bytes = new TextEncoder().encode(input);
@@ -72,10 +77,10 @@ function call(entry, input) {
     if (outPtr !== 0)
       wasm.npps_free(outPtr, outLen);
     switch (code) {
-      case OK:
+      case NppsStatus.OK:
         return out;
-      case REFUSED:
-      case INTERNAL:
+      case NppsStatus.REFUSED:
+      case NppsStatus.INTERNAL_ERROR:
         throw new NppsRefusal(out.length > 0 ? new TextDecoder().decode(out) : "the NPPS core refused the input");
       default:
         throw new NppsRefusal("the NPPS core was given an argument it cannot read");

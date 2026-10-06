@@ -152,9 +152,9 @@ enum NppsCore {
         defer { if let out { npps_free(out, outLen) } }
         let bytes = out.map { Data(bytes: $0, count: outLen) } ?? Data()
         switch code {
-        case 0:
+        case NppsStatus.OK:
             return bytes
-        case 1, 2:
+        case NppsStatus.REFUSED, NppsStatus.INTERNAL_ERROR:
             throw Refusal(message: String(bytes: bytes, encoding: .utf8) ?? "the NPPS core refused the input")
         default:
             throw Refusal(message: "the NPPS core was given an argument it cannot read")

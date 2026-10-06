@@ -1,0 +1,276 @@
+{
+  "$comment": "Every constant that more than one runtime needs, once (OI-NPPS-CORE-01). `bun scripts/sync-constants.ts` writes them into common/lib/constants.generated.ts, NppsConstants.generated.kt (Android), NppsConstants.generated.swift (iOS), NppsConstants.generated.cs (Windows) and common/npps-ffi/include/neurone_npps_status.h, and --check fails if one is stale; the Rust core takes them at build time (common/npps-core/build.rs), so it has no copy to go stale. A constant is UPPER_SNAKE_CASE and has the SAME spelling in every language: that is the name, not a per-language rendering of it. The group (`name`) is the container where a language has one (`NPHardwareLimits.PBM_DEEP_MAX_MW_CM2`); `rust` is its module and `cPrefix` the prefix C needs because it has no namespaces. `targets` says which languages get a group, and `intTypes` overrides the type a language gives its whole numbers (the validator compares in f64, as JavaScript does, and the C ABI's codes are Rust i32 and Swift Int32, because that is what the calls return). `int` marks a whole-number figure. Provenance is in each note.",
+  "groups": [
+    {
+      "name": "NPHardwareLimits",
+      "rust": "hardware_limits",
+      "targets": [
+        "ts",
+        "kotlin",
+        "swift",
+        "csharp",
+        "rust"
+      ],
+      "note": "Every hardware ceiling and fixed device figure the apps and the shared validator use. The firmware enforces them independently; no dosage limit or clinician override can exceed them.",
+      "constants": [
+        {
+          "name": "PBM_DUTY_CYCLE_MAX_PERCENT",
+          "value": 25,
+          "int": true,
+          "note": "PBM Transcranial / Intranasal (shared firmware limit)"
+        },
+        {
+          "name": "PBM_PULSED_PEAK_MW_CM2",
+          "value": 400.0,
+          "note": "pending RISK-03 regulatory opinion"
+        },
+        {
+          "name": "PBM_CW_MAX_MW_CM2",
+          "value": 200.0
+        },
+        {
+          "name": "PBM_DEEP_MAX_MW_CM2",
+          "value": 1000.0,
+          "note": "Deep 1170 nm PBM ceiling (CLAUDE.md §3: ≤1,000 mW/cm², TEC-stabilised)."
+        },
+        {
+          "name": "PBM_AGGREGATE_MAX_MW_CM2",
+          "value": 600.0,
+          "note": "Aggregate PBM irradiance ceiling (OI-PBM-05, three-channel combined). Pending RISK-03 regulatory opinion scope expansion (Q4–Q6)."
+        },
+        {
+          "name": "BES_TACS_MAX_MILLIAMPS",
+          "value": 1.0,
+          "note": "BES / tACS (consumer: Brainwave Entrainment Stimulation)"
+        },
+        {
+          "name": "BES_TACS_MIN_HZ",
+          "value": 0.5
+        },
+        {
+          "name": "BES_TACS_MAX_HZ",
+          "value": 40.0
+        },
+        {
+          "name": "TDCS_MIN_MILLIAMPS",
+          "value": 0.1,
+          "note": "tDCS (consumer: Cortical Priming Stimulation)"
+        },
+        {
+          "name": "TDCS_MAX_MILLIAMPS",
+          "value": 2.0
+        },
+        {
+          "name": "TDCS_MAX_SESSION_CHARGE_DENSITY_MC_CM2",
+          "value": 150.0,
+          "note": "OI-CHARGE-04 (closed 2026-09-09): this IS checked here now. There is no web electrode-area constant to add, because there is no longer a global electrode area on any client — the area is authored per protocol (TDCSParams.electrodeAreaCm2), travels in the signed session descriptor, and the safety MCU derives its charge limit from that same declared number. What used to be a 35-vs-25 disagreement between the app's assumption and the enforcer's is now one transmitted value. OI-CHARGE-05 (a)(d) 2026-09-15: RENAMED AND RE-SOURCED. This used to be `tdcsMaxChargeDensityUCcm2: 40.0`, a misnomer that concealed a 1000× divergence — `I(mA) × t(s) / A(cm²)` is mC/cm², so the clients enforced 40 mC/cm² while the safety MCU enforced 40 µC/cm². The name now states the unit AND the period, because both were ambiguous and each hid a different defect: the unit hid the 1000×, and the missing period hid that a per-phase pulsed figure was being applied to a DC session dose. 150 mC/cm² per session per electrode, derived rather than asserted (the old 40 had no source anywhere in the tree — the citation chain was circular). Bounds the conventional large-pad human tDCS envelope: the most-exposed large RCT protocol in docs/tdcs_database_full.csv is Brunoni ELECT-TDCS 2013/2017 at 2 mA × 30 min on 25 cm² = 144 mC/cm². Margin check: 35× below Liebetanz 2009's measured rat epicranial DC lesion threshold of 5,240 mC/cm². Full derivation: NP-DT-001 DI-SAFE-01."
+        },
+        {
+          "name": "PULSED_MAX_PHASE_CHARGE_DENSITY_UC_CM2",
+          "value": 40.0,
+          "note": "Per-PHASE ceiling for the charge-balanced biphasic modalities — BES/tACS, VNS, cervical VNS, clinical tACS (OI-CHARGE-05 (b)). 40 µC/cm² is a real and correct figure in this form (Shannon 1992 / McCreery 1990 pulsed charge-injection limits); it is the number the tree has always carried, now applied to the waveform class it is actually about. Net charge on these modalities is ~zero by construction, so a session-cumulative dose is not a physical quantity for them and is not checked."
+        },
+        {
+          "name": "BES_ELECTRODE_AREA_CM2",
+          "value": 25.0,
+          "note": "Electrode areas for the modalities whose electrodes are FIXED PARTS OF THE PRODUCT rather than a user-chosen consumable. The tDCS pad is authored per protocol precisely because the user picks it (OI-CHARGE-04); the BES pads, auricular clip and cervical collar are not swappable, so their area is a device property both the app and firmware may hold. ⚠ PROVISIONAL — NOT MEASURED (OI-CHARGE-07). Mirrors firmware/hub_control/include/np_hub_config.h. A SMALLER area is a SMALLER charge budget, so these may be revised down freely and may only be revised up against a measurement."
+        },
+        {
+          "name": "VNS_ELECTRODE_AREA_CM2",
+          "value": 0.5
+        },
+        {
+          "name": "CERVICAL_VNS_ELECTRODE_AREA_CM2",
+          "value": 2.0
+        },
+        {
+          "name": "VNS_DEFAULT_PULSE_WIDTH_SECONDS",
+          "value": 0.00025,
+          "note": "Pulse width (seconds) the firmware substitutes when a descriptor declares none: np_mod_cvns.c and np_session_runner.c both default to 250 µs. The pre-flight must use the same number or it validates a different waveform than the one that runs."
+        },
+        {
+          "name": "TDCS_MAX_ELECTRODE_AREA_CM2",
+          "value": 65.535,
+          "note": "Largest declarable per-electrode area: the wire field (np_mod_tdcs_params_t.electrode_area_mcm2) is a uint16 of milli-cm², so 65535 mcm². Not a clinical limit — an encoding ceiling, well above any real pad (a large sponge is 35 cm²)."
+        },
+        {
+          "name": "TDCS_DEFAULT_ELECTRODE_AREA_CM2",
+          "value": 35.0,
+          "note": "What a NEW tDCS block is seeded with in an editor (a large sponge pad). It is not a limit: the area is authored per protocol, travels in the signed descriptor, and the safety MCU derives its charge limit from that declared number (OI-CHARGE-04)."
+        },
+        {
+          "name": "TDCS_RAMP_SECONDS",
+          "value": 30,
+          "int": true,
+          "note": "hardware-enforced minimum ramp"
+        },
+        {
+          "name": "TDCS_MAX_ELECTRODE_PAIRS",
+          "value": 3,
+          "int": true
+        },
+        {
+          "name": "VNS_MAX_MILLIAMPS",
+          "value": 2.0,
+          "note": "VNS (auricular)"
+        },
+        {
+          "name": "VNS_MIN_HZ",
+          "value": 1.0
+        },
+        {
+          "name": "VNS_MAX_HZ",
+          "value": 25.0
+        },
+        {
+          "name": "VISUAL_MAX_HZ",
+          "value": 100.0,
+          "note": "Visual stimulation"
+        },
+        {
+          "name": "VISUAL_HIGH_RISK_MIN_HZ",
+          "value": 3.0,
+          "note": "photoparoxysmal risk zone — clinician unlock required"
+        },
+        {
+          "name": "VISUAL_HIGH_RISK_MAX_HZ",
+          "value": 30.0,
+          "note": "firmware halts goggles, <200ms, if EEG shows photoparoxysmal response"
+        },
+        {
+          "name": "CLINICAL_TACS_MAX_MILLIAMPS",
+          "value": 4.0,
+          "note": "Clinical tACS (T2 only)"
+        },
+        {
+          "name": "CLINICAL_TACS_MAX_CHANNELS",
+          "value": 21,
+          "int": true,
+          "note": "One driver channel per T2 cap electrode (NP-FW-HD-001 §6.4, NP_HD_DRIVER_CHANNELS). OI-TACS-01: the hub wire mask carried only 16 bits until 2026-09-07, so every encoder clamped here; np_mod_clin_tacs_params_t now has a third mask byte and 21 is deliverable, not just authorable."
+        },
+        {
+          "name": "HD_TDCS_MAX_MILLIAMPS_PER_ELECTRODE",
+          "value": 2.0,
+          "note": "HD-tDCS (T2 only, sLORETA-guided 4×1 ring montage)"
+        },
+        {
+          "name": "HD_TDCS_MAX_CURRENT_DENSITY_A_M2",
+          "value": 6.0,
+          "note": "Bikson lab 3.5mm electrode safety limit"
+        },
+        {
+          "name": "HD_TDCS_MAX_CHARGE_DENSITY_UC_CM2",
+          "value": 40.0,
+          "note": "Per-phase ceiling on the HD electrode (µC/cm²); Class B np_hd_stim.c aborts at 95% of it. Same quantity as pulsedMaxPhaseChargeDensityUCcm2, kept separate because the T2 software abort is a distinct control from the Class C interlock."
+        },
+        {
+          "name": "HD_TDCS_ELECTRODE_AREA_CM2",
+          "value": 0.0962,
+          "note": "HD-tDCS 3.5mm Ag/AgCl sintered electrode: π × (0.175 cm)². Mirrors NP_HD_ELECTRODE_AREA_CM2. Measured geometry, unlike the three above."
+        },
+        {
+          "name": "CERVICAL_VNS_MAX_MILLIAMPS",
+          "value": 2.0,
+          "note": "Cervical VNS (T2 accessory, cardiac interlock always active)"
+        },
+        {
+          "name": "VIBROTACTILE_FREQUENCY_HZ",
+          "value": 40.0,
+          "note": "40Hz Vibrotactile (provisional accessory)"
+        },
+        {
+          "name": "VIBROTACTILE_FREQ_TOLERANCE_HZ",
+          "value": 0.5
+        },
+        {
+          "name": "VIBROTACTILE_MAX_G",
+          "value": 1.2
+        },
+        {
+          "name": "VIBROTACTILE_MIN_G",
+          "value": 0.6
+        }
+      ],
+      "intTypes": {
+        "rust": "f64"
+      }
+    },
+    {
+      "name": "NppsStatus",
+      "rust": "status",
+      "cPrefix": "NPPS_STATUS_",
+      "targets": [
+        "ts",
+        "swift",
+        "csharp",
+        "c",
+        "rust"
+      ],
+      "note": "Return codes of the shared core's C ABI (common/npps-ffi/include/neurone_npps.h). A refusal (1) and an internal error (2) carry a UTF-8 message in the output buffer; a bad argument (3) carries none.",
+      "constants": [
+        {
+          "name": "OK",
+          "value": 0,
+          "int": true,
+          "note": "Success: the output buffer holds the result."
+        },
+        {
+          "name": "REFUSED",
+          "value": 1,
+          "int": true,
+          "note": "The core refused the input; the buffer holds the refusal message."
+        },
+        {
+          "name": "INTERNAL_ERROR",
+          "value": 2,
+          "int": true,
+          "note": "The core panicked; the buffer holds a message."
+        },
+        {
+          "name": "BAD_ARGUMENT",
+          "value": 3,
+          "int": true,
+          "note": "A null pointer or non-UTF-8 input; no buffer."
+        }
+      ],
+      "intTypes": {
+        "rust": "i32",
+        "swift": "Int32"
+      }
+    },
+    {
+      "name": "NppsValidation",
+      "rust": "validation",
+      "targets": [
+        "rust"
+      ],
+      "note": "The advisory thresholds of the shared validator (UC-067 in docs/status/unjustified-choices.md: none is a sourced limit).",
+      "constants": [
+        {
+          "name": "SESSION_SHORT_WARNING_SECONDS",
+          "value": 60,
+          "int": true,
+          "note": "A session shorter than this warns."
+        },
+        {
+          "name": "SESSION_LONG_WARNING_SECONDS",
+          "value": 7200,
+          "int": true,
+          "note": "A session longer than this warns."
+        },
+        {
+          "name": "TMS_HIGH_INTENSITY_PERCENT_MT",
+          "value": 120,
+          "int": true,
+          "note": "TMS above this percentage of motor threshold warns as aggressive."
+        },
+        {
+          "name": "CW_DUTY_CYCLE_PERCENT",
+          "value": 100,
+          "int": true,
+          "note": "Continuous wave (frequency 0) has no duty cycle, so its duty is 100 (OI-SESPWR-03)."
+        }
+      ]
+    }
+  ]
+}
