@@ -232,9 +232,7 @@ public class HubDescriptorCompilerTests
         var e = Assert.Throws<HubCompileException>(() => Build(Def(600, Mod(new NPModalityParams.PbmIntranasal(
             new PbmIntranasalParams { Wavelength = "1064nm" })))));
         Assert.Equal(
-            "No emitter channel delivers 1064nm under the wavelength rules in force " +
-            "(\"NeurOne default wavelength mapping\"). The protocol is refused, " +
-            "not moved to the nearest channel; edit the rules if that mapping is intended.", e.Message);
+            "Intranasal PBM cannot be delivered on led_1064: 1064nm maps to a channel it does not carry.", e.Message);
     }
 
     [Fact]
