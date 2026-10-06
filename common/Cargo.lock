@@ -100,6 +100,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "neurone-npps-ffi"
+version = "0.1.0"
+dependencies = [
+ "neurone-npps-core",
+ "serde_json",
+]
+
+[[package]]
 name = "neurone-npps-jni"
 version = "0.1.0"
 dependencies = [

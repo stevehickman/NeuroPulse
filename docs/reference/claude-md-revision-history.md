@@ -21,7 +21,7 @@
 
 **Rev 65 (2026-10-06) — §20 layout: `common/` also holds the NPPS field table and the shared NPPS core. A placement note; no design decision, limit or interlock changed.**
 
-**What changed.** §20's layout paragraph said `common/` "holds the TypeScript the web app and the simulator bundle build from". It now also names `common/npps/fields.json` (the NPPS field table, as data) `common/npps-core/` (a Rust crate: lexer, `protocol` parser and hub-descriptor compiler) and `common/npps-jni/` (its Android JNI binding).
+**What changed.** §20's layout paragraph said `common/` "holds the TypeScript the web app and the simulator bundle build from". It now also names `common/npps/fields.json` (the NPPS field table, as data) `common/npps-core/` (a Rust crate: lexer, `protocol` parser and hub-descriptor compiler) `common/npps-jni/` (its Android JNI binding) and `common/npps-ffi/` (its C ABI, for iOS and Windows).
 
 **Why.** The same `.npps` file must mean the same on every app and the simulator (principal, 2026-10-06), and five hand-written parsers had drifted. The core is a file set shared by apps and a non-app artifact (the simulator), so §20 puts it in `common/`. Android's descriptor compiler runs on the core; no other app does yet (`OI-NPPS-CORE-01`).
 

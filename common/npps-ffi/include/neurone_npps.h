@@ -1,0 +1,42 @@
+/*
+ * neurone_npps.h — C ABI of the shared NPPS core (common/npps-core, OI-NPPS-CORE-01).
+ *
+ * Two calls and a free. Text goes in as UTF-8 bytes (no terminator needed), and what comes
+ * out is a buffer this library allocated, which the caller releases with npps_free().
+ *
+ *   npps_parse_json    NPPS source            -> JSON array of entries
+ *   npps_compile_json  compile request (JSON) -> the NP-FW-HUB-001 §4 descriptor bytes,
+ *                                                signature slot zeroed for the caller to sign
+ *
+ * The request and entry shapes are documented on neurone_npps_core::api (parse_json,
+ * compile_json). Both calls return 0 on success. On failure they return non-zero and the
+ * output buffer holds the refusal as UTF-8 text (the message the web parser or compiler gives);
+ * it is released with npps_free() all the same. No call retains a pointer it is given.
+ *
+ * Return codes: 0 success, 1 refused (message in the buffer), 2 internal error (the core
+ * panicked; message in the buffer), 3 bad argument (null pointer or non-UTF-8 input; no buffer).
+ *
+ * Hand-maintained: common/npps-ffi/tests/c/run.sh compiles and runs a C program against it.
+ */
+#ifndef NEURONE_NPPS_H
+#define NEURONE_NPPS_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int32_t npps_parse_json(const uint8_t *src, size_t src_len, uint8_t **out, size_t *out_len);
+
+int32_t npps_compile_json(const uint8_t *req, size_t req_len, uint8_t **out, size_t *out_len);
+
+/* Release a buffer returned through `out`/`out_len`. A null pointer is ignored. */
+void npps_free(uint8_t *ptr, size_t len);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* NEURONE_NPPS_H */

@@ -49,14 +49,28 @@ deleted, so Android has no compiler of its own to drift. Its golden and refusal 
 written, not run, in the authoring environment (no NDK): CI is its first execution.** Not done: Android's
 parser (`NPPSParser`) still reads `.npps` itself.
 
+## iOS binding (and the C ABI Windows will share)
+
+`../npps-ffi` is a C ABI over `src/api.rs`: `npps_parse_json`, `npps_compile_json`, `npps_free`, declared
+in `include/neurone_npps.h` (hand-maintained, with a `module.modulemap` for Swift). `tests/ffi.rs` runs the
+shipped library, the corpus and the 22 golden descriptors through those functions, and
+`tests/c/run.sh` compiles a real C program against the header and the static library; both run in
+`web-ci.yml`. For iOS, `scripts/build-npps-xcframework.sh` builds a static XCFramework (device arm64;
+simulator arm64 + x86_64) into `app/ios/Frameworks/` (git-ignored); `app/ios/project.yml`'s `preGenCommand`
+runs it before XcodeGen reads the tree and the app links it. `NppsCore.swift` marshals; `NppsCoreTests`
+pushes the same goldens through it. **The XCFramework build, the Xcode linking and the Swift code could
+only be written, not run, in the authoring environment (no Xcode, no Apple Rust targets): iOS CI is their
+first execution.** Nothing in the iOS app calls `NppsCore` yet; `HubDescriptorCompiler` and `NPPSParser`
+are still the Swift ports.
+
 ## Not yet in v0
 
 - `composite`, `limits`, `zone`, `condition` and `wavelength_rules` blocks are skipped, not validated; the
   namespace (zone and condition resolution) and the serializer are not ported. The compiler takes the
   zone map as an argument.
 - User wavelength rules are accepted by the compiler API but only the default rules are exercised.
-- Bindings: **Android only** (`../npps-jni`, below). iOS and Windows (a C ABI over the same
-  `api` module, built as `staticlib`/`cdylib`) and web and the simulator (`wasm32`) are not written.
+- Bindings: Android (`../npps-jni`) and the C ABI (`../npps-ffi`, below) that iOS uses. The Windows
+  P/Invoke wrapper over the same C ABI and web and the simulator (`wasm32`) are not written.
   **iOS and Windows cannot be built or tested from this environment.** Android's compiler
   calls its binding; no other app calls one.
 - The validator (`protocolValidator`, per-platform today) is not ported.

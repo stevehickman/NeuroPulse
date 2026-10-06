@@ -63,6 +63,8 @@ build/ios/
 # `cd app/watchos && xcodegen generate`; CI regenerates in ios-ci.yml and
 # watchos-ci.yml before any xcodebuild invocation.
 app/ios/*.xcodeproj/
+# The shared NPPS core as an XCFramework: a build output of scripts/build-npps-xcframework.sh.
+app/ios/Frameworks/
 app/watchos/*.xcodeproj/
 *.xcuserstate
 *.xcscmblueprint

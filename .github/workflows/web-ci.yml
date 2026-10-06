@@ -249,7 +249,12 @@ jobs:
 
       - name: NPPS core (Rust) agrees with the web parser and compiler
         working-directory: .
-        run: cargo test --manifest-path common/npps-core/Cargo.toml --locked
+        run: cargo test --manifest-path common/Cargo.toml --workspace --locked
+
+      # The C ABI (iOS, Windows) from a real C program against the committed header.
+      - name: NPPS core C ABI smoke test
+        working-directory: .
+        run: common/npps-ffi/tests/c/run.sh
 
       - name: Production build
         run: bun run build

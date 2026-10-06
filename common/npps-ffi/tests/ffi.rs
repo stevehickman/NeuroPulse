@@ -1,0 +1,120 @@
+//! The C ABI through its own functions, against the web reference: the shipped library, the
+//! corpus and the 22 golden descriptors, as bytes in and bytes out. What this adds over the
+//! core's tests is the marshalling: buffer ownership, UTF-8 (messages contain `—` and `²`),
+//! return codes and the failure paths.
+
+use neurone_npps_ffi::{npps_compile_json, npps_free, npps_parse_json};
+use serde_json::Value;
+use std::fs;
+use std::path::PathBuf;
+use std::ptr;
+
+fn root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+fn data(name: &str) -> Value {
+    serde_json::from_str(&fs::read_to_string(root().join("app/NeurOneShared/TestData").join(name)).unwrap()).unwrap()
+}
+
+type Call = unsafe extern "C" fn(*const u8, usize, *mut *mut u8, *mut usize) -> i32;
+
+fn run(f: Call, input: &[u8]) -> (i32, Vec<u8>) {
+    let (mut out, mut len) = (ptr::null_mut(), 0usize);
+    let code = unsafe { f(input.as_ptr(), input.len(), &mut out, &mut len) };
+    let bytes = if out.is_null() { vec![] } else { unsafe { std::slice::from_raw_parts(out, len).to_vec() } };
+    unsafe { npps_free(out, len) };
+    (code, bytes)
+}
+
+fn hex(b: &[u8]) -> String {
+    b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
+#[test]
+fn parse_agrees_with_the_web_parser_over_the_library_and_the_corpus() {
+    let g = data("npps-parse-golden.json");
+    let mut bad = Vec::new();
+    let mut check = |name: &str, src: &str, want: &Value| {
+        let (code, out) = run(npps_parse_json, src.as_bytes());
+        let text = String::from_utf8(out).expect("UTF-8 out");
+        match want.get("error").and_then(Value::as_str) {
+            Some(msg) => {
+                if code != 1 || text != msg {
+                    bad.push(format!("{name}: code {code}, {text:?} vs {msg:?}"));
+                }
+            }
+            None => {
+                let entries: Value = serde_json::from_str(&text).unwrap_or(Value::Null);
+                let reduced: Vec<Value> = entries
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter(|e| e["kind"] == "single" || e["what"] == "composite")
+                            .cloned()
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                if code != 0 || Value::Array(reduced) != want["entries"] {
+                    bad.push(format!("{name}: code {code}, entries differ"));
+                }
+            }
+        }
+    };
+    for (rel, want) in g["files"].as_object().unwrap() {
+        check(rel, &fs::read_to_string(root().join(rel)).unwrap(), want);
+    }
+    for (name, case) in g["cases"].as_object().unwrap() {
+        check(name, case["source"].as_str().unwrap(), case);
+    }
+    assert!(bad.is_empty(), "{} divergence(s):\n{}", bad.len(), bad.join("\n"));
+}
+
+fn request(def: &Value, c: &Value, with_clinician: bool) -> Vec<u8> {
+    let uuid = format!("{:02x}", c["sessionUuidByte"].as_u64().unwrap()).repeat(16);
+    serde_json::json!({
+        "def": def, "zones": c["zones"],
+        "clinicianSockets": if with_clinician { c["clinicianSockets"].clone() } else { Value::Null },
+        "deviceSerialHex": null, "nowUnix": c["compiledAt"], "sessionUuidHex": uuid, "wavelengthRules": null,
+    })
+    .to_string()
+    .into_bytes()
+}
+
+#[test]
+fn compile_agrees_with_the_web_compiler_in_bytes_and_messages() {
+    let c = data("hub-descriptor-cases.json");
+    for (name, case) in c["cases"].as_object().unwrap() {
+        let (code, out) = run(npps_compile_json, &request(&case["def"], &c, true));
+        assert_eq!(code, 0, "{name}: {}", String::from_utf8_lossy(&out));
+        assert_eq!(hex(&out), case["hex"].as_str().unwrap(), "{name}");
+    }
+    let mut refused = 0;
+    for (name, case) in c["errors"].as_object().unwrap() {
+        let Some(want) = case["message"].as_str() else { continue };
+        let with = !case["noClinicianSockets"].as_bool().unwrap();
+        let (code, out) = run(npps_compile_json, &request(&case["def"], &c, with));
+        assert_eq!(code, 1, "{name}");
+        assert_eq!(String::from_utf8(out).unwrap(), want, "{name}");
+        refused += 1;
+    }
+    assert!(refused >= 15);
+}
+
+#[test]
+fn bad_arguments_are_refused_not_crashed() {
+    let (mut out, mut len) = (ptr::null_mut(), 0usize);
+    unsafe {
+        assert_eq!(npps_parse_json(ptr::null(), 0, &mut out, &mut len), 3);
+        assert_eq!(npps_parse_json(b"x".as_ptr(), 1, ptr::null_mut(), &mut len), 3);
+        // Not UTF-8.
+        assert_eq!(npps_parse_json([0xFFu8, 0xFE].as_ptr(), 2, &mut out, &mut len), 3);
+        // A request that is not JSON is a refusal with a message, not a crash.
+        assert_eq!(npps_compile_json(b"{".as_ptr(), 1, &mut out, &mut len), 1);
+        let msg = std::slice::from_raw_parts(out, len).to_vec();
+        npps_free(out, len);
+        assert!(String::from_utf8(msg).unwrap().contains("not JSON"));
+        // Freeing nothing is fine.
+        npps_free(ptr::null_mut(), 0);
+    }
+}

@@ -28,6 +28,15 @@ on:
       # of that bundle. A protocol edit touches nothing under app/ios/**, so
       # without this entry it would not run the tests that load it.
       - 'protocols/predefined/**'
+      # The iOS app links the shared NPPS core (OI-NPPS-CORE-01), built from common/ by
+      # scripts/build-npps-xcframework.sh, and NppsCoreTests pushes the library and the fixtures through it.
+      - 'common/Cargo.toml'
+      - 'common/Cargo.lock'
+      - 'common/npps/**'
+      - 'common/npps-core/**'
+      - 'common/npps-ffi/**'
+      - 'scripts/build-npps-xcframework.sh'
+      - 'npps/fixtures/**'
       # HubDescriptorCompilerTests diffs against the web compiler's golden descriptors, which
       # live beside Android's tests and are shared by all three native compilers (OI-AND-WIRE-01).
       - 'app/NeurOneShared/TestData/hub-descriptor-golden.json'
@@ -39,6 +48,15 @@ on:
       - 'locales/**'
       - 'scripts/sync-locales.ts'
       - 'protocols/predefined/**'
+      # The iOS app links the shared NPPS core (OI-NPPS-CORE-01), built from common/ by
+      # scripts/build-npps-xcframework.sh, and NppsCoreTests pushes the library and the fixtures through it.
+      - 'common/Cargo.toml'
+      - 'common/Cargo.lock'
+      - 'common/npps/**'
+      - 'common/npps-core/**'
+      - 'common/npps-ffi/**'
+      - 'scripts/build-npps-xcframework.sh'
+      - 'npps/fixtures/**'
       # HubDescriptorCompilerTests diffs against the web compiler's golden descriptors, which
       # live beside Android's tests and are shared by all three native compilers (OI-AND-WIRE-01).
       - 'app/NeurOneShared/TestData/hub-descriptor-golden.json'
@@ -112,6 +130,14 @@ jobs:
       # puts the file on disk before Xcode looks.
       - name: Generate locale files from canonical locales/*.json
         run: bun scripts/sync-locales.ts
+
+      # app/ios/project.yml's preGenCommand builds NeurOneNppsCore.xcframework from common/npps-ffi
+      # (scripts/build-npps-xcframework.sh): three Apple targets, then xcodebuild -create-xcframework.
+      - name: Set up Rust (stable)
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          cargo --version
 
       - name: Install XcodeGen
         run: brew install xcodegen

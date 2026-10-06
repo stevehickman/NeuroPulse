@@ -1,0 +1,4 @@
+module NeurOneNppsCore {
+    header "neurone_npps.h"
+    export *
+}
