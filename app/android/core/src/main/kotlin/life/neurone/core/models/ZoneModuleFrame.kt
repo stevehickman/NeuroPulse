@@ -55,7 +55,7 @@ object ZoneFrameFormat {
     }
 
     /** 0 is never emitted; ids above the domain would alias onto a real socket — wrong-site targeting. */
-    fun isValidSocketId(id: Int): Boolean = id in 1..MAX_SOCKET_ID
+    fun isValidSocketId(id: Int): Boolean = id in 1..ZoneNotify.MAX_SOCKET_ID
 
     internal fun ByteArray.u8(offset: Int): Int = this[offset].toInt() and 0xFF
 
