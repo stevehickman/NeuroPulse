@@ -1,0 +1,6481 @@
+{
+ "files": {
+  "protocols/predefined/00-conditions.npps": {
+   "entries": []
+  },
+  "protocols/predefined/00-wavelength-rules.npps": {
+   "entries": []
+  },
+  "protocols/predefined/00-zones.npps": {
+   "entries": []
+  },
+  "protocols/predefined/01-gamma-focus.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "10000001-0000-0000-0000-000000000000",
+      "name": "Gamma Focus",
+      "description": "Simultaneous 40Hz entrainment across audio, visual, and PBM channels for cognitive enhancement and attention. Evidence-backed GENUS-inspired multi-sensory 40Hz protocol.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "focus",
+       "gamma",
+       "40Hz",
+       "cognitive",
+       "multimodal"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "660nm",
+         "irradianceMWcm2": 322.4,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Vault (excl. Occipital)"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 322.4,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Vault (excl. Occipital)"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 440,
+         "volumeDb": 75,
+         "eegAdaptive": false,
+         "boneConductionPacer": false,
+         "binauralBeatsHz": 40
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "visual_stimulation",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 40,
+         "mode": "binocular",
+         "emdrCadenceHz": 1,
+         "enableModeF": false
+        },
+        "interval": {
+         "intervalOnSeconds": 60,
+         "intervalOffSeconds": 30
+        }
+       },
+       {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+         "channels": "all",
+         "band": "gamma",
+         "closedLoopEnabled": true
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Alzheimer's Disease"
+      ],
+      "references": [
+       {
+        "label": "PBM Alzheimer's 40Hz (Grade A)",
+        "url": "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"
+       },
+       {
+        "label": "tACS 40Hz gamma convergence",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/02-alpha-calm.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "10000002-0000-0000-0000-000000000000",
+      "name": "Alpha Calm",
+      "description": "Promotes relaxed alertness via 10Hz alpha entrainment with PBM and HRV biofeedback. Ideal for stress reduction and pre-sleep wind-down.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "calm",
+       "alpha",
+       "relaxation",
+       "stress",
+       "hrv"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "660nm",
+         "irradianceMWcm2": 302.2,
+         "frequencyHz": 10,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "All"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 302.2,
+         "frequencyHz": 10,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "All"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+         "channels": "all",
+         "band": "alpha",
+         "closedLoopEnabled": true
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 25,
+         "intensityMilliamps": 1.5,
+         "hrvProtocol": "standalone",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 440,
+         "volumeDb": 70,
+         "eegAdaptive": true,
+         "boneConductionPacer": false,
+         "binauralBeatsHz": 10,
+         "noiseType": "pink"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Generalized Anxiety Disorder"
+      ],
+      "references": [
+       {
+        "label": "tACS depression/alpha & taVNS anxiety context",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/03-deep-sleep.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "10000003-0000-0000-0000-000000000000",
+      "name": "Deep Sleep",
+      "description": "Slow-wave sleep induction using 2Hz delta PBM on rear zones with brown noise and resonance breathing. Use within 30 minutes of bedtime.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "sleep",
+       "delta",
+       "recovery",
+       "relaxation"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 2700
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "660nm",
+         "irradianceMWcm2": 241.8,
+         "frequencyHz": 2,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Posterior"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 241.8,
+         "frequencyHz": 2,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Posterior"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+         "channels": "all",
+         "band": "delta",
+         "closedLoopEnabled": true
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 440,
+         "volumeDb": 60,
+         "eegAdaptive": false,
+         "boneConductionPacer": false,
+         "noiseType": "brown"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 6,
+         "intensityMilliamps": 1,
+         "hrvProtocol": "standalone",
+         "resonanceBreathingRate": 5
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Insomnia"
+      ],
+      "references": [
+       {
+        "label": "tACS slow-oscillation sleep protocol",
+        "url": "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/04-memory-boost.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "10000004-0000-0000-0000-000000000000",
+      "name": "Memory Boost",
+      "description": "Memory and working-memory support. The PBM channel follows its own cited evidence (Yao 2022 / Gonzalez-Lima lineage: 1064nm right prefrontal, 8 min) rather than the theta rhythm; theta (6Hz) entrainment lives in the audio, EEG neurofeedback and HRV channels, where entrainment evidence exists. NOT EVIDENCE-GRADE for the PBM channel: see the notes on that block — duty, dose, area and irradiance all fall short of the cited literature, and requires a 1064nm-capable (T1-C) module.",
+      "author": "NeurOne",
+      "version": "1.1",
+      "tags": [
+       "memory",
+       "theta",
+       "learning",
+       "consolidation",
+       "1064nm"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1800
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "1064nm",
+         "irradianceMWcm2": 250,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100,
+         "zoneRefs": [
+          "Frontal Right (excl. midline)"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 480,
+         "intervalOffSeconds": 1320,
+         "repeatCount": 1
+        }
+       },
+       {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+         "channels": "all",
+         "band": "theta",
+         "closedLoopEnabled": true
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 440,
+         "volumeDb": 67.5,
+         "eegAdaptive": true,
+         "boneConductionPacer": false,
+         "binauralBeatsHz": 6,
+         "noiseType": "brown"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 25,
+         "intensityMilliamps": 1.5,
+         "hrvProtocol": "standalone",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Mild Cognitive Impairment"
+      ],
+      "references": [
+       {
+        "label": "PBM cognitive enhancement (Grade A)",
+        "url": "docs/pbm_neuro_protocols.md#3-cognitive-enhancement--healthy-adults--cognitive-aging--grade-a"
+       },
+       {
+        "label": "Yao 2022 (Sci Adv) — 1064nm right PFC, CW, 250 mW/cm², 8 min, visual working memory",
+        "url": "docs/np_bib_1064_001.md"
+       },
+       {
+        "label": "1064nm evidence bibliography (NP-BIB-1064-001 Entry 12.1)",
+        "url": "docs/np_bib_1064_001.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/05-anxiety-relief.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "10000005-0000-0000-0000-000000000000",
+      "name": "Anxiety Relief",
+      "description": "Multi-modal anxiety reduction combining VNS, HRV coherence training, alpha PBM, and resonance breathing. Based on 24-RCT meta-analysis (d=0.83 anxiety reduction).",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "anxiety",
+       "stress",
+       "hrv",
+       "vns",
+       "alpha",
+       "calm"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 25,
+         "intensityMilliamps": 0.5,
+         "hrvProtocol": "eeg_biofeedback",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "660nm",
+         "irradianceMWcm2": 261.9,
+         "frequencyHz": 10,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Frontal"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 261.9,
+         "frequencyHz": 10,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Frontal"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 440,
+         "volumeDb": 70,
+         "eegAdaptive": true,
+         "boneConductionPacer": true,
+         "binauralBeatsHz": 10,
+         "noiseType": "pink"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+         "channels": "all",
+         "band": "alpha",
+         "closedLoopEnabled": true
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Generalized Anxiety Disorder"
+      ],
+      "references": [
+       {
+        "label": "PBM anxiety (Grade B)",
+        "url": "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"
+       },
+       {
+        "label": "taVNS anxiety (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/06-flow-state.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "10000006-0000-0000-0000-000000000000",
+      "name": "Flow State",
+      "description": "Gamma-theta coupled protocol targeting the flow state signature: frontal gamma + parieto-occipital theta. Split-zone PBM with closed-loop EEG adaptation.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "flow",
+       "gamma",
+       "theta",
+       "performance",
+       "creative",
+       "multimodal"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1500
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "660nm",
+         "irradianceMWcm2": 322.4,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Frontal"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 322.4,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Frontal"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "660nm",
+         "irradianceMWcm2": 302.2,
+         "frequencyHz": 6,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Posterior"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 302.2,
+         "frequencyHz": 6,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Posterior"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+         "channels": "all",
+         "band": "gamma_theta",
+         "closedLoopEnabled": true
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 440,
+         "volumeDb": 72.5,
+         "eegAdaptive": true,
+         "boneConductionPacer": false,
+         "binauralBeatsHz": 40,
+         "isochronicTonesHz": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true
+     }
+    }
+   ]
+  },
+  "protocols/predefined/07-vascular-baseline.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "10000007-0000-0000-0000-000000000000",
+      "name": "Vascular Baseline",
+      "description": "Continuous-wave PBM for cerebrovascular support. Low-frequency VNS and alpha EEG. Use as a maintenance or recovery session.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "circulation",
+       "CW",
+       "baseline",
+       "maintenance",
+       "cerebrovascular"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1800
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "660nm",
+         "irradianceMWcm2": 322.4,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100,
+         "zoneRefs": [
+          "All"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 322.4,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100,
+         "zoneRefs": [
+          "All"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 1,
+         "intensityMilliamps": 1,
+         "hrvProtocol": "standalone",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+         "channels": "all",
+         "band": "alpha",
+         "closedLoopEnabled": true
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true
+     }
+    }
+   ]
+  },
+  "protocols/predefined/08-adhd-focus.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "10000008-0000-0000-0000-000000000000",
+      "name": "ADHD Focus",
+      "description": "EEG neurofeedback theta/beta ratio training with tDCS cortical priming and 20Hz frontal PBM. Based on 21 RCTs (n=1,261) of EEG neurofeedback for ADHD.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "adhd",
+       "focus",
+       "theta",
+       "beta",
+       "neurofeedback",
+       "tdcs"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 2400
+      },
+      "modalities": [
+       {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+         "channels": "front",
+         "band": "alpha_theta",
+         "closedLoopEnabled": true
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+         "intensityMilliamps": 1.5,
+         "electrodePairs": [
+          [
+           "F3",
+           "Fp2"
+          ]
+         ],
+         "rampSeconds": 30,
+         "electrodeAreaCm2": 35
+        },
+        "interval": {
+         "intervalOnSeconds": 1200,
+         "intervalOffSeconds": 1200,
+         "repeatCount": 1
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "660nm",
+         "irradianceMWcm2": 282.1,
+         "frequencyHz": 20,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Frontal"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 282.1,
+         "frequencyHz": 20,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Frontal"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 440,
+         "volumeDb": 67.5,
+         "eegAdaptive": true,
+         "boneConductionPacer": false,
+         "isochronicTonesHz": 20
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Attention Deficit Hyperactivity Disorder"
+      ],
+      "references": [
+       {
+        "label": "tDCS ADHD (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/09-retinal-health.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "10000009-0000-0000-0000-000000000000",
+      "name": "Retinal Health",
+      "description": "Invisible 808-830nm near-infrared retinal PBM during normal-looking wear (Mode F). Supports mitochondrial function in retinal photoreceptors. 3-minute daily maintenance.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "retinal",
+       "pbm",
+       "nir",
+       "mode_f",
+       "ocular",
+       "maintenance"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 180
+      },
+      "modalities": [
+       {
+        "type": "visual_stimulation",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 0,
+         "mode": "mode_f",
+         "emdrCadenceHz": 1,
+         "enableModeF": true
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true
+     }
+    }
+   ]
+  },
+  "protocols/predefined/10-ptsd-emdr-support.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "1000000A-0000-0000-0000-000000000000",
+      "name": "PTSD EMDR Support",
+      "description": "EMDR bilateral visual stimulation with VNS vagal support and calming brown noise. Intended for use alongside therapeutic EMDR sessions. WHO-recommended protocol basis.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "ptsd",
+       "emdr",
+       "bilateral",
+       "trauma",
+       "vns",
+       "clinical"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 3600
+      },
+      "modalities": [
+       {
+        "type": "visual_stimulation",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 1,
+         "mode": "emdr",
+         "emdrCadenceHz": 1,
+         "enableModeF": false
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 25,
+         "intensityMilliamps": 0.4,
+         "hrvProtocol": "standalone",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 440,
+         "volumeDb": 62.5,
+         "eegAdaptive": false,
+         "boneConductionPacer": true,
+         "noiseType": "brown"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+         "channels": "all",
+         "band": "alpha",
+         "closedLoopEnabled": false
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Post-Traumatic Stress Disorder"
+      ],
+      "references": [
+       {
+        "label": "TMS PTSD (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
+       },
+       {
+        "label": "taVNS PTSD extinction (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/11-hrv-coherence-training.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "1000000B-0000-0000-0000-000000000000",
+      "name": "HRV Coherence Training",
+      "description": "Standalone HRV coherence training with resonance breathing pacer. Bone conduction delivers the breathing cue. Evidence: meta-analysis 24 RCTs (d=0.83 anxiety reduction).",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "HRV",
+       "coherence",
+       "stress",
+       "relaxation",
+       "breathing"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 25,
+         "intensityMilliamps": 1.5,
+         "hrvProtocol": "standalone",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 440,
+         "volumeDb": 60,
+         "eegAdaptive": false,
+         "boneConductionPacer": true,
+         "noiseType": "pink"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Generalized Anxiety Disorder"
+      ],
+      "references": [
+       {
+        "label": "taVNS autonomic / HRV (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/12-hrv-tavns-synchronised.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "1000000C-0000-0000-0000-000000000000",
+      "name": "HRV + taVNS Synchronised",
+      "description": "Stimulation pulses timed to inspiration phase for optimised noradrenergic modulation. Alpha EEG neurofeedback adds cortical awareness layer.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "HRV",
+       "VNS",
+       "advanced",
+       "synchronised"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 25,
+         "intensityMilliamps": 1.5,
+         "hrvProtocol": "tavns_sync",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+         "channels": "all",
+         "band": "alpha",
+         "closedLoopEnabled": true
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Generalized Anxiety Disorder"
+      ],
+      "references": [
+       {
+        "label": "taVNS respiration-gated HRV (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/13-focus-prime.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "1000000D-0000-0000-0000-000000000000",
+      "name": "Focus Prime",
+      "description": "20Hz beta/focus protocol combining PBM, closed-loop EEG, BES, binaural audio, and visual entrainment. BES runs in 30-on/30-off intervals for habituation prevention.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "focus",
+       "beta",
+       "cognitive",
+       "productivity"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "660nm",
+         "irradianceMWcm2": 322.4,
+         "frequencyHz": 20,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "All"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 322.4,
+         "frequencyHz": 20,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "All"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+         "channels": "all",
+         "band": "beta",
+         "closedLoopEnabled": true
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 20,
+         "intensityMilliamps": 0.8,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 30,
+         "intervalOffSeconds": 30
+        }
+       },
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 440,
+         "volumeDb": 70,
+         "eegAdaptive": true,
+         "boneConductionPacer": false,
+         "binauralBeatsHz": 20,
+         "noiseType": "pink"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "visual_stimulation",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 20,
+         "mode": "binocular",
+         "emdrCadenceHz": 1,
+         "enableModeF": false
+        },
+        "interval": {
+         "intervalOnSeconds": 300,
+         "intervalOffSeconds": 120
+        }
+       }
+      ],
+      "isReadOnly": true
+     }
+    }
+   ]
+  },
+  "protocols/predefined/14-gamma-theta-coupled.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "1000000E-0000-0000-0000-000000000000",
+      "name": "Gamma + Theta Coupled",
+      "description": "Simultaneous 40Hz front-zone PBM and 6Hz rear-zone PBM with gamma-theta EEG coupling, binaural + isochronic audio, 40Hz visual entrainment, and BES.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "focus",
+       "gamma",
+       "theta",
+       "coupled",
+       "advanced"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "660nm",
+         "irradianceMWcm2": 302.2,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Frontal"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 302.2,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Frontal"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "660nm",
+         "irradianceMWcm2": 282.1,
+         "frequencyHz": 6,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Posterior"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 282.1,
+         "frequencyHz": 6,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Posterior"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+         "channels": "all",
+         "band": "gamma_theta",
+         "closedLoopEnabled": true
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 440,
+         "volumeDb": 70,
+         "eegAdaptive": true,
+         "boneConductionPacer": false,
+         "binauralBeatsHz": 40,
+         "isochronicTonesHz": 6,
+         "noiseType": "pink"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "visual_stimulation",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 40,
+         "mode": "binocular",
+         "emdrCadenceHz": 1,
+         "enableModeF": false
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 40,
+         "intensityMilliamps": 0.8,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true
+     }
+    }
+   ]
+  },
+  "protocols/predefined/15-full-t1-immersive.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "1000000F-0000-0000-0000-000000000000",
+      "name": "Full T1 Immersive",
+      "description": "All 8 T1 modalities running simultaneously with balanced settings. For experienced users. Intranasal PBM and tDCS run in time-limited intervals within the 30-minute session.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "comprehensive",
+       "all-modalities",
+       "advanced",
+       "T1"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1800
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "660nm",
+         "irradianceMWcm2": 302.2,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "All"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 302.2,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "All"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_intranasal",
+        "enabled": true,
+        "params": {
+         "wavelength": "660nm",
+         "irradianceMWcm2": 60,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25
+        },
+        "interval": {
+         "intervalOnSeconds": 900,
+         "intervalOffSeconds": 900,
+         "repeatCount": 1
+        }
+       },
+       {
+        "type": "pbm_intranasal",
+        "enabled": true,
+        "params": {
+         "wavelength": "808nm",
+         "irradianceMWcm2": 60,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25
+        },
+        "interval": {
+         "intervalOnSeconds": 900,
+         "intervalOffSeconds": 900,
+         "repeatCount": 1
+        }
+       },
+       {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+         "channels": "all",
+         "band": "gamma",
+         "closedLoopEnabled": true
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 40,
+         "intensityMilliamps": 0.8,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 25,
+         "intensityMilliamps": 1.5,
+         "hrvProtocol": "tavns_sync",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 440,
+         "volumeDb": 70,
+         "eegAdaptive": true,
+         "boneConductionPacer": true,
+         "isochronicTonesHz": 40,
+         "noiseType": "pink"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "visual_stimulation",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 40,
+         "mode": "binocular",
+         "emdrCadenceHz": 1,
+         "enableModeF": false
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+         "intensityMilliamps": 1,
+         "electrodePairs": [
+          [
+           "Fp1",
+           "P3"
+          ]
+         ],
+         "rampSeconds": 30,
+         "electrodeAreaCm2": 35
+        },
+        "interval": {
+         "intervalOnSeconds": 1200,
+         "intervalOffSeconds": 600,
+         "repeatCount": 1
+        }
+       }
+      ],
+      "isReadOnly": true
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-01-pbm-alzheimers-chun.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000053-0000-0000-0000-000000000000",
+      "name": "PBM — Alzheimer's (Chun 2026, 808nm high-irradiance)",
+      "description": "Whole-vault 808nm pulsed PBM for Alzheimer's / dementia at the parameters of Chun 2026 (double-blind, n=26): 0.3 W/cm², 11 min, 72 sessions over 12 weeks; MoCA +3.87 vs −0.74 (p<0.001). Grade A. This is the only §1 trial that states an IRRADIANCE — its companion protocol (Woźniak-Mitał 2026) states total power only, from which no mW/cm² follows.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "pbm",
+       "40Hz",
+       "clinical",
+       "alzheimers",
+       "chun2026"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 660
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 300,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Vault (excl. Occipital)"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Alzheimer's Disease",
+       "Dementia"
+      ],
+      "references": [
+       {
+        "label": "Chun 2026 — double-blind, n=26, 808nm, 0.3 W/cm², 4400 J, 11 min, 72 sessions/12 wk, MoCA +3.87 vs −0.74 (p<0.001). THIS protocol's source trial.",
+        "url": "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"
+       },
+       {
+        "label": "PBM protocol database §1 — Alzheimer's / dementia (Grade A), section-level bands 0.1–0.3 W/cm², 20–75 J/cm²",
+        "url": "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-01-pbm-alzheimers-wozniak.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000001-0000-0000-0000-000000000000",
+      "name": "PBM — Alzheimer's 40Hz (Woźniak-Mitał 2026)",
+      "description": "Whole-head 810nm pulsed 40Hz transcranial PBM plus bilateral intranasal 660nm for Alzheimer's / dementia (gamma-entrainment rationale). Grade A. 3–7x/week, 8–12+ weeks.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "pbm",
+       "gamma",
+       "40Hz",
+       "clinical",
+       "alzheimers"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "810nm",
+         "irradianceMWcm2": 121,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Vault (excl. Occipital)"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_intranasal",
+        "enabled": true,
+        "params": {
+         "wavelength": "660nm",
+         "irradianceMWcm2": 60,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Alzheimer's Disease",
+       "Dementia"
+      ],
+      "references": [
+       {
+        "label": "Woźniak-Mitał 2026 — double-blind, n=33, 850nm PW 40Hz, 150 mW total, 20 min, 50 sessions/10 wk, MMSE 21.9→27.2, ADAS-Cog 34.8→18.2 (p<0.0001). THIS protocol's source trial. NOTE: the trial states TOTAL POWER, not irradiance — see the block notes.",
+        "url": "https://doi.org/10.1016/j.pmip.2026"
+       },
+       {
+        "label": "PBM protocol database §1 — Alzheimer's / dementia (Grade A), section-level bands 0.1–0.3 W/cm², 20–75 J/cm²",
+        "url": "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-02-pbm-mci.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000002-0000-0000-0000-000000000000",
+      "name": "PBM — Mild Cognitive Impairment (Papi 2022)",
+      "description": "Prefrontal 810nm pulsed 40Hz transcranial PBM for mild cognitive impairment. Grade A. 3–5x/week, 6–12 weeks.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "pbm",
+       "40Hz",
+       "clinical",
+       "cognition"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 600
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "810nm",
+         "irradianceMWcm2": 285,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Frontal Left",
+          "Frontal Right"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Mild Cognitive Impairment"
+      ],
+      "references": [
+       {
+        "label": "Papi 2022 — sham-controlled, 850nm, 400 mW, 0.285 W/cm², 10 min, 5 sessions, MMSE 18→27. THIS protocol's source trial: the ONLY §2 trial that states an irradiance.",
+        "url": "docs/pbm_neuro_protocols.md#2-mild-cognitive-impairment-mci--grade-a"
+       },
+       {
+        "label": "PBM protocol database §2 — MCI (Grade A), section-level bands 0.02–0.3 W/cm², 7–60 J/cm², 6–20 min",
+        "url": "docs/pbm_neuro_protocols.md#2-mild-cognitive-impairment-mci--grade-a"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-03-pbm-alzheimers-1064.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000003-0000-0000-0000-000000000000",
+      "name": "PBM — Alzheimer's 1064nm (deep-cortical channel)",
+      "description": "Whole-vault 1064nm PBM for Alzheimer's / dementia, targeting §1's 1060–1080nm band (Qi/Nizamutdinov 2021: 1060–1080nm, 6 min twice daily, 108 sessions/56 d, MMSE +4.8). RE-AUTHORED 2026-08-26 from the §3 cognitive-enhancement target, which was 8.9× beyond this channel's reach; §1's band is the nearer target OI-HEXTILE-21 identifies. STILL NOT EVIDENCE-GRADE and still not reachable — the shortfall narrows, it does not close. See the notes on the modality block for the exact figures.",
+      "author": "NeurOne",
+      "version": "2.0",
+      "tags": [
+       "pbm",
+       "1064nm",
+       "clinical",
+       "alzheimers"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 360
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "1064nm",
+         "irradianceMWcm2": 100,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100,
+         "zoneRefs": [
+          "Vault (excl. Occipital)"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Alzheimer's Disease",
+       "Dementia"
+      ],
+      "references": [
+       {
+        "label": "Qi / Nizamutdinov 2021 — double-blind, n=60, 1060–1080nm, 6 min twice daily, 108 sessions/56 d, MMSE +4.8. THIS protocol's source trial: the only §1 trial in the 1060–1080nm band. NOTE: it states no irradiance, so the target below comes from §1's section-level band, not from the trial.",
+        "url": "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"
+       },
+       {
+        "label": "PBM protocol database §1 — Alzheimer's / dementia (Grade A), section bands 0.1–0.3 W/cm², 20–75 J/cm², CW acceptable at 1060nm",
+        "url": "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"
+       },
+       {
+        "label": "OI-HEXTILE-21 — the 1064nm irradiance wall and the proposal to claim against the AD band rather than the cognitive one",
+        "url": "docs/np_hw_hextile_001.md"
+       },
+       {
+        "label": "Lateralization decision + optical model (retained from Rev 1.1 — no longer load-bearing now the target is whole-vault)",
+        "url": "docs/np_opt_psf_001.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-04-pbm-depression-cassano.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000004-0000-0000-0000-000000000000",
+      "name": "PBM — Depression (Cassano 2018, low-irradiance CW)",
+      "description": "Bilateral DLPFC 823nm PBM for major depressive disorder at the parameters of Cassano 2018 (double-blind RCT, n=21): 36 mW/cm² continuous wave, up to 65 J/cm², 20–30 min, 16 sessions over 8 weeks; HAM-D effect size 0.9–1.5. Grade B. This is the LOW-IRRADIANCE arm of the §4 evidence — the section's 0.03–0.25 W/cm² band is two trials seven-fold apart, and this is the 0.03 end. See the Schiffer 2009 protocol for the other.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "pbm",
+       "clinical",
+       "depression",
+       "dlpfc",
+       "cw",
+       "cassano2018"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1800
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "823nm",
+         "irradianceMWcm2": 36,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100,
+         "zoneRefs": [
+          "Frontal Left",
+          "Frontal Right"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Major Depressive Disorder"
+      ],
+      "references": [
+       {
+        "label": "Cassano 2018 — double-blind RCT, n=21, 823nm CW, 36 mW/cm², up to 65 J/cm², 20–30 min, 16 sessions/8 wk, HAM-D ES 0.9–1.5. THIS protocol's source trial.",
+        "url": "https://doi.org/10.1089/photob.2018"
+       },
+       {
+        "label": "PBM protocol database §4 — Depression (Grade B), section-level bands 0.03–0.25 W/cm², dose target ≥60 J/cm²/site",
+        "url": "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-04-pbm-depression-schiffer.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000052-0000-0000-0000-000000000000",
+      "name": "PBM — Depression (Schiffer 2009, high-irradiance)",
+      "description": "Single-session 810nm PBM for major depression, as Schiffer 2009 ran it (open pilot, n=10): an LED cluster, continuous wave, 250 mW/cm², 4 min at F3 and then 4 min at F4, 60 J/cm² per site. This is the HIGH-IRRADIANCE arm of the §4 evidence, seven times Cassano 2018; see that protocol for the other end. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 250 mW/cm² CW is inside the time-averaged ceiling at 808nm (≈329, CLAUDE.md §3, OI-HEXTILE-32 closed).",
+      "author": "NeurOne",
+      "version": "2.0",
+      "tags": [
+       "pbm",
+       "clinical",
+       "depression",
+       "dlpfc",
+       "cw",
+       "schiffer2009"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 480
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "810nm",
+         "irradianceMWcm2": 250,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100,
+         "zoneRefs": [
+          "Frontal Left"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 240,
+         "intervalOffSeconds": 0,
+         "repeatCount": 1
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "810nm",
+         "irradianceMWcm2": 250,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100,
+         "zoneRefs": [
+          "Frontal Right"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 240,
+         "intervalOffSeconds": 0,
+         "repeatCount": 1,
+         "startOffsetSeconds": 240
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Major Depressive Disorder"
+      ],
+      "references": [
+       {
+        "label": "Schiffer F et al. 2009, Behav Brain Funct 5:46 — open pilot, n=10, single treatment; 810nm LED cluster, CW, 250 mW/cm², 4 min at F3 then 4 min at F4, 60 J/cm² per site. THIS protocol's source.",
+        "url": "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"
+       },
+       {
+        "label": "PBM protocol database §4 — Depression (Grade B), section-level bands 0.03–0.25 W/cm², dose target ≥60 J/cm²/site",
+        "url": "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-05-pbm-anxiety-maiello.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000005-0000-0000-0000-000000000000",
+      "name": "PBM — Anxiety (Maiello 2019, low-irradiance CW)",
+      "description": "Bilateral prefrontal 830nm PBM for generalized anxiety, at the parameters of Maiello 2019 (open-label, n=15): 30 mW/cm² continuous wave, 36 J/cm², 20 min, daily for 8 weeks; SIGH-A 17.3→8.5, d=1.47. Grade B. This is the LOW-IRRADIANCE arm of the §5 evidence — the section's 0.03–0.31 W/cm² band is not a range one protocol occupies, it is two trials an order of magnitude apart, and this is the 0.03 end. See the Wang 2023 protocol for the other.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "pbm",
+       "clinical",
+       "anxiety",
+       "cw",
+       "maiello2019"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "830nm",
+         "irradianceMWcm2": 30,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100,
+         "zoneRefs": [
+          "Frontal Left",
+          "Frontal Right"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Generalized Anxiety Disorder"
+      ],
+      "references": [
+       {
+        "label": "Maiello 2019 — open-label, n=15, 830nm, 30 mW/cm² CW, 36 J/cm², 20 min daily 8 wk, SIGH-A 17.3→8.5 (d=1.47). THIS protocol's source trial.",
+        "url": "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"
+       },
+       {
+        "label": "PBM protocol database §5 — Anxiety / GAD (Grade B), section-level parameter bands",
+        "url": "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-05-pbm-anxiety-wang.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000051-0000-0000-0000-000000000000",
+      "name": "PBM — Anxiety (Wang 2023, high-irradiance)",
+      "description": "820nm PBM to the left DLPFC for generalized anxiety, as Wang 2023 ran it (double-blind sham-controlled RCT, n=36, 33 analysed): a continuous-wave laser at 310 mW/cm², a 1 cm spot at F5, four 4-minute exposures a day 5 minutes apart, on 14 consecutive days. HAMA fell more than sham (p=0.021) and stayed lower at 8 weeks; HAMA response 11/16 active vs 2/17 sham. Grade B. One session here is one day of that course; the 14-day schedule is the user's to keep, since the language has no course field. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 310 mW/cm² CW is inside the time-averaged ceiling at 820nm (≈348, CLAUDE.md §3).",
+      "author": "NeurOne",
+      "version": "2.1",
+      "tags": [
+       "pbm",
+       "clinical",
+       "anxiety",
+       "dlpfc",
+       "cw",
+       "wang2023"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1860
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "820nm",
+         "irradianceMWcm2": 310,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100,
+         "zoneRefs": [
+          "Frontal Left (excl. midline)"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 240,
+         "intervalOffSeconds": 300,
+         "repeatCount": 4
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Generalized Anxiety Disorder"
+      ],
+      "references": [
+       {
+        "label": "Wang H, Song P et al. 2023, Brain Res Bull 200:110682, doi:10.1016/j.brainresbull.2023.110682 — double-blind sham-controlled RCT, n=36 (16 active and 17 sham completed); 820nm diverging continuous laser, 310 mW/cm², 1 cm diameter spot at F5 (left DLPFC); 4 × 4 min daily at 5-min intervals, 16 min/day, 14 consecutive days; HAMA reduced vs sham (p=0.021), sustained to the 8-week follow-up. THIS protocol's source (§2.2 of the paper).",
+        "url": "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"
+       },
+       {
+        "label": "PBM protocol database §5 — Anxiety / GAD (Grade B)",
+        "url": "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-06-pbm-tbi.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000006-0000-0000-0000-000000000000",
+      "name": "PBM — TBI (chronic) + Intranasal (Naeser 2011/2014)",
+      "description": "Multi-site scalp 810nm PBM plus bilateral intranasal for chronic traumatic brain injury / post-concussion syndrome. Grade B. 3x/week, 6+ weeks. Chronic > acute.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "pbm",
+       "clinical",
+       "tbi"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 600
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "810nm",
+         "irradianceMWcm2": 22,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100,
+         "zoneRefs": [
+          "Vault (excl. Occipital)"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_intranasal",
+        "enabled": true,
+        "params": {
+         "wavelength": "660nm",
+         "irradianceMWcm2": 60,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_intranasal",
+        "enabled": true,
+        "params": {
+         "wavelength": "808nm",
+         "irradianceMWcm2": 60,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Traumatic Brain Injury",
+       "Post-Concussion Syndrome"
+      ],
+      "references": [
+       {
+        "label": "Naeser 2011/2014 — case series / single-arm, 633+870nm CW, 22 mW/cm², 13 J/cm², transcranial + bilateral intranasal, 3×/wk, executive-function gains. THIS protocol's source trial: the §6 trial whose 633+870nm pairing matches the T1-A tile's own two channels.",
+        "url": "docs/pbm_neuro_protocols.md#6-traumatic-brain-injury-chronic--post-concussion-syndrome--grade-b"
+       },
+       {
+        "label": "PBM protocol database §6 — TBI chronic / post-concussion (Grade B), section-level bands 0.02–0.25 W/cm², 10–120 J/cm², 10–20 min",
+        "url": "docs/pbm_neuro_protocols.md#6-traumatic-brain-injury-chronic--post-concussion-syndrome--grade-b"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-07-pbm-autism.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000007-0000-0000-0000-000000000000",
+      "name": "PBM — Autism (pediatric, 40Hz)",
+      "description": "Low-power 850nm pulsed 40Hz over temporal + posterior sites for pediatric autism spectrum disorder. Grade B. 2x/week, 8 weeks. Conservative pediatric dosing — titrate for tolerability.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "pbm",
+       "40Hz",
+       "clinical",
+       "autism",
+       "pediatric"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 360
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "850nm",
+         "irradianceMWcm2": 80.6,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Temporal Left",
+          "Temporal Right"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Autism Spectrum Disorder"
+      ],
+      "references": [
+       {
+        "label": "PBM protocol database §7 (Grade B)",
+        "url": "docs/pbm_neuro_protocols.md#7-autism-spectrum-disorder-pediatric--grade-b"
+       },
+       {
+        "label": "Fradkin 2024 DB RCT",
+        "url": "docs/pbm_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-08-pbm-parkinsons.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000008-0000-0000-0000-000000000000",
+      "name": "PBM — Parkinson's (transcranial)",
+      "description": "Transcranial 810 + 660nm PBM over motor/midline for Parkinson's disease. Grade C. Daily / 6x week, ≥12 weeks. NOTE: the evidence pairs head PBM with NECK (vagus) and ABDOMEN (gut) light — those peripheral sites are NOT NeurOne device functions; this preset is the transcranial channel only.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "pbm",
+       "clinical",
+       "parkinsons"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "810nm",
+         "irradianceMWcm2": 201.5,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Motor / SMA"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "660nm",
+         "irradianceMWcm2": 201.5,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Motor / SMA"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Parkinson's Disease"
+      ],
+      "references": [
+       {
+        "label": "PBM protocol database §8 (Grade C)",
+        "url": "docs/pbm_neuro_protocols.md#8-parkinsons-disease--grade-c"
+       },
+       {
+        "label": "Liebert 2021/2024 (gut-brain + transcranial)",
+        "url": "docs/pbm_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-09-pbm-stroke-rehab.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000009-0000-0000-0000-000000000000",
+      "name": "PBM — Stroke (chronic rehab)",
+      "description": "Perilesional + midline 810nm transcranial PBM plus intranasal for chronic post-stroke rehab, paired with physical/speech therapy. Grade C. 3x/week. Do NOT use for acute stroke (documented null; contraindicated as monotherapy).",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "pbm",
+       "clinical",
+       "stroke"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 900
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "clinician_selected",
+         "wavelength": "810nm",
+         "irradianceMWcm2": 20,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100,
+         "zoneRefs": [
+          "All"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_intranasal",
+        "enabled": true,
+        "params": {
+         "wavelength": "660nm",
+         "irradianceMWcm2": 50,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_intranasal",
+        "enabled": true,
+        "params": {
+         "wavelength": "808nm",
+         "irradianceMWcm2": 50,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Stroke"
+      ],
+      "references": [
+       {
+        "label": "PBM protocol database §9 (Grade C, chronic)",
+        "url": "docs/pbm_neuro_protocols.md#9-stroke--grade-c-chronic-rehab--avoid-acute"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-10-tms-depression.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000010-0000-0000-0000-000000000000",
+      "name": "TMS — Depression (L-DLPFC 10Hz)",
+      "description": "Figure-8 rTMS, left DLPFC, 10Hz, 120% RMT, 3000 pulses. FDA-cleared workhorse for MDD. Grade A. 20–30 sessions over 4–6 weeks.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tms",
+       "clinical",
+       "depression",
+       "t2"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 2220
+      },
+      "modalities": [
+       {
+        "type": "tms",
+        "enabled": true,
+        "params": {
+         "tmsProtocol": "rTMS",
+         "frequencyHz": 10,
+         "intensityPercentMT": 120,
+         "target": "DLPFC_L",
+         "pulseCount": 3000
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Major Depressive Disorder"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §1 TMS (Grade A)",
+        "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
+       },
+       {
+        "label": "O'Reardon 2007; George 2010",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-11-tms-depression-itbs.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000011-0000-0000-0000-000000000000",
+      "name": "TMS — Depression Accelerated (iTBS)",
+      "description": "Figure-8 intermittent theta-burst (iTBS), left DLPFC, 90% rMT, 1800 pulses — accelerated SAINT/SNT-style dosing. Grade A. Multiple sessions/day.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tms",
+       "itbs",
+       "clinical",
+       "depression",
+       "t2"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 600
+      },
+      "modalities": [
+       {
+        "type": "tms",
+        "enabled": true,
+        "params": {
+         "tmsProtocol": "iTBS",
+         "frequencyHz": 50,
+         "intensityPercentMT": 90,
+         "target": "DLPFC_L",
+         "pulseCount": 1800
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Major Depressive Disorder"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §1 TMS accelerated",
+        "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
+       },
+       {
+        "label": "Cole 2022 SAINT",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-12-tms-pain.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000012-0000-0000-0000-000000000000",
+      "name": "TMS — Chronic / Neuropathic Pain (M1)",
+      "description": "Figure-8 HF rTMS over M1 (somatotopic, contralateral), 80–90% RMT, 1500–2000 pulses. Level A recommendation. Grade A. Repeated sessions.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tms",
+       "clinical",
+       "pain",
+       "t2"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "tms",
+        "enabled": true,
+        "params": {
+         "tmsProtocol": "rTMS",
+         "frequencyHz": 10,
+         "intensityPercentMT": 85,
+         "target": "M1_R",
+         "pulseCount": 2000
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Neuropathic Pain",
+       "Chronic Pain"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §1 TMS pain (Grade A)",
+        "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
+       },
+       {
+        "label": "Lefaucheur 2008/2020",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-13-tms-migraine-prophylaxis.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000013-0000-0000-0000-000000000000",
+      "name": "TMS — Migraine Prophylaxis (M1)",
+      "description": "Figure-8 HF rTMS over M1, 10Hz, 600 pulses, for migraine prevention. Grade B.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tms",
+       "clinical",
+       "migraine",
+       "t2"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 600
+      },
+      "modalities": [
+       {
+        "type": "tms",
+        "enabled": true,
+        "params": {
+         "tmsProtocol": "rTMS",
+         "frequencyHz": 10,
+         "intensityPercentMT": 85,
+         "target": "M1_L",
+         "pulseCount": 600
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Migraine"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §1 TMS migraine (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-14-tms-ptsd.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000014-0000-0000-0000-000000000000",
+      "name": "TMS — PTSD (R-DLPFC)",
+      "description": "Figure-8 rTMS over right DLPFC (1 Hz or HF), augmenting exposure/CPT therapy. Grade B. 10–15 sessions.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tms",
+       "clinical",
+       "ptsd",
+       "t2"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "tms",
+        "enabled": true,
+        "params": {
+         "tmsProtocol": "rTMS",
+         "frequencyHz": 1,
+         "intensityPercentMT": 100,
+         "target": "DLPFC_R",
+         "pulseCount": 1200
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Post-Traumatic Stress Disorder"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §1 TMS PTSD (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-15-tms-stroke-motor.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000015-0000-0000-0000-000000000000",
+      "name": "TMS — Stroke Motor (contralesional M1)",
+      "description": "Figure-8 1Hz inhibitory rTMS over contralesional M1, adjunct to rehab. Grade B. 5–10 sessions + rehab.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tms",
+       "clinical",
+       "stroke",
+       "t2"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 900
+      },
+      "modalities": [
+       {
+        "type": "tms",
+        "enabled": true,
+        "params": {
+         "tmsProtocol": "rTMS",
+         "frequencyHz": 1,
+         "intensityPercentMT": 100,
+         "target": "M1_R",
+         "pulseCount": 1200
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Stroke"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §1 TMS stroke (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-16-tms-parkinsons.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000016-0000-0000-0000-000000000000",
+      "name": "TMS — Parkinson's Motor (M1)",
+      "description": "Figure-8 HF rTMS over bilateral M1, 5–25Hz, 90–110% RMT, 1000 pulses, for PD motor symptoms. Grade B. ≥8 sessions.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tms",
+       "clinical",
+       "parkinsons",
+       "t2"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 900
+      },
+      "modalities": [
+       {
+        "type": "tms",
+        "enabled": true,
+        "params": {
+         "tmsProtocol": "rTMS",
+         "frequencyHz": 10,
+         "intensityPercentMT": 100,
+         "target": "M1_L",
+         "pulseCount": 1000
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Parkinson's Disease"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §1 TMS PD (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-17-tms-fibromyalgia.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000017-0000-0000-0000-000000000000",
+      "name": "TMS — Fibromyalgia (L-M1)",
+      "description": "Figure-8 rTMS over left M1, 10Hz, 80% RMT, 1500–2000 pulses. Grade B. 10 sessions + maintenance.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tms",
+       "clinical",
+       "fibromyalgia",
+       "t2"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "tms",
+        "enabled": true,
+        "params": {
+         "tmsProtocol": "rTMS",
+         "frequencyHz": 10,
+         "intensityPercentMT": 80,
+         "target": "M1_L",
+         "pulseCount": 1800
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Fibromyalgia"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §1 TMS fibromyalgia (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-18-tms-addiction.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000018-0000-0000-0000-000000000000",
+      "name": "TMS — Addiction (DLPFC)",
+      "description": "Figure-8 HF rTMS over DLPFC for substance-use craving. Grade B/C. 10+ sessions. (Deep H4 insula targeting for smoking cessation is a non-device coil.)",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tms",
+       "clinical",
+       "addiction",
+       "t2"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 900
+      },
+      "modalities": [
+       {
+        "type": "tms",
+        "enabled": true,
+        "params": {
+         "tmsProtocol": "rTMS",
+         "frequencyHz": 10,
+         "intensityPercentMT": 100,
+         "target": "DLPFC_L",
+         "pulseCount": 1500
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Substance Use Disorder"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §1 TMS addiction (Grade B/C)",
+        "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-19-vns-epilepsy.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000019-0000-0000-0000-000000000000",
+      "name": "taVNS — Epilepsy",
+      "description": "Auricular taVNS (cymba conchae), 20–30Hz, ≥1–4 h/day, for epilepsy. Grade B (taVNS) / A (implanted reference). Efficacy accrues over months.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "vns",
+       "tavns",
+       "clinical",
+       "epilepsy"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 3600
+      },
+      "modalities": [
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 25,
+         "intensityMilliamps": 1,
+         "hrvProtocol": "standalone",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Epilepsy"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §2 VNS epilepsy",
+        "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
+       },
+       {
+        "label": "Rong 2014",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-20-vns-depression.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000020-0000-0000-0000-000000000000",
+      "name": "taVNS — Depression",
+      "description": "Auricular taVNS (cymba conchae), 20Hz, 4–6mA to tolerance, 30 min twice daily, 8–12 weeks, for MDD. Grade B (taVNS). Chronic therapy — judged over months.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "vns",
+       "tavns",
+       "clinical",
+       "depression"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1800
+      },
+      "modalities": [
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 20,
+         "intensityMilliamps": 1.5,
+         "hrvProtocol": "standalone",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Major Depressive Disorder"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §2 VNS depression",
+        "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
+       },
+       {
+        "label": "Rong 2016; Song 2024",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-21-vns-stroke-rehab.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000021-0000-0000-0000-000000000000",
+      "name": "taVNS — Stroke Motor Rehab (paired)",
+      "description": "Auricular taVNS paired to rehab movements, 30Hz, for post-stroke motor recovery (non-invasive analogue of Vivistim). Grade A (paired). 6 weeks clinic + home.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "vns",
+       "tavns",
+       "clinical",
+       "stroke",
+       "paired"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1800
+      },
+      "modalities": [
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 30,
+         "intensityMilliamps": 0.8,
+         "hrvProtocol": "standalone",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Stroke"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §2 VNS stroke (Grade A paired)",
+        "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
+       },
+       {
+        "label": "Dawson 2021 VNS-REHAB",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-22-vns-anxiety.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000022-0000-0000-0000-000000000000",
+      "name": "taVNS — Anxiety",
+      "description": "Auricular taVNS (cymba conchae), 20Hz, 4–6mA, 30 min x2/day, 8 weeks, for generalized anxiety. Grade B.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "vns",
+       "tavns",
+       "clinical",
+       "anxiety"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1800
+      },
+      "modalities": [
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 20,
+         "intensityMilliamps": 1.5,
+         "hrvProtocol": "standalone",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Generalized Anxiety Disorder"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §2 VNS anxiety (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-23-vns-insomnia.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000023-0000-0000-0000-000000000000",
+      "name": "taVNS — Insomnia",
+      "description": "Auricular taVNS (cymba conchae), 20Hz, 30 min x2/day, 8 weeks, improving PSQI. Grade B.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "vns",
+       "tavns",
+       "clinical",
+       "insomnia",
+       "sleep"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1800
+      },
+      "modalities": [
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 20,
+         "intensityMilliamps": 1.5,
+         "hrvProtocol": "standalone",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Insomnia"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §2 VNS insomnia (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-24-vns-ptsd.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000024-0000-0000-0000-000000000000",
+      "name": "taVNS — PTSD (extinction-paired)",
+      "description": "Auricular taVNS (concha), 25Hz, paired to fear-extinction trials, enhancing extinction memory. Grade B (paired).",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "vns",
+       "tavns",
+       "clinical",
+       "ptsd",
+       "paired"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 25,
+         "intensityMilliamps": 0.5,
+         "hrvProtocol": "standalone",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Post-Traumatic Stress Disorder"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §2 VNS PTSD (Grade B paired)",
+        "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-25-vns-hrv-autonomic.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000025-0000-0000-0000-000000000000",
+      "name": "taVNS + HRV — Autonomic Balance",
+      "description": "Auricular taVNS synchronized with HRV coherence biofeedback (respiration-gated) to raise HRV and parasympathetic tone. Grade B (mechanistic). The backbone of the VNS+HRV clip.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "vns",
+       "tavns",
+       "hrv",
+       "clinical",
+       "autonomic"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 25,
+         "intensityMilliamps": 1,
+         "hrvProtocol": "tavns_sync",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Generalized Anxiety Disorder"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §2 VNS autonomic/HRV (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
+       },
+       {
+        "label": "Clancy 2014; Sclocco 2019",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-26-tcvns-migraine.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000026-0000-0000-0000-000000000000",
+      "name": "tcVNS — Migraine / Cluster (cervical)",
+      "description": "T2 cervical accessory (tcVNS), 25Hz in 5kHz bursts, 120s doses, for acute + preventive migraine and cluster headache (gammaCore predicate). Grade A.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "vns",
+       "tcvns",
+       "clinical",
+       "migraine",
+       "t2"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 120
+      },
+      "modalities": [
+       {
+        "type": "cervical_vns",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 25,
+         "intensityMilliamps": 1.5
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Migraine",
+       "Cluster Headache"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §2 VNS migraine (Grade A tcVNS)",
+        "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
+       },
+       {
+        "label": "gammaCore ACT1/ACT2/PRESTO",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-27-vns-migraine-prophylaxis.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000027-0000-0000-0000-000000000000",
+      "name": "taVNS — Migraine Prophylaxis (1Hz)",
+      "description": "Auricular taVNS (cymba conchae) at 1Hz (note: NOT 25Hz) for migraine prevention — frequency is condition-specific. Grade B. 12 weeks.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "vns",
+       "tavns",
+       "clinical",
+       "migraine"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1800
+      },
+      "modalities": [
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 1,
+         "intensityMilliamps": 1,
+         "hrvProtocol": "standalone",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Migraine"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §2 VNS migraine taVNS (Grade B, 1Hz)",
+        "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
+       },
+       {
+        "label": "Straube 2015",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-28-vns-tinnitus.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000028-0000-0000-0000-000000000000",
+      "name": "taVNS + Tones — Tinnitus (paired)",
+      "description": "Auricular taVNS (25Hz) paired to tailored audio tones to reverse maladaptive auditory plasticity. Grade B/C. Pairing is essential. 6–12 weeks.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "vns",
+       "tavns",
+       "audio",
+       "clinical",
+       "tinnitus",
+       "paired"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1800
+      },
+      "modalities": [
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 25,
+         "intensityMilliamps": 0.8,
+         "hrvProtocol": "standalone",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 440,
+         "volumeDb": 65,
+         "eegAdaptive": false,
+         "boneConductionPacer": false,
+         "isochronicTonesHz": 8
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Tinnitus"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §2 VNS tinnitus (Grade B/C paired)",
+        "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
+       },
+       {
+        "label": "Tyler 2017",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-29-tdcs-cognition.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000029-0000-0000-0000-000000000000",
+      "name": "tDCS — Working Memory (anodal F3)",
+      "description": "Anodal tDCS over left DLPFC (F3), cathode right supraorbital, 1–2mA, applied during a working-memory task. Grade A. Effects require concurrent engagement.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tdcs",
+       "clinical",
+       "cognition"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+         "intensityMilliamps": 1.5,
+         "electrodePairs": [
+          [
+           "F3",
+           "Fp2"
+          ]
+         ],
+         "rampSeconds": 30,
+         "electrodeAreaCm2": 35
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Mild Cognitive Impairment"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §3 tDCS cognition (Grade A)",
+        "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
+       },
+       {
+        "label": "Fregni 2005",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-30-tdcs-depression.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000030-0000-0000-0000-000000000000",
+      "name": "tDCS — Depression (F3/F4)",
+      "description": "Anodal F3 / cathode F4, 2mA, 20–30 min, 10–22 sessions, as an accessible adjunct for MDD (not monotherapy). Grade B (mixed).",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tdcs",
+       "clinical",
+       "depression"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1500
+      },
+      "modalities": [
+       {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+         "intensityMilliamps": 2,
+         "electrodePairs": [
+          [
+           "F3",
+           "F4"
+          ]
+         ],
+         "rampSeconds": 30,
+         "electrodeAreaCm2": 35
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Major Depressive Disorder"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §3 tDCS depression (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
+       },
+       {
+        "label": "Brunoni 2013/2017",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-31-tdcs-pain.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000031-0000-0000-0000-000000000000",
+      "name": "tDCS — Chronic Pain / Fibromyalgia (M1)",
+      "description": "Anodal M1 (C3/C4), cathode contralateral supraorbital, 2mA, 20 min, 5–10 sessions. Grade B. M1 > DLPFC for fibromyalgia.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tdcs",
+       "clinical",
+       "pain",
+       "fibromyalgia"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+         "intensityMilliamps": 2,
+         "electrodePairs": [
+          [
+           "C3",
+           "Fp2"
+          ]
+         ],
+         "rampSeconds": 30,
+         "electrodeAreaCm2": 35
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Chronic Pain",
+       "Fibromyalgia"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §3 tDCS pain (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
+       },
+       {
+        "label": "Fregni 2006; Valle 2009",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-32-tdcs-stroke-rehab.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000032-0000-0000-0000-000000000000",
+      "name": "tDCS — Stroke Motor Rehab (M1)",
+      "description": "Anodal ipsilesional M1 (or dual montage), 1–2mA, 20–40 min, paired with rehab/CIMT. Grade B. Weak alone.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tdcs",
+       "clinical",
+       "stroke"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+         "intensityMilliamps": 2,
+         "electrodePairs": [
+          [
+           "C3",
+           "C4"
+          ]
+         ],
+         "rampSeconds": 30,
+         "electrodeAreaCm2": 35
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Stroke"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §3 tDCS stroke (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
+       },
+       {
+        "label": "Lindenberg 2010",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-33-tdcs-aphasia.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000033-0000-0000-0000-000000000000",
+      "name": "tDCS — Post-Stroke Aphasia (L-IFG)",
+      "description": "Anodal left IFG / perilesional, cathode right supraorbital, 1mA, 20 min, up to 15 sessions, + speech therapy. Grade B.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tdcs",
+       "clinical",
+       "aphasia",
+       "stroke"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+         "intensityMilliamps": 1,
+         "electrodePairs": [
+          [
+           "F7",
+           "Fp2"
+          ]
+         ],
+         "rampSeconds": 30,
+         "electrodeAreaCm2": 35
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Aphasia",
+       "Stroke"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §3 tDCS aphasia (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
+       },
+       {
+        "label": "Fridriksson 2018",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-34-tdcs-schizophrenia.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000034-0000-0000-0000-000000000000",
+      "name": "tDCS — Schizophrenia (hallucinations)",
+      "description": "Anode left DLPFC (F3) + cathode left temporoparietal, 2mA, 20 min x2/day, 10 sessions, for auditory hallucinations. Grade B.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tdcs",
+       "clinical",
+       "schizophrenia"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+         "intensityMilliamps": 2,
+         "electrodePairs": [
+          [
+           "F3",
+           "TP3"
+          ]
+         ],
+         "rampSeconds": 30,
+         "electrodeAreaCm2": 35
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Schizophrenia"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §3 tDCS schizophrenia (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
+       },
+       {
+        "label": "Brunelin 2012",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-35-tdcs-addiction.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000035-0000-0000-0000-000000000000",
+      "name": "tDCS — Addiction / Craving (bilateral DLPFC)",
+      "description": "Bilateral DLPFC, right-anodal / left-cathodal, 2mA, 20 min, reducing craving across substances. Grade B. Repeated sessions for durability.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tdcs",
+       "clinical",
+       "addiction"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+         "intensityMilliamps": 2,
+         "electrodePairs": [
+          [
+           "F4",
+           "F3"
+          ]
+         ],
+         "rampSeconds": 30,
+         "electrodeAreaCm2": 35
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Substance Use Disorder"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §3 tDCS addiction (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
+       },
+       {
+        "label": "Klauss 2014",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-36-tdcs-epilepsy.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000036-0000-0000-0000-000000000000",
+      "name": "tDCS — Epilepsy (cathodal focus)",
+      "description": "Uniquely CATHODAL (inhibitory) over the epileptogenic focus, anode contralateral, 1–2mA, 20–30 min, reducing seizures. Grade B.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tdcs",
+       "clinical",
+       "epilepsy",
+       "cathodal"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+         "intensityMilliamps": 1.5,
+         "electrodePairs": [
+          [
+           "Fp2",
+           "C3"
+          ]
+         ],
+         "rampSeconds": 30,
+         "electrodeAreaCm2": 35
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Epilepsy"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §3 tDCS epilepsy (Grade B, cathodal)",
+        "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
+       },
+       {
+        "label": "Fregni 2006; San-Juan 2017",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-37-tdcs-adhd.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000037-0000-0000-0000-000000000000",
+      "name": "tDCS — ADHD (anodal F3)",
+      "description": "Anodal left DLPFC (F3) or right DLPFC (F4), 1–2mA, 20–30 min, for attention/inhibition. Grade B. Repeated dosing needed (single-session can be null).",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tdcs",
+       "clinical",
+       "adhd"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1500
+      },
+      "modalities": [
+       {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+         "intensityMilliamps": 1.5,
+         "electrodePairs": [
+          [
+           "F3",
+           "Fp2"
+          ]
+         ],
+         "rampSeconds": 30,
+         "electrodeAreaCm2": 35
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Attention Deficit Hyperactivity Disorder"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §3 tDCS ADHD (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
+       },
+       {
+        "label": "Leffa 2022",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-38-tdcs-ms-fatigue.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000038-0000-0000-0000-000000000000",
+      "name": "tDCS — MS Fatigue (S1/DLPFC)",
+      "description": "Anodal S1 (bilateral) or left DLPFC, 1.5–2mA, 15–20 min, for multiple-sclerosis fatigue. Grade B. Home/remote feasible.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tdcs",
+       "clinical",
+       "ms",
+       "fatigue"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+         "intensityMilliamps": 2,
+         "electrodePairs": [
+          [
+           "C3",
+           "Fp2"
+          ]
+         ],
+         "rampSeconds": 30,
+         "electrodeAreaCm2": 35
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Multiple Sclerosis"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §3 tDCS MS (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-39-tdcs-alzheimers.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000039-0000-0000-0000-000000000000",
+      "name": "tDCS — Alzheimer's (bilateral temporal)",
+      "description": "Anodal bilateral temporal or left DLPFC, 1.5–2mA, 15–30 min, for recognition memory. Grade C.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tdcs",
+       "clinical",
+       "alzheimers"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+         "intensityMilliamps": 2,
+         "electrodePairs": [
+          [
+           "T3",
+           "T4"
+          ]
+         ],
+         "rampSeconds": 30,
+         "electrodeAreaCm2": 35
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Alzheimer's Disease"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §3 tDCS Alzheimer's (Grade C)",
+        "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
+       },
+       {
+        "label": "Khedr 2014/2019",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-40-tdcs-parkinsons.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000040-0000-0000-0000-000000000000",
+      "name": "tDCS — Parkinson's (M1 / DLPFC)",
+      "description": "Anodal M1-leg for gait/freezing or DLPFC for executive/depression; multitarget > single. 2mA, 13–20 min. Grade C.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tdcs",
+       "clinical",
+       "parkinsons"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 900
+      },
+      "modalities": [
+       {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+         "intensityMilliamps": 2,
+         "electrodePairs": [
+          [
+           "Cz",
+           "Fp2"
+          ]
+         ],
+         "rampSeconds": 30,
+         "electrodeAreaCm2": 35
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Parkinson's Disease"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §3 tDCS PD (Grade C)",
+        "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
+       },
+       {
+        "label": "Dagan 2018",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-41-tacs-working-memory.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000041-0000-0000-0000-000000000000",
+      "name": "tACS — Working Memory (theta 6Hz)",
+      "description": "Frontoparietal theta (~6Hz) tACS delivered in-phase to improve working memory (in-phase ↑, anti-phase ↓). Grade A/B — strongest tACS evidence.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tacs",
+       "theta",
+       "clinical",
+       "cognition"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 6,
+         "intensityMilliamps": 1,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Mild Cognitive Impairment"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §4 tACS WM (Grade A/B)",
+        "url": "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"
+       },
+       {
+        "label": "Polania 2012; Reinhart 2019",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-42-tacs-fluid-intelligence.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000042-0000-0000-0000-000000000000",
+      "name": "tACS — Fluid Intelligence (gamma 40Hz)",
+      "description": "Left prefrontal 40Hz gamma tACS improving fluid reasoning. Grade B.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tacs",
+       "gamma",
+       "40Hz",
+       "clinical",
+       "cognition"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 40,
+         "intensityMilliamps": 1,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Mild Cognitive Impairment"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §4 tACS gamma (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"
+       },
+       {
+        "label": "Santarnecchi 2013",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-43-tacs-alzheimers.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000043-0000-0000-0000-000000000000",
+      "name": "tACS — Alzheimer's (gamma 40Hz)",
+      "description": "40Hz gamma tACS over temporal/temporoparietal cortex, improving episodic memory (same 40Hz gamma target as PBM/GENUS — multi-modal convergence). Grade C.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tacs",
+       "gamma",
+       "40Hz",
+       "clinical",
+       "alzheimers"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 3600
+      },
+      "modalities": [
+       {
+        "type": "clinical_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 40,
+         "intensityMilliamps": 3,
+         "channelCount": 4,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Alzheimer's Disease"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §4 tACS Alzheimer's (Grade C)",
+        "url": "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"
+       },
+       {
+        "label": "Benussi 2021",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-44-tacs-parkinsons-tremor.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000044-0000-0000-0000-000000000000",
+      "name": "tACS — Parkinson's Tremor (phase-locked)",
+      "description": "Phase-locked tACS at the tremor frequency over M1 to suppress resting tremor ~50% by phase cancellation — a closed-loop, EEG/accelerometer-driven paradigm. Grade B.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tacs",
+       "clinical",
+       "parkinsons",
+       "closed-loop"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 900
+      },
+      "modalities": [
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 5,
+         "intensityMilliamps": 1,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Parkinson's Disease"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §4 tACS PD tremor (Grade B)",
+        "url": "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"
+       },
+       {
+        "label": "Brittain 2013",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-45-tacs-depression.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000045-0000-0000-0000-000000000000",
+      "name": "tACS — Depression (alpha 10Hz)",
+      "description": "Alpha (10Hz) bifrontal tACS, 2mA, 40 min, 5+ daily sessions, reducing left-frontal alpha. Grade C.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tacs",
+       "alpha",
+       "clinical",
+       "depression"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 2400
+      },
+      "modalities": [
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 10,
+         "intensityMilliamps": 1,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Major Depressive Disorder"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §4 tACS depression (Grade C)",
+        "url": "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"
+       },
+       {
+        "label": "Alexander 2019",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-46-tacs-sleep-memory.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000046-0000-0000-0000-000000000000",
+      "name": "tACS — Sleep / Memory Consolidation (SO 0.75Hz)",
+      "description": "Slow-oscillation (0.75Hz) tACS time-locked during NREM sleep to boost spindles and declarative memory. Grade C.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tacs",
+       "sleep",
+       "clinical",
+       "memory"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1800
+      },
+      "modalities": [
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 0.75,
+         "intensityMilliamps": 0.75,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Insomnia"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §4 tACS sleep (Grade C)",
+        "url": "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"
+       },
+       {
+        "label": "Ketz 2018",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-47-tacs-schizophrenia.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000047-0000-0000-0000-000000000000",
+      "name": "tACS — Schizophrenia (alpha 10Hz)",
+      "description": "Left frontotemporal 10Hz alpha tACS, 2mA, 20 min, 5 daily sessions, trending to reduced hallucinations. Grade C.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tacs",
+       "alpha",
+       "clinical",
+       "schizophrenia"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 10,
+         "intensityMilliamps": 1,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Schizophrenia"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §4 tACS schizophrenia (Grade C)",
+        "url": "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"
+       },
+       {
+        "label": "Mellin 2018",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-48-tacs-adhd.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000048-0000-0000-0000-000000000000",
+      "name": "tACS — ADHD (gamma 40Hz)",
+      "description": "Frontal 40Hz gamma tACS improving attention. Grade C (pilot).",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tacs",
+       "gamma",
+       "40Hz",
+       "clinical",
+       "adhd"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 40,
+         "intensityMilliamps": 1,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Attention Deficit Hyperactivity Disorder"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §4 tACS ADHD (Grade C)",
+        "url": "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"
+       },
+       {
+        "label": "Dallmer-Zerbe 2020",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-49-tacs-pain.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000049-0000-0000-0000-000000000000",
+      "name": "tACS — Chronic Pain / Fibromyalgia (alpha 10Hz)",
+      "description": "S1 / somatosensory 10Hz alpha tACS, 1–2mA, 20–40 min, reducing pain sensitivity. Grade C.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tacs",
+       "alpha",
+       "clinical",
+       "pain",
+       "fibromyalgia"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 10,
+         "intensityMilliamps": 1,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Chronic Pain",
+       "Fibromyalgia"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §4 tACS pain (Grade C)",
+        "url": "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"
+       },
+       {
+        "label": "Ahn 2019",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/clinical-50-tacs-wm-restoration.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "30000050-0000-0000-0000-000000000000",
+      "name": "tACS — WM Restoration (older adults, HD)",
+      "description": "Frontotemporal HD phase-tuned individual-theta tACS restoring working memory in older adults (Reinhart & Nguyen 2019). Grade A. T2 multi-channel.",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "tacs",
+       "theta",
+       "clinical",
+       "cognition",
+       "t2"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1500
+      },
+      "modalities": [
+       {
+        "type": "clinical_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 6,
+         "intensityMilliamps": 1,
+         "channelCount": 8,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true,
+      "conditions": [
+       "Mild Cognitive Impairment"
+      ],
+      "references": [
+       {
+        "label": "Neuromod protocol database §4 tACS WM restoration (Grade A)",
+        "url": "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"
+       },
+       {
+        "label": "Reinhart & Nguyen 2019",
+        "url": "docs/neuromod_neuro_protocols.md"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "protocols/predefined/composite-01-full-rct.npps": {
+   "entries": [
+    {
+     "kind": "skipped",
+     "what": "composite"
+    }
+   ]
+  },
+  "protocols/predefined/composite-02-sleep-stack.npps": {
+   "entries": [
+    {
+     "kind": "skipped",
+     "what": "composite"
+    }
+   ]
+  },
+  "protocols/predefined/composite-03-calm-to-focus.npps": {
+   "entries": [
+    {
+     "kind": "skipped",
+     "what": "composite"
+    }
+   ]
+  },
+  "protocols/predefined/composite-04-sleep-wind-down.npps": {
+   "entries": [
+    {
+     "kind": "skipped",
+     "what": "composite"
+    }
+   ]
+  },
+  "npps/fixtures/absolute_quantities.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "90000002-0000-0000-0000-000000000000",
+      "name": "Absolute Quantities",
+      "description": "Two independent wavelengths, an intranasal block and a level in dB",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "pbm",
+       "absolute"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 600
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "660nm",
+         "irradianceMWcm2": 25,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Frontal Left"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 300,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Frontal Left"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_intranasal",
+        "enabled": true,
+        "params": {
+         "wavelength": "660nm",
+         "irradianceMWcm2": 12.5,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 440,
+         "volumeDb": 72.5,
+         "eegAdaptive": false,
+         "boneConductionPacer": false,
+         "isochronicTonesHz": 40
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true
+     }
+    }
+   ]
+  },
+  "npps/fixtures/all_t1_modalities.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "name": "All T1 Modalities",
+      "description": "All eight T1 modalities",
+      "author": "test",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1800
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 302,
+         "frequencyHz": 20,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "All"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "pbm_intranasal",
+        "enabled": true,
+        "params": {
+         "wavelength": "660nm",
+         "irradianceMWcm2": 60,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+         "channels": "all",
+         "band": "alpha",
+         "closedLoopEnabled": true
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 10,
+         "intensityMilliamps": 0.8,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+         "intensityMilliamps": 1.5,
+         "electrodePairs": [
+          [
+           "Fp1",
+           "P3"
+          ]
+         ],
+         "rampSeconds": 30,
+         "electrodeAreaCm2": 35
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 25,
+         "intensityMilliamps": 1.5,
+         "hrvProtocol": "standalone",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 440,
+         "volumeDb": 70,
+         "eegAdaptive": true,
+         "boneConductionPacer": true,
+         "binauralBeatsHz": 40,
+         "noiseType": "pink"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "visual_stimulation",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 40,
+         "mode": "binocular",
+         "emdrCadenceHz": 1,
+         "enableModeF": false
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "npps/fixtures/comments.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "00000000-0000-0000-0000-000000000002",
+      "name": "Comments Only",
+      "description": "Protocol with comments",
+      "author": "test",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 600
+      },
+      "modalities": []
+     }
+    }
+   ]
+  },
+  "npps/fixtures/composite.npps": {
+   "entries": [
+    {
+     "kind": "skipped",
+     "what": "composite"
+    }
+   ]
+  },
+  "npps/fixtures/compound_idents.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "00000000-0000-0000-0000-000000000003",
+      "name": "Quoted Wavelength",
+      "description": "Tests a quoted digit-leading wavelength value",
+      "author": "test",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 600
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "1064nm",
+         "irradianceMWcm2": 322,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "All"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "npps/fixtures/error_bare_compound_ident.npps": {
+   "error": "Line 8: Unquoted value '660_808nm' — values that start with a digit and are not a plain number must be quoted, e.g. \"660_808nm\""
+  },
+  "npps/fixtures/error_bare_hyphenated_ident.npps": {
+   "error": "Line 4: Unexpected character: -"
+  },
+  "npps/fixtures/error_bare_montage.npps": {
+   "error": "Line 9: Unquoted value '10-20' — values that start with a digit and are not a plain number must be quoted, e.g. \"10-20\""
+  },
+  "npps/fixtures/error_combined_wavelength.npps": {
+   "error": "Line 9: pbm_transcranial: wavelength \"660_808nm\" is retired: it welded independent emitters into one block. Write one block per wavelength (\"660nm\" and \"808nm\"), each with its own irradiance_mw_cm2."
+  },
+  "npps/fixtures/error_cw_with_duty.npps": {
+   "error": "Line 11: pbm_transcranial: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 25%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
+  },
+  "npps/fixtures/error_missing_irradiance.npps": {
+   "error": "Line 8: pbm_transcranial: irradiance (e.g. irradiance: 300mW_cm2) is required and must be positive"
+  },
+  "npps/fixtures/error_old_format.npps": {
+   "error": "Line 3: Expected protocol name string, got LBRACE"
+  },
+  "npps/fixtures/error_percent_intensity.npps": {
+   "error": "Line 7: pbm_transcranial: 'intensity' is a percentage of a baseline the hardware owns and can change, so it does not state the stimulus. state irradiance in mW/cm², e.g. irradiance: 300mW_cm2 (NP-NPPS-REF-001 §4.1b)."
+  },
+  "npps/fixtures/error_percent_volume.npps": {
+   "error": "Line 7: audio_entrainment: volume in % is refused — state it in dB"
+  },
+  "npps/fixtures/error_unitless_irradiance.npps": {
+   "error": "Line 7: pbm_transcranial: irradiance needs its unit written (irradiance: 300mW_cm2); a bare number does not say what it measures"
+  },
+  "npps/fixtures/gamma_focus.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "10000001-0000-0000-0000-000000000000",
+      "name": "Gamma Focus",
+      "description": "40Hz multi-sensory protocol",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "focus",
+       "gamma"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 1200
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 322,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "All"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 440,
+         "volumeDb": 75,
+         "eegAdaptive": false,
+         "boneConductionPacer": false,
+         "binauralBeatsHz": 40
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       },
+       {
+        "type": "visual_stimulation",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 40,
+         "mode": "binocular",
+         "emdrCadenceHz": 1,
+         "enableModeF": false
+        },
+        "interval": {
+         "intervalOnSeconds": 60,
+         "intervalOffSeconds": 30
+        }
+       },
+       {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+         "channels": "all",
+         "band": "gamma",
+         "closedLoopEnabled": true
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ],
+      "isReadOnly": true
+     }
+    }
+   ]
+  },
+  "npps/fixtures/hyphenated_tags.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "00000000-0000-0000-0000-000000000004",
+      "name": "Hyphenated Tags",
+      "description": "Tests quoted hyphenated tag parsing",
+      "author": "test",
+      "version": "1.0",
+      "tags": [
+       "wind-down",
+       "all-modalities",
+       "deep-sleep"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 900
+      },
+      "modalities": [
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 200,
+         "volumeDb": 65,
+         "eegAdaptive": false,
+         "boneConductionPacer": false,
+         "binauralBeatsHz": 4,
+         "noiseType": "brown"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "npps/fixtures/per_wavelength_series.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "90000001-0000-0000-0000-000000000000",
+      "name": "Per-Wavelength Series",
+      "description": "Two 810nm blocks, one after the other",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [
+       "pbm",
+       "series"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 480
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "810nm",
+         "irradianceMWcm2": 250,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100,
+         "zoneRefs": [
+          "Frontal Left"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 240,
+         "intervalOffSeconds": 0,
+         "repeatCount": 1
+        }
+       },
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "810nm",
+         "irradianceMWcm2": 250,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100,
+         "zoneRefs": [
+          "Frontal Right"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 240,
+         "intervalOffSeconds": 0,
+         "repeatCount": 1,
+         "startOffsetSeconds": 240
+        }
+       }
+      ],
+      "isReadOnly": true
+     }
+    }
+   ]
+  },
+  "npps/fixtures/wavelength_rules.npps": {
+   "entries": []
+  }
+ },
+ "cases": {
+  "cw_with_duty": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 0Hz\n    duty_cycle: 25%\n  }\n}\n",
+   "error": "Line 8: pbm_transcranial: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 25%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
+  },
+  "cw_deep_with_duty": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_deep_1170nm {\n    intensity_mw_cm2: 500\n    frequency: 0\n    duty_cycle: 50%\n  }\n}\n",
+   "error": "Line 7: pbm_deep_1170nm: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 50%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
+  },
+  "cw_intranasal_with_duty": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_intranasal {\n    wavelength: \"660nm\"\n    irradiance: 30mW_cm2\n    frequency: 0\n    duty_cycle: 50%\n  }\n}\n",
+   "error": "Line 8: pbm_intranasal: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 50%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
+  },
+  "percent_irradiance": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    intensity: 80%\n  }\n}\n",
+   "error": "Line 6: pbm_transcranial: 'intensity' is a percentage of a baseline the hardware owns and can change, so it does not state the stimulus. state irradiance in mW/cm², e.g. irradiance: 300mW_cm2 (NP-NPPS-REF-001 §4.1b)."
+  },
+  "deep_has_no_intensity": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_deep_1170nm {\n    intensity: 500\n  }\n}\n",
+   "error": "Line 5: pbm_deep_1170nm: 'intensity' is not a field of this modality"
+  },
+  "unitless_volume": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  audio_entrainment {\n    volume: 70\n  }\n}\n",
+   "error": "Line 4: audio_entrainment: volume needs its unit written (volume: 70dB); a bare number does not say what it measures"
+  },
+  "percent_volume": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  audio_entrainment {\n    volume: 70%\n  }\n}\n",
+   "error": "Line 4: audio_entrainment: volume in % is refused — state it in dB"
+  },
+  "wrong_unit_irradiance": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    irradiance: 12mA\n  }\n}\n",
+   "error": "Line 6: pbm_transcranial: irradiance takes mW_cm2, not mA"
+  },
+  "missing_volume": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  audio_entrainment {\n    carrier_hz: 440\n  }\n}\n",
+   "error": "Line 5: audio_entrainment: volume in dB SPL (e.g. volume: 72dB) is required and must be positive"
+  },
+  "retired_wavelength": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"660_808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n",
+   "error": "Line 6: pbm_transcranial: wavelength \"660_808nm\" is retired: it welded independent emitters into one block. Write one block per wavelength (\"660nm\" and \"808nm\"), each with its own irradiance_mw_cm2."
+  },
+  "missing_wavelength": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    irradiance: 100mW_cm2\n  }\n}\n",
+   "error": "Line 5: pbm_transcranial: wavelength is required, one value per block, e.g. wavelength: \"810nm\""
+  },
+  "empty_zones": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: []\n  }\n}\n",
+   "error": "Line 7: pbm_transcranial: zones: [] names no zone — a session cannot target nothing"
+  },
+  "bad_zone_selector": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: everything\n  }\n}\n",
+   "error": "Line 7: pbm_transcranial: unknown zone selector 'everything'. zones must be a list of quoted zone names (e.g. zones: [\"Frontal\"]) or clinician_selected"
+  },
+  "unknown_modality": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  hologram {\n    x: 1\n  }\n}\n",
+   "error": "Line 5: Unknown modality block type: 'hologram'"
+  },
+  "intensity_on_unknown_field": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  eeg_neurofeedback {\n    intensity: 1mA\n  }\n}\n",
+   "error": "Line 5: eeg_neurofeedback: 'intensity' is not a field of this modality"
+  },
+  "negative_start": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    start: -5s\n  }\n}\n",
+   "error": "Line 4: bes_tacs: start must be a duration of zero or more"
+  },
+  "unterminated_string": {
+   "source": "protocol \"T {\n}\n",
+   "error": "Line 3: Unterminated string"
+  },
+  "stray_minus": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    frequency: -\n  }\n}\n",
+   "error": "Line 4: Unexpected character: -"
+  },
+  "digit_leading": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  qeeg_21ch {\n    montage: 10-20\n  }\n}\n",
+   "error": "Line 4: Unquoted value '10-20' — values that start with a digit and are not a plain number must be quoted, e.g. \"10-20\""
+  },
+  "bad_top_level": {
+   "source": "banana \"T\" {}\n",
+   "error": "Line 1: Expected 'protocol', 'composite', 'limits', 'zone', 'condition', or 'wavelength_rules', got 'banana'"
+  },
+  "canonical_spellings": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    frequency_hz: 12\n    intensity_milliamps: 0.6\n    waveform: square\n  }\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 12,
+         "intensityMilliamps": 0.6,
+         "waveform": "square"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "alias_spellings": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    frequency: 12Hz\n    intensity: 0.6mA\n    waveform: square\n  }\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 12,
+         "intensityMilliamps": 0.6,
+         "waveform": "square"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "canonical_beats_alias": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    frequency_hz: 40\n    frequency: 10\n  }\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 40,
+         "intensityMilliamps": 0.5,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "alias_then_canonical": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    frequency: 10\n    frequency_hz: 40\n  }\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 40,
+         "intensityMilliamps": 0.5,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "cw_reads_as_full_duty": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 0Hz\n  }\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 100,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100,
+         "zoneRefs": [
+          "All"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "cw_with_full_duty": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 0Hz\n    duty_cycle: 100%\n  }\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 100,
+         "frequencyHz": 0,
+         "dutyCyclePercent": 100,
+         "zoneRefs": [
+          "All"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "pulsed": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 40Hz\n    duty_cycle: 25%\n  }\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 100,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "All"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "clinician_selected": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: clinician_selected\n  }\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "clinician_selected",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 100,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "All"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "named_zones": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: [\"Frontal Left\", \"Frontal Right\"]\n  }\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "zones": "named",
+         "wavelength": "808nm",
+         "irradianceMWcm2": 100,
+         "frequencyHz": 40,
+         "dutyCyclePercent": 25,
+         "zoneRefs": [
+          "Frontal Left",
+          "Frontal Right"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "noise_none_is_omitted": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  audio_entrainment {\n    volume: 70dB\n    noise: none\n  }\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 200,
+         "volumeDb": 70,
+         "eegAdaptive": true,
+         "boneConductionPacer": false
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "noise_pink": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  audio_entrainment {\n    volume: 70dB\n    noise: pink\n    binaural_hz: 40Hz\n  }\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+         "carrierHz": 200,
+         "volumeDb": 70,
+         "eegAdaptive": true,
+         "boneConductionPacer": false,
+         "binauralBeatsHz": 40,
+         "noiseType": "pink"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "tdcs_pairs_and_defaults": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  tdcs {\n    electrode_pairs: [[\"F3\",\"F4\"],[\"Fp1\"],[\"P3\",\"P4\"]]\n  }\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+         "intensityMilliamps": 1,
+         "electrodePairs": [
+          [
+           "F3",
+           "F4"
+          ],
+          [
+           "Fp1",
+           "Fp2"
+          ],
+          [
+           "P3",
+           "P4"
+          ]
+         ],
+         "rampSeconds": 30,
+         "electrodeAreaCm2": 35
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "eeg_custom_channels": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  eeg_neurofeedback {\n    channels: custom\n    custom_channels: [\"Cz\",\"Pz\"]\n    closed_loop: false\n  }\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+         "channels": "custom",
+         "band": "alpha",
+         "closedLoopEnabled": false,
+         "customChannels": [
+          "Cz",
+          "Pz"
+         ]
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "interval_and_start": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    interval_on: 20s\n    interval_off: 10s\n    repeat: 3\n    start: 2m\n    enabled: false\n  }\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "bes_tacs",
+        "enabled": false,
+        "params": {
+         "frequencyHz": 40,
+         "intensityMilliamps": 0.5,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 20,
+         "intervalOffSeconds": 10,
+         "repeatCount": 3,
+         "startOffsetSeconds": 120
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "repeat_until_end": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    repeat: until_end\n  }\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 40,
+         "intensityMilliamps": 0.5,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "every_modality_defaults": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_intranasal {\n    wavelength: \"660nm\"\n    irradiance: 30mW_cm2\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  eeg_neurofeedback {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  bes_tacs {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  tdcs {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  vns_hrv {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  visual_stimulation {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  qeeg_21ch {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  tms {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  clinical_tacs {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  hd_tdcs {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  cervical_vns {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  vibrotactile_40hz {\n\n  }\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "pbm_intranasal",
+        "enabled": true,
+        "params": {
+         "wavelength": "660nm",
+         "irradianceMWcm2": 30,
+         "frequencyHz": 10,
+         "dutyCyclePercent": 50
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+         "channels": "all",
+         "band": "alpha",
+         "closedLoopEnabled": true
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 40,
+         "intensityMilliamps": 0.5,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+         "intensityMilliamps": 1,
+         "electrodePairs": [
+          [
+           "Fp1",
+           "Fp2"
+          ]
+         ],
+         "rampSeconds": 30,
+         "electrodeAreaCm2": 35
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 25,
+         "intensityMilliamps": 0.5,
+         "hrvProtocol": "standalone",
+         "resonanceBreathingRate": 6
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "visual_stimulation",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 40,
+         "mode": "binocular",
+         "emdrCadenceHz": 1,
+         "enableModeF": false
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "qeeg_21ch",
+        "enabled": true,
+        "params": {
+         "montage": "standard_1020",
+         "sloretaEnabled": true,
+         "reference": "linked_ear"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "tms",
+        "enabled": true,
+        "params": {
+         "tmsProtocol": "rTMS",
+         "frequencyHz": 10,
+         "intensityPercentMT": 110,
+         "target": "DLPFC_L",
+         "pulseCount": 3000
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "clinical_tacs",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 40,
+         "intensityMilliamps": 2,
+         "channelCount": 8,
+         "waveform": "sinusoidal"
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "hd_tdcs",
+        "enabled": true,
+        "params": {
+         "target": "DLPFC_L",
+         "montage": "ring_4x1",
+         "intensityMilliamps": 1.5
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "cervical_vns",
+        "enabled": true,
+        "params": {
+         "frequencyHz": 25,
+         "intensityMilliamps": 1
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "vibrotactile_40hz",
+        "enabled": true,
+        "params": {
+         "intensityG": 0.9,
+         "syncToAudio": true,
+         "syncToVisual": true
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "deep_defaults": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_deep_1170nm {\n\n  }\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "type": "duration",
+       "seconds": 300
+      },
+      "modalities": [
+       {
+        "type": "pbm_deep_1170nm",
+        "enabled": true,
+        "params": {
+         "intensityMWcm2": 500,
+         "frequencyHz": 10,
+         "dutyCyclePercent": 50
+        },
+        "interval": {
+         "intervalOnSeconds": 0,
+         "intervalOffSeconds": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "metadata_everything": {
+   "source": "protocol \"M\" {\n  id: \"11111111-2222-3333-4444-555555555555\"\n  description: \"d\"\n  author: \"a\"\n  version: \"2\"\n  readonly: true\n  tags: [alpha, \"x y\", 40Hz]\n  interval_count: 4\n  conditions: [\"c1\", c2]\n  references: [\"http://a\", [\"L\", \"http://b\"], [\"only\"]]\n  unknown_field: [1, [2, 3]]\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "11111111-2222-3333-4444-555555555555",
+      "name": "M",
+      "description": "d",
+      "author": "a",
+      "version": "2",
+      "tags": [
+       "alpha",
+       "x y",
+       "40Hz"
+      ],
+      "isPredefined": true,
+      "timingMode": {
+       "type": "interval_count",
+       "count": 4
+      },
+      "modalities": [],
+      "isReadOnly": true,
+      "conditions": [
+       "c1",
+       "c2"
+      ],
+      "references": [
+       "http://a",
+       {
+        "label": "L",
+        "url": "http://b"
+       },
+       "only"
+      ]
+     }
+    }
+   ]
+  }
+ }
+}

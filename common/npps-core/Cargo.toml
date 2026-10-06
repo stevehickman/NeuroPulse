@@ -1,0 +1,13 @@
+[package]
+name = "neurone-npps-core"
+version = "0.1.0"
+edition = "2021"
+description = "NPPS lexer, parser and (later) hub-descriptor compiler: one implementation for web, simulator, iOS, Android and Windows. OI-NPPS-CORE-01."
+publish = false
+
+[dependencies]
+serde_json = "1"
+
+[lib]
+name = "neurone_npps_core"
+path = "src/lib.rs"

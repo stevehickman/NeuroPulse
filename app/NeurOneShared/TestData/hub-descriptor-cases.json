@@ -1,0 +1,1462 @@
+{
+ "compiledAt": 1700000000,
+ "sessionUuidByte": 171,
+ "clinicianSockets": [
+  7,
+  3
+ ],
+ "zones": {
+  "Frontal Left": [
+   1,
+   2,
+   4,
+   5,
+   6,
+   10,
+   11,
+   12,
+   13,
+   17,
+   18,
+   19,
+   20,
+   26,
+   27,
+   28,
+   29,
+   35,
+   36,
+   37
+  ],
+  "Frontal Right": [
+   2,
+   3,
+   7,
+   8,
+   9,
+   13,
+   14,
+   15,
+   16,
+   21,
+   22,
+   23,
+   24,
+   29,
+   30,
+   31,
+   32,
+   38,
+   39,
+   40
+  ],
+  "Temporal Left": [
+   25,
+   34,
+   42,
+   51,
+   59
+  ],
+  "Temporal Right": [
+   33,
+   41,
+   50,
+   58,
+   65
+  ],
+  "Parietal Left": [
+   43,
+   44,
+   45,
+   46,
+   52,
+   53,
+   54,
+   60,
+   61,
+   62,
+   66,
+   67,
+   68
+  ],
+  "Parietal Right": [
+   46,
+   47,
+   48,
+   49,
+   55,
+   56,
+   57,
+   62,
+   63,
+   64,
+   69,
+   70,
+   71
+  ],
+  "Occipital Left": [
+   72,
+   73,
+   74,
+   77,
+   78
+  ],
+  "Occipital Right": [
+   74,
+   75,
+   76,
+   79,
+   80
+  ],
+  "All": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   80
+  ],
+  "Frontal": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   35,
+   36,
+   37,
+   38,
+   39,
+   40
+  ],
+  "Vault (excl. Occipital)": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71
+  ],
+  "Frontal Right (excl. midline)": [
+   3,
+   7,
+   8,
+   9,
+   14,
+   15,
+   16,
+   21,
+   22,
+   23,
+   24,
+   30,
+   31,
+   32,
+   38,
+   39,
+   40
+  ],
+  "Frontal Left (excl. midline)": [
+   1,
+   4,
+   5,
+   6,
+   10,
+   11,
+   12,
+   17,
+   18,
+   19,
+   20,
+   26,
+   27,
+   28,
+   35,
+   36,
+   37
+  ],
+  "Motor / SMA": [
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32
+  ],
+  "Posterior": [
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   52,
+   53,
+   54,
+   55,
+   56,
+   57,
+   60,
+   61,
+   62,
+   63,
+   64,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   80
+  ]
+ },
+ "cases": {
+  "pbm660": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 1200
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "named",
+       "zoneRefs": [
+        "Frontal"
+       ],
+       "wavelength": "660nm",
+       "irradianceMWcm2": 200,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000001abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000804f120001ff000000000000000004000110fffffffefc000000000000000000000028327f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "pbm808": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 1200
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "named",
+       "zoneRefs": [
+        "Frontal"
+       ],
+       "wavelength": "808nm",
+       "irradianceMWcm2": 322,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000001abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000804f120001ff000000000000000004000110fffffffefc0000000000000000000000283200cc00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "pbm1064": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 1200
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "named",
+       "zoneRefs": [
+        "Frontal"
+       ],
+       "wavelength": "1064nm",
+       "irradianceMWcm2": 28,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000001abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000804f120002ff000000000000000006000110fffffffefc000000000000000000000028320000ff0400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "pbmMerged": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "named",
+       "zoneRefs": [
+        "Frontal"
+       ],
+       "wavelength": "660nm",
+       "irradianceMWcm2": 100,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     },
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "named",
+       "zoneRefs": [
+        "Frontal"
+       ],
+       "wavelength": "808nm",
+       "irradianceMWcm2": 200,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000001abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c027090001ff000000000000000004000110fffffffefc000000000000000000000028323f7f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "pbmClin": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "clinician_selected",
+       "wavelength": "808nm",
+       "irradianceMWcm2": 100,
+       "frequencyHz": 0,
+       "dutyCyclePercent": 100
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000001abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c027090001ff000000000000000004000110440000000000000000000000000000000032003f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "nasal": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_intranasal",
+      "enabled": true,
+      "params": {
+       "wavelength": "808nm",
+       "irradianceMWcm2": 60,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000001abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c02709000309000000000000000005000000002832009900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "eegAll": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "eeg_neurofeedback",
+      "enabled": true,
+      "params": {
+       "channels": "all",
+       "band": "alpha",
+       "closedLoopEnabled": true
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000001abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c02709000405000000000000000005000000ff0602000300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "eegCustom": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "eeg_neurofeedback",
+      "enabled": true,
+      "params": {
+       "channels": "custom",
+       "customChannels": [
+        "Fp1",
+        "P4"
+       ],
+       "band": "alpha",
+       "closedLoopEnabled": false
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000001abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c02709000405000000000000000005000000810602000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "bes": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "bes_tacs",
+      "enabled": true,
+      "params": {
+       "frequencyHz": 10,
+       "intensityMilliamps": 0.8,
+       "waveform": "sinusoidal"
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000001abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c027090005110000000000000000070000000010272003000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "tdcs": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "tdcs",
+      "enabled": true,
+      "params": {
+       "intensityMilliamps": 1,
+       "electrodePairs": [
+        [
+         "P3",
+         "P4"
+        ]
+       ],
+       "rampSeconds": 30,
+       "electrodeAreaCm2": 25.5
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000001abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c0270900061200000000000000000800000001e803001e009c6300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "vns": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "vns_hrv",
+      "enabled": true,
+      "params": {
+       "frequencyHz": 25,
+       "intensityMilliamps": 1.5,
+       "hrvProtocol": "tavns_sync",
+       "resonanceBreathingRate": 6
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000001abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c0270900070800000000000000000900000000a861dc050001010200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "audioBin": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "audio_entrainment",
+      "enabled": true,
+      "params": {
+       "binauralBeatsHz": 20,
+       "carrierHz": 440,
+       "volumeDb": 75,
+       "eegAdaptive": true,
+       "boneConductionPacer": false
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000001abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c0270900080600000000000000000800000000b801204e46000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "audioPink": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "audio_entrainment",
+      "enabled": true,
+      "params": {
+       "noiseType": "pink",
+       "carrierHz": 440,
+       "volumeDb": 60,
+       "eegAdaptive": false,
+       "boneConductionPacer": true
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000001abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c0270900080600000000000000000800000002b801000028010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "visual": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "visual_stimulation",
+      "enabled": true,
+      "params": {
+       "frequencyHz": 40,
+       "mode": "binocular",
+       "emdrCadenceHz": 1.5,
+       "enableModeF": false
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000001abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c0270900090700000000000000000900000000283202ff0f0f000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "qeeg": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "qeeg_21ch",
+      "enabled": true,
+      "params": {
+       "montage": "standard_1020",
+       "sloretaEnabled": true,
+       "reference": "average"
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000101abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c02709000b0b000000000000000008000000ffff1f000602020100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "tms": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "tms",
+      "enabled": true,
+      "params": {
+       "tmsProtocol": "iTBS",
+       "frequencyHz": 10,
+       "intensityPercentMT": 80,
+       "target": "M1_R",
+       "pulseCount": 600
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000101abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c02709000c0c00000000000000000a00000002061027505802c8003200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "deep": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_deep_1170nm",
+      "enabled": true,
+      "params": {
+       "intensityMWcm2": 500,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000101abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c02709000d0d000000000000000005000000f40128320000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "ctacs": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "clinical_tacs",
+      "enabled": true,
+      "params": {
+       "frequencyHz": 40,
+       "intensityMilliamps": 2,
+       "channelCount": 21,
+       "waveform": "square"
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000101abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c02709000e0e000000000000000008000000409cd007ffff1f0100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "hdtdcs": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "hd_tdcs",
+      "enabled": true,
+      "params": {
+       "target": "DLPFC_R",
+       "montage": "bilateral_4x1",
+       "intensityMilliamps": 1.5
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000101abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c02709000f0f0000000000000000060000000101dc051e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "cvns": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "cervical_vns",
+      "enabled": true,
+      "params": {
+       "frequencyHz": 25,
+       "intensityMilliamps": 1.5
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000101abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c02709000a0a00000000000000000a00000000a861dc0500000a000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "vibro": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "vibrotactile_40hz",
+      "enabled": true,
+      "params": {
+       "frequencyHz": 40,
+       "intensityG": 0.9,
+       "syncToAudio": true,
+       "syncToVisual": false
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000001abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c027090010100000000000000000040000004001409c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "interval": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 100
+    },
+    "modalities": [
+     {
+      "type": "bes_tacs",
+      "enabled": true,
+      "params": {
+       "frequencyHz": 10,
+       "intensityMilliamps": 0.8,
+       "waveform": "square"
+      },
+      "interval": {
+       "intervalOnSeconds": 20,
+       "intervalOffSeconds": 10
+      }
+     },
+     {
+      "type": "tdcs",
+      "enabled": true,
+      "params": {
+       "intensityMilliamps": 1,
+       "electrodePairs": [
+        [
+         "F3",
+         "F4"
+        ]
+       ],
+       "rampSeconds": 45,
+       "electrodeAreaCm2": 10
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0,
+       "startOffsetSeconds": 30
+      }
+     }
+    ]
+   },
+   "hex": "5048504e01000008abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000a0860100051100000000204e000007000000001027200301000511204e00000000000000000000051130750000204e00000700000000102720030100061230750000000000000800000000e803002d001027051150c300000000000000000000051160ea0000204e0000070000000010272003010005118038010000000000000000000511905f0100204e0000070000000010272003010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  }
+ },
+ "errors": {
+  "cwTranscranialWithDuty": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "clinician_selected",
+       "wavelength": "808nm",
+       "irradianceMWcm2": 100,
+       "frequencyHz": 0,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "frequency 0 selects continuous wave, which has no duty cycle, but the block's duty is 25%. Set the duty to 100 % for CW, or give a pulse frequency above 0."
+  },
+  "cwIntranasalWithDuty": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_intranasal",
+      "enabled": true,
+      "params": {
+       "wavelength": "660nm",
+       "irradianceMWcm2": 30,
+       "frequencyHz": 0,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "frequency 0 selects continuous wave, which has no duty cycle, but the block's duty is 25%. Set the duty to 100 % for CW, or give a pulse frequency above 0."
+  },
+  "cwDeepWithDuty": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_deep_1170nm",
+      "enabled": true,
+      "params": {
+       "intensityMWcm2": 500,
+       "frequencyHz": 0,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "frequency 0 selects continuous wave, which has no duty cycle, but the block's duty is 25%. Set the duty to 100 % for CW, or give a pulse frequency above 0."
+  },
+  "irradianceAboveFullScale": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "named",
+       "zoneRefs": [
+        "Frontal"
+       ],
+       "wavelength": "808nm",
+       "irradianceMWcm2": 500,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "PBM irradiance 500 mW/cm² exceeds what led_808 delivers at full drive (403 mW/cm²). The protocol is refused, not reduced to fit."
+  },
+  "irradianceAbove1064Wall": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "named",
+       "zoneRefs": [
+        "Frontal"
+       ],
+       "wavelength": "1064nm",
+       "irradianceMWcm2": 100,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "PBM irradiance 100 mW/cm² exceeds what led_1064 delivers at full drive (28 mW/cm²). The protocol is refused, not reduced to fit."
+  },
+  "wavelengthNoRuleAccepts": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "named",
+       "zoneRefs": [
+        "Frontal"
+       ],
+       "wavelength": "850nm",
+       "irradianceMWcm2": 100,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "No emitter channel delivers 850nm under the wavelength rules in force (\"NeurOne default wavelength mapping\"). The protocol is refused, not moved to the nearest channel; edit the rules if that mapping is intended."
+  },
+  "wavelengthRetired": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "named",
+       "zoneRefs": [
+        "Frontal"
+       ],
+       "wavelength": "660_808nm",
+       "irradianceMWcm2": 100,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "PBM: wavelength \"660_808nm\" is retired: it welded independent emitters into one block. Write one block per wavelength (\"660nm\" and \"808nm\"), each with its own irradiance_mw_cm2."
+  },
+  "wavelengthInvalid": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "named",
+       "zoneRefs": [
+        "Frontal"
+       ],
+       "wavelength": "red",
+       "irradianceMWcm2": 100,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "PBM wavelength 'red' is not a wavelength: write one value such as \"810nm\"."
+  },
+  "intranasal1064": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_intranasal",
+      "enabled": true,
+      "params": {
+       "wavelength": "1064nm",
+       "irradianceMWcm2": 20,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "Intranasal PBM cannot be delivered on led_1064: 1064nm maps to a channel it does not carry."
+  },
+  "unknownZone": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "named",
+       "zoneRefs": [
+        "Nowhere"
+       ],
+       "wavelength": "808nm",
+       "irradianceMWcm2": 100,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "PBM transcranial references zone \"Nowhere\", which is not in the zone namespace."
+  },
+  "audioOutOfRange": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "audio_entrainment",
+      "enabled": true,
+      "params": {
+       "binauralBeatsHz": 40,
+       "carrierHz": 440,
+       "volumeDb": 95,
+       "eegAdaptive": true,
+       "boneConductionPacer": false
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "Audio level 95 dB SPL is outside the range the drive can deliver (40–90 dB SPL). The protocol is refused, not reduced to fit."
+  },
+  "overlapMismatch": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "named",
+       "zoneRefs": [
+        "Frontal"
+       ],
+       "wavelength": "660nm",
+       "irradianceMWcm2": 100,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     },
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "named",
+       "zoneRefs": [
+        "Frontal"
+       ],
+       "wavelength": "808nm",
+       "irradianceMWcm2": 100,
+       "frequencyHz": 10,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "Two PBM blocks overlap on sockets 1, 2, 3, 4, 5, 6, … from 0s. A tile takes one frequency, one duty and one schedule for all its channels, so blocks sharing a tile must match in timing, frequency and duty and drive different wavelengths. The protocol is refused rather than reshaped."
+  },
+  "blockAfterEnd": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 60
+    },
+    "modalities": [
+     {
+      "type": "bes_tacs",
+      "enabled": true,
+      "params": {
+       "frequencyHz": 10,
+       "intensityMilliamps": 0.8,
+       "waveform": "sinusoidal"
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0,
+       "startOffsetSeconds": 120
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "A block starts at 120s, at or after the session's end (60s). It would never run; remove it or lengthen the session."
+  },
+  "nothingEnabled": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "bes_tacs",
+      "enabled": false,
+      "params": {
+       "frequencyHz": 10,
+       "intensityMilliamps": 0.8,
+       "waveform": "sinusoidal"
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "Protocol produces no commands — no enabled modalities"
+  },
+  "tooManyCommands": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 6000
+    },
+    "modalities": [
+     {
+      "type": "bes_tacs",
+      "enabled": true,
+      "params": {
+       "frequencyHz": 10,
+       "intensityMilliamps": 0.8,
+       "waveform": "sinusoidal"
+      },
+      "interval": {
+       "intervalOnSeconds": 10,
+       "intervalOffSeconds": 10
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "Protocol exceeds maximum command count (64). Reduce interval repeats or the number of enabled modalities."
+  },
+  "clinicianSelectedWithoutSockets": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "clinician_selected",
+       "wavelength": "808nm",
+       "irradianceMWcm2": 100,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": true,
+   "message": "PBM transcranial target is 'clinician_selected': the operator must choose the sockets before this protocol can run. Pass them as opts.clinicianSockets."
+  }
+ }
+}

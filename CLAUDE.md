@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 64 (current)  
+**Revision:** 65 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -474,7 +474,8 @@ script reading a file does not make that file shared.
 
 - **Layout.** `common/` mirrors the old tree it was lifted from, so relative imports between its
   files do not change (`lib/`, `types/`, `locales/`, `generated/`). Today it holds the TypeScript
-  the web app and the simulator bundle (`simulator/js/vendor/npps-runtime.js`) both build from.
+  the web app and the simulator bundle (`simulator/js/vendor/npps-runtime.js`) both build from, the NPPS
+  field table (`npps/fields.json`) and the Rust NPPS core (`npps-core/`, `OI-NPPS-CORE-01`, not yet adopted by an app).
 - **Generated shared files are written into `common/`.** `bun scripts/sync-locales.ts` writes
   `common/generated/locales/` (git-ignored) and `bun scripts/sync-socket-map.ts` writes
   `common/lib/socketMap.generated.ts`. A generator never writes a shared file into one app's tree.

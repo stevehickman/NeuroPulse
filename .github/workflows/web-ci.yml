@@ -42,6 +42,11 @@ jobs:
         locales/**
         npps/fixtures/**
         protocols/predefined/**
+        # The shared NPPS core (common/npps-core, in common/** above) is tested here against
+        # the web parser's own output, so the goldens it reads are build inputs (OI-NPPS-CORE-01).
+        app/NeurOneShared/TestData/npps-parse-golden.json
+        app/NeurOneShared/TestData/hub-descriptor-cases.json
+        app/NeurOneShared/TestData/hub-descriptor-golden.json
         scripts/build-simulator-runtime.ts
         simulator/src/**
         scripts/sync-locales.ts
@@ -231,6 +236,20 @@ jobs:
 
       - name: Unit tests (Vitest)
         run: bun run vitest run --reporter=verbose
+
+      # OI-NPPS-CORE-01. The goldens are the web parser's and compiler's own output; the Rust
+      # core is diffed against them below. A stale golden would make that diff test yesterday's
+      # web, so regenerate and fail if anything changed.
+      - name: NPPS and hub-descriptor goldens are current
+        working-directory: .
+        run: |
+          bun scripts/gen-npps-parse-golden.ts --check
+          bun scripts/gen-hub-descriptor-golden.ts
+          git diff --exit-code -- app/NeurOneShared/TestData
+
+      - name: NPPS core (Rust) agrees with the web parser and compiler
+        working-directory: .
+        run: cargo test --manifest-path common/npps-core/Cargo.toml --locked
 
       - name: Production build
         run: bun run build
