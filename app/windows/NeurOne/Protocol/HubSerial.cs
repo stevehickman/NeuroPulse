@@ -12,7 +12,7 @@ namespace NeurOne.Protocol;
 static class HubSerial
 {
     /// The DEVICE_SERIAL characteristic and its length, generated from common/npps/constants.json for every runtime.
-    public static readonly Guid CharacteristicUuid = new(GattUuidStrings.DEVICE_SERIAL);
+    public static readonly Guid CharacteristicUuid = new(GattUuidStrings.DEVICE_SERIAL_ID);
 
     public const int Length = GattSizes.DEVICE_SERIAL_LEN;
 

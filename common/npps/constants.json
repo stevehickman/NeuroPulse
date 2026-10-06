@@ -241,7 +241,7 @@
     {
       "name": "GattIds",
       "rust": "gatt",
-      "cPrefix": "NP_GATT_ID_",
+      "cPrefix": "NP_GATT_",
       "uuidBase": "4E455550-0000-1000-8000-00805F9B34FB",
       "hexWidth": 4,
       "targets": [
@@ -251,148 +251,162 @@
         "csharp",
         "c"
       ],
-      "note": "The 16-bit id of each characteristic of the NeurOne BLE service. The 128-bit UUID is the base with its second group replaced by the id (4E455550-XXXX-1000-8000-00805F9B34FB), so the base is written once, here, and every runtime builds its UUIDs from it. `hub: true` marks a characteristic the hub firmware publishes; only those reach the firmware header, because a firmware reference is what the consumable-trigger gate reads as 'the hub produces it'.",
+      "note": "The 16-bit id of each characteristic (every name ends in _ID, so SESSION_STATE_ID is never mistaken for the session state itself) of the NeurOne BLE service. The 128-bit UUID is the base with its second group replaced by the id (4E455550-XXXX-1000-8000-00805F9B34FB), so the base is written once, here, and every runtime builds its UUIDs from it. `hub: true` marks a characteristic the hub firmware publishes; only those reach the firmware header, because a firmware reference is what the consumable-trigger gate reads as 'the hub produces it'. `required: true` marks the characteristics an app must find before it treats a hub as fully resolved; the others are optional, or T2 only, or not yet published (OI-WA-03).",
       "constants": [
         {
-          "name": "SERVICE",
+          "name": "SERVICE_ID",
           "value": 1,
           "int": true,
           "note": "The NeurOne custom service.",
           "hub": true
         },
         {
-          "name": "SESSION_STATE",
+          "name": "SESSION_STATE_ID",
           "value": 2,
           "int": true,
-          "note": "NOTIFY 4 B."
+          "note": "NOTIFY 4 B.",
+          "required": true
         },
         {
-          "name": "SESSION_STATUS",
+          "name": "SESSION_STATUS_ID",
           "value": 3,
           "int": true,
-          "note": "NOTIFY 4 B."
+          "note": "NOTIFY 4 B.",
+          "required": true
         },
         {
-          "name": "HRV_COHERENCE",
+          "name": "HRV_COHERENCE_ID",
           "value": 4,
           "int": true,
-          "note": "NOTIFY 4 B."
+          "note": "NOTIFY 4 B.",
+          "required": true
         },
         {
-          "name": "PACER_PHASE",
+          "name": "PACER_PHASE_ID",
           "value": 5,
           "int": true,
-          "note": "NOTIFY 4 B."
+          "note": "NOTIFY 4 B.",
+          "required": true
         },
         {
-          "name": "IMPEDANCE_RESULT",
+          "name": "IMPEDANCE_RESULT_ID",
           "value": 6,
           "int": true,
-          "note": "NOTIFY 4 B."
+          "note": "NOTIFY 4 B.",
+          "required": true
         },
         {
-          "name": "CONSUMABLE_STATUS",
+          "name": "CONSUMABLE_STATUS_ID",
           "value": 7,
           "int": true,
           "note": "READ/NOTIFY 8 B, WRITE 1 B (OI-ACC-08).",
-          "hub": true
+          "hub": true,
+          "required": true
         },
         {
-          "name": "PROTOCOL_UPLOAD",
+          "name": "PROTOCOL_UPLOAD_ID",
           "value": 8,
           "int": true,
-          "note": "WRITE, signed protocol blob."
+          "note": "WRITE, signed protocol blob.",
+          "required": true
         },
         {
-          "name": "EDF_REQUEST",
+          "name": "EDF_REQUEST_ID",
           "value": 9,
           "int": true,
-          "note": "WRITE, triggers an EDF+ download."
+          "note": "WRITE, triggers an EDF+ download.",
+          "required": true
         },
         {
-          "name": "OTA_COMMAND",
+          "name": "OTA_COMMAND_ID",
           "value": 10,
           "int": true,
-          "note": "WRITE/NOTIFY."
+          "note": "WRITE/NOTIFY.",
+          "required": true
         },
         {
-          "name": "OTA_STATUS",
+          "name": "OTA_STATUS_ID",
           "value": 11,
           "int": true,
-          "note": "NOTIFY."
+          "note": "NOTIFY.",
+          "required": true
         },
         {
-          "name": "CALIBRATION_CMD",
+          "name": "CALIBRATION_CMD_ID",
           "value": 12,
           "int": true,
-          "note": "WRITE."
+          "note": "WRITE.",
+          "required": true
         },
         {
-          "name": "ZONE_MODULE_STATUS",
+          "name": "ZONE_MODULE_STATUS_ID",
           "value": 13,
           "int": true,
-          "note": "READ/NOTIFY, variable length socket-keyed module-status frames."
+          "note": "READ/NOTIFY, variable length socket-keyed module-status frames.",
+          "required": true
         },
         {
-          "name": "SHDR_UPLOAD_STATUS",
+          "name": "SHDR_UPLOAD_STATUS_ID",
           "value": 14,
           "int": true,
-          "note": "NOTIFY."
+          "note": "NOTIFY.",
+          "required": true
         },
         {
-          "name": "SESSION_STOP",
+          "name": "SESSION_STOP_ID",
           "value": 15,
           "int": true,
-          "note": "WRITE 1 B (0x01 = stop). Placeholder pending hub BLE firmware (OI-WA-03)."
+          "note": "WRITE 1 B (0x01 = stop). Placeholder pending hub BLE firmware (OI-WA-03).",
+          "required": true
         },
         {
-          "name": "WARRANTY_TOKEN",
+          "name": "WARRANTY_TOKEN_ID",
           "value": 16,
           "int": true,
           "note": "READ 32 B, hub-provisioned TRNG warranty token (OI-WA-03).",
           "hub": true
         },
         {
-          "name": "FIRMWARE_VERSION",
+          "name": "FIRMWARE_VERSION_ID",
           "value": 17,
           "int": true,
           "note": "READ/NOTIFY 4 B little-endian uint32: bits 23:16 major, 15:8 minor, 7:0 patch."
         },
         {
-          "name": "SOCKET_MAP",
+          "name": "SOCKET_MAP_ID",
           "value": 18,
           "int": true,
           "note": "READ/NOTIFY, variable length, read once at link."
         },
         {
-          "name": "CVNS_PAD_STATUS",
+          "name": "CVNS_PAD_STATUS_ID",
           "value": 19,
           "int": true,
           "note": "NOTIFY 4 B, cervical VNS gel pad contact result, T2 only (OI-ACC-07). Not published by the hub yet."
         },
         {
-          "name": "CVNS_FAULT_STATUS",
+          "name": "CVNS_FAULT_STATUS_ID",
           "value": 20,
           "int": true,
           "note": "READ/NOTIFY 4+8n B, cervical VNS offline-fault summary and re-enable state (NP-SW-FAULTMSG-001).",
           "hub": true
         },
         {
-          "name": "CVNS_REENABLE_CONFIRM",
+          "name": "CVNS_REENABLE_CONFIRM_ID",
           "value": 21,
           "int": true,
           "note": "WRITE 1 B 0x01, the wearer's re-enable confirmation after a cardiac cutoff.",
           "hub": true
         },
         {
-          "name": "ACTIVE_USER",
+          "name": "ACTIVE_USER_ID",
           "value": 22,
           "int": true,
           "note": "WRITE 4 B, little-endian opaque tag of the person using the device.",
           "hub": true
         },
         {
-          "name": "DEVICE_SERIAL",
+          "name": "DEVICE_SERIAL_ID",
           "value": 23,
           "int": true,
           "note": "READ 32 B, encrypted link only (NP-FW-HUB-001 §4.2, OI-AND-WIRE-02).",

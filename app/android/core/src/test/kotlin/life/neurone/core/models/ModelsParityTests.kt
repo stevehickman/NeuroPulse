@@ -1,7 +1,7 @@
 package life.neurone.core.models
 
+import life.neurone.core.protocol.GattUuidStrings
 import life.neurone.core.ble.CalibrationOpcode
-import life.neurone.core.ble.GattUuids
 import life.neurone.core.ble.OtaOpcode
 import java.io.File
 import kotlin.test.Test
@@ -9,6 +9,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import java.util.UUID
 
 // Parity tests — these values are wire/UUID contracts shared with the hub
 // firmware and the iOS app (GATTCharacteristics.swift, SessionState.swift,
@@ -16,36 +17,36 @@ import kotlin.test.assertTrue
 
 class ModelsParityTests {
 
-    // ── GATT UUIDs byte-identical to iOS NPUUID (ISC-9, ISC-10) ─────────
+    // ── GATT UUIDs (ISC-9, ISC-10): the generated strings parse to the contract values ─────────
 
     @Test
-    fun gattUuidsMatchIosNpuuidStrings() {
-        assertEquals("4e455550-0001-1000-8000-00805f9b34fb", GattUuids.service.toString())
-        assertEquals("4e455550-0002-1000-8000-00805f9b34fb", GattUuids.sessionState.toString())
-        assertEquals("4e455550-0003-1000-8000-00805f9b34fb", GattUuids.sessionStatus.toString())
-        assertEquals("4e455550-0004-1000-8000-00805f9b34fb", GattUuids.hrvCoherence.toString())
-        assertEquals("4e455550-0005-1000-8000-00805f9b34fb", GattUuids.pacerPhase.toString())
-        assertEquals("4e455550-0006-1000-8000-00805f9b34fb", GattUuids.impedanceResult.toString())
-        assertEquals("4e455550-0007-1000-8000-00805f9b34fb", GattUuids.consumableStatus.toString())
-        assertEquals("4e455550-0008-1000-8000-00805f9b34fb", GattUuids.protocolUpload.toString())
-        assertEquals("4e455550-0009-1000-8000-00805f9b34fb", GattUuids.edfRequest.toString())
-        assertEquals("4e455550-000a-1000-8000-00805f9b34fb", GattUuids.otaCommand.toString())
-        assertEquals("4e455550-000b-1000-8000-00805f9b34fb", GattUuids.otaStatus.toString())
-        assertEquals("4e455550-000c-1000-8000-00805f9b34fb", GattUuids.calibrationCmd.toString())
-        assertEquals("4e455550-000d-1000-8000-00805f9b34fb", GattUuids.zoneModuleStatus.toString())
-        assertEquals("4e455550-000e-1000-8000-00805f9b34fb", GattUuids.shdrUploadStatus.toString())
-        assertEquals("4e455550-000f-1000-8000-00805f9b34fb", GattUuids.sessionStop.toString())
-        assertEquals("4e455550-0010-1000-8000-00805f9b34fb", GattUuids.warrantyToken.toString())
-        assertEquals("4e455550-0011-1000-8000-00805f9b34fb", GattUuids.firmwareVersion.toString())
-        assertEquals("4e455550-0012-1000-8000-00805f9b34fb", GattUuids.socketMap.toString())
+    fun gattUuidStringsMatchContract() {
+        assertEquals("4e455550-0001-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.SERVICE_ID).toString())
+        assertEquals("4e455550-0002-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.SESSION_STATE_ID).toString())
+        assertEquals("4e455550-0003-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.SESSION_STATUS_ID).toString())
+        assertEquals("4e455550-0004-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.HRV_COHERENCE_ID).toString())
+        assertEquals("4e455550-0005-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.PACER_PHASE_ID).toString())
+        assertEquals("4e455550-0006-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.IMPEDANCE_RESULT_ID).toString())
+        assertEquals("4e455550-0007-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.CONSUMABLE_STATUS_ID).toString())
+        assertEquals("4e455550-0008-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.PROTOCOL_UPLOAD_ID).toString())
+        assertEquals("4e455550-0009-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.EDF_REQUEST_ID).toString())
+        assertEquals("4e455550-000a-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.OTA_COMMAND_ID).toString())
+        assertEquals("4e455550-000b-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.OTA_STATUS_ID).toString())
+        assertEquals("4e455550-000c-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.CALIBRATION_CMD_ID).toString())
+        assertEquals("4e455550-000d-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.ZONE_MODULE_STATUS_ID).toString())
+        assertEquals("4e455550-000e-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.SHDR_UPLOAD_STATUS_ID).toString())
+        assertEquals("4e455550-000f-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.SESSION_STOP_ID).toString())
+        assertEquals("4e455550-0010-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.WARRANTY_TOKEN_ID).toString())
+        assertEquals("4e455550-0011-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.FIRMWARE_VERSION_ID).toString())
+        assertEquals("4e455550-0012-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.SOCKET_MAP_ID).toString())
     }
 
     @Test
     fun gattUuidsAllContainsExactlyFourteenAndExcludesOptionals() {
-        assertEquals(14, GattUuids.all.size)
-        assertFalse(GattUuids.warrantyToken in GattUuids.all)
-        assertFalse(GattUuids.firmwareVersion in GattUuids.all)
-        assertTrue(GattUuids.sessionStop in GattUuids.all)
+        assertEquals(14, GattUuidStrings.REQUIRED_IDS.map(UUID::fromString).size)
+        assertFalse(UUID.fromString(GattUuidStrings.WARRANTY_TOKEN_ID) in GattUuidStrings.REQUIRED_IDS.map(UUID::fromString))
+        assertFalse(UUID.fromString(GattUuidStrings.FIRMWARE_VERSION_ID) in GattUuidStrings.REQUIRED_IDS.map(UUID::fromString))
+        assertTrue(UUID.fromString(GattUuidStrings.SESSION_STOP_ID) in GattUuidStrings.REQUIRED_IDS.map(UUID::fromString))
     }
 
     // ── Session enums raw values (ISC-15) ────────────────────────────────

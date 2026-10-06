@@ -53,24 +53,24 @@ static np_hub_status_t read_device_serial(uint8_t *buf, size_t cap, size_t *len_
  * One row per characteristic the hub answers.  Add a row only with its
  * producer (np_gatt_server.h, "only what the hub produces"). */
 static const np_gatt_char_t TABLE[] = {
-    { NP_GATT_ID_CONSUMABLE_STATUS,
+    { NP_GATT_CONSUMABLE_STATUS_ID,
       NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_NOTIFY,
       (uint8_t)NP_CONS_WIRE_LEN, (uint8_t)NP_CONS_RESET_LEN,
       np_cons_read, np_cons_on_reset_write },
 
-    { NP_GATT_ID_WARRANTY_TOKEN, NP_GATT_PROP_READ,
+    { NP_GATT_WARRANTY_TOKEN_ID, NP_GATT_PROP_READ,
       (uint8_t)NP_WARRANTY_TOKEN_LEN, 0u, read_warranty_token, NULL },
 
-    { NP_GATT_ID_DEVICE_SERIAL, NP_GATT_PROP_READ | NP_GATT_PROP_ENC,
+    { NP_GATT_DEVICE_SERIAL_ID, NP_GATT_PROP_READ | NP_GATT_PROP_ENC,
       (uint8_t)NP_GATT_DEVICE_SERIAL_LEN, 0u, read_device_serial, NULL },
 
-    { NP_GATT_ID_CVNS_FAULT_STATUS, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
+    { NP_GATT_CVNS_FAULT_STATUS_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
       (uint8_t)NP_CVFS_FRAME_MAX, 0u, np_cvfs_read, NULL },
 
-    { NP_GATT_ID_CVNS_REENABLE_CONFIRM, NP_GATT_PROP_WRITE,
+    { NP_GATT_CVNS_REENABLE_CONFIRM_ID, NP_GATT_PROP_WRITE,
       0u, 1u, NULL, np_cvfs_on_reenable_confirm_write },
 
-    { NP_GATT_ID_ACTIVE_USER, NP_GATT_PROP_WRITE,
+    { NP_GATT_ACTIVE_USER_ID, NP_GATT_PROP_WRITE,
       0u, 4u, NULL, np_cvfs_on_active_user_write },
 };
 
@@ -187,5 +187,5 @@ np_hub_status_t np_gatt_notify(uint16_t id, const uint8_t *data, size_t len)
  * here and the SW-02 census drops by one (np_sw02_platform_hal.h). */
 void np_cvfs_hal_notify(const uint8_t *frame, size_t len)
 {
-    (void)np_gatt_notify(NP_GATT_ID_CVNS_FAULT_STATUS, frame, len);
+    (void)np_gatt_notify(NP_GATT_CVNS_FAULT_STATUS_ID, frame, len);
 }

@@ -54,7 +54,7 @@ np_hub_status_t np_gatt_hal_register(const np_gatt_char_t *table, size_t count)
 
 void np_gatt_hal_notify(uint16_t id, const uint8_t *data, size_t len)
 {
-    if (id == NP_GATT_ID_CONSUMABLE_STATUS) {
+    if (id == NP_GATT_CONSUMABLE_STATUS_ID) {
         memcpy(g_ntf, data, len);
         g_ntf_len = len;
         g_notifies++;
@@ -172,7 +172,7 @@ static bool read_counts(uint16_t out[4])
 {
     uint8_t buf[16];
     size_t  len = 0U;
-    if (np_gatt_on_read(NP_GATT_ID_CONSUMABLE_STATUS, 0U, buf, sizeof buf, &len) != NP_ATT_OK ||
+    if (np_gatt_on_read(NP_GATT_CONSUMABLE_STATUS_ID, 0U, buf, sizeof buf, &len) != NP_ATT_OK ||
         len != NP_CONS_WIRE_LEN) {
         return false;
     }
@@ -205,7 +205,7 @@ static bool stored_are(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
 
 static np_att_status_t reset_kind(uint8_t k)
 {
-    return np_gatt_on_write(NP_GATT_ID_CONSUMABLE_STATUS, &k, 1U);
+    return np_gatt_on_write(NP_GATT_CONSUMABLE_STATUS_ID, &k, 1U);
 }
 
 /* ── Tests ────────────────────────────────────────────────────────────────── */
@@ -275,9 +275,9 @@ static void test_replacement_reset(void)
 
     uint8_t two[2] = { 0U, 0U };
     uint8_t four = 4U;
-    check(np_gatt_on_write(NP_GATT_ID_CONSUMABLE_STATUS, two, 2U) == NP_ATT_INVALID_VALUE_LENGTH,
+    check(np_gatt_on_write(NP_GATT_CONSUMABLE_STATUS_ID, two, 2U) == NP_ATT_INVALID_VALUE_LENGTH,
           "reset: a 2-byte write is refused before the module sees it");
-    check(np_gatt_on_write(NP_GATT_ID_CONSUMABLE_STATUS, &four, 1U) == NP_ATT_APP_REFUSED,
+    check(np_gatt_on_write(NP_GATT_CONSUMABLE_STATUS_ID, &four, 1U) == NP_ATT_APP_REFUSED,
           "reset: a kind index past the four is refused");
 }
 
@@ -293,7 +293,7 @@ static void test_unreadable_store_is_not_zero(void)
         uint8_t  buf[16];
         size_t   len = 0U;
         check(!read_counts(v) &&
-              np_gatt_on_read(NP_GATT_ID_CONSUMABLE_STATUS, 0U, buf, sizeof buf, &len)
+              np_gatt_on_read(NP_GATT_CONSUMABLE_STATUS_ID, 0U, buf, sizeof buf, &len)
                   == NP_ATT_APP_UNAVAILABLE,
               i == 0U ? "unreadable (I/O): READ fails rather than serving zeros"
                       : "unreadable (integrity): READ fails rather than serving zeros");

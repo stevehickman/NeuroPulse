@@ -1,7 +1,6 @@
 package life.neurone.app.ble
 
 import life.neurone.core.ble.GattParser
-import life.neurone.core.ble.GattUuids
 import life.neurone.core.ble.OtaOpcode
 import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.common.KeyValueStore
@@ -17,6 +16,7 @@ import life.neurone.core.models.SocketMap
 import life.neurone.core.models.SocketMapFrameAssembler
 import life.neurone.core.models.ZoneModuleConfiguration
 import life.neurone.core.models.ZoneModuleFrameAssembler
+import life.neurone.core.protocol.GattUuidStrings
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
  * Behavior parity:
  *  - Auto-scan when the adapter turns on, no manual user action (iOS ISC-11).
  *  - 2-second reconnect delay after disconnect (iOS ISC-12).
- *  - allCharacteristicsResolved requires all 14 of GattUuids.all;
+ *  - allCharacteristicsResolved requires all 14 of GattUuidStrings.REQUIRED_IDS;
  *    warrantyToken and firmwareVersion are optional (iOS ISC-13).
  *  - On any adapter state other than ON, session state is cleared —
  *    stale UHDR display data must not survive a BLE reset (iOS privacy fix).
@@ -181,11 +181,11 @@ class NeurOneGattManager(
     override fun onConnected(deviceId: String) {
         _connectionState.value = ConnectionState.CONNECTED
         central.discoverCharacteristics(
-            GattUuids.service,
-            GattUuids.all + listOf(
-                GattUuids.warrantyToken, GattUuids.firmwareVersion, GattUuids.socketMap, GattUuids.cvnsPadStatus,
-                GattUuids.cvnsFaultStatus, GattUuids.cvnsReenableConfirm, GattUuids.activeUser,
-                GattUuids.deviceSerial,
+            UUID.fromString(GattUuidStrings.SERVICE_ID),
+            GattUuidStrings.REQUIRED_IDS.map(UUID::fromString) + listOf(
+                UUID.fromString(GattUuidStrings.WARRANTY_TOKEN_ID), UUID.fromString(GattUuidStrings.FIRMWARE_VERSION_ID), UUID.fromString(GattUuidStrings.SOCKET_MAP_ID), UUID.fromString(GattUuidStrings.CVNS_PAD_STATUS_ID),
+                UUID.fromString(GattUuidStrings.CVNS_FAULT_STATUS_ID), UUID.fromString(GattUuidStrings.CVNS_REENABLE_CONFIRM_ID), UUID.fromString(GattUuidStrings.ACTIVE_USER_ID),
+                UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID),
             ),
         )
     }
@@ -203,94 +203,94 @@ class NeurOneGattManager(
     override fun onCharacteristicsDiscovered(characteristics: Set<UUID>) {
         // warrantyToken / firmwareVersion absence is tolerated silently
         // (hub firmware may not ship them yet — OI-WA-03).
-        _allCharacteristicsResolved.value = characteristics.containsAll(GattUuids.all)
-        GattUuids.all.forEach { central.enableNotifications(it) }
-        if (GattUuids.warrantyToken in characteristics) central.read(GattUuids.warrantyToken)
-        if (GattUuids.firmwareVersion in characteristics) central.read(GattUuids.firmwareVersion)
-        if (GattUuids.deviceSerial in characteristics) central.read(GattUuids.deviceSerial)
+        _allCharacteristicsResolved.value = characteristics.containsAll(GattUuidStrings.REQUIRED_IDS.map(UUID::fromString))
+        GattUuidStrings.REQUIRED_IDS.map(UUID::fromString).forEach { central.enableNotifications(it) }
+        if (UUID.fromString(GattUuidStrings.WARRANTY_TOKEN_ID) in characteristics) central.read(UUID.fromString(GattUuidStrings.WARRANTY_TOKEN_ID))
+        if (UUID.fromString(GattUuidStrings.FIRMWARE_VERSION_ID) in characteristics) central.read(UUID.fromString(GattUuidStrings.FIRMWARE_VERSION_ID))
+        if (UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID) in characteristics) central.read(UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID))
         // Inventory is read, not only awaited: the hub notifies on change, and nothing may have
         // changed since the last link (iOS parity).
-        if (GattUuids.zoneModuleStatus in characteristics) central.read(GattUuids.zoneModuleStatus)
+        if (UUID.fromString(GattUuidStrings.ZONE_MODULE_STATUS_ID) in characteristics) central.read(UUID.fromString(GattUuidStrings.ZONE_MODULE_STATUS_ID))
         // Optional — hub firmware not yet shipped (OI-WA-03). Read once at link; subscribed so a
         // lattice-changing OTA can re-publish.
-        if (GattUuids.socketMap in characteristics) {
-            central.enableNotifications(GattUuids.socketMap)
-            central.read(GattUuids.socketMap)
+        if (UUID.fromString(GattUuidStrings.SOCKET_MAP_ID) in characteristics) {
+            central.enableNotifications(UUID.fromString(GattUuidStrings.SOCKET_MAP_ID))
+            central.read(UUID.fromString(GattUuidStrings.SOCKET_MAP_ID))
         }
         // Optional — T2 cervical accessory only, and hub firmware not yet shipped.
-        if (GattUuids.cvnsPadStatus in characteristics) central.enableNotifications(GattUuids.cvnsPadStatus)
+        if (UUID.fromString(GattUuidStrings.CVNS_PAD_STATUS_ID) in characteristics) central.enableNotifications(UUID.fromString(GattUuidStrings.CVNS_PAD_STATUS_ID))
         // Name the person before the fault summary is read: the summary is theirs.
-        activeUserCharPresent = GattUuids.activeUser in characteristics
+        activeUserCharPresent = UUID.fromString(GattUuidStrings.ACTIVE_USER_ID) in characteristics
         sendActiveUserTag()
         // Replacements marked while disconnected, before the counts are read (OI-ACC-08).
-        consumableCharPresent = GattUuids.consumableStatus in characteristics
+        consumableCharPresent = UUID.fromString(GattUuidStrings.CONSUMABLE_STATUS_ID) in characteristics
         flushConsumableResets()
-        if (GattUuids.cvnsFaultStatus in characteristics) {
-            central.enableNotifications(GattUuids.cvnsFaultStatus)
-            central.read(GattUuids.cvnsFaultStatus)
+        if (UUID.fromString(GattUuidStrings.CVNS_FAULT_STATUS_ID) in characteristics) {
+            central.enableNotifications(UUID.fromString(GattUuidStrings.CVNS_FAULT_STATUS_ID))
+            central.read(UUID.fromString(GattUuidStrings.CVNS_FAULT_STATUS_ID))
         }
         // Restore session status immediately on (re)connect.
-        if (GattUuids.sessionStatus in characteristics) central.read(GattUuids.sessionStatus)
+        if (UUID.fromString(GattUuidStrings.SESSION_STATUS_ID) in characteristics) central.read(UUID.fromString(GattUuidStrings.SESSION_STATUS_ID))
     }
 
     override fun onCharacteristicChanged(uuid: UUID, value: ByteArray) {
         // SHDR guards FIRST — structural UHDR/SHDR boundary (see class doc).
-        if (uuid == GattUuids.warrantyToken) {
+        if (uuid == UUID.fromString(GattUuidStrings.WARRANTY_TOKEN_ID)) {
             applyWarrantyToken(value)
             return
         }
-        if (uuid == GattUuids.deviceSerial) {
+        if (uuid == UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID)) {
             // Exactly 32 bytes or nothing: a short read must not be zero-padded into a serial no hub holds.
             deviceSerial = if (value.size == 32) value.copyOf() else null
             return
         }
-        if (uuid == GattUuids.shdrUploadStatus) {
+        if (uuid == UUID.fromString(GattUuidStrings.SHDR_UPLOAD_STATUS_ID)) {
             // SHDR upload bookkeeping only; never touches session state. Publish the
             // pending trigger (0x01 = upload pending) for the SHDR upload pipeline.
             _shdrUploadPending.value = value.isNotEmpty() && value[0] == 0x01.toByte()
             return
         }
-        if (uuid == GattUuids.socketMap) {
+        if (uuid == UUID.fromString(GattUuidStrings.SOCKET_MAP_ID)) {
             // Device geometry — SHDR-class, never session state.
             applySocketMap(value)
             return
         }
-        if (uuid == GattUuids.zoneModuleStatus) {
+        if (uuid == UUID.fromString(GattUuidStrings.ZONE_MODULE_STATUS_ID)) {
             // Socket occupancy, module type and module health are COMPONENT facts — SHDR-class,
             // handled here so they can never be folded into the UHDR session record.
             applyZoneModuleStatus(value)
             return
         }
-        if (uuid == GattUuids.cvnsPadStatus) {
+        if (uuid == UUID.fromString(GattUuidStrings.CVNS_PAD_STATUS_ID)) {
             // UHDR-class, but not part of the session record — published on its own.
             applyCervicalPadStatus(value)
             return
         }
-        if (uuid == GattUuids.cvnsFaultStatus) {
+        if (uuid == UUID.fromString(GattUuidStrings.CVNS_FAULT_STATUS_ID)) {
             applyCervicalFaultStatus(value)
             return
         }
         when (uuid) {
-            GattUuids.sessionState -> GattParser.parseSessionState(value)?.let { epoch ->
+            UUID.fromString(GattUuidStrings.SESSION_STATE_ID) -> GattParser.parseSessionState(value)?.let { epoch ->
                 _session.value = _session.value.copy(epoch = epoch)
             }
-            GattUuids.sessionStatus -> GattParser.parseSessionStatus(value)?.let { (pid, status) ->
+            UUID.fromString(GattUuidStrings.SESSION_STATUS_ID) -> GattParser.parseSessionStatus(value)?.let { (pid, status) ->
                 _session.value = _session.value.copy(protocolId = pid, status = status)
             }
-            GattUuids.hrvCoherence -> GattParser.parseHrvCoherence(value)?.let { hrv ->
+            UUID.fromString(GattUuidStrings.HRV_COHERENCE_ID) -> GattParser.parseHrvCoherence(value)?.let { hrv ->
                 _session.value = _session.value.copy(hrv = hrv)
             }
-            GattUuids.pacerPhase -> GattParser.parsePacerPhase(value)?.let { (phase, pct) ->
+            UUID.fromString(GattUuidStrings.PACER_PHASE_ID) -> GattParser.parsePacerPhase(value)?.let { (phase, pct) ->
                 _session.value = _session.value.copy(pacerPhase = phase, pacerElapsedPercent = pct)
             }
-            GattUuids.impedanceResult -> GattParser.parseImpedanceResult(value)?.let { flags ->
+            UUID.fromString(GattUuidStrings.IMPEDANCE_RESULT_ID) -> GattParser.parseImpedanceResult(value)?.let { flags ->
                 _session.value = _session.value.copy(impedancePassFlags = flags)
             }
-            GattUuids.consumableStatus -> GattParser.parseConsumableStatus(value)?.let { counts ->
+            UUID.fromString(GattUuidStrings.CONSUMABLE_STATUS_ID) -> GattParser.parseConsumableStatus(value)?.let { counts ->
                 _session.value = _session.value.copy(consumableSessionCounts = counts)
             }
-            GattUuids.otaStatus -> GattParser.parseOtaStatus(value)?.let { _otaStatus.value = it }
-            GattUuids.firmwareVersion -> GattParser.parseFirmwareVersion(value)?.let {
+            UUID.fromString(GattUuidStrings.OTA_STATUS_ID) -> GattParser.parseOtaStatus(value)?.let { _otaStatus.value = it }
+            UUID.fromString(GattUuidStrings.FIRMWARE_VERSION_ID) -> GattParser.parseFirmwareVersion(value)?.let {
                 _hubFirmwareVersion.value = it.toString()
             }
         }
@@ -302,22 +302,22 @@ class NeurOneGattManager(
     // ── Commands ─────────────────────────────────────────────────────────
 
     /** Mode 2 protocol upload. Caller must pre-chunk to ≤512-byte writes. */
-    fun writeProtocolChunk(chunk: ByteArray) = central.write(GattUuids.protocolUpload, chunk)
+    fun writeProtocolChunk(chunk: ByteArray) = central.write(UUID.fromString(GattUuidStrings.PROTOCOL_UPLOAD_ID), chunk)
 
-    fun requestSessionStop() = central.write(GattUuids.sessionStop, byteArrayOf(0x01))
+    fun requestSessionStop() = central.write(UUID.fromString(GattUuidStrings.SESSION_STOP_ID), byteArrayOf(0x01))
 
     /** Mode 4: trigger EDF+ download for the given hub session ID (LE uint32). */
     fun requestEdfDownload(sessionId: Long) {
         val bytes = ByteArray(4) { i -> ((sessionId shr (8 * i)) and 0xFF).toByte() }
-        central.write(GattUuids.edfRequest, bytes)
+        central.write(UUID.fromString(GattUuidStrings.EDF_REQUEST_ID), bytes)
     }
 
     fun sendOtaCommand(opcode: OtaOpcode, payload: ByteArray = ByteArray(0)) =
-        central.write(GattUuids.otaCommand, byteArrayOf(opcode.rawValue.toByte()) + payload)
+        central.write(UUID.fromString(GattUuidStrings.OTA_COMMAND_ID), byteArrayOf(opcode.rawValue.toByte()) + payload)
 
     /** Trigger a calibration/setup command (impedance check, ADS1299 self-cal, etc.). */
     fun sendCalibration(opcode: life.neurone.core.ble.CalibrationOpcode) =
-        central.write(GattUuids.calibrationCmd, byteArrayOf(opcode.rawValue.toByte()))
+        central.write(UUID.fromString(GattUuidStrings.CALIBRATION_CMD_ID), byteArrayOf(opcode.rawValue.toByte()))
 
     /**
      * The wearer has read the alert. The hub has already refused or stopped stimulation —
@@ -385,7 +385,7 @@ class NeurOneGattManager(
         if (_connectionState.value != ConnectionState.CONNECTED ||
             _cervicalFaultStatus.value?.reenableState != CervicalFaultStatus.ReenableState.AWAIT_CONFIRM
         ) return false
-        central.write(GattUuids.cvnsReenableConfirm, byteArrayOf(0x01))
+        central.write(UUID.fromString(GattUuidStrings.CVNS_REENABLE_CONFIRM_ID), byteArrayOf(0x01))
         return true
     }
 
@@ -402,7 +402,7 @@ class NeurOneGattManager(
 
     private fun flushConsumableResets() {
         if (!consumableCharPresent || _connectionState.value != ConnectionState.CONNECTED) return
-        consumableResets.drain { central.write(GattUuids.consumableStatus, it) }
+        consumableResets.drain { central.write(UUID.fromString(GattUuidStrings.CONSUMABLE_STATUS_ID), it) }
     }
 
     private val cervicalFaultLedgerKey: String
@@ -419,7 +419,7 @@ class NeurOneGattManager(
     private fun sendActiveUserTag() {
         val tag = activeUserTag ?: return
         if (!activeUserCharPresent || _connectionState.value != ConnectionState.CONNECTED) return
-        central.write(GattUuids.activeUser, ActiveUserTag.toWire(tag))
+        central.write(UUID.fromString(GattUuidStrings.ACTIVE_USER_ID), ActiveUserTag.toWire(tag))
     }
 
     /** A failure raises the alert; a both-pads-pass frame clears it; a malformed frame changes nothing. */
@@ -430,7 +430,7 @@ class NeurOneGattManager(
 
     private fun startScanning() {
         _connectionState.value = ConnectionState.SCANNING
-        central.startScan(GattUuids.service)
+        central.startScan(UUID.fromString(GattUuidStrings.SERVICE_ID))
     }
 
     private fun applyDisconnection() {

@@ -1,94 +1,9 @@
 import CoreBluetooth
 
+// The characteristic ids and UUID strings are `GattIds` / `GattUuidStrings` (NppsConstants.generated.swift), generated from
+// common/npps/constants.json, the one source the Android, web and Windows apps and the hub firmware read too. A UUID is
+// `CBUUID(string: GattUuidStrings.SESSION_STATE_ID)`; the characteristics every hub must publish are `REQUIRED_IDS`.
 // UUIDs are placeholders — replace at firmware BLE implementation stage (OI-WA-03).
-// The ids and the base UUID are written once, in common/npps/constants.json (group GattIds), and generated into
-// GattUuidStrings (NppsConstants.generated.swift), GattUuids.kt, the web, Windows and the hub firmware.
-
-enum NPUUID {
-    static let service          = CBUUID(string: GattUuidStrings.SERVICE)
-
-    // Notify-only characteristics — match NP-APP-ROADMAP-001 §5
-    static let sessionState     = CBUUID(string: GattUuidStrings.SESSION_STATE) // NOTIFY 4B
-    static let sessionStatus    = CBUUID(string: GattUuidStrings.SESSION_STATUS) // NOTIFY 4B
-    static let hrvCoherence     = CBUUID(string: GattUuidStrings.HRV_COHERENCE) // NOTIFY 4B
-    static let pacerPhase       = CBUUID(string: GattUuidStrings.PACER_PHASE) // NOTIFY 4B
-    static let impedanceResult  = CBUUID(string: GattUuidStrings.IMPEDANCE_RESULT) // NOTIFY 4B
-    // + WRITE 1B: the kind index, zeroes that count on replacement (OI-ACC-08, ConsumableReset.swift)
-    static let consumableStatus = CBUUID(string: GattUuidStrings.CONSUMABLE_STATUS) // READ/NOTIFY 8B
-
-    // Write characteristics — Mode 2 protocol upload, Mode 4 EDF request, OTA, calibration
-    static let protocolUpload   = CBUUID(string: GattUuidStrings.PROTOCOL_UPLOAD) // WRITE (signed blob)
-    static let edfRequest       = CBUUID(string: GattUuidStrings.EDF_REQUEST) // WRITE (trigger EDF+ download)
-    static let otaCommand       = CBUUID(string: GattUuidStrings.OTA_COMMAND) // WRITE/NOTIFY
-    static let otaStatus        = CBUUID(string: GattUuidStrings.OTA_STATUS) // NOTIFY
-    static let calibrationCmd   = CBUUID(string: GattUuidStrings.CALIBRATION_CMD) // WRITE
-    // READ/NOTIFY, variable length. Socket-keyed module-status frames — see
-    // ZoneModuleFrame and firmware/zone_announce/include/np_zone_notify.h.
-    // Was a fixed 5-byte one-per-slot payload under the retired zone architecture.
-    static let zoneModuleStatus = CBUUID(string: GattUuidStrings.ZONE_MODULE_STATUS)
-    static let shdrUploadStatus = CBUUID(string: GattUuidStrings.SHDR_UPLOAD_STATUS) // NOTIFY
-
-    // PENDING FIRMWARE CONFIRMATION — placeholder UUID for session stop command.
-    // Real UUID will come from hub BLE firmware implementation (OI-WA-03).
-    static let sessionStop      = CBUUID(string: GattUuidStrings.SESSION_STOP) // WRITE 1B (0x01 = stop)
-
-    // Hub-provisioned TRNG warranty token — READ 32B, SHDR-linked opaque token.
-    // Replaces Keychain-generated random token in SHDRUploader once hub firmware is available
-    // (NP-FW-EMMC-002 Rev A §A, OI-WA-03).
-    // NOT included in NPUUID.all — hub firmware not yet implemented; omitting it prevents
-    // allCharacteristicsResolved from blocking until hub ships this characteristic.
-    static let warrantyToken    = CBUUID(string: GattUuidStrings.WARRANTY_TOKEN) // READ 32B
-
-    // Helmet socket geometry — READ/NOTIFY, variable length, read ONCE at link.
-    // The permanent description of where every socket is (lobe, side, layout
-    // coordinates, wired-in-shell). Carrying this here rather than in every
-    // status change is what keeps a change to three bytes, and lets the map grow
-    // without touching the hot path. See SocketMapFrame.
-    // NOT in NPUUID.all — the hub does not ship it yet (OI-WA-03); its absence
-    // must not block allCharacteristicsResolved.
-    static let socketMap        = CBUUID(string: GattUuidStrings.SOCKET_MAP)
-
-    // Current hub firmware version — READ/NOTIFY 4B little-endian uint32.
-    // Encoding: bits [23:16]=major, [15:8]=minor, [7:0]=patch.
-    // NOT included in NPUUID.all — optional until hub firmware ships it (OI-WA-03).
-    // OTAView shows "Unknown" when nil; does not block allCharacteristicsResolved.
-    static let firmwareVersion  = CBUUID(string: GattUuidStrings.FIRMWARE_VERSION) // READ/NOTIFY 4B
-
-    // Cervical VNS gel pad contact result — NOTIFY 4B (failed mask, check, side of each pad). T2 only.
-    // Words the hub's pad refusal for the wearer (OI-ACC-07); see CervicalPadStatus for the
-    // frame. UHDR-class, display only. NOT in NPUUID.all — the hub does not ship it yet, and a
-    // T1 hub has no cervical accessory, so its absence must never block allCharacteristicsResolved.
-    static let cvnsPadStatus    = CBUUID(string: GattUuidStrings.CVNS_PAD_STATUS) // NOTIFY 4B
-
-    // Cervical VNS offline-fault summary + hub re-enable state — READ/NOTIFY, 4 + 8n bytes
-    // (see CervicalFaultStatus).  And the wearer's re-enable confirmation after a cardiac
-    // cutoff — WRITE with response, 1 byte 0x01; the hub accepts it only while awaiting one
-    // (np_hub_cvns_reenable_confirm).  NP-SW-FAULTMSG-001 P3/P4.  Both T2 only and NOT in
-    // NPUUID.all, for the same reasons as cvnsPadStatus.
-    static let cvnsFaultStatus     = CBUUID(string: GattUuidStrings.CVNS_FAULT_STATUS) // READ/NOTIFY
-    static let cvnsReenableConfirm = CBUUID(string: GattUuidStrings.CVNS_REENABLE_CONFIRM) // WRITE 1B
-
-    // Which person is using the device — WRITE 4B, little-endian opaque tag (ActiveUserTag),
-    // forwarded to the safety MCU so a cardiac cutoff is held for that person only.  Optional,
-    // NOT in NPUUID.all.
-    static let activeUser          = CBUUID(string: GattUuidStrings.ACTIVE_USER) // WRITE 4B
-
-    // The hub's 32-byte replay-guard serial — READ 32B, encrypted link only (NP-FW-HUB-001 §4.2).
-    // Stamped into the descriptor header so the hub does not refuse it WRONG_DEVICE (OI-AND-WIRE-02).
-    // Never persisted, never uploaded, never shown. NOT in NPUUID.all: READ-only, and the hub
-    // does not publish it until its BLE stack exists.
-    static let deviceSerial        = CBUUID(string: GattUuidStrings.DEVICE_SERIAL) // READ 32B
-
-    // All characteristics required for a fully-operational session.
-    // warrantyToken and firmwareVersion are deliberately omitted — both are optional
-    // until hub firmware ships them (OI-WA-03).
-    static let all: [CBUUID] = [
-        sessionState, sessionStatus, hrvCoherence, pacerPhase,
-        impedanceResult, consumableStatus, protocolUpload, edfRequest,
-        otaCommand, otaStatus, calibrationCmd, zoneModuleStatus, shdrUploadStatus,
-        sessionStop
-    ]
-}
 
 // MARK: - OTA command opcodes (app → hub via OTA_COMMAND write characteristic)
 //

@@ -599,7 +599,7 @@ final class GATTParserTests: XCTestCase {
     // MARK: - CONSUMABLE_STATUS routing isolation (NP-PRIV-ANALYSIS-003, item 3)
     //
     // Privacy invariant: SessionState.consumableSessionCounts must only ever be
-    // written from GATTParser.parseConsumableStatus, routed via NPUUID.consumableStatus.
+    // written from GATTParser.parseConsumableStatus, routed via GattUuidStrings.CONSUMABLE_STATUS_ID.
     // No UHDR-class characteristic (SESSION_STATE, SESSION_STATUS, HRV_COHERENCE,
     // PACER_PHASE, IMPEDANCE_RESULT) should reach this field.
     //
@@ -613,14 +613,14 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(baseline, [0, 0, 0, 0],
                        "Precondition: SessionState.empty must initialize counts to zero.")
 
-        // NPUUID.sessionState → pending.epoch only
+        // GattUuidStrings.SESSION_STATE_ID → pending.epoch only
         if let epoch = GATTParser.parseSessionState(Data([0x01, 0x00, 0x00, 0x00])) {
             pending.epoch = epoch
         }
         XCTAssertEqual(pending.consumableSessionCounts, baseline,
                        "SESSION_STATE characteristic must not write consumableSessionCounts.")
 
-        // NPUUID.sessionStatus → pending.protocolID + pending.status only
+        // GattUuidStrings.SESSION_STATUS_ID → pending.protocolID + pending.status only
         if let (pid, status) = GATTParser.parseSessionStatus(Data([0x05, 0x01])) {
             pending.protocolID = pid
             pending.status = status
@@ -628,12 +628,12 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(pending.consumableSessionCounts, baseline,
                        "SESSION_STATUS characteristic must not write consumableSessionCounts.")
 
-        // NPUUID.hrvCoherence → pending.hrv only
+        // GattUuidStrings.HRV_COHERENCE_ID → pending.hrv only
         pending.hrv = GATTParser.parseHRVCoherence(Data([0xEE, 0x02, 0x2A, 0x00]))
         XCTAssertEqual(pending.consumableSessionCounts, baseline,
                        "HRV_COHERENCE characteristic must not write consumableSessionCounts.")
 
-        // NPUUID.pacerPhase → pending.pacerPhase + pending.pacerElapsedPercent only
+        // GattUuidStrings.PACER_PHASE_ID → pending.pacerPhase + pending.pacerElapsedPercent only
         if let (phase, pct) = GATTParser.parsePacerPhase(Data([0x01, 0x40])) {
             pending.pacerPhase = phase
             pending.pacerElapsedPercent = pct
@@ -641,7 +641,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(pending.consumableSessionCounts, baseline,
                        "PACER_PHASE characteristic must not write consumableSessionCounts.")
 
-        // NPUUID.impedanceResult → pending.impedancePassFlags only
+        // GattUuidStrings.IMPEDANCE_RESULT_ID → pending.impedancePassFlags only
         if let flags = GATTParser.parseImpedanceResult(Data([0xFF, 0x00])) {
             pending.impedancePassFlags = flags
         }
@@ -650,7 +650,7 @@ final class GATTParserTests: XCTestCase {
     }
 
     func testConsumableCountsOnlyUpdatedByParseConsumableStatus() {
-        // Mirror the NPUUID.consumableStatus case in didUpdateValueFor.
+        // Mirror the GattUuidStrings.CONSUMABLE_STATUS_ID case in didUpdateValueFor.
         var pending = SessionState.empty
         XCTAssertEqual(pending.consumableSessionCounts, [0, 0, 0, 0])
 
@@ -676,14 +676,14 @@ final class GATTParserTests: XCTestCase {
         // Static invariant: if a future refactor accidentally swaps or aliases these UUIDs,
         // routing UHDR data to consumableSessionCounts becomes possible. Catch it here.
         let uhdrUUIDs: [CBUUID] = [
-            NPUUID.sessionState,
-            NPUUID.sessionStatus,
-            NPUUID.hrvCoherence,
-            NPUUID.pacerPhase,
-            NPUUID.impedanceResult,
+            CBUUID(string: GattUuidStrings.SESSION_STATE_ID),
+            CBUUID(string: GattUuidStrings.SESSION_STATUS_ID),
+            CBUUID(string: GattUuidStrings.HRV_COHERENCE_ID),
+            CBUUID(string: GattUuidStrings.PACER_PHASE_ID),
+            CBUUID(string: GattUuidStrings.IMPEDANCE_RESULT_ID),
         ]
         for uuid in uhdrUUIDs {
-            XCTAssertNotEqual(NPUUID.consumableStatus, uuid,
+            XCTAssertNotEqual(CBUUID(string: GattUuidStrings.CONSUMABLE_STATUS_ID), uuid,
                               "consumableStatus UUID must differ from UHDR characteristic \(uuid).")
         }
     }

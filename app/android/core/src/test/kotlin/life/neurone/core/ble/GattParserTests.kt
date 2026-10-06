@@ -1,5 +1,6 @@
 package life.neurone.core.ble
 
+import life.neurone.core.protocol.GattUuidStrings
 import life.neurone.core.models.CervicalPadStatus
 import life.neurone.core.models.OtaPhase
 import life.neurone.core.models.PacerPhase
@@ -8,6 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import java.util.UUID
 
 class GattParserTests {
 
@@ -199,6 +201,6 @@ class GattParserTests {
 
     @Test
     fun cervicalPadStatusIsNotARequiredCharacteristic() {
-        assertEquals(false, GattUuids.all.contains(GattUuids.cvnsPadStatus))
+        assertEquals(false, GattUuidStrings.REQUIRED_IDS.map(UUID::fromString).contains(UUID.fromString(GattUuidStrings.CVNS_PAD_STATUS_ID)))
     }
 }

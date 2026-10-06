@@ -219,19 +219,18 @@ static bool all_zero(const uint8_t *p, size_t n)
 
 /* ── UUIDs and the table ──────────────────────────────────────────────────── */
 
-static void test_uuids_match_the_apps(void)
+static void test_uuids_match_the_contract(void)
 {
-    /* Copied from app/ios/NeurOne/BLE/GATTCharacteristics.swift (NPUUID) and
-     * app/android/core/.../ble/GattUuids.kt, which must stay byte-identical
-     * to each other and to this. */
+    /* The expected strings, written out independently of the generator (common/npps/constants.json), which the apps'
+     * UUID strings are built from too: a drift in the base or an id fails here. */
     static const struct { uint16_t id; const char *s; } k[] = {
-        { NP_GATT_ID_SERVICE,               "4E455550-0001-1000-8000-00805F9B34FB" },
-        { NP_GATT_ID_CONSUMABLE_STATUS,     "4E455550-0007-1000-8000-00805F9B34FB" },
-        { NP_GATT_ID_WARRANTY_TOKEN,        "4E455550-0010-1000-8000-00805F9B34FB" },
-        { NP_GATT_ID_CVNS_FAULT_STATUS,     "4E455550-0014-1000-8000-00805F9B34FB" },
-        { NP_GATT_ID_CVNS_REENABLE_CONFIRM, "4E455550-0015-1000-8000-00805F9B34FB" },
-        { NP_GATT_ID_ACTIVE_USER,           "4E455550-0016-1000-8000-00805F9B34FB" },
-        { NP_GATT_ID_DEVICE_SERIAL,         "4E455550-0017-1000-8000-00805F9B34FB" },
+        { NP_GATT_SERVICE_ID,               "4E455550-0001-1000-8000-00805F9B34FB" },
+        { NP_GATT_CONSUMABLE_STATUS_ID,     "4E455550-0007-1000-8000-00805F9B34FB" },
+        { NP_GATT_WARRANTY_TOKEN_ID,        "4E455550-0010-1000-8000-00805F9B34FB" },
+        { NP_GATT_CVNS_FAULT_STATUS_ID,     "4E455550-0014-1000-8000-00805F9B34FB" },
+        { NP_GATT_CVNS_REENABLE_CONFIRM_ID, "4E455550-0015-1000-8000-00805F9B34FB" },
+        { NP_GATT_ACTIVE_USER_ID,           "4E455550-0016-1000-8000-00805F9B34FB" },
+        { NP_GATT_DEVICE_SERIAL_ID,         "4E455550-0017-1000-8000-00805F9B34FB" },
     };
     bool ok = true;
     for (size_t i = 0U; i < sizeof(k) / sizeof(k[0]); i++) {
@@ -291,18 +290,18 @@ static void test_access_rules(void)
           "access: an unpublished id is not found on read");
     check(np_gatt_on_write(0x000FU, &one, 1U) == NP_ATT_ATTRIBUTE_NOT_FOUND,
           "access: an unpublished id is not found on write");
-    check(np_gatt_on_write(NP_GATT_ID_WARRANTY_TOKEN, buf, 32U) == NP_ATT_WRITE_NOT_PERMITTED,
+    check(np_gatt_on_write(NP_GATT_WARRANTY_TOKEN_ID, buf, 32U) == NP_ATT_WRITE_NOT_PERMITTED,
           "access: the warranty token cannot be written");
-    check(np_gatt_on_write(NP_GATT_ID_CVNS_FAULT_STATUS, buf, 4U) == NP_ATT_WRITE_NOT_PERMITTED,
+    check(np_gatt_on_write(NP_GATT_CVNS_FAULT_STATUS_ID, buf, 4U) == NP_ATT_WRITE_NOT_PERMITTED,
           "access: the fault summary cannot be written");
-    check(np_gatt_on_read(NP_GATT_ID_ACTIVE_USER, 0U, buf, sizeof buf, &len) == NP_ATT_READ_NOT_PERMITTED,
+    check(np_gatt_on_read(NP_GATT_ACTIVE_USER_ID, 0U, buf, sizeof buf, &len) == NP_ATT_READ_NOT_PERMITTED,
           "access: the active user cannot be read back");
-    check(np_gatt_on_read(NP_GATT_ID_CVNS_REENABLE_CONFIRM, 0U, buf, sizeof buf, &len) == NP_ATT_READ_NOT_PERMITTED,
+    check(np_gatt_on_read(NP_GATT_CVNS_REENABLE_CONFIRM_ID, 0U, buf, sizeof buf, &len) == NP_ATT_READ_NOT_PERMITTED,
           "access: the re-enable confirm cannot be read");
-    check(np_gatt_notify(NP_GATT_ID_WARRANTY_TOKEN, buf, 32U) == NP_HUB_ERR_INVALID_ARG &&
+    check(np_gatt_notify(NP_GATT_WARRANTY_TOKEN_ID, buf, 32U) == NP_HUB_ERR_INVALID_ARG &&
           g_notifies == 0,
           "notify: refused on a characteristic without NOTIFY");
-    check(np_gatt_notify(NP_GATT_ID_CVNS_FAULT_STATUS, buf, NP_CVFS_FRAME_MAX + 1U) == NP_HUB_ERR_INVALID_ARG &&
+    check(np_gatt_notify(NP_GATT_CVNS_FAULT_STATUS_ID, buf, NP_CVFS_FRAME_MAX + 1U) == NP_HUB_ERR_INVALID_ARG &&
           g_notifies == 0,
           "notify: an over-length value is refused, never sent truncated");
 }
@@ -318,7 +317,7 @@ static void test_warranty_first_read_provisions_once(void)
     reset_world();
     g_session_count = 0x01020304U;
 
-    check(np_gatt_on_read(NP_GATT_ID_WARRANTY_TOKEN, 0U, a, sizeof a, &la) == NP_ATT_OK &&
+    check(np_gatt_on_read(NP_GATT_WARRANTY_TOKEN_ID, 0U, a, sizeof a, &la) == NP_ATT_OK &&
           la == NP_WARRANTY_TOKEN_LEN,
           "warranty: the first read returns 32 bytes");
     check(g_trng_draws == 1 && g_cfg_writes == 1 && g_cfg_written,
@@ -331,7 +330,7 @@ static void test_warranty_first_read_provisions_once(void)
                    NP_WARRANTY_RECORD_LEN - NP_WARRANTY_OFF_RESERVED),
           "warranty: record = token, session count LE, zeroed reserved (§A.2)");
 
-    check(np_gatt_on_read(NP_GATT_ID_WARRANTY_TOKEN, 0U, b, sizeof b, &lb) == NP_ATT_OK &&
+    check(np_gatt_on_read(NP_GATT_WARRANTY_TOKEN_ID, 0U, b, sizeof b, &lb) == NP_ATT_OK &&
           lb == la && memcmp(a, b, la) == 0 && g_trng_draws == 1 && g_cfg_writes == 1,
           "warranty: a second read serves the same token, no new draw or write");
 
@@ -339,7 +338,7 @@ static void test_warranty_first_read_provisions_once(void)
      * proves the token comes from the store, not a fresh draw. */
     np_warranty_token_reset_cache();
     g_trng_fill = 0x77U;
-    check(np_gatt_on_read(NP_GATT_ID_WARRANTY_TOKEN, 0U, b, sizeof b, &lb) == NP_ATT_OK &&
+    check(np_gatt_on_read(NP_GATT_WARRANTY_TOKEN_ID, 0U, b, sizeof b, &lb) == NP_ATT_OK &&
           memcmp(a, b, NP_WARRANTY_TOKEN_LEN) == 0 && g_trng_draws == 1,
           "warranty: after a reboot the stored token is served, not regenerated");
 }
@@ -351,18 +350,18 @@ static void test_warranty_long_read(void)
     size_t  lw = 0U;
     size_t  lp = 0U;
     reset_world();
-    (void)np_gatt_on_read(NP_GATT_ID_WARRANTY_TOKEN, 0U, whole, sizeof whole, &lw);
+    (void)np_gatt_on_read(NP_GATT_WARRANTY_TOKEN_ID, 0U, whole, sizeof whole, &lw);
 
     /* Default ATT MTU 23: a READ carries 22 bytes, the READ BLOB the rest. */
-    check(np_gatt_on_read(NP_GATT_ID_WARRANTY_TOKEN, 0U, part, 22U, &lp) == NP_ATT_OK &&
+    check(np_gatt_on_read(NP_GATT_WARRANTY_TOKEN_ID, 0U, part, 22U, &lp) == NP_ATT_OK &&
           lp == 22U && memcmp(part, whole, 22U) == 0,
           "long read: the first 22 bytes at MTU 23");
-    check(np_gatt_on_read(NP_GATT_ID_WARRANTY_TOKEN, 22U, part, 22U, &lp) == NP_ATT_OK &&
+    check(np_gatt_on_read(NP_GATT_WARRANTY_TOKEN_ID, 22U, part, 22U, &lp) == NP_ATT_OK &&
           lp == 10U && memcmp(part, whole + 22, 10U) == 0,
           "long read: the blob read returns the remaining 10");
-    check(np_gatt_on_read(NP_GATT_ID_WARRANTY_TOKEN, 32U, part, 22U, &lp) == NP_ATT_OK && lp == 0U,
+    check(np_gatt_on_read(NP_GATT_WARRANTY_TOKEN_ID, 32U, part, 22U, &lp) == NP_ATT_OK && lp == 0U,
           "long read: offset == length is an empty tail, not an error");
-    check(np_gatt_on_read(NP_GATT_ID_WARRANTY_TOKEN, 33U, part, 22U, &lp) == NP_ATT_INVALID_OFFSET,
+    check(np_gatt_on_read(NP_GATT_WARRANTY_TOKEN_ID, 33U, part, 22U, &lp) == NP_ATT_INVALID_OFFSET,
           "long read: offset past the value is refused");
 }
 
@@ -375,7 +374,7 @@ static void test_warranty_never_regenerates_over_an_unreadable_token(void)
     for (size_t i = 0U; i < sizeof(unknown) / sizeof(unknown[0]); i++) {
         reset_world();
         g_cfg_read_rc = unknown[i];
-        check(np_gatt_on_read(NP_GATT_ID_WARRANTY_TOKEN, 0U, buf, sizeof buf, &len)
+        check(np_gatt_on_read(NP_GATT_WARRANTY_TOKEN_ID, 0U, buf, sizeof buf, &len)
                   == NP_ATT_APP_UNAVAILABLE &&
               g_trng_draws == 0 && g_cfg_writes == 0,
               i == 0U ? "warranty: a store I/O error serves nothing and writes nothing"
@@ -388,14 +387,14 @@ static void test_warranty_never_regenerates_over_an_unreadable_token(void)
     g_cfg_rec[1] = 0x5BU;
     g_cfg_rec[NP_WARRANTY_RECORD_LEN - 1U] = 0x01U;   /* reserved byte set */
     g_cfg_written = true;
-    check(np_gatt_on_read(NP_GATT_ID_WARRANTY_TOKEN, 0U, buf, sizeof buf, &len)
+    check(np_gatt_on_read(NP_GATT_WARRANTY_TOKEN_ID, 0U, buf, sizeof buf, &len)
               == NP_ATT_APP_UNAVAILABLE && g_trng_draws == 0 && g_cfg_writes == 0,
           "warranty: a record with reserved bytes set is refused, not replaced");
 
     reset_world();
     memset(g_cfg_rec, 0x00U, sizeof g_cfg_rec);
     g_cfg_written = true;
-    check(np_gatt_on_read(NP_GATT_ID_WARRANTY_TOKEN, 0U, buf, sizeof buf, &len)
+    check(np_gatt_on_read(NP_GATT_WARRANTY_TOKEN_ID, 0U, buf, sizeof buf, &len)
               == NP_ATT_APP_UNAVAILABLE && g_trng_draws == 0 && g_cfg_writes == 0,
           "warranty: a stored all-zero token is refused, not replaced");
 }
@@ -407,24 +406,24 @@ static void test_warranty_provisioning_failures_leave_nothing(void)
 
     reset_world();
     g_trng_rc = NP_HUB_ERR_GENERIC;
-    check(np_gatt_on_read(NP_GATT_ID_WARRANTY_TOKEN, 0U, buf, sizeof buf, &len)
+    check(np_gatt_on_read(NP_GATT_WARRANTY_TOKEN_ID, 0U, buf, sizeof buf, &len)
               == NP_ATT_APP_UNAVAILABLE && g_cfg_writes == 0,
           "warranty: a failed TRNG draw writes nothing");
 
     reset_world();
     g_trng_stuck = true;
-    check(np_gatt_on_read(NP_GATT_ID_WARRANTY_TOKEN, 0U, buf, sizeof buf, &len)
+    check(np_gatt_on_read(NP_GATT_WARRANTY_TOKEN_ID, 0U, buf, sizeof buf, &len)
               == NP_ATT_APP_UNAVAILABLE && g_cfg_writes == 0,
           "warranty: a stuck TRNG (every byte equal) writes nothing");
 
     reset_world();
     g_cfg_write_rc = NP_HUB_ERR_STORE_IO;
-    check(np_gatt_on_read(NP_GATT_ID_WARRANTY_TOKEN, 0U, buf, sizeof buf, &len)
+    check(np_gatt_on_read(NP_GATT_WARRANTY_TOKEN_ID, 0U, buf, sizeof buf, &len)
               == NP_ATT_APP_UNAVAILABLE,
           "warranty: a token that did not persist is not served");
     g_cfg_write_rc = NP_HUB_OK;
     g_trng_fill = 0x22U;
-    check(np_gatt_on_read(NP_GATT_ID_WARRANTY_TOKEN, 0U, buf, sizeof buf, &len) == NP_ATT_OK &&
+    check(np_gatt_on_read(NP_GATT_WARRANTY_TOKEN_ID, 0U, buf, sizeof buf, &len) == NP_ATT_OK &&
           g_trng_draws == 2 && memcmp(buf, g_cfg_rec, NP_WARRANTY_TOKEN_LEN) == 0,
           "warranty: the next read provisions afresh and serves the persisted token");
 }
@@ -442,7 +441,7 @@ static void test_device_serial(void)
         g_serial[i] = (uint8_t)(0x40U + i);
     }
 
-    check(np_gatt_on_read(NP_GATT_ID_DEVICE_SERIAL, 0U, buf, sizeof buf, &len) == NP_ATT_OK &&
+    check(np_gatt_on_read(NP_GATT_DEVICE_SERIAL_ID, 0U, buf, sizeof buf, &len) == NP_ATT_OK &&
           len == NP_GATT_DEVICE_SERIAL_LEN && memcmp(buf, g_serial, len) == 0,
           "serial: the read serves the bytes the protocol check compares with");
 
@@ -450,19 +449,19 @@ static void test_device_serial(void)
     const np_gatt_char_t *t = np_gatt_table(&n);
     bool enc = false;
     for (size_t i = 0U; i < n; i++) {
-        if (t[i].id == NP_GATT_ID_DEVICE_SERIAL) {
+        if (t[i].id == NP_GATT_DEVICE_SERIAL_ID) {
             enc = (t[i].props & NP_GATT_PROP_ENC) != 0U &&
                   (t[i].props & (NP_GATT_PROP_WRITE | NP_GATT_PROP_NOTIFY)) == 0U;
         }
     }
     check(enc, "serial: read-only, and the stack must require an encrypted link");
 
-    check(np_gatt_on_write(NP_GATT_ID_DEVICE_SERIAL, buf, 32U) == NP_ATT_WRITE_NOT_PERMITTED,
+    check(np_gatt_on_write(NP_GATT_DEVICE_SERIAL_ID, buf, 32U) == NP_ATT_WRITE_NOT_PERMITTED,
           "serial: cannot be written");
 
     g_serial_rc = NP_HUB_ERR_INVALID_ARG;
     memset(buf, 0xAA, sizeof buf);
-    check(np_gatt_on_read(NP_GATT_ID_DEVICE_SERIAL, 0U, buf, sizeof buf, &len) == NP_ATT_APP_UNAVAILABLE,
+    check(np_gatt_on_read(NP_GATT_DEVICE_SERIAL_ID, 0U, buf, sizeof buf, &len) == NP_ATT_APP_UNAVAILABLE,
           "serial: an unreadable serial is unavailable, never a zero serial");
     g_serial_rc = NP_HUB_OK;
 }
@@ -473,14 +472,14 @@ static void test_active_user_write(void)
     const uint8_t zero[4] = { 0U, 0U, 0U, 0U };
     reset_world();
 
-    check(np_gatt_on_write(NP_GATT_ID_ACTIVE_USER, tag, 4U) == NP_ATT_OK &&
+    check(np_gatt_on_write(NP_GATT_ACTIVE_USER_ID, tag, 4U) == NP_ATT_OK &&
           g_posted_users == 1 && g_posted_user == 0x01020304U,
           "active user: a 4-byte LE tag is posted to the hub");
-    check(np_gatt_on_write(NP_GATT_ID_ACTIVE_USER, tag, 3U) == NP_ATT_INVALID_VALUE_LENGTH &&
-          np_gatt_on_write(NP_GATT_ID_ACTIVE_USER, tag, 5U) == NP_ATT_INVALID_VALUE_LENGTH &&
+    check(np_gatt_on_write(NP_GATT_ACTIVE_USER_ID, tag, 3U) == NP_ATT_INVALID_VALUE_LENGTH &&
+          np_gatt_on_write(NP_GATT_ACTIVE_USER_ID, tag, 5U) == NP_ATT_INVALID_VALUE_LENGTH &&
           g_posted_users == 1,
           "active user: any other length is refused before the handler");
-    check(np_gatt_on_write(NP_GATT_ID_ACTIVE_USER, zero, 4U) == NP_ATT_APP_REFUSED &&
+    check(np_gatt_on_write(NP_GATT_ACTIVE_USER_ID, zero, 4U) == NP_ATT_APP_REFUSED &&
           g_posted_users == 1,
           "active user: the reserved tag 0 is refused as an application error");
 }
@@ -491,14 +490,14 @@ static void test_reenable_confirm_write(void)
     const uint8_t two = 0x02U;
     reset_world();
 
-    check(np_gatt_on_write(NP_GATT_ID_CVNS_REENABLE_CONFIRM, &yes, 1U) == NP_ATT_OK &&
+    check(np_gatt_on_write(NP_GATT_CVNS_REENABLE_CONFIRM_ID, &yes, 1U) == NP_ATT_OK &&
           g_confirms == 1,
           "reenable: 0x01 is forwarded to the re-enable manager");
     g_confirm_rc = NP_HUB_ERR_NO_SESSION;
-    check(np_gatt_on_write(NP_GATT_ID_CVNS_REENABLE_CONFIRM, &yes, 1U) == NP_ATT_APP_REFUSED &&
+    check(np_gatt_on_write(NP_GATT_CVNS_REENABLE_CONFIRM_ID, &yes, 1U) == NP_ATT_APP_REFUSED &&
           g_confirms == 2,
           "reenable: a confirm the hub is not awaiting fails the app's write");
-    check(np_gatt_on_write(NP_GATT_ID_CVNS_REENABLE_CONFIRM, &two, 1U) == NP_ATT_APP_REFUSED &&
+    check(np_gatt_on_write(NP_GATT_CVNS_REENABLE_CONFIRM_ID, &two, 1U) == NP_ATT_APP_REFUSED &&
           g_confirms == 2,
           "reenable: any value but 0x01 never reaches the manager");
 }
@@ -513,10 +512,10 @@ static void test_fault_status_read_and_notify_agree(void)
     (void)np_cvfs_record_fault(43U, NP_CVNS_FAULT_IMPEDANCE, NP_CVFS_SIDE_RIGHT);
     np_cvfs_poll(2U, true, 0x01U);
 
-    check(g_notifies == 1 && g_ntf_id == NP_GATT_ID_CVNS_FAULT_STATUS &&
+    check(g_notifies == 1 && g_ntf_id == NP_GATT_CVNS_FAULT_STATUS_ID &&
           g_ntf_len == NP_CVFS_HEADER_LEN + NP_CVFS_RECORD_LEN,
           "fault status: a change is notified on 0x0014, whole");
-    check(np_gatt_on_read(NP_GATT_ID_CVNS_FAULT_STATUS, 0U, rd, sizeof rd, &len) == NP_ATT_OK &&
+    check(np_gatt_on_read(NP_GATT_CVNS_FAULT_STATUS_ID, 0U, rd, sizeof rd, &len) == NP_ATT_OK &&
           len == g_ntf_len && memcmp(rd, g_ntf, len) == 0,
           "fault status: a READ returns the frame last notified");
     check(rd[0] == NP_CVFS_WIRE_VERSION && rd[1] == 2U && rd[2] == 1U && rd[3] == 0x01U &&
@@ -529,7 +528,7 @@ static void test_fault_status_read_and_notify_agree(void)
 
 int main(void)
 {
-    test_uuids_match_the_apps();
+    test_uuids_match_the_contract();
     test_table_is_what_the_hub_produces();
     test_access_rules();
     test_warranty_first_read_provisions_once();

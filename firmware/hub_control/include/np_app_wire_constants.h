@@ -12,31 +12,31 @@
 /*
  * The NeurOne custom service.
  */
-#define NP_GATT_ID_SERVICE 0x0001u
+#define NP_GATT_SERVICE_ID 0x0001u
 /*
  * READ/NOTIFY 8 B, WRITE 1 B (OI-ACC-08).
  */
-#define NP_GATT_ID_CONSUMABLE_STATUS 0x0007u
+#define NP_GATT_CONSUMABLE_STATUS_ID 0x0007u
 /*
  * READ 32 B, hub-provisioned TRNG warranty token (OI-WA-03).
  */
-#define NP_GATT_ID_WARRANTY_TOKEN 0x0010u
+#define NP_GATT_WARRANTY_TOKEN_ID 0x0010u
 /*
  * READ/NOTIFY 4+8n B, cervical VNS offline-fault summary and re-enable state (NP-SW-FAULTMSG-001).
  */
-#define NP_GATT_ID_CVNS_FAULT_STATUS 0x0014u
+#define NP_GATT_CVNS_FAULT_STATUS_ID 0x0014u
 /*
  * WRITE 1 B 0x01, the wearer's re-enable confirmation after a cardiac cutoff.
  */
-#define NP_GATT_ID_CVNS_REENABLE_CONFIRM 0x0015u
+#define NP_GATT_CVNS_REENABLE_CONFIRM_ID 0x0015u
 /*
  * WRITE 4 B, little-endian opaque tag of the person using the device.
  */
-#define NP_GATT_ID_ACTIVE_USER 0x0016u
+#define NP_GATT_ACTIVE_USER_ID 0x0016u
 /*
  * READ 32 B, encrypted link only (NP-FW-HUB-001 §4.2, OI-AND-WIRE-02).
  */
-#define NP_GATT_ID_DEVICE_SERIAL 0x0017u
+#define NP_GATT_DEVICE_SERIAL_ID 0x0017u
 
 /*
  * The hub's replay-guard serial (DEVICE_SERIAL characteristic, NP-FW-HUB-001 §4.2): exactly this many

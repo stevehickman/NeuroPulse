@@ -318,7 +318,7 @@ final class HardwareSetupManager: ObservableObject {
             .store(in: &cancellables)
 
         // Wait-logic chain — uses the dedicated impedanceResultPublisher that fires ONLY on
-        // a real NPUUID.impedanceResult GATT notification. Avoids false-triggers from other
+        // a real GattUuidStrings.IMPEDANCE_RESULT_ID GATT notification. Avoids false-triggers from other
         // session state updates (HRV coherence, pacer phase, etc.) that also flow via sessionPublisher.
         gatt.impedanceResultPublisher
             .sink { [weak self] _ in self?.impedanceResultReceived = true }

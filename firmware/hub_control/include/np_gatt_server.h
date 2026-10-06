@@ -50,7 +50,7 @@
 #include "np_hub_types.h"
 
 /* ── Ids (the XXXX of the UUID) ──────────────────────────────────────────────────
- * NP_GATT_ID_* and the UUID base are generated from common/npps/constants.json (group GattIds), the
+ * NP_GATT_*_ID and the UUID base are generated from common/npps/constants.json (group GattIds), the
  * one source the apps read as well; only the characteristics this hub publishes are in the header. */
 #include "np_app_wire_constants.h"
 

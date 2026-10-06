@@ -88,7 +88,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
 
     /// Current hub firmware version decoded from FIRMWARE_VERSION characteristic (ISC-108).
     /// Encoded as uint32 little-endian — bits [23:16]=major [15:8]=minor [7:0]=patch.
-    /// nil until the hub ships NPUUID.firmwareVersion (OI-WA-03); OTAView shows "Unknown".
+    /// nil until the hub ships GattUuidStrings.FIRMWARE_VERSION_ID (OI-WA-03); OTAView shows "Unknown".
     @Published private(set) var hubFirmwareVersion: String?
 
     /// A cervical VNS gel pad failure the wearer has not yet acknowledged (OI-ACC-07).
@@ -165,12 +165,12 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     private var calibrationCmdChar: CBCharacteristic?
     private var sessionStopChar:    CBCharacteristic?
 
-    // Dedicated subject for impedance results — fires ONLY from NPUUID.impedanceResult handler.
+    // Dedicated subject for impedance results — fires ONLY from GattUuidStrings.IMPEDANCE_RESULT_ID handler.
     // Distinct from session state updates so SetupGATTProviding.waitForImpedanceResult cannot
     // false-trigger on unrelated session emissions (HRV, pacer phase, etc.).
     private let impedanceResultSubject = PassthroughSubject<UInt16, Never>()
 
-    // Optional — not in NPUUID.all; hub firmware pending (OI-WA-03).
+    // Optional — not in GattUuidStrings.REQUIRED_IDS; hub firmware pending (OI-WA-03).
     private var socketMapChar:        CBCharacteristic?
     private var warrantyTokenChar:    CBCharacteristic?
     private var deviceSerialChar:      CBCharacteristic?
@@ -236,13 +236,13 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     }
 
     /// Record which GATT characteristic UUIDs were discovered for this connection.
-    /// Sets `allCharacteristicsResolved` to true when every UUID in NPUUID.all is present.
+    /// Sets `allCharacteristicsResolved` to true when every UUID in GattUuidStrings.REQUIRED_IDS is present.
     ///
     /// PRIVACY NOTE: `discovered` is a device capability fingerprint (SHDR-class).
     /// It must never be logged, persisted, or transmitted — only the boolean result
     /// (`allCharacteristicsResolved`) leaves this method.
     func applyCharacteristicAssignment(discovered: Set<CBUUID>) {
-        allCharacteristicsResolved = NPUUID.all.allSatisfy { discovered.contains($0) }
+        allCharacteristicsResolved = GattUuidStrings.REQUIRED_IDS.map(CBUUID.init(string:)).allSatisfy { discovered.contains($0) }
     }
 
     /// Tear down active-session state after a disconnect and schedule a reconnect scan
@@ -344,7 +344,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     func startScan() {
         guard central.state == .poweredOn else { return }
         connectionState = .scanning
-        central.scanForPeripherals(withServices: [NPUUID.service], options: nil)
+        central.scanForPeripherals(withServices: [CBUUID(string: GattUuidStrings.SERVICE_ID)], options: nil)
     }
 
     func disconnect() {
@@ -562,7 +562,7 @@ extension NeurOneGATTManager: @preconcurrency CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         connectionState = .connected
         peripheral.delegate = self
-        peripheral.discoverServices([NPUUID.service])
+        peripheral.discoverServices([CBUUID(string: GattUuidStrings.SERVICE_ID)])
     }
 
     func centralManager(_ central: CBCentralManager,
@@ -580,14 +580,17 @@ extension NeurOneGATTManager: @preconcurrency CBCentralManagerDelegate {
 extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-        guard let service = peripheral.services?.first(where: { $0.uuid == NPUUID.service })
+        guard let service = peripheral.services?.first(where: { $0.uuid == CBUUID(string: GattUuidStrings.SERVICE_ID) })
         else { return }
         // Discover required chars plus optional warrantyToken and firmwareVersion (OI-WA-03).
+        let optionalIDs = [
+            GattUuidStrings.WARRANTY_TOKEN_ID, GattUuidStrings.FIRMWARE_VERSION_ID,
+            GattUuidStrings.SOCKET_MAP_ID, GattUuidStrings.CVNS_PAD_STATUS_ID,
+            GattUuidStrings.CVNS_FAULT_STATUS_ID, GattUuidStrings.CVNS_REENABLE_CONFIRM_ID,
+            GattUuidStrings.ACTIVE_USER_ID, GattUuidStrings.DEVICE_SERIAL_ID,
+        ]
         peripheral.discoverCharacteristics(
-            NPUUID.all + [NPUUID.warrantyToken, NPUUID.firmwareVersion,
-                          NPUUID.socketMap, NPUUID.cvnsPadStatus,
-                          NPUUID.cvnsFaultStatus, NPUUID.cvnsReenableConfirm,
-                          NPUUID.activeUser, NPUUID.deviceSerial], for: service)
+            (GattUuidStrings.REQUIRED_IDS + optionalIDs).map(CBUUID.init(string:)), for: service)
     }
 
     func peripheral(_ peripheral: CBPeripheral,
@@ -595,30 +598,30 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
                     error: Error?) {
         service.characteristics?.forEach { char in
             switch char.uuid {
-            case NPUUID.sessionState:
+            case CBUUID(string: GattUuidStrings.SESSION_STATE_ID):
                 sessionStateChar = char
                 peripheral.setNotifyValue(true, for: char)
 
-            case NPUUID.sessionStatus:
+            case CBUUID(string: GattUuidStrings.SESSION_STATUS_ID):
                 sessionStatusChar = char
                 peripheral.setNotifyValue(true, for: char)
                 // ISC-20: read current value immediately so reconnects restore in-flight
                 // session state without waiting for the next NOTIFY update.
                 peripheral.readValue(for: char)
 
-            case NPUUID.hrvCoherence:
+            case CBUUID(string: GattUuidStrings.HRV_COHERENCE_ID):
                 hrvCoherenceChar = char
                 peripheral.setNotifyValue(true, for: char)
 
-            case NPUUID.pacerPhase:
+            case CBUUID(string: GattUuidStrings.PACER_PHASE_ID):
                 pacerPhaseChar = char
                 peripheral.setNotifyValue(true, for: char)
 
-            case NPUUID.impedanceResult:
+            case CBUUID(string: GattUuidStrings.IMPEDANCE_RESULT_ID):
                 impedanceResultChar = char
                 peripheral.setNotifyValue(true, for: char)
 
-            case NPUUID.consumableStatus:
+            case CBUUID(string: GattUuidStrings.CONSUMABLE_STATUS_ID):
                 consumableStatusChar = char
                 // Replacements marked while disconnected go first, so the read below and the
                 // notification after it already carry the zero (OI-ACC-08).
@@ -626,73 +629,73 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
                 peripheral.setNotifyValue(true, for: char)
                 peripheral.readValue(for: char)
 
-            case NPUUID.otaStatus:
+            case CBUUID(string: GattUuidStrings.OTA_STATUS_ID):
                 otaStatusChar = char
                 peripheral.setNotifyValue(true, for: char)
 
-            case NPUUID.zoneModuleStatus:
+            case CBUUID(string: GattUuidStrings.ZONE_MODULE_STATUS_ID):
                 zoneModuleStatusChar = char
                 peripheral.setNotifyValue(true, for: char)
                 peripheral.readValue(for: char)
 
-            case NPUUID.socketMap:
+            case CBUUID(string: GattUuidStrings.SOCKET_MAP_ID):
                 // Optional — hub firmware not yet shipped (OI-WA-03). Read once
                 // at link; subscribe so a lattice-changing OTA can re-publish.
                 socketMapChar = char
                 peripheral.setNotifyValue(true, for: char)
                 peripheral.readValue(for: char)
 
-            case NPUUID.shdrUploadStatus:
+            case CBUUID(string: GattUuidStrings.SHDR_UPLOAD_STATUS_ID):
                 shdrUploadStatusChar = char
                 peripheral.setNotifyValue(true, for: char)
 
-            case NPUUID.protocolUpload:
+            case CBUUID(string: GattUuidStrings.PROTOCOL_UPLOAD_ID):
                 protocolUploadChar = char
 
-            case NPUUID.edfRequest:
+            case CBUUID(string: GattUuidStrings.EDF_REQUEST_ID):
                 edfRequestChar = char
 
-            case NPUUID.otaCommand:
+            case CBUUID(string: GattUuidStrings.OTA_COMMAND_ID):
                 otaCommandChar = char
 
-            case NPUUID.calibrationCmd:
+            case CBUUID(string: GattUuidStrings.CALIBRATION_CMD_ID):
                 calibrationCmdChar = char
 
-            case NPUUID.sessionStop:
+            case CBUUID(string: GattUuidStrings.SESSION_STOP_ID):
                 sessionStopChar = char
 
-            case NPUUID.warrantyToken:
+            case CBUUID(string: GattUuidStrings.WARRANTY_TOKEN_ID):
                 // Optional — hub firmware not yet shipped. Silently absent until OI-WA-03 lands.
                 warrantyTokenChar = char
                 peripheral.readValue(for: char)
 
-            case NPUUID.deviceSerial:
+            case CBUUID(string: GattUuidStrings.DEVICE_SERIAL_ID):
                 // Read once at link (OI-AND-WIRE-02).
                 deviceSerialChar = char
                 peripheral.readValue(for: char)
 
-            case NPUUID.firmwareVersion:
+            case CBUUID(string: GattUuidStrings.FIRMWARE_VERSION_ID):
                 // Optional — hub firmware not yet shipped (OI-WA-03).
                 firmwareVersionChar = char
                 peripheral.setNotifyValue(true, for: char)
                 peripheral.readValue(for: char)
 
-            case NPUUID.cvnsPadStatus:
+            case CBUUID(string: GattUuidStrings.CVNS_PAD_STATUS_ID):
                 // Optional — T2 cervical accessory only, and hub firmware not yet shipped.
                 cvnsPadStatusChar = char
                 peripheral.setNotifyValue(true, for: char)
 
-            case NPUUID.cvnsFaultStatus:
+            case CBUUID(string: GattUuidStrings.CVNS_FAULT_STATUS_ID):
                 // Optional — T2 only; read at connect so offline faults are explained before
                 // any session is offered (NP-SW-FAULTMSG-001 P3).
                 cvnsFaultStatusChar = char
                 peripheral.setNotifyValue(true, for: char)
                 peripheral.readValue(for: char)
 
-            case NPUUID.cvnsReenableConfirm:
+            case CBUUID(string: GattUuidStrings.CVNS_REENABLE_CONFIRM_ID):
                 cvnsReenableConfirmChar = char
 
-            case NPUUID.activeUser:
+            case CBUUID(string: GattUuidStrings.ACTIVE_USER_ID):
                 // Name the person before anything else happens on this link.
                 activeUserChar = char
                 sendActiveUserTag()
@@ -703,7 +706,7 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
         }
 
         // Compute which required UUIDs were discovered and publish the resolved state.
-        // warrantyToken is intentionally excluded from NPUUID.all, so its absence never
+        // warrantyToken is intentionally excluded from GattUuidStrings.REQUIRED_IDS, so its absence never
         // blocks allCharacteristicsResolved (ISC-13).
         let discovered = Set(service.characteristics?.map { $0.uuid } ?? [])
         applyCharacteristicAssignment(discovered: discovered)
@@ -719,21 +722,21 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
         // `session = pending` below, making the UHDR/SHDR boundary structurally
         // enforced rather than convention-dependent.
 
-        if characteristic.uuid == NPUUID.warrantyToken {
+        if characteristic.uuid == CBUUID(string: GattUuidStrings.WARRANTY_TOKEN_ID) {
             // Hub-provisioned TRNG token — SHDR-linked device identity.
             // applyWarrantyToken rejects payloads shorter than 32 bytes (NP-FW-EMMC-002 Rev A §A).
             applyWarrantyToken(data)
             return
         }
 
-        if characteristic.uuid == NPUUID.deviceSerial {
+        if characteristic.uuid == CBUUID(string: GattUuidStrings.DEVICE_SERIAL_ID) {
             // Exactly 32 bytes or nothing: a short read must not be zero-padded into a serial
             // that no hub holds.
             deviceSerial = data.count == 32 ? data : nil
             return
         }
 
-        if characteristic.uuid == NPUUID.firmwareVersion {
+        if characteristic.uuid == CBUUID(string: GattUuidStrings.FIRMWARE_VERSION_ID) {
             // Current hub firmware version — SHDR-class device metric, never user biology.
             if let version = GATTParser.parseFirmwareVersion(data) {
                 applyFirmwareVersion(version)
@@ -741,19 +744,19 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             return
         }
 
-        if characteristic.uuid == NPUUID.shdrUploadStatus {
+        if characteristic.uuid == CBUUID(string: GattUuidStrings.SHDR_UPLOAD_STATUS_ID) {
             // 0x01 = hub requests SHDR fleet upload; 0x02 = upload acknowledged.
             shdrUploadPending = data.first == 0x01
             return
         }
 
-        if characteristic.uuid == NPUUID.socketMap {
+        if characteristic.uuid == CBUUID(string: GattUuidStrings.SOCKET_MAP_ID) {
             // Device geometry — SHDR class, like zone module status below.
             applySocketMap(data)
             return
         }
 
-        if characteristic.uuid == NPUUID.zoneModuleStatus {
+        if characteristic.uuid == CBUUID(string: GattUuidStrings.ZONE_MODULE_STATUS_ID) {
             // Socket occupancy, module type and module health are COMPONENT
             // facts — SHDR class, exactly as np_module_map.h classifies module
             // UID. Handled here, above the `session = pending` path, so it can
@@ -762,13 +765,13 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             return
         }
 
-        if characteristic.uuid == NPUUID.cvnsFaultStatus {
+        if characteristic.uuid == CBUUID(string: GattUuidStrings.CVNS_FAULT_STATUS_ID) {
             // UHDR-class, not part of the session record — published on its own.
             applyCervicalFaultStatus(data)
             return
         }
 
-        if characteristic.uuid == NPUUID.cvnsPadStatus {
+        if characteristic.uuid == CBUUID(string: GattUuidStrings.CVNS_PAD_STATUS_ID) {
             // UHDR-class (tissue impedance reduced to pass/fail, plus pad side) — but not part of the
             // session record, so it is published on its own and never folded into `pending`.
             applyCervicalPadStatus(data)
@@ -780,36 +783,36 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
         // via `session = pending` at the end.
 
         switch characteristic.uuid {
-        case NPUUID.sessionState:
+        case CBUUID(string: GattUuidStrings.SESSION_STATE_ID):
             if let epoch = GATTParser.parseSessionState(data) { pending.epoch = epoch }
 
-        case NPUUID.sessionStatus:
+        case CBUUID(string: GattUuidStrings.SESSION_STATUS_ID):
             if let (pid, status) = GATTParser.parseSessionStatus(data) {
                 pending.protocolID = pid
                 pending.status = status
             }
 
-        case NPUUID.hrvCoherence:
+        case CBUUID(string: GattUuidStrings.HRV_COHERENCE_ID):
             pending.hrv = GATTParser.parseHRVCoherence(data)
 
-        case NPUUID.pacerPhase:
+        case CBUUID(string: GattUuidStrings.PACER_PHASE_ID):
             if let (phase, pct) = GATTParser.parsePacerPhase(data) {
                 pending.pacerPhase = phase
                 pending.pacerElapsedPercent = pct
             }
 
-        case NPUUID.impedanceResult:
+        case CBUUID(string: GattUuidStrings.IMPEDANCE_RESULT_ID):
             if let flags = GATTParser.parseImpedanceResult(data) {
                 pending.impedancePassFlags = flags
                 impedanceResultSubject.send(flags)
             }
 
-        case NPUUID.consumableStatus:
+        case CBUUID(string: GattUuidStrings.CONSUMABLE_STATUS_ID):
             if let counts = GATTParser.parseConsumableStatus(data) {
                 pending.consumableSessionCounts = counts
             }
 
-        case NPUUID.otaStatus:
+        case CBUUID(string: GattUuidStrings.OTA_STATUS_ID):
             otaStatus = GATTParser.parseOTAStatus(data)
 
         default:
@@ -826,17 +829,17 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             error.map { .failure(.peripheralError($0)) } ?? .success(())
 
         switch characteristic.uuid {
-        case NPUUID.protocolUpload:
+        case CBUUID(string: GattUuidStrings.PROTOCOL_UPLOAD_ID):
             onProtocolUploadAck?(result); onProtocolUploadAck = nil
-        case NPUUID.edfRequest:
+        case CBUUID(string: GattUuidStrings.EDF_REQUEST_ID):
             onEDFRequestAck?(result); onEDFRequestAck = nil
-        case NPUUID.otaCommand:
+        case CBUUID(string: GattUuidStrings.OTA_COMMAND_ID):
             onOTACommandAck?(result); onOTACommandAck = nil
-        case NPUUID.calibrationCmd:
+        case CBUUID(string: GattUuidStrings.CALIBRATION_CMD_ID):
             onCalibrationAck?(result); onCalibrationAck = nil
-        case NPUUID.sessionStop:
+        case CBUUID(string: GattUuidStrings.SESSION_STOP_ID):
             onSessionStopAck?(result); onSessionStopAck = nil
-        case NPUUID.cvnsReenableConfirm:
+        case CBUUID(string: GattUuidStrings.CVNS_REENABLE_CONFIRM_ID):
             onCervicalReenableConfirmAck?(result); onCervicalReenableConfirmAck = nil
         default:
             break

@@ -12,7 +12,7 @@
 import { GattSizes, GattUuidStrings } from '../../../../common/lib/constants.generated';
 
 /** The DEVICE_SERIAL characteristic and its length, generated from common/npps/constants.json for every runtime. */
-export const DEVICE_SERIAL_UUID = GattUuidStrings.DEVICE_SERIAL;
+export const DEVICE_SERIAL_UUID = GattUuidStrings.DEVICE_SERIAL_ID;
 export const DEVICE_SERIAL_LEN = GattSizes.DEVICE_SERIAL_LEN;
 
 /**

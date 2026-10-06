@@ -25,7 +25,7 @@ const ROOT = join(import.meta.dir, '..');
 const SOURCE = 'common/npps/constants.json';
 
 type Target = 'ts' | 'kotlin' | 'swift' | 'csharp' | 'c' | 'rust';
-interface Constant { name: string; value: number; int?: boolean; hub?: boolean; note?: string }
+interface Constant { name: string; value: number; int?: boolean; hub?: boolean; required?: boolean; note?: string }
 interface Group { name: string; rust: string; cPrefix?: string; uuidBase?: string; hexWidth?: number; firmwareHeader?: boolean; targets: Target[]; intTypes?: Partial<Record<Target, string>>; note?: string; constants: Constant[] }
 const groups = (JSON.parse(readFileSync(join(ROOT, SOURCE), 'utf8')) as { groups: Group[] }).groups;
 
@@ -109,7 +109,11 @@ function uuidTable(g: Group, target: 'ts' | 'kotlin' | 'swift' | 'csharp'): stri
     swift: `enum ${name} {`,
     csharp: `static class ${name}\n{`,
   }[target];
-  return `${intro}${open}\n${rows}\n${target === 'ts' ? '} as const;' : '}'}\n`;
+  // The characteristics an app must find: one list, built from the names above, for the apps that read it.
+  const required = g.constants.filter(c => c.required).map(c => c.name);
+  const list = { kotlin: `\n    val REQUIRED_IDS: List<String> = listOf(\n${required.map(n => `        ${n},`).join('\n')}\n    )`,
+                 swift: `\n    static let REQUIRED_IDS: [String] = [\n${required.map(n => `        ${n},`).join('\n')}\n    ]` }[target as 'kotlin' | 'swift'] ?? '';
+  return `${intro}${open}\n${rows}${required.length ? list : ''}\n${target === 'ts' ? '} as const;' : '}'}\n`;
 }
 
 function ts(): string {
