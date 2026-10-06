@@ -62,6 +62,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../../common/tests/np_ld_script_limits.h"
 
 #ifndef NP_LINKER_SCRIPT_PATH
 #error "NP_LINKER_SCRIPT_PATH must be defined by the build (path to bootloader_imxrt1062.ld)"
@@ -78,8 +79,6 @@ static int g_fail_count = 0;
     } while (0)
 
 /* ── Linker script reader ─────────────────────────────────────────────────── */
-
-#define LD_MAX_BYTES  (256U * 1024U)
 
 static char g_ld_raw[LD_MAX_BYTES];
 static char g_ld[LD_MAX_BYTES];   /* comment-stripped */
@@ -427,7 +426,7 @@ static void test_staged_good_image_passes(void)
 
     for (uint32_t i = 0U; i < 32U; i++) { seed[i] = (uint8_t)(NP_FW_TEST_SEED_FIRST + i); }
     crypto_ed25519_key_pair(g_sk, pk, seed);
-    ASSERT(memcmp(pk, g_np_fw_public_key, 32U) == 0,
+    ASSERT(memcmp(pk, NP_FW_PUBLIC_KEY, 32U) == 0,
            "test seed does not derive the key compiled into np_signature.c");
 
     for (uint32_t i = 0U; i < 32U; i++) { seed[i] = (uint8_t)(0x40U + i); }
@@ -442,14 +441,14 @@ static void test_staged_good_image_passes(void)
  * all verify_bank_header() ever checked, is perfect.  This is the defect. */
 static void test_staged_corruption_refused(void)
 {
-    static const uint32_t where[] = { 0U, 4U, 7U, 1000U, STAGE_LEN / 2U, STAGE_LEN - 1U };
+    static const uint32_t OFFSETS[] = { 0U, 4U, 7U, 1000U, STAGE_LEN / 2U, STAGE_LEN - 1U };
 
-    for (uint32_t k = 0U; k < sizeof(where) / sizeof(where[0]); k++) {
+    for (uint32_t k = 0U; k < sizeof(OFFSETS) / sizeof(OFFSETS[0]); k++) {
         stage_good();
-        g_stage[where[k]] ^= 0x01U;
+        g_stage[OFFSETS[k]] ^= 0x01U;
         if (verify() != NP_ERR_BAD_IMAGE_HASH) {
             printf("FAIL [%s] a bit flip at staged offset %u was not refused\n",
-                   __func__, where[k]);
+                   __func__, OFFSETS[k]);
             g_fail_count++;
         }
     }
@@ -516,7 +515,7 @@ static void test_staged_bounds_and_null(void)
  * under which R = S*B verifies for S = 0 on any message. */
 static void test_small_order_keys_refused(void)
 {
-    static const uint8_t placeholder[32] = { [31] = 0x01U };   /* np_signature.c's */
+    static const uint8_t PLACEHOLDER_BYTES[32] = { [31] = 0x01U };   /* np_signature.c's */
     uint8_t identity[32] = { 0x01U };
     uint8_t k[32];
 
@@ -525,17 +524,17 @@ static void test_small_order_keys_refused(void)
     ASSERT(np_signature_key_is_small_order(k), "identity key with sign bit set not flagged");
     memset(k, 0, 32U);
     ASSERT(np_signature_key_is_small_order(k), "all-zero key (y=0, order 4) not flagged");
-    ASSERT(!np_signature_key_is_small_order(g_np_fw_public_key), "the real test key was flagged");
+    ASSERT(!np_signature_key_is_small_order(NP_FW_PUBLIC_KEY), "the real test key was flagged");
 
     /* The placeholder the cross build links, byte for byte: y = 2^248, which
      * is not the identity and not a curve point, so it must fail CLOSED by
      * failing to decode — not by this guard. */
-    ASSERT(np_signature_key_is_small_order(placeholder) == 0,
+    ASSERT(np_signature_key_is_small_order(PLACEHOLDER_BYTES) == 0,
            "the placeholder (y = 2^248) was mistaken for a small-order key");
     {
         uint8_t fsig[64] = { 0x01U };
         uint8_t fmsg[40] = { 0 };
-        ASSERT(crypto_ed25519_check(fsig, placeholder, fmsg, sizeof(fmsg)) != 0,
+        ASSERT(crypto_ed25519_check(fsig, PLACEHOLDER_BYTES, fmsg, sizeof(fmsg)) != 0,
                "the placeholder key verified a signature — it must fail closed");
     }
 

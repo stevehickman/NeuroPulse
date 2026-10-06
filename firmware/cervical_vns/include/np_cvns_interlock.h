@@ -37,7 +37,7 @@ struct np_cvns_interlock_ctx {
     /* Intervals forwarded to the safety MCU (OI-CVNS-14): every peak pulsed on
      * RPEAK_IN, with no upper bound, so the HR report mirrors what the MCU's own
      * mean was built from.  rr_buf cannot serve: it drops intervals over
-     * NP_CVNS_RR_MAX_VALID_MS, which the MCU still sees. */
+     * NP_RR_MAX_MS, which the MCU still sees. */
     uint16_t fwd_rr_ms[NP_CVNS_FWD_RR_COUNT];
     uint8_t  fwd_head;
     uint8_t  fwd_count;
@@ -154,7 +154,7 @@ bool                      np_cvns_interlock_hr_report(const np_cvns_interlock_ct
 bool                      np_cvns_interlock_baseline_valid(const np_cvns_interlock_ctx_t *ctx);
 np_cvns_fault_reason_t    np_cvns_interlock_fault_reason(const np_cvns_interlock_ctx_t *ctx);
 /* RPEAK_IN pulses emitted to the safety MCU since init.  Every detected peak
- * >= NP_CVNS_RR_MIN_VALID_MS after the last is pulsed, with no upper bound
+ * >= NP_RR_MIN_MS after the last is pulsed, with no upper bound
  * (NP-FW-CVNS-001 Rev 11 §14.6, OI-CVNS-13). */
 uint32_t                  np_cvns_interlock_rpeak_pulses(const np_cvns_interlock_ctx_t *ctx);
 

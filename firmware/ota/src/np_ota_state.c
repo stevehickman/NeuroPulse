@@ -19,7 +19,7 @@ uint32_t np_ota_state_crc32(const np_ota_state_t *state)
         crc ^= data[i];
         for (int bit = 0; bit < 8; bit++) {
             if (crc & 1U) {
-                crc = (crc >> 1U) ^ NP_OTA_CRC32_POLY;
+                crc = (crc >> 1U) ^ NP_CRC32_POLY;
             } else {
                 crc >>= 1U;
             }
@@ -33,14 +33,14 @@ uint32_t np_ota_state_crc32(const np_ota_state_t *state)
 
 void np_ota_state_init(np_ota_state_t       *state,
                        uint8_t               target_bank,
-                       const uint8_t         sha256[NP_OTA_SHA256_SIZE])
+                       const uint8_t         sha256[NP_SHA256_SIZE])
 {
     memset(state, 0, sizeof(*state));
     state->magic        = NP_OTA_STATE_MAGIC;
     state->target_bank  = target_bank;
     state->boot_attempts = 0;
     state->reserved     = 0;
-    memcpy(state->staged_sha256, sha256, NP_OTA_SHA256_SIZE);
+    memcpy(state->staged_sha256, sha256, NP_SHA256_SIZE);
     state->crc32        = np_ota_state_crc32(state);
 }
 
@@ -60,7 +60,7 @@ np_ota_state_result_t np_ota_state_validate(const np_ota_state_t *state)
     }
 
     /* Check attempt counter AFTER CRC so a corrupt counter doesn't trigger rollback. */
-    if (state->boot_attempts >= NP_OTA_BOOT_MAX_ATTEMPTS) {
+    if (state->boot_attempts >= NP_BOOT_MAX_ATTEMPTS) {
         return NP_OTA_STATE_MAX_ATTEMPTS;
     }
 
@@ -71,5 +71,5 @@ bool np_ota_state_increment_attempts(np_ota_state_t *state)
 {
     state->boot_attempts++;
     state->crc32 = np_ota_state_crc32(state);
-    return (state->boot_attempts < NP_OTA_BOOT_MAX_ATTEMPTS);
+    return (state->boot_attempts < NP_BOOT_MAX_ATTEMPTS);
 }

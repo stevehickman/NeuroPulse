@@ -36,6 +36,7 @@
 /* np_protocol.c's platform seams — same signatures the production contract
  * declares, so drift is a compile error here too. */
 #include "np_sw02_platform_hal.h"
+#include "np_hub_test_fixtures.h"
 
 static int g_failures = 0;
 
@@ -72,7 +73,6 @@ int np_ed25519_verify(const uint8_t *msg, size_t msg_len,
 
 /* ── np_module_map fixtures ──────────────────────────────────────────────────── */
 
-#define N_SOCKETS 80u
 
 np_hub_status_t np_hexmap_nvram_write(const uint8_t *buf, size_t len)
 {
@@ -338,18 +338,18 @@ static void test_not_socket_addressable(void)
 {
     setup();
     const uint16_t s[] = { 21 };   /* a T1-B: carries NP_ELEM_DUAL_ELECTRODE */
-    static const np_hub_mod_type_t k_electrode_mods[] = {
+    static const np_hub_mod_type_t ELECTRODE_MODS[] = {
         NP_MOD_EEG, NP_MOD_BES_TACS, NP_MOD_TDCS, NP_MOD_VNS_HRV,
         NP_MOD_CVNS, NP_MOD_CLIN_TACS, NP_MOD_HD_TDCS, NP_MOD_QEEG_21CH,
     };
-    const unsigned n_mods = (unsigned)(sizeof k_electrode_mods / sizeof k_electrode_mods[0]);
+    const unsigned n_mods = (unsigned)(sizeof ELECTRODE_MODS / sizeof ELECTRODE_MODS[0]);
 
     unsigned drive_refused = 0U, stop_refused = 0U;
     for (unsigned i = 0; i < n_mods; i++) {
         np_session_cmd_t c = base_cmd(s, 1);          /* a well-formed params block */
-        c.mod_type = k_electrode_mods[i];
+        c.mod_type = ELECTRODE_MODS[i];
         if (np_sock_disp_command(&c) == NP_HUB_ERR_INVALID_ARG) { drive_refused++; }
-        np_session_cmd_t st = stop_cmd(k_electrode_mods[i], s, 1);
+        np_session_cmd_t st = stop_cmd(ELECTRODE_MODS[i], s, 1);
         if (np_sock_disp_command(&st) == NP_HUB_ERR_INVALID_ARG) { stop_refused++; }
     }
     check(drive_refused == n_mods, "every electrode modality's drive on a T1-B socket -> INVALID_ARG");

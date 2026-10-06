@@ -4,7 +4,7 @@
  *
  * NP-HW-TCAP-001 §3 (`REQ-TCAP-02`) specifies which T2 cap electrode reaches
  * which tACS driver channel. Until that document existed the authority was
- * `k_driver_channel[]` in Class B firmware — a C array standing in for a
+ * `DRIVER_CHANNEL[]` in Class B firmware — a C array standing in for a
  * hardware contract — and the map it replaced had aliased five pairs of
  * geometric NEIGHBOURS (Cz/Pz, C4/P4, T8/P8, P7/O1, P3/O2), which is what made
  * the M1_R ring undeliverable. Every one of those five reads as reasonable.
@@ -18,9 +18,9 @@
  *
  * ── The four correspondences it checks ───────────────────────────────────────
  *
- *  A. ROW FOR ROW. Each §3 row's electrode name against `k_electrode_names[]`,
- *     its MNI triple against `k_electrode_mni[]`, and its driver channel against
- *     `k_driver_channel[]` — all in np_hd_montage.c. The MNI column is checked
+ *  A. ROW FOR ROW. Each §3 row's electrode name against `ELECTRODE_NAMES[]`,
+ *     its MNI triple against `ELECTRODE_MNI[]`, and its driver channel against
+ *     `DRIVER_CHANNEL[]` — all in np_hd_montage.c. The MNI column is checked
  *     because `REQ-TCAP-03` is a statement about distances between those
  *     coordinates: a constraint whose inputs are unverified is not a constraint.
  *
@@ -128,7 +128,7 @@ function arrayBody(src: string, name: string): string | null {
 const stripComments = (s: string): string => s.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
 
 function parseChannels(src: string): number[] | null {
-  const body = arrayBody(src, "k_driver_channel");
+  const body = arrayBody(src, "DRIVER_CHANNEL");
   if (body === null) return null;
   return stripComments(body)
     .split(",")
@@ -138,13 +138,13 @@ function parseChannels(src: string): number[] | null {
 }
 
 function parseNames(src: string): string[] | null {
-  const body = arrayBody(src, "k_electrode_names");
+  const body = arrayBody(src, "ELECTRODE_NAMES");
   if (body === null) return null;
   return [...stripComments(body).matchAll(/"([^"]*)"/g)].map((m) => m[1]!);
 }
 
 function parseMni(src: string): [number, number, number][] | null {
-  const body = arrayBody(src, "k_electrode_mni");
+  const body = arrayBody(src, "ELECTRODE_MNI");
   if (body === null) return null;
   return [...stripComments(body).matchAll(/\{\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\}/g)].map(
     (m) => [Number(m[1]), Number(m[2]), Number(m[3])] as [number, number, number],
@@ -183,9 +183,9 @@ export function audit(root: string): { violations: string[]; scanned: number } {
   const names = parseNames(montage);
   const mni = parseMni(montage);
   for (const [label, arr] of [
-    ["k_driver_channel[]", channels],
-    ["k_electrode_names[]", names],
-    ["k_electrode_mni[]", mni],
+    ["DRIVER_CHANNEL[]", channels],
+    ["ELECTRODE_NAMES[]", names],
+    ["ELECTRODE_MNI[]", mni],
   ] as const) {
     if (arr === null) v.push(`${MONTAGE}: ${label} did not parse`);
   }
@@ -206,9 +206,9 @@ export function audit(root: string): { violations: string[]; scanned: number } {
     }
   }
   for (const [label, len] of [
-    ["k_driver_channel[]", channels!.length],
-    ["k_electrode_names[]", names!.length],
-    ["k_electrode_mni[]", mni!.length],
+    ["DRIVER_CHANNEL[]", channels!.length],
+    ["ELECTRODE_NAMES[]", names!.length],
+    ["ELECTRODE_MNI[]", mni!.length],
   ] as const) {
     if (len !== rows.length) {
       v.push(`${MONTAGE}: ${label} has ${len} entries; ${DOC} §3 specifies ${rows.length}`);
@@ -224,21 +224,21 @@ export function audit(root: string): { violations: string[]; scanned: number } {
     }
     if (names![i] !== r.name) {
       v.push(
-        `electrode ${i}: ${DOC} §3 says "${r.name}", ${MONTAGE} k_electrode_names[] says ` +
+        `electrode ${i}: ${DOC} §3 says "${r.name}", ${MONTAGE} ELECTRODE_NAMES[] says ` +
           `"${names![i]}" — firmware must follow the specification`,
       );
     }
     if (channels![i] !== r.channel) {
       v.push(
         `electrode ${i} (${r.name}): ${DOC} §3 assigns driver channel ${r.channel}, ` +
-          `${MONTAGE} k_driver_channel[] says ${channels![i]} — firmware must follow the specification`,
+          `${MONTAGE} DRIVER_CHANNEL[] says ${channels![i]} — firmware must follow the specification`,
       );
     }
     const got = mni![i]!;
     if (got[0] !== r.mni[0] || got[1] !== r.mni[1] || got[2] !== r.mni[2]) {
       v.push(
         `electrode ${i} (${r.name}): ${DOC} §3 gives MNI (${r.mni.join(", ")}), ` +
-          `${MONTAGE} k_electrode_mni[] gives (${got.join(", ")}) — REQ-TCAP-03 is derived from these`,
+          `${MONTAGE} ELECTRODE_MNI[] gives (${got.join(", ")}) — REQ-TCAP-03 is derived from these`,
       );
     }
   }
@@ -304,11 +304,11 @@ if (process.argv.includes("--self-test")) {
     "\n\ntail\n";
 
   const montageFor = (names: string[], mni: [number, number, number][], ch: number[]) =>
-    `static const np_hd_mni_t k_electrode_mni[NP_HD_CH_COUNT] = {\n` +
+    `static const np_hd_mni_t ELECTRODE_MNI[NP_HD_CH_COUNT] = {\n` +
     mni.map((m, i) => `    /* ${names[i] ?? "?"} */ { ${m[0]}, ${m[1]}, ${m[2]} },`).join("\n") +
-    `\n};\n\nstatic const char *const k_electrode_names[NP_HD_CH_COUNT] = {\n    ` +
+    `\n};\n\nstatic const char *const ELECTRODE_NAMES[NP_HD_CH_COUNT] = {\n    ` +
     names.map((s) => `"${s}"`).join(", ") +
-    `,\n};\n\nstatic const uint8_t k_driver_channel[NP_HD_CH_COUNT] = {\n    ` +
+    `,\n};\n\nstatic const uint8_t DRIVER_CHANNEL[NP_HD_CH_COUNT] = {\n    ` +
     ch.map((c, i) => `/*${names[i] ?? "?"}*/ ${c}`).join(", ") +
     `,\n};\n`;
 
@@ -364,11 +364,11 @@ if (process.argv.includes("--self-test")) {
 
   // A — one perturbed channel, one perturbed name, one perturbed coordinate.
   expect("a changed driver channel is caught", build({ ch: [0, 1, 3, 2] }), "assigns driver channel 2");
-  expect("a changed electrode name is caught", build({ names: ["Fp1", "Fp2", "CZ", "Pz"] }), "k_electrode_names[] says");
+  expect("a changed electrode name is caught", build({ names: ["Fp1", "Fp2", "CZ", "Pz"] }), "ELECTRODE_NAMES[] says");
   expect(
     "a changed MNI coordinate is caught",
     build({ mni: [[-21, 66, 5], [21, 66, 5], [0, -10, 84], [0, -65, 75]] }),
-    "k_electrode_mni[] gives",
+    "ELECTRODE_MNI[] gives",
   );
 
   // B — each count corner, independently. Two of three agreeing is the shape
@@ -415,7 +415,7 @@ if (process.argv.includes("--self-test")) {
 const { violations, scanned } = audit(ROOT);
 console.log(
   `scanned: ${scanned} electrode row(s) of NP-HW-TCAP-001 §3 against ` +
-    `k_driver_channel[], k_electrode_names[], k_electrode_mni[], ` +
+    `DRIVER_CHANNEL[], ELECTRODE_NAMES[], ELECTRODE_MNI[], ` +
     `NP_HD_DRIVER_CHANNELS and NP_CLIN_TACS_CHANNELS`,
 );
 if (violations.length) {

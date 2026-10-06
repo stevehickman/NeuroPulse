@@ -67,6 +67,7 @@
 #include "np_map3_record.h"
 #include "np_module_map.h"
 #include "np_session_count.h"
+#include "np_hub_test_fixtures.h"
 
 static int g_fail_count = 0;
 
@@ -80,7 +81,6 @@ static int g_fail_count = 0;
 
 /* ── The instance under test ──────────────────────────────────────────────── */
 
-#define MEDIA_BYTES ((size_t)NP_LFS_CFG_BLOCK_SIZE * NP_LFS_CFG_BLOCK_COUNT)
 
 static uint8_t           g_media[MEDIA_BYTES];
 static uint8_t           g_dirty[(NP_LFS_CFG_BLOCK_COUNT + 7U) / 8U];
@@ -129,7 +129,6 @@ static void fresh(void)
 /* ── Content shapes ───────────────────────────────────────────────────────── */
 
 /* The "NPMP" blob — NP-SOUP-LFS-001 §5.3: HDR(8) + 80 x 175 + CRC(4). */
-#define BLOB_BYTES  (8U + (80U * 175U) + 4U)   /* 14,012 */
 
 static uint8_t g_blob[BLOB_BYTES];
 static uint8_t g_rb[BLOB_BYTES + 512U];
@@ -173,7 +172,6 @@ static bool accept_anything(const uint8_t *buf, size_t len, void *ctx)
 }
 
 /* 32-byte self-checking journal record — NP-FW-NVRAM-001 §4.2 D-5. */
-#define REC_SIZE 32U
 
 static void rec_build(uint8_t out[REC_SIZE], uint32_t ordinal)
 {
@@ -1363,14 +1361,14 @@ static np_hub_status_t map_inv(uint16_t socket_id, void *ctx, uint8_t *types_out
 {
     (void)socket_id;
     (void)ctx;
-    static const uint8_t tile[] = { NP_ELEM_LED_660, NP_ELEM_LED_808,
+    static const uint8_t TILE[] = { NP_ELEM_LED_660, NP_ELEM_LED_808,
                                     NP_ELEM_NTC, NP_ELEM_PD_FORWARD };
     g_map_inv_calls++;
-    if (max < sizeof(tile)) {
+    if (max < sizeof(TILE)) {
         return NP_HUB_ERR_CMD_TOO_MANY;
     }
-    memcpy(types_out, tile, sizeof(tile));
-    *count_out = (uint8_t)sizeof(tile);
+    memcpy(types_out, TILE, sizeof(TILE));
+    *count_out = (uint8_t)sizeof(TILE);
     return NP_HUB_OK;
 }
 

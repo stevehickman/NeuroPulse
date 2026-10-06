@@ -67,7 +67,7 @@
  * pattern word AND its independently stored complement into the T2 pair.     */
 #define NP_TIER_T2_WORD      0x5AC3E12DUL
 
-static const uint8_t k_authority[NP_ED25519_PUB_KEY_LEN] =
+static const uint8_t AUTHORITY[NP_ED25519_PUBKEY_SIZE] =
     NP_TIER_AUTHORITY_PUBKEY_INIT;
 
 static uint32_t s_t2_word;
@@ -110,7 +110,7 @@ np_safe_status_t np_tier_identity_init(void)
 
     set_verdict(false, NP_TIER_REASON_NO_AUTHORITY, NP_TIER_T1);
 
-    if (all_bytes_are(k_authority, (uint8_t)NP_ED25519_PUB_KEY_LEN, 0U)) {
+    if (all_bytes_are(AUTHORITY, (uint8_t)NP_ED25519_PUBKEY_SIZE, 0U)) {
         return NP_SAFE_OK;              /* T1: no key can verify anything */
     }
 
@@ -138,7 +138,7 @@ np_safe_status_t np_tier_identity_init(void)
     (void)memcpy(&msg[NP_TIER_SIG_DOMAIN_LEN + NP_TIER_RECORD_BODY_LEN],
                  uid, NP_DEVICE_UID_LEN);
 
-    if (np_ed25519_verify(k_authority, msg, (uint32_t)NP_TIER_SIG_MSG_LEN,
+    if (np_ed25519_verify(AUTHORITY, msg, (uint32_t)NP_TIER_SIG_MSG_LEN,
                           &rec[NP_TIER_RECORD_BODY_LEN]) != 0) {
         /* Includes a genuine record from ANOTHER unit: its UID is not ours. */
         set_verdict(false, NP_TIER_REASON_SIGNATURE, NP_TIER_T1);

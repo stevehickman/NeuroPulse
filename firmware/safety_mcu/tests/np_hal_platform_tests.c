@@ -343,15 +343,15 @@ static void test_frame_lengths_are_distinct(void)
  * instead of an unprovisioned device.                                        */
 static void test_otp_blank_reads_as_zero_sentinel(void)
 {
-    uint8_t key[NP_ED25519_PUB_KEY_LEN];
+    uint8_t key[NP_ED25519_PUBKEY_SIZE];
     uint8_t i;
     int     all_zero = 1;
 
     memset(np_hal_fake_otp, 0xFF, sizeof(np_hal_fake_otp));
     memset(key, 0xAA, sizeof(key));
-    np_hal_otp_read_pubkey(key, (uint8_t)NP_ED25519_PUB_KEY_LEN);
+    np_hal_otp_read_pubkey(key, (uint8_t)NP_ED25519_PUBKEY_SIZE);
 
-    for (i = 0U; i < NP_ED25519_PUB_KEY_LEN; i++) {
+    for (i = 0U; i < NP_ED25519_PUBKEY_SIZE; i++) {
         if (key[i] != 0U) { all_zero = 0; }
     }
     check(all_zero, "erased OTP (all 0xFF) is reported as the all-zero unprovisioned sentinel");
@@ -359,17 +359,17 @@ static void test_otp_blank_reads_as_zero_sentinel(void)
 
 static void test_otp_programmed_key_passes_through(void)
 {
-    uint8_t key[NP_ED25519_PUB_KEY_LEN];
+    uint8_t key[NP_ED25519_PUBKEY_SIZE];
     uint8_t i;
     int     ok = 1;
 
-    for (i = 0U; i < NP_ED25519_PUB_KEY_LEN; i++) {
+    for (i = 0U; i < NP_ED25519_PUBKEY_SIZE; i++) {
         np_hal_fake_otp[i] = (uint8_t)(i + 1U);
     }
     memset(key, 0, sizeof(key));
-    np_hal_otp_read_pubkey(key, (uint8_t)NP_ED25519_PUB_KEY_LEN);
+    np_hal_otp_read_pubkey(key, (uint8_t)NP_ED25519_PUBKEY_SIZE);
 
-    for (i = 0U; i < NP_ED25519_PUB_KEY_LEN; i++) {
+    for (i = 0U; i < NP_ED25519_PUBKEY_SIZE; i++) {
         if (key[i] != (uint8_t)(i + 1U)) { ok = 0; }
     }
     check(ok, "a programmed OTP key is returned byte-for-byte");
@@ -380,12 +380,12 @@ static void test_otp_programmed_key_passes_through(void)
  * collapsing the two would hide a manufacturing escape. */
 static void test_otp_partial_is_not_flattened(void)
 {
-    uint8_t key[NP_ED25519_PUB_KEY_LEN];
+    uint8_t key[NP_ED25519_PUBKEY_SIZE];
 
     memset(np_hal_fake_otp, 0xFF, sizeof(np_hal_fake_otp));
     np_hal_fake_otp[7] = 0x42U;                 /* one programmed byte */
     memset(key, 0, sizeof(key));
-    np_hal_otp_read_pubkey(key, (uint8_t)NP_ED25519_PUB_KEY_LEN);
+    np_hal_otp_read_pubkey(key, (uint8_t)NP_ED25519_PUBKEY_SIZE);
 
     check(key[7] == 0x42U && key[0] == 0xFFU,
           "a partially programmed OTP window is passed through, not flattened to the sentinel");
@@ -393,7 +393,7 @@ static void test_otp_partial_is_not_flattened(void)
 
 static void test_otp_clamps_len(void)
 {
-    uint8_t buf[NP_ED25519_PUB_KEY_LEN + 8U];
+    uint8_t buf[NP_ED25519_PUBKEY_SIZE + 8U];
     uint8_t i;
     int     tail_clean = 1;
 
@@ -401,11 +401,11 @@ static void test_otp_clamps_len(void)
     memset(buf, 0xEE, sizeof(buf));
     np_hal_otp_read_pubkey(buf, (uint8_t)sizeof(buf));   /* asks for 40 */
 
-    for (i = (uint8_t)NP_ED25519_PUB_KEY_LEN; i < (uint8_t)sizeof(buf); i++) {
+    for (i = (uint8_t)NP_ED25519_PUBKEY_SIZE; i < (uint8_t)sizeof(buf); i++) {
         if (buf[i] != 0xEEU) { tail_clean = 0; }
     }
     check(tail_clean,
-          "otp_read_pubkey clamps to NP_ED25519_PUB_KEY_LEN and cannot overrun the caller's buffer");
+          "otp_read_pubkey clamps to NP_ED25519_PUBKEY_SIZE and cannot overrun the caller's buffer");
 }
 
 /* ══ 4a. ROOT KEY INTEGRITY (NP-FMEA-001 OI-FMEA-03) ═══════════════════════════
@@ -420,11 +420,11 @@ static void otp_program_key(uint8_t seed, bool with_crc, uint32_t crc_xor)
     uint32_t crc;
 
     memset(np_hal_fake_otp, 0xFF, sizeof(np_hal_fake_otp));
-    for (i = 0U; i < NP_ED25519_PUB_KEY_LEN; i++) {
+    for (i = 0U; i < NP_ED25519_PUBKEY_SIZE; i++) {
         np_hal_fake_otp[i] = (uint8_t)(seed + (i * 7U));
     }
     if (with_crc) {
-        crc = np_crc32(np_hal_fake_otp, NP_ED25519_PUB_KEY_LEN) ^ crc_xor;
+        crc = np_crc32(np_hal_fake_otp, NP_ED25519_PUBKEY_SIZE) ^ crc_xor;
         np_hal_fake_otp[NP_OTP_PUBKEY_CRC_OFFSET + 0U] = (uint8_t)(crc);
         np_hal_fake_otp[NP_OTP_PUBKEY_CRC_OFFSET + 1U] = (uint8_t)(crc >> 8U);
         np_hal_fake_otp[NP_OTP_PUBKEY_CRC_OFFSET + 2U] = (uint8_t)(crc >> 16U);
@@ -437,7 +437,7 @@ static uint8_t first_session_fault_slot(void)
 {
     np_safety_state_t st;
     uint8_t hash[NP_SESSION_HASH_LEN];
-    uint8_t sig[NP_ED25519_SIG_LEN];
+    uint8_t sig[NP_ED25519_SIG_SIZE];
 
     memset(&st, 0, sizeof(st));
     st.fault_slot = NP_FAULT_SLOT_NONE;
@@ -507,7 +507,7 @@ static void test_key_crc_rechecked_per_verify(void)
 {
     np_safety_state_t st;
     uint8_t hash[NP_SESSION_HASH_LEN];
-    uint8_t sig[NP_ED25519_SIG_LEN];
+    uint8_t sig[NP_ED25519_SIG_SIZE];
 
     otp_program_key(0x21U, true, 0U);
     (void)np_session_sig_init();
@@ -620,7 +620,7 @@ static void test_tier_record_read_verbatim_from_its_offset(void)
     bool    ok = true;
 
     memset(np_hal_fake_otp, 0xFF, sizeof(np_hal_fake_otp));
-    for (i = 0U; i < NP_ED25519_PUB_KEY_LEN; i++) {
+    for (i = 0U; i < NP_ED25519_PUBKEY_SIZE; i++) {
         np_hal_fake_otp[i] = 0xEEU;                         /* root key bytes */
     }
     for (i = 0U; i < NP_TIER_RECORD_LEN; i++) {
@@ -691,7 +691,7 @@ static void test_iwdg_start_programs_timeout(void)
     check(np_hal_fake_iwdg.RLR == (uint32_t)(NP_SAFETY_IWDG_TIMEOUT_MS - 1U),
           "iwdg_start: reload = NP_SAFETY_IWDG_TIMEOUT_MS - 1");
     check(np_hal_fake_iwdg.KR == 0xAAAAU, "iwdg_start: ends with a refresh");
-    check(NP_SAFETY_IWDG_TIMEOUT_MS <= NP_SAFETY_WDG_TIMEOUT_MS,
+    check(NP_SAFETY_IWDG_TIMEOUT_MS <= NP_SAFETY_WATCHDOG_MS,
           "iwdg timeout is not slower than the heartbeat watchdog");
 }
 

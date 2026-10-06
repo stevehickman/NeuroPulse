@@ -11,6 +11,7 @@
 #define NP_CONFIG_H
 
 #include <stdint.h>
+#include "../../common/include/np_shared_constants.h"
 
 /* ── i.MX RT1062 SRAM layout ──────────────────────────────────────────────── */
 /* Bootloader executes from OCRAM loaded by ROM.                               */
@@ -124,7 +125,6 @@
 
 /* ── SNVS Low Power General Purpose Register 0 ───────────────────────────── */
 /* Survives warm resets; holds boot bank flag and attempt counter.             */
-#define NP_SNVS_BASE            0x400D4000UL
 #define NP_SNVS_LPGPR0          (*(volatile uint32_t *)(NP_SNVS_BASE + 0x68U))
 
 /* SNVS_LPGPR0 bit field layout:                                               */
@@ -141,7 +141,6 @@
 #define NP_SNVS_ATTEMPTS_MASK   (0x3FU << NP_SNVS_ATTEMPTS_SHIFT)
 #define NP_SNVS_OTA_PENDING     (1UL << 8U)
 #define NP_SNVS_DFU_FORCED      (1UL << 16U)
-#define NP_BOOT_MAX_ATTEMPTS    3U
 
 /* ── SNVS_LPGPR1 — factory reset in-progress flag ────────────────────────── */
 /* Set at factory-reset step R-3, cleared at R-11 (NP-FW-EMMC-002 §B).        */
@@ -204,17 +203,14 @@
 /* Firmware vector table + code follows at offset NP_IMAGE_HEADER_SIZE.       */
 #define NP_IMAGE_MAGIC          0x4E504657UL    /* "NPFW"                      */
 #define NP_IMAGE_HEADER_SIZE    256U            /* Aligned to 256 bytes        */
-#define NP_FW_LOAD_ADDR         0x20200000UL    /* OCRAM load target           */
+#define NP_FW_LOAD_ADDR         NP_OCRAM_BASE   /* OCRAM load target           */
 #define NP_FW_MAX_SIZE          (NP_BANK_SIZE_BYTES - NP_IMAGE_HEADER_SIZE)
 
 /* ── Ed25519 public key (manufacturing root — provisioned at test) ────────── */
 /* 32-byte curve25519 public key embedded in bootloader at build time.        */
 /* Replace with production key before tooling sign-off.                       */
-#define NP_ED25519_PUBKEY_SIZE  32U
-#define NP_ED25519_SIG_SIZE     64U
-#define NP_SHA256_SIZE          32U
-#define NP_SHA512_SIZE          64U
-
+/* Key/signature/digest sizes: NP_ED25519_PUBKEY_SIZE, NP_ED25519_SIG_SIZE,    */
+/* NP_SHA256_SIZE, NP_SHA512_SIZE in np_shared_constants.h.                   */
 /* ── USDHC peripheral (eMMC on USDHC2) ──────────────────────────────────── */
 #define NP_USDHC2_BASE          0x402C4000UL
 #define NP_EMMC_SECTOR_SIZE     512U
@@ -234,8 +230,5 @@
 /* If the app does not confirm, the next reset treats this as a boot failure. */
 /* This constant is stored in Config partition, not SNVS (survives SNVS wipe).*/
 #define NP_OTA_CONFIRM_TIMEOUT_S 30U
-
-/* ── CRC32 polynomial ─────────────────────────────────────────────────────── */
-#define NP_CRC32_POLY           0xEDB88320UL    /* IEEE 802.3 reflected        */
 
 #endif /* NP_CONFIG_H */

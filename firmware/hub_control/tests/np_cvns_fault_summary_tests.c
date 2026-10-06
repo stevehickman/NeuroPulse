@@ -127,7 +127,7 @@ static void test_empty(void)
  * the blanket-warning flag. */
 static void test_golden_frame_matches_app_parser(void)
 {
-    static const uint8_t expected[] = {
+    static const uint8_t EXPECTED[] = {
         0x01, 0x02, 0x03, 0x02,
         41, 0, 0, 0, 2, 0x00, 0, 0,
         42, 0, 0, 0, 1, 0x00, 0, 0,
@@ -141,7 +141,7 @@ static void test_golden_frame_matches_app_parser(void)
     (void)np_cvfs_record_fault(42u, NP_CVNS_FAULT_HR_CHANGE, 0u);
     (void)np_cvfs_record_fault(43u, NP_CVNS_FAULT_IMPEDANCE, NP_CVFS_SIDE_RIGHT);
     len = frame_now(2u, true, 0x02u, f);
-    check(len == sizeof expected && memcmp(f, expected, len) == 0,
+    check(len == sizeof EXPECTED && memcmp(f, EXPECTED, len) == 0,
           "golden: bytes equal the frame the iOS/Android parsers are tested against");
 }
 

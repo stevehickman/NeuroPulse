@@ -509,10 +509,10 @@ static void test_rejects_other_versions(void)
 {
     /* 0 was never issued; 2 and 3 were pre-release numbers for layouts now
      * folded into v1.  Any of them is refused, not reinterpreted. */
-    static const uint16_t k_versions[] = { 0x0000U, 0x0002U, 0x0003U };
-    for (size_t i = 0; i < sizeof k_versions / sizeof k_versions[0]; i++) {
+    static const uint16_t VERSIONS[] = { 0x0000U, 0x0002U, 0x0003U };
+    for (size_t i = 0; i < sizeof VERSIONS / sizeof VERSIONS[0]; i++) {
         blob_t b;
-        blob_begin(&b, k_versions[i]);
+        blob_begin(&b, VERSIONS[i]);
         blob_add_cmd(&b, NP_MOD_AUDIO, NP_HUB_SLOT_AUDIO,
                      0U, 0U, NP_PROTO_TARGET_SLOT, NULL, 0U, NULL, 0U);
         size_t len = blob_finish(&b);
@@ -764,23 +764,23 @@ static void desc_with(np_session_desc_t *d, const np_hub_mod_type_t *mods,
 
 static void test_t2_modality_set(void)
 {
-    static const np_hub_mod_type_t t2[] = {
+    static const np_hub_mod_type_t T2_MODULE_TYPES[] = {
         NP_MOD_CVNS, NP_MOD_QEEG_21CH, NP_MOD_TMS, NP_MOD_PBM_1170NM,
         NP_MOD_CLIN_TACS, NP_MOD_HD_TDCS };
     np_session_desc_t d;
     bool all_t2 = true;
     bool no_t1  = true;
 
-    for (size_t i = 0U; i < sizeof t2 / sizeof t2[0]; i++) {
-        desc_with(&d, &t2[i], 1U, 0U);
+    for (size_t i = 0U; i < sizeof T2_MODULE_TYPES / sizeof T2_MODULE_TYPES[0]; i++) {
+        desc_with(&d, &T2_MODULE_TYPES[i], 1U, 0U);
         if (!np_protocol_uses_t2_modality(&d)) { all_t2 = false; }
     }
     check(all_t2, "tier: each of the six T2 modalities marks a protocol T2");
 
     for (uint8_t m = NP_MOD_PBM_BASE; m < NP_MOD_TYPE_COUNT; m++) {
         bool is_t2 = false;
-        for (size_t i = 0U; i < sizeof t2 / sizeof t2[0]; i++) {
-            if (m == (uint8_t)t2[i]) { is_t2 = true; }
+        for (size_t i = 0U; i < sizeof T2_MODULE_TYPES / sizeof T2_MODULE_TYPES[0]; i++) {
+            if (m == (uint8_t)T2_MODULE_TYPES[i]) { is_t2 = true; }
         }
         if (is_t2) { continue; }
         np_hub_mod_type_t mt = (np_hub_mod_type_t)m;

@@ -14,7 +14,7 @@
 # include/np_accel_shdr.h and is deliberately NOT overridable from here.  A -D
 # would make the value ci/test_shdr_schema.py parses out of that header a
 # statement about nothing.  The host tests reach the extended path through
-# np_accel_char_build_gate, which exists only under NPTEST_HOST.
+# NP_ACCEL_CHAR_BUILD_GATE, which exists only under NPTEST_HOST.
 
 cmake_minimum_required(VERSION 3.20)
 

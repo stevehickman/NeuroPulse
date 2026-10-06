@@ -113,7 +113,7 @@
  * np_hal_get_tick_ms()   Free-running monotonic millisecond counter.  UNITS ARE
  *                        MILLISECONDS — this is load-bearing for three Class C
  *                        timings that are all expressed in ms against it:
- *                          · the SPI heartbeat watchdog, NP_SAFETY_WDG_TIMEOUT_MS
+ *                          · the SPI heartbeat watchdog, NP_SAFETY_WATCHDOG_MS
  *                            = 1500 ms (np_spi_watchdog.c)
  *                          · the cardiac heart-rate snapshot cadence,
  *                            NP_CARDIAC_HR_SNAP_MS = 1000 ms, which sets the
@@ -334,7 +334,7 @@ uint32_t np_hal_impedance_read_cvns_electrode_ohm(uint8_t electrode);
  *
  * np_hal_otp_read_pubkey()  Read the manufacturing root Ed25519 public key out
  *                           of one-time-programmable memory into `buf`.
- *                           len is always NP_ED25519_PUB_KEY_LEN (32); the
+ *                           len is always NP_ED25519_PUBKEY_SIZE (32); the
  *                           single caller, np_session_sig_init(), passes it.
  *                           An ALL-ZERO key is the agreed sentinel for "OTP was
  *                           never programmed" (unprovisioned device); the

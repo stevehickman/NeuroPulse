@@ -76,6 +76,7 @@
  * dereferenced, so the absolute peripheral addresses it names stay inert on a
  * host.  NP-SW-CI-001 §4.10. */
 #include "np_config.h"
+#include "../../common/tests/np_ld_script_limits.h"
 
 #ifndef NP_BOOTLOADER_LD_PATH
 #error "NP_BOOTLOADER_LD_PATH must be defined by the build"
@@ -102,8 +103,6 @@ static int g_fail_count = 0;
  * the assignment that sets it.  Comment bytes become spaces so nothing on
  * either side is joined into one token.
  */
-
-#define LD_MAX_BYTES  (256U * 1024U)
 
 typedef struct {
     char        text[LD_MAX_BYTES];   /* comment-stripped */

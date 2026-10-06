@@ -93,7 +93,7 @@ typedef struct {
     uint8_t  adc_ch;
 } np_hal_ntc_map_t;
 
-static const np_hal_ntc_map_t k_ntc_map[NP_NTC_CHANNEL_COUNT] = {
+static const np_hal_ntc_map_t NTC_MAP[NP_NTC_CHANNEL_COUNT] = {
     { NP_NTC0_PORT, NP_NTC0_PIN, NP_NTC0_ADC_CH },   /* cranial sense domain 0 */
     { NP_NTC1_PORT, NP_NTC1_PIN, NP_NTC1_ADC_CH },   /* cranial sense domain 1 */
     { NP_NTC2_PORT, NP_NTC2_PIN, NP_NTC2_ADC_CH },   /* cranial sense domain 2 */
@@ -131,7 +131,7 @@ void np_hal_adc_init(void)
 
     np_hal_port_clocks_enable();
     for (i = 0U; i < NP_NTC_CHANNEL_COUNT; i++) {
-        np_hal_pin_config_analog(k_ntc_map[i].port, k_ntc_map[i].pin);
+        np_hal_pin_config_analog(NTC_MAP[i].port, NTC_MAP[i].pin);
     }
 
     /* Deselect and stop anything a warm reset left running.  ADCAL below is
@@ -207,7 +207,7 @@ uint16_t np_hal_adc_read_channel(uint8_t channel)
     /* Single channel selection.  CHSELR is a bitmap in the G0's sequencer;
      * writing exactly one bit makes the sequence one conversion long. */
     NP_NTC_ADC_INSTANCE->ISR    = ADC_ISR_EOC | ADC_ISR_EOS;
-    NP_NTC_ADC_INSTANCE->CHSELR = (1UL << k_ntc_map[channel].adc_ch);
+    NP_NTC_ADC_INSTANCE->CHSELR = (1UL << NTC_MAP[channel].adc_ch);
     if (!np_hal_adc_spin(&NP_NTC_ADC_INSTANCE->ISR, ADC_ISR_CCRDY, true)) {
         return NP_HAL_ADC_FAILSAFE_COUNT;
     }

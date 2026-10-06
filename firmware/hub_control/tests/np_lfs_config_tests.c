@@ -116,10 +116,10 @@ static void path_in_vendor(char *out, size_t cap, const char *name)
 
 static void hex_of(const unsigned char *digest, char *out /* >= 65 */)
 {
-    static const char hexdig[] = "0123456789abcdef";
+    static const char HEXDIG[] = "0123456789abcdef";
     for (unsigned i = 0U; i < 32U; i++) {
-        out[2U * i]      = hexdig[(digest[i] >> 4) & 0x0FU];
-        out[2U * i + 1U] = hexdig[digest[i] & 0x0FU];
+        out[2U * i]      = HEXDIG[(digest[i] >> 4) & 0x0FU];
+        out[2U * i + 1U] = HEXDIG[digest[i] & 0x0FU];
     }
     out[64] = '\0';
 }
@@ -128,7 +128,7 @@ static void hex_of(const unsigned char *digest, char *out /* >= 65 */)
 
 static void test_vendored_files_match_recorded_sha256(void)
 {
-    static const char *const files[] = {
+    static const char *const TEST_FILE_NAMES[] = {
         "lfs.c", "lfs.h", "lfs_util.c", "lfs_util.h", "LICENSE.md"
     };
 
@@ -138,16 +138,16 @@ static void test_vendored_files_match_recorded_sha256(void)
         return;
     }
 
-    for (unsigned i = 0U; i < sizeof(files) / sizeof(files[0]); i++) {
+    for (unsigned i = 0U; i < sizeof(TEST_FILE_NAMES) / sizeof(TEST_FILE_NAMES[0]); i++) {
         char path[1024];
-        path_in_vendor(path, sizeof(path), files[i]);
+        path_in_vendor(path, sizeof(path), TEST_FILE_NAMES[i]);
 
         size_t n = slurp(path, g_file, sizeof(g_file), __func__);
         if (n == 0U) {
             continue;
         }
 
-        unsigned char digest[NP_CRYPTO_SHA256_SIZE];
+        unsigned char digest[NP_SHA256_SIZE];
         np_sha256(g_file, (uint32_t)n, digest);
 
         char hex[65];
@@ -157,14 +157,14 @@ static void test_vendored_files_match_recorded_sha256(void)
          * appear together is what stops a hash matching some OTHER file's
          * line. */
         char expect[1024];
-        snprintf(expect, sizeof(expect), "%s  %s", hex, files[i]);
+        snprintf(expect, sizeof(expect), "%s  %s", hex, TEST_FILE_NAMES[i]);
 
         if (strstr(g_version, expect) == NULL) {
             printf("FAIL [%s] %s hashes to %s, which is not the SHA-256 the "
                    "VERSION record carries for it. Either the vendored file "
                    "was edited — NP-SW-CI-001 §9 forbids patching SOUP — or "
                    "the record was not updated with it.\n",
-                   __func__, files[i], hex);
+                   __func__, TEST_FILE_NAMES[i], hex);
             g_fail_count++;
         }
     }
@@ -235,7 +235,7 @@ static void test_soup_record_states_the_same_configuration(void)
         return;
     }
 
-    static const char *const must_name[] = {
+    static const char *const MUST_NAME[] = {
         "LFS_DEFINES=np_lfs_config.h",
         "LFS_NO_MALLOC",
         "LFS_NO_ASSERT",
@@ -246,12 +246,12 @@ static void test_soup_record_states_the_same_configuration(void)
         "v2.11.3",
     };
 
-    for (unsigned i = 0U; i < sizeof(must_name) / sizeof(must_name[0]); i++) {
-        if (strstr(g_version, must_name[i]) == NULL) {
+    for (unsigned i = 0U; i < sizeof(MUST_NAME) / sizeof(MUST_NAME[0]); i++) {
+        if (strstr(g_version, MUST_NAME[i]) == NULL) {
             printf("FAIL [%s] the VERSION record does not mention %s, which is "
                    "in force in the build. A SOUP record a reviewer cannot read "
                    "the configuration out of is the defect this whole record "
-                   "replaced.\n", __func__, must_name[i]);
+                   "replaced.\n", __func__, MUST_NAME[i]);
             g_fail_count++;
         }
     }

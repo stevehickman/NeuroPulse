@@ -83,7 +83,7 @@ static uint32_t elapsed_ms_now(void)
  */
 static uint16_t slot_to_safety_bit(uint8_t slot)
 {
-    static const uint16_t k_map[NP_HUB_SLOT_MAX] = {
+    static const uint16_t SLOT_ENABLE_MAP[NP_HUB_SLOT_MAX] = {
         /* Slots 0-4 (the retired zone slots) deliberately have NO entry, so they
          * zero-init to 0 and request no enable.  Cranial PBM is gated by the one
          * NP_SAFETY_EN_PBM_CRANIAL bit (NP-HW-HUB-001 Rev 3 §7.2), and the
@@ -108,7 +108,7 @@ static uint16_t slot_to_safety_bit(uint8_t slot)
         [NP_HUB_SLOT_TDCS]       = NP_SAFETY_EN_TDCS,
         /* QEEG is passive recording, VIBROTACTILE is not safety-MCU gated. */
     };
-    return (slot < NP_HUB_SLOT_MAX) ? k_map[slot] : 0U;
+    return (slot < NP_HUB_SLOT_MAX) ? SLOT_ENABLE_MAP[slot] : 0U;
 }
 
 /*

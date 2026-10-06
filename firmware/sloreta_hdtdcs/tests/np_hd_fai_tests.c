@@ -732,18 +732,18 @@ static int fai_hd01_sloreta_plumbing(void)
      * M_PI is deliberately not used — it is POSIX, not ISO C, and these tests
      * compile with a strict -std=c11 where glibc hides it.
      */
-    static const float    k_two_pi          = 6.283185307179586f;
-    static const float    k_f3_amplitude_uv = 10.0f;
-    static const float    k_o2_amplitude_uv = 1.0f;
-    static const uint16_t k_f3_cycles       = 20U;
-    static const uint16_t k_o2_cycles       = 7U;
+    static const float    TWO_PI          = 6.283185307179586f;
+    static const float    F3_AMPLITUDE_UV = 10.0f;
+    static const float    O2_AMPLITUDE_UV = 1.0f;
+    static const uint16_t F3_CYCLES       = 20U;
+    static const uint16_t O2_CYCLES       = 7U;
 
     static float samples[NP_HD_SLORETA_N_CH][NP_HD_SLORETA_FFT_SIZE];
     memset(samples, 0, sizeof(samples));
     for (uint16_t s = 0U; s < NP_HD_SLORETA_FFT_SIZE; s++) {
-        float phase = k_two_pi * (float)s / (float)NP_HD_SLORETA_FFT_SIZE;
-        samples[NP_HD_CH_F3][s] = k_f3_amplitude_uv * sinf(phase * (float)k_f3_cycles);
-        samples[NP_HD_CH_O2][s] = k_o2_amplitude_uv * sinf(phase * (float)k_o2_cycles);
+        float phase = TWO_PI * (float)s / (float)NP_HD_SLORETA_FFT_SIZE;
+        samples[NP_HD_CH_F3][s] = F3_AMPLITUDE_UV * sinf(phase * (float)F3_CYCLES);
+        samples[NP_HD_CH_O2][s] = O2_AMPLITUDE_UV * sinf(phase * (float)O2_CYCLES);
     }
 
     /* Expected source power is exactly derivable, so assert magnitude and not
@@ -757,8 +757,8 @@ static int fai_hd01_sloreta_plumbing(void)
      * 1024-sample window, so they are orthogonal and the F3–O2 cross-covariance
      * is exactly zero.  The Frobenius norm therefore reduces to the two
      * diagonal terms. */
-    const float k_expected_power_f3 = k_f3_amplitude_uv * k_f3_amplitude_uv / 2.0f;
-    const float k_expected_power_o2 = k_o2_amplitude_uv * k_o2_amplitude_uv / 2.0f;
+    const float k_expected_power_f3 = F3_AMPLITUDE_UV * F3_AMPLITUDE_UV / 2.0f;
+    const float k_expected_power_o2 = O2_AMPLITUDE_UV * O2_AMPLITUDE_UV / 2.0f;
     const float k_expected_cov_norm = sqrtf(k_expected_power_f3 * k_expected_power_f3 +
                                             k_expected_power_o2 * k_expected_power_o2);
 
@@ -1056,9 +1056,9 @@ static float hd01e_samples[NP_HD_SLORETA_N_CH][NP_HD_SLORETA_FFT_SIZE];
 /* Write A*sin(2*pi*cycles*n/N) into one channel; zero every other channel. */
 static void hd01e_fill_tone(uint8_t ch, uint16_t cycles, float amplitude_uv)
 {
-    static const float k_two_pi = 6.283185307179586f;
+    static const float TWO_PI = 6.283185307179586f;
     for (uint16_t s = 0U; s < NP_HD_SLORETA_FFT_SIZE; s++) {
-        float phase = k_two_pi * (float)s / (float)NP_HD_SLORETA_FFT_SIZE;
+        float phase = TWO_PI * (float)s / (float)NP_HD_SLORETA_FFT_SIZE;
         hd01e_samples[ch][s] = amplitude_uv * sinf(phase * (float)cycles);
     }
 }
@@ -1199,9 +1199,9 @@ static int fai_hd01e_band_power_spectral(void)
         ASSERT_OK(np_sloreta_init(&ctx, hd01e_W, hd01e_mni, 2U));
 
         memset(hd01e_samples, 0, sizeof(hd01e_samples));
-        static const float k_two_pi = 6.283185307179586f;
+        static const float TWO_PI = 6.283185307179586f;
         for (uint16_t s = 0U; s < NP_HD_SLORETA_FFT_SIZE; s++) {
-            float ph = k_two_pi * (float)s / (float)NP_HD_SLORETA_FFT_SIZE;
+            float ph = TWO_PI * (float)s / (float)NP_HD_SLORETA_FFT_SIZE;
             hd01e_samples[NP_HD_CH_F3][s] =
                 HD01E_TONE_AMPLITUDE_UV * sinf(ph * (float)HD01E_CYCLES_ALPHA) +
                 k_beta_amp              * sinf(ph * (float)HD01E_CYCLES_BETA);
@@ -1387,10 +1387,10 @@ static float hd01f_samples[NP_HD_SLORETA_N_CH][NP_HD_SLORETA_FFT_SIZE];
 
 /* Voxel v reads channel hd01f_channel[v]; each carries its own whole-cycle tone
  * so every channel's epoch mean is exactly zero and the tones stay orthogonal. */
-static const uint8_t  hd01f_channel[HD01F_VOXELS] = {
+static const uint8_t  HD01F_CHANNEL[HD01F_VOXELS] = {
     NP_HD_CH_F3, NP_HD_CH_P3, NP_HD_CH_C4, NP_HD_CH_O2, NP_HD_CH_CZ, NP_HD_CH_F4,
 };
-static const uint16_t hd01f_cycles[HD01F_VOXELS] = { 20U, 12U, 40U, 5U, 30U, 17U };
+static const uint16_t HD01F_CYCLES[HD01F_VOXELS] = { 20U, 12U, 40U, 5U, 30U, 17U };
 
 /*
  * Drive find_peak() with a caller-supplied map and check the whole result.
@@ -1450,7 +1450,7 @@ static int fai_hd01f_peak_argmax(void)
     /* Row v is the unit vector on hd01f_channel[v]. */
     memset(hd01f_W, 0, sizeof(hd01f_W));
     for (uint8_t v = 0U; v < HD01F_VOXELS; v++) {
-        hd01f_W[v * NP_HD_SLORETA_N_CH + hd01f_channel[v]] = 1.0f;
+        hd01f_W[v * NP_HD_SLORETA_N_CH + HD01F_CHANNEL[v]] = 1.0f;
     }
 
     /* ── Part 1: the argmax alone, driven with hand-built maps ────────────── */
@@ -1468,15 +1468,15 @@ static int fai_hd01f_peak_argmax(void)
          * pre-existing suite ever produced, and on its own it is satisfied by a
          * function that never enters the loop at all.
          */
-        static const float p_first[HD01F_VOXELS]  = { 9.0f, 2.0f, 3.0f, 4.0f, 5.0f, 1.0f };
-        static const float p_second[HD01F_VOXELS] = { 1.0f, 9.0f, 3.0f, 4.0f, 5.0f, 2.0f };
-        static const float p_middle[HD01F_VOXELS] = { 1.0f, 2.0f, 9.0f, 4.0f, 5.0f, 3.0f };
-        static const float p_last[HD01F_VOXELS]   = { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 9.0f };
+        static const float P_FIRST[HD01F_VOXELS]  = { 9.0f, 2.0f, 3.0f, 4.0f, 5.0f, 1.0f };
+        static const float P_SECOND[HD01F_VOXELS] = { 1.0f, 9.0f, 3.0f, 4.0f, 5.0f, 2.0f };
+        static const float P_MIDDLE[HD01F_VOXELS] = { 1.0f, 2.0f, 9.0f, 4.0f, 5.0f, 3.0f };
+        static const float P_LAST[HD01F_VOXELS]   = { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 9.0f };
 
-        hd01f_expect_peak(&ctx, p_first,  HD01F_VOXELS, 0U, "peak@0 (control)");
-        hd01f_expect_peak(&ctx, p_second, HD01F_VOXELS, 1U, "peak@1 (first iter)");
-        hd01f_expect_peak(&ctx, p_middle, HD01F_VOXELS, 2U, "peak@middle");
-        hd01f_expect_peak(&ctx, p_last,   HD01F_VOXELS, 5U, "peak@last");
+        hd01f_expect_peak(&ctx, P_FIRST,  HD01F_VOXELS, 0U, "peak@0 (control)");
+        hd01f_expect_peak(&ctx, P_SECOND, HD01F_VOXELS, 1U, "peak@1 (first iter)");
+        hd01f_expect_peak(&ctx, P_MIDDLE, HD01F_VOXELS, 2U, "peak@middle");
+        hd01f_expect_peak(&ctx, P_LAST,   HD01F_VOXELS, 5U, "peak@last");
 
         /*
          * HD01-F2: n_voxels is a hard bound, not a hint.
@@ -1487,12 +1487,12 @@ static int fai_hd01f_peak_argmax(void)
          * a `v <= n_voxels` bound fails this assertion loudly instead of
          * depending on whatever happens to sit past the array.
          */
-        static const float p_short[HD01F_VOXELS] = { 1.0f, 2.0f, 7.0f, 4.0f, 5.0f, 1000.0f };
-        hd01f_expect_peak(&ctx, p_short, 5U, 2U, "peak within bound (tail ignored)");
+        static const float P_SHORT[HD01F_VOXELS] = { 1.0f, 2.0f, 7.0f, 4.0f, 5.0f, 1000.0f };
+        hd01f_expect_peak(&ctx, P_SHORT, 5U, 2U, "peak within bound (tail ignored)");
 
         /* Degenerate map: one voxel, no loop iterations at all. */
-        static const float p_one[HD01F_VOXELS] = { 3.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-        hd01f_expect_peak(&ctx, p_one, 1U, 0U, "single voxel");
+        static const float P_ONE[HD01F_VOXELS] = { 3.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+        hd01f_expect_peak(&ctx, P_ONE, 1U, 0U, "single voxel");
 
         /*
          * HD01-F3: an all-negative map.  Source power from a covariance quadratic
@@ -1502,8 +1502,8 @@ static int fai_hd01f_peak_argmax(void)
          * result and compared against a zeroed field) would report voxel 0 here
          * while agreeing with every non-negative case above.
          */
-        static const float p_neg[HD01F_VOXELS] = { -9.0f, -2.0f, -5.0f, -1.0f, -7.0f, -3.0f };
-        hd01f_expect_peak(&ctx, p_neg, HD01F_VOXELS, 3U, "all-negative map");
+        static const float P_NEG[HD01F_VOXELS] = { -9.0f, -2.0f, -5.0f, -1.0f, -7.0f, -3.0f };
+        hd01f_expect_peak(&ctx, P_NEG, HD01F_VOXELS, 3U, "all-negative map");
 
         /*
          * HD01-F4: tie-breaking.
@@ -1521,21 +1521,21 @@ static int fai_hd01f_peak_argmax(void)
          * index — must fail here rather than quietly changing which electrode
          * ring a tied map selects.
          */
-        static const float p_tie[HD01F_VOXELS]     = { 1.0f, 9.0f, 3.0f, 9.0f, 5.0f, 2.0f };
-        static const float p_all_tie[HD01F_VOXELS] = { 4.0f, 4.0f, 4.0f, 4.0f, 4.0f, 4.0f };
-        hd01f_expect_peak(&ctx, p_tie,     HD01F_VOXELS, 1U, "tie -> lowest index");
-        hd01f_expect_peak(&ctx, p_all_tie, HD01F_VOXELS, 0U, "all tied -> index 0");
+        static const float P_TIE[HD01F_VOXELS]     = { 1.0f, 9.0f, 3.0f, 9.0f, 5.0f, 2.0f };
+        static const float P_ALL_TIE[HD01F_VOXELS] = { 4.0f, 4.0f, 4.0f, 4.0f, 4.0f, 4.0f };
+        hd01f_expect_peak(&ctx, P_TIE,     HD01F_VOXELS, 1U, "tie -> lowest index");
+        hd01f_expect_peak(&ctx, P_ALL_TIE, HD01F_VOXELS, 0U, "all tied -> index 0");
 
         /* HD01-F6: argument validation. */
         {
             np_hd_sloreta_result_t r;
-            ASSERT(np_sloreta_find_peak(NULL, p_last, HD01F_VOXELS, &r)
+            ASSERT(np_sloreta_find_peak(NULL, P_LAST, HD01F_VOXELS, &r)
                        == NP_HD_ERR_INVALID_ARG, "HD01-F6: NULL ctx accepted");
             ASSERT(np_sloreta_find_peak(&ctx, NULL, HD01F_VOXELS, &r)
                        == NP_HD_ERR_INVALID_ARG, "HD01-F6: NULL source_power accepted");
-            ASSERT(np_sloreta_find_peak(&ctx, p_last, HD01F_VOXELS, NULL)
+            ASSERT(np_sloreta_find_peak(&ctx, P_LAST, HD01F_VOXELS, NULL)
                        == NP_HD_ERR_INVALID_ARG, "HD01-F6: NULL out accepted");
-            ASSERT(np_sloreta_find_peak(&ctx, p_last, 0U, &r)
+            ASSERT(np_sloreta_find_peak(&ctx, P_LAST, 0U, &r)
                        == NP_HD_ERR_INVALID_ARG, "HD01-F6: n_voxels == 0 accepted");
         }
 
@@ -1555,7 +1555,7 @@ static int fai_hd01f_peak_argmax(void)
      * The amplitudes below put the maximum on a LATER voxel in both arrangements.
      */
     {
-        static const float k_two_pi = 6.283185307179586f;
+        static const float TWO_PI = 6.283185307179586f;
 
         static const struct {
             const char *name;
@@ -1576,9 +1576,9 @@ static int fai_hd01f_peak_argmax(void)
             memset(hd01f_samples, 0, sizeof(hd01f_samples));
             for (uint8_t v = 0U; v < HD01F_VOXELS; v++) {
                 for (uint16_t s = 0U; s < NP_HD_SLORETA_FFT_SIZE; s++) {
-                    float ph = k_two_pi * (float)s / (float)NP_HD_SLORETA_FFT_SIZE;
-                    hd01f_samples[hd01f_channel[v]][s] =
-                        cases[c].amplitude_uv[v] * sinf(ph * (float)hd01f_cycles[v]);
+                    float ph = TWO_PI * (float)s / (float)NP_HD_SLORETA_FFT_SIZE;
+                    hd01f_samples[HD01F_CHANNEL[v]][s] =
+                        cases[c].amplitude_uv[v] * sinf(ph * (float)HD01F_CYCLES[v]);
                 }
             }
 

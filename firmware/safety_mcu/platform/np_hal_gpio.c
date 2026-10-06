@@ -79,7 +79,7 @@ typedef struct {
 
 #define NP_HAL_EN_LINE_COUNT  10U
 
-static const np_hal_en_line_t k_en_lines[NP_HAL_EN_LINE_COUNT] = {
+static const np_hal_en_line_t EN_LINES[NP_HAL_EN_LINE_COUNT] = {
     { NP_EN_PBM_CRANIAL_PORT, NP_EN_PBM_CRANIAL_PIN },
     { NP_EN_BES_PORT,         NP_EN_BES_PIN         },
     { NP_EN_TDCS_PORT,        NP_EN_TDCS_PIN        },
@@ -99,7 +99,7 @@ void np_hal_gpio_init(void)
     np_hal_port_clocks_enable();
 
     for (i = 0U; i < NP_HAL_EN_LINE_COUNT; i++) {
-        GPIO_TypeDef *p = (GPIO_TypeDef *)k_en_lines[i].port;
+        GPIO_TypeDef *p = (GPIO_TypeDef *)EN_LINES[i].port;
 
         /* ORDER IS THE SAFETY PROPERTY — see the file header.
          *
@@ -111,9 +111,9 @@ void np_hal_gpio_init(void)
          *
          * Reversing these two steps asserts every stimulation enable for the
          * duration of the loop.  Do not "simplify" this by configuring first. */
-        p->BSRR = (uint32_t)k_en_lines[i].pin;
+        p->BSRR = (uint32_t)EN_LINES[i].pin;
 
-        np_hal_pin_config_output_od(k_en_lines[i].port, k_en_lines[i].pin);
+        np_hal_pin_config_output_od(EN_LINES[i].port, EN_LINES[i].pin);
     }
 }
 

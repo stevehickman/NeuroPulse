@@ -35,7 +35,7 @@ typedef struct {
 #define NP_CFG_REPLICA_DIR_A  "ra"
 #define NP_CFG_REPLICA_DIR_B  "rb"
 
-static const np_cfg_file_desc_t s_files[NP_CFG_FILE_COUNT] = {
+static const np_cfg_file_desc_t CFG_FILES[NP_CFG_FILE_COUNT] = {
     [NP_CFG_FILE_NPMP] = { NP_CFG_POLICY_REBUILD,       { "npmp.bin", NULL } },
     [NP_CFG_FILE_MAP3] = { NP_CFG_POLICY_TAIL_ADDITIVE, { "map3.jrn", NULL } },
     [NP_CFG_FILE_UKMD] = { NP_CFG_POLICY_REPLICATED,
@@ -113,7 +113,7 @@ static np_cfg_store_stats_t     s_stats;
 #define NP_CFG_REPLICA_MAX     (NP_CFG_REPLICA_HDR + NP_CFG_REPLICA_MAX_PAYLOAD \
                                 + NP_CFG_REPLICA_CRC)
 
-static const uint8_t k_replica_magic[4] = { 'N', 'P', 'R', 'R' };
+static const uint8_t REPLICA_MAGIC[4] = { 'N', 'P', 'R', 'R' };
 
 static uint32_t crc32_le(const uint8_t *data, size_t len)
 {
@@ -207,7 +207,7 @@ static np_hub_status_t cfg_open(np_cfg_file_t file, unsigned copy,
     memset(&s_fcfg, 0, sizeof(s_fcfg));
     s_fcfg.buffer = s_file_cache;
 
-    int err = lfs_file_opencfg(s_lfs, handle, s_files[file].path[copy], flags,
+    int err = lfs_file_opencfg(s_lfs, handle, CFG_FILES[file].path[copy], flags,
                                &s_fcfg);
     if (err == LFS_ERR_NOENT) {
         return NP_HUB_ERR_NOT_PRESENT;
@@ -437,7 +437,7 @@ void np_cfg_store_unmount(void)
 
 np_cfg_policy_t np_cfg_store_policy(np_cfg_file_t file)
 {
-    return file_ok(file) ? s_files[file].policy : NP_CFG_POLICY_INVALID;
+    return file_ok(file) ? CFG_FILES[file].policy : NP_CFG_POLICY_INVALID;
 }
 
 /* ── REBUILD ───────────────────────────────────────────────────────────────── */
@@ -464,7 +464,7 @@ np_hub_status_t np_cfg_store_read(np_cfg_file_t file, uint8_t *buf, size_t cap,
                                   size_t *out_len, np_cfg_verify_fn verify,
                                   void *ctx)
 {
-    if (!file_ok(file) || s_files[file].policy != NP_CFG_POLICY_REBUILD ||
+    if (!file_ok(file) || CFG_FILES[file].policy != NP_CFG_POLICY_REBUILD ||
         buf == NULL || out_len == NULL || verify == NULL || s_lfs == NULL) {
         return NP_HUB_ERR_INVALID_ARG;
     }
@@ -475,7 +475,7 @@ np_hub_status_t np_cfg_store_read(np_cfg_file_t file, uint8_t *buf, size_t cap,
 np_hub_status_t np_cfg_store_replace(np_cfg_file_t file, const uint8_t *buf,
                                      size_t len)
 {
-    if (!file_ok(file) || s_files[file].policy != NP_CFG_POLICY_REBUILD ||
+    if (!file_ok(file) || CFG_FILES[file].policy != NP_CFG_POLICY_REBUILD ||
         buf == NULL || s_lfs == NULL) {
         return NP_HUB_ERR_INVALID_ARG;
     }
@@ -516,7 +516,7 @@ static np_hub_status_t append_locked(np_cfg_file_t file, const uint8_t *rec,
 np_hub_status_t np_cfg_store_journal_append(np_cfg_file_t file,
                                             const uint8_t *rec, size_t rec_len)
 {
-    if (!file_ok(file) || s_files[file].policy != NP_CFG_POLICY_TAIL_ADDITIVE ||
+    if (!file_ok(file) || CFG_FILES[file].policy != NP_CFG_POLICY_TAIL_ADDITIVE ||
         rec == NULL || rec_len == 0U || s_lfs == NULL) {
         return NP_HUB_ERR_INVALID_ARG;
     }
@@ -555,7 +555,7 @@ np_hub_status_t np_cfg_store_journal_read(np_cfg_file_t file, uint8_t *buf,
                                           np_cfg_record_verify_fn verify,
                                           void *ctx)
 {
-    if (!file_ok(file) || s_files[file].policy != NP_CFG_POLICY_TAIL_ADDITIVE ||
+    if (!file_ok(file) || CFG_FILES[file].policy != NP_CFG_POLICY_TAIL_ADDITIVE ||
         buf == NULL || out_count == NULL || verify == NULL || rec_len == 0U ||
         s_lfs == NULL) {
         return NP_HUB_ERR_INVALID_ARG;
@@ -602,7 +602,7 @@ np_hub_status_t np_cfg_store_journal_read_rows(np_cfg_file_t file, uint8_t *buf,
                                                np_cfg_record_step_fn step,
                                                void *ctx)
 {
-    if (!file_ok(file) || s_files[file].policy != NP_CFG_POLICY_TAIL_ADDITIVE ||
+    if (!file_ok(file) || CFG_FILES[file].policy != NP_CFG_POLICY_TAIL_ADDITIVE ||
         buf == NULL || out_count == NULL || out_bytes == NULL || step == NULL ||
         s_lfs == NULL) {
         return NP_HUB_ERR_INVALID_ARG;
@@ -625,7 +625,7 @@ static bool envelope_valid(const uint8_t *env, size_t env_len, size_t len,
     if (env_len != NP_CFG_REPLICA_HDR + len + NP_CFG_REPLICA_CRC) {
         return false;
     }
-    if (memcmp(env, k_replica_magic, 4U) != 0) {
+    if (memcmp(env, REPLICA_MAGIC, 4U) != 0) {
         return false;
     }
     if (get_u32(env + 8) != (uint32_t)len) {
@@ -642,7 +642,7 @@ static bool envelope_valid(const uint8_t *env, size_t env_len, size_t len,
 static size_t envelope_build(uint8_t *env, uint32_t gen, const uint8_t *payload,
                              size_t len)
 {
-    memcpy(env, k_replica_magic, 4U);
+    memcpy(env, REPLICA_MAGIC, 4U);
     put_u32(env + 4, gen);
     put_u32(env + 8, (uint32_t)len);
     memcpy(env + NP_CFG_REPLICA_HDR, payload, len);
@@ -729,7 +729,7 @@ static np_hub_status_t replicated_read_locked(np_cfg_file_t file,
 np_hub_status_t np_cfg_store_replicated_read(np_cfg_file_t file,
                                              uint8_t *payload, size_t len)
 {
-    if (!file_ok(file) || s_files[file].policy != NP_CFG_POLICY_REPLICATED ||
+    if (!file_ok(file) || CFG_FILES[file].policy != NP_CFG_POLICY_REPLICATED ||
         payload == NULL || len == 0U || len > NP_CFG_REPLICA_MAX_PAYLOAD ||
         s_lfs == NULL) {
         return NP_HUB_ERR_INVALID_ARG;
@@ -775,7 +775,7 @@ np_hub_status_t np_cfg_store_replicated_write(np_cfg_file_t file,
                                               const uint8_t *payload,
                                               size_t len)
 {
-    if (!file_ok(file) || s_files[file].policy != NP_CFG_POLICY_REPLICATED ||
+    if (!file_ok(file) || CFG_FILES[file].policy != NP_CFG_POLICY_REPLICATED ||
         payload == NULL || len == 0U || len > NP_CFG_REPLICA_MAX_PAYLOAD ||
         s_lfs == NULL) {
         return NP_HUB_ERR_INVALID_ARG;

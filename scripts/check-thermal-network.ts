@@ -763,7 +763,7 @@ const JUNCTION_CUTOFF_C = 62, JUNCTION_REARM_C = 55;
 
 /**
  * ADC counts per degree from the shipped NTC table
- * (firmware/safety_mcu/src/np_thermal_interlock.c, k_ntc_adc, 10k B=3950,
+ * (firmware/safety_mcu/src/np_thermal_interlock.c, NTC_ADC, 10k B=3950,
  * 10k divider, 12-bit). Quoted, not re-derived: three entries spanning the band.
  */
 const NTC_ADC_AT = { 30: 2140, 34: 1846, 35: 1776, 36: 1708 } as const;

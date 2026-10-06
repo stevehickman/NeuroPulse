@@ -26,8 +26,8 @@
 #include "../include/np_safety_config.h"
 #include "../include/np_safety_protocol.h"
 
-/* Hub-side enable-word values, read in a separate TU (the macro names collide
- * with the safety-MCU ones by design).  See np_hub_enable_mirror.c.          */
+/* Hub-only constants (electrode areas, audio), read in a separate TU that sees
+ * only the hub header.  See np_hub_enable_mirror.c.                          */
 #include "np_hub_enable_mirror.h"
 
 static int g_failures = 0;
@@ -120,7 +120,7 @@ static void test_sig_cmd_checksum(void)
     /* Fill hash and sig with known test pattern */
     uint8_t i;
     for (i = 0U; i < NP_SESSION_HASH_LEN; i++) { cmd.session_hash[i] = (uint8_t)(i + 1U); }
-    for (i = 0U; i < NP_ED25519_SIG_LEN;  i++) { cmd.session_sig[i]  = (uint8_t)(i + 0x40U); }
+    for (i = 0U; i < NP_ED25519_SIG_SIZE;  i++) { cmd.session_sig[i]  = (uint8_t)(i + 0x40U); }
 
     cmd.checksum = cmd_checksum(&cmd);
 
@@ -240,9 +240,9 @@ static void test_cmd_constants(void)
     check(NP_SAFETY_CMD_SESSION_SIG == 0x01U, "NP_SAFETY_CMD_SESSION_SIG == 0x01");
     check(NP_SAFETY_CMD_FRAME_LEN == 102U,    "NP_SAFETY_CMD_FRAME_LEN == 102");
     check(NP_SESSION_HASH_LEN == 32U,          "NP_SESSION_HASH_LEN == 32");
-    check(NP_ED25519_SIG_LEN  == 64U,          "NP_ED25519_SIG_LEN == 64");
+    check(NP_ED25519_SIG_SIZE  == 64U,          "NP_ED25519_SIG_SIZE == 64");
     /* Payload = 4 header + 32 hash + 64 sig + 2 checksum */
-    check(4U + NP_SESSION_HASH_LEN + NP_ED25519_SIG_LEN + 2U == NP_SAFETY_CMD_FRAME_LEN,
+    check(4U + NP_SESSION_HASH_LEN + NP_ED25519_SIG_SIZE + 2U == NP_SAFETY_CMD_FRAME_LEN,
           "frame_len equals 4+hash+sig+2");
 }
 
@@ -370,62 +370,14 @@ static void test_enable_word_layout(void)
           "ALL_MASK == union of the 10 allocated modality bits");
 }
 
-/* ── Test: safety-MCU and hub enable words agree bit for bit ────────────────── */
+/* ── Test: enable-word structure and hub-only constants ─────────────────────
+ * The enable bits and channel indices are one definition in np_spi_wire_types.h
+ * (the bit-position ≡ channel-index identity is a compile-time check there), so
+ * no cross-side agreement remains to test.  What is left: the electrical-channel
+ * mask built on those bits, and the constants only the hub holds.           */
 
-static void test_enable_word_matches_hub(void)
+static void test_enable_word_structure(void)
 {
-    /* Same modalities, same order, same count. */
-    check(np_hub_enable_mirror_count == 10U,
-          "hub declares 10 allocated enable bits");
-
-    const uint16_t safety_bits[10] = {
-        NP_SAFETY_EN_PBM_CRANIAL, NP_SAFETY_EN_BES_TACS, NP_SAFETY_EN_TDCS,
-        NP_SAFETY_EN_VNS_HRV,     NP_SAFETY_EN_VISUAL,   NP_SAFETY_EN_INTRANASAL,
-        NP_SAFETY_EN_CVNS,        NP_SAFETY_EN_TMS,      NP_SAFETY_EN_PBM_1170NM,
-        NP_SAFETY_EN_CLIN_STIM,
-    };
-
-    uint16_t hub_union = 0U;
-    unsigned i;
-    for (i = 0U; i < np_hub_enable_mirror_count && i < 10U; i++) {
-        char name[96];
-        (void)snprintf(name, sizeof(name), "hub %s bit == safety MCU bit",
-                       np_hub_enable_mirror[i].name);
-        check(np_hub_enable_mirror[i].bit == safety_bits[i], name);
-        hub_union |= np_hub_enable_mirror[i].bit;
-    }
-
-    /* Agreement on the whole word, not just per-bit: a hub bit outside ALL_MASK
-     * would be requested and silently stripped.                               */
-    check(hub_union == NP_SAFETY_EN_ALL_MASK,
-          "union of hub enable bits == NP_SAFETY_EN_ALL_MASK");
-
-    /* Charge-monitor channel indices must agree across the boundary too.
-     * Both are geometry-gated channels (OI-CHARGE-03 / -04): the hub delivers
-     * an electrode area on each, and a mismatch here would apply one
-     * modality's charge limit to another's accumulator. */
-    check(np_hub_ch_clin_stim == NP_SAFETY_CH_CLIN_STIM,
-          "hub NP_SAFETY_CH_CLIN_STIM == safety MCU value");
-    check(np_hub_ch_tdcs == NP_SAFETY_CH_TDCS,
-          "hub NP_SAFETY_CH_TDCS == safety MCU value");
-    check(np_hub_ch_bes_tacs == NP_SAFETY_CH_BES_TACS,
-          "hub NP_SAFETY_CH_BES_TACS == safety MCU value");
-    check(np_hub_ch_vns_hrv == NP_SAFETY_CH_VNS_HRV,
-          "hub NP_SAFETY_CH_VNS_HRV == safety MCU value");
-    check(np_hub_ch_cvns == NP_SAFETY_CH_CVNS,
-          "hub NP_SAFETY_CH_CVNS == safety MCU value");
-    /* Each index is the bit position of its own enable bit. */
-    check((1U << np_hub_ch_clin_stim) == NP_SAFETY_EN_CLIN_STIM,
-          "CH_CLIN_STIM is the bit position of EN_CLIN_STIM");
-    check((1U << np_hub_ch_tdcs) == NP_SAFETY_EN_TDCS,
-          "CH_TDCS is the bit position of EN_TDCS");
-    check((1U << np_hub_ch_bes_tacs) == NP_SAFETY_EN_BES_TACS,
-          "CH_BES_TACS is the bit position of EN_BES_TACS");
-    check((1U << np_hub_ch_vns_hrv) == NP_SAFETY_EN_VNS_HRV,
-          "CH_VNS_HRV is the bit position of EN_VNS_HRV");
-    check((1U << np_hub_ch_cvns) == NP_SAFETY_EN_CVNS,
-          "CH_CVNS is the bit position of EN_CVNS");
-
     /* Every electrical channel must be inside NP_SAFETY_CH_ELECTRICAL_MASK —
      * that mask is what the fail-closed declaration gate iterates, so a
      * channel missing from it would be energised without a waveform
@@ -448,14 +400,14 @@ static void test_enable_word_matches_hub(void)
      * silently fall back to the permissive 25 cm² default; anything above it
      * would be a larger charge budget than the default, which needs a
      * measurement behind it rather than a guess. */
-    check(np_hub_bes_area_mcm2  > 0U && np_hub_bes_area_mcm2  <= 25000U &&
-          np_hub_vns_area_mcm2  > 0U && np_hub_vns_area_mcm2  <= 25000U &&
-          np_hub_cvns_area_mcm2 > 0U && np_hub_cvns_area_mcm2 <= 25000U,
+    check(NP_HUB_BES_AREA_MCM2  > 0U && NP_HUB_BES_AREA_MCM2  <= 25000U &&
+          NP_HUB_VNS_AREA_MCM2  > 0U && NP_HUB_VNS_AREA_MCM2  <= 25000U &&
+          NP_HUB_CVNS_AREA_MCM2 > 0U && NP_HUB_CVNS_AREA_MCM2 <= 25000U,
           "provisional electrode areas are declared and no larger than the default");
 
     /* Audio carries no safety gate on either side. */
-    check(np_hub_en_audio == 0U, "hub NP_SAFETY_EN_AUDIO is 0 (not gated)");
-    check((np_hub_en_audio & NP_SAFETY_EN_ALL_MASK) == 0U,
+    check(NP_HUB_EN_AUDIO == 0U, "hub NP_SAFETY_EN_AUDIO is 0 (not gated)");
+    check((NP_HUB_EN_AUDIO & NP_SAFETY_EN_ALL_MASK) == 0U,
           "audio claims no allocated enable bit");
 }
 
@@ -787,7 +739,7 @@ int main(void)
 
     /* NP-HW-HUB-001 Rev 3 §7.2 — cranial enable collapse + hub agreement */
     test_enable_word_layout();
-    test_enable_word_matches_hub();
+    test_enable_word_structure();
     test_geom_req_bes_session_status_bit();
 
     /* OI-CHARGE-01 — extended heartbeat frame tests */

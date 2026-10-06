@@ -135,84 +135,14 @@
 
 /* ── Safety MCU SPI ──────────────────────────────────────────────────────────── */
 
-#define NP_SAFETY_HEARTBEAT_MS      200U  /* main processor sends heartbeat period */
-#define NP_SAFETY_WATCHDOG_MS       1500U /* safety MCU watchdog; cutoff on expiry */
 #define NP_SAFETY_SPI_TIMEOUT_MS    10U
-#define NP_SAFETY_FRAME_LEN         8U    /* MCU reply frame size (heartbeat RX is NP_SAFETY_RX_EXT_FRAME_LEN = 38) */
-#define NP_SAFETY_BEAT_MAGIC_0      0xBEU
-#define NP_SAFETY_BEAT_MAGIC_1      0xA7U
-
-/* Session signature command frame constants: NP_SAFETY_CMD_MAGIC_0/1,
- * NP_SAFETY_CMD_SESSION_SIG, NP_SAFETY_CMD_FRAME_LEN, NP_SESSION_HASH_LEN,
- * NP_ED25519_SIG_LEN, and np_safety_sig_cmd_t are in
- * firmware/common/include/np_spi_wire_types.h (included via np_hub_types.h). */
 #include "../../common/include/np_spi_wire_types.h"
 
-/*
- * Enable bitmask sent to safety MCU; one bit per stimulation channel.
- * Safety MCU owns the GPIO that physically gates each channel — the main
- * processor cannot enable stimulation without the safety MCU granting it.
- */
-/*
- * Bit 0 gates ALL cranial PBM (NP-HW-HUB-001 Rev 3 §7.2), replacing the five
- * per-zone bits of Rev 2.  "Zone" is not a firmware concept — a zone is a
- * human-authored socket set in protocols/predefined/00-zones.npps and changing
- * its membership requires no hardware change, so the §4.5.1 discriminator
- * (np_module_map.h) forbids firmware holding it.  Cranial PBM as a whole IS a
- * hardware property.  One logical enable, fanned out to one gate transistor per
- * cluster on the LED drive rails (§7.4).
- *
- * OI-HUB-C07 / OI-HEXTILE-13 CLOSED 2026-08-16 (NP-HW-HUB-001 Rev 4 §7.2.1):
- * per-cluster POLICY bits are decided against, so this hub must never grow a
- * per-cluster enable field to pack into enable_lo/enable_hi.  The 18 gates are
- * IEC 62304 Class B and are commanded by THIS processor, not by the safety MCU
- * and not by the cluster controller they sit on (HUB-REQ-C05, §7.2.2).
- * Full reasoning and the accepted all-or-nothing safety consequence:
- * safety_mcu/np_safety_protocol.h.
- */
-#define NP_SAFETY_EN_PBM_CRANIAL    (1U << 0)
-
-/*
- * Bits 1–4: RESERVED — NOT REUSED.  Formerly NP_SAFETY_EN_PBM_ZONE_1..4.  The
- * safety MCU strips them via NP_SAFETY_EN_ALL_MASK, so they can never enable
- * anything.  That strip is defence in depth against a FUTURE authoring error
- * re-introducing these positions, NOT compatibility with a deployed or legacy
- * hub: no hub hardware exists, and the ZONE macros were deleted in the same
- * change (corrected 2026-08-12, NP-HW-HUB-001 Rev 4 §7.2).  The holes are kept
- * for reasons independent of any hub — two of them, one of which binds today:
- * (a) enable-bit positions appear in SHDR fault records — currently non-binding,
- * since no SHDR fault records exist yet (principal, 2026-08-04); (b) bit
- * position IS the charge-monitor channel index into current_ua[] and
- * s_charge_nc[], which is Class C and binds now.  See the long-form note in
- * safety_mcu/np_safety_protocol.h — this block must stay byte-identical with it.
- */
-#define NP_SAFETY_EN_BES_TACS       (1U << 5)
-#define NP_SAFETY_EN_TDCS           (1U << 6)
-#define NP_SAFETY_EN_VNS_HRV        (1U << 7)
-#define NP_SAFETY_EN_VISUAL         (1U << 8)
-#define NP_SAFETY_EN_INTRANASAL     (1U << 9)
-#define NP_SAFETY_EN_CVNS           (1U << 10)
-#define NP_SAFETY_EN_TMS            (1U << 11)  /* gates TMS coil; EMF cancellation gated off per NP-FW-HUB §4.2 */
-#define NP_SAFETY_EN_PBM_1170NM     (1U << 12)  /* gates 1170nm laser diodes */
-#define NP_SAFETY_EN_CLIN_STIM      (1U << 13)  /* gates 21-ch tACS driver (covers CLIN_TACS + HD_TDCS) */
+/* The NP_SAFETY_EN_* enable bits are in np_spi_wire_types.h — one definition
+ * for both processors.  The safety MCU owns the GPIO that physically gates each
+ * channel; the main processor cannot enable stimulation without it granting.
+ * Audio alone is hub-side: it is not safety-MCU-gated.                       */
 #define NP_SAFETY_EN_AUDIO          0U    /* audio not safety-MCU-gated */
-
-/* Safety-MCU charge-monitor channel INDEX for CLIN_STIM (= bit position of
- * NP_SAFETY_EN_CLIN_STIM).  HD-tDCS accumulates charge on this channel against
- * the anode (peak per-electrode) current.  OI-CHARGE-02.                      */
-#define NP_SAFETY_CH_CLIN_STIM      13U
-
-/* Safety-MCU charge-monitor channel INDEX for T1 tDCS (= bit position of
- * NP_SAFETY_EN_TDCS).  The session runner delivers the protocol's declared
- * electrode area on this channel (OI-CHARGE-04).
- *
- * Defined per-side like NP_SAFETY_CH_CLIN_STIM above and MUST match
- * safety_mcu/include/np_safety_protocol.h.  np_safety_spi_proto_tests.c
- * asserts the two agree through np_hub_enable_mirror — OI-CHARGE-04 first
- * defined this on the MCU side only, and because np_session_runner.c is in
- * the ARM-cross-only HUB_SOURCES it compiles in no host test, so the ARM
- * cross-build was the only thing that could catch it, and did.            */
-#define NP_SAFETY_CH_TDCS           6U
 
 /* HD-tDCS electrode geometry for the charge-limit command (OI-CHARGE-02).
  * 3.5mm Ag/AgCl sintered electrode area = 0.0962 cm² (NP_HD_ELECTRODE_AREA_CM2
@@ -220,13 +150,6 @@
  * FLOORED (0.0962 × 1000 = 96.2 → 96) so the safety MCU's derived limit
  * (40µC/cm² × 96 = 3840nC = 3.84µC) never exceeds the true 40µC/cm² ceiling.  */
 #define NP_HD_SMALL_ELECTRODE_AREA_MCM2  96U
-
-/* Mirror of the remaining safety-MCU electrical channel indices, same rule and
- * same reason as the two above (OI-CHARGE-05).  np_safety_spi_proto_tests.c
- * asserts all five against np_safety_protocol.h.                            */
-#define NP_SAFETY_CH_BES_TACS       5U
-#define NP_SAFETY_CH_VNS_HRV        7U
-#define NP_SAFETY_CH_CVNS           10U
 
 /* ── Electrode geometry for the channels that do not author their own ────────
  *
@@ -273,24 +196,16 @@
 #define NP_HD_MONTAGE_BILATERAL_4X1  1U
 #define NP_HD_MONTAGE_STANDARD_2EL   2U
 
-/* ── Heartbeat session_status bits (hub side) ─────────────────────────────────
- * Bits 0 and 1 are defined per-side (here and in safety_mcu/np_safety_protocol.h)
- * and MUST match; bits 2 and 3 (NP_SESSION_STATUS_GEOM_REQUIRED,
- * NP_SESSION_STATUS_GEOM_REQ_TDCS) are shared via np_spi_wire_types.h.  These are BIT FLAGS — never write an np_session_state_t
- * enum value into the session_status byte (use np_safety_session_status_bits()). */
-#define NP_SESSION_STATUS_ACTIVE        (1U << 0)  /* session underway */
-#define NP_SESSION_STATUS_CVNS_REENABLE (1U << 1)  /* explicit CVNS re-enable after cardiac cutoff */
-
 /* ── Cervical VNS re-enable manager (OI-CVNS-HUB-01) ──────────────────────────
  * The hub asserts NP_SESSION_STATUS_CVNS_REENABLE only when ALL THREE gates
  * pass: 30s lockout elapsed since the hub observed the cardiac cutoff +
  * explicit app confirmation + fresh hub-side impedance check passed.        */
 
 /* Gate 1: hub-side lockout, measured from the heartbeat reply in which the hub
- * first observed NP_SAFETY_STATUS_CARDIAC.  Value matches the safety MCU's
- * NP_CARDIAC_LOCKOUT_MS; because the hub observation lags the MCU cutoff by
+ * first observed NP_SAFETY_STATUS_CARDIAC.  The duration is the safety MCU's own
+ * NP_CARDIAC_LOCKOUT_MS (np_shared_constants.h, one definition); because the hub observation lags the MCU cutoff by
  * ≤1 heartbeat (200ms), the hub window always contains the MCU window.      */
-#define NP_CVNS_REENABLE_LOCKOUT_MS        30000U
+/* (No separate hub constant: the lockout is NP_CARDIAC_LOCKOUT_MS.)         */
 
 /* Gate 3: max wait for the hub-side impedance measurement to complete before
  * failing closed (back to AWAIT_CONFIRM).                                   */
@@ -359,19 +274,7 @@
                                          NP_SAFETY_STATUS_THERMAL  | \
                                          NP_SAFETY_STATUS_CHARGE)
 
-/* Safety MCU status flags (returned in each heartbeat reply). */
-#define NP_SAFETY_STATUS_OK          0x00U
-#define NP_SAFETY_STATUS_FAULT       (1U << 0)
-#define NP_SAFETY_STATUS_WATCHDOG    (1U << 1) /* watchdog fired since last beat */
-#define NP_SAFETY_STATUS_CUTOFF      (1U << 2) /* stimulation was cut by safety MCU */
-#define NP_SAFETY_STATUS_IMPEDANCE   (1U << 3)
-#define NP_SAFETY_STATUS_THERMAL     (1U << 4)
-#define NP_SAFETY_STATUS_CHARGE      (1U << 5)
-#define NP_SAFETY_STATUS_CARDIAC     (1U << 6)
-/* SIG_PENDING: hub must call np_safety_spi_send_session_sig() to clear.
- * Set when session_active goes 0→1; cleared when sig verified.
- * If set after send_session_sig(), the signature was rejected — abort session. */
-#define NP_SAFETY_STATUS_SIG_PENDING (1U << 7)
+/* NP_SAFETY_STATUS_* (heartbeat reply flags) are in np_spi_wire_types.h. */
 
 /* ── Session runner ───────────────────────────────────────────────────────────── */
 
@@ -387,9 +290,7 @@
 
 /* EEG ring buffer — 500Hz × 8ch × 3 bytes (24-bit) = 12000 bytes/s. */
 #define NP_EEG_RING_SAMPLES         4000U  /* ~8s headroom before oldest data overwritten */
-#define NP_EEG_CHANNELS             8U     /* T1: Fp1/2 F3/4 C3/4 P3/4 semi-dry */
 #define NP_EEG_SAMPLE_BYTES         3U     /* 24-bit ADS1299 output */
-#define NP_EEG_SAMPLE_RATE_HZ       500U
 
 /* T2 qEEG — 21-channel wet-gel 10-20 + FC3/4 + Oz + A1/A2 */
 #define NP_QEEG_CHANNELS            21U

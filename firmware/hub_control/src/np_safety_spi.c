@@ -308,7 +308,7 @@ np_hub_status_t np_safety_spi_send_session_sig(const uint8_t *hash,
     cmd.cmd_type     = NP_SAFETY_CMD_SESSION_SIG;
     cmd.reserved     = 0U;
     memcpy(cmd.session_hash, hash, NP_SESSION_HASH_LEN);
-    memcpy(cmd.session_sig,  sig,  NP_ED25519_SIG_LEN);
+    memcpy(cmd.session_sig,  sig,  NP_ED25519_SIG_SIZE);
     cmd.checksum = compute_checksum((const uint8_t *)&cmd,
                                     NP_SAFETY_CMD_FRAME_LEN - 2U);
 

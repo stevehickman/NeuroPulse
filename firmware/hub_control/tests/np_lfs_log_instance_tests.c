@@ -37,6 +37,7 @@
 #include "np_crypto.h"
 #include "np_lfs_config.h"
 #include "np_lfs_instance.h"
+#include "np_hub_test_fixtures.h"
 #include "np_lfs_log_instance.h"
 #include "np_lfs_powerbd.h"
 #include "np_lfs_sweep.h"
@@ -208,15 +209,13 @@ static void test_parameters_are_pinned(void)
 
 /* ── 2/3. The real geometry mounts, and L-1/L-2 hold on it ────────────────── */
 
-#define REC_SIZE   32U
 #define LOG_BASE   160U
 /* 16 flushes of 8 records, not 4 of 32: the same 128 records, but each flush
  * is one more metadata commit, and a commit that lands on the odd half of a
  * 512-byte RMW unit is the only op whose tear can reach bytes that are already
  * committed (OI-LFS-14).  More flushes, more chances for §4's evidence. */
-#define LOG_BATCH  8U
-#define LOG_BATCHES 16U
-#define LOG_PATH   "session.log"
+#define LOG_INSTANCE_BATCH  8U
+#define LOG_INSTANCE_BATCHES 16U
 
 static void rec_build(uint8_t out[REC_SIZE], uint32_t ordinal, uint8_t gen)
 {
@@ -270,9 +269,9 @@ static void log_append(void)
         (void)lfs_unmount(&g_lfs);
         return;
     }
-    for (uint32_t b = 0U; b < LOG_BATCHES; b++) {
-        for (uint32_t i = 0U; i < LOG_BATCH; i++) {
-            rec_build(rec, LOG_BASE + (b * LOG_BATCH) + i, 1U);
+    for (uint32_t b = 0U; b < LOG_INSTANCE_BATCHES; b++) {
+        for (uint32_t i = 0U; i < LOG_INSTANCE_BATCH; i++) {
+            rec_build(rec, LOG_BASE + (b * LOG_INSTANCE_BATCH) + i, 1U);
             (void)lfs_file_write(&g_lfs, &f, rec, REC_SIZE);
         }
         if (lfs_file_sync(&g_lfs, &f) == 0) {
@@ -288,7 +287,7 @@ static int  g_shown;
 
 static int log_verify(const char *what, long cut, np_powerbd_tear_t tear)
 {
-    static uint8_t rb[REC_SIZE * (LOG_BASE + LOG_BATCH * LOG_BATCHES)];
+    static uint8_t rb[REC_SIZE * (LOG_BASE + LOG_INSTANCE_BATCH * LOG_INSTANCE_BATCHES)];
     lfs_file_t f;
     const char *why = NULL;
 
@@ -303,14 +302,14 @@ static int log_verify(const char *what, long cut, np_powerbd_tear_t tear)
         (void)lfs_unmount(&g_lfs);
         size_t recs = (got < 0) ? 0U : (size_t)got / REC_SIZE;
         bool boundary = false;
-        for (uint32_t b = 0U; b <= LOG_BATCHES; b++) {
-            boundary = boundary || (recs == (size_t)(LOG_BASE + b * LOG_BATCH));
+        for (uint32_t b = 0U; b <= LOG_INSTANCE_BATCHES; b++) {
+            boundary = boundary || (recs == (size_t)(LOG_BASE + b * LOG_INSTANCE_BATCH));
         }
         if (got < 0 || ((size_t)got % REC_SIZE) != 0U) {
             why = "read failed or not a whole number of records";
         } else if (!boundary) {
             why = "not a flush boundary (L-1)";
-        } else if (recs < (size_t)(LOG_BASE + g_log_acked * LOG_BATCH)) {
+        } else if (recs < (size_t)(LOG_BASE + g_log_acked * LOG_INSTANCE_BATCH)) {
             why = "a flush that had returned was rolled back (L-1: sync is durable)";
         } else {
             uint8_t expect[REC_SIZE];

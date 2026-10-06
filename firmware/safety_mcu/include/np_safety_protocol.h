@@ -22,8 +22,8 @@
  * heartbeat frame type in np_safety_main.c is now np_safety_rx_ext_frame_t.
  *
  * SPI timing:
- *   - Heartbeat period: 200ms (NP_SAFETY_HEARTBEAT_EXP_MS)
- *   - Watchdog timeout: 1500ms (NP_SAFETY_WDG_TIMEOUT_MS)
+ *   - Heartbeat period: 200ms (NP_SAFETY_HEARTBEAT_MS)
+ *   - Watchdog timeout: 1500ms (NP_SAFETY_WATCHDOG_MS)
  *
  * NP_SAFETY_FRAME_LEN        = 8   (MCU reply frame; np_safety_tx_frame_t)
  * NP_SAFETY_RX_EXT_FRAME_LEN = 38  (extended heartbeat; np_safety_rx_ext_frame_t)
@@ -38,108 +38,9 @@
 #include "np_safety_config.h"
 #include "../../common/include/np_spi_wire_types.h"
 
-/* ── Magic bytes (must match hub_control/np_hub_config.h) ─────────────────── */
-#define NP_SAFETY_BEAT_MAGIC_0  0xBEU
-#define NP_SAFETY_BEAT_MAGIC_1  0xA7U
-
-/* ── Enable bitmask bits (must match hub_control/np_hub_config.h) ─────────── */
-/*
- * Bit 0 gates ALL cranial PBM (NP-HW-HUB-001 Rev 3 §7.2).  It replaces the five
- * per-zone bits of Rev 2, which were retired for two independent reasons:
- *
- *  1. "Zone" is not a firmware concept.  A zone is a human-authored set of
- *     sockets in protocols/predefined/00-zones.npps; changing that membership
- *     needs no hardware change, so under the §4.5.1 discriminator (quoted at
- *     length in hub_control/include/np_module_map.h) firmware must not model it.
- *     Cranial PBM as a whole IS a hardware property, so one bit for it is legal.
- *  2. Five was the retired zone-slot count, and the mask happened to have five
- *     spare bits — an artifact, not a derived safety requirement.
- *
- * Why one bit is sufficient, not merely convenient: the safety MCU's function is
- * the interlock — cut stimulation — not dose selectivity.  Cutting all cranial
- * PBM is always a safe response; over-cutting is a usability cost, never a
- * hazard.  Per-socket thermal response does not go through this MCU anyway (the
- * per-tile 62 °C junction limit is a hardware current throttle, and per-socket
- * dose shutdown is a Class B duty=0 write, NP-FW-PBM1064-001 §6.5).  Physical
- * gating still distributes — one gate transistor per cluster on each cluster's
- * LED drive rail (NP-HW-HEXTILE-001 D-8, 18 high-side switches) — but fanned out
- * from this ONE policy bit (§7.4).
- *
- * ACCEPTED CONSEQUENCE, confirmed by safety review: a safety-layer cut is
- * all-or-nothing across the cranial lattice.  A single socket cannot be
- * safety-cut without the whole lattice.
- *
- * OI-HUB-C07 / OI-HEXTILE-13 CLOSED 2026-08-16 — per-cluster POLICY bits are
- * DECIDED AGAINST (NP-HW-HUB-001 Rev 4 §7.2.1, NP-HW-HEXTILE-001 Rev 5 §8.4.1).
- * This enable word is therefore FINAL as laid out below: it is NOT widened to
- * uint32_t, and no per-cluster enable bits are added.  Two reasons, either
- * sufficient:
- *
- *  - No hazard in the tree has an extent of one cluster.  Extents are physical
- *    — a tile heats (RISK-26, per-tile NTC throttle, Class B), a modality
- *    accumulates charge (its own bit here), a rail collapses (watchdog, all
- *    bits) — while a cluster is a clamp-plate/FPC boundary.  A control at a
- *    granularity matching no hazard's extent is not a safety control.
- *  - 18 cluster bits would require this MCU to hold a socket->cluster map, which
- *    is topological and moves with MECH-2 / REG-1.  Behind the Class C boundary
- *    a re-clustering becomes a recertification, and a stale map can cut the
- *    wrong cluster while leaving the faulted one energised.
- *
- * The 18 per-cluster gates still exist in hardware — they are IEC 62304 Class B
- * availability gates, commanded by the hub (HUB-REQ-C05), in series with this
- * bit.  R-11 holds: this MCU still physically owns the enable path, and no
- * Class B fault can re-energise a lattice this bit has cut.
- *
- * Reopening requires one of: a physical process with a one-cluster extent; the
- * cluster ceasing to be topological; or the Class B tier proving unable to
- * deliver per-cluster availability.  See NP-HW-HEXTILE-001 §8.4.1.
- */
-#define NP_SAFETY_EN_PBM_CRANIAL    (1U << 0)
-
-/*
- * Bits 1–4: RESERVED — NOT REUSED.  Formerly NP_SAFETY_EN_PBM_ZONE_1..4.
- * Excluded from NP_SAFETY_EN_ALL_MASK, so np_spi_watchdog_tick strips them and
- * they can never enable anything.
- *
- * What that exclusion is, and is not (corrected 2026-08-12, NP-HW-HUB-001
- * Rev 4 §7.2): NO hub can set one of these bits.  No hub hardware exists, and
- * the NP_SAFETY_EN_PBM_ZONE_0..4 macros were DELETED in the same 2026-08-05
- * change that created these holes — they survive only in "Formerly ..."
- * comments like this one.  So the mask exclusion is defence in depth against a
- * FUTURE authoring error re-introducing those positions, not compatibility with
- * a deployed or legacy hub.  Stated precisely because a guard described as
- * mitigating a live hazard reads as load-bearing when it is currently vacuous.
- * The holes themselves are NOT vacuous — see reason (b) below, which binds now.
- *
- * Two independent reasons the holes stay holes:
- *
- *  a. SHDR fault records.  Enable-bit positions appear in SHDR device-health
- *     fault records; silently recycling a position would make historical logs
- *     misread (NP-HW-HUB-001 Rev 3 §7.2).  CAVEAT, current as of 2026-08-05:
- *     no SHDR fault records have been generated yet (principal, 2026-08-04,
- *     NP-HW-HEXTILE-001 §8.4.2 finding 4), so THIS rationale does not bind
- *     today.  It begins binding the moment a real fault record exists.
- *  b. Bit position IS a charge-monitor channel index — and this one binds now.
- *     NP_SAFETY_CH_CLIN_STIM below is defined as a bit position; np_safety_main.c
- *     tests `granted_mask & (1U << ch)` against rx.current_ua[ch]; and
- *     s_charge_nc[]/NP_SAFETY_MAX_CHANNELS are sized off the enable-bit count.
- *     Enable-bit position ≡ current_ua[] slot ≡ charge accumulator index is a
- *     three-way identity, and it is Class C — the 40 µC/cm² limit rests on it.
- *     Compacting the word would move every modality bit down four positions and
- *     change what every current_ua[i] slot means (NP-HW-HEXTILE-001 §8.4.2,
- *     raised as OI-HEXTILE-14).
- *
- * Reason (b) is why the no-SHDR-records finding does NOT make recycling safe.
- */
-#define NP_SAFETY_EN_BES_TACS       (1U << 5)
-#define NP_SAFETY_EN_TDCS           (1U << 6)
-#define NP_SAFETY_EN_VNS_HRV        (1U << 7)
-#define NP_SAFETY_EN_VISUAL         (1U << 8)
-#define NP_SAFETY_EN_INTRANASAL     (1U << 9)
-#define NP_SAFETY_EN_CVNS           (1U << 10)
-#define NP_SAFETY_EN_TMS            (1U << 11)
-#define NP_SAFETY_EN_PBM_1170NM     (1U << 12)
-#define NP_SAFETY_EN_CLIN_STIM      (1U << 13)
+/* NP_SAFETY_BEAT_MAGIC_0/1 and the NP_SAFETY_EN_* enable bits are in
+ * firmware/common/include/np_spi_wire_types.h (included above), with the
+ * long-form notes on bit allocation.                                        */
 /* 0x3FFF with bits 1–4 (0x001E) cleared: 10 allocated bits, 4 reserved holes. */
 #define NP_SAFETY_EN_ALL_MASK       0x3FE1U
 
@@ -161,23 +62,6 @@
     (NP_SAFETY_EN_CVNS | NP_SAFETY_EN_TMS | NP_SAFETY_EN_PBM_1170NM | \
      NP_SAFETY_EN_CLIN_STIM)
 
-/* Charge-monitor channel INDEX for CLIN_STIM (= bit position of the enable
- * bit above).  HD-tDCS accumulates charge on this channel and is subject to
- * the OI-CHARGE-03 fail-safe geometry gate.  See the reserved-bits note above:
- * this identity is why bit positions above 4 must never shift.               */
-#define NP_SAFETY_CH_CLIN_STIM      13U
-
-/* Charge-monitor channel INDICES for the remaining electrical channels
- * (= bit positions of the NP_SAFETY_EN_* bits above).  Added with OI-CHARGE-05
- * because these channels now carry per-channel declarations and per-channel
- * commanded current, so the hub needs to name their slots — the same
- * bit-position ≡ current_ua[] slot ≡ accumulator index identity documented in
- * the reserved-bits note above, which is why positions above 4 must never
- * shift.                                                                     */
-#define NP_SAFETY_CH_BES_TACS       5U
-#define NP_SAFETY_CH_VNS_HRV        7U
-#define NP_SAFETY_CH_CVNS           10U
-
 /* ── Electrode-bearing channel set (OI-CHARGE-05) ─────────────────────────── */
 /*
  * The channels that drive current through skin-contact electrodes, and are
@@ -195,52 +79,18 @@
     (NP_SAFETY_EN_BES_TACS | NP_SAFETY_EN_TDCS | NP_SAFETY_EN_VNS_HRV | \
      NP_SAFETY_EN_CVNS     | NP_SAFETY_EN_CLIN_STIM)
 
-/* Charge-monitor channel INDEX for the T1 tDCS channel (= bit position of
- * NP_SAFETY_EN_TDCS above).  OI-CHARGE-04: tDCS now declares its electrode
- * geometry in the signed session descriptor, the hub delivers that area on
- * this channel, and the fail-safe geometry gate covers it — so the 25 cm²
- * NP_ELECTRODE_AREA_CM2 fallback is never what a tDCS session actually runs
- * against.  Same bit-position ≡ current_ua[] slot ≡ accumulator index
- * identity as CLIN_STIM; see the reserved-bits note above.                  */
-#define NP_SAFETY_CH_TDCS           6U
-
-/* The bit-position ≡ channel-index identity, asserted rather than commented.
- * It is Class C (both charge ceilings rest on it) and it is now relied on by
- * the hub as well as this MCU, so a shifted enable bit must be a compile
- * error and not a silently mis-indexed accumulator.  Same C99-compatible
- * idiom as the frame-size checks in np_spi_wire_types.h.                    */
-typedef char _np_safety_ch_index_check[
-    ((NP_SAFETY_EN_BES_TACS  == (1U << NP_SAFETY_CH_BES_TACS))  &&
-     (NP_SAFETY_EN_TDCS      == (1U << NP_SAFETY_CH_TDCS))      &&
-     (NP_SAFETY_EN_VNS_HRV   == (1U << NP_SAFETY_CH_VNS_HRV))   &&
-     (NP_SAFETY_EN_CVNS      == (1U << NP_SAFETY_CH_CVNS))      &&
-     (NP_SAFETY_EN_CLIN_STIM == (1U << NP_SAFETY_CH_CLIN_STIM))) ? 1 : -1
-];
+/* NP_SAFETY_CH_* charge-monitor channel indices and the bit-position ≡ index
+ * compile-time check are in firmware/common/include/np_spi_wire_types.h.     */
 
 /* ── Frame lengths ────────────────────────────────────────────────────────── */
-/* NP_SAFETY_FRAME_LEN is the MCU reply frame length (defined in np_safety_config.h as 8).
+/* NP_SAFETY_FRAME_LEN is the MCU reply frame length (defined in np_spi_wire_types.h as 8).
  * The heartbeat RX frame is NP_SAFETY_RX_EXT_FRAME_LEN (38 bytes).                      */
 /* NP_SAFETY_CMD_MAGIC_0/1, NP_SAFETY_CMD_SESSION_SIG, NP_SAFETY_CMD_FRAME_LEN,
- * NP_SESSION_HASH_LEN, NP_ED25519_SIG_LEN, and np_safety_sig_cmd_t are in
+ * NP_SESSION_HASH_LEN, NP_ED25519_SIG_SIZE, and np_safety_sig_cmd_t are in
  * firmware/common/include/np_spi_wire_types.h (included above).               */
 
-/* ── Status flags returned in heartbeat TX frame ────────────────────────────── */
-#define NP_SAFETY_STATUS_OK         0x00U
-#define NP_SAFETY_STATUS_FAULT      (1U << 0)   /* any active fault */
-#define NP_SAFETY_STATUS_WATCHDOG   (1U << 1)   /* watchdog fired since last beat */
-#define NP_SAFETY_STATUS_CUTOFF     (1U << 2)   /* stimulation cut by safety MCU */
-#define NP_SAFETY_STATUS_IMPEDANCE  (1U << 3)   /* impedance check failed */
-#define NP_SAFETY_STATUS_THERMAL    (1U << 4)   /* thermal interlock active */
-#define NP_SAFETY_STATUS_CHARGE     (1U << 5)   /* charge limit reached */
-#define NP_SAFETY_STATUS_CARDIAC    (1U << 6)   /* cardiac interlock fired */
-/* SIG_PENDING: set when session starts (sig_reset), cleared when sig verified.
- * Blocks grant_mask until hub delivers the session descriptor signature via
- * np_safety_sig_cmd_t.  Not a fault — no CUTOFF is implied.                  */
-#define NP_SAFETY_STATUS_SIG_PENDING (1U << 7)  /* awaiting session signature delivery */
-
-/* ── session_status byte bit definitions ───────────────────────────────── */
-#define NP_SESSION_STATUS_ACTIVE        (1U << 0)  /* session underway */
-#define NP_SESSION_STATUS_CVNS_REENABLE (1U << 1)  /* explicit CVNS re-enable after cardiac cutoff */
+/* NP_SAFETY_STATUS_* and NP_SESSION_STATUS_ACTIVE / _CVNS_REENABLE are in
+ * firmware/common/include/np_spi_wire_types.h (included above).              */
 
 /* ── Received frame (main processor → safety MCU) ───────────────────────── */
 typedef struct __attribute__((packed)) {
@@ -299,7 +149,7 @@ typedef struct {
 } np_safety_state_t;
 
 /* np_safety_sig_cmd_t, NP_SAFETY_CMD_MAGIC_0/1, NP_SAFETY_CMD_SESSION_SIG,
- * NP_SAFETY_CMD_FRAME_LEN, NP_SESSION_HASH_LEN, NP_ED25519_SIG_LEN are all
+ * NP_SAFETY_CMD_FRAME_LEN, NP_SESSION_HASH_LEN, NP_ED25519_SIG_SIZE are all
  * provided by firmware/common/include/np_spi_wire_types.h (included above). */
 
 /* ── Module init/update return codes ─────────────────────────────────────── */

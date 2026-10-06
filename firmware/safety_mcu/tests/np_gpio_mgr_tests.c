@@ -257,11 +257,11 @@ static void test_heartbeat_loss_cuts_all(void)
     st.requested_mask = NP_SAFETY_EN_ALL_MASK;
     np_spi_watchdog_tick(&st, NULL, NULL);          /* last good beat at 5000 */
 
-    g_tick_ms = 5000U + NP_SAFETY_WDG_TIMEOUT_MS - 1U;
+    g_tick_ms = 5000U + NP_SAFETY_WATCHDOG_MS - 1U;
     np_spi_watchdog_check(&st);
     check(st.granted_mask == NP_SAFETY_EN_ALL_MASK, "check: no cutoff 1 ms before the timeout");
 
-    g_tick_ms = 5000U + NP_SAFETY_WDG_TIMEOUT_MS;
+    g_tick_ms = 5000U + NP_SAFETY_WATCHDOG_MS;
     np_spi_watchdog_check(&st);
     check(st.granted_mask == 0U, "check: granted_mask cleared at exactly the timeout");
     check((st.status & (NP_SAFETY_STATUS_WATCHDOG | NP_SAFETY_STATUS_CUTOFF))
@@ -290,7 +290,7 @@ static void test_heartbeat_timeout_across_tick_wrap(void)
     st.requested_mask = NP_SAFETY_EN_ALL_MASK;
     np_spi_watchdog_tick(&st, NULL, NULL);
 
-    g_tick_ms = 0xFFFFFF00U + NP_SAFETY_WDG_TIMEOUT_MS;   /* wraps past 0 */
+    g_tick_ms = 0xFFFFFF00U + NP_SAFETY_WATCHDOG_MS;   /* wraps past 0 */
     np_spi_watchdog_check(&st);
     check(st.granted_mask == 0U, "check: timeout still fires across the 32-bit tick wrap");
 }
@@ -344,13 +344,13 @@ static void test_seq_stuck_buffer_trips_watchdog(void)
     t0 = g_tick_ms;
 
     /* The hub hangs and its SPI re-sends the last buffer every 200 ms. */
-    while (g_tick_ms < t0 + NP_SAFETY_WDG_TIMEOUT_MS - 200U) {
+    while (g_tick_ms < t0 + NP_SAFETY_WATCHDOG_MS - 200U) {
         g_tick_ms += 200U;
         if (beat(&st, 2U)) { ok = 0; }
     }
     check(ok, "stuck: a repeated counter is never accepted");
     check(st.granted_mask == NP_SAFETY_EN_ALL_MASK, "stuck: no cutoff before the timeout");
-    g_tick_ms = t0 + NP_SAFETY_WDG_TIMEOUT_MS;
+    g_tick_ms = t0 + NP_SAFETY_WATCHDOG_MS;
     (void)beat(&st, 2U);
     check(st.granted_mask == 0U && (st.status & NP_SAFETY_STATUS_WATCHDOG) != 0U,
           "stuck: the watchdog fires at the timeout despite well-formed frames");

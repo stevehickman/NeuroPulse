@@ -56,17 +56,6 @@
 #include "np_dfu.h"
 #include <string.h>
 
-/* SNVS_LPGPR2 — anonymization in-progress flag (NP-FW-EMMC-002 §D.6) ──────── */
-/* Defined locally to avoid colliding with Unit 1's parallel edit to           */
-/* np_config.h.  When np_config.h gains these defs, the merge reviewer must     */
-/* delete these locals and keep the np_config.h versions.                       */
-#ifndef NP_SNVS_LPGPR2
-#define NP_SNVS_LPGPR2              (*(volatile uint32_t *)(NP_SNVS_BASE + 0x70U))
-#endif
-#ifndef NP_SNVS_ANON_IN_PROGRESS
-#define NP_SNVS_ANON_IN_PROGRESS    (1UL << 0U)
-#endif
-
 /* ── i.MX RT1062 Image Vector Table (IVT) ────────────────────────────────── */
 /* The ROM boot loader reads the IVT at offset 0x000 of the eMMC boot         */
 /* partition to locate the bootloader entry point and load address.           */
@@ -102,7 +91,7 @@ extern void      SysTick_Handler(void);  /* defined in np_dfu.c (DFU timeout tic
 
 /* IVT at base of OCRAM load address */
 __attribute__((section(".np_ivt"), used))
-static const np_ivt_t g_ivt = {
+static const np_ivt_t BOOT_IVT = {
     .tag        = 0xD1U,
     .length     = 0x0020U,
     .version    = 0x40U,
@@ -116,7 +105,7 @@ static const np_ivt_t g_ivt = {
 };
 
 __attribute__((section(".np_boot_data"), used))
-static const np_boot_data_t g_boot_data = {
+static const np_boot_data_t BOOT_DATA = {
     .start    = NP_FW_LOAD_ADDR,
     .size     = 48U * 1024U,    /* bootloader image ≤ 48 KiB               */
     .plugin   = 0U,
@@ -130,7 +119,7 @@ static const np_boot_data_t g_boot_data = {
 extern uint32_t _stack_top;   /* provided by linker script: end of OCRAM stack */
 
 __attribute__((section(".np_vectors"), used))
-static const uint32_t g_vectors[] = {
+static const uint32_t VECTORS[] = {
     (uint32_t)&_stack_top,           /* 0: Initial stack pointer              */
     (uint32_t)Bootloader_Reset,      /* 1: Reset handler                      */
     0U,                               /* 2: NMI (not used in bootloader)       */
@@ -320,7 +309,7 @@ void Bootloader_Reset(void)
     *WDOG2_WCR &= (uint16_t)~(1U << 2U);
 
     /* Relocate bootloader's own vector table (ROM may have set a different one) */
-    *((volatile uint32_t *)0xE000ED08UL) = (uint32_t)(uintptr_t)g_vectors;
+    *((volatile uint32_t *)0xE000ED08UL) = (uint32_t)(uintptr_t)VECTORS;
     __asm volatile("dsb" ::: "memory");
     __asm volatile("isb" ::: "memory");
 

@@ -21,15 +21,14 @@
 #ifndef NP_ZONE_ANNOUNCE_CONFIG_H
 #define NP_ZONE_ANNOUNCE_CONFIG_H
 
+#include "../../common/include/np_shared_constants.h"
+
 /* ── LPADC hardware ─────────────────────────────────────────────────────────── */
 
 /* i.MX RT1062 LPADC1 base address and channel for ZONE_ID (pin 18 of FPC ZIF). */
 #define NP_ZA_LPADC_BASE            0x40050000UL   /* LPADC1                     */
 #define NP_ZA_LPADC_CHANNEL         12U            /* single-ended, side A       */
-#define NP_ZA_ADC_RESOLUTION_BITS   12U
-#define NP_ZA_ADC_MAX               4095U          /* 2^12 - 1                   */
-#define NP_ZA_ADC_VREF_MV           3300U          /* millivolts                 */
-#define NP_ZA_ADC_PULLUP_OHMS       10000U         /* 10 kΩ on hub PCB           */
+#define NP_ZA_ADC_MAX               ((1U << NP_ZONE_ID_ADC_BITS) - 1U)  /* 2^bits - 1 */
 
 /* ── ADC zone classification thresholds (midpoints between nominal values) ──── */
 /*

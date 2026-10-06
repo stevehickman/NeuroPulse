@@ -24,6 +24,7 @@
 #include "np_pbm_cal_bridge.h"
 #include "np_pbm_session.h"
 #include "np_pbm_dose.h"
+#include "np_hub_test_fixtures.h"
 
 static int g_failures = 0;
 
@@ -39,7 +40,6 @@ static void check(int cond, const char *name)
 
 /* ── np_module_map fixtures ──────────────────────────────────────────────────── */
 
-#define N_SOCKETS 80u
 
 static np_socket_geom_t g_geom[N_SOCKETS];
 

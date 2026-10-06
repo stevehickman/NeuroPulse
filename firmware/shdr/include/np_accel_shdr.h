@@ -154,7 +154,7 @@ typedef enum {
  * DELIBERATELY NOT #ifndef-GUARDED.  A -D override would make the value the CI
  * gate parses out of this header a statement about nothing, since any build
  * could contradict it.  The host tests reach the same code through
- * np_accel_char_build_gate (see np_accel_shdr.c), which exists ONLY under
+ * NP_ACCEL_CHAR_BUILD_GATE (see np_accel_shdr.c), which exists ONLY under
  * NPTEST_HOST and is a const fold of this macro in every shipping build. */
 #define NP_ACCEL_CHAR_WINDOW_ENABLED       1
 
@@ -185,7 +185,7 @@ typedef enum {
 #define NP_ACCEL_CHAR_G_BIN_COUNT          8u
 
 /* Lower edge of each bin, in g.  The last bin is open-ended. */
-extern const float np_accel_char_g_bin_edges[NP_ACCEL_CHAR_G_BIN_COUNT];
+extern const float NP_ACCEL_CHAR_G_BIN_EDGES[NP_ACCEL_CHAR_G_BIN_COUNT];
 
 /* ── Records ─────────────────────────────────────────────────────────────── */
 
@@ -239,7 +239,7 @@ typedef struct {
  * removes.  Under NPTEST_HOST it is a writable global so one test source can be
  * run against both configurations — see np_accel_shdr.c. */
 #ifdef NPTEST_HOST
-extern bool np_accel_char_build_gate;
+extern bool NP_ACCEL_CHAR_BUILD_GATE;
 #endif
 
 /* CRC over the enrolment record, excluding the crc32 field itself. */

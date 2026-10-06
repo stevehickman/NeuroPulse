@@ -15,7 +15,7 @@
 
 /* Kind index → the modality whose drive exposes that part (np_consumables.h (i)).
  * The order is the wire order both apps' ConsumableKind raw values use. */
-static const uint8_t k_kind_mod[NP_CONS_KIND_COUNT] = {
+static const uint8_t KIND_MOD[NP_CONS_KIND_COUNT] = {
     (uint8_t)NP_MOD_INTRANASAL,
     (uint8_t)NP_MOD_EEG,
     (uint8_t)NP_MOD_VNS_HRV,
@@ -123,7 +123,7 @@ void np_cons_on_session_end(uint32_t mods_active_mask)
     np_transport_hal_enter_critical();
     bool changed = false;
     for (unsigned k = 0U; k < NP_CONS_KIND_COUNT; k++) {
-        if ((mods_active_mask & (1UL << k_kind_mod[k])) == 0UL) {
+        if ((mods_active_mask & (1UL << KIND_MOD[k])) == 0UL) {
             continue;
         }
         if (s_loaded) {

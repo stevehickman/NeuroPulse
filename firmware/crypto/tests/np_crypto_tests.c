@@ -31,15 +31,15 @@ static void check(int cond, const char *name)
     }
 }
 
-static void check_bytes(const uint8_t *expected, const uint8_t *got,
+static void check_bytes(const uint8_t *EXPECTED, const uint8_t *got,
                          uint32_t len, const char *name)
 {
-    int ok = (memcmp(expected, got, (size_t)len) == 0);
+    int ok = (memcmp(EXPECTED, got, (size_t)len) == 0);
     check(ok, name);
     if (!ok) {
         uint32_t i;
         printf("  Expected: ");
-        for (i = 0U; i < len; i++) { printf("%02x", expected[i]); }
+        for (i = 0U; i < len; i++) { printf("%02x", EXPECTED[i]); }
         printf("\n  Got:      ");
         for (i = 0U; i < len; i++) { printf("%02x", got[i]); }
         printf("\n");
@@ -52,30 +52,30 @@ static void test_sha256(void)
 {
     /* Empty message */
     {
-        static const uint8_t expected[NP_CRYPTO_SHA256_SIZE] = {
+        static const uint8_t EXPECTED[NP_SHA256_SIZE] = {
             0xe3U, 0xb0U, 0xc4U, 0x42U, 0x98U, 0xfcU, 0x1cU, 0x14U,
             0x9aU, 0xfbU, 0xf4U, 0xc8U, 0x99U, 0x6fU, 0xb9U, 0x24U,
             0x27U, 0xaeU, 0x41U, 0xe4U, 0x64U, 0x9bU, 0x93U, 0x4cU,
             0xa4U, 0x95U, 0x99U, 0x1bU, 0x78U, 0x52U, 0xb8U, 0x55U
         };
-        static const uint8_t dummy[1] = { 0x00U };
-        uint8_t out[NP_CRYPTO_SHA256_SIZE];
-        np_sha256(dummy, 0U, out);
-        check_bytes(expected, out, NP_CRYPTO_SHA256_SIZE, "sha256 empty message");
+        static const uint8_t DUMMY[1] = { 0x00U };
+        uint8_t out[NP_SHA256_SIZE];
+        np_sha256(DUMMY, 0U, out);
+        check_bytes(EXPECTED, out, NP_SHA256_SIZE, "sha256 empty message");
     }
 
     /* "abc" */
     {
-        static const uint8_t msg[3] = { 0x61U, 0x62U, 0x63U };
-        static const uint8_t expected[NP_CRYPTO_SHA256_SIZE] = {
+        static const uint8_t MSG[3] = { 0x61U, 0x62U, 0x63U };
+        static const uint8_t EXPECTED[NP_SHA256_SIZE] = {
             0xbaU, 0x78U, 0x16U, 0xbfU, 0x8fU, 0x01U, 0xcfU, 0xeaU,
             0x41U, 0x41U, 0x40U, 0xdeU, 0x5dU, 0xaeU, 0x22U, 0x23U,
             0xb0U, 0x03U, 0x61U, 0xa3U, 0x96U, 0x17U, 0x7aU, 0x9cU,
             0xb4U, 0x10U, 0xffU, 0x61U, 0xf2U, 0x00U, 0x15U, 0xadU
         };
-        uint8_t out[NP_CRYPTO_SHA256_SIZE];
-        np_sha256(msg, 3U, out);
-        check_bytes(expected, out, NP_CRYPTO_SHA256_SIZE, "sha256 'abc'");
+        uint8_t out[NP_SHA256_SIZE];
+        np_sha256(MSG, 3U, out);
+        check_bytes(EXPECTED, out, NP_SHA256_SIZE, "sha256 'abc'");
     }
 }
 
@@ -85,7 +85,7 @@ static void test_sha512(void)
 {
     /* Empty message */
     {
-        static const uint8_t expected[NP_CRYPTO_SHA512_SIZE] = {
+        static const uint8_t EXPECTED[NP_SHA512_SIZE] = {
             0xcfU, 0x83U, 0xe1U, 0x35U, 0x7eU, 0xefU, 0xb8U, 0xbdU,
             0xf1U, 0x54U, 0x28U, 0x50U, 0xd6U, 0x6dU, 0x80U, 0x07U,
             0xd6U, 0x20U, 0xe4U, 0x05U, 0x0bU, 0x57U, 0x15U, 0xdcU,
@@ -95,16 +95,16 @@ static void test_sha512(void)
             0x63U, 0xb9U, 0x31U, 0xbdU, 0x47U, 0x41U, 0x7aU, 0x81U,
             0xa5U, 0x38U, 0x32U, 0x7aU, 0xf9U, 0x27U, 0xdaU, 0x3eU
         };
-        static const uint8_t dummy[1] = { 0x00U };
-        uint8_t out[NP_CRYPTO_SHA512_SIZE];
-        np_sha512(dummy, 0U, out);
-        check_bytes(expected, out, NP_CRYPTO_SHA512_SIZE, "sha512 empty message");
+        static const uint8_t DUMMY[1] = { 0x00U };
+        uint8_t out[NP_SHA512_SIZE];
+        np_sha512(DUMMY, 0U, out);
+        check_bytes(EXPECTED, out, NP_SHA512_SIZE, "sha512 empty message");
     }
 
     /* "abc" */
     {
-        static const uint8_t msg[3] = { 0x61U, 0x62U, 0x63U };
-        static const uint8_t expected[NP_CRYPTO_SHA512_SIZE] = {
+        static const uint8_t MSG[3] = { 0x61U, 0x62U, 0x63U };
+        static const uint8_t EXPECTED[NP_SHA512_SIZE] = {
             0xddU, 0xafU, 0x35U, 0xa1U, 0x93U, 0x61U, 0x7aU, 0xbaU,
             0xccU, 0x41U, 0x73U, 0x49U, 0xaeU, 0x20U, 0x41U, 0x31U,
             0x12U, 0xe6U, 0xfaU, 0x4eU, 0x89U, 0xa9U, 0x7eU, 0xa2U,
@@ -114,9 +114,9 @@ static void test_sha512(void)
             0x45U, 0x4dU, 0x44U, 0x23U, 0x64U, 0x3cU, 0xe8U, 0x0eU,
             0x2aU, 0x9aU, 0xc9U, 0x4fU, 0xa5U, 0x4cU, 0xa4U, 0x9fU
         };
-        uint8_t out[NP_CRYPTO_SHA512_SIZE];
-        np_sha512(msg, 3U, out);
-        check_bytes(expected, out, NP_CRYPTO_SHA512_SIZE, "sha512 'abc'");
+        uint8_t out[NP_SHA512_SIZE];
+        np_sha512(MSG, 3U, out);
+        check_bytes(EXPECTED, out, NP_SHA512_SIZE, "sha512 'abc'");
     }
 }
 
@@ -126,11 +126,11 @@ static void test_crc32(void)
 {
     /* "123456789" → 0xCBF43926 */
     {
-        static const uint8_t msg[9] = {
+        static const uint8_t MSG[9] = {
             0x31U, 0x32U, 0x33U, 0x34U, 0x35U,
             0x36U, 0x37U, 0x38U, 0x39U
         };
-        uint32_t crc = np_crc32(msg, 9U);
+        uint32_t crc = np_crc32(MSG, 9U);
         check(crc == 0xCBF43926UL, "crc32 '123456789' == 0xCBF43926");
     }
 }
@@ -141,13 +141,13 @@ static void test_ed25519(void)
 {
     /* TV1 — empty message */
     {
-        static const uint8_t pk[NP_CRYPTO_ED25519_PUBKEY_SIZE] = {
+        static const uint8_t PK[NP_ED25519_PUBKEY_SIZE] = {
             0xd7U, 0x5aU, 0x98U, 0x01U, 0x82U, 0xb1U, 0x0aU, 0xb7U,
             0xd5U, 0x4bU, 0xfeU, 0xd3U, 0xc9U, 0x64U, 0x07U, 0x3aU,
             0x0eU, 0xe1U, 0x72U, 0xf3U, 0xdaU, 0xa6U, 0x23U, 0x25U,
             0xafU, 0x02U, 0x1aU, 0x68U, 0xf7U, 0x07U, 0x51U, 0x1aU
         };
-        static const uint8_t sig[NP_CRYPTO_ED25519_SIG_SIZE] = {
+        static const uint8_t SIGNATURE[NP_ED25519_SIG_SIZE] = {
             0xe5U, 0x56U, 0x43U, 0x00U, 0xc3U, 0x60U, 0xacU, 0x72U,
             0x90U, 0x86U, 0xe2U, 0xccU, 0x80U, 0x6eU, 0x82U, 0x8aU,
             0x84U, 0x87U, 0x7fU, 0x1eU, 0xb8U, 0xe5U, 0xd9U, 0x74U,
@@ -157,21 +157,21 @@ static void test_ed25519(void)
             0xd2U, 0x5bU, 0xf5U, 0xf0U, 0x59U, 0x5bU, 0xbeU, 0x24U,
             0x65U, 0x51U, 0x41U, 0x43U, 0x8eU, 0x7aU, 0x10U, 0x0bU
         };
-        static const uint8_t dummy[1] = { 0x00U };
-        int r = np_ed25519_verify(pk, dummy, 0U, sig);
+        static const uint8_t DUMMY[1] = { 0x00U };
+        int r = np_ed25519_verify(PK, DUMMY, 0U, SIGNATURE);
         check(r == 0, "ed25519 TV1 empty message → accepted");
     }
 
     /* TV2 — message = 0x72 */
     {
-        static const uint8_t pk[NP_CRYPTO_ED25519_PUBKEY_SIZE] = {
+        static const uint8_t PK[NP_ED25519_PUBKEY_SIZE] = {
             0x3dU, 0x40U, 0x17U, 0xc3U, 0xe8U, 0x43U, 0x89U, 0x5aU,
             0x92U, 0xb7U, 0x0aU, 0xa7U, 0x4dU, 0x1bU, 0x7eU, 0xbcU,
             0x9cU, 0x98U, 0x2cU, 0xcfU, 0x2eU, 0xc4U, 0x96U, 0x8cU,
             0xc0U, 0xcdU, 0x55U, 0xf1U, 0x2aU, 0xf4U, 0x66U, 0x0cU
         };
-        static const uint8_t msg[1] = { 0x72U };
-        static const uint8_t sig[NP_CRYPTO_ED25519_SIG_SIZE] = {
+        static const uint8_t MSG[1] = { 0x72U };
+        static const uint8_t SIGNATURE[NP_ED25519_SIG_SIZE] = {
             0x92U, 0xa0U, 0x09U, 0xa9U, 0xf0U, 0xd4U, 0xcaU, 0xb8U,
             0x72U, 0x0eU, 0x82U, 0x0bU, 0x5fU, 0x64U, 0x25U, 0x40U,
             0xa2U, 0xb2U, 0x7bU, 0x54U, 0x16U, 0x50U, 0x3fU, 0x8fU,
@@ -181,20 +181,20 @@ static void test_ed25519(void)
             0x38U, 0x7bU, 0x2eU, 0xaeU, 0xb4U, 0x30U, 0x2aU, 0xeeU,
             0xb0U, 0x0dU, 0x29U, 0x16U, 0x12U, 0xbbU, 0x0cU, 0x00U
         };
-        int r = np_ed25519_verify(pk, msg, 1U, sig);
+        int r = np_ed25519_verify(PK, MSG, 1U, SIGNATURE);
         check(r == 0, "ed25519 TV2 msg=0x72 → accepted");
     }
 
     /* Corrupted first byte of R — must be rejected */
     {
-        static const uint8_t pk[NP_CRYPTO_ED25519_PUBKEY_SIZE] = {
+        static const uint8_t PK[NP_ED25519_PUBKEY_SIZE] = {
             0x3dU, 0x40U, 0x17U, 0xc3U, 0xe8U, 0x43U, 0x89U, 0x5aU,
             0x92U, 0xb7U, 0x0aU, 0xa7U, 0x4dU, 0x1bU, 0x7eU, 0xbcU,
             0x9cU, 0x98U, 0x2cU, 0xcfU, 0x2eU, 0xc4U, 0x96U, 0x8cU,
             0xc0U, 0xcdU, 0x55U, 0xf1U, 0x2aU, 0xf4U, 0x66U, 0x0cU
         };
-        static const uint8_t msg[1] = { 0x72U };
-        static uint8_t bad_sig[NP_CRYPTO_ED25519_SIG_SIZE] = {
+        static const uint8_t MSG[1] = { 0x72U };
+        static uint8_t bad_sig[NP_ED25519_SIG_SIZE] = {
             0x92U, 0xa0U, 0x09U, 0xa9U, 0xf0U, 0xd4U, 0xcaU, 0xb8U,
             0x72U, 0x0eU, 0x82U, 0x0bU, 0x5fU, 0x64U, 0x25U, 0x40U,
             0xa2U, 0xb2U, 0x7bU, 0x54U, 0x16U, 0x50U, 0x3fU, 0x8fU,
@@ -205,20 +205,20 @@ static void test_ed25519(void)
             0xb0U, 0x0dU, 0x29U, 0x16U, 0x12U, 0xbbU, 0x0cU, 0x00U
         };
         bad_sig[0] ^= 0xFFU;
-        int r = np_ed25519_verify(pk, msg, 1U, bad_sig);
+        int r = np_ed25519_verify(PK, MSG, 1U, bad_sig);
         check(r != 0, "ed25519 corrupted R byte → rejected");
     }
 
     /* Corrupted last byte of S — must be rejected */
     {
-        static const uint8_t pk[NP_CRYPTO_ED25519_PUBKEY_SIZE] = {
+        static const uint8_t PK[NP_ED25519_PUBKEY_SIZE] = {
             0x3dU, 0x40U, 0x17U, 0xc3U, 0xe8U, 0x43U, 0x89U, 0x5aU,
             0x92U, 0xb7U, 0x0aU, 0xa7U, 0x4dU, 0x1bU, 0x7eU, 0xbcU,
             0x9cU, 0x98U, 0x2cU, 0xcfU, 0x2eU, 0xc4U, 0x96U, 0x8cU,
             0xc0U, 0xcdU, 0x55U, 0xf1U, 0x2aU, 0xf4U, 0x66U, 0x0cU
         };
-        static const uint8_t msg[1] = { 0x72U };
-        static uint8_t bad_sig[NP_CRYPTO_ED25519_SIG_SIZE] = {
+        static const uint8_t MSG[1] = { 0x72U };
+        static uint8_t bad_sig[NP_ED25519_SIG_SIZE] = {
             0x92U, 0xa0U, 0x09U, 0xa9U, 0xf0U, 0xd4U, 0xcaU, 0xb8U,
             0x72U, 0x0eU, 0x82U, 0x0bU, 0x5fU, 0x64U, 0x25U, 0x40U,
             0xa2U, 0xb2U, 0x7bU, 0x54U, 0x16U, 0x50U, 0x3fU, 0x8fU,
@@ -229,25 +229,25 @@ static void test_ed25519(void)
             0xb0U, 0x0dU, 0x29U, 0x16U, 0x12U, 0xbbU, 0x0cU, 0x00U
         };
         bad_sig[63] ^= 0x01U;
-        int r = np_ed25519_verify(pk, msg, 1U, bad_sig);
+        int r = np_ed25519_verify(PK, MSG, 1U, bad_sig);
         check(r != 0, "ed25519 corrupted S byte → rejected");
     }
 
     /* msg_len exceeding NP_CRYPTO_ED25519_MSG_MAX_LEN → rejected without crash */
     {
-        static const uint8_t pk[NP_CRYPTO_ED25519_PUBKEY_SIZE] = { 0U };
-        static const uint8_t sig[NP_CRYPTO_ED25519_SIG_SIZE] = { 0U };
-        static const uint8_t msg[NP_CRYPTO_ED25519_MSG_MAX_LEN + 1U] = { 0U };
-        int r = np_ed25519_verify(pk, msg, NP_CRYPTO_ED25519_MSG_MAX_LEN + 1U, sig);
+        static const uint8_t PK[NP_ED25519_PUBKEY_SIZE] = { 0U };
+        static const uint8_t SIGNATURE[NP_ED25519_SIG_SIZE] = { 0U };
+        static const uint8_t MSG[NP_CRYPTO_ED25519_MSG_MAX_LEN + 1U] = { 0U };
+        int r = np_ed25519_verify(PK, MSG, NP_CRYPTO_ED25519_MSG_MAX_LEN + 1U, SIGNATURE);
         check(r != 0, "ed25519 msg_len > NP_CRYPTO_ED25519_MSG_MAX_LEN → rejected");
     }
 
     /* All-zero public key must not crash (degenerate input) */
     {
-        static const uint8_t pk[NP_CRYPTO_ED25519_PUBKEY_SIZE] = { 0U };
-        static const uint8_t msg[1] = { 0x72U };
-        static const uint8_t sig[NP_CRYPTO_ED25519_SIG_SIZE] = { 0U };
-        int r = np_ed25519_verify(pk, msg, 1U, sig);
+        static const uint8_t PK[NP_ED25519_PUBKEY_SIZE] = { 0U };
+        static const uint8_t MSG[1] = { 0x72U };
+        static const uint8_t SIGNATURE[NP_ED25519_SIG_SIZE] = { 0U };
+        int r = np_ed25519_verify(PK, MSG, 1U, SIGNATURE);
         check(r != 0, "ed25519 all-zero pk → rejected (not a valid point)");
     }
 }

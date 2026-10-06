@@ -13,13 +13,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include "../../common/include/np_shared_constants.h"
 
 /* ── Constants ───────────────────────────────────────────────────────────── */
 
-#define NP_OTA_STATE_MAGIC       0x4E504F54UL  /* "NPOT" */
-#define NP_OTA_SHA256_SIZE       32U
-#define NP_OTA_BOOT_MAX_ATTEMPTS 3U
-#define NP_OTA_CRC32_POLY        0xEDB88320UL  /* IEEE 802.3 reflected */
 
 /* Byte offset at which the CRC field begins in np_ota_state_t. */
 /* CRC32 is computed over bytes [0 .. NP_OTA_CRC_OFFSET - 1]. */
@@ -32,7 +29,7 @@ typedef struct __attribute__((packed)) {
     uint8_t  target_bank;                    /* 0 = Bank A, 1 = Bank B           */
     uint8_t  boot_attempts;                  /* Incremented per boot of candidate */
     uint16_t reserved;
-    uint8_t  staged_sha256[NP_OTA_SHA256_SIZE]; /* SHA-256 of the staged image   */
+    uint8_t  staged_sha256[NP_SHA256_SIZE]; /* SHA-256 of the staged image   */
     uint32_t crc32;                          /* CRC32 over bytes [0..39]         */
 } np_ota_state_t;
 
@@ -46,7 +43,7 @@ typedef enum {
     NP_OTA_STATE_OK               =  0,
     NP_OTA_STATE_BAD_MAGIC        = -1,
     NP_OTA_STATE_BAD_CRC          = -2,
-    NP_OTA_STATE_MAX_ATTEMPTS     = -3,  /* boot_attempts >= NP_OTA_BOOT_MAX_ATTEMPTS */
+    NP_OTA_STATE_MAX_ATTEMPTS     = -3,  /* boot_attempts >= NP_BOOT_MAX_ATTEMPTS */
     NP_OTA_STATE_INVALID_BANK     = -4,
 } np_ota_state_result_t;
 
@@ -59,12 +56,12 @@ typedef enum {
  */
 void np_ota_state_init(np_ota_state_t       *state,
                        uint8_t               target_bank,
-                       const uint8_t         sha256[NP_OTA_SHA256_SIZE]);
+                       const uint8_t         sha256[NP_SHA256_SIZE]);
 
 /*
  * Validate a state record read from persistent storage.
  * Returns NP_OTA_STATE_OK on success, or a negative error code.
- * NP_OTA_STATE_MAX_ATTEMPTS is returned when boot_attempts >= NP_OTA_BOOT_MAX_ATTEMPTS
+ * NP_OTA_STATE_MAX_ATTEMPTS is returned when boot_attempts >= NP_BOOT_MAX_ATTEMPTS
  * even if the CRC and magic are valid — the caller should trigger rollback.
  */
 np_ota_state_result_t np_ota_state_validate(const np_ota_state_t *state);

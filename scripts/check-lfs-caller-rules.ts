@@ -214,13 +214,13 @@ function run(root: string): { code: number; lines: string[] } {
   const storeCode = stripNonCode(storeSrc);
 
   // ── R4: parse the file table and the enum ──────────────────────────────────
-  const table = /s_files\s*\[\s*NP_CFG_FILE_COUNT\s*\]\s*=\s*\{([\s\S]*?)\n\};/.exec(storeCode);
-  if (!table) return refuse("np_cfg_store.c has no s_files[NP_CFG_FILE_COUNT] table");
+  const table = /CFG_FILES\s*\[\s*NP_CFG_FILE_COUNT\s*\]\s*=\s*\{([\s\S]*?)\n\};/.exec(storeCode);
+  if (!table) return refuse("np_cfg_store.c has no CFG_FILES[NP_CFG_FILE_COUNT] table");
   const rows = new Map<string, string>();
   for (const m of table[1]!.matchAll(/\[\s*(NP_CFG_FILE_\w+)\s*\]\s*=\s*\{\s*(NP_CFG_POLICY_\w+)/g)) {
     rows.set(m[1]!, m[2]!);
   }
-  if (rows.size === 0) return refuse("the s_files[] table has no parseable rows");
+  if (rows.size === 0) return refuse("the CFG_FILES[] table has no parseable rows");
   const enumBody = /typedef\s+enum\s*\{([\s\S]*?)\}\s*np_cfg_file_t\s*;/.exec(stripNonCode(headerSrc));
   if (!enumBody) return refuse("np_cfg_store.h declares no np_cfg_file_t enum");
   const members = [...enumBody[1]!.matchAll(/\b(NP_CFG_FILE_\w+)/g)]
@@ -229,7 +229,7 @@ function run(root: string): { code: number; lines: string[] } {
 
   const violations: string[] = [];
   for (const m of members) {
-    if (!rows.has(m)) violations.push(`R4 ${STORE_C}: ${m} has no row in s_files[] — every Config file must be kept under a declared policy`);
+    if (!rows.has(m)) violations.push(`R4 ${STORE_C}: ${m} has no row in CFG_FILES[] — every Config file must be kept under a declared policy`);
   }
   const tail = [...rows].filter(([, p]) => p === "NP_CFG_POLICY_TAIL_ADDITIVE").map(([f]) => f).sort();
   const pinned = [...PINNED_TAIL_ADDITIVE].sort();
@@ -403,7 +403,7 @@ if (process.argv.includes("--self-test")) {
   const header = (extra = "") =>
     `typedef enum {\n    NP_CFG_FILE_NPMP = 0,\n    NP_CFG_FILE_MAP3,\n    NP_CFG_FILE_UKMD,\n${extra}    NP_CFG_FILE_COUNT\n} np_cfg_file_t;\n`;
   const store = (o: { npmpPolicy?: string; extraRow?: string; body?: string; opener?: string; fcfg?: string } = {}) =>
-    `static const np_cfg_file_desc_t s_files[NP_CFG_FILE_COUNT] = {\n` +
+    `static const np_cfg_file_desc_t CFG_FILES[NP_CFG_FILE_COUNT] = {\n` +
     `    [NP_CFG_FILE_NPMP] = { ${o.npmpPolicy ?? "NP_CFG_POLICY_REBUILD"}, { "npmp.bin", NULL } },\n` +
     `    [NP_CFG_FILE_MAP3] = { NP_CFG_POLICY_TAIL_ADDITIVE, { "map3.jrn", NULL } },\n` +
     `    [NP_CFG_FILE_UKMD] = { NP_CFG_POLICY_REPLICATED, { "ra/ukmd.rec", "rb/ukmd.rec" } },\n` +
@@ -411,7 +411,7 @@ if (process.argv.includes("--self-test")) {
     `};\n\n` +
     (o.fcfg ?? `static struct lfs_file_config s_fcfg;\n\n`) +
     `static np_hub_status_t cfg_open(np_cfg_file_t f, unsigned c, lfs_file_t *h, int fl)\n{\n` +
-    (o.opener ?? `    int err = lfs_file_opencfg(s_lfs, h, s_files[f].path[c], fl, &s_fcfg);\n    return err;\n`) +
+    (o.opener ?? `    int err = lfs_file_opencfg(s_lfs, h, CFG_FILES[f].path[c], fl, &s_fcfg);\n    return err;\n`) +
     `}\n\nstatic int reader(void)\n{\n    lfs_file_read(s_lfs, 0, 0, 0);\n    lfs_file_close(s_lfs, 0);\n${o.body ?? ""}    return 0;\n}\n`;
   const consumers: Tree = Object.fromEntries(
     LIMIT_CONSUMERS.map((c) => [c.endsWith("/") ? `${c}src/placeholder.c` : c, "int c_(void) { return 0; }\n"]),
@@ -511,7 +511,7 @@ if (process.argv.includes("--self-test")) {
 
   // R7 — the file config outlives the handle (OI-LFS-13)
   const opencfg = (arg: string, decl = "") =>
-    `${decl}    int err = lfs_file_opencfg(s_lfs, h,\n        s_files[f].path[c], fl,\n        ${arg});\n    return err;\n`;
+    `${decl}    int err = lfs_file_opencfg(s_lfs, h,\n        CFG_FILES[f].path[c], fl,\n        ${arg});\n    return err;\n`;
   expect("R7 rejects a stack config — the #472 shape",
     edit({ [STORE_C]: store({ fcfg: "", opener: opencfg("&fcfg", "    struct lfs_file_config fcfg;\n    memset(&fcfg, 0, sizeof(fcfg));\n") }) }),
     1, "is an automatic struct lfs_file_config");
@@ -535,7 +535,7 @@ if (process.argv.includes("--self-test")) {
 
   // Vacuity
   expect("refuses when the store is absent", mkdtempSync(join(box, "empty-")), 2, "refusing to pass vacuously");
-  expect("refuses when the file table is absent", edit({ [STORE_C]: "int x;\n" }), 2, "no s_files");
+  expect("refuses when the file table is absent", edit({ [STORE_C]: "int x;\n" }), 2, "no CFG_FILES");
   expect("refuses when the opener is absent",
     edit({ [STORE_C]: store().replace("cfg_open", "open_it") }), 2, "no cfg_open()");
   expect("refuses when the enum is absent", edit({ [STORE_H]: "int y;\n" }), 2, "no np_cfg_file_t");

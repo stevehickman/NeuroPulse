@@ -31,7 +31,7 @@ static void memset_explicit(void *dst, int ch, size_t len)
 /* Histogram bin lower edges, ~1.45× ratio.  The 15.0 g placeholder falls inside
  * bin 5, [14.0, 21.0), with bins 4 and 6 either side of it, so the programme can
  * resolve either side of the number it exists to test.  Last bin is open-ended. */
-const float np_accel_char_g_bin_edges[NP_ACCEL_CHAR_G_BIN_COUNT] = {
+const float NP_ACCEL_CHAR_G_BIN_EDGES[NP_ACCEL_CHAR_G_BIN_COUNT] = {
     2.0f, 3.0f, 4.5f, 6.5f, 9.5f, 14.0f, 21.0f, 31.0f
 };
 
@@ -83,9 +83,9 @@ uint32_t np_accel_char_enrolment_crc(const np_accel_char_enrolment_t *enr)
  * configurations and neither the "suppressed" nor the "emitted" assertion can
  * pass vacuously — each is the other's control. */
 #ifdef NPTEST_HOST
-bool np_accel_char_build_gate = (NP_ACCEL_CHAR_WINDOW_ENABLED != 0);
+bool NP_ACCEL_CHAR_BUILD_GATE = (NP_ACCEL_CHAR_WINDOW_ENABLED != 0);
 #else
-static const bool np_accel_char_build_gate = (NP_ACCEL_CHAR_WINDOW_ENABLED != 0);
+static const bool NP_ACCEL_CHAR_BUILD_GATE = (NP_ACCEL_CHAR_WINDOW_ENABLED != 0);
 #endif
 
 /* ── The fail-closed decision point (§H.3) ───────────────────────────────────
@@ -94,7 +94,7 @@ static const bool np_accel_char_build_gate = (NP_ACCEL_CHAR_WINDOW_ENABLED != 0)
  * same answer: no.  A caller cannot get a partially-open window. */
 bool np_accel_char_window_open(const np_accel_char_enrolment_t *enr)
 {
-    if (!np_accel_char_build_gate) {
+    if (!NP_ACCEL_CHAR_BUILD_GATE) {
         return false;                                   /* programme not built in */
     }
     if (enr == NULL) {
@@ -128,7 +128,7 @@ static uint8_t np_accel_bin_for(float peak_g)
 {
     uint8_t bin = 0;
     for (uint8_t i = 0; i < NP_ACCEL_CHAR_G_BIN_COUNT; i++) {
-        if (peak_g >= np_accel_char_g_bin_edges[i]) {
+        if (peak_g >= NP_ACCEL_CHAR_G_BIN_EDGES[i]) {
             bin = i;
         }
     }

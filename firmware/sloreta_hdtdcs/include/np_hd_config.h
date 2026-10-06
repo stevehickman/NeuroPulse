@@ -10,9 +10,10 @@
 #ifndef NP_HD_CONFIG_H
 #define NP_HD_CONFIG_H
 
+#include "../../common/include/np_shared_constants.h"
+
 /* ── EEG acquisition ────────────────────────────────────────────────────────── */
 #define NP_HD_EEG_CHANNELS          21U     /* T2 21-ch qEEG wet gel cap         */
-#define NP_HD_EEG_SAMPLE_RATE_HZ    500U    /* ADS1299 sample rate               */
 #define NP_HD_RESTING_DURATION_S    120U    /* 2-min eyes-closed resting state   */
 
 /* ── sLORETA source model ───────────────────────────────────────────────────── */
@@ -144,8 +145,6 @@
 /* ── Safety MCU heartbeat ───────────────────────────────────────────────────── */
 /* HD-tDCS shares the 200 ms SPI heartbeat from the main safety architecture.   */
 /* All HD-tDCS enable lines are owned by the safety MCU GPIO (CLAUDE.md §4.2). */
-#define NP_HD_SAFETY_MCU_HEARTBEAT_MS   200U
-#define NP_HD_SAFETY_MCU_WATCHDOG_MS    1500U /* cutoff threshold                */
 
 /* ── MNI coordinate range ───────────────────────────────────────────────────── */
 #define NP_HD_MNI_COORD_MAX_MM      150     /* maximum MNI coordinate magnitude  */

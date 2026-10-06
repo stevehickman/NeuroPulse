@@ -42,7 +42,7 @@
  * all-zero-means-unprovisioned sentinel is recorded.                        */
 
 /* ── Module state ─────────────────────────────────────────────────────────── */
-static uint8_t  s_pubkey[NP_ED25519_PUB_KEY_LEN];
+static uint8_t  s_pubkey[NP_ED25519_PUBKEY_SIZE];
 static bool     s_pubkey_loaded;
 static bool     s_pubkey_crc_bad;   /* programmed key failed its CRC-32      */
 static uint32_t s_pubkey_crc;       /* verified CRC, re-checked per verify   */
@@ -54,13 +54,13 @@ np_safe_status_t np_session_sig_init(void)
     uint8_t i;
     bool    all_zero;
 
-    np_hal_otp_read_pubkey(s_pubkey, NP_ED25519_PUB_KEY_LEN);
+    np_hal_otp_read_pubkey(s_pubkey, NP_ED25519_PUBKEY_SIZE);
 
     /* All-zero public key means the OTP was never programmed (unprovisioned device).
      * Do not set s_pubkey_loaded; np_session_sig_verify() will fault with
      * NP_FAULT_SLOT_UNPROV on the first session attempt.                      */
     all_zero = true;
-    for (i = 0U; i < NP_ED25519_PUB_KEY_LEN; i++) {
+    for (i = 0U; i < NP_ED25519_PUBKEY_SIZE; i++) {
         if (s_pubkey[i] != 0U) { all_zero = false; break; }
     }
     s_pubkey_loaded  = false;
@@ -70,7 +70,7 @@ np_safe_status_t np_session_sig_init(void)
          * is loaded; the unprovisioned sentinel above is exempt because it is
          * never loaded at all. */
         s_pubkey_crc = np_hal_otp_read_pubkey_crc();
-        if (np_crc32(s_pubkey, NP_ED25519_PUB_KEY_LEN) == s_pubkey_crc) {
+        if (np_crc32(s_pubkey, NP_ED25519_PUBKEY_SIZE) == s_pubkey_crc) {
             s_pubkey_loaded = true;
         } else {
             s_pubkey_crc_bad = true;
@@ -118,7 +118,7 @@ np_safe_status_t np_session_sig_verify(np_safety_state_t *state,
      * immutable; the RAM copy is not.  A copy that no longer matches the CRC
      * it was loaded against is unloaded, and this and every later attempt
      * report KEY_CRC until a power cycle re-reads OTP. */
-    if (np_crc32(s_pubkey, NP_ED25519_PUB_KEY_LEN) != s_pubkey_crc) {
+    if (np_crc32(s_pubkey, NP_ED25519_PUBKEY_SIZE) != s_pubkey_crc) {
         s_pubkey_loaded  = false;
         s_pubkey_crc_bad = true;
         state->fault_slot = NP_FAULT_SLOT_KEY_CRC;

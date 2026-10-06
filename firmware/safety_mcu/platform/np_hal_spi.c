@@ -36,7 +36,7 @@
  * TIMING REQUIREMENT this creates, stated because it is a real constraint and
  * not free: the main loop must call a `_ready()` predicate at least once
  * between the end of one transfer and the start of the next.  The hub's
- * heartbeat period is NP_SAFETY_HEARTBEAT_EXP_MS = 200 ms and np_safety_main.c
+ * heartbeat period is NP_SAFETY_HEARTBEAT_MS = 200 ms and np_safety_main.c
  * calls np_hal_spi_cmd_ready() unconditionally at the top of every iteration,
  * so the margin is the whole 200 ms against a loop whose slowest element is a
  * ~65 µs six-channel ADC sweep.  Recorded as OI-SWCI-31 so a future long-

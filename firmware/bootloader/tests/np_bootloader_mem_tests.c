@@ -169,11 +169,11 @@ static void test_zero_length(void)
 /* T2 — the short lengths a compiler would ordinarily inline. */
 static void test_short_lengths(void)
 {
-    static const size_t lens[] = { 1U, 2U, 3U, 4U, 8U };
+    static const size_t LENS[] = { 1U, 2U, 3U, 4U, 8U };
 
-    for (size_t i = 0; i < sizeof(lens) / sizeof(lens[0]); i++) {
-        check_copy(0U, 0U, lens[i]);
-        check_fill(0U, 0x3C, lens[i]);
+    for (size_t i = 0; i < sizeof(LENS) / sizeof(LENS[0]); i++) {
+        check_copy(0U, 0U, LENS[i]);
+        check_fill(0U, 0x3C, LENS[i]);
     }
 }
 
@@ -226,16 +226,16 @@ static void test_offset_matrix(void)
 /* T8 — non-zero fill bytes, including one with the high bit set. */
 static void test_nonzero_fill(void)
 {
-    static const int fills[] = { 0x01, 0x42, 0x7F, 0x80, 0xAA, 0xFF };
+    static const int FILLS[] = { 0x01, 0x42, 0x7F, 0x80, 0xAA, 0xFF };
 
-    for (size_t i = 0; i < sizeof(fills) / sizeof(fills[0]); i++) {
-        check_fill(0U, fills[i], 64U);
-        check_fill(3U, fills[i], 33U);
+    for (size_t i = 0; i < sizeof(FILLS) / sizeof(FILLS[0]); i++) {
+        check_fill(0U, FILLS[i], 64U);
+        check_fill(3U, FILLS[i], 33U);
 
         frame_reset();
-        (void)np_memset(g_dst + PAD, fills[i], 64U);
+        (void)np_memset(g_dst + PAD, FILLS[i], 64U);
         for (size_t j = 0; j < 64U; j++) {
-            ASSERT(g_dst[PAD + j] == (unsigned char)fills[i], "fill byte wrong");
+            ASSERT(g_dst[PAD + j] == (unsigned char)FILLS[i], "fill byte wrong");
         }
     }
 }

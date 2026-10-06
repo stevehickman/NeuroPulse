@@ -108,7 +108,7 @@ static uint8_t np_za_slot_socket_id(uint8_t slot_index)
  * np_socket_geom_t geometry — same wire format, ~80 entries instead of 5, and
  * real x/y from the shell CAD.
  */
-static const np_zn_socket_desc_t s_legacy_socket_map[NP_ZONE_COUNT] = {
+static const np_zn_socket_desc_t LEGACY_SOCKET_MAP[NP_ZONE_COUNT] = {
     /* Positions in aircraft body axes, mm, origin at the shell ellipsoid centre
      * (+x forward, +y right, +z down). These five are the retired ZONE_ID
      * ladder's fixed positions, approximated on the scan-grounded surface — the
@@ -355,7 +355,7 @@ void np_za_tick(uint32_t now_ms)
 
 np_za_status_t np_za_publish_socket_map(void)
 {
-    np_zn_status_t rc = np_zone_notify_socket_map(s_legacy_socket_map,
+    np_zn_status_t rc = np_zone_notify_socket_map(LEGACY_SOCKET_MAP,
                                                   (uint16_t)NP_ZONE_COUNT);
     return (rc == NP_ZN_OK) ? NP_ZA_OK : NP_ZA_ERR_INVALID_ARG;
 }

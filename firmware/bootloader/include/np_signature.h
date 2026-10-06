@@ -17,7 +17,7 @@
 /* ── Manufacturing root public key ───────────────────────────────────────── */
 /* 32-byte Ed25519 public key. Replace with production key before tooling.    */
 /* This is a placeholder; the real key is injected at secure build time.      */
-extern const uint8_t g_np_fw_public_key[NP_ED25519_PUBKEY_SIZE];
+extern const uint8_t NP_FW_PUBLIC_KEY[NP_ED25519_PUBKEY_SIZE];
 
 /* ── Public API ───────────────────────────────────────────────────────────── */
 

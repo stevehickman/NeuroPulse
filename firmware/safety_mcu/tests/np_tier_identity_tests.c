@@ -67,10 +67,10 @@ static void check(int cond, const char *name)
 }
 
 /* The unit's own UID, and a second unit's. */
-static const uint8_t k_uid_this[NP_DEVICE_UID_LEN] = {
+static const uint8_t UID_THIS[NP_DEVICE_UID_LEN] = {
     0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC };
 #ifndef NP_TIER_TEST_NOKEY
-static const uint8_t k_uid_other[NP_DEVICE_UID_LEN] = {
+static const uint8_t UID_OTHER[NP_DEVICE_UID_LEN] = {
     0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCD };
 #endif
 
@@ -131,7 +131,7 @@ static uint16_t gate_all(void)
 
 static void boot(void)
 {
-    memcpy(g_uid, k_uid_this, sizeof(g_uid));
+    memcpy(g_uid, UID_THIS, sizeof(g_uid));
     (void)np_tier_identity_init();
 }
 
@@ -169,8 +169,8 @@ static void test_t2_mask_is_exactly_the_four_t2_lines(void)
 
 static void test_key_matches_seed(void)
 {
-    static const uint8_t k_compiled[32] = NP_TIER_AUTHORITY_PUBKEY_INIT;
-    check(memcmp(g_pk, k_compiled, 32) == 0,
+    static const uint8_t COMPILED[32] = NP_TIER_AUTHORITY_PUBKEY_INIT;
+    check(memcmp(g_pk, COMPILED, 32) == 0,
           "compiled test authority key is the one derived from the test seed");
 }
 
@@ -184,7 +184,7 @@ static void test_blank_otp_is_t1(void)
 static void test_signed_t2_for_this_unit_is_t2(void)
 {
     uint16_t out;
-    make_record(NP_TIER_T2, k_uid_this, g_sk, true);
+    make_record(NP_TIER_T2, UID_THIS, g_sk, true);
     boot();
     out = gate_all();
     check(np_tier_identity_is_t2(), "signed T2 record for this UID: unit is T2");
@@ -194,7 +194,7 @@ static void test_signed_t2_for_this_unit_is_t2(void)
 
 static void test_signed_t1_is_t1(void)
 {
-    make_record(NP_TIER_T1, k_uid_this, g_sk, true);
+    make_record(NP_TIER_T1, UID_THIS, g_sk, true);
     boot();
     expect_t1("signed T1 record", NP_TIER_REASON_OK);
     check(np_tier_identity_record_tier() == NP_TIER_T1, "signed T1 record: record names T1");
@@ -203,7 +203,7 @@ static void test_signed_t1_is_t1(void)
 static void test_record_copied_from_another_unit_is_t1(void)
 {
     /* A genuine T2 record, lifted from another unit's OTP into this one's. */
-    make_record(NP_TIER_T2, k_uid_other, g_sk, true);
+    make_record(NP_TIER_T2, UID_OTHER, g_sk, true);
     boot();
     expect_t1("genuine T2 record from ANOTHER unit (device binding)",
               NP_TIER_REASON_SIGNATURE);
@@ -212,7 +212,7 @@ static void test_record_copied_from_another_unit_is_t1(void)
 static void test_tier_byte_edited_is_t1(void)
 {
     /* Signed as T1, then the tier byte rewritten to T2. */
-    make_record(NP_TIER_T1, k_uid_this, g_sk, true);
+    make_record(NP_TIER_T1, UID_THIS, g_sk, true);
     g_otp_record[5] = NP_TIER_T2;
     boot();
     expect_t1("T1 record with its tier byte edited to T2", NP_TIER_REASON_SIGNATURE);
@@ -220,7 +220,7 @@ static void test_tier_byte_edited_is_t1(void)
 
 static void test_signature_corrupted_is_t1(void)
 {
-    make_record(NP_TIER_T2, k_uid_this, g_sk, true);
+    make_record(NP_TIER_T2, UID_THIS, g_sk, true);
     g_otp_record[NP_TIER_RECORD_LEN - 1U] ^= 0x01U;
     boot();
     expect_t1("T2 record with one signature bit flipped", NP_TIER_REASON_SIGNATURE);
@@ -228,7 +228,7 @@ static void test_signature_corrupted_is_t1(void)
 
 static void test_wrong_signer_is_t1(void)
 {
-    make_record(NP_TIER_T2, k_uid_this, g_sk_rogue, true);
+    make_record(NP_TIER_T2, UID_THIS, g_sk_rogue, true);
     boot();
     expect_t1("T2 record signed by a key that is not the tier authority",
               NP_TIER_REASON_SIGNATURE);
@@ -236,7 +236,7 @@ static void test_wrong_signer_is_t1(void)
 
 static void test_signature_without_domain_is_t1(void)
 {
-    make_record(NP_TIER_T2, k_uid_this, g_sk, false);
+    make_record(NP_TIER_T2, UID_THIS, g_sk, false);
     boot();
     expect_t1("T2 record signed without the tier domain string",
               NP_TIER_REASON_SIGNATURE);
@@ -244,21 +244,21 @@ static void test_signature_without_domain_is_t1(void)
 
 static void test_format_rejections_are_t1(void)
 {
-    make_record(NP_TIER_T2, k_uid_this, g_sk, true);
+    make_record(NP_TIER_T2, UID_THIS, g_sk, true);
     g_otp_record[0] = 0x00U;
     boot();
     expect_t1("bad magic", NP_TIER_REASON_FORMAT);
 
-    make_record(NP_TIER_T2, k_uid_this, g_sk, true);
+    make_record(NP_TIER_T2, UID_THIS, g_sk, true);
     g_otp_record[4] = (uint8_t)(NP_TIER_RECORD_VERSION + 1U);
     boot();
     expect_t1("unknown record version", NP_TIER_REASON_FORMAT);
 
-    make_record(0x03U, k_uid_this, g_sk, true);   /* validly signed, unknown tier */
+    make_record(0x03U, UID_THIS, g_sk, true);   /* validly signed, unknown tier */
     boot();
     expect_t1("validly signed record naming an unknown tier code", NP_TIER_REASON_FORMAT);
 
-    make_record(NP_TIER_T2, k_uid_this, g_sk, true);
+    make_record(NP_TIER_T2, UID_THIS, g_sk, true);
     g_otp_record[6] = 0x01U;
     boot();
     expect_t1("non-zero reserved byte", NP_TIER_REASON_FORMAT);
@@ -271,7 +271,7 @@ static void test_format_rejections_are_t1(void)
 static void test_verdict_is_retaken_at_each_boot(void)
 {
     /* T2 then a blank window: the second boot must not inherit the first. */
-    make_record(NP_TIER_T2, k_uid_this, g_sk, true);
+    make_record(NP_TIER_T2, UID_THIS, g_sk, true);
     boot();
     memset(g_otp_record, 0xFF, sizeof(g_otp_record));
     boot();
@@ -281,18 +281,18 @@ static void test_verdict_is_retaken_at_each_boot(void)
 
 static void test_each_t2_line_individually(void)
 {
-    static const uint16_t k_lines[] = {
+    static const uint16_t TIER_ENABLE_LINES[] = {
         NP_SAFETY_EN_CVNS, NP_SAFETY_EN_TMS, NP_SAFETY_EN_PBM_1170NM,
         NP_SAFETY_EN_CLIN_STIM };
     size_t i;
     bool   all_withheld = true;
 
-    make_record(NP_TIER_T1, k_uid_this, g_sk, true);
+    make_record(NP_TIER_T1, UID_THIS, g_sk, true);
     boot();
-    for (i = 0U; i < sizeof(k_lines) / sizeof(k_lines[0]); i++) {
+    for (i = 0U; i < sizeof(TIER_ENABLE_LINES) / sizeof(TIER_ENABLE_LINES[0]); i++) {
         np_safety_state_t st;
         memset(&st, 0, sizeof(st));
-        st.requested_mask = k_lines[i] | NP_SAFETY_EN_BES_TACS;
+        st.requested_mask = TIER_ENABLE_LINES[i] | NP_SAFETY_EN_BES_TACS;
         st.granted_mask   = st.requested_mask;
         np_tier_identity_gate(&st);
         if (st.granted_mask != NP_SAFETY_EN_BES_TACS) {
@@ -308,7 +308,7 @@ static void test_report(void)
     np_safety_tier_report_t r;
     uint16_t sum;
 
-    make_record(NP_TIER_T1, k_uid_this, g_sk, true);
+    make_record(NP_TIER_T1, UID_THIS, g_sk, true);
     boot();
 
     np_tier_identity_build_report(&r, NP_SAFETY_EN_CVNS | NP_SAFETY_EN_VNS_HRV);
@@ -322,7 +322,7 @@ static void test_report(void)
     np_tier_identity_build_report(&r, NP_SAFETY_EN_VNS_HRV | NP_SAFETY_EN_TDCS);
     check(r.flags == 0U, "report: T1 unit asked only for T1 lines reports no refusal");
 
-    make_record(NP_TIER_T2, k_uid_this, g_sk, true);
+    make_record(NP_TIER_T2, UID_THIS, g_sk, true);
     boot();
     np_tier_identity_build_report(&r, NP_SAFETY_EN_ALL_MASK);
     check(r.tier == NP_TIER_T2 && r.flags == 0U && r.reason == NP_TIER_REASON_OK,
@@ -339,14 +339,14 @@ static void test_report(void)
 
 static void test_placeholder_key_fails_closed(void)
 {
-    static const uint8_t k_compiled[32] = NP_TIER_AUTHORITY_PUBKEY_INIT;
+    static const uint8_t COMPILED[32] = NP_TIER_AUTHORITY_PUBKEY_INIT;
     size_t i;
     bool   zero = true;
-    for (i = 0U; i < 32U; i++) { if (k_compiled[i] != 0U) { zero = false; } }
+    for (i = 0U; i < 32U; i++) { if (COMPILED[i] != 0U) { zero = false; } }
     check(zero, "no-key build: the shipped authority key is the all-zero placeholder");
 
     /* A record that WOULD verify under the test key. */
-    make_record(NP_TIER_T2, k_uid_this, g_sk, true);
+    make_record(NP_TIER_T2, UID_THIS, g_sk, true);
     g_record_reads = 0;
     boot();
     expect_t1("no-key build: perfectly signed T2 record", NP_TIER_REASON_NO_AUTHORITY);

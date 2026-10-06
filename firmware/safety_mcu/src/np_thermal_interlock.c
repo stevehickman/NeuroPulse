@@ -28,7 +28,7 @@
 /* ── NTC conversion (B=3950K, R25=10kΩ, Rdivider=10kΩ) ─────────────────── */
 /* Lookup table: ADC counts → temperature °C (0..110°C range, 1°C steps)    */
 /* Generated offline; values are approximate ADC counts at Vref=3.3V.        */
-static const uint16_t k_ntc_adc[111] = {
+static const uint16_t NTC_ADC[111] = {
     /* 0°C */ 3820, 3800, 3775, 3750, 3720, 3690, 3655, 3620, 3580, 3540,
     /*10°C */ 3495, 3448, 3398, 3346, 3290, 3232, 3170, 3107, 3040, 2972,
     /*20°C */ 2901, 2829, 2756, 2680, 2604, 2527, 2450, 2372, 2294, 2217,
@@ -46,7 +46,7 @@ static uint8_t adc_to_celsius(uint16_t adc)
 {
     /* Scan table from low index (cold) to high index (hot) */
     for (uint8_t t = 0U; t < 110U; t++) {
-        if (adc >= k_ntc_adc[t + 1U]) {
+        if (adc >= NTC_ADC[t + 1U]) {
             return t + 1U;
         }
     }
