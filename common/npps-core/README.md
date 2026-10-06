@@ -1,7 +1,6 @@
 # neurone-npps-core — one NPPS implementation for every runtime
 
-**Open item:** `OI-NPPS-CORE-01` (`docs/status/pending-decisions.md`). **Status:** v0 prototype, not yet
-adopted by any app.
+**Open item:** `OI-NPPS-CORE-01` (`docs/status/pending-decisions.md`). **Status:** v0; Android's compiler runs on it.
 
 NPPS had five hand-written parsers and four hand-written hub-descriptor compilers (web, simulator bundle,
 iOS, Android, Windows). Each port drifted: the iOS tDCS parser read one field of four, iOS and Android read
@@ -42,9 +41,13 @@ library, the corpus and the 22 golden descriptors through the real native librar
 contain `—` and `²`, so UTF-8 marshalling is exercised) and requires every entry, byte and message to match
 the web reference. `:core:test` builds the host library first (`cargo` must be on `PATH`; CI installs it).
 
-Not done for Android: packaging the library in the APK (`cargo-ndk`, `arm64-v8a`, `armeabi-v7a`, `x86_64`,
-`x86`, into `:app` `jniLibs`: it needs an NDK this environment and the Android CI do not have, and no code
-path loads it yet), and replacing the Kotlin parser and compiler with calls into `NppsCore`.
+**Android now compiles through the core.** `HubDescriptorCompiler` maps the Android models to the core's
+shape (`NppsCoreMapping.kt`), calls `NppsCore.compile`, and signs the result; the Kotlin encoders are
+deleted, so Android has no compiler of its own to drift. Its golden and refusal tests pass through the core.
+`:app` packages the library for `arm64-v8a`, `armeabi-v7a`, `x86_64` and `x86` with `cargo-ndk`
+(`buildNppsCoreNative`), and `android-ci.yml` fails if the APK lacks it. **That packaging could only be
+written, not run, in the authoring environment (no NDK): CI is its first execution.** Not done: Android's
+parser (`NPPSParser`) still reads `.npps` itself.
 
 ## Not yet in v0
 
@@ -54,8 +57,8 @@ path loads it yet), and replacing the Kotlin parser and compiler with calls into
 - User wavelength rules are accepted by the compiler API but only the default rules are exercised.
 - Bindings: **Android only** (`../npps-jni`, below). iOS and Windows (a C ABI over the same
   `api` module, built as `staticlib`/`cdylib`) and web and the simulator (`wasm32`) are not written.
-  **iOS and Windows cannot be built or tested from this environment.** Nothing in any app calls a
-  binding yet: Android's `NPPSParser` and `HubDescriptorCompiler` are still the Kotlin ports.
+  **iOS and Windows cannot be built or tested from this environment.** Android's compiler
+  calls its binding; no other app calls one.
 - The validator (`protocolValidator`, per-platform today) is not ported.
 - **Signing stays in each platform's keystore.** The compiler returns the blob with a zeroed 64-byte
   signature slot; the caller signs the raw region and fills it.

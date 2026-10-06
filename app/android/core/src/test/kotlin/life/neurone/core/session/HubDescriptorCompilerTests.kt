@@ -133,8 +133,10 @@ class HubDescriptorCompilerTests {
         assertFailsWith<IllegalArgumentException> { // a block that starts after the session ends
             compiler.build(def(60, mod(NPModalityParams.BesTacs(NPBESTacsParams()), NPIntervalConfig(0, 0, null, startOffsetSeconds = 60))), null, null)
         }
-        assertFailsWith<NPPSError> { compiler.build(def(600, mod(NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(
-            target = NPPBMTarget.Named(listOf("No Such Zone")))))), null, null) }
+        // A zone the namespace does not hold is refused with the message every runtime gives.
+        val unknown = assertFailsWith<IllegalArgumentException> { compiler.build(def(600, mod(NPModalityParams.PbmTranscranial(
+            NPPBMTranscranialParams(target = NPPBMTarget.Named(listOf("No Such Zone")))))), null, null) }
+        assertTrue(unknown.message.orEmpty().contains("\"No Such Zone\", which is not in the zone namespace"))
         // Two PBM blocks on the same tile that differ in duty are not one stimulus.
         val other = mod(NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(
             target = NPPBMTarget.Named(listOf("Frontal")), wavelength = NPPBMTranscranialParams.Wavelength.NM_660,

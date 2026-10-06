@@ -42,6 +42,41 @@ val syncLocales by tasks.registering(Exec::class) {
     )
 }
 
+// ── The shared NPPS core, packaged (OI-NPPS-CORE-01) ──────────────────────────
+//
+// :core's HubDescriptorCompiler calls the Rust core through JNI (NppsCore), so the APK must carry
+// libneurone_npps_jni.so for every ABI it installs on; without it the first descriptor compile
+// throws UnsatisfiedLinkError and no protocol uploads. cargo-ndk builds the four ABIs into a
+// directory that is added as a jniLibs source. Needs `cargo-ndk`, the four Rust Android targets
+// and an NDK (ANDROID_NDK_HOME); android-ci.yml installs all three and checks the APK for the
+// library. `-PskipNppsCoreNative` skips it for a build that never runs a compile (a UI-only
+// iteration); such an APK cannot upload a protocol.
+val nppsCoreJniLibs: Provider<Directory> = layout.buildDirectory.dir("generated/jniLibs/npps")
+
+val buildNppsCoreNative by tasks.registering(Exec::class) {
+    group = "build"
+    description = "Builds libneurone_npps_jni.so for arm64-v8a, armeabi-v7a, x86_64 and x86 with cargo-ndk."
+    val common = File(repoRoot, "common")
+    workingDir = common
+    commandLine(
+        "cargo", "ndk",
+        "-t", "arm64-v8a", "-t", "armeabi-v7a", "-t", "x86_64", "-t", "x86",
+        "-o", nppsCoreJniLibs.get().asFile.absolutePath,
+        "build", "--release", "--locked", "-p", "neurone-npps-jni",
+    )
+    inputs.dir(File(common, "npps-core")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.dir(File(common, "npps-jni")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(File(common, "npps/fields.json"))
+    inputs.file(File(common, "Cargo.lock"))
+    outputs.dir(nppsCoreJniLibs)
+}
+
+if (!project.hasProperty("skipNppsCoreNative")) {
+    // Every task that merges or packages native libraries, for every variant.
+    tasks.matching { it.name.matches(Regex("merge.*JniLibFolders")) }
+        .configureEach { dependsOn(buildNppsCoreNative) }
+}
+
 // preBuild is an ancestor of every variant task, resource merging included, so
 // this single edge covers debug, release and the unit-test variants alike.
 tasks.named("preBuild") { dependsOn(syncLocales) }
@@ -72,6 +107,7 @@ android {
     }
 
     sourceSets["main"].res.srcDir(generatedLocaleRes)
+    sourceSets["main"].jniLibs.srcDir(nppsCoreJniLibs)
 
     buildFeatures { compose = true }
 

@@ -115,6 +115,14 @@ jobs:
           rustup default stable
           cargo --version
 
+      # The APK carries the Rust NPPS core for four ABIs (:app's buildNppsCoreNative, via cargo-ndk).
+      - name: Install NDK, the Rust Android targets and cargo-ndk
+        run: |
+          sdkmanager "ndk;27.2.12479018"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
+          cargo install cargo-ndk --locked
+
       - name: Set up Gradle 8.11.1
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -122,6 +130,18 @@ jobs:
 
       - name: Build :core and run unit tests
         run: gradle :core:test :app:testDebugUnitTest --stacktrace
+
+      # The compiler calls the core through JNI, so an APK without the library cannot upload a
+      # protocol. The unit tests cannot see that; this does.
+      - name: The APK carries the NPPS core for every ABI
+        run: |
+          gradle :app:assembleDebug --stacktrace
+          apk=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
+          for abi in arm64-v8a armeabi-v7a x86_64 x86; do
+            unzip -l "$apk" | grep -q "lib/$abi/libneurone_npps_jni.so" \
+              || { echo "::error::$apk has no lib/$abi/libneurone_npps_jni.so"; exit 1; }
+            echo "ok: $abi"
+          done
 
       - name: Upload test reports
         if: ${{ always() }}
