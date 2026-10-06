@@ -7,6 +7,7 @@
 //! v0 covers `protocol` entries and the descriptor compiler. `composite`, `limits`, `zone`, `condition` and
 //! `wavelength_rules` blocks are skipped (reported, not validated); see the open item.
 
+pub mod api;
 pub mod compiler;
 pub mod error;
 pub mod js;

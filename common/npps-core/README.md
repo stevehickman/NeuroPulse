@@ -33,15 +33,29 @@ compiler, which remain the reference:
 
 `web-ci.yml` regenerates both goldens, fails if either is stale, and runs `cargo test --locked`.
 
+## Android binding
+
+`../npps-jni` is a `cdylib` of two JNI functions over `src/api.rs` (`parse_json`, `compile_json`: the one
+contract every binding wraps). `app/android/core/.../npps/NppsCore.kt` loads it and marshals; a refusal is
+thrown as `IllegalArgumentException` carrying the core's message. `NppsCoreTests` pushes the shipped
+library, the corpus and the 22 golden descriptors through the real native library from Kotlin (the messages
+contain `—` and `²`, so UTF-8 marshalling is exercised) and requires every entry, byte and message to match
+the web reference. `:core:test` builds the host library first (`cargo` must be on `PATH`; CI installs it).
+
+Not done for Android: packaging the library in the APK (`cargo-ndk`, `arm64-v8a`, `armeabi-v7a`, `x86_64`,
+`x86`, into `:app` `jniLibs`: it needs an NDK this environment and the Android CI do not have, and no code
+path loads it yet), and replacing the Kotlin parser and compiler with calls into `NppsCore`.
+
 ## Not yet in v0
 
 - `composite`, `limits`, `zone`, `condition` and `wavelength_rules` blocks are skipped, not validated; the
   namespace (zone and condition resolution) and the serializer are not ported. The compiler takes the
   zone map as an argument.
 - User wavelength rules are accepted by the compiler API but only the default rules are exercised.
-- No binding layer. The core's contract is JSON in, JSON or bytes out, so each platform needs only a thin
-  wrapper: a C ABI over `cdylib`/`staticlib` for Swift and C#, JNI (or UniFFI) for Kotlin, `wasm32` for web
-  and the simulator. None is written. **iOS and Windows cannot be built or tested from this environment.**
+- Bindings: **Android only** (`../npps-jni`, below). iOS and Windows (a C ABI over the same
+  `api` module, built as `staticlib`/`cdylib`) and web and the simulator (`wasm32`) are not written.
+  **iOS and Windows cannot be built or tested from this environment.** Nothing in any app calls a
+  binding yet: Android's `NPPSParser` and `HubDescriptorCompiler` are still the Kotlin ports.
 - The validator (`protocolValidator`, per-platform today) is not ported.
 - **Signing stays in each platform's keystore.** The compiler returns the blob with a zeroed 64-byte
   signature slot; the caller signs the raw region and fills it.

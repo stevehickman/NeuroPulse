@@ -1,0 +1,14 @@
+[package]
+name = "neurone-npps-jni"
+version = "0.1.0"
+edition = "2021"
+description = "JNI binding of neurone-npps-core for Android and JVM. Marshalling only: the contract is neurone_npps_core::api. OI-NPPS-CORE-01."
+publish = false
+
+[lib]
+name = "neurone_npps_jni"
+crate-type = ["cdylib"]
+
+[dependencies]
+neurone-npps-core = { path = "../npps-core" }
+jni = "0.21"
