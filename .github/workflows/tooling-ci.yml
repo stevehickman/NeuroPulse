@@ -1045,7 +1045,7 @@ jobs:
       - name: Guard self-test (prove all four correspondences can fail)
         run: bun scripts/check-tcap-map.ts --self-test
 
-      # Until NP-HW-TCAP-001 existed, k_driver_channel[] WAS the authority for a
+      # Until NP-HW-TCAP-001 existed, DRIVER_CHANNEL[] WAS the authority for a
       # hardware contract — Class B firmware standing in for a controlled
       # document. The map it replaced aliased five pairs of geometric
       # neighbours and every one of them reads as reasonable; C4/P4 made the

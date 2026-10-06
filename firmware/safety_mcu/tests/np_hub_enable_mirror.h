@@ -13,16 +13,16 @@ typedef struct {
     uint16_t    bit;    /* the hub's value for that enable bit */
 } np_hub_enable_mirror_t;
 
-extern const np_hub_enable_mirror_t np_hub_enable_mirror[];
-extern const unsigned               np_hub_enable_mirror_count;
-extern const uint8_t                np_hub_ch_clin_stim;
-extern const uint8_t                np_hub_ch_tdcs;
-extern const uint8_t                np_hub_ch_bes_tacs;
-extern const uint8_t                np_hub_ch_vns_hrv;
-extern const uint8_t                np_hub_ch_cvns;
-extern const uint16_t               np_hub_bes_area_mcm2;
-extern const uint16_t               np_hub_vns_area_mcm2;
-extern const uint16_t               np_hub_cvns_area_mcm2;
-extern const uint16_t               np_hub_en_audio;
+extern const np_hub_enable_mirror_t NP_HUB_ENABLE_MIRROR[];
+extern const unsigned               NP_HUB_ENABLE_MIRROR_COUNT;
+extern const uint8_t                NP_HUB_CH_CLIN_STIM;
+extern const uint8_t                NP_HUB_CH_TDCS;
+extern const uint8_t                NP_HUB_CH_BES_TACS;
+extern const uint8_t                NP_HUB_CH_VNS_HRV;
+extern const uint8_t                NP_HUB_CH_CVNS;
+extern const uint16_t               NP_HUB_BES_AREA_MCM2;
+extern const uint16_t               NP_HUB_VNS_AREA_MCM2;
+extern const uint16_t               NP_HUB_CVNS_AREA_MCM2;
+extern const uint16_t               NP_HUB_EN_AUDIO;
 
 #endif /* NP_HUB_ENABLE_MIRROR_H */

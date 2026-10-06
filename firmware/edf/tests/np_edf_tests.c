@@ -52,7 +52,7 @@ static void make_token(uint8_t token[32], uint8_t seed)
    leap), 2100-03-01 (divisible by 100, not leap), the last second of a day and
    of a year, and the last representable uint32 second (2106-02-07 06:28:15).
    The remaining slots are spread over 1970..2106 by a fixed LCG. */
-static const uint32_t k_edge_ts[] = {
+static const uint32_t EDGE_TS[] = {
     0U,           /* 1970-01-01 00:00:00 */
     86399U,       /* 1970-01-01 23:59:59 */
     951782400U,   /* 2000-02-29 00:00:00 */
@@ -67,9 +67,9 @@ static const uint32_t k_edge_ts[] = {
 
 static uint32_t session_ts_for(int i)
 {
-    const int n_edge = (int)(sizeof(k_edge_ts) / sizeof(k_edge_ts[0]));
+    const int n_edge = (int)(sizeof(EDGE_TS) / sizeof(EDGE_TS[0]));
     if (i < n_edge) {
-        return k_edge_ts[i];
+        return EDGE_TS[i];
     }
     uint32_t x = (uint32_t)i * 2654435761U;  /* Knuth multiplicative hash */
     return x ^ (x >> 13);

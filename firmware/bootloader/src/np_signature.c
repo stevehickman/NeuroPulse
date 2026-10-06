@@ -49,7 +49,7 @@
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, \
 }
 #endif
-const uint8_t g_np_fw_public_key[NP_ED25519_PUBKEY_SIZE] = NP_FW_PUBLIC_KEY_INIT;
+const uint8_t NP_FW_PUBLIC_KEY[NP_ED25519_PUBKEY_SIZE] = NP_FW_PUBLIC_KEY_INIT;
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /*                       CRC32 (IEEE 802.3 reflected)                         */
@@ -324,7 +324,7 @@ np_status_t np_signature_verify(const np_image_header_t *header,
     msg[38] = (uint8_t)(header->image_size >> 16U);
     msg[39] = (uint8_t)(header->image_size >> 24U);
 
-    if (ed25519_verify(g_np_fw_public_key, header->signature, msg, 40U) != 0) {
+    if (ed25519_verify(NP_FW_PUBLIC_KEY, header->signature, msg, 40U) != 0) {
         return NP_ERR_BAD_SIGNATURE;
     }
 

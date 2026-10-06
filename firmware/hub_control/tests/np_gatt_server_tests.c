@@ -195,11 +195,11 @@ static void reset_world(void)
 /* The canonical string form of a 16-byte LSB-first UUID. */
 static void uuid_string(const uint8_t u[16], char out[37])
 {
-    static const char hex[] = "0123456789ABCDEF";
+    static const char HEX_DIGITS[] = "0123456789ABCDEF";
     size_t o = 0U;
     for (int i = 15; i >= 0; i--) {
-        out[o++] = hex[u[i] >> 4];
-        out[o++] = hex[u[i] & 0x0FU];
+        out[o++] = HEX_DIGITS[u[i] >> 4];
+        out[o++] = HEX_DIGITS[u[i] & 0x0FU];
         if (i == 12 || i == 10 || i == 8 || i == 6) {
             out[o++] = '-';
         }

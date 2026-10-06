@@ -1361,14 +1361,14 @@ static np_hub_status_t map_inv(uint16_t socket_id, void *ctx, uint8_t *types_out
 {
     (void)socket_id;
     (void)ctx;
-    static const uint8_t tile[] = { NP_ELEM_LED_660, NP_ELEM_LED_808,
+    static const uint8_t TILE[] = { NP_ELEM_LED_660, NP_ELEM_LED_808,
                                     NP_ELEM_NTC, NP_ELEM_PD_FORWARD };
     g_map_inv_calls++;
-    if (max < sizeof(tile)) {
+    if (max < sizeof(TILE)) {
         return NP_HUB_ERR_CMD_TOO_MANY;
     }
-    memcpy(types_out, tile, sizeof(tile));
-    *count_out = (uint8_t)sizeof(tile);
+    memcpy(types_out, TILE, sizeof(TILE));
+    *count_out = (uint8_t)sizeof(TILE);
     return NP_HUB_OK;
 }
 

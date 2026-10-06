@@ -81,13 +81,13 @@ typedef struct {
 /* Days in each month for a given leap-year flag. */
 static int32_t np_edf_days_in_month(int32_t year, int32_t month)
 {
-    static const int32_t dim[12] = { 31, 28, 31, 30, 31, 30,
+    static const int32_t DIM[12] = { 31, 28, 31, 30, 31, 30,
                                      31, 31, 30, 31, 30, 31 };
     if (month == 2) {
         bool leap = ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0);
         return leap ? 29 : 28;
     }
-    return dim[month - 1];
+    return DIM[month - 1];
 }
 
 /* Converts seconds-since-epoch (UTC) to a broken-down calendar time.
@@ -164,11 +164,11 @@ static void np_edf_format_recording_date(const np_edf_datetime_t *dt, char out[1
 /* Lowercase hex digit for a 4-bit nibble. */
 static char np_edf_hex_digit(uint8_t nibble)
 {
-    static const char hex[16] = {
+    static const char HEX_DIGITS[16] = {
         '0', '1', '2', '3', '4', '5', '6', '7',
         '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
     };
-    return hex[nibble & 0x0FU];
+    return HEX_DIGITS[nibble & 0x0FU];
 }
 
 /* ── Patient-name comparison ─────────────────────────────────────────────────── */
@@ -204,13 +204,13 @@ bool np_edf_header_contains_real_name(const np_edf_header_t *header)
     }
 
     /* Compare against the fixed compliant value. */
-    static const char expected[] = NP_EDF_PATIENT_NAME;
-    size_t expected_len = sizeof(expected) - 1U;  /* exclude NUL */
+    static const char EXPECTED[] = NP_EDF_PATIENT_NAME;
+    size_t expected_len = sizeof(EXPECTED) - 1U;  /* exclude NUL */
 
     if (name_len == expected_len) {
         bool equal = true;
         for (size_t i = 0U; i < name_len; i++) {
-            if (pid[start + i] != expected[i]) {
+            if (pid[start + i] != EXPECTED[i]) {
                 equal = false;
                 break;
             }
@@ -271,9 +271,9 @@ np_edf_status_t np_edf_write_header(np_edf_header_t *header,
         patient_id[pos++] = 'X';   /* birthdate */
         patient_id[pos++] = ' ';
         {
-            static const char name[] = NP_EDF_PATIENT_NAME;
-            size_t name_len = sizeof(name) - 1U;
-            np_edf_copy(patient_id + pos, name, name_len);
+            static const char PATIENT_NAME[] = NP_EDF_PATIENT_NAME;
+            size_t name_len = sizeof(PATIENT_NAME) - 1U;
+            np_edf_copy(patient_id + pos, PATIENT_NAME, name_len);
             pos += name_len;
         }
         patient_id[pos] = '\0';
@@ -294,18 +294,18 @@ np_edf_status_t np_edf_write_header(np_edf_header_t *header,
         char recording_id[NP_EDF_RECORDING_ID_LEN + 1];
         size_t pos = 0U;
 
-        static const char prefix[] = "Startdate ";
-        size_t prefix_len = sizeof(prefix) - 1U;
-        np_edf_copy(recording_id, prefix, prefix_len);
+        static const char PREFIX[] = "Startdate ";
+        size_t prefix_len = sizeof(PREFIX) - 1U;
+        np_edf_copy(recording_id, PREFIX, prefix_len);
         pos += prefix_len;
 
         size_t date_len = np_edf_strnlen(rec_date, sizeof(rec_date));
         np_edf_copy(recording_id + pos, rec_date, date_len);
         pos += date_len;
 
-        static const char mid[] = " NeurOne X NeurOne_v";
-        size_t mid_len = sizeof(mid) - 1U;
-        np_edf_copy(recording_id + pos, mid, mid_len);
+        static const char MID[] = " NeurOne X NeurOne_v";
+        size_t mid_len = sizeof(MID) - 1U;
+        np_edf_copy(recording_id + pos, MID, mid_len);
         pos += mid_len;
 
         /* Append fw_version, truncating to the remaining field width. */

@@ -13,7 +13,7 @@
 /* ── 10-20 MNI scalp coordinate table ───────────────────────────────────────── */
 /* One entry per np_hd_electrode_t enum value (0–20).                           */
 
-static const np_hd_mni_t k_electrode_mni[NP_HD_CH_COUNT] = {
+static const np_hd_mni_t ELECTRODE_MNI[NP_HD_CH_COUNT] = {
     /* FP1  */ { -21,  66,   5 },
     /* FP2  */ {  21,  66,   5 },
     /* F7   */ { -51,  26,  -2 },
@@ -37,7 +37,7 @@ static const np_hd_mni_t k_electrode_mni[NP_HD_CH_COUNT] = {
     /* O2   */ {  21, -85,   5 },
 };
 
-static const char *const k_electrode_names[NP_HD_CH_COUNT] = {
+static const char *const ELECTRODE_NAMES[NP_HD_CH_COUNT] = {
     "Fp1", "Fp2", "F7", "F3", "Fz", "F4", "F8",
     "FC3", "FC4", "T7", "C3", "Cz", "C4", "T8",
     "P7", "P3", "Pz", "P4", "P8", "O1", "O2",
@@ -45,7 +45,7 @@ static const char *const k_electrode_names[NP_HD_CH_COUNT] = {
 
 /* ── Predefined clinical target MNI coordinates ──────────────────────────────── */
 
-static const np_hd_mni_t k_clinical_targets[] = {
+static const np_hd_mni_t CLINICAL_TARGETS[] = {
     /* DLPFC_L  */ { -46,  36,  20 },
     /* DLPFC_R  */ {  46,  36,  20 },
     /* VLPFC_L  */ { -51,  15,   0 },
@@ -89,7 +89,7 @@ static const np_hd_mni_t k_clinical_targets[] = {
  * from the MNI coordinates rather than trusting this map to be an identity — so
  * it still bites if sharing is reintroduced.
  */
-static const uint8_t k_driver_channel[NP_HD_CH_COUNT] = {
+static const uint8_t DRIVER_CHANNEL[NP_HD_CH_COUNT] = {
     /*FP1*/ 0, /*FP2*/ 1, /*F7*/  2, /*F3*/  3, /*FZ*/  4, /*F4*/  5, /*F8*/  6,
     /*FC3*/ 7, /*FC4*/ 8, /*T7*/  9, /*C3*/ 10, /*CZ*/ 11, /*C4*/ 12, /*T8*/ 13,
     /*P7*/ 14, /*P3*/ 15, /*PZ*/ 16, /*P4*/ 17, /*P8*/ 18, /*O1*/ 19, /*O2*/ 20,
@@ -136,13 +136,13 @@ typedef struct {
 static bool claim_taken(const np_hd_claims_t *claims, np_hd_electrode_t electrode)
 {
     return ((claims->electrodes & (1UL << (uint8_t)electrode)) != 0UL) ||
-           ((claims->channels   & (1UL << k_driver_channel[electrode])) != 0UL);
+           ((claims->channels   & (1UL << DRIVER_CHANNEL[electrode])) != 0UL);
 }
 
 static void claim_take(np_hd_claims_t *claims, np_hd_electrode_t electrode)
 {
     claims->electrodes |= (1UL << (uint8_t)electrode);
-    claims->channels   |= (1UL << k_driver_channel[electrode]);
+    claims->channels   |= (1UL << DRIVER_CHANNEL[electrode]);
 }
 
 /* ── Shared 4×1 ring cathode selection ───────────────────────────────────────── */
@@ -197,8 +197,8 @@ static np_hd_status_t ring_select_cathodes(
         if (ch == (uint8_t)center) {
             continue;
         }
-        dist[n_candidates]  = mni_dist_sq(&k_electrode_mni[center],
-                                           &k_electrode_mni[ch]);
+        dist[n_candidates]  = mni_dist_sq(&ELECTRODE_MNI[center],
+                                           &ELECTRODE_MNI[ch]);
         order[n_candidates] = ch;
         n_candidates++;
     }
@@ -245,8 +245,8 @@ static np_hd_status_t ring_select_cathodes(
     /* Quadrant defined by sign of (cathode_mni - center_mni) in x and y.        */
     uint8_t quadrant_mask = 0U;
     for (uint8_t k = 0U; k < NP_HD_RING_CATHODE_COUNT; k++) {
-        int16_t dx = k_electrode_mni[out_cathodes[k]].x - k_electrode_mni[center].x;
-        int16_t dy = k_electrode_mni[out_cathodes[k]].y - k_electrode_mni[center].y;
+        int16_t dx = ELECTRODE_MNI[out_cathodes[k]].x - ELECTRODE_MNI[center].x;
+        int16_t dy = ELECTRODE_MNI[out_cathodes[k]].y - ELECTRODE_MNI[center].y;
         uint8_t q  = (uint8_t)((dx >= 0 ? 1U : 0U) | ((dy >= 0 ? 1U : 0U) << 1));
         quadrant_mask |= (uint8_t)(1U << q);
     }
@@ -264,7 +264,7 @@ np_hd_status_t np_hd_electrode_mni(np_hd_electrode_t electrode, np_hd_mni_t *out
     if (!out || electrode >= NP_HD_CH_COUNT) {
         return NP_HD_ERR_INVALID_ARG;
     }
-    *out = k_electrode_mni[electrode];
+    *out = ELECTRODE_MNI[electrode];
     return NP_HD_OK;
 }
 
@@ -275,10 +275,10 @@ np_hd_electrode_t np_hd_nearest_electrode(const np_hd_mni_t *target_mni,
         return NP_HD_CH_NONE;
     }
     uint8_t  best_ch   = 0U;
-    int32_t  best_dsq  = mni_dist_sq(target_mni, &k_electrode_mni[0]);
+    int32_t  best_dsq  = mni_dist_sq(target_mni, &ELECTRODE_MNI[0]);
 
     for (uint8_t ch = 1U; ch < NP_HD_CH_COUNT; ch++) {
-        int32_t dsq = mni_dist_sq(target_mni, &k_electrode_mni[ch]);
+        int32_t dsq = mni_dist_sq(target_mni, &ELECTRODE_MNI[ch]);
         if (dsq < best_dsq) {
             best_dsq = dsq;
             best_ch  = ch;
@@ -295,7 +295,7 @@ uint8_t np_hd_electrode_driver_channel(np_hd_electrode_t electrode)
     if (electrode >= NP_HD_CH_COUNT) {
         return NP_HD_DRIVER_CH_NONE;   /* covers NP_HD_CH_NONE (0xFF) too       */
     }
-    return k_driver_channel[electrode];
+    return DRIVER_CHANNEL[electrode];
 }
 
 np_hd_status_t np_hd_montage_select_ring(const np_hd_mni_t *target_mni,
@@ -546,7 +546,7 @@ np_hd_status_t np_hd_clinical_target_mni(np_hd_clinical_target_t target,
     if (!out || target >= NP_HD_TARGET_CUSTOM) {
         return NP_HD_ERR_INVALID_ARG;
     }
-    *out = k_clinical_targets[target];
+    *out = CLINICAL_TARGETS[target];
     return NP_HD_OK;
 }
 
@@ -563,7 +563,7 @@ np_hd_status_t np_hd_clinical_target_depth(np_hd_clinical_target_t target,
      * scalp position does better than ~37.9 mm (Fpz), so it is not focally
      * reachable by any electrode placement, not merely by this cap.
      */
-    static const np_hd_target_depth_t k_target_depth[] = {
+    static const np_hd_target_depth_t TARGET_DEPTH[] = {
         /* DLPFC_L */ NP_HD_TARGET_DEPTH_SURFACE,
         /* DLPFC_R */ NP_HD_TARGET_DEPTH_SURFACE,
         /* VLPFC_L */ NP_HD_TARGET_DEPTH_SURFACE,
@@ -572,7 +572,7 @@ np_hd_status_t np_hd_clinical_target_depth(np_hd_clinical_target_t target,
         /* M1_L    */ NP_HD_TARGET_DEPTH_SURFACE,
         /* M1_R    */ NP_HD_TARGET_DEPTH_SURFACE,
     };
-    *out = k_target_depth[target];
+    *out = TARGET_DEPTH[target];
     return NP_HD_OK;
 }
 
@@ -581,5 +581,5 @@ const char *np_hd_electrode_name(np_hd_electrode_t electrode)
     if (electrode >= NP_HD_CH_COUNT) {
         return "??";
     }
-    return k_electrode_names[electrode];
+    return ELECTRODE_NAMES[electrode];
 }

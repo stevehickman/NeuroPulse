@@ -18,7 +18,7 @@
 
 /* 4E455550-0000-1000-8000-00805F9B34FB, least-significant byte first; the id
  * (the second group) goes in bytes 10–11. */
-static const uint8_t k_uuid_base[16] = {
+static const uint8_t UUID_BASE[16] = {
     0xFBu, 0x34u, 0x9Bu, 0x5Fu, 0x80u, 0x00u, 0x00u, 0x80u,
     0x00u, 0x10u, 0x00u, 0x00u, 0x50u, 0x55u, 0x45u, 0x4Eu,
 };
@@ -56,7 +56,7 @@ static np_hub_status_t read_device_serial(uint8_t *buf, size_t cap, size_t *len_
 /* ── The table ───────────────────────────────────────────────────────────────
  * One row per characteristic the hub answers.  Add a row only with its
  * producer (np_gatt_server.h, "only what the hub produces"). */
-static const np_gatt_char_t k_table[] = {
+static const np_gatt_char_t TABLE[] = {
     { NP_GATT_ID_CONSUMABLE_STATUS,
       NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_NOTIFY,
       (uint8_t)NP_CONS_WIRE_LEN, (uint8_t)NP_CONS_RESET_LEN,
@@ -78,7 +78,7 @@ static const np_gatt_char_t k_table[] = {
       0u, 4u, NULL, np_cvfs_on_active_user_write },
 };
 
-#define K_TABLE_LEN (sizeof(k_table) / sizeof(k_table[0]))
+#define K_TABLE_LEN (sizeof(TABLE) / sizeof(TABLE[0]))
 
 _Static_assert(NP_CVFS_FRAME_MAX <= NP_GATT_VALUE_MAX,
                "NP_GATT_VALUE_MAX must hold the CVNS_FAULT_STATUS frame");
@@ -90,8 +90,8 @@ _Static_assert(NP_HUB_PROTO_SERIAL_LEN <= NP_GATT_VALUE_MAX,
 static const np_gatt_char_t *find(uint16_t id)
 {
     for (size_t i = 0U; i < K_TABLE_LEN; i++) {
-        if (k_table[i].id == id) {
-            return &k_table[i];
+        if (TABLE[i].id == id) {
+            return &TABLE[i];
         }
     }
     return NULL;
@@ -101,7 +101,7 @@ static const np_gatt_char_t *find(uint16_t id)
 
 void np_gatt_uuid128(uint16_t id, uint8_t out[16])
 {
-    memcpy(out, k_uuid_base, sizeof(k_uuid_base));
+    memcpy(out, UUID_BASE, sizeof(UUID_BASE));
     out[10] = (uint8_t)(id & 0xFFu);
     out[11] = (uint8_t)(id >> 8);
 }
@@ -111,12 +111,12 @@ const np_gatt_char_t *np_gatt_table(size_t *count_out)
     if (count_out != NULL) {
         *count_out = K_TABLE_LEN;
     }
-    return k_table;
+    return TABLE;
 }
 
 np_hub_status_t np_gatt_init(void)
 {
-    return np_gatt_hal_register(k_table, K_TABLE_LEN);
+    return np_gatt_hal_register(TABLE, K_TABLE_LEN);
 }
 
 np_att_status_t np_gatt_on_read(uint16_t id, uint16_t offset,

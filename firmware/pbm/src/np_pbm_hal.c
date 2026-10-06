@@ -36,7 +36,7 @@
  * Slot 0 returns smart module ADC (~1016 counts for 3.3 kΩ).
  * Slots 1–4 return base module values matching ZM-01–05 ladder.
  */
-static const uint16_t k_stub_zone_id_adc[5] = {
+static const uint16_t STUB_ZONE_ID_ADC[5] = {
     1016U,  /* slot 0 → smart module (3.3 kΩ)   */
     2048U,  /* slot 1 → ZM-01 (10 kΩ)           */
     2818U,  /* slot 2 → ZM-02 (22 kΩ)           */
@@ -49,7 +49,7 @@ static const uint16_t k_stub_zone_id_adc[5] = {
  * given default K_PD1 = 0.088 (1064nm).
  * PD1 = 100 / 0.088 ≈ 1136; PD2 = PD1 / K_ratio_nom = 1136 / 1.222 ≈ 929.
  */
-static const uint16_t k_stub_pd_counts[2] = { 1136U, 929U };
+static const uint16_t STUB_PD_COUNTS[2] = { 1136U, 929U };
 
 /* Monotonic ms counter (incremented by 100 ms per call for FAI determinism). */
 static uint32_t s_stub_now_ms = 0U;
@@ -71,7 +71,7 @@ static uint8_t s_i2c_regs[NP_PBM_SOCKET_DOMAIN][14];
 bool np_pbm_hal_adc_read_zone_id(uint8_t slot, uint16_t *counts_out)
 {
     if (!counts_out || slot >= 5U) { return false; }
-    *counts_out = k_stub_zone_id_adc[slot];
+    *counts_out = STUB_ZONE_ID_ADC[slot];
     return true;
 }
 
@@ -79,7 +79,7 @@ bool np_pbm_hal_adc_read_pd(uint8_t slot, uint8_t pd_ch,
                                   uint16_t *counts_out)
 {
     if (!counts_out || slot >= NP_PBM_SOCKET_DOMAIN || pd_ch > 1U) { return false; }
-    *counts_out = k_stub_pd_counts[pd_ch];
+    *counts_out = STUB_PD_COUNTS[pd_ch];
     return true;
 }
 

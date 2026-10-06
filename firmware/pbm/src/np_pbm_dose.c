@@ -22,7 +22,7 @@
  * data not yet available for a given slot/wavelength combination).
  * SHDR flag cal_source=NP_CAL_DEFAULT is set in this case.
  */
-static const np_pbm_cal_t k_default_cal[NP_PBM_WL_COUNT] = {
+static const np_pbm_cal_t DEFAULT_CAL[NP_PBM_WL_COUNT] = {
     /* NP_WL_660NM  */ { .K_PD1 = 0.120f, .K_PD2 = 0.090f, .K_ratio_nom = 1.333f, .valid = false },
     /* NP_WL_808NM  */ { .K_PD1 = 0.105f, .K_PD2 = 0.085f, .K_ratio_nom = 1.235f, .valid = false },
     /* NP_WL_1064NM */ { .K_PD1 = 0.088f, .K_PD2 = 0.072f, .K_ratio_nom = 1.222f, .valid = false },
@@ -51,7 +51,7 @@ bool np_pbm_module_uid_is_zero(const np_pbm_module_uid_t *uid)
 static void load_defaults(np_pbm_cal_t cal_out[NP_PBM_WL_COUNT])
 {
     for (uint8_t w = 0; w < NP_PBM_WL_COUNT; w++) {
-        cal_out[w] = k_default_cal[w]; /* valid = false → SHDR: DEFAULT */
+        cal_out[w] = DEFAULT_CAL[w]; /* valid = false → SHDR: DEFAULT */
     }
 }
 

@@ -32,7 +32,7 @@
 
 /* ── Q15 sine LUT (256 entries, amplitude ± 32767) ─────────────────────────── */
 
-static const int16_t np_sine_lut[NP_ZA_SINE_LUT_SIZE] = {
+static const int16_t NP_SINE_LUT[NP_ZA_SINE_LUT_SIZE] = {
        0,   804,  1608,  2410,  3212,  4011,  4808,  5602,
     6393,  7179,  7962,  8739,  9512, 10278, 11039, 11793,
    12539, 13279, 14010, 14732, 15446, 16151, 16846, 17530,
@@ -75,13 +75,13 @@ static const int16_t np_sine_lut[NP_ZA_SINE_LUT_SIZE] = {
 
 /* Common zone-beep sequence: N beeps at 440 Hz, then confirm at 880 Hz. */
 
-static const np_za_tone_segment_t s_clip_zone1[] = {
+static const np_za_tone_segment_t CLIP_ZONE1[] = {
     BEEP   (NP_ZA_TONE_BEEP_HZ,    NP_ZA_BEEP_DURATION_MS),
     SILENCE(NP_ZA_PRE_CONFIRM_GAP_MS),
     BEEP   (NP_ZA_TONE_CONFIRM_HZ, NP_ZA_CONFIRM_DURATION_MS),
 };
 
-static const np_za_tone_segment_t s_clip_zone2[] = {
+static const np_za_tone_segment_t CLIP_ZONE2[] = {
     BEEP   (NP_ZA_TONE_BEEP_HZ, NP_ZA_BEEP_DURATION_MS),
     SILENCE(NP_ZA_BEEP_GAP_MS),
     BEEP   (NP_ZA_TONE_BEEP_HZ, NP_ZA_BEEP_DURATION_MS),
@@ -89,19 +89,7 @@ static const np_za_tone_segment_t s_clip_zone2[] = {
     BEEP   (NP_ZA_TONE_CONFIRM_HZ, NP_ZA_CONFIRM_DURATION_MS),
 };
 
-static const np_za_tone_segment_t s_clip_zone3[] = {
-    BEEP   (NP_ZA_TONE_BEEP_HZ, NP_ZA_BEEP_DURATION_MS),
-    SILENCE(NP_ZA_BEEP_GAP_MS),
-    BEEP   (NP_ZA_TONE_BEEP_HZ, NP_ZA_BEEP_DURATION_MS),
-    SILENCE(NP_ZA_BEEP_GAP_MS),
-    BEEP   (NP_ZA_TONE_BEEP_HZ, NP_ZA_BEEP_DURATION_MS),
-    SILENCE(NP_ZA_PRE_CONFIRM_GAP_MS),
-    BEEP   (NP_ZA_TONE_CONFIRM_HZ, NP_ZA_CONFIRM_DURATION_MS),
-};
-
-static const np_za_tone_segment_t s_clip_zone4[] = {
-    BEEP   (NP_ZA_TONE_BEEP_HZ, NP_ZA_BEEP_DURATION_MS),
-    SILENCE(NP_ZA_BEEP_GAP_MS),
+static const np_za_tone_segment_t CLIP_ZONE3[] = {
     BEEP   (NP_ZA_TONE_BEEP_HZ, NP_ZA_BEEP_DURATION_MS),
     SILENCE(NP_ZA_BEEP_GAP_MS),
     BEEP   (NP_ZA_TONE_BEEP_HZ, NP_ZA_BEEP_DURATION_MS),
@@ -111,7 +99,19 @@ static const np_za_tone_segment_t s_clip_zone4[] = {
     BEEP   (NP_ZA_TONE_CONFIRM_HZ, NP_ZA_CONFIRM_DURATION_MS),
 };
 
-static const np_za_tone_segment_t s_clip_zone5[] = {
+static const np_za_tone_segment_t CLIP_ZONE4[] = {
+    BEEP   (NP_ZA_TONE_BEEP_HZ, NP_ZA_BEEP_DURATION_MS),
+    SILENCE(NP_ZA_BEEP_GAP_MS),
+    BEEP   (NP_ZA_TONE_BEEP_HZ, NP_ZA_BEEP_DURATION_MS),
+    SILENCE(NP_ZA_BEEP_GAP_MS),
+    BEEP   (NP_ZA_TONE_BEEP_HZ, NP_ZA_BEEP_DURATION_MS),
+    SILENCE(NP_ZA_BEEP_GAP_MS),
+    BEEP   (NP_ZA_TONE_BEEP_HZ, NP_ZA_BEEP_DURATION_MS),
+    SILENCE(NP_ZA_PRE_CONFIRM_GAP_MS),
+    BEEP   (NP_ZA_TONE_CONFIRM_HZ, NP_ZA_CONFIRM_DURATION_MS),
+};
+
+static const np_za_tone_segment_t CLIP_ZONE5[] = {
     BEEP   (NP_ZA_TONE_BEEP_HZ, NP_ZA_BEEP_DURATION_MS),
     SILENCE(NP_ZA_BEEP_GAP_MS),
     BEEP   (NP_ZA_TONE_BEEP_HZ, NP_ZA_BEEP_DURATION_MS),
@@ -126,7 +126,7 @@ static const np_za_tone_segment_t s_clip_zone5[] = {
 };
 
 /* Descending two-tone fault cue for unknown zone. */
-static const np_za_tone_segment_t s_clip_error[] = {
+static const np_za_tone_segment_t CLIP_ERROR[] = {
     BEEP   (NP_ZA_TONE_ERROR_LO_HZ, NP_ZA_ERROR_DURATION_MS),
     SILENCE(NP_ZA_ERROR_GAP_MS),
     BEEP   (NP_ZA_TONE_ERROR_HI_HZ, NP_ZA_ERROR_DURATION_MS),
@@ -141,14 +141,14 @@ typedef struct {
     uint8_t                     count;
 } np_za_clip_def_t;
 
-static const np_za_clip_def_t s_clips[NP_ZONE_UNKNOWN + 1U] = {
+static const np_za_clip_def_t CLIPS[NP_ZONE_UNKNOWN + 1U] = {
     [NP_ZONE_NONE]           = { NULL,          0U },
-    [NP_ZONE_FRONTAL_LEFT]   = { s_clip_zone1,  (uint8_t)(sizeof(s_clip_zone1)  / sizeof(s_clip_zone1[0]))  },
-    [NP_ZONE_FRONTAL_RIGHT]  = { s_clip_zone2,  (uint8_t)(sizeof(s_clip_zone2)  / sizeof(s_clip_zone2[0]))  },
-    [NP_ZONE_VERTEX]         = { s_clip_zone3,  (uint8_t)(sizeof(s_clip_zone3)  / sizeof(s_clip_zone3[0]))  },
-    [NP_ZONE_PARIETAL_LEFT]  = { s_clip_zone4,  (uint8_t)(sizeof(s_clip_zone4)  / sizeof(s_clip_zone4[0]))  },
-    [NP_ZONE_PARIETAL_RIGHT] = { s_clip_zone5,  (uint8_t)(sizeof(s_clip_zone5)  / sizeof(s_clip_zone5[0]))  },
-    [NP_ZONE_UNKNOWN]        = { s_clip_error,  (uint8_t)(sizeof(s_clip_error)  / sizeof(s_clip_error[0]))  },
+    [NP_ZONE_FRONTAL_LEFT]   = { CLIP_ZONE1,  (uint8_t)(sizeof(CLIP_ZONE1)  / sizeof(CLIP_ZONE1[0]))  },
+    [NP_ZONE_FRONTAL_RIGHT]  = { CLIP_ZONE2,  (uint8_t)(sizeof(CLIP_ZONE2)  / sizeof(CLIP_ZONE2[0]))  },
+    [NP_ZONE_VERTEX]         = { CLIP_ZONE3,  (uint8_t)(sizeof(CLIP_ZONE3)  / sizeof(CLIP_ZONE3[0]))  },
+    [NP_ZONE_PARIETAL_LEFT]  = { CLIP_ZONE4,  (uint8_t)(sizeof(CLIP_ZONE4)  / sizeof(CLIP_ZONE4[0]))  },
+    [NP_ZONE_PARIETAL_RIGHT] = { CLIP_ZONE5,  (uint8_t)(sizeof(CLIP_ZONE5)  / sizeof(CLIP_ZONE5[0]))  },
+    [NP_ZONE_UNKNOWN]        = { CLIP_ERROR,  (uint8_t)(sizeof(CLIP_ERROR)  / sizeof(CLIP_ERROR[0]))  },
 };
 
 /* ── Module-internal audio state (points into shared np_za_ctx_t) ────────────── */
@@ -186,7 +186,7 @@ np_za_status_t np_za_audio_play(np_za_ctx_t *ctx, np_zone_id_t zone)
         return NP_ZA_ERR_INVALID_ARG;
     }
 
-    const np_za_clip_def_t *def = &s_clips[zone];
+    const np_za_clip_def_t *def = &CLIPS[zone];
     if (!def->segs || def->count == 0U) {
         return NP_ZA_ERR_INVALID_ARG;
     }
@@ -295,7 +295,7 @@ void np_za_audio_tick(uint8_t half)
             raw = 0;    /* silence segment */
         } else {
             uint8_t lut_idx = (uint8_t)(s_dds->phase_acc >> NP_ZA_SINE_LUT_SHIFT);
-            raw = (int16_t)(((int32_t)np_sine_lut[lut_idx] * s_dds->amplitude) >> 15);
+            raw = (int16_t)(((int32_t)NP_SINE_LUT[lut_idx] * s_dds->amplitude) >> 15);
             s_dds->phase_acc += s_dds->phase_inc;
         }
 

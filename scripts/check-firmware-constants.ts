@@ -2,13 +2,18 @@
 /**
  * check-firmware-constants.ts — a firmware constant has one name and one definition.
  *
- * Two mechanical checks over every firmware C source and header outside vendor/:
+ * Three mechanical checks over every firmware C source and header outside vendor/:
  *
  *   1. ONE DEFINITION. A `#define NAME value` appears in at most one file. A second definition is a
  *      copy that can drift (the safety SPI wire contract was defined on both processors and kept in
  *      step by a comment). Share it: firmware/common/include/np_shared_constants.h for a constant
  *      several modules need, np_spi_wire_types.h for the hub <-> safety MCU wire contract.
- *   2. UPPER_SNAKE_CASE. Every constant is named in capitals with underscores.
+ *   2. UPPER_SNAKE_CASE. Every `#define` constant is named in capitals with underscores.
+ *   3. UPPER_SNAKE_CASE for const objects too: a file-scope `const`, or a `static const` at any
+ *      scope (tables, magic arrays, fixtures). A pointer to const is a variable and is not read.
+ *
+ * The single exception: a name defined OUTSIDE this project and merely used here (FreeRTOS, the USB
+ * DFU specification, ST CMSIS, the C library). An exception is named exactly, with who defines it.
  *
  * Both have a stated, minimal allowlist (below). Each entry is a name that is legitimately defined
  * twice or follows an outside convention, with the reason; an entry is never a way to silence a new
@@ -40,22 +45,28 @@ const DUPLICATE_ALLOWED: Record<string, string> = {
   PBM_TILE_N: "sizeof() of a per-test-file fixture array; the two arrays differ",
 };
 
-/** Not UPPER_SNAKE_CASE because an outside convention fixes the spelling. */
-const NAMING_ALLOWED_FILES: Record<string, string> = {
-  "firmware/hub_control/include/FreeRTOSConfig.h": "FreeRTOS fixes every name in its config header",
+/** The ONLY exception to UPPER_SNAKE_CASE: a name defined OUTSIDE this project and merely used here.
+ *  Never a project constant, whatever its history; an entry names who defines it. */
+const EXTERNAL_FILES: Record<string, string> = {
+  "firmware/hub_control/include/FreeRTOSConfig.h": "FreeRTOS defines every name in its config header",
 };
-const NAMING_ALLOWED_PREFIXES: [string, string][] = [
+const EXTERNAL_PREFIXES: [string, string][] = [
   ["DFU_STATUS_err", "USB DFU 1.1 specification status names"],
 ];
-const NAMING_ALLOWED_SUFFIXES: [string, string][] = [
-  ["_Pos", "ST CMSIS register bit-position names, mirrored by the host fake registers"],
-  ["_Msk", "ST CMSIS register bit-mask names, mirrored by the host fake registers"],
-];
-const NAMING_ALLOWED_NAMES: Record<string, string> = {
-  memset_explicit: "function-name alias for a C23 library function, not a constant",
-  GPIOA: "ST CMSIS peripheral name",
-  GPIOB: "ST CMSIS peripheral name",
+const EXTERNAL_NAMES: Record<string, string> = {
+  GPIOA: "ST CMSIS peripheral name (stm32g0xx.h), mirrored by the host fake registers",
+  GPIOB: "ST CMSIS peripheral name (stm32g0xx.h), mirrored by the host fake registers",
+  SPI_CR2_DS_Pos: "ST CMSIS bit-position name (stm32g0xx.h), mirrored by the host fake registers",
+  memset_explicit: "C23 library function name, aliased to the project's implementation",
 };
+const isExternal = (path: string, name: string): boolean =>
+  EXTERNAL_FILES[path] !== undefined ||
+  EXTERNAL_NAMES[name] !== undefined ||
+  EXTERNAL_PREFIXES.some(([p]) => name.startsWith(p));
+
+/** A const OBJECT (not a pointer to const): file scope, or `static` at any scope. */
+const CONST_OBJECT =
+  /^(\s*)(static\s+)?(?:volatile\s+)?const\s+(?:struct\s+)?[A-Za-z_]\w*(?:\s+[A-Za-z_]\w*)*?\s*(\*\s*const\s*|\*\s*)?([A-Za-z_]\w*)\s*(?:\[[^\]]*\])?\s*(?:=|;)/;
 
 function walk(dir: string, out: string[]): void {
   for (const e of readdirSync(dir)) {
@@ -71,18 +82,24 @@ export function audit(files: { path: string; text: string }[]): string[] {
   const out: string[] = [];
   for (const f of files) {
     f.text.split("\n").forEach((line, i) => {
+      const c = CONST_OBJECT.exec(line);
+      if (c) {
+        const star = (c[3] ?? "").trim();
+        const atFileScopeOrStatic = c[1] === "" || c[2] !== undefined;
+        const objectItself = star === "" || star.includes("const"); // `T *p` is a variable
+        const cname = c[4]!;
+        if (atFileScopeOrStatic && objectItself && !/^[A-Z][A-Z0-9_]*$/.test(cname) && !isExternal(f.path, cname)) {
+          out.push(`${f.path}:${i + 1}: const ${cname} is not UPPER_SNAKE_CASE`);
+        }
+      }
       const m = /^\s*#\s*define\s+([A-Za-z_]\w*)(?!\()\s+(\S.*)$/.exec(line);
       if (!m) return;
       const name = m[1]!;
       if (/_H_?$/.test(name) || name.startsWith("_")) return;
       (defs.get(name) ?? defs.set(name, new Set()).get(name)!).add(`${f.path}:${i + 1}`);
-      const upper = /^[A-Z][A-Z0-9_]*$/.test(name);
-      const ok =
-        NAMING_ALLOWED_FILES[f.path] !== undefined ||
-        NAMING_ALLOWED_NAMES[name] !== undefined ||
-        NAMING_ALLOWED_PREFIXES.some(([p]) => name.startsWith(p)) ||
-        NAMING_ALLOWED_SUFFIXES.some(([x]) => name.endsWith(x));
-      if (!upper && !ok) out.push(`${f.path}:${i + 1}: ${name} is not UPPER_SNAKE_CASE`);
+      if (!/^[A-Z][A-Z0-9_]*$/.test(name) && !isExternal(f.path, name)) {
+        out.push(`${f.path}:${i + 1}: ${name} is not UPPER_SNAKE_CASE`);
+      }
     });
   }
   for (const [name, sites] of defs) {
@@ -116,12 +133,17 @@ if (process.argv.includes("--self-test")) {
     { path: "a.h", text: "#define NP_HAL_OTP_BASE 1UL\n" },
     { path: "b.h", text: "#define NP_HAL_OTP_BASE x\n" },
   ], null);
+  expect("a lower-case static const table is caught", [{ path: "a.c", text: "static const uint8_t k_tab[] = { 1 };\n" }], "const k_tab is not UPPER_SNAKE_CASE");
+  expect("a lower-case file-scope const is caught", [{ path: "a.c", text: "const uint16_t np_x = 3U;\n" }], "const np_x is not UPPER_SNAKE_CASE");
+  expect("a pointer variable to const data is not a constant", [{ path: "a.c", text: "static const struct lfs_config *s_cfg;\n" }], null);
+  expect("a plain local const variable is not read", [{ path: "a.c", text: "    const uint32_t n = 3U;\n" }], null);
+  expect("an externally defined name passes only by exact name", [{ path: "a.h", text: "#define SPI_CR2_DS_Pos 8U\n#define SPI_CR1_Pos 2U\n" }], "SPI_CR1_Pos is not UPPER_SNAKE_CASE");
   expect("a function-like macro is not read", [{ path: "a.h", text: "#define np_min(a,b) a\n" }], null);
   if (fail.length) {
     console.error("check-firmware-constants self-test FAILED:\n" + fail.map((f) => "  - " + f).join("\n"));
     process.exit(1);
   }
-  console.log("check-firmware-constants self-test: PASS (5 cases)");
+  console.log("check-firmware-constants self-test: PASS (10 cases)");
 } else {
   const files = load();
   const violations = audit(files);

@@ -129,7 +129,7 @@ typedef struct {
     np_mod_shutdown_fn  shutdown;
 } np_slot_probe_t;
 
-static const np_slot_probe_t k_slot_probes[NP_HUB_SLOT_MAX] = {
+static const np_slot_probe_t SLOT_PROBES[NP_HUB_SLOT_MAX] = {
     /* Zone slots 0-4: both base and smart PBM modules */
     [NP_HUB_SLOT_ZONE_0]    = { np_mod_pbm_detect, np_mod_pbm_init, np_mod_pbm_control,
                                  np_mod_pbm_telemetry, np_mod_pbm_shutdown },
@@ -192,7 +192,7 @@ static np_mod_entry_t s_registry[NP_HUB_SLOT_MAX];
 static np_hub_status_t probe_and_register(uint8_t slot)
 {
     np_hub_mod_type_t type  = NP_MOD_NONE;
-    np_hub_status_t   rc    = k_slot_probes[slot].detect(slot, &type);
+    np_hub_status_t   rc    = SLOT_PROBES[slot].detect(slot, &type);
     bool              pass  = (rc == NP_HUB_OK && type != NP_MOD_NONE);
 
     if (!pass) {
@@ -204,10 +204,10 @@ static np_hub_status_t probe_and_register(uint8_t slot)
     s_registry[slot].slot        = slot;
     s_registry[slot].present     = true;
     s_registry[slot].initialized = false;
-    s_registry[slot].init        = k_slot_probes[slot].init;
-    s_registry[slot].control     = k_slot_probes[slot].control;
-    s_registry[slot].telemetry   = k_slot_probes[slot].telemetry;
-    s_registry[slot].shutdown    = k_slot_probes[slot].shutdown;
+    s_registry[slot].init        = SLOT_PROBES[slot].init;
+    s_registry[slot].control     = SLOT_PROBES[slot].control;
+    s_registry[slot].telemetry   = SLOT_PROBES[slot].telemetry;
+    s_registry[slot].shutdown    = SLOT_PROBES[slot].shutdown;
 
     /* Initialize hardware for this module. */
     rc = s_registry[slot].init(slot);
@@ -308,7 +308,7 @@ np_hub_status_t np_mod_reg_rescan_slot(uint8_t slot)
 
     np_mod_entry_t   *e    = &s_registry[slot];
     np_hub_mod_type_t type = NP_MOD_NONE;
-    bool now_present = (k_slot_probes[slot].detect(slot, &type) == NP_HUB_OK &&
+    bool now_present = (SLOT_PROBES[slot].detect(slot, &type) == NP_HUB_OK &&
                         type != NP_MOD_NONE);
 
     /* Unchanged: leave the entry — and the driver — alone.  A module whose init()
@@ -335,10 +335,10 @@ np_hub_status_t np_mod_reg_rescan_slot(uint8_t slot)
 
     e->type      = type;
     e->slot      = slot;
-    e->init      = k_slot_probes[slot].init;
-    e->control   = k_slot_probes[slot].control;
-    e->telemetry = k_slot_probes[slot].telemetry;
-    e->shutdown  = k_slot_probes[slot].shutdown;
+    e->init      = SLOT_PROBES[slot].init;
+    e->control   = SLOT_PROBES[slot].control;
+    e->telemetry = SLOT_PROBES[slot].telemetry;
+    e->shutdown  = SLOT_PROBES[slot].shutdown;
     e->present   = true;
 
     /* The intranasal and cervical VNS drivers write their SHDR auth record from

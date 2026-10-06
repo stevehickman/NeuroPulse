@@ -171,7 +171,7 @@ np_pbm_fai_result_t np_pbm_fai_sm05(void)
     drv.ch_enable = NP_PBM_CH_ALL_EN;
 
     /* Test values: all above and at the 25% ceiling. */
-    static const uint8_t test_duties[] = {
+    static const uint8_t TEST_DUTIES[] = {
         0x00U,   /* 0% — must write 0x00                               */
         0x32U,   /* exactly 25% — must write 0x32                      */
         0x33U,   /* one above — must clamp to 0x32                     */
@@ -179,22 +179,22 @@ np_pbm_fai_result_t np_pbm_fai_sm05(void)
         0xC8U,   /* 100% — must clamp to 0x32                          */
         0xFFU,   /* 255 — must clamp to 0x32                           */
     };
-    static const uint8_t expected[] = {
+    static const uint8_t EXPECTED[] = {
         0x00U, 0x32U, 0x32U, 0x32U, 0x32U, 0x32U
     };
 
-    for (size_t i = 0; i < sizeof(test_duties); i++) {
+    for (size_t i = 0; i < sizeof(TEST_DUTIES); i++) {
         np_pbm_status_t rc = np_pbm_drive_set_duty(
-            0U, &drv, NP_PBM_CH_ALL_EN, test_duties[i]);
+            0U, &drv, NP_PBM_CH_ALL_EN, TEST_DUTIES[i]);
         if (rc != NP_PBM_OK) {
             return fai_fail("FAI-SM-05",
                 "Duty cycle ceiling clamped at 25%",
                 "np_pbm_drive_set_duty returned error");
         }
         /* Check actual duty written to register shadow (via HAL stub). */
-        if (drv.duty[0] != expected[i] ||
-            drv.duty[1] != expected[i] ||
-            drv.duty[2] != expected[i]) {
+        if (drv.duty[0] != EXPECTED[i] ||
+            drv.duty[1] != EXPECTED[i] ||
+            drv.duty[2] != EXPECTED[i]) {
             return fai_fail("FAI-SM-05",
                 "Duty cycle ceiling clamped at 25%",
                 "Duty register value exceeds 0x32 (25%) after set_duty call");

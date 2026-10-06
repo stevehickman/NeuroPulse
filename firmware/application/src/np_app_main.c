@@ -111,7 +111,7 @@
  * discard it for having no reference.
  */
 __attribute__((used, section(".np_build_note")))
-static const char np_build_note[] =
+static const char NP_BUILD_NOTE[] =
     "NEURONE-BUILD-NOTE: np_application (SW-02) is a BRING-UP IMAGE. "
     "Its platform layer is firmware/platform/, which traps on every call "
     "instead of driving hardware (NP-SW-CI-001 section 4.8). "

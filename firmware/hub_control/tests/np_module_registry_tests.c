@@ -115,7 +115,7 @@ DRIVER_DOUBLES(np_mod_hd_tdcs)
 DRIVER_DOUBLES(np_mod_vibrotactile)
 
 /* The type each accessory slot's driver reports. */
-static const np_hub_mod_type_t k_slot_type[NP_HUB_SLOT_MAX] = {
+static const np_hub_mod_type_t SLOT_TYPE[NP_HUB_SLOT_MAX] = {
     [NP_HUB_SLOT_ZONE_0]       = NP_MOD_PBM_BASE,
     [NP_HUB_SLOT_ZONE_1]       = NP_MOD_PBM_BASE,
     [NP_HUB_SLOT_ZONE_2]       = NP_MOD_PBM_BASE,
@@ -143,7 +143,7 @@ static void boot_empty(void)
 {
     memset(g_slot, 0, sizeof(g_slot));
     for (uint8_t s = 0U; s < NP_HUB_SLOT_MAX; s++) {
-        g_slot[s].type    = k_slot_type[s];
+        g_slot[s].type    = SLOT_TYPE[s];
         g_slot[s].init_rc = NP_HUB_OK;
     }
     g_slot[NP_HUB_SLOT_EEG].present      = true;
@@ -182,7 +182,7 @@ static void test_hot_plug_registers_every_accessory_slot(void)
         check(g_slot[s].init_calls == 1U, name);
         np_mod_entry_t *e = np_mod_reg_get(s);
         snprintf(name, sizeof name, "slot %u: registered and resolvable via get()", s);
-        check(e != NULL && e->type == k_slot_type[s] && e->slot == s, name);
+        check(e != NULL && e->type == SLOT_TYPE[s] && e->slot == s, name);
     }
 }
 

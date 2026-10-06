@@ -105,8 +105,8 @@ static np_accel_char_enrolment_t valid_enrolment(void)
 
 /* One 4 g bump, one 18 g impact — 18 g is above the 15.0 g placeholder, so this
  * gap contains a drop and two events. */
-static const float kTwoEvents[] = { 0.9f, 4.0f, 0.9f, 0.9f, 18.0f, 17.0f, 0.9f };
-#define TWO_EVENTS_N (sizeof kTwoEvents / sizeof kTwoEvents[0])
+static const float TWO_EVENTS[] = { 0.9f, 4.0f, 0.9f, 0.9f, 18.0f, 17.0f, 0.9f };
+#define TWO_EVENTS_N (sizeof TWO_EVENTS / sizeof TWO_EVENTS[0])
 
 static void run_gap(const float *s, size_t n,
                     np_accel_shdr_state_t *state,
@@ -135,11 +135,11 @@ static void test_standard_record_identical_regardless_of_enrolment(void)
     np_shdr_accel_char_record_t c;
     bool cv;
 
-    np_accel_char_build_gate = true;
+    NP_ACCEL_CHAR_BUILD_GATE = true;
     np_accel_char_enrolment_t enr = valid_enrolment();
 
-    run_gap(kTwoEvents, TWO_EVENTS_N, &s1, NULL, &r1, &c, &cv);   /* not enrolled */
-    run_gap(kTwoEvents, TWO_EVENTS_N, &s2, &enr, &r2, &c, &cv);   /* enrolled     */
+    run_gap(TWO_EVENTS, TWO_EVENTS_N, &s1, NULL, &r1, &c, &cv);   /* not enrolled */
+    run_gap(TWO_EVENTS, TWO_EVENTS_N, &s2, &enr, &r2, &c, &cv);   /* enrolled     */
 
     CHECK(r1.drop_detected == r2.drop_detected,         "drop_detected identical");
     CHECK(r1.maintenance_alert == r2.maintenance_alert, "maintenance_alert identical");
@@ -152,14 +152,14 @@ static void test_extended_emitted_on_the_happy_path(void)
 {
     printf("extended record IS emitted when every condition holds\n");
 
-    np_accel_char_build_gate = true;
+    NP_ACCEL_CHAR_BUILD_GATE = true;
     np_accel_shdr_state_t st = {0};
     np_accel_char_enrolment_t enr = valid_enrolment();
     np_shdr_accel_record_t r;
     np_shdr_accel_char_record_t c;
     bool cv = false;
 
-    run_gap(kTwoEvents, TWO_EVENTS_N, &st, &enr, &r, &c, &cv);
+    run_gap(TWO_EVENTS, TWO_EVENTS_N, &st, &enr, &r, &c, &cv);
 
     CHECK(cv == true,                                  "extended record valid");
     CHECK(c.programme_id == NP_ACCEL_CHAR_PROGRAMME_ID, "programme id stamped");
@@ -181,20 +181,20 @@ static void test_window_disabled_build_emits_standard_only(void)
 {
     printf("window-disabled build emits standard only\n");
 
-    np_accel_char_build_gate = false;
+    NP_ACCEL_CHAR_BUILD_GATE = false;
     np_accel_shdr_state_t st = {0};
     np_accel_char_enrolment_t enr = valid_enrolment();   /* fully valid consent */
     np_shdr_accel_record_t r;
     np_shdr_accel_char_record_t c;
     bool cv = true;                                       /* poisoned */
 
-    run_gap(kTwoEvents, TWO_EVENTS_N, &st, &enr, &r, &c, &cv);
+    run_gap(TWO_EVENTS, TWO_EVENTS_N, &st, &enr, &r, &c, &cv);
 
     CHECK(cv == false,                "no extended record with the build gate off");
     CHECK(enr.records_emitted == 0u,  "budget untouched");
     CHECK(r.drop_detected == true,    "standard record still produced");
 
-    np_accel_char_build_gate = true;
+    NP_ACCEL_CHAR_BUILD_GATE = true;
 }
 
 /* §H.3 — affirmative opt-in. */
@@ -202,7 +202,7 @@ static void test_not_consented_emits_standard_only(void)
 {
     printf("non-consented device emits standard only\n");
 
-    np_accel_char_build_gate = true;
+    NP_ACCEL_CHAR_BUILD_GATE = true;
     np_accel_shdr_state_t st = {0};
     np_accel_char_enrolment_t enr = valid_enrolment();
     enr.enrolled = false;
@@ -212,7 +212,7 @@ static void test_not_consented_emits_standard_only(void)
     np_shdr_accel_char_record_t c;
     bool cv = true;
 
-    run_gap(kTwoEvents, TWO_EVENTS_N, &st, &enr, &r, &c, &cv);
+    run_gap(TWO_EVENTS, TWO_EVENTS_N, &st, &enr, &r, &c, &cv);
 
     CHECK(cv == false,               "no extended record without opt-in");
     CHECK(enr.records_emitted == 0u, "budget untouched");
@@ -225,7 +225,7 @@ static void test_corrupt_enrolment_is_not_enrolled(void)
 {
     printf("corrupt enrolment record fails closed\n");
 
-    np_accel_char_build_gate = true;
+    NP_ACCEL_CHAR_BUILD_GATE = true;
     np_accel_char_enrolment_t enr = valid_enrolment();
     CHECK(np_accel_char_window_open(&enr) == true, "control: intact record opens");
 
@@ -242,7 +242,7 @@ static void test_programme_id_mismatch_closes_window(void)
 {
     printf("programme id mismatch fails closed\n");
 
-    np_accel_char_build_gate = true;
+    NP_ACCEL_CHAR_BUILD_GATE = true;
     np_accel_char_enrolment_t enr = valid_enrolment();
     enr.programme_id = NP_ACCEL_CHAR_PROGRAMME_ID + 1u;
     enr.crc32        = np_accel_char_enrolment_crc(&enr);
@@ -255,7 +255,7 @@ static void test_budget_boundary_is_the_expiry(void)
 {
     printf("budget boundary closes the window\n");
 
-    np_accel_char_build_gate = true;
+    NP_ACCEL_CHAR_BUILD_GATE = true;
     np_accel_shdr_state_t st = {0};
     np_shdr_accel_record_t r;
     np_shdr_accel_char_record_t c;
@@ -265,13 +265,13 @@ static void test_budget_boundary_is_the_expiry(void)
     enr.records_emitted = NP_ACCEL_CHAR_RECORD_BUDGET - 1u;
     enr.crc32           = np_accel_char_enrolment_crc(&enr);
 
-    run_gap(kTwoEvents, TWO_EVENTS_N, &st, &enr, &r, &c, &cv);
+    run_gap(TWO_EVENTS, TWO_EVENTS_N, &st, &enr, &r, &c, &cv);
     CHECK(cv == true, "the last record inside the budget IS emitted");
     CHECK(c.record_seq == NP_ACCEL_CHAR_RECORD_BUDGET, "seq reaches the budget");
     CHECK(enr.records_emitted == NP_ACCEL_CHAR_RECORD_BUDGET, "budget now exhausted");
 
     cv = true;
-    run_gap(kTwoEvents, TWO_EVENTS_N, &st, &enr, &r, &c, &cv);
+    run_gap(TWO_EVENTS, TWO_EVENTS_N, &st, &enr, &r, &c, &cv);
     CHECK(cv == false, "the next record is NOT emitted");
     CHECK(enr.records_emitted == NP_ACCEL_CHAR_RECORD_BUDGET,
           "budget does not advance past the ceiling");
@@ -284,7 +284,7 @@ static void test_budget_consumed_only_by_emission(void)
 {
     printf("budget advances only when a record is emitted\n");
 
-    np_accel_char_build_gate = true;
+    NP_ACCEL_CHAR_BUILD_GATE = true;
     np_accel_shdr_state_t st = {0};
     np_shdr_accel_record_t r;
     np_shdr_accel_char_record_t c;
@@ -301,10 +301,10 @@ static void test_budget_consumed_only_by_emission(void)
     CHECK(enr.records_emitted == 1u,   "budget advanced by exactly one");
 
     /* Suppressed gap: budget must not move. */
-    np_accel_char_build_gate = false;
+    NP_ACCEL_CHAR_BUILD_GATE = false;
     run_gap(quiet, 3, &st, &enr, &r, &c, &cv);
     CHECK(enr.records_emitted == 1u,   "suppressed gap does not advance the budget");
-    np_accel_char_build_gate = true;
+    NP_ACCEL_CHAR_BUILD_GATE = true;
 }
 
 /* §G.2 rolling alert, counted in GAPS (see NP_ACCEL_MAINT_WINDOW_GAPS). */
@@ -312,7 +312,7 @@ static void test_maintenance_alert_rolling_window(void)
 {
     printf("maintenance alert over the rolling gap window\n");
 
-    np_accel_char_build_gate = false;
+    NP_ACCEL_CHAR_BUILD_GATE = false;
     np_accel_shdr_state_t st = {0};
     np_shdr_accel_record_t r;
     np_shdr_accel_char_record_t c;
@@ -334,7 +334,7 @@ static void test_maintenance_alert_rolling_window(void)
         run_gap(quiet, 1, &st, NULL, &r, &c, &cv);
     }
     CHECK(r.maintenance_alert == false, "alert clears once the window rolls past");
-    np_accel_char_build_gate = true;
+    NP_ACCEL_CHAR_BUILD_GATE = true;
 }
 
 /* §H.2 coarsening — every bin edge maps as specified, and a value below the
@@ -343,7 +343,7 @@ static void test_histogram_binning(void)
 {
     printf("histogram binning\n");
 
-    np_accel_char_build_gate = true;
+    NP_ACCEL_CHAR_BUILD_GATE = true;
 
     const float probes[NP_ACCEL_CHAR_G_BIN_COUNT] =
         { 2.0f, 3.0f, 4.5f, 6.5f, 9.5f, 14.0f, 21.0f, 31.0f };
@@ -375,8 +375,8 @@ static void test_process_session_gap_end_to_end(void)
 {
     printf("process_session_gap end to end\n");
 
-    np_accel_char_build_gate = true;
-    memcpy(g_imu_samples, kTwoEvents, sizeof kTwoEvents);
+    NP_ACCEL_CHAR_BUILD_GATE = true;
+    memcpy(g_imu_samples, TWO_EVENTS, sizeof TWO_EVENTS);
     g_imu_n = TWO_EVENTS_N;
     memset(&g_stored_state, 0, sizeof g_stored_state);
     g_written_std_count = g_written_char_count = 0;

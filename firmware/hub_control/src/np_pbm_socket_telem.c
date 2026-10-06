@@ -23,7 +23,7 @@ typedef char _np_pst_pool_matches_pbm_bound[
 typedef char _np_pst_three_wavelengths[(NP_PBM_WL_COUNT == 3U) ? 1 : -1];
 
 /* Wavelength index → the channel np_mod_pbm_socket_disable_channel() latches. */
-static const uint8_t k_wl_ch[NP_PBM_WL_COUNT] = {
+static const uint8_t WL_CH[NP_PBM_WL_COUNT] = {
     NP_PBM_CH_A_EN,   /* 660 nm  */
     NP_PBM_CH_B_EN,   /* 808 nm  */
     NP_PBM_CH_C_EN,   /* 1064 nm */
@@ -173,7 +173,7 @@ static void tick_one(pst_entry_t *e)
     }
     for (uint8_t w = 0U; w < NP_PBM_WL_COUNT; w++) {
         if (e->dose.dose_limit_hit[w] && !before[w]) {
-            (void)np_mod_pbm_socket_disable_channel(e->socket_id, k_wl_ch[w]);
+            (void)np_mod_pbm_socket_disable_channel(e->socket_id, WL_CH[w]);
         }
     }
 }

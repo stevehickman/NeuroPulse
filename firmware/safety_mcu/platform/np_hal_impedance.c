@@ -94,10 +94,10 @@ static bool     s_configured = false;
 
 /* Sense-node ADC input per impedance channel, and per CVNS electrode.
  * Provisional — see the file header and OI-SWCI-34. */
-static const uint8_t k_imp_adc_ch[NP_HAL_IMP_CHANNELS] = {
+static const uint8_t IMP_ADC_CH[NP_HAL_IMP_CHANNELS] = {
     NP_IMP0_ADC_CH, NP_IMP1_ADC_CH, NP_IMP2_ADC_CH, NP_IMP3_ADC_CH
 };
-static const uint8_t k_cvns_adc_ch[NP_SAFETY_IMP_CVNS_ELECTRODES] = {
+static const uint8_t CVNS_ADC_CH[NP_SAFETY_IMP_CVNS_ELECTRODES] = {
     NP_IMP_CVNS_L_ADC_CH, NP_IMP_CVNS_R_ADC_CH
 };
 
@@ -141,7 +141,7 @@ static void np_hal_imp_configure(void)
      * np_safety_main.c, and sharing one ADC is deliberate: a second converter
      * would need its own calibration and its own fail-safe path. */
     for (i = 0U; i < NP_HAL_IMP_CHANNELS; i++) {
-        np_hal_pin_config_analog(NP_IMP_SENSE_PORT, (uint16_t)(1U << k_imp_adc_ch[i]));
+        np_hal_pin_config_analog(NP_IMP_SENSE_PORT, (uint16_t)(1U << IMP_ADC_CH[i]));
     }
 
     /* TIM3: 1 kHz excitation. */
@@ -244,7 +244,7 @@ uint32_t np_hal_impedance_read_ohm(uint8_t channel)
     /* Excitation off once the last channel finishes.  Left simple: the check
      * runs pre-session with all stimulation disabled, so an extra millisecond
      * of 1 kHz on the sense network is not a hazard. */
-    if (!np_hal_imp_sample(k_imp_adc_ch[channel], &count)) {
+    if (!np_hal_imp_sample(IMP_ADC_CH[channel], &count)) {
         return NP_HAL_IMP_FAILSAFE_OHM;
     }
     return np_hal_imp_count_to_ohm(count);
@@ -264,7 +264,7 @@ uint32_t np_hal_impedance_read_cvns_electrode_ohm(uint8_t electrode)
      * writes them to SHDR — only the divergence FLAG reaches SHDR.  This driver
      * therefore neither logs nor retains the value; it is computed on demand
      * and returned.  Do not add a cache here. */
-    if (!np_hal_imp_sample(k_cvns_adc_ch[electrode], &count)) {
+    if (!np_hal_imp_sample(CVNS_ADC_CH[electrode], &count)) {
         return NP_HAL_IMP_FAILSAFE_OHM;
     }
     return np_hal_imp_count_to_ohm(count);

@@ -375,7 +375,7 @@ static void test_enable_word_layout(void)
 static void test_enable_word_matches_hub(void)
 {
     /* Same modalities, same order, same count. */
-    check(np_hub_enable_mirror_count == 10U,
+    check(NP_HUB_ENABLE_MIRROR_COUNT == 10U,
           "hub declares 10 allocated enable bits");
 
     const uint16_t safety_bits[10] = {
@@ -387,12 +387,12 @@ static void test_enable_word_matches_hub(void)
 
     uint16_t hub_union = 0U;
     unsigned i;
-    for (i = 0U; i < np_hub_enable_mirror_count && i < 10U; i++) {
+    for (i = 0U; i < NP_HUB_ENABLE_MIRROR_COUNT && i < 10U; i++) {
         char name[96];
         (void)snprintf(name, sizeof(name), "hub %s bit == safety MCU bit",
-                       np_hub_enable_mirror[i].name);
-        check(np_hub_enable_mirror[i].bit == safety_bits[i], name);
-        hub_union |= np_hub_enable_mirror[i].bit;
+                       NP_HUB_ENABLE_MIRROR[i].name);
+        check(NP_HUB_ENABLE_MIRROR[i].bit == safety_bits[i], name);
+        hub_union |= NP_HUB_ENABLE_MIRROR[i].bit;
     }
 
     /* Agreement on the whole word, not just per-bit: a hub bit outside ALL_MASK
@@ -404,26 +404,26 @@ static void test_enable_word_matches_hub(void)
      * Both are geometry-gated channels (OI-CHARGE-03 / -04): the hub delivers
      * an electrode area on each, and a mismatch here would apply one
      * modality's charge limit to another's accumulator. */
-    check(np_hub_ch_clin_stim == NP_SAFETY_CH_CLIN_STIM,
+    check(NP_HUB_CH_CLIN_STIM == NP_SAFETY_CH_CLIN_STIM,
           "hub NP_SAFETY_CH_CLIN_STIM == safety MCU value");
-    check(np_hub_ch_tdcs == NP_SAFETY_CH_TDCS,
+    check(NP_HUB_CH_TDCS == NP_SAFETY_CH_TDCS,
           "hub NP_SAFETY_CH_TDCS == safety MCU value");
-    check(np_hub_ch_bes_tacs == NP_SAFETY_CH_BES_TACS,
+    check(NP_HUB_CH_BES_TACS == NP_SAFETY_CH_BES_TACS,
           "hub NP_SAFETY_CH_BES_TACS == safety MCU value");
-    check(np_hub_ch_vns_hrv == NP_SAFETY_CH_VNS_HRV,
+    check(NP_HUB_CH_VNS_HRV == NP_SAFETY_CH_VNS_HRV,
           "hub NP_SAFETY_CH_VNS_HRV == safety MCU value");
-    check(np_hub_ch_cvns == NP_SAFETY_CH_CVNS,
+    check(NP_HUB_CH_CVNS == NP_SAFETY_CH_CVNS,
           "hub NP_SAFETY_CH_CVNS == safety MCU value");
     /* Each index is the bit position of its own enable bit. */
-    check((1U << np_hub_ch_clin_stim) == NP_SAFETY_EN_CLIN_STIM,
+    check((1U << NP_HUB_CH_CLIN_STIM) == NP_SAFETY_EN_CLIN_STIM,
           "CH_CLIN_STIM is the bit position of EN_CLIN_STIM");
-    check((1U << np_hub_ch_tdcs) == NP_SAFETY_EN_TDCS,
+    check((1U << NP_HUB_CH_TDCS) == NP_SAFETY_EN_TDCS,
           "CH_TDCS is the bit position of EN_TDCS");
-    check((1U << np_hub_ch_bes_tacs) == NP_SAFETY_EN_BES_TACS,
+    check((1U << NP_HUB_CH_BES_TACS) == NP_SAFETY_EN_BES_TACS,
           "CH_BES_TACS is the bit position of EN_BES_TACS");
-    check((1U << np_hub_ch_vns_hrv) == NP_SAFETY_EN_VNS_HRV,
+    check((1U << NP_HUB_CH_VNS_HRV) == NP_SAFETY_EN_VNS_HRV,
           "CH_VNS_HRV is the bit position of EN_VNS_HRV");
-    check((1U << np_hub_ch_cvns) == NP_SAFETY_EN_CVNS,
+    check((1U << NP_HUB_CH_CVNS) == NP_SAFETY_EN_CVNS,
           "CH_CVNS is the bit position of EN_CVNS");
 
     /* Every electrical channel must be inside NP_SAFETY_CH_ELECTRICAL_MASK —
@@ -448,14 +448,14 @@ static void test_enable_word_matches_hub(void)
      * silently fall back to the permissive 25 cm² default; anything above it
      * would be a larger charge budget than the default, which needs a
      * measurement behind it rather than a guess. */
-    check(np_hub_bes_area_mcm2  > 0U && np_hub_bes_area_mcm2  <= 25000U &&
-          np_hub_vns_area_mcm2  > 0U && np_hub_vns_area_mcm2  <= 25000U &&
-          np_hub_cvns_area_mcm2 > 0U && np_hub_cvns_area_mcm2 <= 25000U,
+    check(NP_HUB_BES_AREA_MCM2  > 0U && NP_HUB_BES_AREA_MCM2  <= 25000U &&
+          NP_HUB_VNS_AREA_MCM2  > 0U && NP_HUB_VNS_AREA_MCM2  <= 25000U &&
+          NP_HUB_CVNS_AREA_MCM2 > 0U && NP_HUB_CVNS_AREA_MCM2 <= 25000U,
           "provisional electrode areas are declared and no larger than the default");
 
     /* Audio carries no safety gate on either side. */
-    check(np_hub_en_audio == 0U, "hub NP_SAFETY_EN_AUDIO is 0 (not gated)");
-    check((np_hub_en_audio & NP_SAFETY_EN_ALL_MASK) == 0U,
+    check(NP_HUB_EN_AUDIO == 0U, "hub NP_SAFETY_EN_AUDIO is 0 (not gated)");
+    check((NP_HUB_EN_AUDIO & NP_SAFETY_EN_ALL_MASK) == 0U,
           "audio claims no allocated enable bit");
 }
 

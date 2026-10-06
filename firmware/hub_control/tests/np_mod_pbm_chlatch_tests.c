@@ -182,7 +182,7 @@ np_pbm_status_t np_pbm_dose_tick(uint8_t socket_id, const np_pbm_cal_t cal[NP_PB
 
 /* ── Fixtures ──────────────────────────────────────────────────────────────── */
 
-static const np_mod_pbm_base_params_t k_base = {
+static const np_mod_pbm_base_params_t BASE = {
     .freq_code = 0x11U, .duty = 0x20U, .cur_a = 190U, .cur_b = 200U,
 };
 
@@ -212,7 +212,7 @@ static void setup(void)
 
 static np_hub_status_t drive_base(uint16_t s)
 {
-    return np_mod_pbm_socket_drive(s, NP_MOD_PBM_BASE, &k_base, sizeof k_base);
+    return np_mod_pbm_socket_drive(s, NP_MOD_PBM_BASE, &BASE, sizeof BASE);
 }
 
 static np_hub_status_t drive_smart(uint16_t s, uint8_t ch_mask)

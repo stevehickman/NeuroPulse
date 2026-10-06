@@ -58,7 +58,7 @@ typedef struct {
     uint8_t   *lookahead_buffer;
 } np_lfs_log_part_desc_t;
 
-static const np_lfs_log_part_desc_t s_parts[2] = {
+static const np_lfs_log_part_desc_t LOG_PARTS[2] = {
     [NP_LOG_PART_UHDR] = { NP_LFS_LOG_UHDR_BLOCK_COUNT, NP_LFS_LOG_UHDR_LOOKAHEAD,
                            s_uhdr_read, s_uhdr_prog, s_uhdr_lookahead },
     [NP_LOG_PART_SHDR] = { NP_LFS_LOG_SHDR_BLOCK_COUNT, NP_LFS_LOG_SHDR_LOOKAHEAD,
@@ -70,7 +70,7 @@ static const np_lfs_log_part_desc_t *desc_of(np_log_part_t part)
     if (part != NP_LOG_PART_UHDR && part != NP_LOG_PART_SHDR) {
         return NULL;
     }
-    return &s_parts[part];
+    return &LOG_PARTS[part];
 }
 
 lfs_size_t np_lfs_log_block_count(np_log_part_t part)

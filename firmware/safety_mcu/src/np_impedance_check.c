@@ -33,13 +33,13 @@
 /* ── Module state ─────────────────────────────────────────────────────────── */
 #define NP_IMP_CHANNELS     4U  /* VNS_HRV, tDCS, BES_TACS, CVNS */
 #define NP_IMP_CVNS_INDEX   3U  /* index of CVNS within the arrays below        */
-static const uint8_t k_imp_slot[NP_IMP_CHANNELS] = {
+static const uint8_t IMP_SLOT[NP_IMP_CHANNELS] = {
     7U,  /* VNS_HRV  */
     6U,  /* tDCS     */
     5U,  /* BES_TACS */
     10U, /* CVNS     */
 };
-static const uint16_t k_imp_en_bit[NP_IMP_CHANNELS] = {
+static const uint16_t IMP_EN_BIT[NP_IMP_CHANNELS] = {
     NP_SAFETY_EN_VNS_HRV,
     NP_SAFETY_EN_TDCS,
     NP_SAFETY_EN_BES_TACS,
@@ -48,7 +48,7 @@ static const uint16_t k_imp_en_bit[NP_IMP_CHANNELS] = {
 
 /* Minimum impedance floor (NP-FMEA-001 FMEA-M06-02, OI-FMEA-13 (ii)); the
  * values and their sources are in np_safety_config.h. */
-static const uint32_t k_imp_min_ohm[NP_IMP_CHANNELS] = {
+static const uint32_t IMP_MIN_OHM[NP_IMP_CHANNELS] = {
     NP_IMPEDANCE_MIN_OHM_VNS_HRV,
     NP_IMPEDANCE_MIN_OHM_TDCS,
     NP_IMPEDANCE_MIN_OHM_BES_TACS,
@@ -110,7 +110,7 @@ np_safe_status_t np_impedance_check_init(void)
 void np_impedance_check_request(uint16_t requested_mask)
 {
     for (uint8_t i = 0U; i < NP_IMP_CHANNELS; i++) {
-        if ((requested_mask & k_imp_en_bit[i]) != 0U) {
+        if ((requested_mask & IMP_EN_BIT[i]) != 0U) {
             np_hal_impedance_start_test(i);
             s_test_pending[i]  = true;
             s_test_start_ms[i] = 0U;  /* HAL drives timing */
@@ -142,11 +142,11 @@ void np_impedance_check_poll(np_safety_state_t *state)
 
             /* Out of window on either side fails.  Below the floor is an AFE
              * fault or a short (FMEA-M06-02); it is not a good contact. */
-            if ((z_ohm > NP_IMPEDANCE_MAX_OHM) || (z_ohm < k_imp_min_ohm[i])) {
+            if ((z_ohm > NP_IMPEDANCE_MAX_OHM) || (z_ohm < IMP_MIN_OHM[i])) {
                 s_failed[i]          = true;
-                state->granted_mask &= (uint16_t)~k_imp_en_bit[i];
+                state->granted_mask &= (uint16_t)~IMP_EN_BIT[i];
                 state->status       |= NP_SAFETY_STATUS_IMPEDANCE;
-                state->fault_slot    = k_imp_slot[i];
+                state->fault_slot    = IMP_SLOT[i];
             } else {
                 /* Impedance check passed — clear the IMPEDANCE status bit so the
                  * hub does not see a persistent fault after a recheck succeeds.
@@ -201,7 +201,7 @@ void np_impedance_check_reset_session(void)
 void np_impedance_check_gate(np_safety_state_t *state)
 {
     for (uint8_t i = 0U; i < NP_IMP_CHANNELS; i++) {
-        uint16_t bit = k_imp_en_bit[i];
+        uint16_t bit = IMP_EN_BIT[i];
 
         if ((state->requested_mask & bit) != 0U &&
             !s_passed[i] && !s_failed[i] && !s_test_pending[i]) {

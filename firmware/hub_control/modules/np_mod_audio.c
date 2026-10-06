@@ -29,7 +29,7 @@
 #include "np_sw02_platform_hal.h"
 
 /* EEG band → suggested binaural beat frequency mapping (mHz). */
-static const uint16_t k_band_beat_mhz[5] = {
+static const uint16_t BAND_BEAT_MHZ[5] = {
     2000U,   /* delta: 2Hz */
     6000U,   /* theta: 6Hz */
     10000U,  /* alpha: 10Hz */
@@ -57,7 +57,7 @@ void np_mod_audio_set_eeg_band(uint8_t band)
 {
     if (!s_state.active || !s_state.eeg_adaptive) { return; }
     if (band >= 5U) { return; }
-    s_state.beat_mhz = k_band_beat_mhz[band];
+    s_state.beat_mhz = BAND_BEAT_MHZ[band];
     np_mod_audio_hal_set_binaural(s_state.carrier_hz, s_state.beat_mhz,
                                    s_state.vol_pct);
 }
