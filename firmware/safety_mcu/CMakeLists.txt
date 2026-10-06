@@ -70,10 +70,8 @@ if(NP_BUILD_TESTS)
     endmacro()
 
     # np_safety_spi_proto_tests: SPI frame struct tests (sig cmd + ext heartbeat)
-    # np_hub_enable_mirror.c is a test-only TU that reads the hub's enable-word
-    # macros, so the "must match hub_control/np_hub_config.h" contract in
-    # np_safety_protocol.h can be checked instead of merely stated
-    # (NP-HW-HUB-001 Rev 3 §7.2).  The two headers cannot share a TU.
+    # np_hub_enable_mirror.c is a test-only TU that reads the hub-only constants
+    # (electrode areas, audio enable) so the proto test can pin them.
     add_executable(np_safety_spi_proto_tests
         tests/np_safety_spi_proto_tests.c
         tests/np_hub_enable_mirror.c

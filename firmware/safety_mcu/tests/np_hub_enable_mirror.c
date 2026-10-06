@@ -2,17 +2,12 @@
  * NeurOne — hub-side enable-word mirror (test support only)
  * Document: NP-HW-HUB-001 Rev 3 §7.2
  *
- * np_safety_protocol.h says its enable-bit block "must match
- * hub_control/np_hub_config.h".  Nothing enforced that, and the two drifted
- * apart in exactly the way this change exists to fix: NP-HW-HUB-001 Rev 3 §7.2
- * decided the collapse to one NP_SAFETY_EN_PBM_CRANIAL bit and neither header
- * followed for two revisions.
- *
- * This translation unit exists so the agreement can be TESTED rather than
- * asserted in a comment.  The two headers cannot be included in one TU — the
- * macro names collide by design — so the hub values are read here, in a TU that
- * sees ONLY the hub header, and exported as plain data for
- * np_safety_spi_proto_tests.c to compare against the safety-MCU values.
+ * The enable bits and channel indices both processors use are ONE definition in
+ * common/include/np_spi_wire_types.h, so there is no cross-side agreement to
+ * test.  What this translation unit still exports is the set of constants only
+ * the hub holds — the provisional electrode areas and the audio enable — read in
+ * a TU that sees only the hub header, as plain data for
+ * np_safety_spi_proto_tests.c to pin (fail-safe direction; audio not gated).
  *
  * Test support only.  Not part of any firmware image; the Class C safety MCU
  * never includes a hub header.
@@ -23,37 +18,6 @@
 #include "../../hub_control/include/np_hub_config.h"
 
 #include "np_hub_enable_mirror.h"
-
-/* Ordered by bit position.  A reserved position carries 0 and is checked to
- * still be absent on the safety side.                                        */
-const np_hub_enable_mirror_t NP_HUB_ENABLE_MIRROR[] = {
-    { "PBM_CRANIAL", NP_SAFETY_EN_PBM_CRANIAL },
-    { "BES_TACS",    NP_SAFETY_EN_BES_TACS    },
-    { "TDCS",        NP_SAFETY_EN_TDCS        },
-    { "VNS_HRV",     NP_SAFETY_EN_VNS_HRV     },
-    { "VISUAL",      NP_SAFETY_EN_VISUAL      },
-    { "INTRANASAL",  NP_SAFETY_EN_INTRANASAL  },
-    { "CVNS",        NP_SAFETY_EN_CVNS        },
-    { "TMS",         NP_SAFETY_EN_TMS         },
-    { "PBM_1170NM",  NP_SAFETY_EN_PBM_1170NM  },
-    { "CLIN_STIM",   NP_SAFETY_EN_CLIN_STIM   },
-};
-
-const unsigned NP_HUB_ENABLE_MIRROR_COUNT =
-    (unsigned)(sizeof(NP_HUB_ENABLE_MIRROR) / sizeof(NP_HUB_ENABLE_MIRROR[0]));
-
-/* The bit ≡ charge-monitor-channel-index identity, as the hub understands it. */
-const uint8_t NP_HUB_CH_CLIN_STIM = (uint8_t)NP_SAFETY_CH_CLIN_STIM;
-const uint8_t NP_HUB_CH_TDCS      = (uint8_t)NP_SAFETY_CH_TDCS;
-
-/* OI-CHARGE-05 added three more electrical channel indices to the hub header,
- * for the per-channel waveform declaration and the commanded-current publish.
- * They carry the same drift risk as the two above and are mirrored the same
- * way — a mismatch would declare one modality's waveform against another's
- * accumulator.                                                               */
-const uint8_t NP_HUB_CH_BES_TACS  = (uint8_t)NP_SAFETY_CH_BES_TACS;
-const uint8_t NP_HUB_CH_VNS_HRV   = (uint8_t)NP_SAFETY_CH_VNS_HRV;
-const uint8_t NP_HUB_CH_CVNS      = (uint8_t)NP_SAFETY_CH_CVNS;
 
 /* The PROVISIONAL electrode areas for the channels that author no geometry of
  * their own (OI-CHARGE-07).  Exported so the proto test can pin the fail-safe

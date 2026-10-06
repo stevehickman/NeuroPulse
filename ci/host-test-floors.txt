@@ -36,7 +36,7 @@ np_gpio_mgr_tests 402
 np_hal_platform_tests 862
 np_impedance_report_tests 268
 np_nv_state_tests 415
-np_safety_spi_proto_tests 355
+np_safety_spi_proto_tests 336  # lowered from 355: the hub-vs-safety enable-word mirror assertions were deleted, the two sides now share one definition (np_spi_wire_types.h)
 np_thermal_interlock_tests 138
 np_tier_identity_nokey_tests 586
 np_tier_identity_tests 876
