@@ -27,6 +27,7 @@ interface CoreExports {
   npps_namespace_json(req: number, reqLen: number, out: number, outLen: number): number;
   npps_serialize_json(req: number, reqLen: number, out: number, outLen: number): number;
   npps_validate_json(req: number, reqLen: number, out: number, outLen: number): number;
+  npps_resolve_limits_json(req: number, reqLen: number, out: number, outLen: number): number;
 }
 
 // common/generated/ is a git-ignored build output directory (CLAUDE.md §20). In the simulator's bundle
@@ -78,7 +79,7 @@ function core(): CoreExports {
 const OK = 0, REFUSED = 1, INTERNAL = 2;
 
 function call(
-  entry: 'npps_parse_json' | 'npps_compile_json' | 'npps_namespace_json' | 'npps_serialize_json' | 'npps_validate_json',
+  entry: 'npps_parse_json' | 'npps_compile_json' | 'npps_namespace_json' | 'npps_serialize_json' | 'npps_validate_json' | 'npps_resolve_limits_json',
   input: string,
 ): Uint8Array {
   const wasm = core();
@@ -164,8 +165,29 @@ export interface NppsValidation { issues: NppsIssue[]; isValid: boolean; hasWarn
  * Validate an entry against the resolved limits (neurone_npps_core::api::validate_json). The core returns
  * locale keys and arguments, never text: resolve them with `t()`.
  */
-export function nppsValidate(request: { entry: object; limits: object; allProtocols?: readonly object[] | null }): NppsValidation {
+export function nppsValidate(request: {
+  entry: object;
+  limits: object;
+  allProtocols?: readonly object[] | null;
+  /** Where each configured limit came from (`nppsResolveLimits(...).sources`); a limit with no entry takes the set's level. */
+  limitSources?: object | null;
+}): NppsValidation {
   return JSON.parse(new TextDecoder().decode(call('npps_validate_json', JSON.stringify(request))));
+}
+
+/** The effective limits of three tiers and the tier each value came from (neurone_npps_core::api::resolve_limits_json). */
+export interface NppsResolvedLimits {
+  /** `{level: 'global', <modality blocks>}`; the caller adds the id, name and timestamps. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  limits: Record<string, any>;
+  /** `{<modalityProperty>: {<limitField>: 'individual' | 'helmet' | 'global'}}`: the validator's `limitSources`. */
+  sources: Record<string, Record<string, 'individual' | 'helmet' | 'global'>>;
+}
+
+/** Resolve global, helmet and individual limits, most specific first, field by field. */
+export function nppsResolveLimits(tiers: { global?: object | null; helmet?: object | null; individual?: object | null }): NppsResolvedLimits {
+  const request = { global: tiers.global ?? null, helmet: tiers.helmet ?? null, individual: tiers.individual ?? null };
+  return JSON.parse(new TextDecoder().decode(call('npps_resolve_limits_json', JSON.stringify(request))));
 }
 
 /** What the core's parse returns. Models are built from it by common/lib/nppsParser.ts. */

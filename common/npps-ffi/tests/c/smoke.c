@@ -50,6 +50,11 @@ int main(void) {
     CHECK(rc == 0 && memmem(out, len, "VALIDATE_MSG_GENERAL_MODALITIES", 31) != NULL, "validate returns locale keys");
     npps_free(out, len);
 
+    const char *res = "{\"global\":{\"tdcs\":{\"maxIntensityMilliamps\":2}},\"helmet\":null,\"individual\":{\"tdcs\":{\"maxIntensityMilliamps\":1}}}";
+    rc = npps_resolve_limits_json((const uint8_t *)res, strlen(res), &out, &len);
+    CHECK(rc == 0 && memmem(out, len, "\"individual\"", 12) != NULL, "resolve names the winning tier");
+    npps_free(out, len);
+
     CHECK(npps_parse_json(NULL, 0, &out, &len) == 3, "null input is a bad argument");
     puts("ok");
     return 0;

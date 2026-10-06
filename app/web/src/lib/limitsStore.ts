@@ -1,7 +1,8 @@
 import {
   NPLimitsSet,
+  NPLimitSourceMap,
   NPIndividualProfile,
-  resolveLimits,
+  resolveLimitsWithSources,
   UNLIMITED_LIMITS,
 } from '../../../../common/types/limits';
 import { parseNPPSLimits } from '../../../../common/lib/nppsParser';
@@ -86,7 +87,12 @@ class LimitsStore extends EventTarget {
    * Applies: individual ?? helmet ?? global for each field.
    */
   get resolvedLimits(): NPLimitsSet {
-    return resolveLimits(
+    return this.resolve().limits;
+  }
+
+  /** The resolved limits and which tier each came from (the validator attributes each configured limit by it). */
+  resolve(): { limits: NPLimitsSet; sources: NPLimitSourceMap } {
+    return resolveLimitsWithSources(
       this._globalLimits,
       this.activeHelmetLimits,
       this.activeIndividualLimits

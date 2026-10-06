@@ -22,7 +22,7 @@ import {
   VibrotactileParams,
 } from '../../../../common/types/protocol';
 import { t } from '../../../../common/lib/i18n';
-import { NPHardwareLimits } from '../lib/hardwareLimits';
+import { NPHardwareLimits } from '../../../../common/lib/hardwareLimits.generated';
 
 // ─── Interval Controls ─────────────────────────────────────────────────────────
 

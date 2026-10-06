@@ -179,4 +179,19 @@ class NppsCoreTests {
         assertEquals("VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS", message["key"]!!.jsonPrimitive.content)
         assertEquals(listOf("2", "1"), message["args"]!!.jsonArray.map { it.jsonPrimitive.content })
     }
+
+    @Test
+    fun resolveLimitsResolvesEveryTierCombinationAsTheWebFunctionDid() {
+        val cases = resource("npps-resolve-golden.json")["cases"]!!.jsonArray
+        assertTrue(cases.size >= 300)
+        fun tier(c: JsonObject, k: String): JsonObject? = (c[k] as? JsonObject)
+        val failures = mutableListOf<String>()
+        for (c in cases) {
+            val o = c.jsonObject
+            val got = NppsCore.resolveLimits(tier(o, "global"), tier(o, "helmet"), tier(o, "individual"))["limits"]!!.jsonObject
+            val blocks = JsonObject(got - "level")
+            if (blocks != o["expected"]) failures += "${o["name"]}: differs"
+        }
+        assertTrue(failures.isEmpty(), "${failures.size} divergence(s):\n" + failures.take(5).joinToString("\n"))
+    }
 }

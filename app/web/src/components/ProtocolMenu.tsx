@@ -63,7 +63,7 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
     return protocolLibrary.subscribe(() => setLibraryVersion(v => v + 1));
   }, []);
 
-  const resolvedLimits = limitsStore.resolvedLimits;
+  const { limits: resolvedLimits, sources: limitSources } = limitsStore.resolve();
   const activeProfile = limitsStore.activeProfile;
   const allProtocols = protocolLibrary.allProtocols;
 
@@ -199,7 +199,7 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
                   key={entryId(entry)}
                   entry={entry}
                   availability={protocolLibrary.checkAvailability(entry)}
-                  validation={validateEntry(entry, resolvedLimits, allProtocols)}
+                  validation={validateEntry(entry, resolvedLimits, allProtocols, limitSources)}
                   onEdit={() => onEdit(entry)}
                   onDuplicate={() => handleDuplicate(entry)}
                   onDelete={null}
@@ -219,7 +219,7 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
                   key={entryId(entry)}
                   entry={entry}
                   availability={protocolLibrary.checkAvailability(entry)}
-                  validation={validateEntry(entry, resolvedLimits, allProtocols)}
+                  validation={validateEntry(entry, resolvedLimits, allProtocols, limitSources)}
                   onEdit={() => onEdit(entry)}
                   onDuplicate={() => handleDuplicate(entry)}
                   onDelete={protocolLibrary.canDelete(entry) ? () => handleDelete(entry) : null}

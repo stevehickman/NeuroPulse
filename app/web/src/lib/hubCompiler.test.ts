@@ -12,7 +12,7 @@ import path from 'node:path';
 import { parseNPPSFile } from '../../../../common/lib/nppsParser';
 import { compileProtocol } from './hubCompiler';
 import { NP_SOCKETS } from '../../../../common/lib/socketMap.generated';
-import { NPHardwareLimits } from './hardwareLimits';
+import { NPHardwareLimits } from '../../../../common/lib/hardwareLimits.generated';
 import { defaultParams, MODALITY_META } from '../../../../common/types/protocol';
 import type {
   NPProtocolDefinition,

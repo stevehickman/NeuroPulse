@@ -236,3 +236,13 @@ pub fn validate_json(request: &str) -> Result<String, String> {
     let has_warnings = issues.iter().any(|i| i["severity"] == "warning");
     Ok(json!({ "issues": issues, "isValid": is_valid, "hasWarnings": has_warnings }).to_string())
 }
+
+/// Resolve the three limit tiers into the effective limits and where each value came from. `request` is
+/// `{"global":<limits set>|null, "helmet":…|null, "individual":…|null}`; returns `{"limits":{level, <modality blocks>},
+/// "sources":{<modalityProperty>:{<limitField>:"individual"|"helmet"|"global"}}}`. `sources` is what `validate_json`
+/// takes as `limitSources`. The caller supplies the resolved set's id, name and timestamps.
+pub fn resolve_limits_json(request: &str) -> Result<String, String> {
+    let req: Value = serde_json::from_str(request).map_err(|e| format!("resolve request is not JSON: {e}"))?;
+    let (limits, sources) = crate::resolve::resolve_limits(&req["global"], &req["helmet"], &req["individual"]);
+    Ok(json!({ "limits": limits, "sources": sources }).to_string())
+}

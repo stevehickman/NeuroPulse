@@ -83,6 +83,13 @@ pub unsafe extern "C" fn npps_validate_json(req: *const u8, req_len: usize, out:
 }
 
 /// # Safety
+/// As `npps_parse_json`.
+#[no_mangle]
+pub unsafe extern "C" fn npps_resolve_limits_json(req: *const u8, req_len: usize, out: *mut *mut u8, out_len: *mut usize) -> i32 {
+    call(req, req_len, out, out_len, |t| api::resolve_limits_json(t).map(String::into_bytes))
+}
+
+/// # Safety
 /// `ptr` and `len` are exactly what a call returned through `out` and `out_len`, released once.
 #[no_mangle]
 pub unsafe extern "C" fn npps_free(ptr: *mut u8, len: usize) {

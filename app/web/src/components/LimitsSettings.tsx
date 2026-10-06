@@ -8,7 +8,7 @@ import {
 import { serializeNPPSLimits } from '../../../../common/lib/nppsSerializer';
 import { parseNPPSLimits } from '../../../../common/lib/nppsParser';
 import { limitsStore } from '../lib/limitsStore';
-import { NPHardwareLimits } from '../lib/hardwareLimits';
+import { NPHardwareLimits } from '../../../../common/lib/hardwareLimits.generated';
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
 

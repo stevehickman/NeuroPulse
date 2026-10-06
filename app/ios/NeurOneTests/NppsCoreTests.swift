@@ -222,4 +222,25 @@ final class NppsCoreTests: XCTestCase {
         XCTAssertEqual(message["key"] as? String, "VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS")
         XCTAssertEqual(message["args"] as? [String], ["2", "1"])
     }
+
+    // MARK: - Limit resolution
+
+    func testResolveLimitsTakesTheMostSpecificTierPerFieldAndNamesIt() throws {
+        var global = NPLimitsSet(name: "G", level: .global)
+        global.besTacs = NPBESTacsLimits(maxIntensityMilliamps: 1.0, maxFrequencyHz: 40, minFrequencyHz: 1)
+        var helmet = NPLimitsSet(name: "H", level: .helmet)
+        helmet.besTacs = NPBESTacsLimits(maxIntensityMilliamps: 0.8, maxFrequencyHz: 30)
+        var individual = NPLimitsSet(name: "I", level: .individual)
+        individual.besTacs = NPBESTacsLimits(maxIntensityMilliamps: 0.5)
+        individual.tms = NPTMSLimits(maxPulsesPerSession: 100)
+
+        let (limits, sources) = NPLimitsSet.resolve(global: global, helmet: helmet, individual: individual)
+        XCTAssertEqual(limits.besTacs, NPBESTacsLimits(maxIntensityMilliamps: 0.5, maxFrequencyHz: 30, minFrequencyHz: 1))
+        XCTAssertEqual(limits.tms?.maxPulsesPerSession, 100)
+        XCTAssertNil(limits.tdcs, "no tier states a tdcs block")
+        XCTAssertEqual(sources.besTacs?.maxIntensityMilliamps, .individual)
+        XCTAssertEqual(sources.besTacs?.maxFrequencyHz, .helmet)
+        XCTAssertEqual(sources.besTacs?.minFrequencyHz, .global_)
+        XCTAssertEqual(sources.tms?.maxPulsesPerSession, .individual)
+    }
 }

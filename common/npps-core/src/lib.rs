@@ -13,6 +13,7 @@ pub mod error;
 pub mod js;
 pub mod lexer;
 pub mod parser;
+pub mod resolve;
 pub mod serialize;
 pub mod table;
 pub mod validate;

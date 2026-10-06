@@ -19,6 +19,7 @@ all. The same `.npps` file must mean the same thing everywhere, so the meaning i
 | Hub-descriptor compiler (NP-FW-HUB-001 §4) | `src/compiler.rs` | all 15 encoders, interval expansion, PBM tile merge |
 | Serializer: models to `.npps` text | `src/serialize.rs` | every block (`protocol`, `composite`, `zone`, `condition`, `wavelength_rules`, `limits`); the inverse of the parser, held to it by a round trip |
 | Validator: hardware ceilings, dosage limits, charge density, cross-modality | `src/validate.rs`, `../npps/hardware-limits.json` | the union of the web, iOS and Android checks; returns locale keys and arguments, never text |
+| Limit resolution: `individual ?? helmet ?? global`, field by field, with the tier of each value | `src/resolve.rs` | generic over every modality block; held to the web function's output over 300 tier combinations |
 
 ## How it is verified
 
@@ -88,7 +89,7 @@ cervical-VNS frequency range and interlock note, the vibrotactile frequency warn
 zone-resolution check (when the caller gives the namespace); the mobile ones lacked the layer intensity scale and the
 TMS-with-electrical-stimulation note. A configured limit is attributed to the level of the resolved set, or to the tier
 a per-field `limitSources` map names (iOS's `NPLimitSourceMap`); the web said `global` for all of them.
-`common/lib/hardwareLimits.test.ts` fails if the ceilings the validator reads differ from the editors' copies.
+`../npps/hardware-limits.json` holds every hardware ceiling once: the validator reads it and `scripts/sync-hardware-limits.ts` writes the web, Android and iOS constants from it, so an editor's slider range cannot differ from the validator's ceiling.
 
 ## Not yet in v0
 
@@ -101,8 +102,6 @@ a per-field `limitSources` map names (iOS's `NPLimitSourceMap`); the web said `g
   independent reference: the goldens are the core's own output, and the wire layout is held by
   `scripts/check-hub-wire-format.ts` reading `compiler.rs` and decoding the core's output at the firmware's
   offsets.
-- The editors' own copies of the hardware ceilings (slider ranges) and the three-tier limit resolution
-  (`resolveLimits`) are still per platform.
 - **Signing stays in each platform's keystore.** The compiler returns the blob with a zeroed 64-byte
   signature slot; the caller signs the raw region and fills it.
 

@@ -28,7 +28,11 @@ fn hw_table() -> &'static Value {
 
 /// A hardware ceiling by name; a name the file does not hold is a bug in this module, caught by the tests.
 fn hw(name: &str) -> f64 {
-    hw_table()[name].as_f64().unwrap_or_else(|| panic!("hardware-limits.json has no '{name}'"))
+    hw_table()["limits"]
+        .as_array()
+        .and_then(|a| a.iter().find(|l| l["name"] == name))
+        .and_then(|l| l["value"].as_f64())
+        .unwrap_or_else(|| panic!("hardware-limits.json has no '{name}'"))
 }
 
 // ─── Messages ──────────────────────────────────────────────────────────────────

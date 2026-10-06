@@ -60,6 +60,9 @@ static class NppsCore
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     private static extern int npps_validate_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
 
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int npps_resolve_limits_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
+
     private delegate int Entry(byte[] input, nuint inputLen, out IntPtr output, out nuint outLen);
 
     /// Parse NPPS text into everything the file declares, as the core's JSON: `{"entries":[{"kind":"single",
@@ -93,6 +96,20 @@ static class NppsCore
     /// resolves a key with its own strings. (Windows has no localized UI layer yet, so nothing resolves them today.)
     public static byte[] Validate(JsonNode request)
         => Call(npps_validate_json, Encoding.UTF8.GetBytes(request.ToJsonString()));
+
+    /// Resolve three limit sets (null for a tier that does not exist), most specific first, field by field:
+    /// `{"limits":{"level":"global", <modality blocks>}, "sources":{<modalityProperty>:{<limitField>:tier}}}`. `sources` is what
+    /// the validator takes as `limitSources`. (Windows has no limits store yet, so nothing calls this today.)
+    public static byte[] ResolveLimits(JsonNode? global, JsonNode? helmet, JsonNode? individual)
+    {
+        var request = new JsonObject
+        {
+            ["global"] = global?.DeepClone(),
+            ["helmet"] = helmet?.DeepClone(),
+            ["individual"] = individual?.DeepClone(),
+        };
+        return Call(npps_resolve_limits_json, Encoding.UTF8.GetBytes(request.ToJsonString()));
+    }
 
     /// Compile a protocol (`{"timingMode":…,"modalities":[…]}`, the shape `Parse` returns under
     /// `protocol`) into the NP-FW-HUB-001 §4 descriptor. The 64-byte signature slot at the end is zeroed:

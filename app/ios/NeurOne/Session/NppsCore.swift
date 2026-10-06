@@ -65,6 +65,60 @@ enum NppsCore {
         try call(npps_validate_json, requestJSON)
     }
 
+    /// Resolve three limit sets (nil for a tier that does not exist), most specific first, field by field, and say which tier
+    /// each value came from. `{"limits": {level, <modality blocks>}, "sources": {<modalityProperty>: {<limitField>: tier}}}`
+    /// is decoded into the app's types.
+    static func resolveLimits(
+        global: NPLimitsSet?, helmet: NPLimitsSet?, individual: NPLimitsSet?
+    ) throws -> (limits: NPLimitsSet, sources: NPLimitSourceMap) {
+        let request: [String: Any] = [
+            "global": global?.nppsCoreJSON() ?? NSNull(),
+            "helmet": helmet?.nppsCoreJSON() ?? NSNull(),
+            "individual": individual?.nppsCoreJSON() ?? NSNull()
+        ]
+        let out = try call(npps_resolve_limits_json, JSONSerialization.data(withJSONObject: request))
+        let result = try JSONDecoder().decode(ResolvedLimits.self, from: out)
+        var limits = NPLimitsSet(name: "Resolved", level: .global)
+        let blocks = result.limits
+        limits.pbmTranscranial = blocks.pbmTranscranial
+        limits.pbmIntranasal = blocks.pbmIntranasal
+        limits.eegNeurofeedback = blocks.eegNeurofeedback
+        limits.besTacs = blocks.besTacs
+        limits.tdcs = blocks.tdcs
+        limits.vnsHrv = blocks.vnsHrv
+        limits.audioEntrainment = blocks.audioEntrainment
+        limits.visualStimulation = blocks.visualStimulation
+        limits.tms = blocks.tms
+        limits.pbmDeep1170nm = blocks.pbmDeep1170nm
+        limits.clinicalTacs = blocks.clinicalTacs
+        limits.hdTdcs = blocks.hdTdcs
+        limits.cervicalVns = blocks.cervicalVns
+        limits.vibrotactile40hz = blocks.vibrotactile40hz
+        return (limits, result.sources)
+    }
+
+    /// The core's resolve result. The block names are the core's, which are the property names of `NPLimitsSet`.
+    private struct ResolvedLimits: Decodable {
+        struct Blocks: Decodable {
+            var pbmTranscranial: NPPBMTranscranialLimits?
+            var pbmIntranasal: NPPBMIntranasalLimits?
+            var eegNeurofeedback: NPEEGNeurofeedbackLimits?
+            var besTacs: NPBESTacsLimits?
+            var tdcs: NPTDCSLimits?
+            var vnsHrv: NPVNSHRVLimits?
+            var audioEntrainment: NPAudioEntrainmentLimits?
+            var visualStimulation: NPVisualStimLimits?
+            var tms: NPTMSLimits?
+            var pbmDeep1170nm: NPDeepPBMLimits?
+            var clinicalTacs: NPClinicalTacsLimits?
+            var hdTdcs: NPHDTdcsLimits?
+            var cervicalVns: NPCervicalVnsLimits?
+            var vibrotactile40hz: NPVibrotactileLimits?
+        }
+        var limits: Blocks
+        var sources: NPLimitSourceMap
+    }
+
     /// Validate through the models: builds the request from the app's types (`NppsCoreMapping.swift`) and returns the
     /// core's result object (`{"issues":[…], "isValid", "hasWarnings"}`). `library` is what a composite's layers resolve
     /// against, nil to skip that check; `zones` is the namespace a PBM block's named zones resolve against.

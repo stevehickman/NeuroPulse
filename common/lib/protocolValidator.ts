@@ -14,6 +14,7 @@
 import type { NPProtocolDefinition, NPProtocolEntry } from '../types/protocol';
 import type {
   LimitSource,
+  NPLimitSourceMap,
   NPLimitsSet,
   NPValidationIssue,
   NPValidationResult,
@@ -50,17 +51,20 @@ export function makeResult(issues: NPValidationIssue[]): NPValidationResult {
 
 /**
  * Validate one entry against the resolved limits. `allProtocols` is the library a composite's layers resolve
- * against; leave it out to skip the layer-reference checks.
+ * against; leave it out to skip the layer-reference checks. `limitSources` says which tier each configured limit came
+ * from (`resolveLimitsWithSources`), so the issue names it; without it every limit is attributed to the set's level.
  */
 export function validateEntry(
   entry: NPProtocolEntry,
   resolvedLimits: NPLimitsSet,
   allProtocols?: NPProtocolEntry[],
+  limitSources?: NPLimitSourceMap,
 ): NPValidationResult {
   const result = nppsValidate({
     entry: coreEntry(entry),
     limits: resolvedLimits,
     allProtocols: allProtocols ? allProtocols.map(coreEntry) : null,
+    limitSources: limitSources ?? null,
   });
   return makeResult(result.issues.map((i): NPValidationIssue => ({
     id: crypto.randomUUID(),

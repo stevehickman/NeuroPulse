@@ -38,6 +38,8 @@ object NppsCore {
 
     @JvmStatic private external fun nativeValidate(request: String): String
 
+    @JvmStatic private external fun nativeResolveLimits(request: String): String
+
     /**
      * Parse NPPS text into everything the file declares:
      * `{"entries":[{"kind":"single","protocol":{…}} | {"kind":"composite","composite":{…}}],
@@ -74,6 +76,20 @@ object NppsCore {
      * is `{"entry":…, "limits":…, "allProtocols":[…]|null, "zones":{…}|null, "limitSources":{…}|null}`.
      */
     fun validate(request: JsonObject): JsonObject = Json.parseToJsonElement(nativeValidate(request.toString())) as JsonObject
+
+    /**
+     * Resolve three limit sets (null for a tier that does not exist), most specific first, field by field:
+     * `{"limits":{"level":"global", <modality blocks>}, "sources":{<modalityProperty>:{<limitField>:tier}}}`. `sources` is
+     * what the validator takes as `limitSources`.
+     */
+    fun resolveLimits(global: JsonObject?, helmet: JsonObject?, individual: JsonObject?): JsonObject {
+        val request = buildJsonObject {
+            put("global", global ?: JsonNull)
+            put("helmet", helmet ?: JsonNull)
+            put("individual", individual ?: JsonNull)
+        }
+        return Json.parseToJsonElement(nativeResolveLimits(request.toString())) as JsonObject
+    }
 
     /** What a compile needs that is not in the protocol. Everything non-deterministic is an input. */
     class CompileOptions(

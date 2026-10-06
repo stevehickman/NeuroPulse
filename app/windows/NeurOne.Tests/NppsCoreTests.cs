@@ -160,4 +160,20 @@ public class NppsCoreTests
         Assert.Equal("VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS", message["key"]!.GetValue<string>());
         Assert.Equal(["2", "1"], message["args"]!.AsArray().Select(a => a!.GetValue<string>()).ToArray());
     }
+
+    [Fact]
+    public void ResolveLimitsResolvesEveryTierCombinationAsTheWebFunctionDid()
+    {
+        var cases = JsonNode.Parse(File.ReadAllText(
+            Path.Combine(Root, "app", "NeurOneShared", "TestData", "npps-resolve-golden.json")))!["cases"]!.AsArray();
+        Assert.True(cases.Count >= 300);
+        var failures = new List<string>();
+        foreach (var c in cases)
+        {
+            var got = JsonNode.Parse(NppsCore.ResolveLimits(c!["global"], c["helmet"], c["individual"]))!["limits"]!.AsObject();
+            got.Remove("level");
+            if (!JsonNode.DeepEquals(got, c["expected"])) failures.Add($"{c["name"]}: differs");
+        }
+        Assert.True(failures.Count == 0, $"{failures.Count} divergence(s):\n" + string.Join("\n", failures.Take(5)));
+    }
 }
