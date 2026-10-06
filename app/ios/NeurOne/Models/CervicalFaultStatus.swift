@@ -73,11 +73,6 @@ struct CervicalFaultStatus: Equatable {
         case reenabling    = 4
     }
 
-    static let version: UInt8 = 0x01
-    static let maxRecords = 4
-    static let headerLength = 4
-    static let recordLength = 8
-
     let reenableState: ReenableState
     let records: [CervicalFaultRecord]
     /// The active user's cervical VNS is withheld by the safety MCU.
@@ -99,16 +94,16 @@ struct CervicalFaultStatus: Equatable {
 
     init?(wire data: Data) {
         let b = [UInt8](data)
-        guard b.count >= Self.headerLength,
-              b[0] == Self.version,
+        guard b.count >= CvfsWire.HEADER_LEN,
+              Int(b[0]) == CvfsWire.WIRE_VERSION,
               let state = ReenableState(rawValue: b[1]),
-              Int(b[2]) <= Self.maxRecords,
+              Int(b[2]) <= CvfsWire.MAX_WIRE_RECORDS,
               b[3] & ~UInt8(0x03) == 0,
-              b.count == Self.headerLength + Int(b[2]) * Self.recordLength else { return nil }
+              b.count == CvfsWire.HEADER_LEN + Int(b[2]) * CvfsWire.RECORD_LEN else { return nil }
 
         var records: [CervicalFaultRecord] = []
         for i in 0..<Int(b[2]) {
-            let o = Self.headerLength + i * Self.recordLength
+            let o = CvfsWire.HEADER_LEN + i * CvfsWire.RECORD_LEN
             let counter = UInt32(b[o]) | UInt32(b[o + 1]) << 8 | UInt32(b[o + 2]) << 16 | UInt32(b[o + 3]) << 24
             guard let kind = CervicalFaultRecord.Kind(rawValue: b[o + 4]),
                   b[o + 5] & ~UInt8(0x03) == 0,

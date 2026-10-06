@@ -161,7 +161,7 @@ void np_cons_poll(void)
     if (s_have_published && memcmp(frame, s_published, sizeof(frame)) == 0) {
         return;
     }
-    if (np_gatt_notify(NP_GATT_ID_CONSUMABLE_STATUS, frame, sizeof(frame)) == NP_HUB_OK) {
+    if (np_gatt_notify(NP_GATT_CONSUMABLE_STATUS_ID, frame, sizeof(frame)) == NP_HUB_OK) {
         memcpy(s_published, frame, sizeof(frame));
         s_have_published = true;
     }

@@ -66,6 +66,8 @@ const ROOT =
 const DOC = "docs/np_fw_hub_001.md";
 const CONFIG = "firmware/hub_control/include/np_hub_config.h";
 const TYPES = "firmware/hub_control/include/np_hub_types.h";
+/** Generated from common/npps/constants.json: the serial length is shared with the apps' GATT code, so it is defined there. */
+const WIRE = "firmware/hub_control/include/np_app_wire_constants.h";
 /** The compiler: the Rust core, whose constants are read statically. */
 const COMPILER = "common/npps-core/src/compiler.rs";
 /** What runs it: the web wrapper over the WebAssembly build. Always the real tree's, since the self-test cannot rebuild Rust. */
@@ -303,11 +305,12 @@ function readField(dv: DataView, base: number, f: Field): number {
 
 export async function audit(root: string, tamper?: Tamper): Promise<{ violations: string[]; scanned: number }> {
   const v: string[] = [];
-  let doc: string, config: string, types: string, compilerSrc: string;
+  let doc: string, config: string, types: string, wire: string, compilerSrc: string;
   try {
     doc = read(root, DOC);
     config = read(root, CONFIG);
     types = read(root, TYPES);
+    wire = read(root, WIRE);
     compilerSrc = read(root, COMPILER);
   } catch (e) {
     return { violations: [`cannot read a required file — ${(e as Error).message}`], scanned: 0 };
@@ -319,6 +322,7 @@ export async function audit(root: string, tamper?: Tamper): Promise<{ violations
   }
   const defs = parseDefines(config);
   for (const [k, val] of parseDefines(types)) defs.set(k, val);
+  for (const [k, val] of parseDefines(wire)) defs.set(k, val);
   const modEnum = parseEnum(types, "np_hub_mod_type_t");
   const kindEnum = parseEnum(types, "np_proto_target_kind_t");
   if (!modEnum) v.push(`${TYPES}: np_hub_mod_type_t did not parse`);
@@ -351,7 +355,7 @@ export async function audit(root: string, tamper?: Tamper): Promise<{ violations
     ["version (§4.1)", spec.version, fw("NP_HUB_PROTO_VERSION"), "PROTO_VERSION"],
     ["version (§4.5 current row)", spec.latestVersion, fw("NP_HUB_PROTO_VERSION"), null],
     ["UUID length", spec.uuidLen, fw("NP_HUB_PROTO_UUID_LEN"), "PROTO_UUID_LEN"],
-    ["serial length", spec.serialLen, fw("NP_HUB_PROTO_SERIAL_LEN"), "PROTO_SERIAL_LEN"],
+    ["serial length", spec.serialLen, fw("NP_GATT_DEVICE_SERIAL_LEN"), "PROTO_SERIAL_LEN"],
     ["signature length", spec.sigLen, fw("NP_HUB_PROTO_SIG_LEN"), "PROTO_SIG_LEN"],
     ["command maximum", spec.cmdMax, fw("NP_HUB_PROTO_CMD_MAX"), "PROTO_CMD_MAX"],
     ["params maximum", spec.paramsMax, fw("NP_HUB_PROTO_PARAMS_MAX"), null],
@@ -501,7 +505,7 @@ export async function audit(root: string, tamper?: Tamper): Promise<{ violations
 // each, and must pass on the unperturbed copy.
 if (process.argv.includes("--self-test")) {
   const box = mkdtempSync(join(tmpdir(), "np-wirefmt-"));
-  const FILES = [DOC, CONFIG, TYPES, COMPILER];
+  const FILES = [DOC, CONFIG, TYPES, WIRE, COMPILER];
   let n = 0;
   const build = (edit?: { file: string; from: string | RegExp; to: string }): string => {
     const root = join(box, `t${n++}`);

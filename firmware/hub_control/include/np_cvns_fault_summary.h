@@ -67,10 +67,9 @@
  *   per record, oldest first: u32 LE device session counter · u8 fault kind
  *   (np_cvns_fault_reason_t 1–5) · u8 pad side mask (bit 0 left, bit 1 right;
  *   pad-contact faults only) · u16 reserved 0                                  */
-#define NP_CVFS_WIRE_VERSION        0x01u
-#define NP_CVFS_HEADER_LEN          4u
-#define NP_CVFS_RECORD_LEN          8u
-#define NP_CVFS_MAX_WIRE_RECORDS    4u
+/* NP_CVFS_WIRE_VERSION, _HEADER_LEN, _RECORD_LEN and _MAX_WIRE_RECORDS are generated from common/npps/constants.json
+ * (group CvfsWire), the one source the apps' parsers read as well. */
+#include "np_app_wire_constants.h"
 #define NP_CVFS_FRAME_MAX           (NP_CVFS_HEADER_LEN + \
                                      (NP_CVFS_MAX_WIRE_RECORDS * NP_CVFS_RECORD_LEN))
 

@@ -1,13 +1,14 @@
 package life.neurone.core.models
 
+import life.neurone.core.protocol.GattUuidStrings
 import life.neurone.core.ble.GattParser
-import life.neurone.core.ble.GattUuids
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import java.util.UUID
 
 // Parity with iOS GATTParserTests (CVNS_FAULT_STATUS + ledger) — NP-SW-FAULTMSG-001 P3/P4
 // and the per-user cardiac scope.
@@ -96,8 +97,8 @@ class CervicalFaultStatusTests {
 
     @Test
     fun faultCharacteristicsAreNotRequired() {
-        assertFalse(GattUuids.all.contains(GattUuids.cvnsFaultStatus))
-        assertFalse(GattUuids.all.contains(GattUuids.cvnsReenableConfirm))
-        assertFalse(GattUuids.all.contains(GattUuids.activeUser))
+        assertFalse(GattUuidStrings.REQUIRED_IDS.map(UUID::fromString).contains(UUID.fromString(GattUuidStrings.CVNS_FAULT_STATUS_ID)))
+        assertFalse(GattUuidStrings.REQUIRED_IDS.map(UUID::fromString).contains(UUID.fromString(GattUuidStrings.CVNS_REENABLE_CONFIRM_ID)))
+        assertFalse(GattUuidStrings.REQUIRED_IDS.map(UUID::fromString).contains(UUID.fromString(GattUuidStrings.ACTIVE_USER_ID)))
     }
 }

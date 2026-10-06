@@ -25,8 +25,8 @@ const ROOT = join(import.meta.dir, '..');
 const SOURCE = 'common/npps/constants.json';
 
 type Target = 'ts' | 'kotlin' | 'swift' | 'csharp' | 'c' | 'rust';
-interface Constant { name: string; value: number; int?: boolean; note?: string }
-interface Group { name: string; rust: string; cPrefix?: string; targets: Target[]; intTypes?: Partial<Record<Target, string>>; note?: string; constants: Constant[] }
+interface Constant { name: string; value: number; int?: boolean; hub?: boolean; required?: boolean; note?: string }
+interface Group { name: string; rust: string; cPrefix?: string; uuidBase?: string; hexWidth?: number; firmwareHeader?: boolean; targets: Target[]; intTypes?: Partial<Record<Target, string>>; note?: string; constants: Constant[] }
 const groups = (JSON.parse(readFileSync(join(ROOT, SOURCE), 'utf8')) as { groups: Group[] }).groups;
 
 const UPPER_SNAKE = /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/;
@@ -47,7 +47,8 @@ function fail(msg: string): never {
 }
 
 /** A numeric literal every target accepts: a whole-number Double keeps its `.0`. */
-function literal(c: Constant): string {
+function literal(c: Constant, g?: Group): string {
+  if (c.int && g?.hexWidth) return `0x${c.value.toString(16).toUpperCase().padStart(g.hexWidth, '0')}`;
   if (c.int) return String(c.value);
   return Number.isInteger(c.value) ? `${c.value}.0` : String(c.value);
 }
@@ -78,34 +79,71 @@ const forTarget = (t: Target) => groups.filter(g => g.targets.includes(t));
 const comment = (text: string | undefined, prefix: string, indent: string, width: number) =>
   text ? wrap(text, width).map(l => `${indent}${prefix} ${l}`).join('\n') + '\n' : '';
 
+/** The 128-bit UUID of a 16-bit id: the base with its second group replaced (4E455550-XXXX-1000-8000-00805F9B34FB). */
+function uuidOf(g: Group, c: Constant): string {
+  const [first, , ...rest] = g.uuidBase!.split('-');
+  return [first, c.value.toString(16).toUpperCase().padStart(4, '0'), ...rest].join('-');
+}
+
+/** A group with a `uuidBase` also gets its UUID strings, in a sibling container (GattIds -> GattUuidStrings). The web strings are
+ *  lower case, as Web Bluetooth requires; the others keep the base's case, which their UUID parsers ignore. */
+function uuidTable(g: Group, target: 'ts' | 'kotlin' | 'swift' | 'csharp'): string {
+  if (!g.uuidBase) return '';
+  const name = g.name.replace(/Ids$/, 'UuidStrings');
+  const slashes = target === 'ts' || target === 'kotlin' ? '//' : '///';
+  const rows = g.constants.map(c => {
+    const uuid = target === 'ts' ? uuidOf(g, c).toLowerCase() : uuidOf(g, c);
+    const indent = target === 'ts' ? '  ' : '    ';
+    const decl = {
+      ts: `${c.name}: "${uuid}",`,
+      kotlin: `const val ${c.name}: String = "${uuid}"`,
+      swift: `static let ${c.name}: String = "${uuid}"`,
+      csharp: `public const string ${c.name} = "${uuid}";`,
+    }[target];
+    return `${comment(c.note, slashes, indent, 100)}${indent}${decl}`;
+  }).join('\n');
+  const intro = `\n${slashes} The 128-bit UUID of each id above: ${g.uuidBase} with its second group replaced.\n`;
+  const open = {
+    ts: `export const ${name} = {`,
+    kotlin: `object ${name} {`,
+    swift: `enum ${name} {`,
+    csharp: `static class ${name}\n{`,
+  }[target];
+  // The characteristics an app must find: one list, built from the names above, for the apps that read it.
+  const required = g.constants.filter(c => c.required).map(c => c.name);
+  const list = { kotlin: `\n    val REQUIRED_IDS: List<String> = listOf(\n${required.map(n => `        ${n},`).join('\n')}\n    )`,
+                 swift: `\n    static let REQUIRED_IDS: [String] = [\n${required.map(n => `        ${n},`).join('\n')}\n    ]` }[target as 'kotlin' | 'swift'] ?? '';
+  return `${intro}${open}\n${rows}${required.length ? list : ''}\n${target === 'ts' ? '} as const;' : '}'}\n`;
+}
+
 function ts(): string {
   const body = forTarget('ts').map(g => {
-    const rows = g.constants.map(c => `${comment(c.note, '//', '  ', 110)}  ${c.name}: ${literal(c)},`).join('\n');
-    return `${comment(g.note, '//', '', 118)}export const ${g.name} = {\n${rows}\n} as const;\n`;
+    const rows = g.constants.map(c => `${comment(c.note, '//', '  ', 110)}  ${c.name}: ${literal(c, g)},`).join('\n');
+    return `${comment(g.note, '//', '', 118)}export const ${g.name} = {\n${rows}\n} as const;\n${uuidTable(g, 'ts')}`;
   }).join('\n');
   return `// ${BANNER}\n\n${body}`;
 }
 
 function kotlin(): string {
   const body = forTarget('kotlin').map(g => {
-    const rows = g.constants.map(c => `${comment(c.note, '//', '    ', 100)}    const val ${c.name}: ${type(g, 'kotlin', c)} = ${literal(c)}`).join('\n');
-    return `${comment(g.note, '//', '', 118)}object ${g.name} {\n${rows}\n}\n`;
+    const rows = g.constants.map(c => `${comment(c.note, '//', '    ', 100)}    const val ${c.name}: ${type(g, 'kotlin', c)} = ${literal(c, g)}`).join('\n');
+    return `${comment(g.note, '//', '', 118)}object ${g.name} {\n${rows}\n}\n${uuidTable(g, 'kotlin')}`;
   }).join('\n');
   return `package life.neurone.core.protocol\n\n// ${BANNER}\n\n${body}`;
 }
 
 function swift(): string {
   const body = forTarget('swift').map(g => {
-    const rows = g.constants.map(c => `${comment(c.note, '///', '    ', 100)}    static let ${c.name}: ${type(g, 'swift', c)} = ${literal(c)}`).join('\n');
-    return `${comment(g.note, '///', '', 118)}enum ${g.name} {\n${rows}\n}\n`;
+    const rows = g.constants.map(c => `${comment(c.note, '///', '    ', 100)}    static let ${c.name}: ${type(g, 'swift', c)} = ${literal(c, g)}`).join('\n');
+    return `${comment(g.note, '///', '', 118)}enum ${g.name} {\n${rows}\n}\n${uuidTable(g, 'swift')}`;
   }).join('\n');
   return `import Foundation\n\n// ${BANNER}\n\n${body}`;
 }
 
 function csharp(): string {
   const body = forTarget('csharp').map(g => {
-    const rows = g.constants.map(c => `${comment(c.note, '///', '    ', 100)}    public const ${type(g, 'csharp', c)} ${c.name} = ${literal(c)};`).join('\n');
-    return `${comment(g.note, '///', '', 118)}static class ${g.name}\n{\n${rows}\n}\n`;
+    const rows = g.constants.map(c => `${comment(c.note, '///', '    ', 100)}    public const ${type(g, 'csharp', c)} ${c.name} = ${literal(c, g)};`).join('\n');
+    return `${comment(g.note, '///', '', 118)}static class ${g.name}\n{\n${rows}\n}\n${uuidTable(g, 'csharp')}`;
   }).join('\n');
   return `// ${BANNER}\n\nnamespace NeurOne.Protocol;\n\n${body}`;
 }
@@ -118,10 +156,21 @@ function cComment(text: string | undefined): string {
 
 /** C has no namespaces, so a macro carries its group's prefix. */
 function c(): string {
-  const body = forTarget('c').map(g =>
+  const body = forTarget('c').filter(g => !g.uuidBase && !g.firmwareHeader).map(g =>
     g.constants.map(k => `${cComment(k.note)}#define ${g.cPrefix ?? ''}${k.name} ${literal(k)}\n`).join('')
   ).join('\n');
   return `/* ${BANNER} */\n#ifndef NEURONE_NPPS_STATUS_H\n#define NEURONE_NPPS_STATUS_H\n\n${body}\n#endif /* NEURONE_NPPS_STATUS_H */\n`;
+}
+
+/** The hub firmware's view of the constants it shares with the apps: GATT ids, the characteristics marked `hub`, and the base UUID in the order the ATT wire uses (least-
+ *  significant byte first), so the firmware writes neither. */
+function cGatt(): string {
+  const g = groups.find(x => x.uuidBase && x.targets.includes('c'))!;
+  const bytes = g.uuidBase!.replace(/-/g, '').match(/../g)!.reverse().map(b => `0x${b}u`);
+  const ids = g.constants.filter(k => k.hub).map(k => `${cComment(k.note)}#define ${g.cPrefix}${k.name} ${literal(k, g)}u\n`).join('');
+  const sizes = forTarget('c').filter(x => x.firmwareHeader).map(x => x.constants.map(k => `${cComment(k.note)}#define ${x.cPrefix}${k.name} ${literal(k, x)}U\n`).join('')).join('');
+  const base = `${cComment(`${g.uuidBase}, least-significant byte first. The id of a characteristic replaces the two bytes at NP_GATT_UUID_ID_OFFSET.`)}#define NP_GATT_UUID_BASE_INIT { ${bytes.join(', ')} }\n#define NP_GATT_UUID_ID_OFFSET 10\n`;
+  return `/* ${BANNER} */\n#ifndef NP_APP_WIRE_CONSTANTS_H\n#define NP_APP_WIRE_CONSTANTS_H\n\n${base}\n${ids}\n${sizes}\n#endif /* NP_APP_WIRE_CONSTANTS_H */\n`;
 }
 
 const OUTPUTS: Array<[string, string]> = [
@@ -130,6 +179,7 @@ const OUTPUTS: Array<[string, string]> = [
   ['app/ios/NeurOne/Protocol/NppsConstants.generated.swift', swift()],
   ['app/windows/NeurOne/Protocol/NppsConstants.generated.cs', csharp()],
   ['common/npps-ffi/include/neurone_npps_status.h', c()],
+  ['firmware/hub_control/include/np_app_wire_constants.h', cGatt()],
 ];
 
 if (process.argv.includes('--check')) {

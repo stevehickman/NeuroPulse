@@ -73,7 +73,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
                        "connectionState must become .scanning on poweredOn")
         XCTAssertEqual(mock.scanCallCount, 1,
                        "scanForPeripherals must be called exactly once")
-        XCTAssertEqual(mock.lastScannedServiceUUIDs, [NPUUID.service],
+        XCTAssertEqual(mock.lastScannedServiceUUIDs, [CBUUID(string: GattUuidStrings.SERVICE_ID)],
                        "Scan must be filtered to the NeurOne service UUID")
     }
 
@@ -155,7 +155,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
         XCTAssertFalse(manager.allCharacteristicsResolved,
                        "allCharacteristicsResolved must start false")
 
-        manager.applyCharacteristicAssignment(discovered: Set(NPUUID.all))
+        manager.applyCharacteristicAssignment(discovered: Set(GattUuidStrings.REQUIRED_IDS.map(CBUUID.init(string:))))
 
         XCTAssertTrue(manager.allCharacteristicsResolved,
                       "allCharacteristicsResolved must be true after all characteristics are discovered")
@@ -166,8 +166,8 @@ final class NeurOneGATTManagerTests: XCTestCase {
         let manager = NeurOneGATTManager(mockCentral: mock)
 
         // Drop one required characteristic.
-        var partial = Set(NPUUID.all)
-        partial.remove(NPUUID.sessionStop)
+        var partial = Set(GattUuidStrings.REQUIRED_IDS.map(CBUUID.init(string:)))
+        partial.remove(CBUUID(string: GattUuidStrings.SESSION_STOP_ID))
         manager.applyCharacteristicAssignment(discovered: partial)
 
         XCTAssertFalse(manager.allCharacteristicsResolved,
@@ -179,7 +179,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
         mock.state = .poweredOn
         let manager = NeurOneGATTManager(mockCentral: mock)
         manager.applyStateUpdate(state: .poweredOn)
-        manager.applyCharacteristicAssignment(discovered: Set(NPUUID.all))
+        manager.applyCharacteristicAssignment(discovered: Set(GattUuidStrings.REQUIRED_IDS.map(CBUUID.init(string:))))
         XCTAssertTrue(manager.allCharacteristicsResolved)
 
         manager.applyDisconnection()
@@ -277,14 +277,14 @@ final class NeurOneGATTManagerTests: XCTestCase {
 
     // MARK: ISC-20 — SESSION_STATUS in discovery set (read-on-reconnect path)
 
-    /// SESSION_STATUS must be included in NPUUID.all so the GATT manager discovers it
+    /// SESSION_STATUS must be included in GattUuidStrings.REQUIRED_IDS so the GATT manager discovers it
     /// and can call readValue(for:) to restore in-flight session state on reconnect.
     /// The actual readValue call on CBPeripheral is verified by code review (requires
     /// real hardware for full integration confirmation).
     func testSessionStatusUUIDInExpectedDiscoverySet() {
         XCTAssertTrue(
-            NPUUID.all.contains(NPUUID.sessionStatus),
-            "SESSION_STATUS must be in NPUUID.all so it is discovered and read on reconnect"
+            GattUuidStrings.REQUIRED_IDS.map(CBUUID.init(string:)).contains(CBUUID(string: GattUuidStrings.SESSION_STATUS_ID)),
+            "SESSION_STATUS must be in GattUuidStrings.REQUIRED_IDS.map(CBUUID.init(string:)) so it is discovered and read on reconnect"
         )
     }
 
@@ -294,7 +294,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
         let mock = MockBLECentral()
         let manager = NeurOneGATTManager(mockCentral: mock)
 
-        manager.applyCharacteristicAssignment(discovered: Set(NPUUID.all))
+        manager.applyCharacteristicAssignment(discovered: Set(GattUuidStrings.REQUIRED_IDS.map(CBUUID.init(string:))))
 
         XCTAssertTrue(manager.allCharacteristicsResolved,
                       "Full characteristic discovery (including SESSION_STATUS) must set allCharacteristicsResolved")
@@ -596,7 +596,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
 
     /// Optional characteristic: its absence must never block allCharacteristicsResolved.
     func testCervicalPadStatusIsNotRequired() {
-        XCTAssertFalse(NPUUID.all.contains(NPUUID.cvnsPadStatus))
+        XCTAssertFalse(GattUuidStrings.REQUIRED_IDS.map(CBUUID.init(string:)).contains(CBUUID(string: GattUuidStrings.CVNS_PAD_STATUS_ID)))
     }
 
 
@@ -674,9 +674,9 @@ final class NeurOneGATTManagerTests: XCTestCase {
     }
 
     func testFaultCharacteristicsAreNotRequired() {
-        XCTAssertFalse(NPUUID.all.contains(NPUUID.cvnsFaultStatus))
-        XCTAssertFalse(NPUUID.all.contains(NPUUID.cvnsReenableConfirm))
-        XCTAssertFalse(NPUUID.all.contains(NPUUID.activeUser))
+        XCTAssertFalse(GattUuidStrings.REQUIRED_IDS.map(CBUUID.init(string:)).contains(CBUUID(string: GattUuidStrings.CVNS_FAULT_STATUS_ID)))
+        XCTAssertFalse(GattUuidStrings.REQUIRED_IDS.map(CBUUID.init(string:)).contains(CBUUID(string: GattUuidStrings.CVNS_REENABLE_CONFIRM_ID)))
+        XCTAssertFalse(GattUuidStrings.REQUIRED_IDS.map(CBUUID.init(string:)).contains(CBUUID(string: GattUuidStrings.ACTIVE_USER_ID)))
     }
 
 }

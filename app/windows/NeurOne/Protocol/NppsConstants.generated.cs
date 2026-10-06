@@ -118,3 +118,119 @@ static class NppsStatus
     /// A null pointer or non-UTF-8 input; no buffer.
     public const int BAD_ARGUMENT = 3;
 }
+
+/// The 16-bit id of each characteristic (every name ends in _ID, so SESSION_STATE_ID is never mistaken for the session
+/// state itself) of the NeurOne BLE service. The 128-bit UUID is the base with its second group replaced by the id
+/// (4E455550-XXXX-1000-8000-00805F9B34FB), so the base is written once, here, and every runtime builds its UUIDs from it.
+/// `hub: true` marks a characteristic the hub firmware publishes; only those reach the firmware header, because a
+/// firmware reference is what the consumable-trigger gate reads as 'the hub produces it'. `required: true` marks the
+/// characteristics an app must find before it treats a hub as fully resolved; the others are optional, or T2 only, or not
+/// yet published (OI-WA-03).
+static class GattIds
+{
+    /// The NeurOne custom service.
+    public const int SERVICE_ID = 0x0001;
+    /// NOTIFY 4 B.
+    public const int SESSION_STATE_ID = 0x0002;
+    /// NOTIFY 4 B.
+    public const int SESSION_STATUS_ID = 0x0003;
+    /// NOTIFY 4 B.
+    public const int HRV_COHERENCE_ID = 0x0004;
+    /// NOTIFY 4 B.
+    public const int PACER_PHASE_ID = 0x0005;
+    /// NOTIFY 4 B.
+    public const int IMPEDANCE_RESULT_ID = 0x0006;
+    /// READ/NOTIFY 8 B, WRITE 1 B (OI-ACC-08).
+    public const int CONSUMABLE_STATUS_ID = 0x0007;
+    /// WRITE, signed protocol blob.
+    public const int PROTOCOL_UPLOAD_ID = 0x0008;
+    /// WRITE, triggers an EDF+ download.
+    public const int EDF_REQUEST_ID = 0x0009;
+    /// WRITE/NOTIFY.
+    public const int OTA_COMMAND_ID = 0x000A;
+    /// NOTIFY.
+    public const int OTA_STATUS_ID = 0x000B;
+    /// WRITE.
+    public const int CALIBRATION_CMD_ID = 0x000C;
+    /// READ/NOTIFY, variable length socket-keyed module-status frames.
+    public const int ZONE_MODULE_STATUS_ID = 0x000D;
+    /// NOTIFY.
+    public const int SHDR_UPLOAD_STATUS_ID = 0x000E;
+    /// WRITE 1 B (0x01 = stop). Placeholder pending hub BLE firmware (OI-WA-03).
+    public const int SESSION_STOP_ID = 0x000F;
+    /// READ 32 B, hub-provisioned TRNG warranty token (OI-WA-03).
+    public const int WARRANTY_TOKEN_ID = 0x0010;
+    /// READ/NOTIFY 4 B little-endian uint32: bits 23:16 major, 15:8 minor, 7:0 patch.
+    public const int FIRMWARE_VERSION_ID = 0x0011;
+    /// READ/NOTIFY, variable length, read once at link.
+    public const int SOCKET_MAP_ID = 0x0012;
+    /// NOTIFY 4 B, cervical VNS gel pad contact result, T2 only (OI-ACC-07). Not published by the hub yet.
+    public const int CVNS_PAD_STATUS_ID = 0x0013;
+    /// READ/NOTIFY 4+8n B, cervical VNS offline-fault summary and re-enable state (NP-SW-FAULTMSG-001).
+    public const int CVNS_FAULT_STATUS_ID = 0x0014;
+    /// WRITE 1 B 0x01, the wearer's re-enable confirmation after a cardiac cutoff.
+    public const int CVNS_REENABLE_CONFIRM_ID = 0x0015;
+    /// WRITE 4 B, little-endian opaque tag of the person using the device.
+    public const int ACTIVE_USER_ID = 0x0016;
+    /// READ 32 B, encrypted link only (NP-FW-HUB-001 §4.2, OI-AND-WIRE-02).
+    public const int DEVICE_SERIAL_ID = 0x0017;
+}
+
+/// The 128-bit UUID of each id above: 4E455550-0000-1000-8000-00805F9B34FB with its second group replaced.
+static class GattUuidStrings
+{
+    /// The NeurOne custom service.
+    public const string SERVICE_ID = "4E455550-0001-1000-8000-00805F9B34FB";
+    /// NOTIFY 4 B.
+    public const string SESSION_STATE_ID = "4E455550-0002-1000-8000-00805F9B34FB";
+    /// NOTIFY 4 B.
+    public const string SESSION_STATUS_ID = "4E455550-0003-1000-8000-00805F9B34FB";
+    /// NOTIFY 4 B.
+    public const string HRV_COHERENCE_ID = "4E455550-0004-1000-8000-00805F9B34FB";
+    /// NOTIFY 4 B.
+    public const string PACER_PHASE_ID = "4E455550-0005-1000-8000-00805F9B34FB";
+    /// NOTIFY 4 B.
+    public const string IMPEDANCE_RESULT_ID = "4E455550-0006-1000-8000-00805F9B34FB";
+    /// READ/NOTIFY 8 B, WRITE 1 B (OI-ACC-08).
+    public const string CONSUMABLE_STATUS_ID = "4E455550-0007-1000-8000-00805F9B34FB";
+    /// WRITE, signed protocol blob.
+    public const string PROTOCOL_UPLOAD_ID = "4E455550-0008-1000-8000-00805F9B34FB";
+    /// WRITE, triggers an EDF+ download.
+    public const string EDF_REQUEST_ID = "4E455550-0009-1000-8000-00805F9B34FB";
+    /// WRITE/NOTIFY.
+    public const string OTA_COMMAND_ID = "4E455550-000A-1000-8000-00805F9B34FB";
+    /// NOTIFY.
+    public const string OTA_STATUS_ID = "4E455550-000B-1000-8000-00805F9B34FB";
+    /// WRITE.
+    public const string CALIBRATION_CMD_ID = "4E455550-000C-1000-8000-00805F9B34FB";
+    /// READ/NOTIFY, variable length socket-keyed module-status frames.
+    public const string ZONE_MODULE_STATUS_ID = "4E455550-000D-1000-8000-00805F9B34FB";
+    /// NOTIFY.
+    public const string SHDR_UPLOAD_STATUS_ID = "4E455550-000E-1000-8000-00805F9B34FB";
+    /// WRITE 1 B (0x01 = stop). Placeholder pending hub BLE firmware (OI-WA-03).
+    public const string SESSION_STOP_ID = "4E455550-000F-1000-8000-00805F9B34FB";
+    /// READ 32 B, hub-provisioned TRNG warranty token (OI-WA-03).
+    public const string WARRANTY_TOKEN_ID = "4E455550-0010-1000-8000-00805F9B34FB";
+    /// READ/NOTIFY 4 B little-endian uint32: bits 23:16 major, 15:8 minor, 7:0 patch.
+    public const string FIRMWARE_VERSION_ID = "4E455550-0011-1000-8000-00805F9B34FB";
+    /// READ/NOTIFY, variable length, read once at link.
+    public const string SOCKET_MAP_ID = "4E455550-0012-1000-8000-00805F9B34FB";
+    /// NOTIFY 4 B, cervical VNS gel pad contact result, T2 only (OI-ACC-07). Not published by the hub yet.
+    public const string CVNS_PAD_STATUS_ID = "4E455550-0013-1000-8000-00805F9B34FB";
+    /// READ/NOTIFY 4+8n B, cervical VNS offline-fault summary and re-enable state (NP-SW-FAULTMSG-001).
+    public const string CVNS_FAULT_STATUS_ID = "4E455550-0014-1000-8000-00805F9B34FB";
+    /// WRITE 1 B 0x01, the wearer's re-enable confirmation after a cardiac cutoff.
+    public const string CVNS_REENABLE_CONFIRM_ID = "4E455550-0015-1000-8000-00805F9B34FB";
+    /// WRITE 4 B, little-endian opaque tag of the person using the device.
+    public const string ACTIVE_USER_ID = "4E455550-0016-1000-8000-00805F9B34FB";
+    /// READ 32 B, encrypted link only (NP-FW-HUB-001 §4.2, OI-AND-WIRE-02).
+    public const string DEVICE_SERIAL_ID = "4E455550-0017-1000-8000-00805F9B34FB";
+}
+
+/// Fixed value lengths of the NeurOne BLE service, in bytes.
+static class GattSizes
+{
+    /// The hub's replay-guard serial (DEVICE_SERIAL characteristic, NP-FW-HUB-001 §4.2): exactly this many
+    /// bytes, never padded or truncated.
+    public const int DEVICE_SERIAL_LEN = 32;
+}

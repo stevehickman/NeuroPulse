@@ -1,6 +1,7 @@
 package life.neurone.core.models
 
 import java.util.UUID
+import life.neurone.core.protocol.CvfsWire
 
 // Port of iOS CervicalFaultStatus (app/ios/NeurOne/Models/CervicalFaultStatus.swift).
 //
@@ -93,23 +94,18 @@ data class CervicalFaultStatus(
     val outstandingForAnotherUser: Boolean get() = outstanding && !userBlocked
 
     companion object {
-        const val VERSION = 0x01
-        const val MAX_RECORDS = 4
-        const val HEADER_LENGTH = 4
-        const val RECORD_LENGTH = 8
-
         fun fromWire(data: ByteArray): CervicalFaultStatus? {
-            if (data.size < HEADER_LENGTH) return null
+            if (data.size < CvfsWire.HEADER_LEN) return null
             fun u8(i: Int) = data[i].toInt() and 0xFF
-            if (u8(0) != VERSION) return null
+            if (u8(0) != CvfsWire.WIRE_VERSION) return null
             val state = ReenableState.from(u8(1)) ?: return null
             val n = u8(2)
-            if (n > MAX_RECORDS) return null
+            if (n > CvfsWire.MAX_WIRE_RECORDS) return null
             if (u8(3) and 0x03.inv() and 0xFF != 0) return null
-            if (data.size != HEADER_LENGTH + n * RECORD_LENGTH) return null
+            if (data.size != CvfsWire.HEADER_LEN + n * CvfsWire.RECORD_LEN) return null
 
             val records = (0 until n).map { i ->
-                val o = HEADER_LENGTH + i * RECORD_LENGTH
+                val o = CvfsWire.HEADER_LEN + i * CvfsWire.RECORD_LEN
                 val counter = u8(o).toLong() or (u8(o + 1).toLong() shl 8) or
                     (u8(o + 2).toLong() shl 16) or (u8(o + 3).toLong() shl 24)
                 val kind = CervicalFaultRecord.Kind.from(u8(o + 4)) ?: return null

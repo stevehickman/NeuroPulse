@@ -89,21 +89,15 @@ const KIND_FILE: Record<Platform, string> = {
 
 /** Where the characteristic feeding every ConsumableKind is declared. */
 const CONSUMABLE_STATUS: Record<Platform, { file: string; re: RegExp }> = {
-  ios: { file: "app/ios/NeurOne/BLE/GATTCharacteristics.swift", re: /static\s+let\s+consumableStatus\b/ },
-  android: {
-    file: "app/android/core/src/main/kotlin/life/neurone/core/ble/GattUuids.kt",
-    re: /val\s+consumableStatus\b/,
-  },
+  ios: { file: "app/ios/NeurOne/Protocol/NppsConstants.generated.swift", re: /static\s+let\s+CONSUMABLE_STATUS_ID\b/ },
+  android: { file: "app/android/core/src/main/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt", re: /const\s+val\s+CONSUMABLE_STATUS_ID\b/ },
 };
 
 /** Producers that are not a ConsumableKind: where each lives on each platform. */
 const PRODUCERS: Record<string, Record<Platform, { file: string; re: RegExp }>> = {
   CVNS_PAD_STATUS: {
-    ios: { file: "app/ios/NeurOne/BLE/GATTCharacteristics.swift", re: /static\s+let\s+cvnsPadStatus\b/ },
-    android: {
-      file: "app/android/core/src/main/kotlin/life/neurone/core/ble/GattUuids.kt",
-      re: /val\s+cvnsPadStatus\b/,
-    },
+    ios: { file: "app/ios/NeurOne/Protocol/NppsConstants.generated.swift", re: /static\s+let\s+CVNS_PAD_STATUS_ID\b/ },
+    android: { file: "app/android/core/src/main/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt", re: /const\s+val\s+CVNS_PAD_STATUS_ID\b/ },
   },
 };
 
@@ -549,12 +543,12 @@ if (process.argv.includes("--self-test")) {
     [DOC]: table([HYDRO, row.pads, row.cervical, row.covers]),
     [KIND_FILE.ios]: IOS_KINDS(GOOD_CASES),
     [KIND_FILE.android]: AND_KINDS(GOOD_CASES.map(([c, n]) => [camelToUpperSnake(c), n])),
-    [CONSUMABLE_STATUS.ios.file]: "enum NPUUID {\n    static let consumableStatus = X\n    static let cvnsPadStatus = Y\n}\n",
-    [CONSUMABLE_STATUS.android.file]: "object U {\n    val consumableStatus: UUID = X\n    val cvnsPadStatus: UUID = Y\n}\n",
+    [CONSUMABLE_STATUS.ios.file]: "enum GattUuidStrings {\n    static let CONSUMABLE_STATUS_ID: String = X\n    static let CVNS_PAD_STATUS_ID: String = Y\n}\n",
+    [CONSUMABLE_STATUS.android.file]: "object GattUuidStrings {\n    const val CONSUMABLE_STATUS_ID: String = X\n    const val CVNS_PAD_STATUS_ID: String = Y\n}\n",
     [ENGINE_FILES.ios[0]!]: "let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)\n",
     [ENGINE_FILES.android[0]!]: "class ConsumableTracker {}\n",
     "firmware/hub/np_x.c": "/* CVNS_PAD_STATUS in a comment must not count */\nvoid f(void) {}\n",
-    "firmware/hub/np_cons.c": "#define NP_GATT_ID_CONSUMABLE_STATUS 0x0007u\n",
+    "firmware/hub/np_cons.c": "#define NP_GATT_CONSUMABLE_STATUS_ID 0x0007u\n",
     ...over,
   });
   const expect = (label: string, root: string, needle: string | null) => {
@@ -582,7 +576,7 @@ if (process.argv.includes("--self-test")) {
   expect("T1: a table without a Trigger column is caught", build(base({ [DOC]: table([HYDRO], "| Item | Price | Interval | GM% | Kind | Notes |") })), "no \"trigger\" column");
   expect("T2: a producer that does not exist is caught", build(base({ [DOC]: table([HYDRO, row.pads.replace("vnsPads", "vnsClips"), row.cervical, row.covers]) })), "not a case of the iOS enum");
   expect("T2: an unregistered producer is caught", build(base({ [DOC]: table([HYDRO, row.pads, row.cervical.replace("CVNS_PAD_STATUS", "MESH_IMPEDANCE"), row.covers]) })), "neither a ConsumableKind nor registered");
-  expect("T2: a registered producer missing on one platform is caught", build(base({ [CONSUMABLE_STATUS.android.file]: "val consumableStatus: UUID = X\n" })), "not found on android");
+  expect("T2: a registered producer missing on one platform is caught", build(base({ [CONSUMABLE_STATUS.android.file]: "const val SESSION_STATE_ID: String = X\n" })), "not found on android");
   expect("T2: a prompting row with no producer is caught", build(base({ [DOC]: table([HYDRO, row.pads, row.cervical.replace(" · producer: `CVNS_PAD_STATUS`", ""), row.covers]) })), "must name its producer");
   expect("T3: a calendar interval on a prompting row is caught (the OI-ACC-02 shape)", build(base({ [DOC]: table([HYDRO, row.pads.replace("20–40 sessions", "6–12 months"), row.cervical, row.covers]) })), "calendar-denominated");
   expect("T4: an exposure count with no mechanism is caught", build(base({ [DOC]: table([HYDRO, row.pads.replace("mechanism: electrochemical degradation from VNS current · ", ""), row.cervical, row.covers]) })), "name the mechanism");
@@ -602,7 +596,7 @@ if (process.argv.includes("--self-test")) {
   expect("an exemption the row no longer needs is caught", build(base({ [DOC]: table([HYDRO.replace("mechanism: not named", "mechanism: dehydration of the gel under wear"), row.pads, row.cervical, row.covers]) })), "now passes it");
   expect("an exemption naming no row is caught", build(base({ [DOC]: table([row.pads, row.cervical, row.covers]), [KIND_FILE.ios]: IOS_KINDS([["vnsPads", 30]]), [KIND_FILE.android]: AND_KINDS([["VNS_PADS", 30]]) })), "names no §2.3 row");
   expect("a hub producer appearing flips its pending declaration", build(base({ "firmware/hub/np_gatt.c": "#define NP_GATT_CVNS_PAD_STATUS_UUID 0x13\n" })), "now references it");
-  expect("a published hub producer disappearing is caught", build(base({ "firmware/hub/np_cons.c": "/* NP_GATT_ID_CONSUMABLE_STATUS */\nvoid g(void) {}\n" })), "no firmware code references it");
+  expect("a published hub producer disappearing is caught", build(base({ "firmware/hub/np_cons.c": "/* NP_GATT_CONSUMABLE_STATUS_ID */\nvoid g(void) {}\n" })), "no firmware code references it");
   expect("a hub producer appearing by UUID flips its pending declaration", build(base({ "firmware/hub/np_gatt.c": "static const char *u = \"4E455550-0013-1000\";\n" })), "CVNS_PAD_STATUS is declared unpublished");
 
   rmSync(box, { recursive: true, force: true });

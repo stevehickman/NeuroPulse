@@ -1,5 +1,5 @@
 {
-  "$comment": "Every constant that more than one runtime needs, once (OI-NPPS-CORE-01). `bun scripts/sync-constants.ts` writes them into common/lib/constants.generated.ts, NppsConstants.generated.kt (Android), NppsConstants.generated.swift (iOS), NppsConstants.generated.cs (Windows) and common/npps-ffi/include/neurone_npps_status.h, and --check fails if one is stale; the Rust core takes them at build time (common/npps-core/build.rs), so it has no copy to go stale. A constant is UPPER_SNAKE_CASE and has the SAME spelling in every language: that is the name, not a per-language rendering of it. The group (`name`) is the container where a language has one (`NPHardwareLimits.PBM_DEEP_MAX_MW_CM2`); `rust` is its module and `cPrefix` the prefix C needs because it has no namespaces. `targets` says which languages get a group, and `intTypes` overrides the type a language gives its whole numbers (the validator compares in f64, as JavaScript does, and the C ABI's codes are Rust i32 and Swift Int32, because that is what the calls return). `int` marks a whole-number figure. Provenance is in each note.",
+  "$comment": "Every constant that more than one runtime needs, once (OI-NPPS-CORE-01). `bun scripts/sync-constants.ts` writes them into common/lib/constants.generated.ts, NppsConstants.generated.kt (Android), NppsConstants.generated.swift (iOS), NppsConstants.generated.cs (Windows) and common/npps-ffi/include/neurone_npps_status.h and firmware/hub_control/include/np_app_wire_constants.h (the hub's side of the BLE contract), and --check fails if one is stale; the Rust core takes them at build time (common/npps-core/build.rs), so it has no copy to go stale. A constant is UPPER_SNAKE_CASE and has the SAME spelling in every language: that is the name, not a per-language rendering of it. The group (`name`) is the container where a language has one (`NPHardwareLimits.PBM_DEEP_MAX_MW_CM2`); `rust` is its module and `cPrefix` the prefix C needs because it has no namespaces. `targets` says which languages get a group, and `intTypes` overrides the type a language gives its whole numbers (the validator compares in f64, as JavaScript does, and the C ABI's codes are Rust i32 and Swift Int32, because that is what the calls return). `int` marks a whole-number figure. A group with a `uuidBase` is a table of 16-bit BLE ids: it also generates the 128-bit UUID strings (GattIds -> GattUuidStrings), and its constants marked `hub` are the ones the hub firmware publishes. `firmwareHeader` puts a C group into np_app_wire_constants.h; `hexWidth` writes a group's ids in hex. Provenance is in each note.",
   "groups": [
     {
       "name": "NPHardwareLimits",
@@ -239,6 +239,204 @@
       }
     },
     {
+      "name": "GattIds",
+      "rust": "gatt",
+      "cPrefix": "NP_GATT_",
+      "uuidBase": "4E455550-0000-1000-8000-00805F9B34FB",
+      "hexWidth": 4,
+      "targets": [
+        "ts",
+        "kotlin",
+        "swift",
+        "csharp",
+        "c"
+      ],
+      "note": "The 16-bit id of each characteristic (every name ends in _ID, so SESSION_STATE_ID is never mistaken for the session state itself) of the NeurOne BLE service. The 128-bit UUID is the base with its second group replaced by the id (4E455550-XXXX-1000-8000-00805F9B34FB), so the base is written once, here, and every runtime builds its UUIDs from it. `hub: true` marks a characteristic the hub firmware publishes; only those reach the firmware header, because a firmware reference is what the consumable-trigger gate reads as 'the hub produces it'. `required: true` marks the characteristics an app must find before it treats a hub as fully resolved; the others are optional, or T2 only, or not yet published (OI-WA-03).",
+      "constants": [
+        {
+          "name": "SERVICE_ID",
+          "value": 1,
+          "int": true,
+          "note": "The NeurOne custom service.",
+          "hub": true
+        },
+        {
+          "name": "SESSION_STATE_ID",
+          "value": 2,
+          "int": true,
+          "note": "NOTIFY 4 B.",
+          "required": true
+        },
+        {
+          "name": "SESSION_STATUS_ID",
+          "value": 3,
+          "int": true,
+          "note": "NOTIFY 4 B.",
+          "required": true
+        },
+        {
+          "name": "HRV_COHERENCE_ID",
+          "value": 4,
+          "int": true,
+          "note": "NOTIFY 4 B.",
+          "required": true
+        },
+        {
+          "name": "PACER_PHASE_ID",
+          "value": 5,
+          "int": true,
+          "note": "NOTIFY 4 B.",
+          "required": true
+        },
+        {
+          "name": "IMPEDANCE_RESULT_ID",
+          "value": 6,
+          "int": true,
+          "note": "NOTIFY 4 B.",
+          "required": true
+        },
+        {
+          "name": "CONSUMABLE_STATUS_ID",
+          "value": 7,
+          "int": true,
+          "note": "READ/NOTIFY 8 B, WRITE 1 B (OI-ACC-08).",
+          "hub": true,
+          "required": true
+        },
+        {
+          "name": "PROTOCOL_UPLOAD_ID",
+          "value": 8,
+          "int": true,
+          "note": "WRITE, signed protocol blob.",
+          "required": true
+        },
+        {
+          "name": "EDF_REQUEST_ID",
+          "value": 9,
+          "int": true,
+          "note": "WRITE, triggers an EDF+ download.",
+          "required": true
+        },
+        {
+          "name": "OTA_COMMAND_ID",
+          "value": 10,
+          "int": true,
+          "note": "WRITE/NOTIFY.",
+          "required": true
+        },
+        {
+          "name": "OTA_STATUS_ID",
+          "value": 11,
+          "int": true,
+          "note": "NOTIFY.",
+          "required": true
+        },
+        {
+          "name": "CALIBRATION_CMD_ID",
+          "value": 12,
+          "int": true,
+          "note": "WRITE.",
+          "required": true
+        },
+        {
+          "name": "ZONE_MODULE_STATUS_ID",
+          "value": 13,
+          "int": true,
+          "note": "READ/NOTIFY, variable length socket-keyed module-status frames.",
+          "required": true
+        },
+        {
+          "name": "SHDR_UPLOAD_STATUS_ID",
+          "value": 14,
+          "int": true,
+          "note": "NOTIFY.",
+          "required": true
+        },
+        {
+          "name": "SESSION_STOP_ID",
+          "value": 15,
+          "int": true,
+          "note": "WRITE 1 B (0x01 = stop). Placeholder pending hub BLE firmware (OI-WA-03).",
+          "required": true
+        },
+        {
+          "name": "WARRANTY_TOKEN_ID",
+          "value": 16,
+          "int": true,
+          "note": "READ 32 B, hub-provisioned TRNG warranty token (OI-WA-03).",
+          "hub": true
+        },
+        {
+          "name": "FIRMWARE_VERSION_ID",
+          "value": 17,
+          "int": true,
+          "note": "READ/NOTIFY 4 B little-endian uint32: bits 23:16 major, 15:8 minor, 7:0 patch."
+        },
+        {
+          "name": "SOCKET_MAP_ID",
+          "value": 18,
+          "int": true,
+          "note": "READ/NOTIFY, variable length, read once at link."
+        },
+        {
+          "name": "CVNS_PAD_STATUS_ID",
+          "value": 19,
+          "int": true,
+          "note": "NOTIFY 4 B, cervical VNS gel pad contact result, T2 only (OI-ACC-07). Not published by the hub yet."
+        },
+        {
+          "name": "CVNS_FAULT_STATUS_ID",
+          "value": 20,
+          "int": true,
+          "note": "READ/NOTIFY 4+8n B, cervical VNS offline-fault summary and re-enable state (NP-SW-FAULTMSG-001).",
+          "hub": true
+        },
+        {
+          "name": "CVNS_REENABLE_CONFIRM_ID",
+          "value": 21,
+          "int": true,
+          "note": "WRITE 1 B 0x01, the wearer's re-enable confirmation after a cardiac cutoff.",
+          "hub": true
+        },
+        {
+          "name": "ACTIVE_USER_ID",
+          "value": 22,
+          "int": true,
+          "note": "WRITE 4 B, little-endian opaque tag of the person using the device.",
+          "hub": true
+        },
+        {
+          "name": "DEVICE_SERIAL_ID",
+          "value": 23,
+          "int": true,
+          "note": "READ 32 B, encrypted link only (NP-FW-HUB-001 §4.2, OI-AND-WIRE-02).",
+          "hub": true
+        }
+      ]
+    },
+    {
+      "name": "GattSizes",
+      "rust": "gatt_sizes",
+      "cPrefix": "NP_GATT_",
+      "firmwareHeader": true,
+      "targets": [
+        "ts",
+        "kotlin",
+        "swift",
+        "csharp",
+        "c"
+      ],
+      "note": "Fixed value lengths of the NeurOne BLE service, in bytes.",
+      "constants": [
+        {
+          "name": "DEVICE_SERIAL_LEN",
+          "value": 32,
+          "int": true,
+          "note": "The hub's replay-guard serial (DEVICE_SERIAL characteristic, NP-FW-HUB-001 §4.2): exactly this many bytes, never padded or truncated."
+        }
+      ]
+    },
+    {
       "name": "NppsValidation",
       "rust": "validation",
       "targets": [
@@ -269,6 +467,67 @@
           "value": 100,
           "int": true,
           "note": "Continuous wave (frequency 0) has no duty cycle, so its duty is 100 (OI-SESPWR-03)."
+        }
+      ]
+    },
+    {
+      "name": "ConsentLimits",
+      "rust": "consent_limits",
+      "targets": [
+        "kotlin",
+        "swift"
+      ],
+      "note": "The anonymisation floors a study descriptor must meet before a user may be asked to consent to it (CLAUDE.md §5.3, §6.3). Locked; the device is the only place they can be enforced, because the anonymisation happens on the device.",
+      "constants": [
+        {
+          "name": "MINIMUM_K_ANONYMITY",
+          "value": 10,
+          "int": true,
+          "note": "A descriptor's k must be at least this."
+        },
+        {
+          "name": "MINIMUM_DATE_ROUNDING_DAYS",
+          "value": 7,
+          "int": true,
+          "note": "A descriptor's date rounding must be at least this many days (one week)."
+        }
+      ]
+    },
+    {
+      "name": "CvfsWire",
+      "rust": "cvfs_wire",
+      "cPrefix": "NP_CVFS_",
+      "firmwareHeader": true,
+      "targets": [
+        "kotlin",
+        "swift",
+        "c"
+      ],
+      "note": "The CVNS_FAULT_STATUS frame (NP-SW-FAULTMSG-001): a 4-byte header then up to MAX_WIRE_RECORDS records of RECORD_LEN bytes. The hub writes it and the apps parse it.",
+      "constants": [
+        {
+          "name": "WIRE_VERSION",
+          "value": 1,
+          "int": true,
+          "note": "Byte 0 of the frame."
+        },
+        {
+          "name": "HEADER_LEN",
+          "value": 4,
+          "int": true,
+          "note": "Header bytes before the first record."
+        },
+        {
+          "name": "RECORD_LEN",
+          "value": 8,
+          "int": true,
+          "note": "Bytes in one fault record."
+        },
+        {
+          "name": "MAX_WIRE_RECORDS",
+          "value": 4,
+          "int": true,
+          "note": "Most records one frame carries."
         }
       ]
     }

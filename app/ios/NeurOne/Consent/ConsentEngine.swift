@@ -194,11 +194,7 @@ enum ConsentEngine {
 
     // MARK: - Study descriptor ingestion (§6.3 per-project workflow)
 
-    /// §5.3's anonymisation floors. They are locked, and the device is the only place they can
-    /// be enforced, because §5.3 puts the anonymisation on the device: a descriptor that asks
-    /// for weaker anonymisation than this is not one a user may be asked to consent to.
-    static let minimumKAnonymity = 10
-    static let minimumDateRoundingDays = 7
+    // §5.3's anonymisation floors are `ConsentLimits` (common/npps/constants.json), generated for every runtime.
 
     /// The **ingestion gate**: whether a signed study descriptor may become something the user
     /// sees, and if so which of §6.2's two postures it arrives in.
@@ -229,8 +225,8 @@ enum ConsentEngine {
         case let .verified(hash): descriptorHash = hash
         }
 
-        guard descriptor.kAnonymity >= minimumKAnonymity,
-              descriptor.dateRoundingDays >= minimumDateRoundingDays
+        guard descriptor.kAnonymity >= ConsentLimits.MINIMUM_K_ANONYMITY,
+              descriptor.dateRoundingDays >= ConsentLimits.MINIMUM_DATE_ROUNDING_DAYS
         else { return .refused(.anonymisationBelowFloor) }
 
         // §6.0: withdrawing blanket consent "stops ALL research data flows" — all of them, not

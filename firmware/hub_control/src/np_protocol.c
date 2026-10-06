@@ -6,7 +6,7 @@
  * firmware/bootloader/src/np_signature.c (same key derivation; different
  * public key stored in Config partition as NP_CFG_PROTO_PUB_KEY).
  *
- * HAL stub OI-PROTO-01: np_proto_hal_get_device_serial(buf, NP_HUB_PROTO_SERIAL_LEN)
+ * HAL stub OI-PROTO-01: np_proto_hal_get_device_serial(buf, NP_GATT_DEVICE_SERIAL_LEN)
  *   Reads the device serial from Config partition.
  * HAL stub OI-PROTO-02: np_proto_hal_get_proto_pubkey(buf, 32)
  *   Reads the 32-byte Ed25519 public key used to verify session protocols.
@@ -163,10 +163,10 @@ np_hub_status_t np_protocol_verify_and_parse(const uint8_t    *buf,
     }
 
     /* Device serial replay guard */
-    uint8_t stored_serial[NP_HUB_PROTO_SERIAL_LEN];
+    uint8_t stored_serial[NP_GATT_DEVICE_SERIAL_LEN];
     if (np_proto_hal_get_device_serial(stored_serial,
-                                        NP_HUB_PROTO_SERIAL_LEN) == NP_HUB_OK) {
-        if (memcmp(hdr->device_serial, stored_serial, NP_HUB_PROTO_SERIAL_LEN) != 0) {
+                                        NP_GATT_DEVICE_SERIAL_LEN) == NP_HUB_OK) {
+        if (memcmp(hdr->device_serial, stored_serial, NP_GATT_DEVICE_SERIAL_LEN) != 0) {
             return NP_HUB_ERR_WRONG_DEVICE;
         }
     }

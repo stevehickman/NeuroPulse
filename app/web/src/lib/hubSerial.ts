@@ -9,10 +9,11 @@
  * Memory only: never persist, upload or display it.
  */
 
-/** 4E455550-0017-1000-8000-00805F9B34FB — byte-identical to the apps and the hub. */
-export const DEVICE_SERIAL_UUID = '4e455550-0017-1000-8000-00805f9b34fb';
+import { GattSizes, GattUuidStrings } from '../../../../common/lib/constants.generated';
 
-export const DEVICE_SERIAL_LEN = 32;
+/** The DEVICE_SERIAL characteristic and its length, generated from common/npps/constants.json for every runtime. */
+export const DEVICE_SERIAL_UUID = GattUuidStrings.DEVICE_SERIAL_ID;
+export const DEVICE_SERIAL_LEN = GattSizes.DEVICE_SERIAL_LEN;
 
 /**
  * A characteristic value as a serial: exactly 32 bytes or null. A short read is never

@@ -56,12 +56,13 @@ jobs:
         simulator/src/**
         scripts/sync-locales.ts
         scripts/sync-socket-map.ts
-        # The shared constants are generated into the web, Android, iOS, Windows and C trees from common/npps/constants.json
+        # The shared constants are generated into the web, Android, iOS, Windows, C and hub firmware trees from common/npps/constants.json
         # (common/** above), and the check below fails if any output is stale.
         scripts/sync-constants.ts
         app/android/core/src/main/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt
         app/ios/NeurOne/Protocol/NppsConstants.generated.swift
         app/windows/NeurOne/Protocol/NppsConstants.generated.cs
+        firmware/hub_control/include/np_app_wire_constants.h
         scripts/test-lateralization-audit.sh
         # The iOS String Catalog was listed here while it was committed, because
         # it was a SECOND source of truth that had already drifted once — 26 keys

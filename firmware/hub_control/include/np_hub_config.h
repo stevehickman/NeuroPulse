@@ -17,7 +17,6 @@
  * shipped descriptor (NP-FW-HUB-001 §4.5).                                   */
 #define NP_HUB_PROTO_VERSION        0x0001U
 #define NP_HUB_PROTO_UUID_LEN       16U            /* session UUID (UHDR key) */
-#define NP_HUB_PROTO_SERIAL_LEN     32U            /* ASCII device serial — replay guard */
 #define NP_HUB_PROTO_SIG_LEN        64U            /* Ed25519 signature */
 #define NP_HUB_PROTO_CMD_MAX        64U            /* max commands per session */
 #define NP_HUB_PROTO_PARAMS_MAX     64U            /* max params bytes per command */

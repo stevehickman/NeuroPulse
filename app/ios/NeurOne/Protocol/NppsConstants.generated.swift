@@ -116,3 +116,154 @@ enum NppsStatus {
     /// A null pointer or non-UTF-8 input; no buffer.
     static let BAD_ARGUMENT: Int32 = 3
 }
+
+/// The 16-bit id of each characteristic (every name ends in _ID, so SESSION_STATE_ID is never mistaken for the session
+/// state itself) of the NeurOne BLE service. The 128-bit UUID is the base with its second group replaced by the id
+/// (4E455550-XXXX-1000-8000-00805F9B34FB), so the base is written once, here, and every runtime builds its UUIDs from it.
+/// `hub: true` marks a characteristic the hub firmware publishes; only those reach the firmware header, because a
+/// firmware reference is what the consumable-trigger gate reads as 'the hub produces it'. `required: true` marks the
+/// characteristics an app must find before it treats a hub as fully resolved; the others are optional, or T2 only, or not
+/// yet published (OI-WA-03).
+enum GattIds {
+    /// The NeurOne custom service.
+    static let SERVICE_ID: Int = 0x0001
+    /// NOTIFY 4 B.
+    static let SESSION_STATE_ID: Int = 0x0002
+    /// NOTIFY 4 B.
+    static let SESSION_STATUS_ID: Int = 0x0003
+    /// NOTIFY 4 B.
+    static let HRV_COHERENCE_ID: Int = 0x0004
+    /// NOTIFY 4 B.
+    static let PACER_PHASE_ID: Int = 0x0005
+    /// NOTIFY 4 B.
+    static let IMPEDANCE_RESULT_ID: Int = 0x0006
+    /// READ/NOTIFY 8 B, WRITE 1 B (OI-ACC-08).
+    static let CONSUMABLE_STATUS_ID: Int = 0x0007
+    /// WRITE, signed protocol blob.
+    static let PROTOCOL_UPLOAD_ID: Int = 0x0008
+    /// WRITE, triggers an EDF+ download.
+    static let EDF_REQUEST_ID: Int = 0x0009
+    /// WRITE/NOTIFY.
+    static let OTA_COMMAND_ID: Int = 0x000A
+    /// NOTIFY.
+    static let OTA_STATUS_ID: Int = 0x000B
+    /// WRITE.
+    static let CALIBRATION_CMD_ID: Int = 0x000C
+    /// READ/NOTIFY, variable length socket-keyed module-status frames.
+    static let ZONE_MODULE_STATUS_ID: Int = 0x000D
+    /// NOTIFY.
+    static let SHDR_UPLOAD_STATUS_ID: Int = 0x000E
+    /// WRITE 1 B (0x01 = stop). Placeholder pending hub BLE firmware (OI-WA-03).
+    static let SESSION_STOP_ID: Int = 0x000F
+    /// READ 32 B, hub-provisioned TRNG warranty token (OI-WA-03).
+    static let WARRANTY_TOKEN_ID: Int = 0x0010
+    /// READ/NOTIFY 4 B little-endian uint32: bits 23:16 major, 15:8 minor, 7:0 patch.
+    static let FIRMWARE_VERSION_ID: Int = 0x0011
+    /// READ/NOTIFY, variable length, read once at link.
+    static let SOCKET_MAP_ID: Int = 0x0012
+    /// NOTIFY 4 B, cervical VNS gel pad contact result, T2 only (OI-ACC-07). Not published by the hub yet.
+    static let CVNS_PAD_STATUS_ID: Int = 0x0013
+    /// READ/NOTIFY 4+8n B, cervical VNS offline-fault summary and re-enable state (NP-SW-FAULTMSG-001).
+    static let CVNS_FAULT_STATUS_ID: Int = 0x0014
+    /// WRITE 1 B 0x01, the wearer's re-enable confirmation after a cardiac cutoff.
+    static let CVNS_REENABLE_CONFIRM_ID: Int = 0x0015
+    /// WRITE 4 B, little-endian opaque tag of the person using the device.
+    static let ACTIVE_USER_ID: Int = 0x0016
+    /// READ 32 B, encrypted link only (NP-FW-HUB-001 §4.2, OI-AND-WIRE-02).
+    static let DEVICE_SERIAL_ID: Int = 0x0017
+}
+
+/// The 128-bit UUID of each id above: 4E455550-0000-1000-8000-00805F9B34FB with its second group replaced.
+enum GattUuidStrings {
+    /// The NeurOne custom service.
+    static let SERVICE_ID: String = "4E455550-0001-1000-8000-00805F9B34FB"
+    /// NOTIFY 4 B.
+    static let SESSION_STATE_ID: String = "4E455550-0002-1000-8000-00805F9B34FB"
+    /// NOTIFY 4 B.
+    static let SESSION_STATUS_ID: String = "4E455550-0003-1000-8000-00805F9B34FB"
+    /// NOTIFY 4 B.
+    static let HRV_COHERENCE_ID: String = "4E455550-0004-1000-8000-00805F9B34FB"
+    /// NOTIFY 4 B.
+    static let PACER_PHASE_ID: String = "4E455550-0005-1000-8000-00805F9B34FB"
+    /// NOTIFY 4 B.
+    static let IMPEDANCE_RESULT_ID: String = "4E455550-0006-1000-8000-00805F9B34FB"
+    /// READ/NOTIFY 8 B, WRITE 1 B (OI-ACC-08).
+    static let CONSUMABLE_STATUS_ID: String = "4E455550-0007-1000-8000-00805F9B34FB"
+    /// WRITE, signed protocol blob.
+    static let PROTOCOL_UPLOAD_ID: String = "4E455550-0008-1000-8000-00805F9B34FB"
+    /// WRITE, triggers an EDF+ download.
+    static let EDF_REQUEST_ID: String = "4E455550-0009-1000-8000-00805F9B34FB"
+    /// WRITE/NOTIFY.
+    static let OTA_COMMAND_ID: String = "4E455550-000A-1000-8000-00805F9B34FB"
+    /// NOTIFY.
+    static let OTA_STATUS_ID: String = "4E455550-000B-1000-8000-00805F9B34FB"
+    /// WRITE.
+    static let CALIBRATION_CMD_ID: String = "4E455550-000C-1000-8000-00805F9B34FB"
+    /// READ/NOTIFY, variable length socket-keyed module-status frames.
+    static let ZONE_MODULE_STATUS_ID: String = "4E455550-000D-1000-8000-00805F9B34FB"
+    /// NOTIFY.
+    static let SHDR_UPLOAD_STATUS_ID: String = "4E455550-000E-1000-8000-00805F9B34FB"
+    /// WRITE 1 B (0x01 = stop). Placeholder pending hub BLE firmware (OI-WA-03).
+    static let SESSION_STOP_ID: String = "4E455550-000F-1000-8000-00805F9B34FB"
+    /// READ 32 B, hub-provisioned TRNG warranty token (OI-WA-03).
+    static let WARRANTY_TOKEN_ID: String = "4E455550-0010-1000-8000-00805F9B34FB"
+    /// READ/NOTIFY 4 B little-endian uint32: bits 23:16 major, 15:8 minor, 7:0 patch.
+    static let FIRMWARE_VERSION_ID: String = "4E455550-0011-1000-8000-00805F9B34FB"
+    /// READ/NOTIFY, variable length, read once at link.
+    static let SOCKET_MAP_ID: String = "4E455550-0012-1000-8000-00805F9B34FB"
+    /// NOTIFY 4 B, cervical VNS gel pad contact result, T2 only (OI-ACC-07). Not published by the hub yet.
+    static let CVNS_PAD_STATUS_ID: String = "4E455550-0013-1000-8000-00805F9B34FB"
+    /// READ/NOTIFY 4+8n B, cervical VNS offline-fault summary and re-enable state (NP-SW-FAULTMSG-001).
+    static let CVNS_FAULT_STATUS_ID: String = "4E455550-0014-1000-8000-00805F9B34FB"
+    /// WRITE 1 B 0x01, the wearer's re-enable confirmation after a cardiac cutoff.
+    static let CVNS_REENABLE_CONFIRM_ID: String = "4E455550-0015-1000-8000-00805F9B34FB"
+    /// WRITE 4 B, little-endian opaque tag of the person using the device.
+    static let ACTIVE_USER_ID: String = "4E455550-0016-1000-8000-00805F9B34FB"
+    /// READ 32 B, encrypted link only (NP-FW-HUB-001 §4.2, OI-AND-WIRE-02).
+    static let DEVICE_SERIAL_ID: String = "4E455550-0017-1000-8000-00805F9B34FB"
+    static let REQUIRED_IDS: [String] = [
+        SESSION_STATE_ID,
+        SESSION_STATUS_ID,
+        HRV_COHERENCE_ID,
+        PACER_PHASE_ID,
+        IMPEDANCE_RESULT_ID,
+        CONSUMABLE_STATUS_ID,
+        PROTOCOL_UPLOAD_ID,
+        EDF_REQUEST_ID,
+        OTA_COMMAND_ID,
+        OTA_STATUS_ID,
+        CALIBRATION_CMD_ID,
+        ZONE_MODULE_STATUS_ID,
+        SHDR_UPLOAD_STATUS_ID,
+        SESSION_STOP_ID,
+    ]
+}
+
+/// Fixed value lengths of the NeurOne BLE service, in bytes.
+enum GattSizes {
+    /// The hub's replay-guard serial (DEVICE_SERIAL characteristic, NP-FW-HUB-001 §4.2): exactly this many
+    /// bytes, never padded or truncated.
+    static let DEVICE_SERIAL_LEN: Int = 32
+}
+
+/// The anonymisation floors a study descriptor must meet before a user may be asked to consent to it (CLAUDE.md §5.3,
+/// §6.3). Locked; the device is the only place they can be enforced, because the anonymisation happens on the device.
+enum ConsentLimits {
+    /// A descriptor's k must be at least this.
+    static let MINIMUM_K_ANONYMITY: Int = 10
+    /// A descriptor's date rounding must be at least this many days (one week).
+    static let MINIMUM_DATE_ROUNDING_DAYS: Int = 7
+}
+
+/// The CVNS_FAULT_STATUS frame (NP-SW-FAULTMSG-001): a 4-byte header then up to MAX_WIRE_RECORDS records of RECORD_LEN
+/// bytes. The hub writes it and the apps parse it.
+enum CvfsWire {
+    /// Byte 0 of the frame.
+    static let WIRE_VERSION: Int = 1
+    /// Header bytes before the first record.
+    static let HEADER_LEN: Int = 4
+    /// Bytes in one fault record.
+    static let RECORD_LEN: Int = 8
+    /// Most records one frame carries.
+    static let MAX_WIRE_RECORDS: Int = 4
+}
