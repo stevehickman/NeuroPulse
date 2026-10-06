@@ -77,7 +77,7 @@ enum NppsCore {
             "individual": individual?.nppsCoreJSON() ?? NSNull()
         ]
         let out = try call(npps_resolve_limits_json, JSONSerialization.data(withJSONObject: request))
-        let result = try JSONDecoder().decode(ResolvedLimits.self, from: out)
+        let result = try JSONDecoder().decode(NppsResolvedLimits.self, from: out)
         var limits = NPLimitsSet(name: "Resolved", level: .global)
         let blocks = result.limits
         limits.pbmTranscranial = blocks.pbmTranscranial
@@ -95,28 +95,6 @@ enum NppsCore {
         limits.cervicalVns = blocks.cervicalVns
         limits.vibrotactile40hz = blocks.vibrotactile40hz
         return (limits, result.sources)
-    }
-
-    /// The core's resolve result. The block names are the core's, which are the property names of `NPLimitsSet`.
-    private struct ResolvedLimits: Decodable {
-        struct Blocks: Decodable {
-            var pbmTranscranial: NPPBMTranscranialLimits?
-            var pbmIntranasal: NPPBMIntranasalLimits?
-            var eegNeurofeedback: NPEEGNeurofeedbackLimits?
-            var besTacs: NPBESTacsLimits?
-            var tdcs: NPTDCSLimits?
-            var vnsHrv: NPVNSHRVLimits?
-            var audioEntrainment: NPAudioEntrainmentLimits?
-            var visualStimulation: NPVisualStimLimits?
-            var tms: NPTMSLimits?
-            var pbmDeep1170nm: NPDeepPBMLimits?
-            var clinicalTacs: NPClinicalTacsLimits?
-            var hdTdcs: NPHDTdcsLimits?
-            var cervicalVns: NPCervicalVnsLimits?
-            var vibrotactile40hz: NPVibrotactileLimits?
-        }
-        var limits: Blocks
-        var sources: NPLimitSourceMap
     }
 
     /// Validate through the models: builds the request from the app's types (`NppsCoreMapping.swift`) and returns the
@@ -182,4 +160,27 @@ enum NppsCore {
             throw Refusal(message: "the NPPS core was given an argument it cannot read")
         }
     }
+}
+
+/// The core's resolve result. The block names are the core's, which are the property names of `NPLimitsSet`.
+private struct NppsResolvedLimitBlocks: Decodable {
+    var pbmTranscranial: NPPBMTranscranialLimits?
+    var pbmIntranasal: NPPBMIntranasalLimits?
+    var eegNeurofeedback: NPEEGNeurofeedbackLimits?
+    var besTacs: NPBESTacsLimits?
+    var tdcs: NPTDCSLimits?
+    var vnsHrv: NPVNSHRVLimits?
+    var audioEntrainment: NPAudioEntrainmentLimits?
+    var visualStimulation: NPVisualStimLimits?
+    var tms: NPTMSLimits?
+    var pbmDeep1170nm: NPDeepPBMLimits?
+    var clinicalTacs: NPClinicalTacsLimits?
+    var hdTdcs: NPHDTdcsLimits?
+    var cervicalVns: NPCervicalVnsLimits?
+    var vibrotactile40hz: NPVibrotactileLimits?
+}
+
+private struct NppsResolvedLimits: Decodable {
+    var limits: NppsResolvedLimitBlocks
+    var sources: NPLimitSourceMap
 }
