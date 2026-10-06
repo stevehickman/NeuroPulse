@@ -36,7 +36,7 @@ struct CervicalPadStatus: Equatable, Identifiable {
     }
 
     /// NP_CVNS_ELECTRODE_COUNT — the assembly checks two pads every session.
-    static let padCount = 2
+    static let PAD_COUNT = 2
 
     /// Where each failing pad is, one entry per failing electrode, in electrode order.
     /// Empty = both passed. Two entries may name the same side (a unilateral montage).
@@ -57,12 +57,12 @@ struct CervicalPadStatus: Equatable, Identifiable {
         guard data.count >= 4 else { return nil }
         let bytes = [UInt8](data.prefix(4))
         let mask = bytes[0]
-        guard mask & ~UInt8((1 << Self.padCount) - 1) == 0,
+        guard mask & ~UInt8((1 << Self.PAD_COUNT) - 1) == 0,
               let check = Check(rawValue: bytes[1]),
               let side1 = NeckSide(rawValue: bytes[2]),
               let side2 = NeckSide(rawValue: bytes[3]) else { return nil }
         let sides = [side1, side2]
-        self.failedPadSides = (0..<Self.padCount).filter { mask & (1 << $0) != 0 }.map { sides[$0] }
+        self.failedPadSides = (0..<Self.PAD_COUNT).filter { mask & (1 << $0) != 0 }.map { sides[$0] }
         self.check = check
     }
 
@@ -76,7 +76,7 @@ struct CervicalPadStatus: Equatable, Identifiable {
     /// both pads there.
     var messageKey: String? {
         guard let first = failedPadSides.first else { return nil }
-        let both = failedPadSides.count >= Self.padCount
+        let both = failedPadSides.count >= Self.PAD_COUNT
         switch (check, both, first) {
         case (.preEnable, true, _):       return "CVNS_PAD_ALERT_PRE_BOTH"
         case (.midSession, true, _):      return "CVNS_PAD_ALERT_MID_BOTH"

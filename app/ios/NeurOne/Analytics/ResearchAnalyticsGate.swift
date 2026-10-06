@@ -5,7 +5,7 @@ import os
 ///
 /// No analytics or crash-reporting SDK may initialize or receive any event until
 /// the user has **actively completed** the consent onboarding flow by tapping Done.
-/// The gate keys on `np.research.consent-granted` (`researchAnalyticsKey`), set
+/// The gate keys on `np.research.consent-granted` (`RESEARCH_ANALYTICS_KEY`), set
 /// inside `ConsentOnboardingView.commitAndDismiss(grantResearchAnalytics: true)`.
 ///
 /// Pressing Skip does NOT set this key — analytics stays off until an explicit
@@ -33,7 +33,7 @@ enum ResearchAnalyticsGate {
     /// Property keys that must NEVER appear in a tracked event (ISC-97 /
     /// NP-APP-TELEMETRY-001 Rev B). `session_count` / `session_sequence` are the
     /// deprecated raw-count fields replaced by `engagement_tier`.
-    private static let prohibitedKeys: Set<String> = [
+    private static let PROHIBITED_KEYS: Set<String> = [
         "eeg", "hrv", "rmssd", "coherence", "session_id", "protocol_id",
         "session_count", "session_sequence",
         // Impedance data is UHDR-class (raw per-electrode bitmask at named scalp positions).
@@ -50,14 +50,14 @@ enum ResearchAnalyticsGate {
     /// including research analytics. Cleared by blanket research consent withdrawal
     /// because blanket withdrawal implies full data-collection opt-out.
     ///
-    /// NOT the same as `WarrantyAnalyticsGate.warrantyConsentKey` — research and
+    /// NOT the same as `WarrantyAnalyticsGate.WARRANTY_CONSENT_KEY` — research and
     /// warranty consent are independent and must never share a UserDefaults key.
-    static let researchAnalyticsKey = "np.research.consent-granted"
+    static let RESEARCH_ANALYTICS_KEY = "np.research.consent-granted"
 
     /// True only when the user has actively completed the research consent flow
-    /// (tapped Done, not Skip), as recorded by `researchAnalyticsKey`.
+    /// (tapped Done, not Skip), as recorded by `RESEARCH_ANALYTICS_KEY`.
     static var isOpen: Bool {
-        UserDefaults.standard.bool(forKey: researchAnalyticsKey)
+        UserDefaults.standard.bool(forKey: RESEARCH_ANALYTICS_KEY)
     }
 
     /// The active analytics backend. Defaults to `PostHogAnalyticsBackend` in
@@ -85,7 +85,7 @@ enum ResearchAnalyticsGate {
     /// Call when the user revokes research analytics — either via the explicit
     /// analytics opt-out toggle in Settings, or indirectly via blanket research
     /// consent withdrawal (L3). The `isOpen` guard in `track()` already stops new
-    /// events once `researchAnalyticsKey` is cleared, but a running SDK can still
+    /// events once `RESEARCH_ANALYTICS_KEY` is cleared, but a running SDK can still
     /// collect passively — this method tears it down fully and resets `isConfigured`
     /// so `configure()` becomes a no-op until re-consent.
     ///
@@ -107,7 +107,7 @@ enum ResearchAnalyticsGate {
     static func track(event: String, properties: [String: String]) {
         guard isOpen else { return }
 
-        let offending = prohibitedKeys.intersection(properties.keys)
+        let offending = PROHIBITED_KEYS.intersection(properties.keys)
         guard offending.isEmpty else {
             // Log the offending key names (not values) so the leak source is
             // traceable, and drop the event rather than transmitting it.

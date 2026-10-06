@@ -125,13 +125,13 @@ struct NPPBMTranscranialParams: Codable, Equatable {
             try c.encode(rawValue)
         }
 
-        static let nm660  = Wavelength(rawValue: "660nm")
-        static let nm808  = Wavelength(rawValue: "808nm")
-        static let nm1064 = Wavelength(rawValue: "1064nm")
-        static let allCases: [Wavelength] = [.nm660, .nm808, .nm1064]
+        static let NM_660  = Wavelength(rawValue: "660nm")
+        static let NM_808  = Wavelength(rawValue: "808nm")
+        static let NM_1064 = Wavelength(rawValue: "1064nm")
+        static let allCases: [Wavelength] = [.NM_660, .NM_808, .NM_1064]
 
         var displayName: String {
-            if self == .nm1064 { return String(localized: "PBM_WAVELENGTH_SMART1064NM") }
+            if self == .NM_1064 { return String(localized: "PBM_WAVELENGTH_SMART1064NM") }
             return rawValue   // a stated wavelength such as "810nm" is its own label
         }
 
@@ -149,7 +149,7 @@ struct NPPBMTranscranialParams: Codable, Equatable {
     /// old default was the five-slot `.all`, which silently became "every module"
     /// for any target the parser did not recognise.
     var target: NPPBMTarget = .named(["All"])
-    var wavelength: Wavelength = .nm808
+    var wavelength: Wavelength = .NM_808
     /// Peak irradiance at the scalp in mW/cm² for THIS block's wavelength alone
     /// (NP-NPPS-REF-001 Rev 18 §4.1b). Absolute, never a percentage of a baseline the
     /// hardware owns.
@@ -170,7 +170,7 @@ struct NPPBMTranscranialParams: Codable, Equatable {
 
 struct NPPBMIntranasalParams: Codable, Equatable {
     /// One wavelength per block; the probe carries the 660 and 808 nm channels.
-    var wavelength: NPPBMTranscranialParams.Wavelength = .nm660
+    var wavelength: NPPBMTranscranialParams.Wavelength = .NM_660
     var irradianceMWcm2: Double = 60
     var frequencyHz: Double = 40
     var dutyCyclePercent: Int = 25

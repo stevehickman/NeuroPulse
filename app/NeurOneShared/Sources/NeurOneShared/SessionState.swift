@@ -73,13 +73,13 @@ public struct SessionState: Sendable {
 // CLAUDE.md §5.1) and is not needed for Watch display — elapsed time is driven
 // by a local Timer on the Watch side. (NP-PRIV-ANALYSIS-002 MEDIUM-08)
 public enum WCKey {
-    public static let protocolID        = "pid"
-    public static let status            = "st"
-    public static let coherenceX100     = "coh"
-    public static let rmssd             = "rmssd"
-    public static let pacerPhase        = "pp"
-    public static let pacerPercent      = "pct"
-    public static let consumableCounts  = "con"
+    public static let PROTOCOL_ID        = "pid"
+    public static let STATUS            = "st"
+    public static let COHERENCE_X100     = "coh"
+    public static let RMSSD             = "rmssd"
+    public static let PACER_PHASE        = "pp"
+    public static let PACER_PERCENT      = "pct"
+    public static let CONSUMABLE_COUNTS  = "con"
 }
 
 extension SessionState {
@@ -87,33 +87,33 @@ extension SessionState {
         // impedancePassFlags is UHDR-class (raw per-electrode bitmask at named scalp positions;
         // CLAUDE.md §5.1 "Raw EEG impedance → UHDR"). Must not flow over unencrypted WC bridge.
         var msg: [String: Any] = [
-            WCKey.protocolID:       Int(protocolID),
-            WCKey.status:           Int(status.rawValue),
-            WCKey.pacerPhase:       Int(pacerPhase.rawValue),
-            WCKey.pacerPercent:     Int(pacerElapsedPercent),
-            WCKey.consumableCounts: consumableSessionCounts.map { Int($0) },
+            WCKey.PROTOCOL_ID:       Int(protocolID),
+            WCKey.STATUS:           Int(status.rawValue),
+            WCKey.PACER_PHASE:       Int(pacerPhase.rawValue),
+            WCKey.PACER_PERCENT:     Int(pacerElapsedPercent),
+            WCKey.CONSUMABLE_COUNTS: consumableSessionCounts.map { Int($0) },
         ]
         if let h = hrv {
-            msg[WCKey.coherenceX100] = Int((h.coherenceScore * 100).rounded())
-            msg[WCKey.rmssd]         = Int(h.rmssdMilliseconds)
+            msg[WCKey.COHERENCE_X100] = Int((h.coherenceScore * 100).rounded())
+            msg[WCKey.RMSSD]         = Int(h.rmssdMilliseconds)
         }
         return msg
     }
 
     public static func from(wcMessage msg: [String: Any]) -> SessionState? {
         guard
-            let pid        = msg[WCKey.protocolID]  as? Int,
-            let statusRaw  = msg[WCKey.status]      as? Int,
+            let pid        = msg[WCKey.PROTOCOL_ID]  as? Int,
+            let statusRaw  = msg[WCKey.STATUS]      as? Int,
             let status     = SessionStatus(rawValue: UInt8(statusRaw)),
-            let phaseRaw   = msg[WCKey.pacerPhase]  as? Int,
+            let phaseRaw   = msg[WCKey.PACER_PHASE]  as? Int,
             let phase      = PacerPhase(rawValue: UInt8(phaseRaw)),
-            let pct        = msg[WCKey.pacerPercent]   as? Int,
-            let conRaw     = msg[WCKey.consumableCounts] as? [Int]
+            let pct        = msg[WCKey.PACER_PERCENT]   as? Int,
+            let conRaw     = msg[WCKey.CONSUMABLE_COUNTS] as? [Int]
         else { return nil }
 
         var hrv: HRVData?
-        if let cohRaw = msg[WCKey.coherenceX100] as? Int,
-           let rmssd  = msg[WCKey.rmssd] as? Int {
+        if let cohRaw = msg[WCKey.COHERENCE_X100] as? Int,
+           let rmssd  = msg[WCKey.RMSSD] as? Int {
             hrv = HRVData(coherenceScore: Float(cohRaw) / 100.0, rmssdMilliseconds: UInt16(rmssd))
         }
 

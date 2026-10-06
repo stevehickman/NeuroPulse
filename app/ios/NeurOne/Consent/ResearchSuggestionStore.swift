@@ -13,7 +13,7 @@ final class ResearchSuggestionStore: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var lastError: String?
 
-    private let localKey = "np.research.suggestions"
+    private let LOCAL_KEY = "np.research.suggestions"
 
     init() { loadLocal() }
 
@@ -23,7 +23,7 @@ final class ResearchSuggestionStore: ObservableObject {
         isLoading = true
         do {
             // STUB: GET /api/v1/research/suggestions
-            // On success: suggestions = decoded; save to localKey
+            // On success: suggestions = decoded; save to LOCAL_KEY
             // For now, surface whatever is locally cached.
         }
         isLoading = false
@@ -92,7 +92,7 @@ final class ResearchSuggestionStore: ObservableObject {
     // MARK: - Persistence
 
     private func loadLocal() {
-        guard let data = UserDefaults.standard.data(forKey: localKey),
+        guard let data = UserDefaults.standard.data(forKey: LOCAL_KEY),
               let decoded = try? JSONDecoder().decode([ResearchSuggestion].self, from: data)
         else { return }
         suggestions = decoded
@@ -100,7 +100,7 @@ final class ResearchSuggestionStore: ObservableObject {
 
     private func saveLocal() {
         if let data = try? JSONEncoder().encode(suggestions) {
-            UserDefaults.standard.set(data, forKey: localKey)
+            UserDefaults.standard.set(data, forKey: LOCAL_KEY)
         }
     }
 

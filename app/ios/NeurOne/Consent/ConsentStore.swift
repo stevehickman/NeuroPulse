@@ -33,7 +33,7 @@ final class ConsentStore: ObservableObject {
 
     private let grantsKey        = "np.consent.clinician-grants"
     private let researchKey      = "np.consent.research"
-    private let participationKey = "np.consent.study-participations"
+    private let PARTICIPATION_KEY = "np.consent.study-participations"
     private let expansionsKey    = "np.consent.clinician-expansions"
     private let invitationsKey   = "np.consent.study-invitations"
 
@@ -234,7 +234,7 @@ final class ConsentStore: ObservableObject {
     ///
     /// Does NOT affect `WarrantyAnalyticsGate` or SHDR fleet uploads.
     func revokeResearchAnalytics() {
-        UserDefaults.standard.removeObject(forKey: ResearchAnalyticsGate.researchAnalyticsKey)
+        UserDefaults.standard.removeObject(forKey: ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY)
         ResearchAnalyticsGate.reset()
     }
 
@@ -392,7 +392,7 @@ final class ConsentStore: ObservableObject {
            let decoded = try? JSONDecoder().decode(ResearchConsentState.self, from: data) {
             researchConsent = decoded
         }
-        if let data = UserDefaults.standard.data(forKey: participationKey),
+        if let data = UserDefaults.standard.data(forKey: PARTICIPATION_KEY),
            let decoded = try? JSONDecoder().decode([StudyParticipationRecord].self, from: data) {
             studyParticipations = decoded
         }
@@ -421,7 +421,7 @@ final class ConsentStore: ObservableObject {
             UserDefaults.standard.set(data, forKey: researchKey)
         }
         if let data = try? JSONEncoder().encode(studyParticipations) {
-            UserDefaults.standard.set(data, forKey: participationKey)
+            UserDefaults.standard.set(data, forKey: PARTICIPATION_KEY)
         }
         if let data = try? JSONEncoder().encode(expansionRequests) {
             UserDefaults.standard.set(data, forKey: expansionsKey)

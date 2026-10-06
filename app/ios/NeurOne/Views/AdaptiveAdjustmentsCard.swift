@@ -9,7 +9,7 @@ struct AdaptiveAdjustmentsCard: View {
 
     let events: [AdaptationEvent]
 
-    private static let maxInlineEvents = 5
+    private static let MAX_INLINE_EVENTS = 5
 
     @State private var showAllEvents = false
 
@@ -20,7 +20,7 @@ struct AdaptiveAdjustmentsCard: View {
                 emptyState
             } else {
                 eventList
-                if events.count > Self.maxInlineEvents {
+                if events.count > Self.MAX_INLINE_EVENTS {
                     overflowFooter
                 }
             }
@@ -57,14 +57,14 @@ struct AdaptiveAdjustmentsCard: View {
 
     private var eventList: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(events.prefix(Self.maxInlineEvents)) { event in
+            ForEach(events.prefix(Self.MAX_INLINE_EVENTS)) { event in
                 AdaptationEventRow(event: event)
             }
         }
     }
 
     private var overflowFooter: some View {
-        let remaining = events.count - Self.maxInlineEvents
+        let remaining = events.count - Self.MAX_INLINE_EVENTS
         return HStack {
             Text(String(localized: "ADAPT_AND_MORE").replacingOccurrences(of: "{0}", with: "\(remaining)"))
                 .font(.caption)

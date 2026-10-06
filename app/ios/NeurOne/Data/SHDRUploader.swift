@@ -45,9 +45,9 @@ enum SHDRUploadError: LocalizedError {
 //   (1) Provision TLS certificate for fleet.neurone.internal.
 //   (2) Derive SPKI SHA-256: openssl x509 -in cert.pem -pubkey -noout |
 //         openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64
-//   (3) Replace the placeholder values in SHDRFleetPinningDelegate.pinnedHashes
+//   (3) Replace the placeholder values in SHDRFleetPinningDelegate.PINNED_HASHES
 //       with real hashes (primary key + at least one backup for zero-downtime rotation).
-private let fleetEndpoint = URL(string: "https://fleet.neurone.internal/v1/shdr")!
+private let FLEET_ENDPOINT = URL(string: "https://fleet.neurone.internal/v1/shdr")!
 
 // MARK: - SPKI certificate pinning (NP-PRIV-ANALYSIS-002 LOW-11)
 //
@@ -74,7 +74,7 @@ private final class SHDRFleetPinningDelegate: NSObject, URLSessionDelegate {
     // PLACEHOLDER — replace with real hashes before launch. Zero hashes will
     // not match any real certificate, so the pinned session rejects all
     // connections until real hashes are installed.
-    static let pinnedHashes: Set<Data> = {
+    static let PINNED_HASHES: Set<Data> = {
         let placeholders = [
             "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=", // primary key — replace before launch
             "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=", // backup key  — replace before launch
@@ -85,7 +85,7 @@ private final class SHDRFleetPinningDelegate: NSObject, URLSessionDelegate {
     private let host: String
     private let pinnedHashes: Set<Data>
 
-    init(host: String, pinnedHashes: Set<Data> = SHDRFleetPinningDelegate.pinnedHashes) {
+    init(host: String, pinnedHashes: Set<Data> = SHDRFleetPinningDelegate.PINNED_HASHES) {
         self.host = host
         self.pinnedHashes = pinnedHashes
     }
@@ -283,7 +283,7 @@ final class SHDRUploader: ObservableObject {
             throw SHDRUploadError.noData
         }
 
-        var request = URLRequest(url: fleetEndpoint)
+        var request = URLRequest(url: FLEET_ENDPOINT)
         request.httpMethod = "POST"
         request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
         request.setValue(warrantyToken, forHTTPHeaderField: "X-NP-Device-Token")
@@ -316,7 +316,7 @@ final class SHDRUploader: ObservableObject {
     // Interim fallback only: once the hub delivers its 256-bit TRNG token over the GATT
     // warrantyToken characteristic, upgradeDeviceToken(_:) supersedes this value and
     // currentDeviceToken() prefers the hub token (OI-BLE-01, pending hub firmware OI-WA-03).
-    private static let warrantyTokenTag = "life.neurone.shdr.warranty-token"
+    private static let WARRANTY_TOKEN_TAG = "life.neurone.shdr.warranty-token"
 
     private func warrantyTokenFromKeychain() -> String {
         // kSecAttrAccount is part of the Keychain primary key for kSecClassGenericPassword
@@ -328,7 +328,7 @@ final class SHDRUploader: ObservableObject {
         // This mirrors the write query below (same pattern as LOW-12 fix in SessionProtocolSigner).
         let query: [CFString: Any] = [
             kSecClass:              kSecClassGenericPassword,
-            kSecAttrService:        Self.warrantyTokenTag,
+            kSecAttrService:        Self.WARRANTY_TOKEN_TAG,
             kSecAttrAccount:        "warranty-token",
             kSecAttrAccessible:     kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
             kSecMatchLimit:         kSecMatchLimitOne,
@@ -351,7 +351,7 @@ final class SHDRUploader: ObservableObject {
         let tokenData = Data(bytes)
         let addQuery: [CFString: Any] = [
             kSecClass:              kSecClassGenericPassword,
-            kSecAttrService:        Self.warrantyTokenTag,
+            kSecAttrService:        Self.WARRANTY_TOKEN_TAG,
             kSecAttrAccount:        "warranty-token",
             kSecValueData:          tokenData,
             kSecAttrAccessible:     kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,

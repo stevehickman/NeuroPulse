@@ -180,7 +180,7 @@ final class HardwareSetupManagerTests: XCTestCase {
 
     func testMinimumImpedancePassCountDefaultIs6() {
         let mgr = HardwareSetupManager(gatt: MockSetupGATT(), userDefaults: defaults)
-        XCTAssertEqual(mgr.minimumImpedancePassCount, 6)
+        XCTAssertEqual(mgr.MINIMUM_IMPEDANCE_PASS_COUNT, 6)
     }
 
     func testSafetyAcknowledgedIsNeverPersistedToUserDefaults() {

@@ -30,7 +30,7 @@ import Foundation
 /// issuer must not rely on it to distinguish two descriptors — `studyID` is what does that.
 enum StudyDescriptorCanonicalForm {
 
-    static let version = "NP-STUDY-DESCRIPTOR-V1"
+    static let VERSION = "NP-STUDY-DESCRIPTOR-V1"
 
     /// `issuedAt` rendered the way Android already stores it. Fixed to UTC and to the POSIX
     /// calendar: a device's locale must not change what a signature is checked against.
@@ -43,7 +43,7 @@ enum StudyDescriptorCanonicalForm {
 
     /// The exact bytes signed, and the bytes `descriptorHash` digests.
     static func bytes(for descriptor: StudyDescriptor) -> Data {
-        var out = version + "\n"
+        var out = VERSION + "\n"
         func field(_ value: String) {
             out += "\(value.utf8.count):\(value)\n"
         }

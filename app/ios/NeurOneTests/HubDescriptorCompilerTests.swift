@@ -78,7 +78,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
                 return def(600, mod(.pbmTranscranial(p)))
             case 1:
                 var p = NPPBMIntranasalParams()
-                p.wavelength = .nm660
+                p.wavelength = .NM_660
                 p.irradianceMWcm2 = 30
                 p.frequencyHz = 0
                 p.dutyCyclePercent = duty
@@ -106,7 +106,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
     func testClinicianSelectedSockets() throws {
         var p = NPPBMTranscranialParams()
         p.target = .clinicianSelected
-        p.wavelength = .nm808
+        p.wavelength = .NM_808
         p.irradianceMWcm2 = 100
         p.frequencyHz = 0
         p.dutyCyclePercent = 100
@@ -115,7 +115,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
 
     func testT1Modalities() throws {
         var nasal = NPPBMIntranasalParams()
-        nasal.wavelength = .nm808; nasal.irradianceMWcm2 = 60; nasal.frequencyHz = 40; nasal.dutyCyclePercent = 25
+        nasal.wavelength = .NM_808; nasal.irradianceMWcm2 = 60; nasal.frequencyHz = 40; nasal.dutyCyclePercent = 25
         try check("nasal", def(600, mod(.pbmIntranasal(nasal))))
 
         try check("eegAll", def(600, mod(.eegNeurofeedback(NPEEGNeurofeedbackParams()))))
@@ -229,7 +229,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
 
         // Two PBM blocks on one tile that differ in duty are not one stimulus.
         var other = NPPBMTranscranialParams()
-        other.target = .named(["Frontal"]); other.wavelength = .nm660
+        other.target = .named(["Frontal"]); other.wavelength = .NM_660
         other.irradianceMWcm2 = 100; other.frequencyHz = 40; other.dutyCyclePercent = 10
         XCTAssertThrowsError(try build(def(600, pbm("808nm", 100), mod(.pbmTranscranial(other)))))
 
@@ -240,7 +240,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
 
     func testTheProbeRefusalReadsLikeUnmapped() {
         var nasal = NPPBMIntranasalParams()
-        nasal.wavelength = .nm1064
+        nasal.wavelength = .NM_1064
         XCTAssertThrowsError(try build(def(600, mod(.pbmIntranasal(nasal))))) { e in
             XCTAssertEqual(e.localizedDescription,
                            "Intranasal PBM cannot be delivered on led_1064: 1064nm maps to a channel it does not carry.")

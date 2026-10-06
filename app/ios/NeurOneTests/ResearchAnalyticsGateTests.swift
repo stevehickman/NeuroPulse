@@ -65,7 +65,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
     }
 
     func testResearchAnalyticsKeyMatchesConstant() {
-        XCTAssertEqual(ResearchAnalyticsGate.researchAnalyticsKey, "np.research.consent-granted")
+        XCTAssertEqual(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY, "np.research.consent-granted")
     }
 
     func testSkipDoesNotOpenResearchAnalyticsGate() {

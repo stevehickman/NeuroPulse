@@ -25,7 +25,7 @@ struct ProtocolChunkerTests {
         #expect(chunks[0].first == SINGLE)
         #expect(chunks[0].dropFirst() == data)
         #expect(chunks[0].count == 101)         // 1 header + 100 payload
-        #expect(chunks[0].count <= ProtocolChunker.maxWriteSize)
+        #expect(chunks[0].count <= ProtocolChunker.MAX_WRITE_SIZE)
     }
 
     @Test func dataExactly509IsSingleChunk() {
@@ -72,7 +72,7 @@ struct ProtocolChunkerTests {
 
         // No chunk exceeds the BLE MTU ceiling.
         for c in chunks {
-            #expect(c.count <= ProtocolChunker.maxWriteSize)
+            #expect(c.count <= ProtocolChunker.MAX_WRITE_SIZE)
         }
 
         // Declared total length matches.

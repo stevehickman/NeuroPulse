@@ -41,7 +41,7 @@ struct NPWavelengthRules: Equatable {
     /// The two combined channel names the language used to accept (NP-NPPS-REF-001 Rev 18).
     /// RETIRED: each wavelength is its own block. `"1064nm"` was never one of them in
     /// substance; it is a single wavelength the default rules map to the 1064 nm channel.
-    static let retired: [String: [String]] = [
+    static let RETIRED: [String: [String]] = [
         "660_808nm": ["660nm", "808nm"],
         "660_808_1064nm": ["660nm", "808nm", "1064nm"],
     ]
@@ -63,7 +63,7 @@ struct NPWavelengthRules: Equatable {
 
     /// The channels a `wavelength` value drives, or the reason it drives none.
     func resolveChannels(_ value: String) -> Result<[NPPBMChannelElement], NPWavelengthRefusal> {
-        if Self.retired[value] != nil { return .failure(NPWavelengthRefusal(value: value, reason: .retired)) }
+        if Self.RETIRED[value] != nil { return .failure(NPWavelengthRefusal(value: value, reason: .retired)) }
         let digits = value.dropLast(2)
         guard value.hasSuffix("nm"),
               let first = digits.first, first.isASCII, first.isNumber,

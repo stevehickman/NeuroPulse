@@ -47,7 +47,7 @@ final class EEGConsentGateTests: XCTestCase {
             modalities: [
                 NPProtocolModality(params: .pbmTranscranial(
                     NPPBMTranscranialParams(target: .named(["All"]),
-                                            wavelength: .nm808,
+                                            wavelength: .NM_808,
                                             irradianceMWcm2: 302, frequencyHz: 0,
                                             dutyCyclePercent: 100)))
             ]))

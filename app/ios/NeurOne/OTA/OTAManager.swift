@@ -69,7 +69,7 @@ final class OTAManager: ObservableObject {
     // NeurOne OTA public key fingerprint — matches manufacturing root key in bootloader.
     // ISC-113: no firmware chunk is sent unless this fingerprint matches (Ed25519 gate).
     // Placeholder: replace with production key fingerprint at secure build time.
-    private let trustedPublicKeyFingerprint = "4e455550deadbeef"
+    private let TRUSTED_PUBLIC_KEY_FINGERPRINT = "4e455550deadbeef"
 
     init(gatt: NeurOneGATTManager,
          updateService: FirmwareUpdateProviding = FirmwareUpdateService.shared) {
@@ -135,7 +135,7 @@ final class OTAManager: ObservableObject {
 
         var session = OTASession(image: image)
         session.totalBytes = imageData.count
-        session.totalChunks = (imageData.count + OTASession.chunkSize - 1) / OTASession.chunkSize
+        session.totalChunks = (imageData.count + OTASession.CHUNK_SIZE - 1) / OTASession.CHUNK_SIZE
         currentSession = session
         phase = .preparing
         progressPercent = 0
@@ -149,7 +149,7 @@ final class OTAManager: ObservableObject {
         var offset = 0
         var chunkIndex = 0
         while offset < imageData.count {
-            let end = min(offset + OTASession.chunkSize, imageData.count)
+            let end = min(offset + OTASession.CHUNK_SIZE, imageData.count)
             var payload = Data()
             var idx = UInt16(chunkIndex).littleEndian
             payload.append(Data(bytes: &idx, count: 2))
@@ -199,7 +199,7 @@ final class OTAManager: ObservableObject {
 
         var session = OTASession(image: image)
         session.totalBytes = imageData.count
-        session.totalChunks = (imageData.count + OTASession.chunkSize - 1) / OTASession.chunkSize
+        session.totalChunks = (imageData.count + OTASession.CHUNK_SIZE - 1) / OTASession.CHUNK_SIZE
         currentSession = session
         phase = .preparing
         progressPercent = 0
@@ -211,7 +211,7 @@ final class OTAManager: ObservableObject {
         var offset = 0
         var chunkIndex = 0
         while offset < imageData.count {
-            let end = min(offset + OTASession.chunkSize, imageData.count)
+            let end = min(offset + OTASession.CHUNK_SIZE, imageData.count)
             var payload = Data()
             var idx = UInt16(chunkIndex).littleEndian
             payload.append(Data(bytes: &idx, count: 2))
@@ -242,7 +242,7 @@ final class OTAManager: ObservableObject {
     // Guards against unsigned/unrecognized firmware images before transfer begins.
     // Full cryptographic verification is performed by the hub on the received image.
     private func verifySignature(image: FirmwareImage) throws {
-        guard image.ed25519PublicKeyFingerprint.lowercased() == trustedPublicKeyFingerprint else {
+        guard image.ed25519PublicKeyFingerprint.lowercased() == TRUSTED_PUBLIC_KEY_FINGERPRINT else {
             lastError = .signatureInvalid
             throw OTAError.signatureInvalid
         }

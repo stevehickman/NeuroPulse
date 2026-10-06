@@ -75,14 +75,14 @@ final class UHDRKey {
 // MARK: - Keychain credential store (production)
 
 private struct KeychainCredentialStore: CredentialStore {
-    private static let service = "life.neurone.uhdr.biometric-seed"
-    private static let account = "credential"
+    private static let SERVICE = "life.neurone.uhdr.biometric-seed"
+    private static let ACCOUNT = "credential"
 
     func loadOrCreateCredential(authenticatedContext: LAContext?) throws -> Data {
         var readQuery: [CFString: Any] = [
             kSecClass:              kSecClassGenericPassword,
-            kSecAttrService:        Self.service,
-            kSecAttrAccount:        Self.account,
+            kSecAttrService:        Self.SERVICE,
+            kSecAttrAccount:        Self.ACCOUNT,
             kSecMatchLimit:         kSecMatchLimitOne,
             kSecReturnData:         true,
             kSecAttrSynchronizable: false,
@@ -116,8 +116,8 @@ private struct KeychainCredentialStore: CredentialStore {
 
         var addQuery: [CFString: Any] = [
             kSecClass:              kSecClassGenericPassword,
-            kSecAttrService:        Self.service,
-            kSecAttrAccount:        Self.account,
+            kSecAttrService:        Self.SERVICE,
+            kSecAttrAccount:        Self.ACCOUNT,
             kSecValueData:          seed,
             kSecAttrAccessControl:  access,
             kSecAttrSynchronizable: false,
@@ -143,8 +143,8 @@ private struct KeychainCredentialStore: CredentialStore {
     func deleteCredential() {
         let query: [CFString: Any] = [
             kSecClass:              kSecClassGenericPassword,
-            kSecAttrService:        Self.service,
-            kSecAttrAccount:        Self.account,
+            kSecAttrService:        Self.SERVICE,
+            kSecAttrAccount:        Self.ACCOUNT,
             kSecAttrSynchronizable: false,
         ]
         SecItemDelete(query as CFDictionary)
@@ -230,12 +230,12 @@ final class UHDRKeyManager: ObservableObject {
     // Production path: hub-provisioned TRNG salt from eMMC Config partition via BLE (OI-BLE-01, pending).
     // No linkable device identifiers (IDFV removed — salt entropy and stability are strictly better
     // with a stored random value than with SHA256 of a vendor-linkable UUID).
-    private static let saltKeychainTag = "life.neurone.uhdr.salt"
+    private static let SALT_KEYCHAIN_TAG = "life.neurone.uhdr.salt"
 
     private func saltFromKeychain() throws -> Data {
         let query: [CFString: Any] = [
             kSecClass:              kSecClassGenericPassword,
-            kSecAttrService:        Self.saltKeychainTag,
+            kSecAttrService:        Self.SALT_KEYCHAIN_TAG,
             kSecAttrAccount:        "salt",
             kSecMatchLimit:         kSecMatchLimitOne,
             kSecReturnData:         true,
@@ -253,7 +253,7 @@ final class UHDRKeyManager: ObservableObject {
         let saltData = Data(bytes)
         let addQuery: [CFString: Any] = [
             kSecClass:              kSecClassGenericPassword,
-            kSecAttrService:        Self.saltKeychainTag,
+            kSecAttrService:        Self.SALT_KEYCHAIN_TAG,
             kSecAttrAccount:        "salt",
             kSecValueData:          saltData,
             kSecAttrAccessible:     kSecAttrAccessibleWhenUnlockedThisDeviceOnly,

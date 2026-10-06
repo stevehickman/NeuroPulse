@@ -134,7 +134,7 @@ final class NPAbsoluteQuantityTests: XCTestCase {
             XCTAssertTrue("\(error.localizedDescription)".contains("retired"))
         }
         var nasal1064 = NPPBMIntranasalParams()
-        nasal1064.wavelength = .nm1064
+        nasal1064.wavelength = .NM_1064
         let probe = NPProtocolDefinition(name: "nasal", modalities: [NPProtocolModality(params: .pbmIntranasal(nasal1064))])
         XCTAssertThrowsError(try HubDescriptorCompiler.build(probe))
     }

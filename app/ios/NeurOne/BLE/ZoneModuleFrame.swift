@@ -31,21 +31,21 @@ enum ZoneFrameFormat {
     /// Version 0 is the retired 5-byte one-byte-per-slot payload, which had no
     /// version byte at all — so a hub still speaking it decodes as 0 and is
     /// rejected rather than misread.
-    static let version: UInt8 = 0x02
-    static let headerBytes = 4
-    static let statusRecordBytes = 3
-    static let mapRecordBytes = 8
+    static let VERSION: UInt8 = 0x02
+    static let HEADER_BYTES = 4
+    static let STATUS_RECORD_BYTES = 3
+    static let MAP_RECORD_BYTES = 8
 
     /// Mirrors `NP_ZN_MAX_SOCKET_ID` — the full 7-bit major addressing domain.
-    static let maxSocketID: UInt8 = 128
+    static let MAX_SOCKET_ID: UInt8 = 128
 
-    static let flagSnapshot: UInt8 = 0x01
-    static let flagLast: UInt8     = 0x02
-    static let flagMap: UInt8      = 0x04
+    static let FLAG_SNAPSHOT: UInt8 = 0x01
+    static let FLAG_LAST: UInt8     = 0x02
+    static let FLAG_MAP: UInt8      = 0x04
 
-    static let recPresent: UInt8 = 0x01
-    static let recFault: UInt8   = 0x02
-    static let mapWired: UInt8   = 0x01
+    static let REC_PRESENT: UInt8 = 0x01
+    static let REC_FAULT: UInt8   = 0x02
+    static let MAP_WIRED: UInt8   = 0x01
 
     struct Header {
         let isSnapshot: Bool
@@ -65,32 +65,32 @@ enum ZoneFrameFormat {
     /// Presence gates safety-critical placement checks, so a malformed frame is
     /// discarded rather than partially believed.
     static func parseHeader(_ data: Data, expectMap: Bool) -> Header? {
-        guard data.count >= headerBytes else { return nil }
+        guard data.count >= HEADER_BYTES else { return nil }
 
         // Index off startIndex — a Data sliced from a larger buffer does not
         // start at 0, and indexing it as if it did is a classic silent misparse.
         let base = data.startIndex
-        guard data[base] == version else { return nil }
+        guard data[base] == VERSION else { return nil }
 
         let flags = data[base + 1]
-        let isMap = (flags & flagMap) != 0
+        let isMap = (flags & FLAG_MAP) != 0
         guard isMap == expectMap else { return nil }
 
         let count = Int(data[base + 3])
-        let recordBytes = isMap ? mapRecordBytes : statusRecordBytes
-        guard data.count >= headerBytes + count * recordBytes else { return nil }
+        let recordBytes = isMap ? MAP_RECORD_BYTES : STATUS_RECORD_BYTES
+        guard data.count >= HEADER_BYTES + count * recordBytes else { return nil }
 
-        return Header(isSnapshot: (flags & flagSnapshot) != 0,
-                      isLastFragment: (flags & flagLast) != 0,
+        return Header(isSnapshot: (flags & FLAG_SNAPSHOT) != 0,
+                      isLastFragment: (flags & FLAG_LAST) != 0,
                       isMap: isMap,
                       fragmentIndex: data[base + 2],
                       recordCount: count,
-                      bodyStart: headerBytes)
+                      bodyStart: HEADER_BYTES)
     }
 
     /// 0 is never emitted; ids above the domain would alias onto a real socket,
     /// which is a wrong-site targeting path, not a display bug.
-    static func isValidSocketID(_ id: UInt8) -> Bool { id >= 1 && id <= maxSocketID }
+    static func isValidSocketID(_ id: UInt8) -> Bool { id >= 1 && id <= MAX_SOCKET_ID }
 }
 
 // MARK: - Socket map frame (static, read once at link)
@@ -109,7 +109,7 @@ struct SocketMapFrame: Equatable {
         decoded.reserveCapacity(h.recordCount)
 
         for i in 0..<h.recordCount {
-            let r = base + h.bodyStart + i * ZoneFrameFormat.mapRecordBytes
+            let r = base + h.bodyStart + i * ZoneFrameFormat.MAP_RECORD_BYTES
             let socketID = data[r]
             guard ZoneFrameFormat.isValidSocketID(socketID) else { return nil }
 
@@ -126,7 +126,7 @@ struct SocketMapFrame: Equatable {
                 position: SocketPosition(forwardMm: int16(at: 2),
                                          rightMm: int16(at: 4),
                                          downMm: int16(at: 6)),
-                isWiredInShell: (flags & ZoneFrameFormat.mapWired) != 0))
+                isWiredInShell: (flags & ZoneFrameFormat.MAP_WIRED) != 0))
         }
 
         self.isLastFragment = h.isLastFragment
@@ -159,17 +159,17 @@ struct ZoneModuleFrame: Equatable {
         decoded.reserveCapacity(h.recordCount)
 
         for i in 0..<h.recordCount {
-            let r = base + h.bodyStart + i * ZoneFrameFormat.statusRecordBytes
+            let r = base + h.bodyStart + i * ZoneFrameFormat.STATUS_RECORD_BYTES
             let socketID = data[r]
             guard ZoneFrameFormat.isValidSocketID(socketID) else { return nil }
 
             let typeRaw  = data[r + 1]
             let recFlags = data[r + 2]
 
-            let fault = (recFlags & ZoneFrameFormat.recFault) != 0
+            let fault = (recFlags & ZoneFrameFormat.REC_FAULT) != 0
             // Firmware clears presence on fault; re-assert it here so a hub that
             // ever sends both cannot produce a "present" faulted module.
-            let present = (recFlags & ZoneFrameFormat.recPresent) != 0 && !fault
+            let present = (recFlags & ZoneFrameFormat.REC_PRESENT) != 0 && !fault
 
             decoded.append(ZoneModuleStatus(
                 socketID: socketID,
@@ -210,7 +210,7 @@ struct FragmentRunAssembler<Element> {
     /// A run cannot legitimately describe more sockets than the addressing
     /// domain holds. Bounds the buffer so a hub that never sends a terminating
     /// fragment cannot grow it without limit.
-    private let maxRecords = Int(ZoneFrameFormat.maxSocketID)
+    private let maxRecords = Int(ZoneFrameFormat.MAX_SOCKET_ID)
 
     private var pending: [Element] = []
     private var expectedFragment: UInt8 = 0
