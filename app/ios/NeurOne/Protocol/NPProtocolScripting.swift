@@ -24,7 +24,7 @@ struct NPPSSerializer {
     func write(_ entries: [NPProtocolEntry]) throws -> String {
         let request: [String: Any] = ["items": entries.map { $0.nppsCoreItem() }]
         let out = try NppsCore.serialize(requestJSON: JSONSerialization.data(withJSONObject: request))
-        return String(decoding: out, as: UTF8.self)
+        return String(bytes: out, encoding: .utf8) ?? ""
     }
 
     /// As `write`, for a caller that shows the text (the editor's script pane, an export): a model the core cannot

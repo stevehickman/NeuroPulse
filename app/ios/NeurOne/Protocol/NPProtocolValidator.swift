@@ -81,7 +81,10 @@ struct NPProtocolValidator {
         switch entry {
         case .single, .composite:
             // A composite's layers resolve against the library; with none, there is nothing to check them against.
-            return run(entry, library: library.map { lib in lib.allProtocols.filter { if case .single = $0 { return true } else { return false } } })
+            let singles = library.map { lib in
+                lib.allProtocols.filter { if case .single = $0 { return true } else { return false } }
+            }
+            return run(entry, library: singles)
         case .limits, .zone, .condition:
             // Not protocols: limits are constraints, zones and conditions are
             // namespace definitions referenced by name and never run.
