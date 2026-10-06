@@ -21,7 +21,7 @@ class NPWavelengthRulesTests {
     private fun parse(text: String): List<NPProtocolEntry> =
         NPPSParser.parse(text)
 
-    private val series = """
+    private val SERIES = """
         protocol "Series" {
             duration: 8m
             pbm_transcranial {
@@ -75,7 +75,7 @@ class NPWavelengthRulesTests {
 
     @Test
     fun scriptWavelengthIsCarriedExactlyAndStartRoundTrips() {
-        val entries = parse(series)
+        val entries = parse(SERIES)
         assertEquals(1, entries.size, "wavelength_rules is accepted and is not an entry")
         val proto = (entries[0] as NPProtocolEntry.Single).protocol
         val mod = proto.modalities[0]
@@ -93,7 +93,7 @@ class NPWavelengthRulesTests {
 
     @Test
     fun negativeStartIsAnError() {
-        assertFailsWith<NPPSError> { parse(series.replace("start: 4m", "start: -4m")) }
+        assertFailsWith<NPPSError> { parse(SERIES.replace("start: 4m", "start: -4m")) }
     }
 
     private fun compile(d: NPProtocolDefinition) =
@@ -102,14 +102,14 @@ class NPWavelengthRulesTests {
     @Test
     fun theSessionWireCarriesBlockStartAndRefusesTheUnmapped() {
         // `start` is on the wire now: the binary descriptor has a start_ms per command (§4.1).
-        val proto = (parse(series)[0] as NPProtocolEntry.Single).protocol
+        val proto = (parse(SERIES)[0] as NPProtocolEntry.Single).protocol
         assertNotNull(compile(proto))
 
-        val unmapped = (parse(series.replace("start: 4m\n", "").replace("810nm", "850nm"))[0]
+        val unmapped = (parse(SERIES.replace("start: 4m\n", "").replace("810nm", "850nm"))[0]
             as NPProtocolEntry.Single).protocol
         assertFailsWith<IllegalArgumentException> { compile(unmapped) }
 
-        val ok = (parse(series.replace("start: 4m\n", ""))[0] as NPProtocolEntry.Single).protocol
+        val ok = (parse(SERIES.replace("start: 4m\n", ""))[0] as NPProtocolEntry.Single).protocol
         assertNotNull(compile(ok))
     }
 

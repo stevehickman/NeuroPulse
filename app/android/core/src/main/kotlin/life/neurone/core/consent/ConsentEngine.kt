@@ -48,10 +48,10 @@ data class ClinicalUseCase(
 object ConsentEngine {
 
     /**
-     * All available clinical use cases. Must stay identical to iOS `ConsentEngine.useCaseLibrary`
+     * All available clinical use cases. Must stay identical to iOS `ConsentEngine.USE_CASE_LIBRARY`
      * in IDs, element sets and tiers.
      */
-    val useCaseLibrary: List<ClinicalUseCase> = listOf(
+    val USE_CASE_LIBRARY: List<ClinicalUseCase> = listOf(
         ClinicalUseCase(
             id = "adherence_monitoring",
             titleKey = "CLINICIAN_USECASE_ADHERENCE_MONITORING_NAME",
@@ -90,7 +90,7 @@ object ConsentEngine {
 
     /** Minimum necessary UHDR elements for a set of selected use cases (§6.1). */
     fun minimumNecessaryElements(selectedUseCaseIds: Set<String>): Set<UHDRElement> =
-        useCaseLibrary
+        USE_CASE_LIBRARY
             .filter { it.id in selectedUseCaseIds }
             .flatMap { it.requiredElements }
             .toSet()
@@ -111,7 +111,7 @@ object ConsentEngine {
         if (tier == ClinicianUseCaseTier.RESEARCH) {
             emptyList()
         } else {
-            useCaseLibrary.filter { it.tier.rank <= tier.rank }
+            USE_CASE_LIBRARY.filter { it.tier.rank <= tier.rank }
         }
 
     /**
@@ -122,7 +122,7 @@ object ConsentEngine {
      * **The elements are frozen into the grant, not recomputed from the IDs.** A grant records its
      * use-case IDs because §6.1 makes the use case the thing the user consented to, but what the
      * clinician may see is the element set as it stood that day. Re-deriving it on read would mean
-     * editing [useCaseLibrary] — adding an element to an existing use case, say — widens every
+     * editing [USE_CASE_LIBRARY] — adding an element to an existing use case, say — widens every
      * grant already made, retroactively, with nobody asked.
      *
      * **The result is clamped to the tier.** [useCasesAvailableFor] already filters, so the

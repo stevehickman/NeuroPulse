@@ -37,11 +37,11 @@ public class HubDescriptorCompilerTests
     private static readonly Dictionary<string, string> Golden = JsonSerializer.Deserialize<Dictionary<string, string>>(
         File.ReadAllText(Path.Combine(Root, "app", "NeurOneShared", "TestData", "hub-descriptor-golden.json")))!;
 
-    private static readonly DateTimeOffset Now = DateTimeOffset.FromUnixTimeSeconds(1_700_000_000);
-    private static readonly byte[] Uuid = Enumerable.Repeat((byte)0xAB, 16).ToArray();
+    private static readonly DateTimeOffset NOW = DateTimeOffset.FromUnixTimeSeconds(1_700_000_000);
+    private static readonly byte[] UUID = Enumerable.Repeat((byte)0xAB, 16).ToArray();
 
     private static HubDescriptor Build(NPProtocolDefinition d, byte[]? serial = null, int[]? clinician = null, bool autonomous = false)
-        => HubDescriptorCompiler.Build(d, serial, clinician ?? [7, 3], autonomous, Now, Uuid);
+        => HubDescriptorCompiler.Build(d, serial, clinician ?? [7, 3], autonomous, NOW, UUID);
 
     private static void Check(string name, NPProtocolDefinition d)
         => Assert.Equal(Golden[name], Convert.ToHexString(Build(d).Blob).ToLowerInvariant());
@@ -191,7 +191,7 @@ public class HubDescriptorCompilerTests
         Assert.Null(HubSerial.Parse(new byte[31]));
         Assert.Null(HubSerial.Parse(new byte[33]));
         Assert.Null(HubSerial.Parse(null));
-        Assert.Equal(new Guid("4E455550-0017-1000-8000-00805F9B34FB"), HubSerial.CharacteristicUuid);
+        Assert.Equal(new Guid("4E455550-0017-1000-8000-00805F9B34FB"), new Guid(GattUuidStrings.DEVICE_SERIAL_ID));
     }
 
     [Fact]

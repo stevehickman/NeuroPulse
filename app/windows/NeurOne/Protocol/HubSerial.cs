@@ -11,13 +11,8 @@ namespace NeurOne.Protocol;
 
 static class HubSerial
 {
-    /// The DEVICE_SERIAL characteristic and its length, generated from common/npps/constants.json for every runtime.
-    public static readonly Guid CharacteristicUuid = new(GattUuidStrings.DEVICE_SERIAL_ID);
-
-    public const int Length = GattSizes.DEVICE_SERIAL_LEN;
-
     /// A characteristic value as a serial: exactly 32 bytes or null. A short read is never
     /// zero-padded into a serial no hub holds, and a long one is never truncated into one.
     public static byte[]? Parse(byte[]? value)
-        => value is { Length: Length } ? (byte[])value.Clone() : null;
+        => value is { Length: GattSizes.DEVICE_SERIAL_LEN } ? (byte[])value.Clone() : null;
 }
