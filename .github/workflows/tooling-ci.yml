@@ -676,6 +676,15 @@ jobs:
       # gate ever grows a dependency the probe fails loudly ("exited N on a clean
       # tree"), which is the direction a missing install should fail in.
 
+      # The population probe runs every gate on a clean tree, and check-hub-wire-format.ts runs the
+      # compiler, which is the Rust NPPS core as WebAssembly (OI-NPPS-CORE-01): without the module
+      # that one gate exits 1 here. Built the same way the gate's own job builds it.
+      - name: Build the NPPS core as WebAssembly (a probed gate runs it)
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          scripts/build-npps-wasm.sh
+
       # The meta-gate binds itself, so its falsification runs before it does.
       - name: Gate-coverage self-test
         run: bun scripts/check-gate-coverage.ts --self-test
