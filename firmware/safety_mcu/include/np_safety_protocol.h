@@ -22,8 +22,8 @@
  * heartbeat frame type in np_safety_main.c is now np_safety_rx_ext_frame_t.
  *
  * SPI timing:
- *   - Heartbeat period: 200ms (NP_SAFETY_HEARTBEAT_EXP_MS)
- *   - Watchdog timeout: 1500ms (NP_SAFETY_WDG_TIMEOUT_MS)
+ *   - Heartbeat period: 200ms (NP_SAFETY_HEARTBEAT_MS)
+ *   - Watchdog timeout: 1500ms (NP_SAFETY_WATCHDOG_MS)
  *
  * NP_SAFETY_FRAME_LEN        = 8   (MCU reply frame; np_safety_tx_frame_t)
  * NP_SAFETY_RX_EXT_FRAME_LEN = 38  (extended heartbeat; np_safety_rx_ext_frame_t)
@@ -86,7 +86,7 @@
 /* NP_SAFETY_FRAME_LEN is the MCU reply frame length (defined in np_spi_wire_types.h as 8).
  * The heartbeat RX frame is NP_SAFETY_RX_EXT_FRAME_LEN (38 bytes).                      */
 /* NP_SAFETY_CMD_MAGIC_0/1, NP_SAFETY_CMD_SESSION_SIG, NP_SAFETY_CMD_FRAME_LEN,
- * NP_SESSION_HASH_LEN, NP_ED25519_SIG_LEN, and np_safety_sig_cmd_t are in
+ * NP_SESSION_HASH_LEN, NP_ED25519_SIG_SIZE, and np_safety_sig_cmd_t are in
  * firmware/common/include/np_spi_wire_types.h (included above).               */
 
 /* NP_SAFETY_STATUS_* and NP_SESSION_STATUS_ACTIVE / _CVNS_REENABLE are in
@@ -149,7 +149,7 @@ typedef struct {
 } np_safety_state_t;
 
 /* np_safety_sig_cmd_t, NP_SAFETY_CMD_MAGIC_0/1, NP_SAFETY_CMD_SESSION_SIG,
- * NP_SAFETY_CMD_FRAME_LEN, NP_SESSION_HASH_LEN, NP_ED25519_SIG_LEN are all
+ * NP_SAFETY_CMD_FRAME_LEN, NP_SESSION_HASH_LEN, NP_ED25519_SIG_SIZE are all
  * provided by firmware/common/include/np_spi_wire_types.h (included above). */
 
 /* ── Module init/update return codes ─────────────────────────────────────── */

@@ -135,8 +135,6 @@
 
 /* ── Safety MCU SPI ──────────────────────────────────────────────────────────── */
 
-#define NP_SAFETY_HEARTBEAT_MS      200U  /* main processor sends heartbeat period */
-#define NP_SAFETY_WATCHDOG_MS       1500U /* safety MCU watchdog; cutoff on expiry */
 #define NP_SAFETY_SPI_TIMEOUT_MS    10U
 #include "../../common/include/np_spi_wire_types.h"
 
@@ -292,9 +290,7 @@
 
 /* EEG ring buffer — 500Hz × 8ch × 3 bytes (24-bit) = 12000 bytes/s. */
 #define NP_EEG_RING_SAMPLES         4000U  /* ~8s headroom before oldest data overwritten */
-#define NP_EEG_CHANNELS             8U     /* T1: Fp1/2 F3/4 C3/4 P3/4 semi-dry */
 #define NP_EEG_SAMPLE_BYTES         3U     /* 24-bit ADS1299 output */
-#define NP_EEG_SAMPLE_RATE_HZ       500U
 
 /* T2 qEEG — 21-channel wet-gel 10-20 + FC3/4 + Oz + A1/A2 */
 #define NP_QEEG_CHANNELS            21U

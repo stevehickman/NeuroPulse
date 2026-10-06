@@ -427,10 +427,10 @@ np_uhdr_status_t np_uhdr_hal_argon2id(const uint8_t *credential,
      * folded in so a record wrapped under a different Argon2 version derives a
      * different key — mirroring the real KDF's version dependence and exercising
      * the newly-plumbed version parameter (CR-2). */
-    uint8_t mix[NP_CRYPTO_SHA256_SIZE + NP_UHDR_SALT_LEN + 4U];
+    uint8_t mix[NP_SHA256_SIZE + NP_UHDR_SALT_LEN + 4U];
     np_sha256(credential, (uint32_t)cred_len, mix);
-    memcpy(mix + NP_CRYPTO_SHA256_SIZE, salt, NP_UHDR_SALT_LEN);
-    put_u32_le(mix + NP_CRYPTO_SHA256_SIZE + NP_UHDR_SALT_LEN, version);
+    memcpy(mix + NP_SHA256_SIZE, salt, NP_UHDR_SALT_LEN);
+    put_u32_le(mix + NP_SHA256_SIZE + NP_UHDR_SALT_LEN, version);
     np_sha256(mix, (uint32_t)sizeof(mix), out);   /* 32-byte credential key */
     return NP_UHDR_OK;
 }
@@ -450,7 +450,7 @@ np_uhdr_status_t np_uhdr_hal_hw_bind(const uint8_t *ckey, uint8_t *wkmd_out)
 
 /* Derive the 32-byte keystream = SHA-256(key || nonce). */
 static void host_gcm_keystream(const uint8_t *key, const uint8_t *nonce,
-                               uint8_t ks[NP_CRYPTO_SHA256_SIZE])
+                               uint8_t ks[NP_SHA256_SIZE])
 {
     uint8_t buf[NP_UHDR_WKMD_LEN + NP_UHDR_GCM_NONCE_LEN];
     memcpy(buf, key, NP_UHDR_WKMD_LEN);
@@ -466,7 +466,7 @@ static void host_gcm_tag(const uint8_t *key, const uint8_t *nonce,
 {
     uint8_t buf[NP_UHDR_WKMD_LEN + NP_UHDR_GCM_NONCE_LEN +
                 NP_UHDR_AAD_LEN + NP_UHDR_UKMD_LEN];
-    uint8_t digest[NP_CRYPTO_SHA256_SIZE];
+    uint8_t digest[NP_SHA256_SIZE];
     size_t off = 0;
     memcpy(buf + off, key, NP_UHDR_WKMD_LEN);        off += NP_UHDR_WKMD_LEN;
     memcpy(buf + off, nonce, NP_UHDR_GCM_NONCE_LEN); off += NP_UHDR_GCM_NONCE_LEN;
@@ -493,10 +493,10 @@ np_uhdr_status_t np_uhdr_hal_aes_gcm_encrypt(const uint8_t *key,
     if ((aad == NULL && aad_len > 0U) || aad_len > NP_UHDR_AAD_LEN) {
         return NP_UHDR_ERR_INVALID;
     }
-    if (pt_len == 0U || pt_len > NP_CRYPTO_SHA256_SIZE) {
+    if (pt_len == 0U || pt_len > NP_SHA256_SIZE) {
         return NP_UHDR_ERR_CRYPTO;   /* host stub covers only UKMD-sized wraps */
     }
-    uint8_t ks[NP_CRYPTO_SHA256_SIZE];
+    uint8_t ks[NP_SHA256_SIZE];
     host_gcm_keystream(key, nonce, ks);
     for (size_t i = 0; i < pt_len; i++) {
         ct[i] = (uint8_t)(pt[i] ^ ks[i]);
@@ -520,7 +520,7 @@ np_uhdr_status_t np_uhdr_hal_aes_gcm_decrypt(const uint8_t *key,
     if ((aad == NULL && aad_len > 0U) || aad_len > NP_UHDR_AAD_LEN) {
         return NP_UHDR_ERR_INVALID;
     }
-    if (ct_len == 0U || ct_len > NP_CRYPTO_SHA256_SIZE) {
+    if (ct_len == 0U || ct_len > NP_SHA256_SIZE) {
         return NP_UHDR_ERR_CRYPTO;
     }
     /* Authenticate first — never emit authentic plaintext on a tag mismatch. */
@@ -535,7 +535,7 @@ np_uhdr_status_t np_uhdr_hal_aes_gcm_decrypt(const uint8_t *key,
         return NP_UHDR_ERR_AUTH;
     }
 
-    uint8_t ks[NP_CRYPTO_SHA256_SIZE];
+    uint8_t ks[NP_SHA256_SIZE];
     host_gcm_keystream(key, nonce, ks);
     for (size_t i = 0; i < ct_len; i++) {
         pt[i] = (uint8_t)(ct[i] ^ ks[i]);

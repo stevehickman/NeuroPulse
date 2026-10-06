@@ -31,8 +31,8 @@ static void check(int cond, const char *name)
 static np_ota_state_t make_valid_state(uint8_t bank)
 {
     np_ota_state_t s;
-    uint8_t sha[NP_OTA_SHA256_SIZE];
-    for (int i = 0; i < (int)NP_OTA_SHA256_SIZE; i++) {
+    uint8_t sha[NP_SHA256_SIZE];
+    for (int i = 0; i < (int)NP_SHA256_SIZE; i++) {
         sha[i] = (uint8_t)(0xA0 + i);
     }
     np_ota_state_init(&s, bank, sha);
@@ -139,8 +139,8 @@ int main(void)
     /* ── 9: CRC is order-dependent (different SHA → different CRC) ───── */
     {
         np_ota_state_t s1 = make_valid_state(1);
-        uint8_t sha2[NP_OTA_SHA256_SIZE];
-        for (int i = 0; i < (int)NP_OTA_SHA256_SIZE; i++) {
+        uint8_t sha2[NP_SHA256_SIZE];
+        for (int i = 0; i < (int)NP_SHA256_SIZE; i++) {
             sha2[i] = (uint8_t)(0xB0 + i);  /* different from make_valid_state */
         }
         np_ota_state_t s2;

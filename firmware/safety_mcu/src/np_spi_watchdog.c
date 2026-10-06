@@ -15,7 +15,7 @@
 #include <stdbool.h>
 
 /* HAL: np_hal_get_tick_ms — SysTick-backed millisecond counter, declared in
- * np_safety_hal.h.  The 1500 ms NP_SAFETY_WDG_TIMEOUT_MS below is in the same
+ * np_safety_hal.h.  The 1500 ms NP_SAFETY_WATCHDOG_MS below is in the same
  * unit by contract, not by coincidence.                                     */
 
 /* HAL: np_hal_tim2_now_us — TIM2's free-running 1 MHz count, the independent
@@ -154,7 +154,7 @@ void np_spi_watchdog_check(np_safety_state_t *state)
     uint32_t now     = np_hal_get_tick_ms();
     uint32_t elapsed = now - s_last_beat_ms;  /* unsigned wrap-around safe */
 
-    if (elapsed >= NP_SAFETY_WDG_TIMEOUT_MS && !s_watchdog_fired) {
+    if (elapsed >= NP_SAFETY_WATCHDOG_MS && !s_watchdog_fired) {
         s_watchdog_fired     = true;
         state->granted_mask  = 0U;
         state->status       |= NP_SAFETY_STATUS_WATCHDOG | NP_SAFETY_STATUS_CUTOFF;

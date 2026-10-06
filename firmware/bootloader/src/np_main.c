@@ -56,17 +56,6 @@
 #include "np_dfu.h"
 #include <string.h>
 
-/* SNVS_LPGPR2 — anonymization in-progress flag (NP-FW-EMMC-002 §D.6) ──────── */
-/* Defined locally to avoid colliding with Unit 1's parallel edit to           */
-/* np_config.h.  When np_config.h gains these defs, the merge reviewer must     */
-/* delete these locals and keep the np_config.h versions.                       */
-#ifndef NP_SNVS_LPGPR2
-#define NP_SNVS_LPGPR2              (*(volatile uint32_t *)(NP_SNVS_BASE + 0x70U))
-#endif
-#ifndef NP_SNVS_ANON_IN_PROGRESS
-#define NP_SNVS_ANON_IN_PROGRESS    (1UL << 0U)
-#endif
-
 /* ── i.MX RT1062 Image Vector Table (IVT) ────────────────────────────────── */
 /* The ROM boot loader reads the IVT at offset 0x000 of the eMMC boot         */
 /* partition to locate the bootloader entry point and load address.           */

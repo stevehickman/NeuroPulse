@@ -41,7 +41,7 @@
 _Static_assert(NP_SAFETY_IWDG_TIMEOUT_MS >= 1U &&
                (NP_SAFETY_IWDG_TIMEOUT_MS - 1U) <= NP_IWDG_RLR_MAX,
                "IWDG timeout does not fit RLR at the ÷32 prescaler");
-_Static_assert(NP_SAFETY_IWDG_TIMEOUT_MS <= NP_SAFETY_WDG_TIMEOUT_MS,
+_Static_assert(NP_SAFETY_IWDG_TIMEOUT_MS <= NP_SAFETY_WATCHDOG_MS,
                "the IWDG backstop must not be slower than the heartbeat watchdog");
 
 void np_hal_iwdg_start(void)

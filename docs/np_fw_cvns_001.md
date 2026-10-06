@@ -350,7 +350,7 @@ This section specifies the STM32G071 safety MCU bare-metal behavior. The C imple
 | — | Output | — | **`NP_EN_CVNS` on PB5** | The single active-low CVNS enable the firmware actually owns |
 | `RPEAK_IN` | Input | PB0 | **PA8** (`NP_RPEAK_IN_PIN`) | R-peak pulse from main processor (rising edge, 5 ms) |
 | `SPI1_SCK/MOSI/MISO/NSS` | SPI slave | PA1–PA4 | **PA5/PA6/PA7 + PA4 NSS** per the header comment at `np_safety_config.h:24` | SPI interface to main processor |
-| `HEARTBEAT_WATCHDOG` | Input | PA7 | *no such pin* — the heartbeat is **in-band on SPI** (`NP_SAFETY_WDG_TIMEOUT_MS` = 1500) | SPI heartbeat; 1.5 s timeout → force cutoff |
+| `HEARTBEAT_WATCHDOG` | Input | PA7 | *no such pin* — the heartbeat is **in-band on SPI** (`NP_SAFETY_WATCHDOG_MS` = 1500) | SPI heartbeat; 1.5 s timeout → force cutoff |
 
 Note that PB0 in the firmware is `NP_EN_BES_PIN`, the BES stimulation **enable output** — so Rev 1's map places a cardiac *input* on a stimulation *output*. That single row is sufficient reason not to treat this table as buildable.
 

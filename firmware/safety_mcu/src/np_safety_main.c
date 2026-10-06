@@ -505,7 +505,7 @@ int main(void)
 
         /* Accumulate charge for currently-granted DC channels carrying a
          * non-zero commanded current.  dt_us is a compile-time constant —
-         * NP_SAFETY_HEARTBEAT_EXP_MS × 1000 = 200000 µs — not transmitted
+         * NP_SAFETY_HEARTBEAT_MS × 1000 = 200000 µs — not transmitted
          * over SPI.  current_ua[] are SHDR (commanded, not ADC-measured).
          *
          * DC ONLY (OI-CHARGE-05 (b)).  BES/tACS, VNS, cervical VNS and clinical
@@ -524,7 +524,7 @@ int main(void)
                     np_charge_monitor_accumulate(
                         ch,
                         (uint32_t)rx.current_ua[ch],
-                        (uint32_t)NP_SAFETY_HEARTBEAT_EXP_MS * 1000UL);
+                        (uint32_t)NP_SAFETY_HEARTBEAT_MS * 1000UL);
                 }
             }
 

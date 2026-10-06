@@ -19,7 +19,6 @@
 /*                       CRC32 (IEEE 802.3 reflected)                         */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-#define NP_CRC32_POLY 0xEDB88320UL
 
 uint32_t np_crc32(const uint8_t *data, uint32_t len)
 {
@@ -99,7 +98,7 @@ static void sha256_block(uint32_t h[8], const uint8_t block[64])
 }
 
 void np_sha256(const uint8_t *data, uint32_t len,
-               uint8_t out[NP_CRYPTO_SHA256_SIZE])
+               uint8_t out[NP_SHA256_SIZE])
 {
     uint32_t h[8] = {
         0x6A09E667UL, 0xBB67AE85UL, 0x3C6EF372UL, 0xA54FF53AUL,
@@ -226,7 +225,7 @@ static void sha512_block(uint64_t h[8], const uint8_t block[128])
 }
 
 void np_sha512(const uint8_t *data, uint32_t len,
-               uint8_t out[NP_CRYPTO_SHA512_SIZE])
+               uint8_t out[NP_SHA512_SIZE])
 {
     uint64_t h[8] = {
         0x6A09E667F3BCC908ULL, 0xBB67AE8584CAA73BULL,
@@ -312,7 +311,7 @@ int np_ed25519_verify(const uint8_t *pubkey,
      * point of order 4; with S=0 the verification equation degenerates and
      * accepts any message.  No valid manufacturing root key is low-order.
      */
-    for (i = 0U; i < NP_CRYPTO_ED25519_PUBKEY_SIZE; i++) {
+    for (i = 0U; i < NP_ED25519_PUBKEY_SIZE; i++) {
         or_bytes |= (uint32_t)pubkey[i];
     }
     if (or_bytes == 0U) {

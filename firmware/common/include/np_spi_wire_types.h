@@ -35,6 +35,8 @@
 
 #include <stdint.h>
 
+#include "np_shared_constants.h"
+
 /* ── Channel count (common to both frame types) ─────────────────────────── */
 
 /* Must match the s_charge_nc[] array size in np_charge_monitor.c and the
@@ -261,8 +263,7 @@ typedef char _np_safety_ch_index_check[
 
 /* 2 (magic) + 1 (type) + 1 (rsvd) + 32 (hash) + 64 (sig) + 2 (checksum) = 102 */
 #define NP_SAFETY_CMD_FRAME_LEN     102U
-#define NP_SESSION_HASH_LEN         32U     /* SHA-256 hash of session descriptor */
-#define NP_ED25519_SIG_LEN          64U     /* Ed25519 signature */
+#define NP_SESSION_HASH_LEN         NP_SHA256_SIZE  /* SHA-256 hash of session descriptor */
 
 /* ── Per-channel electrode-geometry charge limit command (OI-CHARGE-02) ──── */
 
@@ -344,7 +345,7 @@ typedef struct __attribute__((packed)) {
     uint8_t  cmd_type;                          /* NP_SAFETY_CMD_SESSION_SIG (0x01) */
     uint8_t  reserved;                          /* 0x00 */
     uint8_t  session_hash[NP_SESSION_HASH_LEN]; /* SHA-256 of session descriptor */
-    uint8_t  session_sig[NP_ED25519_SIG_LEN];   /* Ed25519 signature (64 bytes) */
+    uint8_t  session_sig[NP_ED25519_SIG_SIZE];   /* Ed25519 signature (64 bytes) */
     uint16_t checksum;                          /* sum of bytes [0..99], wrapping uint16 */
 } np_safety_sig_cmd_t;                          /* 2+1+1+32+64+2 = 102 bytes */
 

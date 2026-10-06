@@ -22,11 +22,11 @@
 #define NP_FACTORY_RESET_CONFIG_H
 
 #include <stdint.h>
+#include "../../common/include/np_shared_constants.h"
 
 /* ── SNVS Low Power General Purpose Register 1 ───────────────────────────── */
 /* Survives warm resets only — no VBAT rail (NP-FW-NVRAM-001 §3.4).           */
 /* Holds the factory-reset-in-progress flag (bit 0).                           */
-#define NP_FR_SNVS_BASE             0x400D4000UL
 
 #ifdef NPTEST_HOST
 /* Host test build: the i.MX SNVS MMIO address is not mapped on the host, so a
@@ -36,7 +36,7 @@
 extern volatile uint32_t np_fr_host_snvs_lpgpr1;
 #define NP_FR_SNVS_LPGPR1           (np_fr_host_snvs_lpgpr1)
 #else
-#define NP_FR_SNVS_LPGPR1           (*(volatile uint32_t *)(NP_FR_SNVS_BASE + 0x6CU))
+#define NP_FR_SNVS_LPGPR1           (*(volatile uint32_t *)(NP_SNVS_BASE + 0x6CU))
 #endif
 
 /* SNVS_LPGPR1 bit field layout:                                               */

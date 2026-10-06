@@ -48,7 +48,7 @@
  *   actually populates current_ua[].  Until 2026-09-15 only the MCU half was
  *   wired: the hub passed current_ua = NULL, channel_count = 0, so the loop
  *   below never ran and this interlock enforced nothing (OI-CHARGE-05 (c)).
- *   dt_us is always NP_SAFETY_HEARTBEAT_EXP_MS x 1000 = 200000us (constant
+ *   dt_us is always NP_SAFETY_HEARTBEAT_MS x 1000 = 200000us (constant
  *   known to the MCU from np_safety_config.h; not transmitted over SPI).
  *
  * OI-CHARGE-02 CLOSED — per-channel electrode geometry arrives as AREA and the
@@ -366,7 +366,7 @@ void np_charge_monitor_decl_gate(np_safety_state_t *state)
  * channel:    0–13 matching NP_SAFETY_EN_* bit positions.
  * current_ua: commanded current magnitude in µA (SHDR — from session descriptor).
  *             NOT ADC-measured actual current (which would be UHDR-class).
- * dt_us:      elapsed time in µs; always NP_SAFETY_HEARTBEAT_EXP_MS x 1000.
+ * dt_us:      elapsed time in µs; always NP_SAFETY_HEARTBEAT_MS x 1000.
  *
  * Callers must not invoke this for a channel declared pulsed-only: a
  * session-cumulative integral of |I| on a charge-balanced waveform is not a

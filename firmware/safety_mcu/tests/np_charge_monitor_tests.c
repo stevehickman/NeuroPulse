@@ -60,7 +60,7 @@ extern void np_charge_monitor_phase_tick(np_safety_state_t *state,
 #define NP_SAFETY_CH_BES_IDX        5U
 #define NP_SAFETY_CH_VNS_IDX        7U
 
-#define HEARTBEAT_US  ((uint32_t)NP_SAFETY_HEARTBEAT_EXP_MS * 1000UL)  /* 200000 */
+#define HEARTBEAT_US  ((uint32_t)NP_SAFETY_HEARTBEAT_MS * 1000UL)  /* 200000 */
 
 /* ── Helper: build a clean state ────────────────────────────────────────────── */
 static np_safety_state_t fresh_state(void)

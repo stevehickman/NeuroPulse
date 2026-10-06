@@ -120,7 +120,7 @@ static void test_sig_cmd_checksum(void)
     /* Fill hash and sig with known test pattern */
     uint8_t i;
     for (i = 0U; i < NP_SESSION_HASH_LEN; i++) { cmd.session_hash[i] = (uint8_t)(i + 1U); }
-    for (i = 0U; i < NP_ED25519_SIG_LEN;  i++) { cmd.session_sig[i]  = (uint8_t)(i + 0x40U); }
+    for (i = 0U; i < NP_ED25519_SIG_SIZE;  i++) { cmd.session_sig[i]  = (uint8_t)(i + 0x40U); }
 
     cmd.checksum = cmd_checksum(&cmd);
 
@@ -240,9 +240,9 @@ static void test_cmd_constants(void)
     check(NP_SAFETY_CMD_SESSION_SIG == 0x01U, "NP_SAFETY_CMD_SESSION_SIG == 0x01");
     check(NP_SAFETY_CMD_FRAME_LEN == 102U,    "NP_SAFETY_CMD_FRAME_LEN == 102");
     check(NP_SESSION_HASH_LEN == 32U,          "NP_SESSION_HASH_LEN == 32");
-    check(NP_ED25519_SIG_LEN  == 64U,          "NP_ED25519_SIG_LEN == 64");
+    check(NP_ED25519_SIG_SIZE  == 64U,          "NP_ED25519_SIG_SIZE == 64");
     /* Payload = 4 header + 32 hash + 64 sig + 2 checksum */
-    check(4U + NP_SESSION_HASH_LEN + NP_ED25519_SIG_LEN + 2U == NP_SAFETY_CMD_FRAME_LEN,
+    check(4U + NP_SESSION_HASH_LEN + NP_ED25519_SIG_SIZE + 2U == NP_SAFETY_CMD_FRAME_LEN,
           "frame_len equals 4+hash+sig+2");
 }
 

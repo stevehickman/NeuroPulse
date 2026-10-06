@@ -69,7 +69,7 @@
 /* Erased NOR flash reads all-ones. */
 #define NP_HAL_OTP_ERASED_BYTE  0xFFU
 
-_Static_assert(NP_ED25519_PUB_KEY_LEN <= NP_HAL_OTP_SIZE,
+_Static_assert(NP_ED25519_PUBKEY_SIZE <= NP_HAL_OTP_SIZE,
                "Ed25519 public key does not fit in the OTP window");
 
 void np_hal_otp_read_pubkey(uint8_t *buf, uint8_t len)
@@ -85,13 +85,13 @@ void np_hal_otp_read_pubkey(uint8_t *buf, uint8_t len)
     }
 
     /* Bound the copy to the contracted key length regardless of what the caller
-     * passes.  np_safety_hal.h says len "is always NP_ED25519_PUB_KEY_LEN (32);
+     * passes.  np_safety_hal.h says len "is always NP_ED25519_PUBKEY_SIZE (32);
      * the single caller passes it" — but "always" is a statement about today's
      * one call site, and s_pubkey in np_session_sig.c is exactly 32 bytes.  A
      * larger len would overrun that buffer, which on this part sits in 36 KB of
      * SRAM alongside the safety state.  Clamping costs one comparison. */
-    n = (len < (uint8_t)NP_ED25519_PUB_KEY_LEN) ? len
-                                                : (uint8_t)NP_ED25519_PUB_KEY_LEN;
+    n = (len < (uint8_t)NP_ED25519_PUBKEY_SIZE) ? len
+                                                : (uint8_t)NP_ED25519_PUBKEY_SIZE;
 
     erased = true;
     for (i = 0U; i < n; i++) {
@@ -124,7 +124,7 @@ void np_hal_otp_read_pubkey(uint8_t *buf, uint8_t len)
  */
 _Static_assert((NP_OTP_PUBKEY_CRC_OFFSET % 8U) == 0U,
                "key CRC must start on an OTP double-word");
-_Static_assert(NP_OTP_PUBKEY_CRC_OFFSET >= (NP_HAL_OTP_PUBKEY_OFF + NP_ED25519_PUB_KEY_LEN),
+_Static_assert(NP_OTP_PUBKEY_CRC_OFFSET >= (NP_HAL_OTP_PUBKEY_OFF + NP_ED25519_PUBKEY_SIZE),
                "key CRC overlaps the root session key");
 _Static_assert((NP_OTP_PUBKEY_CRC_OFFSET + 8U) <= NP_TIER_OTP_OFFSET,
                "key CRC double-word overlaps the tier-identity record");
@@ -148,7 +148,7 @@ uint32_t np_hal_otp_read_pubkey_crc(void)
  */
 _Static_assert((NP_TIER_OTP_OFFSET + NP_TIER_RECORD_LEN) <= NP_HAL_OTP_SIZE,
                "tier-identity record does not fit in the OTP window");
-_Static_assert(NP_TIER_OTP_OFFSET >= (NP_HAL_OTP_PUBKEY_OFF + NP_ED25519_PUB_KEY_LEN),
+_Static_assert(NP_TIER_OTP_OFFSET >= (NP_HAL_OTP_PUBKEY_OFF + NP_ED25519_PUBKEY_SIZE),
                "tier-identity record overlaps the root session key");
 _Static_assert((NP_TIER_OTP_OFFSET % 8U) == 0U,
                "tier-identity record must start on an OTP double-word");

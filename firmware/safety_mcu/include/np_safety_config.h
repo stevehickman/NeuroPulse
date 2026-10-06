@@ -15,6 +15,7 @@
 #define NP_SAFETY_CONFIG_H
 
 #include <stdint.h>
+#include "../../common/include/np_shared_constants.h"
 
 /* CMSIS device header — supplies GPIOA/GPIOB and the peripheral register maps
  * this file names below (SPI1, TIM2, ADC1).  Vendored SOUP: see
@@ -45,9 +46,9 @@
 #define NP_SAFETY_SPI_INSTANCE  SPI1
 
 /* ── Watchdog timing ─────────────────────────────────────────────────────── */
-#define NP_SAFETY_WDG_TIMEOUT_MS    1500U  /* heartbeat missed → cutoff */
-#define NP_SAFETY_HEARTBEAT_EXP_MS  200U   /* expected period from main processor */
-
+/* NP_SAFETY_HEARTBEAT_MS (period) and NP_SAFETY_WATCHDOG_MS (heartbeat missed
+ * → cutoff) are in np_shared_constants.h: the hub sends at the period this MCU
+ * expects, so the two must be one definition.                                */
 /* Hardware independent watchdog (IWDG) — backstop for a hung SAFETY-MCU main
  * loop, which the heartbeat watchdog above cannot see because it runs in that
  * same loop (NP-FMEA-001 FMEA-M02-02/-05, NP-RISK-002 OI-RISK2-05).  Nominal
@@ -73,7 +74,7 @@
  *     every second frame of that replay.
  * Cost: after a reset or a restarted run, the first two well-formed beats are
  * not accepted (400 ms at the 200 ms period); the watchdog still fires at
- * NP_SAFETY_WDG_TIMEOUT_MS after the last ACCEPTED beat.                    */
+ * NP_SAFETY_WATCHDOG_MS after the last ACCEPTED beat.                    */
 #define NP_SAFETY_SEQ_MAX_STEP      3U
 #define NP_SAFETY_SEQ_RUN_MIN       2U
 
@@ -368,13 +369,13 @@
 #define NP_FAULT_LATCH_MAGIC    0xDEADBEEFUL  /* sentinel for latch validity */
 
 /* ── Session signature (SW01-M07) ───────────────────────────────────────── */
-#define NP_ED25519_PUB_KEY_LEN  32U  /* manufacturing root public key (OTP) */
+/* Manufacturing root public key (OTP): NP_ED25519_PUBKEY_SIZE bytes.         */
 /* CRC-32 of the root key, little-endian, in the OTP double word after it
  * (NP-FMEA-001 OI-FMEA-03).  Programmed with the key; verified by
  * np_session_sig_init() before the key is ever used.  A production-programming
  * contract like the key's own offset (OI-SWCI-30), not a silicon fact.       */
 #define NP_OTP_PUBKEY_CRC_OFFSET 0x20U
-/* NP_ED25519_SIG_LEN and NP_SESSION_HASH_LEN are in firmware/common/include/np_spi_wire_types.h,
+/* NP_ED25519_SIG_SIZE and NP_SESSION_HASH_LEN are in firmware/common/include/np_spi_wire_types.h,
  * included transitively via np_safety_protocol.h. */
 
 /* Fault slot codes (stored in np_safety_state_t.fault_slot).

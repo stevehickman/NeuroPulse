@@ -67,7 +67,7 @@
  * pattern word AND its independently stored complement into the T2 pair.     */
 #define NP_TIER_T2_WORD      0x5AC3E12DUL
 
-static const uint8_t k_authority[NP_ED25519_PUB_KEY_LEN] =
+static const uint8_t k_authority[NP_ED25519_PUBKEY_SIZE] =
     NP_TIER_AUTHORITY_PUBKEY_INIT;
 
 static uint32_t s_t2_word;
@@ -110,7 +110,7 @@ np_safe_status_t np_tier_identity_init(void)
 
     set_verdict(false, NP_TIER_REASON_NO_AUTHORITY, NP_TIER_T1);
 
-    if (all_bytes_are(k_authority, (uint8_t)NP_ED25519_PUB_KEY_LEN, 0U)) {
+    if (all_bytes_are(k_authority, (uint8_t)NP_ED25519_PUBKEY_SIZE, 0U)) {
         return NP_SAFE_OK;              /* T1: no key can verify anything */
     }
 

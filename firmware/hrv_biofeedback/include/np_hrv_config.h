@@ -10,10 +10,11 @@
 #ifndef NP_HRV_CONFIG_H
 #define NP_HRV_CONFIG_H
 
+#include "../../common/include/np_shared_constants.h"
+
 /* ── Hardware sample rates ──────────────────────────────────────────────────── */
 #define NP_PPG_SAMPLE_RATE_HZ       200U    /* PPG ADC in VNS clip (808–830 nm)  */
-#define NP_EEG_SAMPLE_RATE_HZ       500U    /* ADS1299 sample rate               */
-#define NP_EEG_CHANNELS             8U      /* Fp1/2, F3/4, C3/4, P3/4          */
+/* NP_EEG_SAMPLE_RATE_HZ and NP_EEG_CHANNELS are in np_shared_constants.h.   */
 
 /* ── R-R interval processing ───────────────────────────────────────────────── */
 #define NP_RR_INTERP_RATE_HZ        4U      /* uniform grid for HRV PSD          */

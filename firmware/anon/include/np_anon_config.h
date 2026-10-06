@@ -65,10 +65,6 @@
 /* On the host (NPTEST_HOST) the MMIO address is not mapped, so LPGPR2 is      */
 /* backed by a real RAM variable instead of a fixed-address dereference; this  */
 /* lets the host test exercise the flag set/clear logic without a segfault.    */
-#ifndef NP_SNVS_ANON_IN_PROGRESS
-#define NP_SNVS_ANON_IN_PROGRESS    (1UL << 0U)
-#endif
-
 #ifdef NPTEST_HOST
 /* Declare the host-backed variable (defined in np_anon_scratch.c under the
  * same #ifdef NPTEST_HOST guard), then override the MMIO macro from           */
@@ -76,10 +72,6 @@
 extern volatile uint32_t np_anon_host_lpgpr2;
 #undef  NP_SNVS_LPGPR2
 #define NP_SNVS_LPGPR2 (np_anon_host_lpgpr2)
-#elif !defined(NP_SNVS_LPGPR2)
-/* Fallback for translation units that include this header without np_config.h. */
-#define NP_SNVS_LPGPR2 \
-    (*(volatile uint32_t *)(NP_SNVS_BASE + 0x70U))
 #endif
 
 #endif /* NP_ANON_CONFIG_H */

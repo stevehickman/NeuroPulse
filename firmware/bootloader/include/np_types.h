@@ -75,6 +75,5 @@ typedef struct __attribute__((packed)) {
     uint32_t crc32;                         /* CRC32 over bytes [0..39]        */
 } np_ota_state_t;
 
-#define NP_OTA_STATE_MAGIC  0x4E504F54UL
 
 #endif /* NP_TYPES_H */

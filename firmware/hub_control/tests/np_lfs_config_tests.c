@@ -147,7 +147,7 @@ static void test_vendored_files_match_recorded_sha256(void)
             continue;
         }
 
-        unsigned char digest[NP_CRYPTO_SHA256_SIZE];
+        unsigned char digest[NP_SHA256_SIZE];
         np_sha256(g_file, (uint32_t)n, digest);
 
         char hex[65];

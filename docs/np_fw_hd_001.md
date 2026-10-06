@@ -70,7 +70,7 @@ Targets are therefore classified `NP_HD_TARGET_DEPTH_SURFACE` or `NP_HD_TARGET_D
 | Constant | Value | Description |
 |----------|-------|-------------|
 | `NP_HD_EEG_CHANNELS` | 21 | T2 qEEG cap channels |
-| `NP_HD_EEG_SAMPLE_RATE_HZ` | 500 | ADS1299 sample rate |
+| `NP_EEG_SAMPLE_RATE_HZ` | 500 | ADS1299 sample rate |
 | `NP_HD_RESTING_DURATION_S` | 120 | 2-min resting-state window |
 
 ### 3.2 sLORETA source model

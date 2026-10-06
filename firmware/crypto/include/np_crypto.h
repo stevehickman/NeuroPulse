@@ -34,13 +34,11 @@
 #define NP_CRYPTO_H
 
 #include <stdint.h>
+#include "../../common/include/np_shared_constants.h"
 
 /* ── Size constants ───────────────────────────────────────────────────────── */
-
-#define NP_CRYPTO_SHA256_SIZE           32U
-#define NP_CRYPTO_SHA512_SIZE           64U
-#define NP_CRYPTO_ED25519_PUBKEY_SIZE   32U
-#define NP_CRYPTO_ED25519_SIG_SIZE      64U
+/* NP_SHA256_SIZE, NP_SHA512_SIZE, NP_ED25519_PUBKEY_SIZE, NP_ED25519_SIG_SIZE
+ * are in np_shared_constants.h, shared with the bootloader and the safety MCU. */
 
 /*
  * Maximum message length accepted by np_ed25519_verify.
@@ -53,21 +51,21 @@
 
 /*
  * Compute SHA-256 over `len` bytes of `data`.
- * Result written to `out[NP_CRYPTO_SHA256_SIZE]`.
+ * Result written to `out[NP_SHA256_SIZE]`.
  * When len == 0, data is not dereferenced.
  */
 void np_sha256(const uint8_t *data, uint32_t len,
-               uint8_t out[NP_CRYPTO_SHA256_SIZE]);
+               uint8_t out[NP_SHA256_SIZE]);
 
 /* ── SHA-512 ──────────────────────────────────────────────────────────────── */
 
 /*
  * Compute SHA-512 over `len` bytes of `data`.
- * Result written to `out[NP_CRYPTO_SHA512_SIZE]`.
+ * Result written to `out[NP_SHA512_SIZE]`.
  * When len == 0, data is not dereferenced.
  */
 void np_sha512(const uint8_t *data, uint32_t len,
-               uint8_t out[NP_CRYPTO_SHA512_SIZE]);
+               uint8_t out[NP_SHA512_SIZE]);
 
 /* ── CRC-32 (IEEE 802.3) ──────────────────────────────────────────────────── */
 
