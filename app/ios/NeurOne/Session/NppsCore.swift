@@ -74,7 +74,7 @@ enum NppsCore {
         case 0:
             return bytes
         case 1, 2:
-            throw Refusal(message: String(decoding: bytes, as: UTF8.self))
+            throw Refusal(message: String(bytes: bytes, encoding: .utf8) ?? "the NPPS core refused the input")
         default:
             throw Refusal(message: "the NPPS core was given an argument it cannot read")
         }
