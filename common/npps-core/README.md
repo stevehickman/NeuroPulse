@@ -1,6 +1,6 @@
 # neurone-npps-core — one NPPS implementation for every runtime
 
-**Open item:** `OI-NPPS-CORE-01` (`docs/status/pending-decisions.md`). **Status:** v0; Android's compiler runs on it.
+**Open item:** `OI-NPPS-CORE-01` (`docs/status/pending-decisions.md`). **Status:** v0; Android's and iOS's compilers run on it.
 
 NPPS had five hand-written parsers and four hand-written hub-descriptor compilers (web, simulator bundle,
 iOS, Android, Windows). Each port drifted: the iOS tDCS parser read one field of four, iOS and Android read
@@ -60,8 +60,9 @@ simulator arm64 + x86_64) into `app/ios/Frameworks/` (git-ignored); `app/ios/pro
 runs it before XcodeGen reads the tree and the app links it. `NppsCore.swift` marshals; `NppsCoreTests`
 pushes the same goldens through it. **The XCFramework build, the Xcode linking and the Swift code could
 only be written, not run, in the authoring environment (no Xcode, no Apple Rust targets): iOS CI is their
-first execution.** Nothing in the iOS app calls `NppsCore` yet; `HubDescriptorCompiler` and `NPPSParser`
-are still the Swift ports.
+first execution.** **iOS now compiles through the core:** `HubDescriptorCompiler.swift` maps the iOS models to the core's shape
+(`NppsCoreMapping.swift`), calls `NppsCore.compile` and signs; the Swift encoders are deleted. `NPPSParser` is
+still the Swift port. Because the app's compiler now depends on the XCFramework, a build without it fails to link.
 
 ## Not yet in v0
 
@@ -71,8 +72,8 @@ are still the Swift ports.
 - User wavelength rules are accepted by the compiler API but only the default rules are exercised.
 - Bindings: Android (`../npps-jni`) and the C ABI (`../npps-ffi`, below) that iOS uses. The Windows
   P/Invoke wrapper over the same C ABI and web and the simulator (`wasm32`) are not written.
-  **iOS and Windows cannot be built or tested from this environment.** Android's compiler
-  calls its binding; no other app calls one.
+  **iOS and Windows cannot be built or tested from this environment.** Android's and iOS's compilers
+  call their bindings; no other app calls one.
 - The validator (`protocolValidator`, per-platform today) is not ported.
 - **Signing stays in each platform's keystore.** The compiler returns the blob with a zeroed 64-byte
   signature slot; the caller signs the raw region and fills it.

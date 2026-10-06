@@ -475,7 +475,7 @@ script reading a file does not make that file shared.
 - **Layout.** `common/` mirrors the old tree it was lifted from, so relative imports between its
   files do not change (`lib/`, `types/`, `locales/`, `generated/`). Today it holds the TypeScript
   the web app and the simulator bundle (`simulator/js/vendor/npps-runtime.js`) both build from, the NPPS
-  field table (`npps/fields.json`) and the Rust NPPS core (`npps-core/`) and its bindings (`npps-jni/` for Android, `npps-ffi/` the C ABI iOS links), `OI-NPPS-CORE-01`; Android's descriptor compiler runs on it, no other app yet.
+  field table (`npps/fields.json`) and the Rust NPPS core (`npps-core/`) and its bindings (`npps-jni/` for Android, `npps-ffi/` the C ABI iOS links), `OI-NPPS-CORE-01`; Android's and iOS's descriptor compilers run on it, no other app yet.
 - **Generated shared files are written into `common/`.** `bun scripts/sync-locales.ts` writes
   `common/generated/locales/` (git-ignored) and `bun scripts/sync-socket-map.ts` writes
   `common/lib/socketMap.generated.ts`. A generator never writes a shared file into one app's tree.

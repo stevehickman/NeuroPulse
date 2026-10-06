@@ -55,6 +55,7 @@ const MOD_HD_TDCS: u8 = 0x0F;
 const MOD_VIBROTACTILE: u8 = 0x10;
 
 const FLAG_T2_TIER: u8 = 1;
+const FLAG_AUTONOMOUS: u8 = 1 << 1;
 
 /// Full-scale irradiance per channel, mW/cm² (NP-HW-HEXTILE-001 §4.3; register rows UC-064..066).
 const PBM_FULL_SCALE: [(Channel, f64); 3] =
@@ -74,6 +75,8 @@ pub struct CompileOptions<'a> {
     pub zones: Option<&'a HashMap<String, Vec<u32>>>,
     pub clinician_sockets: Option<&'a [u32]>,
     pub wavelength_rules: Option<&'a WavelengthRules>,
+    /// Mode 3: sets NP_PROTO_FLAG_AUTONOMOUS (NP-FW-HUB-001 §4.1). No firmware reader yet.
+    pub autonomous: bool,
     pub now_unix: u32,
     pub session_uuid: [u8; 16],
 }
@@ -245,6 +248,9 @@ pub fn compile_protocol(proto: &Value, opts: &CompileOptions) -> R<Compiled> {
     let mut flags = 0u8;
     if is_t2 {
         flags |= FLAG_T2_TIER;
+    }
+    if opts.autonomous {
+        flags |= FLAG_AUTONOMOUS;
     }
     blob[0..4].copy_from_slice(&MAGIC.to_le_bytes());
     blob[4..6].copy_from_slice(&VERSION.to_le_bytes());

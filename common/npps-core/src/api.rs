@@ -63,7 +63,8 @@ fn rules(v: &Value) -> Result<Option<WavelengthRules>, String> {
 /// Compile a protocol. `request` is
 /// `{"def":{timingMode,modalities}, "zones":{name:[socket…]}, "clinicianSockets":[…]|null,
 ///   "deviceSerialHex":"…"|null, "nowUnix":n, "sessionUuidHex":"…32 hex…",
-///   "wavelengthRules":{name,channels:[{element,nominalNm,minNm,maxNm}]}|null}`.
+///   "wavelengthRules":{name,channels:[{element,nominalNm,minNm,maxNm}]}|null,
+///   "autonomous":true|false (optional, default false: sets the Mode 3 header flag)}`.
 /// Returns the descriptor with a zeroed 64-byte signature slot, which the caller signs.
 /// The error is the compiler's refusal message.
 pub fn compile_json(request: &str) -> Result<Vec<u8>, String> {
@@ -90,6 +91,7 @@ pub fn compile_json(request: &str) -> Result<Vec<u8>, String> {
         zones: zones.as_ref(),
         clinician_sockets: clinician.as_deref(),
         wavelength_rules: wl.as_ref(),
+        autonomous: req["autonomous"].as_bool().unwrap_or(false),
         now_unix: req["nowUnix"].as_u64().ok_or("nowUnix is required")? as u32,
         session_uuid,
     };

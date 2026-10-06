@@ -48,6 +48,7 @@ fn opts<'a>(c: &'a Ctx, with_clinician: bool) -> CompileOptions<'a> {
         zones: Some(&c.zones),
         clinician_sockets: if with_clinician { Some(&c.clinician) } else { None },
         wavelength_rules: None,
+        autonomous: false,
         now_unix: c.now,
         session_uuid: c.uuid,
     }
@@ -98,4 +99,20 @@ fn every_refusal_reads_as_the_web_compilers_does() {
         }
     }
     assert!(failures.is_empty(), "{} divergence(s):\n{}", failures.len(), failures.join("\n"));
+}
+
+#[test]
+fn autonomous_sets_only_the_mode_3_flag() {
+    let cases = data("hub-descriptor-cases.json");
+    let c = ctx(&cases);
+    let case = &cases["cases"]["bes"];
+    let plain = compile_protocol(&case["def"], &opts(&c, true)).unwrap().blob;
+    let mut o = opts(&c, true);
+    o.autonomous = true;
+    let auto = compile_protocol(&case["def"], &o).unwrap().blob;
+    assert_eq!(plain[6], 0);
+    assert_eq!(auto[6], 0b10);
+    // Nothing else differs.
+    assert_eq!(&plain[..6], &auto[..6]);
+    assert_eq!(&plain[7..], &auto[7..]);
 }

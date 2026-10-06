@@ -7,7 +7,7 @@ import NeurOneNppsCore
 // else. What an input means is decided in the core, so it means the same here as on every other
 // runtime, and a refusal carries the message the web parser or compiler gives.
 //
-// Nothing in the app calls this yet: HubDescriptorCompiler and NPPSParser are still the Swift ports.
+// HubDescriptorCompiler calls this for every descriptor it writes. NPPSParser is still the Swift port.
 
 enum NppsCore {
     /// The core refused the input. `message` is the web reference's, `Line N: …` for a parse.
@@ -26,6 +26,8 @@ enum NppsCore {
         var sessionUUID: Data
         /// Channel windows overriding the shipped defaults, as the core's JSON; nil keeps the defaults.
         var wavelengthRules: [String: Any]?
+        /// Mode 3: sets NP_PROTO_FLAG_AUTONOMOUS in the header.
+        var autonomous = false
     }
 
     private typealias Entry = (
@@ -53,7 +55,8 @@ enum NppsCore {
             "deviceSerialHex": options.deviceSerial.map { hex($0) as Any } ?? NSNull(),
             "nowUnix": options.nowUnix,
             "sessionUuidHex": hex(options.sessionUUID),
-            "wavelengthRules": options.wavelengthRules.map { $0 as Any } ?? NSNull()
+            "wavelengthRules": options.wavelengthRules.map { $0 as Any } ?? NSNull(),
+            "autonomous": options.autonomous
         ]
         return try call(npps_compile_json, JSONSerialization.data(withJSONObject: request))
     }
