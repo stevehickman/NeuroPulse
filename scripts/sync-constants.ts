@@ -110,12 +110,17 @@ function csharp(): string {
   return `// ${BANNER}\n\nnamespace NeurOne.Protocol;\n\n${body}`;
 }
 
+// A C block comment: an opener, one ` * ` line per wrapped line of text, then a closer. Empty when there is no text.
+function cComment(text: string | undefined): string {
+  if (!text) return '';
+  return `/*\n${wrap(text, 100).map(l => ` * ${l}`).join('\n')}\n */\n`;
+}
+
 /** C has no namespaces, so a macro carries its group's prefix. */
 function c(): string {
-  const body = forTarget('c').map(g => {
-    const rows = g.constants.map(k => `${comment(k.note, '*', ' ', 100).replace(/^ \*/gm, ' *').replace(/^/, '/*\n').replace(/\n$/, '\n */\n')}#define ${g.cPrefix ?? ''}${k.name} ${literal(k)}`).join('\n');
-    return `${rows}\n`;
-  }).join('\n');
+  const body = forTarget('c').map(g =>
+    g.constants.map(k => `${cComment(k.note)}#define ${g.cPrefix ?? ''}${k.name} ${literal(k)}\n`).join('')
+  ).join('\n');
   return `/* ${BANNER} */\n#ifndef NEURONE_NPPS_STATUS_H\n#define NEURONE_NPPS_STATUS_H\n\n${body}\n#endif /* NEURONE_NPPS_STATUS_H */\n`;
 }
 
