@@ -81,8 +81,8 @@ final class NppsCoreTests: XCTestCase {
     }
 
     func testAnEmptySourceIsAnEmptyProtocolList() throws {
-        let entries = try JSONSerialization.jsonObject(with: NppsCore.parse("")) as? [Any]
-        XCTAssertEqual(entries?.count, 0)
+        let file = try JSONSerialization.jsonObject(with: NppsCore.parse("")) as? [String: Any]
+        XCTAssertEqual((file?["entries"] as? [Any])?.count, 0)
     }
 
     // MARK: - Compile
