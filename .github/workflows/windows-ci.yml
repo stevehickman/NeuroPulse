@@ -23,7 +23,8 @@ on:
       - 'common/npps-core/**'
       - 'common/npps-ffi/**'
       - 'common/npps/**'
-      - 'common/Cargo.*'
+      - 'common/Cargo.toml'
+      - 'common/Cargo.lock'
       - '.github/workflows/windows-ci.yml'
   pull_request:
     paths:
@@ -34,7 +35,8 @@ on:
       - 'common/npps-core/**'
       - 'common/npps-ffi/**'
       - 'common/npps/**'
-      - 'common/Cargo.*'
+      - 'common/Cargo.toml'
+      - 'common/Cargo.lock'
       - '.github/workflows/windows-ci.yml'
   workflow_dispatch:
 
