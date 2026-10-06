@@ -15,7 +15,7 @@
 //! `parser/blocks.rs`), so a limits set survives a round trip.
 
 use crate::js::num_string;
-use crate::parser::blocks::{camel_modality, describe_invalid, limits_fields, to_socket_set, Conv, MODALITY_LIMITS_KEYS, SOCKET_ID_MAX, SOCKET_ID_MIN};
+use crate::parser::blocks::{camel_modality, describe_invalid, limits_fields, to_socket_set, Conv, MODALITY_LIMITS_KEYS, NP_SOCKET_ID_MAX, NP_SOCKET_ID_MIN};
 use serde_json::Value;
 
 const INDENT: &str = "    ";
@@ -346,7 +346,7 @@ fn zone(z: &Value) -> R<String> {
     let (sockets, invalid) = to_socket_set(&raw);
     if !invalid.is_empty() {
         return Err(format!(
-            "cannot serialize zone \"{}\": {} {} on this helmet — ids are whole numbers {SOCKET_ID_MIN}–{SOCKET_ID_MAX}",
+            "cannot serialize zone \"{}\": {} {} on this helmet — ids are whole numbers {NP_SOCKET_ID_MIN}–{NP_SOCKET_ID_MAX}",
             text(z, "name"),
             invalid.iter().map(|v| describe_invalid(v)).collect::<Vec<_>>().join(", "),
             if invalid.len() == 1 { "is not a socket" } else { "are not sockets" },

@@ -40,13 +40,8 @@ enum NPSocketIDProblem: Equatable {
 /// converted in exactly one place (`NPSocketMask.init(sockets:source:)`).
 enum NPSocketID {
 
-    /// Fixed at 1 by NUMBER-1. Written as a named constant rather than a bare `1`
-    /// so the conversion in `NPSocketMask` reads as a base change and not as an
-    /// unexplained off-by-one.
-    static let NUMBERING_BASE = 1
-
-    static var minimum: Int { NUMBERING_BASE }
-    static var maximum: Int { SocketLattice.socketCount }
+    static var minimum: Int { SocketLattice.NP_SOCKET_NUMBERING_BASE }
+    static var maximum: Int { SocketLattice.NP_SOCKET_COUNT }
 
     /// The inclusive id range (e.g. `1–80`), for error messages and UI hints.
     static var rangeLabel: String { "\(minimum)–\(maximum)" }
@@ -122,7 +117,7 @@ struct NPSocketMask: Equatable, Hashable, Codable {
     /// numeric match against a byte-level fixture.
     static let BYTE_COUNT = 16
 
-    /// Bit `n` set == socket number `n + NPSocketID.NUMBERING_BASE` targeted.
+    /// Bit `n` set == socket number `n + SocketLattice.NP_SOCKET_NUMBERING_BASE` targeted.
     ///
     /// The bit position is INDEX SPACE, not a socket number (NUMBER-1). It is
     /// 0-based because 16 bytes hold 128 sockets only if the first one starts at
@@ -152,7 +147,7 @@ struct NPSocketMask: Equatable, Hashable, Codable {
             if let problem = NPSocketID.problem(id) {
                 throw NPSocketTargetError.invalidSocket(id: id, problem: problem, source: source)
             }
-            let bit = id - NPSocketID.NUMBERING_BASE
+            let bit = id - SocketLattice.NP_SOCKET_NUMBERING_BASE
             bytes[bit >> 3] |= UInt8(1 << (bit & 7))
         }
         self.bytes = bytes
@@ -166,7 +161,7 @@ struct NPSocketMask: Equatable, Hashable, Codable {
         var ids: [Int] = []
         for (index, byte) in bytes.enumerated() where byte != 0 {
             for bit in 0..<8 where byte & UInt8(1 << bit) != 0 {
-                ids.append(index * 8 + bit + NPSocketID.NUMBERING_BASE)
+                ids.append(index * 8 + bit + SocketLattice.NP_SOCKET_NUMBERING_BASE)
             }
         }
         return ids

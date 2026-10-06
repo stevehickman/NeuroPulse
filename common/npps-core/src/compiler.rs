@@ -3,6 +3,7 @@
 //! what is not deterministic (the clock, the session UUID) and signs the raw region the
 //! blob ends with a zeroed 64-byte slot for.
 
+use crate::constants::socket_lattice::{NP_SOCKET_ID_MAX, NP_SOCKET_ID_MIN};
 use crate::js::{js_round, num_string, to_u16, to_u32, to_u8};
 use crate::wavelength::{resolve_one_channel, Channel, WavelengthRules};
 use serde_json::Value;
@@ -15,7 +16,6 @@ const HEADER_LEN: usize = 64;
 const CMD_HDR_LEN: usize = 14;
 const CMD_MAX: usize = 64;
 const SOCKET_MASK_BYTES: usize = 16;
-const SOCKET_COUNT: u32 = 80;
 const TARGET_SLOT: u8 = 0x00;
 const TARGET_SOCKET_MASK: u8 = 0x01;
 const SLOT_FIRST_VALID: u32 = 5;
@@ -189,9 +189,9 @@ fn serialize_target(t: &Target) -> R<SerializedTarget> {
             }
             let mut mask = vec![0u8; SOCKET_MASK_BYTES];
             for &id in sockets {
-                if id < 1 || id > SOCKET_COUNT {
+                if i64::from(id) < NP_SOCKET_ID_MIN || i64::from(id) > NP_SOCKET_ID_MAX {
                     return Err(format!(
-                        "Socket {id} is not a socket on this helmet (valid ids are 1–{SOCKET_COUNT}). Check the zone's socket list."
+                        "Socket {id} is not a socket on this helmet (valid ids are {NP_SOCKET_ID_MIN}–{NP_SOCKET_ID_MAX}). Check the zone's socket list."
                     ));
                 }
                 let bit = (id - 1) as usize;

@@ -12,19 +12,19 @@ namespace NeurOne.Protocol;
 static class SocketLattice
 {
     /// Number of sockets on this lattice.
-    public const int Count = 80;
+    public const int NP_SOCKET_COUNT = 80;
 
     /// Socket ids are 1-based — the numbering base every consumer honours.
-    public const int NumberingBase = 1;
+    public const int NP_SOCKET_NUMBERING_BASE = 1;
 
     /// Inclusive lowest valid socket id.
-    public const int Min = 1;
+    public const int NP_SOCKET_ID_MIN = 1;
 
     /// Inclusive highest valid socket id.
-    public const int Max = 80;
+    public const int NP_SOCKET_ID_MAX = 80;
 
     /// Inclusive id range, for error messages and UI hints.
-    public static string RangeLabel => $"{Min}–{Max}";
+    public static string RangeLabel => $"{NP_SOCKET_ID_MIN}–{NP_SOCKET_ID_MAX}";
 
-    public static bool IsValid(int id) => id >= Min && id <= Max;
+    public static bool IsValid(int id) => id >= NP_SOCKET_ID_MIN && id <= NP_SOCKET_ID_MAX;
 }

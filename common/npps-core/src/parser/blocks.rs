@@ -11,7 +11,7 @@ use serde_json::{json, Map, Value};
 
 // The helmet's socket ids come from hardware/np_socket_map.json (build.rs). The lattice is contiguous (the generated map
 // has no holes), so a valid id is one in that range.
-pub(crate) use crate::constants::socket_lattice::{SOCKET_ID_MAX, SOCKET_ID_MIN, SOCKET_NUMBERING_BASE};
+pub(crate) use crate::constants::socket_lattice::{NP_SOCKET_ID_MAX, NP_SOCKET_ID_MIN, NP_SOCKET_NUMBERING_BASE};
 const PBM_CHANNEL_ELEMENTS: [&str; 3] = ["led_660", "led_808", "led_1064"];
 
 /// The `limits` keys that introduce a per-modality sub-block rather than a scalar.
@@ -203,7 +203,7 @@ pub(crate) fn to_socket_set(raw: &[Value]) -> (Vec<i64>, Vec<&Value>) {
     let mut invalid_seen: Vec<String> = Vec::new();
     for v in raw {
         let n = coerce_socket(v);
-        let ok = n.fract() == 0.0 && n.is_finite() && (SOCKET_ID_MIN as f64..=SOCKET_ID_MAX as f64).contains(&n);
+        let ok = n.fract() == 0.0 && n.is_finite() && (NP_SOCKET_ID_MIN as f64..=NP_SOCKET_ID_MAX as f64).contains(&n);
         if !ok {
             let kind = match v {
                 Value::String(_) => "string",
@@ -396,10 +396,10 @@ impl Parser {
                         let listed = invalid.iter().map(|v| describe_invalid(v)).collect::<Vec<_>>().join(", ");
                         return Err(ParseError::at(
                             format!(
-                                "zone \"{name}\": {listed} {} on this helmet — ids are whole numbers {SOCKET_ID_MIN}–{SOCKET_ID_MAX} \
-                                 ({} sockets, numbered from {SOCKET_NUMBERING_BASE})",
+                                "zone \"{name}\": {listed} {} on this helmet — ids are whole numbers {NP_SOCKET_ID_MIN}–{NP_SOCKET_ID_MAX} \
+                                 ({} sockets, numbered from {NP_SOCKET_NUMBERING_BASE})",
                                 if invalid.len() == 1 { "is not a socket" } else { "are not sockets" },
-                                SOCKET_ID_MAX - SOCKET_ID_MIN + 1,
+                                NP_SOCKET_ID_MAX - NP_SOCKET_ID_MIN + 1,
                             ),
                             line,
                         ));
