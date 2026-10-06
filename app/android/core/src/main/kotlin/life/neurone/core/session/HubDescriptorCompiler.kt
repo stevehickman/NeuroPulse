@@ -304,7 +304,7 @@ class HubDescriptorCompiler(
             val cur = PbmDrive.irradianceToRegister(p.irradianceMWcm2, PbmDrive.INTRANASAL_FULL_SCALE_MW_CM2, "the intranasal probe")
             Encoded(
                 MOD_INTRANASAL, Target.Slot(SLOT_INTRANASAL),
-                bytes(0x00, freqCode(p.frequencyHz), dutyReg(p.dutyCyclePercent),
+                bytes(0x00, freqCode(p.frequencyHz), dutyReg(p.frequencyHz, p.dutyCyclePercent),
                     if (ch == NPPBMChannelElement.LED_660) cur else 0, if (ch == NPPBMChannelElement.LED_808) cur else 0),
             )
         }
@@ -400,7 +400,7 @@ class HubDescriptorCompiler(
             val b = le(5)
             b.putShort(min(jsRound(p.intensityMWcm2), 1000).toShort())
             b.put(freqCode(p.frequencyHz).toByte())
-            b.put(dutyReg(p.dutyCyclePercent).toByte())
+            b.put(dutyReg(p.frequencyHz, p.dutyCyclePercent).toByte())
             b.put(0)
             Encoded(MOD_PBM_1170NM, Target.Slot(SLOT_PBM_1170NM), b.array())
         }
@@ -453,7 +453,7 @@ class HubDescriptorCompiler(
     private fun encodePbm(p: NPPBMTranscranialParams, clinicianSockets: List<Int>?): Encoded {
         // Throws on an unknown zone or a missing clinician selection: a substituted target is wrong-site stimulation.
         val target = Target.Sockets(p.target.resolveSockets(clinicianSockets))
-        val duty = dutyReg(p.dutyCyclePercent)
+        val duty = dutyReg(p.frequencyHz, p.dutyCyclePercent)
         val fc = freqCode(p.frequencyHz)
         // One wavelength per block: the rules pick the channel, every other channel is commanded 0.
         val ch = oneChannel(p.wavelength.rawValue, NPPBMChannelElement.entries)
@@ -541,7 +541,18 @@ class HubDescriptorCompiler(
     /** JavaScript's Math.round — half rounds up — so this encodes what hubCompiler.ts encodes. */
     private fun jsRound(x: Double): Int = floor(x + 0.5).toInt()
     private fun freqCode(hz: Double) = if (hz <= 0) 0 else jsRound(hz) and 0xFF
-    private fun dutyReg(pct: Int) = min(pct * 2, 0x32)
+    /**
+     * `frequency 0` is CW and CW has no duty cycle (OI-SESPWR-03). The parser already refuses a
+     * CW block that states one, but a definition built in the editor never passes the parser, so
+     * the compiler refuses it too: the hub is never left to choose between the two fields.
+     */
+    private fun dutyReg(hz: Double, pct: Int): Int {
+        require(hz > 0 || pct == 100) {
+            "frequency 0 selects continuous wave, which has no duty cycle, but the block's duty is $pct%. " +
+                "Set the duty to 100 % for CW, or give a pulse frequency above 0."
+        }
+        return min(pct * 2, 0x32)
+    }
 
     companion object {
         // Mirrors np_hub_config.h; scripts/check-hub-wire-format.ts pins the web compiler's copy.

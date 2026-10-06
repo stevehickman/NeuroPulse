@@ -965,6 +965,27 @@ struct NPPSParser {
         }
     }
 
+    /// `frequency: 0` selects continuous wave and CW has no duty cycle (OI-SESPWR-03). A block that
+    /// also states a duty other than 100 % contradicts itself, so it is refused rather than left
+    /// for the hub to resolve. A CW block's duty is 100 %, written or not. A nil field was not stated.
+    private func pulseTrain(
+        _ modality: String, _ fields: [String: NPPSFieldValue], line: Int
+    ) throws -> (frequencyHz: Double?, dutyCyclePercent: Int?) {
+        let hz = fields["frequency"]?.asHz
+        let duty = fields["duty_cycle"]?.asPercent
+        if hz == 0 {
+            if let duty, duty != 100 {
+                throw NPPSError(
+                    message: "\(modality): frequency: 0 selects continuous wave, which has no duty cycle, "
+                           + "but duty_cycle is \(Int(duty))%. Remove duty_cycle for CW, or give a pulse "
+                           + "frequency above 0 for a pulsed train (NP-NPPS-REF-001 §4.1).",
+                    line: line)
+            }
+            return (hz, 100)
+        }
+        return (hz, duty.map { Int($0) })
+    }
+
     /// The short name carries its unit as a suffix and REQUIRES it; the canonical name has the
     /// unit in the key and takes a bare number. Required: a defaulted dose is a stimulus
     /// nobody authored.
@@ -1050,8 +1071,9 @@ struct NPPSParser {
             p.irradianceMWcm2 = try absoluteQuantity(
                 name, fields, short: "irradiance", canonical: "irradiance_mw_cm2",
                 unit: "mW_cm2", example: "irradiance: 300mW_cm2", line: line)
-            if let v = fields["frequency"]?.asHz { p.frequencyHz = v }
-            if let v = fields["duty_cycle"]?.asPercent { p.dutyCyclePercent = Int(v) }
+            let train = try pulseTrain(name, fields, line: line)
+            if let v = train.frequencyHz { p.frequencyHz = v }
+            if let v = train.dutyCyclePercent { p.dutyCyclePercent = v }
             if let v = fields["zones"] {
                 p.target = try parsePBMTarget(v, line: line)
             }
@@ -1068,8 +1090,9 @@ struct NPPSParser {
             p.irradianceMWcm2 = try absoluteQuantity(
                 name, fields, short: "irradiance", canonical: "irradiance_mw_cm2",
                 unit: "mW_cm2", example: "irradiance: 25mW_cm2", line: line)
-            if let v = fields["frequency"]?.asHz       { p.frequencyHz = v }
-            if let v = fields["duty_cycle"]?.asPercent { p.dutyCyclePercent = Int(v) }
+            let train = try pulseTrain(name, fields, line: line)
+            if let v = train.frequencyHz { p.frequencyHz = v }
+            if let v = train.dutyCyclePercent { p.dutyCyclePercent = v }
             return .pbmIntranasal(p)
 
         case "eeg_neurofeedback":
@@ -1210,8 +1233,9 @@ struct NPPSParser {
         case "pbm_deep_1170nm":
             var p = NPDeepPBM1170Params()
             if let v = fields["intensity"]?.asDouble    { p.intensityMWcm2 = v }
-            if let v = fields["frequency"]?.asHz        { p.frequencyHz = v }
-            if let v = fields["duty_cycle"]?.asPercent  { p.dutyCyclePercent = Int(v) }
+            let train = try pulseTrain(name, fields, line: line)
+            if let v = train.frequencyHz { p.frequencyHz = v }
+            if let v = train.dutyCyclePercent { p.dutyCyclePercent = v }
             return .pbmDeep1170nm(p)
 
         case "clinical_tacs":

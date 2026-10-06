@@ -1,5 +1,5 @@
 // NPPS PEG Grammar — NeurOne Protocol Script
-// NP-NPPS-GRAM-001 Rev 6
+// NP-NPPS-GRAM-001 Rev 7
 // Single source of truth for NPPS syntax.
 // Generate parser: bunx peggy npps.peggy --format es
 //
@@ -14,6 +14,9 @@
 // `conditions` / `references` fields. All loaded files share ONE namespace
 // (see NP-NPPS-REF-001 §1.6): a zone or condition defined in any file under the
 // protocol directory tree is referenceable by name from any other file.
+//
+// Rev 7 (2026-10-06): `frequency: 0` on pbm_transcranial, pbm_intranasal and pbm_deep_1170nm is CW and CW has no
+// duty cycle, so a duty_cycle other than 100% beside it is an error (OI-SESPWR-03). New fixture error_cw_with_duty.
 //
 // Rev 6 (2026-10-04): absolute quantities, one wavelength per block. Two new unit
 // suffixes, `mW_cm2` (already listed, now exercised) and `dB`, and four checks in
@@ -115,7 +118,28 @@ function checkQuantity(type, fields, short, canonical, unit, example, fail) {
   }
 }
 
+function numberOf(f) {
+  if (!f) return undefined;
+  if (typeof f.value === 'number') return f.value;
+  if (f.value !== null && typeof f.value === 'object' && 'number' in f.value) return f.value.number;
+  return undefined;
+}
+
+// `frequency: 0` selects continuous wave, and CW has no duty cycle (OI-SESPWR-03).
+// A CW block that also states a duty other than 100 % contradicts itself.
+function checkContinuousWave(type, fields, fail) {
+  const freq = numberOf(findField(fields, 'frequency') || findField(fields, 'frequency_hz'));
+  const duty = numberOf(findField(fields, 'duty_cycle') || findField(fields, 'duty_cycle_percent'));
+  if (freq === 0 && duty !== undefined && duty !== 100) {
+    fail(`${type}: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is ${duty}%. ` +
+      `Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train`);
+  }
+}
+
 function checkAbsoluteQuantities(type, fields, fail) {
+  if (type === 'pbm_transcranial' || type === 'pbm_intranasal' || type === 'pbm_deep_1170nm') {
+    checkContinuousWave(type, fields, fail);
+  }
   const pbm = type === 'pbm_transcranial' || type === 'pbm_intranasal';
   const audio = type === 'audio_entrainment';
   const visual = type === 'visual_stimulation';

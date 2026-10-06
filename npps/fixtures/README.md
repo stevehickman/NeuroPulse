@@ -9,7 +9,7 @@ Each fixture is a pair of files:
 - `<name>.npps` -- the NPPS source input
 - `<name>.expected.json` -- the normalized JSON output both parsers must produce
 
-Error fixtures have only a `.npps` file and no `.expected.json`. These inputs are expected to fail parsing. Since Rev 6 of the grammar that includes the absolute-quantity refusals: `error_percent_intensity`, `error_percent_volume`, `error_combined_wavelength`, `error_unitless_irradiance` and `error_missing_irradiance`. `params` carries `irradianceMWcm2` and `volumeDb`, never a percentage.
+Error fixtures have only a `.npps` file and no `.expected.json`. These inputs are expected to fail parsing. Since Rev 6 of the grammar that includes the absolute-quantity refusals: `error_percent_intensity`, `error_percent_volume`, `error_combined_wavelength`, `error_unitless_irradiance` and `error_missing_irradiance`. Rev 7 adds `error_cw_with_duty` (`frequency: 0Hz` with `duty_cycle: 25%`, OI-SESPWR-03). `params` carries `irradianceMWcm2` and `volumeDb`, never a percentage.
 
 `startOffsetSeconds` appears only when a block sets `start` (NP-NPPS-REF-001 Rev 17 §5). A file holding only a `wavelength_rules` block (`wavelength_rules.npps`) has no `.expected.json`: it is checked by the grammar validator, and its parse by `wavelengthRules.test.ts`.
 
@@ -105,6 +105,7 @@ NPPS source fields are snake_case shorthand. The expected JSON uses camelCase re
 | `all_t1_modalities` | All 8 T1 modalities, mA unit, electrode_pairs nested array, hrv_protocol, breathing_rate |
 | `composite` | Composite kind, conflict_resolution, layer blocks, duration conversion (5m=300s) |
 | `comments` | Full-line and inline # comments ignored, zero modalities |
+| `error_cw_with_duty` | **Error fixture** -- `frequency: 0Hz` with `duty_cycle: 25%`: CW has no duty cycle (OI-SESPWR-03) |
 | `error_old_format` | **Error fixture** -- old `protocol { name: "X" }` format, expected to fail |
 | `compound_idents` | Tri-wavelength compound ident (660_808_1064nm) |
 | `hyphenated_tags` | Hyphenated tags (wind-down, all-modalities, deep-sleep) |

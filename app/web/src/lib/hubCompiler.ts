@@ -594,7 +594,15 @@ function freqCode(hz: number): number {
 }
 
 /** Convert duty cycle percent to hub duty register (0x32 = 25% max, enforced). */
-function dutyReg(pct: number): number {
+function dutyReg(hz: number, pct: number): number {
+  // `frequency 0` is CW and CW has no duty cycle (OI-SESPWR-03). The parser refuses a CW block
+  // that states one; a definition built in the editor never passes the parser, so refuse it here
+  // too rather than leave the hub to choose between the two fields.
+  if (hz <= 0 && pct !== 100) {
+    throw new Error(
+      `frequency 0 selects continuous wave, which has no duty cycle, but the block's duty is ${pct}%. ` +
+      'Set the duty to 100 % for CW, or give a pulse frequency above 0.');
+  }
   return Math.min(Math.round(pct * 2), 0x32);
 }
 
@@ -695,7 +703,7 @@ function encodePBMTranscranial(
   opts: CompileOptions,
 ): EncodedParams {
   const target: CmdTarget = { kind: 'sockets', sockets: resolvePbmSockets(p, opts) };
-  const duty = dutyReg(p.dutyCyclePercent);
+  const duty = dutyReg(p.frequencyHz, p.dutyCyclePercent);
   const fc   = freqCode(p.frequencyHz);
 
   // One wavelength per block (NP-NPPS-REF-001 §4.1a): the rules pick the one
@@ -719,7 +727,7 @@ function encodePBMIntranasal(p: PBMIntranasalParams, opts: CompileOptions): Enco
   const rules = opts.wavelengthRules ?? DEFAULT_WAVELENGTH_RULES;
   const ch = resolveOneChannel(p.wavelength, rules, ['led_660', 'led_808'], 'Intranasal PBM');
   const cur  = irradianceToRegister(p.irradianceMWcm2, INTRANASAL_FULL_SCALE_MW_CM2, 'the intranasal probe');
-  const duty = dutyReg(p.dutyCyclePercent);
+  const duty = dutyReg(p.frequencyHz, p.dutyCyclePercent);
   const fc   = freqCode(p.frequencyHz);
   return {
     modType: NP_MOD_INTRANASAL,
@@ -922,7 +930,7 @@ function encodeTMS(p: TMSParams): EncodedParams {
 function encodePBM1170nm(p: DeepPBM1170Params): EncodedParams {
   // np_mod_pbm_1170nm_params_t: 5 bytes (intensity_mw_cm2×2, freq_code, duty, tec_target_c)
   const intMwCm2 = Math.min(Math.round(p.intensityMWcm2), 1000);
-  const duty     = dutyReg(p.dutyCyclePercent);
+  const duty     = dutyReg(p.frequencyHz, p.dutyCyclePercent);
   const fc       = freqCode(p.frequencyHz);
   const buf = new Uint8Array(5);
   const dv  = new DataView(buf.buffer);

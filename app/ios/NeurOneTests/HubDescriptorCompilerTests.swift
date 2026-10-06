@@ -63,6 +63,23 @@ final class HubDescriptorCompilerTests: XCTestCase {
         try check("pbm1064", def(1200, pbm("1064nm", 28)))
     }
 
+    /// OI-SESPWR-03: CW (frequency 0) has no duty cycle, so CW with a duty other than 100 % is refused.
+    func testRefusesCwWithADutyOtherThan100() throws {
+        func cw(_ duty: Int) -> NPProtocolDefinition {
+            var p = NPPBMTranscranialParams()
+            p.target = .named(["Frontal"])
+            p.wavelength = NPPBMTranscranialParams.Wavelength(rawValue: "808nm")
+            p.irradianceMWcm2 = 100
+            p.frequencyHz = 0
+            p.dutyCyclePercent = duty
+            return def(600, mod(.pbmTranscranial(p)))
+        }
+        XCTAssertThrowsError(try build(cw(25))) { error in
+            XCTAssertTrue("\(error)".contains("no duty cycle"), "got: \(error)")
+        }
+        XCTAssertNoThrow(try build(cw(100)))
+    }
+
     func testParallelWavelengthsMergeIntoOneTileCommand() throws {
         try check("pbmMerged", def(600, pbm("660nm", 100), pbm("808nm", 200)))
     }

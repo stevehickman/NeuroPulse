@@ -155,4 +155,36 @@ class NPPSAbsoluteQuantityTests {
         )
         assertFailsWith<IllegalArgumentException> { compiler.compile(nasal1064) }
     }
+
+    // OI-SESPWR-03: `frequency: 0` is CW and CW has no duty cycle.
+    @Test
+    fun refusesCwWithADutyOtherThan100() {
+        val dose = mapOf(
+            "pbm_transcranial" to "wavelength: \"808nm\"\nirradiance: 30mW_cm2",
+            "pbm_intranasal" to "wavelength: \"660nm\"\nirradiance: 30mW_cm2",
+            "pbm_deep_1170nm" to "intensity: 500",
+        )
+        for ((modality, fields) in dose) {
+            val msg = refused("    $modality {\n$fields\nfrequency: 0Hz\nduty_cycle: 25%\n    }")
+            assertTrue(msg.contains("continuous wave, which has no duty cycle"), "$modality: $msg")
+        }
+    }
+
+    @Test
+    fun readsCwAs100PercentWhetherTheDutyIsWrittenOrNot() {
+        for (extra in listOf("", "\nduty_cycle: 100%")) {
+            val p = single(proto(pbm("wavelength: \"808nm\"\nirradiance: 30mW_cm2\nfrequency: 0Hz$extra")))
+            val params = (p.modalities.single().params as NPModalityParams.PbmTranscranial).params
+            assertEquals(100, params.dutyCyclePercent)
+        }
+    }
+
+    @Test
+    fun leavesAPulsedBlockAlone() {
+        val p = single(proto(pbm("wavelength: \"808nm\"\nirradiance: 30mW_cm2\nfrequency: 40Hz\nduty_cycle: 25%")))
+        val params = (p.modalities.single().params as NPModalityParams.PbmTranscranial).params
+        assertEquals(40.0, params.frequencyHz)
+        assertEquals(25, params.dutyCyclePercent)
+    }
 }
+

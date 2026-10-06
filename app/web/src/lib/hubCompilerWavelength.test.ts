@@ -286,3 +286,19 @@ describe('the shipped library', () => {
     expect(refused.sort()).toEqual(Object.keys(REFUSED).sort());
   });
 });
+
+describe('CW with a duty cycle (OI-SESPWR-03)', () => {
+  const cw = (duty: number): NPProtocolDefinition => {
+    const def = protocol('    pbm_transcranial {\n        wavelength: "808nm"\n        irradiance: 100mW_cm2\n        frequency: 40Hz\n    }');
+    const params = def.modalities[0].modalityParams.params as { frequencyHz: number; dutyCyclePercent: number };
+    params.frequencyHz = 0;
+    params.dutyCyclePercent = duty;
+    return def;
+  };
+  it('refuses a definition built outside the parser with CW and a duty other than 100 %', () => {
+    expect(() => commands(cw(25))).toThrow(/continuous wave, which has no duty cycle/);
+  });
+  it('compiles CW at 100 %', () => {
+    expect(commands(cw(100))[0].params[0]).toBe(0);
+  });
+});

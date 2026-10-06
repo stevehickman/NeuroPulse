@@ -47,6 +47,15 @@ class HubDescriptorCompilerTests {
         check("pbm1064", def(1200, pbm("1064nm", 28.0)))
     }
 
+    @Test fun refusesCwWithADutyOtherThan100() {
+        fun cw(duty: Int) = def(600, mod(NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(
+            target = NPPBMTarget.Named(listOf("Frontal")), wavelength = NPPBMTranscranialParams.Wavelength("808nm"),
+            irradianceMWcm2 = 100.0, frequencyHz = 0.0, dutyCyclePercent = duty))))
+        val e = assertFailsWith<IllegalArgumentException> { compiler.build(cw(25), null, listOf(7, 3)) }
+        assertTrue(e.message.orEmpty().contains("no duty cycle"))
+        compiler.build(cw(100), null, listOf(7, 3))
+    }
+
     @Test fun parallelWavelengthsMergeIntoOneTileCommand() = check("pbmMerged", def(600, pbm("660nm", 100.0), pbm("808nm", 200.0)))
 
     @Test fun clinicianSelectedSockets() = check("pbmClin", def(600, mod(NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(

@@ -745,6 +745,29 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
     }
 
     /**
+     * `frequency: 0` selects continuous wave and CW has no duty cycle (OI-SESPWR-03). A block that
+     * also states a duty other than 100 % contradicts itself, so it is refused rather than left
+     * for the hub to resolve. A CW block's duty is 100 %, written or not. Returns the frequency
+     * and duty to apply, either null when the block did not state it.
+     */
+    private fun pulseTrain(modality: String, fields: Map<String, NPPSFieldValue>): Pair<Double?, Int?> {
+        val hz = fields["frequency"]?.asHz
+        val duty = fields["duty_cycle"]?.asPercent
+        if (hz == 0.0) {
+            if (duty != null && duty != 100.0) {
+                throw NPPSError(
+                    "$modality: frequency: 0 selects continuous wave, which has no duty cycle, but " +
+                        "duty_cycle is ${duty.toInt()}%. Remove duty_cycle for CW, or give a pulse " +
+                        "frequency above 0 for a pulsed train (NP-NPPS-REF-001 §4.1).",
+                    currentLine(),
+                )
+            }
+            return hz to 100
+        }
+        return hz to duty?.toInt()
+    }
+
+    /**
      * The short name carries its unit as a suffix and REQUIRES it; the canonical name has the
      * unit in the key and takes a bare number. Required: a defaulted dose is a stimulus nobody
      * authored.
@@ -824,8 +847,9 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
                 p.irradianceMWcm2 = absoluteQuantity(
                     name, fields, "irradiance", "irradiance_mw_cm2", "mW_cm2", "irradiance: 300mW_cm2",
                 )
-                fields["frequency"]?.asHz?.let { p.frequencyHz = it }
-                fields["duty_cycle"]?.asPercent?.let { p.dutyCyclePercent = it.toInt() }
+                val (hz, duty) = pulseTrain(name, fields)
+                hz?.let { p.frequencyHz = it }
+                duty?.let { p.dutyCyclePercent = it }
                 // Exactly two forms (NP-NPPS-REF-001 §4.1): a named-zone array, or
                 // the keyword clinician_selected. The retired five-slot selectors
                 // do NOT parse — a target this parser does not understand must stop
@@ -878,8 +902,9 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
                 p.irradianceMWcm2 = absoluteQuantity(
                     name, fields, "irradiance", "irradiance_mw_cm2", "mW_cm2", "irradiance: 25mW_cm2",
                 )
-                fields["frequency"]?.asHz?.let { p.frequencyHz = it }
-                fields["duty_cycle"]?.asPercent?.let { p.dutyCyclePercent = it.toInt() }
+                val (hz, duty) = pulseTrain(name, fields)
+                hz?.let { p.frequencyHz = it }
+                duty?.let { p.dutyCyclePercent = it }
                 return NPModalityParams.PbmIntranasal(p)
             }
 
@@ -1030,8 +1055,9 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             "pbm_deep_1170nm" -> {
                 val p = NPDeepPBM1170Params()
                 fields["intensity"]?.asDouble?.let { p.intensityMWcm2 = it }
-                fields["frequency"]?.asHz?.let { p.frequencyHz = it }
-                fields["duty_cycle"]?.asPercent?.let { p.dutyCyclePercent = it.toInt() }
+                val (hz, duty) = pulseTrain(name, fields)
+                hz?.let { p.frequencyHz = it }
+                duty?.let { p.dutyCyclePercent = it }
                 return NPModalityParams.PbmDeep1170nm(p)
             }
 

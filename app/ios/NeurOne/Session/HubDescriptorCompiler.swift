@@ -335,7 +335,7 @@ enum HubDescriptorCompiler {
         case .pbmTranscranial(let p):
             // Throws on an unknown zone or a missing clinician selection: a substituted target is wrong-site stimulation.
             let target = Target.sockets(try p.resolveSocketMask(clinicianSockets: clinicianSockets).socketIDs)
-            let duty = dutyReg(p.dutyCyclePercent)
+            let duty = try dutyReg(p.frequencyHz, p.dutyCyclePercent)
             let fc = freqCode(p.frequencyHz)
             // One wavelength per block: the rules pick the channel, every other channel is commanded 0.
             let ch = try oneChannel(p.wavelength.rawValue, allowed: NPPBMChannelElement.allCases)
@@ -350,8 +350,9 @@ enum HubDescriptorCompiler {
             let ch = try oneChannel(p.wavelength.rawValue, allowed: [.led660, .led808])
             let cur = try PbmDrive.irradianceToRegister(
                 p.irradianceMWcm2, fullScale: PbmDrive.intranasalFullScaleMWcm2, channel: "the intranasal probe")
+            let duty = try dutyReg(p.frequencyHz, p.dutyCyclePercent)
             return Encoded(modType: modIntranasal, target: .slot(slotIntranasal),
-                           params: [0x00, freqCode(p.frequencyHz), dutyReg(p.dutyCyclePercent),
+                           params: [0x00, freqCode(p.frequencyHz), duty,
                                     ch == .led660 ? cur : 0, ch == .led808 ? cur : 0])
 
         case .eegNeurofeedback(let p):
@@ -473,7 +474,8 @@ enum HubDescriptorCompiler {
             var b = [UInt8]()
             b.appendLE(u16(min(jsRound(p.intensityMWcm2), 1000)))
             b.append(freqCode(p.frequencyHz))
-            b.append(dutyReg(p.dutyCyclePercent))
+            let duty = try dutyReg(p.frequencyHz, p.dutyCyclePercent)
+            b.append(duty)
             b.append(0)
             return Encoded(modType: modPbm1170, target: .slot(slotPbm1170), params: b)
 
@@ -598,7 +600,17 @@ enum HubDescriptorCompiler {
         return Int(max(-1e9, min(1e9, (x + 0.5).rounded(.down))))
     }
     private static func freqCode(_ hz: Double) -> UInt8 { hz <= 0 ? 0 : u8(jsRound(hz) & 0xFF) }
-    private static func dutyReg(_ pct: Int) -> UInt8 { u8(min(pct * 2, 0x32)) }
+    /// `frequency 0` is CW and CW has no duty cycle (OI-SESPWR-03). The parser already refuses a
+    /// CW block that states one, but a definition built in the editor never passes the parser, so
+    /// the compiler refuses it too: the hub is never left to choose between the two fields.
+    private static func dutyReg(_ hz: Double, _ pct: Int) throws -> UInt8 {
+        if hz <= 0 && pct != 100 {
+            throw NPHubCompileError(message:
+                "frequency 0 selects continuous wave, which has no duty cycle, but the block's duty is "
+                + "\(pct)%. Set the duty to 100 % for CW, or give a pulse frequency above 0.")
+        }
+        return u8(min(pct * 2, 0x32))
+    }
     private static func u8(_ v: Int) -> UInt8 { UInt8(truncatingIfNeeded: v) }
     private static func u16(_ v: Int) -> UInt16 { UInt16(truncatingIfNeeded: v) }
 }

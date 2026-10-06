@@ -146,4 +146,36 @@ final class NPAbsoluteQuantityTests: XCTestCase {
         let result = NPProtocolValidator(resolvedLimits: .unlimited).validate(definition)
         XCTAssertTrue(result.errors.contains { $0.parameterKey == "irradianceMWcm2" })
     }
+
+    // OI-SESPWR-03: `frequency: 0` is CW and CW has no duty cycle.
+    func testRefusesCwWithADutyOtherThan100() {
+        let doses = [
+            "pbm_transcranial": "wavelength: \"808nm\"\nirradiance: 30mW_cm2",
+            "pbm_intranasal": "wavelength: \"660nm\"\nirradiance: 30mW_cm2",
+            "pbm_deep_1170nm": "intensity: 500"
+        ]
+        for (modality, fields) in doses {
+            assertRefused("    \(modality) {\n\(fields)\nfrequency: 0Hz\nduty_cycle: 25%\n    }",
+                          contains: "continuous wave, which has no duty cycle")
+        }
+    }
+
+    func testReadsCwAs100PercentWhetherTheDutyIsWrittenOrNot() throws {
+        for extra in ["", "\nduty_cycle: 100%"] {
+            let entries = try parse(proto(pbm("wavelength: \"808nm\"\nirradiance: 30mW_cm2\nfrequency: 0Hz\(extra)")))
+            guard case .single(let p) = entries[0], case .pbmTranscranial(let params) = p.modalities[0].params else {
+                return XCTFail("expected one PBM protocol")
+            }
+            XCTAssertEqual(params.dutyCyclePercent, 100)
+        }
+    }
+
+    func testLeavesAPulsedBlockAlone() throws {
+        let entries = try parse(proto(pbm("wavelength: \"808nm\"\nirradiance: 30mW_cm2\nfrequency: 40Hz\nduty_cycle: 25%")))
+        guard case .single(let p) = entries[0], case .pbmTranscranial(let params) = p.modalities[0].params else {
+            return XCTFail("expected one PBM protocol")
+        }
+        XCTAssertEqual(params.frequencyHz, 40)
+        XCTAssertEqual(params.dutyCyclePercent, 25)
+    }
 }

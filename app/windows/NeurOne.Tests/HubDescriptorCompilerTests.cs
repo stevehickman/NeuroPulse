@@ -67,6 +67,16 @@ public class HubDescriptorCompilerTests
         Check("pbm1064", Def(1200, Pbm("1064nm", 28)));
     }
 
+    // OI-SESPWR-03: CW (frequency 0) has no duty cycle, so CW with a duty other than 100 % is refused.
+    [Fact]
+    public void RefusesCwWithADutyOtherThan100()
+    {
+        var e = Assert.Throws<HubCompileException>(() =>
+            Build(Def(600, Pbm("808nm", 100, new PbmTarget.ClinicianSelected(), hz: 0, duty: 25))));
+        Assert.Contains("no duty cycle", e.Message);
+        Build(Def(600, Pbm("808nm", 100, new PbmTarget.ClinicianSelected(), hz: 0, duty: 100)));
+    }
+
     [Fact]
     public void ParallelWavelengthsMergeIntoOneTileCommand()
         => Check("pbmMerged", Def(600, Pbm("660nm", 100), Pbm("808nm", 200)));

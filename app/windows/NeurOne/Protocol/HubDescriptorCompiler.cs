@@ -352,7 +352,7 @@ static class HubDescriptorCompiler
                 var p = m.P;
                 // Throws on an unknown zone or a missing clinician selection: a substituted target is wrong-site stimulation.
                 var target = new SocketsTarget(p.Target.ResolveSockets(clinicianSockets));
-                var duty = DutyReg(p.DutyCyclePercent);
+                var duty = DutyReg(p.FrequencyHz, p.DutyCyclePercent);
                 var fc = FreqCode(p.FrequencyHz);
                 // One wavelength per block: the rules pick the channel, every other channel is commanded 0.
                 var ch = OneChannel(p.Wavelength, [PbmChannelElement.Led660, PbmChannelElement.Led808, PbmChannelElement.Led1064]);
@@ -376,7 +376,7 @@ static class HubDescriptorCompiler
                 var ch = OneChannel(p.Wavelength, [PbmChannelElement.Led660, PbmChannelElement.Led808]);
                 var cur = IrradianceToRegister(p.IrradianceMwCm2, IntranasalFullScaleMwCm2, "the intranasal probe");
                 return new Encoded(ModIntranasal, new SlotTarget(SlotIntranasal),
-                    [0x00, FreqCode(p.FrequencyHz), DutyReg(p.DutyCyclePercent),
+                    [0x00, FreqCode(p.FrequencyHz), DutyReg(p.FrequencyHz, p.DutyCyclePercent),
                      ch == PbmChannelElement.Led660 ? cur : (byte)0, ch == PbmChannelElement.Led808 ? cur : (byte)0]);
             }
 
@@ -501,7 +501,7 @@ static class HubDescriptorCompiler
                 var w = new Writer();
                 w.U16(U16(Math.Min(JsRound(p.IntensityMwCm2), 1000)));
                 w.U8(FreqCode(p.FrequencyHz));
-                w.U8(DutyReg(p.DutyCyclePercent));
+                w.U8(DutyReg(p.FrequencyHz, p.DutyCyclePercent));
                 w.U8(0);
                 return new Encoded(ModPbm1170, new SlotTarget(SlotPbm1170), w.ToArray());
             }
@@ -686,7 +686,17 @@ static class HubDescriptorCompiler
         double.IsFinite(x) ? (int)Math.Max(-1e9, Math.Min(1e9, Math.Floor(x + 0.5))) : 0;
 
     private static byte FreqCode(double hz) => hz <= 0 ? (byte)0 : U8(JsRound(hz) & 0xFF);
-    private static byte DutyReg(int pct) => U8(Math.Min(pct * 2, 0x32));
+    // `frequency 0` is CW and CW has no duty cycle (OI-SESPWR-03). A definition built in code never
+    // passes a parser, so the compiler refuses a CW block with a duty: the hub is never left to
+    // choose between the two fields.
+    private static byte DutyReg(double hz, int pct)
+    {
+        if (hz <= 0 && pct != 100)
+            throw new HubCompileException(
+                $"frequency 0 selects continuous wave, which has no duty cycle, but the block's duty is {pct}%. " +
+                "Set the duty to 100 % for CW, or give a pulse frequency above 0.");
+        return U8(Math.Min(pct * 2, 0x32));
+    }
     private static byte U8(int v) => unchecked((byte)v);
     private static ushort U16(int v) => unchecked((ushort)v);
 }

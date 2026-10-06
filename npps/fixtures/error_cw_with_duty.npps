@@ -1,0 +1,12 @@
+protocol "CW With Duty" {
+    id: "e0000007-0000-0000-0000-000000000000"
+    duration: 5m
+
+    pbm_transcranial {
+        wavelength: "808nm"
+        irradiance: 100mW_cm2
+        frequency: 0Hz
+        duty_cycle: 25%
+        zones: ["All"]
+    }
+}
