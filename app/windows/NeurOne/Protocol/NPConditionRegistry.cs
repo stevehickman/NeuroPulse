@@ -41,16 +41,16 @@ public static class NPConditionRegistry
     /// Directory holding the shipped .npps library, copied beside the assembly by
     /// the csproj. One fixed location, matching §1.6's directory model.
     /// </summary>
-    private const string PredefinedDirectory = "protocols/predefined";
+    private const string PREDEFINED_DIRECTORY = "protocols/predefined";
 
-    private const string RegistryFile = "00-conditions.npps";
+    private const string REGISTRY_FILE = "00-conditions.npps";
 
     // `condition "Name" { ... }` — the whole of the condition grammar.
-    private static readonly Regex BlockPattern = new(
+    private static readonly Regex BLOCK_PATTERN = new(
         "condition\\s+\"((?:[^\"\\\\]|\\\\.)*)\"\\s*\\{([^}]*)\\}",
         RegexOptions.Compiled);
 
-    private static readonly Regex FieldPattern = new(
+    private static readonly Regex FIELD_PATTERN = new(
         "([A-Za-z_][A-Za-z0-9_]*)\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"",
         RegexOptions.Compiled);
 
@@ -97,7 +97,7 @@ public static class NPConditionRegistry
         {
             if (_all is not null) { return; }
 
-            var path = Path.Combine(AppContext.BaseDirectory, PredefinedDirectory, RegistryFile);
+            var path = Path.Combine(AppContext.BaseDirectory, PREDEFINED_DIRECTORY, REGISTRY_FILE);
             var source = File.Exists(path) ? File.ReadAllText(path) : string.Empty;
             var (conditions, errors) = Parse(source);
 
@@ -119,11 +119,11 @@ public static class NPConditionRegistry
         var order = new List<string>();
         var errors = new List<string>();
 
-        foreach (Match block in BlockPattern.Matches(source))
+        foreach (Match block in BLOCK_PATTERN.Matches(source))
         {
             var name = Unescape(block.Groups[1].Value);
             var fields = new Dictionary<string, string>();
-            foreach (Match field in FieldPattern.Matches(block.Groups[2].Value))
+            foreach (Match field in FIELD_PATTERN.Matches(block.Groups[2].Value))
             {
                 fields[field.Groups[1].Value] = Unescape(field.Groups[2].Value);
             }

@@ -32,7 +32,7 @@ class NppsCoreTests {
     private fun resource(name: String): JsonObject =
         Json.parseToJsonElement(javaClass.getResourceAsStream("/$name")!!.bufferedReader().readText()).jsonObject
 
-    private val parseKeys = listOf("entries", "zones", "conditions", "wavelengthRules", "limits")
+    private val PARSE_KEYS = listOf("entries", "zones", "conditions", "wavelengthRules", "limits")
 
     /**
      * What the web parser's `parseNPPSFile` and `parseNPPSLimits` reduce to. The web parser keeps only the
@@ -46,7 +46,7 @@ class NppsCoreTests {
         try {
             val got = reduce(NppsCore.parse(source))
             if (want != null && want !is JsonNull) failures += "$name: accepted what the web parser refuses: $want"
-            else for (key in parseKeys) if (got[key] != expected[key]) failures += "$name: $key differ"
+            else for (key in PARSE_KEYS) if (got[key] != expected[key]) failures += "$name: $key differ"
         } catch (e: IllegalArgumentException) {
             if (want == null || want is JsonNull) failures += "$name: refused what the web parser accepts: ${e.message}"
             else if (e.message != want.jsonPrimitive.content) {

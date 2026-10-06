@@ -36,7 +36,7 @@ static class WavelengthRulesEngine
     /// The two combined channel names the language used to accept (NP-NPPS-REF-001 Rev 18).
     /// RETIRED: each wavelength is its own block. "1064nm" was never one of them in substance;
     /// it is a single wavelength the default rules map to the 1064 nm channel.
-    public static readonly IReadOnlyDictionary<string, string[]> Retired =
+    public static readonly IReadOnlyDictionary<string, string[]> RETIRED =
         new Dictionary<string, string[]>
         {
             ["660_808nm"] = new[] { "660nm", "808nm" },
@@ -46,12 +46,12 @@ static class WavelengthRulesEngine
     /// The refusal text for a retired name, naming the blocks that replace it.
     public static string RetiredMessage(string value)
     {
-        var blocks = string.Join(" and ", (Retired.TryGetValue(value, out var r) ? r : Array.Empty<string>()).Select(w => $"\"{w}\""));
+        var blocks = string.Join(" and ", (RETIRED.TryGetValue(value, out var r) ? r : Array.Empty<string>()).Select(w => $"\"{w}\""));
         return $"wavelength \"{value}\" is retired: it welded independent emitters into one block. " +
                $"Write one block per wavelength ({blocks}), each with its own irradiance.";
     }
 
-    private static readonly Regex SingleNm = new(@"^([0-9]+(?:\.[0-9]+)?)nm\z", RegexOptions.CultureInvariant);
+    private static readonly Regex SINGLE_NM = new(@"^([0-9]+(?:\.[0-9]+)?)nm\z", RegexOptions.CultureInvariant);
 
     /// The channel that delivers `nm`, or null. Nearest nominal wins; a tie goes to the
     /// earlier channel (660, 808, 1064), so rule order never matters.
@@ -71,8 +71,8 @@ static class WavelengthRulesEngine
     public static PbmChannelElement[]? ResolveChannels(string value, WavelengthRules rules, out string? refusal)
     {
         refusal = null;
-        if (Retired.ContainsKey(value)) { refusal = "retired"; return null; }
-        var m = SingleNm.Match(value);
+        if (RETIRED.ContainsKey(value)) { refusal = "retired"; return null; }
+        var m = SINGLE_NM.Match(value);
         if (!m.Success || !double.TryParse(m.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var nm) || nm <= 0)
         {
             refusal = "invalid";

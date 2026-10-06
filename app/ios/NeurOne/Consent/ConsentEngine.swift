@@ -35,7 +35,7 @@ struct ClinicalUseCase: Identifiable {
 enum ConsentEngine {
 
     // All available clinical use cases — clinicians select from this library.
-    // Must stay identical to Android's `ConsentEngine.useCaseLibrary`: a grant records the IDs it
+    // Must stay identical to Android's `ConsentEngine.USE_CASE_LIBRARY`: a grant records the IDs it
     // was made from, and the two platforms read each other's grants.
     static let USE_CASE_LIBRARY: [ClinicalUseCase] = [
         ClinicalUseCase(

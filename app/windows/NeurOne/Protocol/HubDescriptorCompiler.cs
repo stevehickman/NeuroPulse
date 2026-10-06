@@ -39,9 +39,9 @@ sealed class HubCompileException(string message) : Exception(message);
 
 static class HubDescriptorCompiler
 {
-    public const int UuidLen = 16;
-    public const int SigLen = 64;
-    public const byte FlagT2Tier = 1 << 0;      // NP_PROTO_FLAG_T2_TIER (app-computed, carries no authority)
+    public const int UUID_LEN = 16;
+    public const int SIG_LEN = 64;
+    public const byte FLAG_T2_TIER = 1 << 0;      // NP_PROTO_FLAG_T2_TIER (app-computed, carries no authority)
 
     /// Compile and sign. Ed25519 covers the raw signed region and fills the last 64 bytes.
     /// `deviceSerial` is the 32-byte replay guard the hub checks (§4.2); omitted only on the bench
@@ -60,10 +60,10 @@ static class HubDescriptorCompiler
     /// tell a compile refusal from a signing failure.
     public static HubDescriptor Signed(HubDescriptor unsigned, Func<byte[], (byte[] Signature, string Fingerprint)>? sign = null)
     {
-        var region = unsigned.Blob[..^SigLen];
+        var region = unsigned.Blob[..^SIG_LEN];
         var (signature, fingerprint) = (sign ?? SessionProtocolSigner.Sign)(region);
-        if (signature.Length != SigLen)
-            throw new HubCompileException($"Ed25519 signature must be {SigLen} bytes, got {signature.Length}.");
+        if (signature.Length != SIG_LEN)
+            throw new HubCompileException($"Ed25519 signature must be {SIG_LEN} bytes, got {signature.Length}.");
         var blob = new byte[unsigned.Blob.Length];
         region.CopyTo(blob, 0);
         signature.CopyTo(blob, region.Length);
@@ -84,8 +84,8 @@ static class HubDescriptorCompiler
         DateTimeOffset? now = null,
         byte[]? sessionUuid = null)
     {
-        var uuid = sessionUuid ?? RandomNumberGenerator.GetBytes(UuidLen);
-        if (uuid.Length != UuidLen) throw new ArgumentException($"sessionUuid must be {UuidLen} bytes.", nameof(sessionUuid));
+        var uuid = sessionUuid ?? RandomNumberGenerator.GetBytes(UUID_LEN);
+        if (uuid.Length != UUID_LEN) throw new ArgumentException($"sessionUuid must be {UUID_LEN} bytes.", nameof(sessionUuid));
 
         // The zone namespace is the loaded .npps one (NP-NPPS-REF-001 §8). A name it does not hold is
         // left out, and the core refuses the protocol naming it.
@@ -113,7 +113,7 @@ static class HubDescriptorCompiler
         }
         return new HubDescriptor
         {
-            Blob = blob, SessionUuid = uuid, IsT2 = (blob[6] & FlagT2Tier) != 0, CmdCount = blob[7],
+            Blob = blob, SessionUuid = uuid, IsT2 = (blob[6] & FLAG_T2_TIER) != 0, CmdCount = blob[7],
         };
     }
 }

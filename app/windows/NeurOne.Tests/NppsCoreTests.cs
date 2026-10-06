@@ -19,13 +19,13 @@ public class NppsCoreTests
     private static JsonObject Golden() => JsonNode.Parse(File.ReadAllText(
         Path.Combine(Root, "app", "NeurOneShared", "TestData", "npps-parse-golden.json")))!.AsObject();
 
-    private static readonly string[] ParseKeys = ["entries", "zones", "conditions", "wavelengthRules", "limits"];
+    private static readonly string[] PARSE_KEYS = ["entries", "zones", "conditions", "wavelengthRules", "limits"];
 
     /// The web parser keeps only the first `limits` block; the core reports every one.
     private static JsonObject Reduce(JsonObject parsed)
     {
         var reduced = new JsonObject();
-        foreach (var key in ParseKeys.Where(k => k != "limits")) reduced[key] = parsed[key]!.DeepClone();
+        foreach (var key in PARSE_KEYS.Where(k => k != "limits")) reduced[key] = parsed[key]!.DeepClone();
         var limits = parsed["limits"]!.AsArray();
         reduced["limits"] = limits.Count > 0 ? limits[0]!.DeepClone() : null;
         return reduced;
@@ -38,7 +38,7 @@ public class NppsCoreTests
         {
             var got = Reduce(JsonNode.Parse(NppsCore.Parse(source))!.AsObject());
             if (want is not null) { failures.Add($"{name}: accepted what the web parser refuses: {want}"); return; }
-            foreach (var key in ParseKeys)
+            foreach (var key in PARSE_KEYS)
                 if (!JsonNode.DeepEquals(got[key], expected[key])) failures.Add($"{name}: {key} differ");
         }
         catch (NppsRefusal e)
