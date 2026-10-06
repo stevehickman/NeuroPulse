@@ -549,7 +549,7 @@ motor threshold**, a baseline that is stated and does not move with the hardware
 
 **Runtimes (Rev 18).** The grammar and all four runtimes implement this, and the shared fixtures in
 `npps/fixtures` assert it on web and Android (the five `error_*` refusals and `absolute_quantities`).
-iOS and Windows are written to the same rules and unbuilt (`OI-NPPS-ABS-01`). The mobile and Windows
+iOS and Windows are written to the same rules and build and test green in CI (`OI-NPPS-ABS-01`, closed 2026-10-06; what it left open is `OI-NPPS-ABS-02`). The mobile and Windows
 session wires carry the absolute values as they are: `irradianceMWcm2` and `volumeDb`, an intranasal
 `wavelength`, and a scalp dose in J/cm² (irradiance × duty × time) in place of the old 0.4 W
 placeholder.
