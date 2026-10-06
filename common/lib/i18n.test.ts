@@ -126,19 +126,19 @@ describe("pluralKey()", () => {
   });
 });
 
-describe("supportedLocales", () => {
+describe("SUPPORTED_LOCALES", () => {
   it("exports exactly 11 locales", async () => {
-    const { supportedLocales } = await import(
+    const { SUPPORTED_LOCALES } = await import(
       "../locales/supportedLocales"
     );
-    expect(supportedLocales).toHaveLength(11);
+    expect(SUPPORTED_LOCALES).toHaveLength(11);
   });
 
   it("every locale has non-empty bcp47 and displayName", async () => {
-    const { supportedLocales } = await import(
+    const { SUPPORTED_LOCALES } = await import(
       "../locales/supportedLocales"
     );
-    for (const loc of supportedLocales) {
+    for (const loc of SUPPORTED_LOCALES) {
       expect(loc.bcp47.length).toBeGreaterThan(0);
       expect(loc.displayName.length).toBeGreaterThan(0);
       expect(["ltr", "rtl"]).toContain(loc.direction);
@@ -146,10 +146,10 @@ describe("supportedLocales", () => {
   });
 
   it("Arabic has direction rtl", async () => {
-    const { supportedLocales } = await import(
+    const { SUPPORTED_LOCALES } = await import(
       "../locales/supportedLocales"
     );
-    const ar = supportedLocales.find((l) => l.bcp47 === "ar");
+    const ar = SUPPORTED_LOCALES.find((l) => l.bcp47 === "ar");
     expect(ar).toBeDefined();
     expect(ar!.direction).toBe("rtl");
   });
