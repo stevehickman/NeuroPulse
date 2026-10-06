@@ -22,7 +22,7 @@ import {
   VibrotactileParams,
 } from '../../../../common/types/protocol';
 import { t } from '../../../../common/lib/i18n';
-import { NPHardwareLimits } from '../lib/hardwareLimits';
+import { NPHardwareLimits } from '../../../../common/lib/constants.generated';
 
 // ─── Interval Controls ─────────────────────────────────────────────────────────
 
@@ -542,7 +542,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
           {/* max is the driver's channel count, one per T2 cap electrode, single-sourced
               from NPHardwareLimits. It read 16 until OI-TACS-01 widened the hub wire
               mask on 2026-09-07; before that the encoder clamped whatever was typed. */}
-          <NumberField label={t('WEB_MOD_CHANNEL_COUNT')} value={p.channelCount} min={2} max={NPHardwareLimits.clinicalTacsMaxChannels} onChange={v => update<typeof params>({ ...p, channelCount: v })} />
+          <NumberField label={t('WEB_MOD_CHANNEL_COUNT')} value={p.channelCount} min={2} max={NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS} onChange={v => update<typeof params>({ ...p, channelCount: v })} />
           <SelectField label={t('MODALITY_WAVEFORM')} value={p.waveform} onChange={v => update<typeof params>({ ...p, waveform: v as ClinicalTacsParams['waveform'] })}
             options={[
               { value: 'sinusoidal', label: t('WEB_WAVE_SINUSOIDAL') },

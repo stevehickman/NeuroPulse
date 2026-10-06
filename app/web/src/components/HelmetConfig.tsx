@@ -40,7 +40,7 @@ import {
 import { NP_SOCKETS } from '../../../../common/lib/socketMap.generated';
 import { socketRangeLabel, toSocketSet, unionSockets } from '../../../../common/lib/socketSet';
 import { getPredefinedNamespace } from '../lib/predefinedProtocols';
-import { serializeZone } from '../lib/nppsSerializer';
+import { serializeZone } from '../../../../common/lib/nppsSerializer';
 import { ConditionChips } from './ConditionLinkDialog';
 import { SocketPicker } from './SocketPicker';
 import {

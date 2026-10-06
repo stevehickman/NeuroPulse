@@ -9,15 +9,13 @@ use crate::js::{num_string, number, value_string};
 use crate::lexer::Kind;
 use serde_json::{json, Map, Value};
 
-/// The helmet's socket ids, `NP_SOCKET_ID_MIN..=NP_SOCKET_ID_MAX` in common/lib/socketMap.generated.ts.
-/// The lattice is contiguous (the generated map has no holes), so a valid id is one in this range.
-const SOCKET_ID_MIN: i64 = 1;
-const SOCKET_ID_MAX: i64 = 80;
-const SOCKET_NUMBERING_BASE: i64 = 1;
+// The helmet's socket ids come from hardware/np_socket_map.json (build.rs). The lattice is contiguous (the generated map
+// has no holes), so a valid id is one in that range.
+pub(crate) use crate::constants::socket_lattice::{SOCKET_ID_MAX, SOCKET_ID_MIN, SOCKET_NUMBERING_BASE};
 const PBM_CHANNEL_ELEMENTS: [&str; 3] = ["led_660", "led_808", "led_1064"];
 
 /// The `limits` keys that introduce a per-modality sub-block rather than a scalar.
-const MODALITY_LIMITS_KEYS: [&str; 14] = [
+pub(crate) const MODALITY_LIMITS_KEYS: [&str; 14] = [
     "pbm_transcranial", "pbm_intranasal", "eeg_neurofeedback", "bes_tacs", "tdcs", "vns_hrv",
     "audio_entrainment", "visual_stimulation", "tms", "pbm_deep_1170nm", "clinical_tacs", "hd_tdcs",
     "cervical_vns", "vibrotactile_40hz",
@@ -25,7 +23,7 @@ const MODALITY_LIMITS_KEYS: [&str; 14] = [
 
 /// How a limits field's raw value becomes its output.
 #[derive(Clone, Copy)]
-enum Conv {
+pub(crate) enum Conv {
     /// `Number(v)`.
     Num,
     /// `Array.isArray(v) ? v : [String(v)]`.
@@ -38,10 +36,10 @@ enum Conv {
 
 use Conv::{Flag, List, Num, Retired};
 
-type Fields = &'static [(&'static str, &'static str, Conv)];
+pub(crate) type Fields = &'static [(&'static str, &'static str, Conv)];
 
 /// Per modality: `(npps key, output key, conversion)`. Unknown keys are read and dropped.
-fn limits_fields(modality: &str) -> Fields {
+pub(crate) fn limits_fields(modality: &str) -> Fields {
     match modality {
         "pbm_transcranial" => &[
             ("max_irradiance_mw_cm2", "maxIrradianceMWcm2", Num),
@@ -174,7 +172,7 @@ fn json_num(x: f64) -> Value {
 }
 
 /// `describeInvalid`: a rejected socket id as it was written.
-fn describe_invalid(raw: &Value) -> String {
+pub(crate) fn describe_invalid(raw: &Value) -> String {
     match raw {
         Value::String(s) => serde_json::to_string(s).unwrap_or_default(),
         other => value_string(other),
@@ -199,7 +197,7 @@ fn coerce_socket(v: &Value) -> f64 {
 }
 
 /// `toSocketSet`: valid ids deduplicated and ascending, and the invalid inputs as written.
-fn to_socket_set(raw: &[Value]) -> (Vec<i64>, Vec<&Value>) {
+pub(crate) fn to_socket_set(raw: &[Value]) -> (Vec<i64>, Vec<&Value>) {
     let mut sockets: Vec<i64> = Vec::new();
     let mut invalid: Vec<&Value> = Vec::new();
     let mut invalid_seen: Vec<String> = Vec::new();
@@ -674,7 +672,7 @@ impl Parser {
 }
 
 /// The `NPLimitsSet` property a modality's limits sub-block is stored under.
-fn camel_modality(key: &str) -> &'static str {
+pub(crate) fn camel_modality(key: &str) -> &'static str {
     match key {
         "pbm_transcranial" => "pbmTranscranial",
         "pbm_intranasal" => "pbmIntranasal",

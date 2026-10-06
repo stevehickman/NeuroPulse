@@ -41,6 +41,8 @@ sourceSets.main {
 // (hub-descriptor-golden.json is read by the Android, iOS and Windows tests).
 sourceSets.test {
     resources.srcDir(layout.projectDirectory.dir("../../NeurOneShared/TestData"))
+    // locales/en.json: the validator returns locale keys, and the tests resolve them in English (TestLocale).
+    resources.srcDir(layout.projectDirectory.dir("../../../locales"))
 }
 
 tasks.named("processResources") { dependsOn(bundlePredefinedProtocols) }

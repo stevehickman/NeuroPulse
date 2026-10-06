@@ -115,4 +115,65 @@ public class NppsCoreTests
         var e = Assert.Throws<NppsRefusal>(() => NppsCore.Compile("{}"u8, options));
         Assert.Equal("sessionUUID must be 16 bytes", e.Message);
     }
+
+    // ── serialize and validate (the P/Invoke layer: UTF-8 in and out, refusals as NppsRefusal) ─────────────────
+
+    private static JsonObject SerializeGolden() => JsonNode.Parse(File.ReadAllText(
+        Path.Combine(Root, "app", "NeurOneShared", "TestData", "npps-serialize-golden.json")))!.AsObject();
+
+    [Fact]
+    public void SerializeWritesTheShippedLibraryAsTheWebSerializerDid()
+    {
+        var failures = new List<string>();
+        var n = 0;
+        foreach (var (rel, items) in SerializeGolden()["files"]!.AsObject())
+            foreach (var item in items!.AsArray())
+            {
+                n++;
+                var got = NppsCore.Serialize([item!["item"]!]);
+                if (got != item["text"]!.GetValue<string>()) failures.Add($"{rel}: differs");
+            }
+        Assert.True(n > 100);
+        Assert.True(failures.Count == 0, $"{failures.Count} divergence(s):\n" + string.Join("\n", failures));
+    }
+
+    [Fact]
+    public void SerializeRefusesAZoneItCannotWriteWithTheCoresMessage()
+    {
+        var zone = JsonNode.Parse("""{"kind":"zone","zone":{"name":"Z","sockets":[0,999]}}""")!;
+        var e = Assert.Throws<NppsRefusal>(() => NppsCore.Serialize([zone]));
+        // The message holds an em dash: it must survive the trip through the DLL unchanged.
+        Assert.Equal("cannot serialize zone \"Z\": 0, 999 are not sockets on this helmet \u2014 ids are whole numbers 1\u201380", e.Message);
+    }
+
+    [Fact]
+    public void ValidateReturnsLocaleKeysAndArguments()
+    {
+        var request = JsonNode.Parse("""
+            {"entry":{"kind":"single","protocol":{"name":"P","timingMode":{"type":"duration","seconds":1200},
+             "modalities":[{"type":"bes_tacs","enabled":true,"interval":{},
+             "params":{"intensityMilliamps":2,"frequencyHz":10,"waveform":"square"}}]}},"limits":{}}
+            """)!;
+        var result = JsonNode.Parse(NppsCore.Validate(request))!.AsObject();
+        Assert.False(result["isValid"]!.GetValue<bool>());
+        var message = result["issues"]![0]!["message"]!;
+        Assert.Equal("VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS", message["key"]!.GetValue<string>());
+        Assert.Equal(["2", "1"], message["args"]!.AsArray().Select(a => a!.GetValue<string>()).ToArray());
+    }
+
+    [Fact]
+    public void ResolveLimitsResolvesEveryTierCombinationAsTheWebFunctionDid()
+    {
+        var cases = JsonNode.Parse(File.ReadAllText(
+            Path.Combine(Root, "app", "NeurOneShared", "TestData", "npps-resolve-golden.json")))!["cases"]!.AsArray();
+        Assert.True(cases.Count >= 300);
+        var failures = new List<string>();
+        foreach (var c in cases)
+        {
+            var got = JsonNode.Parse(NppsCore.ResolveLimits(c!["global"], c["helmet"], c["individual"]))!["limits"]!.AsObject();
+            got.Remove("level");
+            if (!JsonNode.DeepEquals(got, c["expected"])) failures.Add($"{c["name"]}: differs");
+        }
+        Assert.True(failures.Count == 0, $"{failures.Count} divergence(s):\n" + string.Join("\n", failures.Take(5)));
+    }
 }

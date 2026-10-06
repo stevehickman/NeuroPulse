@@ -47,12 +47,21 @@ jobs:
         app/NeurOneShared/TestData/npps-parse-golden.json
         app/NeurOneShared/TestData/hub-descriptor-cases.json
         app/NeurOneShared/TestData/hub-descriptor-golden.json
+        # The serializer and validator are the core's too, held to the web implementations they replaced.
+        app/NeurOneShared/TestData/npps-serialize-golden.json
+        app/NeurOneShared/TestData/npps-validate-golden.json
         scripts/build-simulator-runtime.ts
         # Builds the WebAssembly the web compiler loads.
         scripts/build-npps-wasm.sh
         simulator/src/**
         scripts/sync-locales.ts
         scripts/sync-socket-map.ts
+        # The shared constants are generated into the web, Android, iOS, Windows and C trees from common/npps/constants.json
+        # (common/** above), and the check below fails if any output is stale.
+        scripts/sync-constants.ts
+        app/android/core/src/main/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt
+        app/ios/NeurOne/Protocol/NppsConstants.generated.swift
+        app/windows/NeurOne/Protocol/NppsConstants.generated.cs
         scripts/test-lateralization-audit.sh
         # The iOS String Catalog was listed here while it was committed, because
         # it was a SECOND source of truth that had already drifted once — 26 keys
@@ -228,6 +237,13 @@ jobs:
       - name: Socket map in sync + no unreviewed lateralized protocols
         working-directory: .
         run: bun scripts/sync-socket-map.ts --check
+
+      # One source for every shared constant (OI-NPPS-CORE-01), spelled the same in every language: the Rust core takes
+      # them at build time, and this writes the web, Android, iOS, Windows and C copies. A hand edit to an output, or to
+      # the JSON without re-running the generator, fails here.
+      - name: Shared constants in sync
+        working-directory: .
+        run: bun scripts/sync-constants.ts --check
 
       - name: Lateralization audit behaves (accept + reject paths)
         working-directory: .

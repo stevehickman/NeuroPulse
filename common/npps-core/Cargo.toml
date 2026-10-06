@@ -8,6 +8,9 @@ publish = false
 [dependencies]
 serde_json = "1"
 
+[build-dependencies]
+serde_json = "1"
+
 [lib]
 name = "neurone_npps_core"
 path = "src/lib.rs"

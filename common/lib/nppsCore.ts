@@ -10,6 +10,8 @@
  * module itself and tests and scripts need no setup.
  */
 
+import { NppsStatus } from './constants.generated';
+
 /** The core refused the input. `message` is the refusal the core wrote. */
 export class NppsRefusal extends Error {
   constructor(message: string) {
@@ -25,6 +27,9 @@ interface CoreExports {
   npps_parse_json(src: number, srcLen: number, out: number, outLen: number): number;
   npps_compile_json(req: number, reqLen: number, out: number, outLen: number): number;
   npps_namespace_json(req: number, reqLen: number, out: number, outLen: number): number;
+  npps_serialize_json(req: number, reqLen: number, out: number, outLen: number): number;
+  npps_validate_json(req: number, reqLen: number, out: number, outLen: number): number;
+  npps_resolve_limits_json(req: number, reqLen: number, out: number, outLen: number): number;
 }
 
 // common/generated/ is a git-ignored build output directory (CLAUDE.md §20). In the simulator's bundle
@@ -72,10 +77,11 @@ function core(): CoreExports {
   return instance;
 }
 
-// Return codes of neurone_npps.h.
-const OK = 0, REFUSED = 1, INTERNAL = 2;
 
-function call(entry: 'npps_parse_json' | 'npps_compile_json' | 'npps_namespace_json', input: string): Uint8Array {
+function call(
+  entry: 'npps_parse_json' | 'npps_compile_json' | 'npps_namespace_json' | 'npps_serialize_json' | 'npps_validate_json' | 'npps_resolve_limits_json',
+  input: string,
+): Uint8Array {
   const wasm = core();
   const bytes = new TextEncoder().encode(input);
   // Never empty, so the pointer handed over is never null (an empty source is a valid input).
@@ -98,9 +104,9 @@ function call(entry: 'npps_parse_json' | 'npps_compile_json' | 'npps_namespace_j
     const out = outPtr === 0 ? new Uint8Array(0) : new Uint8Array(wasm.memory.buffer, outPtr, outLen).slice();
     if (outPtr !== 0) wasm.npps_free(outPtr, outLen);
     switch (code) {
-      case OK: return out;
-      case REFUSED:
-      case INTERNAL:
+      case NppsStatus.OK: return out;
+      case NppsStatus.REFUSED:
+      case NppsStatus.INTERNAL_ERROR:
         throw new NppsRefusal(out.length > 0 ? new TextDecoder().decode(out) : 'the NPPS core refused the input');
       default:
         throw new NppsRefusal('the NPPS core was given an argument it cannot read');
@@ -127,6 +133,61 @@ export function nppsParse(source: string): NppsParsed {
 /** Fold parse results into one namespace and check its references (neurone_npps_core::api::namespace_json). */
 export function nppsNamespace(files: readonly object[]): NppsNamespace {
   return JSON.parse(new TextDecoder().decode(call('npps_namespace_json', JSON.stringify({ files }))));
+}
+
+/**
+ * Write models as `.npps` text (neurone_npps_core::api::serialize_json). Each item is one of the shapes
+ * `nppsParse` returns: `{kind:'single',protocol}`, `{kind:'composite',composite}`, `{kind:'zone',zone}`,
+ * `{kind:'condition',condition}`, `{kind:'wavelengthRules',wavelengthRules}` or `{kind:'limits',limits}`.
+ * Items are separated by a blank line. Throws NppsRefusal for a model that cannot be written.
+ */
+export function nppsSerialize(items: readonly object[]): string {
+  return new TextDecoder().decode(call('npps_serialize_json', JSON.stringify({ items })));
+}
+
+/** A localizable text from the validator: a plain string, or a locale key with positional arguments. */
+export type NppsMessage = string | { key: string; args?: NppsMessage[] };
+
+export interface NppsIssue {
+  severity: 'error' | 'warning';
+  modality?: string;
+  parameterKey: string;
+  parameterName: NppsMessage;
+  actualValueDescription: NppsMessage;
+  limitValueDescription: NppsMessage;
+  limitSource: 'hardware' | 'global' | 'helmet' | 'individual';
+  message: NppsMessage;
+}
+
+export interface NppsValidation { issues: NppsIssue[]; isValid: boolean; hasWarnings: boolean }
+
+/**
+ * Validate an entry against the resolved limits (neurone_npps_core::api::validate_json). The core returns
+ * locale keys and arguments, never text: resolve them with `t()`.
+ */
+export function nppsValidate(request: {
+  entry: object;
+  limits: object;
+  allProtocols?: readonly object[] | null;
+  /** Where each configured limit came from (`nppsResolveLimits(...).sources`); a limit with no entry takes the set's level. */
+  limitSources?: object | null;
+}): NppsValidation {
+  return JSON.parse(new TextDecoder().decode(call('npps_validate_json', JSON.stringify(request))));
+}
+
+/** The effective limits of three tiers and the tier each value came from (neurone_npps_core::api::resolve_limits_json). */
+export interface NppsResolvedLimits {
+  /** `{level: 'global', <modality blocks>}`; the caller adds the id, name and timestamps. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  limits: Record<string, any>;
+  /** `{<modalityProperty>: {<limitField>: 'individual' | 'helmet' | 'global'}}`: the validator's `limitSources`. */
+  sources: Record<string, Record<string, 'individual' | 'helmet' | 'global'>>;
+}
+
+/** Resolve global, helmet and individual limits, most specific first, field by field. */
+export function nppsResolveLimits(tiers: { global?: object | null; helmet?: object | null; individual?: object | null }): NppsResolvedLimits {
+  const request = { global: tiers.global ?? null, helmet: tiers.helmet ?? null, individual: tiers.individual ?? null };
+  return JSON.parse(new TextDecoder().decode(call('npps_resolve_limits_json', JSON.stringify(request))));
 }
 
 /** What the core's parse returns. Models are built from it by common/lib/nppsParser.ts. */

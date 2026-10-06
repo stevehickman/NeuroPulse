@@ -286,7 +286,7 @@ struct NPTDCSParams: Codable, Equatable {
     /// 10-20 SITES and implies nothing about pad size, while the 40 µC/cm² ceiling is a
     /// per-electrode density. Carried in the signed session descriptor so this app and the
     /// safety MCU divide by the same number.
-    var electrodeAreaCm2: Double = NPHardwareLimits.tdcsDefaultElectrodeAreaCm2
+    var electrodeAreaCm2: Double = NPHardwareLimits.TDCS_DEFAULT_ELECTRODE_AREA_CM2
 }
 
 // MARK: VNS + HRV

@@ -3,8 +3,7 @@ import XCTest
 
 /// Copy moved out of Swift literals into locale keys must still render as text.
 ///
-/// The plural families (`PROTOCOL_TIMING_INTERVALS`, `VALIDATE_VALUE_PULSES`,
-/// `MODALITY_SOCKETS_TARGETED`) are the first in the app resolved from Swift, via
+/// The plural families (`PROTOCOL_TIMING_INTERVALS`, `MODALITY_SOCKETS_TARGETED`) are the first in the app resolved from Swift, via
 /// `NSLocalizedString` + `String.localizedStringWithFormat` against the compiled
 /// `.stringsdict`. A wrong lookup renders the key, or the `other` form for 1, and
 /// a green build would not show either.
@@ -15,12 +14,10 @@ final class LocalizedPluralTests: XCTestCase {
         XCTAssertEqual(NPProtocolDefinition.TimingMode.intervalCount(3).displayString, "3 intervals")
     }
 
-    func testPulseAndSocketFamiliesResolve() {
+    func testSocketFamilyResolves() {
         func plural(_ key: String, _ n: Int) -> String {
             String.localizedStringWithFormat(NSLocalizedString(key, comment: ""), n)
         }
-        XCTAssertEqual(plural("VALIDATE_VALUE_PULSES", 1), "1 pulse")
-        XCTAssertEqual(plural("VALIDATE_VALUE_PULSES", 600), "600 pulses")
         XCTAssertEqual(plural("MODALITY_SOCKETS_TARGETED", 1), "1 socket targeted.")
         XCTAssertEqual(plural("MODALITY_SOCKETS_TARGETED", 7), "7 sockets targeted.")
     }

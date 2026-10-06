@@ -34,6 +34,12 @@ object NppsCore {
 
     @JvmStatic private external fun nativeNamespace(request: String): String
 
+    @JvmStatic private external fun nativeSerialize(request: String): String
+
+    @JvmStatic private external fun nativeValidate(request: String): String
+
+    @JvmStatic private external fun nativeResolveLimits(request: String): String
+
     /**
      * Parse NPPS text into everything the file declares:
      * `{"entries":[{"kind":"single","protocol":{…}} | {"kind":"composite","composite":{…}}],
@@ -50,6 +56,39 @@ object NppsCore {
     fun namespace(files: List<JsonObject>): JsonObject {
         val request = buildJsonObject { put("files", JsonArray(files)) }
         return Json.parseToJsonElement(nativeNamespace(request.toString())) as JsonObject
+    }
+
+    /**
+     * Write models as `.npps` text. Each item is one of the shapes [parse] returns (`{"kind":"single",
+     * "protocol":…}`, `{"kind":"composite","composite":…}`, `{"kind":"zone","zone":…}`, `{"kind":"condition",
+     * "condition":…}`, `{"kind":"wavelengthRules",…}`, `{"kind":"limits","limits":…}`); items are separated by a
+     * blank line. A model that cannot be written (a zone with an id that is not a socket) is refused with
+     * [IllegalArgumentException] rather than written into a file the parser would reject.
+     */
+    fun serialize(items: List<JsonObject>): String {
+        val request = buildJsonObject { put("items", JsonArray(items)) }
+        return nativeSerialize(request.toString())
+    }
+
+    /**
+     * Validate an entry against resolved limits: `{"issues":[…], "isValid", "hasWarnings"}`. The core returns
+     * locale keys and arguments, never text; see `NPValidationText` for how they become words. The request
+     * is `{"entry":…, "limits":…, "allProtocols":[…]|null, "zones":{…}|null, "limitSources":{…}|null}`.
+     */
+    fun validate(request: JsonObject): JsonObject = Json.parseToJsonElement(nativeValidate(request.toString())) as JsonObject
+
+    /**
+     * Resolve three limit sets (null for a tier that does not exist), most specific first, field by field:
+     * `{"limits":{"level":"global", <modality blocks>}, "sources":{<modalityProperty>:{<limitField>:tier}}}`. `sources` is
+     * what the validator takes as `limitSources`.
+     */
+    fun resolveLimits(global: JsonObject?, helmet: JsonObject?, individual: JsonObject?): JsonObject {
+        val request = buildJsonObject {
+            put("global", global ?: JsonNull)
+            put("helmet", helmet ?: JsonNull)
+            put("individual", individual ?: JsonNull)
+        }
+        return Json.parseToJsonElement(nativeResolveLimits(request.toString())) as JsonObject
     }
 
     /** What a compile needs that is not in the protocol. Everything non-deterministic is an input. */

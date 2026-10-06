@@ -1,16 +1,20 @@
 package life.neurone.core.protocol
 
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.npps.NppsCore
+import life.neurone.core.npps.toNppsCoreLimitsJson
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import java.util.UUID
 
 // Port of iOS NPLimitsStore + NPLimitsSet.resolve (app/ios/NeurOne/Protocol/NPLimitsStore.swift,
 // NPDosageLimits.swift). Manages dosage limit tiers — global / per-helmet / per-individual —
 // and resolves them field-by-field (individual > helmet > global) into the effective NPLimitsSet
-// the validator enforces. The per-field NPLimitSourceMap (cosmetic attribution) is intentionally
-// dropped on Android — the validator attributes dosage issues to the resolved set's tier.
+// the validator enforces, and the tier each value came from, which the validator names in an issue. The resolution
+// is the shared NPPS core's; see resolveLimits below.
 
 @Serializable
 data class NPIndividualProfile(
@@ -19,121 +23,25 @@ data class NPIndividualProfile(
     val notes: String = "",
 )
 
-/** individual ?? helmet ?? global for a single optional field. */
-private fun <T> pick(i: T?, h: T?, g: T?): T? = i ?: h ?: g
+/**
+ * Field-by-field resolution of the three tiers into one effective NPLimitsSet: individual ?? helmet ?? global.
+ * A modality block is null (unlimited) only when all three tiers omit it.
+ *
+ * The rule is the shared NPPS core's (common/npps-core/src/resolve.rs, OI-NPPS-CORE-01), the same one the web and iOS
+ * call; this maps the models to its shape and back.
+ */
+fun resolveLimits(global: NPLimitsSet?, helmet: NPLimitsSet?, individual: NPLimitsSet?): NPLimitsSet =
+    resolveLimitsWithSources(global, helmet, individual).first
 
 /**
- * Field-by-field resolution of the three tiers into one effective NPLimitsSet.
- * A modality block is null (unlimited) only when all three tiers omit it.
+ * As [resolveLimits], with the tier each value came from (`{"besTacs":{"maxFrequencyHz":"helmet"}}`), which the validator
+ * attributes each configured limit by.
  */
-fun resolveLimits(global: NPLimitsSet?, helmet: NPLimitsSet?, individual: NPLimitsSet?): NPLimitsSet {
-    fun <A> merge(i: A?, h: A?, g: A?, build: (A?, A?, A?) -> A?): A? =
-        if (i == null && h == null && g == null) null else build(i, h, g)
-
-    return NPLimitsSet(name = "Resolved", level = NPLimitsSet.LimitLevel.GLOBAL).apply {
-        pbmTranscranial = merge(individual?.pbmTranscranial, helmet?.pbmTranscranial, global?.pbmTranscranial) { i, h, g ->
-            NPPBMTranscranialLimits(
-                maxIrradianceMWcm2 = pick(i?.maxIrradianceMWcm2, h?.maxIrradianceMWcm2, g?.maxIrradianceMWcm2),
-                maxFrequencyHz = pick(i?.maxFrequencyHz, h?.maxFrequencyHz, g?.maxFrequencyHz),
-                maxDutyCyclePercent = pick(i?.maxDutyCyclePercent, h?.maxDutyCyclePercent, g?.maxDutyCyclePercent),
-                maxSessionDoseJCm2 = pick(i?.maxSessionDoseJCm2, h?.maxSessionDoseJCm2, g?.maxSessionDoseJCm2),
-                maxDailyDoseJCm2 = pick(i?.maxDailyDoseJCm2, h?.maxDailyDoseJCm2, g?.maxDailyDoseJCm2),
-            )
-        }
-        pbmIntranasal = merge(individual?.pbmIntranasal, helmet?.pbmIntranasal, global?.pbmIntranasal) { i, h, g ->
-            NPPBMIntranasalLimits(
-                maxIrradianceMWcm2 = pick(i?.maxIrradianceMWcm2, h?.maxIrradianceMWcm2, g?.maxIrradianceMWcm2),
-                maxSessionDoseJCm2 = pick(i?.maxSessionDoseJCm2, h?.maxSessionDoseJCm2, g?.maxSessionDoseJCm2),
-                maxSessionDurationSeconds = pick(i?.maxSessionDurationSeconds, h?.maxSessionDurationSeconds, g?.maxSessionDurationSeconds),
-            )
-        }
-        eegNeurofeedback = merge(individual?.eegNeurofeedback, helmet?.eegNeurofeedback, global?.eegNeurofeedback) { i, h, g ->
-            NPEEGNeurofeedbackLimits(
-                allowedBands = pick(i?.allowedBands, h?.allowedBands, g?.allowedBands),
-                requireClosedLoop = pick(i?.requireClosedLoop, h?.requireClosedLoop, g?.requireClosedLoop),
-            )
-        }
-        besTacs = merge(individual?.besTacs, helmet?.besTacs, global?.besTacs) { i, h, g ->
-            NPBESTacsLimits(
-                maxIntensityMilliamps = pick(i?.maxIntensityMilliamps, h?.maxIntensityMilliamps, g?.maxIntensityMilliamps),
-                maxFrequencyHz = pick(i?.maxFrequencyHz, h?.maxFrequencyHz, g?.maxFrequencyHz),
-                minFrequencyHz = pick(i?.minFrequencyHz, h?.minFrequencyHz, g?.minFrequencyHz),
-                maxSessionDurationSeconds = pick(i?.maxSessionDurationSeconds, h?.maxSessionDurationSeconds, g?.maxSessionDurationSeconds),
-                maxSessionsPerDay = pick(i?.maxSessionsPerDay, h?.maxSessionsPerDay, g?.maxSessionsPerDay),
-            )
-        }
-        tdcs = merge(individual?.tdcs, helmet?.tdcs, global?.tdcs) { i, h, g ->
-            NPTDCSLimits(
-                maxIntensityMilliamps = pick(i?.maxIntensityMilliamps, h?.maxIntensityMilliamps, g?.maxIntensityMilliamps),
-                maxSessionDurationSeconds = pick(i?.maxSessionDurationSeconds, h?.maxSessionDurationSeconds, g?.maxSessionDurationSeconds),
-                maxSessionsPerDay = pick(i?.maxSessionsPerDay, h?.maxSessionsPerDay, g?.maxSessionsPerDay),
-            )
-        }
-        vnsHrv = merge(individual?.vnsHrv, helmet?.vnsHrv, global?.vnsHrv) { i, h, g ->
-            NPVNSHRVLimits(
-                maxIntensityMilliamps = pick(i?.maxIntensityMilliamps, h?.maxIntensityMilliamps, g?.maxIntensityMilliamps),
-                maxFrequencyHz = pick(i?.maxFrequencyHz, h?.maxFrequencyHz, g?.maxFrequencyHz),
-                maxSessionDurationSeconds = pick(i?.maxSessionDurationSeconds, h?.maxSessionDurationSeconds, g?.maxSessionDurationSeconds),
-                allowedProtocols = pick(i?.allowedProtocols, h?.allowedProtocols, g?.allowedProtocols),
-            )
-        }
-        audioEntrainment = merge(individual?.audioEntrainment, helmet?.audioEntrainment, global?.audioEntrainment) { i, h, g ->
-            NPAudioEntrainmentLimits(
-                maxVolumeDb = pick(i?.maxVolumeDb, h?.maxVolumeDb, g?.maxVolumeDb),
-                maxBinauralBeatsHz = pick(i?.maxBinauralBeatsHz, h?.maxBinauralBeatsHz, g?.maxBinauralBeatsHz),
-                maxIsochronicTonesHz = pick(i?.maxIsochronicTonesHz, h?.maxIsochronicTonesHz, g?.maxIsochronicTonesHz),
-            )
-        }
-        visualStimulation = merge(individual?.visualStimulation, helmet?.visualStimulation, global?.visualStimulation) { i, h, g ->
-            NPVisualStimLimits(
-                maxFrequencyHz = pick(i?.maxFrequencyHz, h?.maxFrequencyHz, g?.maxFrequencyHz),
-                minFrequencyHz = pick(i?.minFrequencyHz, h?.minFrequencyHz, g?.minFrequencyHz),
-                allowedModes = pick(i?.allowedModes, h?.allowedModes, g?.allowedModes),
-                blockHighRiskRange = pick(i?.blockHighRiskRange, h?.blockHighRiskRange, g?.blockHighRiskRange),
-            )
-        }
-        tms = merge(individual?.tms, helmet?.tms, global?.tms) { i, h, g ->
-            NPTMSLimits(
-                maxIntensityPercentMT = pick(i?.maxIntensityPercentMT, h?.maxIntensityPercentMT, g?.maxIntensityPercentMT),
-                maxPulsesPerSession = pick(i?.maxPulsesPerSession, h?.maxPulsesPerSession, g?.maxPulsesPerSession),
-                maxPulsesPerDay = pick(i?.maxPulsesPerDay, h?.maxPulsesPerDay, g?.maxPulsesPerDay),
-                maxSessionsPerWeek = pick(i?.maxSessionsPerWeek, h?.maxSessionsPerWeek, g?.maxSessionsPerWeek),
-                allowedProtocols = pick(i?.allowedProtocols, h?.allowedProtocols, g?.allowedProtocols),
-                allowedTargets = pick(i?.allowedTargets, h?.allowedTargets, g?.allowedTargets),
-            )
-        }
-        pbmDeep1170nm = merge(individual?.pbmDeep1170nm, helmet?.pbmDeep1170nm, global?.pbmDeep1170nm) { i, h, g ->
-            NPDeepPBMLimits(
-                maxIntensityMWcm2 = pick(i?.maxIntensityMWcm2, h?.maxIntensityMWcm2, g?.maxIntensityMWcm2),
-                maxSessionDurationSeconds = pick(i?.maxSessionDurationSeconds, h?.maxSessionDurationSeconds, g?.maxSessionDurationSeconds),
-            )
-        }
-        clinicalTacs = merge(individual?.clinicalTacs, helmet?.clinicalTacs, global?.clinicalTacs) { i, h, g ->
-            NPClinicalTacsLimits(
-                maxIntensityMilliamps = pick(i?.maxIntensityMilliamps, h?.maxIntensityMilliamps, g?.maxIntensityMilliamps),
-                maxSessionDurationSeconds = pick(i?.maxSessionDurationSeconds, h?.maxSessionDurationSeconds, g?.maxSessionDurationSeconds),
-            )
-        }
-        hdTdcs = merge(individual?.hdTdcs, helmet?.hdTdcs, global?.hdTdcs) { i, h, g ->
-            NPHDTdcsLimits(
-                maxIntensityMilliamps = pick(i?.maxIntensityMilliamps, h?.maxIntensityMilliamps, g?.maxIntensityMilliamps),
-                maxSessionDurationSeconds = pick(i?.maxSessionDurationSeconds, h?.maxSessionDurationSeconds, g?.maxSessionDurationSeconds),
-                allowedMontages = pick(i?.allowedMontages, h?.allowedMontages, g?.allowedMontages),
-            )
-        }
-        cervicalVns = merge(individual?.cervicalVns, helmet?.cervicalVns, global?.cervicalVns) { i, h, g ->
-            NPCervicalVnsLimits(
-                maxIntensityMilliamps = pick(i?.maxIntensityMilliamps, h?.maxIntensityMilliamps, g?.maxIntensityMilliamps),
-                maxSessionDurationSeconds = pick(i?.maxSessionDurationSeconds, h?.maxSessionDurationSeconds, g?.maxSessionDurationSeconds),
-            )
-        }
-        vibrotactile40hz = merge(individual?.vibrotactile40hz, helmet?.vibrotactile40hz, global?.vibrotactile40hz) { i, h, g ->
-            NPVibrotactileLimits(
-                maxIntensityG = pick(i?.maxIntensityG, h?.maxIntensityG, g?.maxIntensityG),
-                maxSessionDurationSeconds = pick(i?.maxSessionDurationSeconds, h?.maxSessionDurationSeconds, g?.maxSessionDurationSeconds),
-            )
-        }
-    }
+fun resolveLimitsWithSources(global: NPLimitsSet?, helmet: NPLimitsSet?, individual: NPLimitsSet?): Pair<NPLimitsSet, JsonObject> {
+    val out = NppsCore.resolveLimits(global?.toNppsCoreLimitsJson(), helmet?.toNppsCoreLimitsJson(), individual?.toNppsCoreLimitsJson())
+    val limits = out["limits"] as JsonObject
+    val resolved = NPPSParser.limitsOf(JsonObject(limits + ("name" to JsonPrimitive("Resolved"))))
+    return resolved.copy(level = NPLimitsSet.LimitLevel.GLOBAL) to (out["sources"] as JsonObject)
 }
 
 class NPLimitsStore(private val kv: KeyValueStore) {
@@ -181,13 +89,18 @@ class NPLimitsStore(private val kv: KeyValueStore) {
 
     /** individual > helmet > global effective limits for the current active context. */
     val resolvedLimits: NPLimitsSet
-        get() = resolveLimits(
-            global = globalLimits,
-            helmet = activeHelmetSerial?.let { helmetLimits[it] },
-            individual = activeProfileId?.let { individualLimits[it] },
-        )
+        get() = resolve().first
 
-    fun makeValidator(): NPProtocolValidator = NPProtocolValidator(resolvedLimits)
+    private fun resolve(): Pair<NPLimitsSet, JsonObject> = resolveLimitsWithSources(
+        global = globalLimits,
+        helmet = activeHelmetSerial?.let { helmetLimits[it] },
+        individual = activeProfileId?.let { individualLimits[it] },
+    )
+
+    fun makeValidator(): NPProtocolValidator {
+        val (limits, sources) = resolve()
+        return NPProtocolValidator(limits, sources)
+    }
 
     // MARK: Mutations
 

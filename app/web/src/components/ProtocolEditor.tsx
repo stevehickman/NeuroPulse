@@ -7,7 +7,7 @@ import {
   defaultParams,
 } from '../../../../common/types/protocol';
 import { parseNPPS, NPPSParseError } from '../../../../common/lib/nppsParser';
-import { serializeNPPS } from '../lib/nppsSerializer';
+import { serializeNPPS } from '../../../../common/lib/nppsSerializer';
 import { ModalityEditorBlock, ModalityPicker } from './ModalityEditor';
 import { ScriptEditor } from './ScriptEditor';
 import { t } from '../../../../common/lib/i18n';

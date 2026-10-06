@@ -12,7 +12,7 @@ import path from 'node:path';
 import { parseNPPSFile } from '../../../../common/lib/nppsParser';
 import { compileProtocol } from './hubCompiler';
 import { NP_SOCKETS } from '../../../../common/lib/socketMap.generated';
-import { NPHardwareLimits } from './hardwareLimits';
+import { NPHardwareLimits } from '../../../../common/lib/constants.generated';
 import { defaultParams, MODALITY_META } from '../../../../common/types/protocol';
 import type {
   NPProtocolDefinition,
@@ -423,7 +423,7 @@ describe('clinical tACS channel mask (OI-TACS-01)', () => {
   }
 
   it('spans all 21 driver channels across three mask bytes', () => {
-    const params = tacsParams(NPHardwareLimits.clinicalTacsMaxChannels);
+    const params = tacsParams(NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS);
     expect(params).toHaveLength(8);
     // channel_mask_lo / _hi / _ext at offsets 4, 5, 6.
     expect(params[4]).toBe(0xFF);
@@ -433,7 +433,7 @@ describe('clinical tACS channel mask (OI-TACS-01)', () => {
   });
 
   it('leaves the reserved top three bits of channel_mask_ext clear', () => {
-    for (let n = 1; n <= NPHardwareLimits.clinicalTacsMaxChannels; n++) {
+    for (let n = 1; n <= NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS; n++) {
       expect(tacsParams(n)[6] & 0xE0).toBe(0);
     }
   });
@@ -453,7 +453,7 @@ describe('clinical tACS channel mask (OI-TACS-01)', () => {
     expect(params).toHaveLength(8);
     expect(params[6] & 0xE0).toBe(0);
     const mask = params[4] | (params[5] << 8) | (params[6] << 16);
-    expect(mask).toBe(2 ** NPHardwareLimits.clinicalTacsMaxChannels - 1);
+    expect(mask).toBe(2 ** NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS - 1);
   });
 });
 

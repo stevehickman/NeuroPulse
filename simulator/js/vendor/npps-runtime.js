@@ -5,7 +5,15 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: c4b8c6c4e2138a4d9fcd70195811691b5becf6e3e17776ebaea34fd8ddd84540
+// sources-sha256: 811f6b6185a103cb9e1d917b83d8550d34e30c8fe10ec8a2f636f5b4595b1be9
+// common/lib/constants.generated.ts
+var NppsStatus = {
+  OK: 0,
+  REFUSED: 1,
+  INTERNAL_ERROR: 2,
+  BAD_ARGUMENT: 3
+};
+
 // common/lib/nppsCore.ts
 class NppsRefusal extends Error {
   constructor(message) {
@@ -48,9 +56,6 @@ function core() {
   }
   return instance;
 }
-var OK = 0;
-var REFUSED = 1;
-var INTERNAL = 2;
 function call(entry, input) {
   const wasm = core();
   const bytes = new TextEncoder().encode(input);
@@ -72,10 +77,10 @@ function call(entry, input) {
     if (outPtr !== 0)
       wasm.npps_free(outPtr, outLen);
     switch (code) {
-      case OK:
+      case NppsStatus.OK:
         return out;
-      case REFUSED:
-      case INTERNAL:
+      case NppsStatus.REFUSED:
+      case NppsStatus.INTERNAL_ERROR:
         throw new NppsRefusal(out.length > 0 ? new TextDecoder().decode(out) : "the NPPS core refused the input");
       default:
         throw new NppsRefusal("the NPPS core was given an argument it cannot read");
@@ -90,6 +95,9 @@ function nppsParse(source) {
 }
 function nppsNamespace(files) {
   return JSON.parse(new TextDecoder().decode(call("npps_namespace_json", JSON.stringify({ files }))));
+}
+function nppsValidate(request) {
+  return JSON.parse(new TextDecoder().decode(call("npps_validate_json", JSON.stringify(request))));
 }
 
 // common/lib/nppsParser.ts
@@ -181,6 +189,24 @@ function validateNamespaceReferences(ns) {
   ]).referenceErrors;
 }
 
+// common/lib/nppsSerializer.ts
+function coreEntry2(e) {
+  if (e.kind === "composite")
+    return { kind: "composite", composite: e.composite };
+  return {
+    kind: "single",
+    protocol: {
+      ...e.protocol,
+      modalities: e.protocol.modalities.map((m) => ({
+        type: m.modalityParams.type,
+        params: m.modalityParams.params,
+        interval: m.interval,
+        enabled: m.enabled
+      }))
+    }
+  };
+}
+
 // common/lib/wavelengthRules.ts
 var PBM_CHANNEL_ELEMENTS = ["led_660", "led_808", "led_1064"];
 var DEFAULT_WAVELENGTH_RULES = {
@@ -234,7 +260,7 @@ var T2_ONLY_MODALITY_TYPES = new Set([
 var PROTOCOLS = {};
 var PROTOCOL_IDS = [];
 var ZONES = [];
-var LOAD_REPORT = { compositesSkipped: 0, duplicateDefinitions: [], unresolvedReferences: [] };
+var LOAD_REPORT = { compositesSkipped: 0, duplicateDefinitions: [], unresolvedReferences: [], validationIssues: [] };
 function slugFromFilename(filename) {
   return filename.replace(/\.npps$/, "");
 }
@@ -337,6 +363,7 @@ function buildLibrary(files) {
     description: z.description ?? ""
   }));
   const protocols = {};
+  const validationIssues = [];
   let compositesSkipped = 0;
   for (const { filename, parsed } of parsedFiles) {
     if (parsed.entries.length === 0)
@@ -348,6 +375,10 @@ function buildLibrary(files) {
     }
     const def = entry.protocol;
     const slug = slugFromFilename(filename);
+    for (const i of nppsValidate({ entry: coreEntry2(entry), limits: {} }).issues) {
+      const k = typeof i.message === "string" ? i.message : i.message.key;
+      validationIssues.push({ protocol: slug, severity: i.severity, parameterKey: i.parameterKey, messageKey: k });
+    }
     const duration = def.timingMode.type === "duration" ? def.timingMode.seconds : 1200;
     protocols[slug] = {
       id: slug,
@@ -366,7 +397,8 @@ function buildLibrary(files) {
     report: {
       compositesSkipped,
       duplicateDefinitions: errors,
-      unresolvedReferences: validateNamespaceReferences(namespace)
+      unresolvedReferences: validateNamespaceReferences(namespace),
+      validationIssues
     }
   };
 }
@@ -400,6 +432,10 @@ async function loadLibrary(baseUrl = DEFAULT_BASE_URL) {
   }
   if (report.unresolvedReferences.length) {
     console.error("[NP-SIM] unresolved references:", report.unresolvedReferences);
+  }
+  const invalid = report.validationIssues.filter((i) => i.severity === "error");
+  if (invalid.length) {
+    console.warn("[NP-SIM] protocols the validator refuses:", invalid);
   }
 }
 export {

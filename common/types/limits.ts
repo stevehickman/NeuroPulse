@@ -1,3 +1,4 @@
+import { nppsResolveLimits } from '../lib/nppsCore';
 // ─── Per-modality limit interfaces ────────────────────────────────────────────
 // All fields optional: undefined = not set at this level
 
@@ -157,63 +158,43 @@ export interface NPValidationResult {
 
 // ─── Three-tier limit resolution ───────────────────────────────────────────────
 
-// Helper: merge two optional modality structs, taking individual ?? helmet ?? global
-// for each field.
-function mergeOptional<T extends object>(
-  global: T | undefined,
-  helmet: T | undefined,
-  individual: T | undefined
-): T | undefined {
-  if (global == null && helmet == null && individual == null) return undefined;
-  const result = {} as Record<string, unknown>;
-  const allKeys = new Set<string>([
-    ...Object.keys(global ?? {}),
-    ...Object.keys(helmet ?? {}),
-    ...Object.keys(individual ?? {}),
-  ]);
-  for (const k of allKeys) {
-    const iv = individual != null ? (individual as Record<string, unknown>)[k] : undefined;
-    const hv = helmet != null ? (helmet as Record<string, unknown>)[k] : undefined;
-    const gv = global != null ? (global as Record<string, unknown>)[k] : undefined;
-    const resolved = iv !== undefined ? iv : hv !== undefined ? hv : gv;
-    if (resolved !== undefined) result[k] = resolved;
-  }
-  return result as T;
-}
-
 /**
- * Resolve three limit tiers into a single NPLimitsSet.
- * For each modality struct field: individual ?? helmet ?? global.
- * If a modality struct is undefined at all three levels, resolved is undefined.
+ * Resolve three limit tiers into a single NPLimitsSet: for each modality struct field, individual ?? helmet ?? global.
+ * If a modality struct is undefined at all three levels, the resolved one is undefined.
+ *
+ * The rule is the shared NPPS core's (common/npps-core/src/resolve.rs, OI-NPPS-CORE-01), the same one iOS and Android
+ * call; this only gives the result the identity the app's models carry. In a browser `await initNppsCore()` first.
  */
 export function resolveLimits(
   global?: NPLimitsSet,
   helmet?: NPLimitsSet,
   individual?: NPLimitsSet
 ): NPLimitsSet {
+  return resolveLimitsWithSources(global, helmet, individual).limits;
+}
+
+/** The tier each resolved value came from: `{<modalityProperty>: {<limitField>: tier}}`. */
+export type NPLimitSourceMap = Record<string, Record<string, 'individual' | 'helmet' | 'global'>>;
+
+/** As `resolveLimits`, with the source map the validator attributes each configured limit by. */
+export function resolveLimitsWithSources(
+  global?: NPLimitsSet,
+  helmet?: NPLimitsSet,
+  individual?: NPLimitsSet
+): { limits: NPLimitsSet; sources: NPLimitSourceMap } {
+  const resolved = nppsResolveLimits({ global, helmet, individual });
   const now = new Date().toISOString();
   return {
-    id: 'resolved',
-    name: 'Resolved Limits',
-    description: 'Three-tier resolved limits',
-    createdAt: now,
-    modifiedAt: now,
-    level: 'global',
-
-    pbmTranscranial: mergeOptional(global?.pbmTranscranial, helmet?.pbmTranscranial, individual?.pbmTranscranial),
-    pbmIntranasal: mergeOptional(global?.pbmIntranasal, helmet?.pbmIntranasal, individual?.pbmIntranasal),
-    eegNeurofeedback: mergeOptional(global?.eegNeurofeedback, helmet?.eegNeurofeedback, individual?.eegNeurofeedback),
-    besTacs: mergeOptional(global?.besTacs, helmet?.besTacs, individual?.besTacs),
-    tdcs: mergeOptional(global?.tdcs, helmet?.tdcs, individual?.tdcs),
-    vnsHrv: mergeOptional(global?.vnsHrv, helmet?.vnsHrv, individual?.vnsHrv),
-    audioEntrainment: mergeOptional(global?.audioEntrainment, helmet?.audioEntrainment, individual?.audioEntrainment),
-    visualStimulation: mergeOptional(global?.visualStimulation, helmet?.visualStimulation, individual?.visualStimulation),
-    tms: mergeOptional(global?.tms, helmet?.tms, individual?.tms),
-    pbmDeep1170nm: mergeOptional(global?.pbmDeep1170nm, helmet?.pbmDeep1170nm, individual?.pbmDeep1170nm),
-    clinicalTacs: mergeOptional(global?.clinicalTacs, helmet?.clinicalTacs, individual?.clinicalTacs),
-    hdTdcs: mergeOptional(global?.hdTdcs, helmet?.hdTdcs, individual?.hdTdcs),
-    cervicalVns: mergeOptional(global?.cervicalVns, helmet?.cervicalVns, individual?.cervicalVns),
-    vibrotactile40hz: mergeOptional(global?.vibrotactile40hz, helmet?.vibrotactile40hz, individual?.vibrotactile40hz),
+    limits: {
+      id: 'resolved',
+      name: 'Resolved Limits',
+      description: 'Three-tier resolved limits',
+      createdAt: now,
+      modifiedAt: now,
+      ...resolved.limits,
+      level: 'global',
+    } as NPLimitsSet,
+    sources: resolved.sources,
   };
 }
 

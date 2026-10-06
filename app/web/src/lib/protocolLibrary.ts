@@ -7,7 +7,7 @@ import {
 } from '../../../../common/types/protocol';
 import { loadPredefinedProtocols, getCachedPredefinedProtocols } from './predefinedProtocols';
 import { parseNPPS } from '../../../../common/lib/nppsParser';
-import { serializeNPPS } from './nppsSerializer';
+import { serializeNPPS } from '../../../../common/lib/nppsSerializer';
 
 export interface ProtocolAvailability {
   available: boolean;

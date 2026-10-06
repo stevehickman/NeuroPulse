@@ -3,7 +3,10 @@
 //! core's tests is the marshalling: buffer ownership, UTF-8 (messages contain `—` and `²`),
 //! return codes and the failure paths.
 
-use neurone_npps_ffi::{npps_alloc, npps_compile_json, npps_free, npps_namespace_json, npps_parse_json};
+use neurone_npps_core::constants::status;
+use neurone_npps_ffi::{
+    npps_alloc, npps_compile_json, npps_free, npps_namespace_json, npps_parse_json, npps_serialize_json, npps_validate_json,
+};
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
@@ -40,7 +43,7 @@ fn parse_agrees_with_the_web_parser_over_the_library_and_the_corpus() {
         let text = String::from_utf8(out).expect("UTF-8 out");
         match want.get("error").and_then(Value::as_str) {
             Some(msg) => {
-                if code != 1 || text != msg {
+                if code != status::REFUSED || text != msg {
                     bad.push(format!("{name}: code {code}, {text:?} vs {msg:?}"));
                 }
             }
@@ -50,7 +53,7 @@ fn parse_agrees_with_the_web_parser_over_the_library_and_the_corpus() {
                 let first_limits = got["limits"].as_array().and_then(|l| l.first().cloned()).unwrap_or(Value::Null);
                 let same = ["entries", "zones", "conditions", "wavelengthRules"].iter().all(|k| got[k] == want[k])
                     && first_limits == want["limits"];
-                if code != 0 || !same {
+                if code != status::OK || !same {
                     bad.push(format!("{name}: code {code}, the parse result differs"));
                 }
             }
@@ -81,7 +84,7 @@ fn compile_agrees_with_the_web_compiler_in_bytes_and_messages() {
     let c = data("hub-descriptor-cases.json");
     for (name, case) in c["cases"].as_object().unwrap() {
         let (code, out) = run(npps_compile_json, &request(&case["def"], &c, true));
-        assert_eq!(code, 0, "{name}: {}", String::from_utf8_lossy(&out));
+        assert_eq!(code, status::OK, "{name}: {}", String::from_utf8_lossy(&out));
         assert_eq!(hex(&out), case["hex"].as_str().unwrap(), "{name}");
     }
     let mut refused = 0;
@@ -89,7 +92,7 @@ fn compile_agrees_with_the_web_compiler_in_bytes_and_messages() {
         let Some(want) = case["message"].as_str() else { continue };
         let with = !case["noClinicianSockets"].as_bool().unwrap();
         let (code, out) = run(npps_compile_json, &request(&case["def"], &c, with));
-        assert_eq!(code, 1, "{name}");
+        assert_eq!(code, status::REFUSED, "{name}");
         assert_eq!(String::from_utf8(out).unwrap(), want, "{name}");
         refused += 1;
     }
@@ -100,12 +103,12 @@ fn compile_agrees_with_the_web_compiler_in_bytes_and_messages() {
 fn bad_arguments_are_refused_not_crashed() {
     let (mut out, mut len) = (ptr::null_mut(), 0usize);
     unsafe {
-        assert_eq!(npps_parse_json(ptr::null(), 0, &mut out, &mut len), 3);
-        assert_eq!(npps_parse_json(b"x".as_ptr(), 1, ptr::null_mut(), &mut len), 3);
+        assert_eq!(npps_parse_json(ptr::null(), 0, &mut out, &mut len), status::BAD_ARGUMENT);
+        assert_eq!(npps_parse_json(b"x".as_ptr(), 1, ptr::null_mut(), &mut len), status::BAD_ARGUMENT);
         // Not UTF-8.
-        assert_eq!(npps_parse_json([0xFFu8, 0xFE].as_ptr(), 2, &mut out, &mut len), 3);
+        assert_eq!(npps_parse_json([0xFFu8, 0xFE].as_ptr(), 2, &mut out, &mut len), status::BAD_ARGUMENT);
         // A request that is not JSON is a refusal with a message, not a crash.
-        assert_eq!(npps_compile_json(b"{".as_ptr(), 1, &mut out, &mut len), 1);
+        assert_eq!(npps_compile_json(b"{".as_ptr(), 1, &mut out, &mut len), status::REFUSED);
         let msg = std::slice::from_raw_parts(out, len).to_vec();
         npps_free(out, len);
         assert!(String::from_utf8(msg).unwrap().contains("not JSON"));
@@ -133,7 +136,7 @@ fn alloc_hands_out_writable_zeroed_bytes_that_free_takes_back() {
 fn namespace_folds_files_through_the_abi_and_reports_a_duplicate() {
     let file = |src: &str| -> Value {
         let (code, out) = run(npps_parse_json, src.as_bytes());
-        assert_eq!(code, 0);
+        assert_eq!(code, status::OK);
         serde_json::from_slice(&out).unwrap()
     };
     let files = vec![
@@ -141,12 +144,52 @@ fn namespace_folds_files_through_the_abi_and_reports_a_duplicate() {
         file("zone \"A\" {\n  sockets: [2]\n}\nzone \"B\" {\n  sockets: [3]\n}\n"),
     ];
     let (code, out) = run(npps_namespace_json, serde_json::json!({ "files": files }).to_string().as_bytes());
-    assert_eq!(code, 0);
+    assert_eq!(code, status::OK);
     let ns: Value = serde_json::from_slice(&out).unwrap();
     assert_eq!(ns["zones"].as_array().unwrap().len(), 1, "A collides and is left undefined; B stays");
     assert!(ns["errors"][0].as_str().unwrap().starts_with("Duplicate zone name 'A'"));
     // A request that is not JSON is a refusal with a message, not a crash.
     let (code, out) = run(npps_namespace_json, b"not json");
-    assert_eq!(code, 1);
+    assert_eq!(code, status::REFUSED);
     assert!(String::from_utf8(out).unwrap().contains("not JSON"));
+}
+
+#[test]
+fn serialize_writes_the_library_as_the_web_serializer_did() {
+    let g = data("npps-serialize-golden.json");
+    let mut n = 0;
+    for (rel, items) in g["files"].as_object().unwrap() {
+        for item in items.as_array().unwrap() {
+            n += 1;
+            let req = serde_json::json!({ "items": [item["item"]] });
+            let (code, out) = run(npps_serialize_json, req.to_string().as_bytes());
+            assert_eq!(code, status::OK, "{rel}");
+            assert_eq!(String::from_utf8(out).unwrap(), item["text"].as_str().unwrap(), "{rel}");
+        }
+    }
+    assert!(n > 100);
+}
+
+#[test]
+fn serialize_refuses_with_the_message_in_the_buffer() {
+    let req = br#"{"items":[{"kind":"zone","zone":{"name":"Z","sockets":[0,999]}}]}"#;
+    let (code, out) = run(npps_serialize_json, req);
+    assert_eq!(code, status::REFUSED);
+    assert_eq!(
+        String::from_utf8(out).unwrap(),
+        "cannot serialize zone \"Z\": 0, 999 are not sockets on this helmet — ids are whole numbers 1–80"
+    );
+}
+
+#[test]
+fn validate_returns_keys_not_text() {
+    let req = br#"{"entry":{"kind":"single","protocol":{"name":"P","timingMode":{"type":"duration","seconds":1200},
+        "modalities":[{"type":"bes_tacs","enabled":true,"params":{"intensityMilliamps":2,"frequencyHz":10,"waveform":"sinusoidal"}}]}},
+        "limits":{},"allProtocols":null}"#;
+    let (code, out) = run(npps_validate_json, req);
+    assert_eq!(code, status::OK);
+    let v: Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(v["isValid"], false);
+    assert_eq!(v["issues"][0]["message"]["key"], "VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS");
+    assert_eq!(v["issues"][0]["message"]["args"], serde_json::json!(["2", "1"]));
 }

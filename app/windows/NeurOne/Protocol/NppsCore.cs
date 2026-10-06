@@ -37,22 +37,28 @@ sealed class NppsCompileOptions
 
 static class NppsCore
 {
-    private const string Lib = "neurone_npps_ffi";
+    private const string LIB = "neurone_npps_ffi";
 
-    // Return codes of neurone_npps.h.
-    private const int Ok = 0, Refused = 1, Internal = 2;
-
-    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
     private static extern int npps_parse_json(byte[] src, nuint srcLen, out IntPtr output, out nuint outLen);
 
-    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
     private static extern int npps_compile_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
 
-    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
     private static extern void npps_free(IntPtr ptr, nuint len);
 
-    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
     private static extern int npps_namespace_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
+
+    [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int npps_serialize_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
+
+    [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int npps_validate_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
+
+    [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int npps_resolve_limits_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
 
     private delegate int Entry(byte[] input, nuint inputLen, out IntPtr output, out nuint outLen);
 
@@ -68,6 +74,38 @@ static class NppsCore
     {
         var request = new JsonObject { ["files"] = new JsonArray(files.Select(f => (JsonNode?)f.DeepClone()).ToArray()) };
         return Call(npps_namespace_json, Encoding.UTF8.GetBytes(request.ToJsonString()));
+    }
+
+    /// Write models as `.npps` text. Each item is one of the shapes `Parse` returns (`{"kind":"single","protocol":…}`,
+    /// `{"kind":"composite","composite":…}`, `{"kind":"zone","zone":…}`, `{"kind":"condition","condition":…}`,
+    /// `{"kind":"wavelengthRules","wavelengthRules":…}`, `{"kind":"limits","limits":…}`); items are separated by a blank
+    /// line. A model that cannot be written (a zone holding an id that is not a socket) is refused with the core's
+    /// message rather than written into a file the parser would reject.
+    public static string Serialize(IEnumerable<JsonNode> items)
+    {
+        var request = new JsonObject { ["items"] = new JsonArray(items.Select(i => (JsonNode?)i.DeepClone()).ToArray()) };
+        return Encoding.UTF8.GetString(Call(npps_serialize_json, Encoding.UTF8.GetBytes(request.ToJsonString())));
+    }
+
+    /// Validate an entry against resolved limits: `{"issues":[…], "isValid", "hasWarnings"}`. The request is
+    /// `{"entry":…, "limits":…, "allProtocols":[…]|null, "zones":{…}|null, "limitSources":{…}|null}`. The core
+    /// returns locale keys and arguments, never text: a message is a plain string or `{"key", "args"}`, and the caller
+    /// resolves a key with its own strings. (Windows has no localized UI layer yet, so nothing resolves them today.)
+    public static byte[] Validate(JsonNode request)
+        => Call(npps_validate_json, Encoding.UTF8.GetBytes(request.ToJsonString()));
+
+    /// Resolve three limit sets (null for a tier that does not exist), most specific first, field by field:
+    /// `{"limits":{"level":"global", <modality blocks>}, "sources":{<modalityProperty>:{<limitField>:tier}}}`. `sources` is what
+    /// the validator takes as `limitSources`. (Windows has no limits store yet, so nothing calls this today.)
+    public static byte[] ResolveLimits(JsonNode? global, JsonNode? helmet, JsonNode? individual)
+    {
+        var request = new JsonObject
+        {
+            ["global"] = global?.DeepClone(),
+            ["helmet"] = helmet?.DeepClone(),
+            ["individual"] = individual?.DeepClone(),
+        };
+        return Call(npps_resolve_limits_json, Encoding.UTF8.GetBytes(request.ToJsonString()));
     }
 
     /// Compile a protocol (`{"timingMode":…,"modalities":[…]}`, the shape `Parse` returns under
@@ -105,8 +143,8 @@ static class NppsCore
             if (bytes.Length > 0) Marshal.Copy(output, bytes, 0, bytes.Length);
             return code switch
             {
-                Ok => bytes,
-                Refused or Internal => throw new NppsRefusal(
+                NppsStatus.OK => bytes,
+                NppsStatus.REFUSED or NppsStatus.INTERNAL_ERROR => throw new NppsRefusal(
                     bytes.Length > 0 ? Encoding.UTF8.GetString(bytes) : "the NPPS core refused the input"),
                 _ => throw new NppsRefusal("the NPPS core was given an argument it cannot read"),
             };

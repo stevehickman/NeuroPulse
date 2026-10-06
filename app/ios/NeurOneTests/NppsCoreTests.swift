@@ -179,4 +179,68 @@ final class NppsCoreTests: XCTestCase {
         }
         XCTAssertTrue(failures.isEmpty, "\(failures.count) divergence(s):\n" + failures.joined(separator: "\n"))
     }
+
+    // MARK: - Serialize and validate
+
+    func testSerializeWritesTheShippedLibraryAsTheWebSerializerDid() throws {
+        let files = try XCTUnwrap(Self.json("npps-serialize-golden.json")["files"] as? [String: [[String: Any]]])
+        var failures: [String] = []
+        var count = 0
+        for (rel, items) in files {
+            for item in items {
+                count += 1
+                let request = try JSONSerialization.data(withJSONObject: ["items": [try XCTUnwrap(item["item"])]])
+                let got = String(decoding: try NppsCore.serialize(requestJSON: request), as: UTF8.self)
+                if got != item["text"] as? String { failures.append("\(rel): differs") }
+            }
+        }
+        XCTAssertGreaterThan(count, 100)
+        XCTAssertTrue(failures.isEmpty, "\(failures.count) divergence(s):\n" + failures.joined(separator: "\n"))
+    }
+
+    func testSerializeRefusesAZoneItCannotWriteWithTheCoresMessage() throws {
+        let zone: [String: Any] = ["kind": "zone", "zone": ["name": "Z", "sockets": [0, 999]]]
+        let request = try JSONSerialization.data(withJSONObject: ["items": [zone]])
+        XCTAssertThrowsError(try NppsCore.serialize(requestJSON: request)) { error in
+            // The message holds an em dash: it must survive the trip through the static library unchanged.
+            XCTAssertEqual((error as? NppsCore.Refusal)?.message,
+                           "cannot serialize zone \"Z\": 0, 999 are not sockets on this helmet \u{2014} ids are whole numbers 1\u{2013}80")
+        }
+    }
+
+    func testValidateReturnsLocaleKeysAndArguments() throws {
+        var bes = NPBESTacsParams()
+        bes.intensityMilliamps = 2
+        let definition = NPProtocolDefinition(
+            name: "P", timingMode: .duration(1200),
+            modalities: [NPProtocolModality(params: .besTacs(bes))])
+        let result = try NppsCore.validate(
+            entry: .single(definition), limits: .unlimited, library: nil, zones: [:], limitSources: NPLimitSourceMap())
+        XCTAssertEqual(result["isValid"] as? Bool, false)
+        let issues = try XCTUnwrap(result["issues"] as? [[String: Any]])
+        let message = try XCTUnwrap(issues.first?["message"] as? [String: Any])
+        XCTAssertEqual(message["key"] as? String, "VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS")
+        XCTAssertEqual(message["args"] as? [String], ["2", "1"])
+    }
+
+    // MARK: - Limit resolution
+
+    func testResolveLimitsTakesTheMostSpecificTierPerFieldAndNamesIt() throws {
+        var global = NPLimitsSet(name: "G", level: .global)
+        global.besTacs = NPBESTacsLimits(maxIntensityMilliamps: 1.0, maxFrequencyHz: 40, minFrequencyHz: 1)
+        var helmet = NPLimitsSet(name: "H", level: .helmet)
+        helmet.besTacs = NPBESTacsLimits(maxIntensityMilliamps: 0.8, maxFrequencyHz: 30)
+        var individual = NPLimitsSet(name: "I", level: .individual)
+        individual.besTacs = NPBESTacsLimits(maxIntensityMilliamps: 0.5)
+        individual.tms = NPTMSLimits(maxPulsesPerSession: 100)
+
+        let (limits, sources) = NPLimitsSet.resolve(global: global, helmet: helmet, individual: individual)
+        XCTAssertEqual(limits.besTacs, NPBESTacsLimits(maxIntensityMilliamps: 0.5, maxFrequencyHz: 30, minFrequencyHz: 1))
+        XCTAssertEqual(limits.tms?.maxPulsesPerSession, 100)
+        XCTAssertNil(limits.tdcs, "no tier states a tdcs block")
+        XCTAssertEqual(sources.besTacs?.maxIntensityMilliamps, .individual)
+        XCTAssertEqual(sources.besTacs?.maxFrequencyHz, .helmet)
+        XCTAssertEqual(sources.besTacs?.minFrequencyHz, .global_)
+        XCTAssertEqual(sources.tms?.maxPulsesPerSession, .individual)
+    }
 }

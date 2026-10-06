@@ -144,4 +144,54 @@ class NppsCoreTests {
         }
         assertTrue(failures.isEmpty(), "${failures.size} divergence(s):\n" + failures.joinToString("\n"))
     }
+
+    // ── serialize and validate (the JNI layer: UTF-8 in and out, exception mapping) ──────────────────────────
+
+    @Test
+    fun serializeWritesTheShippedLibraryAsTheWebSerializerDid() {
+        val files = resource("npps-serialize-golden.json")["files"]!!.jsonObject
+        var n = 0
+        for ((rel, items) in files) for (item in items.jsonArray) {
+            n++
+            assertEquals(item.jsonObject["text"]!!.jsonPrimitive.content, NppsCore.serialize(listOf(item.jsonObject["item"]!!.jsonObject)), rel)
+        }
+        assertTrue(n > 100)
+    }
+
+    @Test
+    fun serializeRefusesAZoneItCannotWriteWithTheCoresMessage() {
+        val zone = Json.parseToJsonElement("""{"kind":"zone","zone":{"name":"Z","sockets":[0,999]}}""").jsonObject
+        val e = assertFailsWith<IllegalArgumentException> { NppsCore.serialize(listOf(zone)) }
+        // The message holds an em dash: it must survive the trip through JNI unchanged.
+        assertEquals("cannot serialize zone \"Z\": 0, 999 are not sockets on this helmet \u2014 ids are whole numbers 1\u201380", e.message)
+    }
+
+    @Test
+    fun validateReturnsLocaleKeysAndArguments() {
+        val request = Json.parseToJsonElement(
+            """{"entry":{"kind":"single","protocol":{"name":"P","timingMode":{"type":"duration","seconds":1200},
+               "modalities":[{"type":"bes_tacs","enabled":true,"interval":{},
+               "params":{"intensityMilliamps":2,"frequencyHz":10,"waveform":"square"}}]}},"limits":{}}""",
+        ).jsonObject
+        val out = NppsCore.validate(request)
+        assertEquals(false, out["isValid"]!!.jsonPrimitive.content.toBoolean())
+        val message = out["issues"]!!.jsonArray[0].jsonObject["message"]!!.jsonObject
+        assertEquals("VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS", message["key"]!!.jsonPrimitive.content)
+        assertEquals(listOf("2", "1"), message["args"]!!.jsonArray.map { it.jsonPrimitive.content })
+    }
+
+    @Test
+    fun resolveLimitsResolvesEveryTierCombinationAsTheWebFunctionDid() {
+        val cases = resource("npps-resolve-golden.json")["cases"]!!.jsonArray
+        assertTrue(cases.size >= 300)
+        fun tier(c: JsonObject, k: String): JsonObject? = (c[k] as? JsonObject)
+        val failures = mutableListOf<String>()
+        for (c in cases) {
+            val o = c.jsonObject
+            val got = NppsCore.resolveLimits(tier(o, "global"), tier(o, "helmet"), tier(o, "individual"))["limits"]!!.jsonObject
+            val blocks = JsonObject(got - "level")
+            if (blocks != o["expected"]) failures += "${o["name"]}: differs"
+        }
+        assertTrue(failures.isEmpty(), "${failures.size} divergence(s):\n" + failures.take(5).joinToString("\n"))
+    }
 }

@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import type { NPWavelengthRules } from '../../../../common/lib/wavelengthRules';
 import { parseNPPS, parseNPPSFile } from '../../../../common/lib/nppsParser';
-import { serializeNPPS, serializeWavelengthRules } from './nppsSerializer';
+import { serializeNPPS, serializeWavelengthRules } from '../../../../common/lib/nppsSerializer';
 
 describe('the wavelength_rules block', () => {
   it('round-trips through the serializer', () => {

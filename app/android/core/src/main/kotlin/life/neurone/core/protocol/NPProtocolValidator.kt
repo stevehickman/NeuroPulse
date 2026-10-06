@@ -1,29 +1,41 @@
 package life.neurone.core.protocol
 
+import life.neurone.core.npps.NppsCore
+import life.neurone.core.npps.toNppsCoreItem
+import life.neurone.core.npps.toNppsCoreLimitsJson
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 import java.util.UUID
-import kotlin.math.abs
 
-// Port of iOS NPProtocolValidator (app/ios/NeurOne/Protocol/NPProtocolValidator.swift).
-// Enforces the hardware ceilings (NPHardwareLimits) as ERRORs and the configured dosage
-// limits (NPLimitsSet) as ERRORs, plus advisory WARNINGs (short/long sessions,
-// photoparoxysmal risk zone, aggressive TMS, cardiac-interlock note). The error/warning
-// SEMANTICS mirror iOS one-for-one; the only simplification is the limit-source attribution:
-// iOS carries a per-field NPLimitSourceMap, Android attributes dosage issues to the resolved
-// limits' tier (global/helmet/individual) — cosmetic only, `isValid`/errors/warnings identical.
+// =============================================================================
+// Protocol validation on Android: the shared NPPS core (common/npps-core, OI-NPPS-CORE-01), through JNI.
+//
+// This used to be a 770-line hand-written validator, one of three that drifted (the web one lacked the
+// session-duration, dose and interlock checks this one had; this one lacked the layer-scale and TMS-with-
+// electrical-stimulation checks the web one had). There is one validator now, and it is in Rust, and it has
+// every check any of them had. What is left here is the mapping of these models to the core's shape and the
+// words: the core returns locale keys and arguments, never text, and [NPValidationText] resolves them.
+// =============================================================================
 
-/** Which tier a limit came from — parity with iOS NPLimitSource (display/attribution only). */
-enum class NPLimitSource(val display: String) {
-    HARDWARE("Hardware Limit"),
-    GLOBAL("Global"),
-    HELMET("Helmet"),
-    INDIVIDUAL("Individual");
+/** Which tier a limit came from. Display and attribution only. */
+enum class NPLimitSource(val wire: String, val textKey: String) {
+    HARDWARE("hardware", "VALIDATE_SOURCE_HARDWARE"),
+    GLOBAL("global", "VALIDATE_SOURCE_GLOBAL"),
+    HELMET("helmet", "VALIDATE_SOURCE_HELMET"),
+    INDIVIDUAL("individual", "VALIDATE_SOURCE_INDIVIDUAL");
 
     companion object {
-        fun forLevel(level: NPLimitsSet.LimitLevel): NPLimitSource = when (level) {
-            NPLimitsSet.LimitLevel.GLOBAL -> GLOBAL
-            NPLimitsSet.LimitLevel.HELMET -> HELMET
-            NPLimitsSet.LimitLevel.INDIVIDUAL -> INDIVIDUAL
-        }
+        fun fromWire(w: String): NPLimitSource = entries.firstOrNull { it.wire == w } ?: GLOBAL
     }
 }
 
@@ -35,7 +47,7 @@ data class NPValidationIssue(
     val parameterKey: String,               // camelCase field name, e.g. "intensityMilliamps"
     val parameterDisplayName: String,       // e.g. "Intensity"
     val actualValueDescription: String,     // e.g. "1.5 mA"
-    val limitValueDescription: String,      // e.g. "1.0 mA (Hardware Limit)"
+    val limitValueDescription: String,      // e.g. "1 mA (Hardware Limit)"
     val limitSource: NPLimitSource,
     val message: String,
     val id: UUID = UUID.randomUUID(),
@@ -48,36 +60,6 @@ class NPValidationResult {
     val hasWarnings: Boolean get() = issues.any { it.severity == NPValidationSeverity.WARNING }
     val errors: List<NPValidationIssue> get() = issues.filter { it.severity == NPValidationSeverity.ERROR }
     val warnings: List<NPValidationIssue> get() = issues.filter { it.severity == NPValidationSeverity.WARNING }
-
-    fun addError(
-        modality: NPModalityType? = null,
-        param: String,
-        displayName: String,
-        actual: String,
-        limit: String,
-        source: NPLimitSource,
-        message: String,
-    ) = issues.add(
-        NPValidationIssue(
-            NPValidationSeverity.ERROR, modality, param, displayName,
-            actual, "$limit (${source.display})", source, message,
-        ),
-    )
-
-    fun addWarning(
-        modality: NPModalityType? = null,
-        param: String,
-        displayName: String,
-        actual: String,
-        limit: String,
-        source: NPLimitSource,
-        message: String,
-    ) = issues.add(
-        NPValidationIssue(
-            NPValidationSeverity.WARNING, modality, param, displayName,
-            actual, "$limit (${source.display})", source, message,
-        ),
-    )
 }
 
 /** Total session seconds if the protocol uses a duration timing mode; null for interval-count. */
@@ -87,688 +69,90 @@ val NPProtocolDefinition.totalDurationSeconds: Int?
         is NPTimingMode.IntervalCount -> null
     }
 
-class NPProtocolValidator(private val resolvedLimits: NPLimitsSet) {
+/**
+ * How a locale key becomes text. `:core` is a pure-JVM module (ISC-2..4) and cannot reach Android resources,
+ * so the app installs a resolver at startup (`NeurOneApplication`): `{(key, args) -> getString(...)}`. With none
+ * installed a message renders as its key, which is what the web's `t()` does for a key it does not know, so a
+ * missing resolver is visible rather than silent. Tests install one over `locales/en.json`.
+ */
+object NPValidationText {
+    @Volatile private var resolver: ((String, List<String>) -> String?)? = null
 
-    /** Source tier used for dosage (configured-limit) issues. */
-    private val dosageSource: NPLimitSource = NPLimitSource.forLevel(resolvedLimits.level)
+    /** Install the resolver: the text of [key] with positional [args], or null when the key is unknown. */
+    fun use(resolver: ((String, List<String>) -> String?)?) {
+        this.resolver = resolver
+    }
+
+    /** A core message as text: a plain string stays, a `{key, args}` object is resolved (its args are messages too). */
+    fun render(m: JsonElement): String {
+        if (m is JsonPrimitive) return m.content
+        val o = m.jsonObject
+        val key = o["key"]!!.jsonPrimitive.content
+        val args = (o["args"] as? JsonArray)?.map { render(it) } ?: emptyList()
+        return resolver?.invoke(key, args) ?: if (args.isEmpty()) key else "$key(${args.joinToString(", ")})"
+    }
+}
+
+class NPProtocolValidator(
+    private val resolvedLimits: NPLimitsSet,
+    /** Where each configured limit came from (`{"besTacs":{"maxFrequencyHz":"helmet"}}`); a limit with no entry takes the set's level. */
+    private val limitSources: JsonObject? = null,
+) {
 
     // MARK: Public interface
 
-    fun validate(definition: NPProtocolDefinition): NPValidationResult {
-        val result = NPValidationResult()
-        val enabled = definition.modalities.filter { it.enabled }
-
-        if (enabled.isEmpty()) {
-            result.issues.add(
-                NPValidationIssue(
-                    NPValidationSeverity.ERROR, null, "modalities", "Modalities",
-                    "0", "≥1 (Hardware Limit)", NPLimitSource.HARDWARE,
-                    "Protocol has no enabled modalities.",
-                ),
-            )
-        }
-
-        val dur = definition.totalDurationSeconds
-        if (dur != null) {
-            if (dur <= 0) {
-                result.addError(
-                    param = "duration", displayName = "Duration",
-                    actual = "${dur}s", limit = "> 0s", source = NPLimitSource.HARDWARE,
-                    message = "Session duration must be greater than zero.",
-                )
-            } else if (dur < 60) {
-                result.addWarning(
-                    param = "duration", displayName = "Duration",
-                    actual = "${dur}s", limit = "60s", source = NPLimitSource.HARDWARE,
-                    message = "Session is very short (< 1 minute). Verify this is intentional.",
-                )
-            }
-            if (dur > 7200) {
-                result.addWarning(
-                    param = "duration", displayName = "Duration",
-                    actual = "${dur / 60}m", limit = "120m", source = NPLimitSource.HARDWARE,
-                    message = "Session is very long (> 2 hours). Verify this is intentional.",
-                )
-            }
-        }
-
-        for (block in enabled) validateModality(block, dur, result)
-
-        // tDCS charge density (ISC-38; model corrected by OI-CHARGE-04):
-        // mC/cm² = I(mA) × t(s) / A(cm²), PER ELECTRODE. (See UNITS below.)
-        //
-        // The denominator is ONE electrode's area, not the sum across the montage. The
-        // full session current passes through each electrode of a pair, so summing
-        // (35 × electrodeCount) modelled a current split that never happens and
-        // under-reported the density at every electrode — 2.8× more permissive than the
-        // safety MCU for a single pair, 8.4× for three. And the area is now the one the
-        // protocol declares and the descriptor carries, not an app-side assumption the
-        // enforcer never saw.
-        //
-        // A non-positive area is reported by the per-modality check as an
-        // electrodeAreaCm2 error; skipping it here keeps one defect to one message.
-        //
-        // UNITS AND PERIOD (OI-CHARGE-05, resolved 2026-09-15): I(mA) × t(s) / A(cm²)
-        // yields **mC/cm²**, because mA × s = mC — so this expression was never computing
-        // the µC/cm² its constant was named for, and the app and the safety MCU were
-        // 1000× apart. The resolution is not to pick one: they are ceilings on DIFFERENT
-        // QUANTITIES. This is the DC per-session dose in mC/cm², for tDCS and HD-tDCS
-        // only. The 40 µC/cm² figure is a per-PHASE pulsed limit and now lives in the
-        // separate check below, where it is correct. See NP-DT-001 DI-SAFE-01 / -01a.
-        //
-        // The comparison is >=, matching the safety MCU's own comparator
-        // (np_charge_monitor.c). Accepting a protocol that lands exactly ON the ceiling
-        // would sign a session the enforcer cuts — the app/enforcer fidelity defect
-        // OI-CHARGE-04 exists to prevent, in its smallest form.
-        if (dur != null && dur > 0) {
-            for (block in enabled) {
-                val p = block.params
-                if (p is NPModalityParams.Tdcs) {
-                    val area = p.params.electrodeAreaCm2
-                    if (area <= 0.0) continue
-                    val chargeDensity = p.params.intensityMilliamps * dur.toDouble() / area
-                    if (chargeDensity >= NPHardwareLimits.TDCS_MAX_SESSION_CHARGE_DENSITY_MC_CM2) {
-                        result.addError(
-                            modality = NPModalityType.TDCS,
-                            param = "chargeDensityMCcm2", displayName = "Charge Density",
-                            actual = fmt1(chargeDensity) + " mC/cm²",
-                            limit = "${NPHardwareLimits.TDCS_MAX_SESSION_CHARGE_DENSITY_MC_CM2.toInt()} mC/cm²",
-                            source = NPLimitSource.HARDWARE,
-                            message = "Estimated tDCS charge density ${fmt1(chargeDensity)} mC/cm² " +
-                                "per electrode exceeds the " +
-                                "${NPHardwareLimits.TDCS_MAX_SESSION_CHARGE_DENSITY_MC_CM2.toInt()} mC/cm² " +
-                                "safety ceiling. Reduce current, session duration, or use a " +
-                                "larger electrode.",
-                        )
-                    }
-                }
-            }
-        }
-
-        // Per-PHASE charge density for the charge-balanced modalities (OI-CHARGE-05 b).
-        //
-        // BES/tACS, VNS, cervical VNS and clinical tACS are charge-balanced biphasic: net
-        // delivered charge over a session is ~zero, so the session-cumulative check above
-        // is not a physical quantity for them and is deliberately not applied. What has a
-        // damage threshold behind it is charge PER PHASE, which is what the safety MCU
-        // enforces on these channels — so the app must check the same thing, or it signs
-        // protocols the device then refuses to grant (presenting to the user as a modality
-        // that silently never starts).
-        //
-        // Phase duration is the half-period for a periodic waveform and the pulse width
-        // for a pulse train. VNS and cervical VNS author no pulse width, so the firmware's
-        // own 250 µs default is used.
-        for (block in enabled) {
-            val amplitudeMa: Double
-            val phaseSeconds: Double
-            val areaCm2: Double
-            val isSinusoid: Boolean
-
-            when (val p = block.params) {
-                is NPModalityParams.BesTacs -> {
-                    amplitudeMa = p.params.intensityMilliamps
-                    phaseSeconds = if (p.params.frequencyHz > 0) 1.0 / (2.0 * p.params.frequencyHz) else 0.0
-                    areaCm2 = NPHardwareLimits.BES_ELECTRODE_AREA_CM2
-                    isSinusoid = p.params.waveform == NPBESTacsParams.Waveform.SINUSOIDAL
-                }
-                is NPModalityParams.ClinicalTacs -> {
-                    amplitudeMa = p.params.intensityMilliamps
-                    phaseSeconds = if (p.params.frequencyHz > 0) 1.0 / (2.0 * p.params.frequencyHz) else 0.0
-                    areaCm2 = NPHardwareLimits.BES_ELECTRODE_AREA_CM2
-                    isSinusoid = p.params.waveform == NPBESTacsParams.Waveform.SINUSOIDAL
-                }
-                is NPModalityParams.VnsHRV -> {
-                    amplitudeMa = p.params.intensityMilliamps
-                    phaseSeconds = NPHardwareLimits.VNS_DEFAULT_PULSE_WIDTH_SECONDS
-                    areaCm2 = NPHardwareLimits.VNS_ELECTRODE_AREA_CM2
-                    isSinusoid = false
-                }
-                is NPModalityParams.CervicalVns -> {
-                    amplitudeMa = p.params.intensityMilliamps
-                    phaseSeconds = NPHardwareLimits.VNS_DEFAULT_PULSE_WIDTH_SECONDS
-                    areaCm2 = NPHardwareLimits.CERVICAL_VNS_ELECTRODE_AREA_CM2
-                    isSinusoid = false
-                }
-                else -> continue
-            }
-
-            if (amplitudeMa <= 0.0 || phaseSeconds <= 0.0 || areaCm2 <= 0.0) continue
-
-            // mA × s = mC; × 1000 → µC. A sinusoid delivers 2/π of what a rectangular
-            // phase of the same duration and peak amplitude does; the safety MCU applies
-            // the same factor (as the integer 2000/3141), and omitting it here would make
-            // the app 57% stricter than the enforcer at the 0.5 Hz bottom of the tACS
-            // band, rejecting protocols the device would have run.
-            val rectangularUC = amplitudeMa * phaseSeconds * 1000.0
-            val phaseUC = if (isSinusoid) rectangularUC * (2.0 / Math.PI) else rectangularUC
-            val phaseDensity = phaseUC / areaCm2
-
-            if (phaseDensity >= NPHardwareLimits.PULSED_MAX_PHASE_CHARGE_DENSITY_UC_CM2) {
-                result.addError(
-                    modality = block.params.modalityType,
-                    param = "phaseChargeDensityUCcm2", displayName = "Charge Per Phase",
-                    actual = fmt1(phaseDensity) + " µC/cm²",
-                    limit = "${NPHardwareLimits.PULSED_MAX_PHASE_CHARGE_DENSITY_UC_CM2.toInt()} µC/cm²",
-                    source = NPLimitSource.HARDWARE,
-                    message = "Estimated ${block.params.modalityType.rawValue} charge per phase is " +
-                        "${fmt1(phaseDensity)} µC/cm² per electrode, above the " +
-                        "${NPHardwareLimits.PULSED_MAX_PHASE_CHARGE_DENSITY_UC_CM2.toInt()} µC/cm² " +
-                        "ceiling. Reduce amplitude, shorten the pulse width, or raise the frequency.",
-                )
-            }
-        }
-
-        val hasBES = enabled.any { it.params is NPModalityParams.BesTacs }
-        val hasTDCS = enabled.any { it.params is NPModalityParams.Tdcs }
-        if (hasBES && hasTDCS) {
-            result.addWarning(
-                param = "cross_modality", displayName = "Cross-modality",
-                actual = "BES + tDCS active", limit = "Separate electrode paths",
-                source = NPLimitSource.HARDWARE,
-                message = "BES and tDCS active simultaneously — ensure electrode paths are " +
-                    "non-overlapping to prevent current interaction.",
-            )
-        }
-
-        return result
-    }
+    fun validate(definition: NPProtocolDefinition): NPValidationResult =
+        run(NPProtocolEntry.Single(definition), null)
 
     /**
-     * Validate any entry. Composites resolve their member protocols via [resolveSingle]
-     * (parity with iOS `validate(_:resolving:)`); return null for an unknown name.
+     * Validate any entry. Composites resolve their member protocols via [resolveSingle]; a name it cannot resolve
+     * is an error naming the layer.
      */
     fun validate(
         entry: NPProtocolEntry,
         resolveSingle: (String) -> NPProtocolDefinition? = { null },
     ): NPValidationResult = when (entry) {
-        is NPProtocolEntry.Single -> validate(entry.protocol)
-        is NPProtocolEntry.Composite -> validateComposite(entry.composite, resolveSingle)
+        is NPProtocolEntry.Single -> run(entry, null)
+        is NPProtocolEntry.Composite -> run(entry, entry.composite.layers.mapNotNull { resolveSingle(it.protocolName) }
+            .distinctBy { it.name }.map { NPProtocolEntry.Single(it) })
         is NPProtocolEntry.Limits,
         is NPProtocolEntry.Zone,
         is NPProtocolEntry.Condition -> NPValidationResult()
     }
 
-    // MARK: Composite
-
-    private fun validateComposite(
-        c: NPCompositeProtocol,
-        resolveSingle: (String) -> NPProtocolDefinition?,
-    ): NPValidationResult {
+    private fun run(entry: NPProtocolEntry, library: List<NPProtocolEntry>?): NPValidationResult {
+        val request = buildJsonObject {
+            put("entry", entry.toNppsCoreItem())
+            put("limits", resolvedLimits.toNppsCoreLimitsJson())
+            if (library == null) put("allProtocols", JsonNull) else put("allProtocols", JsonArray(library.map { it.toNppsCoreItem() }))
+            // The namespace the protocol resolves its named zones against (a zone the library does not define is an error).
+            putJsonObject("zones") {
+                for ((name, z) in NPZoneRegistry.zones) putJsonArray(name) { z.sockets.forEach { add(JsonPrimitive(it)) } }
+            }
+            put("limitSources", limitSources ?: JsonNull)
+        }
+        val out = NppsCore.validate(request)
         val result = NPValidationResult()
-        if (c.layers.isEmpty()) {
+        for (i in out["issues"]!!.jsonArray) {
+            val o = i.jsonObject
+            val source = NPLimitSource.fromWire(o["limitSource"]!!.jsonPrimitive.content)
+            val limit = NPValidationText.render(o["limitValueDescription"]!!)
             result.issues.add(
                 NPValidationIssue(
-                    NPValidationSeverity.ERROR, null, "layers", "Layers",
-                    "0", "≥1 (Hardware Limit)", NPLimitSource.HARDWARE,
-                    "Composite protocol has no layers.",
+                    severity = if (o["severity"]!!.jsonPrimitive.content == "error") NPValidationSeverity.ERROR else NPValidationSeverity.WARNING,
+                    modality = (o["modality"] as? JsonPrimitive)?.content?.let { m -> NPModalityType.entries.firstOrNull { it.rawValue == m } },
+                    parameterKey = o["parameterKey"]!!.jsonPrimitive.content,
+                    parameterDisplayName = NPValidationText.render(o["parameterName"]!!),
+                    actualValueDescription = NPValidationText.render(o["actualValueDescription"]!!),
+                    limitValueDescription = NPValidationText.render(buildJsonObject {
+                        put("key", "VALIDATE_LIMIT_WITH_SOURCE")
+                        putJsonArray("args") { add(JsonPrimitive(limit)); add(buildJsonObject { put("key", source.textKey) }) }
+                    }),
+                    limitSource = source,
+                    message = NPValidationText.render(o["message"]!!),
                 ),
             )
         }
-        for (layer in c.layers) {
-            val def = resolveSingle(layer.protocolName)
-            if (def != null) {
-                val sub = validate(def)
-                for (issue in sub.issues) {
-                    result.issues.add(issue.copy(message = "[${layer.protocolName}] ${issue.message}"))
-                }
-            } else {
-                result.issues.add(
-                    NPValidationIssue(
-                        NPValidationSeverity.ERROR, null, "layer_ref", "Layer",
-                        layer.protocolName, "Known protocol (Hardware Limit)", NPLimitSource.HARDWARE,
-                        "Layer references unknown protocol '${layer.protocolName}'.",
-                    ),
-                )
-            }
-        }
         return result
     }
-
-    // MARK: Per-modality dispatch
-
-    private fun validateModality(block: NPProtocolModality, totalDurationSeconds: Int?, result: NPValidationResult) {
-        when (val p = block.params) {
-            is NPModalityParams.PbmTranscranial -> validatePBMTranscranial(p.params, totalDurationSeconds, result)
-            is NPModalityParams.PbmIntranasal -> validatePBMIntranasal(p.params, block.interval, result)
-            is NPModalityParams.EegNeurofeedback -> validateEEG(p.params, result)
-            is NPModalityParams.BesTacs -> validateBESTacs(p.params, block.interval, result)
-            is NPModalityParams.Tdcs -> validateTDCS(p.params, block.interval, result)
-            is NPModalityParams.VnsHRV -> validateVNS(p.params, block.interval, result)
-            is NPModalityParams.AudioEntrainment -> validateAudio(p.params, result)
-            is NPModalityParams.VisualStimulation -> validateVisual(p.params, result)
-            is NPModalityParams.Qeeg21ch -> Unit // passive recording — no stimulation limits
-            is NPModalityParams.Tms -> validateTMS(p.params, result)
-            is NPModalityParams.PbmDeep1170nm -> validateDeepPBM(p.params, block.interval, result)
-            is NPModalityParams.ClinicalTacs -> validateClinicalTacs(p.params, block.interval, result)
-            is NPModalityParams.HdTdcs -> validateHDTdcs(p.params, block.interval, result)
-            is NPModalityParams.CervicalVns -> validateCervicalVns(p.params, block.interval, result)
-            is NPModalityParams.Vibrotactile40hz -> validateVibrotactile(p.params, result)
-        }
-    }
-
-    // MARK: Per-modality validators
-
-    /**
-     * `frequency: 0` is continuous wave and CW has no duty cycle (OI-SESPWR-03), so a CW block whose
-     * duty is anything but 100 % contradicts itself. The parser refuses the same block; this catches
-     * one built in the editor, which never passes the parser.
-     */
-    private fun checkContinuousWave(m: NPModalityType, frequencyHz: Double, dutyCyclePercent: Int, r: NPValidationResult) {
-        if (frequencyHz == 0.0 && dutyCyclePercent != 100) {
-            r.addError(m, "dutyCyclePercent", "Duty Cycle", "$dutyCyclePercent%", "100%", NPLimitSource.HARDWARE,
-                "PBM at 0 Hz is continuous wave, which has no duty cycle, but the duty is $dutyCyclePercent%. " +
-                    "Set it to 100% or give a pulse frequency above 0.")
-        }
-    }
-
-    private fun validatePBMTranscranial(p: NPPBMTranscranialParams, totalDurationSeconds: Int?, r: NPValidationResult) {
-        val m = NPModalityType.PBM_TRANSCRANIAL
-        val lim = resolvedLimits.pbmTranscranial
-
-        checkContinuousWave(m, p.frequencyHz, p.dutyCyclePercent, r)
-        if (p.dutyCyclePercent > NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT) {
-            r.addError(m, "dutyCyclePercent", "Duty Cycle", "${p.dutyCyclePercent}%",
-                "${NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT}%", NPLimitSource.HARDWARE,
-                "PBM duty cycle ${p.dutyCyclePercent}% exceeds firmware-enforced maximum of " +
-                    "${NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT}%.")
-        }
-        if (p.frequencyHz < 0) {
-            r.addError(m, "frequencyHz", "Frequency", "${p.frequencyHz} Hz", "≥0 Hz",
-                NPLimitSource.HARDWARE, "PBM frequency cannot be negative.")
-        }
-        // Irradiance is absolute now, so the 400 mW/cm² peak (CLAUDE.md §3) is checked
-        // directly rather than through a percentage of an unnamed baseline.
-        if (p.irradianceMWcm2 > NPHardwareLimits.PBM_PULSED_PEAK_MW_CM2) {
-            r.addError(m, "irradianceMWcm2", "Irradiance", "${fmt1(p.irradianceMWcm2)} mW/cm²",
-                "${NPHardwareLimits.PBM_PULSED_PEAK_MW_CM2.toInt()} mW/cm²", NPLimitSource.HARDWARE,
-                "PBM irradiance ${fmt1(p.irradianceMWcm2)} mW/cm² exceeds the " +
-                    "${NPHardwareLimits.PBM_PULSED_PEAK_MW_CM2.toInt()} mW/cm² peak.")
-        }
-        lim?.maxIrradianceMWcm2?.let { maxI ->
-            if (p.irradianceMWcm2 > maxI) r.addError(m, "irradianceMWcm2", "Irradiance",
-                "${fmt1(p.irradianceMWcm2)} mW/cm²", "${fmt1(maxI)} mW/cm²", dosageSource,
-                "PBM irradiance ${fmt1(p.irradianceMWcm2)} mW/cm² exceeds limit of ${fmt1(maxI)} mW/cm².")
-        }
-        lim?.maxFrequencyHz?.let { maxF ->
-            if (p.frequencyHz > maxF) r.addError(m, "frequencyHz", "Frequency",
-                fmtHz(p.frequencyHz), fmtHz(maxF), dosageSource,
-                "PBM frequency ${fmtHz(p.frequencyHz)} exceeds limit of ${fmtHz(maxF)}.")
-        }
-        lim?.maxDutyCyclePercent?.let { maxDC ->
-            if (p.dutyCyclePercent > maxDC) r.addError(m, "dutyCyclePercent", "Duty Cycle",
-                "${p.dutyCyclePercent}%", "$maxDC%", dosageSource,
-                "PBM duty cycle ${p.dutyCyclePercent}% exceeds configured limit of $maxDC%.")
-        }
-        val maxDose = lim?.maxSessionDoseJCm2
-        if (maxDose != null && totalDurationSeconds != null && totalDurationSeconds > 0) {
-            val averageMWcm2 = if (p.frequencyHz == 0.0) p.irradianceMWcm2
-                else p.irradianceMWcm2 * p.dutyCyclePercent / 100.0
-            val estimatedDose = averageMWcm2 * totalDurationSeconds / 1000.0
-            if (estimatedDose > maxDose) r.addError(m, "sessionDoseJCm2", "Session Dose",
-                fmt1(estimatedDose) + " J/cm²", fmt1(maxDose) + " J/cm²", dosageSource,
-                "Estimated PBM session dose ${fmt1(estimatedDose)} J/cm² exceeds the configured " +
-                    "limit of ${fmt1(maxDose)} J/cm².")
-        }
-    }
-
-    private fun validatePBMIntranasal(p: NPPBMIntranasalParams, interval: NPIntervalConfig, r: NPValidationResult) {
-        val m = NPModalityType.PBM_INTRANASAL
-        val lim = resolvedLimits.pbmIntranasal
-        checkContinuousWave(m, p.frequencyHz, p.dutyCyclePercent, r)
-        if (p.dutyCyclePercent > NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT) {
-            r.addError(m, "dutyCyclePercent", "Duty Cycle", "${p.dutyCyclePercent}%",
-                "${NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT}%", NPLimitSource.HARDWARE,
-                "Intranasal PBM duty cycle ${p.dutyCyclePercent}% exceeds firmware-enforced maximum of " +
-                    "${NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT}%.")
-        }
-        lim?.maxIrradianceMWcm2?.let { maxI ->
-            if (p.irradianceMWcm2 > maxI) r.addError(m, "irradianceMWcm2", "Irradiance",
-                "${fmt1(p.irradianceMWcm2)} mW/cm²", "${fmt1(maxI)} mW/cm²", dosageSource,
-                "Intranasal PBM irradiance ${fmt1(p.irradianceMWcm2)} mW/cm² exceeds limit of ${fmt1(maxI)} mW/cm².")
-        }
-        lim?.maxSessionDurationSeconds?.let { maxDur ->
-            if (!interval.isContinuous && interval.intervalOnSeconds > maxDur) r.addError(m,
-                "sessionDuration", "Session Duration", fmtSec(interval.intervalOnSeconds), fmtSec(maxDur),
-                dosageSource, "Intranasal PBM session duration ${fmtSec(interval.intervalOnSeconds)} " +
-                    "exceeds limit of ${fmtSec(maxDur)}.")
-        }
-    }
-
-    private fun validateEEG(p: NPEEGNeurofeedbackParams, r: NPValidationResult) {
-        val m = NPModalityType.EEG_NEUROFEEDBACK
-        val lim = resolvedLimits.eegNeurofeedback
-        lim?.allowedBands?.let { allowed ->
-            if (!allowed.contains(p.band.rawValue)) r.addError(m, "band", "EEG Band",
-                p.band.rawValue, allowed.joinToString(", "), dosageSource,
-                "EEG band '${p.band.rawValue}' is not in the allowed list: ${allowed.joinToString(", ")}.")
-        }
-        lim?.requireClosedLoop?.let { requireCL ->
-            if (requireCL && !p.closedLoopEnabled) r.addError(m, "closedLoopEnabled", "Closed Loop",
-                "disabled", "required", dosageSource,
-                "EEG neurofeedback requires closed-loop mode to be enabled per current limits.")
-        }
-    }
-
-    private fun validateBESTacs(p: NPBESTacsParams, interval: NPIntervalConfig, r: NPValidationResult) {
-        val m = NPModalityType.BES_TACS
-        val lim = resolvedLimits.besTacs
-        if (p.intensityMilliamps > NPHardwareLimits.BES_TACS_MAX_MILLIAMPS) r.addError(m,
-            "intensityMilliamps", "Intensity", "${p.intensityMilliamps} mA",
-            "${NPHardwareLimits.BES_TACS_MAX_MILLIAMPS} mA", NPLimitSource.HARDWARE,
-            "BES/tACS intensity ${p.intensityMilliamps} mA exceeds firmware-enforced maximum of " +
-                "${NPHardwareLimits.BES_TACS_MAX_MILLIAMPS} mA.")
-        if (p.frequencyHz < NPHardwareLimits.BES_TACS_MIN_HZ) r.addError(m, "frequencyHz", "Frequency",
-            fmtHz(p.frequencyHz), "≥${fmtHz(NPHardwareLimits.BES_TACS_MIN_HZ)}", NPLimitSource.HARDWARE,
-            "BES/tACS frequency ${fmtHz(p.frequencyHz)} is below minimum of ${fmtHz(NPHardwareLimits.BES_TACS_MIN_HZ)}.")
-        if (p.frequencyHz > NPHardwareLimits.BES_TACS_MAX_HZ) r.addError(m, "frequencyHz", "Frequency",
-            fmtHz(p.frequencyHz), "≤${fmtHz(NPHardwareLimits.BES_TACS_MAX_HZ)}", NPLimitSource.HARDWARE,
-            "BES/tACS frequency ${fmtHz(p.frequencyHz)} exceeds firmware-enforced maximum of " +
-                "${fmtHz(NPHardwareLimits.BES_TACS_MAX_HZ)}.")
-        lim?.maxIntensityMilliamps?.let { maxI ->
-            if (p.intensityMilliamps > maxI) r.addError(m, "intensityMilliamps", "Intensity",
-                "${p.intensityMilliamps} mA", "$maxI mA", dosageSource,
-                "BES/tACS intensity ${p.intensityMilliamps} mA exceeds limit of $maxI mA.")
-        }
-        lim?.maxFrequencyHz?.let { maxF ->
-            if (p.frequencyHz > maxF) r.addError(m, "frequencyHz", "Frequency", fmtHz(p.frequencyHz),
-                fmtHz(maxF), dosageSource, "BES/tACS frequency ${fmtHz(p.frequencyHz)} exceeds limit of ${fmtHz(maxF)}.")
-        }
-        lim?.minFrequencyHz?.let { minF ->
-            if (p.frequencyHz < minF) r.addError(m, "frequencyHz", "Frequency", fmtHz(p.frequencyHz),
-                "≥${fmtHz(minF)}", dosageSource, "BES/tACS frequency ${fmtHz(p.frequencyHz)} is below limit of ${fmtHz(minF)}.")
-        }
-        lim?.maxSessionDurationSeconds?.let { maxDur ->
-            if (!interval.isContinuous && interval.intervalOnSeconds > maxDur) r.addError(m,
-                "sessionDuration", "Session Duration", fmtSec(interval.intervalOnSeconds), fmtSec(maxDur),
-                dosageSource, "BES/tACS interval duration ${fmtSec(interval.intervalOnSeconds)} exceeds limit of ${fmtSec(maxDur)}.")
-        }
-    }
-
-    private fun validateTDCS(p: NPTDCSParams, interval: NPIntervalConfig, r: NPValidationResult) {
-        val m = NPModalityType.TDCS
-        val lim = resolvedLimits.tdcs
-        if (p.intensityMilliamps < NPHardwareLimits.TDCS_MIN_MILLIAMPS) r.addError(m,
-            "intensityMilliamps", "Intensity", "${p.intensityMilliamps} mA",
-            "≥${NPHardwareLimits.TDCS_MIN_MILLIAMPS} mA", NPLimitSource.HARDWARE,
-            "tDCS intensity ${p.intensityMilliamps} mA is below the minimum of ${NPHardwareLimits.TDCS_MIN_MILLIAMPS} mA.")
-        if (p.intensityMilliamps > NPHardwareLimits.TDCS_MAX_MILLIAMPS) r.addError(m,
-            "intensityMilliamps", "Intensity", "${p.intensityMilliamps} mA",
-            "${NPHardwareLimits.TDCS_MAX_MILLIAMPS} mA", NPLimitSource.HARDWARE,
-            "tDCS intensity ${p.intensityMilliamps} mA exceeds firmware-enforced maximum of ${NPHardwareLimits.TDCS_MAX_MILLIAMPS} mA.")
-        // OI-CHARGE-04: an undeclared or unencodable pad area is an error, not a fallback.
-        // The hub refuses a zero area and the safety MCU's geometry gate holds tDCS out
-        // of granted_mask, so such a protocol would simply never stimulate.
-        if (p.electrodeAreaCm2 <= 0.0 || p.electrodeAreaCm2 > NPHardwareLimits.TDCS_MAX_ELECTRODE_AREA_CM2) r.addError(m,
-            "electrodeAreaCm2", "Electrode Area", "${p.electrodeAreaCm2} cm²",
-            "0 < A ≤ ${NPHardwareLimits.TDCS_MAX_ELECTRODE_AREA_CM2} cm²", NPLimitSource.HARDWARE,
-            "tDCS electrode area is ${p.electrodeAreaCm2} cm². Declare the area of one " +
-                "electrode, greater than 0 and at most " +
-                "${NPHardwareLimits.TDCS_MAX_ELECTRODE_AREA_CM2} cm².")
-        if (p.electrodePairs.size > NPHardwareLimits.TDCS_MAX_ELECTRODE_PAIRS) r.addError(m,
-            "electrodePairs", "Electrode Pairs", "${p.electrodePairs.size}",
-            "${NPHardwareLimits.TDCS_MAX_ELECTRODE_PAIRS}", NPLimitSource.HARDWARE,
-            "tDCS has ${p.electrodePairs.size} electrode pairs, exceeding the maximum of ${NPHardwareLimits.TDCS_MAX_ELECTRODE_PAIRS}.")
-        lim?.maxIntensityMilliamps?.let { maxI ->
-            if (p.intensityMilliamps > maxI) r.addError(m, "intensityMilliamps", "Intensity",
-                "${p.intensityMilliamps} mA", "$maxI mA", dosageSource,
-                "tDCS intensity ${p.intensityMilliamps} mA exceeds limit of $maxI mA.")
-        }
-        lim?.maxSessionDurationSeconds?.let { maxDur ->
-            if (!interval.isContinuous && interval.intervalOnSeconds > maxDur) r.addError(m,
-                "sessionDuration", "Session Duration", fmtSec(interval.intervalOnSeconds), fmtSec(maxDur),
-                dosageSource, "tDCS session duration ${fmtSec(interval.intervalOnSeconds)} exceeds limit of ${fmtSec(maxDur)}.")
-        }
-    }
-
-    private fun validateVNS(p: NPVNSHRVParams, interval: NPIntervalConfig, r: NPValidationResult) {
-        val m = NPModalityType.VNS_HRV
-        val lim = resolvedLimits.vnsHrv
-        if (p.intensityMilliamps > NPHardwareLimits.VNS_MAX_MILLIAMPS) r.addError(m,
-            "intensityMilliamps", "Intensity", "${p.intensityMilliamps} mA",
-            "${NPHardwareLimits.VNS_MAX_MILLIAMPS} mA", NPLimitSource.HARDWARE,
-            "VNS intensity ${p.intensityMilliamps} mA exceeds firmware-enforced maximum of ${NPHardwareLimits.VNS_MAX_MILLIAMPS} mA.")
-        if (p.frequencyHz < NPHardwareLimits.VNS_MIN_HZ) r.addError(m, "frequencyHz", "Frequency",
-            fmtHz(p.frequencyHz), "≥${fmtHz(NPHardwareLimits.VNS_MIN_HZ)}", NPLimitSource.HARDWARE,
-            "VNS frequency ${fmtHz(p.frequencyHz)} is below minimum of ${fmtHz(NPHardwareLimits.VNS_MIN_HZ)}.")
-        if (p.frequencyHz > NPHardwareLimits.VNS_MAX_HZ) r.addError(m, "frequencyHz", "Frequency",
-            fmtHz(p.frequencyHz), "≤${fmtHz(NPHardwareLimits.VNS_MAX_HZ)}", NPLimitSource.HARDWARE,
-            "VNS frequency ${fmtHz(p.frequencyHz)} exceeds firmware-enforced maximum of ${fmtHz(NPHardwareLimits.VNS_MAX_HZ)}.")
-        lim?.maxIntensityMilliamps?.let { maxI ->
-            if (p.intensityMilliamps > maxI) r.addError(m, "intensityMilliamps", "Intensity",
-                "${p.intensityMilliamps} mA", "$maxI mA", dosageSource,
-                "VNS intensity ${p.intensityMilliamps} mA exceeds limit of $maxI mA.")
-        }
-        lim?.maxFrequencyHz?.let { maxF ->
-            if (p.frequencyHz > maxF) r.addError(m, "frequencyHz", "Frequency", fmtHz(p.frequencyHz),
-                fmtHz(maxF), dosageSource, "VNS frequency ${fmtHz(p.frequencyHz)} exceeds limit of ${fmtHz(maxF)}.")
-        }
-        lim?.maxSessionDurationSeconds?.let { maxDur ->
-            if (!interval.isContinuous && interval.intervalOnSeconds > maxDur) r.addError(m,
-                "sessionDuration", "Session Duration", fmtSec(interval.intervalOnSeconds), fmtSec(maxDur),
-                dosageSource, "VNS session duration ${fmtSec(interval.intervalOnSeconds)} exceeds limit of ${fmtSec(maxDur)}.")
-        }
-        lim?.allowedProtocols?.let { allowed ->
-            if (!allowed.contains(p.hrvProtocol.rawValue)) r.addError(m, "hrvProtocol", "HRV Protocol",
-                p.hrvProtocol.rawValue, allowed.joinToString(", "), dosageSource,
-                "HRV protocol '${p.hrvProtocol.rawValue}' is not in the allowed list.")
-        }
-    }
-
-    private fun validateAudio(p: NPAudioEntrainmentParams, r: NPValidationResult) {
-        val m = NPModalityType.AUDIO_ENTRAINMENT
-        val lim = resolvedLimits.audioEntrainment
-        lim?.maxVolumeDb?.let { maxVol ->
-            if (p.volumeDb > maxVol) r.addError(m, "volumeDb", "Volume",
-                "${fmt1(p.volumeDb)} dB SPL", "${fmt1(maxVol)} dB SPL", dosageSource,
-                "Audio level ${fmt1(p.volumeDb)} dB SPL exceeds limit of ${fmt1(maxVol)} dB SPL.")
-        }
-        val bb = p.binauralBeatsHz
-        lim?.maxBinauralBeatsHz?.let { maxBB ->
-            if (bb != null && bb > maxBB) r.addError(m, "binauralBeatsHz", "Binaural Beats",
-                fmtHz(bb), fmtHz(maxBB), dosageSource,
-                "Binaural beats ${fmtHz(bb)} exceeds limit of ${fmtHz(maxBB)}.")
-        }
-        val it = p.isochronicTonesHz
-        lim?.maxIsochronicTonesHz?.let { maxIT ->
-            if (it != null && it > maxIT) r.addError(m, "isochronicTonesHz", "Isochronic Tones",
-                fmtHz(it), fmtHz(maxIT), dosageSource,
-                "Isochronic tones ${fmtHz(it)} exceeds limit of ${fmtHz(maxIT)}.")
-        }
-    }
-
-    private fun validateVisual(p: NPVisualStimParams, r: NPValidationResult) {
-        val m = NPModalityType.VISUAL_STIMULATION
-        val lim = resolvedLimits.visualStimulation
-        if (p.frequencyHz > NPHardwareLimits.VISUAL_MAX_HZ) r.addError(m, "frequencyHz", "Frequency",
-            fmtHz(p.frequencyHz), fmtHz(NPHardwareLimits.VISUAL_MAX_HZ), NPLimitSource.HARDWARE,
-            "Visual stimulation frequency ${fmtHz(p.frequencyHz)} exceeds firmware-enforced maximum of ${fmtHz(NPHardwareLimits.VISUAL_MAX_HZ)}.")
-        if (p.frequencyHz >= NPHardwareLimits.VISUAL_HIGH_RISK_MIN_HZ && p.frequencyHz <= NPHardwareLimits.VISUAL_HIGH_RISK_MAX_HZ) {
-            val blockRange = lim?.blockHighRiskRange ?: false
-            val msg = "Visual stimulation at ${fmtHz(p.frequencyHz)} is in the photoparoxysmal risk zone " +
-                "(${NPHardwareLimits.VISUAL_HIGH_RISK_MIN_HZ.toInt()}–${NPHardwareLimits.VISUAL_HIGH_RISK_MAX_HZ.toInt()} Hz). " +
-                "Clinician unlock required for this range per device safety policy."
-            val limitDesc = "Outside ${NPHardwareLimits.VISUAL_HIGH_RISK_MIN_HZ.toInt()}–${NPHardwareLimits.VISUAL_HIGH_RISK_MAX_HZ.toInt()} Hz"
-            if (blockRange) r.addError(m, "frequencyHz", "Frequency", fmtHz(p.frequencyHz), limitDesc, dosageSource, msg)
-            else r.addWarning(m, "frequencyHz", "Frequency", fmtHz(p.frequencyHz), limitDesc, NPLimitSource.HARDWARE, msg)
-        }
-        lim?.maxFrequencyHz?.let { maxF ->
-            if (p.frequencyHz > maxF) r.addError(m, "frequencyHz", "Frequency", fmtHz(p.frequencyHz),
-                fmtHz(maxF), dosageSource, "Visual stimulation frequency ${fmtHz(p.frequencyHz)} exceeds limit of ${fmtHz(maxF)}.")
-        }
-        lim?.minFrequencyHz?.let { minF ->
-            if (p.frequencyHz < minF) r.addError(m, "frequencyHz", "Frequency", fmtHz(p.frequencyHz),
-                "≥${fmtHz(minF)}", dosageSource, "Visual stimulation frequency ${fmtHz(p.frequencyHz)} is below limit of ${fmtHz(minF)}.")
-        }
-        lim?.allowedModes?.let { allowed ->
-            if (!allowed.contains(p.mode.rawValue)) r.addError(m, "mode", "Visual Mode",
-                p.mode.rawValue, allowed.joinToString(", "), dosageSource,
-                "Visual mode '${p.mode.rawValue}' is not in the allowed list.")
-        }
-    }
-
-    private fun validateTMS(p: NPTMSParams, r: NPValidationResult) {
-        val m = NPModalityType.TMS
-        val lim = resolvedLimits.tms
-        lim?.maxIntensityPercentMT?.let { maxMT ->
-            if (p.intensityPercentMT > maxMT) r.addError(m, "intensityPercentMT", "Intensity (%MT)",
-                "${p.intensityPercentMT}% MT", "$maxMT% MT", dosageSource,
-                "TMS intensity ${p.intensityPercentMT}% MT exceeds limit of $maxMT% MT.")
-        }
-        lim?.maxPulsesPerSession?.let { maxPulses ->
-            if (p.pulseCount > maxPulses) r.addError(m, "pulseCount", "Pulse Count",
-                "${p.pulseCount} pulses", "$maxPulses pulses", dosageSource,
-                "TMS pulse count ${p.pulseCount} exceeds session limit of $maxPulses pulses.")
-        }
-        lim?.allowedProtocols?.let { allowed ->
-            if (!allowed.contains(p.tmsProtocol.rawValue)) r.addError(m, "tmsProtocol", "TMS Protocol",
-                p.tmsProtocol.rawValue, allowed.joinToString(", "), dosageSource,
-                "TMS protocol '${p.tmsProtocol.rawValue}' is not in the allowed list.")
-        }
-        lim?.allowedTargets?.let { allowed ->
-            if (!allowed.contains(p.target.rawValue)) r.addError(m, "target", "TMS Target",
-                p.target.rawValue, allowed.joinToString(", "), dosageSource,
-                "TMS target '${p.target.rawValue}' is not in the allowed list.")
-        }
-        if (p.intensityPercentMT > 120) r.addWarning(m, "intensityPercentMT", "Intensity (%MT)",
-            "${p.intensityPercentMT}% MT", "≤120% MT", NPLimitSource.HARDWARE,
-            "TMS intensity ${p.intensityPercentMT}% MT is high (>120% MT). Verify this is prescribed.")
-    }
-
-    private fun validateDeepPBM(p: NPDeepPBM1170Params, interval: NPIntervalConfig, r: NPValidationResult) {
-        val m = NPModalityType.PBM_DEEP_1170NM
-        val lim = resolvedLimits.pbmDeep1170nm
-        if (p.intensityMWcm2 > NPHardwareLimits.DEEP_PBM_MAX_MW_CM2) r.addError(m, "intensityMWcm2", "Intensity",
-            "${p.intensityMWcm2.toInt()} mW/cm²", "${NPHardwareLimits.DEEP_PBM_MAX_MW_CM2.toInt()} mW/cm²",
-            NPLimitSource.HARDWARE, "Deep PBM 1170nm intensity ${p.intensityMWcm2.toInt()} mW/cm² exceeds maximum of " +
-                "${NPHardwareLimits.DEEP_PBM_MAX_MW_CM2.toInt()} mW/cm².")
-        checkContinuousWave(m, p.frequencyHz, p.dutyCyclePercent, r)
-        if (p.dutyCyclePercent > NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT) r.addError(m, "dutyCyclePercent", "Duty Cycle",
-            "${p.dutyCyclePercent}%", "${NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT}%", NPLimitSource.HARDWARE,
-            "Deep PBM duty cycle ${p.dutyCyclePercent}% exceeds firmware-enforced maximum of ${NPHardwareLimits.PBM_DUTY_CYCLE_MAX_PERCENT}%.")
-        lim?.maxIntensityMWcm2?.let { maxI ->
-            if (p.intensityMWcm2 > maxI) r.addError(m, "intensityMWcm2", "Intensity",
-                "${p.intensityMWcm2.toInt()} mW/cm²", "${maxI.toInt()} mW/cm²", dosageSource,
-                "Deep PBM 1170nm intensity ${p.intensityMWcm2.toInt()} mW/cm² exceeds limit of ${maxI.toInt()} mW/cm².")
-        }
-        lim?.maxSessionDurationSeconds?.let { maxDur ->
-            if (!interval.isContinuous && interval.intervalOnSeconds > maxDur) r.addError(m,
-                "sessionDuration", "Session Duration", fmtSec(interval.intervalOnSeconds), fmtSec(maxDur),
-                dosageSource, "Deep PBM session duration ${fmtSec(interval.intervalOnSeconds)} exceeds limit of ${fmtSec(maxDur)}.")
-        }
-    }
-
-    private fun validateClinicalTacs(p: NPClinicalTacsParams, interval: NPIntervalConfig, r: NPValidationResult) {
-        val m = NPModalityType.CLINICAL_TACS
-        val lim = resolvedLimits.clinicalTacs
-        if (p.intensityMilliamps > NPHardwareLimits.CLINICAL_TACS_MAX_MILLIAMPS) r.addError(m,
-            "intensityMilliamps", "Intensity", "${p.intensityMilliamps} mA",
-            "${NPHardwareLimits.CLINICAL_TACS_MAX_MILLIAMPS} mA", NPLimitSource.HARDWARE,
-            "Clinical tACS intensity ${p.intensityMilliamps} mA exceeds firmware-enforced maximum of ${NPHardwareLimits.CLINICAL_TACS_MAX_MILLIAMPS} mA.")
-        // OI-TACS-01: until 2026-09-07 nothing checked the channel count and the hub
-        // encoder silently clamped an over-range one to the 16-bit wire mask. The mask
-        // now spans the driver's full 21 channels, and out-of-range is reported.
-        if (p.channelCount < 1 || p.channelCount > NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS) r.addError(m,
-            "channelCount", "Channel Count", "${p.channelCount}",
-            "1–${NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS}", NPLimitSource.HARDWARE,
-            "Clinical tACS channel count ${p.channelCount} is outside the driver's " +
-                "1–${NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS} channels (one per T2 cap electrode).")
-        lim?.maxIntensityMilliamps?.let { maxI ->
-            if (p.intensityMilliamps > maxI) r.addError(m, "intensityMilliamps", "Intensity",
-                "${p.intensityMilliamps} mA", "$maxI mA", dosageSource,
-                "Clinical tACS intensity ${p.intensityMilliamps} mA exceeds limit of $maxI mA.")
-        }
-        lim?.maxSessionDurationSeconds?.let { maxDur ->
-            if (!interval.isContinuous && interval.intervalOnSeconds > maxDur) r.addError(m,
-                "sessionDuration", "Session Duration", fmtSec(interval.intervalOnSeconds), fmtSec(maxDur),
-                dosageSource, "Clinical tACS session duration ${fmtSec(interval.intervalOnSeconds)} exceeds limit of ${fmtSec(maxDur)}.")
-        }
-    }
-
-    private fun validateHDTdcs(p: NPHDTdcsParams, interval: NPIntervalConfig, r: NPValidationResult) {
-        val m = NPModalityType.HD_TDCS
-        val lim = resolvedLimits.hdTdcs
-        if (p.intensityMilliamps > NPHardwareLimits.HD_TDCS_MAX_MILLIAMPS_PER_ELECTRODE) r.addError(m,
-            "intensityMilliamps", "Intensity", "${p.intensityMilliamps} mA",
-            "${NPHardwareLimits.HD_TDCS_MAX_MILLIAMPS_PER_ELECTRODE} mA", NPLimitSource.HARDWARE,
-            "HD-tDCS intensity ${p.intensityMilliamps} mA/electrode exceeds Bikson lab safety limit of " +
-                "${NPHardwareLimits.HD_TDCS_MAX_MILLIAMPS_PER_ELECTRODE} mA/electrode for 3.5mm Ag/AgCl electrodes.")
-        lim?.maxIntensityMilliamps?.let { maxI ->
-            if (p.intensityMilliamps > maxI) r.addError(m, "intensityMilliamps", "Intensity",
-                "${p.intensityMilliamps} mA", "$maxI mA", dosageSource,
-                "HD-tDCS intensity ${p.intensityMilliamps} mA exceeds limit of $maxI mA.")
-        }
-        lim?.maxSessionDurationSeconds?.let { maxDur ->
-            if (!interval.isContinuous && interval.intervalOnSeconds > maxDur) r.addError(m,
-                "sessionDuration", "Session Duration", fmtSec(interval.intervalOnSeconds), fmtSec(maxDur),
-                dosageSource, "HD-tDCS session duration ${fmtSec(interval.intervalOnSeconds)} exceeds limit of ${fmtSec(maxDur)}.")
-        }
-        lim?.allowedMontages?.let { allowed ->
-            if (!allowed.contains(p.montage.rawValue)) r.addError(m, "montage", "Montage",
-                p.montage.rawValue, allowed.joinToString(", "), dosageSource,
-                "HD-tDCS montage '${p.montage.rawValue}' is not in the allowed list.")
-        }
-    }
-
-    private fun validateCervicalVns(p: NPCervicalVnsParams, interval: NPIntervalConfig, r: NPValidationResult) {
-        val m = NPModalityType.CERVICAL_VNS
-        val lim = resolvedLimits.cervicalVns
-        if (p.intensityMilliamps > NPHardwareLimits.CERVICAL_VNS_MAX_MILLIAMPS) r.addError(m,
-            "intensityMilliamps", "Intensity", "${p.intensityMilliamps} mA",
-            "${NPHardwareLimits.CERVICAL_VNS_MAX_MILLIAMPS} mA", NPLimitSource.HARDWARE,
-            "Cervical VNS intensity ${p.intensityMilliamps} mA exceeds firmware-enforced maximum of " +
-                "${NPHardwareLimits.CERVICAL_VNS_MAX_MILLIAMPS} mA. Cardiac interlock is always enforced by safety MCU regardless.")
-        if (p.frequencyHz < NPHardwareLimits.VNS_MIN_HZ || p.frequencyHz > NPHardwareLimits.VNS_MAX_HZ) r.addError(m,
-            "frequencyHz", "Frequency", fmtHz(p.frequencyHz),
-            "${fmtHz(NPHardwareLimits.VNS_MIN_HZ)}–${fmtHz(NPHardwareLimits.VNS_MAX_HZ)}", NPLimitSource.HARDWARE,
-            "Cervical VNS frequency ${fmtHz(p.frequencyHz)} is outside the valid range of " +
-                "${fmtHz(NPHardwareLimits.VNS_MIN_HZ)}–${fmtHz(NPHardwareLimits.VNS_MAX_HZ)}.")
-        lim?.maxIntensityMilliamps?.let { maxI ->
-            if (p.intensityMilliamps > maxI) r.addError(m, "intensityMilliamps", "Intensity",
-                "${p.intensityMilliamps} mA", "$maxI mA", dosageSource,
-                "Cervical VNS intensity ${p.intensityMilliamps} mA exceeds limit of $maxI mA.")
-        }
-        lim?.maxSessionDurationSeconds?.let { maxDur ->
-            if (!interval.isContinuous && interval.intervalOnSeconds > maxDur) r.addError(m,
-                "sessionDuration", "Session Duration", fmtSec(interval.intervalOnSeconds), fmtSec(maxDur),
-                dosageSource, "Cervical VNS session duration ${fmtSec(interval.intervalOnSeconds)} exceeds limit of ${fmtSec(maxDur)}.")
-        }
-        r.addWarning(m, "cardiacInterlock", "Cardiac Interlock", "always on", "non-overridable",
-            NPLimitSource.HARDWARE, "Cervical VNS cardiac rhythm interlock is always enforced by the safety MCU. " +
-                "HR change >15 BPM within 5s will automatically stop stimulation.")
-    }
-
-    private fun validateVibrotactile(p: NPVibrotactileParams, r: NPValidationResult) {
-        val m = NPModalityType.VIBROTACTILE_40HZ
-        val lim = resolvedLimits.vibrotactile40hz
-        if (p.intensityG < NPHardwareLimits.VIBROTACTILE_MIN_G) r.addError(m, "intensityG", "Intensity",
-            "${p.intensityG} G", "≥${NPHardwareLimits.VIBROTACTILE_MIN_G} G", NPLimitSource.HARDWARE,
-            "Vibrotactile intensity ${p.intensityG} G is below the minimum of ${NPHardwareLimits.VIBROTACTILE_MIN_G} G for effective entrainment.")
-        if (p.intensityG > NPHardwareLimits.VIBROTACTILE_MAX_G) r.addError(m, "intensityG", "Intensity",
-            "${p.intensityG} G", "${NPHardwareLimits.VIBROTACTILE_MAX_G} G", NPLimitSource.HARDWARE,
-            "Vibrotactile intensity ${p.intensityG} G exceeds DRV2605L driver maximum of ${NPHardwareLimits.VIBROTACTILE_MAX_G} G.")
-        if (abs(p.frequencyHz - NPHardwareLimits.VIBROTACTILE_FREQUENCY_HZ) > NPHardwareLimits.VIBROTACTILE_FREQ_TOLERANCE_HZ) {
-            r.addWarning(m, "frequencyHz", "Frequency", fmtHz(p.frequencyHz),
-                "${NPHardwareLimits.VIBROTACTILE_FREQUENCY_HZ.toInt()} Hz ±${NPHardwareLimits.VIBROTACTILE_FREQ_TOLERANCE_HZ} Hz",
-                NPLimitSource.HARDWARE, "Vibrotactile frequency ${fmtHz(p.frequencyHz)} deviates from the " +
-                    "firmware-locked 40 Hz ± 0.5 Hz target. Firmware will lock to 40 Hz regardless.")
-        }
-        lim?.maxIntensityG?.let { maxG ->
-            if (p.intensityG > maxG) r.addError(m, "intensityG", "Intensity", "${p.intensityG} G",
-                "$maxG G", dosageSource, "Vibrotactile intensity ${p.intensityG} G exceeds limit of $maxG G.")
-        }
-    }
-
-    // MARK: Formatting helpers
-
-    private fun fmtHz(hz: Double): String =
-        if (hz == hz.toInt().toDouble()) "${hz.toInt()} Hz" else "$hz Hz"
-
-    private fun fmtSec(s: Int): String {
-        if (s < 60) return "${s}s"
-        val mm = s / 60
-        val sec = s % 60
-        return if (sec == 0) "${mm}m" else "${mm}m ${sec}s"
-    }
-
-    private fun fmt1(v: Double): String = String.format("%.1f", v)
 }

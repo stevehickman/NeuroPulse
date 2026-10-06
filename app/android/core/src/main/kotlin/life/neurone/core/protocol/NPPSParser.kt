@@ -271,7 +271,7 @@ object NPPSParser {
         description = c.optStr("description"),
     )
 
-    private fun limitsOf(l: JsonObject): NPLimitsSet {
+    internal fun limitsOf(l: JsonObject): NPLimitsSet {
         val helmet = l.optStr("helmetId")
         val individual = l.optStr("individualId")
         val set = NPLimitsSet(
