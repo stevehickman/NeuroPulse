@@ -136,7 +136,7 @@ struct NPWavelengthRefusal: Error, LocalizedError, Equatable {
 extension NPWavelengthRules {
     /// The refusal text for a retired name, naming the blocks that replace it.
     static func retiredMessage(_ value: String) -> String {
-        let blocks = (retired[value] ?? []).map { "\"\($0)\"" }.joined(separator: " and ")
+        let blocks = (NPWavelengthRules.RETIRED[value] ?? []).map { "\"\($0)\"" }.joined(separator: " and ")
         return "wavelength \"\(value)\" is retired: it welded independent emitters into one block. "
             + "Write one block per wavelength (\(blocks)), each with its own irradiance."
     }
