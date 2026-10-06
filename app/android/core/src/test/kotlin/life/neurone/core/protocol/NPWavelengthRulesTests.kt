@@ -19,7 +19,7 @@ class NPWavelengthRulesTests {
     private val rules = NPWavelengthRulesEngine.DEFAULT
 
     private fun parse(text: String): List<NPProtocolEntry> =
-        NPPSParser(NPPSLexer(text).tokenize()).parse()
+        NPPSParser.parse(text)
 
     private val series = """
         protocol "Series" {

@@ -78,7 +78,7 @@ object NPBundledProtocols {
      */
     val namespace: NPNamespace by lazy {
         val entries = allContents.flatMap { content ->
-            runCatching { NPPSParser(NPPSLexer(content).tokenize()).parse() }.getOrDefault(emptyList())
+            runCatching { NPPSParser.parse(content) }.getOrDefault(emptyList())
         }
         buildNamespace(entries).namespace
     }

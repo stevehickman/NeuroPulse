@@ -268,3 +268,38 @@ pub fn tokenize(text: &str) -> Result<Vec<Token>, ParseError> {
     tokens.push(Token::new(Kind::Eof, "", line));
     Ok(tokens)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn numbers(text: &str) -> Vec<(f64, Option<&'static str>)> {
+        tokenize(text).unwrap().into_iter().filter(|t| t.kind == Kind::Number).map(|t| (t.num, t.unit)).collect()
+    }
+
+    #[test]
+    fn unit_suffixes_are_kept() {
+        assert_eq!(
+            numbers("40Hz 80% 1.5mA 20m 300s"),
+            vec![(40.0, Some("Hz")), (80.0, Some("%")), (1.5, Some("mA")), (20.0, Some("m")), (300.0, Some("s"))]
+        );
+        assert_eq!(numbers("300mW_cm2"), vec![(300.0, Some("mW_cm2"))]);
+    }
+
+    #[test]
+    fn strings_unescape() {
+        let t = tokenize("\"hello \\\"world\\\"\"").unwrap();
+        assert_eq!((t[0].kind, t[0].text.as_str()), (Kind::Str, "hello \"world\""));
+    }
+
+    #[test]
+    fn an_unterminated_string_and_a_stray_minus_are_refused() {
+        assert_eq!(tokenize("\"unterminated").unwrap_err().to_string(), "Line 1: Unterminated string");
+        assert_eq!(tokenize("- ").unwrap_err().to_string(), "Line 1: Unexpected character: -");
+    }
+
+    #[test]
+    fn name_is_not_a_keyword() {
+        assert_eq!(tokenize("name").unwrap()[0].kind, Kind::Ident);
+    }
+}

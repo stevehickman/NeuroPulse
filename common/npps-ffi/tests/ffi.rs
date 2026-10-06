@@ -3,7 +3,7 @@
 //! core's tests is the marshalling: buffer ownership, UTF-8 (messages contain `—` and `²`),
 //! return codes and the failure paths.
 
-use neurone_npps_ffi::{npps_alloc, npps_compile_json, npps_free, npps_parse_json};
+use neurone_npps_ffi::{npps_alloc, npps_compile_json, npps_free, npps_namespace_json, npps_parse_json};
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
@@ -45,18 +45,13 @@ fn parse_agrees_with_the_web_parser_over_the_library_and_the_corpus() {
                 }
             }
             None => {
-                let entries: Value = serde_json::from_str(&text).unwrap_or(Value::Null);
-                let reduced: Vec<Value> = entries
-                    .as_array()
-                    .map(|a| {
-                        a.iter()
-                            .filter(|e| e["kind"] == "single" || e["what"] == "composite")
-                            .cloned()
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                if code != 0 || Value::Array(reduced) != want["entries"] {
-                    bad.push(format!("{name}: code {code}, entries differ"));
+                let got: Value = serde_json::from_str(&text).unwrap_or(Value::Null);
+                // The web parser keeps only the first `limits` block; the core reports every one.
+                let first_limits = got["limits"].as_array().and_then(|l| l.first().cloned()).unwrap_or(Value::Null);
+                let same = ["entries", "zones", "conditions", "wavelengthRules"].iter().all(|k| got[k] == want[k])
+                    && first_limits == want["limits"];
+                if code != 0 || !same {
+                    bad.push(format!("{name}: code {code}, the parse result differs"));
                 }
             }
         }
@@ -132,4 +127,26 @@ fn alloc_hands_out_writable_zeroed_bytes_that_free_takes_back() {
         assert!(!z.is_null());
         npps_free(z, 0);
     }
+}
+
+#[test]
+fn namespace_folds_files_through_the_abi_and_reports_a_duplicate() {
+    let file = |src: &str| -> Value {
+        let (code, out) = run(npps_parse_json, src.as_bytes());
+        assert_eq!(code, 0);
+        serde_json::from_slice(&out).unwrap()
+    };
+    let files = vec![
+        file("zone \"A\" {\n  sockets: [1]\n}\n"),
+        file("zone \"A\" {\n  sockets: [2]\n}\nzone \"B\" {\n  sockets: [3]\n}\n"),
+    ];
+    let (code, out) = run(npps_namespace_json, serde_json::json!({ "files": files }).to_string().as_bytes());
+    assert_eq!(code, 0);
+    let ns: Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(ns["zones"].as_array().unwrap().len(), 1, "A collides and is left undefined; B stays");
+    assert!(ns["errors"][0].as_str().unwrap().starts_with("Duplicate zone name 'A'"));
+    // A request that is not JSON is a refusal with a message, not a crash.
+    let (code, out) = run(npps_namespace_json, b"not json");
+    assert_eq!(code, 1);
+    assert!(String::from_utf8(out).unwrap().contains("not JSON"));
 }

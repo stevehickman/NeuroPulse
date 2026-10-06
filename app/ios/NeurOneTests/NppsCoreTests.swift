@@ -28,9 +28,15 @@ final class NppsCoreTests: XCTestCase {
 
     // MARK: - Parse
 
-    /// What the web parser's entry list reduces to: protocols and the composites.
-    private func reduce(_ entries: [[String: Any]]) -> [[String: Any]] {
-        entries.filter { ($0["kind"] as? String) == "single" || ($0["what"] as? String) == "composite" }
+    private static let parseKeys = ["entries", "zones", "conditions", "wavelengthRules", "limits"]
+
+    /// What the web parser's `parseNPPSFile` and `parseNPPSLimits` reduce to. The web parser keeps only the
+    /// first `limits` block; the core reports every one.
+    private func reduce(_ parsed: [String: Any]) -> NSDictionary {
+        var out: [String: Any] = [:]
+        for key in Self.parseKeys where key != "limits" { out[key] = parsed[key] ?? [] }
+        out["limits"] = (parsed["limits"] as? [Any])?.first ?? NSNull()
+        return out as NSDictionary
     }
 
     private func checkParse(_ name: String, _ source: String, _ expected: [String: Any], _ failures: inout [String]) {
@@ -40,9 +46,9 @@ final class NppsCoreTests: XCTestCase {
                 failures.append("\(name): accepted what the web parser refuses: \(error)")
                 return
             }
-            let entries = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] ?? []
-            let want = expected["entries"] as? [[String: Any]] ?? []
-            if !(reduce(entries) as NSArray).isEqual(to: want) { failures.append("\(name): entries differ") }
+            let parsed = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+            let want = expected.filter { Self.parseKeys.contains($0.key) }
+            if !reduce(parsed).isEqual(to: want) { failures.append("\(name): the parse differs") }
         } catch let refusal as NppsCore.Refusal {
             guard let want = expected["error"] as? String else {
                 failures.append("\(name): refused what the web parser accepts: \(refusal.message)")
@@ -128,8 +134,9 @@ final class NppsCoreTests: XCTestCase {
     func testAShippedProtocolParsesThenCompiles() throws {
         let cases = try Self.json("hub-descriptor-cases.json")
         let url = Self.root().appendingPathComponent("protocols/predefined/01-gamma-focus.npps")
-        let entries = try XCTUnwrap(
-            JSONSerialization.jsonObject(with: NppsCore.parse(String(contentsOf: url, encoding: .utf8))) as? [[String: Any]])
+        let parsed = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: NppsCore.parse(String(contentsOf: url, encoding: .utf8))) as? [String: Any])
+        let entries = try XCTUnwrap(parsed["entries"] as? [[String: Any]])
         let single = try XCTUnwrap(entries.first { ($0["kind"] as? String) == "single" })
         let proto = try JSONSerialization.data(withJSONObject: try XCTUnwrap(single["protocol"]))
         let blob = try NppsCore.compile(protocolJSON: proto, options: try options(cases, withClinician: true))
@@ -148,5 +155,28 @@ final class NppsCoreTests: XCTestCase {
             options: NppsCore.CompileOptions(
                 zones: nil, clinicianSockets: nil, deviceSerial: nil, nowUnix: 0,
                 sessionUUID: Data(), wavelengthRules: nil)))
+    }
+
+    // MARK: - Namespace
+
+    func testNamespacesFoldAndValidateAsTheWebFunctionsDo() throws {
+        let cases = try XCTUnwrap(Self.json("npps-parse-golden.json")["namespaces"] as? [String: [String: Any]])
+        XCTAssertTrue(cases["library"] != nil && cases.count > 5)
+        var failures: [String] = []
+        for (name, expected) in cases {
+            let sources: [String]
+            if let paths = expected["paths"] as? [String] {
+                sources = try paths.map { try String(contentsOf: Self.root().appendingPathComponent($0), encoding: .utf8) }
+            } else {
+                sources = try XCTUnwrap(expected["sources"] as? [String])
+            }
+            let files = try sources.map { try JSONSerialization.jsonObject(with: NppsCore.parse($0)) }
+            let request = try JSONSerialization.data(withJSONObject: ["files": files])
+            let got = try XCTUnwrap(JSONSerialization.jsonObject(with: NppsCore.namespace(requestJSON: request)) as? [String: Any])
+            for key in ["entries", "zones", "conditions", "errors", "referenceErrors"] {
+                if !((got[key] as? NSObject)?.isEqual(expected[key]) ?? false) { failures.append("\(name): \(key) differ") }
+            }
+        }
+        XCTAssertTrue(failures.isEmpty, "\(failures.count) divergence(s):\n" + failures.joined(separator: "\n"))
     }
 }

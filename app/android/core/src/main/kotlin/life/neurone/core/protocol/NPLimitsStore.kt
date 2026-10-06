@@ -244,7 +244,7 @@ class NPLimitsStore(private val kv: KeyValueStore) {
     fun exportLimitsAsNPPS(limits: NPLimitsSet): String = NPPSSerializer().serializeLimits(limits)
 
     fun importLimitsFromNPPS(text: String): NPLimitsSet {
-        val entries = NPPSParser(NPPSLexer(text).tokenize()).parse()
+        val entries = NPPSParser.parse(text)
         return entries.filterIsInstance<NPProtocolEntry.Limits>().firstOrNull()?.limits
             ?: throw NPPSError("No limits block found in script", 0)
     }

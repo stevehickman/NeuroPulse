@@ -11,7 +11,8 @@ set -euo pipefail
 
 root="$(git rev-parse --show-toplevel)"
 common="$root/common"
-out="$root/app/web/src/generated/neurone_npps.wasm"
+out="$root/common/generated/neurone_npps.wasm"
+sim="$root/simulator/js/generated/neurone_npps.wasm"
 export PATH="$HOME/.cargo/bin:$PATH"
 
 if ! command -v cargo >/dev/null 2>&1; then
@@ -32,4 +33,6 @@ fi
 cargo build --release --locked --manifest-path "$common/Cargo.toml" -p neurone-npps-ffi --target wasm32-unknown-unknown
 mkdir -p "$(dirname "$out")"
 cp "$common/target/wasm32-unknown-unknown/release/neurone_npps_ffi.wasm" "$out"
+mkdir -p "$(dirname "$sim")"
+cp "$out" "$sim"
 echo "built $out ($(wc -c <"$out") bytes)"

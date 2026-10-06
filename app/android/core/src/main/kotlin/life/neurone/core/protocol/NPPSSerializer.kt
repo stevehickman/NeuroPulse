@@ -164,7 +164,7 @@ class NPPSSerializer {
         }
         limits.vibrotactile40hz?.let { lim ->
             lines.add("    vibrotactile_40hz {")
-            lim.maxIntensityG?.let { lines.add("        max_intensity: ${formatDouble(it)}G") }
+            lim.maxIntensityG?.let { lines.add("        max_intensity: ${formatDouble(it)}") }
             lim.maxSessionDurationSeconds?.let { lines.add("        max_session_duration: ${formatTime(it)}") }
             lines.add("    }")
         }
@@ -389,7 +389,7 @@ class NPPSSerializer {
             val p = params.params
             listOf(
                 "frequency: ${formatHz(p.frequencyHz)}  # locked at 40Hz",
-                "intensity_g: ${formatDouble(p.intensityG)}G",
+                "intensity_g: ${formatDouble(p.intensityG)}",
                 "sync_to_audio: ${p.syncToAudio}",
                 "sync_to_visual: ${p.syncToVisual}",
             )
@@ -485,8 +485,7 @@ class NPPSSerializer {
 
 /** Port of the free `nppsRoundTrip(_:)` function. */
 fun nppsRoundTrip(text: String): String {
-    val tokens = NPPSLexer(text).tokenize()
-    val entries = NPPSParser(tokens).parse()
+    val entries = NPPSParser.parse(text)
     val serializer = NPPSSerializer()
     return entries.joinToString("\n\n") { serializer.serialize(it) }
 }

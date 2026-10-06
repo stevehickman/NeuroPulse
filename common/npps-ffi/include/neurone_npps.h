@@ -1,15 +1,19 @@
 /*
  * neurone_npps.h — C ABI of the shared NPPS core (common/npps-core, OI-NPPS-CORE-01).
  *
- * Two calls, an allocator for WebAssembly hosts, and a free. Text goes in as UTF-8 bytes (no terminator needed), and what comes
- * out is a buffer this library allocated, which the caller releases with npps_free().
+ * Three calls, an allocator for WebAssembly hosts, and a free. Text goes in as UTF-8 bytes (no
+ * terminator needed), and what comes out is a buffer this library allocated, which the caller
+ * releases with npps_free().
  *
- *   npps_parse_json    NPPS source            -> JSON array of entries
+ *   npps_parse_json    NPPS source            -> JSON object: everything the file declares
+ *                                                ({entries, zones, conditions, wavelengthRules, limits})
+ *   npps_namespace_json {files:[parse results]} -> JSON: the files folded into one namespace and its
+ *                                                cross-references checked
  *   npps_compile_json  compile request (JSON) -> the NP-FW-HUB-001 §4 descriptor bytes,
  *                                                signature slot zeroed for the caller to sign
  *
- * The request and entry shapes are documented on neurone_npps_core::api (parse_json,
- * compile_json). Both calls return 0 on success. On failure they return non-zero and the
+ * The request and result shapes are documented on neurone_npps_core::api (parse_json,
+ * namespace_json, compile_json). Every call returns 0 on success. On failure they return non-zero and the
  * output buffer holds the refusal as UTF-8 text (the message the web parser or compiler gives);
  * it is released with npps_free() all the same. No call retains a pointer it is given.
  *
@@ -31,6 +35,8 @@ extern "C" {
 int32_t npps_parse_json(const uint8_t *src, size_t src_len, uint8_t **out, size_t *out_len);
 
 int32_t npps_compile_json(const uint8_t *req, size_t req_len, uint8_t **out, size_t *out_len);
+
+int32_t npps_namespace_json(const uint8_t *req, size_t req_len, uint8_t **out, size_t *out_len);
 
 /* Allocate `len` zeroed bytes for a host that cannot hand this library its own memory (WebAssembly:
  * the host writes the input here, passes it to a call, then releases it with npps_free(ptr, len)). */

@@ -51,11 +51,24 @@ static class NppsCore
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     private static extern void npps_free(IntPtr ptr, nuint len);
 
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int npps_namespace_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
+
     private delegate int Entry(byte[] input, nuint inputLen, out IntPtr output, out nuint outLen);
 
-    /// Parse NPPS text into the core's JSON: an array of `{"kind":"single","protocol":{…}}` entries, or
-    /// `{"kind":"skipped","what":"zone"}` for a block the core does not interpret yet.
+    /// Parse NPPS text into everything the file declares, as the core's JSON: `{"entries":[{"kind":"single",
+    /// "protocol":{…}} | {"kind":"composite","composite":{…}}], "zones":[…], "conditions":[…],
+    /// "wavelengthRules":[…], "limits":[…]}`. Ids and timestamps are left out; the caller supplies them.
     public static byte[] Parse(string source) => Call(npps_parse_json, Encoding.UTF8.GetBytes(source));
+
+    /// Fold parse results, in load order, into one namespace and check its references:
+    /// `{"entries", "zones", "conditions", "errors", "referenceErrors"}`. A name two files define is left
+    /// undefined and reported in `errors`.
+    public static byte[] Namespace(IEnumerable<JsonNode> files)
+    {
+        var request = new JsonObject { ["files"] = new JsonArray(files.Select(f => (JsonNode?)f.DeepClone()).ToArray()) };
+        return Call(npps_namespace_json, Encoding.UTF8.GetBytes(request.ToJsonString()));
+    }
 
     /// Compile a protocol (`{"timingMode":…,"modalities":[…]}`, the shape `Parse` returns under
     /// `protocol`) into the NP-FW-HUB-001 §4 descriptor. The 64-byte signature slot at the end is zeroed:

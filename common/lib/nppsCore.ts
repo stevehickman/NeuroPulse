@@ -1,6 +1,6 @@
 /**
- * The shared NPPS core (common/npps-core, OI-NPPS-CORE-01) as the web app sees it: one hub-descriptor
- * compiler written once in Rust, built as WebAssembly by scripts/build-npps-wasm.sh from the C ABI of
+ * The shared NPPS core (common/npps-core, OI-NPPS-CORE-01) as the web app and the simulator see it: one parser,
+ * namespace builder and hub-descriptor compiler written once in Rust, built as WebAssembly by scripts/build-npps-wasm.sh from the C ABI of
  * common/npps-ffi (common/npps-ffi/include/neurone_npps.h). This file marshals and nothing else. What an
  * input means is decided in the core, so it means the same here as on every other runtime, and a refusal
  * carries the message the core gives.
@@ -24,8 +24,12 @@ interface CoreExports {
   npps_free(ptr: number, len: number): void;
   npps_parse_json(src: number, srcLen: number, out: number, outLen: number): number;
   npps_compile_json(req: number, reqLen: number, out: number, outLen: number): number;
+  npps_namespace_json(req: number, reqLen: number, out: number, outLen: number): number;
 }
 
+// common/generated/ is a git-ignored build output directory (CLAUDE.md §20). In the simulator's bundle
+// (simulator/js/vendor/npps-runtime.js) this resolves to simulator/js/generated/, where the build script
+// also writes the module.
 const WASM_URL = new URL('../generated/neurone_npps.wasm', import.meta.url);
 
 let instance: CoreExports | null = null;
@@ -71,7 +75,7 @@ function core(): CoreExports {
 // Return codes of neurone_npps.h.
 const OK = 0, REFUSED = 1, INTERNAL = 2;
 
-function call(entry: 'npps_parse_json' | 'npps_compile_json', input: string): Uint8Array {
+function call(entry: 'npps_parse_json' | 'npps_compile_json' | 'npps_namespace_json', input: string): Uint8Array {
   const wasm = core();
   const bytes = new TextEncoder().encode(input);
   // Never empty, so the pointer handed over is never null (an empty source is a valid input).
@@ -112,7 +116,28 @@ export function nppsCompile(request: object): Uint8Array {
   return call('npps_compile_json', JSON.stringify(request));
 }
 
-/** Parse NPPS text into the core's JSON entries. */
-export function nppsParse(source: string): unknown {
+/**
+ * Parse NPPS text into everything the file declares: `{entries, zones, conditions, wavelengthRules, limits}`
+ * (neurone_npps_core::api::parse_json). Throws NppsRefusal carrying `Line N: …`.
+ */
+export function nppsParse(source: string): NppsParsed {
   return JSON.parse(new TextDecoder().decode(call('npps_parse_json', source)));
+}
+
+/** Fold parse results into one namespace and check its references (neurone_npps_core::api::namespace_json). */
+export function nppsNamespace(files: readonly object[]): NppsNamespace {
+  return JSON.parse(new TextDecoder().decode(call('npps_namespace_json', JSON.stringify({ files }))));
+}
+
+/** What the core's parse returns. Models are built from it by common/lib/nppsParser.ts. */
+export interface NppsParsed {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  entries: Array<{ kind: 'single'; protocol: any } | { kind: 'composite'; composite: any }>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  zones: any[]; conditions: any[]; wavelengthRules: any[]; limits: any[];
+}
+
+export interface NppsNamespace {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  entries: any[]; zones: any[]; conditions: any[]; errors: string[]; referenceErrors: string[];
 }

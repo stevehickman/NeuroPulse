@@ -22,7 +22,6 @@ import kotlinx.serialization.json.putJsonObject
  *
  * The native library `neurone_npps_jni` must be loadable: on a JVM test host through
  * `java.library.path` (the :core test task builds it), on a device from the APK's jniLibs.
- * Nothing in the app calls this yet.
  */
 object NppsCore {
     init {
@@ -33,11 +32,25 @@ object NppsCore {
 
     @JvmStatic private external fun nativeCompile(request: String): ByteArray
 
+    @JvmStatic private external fun nativeNamespace(request: String): String
+
     /**
-     * Parse NPPS text. Each element is `{"kind":"single","protocol":{…}}` for a `protocol`, or
-     * `{"kind":"skipped","what":"zone"}` for a block the core does not interpret yet.
+     * Parse NPPS text into everything the file declares:
+     * `{"entries":[{"kind":"single","protocol":{…}} | {"kind":"composite","composite":{…}}],
+     * "zones":[…], "conditions":[…], "wavelengthRules":[…], "limits":[…]}`. Ids and timestamps are
+     * left out; the caller that builds a model supplies them.
      */
-    fun parse(source: String): JsonArray = Json.parseToJsonElement(nativeParse(source)) as JsonArray
+    fun parse(source: String): JsonObject = Json.parseToJsonElement(nativeParse(source)) as JsonObject
+
+    /**
+     * Fold several [parse] results, in load order, into one namespace and check its references:
+     * `{"entries", "zones", "conditions", "errors", "referenceErrors"}`. A name two files define
+     * is left undefined and reported in `errors`.
+     */
+    fun namespace(files: List<JsonObject>): JsonObject {
+        val request = buildJsonObject { put("files", JsonArray(files)) }
+        return Json.parseToJsonElement(nativeNamespace(request.toString())) as JsonObject
+    }
 
     /** What a compile needs that is not in the protocol. Everything non-deterministic is an input. */
     class CompileOptions(

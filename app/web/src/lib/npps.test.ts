@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseNPPS, parseNPPSLimits, tokenize, NPPSParseError } from '../../../../common/lib/nppsParser';
+import { parseNPPS, parseNPPSLimits, NPPSParseError } from '../../../../common/lib/nppsParser';
 import { serializeProtocol, serializeNPPS } from './nppsSerializer';
 import type { NPProtocolDefinition, NPCompositeProtocol } from '../../../../common/types/protocol';
 import { MODALITY_META } from '../../../../common/types/protocol';
@@ -142,37 +142,7 @@ composite "Full Multi-Modal RCT" {
 }
 `.trim();
 
-// ─── Tokenizer ────────────────────────────────────────────────────────────────
-
-describe('tokenizer', () => {
-  it('tokenizes unit suffixes correctly', () => {
-    const tokens = tokenize('40Hz 80% 1.5mA 20m 300s');
-    const numbers = tokens.filter(t => t.type === 'NUMBER');
-    expect(numbers[0]).toMatchObject({ value: 40, unit: 'Hz' });
-    expect(numbers[1]).toMatchObject({ value: 80, unit: '%' });
-    expect(numbers[2]).toMatchObject({ value: 1.5, unit: 'mA' });
-    expect(numbers[3]).toMatchObject({ value: 20, unit: 'm' });
-    expect(numbers[4]).toMatchObject({ value: 300, unit: 's' });
-  });
-
-  it('tokenizes strings with escape sequences', () => {
-    const tokens = tokenize('"hello \\"world\\""');
-    expect(tokens[0]).toMatchObject({ type: 'STRING', value: 'hello "world"' });
-  });
-
-  it('throws on unterminated string', () => {
-    expect(() => tokenize('"unterminated')).toThrow(NPPSParseError);
-  });
-
-  it('throws on stray minus sign', () => {
-    expect(() => tokenize('- ')).toThrow(NPPSParseError);
-  });
-
-  it('does not include "name" as a keyword', () => {
-    const tokens = tokenize('name');
-    expect(tokens[0].type).toBe('IDENT');
-  });
-});
+// The tokenizer is the core's lexer now; its cases are unit tests in common/npps-core/src/lexer.rs.
 
 // ─── Parser — old format rejection ───────────────────────────────────────────
 

@@ -4,8 +4,8 @@
 //! `common/lib/nppsParser.ts`; `tests/differential.rs` diffs this crate's output against
 //! what that parser produces for the whole shipped library and the shared fixtures.
 //!
-//! v0 covers `protocol` entries and the descriptor compiler. `composite`, `limits`, `zone`, `condition` and
-//! `wavelength_rules` blocks are skipped (reported, not validated); see the open item.
+//! Covers every block of an `.npps` file (`protocol`, `composite`, `limits`, `zone`, `condition`,
+//! `wavelength_rules`) and the descriptor compiler.
 
 pub mod api;
 pub mod compiler;
@@ -18,4 +18,4 @@ pub mod wavelength;
 
 pub use error::ParseError;
 pub use compiler::{compile_protocol, CompileOptions, Compiled};
-pub use parser::{parse_npps, Entry};
+pub use parser::{parse_file, parse_npps, Entry, ParsedFile};

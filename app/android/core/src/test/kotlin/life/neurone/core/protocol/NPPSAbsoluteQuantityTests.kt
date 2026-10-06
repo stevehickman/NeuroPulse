@@ -18,7 +18,7 @@ class NPPSAbsoluteQuantityTests {
 
 
     private fun parse(text: String): List<NPProtocolEntry> =
-        NPPSParser(NPPSLexer(text).tokenize()).parse()
+        NPPSParser.parse(text)
 
     private fun proto(body: String) = "protocol \"T\" {\n    duration: 5m\n$body\n}\n"
 
@@ -56,7 +56,7 @@ class NPPSAbsoluteQuantityTests {
 
     @Test
     fun requiresIrradianceAndWavelengthRatherThanDefaultingThem() {
-        assertTrue(refused(pbm("wavelength: \"808nm\"")).contains("irradiance is required"))
+        assertTrue(refused(pbm("wavelength: \"808nm\"")).contains("irradiance (e.g. irradiance: 300mW_cm2) is required"))
         assertTrue(refused(pbm("irradiance: 300mW_cm2")).contains("wavelength is required"))
     }
 
@@ -85,7 +85,7 @@ class NPPSAbsoluteQuantityTests {
         assertTrue(refused(audio("volume: 70%")).contains("in % is refused"))
         assertTrue(refused(audio("volume: 70")).contains("needs its unit written"))
         assertTrue(refused(audio("volume_percent: 70")).contains("percentage of a baseline"))
-        assertTrue(refused(audio("binaural_hz: 10Hz")).contains("volume is required"))
+        assertTrue(refused(audio("binaural_hz: 10Hz")).contains("is required and must be positive"))
     }
 
     @Test
@@ -162,7 +162,7 @@ class NPPSAbsoluteQuantityTests {
         val dose = mapOf(
             "pbm_transcranial" to "wavelength: \"808nm\"\nirradiance: 30mW_cm2",
             "pbm_intranasal" to "wavelength: \"660nm\"\nirradiance: 30mW_cm2",
-            "pbm_deep_1170nm" to "intensity: 500",
+            "pbm_deep_1170nm" to "intensity_mw_cm2: 500",
         )
         for ((modality, fields) in dose) {
             val msg = refused("    $modality {\n$fields\nfrequency: 0Hz\nduty_cycle: 25%\n    }")

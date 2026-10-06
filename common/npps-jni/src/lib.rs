@@ -68,3 +68,23 @@ pub extern "system" fn Java_life_neurone_core_npps_NppsCore_nativeCompile<'l>(
         }
     }
 }
+
+#[no_mangle]
+pub extern "system" fn Java_life_neurone_core_npps_NppsCore_nativeNamespace<'l>(
+    mut env: JNIEnv<'l>,
+    _class: JClass<'l>,
+    request: JString<'l>,
+) -> jstring {
+    let Some(text) = read(&mut env, &request) else { return std::ptr::null_mut() };
+    match catch_unwind(AssertUnwindSafe(|| api::namespace_json(&text))) {
+        Ok(Ok(json)) => env.new_string(json).map(|s| s.into_raw()).unwrap_or(std::ptr::null_mut()),
+        Ok(Err(msg)) => {
+            throw(&mut env, &msg);
+            std::ptr::null_mut()
+        }
+        Err(_) => {
+            throw(&mut env, "the NPPS core panicked while building a namespace");
+            std::ptr::null_mut()
+        }
+    }
+}

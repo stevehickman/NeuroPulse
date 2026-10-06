@@ -32,18 +32,21 @@ class NppsCoreTests {
     private fun resource(name: String): JsonObject =
         Json.parseToJsonElement(javaClass.getResourceAsStream("/$name")!!.bufferedReader().readText()).jsonObject
 
-    /** What the web parser's entry list reduces to: protocols and the count of composites. */
-    private fun reduce(entries: JsonArray): JsonArray = JsonArray(entries.filter {
-        val o = it.jsonObject
-        o["kind"]?.jsonPrimitive?.content == "single" || o["what"]?.jsonPrimitive?.content == "composite"
-    })
+    private val parseKeys = listOf("entries", "zones", "conditions", "wavelengthRules", "limits")
+
+    /**
+     * What the web parser's `parseNPPSFile` and `parseNPPSLimits` reduce to. The web parser keeps only the
+     * first `limits` block; the core reports every one.
+     */
+    private fun reduce(parsed: JsonObject): JsonObject = JsonObject(parsed + ("limits" to
+        (parsed["limits"]!!.jsonArray.firstOrNull() ?: JsonNull)))
 
     private fun checkParse(name: String, source: String, expected: JsonObject, failures: MutableList<String>) {
         val want = expected["error"]
         try {
             val got = reduce(NppsCore.parse(source))
             if (want != null && want !is JsonNull) failures += "$name: accepted what the web parser refuses: $want"
-            else if (got != expected["entries"]) failures += "$name: entries differ"
+            else for (key in parseKeys) if (got[key] != expected[key]) failures += "$name: $key differ"
         } catch (e: IllegalArgumentException) {
             if (want == null || want is JsonNull) failures += "$name: refused what the web parser accepts: ${e.message}"
             else if (e.message != want.jsonPrimitive.content) {
@@ -109,8 +112,8 @@ class NppsCoreTests {
     fun aShippedProtocolParsesThenCompiles() {
         val cases = resource("hub-descriptor-cases.json")
         val src = File(root, "protocols/predefined/01-gamma-focus.npps").readText()
-        val proto = NppsCore.parse(src).first { it.jsonObject["kind"]!!.jsonPrimitive.content == "single" }
-            .jsonObject["protocol"]!!.jsonObject
+        val proto = NppsCore.parse(src)["entries"]!!.jsonArray
+            .first { it.jsonObject["kind"]!!.jsonPrimitive.content == "single" }.jsonObject["protocol"]!!.jsonObject
         val blob = NppsCore.compile(proto, options(cases, true))
         assertEquals(0x50, blob[0].toInt() and 0xFF, "NP_HUB_PROTO_MAGIC low byte")
         assertTrue(blob.size > 128)
@@ -125,4 +128,20 @@ class NppsCoreTests {
         assertTrue(e.message!!.isNotEmpty())
     }
 
+    @Test
+    fun namespacesFoldAndValidateAsTheWebFunctionsDo() {
+        val cases = resource("npps-parse-golden.json")["namespaces"]!!.jsonObject
+        assertTrue(cases.containsKey("library") && cases.size > 5)
+        val failures = mutableListOf<String>()
+        for ((name, c) in cases) {
+            val o = c.jsonObject
+            val sources = o["paths"]?.jsonArray?.map { File(root, it.jsonPrimitive.content).readText() }
+                ?: o["sources"]!!.jsonArray.map { it.jsonPrimitive.content }
+            val got = NppsCore.namespace(sources.map { NppsCore.parse(it) })
+            for (key in listOf("entries", "zones", "conditions", "errors", "referenceErrors")) {
+                if (got[key] != o[key]) failures += "$name: $key differ"
+            }
+        }
+        assertTrue(failures.isEmpty(), "${failures.size} divergence(s):\n" + failures.joinToString("\n"))
+    }
 }

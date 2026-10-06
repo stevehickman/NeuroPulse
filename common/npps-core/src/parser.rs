@@ -10,23 +10,45 @@ use serde_json::{json, Map, Value};
 
 type R<T> = Result<T, ParseError>;
 
+mod blocks;
+
+/// An entry of the file's protocol list, as the normalised JSON the web parser's output reduces to.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Entry {
-    /// A `protocol`, as the normalised JSON the web parser's output reduces to.
+    /// A `protocol`.
     Single(Value),
-    /// A block v0 does not interpret: `composite`, `limits`, `zone`, `condition`,
-    /// `wavelength_rules`.
-    Skipped(&'static str),
+    /// A `composite`.
+    Composite(Value),
 }
 
+/// Everything one `.npps` file declares, in the order `parseNPPSFile` and `parseNPPSLimits` give it:
+/// the protocol entries, plus the zones, conditions, wavelength rules and limits sets the file holds.
+/// Ids and timestamps the reference generates per parse are left to the caller.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ParsedFile {
+    pub entries: Vec<Entry>,
+    pub zones: Vec<Value>,
+    pub conditions: Vec<Value>,
+    pub wavelength_rules: Vec<Value>,
+    pub limits: Vec<Value>,
+}
+
+/// The protocol entries of a file. A block that is not a protocol or composite is still parsed, and
+/// refuses on the message the reference gives; use `parse_file` to keep what it declares.
 pub fn parse_npps(text: &str) -> R<Vec<Entry>> {
-    let mut p = Parser { toks: tokenize(text)?, pos: 0 };
-    p.parse()
+    Ok(parse_file(text)?.entries)
+}
+
+pub fn parse_file(text: &str) -> R<ParsedFile> {
+    let mut p = Parser { toks: tokenize(text)?, pos: 0, out: ParsedFile::default() };
+    p.parse()?;
+    Ok(p.out)
 }
 
 struct Parser {
     toks: Vec<Token>,
     pos: usize,
+    out: ParsedFile,
 }
 
 impl Parser {
@@ -270,8 +292,7 @@ impl Parser {
 
     // ── top level ────────────────────────────────────────────────────────────
 
-    fn parse(&mut self) -> R<Vec<Entry>> {
-        let mut entries = Vec::new();
+    fn parse(&mut self) -> R<()> {
         self.skip_newlines();
         while self.ct() != Kind::Eof {
             self.skip_newlines();
@@ -279,22 +300,23 @@ impl Parser {
                 break;
             }
             if self.try_keyword("protocol") {
-                entries.push(Entry::Single(self.parse_protocol()?));
+                let p = self.parse_protocol()?;
+                self.out.entries.push(Entry::Single(p));
             } else if self.try_keyword("composite") {
-                self.skip_block()?;
-                entries.push(Entry::Skipped("composite"));
+                let c = self.parse_composite()?;
+                self.out.entries.push(Entry::Composite(c));
             } else if self.try_keyword("limits") {
-                self.skip_block()?;
-                entries.push(Entry::Skipped("limits"));
+                let l = self.parse_limits_block()?;
+                self.out.limits.push(l);
             } else if self.try_keyword("zone") {
-                self.skip_block()?;
-                entries.push(Entry::Skipped("zone"));
+                let z = self.parse_zone_block()?;
+                self.out.zones.push(z);
             } else if self.try_keyword("condition") {
-                self.skip_block()?;
-                entries.push(Entry::Skipped("condition"));
+                let c = self.parse_condition_block()?;
+                self.out.conditions.push(c);
             } else if self.try_keyword("wavelength_rules") {
-                self.skip_block()?;
-                entries.push(Entry::Skipped("wavelength_rules"));
+                let w = self.parse_wavelength_rules_block()?;
+                self.out.wavelength_rules.push(w);
             } else {
                 let t = self.cur();
                 return Err(ParseError::at(
@@ -307,35 +329,7 @@ impl Parser {
             }
             self.skip_newlines();
         }
-        Ok(entries)
-    }
-
-    /// Skip a block v0 does not interpret: everything up to its closing brace.
-    fn skip_block(&mut self) -> R<()> {
-        loop {
-            match self.ct() {
-                Kind::LBrace => break,
-                Kind::Eof => {
-                    return Err(ParseError::at("Expected LBRACE, got EOF ()", self.cur().line));
-                }
-                _ => {
-                    self.advance();
-                }
-            }
-        }
-        let mut depth = 0i32;
-        loop {
-            match self.ct() {
-                Kind::LBrace => depth += 1,
-                Kind::RBrace => depth -= 1,
-                Kind::Eof => return Err(ParseError::at("Unterminated block", self.cur().line)),
-                _ => {}
-            }
-            self.advance();
-            if depth == 0 {
-                return Ok(());
-            }
-        }
+        Ok(())
     }
 
     fn parse_protocol(&mut self) -> R<Value> {

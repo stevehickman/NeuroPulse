@@ -1,1265 +1,321 @@
 package life.neurone.core.protocol
 
-import java.util.UUID
+import life.neurone.core.npps.NppsCore
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 // =============================================================================
-// NPPS parser — Kotlin port of the Swift `NPPSParser`.
+// NPPS parsing on Android: the shared NPPS core (common/npps-core, OI-NPPS-CORE-01), through JNI.
 //
-// Locked bug fix preserved (project docs/status/completed-decisions.md):
-//   (4) FieldValue.asIdent also returns quoted-string cases, so
-//       `wavelength: "660_808nm"` works in user-authored scripts.
-//
-// Unknown modality-limit sub-blocks are silently ignored (forward compat), and
-// unknown modality blocks inside a `protocol` throw — matching the Swift source.
+// This used to be a 1,265-line hand-written lexer and parser, one of five that drifted. There is one
+// parser now, and it is in Rust: what an `.npps` file means, and what refuses it, is decided there and
+// is the same on every runtime. What is left here is not language: building the Kotlin models from the
+// core's JSON, which means supplying what the core leaves out because it is not the same twice (a random
+// id for a protocol that states none) and the Kotlin spelling of each field.
 // =============================================================================
+
+/** A refusal: the core's message, `Line N: …` when it names a line. */
+class NPPSError(val messageText: String, val line: Int) :
+    Exception("Line $line: $messageText")
 
 /**
- * Port of the private `NPPSFieldValue` enum. Public so tests / callers may use
- * the parser's parseFieldValue helpers, mirroring the Swift enum's visibility
- * within the parser module.
+ * Parse NPPS text. Protocols and composites come back in file order, then the file's zones, conditions
+ * and limits sets in file order (the core reports each kind in its own list, so their order across
+ * kinds is not kept). Wavelength rules are parsed and validated by the core and not consumed here:
+ * this runtime compiles against the shipped default rules only.
  */
-sealed class NPPSFieldValue {
-    data class Num(val value: Double) : NPPSFieldValue()
-    data class NumberWithUnit(val value: Double, val unit: String) : NPPSFieldValue()
-    data class Str(val value: String) : NPPSFieldValue()
-    data class Ident(val value: String) : NPPSFieldValue()
-    data class BoolVal(val value: Boolean) : NPPSFieldValue()
-    data class Arr(val items: List<NPPSFieldValue>) : NPPSFieldValue()
+object NPPSParser {
 
-    val asDouble: Double?
-        get() = when (this) {
-            is Num -> value
-            is NumberWithUnit -> value
-            else -> null
+    fun parse(text: String): List<NPProtocolEntry> {
+        val parsed = try {
+            NppsCore.parse(text)
+        } catch (e: IllegalArgumentException) {
+            throw refusal(e)
         }
-
-    val asHz: Double?
-        get() = when (this) {
-            is NumberWithUnit -> if (unit == "Hz") value else null
-            is Num -> value
-            else -> null
-        }
-
-    val asMilliamps: Double?
-        get() = when (this) {
-            is NumberWithUnit -> if (unit == "mA") value else null
-            is Num -> value
-            else -> null
-        }
-
-    val asPercent: Double?
-        get() = when (this) {
-            is NumberWithUnit -> if (unit == "%") value else null
-            is Num -> value
-            else -> null
-        }
-
-    /** Time in whole seconds. m→×60, s→×1, h→×3600; bare number→seconds. */
-    val asTime: Int?
-        get() = when (this) {
-            is NumberWithUnit -> when (unit) {
-                "m" -> (value * 60).toInt()
-                "s" -> value.toInt()
-                "h" -> (value * 3600).toInt()
-                else -> null
-            }
-            is Num -> value.toInt()
-            else -> null
-        }
-
-    val asBool: Boolean?
-        get() = if (this is BoolVal) value else null
-
-    /** Bug fix (4): idents AND quoted strings both resolve as an ident value. */
-    val asIdent: String?
-        get() = when (this) {
-            is Ident -> value
-            is Str -> value
-            else -> null
-        }
-}
-
-class NPPSParser(private val tokens: List<NPPSLexeme>) {
-
-    private var pos: Int = 0
-
-    // MARK: Entry point ------------------------------------------------------
-
-    fun parse(): List<NPProtocolEntry> {
-        val entries = ArrayList<NPProtocolEntry>()
-        while (currentToken() !is NPPSToken.Eof) {
-            val cur = currentToken()
-            if (cur is NPPSToken.Keyword) {
-                when (cur.value) {
-                    "protocol" -> entries.add(NPProtocolEntry.Single(parseProtocol()))
-                    "composite" -> entries.add(NPProtocolEntry.Composite(parseComposite()))
-                    "limits" -> entries.add(NPProtocolEntry.Limits(parseLimitsBlock()))
-                    "zone" -> entries.add(NPProtocolEntry.Zone(parseZoneBlock()))
-                    "condition" -> entries.add(NPProtocolEntry.Condition(parseConditionBlock()))
-                    // NP-NPPS-REF-001 §7a. Accepted and not consumed on Android: this
-                    // runtime compiles against the shipped default rules only.
-                    "wavelength_rules" -> skipNamedBlock()
-                    else -> throw NPPSError("Unexpected keyword: ${cur.value}", currentLine())
-                }
-            } else {
-                throw NPPSError(
-                    "Expected 'protocol', 'composite', 'limits', 'zone', or 'condition'",
-                    currentLine(),
-                )
-            }
-        }
-        return entries
+        return entriesOf(parsed)
     }
 
-    /** Consume `<keyword> "Name" { … }` without interpreting it, braces balanced. */
-    private fun skipNamedBlock() {
-        advance() // the block keyword
-        parseString()
-        expect(NPPSToken.LBrace)
-        var depth = 1
-        while (depth > 0) {
-            when (currentToken()) {
-                is NPPSToken.Eof -> throw NPPSError("Unterminated block", currentLine())
-                is NPPSToken.LBrace -> depth++
-                is NPPSToken.RBrace -> depth--
-                else -> {}
-            }
-            advance()
-        }
+    private val LINE_PREFIX = Regex("^Line (\\d+): ([\\s\\S]*)$")
+
+    internal fun refusal(e: IllegalArgumentException): NPPSError {
+        val message = e.message.orEmpty()
+        val m = LINE_PREFIX.matchEntire(message)
+        return if (m != null) NPPSError(m.groupValues[2], m.groupValues[1].toInt()) else NPPSError(message, 0)
     }
 
-    // MARK: Limits block -----------------------------------------------------
-
-    private fun parseLimitsBlock(): NPLimitsSet {
-        val ln = currentLine()
-        expectKeyword("limits")
-        val name = parseString()
-        expect(NPPSToken.LBrace)
-
-        val limitsSet = NPLimitsSet(name = name, level = NPLimitsSet.LimitLevel.GLOBAL)
-
-        while (currentToken() !is NPPSToken.RBrace && currentToken() !is NPPSToken.Eof) {
-            val keyTok = currentToken()
-            if (keyTok !is NPPSToken.Ident) {
-                throw NPPSError("Expected field name in limits block", currentLine())
-            }
-            val key = keyTok.value
-            advance()
-
-            when (currentToken()) {
-                is NPPSToken.Colon -> {
-                    advance()
-                    when (key) {
-                        "level" -> {
-                            when (parseIdentOrString()) {
-                                "global" -> limitsSet.level = NPLimitsSet.LimitLevel.GLOBAL
-                                "helmet" -> limitsSet.level = NPLimitsSet.LimitLevel.HELMET
-                                "individual" -> limitsSet.level = NPLimitsSet.LimitLevel.INDIVIDUAL
-                                else -> { /* unknown level ignored, matching Swift */ }
-                            }
-                        }
-                        "helmet_id" -> {
-                            limitsSet.helmetId = parseString()
-                            limitsSet.level = NPLimitsSet.LimitLevel.HELMET
-                        }
-                        "individual_id" -> {
-                            val uuidStr = parseString()
-                            limitsSet.individualId = parseUuidOrNull(uuidStr)
-                            limitsSet.level = NPLimitsSet.LimitLevel.INDIVIDUAL
-                        }
-                        "description" -> limitsSet.description = parseString()
-                        else -> skipValue()
-                    }
-                }
-                is NPPSToken.LBrace -> parseLimitsSubBlock(key, limitsSet)
-                else -> throw NPPSError(
-                    "Expected ':' or '{' after '$key' in limits block", currentLine()
-                )
+    private fun entriesOf(parsed: JsonObject): List<NPProtocolEntry> {
+        val out = ArrayList<NPProtocolEntry>()
+        for (e in parsed["entries"]!!.jsonArray) {
+            val o = e.jsonObject
+            when (o["kind"]!!.jsonPrimitive.content) {
+                "single" -> out.add(NPProtocolEntry.Single(protocolOf(o["protocol"]!!.jsonObject)))
+                "composite" -> out.add(NPProtocolEntry.Composite(compositeOf(o["composite"]!!.jsonObject)))
             }
         }
-
-        expect(NPPSToken.RBrace)
-        if (name.isEmpty()) throw NPPSError("Limits name cannot be empty", ln)
-        return limitsSet
+        for (z in parsed["zones"]!!.jsonArray) out.add(NPProtocolEntry.Zone(zoneOf(z.jsonObject)))
+        for (c in parsed["conditions"]!!.jsonArray) out.add(NPProtocolEntry.Condition(conditionOf(c.jsonObject)))
+        for (l in parsed["limits"]!!.jsonArray) out.add(NPProtocolEntry.Limits(limitsOf(l.jsonObject)))
+        return out
     }
 
-    private fun parseLimitsSubBlock(key: String, limitsSet: NPLimitsSet) {
-        expect(NPPSToken.LBrace)
-        val fields = HashMap<String, NPPSFieldValue>()
-        while (currentToken() !is NPPSToken.RBrace && currentToken() !is NPPSToken.Eof) {
-            val fk = currentToken()
-            if (fk !is NPPSToken.Ident) {
-                throw NPPSError("Expected field name in limits sub-block", currentLine())
-            }
-            advance()
-            expect(NPPSToken.Colon)
-            fields[fk.value] = parseFieldValue()
-        }
-        expect(NPPSToken.RBrace)
+    // ── field readers ────────────────────────────────────────────────────────
 
-        // Helper to pull a string whitelist out of an array field.
-        fun stringList(fv: NPPSFieldValue?): List<String>? {
-            val arr = (fv as? NPPSFieldValue.Arr) ?: return null
-            return arr.items.mapNotNull { it.asIdent }
-        }
+    private fun JsonObject.str(k: String, d: String = ""): String = (this[k] as? JsonPrimitive)?.contentOrNull ?: d
+    private fun JsonObject.optStr(k: String): String? = (this[k] as? JsonPrimitive)?.takeIf { it !is JsonNull }?.contentOrNull
+    private fun JsonObject.dbl(k: String, d: Double): Double = (this[k] as? JsonPrimitive)?.doubleOrNull ?: d
+    private fun JsonObject.optDbl(k: String): Double? = (this[k] as? JsonPrimitive)?.doubleOrNull
+    private fun JsonObject.int(k: String, d: Int): Int = (this[k] as? JsonPrimitive)?.doubleOrNull?.toInt() ?: d
+    private fun JsonObject.optInt(k: String): Int? = (this[k] as? JsonPrimitive)?.doubleOrNull?.toInt()
+    private fun JsonObject.bool(k: String, d: Boolean): Boolean = (this[k] as? JsonPrimitive)?.booleanOrNull ?: d
+    private fun JsonObject.optBool(k: String): Boolean? = (this[k] as? JsonPrimitive)?.booleanOrNull
+    private fun JsonObject.strList(k: String): List<String>? =
+        (this[k] as? JsonArray)?.map { it.jsonPrimitive.content }
+    private fun JsonObject.sub(k: String): JsonObject? = this[k] as? JsonObject
 
-        when (key) {
-            "pbm_transcranial" -> {
-                val lim = NPPBMTranscranialLimits()
-                refuseRetiredLimit(key, fields, "max_irradiance_mw_cm2")
-                fields["max_irradiance_mw_cm2"]?.asDouble?.let { lim.maxIrradianceMWcm2 = it }
-                fields["max_frequency"]?.asHz?.let { lim.maxFrequencyHz = it }
-                fields["max_duty_cycle"]?.asPercent?.let { lim.maxDutyCyclePercent = it.toInt() }
-                fields["max_session_dose"]?.asDouble?.let { lim.maxSessionDoseJCm2 = it }
-                fields["max_daily_dose"]?.asDouble?.let { lim.maxDailyDoseJCm2 = it }
-                limitsSet.pbmTranscranial = lim
-            }
-            "pbm_intranasal" -> {
-                val lim = NPPBMIntranasalLimits()
-                refuseRetiredLimit(key, fields, "max_irradiance_mw_cm2")
-                fields["max_irradiance_mw_cm2"]?.asDouble?.let { lim.maxIrradianceMWcm2 = it }
-                fields["max_session_dose"]?.asDouble?.let { lim.maxSessionDoseJCm2 = it }
-                fields["max_session_duration"]?.asTime?.let { lim.maxSessionDurationSeconds = it }
-                limitsSet.pbmIntranasal = lim
-            }
-            "eeg_neurofeedback" -> {
-                val lim = NPEEGNeurofeedbackLimits()
-                stringList(fields["allowed_bands"])?.let { lim.allowedBands = it }
-                fields["require_closed_loop"]?.asBool?.let { lim.requireClosedLoop = it }
-                limitsSet.eegNeurofeedback = lim
-            }
-            "bes_tacs" -> {
-                val lim = NPBESTacsLimits()
-                fields["max_intensity"]?.asMilliamps?.let { lim.maxIntensityMilliamps = it }
-                fields["max_frequency"]?.asHz?.let { lim.maxFrequencyHz = it }
-                fields["min_frequency"]?.asHz?.let { lim.minFrequencyHz = it }
-                fields["max_session_duration"]?.asTime?.let { lim.maxSessionDurationSeconds = it }
-                fields["max_sessions_per_day"]?.asDouble?.let { lim.maxSessionsPerDay = it.toInt() }
-                limitsSet.besTacs = lim
-            }
-            "tdcs" -> {
-                val lim = NPTDCSLimits()
-                fields["max_intensity"]?.asMilliamps?.let { lim.maxIntensityMilliamps = it }
-                fields["max_session_duration"]?.asTime?.let { lim.maxSessionDurationSeconds = it }
-                fields["max_sessions_per_day"]?.asDouble?.let { lim.maxSessionsPerDay = it.toInt() }
-                limitsSet.tdcs = lim
-            }
-            "vns_hrv" -> {
-                val lim = NPVNSHRVLimits()
-                fields["max_intensity"]?.asMilliamps?.let { lim.maxIntensityMilliamps = it }
-                fields["max_frequency"]?.asHz?.let { lim.maxFrequencyHz = it }
-                fields["max_session_duration"]?.asTime?.let { lim.maxSessionDurationSeconds = it }
-                stringList(fields["allowed_protocols"])?.let { lim.allowedProtocols = it }
-                limitsSet.vnsHrv = lim
-            }
-            "audio_entrainment" -> {
-                val lim = NPAudioEntrainmentLimits()
-                refuseRetiredLimit(key, fields, "max_volume_db")
-                fields["max_volume_db"]?.asDouble?.let { lim.maxVolumeDb = it }
-                fields["max_binaural_beats"]?.asHz?.let { lim.maxBinauralBeatsHz = it }
-                fields["max_isochronic_tones"]?.asHz?.let { lim.maxIsochronicTonesHz = it }
-                limitsSet.audioEntrainment = lim
-            }
-            "visual_stimulation" -> {
-                val lim = NPVisualStimLimits()
-                fields["max_frequency"]?.asHz?.let { lim.maxFrequencyHz = it }
-                fields["min_frequency"]?.asHz?.let { lim.minFrequencyHz = it }
-                fields["block_high_risk_range"]?.asBool?.let { lim.blockHighRiskRange = it }
-                stringList(fields["allowed_modes"])?.let { lim.allowedModes = it }
-                limitsSet.visualStimulation = lim
-            }
-            "tms" -> {
-                val lim = NPTMSLimits()
-                fields["max_intensity_pct_mt"]?.asDouble?.let { lim.maxIntensityPercentMT = it.toInt() }
-                fields["max_pulses_per_session"]?.asDouble?.let { lim.maxPulsesPerSession = it.toInt() }
-                fields["max_pulses_per_day"]?.asDouble?.let { lim.maxPulsesPerDay = it.toInt() }
-                fields["max_sessions_per_week"]?.asDouble?.let { lim.maxSessionsPerWeek = it.toInt() }
-                stringList(fields["allowed_protocols"])?.let { lim.allowedProtocols = it }
-                stringList(fields["allowed_targets"])?.let { lim.allowedTargets = it }
-                limitsSet.tms = lim
-            }
-            "pbm_deep_1170nm" -> {
-                val lim = NPDeepPBMLimits()
-                fields["max_intensity"]?.asDouble?.let { lim.maxIntensityMWcm2 = it }
-                fields["max_session_duration"]?.asTime?.let { lim.maxSessionDurationSeconds = it }
-                limitsSet.pbmDeep1170nm = lim
-            }
-            "clinical_tacs" -> {
-                val lim = NPClinicalTacsLimits()
-                fields["max_intensity"]?.asMilliamps?.let { lim.maxIntensityMilliamps = it }
-                fields["max_session_duration"]?.asTime?.let { lim.maxSessionDurationSeconds = it }
-                limitsSet.clinicalTacs = lim
-            }
-            "hd_tdcs" -> {
-                val lim = NPHDTdcsLimits()
-                fields["max_intensity"]?.asMilliamps?.let { lim.maxIntensityMilliamps = it }
-                fields["max_session_duration"]?.asTime?.let { lim.maxSessionDurationSeconds = it }
-                stringList(fields["allowed_montages"])?.let { lim.allowedMontages = it }
-                limitsSet.hdTdcs = lim
-            }
-            "cervical_vns" -> {
-                val lim = NPCervicalVnsLimits()
-                fields["max_intensity"]?.asMilliamps?.let { lim.maxIntensityMilliamps = it }
-                fields["max_session_duration"]?.asTime?.let { lim.maxSessionDurationSeconds = it }
-                limitsSet.cervicalVns = lim
-            }
-            "vibrotactile_40hz" -> {
-                val lim = NPVibrotactileLimits()
-                fields["max_intensity"]?.asDouble?.let { lim.maxIntensityG = it }
-                fields["max_session_duration"]?.asTime?.let { lim.maxSessionDurationSeconds = it }
-                limitsSet.vibrotactile40hz = lim
-            }
-            else -> {
-                // Forward compatibility: unknown modality limits blocks are ignored.
-            }
-        }
-    }
+    // ── protocols and composites ─────────────────────────────────────────────
 
-    // MARK: Protocol ---------------------------------------------------------
+    private fun uuidOrRandom(id: String?): java.util.UUID =
+        id?.let { parseUuidOrNull(it) } ?: java.util.UUID.randomUUID()
 
-    private fun parseProtocol(): NPProtocolDefinition {
-        val ln = currentLine()
-        expectKeyword("protocol")
-        val name = parseString()
-        expect(NPPSToken.LBrace)
+    private fun referencesOf(o: JsonObject): List<NPProtocolReference> =
+        (o["references"] as? JsonArray)?.map { r ->
+            if (r is JsonPrimitive) NPProtocolReference(url = r.content)
+            else NPProtocolReference(url = r.jsonObject.str("url"), label = r.jsonObject.optStr("label"))
+        } ?: emptyList()
 
-        var id: UUID = UUID.randomUUID()
-        var description = ""
-        var author = "NeurOne"
-        var version = "1.0"
-        var tags: List<String> = emptyList()
-        var conditions: List<String> = emptyList()
-        var references: List<NPProtocolReference> = emptyList()
-        var timingMode: NPTimingMode = NPTimingMode.Duration(20 * 60)
-        val modalities = ArrayList<NPProtocolModality>()
-        var isReadOnly = false
-
-        while (currentToken() !is NPPSToken.RBrace && currentToken() !is NPPSToken.Eof) {
-            val keyTok = currentToken()
-            if (keyTok !is NPPSToken.Ident) {
-                throw NPPSError("Expected field name or modality block", currentLine())
-            }
-            val key = keyTok.value
-            advance()
-
-            when (currentToken()) {
-                is NPPSToken.Colon -> {
-                    advance()
-                    when (key) {
-                        "id" -> {
-                            val uuidStr = parseString()
-                            parseUuidOrNull(uuidStr)?.let { id = it }
-                        }
-                        "readonly" -> {
-                            val t = currentToken()
-                            if (t is NPPSToken.BoolTok) { isReadOnly = t.value; advance() }
-                        }
-                        "description" -> description = parseString()
-                        "author" -> author = parseString()
-                        "version" -> version = parseString()
-                        "tags" -> tags = parseTagList()
-                        "conditions" -> conditions = parseTagList()
-                        "references" -> references = parseReferenceList()
-                        "duration" -> timingMode = NPTimingMode.Duration(parseTimeValue())
-                        "interval_count" -> {
-                            val t = currentToken()
-                            when (t) {
-                                is NPPSToken.Num -> {
-                                    timingMode = NPTimingMode.IntervalCount(t.value.toInt()); advance()
-                                }
-                                is NPPSToken.NumberWithUnit -> {
-                                    timingMode = NPTimingMode.IntervalCount(t.value.toInt()); advance()
-                                }
-                                else -> throw NPPSError(
-                                    "Expected number for interval_count", currentLine()
-                                )
-                            }
-                        }
-                        else -> skipValue()
-                    }
-                }
-                is NPPSToken.LBrace -> modalities.add(parseModalityBlock(key))
-                else -> throw NPPSError("Expected ':' or '{' after '$key'", currentLine())
-            }
-        }
-
-        expect(NPPSToken.RBrace)
-        if (name.isEmpty()) throw NPPSError("Protocol name cannot be empty", ln)
-
+    private fun protocolOf(p: JsonObject): NPProtocolDefinition {
+        val timing = p["timingMode"]!!.jsonObject
         return NPProtocolDefinition(
-            id = id,
-            name = name,
-            description = description,
-            author = author,
-            version = version,
-            tags = tags,
-            conditions = conditions,
-            references = references,
-            isPredefined = isReadOnly,
-            isReadOnly = isReadOnly,
-            timingMode = timingMode,
-            modalities = modalities,
+            id = uuidOrRandom(p.optStr("id")),
+            name = p.str("name"),
+            description = p.str("description"),
+            author = p.str("author", "NeurOne"),
+            version = p.str("version", "1.0"),
+            tags = p.strList("tags") ?: emptyList(),
+            isPredefined = p.bool("isPredefined", false),
+            isReadOnly = p.bool("isReadOnly", false),
+            timingMode = if (timing.str("type") == "interval_count") NPTimingMode.IntervalCount(timing.int("count", 1))
+            else NPTimingMode.Duration(timing.int("seconds", 20 * 60)),
+            modalities = p["modalities"]!!.jsonArray.map { modalityOf(it.jsonObject) },
+            conditions = p.strList("conditions") ?: emptyList(),
+            references = referencesOf(p),
         )
     }
 
-    // MARK: Composite --------------------------------------------------------
-
-    // MARK: Zone block (NP-NPPS-REF-001 §8) ---------------------------------
-
-    /**
-     * `zone "Name" { sockets: [1, 2, 3]  types: [led_660]  exclude_types: false }`
-     *
-     * `sockets` is the defining field and is treated as a SET: duplicates
-     * collapse and the result is sorted, so a bilateral protocol referencing
-     * both hemisphere zones of a lobe addresses their shared midline socket
-     * once rather than twice.
-     */
-    private fun parseZoneBlock(): NPZoneDefinition {
-        val ln = currentLine()
-        expectKeyword("zone")
-        val name = parseString()
-        expect(NPPSToken.LBrace)
-
-        var id: String? = null
-        var description: String? = null
-        var sockets: List<Int> = emptyList()
-        var types: List<NPElementType>? = null
-        var excludeTypes = false
-
-        while (currentToken() !is NPPSToken.RBrace && currentToken() !is NPPSToken.Eof) {
-            val cur = currentToken()
-            if (cur !is NPPSToken.Ident) throw NPPSError("Expected field name in zone block", currentLine())
-            val key = cur.value
-            advance()
-            if (currentToken() !is NPPSToken.Colon) {
-                throw NPPSError("Unexpected token after '$key' in zone block", currentLine())
-            }
-            advance()
-            when (key) {
-                "id" -> id = parseString()
-                "description" -> description = parseString()
-                "sockets" -> sockets = parseSocketList(name, currentLine())
-                "types" -> types = parseTagList()
-                "exclude_types" -> {
-                    val t = currentToken()
-                    if (t is NPPSToken.BoolTok) { excludeTypes = t.value; advance() } else skipValue()
-                }
-                else -> skipValue()
-            }
-        }
-        expect(NPPSToken.RBrace)
-        if (name.isEmpty()) throw NPPSError("Zone name cannot be empty", ln)
-
-        return NPZoneDefinition(
-            name = name,
-            sockets = sockets,
-            id = id,
-            description = description,
-            types = types,
-            excludeTypes = excludeTypes,
-            isPredefined = id != null,
-        )
-    }
-
-    /**
-     * A socket id is a plain whole number naming a socket on this helmet.
-     * Anything else — a fraction, a boolean, an out-of-range id — is reported
-     * with the offending value rather than silently coerced, because a wrong
-     * socket id means light lands somewhere the author did not choose.
-     */
-    private fun parseSocketList(zoneName: String, ln: Int): List<Int> {
-        val raw = parseFieldValue()
-        val items = (raw as? NPPSFieldValue.Arr)?.items
-            ?: throw NPPSError("zone \"$zoneName\": sockets must be a list, e.g. sockets: [1, 2, 3]", ln)
-        val invalid = ArrayList<String>()
-        val ids = LinkedHashSet<Int>()
-        for (item in items) {
-            val d = item.asDouble
-            when {
-                d == null -> invalid.add(describeValue(item))
-                d != Math.floor(d) || d.isInfinite() -> invalid.add(trimNumber(d))
-                !SocketLattice.isValid(d.toInt()) -> invalid.add(trimNumber(d))
-                else -> ids.add(d.toInt())
-            }
-        }
-        if (invalid.isNotEmpty()) {
-            val isAre = if (invalid.size == 1) "is not a socket" else "are not sockets"
-            throw NPPSError(
-                "zone \"$zoneName\": ${invalid.joinToString(", ")} $isAre on this helmet — " +
-                    "ids are whole numbers ${SocketLattice.rangeLabel} (${SocketLattice.COUNT} sockets, " +
-                    "numbered from ${SocketLattice.NUMBERING_BASE})",
-                ln,
+    private fun compositeOf(c: JsonObject): NPCompositeProtocol = NPCompositeProtocol(
+        id = uuidOrRandom(c.optStr("id")),
+        name = c.str("name"),
+        description = c.str("description"),
+        author = c.str("author", "NeurOne"),
+        version = c.str("version", "1.0"),
+        tags = c.strList("tags") ?: emptyList(),
+        isPredefined = c.bool("isPredefined", false),
+        isReadOnly = c.bool("isReadOnly", false),
+        layers = c["layers"]!!.jsonArray.map { l ->
+            val o = l.jsonObject
+            NPCompositeLayer(
+                protocolName = o.str("protocolName"),
+                startOffsetSeconds = o.int("startOffsetSeconds", 0),
+                durationSeconds = o.optInt("durationSeconds"),
+                intensityScale = o.dbl("intensityScale", 1.0),
             )
-        }
-        return ids.sorted()
-    }
+        },
+        conflictResolution = NPCompositeProtocol.ConflictResolution.entries
+            .firstOrNull { it.rawValue == c.str("conflictResolution") } ?: NPCompositeProtocol.ConflictResolution.MERGE,
+        conditions = c.strList("conditions") ?: emptyList(),
+        references = referencesOf(c),
+    )
 
-    /** A numeric list element as it was written: `40Hz`, not `40.0Hz`. */
-    private fun tagText(n: Double, unit: String): String =
-        (if (n == Math.floor(n) && !n.isInfinite()) n.toLong().toString() else n.toString()) + unit
-
-    private fun describeValue(v: NPPSFieldValue): String = when (v) {
-        is NPPSFieldValue.Str -> "\"${v.value}\""
-        is NPPSFieldValue.Ident -> v.value
-        is NPPSFieldValue.BoolVal -> v.value.toString()
-        is NPPSFieldValue.Arr -> "a nested list"
-        is NPPSFieldValue.Num -> trimNumber(v.value)
-        is NPPSFieldValue.NumberWithUnit -> "${trimNumber(v.value)}${v.unit}"
-    }
-
-    private fun trimNumber(d: Double): String =
-        if (d == Math.floor(d) && !d.isInfinite()) d.toLong().toString() else d.toString()
-
-    // MARK: Condition block (NP-NPPS-REF-001 §9) ------------------------------
-
-    /** `condition "Name" { link: "https://…"  code: "6A70" }` — `link` is required. */
-    private fun parseConditionBlock(): NPConditionDefinition {
-        val ln = currentLine()
-        expectKeyword("condition")
-        val name = parseString()
-        expect(NPPSToken.LBrace)
-
-        var link: String? = null
-        var id: String? = null
-        var description: String? = null
-        var code: String? = null
-
-        while (currentToken() !is NPPSToken.RBrace && currentToken() !is NPPSToken.Eof) {
-            val cur = currentToken()
-            if (cur !is NPPSToken.Ident) {
-                throw NPPSError("Expected field name in condition block", currentLine())
-            }
-            val key = cur.value
-            advance()
-            if (currentToken() !is NPPSToken.Colon) {
-                throw NPPSError("Unexpected token after '$key' in condition block", currentLine())
-            }
-            advance()
-            when (key) {
-                "link" -> link = parseString()
-                "id" -> id = parseString()
-                "description" -> description = parseString()
-                "code" -> code = parseString()
-                else -> skipValue()
-            }
-        }
-        expect(NPPSToken.RBrace)
-        if (name.isEmpty()) throw NPPSError("Condition name cannot be empty", ln)
-        if (link.isNullOrEmpty()) {
-            throw NPPSError("condition \"$name\": 'link' is required", ln)
-        }
-
-        return NPConditionDefinition(
-            name = name, id = id, link = link, code = code, description = description,
+    private fun modalityOf(m: JsonObject): NPProtocolModality {
+        val i = m["interval"]!!.jsonObject
+        return NPProtocolModality(
+            params = paramsOf(m.str("type"), m["params"]!!.jsonObject),
+            interval = NPIntervalConfig(
+                intervalOnSeconds = i.int("intervalOnSeconds", 0),
+                intervalOffSeconds = i.int("intervalOffSeconds", 0),
+                repeatCount = i.optInt("repeatCount"),
+                startOffsetSeconds = i.int("startOffsetSeconds", 0),
+            ),
+            enabled = m.bool("enabled", true),
         )
     }
 
-    private fun parseComposite(): NPCompositeProtocol {
-        val ln = currentLine()
-        expectKeyword("composite")
-        val name = parseString()
-        expect(NPPSToken.LBrace)
+    private inline fun <reified E : Enum<E>> byName(raw: String?, default: E): E =
+        enumValues<E>().firstOrNull { it.name.equals(raw, ignoreCase = true) } ?: default
 
-        var id: UUID = UUID.randomUUID()
-        var description = ""
-        var author = "NeurOne"
-        var version = "1.0"
-        var tags: List<String> = emptyList()
-        var conditions: List<String> = emptyList()
-        var references: List<NPProtocolReference> = emptyList()
-        var conflictResolution = NPCompositeProtocol.ConflictResolution.MERGE
-        val layers = ArrayList<NPCompositeLayer>()
-        var isReadOnly = false
+    private fun paramsOf(type: String, p: JsonObject): NPModalityParams = when (type) {
+        "pbm_transcranial" -> NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(
+            target = if (p.str("zones") == "clinician_selected") NPPBMTarget.ClinicianSelected
+            else NPPBMTarget.Named(p.strList("zoneRefs") ?: listOf("All")),
+            wavelength = NPPBMTranscranialParams.Wavelength(p.str("wavelength", "808nm")),
+            irradianceMWcm2 = p.dbl("irradianceMWcm2", 300.0),
+            frequencyHz = p.dbl("frequencyHz", 40.0),
+            dutyCyclePercent = p.int("dutyCyclePercent", 25),
+        ))
+        "pbm_intranasal" -> NPModalityParams.PbmIntranasal(NPPBMIntranasalParams(
+            wavelength = NPPBMTranscranialParams.Wavelength(p.str("wavelength", "660nm")),
+            irradianceMWcm2 = p.dbl("irradianceMWcm2", 60.0),
+            frequencyHz = p.dbl("frequencyHz", 10.0),
+            dutyCyclePercent = p.int("dutyCyclePercent", 50),
+        ))
+        "eeg_neurofeedback" -> NPModalityParams.EegNeurofeedback(NPEEGNeurofeedbackParams(
+            channels = byName(p.optStr("channels"), NPEEGNeurofeedbackParams.ChannelSelection.ALL),
+            customChannels = p.strList("customChannels"),
+            band = byName(p.optStr("band"), NPEEGNeurofeedbackParams.EEGBand.ALPHA),
+            closedLoopEnabled = p.bool("closedLoopEnabled", true),
+        ))
+        "bes_tacs" -> NPModalityParams.BesTacs(NPBESTacsParams(
+            frequencyHz = p.dbl("frequencyHz", 40.0),
+            intensityMilliamps = p.dbl("intensityMilliamps", 0.5),
+            waveform = byName(p.optStr("waveform"), NPBESTacsParams.Waveform.SINUSOIDAL),
+        ))
+        "tdcs" -> NPModalityParams.Tdcs(NPTDCSParams(
+            intensityMilliamps = p.dbl("intensityMilliamps", 1.0),
+            electrodePairs = (p["electrodePairs"] as? JsonArray)?.map { pair -> pair.jsonArray.map { it.jsonPrimitive.content } }
+                ?: listOf(listOf("Fp1", "Fp2")),
+            rampSeconds = p.int("rampSeconds", 30),
+            electrodeAreaCm2 = p.dbl("electrodeAreaCm2", NPHardwareLimits.TDCS_DEFAULT_ELECTRODE_AREA_CM2),
+        ))
+        "vns_hrv" -> NPModalityParams.VnsHRV(NPVNSHRVParams(
+            frequencyHz = p.dbl("frequencyHz", 25.0),
+            intensityMilliamps = p.dbl("intensityMilliamps", 0.5),
+            hrvProtocol = byName(p.optStr("hrvProtocol"), NPVNSHRVParams.HRVProtocol.STANDALONE),
+            resonanceBreathingRate = p.dbl("resonanceBreathingRate", 6.0),
+        ))
+        "audio_entrainment" -> NPModalityParams.AudioEntrainment(NPAudioEntrainmentParams(
+            binauralBeatsHz = p.optDbl("binauralBeatsHz"),
+            isochronicTonesHz = p.optDbl("isochronicTonesHz"),
+            noiseType = p.optStr("noiseType")?.let { n -> NPAudioEntrainmentParams.NoiseType.entries.firstOrNull { it.rawValue == n } },
+            carrierHz = p.dbl("carrierHz", 200.0),
+            volumeDb = p.dbl("volumeDb", 75.0),
+            eegAdaptive = p.bool("eegAdaptive", true),
+            boneConductionPacer = p.bool("boneConductionPacer", false),
+        ))
+        "visual_stimulation" -> NPModalityParams.VisualStimulation(NPVisualStimParams(
+            frequencyHz = p.dbl("frequencyHz", 40.0),
+            mode = NPVisualStimParams.VisualMode.entries.firstOrNull { it.rawValue == p.optStr("mode") }
+                ?: NPVisualStimParams.VisualMode.BINOCULAR,
+            emdrCadenceHz = p.dbl("emdrCadenceHz", 1.0),
+            enableModeF = p.bool("enableModeF", false),
+        ))
+        "qeeg_21ch" -> NPModalityParams.Qeeg21ch(NPqEEG21chParams(
+            montage = NPqEEG21chParams.Montage.entries.firstOrNull { it.rawValue == p.optStr("montage") }
+                ?: NPqEEG21chParams.Montage.STANDARD_1020,
+            sloretaEnabled = p.bool("sloretaEnabled", true),
+            reference = NPqEEG21chParams.Reference.entries.firstOrNull { it.rawValue == p.optStr("reference") }
+                ?: NPqEEG21chParams.Reference.LINKED_EAR,
+        ))
+        "tms" -> NPModalityParams.Tms(NPTMSParams(
+            tmsProtocol = NPTMSParams.TMSProtocol.entries.firstOrNull { it.rawValue == p.optStr("tmsProtocol") }
+                ?: NPTMSParams.TMSProtocol.RTMS,
+            frequencyHz = p.dbl("frequencyHz", 10.0),
+            intensityPercentMT = p.int("intensityPercentMT", 110),
+            target = NPTMSParams.TMSTarget.fromRawValue(p.str("target")) ?: NPTMSParams.TMSTarget.DLPFC_L,
+            pulseCount = p.int("pulseCount", 3000),
+        ))
+        "pbm_deep_1170nm" -> NPModalityParams.PbmDeep1170nm(NPDeepPBM1170Params(
+            intensityMWcm2 = p.dbl("intensityMWcm2", 500.0),
+            frequencyHz = p.dbl("frequencyHz", 10.0),
+            dutyCyclePercent = p.int("dutyCyclePercent", 50),
+        ))
+        "clinical_tacs" -> NPModalityParams.ClinicalTacs(NPClinicalTacsParams(
+            frequencyHz = p.dbl("frequencyHz", 40.0),
+            intensityMilliamps = p.dbl("intensityMilliamps", 2.0),
+            channelCount = p.int("channelCount", 8),
+            waveform = byName(p.optStr("waveform"), NPBESTacsParams.Waveform.SINUSOIDAL),
+        ))
+        "hd_tdcs" -> NPModalityParams.HdTdcs(NPHDTdcsParams(
+            target = NPTMSParams.TMSTarget.fromRawValue(p.str("target")) ?: NPTMSParams.TMSTarget.DLPFC_L,
+            montage = NPHDTdcsParams.Montage.entries.firstOrNull { it.rawValue == p.optStr("montage") }
+                ?: NPHDTdcsParams.Montage.RING_4X1,
+            intensityMilliamps = p.dbl("intensityMilliamps", 1.5),
+        ))
+        "cervical_vns" -> NPModalityParams.CervicalVns(NPCervicalVnsParams(
+            frequencyHz = p.dbl("frequencyHz", 25.0),
+            intensityMilliamps = p.dbl("intensityMilliamps", 1.0),
+        ))
+        "vibrotactile_40hz" -> NPModalityParams.Vibrotactile40hz(NPVibrotactileParams(
+            intensityG = p.dbl("intensityG", 0.9),
+            syncToAudio = p.bool("syncToAudio", true),
+            syncToVisual = p.bool("syncToVisual", true),
+        ))
+        else -> throw NPPSError("Unknown modality block type: '$type'", 0)
+    }
 
-        while (currentToken() !is NPPSToken.RBrace && currentToken() !is NPPSToken.Eof) {
-            val cur = currentToken()
-            // "layer" keyword (emitted as Keyword("layer") by the lexer).
-            if (cur is NPPSToken.Keyword && cur.value == "layer") {
-                advance()
-                layers.add(parseLayerBlock())
-                continue
-            }
+    // ── zones, conditions, limits ────────────────────────────────────────────
 
-            if (cur !is NPPSToken.Ident) {
-                throw NPPSError("Expected field name in composite block", currentLine())
-            }
-            val key = cur.value
-            advance()
+    private fun zoneOf(z: JsonObject) = NPZoneDefinition(
+        name = z.str("name"),
+        sockets = (z["sockets"] as? JsonArray)?.map { it.jsonPrimitive.doubleOrNull!!.toInt() } ?: emptyList(),
+        id = z.optStr("id"),
+        description = z.optStr("description"),
+        types = z.strList("types"),
+        excludeTypes = z.bool("excludeTypes", false),
+        isPredefined = z.bool("isPredefined", false),
+    )
 
-            if (currentToken() is NPPSToken.Colon) {
-                advance()
-                when (key) {
-                    "id" -> {
-                        val uuidStr = parseString()
-                        parseUuidOrNull(uuidStr)?.let { id = it }
-                    }
-                    "readonly" -> {
-                        val t = currentToken()
-                        if (t is NPPSToken.BoolTok) { isReadOnly = t.value; advance() }
-                    }
-                    "description" -> description = parseString()
-                    "author" -> author = parseString()
-                    "version" -> version = parseString()
-                    "conflict_resolution" -> {
-                        when (parseIdentOrString()) {
-                            "merge" -> conflictResolution = NPCompositeProtocol.ConflictResolution.MERGE
-                            "sequential" -> conflictResolution = NPCompositeProtocol.ConflictResolution.SEQUENTIAL
-                            "override" -> conflictResolution = NPCompositeProtocol.ConflictResolution.OVERRIDE
-                            else -> { /* unknown ignored */ }
-                        }
-                    }
-                    "tags" -> tags = parseTagList()
-                    "conditions" -> conditions = parseTagList()
-                    "references" -> references = parseReferenceList()
-                    else -> skipValue()
-                }
-            } else {
-                throw NPPSError(
-                    "Unexpected token after '$key' in composite block", currentLine()
-                )
-            }
-        }
+    private fun conditionOf(c: JsonObject) = NPConditionDefinition(
+        name = c.str("name"),
+        id = c.optStr("id"),
+        link = c.str("link"),
+        code = c.optStr("code"),
+        description = c.optStr("description"),
+    )
 
-        expect(NPPSToken.RBrace)
-        if (name.isEmpty()) throw NPPSError("Composite name cannot be empty", ln)
-
-        return NPCompositeProtocol(
-            id = id,
-            name = name,
-            description = description,
-            author = author,
-            version = version,
-            tags = tags,
-            conditions = conditions,
-            references = references,
-            isPredefined = isReadOnly,
-            isReadOnly = isReadOnly,
-            layers = layers,
-            conflictResolution = conflictResolution,
+    private fun limitsOf(l: JsonObject): NPLimitsSet {
+        val helmet = l.optStr("helmetId")
+        val individual = l.optStr("individualId")
+        val set = NPLimitsSet(
+            id = java.util.UUID.randomUUID(),
+            name = l.str("name"),
+            description = l.str("description"),
+            level = NPLimitsSet.LimitLevel.entries.firstOrNull { it.rawValue == l.str("level") }
+                ?: NPLimitsSet.LimitLevel.GLOBAL,
+            helmetId = helmet,
+            individualId = individual?.let { parseUuidOrNull(it) },
         )
-    }
-
-    // MARK: Layer block (called after "layer" keyword consumed) --------------
-
-    private fun parseLayerBlock(): NPCompositeLayer {
-        val protocolName = parseString()
-        expect(NPPSToken.LBrace)
-
-        var startOffsetSeconds = 0
-        var durationSeconds: Int? = null
-        var intensityScale = 1.0
-
-        while (currentToken() !is NPPSToken.RBrace && currentToken() !is NPPSToken.Eof) {
-            val keyTok = currentToken()
-            if (keyTok !is NPPSToken.Ident) {
-                throw NPPSError("Expected field name in layer block", currentLine())
-            }
-            val key = keyTok.value
-            advance()
-            expect(NPPSToken.Colon)
-            when (key) {
-                "start" -> startOffsetSeconds = parseTimeValue()
-                "duration" -> durationSeconds = parseTimeValue()
-                "intensity_scale" -> intensityScale = parseDoubleValue()
-                else -> skipValue()
-            }
-        }
-
-        expect(NPPSToken.RBrace)
-
-        return NPCompositeLayer(
-            protocolName = protocolName,
-            startOffsetSeconds = startOffsetSeconds,
-            durationSeconds = durationSeconds,
-            intensityScale = intensityScale,
-        )
-    }
-
-    // MARK: Modality block ---------------------------------------------------
-
-    private fun parseModalityBlock(name: String): NPProtocolModality {
-        expect(NPPSToken.LBrace)
-
-        val fields = HashMap<String, NPPSFieldValue>()
-        while (currentToken() !is NPPSToken.RBrace && currentToken() !is NPPSToken.Eof) {
-            val keyTok = currentToken()
-            if (keyTok !is NPPSToken.Ident) {
-                throw NPPSError("Expected field name in modality block", currentLine())
-            }
-            advance()
-            expect(NPPSToken.Colon)
-            fields[keyTok.value] = parseFieldValue()
-        }
-        expect(NPPSToken.RBrace)
-
-        val intervalOn = fields["interval_on"]?.asTime ?: 0
-        val intervalOff = fields["interval_off"]?.asTime ?: 0
-        var repeatCount: Int? = null
-        when (val rv = fields["repeat"]) {
-            is NPPSFieldValue.Ident -> if (rv.value == "until_end") repeatCount = null
-            is NPPSFieldValue.Num -> repeatCount = rv.value.toInt()
-            is NPPSFieldValue.NumberWithUnit -> repeatCount = rv.value.toInt()
-            else -> { /* no repeat / other → null */ }
-        }
-        // `start` (NP-NPPS-REF-001 §5): offset of the block's first on-period.
-        // A negative offset is an error, as in the web reference — never clamped to 0.
-        val startOffset = fields["start"]?.asTime ?: 0
-        if (startOffset < 0) throw NPPSError("start must not be negative", currentLine())
-        val interval = NPIntervalConfig(
-            intervalOnSeconds = intervalOn,
-            intervalOffSeconds = intervalOff,
-            repeatCount = repeatCount,
-            startOffsetSeconds = startOffset,
-        )
-
-        val params = buildParams(name, fields)
-        return NPProtocolModality(params = params, interval = interval, enabled = true)
-    }
-
-    // MARK: Absolute quantities (NP-NPPS-REF-001 Rev 18 §4.1b) ----------------
-
-    /**
-     * A percentage is a fraction of a baseline the hardware owns and can change, so it
-     * does not state a stimulus. Refused, never converted.
-     */
-    private fun refuseRetiredPercent(modality: String, fields: Map<String, NPPSFieldValue>) {
-        val retired = when (modality) {
-            "audio_entrainment" -> listOf("volume_percent")
-            else -> listOf("intensity", "intensity_percent")
-        }
-        for (key in retired) {
-            if (fields.containsKey(key)) {
-                val fix = when (modality) {
-                    "audio_entrainment" -> "write the level in dB, e.g. volume: 72dB"
-                    "visual_stimulation" ->
-                        "visual_stimulation has no percentage intensity and no absolute one is defined yet; remove it"
-                    else -> "write irradiance in mW/cm², e.g. irradiance: 300mW_cm2"
-                }
-                throw NPPSError(
-                    "$modality: '$key' is a percentage of a baseline the hardware owns and can " +
-                        "change, so it does not state the stimulus — $fix (NP-NPPS-REF-001 §4.1b).",
-                    currentLine(),
-                )
-            }
-        }
-    }
-
-    /**
-     * `frequency: 0` selects continuous wave and CW has no duty cycle (OI-SESPWR-03). A block that
-     * also states a duty other than 100 % contradicts itself, so it is refused rather than left
-     * for the hub to resolve. A CW block's duty is 100 %, written or not. Returns the frequency
-     * and duty to apply, either null when the block did not state it.
-     */
-    private fun pulseTrain(modality: String, fields: Map<String, NPPSFieldValue>): Pair<Double?, Int?> {
-        val hz = fields["frequency"]?.asHz
-        val duty = fields["duty_cycle"]?.asPercent
-        if (hz == 0.0) {
-            if (duty != null && duty != 100.0) {
-                throw NPPSError(
-                    "$modality: frequency: 0 selects continuous wave, which has no duty cycle, but " +
-                        "duty_cycle is ${duty.toInt()}%. Remove duty_cycle for CW, or give a pulse " +
-                        "frequency above 0 for a pulsed train (NP-NPPS-REF-001 §4.1).",
-                    currentLine(),
-                )
-            }
-            return hz to 100
-        }
-        return hz to duty?.toInt()
-    }
-
-    /**
-     * The short name carries its unit as a suffix and REQUIRES it; the canonical name has the
-     * unit in the key and takes a bare number. Required: a defaulted dose is a stimulus nobody
-     * authored.
-     */
-    private fun absoluteQuantity(
-        modality: String,
-        fields: Map<String, NPPSFieldValue>,
-        short: String,
-        canonical: String,
-        unit: String,
-        example: String,
-    ): Double {
-        fields[canonical]?.let { v ->
-            val n = when (v) {
-                is NPPSFieldValue.Num -> v.value
-                is NPPSFieldValue.NumberWithUnit ->
-                    if (v.unit == unit) v.value else throw NPPSError("$modality: $canonical takes $unit, not ${v.unit}", currentLine())
-                else -> throw NPPSError("$modality: $canonical must be a number", currentLine())
-            }
-            if (!(n > 0.0)) throw NPPSError("$modality: $canonical must be positive", currentLine())
-            return n
-        }
-        val v = fields[short]
-            ?: throw NPPSError(
-                "$modality: $short is required ($example); a defaulted dose is a stimulus nobody authored",
-                currentLine(),
-            )
-        return when (v) {
-            is NPPSFieldValue.NumberWithUnit -> when {
-                v.unit == "%" -> throw NPPSError(
-                    "$modality: $short in % is refused — a percentage is a fraction of a baseline the hardware can change; write $example",
-                    currentLine(),
-                )
-                v.unit != unit -> throw NPPSError("$modality: $short takes $unit, not ${v.unit}", currentLine())
-                !(v.value > 0.0) -> throw NPPSError("$modality: $short must be positive", currentLine())
-                else -> v.value
-            }
-            is NPPSFieldValue.Num -> throw NPPSError(
-                "$modality: $short needs its unit written ($example); a bare number does not say what it measures",
-                currentLine(),
-            )
-            else -> throw NPPSError("$modality: $short must be a number with unit $unit", currentLine())
-        }
-    }
-
-    /** One wavelength per block, required. A retired combined name is refused with its replacement. */
-    private fun requiredWavelength(modality: String, fields: Map<String, NPPSFieldValue>): NPPBMTranscranialParams.Wavelength {
-        val w = fields["wavelength"]?.asIdent
-            ?: throw NPPSError(
-                "$modality: wavelength is required, one value per block, e.g. wavelength: \"810nm\"",
-                currentLine(),
-            )
-        if (NPWavelengthRulesEngine.RETIRED.containsKey(w)) {
-            throw NPPSError("$modality: ${NPWavelengthRulesEngine.retiredMessage(w)}", currentLine())
-        }
-        return NPPBMTranscranialParams.Wavelength(w)
-    }
-
-    /** A percentage ceiling is refused, not skipped: a limit dropped silently is no limit. */
-    private fun refuseRetiredLimit(modality: String, fields: Map<String, NPPSFieldValue>, replacement: String) {
-        if (fields.containsKey("max_intensity")) {
-            throw NPPSError(
-                "$modality limits: max_intensity is a percentage ceiling and is retired; write $replacement " +
-                    "(NP-NPPS-REF-001 §7).",
-                currentLine(),
-            )
-        }
-    }
-
-    // MARK: Params builder ---------------------------------------------------
-
-    private fun buildParams(name: String, fields: Map<String, NPPSFieldValue>): NPModalityParams {
-        when (name) {
-            "pbm_transcranial" -> {
-                val p = NPPBMTranscranialParams()
-                refuseRetiredPercent(name, fields)
-                p.irradianceMWcm2 = absoluteQuantity(
-                    name, fields, "irradiance", "irradiance_mw_cm2", "mW_cm2", "irradiance: 300mW_cm2",
-                )
-                val (hz, duty) = pulseTrain(name, fields)
-                hz?.let { p.frequencyHz = it }
-                duty?.let { p.dutyCyclePercent = it }
-                // Exactly two forms (NP-NPPS-REF-001 §4.1): a named-zone array, or
-                // the keyword clinician_selected. The retired five-slot selectors
-                // do NOT parse — a target this parser does not understand must stop
-                // the file rather than silently become "every module".
-                when (val v = fields["zones"]) {
-                    is NPPSFieldValue.Arr -> {
-                        val names = v.items.mapNotNull { it.asIdent }
-                        if (names.size != v.items.size) {
-                            throw NPPSError(
-                                "pbm_transcranial: zones must be a list of quoted zone names, " +
-                                    "e.g. zones: [\"Frontal Left\", \"Frontal Right\"]",
-                                currentLine(),
-                            )
-                        }
-                        if (names.isEmpty()) {
-                            throw NPPSError(
-                                "pbm_transcranial: zones: [] names no zone — a session cannot " +
-                                    "target nothing",
-                                currentLine(),
-                            )
-                        }
-                        p.target = NPPBMTarget.Named(names)
-                    }
-                    is NPPSFieldValue.Ident, is NPPSFieldValue.Str -> {
-                        val sel = v.asIdent
-                        if (sel != "clinician_selected") {
-                            throw NPPSError(
-                                "pbm_transcranial: unknown zone selector '$sel'. zones must be a " +
-                                    "list of quoted zone names (e.g. zones: [\"Frontal\"]) or " +
-                                    "clinician_selected",
-                                currentLine(),
-                            )
-                        }
-                        p.target = NPPBMTarget.ClinicianSelected
-                    }
-                    else -> { /* absent — keeps the default named target */ }
-                }
-                // Carried exactly as written (NP-NPPS-REF-001 §4.1a). This used to map
-                // any unrecognised value to 660_808nm, which silently changed the
-                // protocol; a value that is not a wavelength, or that no rule maps, is
-                // refused when the session is compiled instead.
-                p.wavelength = requiredWavelength(name, fields)
-                return NPModalityParams.PbmTranscranial(p)
-            }
-
-            "pbm_intranasal" -> {
-                val p = NPPBMIntranasalParams()
-                refuseRetiredPercent(name, fields)
-                p.wavelength = requiredWavelength(name, fields)
-                p.irradianceMWcm2 = absoluteQuantity(
-                    name, fields, "irradiance", "irradiance_mw_cm2", "mW_cm2", "irradiance: 25mW_cm2",
-                )
-                val (hz, duty) = pulseTrain(name, fields)
-                hz?.let { p.frequencyHz = it }
-                duty?.let { p.dutyCyclePercent = it }
-                return NPModalityParams.PbmIntranasal(p)
-            }
-
-            "eeg_neurofeedback" -> {
-                val p = NPEEGNeurofeedbackParams()
-                fields["band"]?.asIdent?.let { b ->
-                    when (b) {
-                        "delta" -> p.band = NPEEGNeurofeedbackParams.EEGBand.DELTA
-                        "theta" -> p.band = NPEEGNeurofeedbackParams.EEGBand.THETA
-                        "alpha" -> p.band = NPEEGNeurofeedbackParams.EEGBand.ALPHA
-                        "beta" -> p.band = NPEEGNeurofeedbackParams.EEGBand.BETA
-                        "gamma" -> p.band = NPEEGNeurofeedbackParams.EEGBand.GAMMA
-                        "alpha_theta" -> p.band = NPEEGNeurofeedbackParams.EEGBand.ALPHA_THETA
-                        "gamma_theta" -> p.band = NPEEGNeurofeedbackParams.EEGBand.GAMMA_THETA
-                        else -> { /* unknown ignored */ }
-                    }
-                }
-                when (val v = fields["channels"]) {
-                    is NPPSFieldValue.Ident -> p.channels = when (v.value) {
-                        "all" -> NPEEGNeurofeedbackParams.ChannelSelection.ALL
-                        "front" -> NPEEGNeurofeedbackParams.ChannelSelection.FRONT
-                        "central" -> NPEEGNeurofeedbackParams.ChannelSelection.CENTRAL
-                        else -> NPEEGNeurofeedbackParams.ChannelSelection.ALL
-                    }
-                    is NPPSFieldValue.Arr -> {
-                        p.channels = NPEEGNeurofeedbackParams.ChannelSelection.CUSTOM
-                        p.customChannels = v.items.mapNotNull { (it as? NPPSFieldValue.Str)?.value }
-                    }
-                    else -> { /* absent */ }
-                }
-                fields["closed_loop"]?.asBool?.let { p.closedLoopEnabled = it }
-                return NPModalityParams.EegNeurofeedback(p)
-            }
-
-            "bes_tacs" -> {
-                val p = NPBESTacsParams()
-                fields["frequency"]?.asHz?.let { p.frequencyHz = it }
-                fields["intensity"]?.asMilliamps?.let { p.intensityMilliamps = it }
-                fields["waveform"]?.asIdent?.let { w ->
-                    when (w) {
-                        "sinusoidal" -> p.waveform = NPBESTacsParams.Waveform.SINUSOIDAL
-                        "square" -> p.waveform = NPBESTacsParams.Waveform.SQUARE
-                        "triangular" -> p.waveform = NPBESTacsParams.Waveform.TRIANGULAR
-                        else -> { /* unknown ignored */ }
-                    }
-                }
-                return NPModalityParams.BesTacs(p)
-            }
-
-            "tdcs" -> {
-                val p = NPTDCSParams()
-                fields["intensity"]?.asMilliamps?.let { p.intensityMilliamps = it }
-                // OI-CHARGE-04: the pad geometry the 40 µC/cm² ceiling divides by.
-                // Absent leaves the authoring default, which the validator then judges —
-                // the parser does not decide whether a geometry is acceptable.
-                fields["electrode_area_cm2"]?.asDouble?.let { p.electrodeAreaCm2 = it }
-                return NPModalityParams.Tdcs(p)
-            }
-
-            "vns_hrv" -> {
-                val p = NPVNSHRVParams()
-                fields["frequency"]?.asHz?.let { p.frequencyHz = it }
-                fields["intensity"]?.asMilliamps?.let { p.intensityMilliamps = it }
-                fields["hrv_protocol"]?.asIdent?.let { h ->
-                    when (h) {
-                        "standalone" -> p.hrvProtocol = NPVNSHRVParams.HRVProtocol.STANDALONE
-                        "tavns_sync" -> p.hrvProtocol = NPVNSHRVParams.HRVProtocol.TAVNS_SYNC
-                        "eeg_biofeedback" -> p.hrvProtocol = NPVNSHRVParams.HRVProtocol.EEG_BIOFEEDBACK
-                        "combined_pbm" -> p.hrvProtocol = NPVNSHRVParams.HRVProtocol.COMBINED_PBM
-                        else -> { /* unknown ignored */ }
-                    }
-                }
-                fields["breathing_rate"]?.asDouble?.let { p.resonanceBreathingRate = it }
-                return NPModalityParams.VnsHRV(p)
-            }
-
-            "audio_entrainment" -> {
-                val p = NPAudioEntrainmentParams()
-                fields["binaural_hz"]?.asHz?.let { p.binauralBeatsHz = it }
-                fields["isochronic_hz"]?.asHz?.let { p.isochronicTonesHz = it }
-                fields["noise"]?.asIdent?.let { n ->
-                    when (n) {
-                        "pink" -> p.noiseType = NPAudioEntrainmentParams.NoiseType.PINK
-                        "brown" -> p.noiseType = NPAudioEntrainmentParams.NoiseType.BROWN
-                        "none" -> p.noiseType = null
-                        else -> { /* unknown ignored */ }
-                    }
-                }
-                fields["carrier_hz"]?.asHz?.let { p.carrierHz = it }
-                refuseRetiredPercent(name, fields)
-                p.volumeDb = absoluteQuantity(name, fields, "volume", "volume_db", "dB", "volume: 72dB")
-                fields["eeg_adaptive"]?.asBool?.let { p.eegAdaptive = it }
-                fields["bone_conduction_pacer"]?.asBool?.let { p.boneConductionPacer = it }
-                return NPModalityParams.AudioEntrainment(p)
-            }
-
-            "visual_stimulation" -> {
-                val p = NPVisualStimParams()
-                refuseRetiredPercent(name, fields)
-                fields["frequency"]?.asHz?.let { p.frequencyHz = it }
-                fields["mode"]?.asIdent?.let { m ->
-                    when (m) {
-                        "binocular" -> p.mode = NPVisualStimParams.VisualMode.BINOCULAR
-                        "emdr" -> p.mode = NPVisualStimParams.VisualMode.EMDR
-                        "retinal_pbm" -> p.mode = NPVisualStimParams.VisualMode.RETINAL_PBM
-                        "mode_f" -> p.mode = NPVisualStimParams.VisualMode.MODE_F
-                        else -> { /* unknown ignored */ }
-                    }
-                }
-                fields["emdr_cadence"]?.asHz?.let { p.emdrCadenceHz = it }
-                fields["enable_mode_f"]?.asBool?.let { p.enableModeF = it }
-                return NPModalityParams.VisualStimulation(p)
-            }
-
-            "qeeg_21ch" -> {
-                val p = NPqEEG21chParams()
-                fields["sloreta_enabled"]?.asBool?.let { p.sloretaEnabled = it }
-                fields["reference"]?.asIdent?.let { r ->
-                    when (r) {
-                        "linked_ear" -> p.reference = NPqEEG21chParams.Reference.LINKED_EAR
-                        "cz" -> p.reference = NPqEEG21chParams.Reference.CZ
-                        "average" -> p.reference = NPqEEG21chParams.Reference.AVERAGE
-                        else -> { /* unknown ignored */ }
-                    }
-                }
-                return NPModalityParams.Qeeg21ch(p)
-            }
-
-            "tms" -> {
-                val p = NPTMSParams()
-                fields["frequency"]?.asHz?.let { p.frequencyHz = it }
-                fields["intensity_percent_mt"]?.asDouble?.let { p.intensityPercentMT = it.toInt() }
-                fields["pulse_count"]?.asDouble?.let { p.pulseCount = it.toInt() }
-                fields["target"]?.asIdent?.let { t ->
-                    NPTMSParams.TMSTarget.fromRawValue(t.uppercase())?.let { p.target = it }
-                }
-                fields["protocol"]?.asIdent?.let { pr ->
-                    when (pr) {
-                        "rTMS" -> p.tmsProtocol = NPTMSParams.TMSProtocol.RTMS
-                        "TBS" -> p.tmsProtocol = NPTMSParams.TMSProtocol.TBS
-                        "iTBS" -> p.tmsProtocol = NPTMSParams.TMSProtocol.ITBS
-                        else -> { /* unknown ignored */ }
-                    }
-                }
-                return NPModalityParams.Tms(p)
-            }
-
-            "pbm_deep_1170nm" -> {
-                val p = NPDeepPBM1170Params()
-                fields["intensity"]?.asDouble?.let { p.intensityMWcm2 = it }
-                val (hz, duty) = pulseTrain(name, fields)
-                hz?.let { p.frequencyHz = it }
-                duty?.let { p.dutyCyclePercent = it }
-                return NPModalityParams.PbmDeep1170nm(p)
-            }
-
-            "clinical_tacs" -> {
-                val p = NPClinicalTacsParams()
-                fields["frequency"]?.asHz?.let { p.frequencyHz = it }
-                fields["intensity"]?.asMilliamps?.let { p.intensityMilliamps = it }
-                fields["channel_count"]?.asDouble?.let { p.channelCount = it.toInt() }
-                return NPModalityParams.ClinicalTacs(p)
-            }
-
-            "hd_tdcs" -> {
-                val p = NPHDTdcsParams()
-                fields["intensity"]?.asMilliamps?.let { p.intensityMilliamps = it }
-                fields["montage"]?.asIdent?.let { m ->
-                    when (m) {
-                        "ring_4x1" -> p.montage = NPHDTdcsParams.Montage.RING_4X1
-                        "bilateral_4x1" -> p.montage = NPHDTdcsParams.Montage.BILATERAL_4X1
-                        "standard_2_electrode" -> p.montage = NPHDTdcsParams.Montage.STANDARD_2EL
-                        else -> { /* unknown ignored */ }
-                    }
-                }
-                fields["target"]?.asIdent?.let { t ->
-                    NPTMSParams.TMSTarget.fromRawValue(t.uppercase())?.let { p.target = it }
-                }
-                return NPModalityParams.HdTdcs(p)
-            }
-
-            "cervical_vns" -> {
-                val p = NPCervicalVnsParams()
-                fields["frequency"]?.asHz?.let { p.frequencyHz = it }
-                fields["intensity"]?.asMilliamps?.let { p.intensityMilliamps = it }
-                return NPModalityParams.CervicalVns(p)
-            }
-
-            "vibrotactile_40hz" -> {
-                val p = NPVibrotactileParams()
-                fields["intensity_g"]?.asDouble?.let { p.intensityG = it }
-                fields["sync_to_audio"]?.asBool?.let { p.syncToAudio = it }
-                fields["sync_to_visual"]?.asBool?.let { p.syncToVisual = it }
-                return NPModalityParams.Vibrotactile40hz(p)
-            }
-
-            else -> throw NPPSError("Unknown modality: $name", 0)
-        }
-    }
-
-    // MARK: Field value parser ----------------------------------------------
-
-    private fun parseFieldValue(): NPPSFieldValue {
-        return when (val t = currentToken()) {
-            is NPPSToken.Num -> { advance(); NPPSFieldValue.Num(t.value) }
-            is NPPSToken.NumberWithUnit -> { advance(); NPPSFieldValue.NumberWithUnit(t.value, t.unit) }
-            is NPPSToken.Str -> { advance(); NPPSFieldValue.Str(t.value) }
-            is NPPSToken.BoolTok -> { advance(); NPPSFieldValue.BoolVal(t.value) }
-            is NPPSToken.Ident -> { advance(); NPPSFieldValue.Ident(t.value) }
-            is NPPSToken.LBracket -> {
-                advance()
-                val items = ArrayList<NPPSFieldValue>()
-                while (currentToken() !is NPPSToken.RBracket && currentToken() !is NPPSToken.Eof) {
-                    items.add(parseFieldValue())
-                    if (currentToken() is NPPSToken.Comma) advance()
-                }
-                expect(NPPSToken.RBracket)
-                NPPSFieldValue.Arr(items)
-            }
-            else -> throw NPPSError("Expected a value", currentLine())
-        }
-    }
-
-    // MARK: Helpers ----------------------------------------------------------
-
-    private fun currentToken(): NPPSToken = tokens[pos].token
-    private fun currentLine(): Int = tokens[pos].line
-
-    private fun advance() {
-        if (pos < tokens.size - 1) pos += 1
-    }
-
-    private fun expect(token: NPPSToken) {
-        // Swift compared enum cases (with associated values) by value equality.
-        // The delimiter/eof tokens we expect() on are singletons or value
-        // data-classes, so `==` reproduces Swift semantics exactly.
-        if (currentToken() == token) {
-            advance()
-        } else {
-            throw NPPSError(
-                "Expected ${describe(token)} but got ${describe(currentToken())}", currentLine()
-            )
-        }
-    }
-
-    private fun expectKeyword(kw: String) {
-        val t = currentToken()
-        if (t is NPPSToken.Keyword && t.value == kw) {
-            advance()
-        } else {
-            throw NPPSError("Expected keyword '$kw'", currentLine())
-        }
-    }
-
-    private fun parseString(): String {
-        return when (val t = currentToken()) {
-            is NPPSToken.Str -> { advance(); t.value }
-            is NPPSToken.Ident -> { advance(); t.value }
-            else -> throw NPPSError("Expected string", currentLine())
-        }
-    }
-
-    private fun parseIdentOrString(): String = parseString()
-
-    /**
-     * A `references` value: an array whose elements are each a bare URL/path
-     * string, or a `[label, url]` pair (NP-NPPS-REF-001 §2).
-     */
-    private fun parseReferenceList(): List<NPProtocolReference> {
-        val raw = parseFieldValue()
-        val items = (raw as? NPPSFieldValue.Arr)?.items ?: return emptyList()
-        return items.mapNotNull { item ->
-            when (item) {
-                is NPPSFieldValue.Arr -> {
-                    val label = item.items.getOrNull(0)?.asIdent
-                    val url = item.items.getOrNull(1)?.asIdent
-                    if (url == null) null else NPProtocolReference(url = url, label = label)
-                }
-                else -> item.asIdent?.let { NPProtocolReference(url = it) }
-            }
-        }
-    }
-
-    /**
-     * A list of identifiers, numbers, or quoted strings — tags, `conditions`,
-     * and a zone's `types`.
-     *
-     * Anything else is an ERROR, not something to skip. Skipping silently
-     * dropped a `40Hz` tag from the list, and — together with the lexer
-     * discarding an unrecognised character — split `[sleep, wind-down]` into
-     * three tags. The web parser keeps the first and rejects the second.
-     */
-    private fun parseTagList(): List<String> {
-        expect(NPPSToken.LBracket)
-        val tags = ArrayList<String>()
-        while (currentToken() !is NPPSToken.RBracket && currentToken() !is NPPSToken.Eof) {
-            when (val t = currentToken()) {
-                is NPPSToken.Ident -> { tags.add(t.value); advance() }
-                is NPPSToken.Str -> { tags.add(t.value); advance() }
-                // A unit-suffixed number is a legitimate tag — `tags: [focus,
-                // gamma, 40Hz, …]` ships in 01-gamma-focus.npps, and the web
-                // parser keeps it. Skipping it dropped it from the list silently.
-                is NPPSToken.Num -> { tags.add(tagText(t.value, "")); advance() }
-                is NPPSToken.NumberWithUnit -> { tags.add(tagText(t.value, t.unit)); advance() }
-                else -> throw NPPSError(
-                    "Unexpected $t in a list — each element must be an identifier, a number, " +
-                        "or a quoted string.",
-                    currentLine(),
-                )
-            }
-            if (currentToken() is NPPSToken.Comma) advance()
-        }
-        expect(NPPSToken.RBracket)
-        return tags
-    }
-
-    private fun parseTimeValue(): Int {
-        val fv = parseFieldValue()
-        return fv.asTime ?: throw NPPSError(
-            "Expected a time value (e.g. 20m, 30s, 1h)", currentLine()
-        )
-    }
-
-    private fun parseDoubleValue(): Double {
-        val fv = parseFieldValue()
-        return fv.asDouble ?: throw NPPSError("Expected a numeric value", currentLine())
-    }
-
-    private fun skipValue() {
-        if (currentToken() is NPPSToken.LBracket) {
-            advance()
-            var depth = 1
-            while (currentToken() !is NPPSToken.Eof && depth > 0) {
-                if (currentToken() is NPPSToken.LBracket) depth += 1
-                if (currentToken() is NPPSToken.RBracket) depth -= 1
-                advance()
-            }
-        } else {
-            advance()
-        }
-    }
-
-    private fun describe(token: NPPSToken): String = when (token) {
-        is NPPSToken.Keyword -> "keyword(${token.value})"
-        is NPPSToken.Ident -> "ident(${token.value})"
-        is NPPSToken.Str -> "string(${token.value})"
-        is NPPSToken.Num -> "number(${token.value})"
-        is NPPSToken.NumberWithUnit -> "numberWithUnit(${token.value}, ${token.unit})"
-        is NPPSToken.BoolTok -> "bool(${token.value})"
-        NPPSToken.LBrace -> "{"
-        NPPSToken.RBrace -> "}"
-        NPPSToken.LBracket -> "["
-        NPPSToken.RBracket -> "]"
-        NPPSToken.Colon -> ":"
-        NPPSToken.Comma -> ","
-        NPPSToken.Eof -> "eof"
+        l.sub("pbmTranscranial")?.let { set.pbmTranscranial = NPPBMTranscranialLimits(
+            it.optDbl("maxIrradianceMWcm2"), it.optDbl("maxFrequencyHz"), it.optInt("maxDutyCyclePercent"),
+            it.optDbl("maxSessionDoseJCm2"), it.optDbl("maxDailyDoseJCm2")) }
+        l.sub("pbmIntranasal")?.let { set.pbmIntranasal = NPPBMIntranasalLimits(
+            it.optDbl("maxIrradianceMWcm2"), it.optDbl("maxSessionDoseJCm2"), it.optInt("maxSessionDurationSeconds")) }
+        l.sub("eegNeurofeedback")?.let { set.eegNeurofeedback = NPEEGNeurofeedbackLimits(
+            it.strList("allowedBands"), it.optBool("requireClosedLoop")) }
+        l.sub("besTacs")?.let { set.besTacs = NPBESTacsLimits(
+            it.optDbl("maxIntensityMilliamps"), it.optDbl("maxFrequencyHz"), it.optDbl("minFrequencyHz"),
+            it.optInt("maxSessionDurationSeconds"), it.optInt("maxSessionsPerDay")) }
+        l.sub("tdcs")?.let { set.tdcs = NPTDCSLimits(
+            it.optDbl("maxIntensityMilliamps"), it.optInt("maxSessionDurationSeconds"), it.optInt("maxSessionsPerDay")) }
+        l.sub("vnsHrv")?.let { set.vnsHrv = NPVNSHRVLimits(
+            it.optDbl("maxIntensityMilliamps"), it.optDbl("maxFrequencyHz"), it.optInt("maxSessionDurationSeconds"),
+            it.strList("allowedProtocols")) }
+        l.sub("audioEntrainment")?.let { set.audioEntrainment = NPAudioEntrainmentLimits(
+            it.optDbl("maxVolumeDb"), it.optDbl("maxBinauralBeatsHz"), it.optDbl("maxIsochronicTonesHz")) }
+        l.sub("visualStimulation")?.let { set.visualStimulation = NPVisualStimLimits(
+            it.optDbl("maxFrequencyHz"), it.optDbl("minFrequencyHz"), it.strList("allowedModes"),
+            it.optBool("blockHighRiskRange")) }
+        l.sub("tms")?.let { set.tms = NPTMSLimits(
+            it.optInt("maxIntensityPercentMT"), it.optInt("maxPulsesPerSession"), it.optInt("maxPulsesPerDay"),
+            it.optInt("maxSessionsPerWeek"), it.strList("allowedProtocols"), it.strList("allowedTargets")) }
+        l.sub("pbmDeep1170nm")?.let { set.pbmDeep1170nm = NPDeepPBMLimits(
+            it.optDbl("maxIntensityMWcm2"), it.optInt("maxSessionDurationSeconds")) }
+        l.sub("clinicalTacs")?.let { set.clinicalTacs = NPClinicalTacsLimits(
+            it.optDbl("maxIntensityMilliamps"), it.optInt("maxSessionDurationSeconds")) }
+        l.sub("hdTdcs")?.let { set.hdTdcs = NPHDTdcsLimits(
+            it.optDbl("maxIntensityMilliamps"), it.optInt("maxSessionDurationSeconds"), it.strList("allowedMontages")) }
+        l.sub("cervicalVns")?.let { set.cervicalVns = NPCervicalVnsLimits(
+            it.optDbl("maxIntensityMilliamps"), it.optInt("maxSessionDurationSeconds")) }
+        l.sub("vibrotactile40hz")?.let { set.vibrotactile40hz = NPVibrotactileLimits(
+            it.optDbl("maxIntensityG"), it.optInt("maxSessionDurationSeconds")) }
+        return set
     }
 }

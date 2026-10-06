@@ -24,7 +24,7 @@
 
 import type { NPProtocolDefinition, NPZoneDefinition } from '../../../../common/types/protocol';
 import type { NPWavelengthRules } from '../../../../common/lib/wavelengthRules';
-import { nppsCompile } from './nppsCore';
+import { nppsCompile } from '../../../../common/lib/nppsCore';
 
 const PROTO_UUID_LEN = 16;
 const PROTO_SERIAL_LEN = 32;

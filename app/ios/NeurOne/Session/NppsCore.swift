@@ -7,7 +7,8 @@ import NeurOneNppsCore
 // else. What an input means is decided in the core, so it means the same here as on every other
 // runtime, and a refusal carries the message the web parser or compiler gives.
 //
-// HubDescriptorCompiler calls this for every descriptor it writes. NPPSParser is still the Swift port.
+// HubDescriptorCompiler calls this for every descriptor it writes, and NPPSParser (Protocol/NPPSParser.swift) for
+// every `.npps` file it reads.
 
 enum NppsCore {
     /// The core refused the input. `message` is the web reference's, `Line N: …` for a parse.
@@ -34,10 +35,18 @@ enum NppsCore {
         UnsafePointer<UInt8>?, Int, UnsafeMutablePointer<UnsafeMutablePointer<UInt8>?>?, UnsafeMutablePointer<Int>?
     ) -> Int32
 
-    /// Parse NPPS text into the core's JSON: an array of `{"kind":"single","protocol":{…}}` entries, or
-    /// `{"kind":"skipped","what":"zone"}` for a block the core does not interpret yet.
+    /// Parse NPPS text into everything the file declares, as the core's JSON: `{"entries":[{"kind":"single",
+    /// "protocol":{…}} | {"kind":"composite","composite":{…}}], "zones":[…], "conditions":[…],
+    /// "wavelengthRules":[…], "limits":[…]}`. Ids and timestamps are left out; the caller supplies them.
     static func parse(_ source: String) throws -> Data {
         try call(npps_parse_json, Data(source.utf8))
+    }
+
+    /// Fold parse results (`{"files":[…]}`, in load order) into one namespace and check its references:
+    /// `{"entries", "zones", "conditions", "errors", "referenceErrors"}`. A name two files define is left
+    /// undefined and reported in `errors`.
+    static func namespace(requestJSON: Data) throws -> Data {
+        try call(npps_namespace_json, requestJSON)
     }
 
     /// Compile a protocol (`{"timingMode":…,"modalities":[…]}`, the shape `parse` returns under

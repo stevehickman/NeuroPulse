@@ -31,7 +31,7 @@
 
 ## 1. Overview
 
-The NeurOne Helmet Simulator is a browser-based interactive 3D visualisation of the NeurOne device. It runs entirely in the browser with no installation, no build step, and no back-end server required.
+The NeurOne Helmet Simulator is a browser-based interactive 3D visualisation of the NeurOne device. It runs entirely in the browser with no installation and no back-end server required (the one build output it needs is described in §2).
 
 **Three intended uses:**
 
@@ -49,7 +49,7 @@ The zone/protocol data (socket positions, named zones, and the full protocol lis
 
 ## 2. What You Need to Install
 
-**Short answer: nothing.** The simulator has no npm packages, no build step, and no back-end dependencies.
+**Short answer: nothing to install, but one file to build.** The simulator has no npm packages and no back-end dependencies. Its protocol parser is the shared NPPS core (Rust) run as WebAssembly, and that module, `simulator/js/generated/neurone_npps.wasm`, is a build output rather than a committed file: run `scripts/build-npps-wasm.sh` once (it needs a Rust toolchain; `rustup` adds the `wasm32-unknown-unknown` target itself) and again whenever `common/npps-core/` changes. Without it the simulator cannot parse the protocol library.
 
 ### Dependencies and how they are loaded
 
@@ -64,14 +64,14 @@ All external libraries are fetched automatically from CDN the first time you ope
 
 All other code (helmet geometry, session engine, UI) is plain JavaScript ES modules shipped with the repository. No framework, no transpiler.
 
-**Protocol definitions are not code and are not shipped with the simulator.** They are read from `protocols/predefined/*.npps` each time the simulator loads, parsed in the browser by the same parser the web app uses (`simulator/js/vendor/npps-runtime.js`, bundled from `simulator/src/npps-runtime.ts`). That bundle contains code only — no zones, no conditions, no protocols — which is what lets an edit to a `.npps` file show up the next time you reload.
+**Protocol definitions are not code and are not shipped with the simulator.** They are read from `protocols/predefined/*.npps` each time the simulator loads, parsed in the browser by the same parser every app uses (the NPPS core as WebAssembly, `simulator/js/generated/neurone_npps.wasm`, loaded by `simulator/js/vendor/npps-runtime.js`, bundled from `simulator/src/npps-runtime.ts`). That bundle and module contain code only — no zones, no conditions, no protocols — which is what lets an edit to a `.npps` file show up the next time you reload.
 
 ### What you need on your machine
 
 | You want to… | What you need |
 |-------------|---------------|
 | Open and use the simulator | A supported web browser (see §15) **and** a static file server — Python 3, Node.js, or anything equivalent. A `file://` URL will not work; see §3. |
-| Edit the simulator source | Any text editor for `simulator/js/*.js`. Changing `simulator/src/npps-runtime.ts` or the web parser needs `bun scripts/build-simulator-runtime.ts`. |
+| Edit the simulator source | Any text editor for `simulator/js/*.js`. Changing `simulator/src/npps-runtime.ts` or the web parser needs `bun scripts/build-simulator-runtime.ts`, and changing the NPPS core needs `scripts/build-npps-wasm.sh`. |
 | Run it in automated tests | Any headless Chromium setup (e.g. Puppeteer, Playwright). No special simulator configuration. |
 
 ### Starting a local HTTP server — quick reference

@@ -1,6 +1,6 @@
 # neurone-npps-core — one NPPS implementation for every runtime
 
-**Open item:** `OI-NPPS-CORE-01` (`docs/status/pending-decisions.md`). **Status:** v0; Android's, iOS's, Windows' and the web's compilers run on it.
+**Open item:** `OI-NPPS-CORE-01` (`docs/status/pending-decisions.md`). **Status:** v0; every app's parser and hub-descriptor compiler (Android, iOS, Windows, web) and the simulator's parser run on it.
 
 NPPS had five hand-written parsers and four hand-written hub-descriptor compilers (web, simulator bundle,
 iOS, Android, Windows). Each port drifted: the iOS tDCS parser read one field of four, iOS and Android read
@@ -13,7 +13,8 @@ all. The same `.npps` file must mean the same thing everywhere, so the meaning i
 |---|---|---|
 | Field table: every modality's fields, spellings, kinds, defaults | `../npps/fields.json` | v1; `common/lib/nppsFieldTable.test.ts` fails if `defaultParams()` or the parser drifts from it |
 | Lexer | `src/lexer.rs` | port of `tokenize()` |
-| Parser, `protocol` entries | `src/parser.rs` | port; modality knowledge is read from the table, not written in code |
+| Parser: `protocol`, `composite`, `zone`, `condition`, `wavelength_rules`, `limits` blocks | `src/parser.rs`, `src/parser/blocks.rs` | port; modality knowledge is read from the table, not written in code |
+| Namespace: fold files, duplicate names, cross-references | `src/api.rs` (`namespace_json`) | port of `buildNamespace` and `validateNamespaceReferences` |
 | PBM wavelength rules | `src/wavelength.rs` | default rules only |
 | Hub-descriptor compiler (NP-FW-HUB-001 §4) | `src/compiler.rs` | all 15 encoders, interval expansion, PBM tile merge |
 
@@ -66,20 +67,29 @@ still the Swift port. Because the app's compiler now depends on the XCFramework,
 
 ## Not yet in v0
 
-- `composite`, `limits`, `zone`, `condition` and `wavelength_rules` blocks are skipped, not validated; the
-  namespace (zone and condition resolution) and the serializer are not ported. The compiler takes the
-  zone map as an argument.
-- User wavelength rules are accepted by the compiler API but only the default rules are exercised.
-- Bindings: Android (`../npps-jni`) and the C ABI (`../npps-ffi`, below) that iOS uses. The Windows
-  P/Invoke wrapper over the same C ABI and web and the simulator (`wasm32`) are not written.
-  **iOS and Windows cannot be built or tested from this environment** (their CI is the first execution). Android's,
-  iOS's and Windows' compilers call their bindings, and the web's runs the same C ABI as WebAssembly
-  (`scripts/build-npps-wasm.sh`, `app/web/src/lib/nppsCore.ts`); `hubCompiler.ts` is now a wrapper, so the web
-  compiler is no longer an independent reference, and the wire layout is held by `scripts/check-hub-wire-format.ts`
-  reading `compiler.rs` and decoding the core's output at the firmware's offsets.
+- The serializers (model to `.npps` text) are not ported: each app still writes its own, and the round trip
+  (serialize, then parse) is how they are held to the parser.
+- The compiler takes the zone map as an argument, and the apps fill it from the namespace.
+- Bindings: Android (`../npps-jni`), the C ABI (`../npps-ffi`) that iOS and Windows link, and the same C ABI
+  built to `wasm32` for the web and the simulator (`scripts/build-npps-wasm.sh`, `common/lib/nppsCore.ts`).
+  **iOS and Windows cannot be built or tested from this environment** (their CI is the first execution).
+  Every app's parser and compiler call their binding. `common/lib/nppsParser.ts` and
+  `app/web/src/lib/hubCompiler.ts` are thin wrappers now, so the web parser and compiler are no longer an
+  independent reference: the goldens are the core's own output, and the wire layout is held by
+  `scripts/check-hub-wire-format.ts` reading `compiler.rs` and decoding the core's output at the firmware's
+  offsets.
 - The validator (`protocolValidator`, per-platform today) is not ported.
 - **Signing stays in each platform's keystore.** The compiler returns the blob with a zeroed 64-byte
   signature slot; the caller signs the raw region and fills it.
+
+## Where the native parsers differed from the reference
+
+Moving Android and iOS onto the core removed behaviour their own parsers had and the web parser (the reference)
+did not: an unknown `limits` sub-block was ignored (now refused: a dropped ceiling is a ceiling never applied),
+a condition with no `link` was refused (now parsed with an empty link, which the link policy will not open),
+an empty protocol name was refused (now parsed as written), the Android and iOS serializers wrote `0.9G` for
+vibrotactile intensity (a form the reference refuses; they write `0.9` now), `helmet_id` no longer sets the limits
+level, and the refusal messages are the web parser's. The Android and iOS tests that pinned those were updated.
 
 ## Behaviour carried over unchanged, and why
 

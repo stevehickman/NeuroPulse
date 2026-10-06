@@ -26,7 +26,7 @@ class NPPSSharedFixtureTests {
         .first { it.isDirectory }
 
     private fun parse(text: String): List<NPProtocolEntry> =
-        NPPSParser(NPPSLexer(text).tokenize()).parse()
+        NPPSParser.parse(text)
 
     @Test
     fun everyErrorFixtureIsRefused() {

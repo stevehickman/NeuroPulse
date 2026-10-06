@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
  */
 class NPNamespaceTests {
 
-    private fun parse(text: String) = NPPSParser(NPPSLexer(text).tokenize()).parse()
+    private fun parse(text: String) = NPPSParser.parse(text)
 
     // MARK: the shipped library
 
@@ -98,9 +98,13 @@ class NPNamespaceTests {
     }
 
     @Test
-    fun conditionRequiresALink() {
-        // Without a link the entry cannot do the one job it exists for.
-        assertFailsWith<NPPSError> { parse("""condition "No Link" { code: "6A70" }""") }
+    fun aConditionWithoutALinkParsesWithAnEmptyLink() {
+        // The shared parser (the core, as the web parser before it) accepts a condition with no `link`, and the
+        // link is empty. An entry with no link cannot do the one job it exists for, and the link policy
+        // refuses to open anything that is not an allowed https URL, so an empty link opens nothing.
+        val c = (parse("""condition "No Link" { code: "6A70" }""").single() as NPProtocolEntry.Condition).condition
+        assertEquals("", c.link)
+        assertEquals("6A70", c.code)
     }
 
     // MARK: cross-file resolution
@@ -252,7 +256,7 @@ class NPNamespaceTests {
  */
 class NPVisualModeTests {
 
-    private fun parse(text: String) = NPPSParser(NPPSLexer(text).tokenize()).parse()
+    private fun parse(text: String) = NPPSParser.parse(text)
 
     private fun modeOf(token: String): NPVisualStimParams.VisualMode {
         val e = parse("""protocol "P" { visual_stimulation { mode: $token } }""")
@@ -313,7 +317,7 @@ class NPVisualModeTests {
  */
 class NPPSListElementTests {
 
-    private fun parse(text: String) = NPPSParser(NPPSLexer(text).tokenize()).parse()
+    private fun parse(text: String) = NPPSParser.parse(text)
 
     @Test
     fun quotedHyphenatedTagsSurviveIntact() {
@@ -360,7 +364,7 @@ class NPLimitsRoundTripTests {
             vibrotactile40hz = NPVibrotactileLimits(maxIntensityG = 1.2),
         )
         val text = NPPSSerializer().serialize(NPProtocolEntry.Limits(original))
-        val back = (NPPSParser(NPPSLexer(text).tokenize()).parse().single()
+        val back = (NPPSParser.parse(text).single()
             as NPProtocolEntry.Limits).limits
 
         assertEquals(85.0, back.audioEntrainment?.maxVolumeDb, "audio max_intensity:\n$text")
