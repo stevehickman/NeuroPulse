@@ -20,8 +20,6 @@
 #define NP_RR_INTERP_RATE_HZ        4U      /* uniform grid for HRV PSD          */
 #define NP_RR_BUFFER_SIZE           256U    /* circular buffer depth (intervals) */
 #define NP_RR_INTERP_BUFFER_SIZE    256U    /* interpolated samples for one FFT  */
-#define NP_RR_MIN_MS                300U    /* 200 BPM upper HR limit            */
-#define NP_RR_MAX_MS                2000U   /* 30 BPM lower HR limit             */
 #define NP_RR_RMSSD_WINDOW          20U     /* consecutive intervals for RMSSD   */
 
 /* ── HRV spectral analysis (Welch periodogram) ─────────────────────────────── */
@@ -56,7 +54,6 @@
 /* Stim is gated ON during the inspiration phase detected from PPG RSA.          */
 #define NP_TAVNS_DEFAULT_FREQ_HZ    25U     /* carrier frequency (within 1–25 Hz)*/
 #define NP_TAVNS_DEFAULT_CURRENT_UA 500U    /* 0.5 mA (units: microamperes)      */
-#define NP_TAVNS_MAX_CURRENT_UA     2000U   /* 2 mA absolute safety limit        */
 #define NP_TAVNS_PULSE_WIDTH_US     250U    /* biphasic pulse half-period        */
 #define NP_TAVNS_INSP_SLOPE_WIN     6U      /* RR intervals for slope estimate   */
 #define NP_TAVNS_SLOPE_HYSTERESIS   5       /* ms/beat deadband to suppress noise*/
@@ -98,7 +95,7 @@
 #define NP_HRV_TREND_SESSIONS       30U     /* sessions kept in trend graph      */
 
 /* ── PPG peak detection ─────────────────────────────────────────────────────── */
-#define NP_PPG_PEAK_MIN_SEPARATION_MS  300U /* matches NP_RR_MIN_MS              */
+#define NP_PPG_PEAK_MIN_SEPARATION_MS  NP_RR_MIN_MS  /* peaks closer than the shortest valid R-R are noise */
 #define NP_PPG_ADAPTIVE_THRESH_ALPHA   0.125f /* IIR smoothing for threshold     */
 #define NP_PPG_REFRACTORY_SAMPLES      (NP_PPG_PEAK_MIN_SEPARATION_MS * \
                                         NP_PPG_SAMPLE_RATE_HZ / 1000U)

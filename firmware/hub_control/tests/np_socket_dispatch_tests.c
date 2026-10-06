@@ -36,6 +36,7 @@
 /* np_protocol.c's platform seams — same signatures the production contract
  * declares, so drift is a compile error here too. */
 #include "np_sw02_platform_hal.h"
+#include "np_hub_test_fixtures.h"
 
 static int g_failures = 0;
 
@@ -72,7 +73,6 @@ int np_ed25519_verify(const uint8_t *msg, size_t msg_len,
 
 /* ── np_module_map fixtures ──────────────────────────────────────────────────── */
 
-#define N_SOCKETS 80u
 
 np_hub_status_t np_hexmap_nvram_write(const uint8_t *buf, size_t len)
 {

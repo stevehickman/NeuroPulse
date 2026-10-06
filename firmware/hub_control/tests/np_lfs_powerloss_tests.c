@@ -81,6 +81,7 @@
 #include "np_lfs_config.h"
 #include "np_lfs_instance.h"
 #include "np_lfs_powerbd.h"
+#include "np_hub_test_fixtures.h"
 
 static int g_fail_count = 0;
 
@@ -94,7 +95,6 @@ static int g_fail_count = 0;
 
 /* ── The instance under test is the real one ──────────────────────────────── */
 
-#define MEDIA_BYTES ((size_t)NP_LFS_CFG_BLOCK_SIZE * NP_LFS_CFG_BLOCK_COUNT)
 
 static uint8_t g_media[MEDIA_BYTES];
 static uint8_t g_snapshot[MEDIA_BYTES];
@@ -181,7 +181,6 @@ static void finding(const char *what, long cut_at, np_powerbd_tear_t tear,
  * implementation with the component under test cannot witness that component
  * damaging a record.
  */
-#define REC_SIZE      32U
 #define REC_CRC_OFF   28U
 
 static void record_build(uint8_t out[REC_SIZE], const char magic[4],
@@ -223,8 +222,6 @@ static bool record_valid(const uint8_t rec[REC_SIZE], const char magic[4],
  * blob(n) = HDR(8) + n * 175 + CRC(4), at the n = 80 the Config partition
  * carries.  It is the one consumer family that can reach an emission, which is
  * why L-3 is tested against its shape rather than against a convenient one. */
-#define BLOB_ELEMS  80U
-#define BLOB_BYTES  (8U + (BLOB_ELEMS * 175U) + 4U)   /* 14,012 */
 
 static uint8_t g_blob[BLOB_BYTES];
 
@@ -338,15 +335,14 @@ static bool attempt(long cut_at, np_powerbd_tear_t tear, void (*body)(void))
 
 /* ── Scenario 1 — the session log (L-1, L-2) ──────────────────────────────── */
 
-#define LOG_PATH        "session.log"
 /* Sized so the file crosses block boundaries rather than living inside one
  * metadata pair: 160 records is 5,120 B against a 4,096 B block, so the append
  * under test allocates, programs and commits through the ctz skip-list — the
  * path L-1 and L-2 are actually about.  A scenario that fitted in one inline
  * metadata entry would have swept a different filesystem. */
 #define LOG_BASE_RECS   160U       /* durable in the snapshot — 5,120 B */
-#define LOG_BATCH       32U        /* records per flush in the mutation */
-#define LOG_BATCHES     2U
+#define POWERLOSS_LOG_BATCH       32U        /* records per flush in the mutation */
+#define POWERLOSS_LOG_BATCHES     2U
 
 static const char LOG_MAGIC[4] = { 'N', 'P', 'L', 'R' };
 
@@ -389,7 +385,7 @@ static void log_baseline(void)
     lfs_unmount(&g_lfs);
 }
 
-/* The mutation under test: append LOG_BATCHES batches, flushing after each.
+/* The mutation under test: append POWERLOSS_LOG_BATCHES batches, flushing after each.
  * L-1 says a flush commits the EXACT buffered tail, so after any cut the
  * recovered length must be one of the flush boundaries and never between them. */
 static void log_append_batches(void)
@@ -403,9 +399,9 @@ static void log_append_batches(void)
         lfs_unmount(&g_lfs);
         return;
     }
-    for (uint32_t b = 0U; b < LOG_BATCHES; b++) {
-        for (uint32_t i = 0U; i < LOG_BATCH; i++) {
-            uint32_t ordinal = LOG_BASE_RECS + (b * LOG_BATCH) + i;
+    for (uint32_t b = 0U; b < POWERLOSS_LOG_BATCHES; b++) {
+        for (uint32_t i = 0U; i < POWERLOSS_LOG_BATCH; i++) {
+            uint32_t ordinal = LOG_BASE_RECS + (b * POWERLOSS_LOG_BATCH) + i;
             record_build(rec, LOG_MAGIC, ordinal, 1U);
             lfs_file_write(&g_lfs, &file, rec, REC_SIZE);
         }
@@ -444,7 +440,7 @@ static void log_rewrite_in_place(void)
     lfs_unmount(&g_lfs);
 }
 
-static uint8_t g_readback[REC_SIZE * (LOG_BASE_RECS + (LOG_BATCH * LOG_BATCHES))];
+static uint8_t g_readback[REC_SIZE * (LOG_BASE_RECS + (POWERLOSS_LOG_BATCH * POWERLOSS_LOG_BATCHES))];
 
 /*
  * Verify the log after a cut.  Returns the number of violations found.
@@ -491,8 +487,8 @@ static int log_verify(const char *what, long cut_at, np_powerbd_tear_t tear)
     }
     size_t recs = bytes / REC_SIZE;
     bool boundary = false;
-    for (uint32_t b = 0U; b <= LOG_BATCHES; b++) {
-        if (recs == (size_t)(LOG_BASE_RECS + (b * LOG_BATCH))) {
+    for (uint32_t b = 0U; b <= POWERLOSS_LOG_BATCHES; b++) {
+        if (recs == (size_t)(LOG_BASE_RECS + (b * POWERLOSS_LOG_BATCH))) {
             boundary = true;
         }
     }
@@ -501,7 +497,7 @@ static int log_verify(const char *what, long cut_at, np_powerbd_tear_t tear)
                 "boundary (L-1: a flush commits the exact buffered tail)", recs);
         violations++;
     }
-    const size_t durable = LOG_BASE_RECS + ((size_t)g_log_acked * LOG_BATCH);
+    const size_t durable = LOG_BASE_RECS + ((size_t)g_log_acked * POWERLOSS_LOG_BATCH);
     if (recs < durable) {
         finding(what, cut_at, tear, "only %zu of %zu flushed records survived — "
                 "a flush that had returned was rolled back (L-1: sync is "
@@ -953,7 +949,7 @@ static void test_falsification_the_injector_fires(void)
     lfs_file_close(&g_lfs, &file);
     lfs_unmount(&g_lfs);
 
-    ASSERT(got == (lfs_ssize_t)(REC_SIZE * (LOG_BASE_RECS + LOG_BATCH * LOG_BATCHES)),
+    ASSERT(got == (lfs_ssize_t)(REC_SIZE * (LOG_BASE_RECS + POWERLOSS_LOG_BATCH * POWERLOSS_LOG_BATCHES)),
            "the uncut run did not write every record — the sweeps above were "
            "cutting into a sequence that does less than it claims");
 

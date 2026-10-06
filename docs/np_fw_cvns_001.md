@@ -40,7 +40,7 @@
 
 **Rev 11 (2026-10-01): OI-CVNS-13 analysed. The hub now pulses `RPEAK_IN` for long intervals, and the item stays open for the residual rate (principal decision, 2026-10-01).**
 - **A false-trip path no simulation had modelled.** The hub (`np_cvns_interlock.c`, §6.2 step 7) pulsed `RPEAK_IN` only for intervals inside 300–2000 ms. Below 60 BPM, one missed detection makes an interval over 2000 ms, so the next real beat was not pulsed either. The safety MCU then saw a gap over 3 s, and its staleness cutoff (§5.4 step 4) fired. At 50 BPM with 1 % of beats missed, 61–64 % of 120 s sessions tripped. §14.5.1 reported ≤ 2 %, because its simulation fed the MCU raw detections.
-- **Changed (Class B):** the hub pulses every peak ≥ `NP_CVNS_RR_MIN_VALID_MS` after the last one, with no upper bound. Its own buffer filter is unchanged. At 50 BPM with 1 % missed, trips fall to 0.3–0.7 %. Every qualifying step and dropped-beat case is still cut (§14.6).
+- **Changed (Class B):** the hub pulses every peak ≥ `NP_RR_MIN_MS` after the last one, with no upper bound. Its own buffer filter is unchanged. At 50 BPM with 1 % missed, trips fall to 0.3–0.7 %. Every qualifying step and dropped-beat case is still cut (§14.6).
 - **No Class C code, constant or threshold changed.**
 - **Levers rejected, with evidence (§14.6):**
   - A median estimator never detects a dropped-beat bradycardia (every 4th beat absent, 70 → 52.5 BPM: 0 %), and it misses some ±16 BPM steps.
@@ -198,8 +198,8 @@ The safety MCU (STM32G071, bare-metal, IEC 62304 Class C) must own the cervical 
 | `NP_CVNS_CUTOFF_LATENCY_MAX_MS` | 100 | FAI-CV02 pass criterion: GPIO low within 100 ms of detection |
 | `NP_CVNS_BASELINE_BEATS_MIN` | 5 | Minimum beats to establish stable baseline before enable |
 | `NP_CVNS_RR_WINDOW_SIZE` | 20 | Rolling R-R interval buffer depth (samples) |
-| `NP_CVNS_RR_MAX_VALID_MS` | 2000 | Maximum valid R-R interval (≈30 BPM) |
-| `NP_CVNS_RR_MIN_VALID_MS` | 300 | Minimum valid R-R interval (≈200 BPM) |
+| `NP_RR_MAX_MS` | 2000 | Maximum valid R-R interval (≈30 BPM) |
+| `NP_RR_MIN_MS` | 300 | Minimum valid R-R interval (≈200 BPM) |
 | `NP_CVNS_RPEAK_DEBOUNCE_US` | 30 | R-peak GPIO edge debounce (µs) |
 
 ### 3.5 Re-enable policy
@@ -383,7 +383,7 @@ Safety MCU constants — the values that actually govern §5.3 and §5.4:
 
 Before stimulation is enabled:
 1. Safety MCU accumulates R-R intervals in a circular buffer of depth `NP_RR_BUF_SIZE` (8). The first R-peak after init or re-enable is a priming edge and produces no interval, so 8 intervals require 9 edges.
-2. **Not implemented on the safety MCU.** Rev 1 specified discarding intervals outside [`NP_CVNS_RR_MIN_VALID_MS`, `NP_CVNS_RR_MAX_VALID_MS`] (300–2000 ms); those are main-processor constants and the safety MCU applies no validity filter — every measured interval enters the buffer. A physiologically impossible interval is handled downstream instead, by saturating the BPM conversion at `INT16_MAX` (see `rr_to_bpm()`). Decided as intended, not a gap (OI-CVNS-11 closed, §14.4.2).
+2. **Not implemented on the safety MCU.** Rev 1 specified discarding intervals outside [`NP_RR_MIN_MS`, `NP_RR_MAX_MS`] (300–2000 ms); those are main-processor constants and the safety MCU applies no validity filter — every measured interval enters the buffer. A physiologically impossible interval is handled downstream instead, by saturating the BPM conversion at `INT16_MAX` (see `rr_to_bpm()`). Decided as intended, not a gap (OI-CVNS-11 closed, §14.4.2).
 3. The baseline arms when `NP_CARDIAC_BASELINE_BEATS` (8) intervals have accumulated. There is no outlier-rejection criterion on the MCU side.
 4. Baseline HR (BPM) = 60,000,000 / mean(all intervals currently in the ring buffer, in µs). Because the buffer is 8 deep and arming requires 8 intervals, at the arming tick this is the mean of the last 8.
 5. **(Rev 14) Built differently, §14.7.** The hub does not push a *baseline*; it sends its current heart-rate estimate about once a second, and the MCU compares it with its own mean on every armed tick (§5.4 step 5). *Superseded, retained: Rev 9 to Rev 13 text follows.* **Not implemented (Rev 9).** This step said that the main processor confirms its baseline via `NP_CVNS_SPI_CMD_HR_BASELINE_SET`, and that the safety MCU rejects the enable if the two differ by more than `NP_CVNS_BASELINE_CROSSVAL_BPM` (5 BPM). The safety MCU never receives the main processor's baseline. Its wire protocol (`np_spi_wire_types.h`) has no baseline command, and `np_cvns_interlock.c` sends 0x13 through a stub that transmits nothing. `NP-FMEA-001` Rev 12 withdrew the same claim on 2026-09-25. Whether a cross-check is wanted is part of OI-CVNS-12.
@@ -506,7 +506,7 @@ Pan-Tompkins-derived bandpass detection on the PPG signal from the VNS accessory
 4. Moving window integrate: 150 ms window.
 5. Adaptive threshold: 75% of running maximum over last 2 s; updated after each confirmed R-peak.
 6. Refractory period: 200 ms after each confirmed peak (prevents double-detection).
-7. **(Rev 11)** Forward and buffer are separate decisions. A peak ≥ `NP_CVNS_RR_MIN_VALID_MS` (300 ms) after the last detected peak is pulsed on `RPEAK_IN`, with **no upper bound**. Only an interval inside 300–2000 ms enters this side's R-R buffer (§6.3). A peak inside 300 ms is neither pulsed nor buffered, but it still becomes the last detected peak. *Rev 10 and earlier gated the pulse on 2000 ms as well. Below 60 BPM, one missed detection then hid the next real beat, and the safety MCU's 3 s staleness cutoff fired (OI-CVNS-13, §14.6).*
+7. **(Rev 11)** Forward and buffer are separate decisions. A peak ≥ `NP_RR_MIN_MS` (300 ms) after the last detected peak is pulsed on `RPEAK_IN`, with **no upper bound**. Only an interval inside 300–2000 ms enters this side's R-R buffer (§6.3). A peak inside 300 ms is neither pulsed nor buffered, but it still becomes the last detected peak. *Rev 10 and earlier gated the pulse on 2000 ms as well. Below 60 BPM, one missed detection then hid the next real beat, and the safety MCU's 3 s staleness cutoff fired (OI-CVNS-13, §14.6).*
 
 ### 6.3 Baseline HR computation
 
@@ -954,7 +954,7 @@ The safety MCU arms on 8 intervals (`NP_CARDIAC_BASELINE_BEATS`, ring buffer `NP
 
 ### 14.4 OI-CVNS-11 — no R-R validity filter on the safety MCU
 
-Rev A §5.3 step 2 specified discarding intervals outside 300–2000 ms. Those bounds (`NP_CVNS_RR_MIN_VALID_MS` / `_MAX_VALID_MS`) are main-processor constants; the safety MCU has no equivalent and admits every measured interval into its ring buffer.
+Rev A §5.3 step 2 specified discarding intervals outside 300–2000 ms. Those bounds (`NP_RR_MIN_MS` / `_MAX_VALID_MS`) are main-processor constants; the safety MCU has no equivalent and admits every measured interval into its ring buffer.
 
 | Candidate | Evidence for | Evidence against |
 |-----------|--------------|------------------|
@@ -995,7 +995,7 @@ This is the analysis the item named as what would settle it. It is a reading of 
 
 **Why.** Line faults 1 to 4 (§14.4.1) fail safe without a filter. The one gap found, a plausible false rhythm, is not one a filter closes. A filter would add the first interval rejection to Class C, and on this interlock a false negative is the worse failure (§14.5, candidate C).
 
-**The upstream mitigation, stated.** Its existing source is §6.2 step 7: SW-02 does not pulse `RPEAK_IN` for a peak under `NP_CVNS_RR_MIN_VALID_MS` (300 ms) after the last detected peak, and pulses every later peak. **What fails without it:** a nuisance cutoff, a 30 s lockout, an app confirmation and a repeat impedance check (hazard 25-e in `NP-RISK-002`). It is not a hazard control, because the cutoff is the safe direction. So no new "shall" is written and no new figure is set. If the nuisance rate proves unacceptable, OI-CVNS-13 owns it (§14.6.2).
+**The upstream mitigation, stated.** Its existing source is §6.2 step 7: SW-02 does not pulse `RPEAK_IN` for a peak under `NP_RR_MIN_MS` (300 ms) after the last detected peak, and pulses every later peak. **What fails without it:** a nuisance cutoff, a 30 s lockout, an app confirmation and a repeat impedance check (hazard 25-e in `NP-RISK-002`). It is not a hazard control, because the cutoff is the safe direction. So no new "shall" is written and no new figure is set. If the nuisance rate proves unacceptable, OI-CVNS-13 owns it (§14.6.2).
 
 **The independence assumption, re-examined.** §5.3 once claimed that the MCU and the hub cross-validate within ±5 BPM, which made their artefact handling independent. That check does not exist (§14.3.1). So the MCU and the hub are not independent for artefact rejection, and nothing in this document now claims that they are. The consequence that matters is OI-CVNS-14: both sides trust the same pulse train.
 

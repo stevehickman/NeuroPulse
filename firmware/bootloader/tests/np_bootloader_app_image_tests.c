@@ -62,6 +62,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../../common/tests/np_ld_script_limits.h"
 
 #ifndef NP_LINKER_SCRIPT_PATH
 #error "NP_LINKER_SCRIPT_PATH must be defined by the build (path to bootloader_imxrt1062.ld)"
@@ -78,8 +79,6 @@ static int g_fail_count = 0;
     } while (0)
 
 /* ── Linker script reader ─────────────────────────────────────────────────── */
-
-#define LD_MAX_BYTES  (256U * 1024U)
 
 static char g_ld_raw[LD_MAX_BYTES];
 static char g_ld[LD_MAX_BYTES];   /* comment-stripped */

@@ -78,8 +78,8 @@ static uint32_t drive_to_await_confirm(uint32_t t0)
     hal_reset();
     (void)np_cvns_reenable_on_heartbeat(ST_CARDIAC, true, t0);
     (void)np_cvns_reenable_on_heartbeat(ST_CARDIAC, true,
-                                        t0 + NP_CVNS_REENABLE_LOCKOUT_MS);
-    return t0 + NP_CVNS_REENABLE_LOCKOUT_MS;
+                                        t0 + NP_CARDIAC_LOCKOUT_MS);
+    return t0 + NP_CARDIAC_LOCKOUT_MS;
 }
 
 /*
@@ -521,7 +521,7 @@ static void test_session_status_bits(void)
           "bits: GEOM_REQ_TDCS is bit 3 (wire contract)");
     check((NP_SESSION_STATUS_GEOM_REQUIRED & NP_SESSION_STATUS_GEOM_REQ_TDCS) == 0U,
           "bits: the two geometry gates share no bit");
-    check(NP_CVNS_REENABLE_LOCKOUT_MS == 30000U,
+    check(NP_CARDIAC_LOCKOUT_MS == 30000U,
           "bits: hub lockout matches MCU NP_CARDIAC_LOCKOUT_MS (30000)");
 }
 

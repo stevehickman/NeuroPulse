@@ -9,7 +9,7 @@
  *
  * The bit is asserted ONLY when ALL THREE conditions hold, in order:
  *
- *   (1) NP_CVNS_REENABLE_LOCKOUT_MS (30s) elapsed since the hub OBSERVED the
+ *   (1) NP_CARDIAC_LOCKOUT_MS (30s) elapsed since the hub OBSERVED the
  *       cardiac cutoff (first heartbeat reply with CARDIAC set).  Because the
  *       hub observation lags the MCU cutoff by at most one heartbeat period
  *       (200ms), the hub's 30s window always fully contains the safety MCU's

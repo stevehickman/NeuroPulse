@@ -109,7 +109,7 @@ static void check(int cond, const char *name)
  * alone.  To keep testing exactly that, the harness stands in for a HEALTHY hub:
  * HUB_FOLLOW reports, before every tick, the mean of the last 8 intervals its
  * detector accepted.  The detector refuses an interval under
- * NP_CVNS_RR_MIN_VALID_MS (300 ms, §6.2 step 7), so a burst of impossible
+ * NP_RR_MIN_MS (300 ms, §6.2 step 7), so a burst of impossible
  * intervals reaches the MCU but not the hub's estimate.  A test of the
  * cross-check itself takes control with HUB_SILENT or HUB_FIXED. */
 #define TEST_HUB_MIN_VALID_US   300000U

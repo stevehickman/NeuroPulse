@@ -108,7 +108,7 @@ np_cvns_reenable_event_t np_cvns_reenable_on_heartbeat(uint8_t  mcu_status,
         }
         /* Gate 1: 30s since the hub observed the cutoff notification.
          * Unsigned subtraction — wrap-safe at ~49.7 days. */
-        if ((now_ms - s_cutoff_observed_ms) >= NP_CVNS_REENABLE_LOCKOUT_MS) {
+        if ((now_ms - s_cutoff_observed_ms) >= NP_CARDIAC_LOCKOUT_MS) {
             s_state = NP_CVNS_RN_AWAIT_CONFIRM;
             return NP_CVNS_RN_EV_CONFIRM_OPEN;
         }

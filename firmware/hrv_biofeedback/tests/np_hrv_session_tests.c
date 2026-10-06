@@ -151,7 +151,7 @@ static void test_session_accepts_window(void)
           "0 / 0 selects the defaults and runs");
     CHECK(start_with(1U, 100U, &running) == NP_HRV_OK && running,
           "1 Hz / 100 uA, the lower edges, run");
-    CHECK(start_with(NP_TAVNS_DEFAULT_FREQ_HZ, NP_TAVNS_MAX_CURRENT_UA, &running) == NP_HRV_OK && running,
+    CHECK(start_with(NP_TAVNS_DEFAULT_FREQ_HZ, NP_VNS_MAX_CURRENT_UA, &running) == NP_HRV_OK && running,
           "25 Hz / 2000 uA, the upper edges, run");
 }
 

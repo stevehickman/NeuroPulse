@@ -121,8 +121,8 @@ static int fai_safety_constants(void)
     ASSERT(NP_CVNS_BASELINE_BEATS_MIN >= 3u,         "SAFETY: baseline < 3 beats");
 
     /* R-R validity window covers physiological range 30–200 BPM. */
-    ASSERT_APPROX(60000U / NP_CVNS_RR_MIN_VALID_MS, 200U, 5U); /* ~200 BPM */
-    ASSERT_APPROX(60000U / NP_CVNS_RR_MAX_VALID_MS,  30U, 2U); /* ~30 BPM  */
+    ASSERT_APPROX(60000U / NP_RR_MIN_MS, 200U, 5U); /* ~200 BPM */
+    ASSERT_APPROX(60000U / NP_RR_MAX_MS,  30U, 2U); /* ~30 BPM  */
 
     printf("  freq: %u–%u Hz  current: %u µA  pulse: %u–%u µs  session: %u–%u s\n",
            NP_CVNS_FREQ_HZ_MIN, NP_CVNS_FREQ_HZ_MAX,
@@ -524,7 +524,7 @@ static void fai_rpeak_forwarding(void)
 
     /* One missed detection at 50 BPM.  feed_beats() pulses at the start of
      * each period, so the beat below opens a 2400 ms interval (outside
-     * NP_CVNS_RR_MAX_VALID_MS) and the next one closes it.  The closing peak is
+     * NP_RR_MAX_MS) and the next one closes it.  The closing peak is
      * still pulsed, so the safety MCU sees a 2.4 s interval, not a > 3 s gap
      * that its staleness cutoff (NP_CARDIAC_RPEAK_STALE_MS) would read as a
      * lost R-peak stream.  Until Rev 11 that peak was dropped (mutation:
@@ -537,7 +537,7 @@ static void fai_rpeak_forwarding(void)
     ASSERT_APPROX(np_cvns_interlock_current_hr(&interlock), 50.0f, 0.5f);
     printf("  50 BPM, one missed detection (2400 ms): pulsed, not buffered (correct)\n");
 
-    /* A spurious peak 250 ms after a beat (< NP_CVNS_RR_MIN_VALID_MS) is not
+    /* A spurious peak 250 ms after a beat (< NP_RR_MIN_MS) is not
      * pulsed.  The lower bound is unchanged. */
     uint32_t split[2] = { 250U, 950U };
     ASSERT_EQ(feed_beats(&interlock, &t_ms, split, 2U), 1U);
@@ -550,7 +550,7 @@ static void fai_rpeak_forwarding(void)
  * np_cvns_interlock_hr_report() is what the hub sends for the MCU's ±5 BPM
  * cross-check.  It must be built from the intervals that were FORWARDED, not from
  * rr_buf: the MCU's own mean is built from every pulsed interval, including the
- * ones over NP_CVNS_RR_MAX_VALID_MS that rr_buf drops.
+ * ones over NP_RR_MAX_MS that rr_buf drops.
  */
 static void fai_hr_report(void)
 {

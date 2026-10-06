@@ -6,6 +6,8 @@
 #ifndef NP_CVNS_CONFIG_H
 #define NP_CVNS_CONFIG_H
 
+#include "../../common/include/np_shared_constants.h"
+
 /* ── Stimulation parameters ─────────────────────────────────────────────────── */
 #define NP_CVNS_FREQ_HZ_MIN           1u      /* Hz; CLAUDE.md §3 T2            */
 #define NP_CVNS_FREQ_HZ_MAX           25u     /* Hz; matches gammaCore range     */
@@ -44,8 +46,6 @@
 #define NP_CVNS_CUTOFF_LATENCY_MAX_MS 100u    /* ms; FAI-CV02 pass criterion     */
 #define NP_CVNS_BASELINE_BEATS_MIN    5u      /* beats for stable baseline       */
 #define NP_CVNS_RR_WINDOW_SIZE        20u     /* R-R circular buffer depth       */
-#define NP_CVNS_RR_MAX_VALID_MS       2000u   /* ms; ≈30 BPM minimum HR          */
-#define NP_CVNS_RR_MIN_VALID_MS       300u    /* ms; ≈200 BPM maximum HR         */
 #define NP_CVNS_RPEAK_DEBOUNCE_US     30u     /* µs; GPIO edge debounce          */
 #define NP_CVNS_BASELINE_CROSSVAL_BPM 5u      /* BPM; main vs safety MCU tolerance*/
 #define NP_CVNS_HR_REPORT_PERIOD_MS   1000u  /* ms; hub HR report to safety MCU (OI-CVNS-14) */

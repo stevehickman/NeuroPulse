@@ -67,6 +67,7 @@
 #include "np_map3_record.h"
 #include "np_module_map.h"
 #include "np_session_count.h"
+#include "np_hub_test_fixtures.h"
 
 static int g_fail_count = 0;
 
@@ -80,7 +81,6 @@ static int g_fail_count = 0;
 
 /* ── The instance under test ──────────────────────────────────────────────── */
 
-#define MEDIA_BYTES ((size_t)NP_LFS_CFG_BLOCK_SIZE * NP_LFS_CFG_BLOCK_COUNT)
 
 static uint8_t           g_media[MEDIA_BYTES];
 static uint8_t           g_dirty[(NP_LFS_CFG_BLOCK_COUNT + 7U) / 8U];
@@ -129,7 +129,6 @@ static void fresh(void)
 /* ── Content shapes ───────────────────────────────────────────────────────── */
 
 /* The "NPMP" blob — NP-SOUP-LFS-001 §5.3: HDR(8) + 80 x 175 + CRC(4). */
-#define BLOB_BYTES  (8U + (80U * 175U) + 4U)   /* 14,012 */
 
 static uint8_t g_blob[BLOB_BYTES];
 static uint8_t g_rb[BLOB_BYTES + 512U];
@@ -173,7 +172,6 @@ static bool accept_anything(const uint8_t *buf, size_t len, void *ctx)
 }
 
 /* 32-byte self-checking journal record — NP-FW-NVRAM-001 §4.2 D-5. */
-#define REC_SIZE 32U
 
 static void rec_build(uint8_t out[REC_SIZE], uint32_t ordinal)
 {

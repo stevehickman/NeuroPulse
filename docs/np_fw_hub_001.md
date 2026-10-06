@@ -1542,7 +1542,7 @@ which is why it is host-testable (`np_cvns_reenable_tests.c`, 548 lines).
 
 **All three gates, in order, or the bit is not asserted:**
 
-1. `NP_CVNS_REENABLE_LOCKOUT_MS` (30 s) since the hub **observed** the cutoff — the first heartbeat
+1. `NP_CARDIAC_LOCKOUT_MS` (30 s) since the hub **observed** the cutoff — the first heartbeat
    reply with `CARDIAC` set. Because the hub's observation lags the MCU's cutoff by at most one
    heartbeat period (200 ms), **the hub's window always fully contains the MCU's own
    `NP_CARDIAC_LOCKOUT_MS` window**; the MCU can never see the bit while its lockout is active. The

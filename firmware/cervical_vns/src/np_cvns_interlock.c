@@ -125,7 +125,7 @@ static bool pt_process_sample(np_cvns_interlock_ctx_t *ctx,
         /* Compute R-R interval. */
         uint32_t rr_ms = since_last;
 
-        if (rr_ms >= NP_CVNS_RR_MIN_VALID_MS) {
+        if (rr_ms >= NP_RR_MIN_MS) {
             peak_forward = true;
             /* Remember it as the MCU will see it (OI-CVNS-14).  The very first
              * peak has no predecessor: its "interval" is the time since boot, and
@@ -142,8 +142,8 @@ static bool pt_process_sample(np_cvns_interlock_ctx_t *ctx,
             ctx->fwd_last_ms = timestamp_ms;
         }
 
-        if (rr_ms >= NP_CVNS_RR_MIN_VALID_MS &&
-            rr_ms <= NP_CVNS_RR_MAX_VALID_MS) {
+        if (rr_ms >= NP_RR_MIN_MS &&
+            rr_ms <= NP_RR_MAX_MS) {
 
             rr_push(&ctx->rr_buf, (uint16_t)rr_ms);
             if (ctx->baseline_beats_accumulated < UINT8_MAX) {

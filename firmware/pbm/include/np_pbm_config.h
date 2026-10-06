@@ -16,14 +16,13 @@
 #ifndef NP_PBM_CONFIG_H
 #define NP_PBM_CONFIG_H
 
+#include "../../common/include/np_shared_constants.h"
+
 /* ── Smart module ZONE_ID ADC threshold ─────────────────────────────────────── */
 
 #define NP_PBM_ADC_SMART_MAX        1099U   /* < 1100 → smart module detected  */
 #define NP_PBM_ADC_BASE_MIN         1100U   /* ≥ 1100 → base module ladder     */
 #define NP_PBM_ADC_NO_MODULE_MIN    4000U   /* ≥ 4000 → no module present      */
-#define NP_PBM_ADC_BITS             12U
-#define NP_PBM_ADC_VREF_MV          3300U
-#define NP_PBM_ADC_PULLUP_OHMS      10000U
 
 /* ── Debounce (RISK-18; same policy as base modules) ─────────────────────────── */
 

@@ -203,7 +203,7 @@
 /* Firmware vector table + code follows at offset NP_IMAGE_HEADER_SIZE.       */
 #define NP_IMAGE_MAGIC          0x4E504657UL    /* "NPFW"                      */
 #define NP_IMAGE_HEADER_SIZE    256U            /* Aligned to 256 bytes        */
-#define NP_FW_LOAD_ADDR         0x20200000UL    /* OCRAM load target           */
+#define NP_FW_LOAD_ADDR         NP_OCRAM_BASE   /* OCRAM load target           */
 #define NP_FW_MAX_SIZE          (NP_BANK_SIZE_BYTES - NP_IMAGE_HEADER_SIZE)
 
 /* ── Ed25519 public key (manufacturing root — provisioned at test) ────────── */

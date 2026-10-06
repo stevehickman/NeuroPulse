@@ -338,6 +338,7 @@ jobs:
         simulator/**
         firmware/**
         scripts/check-shared-placement.ts
+        scripts/check-firmware-constants.ts
         .github/workflows/tooling-ci.yml
       NP_SCOPE_PBMMODEL: |
         hardware/np_pbm_model.json
@@ -1277,3 +1278,11 @@ jobs:
       # read it from there. This fails the next such file at the change that adds it.
       - name: No app reaches into a sibling app's data files, and none is stored twice
         run: bun scripts/check-shared-placement.ts
+
+      # A firmware constant has one name and one definition: the safety wire contract was once
+      # defined on both processors and kept in step by a comment.
+      - name: Guard self-test (prove a duplicate or lower-case constant can fail)
+        run: bun scripts/check-firmware-constants.ts --self-test
+
+      - name: Every firmware constant is defined once and named in UPPER_SNAKE_CASE
+        run: bun scripts/check-firmware-constants.ts

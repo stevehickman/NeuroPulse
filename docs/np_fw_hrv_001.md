@@ -138,7 +138,7 @@ np_tavns_enable_cb_t → safety MCU enable request
 |----------|-------|-------------|
 | `NP_TAVNS_DEFAULT_FREQ_HZ` | 25 | Carrier frequency |
 | `NP_TAVNS_DEFAULT_CURRENT_UA` | 500 | 0.5 mA default |
-| `NP_TAVNS_MAX_CURRENT_UA` | 2000 | 2 mA absolute limit |
+| `NP_VNS_MAX_CURRENT_UA` | 2000 | 2 mA absolute limit |
 | `NP_TAVNS_SLOPE_HYSTERESIS` | 5 ms/beat | Deadband for phase detection |
 | `NP_TAVNS_MAX_INSP_DURATION_MS` | 6000 | Failsafe gate-open limit |
 
@@ -206,7 +206,7 @@ A sliding buffer of `NP_TAVNS_INSP_SLOPE_WIN` (6) consecutive R-R differences is
 
 2. **Safety MCU veto**: `np_tavns_enable_cb_t` requests enable from the safety MCU via SPI. The safety MCU independently checks clip impedance. If `np_hrv_tavns_safety_mcu_response(tavns, false)` is called (impedance check failed), `np_hrv_tavns_force_disable()` runs.
 
-3. **Maximum current**: `stim_current_ua` is validated at `np_hrv_tavns_init()` against `NP_TAVNS_MAX_CURRENT_UA` (2000 µA). Values above the limit are rejected with `NP_HRV_ERR_INVALID_ARG`.
+3. **Maximum current**: `stim_current_ua` is validated at `np_hrv_tavns_init()` against `NP_VNS_MAX_CURRENT_UA` (2000 µA). Values above the limit are rejected with `NP_HRV_ERR_INVALID_ARG`.
 
 4. **A refused stimulus refuses the session** (Rev 2, OI-HRV-05). `np_hrv_tavns_init()` rejects a frequency outside 1–`NP_TAVNS_DEFAULT_FREQ_HZ` (25 Hz) or a current outside 100–2000 µA with `NP_HRV_ERR_INVALID_ARG`, and on rejection it **clears** its enable/disable callbacks, rate and current, so nothing from an earlier session stays armed. `np_hrv_session_start()` runs that validation before marking the session running and returns the error without starting. A value of 0 in either field still selects the default.
 

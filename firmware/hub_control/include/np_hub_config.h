@@ -202,10 +202,10 @@
  * explicit app confirmation + fresh hub-side impedance check passed.        */
 
 /* Gate 1: hub-side lockout, measured from the heartbeat reply in which the hub
- * first observed NP_SAFETY_STATUS_CARDIAC.  Value matches the safety MCU's
- * NP_CARDIAC_LOCKOUT_MS; because the hub observation lags the MCU cutoff by
+ * first observed NP_SAFETY_STATUS_CARDIAC.  The duration is the safety MCU's own
+ * NP_CARDIAC_LOCKOUT_MS (np_shared_constants.h, one definition); because the hub observation lags the MCU cutoff by
  * ≤1 heartbeat (200ms), the hub window always contains the MCU window.      */
-#define NP_CVNS_REENABLE_LOCKOUT_MS        30000U
+/* (No separate hub constant: the lockout is NP_CARDIAC_LOCKOUT_MS.)         */
 
 /* Gate 3: max wait for the hub-side impedance measurement to complete before
  * failing closed (back to AWAIT_CONFIRM).                                   */

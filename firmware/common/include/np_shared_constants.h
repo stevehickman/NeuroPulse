@@ -38,4 +38,22 @@
 #define NP_EEG_CHANNELS             8U     /* T1: Fp1/2 F3/4 C3/4 P3/4 semi-dry */
 #define NP_EEG_SAMPLE_RATE_HZ       500U
 
+/* ── Cardiac interlock re-enable lockout ────────────────────────────────── */
+/* The safety MCU holds cVNS off this long after a cardiac cutoff; the hub
+ * observes the cutoff up to one heartbeat later and waits the same period, so
+ * its window always contains the MCU's.  One definition keeps them equal. */
+#define NP_CARDIAC_LOCKOUT_MS       30000U
+
+/* ── Auricular VNS (incl. taVNS) current ceiling ────────────────────────── */
+#define NP_VNS_MAX_CURRENT_UA       2000U  /* 2 mA absolute limit */
+
+/* ── Physiological R-R interval validity (HRV and cVNS R-peak) ──────────── */
+#define NP_RR_MIN_MS                300U   /* ≈200 BPM upper HR limit */
+#define NP_RR_MAX_MS                2000U  /* ≈30 BPM lower HR limit */
+
+/* ── ZONE_ID ADC front end on the hub PCB (PBM + zone announce) ─────────── */
+#define NP_ZONE_ID_ADC_BITS         12U
+#define NP_ZONE_ID_ADC_VREF_MV      3300U
+#define NP_ZONE_ID_ADC_PULLUP_OHMS  10000U  /* 10 kΩ pull-up on hub PCB */
+
 #endif /* NP_SHARED_CONSTANTS_H */

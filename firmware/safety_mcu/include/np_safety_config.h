@@ -156,7 +156,6 @@
  * staleness cutoff catches a rate below 20 BPM. */
 #define NP_CARDIAC_HR_SNAP_MS   1000U       /* snapshot cadence */
 #define NP_CARDIAC_HR_HIST_LEN  18U         /* snapshots kept -> 18 s horizon */
-#define NP_CARDIAC_LOCKOUT_MS   30000U      /* re-enable lockout */
 #define NP_CARDIAC_BASELINE_BEATS 8U        /* beats to establish baseline */
 /* R-peak staleness (NP-RISK-002 OI-RISK2-05, principal 2026-09-25).  While
  * cervical VNS is granted, no R-peak edge for this long cuts it exactly as a

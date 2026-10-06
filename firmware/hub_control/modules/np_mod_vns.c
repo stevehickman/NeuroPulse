@@ -40,7 +40,6 @@
 /* Safety: contact impedance threshold for VNS enable (ohm). */
 #define VNS_CONTACT_MIN_OHM   500.0f   /* below this → poor contact */
 #define VNS_CONTACT_MAX_OHM   5000.0f  /* above this → no contact */
-#define VNS_MAX_AMP_UA        2000U
 
 /*
  * HRV session duration upper bound (s).  The hub session runner ends the VNS
@@ -194,7 +193,7 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
     }
 
     /* VNS stimulation */
-    uint16_t amp = (p->amplitude_ua > VNS_MAX_AMP_UA) ? VNS_MAX_AMP_UA : p->amplitude_ua;
+    uint16_t amp = (p->amplitude_ua > NP_VNS_MAX_CURRENT_UA) ? NP_VNS_MAX_CURRENT_UA : p->amplitude_ua;
 
     np_hub_status_t rc = np_mod_vns_hal_stim_set(p->side,
                                                     p->freq_mhz,
