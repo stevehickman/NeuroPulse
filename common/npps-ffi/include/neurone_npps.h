@@ -1,7 +1,7 @@
 /*
  * neurone_npps.h — C ABI of the shared NPPS core (common/npps-core, OI-NPPS-CORE-01).
  *
- * Two calls and a free. Text goes in as UTF-8 bytes (no terminator needed), and what comes
+ * Two calls, an allocator for WebAssembly hosts, and a free. Text goes in as UTF-8 bytes (no terminator needed), and what comes
  * out is a buffer this library allocated, which the caller releases with npps_free().
  *
  *   npps_parse_json    NPPS source            -> JSON array of entries
@@ -31,6 +31,10 @@ extern "C" {
 int32_t npps_parse_json(const uint8_t *src, size_t src_len, uint8_t **out, size_t *out_len);
 
 int32_t npps_compile_json(const uint8_t *req, size_t req_len, uint8_t **out, size_t *out_len);
+
+/* Allocate `len` zeroed bytes for a host that cannot hand this library its own memory (WebAssembly:
+ * the host writes the input here, passes it to a call, then releases it with npps_free(ptr, len)). */
+uint8_t *npps_alloc(size_t len);
 
 /* Release a buffer returned through `out`/`out_len`. A null pointer is ignored. */
 void npps_free(uint8_t *ptr, size_t len);

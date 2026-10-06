@@ -1,6 +1,6 @@
 # neurone-npps-core — one NPPS implementation for every runtime
 
-**Open item:** `OI-NPPS-CORE-01` (`docs/status/pending-decisions.md`). **Status:** v0; Android's and iOS's compilers run on it.
+**Open item:** `OI-NPPS-CORE-01` (`docs/status/pending-decisions.md`). **Status:** v0; Android's, iOS's, Windows' and the web's compilers run on it.
 
 NPPS had five hand-written parsers and four hand-written hub-descriptor compilers (web, simulator bundle,
 iOS, Android, Windows). Each port drifted: the iOS tDCS parser read one field of four, iOS and Android read
@@ -72,8 +72,11 @@ still the Swift port. Because the app's compiler now depends on the XCFramework,
 - User wavelength rules are accepted by the compiler API but only the default rules are exercised.
 - Bindings: Android (`../npps-jni`) and the C ABI (`../npps-ffi`, below) that iOS uses. The Windows
   P/Invoke wrapper over the same C ABI and web and the simulator (`wasm32`) are not written.
-  **iOS and Windows cannot be built or tested from this environment.** Android's and iOS's compilers
-  call their bindings; no other app calls one.
+  **iOS and Windows cannot be built or tested from this environment** (their CI is the first execution). Android's,
+  iOS's and Windows' compilers call their bindings, and the web's runs the same C ABI as WebAssembly
+  (`scripts/build-npps-wasm.sh`, `app/web/src/lib/nppsCore.ts`); `hubCompiler.ts` is now a wrapper, so the web
+  compiler is no longer an independent reference, and the wire layout is held by `scripts/check-hub-wire-format.ts`
+  reading `compiler.rs` and decoding the core's output at the firmware's offsets.
 - The validator (`protocolValidator`, per-platform today) is not ported.
 - **Signing stays in each platform's keystore.** The compiler returns the blob with a zeroed 64-byte
   signature slot; the caller signs the raw region and fills it.

@@ -48,6 +48,8 @@ jobs:
         app/NeurOneShared/TestData/hub-descriptor-cases.json
         app/NeurOneShared/TestData/hub-descriptor-golden.json
         scripts/build-simulator-runtime.ts
+        # Builds the WebAssembly the web compiler loads.
+        scripts/build-npps-wasm.sh
         simulator/src/**
         scripts/sync-locales.ts
         scripts/sync-socket-map.ts
@@ -230,6 +232,17 @@ jobs:
       - name: Lateralization audit behaves (accept + reject paths)
         working-directory: .
         run: bash scripts/test-lateralization-audit.sh
+
+      # The web app compiles protocols with the shared Rust NPPS core, loaded as WebAssembly
+      # (OI-NPPS-CORE-01): app/web/src/lib/hubCompiler.ts calls it, so the unit tests, the golden
+      # regeneration and the production build below all need the module, a git-ignored build output.
+      # The runner image ships rustup; this pins the channel so a stale image cannot change what is built.
+      - name: Build the NPPS core as WebAssembly
+        working-directory: .
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          scripts/build-npps-wasm.sh
 
       - name: TypeScript type-check
         run: bun run tsc --noEmit

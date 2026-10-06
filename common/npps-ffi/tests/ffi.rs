@@ -3,7 +3,7 @@
 //! core's tests is the marshalling: buffer ownership, UTF-8 (messages contain `—` and `²`),
 //! return codes and the failure paths.
 
-use neurone_npps_ffi::{npps_compile_json, npps_free, npps_parse_json};
+use neurone_npps_ffi::{npps_alloc, npps_compile_json, npps_free, npps_parse_json};
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
@@ -116,5 +116,20 @@ fn bad_arguments_are_refused_not_crashed() {
         assert!(String::from_utf8(msg).unwrap().contains("not JSON"));
         // Freeing nothing is fine.
         npps_free(ptr::null_mut(), 0);
+    }
+}
+
+#[test]
+fn alloc_hands_out_writable_zeroed_bytes_that_free_takes_back() {
+    unsafe {
+        let p = npps_alloc(8);
+        assert!(!p.is_null());
+        assert_eq!(std::slice::from_raw_parts(p, 8), &[0u8; 8]);
+        *p = 0xAB;
+        npps_free(p, 8);
+        // A zero length is valid and still freeable.
+        let z = npps_alloc(0);
+        assert!(!z.is_null());
+        npps_free(z, 0);
     }
 }

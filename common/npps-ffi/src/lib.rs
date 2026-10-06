@@ -69,3 +69,15 @@ pub unsafe extern "C" fn npps_free(ptr: *mut u8, len: usize) {
         drop(Box::from_raw(slice::from_raw_parts_mut(ptr, len)));
     }
 }
+
+/// Allocate `len` writable bytes the caller fills with an input and later releases with
+/// `npps_free(ptr, len)`. A host whose memory this library cannot address (WebAssembly) has no
+/// other way to hand it a buffer. Never null; a zero length yields a valid, unreadable pointer.
+///
+/// # Safety
+/// The returned bytes are uninitialised until the caller writes them, and must be freed with the
+/// same `len`.
+#[no_mangle]
+pub unsafe extern "C" fn npps_alloc(len: usize) -> *mut u8 {
+    Box::into_raw(vec![0u8; len].into_boxed_slice()) as *mut u8
+}

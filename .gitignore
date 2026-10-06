@@ -104,3 +104,6 @@ build/host-tests/
 
 # Translator hand-off files from scripts/translations.ts export (#191) — never committed
 translation-export/
+
+# The NPPS core as WebAssembly (scripts/build-npps-wasm.sh)
+app/web/src/generated/
