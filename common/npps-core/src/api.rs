@@ -200,3 +200,39 @@ pub fn namespace_json(request: &str) -> Result<String, String> {
     })
     .to_string())
 }
+
+/// Write models as `.npps` text: `request` is `{"items":[<item>…]}`, each item as in
+/// `serialize::serialize_item` (the shapes `parse_json` returns). Items are separated by a blank line, which is
+/// what `serializeNPPS` wrote. The error is the refusal message; a model that cannot be written is a bug in
+/// whatever built it, so it is refused rather than serialized into a file the parser rejects.
+pub fn serialize_json(request: &str) -> Result<String, String> {
+    let req: Value = serde_json::from_str(request).map_err(|e| format!("serialize request is not JSON: {e}"))?;
+    let items = req["items"].as_array().ok_or("serialize request needs an items array")?;
+    let texts = items.iter().map(crate::serialize::serialize_item).collect::<Result<Vec<_>, _>>()?;
+    Ok(texts.join("\n\n"))
+}
+
+/// Validate an entry against the resolved limits (`validateEntry` of the web reference).
+/// `request` is `{"entry":{"kind":"single","protocol":…}|{"kind":"composite","composite":…},
+/// "limits":<resolved NPLimitsSet>, "allProtocols":[<entry>…]|null, "zones":{name:[socket…]}|null (optional: check
+/// PBM targets against the namespace), "limitSources":{<modalityProperty>:{<limitField>:tier}}|null (optional)}`. Returns
+/// `{"issues":[…], "isValid":bool, "hasWarnings":bool}`; an issue is
+/// `{severity, modality?, parameterKey, parameterName, actualValueDescription, limitValueDescription,
+/// limitSource, message}` where every text is a plain string or a `{key, args}` message for the caller to
+/// localize (see `validate`). Ids are the caller's to mint.
+pub fn validate_json(request: &str) -> Result<String, String> {
+    let req: Value = serde_json::from_str(request).map_err(|e| format!("validate request is not JSON: {e}"))?;
+    if req["entry"].is_null() {
+        return Err("validate request needs an entry".into());
+    }
+    let all: Option<Vec<Value>> = req["allProtocols"].as_array().cloned();
+    let limits = if req["limits"].is_null() { json!({}) } else { req["limits"].clone() };
+    let ctx = crate::validate::Context {
+        zones: Some(&req["zones"]).filter(|z| z.is_object()),
+        limit_sources: Some(&req["limitSources"]).filter(|z| z.is_object()),
+    };
+    let issues = crate::validate::validate_entry(&req["entry"], &limits, all.as_deref(), &ctx);
+    let is_valid = !issues.iter().any(|i| i["severity"] == "error");
+    let has_warnings = issues.iter().any(|i| i["severity"] == "warning");
+    Ok(json!({ "issues": issues, "isValid": is_valid, "hasWarnings": has_warnings }).to_string())
+}

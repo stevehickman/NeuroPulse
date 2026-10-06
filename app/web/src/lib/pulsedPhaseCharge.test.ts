@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateProtocol } from './protocolValidator';
+import { validateProtocol } from '../../../../common/lib/protocolValidator';
 import { defaultParams } from '../../../../common/types/protocol';
 import type { NPProtocolDefinition, NPModalityTypeId } from '../../../../common/types/protocol';
 import type { NPLimitsSet } from '../../../../common/types/limits';

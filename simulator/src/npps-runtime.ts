@@ -21,7 +21,8 @@
  */
 
 import { parseNPPSFile, buildNamespace, validateNamespaceReferences } from '../../common/lib/nppsParser';
-import { initNppsCore } from '../../common/lib/nppsCore';
+import { initNppsCore, nppsValidate } from '../../common/lib/nppsCore';
+import { coreEntry } from '../../common/lib/nppsSerializer';
 import { DEFAULT_WAVELENGTH_RULES, mapWavelength, parsePbmWavelength } from '../../common/lib/wavelengthRules';
 import type {
   NPProtocolDefinition,
@@ -71,7 +72,9 @@ export let LOAD_REPORT: {
   compositesSkipped: number;
   duplicateDefinitions: string[];
   unresolvedReferences: string[];
-} = { compositesSkipped: 0, duplicateDefinitions: [], unresolvedReferences: [] };
+  /** What the shared validator found in a loaded protocol against the hardware ceilings alone (no user limits). */
+  validationIssues: Array<{ protocol: string; severity: 'error' | 'warning'; parameterKey: string; messageKey: string }>;
+} = { compositesSkipped: 0, duplicateDefinitions: [], unresolvedReferences: [], validationIssues: [] };
 
 // ── Transform ─────────────────────────────────────────────────────────────────
 
@@ -212,6 +215,7 @@ export function buildLibrary(
   }));
 
   const protocols: Record<string, SimProtocol> = {};
+  const validationIssues: typeof LOAD_REPORT.validationIssues = [];
   let compositesSkipped = 0;
 
   for (const { filename, parsed } of parsedFiles) {
@@ -227,6 +231,11 @@ export function buildLibrary(
     }
     const def = entry.protocol;
     const slug = slugFromFilename(filename);
+    // The same validator every app runs (the NPPS core). The simulator has no locale, so it keeps the keys.
+    for (const i of nppsValidate({ entry: coreEntry(entry), limits: {} }).issues) {
+      const k = typeof i.message === 'string' ? i.message : i.message.key;
+      validationIssues.push({ protocol: slug, severity: i.severity, parameterKey: i.parameterKey, messageKey: k });
+    }
     const duration = def.timingMode.type === 'duration' ? def.timingMode.seconds : 1200;
     protocols[slug] = {
       id: slug,
@@ -247,6 +256,7 @@ export function buildLibrary(
       compositesSkipped,
       duplicateDefinitions: errors,
       unresolvedReferences: validateNamespaceReferences(namespace),
+      validationIssues,
     },
   };
 }
@@ -296,5 +306,11 @@ export async function loadLibrary(baseUrl: string = DEFAULT_BASE_URL): Promise<v
   }
   if (report.unresolvedReferences.length) {
     console.error('[NP-SIM] unresolved references:', report.unresolvedReferences);
+  }
+  const invalid = report.validationIssues.filter(i => i.severity === 'error');
+  if (invalid.length) {
+    // A warning, not an error: the shipped CW blocks state a 100 % duty the 25 % ceiling refuses, a known
+    // finding npps-predefined.test.ts waives by name. The simulator shows the library, it does not gate it.
+    console.warn('[NP-SIM] protocols the validator refuses:', invalid);
   }
 }

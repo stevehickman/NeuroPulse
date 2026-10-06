@@ -5,7 +5,7 @@ import {
   UNLIMITED_LIMITS,
 } from '../../../../common/types/limits';
 import { parseNPPSLimits } from '../../../../common/lib/nppsParser';
-import { serializeNPPSLimits } from './nppsSerializer';
+import { serializeNPPSLimits } from '../../../../common/lib/nppsSerializer';
 
 // ─── Storage keys ──────────────────────────────────────────────────────────────
 

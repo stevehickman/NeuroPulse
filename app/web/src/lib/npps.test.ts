@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseNPPS, parseNPPSLimits, NPPSParseError } from '../../../../common/lib/nppsParser';
-import { serializeProtocol, serializeNPPS } from './nppsSerializer';
+import { serializeProtocol, serializeNPPS } from '../../../../common/lib/nppsSerializer';
 import type { NPProtocolDefinition, NPCompositeProtocol } from '../../../../common/types/protocol';
 import { MODALITY_META } from '../../../../common/types/protocol';
 

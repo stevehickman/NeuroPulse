@@ -1,5 +1,6 @@
 package life.neurone.core.protocol
 
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -12,6 +13,9 @@ import kotlin.test.assertTrue
  * configured dosage limits.
  */
 class NPProtocolValidatorTests {
+
+    /** The validator returns locale keys; these tests read some messages, so resolve them in English. */
+    @BeforeTest fun english() = TestLocale.install()
 
     /** Validator with no configured dosage limits — only hardware ceilings apply. */
     private fun hardwareOnlyValidator() = NPProtocolValidator(NPLimitsSet(name = "unlimited"))

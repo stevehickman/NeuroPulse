@@ -54,6 +54,12 @@ static class NppsCore
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     private static extern int npps_namespace_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
 
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int npps_serialize_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int npps_validate_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
+
     private delegate int Entry(byte[] input, nuint inputLen, out IntPtr output, out nuint outLen);
 
     /// Parse NPPS text into everything the file declares, as the core's JSON: `{"entries":[{"kind":"single",
@@ -69,6 +75,24 @@ static class NppsCore
         var request = new JsonObject { ["files"] = new JsonArray(files.Select(f => (JsonNode?)f.DeepClone()).ToArray()) };
         return Call(npps_namespace_json, Encoding.UTF8.GetBytes(request.ToJsonString()));
     }
+
+    /// Write models as `.npps` text. Each item is one of the shapes `Parse` returns (`{"kind":"single","protocol":…}`,
+    /// `{"kind":"composite","composite":…}`, `{"kind":"zone","zone":…}`, `{"kind":"condition","condition":…}`,
+    /// `{"kind":"wavelengthRules","wavelengthRules":…}`, `{"kind":"limits","limits":…}`); items are separated by a blank
+    /// line. A model that cannot be written (a zone holding an id that is not a socket) is refused with the core's
+    /// message rather than written into a file the parser would reject.
+    public static string Serialize(IEnumerable<JsonNode> items)
+    {
+        var request = new JsonObject { ["items"] = new JsonArray(items.Select(i => (JsonNode?)i.DeepClone()).ToArray()) };
+        return Encoding.UTF8.GetString(Call(npps_serialize_json, Encoding.UTF8.GetBytes(request.ToJsonString())));
+    }
+
+    /// Validate an entry against resolved limits: `{"issues":[…], "isValid", "hasWarnings"}`. The request is
+    /// `{"entry":…, "limits":…, "allProtocols":[…]|null, "zones":{…}|null, "limitSources":{…}|null}`. The core
+    /// returns locale keys and arguments, never text: a message is a plain string or `{"key", "args"}`, and the caller
+    /// resolves a key with its own strings. (Windows has no localized UI layer yet, so nothing resolves them today.)
+    public static byte[] Validate(JsonNode request)
+        => Call(npps_validate_json, Encoding.UTF8.GetBytes(request.ToJsonString()));
 
     /// Compile a protocol (`{"timingMode":…,"modalities":[…]}`, the shape `Parse` returns under
     /// `protocol`) into the NP-FW-HUB-001 §4 descriptor. The 64-byte signature slot at the end is zeroed:

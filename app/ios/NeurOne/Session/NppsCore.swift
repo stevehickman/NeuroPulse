@@ -49,6 +49,43 @@ enum NppsCore {
         try call(npps_namespace_json, requestJSON)
     }
 
+    /// Write models as `.npps` text (`{"items":[…]}`, each item one of the shapes `parse` returns: `{"kind":"single",
+    /// "protocol":{…}}`, `{"kind":"composite",…}`, `{"kind":"zone",…}`, `{"kind":"condition",…}`,
+    /// `{"kind":"wavelengthRules",…}`, `{"kind":"limits",…}`). Items are separated by a blank line. A model that cannot
+    /// be written (a zone holding an id that is not a socket) is refused with the core's message rather than written
+    /// into a file the parser would reject.
+    static func serialize(requestJSON: Data) throws -> Data {
+        try call(npps_serialize_json, requestJSON)
+    }
+
+    /// Validate an entry against resolved limits: `{"issues":[…], "isValid", "hasWarnings"}`. The core returns locale
+    /// keys and arguments, never text; `NPValidationText` (NPProtocolValidator.swift) turns them into words. The
+    /// request is `{"entry":…, "limits":…, "allProtocols":[…]|null, "zones":{…}|null, "limitSources":{…}|null}`.
+    static func validate(requestJSON: Data) throws -> Data {
+        try call(npps_validate_json, requestJSON)
+    }
+
+    /// Validate through the models: builds the request from the app's types (`NppsCoreMapping.swift`) and returns the
+    /// core's result object (`{"issues":[…], "isValid", "hasWarnings"}`). `library` is what a composite's layers resolve
+    /// against, nil to skip that check; `zones` is the namespace a PBM block's named zones resolve against.
+    static func validate(
+        entry: NPProtocolEntry, limits: NPLimitsSet, library: [NPProtocolEntry]?,
+        zones: [String: [Int]], limitSources: NPLimitSourceMap
+    ) throws -> [String: Any] {
+        let request: [String: Any] = [
+            "entry": entry.nppsCoreItem(),
+            "limits": limits.nppsCoreJSON(),
+            "allProtocols": library.map { $0.map { $0.nppsCoreItem() } as Any } ?? NSNull(),
+            "zones": zones,
+            "limitSources": limitSources.nppsCoreJSON()
+        ]
+        let out = try validate(requestJSON: JSONSerialization.data(withJSONObject: request))
+        guard let json = try JSONSerialization.jsonObject(with: out) as? [String: Any] else {
+            throw Refusal(message: "the validator returned something that is not a result")
+        }
+        return json
+    }
+
     /// Compile a protocol (`{"timingMode":…,"modalities":[…]}`, the shape `parse` returns under
     /// `protocol`) into the NP-FW-HUB-001 §4 descriptor. The 64-byte signature slot at the end is zeroed:
     /// sign the region before it and write the signature in.

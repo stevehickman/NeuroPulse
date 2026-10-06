@@ -2,6 +2,12 @@ package life.neurone.core.npps
 
 import life.neurone.core.protocol.NPAudioEntrainmentParams
 import life.neurone.core.protocol.NPBESTacsParams
+import life.neurone.core.protocol.NPCompositeProtocol
+import life.neurone.core.protocol.NPConditionDefinition
+import life.neurone.core.protocol.NPLimitsSet
+import life.neurone.core.protocol.NPProtocolEntry
+import life.neurone.core.protocol.NPProtocolReference
+import life.neurone.core.protocol.NPZoneDefinition
 import life.neurone.core.protocol.NPEEGNeurofeedbackParams
 import life.neurone.core.protocol.NPIntervalConfig
 import life.neurone.core.protocol.NPModalityParams
@@ -148,6 +154,9 @@ private fun NPModalityParams.toJsonParams(): Pair<String, JsonObject> = when (th
         put("intensityMilliamps", params.intensityMilliamps)
     }
     is NPModalityParams.Vibrotactile40hz -> "vibrotactile_40hz" to buildJsonObject {
+        // Not an `.npps` field (the firmware locks 40 Hz), but a model built in an editor can carry another, and the
+        // validator warns about it. The compiler and serializer ignore it.
+        put("frequencyHz", params.frequencyHz)
         put("intensityG", params.intensityG)
         put("syncToAudio", params.syncToAudio)
         put("syncToVisual", params.syncToVisual)
@@ -177,3 +186,121 @@ internal fun NPProtocolDefinition.toNppsCoreJson(): JsonObject = buildJsonObject
 internal fun NPProtocolDefinition.namedZoneRefs(): Set<String> =
     modalities.mapNotNull { (it.params as? NPModalityParams.PbmTranscranial)?.params?.target as? NPPBMTarget.Named }
         .flatMap { it.zoneNames }.toSet()
+
+// ── Whole entries, for the core's serializer and validator ───────────────────────────────────────────
+
+private fun jsonStrings(items: List<String>): JsonArray = JsonArray(items.map { JsonPrimitive(it) })
+
+private fun referencesJson(refs: List<NPProtocolReference>): JsonArray = JsonArray(refs.map { r ->
+    if (r.label == null) JsonPrimitive(r.url) else buildJsonObject { put("label", r.label); put("url", r.url) }
+})
+
+/** The header fields a protocol and a composite share, as the core names them. */
+private fun kotlinx.serialization.json.JsonObjectBuilder.header(
+    id: java.util.UUID, name: String, description: String, author: String, version: String,
+    tags: List<String>, isReadOnly: Boolean, conditions: List<String>, references: List<NPProtocolReference>,
+) {
+    put("id", id.toString())
+    put("name", name)
+    put("description", description)
+    put("author", author)
+    put("version", version)
+    put("tags", jsonStrings(tags))
+    if (isReadOnly) put("isReadOnly", true)
+    if (conditions.isNotEmpty()) put("conditions", jsonStrings(conditions))
+    if (references.isNotEmpty()) put("references", referencesJson(references))
+}
+
+private fun NPCompositeProtocol.toNppsCoreJson(): JsonObject = buildJsonObject {
+    header(id, name, description, author, version, tags, isReadOnly, conditions, references)
+    put("conflictResolution", conflictResolution.rawValue)
+    put("layers", JsonArray(layers.map { l ->
+        buildJsonObject {
+            put("protocolName", l.protocolName)
+            put("startOffsetSeconds", l.startOffsetSeconds)
+            l.durationSeconds?.let { put("durationSeconds", it) }
+            put("intensityScale", l.intensityScale)
+        }
+    }))
+}
+
+private fun NPZoneDefinition.toNppsCoreJson(): JsonObject = buildJsonObject {
+    put("name", name)
+    id?.let { put("id", it) }
+    description?.let { put("description", it) }
+    putJsonArray("sockets") { sockets.forEach { add(JsonPrimitive(it)) } }
+    types?.let { put("types", jsonStrings(it)) }
+    if (excludeTypes) put("excludeTypes", true)
+}
+
+private fun NPConditionDefinition.toNppsCoreJson(): JsonObject = buildJsonObject {
+    put("name", name)
+    id?.let { put("id", it) }
+    put("link", link)
+    code?.let { put("code", it) }
+    description?.let { put("description", it) }
+}
+
+private fun NPLimitsSet.toNppsCoreJson(): JsonObject = buildJsonObject {
+    put("name", name)
+    put("description", description)
+    put("level", level.rawValue)
+    helmetId?.let { put("helmetId", it) }
+    individualId?.let { put("individualId", it.toString()) }
+    fun sub(key: String, vararg fields: Pair<String, Any?>) {
+        val set = fields.filter { it.second != null }
+        if (set.isEmpty()) return
+        put(key, buildJsonObject {
+            for ((k, v) in set) when (v) {
+                is Double -> put(k, v)
+                is Int -> put(k, v)
+                is Boolean -> put(k, v)
+                is List<*> -> put(k, jsonStrings(v.map { it.toString() }))
+            }
+        })
+    }
+    pbmTranscranial?.let { sub("pbmTranscranial", "maxIrradianceMWcm2" to it.maxIrradianceMWcm2, "maxFrequencyHz" to it.maxFrequencyHz,
+        "maxDutyCyclePercent" to it.maxDutyCyclePercent, "maxSessionDoseJCm2" to it.maxSessionDoseJCm2, "maxDailyDoseJCm2" to it.maxDailyDoseJCm2) }
+    pbmIntranasal?.let { sub("pbmIntranasal", "maxIrradianceMWcm2" to it.maxIrradianceMWcm2, "maxSessionDoseJCm2" to it.maxSessionDoseJCm2,
+        "maxSessionDurationSeconds" to it.maxSessionDurationSeconds) }
+    eegNeurofeedback?.let { sub("eegNeurofeedback", "allowedBands" to it.allowedBands, "requireClosedLoop" to it.requireClosedLoop) }
+    besTacs?.let { sub("besTacs", "maxIntensityMilliamps" to it.maxIntensityMilliamps, "maxFrequencyHz" to it.maxFrequencyHz,
+        "minFrequencyHz" to it.minFrequencyHz, "maxSessionDurationSeconds" to it.maxSessionDurationSeconds, "maxSessionsPerDay" to it.maxSessionsPerDay) }
+    tdcs?.let { sub("tdcs", "maxIntensityMilliamps" to it.maxIntensityMilliamps, "maxSessionDurationSeconds" to it.maxSessionDurationSeconds,
+        "maxSessionsPerDay" to it.maxSessionsPerDay) }
+    vnsHrv?.let { sub("vnsHrv", "maxIntensityMilliamps" to it.maxIntensityMilliamps, "maxFrequencyHz" to it.maxFrequencyHz,
+        "maxSessionDurationSeconds" to it.maxSessionDurationSeconds, "allowedProtocols" to it.allowedProtocols) }
+    audioEntrainment?.let { sub("audioEntrainment", "maxVolumeDb" to it.maxVolumeDb, "maxBinauralBeatsHz" to it.maxBinauralBeatsHz,
+        "maxIsochronicTonesHz" to it.maxIsochronicTonesHz) }
+    visualStimulation?.let { sub("visualStimulation", "maxFrequencyHz" to it.maxFrequencyHz, "minFrequencyHz" to it.minFrequencyHz,
+        "allowedModes" to it.allowedModes, "blockHighRiskRange" to it.blockHighRiskRange) }
+    tms?.let { sub("tms", "maxIntensityPercentMT" to it.maxIntensityPercentMT, "maxPulsesPerSession" to it.maxPulsesPerSession,
+        "maxPulsesPerDay" to it.maxPulsesPerDay, "maxSessionsPerWeek" to it.maxSessionsPerWeek,
+        "allowedProtocols" to it.allowedProtocols, "allowedTargets" to it.allowedTargets) }
+    pbmDeep1170nm?.let { sub("pbmDeep1170nm", "maxIntensityMWcm2" to it.maxIntensityMWcm2, "maxSessionDurationSeconds" to it.maxSessionDurationSeconds) }
+    clinicalTacs?.let { sub("clinicalTacs", "maxIntensityMilliamps" to it.maxIntensityMilliamps, "maxSessionDurationSeconds" to it.maxSessionDurationSeconds) }
+    hdTdcs?.let { sub("hdTdcs", "maxIntensityMilliamps" to it.maxIntensityMilliamps, "maxSessionDurationSeconds" to it.maxSessionDurationSeconds,
+        "allowedMontages" to it.allowedMontages) }
+    cervicalVns?.let { sub("cervicalVns", "maxIntensityMilliamps" to it.maxIntensityMilliamps, "maxSessionDurationSeconds" to it.maxSessionDurationSeconds) }
+    vibrotactile40hz?.let { sub("vibrotactile40hz", "maxIntensityG" to it.maxIntensityG, "maxSessionDurationSeconds" to it.maxSessionDurationSeconds) }
+}
+
+/** The whole protocol, header and all, as the core's serializer and validator take it. */
+internal fun NPProtocolDefinition.toNppsCoreFullJson(): JsonObject {
+    val body = toNppsCoreJson()
+    return buildJsonObject {
+        header(id, name, description, author, version, tags, isReadOnly, conditions, references)
+        for ((k, v) in body) put(k, v)
+    }
+}
+
+/** An entry as one item of the core's serialize request, and (for a protocol or composite) its validate `entry`. */
+internal fun NPProtocolEntry.toNppsCoreItem(): JsonObject = when (this) {
+    is NPProtocolEntry.Single -> buildJsonObject { put("kind", "single"); put("protocol", protocol.toNppsCoreFullJson()) }
+    is NPProtocolEntry.Composite -> buildJsonObject { put("kind", "composite"); put("composite", composite.toNppsCoreJson()) }
+    is NPProtocolEntry.Zone -> buildJsonObject { put("kind", "zone"); put("zone", zone.toNppsCoreJson()) }
+    is NPProtocolEntry.Condition -> buildJsonObject { put("kind", "condition"); put("condition", condition.toNppsCoreJson()) }
+    is NPProtocolEntry.Limits -> buildJsonObject { put("kind", "limits"); put("limits", limits.toNppsCoreJson()) }
+}
+
+internal fun NPLimitsSet.toNppsCoreLimitsJson(): JsonObject = toNppsCoreJson()

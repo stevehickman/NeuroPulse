@@ -10,7 +10,7 @@ use serde_json::{json, Map, Value};
 
 type R<T> = Result<T, ParseError>;
 
-mod blocks;
+pub(crate) mod blocks;
 
 /// An entry of the file's protocol list, as the normalised JSON the web parser's output reduces to.
 #[derive(Debug, Clone, PartialEq)]

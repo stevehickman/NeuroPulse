@@ -126,7 +126,7 @@ const DIAGNOSTIC_FILES = [
   "app/ios/NeurOne/Protocol/NPBundledProtocols.swift",
   "common/lib/nppsParser.ts",
   "common/lib/nppsCore.ts",
-  "app/web/src/lib/nppsSerializer.ts",
+  "common/lib/nppsSerializer.ts",
   "app/web/src/lib/hubCompiler.ts",
 ];
 
@@ -705,7 +705,7 @@ function checkKeyUsage(files: string[], keys: Set<string>): string[] {
   // keeps a key that only a test mentions from reading as "used".
   const sources = files.filter(
     (f) =>
-      /\.(ts|tsx|js|mjs|swift|kt|kts|cs|py|json|xml|npps|sh)$/.test(f) &&
+      /\.(ts|tsx|js|mjs|swift|kt|kts|cs|py|rs|json|xml|npps|sh)$/.test(f) &&
       !f.startsWith("locales/") &&
       !f.includes("/locales/") &&
       !f.endsWith("Localizable.xcstrings") &&

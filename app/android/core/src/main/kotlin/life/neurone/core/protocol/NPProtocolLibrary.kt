@@ -313,7 +313,17 @@ class NPProtocolLibrary(
 
     private fun saveToStore() {
         val serializer = NPPSSerializer()
-        val text = _userProtocols.joinToString("\n\n") { serializer.serialize(it) }
+        // The core refuses a model it cannot write (a PBM block that names no zone) rather than write a file its own
+        // parser rejects. One such draft must not take the rest of the library with it: it stays in memory for this
+        // session and is left out of the stored text, where before it would have made the whole store unreadable on
+        // the next launch.
+        val text = _userProtocols.mapNotNull { entry ->
+            try {
+                serializer.serialize(entry)
+            } catch (e: IllegalArgumentException) {
+                null
+            }
+        }.joinToString("\n\n")
         kv.putString(USER_PROTOCOLS_KEY, text)
     }
 }

@@ -14,7 +14,7 @@ import {
 import { protocolLibrary, ProtocolAvailability } from '../lib/protocolLibrary';
 import { useProtocolContext } from '../App';
 import { limitsStore } from '../lib/limitsStore';
-import { validateEntry } from '../lib/protocolValidator';
+import { validateEntry } from '../../../../common/lib/protocolValidator';
 import { NPValidationResult } from '../../../../common/types/limits';
 import { LimitsSettings } from './LimitsSettings';
 import { ConditionChips } from './ConditionLinkDialog';

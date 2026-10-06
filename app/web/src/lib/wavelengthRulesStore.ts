@@ -20,7 +20,7 @@ import {
   type NPWavelengthRules,
 } from '../../../../common/lib/wavelengthRules';
 import { parseNPPSFile } from '../../../../common/lib/nppsParser';
-import { serializeWavelengthRules } from './nppsSerializer';
+import { serializeWavelengthRules } from '../../../../common/lib/nppsSerializer';
 
 const STORAGE_KEY_USER = 'np_wavelength_rules_user';
 

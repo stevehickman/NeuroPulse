@@ -39,6 +39,17 @@ int main(void) {
     CHECK(memmem(out, len, "percentage of a baseline", 24) != NULL, "the refusal is the web parser's message");
     npps_free(out, len);
 
+    const char *ser = "{\"items\":[{\"kind\":\"condition\",\"condition\":{\"name\":\"C\",\"link\":\"http://x\"}}]}";
+    rc = npps_serialize_json((const uint8_t *)ser, strlen(ser), &out, &len);
+    CHECK(rc == 0 && memmem(out, len, "condition \"C\" {", 15) != NULL, "serialize writes the block");
+    npps_free(out, len);
+
+    const char *val = "{\"entry\":{\"kind\":\"single\",\"protocol\":{\"name\":\"P\",\"timingMode\":{\"type\":\"duration\","
+        "\"seconds\":1200},\"modalities\":[]}},\"limits\":{}}";
+    rc = npps_validate_json((const uint8_t *)val, strlen(val), &out, &len);
+    CHECK(rc == 0 && memmem(out, len, "VALIDATE_MSG_GENERAL_MODALITIES", 31) != NULL, "validate returns locale keys");
+    npps_free(out, len);
+
     CHECK(npps_parse_json(NULL, 0, &out, &len) == 3, "null input is a bad argument");
     puts("ok");
     return 0;

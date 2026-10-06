@@ -1,6 +1,6 @@
 # neurone-npps-core — one NPPS implementation for every runtime
 
-**Open item:** `OI-NPPS-CORE-01` (`docs/status/pending-decisions.md`). **Status:** v0; every app's parser and hub-descriptor compiler (Android, iOS, Windows, web) and the simulator's parser run on it.
+**Open item:** `OI-NPPS-CORE-01` (`docs/status/pending-decisions.md`). **Status:** v0; every app's parser, serializer, validator and hub-descriptor compiler (Android, iOS, Windows, web) and the simulator run on it (the Windows and iOS bindings are written and unrun here: no .NET or Xcode).
 
 NPPS had five hand-written parsers and four hand-written hub-descriptor compilers (web, simulator bundle,
 iOS, Android, Windows). Each port drifted: the iOS tDCS parser read one field of four, iOS and Android read
@@ -17,6 +17,8 @@ all. The same `.npps` file must mean the same thing everywhere, so the meaning i
 | Namespace: fold files, duplicate names, cross-references | `src/api.rs` (`namespace_json`) | port of `buildNamespace` and `validateNamespaceReferences` |
 | PBM wavelength rules | `src/wavelength.rs` | default rules only |
 | Hub-descriptor compiler (NP-FW-HUB-001 §4) | `src/compiler.rs` | all 15 encoders, interval expansion, PBM tile merge |
+| Serializer: models to `.npps` text | `src/serialize.rs` | every block (`protocol`, `composite`, `zone`, `condition`, `wavelength_rules`, `limits`); the inverse of the parser, held to it by a round trip |
+| Validator: hardware ceilings, dosage limits, charge density, cross-modality | `src/validate.rs`, `../npps/hardware-limits.json` | the union of the web, iOS and Android checks; returns locale keys and arguments, never text |
 
 ## How it is verified
 
@@ -35,8 +37,8 @@ compiler, which remain the reference:
 
 ## Android binding
 
-`../npps-jni` is a `cdylib` of two JNI functions over `src/api.rs` (`parse_json`, `compile_json`: the one
-contract every binding wraps). `app/android/core/.../npps/NppsCore.kt` loads it and marshals; a refusal is
+`../npps-jni` is a `cdylib` of JNI functions over `src/api.rs` (`parse_json`, `namespace_json`, `compile_json`, `serialize_json`,
+`validate_json`: the one contract every binding wraps). `app/android/core/.../npps/NppsCore.kt` loads it and marshals; a refusal is
 thrown as `IllegalArgumentException` carrying the core's message. `NppsCoreTests` pushes the shipped
 library, the corpus and the 22 golden descriptors through the real native library from Kotlin (the messages
 contain `—` and `²`, so UTF-8 marshalling is exercised) and requires every entry, byte and message to match
@@ -65,10 +67,31 @@ first execution.** **iOS now compiles through the core:** `HubDescriptorCompiler
 (`NppsCoreMapping.swift`), calls `NppsCore.compile` and signs; the Swift encoders are deleted. `NPPSParser` is
 still the Swift port. Because the app's compiler now depends on the XCFramework, a build without it fails to link.
 
+## Serializer and validator
+
+`tests/serialize.rs` holds the serializer to `app/NeurOneShared/TestData/npps-serialize-golden.json`, the web
+serializer's own output for every block of the shipped library (frozen when it moved to the core), and to the parser
+by a round trip: what the core writes, the core reads back unchanged. It differs from the web writer in two places,
+both of which were bugs: it writes a duration of whole hours in minutes (the web wrote `1h`, a unit the lexer does not
+have, so the file did not load), and it writes a `limits` ceiling under the key the parser reads (the web snake-cased
+the property name into `max_irradiance_m_wcm2`, which the parser drops, so a ceiling written by the app vanished on the
+next load). A model it cannot write is refused with a message rather than written into a file the parser rejects: a
+zone holding an id that is not a socket, a named PBM target with no zone.
+
+`tests/validate.rs` holds the validator to `npps-validate-golden.json`, the web validator's English output over the
+library and 560 cases that violate each check, after resolving the core's locale keys against `locales/en.json` the way
+each app's `t()` does. **The core returns no text** (CLAUDE.md §17): an issue carries keys and positional arguments, a
+number already rendered the way JavaScript renders it, and the app resolves them. The three validators had drifted, so
+the core has the union of their checks (`tests/validate_union.rs`): the web one lacked the per-modality session-duration
+limits, the PBM session dose, the CW-duty contradiction, the zero-duration error, the TMS above 120 % warning, the
+cervical-VNS frequency range and interlock note, the vibrotactile frequency warning, the deep-PBM ceiling and the
+zone-resolution check (when the caller gives the namespace); the mobile ones lacked the layer intensity scale and the
+TMS-with-electrical-stimulation note. A configured limit is attributed to the level of the resolved set, or to the tier
+a per-field `limitSources` map names (iOS's `NPLimitSourceMap`); the web said `global` for all of them.
+`common/lib/hardwareLimits.test.ts` fails if the ceilings the validator reads differ from the editors' copies.
+
 ## Not yet in v0
 
-- The serializers (model to `.npps` text) are not ported: each app still writes its own, and the round trip
-  (serialize, then parse) is how they are held to the parser.
 - The compiler takes the zone map as an argument, and the apps fill it from the namespace.
 - Bindings: Android (`../npps-jni`), the C ABI (`../npps-ffi`) that iOS and Windows link, and the same C ABI
   built to `wasm32` for the web and the simulator (`scripts/build-npps-wasm.sh`, `common/lib/nppsCore.ts`).
@@ -78,7 +101,8 @@ still the Swift port. Because the app's compiler now depends on the XCFramework,
   independent reference: the goldens are the core's own output, and the wire layout is held by
   `scripts/check-hub-wire-format.ts` reading `compiler.rs` and decoding the core's output at the firmware's
   offsets.
-- The validator (`protocolValidator`, per-platform today) is not ported.
+- The editors' own copies of the hardware ceilings (slider ranges) and the three-tier limit resolution
+  (`resolveLimits`) are still per platform.
 - **Signing stays in each platform's keystore.** The compiler returns the blob with a zeroed 64-byte
   signature slot; the caller signs the raw region and fills it.
 

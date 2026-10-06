@@ -18,6 +18,9 @@ on:
       - 'app/windows/**'
       # Read by the tests: the web compiler's golden descriptors, and the shipped zones.
       - 'app/NeurOneShared/TestData/hub-descriptor-golden.json'
+      # The serializer and validator are the core's too: the tests push these goldens through the binding.
+      - 'app/NeurOneShared/TestData/npps-serialize-golden.json'
+      - 'app/NeurOneShared/TestData/npps-validate-golden.json'
       - 'protocols/predefined/**'
       # The compiler is the Rust core, built here and called through P/Invoke.
       - 'common/npps-core/**'
@@ -30,6 +33,9 @@ on:
     paths:
       - 'app/windows/**'
       - 'app/NeurOneShared/TestData/hub-descriptor-golden.json'
+      # The serializer and validator are the core's too: the tests push these goldens through the binding.
+      - 'app/NeurOneShared/TestData/npps-serialize-golden.json'
+      - 'app/NeurOneShared/TestData/npps-validate-golden.json'
       - 'protocols/predefined/**'
       # The compiler is the Rust core, built here and called through P/Invoke.
       - 'common/npps-core/**'

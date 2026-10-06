@@ -5,7 +5,7 @@ import {
   buildNamespace,
   validateNamespaceReferences,
 } from '../../../../common/lib/nppsParser';
-import { serializeZone, serializeCondition, serializeProtocol } from './nppsSerializer';
+import { serializeZone, serializeCondition, serializeProtocol } from '../../../../common/lib/nppsSerializer';
 import { NP_SOCKET_ID_MAX, NP_SOCKET_ID_MIN } from '../../../../common/lib/socketSet';
 import type {
   NPProtocolDefinition,

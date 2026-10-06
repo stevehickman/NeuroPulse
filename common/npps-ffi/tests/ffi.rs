@@ -3,7 +3,9 @@
 //! core's tests is the marshalling: buffer ownership, UTF-8 (messages contain `—` and `²`),
 //! return codes and the failure paths.
 
-use neurone_npps_ffi::{npps_alloc, npps_compile_json, npps_free, npps_namespace_json, npps_parse_json};
+use neurone_npps_ffi::{
+    npps_alloc, npps_compile_json, npps_free, npps_namespace_json, npps_parse_json, npps_serialize_json, npps_validate_json,
+};
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
@@ -149,4 +151,44 @@ fn namespace_folds_files_through_the_abi_and_reports_a_duplicate() {
     let (code, out) = run(npps_namespace_json, b"not json");
     assert_eq!(code, 1);
     assert!(String::from_utf8(out).unwrap().contains("not JSON"));
+}
+
+#[test]
+fn serialize_writes_the_library_as_the_web_serializer_did() {
+    let g = data("npps-serialize-golden.json");
+    let mut n = 0;
+    for (rel, items) in g["files"].as_object().unwrap() {
+        for item in items.as_array().unwrap() {
+            n += 1;
+            let req = serde_json::json!({ "items": [item["item"]] });
+            let (code, out) = run(npps_serialize_json, req.to_string().as_bytes());
+            assert_eq!(code, 0, "{rel}");
+            assert_eq!(String::from_utf8(out).unwrap(), item["text"].as_str().unwrap(), "{rel}");
+        }
+    }
+    assert!(n > 100);
+}
+
+#[test]
+fn serialize_refuses_with_the_message_in_the_buffer() {
+    let req = br#"{"items":[{"kind":"zone","zone":{"name":"Z","sockets":[0,999]}}]}"#;
+    let (code, out) = run(npps_serialize_json, req);
+    assert_eq!(code, 1);
+    assert_eq!(
+        String::from_utf8(out).unwrap(),
+        "cannot serialize zone \"Z\": 0, 999 are not sockets on this helmet — ids are whole numbers 1–80"
+    );
+}
+
+#[test]
+fn validate_returns_keys_not_text() {
+    let req = br#"{"entry":{"kind":"single","protocol":{"name":"P","timingMode":{"type":"duration","seconds":1200},
+        "modalities":[{"type":"bes_tacs","enabled":true,"params":{"intensityMilliamps":2,"frequencyHz":10,"waveform":"sinusoidal"}}]}},
+        "limits":{},"allProtocols":null}"#;
+    let (code, out) = run(npps_validate_json, req);
+    assert_eq!(code, 0);
+    let v: Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(v["isValid"], false);
+    assert_eq!(v["issues"][0]["message"]["key"], "VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS");
+    assert_eq!(v["issues"][0]["message"]["args"], serde_json::json!(["2", "1"]));
 }

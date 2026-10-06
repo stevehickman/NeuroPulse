@@ -5,7 +5,7 @@ import {
   NPIndividualProfile,
   LimitLevel,
 } from '../../../../common/types/limits';
-import { serializeNPPSLimits } from '../lib/nppsSerializer';
+import { serializeNPPSLimits } from '../../../../common/lib/nppsSerializer';
 import { parseNPPSLimits } from '../../../../common/lib/nppsParser';
 import { limitsStore } from '../lib/limitsStore';
 import { NPHardwareLimits } from '../lib/hardwareLimits';

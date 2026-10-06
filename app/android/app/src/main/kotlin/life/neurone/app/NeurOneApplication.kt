@@ -20,6 +20,7 @@ import life.neurone.core.consumable.ConsumableTracker
 import life.neurone.core.models.SessionState
 import life.neurone.core.protocol.NPLimitsStore
 import life.neurone.core.protocol.NPProtocolLibrary
+import life.neurone.core.protocol.NPValidationText
 import life.neurone.core.research.ResearchSuggestionStore
 import life.neurone.core.session.SessionHistoryStore
 import kotlinx.coroutines.CoroutineScope
@@ -94,6 +95,12 @@ class NeurOneApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         keyValueStore = SharedPrefsKeyValueStore(this)
+        // :core is pure JVM and cannot reach resources, so the validator's locale keys are resolved here. sync-locales
+        // lowercases a key into its resource name and turns `{0}` into `%1$s`.
+        NPValidationText.use { key, args ->
+            val id = resources.getIdentifier(key.lowercase(), "string", packageName)
+            if (id == 0) null else getString(id, *args.toTypedArray())
+        }
         researchAnalyticsGate = ResearchAnalyticsGate(keyValueStore, NoOpAnalyticsBackend())
         warrantyAnalyticsGate = WarrantyAnalyticsGate(keyValueStore)
         consentStore = ConsentStore(keyValueStore, researchAnalyticsGate)

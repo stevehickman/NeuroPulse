@@ -6,7 +6,7 @@ import {
   entryIsPredefined,
 } from '../../../../common/types/protocol';
 import { protocolLibrary } from '../lib/protocolLibrary';
-import { serializeNPPS } from '../lib/nppsSerializer';
+import { serializeNPPS } from '../../../../common/lib/nppsSerializer';
 import { ScriptEditor } from './ScriptEditor';
 import { t, tPlural } from '../../../../common/lib/i18n';
 

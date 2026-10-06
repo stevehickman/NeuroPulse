@@ -13,7 +13,9 @@ pub mod error;
 pub mod js;
 pub mod lexer;
 pub mod parser;
+pub mod serialize;
 pub mod table;
+pub mod validate;
 pub mod wavelength;
 
 pub use error::ParseError;

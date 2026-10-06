@@ -34,6 +34,16 @@ describe('simulator runtime library', () => {
     expect(report.unresolvedReferences).toEqual([]);
   });
 
+  it('runs the shared validator over every loaded protocol and reports its findings as keys', () => {
+    // Against the hardware ceilings alone. The findings on the shipped CW blocks (a 100 % duty against the
+    // 25 % ceiling) are the ones npps-predefined.test.ts waives by name; this only holds the report's shape.
+    expect(report.validationIssues.length).toBeGreaterThan(0);
+    for (const i of report.validationIssues) {
+      expect(i.messageKey).toMatch(/^VALIDATE_/);
+      expect(Object.keys(protocols)).toContain(i.protocol);
+    }
+  });
+
   it('reads every zone from the .npps files', () => {
     expect(zones.length).toBeGreaterThan(0);
     for (const zone of zones) {

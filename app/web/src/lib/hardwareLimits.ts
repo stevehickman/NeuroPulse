@@ -7,6 +7,9 @@ export const NPHardwareLimits = {
   pbmDutyCycleMaxPercent: 25,
   pbmPulsedPeakMWcm2: 400,   // pending RISK-03 regulatory opinion
   pbmCWMaxMWcm2: 200,
+  // Deep 1170 nm PBM ceiling (CLAUDE.md §3: ≤1,000 mW/cm², TEC-stabilised). The shared validator checks it; iOS and
+  // Android already did, and this copy lacked it.
+  pbmDeepMaxMWcm2: 1000,
 
   // BES / tACS (consumer: Brainwave Entrainment Stimulation)
   besTacsMaxMilliamps: 1.0,
