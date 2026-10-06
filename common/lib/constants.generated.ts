@@ -113,3 +113,113 @@ export const NppsStatus = {
   // A null pointer or non-UTF-8 input; no buffer.
   BAD_ARGUMENT: 3,
 } as const;
+
+// The 16-bit id of each characteristic of the NeurOne BLE service. The 128-bit UUID is the base with its second group
+// replaced by the id (4E455550-XXXX-1000-8000-00805F9B34FB), so the base is written once, here, and every runtime builds
+// its UUIDs from it. `hub: true` marks a characteristic the hub firmware publishes; only those reach the firmware
+// header, because a firmware reference is what the consumable-trigger gate reads as 'the hub produces it'.
+export const GattIds = {
+  // The NeurOne custom service.
+  SERVICE: 0x0001,
+  // NOTIFY 4 B.
+  SESSION_STATE: 0x0002,
+  // NOTIFY 4 B.
+  SESSION_STATUS: 0x0003,
+  // NOTIFY 4 B.
+  HRV_COHERENCE: 0x0004,
+  // NOTIFY 4 B.
+  PACER_PHASE: 0x0005,
+  // NOTIFY 4 B.
+  IMPEDANCE_RESULT: 0x0006,
+  // READ/NOTIFY 8 B, WRITE 1 B (OI-ACC-08).
+  CONSUMABLE_STATUS: 0x0007,
+  // WRITE, signed protocol blob.
+  PROTOCOL_UPLOAD: 0x0008,
+  // WRITE, triggers an EDF+ download.
+  EDF_REQUEST: 0x0009,
+  // WRITE/NOTIFY.
+  OTA_COMMAND: 0x000A,
+  // NOTIFY.
+  OTA_STATUS: 0x000B,
+  // WRITE.
+  CALIBRATION_CMD: 0x000C,
+  // READ/NOTIFY, variable length socket-keyed module-status frames.
+  ZONE_MODULE_STATUS: 0x000D,
+  // NOTIFY.
+  SHDR_UPLOAD_STATUS: 0x000E,
+  // WRITE 1 B (0x01 = stop). Placeholder pending hub BLE firmware (OI-WA-03).
+  SESSION_STOP: 0x000F,
+  // READ 32 B, hub-provisioned TRNG warranty token (OI-WA-03).
+  WARRANTY_TOKEN: 0x0010,
+  // READ/NOTIFY 4 B little-endian uint32: bits 23:16 major, 15:8 minor, 7:0 patch.
+  FIRMWARE_VERSION: 0x0011,
+  // READ/NOTIFY, variable length, read once at link.
+  SOCKET_MAP: 0x0012,
+  // NOTIFY 4 B, cervical VNS gel pad contact result, T2 only (OI-ACC-07). Not published by the hub yet.
+  CVNS_PAD_STATUS: 0x0013,
+  // READ/NOTIFY 4+8n B, cervical VNS offline-fault summary and re-enable state (NP-SW-FAULTMSG-001).
+  CVNS_FAULT_STATUS: 0x0014,
+  // WRITE 1 B 0x01, the wearer's re-enable confirmation after a cardiac cutoff.
+  CVNS_REENABLE_CONFIRM: 0x0015,
+  // WRITE 4 B, little-endian opaque tag of the person using the device.
+  ACTIVE_USER: 0x0016,
+  // READ 32 B, encrypted link only (NP-FW-HUB-001 §4.2, OI-AND-WIRE-02).
+  DEVICE_SERIAL: 0x0017,
+} as const;
+
+// The 128-bit UUID of each id above: 4E455550-0000-1000-8000-00805F9B34FB with its second group replaced.
+export const GattUuidStrings = {
+  // The NeurOne custom service.
+  SERVICE: "4e455550-0001-1000-8000-00805f9b34fb",
+  // NOTIFY 4 B.
+  SESSION_STATE: "4e455550-0002-1000-8000-00805f9b34fb",
+  // NOTIFY 4 B.
+  SESSION_STATUS: "4e455550-0003-1000-8000-00805f9b34fb",
+  // NOTIFY 4 B.
+  HRV_COHERENCE: "4e455550-0004-1000-8000-00805f9b34fb",
+  // NOTIFY 4 B.
+  PACER_PHASE: "4e455550-0005-1000-8000-00805f9b34fb",
+  // NOTIFY 4 B.
+  IMPEDANCE_RESULT: "4e455550-0006-1000-8000-00805f9b34fb",
+  // READ/NOTIFY 8 B, WRITE 1 B (OI-ACC-08).
+  CONSUMABLE_STATUS: "4e455550-0007-1000-8000-00805f9b34fb",
+  // WRITE, signed protocol blob.
+  PROTOCOL_UPLOAD: "4e455550-0008-1000-8000-00805f9b34fb",
+  // WRITE, triggers an EDF+ download.
+  EDF_REQUEST: "4e455550-0009-1000-8000-00805f9b34fb",
+  // WRITE/NOTIFY.
+  OTA_COMMAND: "4e455550-000a-1000-8000-00805f9b34fb",
+  // NOTIFY.
+  OTA_STATUS: "4e455550-000b-1000-8000-00805f9b34fb",
+  // WRITE.
+  CALIBRATION_CMD: "4e455550-000c-1000-8000-00805f9b34fb",
+  // READ/NOTIFY, variable length socket-keyed module-status frames.
+  ZONE_MODULE_STATUS: "4e455550-000d-1000-8000-00805f9b34fb",
+  // NOTIFY.
+  SHDR_UPLOAD_STATUS: "4e455550-000e-1000-8000-00805f9b34fb",
+  // WRITE 1 B (0x01 = stop). Placeholder pending hub BLE firmware (OI-WA-03).
+  SESSION_STOP: "4e455550-000f-1000-8000-00805f9b34fb",
+  // READ 32 B, hub-provisioned TRNG warranty token (OI-WA-03).
+  WARRANTY_TOKEN: "4e455550-0010-1000-8000-00805f9b34fb",
+  // READ/NOTIFY 4 B little-endian uint32: bits 23:16 major, 15:8 minor, 7:0 patch.
+  FIRMWARE_VERSION: "4e455550-0011-1000-8000-00805f9b34fb",
+  // READ/NOTIFY, variable length, read once at link.
+  SOCKET_MAP: "4e455550-0012-1000-8000-00805f9b34fb",
+  // NOTIFY 4 B, cervical VNS gel pad contact result, T2 only (OI-ACC-07). Not published by the hub yet.
+  CVNS_PAD_STATUS: "4e455550-0013-1000-8000-00805f9b34fb",
+  // READ/NOTIFY 4+8n B, cervical VNS offline-fault summary and re-enable state (NP-SW-FAULTMSG-001).
+  CVNS_FAULT_STATUS: "4e455550-0014-1000-8000-00805f9b34fb",
+  // WRITE 1 B 0x01, the wearer's re-enable confirmation after a cardiac cutoff.
+  CVNS_REENABLE_CONFIRM: "4e455550-0015-1000-8000-00805f9b34fb",
+  // WRITE 4 B, little-endian opaque tag of the person using the device.
+  ACTIVE_USER: "4e455550-0016-1000-8000-00805f9b34fb",
+  // READ 32 B, encrypted link only (NP-FW-HUB-001 §4.2, OI-AND-WIRE-02).
+  DEVICE_SERIAL: "4e455550-0017-1000-8000-00805f9b34fb",
+} as const;
+
+// Fixed value lengths of the NeurOne BLE service, in bytes.
+export const GattSizes = {
+  // The hub's replay-guard serial (DEVICE_SERIAL characteristic, NP-FW-HUB-001 §4.2): exactly this many bytes,
+  // never padded or truncated.
+  DEVICE_SERIAL_LEN: 32,
+} as const;

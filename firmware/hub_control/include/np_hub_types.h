@@ -14,6 +14,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "np_hub_config.h"
+#include "np_app_wire_constants.h"   /* NP_GATT_DEVICE_SERIAL_LEN, generated from common/npps/constants.json */
 
 /* ═══════════════════════════════════════════════════════════════════════════════
  * Status codes
@@ -121,7 +122,7 @@ typedef struct __attribute__((packed)) {
     uint8_t  cmd_count;                          /* number of commands that follow  */
     uint8_t  session_uuid[NP_HUB_PROTO_UUID_LEN];/* UHDR key — random, from app   */
     uint32_t compiled_at_unix;                   /* UHDR session timestamp          */
-    uint8_t  device_serial[NP_HUB_PROTO_SERIAL_LEN]; /* replay guard               */
+    uint8_t  device_serial[NP_GATT_DEVICE_SERIAL_LEN]; /* replay guard               */
     uint32_t session_duration_ms;                /* total session length            */
 } np_proto_header_t;
 

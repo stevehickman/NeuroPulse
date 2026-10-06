@@ -12,9 +12,9 @@
  *
  * ── UUIDs ───────────────────────────────────────────────────────────────────
  * 4E455550-XXXX-1000-8000-00805F9B34FB, where XXXX is the 16-bit id below and
- * 0x0001 is the service.  These are the strings both apps already carry
- * (GATTCharacteristics.swift NPUUID, GattUuids.kt); np_gatt_uuid128() builds
- * the 16 bytes from the id, so the base is written once.
+ * 0x0001 is the service.  The ids and the base come from the same generated
+ * source as the apps' strings (common/npps/constants.json, GattIds), and
+ * np_gatt_uuid128() builds the 16 bytes from the id, so the base is written once.
  *
  * ── What is published: only what the hub produces ───────────────────────────
  * A characteristic is in the table only if a hub function answers it.  The
@@ -49,14 +49,10 @@
 
 #include "np_hub_types.h"
 
-/* ── Ids (the XXXX of the UUID) ──────────────────────────────────────────────── */
-#define NP_GATT_ID_SERVICE                0x0001u
-#define NP_GATT_ID_CONSUMABLE_STATUS      0x0007u  /* READ/NOTIFY 8 B, WRITE 1 B — OI-ACC-08 */
-#define NP_GATT_ID_WARRANTY_TOKEN         0x0010u  /* READ 32 B — OI-WA-03        */
-#define NP_GATT_ID_CVNS_FAULT_STATUS      0x0014u  /* READ/NOTIFY 4+8n — FAULTMSG */
-#define NP_GATT_ID_CVNS_REENABLE_CONFIRM  0x0015u  /* WRITE 1 B                   */
-#define NP_GATT_ID_ACTIVE_USER            0x0016u  /* WRITE 4 B                   */
-#define NP_GATT_ID_DEVICE_SERIAL          0x0017u  /* READ 32 B — OI-AND-WIRE-02  */
+/* ── Ids (the XXXX of the UUID) ──────────────────────────────────────────────────
+ * NP_GATT_ID_* and the UUID base are generated from common/npps/constants.json (group GattIds), the
+ * one source the apps read as well; only the characteristics this hub publishes are in the header. */
+#include "np_app_wire_constants.h"
 
 /* ── Properties ──────────────────────────────────────────────────────────────── */
 #define NP_GATT_PROP_READ     0x01u

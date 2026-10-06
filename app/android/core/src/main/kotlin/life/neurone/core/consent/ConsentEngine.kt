@@ -9,6 +9,7 @@ import life.neurone.core.models.StudyDescriptorAdmission
 import life.neurone.core.models.StudyDescriptorVerification
 import life.neurone.core.models.StudyInvitation
 import life.neurone.core.models.UHDRElement
+import life.neurone.core.protocol.ConsentLimits
 
 /**
  * One plain-language thing a clinician may do with a grant, and the UHDR elements doing it needs.
@@ -195,13 +196,7 @@ object ConsentEngine {
 
     // ── Study descriptor ingestion (§6.3 per-project workflow) ───────────
 
-    /**
-     * §5.3's anonymisation floors. They are locked, and the device is the only place they can be
-     * enforced, because §5.3 puts the anonymisation on the device: a descriptor that asks for
-     * weaker anonymisation than this is not one a user may be asked to consent to.
-     */
-    const val MINIMUM_K_ANONYMITY = 10
-    const val MINIMUM_DATE_ROUNDING_DAYS = 7
+    // §5.3's anonymisation floors are `ConsentLimits` (common/npps/constants.json), generated for every runtime.
 
     /**
      * The **ingestion gate**: whether a signed study descriptor may become something the user
@@ -238,8 +233,8 @@ object ConsentEngine {
             is StudyDescriptorVerification.Verified -> verification.descriptorHash
         }
 
-        if (descriptor.kAnonymity < MINIMUM_K_ANONYMITY ||
-            descriptor.dateRoundingDays < MINIMUM_DATE_ROUNDING_DAYS
+        if (descriptor.kAnonymity < ConsentLimits.MINIMUM_K_ANONYMITY ||
+            descriptor.dateRoundingDays < ConsentLimits.MINIMUM_DATE_ROUNDING_DAYS
         ) {
             return StudyDescriptorAdmission.Refused(
                 StudyDescriptorAdmission.Reason.ANONYMISATION_BELOW_FLOOR,

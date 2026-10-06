@@ -10,7 +10,7 @@ import * as generated from './constants.generated';
 const read = (rel: string) => readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8');
 
 interface Constant { name: string; value: number; int?: boolean }
-interface Group { name: string; rust: string; targets: string[]; constants: Constant[] }
+interface Group { name: string; rust: string; targets: string[]; uuidBase?: string; constants: Constant[] }
 const groups = (JSON.parse(read('common/npps/constants.json')) as { groups: Group[] }).groups;
 
 const UPPER_SNAKE = /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/;
@@ -29,12 +29,23 @@ describe('shared constants', () => {
   it('the generated web constants are the file\'s, group by group (vacuity guard: every group aimed at ts, every constant)', () => {
     const forTs = groups.filter(g => g.targets.includes('ts'));
     expect(forTs.length).toBeGreaterThanOrEqual(2);
-    expect(Object.keys(generated).sort()).toEqual(forTs.map(g => g.name).sort());
+    // A group with a uuidBase also gets its UUID strings in a sibling container (GattIds -> GattUuidStrings).
+    const uuidTables = forTs.filter(g => g.uuidBase).map(g => g.name.replace(/Ids$/, 'UuidStrings'));
+    expect(Object.keys(generated).sort()).toEqual([...forTs.map(g => g.name), ...uuidTables].sort());
     for (const g of forTs) {
       const got = (generated as Record<string, Record<string, number>>)[g.name]!;
       expect(Object.keys(got).sort()).toEqual(g.constants.map(c => c.name).sort());
       for (const c of g.constants) expect(got[c.name], `${g.name}.${c.name}`).toBe(c.value);
     }
+  });
+
+  it('every GATT UUID is the base with its id, and no id or UUID repeats', () => {
+    const gatt = groups.find(g => g.name === 'GattIds')!;
+    const uuids = (generated as Record<string, Record<string, string>>).GattUuidStrings!;
+    for (const c of gatt.constants) {
+      expect(uuids[c.name], c.name).toBe(gatt.uuidBase!.replace('-0000-', `-${c.value.toString(16).toUpperCase().padStart(4, '0')}-`).toLowerCase());
+    }
+    expect(new Set(gatt.constants.map(c => c.value)).size).toBe(gatt.constants.length);
   });
 
   it('the hardware limits the editors and the validator share are in the file', () => {

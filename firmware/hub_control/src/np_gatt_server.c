@@ -16,12 +16,8 @@
 #include "np_sw02_platform_hal.h"
 #include "np_warranty_token.h"
 
-/* 4E455550-0000-1000-8000-00805F9B34FB, least-significant byte first; the id
- * (the second group) goes in bytes 10–11. */
-static const uint8_t UUID_BASE[16] = {
-    0xFBu, 0x34u, 0x9Bu, 0x5Fu, 0x80u, 0x00u, 0x00u, 0x80u,
-    0x00u, 0x10u, 0x00u, 0x00u, 0x50u, 0x55u, 0x45u, 0x4Eu,
-};
+/* The UUID base, least-significant byte first (np_app_wire_constants.h, generated from common/npps/constants.json). */
+static const uint8_t UUID_BASE[16] = NP_GATT_UUID_BASE_INIT;
 
 /* ── Handlers ───────────────────────────────────────────────────────────────── */
 
@@ -43,12 +39,12 @@ static np_hub_status_t read_warranty_token(uint8_t *buf, size_t cap, size_t *len
  * construction the value np_protocol_verify_and_parse() compares with. */
 static np_hub_status_t read_device_serial(uint8_t *buf, size_t cap, size_t *len_out)
 {
-    if (cap < NP_HUB_PROTO_SERIAL_LEN) {
+    if (cap < NP_GATT_DEVICE_SERIAL_LEN) {
         return NP_HUB_ERR_INVALID_ARG;
     }
-    np_hub_status_t st = np_proto_hal_get_device_serial(buf, NP_HUB_PROTO_SERIAL_LEN);
+    np_hub_status_t st = np_proto_hal_get_device_serial(buf, NP_GATT_DEVICE_SERIAL_LEN);
     if (st == NP_HUB_OK) {
-        *len_out = NP_HUB_PROTO_SERIAL_LEN;
+        *len_out = NP_GATT_DEVICE_SERIAL_LEN;
     }
     return st;
 }
@@ -66,7 +62,7 @@ static const np_gatt_char_t TABLE[] = {
       (uint8_t)NP_WARRANTY_TOKEN_LEN, 0u, read_warranty_token, NULL },
 
     { NP_GATT_ID_DEVICE_SERIAL, NP_GATT_PROP_READ | NP_GATT_PROP_ENC,
-      (uint8_t)NP_HUB_PROTO_SERIAL_LEN, 0u, read_device_serial, NULL },
+      (uint8_t)NP_GATT_DEVICE_SERIAL_LEN, 0u, read_device_serial, NULL },
 
     { NP_GATT_ID_CVNS_FAULT_STATUS, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
       (uint8_t)NP_CVFS_FRAME_MAX, 0u, np_cvfs_read, NULL },
@@ -84,7 +80,7 @@ _Static_assert(NP_CVFS_FRAME_MAX <= NP_GATT_VALUE_MAX,
                "NP_GATT_VALUE_MAX must hold the CVNS_FAULT_STATUS frame");
 _Static_assert(NP_WARRANTY_TOKEN_LEN <= NP_GATT_VALUE_MAX,
                "NP_GATT_VALUE_MAX must hold the warranty token");
-_Static_assert(NP_HUB_PROTO_SERIAL_LEN <= NP_GATT_VALUE_MAX,
+_Static_assert(NP_GATT_DEVICE_SERIAL_LEN <= NP_GATT_VALUE_MAX,
                "NP_GATT_VALUE_MAX must hold the device serial");
 
 static const np_gatt_char_t *find(uint16_t id)
@@ -102,8 +98,8 @@ static const np_gatt_char_t *find(uint16_t id)
 void np_gatt_uuid128(uint16_t id, uint8_t out[16])
 {
     memcpy(out, UUID_BASE, sizeof(UUID_BASE));
-    out[10] = (uint8_t)(id & 0xFFu);
-    out[11] = (uint8_t)(id >> 8);
+    out[NP_GATT_UUID_ID_OFFSET] = (uint8_t)(id & 0xFFu);
+    out[NP_GATT_UUID_ID_OFFSET + 1] = (uint8_t)(id >> 8);
 }
 
 const np_gatt_char_t *np_gatt_table(size_t *count_out)

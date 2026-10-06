@@ -60,7 +60,7 @@ void np_gatt_hal_notify(uint16_t id, const uint8_t *data, size_t len)
 }
 
 /* Device serial (OI-AND-WIRE-02): the same seam np_protocol.c compares against. */
-static uint8_t         g_serial[NP_HUB_PROTO_SERIAL_LEN];
+static uint8_t         g_serial[NP_GATT_DEVICE_SERIAL_LEN];
 static np_hub_status_t g_serial_rc;
 
 np_hub_status_t np_proto_hal_get_device_serial(uint8_t *buf, size_t len)
@@ -443,7 +443,7 @@ static void test_device_serial(void)
     }
 
     check(np_gatt_on_read(NP_GATT_ID_DEVICE_SERIAL, 0U, buf, sizeof buf, &len) == NP_ATT_OK &&
-          len == NP_HUB_PROTO_SERIAL_LEN && memcmp(buf, g_serial, len) == 0,
+          len == NP_GATT_DEVICE_SERIAL_LEN && memcmp(buf, g_serial, len) == 0,
           "serial: the read serves the bytes the protocol check compares with");
 
     size_t n = 0U;
