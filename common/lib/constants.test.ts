@@ -33,7 +33,7 @@ describe('shared constants', () => {
     const uuidTables = forTs.filter(g => g.uuidBase).map(g => g.name.replace(/Ids$/, 'UuidStrings'));
     expect(Object.keys(generated).sort()).toEqual([...forTs.map(g => g.name), ...uuidTables].sort());
     for (const g of forTs) {
-      const got = (generated as Record<string, Record<string, number>>)[g.name]!;
+      const got = (generated as unknown as Record<string, Record<string, number>>)[g.name]!;
       expect(Object.keys(got).sort()).toEqual(g.constants.map(c => c.name).sort());
       for (const c of g.constants) expect(got[c.name], `${g.name}.${c.name}`).toBe(c.value);
     }
@@ -41,7 +41,7 @@ describe('shared constants', () => {
 
   it('every GATT UUID is the base with its id, and no id or UUID repeats', () => {
     const gatt = groups.find(g => g.name === 'GattIds')!;
-    const uuids = (generated as Record<string, Record<string, string>>).GattUuidStrings!;
+    const uuids = (generated as unknown as Record<string, Record<string, string>>).GattUuidStrings!;
     for (const c of gatt.constants) {
       expect(uuids[c.name], c.name).toBe(gatt.uuidBase!.replace('-0000-', `-${c.value.toString(16).toUpperCase().padStart(4, '0')}-`).toLowerCase());
     }

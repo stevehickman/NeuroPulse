@@ -118,12 +118,14 @@ const PENDING_PATHS: Array<[string, string]> = [
  *     classes that are English by definition ("Expected 'protocol', got ...").
  *     They read as compiler output; the DSL itself is not localized.
  *   - Exhaustiveness/invariant throws are programmer errors that never render.
+ *   - Generated constants (scripts/sync-constants.ts): the GATT UUID strings are wire identifiers, not copy.
  */
 const DIAGNOSTIC_FILES = [
   "app/ios/NeurOne/Protocol/NPProtocolScripting.swift",
   "app/ios/NeurOne/Protocol/NPPSParser.swift",
   "app/ios/NeurOne/Protocol/NPNamespace.swift",
   "app/ios/NeurOne/Protocol/NPBundledProtocols.swift",
+  "app/ios/NeurOne/Protocol/NppsConstants.generated.swift",
   "common/lib/nppsParser.ts",
   "common/lib/nppsCore.ts",
   "common/lib/nppsSerializer.ts",
