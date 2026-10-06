@@ -13,9 +13,6 @@ import SwiftUI
 
 struct AgeGateView: View {
 
-    /// UserDefaults key persisting age-gate completion (ISC-87).
-    static let AGE_CONFIRMED_DEFAULTS_KEY = "np.onboarding.age-confirmed"
-
     // MARK: - User-visible strings
 
     enum Strings {
@@ -138,7 +135,7 @@ struct AgeGateView: View {
         // Guard: only proceed when confirmed. The button is already disabled
         // until `ageConfirmed`, but this keeps the side effect honest.
         guard ageConfirmed else { return }
-        UserDefaults.standard.set(true, forKey: Self.AGE_CONFIRMED_DEFAULTS_KEY)
+        UserDefaults.standard.set(true, forKey: PersistedKeys.AGE_CONFIRMED_KEY)
         onComplete()
     }
 }

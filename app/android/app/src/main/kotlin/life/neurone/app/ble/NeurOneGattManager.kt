@@ -17,6 +17,7 @@ import life.neurone.core.models.SocketMapFrameAssembler
 import life.neurone.core.models.ZoneModuleConfiguration
 import life.neurone.core.models.ZoneModuleFrameAssembler
 import life.neurone.core.protocol.GattUuidStrings
+import life.neurone.core.protocol.PersistedKeys
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -406,7 +407,7 @@ class NeurOneGattManager(
     }
 
     private val cervicalFaultLedgerKey: String
-        get() = CERVICAL_FAULT_LEDGER_KEY + "." + (activeUserTag?.toString() ?: "unnamed")
+        get() = PersistedKeys.CERVICAL_FAULT_LEDGER_KEY + "." + (activeUserTag?.toString() ?: "unnamed")
 
     private var cervicalFaultLedger: CervicalFaultLedger
         get() = CervicalFaultLedger(ledgerStore.getString(cervicalFaultLedgerKey)?.toLongOrNull())
@@ -465,6 +466,5 @@ class NeurOneGattManager(
     }
 
     private companion object {
-        const val CERVICAL_FAULT_LEDGER_KEY = "np.cvns.fault-ledger.last-acknowledged-session"   // iOS parity
     }
 }

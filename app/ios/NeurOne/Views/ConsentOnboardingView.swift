@@ -359,7 +359,7 @@ struct ConsentOnboardingView: View {
         // Re-opening the gate straight after a blanket withdrawal would undo the teardown the
         // commit just performed, so Done does not re-grant in that case.
         if grantResearchAnalytics && !isBlanketWithdrawal {
-            UserDefaults.standard.set(true, forKey: ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY)
+            UserDefaults.standard.set(true, forKey: PersistedKeys.RESEARCH_ANALYTICS_KEY)
             ResearchAnalyticsGate.configure()
         }
         isPresented = false

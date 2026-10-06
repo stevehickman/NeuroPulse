@@ -129,10 +129,6 @@ struct OTASession {
     var totalBytes: Int = 0
     var sentBytes: Int = 0
 
-    // ATT_MTU(512) − 3B ATT header − 1B OTA opcode − 2B chunk index = 506 max.
-    // Using 496 leaves a safe margin for GATT stack overhead variations.
-    static let CHUNK_SIZE = 496
-
     var isActive: Bool { completedAt == nil && sentBytes > 0 }
     var bytesProgress: Double { totalBytes > 0 ? Double(sentBytes) / Double(totalBytes) : 0 }
 

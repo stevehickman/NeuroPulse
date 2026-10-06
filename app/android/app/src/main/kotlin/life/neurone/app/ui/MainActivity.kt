@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.fragment.app.FragmentActivity
 import life.neurone.app.NeurOneApplication
 import life.neurone.app.R
+import life.neurone.core.protocol.PersistedKeys
 
 // FragmentActivity (not ComponentActivity) — required by BiometricPrompt for
 // the UHDR key credential flow.
@@ -53,7 +54,7 @@ private fun Root(app: NeurOneApplication) {
     // Onboarding gates precede ALL personal-data collection or display
     // (parity with iOS: age gate before consent layers, BIPA before EEG).
     var ageConfirmed by remember {
-        mutableStateOf(app.keyValueStore.getBoolean(OnboardingKeys.AGE_CONFIRMED))
+        mutableStateOf(app.keyValueStore.getBoolean(PersistedKeys.AGE_CONFIRMED_KEY))
     }
     var bipaAccepted by remember {
         mutableStateOf(app.keyValueStore.getBoolean(OnboardingKeys.BIPA_ACCEPTED))
@@ -65,7 +66,7 @@ private fun Root(app: NeurOneApplication) {
     when {
         !ageConfirmed -> AgeGateScreen(
             onConfirmed = {
-                app.keyValueStore.putBoolean(OnboardingKeys.AGE_CONFIRMED, true)
+                app.keyValueStore.putBoolean(PersistedKeys.AGE_CONFIRMED_KEY, true)
                 ageConfirmed = true
             },
         )
@@ -251,7 +252,6 @@ private fun SessionTab(app: NeurOneApplication, modifier: Modifier) {
 }
 
 object OnboardingKeys {
-    const val AGE_CONFIRMED = "np.onboarding.age-confirmed"
     const val BIPA_ACCEPTED = "np.onboarding.bipa-accepted"
     const val CONSENT_SHOWN = "np.onboarding.consent-shown"
 }

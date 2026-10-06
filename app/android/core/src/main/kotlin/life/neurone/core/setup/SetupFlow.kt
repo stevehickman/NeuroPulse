@@ -2,6 +2,7 @@ package life.neurone.core.setup
 
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.models.ZoneModuleConfiguration
+import life.neurone.core.protocol.PersistedKeys
 
 // Port of the state-machine core of iOS HardwareSetupManager (the pure, testable part —
 // GATT-async confirmation stays in the :app ViewModel). Guides first-session hardware setup:
@@ -36,7 +37,6 @@ enum class SetupStep(val index: Int) {
 class SetupFlow(private val store: KeyValueStore) {
 
     companion object {
-        const val FIRST_SETUP_KEY = "np.setup.first-complete"
         /** Electrodes (of 8) that must pass impedance — a safety threshold, not configurable. */
         const val MINIMUM_IMPEDANCE_PASS_COUNT = 6
         const val EXPECTED_ELECTRODE_COUNT = 8
@@ -50,7 +50,7 @@ class SetupFlow(private val store: KeyValueStore) {
     var safetyAcknowledged: Boolean = false
         private set
 
-    val isFirstSetupComplete: Boolean get() = store.getBoolean(FIRST_SETUP_KEY)
+    val isFirstSetupComplete: Boolean get() = store.getBoolean(PersistedKeys.FIRST_SETUP_KEY)
 
     sealed interface AdvanceResult {
         data object Advanced : AdvanceResult
@@ -64,7 +64,7 @@ class SetupFlow(private val store: KeyValueStore) {
         }
         val next = SetupStep.from(currentStep.index + 1) ?: return AdvanceResult.AtEnd
         currentStep = next
-        if (currentStep == SetupStep.COMPLETE) store.putBoolean(FIRST_SETUP_KEY, true)
+        if (currentStep == SetupStep.COMPLETE) store.putBoolean(PersistedKeys.FIRST_SETUP_KEY, true)
         return AdvanceResult.Advanced
     }
 

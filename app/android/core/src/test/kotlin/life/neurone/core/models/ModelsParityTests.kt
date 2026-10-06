@@ -1,5 +1,6 @@
 package life.neurone.core.models
 
+import life.neurone.core.protocol.BleTransfer
 import life.neurone.core.protocol.GattUuidStrings
 import life.neurone.core.ble.CalibrationOpcode
 import life.neurone.core.ble.OtaOpcode
@@ -156,7 +157,7 @@ class ModelsParityTests {
         assertEquals("1 KB", OtaSession.formattedBytes(1024))
         // 1536 B = 1.5 KB → rounds half up to 2 KB (not banker's "0/1 KB")
         assertEquals("2 KB", OtaSession.formattedBytes(1536))
-        assertEquals(496, OtaSession.CHUNK_SIZE)
+        assertEquals(496, BleTransfer.OTA_CHUNK_SIZE)
     }
 
     // ── Clinician tier → UHDR element mapping (ISC-18) ───────────────────

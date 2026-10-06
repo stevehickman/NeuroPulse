@@ -1,6 +1,7 @@
 package life.neurone.core.consumable
 
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.protocol.PersistedKeys
 
 /**
  * The replacement reset for CONSUMABLE_STATUS (OI-ACC-08, GitHub #381). Port of iOS
@@ -24,12 +25,11 @@ object ConsumableResetWire {
 
 class ConsumableResetQueue(private val store: KeyValueStore) {
     companion object {
-        const val KEY = "np.consumable.pending-resets"
     }
 
     /** Kinds replaced and not yet written to the hub, in kind order, no duplicates. */
     val pending: List<Int>
-        get() = store.getString(KEY)
+        get() = store.getString(PersistedKeys.CONSUMABLE_RESET_KEY)
             ?.split(",")
             ?.mapNotNull { it.toIntOrNull() }
             ?.filter { ConsumableResetWire.encode(it) != null }
@@ -51,6 +51,6 @@ class ConsumableResetQueue(private val store: KeyValueStore) {
     }
 
     private fun save(kinds: List<Int>) {
-        if (kinds.isEmpty()) store.remove(KEY) else store.putString(KEY, kinds.joinToString(","))
+        if (kinds.isEmpty()) store.remove(PersistedKeys.CONSUMABLE_RESET_KEY) else store.putString(PersistedKeys.CONSUMABLE_RESET_KEY, kinds.joinToString(","))
     }
 }

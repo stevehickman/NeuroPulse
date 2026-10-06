@@ -16,8 +16,8 @@
  * part of v1.  REQ-FWHUB-10's bump-on-length-change applies from the first
  * shipped descriptor (NP-FW-HUB-001 §4.5).                                   */
 #define NP_HUB_PROTO_VERSION        0x0001U
-#define NP_HUB_PROTO_UUID_LEN       16U            /* session UUID (UHDR key) */
-#define NP_HUB_PROTO_SIG_LEN        64U            /* Ed25519 signature */
+/* NP_HUB_PROTO_UUID_LEN and NP_HUB_PROTO_SIG_LEN come from np_app_wire_constants.h, generated from
+ * common/npps/constants.json (group HubDescriptorWire), the one source the apps size the blob from. */
 #define NP_HUB_PROTO_CMD_MAX        64U            /* max commands per session */
 #define NP_HUB_PROTO_PARAMS_MAX     64U            /* max params bytes per command */
 
@@ -136,6 +136,7 @@
 
 #define NP_SAFETY_SPI_TIMEOUT_MS    10U
 #include "../../common/include/np_spi_wire_types.h"
+#include "np_app_wire_constants.h"
 
 /* The NP_SAFETY_EN_* enable bits are in np_spi_wire_types.h — one definition
  * for both processors.  The safety MCU owns the GPIO that physically gates each

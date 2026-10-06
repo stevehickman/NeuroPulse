@@ -4,6 +4,7 @@ import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.models.ZoneModuleConfiguration
 import life.neurone.core.models.ZoneModuleStatus
 import life.neurone.core.models.ZoneModuleType
+import life.neurone.core.protocol.PersistedKeys
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -50,7 +51,7 @@ class SetupFlowTests {
             if (f.currentStep == SetupStep.SAFETY_ACKNOWLEDGEMENT) f.acknowledgeSafety()
             f.advance()
         }
-        assertTrue(store.getBoolean(SetupFlow.FIRST_SETUP_KEY))
+        assertTrue(store.getBoolean(PersistedKeys.FIRST_SETUP_KEY))
         assertTrue(f.isFirstSetupComplete)
     }
 

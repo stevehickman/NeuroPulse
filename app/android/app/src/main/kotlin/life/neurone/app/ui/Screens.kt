@@ -26,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import life.neurone.app.NeurOneApplication
 import life.neurone.app.R
+import life.neurone.core.protocol.PersistedKeys
 
 // Screen skeletons — structure and privacy wiring in place; visual completion
 // tracked as follow-up work in app/android/ISA.md (Out of Scope note).
@@ -198,7 +199,7 @@ private fun SettingsContent(
                         app.consentStore.revokeResearchAnalytics()
                     } else {
                         app.keyValueStore.putBoolean(
-                            life.neurone.core.analytics.ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY,
+                            life.neurone.core.protocol.PersistedKeys.RESEARCH_ANALYTICS_KEY,
                             true,
                         )
                         app.researchAnalyticsGate.configure()

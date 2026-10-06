@@ -40,24 +40,10 @@ enum ResearchAnalyticsGate {
         "imp", "impedance", "impedance_flags", "pass_flags"
     ]
 
-    /// The UserDefaults key set when the user **actively completes** the consent
-    /// onboarding flow (taps Done on the final layer). Distinct from
-    /// `np.onboarding.consent-shown` which is set when the view appears, and from
-    /// the retired `np.onboarding.consent-accepted` which conflated "onboarding
-    /// completed" with "research analytics consented."
-    ///
-    /// NOT set when the user presses Skip — skipping defers all data decisions
-    /// including research analytics. Cleared by blanket research consent withdrawal
-    /// because blanket withdrawal implies full data-collection opt-out.
-    ///
-    /// NOT the same as `WarrantyAnalyticsGate.WARRANTY_CONSENT_KEY` — research and
-    /// warranty consent are independent and must never share a UserDefaults key.
-    static let RESEARCH_ANALYTICS_KEY = "np.research.consent-granted"
-
     /// True only when the user has actively completed the research consent flow
     /// (tapped Done, not Skip), as recorded by `RESEARCH_ANALYTICS_KEY`.
     static var isOpen: Bool {
-        UserDefaults.standard.bool(forKey: RESEARCH_ANALYTICS_KEY)
+        UserDefaults.standard.bool(forKey: PersistedKeys.RESEARCH_ANALYTICS_KEY)
     }
 
     /// The active analytics backend. Defaults to `PostHogAnalyticsBackend` in

@@ -1,6 +1,7 @@
 package life.neurone.core.research
 
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.protocol.PersistedKeys
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import java.time.LocalDate
@@ -15,7 +16,6 @@ class ResearchSuggestionStore(
     private val today: () -> String = { LocalDate.now().toString() },
 ) {
     companion object {
-        const val STORAGE_KEY = "np.research.suggestions"
         const val TOKEN_KEY = "np.research.device-token"
     }
 
@@ -83,13 +83,13 @@ class ResearchSuggestionStore(
     // MARK: Persistence
 
     private fun load() {
-        val blob = store.getString(STORAGE_KEY) ?: return
+        val blob = store.getString(PersistedKeys.RESEARCH_SUGGESTIONS_KEY) ?: return
         suggestions = runCatching {
             json.decodeFromString(ListSerializer(ResearchSuggestion.serializer()), blob)
         }.getOrDefault(emptyList())
     }
 
     private fun save() {
-        store.putString(STORAGE_KEY, json.encodeToString(ListSerializer(ResearchSuggestion.serializer()), suggestions))
+        store.putString(PersistedKeys.RESEARCH_SUGGESTIONS_KEY, json.encodeToString(ListSerializer(ResearchSuggestion.serializer()), suggestions))
     }
 }

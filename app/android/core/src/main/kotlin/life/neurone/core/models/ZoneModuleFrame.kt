@@ -1,5 +1,7 @@
 package life.neurone.core.models
 
+import life.neurone.core.protocol.ZoneNotify
+
 // Port of iOS ZoneModuleFrame.swift (app/ios/NeurOne/BLE/ZoneModuleFrame.swift).
 //
 // Decoders and reassembler for the two zone-module characteristics. The wire contract lives in
@@ -23,27 +25,6 @@ package life.neurone.core.models
 /** Shared header constants and parsing for both frame kinds. */
 object ZoneFrameFormat {
 
-    /**
-     * Mirrors `NP_ZN_FORMAT_VERSION`. Version 0 is the retired 5-byte one-byte-per-slot payload,
-     * which had no version byte at all — so a hub still speaking it decodes as 0 and is rejected
-     * rather than misread.
-     */
-    const val VERSION = 0x02
-    const val HEADER_BYTES = 4
-    const val STATUS_RECORD_BYTES = 3
-    const val MAP_RECORD_BYTES = 8
-
-    /** Mirrors `NP_ZN_MAX_SOCKET_ID` — the full 7-bit addressing domain, 1-based. */
-    const val MAX_SOCKET_ID = 128
-
-    const val FLAG_SNAPSHOT = 0x01
-    const val FLAG_LAST = 0x02
-    const val FLAG_MAP = 0x04
-
-    const val REC_PRESENT = 0x01
-    const val REC_FAULT = 0x02
-    const val MAP_WIRED = 0x01
-
     data class Header(
         val isSnapshot: Boolean,
         val isLastFragment: Boolean,
@@ -58,16 +39,16 @@ object ZoneFrameFormat {
      * than partially believed.
      */
     fun parseHeader(data: ByteArray, expectMap: Boolean): Header? {
-        if (data.size < HEADER_BYTES) return null
-        if (data.u8(0) != VERSION) return null
+        if (data.size < ZoneNotify.HEADER_BYTES) return null
+        if (data.u8(0) != ZoneNotify.FORMAT_VERSION) return null
         val flags = data.u8(1)
-        if (((flags and FLAG_MAP) != 0) != expectMap) return null
+        if (((flags and ZoneNotify.FLAG_MAP) != 0) != expectMap) return null
         val count = data.u8(3)
-        val recordBytes = if (expectMap) MAP_RECORD_BYTES else STATUS_RECORD_BYTES
-        if (data.size < HEADER_BYTES + count * recordBytes) return null
+        val recordBytes = if (expectMap) ZoneNotify.MAP_REC_BYTES else ZoneNotify.STATUS_REC_BYTES
+        if (data.size < ZoneNotify.HEADER_BYTES + count * recordBytes) return null
         return Header(
-            isSnapshot = (flags and FLAG_SNAPSHOT) != 0,
-            isLastFragment = (flags and FLAG_LAST) != 0,
+            isSnapshot = (flags and ZoneNotify.FLAG_SNAPSHOT) != 0,
+            isLastFragment = (flags and ZoneNotify.FLAG_LAST) != 0,
             fragmentIndex = data.u8(2),
             recordCount = count,
         )
@@ -93,7 +74,7 @@ data class SocketMapFrame(
             val h = parseHeader(data, expectMap = true) ?: return null
             val decoded = ArrayList<SocketDescriptor>(h.recordCount)
             for (i in 0 until h.recordCount) {
-                val r = HEADER_BYTES + i * MAP_RECORD_BYTES
+                val r = ZoneNotify.HEADER_BYTES + i * ZoneNotify.MAP_REC_BYTES
                 val socketId = data.u8(r)
                 if (!isValidSocketId(socketId)) return null
                 // Aircraft body axes, int16 little-endian: +x forward, +y right, +z down.
@@ -104,7 +85,7 @@ data class SocketMapFrame(
                         rightMm = data.leInt16(r + 4),
                         downMm = data.leInt16(r + 6),
                     ),
-                    isWiredInShell = (data.u8(r + 1) and MAP_WIRED) != 0,
+                    isWiredInShell = (data.u8(r + 1) and ZoneNotify.MAP_WIRED) != 0,
                 )
             }
             SocketMapFrame(h.isLastFragment, h.fragmentIndex, decoded)
@@ -124,14 +105,14 @@ data class ZoneModuleFrame(
             val h = parseHeader(data, expectMap = false) ?: return null
             val decoded = ArrayList<ZoneModuleStatus>(h.recordCount)
             for (i in 0 until h.recordCount) {
-                val r = HEADER_BYTES + i * STATUS_RECORD_BYTES
+                val r = ZoneNotify.HEADER_BYTES + i * ZoneNotify.STATUS_REC_BYTES
                 val socketId = data.u8(r)
                 if (!isValidSocketId(socketId)) return null
                 val recFlags = data.u8(r + 2)
-                val fault = (recFlags and REC_FAULT) != 0
+                val fault = (recFlags and ZoneNotify.REC_FAULT) != 0
                 // Firmware clears presence on fault; re-assert it here so a hub that ever sends
                 // both cannot produce a "present" faulted module.
-                val present = (recFlags and REC_PRESENT) != 0 && !fault
+                val present = (recFlags and ZoneNotify.REC_PRESENT) != 0 && !fault
                 decoded += ZoneModuleStatus(
                     socketId = socketId,
                     moduleType = ZoneModuleType.from(data.u8(r + 1)),
@@ -153,7 +134,7 @@ data class ZoneModuleFrame(
 class FragmentRunAssembler<T> {
 
     /** Bounds the buffer so a hub that never terminates a run cannot grow it without limit. */
-    private val maxRecords = ZoneFrameFormat.MAX_SOCKET_ID
+    private val maxRecords = ZoneNotify.MAX_SOCKET_ID
 
     private var pending = mutableListOf<T>()
     private var expectedFragment = 0

@@ -3,6 +3,7 @@ package life.neurone.core.consent
 import life.neurone.core.models.StudyDescriptor
 import life.neurone.core.models.StudyDescriptorVerification
 import life.neurone.core.models.StudyDescriptorVerifier
+import life.neurone.core.protocol.PersistedKeys
 import java.security.KeyFactory
 import java.security.MessageDigest
 import java.security.Signature
@@ -40,8 +41,6 @@ import java.util.Base64
  */
 object StudyDescriptorCanonicalForm {
 
-    const val VERSION = "NP-STUDY-DESCRIPTOR-V1"
-
     /** The exact bytes signed, and the bytes [descriptorHash] digests. */
     fun bytes(descriptor: StudyDescriptor): ByteArray {
         val out = StringBuilder()
@@ -49,7 +48,7 @@ object StudyDescriptorCanonicalForm {
             val encoded = value.toByteArray(Charsets.UTF_8)
             out.append(encoded.size).append(':').append(value).append('\n')
         }
-        out.append(VERSION).append('\n')
+        out.append(PersistedKeys.STUDY_DESCRIPTOR_VERSION).append('\n')
         field(descriptor.studyId)
         field(descriptor.studyTitle)
         field(descriptor.researchCategories.joinToString(",") { it.wireName })

@@ -234,3 +234,16 @@ static class GattSizes
     /// bytes, never padded or truncated.
     public const int DEVICE_SERIAL_LEN = 32;
 }
+
+/// Sizes and flags of the signed session descriptor the apps build and the hub verifies (NP-FW-HUB-001 §4).
+static class HubDescriptorWire
+{
+    /// The session UUID, the UHDR key.
+    public const int UUID_LEN = 16;
+    /// The Ed25519 signature at the end of the blob.
+    public const int SIG_LEN = 64;
+    /// Descriptor flag bit 0, computed by the app. It carries no authority: no firmware decision reads it,
+    /// because whether a protocol is T2 comes from its modality set and whether this unit may run one is
+    /// the safety MCU's signed tier identity (RISK-PWRSRC-10).
+    public const byte FLAG_T2_TIER = 1;
+}

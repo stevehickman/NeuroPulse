@@ -267,3 +267,121 @@ enum CvfsWire {
     /// Most records one frame carries.
     static let MAX_WIRE_RECORDS: Int = 4
 }
+
+/// The ZONE_MODULE_STATUS notification frame (np_zone_notify.h): a 4-byte header then fixed-size records, either status
+/// records or socket-map records. The hub writes it and both apps parse it. Version 2 is the static/dynamic split: status
+/// records dropped from 4 to 3 bytes when anatomy moved into the socket map. Version 1 (anatomy inline on every change)
+/// was never deployed, and version 0 was the retired 5-byte payload with no version byte, so a hub still speaking it
+/// decodes as 0 and is rejected rather than misread.
+enum ZoneNotify {
+    /// Byte 0 of every frame.
+    static let FORMAT_VERSION: UInt8 = 0x02
+    /// Header bytes before the first record: byte 0 format version, byte 1 flags (including the frame kind
+    /// bit), byte 2 fragment index (0-based), byte 3 record count in this fragment.
+    static let HEADER_BYTES: Int = 4
+    /// Status record: socket id (1-based), module type, flags.
+    static let STATUS_REC_BYTES: Int = 3
+    /// Map record: socket id (1-based), flags, then x_mm, y_mm, z_mm as int16 little-endian.
+    static let MAP_REC_BYTES: Int = 8
+    /// Largest 1-based socket id the wire can carry. Firmware ids are 0-based over NP_HEXMAP_MAX_SOCKETS
+    /// (128), so the 1-based domain is 1..128, exactly a uint8_t's usable range above zero. Pinned by a
+    /// static assert in np_zone_notify.c against NP_HEXMAP_MAX_SOCKETS.
+    static let MAX_SOCKET_ID: UInt8 = 128
+    /// Frame flag (byte 1): this fragment belongs to a full snapshot. Clear = incremental delta naming only
+    /// the sockets that changed. Socket-map frames are always snapshots.
+    static let FLAG_SNAPSHOT: UInt8 = 0x01
+    /// Frame flag (byte 1): final fragment of this frame sequence. A snapshot is committed by the app only
+    /// when a fragment carrying this flag arrives.
+    static let FLAG_LAST: UInt8 = 0x02
+    /// Frame flag (byte 1), the frame KIND: set = socket-map records, clear = status records. The two
+    /// shapes differ in size, so a decoder that assumed the wrong one would misparse rather than fail; the
+    /// kind is on the wire so it can be checked, not inferred from which characteristic delivered it.
+    static let FLAG_MAP: UInt8 = 0x04
+    /// Status-record flag (record byte 2): a module is seated and confirmed in this socket. Clear = socket
+    /// is empty (a removal, or an empty socket in a snapshot).
+    static let REC_PRESENT: UInt8 = 0x01
+    /// Status-record flag (record byte 2): the module failed identification (unrecognised type, bad
+    /// contact, failed debounce). PRESENT is clear whenever FAULT is set: an unidentified module is never
+    /// reported as usable.
+    static let REC_FAULT: UInt8 = 0x02
+    /// Map-record flag (record byte 1): this socket is physically wired in this shell. Clear = the address
+    /// exists in the geometry table but the shell does not populate it.
+    static let MAP_WIRED: UInt8 = 0x01
+}
+
+/// Sizes and flags of the signed session descriptor the apps build and the hub verifies (NP-FW-HUB-001 §4).
+enum HubDescriptorWire {
+    /// The session UUID, the UHDR key.
+    static let UUID_LEN: Int = 16
+    /// The Ed25519 signature at the end of the blob.
+    static let SIG_LEN: Int = 64
+    /// Descriptor flag bit 0, computed by the app. It carries no authority: no firmware decision reads it,
+    /// because whether a protocol is T2 comes from its modality set and whether this unit may run one is
+    /// the safety MCU's signed tier identity (RISK-PWRSRC-10).
+    static let FLAG_T2_TIER: UInt8 = 1
+}
+
+/// Sizes of the BLE writes the apps make: the Mode 2 protocol upload and the OTA image. Both apps chunk to these.
+enum BleTransfer {
+    /// The BLE 5 ATT MTU write ceiling, in bytes.
+    static let MAX_WRITE_SIZE: Int = 512
+    /// The most a START chunk carries (512 − 1 header − 2 length); also the single-chunk threshold.
+    static let MAX_CHUNK_PAYLOAD: Int = 509
+    /// The most a CONT or END chunk carries (512 − 1 header).
+    static let MAX_CONT_PAYLOAD: Int = 511
+    /// ATT_MTU(512) − 3 ATT header − 1 OTA opcode − 2 chunk index leaves 506; 496 keeps a margin for GATT
+    /// stack overhead.
+    static let OTA_CHUNK_SIZE: Int = 496
+}
+
+/// The cervical VNS gel-pad assembly.
+enum CvnsPad {
+    /// Pads checked every session. Mirrors NP_CVNS_ELECTRODE_COUNT in
+    /// firmware/cervical_vns/include/np_cvns_config.h, which is a self-contained library and does not
+    /// include the generated header.
+    static let CVNS_ELECTRODE_COUNT: Int = 2
+}
+
+/// Storage keys and tags both apps use, written once so iOS (UserDefaults) and Android (the key-value store) cannot drift
+/// apart.
+enum PersistedKeys {
+    /// Characterisation enrolment flag. Distinct from WARRANTY_CONSENT_KEY by design: a shared key would
+    /// make the two consents one consent.
+    static let ENROLMENT_KEY: String = "np.characterisation.enrolled"
+    /// Consent generation. Incremented on every grant, never reset by withdrawal. It travels with each
+    /// uploaded record so a row cannot outlive the grant that authorised it: a device that withdrew and
+    /// later re-enrolled produces records under a new epoch, and rows from the old one are identifiable for
+    /// deletion without needing a clock to order them.
+    static let CONSENT_EPOCH_KEY: String = "np.characterisation.consent-epoch"
+    /// The programme this device is enrolled in. Consent to programme N does not authorise programme N+1;
+    /// the firmware rejects a mismatch and emits a standard-only record.
+    static let PROGRAMME_ID_KEY: String = "np.characterisation.programme-id"
+    /// Current programme generation. A new programme takes a new id and requires fresh enrolment; it does
+    /// not inherit this one's participants.
+    static let CURRENT_PROGRAMME_ID: Int = 1
+    /// Set when the user actively completes the consent onboarding flow (taps Done on the final layer).
+    /// Distinct from np.onboarding.consent-shown, which is set when the view appears. Not set when the user
+    /// presses Skip, because skipping defers all data decisions including research analytics. Cleared by
+    /// blanket research consent withdrawal, because blanket withdrawal implies full data-collection
+    /// opt-out. Not the same as the warranty consent key: research and warranty consent are independent and
+    /// must never share a key.
+    static let RESEARCH_ANALYTICS_KEY: String = "np.research.consent-granted"
+    /// Prefix of the per-user key recording the last acknowledged cervical fault session.
+    static let CERVICAL_FAULT_LEDGER_KEY: String = "np.cvns.fault-ledger.last-acknowledged-session"
+    /// Consumable replacements waiting for the hub to acknowledge.
+    static let CONSUMABLE_RESET_KEY: String = "np.consumable.pending-resets"
+    /// Per-consumable reminder snooze counts.
+    static let SNOOZE_KEY: String = "np.consumable.snooze-counts"
+    /// Study participations the user has joined.
+    static let PARTICIPATION_KEY: String = "np.consent.study-participations"
+    /// Locally stored research suggestions.
+    static let RESEARCH_SUGGESTIONS_KEY: String = "np.research.suggestions"
+    /// The on-device session history.
+    static let SESSION_HISTORY_KEY: String = "np.session.history"
+    /// The first hardware setup has completed.
+    static let FIRST_SETUP_KEY: String = "np.setup.first-complete"
+    /// Persists age-gate completion (ISC-87).
+    static let AGE_CONFIRMED_KEY: String = "np.onboarding.age-confirmed"
+    /// Domain-separation tag at the head of the canonical form a study descriptor is signed over.
+    static let STUDY_DESCRIPTOR_VERSION: String = "NP-STUDY-DESCRIPTOR-V1"
+}

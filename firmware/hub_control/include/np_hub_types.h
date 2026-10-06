@@ -222,14 +222,13 @@ typedef struct {
 
 /* ── Protocol flags ───────────────────────────────────────────────────────────── */
 
-/* NP_PROTO_FLAG_T2_TIER is APP-COMPUTED and carries no authority.  No
+/* NP_PROTO_FLAG_T2_TIER (np_app_wire_constants.h, generated) is APP-COMPUTED and carries no authority.  No
  * firmware decision reads it: whether a protocol is T2 is derived from its
  * modality set (np_protocol_uses_t2_modality), and whether this unit may run
  * one is the safety MCU's signed tier identity (np_protocol_tier_admit).  An
  * app that set or cleared this bit changes nothing for a protocol naming a T2
  * modality (RISK-PWRSRC-10).  A T2-tier protocol built only from T1 modalities
  * (NP-PWRSRC-001 §6.2) has no gate yet: the modality set cannot express it. */
-#define NP_PROTO_FLAG_T2_TIER       (1U << 0)
 #define NP_PROTO_FLAG_AUTONOMOUS    (1U << 1)
 
 /* ═══════════════════════════════════════════════════════════════════════════════

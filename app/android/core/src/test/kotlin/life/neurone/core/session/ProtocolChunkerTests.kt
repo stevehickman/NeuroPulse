@@ -1,5 +1,6 @@
 package life.neurone.core.session
 
+import life.neurone.core.protocol.BleTransfer
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -66,7 +67,7 @@ class ProtocolChunkerTests {
         assertEquals(ProtocolChunker.FRAME_END, chunks.last()[0])
         assertTrue(chunks.drop(1).dropLast(1).all { it[0] == ProtocolChunker.FRAME_CONT })
         // No chunk exceeds the BLE write ceiling.
-        assertTrue(chunks.all { it.size <= ProtocolChunker.MAX_WRITE_SIZE })
+        assertTrue(chunks.all { it.size <= BleTransfer.MAX_WRITE_SIZE })
         assertContentEquals(data, reassemble(chunks))
     }
 }

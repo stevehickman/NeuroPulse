@@ -1,6 +1,7 @@
 package life.neurone.core.session
 
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.protocol.PersistedKeys
 import java.time.LocalDate
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -71,7 +72,6 @@ class SessionHistoryStore(
     private val json: Json = Json { ignoreUnknownKeys = true },
 ) {
     companion object {
-        const val STORAGE_KEY = "np.session.history"
         const val MAX_RECORDS = 100
 
         // Companion-scoped so it exists before the instance init block runs
@@ -121,7 +121,7 @@ class SessionHistoryStore(
     // ── Persistence ──────────────────────────────────────────────────────
 
     private fun load() {
-        val blob = store.getString(STORAGE_KEY) ?: return
+        val blob = store.getString(PersistedKeys.SESSION_HISTORY_KEY) ?: return
         // Corrupt blob is non-fatal — start clean rather than crash on launch.
         records = runCatching {
             json.decodeFromString(ListSerializer(SessionRecord.serializer()), blob)
@@ -132,7 +132,7 @@ class SessionHistoryStore(
 
     private fun persist() {
         store.putString(
-            STORAGE_KEY,
+            PersistedKeys.SESSION_HISTORY_KEY,
             json.encodeToString(ListSerializer(SessionRecord.serializer()), records),
         )
     }

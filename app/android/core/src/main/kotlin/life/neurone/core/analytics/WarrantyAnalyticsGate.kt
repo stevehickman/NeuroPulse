@@ -1,6 +1,7 @@
 package life.neurone.core.analytics
 
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.protocol.PersistedKeys
 
 /**
  * Consent gate for SHDR fleet telemetry uploads. Port of iOS WarrantyAnalyticsGate.
@@ -17,7 +18,7 @@ import life.neurone.core.common.KeyValueStore
 class WarrantyAnalyticsGate(private val store: KeyValueStore) {
 
     companion object {
-        /** Distinct from ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY by design. */
+        /** Distinct from PersistedKeys.RESEARCH_ANALYTICS_KEY by design. */
         const val WARRANTY_CONSENT_KEY = "np.warranty.consent-granted"
     }
 

@@ -88,7 +88,6 @@ data class OtaSession(
         get() = if (totalBytes <= 0) 0.0 else sentBytes.toDouble() / totalBytes.toDouble()
 
     companion object {
-        const val CHUNK_SIZE: Int = 496
 
         /**
          * Human-readable byte count with integer round-half-up KB/MB —
