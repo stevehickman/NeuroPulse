@@ -15,6 +15,11 @@
  * duplicate. Function-like macros are not constants and are not read.
  *
  * Run:  bun scripts/check-firmware-constants.ts [--self-test]
+ *
+ * CI-Kind: gate
+ * CI-Self-Test: bun scripts/check-firmware-constants.ts --self-test
+ * CI-Scans: every C source and header under firmware/ (vendor/ excluded) for a #define repeated across files or not in UPPER_SNAKE_CASE
+ * CI-Scan-Paths: firmware/** scripts/check-firmware-constants.ts
  */
 import { readFileSync, readdirSync, statSync } from "fs";
 import { join, relative } from "path";
@@ -124,5 +129,5 @@ if (process.argv.includes("--self-test")) {
     console.error("Firmware constant violations:\n" + violations.map((v) => "  - " + v).join("\n"));
     process.exit(1);
   }
-  console.log(`scanned ${files.length} firmware file(s): every constant has one definition and an UPPER_SNAKE_CASE name. PASS`);
+  console.log(`scanned: ${files.length} firmware file(s) — every constant has one definition and an UPPER_SNAKE_CASE name. PASS`);
 }
