@@ -55,8 +55,8 @@ final class ConsentEngineTests: XCTestCase {
         let selected: Set<String> = ["adherence_monitoring", "eeg_review"]
         let union = ConsentEngine.minimumNecessaryElements(for: selected)
 
-        let adherence = ConsentEngine.useCaseLibrary.first { $0.id == "adherence_monitoring" }!.requiredElements
-        let eegReview = ConsentEngine.useCaseLibrary.first { $0.id == "eeg_review" }!.requiredElements
+        let adherence = ConsentEngine.USE_CASE_LIBRARY.first { $0.id == "adherence_monitoring" }!.requiredElements
+        let eegReview = ConsentEngine.USE_CASE_LIBRARY.first { $0.id == "eeg_review" }!.requiredElements
         XCTAssertEqual(union, adherence.union(eegReview),
                        "Minimum-necessary set must be the exact union of selected use cases.")
 
@@ -86,7 +86,7 @@ final class ConsentEngineTests: XCTestCase {
 
     func testHRVOutcomesUseCaseIsInLibrary() {
         XCTAssertNotNil(
-            ConsentEngine.useCaseLibrary.first { $0.id == "hrv_outcomes" },
+            ConsentEngine.USE_CASE_LIBRARY.first { $0.id == "hrv_outcomes" },
             "hrv_outcomes use case must exist in the use case library."
         )
     }
@@ -114,7 +114,7 @@ final class ConsentEngineTests: XCTestCase {
     }
 
     func testAllUseCasesHaveNonEmptyElements() {
-        for useCase in ConsentEngine.useCaseLibrary {
+        for useCase in ConsentEngine.USE_CASE_LIBRARY {
             XCTAssertFalse(
                 useCase.requiredElements.isEmpty,
                 "Use case '\(useCase.id)' must require at least one UHDR element."
@@ -189,8 +189,8 @@ final class ConsentEngineTests: XCTestCase {
 
     // ISC-82 anti-pattern: minimumNecessaryElements never returns elements absent from selected use cases.
     func testISC82_minimumNecessaryNeverOverGrants() {
-        let allIDs = Set(ConsentEngine.useCaseLibrary.map(\.id))
-        let allExpected = ConsentEngine.useCaseLibrary
+        let allIDs = Set(ConsentEngine.USE_CASE_LIBRARY.map(\.id))
+        let allExpected = ConsentEngine.USE_CASE_LIBRARY
             .reduce(into: Set<UHDRElement>()) { $0.formUnion($1.requiredElements) }
         let returned = ConsentEngine.minimumNecessaryElements(for: allIDs)
         // Every returned element must be present in at least one use case.
@@ -286,7 +286,7 @@ final class ConsentEngineTests: XCTestCase {
     /// Every library entry must sit at or above the highest tier its own elements require, or the
     /// use case promises access its tier cannot carry and the clamp silently removes it.
     func testEveryUseCaseIsReachableAtItsDeclaredTier() {
-        for useCase in ConsentEngine.useCaseLibrary {
+        for useCase in ConsentEngine.USE_CASE_LIBRARY {
             XCTAssertTrue(
                 useCase.requiredElements.isSubset(of: useCase.tier.uhdrElements),
                 "\(useCase.id) requires elements its declared tier does not carry."

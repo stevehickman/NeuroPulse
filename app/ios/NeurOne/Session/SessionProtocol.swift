@@ -15,7 +15,7 @@ struct SessionProtocolSigner {
     // The corresponding public key is registered with the hub at pairing time.
     // Production: replace with secure enclave key where available.
 
-    private static let keychainTag = "life.neurone.session-signing-key"
+    private static let KEYCHAIN_TAG = "life.neurone.session-signing-key"
 
     /// Ed25519 over the descriptor's raw signed region (NP-FW-HUB-001 §4.1) — the bytes, not a digest.
     static func sign(_ region: Data) throws -> (signature: Data, fingerprint: String) {
@@ -33,7 +33,7 @@ struct SessionProtocolSigner {
         // via SecItemCopyMatching. (NP-PRIV-ANALYSIS-002 LOW-12)
         let query: [CFString: Any] = [
             kSecClass:              kSecClassKey,
-            kSecAttrApplicationTag: keychainTag.data(using: .utf8)!,
+            kSecAttrApplicationTag: KEYCHAIN_TAG.data(using: .utf8)!,
             kSecAttrAccessible:     kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
             kSecReturnData:         true
         ]
@@ -48,7 +48,7 @@ struct SessionProtocolSigner {
         let key = Curve25519.Signing.PrivateKey()
         let addQuery: [CFString: Any] = [
             kSecClass:                kSecClassKey,
-            kSecAttrApplicationTag:   keychainTag.data(using: .utf8)!,
+            kSecAttrApplicationTag:   KEYCHAIN_TAG.data(using: .utf8)!,
             kSecValueData:            key.rawRepresentation,
             kSecAttrAccessible:       kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]

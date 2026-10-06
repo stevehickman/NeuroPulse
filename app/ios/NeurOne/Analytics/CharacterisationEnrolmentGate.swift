@@ -49,26 +49,26 @@ enum CharacterisationEnrolmentGate {
     private static let log = Logger(subsystem: "life.neurone.analytics",
                                     category: "characterisation-gate")
 
-    /// Distinct from `WarrantyAnalyticsGate.warrantyConsentKey` by design — a
+    /// Distinct from `WarrantyAnalyticsGate.WARRANTY_CONSENT_KEY` by design — a
     /// shared key would make the two consents one consent.
-    static let enrolmentKey = "np.characterisation.enrolled"
+    static let ENROLMENT_KEY = "np.characterisation.enrolled"
 
     /// Consent generation. Incremented on every `grant()`, never reset by
     /// `withdraw()`. It travels with each uploaded record so a row cannot
     /// outlive the grant that authorised it: a device that withdrew and later
     /// re-enrolled produces records under a new epoch, and rows from the old one
     /// are identifiable for deletion without needing a clock to order them.
-    static let consentEpochKey = "np.characterisation.consent-epoch"
+    static let CONSENT_EPOCH_KEY = "np.characterisation.consent-epoch"
 
     /// The programme this device is enrolled in. Must match
     /// `NP_ACCEL_CHAR_PROGRAMME_ID` in `firmware/shdr/include/np_accel_shdr.h`.
     /// Consent to programme N does not authorise programme N+1; the firmware
     /// rejects a mismatch and emits a standard-only record.
-    static let programmeIdKey = "np.characterisation.programme-id"
+    static let PROGRAMME_ID_KEY = "np.characterisation.programme-id"
 
     /// Current programme generation. A new programme takes a new id AND requires
     /// fresh enrolment — it does not inherit this one's participants.
-    static let currentProgrammeId = 1
+    static let CURRENT_PROGRAMME_ID = 1
 
     /// True only when the warranty owner has affirmatively enrolled **and**
     /// warranty consent itself is still open.
@@ -81,8 +81,8 @@ enum CharacterisationEnrolmentGate {
     /// `WarrantyAnalyticsGate`'s key.
     static var isOpen: Bool {
         guard WarrantyAnalyticsGate.isOpen else { return false }
-        guard UserDefaults.standard.bool(forKey: enrolmentKey) else { return false }
-        guard UserDefaults.standard.integer(forKey: programmeIdKey) == currentProgrammeId else {
+        guard UserDefaults.standard.bool(forKey: ENROLMENT_KEY) else { return false }
+        guard UserDefaults.standard.integer(forKey: PROGRAMME_ID_KEY) == CURRENT_PROGRAMME_ID else {
             return false
         }
         return consentEpoch >= 1
@@ -91,7 +91,7 @@ enum CharacterisationEnrolmentGate {
     /// Non-zero only after a grant. Zero means "never granted", which the
     /// firmware treats as not enrolled.
     static var consentEpoch: Int {
-        UserDefaults.standard.integer(forKey: consentEpochKey)
+        UserDefaults.standard.integer(forKey: CONSENT_EPOCH_KEY)
     }
 
     /// Record an affirmative enrolment by the warranty owner.
@@ -111,10 +111,10 @@ enum CharacterisationEnrolmentGate {
             return nil
         }
         let epoch = consentEpoch + 1
-        UserDefaults.standard.set(true, forKey: enrolmentKey)
-        UserDefaults.standard.set(epoch, forKey: consentEpochKey)
-        UserDefaults.standard.set(currentProgrammeId, forKey: programmeIdKey)
-        log.debug("Characterisation enrolment recorded — epoch \(epoch), programme \(currentProgrammeId).")
+        UserDefaults.standard.set(true, forKey: ENROLMENT_KEY)
+        UserDefaults.standard.set(epoch, forKey: CONSENT_EPOCH_KEY)
+        UserDefaults.standard.set(CURRENT_PROGRAMME_ID, forKey: PROGRAMME_ID_KEY)
+        log.debug("Characterisation enrolment recorded — epoch \(epoch), programme \(CURRENT_PROGRAMME_ID).")
         return epoch
     }
 
@@ -132,7 +132,7 @@ enum CharacterisationEnrolmentGate {
     /// Has no effect on `WarrantyAnalyticsGate`, `ConsentStore`,
     /// `ResearchAnalyticsGate`, or any UHDR flow.
     static func withdraw() {
-        UserDefaults.standard.set(false, forKey: enrolmentKey)
+        UserDefaults.standard.set(false, forKey: ENROLMENT_KEY)
         log.debug("Characterisation enrolment withdrawn — extended collection stops next gap.")
     }
 
@@ -145,9 +145,9 @@ enum CharacterisationEnrolmentGate {
     /// and asks again — including the epoch, because the new owner's first
     /// enrolment is genuinely their first.
     static func clearForDeviceTransfer() {
-        UserDefaults.standard.removeObject(forKey: enrolmentKey)
-        UserDefaults.standard.removeObject(forKey: consentEpochKey)
-        UserDefaults.standard.removeObject(forKey: programmeIdKey)
+        UserDefaults.standard.removeObject(forKey: ENROLMENT_KEY)
+        UserDefaults.standard.removeObject(forKey: CONSENT_EPOCH_KEY)
+        UserDefaults.standard.removeObject(forKey: PROGRAMME_ID_KEY)
         log.debug("Characterisation enrolment cleared for device transfer.")
     }
 }

@@ -22,13 +22,13 @@ enum ConsumableResetWire {
 }
 
 struct ConsumableResetQueue {
-    static let key = "np.consumable.pending-resets"
+    static let KEY = "np.consumable.pending-resets"
 
     let defaults: UserDefaults
 
     /// Kinds replaced and not yet written to the hub, in kind order, no duplicates.
     var pending: [Int] {
-        let raw = defaults.array(forKey: Self.key) as? [Int] ?? []
+        let raw = defaults.array(forKey: Self.KEY) as? [Int] ?? []
         return Array(Set(raw.filter { ConsumableResetWire.encode($0) != nil })).sorted()
     }
 
@@ -47,9 +47,9 @@ struct ConsumableResetQueue {
 
     private func save(_ kinds: [Int]) {
         if kinds.isEmpty {
-            defaults.removeObject(forKey: Self.key)
+            defaults.removeObject(forKey: Self.KEY)
         } else {
-            defaults.set(kinds, forKey: Self.key)
+            defaults.set(kinds, forKey: Self.KEY)
         }
     }
 }

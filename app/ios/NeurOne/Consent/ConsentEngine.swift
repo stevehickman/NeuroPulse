@@ -37,7 +37,7 @@ enum ConsentEngine {
     // All available clinical use cases — clinicians select from this library.
     // Must stay identical to Android's `ConsentEngine.useCaseLibrary`: a grant records the IDs it
     // was made from, and the two platforms read each other's grants.
-    static let useCaseLibrary: [ClinicalUseCase] = [
+    static let USE_CASE_LIBRARY: [ClinicalUseCase] = [
         ClinicalUseCase(
             id: "adherence_monitoring",
             titleKey: "CLINICIAN_USECASE_ADHERENCE_MONITORING_NAME",
@@ -66,7 +66,7 @@ enum ConsentEngine {
 
     // Determine minimum necessary UHDR elements for a set of selected use cases.
     static func minimumNecessaryElements(for selectedUseCaseIDs: Set<String>) -> Set<UHDRElement> {
-        useCaseLibrary
+        USE_CASE_LIBRARY
             .filter { selectedUseCaseIDs.contains($0.id) }
             .reduce(into: Set<UHDRElement>()) { $0.formUnion($1.requiredElements) }
     }
@@ -83,7 +83,7 @@ enum ConsentEngine {
     /// `accessDifferential` refuses to read as a set must not be read as one here either.
     static func useCases(availableFor tier: ClinicianUseCaseTier) -> [ClinicalUseCase] {
         guard tier != .research else { return [] }
-        return useCaseLibrary.filter { $0.tier.rank <= tier.rank }
+        return USE_CASE_LIBRARY.filter { $0.tier.rank <= tier.rank }
     }
 
     /// The initial grant's access decision (`OI-CONSENT-04` + `OI-CONSENT-06`).
@@ -93,7 +93,7 @@ enum ConsentEngine {
     /// **The elements are frozen into the grant, not recomputed from the IDs.** A grant records
     /// `useCaseIDs` because §6.1 makes the use case the thing the user consented to, but what the
     /// clinician may see is the element set as it stood that day. Re-deriving it on read would
-    /// mean editing `useCaseLibrary` — adding an element to an existing use case, say — widens
+    /// mean editing `USE_CASE_LIBRARY` — adding an element to an existing use case, say — widens
     /// every grant already made, retroactively, with nobody asked.
     ///
     /// **The result is clamped to the tier.** `useCases(availableFor:)` already filters, so the
@@ -125,7 +125,7 @@ enum ConsentEngine {
         selectedUseCaseIDs: Set<String>,
         tier: ClinicianUseCaseTier
     ) -> ConsentDocument {
-        let selectedCases = useCaseLibrary.filter { selectedUseCaseIDs.contains($0.id) }
+        let selectedCases = USE_CASE_LIBRARY.filter { selectedUseCaseIDs.contains($0.id) }
         let elements = initialAccessScope(
             useCaseIDs: selectedUseCaseIDs,
             tier: tier,

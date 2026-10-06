@@ -24,14 +24,14 @@ enum ProtocolChunker {
     }
 
     /// Total BLE 5 ATT MTU write ceiling, in bytes.
-    static let maxWriteSize = 512
+    static let MAX_WRITE_SIZE = 512
 
     /// Max payload in a START chunk: 512 − 1 header − 2 length = 509 bytes.
     /// Also the threshold below/at which a blob ships as a single SINGLE chunk.
-    static let maxChunkPayload = 509
+    static let MAX_CHUNK_PAYLOAD = 509
 
     /// Max payload in a CONT or END chunk: 512 − 1 header = 511 bytes.
-    private static let maxContPayload = 511
+    private static let MAX_CONT_PAYLOAD = 511
 
     /// Split a protocol blob into framed BLE-MTU-sized chunks.
     ///
@@ -42,7 +42,7 @@ enum ProtocolChunker {
     ///   (511-byte payload each) + one END chunk with the remainder.
     static func chunk(_ data: Data) -> [Data] {
         // Single-chunk case: fits whole (including the empty blob).
-        if data.count <= maxChunkPayload {
+        if data.count <= MAX_CHUNK_PAYLOAD {
             var chunk = Data([Frame.single.rawValue])
             chunk.append(data)
             return [chunk]
@@ -55,7 +55,7 @@ enum ProtocolChunker {
         var start = Data([Frame.start.rawValue])
         start.append(UInt8(total & 0xFF))          // little-endian low byte
         start.append(UInt8((total >> 8) & 0xFF))   // little-endian high byte
-        let startEnd = data.index(data.startIndex, offsetBy: maxChunkPayload)
+        let startEnd = data.index(data.startIndex, offsetBy: MAX_CHUNK_PAYLOAD)
         start.append(contentsOf: data[data.startIndex..<startEnd])
         chunks.append(start)
 
@@ -63,7 +63,7 @@ enum ProtocolChunker {
         var offset = startEnd
         while offset < data.endIndex {
             let remaining = data.distance(from: offset, to: data.endIndex)
-            let take = min(maxContPayload, remaining)
+            let take = min(MAX_CONT_PAYLOAD, remaining)
             let sliceEnd = data.index(offset, offsetBy: take)
             let isLast = sliceEnd == data.endIndex
 

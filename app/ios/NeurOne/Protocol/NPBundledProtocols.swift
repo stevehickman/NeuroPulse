@@ -19,7 +19,7 @@ import Foundation
 enum NPBundledProtocols {
 
     /// Bundle subdirectory the folder reference lands in.
-    static let resourceSubdirectory = "predefined"
+    static let RESOURCE_SUBDIRECTORY = "predefined"
 
     private struct Manifest: Decodable {
         let zones: [String]?
@@ -34,7 +34,7 @@ enum NPBundledProtocols {
         guard let url = Bundle.main.url(
             forResource: "manifest",
             withExtension: "json",
-            subdirectory: resourceSubdirectory
+            subdirectory: RESOURCE_SUBDIRECTORY
         ) else {
             assertionFailure(
                 "predefined/manifest.json is not in the app bundle — the protocols/predefined "
@@ -61,7 +61,7 @@ enum NPBundledProtocols {
     /// Zone and condition definition file names, in load order.
     static let definitionFiles: [String] = {
         guard let url = Bundle.main.url(
-            forResource: "manifest", withExtension: "json", subdirectory: resourceSubdirectory
+            forResource: "manifest", withExtension: "json", subdirectory: RESOURCE_SUBDIRECTORY
         ), let manifest = try? JSONDecoder().decode(Manifest.self, from: Data(contentsOf: url))
         else { return [] }
         return (manifest.zones ?? []) + (manifest.conditions ?? [])
@@ -92,7 +92,7 @@ enum NPBundledProtocols {
             guard let url = Bundle.main.url(
                 forResource: stem,
                 withExtension: "npps",
-                subdirectory: resourceSubdirectory
+                subdirectory: RESOURCE_SUBDIRECTORY
             ) else {
                 assertionFailure("predefined/\(name) is listed in manifest.json but is not in the app bundle.")
                 return nil

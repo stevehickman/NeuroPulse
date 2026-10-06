@@ -82,7 +82,7 @@ final class NPSocketMaskTests: XCTestCase {
         // == NP_HUB_SOCKET_MASK_BYTES (firmware/hub_control/include/np_hub_config.h)
         // and == NP_PBM_SOCKET_MASK_BYTES. 128 bits, not 80: the wire format
         // covers the whole 7-bit socket domain, not what this shell wires.
-        XCTAssertEqual(NPSocketMask.byteCount, 16)
+        XCTAssertEqual(NPSocketMask.BYTE_COUNT, 16)
         let mask = try NPPBMTarget.named(["All"]).resolve()
         XCTAssertEqual(mask.bytes.count, 16)
         XCTAssertEqual(mask.hexString.count, 32)
@@ -106,7 +106,7 @@ final class NPSocketMaskTests: XCTestCase {
         // NUMBER-1 (docs/np_hex_zm_001.md §3.3). Pinned here as well as in the
         // generator and the web suite because iOS holds its own copy of the
         // constant — a drift between the two would put every mask one tile off.
-        XCTAssertEqual(NPSocketID.numberingBase, 1)
+        XCTAssertEqual(NPSocketID.NUMBERING_BASE, 1)
         XCTAssertEqual(NPSocketID.minimum, 1)
         XCTAssertEqual(NPSocketID.maximum, SocketLattice.socketCount)
         XCTAssertEqual(NPSocketID.rangeLabel, "1–\(SocketLattice.socketCount)")
@@ -142,7 +142,7 @@ final class NPSocketMaskTests: XCTestCase {
         XCTAssertEqual(lowest.socketIDs, [1])
         let highest = try NPSocketMask(sockets: [NPSocketID.maximum], source: "test")
         XCTAssertEqual(highest.socketIDs, [SocketLattice.socketCount])
-        XCTAssertEqual(highest.bytes.count, NPSocketMask.byteCount)
+        XCTAssertEqual(highest.bytes.count, NPSocketMask.BYTE_COUNT)
     }
 
     // MARK: - Bad targets

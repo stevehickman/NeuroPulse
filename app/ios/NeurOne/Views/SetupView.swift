@@ -538,7 +538,7 @@ struct ZoneModuleStatusGrid: View {
 struct ImpedanceStatusGrid: View {
     let flags: UInt16
 
-    private let channelNames = ["Fp1", "Fp2", "F3", "F4", "C3", "C4", "P3", "P4"]
+    private let CHANNEL_NAMES = ["Fp1", "Fp2", "F3", "F4", "C3", "C4", "P3", "P4"]
 
     var body: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 10) {
@@ -549,14 +549,14 @@ struct ImpedanceStatusGrid: View {
                         .fill(passed ? Color.green : Color.orange)
                         .frame(width: 20, height: 20)
                         .accessibilityHidden(true)
-                    Text(channelNames[idx])
+                    Text(CHANNEL_NAMES[idx])
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(String(
                     format: String(localized: passed ? "SETUP_IMPEDANCE_PASS_A11Y" : "SETUP_IMPEDANCE_FAIL_A11Y"),
-                    channelNames[idx]
+                    CHANNEL_NAMES[idx]
                 ))
             }
         }

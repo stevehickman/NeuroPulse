@@ -11,7 +11,7 @@ import os
 // Destination: local USB-C connected storage OR E2E encrypted cloud (user-held key).
 
 // Background task identifier — register in Info.plist BGTaskSchedulerPermittedIdentifiers.
-private let backupTaskID = "life.neurone.uhdr-backup"
+private let BACKUP_TASK_ID = "life.neurone.uhdr-backup"
 
 @MainActor
 final class UHDRBackupScheduler: ObservableObject {
@@ -148,7 +148,7 @@ final class UHDRBackupScheduler: ObservableObject {
     // MARK: - Background task scheduling
 
     func scheduleBackgroundTask() {
-        let request = BGAppRefreshTaskRequest(identifier: backupTaskID)
+        let request = BGAppRefreshTaskRequest(identifier: BACKUP_TASK_ID)
         request.earliestBeginDate = Date(timeIntervalSinceNow: 8 * 3600)  // earliest in 8 hours
         try? BGTaskScheduler.shared.submit(request)
     }

@@ -65,8 +65,8 @@ final class SessionHistoryStore: ObservableObject {
     @Published private(set) var records: [SessionRecord] = []
 
     private let defaults: UserDefaults
-    private let storageKey = "np.session.history"
-    private static let maxRecords = 100
+    private let STORAGE_KEY = "np.session.history"
+    private static let MAX_RECORDS = 100
     // Monotonically increasing; tiebreaks same-day records newest-first.
     private var nextInsertionIndex = 0
 
@@ -92,8 +92,8 @@ final class SessionHistoryStore: ObservableObject {
         nextInsertionIndex += 1
         records.insert(new, at: 0)
         records.sort(by: Self.newestFirst)
-        if records.count > Self.maxRecords {
-            records = Array(records.prefix(Self.maxRecords))
+        if records.count > Self.MAX_RECORDS {
+            records = Array(records.prefix(Self.MAX_RECORDS))
         }
         persist()
     }
@@ -107,7 +107,7 @@ final class SessionHistoryStore: ObservableObject {
     // MARK: - Persistence
 
     private func load() {
-        guard let data = defaults.data(forKey: storageKey) else { return }
+        guard let data = defaults.data(forKey: STORAGE_KEY) else { return }
         do {
             var decoded = try JSONDecoder().decode([SessionRecord].self, from: data)
             decoded.sort(by: Self.newestFirst)
@@ -123,7 +123,7 @@ final class SessionHistoryStore: ObservableObject {
     private func persist() {
         do {
             let data = try JSONEncoder().encode(records)
-            defaults.set(data, forKey: storageKey)
+            defaults.set(data, forKey: STORAGE_KEY)
         } catch {
             Self.logger.error("Failed to encode session history: \(String(describing: error))")
         }

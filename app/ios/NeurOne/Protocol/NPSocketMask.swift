@@ -43,9 +43,9 @@ enum NPSocketID {
     /// Fixed at 1 by NUMBER-1. Written as a named constant rather than a bare `1`
     /// so the conversion in `NPSocketMask` reads as a base change and not as an
     /// unexplained off-by-one.
-    static let numberingBase = 1
+    static let NUMBERING_BASE = 1
 
-    static var minimum: Int { numberingBase }
+    static var minimum: Int { NUMBERING_BASE }
     static var maximum: Int { SocketLattice.socketCount }
 
     /// The inclusive id range (e.g. `1–80`), for error messages and UI hints.
@@ -120,9 +120,9 @@ struct NPSocketMask: Equatable, Hashable, Codable {
     /// definition, cross-referenced by comment on every side, the way
     /// np_pbm_config.h documents the same pairing; the tests assert the
     /// numeric match against a byte-level fixture.
-    static let byteCount = 16
+    static let BYTE_COUNT = 16
 
-    /// Bit `n` set == socket number `n + NPSocketID.numberingBase` targeted.
+    /// Bit `n` set == socket number `n + NPSocketID.NUMBERING_BASE` targeted.
     ///
     /// The bit position is INDEX SPACE, not a socket number (NUMBER-1). It is
     /// 0-based because 16 bytes hold 128 sockets only if the first one starts at
@@ -130,7 +130,7 @@ struct NPSocketMask: Equatable, Hashable, Codable {
     private(set) var bytes: [UInt8]
 
     /// The empty mask. Never valid as a command target — see `emptyTarget`.
-    static let empty = NPSocketMask(bytes: [UInt8](repeating: 0, count: byteCount))
+    static let empty = NPSocketMask(bytes: [UInt8](repeating: 0, count: BYTE_COUNT))
 
     private init(bytes: [UInt8]) {
         self.bytes = bytes
@@ -147,12 +147,12 @@ struct NPSocketMask: Equatable, Hashable, Codable {
     /// - Parameter source: what named these sockets, for the error message
     ///   (a zone name, or "the operator's selection").
     init(sockets: some Sequence<Int>, source: String) throws {
-        var bytes = [UInt8](repeating: 0, count: Self.byteCount)
+        var bytes = [UInt8](repeating: 0, count: Self.BYTE_COUNT)
         for id in sockets {
             if let problem = NPSocketID.problem(id) {
                 throw NPSocketTargetError.invalidSocket(id: id, problem: problem, source: source)
             }
-            let bit = id - NPSocketID.numberingBase
+            let bit = id - NPSocketID.NUMBERING_BASE
             bytes[bit >> 3] |= UInt8(1 << (bit & 7))
         }
         self.bytes = bytes
@@ -166,7 +166,7 @@ struct NPSocketMask: Equatable, Hashable, Codable {
         var ids: [Int] = []
         for (index, byte) in bytes.enumerated() where byte != 0 {
             for bit in 0..<8 where byte & UInt8(1 << bit) != 0 {
-                ids.append(index * 8 + bit + NPSocketID.numberingBase)
+                ids.append(index * 8 + bit + NPSocketID.NUMBERING_BASE)
             }
         }
         return ids
@@ -193,15 +193,15 @@ struct NPSocketMask: Equatable, Hashable, Codable {
 
     init(from decoder: Decoder) throws {
         let hex = try decoder.singleValueContainer().decode(String.self)
-        guard hex.count == Self.byteCount * 2 else {
+        guard hex.count == Self.BYTE_COUNT * 2 else {
             throw DecodingError.dataCorrupted(.init(
                 codingPath: decoder.codingPath,
-                debugDescription: "Socket mask must be \(Self.byteCount * 2) hex characters "
-                    + "(\(Self.byteCount) bytes); got \(hex.count)."
+                debugDescription: "Socket mask must be \(Self.BYTE_COUNT * 2) hex characters "
+                    + "(\(Self.BYTE_COUNT) bytes); got \(hex.count)."
             ))
         }
         var bytes: [UInt8] = []
-        bytes.reserveCapacity(Self.byteCount)
+        bytes.reserveCapacity(Self.BYTE_COUNT)
         var index = hex.startIndex
         while index < hex.endIndex {
             let next = hex.index(index, offsetBy: 2)

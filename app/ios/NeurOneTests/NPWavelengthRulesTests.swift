@@ -72,7 +72,7 @@ final class NPWavelengthRulesTests: XCTestCase {
     }
 
     func testWavelengthEncodesAsABareString() throws {
-        let data = try JSONEncoder().encode(NPPBMTranscranialParams.Wavelength.nm808)
+        let data = try JSONEncoder().encode(NPPBMTranscranialParams.Wavelength.NM_808)
         XCTAssertEqual(String(data: data, encoding: .utf8), "\"808nm\"")
         let back = try JSONDecoder().decode(NPPBMTranscranialParams.Wavelength.self, from: Data("\"810nm\"".utf8))
         XCTAssertEqual(back.rawValue, "810nm")

@@ -348,8 +348,8 @@ struct PBMIntranasalParamsView: View {
                 Text(String(localized: "MODALITY_WAVELENGTH")).font(.caption).foregroundColor(.secondary)
                 Picker("MODALITY_WAVELENGTH", selection: $params.wavelength) {
                     // The probe carries 660 and 808 nm; a script's own value stays selectable.
-                    ForEach([NPPBMTranscranialParams.Wavelength.nm660, .nm808]
-                            + ([.nm660, .nm808].contains(params.wavelength) ? [] : [params.wavelength])) { wl in
+                    ForEach([NPPBMTranscranialParams.Wavelength.NM_660, .NM_808]
+                            + ([.NM_660, .NM_808].contains(params.wavelength) ? [] : [params.wavelength])) { wl in
                         Text(wl.displayName).tag(wl)
                     }
                 }

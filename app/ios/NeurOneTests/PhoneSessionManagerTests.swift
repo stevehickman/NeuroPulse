@@ -143,12 +143,12 @@ final class PhoneSessionManagerTests: XCTestCase {
         }
 
         // Verify correct values are forwarded.
-        XCTAssertEqual(msg[WCKey.protocolID] as? Int, 3, "Protocol ID must match.")
-        XCTAssertEqual(msg[WCKey.status] as? Int, Int(SessionStatus.running.rawValue), "Status must match.")
-        XCTAssertEqual(msg[WCKey.pacerPhase] as? Int, Int(PacerPhase.exhale.rawValue), "Pacer phase must match.")
-        XCTAssertEqual(msg[WCKey.pacerPercent] as? Int, 60, "Pacer percent must match.")
-        XCTAssertEqual(msg[WCKey.coherenceX100] as? Int, 750, "Coherence × 100 must be 7.5 × 100 = 750.")
-        XCTAssertEqual(msg[WCKey.rmssd] as? Int, 42, "RMSSD must match.")
+        XCTAssertEqual(msg[WCKey.PROTOCOL_ID] as? Int, 3, "Protocol ID must match.")
+        XCTAssertEqual(msg[WCKey.STATUS] as? Int, Int(SessionStatus.running.rawValue), "Status must match.")
+        XCTAssertEqual(msg[WCKey.PACER_PHASE] as? Int, Int(PacerPhase.exhale.rawValue), "Pacer phase must match.")
+        XCTAssertEqual(msg[WCKey.PACER_PERCENT] as? Int, 60, "Pacer percent must match.")
+        XCTAssertEqual(msg[WCKey.COHERENCE_X100] as? Int, 750, "Coherence × 100 must be 7.5 × 100 = 750.")
+        XCTAssertEqual(msg[WCKey.RMSSD] as? Int, 42, "RMSSD must match.")
         withExtendedLifetime(sut) {}
     }
 
@@ -331,13 +331,13 @@ final class PhoneSessionManagerTests: XCTestCase {
 
         // The complete allowed key set for WC messages (SessionState.toWCMessage()).
         let allowedKeys: Set<String> = [
-            WCKey.protocolID,
-            WCKey.status,
-            WCKey.pacerPhase,
-            WCKey.pacerPercent,
-            WCKey.consumableCounts,
-            WCKey.coherenceX100,
-            WCKey.rmssd,
+            WCKey.PROTOCOL_ID,
+            WCKey.STATUS,
+            WCKey.PACER_PHASE,
+            WCKey.PACER_PERCENT,
+            WCKey.CONSUMABLE_COUNTS,
+            WCKey.COHERENCE_X100,
+            WCKey.RMSSD,
         ]
         for key in msg.keys {
             XCTAssertTrue(

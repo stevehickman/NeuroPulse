@@ -76,8 +76,8 @@ final class FirmwareUpdateService: FirmwareUpdateProviding {
     //   (2) Derive SPKI SHA-256: openssl s_client -connect firmware.neurone.ai:443 \
     //         2>/dev/null | openssl x509 -noout -pubkey | \
     //         openssl pkey -pubin -outform DER | sha256sum
-    //   (3) Replace placeholder values in pinnedSPKIHashes (primary + backup key).
-    private static let manifestURL = URL(string: "https://firmware.neurone.ai/manifest.json")!
+    //   (3) Replace placeholder values in PINNED_SPKI_HASHES (primary + backup key).
+    private static let MANIFEST_URL = URL(string: "https://firmware.neurone.ai/manifest.json")!
     private static func firmwareURL(for version: String) -> URL {
         // Version string is validated by FirmwareVersion before use.
         URL(string: "https://firmware.neurone.ai/firmware/main-\(version).npfw")!
@@ -89,7 +89,7 @@ final class FirmwareUpdateService: FirmwareUpdateProviding {
     // $ openssl s_client -connect firmware.neurone.ai:443 2>/dev/null | \
     //     openssl x509 -noout -pubkey | \
     //     openssl pkey -pubin -outform DER | sha256sum
-    private static let pinnedSPKIHashes: Set<Data> = [
+    private static let PINNED_SPKI_HASHES: Set<Data> = [
         Data(hexString: "0000000000000000000000000000000000000000000000000000000000000000")!,
         Data(hexString: "0000000000000000000000000000000000000000000000000000000000000001")!,
     ]
@@ -107,7 +107,7 @@ final class FirmwareUpdateService: FirmwareUpdateProviding {
             config.timeoutIntervalForResource = 300  // 5 min for firmware download
             self.session = URLSession(
                 configuration: config,
-                delegate: FirmwarePinningDelegate(pinnedHashes: FirmwareUpdateService.pinnedSPKIHashes),
+                delegate: FirmwarePinningDelegate(pinnedHashes: FirmwareUpdateService.PINNED_SPKI_HASHES),
                 delegateQueue: nil
             )
         }
@@ -116,7 +116,7 @@ final class FirmwareUpdateService: FirmwareUpdateProviding {
     // MARK: - FirmwareUpdateProviding
 
     func fetchManifest() async throws -> FirmwareManifest {
-        let (data, response) = try await session.data(from: Self.manifestURL)
+        let (data, response) = try await session.data(from: Self.MANIFEST_URL)
         guard let http = response as? HTTPURLResponse else {
             throw FirmwareUpdateError.networkError(URLError(.badServerResponse))
         }

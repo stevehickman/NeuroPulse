@@ -218,11 +218,11 @@ private struct BIPAReleaseStep: View {
 /// Pill-style step progress indicator — fills and widens the current step.
 private struct BIPAProgressPills: View {
     let current: Int
-    private let total = 4
+    private let TOTAL = 4
 
     var body: some View {
         HStack(spacing: 6) {
-            ForEach(1...total, id: \.self) { i in
+            ForEach(1...TOTAL, id: \.self) { i in
                 Capsule()
                     .fill(i <= current ? Color.accentColor : Color(.systemGray4))
                     .frame(width: i == current ? 24 : 8, height: 8)

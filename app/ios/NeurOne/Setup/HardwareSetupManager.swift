@@ -160,15 +160,15 @@ final class HardwareSetupManager: ObservableObject {
 
     /// Minimum number of electrodes (out of 8) that must pass impedance check (ISC-116).
     /// Hard-coded to 6 — this is a safety threshold and must not be configurable at runtime.
-    let minimumImpedancePassCount = 6
+    let MINIMUM_IMPEDANCE_PASS_COUNT = 6
 
     private let gatt: SetupGATTProviding
     private let userDefaults: UserDefaults
     private let announcer: ZoneModuleAnnouncing
     private var cancellables = Set<AnyCancellable>()
 
-    private let firstSetupKey = "np.setup.first-complete"
-    private let expectedElectrodeCount = 8  // 8-ch semi-dry EEG
+    private let FIRST_SETUP_KEY = "np.setup.first-complete"
+    private let EXPECTED_ELECTRODE_COUNT = 8  // 8-ch semi-dry EEG
 
     /// - Parameter announcer: injected by tests; nil builds the production
     ///   announcer here rather than in a default argument, which Swift evaluates
@@ -249,14 +249,14 @@ final class HardwareSetupManager: ObservableObject {
             try await triggerCalibration(.impedanceCheck)
             try await waitForImpedanceResult(timeout: 10)
 
-            let passCount = (0..<expectedElectrodeCount)
+            let passCount = (0..<EXPECTED_ELECTRODE_COUNT)
                 .filter { bit in impedanceFlags & (1 << bit) != 0 }
                 .count
 
-            if passCount >= minimumImpedancePassCount {
+            if passCount >= MINIMUM_IMPEDANCE_PASS_COUNT {
                 advance()
             } else {
-                let failedElectrodes = (0..<expectedElectrodeCount)
+                let failedElectrodes = (0..<EXPECTED_ELECTRODE_COUNT)
                     .filter { bit in impedanceFlags & (1 << bit) == 0 }
                 lastError = .impedanceFailed(failedElectrodes: failedElectrodes)
             }
@@ -384,7 +384,7 @@ final class HardwareSetupManager: ObservableObject {
 
     private func markFirstSetupComplete() {
         isFirstSetupComplete = true
-        userDefaults.set(true, forKey: firstSetupKey)
+        userDefaults.set(true, forKey: FIRST_SETUP_KEY)
     }
 }
 

@@ -158,7 +158,7 @@ final class AudioSyncManager: ObservableObject {
 
     private var pacerTonePhase: Double = 0
     private var pacerSamplesToPlay: Int = 0
-    private static let pacerToneDurationMs: Double = 80
+    private static let PACER_TONE_DURATION_MS: Double = 80
 
     private func makePacerNode() -> AVAudioSourceNode {
         let sr = sampleRate
@@ -186,7 +186,7 @@ final class AudioSyncManager: ObservableObject {
 
     private func triggerPacerTone() {
         // Arm the pacer render block to output a short tone.
-        let samples = Int(sampleRate * Self.pacerToneDurationMs / 1000)
+        let samples = Int(sampleRate * Self.PACER_TONE_DURATION_MS / 1000)
         pacerSamplesToPlay = samples
         pacerTonePhase = 0
     }

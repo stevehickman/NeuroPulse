@@ -28,13 +28,13 @@ final class NppsCoreTests: XCTestCase {
 
     // MARK: - Parse
 
-    private static let parseKeys = ["entries", "zones", "conditions", "wavelengthRules", "limits"]
+    private static let PARSE_KEYS = ["entries", "zones", "conditions", "wavelengthRules", "limits"]
 
     /// What the web parser's `parseNPPSFile` and `parseNPPSLimits` reduce to. The web parser keeps only the
     /// first `limits` block; the core reports every one.
     private func reduce(_ parsed: [String: Any]) -> NSDictionary {
         var out: [String: Any] = [:]
-        for key in Self.parseKeys where key != "limits" { out[key] = parsed[key] ?? [] }
+        for key in Self.PARSE_KEYS where key != "limits" { out[key] = parsed[key] ?? [] }
         out["limits"] = (parsed["limits"] as? [Any])?.first ?? NSNull()
         return out as NSDictionary
     }
@@ -47,7 +47,7 @@ final class NppsCoreTests: XCTestCase {
                 return
             }
             let parsed = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
-            let want = expected.filter { Self.parseKeys.contains($0.key) }
+            let want = expected.filter { Self.PARSE_KEYS.contains($0.key) }
             if !reduce(parsed).isEqual(to: want) { failures.append("\(name): the parse differs") }
         } catch let refusal as NppsCore.Refusal {
             guard let want = expected["error"] as? String else {

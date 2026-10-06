@@ -29,12 +29,12 @@ enum WarrantyAnalyticsGate {
     /// UserDefaults key set when the warranty owner grants SHDR fleet telemetry
     /// at device registration. Never read or written by `ConsentStore` or any
     /// research-consent path — warranty consent and research consent are independent.
-    static let warrantyConsentKey = "np.warranty.consent.granted"
+    static let WARRANTY_CONSENT_KEY = "np.warranty.consent.granted"
 
     /// True when the warranty owner has consented to SHDR fleet telemetry.
     /// Checked by `SHDRUploader.uploadIfConsented()` before each upload attempt.
     static var isOpen: Bool {
-        UserDefaults.standard.bool(forKey: warrantyConsentKey)
+        UserDefaults.standard.bool(forKey: WARRANTY_CONSENT_KEY)
     }
 
     /// Record warranty consent at device registration.
@@ -44,7 +44,7 @@ enum WarrantyAnalyticsGate {
     ///
     /// Does NOT affect `ResearchAnalyticsGate`, `ConsentStore`, or any UHDR flows.
     static func grant() {
-        UserDefaults.standard.set(true, forKey: warrantyConsentKey)
+        UserDefaults.standard.set(true, forKey: WARRANTY_CONSENT_KEY)
         log.debug("WarrantyAnalyticsGate.grant() — warranty consent recorded; SHDR uploads enabled.")
     }
 
@@ -53,7 +53,7 @@ enum WarrantyAnalyticsGate {
     /// Does NOT affect `ResearchAnalyticsGate`, `ConsentStore`, or any UHDR flows.
     /// Does NOT delete already-uploaded SHDR data from the fleet database.
     static func revoke() {
-        UserDefaults.standard.removeObject(forKey: warrantyConsentKey)
+        UserDefaults.standard.removeObject(forKey: WARRANTY_CONSENT_KEY)
         log.debug("WarrantyAnalyticsGate.revoke() — warranty consent revoked; SHDR uploads disabled.")
     }
 }
