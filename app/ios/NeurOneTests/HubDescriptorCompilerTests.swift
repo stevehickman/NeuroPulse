@@ -243,8 +243,9 @@ final class HubDescriptorCompilerTests: XCTestCase {
         nasal.wavelength = .nm1064
         XCTAssertThrowsError(try build(def(600, mod(.pbmIntranasal(nasal))))) { e in
             XCTAssertEqual(e.localizedDescription,
-                           "No emitter channel delivers 1064nm under the wavelength rules in force. " +
-                           "Refused, not moved to the nearest channel.")
+                           "No emitter channel delivers 1064nm under the wavelength rules in force " +
+                           "(\"NeurOne default wavelength mapping\"). The protocol is refused, " +
+                           "not moved to the nearest channel; edit the rules if that mapping is intended.")
         }
     }
 
