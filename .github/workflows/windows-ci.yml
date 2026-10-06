@@ -19,12 +19,22 @@ on:
       # Read by the tests: the web compiler's golden descriptors, and the shipped zones.
       - 'app/NeurOneShared/TestData/hub-descriptor-golden.json'
       - 'protocols/predefined/**'
+      # The compiler is the Rust core, built here and called through P/Invoke.
+      - 'common/npps-core/**'
+      - 'common/npps-ffi/**'
+      - 'common/npps/**'
+      - 'common/Cargo.*'
       - '.github/workflows/windows-ci.yml'
   pull_request:
     paths:
       - 'app/windows/**'
       - 'app/NeurOneShared/TestData/hub-descriptor-golden.json'
       - 'protocols/predefined/**'
+      # The compiler is the Rust core, built here and called through P/Invoke.
+      - 'common/npps-core/**'
+      - 'common/npps-ffi/**'
+      - 'common/npps/**'
+      - 'common/Cargo.*'
       - '.github/workflows/windows-ci.yml'
   workflow_dispatch:
 
@@ -55,6 +65,11 @@ jobs:
       # `sync-socket-map.ts --check` (generated lattice freshness, SocketLattice.generated.cs
       # included) runs in web-ci.yml on Linux. It is NOT run here: a Windows checkout converts
       # line endings, so every generated file reads as stale.
+
+      # The compiler is the shared Rust NPPS core (common/npps-ffi, OI-NPPS-CORE-01), called through
+      # P/Invoke. NeurOne.csproj copies neurone_npps_ffi.dll beside the assembly when this build made it.
+      - name: Build the NPPS core (Rust cdylib)
+        run: cargo build --release --locked --manifest-path common/Cargo.toml -p neurone-npps-ffi
 
       - name: Restore
         run: dotnet restore app/windows/NeurOne.Tests/NeurOne.Tests.csproj
