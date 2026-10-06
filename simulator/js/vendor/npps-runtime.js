@@ -5,7 +5,7 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: 880bfb32ccfa8140b251555b140ad18d498e41fc2b10d270ae816b8673285515
+// sources-sha256: 83580f18967d03839abc4ad488c792218c0954915e5b56b3ae06dd4ca12d6b94
 // common/lib/nppsCore.ts
 class NppsRefusal extends Error {
   constructor(message) {

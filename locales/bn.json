@@ -1013,7 +1013,6 @@
   "VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS_2": "BES intensity {0} mA exceeds limit of {1} mA.",
   "VALIDATE_MSG_CERVICAL_VNS_INTENSITYMILLIAMPS": "Cervical VNS intensity {0} mA exceeds hardware maximum. Cardiac interlock is always active regardless.",
   "VALIDATE_MSG_CERVICAL_VNS_INTENSITYMILLIAMPS_2": "Cervical VNS intensity {0} mA exceeds limit of {1} mA.",
-  "VALIDATE_MSG_CERVICAL_VNS_SESSIONDURATION": "Cervical VNS session duration limit is {0}s. Verify session timing matches this limit.",
   "VALIDATE_MSG_CLINICAL_TACS_CHANNELCOUNT": "Clinical tACS channel count {0} is outside the driver's 1–{1} channels (one per T2 cap electrode).",
   "VALIDATE_MSG_CLINICAL_TACS_INTENSITYMILLIAMPS": "Clinical tACS intensity {0} mA exceeds hardware maximum of {1} mA.",
   "VALIDATE_MSG_CLINICAL_TACS_INTENSITYMILLIAMPS_2": "Clinical tACS intensity {0} mA exceeds limit of {1} mA.",

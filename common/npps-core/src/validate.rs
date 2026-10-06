@@ -486,10 +486,6 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
                     msg("VALIDATE_MSG_GENERAL_FREQUENCYHZ_2", vec![s(fmt_hz(freq)), n(hw("vnsMinHz")), n(hw("vnsMaxHz"))]));
             }
             session_duration(out, kind, l, interval, "VALIDATE_MSG_GENERAL_SESSIONDURATION");
-            if let Some(m) = lim(l, "maxSessionDurationSeconds") {
-                out.push(Warning, k, "sessionDuration", "VALIDATE_PARAM_SESSION_DURATION", s("Configured"), s(format!("Max {}s", num_string(m))), "@maxSessionDurationSeconds",
-                    msg("VALIDATE_MSG_CERVICAL_VNS_SESSIONDURATION", vec![n(m)]));
-            }
             // Always say so: the interlock is the safety MCU's and no limit set can lift it.
             out.push(Warning, k, "cardiacInterlock", "VALIDATE_PARAM_CARDIAC_INTERLOCK", msg("VALIDATE_ACTUAL_ALWAYS_ON", vec![]),
                 msg("VALIDATE_LIMIT_NON_OVERRIDABLE", vec![]), "hardware", msg("VALIDATE_MSG_GENERAL_CARDIACINTERLOCK", vec![]));
