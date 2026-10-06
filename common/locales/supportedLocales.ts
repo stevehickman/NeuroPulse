@@ -4,7 +4,7 @@ export interface LocaleInfo {
   direction: "ltr" | "rtl";
 }
 
-export const supportedLocales: readonly LocaleInfo[] = [
+export const SUPPORTED_LOCALES: readonly LocaleInfo[] = [
   { bcp47: "en", displayName: "English (US)", direction: "ltr" },
   { bcp47: "en-GB", displayName: "English (UK)", direction: "ltr" },
   { bcp47: "es-419", displayName: "Español (Latinoamérica)", direction: "ltr" },
@@ -19,10 +19,10 @@ export const supportedLocales: readonly LocaleInfo[] = [
 ] as const;
 
 export function findLocale(languageCode: string): LocaleInfo {
-  const exact = supportedLocales.find((l) => l.bcp47 === languageCode);
+  const exact = SUPPORTED_LOCALES.find((l) => l.bcp47 === languageCode);
   if (exact) return exact;
 
   const prefix = languageCode.split("-")[0];
-  const prefixMatch = supportedLocales.find((l) => l.bcp47.startsWith(prefix));
-  return prefixMatch ?? supportedLocales[0];
+  const prefixMatch = SUPPORTED_LOCALES.find((l) => l.bcp47.startsWith(prefix));
+  return prefixMatch ?? SUPPORTED_LOCALES[0];
 }

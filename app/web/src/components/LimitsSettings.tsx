@@ -564,7 +564,7 @@ function IndividualTab({
               placeholder={t('WEB_PROFILE_NAME_PLACEHOLDER')}
               value={profileName}
               onChange={e => onNameChange(e.target.value)}
-              style={inputStyle}
+              style={INPUT_STYLE}
               autoFocus
             />
             <input
@@ -572,14 +572,14 @@ function IndividualTab({
               placeholder={t('WEB_PROFILE_DOB_PLACEHOLDER')}
               value={profileDob}
               onChange={e => onDobChange(e.target.value)}
-              style={inputStyle}
+              style={INPUT_STYLE}
             />
             <textarea
               placeholder={t('WEB_PROFILE_NOTES_PLACEHOLDER')}
               value={profileNotes}
               onChange={e => onNotesChange(e.target.value)}
               rows={2}
-              style={{ ...inputStyle, resize: 'vertical' }}
+              style={{ ...INPUT_STYLE, resize: 'vertical' }}
             />
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-primary btn-sm" onClick={onSaveProfile} disabled={!profileName.trim()}>
@@ -795,14 +795,14 @@ function LimitsEditor({ initial, onSave, onCancel, onExport }: LimitsEditorProps
           value={limits.name}
           onChange={e => patch({ name: e.target.value })}
           placeholder={t('UI_LIMITS_NAME_PLACEHOLDER')}
-          style={{ ...inputStyle, flex: 1 }}
+          style={{ ...INPUT_STYLE, flex: 1 }}
         />
         <input
           type="text"
           value={limits.description}
           onChange={e => patch({ description: e.target.value })}
           placeholder={t('UI_LIMITS_DESC_PLACEHOLDER')}
-          style={{ ...inputStyle, flex: 2 }}
+          style={{ ...INPUT_STYLE, flex: 2 }}
         />
       </div>
 
@@ -1618,7 +1618,7 @@ function LimitWhitelistField({
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
-const inputStyle: React.CSSProperties = {
+const INPUT_STYLE: React.CSSProperties = {
   background: 'var(--bg-input)',
   border: '1px solid var(--border)',
   borderRadius: 4,
