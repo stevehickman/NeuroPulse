@@ -14,6 +14,7 @@ import life.neurone.core.models.StudyDescriptorAdmission
 import life.neurone.core.models.StudyDescriptorVerifier
 import life.neurone.core.models.StudyInvitation
 import life.neurone.core.models.StudyParticipationRecord
+import life.neurone.core.protocol.PersistedKeys
 import java.time.LocalDate
 import java.util.UUID
 import kotlinx.serialization.builtins.ListSerializer
@@ -50,7 +51,6 @@ class ConsentStore(
     companion object {
         const val GRANTS_KEY = "np.consent.clinician-grants"
         const val RESEARCH_KEY = "np.consent.research"
-        const val PARTICIPATION_KEY = "np.consent.study-participations"
         const val EXPANSIONS_KEY = "np.consent.clinician-expansions"
         const val INVITATIONS_KEY = "np.consent.study-invitations"
     }
@@ -302,7 +302,7 @@ class ConsentStore(
      * Does NOT affect WarrantyAnalyticsGate or SHDR fleet uploads.
      */
     fun revokeResearchAnalytics() {
-        store.remove(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY)
+        store.remove(PersistedKeys.RESEARCH_ANALYTICS_KEY)
         researchAnalyticsGate.reset()
     }
 
@@ -500,7 +500,7 @@ class ConsentStore(
                 researchConsent = json.decodeFromString(ResearchConsentState.serializer(), blob)
             }
         }
-        store.getString(PARTICIPATION_KEY)?.let { blob ->
+        store.getString(PersistedKeys.PARTICIPATION_KEY)?.let { blob ->
             runCatching {
                 studyParticipations = json.decodeFromString(
                     ListSerializer(StudyParticipationRecord.serializer()), blob,
@@ -540,7 +540,7 @@ class ConsentStore(
             json.encodeToString(ResearchConsentState.serializer(), researchConsent),
         )
         store.putString(
-            PARTICIPATION_KEY,
+            PersistedKeys.PARTICIPATION_KEY,
             json.encodeToString(
                 ListSerializer(StudyParticipationRecord.serializer()), studyParticipations,
             ),

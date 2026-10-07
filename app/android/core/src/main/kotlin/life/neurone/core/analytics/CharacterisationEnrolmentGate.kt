@@ -1,6 +1,7 @@
 package life.neurone.core.analytics
 
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.protocol.PersistedKeys
 
 /**
  * Consent gate for the SHDR accelerometer characterisation programme
@@ -39,22 +40,7 @@ class CharacterisationEnrolmentGate(
 ) {
 
     companion object {
-        /** Distinct from WarrantyAnalyticsGate.WARRANTY_CONSENT_KEY by design. */
-        const val ENROLMENT_KEY = "np.characterisation.enrolled"
 
-        /**
-         * Consent generation. Incremented on every grant, never reset by
-         * withdrawal, so a row cannot outlive the grant that authorised it and a
-         * re-enrolment is distinguishable from the enrolment before it — without
-         * needing a clock to order them.
-         */
-        const val CONSENT_EPOCH_KEY = "np.characterisation.consent-epoch"
-
-        /** Must match NP_ACCEL_CHAR_PROGRAMME_ID in np_accel_shdr.h. */
-        const val PROGRAMME_ID_KEY = "np.characterisation.programme-id"
-
-        /** A new programme takes a new id and requires fresh enrolment. */
-        const val CURRENT_PROGRAMME_ID = 1
     }
 
     /**
@@ -68,13 +54,13 @@ class CharacterisationEnrolmentGate(
      */
     val isOpen: Boolean
         get() = warrantyGate.isOpen &&
-            store.getBoolean(ENROLMENT_KEY) &&
-            store.getInt(PROGRAMME_ID_KEY) == CURRENT_PROGRAMME_ID &&
+            store.getBoolean(PersistedKeys.ENROLMENT_KEY) &&
+            store.getInt(PersistedKeys.PROGRAMME_ID_KEY) == PersistedKeys.CURRENT_PROGRAMME_ID &&
             consentEpoch >= 1
 
     /** Zero means "never granted", which the firmware treats as not enrolled. */
     val consentEpoch: Int
-        get() = store.getInt(CONSENT_EPOCH_KEY)
+        get() = store.getInt(PersistedKeys.CONSENT_EPOCH_KEY)
 
     /**
      * Record an affirmative enrolment by the warranty owner.
@@ -92,9 +78,9 @@ class CharacterisationEnrolmentGate(
     fun grant(): Int? {
         if (!warrantyGate.isOpen) return null
         val epoch = consentEpoch + 1
-        store.putBoolean(ENROLMENT_KEY, true)
-        store.putInt(CONSENT_EPOCH_KEY, epoch)
-        store.putInt(PROGRAMME_ID_KEY, CURRENT_PROGRAMME_ID)
+        store.putBoolean(PersistedKeys.ENROLMENT_KEY, true)
+        store.putInt(PersistedKeys.CONSENT_EPOCH_KEY, epoch)
+        store.putInt(PersistedKeys.PROGRAMME_ID_KEY, PersistedKeys.CURRENT_PROGRAMME_ID)
         return epoch
     }
 
@@ -108,7 +94,7 @@ class CharacterisationEnrolmentGate(
      * The epoch is deliberately not reset — it must keep increasing.
      * No effect on WarrantyAnalyticsGate, ConsentStore or any UHDR flow.
      */
-    fun withdraw() = store.putBoolean(ENROLMENT_KEY, false)
+    fun withdraw() = store.putBoolean(PersistedKeys.ENROLMENT_KEY, false)
 
     /**
      * Clear enrolment on factory reset / change of custody. A consent decision
@@ -117,8 +103,8 @@ class CharacterisationEnrolmentGate(
      * asks again, epoch included.
      */
     fun clearForDeviceTransfer() {
-        store.remove(ENROLMENT_KEY)
-        store.remove(CONSENT_EPOCH_KEY)
-        store.remove(PROGRAMME_ID_KEY)
+        store.remove(PersistedKeys.ENROLMENT_KEY)
+        store.remove(PersistedKeys.CONSENT_EPOCH_KEY)
+        store.remove(PersistedKeys.PROGRAMME_ID_KEY)
     }
 }

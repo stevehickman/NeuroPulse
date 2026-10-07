@@ -1,6 +1,7 @@
 package life.neurone.core.consumable
 
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.protocol.PersistedKeys
 
 /**
  * Source of consumable session counts. Port of iOS ConsumableCountsProviding.
@@ -47,7 +48,6 @@ class ConsumableTracker(
     private val onReplaced: (Int) -> Unit = {},
 ) {
     companion object {
-        const val SNOOZE_KEY = "np.consumable.snooze-counts"
     }
 
     var states: List<ConsumableState> =
@@ -130,11 +130,11 @@ class ConsumableTracker(
     // ── Persistence (snooze counts survive app restart) ─────────────────
 
     private fun persistSnooze() {
-        store.putString(SNOOZE_KEY, states.joinToString(",") { it.snoozeCount.toString() })
+        store.putString(PersistedKeys.SNOOZE_KEY, states.joinToString(",") { it.snoozeCount.toString() })
     }
 
     private fun loadPersistedSnooze() {
-        val counts = store.getString(SNOOZE_KEY)
+        val counts = store.getString(PersistedKeys.SNOOZE_KEY)
             ?.split(",")
             ?.mapNotNull { it.toIntOrNull() }
             ?: return

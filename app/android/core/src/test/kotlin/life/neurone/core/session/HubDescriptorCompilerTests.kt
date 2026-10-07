@@ -1,6 +1,7 @@
 package life.neurone.core.session
 
 import life.neurone.core.protocol.*
+import life.neurone.core.protocol.BleTransfer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -151,7 +152,7 @@ class HubDescriptorCompilerTests {
     @Test fun descriptorChunksAndReassembles() {
         val blob = compiler.compile(def(600, pbm("808nm", 100.0))).blob
         val chunks = ProtocolChunker.chunk(blob)
-        assertTrue(chunks.all { it.size <= ProtocolChunker.MAX_WRITE_SIZE })
+        assertTrue(chunks.all { it.size <= BleTransfer.MAX_WRITE_SIZE })
         val reassembled = chunks.flatMap { c ->
             if (c[0] == ProtocolChunker.FRAME_START) c.drop(3) else c.drop(1)
         }.toByteArray()

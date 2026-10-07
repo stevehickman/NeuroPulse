@@ -14,6 +14,7 @@ import life.neurone.core.models.StudyDescriptorVerification
 import life.neurone.core.models.StudyDescriptorVerifier
 import life.neurone.core.models.StudyInvitation
 import life.neurone.core.models.UHDRElement
+import life.neurone.core.protocol.PersistedKeys
 import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -34,7 +35,7 @@ class ConsentStoreTests {
 
     private fun makeStore(): Triple<ConsentStore, InMemoryKeyValueStore, RecordingBackend> {
         val kv = InMemoryKeyValueStore()
-        kv.putBoolean(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY, true)
+        kv.putBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
         val backend = RecordingBackend()
         val gate = ResearchAnalyticsGate(kv, backend)
         gate.configure()
@@ -50,8 +51,8 @@ class ConsentStoreTests {
         store.withdrawBlanketResearchConsent()
 
         assertFalse(store.researchConsent.blanketConsentGranted)
-        assertNull(kv.getString(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY))
-        assertFalse(kv.getBoolean(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY))
+        assertNull(kv.getString(PersistedKeys.RESEARCH_ANALYTICS_KEY))
+        assertFalse(kv.getBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY))
         assertEquals(1, backend.resetCount)
     }
 
@@ -63,14 +64,14 @@ class ConsentStoreTests {
 
         store.setCategoryConsent(ResearchCategory.SLEEP, false)
 
-        assertTrue(kv.getBoolean(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY))
+        assertTrue(kv.getBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY))
         assertEquals(0, backend.resetCount)
     }
 
     @Test
     fun studyWithdrawalDoesNotRevokeResearchAnalytics() {
         val kv = InMemoryKeyValueStore()
-        kv.putBoolean(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY, true)
+        kv.putBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
         val backend = RecordingBackend()
         val gate = ResearchAnalyticsGate(kv, backend)
         gate.configure()
@@ -84,7 +85,7 @@ class ConsentStoreTests {
         store.withdrawFromStudy(STUDY_ID)
 
         assertFalse(store.studyParticipations.single().isActive)
-        assertTrue(kv.getBoolean(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY))
+        assertTrue(kv.getBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY))
         assertEquals(0, backend.resetCount)
     }
 
@@ -552,7 +553,7 @@ class ConsentStoreTests {
         store.updateResearchConsent(store.researchConsent.copy(blanketConsentGranted = false))
 
         assertFalse(store.researchConsent.blanketConsentGranted)
-        assertNull(kv.getString(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY))
+        assertNull(kv.getString(PersistedKeys.RESEARCH_ANALYTICS_KEY))
         assertEquals(1, backend.resetCount, "commit path must revoke research analytics")
     }
 
@@ -570,7 +571,7 @@ class ConsentStoreTests {
             ),
         )
 
-        assertTrue(kv.getBoolean(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY))
+        assertTrue(kv.getBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY))
         assertEquals(0, backend.resetCount, "category-only edits must never revoke analytics")
     }
 
@@ -586,7 +587,7 @@ class ConsentStoreTests {
             ),
         )
 
-        assertTrue(kv.getBoolean(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY))
+        assertTrue(kv.getBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY))
         assertEquals(0, backend.resetCount, "a true→true blanket state is not a withdrawal")
     }
 

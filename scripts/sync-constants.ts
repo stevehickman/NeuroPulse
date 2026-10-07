@@ -25,8 +25,8 @@ const ROOT = join(import.meta.dir, '..');
 const SOURCE = 'common/npps/constants.json';
 
 type Target = 'ts' | 'kotlin' | 'swift' | 'csharp' | 'c' | 'rust';
-interface Constant { name: string; value: number; int?: boolean; hub?: boolean; required?: boolean; note?: string }
-interface Group { name: string; rust: string; cPrefix?: string; uuidBase?: string; hexWidth?: number; firmwareHeader?: boolean; targets: Target[]; intTypes?: Partial<Record<Target, string>>; note?: string; constants: Constant[] }
+interface Constant { name: string; value: number | string; int?: boolean; hex?: number; types?: Partial<Record<Target, string>>; cName?: string; hub?: boolean; required?: boolean; note?: string }
+interface Group { name: string; rust?: string; cPrefix?: string; uuidBase?: string; hexWidth?: number; firmwareHeader?: boolean; targets: Target[]; intTypes?: Partial<Record<Target, string>>; note?: string; constants: Constant[] }
 const groups = (JSON.parse(readFileSync(join(ROOT, SOURCE), 'utf8')) as { groups: Group[] }).groups;
 
 const UPPER_SNAKE = /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/;
@@ -48,7 +48,9 @@ function fail(msg: string): never {
 
 /** A numeric literal every target accepts: a whole-number Double keeps its `.0`. */
 function literal(c: Constant, g?: Group): string {
-  if (c.int && g?.hexWidth) return `0x${c.value.toString(16).toUpperCase().padStart(g.hexWidth, '0')}`;
+  if (typeof c.value === 'string') return JSON.stringify(c.value);
+  const width = c.hex ?? g?.hexWidth;
+  if (c.int && width) return `0x${(c.value as number).toString(16).toUpperCase().padStart(width, '0')}`;
   if (c.int) return String(c.value);
   return Number.isInteger(c.value) ? `${c.value}.0` : String(c.value);
 }
@@ -56,8 +58,9 @@ function literal(c: Constant, g?: Group): string {
 /** The language's type for a constant: its whole numbers default to the usual integer, the rest to a double. */
 function type(g: Group, target: Target, c: Constant): string {
   const defaults: Partial<Record<Target, [string, string]>> = { kotlin: ['Int', 'Double'], swift: ['Int', 'Double'], csharp: ['int', 'double'] };
+  if (typeof c.value === 'string') return { kotlin: 'String', swift: 'String', csharp: 'string' }[target as 'kotlin' | 'swift' | 'csharp'];
   const [whole, fraction] = defaults[target]!;
-  return c.int ? (g.intTypes?.[target] ?? whole) : fraction;
+  return c.int ? (c.types?.[target] ?? g.intTypes?.[target] ?? whole) : fraction;
 }
 
 /** Wrap prose to a width, keeping the author's own line breaks. */
@@ -82,7 +85,7 @@ const comment = (text: string | undefined, prefix: string, indent: string, width
 /** The 128-bit UUID of a 16-bit id: the base with its second group replaced (4E455550-XXXX-1000-8000-00805F9B34FB). */
 function uuidOf(g: Group, c: Constant): string {
   const [first, , ...rest] = g.uuidBase!.split('-');
-  return [first, c.value.toString(16).toUpperCase().padStart(4, '0'), ...rest].join('-');
+  return [first, (c.value as number).toString(16).toUpperCase().padStart(4, '0'), ...rest].join('-');
 }
 
 /** A group with a `uuidBase` also gets its UUID strings, in a sibling container (GattIds -> GattUuidStrings). The web strings are
@@ -168,7 +171,7 @@ function cGatt(): string {
   const g = groups.find(x => x.uuidBase && x.targets.includes('c'))!;
   const bytes = g.uuidBase!.replace(/-/g, '').match(/../g)!.reverse().map(b => `0x${b}u`);
   const ids = g.constants.filter(k => k.hub).map(k => `${cComment(k.note)}#define ${g.cPrefix}${k.name} ${literal(k, g)}u\n`).join('');
-  const sizes = forTarget('c').filter(x => x.firmwareHeader).map(x => x.constants.map(k => `${cComment(k.note)}#define ${x.cPrefix}${k.name} ${literal(k, x)}U\n`).join('')).join('');
+  const sizes = forTarget('c').filter(x => x.firmwareHeader).map(x => x.constants.map(k => `${cComment(k.note)}#define ${k.cName ?? `${x.cPrefix}${k.name}`} ${literal(k, x)}U\n`).join('')).join('');
   const base = `${cComment(`${g.uuidBase}, least-significant byte first. The id of a characteristic replaces the two bytes at NP_GATT_UUID_ID_OFFSET.`)}#define NP_GATT_UUID_BASE_INIT { ${bytes.join(', ')} }\n#define NP_GATT_UUID_ID_OFFSET 10\n`;
   return `/* ${BANNER} */\n#ifndef NP_APP_WIRE_CONSTANTS_H\n#define NP_APP_WIRE_CONSTANTS_H\n\n${base}\n${ids}\n${sizes}\n#endif /* NP_APP_WIRE_CONSTANTS_H */\n`;
 }

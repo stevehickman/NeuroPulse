@@ -1,6 +1,7 @@
 package life.neurone.core.analytics
 
 import life.neurone.core.common.InMemoryKeyValueStore
+import life.neurone.core.protocol.PersistedKeys
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -34,7 +35,7 @@ class AnalyticsGateTests {
     @Test
     fun configureRunsExactlyOnceWhenGateOpen() {
         val store = InMemoryKeyValueStore()
-        store.putBoolean(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY, true)
+        store.putBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
         val backend = SpyAnalyticsBackend()
         val gate = ResearchAnalyticsGate(store, backend)
         gate.configure()
@@ -45,7 +46,7 @@ class AnalyticsGateTests {
     @Test
     fun trackDropsEventsWithProhibitedKeys() {
         val store = InMemoryKeyValueStore()
-        store.putBoolean(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY, true)
+        store.putBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
         val backend = SpyAnalyticsBackend()
         val gate = ResearchAnalyticsGate(store, backend)
 
@@ -74,7 +75,7 @@ class AnalyticsGateTests {
     @Test
     fun resetTearsDownBackendBeforeClearingConfiguredState() {
         val store = InMemoryKeyValueStore()
-        store.putBoolean(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY, true)
+        store.putBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
         val backend = SpyAnalyticsBackend()
         val gate = ResearchAnalyticsGate(store, backend)
         gate.configure()
@@ -91,7 +92,7 @@ class AnalyticsGateTests {
     fun warrantyAndResearchGatesUseDistinctKeys() {
         assertTrue(
             WarrantyAnalyticsGate.WARRANTY_CONSENT_KEY !=
-                ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY,
+                PersistedKeys.RESEARCH_ANALYTICS_KEY,
         )
     }
 
@@ -102,7 +103,7 @@ class AnalyticsGateTests {
         warranty.grant()
         assertTrue(warranty.isOpen)
         // Clearing the research key has no effect on warranty consent.
-        store.remove(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY)
+        store.remove(PersistedKeys.RESEARCH_ANALYTICS_KEY)
         assertTrue(warranty.isOpen)
         warranty.revoke()
         assertFalse(warranty.isOpen)
@@ -204,8 +205,8 @@ class CharacterisationEnrolmentGateTests {
         val (store, _, char) = gates()
         char.grant()
         assertTrue(char.isOpen)
-        store.putInt(CharacterisationEnrolmentGate.PROGRAMME_ID_KEY,
-                     CharacterisationEnrolmentGate.CURRENT_PROGRAMME_ID + 1)
+        store.putInt(PersistedKeys.PROGRAMME_ID_KEY,
+                     PersistedKeys.CURRENT_PROGRAMME_ID + 1)
         assertFalse(char.isOpen, "enrolment in programme N must not carry into N+1")
     }
 
@@ -222,12 +223,12 @@ class CharacterisationEnrolmentGateTests {
     fun keysAreDistinctFromEveryOtherConsentSurface() {
         // CLAUDE.md §6.0: a shared key would make two consents one consent.
         val keys = listOf(
-            CharacterisationEnrolmentGate.ENROLMENT_KEY,
-            CharacterisationEnrolmentGate.CONSENT_EPOCH_KEY,
-            CharacterisationEnrolmentGate.PROGRAMME_ID_KEY,
+            PersistedKeys.ENROLMENT_KEY,
+            PersistedKeys.CONSENT_EPOCH_KEY,
+            PersistedKeys.PROGRAMME_ID_KEY,
         )
         assertEquals(keys.size, keys.toSet().size)
         assertFalse(WarrantyAnalyticsGate.WARRANTY_CONSENT_KEY in keys)
-        assertFalse(ResearchAnalyticsGate.RESEARCH_ANALYTICS_KEY in keys)
+        assertFalse(PersistedKeys.RESEARCH_ANALYTICS_KEY in keys)
     }
 }

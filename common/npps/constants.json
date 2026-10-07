@@ -1,5 +1,5 @@
 {
-  "$comment": "Every constant that more than one runtime needs, once (OI-NPPS-CORE-01). `bun scripts/sync-constants.ts` writes them into common/lib/constants.generated.ts, NppsConstants.generated.kt (Android), NppsConstants.generated.swift (iOS), NppsConstants.generated.cs (Windows) and common/npps-ffi/include/neurone_npps_status.h and firmware/hub_control/include/np_app_wire_constants.h (the hub's side of the BLE contract), and --check fails if one is stale; the Rust core takes them at build time (common/npps-core/build.rs), so it has no copy to go stale. A constant is UPPER_SNAKE_CASE and has the SAME spelling in every language: that is the name, not a per-language rendering of it. The group (`name`) is the container where a language has one (`NPHardwareLimits.PBM_DEEP_MAX_MW_CM2`); `rust` is its module and `cPrefix` the prefix C needs because it has no namespaces. `targets` says which languages get a group, and `intTypes` overrides the type a language gives its whole numbers (the validator compares in f64, as JavaScript does, and the C ABI's codes are Rust i32 and Swift Int32, because that is what the calls return). `int` marks a whole-number figure. A group with a `uuidBase` is a table of 16-bit BLE ids: it also generates the 128-bit UUID strings (GattIds -> GattUuidStrings), and its constants marked `hub` are the ones the hub firmware publishes. `firmwareHeader` puts a C group into np_app_wire_constants.h; `hexWidth` writes a group's ids in hex. Provenance is in each note.",
+  "$comment": "Every constant that more than one runtime needs, once (OI-NPPS-CORE-01). `bun scripts/sync-constants.ts` writes them into common/lib/constants.generated.ts, NppsConstants.generated.kt (Android), NppsConstants.generated.swift (iOS), NppsConstants.generated.cs (Windows) and common/npps-ffi/include/neurone_npps_status.h and firmware/hub_control/include/np_app_wire_constants.h (the hub's side of the BLE contract), and --check fails if one is stale; the Rust core takes them at build time (common/npps-core/build.rs), so it has no copy to go stale. A constant is UPPER_SNAKE_CASE and has the SAME spelling in every language: that is the name, not a per-language rendering of it. The group (`name`) is the container where a language has one (`NPHardwareLimits.PBM_DEEP_MAX_MW_CM2`); `rust` is its module and `cPrefix` the prefix C needs because it has no namespaces. `targets` says which languages get a group, and `intTypes` overrides (a constant's own `types` overrides one for it alone; `hex` writes it in hex; `cName` is the full C macro name where it is not the group's prefix plus the name; a `value` that is a string makes a string constant) the type a language gives its whole numbers (the validator compares in f64, as JavaScript does, and the C ABI's codes are Rust i32 and Swift Int32, because that is what the calls return). `int` marks a whole-number figure. A group with a `uuidBase` is a table of 16-bit BLE ids: it also generates the 128-bit UUID strings (GattIds -> GattUuidStrings), and its constants marked `hub` are the ones the hub firmware publishes. `firmwareHeader` puts a C group into np_app_wire_constants.h; `hexWidth` writes a group's ids in hex. Provenance is in each note.",
   "groups": [
     {
       "name": "NPHardwareLimits",
@@ -528,6 +528,284 @@
           "value": 4,
           "int": true,
           "note": "Most records one frame carries."
+        }
+      ]
+    },
+    {
+      "name": "ZoneNotify",
+      "cPrefix": "NP_ZN_",
+      "firmwareHeader": true,
+      "targets": [
+        "swift",
+        "kotlin",
+        "c"
+      ],
+      "note": "The ZONE_MODULE_STATUS notification frame (np_zone_notify.h): a 4-byte header then fixed-size records, either status records or socket-map records. The hub writes it and both apps parse it. Version 2 is the static/dynamic split: status records dropped from 4 to 3 bytes when anatomy moved into the socket map. Version 1 (anatomy inline on every change) was never deployed, and version 0 was the retired 5-byte payload with no version byte, so a hub still speaking it decodes as 0 and is rejected rather than misread.",
+      "constants": [
+        {
+          "name": "FORMAT_VERSION",
+          "value": 2,
+          "int": true,
+          "note": "Byte 0 of every frame.",
+          "hex": 2,
+          "types": {
+            "swift": "UInt8"
+          }
+        },
+        {
+          "name": "HEADER_BYTES",
+          "value": 4,
+          "int": true,
+          "note": "Header bytes before the first record: byte 0 format version, byte 1 flags (including the frame kind bit), byte 2 fragment index (0-based), byte 3 record count in this fragment."
+        },
+        {
+          "name": "STATUS_REC_BYTES",
+          "value": 3,
+          "int": true,
+          "note": "Status record: socket id (1-based), module type, flags."
+        },
+        {
+          "name": "MAP_REC_BYTES",
+          "value": 8,
+          "int": true,
+          "note": "Map record: socket id (1-based), flags, then x_mm, y_mm, z_mm as int16 little-endian."
+        },
+        {
+          "name": "MAX_SOCKET_ID",
+          "value": 128,
+          "int": true,
+          "note": "Largest 1-based socket id the wire can carry. Firmware ids are 0-based over NP_HEXMAP_MAX_SOCKETS (128), so the 1-based domain is 1..128, exactly a uint8_t's usable range above zero. Pinned by a static assert in np_zone_notify.c against NP_HEXMAP_MAX_SOCKETS.",
+          "types": {
+            "swift": "UInt8"
+          }
+        },
+        {
+          "name": "FLAG_SNAPSHOT",
+          "value": 1,
+          "int": true,
+          "note": "Frame flag (byte 1): this fragment belongs to a full snapshot. Clear = incremental delta naming only the sockets that changed. Socket-map frames are always snapshots.",
+          "hex": 2,
+          "types": {
+            "swift": "UInt8"
+          }
+        },
+        {
+          "name": "FLAG_LAST",
+          "value": 2,
+          "int": true,
+          "note": "Frame flag (byte 1): final fragment of this frame sequence. A snapshot is committed by the app only when a fragment carrying this flag arrives.",
+          "hex": 2,
+          "types": {
+            "swift": "UInt8"
+          }
+        },
+        {
+          "name": "FLAG_MAP",
+          "value": 4,
+          "int": true,
+          "note": "Frame flag (byte 1), the frame KIND: set = socket-map records, clear = status records. The two shapes differ in size, so a decoder that assumed the wrong one would misparse rather than fail; the kind is on the wire so it can be checked, not inferred from which characteristic delivered it.",
+          "hex": 2,
+          "types": {
+            "swift": "UInt8"
+          }
+        },
+        {
+          "name": "REC_PRESENT",
+          "value": 1,
+          "int": true,
+          "note": "Status-record flag (record byte 2): a module is seated and confirmed in this socket. Clear = socket is empty (a removal, or an empty socket in a snapshot).",
+          "hex": 2,
+          "types": {
+            "swift": "UInt8"
+          }
+        },
+        {
+          "name": "REC_FAULT",
+          "value": 2,
+          "int": true,
+          "note": "Status-record flag (record byte 2): the module failed identification (unrecognised type, bad contact, failed debounce). PRESENT is clear whenever FAULT is set: an unidentified module is never reported as usable.",
+          "hex": 2,
+          "types": {
+            "swift": "UInt8"
+          }
+        },
+        {
+          "name": "MAP_WIRED",
+          "value": 1,
+          "int": true,
+          "note": "Map-record flag (record byte 1): this socket is physically wired in this shell. Clear = the address exists in the geometry table but the shell does not populate it.",
+          "hex": 2,
+          "types": {
+            "swift": "UInt8"
+          }
+        }
+      ]
+    },
+    {
+      "name": "HubDescriptorWire",
+      "cPrefix": "NP_HUB_PROTO_",
+      "firmwareHeader": true,
+      "targets": [
+        "swift",
+        "kotlin",
+        "csharp",
+        "c"
+      ],
+      "note": "Sizes and flags of the signed session descriptor the apps build and the hub verifies (NP-FW-HUB-001 §4).",
+      "constants": [
+        {
+          "name": "UUID_LEN",
+          "value": 16,
+          "int": true,
+          "note": "The session UUID, the UHDR key."
+        },
+        {
+          "name": "SIG_LEN",
+          "value": 64,
+          "int": true,
+          "note": "The Ed25519 signature at the end of the blob."
+        },
+        {
+          "name": "FLAG_T2_TIER",
+          "value": 1,
+          "int": true,
+          "note": "Descriptor flag bit 0, computed by the app. It carries no authority: no firmware decision reads it, because whether a protocol is T2 comes from its modality set and whether this unit may run one is the safety MCU's signed tier identity (RISK-PWRSRC-10).",
+          "cName": "NP_PROTO_FLAG_T2_TIER",
+          "types": {
+            "swift": "UInt8",
+            "csharp": "byte"
+          }
+        }
+      ]
+    },
+    {
+      "name": "BleTransfer",
+      "targets": [
+        "swift",
+        "kotlin"
+      ],
+      "note": "Sizes of the BLE writes the apps make: the Mode 2 protocol upload and the OTA image. Both apps chunk to these.",
+      "constants": [
+        {
+          "name": "MAX_WRITE_SIZE",
+          "value": 512,
+          "int": true,
+          "note": "The BLE 5 ATT MTU write ceiling, in bytes."
+        },
+        {
+          "name": "MAX_CHUNK_PAYLOAD",
+          "value": 509,
+          "int": true,
+          "note": "The most a START chunk carries (512 − 1 header − 2 length); also the single-chunk threshold."
+        },
+        {
+          "name": "MAX_CONT_PAYLOAD",
+          "value": 511,
+          "int": true,
+          "note": "The most a CONT or END chunk carries (512 − 1 header)."
+        },
+        {
+          "name": "OTA_CHUNK_SIZE",
+          "value": 496,
+          "int": true,
+          "note": "ATT_MTU(512) − 3 ATT header − 1 OTA opcode − 2 chunk index leaves 506; 496 keeps a margin for GATT stack overhead."
+        }
+      ]
+    },
+    {
+      "name": "CvnsPad",
+      "targets": [
+        "swift",
+        "kotlin"
+      ],
+      "note": "The cervical VNS gel-pad assembly.",
+      "constants": [
+        {
+          "name": "CVNS_ELECTRODE_COUNT",
+          "value": 2,
+          "int": true,
+          "note": "Pads checked every session. Mirrors NP_CVNS_ELECTRODE_COUNT in firmware/cervical_vns/include/np_cvns_config.h, which is a self-contained library and does not include the generated header."
+        }
+      ]
+    },
+    {
+      "name": "PersistedKeys",
+      "targets": [
+        "swift",
+        "kotlin"
+      ],
+      "note": "Storage keys and tags both apps use, written once so iOS (UserDefaults) and Android (the key-value store) cannot drift apart.",
+      "constants": [
+        {
+          "name": "ENROLMENT_KEY",
+          "value": "np.characterisation.enrolled",
+          "note": "Characterisation enrolment flag. Distinct from WARRANTY_CONSENT_KEY by design: a shared key would make the two consents one consent."
+        },
+        {
+          "name": "CONSENT_EPOCH_KEY",
+          "value": "np.characterisation.consent-epoch",
+          "note": "Consent generation. Incremented on every grant, never reset by withdrawal. It travels with each uploaded record so a row cannot outlive the grant that authorised it: a device that withdrew and later re-enrolled produces records under a new epoch, and rows from the old one are identifiable for deletion without needing a clock to order them."
+        },
+        {
+          "name": "PROGRAMME_ID_KEY",
+          "value": "np.characterisation.programme-id",
+          "note": "The programme this device is enrolled in. Consent to programme N does not authorise programme N+1; the firmware rejects a mismatch and emits a standard-only record."
+        },
+        {
+          "name": "CURRENT_PROGRAMME_ID",
+          "value": 1,
+          "int": true,
+          "note": "Current programme generation. A new programme takes a new id and requires fresh enrolment; it does not inherit this one's participants."
+        },
+        {
+          "name": "RESEARCH_ANALYTICS_KEY",
+          "value": "np.research.consent-granted",
+          "note": "Set when the user actively completes the consent onboarding flow (taps Done on the final layer). Distinct from np.onboarding.consent-shown, which is set when the view appears. Not set when the user presses Skip, because skipping defers all data decisions including research analytics. Cleared by blanket research consent withdrawal, because blanket withdrawal implies full data-collection opt-out. Not the same as the warranty consent key: research and warranty consent are independent and must never share a key."
+        },
+        {
+          "name": "CERVICAL_FAULT_LEDGER_KEY",
+          "value": "np.cvns.fault-ledger.last-acknowledged-session",
+          "note": "Prefix of the per-user key recording the last acknowledged cervical fault session."
+        },
+        {
+          "name": "CONSUMABLE_RESET_KEY",
+          "value": "np.consumable.pending-resets",
+          "note": "Consumable replacements waiting for the hub to acknowledge."
+        },
+        {
+          "name": "SNOOZE_KEY",
+          "value": "np.consumable.snooze-counts",
+          "note": "Per-consumable reminder snooze counts."
+        },
+        {
+          "name": "PARTICIPATION_KEY",
+          "value": "np.consent.study-participations",
+          "note": "Study participations the user has joined."
+        },
+        {
+          "name": "RESEARCH_SUGGESTIONS_KEY",
+          "value": "np.research.suggestions",
+          "note": "Locally stored research suggestions."
+        },
+        {
+          "name": "SESSION_HISTORY_KEY",
+          "value": "np.session.history",
+          "note": "The on-device session history."
+        },
+        {
+          "name": "FIRST_SETUP_KEY",
+          "value": "np.setup.first-complete",
+          "note": "The first hardware setup has completed."
+        },
+        {
+          "name": "AGE_CONFIRMED_KEY",
+          "value": "np.onboarding.age-confirmed",
+          "note": "Persists age-gate completion (ISC-87)."
+        },
+        {
+          "name": "STUDY_DESCRIPTOR_VERSION",
+          "value": "NP-STUDY-DESCRIPTOR-V1",
+          "note": "Domain-separation tag at the head of the canonical form a study descriptor is signed over."
         }
       ]
     }

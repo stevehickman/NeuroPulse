@@ -135,7 +135,7 @@ final class OTAManager: ObservableObject {
 
         var session = OTASession(image: image)
         session.totalBytes = imageData.count
-        session.totalChunks = (imageData.count + OTASession.CHUNK_SIZE - 1) / OTASession.CHUNK_SIZE
+        session.totalChunks = (imageData.count + BleTransfer.OTA_CHUNK_SIZE - 1) / BleTransfer.OTA_CHUNK_SIZE
         currentSession = session
         phase = .preparing
         progressPercent = 0
@@ -149,7 +149,7 @@ final class OTAManager: ObservableObject {
         var offset = 0
         var chunkIndex = 0
         while offset < imageData.count {
-            let end = min(offset + OTASession.CHUNK_SIZE, imageData.count)
+            let end = min(offset + BleTransfer.OTA_CHUNK_SIZE, imageData.count)
             var payload = Data()
             var idx = UInt16(chunkIndex).littleEndian
             payload.append(Data(bytes: &idx, count: 2))
@@ -199,7 +199,7 @@ final class OTAManager: ObservableObject {
 
         var session = OTASession(image: image)
         session.totalBytes = imageData.count
-        session.totalChunks = (imageData.count + OTASession.CHUNK_SIZE - 1) / OTASession.CHUNK_SIZE
+        session.totalChunks = (imageData.count + BleTransfer.OTA_CHUNK_SIZE - 1) / BleTransfer.OTA_CHUNK_SIZE
         currentSession = session
         phase = .preparing
         progressPercent = 0
@@ -211,7 +211,7 @@ final class OTAManager: ObservableObject {
         var offset = 0
         var chunkIndex = 0
         while offset < imageData.count {
-            let end = min(offset + OTASession.CHUNK_SIZE, imageData.count)
+            let end = min(offset + BleTransfer.OTA_CHUNK_SIZE, imageData.count)
             var payload = Data()
             var idx = UInt16(chunkIndex).littleEndian
             payload.append(Data(bytes: &idx, count: 2))

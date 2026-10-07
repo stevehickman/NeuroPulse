@@ -1,6 +1,7 @@
 package life.neurone.core.analytics
 
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.protocol.PersistedKeys
 
 /**
  * Consent gate for research analytics and crash-reporting telemetry.
@@ -20,8 +21,6 @@ class ResearchAnalyticsGate(
     private val backend: AnalyticsBackend,
 ) {
     companion object {
-        /** Set only when the user actively completes the research consent flow. */
-        const val RESEARCH_ANALYTICS_KEY = "np.research.consent-granted"
 
         /**
          * Property keys that must NEVER appear in a tracked event
@@ -42,7 +41,7 @@ class ResearchAnalyticsGate(
 
     /** True only when the user actively completed the research consent flow. */
     val isOpen: Boolean
-        get() = store.getBoolean(RESEARCH_ANALYTICS_KEY)
+        get() = store.getBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY)
 
     /**
      * Initialize the analytics SDK. Call exactly once, after the research

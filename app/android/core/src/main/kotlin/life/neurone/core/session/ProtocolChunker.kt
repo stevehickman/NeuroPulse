@@ -1,5 +1,7 @@
 package life.neurone.core.session
 
+import life.neurone.core.protocol.BleTransfer
+
 // Port of iOS ProtocolChunker (app/ios/NeurOne/Protocol/ProtocolChunker.swift).
 // Splits a compiled + signed session descriptor into BLE-MTU-sized framed chunks for the
 // Mode-2 PROTOCOL_UPLOAD write characteristic. Framing (must match hub reassembly):
@@ -15,18 +17,9 @@ object ProtocolChunker {
     const val FRAME_END: Byte = 0x03
     const val FRAME_SINGLE: Byte = 0x04
 
-    /** BLE 5 ATT MTU write ceiling. */
-    const val MAX_WRITE_SIZE = 512
-
-    /** Max payload in a START chunk (512 − 1 header − 2 length) and the single-chunk threshold. */
-    const val MAX_CHUNK_PAYLOAD = 509
-
-    /** Max payload in a CONT or END chunk (512 − 1 header). */
-    private const val MAX_CONT_PAYLOAD = 511
-
     fun chunk(data: ByteArray): List<ByteArray> {
         // Single-chunk case (fits whole, including the empty blob).
-        if (data.size <= MAX_CHUNK_PAYLOAD) {
+        if (data.size <= BleTransfer.MAX_CHUNK_PAYLOAD) {
             return listOf(byteArrayOf(FRAME_SINGLE) + data)
         }
 
@@ -38,13 +31,13 @@ object ProtocolChunker {
             FRAME_START,
             (total and 0xFF).toByte(),          // little-endian low byte
             ((total ushr 8) and 0xFF).toByte(), // little-endian high byte
-        ) + data.copyOfRange(0, MAX_CHUNK_PAYLOAD)
+        ) + data.copyOfRange(0, BleTransfer.MAX_CHUNK_PAYLOAD)
         chunks.add(start)
 
         // Remaining payload → CONT chunks, END chunk last.
-        var offset = MAX_CHUNK_PAYLOAD
+        var offset = BleTransfer.MAX_CHUNK_PAYLOAD
         while (offset < data.size) {
-            val take = minOf(MAX_CONT_PAYLOAD, data.size - offset)
+            val take = minOf(BleTransfer.MAX_CONT_PAYLOAD, data.size - offset)
             val sliceEnd = offset + take
             val isLast = sliceEnd == data.size
             val header = if (isLast) FRAME_END else FRAME_CONT

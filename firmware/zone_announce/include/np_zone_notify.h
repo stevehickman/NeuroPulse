@@ -97,21 +97,10 @@ extern "C" {
  * still speaking it decodes as version 0 and is rejected rather than misread.
  */
 
-#define NP_ZN_FORMAT_VERSION    0x02u
-#define NP_ZN_HEADER_BYTES      4u
-
-/* Status record: socket id (1-based), module type, flags. */
-#define NP_ZN_STATUS_REC_BYTES  3u
-
-/* Map record: socket id (1-based), flags, then x_mm, y_mm, z_mm as int16
- * little-endian. See the coordinate frame note below. */
-#define NP_ZN_MAP_REC_BYTES     8u
-
-/* Largest 1-based socket id the wire can carry. Firmware ids are 0-based over
- * NP_HEXMAP_MAX_SOCKETS (128), so the 1-based domain is 1..128 — which is
- * exactly a uint8_t's usable range above zero. Pinned by a static assert in
- * np_zone_notify.c against NP_HEXMAP_MAX_SOCKETS. */
-#define NP_ZN_MAX_SOCKET_ID     128u
+/* The wire constants (NP_ZN_FORMAT_VERSION, _HEADER_BYTES, _STATUS_REC_BYTES, _MAP_REC_BYTES,
+ * _MAX_SOCKET_ID and the frame, status-record and map-record flags) are generated from
+ * common/npps/constants.json (group ZoneNotify), the one source both apps parse the frame from. */
+#include "np_app_wire_constants.h"
 
 /* Smallest frame buffer that can hold a header plus one record of either kind. */
 #define NP_ZN_MIN_FRAME_BYTES   (NP_ZN_HEADER_BYTES + NP_ZN_MAP_REC_BYTES)
@@ -120,36 +109,6 @@ extern "C" {
  * transmit path must accept at least this much; the encoder is exercised at
  * exactly this size in the host tests. */
 #define NP_ZN_ATT_FLOOR_BYTES   20u
-
-/* ── Frame flags (byte 1) ─────────────────────────────────────────────────── */
-
-/* This fragment belongs to a full snapshot. Clear = incremental delta naming
- * only the sockets that changed. Socket-map frames are always snapshots. */
-#define NP_ZN_FLAG_SNAPSHOT     0x01u
-/* Final fragment of this frame sequence. A snapshot is committed by the app only
- * when a fragment carrying this flag arrives. */
-#define NP_ZN_FLAG_LAST         0x02u
-/* Frame KIND: set = socket-map records, clear = status records. The two shapes
- * differ in size, so a decoder that assumed the wrong one would misparse rather
- * than fail. The kind is on the wire so it can be checked, not inferred from
- * which characteristic happened to deliver it. */
-#define NP_ZN_FLAG_MAP          0x04u
-
-/* ── Status record flags (status record byte 2) ───────────────────────────── */
-
-/* A module is seated and confirmed in this socket. Clear = socket is empty
- * (a removal, or an empty socket in a snapshot). */
-#define NP_ZN_REC_PRESENT       0x01u
-/* The module in this socket failed identification (unrecognised type, bad
- * contact, failed debounce). PRESENT is clear whenever FAULT is set: an
- * unidentified module is never reported as usable. */
-#define NP_ZN_REC_FAULT         0x02u
-
-/* ── Map record flags (map record byte 1) ─────────────────────────────────── */
-
-/* This socket is physically wired in this shell. Clear = the address exists in
- * the geometry table but the shell does not populate it. */
-#define NP_ZN_MAP_WIRED         0x01u
 
 /* ── Module type ──────────────────────────────────────────────────────────────
  * Tile types from NP-HEX-ZM-001 §4a. Values are frozen once shipped on the wire

@@ -38,10 +38,6 @@ struct NPHubCompileError: Error, LocalizedError, Equatable {
 
 enum HubDescriptorCompiler {
 
-    static let UUID_LEN = 16
-    static let SIG_LEN = 64
-    static let FLAG_T2_TIER: UInt8 = 1 << 0      // NP_PROTO_FLAG_T2_TIER (app-computed, carries no authority)
-
     // MARK: - Public entry points
 
     /// Compile and sign. Ed25519 covers the raw signed region (NP-FW-HUB-001 §4.1), and the
@@ -68,10 +64,10 @@ enum HubDescriptorCompiler {
         _ unsigned: HubDescriptor,
         using sign: (Data) throws -> (signature: Data, fingerprint: String) = SessionProtocolSigner.sign
     ) throws -> HubDescriptor {
-        let region = Data(unsigned.blob.prefix(unsigned.blob.count - SIG_LEN))
+        let region = Data(unsigned.blob.prefix(unsigned.blob.count - HubDescriptorWire.SIG_LEN))
         let result = try sign(region)
-        guard result.signature.count == SIG_LEN else {
-            throw NPHubCompileError(message: "Ed25519 signature must be \(SIG_LEN) bytes, got \(result.signature.count).")
+        guard result.signature.count == HubDescriptorWire.SIG_LEN else {
+            throw NPHubCompileError(message: "Ed25519 signature must be \(HubDescriptorWire.SIG_LEN) bytes, got \(result.signature.count).")
         }
         return HubDescriptor(blob: region + result.signature, sessionUUID: unsigned.sessionUUID,
                              isT2: unsigned.isT2, cmdCount: unsigned.cmdCount,
@@ -88,8 +84,8 @@ enum HubDescriptorCompiler {
         now: Date = Date(),
         sessionUUID: [UInt8]? = nil
     ) throws -> HubDescriptor {
-        let uuid = sessionUUID ?? (0..<UUID_LEN).map { _ in UInt8.random(in: 0...255) }
-        precondition(uuid.count == UUID_LEN)
+        let uuid = sessionUUID ?? (0..<HubDescriptorWire.UUID_LEN).map { _ in UInt8.random(in: 0...255) }
+        precondition(uuid.count == HubDescriptorWire.UUID_LEN)
         // The zone namespace is the loaded .npps one (NP-NPPS-REF-001 §8). A name it does not hold is
         // left out, and the core refuses the protocol naming it.
         var zones: [String: [Int]] = [:]
@@ -106,7 +102,7 @@ enum HubDescriptorCompiler {
         } catch let refusal as NppsCore.Refusal {
             throw NPHubCompileError(message: refusal.message)
         }
-        return HubDescriptor(blob: blob, sessionUUID: Data(uuid), isT2: blob[blob.startIndex + 6] & FLAG_T2_TIER != 0,
+        return HubDescriptor(blob: blob, sessionUUID: Data(uuid), isT2: blob[blob.startIndex + 6] & HubDescriptorWire.FLAG_T2_TIER != 0,
                              cmdCount: Int(blob[blob.startIndex + 7]), publicKeyFingerprint: "")
     }
 }

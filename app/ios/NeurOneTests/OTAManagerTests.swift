@@ -207,7 +207,7 @@ final class OTAManagerTests: XCTestCase {
     func testOTASessionChunkCount() {
         // 1000 bytes of data with CHUNK_SIZE=496 → 3 chunks (496+496+8)
         let total = 1000
-        let chunks = (total + OTASession.CHUNK_SIZE - 1) / OTASession.CHUNK_SIZE
+        let chunks = (total + BleTransfer.OTA_CHUNK_SIZE - 1) / BleTransfer.OTA_CHUNK_SIZE
         XCTAssertEqual(chunks, 3)
     }
 

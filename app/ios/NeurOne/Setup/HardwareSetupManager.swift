@@ -167,7 +167,6 @@ final class HardwareSetupManager: ObservableObject {
     private let announcer: ZoneModuleAnnouncing
     private var cancellables = Set<AnyCancellable>()
 
-    private let FIRST_SETUP_KEY = "np.setup.first-complete"
     private let EXPECTED_ELECTRODE_COUNT = 8  // 8-ch semi-dry EEG
 
     /// - Parameter announcer: injected by tests; nil builds the production
@@ -179,7 +178,7 @@ final class HardwareSetupManager: ObservableObject {
         self.gatt = gatt
         self.userDefaults = userDefaults
         self.announcer = announcer ?? ZoneModuleAnnouncer()
-        isFirstSetupComplete = userDefaults.bool(forKey: "np.setup.first-complete")
+        isFirstSetupComplete = userDefaults.bool(forKey: PersistedKeys.FIRST_SETUP_KEY)
         observeGATT()
     }
 
@@ -384,7 +383,6 @@ final class HardwareSetupManager: ObservableObject {
 
     private func markFirstSetupComplete() {
         isFirstSetupComplete = true
-        userDefaults.set(true, forKey: FIRST_SETUP_KEY)
+        userDefaults.set(true, forKey: PersistedKeys.FIRST_SETUP_KEY)
     }
 }
-

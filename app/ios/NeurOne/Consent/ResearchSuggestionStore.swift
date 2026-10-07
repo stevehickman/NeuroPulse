@@ -13,8 +13,6 @@ final class ResearchSuggestionStore: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var lastError: String?
 
-    private let LOCAL_KEY = "np.research.suggestions"
-
     init() { loadLocal() }
 
     // MARK: - Fetch (STUB — replace with real API call)
@@ -92,7 +90,7 @@ final class ResearchSuggestionStore: ObservableObject {
     // MARK: - Persistence
 
     private func loadLocal() {
-        guard let data = UserDefaults.standard.data(forKey: LOCAL_KEY),
+        guard let data = UserDefaults.standard.data(forKey: PersistedKeys.RESEARCH_SUGGESTIONS_KEY),
               let decoded = try? JSONDecoder().decode([ResearchSuggestion].self, from: data)
         else { return }
         suggestions = decoded
@@ -100,7 +98,7 @@ final class ResearchSuggestionStore: ObservableObject {
 
     private func saveLocal() {
         if let data = try? JSONEncoder().encode(suggestions) {
-            UserDefaults.standard.set(data, forKey: LOCAL_KEY)
+            UserDefaults.standard.set(data, forKey: PersistedKeys.RESEARCH_SUGGESTIONS_KEY)
         }
     }
 

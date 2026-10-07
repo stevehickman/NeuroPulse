@@ -108,7 +108,6 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
 
     /// Where replacements not yet written to the hub are queued (OI-ACC-08). Injectable for tests.
     var consumableResetDefaults: UserDefaults = .standard
-    static let CERVICAL_FAULT_LEDGER_KEY = "np.cvns.fault-ledger.last-acknowledged-session"
 
     /// Whether this connection's blanket warning has been read (reset on disconnect).
     @Published private(set) var cardiacWarningAcknowledged = false
@@ -429,7 +428,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
 
     /// One ledger per person: the records are the active user's own.
     private var cervicalFaultLedgerStorageKey: String {
-        Self.CERVICAL_FAULT_LEDGER_KEY + "." + (activeUserTag.map { String($0) } ?? "unnamed")
+        PersistedKeys.CERVICAL_FAULT_LEDGER_KEY + "." + (activeUserTag.map { String($0) } ?? "unnamed")
     }
 
     private var cervicalFaultLedger: CervicalFaultLedger {

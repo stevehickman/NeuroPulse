@@ -1,5 +1,7 @@
 package life.neurone.core.models
 
+import life.neurone.core.protocol.CvnsPad
+
 // Port of iOS CervicalPadStatus (app/ios/NeurOne/Models/CervicalPadStatus.swift).
 //
 // Cervical VNS gel pad contact result — the hub's CVNS_PAD_STATUS characteristic.
@@ -67,7 +69,7 @@ data class CervicalPadStatus(
     val message: Message?
         get() {
             val first = failedPadSides.firstOrNull() ?: return null
-            val both = failedPadSides.size >= PAD_COUNT
+            val both = failedPadSides.size >= CvnsPad.CVNS_ELECTRODE_COUNT
             return when (check) {
                 Check.PRE_ENABLE -> when {
                     both -> Message.PRE_BOTH
@@ -83,8 +85,6 @@ data class CervicalPadStatus(
         }
 
     companion object {
-        /** NP_CVNS_ELECTRODE_COUNT — the assembly checks two pads every session. */
-        const val PAD_COUNT = 2
 
         /**
          * Decodes the 4-byte frame. Returns null for anything not exactly well-formed — a
@@ -95,12 +95,12 @@ data class CervicalPadStatus(
         fun fromWire(data: ByteArray): CervicalPadStatus? {
             if (data.size < 4) return null
             val mask = data[0].toInt() and 0xFF
-            if (mask and ((1 shl PAD_COUNT) - 1).inv() and 0xFF != 0) return null
+            if (mask and ((1 shl CvnsPad.CVNS_ELECTRODE_COUNT) - 1).inv() and 0xFF != 0) return null
             val check = Check.from(data[1].toInt() and 0xFF) ?: return null
             val side1 = NeckSide.from(data[2].toInt() and 0xFF) ?: return null
             val side2 = NeckSide.from(data[3].toInt() and 0xFF) ?: return null
             val sides = listOf(side1, side2)
-            val failed = (0 until PAD_COUNT).filter { mask and (1 shl it) != 0 }.map { sides[it] }
+            val failed = (0 until CvnsPad.CVNS_ELECTRODE_COUNT).filter { mask and (1 shl it) != 0 }.map { sides[it] }
             return CervicalPadStatus(failed, check)
         }
     }

@@ -1,5 +1,6 @@
 package life.neurone.core.models
 
+import life.neurone.core.protocol.ZoneNotify
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -13,9 +14,9 @@ class ZoneModuleFrameTests {
 
     private fun b(vararg v: Int) = ByteArray(v.size) { v[it].toByte() }
 
-    private val SNAP = ZoneFrameFormat.FLAG_SNAPSHOT
-    private val LAST = ZoneFrameFormat.FLAG_LAST
-    private val MAP = ZoneFrameFormat.FLAG_MAP
+    private val SNAP = ZoneNotify.FLAG_SNAPSHOT
+    private val LAST = ZoneNotify.FLAG_LAST
+    private val MAP = ZoneNotify.FLAG_MAP
 
     private fun status(flags: Int, fragment: Int, vararg records: Triple<Int, Int, Int>): ByteArray =
         b(0x02, flags, fragment, records.size, *records.flatMap { listOf(it.first, it.second, it.third) }.toIntArray())

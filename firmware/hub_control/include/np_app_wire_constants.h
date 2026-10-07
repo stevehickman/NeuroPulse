@@ -59,5 +59,74 @@
  * Most records one frame carries.
  */
 #define NP_CVFS_MAX_WIRE_RECORDS 4U
+/*
+ * Byte 0 of every frame.
+ */
+#define NP_ZN_FORMAT_VERSION 0x02U
+/*
+ * Header bytes before the first record: byte 0 format version, byte 1 flags (including the frame kind
+ * bit), byte 2 fragment index (0-based), byte 3 record count in this fragment.
+ */
+#define NP_ZN_HEADER_BYTES 4U
+/*
+ * Status record: socket id (1-based), module type, flags.
+ */
+#define NP_ZN_STATUS_REC_BYTES 3U
+/*
+ * Map record: socket id (1-based), flags, then x_mm, y_mm, z_mm as int16 little-endian.
+ */
+#define NP_ZN_MAP_REC_BYTES 8U
+/*
+ * Largest 1-based socket id the wire can carry. Firmware ids are 0-based over NP_HEXMAP_MAX_SOCKETS
+ * (128), so the 1-based domain is 1..128, exactly a uint8_t's usable range above zero. Pinned by a
+ * static assert in np_zone_notify.c against NP_HEXMAP_MAX_SOCKETS.
+ */
+#define NP_ZN_MAX_SOCKET_ID 128U
+/*
+ * Frame flag (byte 1): this fragment belongs to a full snapshot. Clear = incremental delta naming only
+ * the sockets that changed. Socket-map frames are always snapshots.
+ */
+#define NP_ZN_FLAG_SNAPSHOT 0x01U
+/*
+ * Frame flag (byte 1): final fragment of this frame sequence. A snapshot is committed by the app only
+ * when a fragment carrying this flag arrives.
+ */
+#define NP_ZN_FLAG_LAST 0x02U
+/*
+ * Frame flag (byte 1), the frame KIND: set = socket-map records, clear = status records. The two
+ * shapes differ in size, so a decoder that assumed the wrong one would misparse rather than fail; the
+ * kind is on the wire so it can be checked, not inferred from which characteristic delivered it.
+ */
+#define NP_ZN_FLAG_MAP 0x04U
+/*
+ * Status-record flag (record byte 2): a module is seated and confirmed in this socket. Clear = socket
+ * is empty (a removal, or an empty socket in a snapshot).
+ */
+#define NP_ZN_REC_PRESENT 0x01U
+/*
+ * Status-record flag (record byte 2): the module failed identification (unrecognised type, bad
+ * contact, failed debounce). PRESENT is clear whenever FAULT is set: an unidentified module is never
+ * reported as usable.
+ */
+#define NP_ZN_REC_FAULT 0x02U
+/*
+ * Map-record flag (record byte 1): this socket is physically wired in this shell. Clear = the address
+ * exists in the geometry table but the shell does not populate it.
+ */
+#define NP_ZN_MAP_WIRED 0x01U
+/*
+ * The session UUID, the UHDR key.
+ */
+#define NP_HUB_PROTO_UUID_LEN 16U
+/*
+ * The Ed25519 signature at the end of the blob.
+ */
+#define NP_HUB_PROTO_SIG_LEN 64U
+/*
+ * Descriptor flag bit 0, computed by the app. It carries no authority: no firmware decision reads it,
+ * because whether a protocol is T2 comes from its modality set and whether this unit may run one is
+ * the safety MCU's signed tier identity (RISK-PWRSRC-10).
+ */
+#define NP_PROTO_FLAG_T2_TIER 1U
 
 #endif /* NP_APP_WIRE_CONSTANTS_H */

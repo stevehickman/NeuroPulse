@@ -63,7 +63,7 @@ struct NeurOneApp: App {
     // Age gate is the FIRST onboarding screen, before any personal data is
     // collected or any consent layer is presented (ISC-83, ISC-127).
     // Launch-blocking privacy requirement (NP-PRIV-001 Rev B MEDIUM-03).
-    @AppStorage("np.onboarding.age-confirmed") private var ageConfirmed = false
+    @AppStorage(PersistedKeys.AGE_CONFIRMED_KEY) private var ageConfirmed = false
     @State private var showAgeGate = false
 
     @AppStorage("np.onboarding.consent-shown") private var consentOnboardingShown = false

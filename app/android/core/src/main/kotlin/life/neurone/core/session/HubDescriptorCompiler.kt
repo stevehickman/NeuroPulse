@@ -3,6 +3,7 @@ package life.neurone.core.session
 import life.neurone.core.npps.NppsCore
 import life.neurone.core.npps.namedZoneRefs
 import life.neurone.core.npps.toNppsCoreJson
+import life.neurone.core.protocol.HubDescriptorWire
 import life.neurone.core.protocol.NPProtocolDefinition
 import life.neurone.core.protocol.NPZoneRegistry
 import java.security.SecureRandom
@@ -59,9 +60,9 @@ class HubDescriptorCompiler(
         clinicianSockets: List<Int>? = null,
     ): HubDescriptor {
         val unsigned = build(definition, deviceSerial, clinicianSockets)
-        val sig = signer.sign(unsigned.blob.copyOfRange(0, unsigned.blob.size - SIG_LEN))
-        require(sig.signature.size == SIG_LEN) { "Ed25519 signature must be $SIG_LEN bytes, got ${sig.signature.size}." }
-        sig.signature.copyInto(unsigned.blob, unsigned.blob.size - SIG_LEN)
+        val sig = signer.sign(unsigned.blob.copyOfRange(0, unsigned.blob.size - HubDescriptorWire.SIG_LEN))
+        require(sig.signature.size == HubDescriptorWire.SIG_LEN) { "Ed25519 signature must be ${HubDescriptorWire.SIG_LEN} bytes, got ${sig.signature.size}." }
+        sig.signature.copyInto(unsigned.blob, unsigned.blob.size - HubDescriptorWire.SIG_LEN)
         return HubDescriptor(unsigned.blob, unsigned.sessionUuid, unsigned.isT2, unsigned.cmdCount, sig.publicKeyFingerprint)
     }
 
@@ -73,8 +74,8 @@ class HubDescriptorCompiler(
         deviceSerial: ByteArray?,
         clinicianSockets: List<Int>?,
     ): Unsigned {
-        val uuid = randomBytes(UUID_LEN)
-        require(uuid.size == UUID_LEN)
+        val uuid = randomBytes(HubDescriptorWire.UUID_LEN)
+        require(uuid.size == HubDescriptorWire.UUID_LEN)
         // The zone namespace is the loaded .npps one (NP-NPPS-REF-001 §8). A name it does not hold is
         // left out, and the core refuses the protocol naming it.
         val zones = definition.namedZoneRefs()
@@ -89,12 +90,9 @@ class HubDescriptorCompiler(
                 sessionUuid = uuid,
             ),
         )
-        return Unsigned(blob, uuid, (blob[6].toInt() and FLAG_T2_TIER) != 0, blob[7].toInt() and 0xFF)
+        return Unsigned(blob, uuid, (blob[6].toInt() and HubDescriptorWire.FLAG_T2_TIER) != 0, blob[7].toInt() and 0xFF)
     }
 
     companion object {
-        const val UUID_LEN = 16
-        const val SIG_LEN = 64
-        const val FLAG_T2_TIER = 1
     }
 }

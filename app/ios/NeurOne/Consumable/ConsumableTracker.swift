@@ -130,15 +130,13 @@ final class ConsumableTracker: ObservableObject {
 
     // MARK: - Persistence (snooze counts survive app restart)
 
-    private let SNOOZE_KEY = "np.consumable.snooze-counts"
-
     private func persistSnooze() {
         let counts = inventory.states.map(\.snoozeCount)
-        defaults.set(counts, forKey: SNOOZE_KEY)
+        defaults.set(counts, forKey: PersistedKeys.SNOOZE_KEY)
     }
 
     private func loadPersistedSnooze() {
-        guard let counts = defaults.array(forKey: SNOOZE_KEY) as? [Int] else { return }
+        guard let counts = defaults.array(forKey: PersistedKeys.SNOOZE_KEY) as? [Int] else { return }
         for (idx, count) in counts.enumerated() where idx < inventory.states.count {
             inventory.states[idx].snoozeCount = count
         }
