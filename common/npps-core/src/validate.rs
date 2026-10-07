@@ -44,6 +44,11 @@ fn fixed1(x: f64) -> String {
     format!("{x:.1}")
 }
 
+/// Two decimals, the way a zone value is shown (`12.74`).
+fn fixed2(x: f64) -> String {
+    format!("{x:.2}")
+}
+
 fn join(list: &Value, sep: &str) -> String {
     list.as_array().map(|a| a.iter().map(crate::js::value_string).collect::<Vec<_>>().join(sep)).unwrap_or_default()
 }
@@ -716,6 +721,25 @@ fn protocol(def: &Value, limits: &Value, ctx: &Context) -> Vec<Value> {
                 out.push(Error, Some(&kind), "phaseChargeDensityUCcm2", "VALIDATE_PARAM_PHASE_CHARGE_DENSITY",
                     s(format!("{} µC/cm²", fixed1(density))), s(format!("{} µC/cm²", num_string(hw::PULSED_MAX_PHASE_CHARGE_DENSITY_UC_CM2))), "hardware",
                     msg("VALIDATE_MSG_PULSED_PHASECHARGE", vec![msg(&modality_name_key(&kind), vec![]), s(fixed1(density)), n(hw::PULSED_MAX_PHASE_CHARGE_DENSITY_UC_CM2)]));
+            }
+        }
+    }
+
+    // The zone model (docs/reference/safety-zones.md): an axis in its caution band is a warning the author must
+    // acknowledge before the compiler will sign it, and an axis past a danger boundary is an error. The danger on charge
+    // per phase and on session charge is reported above as the hardware ceiling it is, so it is not repeated.
+    for b in crate::zones::evaluate(def) {
+        for a in &b.axes {
+            let shown = |x: f64| s(format!("{}{}{}", fixed2(x), if a.unit.is_empty() { "" } else { " " }, a.unit));
+            match a.zone() {
+                crate::zones::Zone::Caution => out.push(Warning, Some(&b.kind), a.id, "VALIDATE_PARAM_ZONE", shown(a.value), shown(a.caution), "hardware",
+                    msg("VALIDATE_MSG_ZONE_CAUTION", vec![msg(&modality_name_key(&b.kind), vec![]), msg(a.name_key, vec![]), shown(a.value), shown(a.caution), s(b.ack_id(a))])),
+                crate::zones::Zone::Danger if !a.danger_is_hardware_ceiling() => {
+                    let limit = a.danger.unwrap_or(f64::NAN);
+                    out.push(Error, Some(&b.kind), a.id, "VALIDATE_PARAM_ZONE", shown(a.value), shown(limit), "hardware",
+                        msg("VALIDATE_MSG_ZONE_DANGER", vec![msg(&modality_name_key(&b.kind), vec![]), msg(a.name_key, vec![]), shown(a.value), shown(limit)]));
+                }
+                _ => {}
             }
         }
     }

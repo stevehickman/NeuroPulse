@@ -22,6 +22,7 @@ pub mod serialize;
 pub mod table;
 pub mod validate;
 pub mod wavelength;
+pub mod zones;
 
 pub use error::ParseError;
 pub use compiler::{compile_protocol, CompileOptions, Compiled};

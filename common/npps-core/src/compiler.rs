@@ -79,6 +79,9 @@ pub struct CompileOptions<'a> {
     pub autonomous: bool,
     pub now_unix: u32,
     pub session_uuid: [u8; 16],
+    /// The ids of the cautions the author has acknowledged (`zones::Block::ack_id`). A protocol in the caution zone
+    /// compiles only when every one of its cautions is here; one in the danger zone never compiles.
+    pub acknowledged_cautions: &'a [String],
 }
 
 pub struct Compiled {
@@ -230,6 +233,43 @@ fn serialize_target(t: &Target) -> R<SerializedTarget> {
 
 // ── public entry ─────────────────────────────────────────────────────────────
 
+/// The zone gate (`docs/reference/safety-zones.md`): danger is refused, and caution is refused until it is acknowledged.
+fn zone_gate(proto: &Value, opts: &CompileOptions) -> R<()> {
+    use crate::zones::{evaluate, Zone};
+    let mut unacknowledged = Vec::new();
+    for b in evaluate(proto) {
+        for a in &b.axes {
+            match a.zone() {
+                Zone::Danger => {
+                    return Err(format!(
+                        "{} block {}: {} {} {} is in the danger zone (limit {} {}). The protocol is refused.",
+                        b.kind, b.index, a.name, num_string(js_round(a.value * 100.0) / 100.0), a.unit,
+                        num_string(a.danger.unwrap_or(f64::NAN)), a.unit
+                    ));
+                }
+                Zone::Caution => {
+                    let id = b.ack_id(a);
+                    if !opts.acknowledged_cautions.contains(&id) {
+                        unacknowledged.push(format!(
+                            "{} block {}: {} {} {} (caution from {} {}), acknowledge as \"{id}\"",
+                            b.kind, b.index, a.name, num_string(js_round(a.value * 100.0) / 100.0), a.unit, num_string(a.caution), a.unit
+                        ));
+                    }
+                }
+                Zone::Safe => {}
+            }
+        }
+    }
+    if unacknowledged.is_empty() {
+        Ok(())
+    } else {
+        Err(format!(
+            "The protocol is in the caution zone and has not been acknowledged: {}. Pass each id in acknowledgedCautions to compile it.",
+            unacknowledged.join("; ")
+        ))
+    }
+}
+
 pub fn compile_protocol(proto: &Value, opts: &CompileOptions) -> R<Compiled> {
     let timing = &proto["timingMode"];
     let session_ms = if timing["type"] == "duration" { f(timing, "seconds") * 1000.0 } else { 0.0 };
@@ -257,6 +297,9 @@ pub fn compile_protocol(proto: &Value, opts: &CompileOptions) -> R<Compiled> {
             }
         }
     }
+
+    // A parameter the descriptor cannot encode is refused above with its own message; the zone gate then judges the dose.
+    zone_gate(proto, opts)?;
 
     merge_overlapping_pbm(&mut cmds, session_ms)?;
 

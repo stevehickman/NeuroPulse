@@ -69,6 +69,13 @@ export interface CompileOptions {
    * what compiles. Defaults to the shipped rules.
    */
   wavelengthRules?: NPWavelengthRules;
+  /**
+   * The ids of the zone-model cautions the author has acknowledged (`zones[].axes[].ackId` of the validator's reply,
+   * docs/reference/safety-zones.md). A protocol in the caution zone compiles only when every one of its cautions is
+   * here, an id names its dose so a changed dose needs a fresh acknowledgement, and a protocol in the danger zone
+   * never compiles.
+   */
+  acknowledgedCautions?: readonly string[];
 }
 
 const hex = (bytes: Uint8Array): string => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
@@ -121,6 +128,7 @@ export function compileProtocol(
     wavelengthRules: opts.wavelengthRules
       ? { name: opts.wavelengthRules.name, channels: opts.wavelengthRules.channels }
       : null,
+    acknowledgedCautions: opts.acknowledgedCautions ? [...opts.acknowledgedCautions] : [],
   });
 
   return {

@@ -262,6 +262,14 @@ describe('the shipped library', () => {
     'taVNS — Stroke Motor Rehab (paired)': /frequencyHz 30 Hz is outside what the drive can deliver \(0–25 Hz\)/,  // authored at 30 Hz; the VNS ceiling is 25 Hz (§3), which the compiler used to clamp to silently. OI-NPPS-LIMITS-01 owns the decision; OI-VNSCLIP-08 asks what the ceiling is for
   };
 
+  // Shipped protocols that sit in the zone model's caution band (docs/reference/safety-zones.md, placeholder
+  // boundaries UC-073..UC-077). Each needs its acknowledgement to compile, and is named here with the id it carries so a
+  // new caution, or a changed dose, is a deliberate act and not a drift.
+  const CAUTIONS: Record<string, string[]> = {
+    'ADHD Focus': ['1:tdcs:sessionChargeDensity=102.857'],
+    'tACS — Sleep / Memory Consolidation (SO 0.75Hz)': ['0:bes_tacs:phaseChargeDensity=12.732'],
+  };
+
   it('every predefined protocol compiles, except the ones refused for a stated reason', () => {
     const manifest = JSON.parse(fs.readFileSync(path.join(DIR, 'manifest.json'), 'utf8'));
     const files = [...manifest.zones, ...manifest.conditions, ...manifest.protocols]
@@ -274,7 +282,7 @@ describe('the shipped library', () => {
       const clinician = entry.protocol.modalities.some(m =>
         (m.modalityParams.params as { zones?: string }).zones === 'clinician_selected');
       try {
-        compileProtocol(entry.protocol, { zones: namespace.zones, clinicianSockets: clinician ? [1] : undefined });
+        compileProtocol(entry.protocol, { zones: namespace.zones, clinicianSockets: clinician ? [1] : undefined, acknowledgedCautions: CAUTIONS[entry.protocol.name] });
         compiled++;
       } catch (e) {
         const why = REFUSED[entry.protocol.name];
