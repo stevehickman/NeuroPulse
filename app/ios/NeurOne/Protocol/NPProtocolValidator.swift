@@ -25,8 +25,45 @@ struct NPValidationIssue: Identifiable {
     enum Severity { case error, warning }
 }
 
+/// One axis of a protocol's dose in the zone model's caution band (docs/reference/safety-zones.md). The protocol
+/// compiles only when the author has acknowledged every one, by `ackId`; the id names the dose, so a changed dose is
+/// a new caution. Read from the core's `zones`, never computed here.
+struct NPZoneCaution: Identifiable, Equatable {
+    let ackId: String
+    let blockIndex: Int
+    let modality: NPModalityType?
+    /// Locale key of the axis name (`ZONE_AXIS_…`).
+    let axisNameKey: String
+    let unit: String
+    let value: Double
+    /// Where the caution band starts.
+    let caution: Double
+
+    var id: String { ackId }
+
+    /// The cautions in a validator reply's `zones` array.
+    static func parse(_ zones: [[String: Any]]) -> [NPZoneCaution] {
+        zones.flatMap { block -> [NPZoneCaution] in
+            let axes = block["axes"] as? [[String: Any]] ?? []
+            return axes.compactMap { a in
+                guard (a["zone"] as? String) == "caution", let ack = a["ackId"] as? String else { return nil }
+                return NPZoneCaution(
+                    ackId: ack,
+                    blockIndex: block["index"] as? Int ?? 0,
+                    modality: (block["modality"] as? String).flatMap { NPModalityType(rawValue: $0) },
+                    axisNameKey: a["nameKey"] as? String ?? "",
+                    unit: a["unit"] as? String ?? "",
+                    value: (a["value"] as? NSNumber)?.doubleValue ?? 0,
+                    caution: (a["caution"] as? NSNumber)?.doubleValue ?? 0)
+            }
+        }
+    }
+}
+
 struct NPValidationResult {
     var issues: [NPValidationIssue] = []
+    /// What the author must acknowledge before this protocol compiles; empty outside the caution zone.
+    var zoneCautions: [NPZoneCaution] = []
     var isValid: Bool { !issues.contains { $0.severity == .error } }
     var hasWarnings: Bool { issues.contains { $0.severity == .warning } }
     var errors: [NPValidationIssue] { issues.filter { $0.severity == .error } }
@@ -101,7 +138,9 @@ struct NPProtocolValidator {
             let result = try NppsCore.validate(
                 entry: entry, limits: resolvedLimits, library: library, zones: zones, limitSources: sourceMap)
             let issues = result["issues"] as? [[String: Any]] ?? []
-            return NPValidationResult(issues: issues.map(Self.issue))
+            return NPValidationResult(
+                issues: issues.map(Self.issue),
+                zoneCautions: NPZoneCaution.parse(result["zones"] as? [[String: Any]] ?? []))
         } catch {
             return failure(error.localizedDescription)
         }

@@ -50,8 +50,10 @@ static class HubDescriptorCompiler
         byte[]? deviceSerial = null,
         IReadOnlyList<int>? clinicianSockets = null,
         bool autonomous = false,
-        Func<byte[], (byte[] Signature, string Fingerprint)>? sign = null)
-        => Signed(Build(definition, deviceSerial, clinicianSockets, autonomous), sign);
+        Func<byte[], (byte[] Signature, string Fingerprint)>? sign = null,
+        IReadOnlyList<string>? acknowledgedCautions = null)
+        => Signed(Build(definition, deviceSerial, clinicianSockets, autonomous,
+                        acknowledgedCautions: acknowledgedCautions), sign);
 
     /// Fill the trailing signature of an unsigned descriptor. Split from Compile so a caller can
     /// tell a compile refusal from a signing failure.
@@ -79,7 +81,8 @@ static class HubDescriptorCompiler
         IReadOnlyList<int>? clinicianSockets = null,
         bool autonomous = false,
         DateTimeOffset? now = null,
-        byte[]? sessionUuid = null)
+        byte[]? sessionUuid = null,
+        IReadOnlyList<string>? acknowledgedCautions = null)
     {
         var uuid = sessionUuid ?? RandomNumberGenerator.GetBytes(HubDescriptorWire.UUID_LEN);
         if (uuid.Length != HubDescriptorWire.UUID_LEN) throw new ArgumentException($"sessionUuid must be {HubDescriptorWire.UUID_LEN} bytes.", nameof(sessionUuid));
@@ -97,6 +100,7 @@ static class HubDescriptorCompiler
             Zones = zones, ClinicianSockets = clinicianSockets, DeviceSerial = deviceSerial,
             NowUnix = (now ?? DateTimeOffset.UtcNow).ToUnixTimeSeconds(), SessionUuid = uuid,
             Autonomous = autonomous,
+            AcknowledgedCautions = acknowledgedCautions ?? Array.Empty<string>(),
         };
 
         byte[] blob;

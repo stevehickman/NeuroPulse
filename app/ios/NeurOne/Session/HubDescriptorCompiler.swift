@@ -52,10 +52,11 @@ enum HubDescriptorCompiler {
         deviceSerial: Data? = nil,
         clinicianSockets: [Int]? = nil,
         autonomous: Bool = false,
+        acknowledgedCautions: [String] = [],
         sign: (Data) throws -> (signature: Data, fingerprint: String) = SessionProtocolSigner.sign
     ) throws -> HubDescriptor {
         try signed(try build(definition, deviceSerial: deviceSerial, clinicianSockets: clinicianSockets,
-                             autonomous: autonomous), using: sign)
+                             autonomous: autonomous, acknowledgedCautions: acknowledgedCautions), using: sign)
     }
 
     /// Fill the trailing signature of an unsigned descriptor. Split from `compile` so the caller can
@@ -81,6 +82,7 @@ enum HubDescriptorCompiler {
         deviceSerial: Data? = nil,
         clinicianSockets: [Int]? = nil,
         autonomous: Bool = false,
+        acknowledgedCautions: [String] = [],
         now: Date = Date(),
         sessionUUID: [UInt8]? = nil
     ) throws -> HubDescriptor {
@@ -95,7 +97,7 @@ enum HubDescriptorCompiler {
         let options = NppsCore.CompileOptions(
             zones: zones, clinicianSockets: clinicianSockets, deviceSerial: deviceSerial,
             nowUnix: Int(now.timeIntervalSince1970), sessionUUID: Data(uuid), wavelengthRules: nil,
-            autonomous: autonomous)
+            autonomous: autonomous, acknowledgedCautions: acknowledgedCautions)
         let blob: Data
         do {
             blob = try NppsCore.compile(protocolJSON: try definition.nppsCoreJSON(), options: options)

@@ -29,6 +29,9 @@ enum NppsCore {
         var wavelengthRules: [String: Any]?
         /// Mode 3: sets NP_PROTO_FLAG_AUTONOMOUS in the header.
         var autonomous = false
+        /// Ids of the zone-model cautions the author acknowledged (`NPZoneCaution.ackId`); a protocol in the caution
+        /// zone compiles only when every one of its cautions is here (docs/reference/safety-zones.md).
+        var acknowledgedCautions: [String] = []
     }
 
     private typealias Entry = (
@@ -134,7 +137,8 @@ enum NppsCore {
             "nowUnix": options.nowUnix,
             "sessionUuidHex": hex(options.sessionUUID),
             "wavelengthRules": options.wavelengthRules.map { $0 as Any } ?? NSNull(),
-            "autonomous": options.autonomous
+            "autonomous": options.autonomous,
+            "acknowledgedCautions": options.acknowledgedCautions
         ]
         return try call(npps_compile_json, JSONSerialization.data(withJSONObject: request))
     }

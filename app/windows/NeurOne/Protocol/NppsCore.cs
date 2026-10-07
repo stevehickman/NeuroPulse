@@ -33,6 +33,9 @@ sealed class NppsCompileOptions
     public JsonNode? WavelengthRules { get; init; }
     /// Mode 3: sets NP_PROTO_FLAG_AUTONOMOUS in the header.
     public bool Autonomous { get; init; }
+    /// Ids of the zone-model cautions the author acknowledged; a protocol in the caution zone compiles only
+    /// when every one of its cautions is here (docs/reference/safety-zones.md).
+    public IReadOnlyList<string> AcknowledgedCautions { get; init; } = Array.Empty<string>();
 }
 
 static class NppsCore
@@ -126,6 +129,7 @@ static class NppsCore
             ["sessionUuidHex"] = Convert.ToHexString(options.SessionUuid).ToLowerInvariant(),
             ["wavelengthRules"] = options.WavelengthRules?.DeepClone(),
             ["autonomous"] = options.Autonomous,
+            ["acknowledgedCautions"] = JsonSerializer.SerializeToNode(options.AcknowledgedCautions),
         };
         return Call(npps_compile_json, Encoding.UTF8.GetBytes(request.ToJsonString()));
     }

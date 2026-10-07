@@ -101,6 +101,12 @@ object NppsCore {
         val sessionUuid: ByteArray,
         /** Channel windows overriding the shipped defaults; null keeps the defaults. */
         val wavelengthRules: JsonObject? = null,
+        /**
+         * Ids of the zone-model cautions the author acknowledged ([life.neurone.core.protocol.NPZoneCaution.ackId]); a
+         * protocol in the caution zone compiles only when every one of its cautions is here
+         * (docs/reference/safety-zones.md).
+         */
+        val acknowledgedCautions: List<String> = emptyList(),
     )
 
     /**
@@ -122,6 +128,7 @@ object NppsCore {
             put("nowUnix", options.nowUnix)
             put("sessionUuidHex", hex(options.sessionUuid))
             put("wavelengthRules", options.wavelengthRules ?: JsonNull)
+            putJsonArray("acknowledgedCautions") { options.acknowledgedCautions.forEach { add(JsonPrimitive(it)) } }
         }
         return nativeCompile(request.toString())
     }

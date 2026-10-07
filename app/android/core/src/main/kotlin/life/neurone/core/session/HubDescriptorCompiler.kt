@@ -53,13 +53,16 @@ class HubDescriptorCompiler(
      * @param deviceSerial the 32-byte replay guard the hub checks (§4.2). Omitted only for
      *   bench use: a hub refuses a descriptor whose serial is not its own.
      * @param clinicianSockets operator-chosen 1-based socket ids for `clinician_selected` targets.
+     * @param acknowledgedCautions the ids of the cautions the author acknowledged (`NPZoneCaution.ackId`); a protocol
+     *   in the caution zone is refused without them.
      */
     fun compile(
         definition: NPProtocolDefinition,
         deviceSerial: ByteArray? = null,
         clinicianSockets: List<Int>? = null,
+        acknowledgedCautions: List<String> = emptyList(),
     ): HubDescriptor {
-        val unsigned = build(definition, deviceSerial, clinicianSockets)
+        val unsigned = build(definition, deviceSerial, clinicianSockets, acknowledgedCautions)
         val sig = signer.sign(unsigned.blob.copyOfRange(0, unsigned.blob.size - HubDescriptorWire.SIG_LEN))
         require(sig.signature.size == HubDescriptorWire.SIG_LEN) { "Ed25519 signature must be ${HubDescriptorWire.SIG_LEN} bytes, got ${sig.signature.size}." }
         sig.signature.copyInto(unsigned.blob, unsigned.blob.size - HubDescriptorWire.SIG_LEN)
@@ -73,6 +76,7 @@ class HubDescriptorCompiler(
         definition: NPProtocolDefinition,
         deviceSerial: ByteArray?,
         clinicianSockets: List<Int>?,
+        acknowledgedCautions: List<String> = emptyList(),
     ): Unsigned {
         val uuid = randomBytes(HubDescriptorWire.UUID_LEN)
         require(uuid.size == HubDescriptorWire.UUID_LEN)
@@ -88,6 +92,7 @@ class HubDescriptorCompiler(
                 deviceSerial = deviceSerial,
                 nowUnix = clockSeconds(),
                 sessionUuid = uuid,
+                acknowledgedCautions = acknowledgedCautions,
             ),
         )
         return Unsigned(blob, uuid, (blob[6].toInt() and HubDescriptorWire.FLAG_T2_TIER) != 0, blob[7].toInt() and 0xFF)

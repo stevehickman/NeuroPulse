@@ -70,9 +70,19 @@ final class SessionProtocolUploader: ObservableObject {
     // `clinician_selected` PBM targets.
     func upload(_ definition: NPProtocolDefinition,
                 deviceSerial: Data? = nil,
-                clinicianSockets: [Int]? = nil) async throws {
+                clinicianSockets: [Int]? = nil,
+                acknowledgedCautions: [String] = []) async throws {
         try await send(try buildDescriptor(from: definition, deviceSerial: deviceSerial,
-                                           clinicianSockets: clinicianSockets))
+                                           clinicianSockets: clinicianSockets,
+                                           acknowledgedCautions: acknowledgedCautions))
+    }
+
+    /// What the author must acknowledge before `upload` or `programAutonomous` will compile this protocol
+    /// (docs/reference/safety-zones.md). Empty when it is safe; a protocol in the danger zone is a validation
+    /// error and is refused whatever is acknowledged. The caller shows `CautionAcknowledgementView` and passes
+    /// the ids back as `acknowledgedCautions`; nothing is kept between calls.
+    func cautions(for definition: NPProtocolDefinition) -> [NPZoneCaution] {
+        NPProtocolValidator(resolvedLimits: .unlimited).validate(definition).zoneCautions
     }
 
     /// Set by the "this is a different person" confirmation; consumed by the next cervical
@@ -179,9 +189,11 @@ final class SessionProtocolUploader: ObservableObject {
     // yet, so today the hub runs both modes the same way.
     func programAutonomous(_ definition: NPProtocolDefinition,
                            deviceSerial: Data? = nil,
-                           clinicianSockets: [Int]? = nil) async throws {
+                           clinicianSockets: [Int]? = nil,
+                           acknowledgedCautions: [String] = []) async throws {
         try await send(try buildDescriptor(from: definition, deviceSerial: deviceSerial,
-                                           clinicianSockets: clinicianSockets, autonomous: true))
+                                           clinicianSockets: clinicianSockets, autonomous: true,
+                                           acknowledgedCautions: acknowledgedCautions))
     }
 
     // Validate a definition against hardware safety limits and compile it to the signed §4
@@ -191,7 +203,8 @@ final class SessionProtocolUploader: ObservableObject {
         from definition: NPProtocolDefinition,
         deviceSerial: Data?,
         clinicianSockets: [Int]?,
-        autonomous: Bool = false
+        autonomous: Bool = false,
+        acknowledgedCautions: [String] = []
     ) throws -> HubDescriptor {
         guard gatt.isHubConnected else {
             let err = UploadError.bleNotReady
@@ -212,7 +225,8 @@ final class SessionProtocolUploader: ObservableObject {
         do {
             unsigned = try HubDescriptorCompiler.build(definition, deviceSerial: deviceSerial ?? gatt.deviceSerial,
                                                        clinicianSockets: clinicianSockets,
-                                                       autonomous: autonomous)
+                                                       autonomous: autonomous,
+                                                       acknowledgedCautions: acknowledgedCautions)
         } catch {
             let err = UploadError.targetUnresolvable(error)
             lastError = err

@@ -52,6 +52,9 @@ struct ProtocolMenuView: View {
     @State private var uploadTask: Task<Void, Never>? = nil
     @State private var showLimitsSettings = false
     @State private var validationDetailEntry: NPProtocolEntry? = nil
+    /// A protocol in the zone model's caution zone, waiting for its author to acknowledge each caution
+    /// (docs/reference/safety-zones.md). Held only until the sheet is answered.
+    @State private var cautionPending: CautionPending? = nil
 
     var body: some View {
         NavigationStack {
@@ -93,6 +96,16 @@ struct ProtocolMenuView: View {
                 LimitsSettingsView()
                     .environmentObject(limitsStore)
                     .environmentObject(library)
+            }
+            .sheet(item: $cautionPending) { pending in
+                CautionAcknowledgementView(
+                    protocolName: pending.definition.name,
+                    cautions: pending.cautions,
+                    onAcknowledge: { ids in
+                        cautionPending = nil
+                        send(pending.definition, entry: pending.entry, acknowledgedCautions: ids)
+                    },
+                    onCancel: { cautionPending = nil })
             }
             .sheet(item: $validationDetailEntry) { entry in
                 ValidationDetailSheet(entry: entry, limitsStore: limitsStore, library: library)
@@ -483,15 +496,26 @@ struct ProtocolMenuView: View {
         lastSelectedEntry = entry
         withAnimation { uploadError = nil }
 
+        // A protocol in the caution zone runs only after its author acknowledges each caution.
+        let cautions = uploader.cautions(for: proto)
+        if !cautions.isEmpty {
+            cautionPending = CautionPending(entry: entry, definition: proto, cautions: cautions)
+            return
+        }
+        send(proto, entry: entry, acknowledgedCautions: [])
+    }
+
+    private func send(_ proto: NPProtocolDefinition, entry: NPProtocolEntry, acknowledgedCautions: [String]) {
+        lastSelectedEntry = entry
         uploadTask?.cancel()
         uploadTask = Task {
             do {
                 if programMode {
-                    try await uploader.programAutonomous(proto)
+                    try await uploader.programAutonomous(proto, acknowledgedCautions: acknowledgedCautions)
                     dismiss()
                     onProgrammed?()
                 } else {
-                    try await uploader.upload(proto)
+                    try await uploader.upload(proto, acknowledgedCautions: acknowledgedCautions)
                     withAnimation { showUploadSuccess = true }
                     try? await Task.sleep(nanoseconds: 2_000_000_000)
                     withAnimation { showUploadSuccess = false }
@@ -506,6 +530,14 @@ struct ProtocolMenuView: View {
             }
         }
     }
+}
+
+/// A selection waiting on the caution screen.
+struct CautionPending: Identifiable {
+    let entry: NPProtocolEntry
+    let definition: NPProtocolDefinition
+    let cautions: [NPZoneCaution]
+    var id: String { cautions.map(\.ackId).joined(separator: "|") }
 }
 
 // MARK: - Protocol Row View
