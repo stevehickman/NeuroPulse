@@ -45,16 +45,14 @@ xcodegen generate --spec app/NeurOneUI/iosApp/project.yml   # iOS (Xcode)
 
 ## What is shared today, and what is not
 
-**Shared, and identical on every platform:** the onboarding gates (age gate → biometric release → research
-consent), the session-history list and detail, the consumables screen, the five-tab shell, the composition
-root, the hub link (`BleCentral`, `NeurOneGattManager`), and every string.
+**Every screen is shared, and identical on every platform:** the onboarding gates (age gate → biometric release →
+research consent), the five tabs (Session with the protocol menu and editors, History, Consumables, Privacy with the
+consent dashboard and research portal, Settings with firmware, device setup, profiles and dosage limits), the
+composition root, the hub link (`BleCentral`, `NeurOneGattManager`), and every string. There is no per-host
+override: a host differs only through `PlatformServices` and the `expect`/`actual` set in `:core`. The Android
+activity, the desktop window, the browser page and the iOS view controller each only host `NeurOneApp`.
 
-**Still platform code.** These screens exist only in Android (`app/android/app/.../ui`) or in SwiftUI/React;
-on a host with no override the tab shows "not available in this version yet" (`TabPending`) so the gap is
-visible rather than silent. They move into `:shared` one at a time, deleting the platform copy as they go:
-
-- Settings (`SettingsScreen`, OTA, setup wizard, limits and profiles editors)
-- (none beyond Settings and its sub-screens, above)
+What is left is not screens but wiring on some targets, below, and retiring the old platform UIs (`OI-UI-KMP-05`).
 
 **Not yet wired on every target** (open items in `docs/status/pending-decisions.md`):
 
@@ -74,6 +72,7 @@ visible rather than silent. They move into `:shared` one at a time, deleting the
 - `OI-UI-KMP-04` — Ed25519 study-descriptor verification exists on the JVM only; other targets answer
   "cannot check", so every study descriptor is refused there (the shipped default everywhere, `OI-CONSENT-07`).
 - `OI-UI-KMP-05` — the existing SwiftUI app (`app/ios`), React app (`app/web`) and the Windows project are
-  untouched; retiring each is a decision for when `:shared` covers its screens. macOS is the desktop app.
+  untouched, and `:shared` now covers every screen they have; retiring each waits on its production path (BLE,
+  storage, signing) being wired in the shared build. macOS is the desktop app.
 - `OI-UI-KMP-06` — iOS and desktop packaging are unbuilt here (no Xcode, DMG/MSI
   tooling or browser); `android-ci.yml` and a macOS runner are the first real builds.

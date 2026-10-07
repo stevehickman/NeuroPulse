@@ -280,19 +280,7 @@ private fun DashboardContent(
 
         // ── Research consent (§6.2) ──────────────────────────────────────
         SectionHeader(stringResource(Res.string.dashboard_section_research))
-        // Three postures, not two. "Never asked" and "said stop" both have
-        // blanketConsentGranted == false, so the flag alone would show a withdrawn user the
-        // per-category summary while the ingestion gate refuses every study they are sent (§6.0).
-        Text(
-            when {
-                research.blanketConsentGranted ->
-                    stringResource(Res.string.dashboard_blanket_approved)
-                research.blanketConsentWithdrawn ->
-                    stringResource(Res.string.dashboard_research_stopped)
-                else -> stringResource(Res.string.dashboard_per_category)
-            },
-            style = MaterialTheme.typography.titleSmall,
-        )
+        // Contact status first: it belongs to the section, not to the category list below it.
         Text(
             if (research.contactConsentGranted) {
                 stringResource(Res.string.dashboard_contact_format, redactedContact(research.contactMethod))
@@ -348,6 +336,23 @@ private fun DashboardContent(
         }
 
         Spacer(Modifier.height(12.dp))
+
+        // The summary line sits directly above the category list it describes, with nothing between them: it
+        // reads as that list's heading, not as a caption of the blanket switch above.
+        // Three postures, not two. "Never asked" and "said stop" both have
+        // blanketConsentGranted == false, so the flag alone would show a withdrawn user the
+        // per-category summary while the ingestion gate refuses every study they are sent (§6.0).
+        Text(
+            when {
+                research.blanketConsentGranted ->
+                    stringResource(Res.string.dashboard_blanket_approved)
+                research.blanketConsentWithdrawn ->
+                    stringResource(Res.string.dashboard_research_stopped)
+                else -> stringResource(Res.string.dashboard_per_category)
+            },
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Spacer(Modifier.height(4.dp))
         for (category in ResearchCategory.entries) {
             val granted = research.categoryConsents[category] ?: false
             // Read-only status, not an editing control: L2 scope is edited in Research

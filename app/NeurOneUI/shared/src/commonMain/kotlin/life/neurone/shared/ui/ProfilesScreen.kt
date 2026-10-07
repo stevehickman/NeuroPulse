@@ -1,4 +1,4 @@
-package life.neurone.app.ui
+package life.neurone.shared.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,9 +25,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import life.neurone.app.R
+import life.neurone.shared.resources.Res
+import life.neurone.shared.resources.*
 import life.neurone.core.protocol.NPIndividualProfile
 import life.neurone.core.protocol.NPLimitsStore
 
@@ -60,27 +61,27 @@ fun ProfilesScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onDone) { Text(stringResource(R.string.common_back)) }
-            Text(stringResource(R.string.profile_picker_title), style = MaterialTheme.typography.titleMedium)
+            TextButton(onClick = onDone) { Text(stringResource(Res.string.common_back)) }
+            Text(stringResource(Res.string.profile_picker_title), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.padding(horizontal = 24.dp))
         }
         Spacer(Modifier.height(8.dp))
-        Text(stringResource(R.string.profile_picker_hint), style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(Res.string.profile_picker_hint), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(16.dp))
 
         Button(onClick = { showAdd = true }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.limits_add_profile))
+            Text(stringResource(Res.string.limits_add_profile))
         }
         Spacer(Modifier.height(16.dp))
 
         if (profiles.isEmpty()) {
             Text(
-                stringResource(R.string.limits_no_individual_profiles_configured),
+                stringResource(Res.string.limits_no_individual_profiles_configured),
                 style = MaterialTheme.typography.bodyMedium,
             )
         } else {
             val active = profiles.firstOrNull { it.id == activeId }
-            Text(stringResource(R.string.limits_active_profile), style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(Res.string.limits_active_profile), style = MaterialTheme.typography.titleSmall)
             Spacer(Modifier.height(4.dp))
             if (active != null) {
                 ProfileRow(
@@ -90,13 +91,13 @@ fun ProfilesScreen(
                     onDelete = { store.deleteProfile(active.id); refresh() },
                 )
             } else {
-                Text(stringResource(R.string.profile_picker_none_selected), style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(Res.string.profile_picker_none_selected), style = MaterialTheme.typography.bodyMedium)
             }
 
             val inactive = profiles.filter { it.id != activeId }
             if (inactive.isNotEmpty()) {
                 Spacer(Modifier.height(16.dp))
-                Text(stringResource(R.string.limits_profiles), style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(Res.string.limits_profiles), style = MaterialTheme.typography.titleSmall)
                 inactive.forEach { profile ->
                     Spacer(Modifier.height(4.dp))
                     ProfileRow(
@@ -113,15 +114,15 @@ fun ProfilesScreen(
     if (showAdd) {
         AlertDialog(
             onDismissRequest = { showAdd = false; newName = "" },
-            title = { Text(stringResource(R.string.limits_add_profile)) },
+            title = { Text(stringResource(Res.string.limits_add_profile)) },
             text = {
                 Column {
-                    Text(stringResource(R.string.limits_enter_a_name_for_this_individual_profile))
+                    Text(stringResource(Res.string.limits_enter_a_name_for_this_individual_profile))
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = newName,
                         onValueChange = { newName = it },
-                        label = { Text(stringResource(R.string.limits_profile_name)) },
+                        label = { Text(stringResource(Res.string.limits_profile_name)) },
                         singleLine = true,
                     )
                 }
@@ -135,11 +136,11 @@ fun ProfilesScreen(
                         showAdd = false
                         refresh()
                     },
-                ) { Text(stringResource(R.string.ui_add)) }
+                ) { Text(stringResource(Res.string.ui_add)) }
             },
             dismissButton = {
                 TextButton(onClick = { showAdd = false; newName = "" }) {
-                    Text(stringResource(R.string.common_cancel))
+                    Text(stringResource(Res.string.common_cancel))
                 }
             },
         )
@@ -162,7 +163,7 @@ private fun ProfileRow(
                 Text(profile.name, style = MaterialTheme.typography.titleMedium)
                 if (isActive) {
                     Text(
-                        stringResource(R.string.limits_active),
+                        stringResource(Res.string.limits_active),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -173,10 +174,10 @@ private fun ProfileRow(
             }
             Column(horizontalAlignment = Alignment.End) {
                 OutlinedButton(onClick = onToggleActive) {
-                    Text(stringResource(if (isActive) R.string.limits_deactivate else R.string.limits_set_active))
+                    Text(stringResource(if (isActive) Res.string.limits_deactivate else Res.string.limits_set_active))
                 }
                 TextButton(onClick = onDelete) {
-                    Text(stringResource(R.string.ui_delete), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(Res.string.ui_delete), color = MaterialTheme.colorScheme.error)
                 }
             }
         }

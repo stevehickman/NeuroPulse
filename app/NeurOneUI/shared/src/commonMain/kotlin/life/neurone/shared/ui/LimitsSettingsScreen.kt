@@ -1,4 +1,4 @@
-package life.neurone.app.ui
+package life.neurone.shared.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,8 +34,9 @@ import life.neurone.core.protocol.NPPBMTranscranialLimits
 import life.neurone.core.protocol.NPTDCSLimits
 import life.neurone.core.protocol.NPVNSHRVLimits
 import life.neurone.core.protocol.NPVisualStimLimits
-import androidx.compose.ui.res.stringResource
-import life.neurone.app.R
+import org.jetbrains.compose.resources.stringResource
+import life.neurone.shared.resources.Res
+import life.neurone.shared.resources.*
 
 // Port of iOS LimitsSettingsView (global tier). Edits the safety-relevant global dosage caps —
 // they layer under the firmware hardware ceilings (NPHardwareLimits, which can never be
@@ -57,7 +58,7 @@ fun LimitsSettingsScreen(
     var vnsMa by remember { mutableStateOf(existing?.vnsHrv?.maxIntensityMilliamps.toField()) }
     var blockHighRisk by remember { mutableStateOf(existing?.visualStimulation?.blockHighRiskRange ?: false) }
 
-    val globalName = stringResource(R.string.limits_chain_global)
+    val globalName = stringResource(Res.string.limits_chain_global)
 
     fun save() {
         // Preserve any fields this simplified editor doesn't expose; overwrite the ones it does.
@@ -83,33 +84,33 @@ fun LimitsSettingsScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onDone) { Text(stringResource(R.string.common_cancel)) }
-            Text(stringResource(R.string.limits_dosage_limits), style = MaterialTheme.typography.titleMedium)
-            Button(onClick = { save() }) { Text(stringResource(R.string.protocol_composer_save)) }
+            TextButton(onClick = onDone) { Text(stringResource(Res.string.common_cancel)) }
+            Text(stringResource(Res.string.limits_dosage_limits), style = MaterialTheme.typography.titleMedium)
+            Button(onClick = { save() }) { Text(stringResource(Res.string.protocol_composer_save)) }
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            stringResource(R.string.limits_global_caps_layer_under_the_firmware_hardwar) +
-                stringResource(R.string.limits_leave_a_field_blank_for_no_configured_cap),
+            stringResource(Res.string.limits_global_caps_layer_under_the_firmware_hardwar) +
+                stringResource(Res.string.limits_leave_a_field_blank_for_no_configured_cap),
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(12.dp))
 
-        NumberField(stringResource(R.string.limits_pbm_max_irradiance), pbmIntensity) { pbmIntensity = it }
-        NumberField(stringResource(R.string.limits_pbm_max_session_dose_j_cm), pbmDose) { pbmDose = it }
-        NumberField(stringResource(R.string.limits_bes_tacs_max_current_ma), besMa) { besMa = it }
-        NumberField(stringResource(R.string.limits_tdcs_max_current_ma), tdcsMa) { tdcsMa = it }
-        NumberField(stringResource(R.string.limits_vns_max_current_ma), vnsMa) { vnsMa = it }
+        NumberField(stringResource(Res.string.limits_pbm_max_irradiance), pbmIntensity) { pbmIntensity = it }
+        NumberField(stringResource(Res.string.limits_pbm_max_session_dose_j_cm), pbmDose) { pbmDose = it }
+        NumberField(stringResource(Res.string.limits_bes_tacs_max_current_ma), besMa) { besMa = it }
+        NumberField(stringResource(Res.string.limits_tdcs_max_current_ma), tdcsMa) { tdcsMa = it }
+        NumberField(stringResource(Res.string.limits_vns_max_current_ma), vnsMa) { vnsMa = it }
 
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.limits_block_3_30_hz_photoparoxysmal_range), Modifier.weight(1f))
+            Text(stringResource(Res.string.limits_block_3_30_hz_photoparoxysmal_range), Modifier.weight(1f))
             Switch(checked = blockHighRisk, onCheckedChange = { blockHighRisk = it })
         }
 
         Spacer(Modifier.height(16.dp))
         OutlinedButton(onClick = { store.clearGlobalLimits(); onDone() }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.limits_clear_all_global_limits))
+            Text(stringResource(Res.string.limits_clear_all_global_limits))
         }
     }
 }

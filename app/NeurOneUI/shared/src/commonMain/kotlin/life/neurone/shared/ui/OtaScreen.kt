@@ -1,4 +1,4 @@
-package life.neurone.app.ui
+package life.neurone.shared.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,9 +19,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import life.neurone.core.models.OtaPhase
 import life.neurone.core.models.OtaStatusPacket
-import androidx.annotation.StringRes
-import androidx.compose.ui.res.stringResource
-import life.neurone.app.R
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
+import life.neurone.shared.resources.Res
+import life.neurone.shared.resources.*
 
 // Port of iOS OTAView — firmware version + over-the-air update status. Pure renderer of the
 // hub's FIRMWARE_VERSION + OTA_STATUS notifications. The actual download+flash flow (host-side
@@ -39,15 +40,15 @@ fun OtaScreen(
             Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text(stringResource(R.string.consent_back_button)) }
-            Text(stringResource(R.string.ota_firmware), style = MaterialTheme.typography.titleLarge)
+            TextButton(onClick = onBack) { Text(stringResource(Res.string.consent_back_button)) }
+            Text(stringResource(Res.string.ota_firmware), style = MaterialTheme.typography.titleLarge)
         }
 
         Column(Modifier.padding(24.dp)) {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
-                    Text(stringResource(R.string.ota_hub_firmware_version), style = MaterialTheme.typography.labelMedium)
-                    Text(firmwareVersion ?: stringResource(R.string.ota_unknown_connect_to_your_hub), style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(Res.string.ota_hub_firmware_version), style = MaterialTheme.typography.labelMedium)
+                    Text(firmwareVersion ?: stringResource(Res.string.ota_unknown_connect_to_your_hub), style = MaterialTheme.typography.titleMedium)
                 }
             }
 
@@ -56,7 +57,7 @@ fun OtaScreen(
             if (status != null) {
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp)) {
-                        Text(stringResource(R.string.ota_update_status), style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(Res.string.ota_update_status), style = MaterialTheme.typography.labelMedium)
                         Text(stringResource(phaseLabel(status.phase)), style = MaterialTheme.typography.titleMedium)
                         if (status.phase?.isBusy == true) {
                             Spacer(Modifier.height(8.dp))
@@ -68,14 +69,14 @@ fun OtaScreen(
                         }
                         if (status.isError) {
                             Spacer(Modifier.height(8.dp))
-                            Text(stringResource(R.string.ota_error_code_0, status.errorCode), style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(Res.string.ota_error_code_0, status.errorCode), style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
             } else {
                 Text(
-                    stringResource(R.string.ota_firmware_updates_install_automatically_over) +
-                        stringResource(R.string.ota_version_is_available_no_action_is_needed),
+                    stringResource(Res.string.ota_firmware_updates_install_automatically_over) +
+                        stringResource(Res.string.ota_version_is_available_no_action_is_needed),
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -85,14 +86,13 @@ fun OtaScreen(
 
 // Same OTA_PHASE_* keys iOS `OTAPhase.description` uses. An unrecognised phase byte renders as
 // idle, as iOS `OTAPhase(rawPacketByte:)` does.
-@StringRes
-private fun phaseLabel(phase: OtaPhase?): Int = when (phase) {
-    OtaPhase.IDLE, null -> R.string.ota_phase_idle
-    OtaPhase.PREPARING -> R.string.ota_phase_preparing
-    OtaPhase.TRANSFERRING -> R.string.ota_phase_transferring
-    OtaPhase.VERIFYING -> R.string.ota_phase_verifying
-    OtaPhase.VERIFIED -> R.string.ota_phase_verified
-    OtaPhase.APPLYING -> R.string.ota_phase_applying
-    OtaPhase.COMPLETE -> R.string.ota_phase_complete
-    OtaPhase.FAILED -> R.string.ota_phase_failed
+private fun phaseLabel(phase: OtaPhase?): StringResource = when (phase) {
+    OtaPhase.IDLE, null -> Res.string.ota_phase_idle
+    OtaPhase.PREPARING -> Res.string.ota_phase_preparing
+    OtaPhase.TRANSFERRING -> Res.string.ota_phase_transferring
+    OtaPhase.VERIFYING -> Res.string.ota_phase_verifying
+    OtaPhase.VERIFIED -> Res.string.ota_phase_verified
+    OtaPhase.APPLYING -> Res.string.ota_phase_applying
+    OtaPhase.COMPLETE -> Res.string.ota_phase_complete
+    OtaPhase.FAILED -> Res.string.ota_phase_failed
 }

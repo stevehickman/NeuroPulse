@@ -364,6 +364,20 @@ function androidValuesDir(locale: string): string {
 }
 
 /**
+ * Escape a string for a Compose Multiplatform `<string>` body. Its resource compiler decodes `\n` and the XML
+ * entities and nothing else: a backslash-escaped apostrophe or quote reaches the screen as `\'` (seen in the web
+ * build: "hub\'s"). So only the entities and the newline are written, and quotes and apostrophes go through raw,
+ * which XML text permits.
+ */
+function composeEscape(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "\\n");
+}
+
+/**
  * Resource directory qualifier per locale for Compose Multiplatform, which understands a language and a
  * two-letter region (`values-fr`, `values-en-rGB`) and neither a script nor a numeric region, so `b+` forms
  * do not parse. `zh-Hans` becomes `values-zh` and `es-419` becomes `values-es`: the nearest language, which
@@ -400,10 +414,16 @@ function androidEscape(value: string): string {
 }
 
 /** `{0}` → `%1$s`. Positional, so a translation may reorder its arguments. */
-function canonicalToAndroid(value: string): string {
-  const out = androidEscape(value);
+function canonicalToAndroid(
+  value: string,
+  escape: (v: string) => string = androidEscape,
+  // Android's format treats `%` as an escape and wants `%%`; Compose Multiplatform's does not, so a literal percent is
+  // written as is there, or "50%" would read "50%%".
+  percent: (v: string) => string = escapePercent,
+): string {
+  const out = escape(value);
   if (!hasPlaceholder(value)) return out;
-  return escapePercent(out).replace(/\{(\d+)\}/g, (_m, n) => `%${Number(n) + 1}$s`);
+  return percent(out).replace(/\{(\d+)\}/g, (_m, n) => `%${Number(n) + 1}$s`);
 }
 
 /** Plural items count, so the first argument is `%d` rather than `%1$s`. */
@@ -430,6 +450,8 @@ function generateAndroidXml(
    * `<name>_one`, `<name>_other` strings (the canonical keys, lowercased) and the app picks (`pluralString`).
    */
   flatPlurals = false,
+  escape: (v: string) => string = androidEscape,
+  percent: (v: string) => string = escapePercent,
 ): Array<[string, string]> {
   const en = locales.get(SOURCE_LANGUAGE)!;
   const outputs: Array<[string, string]> = [];
@@ -449,14 +471,14 @@ function generateAndroidXml(
     for (const key of Object.keys(en).sort()) {
       if (isPluralSuffix(key)) {
         if (flatPlurals) {
-          if (data[key] !== undefined) lines.push(`    <string name="${androidName(key)}">${canonicalToAndroid(data[key])}</string>`);
+          if (data[key] !== undefined) lines.push(`    <string name="${androidName(key)}">${canonicalToAndroid(data[key], escape, percent)}</string>`);
           continue;
         }
         pluralBases.add(key.replace(/_(?:ZERO|ONE|TWO|FEW|MANY|OTHER)$/, ""));
         continue;
       }
       if (data[key] === undefined) continue;
-      lines.push(`    <string name="${androidName(key)}">${canonicalToAndroid(data[key])}</string>`);
+      lines.push(`    <string name="${androidName(key)}">${canonicalToAndroid(data[key], escape, percent)}</string>`);
     }
 
     for (const base of [...pluralBases].sort()) {
@@ -484,7 +506,7 @@ function generateComposeXml(locales: Map<string, LocaleData>, composeOut: string
     if (other) throw new Error(`Compose resources: ${other} and ${locale} would both be written to ${dir}`);
     seen.set(dir, locale);
   }
-  return generateAndroidXml(locales, composeOut, composeValuesDir, true);
+  return generateAndroidXml(locales, composeOut, composeValuesDir, true, composeEscape, (v) => v);
 }
 
 // --- Main ---

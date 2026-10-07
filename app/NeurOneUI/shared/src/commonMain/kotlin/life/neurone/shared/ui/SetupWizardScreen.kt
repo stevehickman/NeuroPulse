@@ -1,7 +1,6 @@
-package life.neurone.app.ui
+package life.neurone.shared.ui
 
-import android.content.Context
-import androidx.annotation.StringRes
+import org.jetbrains.compose.resources.StringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,16 +27,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import life.neurone.app.NeurOneApplication
-import life.neurone.app.R
+import life.neurone.shared.AppServices
+import life.neurone.shared.resources.Res
+import life.neurone.shared.resources.*
 import life.neurone.shared.ble.ConnectionState
 import life.neurone.core.ble.CalibrationOpcode
 import life.neurone.core.models.ZoneModuleConfiguration
@@ -55,19 +54,17 @@ import life.neurone.core.setup.SetupStep
 
 @Composable
 fun SetupWizardScreen(
-    app: NeurOneApplication,
+    app: AppServices,
     onFinish: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val flow = remember { SetupFlow(app.keyValueStore) }
     var step by remember { mutableStateOf(flow.currentStep) }
     var safetyChecked by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf<SetupError?>(null) }
     val connectionState by app.gattManager.connectionState.collectAsState()
     val session by app.gattManager.session.collectAsState()
     val zoneModules by app.gattManager.zoneModules.collectAsState()
-
-    val context = LocalContext.current
 
     fun advance() {
         flow.advance()
@@ -83,7 +80,7 @@ fun SetupWizardScreen(
             .padding(24.dp),
     ) {
         Text(
-            stringResource(R.string.setup_device_setup_step_0_of_1, step.index + 1, SetupStep.COMPLETE.index + 1),
+            stringResource(Res.string.setup_device_setup_step_0_of_1, step.index + 1, SetupStep.COMPLETE.index + 1),
             style = MaterialTheme.typography.labelMedium,
         )
         Spacer(Modifier.height(8.dp))
@@ -93,7 +90,7 @@ fun SetupWizardScreen(
 
         error?.let {
             Spacer(Modifier.height(12.dp))
-            Text(it, color = Color(0xFFD32F2F), style = MaterialTheme.typography.bodyMedium)
+            Text(it.text(), color = Color(0xFFD32F2F), style = MaterialTheme.typography.bodyMedium)
         }
 
         if (step == SetupStep.ZONE_MODULES) {
@@ -111,7 +108,7 @@ fun SetupWizardScreen(
                         if (it) flow.acknowledgeSafety()
                     },
                 )
-                Text(stringResource(R.string.setup_i_have_read_the_contraindications_and_it_is))
+                Text(stringResource(Res.string.setup_i_have_read_the_contraindications_and_it_is))
             }
         }
 
@@ -123,7 +120,7 @@ fun SetupWizardScreen(
                     safetyChecked = false
                     error = null
                     step = flow.currentStep
-                }) { Text(stringResource(R.string.consent_back_button)) }
+                }) { Text(stringResource(Res.string.consent_back_button)) }
             }
             Spacer(Modifier.weight(1f))
             Button(onClick = {
@@ -133,27 +130,19 @@ fun SetupWizardScreen(
 
                     step.requiresHardwareConfirmation -> {
                         if (connectionState != ConnectionState.CONNECTED) {
-                            error = context.getString(R.string.setup_connect_to_your_hub_first)
+                            error = SetupError.ConnectFirst
                         } else when (step) {
                             SetupStep.ZONE_MODULES -> when (val r = flow.evaluateZoneModules(zoneModules)) {
                                 SetupFlow.ZoneModuleResult.Passed -> advance()
                                 SetupFlow.ZoneModuleResult.NoneDetected ->
-                                    error = context.getString(R.string.setup_error_no_zone_modules)
-                                is SetupFlow.ZoneModuleResult.Faulted -> error = context.getString(
-                                    R.string.setup_error_zone_missing,
-                                    r.socketIds.joinToString(", ") {
-                                        context.getString(R.string.setup_socket_label, it)
-                                    },
-                                )
+                                    error = SetupError.NoZoneModules
+                                is SetupFlow.ZoneModuleResult.Faulted -> error = SetupError.ZoneMissing(r.socketIds)
                             }
                             SetupStep.IMPEDANCE_CHECK -> {
                                 app.gattManager.sendCalibration(CalibrationOpcode.IMPEDANCE_CHECK)
                                 val r = flow.evaluateImpedance(session.impedancePassFlags)
                                 if (r.passed) advance()
-                                else error = context.getString(
-                                    R.string.setup_only_0_of_8_electrodes_made_good_contact,
-                                    r.passCount,
-                                ) + context.getString(R.string.setup_adjust_the_fit_and_try_again)
+                                else error = SetupError.WeakContact(r.passCount)
                             }
                             SetupStep.ADS1299_CALIBRATION -> {
                                 app.gattManager.sendCalibration(CalibrationOpcode.ADS1299_SELF_CAL)
@@ -166,7 +155,7 @@ fun SetupWizardScreen(
                     step == SetupStep.SAFETY_ACKNOWLEDGEMENT -> {
                         when (flow.advance()) {
                             is SetupFlow.AdvanceResult.BlockedBySafety ->
-                                error = context.getString(R.string.setup_please_confirm_the_safety_acknowledgement_to)
+                                error = SetupError.SafetyUnconfirmed
                             else -> {
                                 safetyChecked = false
                                 step = flow.currentStep
@@ -192,34 +181,33 @@ fun SetupWizardScreen(
  */
 @Composable
 private fun ZoneModuleStatusList(configuration: ZoneModuleConfiguration) {
-    val context = LocalContext.current
     var previous by remember { mutableStateOf(configuration) }
-    var lastConfirmation by remember { mutableStateOf<String?>(null) }
+    var lastSeated by remember { mutableStateOf<ZoneModuleStatus?>(null) }
 
     LaunchedEffect(configuration) {
         configuration.presentSockets
             .lastOrNull { previous.status(it.socketId)?.isPresent != true }
-            ?.let { lastConfirmation = spokenConfirmation(context, it) }
+            ?.let { lastSeated = it }
         previous = configuration
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (configuration.isEmpty) {
             Text(
-                stringResource(R.string.setup_zone_waiting),
+                stringResource(Res.string.setup_zone_waiting),
                 style = MaterialTheme.typography.bodyMedium,
             )
         } else {
             Text(
                 stringResource(
-                    R.string.setup_zone_summary,
+                    Res.string.setup_zone_summary,
                     configuration.presentSockets.size,
                     configuration.sockets.size,
                 ),
                 style = MaterialTheme.typography.labelMedium,
             )
             configuration.orderedSockets.forEach { socket ->
-                val spoken = spokenConfirmation(context, socket)
+                val spoken = spokenConfirmation(socket)
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -239,7 +227,7 @@ private fun ZoneModuleStatusList(configuration: ZoneModuleConfiguration) {
                         },
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text(socketLabel(context, socket.socketId), style = MaterialTheme.typography.bodyMedium)
+                    Text(socketLabel(socket.socketId), style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.weight(1f))
                     moduleTypeName(socket.moduleType)?.takeIf { socket.isPresent }?.let {
                         Text(
@@ -251,9 +239,9 @@ private fun ZoneModuleStatusList(configuration: ZoneModuleConfiguration) {
                 }
             }
         }
-        lastConfirmation?.let {
+        lastSeated?.let { seated ->
             Text(
-                it,
+                spokenConfirmation(seated),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
@@ -262,64 +250,86 @@ private fun ZoneModuleStatusList(configuration: ZoneModuleConfiguration) {
 }
 
 /** Zone name leads when the socket has one; the raw id is the fallback (NP-HFE-002 §7.2). */
-private fun socketLabel(context: Context, socketId: Int): String =
+@Composable
+private fun socketLabel(socketId: Int): String =
     NPZoneRegistry.primaryZone(socketId)
-        ?.let { context.getString(R.string.zone_socket_position_label, socketId, it) }
-        ?: context.getString(R.string.zone_socket_label, socketId)
+        ?.let { stringResource(Res.string.zone_socket_position_label, socketId, it) }
+        ?: stringResource(Res.string.zone_socket_label, socketId)
 
-private fun spokenConfirmation(context: Context, socket: ZoneModuleStatus): String {
+@Composable
+private fun spokenConfirmation(socket: ZoneModuleStatus): String {
     val place = NPZoneRegistry.primaryZone(socket.socketId)
-        ?: context.getString(R.string.zone_socket_label, socket.socketId)
-    return moduleTypeName(socket.moduleType)
-        ?.let { context.getString(R.string.zone_announce_with_type, place, context.getString(it)) }
-        ?: context.getString(R.string.zone_announce_no_type, place)
+        ?: stringResource(Res.string.zone_socket_label, socket.socketId)
+    val type = moduleTypeName(socket.moduleType)?.let { stringResource(it) }
+    return if (type != null) stringResource(Res.string.zone_announce_with_type, place, type)
+    else stringResource(Res.string.zone_announce_no_type, place)
 }
 
-@StringRes
-private fun moduleTypeName(type: ZoneModuleType): Int? = when (type) {
-    ZoneModuleType.PBM_BASE -> R.string.zone_module_type_pbm_base
-    ZoneModuleType.EEG -> R.string.zone_module_type_eeg
-    ZoneModuleType.PBM_1064 -> R.string.zone_module_type_pbm_1064
-    ZoneModuleType.PBM_1170 -> R.string.zone_module_type_pbm_1170
+/** Why a step did not advance. Data, not text, because the words are read in composition (CLAUDE.md §17). */
+private sealed interface SetupError {
+    data object ConnectFirst : SetupError
+    data object NoZoneModules : SetupError
+    data class ZoneMissing(val socketIds: List<Int>) : SetupError
+    data class WeakContact(val passCount: Int) : SetupError
+    data object SafetyUnconfirmed : SetupError
+}
+
+@Composable
+private fun SetupError.text(): String = when (this) {
+    SetupError.ConnectFirst -> stringResource(Res.string.setup_connect_to_your_hub_first)
+    SetupError.NoZoneModules -> stringResource(Res.string.setup_error_no_zone_modules)
+    is SetupError.ZoneMissing -> stringResource(
+        Res.string.setup_error_zone_missing,
+        // `map` is inline, so stringResource may be called inside it; joinToString's transform is not.
+        socketIds.map { stringResource(Res.string.setup_socket_label, it) }.joinToString(", "),
+    )
+    is SetupError.WeakContact ->
+        stringResource(Res.string.setup_only_0_of_8_electrodes_made_good_contact, passCount) +
+            stringResource(Res.string.setup_adjust_the_fit_and_try_again)
+    SetupError.SafetyUnconfirmed -> stringResource(Res.string.setup_please_confirm_the_safety_acknowledgement_to)
+}
+
+private fun moduleTypeName(type: ZoneModuleType): StringResource? = when (type) {
+    ZoneModuleType.PBM_BASE -> Res.string.zone_module_type_pbm_base
+    ZoneModuleType.EEG -> Res.string.zone_module_type_eeg
+    ZoneModuleType.PBM_1064 -> Res.string.zone_module_type_pbm_1064
+    ZoneModuleType.PBM_1170 -> Res.string.zone_module_type_pbm_1170
     ZoneModuleType.ABSENT, ZoneModuleType.UNKNOWN -> null
 }
 
-@StringRes
-private fun titleFor(step: SetupStep): Int = when (step) {
-    SetupStep.WELCOME -> R.string.setup_title_welcome
-    SetupStep.BLE_CONFIRMATION -> R.string.setup_title_ble
-    SetupStep.BOA_DIAL -> R.string.setup_title_boa_dial
-    SetupStep.ELECTRODE_PODS -> R.string.setup_title_electrode_pods
-    SetupStep.ZONE_MODULES -> R.string.setup_title_zone_modules
-    SetupStep.IMPEDANCE_CHECK -> R.string.setup_title_impedance
-    SetupStep.ADS1299_CALIBRATION -> R.string.setup_title_calibration
-    SetupStep.HYDRATION_CAPS -> R.string.setup_title_hydration
-    SetupStep.SAFETY_ACKNOWLEDGEMENT -> R.string.setup_title_safety
-    SetupStep.PROTOCOL_SELECTION -> R.string.setup_title_protocol
-    SetupStep.COMPLETE -> R.string.setup_title_complete
+private fun titleFor(step: SetupStep): StringResource = when (step) {
+    SetupStep.WELCOME -> Res.string.setup_title_welcome
+    SetupStep.BLE_CONFIRMATION -> Res.string.setup_title_ble
+    SetupStep.BOA_DIAL -> Res.string.setup_title_boa_dial
+    SetupStep.ELECTRODE_PODS -> Res.string.setup_title_electrode_pods
+    SetupStep.ZONE_MODULES -> Res.string.setup_title_zone_modules
+    SetupStep.IMPEDANCE_CHECK -> Res.string.setup_title_impedance
+    SetupStep.ADS1299_CALIBRATION -> Res.string.setup_title_calibration
+    SetupStep.HYDRATION_CAPS -> Res.string.setup_title_hydration
+    SetupStep.SAFETY_ACKNOWLEDGEMENT -> Res.string.setup_title_safety
+    SetupStep.PROTOCOL_SELECTION -> Res.string.setup_title_protocol
+    SetupStep.COMPLETE -> Res.string.setup_title_complete
 }
 
-@StringRes
-private fun instructionFor(step: SetupStep): Int = when (step) {
-    SetupStep.WELCOME -> R.string.setup_instr_welcome
-    SetupStep.BLE_CONFIRMATION -> R.string.setup_instr_ble
-    SetupStep.BOA_DIAL -> R.string.setup_instr_boa_dial
-    SetupStep.ELECTRODE_PODS -> R.string.setup_instr_electrode_pods
-    SetupStep.ZONE_MODULES -> R.string.setup_instr_zone_modules
-    SetupStep.IMPEDANCE_CHECK -> R.string.setup_instr_impedance
-    SetupStep.ADS1299_CALIBRATION -> R.string.setup_instr_calibration
-    SetupStep.HYDRATION_CAPS -> R.string.setup_instr_hydration
-    SetupStep.SAFETY_ACKNOWLEDGEMENT -> R.string.setup_instr_safety
-    SetupStep.PROTOCOL_SELECTION -> R.string.setup_instr_protocol
-    SetupStep.COMPLETE -> R.string.setup_instr_complete
+private fun instructionFor(step: SetupStep): StringResource = when (step) {
+    SetupStep.WELCOME -> Res.string.setup_instr_welcome
+    SetupStep.BLE_CONFIRMATION -> Res.string.setup_instr_ble
+    SetupStep.BOA_DIAL -> Res.string.setup_instr_boa_dial
+    SetupStep.ELECTRODE_PODS -> Res.string.setup_instr_electrode_pods
+    SetupStep.ZONE_MODULES -> Res.string.setup_instr_zone_modules
+    SetupStep.IMPEDANCE_CHECK -> Res.string.setup_instr_impedance
+    SetupStep.ADS1299_CALIBRATION -> Res.string.setup_instr_calibration
+    SetupStep.HYDRATION_CAPS -> Res.string.setup_instr_hydration
+    SetupStep.SAFETY_ACKNOWLEDGEMENT -> Res.string.setup_instr_safety
+    SetupStep.PROTOCOL_SELECTION -> Res.string.setup_instr_protocol
+    SetupStep.COMPLETE -> Res.string.setup_instr_complete
 }
 
-@StringRes
-private fun primaryLabelFor(step: SetupStep): Int = when (step) {
-    SetupStep.BLE_CONFIRMATION -> R.string.setup_confirm_ble_button
-    SetupStep.ZONE_MODULES -> R.string.setup_confirm_zone_button
-    SetupStep.IMPEDANCE_CHECK -> R.string.setup_check_signal_button
-    SetupStep.ADS1299_CALIBRATION -> R.string.setup_calibrate_button
-    SetupStep.COMPLETE -> R.string.setup_finish_button
-    else -> R.string.setup_continue_button
+private fun primaryLabelFor(step: SetupStep): StringResource = when (step) {
+    SetupStep.BLE_CONFIRMATION -> Res.string.setup_confirm_ble_button
+    SetupStep.ZONE_MODULES -> Res.string.setup_confirm_zone_button
+    SetupStep.IMPEDANCE_CHECK -> Res.string.setup_check_signal_button
+    SetupStep.ADS1299_CALIBRATION -> Res.string.setup_calibrate_button
+    SetupStep.COMPLETE -> Res.string.setup_finish_button
+    else -> Res.string.setup_continue_button
 }

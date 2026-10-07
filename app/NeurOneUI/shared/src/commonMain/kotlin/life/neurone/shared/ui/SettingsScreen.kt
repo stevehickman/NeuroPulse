@@ -1,4 +1,4 @@
-package life.neurone.app.ui
+package life.neurone.shared.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,15 +22,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import life.neurone.app.NeurOneApplication
-import life.neurone.app.R
+import life.neurone.shared.AppServices
+import life.neurone.shared.resources.Res
+import life.neurone.shared.resources.*
 import life.neurone.core.protocol.PersistedKeys
-import life.neurone.shared.ui.AgeGateScreen
-import life.neurone.shared.ui.BipaConsentScreen
-import life.neurone.shared.ui.ConsentOnboardingScreen
-import life.neurone.shared.ui.OnboardingKeys
 
 // Screen skeletons — structure and privacy wiring in place; visual completion
 // tracked as follow-up work in app/android/ISA.md (Out of Scope note).
@@ -46,7 +43,7 @@ import life.neurone.shared.ui.OnboardingKeys
 // surface: clinician grants, research consent, study audit trail, invitations).
 
 @Composable
-fun SettingsScreen(app: NeurOneApplication, modifier: Modifier = Modifier) {
+fun SettingsScreen(app: AppServices, modifier: Modifier = Modifier) {
     var showBipa by remember { mutableStateOf(false) }
     var showResearch by remember { mutableStateOf(false) }
     var showOta by remember { mutableStateOf(false) }
@@ -114,7 +111,7 @@ fun SettingsScreen(app: NeurOneApplication, modifier: Modifier = Modifier) {
 
 @Composable
 private fun SettingsContent(
-    app: NeurOneApplication,
+    app: AppServices,
     eegGranted: Boolean,
     onManageEeg: () -> Unit,
     onRevokeEeg: () -> Unit,
@@ -126,67 +123,67 @@ private fun SettingsContent(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
-        Text(stringResource(R.string.tab_settings), style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(Res.string.tab_settings), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(20.dp))
 
         // Biometric (EEG) consent
-        Text(stringResource(R.string.and_ui_brainwave_eeg_data_consent), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.and_ui_brainwave_eeg_data_consent), style = MaterialTheme.typography.titleMedium)
         Text(
-            if (eegGranted) stringResource(R.string.and_ui_granted_eeg_neurofeedback_is_available)
-            else stringResource(R.string.and_ui_not_granted_eeg_neurofeedback_and_closed_loo),
+            if (eegGranted) stringResource(Res.string.and_ui_granted_eeg_neurofeedback_is_available)
+            else stringResource(Res.string.and_ui_not_granted_eeg_neurofeedback_and_closed_loo),
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (!eegGranted) {
-                Button(onClick = onManageEeg) { Text(stringResource(R.string.and_ui_review_consent)) }
+                Button(onClick = onManageEeg) { Text(stringResource(Res.string.and_ui_review_consent)) }
             } else {
-                OutlinedButton(onClick = onRevokeEeg) { Text(stringResource(R.string.dashboard_revoke_button)) }
+                OutlinedButton(onClick = onRevokeEeg) { Text(stringResource(Res.string.dashboard_revoke_button)) }
             }
         }
 
         Spacer(Modifier.height(24.dp))
 
         // Research participation
-        Text(stringResource(R.string.consent_research_participation), style = MaterialTheme.typography.titleMedium)
-        Text(stringResource(R.string.and_ui_manage_the_research_areas_and_studies_you_ta), style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(Res.string.consent_research_participation), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.and_ui_manage_the_research_areas_and_studies_you_ta), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = onManageResearch) { Text(stringResource(R.string.and_ui_manage)) }
+        OutlinedButton(onClick = onManageResearch) { Text(stringResource(Res.string.and_ui_manage)) }
 
         Spacer(Modifier.height(24.dp))
 
         // Firmware / OTA
-        Text(stringResource(R.string.ota_firmware), style = MaterialTheme.typography.titleMedium)
-        Text(stringResource(R.string.and_ui_view_your_hub_s_firmware_version_and_update), style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(Res.string.ota_firmware), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.and_ui_view_your_hub_s_firmware_version_and_update), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = onManageFirmware) { Text(stringResource(R.string.and_ui_firmware_updates)) }
+        OutlinedButton(onClick = onManageFirmware) { Text(stringResource(Res.string.and_ui_firmware_updates)) }
 
         Spacer(Modifier.height(24.dp))
 
         // Device setup wizard
-        Text(stringResource(R.string.and_ui_device_setup), style = MaterialTheme.typography.titleMedium)
-        Text(stringResource(R.string.and_ui_re_run_the_guided_hardware_setup_for_your_he), style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(Res.string.and_ui_device_setup), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.and_ui_re_run_the_guided_hardware_setup_for_your_he), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = onDeviceSetup) { Text(stringResource(R.string.and_ui_set_up_device)) }
+        OutlinedButton(onClick = onDeviceSetup) { Text(stringResource(Res.string.and_ui_set_up_device)) }
 
         Spacer(Modifier.height(24.dp))
 
         // Who is using the device — the active individual profile (per-user cardiac scope)
-        Text(stringResource(R.string.profile_picker_title), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.profile_picker_title), style = MaterialTheme.typography.titleMedium)
         Text(
-            app.limitsStore.activeProfile?.name ?: stringResource(R.string.profile_picker_none_selected),
+            app.limitsStore.activeProfile?.name ?: stringResource(Res.string.profile_picker_none_selected),
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = onManageProfiles) { Text(stringResource(R.string.limits_profiles)) }
+        OutlinedButton(onClick = onManageProfiles) { Text(stringResource(Res.string.limits_profiles)) }
 
         Spacer(Modifier.height(24.dp))
 
         // Dosage limits
-        Text(stringResource(R.string.limits_dosage_limits), style = MaterialTheme.typography.titleMedium)
-        Text(stringResource(R.string.and_ui_set_global_caps_on_stimulation_dose_and_inte), style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(Res.string.limits_dosage_limits), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.and_ui_set_global_caps_on_stimulation_dose_and_inte), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = onManageLimits) { Text(stringResource(R.string.and_ui_edit_dosage_limits)) }
+        OutlinedButton(onClick = onManageLimits) { Text(stringResource(Res.string.and_ui_edit_dosage_limits)) }
 
         Spacer(Modifier.height(24.dp))
 
@@ -195,7 +192,7 @@ private fun SettingsContent(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(stringResource(R.string.and_ui_research_analytics), Modifier.weight(1f))
+            Text(stringResource(Res.string.and_ui_research_analytics), Modifier.weight(1f))
             Switch(
                 checked = app.researchAnalyticsGate.isOpen,
                 onCheckedChange = { on ->
@@ -213,6 +210,6 @@ private fun SettingsContent(
         }
 
         Spacer(Modifier.height(24.dp))
-        Text(stringResource(R.string.and_ui_neurone_home_0_1_0), style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(Res.string.and_ui_neurone_home_0_1_0), style = MaterialTheme.typography.bodySmall)
     }
 }
