@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import life.neurone.app.NeurOneApplication
 import life.neurone.app.R
+import life.neurone.shared.ui.ConsentOnboardingScreen
 import life.neurone.core.consent.ConsentEngine
 import life.neurone.core.consent.ConsentStore
 import life.neurone.core.models.ClinicianAccessExpansionRequest

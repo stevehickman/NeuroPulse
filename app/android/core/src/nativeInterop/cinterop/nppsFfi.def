@@ -1,0 +1,5 @@
+# The C ABI of the shared NPPS core (common/npps-ffi/include). The static library and the include path are
+# added per target by core/build.gradle.kts, because the library differs for each Apple architecture.
+package = life.neurone.core.npps.ffi
+headers = neurone_npps.h
+headerFilter = neurone_npps*.h

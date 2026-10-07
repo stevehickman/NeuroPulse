@@ -107,3 +107,6 @@ translation-export/
 
 # The NPPS core as WebAssembly (scripts/build-npps-wasm.sh); common/generated/ is already ignored above
 simulator/js/generated/
+
+# Kotlin Gradle plugin session data.
+.kotlin/

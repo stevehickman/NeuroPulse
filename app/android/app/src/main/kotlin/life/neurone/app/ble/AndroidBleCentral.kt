@@ -22,6 +22,10 @@ import android.os.Build
 import android.os.ParcelUuid
 import androidx.core.content.ContextCompat
 import java.util.UUID
+import life.neurone.shared.ble.BleCentral
+import life.neurone.shared.ble.BleCentralListener
+import life.neurone.shared.ble.AdapterState
+import life.neurone.core.common.UUID as CoreUuid
 
 // Real Android implementation of BleCentral (parity with iOS BLECentralManager over
 // CoreBluetooth). Drives BluetoothLeScanner + BluetoothGatt; NeurOneGattManager (the
@@ -78,11 +82,12 @@ class AndroidBleCentral(private val context: Context) : BleCentral {
     }
 
     /** Re-emit the current adapter state to the listener (call after a permission grant). */
-    fun refresh() {
+    override fun refresh() {
         listener?.onAdapterStateChanged(adapterState)
     }
 
-    override fun startScan(serviceUuid: UUID) {
+    override fun startScan(serviceUuid: CoreUuid) {
+        val serviceUuid = serviceUuid.toJava()
         if (!hasBlePermissions() || scanning) return
         val scanner = adapter?.bluetoothLeScanner ?: return
         this.serviceUuid = serviceUuid
@@ -117,13 +122,13 @@ class AndroidBleCentral(private val context: Context) : BleCentral {
         characteristics.clear()
     }
 
-    override fun discoverCharacteristics(serviceUuid: UUID, uuids: List<UUID>) {
-        this.serviceUuid = serviceUuid
+    override fun discoverCharacteristics(serviceUuid: CoreUuid, uuids: List<CoreUuid>) {
+        this.serviceUuid = serviceUuid.toJava()
         if (hasBlePermissions()) gatt?.discoverServices()
     }
 
-    override fun enableNotifications(uuid: UUID) {
-        val char = characteristics[uuid] ?: return
+    override fun enableNotifications(uuid: CoreUuid) {
+        val char = characteristics[uuid.toJava()] ?: return
         val g = gatt ?: return
         if (!hasBlePermissions()) return
         g.setCharacteristicNotification(char, true)
@@ -131,13 +136,13 @@ class AndroidBleCentral(private val context: Context) : BleCentral {
         writeDescriptor(g, cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
     }
 
-    override fun read(uuid: UUID) {
-        val char = characteristics[uuid] ?: return
+    override fun read(uuid: CoreUuid) {
+        val char = characteristics[uuid.toJava()] ?: return
         if (hasBlePermissions()) gatt?.readCharacteristic(char)
     }
 
-    override fun write(uuid: UUID, value: ByteArray) {
-        val char = characteristics[uuid] ?: return
+    override fun write(uuid: CoreUuid, value: ByteArray) {
+        val char = characteristics[uuid.toJava()] ?: return
         val g = gatt ?: return
         if (!hasBlePermissions()) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -198,7 +203,7 @@ class AndroidBleCentral(private val context: Context) : BleCentral {
             characteristics.clear()
             val service = serviceUuid?.let { g.getService(it) }
             service?.characteristics?.forEach { characteristics[it.uuid] = it }
-            listener?.onCharacteristicsDiscovered(characteristics.keys.toSet())
+            listener?.onCharacteristicsDiscovered(characteristics.keys.map { it.toCore() }.toSet())
         }
 
         // API 33+ delivers the value directly.
@@ -207,7 +212,7 @@ class AndroidBleCentral(private val context: Context) : BleCentral {
             characteristic: BluetoothGattCharacteristic,
             value: ByteArray,
         ) {
-            listener?.onCharacteristicChanged(characteristic.uuid, value)
+            listener?.onCharacteristicChanged(characteristic.uuid.toCore(), value)
         }
 
         // Pre-33 delivers via characteristic.value.
@@ -215,7 +220,7 @@ class AndroidBleCentral(private val context: Context) : BleCentral {
         @Suppress("DEPRECATION")
         override fun onCharacteristicChanged(g: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                characteristic.value?.let { listener?.onCharacteristicChanged(characteristic.uuid, it) }
+                characteristic.value?.let { listener?.onCharacteristicChanged(characteristic.uuid.toCore(), it) }
             }
         }
 
@@ -225,15 +230,19 @@ class AndroidBleCentral(private val context: Context) : BleCentral {
             value: ByteArray,
             status: Int,
         ) {
-            if (status == BluetoothGatt.GATT_SUCCESS) listener?.onCharacteristicRead(characteristic.uuid, value)
+            if (status == BluetoothGatt.GATT_SUCCESS) listener?.onCharacteristicRead(characteristic.uuid.toCore(), value)
         }
 
         @Deprecated("Deprecated in API 33")
         @Suppress("DEPRECATION")
         override fun onCharacteristicRead(g: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && status == BluetoothGatt.GATT_SUCCESS) {
-                characteristic.value?.let { listener?.onCharacteristicRead(characteristic.uuid, it) }
+                characteristic.value?.let { listener?.onCharacteristicRead(characteristic.uuid.toCore(), it) }
             }
         }
     }
 }
+
+private fun CoreUuid.toJava(): UUID = UUID(mostSignificantBits, leastSignificantBits)
+
+private fun UUID.toCore(): CoreUuid = CoreUuid(mostSignificantBits, leastSignificantBits)

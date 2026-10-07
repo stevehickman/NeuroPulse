@@ -27,6 +27,10 @@ import androidx.compose.ui.unit.dp
 import life.neurone.app.NeurOneApplication
 import life.neurone.app.R
 import life.neurone.core.protocol.PersistedKeys
+import life.neurone.shared.ui.AgeGateScreen
+import life.neurone.shared.ui.BipaConsentScreen
+import life.neurone.shared.ui.ConsentOnboardingScreen
+import life.neurone.shared.ui.OnboardingKeys
 
 // Screen skeletons — structure and privacy wiring in place; visual completion
 // tracked as follow-up work in app/android/ISA.md (Out of Scope note).

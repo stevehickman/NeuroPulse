@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 65 (current)  
+**Revision:** 66 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -488,6 +488,14 @@ script reading a file does not make that file shared.
   `firmware/` that names a path under `app/` is a violation. A comment naming one is prose.
 - **Never a React dependency.** `common/` has no `node_modules` above it, so a module needing React
   or another package the web app installs belongs in the app, not here.
+
+**The UI is written once, in `app/NeurOneUI/` (Compose Multiplatform).** `shared/` holds every screen and
+the composition root (`AppServices`); `desktop/` (macOS, Windows), `web/` and `iosApp/` are thin hosts, and
+Android's activity hosts the same screens. A host differs only through the `PlatformServices` seam
+(storage, Bluetooth, permissions, analytics vendor) and the `expect`/`actual` set in `:core`
+(`life.neurone.core.platform`). **A screen written for one platform only is a defect to be moved, not a
+feature**; the screens not yet moved and the wiring not yet done are listed in `app/NeurOneUI/README.md`
+and `OI-UI-KMP-00`. `:core` (`app/android/core`) is Kotlin Multiplatform: its sources are `commonMain`.
 
 ---
 

@@ -117,6 +117,15 @@ function androidResOut(): string {
   return flag ? resolve(flag.slice("--android-res=".length)) : ANDROID_RES_DEFAULT;
 }
 
+/**
+ * Compose Multiplatform resources (app/NeurOneUI/shared) read the same strings.xml, from a directory the
+ * Gradle build passes with --compose-res=<dir>. Omitted, nothing is written for them.
+ */
+function composeResOut(): string | null {
+  const flag = process.argv.find((a) => a.startsWith("--compose-res="));
+  return flag ? resolve(flag.slice("--compose-res=".length)) : null;
+}
+
 const SOURCE_LANGUAGE = "en";
 
 const REQUIRED_LOCALES = [
@@ -355,6 +364,20 @@ function androidValuesDir(locale: string): string {
 }
 
 /**
+ * Resource directory qualifier per locale for Compose Multiplatform, which understands a language and a
+ * two-letter region (`values-fr`, `values-en-rGB`) and neither a script nor a numeric region, so `b+` forms
+ * do not parse. `zh-Hans` becomes `values-zh` and `es-419` becomes `values-es`: the nearest language, which
+ * is also where the platform falls back for any region without its own directory. Two locales reducing to
+ * one directory would silently drop one of them, so that throws.
+ */
+function composeValuesDir(locale: string): string {
+  if (locale === SOURCE_LANGUAGE) return "values";
+  const [language, ...rest] = locale.split("-");
+  const region = rest.find((part) => /^[A-Z]{2}$/.test(part));
+  return region ? `values-${language}-r${region}` : `values-${language}`;
+}
+
+/**
  * Escape a string for an Android <string> body.
  *
  * Android's rules are not XML's. Beyond the XML entities, an apostrophe or a
@@ -401,6 +424,7 @@ function canonicalToAndroidPlural(value: string): string {
 function generateAndroidXml(
   locales: Map<string, LocaleData>,
   resOut: string,
+  valuesDir: (locale: string) => string = androidValuesDir,
 ): Array<[string, string]> {
   const en = locales.get(SOURCE_LANGUAGE)!;
   const outputs: Array<[string, string]> = [];
@@ -438,9 +462,20 @@ function generateAndroidXml(
     }
 
     lines.push("</resources>", "");
-    outputs.push([join(resOut, androidValuesDir(locale), "strings.xml"), lines.join("\n")]);
+    outputs.push([join(resOut, valuesDir(locale), "strings.xml"), lines.join("\n")]);
   }
   return outputs;
+}
+
+function generateComposeXml(locales: Map<string, LocaleData>, composeOut: string): Array<[string, string]> {
+  const seen = new Map<string, string>();
+  for (const locale of locales.keys()) {
+    const dir = composeValuesDir(locale);
+    const other = seen.get(dir);
+    if (other) throw new Error(`Compose resources: ${other} and ${locale} would both be written to ${dir}`);
+    seen.set(dir, locale);
+  }
+  return generateAndroidXml(locales, composeOut, composeValuesDir);
 }
 
 // --- Main ---
@@ -511,6 +546,7 @@ function main(): void {
   }
 
   const resOut = androidResOut();
+  const composeOut = composeResOut();
   const locales = loadLocales();
   validateLocales(locales);
 
@@ -520,12 +556,14 @@ function main(): void {
     [XCSTRINGS_OUT, JSON.stringify(generateXCStrings(locales), null, 2) + "\n"],
     ...webOutputs(locales),
     ...generateAndroidXml(locales, resOut),
+    ...(composeOut ? generateComposeXml(locales, composeOut) : []),
   ];
 
   for (const dir of [
     dirname(XCSTRINGS_OUT),
     WEB_LOCALES_OUT,
     ...[...locales.keys()].map((l) => join(resOut, androidValuesDir(l))),
+    ...(composeOut ? [...locales.keys()].map((l) => join(composeOut, composeValuesDir(l))) : []),
   ]) {
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   }

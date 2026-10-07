@@ -1,4 +1,4 @@
-//! JNI entry points for `life.neurone.core.npps.NppsCore`. Each does marshalling and nothing
+//! JNI entry points for `life.neurone.core.npps.NppsJni`. Each does marshalling and nothing
 //! else; a refusal becomes a thrown `IllegalArgumentException` carrying the core's message,
 //! which is what the Kotlin compiler it replaces already throws.
 
@@ -26,7 +26,7 @@ fn read(env: &mut JNIEnv, s: &JString) -> Option<String> {
 }
 
 #[no_mangle]
-pub extern "system" fn Java_life_neurone_core_npps_NppsCore_nativeParse<'l>(
+pub extern "system" fn Java_life_neurone_core_npps_NppsJni_nativeParse<'l>(
     mut env: JNIEnv<'l>,
     _class: JClass<'l>,
     source: JString<'l>,
@@ -47,7 +47,7 @@ pub extern "system" fn Java_life_neurone_core_npps_NppsCore_nativeParse<'l>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_life_neurone_core_npps_NppsCore_nativeCompile<'l>(
+pub extern "system" fn Java_life_neurone_core_npps_NppsJni_nativeCompile<'l>(
     mut env: JNIEnv<'l>,
     _class: JClass<'l>,
     request: JString<'l>,
@@ -70,7 +70,7 @@ pub extern "system" fn Java_life_neurone_core_npps_NppsCore_nativeCompile<'l>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_life_neurone_core_npps_NppsCore_nativeNamespace<'l>(
+pub extern "system" fn Java_life_neurone_core_npps_NppsJni_nativeNamespace<'l>(
     mut env: JNIEnv<'l>,
     _class: JClass<'l>,
     request: JString<'l>,
@@ -90,7 +90,7 @@ pub extern "system" fn Java_life_neurone_core_npps_NppsCore_nativeNamespace<'l>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_life_neurone_core_npps_NppsCore_nativeSerialize<'l>(
+pub extern "system" fn Java_life_neurone_core_npps_NppsJni_nativeSerialize<'l>(
     mut env: JNIEnv<'l>,
     _class: JClass<'l>,
     request: JString<'l>,
@@ -110,7 +110,7 @@ pub extern "system" fn Java_life_neurone_core_npps_NppsCore_nativeSerialize<'l>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_life_neurone_core_npps_NppsCore_nativeValidate<'l>(
+pub extern "system" fn Java_life_neurone_core_npps_NppsJni_nativeValidate<'l>(
     mut env: JNIEnv<'l>,
     _class: JClass<'l>,
     request: JString<'l>,
@@ -130,7 +130,7 @@ pub extern "system" fn Java_life_neurone_core_npps_NppsCore_nativeValidate<'l>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_life_neurone_core_npps_NppsCore_nativeResolveLimits<'l>(
+pub extern "system" fn Java_life_neurone_core_npps_NppsJni_nativeResolveLimits<'l>(
     mut env: JNIEnv<'l>,
     _class: JClass<'l>,
     request: JString<'l>,

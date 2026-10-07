@@ -1,0 +1,125 @@
+package life.neurone.shared.ui
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import life.neurone.core.platform.formatFixed
+import life.neurone.core.session.AdaptationEvent
+import life.neurone.core.session.CompletedSessionSummary
+import life.neurone.core.session.SessionHistoryStore
+import life.neurone.core.session.SessionRecord
+import org.jetbrains.compose.resources.stringResource
+import life.neurone.shared.resources.Res
+import life.neurone.shared.resources.*
+
+// Port of iOS SessionHistoryView + AdaptiveAdjustmentsCard. Day-granularity list of completed
+// sessions (exact timestamps are UHDR-class and never stored); tapping opens a detail with the
+// session metrics and the Adaptive Adjustments card. Adaptation events are not persisted (they
+// live in UHDR), so the history-opened card shows its empty state — parity with iOS.
+
+@Composable
+fun HistoryScreen(store: SessionHistoryStore, modifier: Modifier = Modifier) {
+    var selected by remember { mutableStateOf<SessionRecord?>(null) }
+
+    val record = selected
+    if (record != null) {
+        SessionDetail(record = record, onBack = { selected = null }, modifier = modifier)
+        return
+    }
+
+    if (store.records.isEmpty()) {
+        Column(modifier.fillMaxSize().padding(24.dp)) {
+            Text(stringResource(Res.string.history_session_history), style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(Res.string.history_your_completed_sessions_will_appear_here), style = MaterialTheme.typography.bodyMedium)
+        }
+        return
+    }
+
+    LazyColumn(modifier = modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(store.records, key = { it.id }) { record ->
+            Card(Modifier.fillMaxWidth().clickable { selected = record }) {
+                Column(Modifier.padding(12.dp)) {
+                    Text(record.protocolName, style = MaterialTheme.typography.titleMedium)
+                    Text(record.sessionDay, style = MaterialTheme.typography.bodySmall) // day granularity — UHDR boundary
+                    record.averageCoherenceScore?.let { Text(stringResource(Res.string.history_coherence_1f, formatFixed(it.toDouble(), 1))) }
+                    Text(stringResource(Res.string.history_impedance_0_8_electrodes, record.impedancePassCount))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SessionDetail(record: SessionRecord, onBack: () -> Unit, modifier: Modifier = Modifier) {
+    val summary = remember(record.id) { CompletedSessionSummary.fromRecord(record) }
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+        TextButton(onClick = onBack) { Text(stringResource(Res.string.consent_back_button)) }
+        Text(record.protocolName, style = MaterialTheme.typography.headlineSmall)
+        Text(record.sessionDay, style = MaterialTheme.typography.bodySmall)
+        Spacer(Modifier.height(12.dp))
+
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text(stringResource(Res.string.history_0_min_session, summary.durationSeconds / 60), style = MaterialTheme.typography.titleMedium)
+                summary.averageCoherenceScore?.let { Text(stringResource(Res.string.history_average_coherence_1f, formatFixed(it.toDouble(), 1))) }
+                summary.rmssdMilliseconds?.let { Text(stringResource(Res.string.history_rmssd_0_ms, it)) }
+                Text(stringResource(Res.string.history_impedance_0_8_electrodes_passed, summary.impedancePassCount))
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        AdaptiveAdjustmentsCard(events = summary.adaptationEvents)
+    }
+}
+
+/**
+ * Port of iOS AdaptiveAdjustmentsCard. Shows up to 5 closed-loop adjustments inline (plain
+ * language, no raw biometrics), with "View all N" to expand; empty state when none were
+ * recorded. GDPR Art. 13(2)(f) transparency surface.
+ */
+@Composable
+fun AdaptiveAdjustmentsCard(events: List<AdaptationEvent>, modifier: Modifier = Modifier) {
+    var expanded by remember { mutableStateOf(false) }
+    Card(modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(stringResource(Res.string.history_adaptive_adjustments), style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            if (events.isEmpty()) {
+                Text(
+                    stringResource(Res.string.history_no_automatic_adjustments_were_recorded_for_t),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            } else {
+                val shown = if (expanded) events else events.take(5)
+                for (event in shown) {
+                    Text("• ${event.trigger.plainLanguageDescription}", style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(6.dp))
+                }
+                if (!expanded && events.size > 5) {
+                    TextButton(onClick = { expanded = true }) { Text(stringResource(Res.string.history_view_all_0, events.size)) }
+                }
+            }
+        }
+    }
+}

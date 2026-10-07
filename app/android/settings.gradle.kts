@@ -25,3 +25,12 @@ rootProject.name = "neurone-android"
 
 include(":core")
 include(":app")
+
+// The multiplatform UI lives beside the apps it serves, not under android/ (app/NeurOneUI/README.md).
+include(":shared")
+project(":shared").projectDir = file("../NeurOneUI/shared")
+
+include(":desktop")
+project(":desktop").projectDir = file("../NeurOneUI/desktop")
+include(":web")
+project(":web").projectDir = file("../NeurOneUI/web")

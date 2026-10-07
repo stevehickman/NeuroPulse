@@ -18,6 +18,7 @@ on:
   push:
     paths:
       - 'app/android/**'
+      - 'app/NeurOneUI/**'
       # :core's tests read the shared golden descriptors (OI-AND-WIRE-01).
       - 'app/NeurOneShared/TestData/**'
       # The shared NPPS core (OI-NPPS-CORE-01): :core's tests build common/npps-jni with cargo and
@@ -39,6 +40,7 @@ on:
   pull_request:
     paths:
       - 'app/android/**'
+      - 'app/NeurOneUI/**'
       - 'app/NeurOneShared/TestData/**'
       # The shared NPPS core (OI-NPPS-CORE-01): :core's tests build common/npps-jni with cargo and
       # push the shipped library and the fixtures through it.
@@ -113,6 +115,7 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal
           rustup default stable
+          rustup target add wasm32-unknown-unknown   # :core:wasmJsNodeTest and :web build the core as WebAssembly
           cargo --version
 
       # The APK carries the Rust NPPS core for four ABIs (:app's buildNppsCoreNative, via cargo-ndk).
@@ -128,8 +131,8 @@ jobs:
         with:
           gradle-version: '8.11.1'   # AGP 8.9.3 requires Gradle >= 8.11.1
 
-      - name: Build :core and run unit tests
-        run: gradle :core:test :app:testDebugUnitTest --stacktrace
+      - name: Build :core, :shared, :desktop and :web, and run unit tests
+        run: gradle :core:jvmTest :core:wasmJsNodeTest :shared:desktopTest :desktop:compileKotlin :web:compileKotlinWasmJs :app:testDebugUnitTest --stacktrace
 
       # The compiler calls the core through JNI, so an APK without the library cannot upload a
       # protocol. The unit tests cannot see that; this does.

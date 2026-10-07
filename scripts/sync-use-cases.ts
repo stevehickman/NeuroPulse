@@ -7,7 +7,7 @@
  * grants. It is one table now, and each app gets it as a generated file:
  *
  *   - app/ios/NeurOne/Consent/ClinicalUseCaseLibrary.generated.swift
- *   - app/android/core/src/main/kotlin/life/neurone/core/consent/ClinicalUseCaseLibrary.generated.kt
+ *   - app/android/core/src/commonMain/kotlin/life/neurone/core/consent/ClinicalUseCaseLibrary.generated.kt
  *
  * Both declare a top-level `USE_CASE_LIBRARY`. The generator also refuses a table the apps could not honour: a
  * duplicate or malformed id, a tier or element the apps do not define, and a name or description key missing from the
@@ -20,7 +20,7 @@
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/sync-use-cases.ts --self-test
  * CI-Scans: app/NeurOneShared/Resources/clinician-use-cases.json against the UHDR element table (uhdr-elements.json), the canonical locale, and both generated library files
- * CI-Scan-Paths: app/NeurOneShared/Resources/clinician-use-cases.json app/ios/NeurOne/Consent/ClinicalUseCaseLibrary.generated.swift app/android/core/src/main/kotlin/life/neurone/core/consent/ClinicalUseCaseLibrary.generated.kt app/NeurOneShared/Resources/uhdr-elements.json locales/en.json scripts/sync-use-cases.ts
+ * CI-Scan-Paths: app/NeurOneShared/Resources/clinician-use-cases.json app/ios/NeurOne/Consent/ClinicalUseCaseLibrary.generated.swift app/android/core/src/commonMain/kotlin/life/neurone/core/consent/ClinicalUseCaseLibrary.generated.kt app/NeurOneShared/Resources/uhdr-elements.json locales/en.json scripts/sync-use-cases.ts
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -28,7 +28,7 @@ import { join } from 'node:path';
 const ROOT = join(import.meta.dir, '..');
 const SOURCE = 'app/NeurOneShared/Resources/clinician-use-cases.json';
 const SWIFT_OUT = 'app/ios/NeurOne/Consent/ClinicalUseCaseLibrary.generated.swift';
-const KOTLIN_OUT = 'app/android/core/src/main/kotlin/life/neurone/core/consent/ClinicalUseCaseLibrary.generated.kt';
+const KOTLIN_OUT = 'app/android/core/src/commonMain/kotlin/life/neurone/core/consent/ClinicalUseCaseLibrary.generated.kt';
 const ELEMENTS_SOURCE = 'app/NeurOneShared/Resources/uhdr-elements.json';
 const LOCALE = 'locales/en.json';
 

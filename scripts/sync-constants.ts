@@ -7,7 +7,7 @@
  * build time (common/npps-core/build.rs) and has no output to go stale; the rest are written here:
  *
  *   - common/lib/constants.generated.ts                                          (web app, simulator bundle)
- *   - app/android/core/src/main/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt
+ *   - app/android/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt
  *   - app/ios/NeurOne/Protocol/NppsConstants.generated.swift
  *   - app/windows/NeurOne/Protocol/NppsConstants.generated.cs
  *   - common/npps-ffi/include/neurone_npps_status.h                              (the C ABI's return codes)
@@ -178,7 +178,7 @@ function cGatt(): string {
 
 const OUTPUTS: Array<[string, string]> = [
   ['common/lib/constants.generated.ts', ts()],
-  ['app/android/core/src/main/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt', kotlin()],
+  ['app/android/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt', kotlin()],
   ['app/ios/NeurOne/Protocol/NppsConstants.generated.swift', swift()],
   ['app/windows/NeurOne/Protocol/NppsConstants.generated.cs', csharp()],
   ['common/npps-ffi/include/neurone_npps_status.h', c()],

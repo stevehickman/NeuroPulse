@@ -59,7 +59,7 @@ jobs:
         # The shared constants are generated into the web, Android, iOS, Windows, C and hub firmware trees from common/npps/constants.json
         # (common/** above), and the check below fails if any output is stale.
         scripts/sync-constants.ts
-        app/android/core/src/main/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt
+        app/android/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt
         app/ios/NeurOne/Protocol/NppsConstants.generated.swift
         app/windows/NeurOne/Protocol/NppsConstants.generated.cs
         firmware/common/include/np_app_wire_constants.h
@@ -67,18 +67,18 @@ jobs:
         scripts/sync-use-cases.ts
         app/NeurOneShared/Resources/clinician-use-cases.json
         app/ios/NeurOne/Consent/ClinicalUseCaseLibrary.generated.swift
-        app/android/core/src/main/kotlin/life/neurone/core/consent/ClinicalUseCaseLibrary.generated.kt
+        app/android/core/src/commonMain/kotlin/life/neurone/core/consent/ClinicalUseCaseLibrary.generated.kt
         # The UHDRElement enum (names, wire strings, minimum tiers) is generated the same way.
         scripts/sync-uhdr-elements.ts
         app/NeurOneShared/Resources/uhdr-elements.json
         app/ios/NeurOne/Models/UHDRElement.generated.swift
-        app/android/core/src/main/kotlin/life/neurone/core/models/UHDRElement.generated.kt
+        app/android/core/src/commonMain/kotlin/life/neurone/core/models/UHDRElement.generated.kt
         scripts/sync-clinician-tiers.ts
         app/NeurOneShared/Resources/clinician-tiers.json
         app/ios/NeurOne/Models/ClinicianUseCaseTier.generated.swift
-        app/android/core/src/main/kotlin/life/neurone/core/models/ClinicianUseCaseTier.generated.kt
+        app/android/core/src/commonMain/kotlin/life/neurone/core/models/ClinicianUseCaseTier.generated.kt
         app/ios/NeurOne/Models/ConsentModels.swift
-        app/android/core/src/main/kotlin/life/neurone/core/models/ConsentModels.kt
+        app/android/core/src/commonMain/kotlin/life/neurone/core/models/ConsentModels.kt
         scripts/test-lateralization-audit.sh
         # The iOS String Catalog was listed here while it was committed, because
         # it was a SECOND source of truth that had already drifted once — 26 keys
