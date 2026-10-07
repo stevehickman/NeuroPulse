@@ -58,6 +58,7 @@ enum ClinicianUseCaseTier: String, CaseIterable, Codable {
             return [
                 .eegWaveforms, .hrvTimeSeries, .ppgOpticalSignal, .neurofeedbackScores, .sessionTimestamps,
                 .sessionDuration, .protocolParameters, .closedLoopEvents, .pbmDoseLogs, .outcomeLogs,
+                .eyeStateLogs,
             ]
         case .research:
             return []

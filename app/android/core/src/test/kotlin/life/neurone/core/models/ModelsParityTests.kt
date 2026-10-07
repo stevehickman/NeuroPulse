@@ -172,7 +172,9 @@ class ModelsParityTests {
             ClinicianUseCaseTier.MONITOR.uhdrElements,
         )
         assertEquals(6, ClinicianUseCaseTier.ASSESS.uhdrElements.size)
-        assertEquals(10, ClinicianUseCaseTier.FULL_CLINICAL.uhdrElements.size)
+        assertEquals(11, ClinicianUseCaseTier.FULL_CLINICAL.uhdrElements.size)
+        // Every element is reachable through the tier its minimumTier names (OI-CONSENT-08).
+        assertTrue(UHDRElement.EYE_STATE_LOGS in ClinicianUseCaseTier.FULL_CLINICAL.uhdrElements)
         assertTrue(ClinicianUseCaseTier.RESEARCH.uhdrElements.isEmpty())
         assertEquals(ClinicianUseCaseTier.FULL_CLINICAL, UHDRElement.HRV_TIME_SERIES.minimumTier)
         assertEquals(ClinicianUseCaseTier.ASSESS, UHDRElement.EEG_WAVEFORMS.minimumTier)
