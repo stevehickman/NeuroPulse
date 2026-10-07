@@ -135,7 +135,7 @@ const SWIFT_OUT = join(
 // defined by a `zone` block in a .npps file and nowhere else
 // (NP-NPPS-REF-001 §8).
 const KOTLIN_OUT = join(
-  ROOT, "app", "android", "core", "src", "main", "kotlin", "life", "neurone",
+  ROOT, "app", "android", "core", "src", "commonMain", "kotlin", "life", "neurone",
   "core", "protocol", "SocketLattice.generated.kt",
 );
 
