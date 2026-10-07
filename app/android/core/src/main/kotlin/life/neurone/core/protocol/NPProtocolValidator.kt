@@ -53,8 +53,51 @@ data class NPValidationIssue(
     val id: UUID = UUID.randomUUID(),
 )
 
+/**
+ * One axis of a protocol's dose in the zone model's caution band (docs/reference/safety-zones.md). The protocol
+ * compiles only when the author has acknowledged every one, by [ackId]; the id names the dose, so a changed dose is a
+ * new caution. Read from the core's `zones`, never computed here.
+ */
+data class NPZoneCaution(
+    val ackId: String,
+    val blockIndex: Int,
+    val modality: NPModalityType?,
+    /** Locale key of the axis name (`ZONE_AXIS_…`). */
+    val axisNameKey: String,
+    val unit: String,
+    val value: Double,
+    /** Where the caution band starts. */
+    val caution: Double,
+) {
+    companion object {
+        /** The cautions in a validator reply's `zones` array. */
+        fun parse(zones: JsonArray?): List<NPZoneCaution> = zones.orEmpty().flatMap { b ->
+            val block = b.jsonObject
+            val modality = (block["modality"] as? JsonPrimitive)?.content?.let { m -> NPModalityType.entries.firstOrNull { it.rawValue == m } }
+            val index = (block["index"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 0
+            (block["axes"] as? JsonArray).orEmpty().mapNotNull { a ->
+                val axis = a.jsonObject
+                val ack = (axis["ackId"] as? JsonPrimitive)?.takeIf { it.isString }?.content
+                if ((axis["zone"] as? JsonPrimitive)?.content != "caution" || ack == null) return@mapNotNull null
+                NPZoneCaution(
+                    ackId = ack,
+                    blockIndex = index,
+                    modality = modality,
+                    axisNameKey = axis["nameKey"]!!.jsonPrimitive.content,
+                    unit = axis["unit"]!!.jsonPrimitive.content,
+                    value = axis["value"]!!.jsonPrimitive.content.toDouble(),
+                    caution = axis["caution"]!!.jsonPrimitive.content.toDouble(),
+                )
+            }
+        }
+    }
+}
+
 class NPValidationResult {
     val issues: MutableList<NPValidationIssue> = mutableListOf()
+
+    /** What the author must acknowledge before this protocol compiles; empty outside the caution zone. */
+    var zoneCautions: List<NPZoneCaution> = emptyList()
 
     val isValid: Boolean get() = issues.none { it.severity == NPValidationSeverity.ERROR }
     val hasWarnings: Boolean get() = issues.any { it.severity == NPValidationSeverity.WARNING }
@@ -133,6 +176,7 @@ class NPProtocolValidator(
         }
         val out = NppsCore.validate(request)
         val result = NPValidationResult()
+        result.zoneCautions = NPZoneCaution.parse(out["zones"] as? JsonArray)
         for (i in out["issues"]!!.jsonArray) {
             val o = i.jsonObject
             val source = NPLimitSource.fromWire(o["limitSource"]!!.jsonPrimitive.content)

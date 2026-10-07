@@ -159,7 +159,18 @@ export interface NppsIssue {
   message: NppsMessage;
 }
 
-export interface NppsValidation { issues: NppsIssue[]; isValid: boolean; hasWarnings: boolean }
+/** One axis of the zone model (docs/reference/safety-zones.md); `ackId` is set only for an axis in its caution band. */
+export interface NppsZoneAxis {
+  id: string; nameKey: string; unit: string; value: number; caution: number; danger: number | null;
+  zone: 'safe' | 'caution' | 'danger'; ackId: string | null;
+}
+export interface NppsZoneBlock { index: number; modality: string; zone: 'safe' | 'caution' | 'danger'; axes: NppsZoneAxis[] }
+
+export interface NppsValidation {
+  issues: NppsIssue[]; isValid: boolean; hasWarnings: boolean;
+  /** The protocol's worst zone, and the blocks behind it (empty for a composite). */
+  zone: 'safe' | 'caution' | 'danger'; zones: NppsZoneBlock[];
+}
 
 /**
  * Validate an entry against the resolved limits (neurone_npps_core::api::validate_json). The core returns

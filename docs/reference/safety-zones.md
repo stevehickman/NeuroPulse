@@ -19,8 +19,17 @@ The id is `<block>:<modality>:<axis>=<value>`, so it names the dose: change the 
 matching. An acknowledgement is of one dose, not of the protocol.
 
 **Where it is enforced.** The compiler is the one gate every app shares, so the zone is enforced there (`compile_json`, the
-`acknowledgedCautions` request field). No app yet shows an acknowledgement screen: the web app lists warnings and the mobile
-session wires are placeholders (`OI-ZONE-01`). **The safety MCU still enforces its own ceilings and the app-side zone never
+`acknowledgedCautions` request field).
+
+**The acknowledgement screen** (2026-10-07) is one per app with a launch path: iOS `CautionAcknowledgementView`, Android
+`CautionAcknowledgementDialog`, web `CautionAckDialog`. Each lists a protocol's cautions (read from the validator's
+`zones`, `common/lib/zoneCautions.ts` · `NPZoneCaution`) with **one switch per caution**, because an id names one dose.
+Confirm is disabled until every switch is on; cancel, and swiping or tapping the sheet away, acknowledge nothing. The ids go
+to the compiler for **that one run and are dropped**: nothing is stored, logged or sent, because an acknowledgement is a
+decision about the person (`CLAUDE.md` §5). iOS and Android show it when the user selects a protocol and pass the ids to
+the upload; web has no launch path, so its dialog is built and tested but not yet mounted; Windows has no UI, so its
+compiler takes `acknowledgedCautions` and nothing more. watchOS authors and uploads nothing. The screen is the user's; a
+clinician-held acknowledgement is not built (`OI-ZONE-01`). **The safety MCU still enforces its own ceilings and the app-side zone never
 replaces them** (`CLAUDE.md` §4.2): a caution boundary is always below a boundary the MCU enforces, and a danger boundary is
 either the MCU's own number or an app-side refusal that only makes the app stricter.
 

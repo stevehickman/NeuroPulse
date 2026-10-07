@@ -152,6 +152,11 @@ private fun SessionTab(app: NeurOneApplication, modifier: Modifier) {
         mutableStateOf<life.neurone.core.protocol.NPProtocolEntry.Single?>(null)
     }
 
+    // A protocol held back until its author acknowledges each zone-model caution (docs/reference/safety-zones.md).
+    var awaitingCautions by remember {
+        mutableStateOf<Pair<life.neurone.core.protocol.NPProtocolEntry.Single, List<life.neurone.core.protocol.NPZoneCaution>>?>(null)
+    }
+
     // Request BLE runtime permissions (Android 12+); on grant, kick off scanning.
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -172,11 +177,23 @@ private fun SessionTab(app: NeurOneApplication, modifier: Modifier) {
         }
     }
 
-    fun uploadAndReport(entry: life.neurone.core.protocol.NPProtocolEntry) {
+    fun uploadAndReport(
+        entry: life.neurone.core.protocol.NPProtocolEntry,
+        acknowledgedCautions: List<String> = emptyList(),
+    ) {
+        // A protocol in the caution zone runs only after its author acknowledges each caution
+        // (docs/reference/safety-zones.md). The dialog calls back here with the ids, for this run only.
+        if (entry is life.neurone.core.protocol.NPProtocolEntry.Single && acknowledgedCautions.isEmpty()) {
+            val cautions = app.protocolUploader.cautions(entry.protocol)
+            if (cautions.isNotEmpty()) {
+                awaitingCautions = entry to cautions
+                return
+            }
+        }
         // Compile → sign → chunk → upload (Mode 2). Composite upload is a follow-up.
         val result = when (entry) {
             is life.neurone.core.protocol.NPProtocolEntry.Single ->
-                app.protocolUploader.upload(entry.protocol)
+                app.protocolUploader.upload(entry.protocol, acknowledgedCautions = acknowledgedCautions)
             else ->
                 life.neurone.app.session.ProtocolUploader.Result.Failure(
                     context.getString(R.string.and_ui_composite_protocol_upload_is_not_yet_support),
@@ -199,6 +216,18 @@ private fun SessionTab(app: NeurOneApplication, modifier: Modifier) {
         }
         android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
         showMenu = false
+    }
+
+    awaitingCautions?.let { (held, cautions) ->
+        CautionAcknowledgementDialog(
+            protocolName = held.protocol.name,
+            cautions = cautions,
+            onAcknowledge = { ids ->
+                awaitingCautions = null
+                uploadAndReport(held, ids)
+            },
+            onCancel = { awaitingCautions = null },
+        )
     }
 
     awaitingDifferentPerson?.let { held ->
