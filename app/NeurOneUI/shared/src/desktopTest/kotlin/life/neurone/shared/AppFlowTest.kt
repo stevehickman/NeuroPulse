@@ -37,6 +37,8 @@ class AppFlowTest {
         Res.string.app_tab_pending_body, Res.string.tab_history, Res.string.history_session_history,
         Res.string.tab_consumables, Res.string.consumable_intranasal_name,
         Res.string.session_browse_protocols, Res.string.tab_protocols, Res.string.setup_privacy_card_title,
+        Res.string.dashboard_title, Res.string.dashboard_no_clinicians, Res.string.tab_settings,
+        Res.string.dashboard_add_clinician, Res.string.clinician_grant_title, Res.string.common_cancel,
     )
 
     /** The English text of [resource], read in composition: that is where the resource environment is defined. */
@@ -94,7 +96,12 @@ class AppFlowTest {
         onNodeWithText(text(Res.string.history_session_history)).assertExists()
         onNodeWithText(text(Res.string.tab_consumables)).performClick()
         onNodeWithText(text(Res.string.consumable_intranasal_name)).assertExists()
+        // The Privacy tab is the shared consent dashboard; a fresh install has no clinician grants.
         onNodeWithText(text(Res.string.setup_privacy_card_title)).performClick()
+        onNodeWithText(text(Res.string.dashboard_title)).assertExists()
+        onNodeWithText(text(Res.string.dashboard_no_clinicians)).assertExists()
+        // Settings is still platform code, so on a host with no override it says so.
+        onNodeWithText(text(Res.string.tab_settings)).performClick()
         onNodeWithText(text(Res.string.app_tab_pending_body)).assertExists()
     }
 
@@ -124,5 +131,25 @@ class AppFlowTest {
         // The library is read through the shared NPPS core; a shipped protocol is listed.
         onNodeWithText(text(Res.string.tab_protocols)).assertExists()
         onNodeWithText("Alpha Calm").assertExists()
+    }
+
+    @Test
+    fun privacyTab_opensTheClinicianGrantFormAndReturnsWithoutGrantingAnything() = runComposeUiTest {
+        val kv = InMemoryKeyValueStore().apply {
+            putBoolean(PersistedKeys.AGE_CONFIRMED_KEY, true)
+            putBoolean(OnboardingKeys.BIPA_ACCEPTED, true)
+            putBoolean(OnboardingKeys.CONSENT_SHOWN, true)
+        }
+        val app = services(kv)
+        show(app)
+
+        onNodeWithText(text(Res.string.setup_privacy_card_title)).performClick()
+        onNodeWithText(text(Res.string.dashboard_add_clinician)).performClick()
+        onNodeWithText(text(Res.string.clinician_grant_title)).assertExists()
+        onNodeWithText(text(Res.string.common_cancel)).performClick()
+
+        // Cancelling is not a grant: the dashboard is back and no clinician access exists.
+        onNodeWithText(text(Res.string.dashboard_no_clinicians)).assertExists()
+        assertTrue(app.consentStore.clinicianGrants.isEmpty())
     }
 }

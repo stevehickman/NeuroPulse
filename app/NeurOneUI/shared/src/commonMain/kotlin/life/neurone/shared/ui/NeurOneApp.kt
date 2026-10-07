@@ -138,6 +138,7 @@ private fun MainScaffold(services: AppServices, tabOverrides: Map<AppTab, @Compo
                 selected == AppTab.SESSION -> SessionTab(services, modifier)
                 selected == AppTab.HISTORY -> HistoryScreen(services.sessionHistoryStore, modifier)
                 selected == AppTab.CONSUMABLES -> ConsumablesScreen(services, modifier)
+                selected == AppTab.PRIVACY -> ConsentDashboardScreen(services, modifier)
                 else -> TabPending(modifier)
             }
         }

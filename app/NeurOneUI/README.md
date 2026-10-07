@@ -53,8 +53,8 @@ root, the hub link (`BleCentral`, `NeurOneGattManager`), and every string.
 on a host with no override the tab shows "not available in this version yet" (`TabPending`) so the gap is
 visible rather than silent. They move into `:shared` one at a time, deleting the platform copy as they go:
 
-- Privacy tab (`ConsentDashboardScreen`) and Settings (`SettingsScreen`, OTA, setup wizard, limits, profiles)
-- The research-suggestion portal, the limits and profiles editors, OTA and the setup wizard
+- Settings (`SettingsScreen`, OTA, setup wizard, limits and profiles editors)
+- (none beyond Settings and its sub-screens, above)
 
 **Not yet wired on every target** (open items in `docs/status/pending-decisions.md`):
 

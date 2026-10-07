@@ -20,7 +20,6 @@ class MainActivity : FragmentActivity() {
                 // Screens still written for Android only; each moves into app/NeurOneUI/shared and
                 // leaves this map when it does.
                 tabOverrides = mapOf(
-                    AppTab.PRIVACY to { modifier -> ConsentDashboardScreen(app, modifier) },
                     AppTab.SETTINGS to { modifier -> SettingsScreen(app, modifier) },
                 ),
             )
