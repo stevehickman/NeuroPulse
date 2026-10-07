@@ -1,4 +1,4 @@
-package life.neurone.app.ui
+package life.neurone.shared.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -29,28 +29,28 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import life.neurone.app.NeurOneApplication
+import life.neurone.shared.AppServices
 import life.neurone.core.consumable.ConsumableKind
 import life.neurone.core.consumable.ConsumableState
 import life.neurone.core.consumable.ReminderPriority
-import androidx.annotation.StringRes
-import androidx.compose.ui.res.stringResource
-import life.neurone.app.R
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
+import life.neurone.shared.resources.Res
+import life.neurone.shared.resources.*
 
 // Port of iOS ConsumableView. Lists all four consumables with sessions-remaining, a low/
 // blocking badge, an order link, and snooze/replaced actions. Fed by the core
 // ConsumableTracker (measurement-triggered per CLAUDE.md §5.2). Counts are SHDR-class.
 
-@StringRes
-private fun ConsumableKind.displayNameRes(): Int = when (this) {
-    ConsumableKind.INTRANASAL_SLEEVES -> R.string.consumable_intranasal_name
-    ConsumableKind.ELECTRODE_HYDROGEL -> R.string.consumable_hydrogel_name
-    ConsumableKind.VNS_PADS -> R.string.consumable_vns_name
-    ConsumableKind.AUDIO_CUP_FOAM -> R.string.consumable_audio_name
+private fun ConsumableKind.displayNameRes(): StringResource = when (this) {
+    ConsumableKind.INTRANASAL_SLEEVES -> Res.string.consumable_intranasal_name
+    ConsumableKind.ELECTRODE_HYDROGEL -> Res.string.consumable_hydrogel_name
+    ConsumableKind.VNS_PADS -> Res.string.consumable_vns_name
+    ConsumableKind.AUDIO_CUP_FOAM -> Res.string.consumable_audio_name
 }
 
 @Composable
-fun ConsumablesScreen(app: NeurOneApplication, modifier: Modifier = Modifier) {
+fun ConsumablesScreen(app: AppServices, modifier: Modifier = Modifier) {
     // Recompose when hub counts change; the app-scoped tracker updates its states from the
     // same session flow. `refresh` bumps to re-read tracker state after snooze/replace.
     val session by app.gattManager.session.collectAsState()
@@ -62,10 +62,10 @@ fun ConsumablesScreen(app: NeurOneApplication, modifier: Modifier = Modifier) {
     val states = tracker.states
 
     Column(modifier.fillMaxSize().padding(16.dp)) {
-        Text(stringResource(R.string.tab_consumables), style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(Res.string.tab_consumables), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(4.dp))
         Text(
-            stringResource(R.string.consumable_reminders_are_measurement_triggered_from_you),
+            stringResource(Res.string.consumable_reminders_are_measurement_triggered_from_you),
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(12.dp))
@@ -111,12 +111,12 @@ private fun ConsumableCard(
                 Text(stringResource(state.kind.displayNameRes()), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                 if (state.isLow) {
                     val blocking = state.kind.reminderPriority == ReminderPriority.SAFETY_BLOCKING
-                    Badge(if (blocking) stringResource(R.string.consumable_replace_now) else stringResource(R.string.consumable_low), if (blocking) Color(0xFFD32F2F) else Color(0xFFF9A825))
+                    Badge(if (blocking) stringResource(Res.string.consumable_replace_now) else stringResource(Res.string.consumable_low), if (blocking) Color(0xFFD32F2F) else Color(0xFFF9A825))
                 }
             }
             Spacer(Modifier.height(6.dp))
             Text(
-                stringResource(R.string.consumable_0_of_1_sessions_remaining, state.sessionsRemaining, state.kind.sessionLimit),
+                stringResource(Res.string.consumable_0_of_1_sessions_remaining, state.sessionsRemaining, state.kind.sessionLimit),
                 style = MaterialTheme.typography.bodySmall,
             )
             Spacer(Modifier.height(6.dp))
@@ -126,9 +126,9 @@ private fun ConsumableCard(
             )
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { uriHandler.openUri(state.kind.orderUrl) }) { Text(stringResource(R.string.consumable_order)) }
-                TextButton(onClick = onReplaced) { Text(stringResource(R.string.consumable_mark_replaced_2)) }
-                if (state.canSnooze) TextButton(onClick = onSnooze) { Text(stringResource(R.string.consumable_snooze)) }
+                TextButton(onClick = { uriHandler.openUri(state.kind.orderUrl) }) { Text(stringResource(Res.string.consumable_order)) }
+                TextButton(onClick = onReplaced) { Text(stringResource(Res.string.consumable_mark_replaced_2)) }
+                if (state.canSnooze) TextButton(onClick = onSnooze) { Text(stringResource(Res.string.consumable_snooze)) }
             }
         }
     }

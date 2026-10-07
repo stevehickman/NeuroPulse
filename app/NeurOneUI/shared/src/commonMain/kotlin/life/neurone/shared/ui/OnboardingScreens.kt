@@ -1,4 +1,4 @@
-package life.neurone.app.ui
+package life.neurone.shared.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,9 +21,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import life.neurone.app.R
+import life.neurone.shared.resources.Res
+import life.neurone.shared.resources.*
 
 /**
  * Minimum age gate — parity with iOS AgeGateView.swift (NP-PRIV-001 Rev B
@@ -46,24 +47,24 @@ fun AgeGateScreen(onConfirmed: () -> Unit) {
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(stringResource(R.string.setup_title_welcome), style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(Res.string.setup_title_welcome), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(16.dp))
         Text(
-            stringResource(R.string.age_neurone_is_designed_for_users_16_years_of_ag) +
-                stringResource(R.string.age_please_confirm_your_age_to_continue),
+            stringResource(Res.string.age_neurone_is_designed_for_users_16_years_of_ag) +
+                stringResource(Res.string.age_please_confirm_your_age_to_continue),
             style = MaterialTheme.typography.bodyLarge,
         )
         Spacer(Modifier.height(24.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = checked, onCheckedChange = { checked = it })
-            Text(stringResource(R.string.age_gate_declaration))
+            Text(stringResource(Res.string.age_gate_declaration))
         }
         Spacer(Modifier.height(24.dp))
         Button(onClick = onConfirmed, enabled = checked) {
-            Text(stringResource(R.string.setup_continue_button))
+            Text(stringResource(Res.string.setup_continue_button))
         }
         Spacer(Modifier.height(8.dp))
-        TextButton(onClick = { showUnder16 = true }) { Text(stringResource(R.string.age_gate_under_16)) }
+        TextButton(onClick = { showUnder16 = true }) { Text(stringResource(Res.string.age_gate_under_16)) }
     }
 }
 
@@ -78,16 +79,16 @@ fun Under16Screen(onBack: () -> Unit) {
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(stringResource(R.string.age_thanks_for_your_interest), style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(Res.string.age_thanks_for_your_interest), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(16.dp))
         Text(
-            stringResource(R.string.age_neurone_is_intended_for_users_16_years_of_ag) +
-                stringResource(R.string.age_up_a_device_for_younger_users_at_this_time_i) +
-                stringResource(R.string.age_back_and_confirm_your_age),
+            stringResource(Res.string.age_neurone_is_intended_for_users_16_years_of_ag) +
+                stringResource(Res.string.age_up_a_device_for_younger_users_at_this_time_i) +
+                stringResource(Res.string.age_back_and_confirm_your_age),
             style = MaterialTheme.typography.bodyLarge,
         )
         Spacer(Modifier.height(24.dp))
-        TextButton(onClick = onBack) { Text(stringResource(R.string.consent_back_button)) }
+        TextButton(onClick = onBack) { Text(stringResource(Res.string.consent_back_button)) }
     }
 }
 
@@ -105,31 +106,31 @@ fun BipaConsentScreen(onAccepted: () -> Unit) {
         modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(stringResource(R.string.age_your_brainwave_data), style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(Res.string.age_your_brainwave_data), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(16.dp))
         Text(
-            stringResource(R.string.age_neurone_records_eeg_brainwave_signals_during) +
-                stringResource(R.string.age_biometric_information_your_recordings_are_en) +
-                stringResource(R.string.age_only_you_hold_neurone_cannot_read_them_ever) +
-                stringResource(R.string.age_retention_your_recordings_stay_on_your_devic) +
-                stringResource(R.string.age_neurone_s_biometric_data_retention_and_destr) +
-                stringResource(R.string.age_neurone_life_biometric_policy) +
-                stringResource(R.string.age_by_continuing_you_provide_written_release_fo) +
-                stringResource(R.string.age_on_your_device_for_session_delivery_and_neur),
+            stringResource(Res.string.age_neurone_records_eeg_brainwave_signals_during) +
+                stringResource(Res.string.age_biometric_information_your_recordings_are_en) +
+                stringResource(Res.string.age_only_you_hold_neurone_cannot_read_them_ever) +
+                stringResource(Res.string.age_retention_your_recordings_stay_on_your_devic) +
+                stringResource(Res.string.age_neurone_s_biometric_data_retention_and_destr) +
+                stringResource(Res.string.age_neurone_life_biometric_policy) +
+                stringResource(Res.string.age_by_continuing_you_provide_written_release_fo) +
+                stringResource(Res.string.age_on_your_device_for_session_delivery_and_neur),
             style = MaterialTheme.typography.bodyLarge,
         )
         Spacer(Modifier.height(24.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = checked, onCheckedChange = { checked = it })
-            Text(stringResource(R.string.age_i_have_read_and_agree_to_the_biometric_data))
+            Text(stringResource(Res.string.age_i_have_read_and_agree_to_the_biometric_data))
         }
         Spacer(Modifier.height(24.dp))
         Button(onClick = onAccepted, enabled = checked) {
-            Text(stringResource(R.string.age_agree_and_continue))
+            Text(stringResource(Res.string.age_agree_and_continue))
         }
         Spacer(Modifier.height(16.dp))
         Text(
-            stringResource(R.string.regulatory_footer),
+            stringResource(Res.string.regulatory_footer),
             style = MaterialTheme.typography.bodySmall,
         )
     }

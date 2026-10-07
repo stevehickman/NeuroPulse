@@ -3,21 +3,20 @@ package life.neurone.app
 import android.app.Application
 import android.content.Context
 import life.neurone.app.ble.AndroidBleCentral
-import life.neurone.app.ble.NeurOneGattManager
 import life.neurone.app.data.EncryptedPrefsDeviceTokenStore
 import life.neurone.app.data.ShdrUploadWiring
 import life.neurone.app.data.ShdrUploader
 import life.neurone.app.session.AndroidProtocolSigner
 import life.neurone.app.session.ProtocolUploader
-import life.neurone.core.analytics.EngagementTier
 import life.neurone.core.analytics.ResearchAnalyticsGate
 import life.neurone.core.analytics.WarrantyAnalyticsGate
+import life.neurone.shared.AppServices
+import life.neurone.shared.NoOpAnalyticsBackend
+import life.neurone.shared.ble.NeurOneGattManager
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.models.ActiveUserTag
 import life.neurone.core.consent.ConsentStore
-import life.neurone.core.consumable.ConsumableCountsProviding
 import life.neurone.core.consumable.ConsumableTracker
-import life.neurone.core.models.SessionState
 import life.neurone.core.protocol.NPLimitsStore
 import life.neurone.core.protocol.NPProtocolLibrary
 import life.neurone.core.protocol.NPValidationText
@@ -26,9 +25,6 @@ import life.neurone.core.session.SessionHistoryStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -49,83 +45,51 @@ class SharedPrefsKeyValueStore(context: Context) : KeyValueStore {
     override fun remove(key: String) = prefs.edit().remove(key).apply()
 }
 
-/** No-op analytics backend until the production vendor SDK is selected and its
- *  DPA executed (NP-PRIV-AUDIT-001 HIGH-1 — vendor not selected; the gate
- *  architecture is in place so the SDK swap is a one-line change). */
-class NoOpAnalyticsBackend : life.neurone.core.analytics.AnalyticsBackend {
-    override fun configure() {}
-    override fun reset() {}
-    override fun track(event: String, properties: Map<String, String>) {}
-}
-
 class NeurOneApplication : Application() {
 
-    lateinit var keyValueStore: KeyValueStore
+    /** The cross-platform composition root (app/NeurOneUI/shared). Everything below is a view onto it. */
+    lateinit var services: AppServices
         private set
-    lateinit var researchAnalyticsGate: ResearchAnalyticsGate
-        private set
-    lateinit var warrantyAnalyticsGate: WarrantyAnalyticsGate
-        private set
-    lateinit var consentStore: ConsentStore
-        private set
-    lateinit var sessionHistoryStore: SessionHistoryStore
-        private set
-    lateinit var protocolLibrary: NPProtocolLibrary
-        private set
+
+    val keyValueStore: KeyValueStore get() = services.keyValueStore
+    val researchAnalyticsGate: ResearchAnalyticsGate get() = services.researchAnalyticsGate
+    val warrantyAnalyticsGate: WarrantyAnalyticsGate get() = services.warrantyAnalyticsGate
+    val consentStore: ConsentStore get() = services.consentStore
+    val sessionHistoryStore: SessionHistoryStore get() = services.sessionHistoryStore
+    val protocolLibrary: NPProtocolLibrary get() = services.protocolLibrary
+    val gattManager: NeurOneGattManager get() = services.gattManager
+    val consumableTracker: ConsumableTracker get() = services.consumableTracker
+    val researchSuggestionStore: ResearchSuggestionStore get() = services.researchSuggestionStore
+    val limitsStore: NPLimitsStore get() = services.limitsStore
 
     /** Real Android BLE central. Permission-aware — no scan until BLUETOOTH_SCAN/CONNECT
      *  are granted. Call `bleCentral.refresh()` after a permission grant to start scanning. */
     lateinit var bleCentral: AndroidBleCentral
         private set
-    lateinit var gattManager: NeurOneGattManager
-        private set
-    lateinit var consumableTracker: ConsumableTracker
-        private set
     lateinit var protocolUploader: ProtocolUploader
         private set
     lateinit var shdrUploader: ShdrUploader
-        private set
-    lateinit var researchSuggestionStore: ResearchSuggestionStore
-        private set
-    lateinit var limitsStore: NPLimitsStore
         private set
 
     private val bleScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     override fun onCreate() {
         super.onCreate()
-        keyValueStore = SharedPrefsKeyValueStore(this)
-        // :core is pure JVM and cannot reach resources, so the validator's locale keys are resolved here. sync-locales
+        // :core cannot reach resources, so the validator's locale keys are resolved here. sync-locales
         // lowercases a key into its resource name and turns `{0}` into `%1$s`.
         NPValidationText.use { key, args ->
             val id = resources.getIdentifier(key.lowercase(), "string", packageName)
             if (id == 0) null else getString(id, *args.toTypedArray())
         }
-        researchAnalyticsGate = ResearchAnalyticsGate(keyValueStore, NoOpAnalyticsBackend())
-        warrantyAnalyticsGate = WarrantyAnalyticsGate(keyValueStore)
-        consentStore = ConsentStore(keyValueStore, researchAnalyticsGate)
-        sessionHistoryStore = SessionHistoryStore(keyValueStore)
-        protocolLibrary = NPProtocolLibrary(keyValueStore)
         // BLE central + manager are constructed here but do not scan until the UI obtains
         // runtime permission and calls bleCentral.refresh() (adapterState = UNAUTHORIZED
         // until then, so the manager's auto-scan-on-ON path is inert at startup).
         bleCentral = AndroidBleCentral(this)
-        gattManager = NeurOneGattManager(bleCentral, bleScope, keyValueStore)
-        // Consumable reminder engine, fed by the hub's CONSUMABLE_STATUS counts (SHDR-class).
-        consumableTracker = ConsumableTracker(
-            GattConsumableCountsProvider(gattManager.session, bleScope),
-            keyValueStore,
-            // OI-ACC-08: the hub owns the count; Mark replaced tells it to zero it.
-            onReplaced = { gattManager.requestConsumableReset(it) },
+        services = AppServices(
+            platform = AndroidPlatformServices(SharedPrefsKeyValueStore(this), bleCentral),
+            scope = bleScope,
         )
         protocolUploader = ProtocolUploader(gattManager, AndroidProtocolSigner())
-        researchSuggestionStore = ResearchSuggestionStore(keyValueStore)
-        limitsStore = NPLimitsStore(keyValueStore)
-        // Per-user cardiac scope (NP-SW-FAULTMSG-001): the active individual profile names the
-        // person on the device. Until a profile is chosen the device keeps assuming whoever it
-        // last knew — nothing is sent.
-        gattManager.activeUserTag = ActiveUserTag.from(limitsStore.activeProfileId)
-        limitsStore.onActiveProfileChanged = { gattManager.activeUserTag = ActiveUserTag.from(it) }
 
         // SHDR fleet uploader — gated on the WARRANTY OWNER's consent only
         // (WarrantyAnalyticsGate), structurally independent of user research consent.
@@ -133,11 +97,6 @@ class NeurOneApplication : Application() {
         // hub-provisioned TRNG token when the GATT characteristic ships (OI-BLE-01).
         shdrUploader = ShdrUploader(EncryptedPrefsDeviceTokenStore(this), warrantyAnalyticsGate)
         composeShdrUploadPipeline()
-
-        EngagementTier.incrementLaunchCount(keyValueStore)
-        // SDK initialization gate (NP-APP-TELEMETRY-001 Rev B §5): configure()
-        // no-ops unless the user actively completed the consent flow.
-        researchAnalyticsGate.configure()
     }
 
     /**
@@ -187,23 +146,5 @@ class NeurOneApplication : Application() {
 
     private companion object {
         const val SHDR_STAGING_FILE = "shdr_staging.bin"
-    }
-}
-
-/**
- * Adapts the GATT manager's session flow into the core ConsumableCountsProviding contract.
- * `SessionState.consumableSessionCounts` (SHDR-class device counts, not user biology) is the
- * source. StateFlow.collect emits the current value immediately on subscription, satisfying
- * the "current value synchronously on subscription" contract iOS's CurrentValueSubject has.
- */
-private class GattConsumableCountsProvider(
-    private val session: StateFlow<SessionState>,
-    private val scope: CoroutineScope,
-) : ConsumableCountsProviding {
-    override fun observe(listener: (List<Int>) -> Unit): AutoCloseable {
-        val job = scope.launch {
-            session.map { it.consumableSessionCounts }.distinctUntilChanged().collect { listener(it) }
-        }
-        return AutoCloseable { job.cancel() }
     }
 }

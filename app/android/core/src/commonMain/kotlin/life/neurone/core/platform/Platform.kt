@@ -25,3 +25,21 @@ fun todayIso(): String = Clock.System.todayIn(TimeZone.currentSystemDefault()).t
 
 /** Seconds since the Unix epoch. */
 fun epochSeconds(): Long = Clock.System.now().epochSeconds
+
+/**
+ * [value] with exactly [digits] decimals, rounded half away from zero, as `String.format("%.Nf")`
+ * does on the JVM, which Kotlin common does not have. Written once so a score reads the same on
+ * every platform.
+ */
+fun formatFixed(value: Double, digits: Int): String {
+    require(digits in 0..9)
+    if (value.isNaN()) return "NaN"
+    if (value.isInfinite()) return if (value > 0) "Infinity" else "-Infinity"
+    var scale = 1L
+    repeat(digits) { scale *= 10 }
+    val scaled = kotlin.math.floor(kotlin.math.abs(value) * scale + 0.5).toLong()
+    val whole = scaled / scale
+    val fraction = (scaled % scale).toString().padStart(digits, '0')
+    val sign = if (value < 0 && scaled != 0L) "-" else ""
+    return if (digits == 0) "$sign$whole" else "$sign$whole.$fraction"
+}

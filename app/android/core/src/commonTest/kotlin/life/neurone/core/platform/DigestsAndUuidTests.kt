@@ -63,3 +63,14 @@ class DigestsAndUuidTests {
         assertFailsWith<IllegalArgumentException> { UUID.fromString("6ba7b810-9dad-11d1-80b4-00c04fd430cZ") }
     }
 }
+
+class FormatFixedTests {
+    @Test fun roundsHalfUpAndPadsDecimals() {
+        assertEquals("0.3", formatFixed(0.25, 1))
+        assertEquals("72.0", formatFixed(72.0, 1))
+        assertEquals("1.50", formatFixed(1.5, 2))
+        assertEquals("-0.3", formatFixed(-0.25, 1))
+        assertEquals("0.0", formatFixed(-0.04, 1))
+        assertEquals("3", formatFixed(2.5, 0))
+    }
+}

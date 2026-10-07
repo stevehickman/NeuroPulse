@@ -38,7 +38,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import life.neurone.app.NeurOneApplication
 import life.neurone.app.R
-import life.neurone.app.ble.ConnectionState
+import life.neurone.shared.ble.ConnectionState
 import life.neurone.core.ble.CalibrationOpcode
 import life.neurone.core.models.ZoneModuleConfiguration
 import life.neurone.core.models.ZoneModuleStatus

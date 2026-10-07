@@ -1,7 +1,7 @@
 package life.neurone.app.session
 
-import life.neurone.app.ble.ConnectionState
-import life.neurone.app.ble.NeurOneGattManager
+import life.neurone.shared.ble.ConnectionState
+import life.neurone.shared.ble.NeurOneGattManager
 import life.neurone.core.protocol.NPModalityType
 import life.neurone.core.protocol.NPLimitsSet
 import life.neurone.core.protocol.NPProtocolDefinition

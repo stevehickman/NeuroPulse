@@ -1,9 +1,9 @@
-package life.neurone.app.ble
+package life.neurone.shared.ble
 
-import java.util.UUID
+import life.neurone.core.common.UUID
 
 // BLE central abstraction — port of iOS BLECentral.swift. Decouples
-// NeurOneGattManager from android.bluetooth so connection logic is
+// NeurOneGattManager from every platform Bluetooth API (android.bluetooth, CoreBluetooth, Web Bluetooth) so connection logic is
 // unit-testable without hardware (parity with the iOS BLECentralManager
 // protocol + MockBLECentral pattern).
 
@@ -32,4 +32,10 @@ interface BleCentral {
     fun enableNotifications(uuid: UUID)
     fun read(uuid: UUID)
     fun write(uuid: UUID, value: ByteArray)
+
+    /**
+     * Re-read the adapter state after the user changed something outside the app (granted a
+     * runtime permission, turned Bluetooth on). A central with nothing to re-read ignores it.
+     */
+    fun refresh() {}
 }

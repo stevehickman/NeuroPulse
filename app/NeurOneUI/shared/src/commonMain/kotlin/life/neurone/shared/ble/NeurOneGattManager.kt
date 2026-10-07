@@ -1,4 +1,4 @@
-package life.neurone.app.ble
+package life.neurone.shared.ble
 
 import life.neurone.core.ble.GattParser
 import life.neurone.core.ble.OtaOpcode
@@ -18,7 +18,8 @@ import life.neurone.core.models.ZoneModuleConfiguration
 import life.neurone.core.models.ZoneModuleFrameAssembler
 import life.neurone.core.protocol.GattUuidStrings
 import life.neurone.core.protocol.PersistedKeys
-import java.util.UUID
+import life.neurone.core.common.UUID
+import kotlin.concurrent.Volatile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

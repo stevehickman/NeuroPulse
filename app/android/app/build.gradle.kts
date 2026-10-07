@@ -3,9 +3,9 @@
 // :core, which builds and tests on any JVM.
 
 plugins {
-    id("com.android.application") version "8.9.3"
-    kotlin("android") version "2.0.21"
-    kotlin("plugin.compose") version "2.0.21"
+    id("com.android.application")
+    kotlin("android")
+    kotlin("plugin.compose")
 }
 
 // ── Localized strings (CLAUDE.md §17) ─────────────────────────────────────────
@@ -120,6 +120,7 @@ android {
 
 dependencies {
     implementation(project(":core"))
+    implementation(project(":shared"))
 
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)

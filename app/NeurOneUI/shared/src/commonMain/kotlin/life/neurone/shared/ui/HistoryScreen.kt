@@ -1,4 +1,4 @@
-package life.neurone.app.ui
+package life.neurone.shared.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,12 +23,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import life.neurone.core.platform.formatFixed
 import life.neurone.core.session.AdaptationEvent
 import life.neurone.core.session.CompletedSessionSummary
 import life.neurone.core.session.SessionHistoryStore
 import life.neurone.core.session.SessionRecord
-import androidx.compose.ui.res.stringResource
-import life.neurone.app.R
+import org.jetbrains.compose.resources.stringResource
+import life.neurone.shared.resources.Res
+import life.neurone.shared.resources.*
 
 // Port of iOS SessionHistoryView + AdaptiveAdjustmentsCard. Day-granularity list of completed
 // sessions (exact timestamps are UHDR-class and never stored); tapping opens a detail with the
@@ -47,9 +49,9 @@ fun HistoryScreen(store: SessionHistoryStore, modifier: Modifier = Modifier) {
 
     if (store.records.isEmpty()) {
         Column(modifier.fillMaxSize().padding(24.dp)) {
-            Text(stringResource(R.string.history_session_history), style = MaterialTheme.typography.headlineMedium)
+            Text(stringResource(Res.string.history_session_history), style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.history_your_completed_sessions_will_appear_here), style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(Res.string.history_your_completed_sessions_will_appear_here), style = MaterialTheme.typography.bodyMedium)
         }
         return
     }
@@ -60,8 +62,8 @@ fun HistoryScreen(store: SessionHistoryStore, modifier: Modifier = Modifier) {
                 Column(Modifier.padding(12.dp)) {
                     Text(record.protocolName, style = MaterialTheme.typography.titleMedium)
                     Text(record.sessionDay, style = MaterialTheme.typography.bodySmall) // day granularity — UHDR boundary
-                    record.averageCoherenceScore?.let { Text(stringResource(R.string.history_coherence_1f, "%.1f".format(it))) }
-                    Text(stringResource(R.string.history_impedance_0_8_electrodes, record.impedancePassCount))
+                    record.averageCoherenceScore?.let { Text(stringResource(Res.string.history_coherence_1f, formatFixed(it.toDouble(), 1))) }
+                    Text(stringResource(Res.string.history_impedance_0_8_electrodes, record.impedancePassCount))
                 }
             }
         }
@@ -72,17 +74,17 @@ fun HistoryScreen(store: SessionHistoryStore, modifier: Modifier = Modifier) {
 private fun SessionDetail(record: SessionRecord, onBack: () -> Unit, modifier: Modifier = Modifier) {
     val summary = remember(record.id) { CompletedSessionSummary.fromRecord(record) }
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
-        TextButton(onClick = onBack) { Text(stringResource(R.string.consent_back_button)) }
+        TextButton(onClick = onBack) { Text(stringResource(Res.string.consent_back_button)) }
         Text(record.protocolName, style = MaterialTheme.typography.headlineSmall)
         Text(record.sessionDay, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(12.dp))
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
-                Text(stringResource(R.string.history_0_min_session, summary.durationSeconds / 60), style = MaterialTheme.typography.titleMedium)
-                summary.averageCoherenceScore?.let { Text(stringResource(R.string.history_average_coherence_1f, "%.1f".format(it))) }
-                summary.rmssdMilliseconds?.let { Text(stringResource(R.string.history_rmssd_0_ms, it)) }
-                Text(stringResource(R.string.history_impedance_0_8_electrodes_passed, summary.impedancePassCount))
+                Text(stringResource(Res.string.history_0_min_session, summary.durationSeconds / 60), style = MaterialTheme.typography.titleMedium)
+                summary.averageCoherenceScore?.let { Text(stringResource(Res.string.history_average_coherence_1f, formatFixed(it.toDouble(), 1))) }
+                summary.rmssdMilliseconds?.let { Text(stringResource(Res.string.history_rmssd_0_ms, it)) }
+                Text(stringResource(Res.string.history_impedance_0_8_electrodes_passed, summary.impedancePassCount))
             }
         }
 
@@ -101,11 +103,11 @@ fun AdaptiveAdjustmentsCard(events: List<AdaptationEvent>, modifier: Modifier = 
     var expanded by remember { mutableStateOf(false) }
     Card(modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
-            Text(stringResource(R.string.history_adaptive_adjustments), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(Res.string.history_adaptive_adjustments), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
             if (events.isEmpty()) {
                 Text(
-                    stringResource(R.string.history_no_automatic_adjustments_were_recorded_for_t),
+                    stringResource(Res.string.history_no_automatic_adjustments_were_recorded_for_t),
                     style = MaterialTheme.typography.bodySmall,
                 )
             } else {
@@ -115,7 +117,7 @@ fun AdaptiveAdjustmentsCard(events: List<AdaptationEvent>, modifier: Modifier = 
                     Spacer(Modifier.height(6.dp))
                 }
                 if (!expanded && events.size > 5) {
-                    TextButton(onClick = { expanded = true }) { Text(stringResource(R.string.history_view_all_0, events.size)) }
+                    TextButton(onClick = { expanded = true }) { Text(stringResource(Res.string.history_view_all_0, events.size)) }
                 }
             }
         }

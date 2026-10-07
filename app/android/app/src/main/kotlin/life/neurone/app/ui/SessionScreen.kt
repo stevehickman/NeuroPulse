@@ -41,7 +41,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import life.neurone.app.R
-import life.neurone.app.ble.ConnectionState
+import life.neurone.shared.ble.ConnectionState
 import life.neurone.core.models.CervicalFaultRecord
 import life.neurone.core.models.CervicalFaultStatus
 import life.neurone.core.models.CervicalPadStatus

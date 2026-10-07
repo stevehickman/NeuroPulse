@@ -1,29 +1,13 @@
 package life.neurone.app.ui
 
-import android.os.Build
 import android.os.Bundle
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -32,7 +16,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.fragment.app.FragmentActivity
 import life.neurone.app.NeurOneApplication
 import life.neurone.app.R
-import life.neurone.core.protocol.PersistedKeys
+import life.neurone.shared.ui.AppTab
+import life.neurone.shared.ui.NeurOneApp
+import life.neurone.shared.ui.OnboardingKeys
 
 // FragmentActivity (not ComponentActivity) — required by BiometricPrompt for
 // the UHDR key credential flow.
@@ -42,87 +28,16 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         val app = application as NeurOneApplication
         setContent {
-            MaterialTheme {
-                Root(app)
-            }
-        }
-    }
-}
-
-@Composable
-private fun Root(app: NeurOneApplication) {
-    // Onboarding gates precede ALL personal-data collection or display
-    // (parity with iOS: age gate before consent layers, BIPA before EEG).
-    var ageConfirmed by remember {
-        mutableStateOf(app.keyValueStore.getBoolean(PersistedKeys.AGE_CONFIRMED_KEY))
-    }
-    var bipaAccepted by remember {
-        mutableStateOf(app.keyValueStore.getBoolean(OnboardingKeys.BIPA_ACCEPTED))
-    }
-    var consentShown by remember {
-        mutableStateOf(app.keyValueStore.getBoolean(OnboardingKeys.CONSENT_SHOWN))
-    }
-
-    when {
-        !ageConfirmed -> AgeGateScreen(
-            onConfirmed = {
-                app.keyValueStore.putBoolean(PersistedKeys.AGE_CONFIRMED_KEY, true)
-                ageConfirmed = true
-            },
-        )
-        !bipaAccepted -> BipaConsentScreen(
-            onAccepted = {
-                app.keyValueStore.putBoolean(OnboardingKeys.BIPA_ACCEPTED, true)
-                bipaAccepted = true
-            },
-        )
-        // Research-consent onboarding (L1–L4) follows biometric consent, before the app
-        // proper — mirrors iOS ordering. All layers are optional.
-        !consentShown -> ConsentOnboardingScreen(
-            store = app.consentStore,
-            onComplete = {
-                app.keyValueStore.putBoolean(OnboardingKeys.CONSENT_SHOWN, true)
-                consentShown = true
-            },
-        )
-        else -> MainScaffold(app)
-    }
-}
-
-private data class Tab(val labelRes: Int, val icon: androidx.compose.ui.graphics.vector.ImageVector)
-
-@Composable
-private fun MainScaffold(app: NeurOneApplication) {
-    var selected by remember { mutableIntStateOf(0) }
-    val tabs = listOf(
-        Tab(R.string.session_title, Icons.Filled.PlayArrow),
-        Tab(R.string.tab_history, Icons.Filled.DateRange),
-        Tab(R.string.tab_consumables, Icons.Filled.ShoppingCart),
-        Tab(R.string.setup_privacy_card_title, Icons.Filled.Lock),
-        Tab(R.string.tab_settings, Icons.Filled.Settings),
-    )
-
-    Scaffold(
-        bottomBar = {
-            NavigationBar {
-                tabs.forEachIndexed { index, tab ->
-                    NavigationBarItem(
-                        selected = selected == index,
-                        onClick = { selected = index },
-                        icon = { Icon(tab.icon, contentDescription = null) },
-                        label = { Text(stringResource(tab.labelRes)) },
-                    )
-                }
-            }
-        },
-    ) { padding ->
-        val modifier = Modifier.padding(padding)
-        when (selected) {
-            0 -> SessionTab(app, modifier)
-            1 -> HistoryScreen(app.sessionHistoryStore, modifier)
-            2 -> ConsumablesScreen(app, modifier)
-            3 -> ConsentDashboardScreen(app, modifier)
-            else -> SettingsScreen(app, modifier)
+            NeurOneApp(
+                services = app.services,
+                // Screens still written for Android only; each moves into app/NeurOneUI/shared and
+                // leaves this map when it does.
+                tabOverrides = mapOf(
+                    AppTab.SESSION to { modifier -> SessionTab(app, modifier) },
+                    AppTab.PRIVACY to { modifier -> ConsentDashboardScreen(app, modifier) },
+                    AppTab.SETTINGS to { modifier -> SettingsScreen(app, modifier) },
+                ),
+            )
         }
     }
 }
@@ -134,7 +49,7 @@ private fun MainScaffold(app: NeurOneApplication) {
  * (OI-AND-BLE-01); until then the session view renders the disconnected state.
  */
 @Composable
-private fun SessionTab(app: NeurOneApplication, modifier: Modifier) {
+fun SessionTab(app: NeurOneApplication, modifier: Modifier) {
     var showMenu by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val consentGranted = app.keyValueStore.getBoolean(OnboardingKeys.BIPA_ACCEPTED)
@@ -158,24 +73,7 @@ private fun SessionTab(app: NeurOneApplication, modifier: Modifier) {
     }
 
     // Request BLE runtime permissions (Android 12+); on grant, kick off scanning.
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions(),
-    ) { grants ->
-        if (grants.values.all { it }) app.bleCentral.refresh()
-    }
-
-    fun requestConnect() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            permissionLauncher.launch(
-                arrayOf(
-                    android.Manifest.permission.BLUETOOTH_SCAN,
-                    android.Manifest.permission.BLUETOOTH_CONNECT,
-                ),
-            )
-        } else {
-            app.bleCentral.refresh()
-        }
-    }
+    val requestConnect = app.services.platform.rememberBleConnectAction()
 
     fun uploadAndReport(
         entry: life.neurone.core.protocol.NPProtocolEntry,
@@ -264,7 +162,7 @@ private fun SessionTab(app: NeurOneApplication, modifier: Modifier) {
         SessionScreen(
             connectionState = connectionState,
             session = session,
-            onConnect = { requestConnect() },
+            onConnect = requestConnect,
             onChooseProtocol = { showMenu = true },
             onStop = { app.gattManager.requestSessionStop() },
             modifier = modifier,
@@ -278,9 +176,4 @@ private fun SessionTab(app: NeurOneApplication, modifier: Modifier) {
             onConfirmCervicalResume = { app.gattManager.sendCervicalReenableConfirm() },
         )
     }
-}
-
-object OnboardingKeys {
-    const val BIPA_ACCEPTED = "np.onboarding.bipa-accepted"
-    const val CONSENT_SHOWN = "np.onboarding.consent-shown"
 }
