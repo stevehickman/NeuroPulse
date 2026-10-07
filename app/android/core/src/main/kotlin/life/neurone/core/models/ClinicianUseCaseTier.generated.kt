@@ -43,7 +43,7 @@ enum class ClinicianUseCaseTier(val displayName: String, val monthlyPrice: Strin
                 UHDRElement.PPG_OPTICAL_SIGNAL, UHDRElement.NEUROFEEDBACK_SCORES,
                 UHDRElement.SESSION_TIMESTAMPS, UHDRElement.SESSION_DURATION,
                 UHDRElement.PROTOCOL_PARAMETERS, UHDRElement.CLOSED_LOOP_EVENTS,
-                UHDRElement.PBM_DOSE_LOGS, UHDRElement.OUTCOME_LOGS,
+                UHDRElement.PBM_DOSE_LOGS, UHDRElement.OUTCOME_LOGS, UHDRElement.EYE_STATE_LOGS,
             )
             RESEARCH -> emptySet()
         }

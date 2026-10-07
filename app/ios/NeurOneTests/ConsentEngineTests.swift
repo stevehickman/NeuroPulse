@@ -44,6 +44,9 @@ final class ConsentEngineTests: XCTestCase {
                       "Full Clinical tier must add HRV time-series access.")
         XCTAssertTrue(elements.contains(.ppgOpticalSignal))
         XCTAssertTrue(elements.contains(.closedLoopEvents))
+        // Every element is reachable through the tier its minimumTier names (OI-CONSENT-08).
+        XCTAssertTrue(elements.contains(.eyeStateLogs))
+        XCTAssertEqual(elements.count, UHDRElement.allCases.count)
         // Full Clinical is a superset of Assess.
         XCTAssertTrue(elements.isSuperset(of: ClinicianUseCaseTier.assess.uhdrElements))
     }
