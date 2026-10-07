@@ -68,5 +68,5 @@ visible rather than silent. They move into `:shared` one at a time, deleting the
   "cannot check", so every study descriptor is refused there (the shipped default everywhere, `OI-CONSENT-07`).
 - `OI-UI-KMP-05` — the existing SwiftUI app (`app/ios`), React app (`app/web`) and the Windows project are
   untouched; retiring each is a decision for when `:shared` covers its screens. macOS is the desktop app.
-- `OI-UI-KMP-06` — iOS, desktop packaging and the wasm release build are unbuilt here (no Xcode, DMG/MSI
+- `OI-UI-KMP-06` — iOS and desktop packaging are unbuilt here (no Xcode, DMG/MSI
   tooling or browser); `android-ci.yml` and a macOS runner are the first real builds.
