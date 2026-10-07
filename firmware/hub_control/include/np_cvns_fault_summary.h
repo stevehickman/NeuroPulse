@@ -69,7 +69,7 @@
  *   pad-contact faults only) · u16 reserved 0                                  */
 /* NP_CVFS_WIRE_VERSION, _HEADER_LEN, _RECORD_LEN and _MAX_WIRE_RECORDS are generated from common/npps/constants.json
  * (group CvfsWire), the one source the apps' parsers read as well. */
-#include "np_app_wire_constants.h"
+#include "../../common/include/np_app_wire_constants.h"
 #define NP_CVFS_FRAME_MAX           (NP_CVFS_HEADER_LEN + \
                                      (NP_CVFS_MAX_WIRE_RECORDS * NP_CVFS_RECORD_LEN))
 

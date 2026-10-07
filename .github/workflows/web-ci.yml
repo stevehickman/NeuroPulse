@@ -62,7 +62,7 @@ jobs:
         app/android/core/src/main/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt
         app/ios/NeurOne/Protocol/NppsConstants.generated.swift
         app/windows/NeurOne/Protocol/NppsConstants.generated.cs
-        firmware/hub_control/include/np_app_wire_constants.h
+        firmware/common/include/np_app_wire_constants.h
         # The clinician use-case library is generated from app/NeurOneShared/Resources into iOS and Android and checked here.
         scripts/sync-use-cases.ts
         app/NeurOneShared/Resources/clinician-use-cases.json

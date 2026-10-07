@@ -100,7 +100,7 @@ extern "C" {
 /* The wire constants (NP_ZN_FORMAT_VERSION, _HEADER_BYTES, _STATUS_REC_BYTES, _MAP_REC_BYTES,
  * _MAX_SOCKET_ID and the frame, status-record and map-record flags) are generated from
  * common/npps/constants.json (group ZoneNotify), the one source both apps parse the frame from. */
-#include "np_app_wire_constants.h"
+#include "../../common/include/np_app_wire_constants.h"
 
 /* Smallest frame buffer that can hold a header plus one record of either kind. */
 #define NP_ZN_MIN_FRAME_BYTES   (NP_ZN_HEADER_BYTES + NP_ZN_MAP_REC_BYTES)

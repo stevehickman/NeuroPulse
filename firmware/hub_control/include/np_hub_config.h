@@ -136,7 +136,7 @@
 
 #define NP_SAFETY_SPI_TIMEOUT_MS    10U
 #include "../../common/include/np_spi_wire_types.h"
-#include "np_app_wire_constants.h"
+#include "../../common/include/np_app_wire_constants.h"
 
 /* The NP_SAFETY_EN_* enable bits are in np_spi_wire_types.h — one definition
  * for both processors.  The safety MCU owns the GPIO that physically gates each

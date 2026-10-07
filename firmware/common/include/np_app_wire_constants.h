@@ -128,5 +128,9 @@
  * the safety MCU's signed tier identity (RISK-PWRSRC-10).
  */
 #define NP_PROTO_FLAG_T2_TIER 1U
+/*
+ * Pads checked every session: the bilateral gel-pad assembly, left and right.
+ */
+#define NP_CVNS_ELECTRODE_COUNT 2U
 
 #endif /* NP_APP_WIRE_CONSTANTS_H */

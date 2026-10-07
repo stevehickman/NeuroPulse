@@ -14,7 +14,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "np_hub_config.h"
-#include "np_app_wire_constants.h"   /* NP_GATT_DEVICE_SERIAL_LEN, generated from common/npps/constants.json */
+#include "../../common/include/np_app_wire_constants.h"   /* NP_GATT_DEVICE_SERIAL_LEN, generated from common/npps/constants.json */
 
 /* ═══════════════════════════════════════════════════════════════════════════════
  * Status codes

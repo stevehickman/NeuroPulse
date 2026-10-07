@@ -1,5 +1,5 @@
 {
-  "$comment": "Every constant that more than one runtime needs, once (OI-NPPS-CORE-01). `bun scripts/sync-constants.ts` writes them into common/lib/constants.generated.ts, NppsConstants.generated.kt (Android), NppsConstants.generated.swift (iOS), NppsConstants.generated.cs (Windows) and common/npps-ffi/include/neurone_npps_status.h and firmware/hub_control/include/np_app_wire_constants.h (the hub's side of the BLE contract), and --check fails if one is stale; the Rust core takes them at build time (common/npps-core/build.rs), so it has no copy to go stale. A constant is UPPER_SNAKE_CASE and has the SAME spelling in every language: that is the name, not a per-language rendering of it. The group (`name`) is the container where a language has one (`NPHardwareLimits.PBM_DEEP_MAX_MW_CM2`); `rust` is its module and `cPrefix` the prefix C needs because it has no namespaces. `targets` says which languages get a group, and `intTypes` overrides (a constant's own `types` overrides one for it alone; `hex` writes it in hex; `cName` is the full C macro name where it is not the group's prefix plus the name; a `value` that is a string makes a string constant) the type a language gives its whole numbers (the validator compares in f64, as JavaScript does, and the C ABI's codes are Rust i32 and Swift Int32, because that is what the calls return). `int` marks a whole-number figure. A group with a `uuidBase` is a table of 16-bit BLE ids: it also generates the 128-bit UUID strings (GattIds -> GattUuidStrings), and its constants marked `hub` are the ones the hub firmware publishes. `firmwareHeader` puts a C group into np_app_wire_constants.h; `hexWidth` writes a group's ids in hex. Provenance is in each note.",
+  "$comment": "Every constant that more than one runtime needs, once (OI-NPPS-CORE-01). `bun scripts/sync-constants.ts` writes them into common/lib/constants.generated.ts, NppsConstants.generated.kt (Android), NppsConstants.generated.swift (iOS), NppsConstants.generated.cs (Windows) and common/npps-ffi/include/neurone_npps_status.h and firmware/common/include/np_app_wire_constants.h (the hub's side of the BLE contract), and --check fails if one is stale; the Rust core takes them at build time (common/npps-core/build.rs), so it has no copy to go stale. A constant is UPPER_SNAKE_CASE and has the SAME spelling in every language: that is the name, not a per-language rendering of it. The group (`name`) is the container where a language has one (`NPHardwareLimits.PBM_DEEP_MAX_MW_CM2`); `rust` is its module and `cPrefix` the prefix C needs because it has no namespaces. `targets` says which languages get a group, and `intTypes` overrides (a constant's own `types` overrides one for it alone; `hex` writes it in hex; `cName` is the full C macro name where it is not the group's prefix plus the name; a `value` that is a string makes a string constant) the type a language gives its whole numbers (the validator compares in f64, as JavaScript does, and the C ABI's codes are Rust i32 and Swift Int32, because that is what the calls return). `int` marks a whole-number figure. A group with a `uuidBase` is a table of 16-bit BLE ids: it also generates the 128-bit UUID strings (GattIds -> GattUuidStrings), and its constants marked `hub` are the ones the hub firmware publishes. `firmwareHeader` puts a C group into np_app_wire_constants.h; `hexWidth` writes a group's ids in hex. Provenance is in each note.",
   "groups": [
     {
       "name": "NPHardwareLimits",
@@ -716,7 +716,8 @@
       "name": "CvnsPad",
       "targets": [
         "swift",
-        "kotlin"
+        "kotlin",
+        "c"
       ],
       "note": "The cervical VNS gel-pad assembly.",
       "constants": [
@@ -724,9 +725,11 @@
           "name": "CVNS_ELECTRODE_COUNT",
           "value": 2,
           "int": true,
-          "note": "Pads checked every session. Mirrors NP_CVNS_ELECTRODE_COUNT in firmware/cervical_vns/include/np_cvns_config.h, which is a self-contained library and does not include the generated header."
+          "note": "Pads checked every session: the bilateral gel-pad assembly, left and right."
         }
-      ]
+      ],
+      "cPrefix": "NP_",
+      "firmwareHeader": true
     },
     {
       "name": "PersistedKeys",
