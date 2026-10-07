@@ -19,8 +19,8 @@
  *
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/sync-use-cases.ts --self-test
- * CI-Scans: app/NeurOneShared/Resources/clinician-use-cases.json against the UHDRElement and ClinicianUseCaseTier definitions in both apps, the canonical locale, and both generated library files
- * CI-Scan-Paths: app/NeurOneShared/Resources/clinician-use-cases.json app/ios/NeurOne/Consent/ClinicalUseCaseLibrary.generated.swift app/android/core/src/main/kotlin/life/neurone/core/consent/ClinicalUseCaseLibrary.generated.kt app/ios/NeurOne/Models/ConsentModels.swift app/android/core/src/main/kotlin/life/neurone/core/models/ConsentModels.kt locales/en.json scripts/sync-use-cases.ts
+ * CI-Scans: app/NeurOneShared/Resources/clinician-use-cases.json against the UHDR element table (uhdr-elements.json), the canonical locale, and both generated library files
+ * CI-Scan-Paths: app/NeurOneShared/Resources/clinician-use-cases.json app/ios/NeurOne/Consent/ClinicalUseCaseLibrary.generated.swift app/android/core/src/main/kotlin/life/neurone/core/consent/ClinicalUseCaseLibrary.generated.kt app/NeurOneShared/Resources/uhdr-elements.json locales/en.json scripts/sync-use-cases.ts
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -29,8 +29,7 @@ const ROOT = join(import.meta.dir, '..');
 const SOURCE = 'app/NeurOneShared/Resources/clinician-use-cases.json';
 const SWIFT_OUT = 'app/ios/NeurOne/Consent/ClinicalUseCaseLibrary.generated.swift';
 const KOTLIN_OUT = 'app/android/core/src/main/kotlin/life/neurone/core/consent/ClinicalUseCaseLibrary.generated.kt';
-const SWIFT_MODELS = 'app/ios/NeurOne/Models/ConsentModels.swift';
-const KOTLIN_MODELS = 'app/android/core/src/main/kotlin/life/neurone/core/models/ConsentModels.kt';
+const ELEMENTS_SOURCE = 'app/NeurOneShared/Resources/uhdr-elements.json';
 const LOCALE = 'locales/en.json';
 
 /** The tiers a library entry may name. RESEARCH is not one: its elements are IRB-defined per study (§6.3). */
@@ -47,19 +46,7 @@ const camel = (name: string) => name.toLowerCase().replace(/_([a-z0-9])/g, (_, c
 const titleKey = (u: UseCase) => `CLINICIAN_USECASE_${upperSnake(u.id)}_NAME`;
 const descriptionKey = (u: UseCase) => `CLINICIAN_USECASE_${upperSnake(u.id)}_DESC`;
 
-/** UHDRElement names the Kotlin enum declares, in UPPER_SNAKE_CASE. */
-function kotlinElements(src: string): string[] {
-  const body = /enum class UHDRElement\([^)]*\)\s*\{([\s\S]*?);/.exec(src)?.[1] ?? '';
-  return [...body.matchAll(/^\s*([A-Z][A-Z0-9_]*)\(/gm)].map(m => m[1]!);
-}
-
-/** UHDRElement cases the Swift enum declares, as UPPER_SNAKE_CASE. */
-function swiftElements(src: string): string[] {
-  const body = /enum UHDRElement[^{]*\{([\s\S]*?)\n\s*\/\/ Lowest clinician tier/.exec(src)?.[1] ?? '';
-  return [...body.matchAll(/^\s*case\s+([a-z][A-Za-z0-9]*)\s*=/gm)].map(m => m[1]!.replace(/([A-Z0-9])/g, '_$1').toUpperCase());
-}
-
-export function validate(useCases: UseCase[], kotlin: string[], swift: string[], locale: Record<string, unknown>): string[] {
+export function validate(useCases: UseCase[], elements: string[], locale: Record<string, unknown>): string[] {
   const problems: string[] = [];
   const seen = new Set<string>();
   for (const u of useCases) {
@@ -70,8 +57,7 @@ export function validate(useCases: UseCase[], kotlin: string[], swift: string[],
     if (u.requiredElements.length === 0) problems.push(`${u.id}: a use case with no elements decides nothing`);
     if (new Set(u.requiredElements).size !== u.requiredElements.length) problems.push(`${u.id}: an element is listed twice`);
     for (const e of u.requiredElements) {
-      if (!kotlin.includes(e)) problems.push(`${u.id}: ${e} is not a UHDRElement in ${KOTLIN_MODELS}`);
-      if (!swift.includes(e)) problems.push(`${u.id}: ${e} is not a UHDRElement in ${SWIFT_MODELS}`);
+      if (!elements.includes(e)) problems.push(`${u.id}: ${e} is not a UHDRElement in ${ELEMENTS_SOURCE}`);
     }
     for (const k of [titleKey(u), descriptionKey(u)]) {
       if (!(k in locale)) problems.push(`${u.id}: the locale key ${k} is not in ${LOCALE}`);
@@ -144,25 +130,25 @@ ${rows}
 function load(): { useCases: UseCase[]; problems: string[] } {
   const read = (rel: string) => readFileSync(join(ROOT, rel), 'utf8');
   const useCases = (JSON.parse(read(SOURCE)) as { useCases: UseCase[] }).useCases;
-  const problems = validate(useCases, kotlinElements(read(KOTLIN_MODELS)), swiftElements(read(SWIFT_MODELS)), JSON.parse(read(LOCALE)));
+  const elements = (JSON.parse(read(ELEMENTS_SOURCE)) as { elements: Array<{ name: string }> }).elements.map(e => e.name);
+  const problems = validate(useCases, elements, JSON.parse(read(LOCALE)));
   return { useCases, problems };
 }
 
 function selfTest(): void {
   const good: UseCase[] = [{ id: 'a_b', tier: 'MONITOR', requiredElements: ['X_Y'] }];
   const locale = { CLINICIAN_USECASE_A_B_NAME: 'n', CLINICIAN_USECASE_A_B_DESC: 'd' };
-  const cases: Array<[string, UseCase[], string[], string[], Record<string, unknown>, string]> = [
-    ['a clean table passes', good, ['X_Y'], ['X_Y'], locale, ''],
-    ['an element Kotlin lacks', good, [], ['X_Y'], locale, 'is not a UHDRElement in app/android'],
-    ['an element Swift lacks', good, ['X_Y'], [], locale, 'is not a UHDRElement in app/ios'],
-    ['a missing locale key', good, ['X_Y'], ['X_Y'], {}, 'is not in locales/en.json'],
-    ['a duplicate id', [...good, ...good], ['X_Y'], ['X_Y'], locale, 'listed twice'],
-    ['a tier outside the library', [{ ...good[0]!, tier: 'RESEARCH' as Tier }], ['X_Y'], ['X_Y'], locale, 'is not one of'],
-    ['a use case with no elements', [{ ...good[0]!, requiredElements: [] }], ['X_Y'], ['X_Y'], locale, 'decides nothing'],
+  const cases: Array<[string, UseCase[], string[], Record<string, unknown>, string]> = [
+    ['a clean table passes', good, ['X_Y'], locale, ''],
+    ['an element the table lacks', good, [], locale, 'is not a UHDRElement in app/NeurOneShared'],
+    ['a missing locale key', good, ['X_Y'], {}, 'is not in locales/en.json'],
+    ['a duplicate id', [...good, ...good], ['X_Y'], locale, 'listed twice'],
+    ['a tier outside the library', [{ ...good[0]!, tier: 'RESEARCH' as Tier }], ['X_Y'], locale, 'is not one of'],
+    ['a use case with no elements', [{ ...good[0]!, requiredElements: [] }], ['X_Y'], locale, 'decides nothing'],
   ];
   let failed = 0;
-  for (const [name, table, k, s, l, expect] of cases) {
-    const got = validate(table, k, s, l).join('\n');
+  for (const [name, table, k, l, expect] of cases) {
+    const got = validate(table, k, l).join('\n');
     const ok = expect === '' ? got === '' : got.includes(expect);
     if (!ok) { failed++; console.error(`self-test FAIL: ${name}: ${got || '(no problem found)'}`); }
   }

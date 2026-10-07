@@ -68,6 +68,11 @@ jobs:
         app/NeurOneShared/Resources/clinician-use-cases.json
         app/ios/NeurOne/Consent/ClinicalUseCaseLibrary.generated.swift
         app/android/core/src/main/kotlin/life/neurone/core/consent/ClinicalUseCaseLibrary.generated.kt
+        # The UHDRElement enum (names, wire strings, minimum tiers) is generated the same way.
+        scripts/sync-uhdr-elements.ts
+        app/NeurOneShared/Resources/uhdr-elements.json
+        app/ios/NeurOne/Models/UHDRElement.generated.swift
+        app/android/core/src/main/kotlin/life/neurone/core/models/UHDRElement.generated.kt
         app/ios/NeurOne/Models/ConsentModels.swift
         app/android/core/src/main/kotlin/life/neurone/core/models/ConsentModels.kt
         scripts/test-lateralization-audit.sh
@@ -263,6 +268,16 @@ jobs:
       - name: Clinician use-case library in sync
         working-directory: .
         run: bun scripts/sync-use-cases.ts --check
+
+      # The UHDR elements (CLAUDE.md §5, §6) are one table in app/NeurOneShared/Resources, generated into iOS and Android:
+      # the wire strings are covered by signed study descriptors, so the platforms must agree on them exactly.
+      - name: UHDR element generator self-test (prove a bad table can fail)
+        working-directory: .
+        run: bun scripts/sync-uhdr-elements.ts --self-test
+
+      - name: UHDR elements in sync
+        working-directory: .
+        run: bun scripts/sync-uhdr-elements.ts --check
 
       - name: Lateralization audit behaves (accept + reject paths)
         working-directory: .

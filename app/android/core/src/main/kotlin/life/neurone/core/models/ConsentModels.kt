@@ -44,43 +44,7 @@ enum class ClinicianUseCaseTier(val displayName: String, val monthlyPrice: Strin
         }
 }
 
-/**
- * UHDR data elements (per NP-FW-EMMC-001 §12).
- *
- * [wireName] is the **identity**, for the reason given on [ResearchCategory]: a signed study
- * descriptor names its requested elements by it, and the signature covers those names. It matches
- * iOS `UHDRElement.rawValue`, which is that platform's persisted Codable value, so the two agree
- * on what a descriptor says by construction rather than by coincidence —
- * `StudyDescriptorCanonicalForm` is where that agreement is used and tested.
- */
-enum class UHDRElement(val wireName: String) {
-    EEG_WAVEFORMS("EEG Waveforms"),
-    HRV_TIME_SERIES("HRV Time Series"),
-    PPG_OPTICAL_SIGNAL("PPG Optical Signal"),
-    NEUROFEEDBACK_SCORES("Neurofeedback Performance Scores"),
-    SESSION_TIMESTAMPS("Session Timestamps"),
-    SESSION_DURATION("Session Duration"),
-    PROTOCOL_PARAMETERS("Protocol Parameters"),
-    CLOSED_LOOP_EVENTS("Closed-Loop Adaptation Events"),
-    PBM_DOSE_LOGS("PBM Dose (J/cm²) Per Zone"),
-    OUTCOME_LOGS("User-Entered Outcome Logs"),
-    EYE_STATE_LOGS("Eye Open/Closed State");
-
-    /** Display text. Same string as [wireName] today; see the note on this enum. */
-    val displayName: String get() = wireName
-
-    // Lowest clinician tier that may access this element.
-    val minimumTier: ClinicianUseCaseTier
-        get() = when (this) {
-            SESSION_TIMESTAMPS, SESSION_DURATION, PROTOCOL_PARAMETERS ->
-                ClinicianUseCaseTier.MONITOR
-            EEG_WAVEFORMS, NEUROFEEDBACK_SCORES, PBM_DOSE_LOGS ->
-                ClinicianUseCaseTier.ASSESS
-            HRV_TIME_SERIES, PPG_OPTICAL_SIGNAL, CLOSED_LOOP_EVENTS,
-            OUTCOME_LOGS, EYE_STATE_LOGS ->
-                ClinicianUseCaseTier.FULL_CLINICAL
-        }
-}
+// `UHDRElement` is generated: see UHDRElement.generated.kt.
 
 /**
  * One access decision on a clinician grant: a set of UHDR elements, the day from which the

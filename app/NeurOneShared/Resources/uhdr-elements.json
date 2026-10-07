@@ -1,0 +1,16 @@
+{
+  "$comment": "The UHDR data elements (CLAUDE.md §5, §6; per NP-FW-EMMC-001 §12), once. `wireName` is the identity: a signed study descriptor names its requested elements by it and the signature covers those names (StudyDescriptorCanonicalForm), and iOS persists it as the Codable raw value, so iOS and Android must hold exactly this table. `bun scripts/sync-uhdr-elements.ts` writes it into app/ios/NeurOne/Models/UHDRElement.generated.swift and app/android/core/src/main/kotlin/life/neurone/core/models/UHDRElement.generated.kt, and --check fails if either is stale. `name` is UPPER_SNAKE_CASE (Kotlin spells it as is, Swift in lowerCamelCase). `minimumTier` is the lowest clinician tier that may access the element (ISC-137): MONITOR, ASSESS or FULL_CLINICAL. The locale keys CONSENT_ELEMENT_<NAME without underscores> and CONSENT_ELEMENT_DESC_<same> are derived from `name` (CLAUDE.md §17). Order is the order of UHDRElement.allCases.",
+  "elements": [
+    { "name": "EEG_WAVEFORMS", "wireName": "EEG Waveforms", "minimumTier": "ASSESS" },
+    { "name": "HRV_TIME_SERIES", "wireName": "HRV Time Series", "minimumTier": "FULL_CLINICAL" },
+    { "name": "PPG_OPTICAL_SIGNAL", "wireName": "PPG Optical Signal", "minimumTier": "FULL_CLINICAL" },
+    { "name": "NEUROFEEDBACK_SCORES", "wireName": "Neurofeedback Performance Scores", "minimumTier": "ASSESS" },
+    { "name": "SESSION_TIMESTAMPS", "wireName": "Session Timestamps", "minimumTier": "MONITOR" },
+    { "name": "SESSION_DURATION", "wireName": "Session Duration", "minimumTier": "MONITOR" },
+    { "name": "PROTOCOL_PARAMETERS", "wireName": "Protocol Parameters", "minimumTier": "MONITOR" },
+    { "name": "CLOSED_LOOP_EVENTS", "wireName": "Closed-Loop Adaptation Events", "minimumTier": "FULL_CLINICAL" },
+    { "name": "PBM_DOSE_LOGS", "wireName": "PBM Dose (J/cm²) Per Zone", "minimumTier": "ASSESS" },
+    { "name": "OUTCOME_LOGS", "wireName": "User-Entered Outcome Logs", "minimumTier": "FULL_CLINICAL" },
+    { "name": "EYE_STATE_LOGS", "wireName": "Eye Open/Closed State", "minimumTier": "FULL_CLINICAL" }
+  ]
+}
