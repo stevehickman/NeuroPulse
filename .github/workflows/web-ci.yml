@@ -73,6 +73,10 @@ jobs:
         app/NeurOneShared/Resources/uhdr-elements.json
         app/ios/NeurOne/Models/UHDRElement.generated.swift
         app/android/core/src/main/kotlin/life/neurone/core/models/UHDRElement.generated.kt
+        scripts/sync-clinician-tiers.ts
+        app/NeurOneShared/Resources/clinician-tiers.json
+        app/ios/NeurOne/Models/ClinicianUseCaseTier.generated.swift
+        app/android/core/src/main/kotlin/life/neurone/core/models/ClinicianUseCaseTier.generated.kt
         app/ios/NeurOne/Models/ConsentModels.swift
         app/android/core/src/main/kotlin/life/neurone/core/models/ConsentModels.kt
         scripts/test-lateralization-audit.sh
@@ -278,6 +282,16 @@ jobs:
       - name: UHDR elements in sync
         working-directory: .
         run: bun scripts/sync-uhdr-elements.ts --check
+
+      # The clinician tiers (CLAUDE.md §6.1): labels, ranks, prices and per-tier element sets, one table generated into
+      # iOS and Android. A tier's elements derive from the element table, so the two cannot disagree.
+      - name: Clinician tier generator self-test (prove a bad table can fail)
+        working-directory: .
+        run: bun scripts/sync-clinician-tiers.ts --self-test
+
+      - name: Clinician tiers in sync
+        working-directory: .
+        run: bun scripts/sync-clinician-tiers.ts --check
 
       - name: Lateralization audit behaves (accept + reject paths)
         working-directory: .

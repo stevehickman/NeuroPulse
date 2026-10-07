@@ -6,44 +6,7 @@ import kotlinx.serialization.Serializable
 // Use cases map to minimum necessary UHDR elements; users select use cases,
 // not data elements.
 
-enum class ClinicianUseCaseTier(val displayName: String, val monthlyPrice: String) {
-    MONITOR("Monitor", "$49/month/patient"),
-    ASSESS("Assess", "$149/month/patient"),
-    FULL_CLINICAL("Full Clinical", "$299/month/patient"),
-    RESEARCH("Research", "$599/month/study");
-
-    /**
-     * Ordering for "does this tier reach that one". Not [ordinal], which silently re-ranks if a
-     * case is reordered or inserted, and not `uhdrElements.size`, which puts [RESEARCH] — empty
-     * by design — below [MONITOR]. Must match iOS `ClinicianUseCaseTier.rank`.
-     */
-    val rank: Int
-        get() = when (this) {
-            MONITOR -> 0
-            ASSESS -> 1
-            FULL_CLINICAL -> 2
-            RESEARCH -> 3
-        }
-
-    // Minimum necessary UHDR elements for this tier — must match iOS mapping.
-    val uhdrElements: Set<UHDRElement>
-        get() = when (this) {
-            MONITOR -> setOf(
-                UHDRElement.SESSION_TIMESTAMPS, UHDRElement.SESSION_DURATION,
-                UHDRElement.PROTOCOL_PARAMETERS,
-            )
-            ASSESS -> MONITOR.uhdrElements + setOf(
-                UHDRElement.EEG_WAVEFORMS, UHDRElement.NEUROFEEDBACK_SCORES,
-                UHDRElement.PBM_DOSE_LOGS,
-            )
-            FULL_CLINICAL -> ASSESS.uhdrElements + setOf(
-                UHDRElement.HRV_TIME_SERIES, UHDRElement.PPG_OPTICAL_SIGNAL,
-                UHDRElement.CLOSED_LOOP_EVENTS, UHDRElement.OUTCOME_LOGS,
-            )
-            RESEARCH -> emptySet()  // IRB-defined; populated per study descriptor
-        }
-}
-
+// `ClinicianUseCaseTier` is generated: see ClinicianUseCaseTier.generated.kt.
 // `UHDRElement` is generated: see UHDRElement.generated.kt.
 
 /**

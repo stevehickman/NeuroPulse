@@ -3,64 +3,7 @@ import Foundation
 // Clinical consent engine types — CLAUDE.md §6.
 // Use cases map to minimum necessary UHDR elements; users select use cases, not data elements.
 
-// MARK: - Clinician use case tiers
-
-enum ClinicianUseCaseTier: String, CaseIterable, Codable {
-    case monitor     = "Monitor"        // $49/mo — adherence, protocol compliance
-    case assess      = "Assess"         // $149/mo — + EEG review, neurofeedback, efficacy
-    case fullClinical = "Full Clinical" // $299/mo — + HRV, closed-loop events, outcomes
-    case research    = "Research"       // $599/mo/study — IRB-defined custom
-
-    /// Display text. `rawValue` stays the persisted Codable value: it is written
-    /// into stored grants, so it cannot double as the thing on screen.
-    var displayName: String {
-        switch self {
-        case .monitor:      return String(localized: "CLINICIAN_TIER_MONITOR")
-        case .assess:       return String(localized: "CLINICIAN_TIER_ASSESS")
-        case .fullClinical: return String(localized: "CLINICIAN_TIER_FULL_CLINICAL")
-        case .research:     return String(localized: "CLINICIAN_TIER_RESEARCH")
-        }
-    }
-
-    var monthlyPrice: String {
-        switch self {
-        case .monitor:      return String(format: String(localized: "CLINICIAN_TIER_PRICE_PER_PATIENT"), "$49")
-        case .assess:       return String(format: String(localized: "CLINICIAN_TIER_PRICE_PER_PATIENT"), "$149")
-        case .fullClinical: return String(format: String(localized: "CLINICIAN_TIER_PRICE_PER_PATIENT"), "$299")
-        case .research:     return String(format: String(localized: "CLINICIAN_TIER_PRICE_PER_STUDY"), "$599")
-        }
-    }
-
-    /// Ordering for "does this tier reach that one". Not `allCases.firstIndex(of:)`, which would
-    /// silently re-rank if a case were ever reordered or inserted, and not `uhdrElements.count`,
-    /// which puts `.research` — empty by design — below `.monitor`.
-    var rank: Int {
-        switch self {
-        case .monitor:      return 0
-        case .assess:       return 1
-        case .fullClinical: return 2
-        case .research:     return 3
-        }
-    }
-
-    // Minimum necessary UHDR elements for this tier
-    var uhdrElements: Set<UHDRElement> {
-        switch self {
-        case .monitor:
-            return [.sessionTimestamps, .sessionDuration, .protocolParameters]
-        case .assess:
-            return [.sessionTimestamps, .sessionDuration, .protocolParameters,
-                    .eegWaveforms, .neurofeedbackScores, .pbmDoseLogs]
-        case .fullClinical:
-            return [.sessionTimestamps, .sessionDuration, .protocolParameters,
-                    .eegWaveforms, .neurofeedbackScores, .pbmDoseLogs,
-                    .hrvTimeSeries, .ppgOpticalSignal, .closedLoopEvents, .outcomeLogs]
-        case .research:
-            return []  // IRB-defined; populated per study descriptor
-        }
-    }
-}
-
+// Clinician use case tiers (`ClinicianUseCaseTier`) are generated: see ClinicianUseCaseTier.generated.swift.
 // UHDR data elements (`UHDRElement`) are generated: see UHDRElement.generated.swift.
 
 // MARK: - Clinician access scope (§6.1 expansion workflow)
