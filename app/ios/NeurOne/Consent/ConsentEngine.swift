@@ -34,35 +34,9 @@ struct ClinicalUseCase: Identifiable {
 
 enum ConsentEngine {
 
-    // All available clinical use cases — clinicians select from this library.
-    // Must stay identical to Android's `ConsentEngine.USE_CASE_LIBRARY`: a grant records the IDs it
-    // was made from, and the two platforms read each other's grants.
-    static let USE_CASE_LIBRARY: [ClinicalUseCase] = [
-        ClinicalUseCase(
-            id: "adherence_monitoring",
-            titleKey: "CLINICIAN_USECASE_ADHERENCE_MONITORING_NAME",
-            descriptionKey: "CLINICIAN_USECASE_ADHERENCE_MONITORING_DESC",
-            requiredElements: [.sessionTimestamps, .sessionDuration, .protocolParameters],
-            tier: .monitor
-        ),
-        ClinicalUseCase(
-            id: "eeg_review",
-            titleKey: "CLINICIAN_USECASE_EEG_REVIEW_NAME",
-            descriptionKey: "CLINICIAN_USECASE_EEG_REVIEW_DESC",
-            requiredElements: [.eegWaveforms, .neurofeedbackScores, .pbmDoseLogs,
-                               .sessionTimestamps, .sessionDuration, .protocolParameters],
-            tier: .assess
-        ),
-        ClinicalUseCase(
-            id: "hrv_outcomes",
-            titleKey: "CLINICIAN_USECASE_HRV_OUTCOMES_NAME",
-            descriptionKey: "CLINICIAN_USECASE_HRV_OUTCOMES_DESC",
-            requiredElements: [.eegWaveforms, .neurofeedbackScores, .pbmDoseLogs,
-                               .hrvTimeSeries, .ppgOpticalSignal, .closedLoopEvents,
-                               .outcomeLogs, .sessionTimestamps, .sessionDuration, .protocolParameters],
-            tier: .fullClinical
-        ),
-    ]
+    // The clinical use-case library is `USE_CASE_LIBRARY` (ClinicalUseCaseLibrary.generated.swift), generated with
+    // Android's from app/NeurOneShared/Resources/clinician-use-cases.json: a grant records the IDs it was made from and
+    // the two platforms read each other's grants.
 
     // Determine minimum necessary UHDR elements for a set of selected use cases.
     static func minimumNecessaryElements(for selectedUseCaseIDs: Set<String>) -> Set<UHDRElement> {

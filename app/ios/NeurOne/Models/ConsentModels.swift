@@ -172,7 +172,7 @@ struct ClinicianConsentGrant: Codable, Identifiable {
     /// Read it through `effectiveScopes`, never directly.
     var accessScopes: [ClinicianAccessScope]?
 
-    /// The use cases the user actually consented to (`ConsentEngine.USE_CASE_LIBRARY` IDs).
+    /// The use cases the user actually consented to (`USE_CASE_LIBRARY` IDs).
     ///
     /// §6.1's principle is that *clinicians select use cases, never data elements*, so this is the
     /// record of what was asked in the user's own terms. It is **not** what decides access —
