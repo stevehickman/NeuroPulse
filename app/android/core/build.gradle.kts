@@ -192,7 +192,9 @@ kotlin {
 
     sourceSets {
         commonMain {
-            kotlin.srcDir(generatedBundledDir)
+            // Through the task, so every consumer of the sources (the metadata compilation CodeQL runs included)
+            // waits for the generation.
+            kotlin.srcDir(generateBundledProtocols.map { generatedBundledDir.get() })
             dependencies {
                 // `api` (not `implementation`): `Json` is part of core's public API — it appears in the
                 // default constructor arguments of SessionHistoryStore/ConsentStore — so consumers
@@ -202,7 +204,7 @@ kotlin {
             }
         }
         commonTest {
-            kotlin.srcDir(generatedGoldensDir)
+            kotlin.srcDir(generateTestGoldens.map { generatedGoldensDir.get() })
             dependencies {
                 implementation(kotlin("test"))
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
