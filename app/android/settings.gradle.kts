@@ -30,3 +30,7 @@ include(":app")
 include(":shared")
 project(":shared").projectDir = file("../NeurOneUI/shared")
 
+include(":desktop")
+project(":desktop").projectDir = file("../NeurOneUI/desktop")
+include(":web")
+project(":web").projectDir = file("../NeurOneUI/web")

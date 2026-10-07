@@ -19,6 +19,12 @@
 
 ## Current revision
 
+**Rev 66 (2026-10-07) — §20: `app/NeurOneUI/` is the one home of the cross-platform UI and `:core` is Kotlin Multiplatform. A placement note; no design decision, limit or interlock changed.**
+
+**What changed.** §20 gains a paragraph for `app/NeurOneUI/`: the Compose Multiplatform module `shared/` holds every screen and the composition root, and `desktop/`, `web/` and `iosApp/` are thin hosts beside Android's activity. `app/android/core` (`:core`) is a Kotlin Multiplatform module (JVM, wasmJs, iOS), its sources under `commonMain`. Three paths the repository cites moved with it: `core/src/main` → `core/src/commonMain`, `core/src/test` → `core/src/jvmTest`, and the JNI entry points are `NppsJni`, not `NppsCore`.
+
+**Why.** The principal asked (2026-10-07) for the UI of the Android, iOS, macOS, Windows and web apps to be functionally equivalent and, so far as possible, one codebase, with platform code only where an operating-system API forces it. The five UIs had drifted. That reverses the Android ISA constraint "Kotlin + Jetpack Compose, native only. No cross-platform wrapper", which was an Android-local choice and not a CLAUDE.md invariant, so the ISA records the reversal and `OI-UI-KMP-00` carries the decision. No safety architecture, consent rule or data-separation rule is touched: the UHDR/SHDR split, the two consent subjects and the safety MCU's ownership of every enable line are enforced in `:core` and firmware, which the move preserves (344 `:core` tests pass unchanged on the JVM).
+
 **Rev 65 (2026-10-06) — §20 layout: `common/` also holds the NPPS field table and the shared NPPS core. A placement note; no design decision, limit or interlock changed.**
 
 **What changed.** §20's layout paragraph said `common/` "holds the TypeScript the web app and the simulator bundle build from". It now also names `common/npps/fields.json` (the NPPS field table, as data) `common/npps-core/` (a Rust crate: lexer, `protocol` parser and hub-descriptor compiler) `common/npps-jni/` (its Android JNI binding) and `common/npps-ffi/` (its C ABI, for iOS and Windows).

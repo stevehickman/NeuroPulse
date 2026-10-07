@@ -97,6 +97,7 @@ const COVERED_PATHS = [
   "app/ios/NeurOne/Models/",
   "app/watchos/",
   "app/android/app/src/main/kotlin/life/neurone/app/ui/",
+  "app/NeurOneUI/shared/src/commonMain/kotlin/life/neurone/shared/ui/", // the screens every platform shares (Compose Multiplatform)
 ];
 
 /**
@@ -104,8 +105,9 @@ const COVERED_PATHS = [
  * legible: each entry is work, not an exemption on principle.
  */
 const PENDING_PATHS: Array<[string, string]> = [
-  ["app/android/core/", "a pure-JVM module by design (no Android plugin, ISC-2..4), so it cannot reference R.string at all; its display text needs a key-to-resource indirection first"],
+  ["app/android/core/", "a multiplatform module with no UI or resource dependency by design (no Android plugin, ISC-2..4), so it cannot reference R.string or Res.string at all; its display text needs a key-to-resource indirection first"],
   ["app/android/app/ (outside ui/)", "BLE, upload and signing code — diagnostics and protocol constants, not rendered text"],
+  ["app/NeurOneUI/shared/ (outside ui/)", "the hub link and composition root — storage keys and protocol constants, not rendered text"],
   ["app/windows/", "protocol/session logic only today; no localized UI layer exists to point at a key"],
   ["simulator/", "developer harness, not shipped UI"],
 ];
@@ -726,10 +728,11 @@ function checkKeyUsage(files: string[], keys: Set<string>): string[] {
   const PLURAL = /_(ZERO|ONE|TWO|FEW|MANY|OTHER)$/;
 
   // Android never names the canonical key: sync-locales lowercases it into a
-  // resource name, and Kotlin says R.string.tab_history / @string/tab_history.
+  // resource name, and Kotlin says R.string.tab_history / @string/tab_history, or
+  // Res.string.tab_history in the Compose Multiplatform code under app/NeurOneUI.
   // Collect those so a key used only by Android does not read as an orphan.
   const androidRefs = new Set<string>();
-  for (const m of blob.matchAll(/(?:R\.string\.|R\.plurals\.|@string\/|@plurals\/)([a-z0-9_]+)/g)) {
+  for (const m of blob.matchAll(/(?:\bR\.string\.|\bR\.plurals\.|\bRes\.string\.|\bRes\.plurals\.|@string\/|@plurals\/)([a-z0-9_]+)/g)) {
     androidRefs.add(m[1]!);
   }
   const usedByAndroid = (k: string) => androidRefs.has(k.toLowerCase());

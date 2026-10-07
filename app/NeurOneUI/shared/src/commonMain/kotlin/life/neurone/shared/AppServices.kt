@@ -1,6 +1,8 @@
 package life.neurone.shared
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -93,3 +95,6 @@ private class GattConsumableCountsProvider(
         return AutoCloseable { job.cancel() }
     }
 }
+
+/** The scope hosts give [AppServices]: lives as long as the process, and one failed child does not cancel the rest. */
+fun createAppScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)

@@ -53,6 +53,7 @@ kotlin {
             api(project(":core"))
             implementation(compose.runtime)
             implementation(compose.foundation)
+            implementation(compose.ui)
             implementation(compose.material3)
             implementation(compose.components.resources)
             implementation("org.jetbrains.compose.material:material-icons-core:1.7.3")
@@ -61,6 +62,14 @@ kotlin {
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
+        val desktopTest by getting {
+            dependencies {
+                // Headless UI tests of the shared screens run on the JVM; the same composables run on every target.
+                @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+                implementation(compose.uiTest)
+                implementation(compose.desktop.currentOs)
+            }
+        }
         val desktopMain by getting {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.9.0")
@@ -68,6 +77,8 @@ kotlin {
         }
     }
 }
+
+tasks.withType<Test>().configureEach { useJUnitPlatform() }
 
 compose.resources {
     packageOfResClass = "life.neurone.shared.resources"
