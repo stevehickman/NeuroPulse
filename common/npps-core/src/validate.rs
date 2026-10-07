@@ -135,9 +135,32 @@ fn continuous_wave(out: &mut Issues, kind: &str, p: &Value) {
 
 // ─── Per-modality ──────────────────────────────────────────────────────────────
 
+/// The parameters the hub compiler cannot encode without (`compiler::required`): `(key, parameter-name locale key)`.
+/// A missing one is `NaN` here, which fails every ceiling comparison below, so without this a block with no intensity
+/// would validate clean.
+fn required_parameters(kind: &str) -> &'static [(&'static str, &'static str)] {
+    const INTENSITY: (&str, &str) = ("intensityMilliamps", "VALIDATE_PARAM_INTENSITY");
+    const FREQUENCY: (&str, &str) = ("frequencyHz", "VALIDATE_PARAM_FREQUENCY");
+    match kind {
+        "pbm_transcranial" | "pbm_intranasal" => &[("irradianceMWcm2", "VALIDATE_PARAM_IRRADIANCE")],
+        "pbm_deep_1170nm" => &[("intensityMWcm2", "VALIDATE_PARAM_INTENSITY")],
+        "bes_tacs" | "vns_hrv" | "cervical_vns" => &[INTENSITY, FREQUENCY],
+        "clinical_tacs" => &[INTENSITY, FREQUENCY, ("channelCount", "VALIDATE_PARAM_CHANNEL_COUNT")],
+        "tdcs" | "hd_tdcs" => &[INTENSITY],
+        "tms" => &[("intensityPercentMT", "VALIDATE_PARAM_INTENSITY_MT")],
+        "vibrotactile_40hz" => &[("intensityG", "VALIDATE_PARAM_INTENSITY")],
+        _ => &[],
+    }
+}
+
 fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limits: &Value, out: &mut Issues) {
     use Sev::{Error, Warning};
     let k = Some(kind);
+    for (key, name) in required_parameters(kind) {
+        if !f(p, key).is_finite() {
+            out.push(Error, k, key, name, s("Missing"), s("Required"), "hardware", msg("VALIDATE_MSG_GENERAL_REQUIRED_PARAMETER", vec![msg(name, vec![])]));
+        }
+    }
     match kind {
         "pbm_transcranial" => {
             let l = &limits["pbmTranscranial"];

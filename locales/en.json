@@ -1033,6 +1033,7 @@
   "VALIDATE_MSG_GENERAL_LAYER_INTENSITY_SCALE": "Layer '{0}' has intensity scale {1} outside valid range 0–1.",
   "VALIDATE_MSG_GENERAL_LAYER_REF": "Layer references unknown protocol '{0}'.",
   "VALIDATE_MSG_GENERAL_MODALITIES": "Protocol has no enabled modalities.",
+  "VALIDATE_MSG_GENERAL_REQUIRED_PARAMETER": "{0} is required and was not given a number. Add it before this protocol can be signed.",
   "VALIDATE_MSG_GENERAL_SESSIONDURATION": "Cervical VNS session duration {0} exceeds limit of {1}.",
   "VALIDATE_MSG_GENERAL_SESSIONDURATION_2": "HD-tDCS session duration {0} exceeds limit of {1}.",
   "VALIDATE_MSG_GENERAL_SESSIONDURATION_3": "Clinical tACS session duration {0} exceeds limit of {1}.",

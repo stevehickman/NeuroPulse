@@ -65,3 +65,23 @@ fn a_socket_or_clock_that_does_not_fit_32_bits_is_refused_not_wrapped() {
     refused(compile_with("pbm_transcranial", pbm.clone(), json!([1]), json!(4294967297u64)), "nowUnix");
     assert!(compile_with("pbm_transcranial", pbm, json!([1]), json!(1)).is_ok());
 }
+
+#[test]
+fn the_validator_reports_a_missing_required_parameter() {
+    use neurone_npps_core::api::validate_json;
+    let check = |ty: &str, params: Value| -> Vec<Value> {
+        let req = json!({ "entry": { "kind": "single", "protocol": { "timingMode": { "type": "duration", "seconds": 600 },
+            "modalities": [{ "type": ty, "params": params, "interval": {} }] } }, "limits": {} });
+        let out: Value = serde_json::from_str(&validate_json(&req.to_string()).unwrap()).unwrap();
+        out["issues"].as_array().unwrap().iter().filter(|i| i["message"]["key"] == "VALIDATE_MSG_GENERAL_REQUIRED_PARAMETER").cloned().collect()
+    };
+    let missing = check("bes_tacs", json!({ "frequencyHz": 10 }));
+    assert_eq!(missing.len(), 1);
+    assert_eq!(missing[0]["severity"], "error");
+    assert_eq!(missing[0]["parameterKey"], "intensityMilliamps");
+    assert_eq!(check("pbm_deep_1170nm", json!({ "frequencyHz": 10 })).len(), 1);
+    assert_eq!(check("vibrotactile_40hz", json!({})).len(), 1);
+    // Every compiler-required parameter is reported, and a complete block reports none.
+    assert_eq!(check("clinical_tacs", json!({})).len(), 3);
+    assert!(check("bes_tacs", json!({ "frequencyHz": 10, "intensityMilliamps": 1 })).is_empty());
+}
