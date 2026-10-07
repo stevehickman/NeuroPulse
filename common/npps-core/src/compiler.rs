@@ -120,6 +120,32 @@ fn b(v: &Value, k: &str) -> bool {
     v[k].as_bool().unwrap_or(false)
 }
 
+/// A parameter the descriptor cannot encode without. A missing or non-finite one is refused: `f64::min`/`max` return the
+/// other operand for NaN, so a missing intensity clamped to its ceiling would otherwise compile to the ceiling.
+fn required(v: &Value, k: &str, what: &str) -> R<f64> {
+    let x = f(v, k);
+    if x.is_finite() {
+        Ok(x)
+    } else {
+        Err(format!("{what}: {k} is required and must be a finite number. The protocol is refused, not given a default."))
+    }
+}
+
+/// `value × scale`, rounded, as a register that must not exceed `max`. Above it the protocol is refused, never clamped
+/// (CLAUDE.md §3: a ceiling refuses a protocol, it does not reshape one).
+fn scaled(v: &Value, k: &str, what: &str, scale: f64, max: f64, unit: &str) -> R<f64> {
+    let x = required(v, k, what)?;
+    let r = js_round(x * scale);
+    if x < 0.0 || r > max {
+        return Err(format!(
+            "{what}: {k} {} {unit} is outside what the drive can deliver (0–{} {unit}). The protocol is refused, not reduced to fit.",
+            num_string(x),
+            num_string(max / scale)
+        ));
+    }
+    Ok(r)
+}
+
 fn freq_code(hz: f64) -> u8 {
     if hz <= 0.0 { 0 } else { to_u8(js_round(hz)) }
 }
@@ -444,18 +470,18 @@ fn encode(ty: &str, p: &Value, opts: &CompileOptions) -> R<Encoded> {
         "pbm_transcranial" => encode_pbm_transcranial(p, opts),
         "pbm_intranasal" => encode_pbm_intranasal(p, opts),
         "eeg_neurofeedback" => Ok(encode_eeg(p)),
-        "bes_tacs" => Ok(encode_bes(p)),
-        "tdcs" => Ok(encode_tdcs(p)),
-        "vns_hrv" => Ok(encode_vns(p)),
+        "bes_tacs" => encode_bes(p),
+        "tdcs" => encode_tdcs(p),
+        "vns_hrv" => encode_vns(p),
         "audio_entrainment" => encode_audio(p),
         "visual_stimulation" => Ok(encode_visual(p)),
         "qeeg_21ch" => Ok(encode_qeeg(p)),
-        "tms" => Ok(encode_tms(p)),
+        "tms" => encode_tms(p),
         "pbm_deep_1170nm" => encode_deep(p),
-        "clinical_tacs" => Ok(encode_clinical_tacs(p)),
-        "hd_tdcs" => Ok(encode_hd_tdcs(p)),
-        "cervical_vns" => Ok(encode_cvns(p)),
-        "vibrotactile_40hz" => Ok(encode_vibro(p)),
+        "clinical_tacs" => encode_clinical_tacs(p),
+        "hd_tdcs" => encode_hd_tdcs(p),
+        "cervical_vns" => encode_cvns(p),
+        "vibrotactile_40hz" => encode_vibro(p),
         other => Err(format!("Unknown modality type in hub compiler: {other}")),
     }
 }
@@ -545,15 +571,15 @@ fn encode_eeg(p: &Value) -> Encoded {
     slot(MOD_EEG, SLOT_EEG, vec![mask as u8, 6, 2, 0, adaptive])
 }
 
-fn encode_bes(p: &Value) -> Encoded {
-    let freq_mhz = js_round(f(p, "frequencyHz") * 1000.0).min(65535.0);
-    let amp_ua = js_round(f(p, "intensityMilliamps") * 1000.0).min(1000.0);
+fn encode_bes(p: &Value) -> R<Encoded> {
+    let freq_mhz = scaled(p, "frequencyHz", "BES/tACS", 1000.0, 65535.0, "Hz")?;
+    let amp_ua = scaled(p, "intensityMilliamps", "BES/tACS", 1000.0, 1000.0, "mA")?;
     let wf = if s(p, "waveform") == "square" { 1 } else { 0 };
     let mut buf = vec![0u8; 7];
     put16(&mut buf, 1, freq_mhz);
     put16(&mut buf, 3, amp_ua);
     buf[5] = wf;
-    slot(MOD_BES_TACS, SLOT_BES_TACS, buf)
+    Ok(slot(MOD_BES_TACS, SLOT_BES_TACS, buf))
 }
 
 fn resolve_electrode_pair(p: &Value) -> u8 {
@@ -573,22 +599,30 @@ fn resolve_electrode_pair(p: &Value) -> u8 {
     }
 }
 
-fn encode_tdcs(p: &Value) -> Encoded {
-    let cur_ua = js_round(f(p, "intensityMilliamps") * 1000.0).min(2000.0);
+fn encode_tdcs(p: &Value) -> R<Encoded> {
+    let cur_ua = scaled(p, "intensityMilliamps", "tDCS", 1000.0, 2000.0, "mA")?;
     let ramp = f(p, "rampSeconds").max(30.0);
-    let area = (f(p, "electrodeAreaCm2") * 1000.0).floor().min(65535.0);
+    // The area is the denominator of the safety MCU's charge-density ceiling: a missing or oversized one is refused.
+    let area_cm2 = required(p, "electrodeAreaCm2", "tDCS")?;
+    let area = (area_cm2 * 1000.0).floor();
+    if area_cm2 <= 0.0 || area > 65535.0 {
+        return Err(format!(
+            "tDCS: electrodeAreaCm2 {} is outside what the descriptor can declare (above 0 and at most 65.535 cm²). The protocol is refused, not reduced to fit.",
+            num_string(area_cm2)
+        ));
+    }
     let mut buf = vec![0u8; 8];
     buf[0] = resolve_electrode_pair(p);
     put16(&mut buf, 1, cur_ua);
     buf[3] = 0;
     put16(&mut buf, 4, ramp);
     put16(&mut buf, 6, area);
-    slot(MOD_TDCS, SLOT_TDCS, buf)
+    Ok(slot(MOD_TDCS, SLOT_TDCS, buf))
 }
 
-fn encode_vns(p: &Value) -> Encoded {
-    let freq_mhz = js_round(f(p, "frequencyHz") * 1000.0).min(25000.0);
-    let amp_ua = js_round(f(p, "intensityMilliamps") * 1000.0).min(2000.0);
+fn encode_vns(p: &Value) -> R<Encoded> {
+    let freq_mhz = scaled(p, "frequencyHz", "VNS", 1000.0, 25000.0, "Hz")?;
+    let amp_ua = scaled(p, "intensityMilliamps", "VNS", 1000.0, 2000.0, "mA")?;
     let proto = match s(p, "hrvProtocol") {
         "combined_pbm" => 1,
         "tavns_sync" => 2,
@@ -602,7 +636,7 @@ fn encode_vns(p: &Value) -> Encoded {
     buf[6] = 1;
     buf[7] = 1;
     buf[8] = proto;
-    slot(MOD_VNS_HRV, SLOT_VNS_HRV, buf)
+    Ok(slot(MOD_VNS_HRV, SLOT_VNS_HRV, buf))
 }
 
 fn encode_audio(p: &Value) -> R<Encoded> {
@@ -676,7 +710,7 @@ fn target_index(t: &str) -> u8 {
     }
 }
 
-fn encode_tms(p: &Value) -> Encoded {
+fn encode_tms(p: &Value) -> R<Encoded> {
     let proto = match s(p, "tmsProtocol") {
         "TBS" => 1,
         "iTBS" => 2,
@@ -691,15 +725,15 @@ fn encode_tms(p: &Value) -> Encoded {
     buf[0] = proto;
     buf[1] = target_index(s(p, "target"));
     put16(&mut buf, 2, freq_mhz);
-    buf[4] = to_u8(js_round(f(p, "intensityPercentMT")).min(255.0));
+    buf[4] = to_u8(scaled(p, "intensityPercentMT", "TMS", 1.0, 255.0, "% MT")?);
     put16(&mut buf, 5, pulses);
     put16(&mut buf, 7, inter.min(65535.0));
     buf[9] = if tbs { 50 } else { 0 };
-    slot(MOD_TMS, SLOT_TMS, buf)
+    Ok(slot(MOD_TMS, SLOT_TMS, buf))
 }
 
 fn encode_deep(p: &Value) -> R<Encoded> {
-    let intensity = js_round(f(p, "intensityMWcm2")).min(1000.0);
+    let intensity = scaled(p, "intensityMWcm2", "1170 nm PBM", 1.0, 1000.0, "mW/cm²")?;
     let hz = f(p, "frequencyHz");
     let duty = duty_reg(hz, f(p, "dutyCyclePercent"))?;
     let fc = freq_code(hz);
@@ -710,15 +744,23 @@ fn encode_deep(p: &Value) -> R<Encoded> {
     Ok(slot(MOD_PBM_1170NM, SLOT_PBM_1170NM, buf))
 }
 
-fn encode_clinical_tacs(p: &Value) -> Encoded {
-    let freq_mhz = js_round(f(p, "frequencyHz") * 1000.0).min(65535.0);
-    let amp_ua = js_round(f(p, "intensityMilliamps") * 1000.0).min(4000.0);
+fn encode_clinical_tacs(p: &Value) -> R<Encoded> {
+    let freq_mhz = scaled(p, "frequencyHz", "Clinical tACS", 1000.0, 65535.0, "Hz")?;
+    let amp_ua = scaled(p, "intensityMilliamps", "Clinical tACS", 1000.0, 4000.0, "mA")?;
     let wf = match s(p, "waveform") {
         "sinusoidal" => 0,
         "square" => 1,
         _ => 2,
     };
-    let n = js_round(f(p, "channelCount")).max(0.0).min(CLINICAL_TACS_MAX_CHANNELS);
+    let n = required(p, "channelCount", "Clinical tACS")?;
+    let n = js_round(n);
+    if !(1.0..=CLINICAL_TACS_MAX_CHANNELS).contains(&n) {
+        return Err(format!(
+            "Clinical tACS: channelCount {} is outside 1–{}. The protocol is refused, not reduced to fit.",
+            num_string(n),
+            num_string(CLINICAL_TACS_MAX_CHANNELS)
+        ));
+    }
     let mask: u32 = if n == 0.0 { 0 } else { (1u64 << (n as u64)) as u32 - 1 };
     let mut buf = vec![0u8; 8];
     put16(&mut buf, 0, freq_mhz);
@@ -727,43 +769,49 @@ fn encode_clinical_tacs(p: &Value) -> Encoded {
     buf[5] = ((mask >> 8) & 0xFF) as u8;
     buf[6] = ((mask >> 16) & 0x1F) as u8;
     buf[7] = wf;
-    slot(MOD_CLIN_TACS, SLOT_CLIN_TACS, buf)
+    Ok(slot(MOD_CLIN_TACS, SLOT_CLIN_TACS, buf))
 }
 
-fn encode_hd_tdcs(p: &Value) -> Encoded {
+fn encode_hd_tdcs(p: &Value) -> R<Encoded> {
     let montage = match s(p, "montage") {
         "bilateral_4x1" => 1,
         "standard_2_electrode" => 2,
         _ => 0,
     };
-    let cur = js_round(f(p, "intensityMilliamps") * 1000.0).min(2000.0);
+    let cur = scaled(p, "intensityMilliamps", "HD-tDCS", 1000.0, 2000.0, "mA")?;
     let mut buf = vec![0u8; 6];
     buf[0] = target_index(s(p, "target"));
     buf[1] = montage;
     put16(&mut buf, 2, cur);
     put16(&mut buf, 4, 30.0);
-    slot(MOD_HD_TDCS, SLOT_HD_TDCS, buf)
+    Ok(slot(MOD_HD_TDCS, SLOT_HD_TDCS, buf))
 }
 
-fn encode_cvns(p: &Value) -> Encoded {
-    let freq_mhz = js_round(f(p, "frequencyHz") * 1000.0).min(25000.0);
-    let amp_ua = js_round(f(p, "intensityMilliamps") * 1000.0).min(2000.0);
+fn encode_cvns(p: &Value) -> R<Encoded> {
+    let freq_mhz = scaled(p, "frequencyHz", "Cervical VNS", 1000.0, 25000.0, "Hz")?;
+    let amp_ua = scaled(p, "intensityMilliamps", "Cervical VNS", 1000.0, 2000.0, "mA")?;
     let mut buf = vec![0u8; 10];
     put16(&mut buf, 1, freq_mhz);
     put16(&mut buf, 3, amp_ua);
     put16(&mut buf, 5, 0.0);
     put16(&mut buf, 7, 10.0);
     buf[9] = 1;
-    slot(MOD_CVNS, SLOT_CVNS, buf)
+    Ok(slot(MOD_CVNS, SLOT_CVNS, buf))
 }
 
-fn encode_vibro(p: &Value) -> Encoded {
-    let clamped = f(p, "intensityG").min(1.2).max(0.6);
-    let gain = js_round((clamped - 0.6) / 0.6 * f64::from(0x7Fu8));
+fn encode_vibro(p: &Value) -> R<Encoded> {
+    let g = required(p, "intensityG", "Vibrotactile")?;
+    if !(0.6..=1.2).contains(&g) {
+        return Err(format!(
+            "Vibrotactile: intensityG {} is outside 0.6–1.2 G. The protocol is refused, not reduced to fit.",
+            num_string(g)
+        ));
+    }
+    let gain = js_round((g - 0.6) / 0.6 * f64::from(0x7Fu8));
     let sync = (b(p, "syncToAudio") as u8) | ((b(p, "syncToVisual") as u8) << 1);
     let mut buf = vec![0u8; 4];
     buf[0] = to_u8(gain);
     buf[1] = sync;
     put16(&mut buf, 2, 40000.0);
-    slot(MOD_VIBROTACTILE, SLOT_VIBROTACTILE, buf)
+    Ok(slot(MOD_VIBROTACTILE, SLOT_VIBROTACTILE, buf))
 }

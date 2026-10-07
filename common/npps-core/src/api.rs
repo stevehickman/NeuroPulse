@@ -48,7 +48,7 @@ fn sockets(v: &Value) -> Result<Vec<u32>, String> {
     v.as_array()
         .ok_or("sockets must be an array")?
         .iter()
-        .map(|n| n.as_u64().map(|x| x as u32).ok_or_else(|| "a socket id must be a whole number".to_string()))
+        .map(|n| n.as_u64().and_then(|x| u32::try_from(x).ok()).ok_or_else(|| "a socket id must be a whole number".to_string()))
         .collect()
 }
 
@@ -103,7 +103,7 @@ pub fn compile_json(request: &str) -> Result<Vec<u8>, String> {
         clinician_sockets: clinician.as_deref(),
         wavelength_rules: wl.as_ref(),
         autonomous: req["autonomous"].as_bool().unwrap_or(false),
-        now_unix: req["nowUnix"].as_u64().ok_or("nowUnix is required")? as u32,
+        now_unix: req["nowUnix"].as_u64().and_then(|x| u32::try_from(x).ok()).ok_or("nowUnix is required and must fit in 32 bits")?,
         session_uuid,
     };
     compile_protocol(&req["def"], &opts).map(|c| c.blob)
