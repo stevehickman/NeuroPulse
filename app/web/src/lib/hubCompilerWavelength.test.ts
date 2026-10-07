@@ -259,7 +259,7 @@ describe('the shipped library', () => {
     'Memory Boost': /exceeds what led_1064 delivers/,                         // Yao 2022: 250 mW/cm² vs CH_C's 28
     "PBM — Alzheimer's 1064nm (deep-cortical channel)": /exceeds what led_1064 delivers/,
     'PBM — Autism (pediatric, 40Hz)': /No emitter channel delivers 850nm/,  // §7 says 850 nm; the 808 window ends at 840
-    'taVNS — Stroke Motor Rehab (paired)': /frequencyHz 30 Hz is outside what the drive can deliver \(0–25 Hz\)/,  // authored at 30 Hz; the VNS ceiling is 25 Hz (§3), which the compiler used to clamp to silently
+    'taVNS — Stroke Motor Rehab (paired)': /frequencyHz 30 Hz is outside what the drive can deliver \(0–25 Hz\)/,  // authored at 30 Hz; the VNS ceiling is 25 Hz (§3), which the compiler used to clamp to silently. OI-NPPS-LIMITS-01 owns the decision; OI-VNSCLIP-08 asks what the ceiling is for
   };
 
   it('every predefined protocol compiles, except the ones refused for a stated reason', () => {
