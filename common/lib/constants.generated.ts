@@ -69,7 +69,7 @@ export const NPHardwareLimits = {
   VNS_MAX_MILLIAMPS: 2.0,
   VNS_MIN_HZ: 1.0,
   VNS_MAX_HZ: 25.0,
-  // Authored auricular VNS pulse width, µs. ASSUMED (UC-070): the range the published taVNS studies span (Matsuoka
+  // Authored auricular VNS pulse width, µs. ASSUMED (UC-071): the range the published taVNS studies span (Matsuoka
   // 2025 Table 3b, 50–500 µs), not a derived or standard limit. The charge ceiling (40 µC/cm² per phase) is what
   // bounds the dose; this bounds the encoding to what has been studied. 0 on the wire still means the firmware
   // default, 250 µs.
