@@ -121,7 +121,7 @@ suites, not two:
 |---|---|
 | Web | `app/web/src/lib/conditionLink.test.ts` |
 | Apple | `app/ios/NeurOneTests/ConditionLinkPolicyTests.swift` |
-| Android | `app/android/core/src/test/kotlin/life/neurone/core/protocol/ConditionLinkPolicyTests.kt` |
+| Android | `app/android/core/src/jvmTest/kotlin/life/neurone/core/protocol/ConditionLinkPolicyTests.kt` |
 | Windows | `app/windows/NeurOne/Protocol/NPConditionLinkPolicy.cs` (see §3 of the spec for the harness) |
 
 Each vector is `{ name, url, verdict, reason, host? }` where `verdict` is

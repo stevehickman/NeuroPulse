@@ -8,7 +8,7 @@
  * as a generated file:
  *
  *   - app/ios/NeurOne/Models/UHDRElement.generated.swift
- *   - app/android/core/src/main/kotlin/life/neurone/core/models/UHDRElement.generated.kt
+ *   - app/android/core/src/commonMain/kotlin/life/neurone/core/models/UHDRElement.generated.kt
  *
  * The generator refuses a table the apps could not honour: a malformed or duplicate name or wire string, a tier the apps
  * do not define, and a display or description key missing from the canonical locale (locales/en.json).
@@ -20,7 +20,7 @@
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/sync-uhdr-elements.ts --self-test
  * CI-Scans: app/NeurOneShared/Resources/uhdr-elements.json against the canonical locale and both generated UHDRElement files
- * CI-Scan-Paths: app/NeurOneShared/Resources/uhdr-elements.json app/ios/NeurOne/Models/UHDRElement.generated.swift app/android/core/src/main/kotlin/life/neurone/core/models/UHDRElement.generated.kt locales/en.json scripts/sync-uhdr-elements.ts
+ * CI-Scan-Paths: app/NeurOneShared/Resources/uhdr-elements.json app/ios/NeurOne/Models/UHDRElement.generated.swift app/android/core/src/commonMain/kotlin/life/neurone/core/models/UHDRElement.generated.kt locales/en.json scripts/sync-uhdr-elements.ts
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -28,7 +28,7 @@ import { join } from 'node:path';
 const ROOT = join(import.meta.dir, '..');
 export const SOURCE = 'app/NeurOneShared/Resources/uhdr-elements.json';
 const SWIFT_OUT = 'app/ios/NeurOne/Models/UHDRElement.generated.swift';
-const KOTLIN_OUT = 'app/android/core/src/main/kotlin/life/neurone/core/models/UHDRElement.generated.kt';
+const KOTLIN_OUT = 'app/android/core/src/commonMain/kotlin/life/neurone/core/models/UHDRElement.generated.kt';
 const LOCALE = 'locales/en.json';
 
 /** The tiers an element may name. RESEARCH is not one: its elements are IRB-defined per study (§6.3). */

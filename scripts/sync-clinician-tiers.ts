@@ -7,7 +7,7 @@
  * app gets the enum as a generated file:
  *
  *   - app/ios/NeurOne/Models/ClinicianUseCaseTier.generated.swift
- *   - app/android/core/src/main/kotlin/life/neurone/core/models/ClinicianUseCaseTier.generated.kt
+ *   - app/android/core/src/commonMain/kotlin/life/neurone/core/models/ClinicianUseCaseTier.generated.kt
  *
  * A tier's element set is derived from uhdr-elements.json (every element whose minimumTier ranks at or below the tier,
  * less the tier file's withheld elements), so the element table and the tier table cannot disagree. The generator refuses a
@@ -21,7 +21,7 @@
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/sync-clinician-tiers.ts --self-test
  * CI-Scans: app/NeurOneShared/Resources/clinician-tiers.json against uhdr-elements.json, the canonical locale and both generated ClinicianUseCaseTier files
- * CI-Scan-Paths: app/NeurOneShared/Resources/clinician-tiers.json app/NeurOneShared/Resources/uhdr-elements.json app/ios/NeurOne/Models/ClinicianUseCaseTier.generated.swift app/android/core/src/main/kotlin/life/neurone/core/models/ClinicianUseCaseTier.generated.kt locales/en.json scripts/sync-clinician-tiers.ts
+ * CI-Scan-Paths: app/NeurOneShared/Resources/clinician-tiers.json app/NeurOneShared/Resources/uhdr-elements.json app/ios/NeurOne/Models/ClinicianUseCaseTier.generated.swift app/android/core/src/commonMain/kotlin/life/neurone/core/models/ClinicianUseCaseTier.generated.kt locales/en.json scripts/sync-clinician-tiers.ts
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -30,7 +30,7 @@ const ROOT = join(import.meta.dir, '..');
 const SOURCE = 'app/NeurOneShared/Resources/clinician-tiers.json';
 const ELEMENTS_SOURCE = 'app/NeurOneShared/Resources/uhdr-elements.json';
 const SWIFT_OUT = 'app/ios/NeurOne/Models/ClinicianUseCaseTier.generated.swift';
-const KOTLIN_OUT = 'app/android/core/src/main/kotlin/life/neurone/core/models/ClinicianUseCaseTier.generated.kt';
+const KOTLIN_OUT = 'app/android/core/src/commonMain/kotlin/life/neurone/core/models/ClinicianUseCaseTier.generated.kt';
 const LOCALE = 'locales/en.json';
 
 const UNITS = ['PATIENT', 'STUDY'] as const;

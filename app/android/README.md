@@ -14,7 +14,7 @@ Compose, native only. System of record: [ISA.md](ISA.md).
 
 ```bash
 # Privacy-critical logic — no Android SDK needed:
-gradle :core:test
+gradle :core:jvmTest
 
 # Full app (Android Studio or a machine with the Android SDK):
 gradle :app:assembleDebug

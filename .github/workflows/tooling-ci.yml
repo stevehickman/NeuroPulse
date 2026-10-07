@@ -504,7 +504,7 @@ jobs:
           # absence; any other document is outside what it opens.
           assert scope.consumables.paths true  docs/reference/commercial-model.md
           assert scope.consumables.paths true  app/ios/NeurOne/Models/ConsumableInventory.swift
-          assert scope.consumables.paths true  app/android/core/src/main/kotlin/life/neurone/core/consumable/ConsumableModels.kt
+          assert scope.consumables.paths true  app/android/core/src/commonMain/kotlin/life/neurone/core/consumable/ConsumableModels.kt
           assert scope.consumables.paths true  firmware/hub_control/src/np_session_log.c
           assert scope.consumables.paths false docs/reference/modality-stack.md
           assert scope.consumables.paths false app/web/src/main.ts

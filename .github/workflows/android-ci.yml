@@ -129,7 +129,7 @@ jobs:
           gradle-version: '8.11.1'   # AGP 8.9.3 requires Gradle >= 8.11.1
 
       - name: Build :core and run unit tests
-        run: gradle :core:test :app:testDebugUnitTest --stacktrace
+        run: gradle :core:jvmTest :app:testDebugUnitTest --stacktrace
 
       # The compiler calls the core through JNI, so an APK without the library cannot upload a
       # protocol. The unit tests cannot see that; this does.

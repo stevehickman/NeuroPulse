@@ -63,7 +63,7 @@ type Platform = "ios" | "android";
 
 const STORE: Record<Platform, string> = {
   ios: "app/ios/NeurOne/Consent/ConsentStore.swift",
-  android: "app/android/core/src/main/kotlin/life/neurone/core/consent/ConsentStore.kt",
+  android: "app/android/core/src/commonMain/kotlin/life/neurone/core/consent/ConsentStore.kt",
 };
 const SOURCE_ROOT: Record<Platform, string> = { ios: "app/ios", android: "app/android" };
 const EXT: Record<Platform, string> = { ios: ".swift", android: ".kt" };
@@ -116,7 +116,7 @@ const SURFACE: Record<string, Reach> = {
     kind: "ingest",
     via: {
       ios: "app/ios/NeurOne/Consent/ClinicianPortalChannel.swift",
-      android: "app/android/core/src/main/kotlin/life/neurone/core/consent/ClinicianPortalChannel.kt",
+      android: "app/android/core/src/commonMain/kotlin/life/neurone/core/consent/ClinicianPortalChannel.kt",
     },
     note:
       "ingested by ClinicianPortalSync, never by a control the user operates. It was `pending` under " +
