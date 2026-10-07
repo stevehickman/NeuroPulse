@@ -32,3 +32,51 @@ internal class UnwiredNppsBackend(private val target: String) : NppsBackend {
     override fun validate(request: String): String = unwired()
     override fun resolveLimits(request: String): String = unwired()
 }
+
+/** The six entry points of the C ABI (`common/npps-ffi/include/neurone_npps.h`). */
+internal enum class NppsEntry { PARSE, COMPILE, NAMESPACE, SERIALIZE, VALIDATE, RESOLVE_LIMITS }
+
+/** What a C ABI call returns: its status code and the bytes it wrote to `out`. */
+internal class NppsFfiResult(val status: Int, val output: ByteArray)
+
+/** The status codes of `neurone_npps_status.h`, and the one place they become an exception. */
+internal object NppsFfi {
+    const val OK = 0
+    const val REFUSED = 1
+    const val INTERNAL_ERROR = 2
+    const val BAD_ARGUMENT = 3
+
+    /**
+     * Every non-OK status is an [IllegalArgumentException], as the JNI binding throws it: a refusal carries the
+     * core's own message (`Line N: …`), and a panic or an unreadable argument carries a fixed one.
+     */
+    fun refuse(status: Int, message: String?): Nothing = throw IllegalArgumentException(
+        when {
+            (status == REFUSED || status == INTERNAL_ERROR) && !message.isNullOrEmpty() -> message
+            status == REFUSED || status == INTERNAL_ERROR -> "the NPPS core refused the input"
+            else -> "the NPPS core was given an argument it cannot read"
+        },
+    )
+}
+
+/**
+ * A backend over the C ABI, for targets that reach the core through `npps_*_json(src, len, &out, &out_len)`
+ * (the Apple targets, by cinterop on `common/npps-ffi`). A subclass does the call and nothing else;
+ * the status handling and the UTF-8 are here, once, so they cannot differ between such targets.
+ */
+internal abstract class CAbiNppsBackend : NppsBackend {
+    protected abstract fun call(entry: NppsEntry, input: ByteArray): NppsFfiResult
+
+    private fun bytes(entry: NppsEntry, input: String): ByteArray {
+        val result = call(entry, input.encodeToByteArray())
+        if (result.status != NppsFfi.OK) NppsFfi.refuse(result.status, result.output.decodeToString())
+        return result.output
+    }
+
+    override fun parse(source: String): String = bytes(NppsEntry.PARSE, source).decodeToString()
+    override fun compile(request: String): ByteArray = bytes(NppsEntry.COMPILE, request)
+    override fun namespace(request: String): String = bytes(NppsEntry.NAMESPACE, request).decodeToString()
+    override fun serialize(request: String): String = bytes(NppsEntry.SERIALIZE, request).decodeToString()
+    override fun validate(request: String): String = bytes(NppsEntry.VALIDATE, request).decodeToString()
+    override fun resolveLimits(request: String): String = bytes(NppsEntry.RESOLVE_LIMITS, request).decodeToString()
+}

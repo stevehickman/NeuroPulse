@@ -37,6 +37,7 @@ cd app/android
 gradle :desktop:run                              # desktop window (builds the NPPS native library first)
 gradle :web:wasmJsBrowserDevelopmentRun          # browser
 gradle :shared:desktopTest                       # the cross-platform flow, headless
+gradle :core:wasmJsNodeTest                      # the NPPS core through the WebAssembly binding, under Node
 gradle :core:jvmTest                             # the rules
 gradle :app:assembleDebug                        # Android (SDK + NDK)
 xcodegen generate --spec app/NeurOneUI/iosApp/project.yml   # iOS (Xcode)
@@ -58,9 +59,10 @@ visible rather than silent. They move into `:shared` one at a time, deleting the
 
 **Not yet wired on every target** (open items in `docs/status/pending-decisions.md`):
 
-- `OI-UI-KMP-01` — the shared NPPS core has a binding on the JVM only. iOS (`common/npps-ffi`) and the
-  browser (the WebAssembly build) need an `NppsBackend`; until then `AppServices.protocolLibrary` throws on
-  those targets, which is why the Session tab cannot move before it.
+- `OI-UI-KMP-01` — the NPPS core binding. Done for the browser (WebAssembly, loaded by `:web` before it
+  composes; parity-tested under Node) and written for Apple (cinterop over `common/npps-ffi`; its parity run needs
+  macOS). Still open: a string resolver for the validator's locale keys on non-Android hosts, which the Session
+  screens need before they can move.
 - `OI-UI-KMP-02` — the desktop app needs the NPPS native library packaged per OS (`.dylib`, `.dll`).
 - `OI-UI-KMP-03` — Bluetooth: Android is wired; iOS (CoreBluetooth), the browser (Web Bluetooth) and desktop
   use `UnavailableBleCentral`, so the hub does not connect there.

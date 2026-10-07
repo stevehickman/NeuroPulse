@@ -15,6 +15,15 @@ plugins {
     id("org.jetbrains.compose")
 }
 
+// The shared NPPS core, as WebAssembly (common/npps-ffi built for wasm32), is served beside the page; Main.kt loads it
+// before composing anything that reads a protocol (OI-UI-KMP-01).
+val nppsWasmDir = layout.buildDirectory.dir("generated/nppsWasm")
+val copyNppsWasm by tasks.registering(Copy::class) {
+    dependsOn(project(":core").tasks.named("buildNppsWasm"))
+    from(rootProject.projectDir.parentFile.parentFile.resolve("common/generated/neurone_npps.wasm"))
+    into(nppsWasmDir)
+}
+
 kotlin {
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
@@ -25,6 +34,9 @@ kotlin {
         binaries.executable()
     }
     sourceSets {
+        wasmJsMain {
+            resources.srcDir(nppsWasmDir)
+        }
         wasmJsMain.dependencies {
             implementation(project(":shared"))
             implementation(compose.runtime)
@@ -34,3 +46,5 @@ kotlin {
         }
     }
 }
+
+tasks.matching { it.name == "wasmJsProcessResources" }.configureEach { dependsOn(copyNppsWasm) }

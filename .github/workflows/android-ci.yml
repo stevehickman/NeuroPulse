@@ -115,6 +115,7 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal
           rustup default stable
+          rustup target add wasm32-unknown-unknown   # :core:wasmJsNodeTest and :web build the core as WebAssembly
           cargo --version
 
       # The APK carries the Rust NPPS core for four ABIs (:app's buildNppsCoreNative, via cargo-ndk).
@@ -131,7 +132,7 @@ jobs:
           gradle-version: '8.11.1'   # AGP 8.9.3 requires Gradle >= 8.11.1
 
       - name: Build :core, :shared, :desktop and :web, and run unit tests
-        run: gradle :core:jvmTest :shared:desktopTest :desktop:compileKotlin :web:compileKotlinWasmJs :app:testDebugUnitTest --stacktrace
+        run: gradle :core:jvmTest :core:wasmJsNodeTest :shared:desktopTest :desktop:compileKotlin :web:compileKotlinWasmJs :app:testDebugUnitTest --stacktrace
 
       # The compiler calls the core through JNI, so an APK without the library cannot upload a
       # protocol. The unit tests cannot see that; this does.
