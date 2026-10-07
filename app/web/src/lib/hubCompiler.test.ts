@@ -446,14 +446,11 @@ describe('clinical tACS channel mask (OI-TACS-01)', () => {
     }
   });
 
-  it('still writes a well-formed struct for an over-range count', () => {
-    // protocolValidator rejects this before compile; the encoder must not emit a
-    // malformed block if it is reached anyway.
-    const params = tacsParams(40);
-    expect(params).toHaveLength(8);
-    expect(params[6] & 0xE0).toBe(0);
-    const mask = params[4] | (params[5] << 8) | (params[6] << 16);
-    expect(mask).toBe(2 ** NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS - 1);
+  it('refuses an over-range count rather than clamping it', () => {
+    // protocolValidator rejects this before compile; a caller that reaches the compiler anyway is refused,
+    // not given a different channel set from the one authored (CLAUDE.md §3).
+    expect(() => tacsParams(40)).toThrow(/channelCount 40 is outside 1–21/);
+    expect(() => tacsParams(0)).toThrow(/channelCount 0 is outside 1–21/);
   });
 });
 
