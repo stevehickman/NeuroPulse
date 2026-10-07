@@ -182,7 +182,7 @@ const OUTPUTS: Array<[string, string]> = [
   ['app/ios/NeurOne/Protocol/NppsConstants.generated.swift', swift()],
   ['app/windows/NeurOne/Protocol/NppsConstants.generated.cs', csharp()],
   ['common/npps-ffi/include/neurone_npps_status.h', c()],
-  ['firmware/hub_control/include/np_app_wire_constants.h', cGatt()],
+  ['firmware/common/include/np_app_wire_constants.h', cGatt()],
 ];
 
 if (process.argv.includes('--check')) {

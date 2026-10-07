@@ -67,7 +67,7 @@ const DOC = "docs/np_fw_hub_001.md";
 const CONFIG = "firmware/hub_control/include/np_hub_config.h";
 const TYPES = "firmware/hub_control/include/np_hub_types.h";
 /** Generated from common/npps/constants.json: the serial length is shared with the apps' GATT code, so it is defined there. */
-const WIRE = "firmware/hub_control/include/np_app_wire_constants.h";
+const WIRE = "firmware/common/include/np_app_wire_constants.h";
 /** The compiler: the Rust core, whose constants are read statically. */
 const COMPILER = "common/npps-core/src/compiler.rs";
 /** What runs it: the web wrapper over the WebAssembly build. Always the real tree's, since the self-test cannot rebuild Rust. */

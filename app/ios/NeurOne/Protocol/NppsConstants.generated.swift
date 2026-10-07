@@ -336,9 +336,7 @@ enum BleTransfer {
 
 /// The cervical VNS gel-pad assembly.
 enum CvnsPad {
-    /// Pads checked every session. Mirrors NP_CVNS_ELECTRODE_COUNT in
-    /// firmware/cervical_vns/include/np_cvns_config.h, which is a self-contained library and does not
-    /// include the generated header.
+    /// Pads checked every session: the bilateral gel-pad assembly, left and right.
     static let CVNS_ELECTRODE_COUNT: Int = 2
 }
 

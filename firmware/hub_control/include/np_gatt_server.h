@@ -52,7 +52,7 @@
 /* ── Ids (the XXXX of the UUID) ──────────────────────────────────────────────────
  * NP_GATT_*_ID and the UUID base are generated from common/npps/constants.json (group GattIds), the
  * one source the apps read as well; only the characteristics this hub publishes are in the header. */
-#include "np_app_wire_constants.h"
+#include "../../common/include/np_app_wire_constants.h"
 
 /* ── Properties ──────────────────────────────────────────────────────────────── */
 #define NP_GATT_PROP_READ     0x01u

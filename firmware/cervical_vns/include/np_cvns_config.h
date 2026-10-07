@@ -7,6 +7,7 @@
 #define NP_CVNS_CONFIG_H
 
 #include "../../common/include/np_shared_constants.h"
+#include "../../common/include/np_app_wire_constants.h"
 
 /* ── Stimulation parameters ─────────────────────────────────────────────────── */
 #define NP_CVNS_FREQ_HZ_MIN           1u      /* Hz; CLAUDE.md §3 T2            */
@@ -18,7 +19,8 @@
 #define NP_CVNS_SESSION_MAX_S         120u    /* s; 2 min gammaCore protocol     */
 
 /* ── Electrode configuration ────────────────────────────────────────────────── */
-#define NP_CVNS_ELECTRODE_COUNT       2u      /* bilateral assembly              */
+/* NP_CVNS_ELECTRODE_COUNT (2, the bilateral assembly) is generated from common/npps/constants.json (group CvnsPad), the one
+ * source the apps' pad parsers read as well. */
 #define NP_CVNS_IMPEDANCE_MAX_KOHM    5.0f    /* kΩ; cervical gel electrode      */
 #define NP_CVNS_IMPEDANCE_CHECK_FREQ_HZ 1000u /* Hz; AC impedance measurement   */
 /* Max allowed disagreement between the hub-side per-electrode impedance
