@@ -48,7 +48,7 @@ fn sockets(v: &Value) -> Result<Vec<u32>, String> {
     v.as_array()
         .ok_or("sockets must be an array")?
         .iter()
-        .map(|n| n.as_u64().map(|x| x as u32).ok_or_else(|| "a socket id must be a whole number".to_string()))
+        .map(|n| n.as_u64().and_then(|x| u32::try_from(x).ok()).ok_or_else(|| "a socket id must be a whole number".to_string()))
         .collect()
 }
 
@@ -97,14 +97,19 @@ pub fn compile_json(request: &str) -> Result<Vec<u8>, String> {
     let uuid_bytes = hex_decode(req["sessionUuidHex"].as_str().ok_or("sessionUuidHex is required")?)?;
     let session_uuid: [u8; 16] = uuid_bytes.try_into().map_err(|_| "sessionUuidHex must be 16 bytes".to_string())?;
     let wl = rules(&req["wavelengthRules"])?;
+    let acknowledged: Vec<String> = req["acknowledgedCautions"]
+        .as_array()
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .unwrap_or_default();
     let opts = CompileOptions {
         device_serial: serial.as_deref(),
         zones: zones.as_ref(),
         clinician_sockets: clinician.as_deref(),
         wavelength_rules: wl.as_ref(),
         autonomous: req["autonomous"].as_bool().unwrap_or(false),
-        now_unix: req["nowUnix"].as_u64().ok_or("nowUnix is required")? as u32,
+        now_unix: req["nowUnix"].as_u64().and_then(|x| u32::try_from(x).ok()).ok_or("nowUnix is required and must fit in 32 bits")?,
         session_uuid,
+        acknowledged_cautions: &acknowledged,
     };
     compile_protocol(&req["def"], &opts).map(|c| c.blob)
 }
@@ -216,7 +221,7 @@ pub fn serialize_json(request: &str) -> Result<String, String> {
 /// `request` is `{"entry":{"kind":"single","protocol":…}|{"kind":"composite","composite":…},
 /// "limits":<resolved NPLimitsSet>, "allProtocols":[<entry>…]|null, "zones":{name:[socket…]}|null (optional: check
 /// PBM targets against the namespace), "limitSources":{<modalityProperty>:{<limitField>:tier}}|null (optional)}`. Returns
-/// `{"issues":[…], "isValid":bool, "hasWarnings":bool}`; an issue is
+/// `{"issues":[…], "isValid":bool, "hasWarnings":bool, "zone":"safe"|"caution"|"danger", "zones":[…]}`; an issue is
 /// `{severity, modality?, parameterKey, parameterName, actualValueDescription, limitValueDescription,
 /// limitSource, message}` where every text is a plain string or a `{key, args}` message for the caller to
 /// localize (see `validate`). Ids are the caller's to mint.
@@ -234,7 +239,13 @@ pub fn validate_json(request: &str) -> Result<String, String> {
     let issues = crate::validate::validate_entry(&req["entry"], &limits, all.as_deref(), &ctx);
     let is_valid = !issues.iter().any(|i| i["severity"] == "error");
     let has_warnings = issues.iter().any(|i| i["severity"] == "warning");
-    Ok(json!({ "issues": issues, "isValid": is_valid, "hasWarnings": has_warnings }).to_string())
+    // The zone model's reading of a single protocol: its worst zone, and every axis behind it.
+    let blocks = if req["entry"]["kind"] == "single" { crate::zones::evaluate(&req["entry"]["protocol"]) } else { Vec::new() };
+    Ok(json!({
+        "issues": issues, "isValid": is_valid, "hasWarnings": has_warnings,
+        "zone": crate::zones::protocol_zone(&blocks).name(), "zones": crate::zones::to_json(&blocks),
+    })
+    .to_string())
 }
 
 /// Resolve the three limit tiers into the effective limits and where each value came from. `request` is

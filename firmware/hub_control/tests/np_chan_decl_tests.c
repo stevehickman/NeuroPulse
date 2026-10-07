@@ -69,7 +69,7 @@ static void add_tdcs(uint16_t area_mcm2)
     add(NP_MOD_TDCS, &p, sizeof p);
 }
 
-static void add_vns(uint8_t pw_us)
+static void add_vns(uint16_t pw_us)
 {
     np_mod_vns_hrv_params_t p;
     memset(&p, 0, sizeof p);
@@ -106,6 +106,20 @@ static void test_vns_only_session_sends_its_area(void)
           "VNS-only session SENDS the area frame — else the MCU enforces 25 cm² (50x loose)");
     check(!d.geom_bes && !d.geom_tdcs && !d.geom_clin_stim, "VNS arms no geometry gate");
     check(d.phase_us[NP_SAFETY_CH_VNS_HRV] == 250UL, "VNS default pulse width 250 us");
+}
+
+static void test_vns_authored_pulse_width_reaches_the_safety_declaration(void)
+{
+    np_chan_decl_t d;
+    /* 300 and 500 us do not fit the old 8-bit field; both are declared as written, not truncated. */
+    reset();
+    add_vns(300U);
+    np_chan_decl_build(&g_desc, &d);
+    check(d.phase_us[NP_SAFETY_CH_VNS_HRV] == 300UL, "VNS 300 us pulse width declared as authored");
+    reset();
+    add_vns(500U);
+    np_chan_decl_build(&g_desc, &d);
+    check(d.phase_us[NP_SAFETY_CH_VNS_HRV] == 500UL, "VNS 500 us pulse width declared as authored");
 }
 
 static void test_cvns_only_session_sends_its_area(void)
@@ -222,6 +236,7 @@ int main(void)
 {
     test_bes_arms_its_gate_and_sends_its_area();
     test_vns_only_session_sends_its_area();
+    test_vns_authored_pulse_width_reaches_the_safety_declaration();
     test_cvns_only_session_sends_its_area();
     test_tdcs_rules_unchanged();
     test_hd_and_clinical_tacs();

@@ -355,6 +355,8 @@ impl Parser {
         let mut read_only: Option<bool> = None;
         let mut conditions: Option<Vec<String>> = None;
         let mut references: Option<Vec<Value>> = None;
+        let mut sessions_per_week: Option<f64> = None;
+        let mut course_weeks: Option<f64> = None;
 
         self.skip_newlines();
         while !self.try_brace() {
@@ -391,6 +393,8 @@ impl Parser {
                 "interval_count" => timing = json!({ "type": "interval_count", "count": number(self.read_number()?) }),
                 "conditions" => conditions = Some(self.read_tag_array()?),
                 "references" => references = Some(self.read_references()?),
+                "sessions_per_week" => sessions_per_week = Some(self.read_number()?),
+                "course_weeks" => course_weeks = Some(self.read_number()?),
                 _ => self.skip_value()?,
             }
             self.skip_newlines();
@@ -416,6 +420,13 @@ impl Parser {
         }
         if let Some(r) = references {
             proto.insert("references".into(), Value::Array(r));
+        }
+        // The course a protocol is delivered over, as the studies state it: metadata, never a hub parameter.
+        if let Some(n) = sessions_per_week {
+            proto.insert("sessionsPerWeek".into(), number(n));
+        }
+        if let Some(n) = course_weeks {
+            proto.insert("courseWeeks".into(), number(n));
         }
         Ok(Value::Object(proto))
     }

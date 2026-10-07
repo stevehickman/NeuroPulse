@@ -51,6 +51,7 @@ fn opts<'a>(c: &'a Ctx, with_clinician: bool) -> CompileOptions<'a> {
         autonomous: false,
         now_unix: c.now,
         session_uuid: c.uuid,
+        acknowledged_cautions: &[],
     }
 }
 

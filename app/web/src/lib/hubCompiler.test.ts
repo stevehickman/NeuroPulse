@@ -374,7 +374,7 @@ describe('parameter block sizes match the firmware structs', () => {
     eeg_neurofeedback:  { size: 5,  slot: 5,    params: { channels: 'all', band: 'alpha', closedLoopEnabled: false } },
     bes_tacs:           { size: 7,  slot: 17,   params: { frequencyHz: 10, intensityMilliamps: 0.8, waveform: 'sinusoidal' } },
     tdcs:               { size: 8,  slot: 18,   params: { intensityMilliamps: 1.5, electrodePairs: [['F3', 'F4']], rampSeconds: 30, electrodeAreaCm2: 35 } },
-    vns_hrv:            { size: 9,  slot: 8,    params: { frequencyHz: 20, intensityMilliamps: 1, hrvProtocol: 'standalone' } },
+    vns_hrv:            { size: 10, slot: 8,    params: { frequencyHz: 20, intensityMilliamps: 1, hrvProtocol: 'standalone' } },
     audio_entrainment:  { size: 8,  slot: 6,    params: { carrierHz: 200, binauralBeatsHz: 10, volumeDb: 65, boneConductionPacer: false, eegAdaptive: false } },
     visual_stimulation: { size: 9,  slot: 7,    params: { mode: 'binocular', frequencyHz: 10, emdrCadenceHz: 1, enableModeF: false } },
     qeeg_21ch:          { size: 8,  slot: 11,   params: { montage: 'standard_1020', reference: 'linked_ear', sloretaEnabled: true } },
@@ -446,14 +446,11 @@ describe('clinical tACS channel mask (OI-TACS-01)', () => {
     }
   });
 
-  it('still writes a well-formed struct for an over-range count', () => {
-    // protocolValidator rejects this before compile; the encoder must not emit a
-    // malformed block if it is reached anyway.
-    const params = tacsParams(40);
-    expect(params).toHaveLength(8);
-    expect(params[6] & 0xE0).toBe(0);
-    const mask = params[4] | (params[5] << 8) | (params[6] << 16);
-    expect(mask).toBe(2 ** NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS - 1);
+  it('refuses an over-range count rather than clamping it', () => {
+    // protocolValidator rejects this before compile; a caller that reaches the compiler anyway is refused,
+    // not given a different channel set from the one authored (CLAUDE.md §3).
+    expect(() => tacsParams(40)).toThrow(/channelCount 40 is outside 1–21/);
+    expect(() => tacsParams(0)).toThrow(/channelCount 0 is outside 1–21/);
   });
 });
 

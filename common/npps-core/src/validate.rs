@@ -44,6 +44,11 @@ fn fixed1(x: f64) -> String {
     format!("{x:.1}")
 }
 
+/// Two decimals, the way a zone value is shown (`12.74`).
+fn fixed2(x: f64) -> String {
+    format!("{x:.2}")
+}
+
 fn join(list: &Value, sep: &str) -> String {
     list.as_array().map(|a| a.iter().map(crate::js::value_string).collect::<Vec<_>>().join(sep)).unwrap_or_default()
 }
@@ -133,11 +138,83 @@ fn continuous_wave(out: &mut Issues, kind: &str, p: &Value) {
     }
 }
 
+/// The study parameters of a `vns_hrv` block (pulse width, side, trigger, burst, intensity basis). All are optional and
+/// absent from every block written before them. A value the hub cannot deliver is an error here too, so it is seen
+/// before signing and not first at the compiler.
+fn vns_study_parameters(p: &Value, out: &mut Issues) {
+    use Sev::Error;
+    let k = Some("vns_hrv");
+    let enum_error = |out: &mut Issues, key: &str, param: &str, value: &str, allowed: &[&str]| {
+        out.push(Error, k, key, param, s(value), s(allowed.join("/")), "hardware",
+            msg("VALIDATE_MSG_VNS_HRV_ENUM", vec![msg(param, vec![]), s(value), s(allowed.join(", "))]));
+    };
+    if let Some(side) = p["side"].as_str().filter(|v| !matches!(*v, "left" | "right" | "bilateral")) {
+        enum_error(out, "side", "VALIDATE_PARAM_SIDE", side, &["left", "right", "bilateral"]);
+    }
+    if let Some(w) = p["pulseWidthUs"].as_f64() {
+        if !(hw::VNS_MIN_PULSE_WIDTH_US..=hw::VNS_MAX_PULSE_WIDTH_US).contains(&w) {
+            out.push(Error, k, "pulseWidthUs", "VALIDATE_PARAM_PULSE_WIDTH", s(format!("{} µs", num_string(w))),
+                s(format!("{}–{} µs", num_string(hw::VNS_MIN_PULSE_WIDTH_US), num_string(hw::VNS_MAX_PULSE_WIDTH_US))), "hardware",
+                msg("VALIDATE_MSG_VNS_HRV_PULSEWIDTH", vec![n(w), n(hw::VNS_MIN_PULSE_WIDTH_US), n(hw::VNS_MAX_PULSE_WIDTH_US)]));
+        }
+    }
+    let trigger = p["trigger"].as_str().unwrap_or("continuous");
+    if !matches!(trigger, "continuous" | "movement_cue") {
+        enum_error(out, "trigger", "VALIDATE_PARAM_TRIGGER", trigger, &["continuous", "movement_cue"]);
+    } else if trigger == "movement_cue" {
+        // Parses and validates as a protocol, but nothing in the hub reads a movement cue yet (OI-NPPS-VNS-01).
+        out.push(Error, k, "trigger", "VALIDATE_PARAM_TRIGGER", s(trigger), s("continuous"), "hardware",
+            msg("VALIDATE_MSG_VNS_HRV_NOT_DELIVERABLE", vec![msg("VALIDATE_PARAM_TRIGGER", vec![]), s(trigger)]));
+    }
+    let burst = p["burstSeconds"].as_f64();
+    if trigger == "movement_cue" && !burst.map_or(false, |b| b > 0.0) {
+        out.push(Error, k, "burstSeconds", "VALIDATE_PARAM_BURST", s("—"), s("> 0 s"), "hardware", msg("VALIDATE_MSG_VNS_HRV_TRIGGER_NEEDS_BURST", vec![]));
+    }
+    if let (Some(b), "continuous") = (burst, trigger) {
+        out.push(Error, k, "burstSeconds", "VALIDATE_PARAM_BURST", s(format!("{}s", num_string(b))), s("—"), "hardware", msg("VALIDATE_MSG_VNS_HRV_BURST_NEEDS_TRIGGER", vec![]));
+    }
+    let basis = p["intensityBasis"].as_str().unwrap_or("absolute");
+    if !matches!(basis, "absolute" | "perceptual_threshold" | "pain_threshold" | "titrated") {
+        enum_error(out, "intensityBasis", "VALIDATE_PARAM_INTENSITY_BASIS", basis, &["absolute", "perceptual_threshold", "pain_threshold", "titrated"]);
+    } else if basis != "absolute" {
+        out.push(Error, k, "intensityBasis", "VALIDATE_PARAM_INTENSITY_BASIS", s(basis), s("absolute"), "hardware",
+            msg("VALIDATE_MSG_VNS_HRV_NOT_DELIVERABLE", vec![msg("VALIDATE_PARAM_INTENSITY_BASIS", vec![]), s(basis)]));
+        // `titrated` takes no percentage: its band is the thresholds themselves. The other two state one.
+        if basis != "titrated" && !p["intensityPercentOfThreshold"].as_f64().map_or(false, |x| x > 0.0) {
+            out.push(Error, k, "intensityPercentOfThreshold", "VALIDATE_PARAM_INTENSITY", s("—"), s("> 0 %"), "hardware",
+                msg("VALIDATE_MSG_VNS_HRV_BASIS_NEEDS_PERCENT", vec![s(basis)]));
+        }
+    }
+}
+
 // ─── Per-modality ──────────────────────────────────────────────────────────────
+
+/// The parameters the hub compiler cannot encode without (`compiler::required`): `(key, parameter-name locale key)`.
+/// A missing one is `NaN` here, which fails every ceiling comparison below, so without this a block with no intensity
+/// would validate clean.
+fn required_parameters(kind: &str) -> &'static [(&'static str, &'static str)] {
+    const INTENSITY: (&str, &str) = ("intensityMilliamps", "VALIDATE_PARAM_INTENSITY");
+    const FREQUENCY: (&str, &str) = ("frequencyHz", "VALIDATE_PARAM_FREQUENCY");
+    match kind {
+        "pbm_transcranial" | "pbm_intranasal" => &[("irradianceMWcm2", "VALIDATE_PARAM_IRRADIANCE")],
+        "pbm_deep_1170nm" => &[("intensityMWcm2", "VALIDATE_PARAM_INTENSITY")],
+        "bes_tacs" | "vns_hrv" | "cervical_vns" => &[INTENSITY, FREQUENCY],
+        "clinical_tacs" => &[INTENSITY, FREQUENCY, ("channelCount", "VALIDATE_PARAM_CHANNEL_COUNT")],
+        "tdcs" | "hd_tdcs" => &[INTENSITY],
+        "tms" => &[("intensityPercentMT", "VALIDATE_PARAM_INTENSITY_MT")],
+        "vibrotactile_40hz" => &[("intensityG", "VALIDATE_PARAM_INTENSITY")],
+        _ => &[],
+    }
+}
 
 fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limits: &Value, out: &mut Issues) {
     use Sev::{Error, Warning};
     let k = Some(kind);
+    for (key, name) in required_parameters(kind) {
+        if !f(p, key).is_finite() {
+            out.push(Error, k, key, name, s("Missing"), s("Required"), "hardware", msg("VALIDATE_MSG_GENERAL_REQUIRED_PARAMETER", vec![msg(name, vec![])]));
+        }
+    }
     match kind {
         "pbm_transcranial" => {
             let l = &limits["pbmTranscranial"];
@@ -309,6 +386,7 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
                 out.push(Error, k, "hrvProtocol", "VALIDATE_PARAM_HRV_PROTOCOL", s(proto), s(join(&l["allowedProtocols"], "/")), "@allowedProtocols",
                     msg("VALIDATE_MSG_VNS_HRV_HRVPROTOCOL", vec![s(proto), s(join(&l["allowedProtocols"], ", "))]));
             }
+            vns_study_parameters(p, out);
         }
         "audio_entrainment" => {
             let l = &limits["audioEntrainment"];
@@ -577,6 +655,14 @@ fn protocol(def: &Value, limits: &Value, ctx: &Context) -> Vec<Value> {
         }
     }
 
+    // The course a protocol is delivered over is metadata, but a count that is not a positive whole number is a typo.
+    for (key, param) in [("sessionsPerWeek", "VALIDATE_PARAM_SESSIONS_PER_WEEK"), ("courseWeeks", "VALIDATE_PARAM_COURSE_WEEKS")] {
+        if let Some(x) = def[key].as_f64().filter(|x| !(*x >= 1.0 && x.fract() == 0.0)) {
+            out.push(Error, None, key, param, s(num_string(x)), s("≥ 1"), "hardware",
+                msg("VALIDATE_MSG_GENERAL_POSITIVE_WHOLE", vec![msg(param, vec![]), n(x)]));
+        }
+    }
+
     // DC per-session charge density (OI-CHARGE-04, OI-CHARGE-05). It is PER ELECTRODE: the full session
     // current passes through each electrode of a pair, so the denominator is one electrode's area, not the
     // sum. `I(mA) × t(s) / A(cm²)` is mC/cm², and the check is `>=` because the safety MCU trips at `>=`
@@ -614,7 +700,12 @@ fn protocol(def: &Value, limits: &Value, ctx: &Context) -> Vec<Value> {
             let (amplitude, phase, area, waveform) = match kind.as_str() {
                 "bes_tacs" => (f(p, "intensityMilliamps"), half_period(f(p, "frequencyHz")), hw::BES_ELECTRODE_AREA_CM2, p["waveform"].as_str().unwrap_or("")),
                 "clinical_tacs" => (f(p, "intensityMilliamps"), half_period(f(p, "frequencyHz")), hw::BES_ELECTRODE_AREA_CM2, p["waveform"].as_str().unwrap_or("")),
-                "vns_hrv" => (f(p, "intensityMilliamps"), hw::VNS_DEFAULT_PULSE_WIDTH_SECONDS, hw::VNS_ELECTRODE_AREA_CM2, "square"),
+                // The phase is the authored pulse width when there is one (it travels in the descriptor and the safety MCU declares
+                // it), and the firmware's own default when there is none.
+                "vns_hrv" => {
+                    let width = p["pulseWidthUs"].as_f64().filter(|w| w.is_finite() && *w > 0.0).map_or(hw::VNS_DEFAULT_PULSE_WIDTH_SECONDS, |us| us * 1e-6);
+                    (f(p, "intensityMilliamps"), width, hw::VNS_ELECTRODE_AREA_CM2, "square")
+                }
                 "cervical_vns" => (f(p, "intensityMilliamps"), hw::VNS_DEFAULT_PULSE_WIDTH_SECONDS, hw::CERVICAL_VNS_ELECTRODE_AREA_CM2, "square"),
                 _ => continue,
             };
@@ -630,6 +721,25 @@ fn protocol(def: &Value, limits: &Value, ctx: &Context) -> Vec<Value> {
                 out.push(Error, Some(&kind), "phaseChargeDensityUCcm2", "VALIDATE_PARAM_PHASE_CHARGE_DENSITY",
                     s(format!("{} µC/cm²", fixed1(density))), s(format!("{} µC/cm²", num_string(hw::PULSED_MAX_PHASE_CHARGE_DENSITY_UC_CM2))), "hardware",
                     msg("VALIDATE_MSG_PULSED_PHASECHARGE", vec![msg(&modality_name_key(&kind), vec![]), s(fixed1(density)), n(hw::PULSED_MAX_PHASE_CHARGE_DENSITY_UC_CM2)]));
+            }
+        }
+    }
+
+    // The zone model (docs/reference/safety-zones.md): an axis in its caution band is a warning the author must
+    // acknowledge before the compiler will sign it, and an axis past a danger boundary is an error. The danger on charge
+    // per phase and on session charge is reported above as the hardware ceiling it is, so it is not repeated.
+    for b in crate::zones::evaluate(def) {
+        for a in &b.axes {
+            let shown = |x: f64| s(format!("{}{}{}", fixed2(x), if a.unit.is_empty() { "" } else { " " }, a.unit));
+            match a.zone() {
+                crate::zones::Zone::Caution => out.push(Warning, Some(&b.kind), a.id, "VALIDATE_PARAM_ZONE", shown(a.value), shown(a.caution), "hardware",
+                    msg("VALIDATE_MSG_ZONE_CAUTION", vec![msg(&modality_name_key(&b.kind), vec![]), msg(a.name_key, vec![]), shown(a.value), shown(a.caution), s(b.ack_id(a))])),
+                crate::zones::Zone::Danger if !a.danger_is_hardware_ceiling() => {
+                    let limit = a.danger.unwrap_or(f64::NAN);
+                    out.push(Error, Some(&b.kind), a.id, "VALIDATE_PARAM_ZONE", shown(a.value), shown(limit), "hardware",
+                        msg("VALIDATE_MSG_ZONE_DANGER", vec![msg(&modality_name_key(&b.kind), vec![]), msg(a.name_key, vec![]), shown(a.value), shown(limit)]));
+                }
+                _ => {}
             }
         }
     }

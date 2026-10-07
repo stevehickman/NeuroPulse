@@ -167,12 +167,26 @@ fn modality_fields(kind: &str, params: &Value) -> R<Vec<String>> {
                 format!("ramp: {}s", p.n("rampSeconds")?),
             ]
         }
-        "vns_hrv" => vec![
-            format!("frequency: {}", p.hz("frequencyHz")?),
-            format!("intensity: {}mA", p.n("intensityMilliamps")?),
-            format!("hrv_protocol: {}", p.s("hrvProtocol")?),
-            format!("breathing_rate: {}", p.n("resonanceBreathingRate")?),
-        ],
+        "vns_hrv" => {
+            let mut lines = vec![
+                format!("frequency: {}", p.hz("frequencyHz")?),
+                format!("intensity: {}mA", p.n("intensityMilliamps")?),
+                format!("hrv_protocol: {}", p.s("hrvProtocol")?),
+                format!("breathing_rate: {}", p.n("resonanceBreathingRate")?),
+            ];
+            // The optional study parameters are written only when authored, so a block without them round-trips unchanged.
+            for key in ["side", "trigger", "intensityBasis"] {
+                if let Some(v) = params[key].as_str() {
+                    lines.push(format!("{}: {v}", snake(key)));
+                }
+            }
+            for key in ["pulseWidthUs", "burstSeconds", "intensityPercentOfThreshold"] {
+                if let Some(n) = p.opt_num(key) {
+                    lines.push(format!("{}: {}", snake(key), num_string(n)));
+                }
+            }
+            lines
+        }
         "audio_entrainment" => {
             let mut lines = Vec::new();
             if let Some(h) = p.opt_num("binauralBeatsHz") {
@@ -267,6 +281,20 @@ fn modality(m: &Value, level: usize) -> R<String> {
     Ok(lines.join("\n"))
 }
 
+/// `pulseWidthUs` to `pulse_width_us`: the file's spelling of a model key.
+fn snake(camel: &str) -> String {
+    let mut out = String::new();
+    for c in camel.chars() {
+        if c.is_ascii_uppercase() {
+            out.push('_');
+            out.push(c.to_ascii_lowercase());
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 fn text<'a>(v: &'a Value, k: &str) -> &'a str {
     v[k].as_str().unwrap_or("")
 }
@@ -309,6 +337,11 @@ fn single(p: &Value) -> R<String> {
         lines.push(format!("{INDENT}duration: {}", format_time(tm["seconds"].as_f64().ok_or("timingMode.seconds must be a number")?)));
     } else {
         lines.push(format!("{INDENT}interval_count: {}", num_string(tm["count"].as_f64().ok_or("timingMode.count must be a number")?)));
+    }
+    for (json_key, key) in [("sessionsPerWeek", "sessions_per_week"), ("courseWeeks", "course_weeks")] {
+        if let Some(n) = p[json_key].as_f64() {
+            lines.push(format!("{INDENT}{key}: {}", num_string(n)));
+        }
     }
     for m in p["modalities"].as_array().ok_or("modalities must be a list")? {
         lines.push(String::new());

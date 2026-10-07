@@ -123,6 +123,15 @@
           "value": 25.0
         },
         {
+          "name": "VNS_MIN_PULSE_WIDTH_US",
+          "value": 50.0,
+          "note": "Authored auricular VNS pulse width, µs. ASSUMED (UC-071): the range the published taVNS studies span (Matsuoka 2025 Table 3b, 50–500 µs), not a derived or standard limit. The charge ceiling (40 µC/cm² per phase) is what bounds the dose; this bounds the encoding to what has been studied. 0 on the wire still means the firmware default, 250 µs."
+        },
+        {
+          "name": "VNS_MAX_PULSE_WIDTH_US",
+          "value": 500.0
+        },
+        {
           "name": "VISUAL_MAX_HZ",
           "value": 100.0,
           "note": "Visual stimulation"
@@ -434,6 +443,24 @@
           "int": true,
           "note": "The hub's replay-guard serial (DEVICE_SERIAL characteristic, NP-FW-HUB-001 §4.2): exactly this many bytes, never padded or truncated."
         }
+      ]
+    },
+    {
+      "name": "SafetyZones",
+      "rust": "safety_zones",
+      "targets": [
+        "rust"
+      ],
+      "note": "The caution and danger boundaries of the zone model (docs/reference/safety-zones.md). Danger on charge per phase and on session charge is NOT here: it is the existing hardware ceiling in NPHardwareLimits. EVERY figure in this group is a PLACEHOLDER, registered as UC-073 to UC-077: no derivation, measurement or standard stands behind it, and a placeholder may be moved freely in either direction until one does. The two current-density danger figures are the boundary the principal proposed in place of the flat 2 mA auricular ceiling (OI-VNSCLIP-09), which is still in force until that is decided, so they are the figures to derive first.",
+      "constants": [
+        { "name": "ZONE_CAUTION_PHASE_CHARGE_DENSITY_UC_CM2", "value": 10.0, "note": "UC-073. A quarter of the 40 µC/cm² per-phase ceiling, and below the 12 µC/cm² at which McCreery 1990 saw damage (Cogan 2016)." },
+        { "name": "ZONE_CAUTION_SHANNON_K", "value": 1.0, "note": "UC-074. Half a unit below the lowest damage-boundary k (1.5) Cogan 2016 gives. Applied only to a rectangular phase no longer than ZONE_SHANNON_MAX_PHASE_SECONDS, the 0.4 ms regime the equation was fitted in." },
+        { "name": "ZONE_SHANNON_MAX_PHASE_SECONDS", "value": 0.001, "note": "UC-074. Phase width above which the Shannon axis is not applied." },
+        { "name": "ZONE_CAUTION_RMS_CURRENT_DENSITY_MA_CM2", "value": 1.0, "note": "UC-075. Heating axis: rms current over geometric pad area." },
+        { "name": "ZONE_DANGER_RMS_CURRENT_DENSITY_MA_CM2", "value": 3.0, "note": "UC-075. Three times the caution figure." },
+        { "name": "ZONE_CAUTION_MEAN_CURRENT_DENSITY_UA_CM2", "value": 100.0, "note": "UC-076. Charge delivered per second per cm²: where frequency, duty, pulse width and amplitude meet." },
+        { "name": "ZONE_DANGER_MEAN_CURRENT_DENSITY_UA_CM2", "value": 300.0, "note": "UC-076. Three times the caution figure." },
+        { "name": "ZONE_CAUTION_DC_CHARGE_DENSITY_MC_CM2", "value": 100.0, "note": "UC-077. Two thirds of the 150 mC/cm² per-session ceiling." }
       ]
     },
     {

@@ -111,7 +111,7 @@ qEEG's A1/A2 linked-ear reference (`CLAUDE.md` §3 T2 additions). Per-configurat
 | Parameter | Value | Source |
 |---|---|---|
 | Hub slot | 8, `NP_MOD_VNS_HRV` = `0x07`, detected by **accessory-port impedance** | `np_hub_config.h`; `NP-FW-HUB-001` §8.4 |
-| Command block | `np_mod_vns_hrv_params_t` — `side`, `freq_mhz` (1000–25000), `amplitude_ua` (≤ 2000), `pulse_width_us` (0 = default **250 µs**), `ppg_enable`, `eeg_ref_enable`, `hrv_proto` | `np_hub_types.h` |
+| Command block | `np_mod_vns_hrv_params_t` — `side`, `freq_mhz` (1000–25000), `amplitude_ua` (≤ 2000), `pulse_width_us` (16 bits since NP-NPPS-REF-001 Rev 19; 0 = default **250 µs**; authored range 50–500 µs, `UC-071`), `ppg_enable`, `eeg_ref_enable`, `hrv_proto` | `np_hub_types.h` |
 | Contact window | `[VNS_CONTACT_MIN_OHM, VNS_CONTACT_MAX_OHM]` = **[500 Ω, 5000 Ω]** | `NP-FW-HUB-001` §8.4 |
 | Safety enable | `NP_SAFETY_EN_VNS_HRV` = bit 7 | `np_hub_config.h` |
 | Declared electrode area | `NP_VNS_ELECTRODE_AREA_MCM2` = **500** (0.5 cm²), **PROVISIONAL — NOT MEASURED** | `np_hub_config.h`; `OI-CHARGE-07` |
@@ -273,7 +273,7 @@ corrected in `NP-ART-001` Rev 3.
 | Electrode contact geometry and **measured** area | §5.2 — the area exists only as a provisional firmware constant | **`OI-VNSCLIP-02`** (closes `OI-CHARGE-07`'s VNS limb) |
 | Pad formulation, adhesion, shelf life, and characterised electrochemical life | §6 | **`OI-VNSCLIP-07`** |
 | PPG emitter/detector selection and optical output ceiling | §5.3 | **`OI-VNSCLIP-05`** |
-| Auricular pulse-width range | §4.1 — bounded today by a `uint8_t` and nothing else | **`OI-VNSCLIP-04`** |
+| Auricular pulse-width range | §4.1 — bounded today by an **assumed** 50–500 µs constant (`UC-071`) over a 16-bit wire field; no derivation | **`OI-VNSCLIP-04`** |
 | Whether A1/A2 stays on the stimulation pads, and its acceptance criterion if it does | §4.3 | **`OI-VNSCLIP-01`** |
 | Connector at either end of the 6-conductor cable, and strain relief | Shared accessory-connector gap | **`OI-VNSCLIP-06`** |
 | Biocompatibility basis for every skin-contacting surface | Repeated prolonged skin contact, no material of record | **`OI-VNSCLIP-07`** |
@@ -298,7 +298,7 @@ corrected in `NP-ART-001` Rev 3.
 | **OI-VNSCLIP-01** | **A consumable sits in the T2 EEG reference path (§4.3).** The A1/A2 linked-ear normative reference is on the same pads the VNS current electrochemically degrades, only the stimulation duty has a trigger, and the `[500 Ω, 5000 Ω]` contact window cannot detect a pad that is a poor µV-scale reference. Decide whether the reference stays on these pads; if it does, give the pad an EEG-grade criterion and extend the consumable trigger to cover both duties | Clinical + EE | T2 qEEG measurement quality; consumable trigger |
 | **OI-VNSCLIP-02** | **Specify and measure the clip pad's wetted contact area**, with a tolerance, so `NP_VNS_ELECTRODE_AREA_MCM2` stops being PROVISIONAL. This is the hardware half of `OI-CHARGE-07` for this channel, and the Class C per-phase interlock divides by it. Note the test harness permits revision **down** but not **up** without a measurement — and up is the plausible direction | ME + Clinical | `OI-CHARGE-07`; Class C safety argument |
 | **OI-VNSCLIP-03** | Specify clip geometry, clamping force range and the ear-size range served. Worn on cartilage for whole sessions with no force of record | ME + HFE | Hazard analysis; A13 tooling |
-| **OI-VNSCLIP-04** | **Specify the auricular pulse-width range.** None exists; the wire format bounds it at 255 µs by field width, and the 200–1000 µs figure in the record belongs to cervical VNS, a different artifact. Confirm or change the bound deliberately | Clinical + FW | Protocol authoring; charge-per-phase computation |
+| **OI-VNSCLIP-04** | **Specify the auricular pulse-width range.** None exists; the wire field was widened to 16 bits (NP-NPPS-REF-001 Rev 19) and an assumed 50–500 µs authored range stands in (`UC-071`), where it was 255 µs by field width; the 200–1000 µs figure in the record belongs to cervical VNS, a different artifact. Confirm or change the bound deliberately | Clinical + FW | Protocol authoring; charge-per-phase computation |
 | **OI-VNSCLIP-05** | Select the PPG emitter and detector and state an optical output ceiling for an 808–830 nm source at the ear. The programme's optical ceilings cover scalp, deep PBM and retina, and this site falls under none of them | EE + Clinical | Hazard analysis |
 | **OI-VNSCLIP-06** | Select connector and strain relief for the 6-conductor clip cable. Worth deciding **once** across A11, A12, A13 and A14 | EE + ME | A13 tooling |
 | **OI-VNSCLIP-07** | Specify the PDMS hydrogel pad — formulation, adhesion, shelf life, biocompatibility basis — and characterise its electrochemical life, which is what turns *20–40 sessions* from a stated range into a threshold with provenance (`CLAUDE.md` §2.3 Rev 48) | ME + Quality | Consumable threshold provenance; hazard analysis |

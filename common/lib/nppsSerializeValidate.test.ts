@@ -65,6 +65,8 @@ const ADDED = new Set([
   'VALIDATE_MSG_GENERAL_SESSIONDURATION', ...[2, 3, 4, 5, 6, 7, 8].map(n => `VALIDATE_MSG_GENERAL_SESSIONDURATION_${n}`),
   'VALIDATE_MSG_GENERAL_INTENSITYPERCENTMT', 'VALIDATE_MSG_GENERAL_CARDIACINTERLOCK', 'VALIDATE_MSG_GENERAL_FREQUENCYHZ',
   'VALIDATE_MSG_GENERAL_FREQUENCYHZ_2', 'VALIDATE_MSG_GENERAL_INTENSITYMWCM2_2',
+  // The zone model (docs/reference/safety-zones.md) is new to the core; common/npps-core/tests/zones.rs holds it.
+  'VALIDATE_MSG_ZONE_CAUTION', 'VALIDATE_MSG_ZONE_DANGER',
 ]);
 
 describe('validator wrapper', () => {
