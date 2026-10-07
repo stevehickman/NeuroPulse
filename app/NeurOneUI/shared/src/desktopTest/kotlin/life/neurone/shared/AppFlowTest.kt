@@ -36,6 +36,7 @@ class AppFlowTest {
         Res.string.age_agree_and_continue, Res.string.consent_research_participation, Res.string.consent_skip_button,
         Res.string.app_tab_pending_body, Res.string.tab_history, Res.string.history_session_history,
         Res.string.tab_consumables, Res.string.consumable_intranasal_name,
+        Res.string.session_browse_protocols, Res.string.tab_protocols, Res.string.setup_privacy_card_title,
     )
 
     /** The English text of [resource], read in composition: that is where the resource environment is defined. */
@@ -52,6 +53,7 @@ class AppFlowTest {
         platform = object : PlatformServices {
             override val keyValueStore = kv
             override val bleCentral = UnavailableBleCentral()
+            override val protocolSigner = UnsupportedProtocolSigner()
             override val analyticsBackend = NoOpAnalyticsBackend()
             @androidx.compose.runtime.Composable
             override fun rememberBleConnectAction(): () -> Unit = {}
@@ -87,11 +89,13 @@ class AppFlowTest {
         assertFalse(app.consentStore.researchConsent.blanketConsentGranted, "skipping research consent must not grant blanket consent")
 
         // 4. The tabs: the screens that moved are real, the rest say so.
-        onNodeWithText(text(Res.string.app_tab_pending_body)).assertExists()
+        onNodeWithText(text(Res.string.session_browse_protocols)).assertExists()
         onNodeWithText(text(Res.string.tab_history)).performClick()
         onNodeWithText(text(Res.string.history_session_history)).assertExists()
         onNodeWithText(text(Res.string.tab_consumables)).performClick()
         onNodeWithText(text(Res.string.consumable_intranasal_name)).assertExists()
+        onNodeWithText(text(Res.string.setup_privacy_card_title)).performClick()
+        onNodeWithText(text(Res.string.app_tab_pending_body)).assertExists()
     }
 
     @Test
@@ -103,5 +107,22 @@ class AppFlowTest {
         }
         show(services(kv))
         onNodeWithText(text(Res.string.tab_consumables)).assertExists()
+    }
+
+    @Test
+    fun sessionTab_browsesTheBundledProtocolLibrary_onAHostWithNoHub() = runComposeUiTest {
+        val kv = InMemoryKeyValueStore().apply {
+            putBoolean(PersistedKeys.AGE_CONFIRMED_KEY, true)
+            putBoolean(OnboardingKeys.BIPA_ACCEPTED, true)
+            putBoolean(OnboardingKeys.CONSENT_SHOWN, true)
+        }
+        show(services(kv))
+
+        // The Session tab is the first tab and is the shared screen, not the "not available" panel.
+        onNodeWithText(text(Res.string.app_tab_pending_body)).assertDoesNotExist()
+        onNodeWithText(text(Res.string.session_browse_protocols)).performClick()
+        // The library is read through the shared NPPS core; a shipped protocol is listed.
+        onNodeWithText(text(Res.string.tab_protocols)).assertExists()
+        onNodeWithText("Alpha Calm").assertExists()
     }
 }

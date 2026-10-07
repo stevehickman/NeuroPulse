@@ -122,6 +122,9 @@ val NPProtocolDefinition.totalDurationSeconds: Int?
 object NPValidationText {
     @Volatile private var resolver: ((String, List<String>) -> String?)? = null
 
+    /** Whether a resolver is installed; a host that has its own installs it first and the shared one stands aside. */
+    val isInstalled: Boolean get() = resolver != null
+
     /** Install the resolver: the text of [key] with positional [args], or null when the key is unknown. */
     fun use(resolver: ((String, List<String>) -> String?)?) {
         this.resolver = resolver

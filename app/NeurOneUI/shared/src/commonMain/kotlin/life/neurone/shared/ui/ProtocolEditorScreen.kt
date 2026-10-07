@@ -1,4 +1,4 @@
-package life.neurone.app.ui
+package life.neurone.shared.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,9 +30,9 @@ import life.neurone.core.protocol.NPProtocolDefinition
 import life.neurone.core.protocol.NPProtocolEntry
 import life.neurone.core.protocol.NPProtocolLibrary
 import life.neurone.core.protocol.NPTimingMode
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import life.neurone.app.R
+import org.jetbrains.compose.resources.stringResource
+import life.neurone.shared.resources.Res
+import life.neurone.shared.resources.*
 
 // Port of iOS ProtocolEditorView (metadata form). Quick name/description/tags/duration edit
 // for a single user protocol; deep per-modality parameter editing is done in the script editor
@@ -60,8 +60,7 @@ fun ProtocolEditorScreen(
         )
     }
 
-    val untitledName = stringResource(R.string.protocol_editor_untitled)
-    val context = LocalContext.current
+    val untitledName = stringResource(Res.string.protocol_editor_untitled)
 
     fun save() {
         val updated = existing.copy(
@@ -85,40 +84,42 @@ fun ProtocolEditorScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) }
-            Text(stringResource(R.string.protocol_editor_edit_protocol), style = MaterialTheme.typography.titleMedium)
-            Button(onClick = { save() }) { Text(stringResource(R.string.protocol_composer_save)) }
+            TextButton(onClick = onCancel) { Text(stringResource(Res.string.common_cancel)) }
+            Text(stringResource(Res.string.protocol_editor_edit_protocol), style = MaterialTheme.typography.titleMedium)
+            Button(onClick = { save() }) { Text(stringResource(Res.string.protocol_composer_save)) }
         }
 
         Spacer(Modifier.height(12.dp))
-        OutlinedTextField(name, { name = it }, label = { Text(stringResource(R.string.clinician_grant_name_placeholder)) }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(name, { name = it }, label = { Text(stringResource(Res.string.clinician_grant_name_placeholder)) }, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(description, { description = it }, label = { Text(stringResource(R.string.ui_field_description)) }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(description, { description = it }, label = { Text(stringResource(Res.string.ui_field_description)) }, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(tags, { tags = it }, label = { Text(stringResource(R.string.protocol_editor_tags_comma_separated)) }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(tags, { tags = it }, label = { Text(stringResource(Res.string.protocol_editor_tags_comma_separated)) }, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(
             minutes,
             { minutes = it.filter { c -> c.isDigit() } },
-            label = { Text(stringResource(R.string.protocol_editor_duration_minutes)) },
+            label = { Text(stringResource(Res.string.protocol_editor_duration_minutes)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth(),
         )
 
         Spacer(Modifier.height(16.dp))
         Text(
-            stringResource(R.string.protocol_editor_modalities) + existing.modalities.filter { it.enabled }
-                .joinToString(", ") { context.getString(modalityNameRes(it.modalityType)) }
-                .ifEmpty { stringResource(R.string.ui_none) },
+            stringResource(Res.string.protocol_editor_modalities) +
+                // `map` is inline, so stringResource may be called inside it; joinToString's transform is not.
+                existing.modalities.filter { it.enabled }.map { stringResource(modalityNameRes(it.modalityType)) }
+                    .joinToString(", ")
+                    .ifEmpty { stringResource(Res.string.ui_none) },
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onEditModalities, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.and_modality_edit_modalities))
+            Text(stringResource(Res.string.and_modality_edit_modalities))
         }
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onEditScript, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.protocol_editor_edit_as_script))
+            Text(stringResource(Res.string.protocol_editor_edit_as_script))
         }
     }
 }

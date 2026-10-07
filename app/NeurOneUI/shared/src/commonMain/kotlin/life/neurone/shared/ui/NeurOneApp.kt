@@ -14,8 +14,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import life.neurone.core.protocol.PersistedKeys
 import life.neurone.shared.AppServices
 import life.neurone.shared.resources.*
+import life.neurone.shared.text.installValidationText
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -35,6 +41,9 @@ object OnboardingKeys {
     const val BIPA_ACCEPTED = "np.onboarding.bipa-accepted"
     const val CONSENT_SHOWN = "np.onboarding.consent-shown"
 }
+
+/** Where a screen reports the outcome of an action (an upload, a refusal) without leaving the screen. */
+val LocalSnackbarHost = compositionLocalOf { SnackbarHostState() }
 
 /** The five top-level destinations, in tab order. */
 enum class AppTab(val label: StringResource, val icon: ImageVector) {
@@ -61,6 +70,8 @@ fun NeurOneApp(
     services: AppServices,
     tabOverrides: Map<AppTab, @Composable (Modifier) -> Unit> = emptyMap(),
 ) {
+    // The validator's messages are locale keys until their text is read (asynchronously, once).
+    LaunchedEffect(Unit) { installValidationText() }
     MaterialTheme {
         Root(services, tabOverrides)
     }
@@ -103,7 +114,9 @@ private fun Root(services: AppServices, tabOverrides: Map<AppTab, @Composable (M
 private fun MainScaffold(services: AppServices, tabOverrides: Map<AppTab, @Composable (Modifier) -> Unit>) {
     var selected by remember { mutableStateOf(AppTab.SESSION) }
 
+    val snackbar = remember { SnackbarHostState() }
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             NavigationBar {
                 AppTab.entries.forEach { tab ->
@@ -119,11 +132,14 @@ private fun MainScaffold(services: AppServices, tabOverrides: Map<AppTab, @Compo
     ) { padding ->
         val modifier = Modifier.padding(padding)
         val override = tabOverrides[selected]
-        when {
-            override != null -> override(modifier)
-            selected == AppTab.HISTORY -> HistoryScreen(services.sessionHistoryStore, modifier)
-            selected == AppTab.CONSUMABLES -> ConsumablesScreen(services, modifier)
-            else -> TabPending(modifier)
+        CompositionLocalProvider(LocalSnackbarHost provides snackbar) {
+            when {
+                override != null -> override(modifier)
+                selected == AppTab.SESSION -> SessionTab(services, modifier)
+                selected == AppTab.HISTORY -> HistoryScreen(services.sessionHistoryStore, modifier)
+                selected == AppTab.CONSUMABLES -> ConsumablesScreen(services, modifier)
+                else -> TabPending(modifier)
+            }
         }
     }
 }

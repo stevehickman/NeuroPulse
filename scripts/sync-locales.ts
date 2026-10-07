@@ -425,6 +425,11 @@ function generateAndroidXml(
   locales: Map<string, LocaleData>,
   resOut: string,
   valuesDir: (locale: string) => string = androidValuesDir,
+  /**
+   * Compose Multiplatform 1.7 has no plural resources, so its output writes each plural family as flat
+   * `<name>_one`, `<name>_other` strings (the canonical keys, lowercased) and the app picks (`pluralString`).
+   */
+  flatPlurals = false,
 ): Array<[string, string]> {
   const en = locales.get(SOURCE_LANGUAGE)!;
   const outputs: Array<[string, string]> = [];
@@ -443,6 +448,10 @@ function generateAndroidXml(
     const pluralBases = new Set<string>();
     for (const key of Object.keys(en).sort()) {
       if (isPluralSuffix(key)) {
+        if (flatPlurals) {
+          if (data[key] !== undefined) lines.push(`    <string name="${androidName(key)}">${canonicalToAndroid(data[key])}</string>`);
+          continue;
+        }
         pluralBases.add(key.replace(/_(?:ZERO|ONE|TWO|FEW|MANY|OTHER)$/, ""));
         continue;
       }
@@ -475,7 +484,7 @@ function generateComposeXml(locales: Map<string, LocaleData>, composeOut: string
     if (other) throw new Error(`Compose resources: ${other} and ${locale} would both be written to ${dir}`);
     seen.set(dir, locale);
   }
-  return generateAndroidXml(locales, composeOut, composeValuesDir);
+  return generateAndroidXml(locales, composeOut, composeValuesDir, true);
 }
 
 // --- Main ---

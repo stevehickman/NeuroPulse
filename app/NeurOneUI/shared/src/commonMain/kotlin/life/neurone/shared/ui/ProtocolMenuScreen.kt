@@ -1,4 +1,4 @@
-package life.neurone.app.ui
+package life.neurone.shared.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -38,10 +38,9 @@ import life.neurone.core.protocol.ProtocolAvailability
 import life.neurone.core.protocol.id
 import life.neurone.core.protocol.isComposite
 import life.neurone.core.protocol.name
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import life.neurone.app.R
+import org.jetbrains.compose.resources.stringResource
+import life.neurone.shared.resources.Res
+import life.neurone.shared.resources.*
 
 // Port of iOS ProtocolMenuView (app/ios/NeurOne/Views/Protocol/ProtocolMenuView.swift).
 // Lists bundled + user protocols with availability (device tier + BIPA EEG-consent gate,
@@ -121,11 +120,11 @@ fun ProtocolMenuScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TextButton(onClick = onBack) { Text(stringResource(R.string.consent_back_button)) }
-                    Text(stringResource(R.string.tab_protocols), style = MaterialTheme.typography.titleLarge)
+                    TextButton(onClick = onBack) { Text(stringResource(Res.string.consent_back_button)) }
+                    Text(stringResource(Res.string.tab_protocols), style = MaterialTheme.typography.titleLarge)
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { editor = ProtocolEditor.Compose }) { Text(stringResource(R.string.protocol_menu_compose)) }
-                    TextButton(onClick = { editor = ProtocolEditor.New }) { Text(stringResource(R.string.protocol_menu_new)) }
+                    TextButton(onClick = { editor = ProtocolEditor.Compose }) { Text(stringResource(Res.string.protocol_menu_compose)) }
+                    TextButton(onClick = { editor = ProtocolEditor.New }) { Text(stringResource(Res.string.protocol_menu_new)) }
                 }
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -203,13 +202,13 @@ private fun ProtocolRow(
             if (errorCount > 0 || warningCount > 0 || entry.isComposite) {
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (entry.isComposite) Badge(stringResource(R.string.protocol_menu_composite), Color(0xFF5E35B1))
+                    if (entry.isComposite) Badge(stringResource(Res.string.protocol_menu_composite), Color(0xFF5E35B1))
                     if (errorCount > 0) Badge(
-                        pluralStringResource(R.plurals.web_validation_error_count, errorCount, errorCount),
+                        pluralString(Res.string.web_validation_error_count_one, Res.string.web_validation_error_count_other, errorCount, errorCount),
                         Color(0xFFD32F2F),
                     )
                     if (warningCount > 0) Badge(
-                        pluralStringResource(R.plurals.web_validation_warning_count, warningCount, warningCount),
+                        pluralString(Res.string.web_validation_warning_count_one, Res.string.web_validation_warning_count_other, warningCount, warningCount),
                         Color(0xFFF9A825),
                     )
                 }
@@ -219,8 +218,8 @@ private fun ProtocolRow(
             if (onEdit != null || onDelete != null) {
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    onEdit?.let { TextButton(onClick = it) { Text(stringResource(R.string.ui_edit)) } }
-                    onDelete?.let { TextButton(onClick = it) { Text(stringResource(R.string.ui_delete), color = Color(0xFFD32F2F)) } }
+                    onEdit?.let { TextButton(onClick = it) { Text(stringResource(Res.string.ui_edit)) } }
+                    onDelete?.let { TextButton(onClick = it) { Text(stringResource(Res.string.ui_delete), color = Color(0xFFD32F2F)) } }
                 }
             }
         }
@@ -244,15 +243,15 @@ private fun Badge(text: String, color: Color) {
 /** UI-side mapping of ProtocolAvailability → display reason (parity with iOS unavailableReason). */
 @Composable
 private fun unavailableReason(availability: ProtocolAvailability, eegUnavailableMessage: String): String? {
-    val context = LocalContext.current
     return when (availability) {
         is ProtocolAvailability.Available -> null
         is ProtocolAvailability.EegConsentRequired -> eegUnavailableMessage
         is ProtocolAvailability.Unavailable ->
-            if (availability.missingModalities.isEmpty()) stringResource(R.string.protocol_avail_no_device)
-            else stringResource(
-                R.string.protocol_avail_requires,
-                availability.missingModalities.joinToString(", ") { context.getString(modalityNameRes(it)) },
-            )
+            if (availability.missingModalities.isEmpty()) stringResource(Res.string.protocol_avail_no_device)
+            else {
+                // `map` is inline, so stringResource may be called inside it; joinToString's transform is not.
+                val names = availability.missingModalities.map { stringResource(modalityNameRes(it)) }
+                stringResource(Res.string.protocol_avail_requires, names.joinToString(", "))
+            }
     }
 }

@@ -53,16 +53,21 @@ root, the hub link (`BleCentral`, `NeurOneGattManager`), and every string.
 on a host with no override the tab shows "not available in this version yet" (`TabPending`) so the gap is
 visible rather than silent. They move into `:shared` one at a time, deleting the platform copy as they go:
 
-- Session and protocol menu (`SessionScreen`, `ProtocolMenuScreen`, caution dialog, cervical alerts)
 - Privacy tab (`ConsentDashboardScreen`) and Settings (`SettingsScreen`, OTA, setup wizard, limits, profiles)
-- Protocol editors (script, form, composer, modality) and the research-suggestion portal
+- The research-suggestion portal, the limits and profiles editors, OTA and the setup wizard
 
 **Not yet wired on every target** (open items in `docs/status/pending-decisions.md`):
 
 - `OI-UI-KMP-01` — the NPPS core binding. Done for the browser (WebAssembly, loaded by `:web` before it
-  composes; parity-tested under Node) and written for Apple (cinterop over `common/npps-ffi`; its parity run needs
-  macOS). Still open: a string resolver for the validator's locale keys on non-Android hosts, which the Session
-  screens need before they can move.
+  composes; parity-tested under Node; the protocol menu lists the library in a real browser) and written for Apple
+  (cinterop over `common/npps-ffi`; its parity run needs macOS). The validator's locale keys resolve through
+  `installValidationText` on every host.
+- `OI-UI-KMP-07` — protocol signing. The Session tab uploads through `PlatformServices.protocolSigner`: Android
+  and desktop sign (an ephemeral Ed25519 key, `OI-AND-SIGN-01`); iOS and the browser have no signer, so an upload
+  there fails with a message and sends nothing (the hub would refuse an unsigned protocol).
+- `OI-UI-KMP-08` — plurals. Compose Multiplatform 1.7 has no plural resources, so `sync-locales --compose-res`
+  writes each family as flat `_one` / `_other` strings and `pluralString` picks one. That is right while every
+  locale's text is English; real Arabic or Russian plural forms need a category rule there.
 - `OI-UI-KMP-02` — the desktop app needs the NPPS native library packaged per OS (`.dylib`, `.dll`).
 - `OI-UI-KMP-03` — Bluetooth: Android is wired; iOS (CoreBluetooth), the browser (Web Bluetooth) and desktop
   use `UnavailableBleCentral`, so the hub does not connect there.

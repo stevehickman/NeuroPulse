@@ -3,6 +3,8 @@ package life.neurone.desktop
 import androidx.compose.runtime.Composable
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.session.JvmProtocolSigner
+import life.neurone.core.session.ProtocolSigner
 import life.neurone.shared.NoOpAnalyticsBackend
 import life.neurone.shared.PlatformServices
 import life.neurone.shared.ble.BleCentral
@@ -19,6 +21,7 @@ import java.util.Properties
 class DesktopPlatformServices(
     override val keyValueStore: KeyValueStore = FileKeyValueStore(appDataDirectory().resolve("np-app.properties")),
     override val bleCentral: BleCentral = UnavailableBleCentral(),
+    override val protocolSigner: ProtocolSigner = JvmProtocolSigner(),
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
 ) : PlatformServices {
 

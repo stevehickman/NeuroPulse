@@ -1,6 +1,6 @@
-package life.neurone.app.ui
+package life.neurone.shared.ui
 
-import androidx.annotation.StringRes
+import org.jetbrains.compose.resources.StringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,12 +18,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.selection.toggleable
-import life.neurone.app.R
+import life.neurone.shared.resources.Res
+import life.neurone.shared.resources.*
 import life.neurone.core.protocol.NPZoneCaution
 import kotlin.math.roundToLong
 
@@ -51,10 +52,10 @@ fun CautionAcknowledgementDialog(
     AlertDialog(
         // Tapping outside is a cancel, not an acknowledgement.
         onDismissRequest = onCancel,
-        title = { Text(stringResource(R.string.zone_ack_title)) },
+        title = { Text(stringResource(Res.string.zone_ack_title)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.zone_ack_intro, protocolName), style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(Res.string.zone_ack_intro, protocolName), style = MaterialTheme.typography.bodyMedium)
                 cautions.forEach { c ->
                     val on = c.ackId in ticked
                     Row(
@@ -69,38 +70,37 @@ fun CautionAcknowledgementDialog(
                         Column(Modifier.padding(start = 12.dp)) {
                             val modality = c.modality?.let { stringResource(modalityNameRes(it)) } ?: ""
                             Text(
-                                stringResource(R.string.zone_ack_item_heading, modality, stringResource(axisNameRes(c.axisNameKey))),
+                                stringResource(Res.string.zone_ack_item_heading, modality, stringResource(axisNameRes(c.axisNameKey))),
                                 fontWeight = FontWeight.SemiBold,
                             )
-                            Text(stringResource(R.string.zone_ack_item_dose, shown(c.value), c.unit, shown(c.caution)))
-                            Text(stringResource(R.string.zone_ack_check_label), style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(Res.string.zone_ack_item_dose, shown(c.value), c.unit, shown(c.caution)))
+                            Text(stringResource(Res.string.zone_ack_check_label), style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
-                Text(stringResource(R.string.zone_ack_progress, ticked.size.toString(), cautions.size.toString()),
+                Text(stringResource(Res.string.zone_ack_progress, ticked.size.toString(), cautions.size.toString()),
                     style = MaterialTheme.typography.labelMedium)
-                Text(stringResource(R.string.zone_ack_safety_note), style = MaterialTheme.typography.bodySmall)
-                Text(stringResource(R.string.zone_ack_reask_note), style = MaterialTheme.typography.bodySmall)
-                Text(stringResource(R.string.zone_ack_local_note), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(Res.string.zone_ack_safety_note), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(Res.string.zone_ack_reask_note), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(Res.string.zone_ack_local_note), style = MaterialTheme.typography.bodySmall)
             }
         },
         confirmButton = {
             TextButton(enabled = all, onClick = { onAcknowledge(cautions.map { it.ackId }) }) {
-                Text(stringResource(R.string.zone_ack_confirm))
+                Text(stringResource(Res.string.zone_ack_confirm))
             }
         },
-        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.zone_ack_cancel)) } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(Res.string.zone_ack_cancel)) } },
     )
 }
 
 /** The zone model's axis names (`ZONE_AXIS_…`, from the core). */
-@StringRes
-internal fun axisNameRes(key: String): Int = when (key) {
-    "ZONE_AXIS_PHASE_CHARGE_DENSITY" -> R.string.zone_axis_phase_charge_density
-    "ZONE_AXIS_SHANNON_K" -> R.string.zone_axis_shannon_k
-    "ZONE_AXIS_RMS_CURRENT_DENSITY" -> R.string.zone_axis_rms_current_density
-    "ZONE_AXIS_MEAN_CURRENT_DENSITY" -> R.string.zone_axis_mean_current_density
-    "ZONE_AXIS_SESSION_CHARGE_DENSITY" -> R.string.zone_axis_session_charge_density
+internal fun axisNameRes(key: String): StringResource = when (key) {
+    "ZONE_AXIS_PHASE_CHARGE_DENSITY" -> Res.string.zone_axis_phase_charge_density
+    "ZONE_AXIS_SHANNON_K" -> Res.string.zone_axis_shannon_k
+    "ZONE_AXIS_RMS_CURRENT_DENSITY" -> Res.string.zone_axis_rms_current_density
+    "ZONE_AXIS_MEAN_CURRENT_DENSITY" -> Res.string.zone_axis_mean_current_density
+    "ZONE_AXIS_SESSION_CHARGE_DENSITY" -> Res.string.zone_axis_session_charge_density
     else -> throw IllegalArgumentException(key)
 }
 

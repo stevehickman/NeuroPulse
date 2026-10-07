@@ -4,7 +4,9 @@ import androidx.compose.runtime.Composable
 import kotlinx.browser.localStorage
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.session.ProtocolSigner
 import life.neurone.shared.NoOpAnalyticsBackend
+import life.neurone.shared.UnsupportedProtocolSigner
 import life.neurone.shared.PlatformServices
 import life.neurone.shared.ble.BleCentral
 import life.neurone.shared.ble.UnavailableBleCentral
@@ -19,6 +21,7 @@ import life.neurone.shared.ble.UnavailableBleCentral
 class WebPlatformServices(
     override val keyValueStore: KeyValueStore = LocalStorageKeyValueStore(),
     override val bleCentral: BleCentral = UnavailableBleCentral(),
+    override val protocolSigner: ProtocolSigner = UnsupportedProtocolSigner(),
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
 ) : PlatformServices {
 
