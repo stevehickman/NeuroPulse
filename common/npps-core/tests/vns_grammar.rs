@@ -104,3 +104,22 @@ fn the_validator_reports_each_of_them_before_signing() {
     let clean = issues(&format!("{base}        pulse_width_us: 300\n        side: left"), "    sessions_per_week: 3\n    course_weeks: 6");
     assert!(!clean.iter().any(|i| i["severity"] == "error"), "an in-range, deliverable block is clean: {clean:?}");
 }
+
+#[test]
+fn a_titrated_basis_is_a_band_with_a_cap_and_is_refused_until_it_can_be_calibrated() {
+    let block = "        frequency: 20Hz\n        intensity: 2.0mA\n        intensity_basis: titrated";
+    let p = parse(block, "");
+    assert_eq!(p["modalities"][0]["params"]["intensityBasis"], "titrated");
+    assert!(p["modalities"][0]["params"].get("intensityPercentOfThreshold").is_none(), "titrated carries no percentage");
+    let text = serialize_json(&json!({ "items": [{ "kind": "single", "protocol": p.clone() }] }).to_string()).unwrap();
+    let again: Value = serde_json::from_str(&parse_json(&text).unwrap()).unwrap();
+    assert_eq!(again["entries"][0]["protocol"]["modalities"], p["modalities"]);
+    let found = issues(block, "");
+    assert!(has(&found, "VALIDATE_MSG_VNS_HRV_NOT_DELIVERABLE"), "not deliverable yet");
+    assert!(!has(&found, "VALIDATE_MSG_VNS_HRV_BASIS_NEEDS_PERCENT"), "and it needs no percentage");
+    let e = compile(&p).expect_err("refused");
+    assert!(e.contains("sensory-threshold calibration"), "{e:?}");
+    // The cap is held to the hardware ceiling like any intensity.
+    assert!(issues("        frequency: 20Hz\n        intensity: 3.0mA\n        intensity_basis: titrated", "")
+        .iter().any(|i| i["parameterKey"] == "intensityMilliamps" && i["severity"] == "error"));
+}

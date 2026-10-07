@@ -639,7 +639,7 @@ fn encode_vns(p: &Value) -> R<Encoded> {
     let basis = p["intensityBasis"].as_str().unwrap_or("absolute");
     if basis != "absolute" {
         return Err(format!(
-            "VNS: intensity basis '{basis}' needs a sensory-threshold calibration the app does not have yet, so the protocol is refused, not run at the absolute amplitude. (OI-NPPS-VNS-01)"
+            "VNS: intensity basis '{basis}' needs a sensory-threshold calibration the app does not have yet, so the protocol is refused, not run at the cap amplitude as if it were absolute. (OI-NPPS-VNS-01)"
         ));
     }
     let side = match p["side"].as_str().unwrap_or("left") {

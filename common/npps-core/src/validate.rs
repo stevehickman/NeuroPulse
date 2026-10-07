@@ -169,12 +169,13 @@ fn vns_study_parameters(p: &Value, out: &mut Issues) {
         out.push(Error, k, "burstSeconds", "VALIDATE_PARAM_BURST", s(format!("{}s", num_string(b))), s("—"), "hardware", msg("VALIDATE_MSG_VNS_HRV_BURST_NEEDS_TRIGGER", vec![]));
     }
     let basis = p["intensityBasis"].as_str().unwrap_or("absolute");
-    if !matches!(basis, "absolute" | "perceptual_threshold" | "pain_threshold") {
-        enum_error(out, "intensityBasis", "VALIDATE_PARAM_INTENSITY_BASIS", basis, &["absolute", "perceptual_threshold", "pain_threshold"]);
+    if !matches!(basis, "absolute" | "perceptual_threshold" | "pain_threshold" | "titrated") {
+        enum_error(out, "intensityBasis", "VALIDATE_PARAM_INTENSITY_BASIS", basis, &["absolute", "perceptual_threshold", "pain_threshold", "titrated"]);
     } else if basis != "absolute" {
         out.push(Error, k, "intensityBasis", "VALIDATE_PARAM_INTENSITY_BASIS", s(basis), s("absolute"), "hardware",
             msg("VALIDATE_MSG_VNS_HRV_NOT_DELIVERABLE", vec![msg("VALIDATE_PARAM_INTENSITY_BASIS", vec![]), s(basis)]));
-        if !p["intensityPercentOfThreshold"].as_f64().map_or(false, |x| x > 0.0) {
+        // `titrated` takes no percentage: its band is the thresholds themselves. The other two state one.
+        if basis != "titrated" && !p["intensityPercentOfThreshold"].as_f64().map_or(false, |x| x > 0.0) {
             out.push(Error, k, "intensityPercentOfThreshold", "VALIDATE_PARAM_INTENSITY", s("—"), s("> 0 %"), "hardware",
                 msg("VALIDATE_MSG_VNS_HRV_BASIS_NEEDS_PERCENT", vec![s(basis)]));
         }
