@@ -621,21 +621,63 @@ fn encode_tdcs(p: &Value) -> R<Encoded> {
 }
 
 fn encode_vns(p: &Value) -> R<Encoded> {
+    use crate::constants::hardware_limits as hw;
     let freq_mhz = scaled(p, "frequencyHz", "VNS", 1000.0, 25000.0, "Hz")?;
     let amp_ua = scaled(p, "intensityMilliamps", "VNS", 1000.0, 2000.0, "mA")?;
+    // What the descriptor cannot yet deliver is refused, never run as something else: a movement-triggered burst run
+    // continuously, or a threshold-relative amplitude run as an absolute one, would be a different and stronger stimulus
+    // than the one authored (OI-NPPS-VNS-01).
+    let trigger = p["trigger"].as_str().unwrap_or("continuous");
+    if trigger != "continuous" {
+        return Err(format!(
+            "VNS: trigger '{trigger}' is not delivered yet: the hub has no movement-trigger input, so the protocol is refused, not run continuously. (OI-NPPS-VNS-01)"
+        ));
+    }
+    if p["burstSeconds"].as_f64().is_some() {
+        return Err("VNS: burst_seconds needs trigger: movement_cue; a continuous block has no bursts. The protocol is refused, not reshaped.".into());
+    }
+    let basis = p["intensityBasis"].as_str().unwrap_or("absolute");
+    if basis != "absolute" {
+        return Err(format!(
+            "VNS: intensity basis '{basis}' needs a sensory-threshold calibration the app does not have yet, so the protocol is refused, not run at the absolute amplitude. (OI-NPPS-VNS-01)"
+        ));
+    }
+    let side = match p["side"].as_str().unwrap_or("left") {
+        "left" => 0,
+        "right" => 1,
+        "bilateral" => 2,
+        other => return Err(format!("VNS: side '{other}' is not left, right or bilateral.")),
+    };
+    // 0 on the wire is the firmware's default (250 µs); an authored width travels as written, inside the studied range.
+    let pulse_width_us = match p.get("pulseWidthUs").filter(|v| !v.is_null()) {
+        None => 0.0,
+        Some(v) => {
+            let w = v.as_f64().filter(|w| w.is_finite()).ok_or("VNS: pulseWidthUs must be a number.")?;
+            if w < hw::VNS_MIN_PULSE_WIDTH_US || w > hw::VNS_MAX_PULSE_WIDTH_US {
+                return Err(format!(
+                    "VNS: pulseWidthUs {} µs is outside the authored range {}–{} µs. The protocol is refused, not reduced to fit.",
+                    num_string(w),
+                    num_string(hw::VNS_MIN_PULSE_WIDTH_US),
+                    num_string(hw::VNS_MAX_PULSE_WIDTH_US)
+                ));
+            }
+            js_round(w)
+        }
+    };
     let proto = match s(p, "hrvProtocol") {
         "combined_pbm" => 1,
         "tavns_sync" => 2,
         "eeg_biofeedback" => 3,
         _ => 0,
     };
-    let mut buf = vec![0u8; 9];
+    let mut buf = vec![0u8; 10];
+    buf[0] = side;
     put16(&mut buf, 1, freq_mhz);
     put16(&mut buf, 3, amp_ua);
-    buf[5] = 0;
-    buf[6] = 1;
+    put16(&mut buf, 5, pulse_width_us);
     buf[7] = 1;
-    buf[8] = proto;
+    buf[8] = 1;
+    buf[9] = proto;
     Ok(slot(MOD_VNS_HRV, SLOT_VNS_HRV, buf))
 }
 

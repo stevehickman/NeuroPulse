@@ -482,7 +482,7 @@ float np_mod_vns_hal_impedance_check(void)
 }
 
 np_hub_status_t np_mod_vns_hal_stim_set(uint8_t side, uint16_t freq_mhz,
-                                        uint16_t amp_ua, uint8_t pw_us)
+                                        uint16_t amp_ua, uint16_t pw_us)
 {
     (void)side;
     (void)freq_mhz;

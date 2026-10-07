@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 18
-**Date:** 2026-10-04  
+**Revision:** 19
+**Date:** 2026-10-07  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -14,6 +14,8 @@
 **IEC 62304 Class:** —
 
 ---
+
+> **Rev 19 (2026-10-07) — `vns_hrv` states what the taVNS studies state (`OI-NPPS-VNS-01`).** The block gains six optional fields, `side`, `pulse_width_us`, `trigger`, `burst_seconds`, `intensity_basis` and `intensity_percent_of_threshold`, and a protocol gains `sessions_per_week` and `course_weeks` (§4.6, §5). They are what the shipped taVNS stroke protocol's own sources vary and the grammar could not say: pulse width (100–500 µs across the studies, and 300 µs in the 30 Hz stroke trial), a movement-triggered 0.5 s burst, which ear, an amplitude set from a sensory threshold, and the course the sessions run over. **All are optional and absent from every block that does not author them,** so no existing file, golden or serializer output changes. **The wire changes by one byte:** `np_mod_vns_hrv_params_t.pulse_width_us` is now 16 bits (the 8-bit field topped out at 255 µs), so the VNS parameter block is 10 bytes (`NP-FW-HUB-001` §4.6, firmware, and the compiler move together and the wire-format gate passes). The safety MCU's per-phase charge declaration already read this field, so an authored width is what it divides by. **Refused, never run as something else:** `trigger: movement_cue` (the hub has no movement-trigger input) and any `intensity_basis` other than `absolute` (the app has no sensory-threshold calibration) parse, round-trip and validate as errors, and the compiler refuses them; running the first continuously or the second at the absolute amplitude would be a stronger stimulus than the one authored. The authored pulse-width range 50–500 µs is **assumed** from what the studies span, not derived (register row `UC-070`). The formal grammar (`npps.peggy`) needs no change: modality and protocol fields are generic `Field`s there, as in Rev 5. **Not done:** iOS, Android and Windows models and editors, and the web editor, do not yet expose the new fields (a file that carries them parses and compiles correctly through the shared core; a model built without them writes none, so nothing is lost, and nothing is shown); those platforms are unbuilt in this environment.
 
 > **Rev 18 (2026-10-04) — intensity is absolute, and every wavelength is its own block (principal direction).** Two rules, one change. **(i) A PBM irradiance and an audio level are stated in absolute units, never as a percentage.** `intensity: 80%` on `pbm_transcranial` / `pbm_intranasal` and `volume: 70%` on `audio_entrainment` are refused; the fields are `irradiance: 300mW_cm2` (peak irradiance at the scalp in mW/cm²) and `volume: 72dB` (sound pressure level at the ear in dB SPL), with canonical names `irradiance_mw_cm2` and `volume_db` (§4.1b, §4.7). A percentage is a fraction of a baseline, and the baseline belongs to the emitter, the driver and the tile: when any of them changes, the same "80%" is a different stimulus and nothing in the file says so. An absolute figure keeps its meaning. The conversion to a drive register is the compiler's, and it lives in one table (`app/web/src/lib/pbmDrive.ts`); when the hardware changes, that table changes and no protocol file does. **A request the hardware cannot reach is refused, never clamped** (CLAUDE.md §3). **(ii) The combined channel names `"660_808nm"` and `"660_808_1064nm"` are retired.** They welded two independent emitters into one block, so a protocol could not use one without the other. Each wavelength is a block with its own irradiance (§4.1a); `"1064nm"` was always a single wavelength and is read as one. `pbm_intranasal` gains the same `wavelength` field. **Grammar:** `npps.peggy` Rev 6 adds the `dB` unit suffix and makes these checks itself (NP-NPPS-GRAM-001 Rev 6), so a percentage or a combined name fails in the grammar, not only in a runtime. **Required, not defaulted:** `wavelength` and an irradiance on every PBM block, and a volume on every audio block: a defaulted dose is a stimulus nobody authored. **Limits:** `max_intensity` on the PBM and audio sub-blocks is retired for `max_irradiance_mw_cm2` and `max_volume_db`, and is refused, not skipped (§7). **Shipped library:** every PBM and audio block is rewritten. Irradiances are the ones the defining documents state (`docs/pbm_neuro_protocols.md`), where they state one; the rest are conversions of the old percentage and are marked as such (register rows UC-064 to UC-066). Three protocols are now refused rather than run degraded: Memory Boost and the 1064 nm Alzheimer's protocol (their source irradiance exceeds the 28 mW/cm² the 1064 nm channel delivers) and the pediatric autism protocol (its source wavelength, 850 nm, is outside the default 808 nm window). **Not changed:** TMS `intensity_percent_mt` is a percentage of a measured per-patient motor threshold, which is a stated baseline, and is left alone; `intensity_scale` on a composite layer multiplies the author's own absolute values and is left alone. **Implemented on all four runtimes and in the grammar.** Android `:core` is built and verified (316 tests, including the shared fixtures). The iOS, Android `:app` and Windows changes are **unbuilt**: this environment has no Xcode, no Android SDK and no `dotnet` (`OI-NPPS-ABS-01`). The mobile and Windows session wires are placeholder JSON (`OI-AND-WIRE-01`); they now carry the absolute values (`irradianceMWcm2`, `volumeDb`) and do no register conversion, so the per-channel table in `pbmDrive.ts` is the web compiler's alone.
 >
@@ -330,6 +332,8 @@ protocol "Gamma Focus" {
 | `tags` | string array | `[]` | Freeform category labels. |
 | `duration` | duration | `20m` | Fixed session length. |
 | `interval_count` | int | — | Alternative to `duration`: session runs for N modality intervals. |
+| `sessions_per_week` | whole number | absent | *(Rev 19)* How many sessions a week the course runs, as the protocol's source states it. Metadata: it never reaches the hub. A value that is not a whole number of 1 or more is a validation error. |
+| `course_weeks` | whole number | absent | *(Rev 19)* How many weeks the course runs. Metadata, as `sessions_per_week`. |
 | `conditions` | string array | `[]` | Clinical conditions this protocol targets. Each entry MUST match the `name` of a loaded `condition` block (§9). Used for filtering/search and to surface condition definitions to the user. |
 | `references` | reference array | `[]` | Links to documents that define the protocol or show what it is good for (evidence, applicability, expected results). Each entry is either a bare URL/path string or a `[label, url]` pair (§2, Reference arrays). Openable in an external browser. |
 
@@ -680,6 +684,12 @@ Auricular vagus nerve stimulation with HRV biofeedback.
 | `frequency` | `frequency_hz` | number | 1–25 |
 | `hrv_protocol` | `hrv_protocol` | string | `standalone` `tavns_sync` `eeg_biofeedback` `pbm_combined` |
 | `breathing_rate` | `resonance_breathing_rate` | number | 4.0–7.0 (breaths/min) |
+| `side` | `side` | string (optional) | `left` (the default when absent) `right` `bilateral` |
+| `pulse_width` | `pulse_width_us` | number (optional) | 50–500 µs (Rev 19, assumed range, `UC-070`). Absent means the firmware's 250 µs. Write the number only: `pulse_width_us: 300` |
+| `trigger` | `trigger` | string (optional) | `continuous` (the default) `movement_cue`. **`movement_cue` is refused by the validator and the compiler** until the hub has a trigger input |
+| `burst` | `burst_seconds` | number (optional) | Seconds of stimulation per trigger, e.g. `burst: 0.5s`. Needs `trigger: movement_cue`; an error with `continuous` |
+| `intensity_basis` | `intensity_basis` | string (optional) | `absolute` (the default) `perceptual_threshold` `pain_threshold`. **Anything but `absolute` is refused** until the app has a sensory-threshold calibration |
+| `intensity_percent_of_threshold` | `intensity_percent_of_threshold` | number (optional) | Percent of the threshold named by `intensity_basis`, e.g. `200%`. Required when the basis is not `absolute` |
 
 ```
 vns_hrv {
@@ -689,6 +699,21 @@ vns_hrv {
     breathing_rate: 6.0
 }
 ```
+
+**Study parameters (Rev 19).** A paired-VNS stroke study delivers short bursts on a movement cue at a stated pulse width, not a continuous train. The optional fields above let a file say so; a block that omits them means what it always meant.
+
+```
+vns_hrv {
+    frequency: 30Hz
+    intensity: 0.8mA
+    side: left
+    pulse_width_us: 300
+    trigger: movement_cue     # refused until the hub can read a cue (OI-NPPS-VNS-01)
+    burst: 0.5s
+}
+```
+
+Limits that bear on them: the per-phase charge ceiling (40 µC/cm²) divides by the **authored** pulse width, as the safety MCU does, and the 1–25 Hz range and 2 mA ceiling are unchanged (`OI-VNSCLIP-08` asks what the 25 Hz is for).
 
 **HRV protocol modes:**
 

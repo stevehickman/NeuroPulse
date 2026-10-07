@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 21
-**Date:** 2026-10-04
+**Revision:** 22
+**Date:** 2026-10-07
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
 **Author:** NeurOne Firmware Engineering
@@ -16,6 +16,13 @@
 **Parent Document:** `NP-SW-001`
 
 ---
+
+> **Rev 22 (2026-10-07) — the VNS parameter block is 10 bytes (§4.6; `NP-NPPS-REF-001` Rev 19, `OI-NPPS-VNS-01`).**
+> `np_mod_vns_hrv_params_t.pulse_width_us` is 16 bits, widened from 8 so a 300 or 500 µs pulse can be written (the 8-bit field
+> capped it at 255 µs). Every later field moves one byte; the §4.6 row, `np_hub_types.h`, the platform HAL signature and the
+> compiler change together and `check-hub-wire-format.ts` passes. The safety MCU's per-phase charge declaration
+> (`np_chan_decl.c`) already read this field, so an authored width is what it divides by; `np_chan_decl_tests` gains the 300 and
+> 500 µs cases. **Version skew:** the descriptor `VERSION` is not bumped (as for the earlier layout changes; no unit is in the field). A 9-byte block from an older app is refused by `np_mod_vns_control` (`len < sizeof`), so it fails closed. A 10-byte block sent to older firmware would be misread: the 16-bit width's high byte lands on `ppg_enable` and every later field shifts. Flash the hub and update the app together until a version check exists.
 
 > **Rev 19 (2026-09-27) — the HRV session record reaches UHDR (§6.1, §8.4; `NP-FW-HRV-001` Rev 3,
 > `OI-HRV-03`).**
@@ -797,7 +804,7 @@ the stop command. Each modality has exactly one target form.
 | `0x04` | `NP_MOD_EEG` | `np_mod_eeg_params_t` | 5 | `NP_HUB_SLOT_EEG` (5) |
 | `0x05` | `NP_MOD_BES_TACS` | `np_mod_bes_tacs_params_t` | 7 | `NP_HUB_SLOT_BES_TACS` (17) |
 | `0x06` | `NP_MOD_TDCS` | `np_mod_tdcs_params_t` | 8 | `NP_HUB_SLOT_TDCS` (18) |
-| `0x07` | `NP_MOD_VNS_HRV` | `np_mod_vns_hrv_params_t` | 9 | `NP_HUB_SLOT_VNS_HRV` (8) |
+| `0x07` | `NP_MOD_VNS_HRV` | `np_mod_vns_hrv_params_t` | 10 | `NP_HUB_SLOT_VNS_HRV` (8) |
 | `0x08` | `NP_MOD_AUDIO` | `np_mod_audio_params_t` | 8 | `NP_HUB_SLOT_AUDIO` (6) |
 | `0x09` | `NP_MOD_VISUAL` | `np_mod_visual_params_t` | 9 | `NP_HUB_SLOT_VISUAL` (7) |
 | `0x0A` | `NP_MOD_CVNS` | `np_mod_cvns_params_t` | 10 | `NP_HUB_SLOT_CVNS` (10) |

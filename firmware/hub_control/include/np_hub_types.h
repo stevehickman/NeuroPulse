@@ -310,7 +310,10 @@ typedef struct __attribute__((packed)) {
     uint8_t  side;            /* 0=left, 1=right, 2=bilateral */
     uint16_t freq_mhz;        /* stim freq mHz; range 1000–25000 (1–25Hz) */
     uint16_t amplitude_ua;    /* µA; firmware cap ≤ 2000 */
-    uint8_t  pulse_width_us;  /* biphasic pulse width µs; 0=default 250µs */
+    uint16_t pulse_width_us;  /* biphasic pulse width µs; 0=default 250µs. Authored range 50–500 µs
+                               * (VNS_MIN/MAX_PULSE_WIDTH_US); widened from 8 bits so the 300 and 500 µs
+                               * widths the taVNS studies use can be written. The safety MCU's per-phase
+                               * charge check declares this value (np_chan_decl.c). */
     uint8_t  ppg_enable;      /* 1=enable PPG HRV monitoring (808-830nm PPG) */
     uint8_t  eeg_ref_enable;  /* 1=route A1/A2 clip pads to EEG reference */
     uint8_t  hrv_proto;       /* 0=VNS only, 1=VNS+HRV, 2=RSA sync, 3=dual biofb */

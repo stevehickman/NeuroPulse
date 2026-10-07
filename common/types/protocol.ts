@@ -230,6 +230,16 @@ export interface VNSHRVParams {
   intensityMilliamps: number;
   hrvProtocol: 'standalone' | 'tavns_sync' | 'eeg_biofeedback' | 'combined_pbm';
   resonanceBreathingRate: number;
+  // The parameters the taVNS studies state, all optional and absent from a block that does not author them
+  // (NP-NPPS-REF-001 §4.6). `side` defaults to the left ear. `pulseWidthUs` absent means the firmware's 250 µs.
+  // `trigger: 'movement_cue'` (with `burstSeconds`) and a threshold-relative `intensityBasis` parse and validate,
+  // but the compiler refuses them until the hub has a trigger input and the app a calibration step (OI-NPPS-VNS-01).
+  side?: 'left' | 'right' | 'bilateral';
+  pulseWidthUs?: number;
+  trigger?: 'continuous' | 'movement_cue';
+  burstSeconds?: number;
+  intensityBasis?: 'absolute' | 'perceptual_threshold' | 'pain_threshold';
+  intensityPercentOfThreshold?: number;
 }
 
 export interface AudioEntrainmentParams {
@@ -468,6 +478,10 @@ export interface NPProtocolDefinition {
   // documents describing the protocol / its evidence (openable in a browser).
   conditions?: string[];
   references?: NPProtocolReference[];
+  // The course the protocol is delivered over, as the studies state it (`sessions_per_week`, `course_weeks`).
+  // Metadata: neither reaches the hub.
+  sessionsPerWeek?: number;
+  courseWeeks?: number;
 }
 
 // ─── Reference links ───────────────────────────────────────────────────────────
