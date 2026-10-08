@@ -43,6 +43,10 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
     val cervicalFaultStatus by gatt.cervicalFaultStatus.collectAsState()
     val unreadCervicalFaults by gatt.unacknowledgedCervicalFaults.collectAsState()
     val cardiacWarningAcknowledged by gatt.cardiacWarningAcknowledged.collectAsState()
+    val pairingRequired by gatt.pairingRequired.collectAsState()
+    // canForgetHub reads storage, so re-read it after a forget.
+    var hubForgotten by remember { mutableStateOf(0) }
+    val canForgetHub = hubForgotten >= 0 && gatt.canForgetHub
 
     // A cervical protocol held back until the wearer confirms the selected profile is theirs.
     var awaitingDifferentPerson by remember { mutableStateOf<NPProtocolEntry.Single?>(null) }
@@ -131,6 +135,8 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
     } else {
         SessionScreen(
             connectionState = connectionState,
+            pairingRequired = pairingRequired,
+            onForgetHub = if (canForgetHub) ({ gatt.forgetHub(); hubForgotten++ }) else null,
             session = session,
             onConnect = requestConnect,
             onChooseProtocol = { showMenu = true },

@@ -44,4 +44,10 @@ interface BleCentral {
      * runtime permission, turned Bluetooth on). A central with nothing to re-read ignores it.
      */
     fun refresh() {}
+
+    /** True when this central keeps a remembered hub that [forgetHub] would clear. */
+    val canForgetHub: Boolean get() = false
+
+    /** Clears the remembered hub, so the next one found is taken at once. A central that remembers none ignores it. */
+    fun forgetHub() {}
 }

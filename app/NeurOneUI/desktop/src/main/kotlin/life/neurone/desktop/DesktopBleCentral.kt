@@ -37,8 +37,10 @@ internal class DesktopBleCentral(
     @Volatile private var held: String? = null
     @Volatile private var heldDeadline = 0L
 
+    override val canForgetHub: Boolean get() = identity?.getString(HUB_KEY) != null
+
     /** Forgets the remembered hub, so the next one found is taken at once. */
-    fun forgetHub() {
+    override fun forgetHub() {
         identity?.remove(HUB_KEY)
         held = null
     }

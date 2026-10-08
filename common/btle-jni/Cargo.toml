@@ -10,7 +10,7 @@ name = "neurone_btle_jni"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-btleplug = "0.12"
+btleplug = "0.13.4"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "macros", "time"] }
 futures = "0.3"
 uuid = "1"

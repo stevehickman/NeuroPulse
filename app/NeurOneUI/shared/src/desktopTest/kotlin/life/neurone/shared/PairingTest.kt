@@ -8,6 +8,7 @@ import life.neurone.core.common.UUID
 import life.neurone.shared.ble.AdapterState
 import life.neurone.shared.ble.BleCentral
 import life.neurone.shared.ble.BleCentralListener
+import life.neurone.shared.ble.ConnectionState
 import life.neurone.core.protocol.GattUuidStrings
 import life.neurone.shared.ble.NeurOneGattManager
 import kotlin.test.Test
@@ -21,11 +22,13 @@ class PairingTest {
     private class FakeCentral : BleCentral {
         override val adapterState = AdapterState.ON
         val reads = mutableListOf<UUID>()
+        val calls = mutableListOf<String>()
+        override fun forgetHub() { calls += "forget" }
         override fun setListener(listener: BleCentralListener) {}
         override fun startScan(serviceUuid: UUID) {}
         override fun stopScan() {}
         override fun connect(deviceId: String) {}
-        override fun disconnect() {}
+        override fun disconnect() { calls += "disconnect" }
         override fun discoverCharacteristics(serviceUuid: UUID, uuids: List<UUID>) {}
         override fun enableNotifications(uuid: UUID) {}
         override fun read(uuid: UUID) { reads += uuid }
@@ -64,5 +67,15 @@ class PairingTest {
         manager.onCharacteristicReadFailed(serial)
         manager.onDisconnected("hub")
         assertFalse(manager.pairingRequired.value)
+    }
+
+    @Test fun forgetting_the_hub_disconnects_clears_it_and_scans_again() = runTest {
+        val central = FakeCentral()
+        val manager = NeurOneGattManager(central, TestScope(testScheduler))
+        manager.onDeviceFound("hub")
+        manager.onConnected("hub")
+        manager.forgetHub()
+        assertEquals(listOf("disconnect", "forget"), central.calls.take(2))
+        assertEquals(ConnectionState.SCANNING, manager.connectionState.value)
     }
 }

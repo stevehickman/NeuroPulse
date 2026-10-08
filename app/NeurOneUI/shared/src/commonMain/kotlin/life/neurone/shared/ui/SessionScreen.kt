@@ -74,6 +74,10 @@ fun SessionScreen(
     onAcknowledgeCardiacWarning: () -> Unit = {},
     /** Sends the re-enable confirmation; false when the hub is not awaiting one. */
     onConfirmCervicalResume: () -> Boolean = { false },
+    /** The hub is connected but refuses its encrypted serial read: it is not paired in the operating system. */
+    pairingRequired: Boolean = false,
+    /** Null when the platform remembers no hub to forget. */
+    onForgetHub: (() -> Unit)? = null,
 ) {
     var showStopConfirm by remember { mutableStateOf(false) }
     val isRunning = session.status == SessionStatus.RUNNING
@@ -91,6 +95,10 @@ fun SessionScreen(
         Spacer(Modifier.height(16.dp))
 
         if (connectionState == ConnectionState.CONNECTED) {
+            if (pairingRequired) {
+                PairingRequiredCard()
+                Spacer(Modifier.height(16.dp))
+            }
             SessionStatusCard(session.status)
             Spacer(Modifier.height(16.dp))
 
@@ -131,6 +139,12 @@ fun SessionScreen(
                 onClick = onChooseProtocol,
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(Res.string.session_browse_protocols)) }
+        }
+        if (onForgetHub != null) {
+            Spacer(Modifier.height(8.dp))
+            TextButton(onClick = onForgetHub, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(Res.string.ble_forget_hub))
+            }
         }
 
         Spacer(Modifier.height(24.dp))
@@ -433,4 +447,16 @@ private fun coherenceColor(score: Float?): Color = when {
     score >= 7f -> Color(0xFF2E7D32)
     score >= 4f -> Color(0xFFF9A825)
     else -> Color(0xFFEF6C00)
+}
+
+/** The hub is linked but unpaired. Nothing is blocked: the manager retries the serial read until the OS has paired it. */
+@Composable
+internal fun PairingRequiredCard() {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(stringResource(Res.string.ble_pairing_required_title), style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            Text(stringResource(Res.string.ble_pairing_required_body), style = MaterialTheme.typography.bodyMedium)
+        }
+    }
 }
