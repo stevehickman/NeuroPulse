@@ -255,6 +255,7 @@ corrected in `NP-ART-001` Rev 3.
 | Candidate hazard | Why it is on the list |
 |---|---|
 | Charge-density overexposure at the true pad area | The interlock divides by an unmeasured constant (§5.2) |
+| Pain, skin heating or burn at current between 2 and 40 mA, and a driver that delivers more than commanded | The 2 mA ceiling was removed and a 40 mA stop-gap set (`CLAUDE.md` Rev 67, Rev 68) with no hazard of record; the 40 mA is derived from the charge limit on the same unmeasured pad area. `NP-RISK-002` §4.4, `OI-RISK2-10`; GitHub #554, #559 |
 | Pressure necrosis / discomfort on auricular cartilage | No clamping force specified (§5.3) |
 | Thermal or optical exposure from the PPG emitter in the ear | No ceiling covers this site (§5.3) |
 | Degraded pad → corrupted A1/A2 reference → mis-scored qEEG | §4.3; the failure is silent, because the stimulation-contact window still passes |
