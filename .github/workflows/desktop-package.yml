@@ -31,6 +31,9 @@ on:
       - '.github/workflows/desktop-package.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   package:
     name: ${{ matrix.name }}
