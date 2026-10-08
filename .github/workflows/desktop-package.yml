@@ -1,0 +1,75 @@
+name: Desktop package (macOS, Windows)
+
+# OI-UI-KMP-02: builds the desktop installers and checks that each carries the NPPS and Bluetooth JNI
+# libraries for its own OS and architecture. Each installer is built on a runner of its own kind, since the
+# libraries are the host build (:desktop stageNativeLibs). Installers are uploaded as build artifacts.
+
+on:
+  push:
+    paths:
+      - 'app/NeurOneUI/**'
+      - 'app/android/core/**'
+      - 'common/Cargo.toml'
+      - 'common/Cargo.lock'
+      - 'common/npps/**'
+      - 'common/npps-core/**'
+      - 'common/npps-jni/**'
+      - 'common/btle-jni/**'
+      - 'locales/**'
+      - '.github/workflows/desktop-package.yml'
+  pull_request:
+    paths:
+      - 'app/NeurOneUI/**'
+      - 'app/android/core/**'
+      - 'common/Cargo.toml'
+      - 'common/Cargo.lock'
+      - 'common/npps/**'
+      - 'common/npps-core/**'
+      - 'common/npps-jni/**'
+      - 'common/btle-jni/**'
+      - 'locales/**'
+      - '.github/workflows/desktop-package.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: macOS arm64, os: macos-14,       task: packageDmg, dir: macos-arm64,  lib: libneurone_npps_jni.dylib }
+          - { name: macOS x64,   os: macos-15-intel, task: packageDmg, dir: macos-x64,    lib: libneurone_npps_jni.dylib }
+          - { name: Windows x64, os: windows-latest, task: packageMsi, dir: windows-x64,  lib: neurone_npps_jni.dll }
+    defaults:
+      run:
+        working-directory: app/android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: latest }
+      - name: Set up Rust (stable)
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.11.1' }
+      - name: Stage the native libraries and package
+        run: gradle :desktop:${{ matrix.task }} --stacktrace
+      - name: Check both libraries are staged for ${{ matrix.dir }}
+        shell: bash
+        run: |
+          d="../NeurOneUI/desktop/build/native-resources/${{ matrix.dir }}"
+          ls "$d"
+          test -f "$d/${{ matrix.lib }}"
+          ls "$d" | grep -q neurone_btle_jni
+      - uses: actions/upload-artifact@v4
+        with:
+          name: neurone-desktop-${{ matrix.dir }}
+          path: app/NeurOneUI/desktop/build/compose/binaries/main/*/*

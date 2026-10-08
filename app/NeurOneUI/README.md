@@ -66,7 +66,9 @@ What is left is not screens but wiring on some targets, below, and retiring the 
 - `OI-UI-KMP-08` — plurals. Compose Multiplatform 1.7 has no plural resources, so `sync-locales --compose-res`
   writes each family as flat `_one` / `_other` strings and `pluralString` picks one. That is right while every
   locale's text is English; real Arabic or Russian plural forms need a category rule there.
-- `OI-UI-KMP-02` — the desktop app needs the NPPS native library packaged per OS (`.dylib`, `.dll`).
+- `OI-UI-KMP-02` — packaging written, not run on macOS or Windows. `:desktop:stageNativeLibs` copies the host build of the NPPS
+  and Bluetooth JNI libraries into the app resources for its OS and architecture, and `NativeLibrary` loads them from there;
+  `desktop-package.yml` builds the installers on macOS arm64/x64 and Windows x64 runners.
 - `OI-UI-KMP-03` — Bluetooth. Android is wired. The browser uses Web Bluetooth (`WebBleCentral`, verified against a
   mocked `navigator.bluetooth`, not a real hub), iOS uses CoreBluetooth (`IosBleCentral`, unbuilt), and macOS /
   Windows use btleplug through JNI (`DesktopBleCentral` over `common/btle-jni`; built and tested on Linux only,
