@@ -60,6 +60,8 @@ settings:
     IPHONEOS_DEPLOYMENT_TARGET: "17.0"
     SDKROOT: iphoneos
     SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
+    # Apple Silicon only: the NPPS XCFramework has no x86_64 simulator slice (Intel Macs are retired).
+    EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64
     TARGETED_DEVICE_FAMILY: "1,2"
     DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
   configs:
