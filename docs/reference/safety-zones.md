@@ -30,8 +30,9 @@ decision about the person (`CLAUDE.md` §5). iOS and Android show it when the us
 the upload; web has no launch path, so its dialog is built and tested but not yet mounted; Windows has no UI, so its
 compiler takes `acknowledgedCautions` and nothing more. watchOS authors and uploads nothing. **Either the user or a
 clinician may acknowledge** (principal's decision, 2026-10-07): the screen is the same for whoever is operating the
-device, and because nothing is recorded it does not say which. A separate clinician-held acknowledgement, or any record of
-who acknowledged, is not built (`OI-ZONE-01`). **The safety MCU still enforces its own ceilings and the app-side zone never
+device, and because nothing is recorded it does not say which. **No separate acknowledgement record is kept** (principal's
+decision, 2026-10-08): that the protocol ran indicates it was acknowledged, because the compiler refuses a caution-zone
+protocol without the ids. A separate clinician-held acknowledgement is not built (`OI-ZONE-01`). **The safety MCU still enforces its own ceilings and the app-side zone never
 replaces them** (`CLAUDE.md` §4.2): a caution boundary is always below a boundary the MCU enforces, and a danger boundary is
 either the MCU's own number or an app-side refusal that only makes the app stricter.
 
