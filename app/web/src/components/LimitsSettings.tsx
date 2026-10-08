@@ -1124,7 +1124,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.vnsHrv.maxIntensityMilliamps}
               unit="mA"
-              min={0} step={0.1}
+              min={0} max={10} step={0.1}
               onChange={v => patchModality('vnsHrv', { maxIntensityMilliamps: v })}
               onClear={() => patchModality('vnsHrv', { maxIntensityMilliamps: undefined })}
             />
