@@ -62,11 +62,13 @@ pub enum Event {
     CharacteristicsDiscovered(Vec<Uuid>),
     CharacteristicChanged(Uuid, Vec<u8>),
     CharacteristicRead(Uuid, Vec<u8>),
+    /// A read the link refused. On an encrypted characteristic of an unpaired link this is the pairing signal (`OI-UI-KMP-03`).
+    CharacteristicReadFailed(Uuid),
 }
 
 impl Event {
     /// The wire form read by `DesktopBleCentral.decode`: one kind byte, then
-    /// 1 `[state]` · 2/3/4 `[utf-8 device id]` · 5 `[16-byte uuid]*` · 6/7 `[16-byte uuid][value]`.
+    /// 1 `[state]` · 2/3/4 `[utf-8 device id]` · 5 `[16-byte uuid]*` · 6/7 `[16-byte uuid][value]` · 8 `[16-byte uuid]`.
     pub fn encode(&self) -> Vec<u8> {
         match self {
             Event::AdapterState(s) => vec![1, *s as u8],
@@ -82,6 +84,7 @@ impl Event {
             }
             Event::CharacteristicChanged(u, v) => with_uuid(6, u, v),
             Event::CharacteristicRead(u, v) => with_uuid(7, u, v),
+            Event::CharacteristicReadFailed(u) => with_uuid(8, u, &[]),
         }
     }
 }
@@ -412,7 +415,10 @@ async fn gatt_worker(mut ops: UnboundedReceiver<Gatt>, link: Link, events: mpsc:
                             let _ = events.send(Event::CharacteristicRead(u, v));
                         }
                         // An encrypted characteristic read on an unpaired link lands here.
-                        Err(e) => eprintln!("neurone-btle: read {u} failed: {e}"),
+                        Err(e) => {
+                            eprintln!("neurone-btle: read {u} failed: {e}");
+                            let _ = events.send(Event::CharacteristicReadFailed(u));
+                        }
                     }
                 }
             }
@@ -452,6 +458,9 @@ mod tests {
         assert_eq!(Event::CharacteristicChanged(u, vec![9, 8]).encode(), changed);
         changed[0] = 7;
         assert_eq!(Event::CharacteristicRead(u, vec![9, 8]).encode(), changed);
+        let mut failed = vec![8];
+        failed.extend_from_slice(u.as_bytes());
+        assert_eq!(Event::CharacteristicReadFailed(u).encode(), failed);
     }
 
     #[test]

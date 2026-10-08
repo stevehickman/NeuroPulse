@@ -73,6 +73,15 @@ class NeurOneGattManager(
     private val _socketMap = MutableStateFlow(SocketMap.EMPTY)
     val socketMap: StateFlow<SocketMap> = _socketMap
 
+    /**
+     * True while the hub's encrypted `DEVICE_SERIAL` read is being refused, which on an unpaired link means the
+     * operating system has not paired it (`OI-UI-KMP-03`). Cleared by a successful read or a disconnect. Display only.
+     */
+    private val _pairingRequired = MutableStateFlow(false)
+    val pairingRequired: StateFlow<Boolean> = _pairingRequired
+
+    private var serialRetryJob: Job? = null
+
     private val zoneFrameAssembler = ZoneModuleFrameAssembler()
     private val socketMapAssembler = SocketMapFrameAssembler()
 
@@ -298,8 +307,28 @@ class NeurOneGattManager(
         }
     }
 
-    override fun onCharacteristicRead(uuid: UUID, value: ByteArray) =
+    override fun onCharacteristicRead(uuid: UUID, value: ByteArray) {
+        if (uuid == UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID)) {
+            _pairingRequired.value = false
+            serialRetryJob?.cancel()
+        }
         onCharacteristicChanged(uuid, value)
+    }
+
+    /**
+     * A refused serial read is retried every [SERIAL_RETRY_MS] while the link stays up, so the user can pair the hub in
+     * the operating system's settings without reconnecting. Other refused reads are not retried.
+     */
+    override fun onCharacteristicReadFailed(uuid: UUID) {
+        val serial = UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID)
+        if (uuid != serial || _connectionState.value != ConnectionState.CONNECTED) return
+        _pairingRequired.value = true
+        serialRetryJob?.cancel()
+        serialRetryJob = scope.launch {
+            delay(SERIAL_RETRY_MS)
+            if (_connectionState.value == ConnectionState.CONNECTED) central.read(serial)
+        }
+    }
 
     // ── Commands ─────────────────────────────────────────────────────────
 
@@ -436,6 +465,8 @@ class NeurOneGattManager(
     }
 
     private fun applyDisconnection() {
+        serialRetryJob?.cancel()
+        _pairingRequired.value = false
         _connectionState.value = ConnectionState.DISCONNECTED
         _allCharacteristicsResolved.value = false
         _session.value = SessionState.EMPTY   // clear stale UHDR display state
@@ -467,5 +498,7 @@ class NeurOneGattManager(
     }
 
     private companion object {
+        /** UC-078 (timings): unmeasured. */
+        const val SERIAL_RETRY_MS = 5_000L
     }
 }

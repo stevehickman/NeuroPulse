@@ -70,7 +70,7 @@ What is left is not screens but wiring on some targets, below, and retiring the 
 - `OI-UI-KMP-03` — Bluetooth. Android is wired. The browser uses Web Bluetooth (`WebBleCentral`, verified against a
   mocked `navigator.bluetooth`, not a real hub), iOS uses CoreBluetooth (`IosBleCentral`, unbuilt), and macOS /
   Windows use btleplug through JNI (`DesktopBleCentral` over `common/btle-jni`; built and tested on Linux only,
-  no radio run). Pairing for the hub's encrypted characteristics is unverified on Windows; see the open item.
+  no radio run). Desktop remembers the last hub and raises `pairingRequired` on a refused serial read; whether Windows pairs on its own is unverified, and the SOUP anomaly evaluation (`NP-SOUP-BTLE-001`) is open; see the open item.
 - `OI-UI-KMP-04` — Ed25519 study-descriptor verification exists on the JVM only; other targets answer
   "cannot check", so every study descriptor is refused there (the shipped default everywhere, `OI-CONSENT-07`).
 - `OI-UI-KMP-05` — the existing SwiftUI app (`app/ios`), React app (`app/web`) and the Windows project are
