@@ -362,6 +362,11 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
             let l = &limits["vnsHrv"];
             let ma = f(p, "intensityMilliamps");
             let freq = f(p, "frequencyHz");
+            if ma > hw::VNS_MAX_MILLIAMPS {
+                out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),
+                    s(format!("{} mA", num_string(hw::VNS_MAX_MILLIAMPS))), "hardware",
+                    msg("VALIDATE_MSG_VNS_HRV_INTENSITYMILLIAMPS", vec![n(ma), n(hw::VNS_MAX_MILLIAMPS)]));
+            }
             if freq < hw::VNS_MIN_HZ || freq > hw::VNS_MAX_HZ {
                 out.push(Error, k, "frequencyHz", "VALIDATE_PARAM_FREQUENCY", s(format!("{} Hz", num_string(freq))),
                     s(format!("{}–{} Hz", num_string(hw::VNS_MIN_HZ), num_string(hw::VNS_MAX_HZ))), "hardware",

@@ -30,7 +30,7 @@ np_hrv_status_t np_hrv_tavns_init(np_tavns_state_t  *tavns,
      * without clearing them kept the PREVIOUS session's enable callback, rate
      * and current live — and np_hrv_tavns_process_rr() would fire them. */
     if (stim_freq_hz < 1U || stim_freq_hz > NP_TAVNS_DEFAULT_FREQ_HZ ||
-        stim_current_ua < 100U) {
+        stim_current_ua < 100U || stim_current_ua > NP_VNS_MAX_CURRENT_UA) {
         s_enable_cb       = NULL;
         s_disable_cb      = NULL;
         s_stim_freq_hz    = 0U;

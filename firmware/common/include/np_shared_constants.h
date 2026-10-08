@@ -44,6 +44,16 @@
  * its window always contains the MCU's.  One definition keeps them equal. */
 #define NP_CARDIAC_LOCKOUT_MS       30000U
 
+/* ── Auricular VNS (incl. taVNS) current ceiling ──────────────────────────
+ * 40 mA = 40 uC/cm2 per phase x 0.5 cm2 (PROVISIONAL pad, UC-006) / 500 us (the longest authored
+ * pulse width): the strictest current the safety MCU's charge limit already permits at any allowed
+ * pulse width (80 mA at the 250 us default, 400 mA at 50 us). Frequency does not enter that limit.
+ * It is NOT a sensory, heating or cardiac limit and it scales with the pad area. Stop-gap that replaces
+ * the removed 2 mA ceiling (Rev 67); whether any ceiling is needed and whether it should depend on
+ * pulse width and frequency is open: GitHub #554, #559 (OI-VNSCLIP-09, UC-079).
+ * Single source of truth is VNS_MAX_MILLIAMPS in common/npps/constants.json. */
+#define NP_VNS_MAX_CURRENT_UA       40000U /* 40 mA */
+
 /* ── Physiological R-R interval validity (HRV and cVNS R-peak) ──────────── */
 #define NP_RR_MIN_MS                300U   /* ≈200 BPM upper HR limit */
 #define NP_RR_MAX_MS                2000U  /* ≈30 BPM lower HR limit */

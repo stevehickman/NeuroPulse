@@ -176,7 +176,7 @@
  * which is a real physical result and not a units artifact:
  *   BES/tACS  1 mA, 0.5 Hz sine  → 636 µC/phase ÷ 25 cm² = 25.5 µC/cm² (64% of 40)
  *   BES/tACS  1 mA, 40 Hz sine   →   8 µC/phase ÷ 25 cm² =  0.3 µC/cm²
- *   VNS       2 mA, 250 µs pulse → 0.5 µC/phase ÷ 0.5 cm² = 1.0 µC/cm² (an example dose; the flat 2 mA ceiling is removed, #554)
+ *   VNS       2 mA, 250 µs pulse → 0.5 µC/phase ÷ 0.5 cm² = 1.0 µC/cm² (an example dose; the ceiling is now 40 mA, #554)
  *   CVNS      2 mA, 1000 µs      → 2.0 µC/phase ÷ 2.0 cm² = 1.0 µC/cm²
  */
 /* OI-MMSOCK-02 (2026-09-23): BES/tACS is now GATED on this area — the hub arms

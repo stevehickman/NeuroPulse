@@ -84,8 +84,9 @@ const ADDED: &[&str] = &[
     "VALIDATE_MSG_ZONE_DANGER",
 ];
 
-/// An issue the frozen web golden holds and the core no longer gives: the 2 mA auricular VNS hardware ceiling, removed
-/// on the principal's instruction (OI-VNSCLIP-09, issue #554). The golden is frozen, so it is set aside here.
+/// An issue the frozen web golden holds and the core no longer gives: the 2 mA auricular VNS hardware ceiling, replaced
+/// by the 40 mA one on the principal's instruction (OI-VNSCLIP-09, issues #554 and #559). The golden is frozen, so it is
+/// set aside here.
 fn is_removed(issue: &Value) -> bool {
     issue["modality"] == "vns_hrv"
         && issue["parameterKey"] == "intensityMilliamps"

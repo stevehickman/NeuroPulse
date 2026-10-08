@@ -97,7 +97,7 @@ Magnetic pulse stimulation of cortical neurons. NeurOne T2 only: focal figure-8 
 
 ### [VNS](#vns)
 **VNS** — [Vagal Nerve Stimulation](https://en.wikipedia.org/wiki/Vagus_nerve_stimulation)  
-Electrical stimulation of vagus nerve for autonomic modulation. NeurOne T1: auricular branch (CN X, 1–25Hz, biphasic charge-balanced, no flat current ceiling — GitHub #554) in VNS auricular clip with PPG HRV measurement. See CLAUDE.md §3 (modality 6).
+Electrical stimulation of vagus nerve for autonomic modulation. NeurOne T1: auricular branch (CN X, 1–25Hz, biphasic charge-balanced, ≤40mA stop-gap — GitHub #554, #559) in VNS auricular clip with PPG HRV measurement. See CLAUDE.md §3 (modality 6).
 
 ## Neuroscience & Physiology
 

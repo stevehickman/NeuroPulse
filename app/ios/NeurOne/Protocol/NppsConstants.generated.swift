@@ -68,6 +68,19 @@ enum NPHardwareLimits {
     /// hardware-enforced minimum ramp
     static let TDCS_RAMP_SECONDS: Int = 30
     static let TDCS_MAX_ELECTRODE_PAIRS: Int = 3
+    /// Auricular VNS current ceiling, 40 mA. NOT a clinical or sensory limit and not traced to a standard:
+    /// it is the strictest current the safety MCU's 40 µC/cm² per-phase charge limit already permits at any
+    /// allowed pulse width. I_max = 40 µC/cm² × A / PW = 40 µC/cm² × 0.5 cm² ÷ 500 µs = 40 mA, at the
+    /// longest authored pulse width (VNS_MAX_PULSE_WIDTH_US); at 250 µs the charge limit alone would allow
+    /// 80 mA and at 50 µs 400 mA, so 40 mA is the one figure that holds at every pulse width. Frequency
+    /// does not enter the per-phase limit. Assumptions: the 0.5 cm² pad area is PROVISIONAL and unmeasured
+    /// (UC-006, NP_VNS_ELECTRODE_AREA_MCM2), and the figure scales with it: a smaller real pad lowers the
+    /// ceiling in proportion. It replaces the removed 2 mA ceiling (Rev 67) as a stop-gap (Rev 68). It does
+    /// not guard against pain, skin heating (mean and RMS density, which would give about 6 mA at 500 µs
+    /// and 25 Hz), or any cardiac effect, and the driver's real compliance limit is not stated. Whether any
+    /// ceiling is needed, what hazard it is for, and whether the safety MCU should enforce a pulse-width
+    /// and frequency dependent cap instead are open: GitHub #554 and #559 (OI-VNSCLIP-09, UC-079).
+    static let VNS_MAX_MILLIAMPS: Double = 40.0
     static let VNS_MIN_HZ: Double = 1.0
     static let VNS_MAX_HZ: Double = 25.0
     /// Authored auricular VNS pulse width, µs. ASSUMED (UC-071): the range the published taVNS studies span

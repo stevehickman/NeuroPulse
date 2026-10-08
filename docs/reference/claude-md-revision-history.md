@@ -19,6 +19,12 @@
 
 ## Current revision
 
+**Rev 68 (2026-10-08) — §3: a 40 mA auricular VNS current ceiling replaces the one Rev 67 removed. A limit changed; the 40 µC/cm² per-phase charge ceiling and every interlock are unchanged.**
+
+**What changed.** The `VNS (auricular)` row of the §3 table states `≤40 mA`, a stop-gap. `VNS_MAX_MILLIAMPS` returns at 40.0 with its derivation in its note in `common/npps/constants.json`, `NP_VNS_MAX_CURRENT_UA` at 40000, and the validator's hardware check, the compiler's cap, the hub module's clamp, the taVNS gate and the web slider's maximum use it again. `REQ-VNSC-03` states 40 mA. The cervical VNS 2 mA is unchanged.
+
+**Why.** The principal asked (2026-10-08) for the figure calculated from the known limits to stand until the question is decided. 40 mA is 40 µC/cm² × 0.5 cm² ÷ 500 µs: the strictest current the per-phase charge limit permits at any allowed pulse width. It rests on a provisional pad area (`UC-006`), it is not a sensory, heating or cardiac limit, and register row `UC-079` records it. Whether any ceiling is needed is GitHub #554, and whether the safety MCU should enforce a cap that depends on pulse width and frequency is #559. **This entry corrects Rev 67**, which removed the ceiling outright.
+
 **Rev 67 (2026-10-08) — §3: the 2 mA auricular VNS current ceiling is removed. A limit changed; the 40 µC/cm² per-phase charge ceiling and every interlock are unchanged.**
 
 **What changed.** The `VNS (auricular)` row of the §3 hard-limits table loses "≤2 mA". The constant `VNS_MAX_MILLIAMPS` (`common/npps/constants.json` and its generated outputs), the validator's hardware check (`common/npps-core/src/validate.rs`), the compiler's 2 mA cap in `encode_vns` (now the 16-bit wire limit), `NP_VNS_MAX_CURRENT_UA`, the hub module's clamp and the taVNS configuration gate's upper bound are deleted. `REQ-VNSC-03` is retired in place (§18). The cervical VNS 2 mA (`REQ-CVNS-04`) is a different device and is unchanged.
