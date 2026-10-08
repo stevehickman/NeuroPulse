@@ -193,6 +193,7 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
     }
 
     /* VNS stimulation */
+    /* 40 mA stop-gap ceiling derived from the per-phase charge limit (np_shared_constants.h; #554, #559). */
     uint16_t amp = (p->amplitude_ua > NP_VNS_MAX_CURRENT_UA) ? NP_VNS_MAX_CURRENT_UA : p->amplitude_ua;
 
     np_hub_status_t rc = np_mod_vns_hal_stim_set(p->side,

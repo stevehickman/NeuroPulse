@@ -101,7 +101,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-DB-004 | Design Brief | 4 | 2026-05-07 | [np_db_004.docx](./superseded/np_db_004.docx) | SUPERSEDED by NP-DB-005 | REQ |
 | NP-DB-005 | Master Design Brief | 6 | 2026-08-11 | [np_db_005.docx](./np_db_005.docx) | DRAFT — PENDING APPROVAL | REQ |
 | NP-HEX-ZM-001 | Hexagonal Standardized Zone-Module Design Brief | 9 | 2026-09-28 | [np_hex_zm_001.md](./np_hex_zm_001.md) | DRAFT | REQ |
-| — | CLAUDE.md — Project Design Memory | 66 | 2026-10-07 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
+| — | CLAUDE.md — Project Design Memory | 68 | 2026-10-08 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
 
 **Note on CLAUDE.md:** CLAUDE.md serves as the living design authority document capturing all locked design decisions and pending items. It is under git version control and constitutes a design record for DHF purposes. Each revision (tracked by git commit) is a controlled design change. Rev 24 (2026-06-09) adds: OTA firmware update locked decision entry to §13.5 (opcode wire values, SPKI pinning, fingerprint-first ordering, 27 iOS + 21 firmware tests); OTA document entry in §14 document register; ISA progress updated to 36/164.
 
@@ -191,7 +191,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-RISK-001 | Zone Module Risk Register (RISK-01 through RISK-26) | 3 (written as Rev C) | 2026-07-22 | [np_risk_001.docx](./superseded/np_risk_001.docx) | SUPERSEDED 2026-08-11 by NP-RISK-002/003/004 | RISK |
-| **NP-RISK-002** | Risk File Re-Baseline and NP-RISK-001 Disposition | 15 | 2026-10-05 | [np_risk_002.md](./np_risk_002.md) | ACTIVE | RISK |
+| **NP-RISK-002** | Risk File Re-Baseline and NP-RISK-001 Disposition | 16 | 2026-10-08 | [np_risk_002.md](./np_risk_002.md) | ACTIVE | RISK |
 | **NP-RISK-003** | Hex-Tile Module — Risk Register and Problem Analysis | 3 | 2026-09-29 | [np_risk_003.md](./np_risk_003.md) | ACTIVE | RISK |
 | **NP-RISK-004** | Shell, Socket, Interconnect and Hub — Risk Register and Problem Analysis | 4 | 2026-09-25 | [np_risk_004.md](./np_risk_004.md) | ACTIVE | RISK |
 | NP-FMEA-001 | SW-01 Safety MCU Unit-Level FMEA | 23 | 2026-10-04 | [np_fmea_001.md](./np_fmea_001.md) | DRAFT | RISK |

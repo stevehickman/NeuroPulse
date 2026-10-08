@@ -2,14 +2,14 @@
 
 **Project:** NeurOne
 **Document:** NP-RISK-002
-**Revision:** 15
-**Date:** 2026-10-05
+**Revision:** 16
+**Date:** 2026-10-08
 **Status:** ACTIVE
 **Effective Date:** 2026-08-11
 **Author:** NeurOne Quality (interim: Steve Hickman, CEO)
 **Approved By:** Steve Hickman, CEO
 **References:** NP-RISK-001 Rev 3 (superseded — `docs/superseded/np_risk_001.docx`); NP-RM-001 Rev 1 §4 (scales), §8.1 (baseline), §8.2 (change control); NP-RISK-003 Rev 1; NP-RISK-004 Rev 1; NP-ART-001 Rev 3; NP-FAI-001 Rev 2 §2.1, §7; NP-HW-AUDIO-001 Rev 1 §7; NP-HW-NASAL-001 Rev 1 §7; NP-HW-VNSCLIP-001 Rev 1 §7; NP-HW-CVNS-001 Rev 1 §7; NP-HW-TMS-001 Rev 1 §7; NP-FMEA-001 Rev 21; NP-FW-CVNS-001 Rev 12; NP-FMEA-GEOM-001 Rev 1; NP-QMS-DC-001 Rev 1; NP-QMS-CAPA-001 Rev 1; NP-DHF-001 Rev 27; ISO 14971:2019
-**Related Issues:** GitHub Issue #343 (RISK-25 FAI-bench blocker restated); GitHub Issue #332 (A11–A15 hardware specifications — `OI-RISK2-02` unblocked)
+**Related Issues:** GitHub Issue #343 (RISK-25 FAI-bench blocker restated); GitHub Issue #332 (A11–A15 hardware specifications — `OI-RISK2-02` unblocked); GitHub Issue #554 and #559 (auricular VNS current ceiling: hazard, and a pulse-width- and frequency-dependent cap); GitHub PR #557
 **Gate:** NP-COORD-001 G2
 **IEC 62304 Class:** N/A (hardware risk file)
 **Supersedes:** **NP-RISK-001 Rev 3** — as the ISO 14971 risk file of record. Content is dispositioned in §3, not discarded.
@@ -336,7 +336,38 @@ verification that would move RISK-25 to P1, or `OI-RISK2-09`.
 **Pre-change and post-change rating (§8.2 item 2).**
 
 | | Severity | Probability | Rating (`NP-RM-001` §4.3) |
-|---|---|---|---|
+|---|---|---|### 4.4 Auricular VNS current ceiling changed twice, with no hazard of record (Rev 16, 2026-10-08, GitHub #554, #559, PR #557)
+
+**What changed in the design** (`CLAUDE.md` Rev 67 and Rev 68, on the principal's instruction):
+
+| | Control as it stood | Control now |
+|---|---|---|
+| Auricular VNS current ceiling (A13) | **≤ 2 mA**, in the validator, the compiler, the hub clamp and the taVNS gate (`REQ-VNSC-03`) | Rev 67 removed it. **Rev 68 set ≤ 40 mA**, a stop-gap derived from the per-phase charge limit: 40 µC/cm² × 0.5 cm² ÷ 500 µs (`VNS_MAX_MILLIAMPS`, register row `UC-079`) |
+| Per-phase charge limit, 40 µC/cm², on the safety MCU (`REQ-VNSC-04`) | In force | **Unchanged**; it is now the only hardware-enforced bound, and at the 250 µs default it alone permits 80 mA |
+| Contact-impedance confirmation before enable | In force | Unchanged |
+
+**What this file holds about it: nothing.** The 2 mA appears in no hazard analysis, because A13 has none
+(`OI-RISK2-02`), and no document says what hazard it controlled (`OI-VNSCLIP-09`, `UC-072`). So this entry
+records a change to a control that was never entered as a control. **Removing or relaxing a safety control is an
+ISO 14971 decision (`CLAUDE.md` §18), and no risk assessment preceded either change.** The ceiling is 20 times
+higher than it was and has no hazard of record to be compared against.
+
+**Hazards this change bears on, recorded unscored** on the principle of §4.1 (disposition and rating are separate
+acts, `OI-RISK2-01`). Each also belongs in `NP-HW-VNSCLIP-001` §7's input list:
+
+| Candidate hazard | Why the change bears on it |
+|---|---|
+| Pain or discomfort at the ear at doses between 2 mA and 40 mA | The studies titrate to the pain threshold, and the 2 mA is gone. The only bound left is a figure derived for tissue damage, not for sensation |
+| Skin heating or burn under the pad | Governed by mean and RMS current density, where frequency matters. The zone model's boundaries for it (about 6 mA at 500 µs and 25 Hz) are placeholders (`UC-075`, `UC-076`) and **advisory to the safety MCU** |
+| Charge-density overexposure at a smaller real pad | The 40 mA, like the charge limit, scales with an **unmeasured, provisional** 0.5 cm² area (`UC-006`, `OI-CHARGE-07`) |
+| Stimulation near the carotid sheath or cardiac effects via the auricular branch | `OI-NPPS-VNS-01` (f); and hazard 25-d, which asks whether auricular VNS should be withheld after a cervical cardiac cutoff (`OI-RISK2-06`) |
+| Driver delivers more than commanded (no independent hardware current limit stated) | The auricular driver's compliance voltage and current sense are not in any document (GitHub #559) |
+
+**Not re-scored, not accepted.** No score, control rating or ALARP statement in this file changes. The 40 mA is a
+**stop-gap pending a decision**, and nothing here approves it as a risk control. Scoring belongs to the Quality
+Lead (interim: Steve Hickman, CEO), with Clinical, and may need input from medical professionals (#559).
+
+---|
 | **As recorded, Rev 5 – Rev 11** | S5 | Initial P3; residual P2, scored on C1 as effective | Residual **S5 × P2 = ALARP** |
 | **Correction of record: C1 as built from 2026-09-23 until `NP-FW-CVNS-001` Rev 10** | S5 | Residual **P3**: no control reduced the probability for a sustained change at resting rates | Residual **S5 × P3 = UNACCEPTABLE** |
 | **Post-change (this re-score), C1 as redesigned** | **S5** | Initial **P3**; residual **P2** now, **P1** target | Initial **UNACCEPTABLE**; residual **S5 × P2 = ALARP** (target S5 × P1, still ALARP) |
@@ -463,6 +494,7 @@ control effective 2026-05-13. That statement is amended, not withdrawn:
 | **OI-RISK2-07** | **Hazard 25-b's owed verification, carried from OI-RISK2-05 when it closed (2026-09-25).** Any change that adds a safety-MCU firmware update path must carry a test that NV pages 62–63 (the persisted per-user cardiac cutoff) survive the update. No such path exists today | Quality + FW | The first safety-MCU update path |
 | ~~**OI-RISK2-08**~~ | **✅ CLOSED 2026-10-01 (Rev 12).** Item 1 is done: RISK-25 was re-scored with C1 as redesigned (§4.3.5), at the Quality Lead's direction. The ratings were approved by the Quality Lead (interim: Steve Hickman, CEO) on 2026-10-01. **The residual stays S5 × P2 = ALARP, with a P1 target.** The period when C1 as built missed most changes is corrected of record to S5 × P3 = UNACCEPTABLE, with no patient exposure and no CAPA. New hazard **25-e** (nuisance cutoff) is S1 × P5 = ALARP. 25-c is provisional on OI-CVNS-13. FMEA-M05-09's S5 × P1 is approved. **Carried forward:** the clinical adequacy of `REQ-CVNS-09`'s detection requirement goes to **OI-RISK2-09**, and FAI-CV02 still has not run. Original text: **RISK-25 control C1 does not detect most of the heart-rate changes it exists to catch (raised 2026-09-29).** `NP-FW-CVNS-001` OI-CVNS-12: the safety MCU's unconditional 5 s baseline refresh absorbs a sustained step before the 8-interval mean has moved 15 BPM. At 70 BPM a 20 BPM fall, the RISK-25 hazard direction, is never cut, and FAI-CV02's own +20 BPM step is cut in about 30 % of trials. The residual P2 was scored on C1 as effective. **Owed:** (1) a re-score by the Quality Lead under `NP-RM-001` §8.2, with C1 as it actually performs; (2) an `NP-FMEA-001` SW01-M05 row for "qualifying change absorbed by the baseline refresh", which no row covers; (3) ~~the redesign itself, a principal decision on Class C behaviour (OI-CVNS-12)~~ **done 2026-10-01 (Rev 9):** the principal chose an 18 s lagged comparison (`NP-FW-CVNS-001` Rev 10). Items 1 and 2 remain owed, and the re-score should use C1 as redesigned. ~~`NP-FMEA-001` FMEA-M05-04's "the baseline refreshes every 5 s" is stale since then and belongs to item 2~~ **Corrected 2026-10-01 in `NP-FMEA-001` Rev 17 (Rev 10 here):** M05-04 now describes the 18 s history, with no score changed. ~~Item 2's new row is still owed.~~ Item 2 **done 2026-10-01 (Rev 11):** `NP-FMEA-001` Rev 18 adds FMEA-M05-09, with a residual of S5×P1 = 5 ALARP proposed for Quality Lead approval. **Only item 1, the re-score, remains.** §4.3.4 lists the inputs it should weigh | Quality Lead + principal + Embedded safety | T2 clinical release; FAI-CV02 |
 | **OI-RISK2-09** | **Is `REQ-CVNS-09`'s cardiac detection requirement clinically adequate for cervical VNS? (raised 2026-10-01, Rev 12).** The requirement is: a change of > 15 BPM within 5 s, ending ≥ 40 BPM, detected ≤ 18 s from onset. C1 meets it on the host (§4.3.5). Nothing in the file says that a reflex caught at up to 18 s is caught in time, or that what the requirement leaves out is safe to leave out. Questions: (a) is detection ≤ 18 s from onset adequate for a vagally mediated bradycardia or arrhythmia during cervical stimulation? (b) is a change ending at 20–40 BPM a hazard the interlock must detect? (c) is a change spread over more than 5 s? (d) is 50 → 37.5 BPM with every 4th beat absent? (e) is a single 2–3 s pause at ≤ 60 BPM? Each "yes" is a requirement change through `REQ-CVNS-09` (`NP-HW-CVNS-001` §3), `docs/reference/hardware-detail.md` §4.2 and `NP-FW-CVNS-001`, with a derivation under CLAUDE.md §18. It is not a firmware tweak. Until this closes, RISK-25 cannot move to P1 | Clinical + Quality Lead | RISK-25 moving to P1; T2 clinical release |
+| **OI-RISK2-10** | **Hazard and risk assessment for the auricular VNS current ceiling (raised 2026-10-08, Rev 16, GitHub #554, #559).** §4.4: the 2 mA ceiling was removed and a 40 mA stop-gap set with no hazard of record. Needed: (1) the hazard the ceiling is for, answered by Clinical (#554); (2) the five candidate hazards in §4.4 scored under `NP-RM-001` §4, with the 40 mA, the charge limit and the zone model as the controls actually in force; (3) whether the safety MCU should enforce a cap depending on pulse width and frequency (#559); (4) the pad area measured (`UC-006`) and the driver's compliance and current limit stated; (5) the ISO 14971 decision on the removal recorded here. Folds into `OI-RISK2-02` for A13 | Quality + Clinical + Risk | The 40 mA ceiling as a risk control; A13's hazard analysis |
 | **OI-RISK2-04** | RISK-03 (400 mW/cm² regulatory opinion) has been OPEN and externally blocked since 2026-05-06 with no counsel commissioned. It is the only risk in the file whose owner is the CEO. **Rev 7:** the question has grown. Counsel is now also asked about the average term adopted at zero margin (CLAUDE.md Rev 60), as `NP-REG-PBM1064-001` §6A Q14–Q18. | CEO / Regulatory Counsel | Irradiance ceiling; RSET values |
 
 ---
@@ -471,6 +503,7 @@ control effective 2026-05-13. That statement is amended, not withdrawn:
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| **16** | **2026-10-08** | **NeurOne Quality** | **§4.4 added: the auricular VNS current ceiling was removed (CLAUDE.md Rev 67) and a 40 mA stop-gap set (Rev 68), on the principal's instruction, with no hazard of record; `OI-RISK2-10` raised.** Five candidate hazards recorded **unscored**. **No score, control rating or acceptance changed**, and the 40 mA is not accepted as a risk control. The change was made before any risk assessment, which §4.4 states plainly. GitHub #554, #559, PR #557. |
 | **15** | **2026-10-05** | **NeurOne Quality** | **Stale "nine" retired-risk counts corrected (§2 "What changed" table, `OI-RISK2-03`).** Both repeated the first draft's figure, which §3 already states was wrong: the disposition table has **five** RETIRED rows (RISK-01, -07, -09, -11, -15), and §3's counted total is unchanged. §2 also notes that RISK-24 is struck through as CLOSED-CONFIRMED, not retired. **No disposition, score or acceptance changed.** |
 | **14** | **2026-10-04** | **NeurOne Systems Engineering + principal** | **`OI-CVNS-14` closed: the ±5 BPM hub cross-check is built (`NP-FW-CVNS-001` Rev 14 §14.7), host-tested, not run on silicon; `OI-CVNS-15` raised for its constants and false-trip rate.** No score, control rating or acceptance changed: whether the control lowers RISK-25's probability is the Quality Lead's. |
 | **13** | **2026-10-04** | **NeurOne Systems Engineering + principal** | **`OI-CVNS-11` closed (candidate A) and `OI-CVNS-14` raised; wording follows `NP-FW-CVNS-001` Rev 13.** No score, control or acceptance changed. |

@@ -309,7 +309,7 @@ typedef struct __attribute__((packed)) {
 typedef struct __attribute__((packed)) {
     uint8_t  side;            /* 0=left, 1=right, 2=bilateral */
     uint16_t freq_mhz;        /* stim freq mHz; range 1000–25000 (1–25Hz) */
-    uint16_t amplitude_ua;    /* µA; firmware cap ≤ 2000 */
+    uint16_t amplitude_ua;    /* µA; firmware cap ≤ 40000 (NP_VNS_MAX_CURRENT_UA) */
     uint16_t pulse_width_us;  /* biphasic pulse width µs; 0=default 250µs. Authored range 50–500 µs
                                * (VNS_MIN/MAX_PULSE_WIDTH_US); widened from 8 bits so the 300 and 500 µs
                                * widths the taVNS studies use can be written. The safety MCU's per-phase

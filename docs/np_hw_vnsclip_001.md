@@ -93,7 +93,7 @@ qEEG's A1/A2 linked-ear reference (`CLAUDE.md` §3 T2 additions). Per-configurat
 | ID | Requirement | Source |
 |---|---|---|
 | **REQ-VNSC-02** | Stimulation target is the **auricular branch of CN X**; the clip is worn on the auricle | `CLAUDE.md` §3 modality ⑥ |
-| **REQ-VNSC-03** | **1–25 Hz**, **≤ 2 mA**, **biphasic charge-balanced** | `CLAUDE.md` §3 hard-limits table; `NP_VNS_MAX_CURRENT_UA` = 2000 |
+| **REQ-VNSC-03** | **1–25 Hz**, **≤ 40 mA**, **biphasic charge-balanced**. The former ~~**≤ 2 mA**~~ is RETIRED in place (Rev 67, 2026-10-08). The 40 mA is a stop-gap (Rev 68) derived from `REQ-VNSC-04`: 40 µC/cm² × 0.5 cm² (provisional) ÷ 500 µs (longest authored pulse width). It is not a sensory, heating or cardiac limit. Whether any ceiling is needed is GitHub #554 and #559 (`OI-VNSCLIP-09`) | `CLAUDE.md` §3 hard-limits table; `NP_VNS_MAX_CURRENT_UA` = 40000; `VNS_MAX_MILLIAMPS` note in `common/npps/constants.json` |
 | **REQ-VNSC-04** | Per-phase commanded-charge ceiling **40 µC/cm²**, enforced by the safety MCU against the **declared electrode area** | `CLAUDE.md` §3, §4.2; `NP-DT-001` DI-SAFE-01a; `NP-SW-001` §5.1 SW01-M03 |
 | **REQ-VNSC-05** | **PPG HRV at 808–830 nm in the same clip** | `docs/reference/modality-stack.md` modality 6 |
 | **REQ-VNSC-06** | **A1/A2 EEG references on the clip contact pads**, using **2 spare conductors in the existing 6-pin cable** | `docs/reference/modality-stack.md` modality 6 |
@@ -255,6 +255,7 @@ corrected in `NP-ART-001` Rev 3.
 | Candidate hazard | Why it is on the list |
 |---|---|
 | Charge-density overexposure at the true pad area | The interlock divides by an unmeasured constant (§5.2) |
+| Pain, skin heating or burn at current between 2 and 40 mA, and a driver that delivers more than commanded | The 2 mA ceiling was removed and a 40 mA stop-gap set (`CLAUDE.md` Rev 67, Rev 68) with no hazard of record; the 40 mA is derived from the charge limit on the same unmeasured pad area. `NP-RISK-002` §4.4, `OI-RISK2-10`; GitHub #554, #559 |
 | Pressure necrosis / discomfort on auricular cartilage | No clamping force specified (§5.3) |
 | Thermal or optical exposure from the PPG emitter in the ear | No ceiling covers this site (§5.3) |
 | Degraded pad → corrupted A1/A2 reference → mis-scored qEEG | §4.3; the failure is silent, because the stimulation-contact window still passes |

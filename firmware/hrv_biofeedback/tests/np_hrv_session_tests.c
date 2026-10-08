@@ -70,10 +70,10 @@ static void test_rejected_init_disarms_previous(void)
     CHECK(g_enables == 0,
           "after a refused init, inspiration does not fire the previous session's enable");
 
-    /* Same for an out-of-range current. */
+    /* Same for an out-of-range current (below the 100 uA floor). */
     (void)np_hrv_tavns_init(&t, 10U, 800U, rec_enable, rec_disable);
-    CHECK(np_hrv_tavns_init(&t, 10U, 2001U, rec_enable, rec_disable) == NP_HRV_ERR_INVALID_ARG,
-          "2001 uA refused");
+    CHECK(np_hrv_tavns_init(&t, 10U, 99U, rec_enable, rec_disable) == NP_HRV_ERR_INVALID_ARG,
+          "99 uA refused");
     g_enables = 0;
     memset(&t, 0, sizeof(t));
     drive_inspiration(&t);
@@ -136,8 +136,8 @@ static void test_session_refuses_bad_tavns(void)
           "a 30 Hz taVNS session is refused and never runs (GitHub #386's value)");
     CHECK(start_with(26U, 0U, &running) == NP_HRV_ERR_INVALID_ARG && !running,
           "26 Hz, one past the ceiling, is refused");
-    CHECK(start_with(0U, 2001U, &running) == NP_HRV_ERR_INVALID_ARG && !running,
-          "an out-of-range current is refused");
+    CHECK(start_with(0U, NP_VNS_MAX_CURRENT_UA + 1U, &running) == NP_HRV_ERR_INVALID_ARG && !running,
+          "a current above the ceiling is refused");
     CHECK(start_with(0U, 50U, &running) == NP_HRV_ERR_INVALID_ARG && !running,
           "a current below 100 uA is refused");
 }
@@ -152,7 +152,7 @@ static void test_session_accepts_window(void)
     CHECK(start_with(1U, 100U, &running) == NP_HRV_OK && running,
           "1 Hz / 100 uA, the lower edges, run");
     CHECK(start_with(NP_TAVNS_DEFAULT_FREQ_HZ, NP_VNS_MAX_CURRENT_UA, &running) == NP_HRV_OK && running,
-          "25 Hz / 2000 uA, the upper edges, run");
+          "25 Hz / 40000 uA, the upper edges, run");
 }
 
 int main(void)

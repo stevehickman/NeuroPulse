@@ -119,7 +119,10 @@ fn a_titrated_basis_is_a_band_with_a_cap_and_is_refused_until_it_can_be_calibrat
     assert!(!has(&found, "VALIDATE_MSG_VNS_HRV_BASIS_NEEDS_PERCENT"), "and it needs no percentage");
     let e = compile(&p).expect_err("refused");
     assert!(e.contains("sensory-threshold calibration"), "{e:?}");
-    // The cap is held to the hardware ceiling like any intensity.
-    assert!(issues("        frequency: 20Hz\n        intensity: 3.0mA\n        intensity_basis: titrated", "")
-        .iter().any(|i| i["parameterKey"] == "intensityMilliamps" && i["severity"] == "error"));
+    // The 2 mA ceiling is gone (Rev 67) and the 40 mA stop-gap holds (Rev 68, #554, #559): 3 mA is not an intensity
+    // error, 41 mA is.
+    let err = |ma: &str| issues(&format!("        frequency: 20Hz\n        intensity: {ma}mA\n        intensity_basis: titrated"), "")
+        .iter().any(|i| i["parameterKey"] == "intensityMilliamps" && i["severity"] == "error");
+    assert!(!err("3.0"), "3 mA is inside the 40 mA ceiling");
+    assert!(err("41.0"), "41 mA is over it");
 }

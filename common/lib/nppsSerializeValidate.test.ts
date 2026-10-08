@@ -89,7 +89,12 @@ describe('validator wrapper', () => {
       });
       const got = kept.map(({ id, ...rest }) => rest);
       // undefined `modality` is absent in the golden.
-      expect(JSON.parse(JSON.stringify(got)), c.name).toEqual(c.expected);
+      // The frozen golden still holds the 2 mA auricular VNS hardware ceiling, replaced by the 40 mA one on the principal's
+      // instruction (OI-VNSCLIP-09, issues #554 and #559); it is set aside here as in common/npps-core/tests/validate.rs.
+      const want = c.expected.filter((i: { modality?: string; parameterKey?: string; limitSource?: string; message: string }) =>
+        !(i.modality === 'vns_hrv' && i.parameterKey === 'intensityMilliamps' && i.limitSource === 'hardware'
+          && i.message.startsWith('VNS intensity')));
+      expect(JSON.parse(JSON.stringify(got)), c.name).toEqual(want);
     }
   });
 
