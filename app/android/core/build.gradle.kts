@@ -131,7 +131,6 @@ val isMacHost = System.getProperty("os.name").startsWith("Mac")
 val appleRustTargets = mapOf(
     "iosArm64" to "aarch64-apple-ios",
     "iosSimulatorArm64" to "aarch64-apple-ios-sim",
-    "iosX64" to "x86_64-apple-ios",
 )
 val nppsFfiCommonDir: java.io.File = layout.projectDirectory.dir("../../../common").asFile
 
@@ -177,7 +176,7 @@ kotlin {
         // The binding parity tests run under Node: a browser run needs a browser installed.
         nodejs()
     }
-    listOf(iosArm64(), iosSimulatorArm64(), iosX64()).forEach { target ->
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
         val triple = appleRustTargets.getValue(target.name)
         target.compilations.getByName("main").cinterops.create("nppsFfi") {
             definitionFile.set(project.file("src/nativeInterop/cinterop/nppsFfi.def"))

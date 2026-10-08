@@ -4,8 +4,8 @@
 #
 #   scripts/build-npps-xcframework.sh
 #
-# Slices: iOS device (arm64) and iOS simulator (arm64 + x86_64, lipo'd). Needs macOS with Xcode and a
-# Rust toolchain; the three Apple targets are added with rustup if it is present. app/ios/project.yml's
+# Slices: iOS device (arm64) and iOS simulator (arm64 only; Intel Macs are retired). Needs macOS with Xcode and a
+# Rust toolchain; the two Apple targets are added with rustup if it is present. app/ios/project.yml's
 # preGenCommand runs this before XcodeGen reads the tree, because XcodeGen builds the project from what
 # is on disk and a framework that does not exist yet is silently left out of it.
 set -euo pipefail
@@ -28,7 +28,7 @@ if [ -d "$out" ] && [ -z "$(find "$common/npps-core" "$common/npps-ffi" "$common
   exit 0
 fi
 
-targets="aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios"
+targets="aarch64-apple-ios aarch64-apple-ios-sim"
 if command -v rustup >/dev/null 2>&1; then
   # shellcheck disable=SC2086
   rustup target add $targets
@@ -41,17 +41,11 @@ for t in $targets; do
 done
 
 lib=libneurone_npps_ffi.a
-tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
-lipo -create \
-  "$common/target/aarch64-apple-ios-sim/release/$lib" \
-  "$common/target/x86_64-apple-ios/release/$lib" \
-  -output "$tmp/$lib"
 
 rm -rf "$out"
 mkdir -p "$(dirname "$out")"
 xcodebuild -create-xcframework \
   -library "$common/target/aarch64-apple-ios/release/$lib" -headers "$common/npps-ffi/include" \
-  -library "$tmp/$lib" -headers "$common/npps-ffi/include" \
+  -library "$common/target/aarch64-apple-ios-sim/release/$lib" -headers "$common/npps-ffi/include" \
   -output "$out"
 echo "built $out"
