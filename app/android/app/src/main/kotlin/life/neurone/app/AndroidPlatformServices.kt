@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.session.ProtocolSigner
 import life.neurone.shared.NoOpAnalyticsBackend
 import life.neurone.shared.PlatformServices
 import life.neurone.shared.ble.BleCentral
@@ -15,6 +16,7 @@ import life.neurone.shared.ble.BleCentral
 class AndroidPlatformServices(
     override val keyValueStore: KeyValueStore,
     override val bleCentral: BleCentral,
+    override val protocolSigner: ProtocolSigner,
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
 ) : PlatformServices {
 

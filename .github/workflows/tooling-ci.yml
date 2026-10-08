@@ -202,6 +202,7 @@ jobs:
       NP_SCOPE_CONSENT: |
         app/ios/**
         app/android/**
+        app/NeurOneUI/**
         scripts/check-consent-reachability.ts
         .github/workflows/tooling-ci.yml
       # Firmware, for the same reason: the edit that breaks this guard is a new
@@ -465,6 +466,7 @@ jobs:
           assert scope.python.paths    false app/web/src/main.ts
           assert scope.consent.paths   true  app/ios/NeurOne/Consent/ConsentStore.swift
           assert scope.consent.paths   true  app/ios/NeurOne/Views/ConsentDashboardView.swift
+          assert scope.consent.paths   true  app/NeurOneUI/shared/src/commonMain/kotlin/life/neurone/shared/ui/ConsentDashboardScreen.kt
           assert scope.consent.paths   false simulator/js/ui.js
           assert scope.redaction.paths true  firmware/safety_mcu/src/np_fault_latch.c
           assert scope.redaction.paths true  firmware/hub_control/include/np_hub_config.h

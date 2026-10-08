@@ -1,4 +1,4 @@
-package life.neurone.app.session
+package life.neurone.shared.session
 
 import life.neurone.shared.ble.ConnectionState
 import life.neurone.shared.ble.NeurOneGattManager

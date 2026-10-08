@@ -1,7 +1,5 @@
 package life.neurone.shared.ui
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
@@ -14,19 +12,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
 import life.neurone.core.protocol.PersistedKeys
 import life.neurone.shared.AppServices
 import life.neurone.shared.resources.*
+import life.neurone.shared.text.installValidationText
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -35,6 +37,9 @@ object OnboardingKeys {
     const val BIPA_ACCEPTED = "np.onboarding.bipa-accepted"
     const val CONSENT_SHOWN = "np.onboarding.consent-shown"
 }
+
+/** Where a screen reports the outcome of an action (an upload, a refusal) without leaving the screen. */
+val LocalSnackbarHost = compositionLocalOf { SnackbarHostState() }
 
 /** The five top-level destinations, in tab order. */
 enum class AppTab(val label: StringResource, val icon: ImageVector) {
@@ -50,24 +55,21 @@ enum class AppTab(val label: StringResource, val icon: ImageVector) {
  *
  * Onboarding gates precede ALL personal-data collection or display (age gate before consent layers,
  * BIPA release before EEG), and the order is decided here, once, so no platform can reorder it.
- *
- * [tabOverrides] lets a host supply a tab's content while that screen is still platform code. A tab
- * with neither a shared screen nor an override shows [TabPending]. That list is the honest map of
- * where the platforms still differ, and it shrinks as screens move into this module
- * (app/NeurOneUI/README.md keeps the current list).
+
+ * There is no per-host override: every tab is the shared screen, so the platforms can differ only through
+ * `PlatformServices`.
  */
 @Composable
-fun NeurOneApp(
-    services: AppServices,
-    tabOverrides: Map<AppTab, @Composable (Modifier) -> Unit> = emptyMap(),
-) {
+fun NeurOneApp(services: AppServices) {
+    // The validator's messages are locale keys until their text is read (asynchronously, once).
+    LaunchedEffect(Unit) { installValidationText() }
     MaterialTheme {
-        Root(services, tabOverrides)
+        Root(services)
     }
 }
 
 @Composable
-private fun Root(services: AppServices, tabOverrides: Map<AppTab, @Composable (Modifier) -> Unit>) {
+private fun Root(services: AppServices) {
     val kv = services.keyValueStore
     var ageConfirmed by remember { mutableStateOf(kv.getBoolean(PersistedKeys.AGE_CONFIRMED_KEY)) }
     var bipaAccepted by remember { mutableStateOf(kv.getBoolean(OnboardingKeys.BIPA_ACCEPTED)) }
@@ -95,15 +97,17 @@ private fun Root(services: AppServices, tabOverrides: Map<AppTab, @Composable (M
                 consentShown = true
             },
         )
-        else -> MainScaffold(services, tabOverrides)
+        else -> MainScaffold(services)
     }
 }
 
 @Composable
-private fun MainScaffold(services: AppServices, tabOverrides: Map<AppTab, @Composable (Modifier) -> Unit>) {
+private fun MainScaffold(services: AppServices) {
     var selected by remember { mutableStateOf(AppTab.SESSION) }
 
+    val snackbar = remember { SnackbarHostState() }
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             NavigationBar {
                 AppTab.entries.forEach { tab ->
@@ -118,20 +122,14 @@ private fun MainScaffold(services: AppServices, tabOverrides: Map<AppTab, @Compo
         },
     ) { padding ->
         val modifier = Modifier.padding(padding)
-        val override = tabOverrides[selected]
-        when {
-            override != null -> override(modifier)
-            selected == AppTab.HISTORY -> HistoryScreen(services.sessionHistoryStore, modifier)
-            selected == AppTab.CONSUMABLES -> ConsumablesScreen(services, modifier)
-            else -> TabPending(modifier)
+        CompositionLocalProvider(LocalSnackbarHost provides snackbar) {
+            when (selected) {
+                AppTab.SESSION -> SessionTab(services, modifier)
+                AppTab.HISTORY -> HistoryScreen(services.sessionHistoryStore, modifier)
+                AppTab.CONSUMABLES -> ConsumablesScreen(services, modifier)
+                AppTab.PRIVACY -> ConsentDashboardScreen(services, modifier)
+                AppTab.SETTINGS -> SettingsScreen(services, modifier)
+            }
         }
-    }
-}
-
-/** A tab whose screen has not been brought into the shared module, on a host that has no override for it. */
-@Composable
-fun TabPending(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-        Text(stringResource(Res.string.app_tab_pending_body), style = MaterialTheme.typography.bodyLarge)
     }
 }

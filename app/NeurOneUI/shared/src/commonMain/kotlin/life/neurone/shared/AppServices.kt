@@ -21,6 +21,7 @@ import life.neurone.core.protocol.NPProtocolLibrary
 import life.neurone.core.research.ResearchSuggestionStore
 import life.neurone.core.session.SessionHistoryStore
 import life.neurone.shared.ble.NeurOneGattManager
+import life.neurone.shared.session.ProtocolUploader
 
 /**
  * The composition root, written once. It builds every store and gate the screens read from
@@ -47,6 +48,9 @@ class AppServices(
     val researchSuggestionStore = ResearchSuggestionStore(keyValueStore)
 
     val gattManager = NeurOneGattManager(platform.bleCentral, scope, keyValueStore)
+
+    /** Mode-2 upload: compile, sign with the platform's signer, chunk, write to the hub. */
+    val protocolUploader = ProtocolUploader(gattManager, platform.protocolSigner)
 
     /** Consumable reminder engine, fed by the hub's CONSUMABLE_STATUS counts (SHDR-class). */
     val consumableTracker = ConsumableTracker(

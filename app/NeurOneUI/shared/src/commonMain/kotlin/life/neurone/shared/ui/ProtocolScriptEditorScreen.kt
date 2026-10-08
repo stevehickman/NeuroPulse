@@ -1,4 +1,4 @@
-package life.neurone.app.ui
+package life.neurone.shared.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,9 +26,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import life.neurone.core.protocol.NPPSError
 import life.neurone.core.protocol.NPProtocolLibrary
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import life.neurone.app.R
+import org.jetbrains.compose.resources.stringResource
+import life.neurone.shared.resources.Res
+import life.neurone.shared.resources.*
 
 // Port of iOS ProtocolScriptEditorView. Full-power NPPS text editor: authors compile through
 // the same parser/serializer the whole app uses. On Save the script is parsed to an
@@ -43,9 +43,7 @@ fun ProtocolScriptEditorScreen(
     modifier: Modifier = Modifier,
 ) {
     var text by remember { mutableStateOf(initialText) }
-    var error by remember { mutableStateOf<String?>(null) }
-
-    val context = LocalContext.current
+    var error by remember { mutableStateOf<ScriptError?>(null) }
 
     fun save() {
         try {
@@ -53,9 +51,9 @@ fun ProtocolScriptEditorScreen(
             library.save(entry)
             onSaved()
         } catch (e: NPPSError) {
-            error = context.getString(R.string.script_line_0_1, e.line, e.messageText)
+            error = ScriptError.AtLine(e.line, e.messageText)
         } catch (e: Exception) {
-            error = e.message ?: context.getString(R.string.script_could_not_parse_the_protocol_script)
+            error = e.message?.let { ScriptError.Message(it) } ?: ScriptError.Unparseable
         }
     }
 
@@ -65,14 +63,14 @@ fun ProtocolScriptEditorScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) }
-            Text(stringResource(R.string.script_protocol_script), style = MaterialTheme.typography.titleMedium)
-            Button(onClick = { save() }) { Text(stringResource(R.string.protocol_composer_save)) }
+            TextButton(onClick = onCancel) { Text(stringResource(Res.string.common_cancel)) }
+            Text(stringResource(Res.string.script_protocol_script), style = MaterialTheme.typography.titleMedium)
+            Button(onClick = { save() }) { Text(stringResource(Res.string.protocol_composer_save)) }
         }
 
         error?.let {
             Spacer(Modifier.height(8.dp))
-            Text(it, color = Color(0xFFD32F2F), style = MaterialTheme.typography.bodySmall)
+            Text(it.text(), color = Color(0xFFD32F2F), style = MaterialTheme.typography.bodySmall)
         }
 
         Spacer(Modifier.height(8.dp))
@@ -81,7 +79,7 @@ fun ProtocolScriptEditorScreen(
             onValueChange = { text = it; error = null },
             modifier = Modifier.fillMaxWidth().weight(1f),
             textStyle = TextStyle(fontFamily = FontFamily.Monospace),
-            label = { Text(stringResource(R.string.script_npps)) },
+            label = { Text(stringResource(Res.string.script_npps)) },
         )
     }
 }
@@ -102,3 +100,17 @@ const val NEW_PROTOCOL_TEMPLATE: String = """protocol "New Protocol" {
     }
 }
 """
+
+/** Why a script was not saved. Kept as data, not text, because the words are read in composition (CLAUDE.md §17). */
+private sealed interface ScriptError {
+    data class AtLine(val line: Int, val message: String) : ScriptError
+    data class Message(val text: String) : ScriptError
+    data object Unparseable : ScriptError
+}
+
+@Composable
+private fun ScriptError.text(): String = when (this) {
+    is ScriptError.AtLine -> stringResource(Res.string.script_line_0_1, line, message)
+    is ScriptError.Message -> text
+    ScriptError.Unparseable -> stringResource(Res.string.script_could_not_parse_the_protocol_script)
+}

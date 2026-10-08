@@ -1,4 +1,4 @@
-package life.neurone.app.ui
+package life.neurone.shared.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,12 +31,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import life.neurone.app.NeurOneApplication
-import life.neurone.app.R
-import life.neurone.shared.ui.ConsentOnboardingScreen
+import life.neurone.shared.AppServices
+import life.neurone.shared.resources.Res
+import life.neurone.shared.resources.*
 import life.neurone.core.consent.ConsentEngine
 import life.neurone.core.consent.ConsentStore
 import life.neurone.core.models.ClinicianAccessExpansionRequest
@@ -46,8 +46,8 @@ import life.neurone.core.models.ResearchCategory
 import life.neurone.core.models.StudyInvitation
 import life.neurone.core.models.StudyParticipationRecord
 import life.neurone.core.models.UHDRElement
-import java.time.LocalDate
-import java.util.UUID
+import life.neurone.core.platform.todayIso
+import life.neurone.core.common.UUID
 
 // Port of iOS ConsentDashboardView (app/ios/NeurOne/Views/ConsentDashboardView.swift) —
 // the consent management surface of CLAUDE.md §6: active clinician grants · research consent
@@ -74,7 +74,7 @@ import java.util.UUID
 //
 // Consent element, category and tier labels come from :core's `displayName`, which is
 // English-only: :core is a pure-JVM module by design (no Android plugin, ISC-2..4) so it
-// cannot name R.string. That is the standing app/android/core/ backlog item in
+// cannot name Res.string. That is the standing app/android/core/ backlog item in
 // check-locale-strings.ts PENDING_PATHS, and it is how every other Android consent screen
 // renders these same enums today.
 
@@ -88,7 +88,7 @@ private sealed interface DashboardRoute {
 }
 
 @Composable
-fun ConsentDashboardScreen(app: NeurOneApplication, modifier: Modifier = Modifier) {
+fun ConsentDashboardScreen(app: AppServices, modifier: Modifier = Modifier) {
     val store = app.consentStore
     var route by remember { mutableStateOf<DashboardRoute>(DashboardRoute.Dashboard) }
     // ConsentStore is not observable (parity with iOS's @Published is a follow-up); bump to
@@ -188,14 +188,14 @@ private fun DashboardContent(
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
     ) {
-        Text(stringResource(R.string.dashboard_title), style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(Res.string.dashboard_title), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(20.dp))
 
         // ── Clinician access (§6.1) ──────────────────────────────────────
-        SectionHeader(stringResource(R.string.dashboard_section_clinicians))
+        SectionHeader(stringResource(Res.string.dashboard_section_clinicians))
         if (grants.isEmpty()) {
             Text(
-                stringResource(R.string.dashboard_no_clinicians),
+                stringResource(Res.string.dashboard_no_clinicians),
                 style = MaterialTheme.typography.bodyMedium,
             )
         } else {
@@ -205,11 +205,11 @@ private fun DashboardContent(
         }
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = { onNavigate(DashboardRoute.NewClinicianGrant) }) {
-            Text(stringResource(R.string.dashboard_add_clinician))
+            Text(stringResource(Res.string.dashboard_add_clinician))
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            stringResource(R.string.dashboard_clinicians_footer),
+            stringResource(Res.string.dashboard_clinicians_footer),
             style = MaterialTheme.typography.bodySmall,
         )
 
@@ -221,10 +221,10 @@ private fun DashboardContent(
         // §6.1's persistent user notification. A section on the consent dashboard rather than a
         // transient banner: the request outlives any one launch of the app, and the place the user
         // manages clinician access is where a change to it should appear.
-        SectionHeader(stringResource(R.string.dashboard_section_access_requests))
+        SectionHeader(stringResource(Res.string.dashboard_section_access_requests))
         if (expansions.isEmpty()) {
             Text(
-                stringResource(R.string.expansion_none),
+                stringResource(Res.string.expansion_none),
                 style = MaterialTheme.typography.bodyMedium,
             )
         } else {
@@ -239,7 +239,7 @@ private fun DashboardContent(
                         Column(Modifier.padding(16.dp)) {
                             Text(
                                 stringResource(
-                                    R.string.expansion_header_format,
+                                    Res.string.expansion_header_format,
                                     differential.clinicianName,
                                     differential.organization,
                                 ),
@@ -247,7 +247,7 @@ private fun DashboardContent(
                             )
                             Text(
                                 stringResource(
-                                    R.string.expansion_tier_change_format,
+                                    Res.string.expansion_tier_change_format,
                                     differential.fromTier.displayName,
                                     differential.toTier.displayName,
                                 ),
@@ -256,9 +256,9 @@ private fun DashboardContent(
                             val askedOn = request.questionSentOnDay
                             Text(
                                 if (askedOn != null) {
-                                    stringResource(R.string.expansion_asked_label, askedOn)
+                                    stringResource(Res.string.expansion_asked_label, askedOn)
                                 } else {
-                                    stringResource(R.string.expansion_pending_badge)
+                                    stringResource(Res.string.expansion_pending_badge)
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                             )
@@ -266,7 +266,7 @@ private fun DashboardContent(
                             OutlinedButton(
                                 onClick = { onNavigate(DashboardRoute.ExpansionRequest(request)) },
                             ) {
-                                Text(stringResource(R.string.expansion_review_button))
+                                Text(stringResource(Res.string.expansion_review_button))
                             }
                         }
                     }
@@ -279,25 +279,13 @@ private fun DashboardContent(
         Spacer(Modifier.height(20.dp))
 
         // ── Research consent (§6.2) ──────────────────────────────────────
-        SectionHeader(stringResource(R.string.dashboard_section_research))
-        // Three postures, not two. "Never asked" and "said stop" both have
-        // blanketConsentGranted == false, so the flag alone would show a withdrawn user the
-        // per-category summary while the ingestion gate refuses every study they are sent (§6.0).
-        Text(
-            when {
-                research.blanketConsentGranted ->
-                    stringResource(R.string.dashboard_blanket_approved)
-                research.blanketConsentWithdrawn ->
-                    stringResource(R.string.dashboard_research_stopped)
-                else -> stringResource(R.string.dashboard_per_category)
-            },
-            style = MaterialTheme.typography.titleSmall,
-        )
+        SectionHeader(stringResource(Res.string.dashboard_section_research))
+        // Contact status first: it belongs to the section, not to the category list below it.
         Text(
             if (research.contactConsentGranted) {
-                stringResource(R.string.dashboard_contact_format, redactedContact(research.contactMethod))
+                stringResource(Res.string.dashboard_contact_format, redactedContact(research.contactMethod))
             } else {
-                stringResource(R.string.dashboard_no_contact)
+                stringResource(Res.string.dashboard_no_contact)
             },
             style = MaterialTheme.typography.bodySmall,
         )
@@ -310,7 +298,7 @@ private fun DashboardContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(R.string.and_ui_blanket_research_consent), Modifier.weight(1f))
+            Text(stringResource(Res.string.and_ui_blanket_research_consent), Modifier.weight(1f))
             Switch(
                 checked = research.blanketConsentGranted,
                 onCheckedChange = { on ->
@@ -331,23 +319,40 @@ private fun DashboardContent(
             val withdrawnOn = research.blanketConsentWithdrawnOnDay
             Text(
                 if (research.blanketConsentWithdrawn && withdrawnOn != null) {
-                    stringResource(R.string.dashboard_research_stopped_format, withdrawnOn)
+                    stringResource(Res.string.dashboard_research_stopped_format, withdrawnOn)
                 } else {
-                    stringResource(R.string.dashboard_posture_asked)
+                    stringResource(Res.string.dashboard_posture_asked)
                 },
                 style = MaterialTheme.typography.bodySmall,
             )
         } else {
             // §6.2: L3 carries the irreversibility notice wherever its control is on.
             Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.consent_important_label), fontWeight = FontWeight.Medium)
+            Text(stringResource(Res.string.consent_important_label), fontWeight = FontWeight.Medium)
             Text(
-                stringResource(R.string.consent_irreversibility_notice),
+                stringResource(Res.string.consent_irreversibility_notice),
                 style = MaterialTheme.typography.bodySmall,
             )
         }
 
         Spacer(Modifier.height(12.dp))
+
+        // The summary line sits directly above the category list it describes, with nothing between them: it
+        // reads as that list's heading, not as a caption of the blanket switch above.
+        // Three postures, not two. "Never asked" and "said stop" both have
+        // blanketConsentGranted == false, so the flag alone would show a withdrawn user the
+        // per-category summary while the ingestion gate refuses every study they are sent (§6.0).
+        Text(
+            when {
+                research.blanketConsentGranted ->
+                    stringResource(Res.string.dashboard_blanket_approved)
+                research.blanketConsentWithdrawn ->
+                    stringResource(Res.string.dashboard_research_stopped)
+                else -> stringResource(Res.string.dashboard_per_category)
+            },
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Spacer(Modifier.height(4.dp))
         for (category in ResearchCategory.entries) {
             val granted = research.categoryConsents[category] ?: false
             // Read-only status, not an editing control: L2 scope is edited in Research
@@ -368,10 +373,10 @@ private fun DashboardContent(
         Spacer(Modifier.height(20.dp))
 
         // ── Study participation audit trail (§5.3) ───────────────────────
-        SectionHeader(stringResource(R.string.dashboard_section_study_history))
+        SectionHeader(stringResource(Res.string.dashboard_section_study_history))
         if (participations.isEmpty()) {
             Text(
-                stringResource(R.string.dashboard_no_studies),
+                stringResource(Res.string.dashboard_no_studies),
                 style = MaterialTheme.typography.bodyMedium,
             )
         } else {
@@ -388,10 +393,10 @@ private fun DashboardContent(
         Spacer(Modifier.height(20.dp))
 
         // ── Pending study invitations (§6.3) ─────────────────────────────
-        SectionHeader(stringResource(R.string.dashboard_section_pending))
+        SectionHeader(stringResource(Res.string.dashboard_section_pending))
         if (invitations.isEmpty()) {
             Text(
-                stringResource(R.string.dashboard_no_invitations),
+                stringResource(Res.string.dashboard_no_invitations),
                 style = MaterialTheme.typography.bodyMedium,
             )
         } else {
@@ -402,7 +407,7 @@ private fun DashboardContent(
                     Column(Modifier.padding(16.dp)) {
                         Text(invitation.studyTitle, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            stringResource(R.string.invitation_study_id_format, invitation.studyId),
+                            stringResource(Res.string.invitation_study_id_format, invitation.studyId),
                             style = MaterialTheme.typography.bodySmall,
                         )
                         // The row carries its posture: a consent request is waiting on the user,
@@ -411,9 +416,9 @@ private fun DashboardContent(
                         // leave the user to guess which.
                         Text(
                             if (invitation.participatesWithoutAnswer) {
-                                stringResource(R.string.invitation_engagement_badge)
+                                stringResource(Res.string.invitation_engagement_badge)
                             } else {
-                                stringResource(R.string.invitation_request_badge)
+                                stringResource(Res.string.invitation_request_badge)
                             },
                             style = MaterialTheme.typography.labelSmall,
                         )
@@ -421,9 +426,9 @@ private fun DashboardContent(
                         OutlinedButton(onClick = { onNavigate(DashboardRoute.Invitation(invitation)) }) {
                             Text(
                                 if (invitation.participatesWithoutAnswer) {
-                                    stringResource(R.string.invitation_engagement_title)
+                                    stringResource(Res.string.invitation_engagement_title)
                                 } else {
-                                    stringResource(R.string.invitation_title)
+                                    stringResource(Res.string.invitation_title)
                                 },
                             )
                         }
@@ -435,18 +440,18 @@ private fun DashboardContent(
         Spacer(Modifier.height(24.dp))
 
         // ── Research preferences + portal ────────────────────────────────
-        Text(stringResource(R.string.portal_research_ideas), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.portal_research_ideas), style = MaterialTheme.typography.titleMedium)
         Text(
-            stringResource(R.string.and_ui_suggest_studies_vote_and_register_interest_i),
+            stringResource(Res.string.and_ui_suggest_studies_vote_and_register_interest_i),
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { onNavigate(DashboardRoute.ResearchPreferences) }) {
-                Text(stringResource(R.string.dashboard_research_prefs_button))
+                Text(stringResource(Res.string.dashboard_research_prefs_button))
             }
             OutlinedButton(onClick = { onNavigate(DashboardRoute.Portal) }) {
-                Text(stringResource(R.string.and_ui_open_research_portal))
+                Text(stringResource(Res.string.and_ui_open_research_portal))
             }
         }
     }
@@ -456,11 +461,11 @@ private fun DashboardContent(
     grantPendingRevoke?.let { grant ->
         AlertDialog(
             onDismissRequest = { grantPendingRevoke = null },
-            title = { Text(stringResource(R.string.dashboard_revoke_dialog_title)) },
+            title = { Text(stringResource(Res.string.dashboard_revoke_dialog_title)) },
             text = {
                 Text(
                     stringResource(
-                        R.string.dashboard_revoke_message_format,
+                        Res.string.dashboard_revoke_message_format,
                         grant.clinicianName,
                         grant.clinicianOrganization,
                     ),
@@ -472,12 +477,12 @@ private fun DashboardContent(
                     grantPendingRevoke = null
                     onChanged()
                 }) {
-                    Text(stringResource(R.string.dashboard_revoke_access_format, grant.clinicianName))
+                    Text(stringResource(Res.string.dashboard_revoke_access_format, grant.clinicianName))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { grantPendingRevoke = null }) {
-                    Text(stringResource(R.string.common_cancel))
+                    Text(stringResource(Res.string.common_cancel))
                 }
             },
         )
@@ -486,20 +491,20 @@ private fun DashboardContent(
     participationPendingWithdraw?.let { record ->
         AlertDialog(
             onDismissRequest = { participationPendingWithdraw = null },
-            title = { Text(stringResource(R.string.dashboard_withdraw_dialog_title)) },
-            text = { Text(stringResource(R.string.dashboard_withdraw_dialog_message)) },
+            title = { Text(stringResource(Res.string.dashboard_withdraw_dialog_title)) },
+            text = { Text(stringResource(Res.string.dashboard_withdraw_dialog_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     store.withdrawFromStudy(record.studyId)
                     participationPendingWithdraw = null
                     onChanged()
                 }) {
-                    Text(stringResource(R.string.dashboard_withdraw_from_format, record.studyId))
+                    Text(stringResource(Res.string.dashboard_withdraw_from_format, record.studyId))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { participationPendingWithdraw = null }) {
-                    Text(stringResource(R.string.common_cancel))
+                    Text(stringResource(Res.string.common_cancel))
                 }
             },
         )
@@ -508,8 +513,8 @@ private fun DashboardContent(
     if (showBlanketWithdrawConfirmation) {
         AlertDialog(
             onDismissRequest = { showBlanketWithdrawConfirmation = false },
-            title = { Text(stringResource(R.string.dashboard_stop_preapproving_dialog_title)) },
-            text = { Text(stringResource(R.string.dashboard_stop_preapproving_message)) },
+            title = { Text(stringResource(Res.string.dashboard_stop_preapproving_dialog_title)) },
+            text = { Text(stringResource(Res.string.dashboard_stop_preapproving_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     // The named path, not an edit-and-commit: the §6.0 analytics teardown is
@@ -518,11 +523,11 @@ private fun DashboardContent(
                     store.withdrawBlanketResearchConsent()
                     showBlanketWithdrawConfirmation = false
                     onChanged()
-                }) { Text(stringResource(R.string.dashboard_stop_preapproving_confirm)) }
+                }) { Text(stringResource(Res.string.dashboard_stop_preapproving_confirm)) }
             },
             dismissButton = {
                 TextButton(onClick = { showBlanketWithdrawConfirmation = false }) {
-                    Text(stringResource(R.string.common_cancel))
+                    Text(stringResource(Res.string.common_cancel))
                 }
             },
         )
@@ -550,12 +555,12 @@ private fun ClinicianGrantCard(grant: ClinicianConsentGrant, onRevoke: () -> Uni
                     Text(grant.tier.monthlyPrice, style = MaterialTheme.typography.labelSmall)
                 }
                 TextButton(onClick = onRevoke) {
-                    Text(stringResource(R.string.dashboard_revoke_button))
+                    Text(stringResource(Res.string.dashboard_revoke_button))
                 }
             }
             // What this grant actually reaches — the §6.1 minimum-necessary set for its tier.
             Text(
-                stringResource(R.string.dashboard_access_format, elementList(grant.approvedElements)),
+                stringResource(Res.string.dashboard_access_format, elementList(grant.approvedElements)),
                 style = MaterialTheme.typography.labelSmall,
             )
             // A "from today onwards only" answer to §6.1's retroactive question has to stay
@@ -564,19 +569,19 @@ private fun ClinicianGrantCard(grant: ClinicianConsentGrant, onRevoke: () -> Uni
             if (grant.forwardOnlyElements.isNotEmpty()) {
                 Text(
                     stringResource(
-                        R.string.dashboard_forward_only_format,
+                        Res.string.dashboard_forward_only_format,
                         elementList(grant.forwardOnlyElements),
                     ),
                     style = MaterialTheme.typography.labelSmall,
                 )
             }
             Text(
-                stringResource(R.string.dashboard_granted_format, grant.grantedAtDay),
+                stringResource(Res.string.dashboard_granted_format, grant.grantedAtDay),
                 style = MaterialTheme.typography.labelSmall,
             )
             grant.expiresAtDay?.let { expiry ->
                 Text(
-                    stringResource(R.string.dashboard_expires_format, expiry),
+                    stringResource(Res.string.dashboard_expires_format, expiry),
                     style = MaterialTheme.typography.labelSmall,
                 )
             }
@@ -598,19 +603,19 @@ private fun StudyParticipationCard(
             Column(Modifier.weight(1f)) {
                 Text(record.studyId, style = MaterialTheme.typography.titleSmall)
                 Text(
-                    stringResource(R.string.dashboard_data_shared_format, record.transmittedAtDay),
+                    stringResource(Res.string.dashboard_data_shared_format, record.transmittedAtDay),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 if (!record.isActive) {
                     Text(
-                        stringResource(R.string.dashboard_withdrawn_label),
+                        stringResource(Res.string.dashboard_withdrawn_label),
                         style = MaterialTheme.typography.labelSmall,
                     )
                 }
             }
             if (record.isActive) {
                 TextButton(onClick = onWithdraw) {
-                    Text(stringResource(R.string.dashboard_withdraw_button))
+                    Text(stringResource(Res.string.dashboard_withdraw_button))
                 }
             }
         }
@@ -656,12 +661,12 @@ private fun StudyInvitationScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text(stringResource(R.string.consent_back_button)) }
+            TextButton(onClick = onBack) { Text(stringResource(Res.string.consent_back_button)) }
             Text(
                 if (isEngagementNotification) {
-                    stringResource(R.string.invitation_engagement_title)
+                    stringResource(Res.string.invitation_engagement_title)
                 } else {
-                    stringResource(R.string.invitation_title)
+                    stringResource(Res.string.invitation_title)
                 },
                 style = MaterialTheme.typography.titleMedium,
             )
@@ -670,18 +675,18 @@ private fun StudyInvitationScreen(
 
         Text(invitation.studyTitle, style = MaterialTheme.typography.headlineSmall)
         Text(
-            stringResource(R.string.invitation_study_id_format, invitation.studyId),
+            stringResource(Res.string.invitation_study_id_format, invitation.studyId),
             style = MaterialTheme.typography.bodySmall,
         )
 
         if (isEngagementNotification) {
             Spacer(Modifier.height(12.dp))
             Text(
-                stringResource(R.string.invitation_engagement_heading),
+                stringResource(Res.string.invitation_engagement_heading),
                 fontWeight = FontWeight.Medium,
             )
             Text(
-                stringResource(R.string.invitation_engagement_body),
+                stringResource(Res.string.invitation_engagement_body),
                 style = MaterialTheme.typography.bodySmall,
             )
         }
@@ -690,11 +695,11 @@ private fun StudyInvitationScreen(
         Divider()
         Spacer(Modifier.height(16.dp))
 
-        Text(stringResource(R.string.invitation_can_see_heading), fontWeight = FontWeight.Medium)
+        Text(stringResource(Res.string.invitation_can_see_heading), fontWeight = FontWeight.Medium)
         Text(elementList(invitation.approvedElements), style = MaterialTheme.typography.bodySmall)
 
         Spacer(Modifier.height(12.dp))
-        Text(stringResource(R.string.invitation_cannot_see_heading), fontWeight = FontWeight.Medium)
+        Text(stringResource(Res.string.invitation_cannot_see_heading), fontWeight = FontWeight.Medium)
         Text(elementList(invitation.cannotLearn), style = MaterialTheme.typography.bodySmall)
 
         // The §5.3 parameters the ingestion gate checked, shown rather than merely enforced:
@@ -702,7 +707,7 @@ private fun StudyInvitationScreen(
         Spacer(Modifier.height(12.dp))
         Text(
             stringResource(
-                R.string.invitation_anonymisation_format,
+                Res.string.invitation_anonymisation_format,
                 invitation.kAnonymity,
                 invitation.dateRoundingDays,
             ),
@@ -710,9 +715,9 @@ private fun StudyInvitationScreen(
         )
 
         Spacer(Modifier.height(16.dp))
-        Text(stringResource(R.string.invitation_important_label), fontWeight = FontWeight.Medium)
+        Text(stringResource(Res.string.invitation_important_label), fontWeight = FontWeight.Medium)
         Text(
-            stringResource(R.string.consent_irreversibility_notice),
+            stringResource(Res.string.consent_irreversibility_notice),
             style = MaterialTheme.typography.bodySmall,
         )
 
@@ -720,7 +725,7 @@ private fun StudyInvitationScreen(
         if (askedOn != null) {
             Spacer(Modifier.height(12.dp))
             Text(
-                stringResource(R.string.invitation_asked_label, askedOn),
+                stringResource(Res.string.invitation_asked_label, askedOn),
                 style = MaterialTheme.typography.bodySmall,
             )
         }
@@ -730,25 +735,25 @@ private fun StudyInvitationScreen(
             // No accept: L3 already answered. The only decision left is to leave, which withdraws
             // the participation ingestion recorded.
             OutlinedButton(onClick = { showLeaveConfirmation = true }) {
-                Text(stringResource(R.string.invitation_leave_button))
+                Text(stringResource(Res.string.invitation_leave_button))
             }
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = onDecline) {
-                    Text(stringResource(R.string.invitation_decline_button))
+                    Text(stringResource(Res.string.invitation_decline_button))
                 }
                 Button(onClick = { showParticipateConfirmation = true }) {
-                    Text(stringResource(R.string.invitation_participate_button))
+                    Text(stringResource(Res.string.invitation_participate_button))
                 }
             }
             // §6.3 step 4's third response. It decides nothing, so it is not one of the two
             // answer buttons: the invitation stays open behind it.
             Spacer(Modifier.height(8.dp))
             TextButton(onClick = onAskQuestion) {
-                Text(stringResource(R.string.invitation_ask_button))
+                Text(stringResource(Res.string.invitation_ask_button))
             }
             Text(
-                stringResource(R.string.invitation_ask_explainer),
+                stringResource(Res.string.invitation_ask_explainer),
                 style = MaterialTheme.typography.bodySmall,
             )
         }
@@ -757,17 +762,17 @@ private fun StudyInvitationScreen(
     if (showParticipateConfirmation) {
         AlertDialog(
             onDismissRequest = { showParticipateConfirmation = false },
-            title = { Text(stringResource(R.string.invitation_confirm_dialog_title)) },
-            text = { Text(stringResource(R.string.consent_irreversibility_notice)) },
+            title = { Text(stringResource(Res.string.invitation_confirm_dialog_title)) },
+            text = { Text(stringResource(Res.string.consent_irreversibility_notice)) },
             confirmButton = {
                 TextButton(onClick = {
                     showParticipateConfirmation = false
                     onAccept()
-                }) { Text(stringResource(R.string.invitation_confirm_button)) }
+                }) { Text(stringResource(Res.string.invitation_confirm_button)) }
             },
             dismissButton = {
                 TextButton(onClick = { showParticipateConfirmation = false }) {
-                    Text(stringResource(R.string.common_cancel))
+                    Text(stringResource(Res.string.common_cancel))
                 }
             },
         )
@@ -776,17 +781,17 @@ private fun StudyInvitationScreen(
     if (showLeaveConfirmation) {
         AlertDialog(
             onDismissRequest = { showLeaveConfirmation = false },
-            title = { Text(stringResource(R.string.invitation_leave_dialog_title)) },
-            text = { Text(stringResource(R.string.consent_irreversibility_notice)) },
+            title = { Text(stringResource(Res.string.invitation_leave_dialog_title)) },
+            text = { Text(stringResource(Res.string.consent_irreversibility_notice)) },
             confirmButton = {
                 TextButton(onClick = {
                     showLeaveConfirmation = false
                     onDecline()
-                }) { Text(stringResource(R.string.invitation_leave_confirm_button)) }
+                }) { Text(stringResource(Res.string.invitation_leave_confirm_button)) }
             },
             dismissButton = {
                 TextButton(onClick = { showLeaveConfirmation = false }) {
-                    Text(stringResource(R.string.common_cancel))
+                    Text(stringResource(Res.string.common_cancel))
                 }
             },
         )
@@ -839,9 +844,9 @@ private fun ClinicianExpansionRequestScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text(stringResource(R.string.consent_back_button)) }
+            TextButton(onClick = onBack) { Text(stringResource(Res.string.consent_back_button)) }
             Text(
-                stringResource(R.string.expansion_title),
+                stringResource(Res.string.expansion_title),
                 style = MaterialTheme.typography.titleMedium,
             )
         }
@@ -849,7 +854,7 @@ private fun ClinicianExpansionRequestScreen(
 
         Text(
             stringResource(
-                R.string.expansion_header_format,
+                Res.string.expansion_header_format,
                 differential.clinicianName,
                 differential.organization,
             ),
@@ -857,14 +862,14 @@ private fun ClinicianExpansionRequestScreen(
         )
         Text(
             stringResource(
-                R.string.expansion_tier_change_format,
+                Res.string.expansion_tier_change_format,
                 differential.fromTier.displayName,
                 differential.toTier.displayName,
             ),
             style = MaterialTheme.typography.bodyMedium,
         )
         Text(
-            stringResource(R.string.expansion_price_format, differential.toTier.monthlyPrice),
+            stringResource(Res.string.expansion_price_format, differential.toTier.monthlyPrice),
             style = MaterialTheme.typography.bodySmall,
         )
 
@@ -877,29 +882,29 @@ private fun ClinicianExpansionRequestScreen(
                 // Asking is not deciding: the request stays pending, and the copy says so rather
                 // than implying a message was delivered — there is no outbound clinician channel
                 // yet (OI-CONSENT-05).
-                Text(stringResource(R.string.expansion_ask_button), fontWeight = FontWeight.Medium)
+                Text(stringResource(Res.string.expansion_ask_button), fontWeight = FontWeight.Medium)
                 Text(
-                    stringResource(R.string.expansion_ask_explainer),
+                    stringResource(Res.string.expansion_ask_explainer),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.height(16.dp))
                 OutlinedButton(onClick = onDecided) {
-                    Text(stringResource(R.string.consent_back_button))
+                    Text(stringResource(Res.string.consent_back_button))
                 }
             }
 
             askingAboutHistory -> {
                 ElementListBlock(
-                    heading = stringResource(R.string.expansion_newly_visible_heading),
+                    heading = stringResource(Res.string.expansion_newly_visible_heading),
                     elements = differential.newlyVisibleElements,
                 )
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    stringResource(R.string.expansion_history_heading),
+                    stringResource(Res.string.expansion_history_heading),
                     fontWeight = FontWeight.Medium,
                 )
                 Text(
-                    stringResource(R.string.expansion_history_body, differential.clinicianName),
+                    stringResource(Res.string.expansion_history_body, differential.clinicianName),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.height(16.dp))
@@ -911,7 +916,7 @@ private fun ClinicianExpansionRequestScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(stringResource(R.string.expansion_history_forward_only_button))
+                        Text(stringResource(Res.string.expansion_history_forward_only_button))
                     }
                     OutlinedButton(
                         onClick = {
@@ -920,7 +925,7 @@ private fun ClinicianExpansionRequestScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(stringResource(R.string.expansion_history_include_button))
+                        Text(stringResource(Res.string.expansion_history_include_button))
                     }
                 }
             }
@@ -930,17 +935,17 @@ private fun ClinicianExpansionRequestScreen(
                 // because the change is the thing being consented to; the unchanged sets are
                 // context.
                 ElementListBlock(
-                    heading = stringResource(R.string.expansion_newly_visible_heading),
+                    heading = stringResource(Res.string.expansion_newly_visible_heading),
                     elements = differential.newlyVisibleElements,
                 )
                 Spacer(Modifier.height(12.dp))
                 ElementListBlock(
-                    heading = stringResource(R.string.expansion_already_visible_heading),
+                    heading = stringResource(Res.string.expansion_already_visible_heading),
                     elements = differential.alreadyVisibleElements,
                 )
                 Spacer(Modifier.height(12.dp))
                 ElementListBlock(
-                    heading = stringResource(R.string.expansion_still_withheld_heading),
+                    heading = stringResource(Res.string.expansion_still_withheld_heading),
                     elements = differential.stillNotAccessibleElements,
                 )
 
@@ -949,11 +954,11 @@ private fun ClinicianExpansionRequestScreen(
                 Spacer(Modifier.height(16.dp))
 
                 Text(
-                    stringResource(R.string.expansion_prospective_heading),
+                    stringResource(Res.string.expansion_prospective_heading),
                     fontWeight = FontWeight.Medium,
                 )
                 Text(
-                    stringResource(R.string.expansion_prospective_body, differential.clinicianName),
+                    stringResource(Res.string.expansion_prospective_body, differential.clinicianName),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.height(16.dp))
@@ -962,7 +967,7 @@ private fun ClinicianExpansionRequestScreen(
                         onClick = { askingAboutHistory = true },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(stringResource(R.string.expansion_approve_button))
+                        Text(stringResource(Res.string.expansion_approve_button))
                     }
                     OutlinedButton(
                         onClick = {
@@ -971,7 +976,7 @@ private fun ClinicianExpansionRequestScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(stringResource(R.string.expansion_deny_button))
+                        Text(stringResource(Res.string.expansion_deny_button))
                     }
                     OutlinedButton(
                         onClick = {
@@ -980,7 +985,7 @@ private fun ClinicianExpansionRequestScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(stringResource(R.string.expansion_ask_button))
+                        Text(stringResource(Res.string.expansion_ask_button))
                     }
                 }
             }
@@ -1030,7 +1035,7 @@ private fun NewClinicianGrantScreen(
     val approved = ConsentEngine.initialAccessScope(
         selectedUseCaseIds = selectedUseCaseIds,
         tier = tier,
-        grantedAtDay = LocalDate.now().toString(),
+        grantedAtDay = todayIso(),
         includesPriorData = false,
     ).elements
     val withheld = UHDRElement.entries.filterNot { it in approved }.toSet()
@@ -1040,7 +1045,7 @@ private fun NewClinicianGrantScreen(
         (tier == ClinicianUseCaseTier.RESEARCH || selectedUseCaseIds.isNotEmpty())
 
     fun commit(includePriorData: Boolean) {
-        val today = LocalDate.now().toString()
+        val today = todayIso()
         onGrant(
             ClinicianConsentGrant(
                 id = UUID.randomUUID().toString(),
@@ -1074,17 +1079,17 @@ private fun NewClinicianGrantScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) }
-            Text(stringResource(R.string.clinician_grant_title), style = MaterialTheme.typography.titleMedium)
+            TextButton(onClick = onCancel) { Text(stringResource(Res.string.common_cancel)) }
+            Text(stringResource(Res.string.clinician_grant_title), style = MaterialTheme.typography.titleMedium)
             if (askingHistory) {
                 TextButton(onClick = { askingHistory = false }) {
-                    Text(stringResource(R.string.common_back))
+                    Text(stringResource(Res.string.common_back))
                 }
             } else {
                 Button(
                     onClick = { askingHistory = true },
                     enabled = canProceed,
-                ) { Text(stringResource(R.string.clinician_grant_continue_button)) }
+                ) { Text(stringResource(Res.string.clinician_grant_continue_button)) }
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -1098,24 +1103,24 @@ private fun NewClinicianGrantScreen(
             return@Column
         }
 
-        SectionHeader(stringResource(R.string.clinician_grant_section_details))
+        SectionHeader(stringResource(Res.string.clinician_grant_section_details))
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
-            label = { Text(stringResource(R.string.clinician_grant_name_placeholder)) },
+            label = { Text(stringResource(Res.string.clinician_grant_name_placeholder)) },
             modifier = Modifier.fillMaxWidth(),
         )
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(
             value = organization,
             onValueChange = { organization = it },
-            label = { Text(stringResource(R.string.clinician_grant_org_placeholder)) },
+            label = { Text(stringResource(Res.string.clinician_grant_org_placeholder)) },
             modifier = Modifier.fillMaxWidth(),
         )
 
         Spacer(Modifier.height(20.dp))
-        SectionHeader(stringResource(R.string.clinician_grant_section_access))
-        Text(stringResource(R.string.clinician_grant_tier_picker), style = MaterialTheme.typography.bodyMedium)
+        SectionHeader(stringResource(Res.string.clinician_grant_section_access))
+        Text(stringResource(Res.string.clinician_grant_tier_picker), style = MaterialTheme.typography.bodyMedium)
         for (candidate in ClinicianUseCaseTier.entries) {
             Row(
                 Modifier.fillMaxWidth().padding(vertical = 2.dp),
@@ -1133,7 +1138,7 @@ private fun NewClinicianGrantScreen(
                 )
                 Text(
                     stringResource(
-                        R.string.clinician_grant_tier_format,
+                        Res.string.clinician_grant_tier_format,
                         candidate.displayName,
                         candidate.monthlyPrice,
                     ),
@@ -1142,15 +1147,15 @@ private fun NewClinicianGrantScreen(
         }
 
         Spacer(Modifier.height(20.dp))
-        SectionHeader(stringResource(R.string.clinician_grant_section_use_cases))
+        SectionHeader(stringResource(Res.string.clinician_grant_section_use_cases))
         if (tier == ClinicianUseCaseTier.RESEARCH) {
             Text(
-                stringResource(R.string.clinician_grant_research_tier_note),
+                stringResource(Res.string.clinician_grant_research_tier_note),
                 style = MaterialTheme.typography.bodySmall,
             )
         } else {
             Text(
-                stringResource(R.string.clinician_grant_use_cases_footer),
+                stringResource(Res.string.clinician_grant_use_cases_footer),
                 style = MaterialTheme.typography.bodySmall,
             )
             for (useCase in availableUseCases) {
@@ -1179,18 +1184,18 @@ private fun NewClinicianGrantScreen(
             }
 
             Spacer(Modifier.height(16.dp))
-            SectionHeader(stringResource(R.string.clinician_grant_section_document))
-            Text(stringResource(R.string.clinician_grant_can_see_heading), fontWeight = FontWeight.Medium)
+            SectionHeader(stringResource(Res.string.clinician_grant_section_document))
+            Text(stringResource(Res.string.clinician_grant_can_see_heading), fontWeight = FontWeight.Medium)
             Text(
                 if (approved.isEmpty()) {
-                    stringResource(R.string.clinician_grant_can_see_none)
+                    stringResource(Res.string.clinician_grant_can_see_none)
                 } else {
                     elementList(approved)
                 },
                 style = MaterialTheme.typography.bodySmall,
             )
             Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.clinician_grant_cannot_see_heading), fontWeight = FontWeight.Medium)
+            Text(stringResource(Res.string.clinician_grant_cannot_see_heading), fontWeight = FontWeight.Medium)
             Text(elementList(withheld), style = MaterialTheme.typography.bodySmall)
         }
     }
@@ -1207,10 +1212,10 @@ private fun ClinicianGrantHistoryStep(
     approved: Set<UHDRElement>,
     onDecide: (Boolean) -> Unit,
 ) {
-    Text(stringResource(R.string.clinician_grant_can_see_heading), fontWeight = FontWeight.Medium)
+    Text(stringResource(Res.string.clinician_grant_can_see_heading), fontWeight = FontWeight.Medium)
     Text(
         if (approved.isEmpty()) {
-            stringResource(R.string.clinician_grant_can_see_none)
+            stringResource(Res.string.clinician_grant_can_see_none)
         } else {
             elementList(approved)
         },
@@ -1218,24 +1223,24 @@ private fun ClinicianGrantHistoryStep(
     )
     Spacer(Modifier.height(20.dp))
     Text(
-        stringResource(R.string.clinician_grant_history_heading),
+        stringResource(Res.string.clinician_grant_history_heading),
         style = MaterialTheme.typography.titleSmall,
     )
     Spacer(Modifier.height(4.dp))
     Text(
-        stringResource(R.string.clinician_grant_history_body, clinicianName),
+        stringResource(Res.string.clinician_grant_history_body, clinicianName),
         style = MaterialTheme.typography.bodyMedium,
     )
     Spacer(Modifier.height(16.dp))
     OutlinedButton(
         onClick = { onDecide(false) },
         modifier = Modifier.fillMaxWidth(),
-    ) { Text(stringResource(R.string.clinician_grant_history_forward_only_button)) }
+    ) { Text(stringResource(Res.string.clinician_grant_history_forward_only_button)) }
     Spacer(Modifier.height(8.dp))
     OutlinedButton(
         onClick = { onDecide(true) },
         modifier = Modifier.fillMaxWidth(),
-    ) { Text(stringResource(R.string.clinician_grant_history_include_button)) }
+    ) { Text(stringResource(Res.string.clinician_grant_history_include_button)) }
 }
 
 /**
@@ -1243,22 +1248,22 @@ private fun ClinicianGrantHistoryStep(
  *
  * `:core` carries the key because it cannot reference `R.string` (ISC-2..4), and an identifier
  * lookup here would put the mapping beyond `check-locale-strings.ts`, which scans for literal
- * `R.string.*` references. A `when` over a three-entry library keeps every key visible to the gate
+ * `Res.string.*` references. A `when` over a three-entry library keeps every key visible to the gate
  * and turns a missing one into a compile error rather than a blank label.
  */
 @Composable
 private fun useCaseTitle(id: String): String = when (id) {
-    "adherence_monitoring" -> stringResource(R.string.clinician_usecase_adherence_monitoring_name)
-    "eeg_review" -> stringResource(R.string.clinician_usecase_eeg_review_name)
-    "hrv_outcomes" -> stringResource(R.string.clinician_usecase_hrv_outcomes_name)
+    "adherence_monitoring" -> stringResource(Res.string.clinician_usecase_adherence_monitoring_name)
+    "eeg_review" -> stringResource(Res.string.clinician_usecase_eeg_review_name)
+    "hrv_outcomes" -> stringResource(Res.string.clinician_usecase_hrv_outcomes_name)
     else -> id
 }
 
 @Composable
 private fun useCaseDescription(id: String): String = when (id) {
-    "adherence_monitoring" -> stringResource(R.string.clinician_usecase_adherence_monitoring_desc)
-    "eeg_review" -> stringResource(R.string.clinician_usecase_eeg_review_desc)
-    "hrv_outcomes" -> stringResource(R.string.clinician_usecase_hrv_outcomes_desc)
+    "adherence_monitoring" -> stringResource(Res.string.clinician_usecase_adherence_monitoring_desc)
+    "eeg_review" -> stringResource(Res.string.clinician_usecase_eeg_review_desc)
+    "hrv_outcomes" -> stringResource(Res.string.clinician_usecase_hrv_outcomes_desc)
     else -> id
 }
 

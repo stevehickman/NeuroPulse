@@ -7,7 +7,7 @@ import life.neurone.app.data.EncryptedPrefsDeviceTokenStore
 import life.neurone.app.data.ShdrUploadWiring
 import life.neurone.app.data.ShdrUploader
 import life.neurone.app.session.AndroidProtocolSigner
-import life.neurone.app.session.ProtocolUploader
+import life.neurone.shared.session.ProtocolUploader
 import life.neurone.core.analytics.ResearchAnalyticsGate
 import life.neurone.core.analytics.WarrantyAnalyticsGate
 import life.neurone.shared.AppServices
@@ -66,8 +66,7 @@ class NeurOneApplication : Application() {
      *  are granted. Call `bleCentral.refresh()` after a permission grant to start scanning. */
     lateinit var bleCentral: AndroidBleCentral
         private set
-    lateinit var protocolUploader: ProtocolUploader
-        private set
+    val protocolUploader: ProtocolUploader get() = services.protocolUploader
     lateinit var shdrUploader: ShdrUploader
         private set
 
@@ -86,10 +85,9 @@ class NeurOneApplication : Application() {
         // until then, so the manager's auto-scan-on-ON path is inert at startup).
         bleCentral = AndroidBleCentral(this)
         services = AppServices(
-            platform = AndroidPlatformServices(SharedPrefsKeyValueStore(this), bleCentral),
+            platform = AndroidPlatformServices(SharedPrefsKeyValueStore(this), bleCentral, AndroidProtocolSigner()),
             scope = bleScope,
         )
-        protocolUploader = ProtocolUploader(gattManager, AndroidProtocolSigner())
 
         // SHDR fleet uploader — gated on the WARRANTY OWNER's consent only
         // (WarrantyAnalyticsGate), structurally independent of user research consent.

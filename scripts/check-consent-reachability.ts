@@ -53,7 +53,7 @@
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-consent-reachability.ts --self-test
  * CI-Scans: every public ConsentStore method on iOS and Android, and its callers
- * CI-Scan-Paths: app/ios/** app/android/**
+ * CI-Scan-Paths: app/ios/** app/android/** app/NeurOneUI/**
  */
 import { readFileSync, readdirSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";
@@ -65,7 +65,8 @@ const STORE: Record<Platform, string> = {
   ios: "app/ios/NeurOne/Consent/ConsentStore.swift",
   android: "app/android/core/src/commonMain/kotlin/life/neurone/core/consent/ConsentStore.kt",
 };
-const SOURCE_ROOT: Record<Platform, string> = { ios: "app/ios", android: "app/android" };
+// Android's screens live in two trees: its own app and the shared Compose UI every platform builds (app/NeurOneUI).
+const SOURCE_ROOTS: Record<Platform, string[]> = { ios: ["app/ios"], android: ["app/android", "app/NeurOneUI"] };
 const EXT: Record<Platform, string> = { ios: ".swift", android: ".kt" };
 
 /** Declaration syntax for `func name(` / `fun name(` at one indent level. */
@@ -217,12 +218,12 @@ function* walk(dir: string): Generator<string> {
 /** Files that could call the store: same platform, not a test, not the store. */
 function callerFiles(root: string, p: Platform): string[] {
   const out: string[] = [];
-  for (const f of walk(join(root, SOURCE_ROOT[p]))) {
+  for (const f of SOURCE_ROOTS[p].flatMap((r) => [...walk(join(root, r))])) {
     if (!f.endsWith(EXT[p])) continue;
     const rel = f.slice(root.length + 1);
     if (rel === STORE[p]) continue;
     // Test sources prove a method works; they do not prove anything reaches it.
-    if (/(^|\/)(test|tests)\//i.test(rel) || /Tests?\.(swift|kt)$/.test(rel)) continue;
+    if (/(^|\/)(test|tests|\w+Test)\//i.test(rel) || /Tests?\.(swift|kt)$/.test(rel)) continue;
     out.push(rel);
   }
   return out;
