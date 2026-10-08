@@ -16,6 +16,7 @@ import kotlinx.coroutines.SupervisorJob
 import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.protocol.PersistedKeys
+import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.shared.ble.UnavailableBleCentral
 import life.neurone.shared.resources.*
 import life.neurone.shared.ui.NeurOneApp
@@ -60,7 +61,7 @@ class AppFlowTest {
         platform = object : PlatformServices {
             override val keyValueStore = kv
             override val bleCentral = UnavailableBleCentral()
-            override val protocolSigner = UnsupportedProtocolSigner()
+            override val protocolSigner = Ed25519ProtocolSigner()
             override val analyticsBackend = NoOpAnalyticsBackend()
             @androidx.compose.runtime.Composable
             override fun rememberBleConnectAction(): () -> Unit = {}

@@ -14,6 +14,8 @@
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>NeurOne uses Bluetooth to communicate with your NeurOne hub in real time.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>

@@ -3,21 +3,21 @@ package life.neurone.shared
 import androidx.compose.runtime.Composable
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.core.session.ProtocolSigner
 import life.neurone.shared.ble.BleCentral
-import life.neurone.shared.ble.UnavailableBleCentral
 import platform.Foundation.NSUserDefaults
 
 /**
  * The iOS half of the cross-platform seam.
  *
- * CoreBluetooth is not wired into the shared hub link yet, so the hub link is [UnavailableBleCentral]
- * (OI-UI-KMP-03); the Swift app's own BLECentralManager remains the production path until it is.
+ * The hub link is CoreBluetooth ([IosBleCentral]). The Swift app's own BLECentralManager remains the production
+ * path until this build has run on a device.
  */
 class IosPlatformServices(
     override val keyValueStore: KeyValueStore = UserDefaultsKeyValueStore(),
-    override val bleCentral: BleCentral = UnavailableBleCentral(),
-    override val protocolSigner: ProtocolSigner = UnsupportedProtocolSigner(),
+    override val bleCentral: BleCentral = IosBleCentral(),
+    override val protocolSigner: ProtocolSigner = Ed25519ProtocolSigner(),
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
 ) : PlatformServices {
 
