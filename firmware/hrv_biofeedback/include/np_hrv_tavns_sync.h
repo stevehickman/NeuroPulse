@@ -37,7 +37,7 @@
  * requesting safety MCU enable.
  *
  * `freq_hz`    — carrier frequency (1–25 Hz)
- * `current_ua` — peak current in microamperes (100–2000)
+ * `current_ua` — peak current in microamperes (minimum 100; no flat ceiling, OI-VNSCLIP-09)
  */
 typedef void (*np_tavns_enable_cb_t)(uint16_t freq_hz, uint16_t current_ua);
 

@@ -666,7 +666,8 @@ fn encode_tdcs(p: &Value) -> R<Encoded> {
 fn encode_vns(p: &Value) -> R<Encoded> {
     use crate::constants::hardware_limits as hw;
     let freq_mhz = scaled(p, "frequencyHz", "VNS", 1000.0, 25000.0, "Hz")?;
-    let amp_ua = scaled(p, "intensityMilliamps", "VNS", 1000.0, 2000.0, "mA")?;
+    // No flat current ceiling (OI-VNSCLIP-09): 65535 µA is only what the 16-bit wire field can carry.
+    let amp_ua = scaled(p, "intensityMilliamps", "VNS", 1000.0, 65535.0, "mA")?;
     // What the descriptor cannot yet deliver is refused, never run as something else: a movement-triggered burst run
     // continuously, or a threshold-relative amplitude run as an absolute one, would be a different and stronger stimulus
     // than the one authored (OI-NPPS-VNS-01).

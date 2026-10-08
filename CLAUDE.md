@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 66 (current)  
+**Revision:** 67 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -161,7 +161,7 @@ cloud + FHIR R4 + LSL + scripting API · anonymized session tag.
 | PBM deep (T2) | ≤1,000 mW/cm² (1170 nm, TEC-stabilised) |
 | BES / tACS | 0.5–40 Hz · ≤1 mA T1 / ≤4 mA T2 · charge-balanced biphasic · **40 µC/cm² per phase** |
 | tDCS | 0.1–2 mA DC · **150 mC/cm² per session** hardware limit · 30 s ramp · ≤3 electrode pairs |
-| VNS (auricular) | 1–25 Hz · ≤2 mA · biphasic charge-balanced · **40 µC/cm² per phase** |
+| VNS (auricular) | 1–25 Hz · biphasic charge-balanced · **40 µC/cm² per phase** · **no flat current ceiling** (the 2 mA was removed, Rev 67; whether any is needed is GitHub issue #554 / `OI-VNSCLIP-09`) |
 | Visual | IEC 62471 MPE at 50% of exempt-group threshold · photoparoxysmal halt <200 ms |
 
 **A PBM ceiling refuses a protocol. It never reshapes one**. Duty, mode and

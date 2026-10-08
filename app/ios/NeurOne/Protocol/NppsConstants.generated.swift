@@ -68,8 +68,6 @@ enum NPHardwareLimits {
     /// hardware-enforced minimum ramp
     static let TDCS_RAMP_SECONDS: Int = 30
     static let TDCS_MAX_ELECTRODE_PAIRS: Int = 3
-    /// VNS (auricular)
-    static let VNS_MAX_MILLIAMPS: Double = 2.0
     static let VNS_MIN_HZ: Double = 1.0
     static let VNS_MAX_HZ: Double = 25.0
     /// Authored auricular VNS pulse width, µs. ASSUMED (UC-071): the range the published taVNS studies span

@@ -68,8 +68,6 @@ object NPHardwareLimits {
     // hardware-enforced minimum ramp
     const val TDCS_RAMP_SECONDS: Int = 30
     const val TDCS_MAX_ELECTRODE_PAIRS: Int = 3
-    // VNS (auricular)
-    const val VNS_MAX_MILLIAMPS: Double = 2.0
     const val VNS_MIN_HZ: Double = 1.0
     const val VNS_MAX_HZ: Double = 25.0
     // Authored auricular VNS pulse width, µs. ASSUMED (UC-071): the range the published taVNS studies span

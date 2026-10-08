@@ -69,8 +69,6 @@ static class NPHardwareLimits
     /// hardware-enforced minimum ramp
     public const int TDCS_RAMP_SECONDS = 30;
     public const int TDCS_MAX_ELECTRODE_PAIRS = 3;
-    /// VNS (auricular)
-    public const double VNS_MAX_MILLIAMPS = 2.0;
     public const double VNS_MIN_HZ = 1.0;
     public const double VNS_MAX_HZ = 25.0;
     /// Authored auricular VNS pulse width, µs. ASSUMED (UC-071): the range the published taVNS studies span

@@ -193,7 +193,8 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
     }
 
     /* VNS stimulation */
-    uint16_t amp = (p->amplitude_ua > NP_VNS_MAX_CURRENT_UA) ? NP_VNS_MAX_CURRENT_UA : p->amplitude_ua;
+    /* No flat current ceiling (OI-VNSCLIP-09, issue #554): the safety MCU's per-phase charge monitor is the bound. */
+    uint16_t amp = p->amplitude_ua;
 
     np_hub_status_t rc = np_mod_vns_hal_stim_set(p->side,
                                                     p->freq_mhz,
@@ -204,9 +205,9 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
     s_state.active      = true;
     s_state.active_side = p->side;
     np_safety_spi_request_enable(NP_SAFETY_EN_VNS_HRV);
-    /* OI-CHARGE-05 (c): publish the capped commanded amplitude — the same
+    /* OI-CHARGE-05 (c): publish the commanded amplitude — the same
      * number handed to the stimulator, so the safety MCU's per-phase check
-     * runs against what was commanded rather than what was authored. */
+     * runs against what was commanded. */
     np_safety_spi_set_channel_current(NP_SAFETY_CH_VNS_HRV, amp);
 
     return NP_HUB_OK;

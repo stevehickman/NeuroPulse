@@ -93,7 +93,7 @@ qEEG's A1/A2 linked-ear reference (`CLAUDE.md` §3 T2 additions). Per-configurat
 | ID | Requirement | Source |
 |---|---|---|
 | **REQ-VNSC-02** | Stimulation target is the **auricular branch of CN X**; the clip is worn on the auricle | `CLAUDE.md` §3 modality ⑥ |
-| **REQ-VNSC-03** | **1–25 Hz**, **≤ 2 mA**, **biphasic charge-balanced** | `CLAUDE.md` §3 hard-limits table; `NP_VNS_MAX_CURRENT_UA` = 2000 |
+| **REQ-VNSC-03** | **1–25 Hz**, **biphasic charge-balanced**. ~~**≤ 2 mA**~~ **RETIRED in place (Rev 67, 2026-10-08):** the flat current ceiling is removed on the principal's instruction; `NP_VNS_MAX_CURRENT_UA` no longer exists. Per-phase charge is bounded by `REQ-VNSC-04`. Whether any current ceiling is needed is GitHub issue #554 (`OI-VNSCLIP-09`) | `CLAUDE.md` §3 hard-limits table |
 | **REQ-VNSC-04** | Per-phase commanded-charge ceiling **40 µC/cm²**, enforced by the safety MCU against the **declared electrode area** | `CLAUDE.md` §3, §4.2; `NP-DT-001` DI-SAFE-01a; `NP-SW-001` §5.1 SW01-M03 |
 | **REQ-VNSC-05** | **PPG HRV at 808–830 nm in the same clip** | `docs/reference/modality-stack.md` modality 6 |
 | **REQ-VNSC-06** | **A1/A2 EEG references on the clip contact pads**, using **2 spare conductors in the existing 6-pin cable** | `docs/reference/modality-stack.md` modality 6 |

@@ -65,8 +65,6 @@ export const NPHardwareLimits = {
   // hardware-enforced minimum ramp
   TDCS_RAMP_SECONDS: 30,
   TDCS_MAX_ELECTRODE_PAIRS: 3,
-  // VNS (auricular)
-  VNS_MAX_MILLIAMPS: 2.0,
   VNS_MIN_HZ: 1.0,
   VNS_MAX_HZ: 25.0,
   // Authored auricular VNS pulse width, µs. ASSUMED (UC-071): the range the published taVNS studies span (Matsuoka

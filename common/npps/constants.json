@@ -110,11 +110,6 @@
           "int": true
         },
         {
-          "name": "VNS_MAX_MILLIAMPS",
-          "value": 2.0,
-          "note": "VNS (auricular)"
-        },
-        {
           "name": "VNS_MIN_HZ",
           "value": 1.0
         },

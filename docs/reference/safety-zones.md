@@ -69,9 +69,10 @@ The web library test names both with their acknowledgement ids, so a new caution
 * **It derives nothing.** Every boundary except the two existing hardware ceilings is a placeholder, held in one file so it
   can move without a code change. A placeholder is moved freely in either direction until a derivation, a measurement or a
   standard replaces it.
-* **It does not replace the 2 mA auricular ceiling yet.** The principal proposed that the current limit should be this model's
-  danger curve (`OI-VNSCLIP-09`). The two current-density danger boundaries are written for that; the flat ceiling is still in
-  force until that is decided.
+* **It is now the only app-side bound on auricular current.** The flat 2 mA auricular ceiling was removed on the principal's
+  instruction (Rev 67, 2026-10-08), as proposed in `OI-VNSCLIP-09`. What remains is this model's current-density danger
+  boundaries (app-side, advisory to the safety MCU, placeholders) and the safety MCU's 40 µC/cm² per-phase charge monitor.
+  Whether any ceiling is needed is GitHub issue #554.
 * **It does not know the pad.** Every density divides by the fixed pad areas, which are provisional and unmeasured (`UC-006`).
   A smaller real pad raises every density in proportion.
 * **It does not reach the cervical interlock, PBM, TMS or the optical and visual modalities.** They have their own controls.

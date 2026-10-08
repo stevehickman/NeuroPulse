@@ -84,6 +84,15 @@ const ADDED: &[&str] = &[
     "VALIDATE_MSG_ZONE_DANGER",
 ];
 
+/// An issue the frozen web golden holds and the core no longer gives: the 2 mA auricular VNS hardware ceiling, removed
+/// on the principal's instruction (OI-VNSCLIP-09, issue #554). The golden is frozen, so it is set aside here.
+fn is_removed(issue: &Value) -> bool {
+    issue["modality"] == "vns_hrv"
+        && issue["parameterKey"] == "intensityMilliamps"
+        && issue["limitSource"] == "hardware"
+        && issue["message"].as_str().map_or(false, |m| m.starts_with("VNS intensity"))
+}
+
 fn is_added(issue: &Value) -> bool {
     issue["message"]["key"].as_str().map_or(false, |k| ADDED.contains(&k))
 }
@@ -103,9 +112,9 @@ fn every_case_gives_the_issues_the_web_validator_gave() {
         let got: Value = serde_json::from_str(&validate_json(&req.to_string()).unwrap()).unwrap();
         let issues: Vec<Value> =
             got["issues"].as_array().unwrap().iter().filter(|i| !is_added(i)).map(|i| resolve(i, &en)).collect();
-        let want = c["expected"].as_array().unwrap();
-        if &issues != want {
-            failures.push(format!("{}\n  core: {}\n  web:  {}", c["name"], Value::Array(issues), Value::Array(want.clone())));
+        let want: Vec<Value> = c["expected"].as_array().unwrap().iter().filter(|i| !is_removed(i)).cloned().collect();
+        if issues != want {
+            failures.push(format!("{}\n  core: {}\n  web:  {}", c["name"], Value::Array(issues), Value::Array(want)));
         }
     }
     assert!(failures.is_empty(), "{} divergence(s):\n{}", failures.len(), failures[..failures.len().min(8)].join("\n"));

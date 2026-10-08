@@ -44,9 +44,6 @@
  * its window always contains the MCU's.  One definition keeps them equal. */
 #define NP_CARDIAC_LOCKOUT_MS       30000U
 
-/* ── Auricular VNS (incl. taVNS) current ceiling ────────────────────────── */
-#define NP_VNS_MAX_CURRENT_UA       2000U  /* 2 mA absolute limit */
-
 /* ── Physiological R-R interval validity (HRV and cVNS R-peak) ──────────── */
 #define NP_RR_MIN_MS                300U   /* ≈200 BPM upper HR limit */
 #define NP_RR_MAX_MS                2000U  /* ≈30 BPM lower HR limit */

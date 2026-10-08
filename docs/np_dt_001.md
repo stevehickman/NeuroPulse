@@ -131,7 +131,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-PERF-07 | Performance | BES/tACS T1: 0.5–40 Hz, ≤1 mA, charge-balanced biphasic; adaptive EMF notch prevents Helmholtz cancellation of stimulus | CLAUDE.md §3 modality 4 | High | T1 |
 | DI-PERF-08 | Performance | Clinical tACS T2: ≤4 mA, 21-channel arbitrary waveform (one channel per cap electrode); per-electrode independent current control | CLAUDE.md §3 T2 | High | T2 |
 | DI-PERF-09 | Performance | tDCS: 0.1–2 mA DC, ≤3 electrode pairs, per-electrode impedance monitoring | CLAUDE.md §3 modality 5 | High | T1+T2 |
-| DI-PERF-10 | Performance | Auricular VNS: 1–25 Hz, ≤2 mA biphasic charge-balanced; PPG HRV 808–830 nm in same clip; A1/A2 EEG reference contacts on clip pads | CLAUDE.md §3 modality 6 | High | T1+T2 |
+| DI-PERF-10 | Performance | Auricular VNS: 1–25 Hz, biphasic charge-balanced (the former ≤2 mA ceiling is retired in place, Rev 67; GitHub #554); PPG HRV 808–830 nm in same clip; A1/A2 EEG reference contacts on clip pads | CLAUDE.md §3 modality 6 | High | T1+T2 |
 | DI-PERF-11 | Performance | Cervical VNS (tcVNS) T2: gel electrodes at carotid sheath; ≤2 mA; bilateral or unilateral; 10 s ramp-up, 5 s ramp-down | CLAUDE.md §3 T2 | High | T2 |
 | DI-PERF-12 | Performance | TMS T2: focal figure-8 coil, 0.1–0.5 T, rTMS + TBS; non-conductive CFRP window at coil site; EMF gating 5 ms pre-pulse / 50 ms post-pulse hold | CLAUDE.md §3 T2 | High | T2 |
 | DI-PERF-13 | Performance | 1170 nm deep PBM T2: laser diodes, 35–40 mm subcortical depth, TEC stabilisation, ≤1,000 mW/cm² | CLAUDE.md §3 T2 | High | T2 |
@@ -207,7 +207,7 @@ what the monitor now computes. Margin at the rated maxima, on the declared geome
 |---|---|---|---|---|---|
 | BES/tACS | 1 mA, 0.5 Hz sinusoid | 637 µC | 25 cm² (provisional) | 25.5 µC/cm² | 64% |
 | BES/tACS | 1 mA, 40 Hz sinusoid | 8 µC | 25 cm² (provisional) | 0.3 µC/cm² | 1% |
-| VNS auricular | 2 mA, 250 µs | 0.5 µC | 0.5 cm² (provisional) | 1.0 µC/cm² | 3% |
+| VNS auricular | 2 mA, 250 µs (an example dose; no longer a ceiling) | 0.5 µC | 0.5 cm² (provisional) | 1.0 µC/cm² | 3% |
 | Cervical VNS | 2 mA, 1000 µs | 2 µC | 2 cm² (provisional) | 1.0 µC/cm² | 3% |
 
 **The 0.5 Hz tACS row is the one to watch**, and it is a real physical result rather than a units

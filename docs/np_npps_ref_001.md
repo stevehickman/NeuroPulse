@@ -688,7 +688,7 @@ Auricular vagus nerve stimulation with HRV biofeedback.
 | `pulse_width` | `pulse_width_us` | number (optional) | 50–500 µs (Rev 19, assumed range, `UC-071`). Absent means the firmware's 250 µs. Write the number only: `pulse_width_us: 300` |
 | `trigger` | `trigger` | string (optional) | `continuous` (the default) `movement_cue`. **`movement_cue` is refused by the validator and the compiler** until the hub has a trigger input |
 | `burst` | `burst_seconds` | number (optional) | Seconds of stimulation per trigger, e.g. `burst: 0.5s`. Needs `trigger: movement_cue`; an error with `continuous` |
-| `intensity_basis` | `intensity_basis` | string (optional) | `absolute` (the default) `perceptual_threshold` `pain_threshold` `titrated`. **Anything but `absolute` is refused** until the app has a sensory-threshold calibration. With any basis but `absolute`, `intensity` is the **cap**: the level the thresholds give is never above it, and the cap itself is held to the 2 mA ceiling |
+| `intensity_basis` | `intensity_basis` | string (optional) | `absolute` (the default) `perceptual_threshold` `pain_threshold` `titrated`. **Anything but `absolute` is refused** until the app has a sensory-threshold calibration. With any basis but `absolute`, `intensity` is the **cap**: the level the thresholds give is never above it, and the cap itself has no flat hardware ceiling (Rev 67, GitHub #554); the per-phase charge limit still applies |
 | `intensity_percent_of_threshold` | `intensity_percent_of_threshold` | number (optional) | Percent of the threshold named by `intensity_basis`, e.g. `200%`. Required for `perceptual_threshold` and `pain_threshold`; not used by `titrated` |
 
 ```
@@ -700,7 +700,7 @@ vns_hrv {
 }
 ```
 
-**`titrated` (Rev 19).** The band the taVNS studies state in words, "above the detection threshold and below the pain threshold" (Capone 2017), set per patient. It carries no percentage: its limits are the two thresholds. `intensity` is its cap, so a titrated block is `intensity_basis: titrated` with `intensity: 2.0mA`, meaning "the highest level the titration may reach is 2 mA"; a cap above 2 mA is a validation error like any other. The studies' own levels (up to 9 mA in Capone) are above that cap, and `OI-VNSCLIP-09` is where whether the cap should be higher is decided.
+**`titrated` (Rev 19).** The band the taVNS studies state in words, "above the detection threshold and below the pain threshold" (Capone 2017), set per patient. It carries no percentage: its limits are the two thresholds. `intensity` is its cap, so a titrated block is `intensity_basis: titrated` with `intensity: 2.0mA`, meaning "the highest level the titration may reach is 2 mA"; with the flat 2 mA ceiling removed (Rev 67), a higher cap validates, and the studies' own levels (up to 9 mA in Capone) can be authored. Whether any ceiling is needed is GitHub issue #554 (`OI-VNSCLIP-09`).
 
 **Study parameters (Rev 19).** A paired-VNS stroke study delivers short bursts on a movement cue at a stated pulse width, not a continuous train. The optional fields above let a file say so; a block that omits them means what it always meant.
 
@@ -715,7 +715,7 @@ vns_hrv {
 }
 ```
 
-Limits that bear on them: the per-phase charge ceiling (40 µC/cm²) divides by the **authored** pulse width, as the safety MCU does, and the 1–25 Hz range and 2 mA ceiling are unchanged (`OI-VNSCLIP-08` asks what the 25 Hz is for).
+Limits that bear on them: the per-phase charge ceiling (40 µC/cm²) divides by the **authored** pulse width, as the safety MCU does, and the 1–25 Hz range is unchanged (`OI-VNSCLIP-08` asks what the 25 Hz is for) and the flat 2 mA ceiling is removed (Rev 67, GitHub #554).
 
 **HRV protocol modes:**
 

@@ -56,7 +56,7 @@
 
 **6. VNS + HRV + HRV Biofeedback**
 - Auricular clip · auricular branch CN X
-- 1–25Hz · ≤2mA · biphasic charge-balanced
+- 1–25Hz · biphasic charge-balanced · **no flat current ceiling** (the former ≤ 2 mA was removed on the principal's instruction, Rev 67; the 40 µC/cm² per-phase limit is the hardware bound; whether any ceiling is needed is GitHub issue #554, `OI-VNSCLIP-09`)
 - PPG HRV (808–830nm) in same clip
 - **A1/A2 EEG references on clip contact pads** (2 spare conductors in existing 6-pin cable, +$15 BOM)
 - PDMS hydrogel pads: 20–40 sessions, $8/2-pack

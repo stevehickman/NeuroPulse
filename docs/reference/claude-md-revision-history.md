@@ -19,6 +19,12 @@
 
 ## Current revision
 
+**Rev 67 (2026-10-08) — §3: the 2 mA auricular VNS current ceiling is removed. A limit changed; the 40 µC/cm² per-phase charge ceiling and every interlock are unchanged.**
+
+**What changed.** The `VNS (auricular)` row of the §3 hard-limits table loses "≤2 mA". The constant `VNS_MAX_MILLIAMPS` (`common/npps/constants.json` and its generated outputs), the validator's hardware check (`common/npps-core/src/validate.rs`), the compiler's 2 mA cap in `encode_vns` (now the 16-bit wire limit), `NP_VNS_MAX_CURRENT_UA`, the hub module's clamp and the taVNS configuration gate's upper bound are deleted. `REQ-VNSC-03` is retired in place (§18). The cervical VNS 2 mA (`REQ-CVNS-04`) is a different device and is unchanged.
+
+**Why.** The principal instructed it (2026-10-08). It had no recorded derivation (`OI-VNSCLIP-09`, register row `UC-072`), and every stroke taVNS dose in the three papers read exceeds it. `OI-ZONE-01` (c) had held the removal until an explicit instruction and an issue existed. **What it leaves:** the safety MCU's 40 µC/cm² per-phase monitor, which at 250 µs on the provisional 0.5 cm² pad permits about 80 mA, and the app-side zone model, which is advisory. Whether any ceiling is needed is [GitHub issue #554](https://github.com/stevehickman/NeuroPulse/issues/554). Removing a safety control is an ISO 14971 decision (§18), and Risk has not yet recorded it.
+
 **Rev 66 (2026-10-07) — §20: `app/NeurOneUI/` is the one home of the cross-platform UI and `:core` is Kotlin Multiplatform. A placement note; no design decision, limit or interlock changed.**
 
 **What changed.** §20 gains a paragraph for `app/NeurOneUI/`: the Compose Multiplatform module `shared/` holds every screen and the composition root, and `desktop/`, `web/` and `iosApp/` are thin hosts beside Android's activity. `app/android/core` (`:core`) is a Kotlin Multiplatform module (JVM, wasmJs, iOS), its sources under `commonMain`. Three paths the repository cites moved with it: `core/src/main` → `core/src/commonMain`, `core/src/test` → `core/src/jvmTest`, and the JNI entry points are `NppsJni`, not `NppsCore`.

@@ -119,7 +119,7 @@ fn a_titrated_basis_is_a_band_with_a_cap_and_is_refused_until_it_can_be_calibrat
     assert!(!has(&found, "VALIDATE_MSG_VNS_HRV_BASIS_NEEDS_PERCENT"), "and it needs no percentage");
     let e = compile(&p).expect_err("refused");
     assert!(e.contains("sensory-threshold calibration"), "{e:?}");
-    // The cap is held to the hardware ceiling like any intensity.
-    assert!(issues("        frequency: 20Hz\n        intensity: 3.0mA\n        intensity_basis: titrated", "")
+    // There is no flat hardware ceiling on the cap (OI-VNSCLIP-09, issue #554): 3 mA is not an intensity error.
+    assert!(!issues("        frequency: 20Hz\n        intensity: 3.0mA\n        intensity_basis: titrated", "")
         .iter().any(|i| i["parameterKey"] == "intensityMilliamps" && i["severity"] == "error"));
 }
