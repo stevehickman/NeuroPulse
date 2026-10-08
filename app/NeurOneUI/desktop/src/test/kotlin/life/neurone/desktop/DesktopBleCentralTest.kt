@@ -1,5 +1,6 @@
 package life.neurone.desktop
 
+import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.common.UUID
 import life.neurone.shared.ble.AdapterState
 import life.neurone.shared.ble.BleCentralListener
@@ -39,6 +40,7 @@ class DesktopBleCentralTest {
         override fun onCharacteristicsDiscovered(characteristics: Set<UUID>) { log += "discovered ${characteristics.map(UUID::toString).sorted()}" }
         override fun onCharacteristicChanged(uuid: UUID, value: ByteArray) { lastChanged = value; log += "changed $uuid" }
         override fun onCharacteristicRead(uuid: UUID, value: ByteArray) { log += "read $uuid ${value.toList()}" }
+        override fun onCharacteristicReadFailed(uuid: UUID) { log += "readFailed $uuid" }
     }
 
     private val a = UUID.fromString("00000001-0000-1000-8000-00805f9b34fb")
@@ -117,6 +119,50 @@ class DesktopBleCentralTest {
         rec.next()
         link.events += byteArrayOf(1, 9)
         assertEquals("adapter UNKNOWN", rec.next())
+        central.close()
+    }
+
+    @Test fun a_refused_read_reaches_the_listener() {
+        val link = FakeLink()
+        val central = DesktopBleCentral(link)
+        val rec = Recorder()
+        central.setListener(rec)
+        rec.next()
+        link.events += byteArrayOf(8) + bytes(a)
+        assertEquals("readFailed $a", rec.next())
+        central.close()
+    }
+
+    @Test fun the_last_hub_is_remembered_and_preferred() {
+        val store = InMemoryKeyValueStore()
+        var clock = 0L
+        val link = FakeLink()
+        val central = DesktopBleCentral(link, store, preferenceWindowMs = 1_000, now = { clock })
+        val rec = Recorder()
+        central.setListener(rec)
+        rec.next()
+
+        // Nothing remembered: the first device goes straight through, and connecting remembers it.
+        link.events += byteArrayOf(2) + "hub-1".encodeToByteArray()
+        assertEquals("found hub-1", rec.next())
+        link.events += byteArrayOf(3) + "hub-1".encodeToByteArray()
+        assertEquals("connected hub-1", rec.next())
+        assertEquals("hub-1", store.getString("ble.lastHubId"))
+
+        // Another device is held back, and the remembered one overrides it when it shows up.
+        link.events += byteArrayOf(2) + "hub-2".encodeToByteArray()
+        link.events += byteArrayOf(2) + "hub-1".encodeToByteArray()
+        assertEquals("found hub-1", rec.next())
+
+        // With the remembered hub absent, the other is released after the window, so a new hub is never refused.
+        central.startScan(a)
+        link.events += byteArrayOf(2) + "hub-2".encodeToByteArray()
+        assertEquals(null, rec.log.poll(600, TimeUnit.MILLISECONDS))
+        clock = 1_001
+        assertEquals("found hub-2", rec.next())
+
+        central.forgetHub()
+        assertEquals(null, store.getString("ble.lastHubId"))
         central.close()
     }
 }

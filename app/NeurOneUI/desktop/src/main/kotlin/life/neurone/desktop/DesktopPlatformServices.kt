@@ -19,7 +19,7 @@ import java.util.Properties
  */
 class DesktopPlatformServices(
     override val keyValueStore: KeyValueStore = FileKeyValueStore(appDataDirectory().resolve("np-app.properties")),
-    override val bleCentral: BleCentral = createDesktopBleCentral(),
+    override val bleCentral: BleCentral = createDesktopBleCentral(keyValueStore),
     override val protocolSigner: ProtocolSigner = JvmProtocolSigner(),
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
 ) : PlatformServices {
