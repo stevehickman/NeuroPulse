@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 163
+**Revision:** 164
 **Date:** 2026-10-08
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 163 | 2026-10-08 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 164 | 2026-10-08 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 2 | 2026-10-04 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | 11 | 2026-09-28 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -316,7 +316,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-PRIV-KEYSPLIT-001 | Analytics Gate Architecture — Design Spec | 1 | 2026-06-16 | [np_priv_keysplit_001.md](./np_priv_keysplit_001.md) | ACTIVE | PRIV |
 | NP-PWR-BUDGET-001 | Power Budget — Reverse-Engineered from Safety Ceilings (Design Study) | 4 | 2026-08-21 | [np_pwr_budget_001.md](./np_pwr_budget_001.md) | DRAFT | SPEC-HW |
 | NP-SES-PWR-001 | PBM Session Power Audit — Predefined Protocol Library Against the Concurrency Ceiling | 2 | 2026-10-04 | [np_ses_pwr_001.md](./np_ses_pwr_001.md) | DRAFT | SES |
-| NP-SOUP-BTLE-001 | btleplug SOUP Inventory — Desktop Hub Link (Companion App) | 1 | 2026-10-08 | [np_soup_btle_001.md](./np_soup_btle_001.md) | DRAFT | APP |
+| NP-SOUP-BTLE-001 | btleplug SOUP Inventory — Desktop Hub Link (Companion App) | 2 | 2026-10-08 | [np_soup_btle_001.md](./np_soup_btle_001.md) | DRAFT | APP |
 | NP-SOUP-CMSIS-001 | CMSIS SOUP Anomaly Evaluation — Safety MCU (SW-01, Class C) | 1 | 2026-08-09 | [np_soup_cmsis_001.md](./np_soup_cmsis_001.md) | DRAFT | SPEC-FW |
 | NP-SOUP-LFS-001 | LittleFS SOUP Record and Hazard Analysis — Hub Storage (SW-02, Class B) | 15 | 2026-09-28 | [np_soup_lfs_001.md](./np_soup_lfs_001.md) | DRAFT | SPEC-FW |
 | NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 33 | 2026-09-28 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |
