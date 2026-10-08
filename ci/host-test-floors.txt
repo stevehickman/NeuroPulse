@@ -61,7 +61,8 @@ np_freertos_smoke_tests 690
 np_gatt_server_tests 484
 np_hd_fai_tests 878
 np_hexmap_inventory_tests 534
-np_hrv_session_tests 226
+# 226 -> 224 (2026-10-08): the 2001 uA upper-bound assertion was removed with the 2 mA auricular ceiling (OI-VNSCLIP-09, #554).
+np_hrv_session_tests 224
 np_lfs_config_tests 255
 np_lfs_log_instance_tests 2270
 np_lfs_powerloss_tests 1952
