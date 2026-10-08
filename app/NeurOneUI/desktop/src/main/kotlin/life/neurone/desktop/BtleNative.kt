@@ -7,7 +7,7 @@ package life.neurone.desktop
  */
 internal object BtleNative {
     init {
-        System.loadLibrary("neurone_btle_jni")
+        life.neurone.core.platform.NativeLibrary.load("neurone_btle_jni")
     }
 
     @JvmStatic external fun nativeCreate(): Long

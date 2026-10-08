@@ -6,7 +6,7 @@ package life.neurone.core.npps
  */
 internal object NppsJni : NppsBackend {
     init {
-        System.loadLibrary("neurone_npps_jni")
+        life.neurone.core.platform.NativeLibrary.load("neurone_npps_jni")
     }
 
     @JvmStatic private external fun nativeParse(source: String): String
