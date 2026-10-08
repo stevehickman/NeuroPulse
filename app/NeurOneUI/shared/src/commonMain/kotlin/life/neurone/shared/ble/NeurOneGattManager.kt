@@ -82,6 +82,17 @@ class NeurOneGattManager(
 
     private var serialRetryJob: Job? = null
 
+    /** Whether there is a remembered hub to forget (desktop only). */
+    val canForgetHub: Boolean get() = central.canForgetHub
+
+    /** Drops the link and the remembered hub, then scans afresh, so the user can pick a different hub. */
+    fun forgetHub() {
+        central.disconnect()
+        central.forgetHub()
+        applyDisconnection()
+        if (central.adapterState == AdapterState.ON) startScanning()
+    }
+
     private val zoneFrameAssembler = ZoneModuleFrameAssembler()
     private val socketMapAssembler = SocketMapFrameAssembler()
 
