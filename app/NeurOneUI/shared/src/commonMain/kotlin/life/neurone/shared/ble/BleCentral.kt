@@ -19,6 +19,12 @@ interface BleCentralListener {
     fun onCharacteristicsDiscovered(characteristics: Set<UUID>)
     fun onCharacteristicChanged(uuid: UUID, value: ByteArray)
     fun onCharacteristicRead(uuid: UUID, value: ByteArray)
+
+    /**
+     * A read the link refused. On an encrypted characteristic (`NP_GATT_PROP_ENC`) of an unpaired link this is the
+     * pairing signal; a central that cannot tell a failed read from a slow one never calls it.
+     */
+    fun onCharacteristicReadFailed(uuid: UUID) {}
 }
 
 interface BleCentral {
