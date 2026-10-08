@@ -21,7 +21,7 @@ multiplatform, and `:shared` depends on it.
 
 | What | Where | Why it cannot be common |
 |------|-------|-------------------------|
-| Storage, Bluetooth, runtime permissions, analytics vendor | `PlatformServices` (`shared/.../PlatformServices.kt`), one implementation per host | each is an operating-system API |
+| Storage, Bluetooth (btleplug on desktop), runtime permissions, analytics vendor | `PlatformServices` (`shared/.../PlatformServices.kt`), one implementation per host | each is an operating-system API |
 | Secure random, Ed25519 verify | `expect`/`actual` in `:core` (`life.neurone.core.platform`) | each is a platform crypto API |
 | The NPPS core binding | `NppsBackend` in `:core` | the Rust core is reached by JNI, the C ABI or WebAssembly |
 | Look and feel | Material 3 renders per platform | allowed by the brief; not a functional difference |
@@ -60,15 +60,17 @@ What is left is not screens but wiring on some targets, below, and retiring the 
   composes; parity-tested under Node; the protocol menu lists the library in a real browser) and written for Apple
   (cinterop over `common/npps-ffi`; its parity run needs macOS). The validator's locale keys resolve through
   `installValidationText` on every host.
-- `OI-UI-KMP-07` — protocol signing. The Session tab uploads through `PlatformServices.protocolSigner`: Android
-  and desktop sign (an ephemeral Ed25519 key, `OI-AND-SIGN-01`); iOS and the browser have no signer, so an upload
-  there fails with a message and sends nothing (the hub would refuse an unsigned protocol).
+- `OI-UI-KMP-07` — protocol signing. Every host signs: Android and desktop with the JDK's Ed25519, iOS and the browser
+  with the common `Ed25519ProtocolSigner` (pinned to RFC 8032 and, on the JVM, to the JDK). All keys are ephemeral
+  per process (`OI-AND-SIGN-01`); persisting one is open.
 - `OI-UI-KMP-08` — plurals. Compose Multiplatform 1.7 has no plural resources, so `sync-locales --compose-res`
   writes each family as flat `_one` / `_other` strings and `pluralString` picks one. That is right while every
   locale's text is English; real Arabic or Russian plural forms need a category rule there.
 - `OI-UI-KMP-02` — the desktop app needs the NPPS native library packaged per OS (`.dylib`, `.dll`).
-- `OI-UI-KMP-03` — Bluetooth: Android is wired; iOS (CoreBluetooth), the browser (Web Bluetooth) and desktop
-  use `UnavailableBleCentral`, so the hub does not connect there.
+- `OI-UI-KMP-03` — Bluetooth. Android is wired. The browser uses Web Bluetooth (`WebBleCentral`, verified against a
+  mocked `navigator.bluetooth`, not a real hub), iOS uses CoreBluetooth (`IosBleCentral`, unbuilt), and macOS /
+  Windows use btleplug through JNI (`DesktopBleCentral` over `common/btle-jni`; built and tested on Linux only,
+  no radio run). Pairing for the hub's encrypted characteristics is unverified on Windows; see the open item.
 - `OI-UI-KMP-04` — Ed25519 study-descriptor verification exists on the JVM only; other targets answer
   "cannot check", so every study descriptor is refused there (the shipped default everywhere, `OI-CONSENT-07`).
 - `OI-UI-KMP-05` — the existing SwiftUI app (`app/ios`), React app (`app/web`) and the Windows project are

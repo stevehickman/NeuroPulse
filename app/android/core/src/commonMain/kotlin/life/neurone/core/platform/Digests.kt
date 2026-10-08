@@ -37,6 +37,8 @@ object Digests {
         return ByteArray(32) { i -> (h[i / 4] ushr (24 - 8 * (i % 4))).toByte() }
     }
 
+    fun sha512(input: ByteArray): ByteArray = sha512Impl(input)
+
     fun md5(input: ByteArray): ByteArray {
         var a0 = 0x67452301; var b0 = -0x10325477; var c0 = -0x67452302; var d0 = 0x10325476
         val padded = pad(input, bigEndianLength = false)

@@ -1,0 +1,17 @@
+[package]
+name = "neurone-btle-jni"
+version = "0.1.0"
+edition = "2021"
+description = "Desktop Bluetooth LE central for the NeurOne hub link: btleplug behind a JNI surface. Marshalling and a command/event queue only; the contract is life.neurone.shared.ble.BleCentral. OI-UI-KMP-03."
+publish = false
+
+[lib]
+name = "neurone_btle_jni"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+btleplug = "0.12"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "macros", "time"] }
+futures = "0.3"
+uuid = "1"
+jni = "0.21"

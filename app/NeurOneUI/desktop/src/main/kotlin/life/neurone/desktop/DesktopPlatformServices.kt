@@ -8,19 +8,18 @@ import life.neurone.core.session.ProtocolSigner
 import life.neurone.shared.NoOpAnalyticsBackend
 import life.neurone.shared.PlatformServices
 import life.neurone.shared.ble.BleCentral
-import life.neurone.shared.ble.UnavailableBleCentral
 import java.io.File
 import java.util.Properties
 
 /**
  * The macOS / Windows / Linux half of the cross-platform seam.
  *
- * Bluetooth is not wired: the JDK has no BLE API, so the hub link is [UnavailableBleCentral] until a
- * desktop central is chosen and written (OI-UI-KMP-03). Everything that does not need the hub works.
+ * Bluetooth is btleplug through JNI ([DesktopBleCentral]); where its native library is absent the hub link is
+ * [life.neurone.shared.ble.UnavailableBleCentral] and everything that does not need the hub still works.
  */
 class DesktopPlatformServices(
     override val keyValueStore: KeyValueStore = FileKeyValueStore(appDataDirectory().resolve("np-app.properties")),
-    override val bleCentral: BleCentral = UnavailableBleCentral(),
+    override val bleCentral: BleCentral = createDesktopBleCentral(),
     override val protocolSigner: ProtocolSigner = JvmProtocolSigner(),
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
 ) : PlatformServices {

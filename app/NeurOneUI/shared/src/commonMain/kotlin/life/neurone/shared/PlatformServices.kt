@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.session.ProtocolSigner
-import life.neurone.core.session.SignatureResult
 import life.neurone.shared.ble.BleCentral
 
 /**
@@ -26,8 +25,8 @@ interface PlatformServices {
 
     /**
      * Signs the session descriptor the hub will run (Ed25519 over its signed region, NP-FW-HUB-001 §4.4). The hub
-     * rejects an unsigned or corrupted protocol, so a platform with no signer fails closed: [UnsupportedProtocolSigner]
-     * makes every upload fail with a message rather than send something the hub would refuse.
+     * rejects an unsigned or corrupted protocol, so a host must supply one: the JDK's on the JVM targets, and the common
+     * `Ed25519ProtocolSigner` on iOS and the browser, where no synchronous platform signer exists.
      */
     val protocolSigner: ProtocolSigner
 
@@ -52,11 +51,4 @@ class NoOpAnalyticsBackend : AnalyticsBackend {
     override fun configure() {}
     override fun reset() {}
     override fun track(event: String, properties: Map<String, String>) {}
-}
-
-/** A host with no protocol signer yet: every upload is refused with this message (OI-UI-KMP-07). */
-class UnsupportedProtocolSigner : ProtocolSigner {
-    override fun sign(message: ByteArray): SignatureResult = throw UnsupportedOperationException(
-        "Protocol signing is not available on this platform yet.",
-    )
 }
