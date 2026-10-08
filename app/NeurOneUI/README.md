@@ -21,7 +21,7 @@ multiplatform, and `:shared` depends on it.
 
 | What | Where | Why it cannot be common |
 |------|-------|-------------------------|
-| Storage, Bluetooth, runtime permissions, analytics vendor | `PlatformServices` (`shared/.../PlatformServices.kt`), one implementation per host | each is an operating-system API |
+| Storage, Bluetooth (btleplug on desktop), runtime permissions, analytics vendor | `PlatformServices` (`shared/.../PlatformServices.kt`), one implementation per host | each is an operating-system API |
 | Secure random, Ed25519 verify | `expect`/`actual` in `:core` (`life.neurone.core.platform`) | each is a platform crypto API |
 | The NPPS core binding | `NppsBackend` in `:core` | the Rust core is reached by JNI, the C ABI or WebAssembly |
 | Look and feel | Material 3 renders per platform | allowed by the brief; not a functional difference |
@@ -68,8 +68,9 @@ What is left is not screens but wiring on some targets, below, and retiring the 
   locale's text is English; real Arabic or Russian plural forms need a category rule there.
 - `OI-UI-KMP-02` — the desktop app needs the NPPS native library packaged per OS (`.dylib`, `.dll`).
 - `OI-UI-KMP-03` — Bluetooth. Android is wired. The browser uses Web Bluetooth (`WebBleCentral`, verified against a
-  mocked `navigator.bluetooth`, not a real hub) and iOS uses CoreBluetooth (`IosBleCentral`, unbuilt). **Desktop
-  deliberately has no Bluetooth yet** and keeps `UnavailableBleCentral`; the options are recorded in the open item.
+  mocked `navigator.bluetooth`, not a real hub), iOS uses CoreBluetooth (`IosBleCentral`, unbuilt), and macOS /
+  Windows use btleplug through JNI (`DesktopBleCentral` over `common/btle-jni`; built and tested on Linux only,
+  no radio run). Pairing for the hub's encrypted characteristics is unverified on Windows; see the open item.
 - `OI-UI-KMP-04` — Ed25519 study-descriptor verification exists on the JVM only; other targets answer
   "cannot check", so every study descriptor is refused there (the shipped default everywhere, `OI-CONSENT-07`).
 - `OI-UI-KMP-05` — the existing SwiftUI app (`app/ios`), React app (`app/web`) and the Windows project are

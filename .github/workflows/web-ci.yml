@@ -324,6 +324,10 @@ jobs:
           bun scripts/gen-hub-descriptor-golden.ts
           git diff --exit-code -- app/NeurOneShared/TestData
 
+      # The workspace includes common/btle-jni, whose btleplug links libdbus on Linux (BlueZ).
+      - name: Install libdbus (btleplug on Linux)
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+
       - name: NPPS core (Rust) agrees with the web parser and compiler
         working-directory: .
         run: cargo test --manifest-path common/Cargo.toml --workspace --locked
