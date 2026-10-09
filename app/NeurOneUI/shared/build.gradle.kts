@@ -72,7 +72,7 @@ kotlin {
     }
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs { browser() }
-    listOf(iosArm64(), iosSimulatorArm64(), iosX64()).forEach {
+    listOf(iosArm64(), iosSimulatorArm64()).forEach {
         it.binaries.framework {
             baseName = "NeurOneShared"
             isStatic = true

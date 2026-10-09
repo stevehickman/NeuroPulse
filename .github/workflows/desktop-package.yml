@@ -43,7 +43,6 @@ jobs:
       matrix:
         include:
           - { name: macOS arm64, os: macos-14,       task: packageDmg, dir: macos-arm64,  lib: libneurone_npps_jni.dylib }
-          - { name: macOS x64,   os: macos-15-intel, task: packageDmg, dir: macos-x64,    lib: libneurone_npps_jni.dylib }
           - { name: Windows x64, os: windows-latest, task: packageMsi, dir: windows-x64,  lib: neurone_npps_jni.dll }
     defaults:
       run:
