@@ -235,7 +235,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-REG-CVNS-001 | Cervical VNS 510(k) Pre-Submission (Q-Sub) Package | 3 | 2026-10-01 | [np_reg_cvns_001.md](./np_reg_cvns_001.md) | BASELINED | REG |
 | NP-SW-FAULTMSG-001 | Offline Fault Explanation | 3 | 2026-09-23 | [np_sw_faultmsg_001.md](./np_sw_faultmsg_001.md) | DRAFT | SPEC-FW |
 | NP-REG-PBM1064-001 | RISK-03 Regulatory Opinion — Scope Expansion Brief | 2 | 2026-09-28 | [np_reg_pbm1064_001.md](./np_reg_pbm1064_001.md) | DRAFT | REG |
-| NP-REG-UPG-001 | T1 → T2 Upgrade Path — Analysis and Decision | 3 | 2026-09-24 | [np_reg_upg_001.md](./np_reg_upg_001.md) | DRAFT | REG |
+| NP-REG-UPG-001 | T1 → T2 Upgrade Path — Analysis and Decision | 4 | 2026-10-09 | [np_reg_upg_001.md](./np_reg_upg_001.md) | DRAFT | REG |
 
 **Note on NP-REG-PBM1064-001:** Rev 2 (2026-09-28) added scope item 5 (Q14–Q18) and left Q-13 reserved. A further revision is still required to add Q-13 covering Mode F (808-830nm bilateral retinal PBM during normal-looking wear) per NP-FW-EMMC-002 Rev 1 §F and NP-PRIV-REM-001 STEP-18. The Mode F firmware gate flag `NP_MODE_F_REGULATORY_CLEARED` remains 0 until the Rev 2 opinion letter is received.
 

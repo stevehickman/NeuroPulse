@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-REG-UPG-001
-**Revision:** 3
-**Date:** 2026-09-24
+**Revision:** 4
+**Date:** 2026-10-09
 **Status:** DRAFT — **§7 DECIDED 2026-09-23 by the principal: (a) new unit, with module carry-over** (§7.0). §2–§6 are the Rev 1 analysis, unchanged except §6.6's question list. §7.4–§7.6 apply the decision. `OI-TACSDRV-06` is **CLOSED**.
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -13,7 +13,7 @@
 **Gate:** NP-COORD-001 G2 (pre-tooling) — §5 names the provisions that must be settled before **MECH-1**
 **IEC 62304 Class:** N/A (analysis record, not device software)
 **Jurisdiction Scope:** US federal (FDA) as analysed; EU/EEA raised as an open question only (§6.5)
-**Change Summary:** Rev 3: **`OI-UPG-01`'s firmware half is IMPLEMENTED** (§7.7). The safety MCU now holds a signed, device-bound tier identity in OTP (new Class C module SW01-M10) and withholds every T2 enable line on a unit that is not a verified T2. The hub refuses a T2 protocol at load as F4, deriving T2-ness from the modality set and never from the app's flag. **It is not yet in force for any unit:** the image carries an all-zero placeholder authority key, so every unit is T1 until the key ceremony and the manufacturing programming step exist (new `OI-UPG-08`). The app half (T2 software features, and getting F4 to the user) stays in `OI-UPG-01`. Rev 2: the principal takes §7.1's recommendation, and adds a purpose the analysis did not weigh — **modules a purchaser bought carry over to their T2**. §7.0 records the decision, §7.4 applies it, §7.5 raises the three requirements it derives (`REQ-UPG-01…03`), and §9 re-scopes `OI-UPG-01…06` and raises `OI-UPG-07`. Rev 1: first issue, analysis and recommendation.
+**Change Summary:** Rev 4: **the helmet hardware version joins the tier identity** (new §7.8, decided by the principal 2026-10-09 under `OI-UI-KMP-10` H6/H7). It is the upper nibble of the tier byte of the same OTP record, so it is signed, bound to the unit's UID, written once at manufacture and read by the same safety-MCU module. Design only: nothing is built, and no record has ever been written, so the record format changes in place with no compatibility path. Rev 3: **`OI-UPG-01`'s firmware half is IMPLEMENTED** (§7.7). The safety MCU now holds a signed, device-bound tier identity in OTP (new Class C module SW01-M10) and withholds every T2 enable line on a unit that is not a verified T2. The hub refuses a T2 protocol at load as F4, deriving T2-ness from the modality set and never from the app's flag. **It is not yet in force for any unit:** the image carries an all-zero placeholder authority key, so every unit is T1 until the key ceremony and the manufacturing programming step exist (new `OI-UPG-08`). The app half (T2 software features, and getting F4 to the user) stays in `OI-UPG-01`. Rev 2: the principal takes §7.1's recommendation, and adds a purpose the analysis did not weigh — **modules a purchaser bought carry over to their T2**. §7.0 records the decision, §7.4 applies it, §7.5 raises the three requirements it derives (`REQ-UPG-01…03`), and §9 re-scopes `OI-UPG-01…06` and raises `OI-UPG-07`. Rev 1: first issue, analysis and recommendation.
 
 ---
 
@@ -497,6 +497,76 @@ verified by inspection only**: `np_safety_main.c` has no host test. It adds a ro
 | `docs/np_fmea_001.md` (Rev 8 → 9) | §3.10 SW01-M10 |
 | `CLAUDE.md` (Rev 53 → 54) · `docs/np_pwrsrc_001.md` · `docs/reference/regulatory-strategy.md` · `docs/status/*` · `docs/np_dhf_001.md` · `docs/reference/claude-md-revision-history.md` | *"No such gate exists"* corrected to what exists, and what is not in force. `RISK-PWRSRC-10` status. `OI-UPG-08` raised |
 
+### 7.8 The helmet hardware version in the tier identity (Rev 4) — decided, not built
+
+**Decided by the principal, 2026-10-09, under `OI-UI-KMP-10` (H6, H7).** The record is the one place a
+unit's identity is written once at manufacture, bound to the part and signed. The helmet hardware version
+is a fact of the same kind: it says which physical layout carried a session, a socket address names a
+place on the head only on a given layout, and nothing in the field may change it. So it joins the record.
+The requirement rows are `SWR-HV-06` and `SWR-HV-07` in `NP-SW-001` §6.3.2; this section is the design
+they rest on. **None of it is built:** no hardware-version identifier exists anywhere under `firmware/`.
+
+**What the decision says.**
+
+1. **The hardware version is part of the tier identity.** It is the upper nibble of the tier byte, record
+   byte 5. The lower nibble keeps the tier (T1 `0x1`, T2 `0x2`). Four bits give at most 16 hardware
+   versions, which is an assumption with no derivation (`UC-080`, `ASSUMED`; a wider field is the safe
+   direction, a narrower one is not).
+2. **It is read by the processor that reads the tier identity**, the safety MCU (`np_tier_identity.c`),
+   and the main processor receives it over the SPI link with the tier report. One firmware function
+   returns it.
+3. **It is a manufacture-written, one-time-programmable value.** It sits inside the signed body (bytes
+   0 to 7), so the Ed25519 signature binds it to the unit's 96-bit UID exactly as it binds the tier: a
+   record copied onto another board names the wrong UID and fails. Nothing in the field writes or changes
+   it (`REQ-UPG-02` applies to it unchanged).
+4. **The default is 1 until there is a hardware version 2.** A unit with no readable version (no record,
+   a malformed record, one that does not verify, or an upper nibble of 0) reads as version 1 and is not
+   faulted. The tier verdict is unchanged: it still fails closed to T1. The two are independent.
+5. **The default has an end.** It is removed in the same change that adds the version 2 layout-table
+   entry, the version 2 zone lists and the variant-creation automation. That removal is a checked item on
+   the increment record, because after version 2 exists an unreadable record would otherwise state a
+   layout the helmet may not have.
+6. **The factory step agrees.** The programming step of `OI-UPG-08` writes the version with the tier. It
+   checks the version against the board's revision before programming, since OTP cannot be corrected: a
+   helmet written with the wrong version is scrap or must be re-labelled. The step reads the record back,
+   and the acceptance check refuses a unit whose report does not read the version its build record says.
+7. **There are no legacy records.** No hardware is built and no record has been written, so the record
+   format changes in place. `NP_TIER_RECORD_VERSION` moves from `0x01` and the signing domain string
+   `NeurOne.TierId.1` changes to a new 16-character string, with the verifier and `np_tier_identity_tests`
+   changed to match. An upper nibble of 0 is not a version; it falls under item 4.
+
+**The increment rule.** The version is incremented with each significant change to the helmet design that
+is turned into hardware: a change that affects socket layout, thermal or power characteristics, or anything
+else that could affect what is delivered to the wearer. An increment obliges, in the same change: a new
+entry in the layout table (`OI-UI-KMP-10` H4a), zone socket lists for the new version (H5), a review of
+which protocol families span the old and new versions, and a check on whether any protocol's admissibility
+under `docs/np_ses_pwr_001.md` changes with the new thermal and power figures. The decision record per
+increment is not specified (open, below).
+
+**What this section changes in §7.7 and what it leaves.** Nothing built in Rev 3 is altered: the gate, the
+verdict held as a pattern word and its complement, the key, the tier report and the hub admission all stand.
+The additions are the byte-5 split, the new record version and domain string, a version field in the tier
+report, and the one function. §7.7's description of the record (*"version, tier code (T1 `0x01` / T2
+`0x02`)"*) is the Rev 3 state and is not rewritten: it is a record of what was built.
+
+**Consumers, none built.** The session record the helmet writes at the start of a session carries it
+(`SWR-HV-02`); the app reads it before any upload and refuses a protocol for another hardware version
+(`SWR-HV-04`); the protocol compiler stamps a protocol with its hardware version and takes zone lists per
+version (`SWR-HV-01`, `SWR-HV-05`). How the app reads it from the helmet (a GATT characteristic) is open.
+
+**Not decided, and not built:**
+
+1. **The wire layout.** The tier report is six bytes at window bytes 20 to 25 and carries a checksum over
+   bytes 0 to 3; whether it has room for a version field, or the window needs a new field, was not checked.
+2. **The hub-side refusal** of a protocol signed for another hardware version. It would sit with hub
+   admission beside the tier check; it is the writer's note and the principal has not ruled.
+3. **The decision record per increment**, and where it lives (`docs/np_art_001.md` and the DHF are the
+   likely homes).
+4. **The board-revision source the factory step checks against.** How the factory knows the board's revision
+   is not stated.
+5. **What an unverified record's version means once version 2 exists.** After the default is removed, the
+   rule for a unit whose record fails to verify (fault, or read as unknown) is to be set in that change.
+
 ---
 
 ## 8. What remains the principal's
@@ -525,6 +595,7 @@ verified by inspection only**: `np_safety_main.c` has no host test. It adds a ro
 | **OI-UPG-06** | **Trade-in disposition, and the owner's history on the new unit.** A returned T1 holds its user's UHDR partition, and NeurOne never accesses UHDR (`CLAUDE.md` §5.1). Specify a user-initiated key destruction before return, and a refurbish-as-T1 or scrap route that never needs the key. **Rev 2 adds:** the owner's history reaches the T2 only through the user-keyed backup in `CLAUDE.md` §5.1, and **nothing in the record says whether a backup restores onto a different device**. Specify that, or state that it does not (§7.4 (9)). **Binds only if trade-in is offered.** The restore question binds regardless | Privacy + Service + App | Trade-in offer; first T2 sale to a T1 owner |
 | **OI-UPG-07** | **A module UID seen on two devices links their SHDR records** (§7.4 (7)). Carry-over makes that routine. The link reads as *"one owner held both, and moved from a wellness unit to a medical device"*. That is an inference about a person, drawn from SHDR, which `CLAUDE.md` §5.1 links to device and warranty token only. Decide, before any module UID or per-module history enters an SHDR upload: never upload it, upload a per-device salted form that cannot be joined across devices, or show that the join is harmless. Rule 1 (*when in doubt → UHDR*) applies meanwhile. **Until then, no module UID enters an SHDR upload.** Today none does | Privacy + FW + Data | Any SHDR schema change carrying module identity; per-module predictive maintenance (`CLAUDE.md` §5.2) |
 | **OI-UPG-08** | **Tier-authority key and the manufacturing step that writes the identity** (§7.7, raised Rev 3). The firmware gate exists and fails closed, so **until this closes every unit is T1**, including every T2 unit. Four parts. **(i) Key ceremony:** generate the tier-authority Ed25519 key pair, and decide its custody. It is separate from the session-signing root key by design (§7.7). Decide whether the image carries one public key or a short list, for rotation, since a safety-image update is never automated OTA. **(ii) Programming step:** write every unit's record (T1 included) into OTP at `0x40`, signed over the unit's UID, before final acceptance. The UID is read from the unit, and the signing service never takes a UID it did not read. **(iii) Acceptance check:** refuse any unit whose tier report does not read reason `OK` with the tier its build record says. A blank T1 behaves correctly and is therefore invisible to every functional test. **(iv) Debug-port lock:** set RDP so no external interface can program the OTP window afterwards. That is `REQ-UPG-02`'s remaining test, and it also bears on `OI-FMEA-03`'s root key | Manufacturing + Security + FW (safety) + Quality | **Any T2 unit delivering a T2 modality**; first production of any unit (the T1 record) |
+| **OI-UPG-09** | **The helmet hardware version in the tier identity** (§7.8, raised Rev 4). Decided by the principal 2026-10-09; **nothing is built**. Build: the byte-5 split and the new record version and domain string in `np_safety_config.h`, the verifier and `np_tier_identity_tests`; a version field in the tier report if the wire has room (not checked); the one function; the factory step (with `OI-UPG-08`) that writes the version and checks it against the board revision; the removal of the default 1 in the change that adds hardware version 2. Open: the wire layout, the hub-side refusal of another version's protocol, the decision record per increment, and the board-revision source | FW (safety) + FW (hub) + Manufacturing | Hardware version 2; the helmet-side refusal; first production of any unit (the version is written with the record) |
 
 > Items owned elsewhere and deliberately not duplicated: **`OI-TACSDRV-06`** (the decision itself;
 > `NP-HW-TACSDRV-001` §9; **CLOSED** Rev 2), **`RISK-PWRSRC-10`** and **`OI-PWRSRC-04`** (`NP-PWRSRC-001`;
@@ -554,6 +625,7 @@ verified by inspection only**: `np_safety_main.c` has no host test. It adds a ro
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| 4 | 2026-10-09 | NeurOne Systems Engineering | **The helmet hardware version joins the tier identity (new §7.8, `OI-UPG-09`).** Decided by the principal under `OI-UI-KMP-10` H6/H7: the upper nibble of the tier byte of the OTP record, signed and UID-bound, written once at manufacture, read by the safety MCU, default 1 until a hardware version 2 exists, at most 16 versions (`UC-080`). Design only; nothing is built. No locked decision of `CLAUDE.md` changes. |
 | 3 | 2026-09-24 | NeurOne Systems Engineering + Firmware | **`OI-UPG-01`: firmware half IMPLEMENTED; not in force.** New §7.7. The safety MCU holds a signed, UID-bound tier identity in OTP and withholds every T2 enable line on a unit that is not a verified T2 (new Class C module SW01-M10, `NP-FMEA-001` §3.10). The hub refuses T2 protocols at load as F4, from the modality set and never from the app flag. Host-tested with real RFC 8032 signatures (two new Class C test targets, 8 → 10), and mutation-checked. §7.5's `REQ-UPG-01` / `-02` status cells updated. **Raised `OI-UPG-08`:** the image ships a placeholder authority key, which fails closed, so every unit is T1 until the key ceremony, the OTP programming step, the acceptance check and the debug-port lock exist. `OI-UPG-01` keeps the app half: software-feature unlock, and a load-status path so F4 reaches the user. **No decision changed** |
 | 2 | 2026-09-23 | NeurOne Systems Engineering | **`OI-TACSDRV-06` DECIDED by the principal: (a) new unit** (§7.0). All five points of §7.1 taken as written. **Two reasons the analysis had not weighed.** **(1) Modules a purchaser bought carry over to their T2**, where Rev 1 §6.2 had defaulted to *"T2 ships complete with T2-released parts."* **(3) No rolling upgrade round the T1 → T2 price differential.** New **§7.4** applies the decision in twelve rows. New **§7.5** raises three requirements, each traced to §7.0 under `CLAUDE.md` §18. **`REQ-UPG-01`:** a T1-identity unit never enables a T2 modality or unlocks a T2 software feature, refused where the enables are owned, fail-closed, presented as F4. **`REQ-UPG-02`:** the tier identity is written once, at manufacture, and no field path writes it. **`REQ-UPG-03`:** every T1 module interface is kept on every T2, and interface changes land on both tiers or neither. **Neither gate exists yet** (`OI-UPG-01`). **Carry-over's two consequences Rev 1 had no reason to find:** carried modules become 510(k) components, so until counsel answers they are **tier-common part numbers built under the QMS from first production** (`OI-UPG-04`), with the **A13** clip as the sharpest case because it feeds A14's cardiac interlock. And **a module UID seen on two devices links their SHDR records** (`OI-UPG-07`), so no module UID enters an SHDR upload until that is decided. §6.6: Q3–Q5 withdrawn, Q1 gains two limbs, Q2 reframed from *whether* to *on what conditions*. `OI-UPG-03` **closed as moot**. `OI-UPG-01`, `-02`, `-04`, `-05` and `-06` re-scoped. Title *"Analysis and Recommendation"* → *"Analysis and Decision"*. **No price, cost figure or firmware constant changes.** `CLAUDE.md` §1 gains the invariant (Rev 52) |
 | 1 | 2026-09-23 | NeurOne Systems Engineering | Initial release, answering **`OI-TACSDRV-06`** with an analysis and a recommendation, **not a decision**. **Recommends (a), a new unit:** T2 is built as T2, and no T1 unit is converted by anyone. **Four findings the item's framing did not have.** (1) **Neither citation that "assumes an upgrade" requires a conversion.** The thermal alignment holds under any model, and the charger rule serves configuration upgrades inside a tier (§2.1). (2) **Users already open the parting plane** for every tile swap, with a latch interlock and SHDR seam trending. So a conversion is distinguished by touching **factory-only** assemblies, the boss and the outer bowl, not the routine seam (§3.1). (3) **The PAN is tier-specific before A16 arrives.** Its ADS1299 bank is 8 channels on T1 and 21 on T2, on the laminated L1 carrier. And **the TMS window is laid up into the never-opened outer bowl**, so neither can be added after manufacture (§4.2). (4) **The device holds no tier identity**: `NP_PROTO_FLAG_T2_TIER` is read by no firmware, and T2-D, cervical VNS and possibly the qEEG cap fit interfaces every T1 unit has. `NP-PWRSRC-001` D-9's entitlement is the mechanism, and it needs extending (§3.3). **§6 sets out the regulatory consequences of each path** as an engineering reading, not an opinion. The heaviest consequence of conversion falls on units that are never converted: each T1 would need DHR-grade build history. §6.5 raises EU MDR Annex XVI and Article 16 for counsel. For **`OI-TACSDRV-01`**: under (a), Q1 holds with its saving in full, Q3 survives, and Q2 is unaffected (§7.3). Raises **OI-UPG-01…06**. **No price, cost figure, requirement, firmware constant or locked decision changes.** |
