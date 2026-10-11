@@ -30,6 +30,7 @@ class NPPSAbsoluteQuantityTests {
 
     private fun pbm(fields: String) = "    pbm_transcranial {\n$fields\n    }"
 
+    // @verifies REQ-NPPS-01#a
     @Test
     fun readsIrradianceWithItsUnit() {
         val p = single(proto(pbm("wavelength: \"808nm\"\nirradiance: 36mW_cm2")))
@@ -38,6 +39,7 @@ class NPPSAbsoluteQuantityTests {
         assertEquals("808nm", params.wavelength.rawValue)
     }
 
+    // @verifies REQ-NPPS-01#a
     @Test
     fun acceptsTheCanonicalNameWithABareNumber() {
         val p = single(proto(pbm("wavelength: \"808nm\"\nirradiance_mw_cm2: 36")))
@@ -45,6 +47,7 @@ class NPPSAbsoluteQuantityTests {
         assertEquals(36.0, params.irradianceMWcm2)
     }
 
+    // @verifies REQ-NPPS-01#a,b
     @Test
     fun refusesPercentagesAndUnitlessDoses() {
         assertTrue(refused(pbm("intensity: 80%\nwavelength: \"808nm\"")).contains("percentage of a baseline"))
@@ -54,12 +57,14 @@ class NPPSAbsoluteQuantityTests {
         assertTrue(refused(pbm("wavelength: \"808nm\"\nirradiance: 80mA")).contains("takes mW_cm2, not mA"))
     }
 
+    // @verifies REQ-NPPS-01#c
     @Test
     fun requiresIrradianceAndWavelengthRatherThanDefaultingThem() {
         assertTrue(refused(pbm("wavelength: \"808nm\"")).contains("irradiance (e.g. irradiance: 300mW_cm2) is required"))
         assertTrue(refused(pbm("irradiance: 300mW_cm2")).contains("wavelength is required"))
     }
 
+    // @verifies REQ-NPPS-03#a
     @Test
     fun refusesTheRetiredCombinedWavelengthsAndNamesTheReplacement() {
         for (wl in listOf("660_808nm", "660_808_1064nm")) {
@@ -68,6 +73,7 @@ class NPPSAbsoluteQuantityTests {
         }
     }
 
+    // @verifies REQ-NPPS-01#b,c
     @Test
     fun intranasalBlocksCarryAWavelengthAndAnIrradiance() {
         val p = single(proto("    pbm_intranasal {\n        wavelength: \"660nm\"\n        irradiance: 25mW_cm2\n    }"))
@@ -77,6 +83,7 @@ class NPPSAbsoluteQuantityTests {
         assertTrue(refused("    pbm_intranasal {\n        intensity: 60%\n    }").contains("percentage of a baseline"))
     }
 
+    // @verifies REQ-NPPS-01#a,b
     @Test
     fun readsAudioInDbAndRefusesAPercentage() {
         fun audio(body: String) = "    audio_entrainment {\n        carrier_hz: 440Hz\n        $body\n    }"
@@ -88,6 +95,7 @@ class NPPSAbsoluteQuantityTests {
         assertTrue(refused(audio("binaural_hz: 10Hz")).contains("is required and must be positive"))
     }
 
+    // @verifies REQ-NPPS-01#b
     @Test
     fun refusesAPercentageCeilingInLimitsInsteadOfSkippingIt() {
         for (mod in listOf("pbm_transcranial", "pbm_intranasal", "audio_entrainment")) {
@@ -101,6 +109,7 @@ class NPPSAbsoluteQuantityTests {
         assertEquals(250.0, lim.pbmTranscranial?.maxIrradianceMWcm2)
     }
 
+    // @verifies REQ-NPPS-11
     @Test
     fun roundTripsTheUnitBearingSpelling() {
         val src = proto(pbm("wavelength: \"660nm\"\nirradiance: 12.5mW_cm2"))
@@ -157,6 +166,7 @@ class NPPSAbsoluteQuantityTests {
     }
 
     // OI-SESPWR-03: `frequency: 0` is CW and CW has no duty cycle.
+    // @verifies REQ-NPPS-02
     @Test
     fun refusesCwWithADutyOtherThan100() {
         val dose = mapOf(
@@ -170,6 +180,7 @@ class NPPSAbsoluteQuantityTests {
         }
     }
 
+    // @verifies REQ-NPPS-02
     @Test
     fun readsCwAs100PercentWhetherTheDutyIsWrittenOrNot() {
         for (extra in listOf("", "\nduty_cycle: 100%")) {

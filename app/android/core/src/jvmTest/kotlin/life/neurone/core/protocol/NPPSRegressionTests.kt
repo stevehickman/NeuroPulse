@@ -47,6 +47,7 @@ class NPPSRegressionTests {
      * Android alone still accepted a form the other two reject. The guard is now
      * that the quoted form works and the bare form is refused.
      */
+    // @verifies REQ-NPPS-10#a
     @Test
     fun testQuotedWavelengthsParse() {
         for ((literal, expected) in listOf(
@@ -68,6 +69,7 @@ class NPPSRegressionTests {
         }
     }
 
+    // @verifies REQ-NPPS-10#a
     @Test
     fun testUnquotedWavelengthIsRefused() {
         for (literal in listOf("660_808nm", "660_808_1064nm")) {
@@ -91,6 +93,7 @@ class NPPSRegressionTests {
     // case is a unit test in common/npps-core/src/lexer.rs.
 
     /** Quoted hyphenated tags parse; the bare form is refused (Rev 6). */
+    // @verifies REQ-NPPS-10#a
     @Test
     fun testHyphenatedTagsQuotedParseBareRefused() {
         val script = """
@@ -125,6 +128,7 @@ class NPPSRegressionTests {
     }
 
     /** testHyphenatedTagRoundTripPreservesValue — serialize→reparse keeps one tag. */
+    // @verifies REQ-NPPS-11
     @Test
     fun testHyphenatedTagRoundTripPreservesValue() {
         val script = """
@@ -225,6 +229,7 @@ class NPPSRegressionTests {
      * NP-NPPS-REF-001 Rev 2 and do not parse: a target this parser does not
      * understand must stop the file rather than silently become "every module".
      */
+    // @verifies REQ-NPPS-11
     @Test
     fun testNamedZonesParseAndRoundTrip() {
         val script = """
@@ -283,6 +288,7 @@ class NPPSRegressionTests {
     }
 
     /** A limits block round-trips through parse→serialize→parse. */
+    // @verifies REQ-NPPS-11
     @Test
     fun testLimitsBlockRoundTrip() {
         val script = """
@@ -319,6 +325,7 @@ class NPPSRegressionTests {
     }
 
     /** A composite with layers round-trips, including start/duration/scale. */
+    // @verifies REQ-NPPS-11
     @Test
     fun testCompositeRoundTrip() {
         val script = """
@@ -353,6 +360,7 @@ class NPPSRegressionTests {
     }
 
     /** CW frequency (0Hz) serializes with the "# CW" comment and reparses to 0. */
+    // @verifies REQ-NPPS-11
     @Test
     fun testCwFrequencyRoundTrip() {
         val script = """

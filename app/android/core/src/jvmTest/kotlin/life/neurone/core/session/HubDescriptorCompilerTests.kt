@@ -48,6 +48,7 @@ class HubDescriptorCompilerTests {
         check("pbm1064", def(1200, pbm("1064nm", 28.0)))
     }
 
+    // @verifies REQ-NPPS-02
     @Test fun refusesCwWithADutyOtherThan100() {
         fun cw(kind: Int, duty: Int): NPProtocolDefinition = def(600, mod(when (kind) {
             0 -> NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(
@@ -66,6 +67,7 @@ class HubDescriptorCompilerTests {
         }
     }
 
+    // @verifies REQ-NPPS-03#c
     @Test fun parallelWavelengthsMergeIntoOneTileCommand() = check("pbmMerged", def(600, pbm("660nm", 100.0), pbm("808nm", 200.0)))
 
     @Test fun clinicianSelectedSockets() = check("pbmClin", def(600, mod(NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(
@@ -126,6 +128,7 @@ class HubDescriptorCompilerTests {
         assertContentEquals(serial, blob.copyOfRange(28, 60))
     }
 
+    // @verifies REQ-NPPS-03#c REQ-NPPS-04 REQ-NPPS-08#c REQ-NPPS-09
     @Test fun refusalsNameTheProblemAndNeverReshape() {
         assertFailsWith<IllegalArgumentException> { compiler.build(def(600, pbm("808nm", 500.0)), null, null) } // above 403 full scale
         assertFailsWith<IllegalArgumentException> { compiler.build(def(600, pbm("1064nm", 100.0)), null, null) } // above 28

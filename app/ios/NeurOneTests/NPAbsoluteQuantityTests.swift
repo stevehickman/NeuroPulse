@@ -27,6 +27,7 @@ final class NPAbsoluteQuantityTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-01#a
     func testReadsIrradianceWithItsUnit() throws {
         let entries = try parse(proto(pbm("wavelength: \"808nm\"\nirradiance: 36mW_cm2")))
         guard case .single(let p) = entries[0], case .pbmTranscranial(let params) = p.modalities[0].params else {
@@ -36,6 +37,7 @@ final class NPAbsoluteQuantityTests: XCTestCase {
         XCTAssertEqual(params.wavelength.rawValue, "808nm")
     }
 
+    // @verifies REQ-NPPS-01#a
     func testAcceptsTheCanonicalNameWithABareNumber() throws {
         let entries = try parse(proto(pbm("wavelength: \"808nm\"\nirradiance_mw_cm2: 36")))
         guard case .single(let p) = entries[0], case .pbmTranscranial(let params) = p.modalities[0].params else {
@@ -44,6 +46,7 @@ final class NPAbsoluteQuantityTests: XCTestCase {
         XCTAssertEqual(params.irradianceMWcm2, 36)
     }
 
+    // @verifies REQ-NPPS-01#a,b
     func testRefusesPercentagesAndUnitlessDoses() {
         assertRefused(pbm("intensity: 80%\nwavelength: \"808nm\""), contains: "percentage of a baseline")
         assertRefused(pbm("intensity_percent: 80\nwavelength: \"808nm\""), contains: "percentage of a baseline")
@@ -52,17 +55,20 @@ final class NPAbsoluteQuantityTests: XCTestCase {
         assertRefused(pbm("wavelength: \"808nm\"\nirradiance: 80mA"), contains: "takes mW_cm2, not mA")
     }
 
+    // @verifies REQ-NPPS-01#c
     func testRequiresIrradianceAndWavelengthRatherThanDefaultingThem() {
         assertRefused(pbm("wavelength: \"808nm\""), contains: "irradiance (e.g. irradiance: 300mW_cm2) is required")
         assertRefused(pbm("irradiance: 300mW_cm2"), contains: "wavelength is required")
     }
 
+    // @verifies REQ-NPPS-03#a
     func testRefusesTheRetiredCombinedWavelengthsAndNamesTheReplacement() {
         for wl in ["660_808nm", "660_808_1064nm"] {
             assertRefused(pbm("wavelength: \"\(wl)\"\nirradiance: 300mW_cm2"), contains: "one block per wavelength")
         }
     }
 
+    // @verifies REQ-NPPS-01#b,c
     func testIntranasalBlocksCarryAWavelengthAndAnIrradiance() throws {
         let entries = try parse(proto("    pbm_intranasal {\n        wavelength: \"660nm\"\n        irradiance: 25mW_cm2\n    }"))
         guard case .single(let p) = entries[0], case .pbmIntranasal(let params) = p.modalities[0].params else {
@@ -73,6 +79,7 @@ final class NPAbsoluteQuantityTests: XCTestCase {
         assertRefused("    pbm_intranasal {\n        intensity: 60%\n    }", contains: "percentage of a baseline")
     }
 
+    // @verifies REQ-NPPS-01#a,b
     func testReadsAudioInDbAndRefusesAPercentage() throws {
         func audio(_ body: String) -> String {
             "    audio_entrainment {\n        carrier_hz: 440Hz\n        \(body)\n    }"
@@ -88,6 +95,7 @@ final class NPAbsoluteQuantityTests: XCTestCase {
         assertRefused(audio("binaural_hz: 10Hz"), contains: "is required and must be positive")
     }
 
+    // @verifies REQ-NPPS-01#b
     func testRefusesAPercentageCeilingInLimitsInsteadOfSkippingIt() throws {
         for mod in ["pbm_transcranial", "pbm_intranasal", "audio_entrainment"] {
             let text = "limits \"L\" {\n    level: global\n    \(mod) {\n        max_intensity: 80\n    }\n}\n"
@@ -148,6 +156,7 @@ final class NPAbsoluteQuantityTests: XCTestCase {
     }
 
     // OI-SESPWR-03: `frequency: 0` is CW and CW has no duty cycle.
+    // @verifies REQ-NPPS-02
     func testRefusesCwWithADutyOtherThan100() {
         let doses = [
             "pbm_transcranial": "wavelength: \"808nm\"\nirradiance: 30mW_cm2",
@@ -160,6 +169,7 @@ final class NPAbsoluteQuantityTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-02
     func testReadsCwAs100PercentWhetherTheDutyIsWrittenOrNot() throws {
         for extra in ["", "\nduty_cycle: 100%"] {
             let entries = try parse(proto(pbm("wavelength: \"808nm\"\nirradiance: 30mW_cm2\nfrequency: 0Hz\(extra)")))

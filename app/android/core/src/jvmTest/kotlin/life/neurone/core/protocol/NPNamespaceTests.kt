@@ -27,6 +27,7 @@ class NPNamespaceTests {
         assertNotNull(ns.zones["Frontal Left"], "the predefined lobe zones must be present")
     }
 
+    // @verifies REQ-NPPS-08#c
     @Test
     fun everyShippedReferenceResolves() {
         // The point of the namespace: a protocol naming a zone or condition must
@@ -131,6 +132,7 @@ class NPNamespaceTests {
         assertEquals(emptyList(), validateNamespaceReferences(ns))
     }
 
+    // @verifies REQ-NPPS-08#c
     @Test
     fun unresolvedReferencesAreReportedNotThrown() {
         val ns = buildNamespace(
@@ -156,6 +158,7 @@ class NPNamespaceTests {
      * which sockets get dosed. Leaving the name unbound is the only outcome
      * that is the same whatever the read order.
      */
+    // @verifies REQ-NPPS-08#b
     @Test
     fun duplicateZoneNameIsAnErrorAndLeavesTheNameUndefined() {
         val build = buildNamespace(
@@ -170,6 +173,7 @@ class NPNamespaceTests {
         assertTrue(build.errors.any { it.contains("Duplicate zone name 'Z'") })
     }
 
+    // @verifies REQ-NPPS-08#b
     @Test
     fun duplicateNameGivesTheSameAnswerInEitherReadOrder() {
         val first = parse("zone \"Z\" { sockets: [1] }")
@@ -181,6 +185,7 @@ class NPNamespaceTests {
         assertEquals(forward.errors, reverse.errors)
     }
 
+    // @verifies REQ-NPPS-08#b
     @Test
     fun duplicateConditionNameIsAnErrorAndLeavesTheNameUndefined() {
         val build = buildNamespace(
@@ -195,6 +200,7 @@ class NPNamespaceTests {
         assertTrue(build.errors.any { it.contains("Duplicate condition name 'C'") })
     }
 
+    // @verifies REQ-NPPS-08#b
     @Test
     fun aThirdDefinitionCannotReBindACollidedName() {
         val build = buildNamespace(
@@ -212,6 +218,7 @@ class NPNamespaceTests {
 
     // MARK: protocol conditions / references
 
+    // @verifies REQ-NPPS-11
     @Test
     fun protocolConditionsAndReferencesParseAndRoundTrip() {
         val script = """
@@ -235,6 +242,7 @@ class NPNamespaceTests {
 
     // MARK: serialization
 
+    // @verifies REQ-NPPS-11
     @Test
     fun zoneAndConditionRoundTrip() {
         val text = """
@@ -272,6 +280,7 @@ class NPVisualModeTests {
         assertEquals(NPVisualStimParams.VisualMode.MODE_F, modeOf("mode_f"))
     }
 
+    // @verifies REQ-NPPS-11
     @Test
     fun everyModeSurvivesSerializeThenParse() {
         // The bug: RETINAL_PBM and MODE_F serialized as `retinalPBM` / `modeF`,
@@ -326,6 +335,7 @@ class NPPSListElementTests {
         assertEquals(listOf("sleep", "wind-down", "recovery"), e.protocol.tags)
     }
 
+    // @verifies REQ-NPPS-10#a
     @Test
     fun unquotedHyphenatedTagIsRejectedNotSplit() {
         assertFailsWith<NPPSError> { parse("""protocol "P" { tags: [sleep, wind-down, recovery] }""") }
@@ -350,6 +360,7 @@ class NPPSListElementTests {
  */
 class NPLimitsRoundTripTests {
 
+    // @verifies REQ-NPPS-11
     @Test
     fun everyLimitsFieldSurvivesSerializeThenParse() {
         val original = NPLimitsSet(

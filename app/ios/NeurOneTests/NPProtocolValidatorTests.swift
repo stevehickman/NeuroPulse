@@ -203,6 +203,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     /// An undeclared area is an error, not a fallback: the hub refuses a zero area and the
     /// safety MCU's geometry gate holds tDCS off, so accepting it hands the user a session
     /// that silently never stimulates. And it must not ALSO produce an infinite density.
+    // @verifies REQ-NPPS-05
     func testUndeclaredElectrodeAreaRejected() {
         let tdcs = NPTDCSParams(intensityMilliamps: 1.0, electrodePairs: [["F3", "F4"]],
                                 electrodeAreaCm2: 0)
@@ -218,6 +219,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     }
 
     /// Above what the uint16 milli-cm² wire field can carry.
+    // @verifies REQ-NPPS-05
     func testUnencodableElectrodeAreaRejected() {
         let tdcs = NPTDCSParams(intensityMilliamps: 1.0, electrodePairs: [["F3", "F4"]],
                                 electrodeAreaCm2: 70.0)
@@ -339,6 +341,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     // MARK: - CW has no duty cycle (OI-SESPWR-03)
 
+    // @verifies REQ-NPPS-02
     func testCwWithADutyOtherThan100Rejected() {
         let cases: [NPModalityParams] = [
             .pbmTranscranial(NPPBMTranscranialParams(irradianceMWcm2: 100, frequencyHz: 0, dutyCyclePercent: 25)),

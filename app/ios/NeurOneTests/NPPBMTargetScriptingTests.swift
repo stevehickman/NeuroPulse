@@ -126,6 +126,7 @@ final class NPPBMTargetScriptingTests: XCTestCase {
 
     // MARK: - Serializing round-trips every form as authored
 
+    // @verifies REQ-NPPS-11
     func testSerializerRoundTripsEveryForm() throws {
         // Every form the type can hold, which is now every form that parses —
         // there is no third shape the serializer could emit.
@@ -178,6 +179,7 @@ final class NPPBMTargetScriptingTests: XCTestCase {
         XCTAssertTrue(validate(.named(["Frontal"])).isValid)
     }
 
+    // @verifies REQ-NPPS-08#c
     func testValidatorRejectsUnknownZoneName() {
         let result = validate(.named(["Left Frontal"]))
         XCTAssertFalse(result.isValid)
@@ -195,6 +197,7 @@ final class NPPBMTargetScriptingTests: XCTestCase {
     // The mask and wavelength bytes are pinned in HubDescriptorCompilerTests against the web
     // compiler's output; this keeps the refusal of an unresolvable target.
 
+    // @verifies REQ-NPPS-08#c
     func testWireProtocolRefusesAnUnresolvableTarget() {
         var params = NPPBMTranscranialParams()
         params.target = .named(["Left Frontal"])   // not a zone; the correct name is "Frontal Left"

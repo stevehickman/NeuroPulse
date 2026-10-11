@@ -65,6 +65,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
 
     /// OI-SESPWR-03: CW (frequency 0) has no duty cycle, so CW with a duty other than 100 % is refused,
     /// on every PBM modality that carries both fields.
+    // @verifies REQ-NPPS-02
     func testRefusesCwWithADutyOtherThan100() throws {
         func cw(_ kind: Int, _ duty: Int) -> NPProtocolDefinition {
             switch kind {
@@ -99,6 +100,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-03#c
     func testParallelWavelengthsMergeIntoOneTileCommand() throws {
         try check("pbmMerged", def(600, pbm("660nm", 100), pbm("808nm", 200)))
     }
@@ -211,6 +213,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
 
     // MARK: - Refusals
 
+    // @verifies REQ-NPPS-03#c REQ-NPPS-04 REQ-NPPS-08#c REQ-NPPS-09
     func testRefusalsNameTheProblemAndNeverReshape() {
         XCTAssertThrowsError(try build(def(600, pbm("808nm", 500))))      // above the 403 full scale
         XCTAssertThrowsError(try build(def(600, pbm("1064nm", 100))))     // above 28
