@@ -60,6 +60,7 @@ final class NppsCoreTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-12
     func testTheWholeShippedLibraryParsesAsTheWebParserDoes() throws {
         let files = try XCTUnwrap(Self.json("npps-parse-golden.json")["files"] as? [String: [String: Any]])
         XCTAssertGreaterThan(files.count, 60, "the golden covers the shipped library")
@@ -71,6 +72,7 @@ final class NppsCoreTests: XCTestCase {
         XCTAssertTrue(failures.isEmpty, "\(failures.count) divergence(s):\n" + failures.joined(separator: "\n"))
     }
 
+    // @verifies REQ-NPPS-12
     func testTheRefusalAndAliasCorpusParsesAsTheWebParserDoes() throws {
         let cases = try XCTUnwrap(Self.json("npps-parse-golden.json")["cases"] as? [String: [String: Any]])
         var failures: [String] = []
@@ -100,6 +102,7 @@ final class NppsCoreTests: XCTestCase {
             wavelengthRules: nil)
     }
 
+    // @verifies REQ-NPPS-12
     func testEveryGoldenDefinitionCompilesToTheWebCompilersBytes() throws {
         let cases = try Self.json("hub-descriptor-cases.json")
         let golden = try Self.json("hub-descriptor-golden.json")
@@ -159,6 +162,7 @@ final class NppsCoreTests: XCTestCase {
 
     // MARK: - Namespace
 
+    // @verifies REQ-NPPS-12
     func testNamespacesFoldAndValidateAsTheWebFunctionsDo() throws {
         let cases = try XCTUnwrap(Self.json("npps-parse-golden.json")["namespaces"] as? [String: [String: Any]])
         XCTAssertTrue(cases["library"] != nil && cases.count > 5)
@@ -182,6 +186,7 @@ final class NppsCoreTests: XCTestCase {
 
     // MARK: - Serialize and validate
 
+    // @verifies REQ-NPPS-12
     func testSerializeWritesTheShippedLibraryAsTheWebSerializerDid() throws {
         let files = try XCTUnwrap(Self.json("npps-serialize-golden.json")["files"] as? [String: [[String: Any]]])
         var failures: [String] = []

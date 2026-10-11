@@ -114,12 +114,14 @@ describe('one wavelength per block', () => {
     expect(c808.params[3]).toBe(Math.round(28 / 403 * 255));
   });
 
+  // @verifies REQ-NPPS-04
   it('REFUSES an irradiance the channel cannot reach, rather than clamping it', () => {
     expect(() => commands(protocol(pbm('        wavelength: "1064nm"', '250mW_cm2'))))
       .toThrow(/exceeds what led_1064 delivers at full drive \(28 mW\/cm²\).*refused, not reduced/);
     expect(() => commands(protocol(pbm('        wavelength: "808nm"', '404mW_cm2')))).toThrow(/exceeds what led_808/);
   });
 
+  // @verifies REQ-NPPS-03#b
   it('refuses a wavelength no rule accepts — never the nearest channel, never all channels', () => {
     for (const w of ['850nm', '640nm', '633nm', '1080nm']) {
       expect(() => commands(protocol(pbm(`        wavelength: "${w}"`))), w)
@@ -170,6 +172,7 @@ describe('start offsets', () => {
     expect([c.startMs, c.durationMs]).toEqual([90000, 0]);
   });
 
+  // @verifies REQ-NPPS-09
   it('refuses a block that starts at or after the session end', () => {
     expect(() => commands(protocol(pbm('        wavelength: "810nm"\n        start: 10m')))).toThrow(/never run/);
   });
@@ -178,21 +181,25 @@ describe('start offsets', () => {
 describe('parallel blocks on the same tiles', () => {
   const two = (a: string, b: string) => protocol(`${pbm(a)}\n${pbm(b)}`);
 
+  // @verifies REQ-NPPS-03#c
   it('660 nm and 810 nm with identical timing merge into one command driving both channels', () => {
     const cmds = commands(two('        wavelength: "660nm"', '        wavelength: "810nm"'));
     expect(cmds).toHaveLength(1);
     expect(cmds[0].params).toEqual([FC, DUTY, CUR, CUR]);
   });
 
+  // @verifies REQ-NPPS-03#c
   it('refuses the same pair at different frequencies', () => {
     const p = protocol(`${pbm('        wavelength: "660nm"')}\n${pbm('        wavelength: "810nm"').replace('frequency: 40Hz', 'frequency: 10Hz')}`);
     expect(() => commands(p)).toThrow(/overlap on socket/);
   });
 
+  // @verifies REQ-NPPS-03#c
   it('refuses two blocks on the same channel', () => {
     expect(() => commands(two('        wavelength: "808nm"', '        wavelength: "820nm"'))).toThrow(/overlap on socket/);
   });
 
+  // @verifies REQ-NPPS-03#c
   it('refuses a partial socket overlap even with matching timing', () => {
     const p = protocol(`${pbm('        wavelength: "660nm"')}\n${pbm('        wavelength: "810nm"').replace('Frontal Left', 'Frontal')}`);
     expect(() => commands(p)).toThrow(/overlap on socket/);
@@ -234,6 +241,7 @@ ${extra}    }`;
     expect(() => commands(protocol(nasal('1064nm')))).toThrow(/cannot be delivered on led_1064/);
   });
 
+  // @verifies REQ-NPPS-04
   it('refuses an irradiance above the probe full scale', () => {
     expect(() => commands(protocol(nasal('660nm', '150mW_cm2')))).toThrow(/exceeds what the intranasal probe delivers/);
   });
@@ -316,6 +324,7 @@ describe('CW with a duty cycle (OI-SESPWR-03)', () => {
       expect(() => commands(cw(kind, 25))).toThrow(/continuous wave, which has no duty cycle/);
     });
   }
+  // @verifies REQ-NPPS-02
   it('compiles CW at 100 %', () => {
     expect(commands(cw('pbm_transcranial', 100))[0].params[0]).toBe(0);
   });

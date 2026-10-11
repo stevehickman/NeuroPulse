@@ -25,6 +25,7 @@ const toModel = (e: any): NPProtocolEntry =>
     : { kind: 'composite', composite: { ...e.composite, layers: e.composite.layers.map((l: any) => ({ id: 'l', ...l })) } };
 
 describe('serializer wrapper', () => {
+  // @verifies REQ-NPPS-12
   it('writes every block of the shipped library as the web serializer did', () => {
     const g = data('npps-serialize-golden.json');
     let n = 0;
@@ -44,6 +45,7 @@ describe('serializer wrapper', () => {
     );
   });
 
+  // @verifies REQ-NPPS-11
   it('writes a limits set the parser reads back (the web writer wrote keys the parser dropped)', () => {
     const limits = {
       id: 'l', name: 'Clinic', description: '', createdAt: '', modifiedAt: '', level: 'global',

@@ -15,6 +15,7 @@ fn golden() -> Value {
     serde_json::from_str(&fs::read_to_string(p).expect("golden file")).expect("golden JSON")
 }
 
+// @verifies REQ-NPPS-12
 #[test]
 fn every_block_of_the_library_is_written_as_the_web_serializer_wrote_it() {
     let g = golden();
@@ -80,6 +81,7 @@ fn round_trip(name: &str, src: &str) {
     }
 }
 
+// @verifies REQ-NPPS-11
 #[test]
 fn everything_the_library_declares_survives_write_then_read() {
     let g = golden();

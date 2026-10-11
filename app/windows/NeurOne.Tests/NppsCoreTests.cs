@@ -48,6 +48,7 @@ public class NppsCoreTests
         }
     }
 
+    // @verifies REQ-NPPS-12
     [Fact]
     public void TheWholeShippedLibraryParsesAsTheWebParserDoes()
     {
@@ -59,6 +60,7 @@ public class NppsCoreTests
         Assert.True(failures.Count == 0, $"{failures.Count} divergence(s):\n" + string.Join("\n", failures));
     }
 
+    // @verifies REQ-NPPS-12
     [Fact]
     public void TheRefusalAndAliasCorpusParsesAsTheWebParserDoes()
     {
@@ -68,6 +70,7 @@ public class NppsCoreTests
         Assert.True(failures.Count == 0, $"{failures.Count} divergence(s):\n" + string.Join("\n", failures));
     }
 
+    // @verifies REQ-NPPS-12
     [Fact]
     public void NamespacesFoldAndValidateAsTheWebFunctionsDo()
     {
@@ -121,6 +124,7 @@ public class NppsCoreTests
     private static JsonObject SerializeGolden() => JsonNode.Parse(File.ReadAllText(
         Path.Combine(Root, "app", "NeurOneShared", "TestData", "npps-serialize-golden.json")))!.AsObject();
 
+    // @verifies REQ-NPPS-12
     [Fact]
     public void SerializeWritesTheShippedLibraryAsTheWebSerializerDid()
     {

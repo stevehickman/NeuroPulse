@@ -48,6 +48,7 @@ class NppsBackendParityTests {
         }
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun theWholeShippedLibraryParsesAsTheWebParserDoes() = runTest {
         prepareNppsCore()
@@ -66,6 +67,7 @@ class NppsBackendParityTests {
         assertTrue(failures.isEmpty(), "${failures.size} divergence(s):\n" + failures.joinToString("\n"))
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun theRefusalAndAliasCorpusParsesAsTheWebParserDoes() = runTest {
         prepareNppsCore()
@@ -82,6 +84,7 @@ class NppsBackendParityTests {
         sessionUuid = ByteArray(16) { cases["sessionUuidByte"]!!.jsonPrimitive.int.toByte() },
     )
 
+    // @verifies REQ-NPPS-12
     @Test
     fun everyGoldenDefinitionCompilesToTheWebCompilersBytes() = runTest {
         prepareNppsCore()

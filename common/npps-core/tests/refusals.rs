@@ -38,6 +38,7 @@ fn a_missing_intensity_is_refused_not_compiled_to_the_ceiling() {
     refused(compile("tms", json!({ "frequencyHz": 1, "pulseCount": 10 })), "intensityPercentMT is required");
 }
 
+// @verifies REQ-NPPS-06
 #[test]
 fn an_out_of_range_value_is_refused_not_clamped() {
     refused(compile("bes_tacs", json!({ "frequencyHz": 10, "intensityMilliamps": 3 })), "refused, not reduced to fit");

@@ -448,6 +448,7 @@ describe('clinical tACS channel mask (OI-TACS-01)', () => {
     }
   });
 
+  // @verifies REQ-NPPS-06
   it('refuses an over-range count rather than clamping it', () => {
     // protocolValidator rejects this before compile; a caller that reaches the compiler anyway is refused,
     // not given a different channel set from the one authored (CLAUDE.md §3).

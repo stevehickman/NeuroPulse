@@ -452,24 +452,28 @@ describe('round-trip', () => {
     return serializeNPPS(reparsed);
   }
 
+  // @verifies REQ-NPPS-11
   it('Gamma Focus is stable after two serialize/parse cycles', () => {
     const once = roundTrip(GAMMA_FOCUS_NPPS);
     const twice = roundTrip(once);
     expect(once).toBe(twice);
   });
 
+  // @verifies REQ-NPPS-11
   it('All T1 modalities protocol is stable after two serialize/parse cycles', () => {
     const once = roundTrip(ALL_T1_NPPS);
     const twice = roundTrip(once);
     expect(once).toBe(twice);
   });
 
+  // @verifies REQ-NPPS-11
   it('Composite protocol is stable after two serialize/parse cycles', () => {
     const once = roundTrip(COMPOSITE_NPPS);
     const twice = roundTrip(once);
     expect(once).toBe(twice);
   });
 
+  // @verifies REQ-NPPS-11
   it('protocol name, id, and modality count survive round-trip', () => {
     const [entry] = parseNPPS(GAMMA_FOCUS_NPPS);
     const serialized = serializeProtocol(entry);
@@ -481,6 +485,7 @@ describe('round-trip', () => {
     expect(rt.modalities).toHaveLength(orig.modalities.length);
   });
 
+  // @verifies REQ-NPPS-11
   it('interval params survive round-trip', () => {
     const [entry] = parseNPPS(GAMMA_FOCUS_NPPS);
     const serialized = serializeProtocol(entry);
@@ -492,6 +497,7 @@ describe('round-trip', () => {
     expect(visual.interval.repeatCount).toBeUndefined();
   });
 
+  // @verifies REQ-NPPS-11
   it('duration in minutes survives round-trip as minutes', () => {
     const [entry] = parseNPPS(GAMMA_FOCUS_NPPS);
     const serialized = serializeProtocol(entry);
@@ -501,6 +507,7 @@ describe('round-trip', () => {
     expect(proto.timingMode).toMatchObject({ type: 'duration', seconds: 1200 });
   });
 
+  // @verifies REQ-NPPS-11
   it('composite layers survive round-trip with correct offsets', () => {
     const [entry] = parseNPPS(COMPOSITE_NPPS);
     const serialized = serializeProtocol(entry);
@@ -655,6 +662,7 @@ describe('quoted awkward values (JSON-leaning cleanup)', () => {
     expect((m.modalityParams.params as { montage: string }).montage).toBe('standard_1020');
   });
 
+  // @verifies REQ-NPPS-03#a
   it('parses one quoted wavelength per block', () => {
     for (const wl of ['660nm', '808nm', '1064nm', '810nm']) {
       const m = modalityOf(proto(`    pbm_transcranial {\n        wavelength: "${wl}"\n        irradiance: 300mW_cm2\n    }`), 'pbm_transcranial');
@@ -677,6 +685,7 @@ describe('quoted awkward values (JSON-leaning cleanup)', () => {
     expect(() => parseNPPS(proto(body))).toThrow(/must be quoted/);
   });
 
+  // @verifies REQ-NPPS-10#a
   it('rejects an unquoted hyphenated tag', () => {
     expect(() => parseNPPS(`protocol "T" {\n    tags: [wind-down]\n    duration: 5m\n}\n`)).toThrow(NPPSParseError);
   });
@@ -769,10 +778,12 @@ describe('absolute intensity: irradiance in mW/cm², volume in dB', () => {
       irradianceMWcm2: number; wavelength: string;
     };
 
+  // @verifies REQ-NPPS-01#a
   it('reads irradiance with its unit', () => {
     expect(params(pbm('wavelength: "808nm"\n        irradiance: 36mW_cm2')).irradianceMWcm2).toBe(36);
   });
 
+  // @verifies REQ-NPPS-01#a
   it('accepts the canonical name with the unit in the key and a bare number', () => {
     expect(params(pbm('wavelength: "808nm"\n        irradiance_mw_cm2: 36')).irradianceMWcm2).toBe(36);
   });
@@ -787,6 +798,7 @@ describe('absolute intensity: irradiance in mW/cm², volume in dB', () => {
     expect(() => parseNPPS(pbm(body))).toThrow(message);
   });
 
+  // @verifies REQ-NPPS-01#c
   it('requires an irradiance and a wavelength rather than defaulting them', () => {
     expect(() => parseNPPS(pbm('wavelength: "808nm"'))).toThrow(/irradiance .* is required/);
     expect(() => parseNPPS(pbm('irradiance: 300mW_cm2'))).toThrow(/wavelength is required/);
@@ -799,6 +811,7 @@ describe('absolute intensity: irradiance in mW/cm², volume in dB', () => {
     }
   });
 
+  // @verifies REQ-NPPS-01#b,c
   it('puts a wavelength and an irradiance on every intranasal block too', () => {
     const src = proto(`    pbm_intranasal {\n        wavelength: "660nm"\n        irradiance: 25mW_cm2\n    }`);
     const p = modalityOf(src, 'pbm_intranasal').modalityParams.params as { irradianceMWcm2: number; wavelength: string };
@@ -806,6 +819,7 @@ describe('absolute intensity: irradiance in mW/cm², volume in dB', () => {
     expect(() => parseNPPS(proto(`    pbm_intranasal {\n        intensity: 60%\n    }`))).toThrow(/percentage of a baseline/);
   });
 
+  // @verifies REQ-NPPS-01#a,b
   it('reads audio volume in dB and refuses a percentage', () => {
     const audio = (body: string) => proto(`    audio_entrainment {\n        carrier_hz: 440Hz\n        ${body}\n    }`);
     const m = modalityOf(audio('volume: 72.5dB'), 'audio_entrainment');
@@ -816,6 +830,7 @@ describe('absolute intensity: irradiance in mW/cm², volume in dB', () => {
     expect(() => parseNPPS(audio('binaural_hz: 10Hz'))).toThrow(/volume in dB SPL .* is required/);
   });
 
+  // @verifies REQ-NPPS-01#b
   it('refuses a percentage ceiling in limits rather than skipping it', () => {
     for (const mod of ['pbm_transcranial', 'pbm_intranasal', 'audio_entrainment']) {
       expect(() => parseNPPSLimits(`limits "L" {\n    level: global\n    ${mod} {\n        max_intensity: 80\n    }\n}\n`))
@@ -849,11 +864,13 @@ protocol "CW" {
     return m.modalityParams.params as { frequencyHz: number; dutyCyclePercent: number };
   };
 
+  // @verifies REQ-NPPS-02
   it('refuses frequency 0 with a duty other than 100 %', () => {
     expect(() => parseNPPS(pbm('frequency: 0Hz\n duty_cycle: 25%'))).toThrow(/continuous wave.*no duty/s);
     expect(() => parseNPPS(pbm('frequency: 0\n duty_cycle: 50%', 'pbm_intranasal'))).toThrow(/no duty/);
   });
 
+  // @verifies REQ-NPPS-02
   it('reads CW as 100 % duty whether the duty is omitted or written', () => {
     expect(paramsOf(pbm('frequency: 0Hz')).dutyCyclePercent).toBe(100);
     expect(paramsOf(pbm('frequency: 0Hz\n duty_cycle: 100%')).dutyCyclePercent).toBe(100);

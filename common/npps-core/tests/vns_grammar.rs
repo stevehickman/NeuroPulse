@@ -65,6 +65,7 @@ fn pulse_width_and_side_reach_the_wire() {
     assert_eq!(params(&ok("        pulse_width: 500\n        side: bilateral"))[5..7], [0xF4, 0x01], "the `pulse_width` spelling reads the same field");
 }
 
+// @verifies REQ-NPPS-07
 #[test]
 fn what_the_hub_cannot_deliver_is_refused_not_run_as_something_else() {
     let refused = |extra: &str, needle: &str| {

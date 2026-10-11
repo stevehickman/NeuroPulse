@@ -62,6 +62,7 @@ fn check(name: &str, src: &str, expected: &Value, failures: &mut Vec<String>) {
     }
 }
 
+// @verifies REQ-NPPS-12
 #[test]
 fn every_library_file_and_fixture_parses_as_the_web_parser_does() {
     let g = golden();
@@ -75,6 +76,7 @@ fn every_library_file_and_fixture_parses_as_the_web_parser_does() {
     assert!(failures.is_empty(), "{} divergence(s):\n{}", failures.len(), failures.join("\n"));
 }
 
+// @verifies REQ-NPPS-12
 #[test]
 fn every_corpus_case_parses_or_is_refused_as_the_web_parser_does() {
     let g = golden();
@@ -87,6 +89,7 @@ fn every_corpus_case_parses_or_is_refused_as_the_web_parser_does() {
 
 /// `buildNamespace` and `validateNamespaceReferences`, on the cases the generator pins and on the
 /// whole shipped library loaded as one namespace.
+// @verifies REQ-NPPS-12
 #[test]
 fn namespaces_fold_and_validate_as_the_web_functions_do() {
     use neurone_npps_core::api::{namespace_json, parse_json};

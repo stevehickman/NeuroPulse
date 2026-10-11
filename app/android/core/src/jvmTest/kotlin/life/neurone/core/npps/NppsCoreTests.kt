@@ -55,6 +55,7 @@ class NppsCoreTests {
         }
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun theWholeShippedLibraryParsesAsTheWebParserDoes() {
         val files = resource("npps-parse-golden.json")["files"]!!.jsonObject
@@ -64,6 +65,7 @@ class NppsCoreTests {
         assertTrue(failures.isEmpty(), "${failures.size} divergence(s):\n" + failures.joinToString("\n"))
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun theRefusalAndAliasCorpusParsesAsTheWebParserDoes() {
         val cases = resource("npps-parse-golden.json")["cases"]!!.jsonObject
@@ -81,6 +83,7 @@ class NppsCoreTests {
         sessionUuid = ByteArray(16) { cases["sessionUuidByte"]!!.jsonPrimitive.int.toByte() },
     )
 
+    // @verifies REQ-NPPS-12
     @Test
     fun everyGoldenDefinitionCompilesToTheWebCompilersBytes() {
         val cases = resource("hub-descriptor-cases.json")
@@ -128,6 +131,7 @@ class NppsCoreTests {
         assertTrue(e.message!!.isNotEmpty())
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun namespacesFoldAndValidateAsTheWebFunctionsDo() {
         val cases = resource("npps-parse-golden.json")["namespaces"]!!.jsonObject
@@ -147,6 +151,7 @@ class NppsCoreTests {
 
     // ── serialize and validate (the JNI layer: UTF-8 in and out, exception mapping) ──────────────────────────
 
+    // @verifies REQ-NPPS-12
     @Test
     fun serializeWritesTheShippedLibraryAsTheWebSerializerDid() {
         val files = resource("npps-serialize-golden.json")["files"]!!.jsonObject

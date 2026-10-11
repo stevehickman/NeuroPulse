@@ -131,6 +131,7 @@ describe('tDCS charge-density pre-flight (OI-CHARGE-04)', () => {
       { intensityMilliamps: 1.4, electrodeAreaCm2: 35 }, 3749))).toHaveLength(0);
   });
 
+  // @verifies REQ-NPPS-05
   it('rejects an undeclared or unencodable area rather than assuming one', () => {
     // 0 is what an un-migrated protocol compiles to. The hub refuses it and the
     // safety MCU's geometry gate holds tDCS off, so accepting it here would

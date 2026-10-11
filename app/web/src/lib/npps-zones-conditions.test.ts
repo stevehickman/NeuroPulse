@@ -118,6 +118,7 @@ describe('zone blocks', () => {
     expect(parseNPPSFile(out).zones[0].sockets).toEqual([1, 3, 5]);
   });
 
+  // @verifies REQ-NPPS-11
   it('round-trips a zone through the serializer', () => {
     const src = 'zone "Custom" { description: "test" sockets: [1, 2] types: [eeg_electrode] exclude_types: true }';
     const { zones } = parseNPPSFile(src);
@@ -237,6 +238,7 @@ describe('single namespace and reference validation', () => {
     expect(validateNamespaceReferences(namespace)).toEqual([]);
   });
 
+  // @verifies REQ-NPPS-08#c
   it('reports an unresolved condition reference', () => {
     const protoFile = parseNPPSFile(PROTO_WITH_REFS);
     const { namespace } = buildNamespace([protoFile]);
@@ -251,6 +253,7 @@ describe('single namespace and reference validation', () => {
   // definition a property of the file system — for a zone, a silent change of
   // which sockets get dosed. Leaving the name unbound is the only outcome that
   // is the same whatever the read order.
+  // @verifies REQ-NPPS-08#b
   it('errors on a duplicate zone name and leaves it undefined', () => {
     const a = parseNPPSFile('zone "Z" { sockets: [1, 2] }');
     const b = parseNPPSFile('zone "Z" { sockets: [3, 4] }');
@@ -259,6 +262,7 @@ describe('single namespace and reference validation', () => {
     expect(namespace.zones.has('Z')).toBe(false);
   });
 
+  // @verifies REQ-NPPS-08#b
   it('gives the same answer whichever order the colliding files are read in', () => {
     const a = parseNPPSFile('zone "Z" { sockets: [1, 2] }');
     const b = parseNPPSFile('zone "Z" { sockets: [3, 4] }');
@@ -269,6 +273,7 @@ describe('single namespace and reference validation', () => {
     expect(forward.errors).toEqual(reverse.errors);
   });
 
+  // @verifies REQ-NPPS-08#b
   it('errors on a duplicate condition name and leaves it undefined', () => {
     const a = parseNPPSFile('condition "C" { link: "https://x/1" }');
     const b = parseNPPSFile('condition "C" { link: "https://x/2" }');
@@ -277,6 +282,7 @@ describe('single namespace and reference validation', () => {
     expect(namespace.conditions.has('C')).toBe(false);
   });
 
+  // @verifies REQ-NPPS-08#b,c
   it('a protocol referencing a collided zone fails reference resolution', () => {
     const a = parseNPPSFile('zone "Left Frontal" { sockets: [1, 2] }');
     const b = parseNPPSFile('zone "Left Frontal" { sockets: [3, 4] }');
