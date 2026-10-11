@@ -41,6 +41,7 @@ extern void             np_tier_identity_build_report(np_safety_tier_report_t *o
                                                       uint16_t requested_mask);
 extern uint8_t          np_tier_identity_reason(void);
 extern uint8_t          np_tier_identity_record_tier(void);
+extern uint8_t          np_tier_identity_hw_version(void);
 
 /* ── HAL doubles (declared in np_safety_hal.h, so drift is a compile error) ── */
 static uint8_t g_otp_record[NP_TIER_RECORD_LEN];
@@ -92,8 +93,8 @@ static void derive_keys(void)
 /* Build a record naming `tier`, signed by `sk` for `uid`.  `with_domain`
  * false signs body || uid without the domain string — a signature over the
  * right fields made for some other purpose. */
-static void make_record(uint8_t tier, const uint8_t *uid, const uint8_t *sk,
-                        bool with_domain)
+static void make_record_byte5(uint8_t byte5, const uint8_t *uid, const uint8_t *sk,
+                              bool with_domain)
 {
     uint8_t msg[NP_TIER_SIG_MSG_LEN];
     size_t  off = 0U;
@@ -104,7 +105,7 @@ static void make_record(uint8_t tier, const uint8_t *uid, const uint8_t *sk,
     g_otp_record[2] = NP_TIER_RECORD_MAGIC_2;
     g_otp_record[3] = NP_TIER_RECORD_MAGIC_3;
     g_otp_record[4] = NP_TIER_RECORD_VERSION;
-    g_otp_record[5] = tier;
+    g_otp_record[5] = byte5;
 
     if (with_domain) {
         memcpy(msg, NP_TIER_SIG_DOMAIN, NP_TIER_SIG_DOMAIN_LEN);
@@ -116,6 +117,21 @@ static void make_record(uint8_t tier, const uint8_t *uid, const uint8_t *sk,
     off += NP_DEVICE_UID_LEN;
 
     crypto_ed25519_sign(&g_otp_record[NP_TIER_RECORD_BODY_LEN], sk, msg, off);
+}
+
+#ifndef NP_TIER_TEST_NOKEY
+/* The common case: hardware version 1 in the upper nibble, `tier` in the lower. */
+static void make_record(uint8_t tier, const uint8_t *uid, const uint8_t *sk,
+                        bool with_domain)
+{
+    make_record_byte5((uint8_t)((1U << NP_TIER_BYTE_HWVER_SHIFT) | tier), uid, sk,
+                      with_domain);
+}
+#endif
+
+static void make_record_hw(uint8_t hw, uint8_t tier, const uint8_t *uid, const uint8_t *sk)
+{
+    make_record_byte5((uint8_t)((hw << NP_TIER_BYTE_HWVER_SHIFT) | tier), uid, sk, true);
 }
 
 /* Run the gate over "every line requested" and return what survives. */
@@ -213,7 +229,7 @@ static void test_tier_byte_edited_is_t1(void)
 {
     /* Signed as T1, then the tier byte rewritten to T2. */
     make_record(NP_TIER_T1, UID_THIS, g_sk, true);
-    g_otp_record[5] = NP_TIER_T2;
+    g_otp_record[5] = (uint8_t)((1U << NP_TIER_BYTE_HWVER_SHIFT) | NP_TIER_T2);
     boot();
     expect_t1("T1 record with its tier byte edited to T2", NP_TIER_REASON_SIGNATURE);
 }
@@ -268,6 +284,97 @@ static void test_format_rejections_are_t1(void)
     expect_t1("all-zero record window", NP_TIER_REASON_FORMAT);
 }
 
+/* ══ Hardware version (SWR-HV-06, SWR-HV-07, REQ-UPG-04) ═════════════════ */
+static void test_hw_version_every_nibble(void)
+{
+    uint8_t hw;
+    bool    ok = true, tier_ok = true;
+    for (hw = 1U; hw <= 15U; hw++) {
+        make_record_hw(hw, NP_TIER_T2, UID_THIS, g_sk);
+        boot();
+        if (np_tier_identity_hw_version() != hw) { ok = false; }
+        if (!np_tier_identity_is_t2())           { tier_ok = false; }
+    }
+    check(ok, "hw version: each upper-nibble value 1..15 of a verified record reads back");
+    check(tier_ok, "hw version: the T2 verdict is the same at every version (independent)");
+
+    make_record_hw(7U, NP_TIER_T1, UID_THIS, g_sk);
+    boot();
+    check(np_tier_identity_hw_version() == 7U && !np_tier_identity_is_t2(),
+          "hw version: a verified T1 record at version 7 reads 7 and stays T1");
+}
+
+static void test_hw_version_zero_nibble_is_malformed(void)
+{
+    make_record_hw(0U, NP_TIER_T2, UID_THIS, g_sk);   /* validly signed */
+    boot();
+    expect_t1("upper nibble 0 (validly signed)", NP_TIER_REASON_FORMAT);
+    check(np_tier_identity_hw_version() == NP_HW_VERSION_DEFAULT,
+          "hw version: a malformed record reads as the default");
+}
+
+static void test_hw_version_unverified_reads_default(void)
+{
+    make_record_hw(5U, NP_TIER_T2, UID_OTHER, g_sk);
+    boot();
+    check(np_tier_identity_hw_version() == NP_HW_VERSION_DEFAULT,
+          "hw version: another unit's record (version 5) reads 1 here");
+
+    make_record_hw(5U, NP_TIER_T1, UID_THIS, g_sk);
+    g_otp_record[5] = (uint8_t)((9U << NP_TIER_BYTE_HWVER_SHIFT) | NP_TIER_T1);
+    boot();
+    check(np_tier_identity_hw_version() == NP_HW_VERSION_DEFAULT,
+          "hw version: an edited version nibble breaks the signature and reads 1");
+
+    make_record_hw(5U, NP_TIER_T2, UID_THIS, g_sk_rogue);
+    boot();
+    check(np_tier_identity_hw_version() == NP_HW_VERSION_DEFAULT,
+          "hw version: a record from the wrong signer reads 1");
+
+    memset(g_otp_record, 0xFF, sizeof(g_otp_record));
+    boot();
+    check(np_tier_identity_hw_version() == NP_HW_VERSION_DEFAULT,
+          "hw version: a blank window reads 1, not a fault");
+
+    make_record_hw(5U, NP_TIER_T2, UID_THIS, g_sk);
+    boot();
+    memset(g_otp_record, 0xFF, sizeof(g_otp_record));
+    boot();
+    check(np_tier_identity_hw_version() == NP_HW_VERSION_DEFAULT,
+          "hw version: a re-init against a blank window does not keep the old version");
+}
+
+static void test_hw_version_in_report(void)
+{
+    np_safety_tier_report_t r;
+    make_record_hw(3U, NP_TIER_T1, UID_THIS, g_sk);
+    boot();
+    np_tier_identity_build_report(&r, 0U);
+    check(r.hw_version == 3U, "report: carries the verified hardware version");
+    check(r.checksum == (uint16_t)(r.magic + r.tier + r.flags + r.reason + r.hw_version),
+          "report: checksum covers the hardware version");
+    check(sizeof(r) == NP_SAFETY_TIER_REPORT_LEN, "report: wire size is the declared length");
+}
+
+static void test_signing_domain_is_the_version_2_string(void)
+{
+    check(memcmp(NP_TIER_SIG_DOMAIN, "NeurOne.TierId.2", NP_TIER_SIG_DOMAIN_LEN) == 0 &&
+          strlen(NP_TIER_SIG_DOMAIN) == NP_TIER_SIG_DOMAIN_LEN,
+          "domain string is the new 16-character string");
+    /* A record signed under the old domain must not verify. */
+    {
+        uint8_t msg[NP_TIER_SIG_MSG_LEN];
+        make_record(NP_TIER_T2, UID_THIS, g_sk, true);
+        memcpy(msg, "NeurOne.TierId.1", NP_TIER_SIG_DOMAIN_LEN);
+        memcpy(&msg[NP_TIER_SIG_DOMAIN_LEN], g_otp_record, NP_TIER_RECORD_BODY_LEN);
+        memcpy(&msg[NP_TIER_SIG_DOMAIN_LEN + NP_TIER_RECORD_BODY_LEN], UID_THIS,
+               NP_DEVICE_UID_LEN);
+        crypto_ed25519_sign(&g_otp_record[NP_TIER_RECORD_BODY_LEN], g_sk, msg, sizeof(msg));
+        boot();
+        expect_t1("record signed under the old domain string", NP_TIER_REASON_SIGNATURE);
+    }
+}
+
 static void test_verdict_is_retaken_at_each_boot(void)
 {
     /* T2 then a blank window: the second boot must not inherit the first. */
@@ -312,7 +419,7 @@ static void test_report(void)
     boot();
 
     np_tier_identity_build_report(&r, NP_SAFETY_EN_CVNS | NP_SAFETY_EN_VNS_HRV);
-    sum = (uint16_t)(r.magic + r.tier + r.flags + r.reason);
+    sum = (uint16_t)(r.magic + r.tier + r.flags + r.reason + r.hw_version);
     check(r.magic == NP_SAFETY_TIER_REPORT_MAGIC && r.checksum == sum,
           "report: magic and checksum");
     check(r.tier == NP_TIER_T1, "report: T1 unit reports T1");
@@ -346,12 +453,14 @@ static void test_placeholder_key_fails_closed(void)
     check(zero, "no-key build: the shipped authority key is the all-zero placeholder");
 
     /* A record that WOULD verify under the test key. */
-    make_record(NP_TIER_T2, UID_THIS, g_sk, true);
+    make_record_hw(5U, NP_TIER_T2, UID_THIS, g_sk);
     g_record_reads = 0;
     boot();
     expect_t1("no-key build: perfectly signed T2 record", NP_TIER_REASON_NO_AUTHORITY);
     check(g_record_reads == 0,
           "no-key build: the OTP record is not even read — nothing can verify");
+    check(np_tier_identity_hw_version() == NP_HW_VERSION_DEFAULT,
+          "no-key build: a signed version-5 record still reads hardware version 1");
 }
 
 #endif
@@ -371,6 +480,11 @@ int main(void)
     test_wrong_signer_is_t1();
     test_signature_without_domain_is_t1();
     test_format_rejections_are_t1();
+    test_hw_version_every_nibble();
+    test_hw_version_zero_nibble_is_malformed();
+    test_hw_version_unverified_reads_default();
+    test_hw_version_in_report();
+    test_signing_domain_is_the_version_2_string();
     test_verdict_is_retaken_at_each_boot();
     test_each_t2_line_individually();
     test_report();

@@ -680,6 +680,11 @@ typedef char _np_spi_nv_report_fits_check[
  * F4 message and is NEVER written to SHDR.  `tier` and `reason` are device
  * facts (set once, at manufacture) and carry no user biology.
  *
+ * `hw_version` is the helmet hardware version from the same verified record
+ * (upper nibble of its tier byte).  It is 1 whenever the record is missing,
+ * malformed or unverified (SWR-HV-07), and is independent of the tier verdict.
+ * A device fact, set once at manufacture; no user biology, so SHDR-safe.
+ *
  * `reason` is diagnostic: why the MCU reached the tier it reports.  A T1 unit
  * reporting NP_TIER_REASON_BLANK was never given its identity at manufacture —
  * behaviourally identical to a signed T1, and exactly what final acceptance
@@ -695,6 +700,13 @@ typedef char _np_spi_nv_report_fits_check[
 #define NP_TIER_REASON_FORMAT           0x03U   /* bad magic/version/reserved/tier code */
 #define NP_TIER_REASON_SIGNATURE        0x04U   /* signature does not verify for THIS device */
 
+/* SWR-HV-07: a unit with no readable hardware version reads as 1 while only
+ * version 1 exists, on both sides of the link.  REMOVAL ITEM: delete this
+ * default, and its uses in np_tier_identity.c and np_safety_spi.c, in the same
+ * change that adds hardware version 2 — a checked item on the increment record
+ * (NP-REG-UPG-001 §7.8, OI-UPG-09). */
+#define NP_HW_VERSION_DEFAULT           1U
+
 #define NP_SAFETY_TIER_REPORT_MAGIC     0x7DU
 #define NP_SAFETY_TIER_REPORT_OFFSET    (NP_SAFETY_NV_REPORT_OFFSET + NP_SAFETY_NV_REPORT_LEN)
 #define NP_SAFETY_TIER_FLAG_REFUSED     (1U << 0)
@@ -704,10 +716,11 @@ typedef struct __attribute__((packed)) {
     uint8_t  tier;             /* NP_TIER_T1 / NP_TIER_T2            */
     uint8_t  flags;            /* NP_SAFETY_TIER_FLAG_*              */
     uint8_t  reason;           /* NP_TIER_REASON_*                   */
-    uint16_t checksum;         /* additive sum of bytes [0..3]       */
-} np_safety_tier_report_t;     /* 6 bytes; window bytes [20..25]     */
+    uint8_t  hw_version;       /* helmet hardware version, 1..15 (SWR-HV-06) */
+    uint16_t checksum;         /* additive sum of bytes [0..4]       */
+} np_safety_tier_report_t;     /* 7 bytes; window bytes [20..26]     */
 
-#define NP_SAFETY_TIER_REPORT_LEN  6U
+#define NP_SAFETY_TIER_REPORT_LEN  7U
 
 typedef char _np_spi_tier_report_size_check[
     (sizeof(np_safety_tier_report_t) == NP_SAFETY_TIER_REPORT_LEN) ? 1 : -1

@@ -404,7 +404,9 @@
  * Record (72 bytes = 9 double words):
  *   [0..3]   magic    'N' 'P' 'T' 'I'
  *   [4]      version  NP_TIER_RECORD_VERSION
- *   [5]      tier     NP_TIER_T1 / NP_TIER_T2  (np_spi_wire_types.h)
+ *   [5]      tier     lower nibble: NP_TIER_T1 / NP_TIER_T2  (np_spi_wire_types.h)
+ *            hardware version, upper nibble: 1..15, 0 is malformed
+ *            (SWR-HV-06, NP-REG-UPG-001 §7.8, UC-080: at most 16 versions)
  *   [6..7]   reserved 0x00 0x00
  *   [8..71]  Ed25519 signature by the tier authority over
  *            NP_TIER_SIG_DOMAIN (16) || record[0..7] (8) || device UID (12)
@@ -417,12 +419,14 @@
 #define NP_TIER_OTP_OFFSET          0x40U
 #define NP_TIER_RECORD_LEN          72U
 #define NP_TIER_RECORD_BODY_LEN     8U     /* bytes [0..7] — the signed fields */
-#define NP_TIER_RECORD_VERSION      0x01U
+#define NP_TIER_RECORD_VERSION      0x02U  /* 0x01 had no hardware version; none was ever written */
+#define NP_TIER_BYTE_TIER_MASK      0x0FU  /* byte [5] lower nibble: tier              */
+#define NP_TIER_BYTE_HWVER_SHIFT    4U     /* byte [5] upper nibble: hardware version  */
 #define NP_TIER_RECORD_MAGIC_0      0x4EU  /* 'N' */
 #define NP_TIER_RECORD_MAGIC_1      0x50U  /* 'P' */
 #define NP_TIER_RECORD_MAGIC_2      0x54U  /* 'T' */
 #define NP_TIER_RECORD_MAGIC_3      0x49U  /* 'I' */
-#define NP_TIER_SIG_DOMAIN          "NeurOne.TierId.1"
+#define NP_TIER_SIG_DOMAIN          "NeurOne.TierId.2"
 #define NP_TIER_SIG_DOMAIN_LEN      16U
 #define NP_DEVICE_UID_LEN           12U    /* STM32G0 96-bit unique device ID */
 #define NP_TIER_SIG_MSG_LEN \

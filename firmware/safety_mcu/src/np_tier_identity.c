@@ -74,6 +74,7 @@ static uint32_t s_t2_word;
 static uint32_t s_t2_word_inv;
 static uint8_t  s_reason;
 static uint8_t  s_record_tier;   /* tier code the record named (diagnostic only) */
+static uint8_t  s_hw_version = NP_HW_VERSION_DEFAULT; /* from a verified record only */
 
 static bool all_bytes_are(const uint8_t *b, uint8_t len, uint8_t v)
 {
@@ -92,6 +93,7 @@ static void set_verdict(bool is_t2, uint8_t reason, uint8_t record_tier)
     s_t2_word_inv = ~s_t2_word;
     s_reason      = reason;
     s_record_tier = record_tier;
+    s_hw_version  = NP_HW_VERSION_DEFAULT;   /* SWR-HV-07; set again only on a verified record */
 }
 
 /*
@@ -107,6 +109,7 @@ np_safe_status_t np_tier_identity_init(void)
     uint8_t uid[NP_DEVICE_UID_LEN];
     uint8_t msg[NP_TIER_SIG_MSG_LEN];
     uint8_t tier;
+    uint8_t hw_version;
 
     set_verdict(false, NP_TIER_REASON_NO_AUTHORITY, NP_TIER_T1);
 
@@ -121,12 +124,14 @@ np_safe_status_t np_tier_identity_init(void)
         return NP_SAFE_OK;              /* T1: identity never written */
     }
 
-    tier = rec[5];
+    tier       = (uint8_t)(rec[5] & NP_TIER_BYTE_TIER_MASK);
+    hw_version = (uint8_t)(rec[5] >> NP_TIER_BYTE_HWVER_SHIFT);
     if (rec[0] != NP_TIER_RECORD_MAGIC_0 || rec[1] != NP_TIER_RECORD_MAGIC_1 ||
         rec[2] != NP_TIER_RECORD_MAGIC_2 || rec[3] != NP_TIER_RECORD_MAGIC_3 ||
         rec[4] != NP_TIER_RECORD_VERSION ||
         rec[6] != 0U || rec[7] != 0U ||
-        (tier != NP_TIER_T1 && tier != NP_TIER_T2)) {
+        (tier != NP_TIER_T1 && tier != NP_TIER_T2) ||
+        hw_version == 0U) {
         set_verdict(false, NP_TIER_REASON_FORMAT, NP_TIER_T1);
         return NP_SAFE_OK;              /* T1: not a record this image knows */
     }
@@ -146,6 +151,7 @@ np_safe_status_t np_tier_identity_init(void)
     }
 
     set_verdict(tier == NP_TIER_T2, NP_TIER_REASON_OK, tier);
+    s_hw_version = hw_version;          /* only here: the record verified for THIS unit */
     return NP_SAFE_OK;
 }
 
@@ -189,10 +195,16 @@ void np_tier_identity_build_report(np_safety_tier_report_t *out,
                    ((requested_mask & (uint16_t)NP_SAFETY_EN_T2_MASK) != 0U))
                       ? (uint8_t)NP_SAFETY_TIER_FLAG_REFUSED : 0U;
     out->reason = s_reason;
+    out->hw_version = s_hw_version;
     out->checksum = (uint16_t)((uint16_t)out->magic + (uint16_t)out->tier +
-                               (uint16_t)out->flags + (uint16_t)out->reason);
+                               (uint16_t)out->flags + (uint16_t)out->reason +
+                               (uint16_t)out->hw_version);
 }
 
 /* Diagnostic accessors — final acceptance and the host test. */
 uint8_t np_tier_identity_reason(void)      { return s_reason; }
 uint8_t np_tier_identity_record_tier(void) { return s_record_tier; }
+
+/* SWR-HV-06: the one safety-MCU function that returns the hardware version.
+ * 1 unless a record verified for this unit named another (SWR-HV-07). */
+uint8_t np_tier_identity_hw_version(void)  { return s_hw_version; }
