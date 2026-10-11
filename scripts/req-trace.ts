@@ -2,7 +2,10 @@
 /**
  * req-trace.ts — requirements ↔ tests traceability report.
  *
- * CI-Kind: report
+ * CI-Kind: gate
+ * CI-Self-Test: bun scripts/req-trace.ts --self-test
+ * CI-Scans: requirement definitions in docs/*.md against every test file's @verifies tags, and the untraced-test baseline
+ * CI-Scan-Paths: docs/** firmware/** app/** common/** ci/**
  *
  * Answers three questions, from the tracked tree alone:
  *   1. How many tests are associated with each requirement?
