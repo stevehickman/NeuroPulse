@@ -18,6 +18,8 @@ function minimalBlock(type: string): string {
   for (const f of fields) {
     if (f.kind === 'wavelength') lines.push('wavelength: "808nm"');
     if (f.kind === 'quantity') lines.push(`${f.short}: 30${f.unit}`);
+    // A required number is authored, never defaulted (REQ-NPPS-05); the table's default is the editor's.
+    if (f.kind === 'number' && f.required) lines.push(`${f.key}: ${f.default}`);
   }
   return `protocol "T" {\n ${type} {\n${lines.join('\n')}\n }\n}\n`;
 }

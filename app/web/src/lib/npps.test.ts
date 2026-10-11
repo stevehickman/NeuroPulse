@@ -580,13 +580,13 @@ describe('canonical field names shared by every runtime', () => {
       .toThrow(NPPSParseError);
   });
 
-  it('tdcs falls back to the default electrode area when none is authored', () => {
-    // Absent, not zero: buildModalityParams substitutes defaultParams, so an
-    // older .npps still parses to something the validator can judge rather
-    // than to NaN. It is the validator and the device — not the parser — that
-    // refuse a non-positive area.
-    const m = modalityOf(proto(`    tdcs {\n        intensity: 1mA\n    }`), 'tdcs');
-    expect((m.modalityParams.params as { electrodeAreaCm2: number }).electrodeAreaCm2).toBe(35);
+  // @verifies REQ-NPPS-05
+  it('tdcs refuses a block that authors no electrode area, rather than defaulting one', () => {
+    // The area is compiled into the signed descriptor and the safety MCU's charge limit divides by it
+    // (NP-NPPS-REF-001 §4.5, REQ-NPPS-05). A parser that supplied 35 would hand the device a ceiling
+    // nobody authored. The editor's new block still starts at 35: that is an authored value.
+    expect(() => parseNPPS(proto(`    tdcs {\n        intensity: 1mA\n    }`)))
+      .toThrow(/electrode_area_cm2 is required and is never defaulted/);
   });
 
   it('qeeg_21ch sloreta_enabled', () => {
@@ -724,11 +724,12 @@ describe('serialize → parse round-trip holds for every modality', () => {
 
   it.each(ids)('%s survives serialize → parse with all fields defaulted', (id) => {
     // The dose-bearing fields have no default (a defaulted irradiance or sound
-    // level would deliver a stimulus nobody authored), so those blocks state them.
+    // level, or tDCS electrode area, would deliver a stimulus nobody authored), so those blocks state them.
     const SEED: Record<string, string> = {
       pbm_transcranial: 'wavelength: "808nm"\n        irradiance: 300mW_cm2',
       pbm_intranasal: 'wavelength: "660nm"\n        irradiance: 60mW_cm2',
       audio_entrainment: 'volume: 72dB',
+      tdcs: 'electrode_area_cm2: 35',
     };
     const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    ${id} {\n        ${SEED[id] ?? ''}\n    }\n}\n`);
     const out = serializeProtocol(entry);

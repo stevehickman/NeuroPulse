@@ -73,7 +73,7 @@
         { "key": "intensity_milliamps", "json": "intensityMilliamps", "kind": "number", "default": 1.0 },
         { "key": "electrode_pairs", "json": "electrodePairs", "kind": "pairs", "default": [["Fp1", "Fp2"]] },
         { "key": "ramp_seconds", "json": "rampSeconds", "kind": "number", "default": 30 },
-        { "key": "electrode_area_cm2", "json": "electrodeAreaCm2", "kind": "number", "default": 35 }
+        { "key": "electrode_area_cm2", "json": "electrodeAreaCm2", "kind": "number", "default": 35, "required": true }
       ]
     },
     "vns_hrv": {

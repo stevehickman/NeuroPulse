@@ -697,6 +697,16 @@ fn build_params(type_name: &str, raw: &Map<String, Value>, line: u32) -> R<Map<S
         let default = default_owned.as_ref();
         match f["kind"].as_str().unwrap_or("") {
             "number" => {
+                // A required number is authored, never defaulted. The default stays in the table for the
+                // editor's new block and `defaultParams`; the parser does not use it (REQ-NPPS-05).
+                if f.get("required").and_then(Value::as_bool).unwrap_or(false) && num_of(raw, key).is_none() {
+                    return Err(ParseError::at(
+                        format!(
+                            "{type_name}: {key} is required and is never defaulted: it is compiled into the signed descriptor and the safety MCU's charge limit divides by it (e.g. {key}: 35)"
+                        ),
+                        line,
+                    ));
+                }
                 let v = num_of(raw, key).map(number).or_else(|| default.cloned()).unwrap_or(Value::Null);
                 out.insert(json_name.into(), v);
             }

@@ -27,6 +27,7 @@ const blk = (type: string, body: string) => `protocol "T" {\n  duration: 5m\n  $
 
 /** Inputs the fixtures do not cover, each a refusal or a normalisation worth pinning. */
 export const ERROR_CASES: Record<string, string> = {
+  tdcs_without_area: blk('tdcs', '    intensity: 1mA'),
   cw_with_duty: pbm('    frequency: 0Hz\n    duty_cycle: 25%'),
   cw_deep_with_duty: blk('pbm_deep_1170nm', '    intensity_mw_cm2: 500\n    frequency: 0\n    duty_cycle: 50%'),
   cw_intranasal_with_duty: blk('pbm_intranasal', '    wavelength: "660nm"\n    irradiance: 30mW_cm2\n    frequency: 0\n    duty_cycle: 50%'),
@@ -110,12 +111,12 @@ export const OK_CASES: Record<string, string> = {
   named_zones: pbm('    zones: ["Frontal Left", "Frontal Right"]'),
   noise_none_is_omitted: blk('audio_entrainment', '    volume: 70dB\n    noise: none'),
   noise_pink: blk('audio_entrainment', '    volume: 70dB\n    noise: pink\n    binaural_hz: 40Hz'),
-  tdcs_pairs_and_defaults: blk('tdcs', '    electrode_pairs: [["F3","F4"],["Fp1"],["P3","P4"]]'),
+  tdcs_pairs_and_defaults: blk('tdcs', '    electrode_pairs: [["F3","F4"],["Fp1"],["P3","P4"]]\n    electrode_area_cm2: 25'),
   eeg_custom_channels: blk('eeg_neurofeedback', '    channels: custom\n    custom_channels: ["Cz","Pz"]\n    closed_loop: false'),
   interval_and_start: blk('bes_tacs', '    interval_on: 20s\n    interval_off: 10s\n    repeat: 3\n    start: 2m\n    enabled: false'),
   repeat_until_end: blk('bes_tacs', '    repeat: until_end'),
   every_modality_defaults: ['pbm_intranasal', 'eeg_neurofeedback', 'bes_tacs', 'tdcs', 'vns_hrv', 'visual_stimulation', 'qeeg_21ch', 'tms', 'clinical_tacs', 'hd_tdcs', 'cervical_vns', 'vibrotactile_40hz']
-    .map(t => (t === 'pbm_intranasal' ? blk(t, '    wavelength: "660nm"\n    irradiance: 30mW_cm2') : blk(t, ''))).join('\n'),
+    .map(t => (t === 'pbm_intranasal' ? blk(t, '    wavelength: "660nm"\n    irradiance: 30mW_cm2') : t === 'tdcs' ? blk(t, '    electrode_area_cm2: 35') : blk(t, ''))).join('\n'),
   deep_defaults: blk('pbm_deep_1170nm', ''),
   metadata_identity: 'protocol "I" {\n  id: "11111111-2222-3333-4444-555555555555"\n  family_id: "0123ABCD-4567-4def-8901-23456789abcd"\n  hardware_version: 1\n  version: "1.0"\n}\n',
   composite_identity: 'composite "C" {\n  family_id: "01234567-89ab-4def-8901-23456789abcd"\n  hardware_version: 3\n}\n',

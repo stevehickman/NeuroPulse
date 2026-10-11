@@ -37,6 +37,7 @@ protocol "All T1 Modalities" {
         intensity: 1.5mA
         electrode_pairs: [["Fp1", "P3"]]
         ramp: 30s
+        electrode_area_cm2: 35
     }
 
     vns_hrv {
