@@ -24,6 +24,14 @@
       "b": "The hub accessory ports used by A13, the audio cups and the intranasal probe are kept compatible",
       "c": "The lens mount is kept compatible",
       "d": "A change to one of these interfaces is made to both tiers or to neither"
+    },
+    "REQ-CVNS-09": {
+      "a": "Trigger: heart-rate change > 15 BPM within 5 s",
+      "b": "The final rate is >= 40 BPM",
+      "c": "Detected within 18 s of onset",
+      "d": "Enable GPIO low < 100 ms from detection",
+      "e": "30 s lockout before re-enable",
+      "f": "App confirmation and repeat impedance before re-enable"
     }
   },
   "nonTest": {}

@@ -289,6 +289,7 @@ static void test_base_tile_has_no_1064_row(void)
           "base tile: 660/808 metered, the 1064 nm row is not measured and books nothing");
 }
 
+/* @verifies REQ-FWHUB-47 */
 static void test_dose_limit_latches_each_channel(void)
 {
     fresh();
@@ -305,6 +306,7 @@ static void test_dose_limit_latches_each_channel(void)
           "limit: the UHDR record says which limits were reached (F4)");
 }
 
+/* @verifies REQ-FWHUB-47 */
 static void test_thermal_throttle(void)
 {
     fresh();
@@ -331,6 +333,7 @@ static void test_thermal_throttle(void)
           "thermal: an unreadable NTC is treated as a hot one");
 }
 
+/* @verifies REQ-FWHUB-47 */
 static void test_stopped_socket_not_ticked(void)
 {
     fresh();
@@ -349,6 +352,7 @@ static void test_stopped_socket_not_ticked(void)
     check(r.dose_J_cm2[0] > d, "stop: a re-drive in the same session keeps accumulating");
 }
 
+/* @verifies REQ-FWHUB-46 */
 static void test_no_socket_driven_unmetered(void)
 {
     fresh();

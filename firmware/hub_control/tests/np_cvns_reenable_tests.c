@@ -128,6 +128,7 @@ static void test_cutoff_rising_edge(void)
 
 /* ── Tests: gate 1 — 30s lockout ────────────────────────────────────────────── */
 
+/* @verifies REQ-CVNS-09#e */
 static void test_lockout_timing(void)
 {
     np_cvns_reenable_init();
@@ -188,6 +189,7 @@ static void test_confirm_in_idle_rejected(void)
           "gate2: no impedance started from IDLE");
 }
 
+/* @verifies REQ-CVNS-09#f */
 static void test_confirm_accepted_starts_impedance(void)
 {
     uint32_t t = drive_to_await_confirm(1000U);
@@ -269,6 +271,7 @@ static void test_confirm_does_not_carry_to_new_cutoff(void)
 
 /* ── Tests: gate 3 — impedance result ───────────────────────────────────────── */
 
+/* @verifies REQ-CVNS-09#f */
 static void test_impedance_pass_asserts(void)
 {
     uint32_t ti = drive_to_impedance(1000U);
@@ -284,6 +287,7 @@ static void test_impedance_pass_asserts(void)
           "gate3: bit ACTIVE only after all three gates");
 }
 
+/* @verifies REQ-CVNS-09#f */
 static void test_impedance_fail_closes(void)
 {
     uint32_t ti = drive_to_impedance(1000U);
@@ -443,6 +447,7 @@ static void test_new_cutoff_during_impedance_restarts(void)
 
 /* ── Tests: session_status bit construction (enum-cast regression) ──────────── */
 
+/* @verifies REQ-FWHUB-19 */
 static void test_session_status_bits(void)
 {
     /* Regression: RUNNING (=3) must map to ACTIVE only — never CVNS_REENABLE */
@@ -527,6 +532,7 @@ static void test_session_status_bits(void)
 
 /* ── Tests: heartbeat sequence counter (NP-FMEA-001 OI-FMEA-12 (a)) ─────────── */
 
+/* @verifies REQ-FWHUB-42 */
 static void test_session_status_seq(void)
 {
     uint8_t seq;

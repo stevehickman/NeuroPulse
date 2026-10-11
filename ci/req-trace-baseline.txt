@@ -129,7 +129,7 @@ firmware/hub_control/tests/np_cfg_store_tests.c 9
 firmware/hub_control/tests/np_chan_decl_tests.c 9
 firmware/hub_control/tests/np_consumables_tests.c 9
 firmware/hub_control/tests/np_cvns_fault_summary_tests.c 14
-firmware/hub_control/tests/np_cvns_reenable_tests.c 20
+firmware/hub_control/tests/np_cvns_reenable_tests.c 14
 firmware/hub_control/tests/np_gatt_server_tests.c 11
 firmware/hub_control/tests/np_hexmap_inventory_tests.c 17
 firmware/hub_control/tests/np_lfs_config_tests.c 8
@@ -143,13 +143,12 @@ firmware/hub_control/tests/np_mod_stim_tests.c 7
 firmware/hub_control/tests/np_module_map_tests.c 34
 firmware/hub_control/tests/np_module_registry_tests.c 9
 firmware/hub_control/tests/np_pbm_cal_bridge_tests.c 4
-firmware/hub_control/tests/np_pbm_socket_telem_tests.c 11
+firmware/hub_control/tests/np_pbm_socket_telem_tests.c 7
 firmware/hub_control/tests/np_protocol_tests.c 21
-firmware/hub_control/tests/np_socket_dispatch_tests.c 14
-firmware/hub_control/tests/np_stim_xcheck_tests.c 11
-firmware/hub_control/tests/np_transport_tests.c 10
+firmware/hub_control/tests/np_socket_dispatch_tests.c 6
+firmware/hub_control/tests/np_transport_tests.c 8
 firmware/pbm/tests/np_pbm_session_desc_tests.c 17
-firmware/safety_mcu/tests/np_cardiac_interlock_tests.c 41
+firmware/safety_mcu/tests/np_cardiac_interlock_tests.c 31
 firmware/safety_mcu/tests/np_charge_monitor_tests.c 28
 firmware/safety_mcu/tests/np_gpio_mgr_tests.c 17
 firmware/safety_mcu/tests/np_hal_platform_tests.c 26

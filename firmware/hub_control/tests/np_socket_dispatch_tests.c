@@ -277,6 +277,7 @@ static void setup(void)
 
 /* ── Tests ───────────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-35 */
 static void test_production_governor_is_closed(void)
 {
     setup();
@@ -289,6 +290,7 @@ static void test_production_governor_is_closed(void)
           "production governor refuses a one-tile smart load");
 }
 
+/* @verifies REQ-FWHUB-35 */
 static void test_power_refusal_drives_nothing(void)
 {
     setup();
@@ -301,6 +303,7 @@ static void test_power_refusal_drives_nothing(void)
     check(np_sock_disp_active_count() == 0, "refused load: nothing active");
 }
 
+/* @verifies REQ-FWHUB-25 */
 static void test_base_drive_all_sockets(void)
 {
     setup();
@@ -373,6 +376,7 @@ static void test_not_socket_addressable(void)
  * decided P-3 this way on 2026-09-23 (NP-FW-MMSOCK-001 §3.2, §7.2): PBM and EEG
  * may share a T1-B.
  */
+/* @verifies REQ-FWHUB-25 */
 static void test_pbm_on_t1b_admitted(void)
 {
     setup();
@@ -420,6 +424,7 @@ static void test_malformed(void)
     check(count_ops('D') == 0 && !cranial_requested(), "no malformed command drove anything");
 }
 
+/* @verifies REQ-FWHUB-32 */
 static void test_placement_all_or_nothing(void)
 {
     setup();
@@ -449,6 +454,7 @@ static void test_placement_all_or_nothing(void)
     check(np_sock_disp_command(&c5) == NP_HUB_OK, "smart 660+808 on base+smart tiles -> OK (placement is by emitter)");
 }
 
+/* @verifies REQ-FWHUB-32 */
 static void test_driver_fault_rolls_back(void)
 {
     setup();
@@ -493,6 +499,7 @@ static void test_auto_stop_failure_drops_lattice(void)
     check(np_sock_disp_active_count() == 0 && !cranial_requested(), "failed auto-stop releases the gate");
 }
 
+/* @verifies REQ-FWHUB-34 */
 static void test_stop_keeps_gate_for_others(void)
 {
     setup();
@@ -583,6 +590,7 @@ static void test_type_switch_stops_first(void)
     check(g_log_n == 1 && g_log[0].op == 'D', "same-type re-drive does not stop first");
 }
 
+/* @verifies REQ-FWHUB-34 */
 static void test_stop_all(void)
 {
     setup();

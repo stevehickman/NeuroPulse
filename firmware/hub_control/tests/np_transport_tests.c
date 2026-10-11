@@ -62,6 +62,7 @@ static uint8_t g_out[NP_HUB_PROTO_BLOB_MAX];
 
 /* ── Tests ────────────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-04 */
 static void test_single_chunk(void)
 {
     np_transport_init();
@@ -76,6 +77,7 @@ static void test_single_chunk(void)
     check(payload_ok(g_out, 64U), "single: payload correct");
 }
 
+/* @verifies REQ-FWHUB-04 */
 static void test_fragmented(void)
 {
     np_transport_init();
