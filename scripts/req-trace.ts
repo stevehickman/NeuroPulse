@@ -13,7 +13,7 @@
  *   3. Which tests are associated with no requirement?
  *
  * ── Where requirements come from ────────────────────────────────────────────
- * docs/*.md (not docs/superseded/). A requirement is DEFINED where its ID leads
+ * docs/*.md and docs/reference/*.md (not docs/superseded/). A requirement is DEFINED where its ID leads
  *   · a table row            | **`REQ-FWTILE-03`** | text | ... |
  *   · a blockquote           > **`REQ-NET-01`** — text ...
  * IDs: REQ-<AREA>-<NN> and <PREFIX>-REQ-<ID> (e.g. HUB-REQ-C06). A second table
@@ -406,7 +406,7 @@ function loadParts(root: string, reqs: Requirement[], problems: TagProblem[]) {
 /** IDs cited in docs/ that no definition site introduces (retired, prose-only or mis-formatted). */
 export function undefinedCitations(root: string, files: string[], defined: Set<string>) {
   const out = new Map<string, string>();
-  for (const f of files.filter((f) => /^docs\/[^/]+\.md$/.test(f) && f !== "docs/np_dhf_001.md")) {
+  for (const f of files.filter((f) => /^docs\/(reference\/)?[^/]+\.md$/.test(f) && f !== "docs/np_dhf_001.md")) {
     const lines = readFileSync(join(root, f), "utf8").split("\n");
     lines.forEach((l, i) => { for (const m of l.matchAll(ID_G)) if (!defined.has(m[0]) && !/^NP-/.test(m[0]) && !out.has(m[0])) out.set(m[0], `${f}:${i + 1}`); });
   }
@@ -418,7 +418,7 @@ export function load(root = ROOT) {
   const problems: TagProblem[] = [];
   const reqs: Requirement[] = [];
   const seen = new Map<string, string>();
-  for (const f of files.filter((f) => /^docs\/[^/]+\.md$/.test(f) && f !== "docs/np_dhf_001.md")) {
+  for (const f of files.filter((f) => /^docs\/(reference\/)?[^/]+\.md$/.test(f) && f !== "docs/np_dhf_001.md")) {
     for (const r of extractRequirements(f, readFileSync(join(root, f), "utf8"))) {
       const prior = seen.get(r.id);
       if (prior) { const p = reqs.find((x) => x.id === r.id)!; p.verification.push(`${f}:${r.line} ${r.text.slice(0, 200)}`); continue; }

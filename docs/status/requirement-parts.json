@@ -38,6 +38,10 @@
     "REQ-NPPS-13": {
       "method": "inspection",
       "reason": "NP-NPPS-REF-001 §14 names inspection of generated files as the verification"
+    },
+    "REQ-CONSENT-08": {
+      "method": "inspection",
+      "reason": "docs/reference/consent-engine.md §6.4 names inspection of the S1 copy in locales/ as the verification"
     }
   }
 }
