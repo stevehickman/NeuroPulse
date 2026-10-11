@@ -79,13 +79,13 @@ app/ios/NeurOneTests/SupportedLocalesTests.swift 10
 app/ios/NeurOneTests/UHDRKeyManagerTests.swift 7
 app/web/src/components/SocketPicker.test.ts 7
 app/web/src/lib/conditionLink.test.ts 13
-app/web/src/lib/hubCompiler.test.ts 24
+app/web/src/lib/hubCompiler.test.ts 25
 app/web/src/lib/hubCompilerWavelength.test.ts 18
 app/web/src/lib/hubSerial.test.ts 4
 app/web/src/lib/npps-fixtures.test.ts 2
 app/web/src/lib/npps-predefined.test.ts 10
 app/web/src/lib/npps-zones-conditions.test.ts 24
-app/web/src/lib/npps.test.ts 53
+app/web/src/lib/npps.test.ts 52
 app/web/src/lib/protocolEligibility.test.ts 37
 app/web/src/lib/protocolEligibilityWavelength.test.ts 9
 app/web/src/lib/pulsedPhaseCharge.test.ts 8

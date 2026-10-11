@@ -47,6 +47,9 @@
  * TEST UNITS: C `static void test_*(…)` · Kotlin `@Test fun` · Swift
  * `func test*` / `@Test func` · TypeScript `it(` / `test(` · Rust `#[test] fn` ·
  * C# `[Fact]`/`[Theory]`/`[Test]`/`[TestMethod]` · Python `def test_*`.
+ * PARAMETERIZED tests (it.each, @ParameterizedTest, @Test(arguments:), #[rstest] / #[test_case], [Theory],
+ * pytest.mark.parametrize) are one unit each, however many cases they run: a tag above one covers every
+ * case, and the report marks it "parameterized" because its test count is a floor.
  * Vendored code (vendor/, node_modules/) is not scanned.
  *
  * ── Usage ───────────────────────────────────────────────────────────────────
@@ -91,6 +94,7 @@ export interface TestUnit {
   verifies: Ref[];
   none?: string; // @verifies-none reason
   fileLevel: boolean; // association came (at least partly) from a file-level tag
+  parameterized?: boolean; // one unit, many cases: the test count is a floor
 }
 export interface Ref {
   id: string;
@@ -209,17 +213,39 @@ export function isTestFile(path: string): boolean {
   return EXT.test(path) && !SKIP.test(path) && TEST_PATH.test(path);
 }
 
-interface Unit { line: number; name: string }
+interface Unit { line: number; name: string; parameterized?: boolean }
 
+/**
+ * Parameterized tests are ONE unit however many cases they run: the tag above them covers every case, and
+ * the report marks the unit "parameterized" so a reader knows its test count is a floor. Recognised:
+ *   TypeScript  it.each([...])('title') / it.each`table`('title') / test.each, title on a later line
+ *   Kotlin      @ParameterizedTest, @TestFactory, @RepeatedTest
+ *   Swift       @Test(arguments: ...)
+ *   Rust        #[rstest], #[test_case(...)] (several attributes on one fn are one unit)
+ *   C#          [Theory] (the [InlineData] lines between it and the method are skipped)
+ *   Python      def test_* under @pytest.mark.parametrize (the def is the unit)
+ */
 export function findUnits(path: string, lines: string[]): Unit[] {
   const out: Unit[] = [];
   const ext = path.slice(path.lastIndexOf(".") + 1);
-  const pendingAttr = (re: RegExp, nameRe: RegExp) => {
+  const fnUnit = new Map<number, Unit>();
+  const pendingAttr = (re: RegExp, nameRe: RegExp, param: RegExp) => {
     for (let i = 0; i < lines.length; i++) {
       if (!re.test(lines[i])) continue;
-      for (let j = i; j < Math.min(i + 5, lines.length); j++) {
+      for (let j = i; j < Math.min(i + 12, lines.length); j++) {
+        if (j > i && /^\s*(\[|#\[|@)/.test(lines[j]) && !nameRe.test(lines[j])) continue; // more attributes
         const m = lines[j].match(nameRe);
-        if (m) { out.push({ line: i + 1, name: m[1] }); break; }
+        if (!m) continue;
+        const prior = fnUnit.get(j);
+        if (prior) { prior.parameterized = true; break; } // several #[test_case] on one fn
+        // the unit starts at the first attribute of the run, so a tag above the run attaches to it
+        let start = i;
+        while (start > 0 && /^\s*(\[|#\[|@)/.test(lines[start - 1]) && !/@verifies/.test(lines[start - 1])) start--;
+        const attrs = lines.slice(start, j).join("\n");
+        const u: Unit = { line: start + 1, name: m[1], parameterized: param.test(attrs) || undefined };
+        fnUnit.set(j, u);
+        out.push(u);
+        break;
       }
     }
   };
@@ -227,13 +253,27 @@ export function findUnits(path: string, lines: string[]): Unit[] {
     let m: RegExpMatchArray | null = null;
     if (ext === "c" && (m = l.match(/^(?:static\s+)?(?:void|int)\s+(test_\w+)\s*\(/))) out.push({ line: i + 1, name: m[1] });
     else if (ext === "swift" && (m = l.match(/^\s*(?:@Test\b.*?)?func\s+(test\w*|`[^`]+`|\w+)\s*\(/)) && (/func\s+test/.test(l) || /@Test\b/.test(lines[i - 1] ?? "") || /@Test\b/.test(l)))
-      out.push({ line: i + 1, name: m[1] });
+      out.push({ line: i + 1, name: m[1], parameterized: /@Test\([^)]*arguments:/.test(l + (lines[i - 1] ?? "")) || undefined });
+    else if (ext === "ts" && (m = l.match(/^\s*(?:it|test)\.each\b/))) {
+      // title: the first `)('title'` / `` `('title' `` within the next 60 lines (the table may be long)
+      let name = "";
+      for (let j = i; j < Math.min(i + 60, lines.length) && !name; j++) {
+        const t = (j === i ? l.slice(m[0].length) : lines[j]).match(/[)`]\s*\(\s*(['"`])(.+?)\1/);
+        if (t) name = t[2];
+      }
+      out.push({ line: i + 1, name: name || "(parameterized)", parameterized: true });
+    }
     else if (ext === "ts" && (m = l.match(/^\s*(?:it|test)(?:\.\w+)?\(\s*(['"`])(.+?)\1/))) out.push({ line: i + 1, name: m[2] });
-    else if (ext === "py" && (m = l.match(/^\s*(?:async\s+)?def\s+(test_\w+)\s*\(/))) out.push({ line: i + 1, name: m[1] });
+    else if (ext === "py" && (m = l.match(/^\s*(?:async\s+)?def\s+(test_\w+)\s*\(/))) {
+      let k = i - 1;
+      while (k >= 0 && /^\s*@/.test(lines[k])) k--;
+      const param = lines.slice(k + 1, i).some((x) => /pytest\.mark\.parametrize/.test(x));
+      out.push({ line: i + 1, name: m[1], parameterized: param || undefined });
+    }
   });
-  if (ext === "kt") pendingAttr(/^\s*@(?:Test|ParameterizedTest)\b/, /\bfun\s+(`[^`]+`|\w+)/);
-  if (ext === "rs") pendingAttr(/^\s*#\[(?:\w+::)*test\b/, /\bfn\s+(\w+)/);
-  if (ext === "cs") pendingAttr(/^\s*\[(?:Fact|Theory|Test|TestMethod|TestCase)\b/, /\b(\w+)\s*\(/);
+  if (ext === "kt") pendingAttr(/^\s*@(?:Test|ParameterizedTest|TestFactory|RepeatedTest)\b/, /\bfun\s+(`[^`]+`|\w+)/, /@(?:ParameterizedTest|TestFactory|RepeatedTest)/);
+  if (ext === "rs") pendingAttr(/^\s*#\[(?:(?:\w+::)*test|rstest|test_case)\b/, /\bfn\s+(\w+)/, /#\[(?:rstest|test_case)/);
+  if (ext === "cs") pendingAttr(/^\s*\[(?:Fact|Theory|Test|TestMethod|TestCase)\b/, /^\s*(?:public|internal|private|protected)?\s*(?:static\s+)?(?:async\s+)?[\w<>\[\],?]+\s+(\w+)\s*\(/, /\[(?:Theory|TestCase)\b/);
   return out.sort((a, b) => a.line - b.line);
 }
 
@@ -281,7 +321,7 @@ export function scanTestFile(file: string, src: string, problems: TagProblem[]):
   const tags = readTags(lines, problems, file);
   const fileRefs = tags.filter((t) => t.kind === "verifies-file").flatMap((t) => t.refs);
   const fileNone = tags.find((t) => t.kind === "none-file")?.reason;
-  const out: TestUnit[] = units.map((u) => ({ file, line: u.line, name: u.name, verifies: [...fileRefs], fileLevel: fileRefs.length > 0, none: fileNone }));
+  const out: TestUnit[] = units.map((u) => ({ file, line: u.line, name: u.name, verifies: [...fileRefs], fileLevel: fileRefs.length > 0, none: fileNone, parameterized: u.parameterized }));
   for (const t of tags) {
     if (t.kind !== "verifies" && t.kind !== "none") continue;
     // attach to the first unit starting after the tag, within 12 lines
@@ -434,6 +474,7 @@ export function renderMarkdown(d: ReturnType<typeof load>, a: ReturnType<typeof 
   o.push(`| 🔵 verified by declared non-test means | ${n("non-test")} |`);
   o.push(`| ⚪ retired (excluded) | ${n("retired")} |`);
   o.push(`| Test cases found | ${d.tests.length} in ${d.testFiles.length} files |`);
+  o.push(`| …of which parameterized (one unit, many cases) | ${d.tests.filter((t) => t.parameterized).length} |`);
   o.push(`| …traced to ≥1 requirement | ${traced} |`);
   o.push(`| …declared \`@verifies-none\` | ${waived} |`);
   o.push(`| …**untraced** | ${unt.length} |`);
@@ -486,7 +527,7 @@ export function renderMarkdown(d: ReturnType<typeof load>, a: ReturnType<typeof 
       o.push(`### \`${r.req.id}\` — ${r.tests.length} test${r.tests.length === 1 ? "" : "s"}`, "");
       for (const t of r.tests) {
         const refs = t.verifies.filter((x) => x.id === r.req.id).flatMap((x) => (x.parts.length ? x.parts.map((p) => "#" + p) : ["(whole)"]));
-        o.push(`- \`${t.file}:${t.line}\` ${clip(esc(t.name), 80)} — ${[...new Set(refs)].join(" ")}${t.fileLevel ? " _(file-level tag)_" : ""}`);
+        o.push(`- \`${t.file}:${t.line}\` ${clip(esc(t.name), 80)} — ${[...new Set(refs)].join(" ")}${t.fileLevel ? " _(file-level tag)_" : ""}${t.parameterized ? " _(parameterized)_" : ""}`);
       }
       o.push("");
     }
@@ -560,6 +601,19 @@ function selfTest(): void {
   eq("ts file-level", ts2.map((t) => t.verifies.length), [1, 1]);
   eq("rs", scanTestFile("common/npps-core/tests/a.rs", "#[test]\nfn good() {}", pr).map((t) => t.name), ["good"]);
   eq("swift", scanTestFile("app/ios/NeurOneTests/ATests.swift", "func testFoo() {}\nfunc helper() {}", pr).map((t) => t.name), ["testFoo"]);
+  // parameterized forms: one unit each, flagged
+  const each = scanTestFile("app/web/src/lib/b.test.ts", "// @verifies REQ-AA-01#a\nit.each([\n  ['x', 1],\n  ['y', 2],\n])('refuses %s', (a) => {});\nit.each(ids)('%s round-trips', (id) => {});\nit.each`\n a | b\n`('table', () => {});", pr);
+  eq("ts each units", each.map((t) => [t.name, !!t.parameterized, t.verifies.length]), [["refuses %s", true, 1], ["%s round-trips", true, 0], ["table", true, 0]]);
+  const rsP = scanTestFile("common/x/tests/p.rs", "// @verifies REQ-AA-01\n#[test_case(1)]\n#[test_case(2)]\nfn many(n: u8) {}\n#[rstest]\n#[case(1)]\nfn cased(n: u8) {}\n#[test]\nfn plain() {}", pr);
+  eq("rust param", rsP.map((t) => [t.name, !!t.parameterized, t.verifies.length]), [["many", true, 1], ["cased", true, 0], ["plain", false, 0]]);
+  const cs = scanTestFile("app/windows/T.Tests/A.cs", "// @verifies REQ-AA-04\n[Theory]\n[InlineData(1)]\n[InlineData(2)]\npublic void Sums(int n) {}\n[Fact]\npublic void One() {}", pr);
+  eq("c# theory", cs.map((t) => [t.name, !!t.parameterized, t.verifies.length]), [["Sums", true, 1], ["One", false, 0]]);
+  const sw = scanTestFile("app/ios/T/ATests.swift", "@Test(arguments: [1, 2])\nfunc sums(_ n: Int) {}\nfunc testPlain() {}", pr);
+  eq("swift param", sw.map((t) => [t.name, !!t.parameterized]), [["sums", true], ["testPlain", false]]);
+  const ktP = scanTestFile("app/x/src/jvmTest/PTest.kt", "// @verifies REQ-AA-04\n@ParameterizedTest\n@ValueSource(ints = [1])\nfun sums(n: Int) {}", pr);
+  eq("kotlin param", ktP.map((t) => [t.name, !!t.parameterized, t.verifies.length]), [["sums", true, 1]]);
+  const py = scanTestFile("ci/test_p.py", "@pytest.mark.parametrize('a', [1])\ndef test_a(a): pass\ndef test_b(): pass", pr);
+  eq("python param", py.map((t) => [t.name, !!t.parameterized]), [["test_a", true], ["test_b", false]]);
   eq("problems so far", pr.length, 0);
 
   const bad1: TagProblem[] = [];

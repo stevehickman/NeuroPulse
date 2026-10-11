@@ -676,6 +676,7 @@ describe('quoted awkward values (JSON-leaning cleanup)', () => {
     expect(p.tags).toEqual(['wind-down', 'all-modalities', 'plain']);
   });
 
+  // @verifies REQ-NPPS-10#a
   it.each([
     ['montage: 10-20', '    qeeg_21ch {\n        montage: 10-20\n    }'],
     ['wavelength: 660nm', '    pbm_transcranial {\n        wavelength: 660nm\n        irradiance: 300mW_cm2\n    }'],
@@ -722,6 +723,7 @@ describe('serialize → parse round-trip holds for every modality', () => {
     expect(ids.length).toBeGreaterThanOrEqual(15);
   });
 
+  // @verifies REQ-NPPS-11
   it.each(ids)('%s survives serialize → parse with all fields defaulted', (id) => {
     // The dose-bearing fields have no default (a defaulted irradiance or sound
     // level, or tDCS electrode area, would deliver a stimulus nobody authored), so those blocks state them.
@@ -789,6 +791,7 @@ describe('absolute intensity: irradiance in mW/cm², volume in dB', () => {
     expect(params(pbm('wavelength: "808nm"\n        irradiance_mw_cm2: 36')).irradianceMWcm2).toBe(36);
   });
 
+  // @verifies REQ-NPPS-01#a,b
   it.each([
     ['intensity: 80%', /percentage of a baseline/],
     ['intensity_percent: 80', /percentage of a baseline/],

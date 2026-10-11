@@ -388,6 +388,7 @@ describe('parameter block sizes match the firmware structs', () => {
     vibrotactile_40hz:  { size: 4,  slot: 16,   params: { intensityG: 0.9, syncToAudio: true, syncToVisual: false } },
   };
 
+  // @verifies REQ-FWHUB-08
   it.each(Object.entries(EXPECTED))('%s encodes %o', (type, spec) => {
     const proto = pbmProtocol({});
     proto.modalities[0].modalityParams =
