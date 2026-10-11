@@ -34,5 +34,10 @@
       "f": "App confirmation and repeat impedance before re-enable"
     }
   },
-  "nonTest": {}
+  "nonTest": {
+    "REQ-NPPS-13": {
+      "method": "inspection",
+      "reason": "NP-NPPS-REF-001 §14 names inspection of generated files as the verification"
+    }
+  }
 }

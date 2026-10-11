@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 20
+**Revision:** 21
 **Date:** 2026-10-11  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
@@ -14,6 +14,8 @@
 **IEC 62304 Class:** —
 
 ---
+
+> **Rev 21 (2026-10-11) — §14 gives the rules this document already states an ID each (`REQ-NPPS-01` to `REQ-NPPS-13`).** No grammar, field, default, runtime or wire byte changes. Until now the parser, validator, serializer and compiler behaviour described in §§1–9 had no requirement identifier, so no test could name the rule it verified (`scripts/req-trace.ts`). Each row restates a rule already binding in the section it cites, adds what fails without it and where it traces to (CLAUDE.md §18), and names how it is verified. **No new constraint is introduced and none is relaxed.** Rows that were found to rest on a build item that does not exist are marked as such in their verification cell.
 
 > **Rev 20 (2026-10-11) — a protocol states its family and hardware version, and a zone lists its sockets for each hardware version (GitHub #568; `SWR-FM-01`, `SWR-HV-01`, `SWR-HV-05`).** A protocol and a composite gain `family_id` and `hardware_version` (§3). A zone's `sockets:` list becomes one `hardware_version N { sockets: [...] }` block for each hardware version the zone supports (§8). **Nothing else changes:** the 72 shipped protocol and composite files gain these two lines and no dose, frequency, duty, irradiance, wavelength, duration or ordering moves, and every zone's version 1 sockets are the list it had. The hub descriptor of every shipped protocol is byte-identical before and after. **A bare `sockets:` list is still read, as hardware version 1**, so no existing zone file needs rewriting to load; the writer always writes the versioned form, so a file migrates the next time the app saves it (§8). The compiled content hash, the check that refuses a protocol for another hardware version and the library behaviour in `NP-SW-001` §6.3 are not built; the rows stay `Not built` where they say so.
 
@@ -107,6 +109,7 @@
 11. [Grammar summary](#11-grammar-summary)
 12. [Keyword dictionary](#12-keyword-dictionary)
 13. [Predefined protocol coverage (source-doc map)](#13-predefined-protocol-coverage-source-doc-map)
+14. [Requirements](#14-requirements)
 
 ---
 
@@ -1861,3 +1864,26 @@ intranasal block, and every audio level. No defining document states a sound lev
 Where a trial used one wavelength the protocol has one block; where the document's protocol line gives
 two (Parkinson's: 810 + 660 nm) it has two.
 
+---
+
+## 14. Requirements
+
+*(Rev 21.)* Each row states a rule that is already binding in the section it cites; the ID only makes
+it citable. A test names the row it verifies with `@verifies REQ-NPPS-NN` (`scripts/req-trace.ts`).
+Where a row lists (a), (b), (c), a test claims a part with `@verifies REQ-NPPS-NN#b`.
+
+| ID | Requirement | What fails if it is not met | Traced to | Verification |
+|---|---|---|---|---|
+| **`REQ-NPPS-01`** | **Intensity is absolute, and absolute is required.** (a) `irradiance` and `volume` require their unit (`mW_cm2`, `dB`); a bare number, a `%` or a wrong unit is an error. (b) The percentage spellings (`intensity` and `intensity_percent` on the optical modalities, `volume_percent` on `audio_entrainment`) are refused, never converted. (c) `irradiance`, `volume` and `wavelength` are required and never defaulted | A percentage is a fraction of a baseline that belongs to the emitter, driver and tile, so the same "80 %" becomes a different stimulus when any of them changes and nothing in the file says so. A defaulted figure is a stimulus nobody authored | §4.1b, §4.7, Rev 18 (principal direction); CLAUDE.md §3 | Test, in each runtime that parses `.npps` |
+| **`REQ-NPPS-02`** | **`frequency: 0` is CW and CW has no duty cycle.** On `pbm_transcranial`, `pbm_intranasal` and `pbm_deep_1170nm`, `duty_cycle` is omitted or `100%` when `frequency` is `0`, and anything else is a parse error. A CW block parses with `duty_cycle_percent` 100 whether the duty was written or defaulted | One reader treats `frequency: 0Hz` with `duty_cycle: 25%` as CW and another as a 25 % pulse train, a 4× swing in power | §4.1, Rev 18 second change, `OI-SESPWR-03` | Test |
+| **`REQ-NPPS-03`** | **One wavelength per PBM block, and none is moved.** (a) A `pbm_transcranial` block states exactly one wavelength. (b) A wavelength no `wavelength_rules` window accepts is refused, never moved to the nearest channel and never driven on all channels. (c) Two blocks that share a tile at the same time must match in window, frequency and duty and drive different channels; anything else is refused | A tile takes one frequency, one duty and one schedule for all its channels, so delivering one block, averaging two, or driving every channel is a stimulus nobody authored. The web compiler drove all channels for any value other than `"660_808nm"` until Rev 17 | §4.1a, §7a, Rev 17, `NP-FW-HUB-001` §4 | Test |
+| **`REQ-NPPS-04`** | **The compiler refuses what the hardware cannot deliver and never clamps.** A PBM block asking for more irradiance than its channel delivers (a 250 mW/cm² block on the 1064 nm channel, which delivers 28) is refused | A reduced dose is a different stimulus from the one authored | §4.1b, CLAUDE.md §3 ("a PBM ceiling refuses a protocol; it never reshapes one") | Test. The channel table values are design targets, not measurements (UC-064 to UC-066), so this row verifies the refusal, not the figures |
+| **`REQ-NPPS-05`** | **A `tdcs` block states its electrode area, and a missing area is refused.** `electrode_area_cm2` is required and is never defaulted | The area is compiled into the signed descriptor and the safety MCU derives its charge limit from it. A runtime that supplies its own assumption (35 cm² on iOS and Android, none on the web) while the MCU assumes 25 cm² enforces a different ceiling from the one authored | §4.5, Rev 16, `OI-CHARGE-04`; CLAUDE.md §3 (charge ceilings) | Test |
+| **`REQ-NPPS-06`** | **`clinical_tacs.channel_count` is 1–21, validated and never clamped.** A value outside 1–21 is an error in every runtime | The encoder quietly reduced anything larger, so a file authoring more channels than the wire carried ran fewer than it said | §4.12, Rev 15, `OI-TACS-01` | Test |
+| **`REQ-NPPS-07`** | **A `vns_hrv` setting the hardware cannot honour is refused, never run as something else.** `trigger: movement_cue` and any `intensity_basis` other than `absolute` parse, round-trip and validate as errors, and the compiler refuses them | The hub has no movement-trigger input and the app has no sensory-threshold calibration, so running them would deliver a continuous train, or an absolute amplitude, in place of what the file says | §4.6, Rev 19, `OI-NPPS-VNS-01` | Test |
+| **`REQ-NPPS-08`** | **A zone has one origin and resolves exactly.** (a) The only definition of a zone is a `zone` block in a `.npps` file. (b) A zone defined twice in the loaded namespace is an error, not last-write-wins. (c) A `zones` or `conditions` reference that resolves to no block is refused. (d) A protocol for hardware version N that names a zone with no socket list for N is refused at namespace check | A zone is a wrong-site targeting path: a silent last-write-wins or a stale list stimulates the wrong sockets | §1.6, §8, Rev 13, Rev 20 | Test |
+| **`REQ-NPPS-09`** | **A block cannot start at or after the end of its session.** A `start` that places the first on-period at or after the session's end is refused | The block would never run and the protocol would report a stimulus it does not deliver | §5, Rev 17 | Test |
+| **`REQ-NPPS-10`** | **The lexer refuses what it does not understand.** (a) A bare value is a plain identifier, a number or a boolean, and anything else is a quoted string. (b) An unrecognised character is an error and is never discarded. (c) An unrecognised token in a list is an error and is never skipped | `wind-down` became the two identifiers `wind` and `down`, and the `40Hz` in a tag list was dropped, so a file meant something other than what it said, silently | §1, §2, Rev 6, Rev 12 | Test, in each runtime that has its own lexer |
+| **`REQ-NPPS-11`** | **Serialize then parse is the identity.** Text written by the serializer parses on every runtime to the protocol that was serialized, and the serializer writes canonical spellings only | `retinal_pbm` and `mode_f` serialized to text no parser accepted and silently reset to the default on a round trip. A file written on one platform lost nine fields on another | §12, Rev 5, Rev 7, Rev 11 | Test |
+| **`REQ-NPPS-12`** | **Every runtime reads `.npps` the same way.** Each runtime that parses, validates, resolves or serializes `.npps` produces the shared golden output (`app/NeurOneShared/TestData/npps-*-golden.json`) for the same input | A divergence is invisible to the author: the same file runs as different stimuli on different platforms (Rev 5 found nine, Rev 8 found a third runtime outside every audit) | Rev 5, Rev 8, `OI-NPPS-CORE-01`; CLAUDE.md §20 | Test, in each runtime |
+| **`REQ-NPPS-13`** | **No runtime ships a build-time cache of protocol content.** Bundling the `.npps` files themselves is permitted; a generated transcription of protocol, zone or condition content is not | The build cannot bind the future: when a `.npps` file changes, the cache is read in place of the edit, with no error and no mismatch. For a zone it is a wrong-site path | §1.6, Rev 14 (principal direction) | Inspection: no generated file under `app/`, `common/` or `simulator/` carries parsed protocol, zone or condition content |
