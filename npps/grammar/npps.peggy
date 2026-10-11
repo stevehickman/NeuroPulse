@@ -256,12 +256,36 @@ LayerField
 // Optional element-type filter: types: [<elem-type>, ...] with exclude_types.
 // The predefined zones ship as socket lists in 00-zones.npps — that file is the
 // only place a zone is defined.
+//
+// Rev 8 (NP-NPPS-REF-001 Rev 20 §8, SWR-HV-05): a zone has a socket list for each
+// hardware version it supports, one block per version:
+//   hardware_version 1 { sockets: [int, ...] }
+// A bare `sockets:` list is still accepted and is hardware version 1. The grammar
+// fixes the shape only; that the version is a whole number of 1 or more, that a
+// zone does not mix the two forms and that a version is not listed twice are
+// checked by the runtimes, as a zone's socket ids are.
 
 ZoneEntry
-  = "zone" __ name:StringLiteral _ "{" _ fields:ZoneField* _ "}" _
-    { return { kind: 'zone', zone: { name, fields } }; }
+  = "zone" __ name:StringLiteral _ "{" _ members:ZoneMember* _ "}" _
+    {
+      const fields = [];
+      const versions = [];
+      for (const m of members) {
+        if (m._type === 'version') versions.push({ version: m.version, fields: m.fields });
+        else fields.push({ key: m.key, value: m.value });
+      }
+      return { kind: 'zone', zone: { name, fields, versions } };
+    }
 
-ZoneField
+ZoneMember
+  = _ v:HardwareVersionBlock _ { return v; }
+  / _ f:Field _ { return { _type: 'field', key: f.key, value: f.value }; }
+
+HardwareVersionBlock
+  = "hardware_version" __ n:Digits _ "{" _ fields:HardwareVersionField* _ "}"
+    { return { _type: 'version', version: Number(n), fields }; }
+
+HardwareVersionField
   = _ f:Field _ { return { key: f.key, value: f.value }; }
 
 // ─────────────────────────── Condition ───────────────────────────

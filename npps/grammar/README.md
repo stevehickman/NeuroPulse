@@ -1,8 +1,10 @@
 # NPPS PEG Grammar
 
-**Document:** NP-NPPS-GRAM-001 Rev 7  
+**Document:** NP-NPPS-GRAM-001 Rev 8  
 **Status:** ACTIVE  
-**Date:** 2026-10-06
+**Date:** 2026-10-11
+
+> **Rev 8 (2026-10-11): a zone has a socket list for each hardware version** (NP-NPPS-REF-001 Rev 20 §8, `SWR-HV-05`; GitHub #568). A `zone` body may hold `hardware_version N { sockets: [...] }` blocks (`HardwareVersionBlock`) beside its other fields, and the node gains `versions`. A bare `sockets:` list is still a field and is hardware version 1. `family_id` and `hardware_version` on a protocol or composite are plain fields and needed no rule. The grammar fixes the shape only: a version of 0, a version listed twice, a zone mixing the two forms and a block holding anything but `sockets` are refused by the runtimes (the shared core), as a zone's socket ids are. `npps-parser.mjs` was regenerated with Peggy 5.1.0; regenerating the Rev 7 grammar reproduced the committed parser byte for byte first, so the diff is the new rules only. New fixtures: `hardware_versions.npps` and `error_zone_version_without_number.npps`.
 
 > **Rev 7 (2026-10-06): CW has no duty cycle** (NP-NPPS-REF-001 §4.1, `OI-SESPWR-03`). `frequency: 0` on `pbm_transcranial`, `pbm_intranasal` and `pbm_deep_1170nm` selects continuous wave, so a `duty_cycle` other than 100 % beside it is an error: the block contradicts itself, and the hub would otherwise be left to choose between the two fields. New fixture `error_cw_with_duty`. The web, iOS and Android parsers refuse it too; Windows has no NPPS parser, the iOS and Android validators and all four compilers refuse a CW definition with a duty other than 100 % as a backstop. `npps-parser.mjs` was regenerated with Peggy 5.1.0 and the diff is the new check only.
 
@@ -81,7 +83,8 @@ LimitsNode = {
   modalityLimits: ModalityBlock[]
 }
 
-ZoneNode      = { name: string, fields: Field[] }
+ZoneNode      = { name: string, fields: Field[], versions: HardwareVersionBlock[] }   -- versions: Rev 8
+HardwareVersionBlock = { version: number, fields: Field[] }                          -- hardware_version N { sockets: [...] }
 ConditionNode = { name: string, fields: Field[] }
 
 WavelengthRulesNode = {

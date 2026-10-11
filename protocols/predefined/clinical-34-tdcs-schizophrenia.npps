@@ -1,5 +1,7 @@
 protocol "tDCS — Schizophrenia (hallucinations)" {
     id: "30000034-0000-0000-0000-000000000000"
+    family_id: "7cd5839c-6e99-4343-bb1a-2374059fbd52"
+    hardware_version: 1
     description: "Anode left DLPFC (F3) + cathode left temporoparietal, 2mA, 20 min x2/day, 10 sessions, for auditory hallucinations. Grade B."
     author: "NeurOne"
     version: "1.0"

@@ -1,5 +1,7 @@
 protocol "tDCS — Post-Stroke Aphasia (L-IFG)" {
     id: "30000033-0000-0000-0000-000000000000"
+    family_id: "a879b19d-ec07-42b2-89cb-9687accd783b"
+    hardware_version: 1
     description: "Anodal left IFG / perilesional, cathode right supraorbital, 1mA, 20 min, up to 15 sessions, + speech therapy. Grade B."
     author: "NeurOne"
     version: "1.0"

@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 19
-**Date:** 2026-10-07  
+**Revision:** 20
+**Date:** 2026-10-11  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -14,6 +14,8 @@
 **IEC 62304 Class:** —
 
 ---
+
+> **Rev 20 (2026-10-11) — a protocol states its family and hardware version, and a zone lists its sockets for each hardware version (GitHub #568; `SWR-FM-01`, `SWR-HV-01`, `SWR-HV-05`).** A protocol and a composite gain `family_id` and `hardware_version` (§3). A zone's `sockets:` list becomes one `hardware_version N { sockets: [...] }` block for each hardware version the zone supports (§8). **Nothing else changes:** the 72 shipped protocol and composite files gain these two lines and no dose, frequency, duty, irradiance, wavelength, duration or ordering moves, and every zone's version 1 sockets are the list it had. The hub descriptor of every shipped protocol is byte-identical before and after. **A bare `sockets:` list is still read, as hardware version 1**, so no existing zone file needs rewriting to load; the writer always writes the versioned form, so a file migrates the next time the app saves it (§8). The compiled content hash, the check that refuses a protocol for another hardware version and the library behaviour in `NP-SW-001` §6.3 are not built; the rows stay `Not built` where they say so.
 
 > **Rev 19 (2026-10-07) — `vns_hrv` states what the taVNS studies state (`OI-NPPS-VNS-01`).** The block gains six optional fields, `side`, `pulse_width_us`, `trigger`, `burst_seconds`, `intensity_basis` and `intensity_percent_of_threshold`, and a protocol gains `sessions_per_week` and `course_weeks` (§4.6, §5). They are what the shipped taVNS stroke protocol's own sources vary and the grammar could not say: pulse width (100–500 µs across the studies, and 300 µs in the 30 Hz stroke trial), a movement-triggered 0.5 s burst, which ear, an amplitude set from a sensory threshold, and the course the sessions run over. **All are optional and absent from every block that does not author them,** so no existing file, golden or serializer output changes. **The wire changes by one byte:** `np_mod_vns_hrv_params_t.pulse_width_us` is now 16 bits (the 8-bit field topped out at 255 µs), so the VNS parameter block is 10 bytes (`NP-FW-HUB-001` §4.6, firmware, and the compiler move together and the wire-format gate passes). The safety MCU's per-phase charge declaration already read this field, so an authored width is what it divides by. **Refused, never run as something else:** `trigger: movement_cue` (the hub has no movement-trigger input) and any `intensity_basis` other than `absolute` (the app has no sensory-threshold calibration) parse, round-trip and validate as errors, and the compiler refuses them; running the first continuously or the second at the absolute amplitude would be a stronger stimulus than the one authored. The authored pulse-width range 50–500 µs is **assumed** from what the studies span, not derived (register row `UC-071`). The formal grammar (`npps.peggy`) needs no change: modality and protocol fields are generic `Field`s there, as in Rev 5. **Not done:** iOS, Android and Windows models and editors, and the web editor, do not yet expose the new fields (a file that carries them parses and compiles correctly through the shared core; a model built without them writes none, so nothing is lost, and nothing is shown); those platforms are unbuilt in this environment.
 
@@ -327,7 +329,9 @@ protocol "Gamma Focus" {
 | `id` | string | auto UUID | Stable UUID. Present in predefined files. When present, marks the protocol as predefined. |
 | `description` | string | `""` | Human-readable description. |
 | `author` | string | `"NeurOne"` | Creator name. |
-| `version` | string | `"1.0"` | Semantic version. Increment when protocol content changes. |
+| `version` | string | `"1.0"` | The release version, `major.minor`, both whole numbers. How a developer edit changes it is in *Release version of a predefined protocol* below. |
+| `family_id` | string | absent | *(Rev 20)* A random 128-bit id written as UUID text (8-4-4-4-12 hex digits), the same for every variant of one authored protocol (`SWR-FM-01`). Authored once and never regenerated: a predefined protocol's id is fixed in its file. **It is not part of the content hash and is never sent to the helmet.** Read as lowercase. Anything else is a parse error. Also accepted on a `composite`. |
+| `hardware_version` | whole number | absent | *(Rev 20)* The helmet hardware version the protocol's sockets are addressed on (`SWR-HV-01`). A whole number of 1 or more; every shipped protocol states `1`, the only version that exists (`SWR-HV-07`). Absent means the protocol states none. Also accepted on a `composite`. The upper limit on versions (`UC-080`) is not decided here. |
 | `readonly` | bool | `false` | Prevents editing or deletion in the app. |
 | `tags` | string array | `[]` | Freeform category labels. |
 | `duration` | duration | `20m` | Fixed session length. |
@@ -352,6 +356,18 @@ protocol "PBM — Depression (DLPFC)" {
     ...
 }
 ```
+
+### Release version of a predefined protocol
+
+`version` is `major.minor`, and every shipped file carries one (`"1.0"` in 68 files, `"1.1"` in `04-memory-boost`, `"2.0"` in `clinical-03-pbm-alzheimers-1064` and `clinical-04-pbm-depression-schiffer`, `"2.1"` in `clinical-05-pbm-anxiety-wang`). `SWR-PL-05` governs how a developer edit changes it:
+
+- **Every edit to a predefined protocol changes the version by at least a minor step**: `1.0` becomes `1.1`, `1.1` becomes `1.2`.
+- **A major change also counts as a minor one.** A major step raises the first number and resets the second: `1.4` becomes `2.0`. Many minor changes may also make a release major.
+- **NeurOne decides which is which, case by case**, and may add rules. None is written here: `OI-UI-KMP-10` P5 leaves "what a major change is" open, and this section does not close it.
+- A version never goes down and is never reused for different content. The content of a superseded release stays retrievable by its hash (`SWR-PL-05`; not built).
+
+The Rev 20 change added `family_id` and `hardware_version` to every file and **left `version` alone**: it moved no dose and no descriptor byte, and no session record yet names a protocol by version or hash. Whether adding identity metadata is an edit that forces a minor step is the principal's to rule; it is not decided here. How a release version is shown to a user is open (GitHub #568).
+
 
 ### Modality blocks
 
@@ -1326,9 +1342,18 @@ Listing sockets directly is what makes zones flexible: any set of sockets can be
 zone "Frontal Left" {
     id: "40000001-0000-0000-0000-000000000000"
     description: "Frontal lobe, left hemisphere."
-    sockets: [1, 2, 3, 5, 6, 10, 11]
+    hardware_version 1 {
+        sockets: [1, 2, 3, 5, 6, 10, 11]
+    }
 }
 ```
+
+**A zone has a socket list for each hardware version it supports (Rev 20, `SWR-HV-05`).** A socket address names a place only on a given layout, so the same zone name resolves to different sockets on different helmets. Each `hardware_version N { ... }` block holds the zone's `sockets:` for version N, a whole number of 1 or more. Only `sockets` goes inside a block; `types` and `exclude_types` stay on the zone and apply to every version. Hardware version 1 is the only version that exists, so every shipped zone has one block. A zone for a second version adds a block and never edits the version 1 one.
+
+- **A bare `sockets:` list is hardware version 1.** It is what every zone file had before Rev 20, and it still loads, so an existing user zone file needs no rewrite. **The migration lives in the writer:** `serialize` always writes the versioned form, so a file reaches it the next time the app saves that zone. Nothing rewrites a user's files in bulk.
+- **One form per zone.** A zone that has both a bare `sockets:` list and a `hardware_version` block is a parse error, because it would have two version 1 lists. A version listed twice, a version of 0 or a fraction, a block with no `sockets` and a block holding any other field are also parse errors.
+- **What a reader receives.** The parsed zone keeps `sockets` as its hardware version 1 list, which is what every consumer reads today, and adds `socketsByVersion`, the whole map keyed by version. Both come from the one authored place. A writer given both refuses a model whose two version 1 lists differ, rather than choosing one.
+- **A protocol for hardware version N that names a zone with no list for N is refused at namespace check** (`referenceErrors`: *Protocol 'P' is for hardware version N, and zone 'Z' has no socket list for it*). A protocol that states no `hardware_version` is not checked. The compile call still takes the caller's zone-to-sockets map, so choosing the list for the protocol's version is the caller's until the compiler takes the version itself (`NP-SW-001` §6.3, not built).
 
 > **Socket ids** are integers matching the firmware socket (major) address (`np_module_map`). In the module-address diagram (NP-HEX-ZM-001) the `S-NN` labels are these ids — `S-11` is socket `11`. The `S-` prefix is display only.
 >
@@ -1379,7 +1404,8 @@ zone "Crown LEDs" {
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `sockets` | int array | **The zone's modules, by socket (major) address.** The defining field. 1-based, `1..80` on the current lattice; out-of-range, non-integer, hex, exponent and boolean values are all parse errors. Deduplicated and sorted on parse, and canonicalised again on serialize. |
+| `sockets` | int array | **The zone's modules, by socket (major) address, on one hardware version** (Rev 20: inside a `hardware_version N { }` block; a bare list is version 1). The defining field. 1-based, `1..80` on the current lattice; out-of-range, non-integer, hex, exponent and boolean values are all parse errors. Deduplicated and sorted on parse, and canonicalised again on serialize. |
+| `hardware_version N { }` | block | *(Rev 20)* The `sockets` list for hardware version N. One block per supported version; at most one per version. |
 | `id` | string | Optional stable UUID. Presence marks the zone as shipped and read-only. It does not make the zone a different kind of thing — it is still a `zone` block in a `.npps` file. |
 | `description` | string | Human-readable label. |
 | `types` | element-type array | Optional element-type filter within the listed sockets. |

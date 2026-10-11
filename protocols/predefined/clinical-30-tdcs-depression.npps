@@ -1,5 +1,7 @@
 protocol "tDCS — Depression (F3/F4)" {
     id: "30000030-0000-0000-0000-000000000000"
+    family_id: "49893ab7-5f46-41cc-8391-ae798fab2161"
+    hardware_version: 1
     description: "Anodal F3 / cathode F4, 2mA, 20–30 min, 10–22 sessions, as an accessible adjunct for MDD (not monotherapy). Grade B (mixed)."
     author: "NeurOne"
     version: "1.0"

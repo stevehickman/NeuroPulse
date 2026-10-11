@@ -1,5 +1,7 @@
 protocol "PBM — Anxiety (Wang 2023, high-irradiance)" {
     id: "30000051-0000-0000-0000-000000000000"
+    family_id: "d6956a78-fca2-4aac-84eb-4192fefeed31"
+    hardware_version: 1
     description: "820nm PBM to the left DLPFC for generalized anxiety, as Wang 2023 ran it (double-blind sham-controlled RCT, n=36, 33 analysed): a continuous-wave laser at 310 mW/cm², a 1 cm spot at F5, four 4-minute exposures a day 5 minutes apart, on 14 consecutive days. HAMA fell more than sham (p=0.021) and stayed lower at 8 weeks; HAMA response 11/16 active vs 2/17 sham. Grade B. One session here is one day of that course; the 14-day schedule is the user's to keep, since the language has no course field. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 310 mW/cm² CW is inside the time-averaged ceiling at 820nm (≈348, CLAUDE.md §3)."
     author: "NeurOne"
     version: "2.1"

@@ -1,5 +1,7 @@
 protocol "TMS — PTSD (R-DLPFC)" {
     id: "30000014-0000-0000-0000-000000000000"
+    family_id: "552816c6-9e50-4c44-99e6-66f31c2928ff"
+    hardware_version: 1
     description: "Figure-8 rTMS over right DLPFC (1 Hz or HF), augmenting exposure/CPT therapy. Grade B. 10–15 sessions."
     author: "NeurOne"
     version: "1.0"

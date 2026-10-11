@@ -1,5 +1,7 @@
 protocol "HRV + taVNS Synchronised" {
     id: "1000000C-0000-0000-0000-000000000000"
+    family_id: "616a2f8d-5986-4724-90c2-210d06058884"
+    hardware_version: 1
     description: "Stimulation pulses timed to inspiration phase for optimised noradrenergic modulation. Alpha EEG neurofeedback adds cortical awareness layer."
     author: "NeurOne"
     version: "1.0"

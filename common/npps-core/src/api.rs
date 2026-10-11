@@ -183,12 +183,24 @@ pub fn namespace_json(request: &str) -> Result<String, String> {
             }
         }
         if single {
+            // SWR-HV-05: a zone with no list for the protocol's hardware version is refused before compile. A protocol
+            // that states no hardware version is not checked: it names none to resolve against.
+            let version = def["hardwareVersion"].as_u64();
             for m in def["modalities"].as_array().into_iter().flatten() {
                 if m["type"] == "pbm_transcranial" {
                     for z in m["params"]["zoneRefs"].as_array().into_iter().flatten() {
                         let z = z.as_str().unwrap_or("");
-                        if !defined(&zones, z) {
+                        let Some(zd) = zones.iter().find(|x| x["name"].as_str() == Some(z)) else {
                             reference_errors.push(format!("Protocol '{name}' references undefined zone '{z}'"));
+                            continue;
+                        };
+                        if let Some(v) = version {
+                            let listed = zd["socketsByVersion"].get(v.to_string()).map_or(false, Value::is_array);
+                            if !listed {
+                                reference_errors.push(format!(
+                                    "Protocol '{name}' is for hardware version {v}, and zone '{z}' has no socket list for it"
+                                ));
+                            }
                         }
                     }
                 }

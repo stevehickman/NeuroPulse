@@ -1,5 +1,7 @@
 protocol "taVNS — Depression" {
     id: "30000020-0000-0000-0000-000000000000"
+    family_id: "e60bd29e-145e-42f3-9736-7925e972d7cd"
+    hardware_version: 1
     description: "Auricular taVNS (cymba conchae), 20Hz, 4–6mA to tolerance, 30 min twice daily, 8–12 weeks, for MDD. Grade B (taVNS). Chronic therapy — judged over months."
     author: "NeurOne"
     version: "1.0"

@@ -1,0 +1,28 @@
+# A protocol states its family and the hardware version it is authored for (SWR-FM-01, SWR-HV-01);
+# a zone lists its sockets for each hardware version it supports (SWR-HV-05).
+zone "Two Layouts" {
+    description: "A zone with a socket list for each of two hardware versions."
+    hardware_version 1 {
+        sockets: [1, 2, 3]
+    }
+    hardware_version 2 {
+        sockets: [1, 2, 3, 4]
+    }
+}
+
+# A bare `sockets:` list is hardware version 1.
+zone "Bare Is Version One" {
+    sockets: [5, 6]
+}
+
+protocol "Identified" {
+    family_id: "0123abcd-4567-4def-8901-23456789abcd"
+    hardware_version: 1
+    version: "1.0"
+    duration: 5m
+    pbm_transcranial {
+        wavelength: "808nm"
+        irradiance: 100mW_cm2
+        zones: ["Two Layouts"]
+    }
+}

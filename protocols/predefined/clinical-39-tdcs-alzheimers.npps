@@ -1,5 +1,7 @@
 protocol "tDCS — Alzheimer's (bilateral temporal)" {
     id: "30000039-0000-0000-0000-000000000000"
+    family_id: "089b5c10-140d-4aff-bbad-c47b8e72bf81"
+    hardware_version: 1
     description: "Anodal bilateral temporal or left DLPFC, 1.5–2mA, 15–30 min, for recognition memory. Grade C."
     author: "NeurOne"
     version: "1.0"

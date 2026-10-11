@@ -1,5 +1,7 @@
 protocol "Focus Prime" {
     id: "1000000D-0000-0000-0000-000000000000"
+    family_id: "449fe64e-1391-4ff5-bb86-a9b6a96a1fc9"
+    hardware_version: 1
     description: "20Hz beta/focus protocol combining PBM, closed-loop EEG, BES, binaural audio, and visual entrainment. BES runs in 30-on/30-off intervals for habituation prevention."
     author: "NeurOne"
     version: "1.0"

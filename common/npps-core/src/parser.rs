@@ -122,6 +122,38 @@ impl Parser {
         self.advance();
         Ok(t.num)
     }
+    /// `family_id`: a 128-bit id written as UUID text (`SWR-FM-01`). Stored lowercase so two spellings of one id
+    /// compare equal; anything that is not 32 hex digits in the 8-4-4-4-12 grouping is refused.
+    fn read_family_id(&mut self) -> R<String> {
+        self.skip_newlines();
+        let line = self.cur().line;
+        let raw = self.read_string()?;
+        let groups: Vec<&str> = raw.split('-').collect();
+        let ok = groups.len() == 5
+            && [8, 4, 4, 4, 12].iter().zip(&groups).all(|(n, g)| g.len() == *n)
+            && groups.iter().all(|g| g.chars().all(|c| c.is_ascii_hexdigit()));
+        if !ok {
+            return Err(ParseError::at(
+                format!("family_id \"{raw}\" is not a 128-bit id — write it as UUID text, 8-4-4-4-12 hex digits"),
+                line,
+            ));
+        }
+        Ok(raw.to_ascii_lowercase())
+    }
+    /// `hardware_version`: a whole number of 1 or more (`SWR-HV-01`). How many versions may exist is `UC-080`'s
+    /// open question and is not decided here.
+    fn read_hardware_version(&mut self) -> R<u32> {
+        self.skip_newlines();
+        let line = self.cur().line;
+        let n = self.read_number()?;
+        if n.fract() != 0.0 || n < 1.0 || n > f64::from(u32::MAX) {
+            return Err(ParseError::at(
+                format!("hardware_version must be a whole number of 1 or more, got {}", crate::js::num_string(n)),
+                line,
+            ));
+        }
+        Ok(n as u32)
+    }
     fn read_bool(&mut self) -> R<bool> {
         self.skip_newlines();
         let t = self.cur().clone();
@@ -357,6 +389,8 @@ impl Parser {
         let mut references: Option<Vec<Value>> = None;
         let mut sessions_per_week: Option<f64> = None;
         let mut course_weeks: Option<f64> = None;
+        let mut family_id: Option<String> = None;
+        let mut hardware_version: Option<u32> = None;
 
         self.skip_newlines();
         while !self.try_brace() {
@@ -395,6 +429,8 @@ impl Parser {
                 "references" => references = Some(self.read_references()?),
                 "sessions_per_week" => sessions_per_week = Some(self.read_number()?),
                 "course_weeks" => course_weeks = Some(self.read_number()?),
+                "family_id" => family_id = Some(self.read_family_id()?),
+                "hardware_version" => hardware_version = Some(self.read_hardware_version()?),
                 _ => self.skip_value()?,
             }
             self.skip_newlines();
@@ -427,6 +463,14 @@ impl Parser {
         }
         if let Some(n) = course_weeks {
             proto.insert("courseWeeks".into(), number(n));
+        }
+        // Identity metadata (SWR-FM-01, SWR-HV-01): the family this protocol is a variant of, and the hardware version
+        // it is authored for. Neither is a hub parameter; the family id is not part of the content hash.
+        if let Some(id) = family_id {
+            proto.insert("familyId".into(), json!(id));
+        }
+        if let Some(v) = hardware_version {
+            proto.insert("hardwareVersion".into(), json!(v));
         }
         Ok(Value::Object(proto))
     }

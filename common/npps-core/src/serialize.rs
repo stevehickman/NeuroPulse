@@ -313,6 +313,14 @@ fn references(refs: &[Value]) -> String {
 /// The header fields `protocol` and `composite` share, in the order the web serializer wrote them.
 fn header(def: &Value, lines: &mut Vec<String>) -> R<()> {
     lines.push(format!("{INDENT}id: {}", q(text(def, "id"))));
+    // Identity metadata (SWR-FM-01, SWR-HV-01): written when the model carries it, so a protocol read with a family id
+    // and a hardware version is written back with both.
+    if !text(def, "familyId").is_empty() {
+        lines.push(format!("{INDENT}family_id: {}", q(text(def, "familyId"))));
+    }
+    if let Some(v) = def["hardwareVersion"].as_f64() {
+        lines.push(format!("{INDENT}hardware_version: {}", num_string(v)));
+    }
     lines.push(format!("{INDENT}description: {}", q(text(def, "description"))));
     lines.push(format!("{INDENT}author: {}", q(text(def, "author"))));
     lines.push(format!("{INDENT}version: {}", q(text(def, "version"))));
@@ -375,27 +383,59 @@ fn composite(c: &Value) -> R<String> {
 /// A zone's socket list is canonicalised on the way out, so the writer holds the contract the reader does: a
 /// zone carrying `[0, 4, 4, 999]` is refused here rather than written into a file its own parser rejects.
 fn zone(z: &Value) -> R<String> {
-    let raw = z["sockets"].as_array().cloned().unwrap_or_default();
-    let (sockets, invalid) = to_socket_set(&raw);
-    if !invalid.is_empty() {
-        return Err(format!(
-            "cannot serialize zone \"{}\": {} {} on this helmet — ids are whole numbers {NP_SOCKET_ID_MIN}–{NP_SOCKET_ID_MAX}",
-            text(z, "name"),
-            invalid.iter().map(|v| describe_invalid(v)).collect::<Vec<_>>().join(", "),
-            if invalid.len() == 1 { "is not a socket" } else { "are not sockets" },
-        ));
+    let name = text(z, "name");
+    let canonical = |raw: &[Value], what: &str| -> R<Vec<i64>> {
+        let (sockets, invalid) = to_socket_set(raw);
+        if !invalid.is_empty() {
+            return Err(format!(
+                "cannot serialize zone \"{name}\"{what}: {} {} on this helmet — ids are whole numbers {NP_SOCKET_ID_MIN}–{NP_SOCKET_ID_MAX}",
+                invalid.iter().map(|v| describe_invalid(v)).collect::<Vec<_>>().join(", "),
+                if invalid.len() == 1 { "is not a socket" } else { "are not sockets" },
+            ));
+        }
+        Ok(sockets)
+    };
+    // The socket list for each hardware version. A model with `socketsByVersion` is written from it; one with only
+    // `sockets` (every zone before hardware versions) is version 1, which is how an existing zone file migrates: on its
+    // next save. A model carrying both must agree on version 1, or an edit made to `sockets` would be dropped silently.
+    let flat = canonical(&z["sockets"].as_array().cloned().unwrap_or_default(), "")?;
+    let mut versions: Vec<(u32, Vec<i64>)> = Vec::new();
+    if let Some(map) = z["socketsByVersion"].as_object().filter(|m| !m.is_empty()) {
+        for (k, v) in map {
+            let version = k
+                .parse::<u32>()
+                .ok()
+                .filter(|n| *n >= 1)
+                .ok_or_else(|| format!("cannot serialize zone \"{name}\": '{k}' is not a hardware version (a whole number of 1 or more)"))?;
+            versions.push((version, canonical(v.as_array().ok_or_else(|| format!("cannot serialize zone \"{name}\": socketsByVersion[{k}] must be a list"))?, &format!(" (hardware version {version})"))?));
+        }
+        versions.sort_by_key(|(v, _)| *v);
+        if z["sockets"].is_array() {
+            let v1 = versions.iter().find(|(v, _)| *v == 1).map(|(_, s)| s.clone()).unwrap_or_default();
+            if v1 != flat {
+                return Err(format!(
+                    "cannot serialize zone \"{name}\": 'sockets' and socketsByVersion[1] disagree — both are the hardware version 1 list; change one"
+                ));
+            }
+        }
+    } else {
+        versions.push((1, flat));
     }
-    let mut lines = vec![format!("zone {} {{", q(text(z, "name")))];
+    let mut lines = vec![format!("zone {} {{", q(name))];
     if !text(z, "id").is_empty() {
         lines.push(format!("{INDENT}id: {}", q(text(z, "id"))));
     }
     if !text(z, "description").is_empty() {
         lines.push(format!("{INDENT}description: {}", q(text(z, "description"))));
     }
-    lines.push(format!(
-        "{INDENT}sockets: [{}]",
-        sockets.iter().map(i64::to_string).collect::<Vec<_>>().join(", ")
-    ));
+    for (version, sockets) in &versions {
+        lines.push(format!("{INDENT}hardware_version {version} {{"));
+        lines.push(format!(
+            "{INDENT}{INDENT}sockets: [{}]",
+            sockets.iter().map(i64::to_string).collect::<Vec<_>>().join(", ")
+        ));
+        lines.push(format!("{INDENT}}}"));
+    }
     if z["types"].is_array() {
         lines.push(format!("{INDENT}types: {}", str_arr(&string_list(&z["types"], "types")?)));
     }

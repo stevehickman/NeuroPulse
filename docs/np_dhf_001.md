@@ -82,7 +82,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-DHF-001 | NeurOne Design History File Index | 165 | 2026-10-09 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 2 | 2026-10-04 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
-| NP-SW-001 | IEC 62304 Software Development Plan | 12 | 2026-10-09 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
+| NP-SW-001 | IEC 62304 Software Development Plan | 13 | 2026-10-11 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
 | NP-QMS-CAPA-001 | Corrective and Preventive Action Procedure | 1 | 2026-05-13 | [np_qms_capa_001.md](./np_qms_capa_001.md) | ACTIVE | QMS |
 | NP-DP-001 | Design and Development Plan | 1 | 2026-05-17 | [np_dp_001.md](./np_dp_001.md) | ACTIVE | QMS |
 | NP-DT-001 | Design Input/Output Traceability Matrix | 7 | 2026-10-04 | [np_dt_001.md](./np_dt_001.md) | DRAFT | QMS |
@@ -166,7 +166,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-APP-ISA-001 | Core iOS App ISA — Ideal State Artifact for Issue #51 | E4 | 2026-06-04 | [../app/ios/ISA.md](../app/ios/ISA.md) | ACTIVE | APP |
 | NP-APP-ROADMAP-001 | iOS App Development Roadmap | 5 | 2026-09-23 | [np_app_roadmap_001.md](./np_app_roadmap_001.md) | BASELINED | APP |
 | NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy | 2 | 2026-06-03 | [np_app_telemetry_001.md](./np_app_telemetry_001.md) | ACTIVE | APP |
-| NP-NPPS-REF-001 | NPPS Language Reference | 19 | 2026-10-07 | [np_npps_ref_001.md](./np_npps_ref_001.md) | ACTIVE | SES |
+| NP-NPPS-REF-001 | NPPS Language Reference | 20 | 2026-10-11 | [np_npps_ref_001.md](./np_npps_ref_001.md) | ACTIVE | SES |
 | NP-API-001 | T2 Clinical Scripting API Specification | 1 | 2026-06-07 | [np_api_001.md](./np_api_001.md) | DRAFT | APP |
 | NP-SIM-001 | Helmet Simulator — interactive 3D browser visualisation | v0.3.0 | 2026-05-17 | [../simulator/](../simulator/) | ACTIVE | SIM |
 

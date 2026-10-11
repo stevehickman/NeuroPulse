@@ -1,0 +1,6 @@
+# A hardware_version block in a zone names its version: `hardware_version 1 { ... }`.
+zone "No Number" {
+    hardware_version {
+        sockets: [1]
+    }
+}

@@ -1,5 +1,7 @@
 protocol "Gamma Focus" {
     id: "10000001-0000-0000-0000-000000000000"
+    family_id: "76445389-393d-494f-bed5-b3e45482e8e6"
+    hardware_version: 1
     description: "Simultaneous 40Hz entrainment across audio, visual, and PBM channels for cognitive enhancement and attention. Evidence-backed GENUS-inspired multi-sensory 40Hz protocol."
     author: "NeurOne"
     version: "1.0"
