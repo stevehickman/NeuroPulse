@@ -505,6 +505,7 @@ static void test_expected_len_accounts_for_target(void)
 
 /* ── Rejections ───────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-10 */
 static void test_rejects_other_versions(void)
 {
     /* 0 was never issued; 2 and 3 were pre-release numbers for layouts now

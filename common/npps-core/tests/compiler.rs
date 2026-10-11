@@ -55,6 +55,7 @@ fn opts<'a>(c: &'a Ctx, with_clinician: bool) -> CompileOptions<'a> {
     }
 }
 
+// @verifies REQ-FWHUB-08
 #[test]
 fn every_definition_compiles_to_the_web_compilers_bytes() {
     let cases = data("hub-descriptor-cases.json");

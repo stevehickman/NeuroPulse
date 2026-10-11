@@ -150,6 +150,7 @@ function eegProtocol(): NPProtocolDefinition {
 // ─── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('hub protocol v1 wire format', () => {
+  // @verifies REQ-FWHUB-10
   it('emits protocol version 1', () => {
     // No descriptor has shipped, so the format has one version (NP-FW-HUB-001
     // §4.5). Must match NP_HUB_PROTO_VERSION in
@@ -160,6 +161,7 @@ describe('hub protocol v1 wire format', () => {
     expect(readBlob(blob).version).toBe(1);
   });
 
+  // @verifies REQ-FWHUB-08
   it('emits a 14-byte command header with a target block', () => {
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['Frontal Left'] }), { zones });
     // 1 continuous command: header + cmdhdr + 16-byte mask + 4 params + sig.

@@ -79,7 +79,7 @@ app/ios/NeurOneTests/SupportedLocalesTests.swift 10
 app/ios/NeurOneTests/UHDRKeyManagerTests.swift 7
 app/web/src/components/SocketPicker.test.ts 7
 app/web/src/lib/conditionLink.test.ts 13
-app/web/src/lib/hubCompiler.test.ts 27
+app/web/src/lib/hubCompiler.test.ts 25
 app/web/src/lib/hubCompilerWavelength.test.ts 27
 app/web/src/lib/hubSerial.test.ts 4
 app/web/src/lib/npps-fixtures.test.ts 2
@@ -104,7 +104,7 @@ common/lib/nppsFieldTable.test.ts 4
 common/lib/nppsSerializeValidate.test.ts 5
 common/lib/socketSet.test.ts 22
 common/lib/wavelengthRules.test.ts 20
-common/npps-core/tests/compiler.rs 4
+common/npps-core/tests/compiler.rs 3
 common/npps-core/tests/differential.rs 3
 common/npps-core/tests/refusals.rs 5
 common/npps-core/tests/resolve.rs 3
@@ -144,7 +144,7 @@ firmware/hub_control/tests/np_module_map_tests.c 34
 firmware/hub_control/tests/np_module_registry_tests.c 9
 firmware/hub_control/tests/np_pbm_cal_bridge_tests.c 4
 firmware/hub_control/tests/np_pbm_socket_telem_tests.c 7
-firmware/hub_control/tests/np_protocol_tests.c 21
+firmware/hub_control/tests/np_protocol_tests.c 20
 firmware/hub_control/tests/np_socket_dispatch_tests.c 6
 firmware/hub_control/tests/np_transport_tests.c 8
 firmware/pbm/tests/np_pbm_session_desc_tests.c 17
