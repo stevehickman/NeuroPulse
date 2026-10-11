@@ -769,12 +769,19 @@ const NON_UNION_ZONES = new Set([
  */
 const PART_ZONES = new Set(Object.values(AGGREGATES).flat());
 
+/**
+ * The version 1 socket list of every zone in the file. The lattice this script builds is the hardware
+ * version 1 layout (SWR-HV-05: a zone has a list for each hardware version it supports), so version 1 is the
+ * list it checks; there is no layout table for another version to check one against. A bare `sockets:` list
+ * is read as version 1, the form every zone had before hardware versions.
+ */
 function parseZoneFile(source: string): Map<string, number[]> {
   const zones = new Map<string, number[]>();
   const blockRe = /zone\s+"((?:[^"\\]|\\.)*)"\s*\{([\s\S]*?)\n\}/g;
 
   for (const block of source.matchAll(blockRe)) {
-    const socketsMatch = /sockets:\s*\[([^\]]*)\]/.exec(block[2]);
+    const v1 = /hardware_version\s+1\s*\{([^}]*)\}/.exec(block[2]);
+    const socketsMatch = /sockets:\s*\[([^\]]*)\]/.exec(v1 ? v1[1]! : block[2]);
     if (!socketsMatch) continue;
     const ids = [...socketsMatch[1].matchAll(/\d+/g)].map(m => Number(m[0]));
     zones.set(block[1], ids.sort((a, b) => a - b));
@@ -854,7 +861,7 @@ function validateAgainstZoneFile(sockets: SocketGeometry[]): string[] {
   for (const name of declared) {
     if (!actual.has(name)) {
       errors.push(
-        `zone "${name}" is declared but has no parsable \`sockets: [...]\` list — ` +
+        `zone "${name}" is declared but has no parsable hardware version 1 \`sockets: [...]\` list — ` +
         `every zone must carry its own explicit socket set.`,
       );
     }

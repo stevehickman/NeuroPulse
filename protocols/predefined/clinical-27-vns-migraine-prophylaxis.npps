@@ -1,5 +1,7 @@
 protocol "taVNS — Migraine Prophylaxis (1Hz)" {
     id: "30000027-0000-0000-0000-000000000000"
+    family_id: "0b94122b-5009-42d5-aacf-e9d3d2b2322b"
+    hardware_version: 1
     description: "Auricular taVNS (cymba conchae) at 1Hz (note: NOT 25Hz) for migraine prevention — frequency is condition-specific. Grade B. 12 weeks."
     author: "NeurOne"
     version: "1.0"

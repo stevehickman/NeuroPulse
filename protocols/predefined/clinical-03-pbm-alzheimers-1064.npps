@@ -1,5 +1,7 @@
 protocol "PBM — Alzheimer's 1064nm (deep-cortical channel)" {
     id: "30000003-0000-0000-0000-000000000000"
+    family_id: "258734b4-ffd7-4d95-b879-85a26bc0f537"
+    hardware_version: 1
     description: "Whole-vault 1064nm PBM for Alzheimer's / dementia, targeting §1's 1060–1080nm band (Qi/Nizamutdinov 2021: 1060–1080nm, 6 min twice daily, 108 sessions/56 d, MMSE +4.8). RE-AUTHORED 2026-08-26 from the §3 cognitive-enhancement target, which was 8.9× beyond this channel's reach; §1's band is the nearer target OI-HEXTILE-21 identifies. STILL NOT EVIDENCE-GRADE and still not reachable — the shortfall narrows, it does not close. See the notes on the modality block for the exact figures."
     author: "NeurOne"
     version: "2.0"

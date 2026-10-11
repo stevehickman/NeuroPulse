@@ -1,5 +1,7 @@
 protocol "TMS — Depression Accelerated (iTBS)" {
     id: "30000011-0000-0000-0000-000000000000"
+    family_id: "30c953fa-b2c6-4e26-9d2c-0d7c6c7f500a"
+    hardware_version: 1
     description: "Figure-8 intermittent theta-burst (iTBS), left DLPFC, 90% rMT, 1800 pulses — accelerated SAINT/SNT-style dosing. Grade A. Multiple sessions/day."
     author: "NeurOne"
     version: "1.0"

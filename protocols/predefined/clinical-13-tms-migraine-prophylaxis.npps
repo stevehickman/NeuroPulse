@@ -1,5 +1,7 @@
 protocol "TMS — Migraine Prophylaxis (M1)" {
     id: "30000013-0000-0000-0000-000000000000"
+    family_id: "6b8fc44b-47b1-4a72-9e7a-88948d15af53"
+    hardware_version: 1
     description: "Figure-8 HF rTMS over M1, 10Hz, 600 pulses, for migraine prevention. Grade B."
     author: "NeurOne"
     version: "1.0"

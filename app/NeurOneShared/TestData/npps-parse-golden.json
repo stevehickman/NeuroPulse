@@ -225,7 +225,31 @@
       35,
       36,
       37
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       1,
+       2,
+       4,
+       5,
+       6,
+       10,
+       11,
+       12,
+       13,
+       17,
+       18,
+       19,
+       20,
+       26,
+       27,
+       28,
+       29,
+       35,
+       36,
+       37
+      ]
+     }
     },
     {
      "description": "Predefined lobe zone — frontal lobe, right hemisphere. Everything anterior to the central sulcus (the 50% C line) that is not lateral enough to be temporal. Midline sockets 2, 13 and 29 appear in both hemispheres.",
@@ -253,7 +277,31 @@
       38,
       39,
       40
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       2,
+       3,
+       7,
+       8,
+       9,
+       13,
+       14,
+       15,
+       16,
+       21,
+       22,
+       23,
+       24,
+       29,
+       30,
+       31,
+       32,
+       38,
+       39,
+       40
+      ]
+     }
     },
     {
      "description": "Predefined lobe zone — temporal lobe, left hemisphere. The outermost socket of each row that reaches the temporal line, across the lobe's front-to-back extent (F7/T3 junction at 35% back to T5/P5 at 78%) — rows r2 to r8. No midline socket: the temporal lobe never crosses the midline.",
@@ -266,7 +314,16 @@
       42,
       51,
       59
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       25,
+       34,
+       42,
+       51,
+       59
+      ]
+     }
     },
     {
      "description": "Predefined lobe zone — temporal lobe, right hemisphere. The outermost socket of each row that reaches the temporal line, across the lobe's front-to-back extent (F7/T3 junction at 35% back to T5/P5 at 78%) — rows r2 to r8. No midline socket: the temporal lobe never crosses the midline.",
@@ -279,7 +336,16 @@
       50,
       58,
       65
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       33,
+       41,
+       50,
+       58,
+       65
+      ]
+     }
     },
     {
      "description": "Predefined lobe zone — parietal lobe, left hemisphere. Between the central sulcus (50%) and the parieto-occipital sulcus (80%), excluding the lateral sockets that belong to the temporal lobe. Midline sockets 46 and 62 appear in both hemispheres.",
@@ -300,7 +366,24 @@
       66,
       67,
       68
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       43,
+       44,
+       45,
+       46,
+       52,
+       53,
+       54,
+       60,
+       61,
+       62,
+       66,
+       67,
+       68
+      ]
+     }
     },
     {
      "description": "Predefined lobe zone — parietal lobe, right hemisphere. Between the central sulcus (50%) and the parieto-occipital sulcus (80%), excluding the lateral sockets that belong to the temporal lobe. Midline sockets 46 and 62 appear in both hemispheres.",
@@ -321,7 +404,24 @@
       69,
       70,
       71
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       46,
+       47,
+       48,
+       49,
+       55,
+       56,
+       57,
+       62,
+       63,
+       64,
+       69,
+       70,
+       71
+      ]
+     }
     },
     {
      "description": "Predefined lobe zone — occipital lobe, left hemisphere. Posterior to the parieto-occipital sulcus (80% of the nasion-inion arc). Socket 74 is Oz — the midline occipital address the photoparoxysmal halt depends on — and appears in both hemispheres.",
@@ -334,7 +434,16 @@
       74,
       77,
       78
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       72,
+       73,
+       74,
+       77,
+       78
+      ]
+     }
     },
     {
      "description": "Predefined lobe zone — occipital lobe, right hemisphere. Posterior to the parieto-occipital sulcus (80% of the nasion-inion arc). Socket 74 is Oz — the midline occipital address the photoparoxysmal halt depends on — and appears in both hemispheres.",
@@ -347,7 +456,16 @@
       76,
       79,
       80
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       74,
+       75,
+       76,
+       79,
+       80
+      ]
+     }
     },
     {
      "description": "Every socket on the helmet, temporal included.",
@@ -435,7 +553,91 @@
       78,
       79,
       80
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8,
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17,
+       18,
+       19,
+       20,
+       21,
+       22,
+       23,
+       24,
+       25,
+       26,
+       27,
+       28,
+       29,
+       30,
+       31,
+       32,
+       33,
+       34,
+       35,
+       36,
+       37,
+       38,
+       39,
+       40,
+       41,
+       42,
+       43,
+       44,
+       45,
+       46,
+       47,
+       48,
+       49,
+       50,
+       51,
+       52,
+       53,
+       54,
+       55,
+       56,
+       57,
+       58,
+       59,
+       60,
+       61,
+       62,
+       63,
+       64,
+       65,
+       66,
+       67,
+       68,
+       69,
+       70,
+       71,
+       72,
+       73,
+       74,
+       75,
+       76,
+       77,
+       78,
+       79,
+       80
+      ]
+     }
     },
     {
      "description": "Union of Frontal Left and Frontal Right — the frontal lobe, anterior to the central sulcus. Excludes the lateral temporal sockets 25, 33, 34 and 41.",
@@ -480,7 +682,48 @@
       38,
       39,
       40
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8,
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17,
+       18,
+       19,
+       20,
+       21,
+       22,
+       23,
+       24,
+       26,
+       27,
+       28,
+       29,
+       30,
+       31,
+       32,
+       35,
+       36,
+       37,
+       38,
+       39,
+       40
+      ]
+     }
     },
     {
      "description": "Union of Frontal, Temporal and Parietal (both hemispheres) — sockets 1-71, everything anterior to the parieto-occipital sulcus. This is the site list the PBM evidence calls 'whole-head': pbm_neuro_protocols.md §1 (Alzheimer's, Grade A) specifies 'bilateral frontal, temporal, parietal + midline' and §6 (chronic TBI, Grade B) specifies 'multi-site scalp (frontal/temporal/parietal)'. Neither enumerates occipital, so this zone deliberately excludes it; use 'All' only when every address really is intended. The frontal and parietal midline sockets (2, 13, 29, 46, 62) are included; the occipital midline socket (74, Oz) is not.",
@@ -559,7 +802,82 @@
       69,
       70,
       71
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8,
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17,
+       18,
+       19,
+       20,
+       21,
+       22,
+       23,
+       24,
+       25,
+       26,
+       27,
+       28,
+       29,
+       30,
+       31,
+       32,
+       33,
+       34,
+       35,
+       36,
+       37,
+       38,
+       39,
+       40,
+       41,
+       42,
+       43,
+       44,
+       45,
+       46,
+       47,
+       48,
+       49,
+       50,
+       51,
+       52,
+       53,
+       54,
+       55,
+       56,
+       57,
+       58,
+       59,
+       60,
+       61,
+       62,
+       63,
+       64,
+       65,
+       66,
+       67,
+       68,
+       69,
+       70,
+       71
+      ]
+     }
     },
     {
      "description": "Frontal Right with the three frontal midline sockets (2, 13, 29) omitted; every other Frontal Right socket is kept, including the half-pitch ones beside the midline. A DIS-INCLUSION zone in the sense of the PR #210 membership ruling: membership is inclusive by default, and the only way to narrow a zone is to author a narrower one — there is no runtime exclusion filter. Exists for protocols whose evidence base is genuinely right-hemisphere only; 04-memory-boost (Yao 2022, right F4) is the only such protocol today. scripts/sync-socket-map.ts holds this zone to exactly Frontal Right minus its x = 0 sockets. Re-cut 2026-09-29: until then this zone listed [3, 6, 9, 10, 14, 15, 18, 19], authored against a retired socket numbering, and four of those (6, 10, 18, 19) are left-hemisphere sockets. The contralateral-energy figures in NP-OPT-PSF-001 §4 (16.3% → 3.6%) were computed on that retired numbering; see the flag in that section for the figures on this list. The residual spill from the retained half-pitch sockets is optical diffusion and is irreducible by any addressing scheme, since the 1064nm spatial resolution floor at cortical depth is a ~26mm 10-90% edge-spread function.",
@@ -584,7 +902,28 @@
       38,
       39,
       40
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       3,
+       7,
+       8,
+       9,
+       14,
+       15,
+       16,
+       21,
+       22,
+       23,
+       24,
+       30,
+       31,
+       32,
+       38,
+       39,
+       40
+      ]
+     }
     },
     {
      "description": "Frontal Left with the three frontal midline sockets (2, 13, 29) omitted; every other Frontal Left socket is kept, including the half-pitch ones beside the midline. A DIS-INCLUSION zone in the sense of the PR #210 membership ruling. Exists for clinical-05-pbm-anxiety-wang (Wang 2023, left DLPFC only), which the lateralized-protocol audit flagged: the midline modules would put half their cortical energy into the right hemisphere (NP-OPT-PSF-001 §4). The residual spill from the retained half-pitch sockets has not been modelled for this zone or for 820nm.",
@@ -609,7 +948,28 @@
       35,
       36,
       37
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       1,
+       4,
+       5,
+       6,
+       10,
+       11,
+       12,
+       17,
+       18,
+       19,
+       20,
+       26,
+       27,
+       28,
+       35,
+       36,
+       37
+      ]
+     }
     },
     {
      "description": "Head sites for Parkinson's transcranial PBM. DERIVED FROM THE PROTOCOL, not from lobe boundaries: clinical-08-pbm-parkinsons.npps targets the head 'bilateral, midline over SMA/motor' (pbm_neuro_protocols.md §8, Grade C — Liebert 2021/2024) and explicitly not the whole vault, because whole-head irradiation would over-deliver well beyond the evidence. Primary motor cortex is the precentral gyrus at the central sulcus; the supplementary motor area is medial frontal just anterior to it. Row r4 sits at 39.3% of the nasion-inion arc — the precentral motor strip — and is the only row over the motor representation. This zone is that row (width 9) minus its two temporal sockets (25, 33), which are lateral to the motor representation: 26, 27, 28 (left), 29 (midline, over the SMA), 30, 31, 32 (right). Balanced bilateral with a midline site, exactly as the protocol requires. PROVISIONAL — final registration depends on gate REG-1 (NP-HEX-ZM-001 §7). Confirm against the shell CAD before any clinical dosing claim.",
@@ -624,7 +984,18 @@
       30,
       31,
       32
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       26,
+       27,
+       28,
+       29,
+       30,
+       31,
+       32
+      ]
+     }
     },
     {
      "description": "Union of Parietal Left/Right and Occipital Left/Right — everything posterior to the central sulcus that is not temporal.",
@@ -665,7 +1036,44 @@
       78,
       79,
       80
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       43,
+       44,
+       45,
+       46,
+       47,
+       48,
+       49,
+       52,
+       53,
+       54,
+       55,
+       56,
+       57,
+       60,
+       61,
+       62,
+       63,
+       64,
+       66,
+       67,
+       68,
+       69,
+       70,
+       71,
+       72,
+       73,
+       74,
+       75,
+       76,
+       77,
+       78,
+       79,
+       80
+      ]
+     }
     }
    ],
    "conditions": [],
@@ -787,7 +1195,9 @@
         "label": "tACS 40Hz gamma convergence",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "76445389-393d-494f-bed5-b3e45482e8e6",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -908,7 +1318,9 @@
         "label": "tACS depression/alpha & taVNS anxiety context",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "fe26f9f7-0fb9-49f2-834b-6bfcf2c3506d",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -1027,7 +1439,9 @@
         "label": "tACS slow-oscillation sleep protocol",
         "url": "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"
        }
-      ]
+      ],
+      "familyId": "5a6e50bc-d4ad-403d-80aa-11b5002bc40b",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -1139,7 +1553,9 @@
         "label": "1064nm evidence bibliography (NP-BIB-1064-001 Entry 12.1)",
         "url": "docs/np_bib_1064_001.md"
        }
-      ]
+      ],
+      "familyId": "a5c44a3d-e552-4a86-b3af-c8b064cbb655",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -1265,7 +1681,9 @@
         "label": "taVNS anxiety (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "87593870-ea5d-4b18-bcd8-66dad8ab1442",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -1400,7 +1818,9 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "1221fe35-cb93-400e-bd8b-0ecca13259c1",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -1496,7 +1916,9 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "e414f3d1-72ea-4524-a6c3-21d9c3912c13",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -1623,7 +2045,9 @@
         "label": "tDCS ADHD (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
        }
-      ]
+      ],
+      "familyId": "ee10cb40-11d0-4969-9abe-a61fc6e8b0b7",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -1671,7 +2095,9 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "dca88ec1-bb9a-455b-98da-2fc7f0ebedfc",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -1774,7 +2200,9 @@
         "label": "taVNS PTSD extinction (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "b24069a6-b955-4b72-a5a6-4a90805bd307",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -1845,7 +2273,9 @@
         "label": "taVNS autonomic / HRV (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "aba80ec3-e974-4bf3-a9b4-cf3aaab821aa",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -1913,7 +2343,9 @@
         "label": "taVNS respiration-gated HRV (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "616a2f8d-5986-4724-90c2-210d06058884",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -2037,7 +2469,9 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "449fe64e-1391-4ff5-bb86-a9b6a96a1fc9",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -2199,7 +2633,9 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "3a952e64-b1c4-4045-8310-47505327e871",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -2387,7 +2823,9 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "9d2b5837-567e-419d-893e-abb71e8bedd5",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -2452,7 +2890,9 @@
         "label": "PBM protocol database §1 — Alzheimer's / dementia (Grade A), section-level bands 0.1–0.3 W/cm², 20–75 J/cm²",
         "url": "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"
        }
-      ]
+      ],
+      "familyId": "9c826e2b-f480-4a1d-82b1-3ce85bfdd11e",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -2531,7 +2971,9 @@
         "label": "PBM protocol database §1 — Alzheimer's / dementia (Grade A), section-level bands 0.1–0.3 W/cm², 20–75 J/cm²",
         "url": "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"
        }
-      ]
+      ],
+      "familyId": "7ce04f67-2369-4ce7-8961-e6071649e046",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -2595,7 +3037,9 @@
         "label": "PBM protocol database §2 — MCI (Grade A), section-level bands 0.02–0.3 W/cm², 7–60 J/cm², 6–20 min",
         "url": "docs/pbm_neuro_protocols.md#2-mild-cognitive-impairment-mci--grade-a"
        }
-      ]
+      ],
+      "familyId": "e993cd52-ebfa-4e21-9497-83d63182a093",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -2667,7 +3111,9 @@
         "label": "Lateralization decision + optical model (retained from Rev 1.1 — no longer load-bearing now the target is whole-vault)",
         "url": "docs/np_opt_psf_001.md"
        }
-      ]
+      ],
+      "familyId": "258734b4-ffd7-4d95-b879-85a26bc0f537",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -2733,7 +3179,9 @@
         "label": "PBM protocol database §4 — Depression (Grade B), section-level bands 0.03–0.25 W/cm², dose target ≥60 J/cm²/site",
         "url": "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"
        }
-      ]
+      ],
+      "familyId": "9e5352da-fbe6-41a8-9738-c55f1eaf6a63",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -2819,7 +3267,9 @@
         "label": "PBM protocol database §4 — Depression (Grade B), section-level bands 0.03–0.25 W/cm², dose target ≥60 J/cm²/site",
         "url": "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"
        }
-      ]
+      ],
+      "familyId": "1e445466-03c0-4080-be62-65d2fc98dece",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -2884,7 +3334,9 @@
         "label": "PBM protocol database §5 — Anxiety / GAD (Grade B), section-level parameter bands",
         "url": "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"
        }
-      ]
+      ],
+      "familyId": "a68ec185-8480-4d41-a142-607abe3b0709",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -2950,7 +3402,9 @@
         "label": "PBM protocol database §5 — Anxiety / GAD (Grade B)",
         "url": "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"
        }
-      ]
+      ],
+      "familyId": "d6956a78-fca2-4aac-84eb-4192fefeed31",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -3041,7 +3495,9 @@
         "label": "PBM protocol database §6 — TBI chronic / post-concussion (Grade B), section-level bands 0.02–0.25 W/cm², 10–120 J/cm², 10–20 min",
         "url": "docs/pbm_neuro_protocols.md#6-traumatic-brain-injury-chronic--post-concussion-syndrome--grade-b"
        }
-      ]
+      ],
+      "familyId": "2ad87fa5-0581-41e7-9ae5-f34052ed8ccc",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -3106,7 +3562,9 @@
         "label": "Fradkin 2024 DB RCT",
         "url": "docs/pbm_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "523703be-69b8-4250-a8b5-05ad4cd6c436",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -3186,7 +3644,9 @@
         "label": "Liebert 2021/2024 (gut-brain + transcranial)",
         "url": "docs/pbm_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "2d6dc9c0-ab36-46a8-8330-31b232b53673",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -3272,7 +3732,9 @@
         "label": "PBM protocol database §9 (Grade C, chronic)",
         "url": "docs/pbm_neuro_protocols.md#9-stroke--grade-c-chronic-rehab--avoid-acute"
        }
-      ]
+      ],
+      "familyId": "37453987-a981-4f8e-9c87-6b6824c7fe48",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -3332,7 +3794,9 @@
         "label": "O'Reardon 2007; George 2010",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "5954d826-7b13-4276-ac76-fa2e5c252458",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -3393,7 +3857,9 @@
         "label": "Cole 2022 SAINT",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "30c953fa-b2c6-4e26-9d2c-0d7c6c7f500a",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -3454,7 +3920,9 @@
         "label": "Lefaucheur 2008/2020",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "8612ee35-93c6-4133-a48e-ec22d6bdddec",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -3510,7 +3978,9 @@
         "label": "Neuromod protocol database §1 TMS migraine (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "familyId": "6b8fc44b-47b1-4a72-9e7a-88948d15af53",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -3566,7 +4036,9 @@
         "label": "Neuromod protocol database §1 TMS PTSD (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "familyId": "552816c6-9e50-4c44-99e6-66f31c2928ff",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -3622,7 +4094,9 @@
         "label": "Neuromod protocol database §1 TMS stroke (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "familyId": "1a20bdb4-94b5-43d3-8ba8-ab470a5ad9d9",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -3678,7 +4152,9 @@
         "label": "Neuromod protocol database §1 TMS PD (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "familyId": "b4019d05-e1e0-4491-b21a-52cd7a1eaf95",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -3734,7 +4210,9 @@
         "label": "Neuromod protocol database §1 TMS fibromyalgia (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "familyId": "95fc0c1c-c658-4d04-8275-867fca2bbccf",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -3790,7 +4268,9 @@
         "label": "Neuromod protocol database §1 TMS addiction (Grade B/C)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "familyId": "17ac4c53-6323-4cb0-b2c0-9d338b65fbe3",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -3849,7 +4329,9 @@
         "label": "Rong 2014",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "5d3fbbfc-431e-4a18-8316-c1e0ade1cc44",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -3908,7 +4390,9 @@
         "label": "Rong 2016; Song 2024",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "e60bd29e-145e-42f3-9736-7925e972d7cd",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -3968,7 +4452,9 @@
         "label": "Dawson 2021 VNS-REHAB",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "ab10ebdc-8984-4318-bc4e-db2f774dd3ab",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -4023,7 +4509,9 @@
         "label": "Neuromod protocol database §2 VNS anxiety (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
        }
-      ]
+      ],
+      "familyId": "7070caa5-9f2b-45e8-840c-bdcad18360f6",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -4079,7 +4567,9 @@
         "label": "Neuromod protocol database §2 VNS insomnia (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
        }
-      ]
+      ],
+      "familyId": "9a13ee9a-09d5-4f21-9ab4-7fe20d163a77",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -4135,7 +4625,9 @@
         "label": "Neuromod protocol database §2 VNS PTSD (Grade B paired)",
         "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
        }
-      ]
+      ],
+      "familyId": "bdbc4231-09b8-4d7e-a2c9-903f104c552c",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -4195,7 +4687,9 @@
         "label": "Clancy 2014; Sclocco 2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "74d0e4d1-1837-48de-8cd9-8af7b8d739f8",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -4254,7 +4748,9 @@
         "label": "gammaCore ACT1/ACT2/PRESTO",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "e1d92fd3-009f-49ee-8e0a-ee45e86c59a0",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -4313,7 +4809,9 @@
         "label": "Straube 2015",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "0b94122b-5009-42d5-aacf-e9d3d2b2322b",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -4389,7 +4887,9 @@
         "label": "Tyler 2017",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "9784755e-df21-46ce-bfe1-dadc4b15d9fd",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -4452,7 +4952,9 @@
         "label": "Fregni 2005",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "7b78b54c-20b2-453b-b601-f8e329ad34b7",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -4515,7 +5017,9 @@
         "label": "Brunoni 2013/2017",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "49893ab7-5f46-41cc-8391-ae798fab2161",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -4580,7 +5084,9 @@
         "label": "Fregni 2006; Valle 2009",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "d4616968-0f99-4d28-b7a8-bebc5f467610",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -4643,7 +5149,9 @@
         "label": "Lindenberg 2010",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "8aaaacf8-ea82-47d4-93c6-5760a3b5a782",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -4708,7 +5216,9 @@
         "label": "Fridriksson 2018",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "a879b19d-ec07-42b2-89cb-9687accd783b",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -4771,7 +5281,9 @@
         "label": "Brunelin 2012",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "7cd5839c-6e99-4343-bb1a-2374059fbd52",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -4834,7 +5346,9 @@
         "label": "Klauss 2014",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "7bde881a-bb5b-41e6-ad8d-27a4540ad210",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -4898,7 +5412,9 @@
         "label": "Fregni 2006; San-Juan 2017",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "fbee6bc2-0c56-4b77-a819-6ae542514c50",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -4961,7 +5477,9 @@
         "label": "Leffa 2022",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "29403448-486c-481f-9cb5-47bbc3c05971",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -5021,7 +5539,9 @@
         "label": "Neuromod protocol database §3 tDCS MS (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
        }
-      ]
+      ],
+      "familyId": "a9668721-d64c-4adf-af65-707681a9ee49",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -5084,7 +5604,9 @@
         "label": "Khedr 2014/2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "089b5c10-140d-4aff-bbad-c47b8e72bf81",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -5147,7 +5669,9 @@
         "label": "Dagan 2018",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "fa64b8fa-d89c-45f0-b4dd-0260af1137bb",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -5205,7 +5729,9 @@
         "label": "Polania 2012; Reinhart 2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "ccc8d480-9c64-485c-aaa5-79e18d0d214e",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -5264,7 +5790,9 @@
         "label": "Santarnecchi 2013",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "c60bb668-b2f9-42b6-9170-aeee6b9ebcab",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -5324,7 +5852,9 @@
         "label": "Benussi 2021",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "e404df1d-4d34-4bef-aff0-df4aced8792c",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -5382,7 +5912,9 @@
         "label": "Brittain 2013",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "60aaa5f9-66d9-49a8-90d4-467620e1f7c9",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -5440,7 +5972,9 @@
         "label": "Alexander 2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "8cdbb074-510c-45d1-8012-ea881517e133",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -5498,7 +6032,9 @@
         "label": "Ketz 2018",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "faf6c56a-2fb2-45ec-b4b2-4d7c11abcd99",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -5556,7 +6092,9 @@
         "label": "Mellin 2018",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "15fde368-d664-4588-a9e5-3e9b3ddccaa0",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -5615,7 +6153,9 @@
         "label": "Dallmer-Zerbe 2020",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "c9410a2d-9761-4460-91d8-b1622ea87a35",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -5675,7 +6215,9 @@
         "label": "Ahn 2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "170d0782-af01-45a8-8327-af613c53492b",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -5735,7 +6277,9 @@
         "label": "Reinhart & Nguyen 2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "ca7fed3e-6653-4e96-83f4-cfca03760f4a",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -5791,7 +6335,9 @@
        }
       ],
       "conflictResolution": "merge",
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "48ff7117-9d6c-4fb4-947d-4ddb111f5cf9",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -5839,7 +6385,9 @@
        }
       ],
       "conflictResolution": "sequential",
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "94a2db42-f4ba-41cb-9b3f-0d6cdfb90466",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -5881,7 +6429,9 @@
        }
       ],
       "conflictResolution": "merge",
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "99ccca1a-66a4-4fc3-b96c-9539873e9c17",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -5921,7 +6471,9 @@
        }
       ],
       "conflictResolution": "sequential",
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "e320bcd3-cc6b-4dee-bbe8-f59cbc3d9cc3",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -6310,6 +6862,9 @@
   "npps/fixtures/error_unitless_irradiance.npps": {
    "error": "Line 7: pbm_transcranial: irradiance needs its unit written (irradiance: 300mW_cm2); a bare number does not say what it measures"
   },
+  "npps/fixtures/error_zone_version_without_number.npps": {
+   "error": "Line 3: Expected number, got LBRACE ({)"
+  },
   "npps/fixtures/gamma_focus.npps": {
    "entries": [
     {
@@ -6396,6 +6951,89 @@
     }
    ],
    "zones": [],
+   "conditions": [],
+   "wavelengthRules": [],
+   "limits": null
+  },
+  "npps/fixtures/hardware_versions.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "Identified",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "seconds": 300,
+       "type": "duration"
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "dutyCyclePercent": 25,
+         "frequencyHz": 40,
+         "irradianceMWcm2": 100,
+         "wavelength": "808nm",
+         "zoneRefs": [
+          "Two Layouts"
+         ],
+         "zones": "named"
+        },
+        "interval": {
+         "intervalOffSeconds": 0,
+         "intervalOnSeconds": 0
+        }
+       }
+      ],
+      "familyId": "0123abcd-4567-4def-8901-23456789abcd",
+      "hardwareVersion": 1
+     }
+    }
+   ],
+   "zones": [
+    {
+     "description": "A zone with a socket list for each of two hardware versions.",
+     "isPredefined": false,
+     "name": "Two Layouts",
+     "sockets": [
+      1,
+      2,
+      3
+     ],
+     "socketsByVersion": {
+      "1": [
+       1,
+       2,
+       3
+      ],
+      "2": [
+       1,
+       2,
+       3,
+       4
+      ]
+     }
+    },
+    {
+     "isPredefined": false,
+     "name": "Bare Is Version One",
+     "sockets": [
+      5,
+      6
+     ],
+     "socketsByVersion": {
+      "1": [
+       5,
+       6
+      ]
+     }
+    }
+   ],
    "conditions": [],
    "wavelengthRules": [],
    "limits": null
@@ -6626,6 +7264,58 @@
    "source": "zone \"Z\" {\n  sockets: [1, 81]\n}\n",
    "error": "Line 2: zone \"Z\": 81 is not a socket on this helmet — ids are whole numbers 1–80 (80 sockets, numbered from 1)"
   },
+  "family_id_not_an_id": {
+   "source": "protocol \"T\" {\n  family_id: \"not-an-id\"\n}\n",
+   "error": "Line 2: family_id \"not-an-id\" is not a 128-bit id — write it as UUID text, 8-4-4-4-12 hex digits"
+  },
+  "family_id_wrong_grouping": {
+   "source": "protocol \"T\" {\n  family_id: \"0123456789abcdef0123456789abcdef\"\n}\n",
+   "error": "Line 2: family_id \"0123456789abcdef0123456789abcdef\" is not a 128-bit id — write it as UUID text, 8-4-4-4-12 hex digits"
+  },
+  "hardware_version_zero": {
+   "source": "protocol \"T\" {\n  hardware_version: 0\n}\n",
+   "error": "Line 2: hardware_version must be a whole number of 1 or more, got 0"
+  },
+  "hardware_version_fraction": {
+   "source": "protocol \"T\" {\n  hardware_version: 1.5\n}\n",
+   "error": "Line 2: hardware_version must be a whole number of 1 or more, got 1.5"
+  },
+  "hardware_version_text": {
+   "source": "protocol \"T\" {\n  hardware_version: \"1\"\n}\n",
+   "error": "Line 2: Expected number, got STRING (1)"
+  },
+  "composite_family_id_not_an_id": {
+   "source": "composite \"C\" {\n  family_id: \"x\"\n}\n",
+   "error": "Line 2: family_id \"x\" is not a 128-bit id — write it as UUID text, 8-4-4-4-12 hex digits"
+  },
+  "zone_version_zero": {
+   "source": "zone \"Z\" {\n  hardware_version 0 {\n    sockets: [1]\n  }\n}\n",
+   "error": "Line 2: zone \"Z\": hardware_version must be a whole number of 1 or more, got 0"
+  },
+  "zone_version_twice": {
+   "source": "zone \"Z\" {\n  hardware_version 1 {\n    sockets: [1]\n  }\n  hardware_version 1 {\n    sockets: [2]\n  }\n}\n",
+   "error": "Line 5: zone \"Z\": hardware_version 1 is defined twice"
+  },
+  "zone_bare_then_version": {
+   "source": "zone \"Z\" {\n  sockets: [1]\n  hardware_version 1 {\n    sockets: [1]\n  }\n}\n",
+   "error": "Line 3: zone \"Z\": a bare 'sockets' list is hardware version 1 and this zone also has a hardware_version block — use one form"
+  },
+  "zone_version_then_bare": {
+   "source": "zone \"Z\" {\n  hardware_version 1 {\n    sockets: [1]\n  }\n  sockets: [1]\n}\n",
+   "error": "Line 5: zone \"Z\": a bare 'sockets' list is hardware version 1 and this zone also has a hardware_version block — use one form"
+  },
+  "zone_version_without_sockets": {
+   "source": "zone \"Z\" {\n  hardware_version 1 {\n  }\n}\n",
+   "error": "Line 2: zone \"Z\": hardware_version 1 has no 'sockets' list"
+  },
+  "zone_version_other_field": {
+   "source": "zone \"Z\" {\n  hardware_version 1 {\n    sockets: [1]\n    types: [led_660]\n  }\n}\n",
+   "error": "Line 4: zone \"Z\": 'types' is not a field of a hardware_version block — only 'sockets' is; 'types' and 'exclude_types' belong to the zone"
+  },
+  "zone_version_bad_socket": {
+   "source": "zone \"Z\" {\n  hardware_version 2 {\n    sockets: [81]\n  }\n}\n",
+   "error": "Line 3: zone \"Z\": 81 is not a socket on this helmet — ids are whole numbers 1–80 (80 sockets, numbered from 1)"
+  },
   "zone_hex_socket": {
    "source": "zone \"Z\" {\n  sockets: [\"0x10\"]\n}\n",
    "error": "Line 2: zone \"Z\": \"0x10\" is not a socket on this helmet — ids are whole numbers 1–80 (80 sockets, numbered from 1)"
@@ -6722,6 +7412,14 @@
       5,
       7
      ],
+     "socketsByVersion": {
+      "1": [
+       3,
+       4,
+       5,
+       7
+      ]
+     },
      "types": [
       "led_660",
       "ntc",
@@ -6740,7 +7438,8 @@
     {
      "isPredefined": false,
      "name": "Z",
-     "sockets": []
+     "sockets": [],
+     "socketsByVersion": {}
     }
    ],
    "conditions": [],
@@ -7102,7 +7801,12 @@
      "name": "Z",
      "sockets": [
       1
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       1
+      ]
+     }
     }
    ],
    "conditions": [
@@ -8178,6 +8882,112 @@
    "wavelengthRules": [],
    "limits": null
   },
+  "metadata_identity": {
+   "source": "protocol \"I\" {\n  id: \"11111111-2222-3333-4444-555555555555\"\n  family_id: \"0123ABCD-4567-4def-8901-23456789abcd\"\n  hardware_version: 1\n  version: \"1.0\"\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "11111111-2222-3333-4444-555555555555",
+      "name": "I",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": true,
+      "timingMode": {
+       "seconds": 1200,
+       "type": "duration"
+      },
+      "modalities": [],
+      "familyId": "0123abcd-4567-4def-8901-23456789abcd",
+      "hardwareVersion": 1
+     }
+    }
+   ],
+   "zones": [],
+   "conditions": [],
+   "wavelengthRules": [],
+   "limits": null
+  },
+  "composite_identity": {
+   "source": "composite \"C\" {\n  family_id: \"01234567-89ab-4def-8901-23456789abcd\"\n  hardware_version: 3\n}\n",
+   "entries": [
+    {
+     "kind": "composite",
+     "composite": {
+      "name": "C",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "layers": [],
+      "conflictResolution": "merge",
+      "familyId": "01234567-89ab-4def-8901-23456789abcd",
+      "hardwareVersion": 3
+     }
+    }
+   ],
+   "zones": [],
+   "conditions": [],
+   "wavelengthRules": [],
+   "limits": null
+  },
+  "zone_versioned": {
+   "source": "zone \"Z\" {\n  id: \"zid\"\n  hardware_version 2 {\n    sockets: [9, 8]\n  }\n  hardware_version 1 {\n    sockets: [5, 3, 3]\n  }\n  types: [led_660]\n}\n",
+   "entries": [],
+   "zones": [
+    {
+     "id": "zid",
+     "isPredefined": true,
+     "name": "Z",
+     "sockets": [
+      3,
+      5
+     ],
+     "socketsByVersion": {
+      "1": [
+       3,
+       5
+      ],
+      "2": [
+       8,
+       9
+      ]
+     },
+     "types": [
+      "led_660"
+     ]
+    }
+   ],
+   "conditions": [],
+   "wavelengthRules": [],
+   "limits": null
+  },
+  "zone_version_bare_is_one": {
+   "source": "zone \"Z\" {\n  sockets: [5, 3]\n}\n",
+   "entries": [],
+   "zones": [
+    {
+     "isPredefined": false,
+     "name": "Z",
+     "sockets": [
+      3,
+      5
+     ],
+     "socketsByVersion": {
+      "1": [
+       3,
+       5
+      ]
+     }
+    }
+   ],
+   "conditions": [],
+   "wavelengthRules": [],
+   "limits": null
+  },
   "metadata_everything": {
    "source": "protocol \"M\" {\n  id: \"11111111-2222-3333-4444-555555555555\"\n  description: \"d\"\n  author: \"a\"\n  version: \"2\"\n  readonly: true\n  tags: [alpha, \"x y\", 40Hz]\n  interval_count: 4\n  conditions: [\"c1\", c2]\n  references: [\"http://a\", [\"L\", \"http://b\"], [\"only\"]]\n  unknown_field: [1, [2, 3]]\n}\n",
    "entries": [
@@ -8275,7 +9085,13 @@
      "sockets": [
       1,
       2
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       1,
+       2
+      ]
+     }
     }
    ],
    "conditions": [
@@ -8354,7 +9170,12 @@
      "name": "B",
      "sockets": [
       4
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       4
+      ]
+     }
     }
    ],
    "conditions": [],
@@ -8526,6 +9347,194 @@
    "sources": [],
    "entries": [],
    "zones": [],
+   "conditions": [],
+   "errors": [],
+   "referenceErrors": []
+  },
+  "zone_version_listed": {
+   "sources": [
+    "zone \"A\" {\n  hardware_version 1 {\n    sockets: [1]\n  }\n  hardware_version 2 {\n    sockets: [2]\n  }\n}\n",
+    "protocol \"P\" {\n  hardware_version: 2\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: [\"A\"]\n  }\n}\n"
+   ],
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "P",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "seconds": 1200,
+       "type": "duration"
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "dutyCyclePercent": 25,
+         "frequencyHz": 40,
+         "irradianceMWcm2": 100,
+         "wavelength": "808nm",
+         "zoneRefs": [
+          "A"
+         ],
+         "zones": "named"
+        },
+        "interval": {
+         "intervalOffSeconds": 0,
+         "intervalOnSeconds": 0
+        }
+       }
+      ],
+      "hardwareVersion": 2
+     }
+    }
+   ],
+   "zones": [
+    {
+     "isPredefined": false,
+     "name": "A",
+     "sockets": [
+      1
+     ],
+     "socketsByVersion": {
+      "1": [
+       1
+      ],
+      "2": [
+       2
+      ]
+     }
+    }
+   ],
+   "conditions": [],
+   "errors": [],
+   "referenceErrors": []
+  },
+  "zone_version_missing": {
+   "sources": [
+    "zone \"A\" {\n  sockets: [1]\n}\n",
+    "protocol \"P\" {\n  hardware_version: 2\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: [\"A\"]\n  }\n}\n"
+   ],
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "P",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "seconds": 1200,
+       "type": "duration"
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "dutyCyclePercent": 25,
+         "frequencyHz": 40,
+         "irradianceMWcm2": 100,
+         "wavelength": "808nm",
+         "zoneRefs": [
+          "A"
+         ],
+         "zones": "named"
+        },
+        "interval": {
+         "intervalOffSeconds": 0,
+         "intervalOnSeconds": 0
+        }
+       }
+      ],
+      "hardwareVersion": 2
+     }
+    }
+   ],
+   "zones": [
+    {
+     "isPredefined": false,
+     "name": "A",
+     "sockets": [
+      1
+     ],
+     "socketsByVersion": {
+      "1": [
+       1
+      ]
+     }
+    }
+   ],
+   "conditions": [],
+   "errors": [],
+   "referenceErrors": [
+    "Protocol 'P' is for hardware version 2, and zone 'A' has no socket list for it"
+   ]
+  },
+  "no_hardware_version_not_checked": {
+   "sources": [
+    "zone \"A\" {\n  sockets: [1]\n}\n",
+    "protocol \"P\" {\n  conditions: []\n  pbm_transcranial {\n    zones: [\"A\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n"
+   ],
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "P",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "seconds": 1200,
+       "type": "duration"
+      },
+      "modalities": [
+       {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+         "dutyCyclePercent": 25,
+         "frequencyHz": 40,
+         "irradianceMWcm2": 100,
+         "wavelength": "808nm",
+         "zoneRefs": [
+          "A"
+         ],
+         "zones": "named"
+        },
+        "interval": {
+         "intervalOffSeconds": 0,
+         "intervalOnSeconds": 0
+        }
+       }
+      ],
+      "conditions": []
+     }
+    }
+   ],
+   "zones": [
+    {
+     "isPredefined": false,
+     "name": "A",
+     "sockets": [
+      1
+     ],
+     "socketsByVersion": {
+      "1": [
+       1
+      ]
+     }
+    }
+   ],
    "conditions": [],
    "errors": [],
    "referenceErrors": []
@@ -8722,7 +9731,9 @@
         "label": "tACS 40Hz gamma convergence",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "76445389-393d-494f-bed5-b3e45482e8e6",
+      "hardwareVersion": 1
      }
     },
     {
@@ -8835,7 +9846,9 @@
         "label": "tACS depression/alpha & taVNS anxiety context",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "fe26f9f7-0fb9-49f2-834b-6bfcf2c3506d",
+      "hardwareVersion": 1
      }
     },
     {
@@ -8946,7 +9959,9 @@
         "label": "tACS slow-oscillation sleep protocol",
         "url": "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"
        }
-      ]
+      ],
+      "familyId": "5a6e50bc-d4ad-403d-80aa-11b5002bc40b",
+      "hardwareVersion": 1
      }
     },
     {
@@ -9050,7 +10065,9 @@
         "label": "1064nm evidence bibliography (NP-BIB-1064-001 Entry 12.1)",
         "url": "docs/np_bib_1064_001.md"
        }
-      ]
+      ],
+      "familyId": "a5c44a3d-e552-4a86-b3af-c8b064cbb655",
+      "hardwareVersion": 1
      }
     },
     {
@@ -9168,7 +10185,9 @@
         "label": "taVNS anxiety (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "87593870-ea5d-4b18-bcd8-66dad8ab1442",
+      "hardwareVersion": 1
      }
     },
     {
@@ -9295,7 +10314,9 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "1221fe35-cb93-400e-bd8b-0ecca13259c1",
+      "hardwareVersion": 1
      }
     },
     {
@@ -9383,7 +10404,9 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "e414f3d1-72ea-4524-a6c3-21d9c3912c13",
+      "hardwareVersion": 1
      }
     },
     {
@@ -9502,7 +10525,9 @@
         "label": "tDCS ADHD (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
        }
-      ]
+      ],
+      "familyId": "ee10cb40-11d0-4969-9abe-a61fc6e8b0b7",
+      "hardwareVersion": 1
      }
     },
     {
@@ -9542,7 +10567,9 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "dca88ec1-bb9a-455b-98da-2fc7f0ebedfc",
+      "hardwareVersion": 1
      }
     },
     {
@@ -9637,7 +10664,9 @@
         "label": "taVNS PTSD extinction (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "b24069a6-b955-4b72-a5a6-4a90805bd307",
+      "hardwareVersion": 1
      }
     },
     {
@@ -9700,7 +10729,9 @@
         "label": "taVNS autonomic / HRV (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "aba80ec3-e974-4bf3-a9b4-cf3aaab821aa",
+      "hardwareVersion": 1
      }
     },
     {
@@ -9760,7 +10791,9 @@
         "label": "taVNS respiration-gated HRV (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "616a2f8d-5986-4724-90c2-210d06058884",
+      "hardwareVersion": 1
      }
     },
     {
@@ -9876,7 +10909,9 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "449fe64e-1391-4ff5-bb86-a9b6a96a1fc9",
+      "hardwareVersion": 1
      }
     },
     {
@@ -10030,7 +11065,9 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "3a952e64-b1c4-4045-8310-47505327e871",
+      "hardwareVersion": 1
      }
     },
     {
@@ -10210,7 +11247,9 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "9d2b5837-567e-419d-893e-abb71e8bedd5",
+      "hardwareVersion": 1
      }
     },
     {
@@ -10267,7 +11306,9 @@
         "label": "PBM protocol database §1 — Alzheimer's / dementia (Grade A), section-level bands 0.1–0.3 W/cm², 20–75 J/cm²",
         "url": "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"
        }
-      ]
+      ],
+      "familyId": "9c826e2b-f480-4a1d-82b1-3ce85bfdd11e",
+      "hardwareVersion": 1
      }
     },
     {
@@ -10338,7 +11379,9 @@
         "label": "PBM protocol database §1 — Alzheimer's / dementia (Grade A), section-level bands 0.1–0.3 W/cm², 20–75 J/cm²",
         "url": "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"
        }
-      ]
+      ],
+      "familyId": "7ce04f67-2369-4ce7-8961-e6071649e046",
+      "hardwareVersion": 1
      }
     },
     {
@@ -10394,7 +11437,9 @@
         "label": "PBM protocol database §2 — MCI (Grade A), section-level bands 0.02–0.3 W/cm², 7–60 J/cm², 6–20 min",
         "url": "docs/pbm_neuro_protocols.md#2-mild-cognitive-impairment-mci--grade-a"
        }
-      ]
+      ],
+      "familyId": "e993cd52-ebfa-4e21-9497-83d63182a093",
+      "hardwareVersion": 1
      }
     },
     {
@@ -10458,7 +11503,9 @@
         "label": "Lateralization decision + optical model (retained from Rev 1.1 — no longer load-bearing now the target is whole-vault)",
         "url": "docs/np_opt_psf_001.md"
        }
-      ]
+      ],
+      "familyId": "258734b4-ffd7-4d95-b879-85a26bc0f537",
+      "hardwareVersion": 1
      }
     },
     {
@@ -10516,7 +11563,9 @@
         "label": "PBM protocol database §4 — Depression (Grade B), section-level bands 0.03–0.25 W/cm², dose target ≥60 J/cm²/site",
         "url": "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"
        }
-      ]
+      ],
+      "familyId": "9e5352da-fbe6-41a8-9738-c55f1eaf6a63",
+      "hardwareVersion": 1
      }
     },
     {
@@ -10594,7 +11643,9 @@
         "label": "PBM protocol database §4 — Depression (Grade B), section-level bands 0.03–0.25 W/cm², dose target ≥60 J/cm²/site",
         "url": "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"
        }
-      ]
+      ],
+      "familyId": "1e445466-03c0-4080-be62-65d2fc98dece",
+      "hardwareVersion": 1
      }
     },
     {
@@ -10651,7 +11702,9 @@
         "label": "PBM protocol database §5 — Anxiety / GAD (Grade B), section-level parameter bands",
         "url": "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"
        }
-      ]
+      ],
+      "familyId": "a68ec185-8480-4d41-a142-607abe3b0709",
+      "hardwareVersion": 1
      }
     },
     {
@@ -10709,7 +11762,9 @@
         "label": "PBM protocol database §5 — Anxiety / GAD (Grade B)",
         "url": "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"
        }
-      ]
+      ],
+      "familyId": "d6956a78-fca2-4aac-84eb-4192fefeed31",
+      "hardwareVersion": 1
      }
     },
     {
@@ -10792,7 +11847,9 @@
         "label": "PBM protocol database §6 — TBI chronic / post-concussion (Grade B), section-level bands 0.02–0.25 W/cm², 10–120 J/cm², 10–20 min",
         "url": "docs/pbm_neuro_protocols.md#6-traumatic-brain-injury-chronic--post-concussion-syndrome--grade-b"
        }
-      ]
+      ],
+      "familyId": "2ad87fa5-0581-41e7-9ae5-f34052ed8ccc",
+      "hardwareVersion": 1
      }
     },
     {
@@ -10849,7 +11906,9 @@
         "label": "Fradkin 2024 DB RCT",
         "url": "docs/pbm_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "523703be-69b8-4250-a8b5-05ad4cd6c436",
+      "hardwareVersion": 1
      }
     },
     {
@@ -10921,7 +11980,9 @@
         "label": "Liebert 2021/2024 (gut-brain + transcranial)",
         "url": "docs/pbm_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "2d6dc9c0-ab36-46a8-8330-31b232b53673",
+      "hardwareVersion": 1
      }
     },
     {
@@ -10999,7 +12060,9 @@
         "label": "PBM protocol database §9 (Grade C, chronic)",
         "url": "docs/pbm_neuro_protocols.md#9-stroke--grade-c-chronic-rehab--avoid-acute"
        }
-      ]
+      ],
+      "familyId": "37453987-a981-4f8e-9c87-6b6824c7fe48",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11051,7 +12114,9 @@
         "label": "O'Reardon 2007; George 2010",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "5954d826-7b13-4276-ac76-fa2e5c252458",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11104,7 +12169,9 @@
         "label": "Cole 2022 SAINT",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "30c953fa-b2c6-4e26-9d2c-0d7c6c7f500a",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11157,7 +12224,9 @@
         "label": "Lefaucheur 2008/2020",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "8612ee35-93c6-4133-a48e-ec22d6bdddec",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11205,7 +12274,9 @@
         "label": "Neuromod protocol database §1 TMS migraine (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "familyId": "6b8fc44b-47b1-4a72-9e7a-88948d15af53",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11253,7 +12324,9 @@
         "label": "Neuromod protocol database §1 TMS PTSD (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "familyId": "552816c6-9e50-4c44-99e6-66f31c2928ff",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11301,7 +12374,9 @@
         "label": "Neuromod protocol database §1 TMS stroke (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "familyId": "1a20bdb4-94b5-43d3-8ba8-ab470a5ad9d9",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11349,7 +12424,9 @@
         "label": "Neuromod protocol database §1 TMS PD (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "familyId": "b4019d05-e1e0-4491-b21a-52cd7a1eaf95",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11397,7 +12474,9 @@
         "label": "Neuromod protocol database §1 TMS fibromyalgia (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "familyId": "95fc0c1c-c658-4d04-8275-867fca2bbccf",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11445,7 +12524,9 @@
         "label": "Neuromod protocol database §1 TMS addiction (Grade B/C)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "familyId": "17ac4c53-6323-4cb0-b2c0-9d338b65fbe3",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11496,7 +12577,9 @@
         "label": "Rong 2014",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "5d3fbbfc-431e-4a18-8316-c1e0ade1cc44",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11547,7 +12630,9 @@
         "label": "Rong 2016; Song 2024",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "e60bd29e-145e-42f3-9736-7925e972d7cd",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11599,7 +12684,9 @@
         "label": "Dawson 2021 VNS-REHAB",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "ab10ebdc-8984-4318-bc4e-db2f774dd3ab",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11646,7 +12733,9 @@
         "label": "Neuromod protocol database §2 VNS anxiety (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
        }
-      ]
+      ],
+      "familyId": "7070caa5-9f2b-45e8-840c-bdcad18360f6",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11694,7 +12783,9 @@
         "label": "Neuromod protocol database §2 VNS insomnia (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
        }
-      ]
+      ],
+      "familyId": "9a13ee9a-09d5-4f21-9ab4-7fe20d163a77",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11742,7 +12833,9 @@
         "label": "Neuromod protocol database §2 VNS PTSD (Grade B paired)",
         "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
        }
-      ]
+      ],
+      "familyId": "bdbc4231-09b8-4d7e-a2c9-903f104c552c",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11794,7 +12887,9 @@
         "label": "Clancy 2014; Sclocco 2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "74d0e4d1-1837-48de-8cd9-8af7b8d739f8",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11845,7 +12940,9 @@
         "label": "gammaCore ACT1/ACT2/PRESTO",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "e1d92fd3-009f-49ee-8e0a-ee45e86c59a0",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11896,7 +12993,9 @@
         "label": "Straube 2015",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "0b94122b-5009-42d5-aacf-e9d3d2b2322b",
+      "hardwareVersion": 1
      }
     },
     {
@@ -11964,7 +13063,9 @@
         "label": "Tyler 2017",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "9784755e-df21-46ce-bfe1-dadc4b15d9fd",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12019,7 +13120,9 @@
         "label": "Fregni 2005",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "7b78b54c-20b2-453b-b601-f8e329ad34b7",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12074,7 +13177,9 @@
         "label": "Brunoni 2013/2017",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "49893ab7-5f46-41cc-8391-ae798fab2161",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12131,7 +13236,9 @@
         "label": "Fregni 2006; Valle 2009",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "d4616968-0f99-4d28-b7a8-bebc5f467610",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12186,7 +13293,9 @@
         "label": "Lindenberg 2010",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "8aaaacf8-ea82-47d4-93c6-5760a3b5a782",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12243,7 +13352,9 @@
         "label": "Fridriksson 2018",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "a879b19d-ec07-42b2-89cb-9687accd783b",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12298,7 +13409,9 @@
         "label": "Brunelin 2012",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "7cd5839c-6e99-4343-bb1a-2374059fbd52",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12353,7 +13466,9 @@
         "label": "Klauss 2014",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "7bde881a-bb5b-41e6-ad8d-27a4540ad210",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12409,7 +13524,9 @@
         "label": "Fregni 2006; San-Juan 2017",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "fbee6bc2-0c56-4b77-a819-6ae542514c50",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12464,7 +13581,9 @@
         "label": "Leffa 2022",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "29403448-486c-481f-9cb5-47bbc3c05971",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12516,7 +13635,9 @@
         "label": "Neuromod protocol database §3 tDCS MS (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
        }
-      ]
+      ],
+      "familyId": "a9668721-d64c-4adf-af65-707681a9ee49",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12571,7 +13692,9 @@
         "label": "Khedr 2014/2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "089b5c10-140d-4aff-bbad-c47b8e72bf81",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12626,7 +13749,9 @@
         "label": "Dagan 2018",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "fa64b8fa-d89c-45f0-b4dd-0260af1137bb",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12676,7 +13801,9 @@
         "label": "Polania 2012; Reinhart 2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "ccc8d480-9c64-485c-aaa5-79e18d0d214e",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12727,7 +13854,9 @@
         "label": "Santarnecchi 2013",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "c60bb668-b2f9-42b6-9170-aeee6b9ebcab",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12779,7 +13908,9 @@
         "label": "Benussi 2021",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "e404df1d-4d34-4bef-aff0-df4aced8792c",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12829,7 +13960,9 @@
         "label": "Brittain 2013",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "60aaa5f9-66d9-49a8-90d4-467620e1f7c9",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12879,7 +14012,9 @@
         "label": "Alexander 2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "8cdbb074-510c-45d1-8012-ea881517e133",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12929,7 +14064,9 @@
         "label": "Ketz 2018",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "faf6c56a-2fb2-45ec-b4b2-4d7c11abcd99",
+      "hardwareVersion": 1
      }
     },
     {
@@ -12979,7 +14116,9 @@
         "label": "Mellin 2018",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "15fde368-d664-4588-a9e5-3e9b3ddccaa0",
+      "hardwareVersion": 1
      }
     },
     {
@@ -13030,7 +14169,9 @@
         "label": "Dallmer-Zerbe 2020",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "c9410a2d-9761-4460-91d8-b1622ea87a35",
+      "hardwareVersion": 1
      }
     },
     {
@@ -13082,7 +14223,9 @@
         "label": "Ahn 2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "170d0782-af01-45a8-8327-af613c53492b",
+      "hardwareVersion": 1
      }
     },
     {
@@ -13134,7 +14277,9 @@
         "label": "Reinhart & Nguyen 2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "familyId": "ca7fed3e-6653-4e96-83f4-cfca03760f4a",
+      "hardwareVersion": 1
      }
     },
     {
@@ -13182,7 +14327,9 @@
        }
       ],
       "conflictResolution": "merge",
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "48ff7117-9d6c-4fb4-947d-4ddb111f5cf9",
+      "hardwareVersion": 1
      }
     },
     {
@@ -13222,7 +14369,9 @@
        }
       ],
       "conflictResolution": "sequential",
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "94a2db42-f4ba-41cb-9b3f-0d6cdfb90466",
+      "hardwareVersion": 1
      }
     },
     {
@@ -13256,7 +14405,9 @@
        }
       ],
       "conflictResolution": "merge",
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "99ccca1a-66a4-4fc3-b96c-9539873e9c17",
+      "hardwareVersion": 1
      }
     },
     {
@@ -13288,7 +14439,9 @@
        }
       ],
       "conflictResolution": "sequential",
-      "isReadOnly": true
+      "isReadOnly": true,
+      "familyId": "e320bcd3-cc6b-4dee-bbe8-f59cbc3d9cc3",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -13319,7 +14472,31 @@
       35,
       36,
       37
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       1,
+       2,
+       4,
+       5,
+       6,
+       10,
+       11,
+       12,
+       13,
+       17,
+       18,
+       19,
+       20,
+       26,
+       27,
+       28,
+       29,
+       35,
+       36,
+       37
+      ]
+     }
     },
     {
      "description": "Predefined lobe zone — frontal lobe, right hemisphere. Everything anterior to the central sulcus (the 50% C line) that is not lateral enough to be temporal. Midline sockets 2, 13 and 29 appear in both hemispheres.",
@@ -13347,7 +14524,31 @@
       38,
       39,
       40
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       2,
+       3,
+       7,
+       8,
+       9,
+       13,
+       14,
+       15,
+       16,
+       21,
+       22,
+       23,
+       24,
+       29,
+       30,
+       31,
+       32,
+       38,
+       39,
+       40
+      ]
+     }
     },
     {
      "description": "Predefined lobe zone — temporal lobe, left hemisphere. The outermost socket of each row that reaches the temporal line, across the lobe's front-to-back extent (F7/T3 junction at 35% back to T5/P5 at 78%) — rows r2 to r8. No midline socket: the temporal lobe never crosses the midline.",
@@ -13360,7 +14561,16 @@
       42,
       51,
       59
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       25,
+       34,
+       42,
+       51,
+       59
+      ]
+     }
     },
     {
      "description": "Predefined lobe zone — temporal lobe, right hemisphere. The outermost socket of each row that reaches the temporal line, across the lobe's front-to-back extent (F7/T3 junction at 35% back to T5/P5 at 78%) — rows r2 to r8. No midline socket: the temporal lobe never crosses the midline.",
@@ -13373,7 +14583,16 @@
       50,
       58,
       65
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       33,
+       41,
+       50,
+       58,
+       65
+      ]
+     }
     },
     {
      "description": "Predefined lobe zone — parietal lobe, left hemisphere. Between the central sulcus (50%) and the parieto-occipital sulcus (80%), excluding the lateral sockets that belong to the temporal lobe. Midline sockets 46 and 62 appear in both hemispheres.",
@@ -13394,7 +14613,24 @@
       66,
       67,
       68
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       43,
+       44,
+       45,
+       46,
+       52,
+       53,
+       54,
+       60,
+       61,
+       62,
+       66,
+       67,
+       68
+      ]
+     }
     },
     {
      "description": "Predefined lobe zone — parietal lobe, right hemisphere. Between the central sulcus (50%) and the parieto-occipital sulcus (80%), excluding the lateral sockets that belong to the temporal lobe. Midline sockets 46 and 62 appear in both hemispheres.",
@@ -13415,7 +14651,24 @@
       69,
       70,
       71
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       46,
+       47,
+       48,
+       49,
+       55,
+       56,
+       57,
+       62,
+       63,
+       64,
+       69,
+       70,
+       71
+      ]
+     }
     },
     {
      "description": "Predefined lobe zone — occipital lobe, left hemisphere. Posterior to the parieto-occipital sulcus (80% of the nasion-inion arc). Socket 74 is Oz — the midline occipital address the photoparoxysmal halt depends on — and appears in both hemispheres.",
@@ -13428,7 +14681,16 @@
       74,
       77,
       78
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       72,
+       73,
+       74,
+       77,
+       78
+      ]
+     }
     },
     {
      "description": "Predefined lobe zone — occipital lobe, right hemisphere. Posterior to the parieto-occipital sulcus (80% of the nasion-inion arc). Socket 74 is Oz — the midline occipital address the photoparoxysmal halt depends on — and appears in both hemispheres.",
@@ -13441,7 +14703,16 @@
       76,
       79,
       80
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       74,
+       75,
+       76,
+       79,
+       80
+      ]
+     }
     },
     {
      "description": "Every socket on the helmet, temporal included.",
@@ -13529,7 +14800,91 @@
       78,
       79,
       80
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8,
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17,
+       18,
+       19,
+       20,
+       21,
+       22,
+       23,
+       24,
+       25,
+       26,
+       27,
+       28,
+       29,
+       30,
+       31,
+       32,
+       33,
+       34,
+       35,
+       36,
+       37,
+       38,
+       39,
+       40,
+       41,
+       42,
+       43,
+       44,
+       45,
+       46,
+       47,
+       48,
+       49,
+       50,
+       51,
+       52,
+       53,
+       54,
+       55,
+       56,
+       57,
+       58,
+       59,
+       60,
+       61,
+       62,
+       63,
+       64,
+       65,
+       66,
+       67,
+       68,
+       69,
+       70,
+       71,
+       72,
+       73,
+       74,
+       75,
+       76,
+       77,
+       78,
+       79,
+       80
+      ]
+     }
     },
     {
      "description": "Union of Frontal Left and Frontal Right — the frontal lobe, anterior to the central sulcus. Excludes the lateral temporal sockets 25, 33, 34 and 41.",
@@ -13574,7 +14929,48 @@
       38,
       39,
       40
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8,
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17,
+       18,
+       19,
+       20,
+       21,
+       22,
+       23,
+       24,
+       26,
+       27,
+       28,
+       29,
+       30,
+       31,
+       32,
+       35,
+       36,
+       37,
+       38,
+       39,
+       40
+      ]
+     }
     },
     {
      "description": "Union of Frontal, Temporal and Parietal (both hemispheres) — sockets 1-71, everything anterior to the parieto-occipital sulcus. This is the site list the PBM evidence calls 'whole-head': pbm_neuro_protocols.md §1 (Alzheimer's, Grade A) specifies 'bilateral frontal, temporal, parietal + midline' and §6 (chronic TBI, Grade B) specifies 'multi-site scalp (frontal/temporal/parietal)'. Neither enumerates occipital, so this zone deliberately excludes it; use 'All' only when every address really is intended. The frontal and parietal midline sockets (2, 13, 29, 46, 62) are included; the occipital midline socket (74, Oz) is not.",
@@ -13653,7 +15049,82 @@
       69,
       70,
       71
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8,
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17,
+       18,
+       19,
+       20,
+       21,
+       22,
+       23,
+       24,
+       25,
+       26,
+       27,
+       28,
+       29,
+       30,
+       31,
+       32,
+       33,
+       34,
+       35,
+       36,
+       37,
+       38,
+       39,
+       40,
+       41,
+       42,
+       43,
+       44,
+       45,
+       46,
+       47,
+       48,
+       49,
+       50,
+       51,
+       52,
+       53,
+       54,
+       55,
+       56,
+       57,
+       58,
+       59,
+       60,
+       61,
+       62,
+       63,
+       64,
+       65,
+       66,
+       67,
+       68,
+       69,
+       70,
+       71
+      ]
+     }
     },
     {
      "description": "Frontal Right with the three frontal midline sockets (2, 13, 29) omitted; every other Frontal Right socket is kept, including the half-pitch ones beside the midline. A DIS-INCLUSION zone in the sense of the PR #210 membership ruling: membership is inclusive by default, and the only way to narrow a zone is to author a narrower one — there is no runtime exclusion filter. Exists for protocols whose evidence base is genuinely right-hemisphere only; 04-memory-boost (Yao 2022, right F4) is the only such protocol today. scripts/sync-socket-map.ts holds this zone to exactly Frontal Right minus its x = 0 sockets. Re-cut 2026-09-29: until then this zone listed [3, 6, 9, 10, 14, 15, 18, 19], authored against a retired socket numbering, and four of those (6, 10, 18, 19) are left-hemisphere sockets. The contralateral-energy figures in NP-OPT-PSF-001 §4 (16.3% → 3.6%) were computed on that retired numbering; see the flag in that section for the figures on this list. The residual spill from the retained half-pitch sockets is optical diffusion and is irreducible by any addressing scheme, since the 1064nm spatial resolution floor at cortical depth is a ~26mm 10-90% edge-spread function.",
@@ -13678,7 +15149,28 @@
       38,
       39,
       40
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       3,
+       7,
+       8,
+       9,
+       14,
+       15,
+       16,
+       21,
+       22,
+       23,
+       24,
+       30,
+       31,
+       32,
+       38,
+       39,
+       40
+      ]
+     }
     },
     {
      "description": "Frontal Left with the three frontal midline sockets (2, 13, 29) omitted; every other Frontal Left socket is kept, including the half-pitch ones beside the midline. A DIS-INCLUSION zone in the sense of the PR #210 membership ruling. Exists for clinical-05-pbm-anxiety-wang (Wang 2023, left DLPFC only), which the lateralized-protocol audit flagged: the midline modules would put half their cortical energy into the right hemisphere (NP-OPT-PSF-001 §4). The residual spill from the retained half-pitch sockets has not been modelled for this zone or for 820nm.",
@@ -13703,7 +15195,28 @@
       35,
       36,
       37
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       1,
+       4,
+       5,
+       6,
+       10,
+       11,
+       12,
+       17,
+       18,
+       19,
+       20,
+       26,
+       27,
+       28,
+       35,
+       36,
+       37
+      ]
+     }
     },
     {
      "description": "Head sites for Parkinson's transcranial PBM. DERIVED FROM THE PROTOCOL, not from lobe boundaries: clinical-08-pbm-parkinsons.npps targets the head 'bilateral, midline over SMA/motor' (pbm_neuro_protocols.md §8, Grade C — Liebert 2021/2024) and explicitly not the whole vault, because whole-head irradiation would over-deliver well beyond the evidence. Primary motor cortex is the precentral gyrus at the central sulcus; the supplementary motor area is medial frontal just anterior to it. Row r4 sits at 39.3% of the nasion-inion arc — the precentral motor strip — and is the only row over the motor representation. This zone is that row (width 9) minus its two temporal sockets (25, 33), which are lateral to the motor representation: 26, 27, 28 (left), 29 (midline, over the SMA), 30, 31, 32 (right). Balanced bilateral with a midline site, exactly as the protocol requires. PROVISIONAL — final registration depends on gate REG-1 (NP-HEX-ZM-001 §7). Confirm against the shell CAD before any clinical dosing claim.",
@@ -13718,7 +15231,18 @@
       30,
       31,
       32
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       26,
+       27,
+       28,
+       29,
+       30,
+       31,
+       32
+      ]
+     }
     },
     {
      "description": "Union of Parietal Left/Right and Occipital Left/Right — everything posterior to the central sulcus that is not temporal.",
@@ -13759,7 +15283,44 @@
       78,
       79,
       80
-     ]
+     ],
+     "socketsByVersion": {
+      "1": [
+       43,
+       44,
+       45,
+       46,
+       47,
+       48,
+       49,
+       52,
+       53,
+       54,
+       55,
+       56,
+       57,
+       60,
+       61,
+       62,
+       63,
+       64,
+       66,
+       67,
+       68,
+       69,
+       70,
+       71,
+       72,
+       73,
+       74,
+       75,
+       76,
+       77,
+       78,
+       79,
+       80
+      ]
+     }
     }
    ],
    "conditions": [

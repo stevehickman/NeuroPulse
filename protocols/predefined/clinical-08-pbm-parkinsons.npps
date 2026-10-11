@@ -1,5 +1,7 @@
 protocol "PBM — Parkinson's (transcranial)" {
     id: "30000008-0000-0000-0000-000000000000"
+    family_id: "2d6dc9c0-ab36-46a8-8330-31b232b53673"
+    hardware_version: 1
     description: "Transcranial 810 + 660nm PBM over motor/midline for Parkinson's disease. Grade C. Daily / 6x week, ≥12 weeks. NOTE: the evidence pairs head PBM with NECK (vagus) and ABDOMEN (gut) light — those peripheral sites are NOT NeurOne device functions; this preset is the transcranial channel only."
     author: "NeurOne"
     version: "1.0"

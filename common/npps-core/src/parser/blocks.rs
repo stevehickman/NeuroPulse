@@ -292,6 +292,8 @@ impl Parser {
         let mut read_only: Option<bool> = None;
         let mut conditions: Option<Vec<String>> = None;
         let mut references: Option<Vec<Value>> = None;
+        let mut family_id: Option<String> = None;
+        let mut hardware_version: Option<u32> = None;
 
         while !self.try_brace() {
             self.skip_newlines();
@@ -315,6 +317,8 @@ impl Parser {
                 "conflict_resolution" => conflict_resolution = Value::String(self.read_string()?),
                 "conditions" => conditions = Some(self.read_tag_array()?),
                 "references" => references = Some(self.read_references()?),
+                "family_id" => family_id = Some(self.read_family_id()?),
+                "hardware_version" => hardware_version = Some(self.read_hardware_version()?),
                 _ => self.skip_value()?,
             }
             self.skip_newlines();
@@ -340,6 +344,12 @@ impl Parser {
         }
         if let Some(v) = references {
             c.insert("references".into(), Value::Array(v));
+        }
+        if let Some(id) = family_id {
+            c.insert("familyId".into(), json!(id));
+        }
+        if let Some(v) = hardware_version {
+            c.insert("hardwareVersion".into(), json!(v));
         }
         Ok(Value::Object(c))
     }
@@ -371,14 +381,101 @@ impl Parser {
         Ok(Value::Object(layer))
     }
 
+    /// A zone's `sockets:` value, validated against the lattice and returned as the canonical set.
+    fn read_zone_sockets(&mut self, name: &str) -> R<Vec<i64>> {
+        let line = self.cur().line;
+        let arr = self.read_generic_array()?;
+        let (sockets, invalid) = to_socket_set(&arr);
+        if !invalid.is_empty() {
+            let listed = invalid.iter().map(|v| describe_invalid(v)).collect::<Vec<_>>().join(", ");
+            return Err(ParseError::at(
+                format!(
+                    "zone \"{name}\": {listed} {} on this helmet — ids are whole numbers {NP_SOCKET_ID_MIN}–{NP_SOCKET_ID_MAX} \
+                     ({} sockets, numbered from {NP_SOCKET_NUMBERING_BASE})",
+                    if invalid.len() == 1 { "is not a socket" } else { "are not sockets" },
+                    NP_SOCKET_ID_MAX - NP_SOCKET_ID_MIN + 1,
+                ),
+                line,
+            ));
+        }
+        Ok(sockets)
+    }
+
+    /// `hardware_version N { sockets: [...] }` inside a zone: the sockets the zone selects on hardware version N
+    /// (`SWR-HV-05`). Returns the version and its canonical socket set.
+    fn parse_zone_version_block(&mut self, name: &str) -> R<(u32, Vec<i64>)> {
+        let line = self.cur().line;
+        let n = self.read_number()?;
+        if n.fract() != 0.0 || n < 1.0 || n > f64::from(u32::MAX) {
+            return Err(ParseError::at(
+                format!("zone \"{name}\": hardware_version must be a whole number of 1 or more, got {}", num_string(n)),
+                line,
+            ));
+        }
+        self.open_block()?;
+        let mut sockets: Option<Vec<i64>> = None;
+        while !self.try_brace() {
+            let key_line = self.cur().line;
+            let key = self.read_key_value()?;
+            match key.as_str() {
+                "sockets" => {
+                    if sockets.is_some() {
+                        return Err(ParseError::at(
+                            format!("zone \"{name}\": hardware_version {} lists sockets more than once", n as u32),
+                            key_line,
+                        ));
+                    }
+                    sockets = Some(self.read_zone_sockets(name)?);
+                }
+                other => {
+                    return Err(ParseError::at(
+                        format!(
+                            "zone \"{name}\": '{other}' is not a field of a hardware_version block — only 'sockets' is; \
+                             'types' and 'exclude_types' belong to the zone"
+                        ),
+                        key_line,
+                    ))
+                }
+            }
+            self.skip_newlines();
+        }
+        let Some(sockets) = sockets else {
+            return Err(ParseError::at(format!("zone \"{name}\": hardware_version {} has no 'sockets' list", n as u32), line));
+        };
+        Ok((n as u32, sockets))
+    }
+
     pub(super) fn parse_zone_block(&mut self) -> R<Value> {
         let name = self.block_name("zone")?;
         self.open_block()?;
         let mut zone = Map::new();
         zone.insert("name".into(), json!(name));
-        zone.insert("sockets".into(), json!([]));
         zone.insert("isPredefined".into(), json!(false));
+        // The socket list for each hardware version, in the order the file gives them. A bare `sockets:` (the form
+        // every file had before hardware versions) is read as version 1 (`SWR-HV-07`: version 1 is the only one that
+        // exists), so an existing zone file needs no rewrite to be read; the serializer writes the versioned form.
+        let mut by_version: Vec<(u32, Vec<i64>)> = Vec::new();
+        let mut bare = false;
         while !self.try_brace() {
+            self.skip_newlines();
+            if self.is_word() && self.cur().text == "hardware_version" {
+                let line = self.cur().line;
+                self.advance();
+                let (version, sockets) = self.parse_zone_version_block(&name)?;
+                if bare {
+                    return Err(ParseError::at(
+                        format!("zone \"{name}\": a bare 'sockets' list is hardware version 1 and this zone also has a hardware_version block — use one form"),
+                        line,
+                    ));
+                }
+                if by_version.iter().any(|(v, _)| *v == version) {
+                    return Err(ParseError::at(format!("zone \"{name}\": hardware_version {version} is defined twice"), line));
+                }
+                by_version.push((version, sockets));
+                self.skip_newlines();
+                continue;
+            }
+            let key_line = self.cur().line;
             let key = self.read_key_value()?;
             match key.as_str() {
                 "id" => {
@@ -389,22 +486,16 @@ impl Parser {
                     zone.insert("description".into(), json!(self.read_string()?));
                 }
                 "sockets" => {
-                    let line = self.cur().line;
-                    let arr = self.read_generic_array()?;
-                    let (sockets, invalid) = to_socket_set(&arr);
-                    if !invalid.is_empty() {
-                        let listed = invalid.iter().map(|v| describe_invalid(v)).collect::<Vec<_>>().join(", ");
+                    if !by_version.is_empty() {
                         return Err(ParseError::at(
-                            format!(
-                                "zone \"{name}\": {listed} {} on this helmet — ids are whole numbers {NP_SOCKET_ID_MIN}–{NP_SOCKET_ID_MAX} \
-                                 ({} sockets, numbered from {NP_SOCKET_NUMBERING_BASE})",
-                                if invalid.len() == 1 { "is not a socket" } else { "are not sockets" },
-                                NP_SOCKET_ID_MAX - NP_SOCKET_ID_MIN + 1,
-                            ),
-                            line,
+                            format!("zone \"{name}\": a bare 'sockets' list is hardware version 1 and this zone also has a hardware_version block — use one form"),
+                            key_line,
                         ));
                     }
-                    zone.insert("sockets".into(), json!(sockets));
+                    // A second bare list replaces the first, as it always has.
+                    by_version.clear();
+                    bare = true;
+                    by_version.push((1, self.read_zone_sockets(&name)?));
                 }
                 "types" => {
                     let arr = self.read_generic_array()?;
@@ -417,6 +508,16 @@ impl Parser {
             }
             self.skip_newlines();
         }
+        by_version.sort_by_key(|(v, _)| *v);
+        // `sockets` stays the version 1 list, which is what every reader takes today; `socketsByVersion` is the whole
+        // map and is what a reader of another hardware version takes.
+        let v1 = by_version.iter().find(|(v, _)| *v == 1).map(|(_, s)| s.clone()).unwrap_or_default();
+        zone.insert("sockets".into(), json!(v1));
+        let mut map = Map::new();
+        for (v, s) in &by_version {
+            map.insert(v.to_string(), json!(s));
+        }
+        zone.insert("socketsByVersion".into(), Value::Object(map));
         Ok(Value::Object(zone))
     }
 

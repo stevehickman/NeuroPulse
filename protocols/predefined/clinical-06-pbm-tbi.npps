@@ -1,5 +1,7 @@
 protocol "PBM — TBI (chronic) + Intranasal (Naeser 2011/2014)" {
     id: "30000006-0000-0000-0000-000000000000"
+    family_id: "2ad87fa5-0581-41e7-9ae5-f34052ed8ccc"
+    hardware_version: 1
     description: "Multi-site scalp 810nm PBM plus bilateral intranasal for chronic traumatic brain injury / post-concussion syndrome. Grade B. 3x/week, 6+ weeks. Chronic > acute."
     author: "NeurOne"
     version: "1.0"

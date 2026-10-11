@@ -485,6 +485,11 @@ export interface NPProtocolDefinition {
   // Metadata: neither reaches the hub.
   sessionsPerWeek?: number;
   courseWeeks?: number;
+  // Identity metadata (`family_id`, `hardware_version`; SWR-FM-01, SWR-HV-01). The family id is a 128-bit id as UUID
+  // text: one authored protocol, across its variants for each hardware version. It is not part of the content hash and
+  // is not sent to the helmet. The hardware version is the layout the protocol's sockets are addressed on.
+  familyId?: string;
+  hardwareVersion?: number;
 }
 
 // ─── Reference links ───────────────────────────────────────────────────────────
@@ -517,7 +522,10 @@ export interface NPZoneDefinition {
   name: string;
   id?: string;
   description?: string;
-  sockets: number[];        // socket (major) addresses — the modules in this zone
+  sockets: number[];        // socket (major) addresses — the modules in this zone on hardware version 1
+  // The socket list for each hardware version the zone supports, keyed by version (SWR-HV-05). `sockets` is the
+  // version 1 entry; a reader of another version takes this.
+  socketsByVersion?: Record<string, number[]>;
   types?: NPElementType[];  // optional element-type filter within those modules
   excludeTypes?: boolean;   // false: include only `types`; true: exclude them
   isPredefined?: boolean;
@@ -558,6 +566,11 @@ export interface NPCompositeProtocol {
   conflictResolution: 'merge' | 'sequential' | 'override';
   conditions?: string[];
   references?: NPProtocolReference[];
+  // Identity metadata (`family_id`, `hardware_version`; SWR-FM-01, SWR-HV-01). The family id is a 128-bit id as UUID
+  // text: one authored protocol, across its variants for each hardware version. It is not part of the content hash and
+  // is not sent to the helmet. The hardware version is the layout the protocol's sockets are addressed on.
+  familyId?: string;
+  hardwareVersion?: number;
 }
 
 // ─── Entry union ───────────────────────────────────────────────────────────────

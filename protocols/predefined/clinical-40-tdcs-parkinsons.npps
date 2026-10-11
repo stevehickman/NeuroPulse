@@ -1,5 +1,7 @@
 protocol "tDCS — Parkinson's (M1 / DLPFC)" {
     id: "30000040-0000-0000-0000-000000000000"
+    family_id: "fa64b8fa-d89c-45f0-b4dd-0260af1137bb"
+    hardware_version: 1
     description: "Anodal M1-leg for gait/freezing or DLPFC for executive/depression; multitarget > single. 2mA, 13–20 min. Grade C."
     author: "NeurOne"
     version: "1.0"

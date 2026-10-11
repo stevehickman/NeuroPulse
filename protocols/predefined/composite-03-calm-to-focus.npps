@@ -1,5 +1,7 @@
 composite "Calm to Focus" {
     id: "10000102-0000-0000-0000-000000000000"
+    family_id: "99ccca1a-66a4-4fc3-b96c-9539873e9c17"
+    hardware_version: 1
     description: "Transitions from alpha calm to focused beta. Layers overlap for 2 minutes, allowing smooth frequency transition from 10Hz to 20Hz."
     author: "NeurOne"
     version: "1.0"

@@ -1,5 +1,7 @@
 protocol "PBM — Alzheimer's (Chun 2026, 808nm high-irradiance)" {
     id: "30000053-0000-0000-0000-000000000000"
+    family_id: "9c826e2b-f480-4a1d-82b1-3ce85bfdd11e"
+    hardware_version: 1
     description: "Whole-vault 808nm pulsed PBM for Alzheimer's / dementia at the parameters of Chun 2026 (double-blind, n=26): 0.3 W/cm², 11 min, 72 sessions over 12 weeks; MoCA +3.87 vs −0.74 (p<0.001). Grade A. This is the only §1 trial that states an IRRADIANCE — its companion protocol (Woźniak-Mitał 2026) states total power only, from which no mW/cm² follows."
     author: "NeurOne"
     version: "1.0"

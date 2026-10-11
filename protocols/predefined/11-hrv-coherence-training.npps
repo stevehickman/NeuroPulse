@@ -1,5 +1,7 @@
 protocol "HRV Coherence Training" {
     id: "1000000B-0000-0000-0000-000000000000"
+    family_id: "aba80ec3-e974-4bf3-a9b4-cf3aaab821aa"
+    hardware_version: 1
     description: "Standalone HRV coherence training with resonance breathing pacer. Bone conduction delivers the breathing cue. Evidence: meta-analysis 24 RCTs (d=0.83 anxiety reduction)."
     author: "NeurOne"
     version: "1.0"

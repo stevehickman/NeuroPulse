@@ -1,5 +1,7 @@
 protocol "tACS — Working Memory (theta 6Hz)" {
     id: "30000041-0000-0000-0000-000000000000"
+    family_id: "ccc8d480-9c64-485c-aaa5-79e18d0d214e"
+    hardware_version: 1
     description: "Frontoparietal theta (~6Hz) tACS delivered in-phase to improve working memory (in-phase ↑, anti-phase ↓). Grade A/B — strongest tACS evidence."
     author: "NeurOne"
     version: "1.0"

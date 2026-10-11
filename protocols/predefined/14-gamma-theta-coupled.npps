@@ -1,5 +1,7 @@
 protocol "Gamma + Theta Coupled" {
     id: "1000000E-0000-0000-0000-000000000000"
+    family_id: "3a952e64-b1c4-4045-8310-47505327e871"
+    hardware_version: 1
     description: "Simultaneous 40Hz front-zone PBM and 6Hz rear-zone PBM with gamma-theta EEG coupling, binaural + isochronic audio, 40Hz visual entrainment, and BES."
     author: "NeurOne"
     version: "1.0"

@@ -1,5 +1,7 @@
 protocol "PBM — Mild Cognitive Impairment (Papi 2022)" {
     id: "30000002-0000-0000-0000-000000000000"
+    family_id: "e993cd52-ebfa-4e21-9497-83d63182a093"
+    hardware_version: 1
     description: "Prefrontal 810nm pulsed 40Hz transcranial PBM for mild cognitive impairment. Grade A. 3–5x/week, 6–12 weeks."
     author: "NeurOne"
     version: "1.0"

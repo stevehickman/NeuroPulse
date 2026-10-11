@@ -1,5 +1,7 @@
 protocol "taVNS — Anxiety" {
     id: "30000022-0000-0000-0000-000000000000"
+    family_id: "7070caa5-9f2b-45e8-840c-bdcad18360f6"
+    hardware_version: 1
     description: "Auricular taVNS (cymba conchae), 20Hz, 4–6mA, 30 min x2/day, 8 weeks, for generalized anxiety. Grade B."
     author: "NeurOne"
     version: "1.0"

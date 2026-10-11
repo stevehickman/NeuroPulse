@@ -1,5 +1,7 @@
 protocol "taVNS — Epilepsy" {
     id: "30000019-0000-0000-0000-000000000000"
+    family_id: "5d3fbbfc-431e-4a18-8316-c1e0ade1cc44"
+    hardware_version: 1
     description: "Auricular taVNS (cymba conchae), 20–30Hz, ≥1–4 h/day, for epilepsy. Grade B (taVNS) / A (implanted reference). Efficacy accrues over months."
     author: "NeurOne"
     version: "1.0"

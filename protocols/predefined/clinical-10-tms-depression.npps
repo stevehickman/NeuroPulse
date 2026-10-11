@@ -1,5 +1,7 @@
 protocol "TMS — Depression (L-DLPFC 10Hz)" {
     id: "30000010-0000-0000-0000-000000000000"
+    family_id: "5954d826-7b13-4276-ac76-fa2e5c252458"
+    hardware_version: 1
     description: "Figure-8 rTMS, left DLPFC, 10Hz, 120% RMT, 3000 pulses. FDA-cleared workhorse for MDD. Grade A. 20–30 sessions over 4–6 weeks."
     author: "NeurOne"
     version: "1.0"

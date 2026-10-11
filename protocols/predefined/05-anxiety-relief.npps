@@ -1,5 +1,7 @@
 protocol "Anxiety Relief" {
     id: "10000005-0000-0000-0000-000000000000"
+    family_id: "87593870-ea5d-4b18-bcd8-66dad8ab1442"
+    hardware_version: 1
     description: "Multi-modal anxiety reduction combining VNS, HRV coherence training, alpha PBM, and resonance breathing. Based on 24-RCT meta-analysis (d=0.83 anxiety reduction)."
     author: "NeurOne"
     version: "1.0"

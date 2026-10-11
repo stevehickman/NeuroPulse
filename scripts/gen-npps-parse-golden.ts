@@ -49,6 +49,19 @@ export const ERROR_CASES: Record<string, string> = {
   bad_top_level: 'banana "T" {}\n',
   zone_bad_sockets: 'zone "Z" {\n  sockets: [0, 99, "x", 2.5, true, 3]\n}\n',
   zone_one_bad_socket: 'zone "Z" {\n  sockets: [1, 81]\n}\n',
+  family_id_not_an_id: 'protocol "T" {\n  family_id: "not-an-id"\n}\n',
+  family_id_wrong_grouping: 'protocol "T" {\n  family_id: "0123456789abcdef0123456789abcdef"\n}\n',
+  hardware_version_zero: 'protocol "T" {\n  hardware_version: 0\n}\n',
+  hardware_version_fraction: 'protocol "T" {\n  hardware_version: 1.5\n}\n',
+  hardware_version_text: 'protocol "T" {\n  hardware_version: "1"\n}\n',
+  composite_family_id_not_an_id: 'composite "C" {\n  family_id: "x"\n}\n',
+  zone_version_zero: 'zone "Z" {\n  hardware_version 0 {\n    sockets: [1]\n  }\n}\n',
+  zone_version_twice: 'zone "Z" {\n  hardware_version 1 {\n    sockets: [1]\n  }\n  hardware_version 1 {\n    sockets: [2]\n  }\n}\n',
+  zone_bare_then_version: 'zone "Z" {\n  sockets: [1]\n  hardware_version 1 {\n    sockets: [1]\n  }\n}\n',
+  zone_version_then_bare: 'zone "Z" {\n  hardware_version 1 {\n    sockets: [1]\n  }\n  sockets: [1]\n}\n',
+  zone_version_without_sockets: 'zone "Z" {\n  hardware_version 1 {\n  }\n}\n',
+  zone_version_other_field: 'zone "Z" {\n  hardware_version 1 {\n    sockets: [1]\n    types: [led_660]\n  }\n}\n',
+  zone_version_bad_socket: 'zone "Z" {\n  hardware_version 2 {\n    sockets: [81]\n  }\n}\n',
   zone_hex_socket: 'zone "Z" {\n  sockets: ["0x10"]\n}\n',
   zone_no_name: 'zone {\n  sockets: [1]\n}\n',
   condition_no_name: 'condition {\n  link: "http://x"\n}\n',
@@ -104,6 +117,10 @@ export const OK_CASES: Record<string, string> = {
   every_modality_defaults: ['pbm_intranasal', 'eeg_neurofeedback', 'bes_tacs', 'tdcs', 'vns_hrv', 'visual_stimulation', 'qeeg_21ch', 'tms', 'clinical_tacs', 'hd_tdcs', 'cervical_vns', 'vibrotactile_40hz']
     .map(t => (t === 'pbm_intranasal' ? blk(t, '    wavelength: "660nm"\n    irradiance: 30mW_cm2') : blk(t, ''))).join('\n'),
   deep_defaults: blk('pbm_deep_1170nm', ''),
+  metadata_identity: 'protocol "I" {\n  id: "11111111-2222-3333-4444-555555555555"\n  family_id: "0123ABCD-4567-4def-8901-23456789abcd"\n  hardware_version: 1\n  version: "1.0"\n}\n',
+  composite_identity: 'composite "C" {\n  family_id: "01234567-89ab-4def-8901-23456789abcd"\n  hardware_version: 3\n}\n',
+  zone_versioned: 'zone "Z" {\n  id: "zid"\n  hardware_version 2 {\n    sockets: [9, 8]\n  }\n  hardware_version 1 {\n    sockets: [5, 3, 3]\n  }\n  types: [led_660]\n}\n',
+  zone_version_bare_is_one: 'zone "Z" {\n  sockets: [5, 3]\n}\n',
   metadata_everything: 'protocol "M" {\n  id: "11111111-2222-3333-4444-555555555555"\n  description: "d"\n  author: "a"\n  version: "2"\n  readonly: true\n  tags: [alpha, "x y", 40Hz]\n  interval_count: 4\n  conditions: ["c1", c2]\n  references: ["http://a", ["L", "http://b"], ["only"]]\n  unknown_field: [1, [2, 3]]\n}\n',
 };
 
@@ -115,7 +132,7 @@ function normaliseProtocol(p: any): any {
   out.modalities = p.modalities.map((m: any) => ({
     type: m.modalityParams.type, enabled: m.enabled, params: m.modalityParams.params, interval: m.interval,
   }));
-  for (const k of ['isReadOnly', 'conditions', 'references']) if (p[k] !== undefined) out[k] = p[k];
+  for (const k of ['isReadOnly', 'conditions', 'references', 'familyId', 'hardwareVersion']) if (p[k] !== undefined) out[k] = p[k];
   return out;
 }
 
@@ -126,7 +143,7 @@ function normaliseComposite(c: any): any {
   out.tags = c.tags; out.isPredefined = c.isPredefined;
   out.layers = c.layers.map(({ id: _id, ...layer }: any) => layer);
   out.conflictResolution = c.conflictResolution;
-  for (const k of ['isReadOnly', 'conditions', 'references']) if (c[k] !== undefined) out[k] = c[k];
+  for (const k of ['isReadOnly', 'conditions', 'references', 'familyId', 'hardwareVersion']) if (c[k] !== undefined) out[k] = c[k];
   return out;
 }
 
@@ -185,6 +202,16 @@ export const NAMESPACE_CASES: Record<string, string[]> = {
   dangling_zone_and_condition: [useSrc('P', ['Nope', 'Gone'], ['Missing']) + 'composite "K" {\n  conditions: ["AlsoMissing"]\n}\n'],
   duplicate_within_one_file: [zoneSrc('A', '1') + zoneSrc('A', '2')],
   empty: [],
+  // SWR-HV-05: a protocol for a hardware version names only zones that have a list for it.
+  zone_version_listed: [
+    'zone "A" {\n  hardware_version 1 {\n    sockets: [1]\n  }\n  hardware_version 2 {\n    sockets: [2]\n  }\n}\n',
+    'protocol "P" {\n  hardware_version: 2\n  pbm_transcranial {\n    wavelength: "808nm"\n    irradiance: 100mW_cm2\n    zones: ["A"]\n  }\n}\n',
+  ],
+  zone_version_missing: [
+    zoneSrc('A', '1'),
+    'protocol "P" {\n  hardware_version: 2\n  pbm_transcranial {\n    wavelength: "808nm"\n    irradiance: 100mW_cm2\n    zones: ["A"]\n  }\n}\n',
+  ],
+  no_hardware_version_not_checked: [zoneSrc('A', '1'), useSrc('P', ['A'], [])],
 };
 out.namespaces = {};
 for (const [name, srcs] of Object.entries(NAMESPACE_CASES)) {
