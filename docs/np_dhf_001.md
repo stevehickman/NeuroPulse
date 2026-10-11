@@ -164,7 +164,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 |---|---|---|---|---|---|---|
 | NP-SES-1064-001 | 1064nm Smart Zone Module — Session Protocol Specification | 3 | 2026-08-18 | [np_ses_1064_001.md](./np_ses_1064_001.md) | BASELINED | SES |
 | NP-APP-ISA-001 | Core iOS App ISA — Ideal State Artifact for Issue #51 | E4 | 2026-06-04 | [../app/ios/ISA.md](../app/ios/ISA.md) | ACTIVE | APP |
-| NP-APP-ROADMAP-001 | iOS App Development Roadmap | 5 | 2026-09-23 | [np_app_roadmap_001.md](./np_app_roadmap_001.md) | BASELINED | APP |
+| NP-APP-ROADMAP-001 | iOS App Development Roadmap | 6 | 2026-10-11 | [np_app_roadmap_001.md](./np_app_roadmap_001.md) | BASELINED | APP |
 | NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy | 2 | 2026-06-03 | [np_app_telemetry_001.md](./np_app_telemetry_001.md) | ACTIVE | APP |
 | NP-NPPS-REF-001 | NPPS Language Reference | 21 | 2026-10-11 | [np_npps_ref_001.md](./np_npps_ref_001.md) | ACTIVE | SES |
 | NP-API-001 | T2 Clinical Scripting API Specification | 1 | 2026-06-07 | [np_api_001.md](./np_api_001.md) | DRAFT | APP |

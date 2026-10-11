@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-APP-ROADMAP-001  
-**Revision:** 5
-**Date:** 2026-09-23  
+**Revision:** 6
+**Date:** 2026-10-11  
 **Status:** BASELINED  
 **Effective Date:** 2026-07-13  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -13,7 +13,7 @@
 **Gate:** —  
 **IEC 62304 Class:** —  
 **Supersedes:** NP-APP-ROADMAP-001 Rev 2  
-**Change Summary:** Rev 5 (2026-09-23) — §5 gains three optional T2 characteristics for `NP-SW-FAULTMSG-001`: `CVNS_FAULT_STATUS` (offline cervical faults, the hub re-enable state and the per-user cardiac flags), `CVNS_REENABLE_CONFIRM` (the wearer's `REQ-CVNS-09` confirmation) and `ACTIVE_USER` (the opaque profile tag). None is required, and no hub publishes them yet (`OI-WA-03`). Rev 4 (2026-09-22) — §5 gains `CVNS_PAD_STATUS` (T2, optional, NOTIFY 4 B): the cervical gel pad contact result with the side of the neck of each pad, so the phone app can tell the wearer which pad location failed (`OI-ACC-07`). Rev 3: Corrected a platform-fact error in the Watch Phase 3 haptic spec. Core Haptics (`CHHapticEngine`) does not exist on watchOS; the only watchOS haptic API is `WKInterfaceDevice.play(_:)`, which cannot render a continuous 40Hz waveform. Phase 3 on the Watch is rescoped from "40Hz continuous Core Haptics" to a low-rate **rhythmic session cue** (WKInterfaceDevice named haptic, explicitly not 40Hz, honestly labelled as a supplement per §3b/§15). True 40Hz Core Haptics is achievable only on iPhone (where the phone is the contact surface); therapeutic 40Hz vibrotactile remains the mastoid LRA pad. OI-WA-01 and OI-WA-04 superseded (no continuous Core Haptics path exists on watchOS to characterise); OI-WA-05 rescoped. §4.1 diagram + channel table, §4.2 Phase 3, §7/§10 open items updated. Rev 2 change (retained): §9 Privacy Constraints; HealthKit binding; age gate; BIPA release; adaptive transparency card; OI-WA-06, OI-PA-01..04.
+**Change Summary:** Rev 6 (2026-10-11) — §9.6 gives the onboarding rules §9.2 and §9.3 already make binding an ID each (`REQ-ONBOARD-01` to `-06`), so a test can name the rule it verifies (`scripts/req-trace.ts`). No requirement is added, changed or relaxed. Rev 5 (2026-09-23) — §5 gains three optional T2 characteristics for `NP-SW-FAULTMSG-001`: `CVNS_FAULT_STATUS` (offline cervical faults, the hub re-enable state and the per-user cardiac flags), `CVNS_REENABLE_CONFIRM` (the wearer's `REQ-CVNS-09` confirmation) and `ACTIVE_USER` (the opaque profile tag). None is required, and no hub publishes them yet (`OI-WA-03`). Rev 4 (2026-09-22) — §5 gains `CVNS_PAD_STATUS` (T2, optional, NOTIFY 4 B): the cervical gel pad contact result with the side of the neck of each pad, so the phone app can tell the wearer which pad location failed (`OI-ACC-07`). Rev 3: Corrected a platform-fact error in the Watch Phase 3 haptic spec. Core Haptics (`CHHapticEngine`) does not exist on watchOS; the only watchOS haptic API is `WKInterfaceDevice.play(_:)`, which cannot render a continuous 40Hz waveform. Phase 3 on the Watch is rescoped from "40Hz continuous Core Haptics" to a low-rate **rhythmic session cue** (WKInterfaceDevice named haptic, explicitly not 40Hz, honestly labelled as a supplement per §3b/§15). True 40Hz Core Haptics is achievable only on iPhone (where the phone is the contact surface); therapeutic 40Hz vibrotactile remains the mastoid LRA pad. OI-WA-01 and OI-WA-04 superseded (no continuous Core Haptics path exists on watchOS to characterise); OI-WA-05 rescoped. §4.1 diagram + channel table, §4.2 Phase 3, §7/§10 open items updated. Rev 2 change (retained): §9 Privacy Constraints; HealthKit binding; age gate; BIPA release; adaptive transparency card; OI-WA-06, OI-PA-01..04.
 
 ---
 
@@ -272,6 +272,19 @@ The Session History screen must include an "Adaptive Adjustments" card for any s
 ### 9.5 SDK initialisation gate (NP-APP-TELEMETRY-001 Rev 2 §5)
 
 No analytics or crash reporting SDK may initialise before the consent flow is complete. See NP-APP-TELEMETRY-001 Rev 2 for full requirements. The `engagement_tier` property (coarsened 3-bucket enum) replaces any raw session counter in all analytics events.
+
+### 9.6 Requirements
+
+*(Rev 6.)* Each row states a rule §9.2 or §9.3, or `NP-HFE-001` CT-06, already makes binding; the ID only makes it citable. A test names the row it verifies with `@verifies REQ-ONBOARD-NN` (`scripts/req-trace.ts`); where a row lists (a), (b), (c), a test claims a part with `@verifies REQ-ONBOARD-NN#b`. Every row binds the iOS and Android apps.
+
+| ID | Requirement | What fails if it is not met | Traced to | Verification |
+|---|---|---|---|---|
+| **`REQ-ONBOARD-01`** | **The age declaration comes first and cannot be skipped.** (a) The consent flow presents "I confirm I am 16 years of age or older" before any personal data is collected or any consent is presented. (b) The checkbox is not pre-ticked. (c) The flow cannot proceed while it is unchecked. (d) No verification beyond the declaration is required | A pre-ticked box is a GDPR dark pattern; consent collected from a user who has not declared the age threshold is consent the app cannot rely on | §9.2; `NP-PRIV-001` Rev 2 MEDIUM-03 | Test |
+| **`REQ-ONBOARD-02`** | **The biometric written release is its own screen and is shown to every user.** (a) It is a separate screen, not bundled with general consent. (b) It is shown to every user regardless of location, with no IP, locale or state detection | BIPA 740 ILCS 14/15(b)(1)–(3) requires a written release for biometric information. Detecting a user's state to decide whether to show it fails the user the detection misjudges, and the control also serves GDPR Art. 9 and WA MHMD | §9.3; `NP-PRIV-001` HIGH-01; OI-PA-03 (resolved) | Test; inspection that no location detection remains |
+| **`REQ-ONBOARD-03`** | **The release states what it collects and what NeurOne will not do.** The copy gives the purpose, the retention, the destruction method, that NeurOne will not sell, lease or profit from brainwave data, and that it will not share it with third parties without separate consent except as required by law. Its text lives in the locale files | BIPA 15(b) requires the purpose and length of retention to be disclosed in writing; a release without them is not informed | §9.3; CLAUDE.md §17 | Test that every localization key exists; inspection of the copy |
+| **`REQ-ONBOARD-04`** | **The onboarding order is age gate, biometric release, then research consent, as four distinct steps.** Research consent (L1 to L4) is not presented until the biometric release has been answered | The release is a precondition for collecting EEG; research consent presented before it asks the user to share data the app has not yet been authorised to collect | §9.2, §9.3; `NP-HFE-001` CT-06 | Test |
+| **`REQ-ONBOARD-05`** | **Declining the biometric release disables what depends on EEG and nothing else.** (a) EEG neurofeedback and closed-loop adaptive stimulation are unavailable, including EEG-adaptive audio. (b) PBM, VNS, audio entrainment and visual stimulation that do not depend on EEG remain available. (c) A protocol that needs EEG is available once the release is accepted | Collecting EEG without the release is the harm BIPA addresses; disabling more than the EEG-dependent features punishes a user for declining | §9.3; CLAUDE.md §3 (modality roster) | Test |
+| **`REQ-ONBOARD-06`** | **The release answer is recorded and is what the EEG gate reads.** (a) Accepting records the screen as shown and accepted; declining records it as shown and not accepted; the two callbacks are independent. (b) EEG consent is granted exactly when the release was accepted. (c) The protocol library's gate reads the persisted answer, so a relaunch does not reset it | A gate that reads anything other than the recorded answer enables EEG on a user who declined, or disables it on one who accepted | §9.3 | Test |
 
 ---
 

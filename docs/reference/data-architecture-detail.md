@@ -88,3 +88,15 @@ All anonymization of UHDR data for research purposes must occur **on-device**, w
 
 ---
 
+---
+
+### 5.4 Requirements — SHDR upload
+
+*(Added 2026-10-11.)* Each row states a rule CLAUDE.md §5.1, §6.0 or the `SHDRUploader` banner already makes binding; the ID only makes it citable. A test names the row it verifies with `@verifies REQ-SHDR-NN` (`scripts/req-trace.ts`); where a row lists (a), (b), (c), a test claims a part with `@verifies REQ-SHDR-NN#b`. Every row binds the iOS and Android uploaders. The consent-independence of the two gates is `REQ-CONSENT-01`, not repeated here.
+
+| ID | Requirement | What fails if it is not met | Traced to | Verification |
+|---|---|---|---|---|
+| **`REQ-SHDR-01`** | **An upload happens only when all three conditions hold.** (a) The hub has signalled a pending upload (`SHDR_UPLOAD_STATUS` 0x01). (b) The warranty owner has consented to fleet telemetry. (c) A USB-C connection is present. A false pending value does not trigger an upload | SHDR reaches the fleet database without the warranty owner's consent, or over a connection the design excludes | CLAUDE.md §5.1 ("uploaded to the fleet database on USB-C connect, with warranty-owner consent"); `SHDRUploader` banner | Test |
+| **`REQ-SHDR-02`** | **The record is linked to the device by an opaque warranty token and to nothing else.** (a) The only identity in the request is the 256-bit TRNG warranty token (`X-NP-Device-Token`, 64 hex characters); a token of any other length is rejected. (b) No platform or vendor identifier (`identifierForVendor` and its equivalents) is read or sent | A fleet record linked to a user identity makes SHDR something about the person, which is UHDR (CLAUDE.md §5.1's defining test) and which NeurOne may never access | CLAUDE.md §5.1; `NP-FW-EMMC-002` Rev A §A (no-join rule) | Test |
+| **`REQ-SHDR-03`** | **The uploader sees device condition and nothing else.** (a) It reads only the SHDR staging file (`shdr_staging.bin`) the hub delivers. (b) It names no UHDR element. (c) The request body is the staging blob as delivered; the uploader builds no JSON body and adds no field. (d) The staging file is excluded from backup and removed after a successful upload | An uploader that touches UHDR, or composes a body, can carry user biology to NeurOne's fleet database; a staging file left in a backup copies device records beyond the device | CLAUDE.md §5.1 (NeurOne access to UHDR: NEVER); `SHDRUploader` banner | Test for (a) to (c); inspection for (d) |
+| **`REQ-SHDR-04`** | **The upload endpoint is pinned.** The app refuses any TLS handshake whose leaf certificate's SPKI SHA-256 is not in the pinned set, which holds a primary and at least one backup key. **Not met today:** the pinned hashes are placeholders (the banner's pre-launch actions) | A man in the middle on a clinical network receives, or alters, the fleet record | `NP-PRIV-ANALYSIS-002` LOW-11 | Test of the delegate with a mismatched key; inspection that the shipped hashes are real |
