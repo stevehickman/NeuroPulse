@@ -315,6 +315,14 @@ uint8_t np_safety_spi_get_tier(void);
 bool    np_safety_spi_get_tier_report(uint8_t *reason_out, bool *refused_out);
 
 /*
+ * np_safety_spi_get_hardware_version — the helmet hardware version (1..15) the
+ * safety MCU read from its verified tier record (SWR-HV-06).  The one
+ * main-processor function that returns it.  1 until a valid report arrives and
+ * whenever the MCU had no verified record (SWR-HV-07); independent of the tier.
+ */
+uint8_t np_safety_spi_get_hardware_version(void);
+
+/*
  * np_safety_spi_send_channel_limits — deliver per-channel electrode geometry to
  * the safety MCU via a 34-byte command frame (OI-CHARGE-02).
  *
