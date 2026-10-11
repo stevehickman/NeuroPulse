@@ -53,6 +53,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
     /// The exact bytes. This is the contract Android's `StudyDescriptorCanonicalForm.bytes`
     /// reproduces character for character; describing it in prose on both sides is how two
     /// implementations drift.
+    // @verifies REQ-CONSENT-10#d
     func testTheCanonicalFormIsExactlyThis() {
         let bytes = StudyDescriptorCanonicalForm.bytes(
             for: descriptor(
@@ -84,6 +85,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
         XCTAssertEqual(StudyDescriptorCanonicalForm.day(from: lateUTC), "2026-09-14")
     }
 
+    // @verifies REQ-CONSENT-10#d
     func testElementOrderDoesNotChangeTheBytes() {
         // Set has no inherent order; the encoding must impose one.
         let a = descriptor(elements: [.eegWaveforms, .outcomeLogs])
@@ -95,6 +97,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
     /// Why fields are length-prefixed rather than delimited: `studyTitle` is server-supplied text,
     /// so it can contain the separator. Two different descriptors must never share bytes, or one
     /// signature covers both.
+    // @verifies REQ-CONSENT-10#d
     func testATitleCarryingTheSeparatorCannotForgeAnotherDescriptor() {
         XCTAssertNotEqual(
             StudyDescriptorCanonicalForm.bytes(for: descriptor(studyID: "S1", studyTitle: "Trial")),
@@ -122,6 +125,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
     }
 
     /// Every field is covered: tampering with any of them must break the signature.
+    // @verifies REQ-CONSENT-10#a
     func testTamperingWithAnyCoveredFieldRejects() throws {
         let base = try signed(descriptor())
         let v = try verifier
@@ -145,6 +149,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-CONSENT-10#b
     func testADescriptorSignedByAnotherKeyIsRejected() throws {
         let other = Curve25519.Signing.PrivateKey()
         var d = descriptor()
@@ -166,6 +171,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
 
     /// A build with no key, or a broken one, falls back to having no verifier at all — and so to
     /// `RefusingStudyDescriptorVerifier` — rather than to one that fails at the first descriptor.
+    // @verifies REQ-CONSENT-10#c
     func testAnAbsentOrUnusableKeyYieldsNoVerifierAtAll() {
         XCTAssertNil(Ed25519StudyDescriptorVerifier(publicKeyBase64: nil))
         XCTAssertNil(Ed25519StudyDescriptorVerifier(publicKeyBase64: ""))

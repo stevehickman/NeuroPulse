@@ -63,6 +63,7 @@ class StudyDescriptorSigningTests {
      * `StudyDescriptorCanonicalForm.bytes(for:)` has to reproduce character for character, and
      * describing it in prose on both sides is how two implementations drift.
      */
+    // @verifies REQ-CONSENT-10#d
     @Test
     fun theCanonicalFormIsExactlyThis() {
         val bytes = StudyDescriptorCanonicalForm.bytes(
@@ -90,6 +91,7 @@ class StudyDescriptorSigningTests {
     }
 
     /** The signature must not depend on which order a Set happened to iterate in. */
+    // @verifies REQ-CONSENT-10#d
     @Test
     fun elementOrderDoesNotChangeTheBytes() {
         val a = descriptor(elements = linkedSetOf(UHDRElement.EEG_WAVEFORMS, UHDRElement.OUTCOME_LOGS))
@@ -105,6 +107,7 @@ class StudyDescriptorSigningTests {
      * text, so it can contain the separator. Two different descriptors must never produce the same
      * bytes, or one signature covers both.
      */
+    // @verifies REQ-CONSENT-10#d
     @Test
     fun aTitleCarryingTheSeparatorCannotForgeAnotherDescriptor() {
         val honest = descriptor(studyId = "S1", studyTitle = "Trial")
@@ -138,6 +141,7 @@ class StudyDescriptorSigningTests {
     }
 
     /** Every field is covered: tampering with any of them must break the signature. */
+    // @verifies REQ-CONSENT-10#a
     @Test
     fun tamperingWithAnyCoveredFieldRejects()  {
         val signed = sign(descriptor())
@@ -165,6 +169,7 @@ class StudyDescriptorSigningTests {
      * signature catches it first, so the descriptor is refused as forged rather than as
      * out-of-range — nothing an unverified descriptor claims influences a later step.
      */
+    // @verifies REQ-CONSENT-10#b
     @Test
     fun aDescriptorSignedByAnotherKeyIsRejected() {
         val other = KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
@@ -201,6 +206,7 @@ class StudyDescriptorSigningTests {
     }
 
     /** A build with no key, or a broken one, falls back to refusing rather than to a thrower. */
+    // @verifies REQ-CONSENT-10#c
     @Test
     fun anAbsentOrUnusableKeyYieldsNoVerifierAtAll() {
         assertNull(Ed25519StudyDescriptorVerifier.fromBase64(null))

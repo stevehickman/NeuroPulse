@@ -53,6 +53,7 @@ final class ConsentEngineTests: XCTestCase {
 
     // MARK: - Use-case minimum-necessary union
 
+    // @verifies REQ-CONSENT-15#a
     func testMinimumNecessaryUnion() {
         // adherence_monitoring (Monitor) + eeg_review (Assess) → union of both element sets.
         let selected: Set<String> = ["adherence_monitoring", "eeg_review"]
@@ -77,6 +78,7 @@ final class ConsentEngineTests: XCTestCase {
 
     // MARK: - Research tier
 
+    // @verifies REQ-CONSENT-15#c
     func testResearchTierElementsAreEmpty() {
         // Research tier is IRB-defined per study; the base tier grants nothing.
         XCTAssertTrue(
@@ -107,6 +109,7 @@ final class ConsentEngineTests: XCTestCase {
         XCTAssertTrue(elements.contains(.pbmDoseLogs))
     }
 
+    // @verifies REQ-CONSENT-15#a
     func testMinimumNecessaryAllThreeUseCases_equalUnionOfAll() {
         let allIDs: Set<String> = ["adherence_monitoring", "eeg_review", "hrv_outcomes"]
         let union = ConsentEngine.minimumNecessaryElements(for: allIDs)
@@ -127,6 +130,7 @@ final class ConsentEngineTests: XCTestCase {
 
     // MARK: - Irreversibility notice
 
+    // @verifies REQ-CONSENT-07
     func testIrreversibilityNoticePresent() {
         let notice = ConsentEngine.irreversibilityNotice
         XCTAssertFalse(notice.isEmpty, "Irreversibility notice must be non-empty.")
@@ -191,6 +195,7 @@ final class ConsentEngineTests: XCTestCase {
     }
 
     // ISC-82 anti-pattern: minimumNecessaryElements never returns elements absent from selected use cases.
+    // @verifies REQ-CONSENT-15#a
     func testISC82_minimumNecessaryNeverOverGrants() {
         let allIDs = Set(USE_CASE_LIBRARY.map(\.id))
         let allExpected = USE_CASE_LIBRARY
@@ -237,6 +242,7 @@ final class ConsentEngineTests: XCTestCase {
 
     /// The defect the item was raised about: the form collected a use-case selection and built a
     /// grant from the tier, so two different answers produced the same access.
+    // @verifies REQ-CONSENT-15#a
     func testUseCaseSelectionNarrowsAccessBelowTheTierCeiling() {
         let narrow = ConsentEngine.initialAccessScope(
             useCaseIDs: ["adherence_monitoring"],
@@ -251,6 +257,7 @@ final class ConsentEngineTests: XCTestCase {
                           "Deriving from the tier instead of the selection is the OI-CONSENT-04 defect.")
     }
 
+    // @verifies REQ-CONSENT-15#b
     func testUseCasesOfferedAreCappedByTheTier() {
         XCTAssertEqual(ConsentEngine.useCases(availableFor: .monitor).map(\.id),
                        ["adherence_monitoring"])
@@ -264,6 +271,7 @@ final class ConsentEngineTests: XCTestCase {
 
     /// A caller that skips `useCases(availableFor:)` still cannot exceed the ceiling the
     /// subscription was sold at.
+    // @verifies REQ-CONSENT-15#b
     func testSelectionAboveTheTierIsClampedNotHonoured() {
         let scope = ConsentEngine.initialAccessScope(
             useCaseIDs: ["adherence_monitoring", "hrv_outcomes"],
@@ -276,6 +284,7 @@ final class ConsentEngineTests: XCTestCase {
                        "A Full Clinical use case must not deliver HRV through a Monitor grant.")
     }
 
+    // @verifies REQ-CONSENT-15#c
     func testResearchTierYieldsNoElementsWhateverIsSelected() {
         let scope = ConsentEngine.initialAccessScope(
             useCaseIDs: ["adherence_monitoring", "eeg_review", "hrv_outcomes"],
@@ -299,6 +308,7 @@ final class ConsentEngineTests: XCTestCase {
 
     // MARK: - OI-CONSENT-06: the two decisions stay apart on an initial grant
 
+    // @verifies REQ-CONSENT-16#a,b
     func testInitialScopeCarriesTheRetroactiveAnswerBothWays() {
         let now = Date()
         let forwardOnly = ConsentEngine.initialAccessScope(
@@ -315,6 +325,7 @@ final class ConsentEngineTests: XCTestCase {
 
     /// The point of the item: "widen it going forward, leave my earlier sessions alone" has to be
     /// representable on a FIRST grant, not only on an expansion.
+    // @verifies REQ-CONSENT-16#b
     func testForwardOnlyInitialGrantHidesEarlierSessions() {
         let now = Date()
         let earlier = now.addingTimeInterval(-86_400)
@@ -337,6 +348,7 @@ final class ConsentEngineTests: XCTestCase {
 
     /// A grant written before `OI-CONSENT-04`/`-06` keeps meaning what it meant: the tier's
     /// elements, from the grant date, prior data included.
+    // @verifies REQ-CONSENT-16#c
     func testPreWorkflowGrantStillFallsBackToTheTier() {
         let now = Date()
         let legacy = ClinicianConsentGrant(

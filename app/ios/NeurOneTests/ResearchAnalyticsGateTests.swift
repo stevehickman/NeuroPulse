@@ -37,11 +37,13 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // MARK: - Gate state
 
+    // @verifies REQ-CONSENT-14
     func testGateIsClosedWhenConsentKeyAbsent() {
         XCTAssertFalse(ResearchAnalyticsGate.isOpen,
                        "Gate must be closed when consent key has never been set")
     }
 
+    // @verifies REQ-CONSENT-14
     func testGateIsClosedWhenConsentKeyIsFalse() {
         UserDefaults.standard.set(false, forKey: consentKey)
         XCTAssertFalse(ResearchAnalyticsGate.isOpen)
@@ -52,6 +54,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
         XCTAssertTrue(ResearchAnalyticsGate.isOpen)
     }
 
+    // @verifies REQ-CONSENT-14
     func testGateDoesNotOpenOnOnboardingShownKey() {
         UserDefaults.standard.set(true, forKey: "np.onboarding.consent-shown")
         XCTAssertFalse(ResearchAnalyticsGate.isOpen,
@@ -68,6 +71,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
         XCTAssertEqual(PersistedKeys.RESEARCH_ANALYTICS_KEY, "np.research.consent-granted")
     }
 
+    // @verifies REQ-CONSENT-14
     func testSkipDoesNotOpenResearchAnalyticsGate() {
         UserDefaults.standard.set(true, forKey: "np.onboarding.consent-shown")
         XCTAssertFalse(ResearchAnalyticsGate.isOpen,
@@ -76,6 +80,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // MARK: - ISC-92: backend.configure() must not fire before gate opens
 
+    // @verifies REQ-CONSENT-14
     func testISC92_backendNotCalledWhenGateClosed() {
         ResearchAnalyticsGate.configure()
         XCTAssertEqual(spy.configureCallCount, 0,
@@ -106,6 +111,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // MARK: - track() no-ops when gate closed
 
+    // @verifies REQ-CONSENT-14
     func testTrackNoOpsWhenGateClosed() {
         XCTAssertFalse(ResearchAnalyticsGate.isOpen)
         ResearchAnalyticsGate.track(event: "test_event", properties: ["key": "value"])
@@ -142,6 +148,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // MARK: - Blanket research consent coupling
 
+    // @verifies REQ-CONSENT-02#b
     func testWithdrawBlanketResearchConsentRevokesResearchAnalytics() {
         // Open the gate and configure the SDK.
         UserDefaults.standard.set(true, forKey: consentKey)
@@ -161,6 +168,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
                        "backend.reset() must be called on blanket research consent withdrawal")
     }
 
+    // @verifies REQ-CONSENT-02#a
     func testWithdrawCategoryConsentDoesNotRevokeResearchAnalytics() {
         // Partial withdrawal (specific category) must NOT revoke research analytics
         // — the user remains a research participant in other categories.
@@ -195,6 +203,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
         return ConsentStore()
     }
 
+    // @verifies REQ-CONSENT-03#a
     func testCommitPathBlanketWithdrawalRevokesResearchAnalytics() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
@@ -217,6 +226,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
                        "backend.reset() must be called when the commit path revokes blanket consent")
     }
 
+    // @verifies REQ-CONSENT-03#b
     func testCommitPathCategoryOnlyEditDoesNotRevokeResearchAnalytics() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
@@ -240,6 +250,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
                        "backend.reset() must never be called for a category-only edit")
     }
 
+    // @verifies REQ-CONSENT-03#c
     func testCommitPathBlanketStaysOnDoesNotRevokeResearchAnalytics() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()

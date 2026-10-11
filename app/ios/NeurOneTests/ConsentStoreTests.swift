@@ -163,6 +163,7 @@ final class ConsentStoreTests: XCTestCase {
 
     /// The state of every device today, and the reason the verifier is injected rather than
     /// assumed: with no signing key nothing can be checked, so nothing is shown.
+    // @verifies REQ-CONSENT-09#a REQ-CONSENT-10#c
     func testWithNoVerifierConfiguredEveryDescriptorIsRefused() {
         let store = ConsentStore()            // production default
         store.updateResearchConsent(blanketConsent)
@@ -180,6 +181,7 @@ final class ConsentStoreTests: XCTestCase {
 
     /// §5.3 locks k≥10 and ≥1-week date rounding, and the device is the only place they can be
     /// checked. A study below the floor is not one the user may be *asked* about.
+    // @verifies REQ-CONSENT-09#b
     func testAnonymisationBelowTheLockedFloorIsRefused() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: blanketConsent)
         XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor(k: 9)),
@@ -191,12 +193,14 @@ final class ConsentStoreTests: XCTestCase {
 
     /// The signature is checked before anything the descriptor *claims*, so a forged descriptor
     /// asking for impossible anonymisation is refused as forged, not as out-of-range.
+    // @verifies REQ-CONSENT-09#a
     func testSignatureIsCheckedBeforeTheDescriptorsOwnClaims() {
         let store = makeStore(verification: .rejected, consent: blanketConsent)
         XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor(k: 1)),
                        .refused(.signatureInvalid))
     }
 
+    // @verifies REQ-CONSENT-09#g
     func testACategoryTheUserDidNotOptIntoIsRefused() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor(categories: [.sleep])),
@@ -221,6 +225,7 @@ final class ConsentStoreTests: XCTestCase {
     // MARK: - The two postures (§6.2 L2 vs L3)
 
     /// L2 consent means the user is *asked*: they are not in the study until they answer.
+    // @verifies REQ-CONSENT-11#a
     func testACategoryConsentUserIsAskedAndIsNotInTheStudyUntilTheyAnswer() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()),
@@ -237,6 +242,7 @@ final class ConsentStoreTests: XCTestCase {
 
     /// L3 blanket consent means the user is *told*: §6.2 locks that they "still receive per-study
     /// engagement notifications, not consent requests", so they are in the study on arrival.
+    // @verifies REQ-CONSENT-11#a
     func testABlanketConsentUserIsToldAndIsInTheStudyOnArrival() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: blanketConsent)
         XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor(categories: [.sleep])),
@@ -251,6 +257,7 @@ final class ConsentStoreTests: XCTestCase {
 
     /// The L3 opt-out. "Decline" from an engagement notification is a withdrawal, because the user
     /// is already enrolled — the one place the two postures must not share behaviour.
+    // @verifies REQ-CONSENT-11#c
     func testLeavingAnEngagementNotificationWithdrawsTheParticipation() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: blanketConsent)
         store.ingestStudyDescriptor(makeDescriptor())
@@ -263,6 +270,7 @@ final class ConsentStoreTests: XCTestCase {
 
     /// An engagement notification was never a question, so it cannot be answered "yes" — that
     /// would file a second participation for a study the user is already in.
+    // @verifies REQ-CONSENT-11#b
     func testAnEngagementNotificationCannotBeAccepted() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: blanketConsent)
         store.ingestStudyDescriptor(makeDescriptor())
@@ -275,6 +283,7 @@ final class ConsentStoreTests: XCTestCase {
 
     // MARK: - §6.3 step 4's third response
 
+    // @verifies REQ-CONSENT-11#d
     func testAskingAQuestionAboutAStudyIsNotDeciding() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         store.ingestStudyDescriptor(makeDescriptor())
@@ -319,6 +328,7 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertEqual(store.pendingInvitations.count, 1)
     }
 
+    // @verifies REQ-CONSENT-09#f
     func testAWithdrawnStudyIsNotPresentedAgain() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         store.ingestStudyDescriptor(makeDescriptor())
@@ -335,6 +345,7 @@ final class ConsentStoreTests: XCTestCase {
     /// §6.3 step 3 requires the invitation to be explicit about what researchers CANNOT see.
     /// It is the complement of the approved set, computed here — not prose supplied by the party
     /// asking for access.
+    // @verifies REQ-CONSENT-12
     func testTheCannotSeeListIsDerivedFromTheApprovedSet() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         store.ingestStudyDescriptor(makeDescriptor(elements: [.sessionTimestamps]))
@@ -355,6 +366,7 @@ final class ConsentStoreTests: XCTestCase {
     /// The defect the marker exists to fix. Withdrawal does not un-tick the nine L2 categories, so
     /// before this a withdrawn user's stale checkboxes kept admitting studies as consent requests —
     /// research data flows continuing after §6.0 says they all stop.
+    // @verifies REQ-CONSENT-04#e REQ-CONSENT-09#c
     func testWithdrawnBlanketConsentStopsStudiesTheStaleCategoriesWouldStillAdmit() {
         var consent = blanketConsent
         consent.setAllCategories(true)
@@ -370,6 +382,7 @@ final class ConsentStoreTests: XCTestCase {
     }
 
     /// The other direction: a user who was never asked is not a user who said stop.
+    // @verifies REQ-CONSENT-04#d
     func testNeverGrantingBlanketConsentLeavesCategoryConsentWorking() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
                               consent: categoryConsent)
@@ -380,6 +393,7 @@ final class ConsentStoreTests: XCTestCase {
     }
 
     /// Re-granting is a fresh decision, so it clears the condition rather than being outranked.
+    // @verifies REQ-CONSENT-04#f
     func testReGrantingBlanketConsentResumesAdmission() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
                               consent: blanketConsent)
@@ -396,6 +410,7 @@ final class ConsentStoreTests: XCTestCase {
     }
 
     /// The commit path the merged S2 screen actually uses must set the marker too.
+    // @verifies REQ-CONSENT-04#a
     func testCommitPathWithdrawalSetsTheMarker() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
                               consent: blanketConsent)
@@ -408,6 +423,7 @@ final class ConsentStoreTests: XCTestCase {
     }
 
     /// A category-only edit is not a withdrawal — the §6.2.5 guard shape, applied to the marker.
+    // @verifies REQ-CONSENT-04#b
     func testCategoryOnlyEditDoesNotSetTheMarker() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
                               consent: categoryConsent)
@@ -421,6 +437,7 @@ final class ConsentStoreTests: XCTestCase {
 
     /// The marker is the store's, not the screen's. A UI that commits a stale state — one read
     /// before the withdrawal — must not erase the record of the user having said stop.
+    // @verifies REQ-CONSENT-04#c
     func testAStaleCommitCannotClearTheMarker() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
                               consent: blanketConsent)
@@ -436,6 +453,7 @@ final class ConsentStoreTests: XCTestCase {
     }
 
     /// Withdrawing something never granted stops nothing, so it must not bar an L2 participant.
+    // @verifies REQ-CONSENT-04#d
     func testWithdrawingBlanketConsentThatWasNeverGrantedDoesNotBarStudies() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
                               consent: categoryConsent)
@@ -446,6 +464,7 @@ final class ConsentStoreTests: XCTestCase {
                        .admitted(posture: .consentRequest, descriptorHash: descriptorHash))
     }
 
+    // @verifies REQ-CONSENT-04
     func testTheWithdrawalMarkerSurvivesAReload() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
                               consent: blanketConsent)
@@ -518,6 +537,7 @@ final class ConsentStoreTests: XCTestCase {
     // screens it takes to express it. A screen-count assertion would pass for a design that
     // fused the axes; these do not.
 
+    // @verifies REQ-CONSENT-05#a
     func testSelectAllCategoriesDoesNotEnableBlanketConsent() {
         var state = ResearchConsentState()
         state.setAllCategories(true)
@@ -529,6 +549,7 @@ final class ConsentStoreTests: XCTestCase {
                        + "never imply blanket consent (§6.2.3).")
     }
 
+    // @verifies REQ-CONSENT-05#b
     func testEverythingButAskMeIsRepresentable() {
         // The position the merge must not destroy: all nine areas, still asked each time.
         var state = ResearchConsentState()
@@ -541,6 +562,7 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertTrue(store.researchConsent.hasAnyResearchConsent)
     }
 
+    // @verifies REQ-CONSENT-05#c
     func testBlanketConsentWithoutAnyCategoryIsRepresentable() {
         // The mirror position: pre-approved, no category preference expressed.
         var state = ResearchConsentState()
@@ -563,6 +585,7 @@ final class ConsentStoreTests: XCTestCase {
 
     // MARK: - Onboarding presents two screens, four layers
 
+    // @verifies REQ-CONSENT-06
     func testOnboardingStepCountIsTwo() {
         // Deliberately paired with the behavioural tests above. On its own a step count says
         // nothing about whether any consent axis survived the merge — that is what the
@@ -570,6 +593,7 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertEqual(ConsentOnboardingView.ConsentScreen.stepCount, 2)
     }
 
+    // @verifies REQ-CONSENT-05#d
     func testAllFourConsentLayersRemainIndependentlySettable() {
         // Four layers, two screens. Each layer still has its own field and can be set without
         // touching the others.
@@ -616,6 +640,7 @@ final class ConsentStoreTests: XCTestCase {
     private var grantID: UUID { UUID(uuidString: "00000000-0000-0000-0000-0000000000A1")! }
     private var requestID: UUID { UUID(uuidString: "00000000-0000-0000-0000-0000000000B1")! }
 
+    // @verifies REQ-CONSENT-16#b
     func testApprovingForwardOnlyLeavesEarlierSessionsOutOfReach() {
         store.grantClinicianAccess(makeGrant(.monitor))
         store.addExpansionRequest(makeRequest(requestID, to: .assess))
@@ -641,6 +666,7 @@ final class ConsentStoreTests: XCTestCase {
         )
     }
 
+    // @verifies REQ-CONSENT-16#a
     func testApprovingWithPriorDataCoversEarlierSessions() {
         store.grantClinicianAccess(makeGrant(.monitor))
         store.addExpansionRequest(makeRequest(requestID, to: .assess))
@@ -653,6 +679,7 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertTrue(grant.forwardOnlyElements.isEmpty)
     }
 
+    // @verifies REQ-CONSENT-16#a
     func testTheTwoDecisionsAreRecordedSeparately() {
         store.grantClinicianAccess(makeGrant(.monitor))
         store.addExpansionRequest(makeRequest(requestID, to: .assess))
@@ -757,6 +784,7 @@ final class ConsentStoreTests: XCTestCase {
                        ClinicianUseCaseTier.monitor.uhdrElements)
     }
 
+    // @verifies REQ-CONSENT-16#c
     func testAGrantWithNoScopesKeepsItsPreWorkflowMeaning() {
         // A grant written before the workflow existed has no scopes. Introducing the workflow must
         // not silently re-scope it: a bare tier has always meant "these elements, all history".

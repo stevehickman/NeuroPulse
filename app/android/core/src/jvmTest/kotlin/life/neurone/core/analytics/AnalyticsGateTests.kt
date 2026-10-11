@@ -24,6 +24,7 @@ class AnalyticsGateTests {
 
     // ── ResearchAnalyticsGate (ISC-19, 20, 21) ───────────────────────────
 
+    // @verifies REQ-CONSENT-14
     @Test
     fun configureNoOpsWhenConsentKeyUnset() {
         val backend = SpyAnalyticsBackend()
@@ -64,6 +65,7 @@ class AnalyticsGateTests {
         assertEquals(1, backend.trackedEvents.size)
     }
 
+    // @verifies REQ-CONSENT-14
     @Test
     fun trackNoOpsWhenGateClosed() {
         val backend = SpyAnalyticsBackend()
@@ -96,6 +98,7 @@ class AnalyticsGateTests {
         )
     }
 
+    // @verifies REQ-CONSENT-01#b
     @Test
     fun warrantyGateIndependentOfResearchKey() {
         val store = InMemoryKeyValueStore()
