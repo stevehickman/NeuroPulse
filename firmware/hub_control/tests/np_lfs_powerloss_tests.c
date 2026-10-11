@@ -878,6 +878,7 @@ static void test_journal_torn_write_costs_one_record(void)
 
 /* ── 4. Falsification, direction 1 — the verifiers can see a violation ────── */
 
+/* @verifies REQ-LFS-01 */
 static void test_falsification_unsafe_orderings_are_caught(void)
 {
     sweep_result_t rewrite = sweep("FALSIFY L-2 in-place rewrite", log_baseline,

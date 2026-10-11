@@ -464,6 +464,7 @@ static void test_inventory_fn_contract(void)
 /* REQ-LFS-02 end to end: a record restored from npmp.bin answers nothing until
  * this poll sees its UID, then answers without a re-inventory. A different
  * module in the socket replaces it. */
+/* @verifies REQ-LFS-02 */
 static void test_restore_confirmed_by_poll(void)
 {
     reset_all();

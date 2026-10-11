@@ -488,6 +488,7 @@ static void test_group_overflow(void)
     check(n == 4, "overflow fills exactly max");
 }
 
+/* @verifies REQ-LFS-02 */
 static void test_nvram_roundtrip(void)
 {
     populate_all();
@@ -535,6 +536,7 @@ static void test_nvram_reject_bad(void)
           "corrupted body → CRC failure");
 }
 
+/* @verifies REQ-LFS-02 */
 static void test_nvram_hal_persist_restore(void)
 {
     g_nvram_written = false;
@@ -1194,6 +1196,7 @@ static void test_cal_cleared_when_occupant_changes(void)
           "cal: the departed module's record is gone with it");
 }
 
+/* @verifies REQ-LFS-02 */
 static void test_cal_survives_nvram_roundtrip(void)
 {
     full_geom_init();
@@ -1234,6 +1237,7 @@ static void test_cal_survives_nvram_roundtrip(void)
  * Falsified: with record_live() reduced to `r->module_present`, the six
  * "before the poll" checks and the "re-restore" check fail.
  */
+/* @verifies REQ-LFS-02 */
 static void test_restored_record_unused_until_poll(void)
 {
     full_geom_init();

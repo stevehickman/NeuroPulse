@@ -251,6 +251,7 @@ static long find_block(const uint8_t *needle, size_t n)
 
 /* ── 1. Policy ────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-LFS-01 */
 static void test_policy_decides_the_api(void)
 {
     uint8_t  buf[64];
@@ -1467,6 +1468,7 @@ static int v_npmp(const char *what, long cut, np_powerbd_tear_t tear)
     return 0;
 }
 
+/* @verifies REQ-LFS-02 */
 static void test_module_map_blob_through_the_store(void)
 {
     np_physical_loc_t loc;

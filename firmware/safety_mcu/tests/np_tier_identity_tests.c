@@ -152,6 +152,7 @@ static void expect_t1(const char *label, uint8_t reason)
 }
 
 /* ══ The T2 set itself ════════════════════════════════════════════════════ */
+/* @verifies REQ-UPG-01#a REQ-UPG-03 */
 static void test_t2_mask_is_exactly_the_four_t2_lines(void)
 {
     check(NP_SAFETY_EN_T2_MASK == (NP_SAFETY_EN_CVNS | NP_SAFETY_EN_TMS |
@@ -167,6 +168,7 @@ static void test_t2_mask_is_exactly_the_four_t2_lines(void)
 
 #ifndef NP_TIER_TEST_NOKEY
 
+/* @verifies-none harness self-check: the test authority key matches its seed */
 static void test_key_matches_seed(void)
 {
     static const uint8_t COMPILED[32] = NP_TIER_AUTHORITY_PUBKEY_INIT;
@@ -174,6 +176,7 @@ static void test_key_matches_seed(void)
           "compiled test authority key is the one derived from the test seed");
 }
 
+/* @verifies REQ-UPG-01#c */
 static void test_blank_otp_is_t1(void)
 {
     memset(g_otp_record, 0xFF, sizeof(g_otp_record));
@@ -181,6 +184,7 @@ static void test_blank_otp_is_t1(void)
     expect_t1("blank OTP window (identity never written)", NP_TIER_REASON_BLANK);
 }
 
+/* @verifies REQ-UPG-02#a */
 static void test_signed_t2_for_this_unit_is_t2(void)
 {
     uint16_t out;
@@ -192,6 +196,7 @@ static void test_signed_t2_for_this_unit_is_t2(void)
     check(out == NP_SAFETY_EN_ALL_MASK, "signed T2 record: gate withholds nothing");
 }
 
+/* @verifies REQ-UPG-01#a */
 static void test_signed_t1_is_t1(void)
 {
     make_record(NP_TIER_T1, UID_THIS, g_sk, true);
@@ -200,6 +205,7 @@ static void test_signed_t1_is_t1(void)
     check(np_tier_identity_record_tier() == NP_TIER_T1, "signed T1 record: record names T1");
 }
 
+/* @verifies REQ-UPG-01#c REQ-UPG-02#a */
 static void test_record_copied_from_another_unit_is_t1(void)
 {
     /* A genuine T2 record, lifted from another unit's OTP into this one's. */
@@ -209,6 +215,7 @@ static void test_record_copied_from_another_unit_is_t1(void)
               NP_TIER_REASON_SIGNATURE);
 }
 
+/* @verifies REQ-UPG-01#c REQ-UPG-02#a */
 static void test_tier_byte_edited_is_t1(void)
 {
     /* Signed as T1, then the tier byte rewritten to T2. */
@@ -218,6 +225,7 @@ static void test_tier_byte_edited_is_t1(void)
     expect_t1("T1 record with its tier byte edited to T2", NP_TIER_REASON_SIGNATURE);
 }
 
+/* @verifies REQ-UPG-01#c REQ-UPG-02#a */
 static void test_signature_corrupted_is_t1(void)
 {
     make_record(NP_TIER_T2, UID_THIS, g_sk, true);
@@ -226,6 +234,7 @@ static void test_signature_corrupted_is_t1(void)
     expect_t1("T2 record with one signature bit flipped", NP_TIER_REASON_SIGNATURE);
 }
 
+/* @verifies REQ-UPG-01#c REQ-UPG-02#a */
 static void test_wrong_signer_is_t1(void)
 {
     make_record(NP_TIER_T2, UID_THIS, g_sk_rogue, true);
@@ -234,6 +243,7 @@ static void test_wrong_signer_is_t1(void)
               NP_TIER_REASON_SIGNATURE);
 }
 
+/* @verifies REQ-UPG-01#c REQ-UPG-02#a */
 static void test_signature_without_domain_is_t1(void)
 {
     make_record(NP_TIER_T2, UID_THIS, g_sk, false);
@@ -242,6 +252,7 @@ static void test_signature_without_domain_is_t1(void)
               NP_TIER_REASON_SIGNATURE);
 }
 
+/* @verifies REQ-UPG-01#c REQ-UPG-02#a */
 static void test_format_rejections_are_t1(void)
 {
     make_record(NP_TIER_T2, UID_THIS, g_sk, true);
@@ -268,6 +279,7 @@ static void test_format_rejections_are_t1(void)
     expect_t1("all-zero record window", NP_TIER_REASON_FORMAT);
 }
 
+/* @verifies REQ-UPG-01#c */
 static void test_verdict_is_retaken_at_each_boot(void)
 {
     /* T2 then a blank window: the second boot must not inherit the first. */
@@ -279,6 +291,7 @@ static void test_verdict_is_retaken_at_each_boot(void)
               NP_TIER_REASON_BLANK);
 }
 
+/* @verifies REQ-UPG-01#a */
 static void test_each_t2_line_individually(void)
 {
     static const uint16_t TIER_ENABLE_LINES[] = {
@@ -303,6 +316,7 @@ static void test_each_t2_line_individually(void)
           "T1 unit: each T2 line requested alone beside a T1 line is withheld, the T1 line kept");
 }
 
+/* @verifies REQ-UPG-01 */
 static void test_report(void)
 {
     np_safety_tier_report_t r;
@@ -337,6 +351,7 @@ static void test_report(void)
 
 #else /* NP_TIER_TEST_NOKEY — the image as it ships today */
 
+/* @verifies REQ-UPG-01#c */
 static void test_placeholder_key_fails_closed(void)
 {
     static const uint8_t COMPILED[32] = NP_TIER_AUTHORITY_PUBKEY_INIT;

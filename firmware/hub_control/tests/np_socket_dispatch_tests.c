@@ -334,6 +334,7 @@ static void test_base_drive_all_sockets(void)
  * admitting NP_MOD_BES_TACS at gate 1 fails the stop assertion and not the
  * drive one (NP-FW-MMSOCK-001 §11).
  */
+/* @verifies REQ-FWHUB-33 */
 static void test_not_socket_addressable(void)
 {
     setup();

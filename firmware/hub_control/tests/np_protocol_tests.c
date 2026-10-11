@@ -762,6 +762,7 @@ static void desc_with(np_session_desc_t *d, const np_hub_mod_type_t *mods,
     }
 }
 
+/* @verifies REQ-UPG-01 */
 static void test_t2_modality_set(void)
 {
     static const np_hub_mod_type_t T2_MODULE_TYPES[] = {
@@ -790,6 +791,7 @@ static void test_t2_modality_set(void)
     check(no_t1, "tier: no T1 or accessory modality marks a protocol T2");
 }
 
+/* @verifies REQ-UPG-01#b */
 static void test_t2_is_derived_not_flagged(void)
 {
     np_session_desc_t d;
@@ -809,6 +811,7 @@ static void test_t2_is_derived_not_flagged(void)
           "tier: clearing the app flag does not get cervical VNS past a T1 unit (RISK-PWRSRC-10)");
 }
 
+/* @verifies REQ-UPG-01#c,d REQ-UPG-03 */
 static void test_tier_admit_matrix(void)
 {
     np_session_desc_t d;

@@ -1,0 +1,30 @@
+{
+  "_comment": [
+    "Read by scripts/req-trace.ts. Two maps, both optional.",
+    "parts: requirement ID -> { part id -> what that part requires }. A requirement written as one sentence with",
+    "several obligations has no (a)/(b) enumerators for the tool to split on, so its parts are declared here.",
+    "A test then claims a part with `@verifies REQ-X-NN#a`; a part no test claims is reported as a gap.",
+    "Parts are the obligations of the requirement text and add no requirement of their own (CLAUDE.md §18).",
+    "nonTest: requirement ID -> { method, reason } for a requirement verified by inspection, analysis or",
+    "demonstration, so it is not reported as untested. Declare it only where the owning document says so."
+  ],
+  "parts": {
+    "REQ-UPG-01": {
+      "a": "A T1-identity unit never has a T2 stimulation enable granted (cervical VNS, clinical tACS / HD-tDCS, 1170 nm, TMS), refused in the partition that owns the enables",
+      "b": "T2 software features unlock only against the signed tier identity, never against app UI state or the app-computed NP_PROTO_FLAG_T2_TIER",
+      "c": "Fail closed: a missing or non-verifying identity is T1",
+      "d": "The refusal is presented as F4, never as a missing module (F1)"
+    },
+    "REQ-UPG-02": {
+      "a": "The tier identity is written once, at manufacture, bound to the device and signed",
+      "b": "No field path writes or changes it: not the app, OTA, a service partner, the depot or a purchase"
+    },
+    "REQ-UPG-03": {
+      "a": "The tile socket (mechanical, electrical, inventory and UID protocol) is kept compatible on every T2 configuration",
+      "b": "The hub accessory ports used by A13, the audio cups and the intranasal probe are kept compatible",
+      "c": "The lens mount is kept compatible",
+      "d": "A change to one of these interfaces is made to both tiers or to neither"
+    }
+  },
+  "nonTest": {}
+}

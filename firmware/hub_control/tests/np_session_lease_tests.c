@@ -24,6 +24,7 @@
  *   - np_lease_probe_begin() giving before return  → contention case
  *   - np_lease_claim() not checking s_held          → second-claim case
  */
+/* @verifies-file REQ-FWHUB-03 */
 
 #include <stdint.h>
 #include <stdbool.h>

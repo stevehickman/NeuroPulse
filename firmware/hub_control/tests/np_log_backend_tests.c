@@ -997,6 +997,7 @@ static void call_hrv(void)
     np_log_hrv_session(&r, NP_HRV_OK);
 }
 
+/* @verifies REQ-FWHUB-02 */
 static void test_every_entry_takes_the_lock(void)
 {
     logger_session_open();
