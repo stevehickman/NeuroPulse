@@ -412,7 +412,7 @@ function readBaseline(root: string) {
 // ── Report ──────────────────────────────────────────────────────────────────
 const ICON: Record<Status, string> = { covered: "🟢", partial: "🟠", unscoped: "🟡", untested: "🔴", "non-test": "🔵", retired: "⚪" };
 const LABEL: Record<Status, string> = { covered: "covered", partial: "PARTIAL", unscoped: "UNSCOPED", untested: "UNTESTED", "non-test": "non-test", retired: "retired" };
-const esc = (s: string) => s.replace(/\|/g, "\\|").replace(/\n/g, " ");
+const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\n/g, " ");
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
 
 export function renderMarkdown(d: ReturnType<typeof load>, a: ReturnType<typeof analyse>): string {
