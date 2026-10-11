@@ -50,6 +50,7 @@ static volatile bool     s_nv_valid = false;
 static volatile uint8_t  s_tier         = NP_TIER_UNKNOWN;
 static volatile uint8_t  s_tier_reason  = NP_TIER_REASON_OK;
 static volatile bool     s_tier_refused = false;
+static volatile uint8_t  s_hw_version   = NP_HW_VERSION_DEFAULT; /* SWR-HV-07 */
 
 /* ── Per-channel commanded current (OI-CHARGE-01 hub half, OI-CHARGE-05 (c)) ──
  *
@@ -173,7 +174,7 @@ static void parse_nv_report(const uint8_t *rx_raw)
 
 /*
  * parse_tier_report — the safety MCU's tier-identity report
- * (np_safety_tier_report_t) from window bytes [20..25].  Magic, checksum and
+ * (np_safety_tier_report_t) from window bytes [20..26].  Magic, checksum and
  * tier code validated; a bad report leaves the last valid tier in place and
  * clears REFUSED.
  */
@@ -183,13 +184,16 @@ static void parse_tier_report(const uint8_t *rx_raw)
     memcpy(&rep, rx_raw + NP_SAFETY_TIER_REPORT_OFFSET, sizeof(rep));
     if ((rep.magic != NP_SAFETY_TIER_REPORT_MAGIC) ||
         (rep.checksum != (uint16_t)((uint16_t)rep.magic + (uint16_t)rep.tier +
-                                    (uint16_t)rep.flags + (uint16_t)rep.reason)) ||
-        ((rep.tier != NP_TIER_T1) && (rep.tier != NP_TIER_T2))) {
+                                    (uint16_t)rep.flags + (uint16_t)rep.reason +
+                                    (uint16_t)rep.hw_version)) ||
+        ((rep.tier != NP_TIER_T1) && (rep.tier != NP_TIER_T2)) ||
+        (rep.hw_version == 0U) || (rep.hw_version > 15U)) {
         s_tier_refused = false;
         return;
     }
     s_tier         = rep.tier;
     s_tier_reason  = rep.reason;
+    s_hw_version   = rep.hw_version;
     s_tier_refused = (rep.flags & NP_SAFETY_TIER_FLAG_REFUSED) != 0U;
 }
 
@@ -514,6 +518,11 @@ bool np_safety_spi_get_cardiac_report(uint8_t *flags_out)
 uint8_t np_safety_spi_get_tier(void)
 {
     return s_tier;
+}
+
+uint8_t np_safety_spi_get_hardware_version(void)
+{
+    return s_hw_version;
 }
 
 bool np_safety_spi_get_tier_report(uint8_t *reason_out, bool *refused_out)
