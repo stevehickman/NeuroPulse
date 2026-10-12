@@ -8,7 +8,6 @@ import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.isToggleable
-import androidx.compose.ui.test.onAllNodes
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
@@ -76,7 +75,7 @@ class AgeGateAndReleaseTest {
     fun theDeclarationCheckboxIsNotPreTicked() = runComposeUiTest {
         showFresh()
         onAllNodes(isToggleable()).assertCountEquals(1)
-        androidx.compose.ui.test.onNode(isToggleable()).assertIsOff()
+        onNode(isToggleable()).assertIsOff()
     }
 
     // @verifies REQ-ONBOARD-01#c
@@ -84,9 +83,9 @@ class AgeGateAndReleaseTest {
     fun theFlowCannotProceedWhileTheDeclarationIsUnticked() = runComposeUiTest {
         showFresh()
         onNodeWithText(text(Res.string.setup_continue_button)).assertIsNotEnabled()
-        androidx.compose.ui.test.onNode(isToggleable()).performClick().assertIsOn()
+        onNode(isToggleable()).performClick().assertIsOn()
         onNodeWithText(text(Res.string.setup_continue_button)).assertIsEnabled()
-        androidx.compose.ui.test.onNode(isToggleable()).performClick().assertIsOff()
+        onNode(isToggleable()).performClick().assertIsOff()
         onNodeWithText(text(Res.string.setup_continue_button)).assertIsNotEnabled()
     }
 
@@ -103,7 +102,7 @@ class AgeGateAndReleaseTest {
     @Test
     fun theBiometricReleaseIsItsOwnScreen_notBundledWithConsent() = runComposeUiTest {
         showFresh()
-        androidx.compose.ui.test.onNode(isToggleable()).performClick()
+        onNode(isToggleable()).performClick()
         onNodeWithText(text(Res.string.setup_continue_button)).performClick()
 
         onNodeWithText(text(Res.string.age_your_brainwave_data)).assertExists()
@@ -123,7 +122,7 @@ class AgeGateAndReleaseTest {
                 Locale.setDefault(locale)
                 runComposeUiTest {
                     showFresh()
-                    androidx.compose.ui.test.onNode(isToggleable()).performClick()
+                    onNode(isToggleable()).performClick()
                     onNodeWithText(text(Res.string.setup_continue_button)).performClick()
                     onNodeWithText(text(Res.string.age_your_brainwave_data)).assertExists()
                 }
