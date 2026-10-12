@@ -120,6 +120,7 @@ class NPPSAbsoluteQuantityTests {
         assertEquals(12.5, ((again.modalities.single().params) as NPModalityParams.PbmTranscranial).params.irradianceMWcm2)
     }
 
+    // @verifies REQ-NPPS-14#c
     @Test
     fun theValidatorChecksThe400PeakDirectly() {
         val params = NPPBMTranscranialParams(irradianceMWcm2 = 450.0)

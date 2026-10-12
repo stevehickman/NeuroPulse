@@ -147,6 +147,7 @@ final class NPAbsoluteQuantityTests: XCTestCase {
         XCTAssertThrowsError(try HubDescriptorCompiler.build(probe))
     }
 
+    // @verifies REQ-NPPS-14#c
     func testTheValidatorChecksThe400PeakDirectly() {
         var params = NPPBMTranscranialParams()
         params.irradianceMWcm2 = 450

@@ -30,11 +30,11 @@ app/android/core/src/jvmTest/kotlin/life/neurone/core/platform/Ed25519JdkParityT
 app/android/core/src/jvmTest/kotlin/life/neurone/core/protocol/ConditionLinkPolicyTests.kt 11
 app/android/core/src/jvmTest/kotlin/life/neurone/core/protocol/NPLimitsStoreTests.kt 10
 app/android/core/src/jvmTest/kotlin/life/neurone/core/protocol/NPNamespaceTests.kt 13
-app/android/core/src/jvmTest/kotlin/life/neurone/core/protocol/NPPSAbsoluteQuantityTests.kt 3
+app/android/core/src/jvmTest/kotlin/life/neurone/core/protocol/NPPSAbsoluteQuantityTests.kt 2
 app/android/core/src/jvmTest/kotlin/life/neurone/core/protocol/NPPSRegressionTests.kt 6
 app/android/core/src/jvmTest/kotlin/life/neurone/core/protocol/NPPSSharedFixtureTests.kt 2
 app/android/core/src/jvmTest/kotlin/life/neurone/core/protocol/NPProtocolLibraryTests.kt 7
-app/android/core/src/jvmTest/kotlin/life/neurone/core/protocol/NPProtocolValidatorTests.kt 22
+app/android/core/src/jvmTest/kotlin/life/neurone/core/protocol/NPProtocolValidatorTests.kt 14
 app/android/core/src/jvmTest/kotlin/life/neurone/core/protocol/NPWavelengthRulesTests.kt 5
 app/android/core/src/jvmTest/kotlin/life/neurone/core/protocol/NPZoneCautionTests.kt 3
 app/android/core/src/jvmTest/kotlin/life/neurone/core/protocol/ProtocolConsentGateTests.kt 2
@@ -56,10 +56,10 @@ app/ios/NeurOneTests/GATTParserTests.swift 51
 app/ios/NeurOneTests/HardwareSetupManagerTests.swift 43
 app/ios/NeurOneTests/HubDescriptorCompilerTests.swift 2
 app/ios/NeurOneTests/LocalizedPluralTests.swift 3
-app/ios/NeurOneTests/NPAbsoluteQuantityTests.swift 3
+app/ios/NeurOneTests/NPAbsoluteQuantityTests.swift 2
 app/ios/NeurOneTests/NPPBMTargetScriptingTests.swift 13
 app/ios/NeurOneTests/NPProtocolLibraryTests.swift 9
-app/ios/NeurOneTests/NPProtocolValidatorTests.swift 18
+app/ios/NeurOneTests/NPProtocolValidatorTests.swift 9
 app/ios/NeurOneTests/NPSocketMaskTests.swift 15
 app/ios/NeurOneTests/NPWavelengthRulesTests.swift 3
 app/ios/NeurOneTests/NPZoneCautionTests.swift 2
@@ -88,9 +88,9 @@ app/web/src/lib/npps-zones-conditions.test.ts 24
 app/web/src/lib/npps.test.ts 52
 app/web/src/lib/protocolEligibility.test.ts 36
 app/web/src/lib/protocolEligibilityWavelength.test.ts 9
-app/web/src/lib/pulsedPhaseCharge.test.ts 8
+app/web/src/lib/pulsedPhaseCharge.test.ts 3
 app/web/src/lib/simulator-runtime.test.ts 6
-app/web/src/lib/tdcsChargeDensity.test.ts 7
+app/web/src/lib/tdcsChargeDensity.test.ts 2
 app/web/src/lib/wavelengthRulesSerializer.test.ts 3
 app/web/src/lib/zoneCautions.test.ts 3
 app/windows/NeurOne.Tests/HubDescriptorCompilerTests.cs 16
@@ -111,7 +111,7 @@ common/npps-core/tests/serialize.rs 5
 common/npps-core/tests/validate.rs 3
 common/npps-core/tests/validate_union.rs 10
 common/npps-core/tests/vns_grammar.rs 6
-common/npps-core/tests/zones.rs 5
+common/npps-core/tests/zones.rs 4
 common/npps-ffi/tests/ffi.rs 8
 firmware/anon/tests/np_anon_tests.c 13
 firmware/application/tests/np_app_cache_agreement_tests.c 6

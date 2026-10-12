@@ -68,6 +68,7 @@ class NPProtocolValidatorTests {
     // single pair against the MCU's 25. Two errors compounding to 2.8× permissive, so a
     // protocol this validator accepted was cut short mid-session by the MCU.
 
+    // @verifies REQ-NPPS-14#a
     @Test
     fun chargeDensityOverLimitRejected() {
         // 2.0 mA × 3600s / 35 cm² (ONE electrode) = 205.7 mC/cm² — over 150.
@@ -79,6 +80,7 @@ class NPProtocolValidatorTests {
         )
     }
 
+    // @verifies REQ-NPPS-14#a
     @Test
     fun chargeDensityBorderlineValid() {
         // Just under the ceiling: 1.4 mA × 3749s / 35 cm² = 149.96 mC/cm².
@@ -97,6 +99,7 @@ class NPProtocolValidatorTests {
     }
 
     /** The enforcer trips AT the ceiling, so the pre-flight must too (OI-CHARGE-05). */
+    // @verifies REQ-NPPS-14#a
     @Test
     fun chargeDensityAtCeilingRejected() {
         // 1.4 mA × 3750s / 35 cm² = exactly 150.0 mC/cm².
@@ -135,6 +138,7 @@ class NPProtocolValidatorTests {
         )
     }
 
+    // @verifies REQ-NPPS-14#a
     @Test
     fun chargeDensityDoesNotRelaxWithMoreElectrodePairs() {
         // 1.0 mA × 6000s / 35 cm² = 171.4 mC/cm² — over 150 whatever the montage. The
@@ -155,6 +159,7 @@ class NPProtocolValidatorTests {
         }
     }
 
+    // @verifies REQ-NPPS-14#a
     @Test
     fun smallerDeclaredElectrodeAreaIsStricter() {
         // 1.0 mA × 4000s = 4000 mC. On 35 cm²: 114.3 mC/cm², accepted. On 25 cm²: 160.0, rejected.
@@ -224,6 +229,7 @@ class NPProtocolValidatorTests {
     }
 
     /** Each pulsed modality passes at its rated worst case. */
+    // @verifies REQ-NPPS-14#b
     @Test
     fun pulsedModalitiesPassAtRatedMaximum() {
         // VNS: 2 mA × 250 µs = 0.5 µC on a 0.5 cm² clip pad = 1.0 µC/cm², 2.5% of ceiling.
@@ -261,6 +267,7 @@ class NPProtocolValidatorTests {
      * (1000 µC ÷ 25 cm² = 40.0 µC/cm², exactly the ceiling, refused); the sinusoid
      * delivers 2/π of it and passes. The safety MCU applies the same factor.
      */
+    // @verifies REQ-NPPS-14#b
     @Test
     fun sineFactorAppliesOnlyToSinusoids() {
         val square = NPBESTacsParams(
@@ -284,6 +291,7 @@ class NPProtocolValidatorTests {
     }
 
     /** Lower frequency means a longer phase means more charge per phase. */
+    // @verifies REQ-NPPS-14#b
     @Test
     fun phaseChargeGetsStricterAsFrequencyFalls() {
         val slow = NPBESTacsParams(

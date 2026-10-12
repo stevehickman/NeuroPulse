@@ -97,6 +97,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     // MARK: - testChargeDensityOverLimitRejected (intended-behavior spec)
 
+    // @verifies REQ-NPPS-14#a
     func testChargeDensityOverLimitRejected() {
         // 2.0 mA × 3600s / 35 cm² (ONE electrode) = 205.7 mC/cm² — over 150.
         let tdcs = NPTDCSParams(intensityMilliamps: 2.0, electrodePairs: [["Fp1", "P3"]])
@@ -111,6 +112,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     // MARK: - testChargeDensityBorderlineValid (intended-behavior spec)
 
+    // @verifies REQ-NPPS-14#a
     func testChargeDensityBorderlineValid() {
         // Just under the ceiling: 1.4 mA × 3749s / 35 cm² = 149.96 mC/cm².
         //
@@ -132,6 +134,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     }
 
     /// The enforcer trips AT the ceiling, so the pre-flight must too (OI-CHARGE-05).
+    // @verifies REQ-NPPS-14#a
     func testChargeDensityAtCeilingRejected() {
         // 1.4 mA × 3750s / 35 cm² = exactly 150.0 mC/cm².
         let tdcs = NPTDCSParams(intensityMilliamps: 1.4, electrodePairs: [["Fp1", "P3"]],
@@ -163,6 +166,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     /// Density is per electrode, so adding pairs must never make a protocol pass that a
     /// single pair fails. The summed-area model got 2× more permissive with each pair.
+    // @verifies REQ-NPPS-14#a
     func testChargeDensityDoesNotRelaxWithMoreElectrodePairs() {
         // 1.0 mA × 6000s / 35 cm² = 171.4 mC/cm² — over 150 whatever the montage.
         // The retired summed model divided the pair's two pads (70 cm²), got 85.7, and
@@ -182,6 +186,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     }
 
     /// A smaller declared pad is stricter — which is the whole point of declaring it.
+    // @verifies REQ-NPPS-14#a
     func testSmallerDeclaredElectrodeAreaIsStricter() {
         // 1.0 mA × 4000s = 4000 mC. On 35 cm²: 114.3 mC/cm², accepted. On 25 cm²: 160.0, rejected.
         let big = NPTDCSParams(intensityMilliamps: 1.0, electrodePairs: [["F3", "F4"]],
@@ -232,6 +237,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     // MARK: - testChargeDensityBorderlineInvalid (intended-behavior spec)
 
+    // @verifies REQ-NPPS-14#a
     func testChargeDensityBorderlineInvalid() {
         // 2.0 mA × 3600s / 35 cm² = 205.7 mC/cm² — over 150, must be rejected.
         let tdcs = NPTDCSParams(intensityMilliamps: 2.0, electrodePairs: [["Fp1", "P3"]])
@@ -263,6 +269,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     }
 
     /// Each pulsed modality passes at its rated worst case.
+    // @verifies REQ-NPPS-14#b
     func testPulsedModalitiesPassAtRatedMaximum() {
         // VNS: 2 mA × 250 µs = 0.5 µC on a 0.5 cm² clip pad = 1.0 µC/cm², 2.5% of ceiling.
         let vns = NPVNSHRVParams(frequencyHz: 25, intensityMilliamps: 2.0)
@@ -294,6 +301,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     /// duration; only the waveform differs. A square wave delivers the full I × T
     /// (1000 µC ÷ 25 cm² = 40.0 µC/cm², exactly the ceiling, refused); the sinusoid
     /// delivers 2/π of it and passes. The safety MCU applies the same factor.
+    // @verifies REQ-NPPS-14#b
     func testSineFactorAppliesOnlyToSinusoids() {
         let square = NPBESTacsParams(frequencyHz: 0.5, intensityMilliamps: 1.0, waveform: .square)
         XCTAssertTrue(
@@ -310,6 +318,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     }
 
     /// Lower frequency means a longer phase means more charge per phase.
+    // @verifies REQ-NPPS-14#b
     func testPhaseChargeGetsStricterAsFrequencyFalls() {
         let slow = NPBESTacsParams(frequencyHz: 0.4, intensityMilliamps: 1.0, waveform: .square)
         XCTAssertTrue(

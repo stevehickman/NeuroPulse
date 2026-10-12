@@ -81,6 +81,7 @@ describe('pulsed / AC per-phase charge density (OI-CHARGE-05 b)', () => {
     expect(sessionErrors(veryLong)).toHaveLength(0);
   });
 
+  // @verifies REQ-NPPS-14#b
   it('passes VNS at its rated worst case', () => {
     // 2 mA × 250 µs (the firmware's default pulse width) = 0.5 µC. On the
     // 0.5 cm² auricular clip pad that is 1.0 µC/cm² — 2.5% of the ceiling.
@@ -88,12 +89,14 @@ describe('pulsed / AC per-phase charge density (OI-CHARGE-05 b)', () => {
       { intensityMilliamps: 2, frequencyHz: 25 }))).toHaveLength(0);
   });
 
+  // @verifies REQ-NPPS-14#b
   it('passes cervical VNS at its rated worst case', () => {
     // 2 mA × 250 µs = 0.5 µC on a 2 cm² collar pad = 0.25 µC/cm².
     expect(phaseErrors(protocolWith('cervical_vns',
       { intensityMilliamps: 2, frequencyHz: 25 }))).toHaveLength(0);
   });
 
+  // @verifies REQ-NPPS-14#b
   it('passes tACS across its whole authorised band', () => {
     // The band bottom is where phase charge is LARGEST — a 0.5 Hz half-period
     // is a full second. 1 mA sinusoidal on a 25 cm² pad:
@@ -108,6 +111,7 @@ describe('pulsed / AC per-phase charge density (OI-CHARGE-05 b)', () => {
       { intensityMilliamps: 1, frequencyHz: 40, waveform: 'sinusoidal' }))).toHaveLength(0);
   });
 
+  // @verifies REQ-NPPS-14#b
   it('applies the 2/pi factor only to sinusoids', () => {
     // Identical amplitude and phase duration; only the waveform differs.
     // A square wave delivers the full I × T: 1 mA × 1 s = 1000 µC ÷ 25 cm²
@@ -122,6 +126,7 @@ describe('pulsed / AC per-phase charge density (OI-CHARGE-05 b)', () => {
       { intensityMilliamps: 1, frequencyHz: 0.5, waveform: 'sinusoidal' }))).toHaveLength(0);
   });
 
+  // @verifies REQ-NPPS-14#b
   it('gets stricter as frequency falls, because the phase gets longer', () => {
     // A square wave at 1 mA: the ceiling is 40 µC/cm² × 25 cm² = 1000 µC, so
     // the longest admissible phase is 1 s — i.e. 0.5 Hz is the boundary and

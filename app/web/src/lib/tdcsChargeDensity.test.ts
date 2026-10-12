@@ -75,6 +75,7 @@ const areaErrors = (d: NPProtocolDefinition) =>
     i => i.severity === 'error' && i.parameterKey === 'electrodeAreaCm2');
 
 describe('tDCS charge-density pre-flight (OI-CHARGE-04)', () => {
+  // @verifies REQ-NPPS-14#a
   it('divides by ONE electrode area, not the sum across the montage', () => {
     // 1 mA × 1000 s = 1000 mC. On a 35 cm² pad that is 28.6 mC/cm² — well under
     // the 150 mC/cm² ceiling.
@@ -90,6 +91,7 @@ describe('tDCS charge-density pre-flight (OI-CHARGE-04)', () => {
     ))).toHaveLength(1);
   });
 
+  // @verifies REQ-NPPS-14#a
   it('does not get more permissive as electrodes are added', () => {
     // The summed model divided by 35 × electrodeCount, so adding a pair made
     // the SAME current and duration pass — density per electrode is unchanged
@@ -105,6 +107,7 @@ describe('tDCS charge-density pre-flight (OI-CHARGE-04)', () => {
     expect(chargeErrors(overThreePairs)).toHaveLength(1);
   });
 
+  // @verifies REQ-NPPS-14#a
   it('is stricter on a smaller declared pad, which is the point of declaring it', () => {
     // The same protocol on a 25 cm² pad (what the safety MCU used to assume
     // regardless of what the app believed) is 150 mC/cm² at 3750 s — at the
@@ -115,6 +118,7 @@ describe('tDCS charge-density pre-flight (OI-CHARGE-04)', () => {
       { intensityMilliamps: 1, electrodeAreaCm2: 25 }, 3800))).toHaveLength(1);
   });
 
+  // @verifies REQ-NPPS-14#a
   it('rejects the ceiling exactly, because the enforcer does', () => {
     // 1.4 mA × 3750 s / 35 cm² = 150.0 mC/cm².
     //
@@ -147,6 +151,7 @@ describe('tDCS charge-density pre-flight (OI-CHARGE-04)', () => {
   // and its enforcer, so pin the dimension itself rather than only the outcomes.
   // If someone "fixes" the ceiling by moving the constant instead of resolving
   // OI-CHARGE-05, this fails and says why.
+  // @verifies REQ-NPPS-14#a
   it('computes mC/cm², not µC/cm² — the dimension the label got wrong', () => {
     // 1 mA through a 1 cm² electrode for 1 s delivers 1 mC ⇒ 1 mC/cm².
     // Under the retired "µC/cm²" reading the same protocol would read 1000.

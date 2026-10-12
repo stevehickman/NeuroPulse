@@ -48,6 +48,7 @@ fn caution_compiles_only_for_the_acknowledgement_of_that_dose() {
     assert!(compile(&tacs_1hz(1.0001), &[id]).is_err(), "an acknowledgement is of one dose, not of the protocol");
 }
 
+// @verifies REQ-NPPS-14#a REQ-NPPS-14#d
 #[test]
 fn danger_is_refused_whatever_is_acknowledged() {
     // 2 mA of DC for an hour on a 35 cm² pad is 205 mC/cm², over the 150 mC/cm² ceiling.
