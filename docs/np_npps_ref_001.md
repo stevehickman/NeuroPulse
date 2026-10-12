@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 21
-**Date:** 2026-10-11  
+**Revision:** 22
+**Date:** 2026-10-12  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -14,6 +14,8 @@
 **IEC 62304 Class:** —
 
 ---
+
+> **Rev 22 (2026-10-12) — §14 gains `REQ-NPPS-14`, the refusal of a protocol outside a hardware ceiling before it is signed.** It restates what `CLAUDE.md` §3 and `SWR-SS-03` already require and what the validator and the compiler's zone gate already do, and names the one part that is not built (the time-averaged PBM sum, `OI-HEXTILE-30`). No grammar, runtime or wire change.
 
 > **Rev 21 (2026-10-11) — §14 gives the rules this document already states an ID each (`REQ-NPPS-01` to `REQ-NPPS-13`).** No grammar, field, default, runtime or wire byte changes. Until now the parser, validator, serializer and compiler behaviour described in §§1–9 had no requirement identifier, so no test could name the rule it verified (`scripts/req-trace.ts`). Each row restates a rule already binding in the section it cites, adds what fails without it and where it traces to (CLAUDE.md §18), and names how it is verified. **No new constraint is introduced and none is relaxed.** Rows that were found to rest on a build item that does not exist are marked as such in their verification cell.
 
@@ -1887,3 +1889,4 @@ Where a row lists (a), (b), (c), a test claims a part with `@verifies REQ-NPPS-N
 | **`REQ-NPPS-11`** | **Serialize then parse is the identity.** Text written by the serializer parses on every runtime to the protocol that was serialized, and the serializer writes canonical spellings only | `retinal_pbm` and `mode_f` serialized to text no parser accepted and silently reset to the default on a round trip. A file written on one platform lost nine fields on another | §12, Rev 5, Rev 7, Rev 11 | Test |
 | **`REQ-NPPS-12`** | **Every runtime reads `.npps` the same way.** Each runtime that parses, validates, resolves or serializes `.npps` produces the shared golden output (`app/NeurOneShared/TestData/npps-*-golden.json`) for the same input | A divergence is invisible to the author: the same file runs as different stimuli on different platforms (Rev 5 found nine, Rev 8 found a third runtime outside every audit) | Rev 5, Rev 8, `OI-NPPS-CORE-01`; CLAUDE.md §20 | Test, in each runtime |
 | **`REQ-NPPS-13`** | **No runtime ships a build-time cache of protocol content.** Bundling the `.npps` files themselves is permitted; a generated transcription of protocol, zone or condition content is not | The build cannot bind the future: when a `.npps` file changes, the cache is read in place of the edit, with no error and no mismatch. For a zone it is a wrong-site path | §1.6, Rev 14 (principal direction) | Inspection: no generated file under `app/`, `common/` or `simulator/` carries parsed protocol, zone or condition content |
+| **`REQ-NPPS-14`** | **A protocol outside a hardware ceiling is refused before it is signed, and is never reshaped to fit.** (a) A `tdcs` block whose DC charge density per electrode, on the declared electrode area, is at or above 150 mC/cm² per session is an error. (b) A charge-balanced block (`bes_tacs`, `vns_hrv`, `cervical_vns`, `clinical_tacs`) whose charge density per phase, on its pulse width and the declared electrode area, is at or above 40 µC/cm² is an error. (c) A PBM block whose peak irradiance is above 400 mW/cm² is an error. (d) The compiler does not sign a protocol the validator puts outside a ceiling, whatever the author acknowledges, and no limit is rounded or clamped to fit. (e) An `hd_tdcs` block whose DC charge density per electrode is at or above 150 mC/cm² per session is an error. (f) A PBM block set whose time-averaged weighted sum over the channels of one tile exceeds 1 is refused. **Not built:** (e) and (f). The validator's DC check reads `tdcs` blocks only, so an `hd_tdcs` protocol over the ceiling reaches the safety MCU, which still enforces it; the PBM sum and its constants are `OI-HEXTILE-30` and `OI-HEXTILE-31` | A protocol the app lets through is one the safety MCU cuts mid-session when it reaches the same ceiling, or one the MCU never sees as over because the app and the MCU divided by different areas (the iOS and Android validators once divided charge by a sum of areas the MCU does not use). A limit that is clamped to fit delivers a different stimulus from the one authored | `CLAUDE.md` §3 ("a PBM ceiling refuses a protocol; it never reshapes one"; "a protocol outside a ceiling is rejected before it is signed") and its two charge ceilings; `DI-SAFE-01`, `DI-SAFE-01a`; `SWR-SS-03`; `docs/reference/safety-zones.md`; `OI-CHARGE-04`, `OI-CHARGE-05` | Test, in each runtime that validates or compiles. The caution boundaries and the non-hardware danger boundaries of the zone model are placeholders (`UC-073` to `UC-077`) and are not restated here |
