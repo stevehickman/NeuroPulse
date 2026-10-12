@@ -328,7 +328,7 @@ static void test_baseline_arms_at_eight_intervals_not_five(void)
 
 /* A rise of more than NP_CARDIAC_HR_DELTA_BPM clears the CVNS enable and
  * records the fault. */
-/* @verifies REQ-CVNS-09#a */
+/* @verifies REQ-CVNS-09#a DI-SAFE-03 */
 static void test_rise_above_threshold_cuts_off(void)
 {
     np_safety_state_t st;
@@ -357,7 +357,7 @@ static void test_rise_above_threshold_cuts_off(void)
  * distinguish the two — an unsigned implementation passes it for the wrong
  * reason.
  */
-/* @verifies REQ-CVNS-09#a */
+/* @verifies REQ-CVNS-09#a DI-SAFE-03 */
 static void test_fall_below_threshold_cuts_off(void)
 {
     np_safety_state_t st;
@@ -370,7 +370,7 @@ static void test_fall_below_threshold_cuts_off(void)
     check((st.status & NP_SAFETY_STATUS_CARDIAC) != 0U, "fall: CARDIAC status set");
 }
 
-/* @verifies REQ-CVNS-09#a */
+/* @verifies REQ-CVNS-09#a DI-SAFE-03 */
 static void test_small_fall_does_not_cut_off(void)
 {
     np_safety_state_t st;
@@ -387,7 +387,7 @@ static void test_small_fall_does_not_cut_off(void)
 
 /* The comparison is strict `>`: a delta of exactly NP_CARDIAC_HR_DELTA_BPM
  * holds.  Pins the boundary so a `>=` edit surfaces here. */
-/* @verifies REQ-CVNS-09#a */
+/* @verifies REQ-CVNS-09#a DI-SAFE-03 */
 static void test_delta_exactly_at_threshold_holds(void)
 {
     np_safety_state_t st;
@@ -444,7 +444,7 @@ static void test_impossible_rr_saturates_rather_than_wrapping(void)
 
 /* Re-enable is refused until the 30 s lockout has elapsed, and the elapsed
  * check is driven by tick(), not by the re-enable call itself. */
-/* @verifies REQ-CVNS-09#e */
+/* @verifies REQ-CVNS-09#e DI-SAFE-03 */
 static void test_reenable_refused_during_lockout(void)
 {
     np_safety_state_t st;
@@ -555,7 +555,7 @@ static uint32_t realtime_step(np_safety_state_t *st, uint32_t rr0, uint32_t pre,
 /* The case OI-CVNS-12 was raised on, which the 5 s refresh never cut.  The
  * RISK-25 hazard direction.  Cut on the 6th post-step interval, the first at
  * which the 8-interval mean has moved more than 15 BPM (7.2 s). */
-/* @verifies REQ-CVNS-09#c */
+/* @verifies REQ-CVNS-09#c DI-SAFE-03 */
 static void test_sustained_fall_cut_in_real_time(void)
 {
     np_safety_state_t st;
@@ -564,7 +564,7 @@ static void test_sustained_fall_cut_in_real_time(void)
 }
 
 /* FAI-CV02's own step, cut by the as-built rule in about 30 % of trials. */
-/* @verifies REQ-CVNS-09#c */
+/* @verifies REQ-CVNS-09#c DI-SAFE-03 */
 static void test_fai_cv02_rise_cut_in_real_time(void)
 {
     np_safety_state_t st;
@@ -574,7 +574,7 @@ static void test_fai_cv02_rise_cut_in_real_time(void)
 
 /* A step only just over the threshold needs all 8 post-step intervals.  A
  * band-gated refresh (candidate A) would still have absorbed part of it. */
-/* @verifies REQ-CVNS-09#c */
+/* @verifies REQ-CVNS-09#c DI-SAFE-03 */
 static void test_marginal_fall_cut_in_real_time(void)
 {
     np_safety_state_t st;
@@ -590,7 +590,7 @@ static void test_marginal_fall_cut_in_real_time(void)
  * arming), so it must outlive +11.5 s: a horizon of 11 fails this (mutation-
  * checked).  An instantaneous step needs only 12 s; the 5 s spread is what
  * takes the horizon to 18, and the next test pins that. */
-/* @verifies REQ-CVNS-09#b,c */
+/* @verifies REQ-CVNS-09#b,c DI-SAFE-03 */
 static void test_floor_fall_to_40_cut_in_real_time(void)
 {
     np_safety_state_t st;
@@ -631,7 +631,7 @@ static uint32_t realtime_two_stage(np_safety_state_t *st, uint32_t rr0, uint32_t
  * analytic allowance for a change whose final rate starts at exactly +5 s
  * (NP-FW-CVNS-001 §5.4), which a realisable beat train here does not reach.
  * A linear 56 -> 40 ramp over 5 s needs only 14 s. */
-/* @verifies REQ-CVNS-09#b,c */
+/* @verifies REQ-CVNS-09#b,c DI-SAFE-03 */
 static void test_floor_two_stage_to_40_cut_in_real_time(void)
 {
     np_safety_state_t st;

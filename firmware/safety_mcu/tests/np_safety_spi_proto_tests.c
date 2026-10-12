@@ -151,6 +151,7 @@ static void test_sig_cmd_checksum(void)
  *   3. Verify failure leaves SIG_PENDING set (and adds FAULT + CUTOFF)
  */
 
+/* @verifies DI-SAFE-06 */
 static void test_sig_pending_lifecycle(void)
 {
     np_safety_state_t state;
@@ -198,6 +199,7 @@ static void test_sig_pending_lifecycle(void)
  * NP_SAFETY_STATUS_SIG_PENDING must be bit 7 (0x80).
  */
 
+/* @verifies DI-SAFE-06 */
 static void test_watchdog_blocks_on_sig_pending(void)
 {
     check(NP_SAFETY_STATUS_SIG_PENDING == 0x80U,

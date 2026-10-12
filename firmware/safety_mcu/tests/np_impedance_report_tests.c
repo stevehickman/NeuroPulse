@@ -221,6 +221,7 @@ static void gate_session(np_safety_state_t *st, uint16_t mask)
     np_impedance_check_request(mask);
 }
 
+/* @verifies DI-SAFE-12 */
 static void test_gate_pending_then_pass(void)
 {
     np_safety_state_t st;
@@ -244,6 +245,7 @@ static void test_gate_pending_then_pass(void)
     check((iterate(&st) & NP_SAFETY_EN_TDCS) != 0U, "gate: and stays granted");
 }
 
+/* @verifies DI-SAFE-12 */
 static void test_gate_fail_is_not_regranted(void)
 {
     np_safety_state_t st;
@@ -268,6 +270,7 @@ static void test_gate_fail_is_not_regranted(void)
     check((iterate(&st) & NP_SAFETY_EN_TDCS) != 0U, "fail: a passing re-check grants");
 }
 
+/* @verifies DI-SAFE-12 */
 static void test_gate_pass_does_not_carry_over(void)
 {
     np_safety_state_t st;
@@ -319,6 +322,7 @@ static bool floor_grants(uint8_t ch, uint16_t bit, uint32_t ohm, bool *status_se
     return granted;
 }
 
+/* @verifies DI-SAFE-12 */
 static void test_floor_rejects_zero_and_below(void)
 {
     static const struct { uint8_t ch; uint16_t bit; uint32_t min; const char *name; } k[] = {
@@ -348,6 +352,7 @@ static void test_floor_rejects_zero_and_below(void)
     }
 }
 
+/* @verifies DI-SAFE-12 */
 static void test_floor_fail_is_not_regranted(void)
 {
     np_safety_state_t st;

@@ -132,6 +132,7 @@ static void test_factory_fresh_is_clear(void)
     check(!np_nv_cardiac_blocked(UNSPEC), "fresh: not blocked");
 }
 
+/* @verifies DI-SAFE-09 */
 static void test_single_user_set_survives_and_clears(void)
 {
     flash_blank(); boot();
@@ -145,6 +146,7 @@ static void test_single_user_set_survives_and_clears(void)
 
 /* ── Per-user scope ─────────────────────────────────────────────────────────── */
 
+/* @verifies DI-SAFE-09 */
 static void test_cutoff_held_for_its_user_only(void)
 {
     flash_blank(); boot();
@@ -172,6 +174,7 @@ static void test_cutoff_held_for_its_user_only(void)
 
 /* A cutoff recorded before any user was named cannot be attributed: it is
  * withheld from everyone, and whoever runs the confirmation clears it. */
+/* @verifies DI-SAFE-09 */
 static void test_unattributed_cutoff_blocks_everyone(void)
 {
     flash_blank(); boot();
@@ -187,6 +190,7 @@ static void test_unattributed_cutoff_blocks_everyone(void)
 }
 
 /* More users than the table holds: the extra cutoff is not dropped. */
+/* @verifies DI-SAFE-09 */
 static void test_full_table_fails_closed(void)
 {
     flash_blank(); boot();
@@ -200,6 +204,7 @@ static void test_full_table_fails_closed(void)
 
 /* ── Power loss ─────────────────────────────────────────────────────────────── */
 
+/* @verifies DI-SAFE-09 */
 static void test_torn_record_fails_closed(void)
 {
     flash_blank(); boot();

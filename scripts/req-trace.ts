@@ -106,7 +106,9 @@ export interface TagProblem {
   message: string;
 }
 
-const ID = String.raw`(?:[A-Z][A-Z0-9]*-)?REQ-[A-Z0-9]+-\d+[a-z]?|[A-Z][A-Z0-9]*-REQ-[A-Z]\d+`;
+// REQ-<AREA>-<NN>, <PREFIX>-REQ-<ID>, the design inputs DI-<CAT>-<NN> (NP-DT-001 §3) and the software
+// requirements SWR-<AREA>-<NN> (NP-SW-001).
+const ID = String.raw`(?:[A-Z][A-Z0-9]*-)?REQ-[A-Z0-9]+-\d+[a-z]?|[A-Z][A-Z0-9]*-REQ-[A-Z]\d+|DI-[A-Z]+-\d+[a-z]?|SWR-[A-Z]+-\d+`;
 const ID_RE = new RegExp(`^(${ID})$`);
 const ID_G = new RegExp(`\\b(?:${ID})\\b`, "g");
 
@@ -165,7 +167,11 @@ export function extractRequirements(file: string, src: string): Requirement[] {
       const cells = splitRow(l);
       const first = stripCell(cells[0] ?? "");
       const m = first.match(new RegExp(`^(${ID})(?:\\s*\\([^)]*\\))?$`));
-      if (m) add(m[1], i + 1, stripCell(cells[1] ?? ""), (cells[0] ?? "").includes("~~"));
+      if (m) {
+        // Design-input tables read | DI-ID | Category | Description | ...: the text is the third cell.
+        const text = /^DI-/.test(m[1]) && cells.length > 2 ? cells[2] : cells[1];
+        add(m[1], i + 1, stripCell(text ?? ""), (cells[0] ?? "").includes("~~"));
+      }
     } else {
       // Blockquote  > **`REQ-X-01` — text**   or   > **`REQ-X-01`** — text
       // Paragraph   **REQ-X-01:** text        or   **Requirement HUB-REQ-C01:** text

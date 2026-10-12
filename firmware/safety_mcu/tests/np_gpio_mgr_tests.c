@@ -245,6 +245,7 @@ static void test_tick_overwrites_granted_mask(void)
 }
 
 /* ══ 5. heartbeat loss → cutoff → all lines disabled (FMEA-M02-05) ══════════ */
+/* @verifies DI-SAFE-02#b,c */
 static void test_heartbeat_loss_cuts_all(void)
 {
     np_safety_state_t st;
@@ -280,6 +281,7 @@ static void test_heartbeat_loss_cuts_all(void)
     check(st.granted_mask == 0U, "check: mask stays cleared while heartbeats stay absent");
 }
 
+/* @verifies DI-SAFE-02#b */
 static void test_heartbeat_timeout_across_tick_wrap(void)
 {
     np_safety_state_t st;

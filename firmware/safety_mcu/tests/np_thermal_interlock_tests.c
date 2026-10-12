@@ -124,6 +124,7 @@ static void test_cool_is_quiet(void)
  * set while the status byte claimed a thermal cutoff.
  */
 
+/* @verifies DI-SAFE-08 */
 static void test_every_cranial_domain_cuts_pbm(void)
 {
     uint8_t domain;
@@ -158,6 +159,7 @@ static void test_every_cranial_domain_cuts_pbm(void)
 
 /* ── Test: a cranial cut is scoped to PBM, not to every modality ────────────── */
 
+/* @verifies DI-SAFE-08 */
 static void test_cranial_cut_spares_other_modalities(void)
 {
     reset_module();
@@ -178,6 +180,7 @@ static void test_cranial_cut_spares_other_modalities(void)
 
 /* ── Test: the hub NTC still cuts everything ────────────────────────────────── */
 
+/* @verifies DI-SAFE-08 */
 static void test_hub_ntc_cuts_all(void)
 {
     reset_module();
@@ -193,6 +196,7 @@ static void test_hub_ntc_cuts_all(void)
 
 /* ── Test: hysteresis — THERMAL clears only when every domain has cooled ────── */
 
+/* @verifies DI-SAFE-08 */
 static void test_rearm_requires_all_domains_cool(void)
 {
     reset_module();

@@ -296,7 +296,7 @@ static void test_format_rejections_are_t1(void)
 }
 
 /* ══ Hardware version (SWR-HV-06, SWR-HV-07, REQ-UPG-04) ═════════════════ */
-/* @verifies REQ-UPG-04 */
+/* @verifies REQ-UPG-04 SWR-HV-06 */
 static void test_hw_version_every_nibble(void)
 {
     uint8_t hw;
@@ -316,7 +316,7 @@ static void test_hw_version_every_nibble(void)
           "hw version: a verified T1 record at version 7 reads 7 and stays T1");
 }
 
-/* @verifies REQ-UPG-04 */
+/* @verifies REQ-UPG-04 SWR-HV-07 */
 static void test_hw_version_zero_nibble_is_malformed(void)
 {
     make_record_hw(0U, NP_TIER_T2, UID_THIS, g_sk);   /* validly signed */
@@ -326,7 +326,7 @@ static void test_hw_version_zero_nibble_is_malformed(void)
           "hw version: a malformed record reads as the default");
 }
 
-/* @verifies REQ-UPG-04 */
+/* @verifies REQ-UPG-04 SWR-HV-07 */
 static void test_hw_version_unverified_reads_default(void)
 {
     make_record_hw(5U, NP_TIER_T2, UID_OTHER, g_sk);
@@ -358,7 +358,7 @@ static void test_hw_version_unverified_reads_default(void)
           "hw version: a re-init against a blank window does not keep the old version");
 }
 
-/* @verifies REQ-UPG-04 */
+/* @verifies REQ-UPG-04 SWR-HV-06 */
 static void test_hw_version_in_report(void)
 {
     np_safety_tier_report_t r;

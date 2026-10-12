@@ -38,6 +38,12 @@
       "b": "After withdrawing from a study, that study is never processed again, whatever a re-issue says",
       "c": "No further extract is generated or transmitted for any data period, including sessions that predate the withdrawal (not built)",
       "d": "Results notifications for studies already joined continue and carry no new data (not built)"
+    },
+    "DI-SAFE-02": {
+      "a": "The safety MCU receives a heartbeat every 200 ms",
+      "b": "A 1.5 s timeout without a heartbeat is a fault",
+      "c": "On timeout all stimulation GPIO is cut off within 50 ms",
+      "d": "The fault latch requires an explicit clear"
     }
   },
   "nonTest": {
