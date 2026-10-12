@@ -71,6 +71,7 @@ static bool cap_equals(np_log_part_t part, const uint8_t *expect, size_t len)
 
 /* ── Tests ────────────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-58 */
 static void test_init_ok(void)
 {
     /* Runs first in main(), so this is the state at reset (OI-NVRAM-19). */
@@ -92,6 +93,7 @@ static void test_init_ok(void)
  * to be mounted, bring-up calls np_log_backend_refuse() instead of init.
  * Nothing is opened, nothing is written, and a session cannot open a UHDR
  * file — until np_log_backend_init() is called again. */
+/* @verifies REQ-FWHUB-58 */
 static void test_refuse_opens_nothing(void)
 {
     const uint8_t rec[] = { 0x10, 0x20, 0x30 };
@@ -144,6 +146,7 @@ static void test_refuse_opens_nothing(void)
     (void)np_log_backend_session_end();
 }
 
+/* @verifies REQ-FWHUB-58 */
 static void test_append_flush_roundtrip(void)
 {
     fresh();
@@ -160,6 +163,7 @@ static void test_append_flush_roundtrip(void)
           "roundtrip: one sync issued");
 }
 
+/* @verifies REQ-FWHUB-58 */
 static void test_coalesce_small_appends(void)
 {
     fresh();
@@ -177,6 +181,7 @@ static void test_coalesce_small_appends(void)
           "coalesce: full 600-byte stream intact after flush");
 }
 
+/* @verifies REQ-FWHUB-58 */
 static void test_large_append_passthrough(void)
 {
     fresh();
@@ -192,6 +197,7 @@ static void test_large_append_passthrough(void)
           "passthrough: 1100-byte block intact");
 }
 
+/* @verifies REQ-FWHUB-58 */
 static void test_eeg_header_then_block(void)
 {
     /* Mirrors np_log_eeg_sample_block: a 7-byte header then a large sample
@@ -207,6 +213,7 @@ static void test_eeg_header_then_block(void)
           "eeg: header and block contiguous");
 }
 
+/* @verifies REQ-FWHUB-58 */
 static void test_uhdr_shdr_isolation(void)
 {
     fresh();
@@ -223,6 +230,7 @@ static void test_uhdr_shdr_isolation(void)
           "isolation: independent sync counts");
 }
 
+/* @verifies REQ-FWHUB-58 */
 static void test_flush_syncs_when_idle(void)
 {
     fresh();
@@ -234,6 +242,7 @@ static void test_flush_syncs_when_idle(void)
           "idle-flush: still issues a sync barrier");
 }
 
+/* @verifies REQ-FWHUB-58 */
 static void test_write_failure_latches_fault(void)
 {
     fresh();
@@ -256,6 +265,7 @@ static void test_write_failure_latches_fault(void)
           "fault: a log fault is not a boot refusal (OI-NVRAM-19 scope)");
 }
 
+/* @verifies REQ-FWHUB-58 */
 static void test_capacity_full(void)
 {
     fresh();
@@ -272,6 +282,7 @@ static void test_capacity_full(void)
           "capacity: fault latched after full");
 }
 
+/* @verifies REQ-FWHUB-58 */
 static void test_null_and_zero_args(void)
 {
     fresh();
@@ -285,6 +296,7 @@ static void test_null_and_zero_args(void)
 
 /* ── OI-LFS-11: one UHDR file per session ────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-58 */
 static void test_uhdr_needs_a_session(void)
 {
     np_log_test_reset();
@@ -296,6 +308,7 @@ static void test_uhdr_needs_a_session(void)
           "session: SHDR needs no session");
 }
 
+/* @verifies REQ-FWHUB-58 */
 static void test_one_file_per_session(void)
 {
     np_log_test_reset();
@@ -329,6 +342,7 @@ static void test_one_file_per_session(void)
           "files: UHDR closed again after session end");
 }
 
+/* @verifies REQ-FWHUB-58 */
 static void test_begin_without_end_keeps_the_tail(void)
 {
     np_log_test_reset();
@@ -368,6 +382,7 @@ static void test_reused_counter_fails_closed(void)
           "reuse: the next session with a fresh counter logs normally");
 }
 
+/* @verifies REQ-FWHUB-58 */
 static void test_per_file_cap(void)
 {
     np_log_test_reset();
@@ -394,6 +409,7 @@ static void test_per_file_cap(void)
 
 static np_session_uhdr_record_t g_rec;
 
+/* @verifies REQ-FWHUB-58 */
 static void test_logger_names_files_by_session_count(void)
 {
     np_log_test_reset();
@@ -536,6 +552,7 @@ static void log_vns(uint32_t session_ms)
     np_log_telemetry(&t);
 }
 
+/* @verifies REQ-FWHUB-58 */
 static void test_eeg_block_keeps_time_order(void)
 {
     logger_session_open();
@@ -568,6 +585,7 @@ static void test_eeg_block_keeps_time_order(void)
           "order: the EEG block follows them, header then samples, intact");
 }
 
+/* @verifies REQ-FWHUB-58 */
 static void test_flush_syncs_eeg_blocks(void)
 {
     logger_session_open();
@@ -620,6 +638,7 @@ static void test_eeg_block_refused_from_isr(void)
     np_log_set_isr_check(NULL);
 }
 
+/* @verifies REQ-FWHUB-58 */
 static void test_uhdr_overflow_syncs_after_append(void)
 {
     /* Records are serialized field by field, so the overflow can fall inside
@@ -657,6 +676,7 @@ static void test_uhdr_overflow_syncs_after_append(void)
           "durability: no UHDR byte lost or duplicated across the overflow");
 }
 
+/* @verifies REQ-FWHUB-58 */
 static void test_shdr_overflow_syncs_after_append(void)
 {
     /* Records are serialized field by field, so the overflow can fall inside
@@ -694,6 +714,7 @@ static void test_shdr_overflow_syncs_after_append(void)
 }
 
 /* OI-FWHUB-15: the runner calls np_log_session_end() and THEN np_log_flush(). */
+/* @verifies REQ-FWHUB-58 */
 static void test_session_end_keeps_queued_adapt_events(void)
 {
     logger_session_open();
@@ -879,6 +900,7 @@ static bool hrv_record_at(const uint8_t *c, const np_hrv_session_record_t *r,
            st == r->tavns_stim_count;
 }
 
+/* @verifies REQ-FWHUB-58 */
 static void test_hrv_session_record(void)
 {
     logger_session_open();                             /* session 1 */

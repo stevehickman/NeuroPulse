@@ -316,6 +316,7 @@ static bool check_no_record_lost(reader_fn rd, bool loud)
 
 /* ── Tests ─────────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-51 */
 static void test_the_production_reader_loses_nothing(void)
 {
     printf("[OI-NVRAM-08] a journal written under v1 loses no record under v1+1\n");
@@ -331,6 +332,7 @@ static void test_the_production_reader_loses_nothing(void)
     ASSERT(g_got[3].ver == 3U && g_got[3].tail_len == 16U, "v3 tail not reported");
 }
 
+/* @verifies REQ-FWHUB-51 */
 static void test_the_check_fails_every_rule_breaking_reader(void)
 {
     printf("[OI-NVRAM-08] falsification: the check fails every reader that "
@@ -358,6 +360,7 @@ static void test_the_check_fails_every_rule_breaking_reader(void)
            "M4 fails on a pure-v1 journal — it is broken, not version-intolerant");
 }
 
+/* @verifies REQ-FWHUB-51 */
 static void test_a_row_that_does_not_verify_ends_the_prefix(void)
 {
     printf("[§4.2(b)] a bad row ends the valid prefix; nothing after it is trusted\n");
@@ -399,6 +402,7 @@ static void test_a_row_that_does_not_verify_ends_the_prefix(void)
     ASSERT(s.rows == 0U && s.end == NP_MAP3_END_CLEAN, "an empty journal was not clean");
 }
 
+/* @verifies REQ-FWHUB-51 */
 static void test_the_v1_row_is_the_budgeted_row(void)
 {
     printf("[§3.3.1.5] the v1 row is 32 bytes and none straddles a 256-byte "

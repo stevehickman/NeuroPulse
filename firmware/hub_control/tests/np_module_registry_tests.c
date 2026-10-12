@@ -296,6 +296,7 @@ static void test_failed_init_not_retried_until_reseated(void)
     check(g_slot[s].init_calls == 2U, "exactly one retry, on the re-seat");
 }
 
+/* @verifies REQ-FWHUB-38 */
 static void test_fixed_slots_are_harmless_to_rescan(void)
 {
     const uint8_t slots[] = { NP_HUB_SLOT_EEG, NP_HUB_SLOT_AUDIO,
@@ -314,6 +315,7 @@ static void test_fixed_slots_are_harmless_to_rescan(void)
     }
 }
 
+/* @verifies REQ-FWHUB-07 */
 static void test_retired_zone_slots_refused_unprobed(void)
 {
     boot_empty();
@@ -327,6 +329,7 @@ static void test_retired_zone_slots_refused_unprobed(void)
     }
 }
 
+/* @verifies REQ-FWHUB-07 */
 static void test_out_of_range_refused(void)
 {
     boot_empty();

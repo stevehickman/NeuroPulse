@@ -126,6 +126,7 @@ static void hex_of(const unsigned char *digest, char *out /* >= 65 */)
 
 /* ── 1. The vendored bytes are the bytes the SOUP record claims ───────────── */
 
+/* @verifies REQ-FWHUB-52 */
 static void test_vendored_files_match_recorded_sha256(void)
 {
     static const char *const TEST_FILE_NAMES[] = {
@@ -172,6 +173,7 @@ static void test_vendored_files_match_recorded_sha256(void)
 
 /* ── 2. The configuration the compiler has in force ───────────────────────── */
 
+/* @verifies REQ-FWHUB-52 */
 static void test_build_configuration_in_force(void)
 {
 #ifndef LFS_NO_MALLOC
@@ -227,6 +229,7 @@ static void test_build_configuration_in_force(void)
 
 /* ── 3. …and the SOUP record says the same thing ──────────────────────────── */
 
+/* @verifies REQ-FWHUB-52 */
 static void test_soup_record_states_the_same_configuration(void)
 {
     char vpath[1024];
@@ -259,6 +262,7 @@ static void test_soup_record_states_the_same_configuration(void)
 
 /* ── 4. The instance parameters ───────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-52 */
 static void test_instance_parameters(void)
 {
     /* The five EMMC-FS-01 owns (claim L-5).  Changing any of them is a change
@@ -340,6 +344,7 @@ static void make_good(struct lfs_config *cfg)
 
 /* ── 5. np_lfs_config_apply fills what it says it fills ───────────────────── */
 
+/* @verifies REQ-FWHUB-52 */
 static void test_apply(void)
 {
     struct lfs_config cfg;
@@ -385,6 +390,7 @@ static void test_apply(void)
 
 /* ── 6. A complete config is accepted ─────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-52 */
 static void test_validate_accepts_a_complete_config(void)
 {
     struct lfs_config cfg;
@@ -439,6 +445,7 @@ static void p_no_lock(struct lfs_config *c)     { c->lock = NULL; }
 static void p_no_unlock(struct lfs_config *c)   { c->unlock = NULL; }
 #endif
 
+/* @verifies REQ-FWHUB-52 */
 static void test_validate_rejects_every_perturbation(void)
 {
     reject_case("read_size 256 (EMMC-FS-01 Rev 2 — below "
@@ -480,6 +487,7 @@ static void test_validate_rejects_every_perturbation(void)
 
 /* ── 8. The library compiles and links under this configuration ───────────── */
 
+/* @verifies REQ-FWHUB-52 */
 static void test_library_links(void)
 {
     /* Referencing a real littlefs symbol is what makes this suite fail if

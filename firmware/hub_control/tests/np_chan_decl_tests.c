@@ -110,6 +110,7 @@ static void test_vns_only_session_sends_its_area(void)
     check(d.phase_us[NP_SAFETY_CH_VNS_HRV] == 250UL, "VNS default pulse width 250 us");
 }
 
+/* @verifies REQ-FWHUB-37 */
 static void test_vns_authored_pulse_width_reaches_the_safety_declaration(void)
 {
     np_chan_decl_t d;
@@ -203,6 +204,7 @@ static void test_mixed_session_arms_each_gate_independently(void)
           "square waveform declared as PULSE");
 }
 
+/* @verifies REQ-FWHUB-37 */
 static void test_nothing_electrical(void)
 {
     np_chan_decl_t d;
@@ -228,6 +230,7 @@ static void test_nothing_electrical(void)
           "a BES command with truncated params is ignored, not half-read");
 }
 
+/* @verifies REQ-FWHUB-37 */
 static void test_half_period(void)
 {
     check(np_chan_decl_half_period_us(500U) == 1000000UL, "0.5 Hz -> 1,000,000 us");

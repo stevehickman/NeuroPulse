@@ -158,6 +158,7 @@ static int slot_of(const np_pbm_session_ctx_t *ctx, uint8_t socket_id)
 
 /* ── Tests ───────────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-LFS-02 */
 static void test_bridge_not_installed_is_defaults_only(void)
 {
     geom_init();
@@ -174,6 +175,7 @@ static void test_bridge_not_installed_is_defaults_only(void)
     (void)np_pbm_session_abort(&ctx, NP_PBM_FAULT_NONE);
 }
 
+/* @verifies REQ-LFS-02 */
 static void test_bridge_delivers_factory_cal_for_the_right_module(void)
 {
     geom_init();
@@ -204,6 +206,7 @@ static void test_bridge_delivers_factory_cal_for_the_right_module(void)
     np_hub_pbm_cal_bridge_remove();
 }
 
+/* @verifies REQ-LFS-02 */
 static void test_bridge_calibration_follows_the_module(void)
 {
     /* Same module, different socket. A socket-keyed store fails here. */
@@ -234,6 +237,7 @@ static void test_bridge_calibration_follows_the_module(void)
     np_hub_pbm_cal_bridge_remove();
 }
 
+/* @verifies REQ-LFS-02 */
 static void test_bridge_swap_does_not_inherit(void)
 {
     /* Different module, same socket. This is the invisible-miscalibration path

@@ -198,6 +198,7 @@ np_hub_status_t np_hexmap_nvram_read(uint8_t *buf, size_t len, size_t *read_len)
 
 /* ── Tests ────────────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-57 */
 static void test_addr_pack(void)
 {
     /* Max is 127:127 — socket is the FULL 7-bit domain since MAX_SOCKETS went
@@ -215,6 +216,7 @@ static void test_addr_pack(void)
     check((np_hex_addr_pack(c) >> 7) == 14, "socket in high 7 bits");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_init(void)
 {
     check(np_module_map_init(GEOM, N_SOCK) == NP_HUB_OK, "init ok");
@@ -226,6 +228,7 @@ static void test_init(void)
     (void)np_module_map_init(GEOM, N_SOCK);
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_resolve_empty(void)
 {
     (void)np_module_map_init(GEOM, N_SOCK);
@@ -235,6 +238,7 @@ static void test_resolve_empty(void)
           "resolve empty socket → NOT_PRESENT");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_poll_new_and_resolve(void)
 {
     (void)np_module_map_init(GEOM, N_SOCK);
@@ -258,6 +262,7 @@ static void test_poll_new_and_resolve(void)
           "resolve element out of range → NOT_PRESENT");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_poll_same_uid_no_reinventory(void)
 {
     (void)np_module_map_init(GEOM, N_SOCK);
@@ -274,6 +279,7 @@ static void test_poll_same_uid_no_reinventory(void)
     check(g_inv_calls == 0, "same UID → not re-inventoried");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_poll_uid_change_reinventory(void)
 {
     (void)np_module_map_init(GEOM, N_SOCK);
@@ -297,6 +303,7 @@ static void test_poll_uid_change_reinventory(void)
           "after swap resolve → EEG_ELECTRODE");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_poll_removal(void)
 {
     (void)np_module_map_init(GEOM, N_SOCK);
@@ -320,6 +327,7 @@ static void test_poll_removal(void)
     check(!changed, "re-poll already-empty → changed=false");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_poll_invalid(void)
 {
     (void)np_module_map_init(GEOM, N_SOCK);
@@ -333,6 +341,7 @@ static void test_poll_invalid(void)
               == NP_HUB_ERR_INVALID_ARG, "poll null uid → INVALID_ARG");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_poll_fail_closed_overflow(void)
 {
     (void)np_module_map_init(GEOM, N_SOCK);
@@ -350,6 +359,7 @@ static void test_poll_fail_closed_overflow(void)
           "over-max module left not present (fail closed)");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_poll_new_null_cb_fail_closed(void)
 {
     (void)np_module_map_init(GEOM, N_SOCK);
@@ -377,6 +387,7 @@ static void populate_all(void)
  * proven are unchanged — socket fidelity of the output, and a multi-socket zone
  * expanding to every member's elements. What is gone is firmware's opinion about
  * WHICH sockets those are; the zone file owns that. */
+/* @verifies REQ-FWHUB-57 */
 static void test_group_zone_socket_set(void)
 {
     populate_all();
@@ -406,6 +417,7 @@ static void test_group_zone_socket_set(void)
  * kind 0 used to mean NP_GROUP_KIND_LOBE, so a memset-zeroed query silently
  * resolved a frontal-left lobe group. With the lobe kind retired, 0 is unassigned
  * and lands on the default arm (OI-HUB-C14). */
+/* @verifies REQ-FWHUB-57 */
 static void test_group_invalid_kind_fails_closed(void)
 {
     populate_all();
@@ -423,6 +435,7 @@ static void test_group_invalid_kind_fails_closed(void)
           "unknown group kind → INVALID_ARG");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_group_type_filter(void)
 {
     populate_all();
@@ -452,6 +465,7 @@ static void test_group_type_filter(void)
     check(rc == NP_HUB_OK && n == PBM_TILE_N, "mask 0 exclude → still all elements");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_group_socket_and_addr_set(void)
 {
     populate_all();
@@ -476,6 +490,7 @@ static void test_group_socket_and_addr_set(void)
     check(n == 2, "addr set drops the unresolvable (unwired) address");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_group_overflow(void)
 {
     populate_all();
@@ -516,6 +531,7 @@ static void test_nvram_roundtrip(void)
           "loaded inventory resolves once confirmed");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_nvram_reject_bad(void)
 {
     populate_all();
@@ -561,6 +577,7 @@ static void test_nvram_hal_persist_restore(void)
     check(np_module_map_restore() == NP_HUB_ERR_NOT_PRESENT, "restore with empty NVRAM propagates");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_placement_check(void)
 {
     /* Mixed insertion: PBM tiles everywhere, EEG tiles only at FL and OL. */
@@ -651,6 +668,7 @@ static void full_geom_init(void)
 /* 128 sockets x 6-element tiles = 768 addresses. */
 static np_hex_addr_t g_hi_out[NP_HEXMAP_MAX_SOCKETS * 8];
 
+/* @verifies REQ-FWHUB-57 */
 static void test_high_socket_init_and_resolve(void)
 {
     full_geom_build();
@@ -683,6 +701,7 @@ static void test_high_socket_init_and_resolve(void)
           "empty high socket → NOT_PRESENT");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_high_socket_groups(void)
 {
     full_geom_init();
@@ -745,6 +764,7 @@ static void test_high_socket_groups(void)
           "type filter on high socket → 1 element");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_high_socket_placement(void)
 {
     full_geom_init();
@@ -769,6 +789,7 @@ static void test_high_socket_placement(void)
           "placement reports failing socket id 127 without truncation");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_nvram_full_occupancy_roundtrip(void)
 {
     full_geom_init();
@@ -817,6 +838,7 @@ static void test_nvram_full_occupancy_roundtrip(void)
 /* A v1 (64-socket-era) blob must be REJECTED, not migrated and not misread.
  * load() checks version before CRC, so flipping the version field alone is a
  * faithful stand-in for an old blob. */
+/* @verifies REQ-FWHUB-57 */
 static void test_nvram_rejects_old_version(void)
 {
     full_geom_init();
@@ -860,6 +882,7 @@ static void test_nvram_rejects_old_version(void)
 
 /* ── Packed-address validation (out-of-domain must fail, not alias) ──────────── */
 
+/* @verifies REQ-FWHUB-57 */
 static void test_addr_validation(void)
 {
     np_hex_addr_t max_ok = { NP_HEXMAP_MAX_SOCKETS - 1, NP_HEXMAP_MAX_ELEMENTS - 1 };
@@ -935,6 +958,7 @@ static bool out_contains_socket(const np_hex_addr_t *o, uint16_t n, uint8_t sock
     return false;
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_midline_included_in_both_hemispheres(void)
 {
     mid_geom_populate();
@@ -981,6 +1005,7 @@ static uint16_t count_socket(const np_hex_addr_t *o, uint16_t n, uint8_t socket)
  * module takes double J/cm² in a single session. Models the real shape of
  * clinical-04-pbm-depression: zones ["Frontal Left", "Frontal Right"], whose
  * socket lists both contain the frontal midline sockets. */
+/* @verifies REQ-FWHUB-57 */
 static void test_overlapping_zone_union_dedups(void)
 {
     mid_geom_populate();
@@ -1056,6 +1081,7 @@ static void fill_cal(float cal[NP_HEXMAP_CAL_FLOATS], float base)
     }
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_cal_set_get_by_uid(void)
 {
     full_geom_init();
@@ -1076,6 +1102,7 @@ static void test_cal_set_get_by_uid(void)
     check(same, "cal: all 9 coefficients round-trip exactly");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_cal_unknown_uid_fails_closed(void)
 {
     full_geom_init();
@@ -1108,6 +1135,7 @@ static void test_cal_unknown_uid_fails_closed(void)
           "cal: cannot store against the zero UID");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_cal_present_module_without_record(void)
 {
     full_geom_init();
@@ -1119,6 +1147,7 @@ static void test_cal_present_module_without_record(void)
           "(caller falls back to defaults + NP_CAL_DEFAULT)");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_cal_rejects_implausible_values(void)
 {
     full_geom_init();
@@ -1140,6 +1169,7 @@ static void test_cal_rejects_implausible_values(void)
           "cal: a rejected set stores nothing at all");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_cal_follows_module_across_sockets(void)
 {
     /* THE test. Same physical module, different hole. A socket-keyed store
@@ -1172,6 +1202,7 @@ static void test_cal_follows_module_across_sockets(void)
     check(out[0] == in[0], "cal: coefficients are the module's, at either socket");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_cal_cleared_when_occupant_changes(void)
 {
     /* A different module in the same socket must NOT inherit the previous
@@ -1307,6 +1338,7 @@ static void test_restored_record_unused_until_poll(void)
 /* The store's content check is the blob's own integrity check (OI-HEXMAP-01):
  * a valid blob passes, and every single-field corruption, a truncation and an
  * over-length buffer fail. Version and geometry are load()'s, not this one's. */
+/* @verifies REQ-FWHUB-57 */
 static void test_blob_verify(void)
 {
     populate_all();
@@ -1336,6 +1368,7 @@ static void test_blob_verify(void)
           "blob_verify: a version flip breaks the CRC like any other byte");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_socket_uid_lookup(void)
 {
     full_geom_init();
@@ -1353,6 +1386,7 @@ static void test_socket_uid_lookup(void)
           "socket_uid: out-of-domain socket rejected");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_cal_length_matches_pbm_library(void)
 {
     /* NP_PBM_MODULE_UID_LEN mirrors NP_HEXMAP_UID_LEN by comment on both

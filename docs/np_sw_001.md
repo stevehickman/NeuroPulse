@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 13
-**Date:** 2026-10-11  
+**Revision:** 14
+**Date:** 2026-10-12  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -16,6 +16,8 @@
 **Next Review:** 2027-05-13 or upon significant architecture change
 
 ---
+
+**Rev 14 (2026-10-12):** **§5.1.1 added: five unit requirements for SW-01 (`REQ-SW01-01…05`)** so the host tests of the modules in §5.1 trace to a requirement. Each restates a rule already binding in `CLAUDE.md` §4.2 or a `DI-SAFE` row (enable-line ownership, heartbeat and timebase integrity, non-volatile cutoff state, cardiac evidence, key and tier-record reads) and adds no figure. Nothing in the code or the tests changed.
 
 **Rev 12 (2026-10-09):** **§6.3 added: requirement rows for all five groups of `OI-UI-KMP-10`** in `docs/status/pending-decisions.md`: the protocol lifecycle (P1–P6), the helmet hardware version (H1–H7), upload verification (U1–U2), the warranty owner, used flag and export (W1–W3) and the protocol family (F1–F12). It also holds the rows for `OI-UI-KMP-09` (session stop, pause and progress, R1–R6) and `OI-UI-KMP-11` (device-replacement migration, M1–M12). Every row answers the two questions of `NP-CONV-001` §7.1 (what fails, where it traces). **None is built:** the status column says so, and the rows are the design input for the work, not a record of it. No limit, interlock or locked decision of `CLAUDE.md` changes.
 
@@ -187,6 +189,20 @@ Each module listed constitutes a **software unit** requiring individual unit ver
 >
 > **The accumulator is `uint64_t`** with no roll-over detection, which at these ceilings it does
 > not need; there is no 32-bit-boundary unit test because there is no 32-bit accumulator.
+
+### 5.1.1 Unit requirements (SW-01)
+
+Restatements of rules already binding elsewhere, written so the host tests of §5.1's modules have a
+row to trace to (`CLAUDE.md` §18: each row names what fails and where the rule comes from). They add
+no figure.
+
+| ID | Requirement | Fails without it | Traced to |
+|---|---|---|---|
+| `REQ-SW01-01` | The safety MCU alone drives every stimulation enable line. All lines are driven disabled at initialisation, before any grant, and every tick rewrites every line from the granted mask (a pin is never left as an earlier tick set it). The pin map has no collisions, and a non-zero level on an enable pin always means disabled. | A line left asserted by an earlier tick or by boot stays on after its grant is withdrawn. | `CLAUDE.md` §4.2; SW01-M01 |
+| `REQ-SW01-02` | A heartbeat counts only if its sequence counter advances: a stuck or replayed sequence is a lost heartbeat. The MCU's own timebases (SysTick, TIM2) must agree on rate, and a disagreement or a frozen clock latches a fault. The independent watchdog is started with a bounded timeout and is refreshed by the main loop. | A frozen heartbeat source or a stopped clock makes the 1.5 s timeout of `DI-SAFE-02` never expire. | `DI-SAFE-02`; `REQ-FWHUB-42`; SW01-M02 |
+| `REQ-SW01-03` | A cutoff that must outlive a reset (the cardiac cutoff) is held in non-volatile state. A restored cutoff stays latent until the channel is requested, then asserts. Compaction interrupted at any point, a torn snapshot, a snapshot that was never committed, or a store holding only garbage never replaces committed state and fails closed. | A power cycle clears a cardiac cutoff, or a torn write re-enables a channel. | `DI-SAFE-09`; `DI-SAFE-03`; SW01-M05 |
+| `REQ-SW01-04` | The cervical VNS enable is granted only while live R-peak evidence exists: before a baseline, with no R-peaks, with a stale R-peak, or without a fresh hub cross-check report it is withheld, and once granted a stale or disagreeing source cuts it. The cutoff blocks the cervical VNS line only and re-arms on a new request. | Cardiac protection that is silently absent when its sensor is. | `DI-SAFE-03`; `CLAUDE.md` §4.2; SW01-M05 |
+| `REQ-SW01-05` | The OTP records are read verbatim and bounded: a blank key reads as the unprovisioned sentinel, a programmed key passes through, a key whose CRC is missing or wrong is refused (and re-checked at every verify), and the tier record and device UID are read at their offsets with the length clamped. An ADC failsafe value always cuts, and full scale does not. | A corrupt or absent key reaching the signature check, or a failed sensor read that reads as safe. | `DI-SAFE-06`; `REQ-UPG-02`; `DI-SAFE-08` |
 
 ### 5.2 SW-02 — Main processor firmware modules (Class B)
 

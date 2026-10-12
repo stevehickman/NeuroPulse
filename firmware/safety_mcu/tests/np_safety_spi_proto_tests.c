@@ -73,6 +73,7 @@ static uint16_t chan_limit_checksum(const np_safety_chan_limit_cmd_t *c)
 
 /* ── Test: compile-time and runtime size assertions ────────────────────────── */
 
+/* @verifies REQ-FWHUB-50 */
 static void test_frame_sizes(void)
 {
     check(sizeof(np_safety_rx_frame_t) == NP_SAFETY_FRAME_LEN,
@@ -95,6 +96,7 @@ static void test_frame_sizes(void)
 
 /* ── Test: magic byte values are distinct from heartbeat magic ─────────────── */
 
+/* @verifies REQ-FWHUB-50 */
 static void test_magic_distinct(void)
 {
     check(NP_SAFETY_CMD_MAGIC_0 != NP_SAFETY_BEAT_MAGIC_0 ||
@@ -107,6 +109,7 @@ static void test_magic_distinct(void)
 
 /* ── Test: checksum computation and round-trip verification ────────────────── */
 
+/* @verifies REQ-FWHUB-50 */
 static void test_sig_cmd_checksum(void)
 {
     np_safety_sig_cmd_t cmd;
@@ -237,6 +240,7 @@ static void test_watchdog_blocks_on_sig_pending(void)
 
 /* ── Test: sig cmd magic and type constants ─────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-50 */
 static void test_cmd_constants(void)
 {
     check(NP_SAFETY_CMD_SESSION_SIG == 0x01U, "NP_SAFETY_CMD_SESSION_SIG == 0x01");
@@ -250,6 +254,7 @@ static void test_cmd_constants(void)
 
 /* ── Test: heartbeat frame is unaffected by the new constants ───────────────── */
 
+/* @verifies REQ-FWHUB-50 */
 static void test_heartbeat_unaffected(void)
 {
     np_safety_rx_frame_t rx;
@@ -277,6 +282,7 @@ static void test_heartbeat_unaffected(void)
 
 /* ── Test: fault slot constants match their wire-format values ──────────────── */
 
+/* @verifies REQ-FWHUB-50 */
 static void test_fault_slot_constants(void)
 {
     /* Fault slot codes must be stable — these values are written to SHDR and
@@ -312,6 +318,7 @@ static void test_fault_slot_constants(void)
  * "tidied" the word by compacting it.
  */
 
+/* @verifies REQ-FWHUB-50 */
 static void test_enable_word_layout(void)
 {
     check(NP_SAFETY_EN_PBM_CRANIAL == (1U << 0),
@@ -378,6 +385,7 @@ static void test_enable_word_layout(void)
  * no cross-side agreement remains to test.  What is left: the electrical-channel
  * mask built on those bits, and the constants only the hub holds.           */
 
+/* @verifies REQ-FWHUB-50 */
 static void test_enable_word_structure(void)
 {
     /* Every electrical channel must be inside NP_SAFETY_CH_ELECTRICAL_MASK —
@@ -437,6 +445,7 @@ static uint16_t ext_data_checksum(const np_safety_rx_ext_frame_t *f)
     return sum;
 }
 
+/* @verifies REQ-FWHUB-50 */
 static void test_ext_frame_sizes(void)
 {
     check(sizeof(np_safety_rx_ext_frame_t) == NP_SAFETY_RX_EXT_FRAME_LEN,
@@ -447,6 +456,7 @@ static void test_ext_frame_sizes(void)
           "NP_SAFETY_MAX_CHANNELS == 14");
 }
 
+/* @verifies REQ-FWHUB-50 */
 static void test_ext_frame_offsets(void)
 {
     check(offsetof(np_safety_rx_ext_frame_t, magic)         == 0U,  "ext.magic at offset 0");
@@ -459,6 +469,7 @@ static void test_ext_frame_offsets(void)
     check(offsetof(np_safety_rx_ext_frame_t, ext_checksum)   == 36U, "ext.ext_checksum at offset 36");
 }
 
+/* @verifies REQ-FWHUB-50 */
 static void test_ext_frame_base_checksum(void)
 {
     np_safety_rx_ext_frame_t f;
@@ -481,6 +492,7 @@ static void test_ext_frame_base_checksum(void)
     f.enable_lo ^= 0xFFU;   /* restore */
 }
 
+/* @verifies REQ-FWHUB-50 */
 static void test_ext_frame_data_checksum(void)
 {
     np_safety_rx_ext_frame_t f;
@@ -507,6 +519,7 @@ static void test_ext_frame_data_checksum(void)
           "current_ua starts at byte 8 (not covered by base checksum)");
 }
 
+/* @verifies REQ-FWHUB-50 */
 static void test_ext_frame_magic_matches_heartbeat(void)
 {
     /* The ext frame uses the same magic bytes as the old 8-byte heartbeat —
@@ -519,6 +532,7 @@ static void test_ext_frame_magic_matches_heartbeat(void)
     check(f.magic[1] == NP_SAFETY_BEAT_MAGIC_1, "ext magic[1] == BEAT_MAGIC_1");
 }
 
+/* @verifies REQ-FWHUB-50 */
 static void test_ext_frame_channel_count_clamping(void)
 {
     /* channel_count must not exceed NP_SAFETY_MAX_CHANNELS.  Hub-side code
@@ -533,6 +547,7 @@ static void test_ext_frame_channel_count_clamping(void)
 
 /* ── OI-CHARGE-02: per-channel charge-limit command frame tests ────────────── */
 
+/* @verifies REQ-FWHUB-50 */
 static void test_chan_limit_frame_sizes(void)
 {
     check(sizeof(np_safety_chan_limit_cmd_t) == NP_SAFETY_CHAN_LIMIT_FRAME_LEN,
@@ -547,6 +562,7 @@ static void test_chan_limit_frame_sizes(void)
           "chan-limit frame length distinct from 8/38/102");
 }
 
+/* @verifies REQ-FWHUB-50 */
 static void test_chan_limit_frame_offsets(void)
 {
     check(offsetof(np_safety_chan_limit_cmd_t, cmd_magic) == 0U,  "chan_limit.cmd_magic at 0");
@@ -562,6 +578,7 @@ static void test_chan_limit_frame_offsets(void)
           "chan-limit cmd_type distinct from session-sig cmd_type");
 }
 
+/* @verifies REQ-FWHUB-50 */
 static void test_chan_limit_checksum(void)
 {
     np_safety_chan_limit_cmd_t cmd;
@@ -598,6 +615,7 @@ static uint16_t chan_wave_checksum(const np_safety_chan_wave_cmd_t *c)
     return sum;
 }
 
+/* @verifies REQ-FWHUB-50 */
 static void test_chan_wave_frame_sizes(void)
 {
     check(sizeof(np_safety_chan_wave_cmd_t) == NP_SAFETY_CHAN_WAVE_FRAME_LEN,
@@ -613,6 +631,7 @@ static void test_chan_wave_frame_sizes(void)
           "waveform frame length distinct from 8/34/38/102");
 }
 
+/* @verifies REQ-FWHUB-50 */
 static void test_chan_wave_frame_offsets(void)
 {
     check(offsetof(np_safety_chan_wave_cmd_t, cmd_magic)  == 0U,  "chan_wave.cmd_magic at 0");
@@ -638,6 +657,7 @@ static void test_chan_wave_frame_offsets(void)
           "phase_us range exceeds uint16 (0.5 Hz half-period is 1e6 µs)");
 }
 
+/* @verifies REQ-FWHUB-50 */
 static void test_chan_wave_class_bits(void)
 {
     check(NP_CHARGE_WAVE_DC    == (1U << 0), "NP_CHARGE_WAVE_DC == bit 0");
@@ -658,6 +678,7 @@ static void test_chan_wave_class_bits(void)
           "class 0 is not a declared class (it is the undeclared sentinel)");
 }
 
+/* @verifies REQ-FWHUB-50 */
 static void test_chan_wave_checksum(void)
 {
     np_safety_chan_wave_cmd_t cmd;
@@ -692,6 +713,7 @@ static void test_chan_wave_checksum(void)
 
 /* ── OI-CHARGE-03: geometry-required session_status bit ─────────────────────── */
 
+/* @verifies REQ-FWHUB-50 */
 static void test_geom_required_session_status_bit(void)
 {
     check(NP_SESSION_STATUS_GEOM_REQUIRED == (1U << 2),
@@ -712,6 +734,7 @@ static void test_geom_required_session_status_bit(void)
 
 /* ── OI-MMSOCK-02: the BES/tACS geometry bit takes spare bit 4 ─────────────── */
 
+/* @verifies REQ-FWHUB-50 */
 static void test_geom_req_bes_session_status_bit(void)
 {
     check(NP_SESSION_STATUS_GEOM_REQ_BES == (1U << 4),

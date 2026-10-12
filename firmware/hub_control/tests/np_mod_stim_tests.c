@@ -121,6 +121,7 @@ void np_log_shdr_fault(uint8_t slot, uint8_t mod_type, uint8_t code, uint32_t t)
 
 /* ── Tests ────────────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-59 */
 static void test_detect_is_per_slot(void)
 {
     np_hub_mod_type_t t = NP_MOD_NONE;
@@ -144,6 +145,7 @@ static void test_detect_is_per_slot(void)
  * waveform path — those carry different parameter structs at the same offsets,
  * so a misrouted tDCS command would feed current_ua into freq_mhz.
  */
+/* @verifies REQ-FWHUB-59 */
 static void test_control_routes_by_slot(void)
 {
     np_mod_stim_init(NP_HUB_SLOT_BES_TACS);
@@ -184,6 +186,7 @@ static void test_control_routes_by_slot(void)
           "control: tDCS requests the tDCS safety-MCU enable bit only");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_stop_uses_the_right_channel(void)
 {
     np_mod_stim_init(NP_HUB_SLOT_BES_TACS);
@@ -206,6 +209,7 @@ static void test_stop_uses_the_right_channel(void)
 }
 
 /* Independent state: stopping one channel must not stop the other. */
+/* @verifies REQ-FWHUB-59 */
 static void test_channels_hold_independent_state(void)
 {
     np_mod_stim_init(NP_HUB_SLOT_BES_TACS);
@@ -238,6 +242,7 @@ static void test_channels_hold_independent_state(void)
  * wrong parameters. This is what pins hubCompiler.ts's encodeBESTacs to 7
  * bytes — np_mod_bes_tacs_params_t is packed and has no alignment padding.
  */
+/* @verifies REQ-FWHUB-59 */
 static void test_param_length_is_exact(void)
 {
     np_mod_stim_init(NP_HUB_SLOT_BES_TACS);
@@ -265,6 +270,7 @@ static void test_param_length_is_exact(void)
           "length: an over-long tDCS payload is refused");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_unowned_slot_is_refused(void)
 {
     np_mod_bes_tacs_params_t bes;

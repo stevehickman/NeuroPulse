@@ -240,6 +240,7 @@ static bool cvns_granted(const np_safety_state_t *st)
  * NP-FW-CVNS-001 §5.4.3's "fewer than 3 valid intervals" — it holds until
  * NP_CARDIAC_BASELINE_BEATS (8) intervals have accumulated.  Pinned as-is.
  */
+/* @verifies REQ-CVNS-09#a */
 static void test_no_cutoff_before_baseline(void)
 {
     np_safety_state_t st;
@@ -275,6 +276,7 @@ static void test_no_cutoff_before_baseline(void)
  *             then current climbs to 60 → delta 24 > 15 → cutoff.
  * So "no cutoff" here is a genuine falsification of the unguarded variant.
  */
+/* @verifies REQ-CVNS-09#a */
 static void test_priming_beat_produces_no_interval(void)
 {
     np_safety_state_t st;
@@ -304,6 +306,7 @@ static void test_priming_beat_produces_no_interval(void)
  * (|80−60| = 20 > 15).  The 8-beat impl has baseline 73 and does not reach
  * delta > 15 until interval 11 (|96−73| = 23).
  */
+/* @verifies REQ-CVNS-09#a */
 static void test_baseline_arms_at_eight_intervals_not_five(void)
 {
     np_safety_state_t st;
@@ -400,6 +403,7 @@ static void test_delta_exactly_at_threshold_holds(void)
 }
 
 /* No cutoff while the hub has not declared CVNS active for the session. */
+/* @verifies DI-SAFE-03 */
 static void test_no_cutoff_when_cvns_inactive(void)
 {
     np_safety_state_t st;
@@ -425,6 +429,7 @@ static void test_no_cutoff_when_cvns_inactive(void)
  * 65 573 − 65 536 = 37 is exactly the baseline, so the truncating variant is
  * silent.  Asserting the cutoff fires therefore falsifies truncation.
  */
+/* @verifies REQ-CVNS-09#a */
 static void test_impossible_rr_saturates_rather_than_wrapping(void)
 {
     np_safety_state_t st;
@@ -484,6 +489,7 @@ static void test_reenable_refused_during_lockout(void)
  * until NP_CARDIAC_BASELINE_BEATS fresh intervals accumulate.  Without that
  * reset the still-elevated ring buffer would re-fire immediately.
  */
+/* @verifies REQ-CVNS-09#a */
 static void test_reenable_forces_fresh_baseline(void)
 {
     np_safety_state_t st;
@@ -643,6 +649,7 @@ static void test_floor_two_stage_to_40_cut_in_real_time(void)
 
 /* Slow drift is still not a cutoff: 60 -> 90 BPM at 1 BPM per 2 s.  No 18 s
  * span holds more than about 9 BPM of it, so the history keeps up. */
+/* @verifies REQ-CVNS-09#a */
 static void test_slow_drift_not_cut(void)
 {
     np_safety_state_t st;
@@ -662,6 +669,7 @@ static void test_slow_drift_not_cut(void)
 /* After a lockout expires, the history is reseeded: the pre-event snapshots
  * must not re-trip a still-elevated rate and restart the lockout, which would
  * make re-enable unreachable. */
+/* @verifies REQ-CVNS-09#a */
 static void test_lockout_expiry_reseeds_history(void)
 {
     np_safety_state_t st;
@@ -683,6 +691,7 @@ static void test_lockout_expiry_reseeds_history(void)
 
 /* A live cutoff posts "pending"; the request survives until that value is
  * reported written, and a stale completion cannot drop a newer request. */
+/* @verifies REQ-SW01-03 */
 static void test_cutoff_posts_pending_write(void)
 {
     np_safety_state_t st;
@@ -703,6 +712,7 @@ static void test_cutoff_posts_pending_write(void)
 }
 
 /* A completed re-enable posts "acknowledged". */
+/* @verifies REQ-SW01-03 */
 static void test_reenable_posts_clear_write(void)
 {
     np_safety_state_t st;
@@ -722,6 +732,7 @@ static void test_reenable_posts_clear_write(void)
 /* A restored cutoff is LATENT: a session that does not request CVNS is
  * untouched, so one cardiac cutoff cannot lock the wearer out of every other
  * modality. */
+/* @verifies REQ-SW01-03 */
 static void test_restored_cutoff_latent_without_cvns(void)
 {
     np_safety_state_t st;
@@ -738,6 +749,7 @@ static void test_restored_cutoff_latent_without_cvns(void)
 /* The first CVNS request after a restore meets exactly the state a live cutoff
  * leaves: CVNS dropped before it reaches the GPIO, CARDIAC + CUTOFF, fault slot
  * 10, and a 30 s lockout counted from now — then the ordinary re-enable path. */
+/* @verifies REQ-SW01-03 */
 static void test_restored_cutoff_asserts_on_cvns_request(void)
 {
     np_safety_state_t st;
@@ -765,6 +777,7 @@ static void test_restored_cutoff_asserts_on_cvns_request(void)
     check(np_cardiac_interlock_nv_request(&v) && !v, "restore: acknowledgement persisted");
 }
 
+/* @verifies REQ-SW01-03 */
 static void test_restore_false_is_inert(void)
 {
     np_safety_state_t st;
@@ -779,6 +792,7 @@ static void test_restore_false_is_inert(void)
 /* A cardiac cutoff withholds cervical VNS and nothing else (principal,
  * 2026-09-22): every other channel that is otherwise safe keeps its grant, and
  * CUTOFF stays set while the cervical channel is cut. */
+/* @verifies DI-SAFE-03 */
 static void test_cardiac_blocks_only_cvns(void)
 {
     np_safety_state_t st;
@@ -802,6 +816,7 @@ static void test_cardiac_blocks_only_cvns(void)
 /* Per-user scope (principal, 2026-09-22): a cutoff is held for the user who
  * triggered it.  Switching to a user without one releases cervical VNS for
  * them; switching back re-arms the first user's cutoff as latent. */
+/* @verifies DI-SAFE-03 */
 static void test_user_change_scopes_the_cutoff(void)
 {
     np_safety_state_t st;
@@ -836,6 +851,7 @@ static void test_user_change_scopes_the_cutoff(void)
 
 /* PRE-ARM HOLD: CVNS is withheld until the baseline arms — silently (no CARDIAC,
  * no lockout, no NV write) — and granted from the tick that arms it. */
+/* @verifies REQ-SW01-04 */
 static void test_prearm_hold_withholds_then_grants(void)
 {
     np_safety_state_t st;
@@ -854,6 +870,7 @@ static void test_prearm_hold_withholds_then_grants(void)
 }
 
 /* No R-peaks ever: CVNS is never granted, and nothing false-trips a lockout. */
+/* @verifies REQ-SW01-04 */
 static void test_no_rpeaks_never_granted(void)
 {
     np_safety_state_t st;
@@ -866,6 +883,7 @@ static void test_no_rpeaks_never_granted(void)
 
 /* STALENESS: once armed and granted, no edge for NP_CARDIAC_RPEAK_STALE_MS cuts
  * exactly like a cardiac event — lockout and a persisted cutoff. */
+/* @verifies REQ-SW01-04 */
 static void test_stale_rpeak_cuts_off(void)
 {
     np_safety_state_t st;
@@ -886,6 +904,7 @@ static void test_stale_rpeak_cuts_off(void)
 }
 
 /* A live rhythm never trips staleness: beats 1 s apart, 60 s of them. */
+/* @verifies REQ-SW01-04 */
 static void test_live_rhythm_never_stale(void)
 {
     np_safety_state_t st;
@@ -900,6 +919,7 @@ static void test_live_rhythm_never_stale(void)
 
 /* A new CVNS request re-arms: an old baseline cannot grant early, and an old
  * last-edge time cannot trip staleness the moment the request starts. */
+/* @verifies REQ-SW01-04 */
 static void test_arm_reset_on_new_request(void)
 {
     np_safety_state_t st;
@@ -916,6 +936,7 @@ static void test_arm_reset_on_new_request(void)
 }
 
 /* arm_reset re-arms monitoring; it must never clear a live cutoff. */
+/* @verifies REQ-SW01-04 */
 static void test_arm_reset_keeps_cutoff(void)
 {
     np_safety_state_t st;
@@ -938,6 +959,7 @@ static void test_arm_reset_keeps_cutoff(void)
  * rhythm (a free-running pulse source, a SW-02 timer fault) while the wearer's
  * heart is at 50.  Staleness never fires and the 8-interval mean never moves, so
  * before the cross-check nothing detected it.  Cut and latch, like a cardiac event. */
+/* @verifies REQ-SW01-04 */
 static void test_xchk_false_rhythm_cuts_and_latches(void)
 {
     np_safety_state_t st;
@@ -955,6 +977,7 @@ static void test_xchk_false_rhythm_cuts_and_latches(void)
 }
 
 /* The tolerance is ">" 5 BPM, like the 15 BPM delta: exactly 5.0 holds. */
+/* @verifies REQ-SW01-04 */
 static void test_xchk_tolerance_boundary(void)
 {
     np_safety_state_t st;
@@ -987,6 +1010,7 @@ static void test_xchk_tolerance_boundary(void)
  * silently: no CARDIAC, no lockout, no persisted write, so the hub reads it as
  * request latency (the hub's first report may be a beat behind the arming).
  * The first fresh agreeing report grants. */
+/* @verifies REQ-SW01-04 */
 static void test_xchk_first_report_late_withholds_silently(void)
 {
     np_safety_state_t st;
@@ -1010,6 +1034,7 @@ static void test_xchk_first_report_late_withholds_silently(void)
 }
 
 /* No hub report at all: never granted, never a lockout (like no R-peaks). */
+/* @verifies REQ-SW01-04 */
 static void test_xchk_no_report_never_granted(void)
 {
     np_safety_state_t st;
@@ -1025,6 +1050,7 @@ static void test_xchk_no_report_never_granted(void)
 
 /* Fail-closed: a hub that goes quiet while CVNS runs cannot switch the check off.
  * Reports stop; the held one stays good up to the bound and not a ms longer. */
+/* @verifies REQ-SW01-04 */
 static void test_xchk_hub_going_quiet_cuts_off(void)
 {
     np_safety_state_t st;
@@ -1048,6 +1074,7 @@ static void test_xchk_hub_going_quiet_cuts_off(void)
 
 /* The report is backdated by its own age_ms, and a report that is already too
  * old on arrival, or one the hub marks invalid, never stands in for a fresh one. */
+/* @verifies REQ-SW01-04 */
 static void test_xchk_report_age_and_validity(void)
 {
     np_safety_state_t st;
@@ -1080,6 +1107,7 @@ static void test_xchk_report_age_and_validity(void)
 }
 
 /* A heart rate that really moves, tracked by both sides, is not a disagreement. */
+/* @verifies REQ-SW01-04 */
 static void test_xchk_tracking_a_real_change_is_not_a_trip(void)
 {
     np_safety_state_t st;
@@ -1093,6 +1121,7 @@ static void test_xchk_tracking_a_real_change_is_not_a_trip(void)
 
 /* After a cutoff and lockout the check restarts from nothing: re-enable needs a
  * fresh, agreeing hub estimate as well as fresh beats. */
+/* @verifies REQ-SW01-04 */
 static void test_xchk_reenable_needs_fresh_agreement(void)
 {
     np_safety_state_t st;
@@ -1126,6 +1155,7 @@ static void test_xchk_reenable_needs_fresh_agreement(void)
 }
 
 /* The MCU's mean saturates at INT16_MAX; x10 must not overflow into agreement. */
+/* @verifies REQ-SW01-04 */
 static void test_xchk_saturated_mean_cannot_agree(void)
 {
     np_safety_state_t st;
@@ -1138,6 +1168,7 @@ static void test_xchk_saturated_mean_cannot_agree(void)
 }
 
 /* The cross-check is Class C scope: inactive means untouched. */
+/* @verifies REQ-SW01-04 */
 static void test_xchk_inactive_does_nothing(void)
 {
     np_safety_state_t st;

@@ -394,6 +394,7 @@ static void test_pbm_on_t1b_admitted(void)
           "1064 nm on a T1-B -> NOT_PRESENT (placement by emitter, not by tile name)");
 }
 
+/* @verifies REQ-FWHUB-09 */
 static void test_malformed(void)
 {
     setup();
@@ -468,6 +469,7 @@ static void test_driver_fault_rolls_back(void)
     check(g_enable_calls == 0 && !cranial_requested(), "cranial enable never requested");
 }
 
+/* @verifies REQ-FWHUB-34 */
 static void test_rollback_stop_failure_drops_lattice(void)
 {
     setup();
@@ -484,6 +486,7 @@ static void test_rollback_stop_failure_drops_lattice(void)
     check(np_sock_disp_active_count() == 0 && !cranial_requested(), "whole lattice released");
 }
 
+/* @verifies REQ-FWHUB-34 */
 static void test_auto_stop_failure_drops_lattice(void)
 {
     setup();
@@ -527,6 +530,7 @@ static void test_stop_keeps_gate_for_others(void)
     check(np_sock_disp_command(&again) == NP_HUB_OK, "stopping idle sockets is a no-op OK");
 }
 
+/* @verifies REQ-FWHUB-34 */
 static void test_auto_stop(void)
 {
     setup();
@@ -554,6 +558,7 @@ static void test_auto_stop(void)
     check(np_sock_disp_active_count() == 1, "duration 0 never auto-stops");
 }
 
+/* @verifies REQ-FWHUB-34 */
 static void test_lost_stop_drops_lattice(void)
 {
     setup();
@@ -572,6 +577,7 @@ static void test_lost_stop_drops_lattice(void)
     check(!cranial_requested(), "cranial gate released although B had been running");
 }
 
+/* @verifies REQ-FWHUB-34 */
 static void test_type_switch_stops_first(void)
 {
     setup();

@@ -219,6 +219,7 @@ static bool all_zero(const uint8_t *p, size_t n)
 
 /* ── UUIDs and the table ──────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-56 */
 static void test_uuids_match_the_contract(void)
 {
     /* The expected strings, written out independently of the generator (common/npps/constants.json), which the apps'
@@ -246,6 +247,7 @@ static void test_uuids_match_the_contract(void)
     check(ok, "uuid: every published UUID is the string both apps carry");
 }
 
+/* @verifies REQ-FWHUB-56 */
 static void test_table_is_what_the_hub_produces(void)
 {
     size_t n = 0U;
@@ -279,6 +281,7 @@ static void test_table_is_what_the_hub_produces(void)
 
 /* ── Access control and lengths ───────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-56 */
 static void test_access_rules(void)
 {
     uint8_t buf[64];
@@ -308,6 +311,7 @@ static void test_access_rules(void)
 
 /* ── Warranty token ───────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-56 */
 static void test_warranty_first_read_provisions_once(void)
 {
     uint8_t a[64];
@@ -343,6 +347,7 @@ static void test_warranty_first_read_provisions_once(void)
           "warranty: after a reboot the stored token is served, not regenerated");
 }
 
+/* @verifies REQ-FWHUB-56 */
 static void test_warranty_long_read(void)
 {
     uint8_t whole[64];
@@ -365,6 +370,7 @@ static void test_warranty_long_read(void)
           "long read: offset past the value is refused");
 }
 
+/* @verifies REQ-FWHUB-56 */
 static void test_warranty_never_regenerates_over_an_unreadable_token(void)
 {
     uint8_t buf[64];
@@ -399,6 +405,7 @@ static void test_warranty_never_regenerates_over_an_unreadable_token(void)
           "warranty: a stored all-zero token is refused, not replaced");
 }
 
+/* @verifies REQ-FWHUB-56 */
 static void test_warranty_provisioning_failures_leave_nothing(void)
 {
     uint8_t buf[64];
@@ -432,6 +439,7 @@ static void test_warranty_provisioning_failures_leave_nothing(void)
 
 /* ── Device serial (OI-AND-WIRE-02) ───────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-56 */
 static void test_device_serial(void)
 {
     uint8_t buf[64];
@@ -466,6 +474,7 @@ static void test_device_serial(void)
     g_serial_rc = NP_HUB_OK;
 }
 
+/* @verifies REQ-FWHUB-56 */
 static void test_active_user_write(void)
 {
     const uint8_t tag[4] = { 0x04U, 0x03U, 0x02U, 0x01U };
@@ -503,6 +512,7 @@ static void test_reenable_confirm_write(void)
           "reenable: any value but 0x01 never reaches the manager");
 }
 
+/* @verifies REQ-FWHUB-56 */
 static void test_fault_status_read_and_notify_agree(void)
 {
     uint8_t rd[64];

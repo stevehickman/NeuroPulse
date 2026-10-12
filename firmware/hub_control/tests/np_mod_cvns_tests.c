@@ -230,6 +230,7 @@ static np_mod_cvns_params_t make_params(void)
 
 /* ── Tests ───────────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-59 */
 static void test_detect(void)
 {
     reset_mocks();
@@ -244,6 +245,7 @@ static void test_detect(void)
           "detect: absent → NOT_PRESENT");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_init(void)
 {
     reset_mocks();
@@ -254,6 +256,7 @@ static void test_init(void)
     check(g_enable_calls == 0, "init: no enable requested");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_build_config_frequency(void)
 {
     np_mod_cvns_params_t p = make_params();
@@ -275,6 +278,7 @@ static void test_build_config_frequency(void)
     check(c.freq_hz == 11U, "config: 10500 mHz rounds to 11 Hz");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_build_config_current_pw(void)
 {
     np_mod_cvns_params_t p = make_params();
@@ -304,6 +308,7 @@ static void test_build_config_current_pw(void)
     check(c.duration_s == NP_CVNS_SESSION_MAX_S, "config: duration bounded to 120 s");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_build_config_electrode_map(void)
 {
     np_mod_cvns_params_t p = make_params();
@@ -319,6 +324,7 @@ static void test_build_config_electrode_map(void)
     check(c.electrode_config == 0U, "config: invalid side → bilateral (fail-safe)");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_control_invalid_len(void)
 {
     reset_mocks();
@@ -363,6 +369,7 @@ static void test_tick_pre_delivery_no_enable(void)
     check(!np_mod_cvns_test_enable_requested(), "tick: enable bit stays low pre-delivery");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_enable_asserted_when_delivering(void)
 {
     reset_mocks();
@@ -385,6 +392,7 @@ static void test_enable_asserted_when_delivering(void)
 /* OI-CVNS-14: a report goes out at the first tick of a session, then no more
  * often than NP_CVNS_HR_REPORT_PERIOD_MS.  With no beats seen it says "no
  * estimate", which the MCU treats as no report. */
+/* @verifies REQ-FWHUB-59 */
 static void test_hr_report_paced_and_invalid_without_beats(void)
 {
     reset_mocks();
@@ -405,6 +413,7 @@ static void test_hr_report_paced_and_invalid_without_beats(void)
     check(g_hr_report_calls == 2, "hr report: re-sent when the period has elapsed");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_terminal_stage_drops_enable(void)
 {
     reset_mocks();
@@ -424,6 +433,7 @@ static void test_terminal_stage_drops_enable(void)
     check(!np_mod_cvns_test_active(), "terminal: driver released");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_stop_drops_enable(void)
 {
     reset_mocks();
@@ -441,6 +451,7 @@ static void test_stop_drops_enable(void)
     check(!np_mod_cvns_test_active(), "stop: driver released");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_fault_cb_disables_and_logs(void)
 {
     reset_mocks();
@@ -483,6 +494,7 @@ static void run_to_interlock_fault(np_cvns_fault_reason_t reason)
     np_cvns_session_tick(np_mod_cvns_test_session(), 20U, g_now_unix);
 }
 
+/* @verifies REQ-FWHUB-55 */
 static void test_uhdr_record_distinguishes_fault_kind(void)
 {
     const np_cvns_session_record_t *rec;
@@ -507,6 +519,7 @@ static void test_uhdr_record_distinguishes_fault_kind(void)
 
 /* NP-SW-FAULTMSG-001 §9.6: a session that stops on a fault is added to the
  * offline-fault summary with its real kind and the device session counter. */
+/* @verifies REQ-FWHUB-55 */
 static void test_fault_reaches_offline_summary(void)
 {
     g_cvfs_calls = 0;
@@ -760,6 +773,7 @@ static void test_hb_impedance_crossval_no_mcu_report(void)
 
 /* An MCU grant of NP_SAFETY_EN_CVNS while the interlock is PRE_SESSION advances
  * it to ENABLED and marks the stim granted (ENABLE_GRANTED translation). */
+/* @verifies REQ-FWHUB-59 */
 static void test_hb_enable_grant(void)
 {
     reset_mocks();
@@ -816,6 +830,7 @@ static void test_hb_enable_reject_impedance(void)
 
 /* A cardiac cutoff observed only via the heartbeat is NOT this bridge's concern:
  * it is owned by np_cvns_reenable + the PPG path, so the library is left intact. */
+/* @verifies REQ-FWHUB-59 */
 static void test_hb_cardiac_left_to_reenable(void)
 {
     reset_mocks();
@@ -842,6 +857,7 @@ static void test_hb_cardiac_left_to_reenable(void)
 
 /* A snapshot published before a session boundary must not advance the next
  * session: control() start clears s_hb_valid. */
+/* @verifies REQ-FWHUB-59 */
 static void test_hb_snapshot_reset_on_start(void)
 {
     reset_mocks();
@@ -863,6 +879,7 @@ static void test_hb_snapshot_reset_on_start(void)
           "hb-reset: stale grant did not advance the new session");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_stop_when_inactive_noop(void)
 {
     reset_mocks();
@@ -872,6 +889,7 @@ static void test_stop_when_inactive_noop(void)
     check(g_disable_calls == 0, "stop-inactive: no spurious disable");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_control_before_init(void)
 {
     /* Fresh translation unit state is not resettable, but init() is idempotent;

@@ -103,6 +103,7 @@ static void reset_module(void)
 
 /* ── Test: a cool device grants everything and latches nothing ──────────────── */
 
+/* @verifies DI-SAFE-08 */
 static void test_cool_is_quiet(void)
 {
     reset_module();
@@ -223,6 +224,7 @@ static void test_rearm_requires_all_domains_cool(void)
 
 /* ── Test: polling is rate-limited to NP_THERMAL_POLL_MS ────────────────────── */
 
+/* @verifies DI-SAFE-08 */
 static void test_poll_rate_limited(void)
 {
     reset_module();

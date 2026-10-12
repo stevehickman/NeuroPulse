@@ -95,6 +95,7 @@ static void one_current(uint16_t *buf, uint8_t ch, uint16_t ua)
 
 /* ── Test: init returns OK and no tick fires on zero accumulation ────────────── */
 
+/* @verifies DI-SAFE-01 */
 static void test_init_clean(void)
 {
     np_safe_status_t rc = np_charge_monitor_init();
@@ -424,6 +425,7 @@ static void test_mixed_class_channel_runs_both_checks(void)
 
 /* ── Test: reset_session clears accumulators and the latched fault ──────────── */
 
+/* @verifies DI-SAFE-01 */
 static void test_reset_clears_accumulators(void)
 {
     np_charge_monitor_init();
@@ -455,6 +457,7 @@ static void test_reset_clears_accumulators(void)
 
 /* ── Test: out-of-range channel is silently ignored ─────────────────────────── */
 
+/* @verifies DI-SAFE-01 */
 static void test_out_of_range_channel_ignored(void)
 {
     np_charge_monitor_init();
@@ -476,6 +479,7 @@ static void test_out_of_range_channel_ignored(void)
 
 /* ── Test: tick is idempotent after limit reached ────────────────────────────── */
 
+/* @verifies DI-SAFE-01 */
 static void test_tick_idempotent_after_trip(void)
 {
     np_charge_monitor_init();
