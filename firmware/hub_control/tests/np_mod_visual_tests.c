@@ -69,6 +69,9 @@ static bool     g_seated;        /* what the Hall element reads */
 static bool     g_leds_on;       /* last LED command was a set, not a stop */
 static uint16_t g_req_mask;      /* the requested-enable mask, modelled */
 static bool     g_in_isr;
+static bool     g_eye_open = true;   /* what the IR proximity sensor reads */
+static int      g_led_sets;          /* led_set() calls since reset */
+static uint8_t  g_last_wl, g_last_freq, g_last_duty;
 static int      g_task_call_in_isr;   /* task-only API called from the ISR */
 static np_hub_status_t g_register_rc;
 static np_mod_visual_unseated_isr_t g_isr;
@@ -99,6 +102,9 @@ static void reset_doubles(void)
     g_isr = NULL;
     g_register_calls = 0;
     g_lift_during_led_set = false;
+    g_eye_open = true;
+    g_led_sets = 0;
+    g_last_wl = g_last_freq = g_last_duty = 0U;
 }
 
 np_hub_status_t np_mod_visual_hal_hall_irq_register(np_mod_visual_unseated_isr_t on_unseated)
@@ -111,7 +117,9 @@ np_hub_status_t np_mod_visual_hal_hall_irq_register(np_mod_visual_unseated_isr_t
 np_hub_status_t np_mod_visual_hal_led_set(uint16_t zone_mask, uint8_t wl_sel,
                                           uint8_t freq_hz, uint8_t duty_pct)
 {
-    (void)zone_mask; (void)wl_sel; (void)freq_hz; (void)duty_pct;
+    (void)zone_mask;
+    g_led_sets++;
+    g_last_wl = wl_sel; g_last_freq = freq_hz; g_last_duty = duty_pct;
     g_leds_on = true;
     if (g_lift_during_led_set) {
         g_lift_during_led_set = false;
@@ -122,7 +130,7 @@ np_hub_status_t np_mod_visual_hal_led_set(uint16_t zone_mask, uint8_t wl_sel,
 }
 
 void np_mod_visual_hal_led_stop(void)        { g_leds_on = false; }
-bool np_mod_visual_hal_ir_eye_open(void)     { return true; }
+bool np_mod_visual_hal_ir_eye_open(void)     { return g_eye_open; }
 bool np_mod_visual_hal_goggle_seated(void)   { return g_seated; }
 void np_mod_visual_hal_emdr_set(uint8_t r)   { (void)r; g_leds_on = true; }
 bool np_mod_visual_hal_mpe_check(void)       { return true; }
@@ -256,6 +264,41 @@ static void test_telemetry_backstop(void)
     check(!emitting(), "backstop: telemetry still cuts a missed edge");
 }
 
+/* REQ-FWHUB-22 / DI-SAFE-11: Mode F is compiled out while
+ * NP_MODE_F_REGULATORY_CLEARED is 0, so a command asking for it is run as the
+ * plain photic command it also is, and nothing extra is emitted. */
+/* @verifies REQ-FWHUB-22 */
+/* @verifies DI-SAFE-11#a */
+static void test_mode_f_is_compiled_out(void)
+{
+    check(NP_MODE_F_REGULATORY_CLEARED == 0, "mode F: the build flag is 0");
+
+    reset_doubles();
+    (void)np_mod_visual_init(NP_HUB_SLOT_VISUAL);
+    np_mod_visual_params_t p = photic();
+    p.mode_f_enable = 1U;
+    check(np_mod_visual_control(NP_HUB_SLOT_VISUAL, &p, (uint16_t)sizeof(p)) == NP_HUB_OK,
+          "mode F: a photic command that also asks for mode F is admitted as photic");
+    check(g_led_sets == 1,
+          "mode F: exactly one LED command, the photic one, so no NIR walk is added");
+    check(g_last_wl == p.wl_select && g_last_freq == p.freq_hz && g_last_duty == p.duty_pct,
+          "mode F: that command carries the authored wavelength, frequency and duty");
+
+    reset_doubles();
+    (void)np_mod_visual_init(NP_HUB_SLOT_VISUAL);
+    g_eye_open = false;
+    p = photic();
+    p.mode_f_enable = 1U;
+    check(np_mod_visual_control(NP_HUB_SLOT_VISUAL, &p, (uint16_t)sizeof(p)) == NP_HUB_OK,
+          "mode F: the flag alone does not invoke the retinal eye-open check");
+
+    p = photic();
+    p.mode = 2U;               /* the dedicated retinal PBM mode keeps its check */
+    check(np_mod_visual_control(NP_HUB_SLOT_VISUAL, &p, (uint16_t)sizeof(p))
+              == NP_HUB_ERR_SAFETY_REJECTED,
+          "mode F: retinal mode 2 is still refused with the eye closed");
+}
+
 int main(void)
 {
     test_init_arms_the_interrupt();
@@ -264,6 +307,7 @@ int main(void)
     test_edge_inside_control_window();
     test_reseat_does_not_resume();
     test_telemetry_backstop();
+    test_mode_f_is_compiled_out();
 
     if (g_failures != 0) {
         printf("\n%d check(s) FAILED\n", g_failures);

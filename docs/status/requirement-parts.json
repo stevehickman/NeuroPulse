@@ -48,6 +48,16 @@
     "REQ-FWHUB-18": {
       "a": "The session signature goes in its own command frame, carrying the hash and the signature, and requests no enable (step 2 of §7.3)",
       "b": "No non-zero enable is requested before the next heartbeat reply shows SIG_PENDING cleared; a signature still pending aborts the session"
+    },
+    "DI-SAFE-11": {
+      "a": "Firmware build flag NP_MODE_F_REGULATORY_CLEARED = 0 until the RISK-03 Q-13 opinion is received, and Mode F emits nothing while it is 0",
+      "b": "Mode F is default-off",
+      "c": "Mode F needs a separate explicit user consent, distinct from session consent",
+      "d": "The right-temple amber LED shows a triple pulse (3 x 150 ms) while Mode F is active, and it is not suppressible"
+    },
+    "REQ-FWHUB-23": {
+      "a": "The cVNS PPG sample rate is pinned and compile-time asserted",
+      "b": "The cardiac baseline is not waivable by a descriptor"
     }
   },
   "nonTest": {
@@ -58,6 +68,18 @@
     "REQ-CONSENT-08": {
       "method": "inspection",
       "reason": "docs/reference/consent-engine.md §6.4 names inspection of the S1 copy in locales/ as the verification"
+    },
+    "REQ-FWHUB-01": {
+      "method": "analysis (CI gate)",
+      "reason": "NP-FW-HUB-001 §10.1 names scripts/check-hub-bringup-order.ts as the check"
+    },
+    "REQ-FWHUB-28": {
+      "method": "analysis (CI gate)",
+      "reason": "NP-FW-HUB-001 §10.1 names scripts/check-hub-wire-format.ts, with 15 perturbation fixtures, as the check"
+    },
+    "REQ-FWHUB-30": {
+      "method": "analysis (CI gate)",
+      "reason": "NP-FW-HUB-001 §10.1 says the task count is gated: counted, not read"
     }
   }
 }
