@@ -60,6 +60,7 @@ static int key_is_zeroed(const np_anon_scratch_ctx_t *ctx)
     return 1;
 }
 
+/* @verifies REQ-SW02-01 */
 static void test_init_sets_flag_and_key(void)
 {
     np_anon_scratch_ctx_t ctx;
@@ -75,12 +76,14 @@ static void test_init_sets_flag_and_key(void)
     np_anon_scratch_complete(&ctx);
 }
 
+/* @verifies REQ-SW02-01 */
 static void test_init_null(void)
 {
     ASSERT(np_anon_scratch_init(NULL) == NP_ANON_ERR_INVALID,
            "init(NULL) should be invalid");
 }
 
+/* @verifies REQ-SW02-01 */
 static void test_roundtrip(void)
 {
     np_anon_scratch_ctx_t ctx;
@@ -114,6 +117,7 @@ static void test_roundtrip(void)
     np_anon_scratch_complete(&ctx);
 }
 
+/* @verifies REQ-SW02-01 */
 static void test_invalid_args(void)
 {
     np_anon_scratch_ctx_t ctx;
@@ -149,6 +153,7 @@ static void test_invalid_args(void)
     np_anon_scratch_complete(&ctx);
 }
 
+/* @verifies REQ-SW02-01 */
 static void test_complete_clears_secrets(void)
 {
     np_anon_scratch_ctx_t ctx;
@@ -167,6 +172,7 @@ static void test_complete_clears_secrets(void)
            "in-progress flag should be cleared after complete");
 }
 
+/* @verifies REQ-SW02-01 */
 static void test_resume_after_powerloss(void)
 {
     np_anon_host_lpgpr2 = NP_SNVS_ANON_IN_PROGRESS;
@@ -236,6 +242,7 @@ static void probe_reset(pipeline_probe_t *p, np_anon_pipeline_steps_t *steps)
     steps->user       = p;
 }
 
+/* @verifies REQ-SW02-01 */
 static void test_pipeline_success(void)
 {
     pipeline_probe_t p;
@@ -261,6 +268,7 @@ static void test_pipeline_success(void)
            "in-progress flag cleared after successful run");
 }
 
+/* @verifies REQ-SW02-01 */
 static void test_pipeline_abort_on_stage(void)
 {
     pipeline_probe_t p;
@@ -285,6 +293,7 @@ static void test_pipeline_abort_on_stage(void)
            "flag cleared after stage abort");
 }
 
+/* @verifies REQ-SW02-01 */
 static void test_pipeline_abort_on_transform(void)
 {
     pipeline_probe_t p;
@@ -306,6 +315,7 @@ static void test_pipeline_abort_on_transform(void)
            "validate + emit skipped after transform failure");
 }
 
+/* @verifies REQ-SW02-01 */
 static void test_pipeline_abort_on_validate(void)
 {
     /* The critical "no partial extract" case: a bad extract must never emit. */
@@ -332,6 +342,7 @@ static void test_pipeline_abort_on_validate(void)
            "flag cleared after validate abort");
 }
 
+/* @verifies REQ-SW02-01 */
 static void test_pipeline_emit_failure(void)
 {
     pipeline_probe_t p;
@@ -354,6 +365,7 @@ static void test_pipeline_emit_failure(void)
            "flag cleared even after emit failure");
 }
 
+/* @verifies REQ-SW02-01 */
 static void test_pipeline_null_args(void)
 {
     pipeline_probe_t p;
@@ -376,6 +388,7 @@ static void test_pipeline_null_args(void)
            "no step runs when the pipeline is mis-wired");
 }
 
+/* @verifies REQ-SW02-01 */
 static void test_pipeline_init_failure(void)
 {
     pipeline_probe_t p;

@@ -89,6 +89,7 @@ static np_zn_socket_desc_t mkdesc(uint8_t socket, int16_t x, int16_t y, int16_t 
 
 /* ── Record encoding ──────────────────────────────────────────────────────── */
 
+/* @verifies REQ-SW02-10 */
 static void test_status_record_layout(void)
 {
     uint8_t buf[NP_ZN_STATUS_REC_BYTES];
@@ -105,6 +106,7 @@ static void test_status_record_layout(void)
           "because where a socket is cannot change when a module is swapped");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_status_record_absent(void)
 {
     uint8_t buf[NP_ZN_STATUS_REC_BYTES];
@@ -116,6 +118,7 @@ static void test_status_record_absent(void)
           "absent socket reports type NONE, not the stale type");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_status_record_fault_is_never_present(void)
 {
     uint8_t buf[NP_ZN_STATUS_REC_BYTES];
@@ -130,6 +133,7 @@ static void test_status_record_fault_is_never_present(void)
           "faulted module reports UNKNOWN, not the type the caller guessed");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_status_record_socket_range(void)
 {
     uint8_t buf[NP_ZN_STATUS_REC_BYTES];
@@ -151,6 +155,7 @@ static void test_status_record_socket_range(void)
 
 /* ── Socket map records (the static half of the split) ────────────────────── */
 
+/* @verifies REQ-SW02-10 */
 static void test_map_record_layout(void)
 {
     uint8_t buf[NP_ZN_MAP_REC_BYTES];
@@ -170,6 +175,7 @@ static void test_map_record_layout(void)
           "a map record is socket id + flags + three int16 coordinates");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_map_record_crown_and_extremes(void)
 {
     uint8_t buf[NP_ZN_MAP_REC_BYTES];
@@ -191,6 +197,7 @@ static void test_map_record_crown_and_extremes(void)
     CHECK(buf[2] == 0x7Eu && buf[3] == 0xFFu, "negative x_mm (aft) little-endian");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_map_record_socket_range(void)
 {
     uint8_t buf[NP_ZN_MAP_REC_BYTES];
@@ -201,6 +208,7 @@ static void test_map_record_socket_range(void)
           "null desc rejected");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_socket_map_run(void)
 {
     reset_capture(NP_ZN_ATT_FLOOR_BYTES);
@@ -228,6 +236,7 @@ static void test_socket_map_run(void)
     CHECK(total == 80, "all 80 map records survive fragmentation");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_status_frames_are_not_map_frames(void)
 {
     /* The kind bit is what stops a decoder reading 7-byte map records as 3-byte
@@ -239,6 +248,7 @@ static void test_status_frames_are_not_map_frames(void)
     CHECK((g_frames[0][1] & NP_ZN_FLAG_MAP) == 0u, "MAP kind bit clear");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_map_validates_before_emitting(void)
 {
     reset_capture(NP_ZN_ATT_FLOOR_BYTES);
@@ -252,6 +262,7 @@ static void test_map_validates_before_emitting(void)
     CHECK(g_frame_count == 0, "and emits NOTHING — no half-sent geometry");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_empty_socket_map(void)
 {
     reset_capture(NP_ZN_ATT_FLOOR_BYTES);
@@ -263,6 +274,7 @@ static void test_empty_socket_map(void)
 
 /* ── init ─────────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-SW02-10 */
 static void test_init_validation(void)
 {
     CHECK(np_zone_notify_init(NULL, NULL, 20u) == NP_ZN_ERR_INVALID_ARG,
@@ -278,6 +290,7 @@ static void test_init_validation(void)
 
 /* ── Delta events ─────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-SW02-10 */
 static void test_event_single_frame(void)
 {
     reset_capture(NP_ZN_ATT_FLOOR_BYTES);
@@ -293,6 +306,7 @@ static void test_event_single_frame(void)
     CHECK(g_frames[0][NP_ZN_HEADER_BYTES] == 12u, "record carries wire socket 12");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_event_removal(void)
 {
     reset_capture(NP_ZN_ATT_FLOOR_BYTES);
@@ -303,6 +317,7 @@ static void test_event_removal(void)
           "removal clears the present bit");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_event_bad_socket_emits_nothing(void)
 {
     reset_capture(NP_ZN_ATT_FLOOR_BYTES);
@@ -312,6 +327,7 @@ static void test_event_bad_socket_emits_nothing(void)
           "a rejected event emits NO frame — no header for the app to un-see");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_event_tx_failure_reported(void)
 {
     reset_capture(NP_ZN_ATT_FLOOR_BYTES);
@@ -322,6 +338,7 @@ static void test_event_tx_failure_reported(void)
 
 /* ── Snapshots + fragmentation ────────────────────────────────────────────── */
 
+/* @verifies REQ-SW02-10 */
 static void test_snapshot_empty(void)
 {
     reset_capture(NP_ZN_ATT_FLOOR_BYTES);
@@ -333,6 +350,7 @@ static void test_snapshot_empty(void)
     CHECK((g_frames[0][1] & NP_ZN_FLAG_LAST) != 0u, "and it is the last");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_snapshot_fragments_at_att_floor(void)
 {
     /* 80 sockets x 4 bytes = 320 bytes of records — far past any single ATT
@@ -369,6 +387,7 @@ static void test_snapshot_fragments_at_att_floor(void)
           "records stay in order across fragments (frag 1 starts at socket 5 -> wire 6)");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_snapshot_exact_fit(void)
 {
     /* Exactly 5 records at the ATT floor — one full fragment, no empty trailer. */
@@ -382,6 +401,7 @@ static void test_snapshot_exact_fit(void)
     CHECK((g_frames[0][1] & NP_ZN_FLAG_LAST) != 0u, "single fragment is LAST");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_snapshot_validates_before_emitting(void)
 {
     /* One bad socket in the middle. A snapshot is an inventory claim; emitting a
@@ -397,6 +417,7 @@ static void test_snapshot_validates_before_emitting(void)
     CHECK(g_frame_count == 0, "and emits NOTHING — no half-sent inventory");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_snapshot_aborts_on_tx_failure(void)
 {
     reset_capture(NP_ZN_ATT_FLOOR_BYTES);
@@ -409,6 +430,7 @@ static void test_snapshot_aborts_on_tx_failure(void)
           "transmit failure mid-run is reported");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_snapshot_null_guard(void)
 {
     reset_capture(NP_ZN_ATT_FLOOR_BYTES);
@@ -418,6 +440,7 @@ static void test_snapshot_null_guard(void)
 
 /* ── Format constants ─────────────────────────────────────────────────────── */
 
+/* @verifies REQ-SW02-10 */
 static void test_format_constants(void)
 {
     /* These are the numbers GATTParser.swift decodes against. If one moves, the

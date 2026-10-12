@@ -71,6 +71,7 @@ static int buf_is_zero(const uint8_t *b, size_t n)
     return 1;
 }
 
+/* @verifies REQ-SW02-03 */
 static void test_record_size(void)
 {
     ASSERT(sizeof(np_ukmd_record_t) == NP_UHDR_UKMD_RECORD_SIZE,
@@ -78,6 +79,7 @@ static void test_record_size(void)
     ASSERT(NP_UHDR_UKMD_RECORD_SIZE == 192U, "record size constant is 192");
 }
 
+/* @verifies REQ-SW02-03 */
 static void test_provision(void)
 {
     np_uhdr_host_reset();
@@ -103,6 +105,7 @@ static void test_provision(void)
     np_uhdr_key_background(&ctx);
 }
 
+/* @verifies REQ-SW02-03 */
 static void test_background(void)
 {
     np_uhdr_host_reset();
@@ -121,6 +124,7 @@ static void test_background(void)
     np_uhdr_key_background(NULL);
 }
 
+/* @verifies REQ-SW02-03 */
 static void test_unlock_correct(void)
 {
     np_uhdr_host_reset();
@@ -147,6 +151,7 @@ static void test_unlock_correct(void)
     np_uhdr_key_background(&ctx);
 }
 
+/* @verifies REQ-SW02-03 */
 static void test_unlock_wrong(void)
 {
     np_uhdr_host_reset();
@@ -166,6 +171,7 @@ static void test_unlock_wrong(void)
            "no mount on failed unlock");
 }
 
+/* @verifies REQ-SW02-03 */
 static void test_change_credential(void)
 {
     np_uhdr_host_reset();
@@ -201,6 +207,7 @@ static void test_change_credential(void)
     np_uhdr_key_background(&ctx);
 }
 
+/* @verifies REQ-SW02-03 */
 static void test_mount_uses_ukmd(void)
 {
     np_uhdr_host_reset();
@@ -215,6 +222,7 @@ static void test_mount_uses_ukmd(void)
     np_uhdr_key_background(&ctx);
 }
 
+/* @verifies REQ-SW02-03 */
 static void test_invalid_args(void)
 {
     np_uhdr_host_reset();
@@ -244,6 +252,7 @@ static void test_invalid_args(void)
 }
 
 /* Finding 1 — hardware binding: same credential + record, different device. */
+/* @verifies REQ-SW02-03 */
 static void test_hardware_binding(void)
 {
     np_uhdr_host_reset();
@@ -276,6 +285,7 @@ static void test_hardware_binding(void)
 }
 
 /* Finding 2 — a below-floor KDF parameter is rejected before any KDF work. */
+/* @verifies REQ-SW02-03 */
 static void test_param_rollback(void)
 {
     np_uhdr_host_reset();
@@ -299,6 +309,7 @@ static void test_param_rollback(void)
 }
 
 /* Finding 2 — salt and above-floor params are authenticated via AAD. */
+/* @verifies REQ-SW02-03 */
 static void test_aad_binding(void)
 {
     np_uhdr_host_reset();
@@ -322,6 +333,7 @@ static void test_aad_binding(void)
 }
 
 /* Finding 3 — an early-exit failure scrubs a previously-live UKMD. */
+/* @verifies REQ-SW02-03 */
 static void test_unlock_scrubs_on_early_exit(void)
 {
     np_uhdr_host_reset();
@@ -342,6 +354,7 @@ static void test_unlock_scrubs_on_early_exit(void)
 
 /* CR-3 — a re-wrap draws a fresh, distinct GCM nonce (no nonce reuse), and the
  * provisioning draws are distinct from one another. */
+/* @verifies REQ-SW02-03 */
 static void test_nonce_uniqueness(void)
 {
     np_uhdr_host_reset();

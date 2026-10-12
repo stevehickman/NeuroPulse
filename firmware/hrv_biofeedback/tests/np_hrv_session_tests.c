@@ -49,6 +49,7 @@ static void drive_inspiration(np_tavns_state_t *t)
 }
 
 /* T1 — a rejected configuration leaves nothing armed from before it. */
+/* @verifies REQ-SW02-08 */
 static void test_rejected_init_disarms_previous(void)
 {
     np_tavns_state_t t;
@@ -82,6 +83,7 @@ static void test_rejected_init_disarms_previous(void)
 
 /* T1b — the gate opens on inspiration only.  Pins the direction of the dRR
  * fix: steady or lengthening R-R (expiration) must never enable. */
+/* @verifies REQ-SW02-08 */
 static void test_gate_direction(void)
 {
     np_tavns_state_t t;
@@ -128,6 +130,7 @@ static np_hrv_status_t start_with(uint16_t freq_hz, uint16_t ua, bool *running)
 }
 
 /* T2 — the session refuses to start on a refused stimulus. */
+/* @verifies REQ-SW02-08 */
 static void test_session_refuses_bad_tavns(void)
 {
     bool running;
@@ -143,6 +146,7 @@ static void test_session_refuses_bad_tavns(void)
 }
 
 /* T3 — the accepted window is still accepted. */
+/* @verifies REQ-SW02-08 */
 static void test_session_accepts_window(void)
 {
     bool running;

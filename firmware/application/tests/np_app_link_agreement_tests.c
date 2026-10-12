@@ -311,6 +311,7 @@ static int region_value(const ld_script_t *s, const char *region,
  * numeric assertion below while the region line itself carried a literal, and
  * the constants would be decoration.
  */
+/* @verifies REQ-SW02-05 */
 static void test_app_region_uses_the_constants(void)
 {
     const char *origin = region_attr(&g_app, "STAGING", "ORIGIN");
@@ -328,6 +329,7 @@ static void test_app_region_uses_the_constants(void)
            "are not what bounds the image");
 }
 
+/* @verifies REQ-SW02-05 */
 static void test_ocram_base_agrees(void)
 {
     uint64_t boot_origin = 0U;
@@ -345,6 +347,7 @@ static void test_ocram_base_agrees(void)
     }
 }
 
+/* @verifies REQ-SW02-05 */
 static void test_load_offset_agrees(void)
 {
     uint64_t boot_off = 0U;
@@ -369,6 +372,7 @@ static void test_load_offset_agrees(void)
  * staging size, recomputed here from the three terms the bootloader script
  * actually declares rather than read from the comment that explains them.
  */
+/* @verifies REQ-SW02-05 */
 static void test_image_length_equals_derived_staging_size(void)
 {
     uint64_t ocram_len = 0U;
@@ -405,6 +409,7 @@ static void test_image_length_equals_derived_staging_size(void)
  * someone "simplifies" _app_staging_size to 440K, the test above keeps passing
  * and the derivation that makes the whole arrangement safe is gone.
  */
+/* @verifies REQ-SW02-05 */
 static void test_bootloader_staging_size_is_still_derived(void)
 {
     const char *rhs = find_assignment(&g_boot, "_app_staging_size");
@@ -434,6 +439,7 @@ static void test_bootloader_staging_size_is_still_derived(void)
  * scripts assert is checked against this, never against each other only —
  * otherwise the scripts could agree with one another and disagree with the
  * silicon, which is the state OI-SWCI-39 was raised about. */
+/* @verifies REQ-SW02-05 */
 static void test_partition_is_self_consistent_in_the_header(void)
 {
     ASSERT((uint64_t)NP_FLEXRAM_ITCM_BANKS + NP_FLEXRAM_DTCM_BANKS +
@@ -465,6 +471,7 @@ static void test_partition_is_self_consistent_in_the_header(void)
  * "512 KiB" becomes a description of a prefix, and nothing else in the build
  * would notice.
  */
+/* @verifies REQ-SW02-05 */
 static void test_bootloader_ocram_is_the_dedicated_ocram2(void)
 {
     uint64_t boot_origin = 0U;
@@ -490,6 +497,7 @@ static void test_bootloader_ocram_is_the_dedicated_ocram2(void)
 }
 
 /* Both linker scripts must state the partition the header states. */
+/* @verifies REQ-SW02-05 */
 static void test_bootloader_script_partition_agrees_with_the_header(void)
 {
     struct { const char *name; uint64_t expected; } fields[] = {
@@ -514,6 +522,7 @@ static void test_bootloader_script_partition_agrees_with_the_header(void)
     }
 }
 
+/* @verifies REQ-SW02-05 */
 static void test_app_dtcm_matches_the_established_partition(void)
 {
     uint64_t app_dtcm   = 0U;
@@ -549,6 +558,7 @@ static void test_app_dtcm_matches_the_established_partition(void)
  * the MEMORY block carries a literal, and NP_FLEXRAM_DTCM_SIZE becomes
  * decoration that nothing links against.
  */
+/* @verifies REQ-SW02-05 */
 static void test_app_dtcm_region_uses_the_constant(void)
 {
     const char *length = region_attr(&g_app, "DTCM", "LENGTH");
@@ -577,6 +587,7 @@ static void test_app_dtcm_region_uses_the_constant(void)
  *      describing a preference — and the assert in the linker script, which
  *      reads correct either way, would then be enforcing nothing.
  */
+/* @verifies REQ-SW02-05 */
 static void test_dtcm_guarantee_is_the_default_efuse_dtcm(void)
 {
     uint64_t guaranteed = 0U;
@@ -610,6 +621,7 @@ static void test_dtcm_guarantee_is_the_default_efuse_dtcm(void)
  * visible on the bench either, because it would work on any board where the
  * partition took effect and fail only on one where it did not.
  */
+/* @verifies REQ-SW02-05 */
 static void test_dtcm_guarantee_is_enforced_by_an_assert(void)
 {
     ASSERT(strstr(g_app.text, "__dtcm_bss_end__ <= ORIGIN(DTCM) + NP_DTCM_GUARANTEED_SIZE") != NULL,
@@ -631,6 +643,7 @@ static void test_dtcm_guarantee_is_enforced_by_an_assert(void)
  * reader deleting the section does not have to rediscover that the startup
  * only zeroes one span.
  */
+/* @verifies REQ-SW02-05 */
 static void test_dtcm_bss_has_bounds_for_the_clear_function(void)
 {
     ASSERT(strstr(g_app.text, "__dtcm_bss_start__ = .") != NULL,
@@ -660,6 +673,7 @@ static void test_dtcm_bss_has_bounds_for_the_clear_function(void)
  * first USED.  Losing the KEEP() would silently restore the old timing without
  * failing anything, which is what this check is for.
  */
+/* @verifies REQ-SW02-05 */
 static void test_lpsdr4_is_homed_kept_and_asserted_empty(void)
 {
     ASSERT(strstr(g_app.text, ".lpsdr4") != NULL,

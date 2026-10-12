@@ -222,6 +222,7 @@ static uint64_t g_staging_size    = 0U;
  * T1 — the script still declares the three inputs, and staging is derived from
  * them rather than written as a literal.
  */
+/* @verifies REQ-SW02-06 */
 static void test_linker_script_shape(void)
 {
     /* OCRAM LENGTH lives inside the MEMORY block: `... LENGTH = 512K`. */
@@ -267,6 +268,7 @@ static void test_linker_script_shape(void)
  * T2 — the derived reservation is 440 KiB, and the three regions tile OCRAM
  * exactly.  This is the arithmetic Defect C got wrong.
  */
+/* @verifies REQ-SW02-06 */
 static void test_reservation_value(void)
 {
     ASSERT(g_staging_size == 440U * 1024U,
@@ -282,6 +284,7 @@ static void test_reservation_value(void)
 /*
  * T3 — the boundary.  Exactly the limit is accepted; one byte more is not.
  */
+/* @verifies REQ-SW02-06 */
 static void test_boundary(void)
 {
     const uint32_t limit = (uint32_t)g_staging_size;
@@ -302,6 +305,7 @@ static void test_boundary(void)
  * T4 — an empty image is rejected.  It has no vector table, so there is no
  * stack pointer or entry point to jump to.
  */
+/* @verifies REQ-SW02-06 */
 static void test_empty_image(void)
 {
     const uint32_t limit = (uint32_t)g_staging_size;
@@ -319,6 +323,7 @@ static void test_empty_image(void)
  * bytes (the eMMC sector size, so each step is a real image size) plus both
  * exact endpoints.
  */
+/* @verifies REQ-SW02-06 */
 static void test_stack_overwrite_band_rejected(void)
 {
     const uint32_t limit = (uint32_t)g_staging_size;      /* 440 KiB */
@@ -343,6 +348,7 @@ static void test_stack_overwrite_band_rejected(void)
  * never read from anywhere but the argument.  Checked by driving it with a
  * limit that has nothing to do with this platform.
  */
+/* @verifies REQ-SW02-06 */
 static void test_predicate_is_pure(void)
 {
     ASSERT(np_app_image_size_check(100U, 100U) == NP_OK,
@@ -420,6 +426,7 @@ static np_status_t verify(void)
 
 /* T7 — the test key is the key the verifier was built with, and a correctly
  * signed, correctly staged image passes. */
+/* @verifies REQ-SW02-06 */
 static void test_staged_good_image_passes(void)
 {
     uint8_t seed[32], pk[32];
@@ -439,6 +446,7 @@ static void test_staged_good_image_passes(void)
 
 /* T8 — a corrupted STAGED copy is refused even though the header, which is
  * all verify_bank_header() ever checked, is perfect.  This is the defect. */
+/* @verifies REQ-SW02-06 */
 static void test_staged_corruption_refused(void)
 {
     static const uint32_t OFFSETS[] = { 0U, 4U, 7U, 1000U, STAGE_LEN / 2U, STAGE_LEN - 1U };
@@ -466,6 +474,7 @@ static void test_staged_corruption_refused(void)
 
 /* T9 — the header load_and_jump() re-read is itself re-authenticated, not
  * trusted because an earlier read of the same sector verified. */
+/* @verifies REQ-SW02-06 */
 static void test_reread_header_is_reauthenticated(void)
 {
     /* Version changed, header CRC recomputed so only Ed25519 can catch it. */
@@ -495,6 +504,7 @@ static void test_reread_header_is_reauthenticated(void)
 
 /* T10 — the size bound is applied before the hash reads a byte, and the
  * NULL-skips-the-hash convention of np_signature_verify() is unreachable. */
+/* @verifies REQ-SW02-06 */
 static void test_staged_bounds_and_null(void)
 {
     stage_good();
@@ -513,6 +523,7 @@ static void test_staged_bounds_and_null(void)
  * never reaches it.  The list in np_signature.c is re-derived here from first
  * principles only by its members' defining property: each is a public key
  * under which R = S*B verifies for S = 0 on any message. */
+/* @verifies REQ-SW02-06 */
 static void test_small_order_keys_refused(void)
 {
     static const uint8_t PLACEHOLDER_BYTES[32] = { [31] = 0x01U };   /* np_signature.c's */

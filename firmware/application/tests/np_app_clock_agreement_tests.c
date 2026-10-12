@@ -110,6 +110,7 @@ static int g_fail_count = 0;
  * — so either of them moving is a design event that should stop here and be
  * looked at, not a value this suite silently re-derives its expectations from.
  */
+/* @verifies REQ-SW02-05 */
 static void test_declared_constants(void)
 {
     ASSERT(configTICK_TYPE_WIDTH_IN_BITS == TICK_TYPE_WIDTH_32_BITS,
@@ -139,6 +140,7 @@ static void test_declared_constants(void)
  * frequency nobody chose.  At 600 MHz / 1 kHz there are 8 bits of headroom, but
  * the check is cheap and the failure it guards against is silent.
  */
+/* @verifies REQ-SW02-05 */
 static void test_systick_reload_is_representable(void)
 {
     ASSERT((configCPU_CLOCK_HZ % configTICK_RATE_HZ) == 0UL,
@@ -168,6 +170,7 @@ static void test_systick_reload_is_representable(void)
  * 600,000 counts at 528 MHz = 1,136,363 ns, against a specified 1,000,000 ns.
  * Every timeout in the system is 13.6% long, and nothing in the system knows.
  */
+/* @verifies REQ-SW02-05 */
 static void test_mistimed_tick_at_sdk_default_clock(void)
 {
     uint64_t counts_per_tick = (uint64_t)configCPU_CLOCK_HZ / (uint64_t)configTICK_RATE_HZ;
@@ -208,6 +211,7 @@ static void test_mistimed_tick_at_sdk_default_clock(void)
  * safeguards cannot see is a failure that needs its own check, and that is the
  * argument for the one in main().
  */
+/* @verifies REQ-SW02-05 */
 static void test_mistimed_safety_heartbeat(void)
 {
     uint64_t counts_per_tick = (uint64_t)configCPU_CLOCK_HZ / (uint64_t)configTICK_RATE_HZ;
@@ -263,6 +267,7 @@ static void test_mistimed_safety_heartbeat(void)
  * Its limits, and the mutation that proved the raw-text version useless, are
  * recorded there. */
 
+/* @verifies REQ-SW02-05 */
 static void test_boot_path_verifies_the_clock(void)
 {
     static char raw[512U * 1024U];

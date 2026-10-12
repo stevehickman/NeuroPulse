@@ -118,6 +118,7 @@ static void check_dates_against_libc(const np_edf_header_t *h, uint32_t ts)
 
 /* OI-EMMC2-05: 100 files, each with its own token and session time, all of
    which must pass the §E.4 validator and carry the correct EDF+ date/time. */
+/* @verifies REQ-SW02-02 */
 static void test_write_100_headers(void)
 {
     int failures_before = g_fail_count;
@@ -141,6 +142,7 @@ static void test_write_100_headers(void)
 
 /* ── Test 2: validator rejects a real sex code ───────────────────────────────── */
 
+/* @verifies REQ-SW02-02 */
 static void test_validator_rejects_real_sex(void)
 {
     uint8_t token[32];
@@ -157,6 +159,7 @@ static void test_validator_rejects_real_sex(void)
 
 /* ── Test 3: validator rejects a real birthdate ──────────────────────────────── */
 
+/* @verifies REQ-SW02-02 */
 static void test_validator_rejects_real_dob(void)
 {
     uint8_t token[32];
@@ -173,6 +176,7 @@ static void test_validator_rejects_real_dob(void)
 
 /* ── Test 4: validator rejects a real patient name ───────────────────────────── */
 
+/* @verifies REQ-SW02-02 */
 static void test_validator_rejects_real_name(void)
 {
     uint8_t token[32];
@@ -197,6 +201,7 @@ static void test_validator_rejects_real_name(void)
 
 /* ── Test 5: patient code prefix is "NP" ─────────────────────────────────────── */
 
+/* @verifies REQ-SW02-02 */
 static void test_patient_code_prefix(void)
 {
     uint8_t token[32];
@@ -211,6 +216,7 @@ static void test_patient_code_prefix(void)
 
 /* ── Test 6: header struct is exactly 256 bytes ──────────────────────────────── */
 
+/* @verifies REQ-SW02-02 */
 static void test_header_size(void)
 {
     ASSERT_EQ(sizeof(np_edf_header_t), (size_t)256);
@@ -218,6 +224,7 @@ static void test_header_size(void)
 
 /* ── Test 7: firmware version appears in the recording id ─────────────────────── */
 
+/* @verifies REQ-SW02-02 */
 static void test_fw_version_in_recording_id(void)
 {
     uint8_t token[32];
@@ -276,6 +283,7 @@ static void corrupt_name(np_edf_header_t *h)
 }
 
 /* Gate over a mixed set: files 1 (sex) and 4 (name) violate; the rest pass. */
+/* @verifies REQ-SW02-02 */
 static void test_anon_gate_mixed(void)
 {
     np_edf_header_t headers[6];
@@ -313,6 +321,7 @@ static void test_anon_gate_mixed(void)
 }
 
 /* All-compliant set: every file included, no faults. */
+/* @verifies REQ-SW02-02 */
 static void test_anon_gate_all_pass(void)
 {
     np_edf_header_t headers[5];
@@ -335,6 +344,7 @@ static void test_anon_gate_all_pass(void)
 }
 
 /* All-violating set: gate still returns OK (does not abort); all excluded. */
+/* @verifies REQ-SW02-02 */
 static void test_anon_gate_all_fail_does_not_abort(void)
 {
     np_edf_header_t headers[3];
@@ -359,6 +369,7 @@ static void test_anon_gate_all_fail_does_not_abort(void)
 }
 
 /* Null / empty argument handling, and NULL fault_cb tolerance. */
+/* @verifies REQ-SW02-02 */
 static void test_anon_gate_null_and_empty(void)
 {
     np_edf_header_t headers[2];

@@ -147,6 +147,7 @@ static void check_fill(size_t dst_off, int c, size_t len)
 }
 
 /* T1 — zero length must touch nothing, at every alignment. */
+/* @verifies REQ-SW02-07 */
 static void test_zero_length(void)
 {
     for (size_t off = 0; off < 8U; off++) {
@@ -167,6 +168,7 @@ static void test_zero_length(void)
 }
 
 /* T2 — the short lengths a compiler would ordinarily inline. */
+/* @verifies REQ-SW02-07 */
 static void test_short_lengths(void)
 {
     static const size_t LENS[] = { 1U, 2U, 3U, 4U, 8U };
@@ -178,6 +180,7 @@ static void test_short_lengths(void)
 }
 
 /* T3/T4/T5 — unaligned source, unaligned destination, and both. */
+/* @verifies REQ-SW02-07 */
 static void test_unaligned_operands(void)
 {
     /* Live regions start at PAD == 16, so offset 0 is 4/8-byte aligned. */
@@ -191,6 +194,7 @@ static void test_unaligned_operands(void)
 }
 
 /* T6 — a length crossing a word boundary from an unaligned start. */
+/* @verifies REQ-SW02-07 */
 static void test_word_boundary_crossing(void)
 {
     /* dst_off 1 with len 3 spans bytes 1..3 and stops exactly at the word
@@ -206,6 +210,7 @@ static void test_word_boundary_crossing(void)
 }
 
 /* T7 — small exhaustive matrix over offsets and lengths. */
+/* @verifies REQ-SW02-07 */
 static void test_offset_matrix(void)
 {
     for (size_t src_off = 0; src_off < 8U; src_off++) {
@@ -224,6 +229,7 @@ static void test_offset_matrix(void)
 }
 
 /* T8 — non-zero fill bytes, including one with the high bit set. */
+/* @verifies REQ-SW02-07 */
 static void test_nonzero_fill(void)
 {
     static const int FILLS[] = { 0x01, 0x42, 0x7F, 0x80, 0xAA, 0xFF };
@@ -241,6 +247,7 @@ static void test_nonzero_fill(void)
 }
 
 /* T9 — the int argument is truncated to unsigned char, not stored as an int. */
+/* @verifies REQ-SW02-07 */
 static void test_fill_value_truncation(void)
 {
     /* 0x1234 truncates to 0x34; -1 truncates to 0xFF. */
@@ -262,6 +269,7 @@ static void test_fill_value_truncation(void)
 }
 
 /* T10 — large copy and large fill, at every start alignment. */
+/* @verifies REQ-SW02-07 */
 static void test_large_transfers(void)
 {
     for (size_t off = 0; off < 8U; off++) {
@@ -273,6 +281,7 @@ static void test_large_transfers(void)
 
 /* T11 — both functions return dst.  (check_copy/check_fill assert this on
  * every case; this is the explicit, standalone statement of the contract.) */
+/* @verifies REQ-SW02-07 */
 static void test_return_values(void)
 {
     frame_reset();

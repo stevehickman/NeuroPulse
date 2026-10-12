@@ -72,6 +72,7 @@ static int g_fail_count = 0;
 
 /* ── GPR17 bank-config encoding ──────────────────────────────────────────── */
 
+/* @verifies REQ-SW02-06 */
 static void test_bank_cfg_uniform_splits(void)
 {
     /* 16 × 0b01 → 0x55555555; 16 × 0b10 → 0xAAAAAAAA; 16 × 0b11 → 0xFFFFFFFF. */
@@ -81,6 +82,7 @@ static void test_bank_cfg_uniform_splits(void)
     CHECK_U32(np_flexram_bank_cfg(0U, 0U, 0U),  0x00000000UL, "none assigned");
 }
 
+/* @verifies REQ-SW02-06 */
 static void test_bank_cfg_field_order(void)
 {
     /* This is the test that would catch a reversed or byte-swapped packing,
@@ -108,6 +110,7 @@ static void test_bank_cfg_field_order(void)
               "the default fuse split");
 }
 
+/* @verifies REQ-SW02-06 */
 static void test_bank_cfg_rejects_oversubscription(void)
 {
     /* Inert, not truncated.  A partition that assigns no banks is obviously
@@ -119,6 +122,7 @@ static void test_bank_cfg_rejects_oversubscription(void)
 
 /* ── GPR14 TCM window size encoding ──────────────────────────────────────── */
 
+/* @verifies REQ-SW02-06 */
 static void test_tcm_size_code_legal_sizes(void)
 {
     CHECK_U32(np_flexram_tcm_size_code(0U),             0UL,  "0 B → code 0");
@@ -132,6 +136,7 @@ static void test_tcm_size_code_legal_sizes(void)
     CHECK_U32(np_flexram_tcm_size_code(512U * 1024U),   10UL, "512 KiB → 10");
 }
 
+/* @verifies REQ-SW02-06 */
 static void test_tcm_size_code_rejects_the_rest(void)
 {
     /* Below the encodable floor: the field has no code for 1 or 2 KiB even
@@ -161,6 +166,7 @@ static void test_tcm_size_code_rejects_the_rest(void)
  * behaviour in general.  If the partition in np_config.h is ever changed, this
  * is where the change has to be made deliberately rather than inherited.
  */
+/* @verifies REQ-SW02-06 */
 static void test_configured_partition(void)
 {
     CHECK((uint32_t)NP_FLEXRAM_ITCM_BANKS + NP_FLEXRAM_DTCM_BANKS +
@@ -199,6 +205,7 @@ static void test_configured_partition(void)
  * than taken from the vendored MCUX header, which does not define these fields
  * at all — so nothing but this checks them.
  */
+/* @verifies REQ-SW02-06 */
 static void test_gpr14_field_layout(void)
 {
     CHECK_U32(NP_GPR14_CFGITCMSZ_MASK, 0x000F0000UL, "CM7_CFGITCMSZ mask");

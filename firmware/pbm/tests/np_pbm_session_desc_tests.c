@@ -59,6 +59,7 @@ static np_pbm_preset_t make_preset(uint8_t cur_a, uint8_t freq_hz, uint8_t duty)
 
 /* ── Struct size sanity (byte layout stability) ──────────────────────────────── */
 
+/* @verifies REQ-SW02-09 */
 static void test_struct_sizes(void)
 {
     check(sizeof(np_pbm_session_desc_hdr_t) == 8U, "hdr is 8 bytes");
@@ -69,6 +70,7 @@ static void test_struct_sizes(void)
 
 /* ── Wire length computation ──────────────────────────────────────────────────── */
 
+/* @verifies REQ-SW02-09 */
 static void test_wire_len(void)
 {
     size_t hdr = sizeof(np_pbm_session_desc_hdr_t);
@@ -97,6 +99,7 @@ static void test_wire_len(void)
 
 /* ── Serialize / parse round trip ─────────────────────────────────────────────── */
 
+/* @verifies REQ-SW02-09 */
 static void test_serialize_parse_roundtrip(void)
 {
     np_pbm_session_desc_t desc;
@@ -140,6 +143,7 @@ static void test_serialize_parse_roundtrip(void)
           "parse zeroes groups beyond group_count");
 }
 
+/* @verifies REQ-SW02-09 */
 static void test_parse_rejects_bad_input(void)
 {
     np_pbm_session_desc_t desc;
@@ -177,6 +181,7 @@ static void test_parse_rejects_bad_input(void)
 
 /* ── Group expansion ──────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-SW02-09 */
 static void test_expand_basic(void)
 {
     np_pbm_session_desc_t desc;
@@ -206,6 +211,7 @@ static void test_expand_basic(void)
     check(presets[2].freq_hz == 6U, "group 1's socket (77) gets group 1's preset");
 }
 
+/* @verifies REQ-SW02-09 */
 static void test_expand_dedup_first_group_wins(void)
 {
     np_pbm_session_desc_t desc;
@@ -231,6 +237,7 @@ static void test_expand_dedup_first_group_wins(void)
           "first group (signed order) wins for an overlapping socket");
 }
 
+/* @verifies REQ-SW02-09 */
 static void test_expand_overflow_fails_closed(void)
 {
     np_pbm_session_desc_t desc;
@@ -255,6 +262,7 @@ static void test_expand_overflow_fails_closed(void)
 
 /* ── End-to-end session_start() ───────────────────────────────────────────────── */
 
+/* @verifies REQ-SW02-09 */
 static void test_session_start_beyond_old_domain(void)
 {
     /*
@@ -297,6 +305,7 @@ static void test_session_start_beyond_old_domain(void)
     check(ctx.stage == NP_PBM_STAGE_RAMP_UP, "session reaches RAMP_UP");
 }
 
+/* @verifies REQ-SW02-09 */
 static void test_session_start_rejects_over_capacity(void)
 {
     np_pbm_session_desc_t desc;
@@ -321,6 +330,7 @@ static void test_session_start_rejects_over_capacity(void)
 
 /* ── T2 combined descriptor wire + start ──────────────────────────────────────── */
 
+/* @verifies REQ-SW02-09 */
 static void test_t2_combined_wire_and_start(void)
 {
     np_t2_combined_desc_t desc;
@@ -363,6 +373,7 @@ static void test_t2_combined_wire_and_start(void)
 
 /* ── Regression check via the FAI harness itself ──────────────────────────────── */
 
+/* @verifies REQ-SW02-09 */
 static void test_fai_regressions(void)
 {
     check(np_pbm_fai_sm09().passed, "FAI-SM-09 passes against the rewritten session ctx");
@@ -432,6 +443,7 @@ static void reset_cal_env(void)
     g_provider_partial_writes = 0;
 }
 
+/* @verifies REQ-SW02-09 */
 static void test_cal_load_fails_closed(void)
 {
     reset_cal_env();
@@ -467,6 +479,7 @@ static void test_cal_load_fails_closed(void)
     reset_cal_env();
 }
 
+/* @verifies REQ-SW02-09 */
 static void test_cal_load_provider_hit_and_miss(void)
 {
     reset_cal_env();
@@ -526,6 +539,7 @@ static void start_two_socket_session(np_pbm_session_ctx_t *ctx)
           "cal session: 2-socket session starts");
 }
 
+/* @verifies REQ-SW02-09 */
 static void test_session_cal_source_default_without_resolver(void)
 {
     /* No resolver installed → every socket resolves to the zero UID → defaults.
@@ -549,6 +563,7 @@ static void test_session_cal_source_default_without_resolver(void)
     reset_cal_env();
 }
 
+/* @verifies REQ-SW02-09 */
 static void test_session_cal_source_varies_per_socket(void)
 {
     /*
@@ -595,6 +610,7 @@ static void test_session_cal_source_varies_per_socket(void)
     reset_cal_env();
 }
 
+/* @verifies REQ-SW02-09 */
 static void test_session_cal_not_keyed_by_socket(void)
 {
     /*
@@ -619,6 +635,7 @@ static void test_session_cal_not_keyed_by_socket(void)
     (void)np_pbm_session_abort(&ctx, NP_PBM_FAULT_NONE);
     reset_cal_env();
 }
+/* @verifies REQ-SW02-09 */
 static void test_hal_stub_socket_domain(void)
 {
     /*

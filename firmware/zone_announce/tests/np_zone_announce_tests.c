@@ -126,6 +126,7 @@ static void run_ticks(int count, uint32_t step_ms)
 
 /* ── Tests ────────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-SW02-10 */
 static void test_insertion_notifies_app_and_plays_no_audio(void)
 {
     reset_all();
@@ -152,6 +153,7 @@ static void test_insertion_notifies_app_and_plays_no_audio(void)
           "a change costs header + ONE 3-byte record — no anatomy repeated");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_removal_notifies_app(void)
 {
     reset_all();
@@ -172,6 +174,7 @@ static void test_removal_notifies_app(void)
     CHECK(g_audio_started == false, "removal plays no audio either");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_unknown_module_reports_once_not_every_poll(void)
 {
     /* Rev 1 was rate-limited only incidentally, by the ~700 ms error clip it
@@ -194,6 +197,7 @@ static void test_unknown_module_reports_once_not_every_poll(void)
           "a faulted module never fires insert_cb");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_fault_latch_clears_on_real_removal(void)
 {
     reset_all();
@@ -210,6 +214,7 @@ static void test_fault_latch_clears_on_real_removal(void)
           "the latch clears on a real removal, so a re-insertion reports again");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_multiple_slots_each_notify(void)
 {
     /* Rev 1 serialised these through a bone-conduction queue because the
@@ -226,6 +231,7 @@ static void test_multiple_slots_each_notify(void)
     CHECK(g_audio_started == false, "still no audio, however many seat at once");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_worn_cue_still_plays(void)
 {
     /* The tone engine is retained for while-worn announcements. If this ever
@@ -238,6 +244,7 @@ static void test_worn_cue_still_plays(void)
     CHECK(g_sai_init_calls == 1, "initialising SAI on first use");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_socket_map_published_once_carries_anatomy(void)
 {
     /* The static half of the split: anatomy is published here, at link time, and
@@ -272,6 +279,7 @@ static void test_socket_map_published_once_carries_anatomy(void)
           "and it is 7 bytes total, not carrying geometry again");
 }
 
+/* @verifies REQ-SW02-10 */
 static void test_get_zone_reports_active_slot(void)
 {
     reset_all();
