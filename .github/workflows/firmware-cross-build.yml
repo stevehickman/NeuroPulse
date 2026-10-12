@@ -215,7 +215,7 @@ env:
   # 41 → 42: np_mod_pbm_chlatch_tests (GitHub #436, OI-PBMCH-03).
   # 42 → 43: np_pbm_socket_telem_tests (NP-FW-HUB-001 Rev 15, OI-FWHUB-10).
   # 43 → 44: np_mod_visual_tests (NP-FW-HUB-001 Rev 18, OI-FWHUB-26).
-  NP_CLASS_B_TEST_COUNT: '45'
+  NP_CLASS_B_TEST_COUNT: '46'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  This job always

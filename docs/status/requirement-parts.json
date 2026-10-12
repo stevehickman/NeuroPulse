@@ -44,6 +44,10 @@
       "b": "A 1.5 s timeout without a heartbeat is a fault",
       "c": "On timeout all stimulation GPIO is cut off within 50 ms",
       "d": "The fault latch requires an explicit clear"
+    },
+    "REQ-FWHUB-18": {
+      "a": "The session signature goes in its own command frame, carrying the hash and the signature, and requests no enable (step 2 of §7.3)",
+      "b": "No non-zero enable is requested before the next heartbeat reply shows SIG_PENDING cleared; a signature still pending aborts the session"
     }
   },
   "nonTest": {

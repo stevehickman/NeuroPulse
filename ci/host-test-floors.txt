@@ -80,6 +80,7 @@ np_protocol_tests 511
 np_session_lease_tests 115
 np_pbm_socket_telem_tests 835
 np_socket_dispatch_tests 561
+np_safety_spi_tests 234
 np_stim_xcheck_tests 199
 np_transport_tests 209
 np_uhdr_key_tests 431

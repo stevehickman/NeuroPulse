@@ -252,6 +252,25 @@ if(NP_BUILD_TESTS)
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
     target_link_libraries(np_stim_xcheck_tests PRIVATE m)
 
+    # REQ-FWHUB-11 / -17 / -18: the heartbeat's session_status byte, the mask it
+    # transmits, and the session-signature command frame. Links the real
+    # np_safety_spi.c; the kernel is not linked (its two critical-section calls
+    # are doubles in the test), so the POSIX port's headers are enough.
+    add_executable(np_safety_spi_tests
+        tests/np_safety_spi_tests.c
+        src/np_safety_spi.c
+    )
+    target_include_directories(np_safety_spi_tests PRIVATE
+        include
+        ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/../vendor/freertos/kernel/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../vendor/freertos/portable/ThirdParty/GCC/Posix
+    )
+    target_compile_definitions(np_safety_spi_tests PRIVATE
+        NP_FREERTOS_POSIX_HOST _GNU_SOURCE)
+    target_compile_options(np_safety_spi_tests PRIVATE
+        -std=gnu11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+
     # OI-LOG-01..04: session-log eMMC backing (block-coalescing append writer).
     add_executable(np_log_backend_tests
         tests/np_log_backend_tests.c
