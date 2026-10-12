@@ -68,15 +68,18 @@ final class EEGConsentGateTests: XCTestCase {
 
     // MARK: - ISC-1 / ISC-10  isEEGDependent predicate
 
+    // @verifies REQ-ONBOARD-05#a
     func testIsEEGDependent_trueForEEGModality() {
         XCTAssertTrue(eegProtocol().isEEGDependent)
     }
 
+    // @verifies REQ-ONBOARD-05#a
     func testIsEEGDependent_trueForEEGAdaptiveAudio() {
         XCTAssertTrue(eegAdaptiveAudioProtocol().isEEGDependent,
                       "audio with eegAdaptive == true reads brainwave data to close the loop")
     }
 
+    // @verifies REQ-ONBOARD-05#b
     func testIsEEGDependent_falseForNonEEG() {
         XCTAssertFalse(pbmProtocol().isEEGDependent)
     }
@@ -84,6 +87,7 @@ final class EEGConsentGateTests: XCTestCase {
     // MARK: - ISC-6  availability gate blocks EEG protocols on declined consent
 
     @MainActor
+    // @verifies REQ-ONBOARD-05#a
     func testEEGProtocol_unavailableWhenConsentDeclined() {
         let library = NPProtocolLibrary()
         library.updateAvailability(tier: .t1, smartModules: false)   // hardware present
@@ -108,6 +112,7 @@ final class EEGConsentGateTests: XCTestCase {
     // MARK: - ISC-6  EEG protocol becomes available once consent granted
 
     @MainActor
+    // @verifies REQ-ONBOARD-05#c
     func testEEGProtocol_availableWhenConsentGranted() {
         let library = NPProtocolLibrary()
         library.updateAvailability(tier: .t1, smartModules: false)
@@ -119,6 +124,7 @@ final class EEGConsentGateTests: XCTestCase {
     // MARK: - ISC-7  non-EEG protocol is unaffected by consent state
 
     @MainActor
+    // @verifies REQ-ONBOARD-05#b
     func testNonEEGProtocol_unaffectedByConsentState() {
         let library = NPProtocolLibrary()
         library.updateAvailability(tier: .t1, smartModules: false)
@@ -134,6 +140,7 @@ final class EEGConsentGateTests: XCTestCase {
     // MARK: - ISC-5  library seeds consent state from UserDefaults
 
     @MainActor
+    // @verifies REQ-ONBOARD-06#c
     func testLibrarySeedsConsentFromUserDefaults() {
         UserDefaults.standard.set(true, forKey: acceptedKey)
         let library = NPProtocolLibrary()
@@ -143,17 +150,20 @@ final class EEGConsentGateTests: XCTestCase {
 
     // MARK: - ISC-11  Watch preset gate on the phone
 
+    // @verifies REQ-ONBOARD-05#a
     func testAcceptedPreset_dropsEEGPresetsWithoutConsent() {
         // Gamma Clarity (0) and Alpha Calm (1) are EEG-adaptive.
         XCTAssertNil(PhoneSessionManager.acceptedPreset(0, consentGranted: false))
         XCTAssertNil(PhoneSessionManager.acceptedPreset(1, consentGranted: false))
     }
 
+    // @verifies REQ-ONBOARD-05#b
     func testAcceptedPreset_allowsSleepPresetWithoutConsent() {
         // Sleep Deep (2) is not EEG-adaptive — always allowed.
         XCTAssertEqual(PhoneSessionManager.acceptedPreset(2, consentGranted: false), 2)
     }
 
+    // @verifies REQ-ONBOARD-05#c
     func testAcceptedPreset_allowsAllPresetsWithConsent() {
         XCTAssertEqual(PhoneSessionManager.acceptedPreset(0, consentGranted: true), 0)
         XCTAssertEqual(PhoneSessionManager.acceptedPreset(1, consentGranted: true), 1)

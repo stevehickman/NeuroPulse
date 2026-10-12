@@ -34,6 +34,7 @@ final class BIPAConsentFlowTests: XCTestCase {
 
     // MARK: - Callback semantics (simulating what NeurOneApp wires up)
 
+    // @verifies REQ-ONBOARD-06#a
     func testOnAccept_setsShownAndAccepted() {
         var acceptCount = 0
         var declineCount = 0
@@ -54,6 +55,7 @@ final class BIPAConsentFlowTests: XCTestCase {
         XCTAssertTrue(UserDefaults.standard.bool(forKey: acceptedKey), "bipa-accepted must be true after accept")
     }
 
+    // @verifies REQ-ONBOARD-06#a
     func testOnDecline_setsShownButNotAccepted() {
         var acceptCount = 0
         var declineCount = 0
@@ -73,6 +75,7 @@ final class BIPAConsentFlowTests: XCTestCase {
         XCTAssertFalse(UserDefaults.standard.bool(forKey: acceptedKey), "bipa-accepted must remain false after decline")
     }
 
+    // @verifies REQ-ONBOARD-06#a
     func testCallbacksAreIndependent_acceptDoesNotFireDecline() {
         var acceptFired = false
         var declineFired = false
@@ -84,6 +87,7 @@ final class BIPAConsentFlowTests: XCTestCase {
         _ = onDecline  // reference onDecline to suppress unused warning
     }
 
+    // @verifies REQ-ONBOARD-06#a
     func testCallbacksAreIndependent_declineDoesNotFireAccept() {
         var acceptFired = false
         var declineFired = false
@@ -111,6 +115,7 @@ final class BIPAConsentFlowTests: XCTestCase {
 
     // MARK: - Localization key presence
 
+    // @verifies REQ-ONBOARD-03
     func testLocalizationKeysExist() throws {
         // Ensures the String Catalog defines every key the BIPA view references.
         let keys: [String] = [
@@ -167,6 +172,7 @@ final class BIPAConsentFlowTests: XCTestCase {
 
     // MARK: - EEG consent gate (SessionView contract)
 
+    // @verifies REQ-ONBOARD-06#b
     func testEEGConsentGranted_isTrueWhenBIPAAccepted() {
         // SessionView.eegConsentGranted == bipaAccepted (via @AppStorage).
         // Verify the key used by SessionView matches the key set by the BIPA flow.
@@ -176,6 +182,7 @@ final class BIPAConsentFlowTests: XCTestCase {
             "eegConsentGranted in SessionView must be true when bipa-accepted is true")
     }
 
+    // @verifies REQ-ONBOARD-06#b
     func testEEGConsentGranted_isFalseWhenBIPADeclined() {
         let sessionViewKey = "np.onboarding.bipa-accepted"
         UserDefaults.standard.set(false, forKey: sessionViewKey)
@@ -202,6 +209,7 @@ final class BIPAConsentFlowTests: XCTestCase {
 
     // MARK: - Onboarding step ordering
 
+    // @verifies REQ-ONBOARD-04
     func testOnboardingOrder_BIPABetweenAgeGateAndResearchConsent() {
         // The onboarding chain in NeurOneApp is: ageConfirmed → bipaShown → consentShown.
         // Simulate the chain to confirm BIPA cannot be skipped when not yet shown.

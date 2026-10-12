@@ -44,13 +44,13 @@ app/android/core/src/jvmTest/kotlin/life/neurone/core/session/HubDescriptorCompi
 app/android/core/src/jvmTest/kotlin/life/neurone/core/session/ProtocolChunkerTests.kt 5
 app/android/core/src/jvmTest/kotlin/life/neurone/core/session/SessionHistoryStoreTests.kt 6
 app/android/core/src/jvmTest/kotlin/life/neurone/core/setup/SetupFlowTests.kt 10
-app/ios/NeurOneTests/BIPAConsentFlowTests.swift 10
+app/ios/NeurOneTests/BIPAConsentFlowTests.swift 2
 app/ios/NeurOneTests/ConditionLinkPolicyTests.swift 11
 app/ios/NeurOneTests/ConsentEngineTests.swift 15
 app/ios/NeurOneTests/ConsentStoreTests.swift 30
 app/ios/NeurOneTests/ConsumableResetTests.swift 2
 app/ios/NeurOneTests/ConsumableTrackerTests.swift 24
-app/ios/NeurOneTests/EEGConsentGateTests.swift 11
+app/ios/NeurOneTests/EEGConsentGateTests.swift 1
 app/ios/NeurOneTests/EngagementTierTests.swift 13
 app/ios/NeurOneTests/GATTParserTests.swift 51
 app/ios/NeurOneTests/HardwareSetupManagerTests.swift 43
@@ -70,7 +70,7 @@ app/ios/NeurOneTests/OTAManagerTests.swift 27
 app/ios/NeurOneTests/PhoneSessionManagerTests.swift 11
 app/ios/NeurOneTests/ProtocolChunkerTests.swift 6
 app/ios/NeurOneTests/ResearchAnalyticsGateTests.swift 23
-app/ios/NeurOneTests/SHDRUploaderTests.swift 11
+app/ios/NeurOneTests/SHDRUploaderTests.swift 4
 app/ios/NeurOneTests/SessionDisplayTests.swift 8
 app/ios/NeurOneTests/SessionHistoryStoreTests.swift 14
 app/ios/NeurOneTests/SessionProtocolUploaderTests.swift 10

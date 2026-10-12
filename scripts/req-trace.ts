@@ -304,7 +304,8 @@ function readTags(lines: string[], problems: TagProblem[], file: string): Tag[] 
     }
     // stop at the first token that is not an ID, so prose after the list is allowed
     const ids: string[] = [];
-    for (const tok of rest.split(/[\s,]+/).filter(Boolean)) {
+    // split on whitespace, and on a comma only when another ID follows: `REQ-X-01#a,b` is one token
+    for (const tok of rest.split(/,?\s+|,(?=[A-Z])/).filter(Boolean)) {
       if (/^[A-Z][A-Z0-9-]*\d[a-z]?(#[A-Za-z0-9,]+)?[.;)]?$/.test(tok) || /-REQ-/.test(tok)) ids.push(tok); else break;
     }
     const { refs, bad } = parseRefs(ids.join(" "));
@@ -614,6 +615,8 @@ function selfTest(): void {
   eq("kotlin param", ktP.map((t) => [t.name, !!t.parameterized, t.verifies.length]), [["sums", true, 1]]);
   const py = scanTestFile("ci/test_p.py", "@pytest.mark.parametrize('a', [1])\ndef test_a(a): pass\ndef test_b(): pass", pr);
   eq("python param", py.map((t) => [t.name, !!t.parameterized]), [["test_a", true], ["test_b", false]]);
+  const multi = scanTestFile("firmware/x/tests/m_tests.c", "// @verifies REQ-AA-01#a,b REQ-AA-04, REQ-AA-02\nstatic void test_m(void) {}", pr);
+  eq("multi-part tag keeps every part", multi[0].verifies, [{ id: "REQ-AA-01", parts: ["a", "b"] }, { id: "REQ-AA-04", parts: [] }, { id: "REQ-AA-02", parts: [] }]);
   eq("problems so far", pr.length, 0);
 
   const bad1: TagProblem[] = [];
