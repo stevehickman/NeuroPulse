@@ -287,6 +287,7 @@ static np_telem_record_t stim_rec(np_hub_mod_type_t type, float delivered_ua)
     return r;
 }
 
+/* @verifies REQ-FWHUB-41 */
 static void test_driver_feeds_the_cross_check(void)
 {
     np_mod_stim_init(NP_HUB_SLOT_BES_TACS);

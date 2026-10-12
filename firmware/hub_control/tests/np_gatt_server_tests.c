@@ -484,6 +484,7 @@ static void test_active_user_write(void)
           "active user: the reserved tag 0 is refused as an application error");
 }
 
+/* @verifies REQ-CVNS-09#f */
 static void test_reenable_confirm_write(void)
 {
     const uint8_t yes = 0x01U;

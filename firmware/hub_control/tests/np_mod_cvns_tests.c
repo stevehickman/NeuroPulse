@@ -329,6 +329,7 @@ static void test_control_invalid_len(void)
     check(g_enable_calls == 0, "control: no enable on rejected command");
 }
 
+/* @verifies DI-SAFE-12 */
 static void test_control_start_no_immediate_enable(void)
 {
     reset_mocks();
@@ -345,6 +346,7 @@ static void test_control_start_no_immediate_enable(void)
           "control: NP_SAFETY_EN_CVNS NOT requested before delivery");
 }
 
+/* @verifies DI-SAFE-12 */
 static void test_tick_pre_delivery_no_enable(void)
 {
     reset_mocks();
@@ -526,6 +528,7 @@ static void test_fault_reaches_offline_summary(void)
  * measurement feeds real kΩ into the library, which then leaves
  * NP_CVNS_STAGE_IMPEDANCE for baseline.  Async HAL: tick 1 starts the
  * measurement, tick 2 polls it complete and advances. */
+/* @verifies REQ-CVNS-06 */
 static void test_hb_impedance_advances_stage(void)
 {
     reset_mocks();
@@ -559,6 +562,7 @@ static void test_hb_impedance_advances_stage(void)
 
 /* Out-of-window measurement holds the session in IMPEDANCE (fail-closed) and the
  * driver re-measures on the next tick (recovers if contact is corrected). */
+/* @verifies REQ-CVNS-06 */
 static void test_hb_impedance_out_of_window_holds(void)
 {
     reset_mocks();
@@ -586,6 +590,7 @@ static void test_hb_impedance_out_of_window_holds(void)
 /* When the measurement HAL cannot start, the advisory step falls back to the
  * nominal placeholder so the session still proceeds (liveness preserved — the
  * safety MCU remains the authoritative gate). */
+/* @verifies DI-SAFE-12 */
 static void test_hb_impedance_start_fail_fallback(void)
 {
     reset_mocks();
@@ -607,6 +612,7 @@ static void test_hb_impedance_start_fail_fallback(void)
 
 /* A measurement that never completes falls back to nominal after the timeout so
  * a stuck HAL cannot hard-stall the session. */
+/* @verifies DI-SAFE-12 */
 static void test_hb_impedance_timeout_fallback(void)
 {
     reset_mocks();
@@ -656,6 +662,7 @@ static void run_impedance_measurement(float hub_left, float hub_right)
 /* Hub and MCU per-electrode impedances agree within tolerance: the session
  * advances to BASELINE exactly as it would with no cross-check, and nothing is
  * logged. */
+/* @verifies REQ-CVNS-06 */
 static void test_hb_impedance_crossval_agrees(void)
 {
     reset_mocks();
@@ -677,6 +684,7 @@ static void test_hb_impedance_crossval_agrees(void)
 /* Hub and MCU disagree beyond tolerance: fail-closed — the library is faulted,
  * the session never reaches delivery, and exactly one SHDR crossval diagnostic
  * (suppressed timestamp) is recorded. */
+/* @verifies REQ-CVNS-06 */
 static void test_hb_impedance_crossval_diverges(void)
 {
     reset_mocks();
@@ -701,6 +709,7 @@ static void test_hb_impedance_crossval_diverges(void)
 
 /* Tolerance boundary: a difference EXACTLY at NP_CVNS_IMPEDANCE_CROSSVAL_KOHM is
  * accepted (strict >); a difference just over it fails closed. */
+/* @verifies REQ-CVNS-06 */
 static void test_hb_impedance_crossval_boundary(void)
 {
     /* Exactly at tolerance (1.0 kΩ): accepted. */
@@ -731,6 +740,7 @@ static void test_hb_impedance_crossval_boundary(void)
 /* When the MCU report is absent, no cross-check is possible and the session
  * proceeds on the hub measurement alone (MCU enable refusal stays authoritative).
  * This preserves the pre-OI-CVNS-HUB-11 behaviour. */
+/* @verifies REQ-CVNS-06 */
 static void test_hb_impedance_crossval_no_mcu_report(void)
 {
     reset_mocks();
@@ -773,6 +783,7 @@ static void test_hb_enable_grant(void)
 
 /* A non-cardiac adverse status (impedance fault) while awaiting the grant is an
  * enable rejection: the library faults and the unified enable is dropped. */
+/* @verifies DI-SAFE-12 */
 static void test_hb_enable_reject_impedance(void)
 {
     reset_mocks();

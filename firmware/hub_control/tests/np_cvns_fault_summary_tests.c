@@ -340,6 +340,7 @@ static void test_active_user_write(void)
           "user write: attribution waits until the heartbeat forwards the tag to the safety MCU");
 }
 
+/* @verifies REQ-CVNS-09#f */
 static void test_reenable_confirm_write(void)
 {
     const uint8_t one = 0x01u;

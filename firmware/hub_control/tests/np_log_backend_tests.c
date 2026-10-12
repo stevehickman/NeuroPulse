@@ -344,6 +344,7 @@ static void test_begin_without_end_keeps_the_tail(void)
           "tail: session 7's staged bytes went to session 7's file, not 8's");
 }
 
+/* @verifies REQ-FWHUB-29 */
 static void test_reused_counter_fails_closed(void)
 {
     np_log_test_reset();
@@ -433,6 +434,7 @@ static void test_logger_names_files_by_session_count(void)
           "logger: the SHDR session-end record carries the session's count");
 }
 
+/* @verifies REQ-FWHUB-29 */
 static void test_logger_steps_past_a_stale_count(void)
 {
     /* Continues from the previous test's files (11, 12): a "reboot" whose
@@ -472,6 +474,7 @@ static np_hub_status_t fake_commit(uint32_t count)
     return NP_HUB_OK;
 }
 
+/* @verifies REQ-FWHUB-29 */
 static void test_count_committed_before_file(void)
 {
     np_session_shdr_record_t shdr;
@@ -582,6 +585,7 @@ static void test_flush_syncs_eeg_blocks(void)
 static bool s_fake_in_isr;
 static bool fake_in_isr(void) { return s_fake_in_isr; }
 
+/* @verifies REQ-FWHUB-43 */
 static void test_eeg_block_refused_from_isr(void)
 {
     /* OI-FWHUB-14: from an ISR the call must leave every piece of logger state
@@ -736,6 +740,7 @@ static bool shdr_has_count_record(uint8_t tag, uint32_t want)
     return false;
 }
 
+/* @verifies REQ-FWHUB-40 */
 static void test_session_open_marker_is_durable_before_return(void)
 {
     np_log_test_reset();
@@ -771,6 +776,7 @@ static void test_session_open_marker_is_durable_before_return(void)
           "dirty marker: a clean session pairs OPEN and END on one count");
 }
 
+/* @verifies REQ-FWHUB-39 */
 static void test_command_record_layout(void)
 {
     logger_session_open();
@@ -997,7 +1003,7 @@ static void call_hrv(void)
     np_log_hrv_session(&r, NP_HRV_OK);
 }
 
-/* @verifies REQ-FWHUB-02 */
+/* @verifies REQ-FWHUB-02 REQ-FWHUB-44 */
 static void test_every_entry_takes_the_lock(void)
 {
     logger_session_open();
@@ -1059,6 +1065,7 @@ static bool shdr_ends_with_fault(uint32_t count, uint8_t slot, uint8_t code)
            r[6] == (uint8_t)NP_MOD_CVNS && r[7] == code;
 }
 
+/* @verifies REQ-FWHUB-45 */
 static void test_heartbeat_fault_mid_sync_is_queued(void)
 {
     logger_session_open();                         /* session 1 */
@@ -1083,6 +1090,7 @@ static void test_heartbeat_fault_mid_sync_is_queued(void)
     call_end();
 }
 
+/* @verifies REQ-FWHUB-45 */
 static void test_queued_fault_precedes_session_end(void)
 {
     logger_session_open();
@@ -1099,6 +1107,7 @@ static void test_queued_fault_precedes_session_end(void)
           "session's SESSION_END, under its count");
 }
 
+/* @verifies REQ-FWHUB-45 */
 static void test_fault_queue_full_keeps_oldest(void)
 {
     logger_session_open();
