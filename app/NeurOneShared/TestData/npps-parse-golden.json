@@ -7176,6 +7176,10 @@
   }
  },
  "cases": {
+  "tdcs_without_area": {
+   "source": "protocol \"T\" {\n  duration: 5m\n  tdcs {\n    intensity: 1mA\n  }\n}\n",
+   "error": "Line 5: tdcs: electrode_area_cm2 is required and is never defaulted: it is compiled into the signed descriptor and the safety MCU's charge limit divides by it (e.g. electrode_area_cm2: 35)"
+  },
   "cw_with_duty": {
    "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 0Hz\n    duty_cycle: 25%\n  }\n}\n",
    "error": "Line 8: pbm_transcranial: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 25%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
@@ -8288,7 +8292,7 @@
    "limits": null
   },
   "tdcs_pairs_and_defaults": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  tdcs {\n    electrode_pairs: [[\"F3\",\"F4\"],[\"Fp1\"],[\"P3\",\"P4\"]]\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  tdcs {\n    electrode_pairs: [[\"F3\",\"F4\"],[\"Fp1\"],[\"P3\",\"P4\"]]\n    electrode_area_cm2: 25\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8308,7 +8312,7 @@
         "type": "tdcs",
         "enabled": true,
         "params": {
-         "electrodeAreaCm2": 35,
+         "electrodeAreaCm2": 25,
          "electrodePairs": [
           [
            "F3",
@@ -8464,7 +8468,7 @@
    "limits": null
   },
   "every_modality_defaults": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_intranasal {\n    wavelength: \"660nm\"\n    irradiance: 30mW_cm2\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  eeg_neurofeedback {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  bes_tacs {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  tdcs {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  vns_hrv {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  visual_stimulation {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  qeeg_21ch {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  tms {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  clinical_tacs {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  hd_tdcs {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  cervical_vns {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  vibrotactile_40hz {\n\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_intranasal {\n    wavelength: \"660nm\"\n    irradiance: 30mW_cm2\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  eeg_neurofeedback {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  bes_tacs {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  tdcs {\n    electrode_area_cm2: 35\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  vns_hrv {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  visual_stimulation {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  qeeg_21ch {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  tms {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  clinical_tacs {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  hd_tdcs {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  cervical_vns {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  vibrotactile_40hz {\n\n  }\n}\n",
    "entries": [
     {
      "kind": "single",

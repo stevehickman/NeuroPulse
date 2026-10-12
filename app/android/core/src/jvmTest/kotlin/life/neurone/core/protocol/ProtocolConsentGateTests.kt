@@ -55,11 +55,13 @@ class ProtocolConsentGateTests {
 
     // MARK: - isEEGDependent predicate
 
+    // @verifies REQ-ONBOARD-05#a
     @Test
     fun isEEGDependent_trueForEEGModality() {
         assertTrue(ProtocolConsentGate.isEEGDependent(eegProtocol()))
     }
 
+    // @verifies REQ-ONBOARD-05#a
     @Test
     fun isEEGDependent_trueForEEGAdaptiveAudio() {
         assertTrue(
@@ -68,11 +70,13 @@ class ProtocolConsentGateTests {
         )
     }
 
+    // @verifies REQ-ONBOARD-05#b
     @Test
     fun isEEGDependent_falseForNonEEG() {
         assertFalse(ProtocolConsentGate.isEEGDependent(pbmProtocol()))
     }
 
+    // @verifies REQ-ONBOARD-05
     @Test
     fun isEEGDependent_falseWhenEEGModalityDisabled() {
         val disabled = NPProtocolEntry.Single(
@@ -91,16 +95,19 @@ class ProtocolConsentGateTests {
 
     // MARK: - isBlockedByBipa gate
 
+    // @verifies REQ-ONBOARD-05#a
     @Test
     fun eegProtocol_blockedWhenConsentDeclined() {
         assertTrue(ProtocolConsentGate.isBlockedByBipa(eegProtocol(), consentGranted = false))
     }
 
+    // @verifies REQ-ONBOARD-05#c
     @Test
     fun eegProtocol_allowedWhenConsentGranted() {
         assertFalse(ProtocolConsentGate.isBlockedByBipa(eegProtocol(), consentGranted = true))
     }
 
+    // @verifies REQ-ONBOARD-05#b
     @Test
     fun nonEEGProtocol_unaffectedByConsentState() {
         assertFalse(ProtocolConsentGate.isBlockedByBipa(pbmProtocol(), consentGranted = false))
@@ -109,6 +116,7 @@ class ProtocolConsentGateTests {
 
     // MARK: - Composite resolution
 
+    // @verifies REQ-ONBOARD-05#a
     @Test
     fun composite_blockedWhenAnyMemberEEGDependent() {
         val composite = NPProtocolEntry.Composite(
@@ -134,6 +142,7 @@ class ProtocolConsentGateTests {
 
     // MARK: - Consent key + message resource parity with iOS
 
+    // @verifies REQ-ONBOARD-05
     @Test
     fun messageResourceName_matchesIOSLocalizationKey() {
         // iOS uses SESSION_EEG_UNAVAILABLE_BODY; Android resolves this res name.

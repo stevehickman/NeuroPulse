@@ -1,0 +1,7 @@
+# ci/req-trace-baseline.txt — untraced test cases per file (ratchet).
+#
+# scripts/req-trace.ts --check fails when a file has MORE untraced tests than listed here
+# (a file not listed allows 0). Trace a test with `@verifies <REQ-ID>` or declare
+# `@verifies-none <reason>`, then lower the count with `bun scripts/req-trace.ts --update-baseline`.
+# Never raise a count to admit a new untraced test.
+

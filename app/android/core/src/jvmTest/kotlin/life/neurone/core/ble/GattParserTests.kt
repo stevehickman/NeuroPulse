@@ -15,6 +15,7 @@ class GattParserTests {
 
     // ── Canonical byte sequences (little-endian, matching hub firmware) ──
 
+    // @verifies REQ-SW03-01
     @Test
     fun parseSessionStateDecodesLittleEndianUInt32() {
         // 0x0001E240 = 123456
@@ -22,6 +23,7 @@ class GattParserTests {
         assertEquals(123_456L, GattParser.parseSessionState(data))
     }
 
+    // @verifies REQ-SW03-01
     @Test
     fun parseSessionStateHandlesHighBitWithoutSignExtension() {
         val data = byteArrayOf(
@@ -30,6 +32,7 @@ class GattParserTests {
         assertEquals(0xFFFFFFFFL, GattParser.parseSessionState(data))
     }
 
+    // @verifies REQ-SW03-01
     @Test
     fun parseSessionStatusDecodesProtocolIdAndStatus() {
         val result = GattParser.parseSessionStatus(byteArrayOf(7, 1))
@@ -37,11 +40,13 @@ class GattParserTests {
         assertEquals(SessionStatus.RUNNING, result?.second)
     }
 
+    // @verifies REQ-SW03-01
     @Test
     fun parseSessionStatusReturnsNullOnUnknownStatus() {
         assertNull(GattParser.parseSessionStatus(byteArrayOf(7, 99)))
     }
 
+    // @verifies REQ-SW03-01
     @Test
     fun parseHrvCoherenceScalesByOneHundred() {
         // coherence×100 = 730 (0x02DA), RMSSD = 42
@@ -51,6 +56,7 @@ class GattParserTests {
         assertEquals(42, hrv.rmssdMilliseconds)
     }
 
+    // @verifies REQ-SW03-01
     @Test
     fun parsePacerPhaseDecodesPhaseAndPercent() {
         val result = GattParser.parsePacerPhase(byteArrayOf(1, 55))
@@ -58,18 +64,21 @@ class GattParserTests {
         assertEquals(55, result?.second)
     }
 
+    // @verifies REQ-SW03-01
     @Test
     fun parseImpedanceResultDecodesBitmask() {
         // 0x00FF — all 8 electrodes passed
         assertEquals(0xFF, GattParser.parseImpedanceResult(byteArrayOf(0xFF.toByte(), 0x00)))
     }
 
+    // @verifies REQ-SW03-04
     @Test
     fun parseConsumableStatusDecodesFourCounts() {
         val data = byteArrayOf(1, 0, 2, 0, 3, 0, 0x2C, 0x01) // 1, 2, 3, 300
         assertEquals(listOf(1, 2, 3, 300), GattParser.parseConsumableStatus(data))
     }
 
+    // @verifies REQ-SW03-02
     @Test
     fun parseZoneModuleStatusRejectsRetiredFiveSlotPayload() {
         // The retired one-byte-per-slot payload has no version byte, so its first slot is read as
@@ -85,6 +94,7 @@ class GattParserTests {
         )
     }
 
+    // @verifies REQ-SW03-02
     @Test
     fun parseZoneModuleStatusDecodesSocketKeyedRecords() {
         // v2, delta+last, fragment 0, 1 record: socket 47, EEG, present.
@@ -93,6 +103,7 @@ class GattParserTests {
         assertTrue(frame.records.single().isPresent)
     }
 
+    // @verifies REQ-SW03-01
     @Test
     fun parseFirmwareVersionDecodesBitfields() {
         // major=1, minor=2, patch=3 → raw = 0x00010203, LE bytes: 03 02 01 00
@@ -100,6 +111,7 @@ class GattParserTests {
         assertEquals("1.2.3", v.toString())
     }
 
+    // @verifies REQ-SW03-01
     @Test
     fun parseOtaStatusDecodesPhaseProgressAndError() {
         val pkt = GattParser.parseOtaStatus(byteArrayOf(0x04, 80, 0x00, 0x00))
@@ -108,6 +120,7 @@ class GattParserTests {
         assertEquals(false, pkt.isError)
     }
 
+    // @verifies REQ-SW03-01
     @Test
     fun parseOtaStatusDecodesEveryPhaseByte() {
         // Same bytes as iOS GATTParserTests.testParseOTAStatus: 0x02 is TRANSFERRING, and a
@@ -130,6 +143,7 @@ class GattParserTests {
 
     // ── Short input returns null, never throws (per-parser) ─────────────
 
+    // @verifies REQ-SW03-01
     @Test
     fun allParsersReturnNullOnShortInput() {
         val short = byteArrayOf(0x01)
@@ -149,6 +163,7 @@ class GattParserTests {
 
     private fun pad(vararg b: Int) = ByteArray(b.size) { b[it].toByte() }
 
+    // @verifies REQ-SW03-03
     @Test
     fun parseCervicalPadStatusNamesTheFailingSide() {
         val status = GattParser.parseCervicalPadStatus(pad(0x02, 0x00, 0x01, 0x02))
@@ -160,6 +175,7 @@ class GattParserTests {
         assertEquals(setOf(CervicalPadStatus.NeckSide.RIGHT), status?.failingSides)
     }
 
+    // @verifies REQ-SW03-03
     @Test
     fun parseCervicalPadStatusMessageVariants() {
         fun m(vararg b: Int) = GattParser.parseCervicalPadStatus(pad(*b))?.message
@@ -171,6 +187,7 @@ class GattParserTests {
     }
 
     /** Unilateral: both pads on one side, which comes from the hub — electrode 1 is on the RIGHT here. */
+    // @verifies REQ-SW03-03
     @Test
     fun parseCervicalPadStatusUnilateralTakesSideFromHub() {
         assertEquals(
@@ -182,6 +199,7 @@ class GattParserTests {
         assertEquals(setOf(CervicalPadStatus.NeckSide.RIGHT), both?.failingSides)
     }
 
+    // @verifies REQ-SW03-03
     @Test
     fun parseCervicalPadStatusAllPassHasNoMessage() {
         val status = GattParser.parseCervicalPadStatus(pad(0x00, 0x00, 0x01, 0x02))
@@ -189,6 +207,7 @@ class GattParserTests {
         assertNull(status?.message)
     }
 
+    // @verifies REQ-SW03-03
     @Test
     fun parseCervicalPadStatusRejectsMalformedFrames() {
         assertNull(GattParser.parseCervicalPadStatus(pad(0x01, 0x00, 0x01)))       // short
@@ -199,6 +218,7 @@ class GattParserTests {
         assertNull(GattParser.parseCervicalPadStatus(pad(0x01, 0x00, 0x01, 0x03))) // unknown side
     }
 
+    // @verifies REQ-SW03-03
     @Test
     fun cervicalPadStatusIsNotARequiredCharacteristic() {
         assertEquals(false, GattUuidStrings.REQUIRED_IDS.map(UUID::fromString).contains(UUID.fromString(GattUuidStrings.CVNS_PAD_STATUS_ID)))

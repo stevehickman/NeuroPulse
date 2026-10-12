@@ -29,6 +29,7 @@
  *
  * No FreeRTOS, no hardware.  IEC 62304 Class B — SW-02 hub control.
  */
+/* @verifies-file REQ-FWHUB-21 */
 
 #include <stdint.h>
 #include <stdbool.h>

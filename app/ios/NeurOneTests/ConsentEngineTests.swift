@@ -15,6 +15,7 @@ final class ConsentEngineTests: XCTestCase {
 
     // MARK: - Tier element coverage
 
+    // @verifies REQ-CONSENT-15
     func testMonitorTierElements() {
         let elements = ClinicianUseCaseTier.monitor.uhdrElements
         XCTAssertEqual(
@@ -27,6 +28,7 @@ final class ConsentEngineTests: XCTestCase {
         XCTAssertFalse(elements.contains(.hrvTimeSeries))
     }
 
+    // @verifies REQ-CONSENT-15
     func testAssessTierAddsEEG() {
         let elements = ClinicianUseCaseTier.assess.uhdrElements
         XCTAssertTrue(elements.contains(.eegWaveforms),
@@ -38,6 +40,7 @@ final class ConsentEngineTests: XCTestCase {
         XCTAssertTrue(elements.isSuperset(of: ClinicianUseCaseTier.monitor.uhdrElements))
     }
 
+    // @verifies REQ-CONSENT-15
     func testFullClinicalTierAddsHRV() {
         let elements = ClinicianUseCaseTier.fullClinical.uhdrElements
         XCTAssertTrue(elements.contains(.hrvTimeSeries),
@@ -53,6 +56,7 @@ final class ConsentEngineTests: XCTestCase {
 
     // MARK: - Use-case minimum-necessary union
 
+    // @verifies REQ-CONSENT-15#a
     func testMinimumNecessaryUnion() {
         // adherence_monitoring (Monitor) + eeg_review (Assess) → union of both element sets.
         let selected: Set<String> = ["adherence_monitoring", "eeg_review"]
@@ -70,6 +74,7 @@ final class ConsentEngineTests: XCTestCase {
                        "Union must not over-grant elements no selected use case needs.")
     }
 
+    // @verifies REQ-CONSENT-15
     func testMinimumNecessaryEmptySelection() {
         XCTAssertTrue(ConsentEngine.minimumNecessaryElements(for: []).isEmpty,
                       "No selected use cases must grant no elements.")
@@ -77,6 +82,7 @@ final class ConsentEngineTests: XCTestCase {
 
     // MARK: - Research tier
 
+    // @verifies REQ-CONSENT-15#c
     func testResearchTierElementsAreEmpty() {
         // Research tier is IRB-defined per study; the base tier grants nothing.
         XCTAssertTrue(
@@ -87,6 +93,7 @@ final class ConsentEngineTests: XCTestCase {
 
     // MARK: - hrv_outcomes use case
 
+    // @verifies REQ-CONSENT-15
     func testHRVOutcomesUseCaseIsInLibrary() {
         XCTAssertNotNil(
             USE_CASE_LIBRARY.first { $0.id == "hrv_outcomes" },
@@ -94,6 +101,7 @@ final class ConsentEngineTests: XCTestCase {
         )
     }
 
+    // @verifies REQ-CONSENT-15
     func testMinimumNecessaryHRVOutcomes_containsFullClinicalElements() {
         let elements = ConsentEngine.minimumNecessaryElements(for: ["hrv_outcomes"])
         // Full Clinical–tier elements that hrv_outcomes must grant.
@@ -107,6 +115,7 @@ final class ConsentEngineTests: XCTestCase {
         XCTAssertTrue(elements.contains(.pbmDoseLogs))
     }
 
+    // @verifies REQ-CONSENT-15#a
     func testMinimumNecessaryAllThreeUseCases_equalUnionOfAll() {
         let allIDs: Set<String> = ["adherence_monitoring", "eeg_review", "hrv_outcomes"]
         let union = ConsentEngine.minimumNecessaryElements(for: allIDs)
@@ -116,6 +125,7 @@ final class ConsentEngineTests: XCTestCase {
                        "Selecting all three use cases must equal selecting hrv_outcomes alone (it is the superset).")
     }
 
+    // @verifies REQ-CONSENT-15
     func testAllUseCasesHaveNonEmptyElements() {
         for useCase in USE_CASE_LIBRARY {
             XCTAssertFalse(
@@ -127,6 +137,7 @@ final class ConsentEngineTests: XCTestCase {
 
     // MARK: - Irreversibility notice
 
+    // @verifies REQ-CONSENT-07
     func testIrreversibilityNoticePresent() {
         let notice = ConsentEngine.irreversibilityNotice
         XCTAssertFalse(notice.isEmpty, "Irreversibility notice must be non-empty.")
@@ -141,6 +152,7 @@ final class ConsentEngineTests: XCTestCase {
 
     // MARK: - UHDRElement.minimumTier (ISC-137)
 
+    // @verifies REQ-CONSENT-15
     func testMinimumTierMonitorElements() {
         let monitorElements: [UHDRElement] = [.sessionTimestamps, .sessionDuration, .protocolParameters]
         for element in monitorElements {
@@ -151,6 +163,7 @@ final class ConsentEngineTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-CONSENT-15
     func testMinimumTierAssessElements() {
         let assessElements: [UHDRElement] = [.eegWaveforms, .neurofeedbackScores, .pbmDoseLogs]
         for element in assessElements {
@@ -161,6 +174,7 @@ final class ConsentEngineTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-CONSENT-15
     func testMinimumTierFullClinicalElements() {
         let fullClinicalElements: [UHDRElement] = [
             .hrvTimeSeries, .ppgOpticalSignal, .closedLoopEvents, .outcomeLogs, .eyeStateLogs
@@ -174,6 +188,7 @@ final class ConsentEngineTests: XCTestCase {
     }
 
     // ISC-137 anti-pattern: no tier must contain an element below that element's minimumTier.
+    // @verifies REQ-CONSENT-15
     func testISC137_noTierContainsElementBelowItsMinimumTier() {
         let tierRank: [ClinicianUseCaseTier: Int] = [
             .monitor: 0, .assess: 1, .fullClinical: 2, .research: 3
@@ -191,6 +206,7 @@ final class ConsentEngineTests: XCTestCase {
     }
 
     // ISC-82 anti-pattern: minimumNecessaryElements never returns elements absent from selected use cases.
+    // @verifies REQ-CONSENT-15#a
     func testISC82_minimumNecessaryNeverOverGrants() {
         let allIDs = Set(USE_CASE_LIBRARY.map(\.id))
         let allExpected = USE_CASE_LIBRARY
@@ -207,6 +223,7 @@ final class ConsentEngineTests: XCTestCase {
 
     // MARK: - Consent document generation
 
+    // @verifies REQ-CONSENT-15
     func testConsentDocumentGeneration() {
         let doc = ConsentEngine.consentDocument(
             clinicianName: "Dr. Neda Rashidi-Ranjbar",
@@ -237,6 +254,7 @@ final class ConsentEngineTests: XCTestCase {
 
     /// The defect the item was raised about: the form collected a use-case selection and built a
     /// grant from the tier, so two different answers produced the same access.
+    // @verifies REQ-CONSENT-15#a
     func testUseCaseSelectionNarrowsAccessBelowTheTierCeiling() {
         let narrow = ConsentEngine.initialAccessScope(
             useCaseIDs: ["adherence_monitoring"],
@@ -251,6 +269,7 @@ final class ConsentEngineTests: XCTestCase {
                           "Deriving from the tier instead of the selection is the OI-CONSENT-04 defect.")
     }
 
+    // @verifies REQ-CONSENT-15#b
     func testUseCasesOfferedAreCappedByTheTier() {
         XCTAssertEqual(ConsentEngine.useCases(availableFor: .monitor).map(\.id),
                        ["adherence_monitoring"])
@@ -264,6 +283,7 @@ final class ConsentEngineTests: XCTestCase {
 
     /// A caller that skips `useCases(availableFor:)` still cannot exceed the ceiling the
     /// subscription was sold at.
+    // @verifies REQ-CONSENT-15#b
     func testSelectionAboveTheTierIsClampedNotHonoured() {
         let scope = ConsentEngine.initialAccessScope(
             useCaseIDs: ["adherence_monitoring", "hrv_outcomes"],
@@ -276,6 +296,7 @@ final class ConsentEngineTests: XCTestCase {
                        "A Full Clinical use case must not deliver HRV through a Monitor grant.")
     }
 
+    // @verifies REQ-CONSENT-15#c
     func testResearchTierYieldsNoElementsWhateverIsSelected() {
         let scope = ConsentEngine.initialAccessScope(
             useCaseIDs: ["adherence_monitoring", "eeg_review", "hrv_outcomes"],
@@ -288,6 +309,7 @@ final class ConsentEngineTests: XCTestCase {
 
     /// Every library entry must sit at or above the highest tier its own elements require, or the
     /// use case promises access its tier cannot carry and the clamp silently removes it.
+    // @verifies REQ-CONSENT-15
     func testEveryUseCaseIsReachableAtItsDeclaredTier() {
         for useCase in USE_CASE_LIBRARY {
             XCTAssertTrue(
@@ -299,6 +321,7 @@ final class ConsentEngineTests: XCTestCase {
 
     // MARK: - OI-CONSENT-06: the two decisions stay apart on an initial grant
 
+    // @verifies REQ-CONSENT-16#a,b
     func testInitialScopeCarriesTheRetroactiveAnswerBothWays() {
         let now = Date()
         let forwardOnly = ConsentEngine.initialAccessScope(
@@ -315,6 +338,7 @@ final class ConsentEngineTests: XCTestCase {
 
     /// The point of the item: "widen it going forward, leave my earlier sessions alone" has to be
     /// representable on a FIRST grant, not only on an expansion.
+    // @verifies REQ-CONSENT-16#b
     func testForwardOnlyInitialGrantHidesEarlierSessions() {
         let now = Date()
         let earlier = now.addingTimeInterval(-86_400)
@@ -337,6 +361,7 @@ final class ConsentEngineTests: XCTestCase {
 
     /// A grant written before `OI-CONSENT-04`/`-06` keeps meaning what it meant: the tier's
     /// elements, from the grant date, prior data included.
+    // @verifies REQ-CONSENT-16#c
     func testPreWorkflowGrantStillFallsBackToTheTier() {
         let now = Date()
         let legacy = ClinicianConsentGrant(
@@ -354,6 +379,7 @@ final class ConsentEngineTests: XCTestCase {
 
     /// The elements are frozen at grant time, so editing the library cannot reach backwards into
     /// a grant already made.
+    // @verifies REQ-CONSENT-15
     func testStoredScopeDoesNotTrackTheLibrary() {
         let now = Date()
         let grant = ClinicianConsentGrant(
@@ -372,6 +398,7 @@ final class ConsentEngineTests: XCTestCase {
         XCTAssertEqual(grant.approvedElements, ClinicianUseCaseTier.monitor.uhdrElements)
     }
 
+    // @verifies REQ-CONSENT-15
     func testTierRankOrdersTheCeilings() {
         XCTAssertLessThan(ClinicianUseCaseTier.monitor.rank, ClinicianUseCaseTier.assess.rank)
         XCTAssertLessThan(ClinicianUseCaseTier.assess.rank, ClinicianUseCaseTier.fullClinical.rank)

@@ -131,6 +131,7 @@ static void check(int cond, const char *name)
 }
 
 /* ══ 1. init leaves every line disabled (FMEA-M01-05) ═══════════════════════ */
+/* @verifies REQ-SW01-01 */
 static void test_init_disables_all(void)
 {
     size_t i;
@@ -149,6 +150,7 @@ static void test_init_disables_all(void)
 }
 
 /* ══ 2. apply maps each bit to exactly its own line (FMEA-M01-01) ═══════════ */
+/* @verifies REQ-SW01-01 */
 static void test_apply_one_hot_mapping(void)
 {
     np_safety_state_t st;
@@ -172,6 +174,7 @@ static void test_apply_one_hot_mapping(void)
     check(ok, "apply: each granted bit enables exactly its own line and no other");
 }
 
+/* @verifies REQ-SW01-01 */
 static void test_apply_zero_and_all(void)
 {
     np_safety_state_t st;
@@ -204,6 +207,7 @@ static void test_apply_zero_and_all(void)
 /* ══ 3. apply rewrites every line on every call (FMEA-M01-01) ═══════════════
  * A change-gated writer ("only write lines whose bit changed") would let a pin
  * that was mis-written once hold its enabled state indefinitely.            */
+/* @verifies REQ-SW01-01 */
 static void test_apply_rewrites_every_line_every_call(void)
 {
     np_safety_state_t st;
@@ -220,6 +224,7 @@ static void test_apply_rewrites_every_line_every_call(void)
 }
 
 /* ══ 4. heartbeat tick overwrites granted_mask (FMEA-M01-01) ════════════════ */
+/* @verifies REQ-SW01-01 */
 static void test_tick_overwrites_granted_mask(void)
 {
     np_safety_state_t st;
@@ -245,6 +250,7 @@ static void test_tick_overwrites_granted_mask(void)
 }
 
 /* ══ 5. heartbeat loss → cutoff → all lines disabled (FMEA-M02-05) ══════════ */
+/* @verifies DI-SAFE-02#b,c */
 static void test_heartbeat_loss_cuts_all(void)
 {
     np_safety_state_t st;
@@ -280,6 +286,7 @@ static void test_heartbeat_loss_cuts_all(void)
     check(st.granted_mask == 0U, "check: mask stays cleared while heartbeats stay absent");
 }
 
+/* @verifies DI-SAFE-02#b */
 static void test_heartbeat_timeout_across_tick_wrap(void)
 {
     np_safety_state_t st;
@@ -307,6 +314,7 @@ static bool beat(np_safety_state_t *st, uint8_t seq)
     return live;
 }
 
+/* @verifies REQ-SW01-02 */
 static void test_seq_startup_and_run(void)
 {
     np_safety_state_t st;
@@ -329,6 +337,7 @@ static void test_seq_startup_and_run(void)
     check(beat(&st, (uint8_t)(0xF8U | 4U)), "seq: bits above the 3-bit counter are ignored (3 -> 4)");
 }
 
+/* @verifies REQ-SW01-02 */
 static void test_seq_stuck_buffer_trips_watchdog(void)
 {
     np_safety_state_t st;
@@ -359,6 +368,7 @@ static void test_seq_stuck_buffer_trips_watchdog(void)
     check(st.granted_mask == 0U, "stuck: and stays cut while the replay continues");
 }
 
+/* @verifies REQ-SW01-02 */
 static void test_seq_two_buffer_replay_never_accepted(void)
 {
     np_safety_state_t st;
@@ -378,6 +388,7 @@ static void test_seq_two_buffer_replay_never_accepted(void)
     check(st.granted_mask == 0U, "ping-pong: the watchdog has cut everything");
 }
 
+/* @verifies REQ-SW01-02 */
 static void test_seq_lost_frames_and_steps(void)
 {
     g_tick_ms = 1000U;
@@ -424,6 +435,7 @@ static bool tick_faulted(const np_safety_state_t *st)
            st->fault_slot == NP_FAULT_SLOT_TICK;
 }
 
+/* @verifies REQ-SW01-02 */
 static void test_liveness_agreeing_clocks(void)
 {
     np_safety_state_t st;
@@ -447,6 +459,7 @@ static void test_liveness_agreeing_clocks(void)
     check(st.granted_mask == NP_SAFETY_EN_ALL_MASK, "liveness: a long iteration is not a fault");
 }
 
+/* @verifies REQ-SW01-02 */
 static void test_liveness_frozen_systick(void)
 {
     np_safety_state_t st;
@@ -461,6 +474,7 @@ static void test_liveness_frozen_systick(void)
     check(tick_faulted(&st), "frozen SysTick: FAULT + CUTOFF + TICK slot after one window");
 }
 
+/* @verifies REQ-SW01-02 */
 static void test_liveness_frozen_tim2(void)
 {
     np_safety_state_t st;
@@ -471,6 +485,7 @@ static void test_liveness_frozen_tim2(void)
     check(tick_faulted(&st), "frozen TIM2: FAULT after one window of SysTick");
 }
 
+/* @verifies REQ-SW01-02 */
 static void test_liveness_tolerance_edges(void)
 {
     np_safety_state_t st;
@@ -504,6 +519,7 @@ static void test_liveness_tolerance_edges(void)
     check(st.granted_mask == NP_SAFETY_EN_ALL_MASK, "fast SysTick: exactly the tolerance passes");
 }
 
+/* @verifies REQ-SW01-02 */
 static void test_liveness_is_a_rate(void)
 {
     np_safety_state_t st;
@@ -523,6 +539,7 @@ static void test_liveness_is_a_rate(void)
     check(ok, "rate: a 5 % slow SysTick never faults over 10 s (tolerance is per window)");
 }
 
+/* @verifies REQ-SW01-02 */
 static void test_liveness_latch(void)
 {
     np_safety_state_t st;

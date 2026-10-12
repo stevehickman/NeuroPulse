@@ -57,6 +57,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
 
     /// Manager must call scanForPeripherals immediately when BLE transitions to .poweredOn,
     /// and must filter the scan to the NeurOne hub service UUID (not an unfiltered scan).
+    // @verifies REQ-SW03-16
     func testAutoScanOnPoweredOn() {
         let mock = MockBLECentral()
         let manager = NeurOneGATTManager(mockCentral: mock)
@@ -78,6 +79,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
     }
 
     /// A second poweredOn notification (e.g. BT toggled off then on) must restart the scan.
+    // @verifies REQ-SW03-16
     func testAutoScanRestartsOnSecondPoweredOn() {
         let mock = MockBLECentral()
         mock.state = .poweredOn
@@ -95,6 +97,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
     }
 
     /// No scan when BLE is off.
+    // @verifies REQ-SW03-16
     func testNoScanWhenBluetoothOff() {
         let mock = MockBLECentral()
         mock.state = .poweredOff
@@ -110,6 +113,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
 
     /// After a disconnect, the manager must schedule a scan after ≥ 2 s.
     /// This test waits 2.1 s to allow the reconnect timer to fire.
+    // @verifies REQ-SW03-16
     func testReconnectScheduledAfterDisconnect() async {
         let mock = MockBLECentral()
         mock.state = .poweredOn
@@ -129,6 +133,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
     }
 
     /// No reconnect timer is started when BLE is unavailable at the time of disconnect.
+    // @verifies REQ-SW03-16
     func testNoReconnectWhenBluetoothOff() async {
         let mock = MockBLECentral()
         mock.state = .poweredOn
@@ -148,6 +153,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
 
     // MARK: ISC-13 — all characteristics resolved
 
+    // @verifies REQ-SW03-16
     func testAllCharacteristicsResolvedWhenAllPresent() {
         let mock = MockBLECentral()
         let manager = NeurOneGATTManager(mockCentral: mock)
@@ -161,6 +167,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
                       "allCharacteristicsResolved must be true after all characteristics are discovered")
     }
 
+    // @verifies REQ-SW03-16
     func testAllCharacteristicsNotResolvedWhenAnyMissing() {
         let mock = MockBLECentral()
         let manager = NeurOneGATTManager(mockCentral: mock)
@@ -174,6 +181,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
                        "allCharacteristicsResolved must be false when any required characteristic is absent")
     }
 
+    // @verifies REQ-SW03-16
     func testAllCharacteristicsResolvedClearedOnDisconnect() {
         let mock = MockBLECentral()
         mock.state = .poweredOn
@@ -190,6 +198,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
 
     // MARK: ISC-16 — connectionState transitions
 
+    // @verifies REQ-SW03-16
     func testConnectionStateTransitionDisconnectedToScanning() {
         let mock = MockBLECentral()
         mock.state = .poweredOn
@@ -200,6 +209,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
         XCTAssertEqual(manager.connectionState, .scanning)
     }
 
+    // @verifies REQ-SW03-16
     func testConnectionStateReturnsToDisconnectedWhenBLEGoesOff() {
         let mock = MockBLECentral()
         mock.state = .poweredOn
@@ -218,6 +228,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
 
     /// NeurOneGATTManager must inherit from NSObject only — not from any UIKit or SwiftUI type.
     /// This is a structural guard; the absence of UIKit/SwiftUI imports is verified by code review.
+    // @verifies REQ-SW03-16
     func testSuperclassIsNSObject() {
         guard let superclass = NeurOneGATTManager.superclass() else {
             XCTFail("NeurOneGATTManager must have a superclass")
@@ -232,6 +243,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
 
     // MARK: ISC-19 — bluetoothUnavailable published state
 
+    // @verifies REQ-SW03-16
     func testBluetoothUnavailableWhenPoweredOff() {
         let mock = MockBLECentral()
         mock.state = .poweredOff
@@ -243,6 +255,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
                       "bluetoothUnavailable must be true when BLE state is .poweredOff")
     }
 
+    // @verifies REQ-SW03-16
     func testBluetoothUnavailableWhenUnauthorized() {
         let mock = MockBLECentral()
         mock.state = .unauthorized
@@ -254,6 +267,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
                       "bluetoothUnavailable must be true when BLE state is .unauthorized")
     }
 
+    // @verifies REQ-SW03-16
     func testBluetoothUnavailableWhenUnsupported() {
         let mock = MockBLECentral()
         mock.state = .unsupported
@@ -264,6 +278,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
         XCTAssertTrue(manager.bluetoothUnavailable)
     }
 
+    // @verifies REQ-SW03-16
     func testBluetoothAvailableWhenPoweredOn() {
         let mock = MockBLECentral()
         mock.state = .poweredOn
@@ -281,6 +296,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
     /// and can call readValue(for:) to restore in-flight session state on reconnect.
     /// The actual readValue call on CBPeripheral is verified by code review (requires
     /// real hardware for full integration confirmation).
+    // @verifies REQ-SW03-01
     func testSessionStatusUUIDInExpectedDiscoverySet() {
         XCTAssertTrue(
             GattUuidStrings.REQUIRED_IDS.map(CBUUID.init(string:)).contains(CBUUID(string: GattUuidStrings.SESSION_STATUS_ID)),
@@ -290,6 +306,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
 
     /// After full characteristic assignment, allCharacteristicsResolved becomes true —
     /// confirming the characteristic discovery path that includes SESSION_STATUS is complete.
+    // @verifies REQ-SW03-16
     func testCharacteristicAssignmentCompletesAfterFullDiscovery() {
         let mock = MockBLECentral()
         let manager = NeurOneGATTManager(mockCentral: mock)
@@ -302,12 +319,14 @@ final class NeurOneGATTManagerTests: XCTestCase {
 
     // MARK: — Warranty token (SHDR TRNG architecture, NP-FW-EMMC-002 Rev A §A)
 
+    // @verifies REQ-SHDR-02
     func testWarrantyTokenInitiallyNil() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
         XCTAssertNil(manager.warrantyToken,
                      "warrantyToken must be nil before the hub provides the TRNG token")
     }
 
+    // @verifies REQ-SHDR-02
     func testWarrantyTokenStoredFromHub() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
         let trngToken = Data(repeating: 0xAB, count: 32)
@@ -319,6 +338,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
     }
 
     /// The hub GATT characteristic is 32 bytes.  Any shorter payload is corrupt and must be rejected.
+    // @verifies REQ-SHDR-02
     func testWarrantyTokenRejectedIfTooShort() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
         manager.applyWarrantyToken(Data(repeating: 0xFF, count: 16))
@@ -328,6 +348,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
     }
 
     /// Payloads longer than 32 bytes (future extension) are accepted — only the first 32 bytes are used.
+    // @verifies REQ-SHDR-02
     func testWarrantyTokenAcceptsLongerPayload() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
         let extendedToken = Data(repeating: 0xCD, count: 40)
@@ -339,6 +360,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
                        "Only the first 32 bytes of an extended payload should be stored")
     }
 
+    // @verifies REQ-SHDR-02
     func testWarrantyTokenClearedOnDisconnect() {
         let mock = MockBLECentral()
         mock.state = .poweredOn
@@ -355,6 +377,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
 
     // MARK: — Session state reset on disconnect
 
+    // @verifies REQ-SW03-16
     func testSessionResetToEmptyOnDisconnect() {
         let mock = MockBLECentral()
         mock.state = .poweredOn
@@ -401,6 +424,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
         return d
     }
 
+    // @verifies REQ-SW03-02
     func testZoneModulesResetOnDisconnect() {
         let mock = MockBLECentral()
         mock.state = .poweredOn
@@ -419,6 +443,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
                       + "'present' would let a placement gate pass on a pulled module")
     }
 
+    // @verifies REQ-SW03-02
     func testZoneModuleSnapshotPopulatesSocketMap() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
 
@@ -435,6 +460,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
         XCTAssertFalse(manager.zoneModules.isPresent(socket: 128))
     }
 
+    // @verifies REQ-SW03-02
     func testZoneModuleDeltaUpdatesOnlyNamedSocket() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
         manager.applyZoneModuleStatus(zoneFrame(snapshot: true, last: true, records: [
@@ -451,6 +477,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
                       "a delta must not disturb sockets it does not name")
     }
 
+    // @verifies REQ-SW03-02
     func testZoneModuleSnapshotReplacesRatherThanMerges() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
         manager.applyZoneModuleStatus(
@@ -462,6 +489,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
                        "a snapshot is a complete inventory claim and must replace, not merge")
     }
 
+    // @verifies REQ-SW03-02
     func testZoneModuleMalformedFrameLeavesMapUntouched() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
         manager.applyZoneModuleStatus(
@@ -478,6 +506,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
                        "malformed frames must be dropped whole, not partially applied")
     }
 
+    // @verifies REQ-SW03-02
     func testZoneModuleEventFiresOncePerActualChange() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
         var events: [ZoneModuleStatus] = []
@@ -502,6 +531,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
         XCTAssertEqual(events.last?.isPresent, false)
     }
 
+    // @verifies REQ-SW03-02
     func testSocketMapReadAtLinkResolvesLabelsForLaterChanges() {
         // The static/dynamic split end to end: the map arrives once, then a
         // 3-byte status change is enough to name a place.
@@ -520,6 +550,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
         XCTAssertTrue(manager.zoneModules.isPresent(socket: 12))
     }
 
+    // @verifies REQ-SW03-02
     func testSocketMapClearedOnDisconnect() {
         // The map describes THIS helmet. The next link may be a different one, or
         // the same one after a lattice-changing firmware update.
@@ -536,6 +567,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
                       "a cached lattice would name sockets wrongly after a re-cut")
     }
 
+    // @verifies REQ-SW03-02
     func testZoneModuleFragmentedSnapshotCommitsOnlyWhenComplete() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
 
@@ -552,6 +584,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
 
     // MARK: — SHDR upload pending flag
 
+    // @verifies REQ-SHDR-01
     func testSHDRUploadPendingInitiallyFalse() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
         XCTAssertFalse(manager.shdrUploadPending,
@@ -561,6 +594,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
     // MARK: OI-ACC-07 — cervical gel pad alert
 
     /// A failure raises the alert; both pads passing clears it; a malformed frame changes nothing.
+    // @verifies REQ-SW03-03
     func testCervicalPadAlertRaisedClearedAndMalformedIgnored() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
         XCTAssertNil(manager.cervicalPadAlert)
@@ -576,6 +610,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
     }
 
     /// Acknowledging clears the alert; the next failure raises it again.
+    // @verifies REQ-SW03-03
     func testCervicalPadAlertAcknowledgeThenReRaise() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
         manager.applyCervicalPadStatus(Data([0x03, 0x01, 0x01, 0x02]))
@@ -587,6 +622,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
     }
 
     /// UHDR-class display state must not survive a disconnect.
+    // @verifies REQ-SW03-03
     func testCervicalPadAlertClearedOnDisconnect() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
         manager.applyCervicalPadStatus(Data([0x02, 0x00, 0x01, 0x02]))
@@ -595,6 +631,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
     }
 
     /// Optional characteristic: its absence must never block allCharacteristicsResolved.
+    // @verifies REQ-SW03-03
     func testCervicalPadStatusIsNotRequired() {
         XCTAssertFalse(GattUuidStrings.REQUIRED_IDS.map(CBUUID.init(string:)).contains(CBUUID(string: GattUuidStrings.CVNS_PAD_STATUS_ID)))
     }
@@ -614,6 +651,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
         Data([0x01, state, 0x01, 0x00, 0x07, 0x00, 0x00, 0x00, kind, 0x00, 0x00, 0x00])
     }
 
+    // @verifies REQ-SW03-16
     func testUnreadCardiacCutoffBlocksUntilAcknowledged() {
         let m = isolatedManager()
         m.applyCervicalFaultStatus(oneFault(kind: 1))
@@ -629,6 +667,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
         XCTAssertTrue(m.unacknowledgedCervicalFaults.isEmpty, "explained once, not on every connect")
     }
 
+    // @verifies REQ-SW03-03
     func testFaultStatusClearedOnDisconnect() {
         let m = isolatedManager()
         m.applyCervicalFaultStatus(oneFault(kind: 2, state: 2))
@@ -637,12 +676,14 @@ final class NeurOneGATTManagerTests: XCTestCase {
         XCTAssertTrue(m.unacknowledgedCervicalFaults.isEmpty)
     }
 
+    // @verifies REQ-SW03-03
     func testMalformedFaultStatusIgnored() {
         let m = isolatedManager()
         m.applyCervicalFaultStatus(Data([0x01, 0x00, 0x01, 0x00]))   // n = 1 but no record
         XCTAssertNil(m.cervicalFaultStatus)
     }
 
+    // @verifies REQ-SW03-03
     func testFaultLedgerIsPerUser() {
         let m = isolatedManager()
         m.activeUserTag = 11
@@ -661,6 +702,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
         XCTAssertFalse(m.cervicalRestartBlocked, "the first user's acknowledgement persisted")
     }
 
+    // @verifies REQ-SW03-03
     func testBlanketWarningFlagsAndPerConnectionAcknowledgement() {
         let m = isolatedManager()
         m.applyCervicalFaultStatus(Data([0x01, 0x00, 0x00, 0x02]))
@@ -673,6 +715,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
         XCTAssertFalse(m.cervicalOutstandingForAnotherUser, "no status without a connection")
     }
 
+    // @verifies REQ-SW03-03
     func testFaultCharacteristicsAreNotRequired() {
         XCTAssertFalse(GattUuidStrings.REQUIRED_IDS.map(CBUUID.init(string:)).contains(CBUUID(string: GattUuidStrings.CVNS_FAULT_STATUS_ID)))
         XCTAssertFalse(GattUuidStrings.REQUIRED_IDS.map(CBUUID.init(string:)).contains(CBUUID(string: GattUuidStrings.CVNS_REENABLE_CONFIRM_ID)))

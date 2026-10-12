@@ -18,11 +18,14 @@ function minimalBlock(type: string): string {
   for (const f of fields) {
     if (f.kind === 'wavelength') lines.push('wavelength: "808nm"');
     if (f.kind === 'quantity') lines.push(`${f.short}: 30${f.unit}`);
+    // A required number is authored, never defaulted (REQ-NPPS-05); the table's default is the editor's.
+    if (f.kind === 'number' && f.required) lines.push(`${f.key}: ${f.default}`);
   }
   return `protocol "T" {\n ${type} {\n${lines.join('\n')}\n }\n}\n`;
 }
 
 describe('the field table agrees with the reference parser', () => {
+  // @verifies REQ-NPPS-16
   it('lists exactly the fifteen modality types', () => {
     expect(MODALITIES).toHaveLength(15);
     for (const t of MODALITIES) expect(() => defaultParams(t)).not.toThrow();
@@ -31,6 +34,7 @@ describe('the field table agrees with the reference parser', () => {
   for (const type of ['pbm_transcranial', 'pbm_intranasal', 'eeg_neurofeedback', 'bes_tacs', 'tdcs', 'vns_hrv',
     'audio_entrainment', 'visual_stimulation', 'qeeg_21ch', 'tms', 'pbm_deep_1170nm', 'clinical_tacs',
     'hd_tdcs', 'cervical_vns', 'vibrotactile_40hz']) {
+    // @verifies REQ-NPPS-16
     it(`${type}: every defaulted field has the default defaultParams() gives it`, () => {
       const [entry] = parseNPPS(minimalBlock(type));
       const params = (entry as any).protocol.modalities[0].modalityParams.params as Record<string, unknown>;
@@ -55,6 +59,7 @@ describe('the field table agrees with the reference parser', () => {
       }
     });
 
+    // @verifies REQ-NPPS-16
     it(`${type}: the parse output carries no field the table does not list`, () => {
       const [entry] = parseNPPS(minimalBlock(type));
       const params = (entry as any).protocol.modalities[0].modalityParams.params as Record<string, unknown>;
@@ -67,6 +72,7 @@ describe('the field table agrees with the reference parser', () => {
     });
   }
 
+  // @verifies REQ-NPPS-16
   it('the aliases are the reference parser\'s aliases', () => {
     // Each alias, written in place of its canonical name, must give the same parse.
     for (const [alias, canonical] of Object.entries(table.aliases as Record<string, string>)) {

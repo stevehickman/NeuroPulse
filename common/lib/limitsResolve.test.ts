@@ -9,6 +9,7 @@ import { resolveLimits, resolveLimitsWithSources, type NPLimitsSet } from '../ty
 const golden = JSON.parse(readFileSync(new URL('../../app/NeurOneShared/TestData/npps-resolve-golden.json', import.meta.url), 'utf8'));
 
 describe('resolveLimits', () => {
+  // @verifies REQ-NPPS-12
   it('resolves every tier combination as the web function did', () => {
     expect(golden.cases.length).toBeGreaterThanOrEqual(300);
     for (const c of golden.cases) {
@@ -19,6 +20,7 @@ describe('resolveLimits', () => {
     }
   });
 
+  // @verifies REQ-NPPS-12
   it('gives the resolved set the identity the app\'s models carry, and names each value\'s tier', () => {
     const base = { id: 'x', name: 'x', description: '', createdAt: '', modifiedAt: '' };
     const g = { ...base, level: 'global', besTacs: { maxIntensityMilliamps: 1, maxFrequencyHz: 40 } } as NPLimitsSet;

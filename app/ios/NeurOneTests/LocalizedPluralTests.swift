@@ -9,11 +9,13 @@ import XCTest
 /// a green build would not show either.
 final class LocalizedPluralTests: XCTestCase {
 
+    // @verifies REQ-SW03-09
     func testIntervalCountSelectsThePluralCategory() {
         XCTAssertEqual(NPProtocolDefinition.TimingMode.intervalCount(1).displayString, "1 interval")
         XCTAssertEqual(NPProtocolDefinition.TimingMode.intervalCount(3).displayString, "3 intervals")
     }
 
+    // @verifies REQ-SW03-09
     func testSocketFamilyResolves() {
         func plural(_ key: String, _ n: Int) -> String {
             String.localizedStringWithFormat(NSLocalizedString(key, comment: ""), n)
@@ -23,6 +25,7 @@ final class LocalizedPluralTests: XCTestCase {
     }
 
     /// The tier name was the persisted `rawValue`, formatted into on-screen text.
+    // @verifies REQ-SW03-09
     func testClinicianTierRendersItsDisplayNameAndPrice() {
         XCTAssertEqual(ClinicianUseCaseTier.fullClinical.displayName, "Full Clinical")
         XCTAssertEqual(ClinicianUseCaseTier.fullClinical.monthlyPrice, "$299/month/patient")

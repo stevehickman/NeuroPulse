@@ -19,6 +19,7 @@ class NPProtocolLibraryTests {
         return NPProtocolLibrary(kv)
     }
 
+    // @verifies REQ-NPPS-18
     @Test
     fun bundledProtocolCountMatchesManifest() {
         // Counted from protocols/predefined/manifest.json, not hardcoded. This
@@ -34,6 +35,7 @@ class NPProtocolLibraryTests {
             "Every predefined NPPS template in manifest.json must parse without error.")
     }
 
+    // @verifies SWR-PL-04
     @Test
     fun allBundledProtocolsAreReadOnly() {
         val lib = library()
@@ -44,11 +46,13 @@ class NPProtocolLibraryTests {
         }
     }
 
+    // @verifies REQ-NPPS-18
     @Test
     fun bundledIncludesFourComposites() {
         assertEquals(4, library().bundledProtocols.count { it.isComposite })
     }
 
+    // @verifies REQ-NPPS-19
     @Test
     fun availabilityUnavailableWhenNoDevice() {
         val lib = library()
@@ -57,6 +61,7 @@ class NPProtocolLibraryTests {
         assertFalse(lib.availability(gamma).isAvailable)
     }
 
+    // @verifies REQ-NPPS-19
     @Test
     fun availabilityAvailableForT1ProtocolWithT1Device() {
         val lib = library()
@@ -65,6 +70,7 @@ class NPProtocolLibraryTests {
         assertTrue(lib.availability(gamma).isAvailable, "Gamma Focus is all-T1 and must be available on a T1 device.")
     }
 
+    // @verifies REQ-ONBOARD-05#a
     @Test
     fun eegProtocolBlockedWhenConsentDeclined() {
         val lib = library(consent = false)
@@ -74,6 +80,7 @@ class NPProtocolLibraryTests {
         assertEquals(ProtocolAvailability.EegConsentRequired, lib.availability(gamma))
     }
 
+    // @verifies REQ-NPPS-18
     @Test
     fun eegConsentTogglePropagates() {
         val lib = library(consent = false)
@@ -84,6 +91,7 @@ class NPProtocolLibraryTests {
         assertTrue(lib.availability(gamma).isAvailable)
     }
 
+    // @verifies REQ-ONBOARD-05#b
     @Test
     fun retinalHealthNonEEGAvailableWithoutConsent() {
         val lib = library(consent = false)
@@ -93,6 +101,7 @@ class NPProtocolLibraryTests {
         assertTrue(lib.availability(retinal).isAvailable)
     }
 
+    // @verifies REQ-NPPS-18
     @Test
     fun userProtocolPersistsAcrossReload() {
         val kv = InMemoryKeyValueStore()
@@ -115,6 +124,7 @@ class NPProtocolLibraryTests {
         assertEquals("My Custom", lib2.userProtocols.first().name)
     }
 
+    // @verifies SWR-PL-04
     @Test
     fun cannotDeleteBundledProtocol() {
         val lib = library()
@@ -124,6 +134,7 @@ class NPProtocolLibraryTests {
             "Bundled protocols must be immutable.")
     }
 
+    // @verifies REQ-NPPS-18
     @Test
     fun validationResultCachedAndCounted() {
         val lib = library()

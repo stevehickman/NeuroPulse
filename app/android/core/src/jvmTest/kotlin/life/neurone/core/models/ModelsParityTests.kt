@@ -20,6 +20,7 @@ class ModelsParityTests {
 
     // ── GATT UUIDs (ISC-9, ISC-10): the generated strings parse to the contract values ─────────
 
+    // @verifies REQ-SW03-01
     @Test
     fun gattUuidStringsMatchContract() {
         assertEquals("4e455550-0001-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.SERVICE_ID).toString())
@@ -42,6 +43,7 @@ class ModelsParityTests {
         assertEquals("4e455550-0012-1000-8000-00805f9b34fb", UUID.fromString(GattUuidStrings.SOCKET_MAP_ID).toString())
     }
 
+    // @verifies REQ-SW03-01
     @Test
     fun gattUuidsAllContainsExactlyFourteenAndExcludesOptionals() {
         assertEquals(14, GattUuidStrings.REQUIRED_IDS.map(UUID::fromString).size)
@@ -52,6 +54,7 @@ class ModelsParityTests {
 
     // ── Session enums raw values (ISC-15) ────────────────────────────────
 
+    // @verifies REQ-SW03-01
     @Test
     fun sessionStatusRawValuesMatchFirmware() {
         assertEquals(0, SessionStatus.IDLE.rawValue)
@@ -61,12 +64,14 @@ class ModelsParityTests {
         assertNull(SessionStatus.from(4))
     }
 
+    // @verifies REQ-SW03-01
     @Test
     fun pacerPhaseRawValuesMatchFirmware() {
         assertEquals(0, PacerPhase.INHALE.rawValue)
         assertEquals(1, PacerPhase.EXHALE.rawValue)
     }
 
+    // @verifies REQ-SW03-01
     @Test
     fun sessionStateEmptyMatchesIosDefaults() {
         val e = SessionState.EMPTY
@@ -77,6 +82,7 @@ class ModelsParityTests {
 
     // ── OTA opcodes frozen wire values (ISC-14) ──────────────────────────
 
+    // @verifies DI-PERF-21
     @Test
     fun otaOpcodesMatchFrozenWireValues() {
         assertEquals(0x01, OtaOpcode.INITIATE.rawValue)
@@ -89,6 +95,7 @@ class ModelsParityTests {
         assertEquals(0x12, OtaOpcode.SAFETY_MCU_COMMIT.rawValue)
     }
 
+    // @verifies REQ-SW03-01
     @Test
     fun calibrationOpcodesMatchFrozenWireValues() {
         assertEquals(0x01, CalibrationOpcode.IMPEDANCE_CHECK.rawValue)
@@ -99,6 +106,7 @@ class ModelsParityTests {
 
     // ── OtaPhase semantics (ISC-17) ──────────────────────────────────────
 
+    // @verifies DI-PERF-21
     @Test
     fun otaPhaseVerifiedIsFourAndFailedIsFF() {
         assertEquals(0x04, OtaPhase.VERIFIED.rawValue)
@@ -111,6 +119,7 @@ class ModelsParityTests {
      * a hard-coded copy is how Android drifted to RECEIVING/COMMITTING/REBOOTING on 0x01, 0x03
      * and 0x05 while this file still passed.
      */
+    // @verifies DI-PERF-21
     @Test
     fun otaPhaseTableMatchesIosOtaPhaseSource() {
         val swift = File(repoRoot(), "app/ios/NeurOne/Models/OTAModels.swift").readText()
@@ -123,6 +132,7 @@ class ModelsParityTests {
         assertEquals(ios, OtaPhase.entries.associate { it.name to it.rawValue })
     }
 
+    // @verifies DI-PERF-21
     @Test
     fun otaPhaseBusyAndTerminalSemanticsMatchIos() {
         // iOS: isTerminal = complete || failed; isBusy = anything but idle/complete/failed.
@@ -139,6 +149,7 @@ class ModelsParityTests {
 
     // ── FirmwareVersion (ISC-16) ─────────────────────────────────────────
 
+    // @verifies DI-PERF-21
     @Test
     fun firmwareVersionComparableOrdering() {
         val a = FirmwareVersion.parse("1.2.3")!!
@@ -151,6 +162,7 @@ class ModelsParityTests {
         assertNull(FirmwareVersion.parse("a.b.c"))
     }
 
+    // @verifies DI-PERF-21
     @Test
     fun otaSessionFormattedBytesRoundsHalfUp() {
         assertEquals("512 B", OtaSession.formattedBytes(512))
@@ -162,6 +174,7 @@ class ModelsParityTests {
 
     // ── Clinician tier → UHDR element mapping (ISC-18) ───────────────────
 
+    // @verifies REQ-CONSENT-15
     @Test
     fun clinicianTierElementMappingsMatchIos() {
         assertEquals(

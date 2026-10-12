@@ -59,6 +59,7 @@ final class UHDRKeyManagerTests: XCTestCase {
     // MARK: testKeyStoredInKeychain (corrected: key must NOT be persisted)
 
     @MainActor
+    // @verifies REQ-SW03-08
     func testKeyStoredInKeychain() {
         let manager = UHDRKeyManager()
 
@@ -77,6 +78,7 @@ final class UHDRKeyManagerTests: XCTestCase {
 
     // MARK: testNoFallbackOnBioFailure
 
+    // @verifies REQ-SW03-08
     func testNoFallbackOnBioFailure() async {
         // canEvaluatePolicy returns false → must throw UHDRKeyError.biometricFailed, no key
         let cannotEvaluate = MockBiometricContext(
@@ -117,6 +119,7 @@ final class UHDRKeyManagerTests: XCTestCase {
 
     // MARK: testSuccessfulAuthDerivesKey
 
+    // @verifies REQ-SW03-08
     func testSuccessfulAuthDerivesKey() async throws {
         let store = MockCredentialStore()
         let manager = await MainActor.run {
@@ -135,6 +138,7 @@ final class UHDRKeyManagerTests: XCTestCase {
 
     // MARK: testLockClearsKey
 
+    // @verifies REQ-SW03-08
     func testLockClearsKey() async throws {
         let manager = await MainActor.run {
             UHDRKeyManager(biometricContext: MockBiometricContext(behavior: .success),
@@ -152,6 +156,7 @@ final class UHDRKeyManagerTests: XCTestCase {
 
     // MARK: testArgon2idDeterministic (uses test-only variant with small memory)
 
+    // @verifies REQ-SW03-08
     func testArgon2idDeterministic() throws {
         let password = Data("test-credential-32-bytes-padded!".utf8) // 32 bytes
         let salt     = Data("test-salt-1234567890123456789012".utf8) // 32 bytes
@@ -170,6 +175,7 @@ final class UHDRKeyManagerTests: XCTestCase {
 
     // MARK: testKeyNeverTransmitted (static analysis of production source)
 
+    // @verifies REQ-SW03-08
     func testKeyNeverTransmitted() throws {
         let source = try Self.uhdrKeyManagerSource()
 
@@ -206,6 +212,7 @@ final class UHDRKeyManagerTests: XCTestCase {
 
     // MARK: testCredentialStoreFailurePropagates
 
+    // @verifies REQ-SW03-08
     func testCredentialStoreFailurePropagates() async {
         let store = MockCredentialStore(shouldThrow: true)
         let manager = await MainActor.run {

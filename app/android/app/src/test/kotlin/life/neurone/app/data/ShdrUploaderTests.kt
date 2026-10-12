@@ -30,6 +30,7 @@ class ShdrUploaderTests {
 
     // 1. Fallback token: 32-byte CSPRNG → 64 lowercase-hex chars, generated once
     //    and persisted so the fleet-DB linkage is stable across reads.
+    // @verifies REQ-SHDR-02
     @Test
     fun fallbackTokenIs64Hex() {
         val store = FakeTokenStore()
@@ -43,6 +44,7 @@ class ShdrUploaderTests {
     }
 
     // 2. OI-BLE-01: upgrade adopts the hub-provisioned 32-byte TRNG token.
+    // @verifies REQ-SHDR-02
     @Test
     fun upgradeAdoptsHubToken() {
         val store = FakeTokenStore()
@@ -58,6 +60,7 @@ class ShdrUploaderTests {
 
     // 3. OI-BLE-01: a null warrantyToken (disconnect) must NOT downgrade the token
     //    back to the CSPRNG fallback. The `?.let` in the collector is the null-drop.
+    // @verifies REQ-SHDR-02
     @Test
     fun nullWarrantyTokenDoesNotDowngrade() {
         val store = FakeTokenStore()
@@ -72,6 +75,7 @@ class ShdrUploaderTests {
     }
 
     // 4. A hub token that is not exactly 32 bytes is rejected (no-op).
+    // @verifies REQ-SHDR-02
     @Test
     fun shortOrLongHubTokenRejected() {
         val store = FakeTokenStore()
@@ -88,6 +92,7 @@ class ShdrUploaderTests {
     }
 
     // Wiring: closed warranty gate → no upload attempt (callback never fires).
+    // @verifies REQ-SHDR-01
     @Test
     fun uploadGatedByWarrantyConsent() {
         val up = uploader(FakeTokenStore())
@@ -104,6 +109,7 @@ class ShdrUploaderTests {
     }
 
     // Wiring: pending but nothing staged → no upload attempt.
+    // @verifies REQ-SHDR-02
     @Test
     fun uploadNoOpWithoutStagingPayload() {
         val up = uploader(FakeTokenStore())

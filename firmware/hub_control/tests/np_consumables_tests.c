@@ -210,6 +210,7 @@ static np_att_status_t reset_kind(uint8_t k)
 
 /* ── Tests ────────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-54 */
 static void test_new_device_reads_zero(void)
 {
     new_device();
@@ -217,6 +218,7 @@ static void test_new_device_reads_zero(void)
     check(g_writes == 0, "new device: loading writes nothing");
 }
 
+/* @verifies REQ-FWHUB-54 */
 static void test_increment_rule(void)
 {
     new_device();
@@ -239,6 +241,7 @@ static void test_increment_rule(void)
           "increment: a session that drove nothing (refused or empty) counts for nothing");
 }
 
+/* @verifies REQ-FWHUB-54 */
 static void test_counts_survive_a_reboot(void)
 {
     new_device();
@@ -248,6 +251,7 @@ static void test_counts_survive_a_reboot(void)
     check(counts_are(0U, 2U, 0U, 1U), "reboot: the hub's counts come back from Config");
 }
 
+/* @verifies REQ-FWHUB-54 */
 static void test_replacement_reset(void)
 {
     new_device();
@@ -281,6 +285,7 @@ static void test_replacement_reset(void)
           "reset: a kind index past the four is refused");
 }
 
+/* @verifies REQ-FWHUB-54 */
 static void test_unreadable_store_is_not_zero(void)
 {
     const np_hub_status_t bad[] = { NP_HUB_ERR_STORE_IO, NP_HUB_ERR_STORE_INTEGRITY };
@@ -317,6 +322,7 @@ static void test_unreadable_store_is_not_zero(void)
     check(!read_counts(v), "unreadable: a wrong record version is not believed");
 }
 
+/* @verifies REQ-FWHUB-54 */
 static void test_saturates(void)
 {
     new_device();
@@ -327,6 +333,7 @@ static void test_saturates(void)
     check(counts_are(0xFFFFU, 0U, 0U, 0U), "saturation: a count stops at 65535, never wraps to 0");
 }
 
+/* @verifies REQ-FWHUB-54 */
 static void test_failed_write_is_retried(void)
 {
     new_device();
@@ -344,6 +351,7 @@ static void reset_sleeves_now(void)
     (void)reset_kind(0U);
 }
 
+/* @verifies REQ-FWHUB-54 */
 static void test_no_stale_overwrite(void)
 {
     new_device();
@@ -359,6 +367,7 @@ static void test_no_stale_overwrite(void)
     check(stored_are(0U, 0U, 0U, 0U), "race: the next poll writes the newer value, not the older");
 }
 
+/* @verifies REQ-FWHUB-54 */
 static void test_notify_on_change_only(void)
 {
     new_device();

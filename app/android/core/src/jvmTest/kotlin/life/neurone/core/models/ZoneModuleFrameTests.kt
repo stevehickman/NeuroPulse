@@ -26,6 +26,7 @@ class ZoneModuleFrameTests {
 
     // ── Decoding ─────────────────────────────────────────────────────────
 
+    // @verifies REQ-SW03-02
     @Test
     fun decodesStatusRecords() {
         val f = statusFrame(SNAP or LAST, 0, Triple(12, 1, 0x01), Triple(47, 2, 0x01), Triple(128, 0, 0x00))
@@ -37,6 +38,7 @@ class ZoneModuleFrameTests {
         assertFalse(f.records[2].isPresent)
     }
 
+    // @verifies REQ-SW03-02
     @Test
     fun faultClearsPresenceEvenIfHubSetsBoth() {
         val r = statusFrame(LAST, 0, Triple(5, 2, 0x03)).records.single()
@@ -44,11 +46,13 @@ class ZoneModuleFrameTests {
         assertFalse(r.isPresent, "a faulted module is never present")
     }
 
+    // @verifies REQ-SW03-02
     @Test
     fun unknownModuleTypeDecodesAsUnknown() {
         assertEquals(ZoneModuleType.UNKNOWN, statusFrame(LAST, 0, Triple(5, 99, 0x01)).records.single().moduleType)
     }
 
+    // @verifies REQ-SW03-02
     @Test
     fun rejectsWrongVersionKindOrLength() {
         assertNull(ZoneModuleFrame.fromWire(b(0x01, LAST, 0, 1, 5, 1, 1)), "version 1 never deployed")
@@ -57,12 +61,14 @@ class ZoneModuleFrameTests {
         assertNull(ZoneModuleFrame.fromWire(b(0x02, LAST, 0)), "short header")
     }
 
+    // @verifies REQ-SW03-02
     @Test
     fun rejectsSocketIdOutsideDomain() {
         assertNull(ZoneModuleFrame.fromWire(status(LAST, 0, Triple(0, 1, 1))))
         assertNull(ZoneModuleFrame.fromWire(status(LAST, 0, Triple(129, 1, 1))))
     }
 
+    // @verifies REQ-SW03-02
     @Test
     fun decodesSocketMapWithSignedCoordinates() {
         // socket 74, wired, x = +10, y = -3, z = -120 (int16 LE).
@@ -76,6 +82,7 @@ class ZoneModuleFrameTests {
 
     // ── Configuration ────────────────────────────────────────────────────
 
+    // @verifies REQ-SW03-02
     @Test
     fun snapshotReplacesAndDeltaMerges() {
         var c = ZoneModuleConfiguration.EMPTY
@@ -88,6 +95,7 @@ class ZoneModuleFrameTests {
         assertEquals(listOf(9), c.orderedSockets.map { it.socketId }, "a snapshot is a complete claim")
     }
 
+    // @verifies REQ-SW03-02
     @Test
     fun representsMoreThanFiveSockets() {
         val records = (1..80).map { Triple(it, 1, 1) }.toTypedArray()
@@ -97,6 +105,7 @@ class ZoneModuleFrameTests {
 
     // ── Reassembly ───────────────────────────────────────────────────────
 
+    // @verifies REQ-SW03-02
     @Test
     fun snapshotCommitsOnlyOnLastFragment() {
         val a = ZoneModuleFrameAssembler()
@@ -107,6 +116,7 @@ class ZoneModuleFrameTests {
         assertFalse(a.isAccumulating)
     }
 
+    // @verifies REQ-SW03-02
     @Test
     fun outOfOrderFragmentAbandonsRun() {
         val a = ZoneModuleFrameAssembler()
@@ -115,6 +125,7 @@ class ZoneModuleFrameTests {
         assertFalse(a.isAccumulating)
     }
 
+    // @verifies REQ-SW03-02
     @Test
     fun deltaDuringSnapshotRunWins() {
         val a = ZoneModuleFrameAssembler()
@@ -126,12 +137,14 @@ class ZoneModuleFrameTests {
         assertTrue(c.isPresent(2))
     }
 
+    // @verifies REQ-SW03-02
     @Test
     fun deltaOutsideRunPassesThrough() {
         val f = statusFrame(LAST, 0, Triple(3, 1, 1))
         assertEquals(f, ZoneModuleFrameAssembler().accept(f))
     }
 
+    // @verifies REQ-SW03-02
     @Test
     fun runLongerThanAddressingDomainIsAbandoned() {
         val a = SocketMapFrameAssembler()

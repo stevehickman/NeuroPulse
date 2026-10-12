@@ -24,6 +24,7 @@ fn refused(r: Result<Vec<u8>, String>, needle: &str) {
     assert!(e.contains(needle), "{e:?} does not mention {needle:?}");
 }
 
+// @verifies REQ-NPPS-01
 #[test]
 fn a_missing_intensity_is_refused_not_compiled_to_the_ceiling() {
     refused(compile("bes_tacs", json!({ "frequencyHz": 10, "waveform": "sine" })), "intensityMilliamps is required");
@@ -38,6 +39,7 @@ fn a_missing_intensity_is_refused_not_compiled_to_the_ceiling() {
     refused(compile("tms", json!({ "frequencyHz": 1, "pulseCount": 10 })), "intensityPercentMT is required");
 }
 
+// @verifies REQ-NPPS-06
 #[test]
 fn an_out_of_range_value_is_refused_not_clamped() {
     refused(compile("bes_tacs", json!({ "frequencyHz": 10, "intensityMilliamps": 3 })), "refused, not reduced to fit");
@@ -50,6 +52,7 @@ fn an_out_of_range_value_is_refused_not_clamped() {
     refused(compile("bes_tacs", json!({ "frequencyHz": 10, "intensityMilliamps": -1 })), "refused, not reduced to fit");
 }
 
+// @verifies REQ-NPPS-04
 #[test]
 fn an_in_range_value_still_compiles() {
     let b = compile("bes_tacs", json!({ "frequencyHz": 10, "intensityMilliamps": 1, "waveform": "sine" })).unwrap();
@@ -57,6 +60,7 @@ fn an_in_range_value_still_compiles() {
     assert_eq!(&b[64 + 14..64 + 14 + 5], &[0, 0x10, 0x27, 0xE8, 0x03]);
 }
 
+// @verifies REQ-NPPS-04
 #[test]
 fn a_socket_or_clock_that_does_not_fit_32_bits_is_refused_not_wrapped() {
     let pbm = json!({ "zones": "clinician_selected", "wavelength": "660nm", "irradianceMWcm2": 100, "frequencyHz": 10, "dutyCyclePercent": 50 });
@@ -66,6 +70,7 @@ fn a_socket_or_clock_that_does_not_fit_32_bits_is_refused_not_wrapped() {
     assert!(compile_with("pbm_transcranial", pbm, json!([1]), json!(1)).is_ok());
 }
 
+// @verifies REQ-NPPS-01
 #[test]
 fn the_validator_reports_a_missing_required_parameter() {
     use neurone_npps_core::api::validate_json;

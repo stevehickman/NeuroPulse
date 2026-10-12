@@ -98,6 +98,7 @@ fn is_added(issue: &Value) -> bool {
     issue["message"]["key"].as_str().map_or(false, |k| ADDED.contains(&k))
 }
 
+// @verifies REQ-NPPS-12
 #[test]
 fn every_case_gives_the_issues_the_web_validator_gave() {
     let g = read("app/NeurOneShared/TestData/npps-validate-golden.json");
@@ -121,6 +122,7 @@ fn every_case_gives_the_issues_the_web_validator_gave() {
     assert!(failures.is_empty(), "{} divergence(s):\n{}", failures.len(), failures[..failures.len().min(8)].join("\n"));
 }
 
+// @verifies REQ-NPPS-14
 #[test]
 fn the_hardware_file_holds_every_ceiling_the_validator_reads() {
     // `hw()` panics on a name the file lacks; a check that never runs would hide that, so run a protocol
@@ -132,6 +134,7 @@ fn the_hardware_file_holds_every_ceiling_the_validator_reads() {
 
 /// A key the validator names that `locales/en.json` lacks would render as itself on every runtime, and no golden
 /// case need reach it. The gate (`scripts/check-locale-strings.ts`) finds keys nothing names; this finds the reverse.
+// @verifies REQ-NPPS-12
 #[test]
 fn every_locale_key_the_validator_names_exists_in_english() {
     let en = read("locales/en.json");

@@ -8,6 +8,7 @@ import kotlin.test.assertTrue
 
 class NPLimitsStoreTests {
 
+    // @verifies REQ-NPPS-12
     @Test
     fun resolvePrefersIndividualThenHelmetThenGlobal() {
         val global = NPLimitsSet(
@@ -21,6 +22,7 @@ class NPLimitsStoreTests {
         assertEquals(30.0, r.maxSessionDoseJCm2)  // falls through to global (only it set this field)
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun resolveReturnsNullBlockWhenAllTiersOmitIt() {
         val r = resolveLimits(NPLimitsSet(name = "g"), null, null)
@@ -28,6 +30,7 @@ class NPLimitsStoreTests {
         assertNull(r.tdcs)
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun resolveWithNoTiersIsUnlimited() {
         val r = resolveLimits(null, null, null)
@@ -35,6 +38,7 @@ class NPLimitsStoreTests {
         assertNull(r.besTacs)
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun storeResolvedLimitsHonorsActiveProfile() {
         val store = NPLimitsStore(InMemoryKeyValueStore())
@@ -50,6 +54,7 @@ class NPLimitsStoreTests {
         assertEquals(1.0, store.resolvedLimits.tdcs!!.maxIntensityMilliamps)
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun profilesAndActiveProfilePersistAcrossReload() {
         val kv = InMemoryKeyValueStore()
@@ -66,6 +71,7 @@ class NPLimitsStoreTests {
         assertEquals(sam, s2.activeProfile)
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun setActiveProfileIgnoresUnknownIdAndNotifies() {
         val store = NPLimitsStore(InMemoryKeyValueStore())
@@ -82,6 +88,7 @@ class NPLimitsStoreTests {
         assertEquals(listOf(alex.id, null), seen)
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun deletingTheActiveProfileClearsItDurably() {
         val kv = InMemoryKeyValueStore()
@@ -97,6 +104,7 @@ class NPLimitsStoreTests {
         assertNull(s2.activeProfileId)
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun corruptProfileRecordLoadsAsNoProfiles() {
         val kv = InMemoryKeyValueStore()
@@ -107,6 +115,7 @@ class NPLimitsStoreTests {
         assertNull(store.activeProfileId, "an active id with no saved profile is not restored")
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun globalLimitsPersistAcrossReloadViaNpps() {
         val kv = InMemoryKeyValueStore()
@@ -116,6 +125,7 @@ class NPLimitsStoreTests {
         assertEquals(60.0, s2.globalLimits?.pbmTranscranial?.maxIrradianceMWcm2)
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun makeValidatorEnforcesResolvedLimits() {
         val store = NPLimitsStore(InMemoryKeyValueStore())

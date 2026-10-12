@@ -135,6 +135,7 @@ jobs:
       pbmmodel: ${{ steps.scope.outputs.pbmmodel }}
       sharedplace: ${{ steps.scope.outputs.sharedplace }}
       unjustified: ${{ steps.scope.outputs.unjustified }}
+      reqtrace: ${{ steps.scope.outputs.reqtrace }}
     env:
       # Eight independent surfaces, eight lists. A simulator-only change should
       # not run the Python gate, and vice versa. Blank lines and `#` comments
@@ -361,6 +362,17 @@ jobs:
         ci/**
         scripts/check-unjustified-register.ts
         .github/workflows/tooling-ci.yml
+      # Requirements <-> tests traceability (scripts/req-trace.ts). It reads the
+      # requirement definitions in docs/*.md and every test file in the tree, so a
+      # requirement edit, a new test and the baseline are all edits it must see.
+      NP_SCOPE_REQTRACE: |
+        docs/**
+        firmware/**
+        app/**
+        common/**
+        ci/**
+        scripts/req-trace.ts
+        .github/workflows/tooling-ci.yml
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -398,6 +410,7 @@ jobs:
           printf '%s\n' "$NP_SCOPE_PBMMODEL" > scope.pbmmodel.paths
           printf '%s\n' "$NP_SCOPE_SHAREDPLACE" > scope.sharedplace.paths
           printf '%s\n' "$NP_SCOPE_UNJUSTIFIED" > scope.unjustified.paths
+          printf '%s\n' "$NP_SCOPE_REQTRACE" > scope.reqtrace.paths
 
       # A well-formed pattern that matches nothing is a typo, not a scope
       # decision: `simluator/**` would silently take the whole surface out of
@@ -405,7 +418,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths scope.benchboundary.paths scope.map2shdr.paths scope.pbmmodel.paths scope.sharedplace.paths scope.unjustified.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths scope.benchboundary.paths scope.map2shdr.paths scope.pbmmodel.paths scope.sharedplace.paths scope.unjustified.paths scope.reqtrace.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -566,6 +579,15 @@ jobs:
           assert scope.unjustified.paths true  app/ios/NeurOne/Models/ConsumableInventory.swift
           assert scope.unjustified.paths false locales/en.json
 
+          # The traceability gate: a requirements document, a test file, the
+          # baseline and the script are in; a locale file is not.
+          assert scope.reqtrace.paths true  docs/np_reg_upg_001.md
+          assert scope.reqtrace.paths true  docs/status/requirement-parts.json
+          assert scope.reqtrace.paths true  firmware/safety_mcu/tests/np_tier_identity_tests.c
+          assert scope.reqtrace.paths true  ci/req-trace-baseline.txt
+          assert scope.reqtrace.paths true  scripts/req-trace.ts
+          assert scope.reqtrace.paths false locales/en.json
+
       - name: Changed files
         id: diff
         env:
@@ -627,6 +649,7 @@ jobs:
           emit pbmmodel  scope.pbmmodel.paths
           emit sharedplace scope.sharedplace.paths
           emit unjustified scope.unjustified.paths
+          emit reqtrace  scope.reqtrace.paths
 
   scripts-check:
     name: scripts/ type-check
@@ -1027,6 +1050,44 @@ jobs:
       # new PROVISIONAL constant lands without a row. This makes that fail.
       - name: Every PROVISIONAL / PLACEHOLDER marker is named, and every cited ID and path exists
         run: bun scripts/check-unjustified-register.ts
+
+  req-trace:
+    name: every test names the requirement it verifies (scripts/req-trace.ts)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.reqtrace != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # No `bun install`: the script uses node builtins and `git ls-files`.
+
+      - name: Tag parser and coverage analysis self-test
+        run: bun scripts/req-trace.ts --self-test
+
+      # Fails on a tag naming an unknown requirement or part, a @verifies-none
+      # with no reason, or a test file gaining untraced tests above
+      # ci/req-trace-baseline.txt. It does NOT fail on an untested requirement.
+      - name: Every tag resolves, and no file gains untraced tests
+        run: bun scripts/req-trace.ts --check
+
+      - name: Traceability report
+        if: ${{ always() }}
+        run: |
+          bun scripts/req-trace.ts --out req-trace-report.md
+          cat req-trace-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: requirements-traceability
+          path: req-trace-report.md
 
   tcap-map:
     name: the T2 cap electrode map matches its specification (NP-HW-TCAP-001 §3)

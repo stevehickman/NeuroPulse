@@ -251,6 +251,7 @@ static long find_block(const uint8_t *needle, size_t n)
 
 /* ── 1. Policy ────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-LFS-01 */
 static void test_policy_decides_the_api(void)
 {
     uint8_t  buf[64];
@@ -301,6 +302,7 @@ static void test_policy_decides_the_api(void)
 
 /* ── 2. OI-LFS-06 — one open handle per file ──────────────────────────────── */
 
+/* @verifies REQ-FWHUB-51 */
 static void test_second_handle_is_refused(void)
 {
     np_cfg_store_stats_t st;
@@ -325,6 +327,7 @@ static void test_second_handle_is_refused(void)
 
 /* ── 3. OI-LFS-09 — content, not presence ─────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-51 */
 static void test_every_read_is_content_verified(void)
 {
     size_t len = 0U;
@@ -393,6 +396,7 @@ static void test_every_read_is_content_verified(void)
 
 /* ── 4. OI-LFS-09 — upstream #1205, reproduced, and stopped ───────────────── */
 
+/* @verifies REQ-FWHUB-51 */
 static void test_1205_stale_cache_reproduced_and_stopped(void)
 {
     np_cfg_store_stats_t st;
@@ -524,6 +528,7 @@ static void test_1205_stale_cache_reproduced_and_stopped(void)
 
 /* ── 5. OI-LFS-08 — churn is bounded ──────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-51 */
 static void test_churn_is_bounded(void)
 {
     np_cfg_store_stats_t st;
@@ -581,6 +586,7 @@ static void test_churn_is_bounded(void)
 
 /* ── 6. OI-LFS-08 — ukmd.rec on two entries ───────────────────────────────── */
 
+/* @verifies REQ-FWHUB-51 */
 static void test_replicated_record_survives_one_lost_entry(void)
 {
     np_cfg_store_stats_t st;
@@ -929,6 +935,7 @@ static np_sweep_result_t run(const char *label, void (*base)(void),
     return r;
 }
 
+/* @verifies REQ-FWHUB-51 */
 static void test_store_orderings_survive_power_loss(void)
 {
     ukmd_build(g_u1, 0x31U);
@@ -1002,6 +1009,7 @@ static int v_count(const char *what, long cut, np_powerbd_tear_t tear)
     return 1;
 }
 
+/* @verifies REQ-FWHUB-51 */
 static void test_session_count_is_persisted(void)
 {
     uint32_t c = 99U;
@@ -1088,6 +1096,7 @@ static int v_marker(const char *what, long cut, np_powerbd_tear_t tear)
     return 1;
 }
 
+/* @verifies REQ-FWHUB-51 */
 static void test_reset_marker_is_durable(void)
 {
     /* The decision table, without a medium. */
@@ -1263,6 +1272,7 @@ static bool seq_in_order(const np_map3_row_t *row, void *ctx)
     return true;
 }
 
+/* @verifies REQ-FWHUB-51 */
 static void test_journal_rows_of_differing_length(void)
 {
     enum { ROWS = 10U, GROWN = 4U, TAIL = 8U };
@@ -1467,6 +1477,7 @@ static int v_npmp(const char *what, long cut, np_powerbd_tear_t tear)
     return 0;
 }
 
+/* @verifies REQ-LFS-02 */
 static void test_module_map_blob_through_the_store(void)
 {
     np_physical_loc_t loc;

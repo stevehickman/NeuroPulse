@@ -13,6 +13,7 @@ import kotlin.test.assertNotEquals
  */
 class DigestsAndUuidTests {
 
+    // @verifies REQ-SW03-10
     @Test fun sha256_matchesFips180Vectors() {
         assertEquals(
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -29,6 +30,7 @@ class DigestsAndUuidTests {
         )
     }
 
+    // @verifies REQ-SW03-10
     @Test fun md5_matchesRfc1321Vectors() {
         assertEquals("d41d8cd98f00b204e9800998ecf8427e", Digests.md5(ByteArray(0)).toHex())
         assertEquals("900150983cd24fb0d6963f7d28e17f72", Digests.md5("abc".encodeToByteArray()).toHex())
@@ -38,6 +40,7 @@ class DigestsAndUuidTests {
         )
     }
 
+    // @verifies REQ-SW03-10
     @Test fun uuid_roundTripsAndIsVersion4() {
         val id = UUID.randomUUID()
         assertEquals(id, UUID.fromString(id.toString()))
@@ -45,6 +48,7 @@ class DigestsAndUuidTests {
         assertNotEquals(id, UUID.randomUUID())
     }
 
+    // @verifies REQ-SW03-10
     @Test fun uuid_nameBased_matchesRfc4122AndJavaDerivation() {
         // java.util.UUID.nameUUIDFromBytes("zone:frontal".getBytes()) — version 3, MD5.
         val a = UUID.nameUUIDFromBytes("zone:frontal".encodeToByteArray())
@@ -58,6 +62,7 @@ class DigestsAndUuidTests {
         )
     }
 
+    // @verifies REQ-SW03-10
     @Test fun uuid_fromString_refusesMalformedText() {
         assertFailsWith<IllegalArgumentException> { UUID.fromString("not-a-uuid") }
         assertFailsWith<IllegalArgumentException> { UUID.fromString("6ba7b810-9dad-11d1-80b4-00c04fd430cZ") }
@@ -65,6 +70,7 @@ class DigestsAndUuidTests {
 }
 
 class FormatFixedTests {
+    // @verifies REQ-SW03-10
     @Test fun roundsHalfUpAndPadsDecimals() {
         assertEquals("0.3", formatFixed(0.25, 1))
         assertEquals("72.0", formatFixed(72.0, 1))

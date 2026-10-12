@@ -67,6 +67,7 @@ const sessionErrors = (d: NPProtocolDefinition) =>
     i => i.severity === 'error' && i.parameterKey === 'chargeDensityMCcm2');
 
 describe('pulsed / AC per-phase charge density (OI-CHARGE-05 b)', () => {
+  // @verifies REQ-NPPS-14#b
   it('never applies the DC per-session dose to a charge-balanced modality', () => {
     // An hour of BES/tACS at its 1 mA cap. Integrated as |I| × t this is
     // 3600 mC — 144 mC/cm² on a 25 cm² pad, right at the DC ceiling — but it
@@ -81,6 +82,7 @@ describe('pulsed / AC per-phase charge density (OI-CHARGE-05 b)', () => {
     expect(sessionErrors(veryLong)).toHaveLength(0);
   });
 
+  // @verifies REQ-NPPS-14#b
   it('passes VNS at its rated worst case', () => {
     // 2 mA × 250 µs (the firmware's default pulse width) = 0.5 µC. On the
     // 0.5 cm² auricular clip pad that is 1.0 µC/cm² — 2.5% of the ceiling.
@@ -88,12 +90,14 @@ describe('pulsed / AC per-phase charge density (OI-CHARGE-05 b)', () => {
       { intensityMilliamps: 2, frequencyHz: 25 }))).toHaveLength(0);
   });
 
+  // @verifies REQ-NPPS-14#b
   it('passes cervical VNS at its rated worst case', () => {
     // 2 mA × 250 µs = 0.5 µC on a 2 cm² collar pad = 0.25 µC/cm².
     expect(phaseErrors(protocolWith('cervical_vns',
       { intensityMilliamps: 2, frequencyHz: 25 }))).toHaveLength(0);
   });
 
+  // @verifies REQ-NPPS-14#b
   it('passes tACS across its whole authorised band', () => {
     // The band bottom is where phase charge is LARGEST — a 0.5 Hz half-period
     // is a full second. 1 mA sinusoidal on a 25 cm² pad:
@@ -108,6 +112,7 @@ describe('pulsed / AC per-phase charge density (OI-CHARGE-05 b)', () => {
       { intensityMilliamps: 1, frequencyHz: 40, waveform: 'sinusoidal' }))).toHaveLength(0);
   });
 
+  // @verifies REQ-NPPS-14#b
   it('applies the 2/pi factor only to sinusoids', () => {
     // Identical amplitude and phase duration; only the waveform differs.
     // A square wave delivers the full I × T: 1 mA × 1 s = 1000 µC ÷ 25 cm²
@@ -122,6 +127,7 @@ describe('pulsed / AC per-phase charge density (OI-CHARGE-05 b)', () => {
       { intensityMilliamps: 1, frequencyHz: 0.5, waveform: 'sinusoidal' }))).toHaveLength(0);
   });
 
+  // @verifies REQ-NPPS-14#b
   it('gets stricter as frequency falls, because the phase gets longer', () => {
     // A square wave at 1 mA: the ceiling is 40 µC/cm² × 25 cm² = 1000 µC, so
     // the longest admissible phase is 1 s — i.e. 0.5 Hz is the boundary and
@@ -134,11 +140,13 @@ describe('pulsed / AC per-phase charge density (OI-CHARGE-05 b)', () => {
       { intensityMilliamps: 1, frequencyHz: 1, waveform: 'square' }))).toHaveLength(0);
   });
 
+  // @verifies REQ-NPPS-14#b
   it('is not raised for a modality that drives no electrode', () => {
     expect(phaseErrors(protocolWith('pbm_transcranial', {}))).toHaveLength(0);
     expect(phaseErrors(protocolWith('audio_entrainment', {}))).toHaveLength(0);
   });
 
+  // @verifies REQ-NPPS-14#b
   it('does not divide by zero on a zero frequency or amplitude', () => {
     expect(phaseErrors(protocolWith('bes_tacs',
       { intensityMilliamps: 1, frequencyHz: 0, waveform: 'sinusoidal' }))).toHaveLength(0);

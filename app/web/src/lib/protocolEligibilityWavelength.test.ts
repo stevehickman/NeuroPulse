@@ -38,12 +38,14 @@ const pbm = (wavelength: string, zone = 'Frontal Left') => `    pbm_transcranial
     }`;
 
 describe('per-wavelength eligibility', () => {
+  // @verifies REQ-NPPS-19
   it('an 810 nm block runs on a 660/808 helmet', () => {
     const e = evaluateProtocol(protocol(pbm('810nm')), helmet('pbm-only'), zones);
     expect(e.eligible).toBe(true);
     expect(e.shortfalls).toEqual([]);
   });
 
+  // @verifies REQ-NPPS-19
   it('a 1070 nm block does not, and the shortfall names the parts that would fix it', () => {
     const e = evaluateProtocol(protocol(pbm('1070nm')), helmet('pbm-only'), zones);
     expect(e.eligible).toBe(false);
@@ -56,10 +58,12 @@ describe('per-wavelength eligibility', () => {
     expect(s.sockets[0].candidateModules).not.toContain('ZM-PBM-DUAL');
   });
 
+  // @verifies REQ-NPPS-19
   it('the same 1070 nm block runs once the tri-wavelength parts are fitted', () => {
     expect(evaluateProtocol(protocol(pbm('1070nm')), helmet('full-t2'), zones).eligible).toBe(true);
   });
 
+  // @verifies REQ-NPPS-19
   it('an 850 nm block is unsupported under the defaults: no part is suggested, the rules are', () => {
     const e = evaluateProtocol(protocol(pbm('850nm')), helmet('full-t2'), zones);
     expect(e.eligible).toBe(false);
@@ -70,6 +74,7 @@ describe('per-wavelength eligibility', () => {
     expect(e.summary).toMatch(/850nm/);
   });
 
+  // @verifies REQ-NPPS-19
   it('loosening the rules makes the same 850 nm block runnable', () => {
     const lab = resolveWavelengthRules(DEFAULT_WAVELENGTH_RULES, {
       name: 'Lab', level: 'user',
@@ -78,6 +83,7 @@ describe('per-wavelength eligibility', () => {
     expect(evaluateProtocol(protocol(pbm('850nm')), helmet('pbm-only'), zones, undefined, lab).eligible).toBe(true);
   });
 
+  // @verifies REQ-NPPS-19
   it('tightening the rules makes a previously runnable block unsupported', () => {
     const exact = resolveWavelengthRules(DEFAULT_WAVELENGTH_RULES, {
       name: 'Exact', level: 'user',
@@ -88,15 +94,18 @@ describe('per-wavelength eligibility', () => {
     expect(e.shortfalls[0].wavelengthProblem?.reason).toBe('unmapped');
   });
 
+  // @verifies REQ-NPPS-19
   it('a value that is not a wavelength is its own failure', () => {
     const e = evaluateProtocol(protocol(pbm('red')), helmet('full-t2'), zones);
     expect(e.shortfalls[0].wavelengthProblem?.reason).toBe('invalid');
   });
 
+  // @verifies REQ-NPPS-03
   it('a retired combined name never reaches eligibility: the parser refuses it', () => {
     expect(() => protocol(pbm('660_808nm'))).toThrow(/retired/);
   });
 
+  // @verifies REQ-NPPS-19
   it('each PBM block is reported on its own', () => {
     const e = evaluateProtocol(protocol(pbm('810nm'), pbm('1070nm', 'Frontal Right')), helmet('pbm-only'), zones);
     expect(e.shortfalls.map(s => s.blockIndex)).toEqual([1]);

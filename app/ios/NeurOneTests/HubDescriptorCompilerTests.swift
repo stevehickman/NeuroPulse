@@ -57,6 +57,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
         return mod(.pbmTranscranial(p))
     }
 
+    // @verifies REQ-FWHUB-08
     func testPBMChannels() throws {
         try check("pbm660", def(1200, pbm("660nm", 200)))
         try check("pbm808", def(1200, pbm("808nm", 322)))
@@ -65,6 +66,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
 
     /// OI-SESPWR-03: CW (frequency 0) has no duty cycle, so CW with a duty other than 100 % is refused,
     /// on every PBM modality that carries both fields.
+    // @verifies REQ-NPPS-02
     func testRefusesCwWithADutyOtherThan100() throws {
         func cw(_ kind: Int, _ duty: Int) -> NPProtocolDefinition {
             switch kind {
@@ -99,10 +101,12 @@ final class HubDescriptorCompilerTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-03#c
     func testParallelWavelengthsMergeIntoOneTileCommand() throws {
         try check("pbmMerged", def(600, pbm("660nm", 100), pbm("808nm", 200)))
     }
 
+    // @verifies REQ-FWHUB-08
     func testClinicianSelectedSockets() throws {
         var p = NPPBMTranscranialParams()
         p.target = .clinicianSelected
@@ -113,6 +117,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
         try check("pbmClin", def(600, mod(.pbmTranscranial(p))))
     }
 
+    // @verifies REQ-FWHUB-08
     func testT1Modalities() throws {
         var nasal = NPPBMIntranasalParams()
         nasal.wavelength = .NM_808; nasal.irradianceMWcm2 = 60; nasal.frequencyHz = 40; nasal.dutyCyclePercent = 25
@@ -149,6 +154,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
         try check("visual", def(600, mod(.visualStimulation(visual))))
     }
 
+    // @verifies REQ-FWHUB-08
     func testT2Modalities() throws {
         var q = NPqEEG21chParams(); q.reference = .average
         try check("qeeg", def(600, mod(.qeeg21ch(q))))
@@ -165,6 +171,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
         XCTAssertTrue(try build(def(600, mod(.cervicalVns(NPCervicalVnsParams())))).isT2)
     }
 
+    // @verifies REQ-FWHUB-08
     func testIntervalsExpandToOnAndStopAndBlockStartShiftsTheSchedule() throws {
         var bes = NPBESTacsParams()
         bes.frequencyHz = 10; bes.intensityMilliamps = 0.8; bes.waveform = .square
@@ -178,6 +185,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
 
     // MARK: - Signing, serial, flags
 
+    // @verifies REQ-FWHUB-08
     func testSignatureCoversTheRawRegionAndLandsInTheLast64Bytes() throws {
         var seen: Data?
         let d = try HubDescriptorCompiler.compile(def(600, pbm("808nm", 100)), sign: { region in
@@ -190,17 +198,20 @@ final class HubDescriptorCompilerTests: XCTestCase {
         XCTAssertEqual(d.publicKeyFingerprint, "fp")
     }
 
+    // @verifies REQ-FWHUB-08
     func testAWrongLengthSignatureIsRefused() {
         XCTAssertThrowsError(try HubDescriptorCompiler.compile(def(600, pbm("808nm", 100)),
                                                               sign: { _ in (Data(count: 63), "fp") }))
     }
 
+    // @verifies REQ-FWHUB-08
     func testDeviceSerialIsTheReplayGuard() throws {
         let serial = Data((1...32).map { UInt8($0) })
         let blob = try build(def(600, pbm("808nm", 100)), serial: serial).blob
         XCTAssertEqual(blob.subdata(in: 28..<60), serial)
     }
 
+    // @verifies REQ-FWHUB-08
     func testHeaderMagicAndAutonomousFlag() throws {
         let plain = try build(def(600, pbm("808nm", 100))).blob
         XCTAssertEqual(Array(plain.prefix(4)), [0x50, 0x48, 0x50, 0x4E], "NPHP, little-endian")
@@ -211,6 +222,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
 
     // MARK: - Refusals
 
+    // @verifies REQ-NPPS-03#c REQ-NPPS-04 REQ-NPPS-08#c REQ-NPPS-09
     func testRefusalsNameTheProblemAndNeverReshape() {
         XCTAssertThrowsError(try build(def(600, pbm("808nm", 500))))      // above the 403 full scale
         XCTAssertThrowsError(try build(def(600, pbm("1064nm", 100))))     // above 28
@@ -238,6 +250,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
             NPIntervalConfig(intervalOnSeconds: 10, intervalOffSeconds: 10, repeatCount: nil)))))
     }
 
+    // @verifies REQ-NPPS-04
     func testTheProbeRefusalReadsLikeUnmapped() {
         var nasal = NPPBMIntranasalParams()
         nasal.wavelength = .NM_1064
@@ -249,6 +262,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
 
     // MARK: - Resolved mask on the wire (was testWireProtocolCarriesTheResolvedMask)
 
+    // @verifies REQ-FWHUB-08
     func testTheTargetBlockCarriesTheResolvedMask() throws {
         var p = NPPBMTranscranialParams()
         p.target = .named(["Occipital Left"])

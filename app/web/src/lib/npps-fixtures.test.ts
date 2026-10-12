@@ -85,6 +85,7 @@ const fixtureNames = readdirSync(__fixturesDir)
 
 describe('shared NPPS fixtures', () => {
   for (const name of fixtureNames) {
+    // @verifies REQ-NPPS-16
     it(`parses ${name}.npps and matches expected output`, () => {
       const { npps, expected } = loadFixture(name);
       const entries = parseNPPS(npps);
@@ -145,6 +146,7 @@ describe('shared NPPS fixtures', () => {
     .filter((f: string) => f.startsWith('error_') && f.endsWith('.npps'));
 
   for (const f of errorFixtures) {
+    // @verifies REQ-NPPS-10
     it(`rejects ${f} with NPPSParseError`, () => {
       const input = readFileSync(join(__fixturesDir, f), 'utf8');
       expect(() => parseNPPS(input)).toThrow(NPPSParseError);

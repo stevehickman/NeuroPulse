@@ -14,6 +14,7 @@ import { join } from "path";
 const LOCALES_DIR = join(__dirname, "..", "..", "locales");
 
 describe("i18n locale files", () => {
+  // @verifies REQ-SW03-09
   it("all locale JSON files parse without error", () => {
     const files = readdirSync(LOCALES_DIR).filter(
       (f) => f.endsWith(".json") && !f.startsWith("_"),
@@ -25,6 +26,7 @@ describe("i18n locale files", () => {
     }
   });
 
+  // @verifies REQ-SW03-09
   it("en.json contains at least 50 keys", () => {
     const en = JSON.parse(
       readFileSync(join(LOCALES_DIR, "en.json"), "utf-8"),
@@ -35,6 +37,7 @@ describe("i18n locale files", () => {
   // Every locale carries every en.json key. The only extra keys allowed are
   // the locale's own CLDR plural categories on a family en.json defines
   // (OI-I18N-03) — Russian _FEW / _MANY, Arabic _ZERO / _TWO / _FEW / _MANY.
+  // @verifies REQ-SW03-09
   it("all locale files carry en.json's keys, plus only their own plural categories", () => {
     const en = JSON.parse(
       readFileSync(join(LOCALES_DIR, "en.json"), "utf-8"),
@@ -62,11 +65,13 @@ describe("i18n locale files", () => {
 });
 
 describe("t() function", () => {
+  // @verifies REQ-SW03-09
   it("returns key when translation is missing", async () => {
     const { t } = await import("./i18n");
     expect(t("NONEXISTENT_KEY_12345")).toBe("NONEXISTENT_KEY_12345");
   });
 
+  // @verifies REQ-SW03-09
   it("supports interpolation with named params", async () => {
     const { t } = await import("./i18n");
     const result = t("TEST_WITH_PARAM", { "0": "hello" });
@@ -80,6 +85,7 @@ describe("pluralKey()", () => {
     return (k: string) => keys.has(k);
   };
 
+  // @verifies REQ-SW03-09
   it("English: one and other", async () => {
     const { pluralKey } = await import("./i18n");
     const has = family("ONE", "OTHER");
@@ -88,6 +94,7 @@ describe("pluralKey()", () => {
     expect(pluralKey("N", 0, "en", has)).toBe("N_OTHER");
   });
 
+  // @verifies REQ-SW03-09
   it("an explicit _ZERO wins for 0 in every locale", async () => {
     const { pluralKey } = await import("./i18n");
     const has = family("ZERO", "ONE", "OTHER");
@@ -95,6 +102,7 @@ describe("pluralKey()", () => {
     expect(pluralKey("N", 0, "ru", has)).toBe("N_ZERO");
   });
 
+  // @verifies REQ-SW03-09
   it("Russian selects few and many once the locale carries them", async () => {
     const { pluralKey } = await import("./i18n");
     const has = family("ONE", "FEW", "MANY", "OTHER");
@@ -106,6 +114,7 @@ describe("pluralKey()", () => {
     expect(pluralKey("N", 11, "ru", has)).toBe("N_MANY");
   });
 
+  // @verifies REQ-SW03-09
   it("a category the locale does not carry yet falls back to _OTHER, never the raw key", async () => {
     const { pluralKey } = await import("./i18n");
     const has = family("ONE", "OTHER");
@@ -113,12 +122,14 @@ describe("pluralKey()", () => {
     expect(pluralKey("N", 2, "ar", has)).toBe("N_OTHER");
   });
 
+  // @verifies REQ-SW03-09
   it("Arabic two; Chinese never selects _ONE", async () => {
     const { pluralKey } = await import("./i18n");
     expect(pluralKey("N", 2, "ar", family("ONE", "TWO", "OTHER"))).toBe("N_TWO");
     expect(pluralKey("N", 1, "zh-Hans", family("ONE", "OTHER"))).toBe("N_OTHER");
   });
 
+  // @verifies REQ-SW03-09
   it("tPlural renders the count through the selected member", async () => {
     const { tPlural } = await import("./i18n");
     expect(tPlural("SCRIPT_LINE_COUNT", 1)).toBe("1 line");
@@ -127,6 +138,7 @@ describe("pluralKey()", () => {
 });
 
 describe("SUPPORTED_LOCALES", () => {
+  // @verifies REQ-SW03-09
   it("exports exactly 11 locales", async () => {
     const { SUPPORTED_LOCALES } = await import(
       "../locales/supportedLocales"
@@ -134,6 +146,7 @@ describe("SUPPORTED_LOCALES", () => {
     expect(SUPPORTED_LOCALES).toHaveLength(11);
   });
 
+  // @verifies REQ-SW03-09
   it("every locale has non-empty bcp47 and displayName", async () => {
     const { SUPPORTED_LOCALES } = await import(
       "../locales/supportedLocales"
@@ -145,6 +158,7 @@ describe("SUPPORTED_LOCALES", () => {
     }
   });
 
+  // @verifies REQ-SW03-09
   it("Arabic has direction rtl", async () => {
     const { SUPPORTED_LOCALES } = await import(
       "../locales/supportedLocales"
@@ -154,12 +168,14 @@ describe("SUPPORTED_LOCALES", () => {
     expect(ar!.direction).toBe("rtl");
   });
 
+  // @verifies REQ-SW03-09
   it("findLocale falls back to en for unknown locale", async () => {
     const { findLocale } = await import("../locales/supportedLocales");
     const result = findLocale("xx-YY");
     expect(result.bcp47).toBe("en");
   });
 
+  // @verifies REQ-SW03-09
   it("findLocale matches es-MX to es-419", async () => {
     const { findLocale } = await import("../locales/supportedLocales");
     const result = findLocale("es-MX");

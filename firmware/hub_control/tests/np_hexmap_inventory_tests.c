@@ -214,6 +214,7 @@ np_hub_status_t np_hexmap_nvram_read(uint8_t *buf, size_t len, size_t *read_len)
 
 /* ── Tests ────────────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-57 */
 static void test_empty_socket(void)
 {
     reset_all();
@@ -224,6 +225,7 @@ static void test_empty_socket(void)
     check(socket_empty(0), "empty socket stays empty");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_new_module_inventoried(void)
 {
     reset_all();
@@ -238,6 +240,7 @@ static void test_new_module_inventoried(void)
     check(g_full_reads[1] == 1, "new module: exactly one whole-block read");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_unchanged_module_not_reinventoried(void)
 {
     reset_all();
@@ -253,6 +256,7 @@ static void test_unchanged_module_not_reinventoried(void)
     check(socket_holds(2, 0x20), "unchanged module: still present");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_swap_between_polls(void)
 {
     reset_all();
@@ -266,6 +270,7 @@ static void test_swap_between_polls(void)
           "swap between polls: new module's elements");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_removal_clears(void)
 {
     reset_all();
@@ -279,6 +284,7 @@ static void test_removal_clears(void)
 }
 
 /* A module whose identity turns unreadable must not keep its old record. */
+/* @verifies REQ-FWHUB-57 */
 static void test_read_fault_clears_present_module(void)
 {
     reset_all();
@@ -298,6 +304,7 @@ static void test_read_fault_clears_present_module(void)
           "health read fault: socket cleared");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_bad_crc_fails_closed(void)
 {
     reset_all();
@@ -309,6 +316,7 @@ static void test_bad_crc_fails_closed(void)
     check(socket_empty(1), "corrupt block: not present");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_whole_block_read_fault(void)
 {
     reset_all();
@@ -322,6 +330,7 @@ static void test_whole_block_read_fault(void)
 
 /* Header names A; by the time the whole block is read the tile is B, with an
  * intact CRC. Storing B's types under A's UID is the defect being refused. */
+/* @verifies REQ-FWHUB-57 */
 static void test_swap_between_header_and_block(void)
 {
     reset_all();
@@ -335,6 +344,7 @@ static void test_swap_between_header_and_block(void)
 }
 
 /* Same UID, different count between header and block: refused. */
+/* @verifies REQ-FWHUB-57 */
 static void test_count_mismatch(void)
 {
     reset_all();
@@ -348,6 +358,7 @@ static void test_count_mismatch(void)
 
 /* The format byte is checked in the CRC-covered block too, not only in the
  * unchecked header: a header read as format 1 does not vouch for the block. */
+/* @verifies REQ-FWHUB-57 */
 static void test_block_format_checked(void)
 {
     reset_all();
@@ -361,6 +372,7 @@ static void test_block_format_checked(void)
           socket_empty(4), "block format differs from header: refused");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_unknown_type_rejects_module(void)
 {
     reset_all();
@@ -377,6 +389,7 @@ static void test_unknown_type_rejects_module(void)
           "highest known element type: accepted");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_bad_headers(void)
 {
     reset_all();
@@ -406,6 +419,7 @@ static void test_bad_headers(void)
           socket_empty(0), "count above NP_HEXMAP_MAX_ELEMENTS: refused");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_full_element_domain(void)
 {
     reset_all();
@@ -420,6 +434,7 @@ static void test_full_element_domain(void)
     check(elem_at(1, 127) == (np_elem_type_t)t[127], "128-element module: last element");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_zero_element_module(void)
 {
     reset_all();
@@ -430,6 +445,7 @@ static void test_zero_element_module(void)
     check(elem_at(1, 0) == (np_elem_type_t)0xFF, "zero-element module: no element 0");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_unwired_and_out_of_domain(void)
 {
     reset_all();
@@ -441,6 +457,7 @@ static void test_unwired_and_out_of_domain(void)
           NP_HUB_ERR_INVALID_ARG, "socket past the domain: INVALID_ARG");
 }
 
+/* @verifies REQ-FWHUB-57 */
 static void test_inventory_fn_contract(void)
 {
     reset_all();
@@ -464,6 +481,7 @@ static void test_inventory_fn_contract(void)
 /* REQ-LFS-02 end to end: a record restored from npmp.bin answers nothing until
  * this poll sees its UID, then answers without a re-inventory. A different
  * module in the socket replaces it. */
+/* @verifies REQ-LFS-02 */
 static void test_restore_confirmed_by_poll(void)
 {
     reset_all();

@@ -23,6 +23,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
     // the session Ed25519 key, chunk it per the BLE framing spec, and deliver all
     // chunks to the GATT gateway. When chunks are reassembled the wire blob must
     // open with the 4-byte NPHP magic (0x4E504850 little-endian): [0x50, 0x48, 0x50, 0x4E].
+    // @verifies REQ-SW03-11
     func testUploadDefinitionSendsTheBinaryDescriptor() async throws {
         let gateway = MockProtocolUploadGateway()
         let uploader = SessionProtocolUploader(gatt: gateway)
@@ -59,6 +60,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
 
     // The serial the gateway read from the hub is stamped at header offset 28 (§4.2), so the
     // hub's WRONG_DEVICE replay guard accepts the descriptor.
+    // @verifies REQ-SW03-11
     func testUploadStampsTheGatewaysDeviceSerial() async throws {
         let gateway = MockProtocolUploadGateway()
         let serial = Data((0..<32).map { UInt8(0x40 + $0) })
@@ -84,6 +86,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
     // upload(_:NPProtocolDefinition) must throw UploadError.bleNotReady before
     // attempting to sign or upload when the hub is not connected, and must set
     // lastError so the UI can surface the failure without re-catching.
+    // @verifies REQ-SW03-11
     func testUploadDefinitionThrowsBLENotReadyWhenDisconnected() async {
         let gateway = MockProtocolUploadGateway(connected: false)
         let uploader = SessionProtocolUploader(gatt: gateway)
@@ -111,6 +114,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
     // BLE writes. After reassembly the blob must still begin with the NPHP magic and carry the
     // whole descriptor. The descriptor has no name field, so size comes from commands: an
     // interval block expands to an ON and a STOP per repeat (NP-FW-HUB-001 §4.1).
+    // @verifies REQ-FWHUB-04
     func testUploadMultiChunkProtocolReassemblesWithNPHPMagic() async throws {
         let gateway = MockProtocolUploadGateway()
         let uploader = SessionProtocolUploader(gatt: gateway)
@@ -153,6 +157,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
     // upload(_:NPProtocolDefinition) must throw UploadError.validationFailed and
     // must NOT call GATT uploadProtocol when the protocol violates hardware limits.
     // This ensures an unsafe protocol never reaches the hub.
+    // @verifies SWR-SS-03
     func testUploadDefinitionRejectsProtocolOverHardwareLimit() async {
         let gateway = MockProtocolUploadGateway()
         let uploader = SessionProtocolUploader(gatt: gateway)
@@ -192,6 +197,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
     // GATT gateway. The NPHP magic bytes confirm the signed descriptor reached
     // the gateway rather than a raw/unsigned payload.
     @MainActor
+    // @verifies DI-SAFE-06
     func testSignAndUpload() async throws {
         let gateway = MockProtocolUploadGateway()
         let uploader = SessionProtocolUploader(gatt: gateway)
@@ -241,6 +247,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
         )
     }
 
+    // @verifies DI-SAFE-09 REQ-CVNS-09#f
     func testCervicalProtocolRefusedWhileCardiacCutoffUnread() async {
         let gateway = MockProtocolUploadGateway()
         gateway.cervicalRestartBlocked = true
@@ -256,6 +263,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
         XCTAssertEqual(gateway.uploadCallCount, 0, "nothing may reach the hub")
     }
 
+    // @verifies DI-SAFE-09 REQ-CVNS-09#f
     func testAnotherPersonsCutoffNeedsOneConfirmationPerUpload() async throws {
         let gateway = MockProtocolUploadGateway()
         gateway.cervicalOutstandingForAnotherUser = true
@@ -283,6 +291,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
 
     /// Mode 3 goes through the same gate and throws the same errors, so the protocol menu shows
     /// the same message and confirmation whichever mode the wearer chose.
+    // @verifies DI-SAFE-09 REQ-CVNS-09#f
     func testAutonomousProgrammingUsesTheSameCervicalGate() async throws {
         let gateway = MockProtocolUploadGateway()
         gateway.cervicalRestartBlocked = true
@@ -309,6 +318,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
         XCTAssertGreaterThan(gateway.uploadCallCount, 0)
     }
 
+    // @verifies REQ-SW03-03
     func testNonCervicalProtocolUnaffectedByCardiacCutoff() async throws {
         let gateway = MockProtocolUploadGateway()
         gateway.cervicalRestartBlocked = true

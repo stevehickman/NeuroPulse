@@ -42,6 +42,7 @@ class NPWavelengthRulesTests {
         }
     """.trimIndent()
 
+    // @verifies REQ-NPPS-03
     @Test
     fun defaultsMapTheSourceWavelengths() {
         assertEquals(NPPBMChannelElement.LED_660, NPWavelengthRulesEngine.map(660.0, rules))
@@ -51,6 +52,7 @@ class NPWavelengthRulesTests {
         for (nm in listOf(640.0, 850.0, 1080.0)) assertNull(NPWavelengthRulesEngine.map(nm, rules), "$nm")
     }
 
+    // @verifies REQ-NPPS-03#b
     @Test
     fun unmappedAndInvalidAreRefused() {
         val r = NPWavelengthRulesEngine.resolveChannels("850nm")
@@ -61,6 +63,7 @@ class NPWavelengthRulesTests {
         }
     }
 
+    // @verifies REQ-NPPS-03
     @Test
     fun aUserRuleReplacesOnlyItsChannel() {
         val user = NPWavelengthRules(
@@ -73,6 +76,7 @@ class NPWavelengthRulesTests {
         assertEquals(rules.channels[2], resolved.channels[2])
     }
 
+    // @verifies REQ-NPPS-03
     @Test
     fun scriptWavelengthIsCarriedExactlyAndStartRoundTrips() {
         val entries = parse(SERIES)
@@ -91,6 +95,7 @@ class NPWavelengthRulesTests {
         assertEquals(240, again.modalities[0].interval.startOffsetSeconds)
     }
 
+    // @verifies REQ-NPPS-22
     @Test
     fun negativeStartIsAnError() {
         assertFailsWith<NPPSError> { parse(SERIES.replace("start: 4m", "start: -4m")) }
@@ -99,6 +104,7 @@ class NPWavelengthRulesTests {
     private fun compile(d: NPProtocolDefinition) =
         HubDescriptorCompiler({ SignatureResult(ByteArray(64), "00") }).compile(d)
 
+    // @verifies REQ-NPPS-03#b
     @Test
     fun theSessionWireCarriesBlockStartAndRefusesTheUnmapped() {
         // `start` is on the wire now: the binary descriptor has a start_ms per command (§4.1).
@@ -113,6 +119,7 @@ class NPWavelengthRulesTests {
         assertNotNull(compile(ok))
     }
 
+    // @verifies REQ-NPPS-03
     @Test
     fun defaultsMatchTheShippedRulesFile() {
         val text = assertNotNull(

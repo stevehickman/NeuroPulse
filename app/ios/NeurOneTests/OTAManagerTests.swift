@@ -61,12 +61,14 @@ final class OTAManagerTests: XCTestCase {
 
     // MARK: - FirmwareVersion comparison (ISC-108)
 
+    // @verifies DI-PERF-21
     func testFirmwareVersionParsesValidString() {
         XCTAssertNotNil(FirmwareVersion("1.2.3"))
         XCTAssertNotNil(FirmwareVersion("0.0.0"))
         XCTAssertNotNil(FirmwareVersion("255.255.255"))
     }
 
+    // @verifies DI-PERF-21
     func testFirmwareVersionRejectsInvalidStrings() {
         XCTAssertNil(FirmwareVersion("1.2"))
         XCTAssertNil(FirmwareVersion("1.2.3.4"))
@@ -75,6 +77,7 @@ final class OTAManagerTests: XCTestCase {
         XCTAssertNil(FirmwareVersion("1.-1.0"))
     }
 
+    // @verifies DI-PERF-21
     func testFirmwareVersionComparison() {
         let v100 = FirmwareVersion("1.0.0")!
         let v110 = FirmwareVersion("1.1.0")!
@@ -89,11 +92,13 @@ final class OTAManagerTests: XCTestCase {
         XCTAssertGreaterThan(v200, v100)
     }
 
+    // @verifies DI-PERF-21
     func testFirmwareVersionDescription() {
         XCTAssertEqual(FirmwareVersion("3.14.159")!.description, "3.14.159")
         XCTAssertEqual(FirmwareVersion("0.0.0")!.description, "0.0.0")
     }
 
+    // @verifies DI-PERF-21
     func testFirmwareVersionGATTBytesDecoding() {
         // Pack 1.2.3 as little-endian uint32: 0x00010203
         var raw = UInt32(0x00010203).littleEndian
@@ -106,6 +111,7 @@ final class OTAManagerTests: XCTestCase {
         XCTAssertEqual(version?.description, "1.2.3")
     }
 
+    // @verifies DI-PERF-21
     func testFirmwareVersionGATTBytesRejectsShortData() {
         XCTAssertNil(FirmwareVersion(gattBytes: Data([0x01, 0x02, 0x03])))
         XCTAssertNil(FirmwareVersion(gattBytes: Data()))
@@ -113,6 +119,7 @@ final class OTAManagerTests: XCTestCase {
 
     // MARK: - FirmwareManifest decoding (ISC-107)
 
+    // @verifies DI-PERF-21
     func testFirmwareManifestDecodes() throws {
         let json = """
         {
@@ -132,6 +139,7 @@ final class OTAManagerTests: XCTestCase {
         XCTAssertEqual(manifest.releaseNotes, "Stability improvements.")
     }
 
+    // @verifies DI-PERF-21
     func testFirmwareManifestToFirmwareImage() throws {
         let json = """
         {
@@ -153,6 +161,7 @@ final class OTAManagerTests: XCTestCase {
 
     // MARK: - OTAPhase (ISC-109)
 
+    // @verifies DI-PERF-21
     func testOTAPhaseBusyStates() {
         XCTAssertFalse(OTAPhase.idle.isBusy)
         XCTAssertFalse(OTAPhase.complete.isBusy)
@@ -164,6 +173,7 @@ final class OTAManagerTests: XCTestCase {
         XCTAssertTrue(OTAPhase.applying.isBusy)
     }
 
+    // @verifies DI-PERF-21
     func testOTAPhaseTerminalStates() {
         XCTAssertTrue(OTAPhase.complete.isTerminal)
         XCTAssertTrue(OTAPhase.failed.isTerminal)
@@ -171,6 +181,7 @@ final class OTAManagerTests: XCTestCase {
         XCTAssertFalse(OTAPhase.applying.isTerminal)
     }
 
+    // @verifies DI-PERF-21
     func testOTAPhaseFromRawByte() {
         XCTAssertEqual(OTAPhase(rawPacketByte: 0x00), .idle)
         XCTAssertEqual(OTAPhase(rawPacketByte: 0x01), .preparing)
@@ -186,6 +197,7 @@ final class OTAManagerTests: XCTestCase {
 
     // MARK: - OTASession progress (ISC-110)
 
+    // @verifies DI-PERF-21
     func testOTASessionBytesProgress() {
         let image = FirmwareImage(
             version: "1.0.0", buildDate: Date(), imageSizeBytes: 1024,
@@ -196,6 +208,7 @@ final class OTAManagerTests: XCTestCase {
         XCTAssertEqual(session.bytesProgress, 0.5, accuracy: 0.001)
     }
 
+    // @verifies DI-PERF-21
     func testOTASessionFormattedBytes() {
         XCTAssertEqual(OTASession.formattedBytes(512), "1 KB")
         XCTAssertEqual(OTASession.formattedBytes(1024 * 500), "500 KB")
@@ -204,6 +217,7 @@ final class OTAManagerTests: XCTestCase {
         XCTAssertTrue(mb.contains("MB"), "1.5 MiB should format as MB: \(mb)")
     }
 
+    // @verifies DI-PERF-21
     func testOTASessionChunkCount() {
         // 1000 bytes of data with CHUNK_SIZE=496 → 3 chunks (496+496+8)
         let total = 1000
@@ -213,6 +227,7 @@ final class OTAManagerTests: XCTestCase {
 
     // MARK: - hubFirmwareVersion GATT flow (ISC-108)
 
+    // @verifies DI-PERF-21
     func testHubFirmwareVersionClearedOnDisconnect() {
         let mock = MockBLECentral()
         let manager = NeurOneGATTManager(mockCentral: mock)
@@ -225,6 +240,7 @@ final class OTAManagerTests: XCTestCase {
                      "hubFirmwareVersion must be cleared on disconnect (UHDR/SHDR boundary)")
     }
 
+    // @verifies DI-PERF-21
     func testHubFirmwareVersionStored() {
         let mock = MockBLECentral()
         let manager = NeurOneGATTManager(mockCentral: mock)
@@ -234,6 +250,7 @@ final class OTAManagerTests: XCTestCase {
 
     // MARK: - ISC-113: signature fingerprint gate
 
+    // @verifies DI-PERF-21
     func testSignatureGateBlocksWrongFingerprint() async {
         let mock = MockBLECentral()
         let gatt = NeurOneGATTManager(mockCentral: mock)
@@ -259,6 +276,7 @@ final class OTAManagerTests: XCTestCase {
 
     // MARK: - GATTParser.parseFirmwareVersion
 
+    // @verifies DI-PERF-21
     func testGATTParseFirmwareVersionRoundTrip() {
         var raw = UInt32(0x00020304).littleEndian  // 2.3.4
         let data = Data(bytes: &raw, count: 4)
@@ -269,6 +287,7 @@ final class OTAManagerTests: XCTestCase {
         XCTAssertEqual(version?.description, "2.3.4")
     }
 
+    // @verifies DI-PERF-21
     func testGATTParseFirmwareVersionRejectsTruncated() {
         XCTAssertNil(GATTParser.parseFirmwareVersion(Data([0x01, 0x02])))
         XCTAssertNil(GATTParser.parseFirmwareVersion(Data()))
@@ -278,6 +297,7 @@ final class OTAManagerTests: XCTestCase {
     // These values are the BLE wire contract with the hub. Changing them breaks
     // hub firmware compatibility. Tests document and enforce the mapping.
 
+    // @verifies DI-PERF-21
     func testOTAOpcodeWireValues() {
         XCTAssertEqual(OTAOpcode.initiate.rawValue,       0x01)
         XCTAssertEqual(OTAOpcode.chunk.rawValue,          0x02)
@@ -291,6 +311,7 @@ final class OTAManagerTests: XCTestCase {
 
     // MARK: - Download path (ISC-109 pre-condition)
 
+    // @verifies DI-PERF-21
     func testBeginUpdateThrowsNotConnectedAfterFingerprintPassesWhenHubDisconnected() async {
         let mock = MockBLECentral()
         let gatt = NeurOneGATTManager(mockCentral: mock)
@@ -317,6 +338,7 @@ final class OTAManagerTests: XCTestCase {
         XCTAssertEqual(service.downloadCallCount, 0, "download must not be called when hub disconnected")
     }
 
+    // @verifies DI-PERF-21
     func testBeginUpdateWrapsDownloadFailureAsImageLoadFailed() async {
         let mock = MockBLECentral()
         let gatt = NeurOneGATTManager(mockCentral: mock)
@@ -344,6 +366,7 @@ final class OTAManagerTests: XCTestCase {
 
     // MARK: - checkForUpdates / manifest availability (ISC-107)
 
+    // @verifies DI-PERF-21
     func testCheckForUpdatesShowsUpdateWhenNewerVersionAvailable() async {
         let mock = MockBLECentral()
         let gatt = NeurOneGATTManager(mockCentral: mock)
@@ -368,6 +391,7 @@ final class OTAManagerTests: XCTestCase {
         XCTAssertEqual(ota.availableUpdate?.version, "1.1.0")
     }
 
+    // @verifies DI-PERF-21
     func testCheckForUpdatesHidesUpdateWhenCurrentVersionIsCurrent() async {
         let mock = MockBLECentral()
         let gatt = NeurOneGATTManager(mockCentral: mock)
@@ -391,6 +415,7 @@ final class OTAManagerTests: XCTestCase {
                      "no update shown when manifest version == current version")
     }
 
+    // @verifies DI-PERF-21
     func testCheckForUpdatesShowsUpdateWhenHubVersionUnknown() async {
         let mock = MockBLECentral()
         let gatt = NeurOneGATTManager(mockCentral: mock)
@@ -421,6 +446,7 @@ final class OTAManagerTests: XCTestCase {
     // INITIATE must precede VERIFY, VERIFY must precede COMMIT, and ABORT is a
     // distinct opcode that does not advance the OTA state machine.
 
+    // @verifies DI-PERF-21
     func testRunningBankProtectedByOpcodeOrdering() {
         // INITIATE < chunk < VERIFY < COMMIT: the bank swap (COMMIT) is the last
         // meaningful opcode in the sequence, so any mid-flight disconnect (before COMMIT)
@@ -442,6 +468,7 @@ final class OTAManagerTests: XCTestCase {
     // After a mid-OTA abort (e.g., hub disconnected unexpectedly), the manager must
     // return to .idle with no active session so a reconnect can start a fresh attempt.
 
+    // @verifies DI-PERF-21
     func testAbortClearsOTASessionForReconnectRetry() {
         let mock = MockBLECentral()
         let gatt = NeurOneGATTManager(mockCentral: mock)

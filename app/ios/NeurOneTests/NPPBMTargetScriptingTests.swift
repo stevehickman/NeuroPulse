@@ -55,11 +55,13 @@ final class NPPBMTargetScriptingTests: XCTestCase {
 
     // MARK: - Parsing the forms that resolve
 
+    // @verifies REQ-NPPS-08
     func testNamedZoneArrayParsesAsNamedRefs() throws {
         let target = try parseTarget(zonesLine: #"zones: ["Frontal Right (excl. midline)"]"#)
         XCTAssertEqual(target, .named(["Frontal Right (excl. midline)"]))
     }
 
+    // @verifies REQ-NPPS-08
     func testLateralizedZoneNoLongerBecomesEveryModule() throws {
         // The regression this whole change exists for. Before: parsed as `.all`.
         let target = try parseTarget(zonesLine: #"zones: ["Frontal Right (excl. midline)"]"#)
@@ -73,11 +75,13 @@ final class NPPBMTargetScriptingTests: XCTestCase {
                           "a lateralized target must not light the whole vault")
     }
 
+    // @verifies REQ-NPPS-08
     func testMultipleNamedZonesParse() throws {
         let target = try parseTarget(zonesLine: #"zones: ["Frontal Left", "Frontal Right"]"#)
         XCTAssertEqual(target, .named(["Frontal Left", "Frontal Right"]))
     }
 
+    // @verifies REQ-NPPS-08
     func testClinicianSelectedParses() throws {
         XCTAssertEqual(try parseTarget(zonesLine: "zones: clinician_selected"), .clinicianSelected)
     }
@@ -88,6 +92,7 @@ final class NPPBMTargetScriptingTests: XCTestCase {
     // gone rather than retained-and-refused: a target the parser does not
     // understand must stop the file, not become a second way to express a target.
 
+    // @verifies REQ-NPPS-08
     func testFiveSlotSelectorsNoLongerParse() {
         for selector in ["all", "front", "rear", "custom"] {
             XCTAssertThrowsError(try parseTarget(zonesLine: "zones: \(selector)"),
@@ -95,11 +100,13 @@ final class NPPBMTargetScriptingTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-08
     func testNumericZoneArrayNoLongerParses() {
         XCTAssertThrowsError(try parseTarget(zonesLine: "zones: [1, 2]"))
         XCTAssertThrowsError(try parseTarget(zonesLine: "zones: [0]"))
     }
 
+    // @verifies REQ-NPPS-08
     func testCustomZonesSiblingFieldIsIgnoredAndTheSelectorStillFails() {
         XCTAssertThrowsError(
             try parseTarget(zonesLine: "zones: custom", extra: "        custom_zones: [3, 4, 5]")
@@ -108,6 +115,7 @@ final class NPPBMTargetScriptingTests: XCTestCase {
 
     // MARK: - The silent fallback is gone
 
+    // @verifies REQ-NPPS-08
     func testUnrecognisedSelectorThrowsInsteadOfDefaultingToAll() {
         XCTAssertThrowsError(try parseTarget(zonesLine: "zones: whole_head")) { error in
             let message = (error as? NPPSError)?.errorDescription ?? "\(error)"
@@ -116,16 +124,19 @@ final class NPPBMTargetScriptingTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-08
     func testEmptyZoneListThrows() {
         XCTAssertThrowsError(try parseTarget(zonesLine: "zones: []"))
     }
 
+    // @verifies REQ-NPPS-08
     func testMixedZoneListThrows() {
         XCTAssertThrowsError(try parseTarget(zonesLine: #"zones: ["Frontal", 2]"#))
     }
 
     // MARK: - Serializing round-trips every form as authored
 
+    // @verifies REQ-NPPS-11
     func testSerializerRoundTripsEveryForm() throws {
         // Every form the type can hold, which is now every form that parses —
         // there is no third shape the serializer could emit.
@@ -142,6 +153,7 @@ final class NPPBMTargetScriptingTests: XCTestCase {
 
     // MARK: - Every shipped protocol targets something real
 
+    // @verifies REQ-NPPS-18
     func testAllBundledPBMProtocolsResolve() throws {
         for source in NPBundledProtocols.allContents {
             var lexer = NPPSLexer(source)
@@ -174,16 +186,19 @@ final class NPPBMTargetScriptingTests: XCTestCase {
         )
     }
 
+    // @verifies REQ-NPPS-08
     func testValidatorAcceptsANamedZone() {
         XCTAssertTrue(validate(.named(["Frontal"])).isValid)
     }
 
+    // @verifies REQ-NPPS-08#c
     func testValidatorRejectsUnknownZoneName() {
         let result = validate(.named(["Left Frontal"]))
         XCTAssertFalse(result.isValid)
         XCTAssertTrue((result.errors.first?.message ?? "").contains("Left Frontal"))
     }
 
+    // @verifies REQ-NPPS-08
     func testValidatorDoesNotRejectClinicianSelected() {
         // Unresolvable by design until the operator picks sockets; refusing it
         // here would make every clinician-selected protocol unauthorable.
@@ -195,6 +210,7 @@ final class NPPBMTargetScriptingTests: XCTestCase {
     // The mask and wavelength bytes are pinned in HubDescriptorCompilerTests against the web
     // compiler's output; this keeps the refusal of an unresolvable target.
 
+    // @verifies REQ-NPPS-08#c
     func testWireProtocolRefusesAnUnresolvableTarget() {
         var params = NPPBMTranscranialParams()
         params.target = .named(["Left Frontal"])   // not a zone; the correct name is "Frontal Left"

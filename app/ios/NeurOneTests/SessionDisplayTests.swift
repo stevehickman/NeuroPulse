@@ -18,6 +18,7 @@ final class SessionDisplayTests: XCTestCase {
 
     // MARK: - ISC-30: shouldShowSessionDownload predicate
 
+    // @verifies REQ-SW03-13
     func testDownloadButtonRequiresCompletedStatus() {
         // All non-completed statuses must not show the download button, even with
         // a valid epoch.
@@ -26,6 +27,7 @@ final class SessionDisplayTests: XCTestCase {
         XCTAssertFalse(SessionView.shouldShowSessionDownload(status: .paused,  epoch: 1001))
     }
 
+    // @verifies REQ-SW03-13
     func testDownloadButtonHiddenWhenEpochIsZero() {
         // epoch == 0 means the hub has not assigned a session ID. The app must not
         // offer a download for a session that has no hub-side record.
@@ -35,6 +37,7 @@ final class SessionDisplayTests: XCTestCase {
         )
     }
 
+    // @verifies REQ-SW03-13
     func testDownloadButtonShownWhenCompletedAndEpochNonZero() {
         XCTAssertTrue(SessionView.shouldShowSessionDownload(status: .completed, epoch: 1))
         XCTAssertTrue(SessionView.shouldShowSessionDownload(status: .completed, epoch: 1001))
@@ -43,6 +46,7 @@ final class SessionDisplayTests: XCTestCase {
 
     // MARK: - ISC-30: edfSessionID epoch mapping (feeds handleStatusChange history record)
 
+    // @verifies REQ-SW03-13
     func testEDFSessionIDIsNilForZeroEpoch() {
         // epoch 0 must not be stored as Optional(0) in the session record — nil prevents
         // SessionHistoryView from showing a spurious Download button for that record.
@@ -52,6 +56,7 @@ final class SessionDisplayTests: XCTestCase {
         )
     }
 
+    // @verifies REQ-SW03-13
     func testEDFSessionIDPreservesNonZeroEpoch() {
         XCTAssertEqual(SessionView.edfSessionID(from: 1),          1)
         XCTAssertEqual(SessionView.edfSessionID(from: 1001),       1001)
@@ -60,6 +65,7 @@ final class SessionDisplayTests: XCTestCase {
 
     // MARK: - Epoch-zero boundary: both helpers must agree
 
+    // @verifies REQ-SW03-13
     func testBothHelpersAgreeAtEpochZero() {
         // shouldShowSessionDownload and edfSessionID are called independently in
         // production — this ensures they cannot diverge at the epoch==0 boundary.
@@ -72,6 +78,7 @@ final class SessionDisplayTests: XCTestCase {
                        "helpers must agree: button shown iff edfSessionID is non-nil")
     }
 
+    // @verifies REQ-SW03-13
     func testBothHelpersAgreeAtEpochNonZero() {
         let epoch: UInt32 = 42
         let buttonShown = SessionView.shouldShowSessionDownload(status: .completed, epoch: epoch)
@@ -82,6 +89,7 @@ final class SessionDisplayTests: XCTestCase {
                        "helpers must agree: button shown iff edfSessionID is non-nil")
     }
 
+    // @verifies REQ-SW03-13
     func testDownloadButtonHiddenForAllNonCompletedStatusesWithZeroEpoch() {
         // Combines both axes of the AND predicate — neither condition alone is sufficient.
         for status in [SessionStatus.idle, .running, .paused] {

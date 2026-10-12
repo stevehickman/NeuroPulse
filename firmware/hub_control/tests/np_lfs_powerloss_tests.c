@@ -817,6 +817,7 @@ static sweep_result_t sweep(const char *what, void (*baseline)(void),
 
 static sweep_result_t g_log_safe;
 
+/* @verifies REQ-FWHUB-53 */
 static void test_log_append_is_power_safe(void)
 {
     g_log_safe = sweep("L-1/L-2 append", log_baseline, log_append_batches,
@@ -840,6 +841,7 @@ static void test_log_append_is_power_safe(void)
 
 static sweep_result_t g_blob_safe;
 
+/* @verifies REQ-FWHUB-53 */
 static void test_blob_replace_is_atomic(void)
 {
     g_blob_safe = sweep("L-3 atomic replace", blob_baseline,
@@ -861,6 +863,7 @@ static void test_blob_replace_is_atomic(void)
 
 static sweep_result_t g_jrn_safe;
 
+/* @verifies REQ-FWHUB-53 */
 static void test_journal_torn_write_costs_one_record(void)
 {
     g_jrn_safe = sweep("L-4 journal", jrn_baseline, jrn_append, jrn_verify, false);
@@ -878,6 +881,7 @@ static void test_journal_torn_write_costs_one_record(void)
 
 /* ── 4. Falsification, direction 1 — the verifiers can see a violation ────── */
 
+/* @verifies REQ-LFS-01 */
 static void test_falsification_unsafe_orderings_are_caught(void)
 {
     sweep_result_t rewrite = sweep("FALSIFY L-2 in-place rewrite", log_baseline,
@@ -914,6 +918,7 @@ static void test_falsification_unsafe_orderings_are_caught(void)
 
 /* ── 5. Falsification, direction 2 — the injector really cuts ─────────────── */
 
+/* @verifies REQ-FWHUB-53 */
 static void test_falsification_the_injector_fires(void)
 {
     ASSERT(g_bd.total_cuts > 0,
@@ -965,6 +970,7 @@ static void test_falsification_the_injector_fires(void)
 
 /* ── 6. The instance under test is the one the device will mount ──────────── */
 
+/* @verifies REQ-FWHUB-53 */
 static void test_instance_is_the_emmc_fs_01_instance(void)
 {
     ASSERT(g_cfg.block_size  == NP_LFS_CFG_BLOCK_SIZE &&

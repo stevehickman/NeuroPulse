@@ -47,6 +47,7 @@ class NPPSRegressionTests {
      * Android alone still accepted a form the other two reject. The guard is now
      * that the quoted form works and the bare form is refused.
      */
+    // @verifies REQ-NPPS-10#a
     @Test
     fun testQuotedWavelengthsParse() {
         for ((literal, expected) in listOf(
@@ -68,6 +69,7 @@ class NPPSRegressionTests {
         }
     }
 
+    // @verifies REQ-NPPS-10#a
     @Test
     fun testUnquotedWavelengthIsRefused() {
         for (literal in listOf("660_808nm", "660_808_1064nm")) {
@@ -91,6 +93,7 @@ class NPPSRegressionTests {
     // case is a unit test in common/npps-core/src/lexer.rs.
 
     /** Quoted hyphenated tags parse; the bare form is refused (Rev 6). */
+    // @verifies REQ-NPPS-10#a
     @Test
     fun testHyphenatedTagsQuotedParseBareRefused() {
         val script = """
@@ -125,6 +128,7 @@ class NPPSRegressionTests {
     }
 
     /** testHyphenatedTagRoundTripPreservesValue — serialize→reparse keeps one tag. */
+    // @verifies REQ-NPPS-11
     @Test
     fun testHyphenatedTagRoundTripPreservesValue() {
         val script = """
@@ -164,6 +168,7 @@ class NPPSRegressionTests {
     // MARK: - Additional round-trip / fidelity tests --------------------------
 
     /** Bug fix (4): a quoted wavelength value resolves via asIdent. */
+    // @verifies REQ-NPPS-03
     @Test
     fun testQuotedWavelengthResolvesViaAsIdent() {
         val script = """
@@ -183,6 +188,7 @@ class NPPSRegressionTests {
     }
 
     /** Units, percents, and time values parse into the expected fields. */
+    // @verifies REQ-NPPS-16
     @Test
     fun testUnitsAndTimeParse() {
         val script = """
@@ -225,6 +231,7 @@ class NPPSRegressionTests {
      * NP-NPPS-REF-001 Rev 2 and do not parse: a target this parser does not
      * understand must stop the file rather than silently become "every module".
      */
+    // @verifies REQ-NPPS-11
     @Test
     fun testNamedZonesParseAndRoundTrip() {
         val script = """
@@ -252,6 +259,7 @@ class NPPSRegressionTests {
     }
 
     /** clinician_selected is the only non-list zone form. */
+    // @verifies REQ-NPPS-08
     @Test
     fun testClinicianSelectedZones() {
         val script = """
@@ -267,6 +275,7 @@ class NPPSRegressionTests {
     }
 
     /** The retired numeric and five-slot forms are rejected, not reinterpreted. */
+    // @verifies REQ-NPPS-08
     @Test
     fun testRetiredZoneFormsAreRejected() {
         for (form in listOf("[1, 3, 5]", "all", "front", "rear", "custom")) {
@@ -283,6 +292,7 @@ class NPPSRegressionTests {
     }
 
     /** A limits block round-trips through parse→serialize→parse. */
+    // @verifies REQ-NPPS-11
     @Test
     fun testLimitsBlockRoundTrip() {
         val script = """
@@ -319,6 +329,7 @@ class NPPSRegressionTests {
     }
 
     /** A composite with layers round-trips, including start/duration/scale. */
+    // @verifies REQ-NPPS-11
     @Test
     fun testCompositeRoundTrip() {
         val script = """
@@ -353,6 +364,7 @@ class NPPSRegressionTests {
     }
 
     /** CW frequency (0Hz) serializes with the "# CW" comment and reparses to 0. */
+    // @verifies REQ-NPPS-11
     @Test
     fun testCwFrequencyRoundTrip() {
         val script = """
@@ -373,6 +385,7 @@ class NPPSRegressionTests {
     }
 
     /** An unknown modality inside a protocol throws NPPSError, and so does an unknown limits sub-block. */
+    // @verifies REQ-NPPS-16
     @Test
     fun testUnknownModalityThrowsButUnknownLimitsIgnored() {
         val badProtocol = """
@@ -421,6 +434,7 @@ class NPPSRegressionTests {
      * The shared parser (the core, as the web parser before it) accepts an empty protocol name: whether a
      * name is acceptable is the library's concern, and the parser states what the file says.
      */
+    // @verifies REQ-NPPS-16
     @Test
     fun testEmptyNameParsesAsWritten() {
         val entry = parse("protocol \"\" { version: \"1.0\" }").single()

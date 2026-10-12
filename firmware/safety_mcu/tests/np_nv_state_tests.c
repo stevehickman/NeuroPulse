@@ -124,6 +124,7 @@ static void fill_page(void)
 
 /* ── Single-user behaviour (no user ever named) ─────────────────────────────── */
 
+/* @verifies REQ-SW01-03 */
 static void test_factory_fresh_is_clear(void)
 {
     flash_blank(); boot();
@@ -132,6 +133,7 @@ static void test_factory_fresh_is_clear(void)
     check(!np_nv_cardiac_blocked(UNSPEC), "fresh: not blocked");
 }
 
+/* @verifies DI-SAFE-09 */
 static void test_single_user_set_survives_and_clears(void)
 {
     flash_blank(); boot();
@@ -145,6 +147,7 @@ static void test_single_user_set_survives_and_clears(void)
 
 /* ── Per-user scope ─────────────────────────────────────────────────────────── */
 
+/* @verifies DI-SAFE-09 */
 static void test_cutoff_held_for_its_user_only(void)
 {
     flash_blank(); boot();
@@ -172,6 +175,7 @@ static void test_cutoff_held_for_its_user_only(void)
 
 /* A cutoff recorded before any user was named cannot be attributed: it is
  * withheld from everyone, and whoever runs the confirmation clears it. */
+/* @verifies DI-SAFE-09 */
 static void test_unattributed_cutoff_blocks_everyone(void)
 {
     flash_blank(); boot();
@@ -187,6 +191,7 @@ static void test_unattributed_cutoff_blocks_everyone(void)
 }
 
 /* More users than the table holds: the extra cutoff is not dropped. */
+/* @verifies DI-SAFE-09 */
 static void test_full_table_fails_closed(void)
 {
     flash_blank(); boot();
@@ -200,6 +205,7 @@ static void test_full_table_fails_closed(void)
 
 /* ── Power loss ─────────────────────────────────────────────────────────────── */
 
+/* @verifies DI-SAFE-09 */
 static void test_torn_record_fails_closed(void)
 {
     flash_blank(); boot();
@@ -216,6 +222,7 @@ static void test_torn_record_fails_closed(void)
     check(!np_nv_cardiac_outstanding(), "torn: cleared by acknowledgement");
 }
 
+/* @verifies REQ-SW01-03 */
 static void test_compaction_preserves_state(void)
 {
     flash_blank(); boot();
@@ -235,6 +242,7 @@ static void test_compaction_preserves_state(void)
 }
 
 /* Power lost before the full page was erased: both pages hold records. */
+/* @verifies REQ-SW01-03 */
 static void test_compaction_interrupted_before_erase(void)
 {
     flash_blank(); boot();
@@ -254,6 +262,7 @@ static void test_compaction_interrupted_before_erase(void)
 
 /* Power lost part-way through writing the snapshot: it has no COMMIT and must
  * not replace the state — and whatever it was carrying may be missing. */
+/* @verifies REQ-SW01-03 */
 static void test_compaction_torn_snapshot(void)
 {
     flash_blank(); boot();
@@ -272,6 +281,7 @@ static void test_compaction_torn_snapshot(void)
     check(np_nv_cardiac_blocked(ALICE) && !np_nv_cardiac_blocked(BOB), "torn snapshot: recovers exactly");
 }
 
+/* @verifies REQ-SW01-03 */
 static void test_garbage_only_fails_closed(void)
 {
     flash_blank();
@@ -288,6 +298,7 @@ static void test_garbage_only_fails_closed(void)
 /* The snapshot's RESET and first records land but its COMMIT does not.  It
  * must NOT replace the state (that would drop whatever it had not yet written),
  * and what it was carrying may be missing — so fail closed. */
+/* @verifies REQ-SW01-03 */
 static void test_uncommitted_snapshot_never_replaces_state(void)
 {
     /* Snapshot = RESET, USER, SET(Alice), SET(Bob), COMMIT: tear the COMMIT. */
@@ -321,6 +332,7 @@ static void test_uncommitted_snapshot_never_replaces_state(void)
  * snapshot copied Alice but not yet Carol; were it trusted, Carol's cutoff
  * would vanish. */
 #define CAROL 0x3333CCCCUL
+/* @verifies REQ-SW01-03 */
 static void test_cut_off_snapshot_keeps_uncopied_users(void)
 {
     flash_blank(); boot();

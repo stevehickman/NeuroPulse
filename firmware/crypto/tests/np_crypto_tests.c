@@ -48,6 +48,7 @@ static void check_bytes(const uint8_t *EXPECTED, const uint8_t *got,
 
 /* ── SHA-256 NIST FIPS 180-4 vectors ──────────────────────────────────────── */
 
+/* @verifies DI-SAFE-06 */
 static void test_sha256(void)
 {
     /* Empty message */
@@ -81,6 +82,7 @@ static void test_sha256(void)
 
 /* ── SHA-512 NIST FIPS 180-4 vectors ──────────────────────────────────────── */
 
+/* @verifies DI-SAFE-06 */
 static void test_sha512(void)
 {
     /* Empty message */
@@ -122,6 +124,7 @@ static void test_sha512(void)
 
 /* ── CRC-32 IEEE 802.3 vectors ────────────────────────────────────────────── */
 
+/* @verifies DI-SAFE-06 */
 static void test_crc32(void)
 {
     /* "123456789" → 0xCBF43926 */
@@ -137,6 +140,7 @@ static void test_crc32(void)
 
 /* ── Ed25519 RFC 8032 §6 test vectors ─────────────────────────────────────── */
 
+/* @verifies DI-SAFE-06 */
 static void test_ed25519(void)
 {
     /* TV1 — empty message */

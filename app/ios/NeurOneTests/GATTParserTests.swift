@@ -18,6 +18,7 @@ final class GATTParserTests: XCTestCase {
 
     // MARK: - SESSION_STATE (uint32 epoch ms, little-endian)
 
+    // @verifies REQ-SW03-01
     func testParseSessionState() {
         // 0x12345678 little-endian => bytes 78 56 34 12
         let data = Data([0x78, 0x56, 0x34, 0x12])
@@ -27,6 +28,7 @@ final class GATTParserTests: XCTestCase {
 
     // MARK: - SESSION_STATUS (uint8 protocolID + uint8 status)
 
+    // @verifies REQ-SW03-01
     func testParseSessionStatus() {
         let data = Data([0x07, 0x01])  // protocol 7, status 1 == .running
         let parsed = GATTParser.parseSessionStatus(data)
@@ -35,6 +37,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(parsed?.status, .running)
     }
 
+    // @verifies REQ-SW03-01
     func testParseSessionStatusRejectsUnknownStatusByte() {
         let data = Data([0x07, 0xFF])  // 0xFF is not a valid SessionStatus
         XCTAssertNil(GATTParser.parseSessionStatus(data),
@@ -43,6 +46,7 @@ final class GATTParserTests: XCTestCase {
 
     // MARK: - HRV_COHERENCE (uint16 coherence×100 + uint16 RMSSD)
 
+    // @verifies REQ-SW03-01
     func testParseHRVCoherence() {
         // coherence 7.50 => 750 == 0x02EE little-endian (EE 02); RMSSD 42 == 0x2A 0x00
         let data = Data([0xEE, 0x02, 0x2A, 0x00])
@@ -54,6 +58,7 @@ final class GATTParserTests: XCTestCase {
 
     // MARK: - PACER_PHASE (uint8 phase + uint8 elapsed%)
 
+    // @verifies REQ-SW03-01
     func testParsePacerPhase() {
         let data = Data([0x01, 0x40])  // phase 1 == .exhale, 64%
         let parsed = GATTParser.parsePacerPhase(data)
@@ -62,6 +67,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(parsed?.percent, 64)
     }
 
+    // @verifies REQ-SW03-01
     func testParsePacerPhaseRejectsUnknownPhaseByte() {
         let data = Data([0x09, 0x40])  // 0x09 is not a valid PacerPhase
         XCTAssertNil(GATTParser.parsePacerPhase(data))
@@ -69,6 +75,7 @@ final class GATTParserTests: XCTestCase {
 
     // MARK: - IMPEDANCE_RESULT (uint16 bitmask, little-endian)
 
+    // @verifies REQ-SW03-01
     func testParseImpedanceResult() {
         // bits 0 and 3 set => 0b1001 == 0x09; little-endian => 09 00
         let data = Data([0x09, 0x00])
@@ -78,6 +85,7 @@ final class GATTParserTests: XCTestCase {
 
     // MARK: - CONSUMABLE_STATUS (4 × uint16, little-endian)
 
+    // @verifies REQ-SW03-04
     func testParseConsumableStatus() {
         // intranasal 1, hydrogel 30 (0x1E), VNS 256 (0x0100), audio 1000 (0x03E8)
         let data = Data([
@@ -94,6 +102,7 @@ final class GATTParserTests: XCTestCase {
 
     // Side codes: 0x01 = left of neck, 0x02 = right. Bilateral montage = [left, right].
 
+    // @verifies REQ-SW03-03
     func testParseCervicalPadStatusNamesTheFailingSide() {
         let status = GATTParser.parseCervicalPadStatus(Data([0x02, 0x00, 0x01, 0x02]))
         XCTAssertEqual(status, CervicalPadStatus(failedPadSides: [.right], check: .preEnable))
@@ -101,6 +110,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(status?.failingSides, [.right])
     }
 
+    // @verifies REQ-SW03-03
     func testParseCervicalPadStatusMessageVariants() {
         XCTAssertEqual(GATTParser.parseCervicalPadStatus(Data([0x01, 0x00, 0x01, 0x02]))?.messageKey,
                        "CVNS_PAD_ALERT_PRE_LEFT")
@@ -116,6 +126,7 @@ final class GATTParserTests: XCTestCase {
 
     /// Unilateral montage: both pads on one side. The side comes from the hub, never from the
     /// electrode number — electrode 1 here is on the RIGHT.
+    // @verifies REQ-SW03-03
     func testParseCervicalPadStatusUnilateralTakesSideFromHub() {
         let one = GATTParser.parseCervicalPadStatus(Data([0x01, 0x00, 0x02, 0x02]))
         XCTAssertEqual(one?.messageKey, "CVNS_PAD_ALERT_PRE_RIGHT")
@@ -124,6 +135,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(both?.failingSides, [.right])
     }
 
+    // @verifies REQ-SW03-03
     func testParseCervicalPadStatusAllPassHasNoMessage() {
         let status = GATTParser.parseCervicalPadStatus(Data([0x00, 0x00, 0x01, 0x02]))
         XCTAssertEqual(status?.hasFailure, false)
@@ -131,6 +143,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertNil(status?.alertMessage)
     }
 
+    // @verifies REQ-SW03-03
     func testParseCervicalPadStatusRejectsMalformedFrames() {
         XCTAssertNil(GATTParser.parseCervicalPadStatus(Data([0x01, 0x00, 0x01])), "short frame")
         XCTAssertNil(GATTParser.parseCervicalPadStatus(Data([0x04, 0x00, 0x01, 0x02])), "reserved bit")
@@ -150,6 +163,7 @@ final class GATTParserTests: XCTestCase {
         return Data(b)
     }
 
+    // @verifies REQ-SW03-03
     func testParseCervicalFaultStatus() {
         let s = GATTParser.parseCervicalFaultStatus(
             faultFrame(state: 2, [(41, 2, 0), (42, 1, 0), (43, 4, 0x02)]))
@@ -160,6 +174,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(s?.records[2].messageKey, "CVNS_FAULT_PAD_RIGHT")
     }
 
+    // @verifies REQ-SW03-03
     func testParseCervicalFaultStatusRejectsMalformed() {
         XCTAssertNil(GATTParser.parseCervicalFaultStatus(Data([0x02, 0, 0, 0])), "version")
         XCTAssertNil(GATTParser.parseCervicalFaultStatus(Data([0x01, 9, 0, 0])), "state")
@@ -174,6 +189,7 @@ final class GATTParserTests: XCTestCase {
             faultFrame(state: 0, [(1, 1, 0), (2, 1, 0), (3, 1, 0), (4, 1, 0), (5, 1, 0)])), "n > 4")
     }
 
+    // @verifies REQ-SW03-03
     func testFaultLedgerAcknowledgementAndCounterReset() {
         let s = GATTParser.parseCervicalFaultStatus(faultFrame(state: 0, [(10, 2, 0), (11, 1, 0)]))!
         var ledger = CervicalFaultLedger()
@@ -194,6 +210,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertTrue(ledger.blocksCervicalRestart(other.records))
     }
 
+    // @verifies REQ-SW03-03
     func testParseCervicalFaultStatusFlags() {
         func flags(_ f: UInt8) -> CervicalFaultStatus? {
             GATTParser.parseCervicalFaultStatus(Data([0x01, 0x00, 0x00, f]))
@@ -207,6 +224,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertNil(flags(0x80), "reserved flag bit")
     }
 
+    // @verifies REQ-SW03-03
     func testActiveUserTagAvoidsReservedValues() {
         XCTAssertNil(ActiveUserTag.from(profileId: nil), "no profile named — send nothing")
         let id = UUID(uuidString: "04030201-0000-4000-8000-000000000000")!
@@ -219,6 +237,7 @@ final class GATTParserTests: XCTestCase {
 
     // MARK: - OTA_STATUS (uint8 phase + uint8 progress + uint16 errorCode)
 
+    // @verifies REQ-SW03-01
     func testParseOTAStatus() {
         // phase 2, progress 55, errorCode 0x0000 => no error
         let ok = GATTParser.parseOTAStatus(Data([0x02, 0x37, 0x00, 0x00]))
@@ -278,6 +297,7 @@ final class GATTParserTests: XCTestCase {
         return d
     }
 
+    // @verifies REQ-SW03-02
     func testParseZoneModuleStatusDecodesRecord() {
         // Socket 12, EEG tile, present. No anatomy: a status record is three
         // bytes, because where socket 12 is cannot change when its module does.
@@ -295,6 +315,7 @@ final class GATTParserTests: XCTestCase {
 
     // MARK: - SOCKET_MAP (the static half — read once at link)
 
+    // @verifies REQ-SW03-02
     func testParseSocketMapDecodesPosition() {
         // Aircraft body axes: +x forward, +y right, +z down. A vault socket sits
         // above the ellipsoid centre, so z is negative.
@@ -309,6 +330,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(d?.isWiredInShell, true)
     }
 
+    // @verifies REQ-SW03-02
     func testParseSocketMapCrownAndUnwired() {
         // The crown is directly above the origin: on both centrelines, most
         // negative z.
@@ -323,6 +345,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(unwired?.position.forwardMm, -130, "aft is negative x")
     }
 
+    // @verifies REQ-SW03-02
     func testSocketMapCarriesNoAnatomy() {
         // Lobe and side are gone from the wire entirely (ZONE-1). A record is
         // socket id + flags + three int16 coordinates and nothing else.
@@ -330,6 +353,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(data.count, 4 + 8, "header + one 8-byte record")
     }
 
+    // @verifies REQ-SW03-02
     func testMapAndStatusFramesAreNotInterchangeable() {
         // The kind bit is what stops a 7-byte map record being read as 3-byte
         // status records — that would misparse silently instead of failing.
@@ -342,6 +366,7 @@ final class GATTParserTests: XCTestCase {
                      "a status frame must not decode as a map")
     }
 
+    // @verifies REQ-SW03-02
     func testParseSocketMapRejectsBadSocketAndVersion() {
         XCTAssertNil(GATTParser.parseSocketMap(
             mapFrame(last: true, records: [(0, 0x01, 0, 0, 0)])),
@@ -354,6 +379,7 @@ final class GATTParserTests: XCTestCase {
             "a record count the body cannot satisfy is rejected")
     }
 
+    // @verifies REQ-SW03-02
     func testSocketMapAssemblerReassemblesRun() {
         var assembler = SocketMapFrameAssembler()
         let f0 = GATTParser.parseSocketMap(
@@ -368,6 +394,7 @@ final class GATTParserTests: XCTestCase {
 
     // MARK: - Zones name a socket; the helmet only places it
 
+    // @verifies REQ-SW03-02
     func testZoneNameComesFromTheAuthoredZoneFileNotTheWire() {
         // Socket 1 is in "Frontal Left" per protocols/predefined/00-zones.npps,
         // and, being off the midline, also in the smaller "Frontal Left (excl.
@@ -390,6 +417,7 @@ final class GATTParserTests: XCTestCase {
                         .localizedCaseInsensitiveContains("frontal"))
     }
 
+    // @verifies REQ-SW03-02
     func testMostSpecificZoneWins() {
         // Socket 26 is in "Motor / SMA" (7 sockets) and "Frontal Left" (20).
         // The smaller zone is the more useful description.
@@ -399,6 +427,7 @@ final class GATTParserTests: XCTestCase {
                       "every socket is in All, but All is never the primary")
     }
 
+    // @verifies REQ-SW03-02
     func testSocketWithNoZoneStillGetsAUsableLabel() {
         // The helmet is authoritative for which sockets exist; the zone file is
         // not. A socket beyond the authored lattice must not crash or go unnamed.
@@ -411,6 +440,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertTrue(map.label(for: 120).contains("120"))
     }
 
+    // @verifies REQ-SW03-02
     func testParseZoneModuleStatusAcceptsFullSocketDomain() {
         // 128 is the top of the 7-bit major addressing domain — the app must not
         // clamp the lattice to whatever count ships today (it has moved twice).
@@ -419,6 +449,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(GATTParser.parseZoneModuleStatus(data)?.records.first?.socketID, 128)
     }
 
+    // @verifies REQ-SW03-02
     func testParseZoneModuleStatusRejectsSocketZeroAndOutOfDomain() {
         // 0 is never emitted; >128 would alias onto a real socket, which is a
         // wrong-site targeting path rather than a display glitch.
@@ -430,6 +461,7 @@ final class GATTParserTests: XCTestCase {
             "socket id above the 128-socket domain must be rejected")
     }
 
+    // @verifies REQ-SW03-02
     func testParseZoneModuleStatusRejectsWrongVersion() {
         XCTAssertNil(GATTParser.parseZoneModuleStatus(
             frame(version: 0x03, snapshot: true, last: true, records: [(1, 1, 1)])),
@@ -439,6 +471,7 @@ final class GATTParserTests: XCTestCase {
             "v1 (anatomy inline on every change) must not decode as v2")
     }
 
+    // @verifies REQ-SW03-02
     func testParseZoneModuleStatusRejectsRetiredFiveBytePayload() {
         // The retired format was five raw slot bytes with no version header. A hub
         // still speaking it decodes as version 0x00 and must be refused rather
@@ -447,6 +480,7 @@ final class GATTParserTests: XCTestCase {
                      "the retired 5-byte slot payload must not decode")
     }
 
+    // @verifies REQ-SW03-02
     func testParseZoneModuleStatusRejectsTruncatedBody() {
         // Header claims 3 records, body carries 1.
         let data = frame(snapshot: true, last: true,
@@ -455,11 +489,13 @@ final class GATTParserTests: XCTestCase {
                      "a record count the body cannot satisfy must be rejected")
     }
 
+    // @verifies REQ-SW03-02
     func testParseZoneModuleStatusRejectsShortHeader() {
         XCTAssertNil(GATTParser.parseZoneModuleStatus(Data()))
         XCTAssertNil(GATTParser.parseZoneModuleStatus(Data([0x01, 0x03, 0x00])))
     }
 
+    // @verifies REQ-SW03-02
     func testParseZoneModuleStatusEmptySnapshotIsValid() {
         // "The helmet reports no modules" is a real answer and must be
         // distinguishable from "nothing arrived".
@@ -468,6 +504,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(f?.records.isEmpty, true)
     }
 
+    // @verifies REQ-SW03-02
     func testParseZoneModuleStatusFaultIsNeverPresent() {
         // Both bits set by a misbehaving hub: presence gates safety-critical
         // placement checks, so fault must win.
@@ -480,6 +517,7 @@ final class GATTParserTests: XCTestCase {
                        "a faulted module must never be reported as present")
     }
 
+    // @verifies REQ-SW03-02
     func testParseZoneModuleStatusHandlesSlicedData() {
         // Data sliced out of a larger buffer does not start at index 0. Indexing
         // it as if it did is a silent misparse.
@@ -489,6 +527,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(GATTParser.parseZoneModuleStatus(sliced)?.records.first?.socketID, 9)
     }
 
+    // @verifies REQ-SW03-02
     func testParseZoneModuleStatusUnknownEnumsDegradeSafely() {
         // Forward compatibility: a module type this app build does not know must
         // not drop the whole frame — the socket is still real and still occupied.
@@ -502,6 +541,7 @@ final class GATTParserTests: XCTestCase {
 
     // MARK: - Snapshot fragment reassembly
 
+    // @verifies REQ-SW03-02
     func testAssemblerReassemblesMultiFragmentSnapshot() {
         var assembler = ZoneModuleFrameAssembler()
         let f0 = GATTParser.parseZoneModuleStatus(
@@ -515,6 +555,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(assembler.isAccumulating, false, "run resets after commit")
     }
 
+    // @verifies REQ-SW03-02
     func testAssemblerDropsRunOnMissingFragment() {
         // A snapshot with a hole reads as "that module is not installed" — the
         // wrong answer for a placement gate. Abandon the run instead.
@@ -529,6 +570,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(assembler.isAccumulating, false)
     }
 
+    // @verifies REQ-SW03-02
     func testAssemblerPassesDeltasThrough() {
         var assembler = ZoneModuleFrameAssembler()
         let delta = GATTParser.parseZoneModuleStatus(
@@ -536,6 +578,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(assembler.accept(delta)?.records.first?.socketID, 5)
     }
 
+    // @verifies REQ-SW03-02
     func testAssemblerDeltaDuringSnapshotRunSurvivesTheCommit() {
         // A snapshot describes the hardware as of when the hub STARTED sending it.
         // A removal observed mid-run is newer. If the snapshot simply replaced the
@@ -565,6 +608,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertTrue(config.isPresent(socket: 8))
     }
 
+    // @verifies REQ-SW03-02
     func testAssemblerBoundsRunLength() {
         // A hub that never sends a terminating fragment must not grow the
         // accumulation buffer without limit.
@@ -583,6 +627,7 @@ final class GATTParserTests: XCTestCase {
                        "an over-long run must be abandoned, not accumulated forever")
     }
 
+    // @verifies REQ-SW03-02
     func testAssemblerRestartsOnNewSnapshotRun() {
         // A fresh fragment 0 supersedes anything part-received.
         var assembler = ZoneModuleFrameAssembler()
@@ -606,6 +651,7 @@ final class GATTParserTests: XCTestCase {
     // These tests mirror NeurOneGATTManager.didUpdateValueFor dispatch logic so that
     // any future change routing a UHDR characteristic to consumableSessionCounts fails here.
 
+    // @verifies REQ-SW03-04
     func testConsumableCountsUnchangedByAllUHDRCharacteristicUpdates() {
         // Mirror the manager's pending-state accumulation for every UHDR case.
         var pending = SessionState.empty
@@ -649,6 +695,7 @@ final class GATTParserTests: XCTestCase {
                        "IMPEDANCE_RESULT characteristic must not write consumableSessionCounts.")
     }
 
+    // @verifies REQ-SW03-04
     func testConsumableCountsOnlyUpdatedByParseConsumableStatus() {
         // Mirror the GattUuidStrings.CONSUMABLE_STATUS_ID case in didUpdateValueFor.
         var pending = SessionState.empty
@@ -672,6 +719,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(pending.impedancePassFlags, 0)
     }
 
+    // @verifies REQ-SW03-04
     func testConsumableStatusUUIDDistinctFromAllUHDRCharacteristicUUIDs() {
         // Static invariant: if a future refactor accidentally swaps or aliases these UUIDs,
         // routing UHDR data to consumableSessionCounts becomes possible. Catch it here.
@@ -688,6 +736,7 @@ final class GATTParserTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-SW03-04
     func testWatchBridgeConsumableCountsSourcedFromCorrectKey() {
         // SessionState.from(wcMessage:) is the only other code path that can populate
         // consumableSessionCounts (via WatchConnectivity). Verify it reads from
@@ -720,6 +769,7 @@ final class GATTParserTests: XCTestCase {
     /// Single omnibus test matching the ISA test strategy entry for ISC-15.
     /// Verifies that every GATTParser static function exists and returns non-nil
     /// when given a correctly-formed hub payload of the documented wire length.
+    // @verifies REQ-SW03-01
     func testAllParserFunctions() {
         // parseSessionState: uint32 LE — 0x0000_0001
         XCTAssertNotNil(GATTParser.parseSessionState(Data([0x01, 0x00, 0x00, 0x00])),
@@ -758,6 +808,7 @@ final class GATTParserTests: XCTestCase {
 
     // MARK: - Short / truncated / empty input rejection (ISC-152)
 
+    // @verifies REQ-SW03-01
     func testParserReturnsNilForShortData() {
         // Empty data — every parser must return nil.
         XCTAssertNil(GATTParser.parseSessionState(Data()))

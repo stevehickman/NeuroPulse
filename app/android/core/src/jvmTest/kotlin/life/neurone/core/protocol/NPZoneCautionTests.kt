@@ -31,6 +31,7 @@ class NPZoneCautionTests {
         ),
     )
 
+    // @verifies REQ-NPPS-21
     @Test fun parseListsOnlyAnAxisInItsCautionBand() {
         val zones = Json.parseToJsonElement(
             """[{"index":1,"modality":"tdcs","zone":"caution","axes":[
@@ -48,10 +49,12 @@ class NPZoneCautionTests {
         assertTrue(NPZoneCaution.parse(null).isEmpty())
     }
 
+    // @verifies REQ-NPPS-21
     @Test fun aSafeProtocolHasNoCautions() {
         assertTrue(unlimited.validate(tdcs(0.5)).zoneCautions.isEmpty())
     }
 
+    // @verifies REQ-NPPS-21
     @Test fun theIdsItListsAreWhatLetTheProtocolCompile() {
         val def = tdcs(1.5)
         val cautions = unlimited.validate(def).zoneCautions

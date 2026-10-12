@@ -99,6 +99,7 @@ static char g_code[1024U * 1024U];
  * (§4.14.3 names the four things it has to come with), so it stops here and is
  * looked at rather than being silently re-derived.
  */
+/* @verifies REQ-SW02-05 */
 static void test_declared_state(void)
 {
     ASSERT(NP_SW02_DCACHE_ENABLED == 0,
@@ -118,6 +119,7 @@ static void test_declared_state(void)
  * The comparator that did not exist.  It reads the SDK file's CODE, not its
  * prose, which is the whole point: the prose says the opposite.
  */
+/* @verifies REQ-SW02-05 */
 static void test_vendored_startup_matches_the_decision(void)
 {
     if (slurp(NP_MCUX_SYSTEM_C_PATH, g_raw, sizeof(g_raw), __func__) == NULL) {
@@ -161,6 +163,7 @@ static void test_vendored_startup_matches_the_decision(void)
  * silently resolves the divergence, in either direction, is exactly the event
  * §4.14.1's account of where the error came from needs to be re-read against.
  */
+/* @verifies REQ-SW02-05 */
 static void test_vendored_comment_divergence_is_still_known(void)
 {
     if (slurp(NP_MCUX_SYSTEM_C_PATH, g_raw, sizeof(g_raw), __func__) == NULL) {
@@ -183,6 +186,7 @@ static void test_vendored_comment_divergence_is_still_known(void)
  * exists, and this build does not define it, so .dtcm_bss is still cleared by
  * first-party code and NOT by a mechanism meant for uncached DMA memory.
  */
+/* @verifies REQ-SW02-05 */
 static void test_noncacheable_startup_switch(void)
 {
     if (slurp(NP_MCUX_STARTUP_S_PATH, g_raw, sizeof(g_raw), __func__) == NULL) {
@@ -205,6 +209,7 @@ static void test_noncacheable_startup_switch(void)
  * right, in as many words, while four other documents had it wrong. Comparing
  * it here is what makes that a checked agreement rather than a coincidence.
  */
+/* @verifies REQ-SW02-05 */
 static void test_cmsis_soup_record_agrees(void)
 {
     if (slurp(NP_CMSIS_VERSION_PATH, g_raw, sizeof(g_raw), __func__) == NULL) {
@@ -230,6 +235,7 @@ static void test_cmsis_soup_record_agrees(void)
  * What it buys is that deleting the check while leaving §4.14 asserting it
  * fails a test instead of passing in silence.
  */
+/* @verifies REQ-SW02-05 */
 static void test_boot_path_checks_the_cache_state(void)
 {
     if (slurp(NP_APP_MAIN_C_PATH, g_raw, sizeof(g_raw), __func__) == NULL) {

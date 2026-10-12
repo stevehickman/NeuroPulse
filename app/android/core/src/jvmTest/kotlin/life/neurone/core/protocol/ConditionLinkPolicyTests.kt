@@ -114,6 +114,7 @@ class ConditionLinkPolicyTests {
 
     // MARK: - Shared cross-platform vectors
 
+    // @verifies REQ-NPPS-20
     @Test
     fun sharedVectorsMatch() {
         val vectors = loadVectors()
@@ -127,6 +128,7 @@ class ConditionLinkPolicyTests {
         }
     }
 
+    // @verifies REQ-NPPS-20
     @Test
     fun blockedVerdictsCarryNoUrlOrHost() {
         for (v in loadVectors().filter { it.verdict == "block" }) {
@@ -136,6 +138,7 @@ class ConditionLinkPolicyTests {
         }
     }
 
+    // @verifies REQ-NPPS-20
     @Test
     fun allowedVerdictsCarryTrimmedUrl() {
         for (v in loadVectors().filter { it.verdict == "allow" }) {
@@ -143,6 +146,7 @@ class ConditionLinkPolicyTests {
         }
     }
 
+    // @verifies REQ-NPPS-20
     @Test
     fun everyBlockingReasonHasAMessage() {
         val reasons = loadVectors().filter { it.verdict == "block" }.map { it.reason }.toSet()
@@ -156,6 +160,7 @@ class ConditionLinkPolicyTests {
 
     // MARK: - The shipped registry
 
+    // @verifies REQ-NPPS-20
     @Test
     fun bundledRegistryIsPopulatedAndUnique() {
         assertTrue(NPBundledConditions.all.size > 20)
@@ -166,6 +171,7 @@ class ConditionLinkPolicyTests {
         )
     }
 
+    // @verifies REQ-NPPS-20
     @Test
     fun everyBundledLinkPassesPolicy() {
         val rejected = NPBundledConditions.all
@@ -180,6 +186,7 @@ class ConditionLinkPolicyTests {
      * case where someone edits 00-conditions.npps without re-running
      * scripts/sync-conditions.ts.
      */
+    // @verifies REQ-NPPS-20
     @Test
     fun generatedTableMatchesRegistrySource() {
         val source = File(repoRoot(), "protocols/predefined/00-conditions.npps").readText()
@@ -197,6 +204,7 @@ class ConditionLinkPolicyTests {
 
     // MARK: - Resolution
 
+    // @verifies REQ-NPPS-20
     @Test
     fun resolvePreservesOrderAndArity() {
         val names = listOf("Insomnia", "Not In Registry", "Migraine")
@@ -210,6 +218,7 @@ class ConditionLinkPolicyTests {
         assertNotNull(resolved[2].definition)
     }
 
+    // @verifies REQ-NPPS-20
     @Test
     fun resolveKnownConditionExposesCodeAndHost() {
         val resolved = NPBundledConditions.resolve(listOf("Major Depressive Disorder")).single()
@@ -219,6 +228,7 @@ class ConditionLinkPolicyTests {
 
     // MARK: - Spot checks independent of the vector file
 
+    // @verifies REQ-NPPS-20
     @Test
     fun javaScriptSchemeIsRefused() {
         assertEquals(
@@ -227,6 +237,7 @@ class ConditionLinkPolicyTests {
         )
     }
 
+    // @verifies REQ-NPPS-20
     @Test
     fun hostSpoofViaUserinfoIsRefused() {
         val v = NPConditionLinkPolicy.evaluate("https://en.wikipedia.org@evil.example.com/x")

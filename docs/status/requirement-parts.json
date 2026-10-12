@@ -1,0 +1,59 @@
+{
+  "_comment": [
+    "Read by scripts/req-trace.ts. Two maps, both optional.",
+    "parts: requirement ID -> { part id -> what that part requires }. A requirement written as one sentence with",
+    "several obligations has no (a)/(b) enumerators for the tool to split on, so its parts are declared here.",
+    "A test then claims a part with `@verifies REQ-X-NN#a`; a part no test claims is reported as a gap.",
+    "Parts are the obligations of the requirement text and add no requirement of their own (CLAUDE.md §18).",
+    "nonTest: requirement ID -> { method, reason } for a requirement verified by inspection, analysis or",
+    "demonstration, so it is not reported as untested. Declare it only where the owning document says so."
+  ],
+  "parts": {
+    "REQ-UPG-01": {
+      "a": "A T1-identity unit never has a T2 stimulation enable granted (cervical VNS, clinical tACS / HD-tDCS, 1170 nm, TMS), refused in the partition that owns the enables",
+      "b": "T2 software features unlock only against the signed tier identity, never against app UI state or the app-computed NP_PROTO_FLAG_T2_TIER",
+      "c": "Fail closed: a missing or non-verifying identity is T1",
+      "d": "The refusal is presented as F4, never as a missing module (F1)"
+    },
+    "REQ-UPG-02": {
+      "a": "The tier identity is written once, at manufacture, bound to the device and signed",
+      "b": "No field path writes or changes it: not the app, OTA, a service partner, the depot or a purchase"
+    },
+    "REQ-UPG-03": {
+      "a": "The tile socket (mechanical, electrical, inventory and UID protocol) is kept compatible on every T2 configuration",
+      "b": "The hub accessory ports used by A13, the audio cups and the intranasal probe are kept compatible",
+      "c": "The lens mount is kept compatible",
+      "d": "A change to one of these interfaces is made to both tiers or to neither"
+    },
+    "REQ-CVNS-09": {
+      "a": "Trigger: heart-rate change > 15 BPM within 5 s",
+      "b": "The final rate is >= 40 BPM",
+      "c": "Detected within 18 s of onset",
+      "d": "Enable GPIO low < 100 ms from detection",
+      "e": "30 s lockout before re-enable",
+      "f": "App confirmation and repeat impedance before re-enable"
+    },
+    "REQ-CONSENT-13": {
+      "a": "After blanket withdrawal the device processes no study descriptor, whatever its issue date, categories or elements",
+      "b": "After withdrawing from a study, that study is never processed again, whatever a re-issue says",
+      "c": "No further extract is generated or transmitted for any data period, including sessions that predate the withdrawal (not built)",
+      "d": "Results notifications for studies already joined continue and carry no new data (not built)"
+    },
+    "DI-SAFE-02": {
+      "a": "The safety MCU receives a heartbeat every 200 ms",
+      "b": "A 1.5 s timeout without a heartbeat is a fault",
+      "c": "On timeout all stimulation GPIO is cut off within 50 ms",
+      "d": "The fault latch requires an explicit clear"
+    }
+  },
+  "nonTest": {
+    "REQ-NPPS-13": {
+      "method": "inspection",
+      "reason": "NP-NPPS-REF-001 §14 names inspection of generated files as the verification"
+    },
+    "REQ-CONSENT-08": {
+      "method": "inspection",
+      "reason": "docs/reference/consent-engine.md §6.4 names inspection of the S1 copy in locales/ as the verification"
+    }
+  }
+}

@@ -110,6 +110,7 @@ static uint32_t counter_at(const uint8_t *f, unsigned rec)
 
 /* ── Tests ────────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-55 */
 static void test_empty(void)
 {
     uint8_t f[NP_CVFS_FRAME_MAX];
@@ -125,6 +126,7 @@ static void test_empty(void)
 
 /* The same frame GATTParserTests.testParseCervicalFaultStatus parses, plus
  * the blanket-warning flag. */
+/* @verifies REQ-FWHUB-55 */
 static void test_golden_frame_matches_app_parser(void)
 {
     static const uint8_t EXPECTED[] = {
@@ -145,6 +147,7 @@ static void test_golden_frame_matches_app_parser(void)
           "golden: bytes equal the frame the iOS/Android parsers are tested against");
 }
 
+/* @verifies REQ-FWHUB-55 */
 static void test_flags_and_state(void)
 {
     uint8_t f[NP_CVFS_FRAME_MAX];
@@ -157,6 +160,7 @@ static void test_flags_and_state(void)
     check(f[1] == 0u, "state: an out-of-range state is sent as idle, never as a value the app rejects");
 }
 
+/* @verifies REQ-FWHUB-55 */
 static void test_per_user_scope(void)
 {
     uint8_t f[NP_CVFS_FRAME_MAX];
@@ -180,6 +184,7 @@ static void test_per_user_scope(void)
     check(np_cvfs_current_user() == 0xAu, "scope: reserved tags never become the attribution");
 }
 
+/* @verifies REQ-FWHUB-55 */
 static void test_newest_four_oldest_first_and_eviction(void)
 {
     uint8_t  f[NP_CVFS_FRAME_MAX];
@@ -203,6 +208,7 @@ static void test_newest_four_oldest_first_and_eviction(void)
           "eviction: store holds 8 across users; oldest drops first");
 }
 
+/* @verifies REQ-FWHUB-55 */
 static void test_record_validation(void)
 {
     uint8_t f[NP_CVFS_FRAME_MAX];
@@ -218,6 +224,7 @@ static void test_record_validation(void)
     check(f[12 + 5] == 0x03u, "record: reserved side bits are dropped");
 }
 
+/* @verifies REQ-FWHUB-55 */
 static void test_side_mask(void)
 {
     check(np_cvfs_pad_side_mask(9.0f, 2.0f) == NP_CVFS_SIDE_LEFT, "sides: left out of window");
@@ -229,6 +236,7 @@ static void test_side_mask(void)
           "sides: a pad fault with both in window names both, never neither");
 }
 
+/* @verifies REQ-FWHUB-55 */
 static void test_persistence_round_trip(void)
 {
     uint8_t a[NP_CVFS_FRAME_MAX];
@@ -252,6 +260,7 @@ static void test_persistence_round_trip(void)
     check(g_saves == 1, "persist: nothing changed -> no second save");
 }
 
+/* @verifies REQ-FWHUB-55 */
 static void test_corrupt_blob_starts_empty(void)
 {
     uint8_t good[NP_CVFS_BLOB_MAX];
@@ -290,6 +299,7 @@ static void test_corrupt_blob_starts_empty(void)
           "corrupt: the untouched blob still loads (the checks above were the corruption)");
 }
 
+/* @verifies REQ-FWHUB-55 */
 static void test_failed_save_retries(void)
 {
     reset_world();
@@ -302,6 +312,7 @@ static void test_failed_save_retries(void)
     check(g_saves == 2 && g_store_len > 0u, "retry: the next poll saves it");
 }
 
+/* @verifies REQ-FWHUB-55 */
 static void test_notify_only_on_change(void)
 {
     uint8_t f[NP_CVFS_FRAME_MAX];
@@ -322,6 +333,7 @@ static void test_notify_only_on_change(void)
           memcmp(f, g_notified, len) == 0, "read: returns the last published frame");
 }
 
+/* @verifies REQ-FWHUB-55 */
 static void test_active_user_write(void)
 {
     const uint8_t ok[4]   = { 0x04, 0x03, 0x02, 0x01 };
@@ -340,6 +352,7 @@ static void test_active_user_write(void)
           "user write: attribution waits until the heartbeat forwards the tag to the safety MCU");
 }
 
+/* @verifies REQ-CVNS-09#f */
 static void test_reenable_confirm_write(void)
 {
     const uint8_t one = 0x01u;
@@ -357,6 +370,7 @@ static void test_reenable_confirm_write(void)
 
 /* OI-NVRAM-17: the boot check refused UHDR.  The summary still works from
  * RAM, but nothing is loaded from UHDR and no poll saves to it. */
+/* @verifies REQ-FWHUB-55 */
 static void test_unpersisted_never_touches_uhdr(void)
 {
     uint8_t f[NP_CVFS_FRAME_MAX];

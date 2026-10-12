@@ -15,11 +15,13 @@ class SetupFlowTests {
 
     private fun flow() = SetupFlow(InMemoryKeyValueStore())
 
+    // @verifies REQ-SW03-05
     @Test
     fun startsAtWelcome() {
         assertEquals(SetupStep.WELCOME, flow().currentStep)
     }
 
+    // @verifies REQ-SW03-05
     @Test
     fun advanceProgressesThroughStepsInOrder() {
         val f = flow()
@@ -32,6 +34,7 @@ class SetupFlowTests {
         assertEquals(SetupStep.entries.toList(), order)
     }
 
+    // @verifies REQ-SW03-05
     @Test
     fun safetyStepBlocksAdvanceUntilAcknowledged() {
         val g = flow()
@@ -43,6 +46,7 @@ class SetupFlowTests {
         assertEquals(SetupStep.PROTOCOL_SELECTION, g.currentStep)
     }
 
+    // @verifies REQ-SW03-05
     @Test
     fun reachingCompletePersistsFirstSetup() {
         val store = InMemoryKeyValueStore()
@@ -55,6 +59,7 @@ class SetupFlowTests {
         assertTrue(f.isFirstSetupComplete)
     }
 
+    // @verifies REQ-SW03-05
     @Test
     fun backReEntersSafetyAndClearsAcknowledgement() {
         val f = flow()
@@ -66,6 +71,7 @@ class SetupFlowTests {
         assertFalse(f.safetyAcknowledged, "re-entering the safety step must clear the acknowledgement")
     }
 
+    // @verifies REQ-SW03-05
     @Test
     fun impedanceEvaluationMeetsThresholdAtSixOfEight() {
         val f = flow()
@@ -82,6 +88,7 @@ class SetupFlowTests {
         assertEquals(listOf(5, 6, 7), fivePass.failedElectrodes)
     }
 
+    // @verifies REQ-SW03-05
     @Test
     fun hardwareConfirmationFlagsAreCorrect() {
         assertTrue(SetupStep.BLE_CONFIRMATION.requiresHardwareConfirmation)
@@ -101,6 +108,7 @@ class SetupFlowTests {
 
     private fun config(vararg s: ZoneModuleStatus) = ZoneModuleConfiguration(s.associateBy { it.socketId })
 
+    // @verifies REQ-SW03-05
     @Test
     fun zoneModulesPassWithAnyPopulatedSocketAndNoFault() {
         // Not "all five slots": one module among many reported sockets is a valid build.
@@ -108,6 +116,7 @@ class SetupFlowTests {
         assertEquals(SetupFlow.ZoneModuleResult.Passed, r)
     }
 
+    // @verifies REQ-SW03-05
     @Test
     fun zoneModulesFaultedSocketBlocksEvenWhenOthersPresent() {
         val r = flow().evaluateZoneModules(
@@ -116,6 +125,7 @@ class SetupFlowTests {
         assertEquals(SetupFlow.ZoneModuleResult.Faulted(listOf(9, 61)), r)
     }
 
+    // @verifies REQ-SW03-05
     @Test
     fun zoneModulesNoneDetectedWhenEmptyOrAllEmptySockets() {
         assertEquals(SetupFlow.ZoneModuleResult.NoneDetected, flow().evaluateZoneModules(ZoneModuleConfiguration.EMPTY))

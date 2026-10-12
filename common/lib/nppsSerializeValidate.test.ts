@@ -25,6 +25,7 @@ const toModel = (e: any): NPProtocolEntry =>
     : { kind: 'composite', composite: { ...e.composite, layers: e.composite.layers.map((l: any) => ({ id: 'l', ...l })) } };
 
 describe('serializer wrapper', () => {
+  // @verifies REQ-NPPS-12
   it('writes every block of the shipped library as the web serializer did', () => {
     const g = data('npps-serialize-golden.json');
     let n = 0;
@@ -37,6 +38,7 @@ describe('serializer wrapper', () => {
     expect(n).toBeGreaterThan(100);
   });
 
+  // @verifies REQ-NPPS-16
   it('refuses a zone it cannot write, with the message the web gave', () => {
     expect(() => serializeZone({ name: 'Z', sockets: [0, 4, 4, 999] } as any)).toThrow(NppsRefusal);
     expect(() => serializeZone({ name: 'Z', sockets: [0, 4, 4, 999] } as any)).toThrow(
@@ -44,6 +46,7 @@ describe('serializer wrapper', () => {
     );
   });
 
+  // @verifies REQ-NPPS-11
   it('writes a limits set the parser reads back (the web writer wrote keys the parser dropped)', () => {
     const limits = {
       id: 'l', name: 'Clinic', description: '', createdAt: '', modifiedAt: '', level: 'global',
@@ -70,6 +73,7 @@ const ADDED = new Set([
 ]);
 
 describe('validator wrapper', () => {
+  // @verifies REQ-NPPS-12
   it('reports what the web validator reported, in English, over the whole corpus', () => {
     const g = data('npps-validate-golden.json');
     expect(g.cases.length).toBeGreaterThan(500);
@@ -98,6 +102,7 @@ describe('validator wrapper', () => {
     }
   });
 
+  // @verifies REQ-NPPS-12
   it('resolves a nested message: a layer prefix wraps the issue it prefixes', () => {
     const r = validateEntry(
       { kind: 'composite', composite: { id: 'c', name: 'C', description: '', author: 'a', version: '1', tags: [],

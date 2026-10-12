@@ -24,6 +24,7 @@ class CervicalFaultStatusTests {
         return ByteArray(b.size) { b[it].toByte() }
     }
 
+    // @verifies REQ-SW03-03
     @Test
     fun parsesRecordsAndMessages() {
         val s = assertNotNull(GattParser.parseCervicalFaultStatus(
@@ -37,12 +38,14 @@ class CervicalFaultStatusTests {
         assertEquals(CervicalFaultRecord.Message.PAD_RIGHT, s.records[2].message)
     }
 
+    // @verifies REQ-SW03-03
     @Test
     fun counterIsUnsigned() {
         val s = assertNotNull(GattParser.parseCervicalFaultStatus(frame(0, listOf(Triple(0xFFFF_FFFEL, 1, 0)))))
         assertEquals(0xFFFF_FFFEL, s.records.single().sessionCounter)
     }
 
+    // @verifies REQ-SW03-03
     @Test
     fun rejectsMalformed() {
         assertNull(CervicalFaultStatus.fromWire(byteArrayOf(0x02, 0, 0, 0)), "version")
@@ -55,6 +58,7 @@ class CervicalFaultStatusTests {
         assertNull(CervicalFaultStatus.fromWire(frame(0, (1L..5L).map { Triple(it, 1, 0) })), "n > 4")
     }
 
+    // @verifies REQ-SW03-03
     @Test
     fun flagsCarryPerUserBlockAndBlanketWarning() {
         fun flags(f: Int) = CervicalFaultStatus.fromWire(frame(0, emptyList(), f))
@@ -66,6 +70,7 @@ class CervicalFaultStatusTests {
         assertNull(flags(0x80), "reserved flag bit")
     }
 
+    // @verifies REQ-SW03-03
     @Test
     fun activeUserTagMatchesIosAndAvoidsReservedValues() {
         assertNull(ActiveUserTag.from(null))
@@ -77,6 +82,7 @@ class CervicalFaultStatusTests {
         assertEquals(listOf<Byte>(0x01, 0x02, 0x03, 0x04), ActiveUserTag.toWire(0x0403_0201L).toList())
     }
 
+    // @verifies REQ-SW03-03
     @Test
     fun ledgerAcknowledgementAndCounterReset() {
         val s = assertNotNull(CervicalFaultStatus.fromWire(frame(0, listOf(Triple(10L, 2, 0), Triple(11L, 1, 0)))))
@@ -95,6 +101,7 @@ class CervicalFaultStatusTests {
         assertEquals(1, ledger.unacknowledged(other.records).size, "lower counter: another device")
     }
 
+    // @verifies REQ-SW03-03
     @Test
     fun faultCharacteristicsAreNotRequired() {
         assertFalse(GattUuidStrings.REQUIRED_IDS.map(UUID::fromString).contains(UUID.fromString(GattUuidStrings.CVNS_FAULT_STATUS_ID)))

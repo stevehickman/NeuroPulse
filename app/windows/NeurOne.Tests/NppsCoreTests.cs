@@ -48,6 +48,7 @@ public class NppsCoreTests
         }
     }
 
+    // @verifies REQ-NPPS-12
     [Fact]
     public void TheWholeShippedLibraryParsesAsTheWebParserDoes()
     {
@@ -59,6 +60,7 @@ public class NppsCoreTests
         Assert.True(failures.Count == 0, $"{failures.Count} divergence(s):\n" + string.Join("\n", failures));
     }
 
+    // @verifies REQ-NPPS-12
     [Fact]
     public void TheRefusalAndAliasCorpusParsesAsTheWebParserDoes()
     {
@@ -68,6 +70,7 @@ public class NppsCoreTests
         Assert.True(failures.Count == 0, $"{failures.Count} divergence(s):\n" + string.Join("\n", failures));
     }
 
+    // @verifies REQ-NPPS-12
     [Fact]
     public void NamespacesFoldAndValidateAsTheWebFunctionsDo()
     {
@@ -87,6 +90,7 @@ public class NppsCoreTests
         Assert.True(failures.Count == 0, $"{failures.Count} divergence(s):\n" + string.Join("\n", failures));
     }
 
+    // @verifies REQ-NPPS-16
     [Fact]
     public void AShippedProtocolParsesToTheTypedModelsAndAZoneToItsSockets()
     {
@@ -100,6 +104,7 @@ public class NppsCoreTests
         Assert.NotEmpty(zones["Frontal"]);
     }
 
+    // @verifies REQ-NPPS-12
     [Fact]
     public void ARefusalCarriesTheCoresMessageAndLine()
     {
@@ -108,6 +113,7 @@ public class NppsCoreTests
         Assert.Equal(1, e.Line);
     }
 
+    // @verifies REQ-NPPS-15
     [Fact]
     public void ASessionUuidThatIsNot16BytesIsRefusedBeforeTheCore()
     {
@@ -121,6 +127,7 @@ public class NppsCoreTests
     private static JsonObject SerializeGolden() => JsonNode.Parse(File.ReadAllText(
         Path.Combine(Root, "app", "NeurOneShared", "TestData", "npps-serialize-golden.json")))!.AsObject();
 
+    // @verifies REQ-NPPS-12
     [Fact]
     public void SerializeWritesTheShippedLibraryAsTheWebSerializerDid()
     {
@@ -137,6 +144,7 @@ public class NppsCoreTests
         Assert.True(failures.Count == 0, $"{failures.Count} divergence(s):\n" + string.Join("\n", failures));
     }
 
+    // @verifies REQ-NPPS-16
     [Fact]
     public void SerializeRefusesAZoneItCannotWriteWithTheCoresMessage()
     {
@@ -146,6 +154,7 @@ public class NppsCoreTests
         Assert.Equal("cannot serialize zone \"Z\": 0, 999 are not sockets on this helmet \u2014 ids are whole numbers 1\u201380", e.Message);
     }
 
+    // @verifies REQ-NPPS-15
     [Fact]
     public void ValidateReturnsLocaleKeysAndArguments()
     {
@@ -161,6 +170,7 @@ public class NppsCoreTests
         Assert.Equal(["2", "1"], message["args"]!.AsArray().Select(a => a!.GetValue<string>()).ToArray());
     }
 
+    // @verifies REQ-NPPS-12
     [Fact]
     public void ResolveLimitsResolvesEveryTierCombinationAsTheWebFunctionDid()
     {

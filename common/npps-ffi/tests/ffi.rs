@@ -34,6 +34,7 @@ fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
 
+// @verifies REQ-NPPS-12
 #[test]
 fn parse_agrees_with_the_web_parser_over_the_library_and_the_corpus() {
     let g = data("npps-parse-golden.json");
@@ -79,6 +80,7 @@ fn request(def: &Value, c: &Value, with_clinician: bool) -> Vec<u8> {
     .into_bytes()
 }
 
+// @verifies REQ-NPPS-12
 #[test]
 fn compile_agrees_with_the_web_compiler_in_bytes_and_messages() {
     let c = data("hub-descriptor-cases.json");
@@ -99,6 +101,7 @@ fn compile_agrees_with_the_web_compiler_in_bytes_and_messages() {
     assert!(refused >= 15);
 }
 
+// @verifies REQ-NPPS-15
 #[test]
 fn bad_arguments_are_refused_not_crashed() {
     let (mut out, mut len) = (ptr::null_mut(), 0usize);
@@ -117,6 +120,7 @@ fn bad_arguments_are_refused_not_crashed() {
     }
 }
 
+// @verifies REQ-NPPS-15
 #[test]
 fn alloc_hands_out_writable_zeroed_bytes_that_free_takes_back() {
     unsafe {
@@ -132,6 +136,7 @@ fn alloc_hands_out_writable_zeroed_bytes_that_free_takes_back() {
     }
 }
 
+// @verifies REQ-NPPS-12
 #[test]
 fn namespace_folds_files_through_the_abi_and_reports_a_duplicate() {
     let file = |src: &str| -> Value {
@@ -154,6 +159,7 @@ fn namespace_folds_files_through_the_abi_and_reports_a_duplicate() {
     assert!(String::from_utf8(out).unwrap().contains("not JSON"));
 }
 
+// @verifies REQ-NPPS-12
 #[test]
 fn serialize_writes_the_library_as_the_web_serializer_did() {
     let g = data("npps-serialize-golden.json");
@@ -170,6 +176,7 @@ fn serialize_writes_the_library_as_the_web_serializer_did() {
     assert!(n > 100);
 }
 
+// @verifies REQ-NPPS-15
 #[test]
 fn serialize_refuses_with_the_message_in_the_buffer() {
     let req = br#"{"items":[{"kind":"zone","zone":{"name":"Z","sockets":[0,999]}}]}"#;
@@ -181,6 +188,7 @@ fn serialize_refuses_with_the_message_in_the_buffer() {
     );
 }
 
+// @verifies REQ-NPPS-15
 #[test]
 fn validate_returns_keys_not_text() {
     let req = br#"{"entry":{"kind":"single","protocol":{"name":"P","timingMode":{"type":"duration","seconds":1200},

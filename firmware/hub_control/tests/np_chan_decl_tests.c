@@ -77,6 +77,7 @@ static void add_vns(uint16_t pw_us)
     add(NP_MOD_VNS_HRV, &p, sizeof p);
 }
 
+/* @verifies REQ-FWHUB-36 REQ-FWHUB-37 */
 static void test_bes_arms_its_gate_and_sends_its_area(void)
 {
     np_chan_decl_t d;
@@ -94,6 +95,7 @@ static void test_bes_arms_its_gate_and_sends_its_area(void)
     check(d.send_waveforms, "waveform frame sent");
 }
 
+/* @verifies REQ-FWHUB-37 */
 static void test_vns_only_session_sends_its_area(void)
 {
     np_chan_decl_t d;
@@ -108,6 +110,7 @@ static void test_vns_only_session_sends_its_area(void)
     check(d.phase_us[NP_SAFETY_CH_VNS_HRV] == 250UL, "VNS default pulse width 250 us");
 }
 
+/* @verifies REQ-FWHUB-37 */
 static void test_vns_authored_pulse_width_reaches_the_safety_declaration(void)
 {
     np_chan_decl_t d;
@@ -122,6 +125,7 @@ static void test_vns_authored_pulse_width_reaches_the_safety_declaration(void)
     check(d.phase_us[NP_SAFETY_CH_VNS_HRV] == 500UL, "VNS 500 us pulse width declared as authored");
 }
 
+/* @verifies REQ-FWHUB-37 */
 static void test_cvns_only_session_sends_its_area(void)
 {
     np_chan_decl_t d;
@@ -135,6 +139,7 @@ static void test_cvns_only_session_sends_its_area(void)
           "cervical-VNS-only session sends its area");
 }
 
+/* @verifies REQ-FWHUB-37 */
 static void test_tdcs_rules_unchanged(void)
 {
     np_chan_decl_t d;
@@ -154,6 +159,7 @@ static void test_tdcs_rules_unchanged(void)
     check(!d.geom_bes, "tDCS does not arm the BES gate");
 }
 
+/* @verifies REQ-FWHUB-37 */
 static void test_hd_and_clinical_tacs(void)
 {
     np_chan_decl_t d;
@@ -179,6 +185,7 @@ static void test_hd_and_clinical_tacs(void)
           "HD-tDCS ring: CLIN_STIM gate armed with the 3.5 mm electrode area");
 }
 
+/* @verifies REQ-FWHUB-36 */
 static void test_mixed_session_arms_each_gate_independently(void)
 {
     np_chan_decl_t d;
@@ -197,6 +204,7 @@ static void test_mixed_session_arms_each_gate_independently(void)
           "square waveform declared as PULSE");
 }
 
+/* @verifies REQ-FWHUB-37 */
 static void test_nothing_electrical(void)
 {
     np_chan_decl_t d;
@@ -222,6 +230,7 @@ static void test_nothing_electrical(void)
           "a BES command with truncated params is ignored, not half-read");
 }
 
+/* @verifies REQ-FWHUB-37 */
 static void test_half_period(void)
 {
     check(np_chan_decl_half_period_us(500U) == 1000000UL, "0.5 Hz -> 1,000,000 us");

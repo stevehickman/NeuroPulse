@@ -146,6 +146,7 @@ static void mask_set(uint8_t mask[NP_HUB_SOCKET_MASK_BYTES], unsigned socket)
 
 /* ── Layout ───────────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-08 */
 static void test_wire_layout(void)
 {
     check(sizeof(np_proto_header_t) == 64U, "layout: header is 64 bytes");
@@ -161,6 +162,7 @@ static void test_wire_layout(void)
 
 /* ── Slot-addressed commands still work ───────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-08 */
 static void test_slot_target_roundtrip(void)
 {
     const uint8_t params[5] = { 0xFF, 6, 2, 0, 3 };
@@ -184,6 +186,7 @@ static void test_slot_target_roundtrip(void)
           "slot: params bytes preserved");
 }
 
+/* @verifies REQ-FWHUB-08 */
 static void test_slot_command_has_no_sockets(void)
 {
     blob_t b;
@@ -230,6 +233,7 @@ static void build_frontal_left(blob_t *b, uint8_t mask[NP_HUB_SOCKET_MASK_BYTES]
                  params, sizeof params);
 }
 
+/* @verifies REQ-FWHUB-08 */
 static void test_socket_target_roundtrip(void)
 {
     blob_t  b;
@@ -250,6 +254,7 @@ static void test_socket_target_roundtrip(void)
           "socket: params read from AFTER the target block, not from inside it");
 }
 
+/* @verifies REQ-FWHUB-31 */
 static void test_socket_membership(void)
 {
     blob_t  b;
@@ -273,6 +278,7 @@ static void test_socket_membership(void)
           "membership: an occipital socket is not selected by a frontal zone");
 }
 
+/* @verifies REQ-FWHUB-31 */
 static void test_socket_expand_matches_module_map_input(void)
 {
     blob_t  b;
@@ -333,6 +339,7 @@ static const uint8_t OCCIPITAL_LEFT_MASK[NP_HUB_SOCKET_MASK_BYTES] = {
 static const uint16_t OCCIPITAL_LEFT_NPPS[] = { 72U, 73U, 74U, 77U, 78U };
 #define OCCIPITAL_LEFT_N (sizeof OCCIPITAL_LEFT_NPPS / sizeof OCCIPITAL_LEFT_NPPS[0])
 
+/* @verifies REQ-FWHUB-31 */
 static void test_numbering_base_conversion_contract(void)
 {
     blob_t b;
@@ -381,6 +388,7 @@ static void test_numbering_base_conversion_contract(void)
           "numbering: NPPS socket 71 is not in Occipital Left");
 }
 
+/* @verifies REQ-FWHUB-31 */
 static void test_socket_expand_overflow(void)
 {
     blob_t  b;
@@ -408,6 +416,7 @@ static void test_socket_expand_overflow(void)
  * twice. A list would carry the duplicate through to the driver — double J/cm²
  * on the same module. In a bitmap the duplicate cannot be expressed.
  */
+/* @verifies REQ-FWHUB-31 */
 static void test_bitmap_makes_double_drive_unrepresentable(void)
 {
     /* Two overlapping FIXTURE sets (not read from 00-zones.npps): 11 sockets
@@ -441,6 +450,7 @@ static void test_bitmap_makes_double_drive_unrepresentable(void)
 
 /* ── Mixed blob: the offset arithmetic that the target block changes ──────────── */
 
+/* @verifies REQ-FWHUB-08 */
 static void test_mixed_targets_offsets(void)
 {
     uint8_t mask[NP_HUB_SOCKET_MASK_BYTES];
@@ -486,6 +496,7 @@ static void test_mixed_targets_offsets(void)
           "mixed: the slot command did not inherit the socket command's bitmap");
 }
 
+/* @verifies REQ-FWHUB-09 */
 static void test_expected_len_accounts_for_target(void)
 {
     blob_t  b;
@@ -505,6 +516,7 @@ static void test_expected_len_accounts_for_target(void)
 
 /* ── Rejections ───────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-10 */
 static void test_rejects_other_versions(void)
 {
     /* 0 was never issued; 2 and 3 were pre-release numbers for layouts now
@@ -523,6 +535,7 @@ static void test_rejects_other_versions(void)
     }
 }
 
+/* @verifies REQ-FWHUB-09 */
 static void test_rejects_retired_zone_slots(void)
 {
     np_session_desc_t desc;
@@ -555,6 +568,7 @@ static void test_rejects_retired_zone_slots(void)
 
 /* The two stim slots that v1 had no way to name: slot_mask was a uint8_t and
  * dispatch shifted by the slot index, so nothing above slot 7 was reachable. */
+/* @verifies REQ-FWHUB-08 */
 static void test_high_slots_are_addressable(void)
 {
     static const uint8_t HIGH[] = {
@@ -580,6 +594,7 @@ static void test_high_slots_are_addressable(void)
     check(all_ok, "slots: every slot above 7 is addressable (v1 could not name them)");
 }
 
+/* @verifies REQ-FWHUB-09 */
 static void test_rejects_slot_id_on_socket_target(void)
 {
     uint8_t mask[NP_HUB_SOCKET_MASK_BYTES];
@@ -597,6 +612,7 @@ static void test_rejects_slot_id_on_socket_target(void)
           "reject: a socket-addressed command may not also name a slot");
 }
 
+/* @verifies REQ-FWHUB-09 */
 static void test_rejects_bad_target_kind(void)
 {
     blob_t b;
@@ -610,6 +626,7 @@ static void test_rejects_bad_target_kind(void)
           "reject: an unknown target kind is refused, not skipped");
 }
 
+/* @verifies REQ-FWHUB-09 */
 static void test_rejects_target_len_mismatch(void)
 {
     uint8_t short_mask[NP_HUB_SOCKET_MASK_BYTES];
@@ -640,6 +657,7 @@ static void test_rejects_target_len_mismatch(void)
           "reject: slot kind with a non-empty target block is refused");
 }
 
+/* @verifies REQ-FWHUB-09 */
 static void test_rejects_truncated_target(void)
 {
     blob_t  b;
@@ -654,6 +672,7 @@ static void test_rejects_truncated_target(void)
           "reject: a body too short for its declared target is refused");
 }
 
+/* @verifies REQ-FWHUB-09 */
 static void test_rejects_trailing_body_bytes(void)
 {
     /* cmd_count under-counts: two commands present, header says one. Because
@@ -673,6 +692,7 @@ static void test_rejects_trailing_body_bytes(void)
           "reject: trailing body bytes (an under-counted cmd_count) are refused");
 }
 
+/* @verifies REQ-FWHUB-09 */
 static void test_rejects_stop_deadline_overflow(void)
 {
     /* start_ms + duration_ms wrapping to 0 would read as the runner's
@@ -701,6 +721,7 @@ static void test_rejects_stop_deadline_overflow(void)
 
 /* ── Clinical tACS wire contract (OI-TACS-01) ─────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-08 */
 static void test_clin_tacs_channel_mask_spans_the_driver(void)
 {
     /* The struct is a wire format: the app encoders lay these bytes out by hand
@@ -762,6 +783,7 @@ static void desc_with(np_session_desc_t *d, const np_hub_mod_type_t *mods,
     }
 }
 
+/* @verifies REQ-UPG-01 */
 static void test_t2_modality_set(void)
 {
     static const np_hub_mod_type_t T2_MODULE_TYPES[] = {
@@ -790,6 +812,7 @@ static void test_t2_modality_set(void)
     check(no_t1, "tier: no T1 or accessory modality marks a protocol T2");
 }
 
+/* @verifies REQ-UPG-01#b */
 static void test_t2_is_derived_not_flagged(void)
 {
     np_session_desc_t d;
@@ -809,6 +832,7 @@ static void test_t2_is_derived_not_flagged(void)
           "tier: clearing the app flag does not get cervical VNS past a T1 unit (RISK-PWRSRC-10)");
 }
 
+/* @verifies REQ-UPG-01#c,d REQ-UPG-03 */
 static void test_tier_admit_matrix(void)
 {
     np_session_desc_t d;

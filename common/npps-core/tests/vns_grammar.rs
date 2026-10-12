@@ -22,6 +22,7 @@ fn compile(protocol: &Value) -> Result<Vec<u8>, String> {
 
 const FULL: &str = "        frequency: 30Hz\n        intensity: 0.8mA\n        side: bilateral\n        pulse_width_us: 300\n        trigger: movement_cue\n        burst: 0.5s\n        intensity_basis: perceptual_threshold\n        intensity_percent_of_threshold: 200%";
 
+// @verifies REQ-NPPS-07
 #[test]
 fn every_study_parameter_parses_into_the_model() {
     let p = parse(FULL, "    sessions_per_week: 3\n    course_weeks: 6");
@@ -35,6 +36,7 @@ fn every_study_parameter_parses_into_the_model() {
     assert_eq!((p["sessionsPerWeek"].clone(), p["courseWeeks"].clone()), (json!(3), json!(6)));
 }
 
+// @verifies REQ-NPPS-07
 #[test]
 fn a_block_that_authors_none_of_them_is_unchanged() {
     let p = parse("        frequency: 25Hz\n        intensity: 0.5mA", "");
@@ -45,6 +47,7 @@ fn a_block_that_authors_none_of_them_is_unchanged() {
     assert!(p.get("sessionsPerWeek").is_none() && p.get("courseWeeks").is_none());
 }
 
+// @verifies REQ-NPPS-07
 #[test]
 fn the_study_parameters_survive_a_round_trip() {
     let p = parse(FULL, "    sessions_per_week: 3\n    course_weeks: 6");
@@ -55,6 +58,7 @@ fn the_study_parameters_survive_a_round_trip() {
     assert_eq!(again["entries"][0]["protocol"]["courseWeeks"], p["courseWeeks"]);
 }
 
+// @verifies REQ-NPPS-07
 #[test]
 fn pulse_width_and_side_reach_the_wire() {
     let ok = |extra: &str| compile(&parse(&format!("        frequency: 25Hz\n        intensity: 0.8mA\n{extra}"), "")).unwrap();
@@ -65,6 +69,7 @@ fn pulse_width_and_side_reach_the_wire() {
     assert_eq!(params(&ok("        pulse_width: 500\n        side: bilateral"))[5..7], [0xF4, 0x01], "the `pulse_width` spelling reads the same field");
 }
 
+// @verifies REQ-NPPS-07
 #[test]
 fn what_the_hub_cannot_deliver_is_refused_not_run_as_something_else() {
     let refused = |extra: &str, needle: &str| {
@@ -90,6 +95,7 @@ fn has(issues: &[Value], key: &str) -> bool {
     issues.iter().any(|i| i["message"]["key"] == key && i["severity"] == "error")
 }
 
+// @verifies REQ-NPPS-07
 #[test]
 fn the_validator_reports_each_of_them_before_signing() {
     let base = "        frequency: 25Hz\n        intensity: 0.8mA\n";
@@ -105,6 +111,7 @@ fn the_validator_reports_each_of_them_before_signing() {
     assert!(!clean.iter().any(|i| i["severity"] == "error"), "an in-range, deliverable block is clean: {clean:?}");
 }
 
+// @verifies REQ-NPPS-07
 #[test]
 fn a_titrated_basis_is_a_band_with_a_cap_and_is_refused_until_it_can_be_calibrated() {
     let block = "        frequency: 20Hz\n        intensity: 2.0mA\n        intensity_basis: titrated";

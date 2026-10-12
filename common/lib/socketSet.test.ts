@@ -13,23 +13,27 @@ import {
 } from './socketSet';
 
 describe('socket id validation', () => {
+  // @verifies REQ-NPPS-17
   it('accepts every id on the helmet', () => {
     for (let id = NP_SOCKET_ID_MIN; id <= NP_SOCKET_ID_MAX; id++) {
       expect(socketIdProblem(id), `socket ${id}`).toBeUndefined();
     }
   });
 
+  // @verifies REQ-NPPS-17
   it('rejects ids outside the numbering base', () => {
     expect(socketIdProblem(0)).toBe('out-of-range');
     expect(socketIdProblem(-1)).toBe('out-of-range');
     expect(NP_SOCKET_NUMBERING_BASE).toBe(1);
   });
 
+  // @verifies REQ-NPPS-17
   it('rejects ids past the end of the lattice', () => {
     expect(socketIdProblem(NP_SOCKET_ID_MAX + 1)).toBe('out-of-range');
     expect(socketIdProblem(999)).toBe('out-of-range');
   });
 
+  // @verifies REQ-NPPS-17
   it('rejects non-integers', () => {
     expect(socketIdProblem(1.5)).toBe('not-an-integer');
     expect(socketIdProblem(NaN)).toBe('not-an-integer');
@@ -37,6 +41,7 @@ describe('socket id validation', () => {
     expect(socketIdProblem(undefined)).toBe('not-an-integer');
   });
 
+  // @verifies REQ-NPPS-17
   it('rejects values bare Number() would silently accept', () => {
     // Number(true)===1, Number([5])===5, Number('0x10')===16, Number('1e1')===10.
     // A socket id is a plain decimal integer or it is not a socket id.
@@ -47,6 +52,7 @@ describe('socket id validation', () => {
     expect(socketIdProblem('')).toBe('not-an-integer');
   });
 
+  // @verifies REQ-NPPS-17
   it('agrees with toSocketSet on every input', () => {
     // Two exported validators disagreeing about the same value is a latent bug
     // for any caller that checks with one and canonicalises with the other.
@@ -57,22 +63,26 @@ describe('socket id validation', () => {
     }
   });
 
+  // @verifies REQ-NPPS-17
   it('labels the range for error messages', () => {
     expect(socketRangeLabel()).toBe(`${NP_SOCKET_ID_MIN}–${NP_SOCKET_ID_MAX}`);
   });
 });
 
 describe('toSocketSet', () => {
+  // @verifies REQ-NPPS-17
   it('deduplicates and sorts', () => {
     expect(toSocketSet([5, 3, 5, 1, 3]).sockets).toEqual([1, 3, 5]);
   });
 
+  // @verifies REQ-NPPS-17
   it('reports duplicates without dropping the underlying socket', () => {
     const r = toSocketSet([2, 2, 7]);
     expect(r.sockets).toEqual([2, 7]);
     expect(r.duplicates).toEqual([2]);
   });
 
+  // @verifies REQ-NPPS-17
   it('separates invalid ids from valid ones rather than throwing', () => {
     const r = toSocketSet([1, 0, 2, NP_SOCKET_ID_MAX + 1]);
     expect(r.sockets).toEqual([1, 2]);
@@ -80,10 +90,12 @@ describe('toSocketSet', () => {
     expect(r.invalid.map(e => e.problem)).toEqual(['out-of-range', 'out-of-range']);
   });
 
+  // @verifies REQ-NPPS-17
   it('deduplicates the invalid list too', () => {
     expect(toSocketSet([999, 999, 999]).invalid.map(e => e.raw)).toEqual([999]);
   });
 
+  // @verifies REQ-NPPS-17
   it('keeps distinct bad tokens distinct', () => {
     // Coercing first collapsed every unparseable token to one NaN, hiding all
     // but the first error in a file.
@@ -91,41 +103,49 @@ describe('toSocketSet', () => {
     expect(r.invalid.map(e => describeInvalid(e))).toEqual(['"abc"', '"xyz"']);
   });
 
+  // @verifies REQ-NPPS-17
   it('preserves the original token for the error message', () => {
     expect(describeInvalid(toSocketSet(['banana']).invalid[0])).toBe('"banana"');
     expect(describeInvalid(toSocketSet([999]).invalid[0])).toBe('999');
   });
 
+  // @verifies REQ-NPPS-17
   it('is total — empty input yields empty results, never a throw', () => {
     expect(toSocketSet([])).toEqual({ sockets: [], invalid: [], duplicates: [] });
   });
 
+  // @verifies REQ-NPPS-17
   it('accepts decimal-integer strings so text input shares one path', () => {
     expect(toSocketSet(['3', ' 1 ', '3']).sockets).toEqual([1, 3]);
   });
 });
 
 describe('unionSockets', () => {
+  // @verifies REQ-NPPS-17
   it('counts a socket shared by two lists once', () => {
     // This is the midline case: a socket the zone file lists in both a
     // left-side and a right-side zone.
     expect(unionSockets([1, 2, 3], [3, 4])).toEqual([1, 2, 3, 4]);
   });
 
+  // @verifies REQ-NPPS-17
   it('is order-independent and always sorted', () => {
     expect(unionSockets([9, 1], [5])).toEqual(unionSockets([5], [1, 9]));
     expect(unionSockets([9, 1], [5])).toEqual([1, 5, 9]);
   });
 
+  // @verifies REQ-NPPS-17
   it('accepts Sets as readily as arrays', () => {
     expect(unionSockets(new Set([3, 1]), [1])).toEqual([1, 3]);
   });
 
+  // @verifies REQ-NPPS-17
   it('unioning a list with itself is idempotent', () => {
     const a = [4, 8, 15];
     expect(unionSockets(a, a)).toEqual(unionSockets(a));
   });
 
+  // @verifies REQ-NPPS-17
   it('never exceeds the socket count no matter how many lists overlap', () => {
     const all = Array.from({ length: NP_SOCKET_COUNT }, (_, i) => i + NP_SOCKET_ID_MIN);
     expect(unionSockets(all, all, all, all).length).toBe(NP_SOCKET_COUNT);
@@ -133,6 +153,7 @@ describe('unionSockets', () => {
 });
 
 describe('unionZoneSockets', () => {
+  // @verifies REQ-NPPS-17
   it('unions zone definitions and dedups the shared sockets', () => {
     const left = { sockets: [1, 2, 4, 5] };
     const right = { sockets: [2, 3, 6, 7] }; // socket 2 is midline, in both
@@ -142,6 +163,7 @@ describe('unionZoneSockets', () => {
     );
   });
 
+  // @verifies REQ-NPPS-17
   it('handles an empty zone list', () => {
     expect(unionZoneSockets([])).toEqual([]);
   });

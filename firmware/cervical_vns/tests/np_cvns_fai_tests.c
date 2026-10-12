@@ -68,6 +68,7 @@ static int g_fail_count = 0;
 /* Records the most recent interlock fault reason for the CV02-D lockout test. */
 static np_cvns_fault_reason_t g_last_fault;
 
+/* @verifies-none recording callback helper whose name begins test_; not a test case */
 static void test_fault_cb(np_cvns_interlock_ctx_t *ctx, np_cvns_fault_reason_t reason)
 {
     (void)ctx;
@@ -76,6 +77,7 @@ static void test_fault_cb(np_cvns_interlock_ctx_t *ctx, np_cvns_fault_reason_t r
 
 /* Inert safety callback — the stim parameter-validation tests only need a
  * non-NULL pointer, since np_cvns_stim_init() rejects a NULL callback. */
+/* @verifies-none recording callback helper whose name begins test_; not a test case */
 static void test_safety_cb(np_cvns_stim_ctx_t *ctx, bool gate, const float impedance[])
 {
     (void)ctx;

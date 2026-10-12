@@ -45,6 +45,7 @@ final class SessionHistoryStoreTests: XCTestCase {
 
     // MARK: - insert
 
+    // @verifies REQ-SW03-06
     func testRecordAppendsToList() {
         let store = SessionHistoryStore(defaults: makeSuite(#function))
         XCTAssertTrue(store.records.isEmpty)
@@ -55,6 +56,7 @@ final class SessionHistoryStoreTests: XCTestCase {
         XCTAssertEqual(store.records.first?.protocolName, "Focus Prime")
     }
 
+    // @verifies REQ-SW03-06
     func testRecordMapsAllFields() {
         let suite = makeSuite(#function)
         let store = SessionHistoryStore(defaults: suite)
@@ -84,6 +86,7 @@ final class SessionHistoryStoreTests: XCTestCase {
         XCTAssertEqual(r.edfSessionID, 9999)
     }
 
+    // @verifies REQ-SW03-06
     func testRecordWithNilOptionalFields() {
         let store = SessionHistoryStore(defaults: makeSuite(#function))
         store.record(makeSummary(coherence: nil, rmssd: nil, edfID: nil))
@@ -96,6 +99,7 @@ final class SessionHistoryStoreTests: XCTestCase {
 
     // MARK: - ordering
 
+    // @verifies REQ-SW03-06
     func testRecordsAreNewestFirst() {
         let suite = makeSuite(#function)
         let store = SessionHistoryStore(defaults: suite)
@@ -110,6 +114,7 @@ final class SessionHistoryStoreTests: XCTestCase {
 
     // MARK: - trim
 
+    // @verifies REQ-SW03-06
     func testTrimsToMaxOneHundredRecords() {
         let suite = makeSuite(#function)
         let store = SessionHistoryStore(defaults: suite)
@@ -124,6 +129,7 @@ final class SessionHistoryStoreTests: XCTestCase {
         XCTAssertEqual(store.records.count, 100, "Store must not exceed 100 records")
     }
 
+    // @verifies REQ-SW03-06
     func testTrimmingKeepsNewestRecords() {
         let suite = makeSuite(#function)
         let store = SessionHistoryStore(defaults: suite)
@@ -144,6 +150,7 @@ final class SessionHistoryStoreTests: XCTestCase {
 
     // MARK: - clearHistory
 
+    // @verifies REQ-SW03-06
     func testClearHistoryEmptiesList() {
         let suite = makeSuite(#function)
         let store = SessionHistoryStore(defaults: suite)
@@ -155,6 +162,7 @@ final class SessionHistoryStoreTests: XCTestCase {
         XCTAssertTrue(store.records.isEmpty)
     }
 
+    // @verifies REQ-SW03-06
     func testClearHistoryPersistsClear() {
         let suite = makeSuite(#function)
         let store = SessionHistoryStore(defaults: suite)
@@ -167,6 +175,7 @@ final class SessionHistoryStoreTests: XCTestCase {
 
     // MARK: - persistence
 
+    // @verifies REQ-SW03-06
     func testRecordsSurviveReload() {
         let suite = makeSuite(#function)
         let store = SessionHistoryStore(defaults: suite)
@@ -178,6 +187,7 @@ final class SessionHistoryStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.records.first?.durationSeconds ?? 0, 900, accuracy: 0.01)
     }
 
+    // @verifies REQ-SW03-06
     func testNewestFirstOrderingSurvivesReload() {
         let suite = makeSuite(#function)
         let store = SessionHistoryStore(defaults: suite)
@@ -191,6 +201,7 @@ final class SessionHistoryStoreTests: XCTestCase {
 
     // MARK: - corrupt blob recovery
 
+    // @verifies REQ-SW03-06
     func testCorruptBlobStartsCleanRatherThanCrashing() {
         let suite = makeSuite(#function)
         suite.set("this is not JSON".data(using: .utf8)!, forKey: "np.session.history")
@@ -202,6 +213,7 @@ final class SessionHistoryStoreTests: XCTestCase {
 
     // MARK: - Privacy invariant
 
+    // @verifies REQ-SW03-06
     func testPersistedBlobContainsNoCompletedAtKey() throws {
         let suite = makeSuite(#function)
         let store = SessionHistoryStore(defaults: suite)
@@ -216,6 +228,7 @@ final class SessionHistoryStoreTests: XCTestCase {
         XCTAssertNotNil(row["insertionIndex"], "insertionIndex must be present in persisted blob")
     }
 
+    // @verifies REQ-SW03-06
     func testPersistedBlobContainsNoEdfSessionID() throws {
         let suite = makeSuite(#function)
         let store = SessionHistoryStore(defaults: suite)
@@ -232,6 +245,7 @@ final class SessionHistoryStoreTests: XCTestCase {
         XCTAssertEqual(store.records.first?.edfSessionID, 9999)
     }
 
+    // @verifies REQ-SW03-06
     func testNewRecordsWritableAfterCorruptBlobRecovery() {
         let suite = makeSuite(#function)
         suite.set("bad data".data(using: .utf8)!, forKey: "np.session.history")

@@ -223,6 +223,7 @@ static np_hub_status_t drive_smart(uint16_t s, uint8_t ch_mask)
 
 /* ── Tests ─────────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-59 */
 static void test_base_disable_zeroes_only_that_channel(void)
 {
     printf("\n[base tile: disabling 660 nm leaves 808 nm driven]\n");
@@ -244,6 +245,7 @@ static void test_base_disable_zeroes_only_that_channel(void)
           "the latch reports CH_A");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_base_latch_survives_redrive_and_stop(void)
 {
     printf("\n[base tile: the latch survives a re-drive and a stop]\n");
@@ -262,6 +264,7 @@ static void test_base_latch_survives_redrive_and_stop(void)
     check(g_pwm_last.cur_a == 190U, "CH_A is still driven throughout");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_base_both_channels_off(void)
 {
     printf("\n[base tile: both channels latched]\n");
@@ -272,6 +275,7 @@ static void test_base_both_channels_off(void)
     check(g_pwm_last.cur_a == 0U && g_pwm_last.cur_b == 0U, "both setpoints at 0");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_base_has_no_ch_c(void)
 {
     printf("\n[base tile: CH_C is recorded, nothing is written]\n");
@@ -285,6 +289,7 @@ static void test_base_has_no_ch_c(void)
           "the latch still records it, for a smart tile placed there later");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_base_write_failure_still_latches(void)
 {
     printf("\n[base tile: a failed write still leaves the channel latched]\n");
@@ -298,6 +303,7 @@ static void test_base_write_failure_still_latches(void)
     check(g_pwm_last.cur_a == 0U, "the next drive writes CH_A at 0");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_smart_disable_clears_ch_enable(void)
 {
     printf("\n[smart tile: CH_ENABLE loses the bit, later drives are masked]\n");
@@ -316,6 +322,7 @@ static void test_smart_disable_clears_ch_enable(void)
           "frequency and duty are applied to the masked set only");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_idle_socket_latches_only(void)
 {
     printf("\n[idle socket: latched, nothing written, applied on first drive]\n");
@@ -327,6 +334,7 @@ static void test_idle_socket_latches_only(void)
     check(g_pwm_last.cur_b == 0U, "the first drive honours it");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_clear_is_the_only_release(void)
 {
     printf("\n[session load clears every latch]\n");
@@ -339,6 +347,7 @@ static void test_clear_is_the_only_release(void)
     check(g_pwm_last.cur_a == 190U, "CH_A is driven again in the new session");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_invalid_args(void)
 {
     printf("\n[argument validation]\n");
@@ -356,6 +365,7 @@ static void test_invalid_args(void)
 
 /* ── OI-FWHUB-10: the pre-drive checks and the F11 fault ───────────────────── */
 
+/* @verifies REQ-FWHUB-59 */
 static void test_predrive_refusals(void)
 {
     printf("\n[pre-drive: a hot or unreadable NTC, or no metering slot, lights nothing]\n");
@@ -379,6 +389,7 @@ static void test_predrive_refusals(void)
           "no metering slot: refused before the tile is lit, so nothing runs unmetered");
 }
 
+/* @verifies REQ-FWHUB-59 */
 static void test_drive_fault_is_shdr_without_socket(void)
 {
     printf("\n[drive fault: SHDR gets modality + code, never the socket (F11)]\n");

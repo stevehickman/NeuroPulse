@@ -125,6 +125,7 @@ k_lines[] = {
  * The single most consequential bit in the platform layer.  Active-LOW:
  * state 1 must SET the pin (HIGH = disabled), state 0 must RESET it (LOW =
  * enabled).  BSRR bits [15:0] set, [31:16] reset.                            */
+/* @verifies REQ-SW01-01 */
 static void test_write_pin_polarity(void)
 {
     size_t i;
@@ -158,6 +159,7 @@ static void test_write_pin_polarity(void)
 
 /* Non-zero must mean HIGH — np_safety_hal.h open question 6.  On an active-LOW
  * line the safe half of the ambiguity is "anything not 0 disables". */
+/* @verifies REQ-SW01-01 */
 static void test_write_pin_nonzero_is_disabled(void)
 {
     GPIO_TypeDef *p = (GPIO_TypeDef *)NP_EN_CVNS_PORT;
@@ -191,6 +193,7 @@ static void test_write_pin_nonzero_is_disabled(void)
  * than per line.  GPIOA carries exactly one enable (PA0, cranial PBM); GPIOB's
  * table order ends at CLIN_STIM.  Deleting the preset leaves both at 0 and both
  * assertions fail, which is verified by mutation rather than assumed.        */
+/* @verifies REQ-SW01-01 */
 static void test_gpio_init_never_asserts_an_enable(void)
 {
     size_t i;
@@ -230,6 +233,7 @@ static void test_gpio_init_never_asserts_an_enable(void)
           "gpio_init PRESETS the port-B enables HIGH before configuring them as outputs");
 }
 
+/* @verifies REQ-SW01-01 */
 static void test_gpio_init_enables_port_clocks(void)
 {
     regs_reset();
@@ -242,6 +246,7 @@ static void test_gpio_init_enables_port_clocks(void)
 /* No enable line may collide with SPI1 (PA4..PA7) or the R-peak input (PA8).
  * np_safety_config.h records that NP_EN_PBM_ZONE4_PIN once double-booked PA4
  * with SPI1 NSS; this keeps that class of defect from returning silently. */
+/* @verifies REQ-SW01-01 */
 static void test_no_pin_collisions(void)
 {
     const uint16_t reserved_a = (uint16_t)((1U << 4) | (1U << 5) | (1U << 6)
@@ -267,6 +272,7 @@ static void test_no_pin_collisions(void)
     check(ok, "no enable line collides with SPI1/RPEAK or with another enable line");
 }
 
+/* @verifies REQ-SW01-01 */
 static void test_pin_pos_rejects_malformed_masks(void)
 {
     check(np_hal_pin_pos(1U << 0) == 0U,   "pin_pos(1<<0) == 0");
@@ -282,6 +288,7 @@ static void test_pin_pos_rejects_malformed_masks(void)
  * Transfer LENGTH is the only discriminator between the four frame types
  * (np_safety_hal.h).  A length that matches none must be rejected, not
  * delivered — every consumer memcpy's a fixed-size struct out of the buffer. */
+/* @verifies REQ-FWHUB-50 */
 static void test_spi_frame_classification(void)
 {
     check(np_hal_spi_classify(NP_SAFETY_RX_EXT_FRAME_LEN)     == K_HEARTBEAT,
@@ -312,6 +319,7 @@ static void test_spi_frame_classification(void)
 
 /* The four lengths must stay mutually distinct — if a wire-format change ever
  * made two equal, length-based demux would silently route one as the other. */
+/* @verifies REQ-FWHUB-50 */
 static void test_frame_lengths_are_distinct(void)
 {
     check(NP_SAFETY_RX_EXT_FRAME_LEN != NP_SAFETY_CMD_FRAME_LEN
@@ -341,6 +349,7 @@ static void test_frame_lengths_are_distinct(void)
  * Blank STM32 OTP reads 0xFF.  The agreed unprovisioned sentinel is all-ZERO.
  * Without translation an unprovisioned device presents as a signature failure
  * instead of an unprovisioned device.                                        */
+/* @verifies REQ-SW01-05 */
 static void test_otp_blank_reads_as_zero_sentinel(void)
 {
     uint8_t key[NP_ED25519_PUBKEY_SIZE];
@@ -357,6 +366,7 @@ static void test_otp_blank_reads_as_zero_sentinel(void)
     check(all_zero, "erased OTP (all 0xFF) is reported as the all-zero unprovisioned sentinel");
 }
 
+/* @verifies REQ-SW01-05 */
 static void test_otp_programmed_key_passes_through(void)
 {
     uint8_t key[NP_ED25519_PUBKEY_SIZE];
@@ -378,6 +388,7 @@ static void test_otp_programmed_key_passes_through(void)
 /* A PARTIALLY programmed window must NOT be flattened to the unprovisioned
  * sentinel — a half-written key is a corrupt device, not an unbuilt one, and
  * collapsing the two would hide a manufacturing escape. */
+/* @verifies REQ-SW01-05 */
 static void test_otp_partial_is_not_flattened(void)
 {
     uint8_t key[NP_ED25519_PUBKEY_SIZE];
@@ -391,6 +402,7 @@ static void test_otp_partial_is_not_flattened(void)
           "a partially programmed OTP window is passed through, not flattened to the sentinel");
 }
 
+/* @verifies REQ-SW01-05 */
 static void test_otp_clamps_len(void)
 {
     uint8_t buf[NP_ED25519_PUBKEY_SIZE + 8U];
@@ -449,6 +461,7 @@ static uint8_t first_session_fault_slot(void)
     return st.fault_slot;
 }
 
+/* @verifies REQ-SW01-05 */
 static void test_key_crc_read_little_endian(void)
 {
     memset(np_hal_fake_otp, 0xFF, sizeof(np_hal_fake_otp));
@@ -464,6 +477,7 @@ static void test_key_crc_read_little_endian(void)
           "an erased key CRC word is returned verbatim, not translated");
 }
 
+/* @verifies REQ-SW01-05 */
 static void test_key_crc_good_key_reaches_ed25519(void)
 {
     otp_program_key(0x21U, true, 0U);
@@ -471,6 +485,7 @@ static void test_key_crc_good_key_reaches_ed25519(void)
           "a key with a matching CRC is loaded: a bad signature fails as SIG_FAIL");
 }
 
+/* @verifies REQ-SW01-05 */
 static void test_key_crc_mismatch_is_refused(void)
 {
     uint8_t bit;
@@ -490,6 +505,7 @@ static void test_key_crc_mismatch_is_refused(void)
           "a bit flip in the stored key is caught by its CRC before first use");
 }
 
+/* @verifies REQ-SW01-05 */
 static void test_key_crc_missing_is_refused(void)
 {
     /* Key programmed, CRC double word left erased: the programming step did not
@@ -503,6 +519,7 @@ extern void np_session_sig_test_flip_ram_key_bit(void);
 
 /* FMEA-M07-02: the RAM copy is re-checked before every verification, not only
  * at init — OTP cannot change, SRAM can. */
+/* @verifies REQ-SW01-05 */
 static void test_key_crc_rechecked_per_verify(void)
 {
     np_safety_state_t st;
@@ -527,6 +544,7 @@ static void test_key_crc_rechecked_per_verify(void)
           "the corrupted key stays unloaded on the next attempt");
 }
 
+/* @verifies REQ-SW01-05 */
 static void test_key_crc_unprovisioned_stays_unprov(void)
 {
     memset(np_hal_fake_otp, 0xFF, sizeof(np_hal_fake_otp));
@@ -565,6 +583,7 @@ static void test_key_crc_unprovisioned_stays_unprov(void)
  * So the timebase is advanced past NP_THERMAL_POLL_MS, and g_adc_reads is
  * asserted non-zero FIRST: before believing anything about the resulting
  * granted_mask, prove the operation that produces it actually executed. */
+/* @verifies REQ-SW01-05 */
 static void test_adc_failsafe_value_actually_cuts(void)
 {
     np_safety_state_t st;
@@ -589,6 +608,7 @@ static void test_adc_failsafe_value_actually_cuts(void)
 /* The counter-case, which is what makes the one above meaningful rather than
  * tautological: a full-scale reading must NOT cut.  If both extremes cut — or
  * if neither branch runs — the test above proves nothing about orientation. */
+/* @verifies REQ-SW01-05 */
 static void test_adc_full_scale_does_not_cut(void)
 {
     np_safety_state_t st;
@@ -613,6 +633,7 @@ static void test_adc_full_scale_does_not_cut(void)
  * module can tell a blank window from a malformed one.  And it must come from
  * NP_TIER_OTP_OFFSET, not from the root key at offset 0: reading the wrong
  * window would make every unit's verdict depend on its session key's bytes. */
+/* @verifies REQ-SW01-05 */
 static void test_tier_record_read_verbatim_from_its_offset(void)
 {
     uint8_t rec[NP_TIER_RECORD_LEN];
@@ -641,6 +662,7 @@ static void test_tier_record_read_verbatim_from_its_offset(void)
     check(ok, "blank tier window is reported as 0xFF, NOT translated to the zero sentinel");
 }
 
+/* @verifies REQ-SW01-05 */
 static void test_tier_record_clamps_len(void)
 {
     uint8_t buf[NP_TIER_RECORD_LEN + 8U];
@@ -656,6 +678,7 @@ static void test_tier_record_clamps_len(void)
     check(ok, "tier record read never writes past NP_TIER_RECORD_LEN");
 }
 
+/* @verifies REQ-SW01-05 */
 static void test_device_uid_read(void)
 {
     uint8_t uid[NP_DEVICE_UID_LEN + 4U];
@@ -682,6 +705,7 @@ static void test_device_uid_read(void)
  * IS asserted is the timeout arithmetic — the thing a wrong constant silently
  * changes — and that both calls leave the refresh key.  That the IWDG actually
  * runs and resets a stalled loop is a silicon measurement (OI-SWCI-49).      */
+/* @verifies REQ-SW01-02 */
 static void test_iwdg_start_programs_timeout(void)
 {
     memset(&np_hal_fake_iwdg, 0, sizeof(np_hal_fake_iwdg));
@@ -695,6 +719,7 @@ static void test_iwdg_start_programs_timeout(void)
           "iwdg timeout is not slower than the heartbeat watchdog");
 }
 
+/* @verifies REQ-SW01-02 */
 static void test_iwdg_start_bounded_if_sr_sticks(void)
 {
     /* SR never clearing must not hang the boot: the wait is capped. */
@@ -704,6 +729,7 @@ static void test_iwdg_start_bounded_if_sr_sticks(void)
     check(np_hal_fake_iwdg.KR == 0xAAAAU, "iwdg_start returns even if SR never clears");
 }
 
+/* @verifies REQ-SW01-02 */
 static void test_iwdg_refresh_key(void)
 {
     np_hal_fake_iwdg.KR = 0U;

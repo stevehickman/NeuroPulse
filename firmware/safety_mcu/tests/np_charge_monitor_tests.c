@@ -95,6 +95,7 @@ static void one_current(uint16_t *buf, uint8_t ch, uint16_t ua)
 
 /* ── Test: init returns OK and no tick fires on zero accumulation ────────────── */
 
+/* @verifies DI-SAFE-01 */
 static void test_init_clean(void)
 {
     np_safe_status_t rc = np_charge_monitor_init();
@@ -113,6 +114,7 @@ static void test_init_clean(void)
 
 /* ── Test: the DC per-session budget is enforced ─────────────────────────────── */
 
+/* @verifies DI-SAFE-01 */
 static void test_dc_session_limit_enforced(void)
 {
     np_charge_monitor_init();
@@ -150,6 +152,7 @@ static void test_dc_session_limit_enforced(void)
  * 2 mA × 20 min on a 35 cm² pad is 68.6 mC/cm², and it must now run to
  * completion.
  */
+/* @verifies DI-SAFE-01 */
 static void test_two_ma_twenty_minutes_completes(void)
 {
     np_charge_monitor_init();
@@ -188,6 +191,7 @@ static void test_two_ma_twenty_minutes_completes(void)
  * Under the retired model they would have tripped in 0.4–1.0 s at their rated
  * currents.  np_charge_monitor_tick() must ignore them entirely.
  */
+/* @verifies DI-SAFE-01a */
 static void test_pulsed_channel_never_accumulates(void)
 {
     np_charge_monitor_init();
@@ -212,6 +216,7 @@ static void test_pulsed_channel_never_accumulates(void)
 
 /* ── Test: the per-phase ceiling ─────────────────────────────────────────────── */
 
+/* @verifies DI-SAFE-01a */
 static void test_phase_ceiling_pulse(void)
 {
     uint16_t cur[NP_SAFETY_MAX_CHANNELS];
@@ -251,6 +256,7 @@ static void test_phase_ceiling_pulse(void)
  * half-period is a full second and phase charge is largest — that is exactly
  * the difference between passing and failing.
  */
+/* @verifies DI-SAFE-01a */
 static void test_phase_ceiling_sine_vs_square(void)
 {
     uint16_t cur[NP_SAFETY_MAX_CHANNELS];
@@ -280,6 +286,7 @@ static void test_phase_ceiling_sine_vs_square(void)
 }
 
 /* A channel commanding nothing, or not granted, is not judged. */
+/* @verifies DI-SAFE-01a */
 static void test_phase_tick_ignores_idle_channels(void)
 {
     uint16_t cur[NP_SAFETY_MAX_CHANNELS];
@@ -312,6 +319,7 @@ static void test_phase_tick_ignores_idle_channels(void)
 
 /* ── Test: the fail-closed declaration gate ─────────────────────────────────── */
 
+/* @verifies DI-SAFE-01 DI-SAFE-01a */
 static void test_decl_gate_blocks_undeclared_electrical(void)
 {
     np_charge_monitor_init();
@@ -344,6 +352,7 @@ static void test_decl_gate_blocks_undeclared_electrical(void)
           "decl gate: 1170nm PBM never gated");
 }
 
+/* @verifies DI-SAFE-01 DI-SAFE-01a */
 static void test_decl_gate_opens_on_declaration(void)
 {
     np_charge_monitor_init();
@@ -358,6 +367,7 @@ static void test_decl_gate_opens_on_declaration(void)
           "decl gate: declaring one channel does not open another");
 }
 
+/* @verifies DI-SAFE-01 DI-SAFE-01a */
 static void test_decl_gate_rearms_each_session(void)
 {
     np_charge_monitor_init();
@@ -373,6 +383,7 @@ static void test_decl_gate_rearms_each_session(void)
 
 /* A zero class must not clear an existing declaration — a partial frame
  * declares some channels and says nothing about the rest. */
+/* @verifies DI-SAFE-01 DI-SAFE-01a */
 static void test_zero_class_does_not_undeclare(void)
 {
     np_charge_monitor_init();
@@ -389,6 +400,7 @@ static void test_zero_class_does_not_undeclare(void)
  * enable bit.  A session with both must be held to BOTH ceilings — the classes
  * OR together rather than the last one written winning.
  */
+/* @verifies DI-SAFE-01 DI-SAFE-01a */
 static void test_mixed_class_channel_runs_both_checks(void)
 {
     uint16_t cur[NP_SAFETY_MAX_CHANNELS];
@@ -413,6 +425,7 @@ static void test_mixed_class_channel_runs_both_checks(void)
 
 /* ── Test: reset_session clears accumulators and the latched fault ──────────── */
 
+/* @verifies DI-SAFE-01 */
 static void test_reset_clears_accumulators(void)
 {
     np_charge_monitor_init();
@@ -444,6 +457,7 @@ static void test_reset_clears_accumulators(void)
 
 /* ── Test: out-of-range channel is silently ignored ─────────────────────────── */
 
+/* @verifies DI-SAFE-01 */
 static void test_out_of_range_channel_ignored(void)
 {
     np_charge_monitor_init();
@@ -465,6 +479,7 @@ static void test_out_of_range_channel_ignored(void)
 
 /* ── Test: tick is idempotent after limit reached ────────────────────────────── */
 
+/* @verifies DI-SAFE-01 */
 static void test_tick_idempotent_after_trip(void)
 {
     np_charge_monitor_init();
@@ -491,6 +506,7 @@ static void test_tick_idempotent_after_trip(void)
 
 /* ── Test: charge accumulation arithmetic ───────────────────────────────────── */
 
+/* @verifies DI-SAFE-01 */
 static void test_charge_accumulation_math(void)
 {
     np_charge_monitor_init();
@@ -515,6 +531,7 @@ static void test_charge_accumulation_math(void)
 
 /* ── Test: per-channel geometry (OI-CHARGE-02) ──────────────────────────────── */
 
+/* @verifies DI-SAFE-01 DI-SAFE-01a */
 static void test_set_channel_area_hd_tdcs(void)
 {
     uint16_t cur[NP_SAFETY_MAX_CHANNELS];
@@ -543,6 +560,7 @@ static void test_set_channel_area_hd_tdcs(void)
           "HD-tDCS geometry: 4.00 µC > 3.84 µC per-phase limit → cut");
 }
 
+/* @verifies DI-SAFE-01 DI-SAFE-01a */
 static void test_set_channel_area_default_pad(void)
 {
     np_charge_monitor_init();
@@ -558,6 +576,7 @@ static void test_set_channel_area_default_pad(void)
           "area 0 leaves the fallback geometry intact (1 mC << 3750 mC)");
 }
 
+/* @verifies DI-SAFE-01 DI-SAFE-01a */
 static void test_area_override_isolated(void)
 {
     np_charge_monitor_init();
@@ -577,6 +596,7 @@ static void test_area_override_isolated(void)
 
 /* ── Tests: OI-CHARGE-03 / -04 geometry gates ───────────────────────────────── */
 
+/* @verifies DI-SAFE-01 DI-SAFE-01a */
 static void test_geom_gate_blocks_until_applied(void)
 {
     np_charge_monitor_reset_session(NULL);   /* geom NOT applied yet */
@@ -599,6 +619,7 @@ static void test_geom_gate_blocks_until_applied(void)
           "geom gate: CLIN_STIM granted after area applied");
 }
 
+/* @verifies DI-SAFE-01 DI-SAFE-01a */
 static void test_geom_gate_not_required_passes(void)
 {
     np_charge_monitor_reset_session(NULL);
@@ -610,6 +631,7 @@ static void test_geom_gate_not_required_passes(void)
           "geom gate: CLIN_STIM NOT blocked when geom_required is false (tACS)");
 }
 
+/* @verifies DI-SAFE-01 DI-SAFE-01a */
 static void test_geom_gate_rearms_each_session(void)
 {
     np_charge_monitor_reset_session(NULL);
@@ -623,6 +645,7 @@ static void test_geom_gate_rearms_each_session(void)
           "geom gate: re-armed after reset_session (blocks again until re-applied)");
 }
 
+/* @verifies DI-SAFE-01 DI-SAFE-01a */
 static void test_tdcs_geom_gate_blocks_until_applied(void)
 {
     np_charge_monitor_reset_session(NULL);
@@ -659,6 +682,7 @@ static void test_tdcs_geom_gate_blocks_until_applied(void)
           "tdcs geom gate: 5400 mC trips the declared 35 cm² budget");
 }
 
+/* @verifies DI-SAFE-01 DI-SAFE-01a */
 static void test_geom_gates_are_independent(void)
 {
     np_charge_monitor_reset_session(NULL);
@@ -685,6 +709,7 @@ static void test_geom_gates_are_independent(void)
           "gate independence: TDCS still blocked (its geometry never landed)");
 }
 
+/* @verifies DI-SAFE-01 DI-SAFE-01a */
 static void test_tdcs_geom_gate_rearms_each_session(void)
 {
     np_charge_monitor_reset_session(NULL);
@@ -707,6 +732,7 @@ static void test_tdcs_geom_gate_rearms_each_session(void)
  * amplitude as a rectangular phase — the conservative reading).  That passes
  * the 25 cm² fallback (1,000,000 nC) and must trip the declared 1 cm²; that
  * gap is exactly the ~24x fail-open this gate closes.                       */
+/* @verifies DI-SAFE-01a DI-SAFE-01 */
 static void test_bes_geom_gate_blocks_until_applied(void)
 {
     uint16_t cur[NP_SAFETY_MAX_CHANNELS];
@@ -737,6 +763,7 @@ static void test_bes_geom_gate_blocks_until_applied(void)
           "(it would pass the 25 cm² fallback)");
 }
 
+/* @verifies DI-SAFE-01a */
 static void test_bes_geom_gate_independent_and_rearms(void)
 {
     /* Not required → never blocks, even with no area: a session with no
@@ -772,6 +799,7 @@ static void test_bes_geom_gate_independent_and_rearms(void)
 
 /* The declared phase duration is clamped, so a malformed or hostile value
  * cannot overflow the per-phase arithmetic. */
+/* @verifies DI-SAFE-01a */
 static void test_phase_clamped(void)
 {
     uint16_t cur[NP_SAFETY_MAX_CHANNELS];

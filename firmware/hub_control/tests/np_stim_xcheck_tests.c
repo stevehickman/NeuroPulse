@@ -15,6 +15,7 @@
  *
  * IEC 62304 Class B — SW-02 hub control.
  */
+/* @verifies-file REQ-FWHUB-41 */
 
 #include <math.h>
 #include <stdint.h>

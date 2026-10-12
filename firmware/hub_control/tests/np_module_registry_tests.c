@@ -161,6 +161,7 @@ static void boot_empty(void)
 
 /* ── Tests ───────────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-38 */
 static void test_hot_plug_registers_every_accessory_slot(void)
 {
     char name[128];
@@ -186,6 +187,7 @@ static void test_hot_plug_registers_every_accessory_slot(void)
     }
 }
 
+/* @verifies REQ-FWHUB-38 */
 static void test_unchanged_slot_is_not_reinitialised(void)
 {
     /* The SHDR flood case: the intranasal and cervical VNS init() functions each
@@ -208,6 +210,7 @@ static void test_unchanged_slot_is_not_reinitialised(void)
     }
 }
 
+/* @verifies REQ-FWHUB-38 */
 static void test_module_present_at_boot_is_not_reinitialised(void)
 {
     boot_empty();
@@ -222,6 +225,7 @@ static void test_module_present_at_boot_is_not_reinitialised(void)
           "a module found by the boot scan is not re-initialised by idle polling");
 }
 
+/* @verifies REQ-FWHUB-38 */
 static void test_removal_shuts_down_once_and_deregisters(void)
 {
     boot_empty();
@@ -247,6 +251,7 @@ static void test_removal_shuts_down_once_and_deregisters(void)
     check(g_slot[s].init_calls == 2U, "re-seating runs init() again (one new auth record)");
 }
 
+/* @verifies REQ-FWHUB-38 */
 static void test_type_change_reinitialises(void)
 {
     /* No accessory port reports two types today; the rule is still "presence OR
@@ -263,6 +268,7 @@ static void test_type_change_reinitialises(void)
     check(e != NULL && e->type == NP_MOD_HD_TDCS, "registry carries the new type");
 }
 
+/* @verifies REQ-FWHUB-38 */
 static void test_failed_init_not_retried_until_reseated(void)
 {
     boot_empty();
@@ -290,6 +296,7 @@ static void test_failed_init_not_retried_until_reseated(void)
     check(g_slot[s].init_calls == 2U, "exactly one retry, on the re-seat");
 }
 
+/* @verifies REQ-FWHUB-38 */
 static void test_fixed_slots_are_harmless_to_rescan(void)
 {
     const uint8_t slots[] = { NP_HUB_SLOT_EEG, NP_HUB_SLOT_AUDIO,
@@ -308,6 +315,7 @@ static void test_fixed_slots_are_harmless_to_rescan(void)
     }
 }
 
+/* @verifies REQ-FWHUB-07 */
 static void test_retired_zone_slots_refused_unprobed(void)
 {
     boot_empty();
@@ -321,6 +329,7 @@ static void test_retired_zone_slots_refused_unprobed(void)
     }
 }
 
+/* @verifies REQ-FWHUB-07 */
 static void test_out_of_range_refused(void)
 {
     boot_empty();

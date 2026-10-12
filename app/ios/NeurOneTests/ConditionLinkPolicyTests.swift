@@ -41,6 +41,7 @@ final class ConditionLinkPolicyTests: XCTestCase {
 
     // MARK: - Shared cross-platform vectors
 
+    // @verifies REQ-NPPS-20
     func testSharedVectors() throws {
         let vectors = try Self.loadVectors()
         XCTAssertGreaterThan(vectors.count, 25, "shared vector file looks truncated")
@@ -62,6 +63,7 @@ final class ConditionLinkPolicyTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-20
     func testBlockedVerdictsCarryNoURL() throws {
         for v in try Self.loadVectors() where v.verdict == "block" {
             let got = NPConditionLinkPolicy.evaluate(v.url)
@@ -70,6 +72,7 @@ final class ConditionLinkPolicyTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-20
     func testAllowedVerdictsCarryTrimmedURL() throws {
         for v in try Self.loadVectors() where v.verdict == "allow" {
             let got = NPConditionLinkPolicy.evaluate(v.url)
@@ -81,6 +84,7 @@ final class ConditionLinkPolicyTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-20
     func testEveryBlockingReasonHasAMessage() throws {
         let reasons = Set(try Self.loadVectors().filter { $0.verdict == "block" }.map { $0.reason })
         for raw in reasons {
@@ -93,6 +97,7 @@ final class ConditionLinkPolicyTests: XCTestCase {
 
     // MARK: - The shipped registry
 
+    // @verifies REQ-NPPS-20
     func testBundledRegistryIsPopulated() {
         XCTAssertGreaterThan(NPBundledConditions.all.count, 20)
         XCTAssertEqual(
@@ -102,6 +107,7 @@ final class ConditionLinkPolicyTests: XCTestCase {
         )
     }
 
+    // @verifies REQ-NPPS-20
     func testEveryBundledLinkPassesPolicy() {
         let rejected = NPBundledConditions.all
             .filter { !NPConditionLinkPolicy.evaluate($0.link).allowed }
@@ -113,6 +119,7 @@ final class ConditionLinkPolicyTests: XCTestCase {
     /// The generated table must not drift from the .npps registry. Guards the
     /// case where someone edits 00-conditions.npps without re-running
     /// scripts/sync-conditions.ts.
+    // @verifies REQ-NPPS-20
     func testGeneratedTableMatchesRegistrySource() throws {
         let registry = Self.repoRoot
             .appendingPathComponent("protocols")
@@ -136,6 +143,7 @@ final class ConditionLinkPolicyTests: XCTestCase {
 
     // MARK: - Resolution
 
+    // @verifies REQ-NPPS-20
     func testResolvePreservesOrderAndArity() {
         let names = ["Insomnia", "Not In Registry", "Migraine"]
         let resolved = NPBundledConditions.resolve(names)
@@ -148,6 +156,7 @@ final class ConditionLinkPolicyTests: XCTestCase {
         XCTAssertNotNil(resolved[2].definition)
     }
 
+    // @verifies REQ-NPPS-20
     func testResolveKnownConditionExposesCodeAndHost() {
         guard let resolved = NPBundledConditions.resolve(["Major Depressive Disorder"]).first else {
             return XCTFail("expected one resolved condition")
@@ -158,6 +167,7 @@ final class ConditionLinkPolicyTests: XCTestCase {
 
     // MARK: - Spot checks independent of the vector file
 
+    // @verifies REQ-NPPS-20
     func testJavaScriptSchemeIsRefused() {
         XCTAssertEqual(
             NPConditionLinkPolicy.evaluate("javascript:alert(1)").reason,
@@ -165,6 +175,7 @@ final class ConditionLinkPolicyTests: XCTestCase {
         )
     }
 
+    // @verifies REQ-NPPS-20
     func testHostSpoofViaUserinfoIsRefused() {
         let v = NPConditionLinkPolicy.evaluate("https://en.wikipedia.org@evil.example.com/x")
         XCTAssertEqual(v.reason, .embeddedCredentials)

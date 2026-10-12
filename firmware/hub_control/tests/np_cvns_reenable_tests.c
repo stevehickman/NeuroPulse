@@ -97,6 +97,7 @@ static uint32_t drive_to_impedance(uint32_t t0)
 
 /* ── Tests: init and cutoff detection ───────────────────────────────────────── */
 
+/* @verifies REQ-CVNS-09#e */
 static void test_init_idle(void)
 {
     np_cvns_reenable_init();
@@ -106,6 +107,7 @@ static void test_init_idle(void)
           "init: re-enable bit inactive");
 }
 
+/* @verifies REQ-CVNS-09#e */
 static void test_cutoff_rising_edge(void)
 {
     np_cvns_reenable_init();
@@ -128,6 +130,7 @@ static void test_cutoff_rising_edge(void)
 
 /* ── Tests: gate 1 — 30s lockout ────────────────────────────────────────────── */
 
+/* @verifies REQ-CVNS-09#e */
 static void test_lockout_timing(void)
 {
     np_cvns_reenable_init();
@@ -154,6 +157,7 @@ static void test_lockout_timing(void)
           "gate1: bit still inactive in AWAIT_CONFIRM");
 }
 
+/* @verifies REQ-CVNS-09#e */
 static void test_lockout_tick_wrap(void)
 {
     np_cvns_reenable_init();
@@ -176,6 +180,7 @@ static void test_lockout_tick_wrap(void)
 
 /* ── Tests: gate 2 — explicit confirmation ──────────────────────────────────── */
 
+/* @verifies REQ-CVNS-09#f */
 static void test_confirm_in_idle_rejected(void)
 {
     np_cvns_reenable_init();
@@ -188,6 +193,7 @@ static void test_confirm_in_idle_rejected(void)
           "gate2: no impedance started from IDLE");
 }
 
+/* @verifies REQ-CVNS-09#f */
 static void test_confirm_accepted_starts_impedance(void)
 {
     uint32_t t = drive_to_await_confirm(1000U);
@@ -220,6 +226,7 @@ static void test_confirm_accepted_starts_impedance(void)
           "gate2: duplicate confirm does not restart impedance");
 }
 
+/* @verifies REQ-CVNS-09#f */
 static void test_confirm_hal_start_failure(void)
 {
     uint32_t t = drive_to_await_confirm(1000U);
@@ -241,6 +248,7 @@ static void test_confirm_hal_start_failure(void)
 
 /* Race regression: a confirmation posted for cutoff A must not attach to a
  * fresh cutoff B whose lockout has not elapsed (findings 1+2). */
+/* @verifies REQ-CVNS-09#f */
 static void test_confirm_does_not_carry_to_new_cutoff(void)
 {
     uint32_t t = drive_to_await_confirm(1000U);
@@ -269,6 +277,7 @@ static void test_confirm_does_not_carry_to_new_cutoff(void)
 
 /* ── Tests: gate 3 — impedance result ───────────────────────────────────────── */
 
+/* @verifies REQ-CVNS-09#f */
 static void test_impedance_pass_asserts(void)
 {
     uint32_t ti = drive_to_impedance(1000U);
@@ -284,6 +293,7 @@ static void test_impedance_pass_asserts(void)
           "gate3: bit ACTIVE only after all three gates");
 }
 
+/* @verifies REQ-CVNS-09#f */
 static void test_impedance_fail_closes(void)
 {
     uint32_t ti = drive_to_impedance(1000U);
@@ -299,6 +309,7 @@ static void test_impedance_fail_closes(void)
           "gate3: bit inactive after fail");
 }
 
+/* @verifies REQ-CVNS-09#f */
 static void test_impedance_timeout_closes(void)
 {
     uint32_t ti = drive_to_impedance(1000U);
@@ -331,6 +342,7 @@ static uint32_t drive_to_asserting(uint32_t t0)
     return ti + 200U;
 }
 
+/* @verifies REQ-CVNS-09#f */
 static void test_assert_completes_on_cardiac_clear(void)
 {
     uint32_t ta = drive_to_asserting(1000U);
@@ -347,6 +359,7 @@ static void test_assert_completes_on_cardiac_clear(void)
           "assert: bit deasserted after completion");
 }
 
+/* @verifies REQ-CVNS-09#f */
 static void test_assert_timeout(void)
 {
     uint32_t ta = drive_to_asserting(1000U);
@@ -365,6 +378,7 @@ static void test_assert_timeout(void)
 
 /* ── Tests: resets and external clears ──────────────────────────────────────── */
 
+/* @verifies REQ-CVNS-09#f */
 static void test_session_not_running_resets(void)
 {
     uint32_t ta = drive_to_asserting(1000U);
@@ -378,6 +392,7 @@ static void test_session_not_running_resets(void)
           "reset: bit deasserted on session boundary");
 }
 
+/* @verifies REQ-CVNS-09#f */
 static void test_session_reset_api(void)
 {
     (void)drive_to_await_confirm(1000U);
@@ -386,6 +401,7 @@ static void test_session_reset_api(void)
           "reset: session_reset() returns to IDLE");
 }
 
+/* @verifies REQ-CVNS-09#f */
 static void test_cardiac_cleared_externally(void)
 {
     /* In LOCKOUT */
@@ -406,6 +422,7 @@ static void test_cardiac_cleared_externally(void)
           "external-clear: AWAIT_CONFIRM → IDLE when CARDIAC clears");
 }
 
+/* @verifies REQ-CVNS-09#f */
 static void test_confirmation_single_use(void)
 {
     /* Complete one full cycle */
@@ -425,6 +442,7 @@ static void test_confirmation_single_use(void)
           "single-use: bit inactive after second cutoff");
 }
 
+/* @verifies REQ-CVNS-09#f */
 static void test_new_cutoff_during_impedance_restarts(void)
 {
     /* A NEW rising edge (clear then set) mid-flow restarts the sequence.  */
@@ -443,6 +461,7 @@ static void test_new_cutoff_during_impedance_restarts(void)
 
 /* ── Tests: session_status bit construction (enum-cast regression) ──────────── */
 
+/* @verifies REQ-FWHUB-19 */
 static void test_session_status_bits(void)
 {
     /* Regression: RUNNING (=3) must map to ACTIVE only — never CVNS_REENABLE */
@@ -527,6 +546,7 @@ static void test_session_status_bits(void)
 
 /* ── Tests: heartbeat sequence counter (NP-FMEA-001 OI-FMEA-12 (a)) ─────────── */
 
+/* @verifies REQ-FWHUB-42 */
 static void test_session_status_seq(void)
 {
     uint8_t seq;

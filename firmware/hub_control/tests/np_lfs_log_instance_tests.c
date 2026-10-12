@@ -126,6 +126,7 @@ static void p_nobuf(struct lfs_config *c)    { c->lookahead_buffer = NULL; }
 static void p_noprog(struct lfs_config *c)   { c->prog = NULL; }
 static void p_nolock(struct lfs_config *c)   { c->lock = NULL; }
 
+/* @verifies REQ-FWHUB-52 */
 static void test_parameters_are_pinned(void)
 {
     static const struct { const char *name; perturb_fn fn; } cases[] = {
@@ -350,6 +351,7 @@ static np_sweep_result_t sweep(const char *label, bool expect)
     return r;
 }
 
+/* @verifies REQ-FWHUB-52 */
 static void test_log_instances_hold_l1_l2(void)
 {
     ASSERT(build_log(NP_LOG_PART_UHDR, 0U), "UHDR config refused");
@@ -466,6 +468,7 @@ static np_sweep_result_t config_journal_sweep(lfs_size_t rmw, const char *label,
     return r;
 }
 
+/* @verifies REQ-FWHUB-52 */
 static void test_prog_smaller_than_xts_unit_breaks_the_contract(void)
 {
     /* (a) The log instance as decided: prog 512 over a 512-byte RMW unit. */
@@ -600,6 +603,7 @@ static void session(lfs_size_t blocks, long spike, long *max_reads, long *spikes
  * it was.  Hardware still has to confirm the eMMC honours the program half of
  * the contract; this settles the erase half on the host.
  */
+/* @verifies REQ-FWHUB-52 */
 static void test_noop_erase_is_contract_valid(void)
 {
     /* The log instance, real SHDR geometry. */
@@ -649,6 +653,7 @@ static void test_noop_erase_is_contract_valid(void)
     g_cmedia = NULL;
 }
 
+/* @verifies REQ-FWHUB-52 */
 static void test_lookahead_cost_is_measured(void)
 {
     /* UHDR geometry, 16,384 blocks (64 MiB, ~90 min of EEG at 12 kB/s) already

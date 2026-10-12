@@ -28,6 +28,7 @@ private class FakeCountsProvider(initial: List<Int>) : ConsumableCountsProviding
 class ConsumableTrackerTests {
 
     // ISC-35: DI provider; isLow semantics incl. intranasal single-use threshold 0.
+    // @verifies REQ-SW03-04
     @Test
     fun intranasalIsLowOnlyAtOrPastLimit() {
         val provider = FakeCountsProvider(listOf(0, 0, 0, 0))
@@ -42,6 +43,7 @@ class ConsumableTrackerTests {
         assertTrue(tracker.sessionIsBlocked) // safety-blocking gate
     }
 
+    // @verifies REQ-SW03-04
     @Test
     fun hydrogelLowAtEightRemaining() {
         val provider = FakeCountsProvider(listOf(0, 37, 0, 0)) // 45-37 = 8 remaining
@@ -51,6 +53,7 @@ class ConsumableTrackerTests {
         assertFalse(tracker.sessionIsBlocked) // performance-critical, not blocking
     }
 
+    // @verifies REQ-SW03-04
     @Test
     fun activeRemindersFiltersOnlyLowStates() {
         val provider = FakeCountsProvider(listOf(0, 37, 5, 10))
@@ -64,6 +67,7 @@ class ConsumableTrackerTests {
 
     // ISC-36: snooze loads BEFORE observation — the synchronous first delivery
     // must not wipe persisted snooze state (iOS init-order bug).
+    // @verifies REQ-SW03-04
     @Test
     fun persistedSnoozeSurvivesTrackerRestart() {
         val kv = InMemoryKeyValueStore()
@@ -78,6 +82,7 @@ class ConsumableTrackerTests {
         assertEquals(2, tracker2.states[1].snoozeCount)
     }
 
+    // @verifies REQ-SW03-04
     @Test
     fun snoozeCapsAtMaxAndSafetyBlockingCannotSnooze() {
         val kv = InMemoryKeyValueStore()
@@ -93,6 +98,7 @@ class ConsumableTrackerTests {
         assertEquals(3, tracker.states[1].snoozeCount)
     }
 
+    // @verifies REQ-SW03-04
     @Test
     fun markReplacedResetsCountsAndSnooze() {
         val kv = InMemoryKeyValueStore()
@@ -106,6 +112,7 @@ class ConsumableTrackerTests {
 
     // OI-ACC-08: the hub owns the count, so Mark replaced must reach it — otherwise the hub's
     // next absolute count restores the replaced part's sessions.
+    // @verifies REQ-SW03-04
     @Test
     fun markReplacedTellsTheHub() {
         val replaced = mutableListOf<Int>()
@@ -119,6 +126,7 @@ class ConsumableTrackerTests {
         assertEquals(listOf(1), replaced)
     }
 
+    // @verifies REQ-SW03-04
     @Test
     fun duplicateCountUpdatesAreIgnored() {
         val provider = FakeCountsProvider(listOf(0, 37, 0, 0))

@@ -92,6 +92,7 @@ static uint16_t report_checksum(const np_safety_imp_report_t *r)
 
 /* ── Tests ───────────────────────────────────────────────────────────────────── */
 
+/* @verifies DI-SAFE-12 */
 static void test_report_invalid_before_measurement(void)
 {
     reset_mocks();
@@ -104,6 +105,7 @@ static void test_report_invalid_before_measurement(void)
     check(rep.magic == 0U, "report: magic cleared when unpopulated");
 }
 
+/* @verifies DI-SAFE-12 */
 static void test_report_valid_after_cvns_poll(void)
 {
     reset_mocks();
@@ -136,6 +138,7 @@ static void test_report_valid_after_cvns_poll(void)
           "report: enable gate unaffected (in-window aggregate stays granted)");
 }
 
+/* @verifies DI-SAFE-12 */
 static void test_report_rounds_and_survives_gate_fail(void)
 {
     reset_mocks();
@@ -167,6 +170,7 @@ static void test_report_rounds_and_survives_gate_fail(void)
     check(rep.cvns_kohm_x100[1] == 400U, "report: 4004 Ω rounds to 400 (kΩ×100)");
 }
 
+/* @verifies DI-SAFE-12 */
 static void test_report_reinvalidated_on_new_request(void)
 {
     reset_mocks();
@@ -221,6 +225,7 @@ static void gate_session(np_safety_state_t *st, uint16_t mask)
     np_impedance_check_request(mask);
 }
 
+/* @verifies DI-SAFE-12 */
 static void test_gate_pending_then_pass(void)
 {
     np_safety_state_t st;
@@ -244,6 +249,7 @@ static void test_gate_pending_then_pass(void)
     check((iterate(&st) & NP_SAFETY_EN_TDCS) != 0U, "gate: and stays granted");
 }
 
+/* @verifies DI-SAFE-12 */
 static void test_gate_fail_is_not_regranted(void)
 {
     np_safety_state_t st;
@@ -268,6 +274,7 @@ static void test_gate_fail_is_not_regranted(void)
     check((iterate(&st) & NP_SAFETY_EN_TDCS) != 0U, "fail: a passing re-check grants");
 }
 
+/* @verifies DI-SAFE-12 */
 static void test_gate_pass_does_not_carry_over(void)
 {
     np_safety_state_t st;
@@ -290,6 +297,7 @@ static void test_gate_pass_does_not_carry_over(void)
     check((iterate(&st) & NP_SAFETY_EN_TDCS) != 0U, "carry: granted once that check passes");
 }
 
+/* @verifies REQ-CVNS-09#f */
 static void test_gate_cvns_reenable_rechecks(void)
 {
     np_safety_state_t st;
@@ -319,6 +327,7 @@ static bool floor_grants(uint8_t ch, uint16_t bit, uint32_t ohm, bool *status_se
     return granted;
 }
 
+/* @verifies DI-SAFE-12 */
 static void test_floor_rejects_zero_and_below(void)
 {
     static const struct { uint8_t ch; uint16_t bit; uint32_t min; const char *name; } k[] = {
@@ -348,6 +357,7 @@ static void test_floor_rejects_zero_and_below(void)
     }
 }
 
+/* @verifies DI-SAFE-12 */
 static void test_floor_fail_is_not_regranted(void)
 {
     np_safety_state_t st;

@@ -34,11 +34,13 @@ const vectors: LinkVector[] = JSON.parse(
 // is a change to the contract in NP-COND-LINK-001 §3 and must land in all four.
 
 describe('condition link policy — shared vectors', () => {
+  // @verifies REQ-NPPS-20
   it('loads the shared vector file', () => {
     expect(vectors.length).toBeGreaterThan(25);
   });
 
   for (const v of vectors) {
+    // @verifies REQ-NPPS-20
     it(`${v.verdict}: ${v.name}`, () => {
       const got = evaluateConditionLink(v.url);
       expect(got.allowed).toBe(v.verdict === 'allow');
@@ -47,12 +49,14 @@ describe('condition link policy — shared vectors', () => {
     });
   }
 
+  // @verifies REQ-NPPS-20
   it('never returns a url on a blocked verdict', () => {
     for (const v of vectors.filter(x => x.verdict === 'block')) {
       expect(evaluateConditionLink(v.url).url).toBeUndefined();
     }
   });
 
+  // @verifies REQ-NPPS-20
   it('returns a trimmed, openable url on every allowed verdict', () => {
     for (const v of vectors.filter(x => x.verdict === 'allow')) {
       const got = evaluateConditionLink(v.url);
@@ -71,10 +75,12 @@ describe('shipped condition registry', () => {
 
   const { conditions } = parseNPPSFile(registrySource);
 
+  // @verifies REQ-NPPS-20
   it('parses every condition in the registry', () => {
     expect(conditions.length).toBeGreaterThan(20);
   });
 
+  // @verifies REQ-NPPS-20
   it('every shipped condition link passes policy', () => {
     const rejected = conditions
       .map(c => ({ name: c.name, verdict: evaluateConditionLink(c.link) }))
@@ -83,6 +89,7 @@ describe('shipped condition registry', () => {
     expect(rejected).toEqual([]);
   });
 
+  // @verifies REQ-NPPS-20
   it('every shipped condition link is https on a public host', () => {
     for (const c of conditions) {
       const v = evaluateConditionLink(c.link);
@@ -105,6 +112,7 @@ describe('resolveConditions', () => {
     `),
   ]).namespace;
 
+  // @verifies REQ-NPPS-20
   it('resolves a known condition to an allowed verdict', () => {
     const [r] = resolveConditions(['Major Depressive Disorder'], namespace.conditions);
     expect(r.definition?.code).toBe('6A70');
@@ -112,6 +120,7 @@ describe('resolveConditions', () => {
     expect(r.verdict.host).toBe('en.wikipedia.org');
   });
 
+  // @verifies REQ-NPPS-20
   it('lists an unknown condition rather than dropping it', () => {
     const [r] = resolveConditions(['Not In Registry'], namespace.conditions);
     expect(r.name).toBe('Not In Registry');
@@ -119,6 +128,7 @@ describe('resolveConditions', () => {
     expect(r.verdict.allowed).toBe(false);
   });
 
+  // @verifies REQ-NPPS-20
   it('lists a condition whose link fails policy, with the block reason', () => {
     const [r] = resolveConditions(['Bad Link'], namespace.conditions);
     expect(r.definition).not.toBeNull();
@@ -126,6 +136,7 @@ describe('resolveConditions', () => {
     expect(r.verdict.reason).toBe('scheme_not_https');
   });
 
+  // @verifies REQ-NPPS-20
   it('preserves order and arity', () => {
     const rs = resolveConditions(
       ['Major Depressive Disorder', 'Not In Registry', 'Bad Link'],
@@ -138,6 +149,7 @@ describe('resolveConditions', () => {
 });
 
 describe('linkBlockedMessage', () => {
+  // @verifies REQ-NPPS-20
   it('gives a non-empty message for every blocking reason', () => {
     const reasons = [...new Set(vectors.filter(v => v.verdict === 'block').map(v => v.reason))];
     for (const r of reasons) {
@@ -145,6 +157,7 @@ describe('linkBlockedMessage', () => {
     }
   });
 
+  // @verifies REQ-NPPS-20
   it('gives an empty message for ok', () => {
     expect(linkBlockedMessage('ok')).toBe('');
   });

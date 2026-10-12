@@ -76,6 +76,7 @@ const [FC, DUTY, CUR] = [base.params[0], base.params[1], base.params[3]];
 const CUR_C = commands(protocol(pbm('        wavelength: "1064nm"', '14mW_cm2')))[0].params[4];
 
 describe('one wavelength per block', () => {
+  // @verifies REQ-NPPS-03
   it('808 nm family drives only the 808 channel', () => {
     for (const w of ['808nm', '810nm', '820nm', '830nm']) {
       const [c] = commands(protocol(pbm(`        wavelength: "${w}"`)));
@@ -84,28 +85,33 @@ describe('one wavelength per block', () => {
     }
   });
 
+  // @verifies REQ-NPPS-03
   it('660 nm drives only the 660 channel', () => {
     const [c] = commands(protocol(pbm('        wavelength: "660nm"')));
     expect(c.params).toEqual([FC, DUTY, CUR, 0]);
   });
 
+  // @verifies REQ-NPPS-03
   it('1070 nm drives only CH_C on a smart command', () => {
     const [c] = commands(protocol(pbm('        wavelength: "1070nm"', '14mW_cm2')));
     expect(c.modType).toBe(NP_MOD_PBM_SMART);
     expect(c.params).toEqual([FC, DUTY, 0, 0, CUR_C, 0x04]);
   });
 
+  // @verifies REQ-NPPS-03
   it('1064nm is a plain wavelength and drives CH_C alone', () => {
     const [c] = commands(protocol(pbm('        wavelength: "1064nm"', '14mW_cm2')));
     expect(c.params).toEqual([FC, DUTY, 0, 0, CUR_C, 0x04]);
   });
 
+  // @verifies REQ-NPPS-03
   it('the retired combined names are refused, and say which blocks replace them', () => {
     for (const w of ['660_808nm', '660_808_1064nm']) {
       expect(() => commands(protocol(pbm(`        wavelength: "${w}"`))), w).toThrow(/retired|Line/);
     }
   });
 
+  // @verifies REQ-NPPS-04
   it('drives each channel from its own full-scale table: the same irradiance is a different register', () => {
     // 28 mW/cm² is CH_C at full drive (255); on a 660/808 channel it is ~7 % of 403.
     const c1064 = commands(protocol(pbm('        wavelength: "1064nm"', '28mW_cm2')))[0];
@@ -114,12 +120,14 @@ describe('one wavelength per block', () => {
     expect(c808.params[3]).toBe(Math.round(28 / 403 * 255));
   });
 
+  // @verifies REQ-NPPS-04
   it('REFUSES an irradiance the channel cannot reach, rather than clamping it', () => {
     expect(() => commands(protocol(pbm('        wavelength: "1064nm"', '250mW_cm2'))))
       .toThrow(/exceeds what led_1064 delivers at full drive \(28 mW\/cm²\).*refused, not reduced/);
     expect(() => commands(protocol(pbm('        wavelength: "808nm"', '404mW_cm2')))).toThrow(/exceeds what led_808/);
   });
 
+  // @verifies REQ-NPPS-03#b
   it('refuses a wavelength no rule accepts — never the nearest channel, never all channels', () => {
     for (const w of ['850nm', '640nm', '633nm', '1080nm']) {
       expect(() => commands(protocol(pbm(`        wavelength: "${w}"`))), w)
@@ -127,10 +135,12 @@ describe('one wavelength per block', () => {
     }
   });
 
+  // @verifies REQ-NPPS-03
   it('refuses a value that is not a wavelength', () => {
     expect(() => commands(protocol(pbm('        wavelength: "red"')))).toThrow(/is not a wavelength/);
   });
 
+  // @verifies REQ-NPPS-03
   it('compiles against the rules it is given', () => {
     const lab = resolveWavelengthRules(DEFAULT_WAVELENGTH_RULES, {
       name: 'Lab', level: 'user',
@@ -142,6 +152,7 @@ describe('one wavelength per block', () => {
 });
 
 describe('start offsets', () => {
+  // @verifies REQ-FWHUB-08
   it('blocks run in series: F3 side 0–4 min, then F4 side 4–8 min', () => {
     const block = (zone: string, start: string) => `    pbm_transcranial {
         wavelength: "810nm"
@@ -165,11 +176,13 @@ describe('start offsets', () => {
     expect(on[1].sockets.every(s => right.has(s))).toBe(true);
   });
 
+  // @verifies REQ-FWHUB-08
   it('a continuous block with a start begins at its offset', () => {
     const [c] = commands(protocol(pbm('        wavelength: "810nm"\n        start: 90s')));
     expect([c.startMs, c.durationMs]).toEqual([90000, 0]);
   });
 
+  // @verifies REQ-NPPS-09
   it('refuses a block that starts at or after the session end', () => {
     expect(() => commands(protocol(pbm('        wavelength: "810nm"\n        start: 10m')))).toThrow(/never run/);
   });
@@ -178,26 +191,31 @@ describe('start offsets', () => {
 describe('parallel blocks on the same tiles', () => {
   const two = (a: string, b: string) => protocol(`${pbm(a)}\n${pbm(b)}`);
 
+  // @verifies REQ-NPPS-03#c
   it('660 nm and 810 nm with identical timing merge into one command driving both channels', () => {
     const cmds = commands(two('        wavelength: "660nm"', '        wavelength: "810nm"'));
     expect(cmds).toHaveLength(1);
     expect(cmds[0].params).toEqual([FC, DUTY, CUR, CUR]);
   });
 
+  // @verifies REQ-NPPS-03#c
   it('refuses the same pair at different frequencies', () => {
     const p = protocol(`${pbm('        wavelength: "660nm"')}\n${pbm('        wavelength: "810nm"').replace('frequency: 40Hz', 'frequency: 10Hz')}`);
     expect(() => commands(p)).toThrow(/overlap on socket/);
   });
 
+  // @verifies REQ-NPPS-03#c
   it('refuses two blocks on the same channel', () => {
     expect(() => commands(two('        wavelength: "808nm"', '        wavelength: "820nm"'))).toThrow(/overlap on socket/);
   });
 
+  // @verifies REQ-NPPS-03#c
   it('refuses a partial socket overlap even with matching timing', () => {
     const p = protocol(`${pbm('        wavelength: "660nm"')}\n${pbm('        wavelength: "810nm"').replace('Frontal Left', 'Frontal')}`);
     expect(() => commands(p)).toThrow(/overlap on socket/);
   });
 
+  // @verifies REQ-FWHUB-08
   it('blocks on disjoint tiles never interact', () => {
     const p = protocol(`${pbm('        wavelength: "660nm"')}\n${pbm('        wavelength: "810nm"').replace('Frontal Left', 'Posterior')}`);
     expect(commands(p)).toHaveLength(2);
@@ -213,6 +231,7 @@ describe('intranasal probe blocks', () => {
         duty_cycle: 25%
 ${extra}    }`;
 
+  // @verifies REQ-NPPS-03
   it('one wavelength drives its probe channel only', () => {
     const [c] = commands(protocol(nasal('660nm')));
     expect(c.modType).toBe(NP_MOD_INTRANASAL);
@@ -222,6 +241,7 @@ ${extra}    }`;
     expect([d.params[3], d.params[4] > 0]).toEqual([0, true]);
   });
 
+  // @verifies REQ-FWHUB-08
   it('660 nm and 808 nm blocks with identical timing merge into one probe command', () => {
     const cmds = commands(protocol(`${nasal('660nm')}\n${nasal('808nm')}`));
     expect(cmds).toHaveLength(1);
@@ -229,11 +249,13 @@ ${extra}    }`;
     expect(cmds[0].params[4]).toBeGreaterThan(0);
   });
 
+  // @verifies REQ-NPPS-04
   it('refuses two blocks on one channel and a wavelength the probe does not carry', () => {
     expect(() => commands(protocol(`${nasal('660nm')}\n${nasal('660nm')}`))).toThrow(/overlap/);
     expect(() => commands(protocol(nasal('1064nm')))).toThrow(/cannot be delivered on led_1064/);
   });
 
+  // @verifies REQ-NPPS-04
   it('refuses an irradiance above the probe full scale', () => {
     expect(() => commands(protocol(nasal('660nm', '150mW_cm2')))).toThrow(/exceeds what the intranasal probe delivers/);
   });
@@ -241,10 +263,12 @@ ${extra}    }`;
 
 describe('audio level', () => {
   const audio = (v: string) => protocol(`    audio_entrainment {\n        carrier_hz: 440Hz\n        isochronic_hz: 10Hz\n        volume: ${v}\n    }`);
+  // @verifies REQ-NPPS-04
   it('maps dB SPL through the calibration line', () => {
     // 40 + 0.5 × pct: 65 dB is wire value 50.
     expect(commands(audio('65dB'))[0].params[5]).toBe(50);
   });
+  // @verifies REQ-NPPS-04
   it('refuses a level outside the calibrated range', () => {
     expect(() => commands(audio('95dB'))).toThrow(/outside the range the drive can deliver/);
     expect(() => commands(audio('30dB'))).toThrow(/outside the range/);
@@ -270,6 +294,7 @@ describe('the shipped library', () => {
     'tACS — Sleep / Memory Consolidation (SO 0.75Hz)': ['0:bes_tacs:phaseChargeDensity=12.732'],
   };
 
+  // @verifies REQ-NPPS-18
   it('every predefined protocol compiles, except the ones refused for a stated reason', () => {
     const manifest = JSON.parse(fs.readFileSync(path.join(DIR, 'manifest.json'), 'utf8'));
     const files = [...manifest.zones, ...manifest.conditions, ...manifest.protocols]
@@ -312,10 +337,12 @@ describe('CW with a duty cycle (OI-SESPWR-03)', () => {
     return def;
   };
   for (const kind of Object.keys(BODIES)) {
+    // @verifies REQ-NPPS-02
     it(`${kind}: refuses a definition built outside the parser with CW and a duty other than 100 %`, () => {
       expect(() => commands(cw(kind, 25))).toThrow(/continuous wave, which has no duty cycle/);
     });
   }
+  // @verifies REQ-NPPS-02
   it('compiles CW at 100 %', () => {
     expect(commands(cw('pbm_transcranial', 100))[0].params[0]).toBe(0);
   });

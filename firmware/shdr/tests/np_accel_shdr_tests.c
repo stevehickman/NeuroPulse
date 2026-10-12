@@ -126,6 +126,7 @@ static void run_gap(const float *s, size_t n,
  * is enrolled.  This is the non-coercion invariant (CHAR-4 / §H.6) expressed as
  * a property of the code: a non-participant's maintenance signal is bit-for-bit
  * what a participant's is. */
+/* @verifies REQ-SW02-04 */
 static void test_standard_record_identical_regardless_of_enrolment(void)
 {
     printf("standard record is enrolment-independent\n");
@@ -148,6 +149,7 @@ static void test_standard_record_identical_regardless_of_enrolment(void)
 }
 
 /* The positive control for every suppression test below. */
+/* @verifies REQ-SW02-04 */
 static void test_extended_emitted_on_the_happy_path(void)
 {
     printf("extended record IS emitted when every condition holds\n");
@@ -177,6 +179,7 @@ static void test_extended_emitted_on_the_happy_path(void)
 }
 
 /* CHAR-2 — the build-time gate. */
+/* @verifies REQ-SW02-04 */
 static void test_window_disabled_build_emits_standard_only(void)
 {
     printf("window-disabled build emits standard only\n");
@@ -198,6 +201,7 @@ static void test_window_disabled_build_emits_standard_only(void)
 }
 
 /* §H.3 — affirmative opt-in. */
+/* @verifies REQ-SW02-04 */
 static void test_not_consented_emits_standard_only(void)
 {
     printf("non-consented device emits standard only\n");
@@ -221,6 +225,7 @@ static void test_not_consented_emits_standard_only(void)
 
 /* Fail-closed on a corrupt record: a flipped bit must read as NOT enrolled,
  * never as enrolled. */
+/* @verifies REQ-SW02-04 */
 static void test_corrupt_enrolment_is_not_enrolled(void)
 {
     printf("corrupt enrolment record fails closed\n");
@@ -238,6 +243,7 @@ static void test_corrupt_enrolment_is_not_enrolled(void)
 }
 
 /* A device consented to programme N must not contribute to programme N+1. */
+/* @verifies REQ-SW02-04 */
 static void test_programme_id_mismatch_closes_window(void)
 {
     printf("programme id mismatch fails closed\n");
@@ -251,6 +257,7 @@ static void test_programme_id_mismatch_closes_window(void)
 }
 
 /* The expiry itself.  Record BUDGET is emitted; record BUDGET+1 is not. */
+/* @verifies REQ-SW02-04 */
 static void test_budget_boundary_is_the_expiry(void)
 {
     printf("budget boundary closes the window\n");
@@ -280,6 +287,7 @@ static void test_budget_boundary_is_the_expiry(void)
 
 /* The counter must be consumed ONLY by emission — that is what makes it a
  * monotone the window can be denominated in. */
+/* @verifies REQ-SW02-04 */
 static void test_budget_consumed_only_by_emission(void)
 {
     printf("budget advances only when a record is emitted\n");
@@ -308,6 +316,7 @@ static void test_budget_consumed_only_by_emission(void)
 }
 
 /* §G.2 rolling alert, counted in GAPS (see NP_ACCEL_MAINT_WINDOW_GAPS). */
+/* @verifies REQ-SW02-04 */
 static void test_maintenance_alert_rolling_window(void)
 {
     printf("maintenance alert over the rolling gap window\n");
@@ -339,6 +348,7 @@ static void test_maintenance_alert_rolling_window(void)
 
 /* §H.2 coarsening — every bin edge maps as specified, and a value below the
  * event floor produces no event at all. */
+/* @verifies REQ-SW02-04 */
 static void test_histogram_binning(void)
 {
     printf("histogram binning\n");
@@ -371,6 +381,7 @@ static void test_histogram_binning(void)
 }
 
 /* End-to-end through the I/O path, including the unreadable-enrolment case. */
+/* @verifies REQ-SW02-04 */
 static void test_process_session_gap_end_to_end(void)
 {
     printf("process_session_gap end to end\n");
@@ -400,6 +411,7 @@ static void test_process_session_gap_end_to_end(void)
 /* Anti-criterion, asserted on the type itself: the extended record has no field
  * that could carry an orientation, an axis, a per-event g value or a clock.
  * A future field of any of those kinds changes sizeof and trips this. */
+/* @verifies REQ-SW02-04 */
 static void test_extended_record_carries_no_prohibited_field(void)
 {
     printf("extended record shape\n");

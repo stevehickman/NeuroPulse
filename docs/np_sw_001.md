@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 13
-**Date:** 2026-10-11  
+**Revision:** 14
+**Date:** 2026-10-12  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -16,6 +16,8 @@
 **Next Review:** 2027-05-13 or upon significant architecture change
 
 ---
+
+**Rev 14 (2026-10-12):** **§5.1.1 and §5.2.2 added: five unit requirements for SW-01 (`REQ-SW01-01…05`) ten for the SW-02 modules outside the hub control program (`REQ-SW02-01…10`) and seventeen for the SW-03 apps (`REQ-SW03-01…17`)** so the tests of those modules trace to a requirement. Each restates a rule already binding in `CLAUDE.md` §4.2 or a `DI-SAFE` row (enable-line ownership, heartbeat and timebase integrity, non-volatile cutoff state, cardiac evidence, key and tier-record reads) and adds no figure. Nothing in the code or the tests changed.
 
 **Rev 12 (2026-10-09):** **§6.3 added: requirement rows for all five groups of `OI-UI-KMP-10`** in `docs/status/pending-decisions.md`: the protocol lifecycle (P1–P6), the helmet hardware version (H1–H7), upload verification (U1–U2), the warranty owner, used flag and export (W1–W3) and the protocol family (F1–F12). It also holds the rows for `OI-UI-KMP-09` (session stop, pause and progress, R1–R6) and `OI-UI-KMP-11` (device-replacement migration, M1–M12). Every row answers the two questions of `NP-CONV-001` §7.1 (what fails, where it traces). **None is built:** the status column says so, and the rows are the design input for the work, not a record of it. No limit, interlock or locked decision of `CLAUDE.md` changes.
 
@@ -188,6 +190,20 @@ Each module listed constitutes a **software unit** requiring individual unit ver
 > **The accumulator is `uint64_t`** with no roll-over detection, which at these ceilings it does
 > not need; there is no 32-bit-boundary unit test because there is no 32-bit accumulator.
 
+### 5.1.1 Unit requirements (SW-01)
+
+Restatements of rules already binding elsewhere, written so the host tests of §5.1's modules have a
+row to trace to (`CLAUDE.md` §18: each row names what fails and where the rule comes from). They add
+no figure.
+
+| ID | Requirement | Fails without it | Traced to |
+|---|---|---|---|
+| `REQ-SW01-01` | The safety MCU alone drives every stimulation enable line. All lines are driven disabled at initialisation, before any grant, and every tick rewrites every line from the granted mask (a pin is never left as an earlier tick set it). The pin map has no collisions, and a non-zero level on an enable pin always means disabled. | A line left asserted by an earlier tick or by boot stays on after its grant is withdrawn. | `CLAUDE.md` §4.2; SW01-M01 |
+| `REQ-SW01-02` | A heartbeat counts only if its sequence counter advances: a stuck or replayed sequence is a lost heartbeat. The MCU's own timebases (SysTick, TIM2) must agree on rate, and a disagreement or a frozen clock latches a fault. The independent watchdog is started with a bounded timeout and is refreshed by the main loop. | A frozen heartbeat source or a stopped clock makes the 1.5 s timeout of `DI-SAFE-02` never expire. | `DI-SAFE-02`; `REQ-FWHUB-42`; SW01-M02 |
+| `REQ-SW01-03` | A cutoff that must outlive a reset (the cardiac cutoff) is held in non-volatile state. A restored cutoff stays latent until the channel is requested, then asserts. Compaction interrupted at any point, a torn snapshot, a snapshot that was never committed, or a store holding only garbage never replaces committed state and fails closed. | A power cycle clears a cardiac cutoff, or a torn write re-enables a channel. | `DI-SAFE-09`; `DI-SAFE-03`; SW01-M05 |
+| `REQ-SW01-04` | The cervical VNS enable is granted only while live R-peak evidence exists: before a baseline, with no R-peaks, with a stale R-peak, or without a fresh hub cross-check report it is withheld, and once granted a stale or disagreeing source cuts it. The cutoff blocks the cervical VNS line only and re-arms on a new request. | Cardiac protection that is silently absent when its sensor is. | `DI-SAFE-03`; `CLAUDE.md` §4.2; SW01-M05 |
+| `REQ-SW01-05` | The OTP records are read verbatim and bounded: a blank key reads as the unprovisioned sentinel, a programmed key passes through, a key whose CRC is missing or wrong is refused (and re-checked at every verify), and the tier record and device UID are read at their offsets with the length clamped. An ADC failsafe value always cuts, and full scale does not. | A corrupt or absent key reaching the signature check, or a failed sensor read that reads as safe. | `DI-SAFE-06`; `REQ-UPG-02`; `DI-SAFE-08` |
+
 ### 5.2 SW-02 — Main processor firmware modules (Class B)
 
 | Module ID | Module name | Repo path | Function |
@@ -212,6 +228,24 @@ Each module listed constitutes a **software unit** requiring individual unit ver
 
 Firmware requirement, binding on both SW02-M04 (PBM session orchestrator, smart module ZONE_ID variant) and SW02-M06 (zone module detect and announce, base module ZONE_ID): a module insertion or removal is confirmed only after **3 consecutive ADC reads at 100ms intervals** with a **≥2/3 majority** agreeing on the same slot state (present/absent/smart-module-detected). A single noisy or transitional ADC read must never toggle a slot's state. This is the firmware-requirements-level statement of RISK-18 (zone module miskeying / false insertion detection); the full algorithm and state machine are specified in `firmware/zone_announce/` (`docs/superseded/np_fw_za_001.md` §6.2) and, for the 1064nm smart-module ZONE_ID variant, in `firmware/pbm/` (`docs/np_fw_pbm1064_001.md` §4). Both implementations satisfy this same 3-read/2-of-3 requirement; this subsection exists so the requirement is traceable from the software development plan itself, not only from the two module-level specs that implement it.
 
+### 5.2.2 Unit requirements (SW-02, modules outside the hub control program)
+
+Restatements of rules already binding elsewhere, so the host tests of these modules have a row to
+trace to. They add no figure.
+
+| ID | Requirement | Traced to |
+|---|---|---|
+| `REQ-SW02-01` | The on-device anonymization pipeline sets its flag and key at initialisation, clears its secrets on completion, resumes after a power loss, and aborts with nothing emitted when any stage, transform or validation fails or an argument is null. *Fails without it:* a partial or keyed extract leaves the device. | `CLAUDE.md` §5.3; `NP-FW-EMMC-002` §D |
+| `REQ-SW02-02` | An EDF+ export carries no real name, date of birth or sex: the validator rejects them, the patient code has the anonymous prefix, and the anonymity gate refuses every file that fails and does not abort the batch. *Fails without it:* a recording leaves the device identifying the person. | `CLAUDE.md` §5.1, §5.3; `NP-FW-EMMC-002` §E |
+| `REQ-SW02-03` | The UHDR key is derived from the user's credential and hardware binding and is never held by NeurOne: provisioning, unlock (right and wrong credential), credential change, parameter rollback refusal, AAD binding and nonce uniqueness hold, and an early exit scrubs the key material. *Fails without it:* the UHDR is readable without the user, or a key stays in memory after a failed unlock. | `CLAUDE.md` §5.1; `NP-FW-EMMC-002` §C |
+| `REQ-SW02-04` | The extended SHDR accelerometer record is emitted only for an enrolled, consenting device inside its budget, is consumed only by emission, closes on a programme-ID mismatch or a corrupt enrolment, and carries no prohibited field; the standard record is identical whether or not the device is enrolled. *Fails without it:* the enrolment state of the wearer is readable from the SHDR stream, or the record carries user biology. | `CLAUDE.md` §5.1, §5.2; `docs/reference/data-architecture-detail.md` §5.2 |
+| `REQ-SW02-05` | The memory map, core clock and cache state the application is linked and booted with are the ones decided: each is compared by a test that fails if either side moves, and the boot path verifies the clock and the cache state. *Fails without it:* two statements of one value drift apart and a mistimed tick or heartbeat ships. | `NP-SW-CI-001` §4.8, §4.11, §4.14; `DI-SAFE-02` |
+| `REQ-SW02-06` | The bootloader accepts an application image only if its bounds, length and reserved stack band pass, a staged image is authenticated and its header re-authenticated on re-read, and a small-order public key is refused. The FlexRAM bank and TCM configuration it programs is legal and not oversubscribed. *Fails without it:* a corrupt or substituted image runs, or the TCM split is set to a value the hardware rejects. | `DI-SAFE-06`; `NP-SW-CI-001` §4.3, §4.10 |
+| `REQ-SW02-07` | The bootloader's freestanding memory routines return the standard values and are correct for zero and short lengths, unaligned operands, word-boundary crossings, every offset, non-zero fill and large transfers. *Fails without it:* the image copy and the authentication buffers are corrupted at a length or alignment the tests did not reach. | `NP-SW-CI-001` §4.2 |
+| `REQ-SW02-08` | A taVNS session refuses to start with a frequency outside the accepted window, and a refused configuration leaves no previous session's callback, rate or current armed. The stimulation gate opens only on the inspiration direction. *Fails without it:* a refused session runs with the previous session's settings. | `NP-FW-HRV-001` §8, §10; `CLAUDE.md` §3 |
+| `REQ-SW02-09` | The PBM session descriptor serialises and parses back to itself, rejects malformed input, expands groups with the first group winning, and fails closed on overflow or on over-capacity. A calibration that cannot be loaded fails closed, and a socket's calibration comes from the provider for that module and not from the socket. *Fails without it:* a descriptor drives a socket other than the one named, or a default calibration is applied to a module that has its own. | `NP-SES-1064-001` §1; `REQ-FWHUB-32`; `REQ-LFS-02` |
+| `REQ-SW02-10` | Zone announcements carry module insertion and removal to the app: the status and map records have the stated layout, an absent module reads absent, a fault is never reported as present, an out-of-range socket emits nothing, a snapshot fragments at the ATT floor and fits exactly, and a transmit failure is reported and aborts. An unknown module is reported once, not on every poll. *Fails without it:* the app shows a module that is not there, or a fault as a module. | `NP-HEX-ZM-001` §4.1; `NP-FW-MMSOCK-001` |
+
 ### 5.3 SW-03 — iOS/Android application (Class B)
 
 | Module ID | Module name | Repo path | Function |
@@ -223,6 +257,31 @@ Firmware requirement, binding on both SW02-M04 (PBM session orchestrator, smart 
 | SW03-M05 | Predictive maintenance alerts | `app/` | SHDR trend analysis; reminder engine; consumable tracking |
 | SW03-M06 | Apple Watch sync | `app/` | BLE GATT + WatchConnectivity; haptic/audio/visual sync |
 | SW03-M07 | Device configuration and OTA trigger | `app/` | Initiates OTA; device pairing; configuration management |
+
+### 5.3.1 Unit requirements (SW-03)
+
+Restatements of rules already binding elsewhere, so the tests of the apps have a row to trace to. They
+add no figure.
+
+| ID | Requirement | Traced to |
+|---|---|---|
+| `REQ-SW03-01` | The apps parse each GATT payload into its documented record and return nothing for a short, unknown or malformed payload, on iOS and Android alike. The fourteen UUIDs are the contract and are frozen, the raw values of the session status, pacer phase, OTA opcodes and phases match the firmware, and a characteristic the hub may omit is never required. *Fails without it:* the app misreads hub state, or refuses to connect to a hub that does not carry an optional characteristic. | `DI-INT-02`; `REQ-FWHUB-56`; `REQ-FWHUB-50` |
+| `REQ-SW03-02` | The app decodes zone-module status and socket-map frames: a fault is never present, an unknown module type or enum degrades safely, a socket outside the addressing domain or a wrong version is rejected, a snapshot commits only on its last fragment and an out-of-order or over-long run is abandoned, and a delta during a run survives it. The zone name comes from the authored zone file, never from the wire. *Fails without it:* the app shows a module that is not there, or a half-received snapshot. | `REQ-SW02-10`; `NP-HEX-ZM-001` §4.1; `REQ-NPPS-17` |
+| `REQ-SW03-03` | A cervical pad alert is raised, acknowledged, re-raised and cleared as the hub reports it and clears on disconnect. An unread cardiac cutoff blocks a cervical session until it is acknowledged, a fault ledger and its acknowledgement are per user, the blanket warning is shown to every user of the device, and a non-cervical protocol is unaffected by the cutoff. *Fails without it:* a user starts cervical stimulation without being told of a cutoff, or is told of another user's. | `DI-SAFE-03`; `DI-SAFE-09`; `REQ-CVNS-09#f`; `NP-SW-FAULTMSG-001` |
+| `REQ-SW03-04` | A consumable replacement prompt follows a count the hub measured: no prompt below its threshold, a blocking prompt that cannot be snoozed when the safety-critical limit is passed, snooze caps by class, marking a consumable replaced resets its counts and snooze and tells the hub, an unchanged count is not re-applied, and counts change only through the consumable status characteristic. *Fails without it:* a prompt on a calendar or an invented count. | `CLAUDE.md` §2.3, §5.2; `REQ-FWHUB-54` |
+| `REQ-SW03-05` | First-run hardware setup runs its steps in the stated order. The safety acknowledgement is required before the step advances, is never persisted and resets on retry. The impedance step advances only when the stated minimum of electrodes pass and fails when not connected. Zone-module confirmation advances with any populated socket and fails on a faulted one. Completion is persisted once, at the last step. *Fails without it:* a session is reachable with an unacknowledged safety step or an unchecked contact. | `DI-SAFE-12`; `CLAUDE.md` §4.2; `NP-APP-ROADMAP-001` |
+| `REQ-SW03-06` | The session history is newest first and bounded, survives a reload, starts clean on a corrupt record, and never persists a completion timestamp or an EDF session identifier. *Fails without it:* the history on the phone holds a time-stamped record of the person. | `CLAUDE.md` §5.1 |
+| `REQ-SW03-07` | An analytics event carrying a prohibited key (EEG, HRV, RMSSD, coherence, session or protocol identifier, impedance) is dropped; the backend is configured once, only while the gate is open, and reset tears it down before the configured state is cleared; the warranty and research gates use distinct keys; engagement is bucketed by the stated tiers. *Fails without it:* a measurement of the person leaves in an analytics event. | `CLAUDE.md` §5.1, §6.2; `REQ-CONSENT-14`; `NP-APP-TELEMETRY-001` |
+| `REQ-SW03-08` | The app derives the UHDR key with the locked Argon2id parameters and splits it into its two halves, stores the credential in the keychain, never falls back on a biometric failure, never transmits the key, clears it on lock, and a destroyed key refuses access. *Fails without it:* the UHDR key outlives the user's unlock or reaches NeurOne. | `CLAUDE.md` §5.1; `DI-PERF-19`; `DI-REG-11` |
+| `REQ-SW03-09` | The supported locales are exactly the eleven, each with a BCP-47 tag and a display name, Arabic is right-to-left and no other is, a language code falls back by prefix and then to English, plural categories fall back to `_OTHER` and never to the raw key, and every locale carries English's keys and its own plural categories. Special characters render as written. *Fails without it:* a user sees a raw key or a wrong plural, or the build ships a locale that lacks a key. | `CLAUDE.md` §17; `docs/reference/localization.md` |
+| `REQ-SW03-10` | The platform primitives (SHA-256, SHA-512, MD5, UUID, Ed25519) agree with their published vectors and, on the JVM, with the JDK on every block boundary; a signer's fingerprint is the same shape on the common and the JDK signer; a malformed UUID is refused. *Fails without it:* a signature, a descriptor hash or a warranty-derived UUID differs between platforms. | FIPS 180, RFC 1321, RFC 4122, RFC 8032; `DI-SAFE-06` |
+| `REQ-SW03-11` | A protocol payload up to the single-chunk size is one chunk, anything larger is a start, continuation and end sequence that reassembles to the original bytes, and an empty payload is one empty chunk. The uploader sends the binary descriptor stamped with the gateway's device serial and throws when the link is not ready. *Fails without it:* a truncated descriptor reaches the hub, or a descriptor is signed for another device. | `NP-FW-HUB-001` §4; `SWR-UP-01`; `REQ-FWHUB-08` |
+| `REQ-SW03-12` | A research suggestion is stored only if it is a valid draft, a vote toggles its count and flag, a pledge updates the cumulative amount as an intent and not a charge, and the device token is stable across submissions and persists across a reload. *Fails without it:* a vote counts twice or a pledge is taken as a payment. | `CLAUDE.md` §6.3 |
+| `REQ-SW03-13` | The session-download button is shown only for a completed session with a non-zero epoch, and the EDF session identifier is absent for a zero epoch; the two helpers agree at zero and non-zero. *Fails without it:* a download is offered for a session that has no data. | `REQ-SW02-02`; `CLAUDE.md` §5.1 |
+| `REQ-SW03-14` | The generated constants file is the source of the constants every runtime reads: names are upper snake case with one meaning, a whole-number figure is marked int and only those, the generated web constants equal the file, every GATT UUID is the base with its id and none repeats, and the hardware limits the editors and the validator share are in the file. *Fails without it:* two runtimes carry two values of one limit. | `CLAUDE.md` §20; `REQ-NPPS-12` |
+| `REQ-SW03-15` | The pairing notice is shown only while connected and unpaired, a refused serial read raises pairing and is retried until it succeeds, another refusal or a dropped link raises nothing, and forgetting the hub disconnects, clears it and scans again. The BLE central sends commands in the wire form the library parses, reports a malformed event without ending its event thread, and reads an unknown adapter code as unknown. *Fails without it:* a user is told to pair a hub that is paired, or the radio thread dies on one malformed event. | `DI-INT-02`; `REQ-FWHUB-56` |
+| `REQ-SW03-16` | The BLE manager scans on power-on and again on a second power-on, does not scan while Bluetooth is off, schedules a reconnect after a disconnect only while Bluetooth is on, reports Bluetooth unavailable when off, unauthorised or unsupported, treats the characteristics as resolved only when all are present, and clears session, zone-module, socket-map, fault and warranty-token state on disconnect. *Fails without it:* the app shows the previous hub's state against the next hub. | `DI-INT-02`; `REQ-SW03-01` |
+| `REQ-SW03-17` | The phone forwards session state to the watch only while the watch is reachable, once per update, and a forwarded message carries only the expected keys: no epoch and no impedance pass flags. A consumable-low notification is sent only while the watch is reachable. *Fails without it:* the watch holds a timestamp or a contact measurement of the person. | `DI-INT-04`; `CLAUDE.md` §5.1 |
 
 ---
 

@@ -32,6 +32,7 @@ function zoneMap(zones: NPZoneDefinition[]): ReadonlyMap<string, NPZoneDefinitio
 }
 
 describe('socket picker zone grouping', () => {
+  // @verifies REQ-NPPS-17
   it('colours each socket by the smallest zone containing it', () => {
     // "All" contains every socket, so colouring by any larger zone would paint
     // the whole helmet one colour. Smallest-wins is what makes the map readable.
@@ -48,6 +49,7 @@ describe('socket picker zone grouping', () => {
     expect(primaryOf.get(4)).toBe('All');
   });
 
+  // @verifies REQ-NPPS-17
   it('breaks equal-size ties by name, so the map is stable across reloads', () => {
     const forward = groupByZone(zoneMap([
       { name: 'Bravo', sockets: [1, 2] },
@@ -64,6 +66,7 @@ describe('socket picker zone grouping', () => {
     expect(forward.colorOf.get('Alpha')).toBe(reverse.colorOf.get('Alpha'));
   });
 
+  // @verifies REQ-NPPS-17
   it('reports every zone a socket belongs to, smallest first', () => {
     const { membershipOf } = groupByZone(zoneMap([
       { name: 'All', sockets: [1, 2, 3] },
@@ -79,6 +82,7 @@ describe('socket picker zone grouping', () => {
    * research zone was invisible here however it was authored; now any zone in
    * the namespace is picked up, and a narrow one wins the tiles it covers.
    */
+  // @verifies REQ-NPPS-17
   it('surfaces a user-defined zone that no lobe model would have known about', () => {
     const withResearchZone = new Map(shippedZones);
     const target = [...shippedZones.get('Frontal Left')!.sockets].slice(0, 2);
@@ -96,6 +100,7 @@ describe('socket picker zone grouping', () => {
     }
   });
 
+  // @verifies REQ-NPPS-17
   it('assigns every socket on the helmet a zone from the shipped zone file', () => {
     // "All" guarantees this, but it is the property the picker relies on to
     // never render an uncoloured tile against the shipped data.
@@ -104,6 +109,7 @@ describe('socket picker zone grouping', () => {
     expect(unzoned).toEqual([]);
   });
 
+  // @verifies REQ-NPPS-17
   it('renders uncoloured rather than failing before the namespace loads', () => {
     const empty = groupByZone(new Map());
     expect(empty.legend).toEqual([]);
@@ -111,6 +117,7 @@ describe('socket picker zone grouping', () => {
     expect(empty.membershipOf.size).toBe(0);
   });
 
+  // @verifies REQ-NPPS-17
   it('never lists a zone in the legend that owns no tile', () => {
     // "All" loses every socket to the narrower zones here, so it must not appear
     // in the legend with a swatch that matches nothing on the map.

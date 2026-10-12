@@ -11,6 +11,7 @@ import kotlin.test.assertTrue
 // the one the hub's np_cons_on_reset_write() accepts (np_consumables_tests).
 class ConsumableResetTests {
 
+    // @verifies REQ-SW03-04
     @Test
     fun wireIsTheKindIndexForTheFourCountedKinds() {
         for (kind in ConsumableKind.entries) {
@@ -20,6 +21,7 @@ class ConsumableResetTests {
         assertNull(ConsumableResetWire.encode(ConsumableKind.entries.size))
     }
 
+    // @verifies REQ-SW03-04
     @Test
     fun queueSurvivesARestartAndDrainsOnce() {
         val kv = InMemoryKeyValueStore()

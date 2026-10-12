@@ -69,6 +69,7 @@ class AppFlowTest {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
     )
 
+    // @verifies REQ-ONBOARD-04
     @Test
     fun freshInstall_walksAgeGate_biometricRelease_consent_thenTheTabs() = runComposeUiTest {
         val kv = InMemoryKeyValueStore()
@@ -111,6 +112,7 @@ class AppFlowTest {
         onNodeWithText(text(Res.string.ota_firmware)).assertExists()
     }
 
+    // @verifies REQ-ONBOARD-04
     @Test
     fun returningUser_goesStraightToTheTabs() = runComposeUiTest {
         val kv = InMemoryKeyValueStore().apply {
@@ -122,6 +124,7 @@ class AppFlowTest {
         onNodeWithText(text(Res.string.tab_consumables)).assertExists()
     }
 
+    // @verifies REQ-ONBOARD-04
     @Test
     fun sessionTab_browsesTheBundledProtocolLibrary_onAHostWithNoHub() = runComposeUiTest {
         val kv = InMemoryKeyValueStore().apply {
@@ -138,6 +141,7 @@ class AppFlowTest {
         onNodeWithText("Alpha Calm").assertExists()
     }
 
+    // @verifies REQ-CONSENT-16
     @Test
     fun privacyTab_opensTheClinicianGrantFormAndReturnsWithoutGrantingAnything() = runComposeUiTest {
         val kv = InMemoryKeyValueStore().apply {
@@ -158,6 +162,7 @@ class AppFlowTest {
         assertTrue(app.consentStore.clinicianGrants.isEmpty())
     }
 
+    // @verifies REQ-CONSENT-02
     @Test
     fun settings_revokingBrainwaveConsentTakesEffectAndCanBeReviewed() = runComposeUiTest {
         val kv = InMemoryKeyValueStore().apply {
@@ -175,6 +180,7 @@ class AppFlowTest {
         onNodeWithText(text(Res.string.and_ui_review_consent)).assertExists()
     }
 
+    // @verifies REQ-CONSENT-16
     @Test
     fun privacyTab_putsThePerCategoryTitleDirectlyAboveTheCategoryList() = runComposeUiTest {
         val kv = InMemoryKeyValueStore().apply {

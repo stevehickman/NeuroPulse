@@ -63,6 +63,7 @@ class StudyDescriptorSigningTests {
      * `StudyDescriptorCanonicalForm.bytes(for:)` has to reproduce character for character, and
      * describing it in prose on both sides is how two implementations drift.
      */
+    // @verifies REQ-CONSENT-10#d
     @Test
     fun theCanonicalFormIsExactlyThis() {
         val bytes = StudyDescriptorCanonicalForm.bytes(
@@ -90,6 +91,7 @@ class StudyDescriptorSigningTests {
     }
 
     /** The signature must not depend on which order a Set happened to iterate in. */
+    // @verifies REQ-CONSENT-10#d
     @Test
     fun elementOrderDoesNotChangeTheBytes() {
         val a = descriptor(elements = linkedSetOf(UHDRElement.EEG_WAVEFORMS, UHDRElement.OUTCOME_LOGS))
@@ -105,6 +107,7 @@ class StudyDescriptorSigningTests {
      * text, so it can contain the separator. Two different descriptors must never produce the same
      * bytes, or one signature covers both.
      */
+    // @verifies REQ-CONSENT-10#d
     @Test
     fun aTitleCarryingTheSeparatorCannotForgeAnotherDescriptor() {
         val honest = descriptor(studyId = "S1", studyTitle = "Trial")
@@ -115,6 +118,7 @@ class StudyDescriptorSigningTests {
         )
     }
 
+    // @verifies REQ-CONSENT-10
     @Test
     fun theHashDigestsTheSignedBytes() {
         val d = descriptor()
@@ -127,6 +131,7 @@ class StudyDescriptorSigningTests {
 
     // ── The verifier ─────────────────────────────────────────────────────────
 
+    // @verifies REQ-CONSENT-10
     @Test
     fun aGenuinelySignedDescriptorVerifiesAndCarriesItsHash() {
         val d = sign(descriptor())
@@ -138,6 +143,7 @@ class StudyDescriptorSigningTests {
     }
 
     /** Every field is covered: tampering with any of them must break the signature. */
+    // @verifies REQ-CONSENT-10#a
     @Test
     fun tamperingWithAnyCoveredFieldRejects()  {
         val signed = sign(descriptor())
@@ -165,6 +171,7 @@ class StudyDescriptorSigningTests {
      * signature catches it first, so the descriptor is refused as forged rather than as
      * out-of-range — nothing an unverified descriptor claims influences a later step.
      */
+    // @verifies REQ-CONSENT-10#b
     @Test
     fun aDescriptorSignedByAnotherKeyIsRejected() {
         val other = KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
@@ -186,6 +193,7 @@ class StudyDescriptorSigningTests {
      * check; a device holding a key can, and collapsing the two would let a forged descriptor read
      * as a configuration problem.
      */
+    // @verifies REQ-CONSENT-10
     @Test
     fun aMalformedSignatureIsRejectedNotUnavailable() {
         val verifier = Ed25519StudyDescriptorVerifier(rawPublicKey)
@@ -201,6 +209,7 @@ class StudyDescriptorSigningTests {
     }
 
     /** A build with no key, or a broken one, falls back to refusing rather than to a thrower. */
+    // @verifies REQ-CONSENT-10#c
     @Test
     fun anAbsentOrUnusableKeyYieldsNoVerifierAtAll() {
         assertNull(Ed25519StudyDescriptorVerifier.fromBase64(null))
@@ -221,6 +230,7 @@ class StudyDescriptorSigningTests {
      * invalidates every descriptor already issued, which should be a decision and not a rename.
      * They match iOS `UHDRElement.rawValue` / `ResearchCategory.rawValue` exactly.
      */
+    // @verifies REQ-CONSENT-09
     @Test
     fun wireNamesMatchTheIosRawValues() {
         assertEquals(

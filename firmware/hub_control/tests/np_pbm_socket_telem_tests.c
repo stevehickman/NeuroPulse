@@ -228,6 +228,7 @@ static void ticks(unsigned n)
 
 /* ── Session side ──────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-47 */
 static void test_metering_and_uhdr_record(void)
 {
     fresh();
@@ -264,6 +265,7 @@ static void test_metering_and_uhdr_record(void)
     check(shdr_new() == 0U, "uhdr 0x1A: the socket record puts nothing in SHDR (F1–F8)");
 }
 
+/* @verifies REQ-FWHUB-47 */
 static void test_unreadable_pd_is_not_measured(void)
 {
     fresh();
@@ -277,6 +279,7 @@ static void test_unreadable_pd_is_not_measured(void)
           "not measured: unreadable PDs clear PD_VALID and book no dose");
 }
 
+/* @verifies REQ-FWHUB-47 */
 static void test_base_tile_has_no_1064_row(void)
 {
     fresh();
@@ -289,6 +292,7 @@ static void test_base_tile_has_no_1064_row(void)
           "base tile: 660/808 metered, the 1064 nm row is not measured and books nothing");
 }
 
+/* @verifies REQ-FWHUB-47 */
 static void test_dose_limit_latches_each_channel(void)
 {
     fresh();
@@ -305,6 +309,7 @@ static void test_dose_limit_latches_each_channel(void)
           "limit: the UHDR record says which limits were reached (F4)");
 }
 
+/* @verifies REQ-FWHUB-47 */
 static void test_thermal_throttle(void)
 {
     fresh();
@@ -331,6 +336,7 @@ static void test_thermal_throttle(void)
           "thermal: an unreadable NTC is treated as a hot one");
 }
 
+/* @verifies REQ-FWHUB-47 */
 static void test_stopped_socket_not_ticked(void)
 {
     fresh();
@@ -349,6 +355,7 @@ static void test_stopped_socket_not_ticked(void)
     check(r.dose_J_cm2[0] > d, "stop: a re-drive in the same session keeps accumulating");
 }
 
+/* @verifies REQ-FWHUB-46 */
 static void test_no_socket_driven_unmetered(void)
 {
     fresh();
@@ -366,6 +373,7 @@ static void test_no_socket_driven_unmetered(void)
           "pool: session load forgets every socket");
 }
 
+/* @verifies REQ-FWHUB-48 */
 static void test_session_counts_shdr(void)
 {
     fresh();
@@ -424,6 +432,7 @@ static void lattice(void)
     g_ntc_c = 30.0f; g_ntc_fail = false;
 }
 
+/* @verifies REQ-FWHUB-48 */
 static void test_health_pass(void)
 {
     fresh();
@@ -480,6 +489,7 @@ static np_maint_request_t req_for(const uint16_t *socks, unsigned n, uint8_t tes
     return q;
 }
 
+/* @verifies REQ-FWHUB-49 */
 static void test_maint_run(void)
 {
     fresh();
@@ -531,6 +541,7 @@ static void test_maint_run(void)
 
 /* The property the idle pass exists for: what it writes is the same whatever a
  * session lit. */
+/* @verifies REQ-FWHUB-48 */
 static void test_health_pass_ignores_sessions(void)
 {
     fresh();

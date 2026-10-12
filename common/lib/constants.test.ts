@@ -16,16 +16,19 @@ const groups = (JSON.parse(read('common/npps/constants.json')) as { groups: Grou
 const UPPER_SNAKE = /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/;
 
 describe('shared constants', () => {
+  // @verifies REQ-SW03-14
   it('every constant is UPPER_SNAKE_CASE, and one name means one thing across the groups', () => {
     const names = groups.flatMap(g => g.constants.map(c => c.name));
     expect(names.filter(n => !UPPER_SNAKE.test(n))).toEqual([]);
     expect(new Set(names).size).toBe(names.length);
   });
 
+  // @verifies REQ-SW03-14
   it('a whole-number figure is marked int, and only those', () => {
     for (const g of groups) for (const c of g.constants) if (c.int) expect(Number.isInteger(c.value), `${g.name}.${c.name}`).toBe(true);
   });
 
+  // @verifies REQ-SW03-14
   it('the generated web constants are the file\'s, group by group (vacuity guard: every group aimed at ts, every constant)', () => {
     const forTs = groups.filter(g => g.targets.includes('ts'));
     expect(forTs.length).toBeGreaterThanOrEqual(2);
@@ -39,6 +42,7 @@ describe('shared constants', () => {
     }
   });
 
+  // @verifies REQ-SW03-14
   it('every GATT UUID is the base with its id, and no id or UUID repeats', () => {
     const gatt = groups.find(g => g.name === 'GattIds')!;
     const uuids = (generated as unknown as Record<string, Record<string, string>>).GattUuidStrings!;
@@ -48,6 +52,7 @@ describe('shared constants', () => {
     expect(new Set(gatt.constants.map(c => c.value)).size).toBe(gatt.constants.length);
   });
 
+  // @verifies REQ-SW03-14
   it('the hardware limits the editors and the validator share are in the file', () => {
     const hw = groups.find(g => g.name === 'NPHardwareLimits')!;
     expect(hw.constants.length).toBeGreaterThan(30);

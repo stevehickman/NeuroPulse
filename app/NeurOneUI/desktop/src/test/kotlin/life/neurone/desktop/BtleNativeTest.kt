@@ -10,6 +10,7 @@ import kotlin.test.assertTrue
  * adapter the library reports Bluetooth off, which is an answer, not a failure.
  */
 class BtleNativeTest {
+    // @verifies REQ-SW03-15
     @Test fun the_library_loads_starts_reports_an_adapter_state_and_stops() {
         val link = assertNotNull(JniBtleLink.open(), "libneurone_btle_jni was not found on java.library.path")
         link.refresh()

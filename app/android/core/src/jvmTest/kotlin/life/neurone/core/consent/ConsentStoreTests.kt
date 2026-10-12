@@ -43,6 +43,7 @@ class ConsentStoreTests {
     }
 
     // ISC-22: blanket withdrawal clears the analytics key AND resets the gate.
+    // @verifies REQ-CONSENT-02#b
     @Test
     fun blanketWithdrawalRevokesResearchAnalytics() {
         val (store, kv, backend) = makeStore()
@@ -57,6 +58,7 @@ class ConsentStoreTests {
     }
 
     // ISC-23: partial withdrawals do NOT revoke research analytics.
+    // @verifies REQ-CONSENT-02#a
     @Test
     fun categoryWithdrawalDoesNotRevokeResearchAnalytics() {
         val (store, kv, backend) = makeStore()
@@ -68,6 +70,7 @@ class ConsentStoreTests {
         assertEquals(0, backend.resetCount)
     }
 
+    // @verifies REQ-CONSENT-02#a
     @Test
     fun studyWithdrawalDoesNotRevokeResearchAnalytics() {
         val kv = InMemoryKeyValueStore()
@@ -143,6 +146,7 @@ class ConsentStoreTests {
      * The state of every device today, and the reason the verifier is injected rather than
      * assumed: with no signing key nothing can be checked, so nothing is shown.
      */
+    // @verifies REQ-CONSENT-09#a REQ-CONSENT-10#c
     @Test
     fun withNoVerifierConfiguredEveryDescriptorIsRefused() {
         val kv = InMemoryKeyValueStore()
@@ -157,6 +161,7 @@ class ConsentStoreTests {
         assertTrue(store.studyParticipations.isEmpty())
     }
 
+    // @verifies REQ-CONSENT-09#a
     @Test
     fun forgedDescriptorNeverReachesTheUser() {
         val (store, _) = ingestingStore(StudyDescriptorVerification.Rejected, blanketConsent())
@@ -171,6 +176,7 @@ class ConsentStoreTests {
      * §5.3 locks k≥10 and ≥1-week date rounding, and the device is the only place they can be
      * checked. A study below the floor is not one the user may be *asked* about.
      */
+    // @verifies REQ-CONSENT-09#b
     @Test
     fun anonymisationBelowTheLockedFloorIsRefused() {
         val (store, _) = ingestingStore(consent = blanketConsent())
@@ -189,6 +195,7 @@ class ConsentStoreTests {
      * The signature is checked before anything the descriptor *claims*, so a forged descriptor
      * asking for impossible anonymisation is refused as forged, not as out-of-range.
      */
+    // @verifies REQ-CONSENT-09#a
     @Test
     fun signatureIsCheckedBeforeTheDescriptorsOwnClaims() {
         val (store, _) = ingestingStore(StudyDescriptorVerification.Rejected, blanketConsent())
@@ -198,6 +205,7 @@ class ConsentStoreTests {
         )
     }
 
+    // @verifies REQ-CONSENT-09#g
     @Test
     fun categoryTheUserDidNotOptIntoIsRefused() {
         val (store, _) = ingestingStore()
@@ -211,6 +219,7 @@ class ConsentStoreTests {
      * §6.2.1: a contact method is the shared precondition for all three delivery paths, so L1
      * gates the engagement notification too — not only the invitation that asks a question.
      */
+    // @verifies REQ-CONSENT-09#e
     @Test
     fun contactConsentGatesBothPostures() {
         val (store, _) = ingestingStore(
@@ -222,6 +231,7 @@ class ConsentStoreTests {
         )
     }
 
+    // @verifies REQ-CONSENT-09#d
     @Test
     fun deviceWithNoResearchConsentAtAllIsRefused() {
         val (store, _) = ingestingStore(consent = ResearchConsentState())
@@ -234,6 +244,7 @@ class ConsentStoreTests {
     // ── The two postures (§6.2 L2 vs L3) ─────────────────────────────────
 
     /** L2 consent means the user is *asked*: they are not in the study until they answer. */
+    // @verifies REQ-CONSENT-11#a
     @Test
     fun categoryConsentUserIsAskedAndIsNotInTheStudyUntilTheyAnswer() {
         val (store, _) = ingestingStore()
@@ -257,6 +268,7 @@ class ConsentStoreTests {
      * L3 blanket consent means the user is *told*: §6.2 locks that they "still receive per-study
      * engagement notifications, not consent requests", so they are in the study on arrival.
      */
+    // @verifies REQ-CONSENT-11#a
     @Test
     fun blanketConsentUserIsToldAndIsInTheStudyOnArrival() {
         val (store, _) = ingestingStore(consent = blanketConsent())
@@ -277,6 +289,7 @@ class ConsentStoreTests {
      * The L3 opt-out. "Decline" from an engagement notification is a withdrawal, because the user
      * is already enrolled — the one place the two postures must not share behaviour.
      */
+    // @verifies REQ-CONSENT-11#c
     @Test
     fun leavingAnEngagementNotificationWithdrawsTheParticipation() {
         val (store, _) = ingestingStore(consent = blanketConsent())
@@ -292,6 +305,7 @@ class ConsentStoreTests {
      * An engagement notification was never a question, so it cannot be answered "yes" — that
      * would file a second participation for a study the user is already in.
      */
+    // @verifies REQ-CONSENT-11#b
     @Test
     fun engagementNotificationCannotBeAccepted() {
         val (store, _) = ingestingStore(consent = blanketConsent())
@@ -305,6 +319,7 @@ class ConsentStoreTests {
 
     // ── §6.3 step 4's third response ─────────────────────────────────────
 
+    // @verifies REQ-CONSENT-11#d
     @Test
     fun askingAQuestionAboutAStudyIsNotDeciding() {
         val (store, _) = ingestingStore()
@@ -330,6 +345,7 @@ class ConsentStoreTests {
      * invitation that recorded the acceptance, so the trail and the inbox disagreed after every
      * restart — and the same descriptor could be ingested and accepted a second time.
      */
+    // @verifies REQ-CONSENT-11
     @Test
     fun invitationsAndTheirDecisionsSurviveAReload() {
         val (store, kv) = ingestingStore()
@@ -349,6 +365,7 @@ class ConsentStoreTests {
      * §5.3 and §6.3 step 6: withdrawal blocks future descriptor processing. Re-presenting a study
      * the user already answered would be the device forgetting the answer.
      */
+    // @verifies REQ-CONSENT-09#f
     @Test
     fun studyAlreadyAnsweredIsNotPresentedAgain() {
         val (store, _) = ingestingStore()
@@ -362,6 +379,7 @@ class ConsentStoreTests {
         assertEquals(1, store.pendingInvitations.size)
     }
 
+    // @verifies REQ-CONSENT-09#f
     @Test
     fun withdrawnStudyIsNotPresentedAgain() {
         val (store, _) = ingestingStore()
@@ -383,6 +401,7 @@ class ConsentStoreTests {
      * the complement of the approved set, computed here — not prose supplied by the party asking
      * for access.
      */
+    // @verifies REQ-CONSENT-12
     @Test
     fun cannotSeeListIsDerivedFromTheApprovedSet() {
         val (store, _) = ingestingStore()
@@ -409,6 +428,7 @@ class ConsentStoreTests {
      * before this a withdrawn user's stale checkboxes kept admitting studies as consent requests —
      * research data flows continuing after §6.0 says they all stop.
      */
+    // @verifies REQ-CONSENT-04#e REQ-CONSENT-09#c
     @Test
     fun withdrawnBlanketConsentStopsStudiesTheStaleCategoriesWouldStillAdmit() {
         val (store, _) = ingestingStore(
@@ -429,6 +449,7 @@ class ConsentStoreTests {
     }
 
     /** The other direction: a user who was never asked is not a user who said stop. */
+    // @verifies REQ-CONSENT-04#d
     @Test
     fun neverGrantingBlanketConsentLeavesCategoryConsentWorking() {
         val (store, _) = ingestingStore()
@@ -441,6 +462,7 @@ class ConsentStoreTests {
     }
 
     /** Re-granting is a fresh decision, so it clears the condition rather than being outranked. */
+    // @verifies REQ-CONSENT-04#f
     @Test
     fun reGrantingBlanketConsentResumesAdmission() {
         val (store, _) = ingestingStore(consent = blanketConsent())
@@ -458,6 +480,7 @@ class ConsentStoreTests {
     }
 
     /** The commit path the merged S2 screen actually uses must set the marker too. */
+    // @verifies REQ-CONSENT-04#a
     @Test
     fun commitPathWithdrawalSetsTheMarker() {
         val (store, _) = ingestingStore(consent = blanketConsent())
@@ -468,6 +491,7 @@ class ConsentStoreTests {
     }
 
     /** A category-only edit is not a withdrawal — the §6.2.5 guard shape, applied to the marker. */
+    // @verifies REQ-CONSENT-04#b
     @Test
     fun categoryOnlyEditDoesNotSetTheMarker() {
         val (store, _) = ingestingStore()
@@ -485,6 +509,7 @@ class ConsentStoreTests {
      * The marker is the store's, not the screen's. A UI that commits a stale state — one read
      * before the withdrawal — must not erase the record of the user having said stop.
      */
+    // @verifies REQ-CONSENT-04#c
     @Test
     fun aStaleCommitCannotClearTheMarker() {
         val (store, _) = ingestingStore(consent = blanketConsent())
@@ -501,6 +526,7 @@ class ConsentStoreTests {
     }
 
     /** Withdrawing something never granted stops nothing, so it must not bar an L2 participant. */
+    // @verifies REQ-CONSENT-04#d
     @Test
     fun withdrawingBlanketConsentThatWasNeverGrantedDoesNotBarStudies() {
         val (store, _) = ingestingStore()
@@ -510,6 +536,7 @@ class ConsentStoreTests {
         assertIs<StudyDescriptorAdmission.Admitted>(store.ingestStudyDescriptor(descriptor()))
     }
 
+    // @verifies REQ-CONSENT-04
     @Test
     fun theWithdrawalMarkerSurvivesAReload() {
         val (store, kv) = ingestingStore(consent = blanketConsent())
@@ -520,10 +547,119 @@ class ConsentStoreTests {
         assertTrue(reloaded.researchConsent.blanketConsentWithdrawn)
     }
 
+    // ── Withdrawal is permanent for every data period (REQ-CONSENT-13) ───
+    //
+    // The device has the admission gate and nothing past it: no extract is generated or sent yet
+    // (OI-CONSENT-07). These pin what exists: once a user has withdrawn, nothing a study says about
+    // itself (its issue date, its categories, the elements it asks for) gets it past the gate.
+
+    /**
+     * A descriptor carries no "data period" the gate could be talked into: the only date on it is
+     * when it was issued. Withdrawal must hold for a study issued long before, just before or long
+     * after the withdrawal, which are the sessions that predate it and the ones that follow.
+     */
+    // @verifies REQ-CONSENT-13#a
+    @Test
+    fun blanketWithdrawalRefusesEveryStudyWhateverItsDateOrScope() {
+        val (store, _) = ingestingStore(consent = blanketConsent())
+        assertIs<StudyDescriptorAdmission.Admitted>(store.ingestStudyDescriptor(descriptor()))
+        store.withdrawBlanketResearchConsent()
+
+        val today = LocalDate.now()
+        val issued = listOf("2020-01-01", today.minusDays(1).toString(), today.plusDays(30).toString())
+        issued.forEachIndexed { i, day ->
+            val d = descriptor(
+                categories = ResearchCategory.entries,
+                elements = UHDRElement.entries.toSet(),
+            ).copy(studyId = "AFTER-WITHDRAWAL-$i", issuedOnDay = day)
+            assertEquals(
+                StudyDescriptorAdmission.Reason.RESEARCH_CONSENT_WITHDRAWN,
+                refusalOf(store.ingestStudyDescriptor(d)),
+                "a study issued $day must not be processed after withdrawal",
+            )
+        }
+        assertEquals(1, store.pendingInvitations.size, "no invitation was created after withdrawal")
+        assertEquals(1, store.studyParticipations.size, "and no participation was recorded")
+    }
+
+    /**
+     * The study the user had already joined is no exception: withdrawal outranks "already joined",
+     * so a re-issued descriptor for it is refused as withdrawn, not quietly treated as known.
+     */
+    // @verifies REQ-CONSENT-13#a
+    @Test
+    fun withdrawalAlsoRefusesAReissueOfAStudyAlreadyJoined() {
+        val (store, _) = ingestingStore(consent = blanketConsent())
+        store.ingestStudyDescriptor(descriptor())
+        store.withdrawBlanketResearchConsent()
+
+        val reissued = descriptor(elements = UHDRElement.entries.toSet())
+            .copy(issuedOnDay = LocalDate.now().plusDays(1).toString())
+        assertEquals(
+            StudyDescriptorAdmission.Reason.RESEARCH_CONSENT_WITHDRAWN,
+            refusalOf(store.ingestStudyDescriptor(reissued)),
+        )
+    }
+
+    /** Permanent means across a relaunch too: the refusal comes from persisted state. */
+    // @verifies REQ-CONSENT-13#a
+    @Test
+    fun withdrawalStillRefusesEveryStudyAfterARelaunch() {
+        val (store, kv) = ingestingStore(consent = blanketConsent())
+        store.withdrawBlanketResearchConsent()
+
+        // A fresh store over the same persisted state, with a verifier that accepts everything, so
+        // the only thing between the descriptor and the user is the withdrawal.
+        val reloaded = ConsentStore(
+            kv, ResearchAnalyticsGate(kv, RecordingBackend()),
+            descriptorVerifier = { StudyDescriptorVerification.Verified(HASH) },
+        )
+        assertEquals(
+            StudyDescriptorAdmission.Reason.RESEARCH_CONSENT_WITHDRAWN,
+            refusalOf(reloaded.ingestStudyDescriptor(descriptor().copy(issuedOnDay = "2020-01-01"))),
+        )
+        assertEquals(
+            StudyDescriptorAdmission.Reason.RESEARCH_CONSENT_WITHDRAWN,
+            refusalOf(reloaded.ingestStudyDescriptor(descriptor())),
+        )
+    }
+
+    /**
+     * Withdrawing from one study is permanent for that study: a re-issue that is newer and asks
+     * for more is still the study the user left.
+     */
+    // @verifies REQ-CONSENT-13#b
+    @Test
+    fun withdrawnStudyStaysWithdrawnWhateverTheReissueSays() {
+        val (store, kv) = ingestingStore()
+        store.ingestStudyDescriptor(descriptor())
+        store.acceptInvitation(STUDY_ID)
+        store.withdrawFromStudy(STUDY_ID)
+        assertFalse(store.studyParticipations[0].isActive)
+
+        val reissued = descriptor(elements = UHDRElement.entries.toSet())
+            .copy(issuedOnDay = LocalDate.now().plusDays(30).toString())
+        assertEquals(
+            StudyDescriptorAdmission.Reason.STUDY_ALREADY_DECIDED,
+            refusalOf(store.ingestStudyDescriptor(reissued)),
+        )
+
+        val reloaded = ConsentStore(
+            kv, ResearchAnalyticsGate(kv, RecordingBackend()),
+            descriptorVerifier = { StudyDescriptorVerification.Verified(HASH) },
+        )
+        assertEquals(
+            StudyDescriptorAdmission.Reason.STUDY_ALREADY_DECIDED,
+            refusalOf(reloaded.ingestStudyDescriptor(reissued)),
+        )
+        assertFalse(reloaded.studyParticipations[0].isActive)
+    }
+
     /**
      * The §5.3 audit trail names a descriptor. It used to record the literal string "pending",
      * because there was no descriptor to hash.
      */
+    // @verifies REQ-CONSENT-09
     @Test
     fun participationRecordCarriesTheDescriptorHash() {
         val (store, _) = ingestingStore()
@@ -543,6 +679,7 @@ class ConsentStoreTests {
     // directions are pinned: teardown must fire on a true→false transition and must NOT fire
     // on a category-only edit.
 
+    // @verifies REQ-CONSENT-03#a
     @Test
     fun commitPathBlanketWithdrawalRevokesResearchAnalytics() {
         val (store, kv, backend) = makeStore()
@@ -557,6 +694,7 @@ class ConsentStoreTests {
         assertEquals(1, backend.resetCount, "commit path must revoke research analytics")
     }
 
+    // @verifies REQ-CONSENT-03#b
     @Test
     fun commitPathCategoryOnlyEditDoesNotRevokeResearchAnalytics() {
         val (store, kv, backend) = makeStore()
@@ -575,6 +713,7 @@ class ConsentStoreTests {
         assertEquals(0, backend.resetCount, "category-only edits must never revoke analytics")
     }
 
+    // @verifies REQ-CONSENT-03#c
     @Test
     fun commitPathBlanketStaysOnDoesNotRevokeResearchAnalytics() {
         val (store, kv, backend) = makeStore()
@@ -593,6 +732,7 @@ class ConsentStoreTests {
 
     // ── L2 and L3 are orthogonal axes (CLAUDE.md §6.2.2 / §6.2.3) ────────
 
+    // @verifies REQ-CONSENT-05#a
     @Test
     fun selectAllCategoriesDoesNotEnableBlanketConsent() {
         val (store, _, _) = makeStore()
@@ -606,6 +746,7 @@ class ConsentStoreTests {
         )
     }
 
+    // @verifies REQ-CONSENT-05#b
     @Test
     fun everythingButAskMeIsRepresentable() {
         // The position the merge must not destroy: all nine categories, still asked each time.
@@ -618,6 +759,7 @@ class ConsentStoreTests {
         assertTrue(state.hasAnyResearchConsent)
     }
 
+    // @verifies REQ-CONSENT-05#c
     @Test
     fun blanketConsentWithoutAnyCategoryIsRepresentable() {
         // The mirror position: pre-approved, no category preference expressed.
@@ -629,6 +771,7 @@ class ConsentStoreTests {
         assertTrue(state.blanketConsentGranted)
     }
 
+    // @verifies REQ-CONSENT-02
     @Test
     fun consentStatePersistsAcrossInstances() {
         val kv = InMemoryKeyValueStore()
@@ -665,6 +808,7 @@ class ConsentStoreTests {
         requestedAtDay = LocalDate.now().toString(),
     )
 
+    // @verifies REQ-CONSENT-16#b
     @Test
     fun approvingForwardOnlyLeavesEarlierSessionsOutOfReach() {
         val (store, _, _) = makeStore()
@@ -695,6 +839,7 @@ class ConsentStoreTests {
         )
     }
 
+    // @verifies REQ-CONSENT-16#a
     @Test
     fun approvingWithPriorDataCoversEarlierSessions() {
         val (store, _, _) = makeStore()
@@ -711,6 +856,7 @@ class ConsentStoreTests {
         assertTrue(grant.forwardOnlyElements.isEmpty())
     }
 
+    // @verifies REQ-CONSENT-16#a
     @Test
     fun theTwoDecisionsAreRecordedSeparately() {
         val (store, _, _) = makeStore()
@@ -727,6 +873,7 @@ class ConsentStoreTests {
         assertFalse(store.expansionRequests.single().isPending)
     }
 
+    // @verifies REQ-CONSENT-16
     @Test
     fun denyingChangesNothingAboutTheGrant() {
         val (store, _, _) = makeStore()
@@ -743,6 +890,7 @@ class ConsentStoreTests {
         assertFalse(store.expansionRequests.single().isPending)
     }
 
+    // @verifies REQ-CONSENT-16
     @Test
     fun askingAQuestionIsNotDeciding() {
         val (store, _, _) = makeStore()
@@ -762,6 +910,7 @@ class ConsentStoreTests {
         assertEquals(ClinicianUseCaseTier.ASSESS, store.clinicianGrants.single().tier)
     }
 
+    // @verifies REQ-CONSENT-16
     @Test
     fun revokingAGrantWithdrawsItsPendingRequest() {
         val (store, _, _) = makeStore()
@@ -776,6 +925,7 @@ class ConsentStoreTests {
         assertTrue(store.clinicianGrants.isEmpty())
     }
 
+    // @verifies REQ-CONSENT-16
     @Test
     fun approvingAStaleRequestIsRefused() {
         val (store, _, _) = makeStore()
@@ -804,6 +954,7 @@ class ConsentStoreTests {
         )
     }
 
+    // @verifies REQ-CONSENT-16
     @Test
     fun aNewRequestSupersedesTheOutstandingOneButNotDecidedHistory() {
         val (store, _, _) = makeStore()
@@ -826,6 +977,7 @@ class ConsentStoreTests {
         assertEquals(1, store.expansionRequests.count { it.isPending })
     }
 
+    // @verifies REQ-CONSENT-16
     @Test
     fun expansionRequestsAndScopesSurviveAReload() {
         val kv = InMemoryKeyValueStore()
@@ -848,6 +1000,7 @@ class ConsentStoreTests {
         )
     }
 
+    // @verifies REQ-CONSENT-16#c
     @Test
     fun aGrantWithNoScopesKeepsItsPreWorkflowMeaning() {
         // A grant written before the workflow existed has no scopes. Introducing the workflow must
@@ -862,6 +1015,7 @@ class ConsentStoreTests {
         assertTrue(grant.forwardOnlyElements.isEmpty())
     }
 
+    // @verifies REQ-CONSENT-16
     @Test
     fun aChangeThatIsNotAnExpansionHasNoDifferential() {
         val monitor = grantedYesterday(ClinicianUseCaseTier.MONITOR)
@@ -882,6 +1036,7 @@ class ConsentStoreTests {
         )
     }
 
+    // @verifies REQ-CONSENT-02
     @Test
     fun theDifferentialSplitsElementsIntoNewAlreadyVisibleAndWithheld() {
         val differential = ConsentEngine.accessDifferential(
@@ -911,6 +1066,7 @@ class ConsentStoreTests {
         )
     }
 
+    // @verifies REQ-CONSENT-02
     @Test
     fun corruptPersistedBlobDoesNotCrash() {
         val kv = InMemoryKeyValueStore()
@@ -923,6 +1079,7 @@ class ConsentStoreTests {
 
     /// The defect the item was raised about: the form collected a use-case selection and built a
     /// grant from the tier, so two different answers produced the same access.
+    // @verifies REQ-CONSENT-15#a
     @Test
     fun useCaseSelectionNarrowsAccessBelowTheTierCeiling() {
         val narrow = ConsentEngine.initialAccessScope(
@@ -936,6 +1093,7 @@ class ConsentStoreTests {
         assertFalse(narrow.elements == ClinicianUseCaseTier.FULL_CLINICAL.uhdrElements)
     }
 
+    // @verifies REQ-CONSENT-15#b
     @Test
     fun useCasesOfferedAreCappedByTheTier() {
         assertEquals(
@@ -954,6 +1112,7 @@ class ConsentStoreTests {
 
     /// A caller that skips [ConsentEngine.useCasesAvailableFor] still cannot exceed the ceiling
     /// the subscription was sold at.
+    // @verifies REQ-CONSENT-15#b
     @Test
     fun selectionAboveTheTierIsClampedNotHonoured() {
         val scope = ConsentEngine.initialAccessScope(
@@ -966,6 +1125,7 @@ class ConsentStoreTests {
         assertFalse(UHDRElement.HRV_TIME_SERIES in scope.elements)
     }
 
+    // @verifies REQ-CONSENT-15#c
     @Test
     fun researchTierYieldsNoElementsWhateverIsSelected() {
         val scope = ConsentEngine.initialAccessScope(
@@ -979,6 +1139,7 @@ class ConsentStoreTests {
 
     /// Every library entry must sit at or above the highest tier its own elements require, or the
     /// use case promises access its tier cannot carry and the clamp silently removes it.
+    // @verifies REQ-CONSENT-15
     @Test
     fun everyUseCaseIsReachableAtItsDeclaredTier() {
         for (useCase in USE_CASE_LIBRARY) {
@@ -991,6 +1152,7 @@ class ConsentStoreTests {
 
     /// The library is a cross-platform table: a grant records the IDs it was made from, and the
     /// two platforms read each other's grants. Pins the IDs so a rename on one side is caught.
+    // @verifies REQ-CONSENT-15
     @Test
     fun theUseCaseLibraryMatchesTheIosTable() {
         assertEquals(
@@ -1006,6 +1168,7 @@ class ConsentStoreTests {
 
     // ── OI-CONSENT-06: the two decisions stay apart on an initial grant ──────────
 
+    // @verifies REQ-CONSENT-16#a,b
     @Test
     fun initialScopeCarriesTheRetroactiveAnswerBothWays() {
         val today = LocalDate.now().toString()
@@ -1023,6 +1186,7 @@ class ConsentStoreTests {
 
     /// The point of the item: "widen it going forward, leave my earlier sessions alone" has to be
     /// representable on a FIRST grant, not only on an expansion.
+    // @verifies REQ-CONSENT-16#b
     @Test
     fun forwardOnlyInitialGrantHidesEarlierSessions() {
         val today = LocalDate.now().toString()
@@ -1044,6 +1208,7 @@ class ConsentStoreTests {
 
     /// A grant written before `OI-CONSENT-04`/`-06` keeps meaning what it meant: the tier's
     /// elements, from the grant day, prior data included.
+    // @verifies REQ-CONSENT-16#c
     @Test
     fun preWorkflowGrantStillFallsBackToTheTier() {
         val legacy = grantedYesterday(ClinicianUseCaseTier.ASSESS)
@@ -1057,6 +1222,7 @@ class ConsentStoreTests {
 
     /// The elements are frozen at grant time, so editing the library cannot reach backwards into
     /// a grant already made.
+    // @verifies REQ-CONSENT-15
     @Test
     fun storedScopeDoesNotTrackTheLibrary() {
         val today = LocalDate.now().toString()
@@ -1072,6 +1238,7 @@ class ConsentStoreTests {
         assertEquals(ClinicianUseCaseTier.MONITOR.uhdrElements, grant.approvedElements)
     }
 
+    // @verifies REQ-CONSENT-02
     @Test
     fun tierRankOrdersTheCeilings() {
         assertTrue(ClinicianUseCaseTier.MONITOR.rank < ClinicianUseCaseTier.ASSESS.rank)
@@ -1085,6 +1252,7 @@ class ConsentStoreTests {
 
     /// The shipped channel refuses everything, and says the anchor is missing rather than that the
     /// request is forged. A default that admitted would make the missing key silent.
+    // @verifies REQ-CONSENT-09
     @Test
     fun theDefaultPortalChannelRefusesAndNamesTheMissingAnchor() {
         val (store, _, _) = makeStore()
@@ -1097,6 +1265,7 @@ class ConsentStoreTests {
         assertTrue(store.expansionRequests.isEmpty())
     }
 
+    // @verifies REQ-CONSENT-09
     @Test
     fun aVerifiedRequestIsIngested() {
         val (store, _, _) = makeStore()
@@ -1113,6 +1282,7 @@ class ConsentStoreTests {
     /// Identity is checked before anything the request claims. A forged request naming a grant
     /// this device never issued is refused as forged — so the refusal cannot be read backwards to
     /// learn which grants the device holds (CLAUDE.md §5.1 rule 2).
+    // @verifies REQ-CONSENT-09
     @Test
     fun aForgedRequestIsRefusedAsForgedNotAsUnknownGrant() {
         val (store, _, _) = makeStore()
@@ -1125,6 +1295,7 @@ class ConsentStoreTests {
         )
     }
 
+    // @verifies REQ-CONSENT-09
     @Test
     fun aVerifiedRequestForAnUnknownGrantIsRefused() {
         val (store, _, _) = makeStore()
@@ -1139,6 +1310,7 @@ class ConsentStoreTests {
 
     /// A change with no differential has no consent document, so there is nothing the user could
     /// be asked — the same condition `approveExpansion` already fails closed on.
+    // @verifies REQ-CONSENT-09
     @Test
     fun aVerifiedRequestThatIsNotAnExpansionIsRefused() {
         val (store, _, _) = makeStore()

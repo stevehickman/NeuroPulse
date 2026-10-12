@@ -30,6 +30,7 @@ class NPProtocolValidatorTests {
         modalities = listOf(NPProtocolModality(params = params, interval = interval, enabled = true)),
     )
 
+    // @verifies REQ-NPPS-18
     @Test
     fun validProtocolAccepted() {
         val pbm = NPPBMTranscranialParams(irradianceMWcm2 = 302.2, frequencyHz = 20.0, dutyCyclePercent = 25)
@@ -38,6 +39,7 @@ class NPProtocolValidatorTests {
         assertTrue(result.errors.isEmpty(), "Valid protocol must produce no errors.")
     }
 
+    // @verifies REQ-NPPS-04
     @Test
     fun currentOverLimitRejected_tDCS() {
         val tdcs = NPTDCSParams(intensityMilliamps = 2.5, electrodePairs = listOf(listOf("Fp1", "P3")))
@@ -49,6 +51,7 @@ class NPProtocolValidatorTests {
         )
     }
 
+    // @verifies REQ-NPPS-04
     @Test
     fun currentOverLimitRejected_BES() {
         val bes = NPBESTacsParams(frequencyHz = 20.0, intensityMilliamps = 1.5)
@@ -68,6 +71,7 @@ class NPProtocolValidatorTests {
     // single pair against the MCU's 25. Two errors compounding to 2.8× permissive, so a
     // protocol this validator accepted was cut short mid-session by the MCU.
 
+    // @verifies REQ-NPPS-14#a
     @Test
     fun chargeDensityOverLimitRejected() {
         // 2.0 mA × 3600s / 35 cm² (ONE electrode) = 205.7 mC/cm² — over 150.
@@ -79,6 +83,7 @@ class NPProtocolValidatorTests {
         )
     }
 
+    // @verifies REQ-NPPS-14#a
     @Test
     fun chargeDensityBorderlineValid() {
         // Just under the ceiling: 1.4 mA × 3749s / 35 cm² = 149.96 mC/cm².
@@ -97,6 +102,7 @@ class NPProtocolValidatorTests {
     }
 
     /** The enforcer trips AT the ceiling, so the pre-flight must too (OI-CHARGE-05). */
+    // @verifies REQ-NPPS-14#a
     @Test
     fun chargeDensityAtCeilingRejected() {
         // 1.4 mA × 3750s / 35 cm² = exactly 150.0 mC/cm².
@@ -118,6 +124,7 @@ class NPProtocolValidatorTests {
      * ceiling cannot quietly take it away again. At the retired 40 the routine protocol
      * was unavailable and 13 of the 14 shipped predefined tDCS protocols exceeded it.
      */
+    // @verifies REQ-NPPS-18
     @Test
     fun routineTwoMilliampTwentyMinuteProtocolAccepted() {
         // 2 mA × 1200s / 35 cm² = 68.6 mC/cm² — the single most common protocol in the
@@ -135,6 +142,7 @@ class NPProtocolValidatorTests {
         )
     }
 
+    // @verifies REQ-NPPS-14#a
     @Test
     fun chargeDensityDoesNotRelaxWithMoreElectrodePairs() {
         // 1.0 mA × 6000s / 35 cm² = 171.4 mC/cm² — over 150 whatever the montage. The
@@ -155,6 +163,7 @@ class NPProtocolValidatorTests {
         }
     }
 
+    // @verifies REQ-NPPS-14#a
     @Test
     fun smallerDeclaredElectrodeAreaIsStricter() {
         // 1.0 mA × 4000s = 4000 mC. On 35 cm²: 114.3 mC/cm², accepted. On 25 cm²: 160.0, rejected.
@@ -172,6 +181,7 @@ class NPProtocolValidatorTests {
         )
     }
 
+    // @verifies REQ-NPPS-05
     @Test
     fun undeclaredElectrodeAreaRejected() {
         // Not a fallback: the hub refuses a zero area and the safety MCU's geometry gate
@@ -188,6 +198,7 @@ class NPProtocolValidatorTests {
         )
     }
 
+    // @verifies REQ-NPPS-05
     @Test
     fun unencodableElectrodeAreaRejected() {
         // Above what the uint16 milli-cm² wire field can carry.
@@ -207,6 +218,7 @@ class NPProtocolValidatorTests {
      * measures nothing physical. The safety MCU did exactly that until 2026-09-15, which
      * would have tripped every one of these in 0.4-1.0 s.
      */
+    // @verifies REQ-NPPS-14#b
     @Test
     fun chargeBalancedModalityHasNoSessionDose() {
         val bes = NPBESTacsParams(
@@ -224,6 +236,7 @@ class NPProtocolValidatorTests {
     }
 
     /** Each pulsed modality passes at its rated worst case. */
+    // @verifies REQ-NPPS-14#b
     @Test
     fun pulsedModalitiesPassAtRatedMaximum() {
         // VNS: 2 mA × 250 µs = 0.5 µC on a 0.5 cm² clip pad = 1.0 µC/cm², 2.5% of ceiling.
@@ -261,6 +274,7 @@ class NPProtocolValidatorTests {
      * (1000 µC ÷ 25 cm² = 40.0 µC/cm², exactly the ceiling, refused); the sinusoid
      * delivers 2/π of it and passes. The safety MCU applies the same factor.
      */
+    // @verifies REQ-NPPS-14#b
     @Test
     fun sineFactorAppliesOnlyToSinusoids() {
         val square = NPBESTacsParams(
@@ -284,6 +298,7 @@ class NPProtocolValidatorTests {
     }
 
     /** Lower frequency means a longer phase means more charge per phase. */
+    // @verifies REQ-NPPS-14#b
     @Test
     fun phaseChargeGetsStricterAsFrequencyFalls() {
         val slow = NPBESTacsParams(
@@ -306,6 +321,7 @@ class NPProtocolValidatorTests {
         )
     }
 
+    // @verifies REQ-NPPS-22
     @Test
     fun zeroDurationRejected() {
         val pbm = NPPBMTranscranialParams(irradianceMWcm2 = 302.2, frequencyHz = 20.0, dutyCyclePercent = 25)
@@ -315,6 +331,7 @@ class NPProtocolValidatorTests {
     }
 
     // OI-SESPWR-03: CW (frequency 0) has no duty cycle, so CW with a duty other than 100 % is refused.
+    // @verifies REQ-NPPS-02
     @Test
     fun cwWithADutyOtherThan100Rejected() {
         val cases = listOf(
@@ -331,6 +348,7 @@ class NPProtocolValidatorTests {
         }
     }
 
+    // @verifies REQ-NPPS-02
     @Test
     fun pulsedBlockIsNotACwDutyError() {
         val pbm = NPPBMTranscranialParams(irradianceMWcm2 = 100.0, frequencyHz = 40.0, dutyCyclePercent = 25)
@@ -338,6 +356,7 @@ class NPProtocolValidatorTests {
         assertTrue(result.errors.none { it.message.contains("no duty cycle") })
     }
 
+    // @verifies REQ-NPPS-04
     @Test
     fun doseOverLimitRejected() {
         // 200 mW/cm² CW × 3600 s / 1000 = 720 J/cm² — over the 10 J/cm² limit.
@@ -352,6 +371,7 @@ class NPProtocolValidatorTests {
         )
     }
 
+    // @verifies REQ-NPPS-04
     @Test
     fun configuredIntensityLimitRejected() {
         val limits = NPLimitsSet(name = "Capped", level = NPLimitsSet.LimitLevel.GLOBAL,
@@ -363,6 +383,7 @@ class NPProtocolValidatorTests {
         assertTrue(result.errors.any { it.parameterKey == "irradianceMWcm2" }, "Rejection must cite the irradiance parameter.")
     }
 
+    // @verifies REQ-NPPS-22
     @Test
     fun emptyModalitiesRejected() {
         val def = NPProtocolDefinition(name = "Empty", modalities = emptyList())
@@ -371,6 +392,7 @@ class NPProtocolValidatorTests {
         assertTrue(result.errors.any { it.parameterKey == "modalities" })
     }
 
+    // @verifies REQ-NPPS-04
     @Test
     fun dutyCycleOverHardwareCeilingRejected() {
         val pbm = NPPBMTranscranialParams(irradianceMWcm2 = 302.2, frequencyHz = 20.0, dutyCyclePercent = 40)

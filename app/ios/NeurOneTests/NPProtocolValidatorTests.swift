@@ -52,6 +52,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     // MARK: - testValidProtocolAccepted
 
+    // @verifies REQ-NPPS-18
     func testValidProtocolAccepted() {
         let pbm = NPPBMTranscranialParams(
             irradianceMWcm2: 302,
@@ -67,6 +68,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     // MARK: - testCurrentOverLimitRejected_tDCS
 
+    // @verifies REQ-NPPS-04
     func testCurrentOverLimitRejected_tDCS() {
         // Hardware ceiling for tDCS is 2.0 mA.
         let tdcs = NPTDCSParams(intensityMilliamps: 2.5, electrodePairs: [["Fp1", "P3"]])
@@ -82,6 +84,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     // MARK: - testCurrentOverLimitRejected_BES
 
+    // @verifies REQ-NPPS-04
     func testCurrentOverLimitRejected_BES() {
         // Hardware ceiling for BES/tACS is 1.0 mA.
         let bes = NPBESTacsParams(frequencyHz: 20, intensityMilliamps: 1.5, waveform: .sinusoidal)
@@ -97,6 +100,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     // MARK: - testChargeDensityOverLimitRejected (intended-behavior spec)
 
+    // @verifies REQ-NPPS-14#a
     func testChargeDensityOverLimitRejected() {
         // 2.0 mA × 3600s / 35 cm² (ONE electrode) = 205.7 mC/cm² — over 150.
         let tdcs = NPTDCSParams(intensityMilliamps: 2.0, electrodePairs: [["Fp1", "P3"]])
@@ -111,6 +115,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     // MARK: - testChargeDensityBorderlineValid (intended-behavior spec)
 
+    // @verifies REQ-NPPS-14#a
     func testChargeDensityBorderlineValid() {
         // Just under the ceiling: 1.4 mA × 3749s / 35 cm² = 149.96 mC/cm².
         //
@@ -132,6 +137,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     }
 
     /// The enforcer trips AT the ceiling, so the pre-flight must too (OI-CHARGE-05).
+    // @verifies REQ-NPPS-14#a
     func testChargeDensityAtCeilingRejected() {
         // 1.4 mA × 3750s / 35 cm² = exactly 150.0 mC/cm².
         let tdcs = NPTDCSParams(intensityMilliamps: 1.4, electrodePairs: [["Fp1", "P3"]],
@@ -147,6 +153,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     /// The clinical consequence OI-CHARGE-05 (d) weighed, pinned so a later change to the
     /// ceiling cannot quietly take it away again. At the retired 40 the routine protocol
     /// was unavailable and 13 of the 14 shipped predefined tDCS protocols exceeded it.
+    // @verifies REQ-NPPS-18
     func testRoutineTwoMilliampTwentyMinuteProtocolAccepted() {
         // 2 mA × 1200s / 35 cm² = 68.6 mC/cm² — the single most common protocol in the
         // literature and the median of docs/tdcs_database_full.csv.
@@ -163,6 +170,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     /// Density is per electrode, so adding pairs must never make a protocol pass that a
     /// single pair fails. The summed-area model got 2× more permissive with each pair.
+    // @verifies REQ-NPPS-14#a
     func testChargeDensityDoesNotRelaxWithMoreElectrodePairs() {
         // 1.0 mA × 6000s / 35 cm² = 171.4 mC/cm² — over 150 whatever the montage.
         // The retired summed model divided the pair's two pads (70 cm²), got 85.7, and
@@ -182,6 +190,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     }
 
     /// A smaller declared pad is stricter — which is the whole point of declaring it.
+    // @verifies REQ-NPPS-14#a
     func testSmallerDeclaredElectrodeAreaIsStricter() {
         // 1.0 mA × 4000s = 4000 mC. On 35 cm²: 114.3 mC/cm², accepted. On 25 cm²: 160.0, rejected.
         let big = NPTDCSParams(intensityMilliamps: 1.0, electrodePairs: [["F3", "F4"]],
@@ -203,6 +212,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     /// An undeclared area is an error, not a fallback: the hub refuses a zero area and the
     /// safety MCU's geometry gate holds tDCS off, so accepting it hands the user a session
     /// that silently never stimulates. And it must not ALSO produce an infinite density.
+    // @verifies REQ-NPPS-05
     func testUndeclaredElectrodeAreaRejected() {
         let tdcs = NPTDCSParams(intensityMilliamps: 1.0, electrodePairs: [["F3", "F4"]],
                                 electrodeAreaCm2: 0)
@@ -218,6 +228,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     }
 
     /// Above what the uint16 milli-cm² wire field can carry.
+    // @verifies REQ-NPPS-05
     func testUnencodableElectrodeAreaRejected() {
         let tdcs = NPTDCSParams(intensityMilliamps: 1.0, electrodePairs: [["F3", "F4"]],
                                 electrodeAreaCm2: 70.0)
@@ -230,6 +241,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     // MARK: - testChargeDensityBorderlineInvalid (intended-behavior spec)
 
+    // @verifies REQ-NPPS-14#a
     func testChargeDensityBorderlineInvalid() {
         // 2.0 mA × 3600s / 35 cm² = 205.7 mC/cm² — over 150, must be rejected.
         let tdcs = NPTDCSParams(intensityMilliamps: 2.0, electrodePairs: [["Fp1", "P3"]])
@@ -248,6 +260,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     /// modality: net delivered charge is ~zero by construction, so integrating |I| over a
     /// session measures nothing physical. The safety MCU did exactly that until
     /// 2026-09-15, which would have tripped every one of these in 0.4–1.0 s.
+    // @verifies REQ-NPPS-14#b
     func testChargeBalancedModalityHasNoSessionDose() {
         let bes = NPBESTacsParams(frequencyHz: 10, intensityMilliamps: 1.0, waveform: .sinusoidal)
         for seconds in [3600, 36000] {
@@ -261,6 +274,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     }
 
     /// Each pulsed modality passes at its rated worst case.
+    // @verifies REQ-NPPS-14#b
     func testPulsedModalitiesPassAtRatedMaximum() {
         // VNS: 2 mA × 250 µs = 0.5 µC on a 0.5 cm² clip pad = 1.0 µC/cm², 2.5% of ceiling.
         let vns = NPVNSHRVParams(frequencyHz: 25, intensityMilliamps: 2.0)
@@ -292,6 +306,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     /// duration; only the waveform differs. A square wave delivers the full I × T
     /// (1000 µC ÷ 25 cm² = 40.0 µC/cm², exactly the ceiling, refused); the sinusoid
     /// delivers 2/π of it and passes. The safety MCU applies the same factor.
+    // @verifies REQ-NPPS-14#b
     func testSineFactorAppliesOnlyToSinusoids() {
         let square = NPBESTacsParams(frequencyHz: 0.5, intensityMilliamps: 1.0, waveform: .square)
         XCTAssertTrue(
@@ -308,6 +323,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     }
 
     /// Lower frequency means a longer phase means more charge per phase.
+    // @verifies REQ-NPPS-14#b
     func testPhaseChargeGetsStricterAsFrequencyFalls() {
         let slow = NPBESTacsParams(frequencyHz: 0.4, intensityMilliamps: 1.0, waveform: .square)
         XCTAssertTrue(
@@ -325,6 +341,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     // MARK: - testZeroDurationRejected (intended-behavior spec)
 
+    // @verifies REQ-NPPS-22
     func testZeroDurationRejected() {
         let pbm = NPPBMTranscranialParams(irradianceMWcm2: 302, frequencyHz: 20, dutyCyclePercent: 25)
         let def = protocolWith(.pbmTranscranial(pbm), durationSeconds: 0)
@@ -339,6 +356,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     // MARK: - CW has no duty cycle (OI-SESPWR-03)
 
+    // @verifies REQ-NPPS-02
     func testCwWithADutyOtherThan100Rejected() {
         let cases: [NPModalityParams] = [
             .pbmTranscranial(NPPBMTranscranialParams(irradianceMWcm2: 100, frequencyHz: 0, dutyCyclePercent: 25)),
@@ -366,6 +384,7 @@ final class NPProtocolValidatorTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-02
     func testPulsedBlockIsNotACwDutyError() {
         let pbm = NPPBMTranscranialParams(irradianceMWcm2: 100, frequencyHz: 40, dutyCyclePercent: 25)
         let result = hardwareOnlyValidator().validate(protocolWith(.pbmTranscranial(pbm)))
@@ -374,6 +393,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     // MARK: - testDoseOverLimitRejected (intended-behavior spec)
 
+    // @verifies REQ-NPPS-04
     func testDoseOverLimitRejected() {
         // 200 mW/cm² CW × 3600s / 1000 = 720 J/cm² — over the 10 J/cm² limit.
         var limits = NPLimitsSet(name: "Dose-capped", level: .global)
@@ -392,6 +412,7 @@ final class NPProtocolValidatorTests: XCTestCase {
 
     // MARK: - Bonus: configured dosage limit (no production gap) — confirms the limit path works
 
+    // @verifies REQ-NPPS-04
     func testConfiguredIntensityLimitRejected() {
         var limits = NPLimitsSet(name: "Capped", level: .global)
         limits.pbmTranscranial = NPPBMTranscranialLimits(maxIrradianceMWcm2: 50)

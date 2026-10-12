@@ -150,6 +150,7 @@ function eegProtocol(): NPProtocolDefinition {
 // ─── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('hub protocol v1 wire format', () => {
+  // @verifies REQ-FWHUB-10
   it('emits protocol version 1', () => {
     // No descriptor has shipped, so the format has one version (NP-FW-HUB-001
     // §4.5). Must match NP_HUB_PROTO_VERSION in
@@ -160,6 +161,7 @@ describe('hub protocol v1 wire format', () => {
     expect(readBlob(blob).version).toBe(1);
   });
 
+  // @verifies REQ-FWHUB-08
   it('emits a 14-byte command header with a target block', () => {
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['Frontal Left'] }), { zones });
     // 1 continuous command: header + cmdhdr + 16-byte mask + 4 params + sig.
@@ -168,6 +170,7 @@ describe('hub protocol v1 wire format', () => {
 });
 
 describe('socket-addressed cranial targets', () => {
+  // @verifies REQ-FWHUB-08
   it('compiles a named zone to that zone\'s exact sockets', () => {
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['Frontal Left'] }), { zones });
     const [cmd] = readBlob(blob).cmds;
@@ -177,11 +180,13 @@ describe('socket-addressed cranial targets', () => {
     expect(socketsInMask(cmd.socketMask)).toEqual(zones.get('Frontal Left')!.sockets);
   });
 
+  // @verifies REQ-FWHUB-08
   it('carries no slot id on a socket-addressed command', () => {
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['Frontal Left'] }), { zones });
     expect(readBlob(blob).cmds[0].slotId).toBe(SLOT_NONE);
   });
 
+  // @verifies REQ-FWHUB-08
   it('converts 1-based NPPS ids to 0-based firmware bits', () => {
     // NPPS socket id N sets bit N-1. Derived from the zone's own sockets so the
     // conversion — not a lattice coincidence — is what's under test.
@@ -195,6 +200,7 @@ describe('socket-addressed cranial targets', () => {
     expect(bitSet(notInZone)).toBe(0);                             // a non-member stays clear
   });
 
+  // @verifies REQ-FWHUB-08
   it('reaches the highest wired socket', () => {
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['All'] }), { zones });
     const selected = socketsInMask(readBlob(blob).cmds[0].socketMask);
@@ -205,6 +211,7 @@ describe('socket-addressed cranial targets', () => {
     expect(selected[selected.length - 1]).toBe(highest);
   });
 
+  // @verifies REQ-FWHUB-08
   it('sizes the mask to the firmware socket domain, not the shell socket count', () => {
     // 16 bytes = 128 bits = NP_HEXMAP_MAX_SOCKETS, though far fewer are wired.
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['All'] }), { zones });
@@ -212,6 +219,7 @@ describe('socket-addressed cranial targets', () => {
     expect(NP_SOCKETS.length).toBeLessThan(16 * 8);
   });
 
+  // @verifies REQ-FWHUB-32
   it('unions multiple zoneRefs', () => {
     const { blob } = compileProtocol(
       pbmProtocol({ zoneRefs: ['Temporal Left', 'Temporal Right'] }), { zones });
@@ -225,6 +233,7 @@ describe('socket-addressed cranial targets', () => {
   // The reason the wire carries a bitmap rather than a socket list: midline
   // sockets belong to both hemisphere zones, so a union names them twice, and a
   // list would drive those modules twice — double J/cm² on a real PBM protocol.
+  // @verifies REQ-FWHUB-32
   it('delivers overlapping zones once per socket', () => {
     const fl = zones.get('Frontal Left')!.sockets;
     const fr = zones.get('Frontal Right')!.sockets;
@@ -244,6 +253,7 @@ describe('socket-addressed cranial targets', () => {
     expect(selected).toEqual(distinct);
   });
 
+  // @verifies REQ-FWHUB-08
   it('gives an interval protocol\'s stop commands the same target as the on', () => {
     const proto = pbmProtocol({ zoneRefs: ['Frontal Left'] });
     proto.modalities[0].interval =
@@ -260,11 +270,13 @@ describe('socket-addressed cranial targets', () => {
 });
 
 describe('clinician-selected targets', () => {
+  // @verifies REQ-FWHUB-31
   it('refuses to compile without an operator socket selection', () => {
     expect(() => compileProtocol(pbmProtocol({ zones: 'clinician_selected' }), { zones }))
       .toThrow(/operator must choose the sockets/);
   });
 
+  // @verifies REQ-FWHUB-31
   it('compiles the operator\'s sockets when given', () => {
     const { blob } = compileProtocol(
       pbmProtocol({ zones: 'clinician_selected' }),
@@ -278,12 +290,14 @@ describe('retired five-slot selectors', () => {
   // members and the compiler's resolver has no branch that could accept one.
   // These assert the removal from the outside: a hand-built object carrying an
   // old selector is not silently treated as coverage.
+  // @verifies REQ-NPPS-08
   it.each(['all', 'front', 'rear', 'custom'])('does not compile zones: %s', (selector) => {
     expect(() => compileProtocol(
       pbmProtocol({ zones: selector as unknown as PBMTranscranialParams['zones'] }), { zones }))
       .toThrow();
   });
 
+  // @verifies REQ-NPPS-08
   it('does not resolve a numeric zone list', () => {
     expect(() => compileProtocol(
       pbmProtocol({ zones: [1, 2] as unknown as PBMTranscranialParams['zones'] }), { zones }))
@@ -295,6 +309,7 @@ describe('newly-created protocols', () => {
   // defaultParams() seeds the UI's "add a modality" flow. It used to seed the
   // retired `zones: 'all'` selector, which no longer exists — so a freshly-created
   // protocol would not have compiled at all.
+  // @verifies REQ-FWHUB-08
   it('compiles a protocol built from defaultParams', () => {
     const proto = pbmProtocol({});
     proto.modalities[0].modalityParams = {
@@ -308,16 +323,19 @@ describe('newly-created protocols', () => {
 });
 
 describe('zone resolution failures', () => {
+  // @verifies REQ-NPPS-08#c
   it('refuses a named target with no zone namespace', () => {
     expect(() => compileProtocol(pbmProtocol({ zoneRefs: ['Frontal Left'] }), {}))
       .toThrow(/no zone namespace/);
   });
 
+  // @verifies REQ-NPPS-08#c
   it('refuses an unknown zone name', () => {
     expect(() => compileProtocol(pbmProtocol({ zoneRefs: ['Nonexistent'] }), { zones }))
       .toThrow(/not in the zone namespace/);
   });
 
+  // @verifies REQ-NPPS-17
   it('refuses a zone naming a socket this helmet does not have', () => {
     // One past the highest wired socket — derived, so a lattice re-cut keeps it
     // genuinely out of range (it was 78 sockets, now 80).
@@ -328,6 +346,7 @@ describe('zone resolution failures', () => {
       .toThrow(new RegExp(`Socket ${offHelmet} is not a socket on this helmet`));
   });
 
+  // @verifies REQ-NPPS-08#c
   it('refuses a zone that resolves to no sockets', () => {
     const empty = new Map(zones);
     empty.set('Empty', { name: 'Empty', sockets: [] });
@@ -340,6 +359,7 @@ describe('slot-addressed fixed devices', () => {
   // v1 emitted slot_mask 0x01 for every non-PBM modality. Bit 0 is zone slot 0,
   // whose registry entry is the PBM driver — so an EEG command was addressed to
   // the PBM module. Every fixed device now names itself.
+  // @verifies REQ-FWHUB-08
   it('addresses EEG to the ADS1299 slot, not slot 0', () => {
     const { blob } = compileProtocol(eegProtocol(), { zones });
     const [cmd] = readBlob(blob).cmds;
@@ -348,12 +368,14 @@ describe('slot-addressed fixed devices', () => {
     expect(cmd.slotId).toBe(5);               // NP_HUB_SLOT_EEG
   });
 
+  // @verifies REQ-FWHUB-08
   it('carries no target block on a slot-addressed command', () => {
     const { blob } = compileProtocol(eegProtocol(), { zones });
     expect(readBlob(blob).cmds[0].socketMask).toHaveLength(0);
     expect(blob.length).toBe(HEADER_LEN + CMD_HDR_LEN + 5 + SIG_LEN);
   });
 
+  // @verifies REQ-FWHUB-07
   it('never emits a retired zone slot', () => {
     const { blob } = compileProtocol(eegProtocol(), { zones });
     for (const cmd of readBlob(blob).cmds) {
@@ -386,6 +408,7 @@ describe('parameter block sizes match the firmware structs', () => {
     vibrotactile_40hz:  { size: 4,  slot: 16,   params: { intensityG: 0.9, syncToAudio: true, syncToVisual: false } },
   };
 
+  // @verifies REQ-FWHUB-08
   it.each(Object.entries(EXPECTED))('%s encodes %o', (type, spec) => {
     const proto = pbmProtocol({});
     proto.modalities[0].modalityParams =
@@ -401,6 +424,7 @@ describe('parameter block sizes match the firmware structs', () => {
     }
   });
 
+  // @verifies REQ-FWHUB-08
   it('covers every modality type', () => {
     // A new modality must appear above, not slip through untested.
     expect(Object.keys(EXPECTED).sort()).toEqual(Object.keys(MODALITY_META).sort());
@@ -422,6 +446,7 @@ describe('clinical tACS channel mask (OI-TACS-01)', () => {
     return readBlob(compileProtocol(proto, { zones }).blob).cmds[0].params;
   }
 
+  // @verifies REQ-FWHUB-08
   it('spans all 21 driver channels across three mask bytes', () => {
     const params = tacsParams(NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS);
     expect(params).toHaveLength(8);
@@ -432,12 +457,14 @@ describe('clinical tACS channel mask (OI-TACS-01)', () => {
     expect(params[7]).toBe(0);      // waveform moved from offset 6 to 7
   });
 
+  // @verifies REQ-FWHUB-08
   it('leaves the reserved top three bits of channel_mask_ext clear', () => {
     for (let n = 1; n <= NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS; n++) {
       expect(tacsParams(n)[6] & 0xE0).toBe(0);
     }
   });
 
+  // @verifies REQ-FWHUB-08
   it('enables exactly the first N channels', () => {
     for (const n of [1, 8, 15, 16, 17, 21]) {
       const params = tacsParams(n);
@@ -446,6 +473,7 @@ describe('clinical tACS channel mask (OI-TACS-01)', () => {
     }
   });
 
+  // @verifies REQ-NPPS-06
   it('refuses an over-range count rather than clamping it', () => {
     // protocolValidator rejects this before compile; a caller that reaches the compiler anyway is refused,
     // not given a different channel set from the one authored (CLAUDE.md §3).
@@ -455,6 +483,7 @@ describe('clinical tACS channel mask (OI-TACS-01)', () => {
 });
 
 describe('mixed-target protocols', () => {
+  // @verifies REQ-FWHUB-08
   it('interleaves socket and slot targets without disturbing either', () => {
     const proto = pbmProtocol({ zoneRefs: ['Occipital Left'] });
     proto.modalities.push({

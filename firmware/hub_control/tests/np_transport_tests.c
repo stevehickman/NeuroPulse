@@ -62,6 +62,7 @@ static uint8_t g_out[NP_HUB_PROTO_BLOB_MAX];
 
 /* ── Tests ────────────────────────────────────────────────────────────────────── */
 
+/* @verifies REQ-FWHUB-04 */
 static void test_single_chunk(void)
 {
     np_transport_init();
@@ -76,6 +77,7 @@ static void test_single_chunk(void)
     check(payload_ok(g_out, 64U), "single: payload correct");
 }
 
+/* @verifies REQ-FWHUB-04 */
 static void test_fragmented(void)
 {
     np_transport_init();
@@ -93,6 +95,7 @@ static void test_fragmented(void)
     check(got == 200U && payload_ok(g_out, 200U), "frag: reassembled payload correct");
 }
 
+/* @verifies REQ-FWHUB-04 */
 static void test_bad_length_zero(void)
 {
     np_transport_init();
@@ -104,6 +107,7 @@ static void test_bad_length_zero(void)
           "bad-zero: nothing latched");
 }
 
+/* @verifies REQ-FWHUB-04 */
 static void test_bad_length_too_big(void)
 {
     np_transport_init();
@@ -123,6 +127,7 @@ static void test_bad_length_too_big(void)
           got == 16U, "bad-big: next frame received");
 }
 
+/* @verifies REQ-FWHUB-04 */
 static void test_receive_timeout(void)
 {
     np_transport_init();
@@ -131,6 +136,7 @@ static void test_receive_timeout(void)
           "timeout: no data → timeout");
 }
 
+/* @verifies REQ-FWHUB-04 */
 static void test_busy_backpressure(void)
 {
     np_transport_init();
@@ -151,6 +157,7 @@ static void test_busy_backpressure(void)
           got == 48U && payload_ok(g_out, 48U), "busy: B received");
 }
 
+/* @verifies REQ-FWHUB-04 */
 static void test_reset_aborts_partial(void)
 {
     np_transport_init();
@@ -170,6 +177,7 @@ static void test_reset_aborts_partial(void)
     (void)n;
 }
 
+/* @verifies REQ-FWHUB-04 */
 static void test_receive_buffer_too_small(void)
 {
     np_transport_init();
@@ -186,6 +194,7 @@ static void test_receive_buffer_too_small(void)
           "small-buf: mailbox freed after drop");
 }
 
+/* @verifies REQ-FWHUB-04 */
 static void test_null_args(void)
 {
     np_transport_init();
@@ -199,6 +208,7 @@ static void test_null_args(void)
     check(np_transport_feed(NULL, 0U) == NP_HUB_OK, "null: zero-length feed is a no-op");
 }
 
+/* @verifies REQ-FWHUB-04 */
 static void test_max_size_blob(void)
 {
     np_transport_init();

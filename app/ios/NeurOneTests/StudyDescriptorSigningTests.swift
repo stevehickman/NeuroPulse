@@ -53,6 +53,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
     /// The exact bytes. This is the contract Android's `StudyDescriptorCanonicalForm.bytes`
     /// reproduces character for character; describing it in prose on both sides is how two
     /// implementations drift.
+    // @verifies REQ-CONSENT-10#d
     func testTheCanonicalFormIsExactlyThis() {
         let bytes = StudyDescriptorCanonicalForm.bytes(
             for: descriptor(
@@ -78,12 +79,14 @@ final class StudyDescriptorSigningTests: XCTestCase {
 
     /// The day is derived in UTC, not in the device's zone: a descriptor must not verify in one
     /// time zone and fail in another.
+    // @verifies REQ-CONSENT-10
     func testTheDayIsRenderedInUTC() {
         // 2026-09-14T23:30:00Z — the previous day in any negative offset, the same day in UTC.
         let lateUTC = Date(timeIntervalSince1970: 1_789_428_600)
         XCTAssertEqual(StudyDescriptorCanonicalForm.day(from: lateUTC), "2026-09-14")
     }
 
+    // @verifies REQ-CONSENT-10#d
     func testElementOrderDoesNotChangeTheBytes() {
         // Set has no inherent order; the encoding must impose one.
         let a = descriptor(elements: [.eegWaveforms, .outcomeLogs])
@@ -95,6 +98,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
     /// Why fields are length-prefixed rather than delimited: `studyTitle` is server-supplied text,
     /// so it can contain the separator. Two different descriptors must never share bytes, or one
     /// signature covers both.
+    // @verifies REQ-CONSENT-10#d
     func testATitleCarryingTheSeparatorCannotForgeAnotherDescriptor() {
         XCTAssertNotEqual(
             StudyDescriptorCanonicalForm.bytes(for: descriptor(studyID: "S1", studyTitle: "Trial")),
@@ -102,6 +106,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
         )
     }
 
+    // @verifies REQ-CONSENT-10
     func testTheHashDigestsTheSignedBytes() {
         let d = descriptor()
         let hash = StudyDescriptorCanonicalForm.descriptorHash(for: d)
@@ -113,6 +118,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
 
     // MARK: - The verifier
 
+    // @verifies REQ-CONSENT-10
     func testAGenuinelySignedDescriptorVerifiesAndCarriesItsHash() throws {
         let d = try signed(descriptor())
         XCTAssertEqual(
@@ -122,6 +128,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
     }
 
     /// Every field is covered: tampering with any of them must break the signature.
+    // @verifies REQ-CONSENT-10#a
     func testTamperingWithAnyCoveredFieldRejects() throws {
         let base = try signed(descriptor())
         let v = try verifier
@@ -145,6 +152,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-CONSENT-10#b
     func testADescriptorSignedByAnotherKeyIsRejected() throws {
         let other = Curve25519.Signing.PrivateKey()
         var d = descriptor()
@@ -157,6 +165,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
     /// A malformed signature is `.rejected`, never `.unavailable`. `.unavailable` means the device
     /// cannot check; a device holding a key can, and collapsing the two would let a forged
     /// descriptor read as a configuration problem.
+    // @verifies REQ-CONSENT-10
     func testAMalformedSignatureIsRejectedNotUnavailable() throws {
         let v = try verifier
         XCTAssertEqual(v.verify(descriptor(signature: "")), .rejected)
@@ -166,6 +175,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
 
     /// A build with no key, or a broken one, falls back to having no verifier at all — and so to
     /// `RefusingStudyDescriptorVerifier` — rather than to one that fails at the first descriptor.
+    // @verifies REQ-CONSENT-10#c
     func testAnAbsentOrUnusableKeyYieldsNoVerifierAtAll() {
         XCTAssertNil(Ed25519StudyDescriptorVerifier(publicKeyBase64: nil))
         XCTAssertNil(Ed25519StudyDescriptorVerifier(publicKeyBase64: ""))
@@ -179,6 +189,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
     /// The wire names a signature covers. They are `rawValue` on iOS — the persisted Codable
     /// value — and `wireName` on Android, and they must be the same strings or one platform
     /// rejects every descriptor the other accepts.
+    // @verifies REQ-CONSENT-09
     func testWireNamesArePinned() {
         XCTAssertEqual(
             UHDRElement.allCases.map(\.rawValue).sorted(),

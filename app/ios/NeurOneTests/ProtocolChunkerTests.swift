@@ -11,6 +11,7 @@ struct ProtocolChunkerTests {
     private let END:    UInt8 = 0x03
     private let SINGLE: UInt8 = 0x04
 
+    // @verifies REQ-SW03-11
     @Test func emptyDataProducesSingleEmptyChunk() {
         let chunks = ProtocolChunker.chunk(Data())
         #expect(chunks == [Data([0x04])])
@@ -18,6 +19,7 @@ struct ProtocolChunkerTests {
         #expect(chunks[0].count == 1)
     }
 
+    // @verifies REQ-SW03-11
     @Test func dataBelow509IsSingleChunk() {
         let data = Data(repeating: 0xAB, count: 100)
         let chunks = ProtocolChunker.chunk(data)
@@ -28,6 +30,7 @@ struct ProtocolChunkerTests {
         #expect(chunks[0].count <= BleTransfer.MAX_WRITE_SIZE)
     }
 
+    // @verifies REQ-SW03-11
     @Test func dataExactly509IsSingleChunk() {
         let data = Data(repeating: 0x11, count: 509)
         let chunks = ProtocolChunker.chunk(data)
@@ -37,6 +40,7 @@ struct ProtocolChunkerTests {
         #expect(chunks[0].dropFirst() == data)
     }
 
+    // @verifies REQ-SW03-11
     @Test func dataExactly510IsStartPlusEnd() {
         let data = Data((0..<510).map { UInt8($0 & 0xFF) })
         let chunks = ProtocolChunker.chunk(data)
@@ -60,6 +64,7 @@ struct ProtocolChunkerTests {
         #expect(Array(end.dropFirst()) == [data[data.index(data.startIndex, offsetBy: 509)]])
     }
 
+    // @verifies REQ-SW03-11
     @Test func largeDataProducesStartContEnd() {
         // 509 (START) + 511 (CONT) + 50 (END) = 1070 bytes.
         let data = Data((0..<1070).map { UInt8($0 & 0xFF) })
@@ -81,6 +86,7 @@ struct ProtocolChunkerTests {
         #expect((UInt16(lenLow) | (UInt16(lenHigh) << 8)) == 1070)
     }
 
+    // @verifies REQ-FWHUB-04
     @Test func roundTripReassemblyMatchesOriginal() {
         // Reassemble payloads (stripping headers / length) and confirm equality.
         for size in [0, 1, 508, 509, 510, 511, 1020, 1021, 4096] {
