@@ -44,6 +44,20 @@ fn a_zero_or_negative_duration_is_an_error_not_a_short_session_warning() {
     assert_eq!(find(&short, "VALIDATE_MSG_GENERAL_DURATION")["severity"], "warning");
 }
 
+// @verifies REQ-NPPS-23
+#[test]
+fn a_cervical_vns_intensity_over_the_hardware_maximum_is_an_error_that_names_the_maximum() {
+    let i = run(
+        proto(600.0, vec![block("cervical_vns", json!({ "intensityMilliamps": 3, "frequencyHz": 10 }), CONT())]),
+        json!({}),
+        json!({}),
+    );
+    let e = find(&i, "VALIDATE_MSG_CERVICAL_VNS_INTENSITYMILLIAMPS");
+    assert_eq!(e["severity"], "error");
+    assert_eq!(e["message"]["args"], json!(["3", "2"]), "the entered value, then the 2 mA maximum");
+    assert_eq!(e["limitValueDescription"], "2 mA");
+}
+
 // @verifies REQ-NPPS-02
 #[test]
 fn a_cw_block_with_a_duty_other_than_100_contradicts_itself() {
