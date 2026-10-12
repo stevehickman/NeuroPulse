@@ -63,6 +63,7 @@ final class NPSocketMaskTests: XCTestCase {
     /// zone names and reading the 16-byte target block out of the emitted blob
     /// (offset 64 + 14). If iOS and web ever disagree about a zone, one of them
     /// is lighting the wrong part of a skull.
+    // @verifies REQ-FWHUB-08
     func testMaskBytesMatchTheWebEncoder() throws {
         let fixtures: [(zones: [String], hex: String)] = [
             (["Occipital Left"],                 "00000000000000008033000000000000"),
@@ -78,6 +79,7 @@ final class NPSocketMaskTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-FWHUB-08
     func testMaskIsSizedToTheFirmwareConstant() throws {
         // == NP_HUB_SOCKET_MASK_BYTES (firmware/hub_control/include/np_hub_config.h)
         // and == NP_PBM_SOCKET_MASK_BYTES. 128 bits, not 80: the wire format
@@ -88,6 +90,7 @@ final class NPSocketMaskTests: XCTestCase {
         XCTAssertEqual(mask.hexString.count, 32)
     }
 
+    // @verifies REQ-FWHUB-08
     func testBitOrderIsLSBFirstWithBitZeroMeaningSocketOne() throws {
         // The bit position is INDEX space; the socket number is not. Socket 1 —
         // the lowest that exists — is bit 0 of byte 0.
@@ -102,6 +105,7 @@ final class NPSocketMaskTests: XCTestCase {
 
     // MARK: - NUMBER-1: socket numbers are 1-based, project-wide
 
+    // @verifies REQ-FWHUB-08
     func testNumberingBaseIsOne() {
         // NUMBER-1 (docs/np_hex_zm_001.md §3.3). Pinned here as well as in the
         // generator and the web suite because iOS holds its own copy of the
@@ -112,6 +116,7 @@ final class NPSocketMaskTests: XCTestCase {
         XCTAssertEqual(NPSocketID.rangeLabel, "1–\(SocketLattice.NP_SOCKET_COUNT)")
     }
 
+    // @verifies REQ-FWHUB-08
     func testSocketZeroDoesNotExist() {
         // Rejected, never clamped to 1 and never treated as "no socket".
         XCTAssertFalse(NPSocketID.isValid(0))
@@ -147,6 +152,7 @@ final class NPSocketMaskTests: XCTestCase {
 
     // MARK: - Bad targets
 
+    // @verifies REQ-NPPS-08#c
     func testUnknownZoneNameFails() {
         XCTAssertThrowsError(try NPPBMTarget.named(["Left Frontal"]).resolve()) { error in
             let message = (error as? NPSocketTargetError)?.errorDescription ?? ""

@@ -111,6 +111,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
     // BLE writes. After reassembly the blob must still begin with the NPHP magic and carry the
     // whole descriptor. The descriptor has no name field, so size comes from commands: an
     // interval block expands to an ON and a STOP per repeat (NP-FW-HUB-001 §4.1).
+    // @verifies REQ-FWHUB-04
     func testUploadMultiChunkProtocolReassemblesWithNPHPMagic() async throws {
         let gateway = MockProtocolUploadGateway()
         let uploader = SessionProtocolUploader(gatt: gateway)
@@ -153,6 +154,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
     // upload(_:NPProtocolDefinition) must throw UploadError.validationFailed and
     // must NOT call GATT uploadProtocol when the protocol violates hardware limits.
     // This ensures an unsafe protocol never reaches the hub.
+    // @verifies SWR-SS-03
     func testUploadDefinitionRejectsProtocolOverHardwareLimit() async {
         let gateway = MockProtocolUploadGateway()
         let uploader = SessionProtocolUploader(gatt: gateway)
@@ -241,6 +243,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
         )
     }
 
+    // @verifies DI-SAFE-09 REQ-CVNS-09#f
     func testCervicalProtocolRefusedWhileCardiacCutoffUnread() async {
         let gateway = MockProtocolUploadGateway()
         gateway.cervicalRestartBlocked = true
@@ -256,6 +259,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
         XCTAssertEqual(gateway.uploadCallCount, 0, "nothing may reach the hub")
     }
 
+    // @verifies DI-SAFE-09 REQ-CVNS-09#f
     func testAnotherPersonsCutoffNeedsOneConfirmationPerUpload() async throws {
         let gateway = MockProtocolUploadGateway()
         gateway.cervicalOutstandingForAnotherUser = true
@@ -283,6 +287,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
 
     /// Mode 3 goes through the same gate and throws the same errors, so the protocol menu shows
     /// the same message and confirmation whichever mode the wearer chose.
+    // @verifies DI-SAFE-09 REQ-CVNS-09#f
     func testAutonomousProgrammingUsesTheSameCervicalGate() async throws {
         let gateway = MockProtocolUploadGateway()
         gateway.cervicalRestartBlocked = true

@@ -59,6 +59,7 @@ class ProtocolChunkerTests {
         assertContentEquals(data, reassemble(chunks))
     }
 
+    // @verifies REQ-FWHUB-04
     @Test
     fun largePayloadUsesStartContEndAndReassembles() {
         val data = ByteArray(2000) { (it % 256).toByte() }

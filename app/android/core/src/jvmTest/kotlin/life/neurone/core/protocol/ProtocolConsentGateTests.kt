@@ -55,11 +55,13 @@ class ProtocolConsentGateTests {
 
     // MARK: - isEEGDependent predicate
 
+    // @verifies REQ-ONBOARD-05#a
     @Test
     fun isEEGDependent_trueForEEGModality() {
         assertTrue(ProtocolConsentGate.isEEGDependent(eegProtocol()))
     }
 
+    // @verifies REQ-ONBOARD-05#a
     @Test
     fun isEEGDependent_trueForEEGAdaptiveAudio() {
         assertTrue(
@@ -68,6 +70,7 @@ class ProtocolConsentGateTests {
         )
     }
 
+    // @verifies REQ-ONBOARD-05#b
     @Test
     fun isEEGDependent_falseForNonEEG() {
         assertFalse(ProtocolConsentGate.isEEGDependent(pbmProtocol()))
@@ -91,16 +94,19 @@ class ProtocolConsentGateTests {
 
     // MARK: - isBlockedByBipa gate
 
+    // @verifies REQ-ONBOARD-05#a
     @Test
     fun eegProtocol_blockedWhenConsentDeclined() {
         assertTrue(ProtocolConsentGate.isBlockedByBipa(eegProtocol(), consentGranted = false))
     }
 
+    // @verifies REQ-ONBOARD-05#c
     @Test
     fun eegProtocol_allowedWhenConsentGranted() {
         assertFalse(ProtocolConsentGate.isBlockedByBipa(eegProtocol(), consentGranted = true))
     }
 
+    // @verifies REQ-ONBOARD-05#b
     @Test
     fun nonEEGProtocol_unaffectedByConsentState() {
         assertFalse(ProtocolConsentGate.isBlockedByBipa(pbmProtocol(), consentGranted = false))
@@ -109,6 +115,7 @@ class ProtocolConsentGateTests {
 
     // MARK: - Composite resolution
 
+    // @verifies REQ-ONBOARD-05#a
     @Test
     fun composite_blockedWhenAnyMemberEEGDependent() {
         val composite = NPProtocolEntry.Composite(

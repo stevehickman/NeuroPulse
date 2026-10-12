@@ -170,6 +170,7 @@ describe('hub protocol v1 wire format', () => {
 });
 
 describe('socket-addressed cranial targets', () => {
+  // @verifies REQ-FWHUB-08
   it('compiles a named zone to that zone\'s exact sockets', () => {
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['Frontal Left'] }), { zones });
     const [cmd] = readBlob(blob).cmds;
@@ -179,11 +180,13 @@ describe('socket-addressed cranial targets', () => {
     expect(socketsInMask(cmd.socketMask)).toEqual(zones.get('Frontal Left')!.sockets);
   });
 
+  // @verifies REQ-FWHUB-08
   it('carries no slot id on a socket-addressed command', () => {
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['Frontal Left'] }), { zones });
     expect(readBlob(blob).cmds[0].slotId).toBe(SLOT_NONE);
   });
 
+  // @verifies REQ-FWHUB-08
   it('converts 1-based NPPS ids to 0-based firmware bits', () => {
     // NPPS socket id N sets bit N-1. Derived from the zone's own sockets so the
     // conversion — not a lattice coincidence — is what's under test.
@@ -197,6 +200,7 @@ describe('socket-addressed cranial targets', () => {
     expect(bitSet(notInZone)).toBe(0);                             // a non-member stays clear
   });
 
+  // @verifies REQ-FWHUB-08
   it('reaches the highest wired socket', () => {
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['All'] }), { zones });
     const selected = socketsInMask(readBlob(blob).cmds[0].socketMask);
@@ -207,6 +211,7 @@ describe('socket-addressed cranial targets', () => {
     expect(selected[selected.length - 1]).toBe(highest);
   });
 
+  // @verifies REQ-FWHUB-08
   it('sizes the mask to the firmware socket domain, not the shell socket count', () => {
     // 16 bytes = 128 bits = NP_HEXMAP_MAX_SOCKETS, though far fewer are wired.
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['All'] }), { zones });
@@ -310,11 +315,13 @@ describe('newly-created protocols', () => {
 });
 
 describe('zone resolution failures', () => {
+  // @verifies REQ-NPPS-08#c
   it('refuses a named target with no zone namespace', () => {
     expect(() => compileProtocol(pbmProtocol({ zoneRefs: ['Frontal Left'] }), {}))
       .toThrow(/no zone namespace/);
   });
 
+  // @verifies REQ-NPPS-08#c
   it('refuses an unknown zone name', () => {
     expect(() => compileProtocol(pbmProtocol({ zoneRefs: ['Nonexistent'] }), { zones }))
       .toThrow(/not in the zone namespace/);
@@ -330,6 +337,7 @@ describe('zone resolution failures', () => {
       .toThrow(new RegExp(`Socket ${offHelmet} is not a socket on this helmet`));
   });
 
+  // @verifies REQ-NPPS-08#c
   it('refuses a zone that resolves to no sockets', () => {
     const empty = new Map(zones);
     empty.set('Empty', { name: 'Empty', sockets: [] });
@@ -342,6 +350,7 @@ describe('slot-addressed fixed devices', () => {
   // v1 emitted slot_mask 0x01 for every non-PBM modality. Bit 0 is zone slot 0,
   // whose registry entry is the PBM driver — so an EEG command was addressed to
   // the PBM module. Every fixed device now names itself.
+  // @verifies REQ-FWHUB-08
   it('addresses EEG to the ADS1299 slot, not slot 0', () => {
     const { blob } = compileProtocol(eegProtocol(), { zones });
     const [cmd] = readBlob(blob).cmds;
@@ -350,6 +359,7 @@ describe('slot-addressed fixed devices', () => {
     expect(cmd.slotId).toBe(5);               // NP_HUB_SLOT_EEG
   });
 
+  // @verifies REQ-FWHUB-08
   it('carries no target block on a slot-addressed command', () => {
     const { blob } = compileProtocol(eegProtocol(), { zones });
     expect(readBlob(blob).cmds[0].socketMask).toHaveLength(0);
@@ -404,6 +414,7 @@ describe('parameter block sizes match the firmware structs', () => {
     }
   });
 
+  // @verifies REQ-FWHUB-08
   it('covers every modality type', () => {
     // A new modality must appear above, not slip through untested.
     expect(Object.keys(EXPECTED).sort()).toEqual(Object.keys(MODALITY_META).sort());
@@ -425,6 +436,7 @@ describe('clinical tACS channel mask (OI-TACS-01)', () => {
     return readBlob(compileProtocol(proto, { zones }).blob).cmds[0].params;
   }
 
+  // @verifies REQ-FWHUB-08
   it('spans all 21 driver channels across three mask bytes', () => {
     const params = tacsParams(NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS);
     expect(params).toHaveLength(8);
@@ -435,12 +447,14 @@ describe('clinical tACS channel mask (OI-TACS-01)', () => {
     expect(params[7]).toBe(0);      // waveform moved from offset 6 to 7
   });
 
+  // @verifies REQ-FWHUB-08
   it('leaves the reserved top three bits of channel_mask_ext clear', () => {
     for (let n = 1; n <= NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS; n++) {
       expect(tacsParams(n)[6] & 0xE0).toBe(0);
     }
   });
 
+  // @verifies REQ-FWHUB-08
   it('enables exactly the first N channels', () => {
     for (const n of [1, 8, 15, 16, 17, 21]) {
       const params = tacsParams(n);
@@ -459,6 +473,7 @@ describe('clinical tACS channel mask (OI-TACS-01)', () => {
 });
 
 describe('mixed-target protocols', () => {
+  // @verifies REQ-FWHUB-08
   it('interleaves socket and slot targets without disturbing either', () => {
     const proto = pbmProtocol({ zoneRefs: ['Occipital Left'] });
     proto.modalities.push({

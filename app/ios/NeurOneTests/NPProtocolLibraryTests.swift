@@ -41,6 +41,7 @@ final class NPProtocolLibraryTests: XCTestCase {
     }
 
     @MainActor
+    // @verifies SWR-PL-04
     func testAllBundledProtocolsAreReadOnly() {
         let library = NPProtocolLibrary()
         for entry in library.bundledProtocols {
@@ -184,6 +185,7 @@ final class NPProtocolLibraryTests: XCTestCase {
     // MARK: - Read-only enforcement: save/delete must be silently ignored
 
     @MainActor
+    // @verifies SWR-PL-04
     func testSaveBundledProtocolIsIgnored() {
         let library = NPProtocolLibrary()
         guard let first = library.bundledProtocols.first else {
@@ -203,6 +205,7 @@ final class NPProtocolLibraryTests: XCTestCase {
     }
 
     @MainActor
+    // @verifies SWR-PL-04
     func testDeleteBundledProtocolIsIgnored() {
         let library = NPProtocolLibrary()
         guard let first = library.bundledProtocols.first else {
@@ -254,6 +257,7 @@ final class NPProtocolLibraryTests: XCTestCase {
 
     /// Rev 18: the combined channel names are retired, and the refusal names the blocks that
     /// replace them.
+    // @verifies REQ-NPPS-03#a
     func testRetiredCombinedWavelengthsAreRefused() {
         for wl in ["660_808nm", "660_808_1064nm"] {
             XCTAssertThrowsError(try parseEntries(wavelengthProtocol("\"\(wl)\""))) { error in
@@ -263,6 +267,7 @@ final class NPProtocolLibraryTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-10#a
     func testUnquotedCompoundWavelengthIsRefused() {
         for wl in ["660_808nm", "660_808_1064nm"] {
             XCTAssertThrowsError(try parseEntries(wavelengthProtocol(wl)),
@@ -275,6 +280,7 @@ final class NPProtocolLibraryTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-10#a
     func testUnquotedHyphenatedTagIsRefused() {
         let input = """
         protocol "Hyphen Tag Test" {
@@ -286,6 +292,7 @@ final class NPProtocolLibraryTests: XCTestCase {
         XCTAssertThrowsError(try parseEntries(input), "an unquoted hyphenated tag must not parse")
     }
 
+    // @verifies REQ-NPPS-10#a
     func testQuotedHyphenatedTagsParse() throws {
         let input = """
         protocol "Hyphen Tag Test" {
@@ -306,6 +313,7 @@ final class NPProtocolLibraryTests: XCTestCase {
 
     // Guards against serialize→reparse silently splitting "wind-down" into
     // ["wind", "down"] by ensuring the serializer quotes tags containing hyphens.
+    // @verifies REQ-NPPS-11
     func testHyphenatedTagRoundTripPreservesValue() throws {
         let input = """
         protocol "Hyphen Round Trip" {

@@ -42,6 +42,7 @@ class HubDescriptorCompilerTests {
     private fun check(name: String, d: NPProtocolDefinition) =
         assertEquals(golden.getValue(name), hex(compiler.build(d, null, listOf(7, 3)).blob), name)
 
+    // @verifies REQ-FWHUB-08
     @Test fun pbmChannels() {
         check("pbm660", def(1200, pbm("660nm", 200.0)))
         check("pbm808", def(1200, pbm("808nm", 322.0)))
@@ -70,10 +71,12 @@ class HubDescriptorCompilerTests {
     // @verifies REQ-NPPS-03#c
     @Test fun parallelWavelengthsMergeIntoOneTileCommand() = check("pbmMerged", def(600, pbm("660nm", 100.0), pbm("808nm", 200.0)))
 
+    // @verifies REQ-FWHUB-08
     @Test fun clinicianSelectedSockets() = check("pbmClin", def(600, mod(NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(
         target = NPPBMTarget.ClinicianSelected, wavelength = NPPBMTranscranialParams.Wavelength.NM_808,
         irradianceMWcm2 = 100.0, frequencyHz = 0.0, dutyCyclePercent = 100)))))
 
+    // @verifies REQ-FWHUB-08
     @Test fun t1Modalities() {
         check("nasal", def(600, mod(NPModalityParams.PbmIntranasal(NPPBMIntranasalParams(
             wavelength = NPPBMTranscranialParams.Wavelength.NM_808, irradianceMWcm2 = 60.0, frequencyHz = 40.0, dutyCyclePercent = 25)))))
@@ -92,6 +95,7 @@ class HubDescriptorCompilerTests {
         check("visual", def(600, mod(NPModalityParams.VisualStimulation(NPVisualStimParams(emdrCadenceHz = 1.5)))))
     }
 
+    // @verifies REQ-FWHUB-08
     @Test fun t2Modalities() {
         check("qeeg", def(600, mod(NPModalityParams.Qeeg21ch(NPqEEG21chParams(reference = NPqEEG21chParams.Reference.AVERAGE)))))
         check("tms", def(600, mod(NPModalityParams.Tms(NPTMSParams(
@@ -106,12 +110,14 @@ class HubDescriptorCompilerTests {
         assertTrue(compiler.build(def(600, mod(NPModalityParams.CervicalVns(NPCervicalVnsParams()))), null, null).isT2)
     }
 
+    // @verifies REQ-FWHUB-08
     @Test fun intervalsExpandToOnAndStopAndBlockStartShiftsTheSchedule() = check("interval", def(100,
         mod(NPModalityParams.BesTacs(NPBESTacsParams(frequencyHz = 10.0, intensityMilliamps = 0.8, waveform = NPBESTacsParams.Waveform.SQUARE)),
             NPIntervalConfig(20, 10, null)),
         mod(NPModalityParams.Tdcs(NPTDCSParams(intensityMilliamps = 1.0, electrodePairs = listOf(listOf("F3", "F4")),
             rampSeconds = 45, electrodeAreaCm2 = 10.0)), NPIntervalConfig(0, 0, null, startOffsetSeconds = 30))))
 
+    // @verifies REQ-FWHUB-08
     @Test fun signatureCoversTheRawRegionAndLandsInTheLast64Bytes() {
         var seen: ByteArray? = null
         val c = HubDescriptorCompiler({ m -> seen = m; SignatureResult(ByteArray(64) { 7 }, "fp") }, { 1L }, { ByteArray(it) })

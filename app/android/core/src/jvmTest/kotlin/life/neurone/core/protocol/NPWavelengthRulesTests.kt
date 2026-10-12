@@ -51,6 +51,7 @@ class NPWavelengthRulesTests {
         for (nm in listOf(640.0, 850.0, 1080.0)) assertNull(NPWavelengthRulesEngine.map(nm, rules), "$nm")
     }
 
+    // @verifies REQ-NPPS-03#b
     @Test
     fun unmappedAndInvalidAreRefused() {
         val r = NPWavelengthRulesEngine.resolveChannels("850nm")
@@ -99,6 +100,7 @@ class NPWavelengthRulesTests {
     private fun compile(d: NPProtocolDefinition) =
         HubDescriptorCompiler({ SignatureResult(ByteArray(64), "00") }).compile(d)
 
+    // @verifies REQ-NPPS-03#b
     @Test
     fun theSessionWireCarriesBlockStartAndRefusesTheUnmapped() {
         // `start` is on the wire now: the binary descriptor has a start_ms per command (§4.1).

@@ -19,6 +19,7 @@ final class NPWavelengthRulesTests: XCTestCase {
         XCTAssertNil(rules.map(1080))
     }
 
+    // @verifies REQ-NPPS-03#a
     func testRetiredNamesAreRefusedAnd1064IsAPlainWavelength() {
         for name in ["660_808nm", "660_808_1064nm"] {
             guard case .failure(let refusal) = rules.resolveChannels(name) else { return XCTFail("\(name) must be refused") }
@@ -27,6 +28,7 @@ final class NPWavelengthRulesTests: XCTestCase {
         XCTAssertEqual(try rules.resolveChannels("1064nm").get(), [.led1064])
     }
 
+    // @verifies REQ-NPPS-03#b
     func testUnmappedAndInvalidAreRefused() {
         guard case .failure(let unmapped) = rules.resolveChannels("850nm") else { return XCTFail("850nm must be refused") }
         XCTAssertEqual(unmapped.reason, .unmapped)

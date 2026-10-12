@@ -34,6 +34,7 @@ class NPProtocolLibraryTests {
             "Every predefined NPPS template in manifest.json must parse without error.")
     }
 
+    // @verifies SWR-PL-04
     @Test
     fun allBundledProtocolsAreReadOnly() {
         val lib = library()
@@ -65,6 +66,7 @@ class NPProtocolLibraryTests {
         assertTrue(lib.availability(gamma).isAvailable, "Gamma Focus is all-T1 and must be available on a T1 device.")
     }
 
+    // @verifies REQ-ONBOARD-05#a
     @Test
     fun eegProtocolBlockedWhenConsentDeclined() {
         val lib = library(consent = false)
@@ -84,6 +86,7 @@ class NPProtocolLibraryTests {
         assertTrue(lib.availability(gamma).isAvailable)
     }
 
+    // @verifies REQ-ONBOARD-05#b
     @Test
     fun retinalHealthNonEEGAvailableWithoutConsent() {
         val lib = library(consent = false)
@@ -115,6 +118,7 @@ class NPProtocolLibraryTests {
         assertEquals("My Custom", lib2.userProtocols.first().name)
     }
 
+    // @verifies SWR-PL-04
     @Test
     fun cannotDeleteBundledProtocol() {
         val lib = library()

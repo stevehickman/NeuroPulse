@@ -57,6 +57,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
         return mod(.pbmTranscranial(p))
     }
 
+    // @verifies REQ-FWHUB-08
     func testPBMChannels() throws {
         try check("pbm660", def(1200, pbm("660nm", 200)))
         try check("pbm808", def(1200, pbm("808nm", 322)))
@@ -105,6 +106,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
         try check("pbmMerged", def(600, pbm("660nm", 100), pbm("808nm", 200)))
     }
 
+    // @verifies REQ-FWHUB-08
     func testClinicianSelectedSockets() throws {
         var p = NPPBMTranscranialParams()
         p.target = .clinicianSelected
@@ -115,6 +117,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
         try check("pbmClin", def(600, mod(.pbmTranscranial(p))))
     }
 
+    // @verifies REQ-FWHUB-08
     func testT1Modalities() throws {
         var nasal = NPPBMIntranasalParams()
         nasal.wavelength = .NM_808; nasal.irradianceMWcm2 = 60; nasal.frequencyHz = 40; nasal.dutyCyclePercent = 25
@@ -151,6 +154,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
         try check("visual", def(600, mod(.visualStimulation(visual))))
     }
 
+    // @verifies REQ-FWHUB-08
     func testT2Modalities() throws {
         var q = NPqEEG21chParams(); q.reference = .average
         try check("qeeg", def(600, mod(.qeeg21ch(q))))
@@ -167,6 +171,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
         XCTAssertTrue(try build(def(600, mod(.cervicalVns(NPCervicalVnsParams())))).isT2)
     }
 
+    // @verifies REQ-FWHUB-08
     func testIntervalsExpandToOnAndStopAndBlockStartShiftsTheSchedule() throws {
         var bes = NPBESTacsParams()
         bes.frequencyHz = 10; bes.intensityMilliamps = 0.8; bes.waveform = .square
@@ -180,6 +185,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
 
     // MARK: - Signing, serial, flags
 
+    // @verifies REQ-FWHUB-08
     func testSignatureCoversTheRawRegionAndLandsInTheLast64Bytes() throws {
         var seen: Data?
         let d = try HubDescriptorCompiler.compile(def(600, pbm("808nm", 100)), sign: { region in
@@ -192,6 +198,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
         XCTAssertEqual(d.publicKeyFingerprint, "fp")
     }
 
+    // @verifies REQ-FWHUB-08
     func testAWrongLengthSignatureIsRefused() {
         XCTAssertThrowsError(try HubDescriptorCompiler.compile(def(600, pbm("808nm", 100)),
                                                               sign: { _ in (Data(count: 63), "fp") }))
@@ -203,6 +210,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
         XCTAssertEqual(blob.subdata(in: 28..<60), serial)
     }
 
+    // @verifies REQ-FWHUB-08
     func testHeaderMagicAndAutonomousFlag() throws {
         let plain = try build(def(600, pbm("808nm", 100))).blob
         XCTAssertEqual(Array(plain.prefix(4)), [0x50, 0x48, 0x50, 0x4E], "NPHP, little-endian")
@@ -252,6 +260,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
 
     // MARK: - Resolved mask on the wire (was testWireProtocolCarriesTheResolvedMask)
 
+    // @verifies REQ-FWHUB-08
     func testTheTargetBlockCarriesTheResolvedMask() throws {
         var p = NPPBMTranscranialParams()
         p.target = .named(["Occipital Left"])

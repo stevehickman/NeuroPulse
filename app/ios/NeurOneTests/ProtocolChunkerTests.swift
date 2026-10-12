@@ -81,6 +81,7 @@ struct ProtocolChunkerTests {
         #expect((UInt16(lenLow) | (UInt16(lenHigh) << 8)) == 1070)
     }
 
+    // @verifies REQ-FWHUB-04
     @Test func roundTripReassemblyMatchesOriginal() {
         // Reassemble payloads (stripping headers / length) and confirm equality.
         for size in [0, 1, 508, 509, 510, 511, 1020, 1021, 4096] {

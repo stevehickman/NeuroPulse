@@ -511,6 +511,7 @@ describe('protocol eligibility', () => {
     );
   });
 
+  // @verifies REQ-NPPS-08#c
   it('reports an unresolved zone reference distinctly from a hardware shortfall', () => {
     const inv = new NPSimulatedInventoryProvider('full-t1').getInventory()!;
     const result = evaluateProtocol(pbmProtocol(['Nonexistent Zone']), inv, zoneNamespace);

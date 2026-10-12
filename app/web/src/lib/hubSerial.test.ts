@@ -23,6 +23,7 @@ describe('hubSerial (OI-AND-WIRE-02)', () => {
     expect(DEVICE_SERIAL_UUID).toBe('4e455550-0017-1000-8000-00805f9b34fb');
   });
 
+  // @verifies REQ-FWHUB-08
   it('the parsed serial lands at header offset 28', () => {
     const serial = parseDeviceSerial(Uint8Array.from({ length: 32 }, (_, i) => i + 1))!;
     const { blob } = compileProtocol(
