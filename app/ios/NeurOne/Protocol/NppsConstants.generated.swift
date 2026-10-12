@@ -89,6 +89,40 @@ enum NPHardwareLimits {
     /// still means the firmware default, 250 µs.
     static let VNS_MIN_PULSE_WIDTH_US: Double = 50.0
     static let VNS_MAX_PULSE_WIDTH_US: Double = 500.0
+    /// Authorable range stated in NP-NPPS-REF-001 §4.1, §4.2 and §4.11 (0 means continuous wave); enforced
+    /// when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external
+    /// source (UC-082).
+    static let PBM_MIN_HZ: Double = 0.5
+    /// Authorable range stated in NP-NPPS-REF-001 §4.1, §4.2 and §4.11 (0 means continuous wave); enforced
+    /// when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external
+    /// source (UC-082).
+    static let PBM_MAX_HZ: Double = 100.0
+    /// Authorable range stated in NP-NPPS-REF-001 §4.7 (binaural and isochronic); enforced when the
+    /// protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source
+    /// (UC-082).
+    static let AUDIO_BEAT_MIN_HZ: Double = 0.5
+    /// Authorable range stated in NP-NPPS-REF-001 §4.7 (binaural and isochronic); enforced when the
+    /// protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source
+    /// (UC-082).
+    static let AUDIO_BEAT_MAX_HZ: Double = 100.0
+    /// Authorable range stated in NP-NPPS-REF-001 §4.10; enforced when the protocol is edited or compiled
+    /// (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+    static let TMS_MIN_HZ: Double = 1.0
+    /// Authorable range stated in NP-NPPS-REF-001 §4.10; enforced when the protocol is edited or compiled
+    /// (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+    static let TMS_MAX_HZ: Double = 50.0
+    /// Authorable range stated in NP-NPPS-REF-001 §4.12; enforced when the protocol is edited or compiled
+    /// (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+    static let CLINICAL_TACS_MIN_HZ: Double = 0.5
+    /// Authorable range stated in NP-NPPS-REF-001 §4.12; enforced when the protocol is edited or compiled
+    /// (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+    static let CLINICAL_TACS_MAX_HZ: Double = 100.0
+    /// Authorable range stated in NP-NPPS-REF-001 §4.6 (breaths per minute); enforced when the protocol is
+    /// edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+    static let BREATHING_MIN_BPM: Double = 4.0
+    /// Authorable range stated in NP-NPPS-REF-001 §4.6 (breaths per minute); enforced when the protocol is
+    /// edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+    static let BREATHING_MAX_BPM: Double = 7.0
     /// Visual stimulation
     static let VISUAL_MAX_HZ: Double = 100.0
     /// photoparoxysmal risk zone — clinician unlock required

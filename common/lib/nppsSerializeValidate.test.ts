@@ -70,6 +70,10 @@ const ADDED = new Set([
   'VALIDATE_MSG_GENERAL_FREQUENCYHZ_2', 'VALIDATE_MSG_GENERAL_INTENSITYMWCM2_2',
   // The zone model (docs/reference/safety-zones.md) is new to the core; common/npps-core/tests/zones.rs holds it.
   'VALIDATE_MSG_ZONE_CAUTION', 'VALIDATE_MSG_ZONE_DANGER',
+  // REQ-NPPS-23 (a): the authorable ranges of NP-NPPS-REF-001 section 4 the web validator did not check.
+  'VALIDATE_MSG_PBM_FREQUENCYHZ', 'VALIDATE_MSG_TMS_FREQUENCYHZ', 'VALIDATE_MSG_CLINICAL_TACS_FREQUENCYHZ',
+  'VALIDATE_MSG_AUDIO_ENTRAINMENT_BINAURALBEATSHZ_RANGE', 'VALIDATE_MSG_AUDIO_ENTRAINMENT_ISOCHRONICTONESHZ_RANGE',
+  'VALIDATE_MSG_VNS_HRV_BREATHINGRATE', 'VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS_NEGATIVE',
 ]);
 
 describe('validator wrapper', () => {
@@ -97,7 +101,9 @@ describe('validator wrapper', () => {
       // instruction (OI-VNSCLIP-09, issues #554 and #559); it is set aside here as in common/npps-core/tests/validate.rs.
       const want = c.expected.filter((i: { modality?: string; parameterKey?: string; limitSource?: string; message: string }) =>
         !(i.modality === 'vns_hrv' && i.parameterKey === 'intensityMilliamps' && i.limitSource === 'hardware'
-          && i.message.startsWith('VNS intensity')));
+          && i.message.startsWith('VNS intensity'))
+        // ...and "PBM frequency cannot be negative.", which the PBM range check now states with its range (REQ-NPPS-23).
+        && i.message !== 'PBM frequency cannot be negative.');
       expect(JSON.parse(JSON.stringify(got)), c.name).toEqual(want);
     }
   });

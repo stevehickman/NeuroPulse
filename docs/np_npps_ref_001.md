@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 24
+**Revision:** 25
 **Date:** 2026-10-12  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
@@ -14,6 +14,8 @@
 **IEC 62304 Class:** —
 
 ---
+
+> **Rev 25 (2026-10-12) — `REQ-NPPS-23` (a) is closed for the gaps Rev 24 listed.** Every range §4 states is now checked when a protocol is edited or compiled, and each error names its range: PBM frequency (0 or 0.5–100 Hz, on all three PBM modalities), binaural beat and isochronic tone (0.5–100 Hz), TMS frequency (1–50 Hz), clinical tACS frequency (0.5–100 Hz), resonance breathing rate (4–7 breaths/min), and a negative BES/tACS intensity (range 0–1 mA). The ten new constants are in `common/npps/constants.json` with no derivation (`UC-082`). The two rows that disagreed with the code are corrected: §4.6 gives the VNS intensity as ≤ 40 mA (Rev 68) with no lower bound, and §4.5 gives the tDCS ramp as 30 s or more. `VALIDATE_MSG_PBM_TRANSCRANIAL_FREQUENCYHZ` ("cannot be negative") is replaced by `VALIDATE_MSG_PBM_FREQUENCYHZ`. A protocol that used a frequency outside these ranges, which the old validator accepted, is now an error.
 
 > **Rev 24 (2026-10-12) — §14 gains `REQ-NPPS-23`: an out-of-range value is refused where it is authored, the error names the range, and no runtime clamps.** The cervical VNS intensity error now states the 2 mA maximum (`VALIDATE_MSG_CERVICAL_VNS_INTENSITYMILLIAMPS` takes the limit as `{1}`, all eleven locales). `np_mod_cvns_build_config` refuses an out-of-range frequency, current, pulse width or side with `NP_HUB_ERR_INVALID_ARG` instead of clamping it, and `np_mod_cvns_control` starts nothing on a refusal. The compiler's own output is unaffected, because it already refuses these values. **Audit of §4 against the validator and compiler (gaps only, none fixed here):** §4.6 states VNS intensity as 0.1–2.0 mA, but the validator holds it to ≤ 40 mA (Rev 68) with no lower bound; §4.1, §4.2 and §4.11 state frequency as 0 or 0.5–100 Hz and the validator checks only ≥ 0 Hz; §4.7 states `binaural_hz` and `isochronic_hz` as 0.5–100 Hz and the validator checks them only against a limits-block maximum; §4.10 states TMS frequency as 1–50 Hz and nothing validates it; §4.12 states clinical tACS frequency as 0.5–100 Hz and nothing validates it; §4.4 BES/tACS lower intensity (0) and §4.6 breathing rate 4.0–7.0 are not validated; §4.5 gives the tDCS ramp as "default 30" while the validator refuses less than 30 s.
 
@@ -662,7 +664,7 @@ Cortical Priming Stimulation (consumer name) / transcranial direct current stimu
 | `intensity` | `intensity_milliamps` | number | 0.1–2.0 |
 | `electrode_pairs` | `electrode_pairs` | array of `[anode, cathode]` pairs | 10-20 electrode labels |
 | `electrode_area_cm2` | `electrode_area_cm2` | number | 0 < A ≤ 65.535, area of **one** electrode |
-| `ramp` | `ramp_seconds` | number | default 30 |
+| `ramp` | `ramp_seconds` | number | 30 or more (default 30). A value under 30 is an error: 30 s is the hardware-enforced minimum |
 
 ```
 tdcs {
@@ -705,7 +707,7 @@ Auricular vagus nerve stimulation with HRV biofeedback.
 
 | Field | Canonical | Type | Values |
 |-------|-----------|------|--------|
-| `intensity` | `intensity_milliamps` | number | 0.1–2.0 |
+| `intensity` | `intensity_milliamps` | number | ≤ 40 (CLAUDE.md §3, Rev 68: a stop-gap derived from the 40 µC/cm² per-phase charge limit, `UC-079`). No lower bound is enforced |
 | `frequency` | `frequency_hz` | number | 1–25 |
 | `hrv_protocol` | `hrv_protocol` | string | `standalone` `tavns_sync` `eeg_biofeedback` `pbm_combined` |
 | `breathing_rate` | `resonance_breathing_rate` | number | 4.0–7.0 (breaths/min) |
@@ -1902,4 +1904,4 @@ Where a row lists (a), (b), (c), a test claims a part with `@verifies REQ-NPPS-N
 | **`REQ-NPPS-20`** | **A condition link opens only if it passes the shared link policy.** The link is `https` on a public host; a blocked verdict never returns a URL; an unknown condition is listed, not dropped; every blocking reason has a message | A protocol's reference link opens a non-public or non-secure host | The shared vectors `npps/fixtures/condition_links.json`; no external derivation — an `https`-and-public-host rule is a design choice | Test, `conditionLink.test.ts` |
 | **`REQ-NPPS-21`** | **A protocol's zone is its worst block's worst axis, and only a safe protocol runs without a word.** A caution runs only against an acknowledgement of that exact dose and a danger never runs; frequency and duty enter through the current densities; a block that drives no electrode, or lacks a parameter, has no axes | A protocol in the caution or danger range compiles silently | `docs/reference/safety-zones.md`; `UC-073…077`; `REQ-NPPS-14` | Test, `common/npps-core/tests/zones.rs` and `zoneCautions.test.ts` |
 | **`REQ-NPPS-22`** | **A session that cannot run is an error, not a warning.** A zero or negative duration, and a protocol with no modality, are errors in every runtime, and a pulsed block is not reported as a CW duty error | A session of no length, or of nothing, is signed and uploaded | §4; `REQ-NPPS-02`, `REQ-NPPS-12` | Test, in each runtime |
-| **`REQ-NPPS-23`** | **An out-of-range value is refused where it is authored, the error names the valid range, and no runtime reshapes it.** (a) Every authorable range in §4 is checked when the protocol is edited or compiled, and a value outside it is an error. (b) The error states the range or maximum it was held to, not only the value entered. (c) A driver that receives a value outside the range its library accepts (`np_mod_cvns_build_config`, for a descriptor that did not come from the compiler) refuses the command and starts nothing; it does not clamp, round into range or substitute a default for a value that was given. The one default is an absent field (`pulse_width_us` 0 selects 250 µs) | A clamped value is a stimulus nobody authored: 5 mA requested on cervical VNS ran as 2 mA with no word, and an error that said only "exceeds hardware maximum" left the author to find the maximum. The hub clamped frequency, current, pulse width and side until Rev 24 | §4.14; CLAUDE.md §3 ("a PBM ceiling refuses a protocol; it never reshapes one"); `REQ-NPPS-04`, `REQ-NPPS-06`; `REQ-FWHUB-59` | Test: `common/npps-core/tests/validate_union.rs` (b, cervical VNS) and `firmware/hub_control/tests/np_mod_cvns_tests.c` (c). Part (a) is verified for cervical VNS only; the gaps for other modalities are listed in the Rev 24 note |
+| **`REQ-NPPS-23`** | **An out-of-range value is refused where it is authored, the error names the valid range, and no runtime reshapes it.** (a) Every authorable range in §4 is checked when the protocol is edited or compiled, and a value outside it is an error. (b) The error states the range or maximum it was held to, not only the value entered. (c) A driver that receives a value outside the range its library accepts (`np_mod_cvns_build_config`, for a descriptor that did not come from the compiler) refuses the command and starts nothing; it does not clamp, round into range or substitute a default for a value that was given. The one default is an absent field (`pulse_width_us` 0 selects 250 µs) | A clamped value is a stimulus nobody authored: 5 mA requested on cervical VNS ran as 2 mA with no word, and an error that said only "exceeds hardware maximum" left the author to find the maximum. The hub clamped frequency, current, pulse width and side until Rev 24 | §4.14; CLAUDE.md §3 ("a PBM ceiling refuses a protocol; it never reshapes one"); `REQ-NPPS-04`, `REQ-NPPS-06`; `REQ-FWHUB-59` | Test: `common/npps-core/tests/validate_union.rs` (b, cervical VNS) and `firmware/hub_control/tests/np_mod_cvns_tests.c` (c). Parts (a) and (b) are tested for every range §4 states, in `common/npps-core/tests/validate_union.rs` |

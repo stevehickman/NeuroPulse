@@ -44,7 +44,7 @@ fn a_zero_or_negative_duration_is_an_error_not_a_short_session_warning() {
     assert_eq!(find(&short, "VALIDATE_MSG_GENERAL_DURATION")["severity"], "warning");
 }
 
-// @verifies REQ-NPPS-23
+// @verifies REQ-NPPS-23#b
 #[test]
 fn a_cervical_vns_intensity_over_the_hardware_maximum_is_an_error_that_names_the_maximum() {
     let i = run(
@@ -56,6 +56,96 @@ fn a_cervical_vns_intensity_over_the_hardware_maximum_is_an_error_that_names_the
     assert_eq!(e["severity"], "error");
     assert_eq!(e["message"]["args"], json!(["3", "2"]), "the entered value, then the 2 mA maximum");
     assert_eq!(e["limitValueDescription"], "2 mA");
+}
+
+/// The messages `key` gives for `params` on a `kind` block, as (key, args) pairs, other checks set aside.
+fn range_issue(kind: &str, params: Value, key: &str) -> Option<Value> {
+    let i = run(proto(600.0, vec![block(kind, params, CONT())]), json!({}), json!({}));
+    i.into_iter().find(|x| x["message"]["key"] == key)
+}
+
+// @verifies REQ-NPPS-23#a,b
+#[test]
+fn a_pbm_frequency_outside_zero_or_half_to_a_hundred_hertz_is_an_error_that_names_the_range() {
+    let key = "VALIDATE_MSG_PBM_FREQUENCYHZ";
+    for kind in ["pbm_transcranial", "pbm_intranasal", "pbm_deep_1170nm"] {
+        for bad in [0.2, 150.0, -3.0] {
+            let e = range_issue(kind, json!({ "frequencyHz": bad }), key).unwrap_or_else(|| panic!("{kind} {bad} Hz is not refused"));
+            assert_eq!(e["severity"], "error");
+            assert_eq!(e["message"]["args"], json!([format!("{}", bad), "0.5", "100"]), "{kind}: the value, then the range");
+            assert_eq!(e["limitValueDescription"], "0 or 0.5–100 Hz");
+        }
+        for ok in [0.0, 0.5, 40.0, 100.0] {
+            assert!(range_issue(kind, json!({ "frequencyHz": ok }), key).is_none(), "{kind} {ok} Hz is in range");
+        }
+    }
+}
+
+// @verifies REQ-NPPS-23#a,b
+#[test]
+fn a_tms_frequency_outside_one_to_fifty_hertz_is_an_error_that_names_the_range() {
+    let key = "VALIDATE_MSG_TMS_FREQUENCYHZ";
+    for bad in [0.5, 51.0] {
+        let e = range_issue("tms", json!({ "frequencyHz": bad }), key).expect("refused");
+        assert_eq!(e["message"]["args"], json!([format!("{}", bad), "1", "50"]));
+    }
+    for ok in [1.0, 10.0, 50.0] {
+        assert!(range_issue("tms", json!({ "frequencyHz": ok }), key).is_none());
+    }
+}
+
+// @verifies REQ-NPPS-23#a,b
+#[test]
+fn a_clinical_tacs_frequency_outside_half_to_a_hundred_hertz_is_an_error_that_names_the_range() {
+    let key = "VALIDATE_MSG_CLINICAL_TACS_FREQUENCYHZ";
+    for bad in [0.4, 101.0] {
+        let e = range_issue("clinical_tacs", json!({ "frequencyHz": bad, "channelCount": 4 }), key).expect("refused");
+        assert_eq!(e["message"]["args"], json!([format!("{}", bad), "0.5", "100"]));
+    }
+    for ok in [0.5, 40.0, 100.0] {
+        assert!(range_issue("clinical_tacs", json!({ "frequencyHz": ok, "channelCount": 4 }), key).is_none());
+    }
+}
+
+// @verifies REQ-NPPS-23#a,b
+#[test]
+fn a_binaural_beat_or_isochronic_tone_outside_half_to_a_hundred_hertz_is_an_error_that_names_the_range() {
+    for (field, key) in [
+        ("binauralBeatsHz", "VALIDATE_MSG_AUDIO_ENTRAINMENT_BINAURALBEATSHZ_RANGE"),
+        ("isochronicTonesHz", "VALIDATE_MSG_AUDIO_ENTRAINMENT_ISOCHRONICTONESHZ_RANGE"),
+    ] {
+        for bad in [0.1, 120.0] {
+            let e = range_issue("audio_entrainment", json!({ field: bad, "volumeDb": 60 }), key).unwrap_or_else(|| panic!("{field} {bad}"));
+            assert_eq!(e["message"]["args"], json!([format!("{}", bad), "0.5", "100"]));
+        }
+        for ok in [0.5, 10.0, 100.0] {
+            assert!(range_issue("audio_entrainment", json!({ field: ok, "volumeDb": 60 }), key).is_none(), "{field} {ok}");
+        }
+        assert!(range_issue("audio_entrainment", json!({ "volumeDb": 60 }), key).is_none(), "{field} absent is not checked");
+    }
+}
+
+// @verifies REQ-NPPS-23#a,b
+#[test]
+fn a_breathing_rate_outside_four_to_seven_breaths_a_minute_is_an_error_that_names_the_range() {
+    let key = "VALIDATE_MSG_VNS_HRV_BREATHINGRATE";
+    let p = |r: f64| json!({ "frequencyHz": 10, "intensityMilliamps": 1, "resonanceBreathingRate": r, "hrvProtocol": "standalone" });
+    for bad in [3.5, 8.0] {
+        let e = range_issue("vns_hrv", p(bad), key).expect("refused");
+        assert_eq!(e["message"]["args"], json!([format!("{}", bad), "4", "7"]));
+    }
+    for ok in [4.0, 6.0, 7.0] {
+        assert!(range_issue("vns_hrv", p(ok), key).is_none());
+    }
+}
+
+// @verifies REQ-NPPS-23#a,b
+#[test]
+fn a_negative_bes_intensity_is_an_error_that_names_the_range() {
+    let key = "VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS_NEGATIVE";
+    let e = range_issue("bes_tacs", json!({ "intensityMilliamps": -0.5, "frequencyHz": 10 }), key).expect("refused");
+    assert_eq!(e["message"]["args"], json!(["-0.5", "1"]));
+    assert!(range_issue("bes_tacs", json!({ "intensityMilliamps": 0, "frequencyHz": 10 }), key).is_none(), "0 is the bottom of 0–1 mA");
 }
 
 // @verifies REQ-NPPS-02

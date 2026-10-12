@@ -85,6 +85,36 @@ export const NPHardwareLimits = {
   // default, 250 µs.
   VNS_MIN_PULSE_WIDTH_US: 50.0,
   VNS_MAX_PULSE_WIDTH_US: 500.0,
+  // Authorable range stated in NP-NPPS-REF-001 §4.1, §4.2 and §4.11 (0 means continuous wave); enforced when the
+  // protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+  PBM_MIN_HZ: 0.5,
+  // Authorable range stated in NP-NPPS-REF-001 §4.1, §4.2 and §4.11 (0 means continuous wave); enforced when the
+  // protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+  PBM_MAX_HZ: 100.0,
+  // Authorable range stated in NP-NPPS-REF-001 §4.7 (binaural and isochronic); enforced when the protocol is
+  // edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+  AUDIO_BEAT_MIN_HZ: 0.5,
+  // Authorable range stated in NP-NPPS-REF-001 §4.7 (binaural and isochronic); enforced when the protocol is
+  // edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+  AUDIO_BEAT_MAX_HZ: 100.0,
+  // Authorable range stated in NP-NPPS-REF-001 §4.10; enforced when the protocol is edited or compiled
+  // (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+  TMS_MIN_HZ: 1.0,
+  // Authorable range stated in NP-NPPS-REF-001 §4.10; enforced when the protocol is edited or compiled
+  // (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+  TMS_MAX_HZ: 50.0,
+  // Authorable range stated in NP-NPPS-REF-001 §4.12; enforced when the protocol is edited or compiled
+  // (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+  CLINICAL_TACS_MIN_HZ: 0.5,
+  // Authorable range stated in NP-NPPS-REF-001 §4.12; enforced when the protocol is edited or compiled
+  // (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+  CLINICAL_TACS_MAX_HZ: 100.0,
+  // Authorable range stated in NP-NPPS-REF-001 §4.6 (breaths per minute); enforced when the protocol is edited or
+  // compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+  BREATHING_MIN_BPM: 4.0,
+  // Authorable range stated in NP-NPPS-REF-001 §4.6 (breaths per minute); enforced when the protocol is edited or
+  // compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+  BREATHING_MAX_BPM: 7.0,
   // Visual stimulation
   VISUAL_MAX_HZ: 100.0,
   // photoparoxysmal risk zone — clinician unlock required
