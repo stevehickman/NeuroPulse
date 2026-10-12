@@ -32,7 +32,7 @@ fn find<'a>(issues: &'a [Value], key: &str) -> &'a Value {
 
 const CONT: fn() -> Value = || json!({ "intervalOnSeconds": 0, "intervalOffSeconds": 0 });
 
-// @verifies REQ-NPPS-09
+// @verifies REQ-NPPS-22
 #[test]
 fn a_zero_or_negative_duration_is_an_error_not_a_short_session_warning() {
     for d in [0.0, -5.0] {

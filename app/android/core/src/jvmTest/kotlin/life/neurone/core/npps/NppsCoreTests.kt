@@ -97,6 +97,7 @@ class NppsCoreTests {
         }
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun everyRefusalReadsAsTheWebCompilersDoes() {
         val cases = resource("hub-descriptor-cases.json")
@@ -111,6 +112,7 @@ class NppsCoreTests {
         }
     }
 
+    // @verifies REQ-NPPS-16
     @Test
     fun aShippedProtocolParsesThenCompiles() {
         val cases = resource("hub-descriptor-cases.json")
@@ -123,6 +125,7 @@ class NppsCoreTests {
         assertTrue(blob.takeLast(64).all { it.toInt() == 0 }, "the signature slot is zeroed for the caller to fill")
     }
 
+    // @verifies REQ-NPPS-15
     @Test
     fun aMalformedRequestIsRefusedNotCrashed() {
         val e = assertFailsWith<IllegalArgumentException> {
@@ -163,6 +166,7 @@ class NppsCoreTests {
         assertTrue(n > 100)
     }
 
+    // @verifies REQ-NPPS-16
     @Test
     fun serializeRefusesAZoneItCannotWriteWithTheCoresMessage() {
         val zone = Json.parseToJsonElement("""{"kind":"zone","zone":{"name":"Z","sockets":[0,999]}}""").jsonObject
@@ -171,6 +175,7 @@ class NppsCoreTests {
         assertEquals("cannot serialize zone \"Z\": 0, 999 are not sockets on this helmet \u2014 ids are whole numbers 1\u201380", e.message)
     }
 
+    // @verifies REQ-NPPS-15
     @Test
     fun validateReturnsLocaleKeysAndArguments() {
         val request = Json.parseToJsonElement(
@@ -185,6 +190,7 @@ class NppsCoreTests {
         assertEquals(listOf("2", "1"), message["args"]!!.jsonArray.map { it.jsonPrimitive.content })
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun resolveLimitsResolvesEveryTierCombinationAsTheWebFunctionDid() {
         val cases = resource("npps-resolve-golden.json")["cases"]!!.jsonArray

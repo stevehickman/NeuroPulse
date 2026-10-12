@@ -122,6 +122,7 @@ def failures_for(sql: str) -> list:
 # Falsification (a) — a non-consented device carrying extended fields
 # ---------------------------------------------------------------------------
 
+# @verifies REQ-SW02-04
 def test_a_missing_consent_check_fails(tmp_path_factory=None):
     tmp = Path(_tmpdir()) / "hdr_a.h"
     FakeHeader(tmp)
@@ -147,6 +148,7 @@ def test_a_missing_consent_check_fails(tmp_path_factory=None):
         restore_header()
 
 
+# @verifies REQ-SW02-04
 def test_a_consent_marker_dropped_entirely_fails():
     tmp = Path(_tmpdir()) / "hdr_a2.h"
     FakeHeader(tmp)
@@ -168,6 +170,7 @@ def test_a_consent_marker_dropped_entirely_fails():
 # Falsification (b) — an expired window still carrying the fields
 # ---------------------------------------------------------------------------
 
+# @verifies REQ-SW02-04
 def test_b_closed_window_with_table_present_fails():
     tmp = Path(_tmpdir()) / "hdr_b.h"
     FakeHeader(tmp, enabled=0)          # the window has closed
@@ -187,6 +190,7 @@ def test_b_closed_window_with_table_present_fails():
         restore_header()
 
 
+# @verifies REQ-SW02-04
 def test_b_closed_window_without_table_passes():
     """The retired end-state must be reachable: window 0 AND no table is fine."""
     tmp = Path(_tmpdir()) / "hdr_b2.h"
@@ -203,6 +207,7 @@ def test_b_closed_window_without_table_passes():
 # (c) — the exemption is self-revoking
 # ---------------------------------------------------------------------------
 
+# @verifies REQ-SW02-04
 def test_c_exemption_withdraws_when_char01_fails():
     tmp = Path(_tmpdir()) / "hdr_c.h"
     FakeHeader(tmp)
@@ -239,6 +244,7 @@ def test_c_exemption_withdraws_when_char01_fails():
         restore_header()
 
 
+# @verifies REQ-SW02-04
 def test_c_marker_outside_registered_table_fails():
     """The exemption's own signal must not be paste-able onto another table."""
     tmp = Path(_tmpdir()) / "hdr_c2.h"
@@ -263,6 +269,7 @@ CREATE TABLE some_other_table (
 # Fail-closed on WRONG, not only on ERROR
 # ---------------------------------------------------------------------------
 
+# @verifies REQ-SW02-04
 def test_missing_firmware_header_fails():
     with_header(Path(_tmpdir()) / "does_not_exist.h")
     try:
@@ -273,6 +280,7 @@ def test_missing_firmware_header_fails():
         restore_header()
 
 
+# @verifies REQ-SW02-04
 def test_renamed_constant_fails():
     """
     The valid-but-wrong case. A header that parses perfectly but no longer
@@ -293,6 +301,7 @@ def test_renamed_constant_fails():
         restore_header()
 
 
+# @verifies REQ-SW02-04
 def test_schema_and_firmware_must_agree_on_budget():
     tmp = Path(_tmpdir()) / "hdr_budget.h"
     FakeHeader(tmp, budget=256)     # firmware says 256; the schema CHECK says 512
@@ -305,6 +314,7 @@ def test_schema_and_firmware_must_agree_on_budget():
         restore_header()
 
 
+# @verifies REQ-SW02-04
 def test_schema_and_firmware_must_agree_on_programme_id():
     tmp = Path(_tmpdir()) / "hdr_prog.h"
     FakeHeader(tmp, programme=2)
@@ -321,6 +331,7 @@ def test_schema_and_firmware_must_agree_on_programme_id():
 # Vacuity + drift controls against the REAL tree
 # ---------------------------------------------------------------------------
 
+# @verifies REQ-SW02-04
 def test_production_schema_actually_exercises_the_exemption():
     """
     Everything above tests a permission. If the production schema never used it,
@@ -341,6 +352,7 @@ def test_production_schema_actually_exercises_the_exemption():
     )
 
 
+# @verifies REQ-SW02-04
 def test_production_firmware_window_is_open():
     restore_header()
     consts, reason = parse_firmware_constants()
@@ -351,6 +363,7 @@ def test_production_firmware_window_is_open():
     )
 
 
+# @verifies REQ-SW02-04
 def test_fixture_matches_production_shape():
     """
     The fixture stands in for the real table. If the real one grows a marker the
@@ -369,6 +382,7 @@ def test_fixture_matches_production_shape():
     )
 
 
+# @verifies REQ-SW02-04
 def test_permitted_accel_columns_was_not_widened():
     """
     The brief's explicit prohibition. Admitting the §H fields by adding them to

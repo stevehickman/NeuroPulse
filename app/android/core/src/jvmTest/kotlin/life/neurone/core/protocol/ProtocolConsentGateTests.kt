@@ -76,6 +76,7 @@ class ProtocolConsentGateTests {
         assertFalse(ProtocolConsentGate.isEEGDependent(pbmProtocol()))
     }
 
+    // @verifies REQ-ONBOARD-05
     @Test
     fun isEEGDependent_falseWhenEEGModalityDisabled() {
         val disabled = NPProtocolEntry.Single(
@@ -141,6 +142,7 @@ class ProtocolConsentGateTests {
 
     // MARK: - Consent key + message resource parity with iOS
 
+    // @verifies REQ-ONBOARD-05
     @Test
     fun messageResourceName_matchesIOSLocalizationKey() {
         // iOS uses SESSION_EEG_UNAVAILABLE_BODY; Android resolves this res name.

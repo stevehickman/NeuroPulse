@@ -31,16 +31,19 @@ class HubPairingScreenTest {
         )
     }
 
+    // @verifies REQ-SW03-15
     @Test fun the_pairing_notice_shows_only_when_connected_and_unpaired() = runComposeUiTest {
         show(ConnectionState.CONNECTED, pairingRequired = true, onForgetHub = null)
         onNodeWithText(title).assertExists()
     }
 
+    // @verifies REQ-SW03-15
     @Test fun no_notice_when_paired_or_not_connected() = runComposeUiTest {
         show(ConnectionState.CONNECTED, pairingRequired = false, onForgetHub = null)
         onNodeWithText(title).assertDoesNotExist()
     }
 
+    // @verifies REQ-SW03-15
     @Test fun the_forget_action_is_offered_only_when_there_is_a_hub_to_forget() = runComposeUiTest {
         var forgotten = 0
         show(ConnectionState.DISCONNECTED, pairingRequired = false, onForgetHub = { forgotten++ })
@@ -48,6 +51,7 @@ class HubPairingScreenTest {
         assertEquals(1, forgotten)
     }
 
+    // @verifies REQ-SW03-15
     @Test fun no_forget_action_without_a_remembered_hub() = runComposeUiTest {
         show(ConnectionState.DISCONNECTED, pairingRequired = false, onForgetHub = null)
         onNodeWithText(forget).assertDoesNotExist()

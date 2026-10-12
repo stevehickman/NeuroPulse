@@ -24,6 +24,7 @@ final class NPZoneCautionTests: XCTestCase {
         ]
     ]]
 
+    // @verifies REQ-NPPS-21
     func testOnlyAnAxisInItsCautionBandIsListed() {
         let cautions = NPZoneCaution.parse(reply)
         XCTAssertEqual(cautions.count, 1)
@@ -34,6 +35,7 @@ final class NPZoneCautionTests: XCTestCase {
         XCTAssertEqual(cautions[0].caution, 100.0, accuracy: 1e-9)
     }
 
+    // @verifies REQ-NPPS-21
     func testASafeProtocolHasNoCautions() {
         XCTAssertTrue(NPZoneCaution.parse([]).isEmpty)
     }

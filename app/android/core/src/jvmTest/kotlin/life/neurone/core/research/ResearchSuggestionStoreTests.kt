@@ -19,6 +19,7 @@ class ResearchSuggestionStoreTests {
         categories = setOf(ResearchCategory.SLEEP),
     )
 
+    // @verifies REQ-SW03-12
     @Test
     fun invalidDraftIsRejected() {
         val s = store()
@@ -26,6 +27,7 @@ class ResearchSuggestionStoreTests {
         assertEquals(0, s.suggestions.size)
     }
 
+    // @verifies REQ-SW03-12
     @Test
     fun validDraftInsertsAtFront() {
         val s = store()
@@ -36,6 +38,7 @@ class ResearchSuggestionStoreTests {
         assertEquals("2026-07-06", s.suggestions.first().submittedAtDay)
     }
 
+    // @verifies REQ-SW03-12
     @Test
     fun voteTogglesCountAndFlag() {
         val s = store()
@@ -49,6 +52,7 @@ class ResearchSuggestionStoreTests {
         assertEquals(0, s.suggestions.first().voteCount)
     }
 
+    // @verifies REQ-SW03-12
     @Test
     fun participationIntentToggles() {
         val s = store()
@@ -59,6 +63,7 @@ class ResearchSuggestionStoreTests {
         assertEquals(1, s.suggestions.first().participationIntentCount)
     }
 
+    // @verifies REQ-SW03-12
     @Test
     fun pledgeUpdatesCumulativeAmount() {
         val s = store()
@@ -73,6 +78,7 @@ class ResearchSuggestionStoreTests {
         assertEquals(50, s.suggestions.first().pledgedAmount)
     }
 
+    // @verifies REQ-SW03-12
     @Test
     fun suggestionsPersistAcrossReload() {
         val kv = InMemoryKeyValueStore()
@@ -83,6 +89,7 @@ class ResearchSuggestionStoreTests {
         assertEquals("40Hz for sleep", s2.suggestions.first().title)
     }
 
+    // @verifies REQ-SW03-12
     @Test
     fun deviceTokenIsStableAcrossSubmissions() {
         val s = store()

@@ -19,6 +19,7 @@ class NPNamespaceTests {
 
     // MARK: the shipped library
 
+    // @verifies REQ-NPPS-18
     @Test
     fun shippedDefinitionFilesLoadIntoOneNamespace() {
         val ns = NPBundledProtocols.namespace
@@ -39,6 +40,7 @@ class NPNamespaceTests {
         )
     }
 
+    // @verifies REQ-NPPS-16
     @Test
     fun definitionsAreNotLibraryItems() {
         val ns = NPBundledProtocols.namespace
@@ -49,6 +51,7 @@ class NPNamespaceTests {
 
     // MARK: zone blocks
 
+    // @verifies REQ-NPPS-08
     @Test
     fun zoneParsesSocketsAsASet() {
         val z = (parse("""zone "Z" { sockets: [5, 1, 5, 3] }""").single() as NPProtocolEntry.Zone).zone
@@ -57,6 +60,7 @@ class NPNamespaceTests {
         assertTrue(!z.isPredefined, "a zone without an id is user-authored")
     }
 
+    // @verifies REQ-NPPS-08
     @Test
     fun zoneWithIdIsPredefined() {
         val z = (parse("""zone "Z" { id: "40000001-0000-0000-0000-000000000000" sockets: [1] }""")
@@ -64,6 +68,7 @@ class NPNamespaceTests {
         assertTrue(z.isPredefined)
     }
 
+    // @verifies REQ-NPPS-08
     @Test
     fun zoneRejectsIdsThatNameNoSocket() {
         for (bad in listOf("[0]", "[${SocketLattice.NP_SOCKET_ID_MAX + 1}]", "[1.5]", "[true]", "[\"x\"]")) {
@@ -77,6 +82,7 @@ class NPNamespaceTests {
         }
     }
 
+    // @verifies REQ-NPPS-08
     @Test
     fun zoneTypeFilterParses() {
         val z = (parse("""zone "Z" { sockets: [1] types: [led_660, led_808] exclude_types: true }""")
@@ -87,6 +93,7 @@ class NPNamespaceTests {
 
     // MARK: condition blocks
 
+    // @verifies REQ-NPPS-08
     @Test
     fun conditionParses() {
         val c = (parse(
@@ -98,6 +105,7 @@ class NPNamespaceTests {
         assertEquals("6A70", c.code)
     }
 
+    // @verifies REQ-NPPS-08
     @Test
     fun aConditionWithoutALinkParsesWithAnEmptyLink() {
         // The shared parser (the core, as the web parser before it) accepts a condition with no `link`, and the
@@ -110,6 +118,7 @@ class NPNamespaceTests {
 
     // MARK: cross-file resolution
 
+    // @verifies REQ-NPPS-08
     @Test
     fun referencesResolveAcrossFilesInEitherOrder() {
         val protocolFirst = parse(
@@ -272,6 +281,7 @@ class NPVisualModeTests {
         return ((e.protocol.modalities.single().params) as NPModalityParams.VisualStimulation).params.mode
     }
 
+    // @verifies REQ-NPPS-16
     @Test
     fun everyDocumentedModeParses() {
         assertEquals(NPVisualStimParams.VisualMode.BINOCULAR, modeOf("binocular"))
@@ -306,6 +316,7 @@ class NPVisualModeTests {
         }
     }
 
+    // @verifies REQ-NPPS-16
     @Test
     fun sessionWireNameIsSeparateFromTheNppsToken() {
         // The session descriptor's vocabulary is binocular / emdr / retinalPBM.
@@ -328,6 +339,7 @@ class NPPSListElementTests {
 
     private fun parse(text: String) = NPPSParser.parse(text)
 
+    // @verifies REQ-NPPS-16
     @Test
     fun quotedHyphenatedTagsSurviveIntact() {
         val e = parse("""protocol "P" { tags: [sleep, "wind-down", recovery] }""").single()
@@ -341,6 +353,7 @@ class NPPSListElementTests {
         assertFailsWith<NPPSError> { parse("""protocol "P" { tags: [sleep, wind-down, recovery] }""") }
     }
 
+    // @verifies REQ-NPPS-18
     @Test
     fun theWholeShippedLibraryStillParses() {
         // The stricter rule must not reject anything actually shipped.

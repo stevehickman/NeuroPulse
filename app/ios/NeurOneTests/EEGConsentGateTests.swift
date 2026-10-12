@@ -103,6 +103,7 @@ final class EEGConsentGateTests: XCTestCase {
     // MARK: - ISC-4  the block carries the localized ISC-90 message
 
     @MainActor
+    // @verifies REQ-ONBOARD-05
     func testEEGConsentRequired_carriesLocalizedISC90Message() {
         let reason = ProtocolAvailability.eegConsentRequired.unavailableReason ?? ""
         XCTAssertTrue(reason.contains("brainwave data consent was not granted"),

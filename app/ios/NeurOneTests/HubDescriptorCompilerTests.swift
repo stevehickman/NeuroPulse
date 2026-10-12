@@ -204,6 +204,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
                                                               sign: { _ in (Data(count: 63), "fp") }))
     }
 
+    // @verifies REQ-FWHUB-08
     func testDeviceSerialIsTheReplayGuard() throws {
         let serial = Data((1...32).map { UInt8($0) })
         let blob = try build(def(600, pbm("808nm", 100)), serial: serial).blob
@@ -249,6 +250,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
             NPIntervalConfig(intervalOnSeconds: 10, intervalOffSeconds: 10, repeatCount: nil)))))
     }
 
+    // @verifies REQ-NPPS-04
     func testTheProbeRefusalReadsLikeUnmapped() {
         var nasal = NPPBMIntranasalParams()
         nasal.wavelength = .NM_1064

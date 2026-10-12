@@ -41,6 +41,7 @@ final class ConsentStoreTests: XCTestCase {
 
     // MARK: - ISC-74: updateResearchConsent persists
 
+    // @verifies REQ-CONSENT-02
     func testUpdateResearchConsentPersists() {
         var state = ResearchConsentState()
         state.contactConsentGranted = true
@@ -57,6 +58,7 @@ final class ConsentStoreTests: XCTestCase {
 
     // MARK: - ISC-80: withdrawBlanketResearchConsent persists correctly
 
+    // @verifies REQ-CONSENT-16
     func testWithdrawBlanketResearchConsent_setsGrantedFalse() {
         var state = ResearchConsentState()
         state.blanketConsentGranted = true
@@ -71,6 +73,7 @@ final class ConsentStoreTests: XCTestCase {
                      "withdrawBlanketResearchConsent must clear blanketConsentGrantedAt.")
     }
 
+    // @verifies REQ-CONSENT-04
     func testWithdrawBlanketResearchConsent_persistsToDefaults() {
         var state = ResearchConsentState()
         state.blanketConsentGranted = true
@@ -85,17 +88,20 @@ final class ConsentStoreTests: XCTestCase {
 
     // MARK: - ISC-81: badge count never negative
 
+    // @verifies REQ-CONSENT-11
     func testPendingInvitationBadgeNeverNegative_freshStore() {
         let count = store.pendingInvitations.filter(\.isOpen).count
         XCTAssertGreaterThanOrEqual(count, 0)
     }
 
+    // @verifies REQ-CONSENT-11
     func testPendingInvitationBadgeNeverNegative_afterDeclineNonExistent() {
         // Declining a study that was never ingested must be a no-op, not a crash or underflow.
         store.declineInvitation(studyID: "no-such-study-id")
         XCTAssertGreaterThanOrEqual(store.pendingInvitations.filter(\.isOpen).count, 0)
     }
 
+    // @verifies REQ-CONSENT-11
     func testPendingInvitationBadgeNeverNegative_afterFullCycle() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()),
@@ -173,6 +179,7 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertTrue(store.studyParticipations.isEmpty)
     }
 
+    // @verifies REQ-CONSENT-09
     func testAForgedDescriptorNeverReachesTheUser() {
         let store = makeStore(verification: .rejected, consent: blanketConsent)
         XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()), .refused(.signatureInvalid))
@@ -209,6 +216,7 @@ final class ConsentStoreTests: XCTestCase {
 
     /// §6.2.1: a contact method is the shared precondition for all three delivery paths, so L1
     /// gates the engagement notification too — not only the invitation that asks a question.
+    // @verifies REQ-CONSENT-09
     func testL1GatesBothPostures() {
         var noContact = blanketConsent
         noContact.contactConsentGranted = false
@@ -216,6 +224,7 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()), .refused(.noContactConsent))
     }
 
+    // @verifies REQ-CONSENT-09
     func testADeviceWithNoResearchConsentAtAllIsRefused() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
                               consent: ResearchConsentState())
@@ -305,6 +314,7 @@ final class ConsentStoreTests: XCTestCase {
     /// Invitations were in-memory only. An accepted study's participation record outlived the
     /// invitation that recorded the acceptance, so the trail and the inbox disagreed after every
     /// restart — and the same descriptor could be ingested and accepted a second time.
+    // @verifies REQ-CONSENT-11
     func testInvitationsAndTheirDecisionsSurviveAReload() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         store.ingestStudyDescriptor(makeDescriptor())
@@ -318,6 +328,7 @@ final class ConsentStoreTests: XCTestCase {
 
     /// §5.3 and §6.3 step 6: withdrawal blocks future descriptor processing. Re-presenting a study
     /// the user already answered would be the device forgetting the answer.
+    // @verifies REQ-CONSENT-11
     func testAStudyAlreadyAnsweredIsNotPresentedAgain() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         store.ingestStudyDescriptor(makeDescriptor())
@@ -564,6 +575,7 @@ final class ConsentStoreTests: XCTestCase {
 
     /// The §5.3 audit trail names a descriptor. It used to record the literal string "pending",
     /// because there was no descriptor to hash.
+    // @verifies REQ-CONSENT-09
     func testTheParticipationRecordCarriesTheDescriptorHash() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         store.ingestStudyDescriptor(makeDescriptor())
@@ -574,6 +586,7 @@ final class ConsentStoreTests: XCTestCase {
 
     // MARK: - Clinician grant revoke
 
+    // @verifies REQ-CONSENT-16
     func testRevokeClinicianAccess_removesGrant() {
         let grant = ClinicianConsentGrant(
             id: UUID(), clinicianName: "Dr. Test", clinicianOrganization: "Test Hospital",
@@ -586,6 +599,7 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertEqual(store.clinicianGrants.count, 0)
     }
 
+    // @verifies REQ-CONSENT-16
     func testRevokeUnknownGrantID_isNoOp() {
         store.revokeClinicianAccess(grantID: UUID())
         XCTAssertEqual(store.clinicianGrants.count, 0,
@@ -594,6 +608,7 @@ final class ConsentStoreTests: XCTestCase {
 
     // MARK: - Study withdrawal
 
+    // @verifies REQ-CONSENT-02
     func testWithdrawFromStudy_setsWithdrawnAt() {
         let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: categoryConsent)
         store.ingestStudyDescriptor(makeDescriptor())
@@ -610,6 +625,7 @@ final class ConsentStoreTests: XCTestCase {
 
     // MARK: - Category consent
 
+    // @verifies REQ-CONSENT-02
     func testSetCategoryConsent_persists() {
         store.setCategoryConsent(.depression, granted: true)
         XCTAssertTrue(store.researchConsent.categoryConsents[.depression] == true)
@@ -660,6 +676,7 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertTrue(store.researchConsent.blanketConsentGranted)
     }
 
+    // @verifies REQ-CONSENT-02
     func testSetAllCategoriesFalseClearsEveryCategory() {
         var state = ResearchConsentState()
         state.setAllCategories(true)
@@ -782,6 +799,7 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertFalse(store.expansionRequests[0].isPending)
     }
 
+    // @verifies REQ-CONSENT-16
     func testDenyingChangesNothingAboutTheGrant() {
         store.grantClinicianAccess(makeGrant(.monitor))
         store.addExpansionRequest(makeRequest(requestID, to: .assess))
@@ -794,6 +812,7 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertFalse(store.expansionRequests[0].isPending)
     }
 
+    // @verifies REQ-CONSENT-16
     func testAskingAQuestionIsNotDeciding() {
         store.grantClinicianAccess(makeGrant(.monitor))
         store.addExpansionRequest(makeRequest(requestID, to: .assess))
@@ -811,6 +830,7 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertEqual(store.clinicianGrants[0].tier, .assess)
     }
 
+    // @verifies REQ-CONSENT-16
     func testRevokingAGrantWithdrawsItsPendingRequest() {
         store.grantClinicianAccess(makeGrant(.monitor))
         store.addExpansionRequest(makeRequest(requestID, to: .assess))
@@ -823,6 +843,7 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertTrue(store.clinicianGrants.isEmpty)
     }
 
+    // @verifies REQ-CONSENT-16
     func testApprovingAStaleRequestIsRefused() {
         let secondID = UUID(uuidString: "00000000-0000-0000-0000-0000000000B2")!
         store.grantClinicianAccess(makeGrant(.monitor))
@@ -842,6 +863,7 @@ final class ConsentStoreTests: XCTestCase {
         )
     }
 
+    // @verifies REQ-CONSENT-16
     func testANewRequestSupersedesTheOutstandingOneButNotDecidedHistory() {
         let secondID = UUID(uuidString: "00000000-0000-0000-0000-0000000000B2")!
         store.grantClinicianAccess(makeGrant(.monitor))
@@ -855,6 +877,7 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertEqual(store.expansionRequests.filter(\.isPending).count, 1)
     }
 
+    // @verifies REQ-CONSENT-16
     func testExpansionRequestsAndScopesSurviveAReload() {
         store.grantClinicianAccess(makeGrant(.monitor))
         store.addExpansionRequest(makeRequest(requestID, to: .assess))
@@ -883,6 +906,7 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertTrue(grant.forwardOnlyElements.isEmpty)
     }
 
+    // @verifies REQ-CONSENT-16
     func testAChangeThatIsNotAnExpansionHasNoDifferential() {
         let monitor = makeGrant(.monitor)
         // Nothing new.
@@ -895,6 +919,7 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertNil(ConsentEngine.accessDifferential(for: makeGrant(.research), expandingTo: .fullClinical))
     }
 
+    // @verifies REQ-CONSENT-16
     func testTheDifferentialSplitsElementsIntoNewAlreadyVisibleAndWithheld() {
         guard let d = ConsentEngine.accessDifferential(for: makeGrant(.monitor), expandingTo: .assess) else {
             return XCTFail("Monitor → Assess is an expansion.")
@@ -922,6 +947,7 @@ final class ConsentStoreTests: XCTestCase {
 
     /// The shipped channel refuses everything, and says the anchor is missing rather than that the
     /// request is forged. A default that admitted would make the missing key silent.
+    // @verifies REQ-CONSENT-09
     func testTheDefaultPortalChannelRefusesAndNamesTheMissingAnchor() {
         store.grantClinicianAccess(makeGrant(.monitor))
         let sync = ClinicianPortalSync(store: store)
@@ -936,6 +962,7 @@ final class ConsentStoreTests: XCTestCase {
                       "A refused request must not reach the user's notification list.")
     }
 
+    // @verifies REQ-CONSENT-09
     func testAVerifiedRequestIsIngested() {
         store.grantClinicianAccess(makeGrant(.monitor))
         let sync = ClinicianPortalSync(store: store, channel: StubPortalChannel(.verified))
@@ -947,6 +974,7 @@ final class ConsentStoreTests: XCTestCase {
     /// Identity is checked before anything the request claims. A forged request naming a grant
     /// this device never issued is refused as forged — so the refusal cannot be read backwards to
     /// learn which grants the device holds (CLAUDE.md §5.1 rule 2).
+    // @verifies REQ-CONSENT-09
     func testAForgedRequestIsRefusedAsForgedNotAsUnknownGrant() {
         let sync = ClinicianPortalSync(store: store, channel: StubPortalChannel(.rejected))
 
@@ -954,6 +982,7 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertEqual(sync.ingest(makeRequest(requestID, to: .assess)), .refusedForgedRequest)
     }
 
+    // @verifies REQ-CONSENT-09
     func testAVerifiedRequestForAnUnknownGrantIsRefused() {
         let sync = ClinicianPortalSync(store: store, channel: StubPortalChannel(.verified))
 
@@ -963,6 +992,7 @@ final class ConsentStoreTests: XCTestCase {
 
     /// A change with no differential has no consent document, so there is nothing the user could
     /// be asked — the same condition `approveExpansion` already fails closed on.
+    // @verifies REQ-CONSENT-09
     func testAVerifiedRequestThatIsNotAnExpansionIsRefused() {
         store.grantClinicianAccess(makeGrant(.fullClinical))
         let sync = ClinicianPortalSync(store: store, channel: StubPortalChannel(.verified))

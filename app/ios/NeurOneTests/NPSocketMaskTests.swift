@@ -11,17 +11,20 @@ final class NPSocketMaskTests: XCTestCase {
 
     // MARK: - Named zone resolution
 
+    // @verifies REQ-NPPS-17
     func testNamedZoneResolvesToItsAuthoredSockets() throws {
         let mask = try NPPBMTarget.named(["Occipital Left"]).resolve()
         XCTAssertEqual(mask.socketIDs, [72, 73, 74, 77, 78],
                        "must be exactly the socket list 00-zones.npps authors for the zone")
     }
 
+    // @verifies REQ-NPPS-17
     func testAllZoneCoversEveryFittedSocket() throws {
         let mask = try NPPBMTarget.named(["All"]).resolve()
         XCTAssertEqual(mask.socketCount, SocketLattice.NP_SOCKET_COUNT)
     }
 
+    // @verifies REQ-NPPS-17
     func testDisjointZonesUnionToTheSumOfTheirSockets() throws {
         let left  = try NPPBMTarget.named(["Occipital Left"]).resolve()
         let right = try NPPBMTarget.named(["Occipital Right"]).resolve()
@@ -33,6 +36,7 @@ final class NPSocketMaskTests: XCTestCase {
 
     // MARK: - The midline, which is the whole reason this is a bitmap
 
+    // @verifies REQ-NPPS-17
     func testMidlineSocketInTwoZonesResolvesToOneBit() throws {
         // Socket 2 sits on the centre column, so 00-zones.npps lists it in BOTH
         // "Frontal Left" and "Frontal Right" by design. A list would carry it
@@ -51,6 +55,7 @@ final class NPSocketMaskTests: XCTestCase {
         XCTAssertEqual(both.socketCount, 37)
     }
 
+    // @verifies REQ-NPPS-17
     func testRepeatingTheSameZoneChangesNothing() throws {
         let once  = try NPPBMTarget.named(["Frontal"]).resolve()
         let twice = try NPPBMTarget.named(["Frontal", "Frontal"]).resolve()
@@ -124,6 +129,7 @@ final class NPSocketMaskTests: XCTestCase {
         XCTAssertThrowsError(try NPSocketMask(sockets: [0], source: "test"))
     }
 
+    // @verifies REQ-NPPS-17
     func testEveryAuthoredZoneUsesOneBasedSocketNumbers() {
         // Zones are read straight from the .npps files. If a 0-based list ever
         // reached one, every zone would resolve one tile off — silently, because
@@ -140,6 +146,7 @@ final class NPSocketMaskTests: XCTestCase {
         XCTAssertEqual(SocketLattice.NP_SOCKET_ID_MAX, SocketLattice.NP_SOCKET_COUNT)
     }
 
+    // @verifies REQ-NPPS-17
     func testTheLowestAndHighestSocketsBothAddress() throws {
         // The two ends are where an off-by-one shows up first: socket 1 must not
         // fall off the bottom, and the last socket must not overflow the mask.
@@ -161,10 +168,12 @@ final class NPSocketMaskTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-17
     func testEmptyZoneListFails() {
         XCTAssertThrowsError(try NPPBMTarget.named([]).resolve())
     }
 
+    // @verifies REQ-FWHUB-31
     func testClinicianSelectedNeedsAnOperatorSelection() throws {
         XCTAssertThrowsError(try NPPBMTarget.clinicianSelected.resolve())
         XCTAssertThrowsError(try NPPBMTarget.clinicianSelected.resolve(clinicianSockets: []))
@@ -173,6 +182,7 @@ final class NPSocketMaskTests: XCTestCase {
         XCTAssertEqual(mask.socketIDs, [4, 6, 21])
     }
 
+    // @verifies REQ-NPPS-17
     func testSocketIdsOffThisLatticeAreRejected() {
         for bad in [0, -1, SocketLattice.NP_SOCKET_COUNT + 1, 128] {
             XCTAssertThrowsError(
@@ -187,6 +197,7 @@ final class NPSocketMaskTests: XCTestCase {
 
     // MARK: - Codable round trip
 
+    // @verifies REQ-FWHUB-31
     func testMaskRoundTripsThroughJSON() throws {
         let mask = try NPPBMTarget.named(["Motor / SMA"]).resolve()
         let data = try JSONEncoder().encode(mask)
@@ -194,6 +205,7 @@ final class NPSocketMaskTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(NPSocketMask.self, from: data), mask)
     }
 
+    // @verifies REQ-FWHUB-31
     func testWrongLengthMaskIsRejectedOnDecode() {
         let short = Data("\"00ff\"".utf8)
         XCTAssertThrowsError(try JSONDecoder().decode(NPSocketMask.self, from: short))
@@ -203,6 +215,7 @@ final class NPSocketMaskTests: XCTestCase {
 
     // MARK: - Zones, as read from the .npps files
 
+    // @verifies REQ-NPPS-17
     func testEveryNamedZoneResolvesInBothDirections() {
         for name in NPZoneRegistry.zoneNames {
             let sockets = NPZoneRegistry.sockets(forZone: name)
@@ -215,6 +228,7 @@ final class NPSocketMaskTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-17
     func testNoZoneListsASocketTwice() {
         for name in NPZoneRegistry.zoneNames {
             let sockets = NPZoneRegistry.sockets(forZone: name) ?? []
@@ -225,6 +239,7 @@ final class NPSocketMaskTests: XCTestCase {
     /// Zone content comes from the loaded `.npps` files and from nowhere else
     /// (NP-NPPS-REF-001 §8). The generated artefact carries the lattice only, so
     /// there is no second table that could disagree with the file.
+    // @verifies REQ-NPPS-13
     func testZonesComeFromTheLoadedNPPSFiles() {
         let fromFiles = Set(NPBundledProtocols.namespace.zones.keys)
         XCTAssertEqual(Set(NPZoneRegistry.zoneNames), fromFiles)

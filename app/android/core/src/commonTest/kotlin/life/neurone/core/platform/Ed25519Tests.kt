@@ -12,6 +12,7 @@ private fun hex(s: String): ByteArray = ByteArray(s.length / 2) { s.substring(it
  */
 class Ed25519Tests {
 
+    // @verifies REQ-SW03-10
     @Test fun sha512_matchesFips180Vectors() {
         assertEquals(
             "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e",
@@ -30,6 +31,7 @@ class Ed25519Tests {
         )
     }
 
+    // @verifies REQ-SW03-10
     @Test fun ed25519_rfc8032_test1_emptyMessage() {
         val seed = hex("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60")
         assertEquals("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a", Ed25519.publicKey(seed).toHex())
@@ -39,6 +41,7 @@ class Ed25519Tests {
         )
     }
 
+    // @verifies REQ-SW03-10
     @Test fun signer_signsWithAKeyThatMatchesItsFingerprint() {
         var calls = 0
         val signer = Ed25519ProtocolSigner { n -> ByteArray(n) { (it + 7).toByte() }.also { calls++ } }

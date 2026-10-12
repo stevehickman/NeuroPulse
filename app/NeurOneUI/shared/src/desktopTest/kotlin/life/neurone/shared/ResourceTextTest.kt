@@ -16,6 +16,7 @@ import kotlin.test.assertEquals
 @OptIn(ExperimentalTestApi::class)
 class ResourceTextTest {
 
+    // @verifies REQ-SW03-09
     @Test
     fun specialCharactersReadAsWritten() = runComposeUiTest {
         var apostrophe = ""

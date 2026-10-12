@@ -15,6 +15,7 @@ final class ConsentEngineTests: XCTestCase {
 
     // MARK: - Tier element coverage
 
+    // @verifies REQ-CONSENT-15
     func testMonitorTierElements() {
         let elements = ClinicianUseCaseTier.monitor.uhdrElements
         XCTAssertEqual(
@@ -27,6 +28,7 @@ final class ConsentEngineTests: XCTestCase {
         XCTAssertFalse(elements.contains(.hrvTimeSeries))
     }
 
+    // @verifies REQ-CONSENT-15
     func testAssessTierAddsEEG() {
         let elements = ClinicianUseCaseTier.assess.uhdrElements
         XCTAssertTrue(elements.contains(.eegWaveforms),
@@ -38,6 +40,7 @@ final class ConsentEngineTests: XCTestCase {
         XCTAssertTrue(elements.isSuperset(of: ClinicianUseCaseTier.monitor.uhdrElements))
     }
 
+    // @verifies REQ-CONSENT-15
     func testFullClinicalTierAddsHRV() {
         let elements = ClinicianUseCaseTier.fullClinical.uhdrElements
         XCTAssertTrue(elements.contains(.hrvTimeSeries),
@@ -71,6 +74,7 @@ final class ConsentEngineTests: XCTestCase {
                        "Union must not over-grant elements no selected use case needs.")
     }
 
+    // @verifies REQ-CONSENT-15
     func testMinimumNecessaryEmptySelection() {
         XCTAssertTrue(ConsentEngine.minimumNecessaryElements(for: []).isEmpty,
                       "No selected use cases must grant no elements.")
@@ -89,6 +93,7 @@ final class ConsentEngineTests: XCTestCase {
 
     // MARK: - hrv_outcomes use case
 
+    // @verifies REQ-CONSENT-15
     func testHRVOutcomesUseCaseIsInLibrary() {
         XCTAssertNotNil(
             USE_CASE_LIBRARY.first { $0.id == "hrv_outcomes" },
@@ -96,6 +101,7 @@ final class ConsentEngineTests: XCTestCase {
         )
     }
 
+    // @verifies REQ-CONSENT-15
     func testMinimumNecessaryHRVOutcomes_containsFullClinicalElements() {
         let elements = ConsentEngine.minimumNecessaryElements(for: ["hrv_outcomes"])
         // Full Clinical–tier elements that hrv_outcomes must grant.
@@ -119,6 +125,7 @@ final class ConsentEngineTests: XCTestCase {
                        "Selecting all three use cases must equal selecting hrv_outcomes alone (it is the superset).")
     }
 
+    // @verifies REQ-CONSENT-15
     func testAllUseCasesHaveNonEmptyElements() {
         for useCase in USE_CASE_LIBRARY {
             XCTAssertFalse(
@@ -145,6 +152,7 @@ final class ConsentEngineTests: XCTestCase {
 
     // MARK: - UHDRElement.minimumTier (ISC-137)
 
+    // @verifies REQ-CONSENT-15
     func testMinimumTierMonitorElements() {
         let monitorElements: [UHDRElement] = [.sessionTimestamps, .sessionDuration, .protocolParameters]
         for element in monitorElements {
@@ -155,6 +163,7 @@ final class ConsentEngineTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-CONSENT-15
     func testMinimumTierAssessElements() {
         let assessElements: [UHDRElement] = [.eegWaveforms, .neurofeedbackScores, .pbmDoseLogs]
         for element in assessElements {
@@ -165,6 +174,7 @@ final class ConsentEngineTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-CONSENT-15
     func testMinimumTierFullClinicalElements() {
         let fullClinicalElements: [UHDRElement] = [
             .hrvTimeSeries, .ppgOpticalSignal, .closedLoopEvents, .outcomeLogs, .eyeStateLogs
@@ -178,6 +188,7 @@ final class ConsentEngineTests: XCTestCase {
     }
 
     // ISC-137 anti-pattern: no tier must contain an element below that element's minimumTier.
+    // @verifies REQ-CONSENT-15
     func testISC137_noTierContainsElementBelowItsMinimumTier() {
         let tierRank: [ClinicianUseCaseTier: Int] = [
             .monitor: 0, .assess: 1, .fullClinical: 2, .research: 3
@@ -212,6 +223,7 @@ final class ConsentEngineTests: XCTestCase {
 
     // MARK: - Consent document generation
 
+    // @verifies REQ-CONSENT-15
     func testConsentDocumentGeneration() {
         let doc = ConsentEngine.consentDocument(
             clinicianName: "Dr. Neda Rashidi-Ranjbar",
@@ -297,6 +309,7 @@ final class ConsentEngineTests: XCTestCase {
 
     /// Every library entry must sit at or above the highest tier its own elements require, or the
     /// use case promises access its tier cannot carry and the clamp silently removes it.
+    // @verifies REQ-CONSENT-15
     func testEveryUseCaseIsReachableAtItsDeclaredTier() {
         for useCase in USE_CASE_LIBRARY {
             XCTAssertTrue(
@@ -366,6 +379,7 @@ final class ConsentEngineTests: XCTestCase {
 
     /// The elements are frozen at grant time, so editing the library cannot reach backwards into
     /// a grant already made.
+    // @verifies REQ-CONSENT-15
     func testStoredScopeDoesNotTrackTheLibrary() {
         let now = Date()
         let grant = ClinicianConsentGrant(
@@ -384,6 +398,7 @@ final class ConsentEngineTests: XCTestCase {
         XCTAssertEqual(grant.approvedElements, ClinicianUseCaseTier.monitor.uhdrElements)
     }
 
+    // @verifies REQ-CONSENT-15
     func testTierRankOrdersTheCeilings() {
         XCTAssertLessThan(ClinicianUseCaseTier.monitor.rank, ClinicianUseCaseTier.assess.rank)
         XCTAssertLessThan(ClinicianUseCaseTier.assess.rank, ClinicianUseCaseTier.fullClinical.rank)

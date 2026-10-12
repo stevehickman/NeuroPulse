@@ -31,6 +31,7 @@ final class EngagementTierTests: XCTestCase {
 
     // MARK: - bucket boundaries
 
+    // @verifies REQ-SW03-07
     func testCountZeroReturnsNew() {
         // count=0 arises if current() is called before any incrementLaunchCount().
         // The spec defines new = 1–5 launches; 0 must also map to .new (not .established).
@@ -39,31 +40,37 @@ final class EngagementTierTests: XCTestCase {
                        "count=0 must return .new, not .established (reviewer-flagged edge case)")
     }
 
+    // @verifies REQ-SW03-07
     func testCountOneLowerBoundReturnsNew() {
         UserDefaults.standard.set(1, forKey: key)
         XCTAssertEqual(EngagementTier.current(), .new)
     }
 
+    // @verifies REQ-SW03-07
     func testCountFiveUpperBoundReturnsNew() {
         UserDefaults.standard.set(5, forKey: key)
         XCTAssertEqual(EngagementTier.current(), .new)
     }
 
+    // @verifies REQ-SW03-07
     func testCountSixLowerBoundReturnsActive() {
         UserDefaults.standard.set(6, forKey: key)
         XCTAssertEqual(EngagementTier.current(), .active)
     }
 
+    // @verifies REQ-SW03-07
     func testCountFiftyUpperBoundReturnsActive() {
         UserDefaults.standard.set(50, forKey: key)
         XCTAssertEqual(EngagementTier.current(), .active)
     }
 
+    // @verifies REQ-SW03-07
     func testCountFiftyOneLowerBoundReturnsEstablished() {
         UserDefaults.standard.set(51, forKey: key)
         XCTAssertEqual(EngagementTier.current(), .established)
     }
 
+    // @verifies REQ-SW03-07
     func testCountLargeReturnsEstablished() {
         UserDefaults.standard.set(10_000, forKey: key)
         XCTAssertEqual(EngagementTier.current(), .established)
@@ -71,6 +78,7 @@ final class EngagementTierTests: XCTestCase {
 
     // MARK: - raw value labels
 
+    // @verifies REQ-SW03-07
     func testRawValuesMatchTelemetrySpec() {
         // NP-APP-TELEMETRY-001 Rev B §3.2 specifies exact string labels.
         XCTAssertEqual(EngagementTier.new.rawValue,         "new")
@@ -80,18 +88,21 @@ final class EngagementTierTests: XCTestCase {
 
     // MARK: - incrementLaunchCount round-trip
 
+    // @verifies REQ-SW03-07
     func testIncrementFromZeroYieldsOne() {
         // key absent → integer(forKey:) returns 0; after increment should be 1
         EngagementTier.incrementLaunchCount()
         XCTAssertEqual(UserDefaults.standard.integer(forKey: key), 1)
     }
 
+    // @verifies REQ-SW03-07
     func testIncrementIsAdditive() {
         UserDefaults.standard.set(4, forKey: key)
         EngagementTier.incrementLaunchCount()
         XCTAssertEqual(UserDefaults.standard.integer(forKey: key), 5)
     }
 
+    // @verifies REQ-SW03-07
     func testIncrementThenCurrentCrossesBoundaryFromNewToActive() {
         UserDefaults.standard.set(5, forKey: key)
         EngagementTier.incrementLaunchCount()   // becomes 6
@@ -100,6 +111,7 @@ final class EngagementTierTests: XCTestCase {
                        "After 6th launch, tier must transition from .new to .active")
     }
 
+    // @verifies REQ-SW03-07
     func testIncrementThenCurrentCrossesBoundaryFromActiveToEstablished() {
         UserDefaults.standard.set(50, forKey: key)
         EngagementTier.incrementLaunchCount()   // becomes 51
@@ -108,6 +120,7 @@ final class EngagementTierTests: XCTestCase {
                        "After 51st launch, tier must transition from .active to .established")
     }
 
+    // @verifies REQ-SW03-07
     func testMultipleIncrementsAccumulate() {
         for _ in 0..<10 {
             EngagementTier.incrementLaunchCount()

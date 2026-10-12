@@ -50,6 +50,7 @@ class DesktopBleCentralTest {
 
     private fun Recorder.next(): String = log.poll(2, TimeUnit.SECONDS) ?: error("no event within 2 s")
 
+    // @verifies REQ-SW03-15
     @Test fun commands_reach_the_radio_in_the_wire_form_the_library_parses() {
         val link = FakeLink()
         val central = DesktopBleCentral(link)
@@ -72,6 +73,7 @@ class DesktopBleCentralTest {
         assertEquals(true, link.closed)
     }
 
+    // @verifies REQ-SW03-15
     @Test fun events_from_the_library_become_listener_calls() {
         val link = FakeLink()
         val central = DesktopBleCentral(link)
@@ -99,6 +101,7 @@ class DesktopBleCentralTest {
         central.close()
     }
 
+    // @verifies REQ-SW03-15
     @Test fun a_malformed_event_does_not_end_the_event_thread() {
         val link = FakeLink()
         val central = DesktopBleCentral(link)
@@ -111,6 +114,7 @@ class DesktopBleCentralTest {
         central.close()
     }
 
+    // @verifies REQ-SW03-15
     @Test fun an_adapter_code_outside_the_enum_reads_as_unknown() {
         val link = FakeLink()
         val central = DesktopBleCentral(link)
@@ -122,6 +126,7 @@ class DesktopBleCentralTest {
         central.close()
     }
 
+    // @verifies REQ-SW03-15
     @Test fun a_refused_read_reaches_the_listener() {
         val link = FakeLink()
         val central = DesktopBleCentral(link)
@@ -133,6 +138,7 @@ class DesktopBleCentralTest {
         central.close()
     }
 
+    // @verifies REQ-SW03-15
     @Test fun the_last_hub_is_remembered_and_preferred() {
         val store = InMemoryKeyValueStore()
         var clock = 0L

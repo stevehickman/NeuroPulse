@@ -118,6 +118,7 @@ class StudyDescriptorSigningTests {
         )
     }
 
+    // @verifies REQ-CONSENT-10
     @Test
     fun theHashDigestsTheSignedBytes() {
         val d = descriptor()
@@ -130,6 +131,7 @@ class StudyDescriptorSigningTests {
 
     // ── The verifier ─────────────────────────────────────────────────────────
 
+    // @verifies REQ-CONSENT-10
     @Test
     fun aGenuinelySignedDescriptorVerifiesAndCarriesItsHash() {
         val d = sign(descriptor())
@@ -191,6 +193,7 @@ class StudyDescriptorSigningTests {
      * check; a device holding a key can, and collapsing the two would let a forged descriptor read
      * as a configuration problem.
      */
+    // @verifies REQ-CONSENT-10
     @Test
     fun aMalformedSignatureIsRejectedNotUnavailable() {
         val verifier = Ed25519StudyDescriptorVerifier(rawPublicKey)
@@ -227,6 +230,7 @@ class StudyDescriptorSigningTests {
      * invalidates every descriptor already issued, which should be a decision and not a rename.
      * They match iOS `UHDRElement.rawValue` / `ResearchCategory.rawValue` exactly.
      */
+    // @verifies REQ-CONSENT-09
     @Test
     fun wireNamesMatchTheIosRawValues() {
         assertEquals(

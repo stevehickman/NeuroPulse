@@ -101,6 +101,7 @@ final class BIPAConsentFlowTests: XCTestCase {
 
     // MARK: - Step count
 
+    // @verifies REQ-ONBOARD-04
     func testFourDistinctStepsExist() {
         // The flow has exactly 4 steps: What, Storage, Purpose, Release.
         // These map 1:1 to the four groups of BIPA_STEP* localization keys.
@@ -192,6 +193,7 @@ final class BIPAConsentFlowTests: XCTestCase {
 
     // MARK: - Re-presentation (SetupView contract)
 
+    // @verifies REQ-ONBOARD-06
     func testRePresentationUsesSharedDefaults() {
         // SetupView reads the same keys as NeurOneApp to show/update consent status.
         // This test confirms the key names are consistent across both callers.

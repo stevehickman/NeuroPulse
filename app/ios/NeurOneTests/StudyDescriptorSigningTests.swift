@@ -79,6 +79,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
 
     /// The day is derived in UTC, not in the device's zone: a descriptor must not verify in one
     /// time zone and fail in another.
+    // @verifies REQ-CONSENT-10
     func testTheDayIsRenderedInUTC() {
         // 2026-09-14T23:30:00Z — the previous day in any negative offset, the same day in UTC.
         let lateUTC = Date(timeIntervalSince1970: 1_789_428_600)
@@ -105,6 +106,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
         )
     }
 
+    // @verifies REQ-CONSENT-10
     func testTheHashDigestsTheSignedBytes() {
         let d = descriptor()
         let hash = StudyDescriptorCanonicalForm.descriptorHash(for: d)
@@ -116,6 +118,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
 
     // MARK: - The verifier
 
+    // @verifies REQ-CONSENT-10
     func testAGenuinelySignedDescriptorVerifiesAndCarriesItsHash() throws {
         let d = try signed(descriptor())
         XCTAssertEqual(
@@ -162,6 +165,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
     /// A malformed signature is `.rejected`, never `.unavailable`. `.unavailable` means the device
     /// cannot check; a device holding a key can, and collapsing the two would let a forged
     /// descriptor read as a configuration problem.
+    // @verifies REQ-CONSENT-10
     func testAMalformedSignatureIsRejectedNotUnavailable() throws {
         let v = try verifier
         XCTAssertEqual(v.verify(descriptor(signature: "")), .rejected)
@@ -185,6 +189,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
     /// The wire names a signature covers. They are `rawValue` on iOS — the persisted Codable
     /// value — and `wireName` on Android, and they must be the same strings or one platform
     /// rejects every descriptor the other accepts.
+    // @verifies REQ-CONSENT-09
     func testWireNamesArePinned() {
         XCTAssertEqual(
             UHDRElement.allCases.map(\.rawValue).sorted(),

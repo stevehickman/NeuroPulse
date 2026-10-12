@@ -9,6 +9,7 @@ final class NPWavelengthRulesTests: XCTestCase {
 
     private let rules = NPWavelengthRules.default
 
+    // @verifies REQ-NPPS-03
     func testDefaultsMapTheSourceWavelengths() {
         XCTAssertEqual(rules.map(660), .led660)
         XCTAssertEqual(rules.map(810), .led808)
@@ -38,6 +39,7 @@ final class NPWavelengthRulesTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-03
     func testScriptWavelengthIsCarriedExactlyAndStartRoundTrips() throws {
         let script = """
         protocol "Series" {
@@ -73,6 +75,7 @@ final class NPWavelengthRulesTests: XCTestCase {
         XCTAssertTrue(NPPBMTranscranialParams.Wavelength(rawValue: "1070nm").requiresSmartModule)
     }
 
+    // @verifies REQ-NPPS-03
     func testWavelengthEncodesAsABareString() throws {
         let data = try JSONEncoder().encode(NPPBMTranscranialParams.Wavelength.NM_808)
         XCTAssertEqual(String(data: data, encoding: .utf8), "\"808nm\"")

@@ -49,6 +49,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
         XCTAssertFalse(ResearchAnalyticsGate.isOpen)
     }
 
+    // @verifies REQ-CONSENT-14
     func testGateIsOpenAfterConsentAccepted() {
         UserDefaults.standard.set(true, forKey: consentKey)
         XCTAssertTrue(ResearchAnalyticsGate.isOpen)
@@ -61,12 +62,14 @@ final class ResearchAnalyticsGateTests: XCTestCase {
                        "Gate must not open on consent-shown — only research-consent-granted counts")
     }
 
+    // @verifies REQ-CONSENT-14
     func testGateDoesNotOpenOnLegacyOnboardingAcceptedKey() {
         UserDefaults.standard.set(true, forKey: "np.onboarding.consent-accepted")
         XCTAssertFalse(ResearchAnalyticsGate.isOpen,
                        "Retired onboarding key must not open the research analytics gate")
     }
 
+    // @verifies REQ-CONSENT-14
     func testResearchAnalyticsKeyMatchesConstant() {
         XCTAssertEqual(PersistedKeys.RESEARCH_ANALYTICS_KEY, "np.research.consent-granted")
     }
@@ -87,6 +90,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
                        "ISC-92: backend.configure() must not be called when research analytics gate is closed")
     }
 
+    // @verifies REQ-SW03-07
     func testISC92_backendCalledOnceWhenGateOpen() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
@@ -94,6 +98,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
                        "ISC-92: backend.configure() must be called exactly once after gate opens")
     }
 
+    // @verifies REQ-SW03-07
     func testISC92_backendCalledOnlyOnceOnRepeatConfigure() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
@@ -102,6 +107,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
                        "ISC-92: configure() is idempotent — backend must not be called a second time")
     }
 
+    // @verifies REQ-SW03-07
     func testISC92_gateStateUnchangedAfterConfigureWithClosedGate() {
         ResearchAnalyticsGate.configure()
         XCTAssertFalse(ResearchAnalyticsGate.isOpen,
@@ -121,6 +127,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // MARK: - reset()
 
+    // @verifies REQ-CONSENT-03
     func testResetNoOpsWhenNotConfigured() {
         // reset() guards on isConfigured; since setUp calls _resetForTesting,
         // isConfigured is false here. The backend must not receive reset().
@@ -129,6 +136,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
                        "backend.reset() must not be called when gate was never configured")
     }
 
+    // @verifies REQ-CONSENT-03
     func testResetCallsBackendWhenConfigured() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
@@ -136,6 +144,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
         XCTAssertEqual(spy.resetCallCount, 1)
     }
 
+    // @verifies REQ-CONSENT-03
     func testResetAllowsReconfigureAfterwards() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
@@ -271,6 +280,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // MARK: - Prohibited key enforcement (ISC-97)
 
+    // @verifies REQ-SW03-07
     func testTrackDropsEventWithProhibitedKeyEEG() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "session_start", properties: ["eeg": "some_value"])
@@ -278,48 +288,56 @@ final class ResearchAnalyticsGateTests: XCTestCase {
         XCTAssertTrue(ResearchAnalyticsGate.isOpen, "Dropping a prohibited event must not close the gate")
     }
 
+    // @verifies REQ-SW03-07
     func testTrackDropsEventWithProhibitedKeyHRV() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "session_end", properties: ["hrv": "80"])
         XCTAssertEqual(spy.trackCallCount, 0)
     }
 
+    // @verifies REQ-SW03-07
     func testTrackDropsEventWithDeprecatedSessionCount() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "app_open", properties: ["session_count": "5"])
         XCTAssertEqual(spy.trackCallCount, 0)
     }
 
+    // @verifies REQ-SW03-07
     func testTrackDropsEventWithDeprecatedSessionSequence() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "app_open", properties: ["session_sequence": "5"])
         XCTAssertEqual(spy.trackCallCount, 0)
     }
 
+    // @verifies REQ-SW03-07
     func testTrackDropsEventWithProhibitedKeyRMSSD() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "session_end", properties: ["rmssd": "42"])
         XCTAssertEqual(spy.trackCallCount, 0)
     }
 
+    // @verifies REQ-SW03-07
     func testTrackDropsEventWithProhibitedKeyCoherence() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "session_end", properties: ["coherence": "8.5"])
         XCTAssertEqual(spy.trackCallCount, 0)
     }
 
+    // @verifies REQ-SW03-07
     func testTrackDropsEventWithProhibitedKeySessionID() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "session_end", properties: ["session_id": "abc123"])
         XCTAssertEqual(spy.trackCallCount, 0)
     }
 
+    // @verifies REQ-SW03-07
     func testTrackDropsEventWithProhibitedKeyProtocolID() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "session_end", properties: ["protocol_id": "p1"])
         XCTAssertEqual(spy.trackCallCount, 0)
     }
 
+    // @verifies REQ-SW03-07
     func testTrackDropsEventWithProhibitedImpedanceKeys() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "setup", properties: ["imp": "0xFF"])
@@ -328,6 +346,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // MARK: - Allowed events reach the backend
 
+    // @verifies REQ-SW03-07
     func testTrackAllowsEventWithSafeProperties() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "app_open", properties: [
@@ -339,12 +358,14 @@ final class ResearchAnalyticsGateTests: XCTestCase {
         XCTAssertEqual(spy.trackedEvents.first?.properties["engagement_tier"], "active")
     }
 
+    // @verifies REQ-SW03-07
     func testTrackAllowsEventWithEmptyProperties() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "app_foregrounded", properties: [:])
         XCTAssertEqual(spy.trackCallCount, 1)
     }
 
+    // @verifies REQ-SW03-07
     func testEngagementTierIsAllowed() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "app_open", properties: ["engagement_tier": "new"])
@@ -352,6 +373,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
                        "engagement_tier is the approved replacement for session_count — must be allowed")
     }
 
+    // @verifies REQ-SW03-07
     func testMultipleSafeEventsAccumulate() {
         UserDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "e1", properties: [:])
@@ -366,6 +388,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
     // It does NOT import `PostHog`. The SpyAnalyticsBackend in SpyAnalyticsBackend.swift
     // also does not import PostHog. No test file touches the PostHog SDK directly.
     // Verified by: grep -rn "^import PostHog" NeurOneTests/ — must return zero lines.
+    // @verifies REQ-SW03-07
     func testISC157_noDirectPostHogImportInTestTarget() throws {
         let testDir = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()  // NeurOneTests/

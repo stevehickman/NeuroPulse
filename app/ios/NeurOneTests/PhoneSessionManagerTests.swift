@@ -81,6 +81,7 @@ final class PhoneSessionManagerTests: XCTestCase {
     // (e.g. iPad). This is also why tests can inject a mock sender without activating
     // a real WCSession — the guard is false in iOS Simulator.
 
+    // @verifies REQ-SW03-17
     func testWCSessionIsSupportedCheckInSource() throws {
         let source = try Self.phoneSessionManagerSource()
 
@@ -98,6 +99,7 @@ final class PhoneSessionManagerTests: XCTestCase {
 
     // The WatchMessageSending protocol abstraction must be present so tests can
     // inject a mock sender without activating real WC infrastructure.
+    // @verifies REQ-SW03-17
     func testWatchMessageSendingProtocolInSource() throws {
         let source = try Self.phoneSessionManagerSource()
 
@@ -114,6 +116,7 @@ final class PhoneSessionManagerTests: XCTestCase {
 
     // MARK: - ISC-123 Session state is forwarded to Watch when reachable
 
+    // @verifies REQ-SW03-17
     func testSessionStateForwardedToWatchWhenReachable() {
         let mockGATT = MockGATTSessionPublisher()
         let mockSender = MockWatchMessageSender(reachable: true)
@@ -152,6 +155,7 @@ final class PhoneSessionManagerTests: XCTestCase {
         withExtendedLifetime(sut) {}
     }
 
+    // @verifies REQ-SW03-17
     func testMultipleStateUpdatesSendMultipleMessages() {
         let mockGATT = MockGATTSessionPublisher()
         let mockSender = MockWatchMessageSender(reachable: true)
@@ -177,6 +181,7 @@ final class PhoneSessionManagerTests: XCTestCase {
 
     // MARK: - ISC-124 Graceful handling when Watch is not reachable
 
+    // @verifies REQ-SW03-17
     func testNoMessageSentWhenWatchNotReachable() {
         let mockGATT = MockGATTSessionPublisher()
         let mockSender = MockWatchMessageSender(reachable: false)
@@ -203,6 +208,7 @@ final class PhoneSessionManagerTests: XCTestCase {
         )
     }
 
+    // @verifies REQ-SW03-17
     func testConsumedLowNotificationNotSentWhenWatchNotReachable() {
         let mockGATT = MockGATTSessionPublisher()
         let mockSender = MockWatchMessageSender(reachable: false)
@@ -216,6 +222,7 @@ final class PhoneSessionManagerTests: XCTestCase {
         )
     }
 
+    // @verifies REQ-SW03-17
     func testConsumableLowNotificationSentWhenReachable() {
         let mockGATT = MockGATTSessionPublisher()
         let mockSender = MockWatchMessageSender(reachable: true)
@@ -241,6 +248,7 @@ final class PhoneSessionManagerTests: XCTestCase {
     // impedance bitmask). They must never appear in a WC message dictionary.
     // See CLAUDE.md §5.1, NP-PRIV-ANALYSIS-002 MEDIUM-08.
 
+    // @verifies REQ-SW03-17
     func testForwardedMessageContainsNoEpoch() {
         let mockGATT = MockGATTSessionPublisher()
         let mockSender = MockWatchMessageSender(reachable: true)
@@ -274,6 +282,7 @@ final class PhoneSessionManagerTests: XCTestCase {
         withExtendedLifetime(sut) {}
     }
 
+    // @verifies REQ-SW03-17
     func testForwardedMessageContainsNoImpedancePassFlags() {
         let mockGATT = MockGATTSessionPublisher()
         let mockSender = MockWatchMessageSender(reachable: true)
@@ -307,6 +316,7 @@ final class PhoneSessionManagerTests: XCTestCase {
         withExtendedLifetime(sut) {}
     }
 
+    // @verifies REQ-SW03-17
     func testForwardedMessageOnlyContainsExpectedWCKeys() {
         let mockGATT = MockGATTSessionPublisher()
         let mockSender = MockWatchMessageSender(reachable: true)
@@ -351,6 +361,7 @@ final class PhoneSessionManagerTests: XCTestCase {
 
     // MARK: - ISC-125 Static source analysis: no UHDR field names in forward path
 
+    // @verifies REQ-SW03-17
     func testNoEpochReferenceInForwardPathSource() throws {
         let source = try Self.phoneSessionManagerSource()
 

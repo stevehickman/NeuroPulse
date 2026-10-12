@@ -128,6 +128,7 @@ class HubDescriptorCompilerTests {
         assertEquals("fp", d.publicKeyFingerprint)
     }
 
+    // @verifies REQ-FWHUB-08
     @Test fun deviceSerialIsTheReplayGuard() {
         val serial = ByteArray(32) { (it + 1).toByte() }
         val blob = compiler.build(def(600, pbm("808nm", 100.0)), serial, null).blob
@@ -158,6 +159,7 @@ class HubDescriptorCompilerTests {
         }
     }
 
+    // @verifies REQ-SW03-11
     @Test fun descriptorChunksAndReassembles() {
         val blob = compiler.compile(def(600, pbm("808nm", 100.0))).blob
         val chunks = ProtocolChunker.chunk(blob)

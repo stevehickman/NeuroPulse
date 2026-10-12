@@ -99,6 +99,7 @@ class NppsBackendParityTests {
         }
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun everyRefusalReadsAsTheWebCompilersDoes() = runTest {
         prepareNppsCore()
@@ -114,6 +115,7 @@ class NppsBackendParityTests {
         }
     }
 
+    // @verifies REQ-NPPS-18
     @Test
     fun theBundledLibraryBuildsANamespaceWithoutErrors() = runTest {
         prepareNppsCore()

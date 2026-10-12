@@ -30,6 +30,7 @@ private class FakeArgon2 : Argon2Provider {
 class UhdrKeyDerivationTests {
 
     // ISC-40: locked RFC 9106 / NP-FW-EMMC-001 §6 parameters reach the provider.
+    // @verifies REQ-SW03-08
     @Test
     fun derivationUsesLockedArgon2idParameters() {
         val fake = FakeArgon2()
@@ -40,6 +41,7 @@ class UhdrKeyDerivationTests {
         assertEquals(64, fake.lastOutputLength)
     }
 
+    // @verifies REQ-SW03-08
     @Test
     fun keySplitsIntoK1AndK2() {
         val key = UhdrKeyDerivation.deriveKey(FakeArgon2(), ByteArray(32) { 1 }, ByteArray(32) { 2 })
@@ -48,6 +50,7 @@ class UhdrKeyDerivationTests {
         assertContentEquals(ByteArray(32) { (it % 251).toByte() }, key.k1)
     }
 
+    // @verifies REQ-SW03-08
     @Test
     fun destroyedKeyRefusesAccess() {
         val key = UhdrKeyDerivation.deriveKey(FakeArgon2(), ByteArray(32) { 1 }, ByteArray(32) { 2 })
@@ -55,6 +58,7 @@ class UhdrKeyDerivationTests {
         assertFailsWith<IllegalStateException> { key.k1 }
     }
 
+    // @verifies REQ-SW03-08
     @Test
     fun invalidSaltOrSeedIsRejected() {
         assertFailsWith<IllegalArgumentException> {

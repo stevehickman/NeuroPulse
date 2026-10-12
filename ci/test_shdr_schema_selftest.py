@@ -91,6 +91,7 @@ def _schema_with_accel_column(bad_col_ddl: str) -> str:
 # Tests — the prohibited-column assertion actually catches violations
 # ---------------------------------------------------------------------------
 
+# @verifies REQ-SW02-04
 def test_each_prohibited_raw_accel_column_is_rejected() -> None:
     """ACCEL-01 must flag every raw-accelerometer column, one at a time."""
     for bad_col_ddl in PROHIBITED_ACCEL_COLUMN_DDL:
@@ -114,6 +115,7 @@ def test_each_prohibited_raw_accel_column_is_rejected() -> None:
         assert all(f.check_id == "ACCEL-01" for f in failures)
 
 
+# @verifies REQ-SW02-04
 def test_numeric_column_in_accel_table_is_rejected() -> None:
     """ACCEL-02 must flag a numeric column in an accel-named table even if
     its name is innocuous (would allow encoding raw values under a rename)."""
@@ -126,6 +128,7 @@ def test_numeric_column_in_accel_table_is_rejected() -> None:
     )
 
 
+# @verifies REQ-SW02-04
 def test_missing_required_boolean_is_rejected() -> None:
     """ACCEL-03 must flag an accel table missing a required boolean field."""
     sql = (
@@ -146,6 +149,7 @@ def test_missing_required_boolean_is_rejected() -> None:
 # Tests — the assertion is not vacuous on the real production schema
 # ---------------------------------------------------------------------------
 
+# @verifies REQ-SW02-04
 def test_production_schema_passes_accel_checks() -> None:
     """
     The real schema must PASS all three accelerometer assertions.
@@ -167,6 +171,7 @@ def test_production_schema_passes_accel_checks() -> None:
     assert not check_permitted_accel_columns_present(columns)
 
 
+# @verifies REQ-SW02-04
 def test_production_accel_assertion_is_not_vacuous() -> None:
     """Guard against a vacuous PASS: the parser must actually be seeing the
     accelerometer table and its two permitted boolean columns. If it isn't,

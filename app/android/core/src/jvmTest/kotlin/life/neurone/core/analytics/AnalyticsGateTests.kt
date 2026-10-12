@@ -33,6 +33,7 @@ class AnalyticsGateTests {
         assertTrue(backend.calls.isEmpty())
     }
 
+    // @verifies REQ-SW03-07
     @Test
     fun configureRunsExactlyOnceWhenGateOpen() {
         val store = InMemoryKeyValueStore()
@@ -44,6 +45,7 @@ class AnalyticsGateTests {
         assertEquals(listOf("configure"), backend.calls)
     }
 
+    // @verifies REQ-SW03-07
     @Test
     fun trackDropsEventsWithProhibitedKeys() {
         val store = InMemoryKeyValueStore()
@@ -74,6 +76,7 @@ class AnalyticsGateTests {
         assertTrue(backend.trackedEvents.isEmpty())
     }
 
+    // @verifies REQ-SW03-07
     @Test
     fun resetTearsDownBackendBeforeClearingConfiguredState() {
         val store = InMemoryKeyValueStore()
@@ -90,6 +93,7 @@ class AnalyticsGateTests {
 
     // ── Two consent subjects never share keys (ISC-24) ───────────────────
 
+    // @verifies REQ-SW02-04
     @Test
     fun warrantyAndResearchGatesUseDistinctKeys() {
         assertTrue(
@@ -114,6 +118,7 @@ class AnalyticsGateTests {
 
     // ── EngagementTier boundaries (ISC-25) ───────────────────────────────
 
+    // @verifies REQ-SW03-07
     @Test
     fun engagementTierBucketsMatchSpec() {
         val store = InMemoryKeyValueStore()
@@ -128,6 +133,7 @@ class AnalyticsGateTests {
         assertEquals(EngagementTier.ESTABLISHED, tierAt(51))
     }
 
+    // @verifies REQ-SW03-07
     @Test
     fun incrementLaunchCountIncrements() {
         val store = InMemoryKeyValueStore()
@@ -153,6 +159,7 @@ class CharacterisationEnrolmentGateTests {
         return Triple(store, warranty, CharacterisationEnrolmentGate(store, warranty))
     }
 
+    // @verifies REQ-SW02-04
     @Test
     fun closedUntilAffirmativelyGranted() {
         val (_, _, char) = gates()
@@ -164,6 +171,7 @@ class CharacterisationEnrolmentGateTests {
         assertTrue(char.isOpen)
     }
 
+    // @verifies REQ-SW02-04
     @Test
     fun grantIsRefusedWithoutWarrantyConsent() {
         val (_, _, char) = gates(warrantyOpen = false)
@@ -171,6 +179,7 @@ class CharacterisationEnrolmentGateTests {
         assertFalse(char.isOpen)
     }
 
+    // @verifies REQ-SW02-04
     @Test
     fun revokingWarrantyConsentClosesCharacterisation() {
         val (_, warranty, char) = gates()
@@ -180,6 +189,7 @@ class CharacterisationEnrolmentGateTests {
         assertFalse(char.isOpen, "the extended set must not outlive SHDR consent itself")
     }
 
+    // @verifies REQ-SW02-04
     @Test
     fun withdrawalStopsCollectionButKeepsTheEpochMonotone() {
         val (_, _, char) = gates()
@@ -193,6 +203,7 @@ class CharacterisationEnrolmentGateTests {
         assertTrue(char.isOpen)
     }
 
+    // @verifies REQ-SW02-04
     @Test
     fun enrolmentDoesNotSurviveDeviceTransfer() {
         val (_, _, char) = gates()
@@ -203,6 +214,7 @@ class CharacterisationEnrolmentGateTests {
         assertEquals(0, char.consentEpoch, "the new owner's first enrolment is genuinely their first")
     }
 
+    // @verifies REQ-SW02-04
     @Test
     fun consentToOneProgrammeDoesNotAuthoriseAnother() {
         val (store, _, char) = gates()
@@ -213,6 +225,7 @@ class CharacterisationEnrolmentGateTests {
         assertFalse(char.isOpen, "enrolment in programme N must not carry into N+1")
     }
 
+    // @verifies REQ-SW02-04
     @Test
     fun grantingCharacterisationNeverGrantsWarrantyConsent() {
         // The subset relation runs one way only.
@@ -222,6 +235,7 @@ class CharacterisationEnrolmentGateTests {
         assertFalse(store.getBoolean(WarrantyAnalyticsGate.WARRANTY_CONSENT_KEY))
     }
 
+    // @verifies REQ-SW02-04
     @Test
     fun keysAreDistinctFromEveryOtherConsentSurface() {
         // CLAUDE.md §6.0: a shared key would make two consents one consent.

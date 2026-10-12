@@ -37,6 +37,7 @@ class PairingTest {
 
     private val serial = UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID)
 
+    // @verifies REQ-SW03-15
     @Test fun a_refused_serial_read_raises_pairing_and_is_retried_until_it_succeeds() = runTest {
         val central = FakeCentral()
         val manager = NeurOneGattManager(central, TestScope(testScheduler))
@@ -55,6 +56,7 @@ class PairingTest {
         assertEquals(1, central.reads.size)
     }
 
+    // @verifies REQ-SW03-15
     @Test fun another_refused_read_or_a_dropped_link_raises_nothing() = runTest {
         val manager = NeurOneGattManager(FakeCentral(), TestScope(testScheduler))
         manager.onCharacteristicReadFailed(serial)
@@ -69,6 +71,7 @@ class PairingTest {
         assertFalse(manager.pairingRequired.value)
     }
 
+    // @verifies REQ-SW03-15
     @Test fun forgetting_the_hub_disconnects_clears_it_and_scans_again() = runTest {
         val central = FakeCentral()
         val manager = NeurOneGattManager(central, TestScope(testScheduler))

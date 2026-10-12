@@ -132,6 +132,7 @@ class NPPSAbsoluteQuantityTests {
         assertTrue(result.errors.any { it.parameterKey == "irradianceMWcm2" })
     }
 
+    // @verifies REQ-NPPS-01
     @Test
     fun theSessionBuilderCarriesAbsoluteValuesAndRefusesRetiredNames() {
         val def = NPProtocolDefinition(
@@ -191,6 +192,7 @@ class NPPSAbsoluteQuantityTests {
         }
     }
 
+    // @verifies REQ-NPPS-02
     @Test
     fun leavesAPulsedBlockAlone() {
         val p = single(proto(pbm("wavelength: \"808nm\"\nirradiance: 30mW_cm2\nfrequency: 40Hz\nduty_cycle: 25%")))

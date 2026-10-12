@@ -168,6 +168,7 @@ class NPPSRegressionTests {
     // MARK: - Additional round-trip / fidelity tests --------------------------
 
     /** Bug fix (4): a quoted wavelength value resolves via asIdent. */
+    // @verifies REQ-NPPS-03
     @Test
     fun testQuotedWavelengthResolvesViaAsIdent() {
         val script = """
@@ -187,6 +188,7 @@ class NPPSRegressionTests {
     }
 
     /** Units, percents, and time values parse into the expected fields. */
+    // @verifies REQ-NPPS-16
     @Test
     fun testUnitsAndTimeParse() {
         val script = """
@@ -257,6 +259,7 @@ class NPPSRegressionTests {
     }
 
     /** clinician_selected is the only non-list zone form. */
+    // @verifies REQ-NPPS-08
     @Test
     fun testClinicianSelectedZones() {
         val script = """
@@ -272,6 +275,7 @@ class NPPSRegressionTests {
     }
 
     /** The retired numeric and five-slot forms are rejected, not reinterpreted. */
+    // @verifies REQ-NPPS-08
     @Test
     fun testRetiredZoneFormsAreRejected() {
         for (form in listOf("[1, 3, 5]", "all", "front", "rear", "custom")) {
@@ -381,6 +385,7 @@ class NPPSRegressionTests {
     }
 
     /** An unknown modality inside a protocol throws NPPSError, and so does an unknown limits sub-block. */
+    // @verifies REQ-NPPS-16
     @Test
     fun testUnknownModalityThrowsButUnknownLimitsIgnored() {
         val badProtocol = """
@@ -429,6 +434,7 @@ class NPPSRegressionTests {
      * The shared parser (the core, as the web parser before it) accepts an empty protocol name: whether a
      * name is acceptable is the library's concern, and the parser states what the file says.
      */
+    // @verifies REQ-NPPS-16
     @Test
     fun testEmptyNameParsesAsWritten() {
         val entry = parse("protocol \"\" { version: \"1.0\" }").single()

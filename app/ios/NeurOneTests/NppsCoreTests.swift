@@ -82,6 +82,7 @@ final class NppsCoreTests: XCTestCase {
         XCTAssertTrue(failures.isEmpty, "\(failures.count) divergence(s):\n" + failures.joined(separator: "\n"))
     }
 
+    // @verifies REQ-NPPS-16
     func testAnEmptySourceIsAnEmptyProtocolList() throws {
         let file = try JSONSerialization.jsonObject(with: NppsCore.parse("")) as? [String: Any]
         XCTAssertEqual((file?["entries"] as? [Any])?.count, 0)
@@ -116,6 +117,7 @@ final class NppsCoreTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-12
     func testEveryRefusalReadsAsTheWebCompilersDoes() throws {
         let cases = try Self.json("hub-descriptor-cases.json")
         let errors = try XCTUnwrap(cases["errors"] as? [String: [String: Any]])
@@ -134,6 +136,7 @@ final class NppsCoreTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(refused, 15)
     }
 
+    // @verifies REQ-NPPS-16
     func testAShippedProtocolParsesThenCompiles() throws {
         let cases = try Self.json("hub-descriptor-cases.json")
         let url = Self.root().appendingPathComponent("protocols/predefined/01-gamma-focus.npps")
@@ -148,6 +151,7 @@ final class NppsCoreTests: XCTestCase {
         XCTAssertTrue(blob.suffix(64).allSatisfy { $0 == 0 }, "the signature slot is zeroed for the caller to fill")
     }
 
+    // @verifies REQ-NPPS-15
     func testAMalformedRequestIsRefusedNotCrashed() {
         let options = NppsCore.CompileOptions(
             zones: nil, clinicianSockets: nil, deviceSerial: nil, nowUnix: 0,
@@ -203,6 +207,7 @@ final class NppsCoreTests: XCTestCase {
         XCTAssertTrue(failures.isEmpty, "\(failures.count) divergence(s):\n" + failures.joined(separator: "\n"))
     }
 
+    // @verifies REQ-NPPS-16
     func testSerializeRefusesAZoneItCannotWriteWithTheCoresMessage() throws {
         let zone: [String: Any] = ["kind": "zone", "zone": ["name": "Z", "sockets": [0, 999]]]
         let request = try JSONSerialization.data(withJSONObject: ["items": [zone]])
@@ -213,6 +218,7 @@ final class NppsCoreTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-15
     func testValidateReturnsLocaleKeysAndArguments() throws {
         var bes = NPBESTacsParams()
         bes.intensityMilliamps = 2
@@ -230,6 +236,7 @@ final class NppsCoreTests: XCTestCase {
 
     // MARK: - Limit resolution
 
+    // @verifies REQ-NPPS-12
     func testResolveLimitsTakesTheMostSpecificTierPerFieldAndNamesIt() throws {
         var global = NPLimitsSet(name: "G", level: .global)
         global.besTacs = NPBESTacsLimits(maxIntensityMilliamps: 1.0, maxFrequencyHz: 40, minFrequencyHz: 1)

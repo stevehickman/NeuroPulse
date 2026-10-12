@@ -108,6 +108,7 @@ final class NPAbsoluteQuantityTests: XCTestCase {
         XCTAssertEqual(lim.pbmTranscranial?.maxIrradianceMWcm2, 250)
     }
 
+    // @verifies REQ-NPPS-01
     func testTheSessionBuilderCarriesAbsoluteValuesAndRefusesRetiredNames() throws {
         var transcranial = NPPBMTranscranialParams()
         transcranial.irradianceMWcm2 = 250
@@ -181,6 +182,7 @@ final class NPAbsoluteQuantityTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-NPPS-02
     func testLeavesAPulsedBlockAlone() throws {
         let entries = try parse(proto(pbm("wavelength: \"808nm\"\nirradiance: 30mW_cm2\nfrequency: 40Hz\nduty_cycle: 25%")))
         guard case .single(let p) = entries[0], case .pbmTranscranial(let params) = p.modalities[0].params else {

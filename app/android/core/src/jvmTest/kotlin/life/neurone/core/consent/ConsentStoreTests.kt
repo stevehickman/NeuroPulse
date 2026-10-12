@@ -345,6 +345,7 @@ class ConsentStoreTests {
      * invitation that recorded the acceptance, so the trail and the inbox disagreed after every
      * restart — and the same descriptor could be ingested and accepted a second time.
      */
+    // @verifies REQ-CONSENT-11
     @Test
     fun invitationsAndTheirDecisionsSurviveAReload() {
         val (store, kv) = ingestingStore()
@@ -658,6 +659,7 @@ class ConsentStoreTests {
      * The §5.3 audit trail names a descriptor. It used to record the literal string "pending",
      * because there was no descriptor to hash.
      */
+    // @verifies REQ-CONSENT-09
     @Test
     fun participationRecordCarriesTheDescriptorHash() {
         val (store, _) = ingestingStore()
@@ -769,6 +771,7 @@ class ConsentStoreTests {
         assertTrue(state.blanketConsentGranted)
     }
 
+    // @verifies REQ-CONSENT-02
     @Test
     fun consentStatePersistsAcrossInstances() {
         val kv = InMemoryKeyValueStore()
@@ -870,6 +873,7 @@ class ConsentStoreTests {
         assertFalse(store.expansionRequests.single().isPending)
     }
 
+    // @verifies REQ-CONSENT-16
     @Test
     fun denyingChangesNothingAboutTheGrant() {
         val (store, _, _) = makeStore()
@@ -886,6 +890,7 @@ class ConsentStoreTests {
         assertFalse(store.expansionRequests.single().isPending)
     }
 
+    // @verifies REQ-CONSENT-16
     @Test
     fun askingAQuestionIsNotDeciding() {
         val (store, _, _) = makeStore()
@@ -905,6 +910,7 @@ class ConsentStoreTests {
         assertEquals(ClinicianUseCaseTier.ASSESS, store.clinicianGrants.single().tier)
     }
 
+    // @verifies REQ-CONSENT-16
     @Test
     fun revokingAGrantWithdrawsItsPendingRequest() {
         val (store, _, _) = makeStore()
@@ -919,6 +925,7 @@ class ConsentStoreTests {
         assertTrue(store.clinicianGrants.isEmpty())
     }
 
+    // @verifies REQ-CONSENT-16
     @Test
     fun approvingAStaleRequestIsRefused() {
         val (store, _, _) = makeStore()
@@ -947,6 +954,7 @@ class ConsentStoreTests {
         )
     }
 
+    // @verifies REQ-CONSENT-16
     @Test
     fun aNewRequestSupersedesTheOutstandingOneButNotDecidedHistory() {
         val (store, _, _) = makeStore()
@@ -969,6 +977,7 @@ class ConsentStoreTests {
         assertEquals(1, store.expansionRequests.count { it.isPending })
     }
 
+    // @verifies REQ-CONSENT-16
     @Test
     fun expansionRequestsAndScopesSurviveAReload() {
         val kv = InMemoryKeyValueStore()
@@ -1006,6 +1015,7 @@ class ConsentStoreTests {
         assertTrue(grant.forwardOnlyElements.isEmpty())
     }
 
+    // @verifies REQ-CONSENT-16
     @Test
     fun aChangeThatIsNotAnExpansionHasNoDifferential() {
         val monitor = grantedYesterday(ClinicianUseCaseTier.MONITOR)
@@ -1026,6 +1036,7 @@ class ConsentStoreTests {
         )
     }
 
+    // @verifies REQ-CONSENT-02
     @Test
     fun theDifferentialSplitsElementsIntoNewAlreadyVisibleAndWithheld() {
         val differential = ConsentEngine.accessDifferential(
@@ -1055,6 +1066,7 @@ class ConsentStoreTests {
         )
     }
 
+    // @verifies REQ-CONSENT-02
     @Test
     fun corruptPersistedBlobDoesNotCrash() {
         val kv = InMemoryKeyValueStore()
@@ -1127,6 +1139,7 @@ class ConsentStoreTests {
 
     /// Every library entry must sit at or above the highest tier its own elements require, or the
     /// use case promises access its tier cannot carry and the clamp silently removes it.
+    // @verifies REQ-CONSENT-15
     @Test
     fun everyUseCaseIsReachableAtItsDeclaredTier() {
         for (useCase in USE_CASE_LIBRARY) {
@@ -1139,6 +1152,7 @@ class ConsentStoreTests {
 
     /// The library is a cross-platform table: a grant records the IDs it was made from, and the
     /// two platforms read each other's grants. Pins the IDs so a rename on one side is caught.
+    // @verifies REQ-CONSENT-15
     @Test
     fun theUseCaseLibraryMatchesTheIosTable() {
         assertEquals(
@@ -1208,6 +1222,7 @@ class ConsentStoreTests {
 
     /// The elements are frozen at grant time, so editing the library cannot reach backwards into
     /// a grant already made.
+    // @verifies REQ-CONSENT-15
     @Test
     fun storedScopeDoesNotTrackTheLibrary() {
         val today = LocalDate.now().toString()
@@ -1223,6 +1238,7 @@ class ConsentStoreTests {
         assertEquals(ClinicianUseCaseTier.MONITOR.uhdrElements, grant.approvedElements)
     }
 
+    // @verifies REQ-CONSENT-02
     @Test
     fun tierRankOrdersTheCeilings() {
         assertTrue(ClinicianUseCaseTier.MONITOR.rank < ClinicianUseCaseTier.ASSESS.rank)
@@ -1236,6 +1252,7 @@ class ConsentStoreTests {
 
     /// The shipped channel refuses everything, and says the anchor is missing rather than that the
     /// request is forged. A default that admitted would make the missing key silent.
+    // @verifies REQ-CONSENT-09
     @Test
     fun theDefaultPortalChannelRefusesAndNamesTheMissingAnchor() {
         val (store, _, _) = makeStore()
@@ -1248,6 +1265,7 @@ class ConsentStoreTests {
         assertTrue(store.expansionRequests.isEmpty())
     }
 
+    // @verifies REQ-CONSENT-09
     @Test
     fun aVerifiedRequestIsIngested() {
         val (store, _, _) = makeStore()
@@ -1264,6 +1282,7 @@ class ConsentStoreTests {
     /// Identity is checked before anything the request claims. A forged request naming a grant
     /// this device never issued is refused as forged — so the refusal cannot be read backwards to
     /// learn which grants the device holds (CLAUDE.md §5.1 rule 2).
+    // @verifies REQ-CONSENT-09
     @Test
     fun aForgedRequestIsRefusedAsForgedNotAsUnknownGrant() {
         val (store, _, _) = makeStore()
@@ -1276,6 +1295,7 @@ class ConsentStoreTests {
         )
     }
 
+    // @verifies REQ-CONSENT-09
     @Test
     fun aVerifiedRequestForAnUnknownGrantIsRefused() {
         val (store, _, _) = makeStore()
@@ -1290,6 +1310,7 @@ class ConsentStoreTests {
 
     /// A change with no differential has no consent document, so there is nothing the user could
     /// be asked — the same condition `approveExpansion` already fails closed on.
+    // @verifies REQ-CONSENT-09
     @Test
     fun aVerifiedRequestThatIsNotAnExpansionIsRefused() {
         val (store, _, _) = makeStore()

@@ -9,6 +9,7 @@ import kotlin.test.assertTrue
 /** Port of the iOS AdaptTrigger/AdaptationEvent assertions. */
 class AdaptationEventTests {
 
+    // @verifies REQ-FWHUB-15
     @Test
     fun allSeventeenTriggersHavePlainLanguageCopy() {
         assertEquals(17, AdaptTrigger.entries.size)
@@ -17,11 +18,13 @@ class AdaptationEventTests {
         }
     }
 
+    // @verifies REQ-FWHUB-15
     @Test
     fun rawValuesAreContiguousZeroToSixteen() {
         assertEquals((0x00..0x10).toList(), AdaptTrigger.entries.map { it.rawValue })
     }
 
+    // @verifies REQ-FWHUB-15
     @Test
     fun fromRawValueRoundTrips() {
         assertEquals(AdaptTrigger.HRV_COHERENCE_LOW, AdaptTrigger.from(0x08))
@@ -29,6 +32,7 @@ class AdaptationEventTests {
         assertNull(AdaptTrigger.from(0x11))
     }
 
+    // @verifies REQ-FWHUB-15
     @Test
     fun eventIdIsStableAndContentDerived() {
         val e = AdaptationEvent(

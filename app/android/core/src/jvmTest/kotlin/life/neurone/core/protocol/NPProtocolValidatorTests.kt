@@ -30,6 +30,7 @@ class NPProtocolValidatorTests {
         modalities = listOf(NPProtocolModality(params = params, interval = interval, enabled = true)),
     )
 
+    // @verifies REQ-NPPS-18
     @Test
     fun validProtocolAccepted() {
         val pbm = NPPBMTranscranialParams(irradianceMWcm2 = 302.2, frequencyHz = 20.0, dutyCyclePercent = 25)
@@ -38,6 +39,7 @@ class NPProtocolValidatorTests {
         assertTrue(result.errors.isEmpty(), "Valid protocol must produce no errors.")
     }
 
+    // @verifies REQ-NPPS-04
     @Test
     fun currentOverLimitRejected_tDCS() {
         val tdcs = NPTDCSParams(intensityMilliamps = 2.5, electrodePairs = listOf(listOf("Fp1", "P3")))
@@ -49,6 +51,7 @@ class NPProtocolValidatorTests {
         )
     }
 
+    // @verifies REQ-NPPS-04
     @Test
     fun currentOverLimitRejected_BES() {
         val bes = NPBESTacsParams(frequencyHz = 20.0, intensityMilliamps = 1.5)
@@ -121,6 +124,7 @@ class NPProtocolValidatorTests {
      * ceiling cannot quietly take it away again. At the retired 40 the routine protocol
      * was unavailable and 13 of the 14 shipped predefined tDCS protocols exceeded it.
      */
+    // @verifies REQ-NPPS-18
     @Test
     fun routineTwoMilliampTwentyMinuteProtocolAccepted() {
         // 2 mA × 1200s / 35 cm² = 68.6 mC/cm² — the single most common protocol in the
@@ -177,6 +181,7 @@ class NPProtocolValidatorTests {
         )
     }
 
+    // @verifies REQ-NPPS-05
     @Test
     fun undeclaredElectrodeAreaRejected() {
         // Not a fallback: the hub refuses a zero area and the safety MCU's geometry gate
@@ -193,6 +198,7 @@ class NPProtocolValidatorTests {
         )
     }
 
+    // @verifies REQ-NPPS-05
     @Test
     fun unencodableElectrodeAreaRejected() {
         // Above what the uint16 milli-cm² wire field can carry.
@@ -212,6 +218,7 @@ class NPProtocolValidatorTests {
      * measures nothing physical. The safety MCU did exactly that until 2026-09-15, which
      * would have tripped every one of these in 0.4-1.0 s.
      */
+    // @verifies REQ-NPPS-14#b
     @Test
     fun chargeBalancedModalityHasNoSessionDose() {
         val bes = NPBESTacsParams(
@@ -314,6 +321,7 @@ class NPProtocolValidatorTests {
         )
     }
 
+    // @verifies REQ-NPPS-22
     @Test
     fun zeroDurationRejected() {
         val pbm = NPPBMTranscranialParams(irradianceMWcm2 = 302.2, frequencyHz = 20.0, dutyCyclePercent = 25)
@@ -323,6 +331,7 @@ class NPProtocolValidatorTests {
     }
 
     // OI-SESPWR-03: CW (frequency 0) has no duty cycle, so CW with a duty other than 100 % is refused.
+    // @verifies REQ-NPPS-02
     @Test
     fun cwWithADutyOtherThan100Rejected() {
         val cases = listOf(
@@ -339,6 +348,7 @@ class NPProtocolValidatorTests {
         }
     }
 
+    // @verifies REQ-NPPS-02
     @Test
     fun pulsedBlockIsNotACwDutyError() {
         val pbm = NPPBMTranscranialParams(irradianceMWcm2 = 100.0, frequencyHz = 40.0, dutyCyclePercent = 25)
@@ -346,6 +356,7 @@ class NPProtocolValidatorTests {
         assertTrue(result.errors.none { it.message.contains("no duty cycle") })
     }
 
+    // @verifies REQ-NPPS-04
     @Test
     fun doseOverLimitRejected() {
         // 200 mW/cm² CW × 3600 s / 1000 = 720 J/cm² — over the 10 J/cm² limit.
@@ -360,6 +371,7 @@ class NPProtocolValidatorTests {
         )
     }
 
+    // @verifies REQ-NPPS-04
     @Test
     fun configuredIntensityLimitRejected() {
         val limits = NPLimitsSet(name = "Capped", level = NPLimitsSet.LimitLevel.GLOBAL,
@@ -371,6 +383,7 @@ class NPProtocolValidatorTests {
         assertTrue(result.errors.any { it.parameterKey == "irradianceMWcm2" }, "Rejection must cite the irradiance parameter.")
     }
 
+    // @verifies REQ-NPPS-22
     @Test
     fun emptyModalitiesRejected() {
         val def = NPProtocolDefinition(name = "Empty", modalities = emptyList())
@@ -379,6 +392,7 @@ class NPProtocolValidatorTests {
         assertTrue(result.errors.any { it.parameterKey == "modalities" })
     }
 
+    // @verifies REQ-NPPS-04
     @Test
     fun dutyCycleOverHardwareCeilingRejected() {
         val pbm = NPPBMTranscranialParams(irradianceMWcm2 = 302.2, frequencyHz = 20.0, dutyCyclePercent = 40)

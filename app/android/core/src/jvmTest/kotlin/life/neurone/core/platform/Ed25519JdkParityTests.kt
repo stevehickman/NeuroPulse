@@ -15,6 +15,7 @@ class Ed25519JdkParityTests {
 
     private val pkcs8Prefix = byteArrayOf(0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20)
 
+    // @verifies REQ-SW03-10
     @Test fun sha512_matchesTheJdkOnEveryBlockBoundary() {
         val random = Random(512)
         for (size in listOf(0, 1, 55, 56, 111, 112, 113, 127, 128, 129, 255, 256, 1000, 4097)) {
@@ -23,6 +24,7 @@ class Ed25519JdkParityTests {
         }
     }
 
+    // @verifies REQ-SW03-10
     @Test fun signatures_matchTheJdk_andVerifyWithItsVerifier() {
         val random = Random(25519)
         repeat(40) { n ->
@@ -40,6 +42,7 @@ class Ed25519JdkParityTests {
         }
     }
 
+    // @verifies REQ-SW03-10
     @Test fun fingerprints_areTheSameShapeOnTheCommonAndTheJdkSigner() {
         val seed = ByteArray(32) { (it * 3).toByte() }
         val common = Ed25519ProtocolSigner { seed }.sign(byteArrayOf(1, 2, 3))

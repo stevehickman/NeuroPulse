@@ -42,6 +42,7 @@ class NPWavelengthRulesTests {
         }
     """.trimIndent()
 
+    // @verifies REQ-NPPS-03
     @Test
     fun defaultsMapTheSourceWavelengths() {
         assertEquals(NPPBMChannelElement.LED_660, NPWavelengthRulesEngine.map(660.0, rules))
@@ -62,6 +63,7 @@ class NPWavelengthRulesTests {
         }
     }
 
+    // @verifies REQ-NPPS-03
     @Test
     fun aUserRuleReplacesOnlyItsChannel() {
         val user = NPWavelengthRules(
@@ -74,6 +76,7 @@ class NPWavelengthRulesTests {
         assertEquals(rules.channels[2], resolved.channels[2])
     }
 
+    // @verifies REQ-NPPS-03
     @Test
     fun scriptWavelengthIsCarriedExactlyAndStartRoundTrips() {
         val entries = parse(SERIES)
@@ -92,6 +95,7 @@ class NPWavelengthRulesTests {
         assertEquals(240, again.modalities[0].interval.startOffsetSeconds)
     }
 
+    // @verifies REQ-NPPS-22
     @Test
     fun negativeStartIsAnError() {
         assertFailsWith<NPPSError> { parse(SERIES.replace("start: 4m", "start: -4m")) }
@@ -115,6 +119,7 @@ class NPWavelengthRulesTests {
         assertNotNull(compile(ok))
     }
 
+    // @verifies REQ-NPPS-03
     @Test
     fun defaultsMatchTheShippedRulesFile() {
         val text = assertNotNull(

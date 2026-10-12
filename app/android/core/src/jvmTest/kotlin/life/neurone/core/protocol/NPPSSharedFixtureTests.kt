@@ -28,6 +28,7 @@ class NPPSSharedFixtureTests {
     private fun parse(text: String): List<NPProtocolEntry> =
         NPPSParser.parse(text)
 
+    // @verifies REQ-NPPS-10
     @Test
     fun everyErrorFixtureIsRefused() {
         val files = dir.listFiles { f -> f.name.startsWith("error_") && f.name.endsWith(".npps") }!!
@@ -37,6 +38,7 @@ class NPPSSharedFixtureTests {
         }
     }
 
+    // @verifies REQ-NPPS-12
     @Test
     fun everyExpectedFixtureParsesToTheSameDoses() {
         val expectedFiles = dir.listFiles { f -> f.name.endsWith(".expected.json") }!!

@@ -19,6 +19,7 @@ final class ConsumableResetTests: XCTestCase {
         defaults.removePersistentDomain(forName: "ConsumableResetTests")
     }
 
+    // @verifies REQ-SW03-04
     func testWireIsTheKindIndexForTheFourCountedKinds() {
         for kind in ConsumableKind.allCases {
             XCTAssertEqual(ConsumableResetWire.encode(kind.rawValue), Data([UInt8(kind.rawValue)]))
@@ -27,6 +28,7 @@ final class ConsumableResetTests: XCTestCase {
         XCTAssertNil(ConsumableResetWire.encode(ConsumableKind.allCases.count))
     }
 
+    // @verifies REQ-SW03-04
     func testQueueSurvivesARestartAndDrainsOnce() {
         let q = ConsumableResetQueue(defaults: defaults)
         q.add(3); q.add(0); q.add(3); q.add(7)

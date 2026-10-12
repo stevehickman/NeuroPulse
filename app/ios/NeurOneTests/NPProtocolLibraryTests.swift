@@ -21,6 +21,7 @@ final class NPProtocolLibraryTests: XCTestCase {
     // MARK: - ISC-39 Every predefined template loads without errors
 
     @MainActor
+    // @verifies REQ-NPPS-18
     func testBundledProtocolCountMatchesManifest() {
         let library = NPProtocolLibrary()
         // protocolFiles, not manifestFiles: the manifest also lists the zone and
@@ -62,6 +63,7 @@ final class NPProtocolLibraryTests: XCTestCase {
     }
 
     @MainActor
+    // @verifies REQ-NPPS-18
     func testAllBundledProtocolNamesAreUnique() {
         let library = NPProtocolLibrary()
         let names = library.bundledProtocols.map { $0.name }
@@ -74,6 +76,7 @@ final class NPProtocolLibraryTests: XCTestCase {
     }
 
     @MainActor
+    // @verifies REQ-NPPS-18
     func testAllBundledProtocolIDsAreUnique() {
         let library = NPProtocolLibrary()
         let ids = library.bundledProtocols.map { $0.id }
@@ -92,6 +95,7 @@ final class NPProtocolLibraryTests: XCTestCase {
     // in NPBundledProtocols.allContents.
 
     @MainActor
+    // @verifies REQ-NPPS-18
     func testExpectedSingleProtocolNamesPresent() {
         let library = NPProtocolLibrary()
         let names = Set(library.bundledProtocols.map { $0.name })
@@ -123,6 +127,7 @@ final class NPProtocolLibraryTests: XCTestCase {
     }
 
     @MainActor
+    // @verifies REQ-NPPS-18
     func testExpectedCompositeProtocolNamesPresent() {
         let library = NPProtocolLibrary()
         let names = Set(library.bundledProtocols.map { $0.name })
@@ -144,6 +149,7 @@ final class NPProtocolLibraryTests: XCTestCase {
 
     // MARK: - ISC-39 allContents matches the manifest
 
+    // @verifies REQ-NPPS-18
     func testBundledProtocolsSourceListCount() {
         XCTAssertEqual(
             NPBundledProtocols.allContents.count, NPBundledProtocols.manifestFiles.count,
@@ -154,6 +160,7 @@ final class NPProtocolLibraryTests: XCTestCase {
     }
 
     // Each entry in allContents must be non-empty and contain a protocol or composite block.
+    // @verifies REQ-NPPS-18
     func testAllBundledProtocolStringsAreNonEmpty() {
         for (index, content) in NPBundledProtocols.allContents.enumerated() {
             let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -248,6 +255,7 @@ final class NPProtocolLibraryTests: XCTestCase {
         """
     }
 
+    // @verifies REQ-NPPS-03
     func testQuotedWavelengthsParse() throws {
         for wl in ["660nm", "808nm", "1064nm"] {
             let entries = try parseEntries(wavelengthProtocol("\"\(wl)\""))
@@ -351,6 +359,7 @@ final class NPProtocolLibraryTests: XCTestCase {
     // MARK: - allProtocols combines bundled + user protocols
 
     @MainActor
+    // @verifies REQ-NPPS-18
     func testAllProtocolsIncludesBundledProtocols() {
         let library = NPProtocolLibrary()
         XCTAssertEqual(

@@ -156,21 +156,25 @@ final class HardwareSetupManagerTests: XCTestCase {
 
     // MARK: ISC-114 — wizard step coverage
 
+    // @verifies REQ-SW03-05
     func testBLEConfirmationStepExists() {
         XCTAssertTrue(SetupStep.allCases.contains(.bleConfirmation),
                       "Wizard must include a BLE pairing confirmation step (ISC-114 item 1)")
     }
 
+    // @verifies REQ-SW03-05
     func testSafetyAcknowledgementStepExists() {
         XCTAssertTrue(SetupStep.allCases.contains(.safetyAcknowledgement),
                       "Wizard must include a safety acknowledgement step (ISC-114 item 4)")
     }
 
+    // @verifies REQ-SW03-05
     func testProtocolSelectionStepExists() {
         XCTAssertTrue(SetupStep.allCases.contains(.protocolSelection),
                       "Wizard must include a first protocol selection step (ISC-114 item 3)")
     }
 
+    // @verifies REQ-SW03-05
     func testImpedanceCheckStepExists() {
         XCTAssertTrue(SetupStep.allCases.contains(.impedanceCheck),
                       "Wizard must include an EEG impedance check step (ISC-114 item 2)")
@@ -178,11 +182,13 @@ final class HardwareSetupManagerTests: XCTestCase {
 
     // MARK: ISC-116 — impedance threshold
 
+    // @verifies REQ-SW03-05
     func testMinimumImpedancePassCountDefaultIs6() {
         let mgr = HardwareSetupManager(gatt: MockSetupGATT(), userDefaults: defaults)
         XCTAssertEqual(mgr.MINIMUM_IMPEDANCE_PASS_COUNT, 6)
     }
 
+    // @verifies REQ-SW03-05
     func testSafetyAcknowledgedIsNeverPersistedToUserDefaults() {
         // PRIVACY: safetyAcknowledged must not be written to UserDefaults.
         // Persisting "accepted T1 contraindications" constitutes inferred health status
@@ -196,6 +202,7 @@ final class HardwareSetupManagerTests: XCTestCase {
         )
     }
 
+    // @verifies REQ-SW03-05
     func testImpedanceCheckAdvancesWhen6of8Pass() async {
         let mock = MockSetupGATT()
         mock.mockConnectionState = .connected
@@ -210,6 +217,7 @@ final class HardwareSetupManagerTests: XCTestCase {
         XCTAssertEqual(mgr.currentStep, .ads1299Calibration, "should advance past impedanceCheck")
     }
 
+    // @verifies REQ-SW03-05
     func testImpedanceCheckAdvancesWhenAll8Pass() async {
         let mock = MockSetupGATT()
         mock.mockConnectionState = .connected
@@ -223,6 +231,7 @@ final class HardwareSetupManagerTests: XCTestCase {
         XCTAssertEqual(mgr.currentStep, .ads1299Calibration)
     }
 
+    // @verifies REQ-SW03-05
     func testImpedanceCheckFailsWhen5of8Pass() async {
         let mock = MockSetupGATT()
         mock.mockConnectionState = .connected
@@ -241,6 +250,7 @@ final class HardwareSetupManagerTests: XCTestCase {
         XCTAssertEqual(mgr.currentStep, .impedanceCheck, "should not advance")
     }
 
+    // @verifies REQ-SW03-05
     func testImpedanceCheckFailsWhenZeroPass() async {
         let mock = MockSetupGATT()
         mock.mockConnectionState = .connected
@@ -257,6 +267,7 @@ final class HardwareSetupManagerTests: XCTestCase {
         XCTAssertEqual(mgr.currentStep, .impedanceCheck)
     }
 
+    // @verifies REQ-SW03-05
     func testImpedanceCheckFailsWhenNotConnected() async {
         let mock = MockSetupGATT()
         mock.mockConnectionState = .disconnected
@@ -272,12 +283,14 @@ final class HardwareSetupManagerTests: XCTestCase {
 
     // MARK: ISC-118 / ISC-119 — safety acknowledgement
 
+    // @verifies REQ-SW03-05
     func testSafetyAcknowledgedDefaultsFalse() {
         let mgr = HardwareSetupManager(gatt: MockSetupGATT(), userDefaults: defaults)
         XCTAssertFalse(mgr.safetyAcknowledged,
                        "Safety checkbox must not be pre-ticked (ISC-119)")
     }
 
+    // @verifies REQ-SW03-05
     func testAdvanceBlockedAtSafetyStepWithoutAcknowledgement() {
         let mgr = HardwareSetupManager(gatt: MockSetupGATT(), userDefaults: defaults)
         mgr.setStepForTesting(.safetyAcknowledgement)
@@ -291,6 +304,7 @@ final class HardwareSetupManagerTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-SW03-05
     func testAdvanceAllowedAfterAcknowledgeSafety() {
         let mgr = HardwareSetupManager(gatt: MockSetupGATT(), userDefaults: defaults)
         mgr.setStepForTesting(.safetyAcknowledgement)
@@ -302,6 +316,7 @@ final class HardwareSetupManagerTests: XCTestCase {
                        "After acknowledging safety, wizard should advance to protocolSelection")
     }
 
+    // @verifies REQ-SW03-05
     func testAcknowledgeSafetySetsFlag() {
         let mgr = HardwareSetupManager(gatt: MockSetupGATT(), userDefaults: defaults)
         XCTAssertFalse(mgr.safetyAcknowledged)
@@ -311,6 +326,7 @@ final class HardwareSetupManagerTests: XCTestCase {
         XCTAssertTrue(mgr.safetyAcknowledged)
     }
 
+    // @verifies REQ-SW03-05
     func testSafetyAcknowledgedResetOnRetry() {
         let mgr = HardwareSetupManager(gatt: MockSetupGATT(), userDefaults: defaults)
         mgr.acknowledgeSafety()
@@ -324,10 +340,12 @@ final class HardwareSetupManagerTests: XCTestCase {
 
     // MARK: ISC-114 — safety step property
 
+    // @verifies REQ-SW03-05
     func testSafetyAcknowledgementStepRequiresSafetyAcknowledgement() {
         XCTAssertTrue(SetupStep.safetyAcknowledgement.requiresSafetyAcknowledgement)
     }
 
+    // @verifies REQ-SW03-05
     func testOtherStepsDoNotRequireSafetyAcknowledgement() {
         let others = SetupStep.allCases.filter { $0 != .safetyAcknowledgement }
         XCTAssertTrue(others.allSatisfy { !$0.requiresSafetyAcknowledgement })
@@ -335,11 +353,13 @@ final class HardwareSetupManagerTests: XCTestCase {
 
     // MARK: BLE confirmation step
 
+    // @verifies REQ-SW03-05
     func testBLEConfirmationRequiresHardwareConfirmation() {
         XCTAssertTrue(SetupStep.bleConfirmation.requiresHardwareConfirmation,
                       "bleConfirmation must use the hardware confirm button path")
     }
 
+    // @verifies REQ-SW03-05
     func testBLEConfirmationAdvancesWhenConnected() {
         let mock = MockSetupGATT()
         mock.mockConnectionState = .connected
@@ -353,6 +373,7 @@ final class HardwareSetupManagerTests: XCTestCase {
                        "Confirmed BLE pairing should advance to boaDial")
     }
 
+    // @verifies REQ-SW03-05
     func testBLEConfirmationFailsWhenNotConnected() {
         let mock = MockSetupGATT()
         mock.mockConnectionState = .disconnected
@@ -369,11 +390,13 @@ final class HardwareSetupManagerTests: XCTestCase {
 
     // MARK: ISC-117 — isFirstSetupComplete gate
 
+    // @verifies REQ-SW03-05
     func testIsFirstSetupCompleteIsFalseInitially() {
         let mgr = HardwareSetupManager(gatt: MockSetupGATT(), userDefaults: defaults)
         XCTAssertFalse(mgr.isFirstSetupComplete)
     }
 
+    // @verifies REQ-SW03-05
     func testIsFirstSetupCompleteSetOnlyWhenReachingCompleteStep() {
         let mgr = HardwareSetupManager(gatt: MockSetupGATT(), userDefaults: defaults)
         mgr.acknowledgeSafety()
@@ -386,6 +409,7 @@ final class HardwareSetupManagerTests: XCTestCase {
                       "Advancing from protocolSelection to complete must set the flag (ISC-117)")
     }
 
+    // @verifies REQ-SW03-05
     func testIsFirstSetupCompletePersistsAcrossInstances() {
         let mgr1 = HardwareSetupManager(gatt: MockSetupGATT(), userDefaults: defaults)
         mgr1.acknowledgeSafety()
@@ -398,6 +422,7 @@ final class HardwareSetupManagerTests: XCTestCase {
                       "Completion must persist across manager instantiations")
     }
 
+    // @verifies REQ-SW03-05
     func testIsFirstSetupCompleteNotSetBeforeFinalStep() {
         let mgr = HardwareSetupManager(gatt: MockSetupGATT(), userDefaults: defaults)
         // Advance through every step before complete
@@ -409,6 +434,7 @@ final class HardwareSetupManagerTests: XCTestCase {
 
     // MARK: ISC-120 — Setup badge (structural — MainTabView binds to isFirstSetupComplete)
 
+    // @verifies REQ-SW03-05
     func testSetupBadgeKeyIsDrivenByIsFirstSetupComplete() {
         let mgr = HardwareSetupManager(gatt: MockSetupGATT(), userDefaults: defaults)
         // Badge count is `setup.isFirstSetupComplete ? 0 : 1`
@@ -423,6 +449,7 @@ final class HardwareSetupManagerTests: XCTestCase {
 
     // MARK: ISC-121 — Session tab guard (logic)
 
+    // @verifies REQ-SW03-05
     func testSessionTabShouldBeGuardedWhenSetupIncomplete() {
         // This test confirms the manager exposes the flag MainTabView uses for the guard.
         // MainTabView's onChange(of: selectedTab) uses `setup.isFirstSetupComplete`.
@@ -431,6 +458,7 @@ final class HardwareSetupManagerTests: XCTestCase {
                        "Session tab guard must fire: isFirstSetupComplete == false on new install")
     }
 
+    // @verifies REQ-SW03-05
     func testSessionTabUnblockedAfterSetupComplete() {
         let mgr = HardwareSetupManager(gatt: MockSetupGATT(), userDefaults: defaults)
         mgr.acknowledgeSafety()
@@ -442,6 +470,7 @@ final class HardwareSetupManagerTests: XCTestCase {
 
     // MARK: Step step ordering — ISC-116 dependency
 
+    // @verifies REQ-SW03-05
     func testProtocolSelectionComesAfterImpedanceCheckInStepOrder() {
         // ISC-116: "blocks progression to protocol selection until ≥ 6/8 contacts pass"
         // means impedanceCheck must precede protocolSelection in the step sequence.
@@ -452,6 +481,7 @@ final class HardwareSetupManagerTests: XCTestCase {
                           "impedanceCheck must come before protocolSelection (ISC-116)")
     }
 
+    // @verifies REQ-SW03-05
     func testBLEConfirmationComesBeforeImpedanceCheck() {
         let steps = SetupStep.allCases
         let bleIdx  = steps.firstIndex(of: .bleConfirmation)!
@@ -461,6 +491,7 @@ final class HardwareSetupManagerTests: XCTestCase {
 
     // MARK: Retry clears error
 
+    // @verifies REQ-SW03-05
     func testRetryClearsLastError() {
         let mgr = HardwareSetupManager(gatt: MockSetupGATT(), userDefaults: defaults)
         mgr.setStepForTesting(.safetyAcknowledgement)
@@ -474,6 +505,7 @@ final class HardwareSetupManagerTests: XCTestCase {
 
     // MARK: Zone module confirmation (socket-keyed)
 
+    // @verifies REQ-SW03-05
     func testZoneModuleConfirmationAdvancesWithAnyPopulatedSockets() {
         // Tiles are type-agnostic and a build is a configuration choice, so the
         // app cannot know how many modules "should" be installed. Any populated,
@@ -493,6 +525,7 @@ final class HardwareSetupManagerTests: XCTestCase {
         XCTAssertEqual(mgr.currentStep, .impedanceCheck)
     }
 
+    // @verifies REQ-SW03-05
     func testZoneModuleConfirmationAdvancesWithMoreThanFiveSockets() {
         // The retired model could not represent a sixth socket at all.
         let mock = MockSetupGATT()
@@ -507,6 +540,7 @@ final class HardwareSetupManagerTests: XCTestCase {
         XCTAssertEqual(mgr.currentStep, .impedanceCheck)
     }
 
+    // @verifies REQ-SW03-05
     func testZoneModuleConfirmationFailsOnFaultedSocket() {
         let mock = MockSetupGATT()
         let mgr = HardwareSetupManager(gatt: mock, userDefaults: defaults)
@@ -525,6 +559,7 @@ final class HardwareSetupManagerTests: XCTestCase {
         XCTAssertEqual(mgr.currentStep, .zoneModules, "a faulted socket blocks the step")
     }
 
+    // @verifies REQ-SW03-05
     func testZoneModuleConfirmationFailsWhenNothingReported() {
         let mock = MockSetupGATT()
         let mgr = HardwareSetupManager(gatt: mock, userDefaults: defaults)
@@ -543,6 +578,7 @@ final class HardwareSetupManagerTests: XCTestCase {
     // deliver: seating a module requires the helmet off the head, so the cue is
     // spoken by this device instead (see ZoneModuleAnnouncer).
 
+    // @verifies REQ-SW03-05
     func testSpokenConfirmationLeadsWithZoneNotSocketNumber() {
         // NP-HFE-002 §7.2 / HFE-R-07: raw socket numbers are never the primary
         // form. A user following a spoken instruction navigates by zone and
@@ -560,6 +596,7 @@ final class HardwareSetupManagerTests: XCTestCase {
         }
     }
 
+    // @verifies REQ-SW03-05
     func testInsertionIsSpokenDuringZoneModuleStep() {
         let mock = MockSetupGATT()
         let spy = SpyAnnouncer()
@@ -582,6 +619,7 @@ final class HardwareSetupManagerTests: XCTestCase {
                        "a zoned socket must not be spoken by its raw id: \(said)")
     }
 
+    // @verifies REQ-SW03-05
     func testInsertionIsNotSpokenOutsideZoneModuleStep() {
         // The same events arrive during a session, where narrating socket changes
         // would be noise rather than confirmation.
@@ -595,6 +633,7 @@ final class HardwareSetupManagerTests: XCTestCase {
         XCTAssertTrue(spy.spoken.isEmpty)
     }
 
+    // @verifies REQ-SW03-05
     func testRemovalIsNotSpoken() {
         // The user pulled it out; they know. The list already reflects it.
         let mock = MockSetupGATT()
@@ -607,6 +646,7 @@ final class HardwareSetupManagerTests: XCTestCase {
         XCTAssertTrue(spy.spoken.isEmpty)
     }
 
+    // @verifies REQ-SW03-05
     func testEachInsertionSpokenOnceInSocketOrder() {
         let mock = MockSetupGATT()
         let spy = SpyAnnouncer()
@@ -620,6 +660,7 @@ final class HardwareSetupManagerTests: XCTestCase {
         XCTAssertEqual(spy.spoken.count, 3, "one confirmation per insertion")
     }
 
+    // @verifies REQ-SW03-05
     func testLeavingZoneStepCancelsSpeech() {
         // A confirmation must not trail into the next screen.
         let mock = MockSetupGATT()
@@ -633,6 +674,7 @@ final class HardwareSetupManagerTests: XCTestCase {
         XCTAssertEqual(spy.cancelCount, 1)
     }
 
+    // @verifies REQ-SW03-05
     func testUnidentifiedModuleIsSpokenWithoutClaimingAType() {
         // The retired ZONE_ID ladder reports position but cannot distinguish a
         // base tile from an electrode tile. The app must not invent one.
@@ -656,6 +698,7 @@ final class HardwareSetupManagerTests: XCTestCase {
     // into the next setup session. HardwareSetupManager zeros impedanceFlags in
     // the advanceStep() path when leaving .impedanceCheck.
 
+    // @verifies REQ-SW03-05
     func testImpedanceFlagsClearedAfterAdvancingPastImpedanceCheck() async {
         let mock = MockSetupGATT()
         mock.mockConnectionState = .connected

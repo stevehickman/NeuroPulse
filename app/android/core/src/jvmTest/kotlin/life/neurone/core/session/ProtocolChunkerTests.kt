@@ -23,6 +23,7 @@ class ProtocolChunkerTests {
         return out.toByteArray()
     }
 
+    // @verifies REQ-SW03-11
     @Test
     fun emptyDataProducesSingleEmptyChunk() {
         val chunks = ProtocolChunker.chunk(ByteArray(0))
@@ -30,6 +31,7 @@ class ProtocolChunkerTests {
         assertContentEquals(byteArrayOf(ProtocolChunker.FRAME_SINGLE), chunks[0])
     }
 
+    // @verifies REQ-SW03-11
     @Test
     fun smallPayloadIsOneSingleChunk() {
         val data = ByteArray(100) { it.toByte() }
@@ -39,6 +41,7 @@ class ProtocolChunkerTests {
         assertContentEquals(data, reassemble(chunks))
     }
 
+    // @verifies REQ-SW03-11
     @Test
     fun payloadAt509BoundaryIsSingleChunk() {
         val data = ByteArray(509) { (it % 256).toByte() }
@@ -47,6 +50,7 @@ class ProtocolChunkerTests {
         assertEquals(ProtocolChunker.FRAME_SINGLE, chunks[0][0])
     }
 
+    // @verifies REQ-SW03-11
     @Test
     fun payloadAt510StartsMultiChunk() {
         val data = ByteArray(510) { (it % 256).toByte() }

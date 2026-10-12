@@ -52,6 +52,7 @@ final class ConsumableInventoryTests: XCTestCase {
 
     // MARK: Threshold detection
 
+    // @verifies REQ-SW03-04
     func testNoReminderBelowThreshold() {
         // Hydrogel: limit 45, lowThreshold 8 → 30 used = 15 remaining → not low.
         // VNS:      limit 30, lowThreshold 4 → 10 used = 20 remaining → not low.
@@ -65,6 +66,7 @@ final class ConsumableInventoryTests: XCTestCase {
                       "No blocking reminder expected when all counts are below threshold.")
     }
 
+    // @verifies REQ-SW03-04
     func testBlockingReminderWhenIntranasalExceeded() {
         // Intranasal: single-use (limit 1), safetyBlocking.
         // A count of 1 means the sleeve has been used → isExceeded → session must be blocked.
@@ -77,6 +79,7 @@ final class ConsumableInventoryTests: XCTestCase {
                        "Exceeded safety-blocking consumable must produce a blocking reminder.")
     }
 
+    // @verifies REQ-SW03-04
     func testActiveRemindersReturnLowStates() {
         // Hydrogel: 44 used out of 45 limit → sessionsRemaining = 1 ≤ lowThreshold 8 → isLow.
         let inv = inventory(hydrogel: 44)
@@ -86,6 +89,7 @@ final class ConsumableInventoryTests: XCTestCase {
 
     // MARK: Snooze limits
 
+    // @verifies REQ-SW03-04
     func testSnoozeLimit_performanceCritical() {
         // Hydrogel is performanceCritical → max 3 snoozes.
         var s = ConsumableState(kind: .electrodeHydrogel, sessionCount: 44)
@@ -101,6 +105,7 @@ final class ConsumableInventoryTests: XCTestCase {
         XCTAssertFalse(s.canSnooze, "4th snooze must be refused.")
     }
 
+    // @verifies REQ-SW03-04
     func testSnoozeLimit_comfort() {
         // audioCupFoam is comfortLongevity → max 5 snoozes.
         var s = ConsumableState(kind: .audioCupFoam, sessionCount: 149)
@@ -116,6 +121,7 @@ final class ConsumableInventoryTests: XCTestCase {
         XCTAssertFalse(s.canSnooze, "6th snooze must be refused.")
     }
 
+    // @verifies REQ-SW03-04
     func testSafetyBlockingCannotBeSnooze_model() {
         var sleeve = ConsumableState(kind: .intranasalSleeves, sessionCount: 1)
         XCTAssertFalse(sleeve.canSnooze, "safetyBlocking must never be snoozeable.")
@@ -123,6 +129,7 @@ final class ConsumableInventoryTests: XCTestCase {
         XCTAssertEqual(sleeve.snoozeCount, 0, "Snooze on safetyBlocking must be a no-op.")
     }
 
+    // @verifies REQ-SW03-04
     func testFourthSnoozeAttemptIsNoOp_performanceCritical() {
         var s = ConsumableState(kind: .electrodeHydrogel, sessionCount: 44)
         s.snooze(); s.snooze(); s.snooze()
@@ -164,6 +171,7 @@ final class ConsumableTrackerDirectTests: XCTestCase {
 
     // MARK: sessionIsBlocked gate
 
+    // @verifies REQ-SW03-04
     func testSessionNotBlockedAtZeroCounts() {
         let tracker = makeTracker()
         XCTAssertFalse(tracker.sessionIsBlocked,
@@ -171,6 +179,7 @@ final class ConsumableTrackerDirectTests: XCTestCase {
         XCTAssertNil(tracker.sessionBlockReason)
     }
 
+    // @verifies REQ-SW03-04
     func testSessionBlockedWhenIntranasalExceeded() {
         let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [1, 0, 0, 0]), defaults: testDefaults)
         XCTAssertTrue(tracker.sessionIsBlocked,
@@ -178,6 +187,7 @@ final class ConsumableTrackerDirectTests: XCTestCase {
         XCTAssertNotNil(tracker.sessionBlockReason)
     }
 
+    // @verifies REQ-SW03-04
     func testSessionNotBlockedWhenOnlyHydrogelLow() {
         // Hydrogel is performanceCritical, not safetyBlocking — it does not block sessions.
         let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [0, 44, 0, 0]), defaults: testDefaults)
@@ -187,12 +197,14 @@ final class ConsumableTrackerDirectTests: XCTestCase {
 
     // MARK: Active and blocking reminders
 
+    // @verifies REQ-SW03-04
     func testActiveRemindersEmptyAtZeroCounts() {
         let tracker = makeTracker()
         XCTAssertTrue(tracker.activeReminders.isEmpty)
         XCTAssertTrue(tracker.blockingReminders.isEmpty)
     }
 
+    // @verifies REQ-SW03-04
     func testActiveRemindersPopulatedWhenHydrogelLow() {
         let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [0, 44, 0, 0]), defaults: testDefaults)
         XCTAssertFalse(tracker.activeReminders.isEmpty,
@@ -200,6 +212,7 @@ final class ConsumableTrackerDirectTests: XCTestCase {
         XCTAssertEqual(tracker.activeReminders.first?.state.kind, .electrodeHydrogel)
     }
 
+    // @verifies REQ-SW03-04
     func testBlockingReminderPresentWhenIntranasalExceeded() {
         let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [1, 0, 0, 0]), defaults: testDefaults)
         XCTAssertFalse(tracker.blockingReminders.isEmpty,
@@ -209,6 +222,7 @@ final class ConsumableTrackerDirectTests: XCTestCase {
 
     // MARK: Snooze forwarded through tracker
 
+    // @verifies REQ-SW03-04
     func testSnoozeIncrements() {
         let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [0, 44, 0, 0]), defaults: testDefaults)
         let idx = ConsumableKind.electrodeHydrogel.rawValue
@@ -216,6 +230,7 @@ final class ConsumableTrackerDirectTests: XCTestCase {
         XCTAssertEqual(tracker.inventory.states[idx].snoozeCount, 1)
     }
 
+    // @verifies REQ-SW03-04
     func testSnoozeCapRespectedByTracker_performanceCritical() {
         let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [0, 44, 0, 0]), defaults: testDefaults)
         let idx = ConsumableKind.electrodeHydrogel.rawValue
@@ -227,6 +242,7 @@ final class ConsumableTrackerDirectTests: XCTestCase {
                        "Tracker must cap snooze at 3 for performanceCritical.")
     }
 
+    // @verifies REQ-SW03-04
     func testTrackerSafetyBlockingCannotBeSnooze() {
         let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [1, 0, 0, 0]), defaults: testDefaults)
         let idx = ConsumableKind.intranasalSleeves.rawValue
@@ -239,6 +255,7 @@ final class ConsumableTrackerDirectTests: XCTestCase {
 
     // MARK: markReplaced resets through tracker
 
+    // @verifies REQ-SW03-04
     func testMarkReplacedResetsSessionCount() {
         let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [0, 44, 0, 0]), defaults: testDefaults)
         let idx = ConsumableKind.electrodeHydrogel.rawValue
@@ -248,6 +265,7 @@ final class ConsumableTrackerDirectTests: XCTestCase {
         XCTAssertTrue(tracker.activeReminders.isEmpty)
     }
 
+    // @verifies REQ-SW03-04
     func testMarkReplacedAlsoResetsSnoozeCount() {
         let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [0, 44, 0, 0]), defaults: testDefaults)
         let idx = ConsumableKind.electrodeHydrogel.rawValue
@@ -260,6 +278,7 @@ final class ConsumableTrackerDirectTests: XCTestCase {
 
     /// The hub owns the count; without this call its next absolute count restores the
     /// replaced part's sessions.
+    // @verifies REQ-SW03-04
     func testMarkReplacedTellsTheHub() {
         var replaced: [Int] = []
         let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [0, 44, 0, 0]),
@@ -274,6 +293,7 @@ final class ConsumableTrackerDirectTests: XCTestCase {
 
     // MARK: Reactive update on new counts from provider
 
+    // @verifies REQ-SW03-04
     func testInventoryUpdatesWhenProviderPushesNewCounts() {
         let provider = MockCountsProvider()
         let tracker = ConsumableTracker(countsProvider: provider, defaults: testDefaults)
@@ -286,6 +306,7 @@ final class ConsumableTrackerDirectTests: XCTestCase {
                       "Session must be blocked after provider pushes exceeded intranasal count.")
     }
 
+    // @verifies REQ-SW03-04
     func testInventoryClears_afterReplacedCountPushed() {
         let provider = MockCountsProvider(counts: [1, 0, 0, 0])
         let tracker = ConsumableTracker(countsProvider: provider, defaults: testDefaults)
@@ -300,6 +321,7 @@ final class ConsumableTrackerDirectTests: XCTestCase {
 
     // MARK: Out-of-bounds index guard
 
+    // @verifies REQ-SW03-04
     func testSnoozeOutOfBoundsIndexIsNoOp() {
         let tracker = makeTracker()
         // Index 99 is well outside the 4-element states array — must not crash.
@@ -307,6 +329,7 @@ final class ConsumableTrackerDirectTests: XCTestCase {
         XCTAssertTrue(tracker.activeReminders.isEmpty)
     }
 
+    // @verifies REQ-SW03-04
     func testMarkReplacedOutOfBoundsIndexIsNoOp() {
         let tracker = makeTracker()
         tracker.markReplaced(consumableIndex: 99)
@@ -315,6 +338,7 @@ final class ConsumableTrackerDirectTests: XCTestCase {
 
     // MARK: sessionBlockReason content
 
+    // @verifies REQ-SW03-04
     func testSessionBlockReasonMentionsConsumableName() {
         let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [1, 0, 0, 0]), defaults: testDefaults)
         let reason = tracker.sessionBlockReason

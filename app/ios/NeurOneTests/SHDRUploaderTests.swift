@@ -195,6 +195,7 @@ final class SHDRUploaderTests: XCTestCase {
     // Before the hub delivers a token, currentDeviceToken() must fall back to the
     // 64-char hex Keychain token so uploads still carry an opaque device linkage key.
     @MainActor
+    // @verifies REQ-SHDR-02
     func testDeviceTokenFallsBackToKeychainBeforeHubToken() {
         let trigger = MockSHDRUploadTrigger()
         let uploader = SHDRUploader(gatt: trigger)
@@ -209,6 +210,7 @@ final class SHDRUploaderTests: XCTestCase {
     // When the hub publishes a 32-byte token, the uploader must upgrade to it and
     // currentDeviceToken() must return its lowercase hex encoding, not the Keychain value.
     @MainActor
+    // @verifies REQ-SHDR-02
     func testUpgradeToHubProvisionedToken() async {
         let trigger = MockSHDRUploadTrigger()
         let uploader = SHDRUploader(gatt: trigger)
@@ -229,6 +231,7 @@ final class SHDRUploaderTests: XCTestCase {
     // A nil emission (pre-provisioning or on disconnect) must never roll back an
     // established hub-token upgrade — the device identity is unchanged across reconnects.
     @MainActor
+    // @verifies REQ-SHDR-02
     func testDisconnectNilDoesNotDowngradeHubToken() async {
         let trigger = MockSHDRUploadTrigger()
         let uploader = SHDRUploader(gatt: trigger)
@@ -284,6 +287,7 @@ final class SHDRUploaderTests: XCTestCase {
 
     // MARK: - ISC-67 Non-blocking upload indicator (@Published, not modal)
 
+    // @verifies REQ-SHDR-02
     func testIsUploadingIsPublishedProperty() throws {
         let source = try Self.uploaderSource()
 
