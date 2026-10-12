@@ -58,6 +58,16 @@
     "REQ-FWHUB-23": {
       "a": "The cVNS PPG sample rate is pinned and compile-time asserted",
       "b": "The cardiac baseline is not waivable by a descriptor"
+    },
+    "SWR-SS-02": {
+      "a": "A session beyond a defined health-safety limit does not run without the user's explicit acknowledgement",
+      "b": "The acknowledgement is made in the path that signs the protocol, so the app's screen alone cannot skip it",
+      "c": "The request names the limit and the amount by which the session exceeds it"
+    },
+    "REQ-SHDR-04": {
+      "a": "The pinned set holds a primary and at least one backup key",
+      "b": "The app refuses a TLS handshake whose leaf SPKI SHA-256 is not in the pinned set",
+      "c": "The pinned hashes are production values, not placeholders"
     }
   },
   "nonTest": {
