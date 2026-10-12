@@ -19,6 +19,12 @@
 
 ## Current revision
 
+**Rev 69 (2026-10-12) — §21 added: every test carries a tag naming the requirement it verifies. A process rule; no design decision, limit or interlock changed.**
+
+**What changed.** A new §21, and a Document Map row for it. A test names its requirement in an `@verifies` tag; a test with no requirement to name means a row is missing and is written first, to §18's standard; tests are written for behaviour that exists, and a requirement for an unbuilt feature stays untested until the code that meets it is written; a test of one part of a requirement tags that part. `scripts/req-trace.ts --check` enforces it in CI.
+
+**Why.** The principal asked (2026-10-12), after every test in the repository had been traced to a requirement (PR #572 and #573), that this hold for each test written from then on, and that tests be written only for requirements whose code exists. Without the rule the untraced-test count, which the CI gate holds at zero, would be the only thing keeping it true.
+
 **Rev 68 (2026-10-08) — §3: a 40 mA auricular VNS current ceiling replaces the one Rev 67 removed. A limit changed; the 40 µC/cm² per-phase charge ceiling and every interlock are unchanged.**
 
 **What changed.** The `VNS (auricular)` row of the §3 table states `≤40 mA`, a stop-gap. `VNS_MAX_MILLIAMPS` returns at 40.0 with its derivation in its note in `common/npps/constants.json`, `NP_VNS_MAX_CURRENT_UA` at 40000, and the validator's hardware check, the compiler's cap, the hub module's clamp, the taVNS gate and the web slider's maximum use it again. `REQ-VNSC-03` states 40 mA. The cervical VNS 2 mA is unchanged.

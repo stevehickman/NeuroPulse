@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 68 (current)  
+**Revision:** 69 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -58,6 +58,7 @@ Plain paths, not `@import`s: nothing below loads until it is `Read`.
 | FAI programme | `docs/np_fai_001.md` |
 | Risk: ISO 14971 index · hex-tile · shell/socket/hub | `docs/np_risk_002.md` · `_003` · `_004` |
 | Hex-tile mould tooling · shell interconnect review | `docs/np_tool_hextile_001.md` · `docs/np_rev_shell_001.md` |
+| **Which requirement a test verifies**, the tag syntax, the report of untested requirements (§21) | `scripts/req-trace.ts` (header) · `docs/status/requirement-parts.json` |
 | Is this figure / file the current one? | `docs/superseded/README.md` |
 | Questions drafted for a human reviewer (clinical, regulatory, principal); not design inputs | `docs/human-input/README.md` |
 
@@ -497,10 +498,29 @@ Android's activity hosts the same screens. A host differs only through the `Plat
 feature**; the screens not yet moved and the wiring not yet done are listed in `app/NeurOneUI/README.md`
 and `OI-UI-KMP-00`. `:core` (`app/android/core`) is Kotlin Multiplatform: its sources are `commonMain`.
 
+## 21. TESTS NAME THE REQUIREMENT THEY VERIFY (locked) → `scripts/req-trace.ts`
+
+**Every test carries a tag naming the requirement it verifies.** The tag is a comment directly above the test:
+`@verifies REQ-X-NN` (or `DI-…`, `SWR-…`), with `#a` or `#a,b` to name a part. `@verifies-file` tags a whole
+file. `@verifies-none <reason>` is for a harness self-check or a helper that only looks like a test, never for a
+test that merely has no row yet.
+
+- **A test with no requirement to name means a requirement is missing.** Write the row first, to §18's standard:
+  what fails if it is not met, and where it traces. A row restates a rule already binding somewhere; never invent
+  a rule to give a test a home.
+- **Tests are written for behaviour that exists.** A requirement for a feature that is not built stays untested.
+  Its test is written with the code that meets it and tagged then.
+- **Name the part, not the whole.** A test of one part of a multi-part requirement tags that part, so the report
+  shows what is still untested. Parts are the `(a)(b)` of the row, or declared in
+  `docs/status/requirement-parts.json`.
+- **Enforced** by `bun scripts/req-trace.ts --check` (CI job `req-trace`): it fails an unknown or retired ID, a
+  part that does not exist, a `@verifies-none` with no reason, a tag with no test, and any test that is untraced.
+  `bun scripts/req-trace.ts` prints the report, including every requirement with no test.
+
 ---
 
 *When a locked decision changes, update the owning file, log it in
 `docs/status/completed-decisions.md`, and add an entry to
-`docs/reference/claude-md-revision-history.md`. Keep every section number (§1–§6, §16–§20) and every
+`docs/reference/claude-md-revision-history.md`. Keep every section number (§1–§6, §16–§21) and every
 subsection number in place, even when the content moves. `bun scripts/check-section-refs.ts` guards
 the citations that point at them.*
