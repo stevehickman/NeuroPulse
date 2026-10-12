@@ -29,11 +29,13 @@ function shippedFiles() {
 describe('simulator runtime library', () => {
   const { protocols, zones, report } = buildLibrary(shippedFiles());
 
+  // @verifies REQ-NPPS-18
   it('builds the shipped library with no namespace problems', () => {
     expect(report.duplicateDefinitions).toEqual([]);
     expect(report.unresolvedReferences).toEqual([]);
   });
 
+  // @verifies REQ-NPPS-18
   it('runs the shared validator over every loaded protocol and reports its findings as keys', () => {
     // Against the hardware ceilings alone. The findings on the shipped CW blocks (a 100 % duty against the
     // 25 % ceiling) are the ones npps-predefined.test.ts waives by name; this only holds the report's shape.
@@ -44,6 +46,7 @@ describe('simulator runtime library', () => {
     }
   });
 
+  // @verifies REQ-NPPS-18
   it('reads every zone from the .npps files', () => {
     expect(zones.length).toBeGreaterThan(0);
     for (const zone of zones) {
@@ -53,6 +56,7 @@ describe('simulator runtime library', () => {
     }
   });
 
+  // @verifies REQ-NPPS-13
   it('zone membership matches the file, not a transcription', () => {
     // Read straight out of 00-zones.npps so this asserts against the source and
     // not against a second copy that could drift with it.
@@ -73,6 +77,7 @@ describe('simulator runtime library', () => {
     expect(zones.length).toBe(declared);
   });
 
+  // @verifies REQ-NPPS-18
   it('builds a runnable protocol view for every non-composite file', () => {
     expect(Object.keys(protocols).length).toBeGreaterThan(0);
     for (const [id, p] of Object.entries(protocols)) {
@@ -90,6 +95,7 @@ describe('simulator runtime library', () => {
     }
   });
 
+  // @verifies REQ-NPPS-18
   it('resolves PBM zone targets to zones the library defines', () => {
     let checked = 0;
     for (const [id, p] of Object.entries(protocols)) {

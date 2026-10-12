@@ -32,6 +32,7 @@ fn find<'a>(issues: &'a [Value], key: &str) -> &'a Value {
 
 const CONT: fn() -> Value = || json!({ "intervalOnSeconds": 0, "intervalOffSeconds": 0 });
 
+// @verifies REQ-NPPS-09
 #[test]
 fn a_zero_or_negative_duration_is_an_error_not_a_short_session_warning() {
     for d in [0.0, -5.0] {
@@ -43,6 +44,7 @@ fn a_zero_or_negative_duration_is_an_error_not_a_short_session_warning() {
     assert_eq!(find(&short, "VALIDATE_MSG_GENERAL_DURATION")["severity"], "warning");
 }
 
+// @verifies REQ-NPPS-02
 #[test]
 fn a_cw_block_with_a_duty_other_than_100_contradicts_itself() {
     let i = run(
@@ -56,6 +58,7 @@ fn a_cw_block_with_a_duty_other_than_100_contradicts_itself() {
     assert_eq!(cw["limitValueDescription"], "100%");
 }
 
+// @verifies REQ-NPPS-14
 #[test]
 fn a_pbm_session_dose_over_the_configured_ceiling_is_an_error() {
     // 100 mW/cm² at 25 % duty for 1000 s = 25 J/cm²; the ceiling is 20.
@@ -75,6 +78,7 @@ fn a_pbm_session_dose_over_the_configured_ceiling_is_an_error() {
     assert_eq!(find(&cw, "VALIDATE_MSG_PBM_SESSION_DOSE")["message"]["args"], json!(["25.0", "20.0"]));
 }
 
+// @verifies REQ-NPPS-04
 #[test]
 fn a_session_duration_limit_is_checked_against_the_on_interval_of_each_modality() {
     let interval = json!({ "intervalOnSeconds": 600, "intervalOffSeconds": 60 });
@@ -102,6 +106,7 @@ fn a_session_duration_limit_is_checked_against_the_on_interval_of_each_modality(
     }
 }
 
+// @verifies REQ-NPPS-04
 #[test]
 fn tms_above_120_percent_mt_warns() {
     let i = run(
@@ -113,6 +118,7 @@ fn tms_above_120_percent_mt_warns() {
     assert_eq!((w["severity"].as_str(), w["message"]["args"].clone()), (Some("warning"), json!(["130"])));
 }
 
+// @verifies REQ-NPPS-04
 #[test]
 fn cervical_vns_checks_its_frequency_range_and_always_states_the_interlock() {
     let cv = |f: f64| run(proto(600.0, vec![block("cervical_vns", json!({ "frequencyHz": f, "intensityMilliamps": 1 }), CONT())]), json!({}), json!({}));
@@ -126,6 +132,7 @@ fn cervical_vns_checks_its_frequency_range_and_always_states_the_interlock() {
     }
 }
 
+// @verifies REQ-NPPS-04
 #[test]
 fn a_vibrotactile_model_off_40_hz_warns_and_a_file_that_cannot_say_so_does_not() {
     let vib = |extra: Value| {
@@ -140,6 +147,7 @@ fn a_vibrotactile_model_off_40_hz_warns_and_a_file_that_cannot_say_so_does_not()
     assert!(!keys(&vib(json!({}))).contains(&"VALIDATE_MSG_GENERAL_FREQUENCYHZ".to_string()), "no frequency stated");
 }
 
+// @verifies REQ-NPPS-14
 #[test]
 fn deep_pbm_above_its_own_ceiling_is_a_hardware_error() {
     let i = run(
@@ -151,6 +159,7 @@ fn deep_pbm_above_its_own_ceiling_is_a_hardware_error() {
     assert_eq!((e["limitSource"].as_str(), e["message"]["args"].clone()), (Some("hardware"), json!(["1500", "1000"])));
 }
 
+// @verifies REQ-NPPS-04
 #[test]
 fn a_named_zone_is_checked_against_the_namespace_when_one_is_given() {
     let pbm = |refs: Value| proto(600.0, vec![block("pbm_transcranial", json!({ "wavelength": "808nm", "irradianceMWcm2": 100, "frequencyHz": 40, "dutyCyclePercent": 25, "zones": "named", "zoneRefs": refs }), CONT())]);
@@ -169,6 +178,7 @@ fn a_named_zone_is_checked_against_the_namespace_when_one_is_given() {
     assert!(!keys(&sel).contains(&"VALIDATE_MSG_GENERAL_TARGET_2".to_string()));
 }
 
+// @verifies REQ-NPPS-04
 #[test]
 fn each_limit_is_attributed_to_its_own_tier_when_a_source_map_says_so() {
     let p = proto(600.0, vec![block("bes_tacs", json!({ "frequencyHz": 30, "intensityMilliamps": 0.9, "waveform": "square" }), CONT())]);

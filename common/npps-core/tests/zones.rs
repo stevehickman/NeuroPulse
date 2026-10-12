@@ -25,6 +25,7 @@ fn tacs_1hz(ma: f64) -> Value {
     protocol("bes_tacs", json!({ "frequencyHz": 1, "intensityMilliamps": ma, "waveform": "sinusoidal" }), json!({ "intervalOnSeconds": 0 }), 600)
 }
 
+// @verifies REQ-NPPS-21
 #[test]
 fn a_protocol_inside_every_boundary_is_safe_and_compiles_without_a_word() {
     let def = protocol("vns_hrv", json!({ "frequencyHz": 20, "intensityMilliamps": 0.8, "hrvProtocol": "standalone" }), json!({ "intervalOnSeconds": 0 }), 600);
@@ -33,6 +34,7 @@ fn a_protocol_inside_every_boundary_is_safe_and_compiles_without_a_word() {
     assert!(compile(&def, &[]).is_ok());
 }
 
+// @verifies REQ-NPPS-21
 #[test]
 fn caution_compiles_only_for_the_acknowledgement_of_that_dose() {
     let def = tacs_1hz(1.0);
@@ -60,6 +62,7 @@ fn danger_is_refused_whatever_is_acknowledged() {
     assert!(e.contains("danger zone"), "{e:?}");
 }
 
+// @verifies REQ-NPPS-21
 #[test]
 fn frequency_and_duty_enter_through_the_current_densities() {
     let vns = |interval: Value| protocol("vns_hrv", json!({ "frequencyHz": 30, "intensityMilliamps": 5, "pulseWidthUs": 300 }), interval, 600);
@@ -77,6 +80,7 @@ fn frequency_and_duty_enter_through_the_current_densities() {
     assert_eq!(axis(&extreme, "rmsCurrentDensity").1, Zone::Danger);
 }
 
+// @verifies REQ-NPPS-21
 #[test]
 fn a_block_that_drives_no_electrode_or_lacks_a_parameter_has_no_axes() {
     assert!(evaluate(&protocol("eeg_neurofeedback", json!({}), json!({}), 600)).is_empty());

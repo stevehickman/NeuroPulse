@@ -16,6 +16,7 @@ fn resolve(g: &Value, h: &Value, i: &Value) -> Value {
     serde_json::from_str(&resolve_limits_json(&req.to_string()).unwrap()).unwrap()
 }
 
+// @verifies REQ-NPPS-12
 #[test]
 fn every_tier_combination_resolves_as_the_web_function_did() {
     let g = golden();
@@ -33,6 +34,7 @@ fn every_tier_combination_resolves_as_the_web_function_did() {
     assert!(failures.is_empty(), "{} divergence(s):\n{}", failures.len(), failures[..failures.len().min(5)].join("\n"));
 }
 
+// @verifies REQ-NPPS-12
 #[test]
 fn each_value_names_the_tier_that_supplied_it() {
     let global = json!({ "besTacs": { "maxIntensityMilliamps": 1.0, "maxFrequencyHz": 40, "minFrequencyHz": 1 } });
@@ -49,6 +51,7 @@ fn each_value_names_the_tier_that_supplied_it() {
     );
 }
 
+// @verifies REQ-NPPS-12
 #[test]
 fn a_limit_of_zero_is_a_limit_and_an_omitted_block_is_none() {
     let r = resolve(&json!({ "tdcs": { "maxIntensityMilliamps": 0 } }), &Value::Null, &Value::Null);

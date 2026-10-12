@@ -56,6 +56,7 @@ const zoneNamespace = buildNamespace([
 // ─── Socket map ────────────────────────────────────────────────────────────────
 
 describe('generated socket map', () => {
+  // @verifies REQ-NPPS-17
   it('uses the hexagon area its own module width implies', () => {
     const { moduleWidthMm, hexAreaCm2 } = NP_TILE_GEOMETRY;
     expect(hexAreaCm2).toBeCloseTo((Math.sqrt(3) / 2) * moduleWidthMm ** 2 / 100, 3);
@@ -69,6 +70,7 @@ describe('generated socket map', () => {
    * two modules trying to occupy the same space. A previous revision shipped
    * 13 such pairs because row widths did not alternate parity.
    */
+  // @verifies REQ-NPPS-17
   it('tessellates — no two sockets overlap', () => {
     const collisions: string[] = [];
     for (let i = 0; i < NP_SOCKETS.length; i++) {
@@ -86,6 +88,7 @@ describe('generated socket map', () => {
    * positions and even rows on half-integers; offset packing needs consecutive
    * rows shifted by half a tile. Both together force strict parity alternation.
    */
+  // @verifies REQ-NPPS-17
   it('alternates row width parity, which is what makes the packing valid', () => {
     for (let i = 1; i < NP_ROW_WIDTHS.length; i++) {
       expect(NP_ROW_WIDTHS[i] % 2, `rows ${i - 1} and ${i} share parity`)
@@ -99,6 +102,7 @@ describe('generated socket map', () => {
    * the SKU covers so hair and head-size spread have somewhere to go. Tiling
    * the skull itself under-counted by nearly half.
    */
+  // @verifies REQ-NPPS-17
   it('tiles the helmet interior, standing off the largest skull', () => {
     const g = NP_TILE_GEOMETRY;
     expect(g.standoffMm).toBeGreaterThan(10);
@@ -106,11 +110,13 @@ describe('generated socket map', () => {
     expect(g.interiorLengthMm).toBeGreaterThan(g.interiorBreadthMm);
   });
 
+  // @verifies REQ-NPPS-17
   it('spaces rows at the pitch offset hex packing requires', () => {
     const { moduleWidthMm, rowPitchMm } = NP_TILE_GEOMETRY;
     expect(rowPitchMm).toBeCloseTo(0.75 * (2 * moduleWidthMm / Math.sqrt(3)), 2);
   });
 
+  // @verifies REQ-NPPS-17
   it('numbers sockets contiguously from the numbering base', () => {
     expect(NP_SOCKET_NUMBERING_BASE).toBe(1);
     expect(NP_SOCKET_ID_MIN).toBe(NP_SOCKET_NUMBERING_BASE);
@@ -120,6 +126,7 @@ describe('generated socket map', () => {
     );
   });
 
+  // @verifies REQ-NPPS-17
   it('stays within the firmware major-address ceiling', () => {
     // np_module_map.h: NP_HEXMAP_MAX_SOCKETS = 128, the full 7-bit major domain
     // (1 << 7). The interior scan holds ~80; the addressing ceiling is the whole
@@ -127,6 +134,7 @@ describe('generated socket map', () => {
     expect(NP_SOCKET_ID_MAX).toBeLessThanOrEqual(128);
   });
 
+  // @verifies REQ-NPPS-17
   it('rejects out-of-range socket ids', () => {
     expect(isValidSocketId(NP_SOCKET_ID_MIN - 1)).toBe(false);
     expect(isValidSocketId(NP_SOCKET_ID_MAX + 1)).toBe(false);
@@ -145,6 +153,7 @@ describe('generated socket map', () => {
    * The generator enforces the same structural rules, but a stale committed
    * socket map would slip past that, so this reads the shipped artefacts.
    */
+  // @verifies REQ-NPPS-17
   it('every zone addresses only sockets that exist on this helmet', () => {
     expect(zoneNamespace.size).toBeGreaterThan(0);
 
@@ -163,6 +172,7 @@ describe('generated socket map', () => {
     }
   });
 
+  // @verifies REQ-NPPS-17
   it('aggregate zones are exact unions of the zones they name', () => {
     // Deliberately the SAME union helper the app uses: an aggregate that matched
     // a hand-rolled concatenation but not `unionSockets` would mean the shipped
@@ -193,6 +203,7 @@ describe('generated socket map', () => {
    * distinction between this zone and `All` is the whole reason it exists, so
    * pin it rather than trusting the socket list to stay right.
    */
+  // @verifies REQ-NPPS-18
   it('Vault (excl. Occipital) excludes occipital; All does not', () => {
     const occipital = new Set([
       ...zoneNamespace.get('Occipital Left')!.sockets,
@@ -230,6 +241,7 @@ describe('generated socket map', () => {
    * motor representation is gate REG-1 against the shell CAD, and no assertion
    * in this file can answer it.
    */
+  // @verifies REQ-NPPS-18
   it('Motor / SMA is a balanced bilateral band over the motor strip', () => {
     const motor = zoneNamespace.get('Motor / SMA')!.sockets;
     const geo = (id: number) => NP_SOCKETS.find(s => s.id === id)!;
@@ -258,6 +270,7 @@ describe('generated socket map', () => {
     }
   });
 
+  // @verifies REQ-NPPS-18
   it("the Parkinson's protocol targets Motor / SMA, not All", () => {
     const source = readFileSync(
       join(__repoRoot, 'protocols', 'predefined', 'clinical-08-pbm-parkinsons.npps'),
@@ -267,6 +280,7 @@ describe('generated socket map', () => {
     expect(source).not.toContain('zones: ["All"]');
   });
 
+  // @verifies REQ-NPPS-18
   it('the whole-head PBM protocols target Vault (excl. Occipital), not All', () => {
     for (const file of [
       'clinical-01-pbm-alzheimers-wozniak.npps',
@@ -285,6 +299,7 @@ describe('generated socket map', () => {
    * each one in both a left-side and a right-side zone, so concatenating such a
    * pair double-counts it. There is exactly one per odd-width row.
    */
+  // @verifies REQ-NPPS-17
   it('marks the midline sockets shared between hemispheres', () => {
     const midline = NP_SOCKETS.filter(isMidline).map(s => s.id);
     const oddRows = NP_ROW_WIDTHS.filter(w => w % 2 === 1).length;
@@ -328,6 +343,7 @@ function inventoryWith(fitting: Record<number, string | null>): NPHelmetInventor
 }
 
 describe('inventory', () => {
+  // @verifies REQ-NPPS-19
   it('reports element availability per socket', () => {
     const inv = inventoryWith({ 1: 'ZM-PBM-DUAL', 2: 'ZM-EEG' });
     expect(inv.provides(1, 'led_660')).toBe(true);
@@ -336,6 +352,7 @@ describe('inventory', () => {
     expect(inv.provides(3, 'led_660')).toBe(false); // empty socket
   });
 
+  // @verifies REQ-NPPS-19
   it('treats a dual electrode as satisfying either an EEG or a tES need', () => {
     const inv = inventoryWith({ 1: 'ZM-DUAL-EL' });
     expect(inv.satisfies(1, ['eeg_electrode', 'dual_electrode'])).toBe(true);
@@ -343,6 +360,7 @@ describe('inventory', () => {
     expect(inv.satisfies(1, ['led_660'])).toBe(false);
   });
 
+  // @verifies REQ-NPPS-19
   it('simulator presets populate and depopulate sockets', () => {
     const provider = new NPSimulatedInventoryProvider('none');
     expect(provider.getInventory()).toBeNull();
@@ -369,6 +387,7 @@ describe('zone coverage', () => {
   const FL = frontalLeft.sockets.length;
   const FL_FITTED = Math.max(1, FL - 1);
 
+  // @verifies REQ-NPPS-19
   it('reports full coverage when every socket has the modules', () => {
     const inv = inventoryWith(Object.fromEntries(frontalLeft.sockets.map(s => [s, 'ZM-PBM-DUAL'])));
     const c = zoneCoverageFor(frontalLeft, 'pbm_transcranial', inv);
@@ -380,6 +399,7 @@ describe('zone coverage', () => {
   });
 
   /** The behaviour you chose: partial zones are offered, with the shortfall shown. */
+  // @verifies REQ-NPPS-19
   it('reports partial coverage rather than excluding the zone', () => {
     const fitting: Record<number, string | null> = {};
     frontalLeft.sockets.forEach((s, i) => (fitting[s] = i < FL_FITTED ? 'ZM-PBM-DUAL' : 'ZM-EEG'));
@@ -392,6 +412,7 @@ describe('zone coverage', () => {
     expect(offered.map(z => z.zoneName)).toContain('Frontal Left');
   });
 
+  // @verifies REQ-NPPS-19
   it('excludes a zone with zero coverage from the modality dropdown', () => {
     const inv = inventoryWith(Object.fromEntries(frontalLeft.sockets.map(s => [s, 'ZM-EEG'])));
     expect(zonesForModality([frontalLeft], 'pbm_transcranial', inv)).toEqual([]);
@@ -399,6 +420,7 @@ describe('zone coverage', () => {
     expect(zonesForModality([frontalLeft], 'eeg_neurofeedback', inv).length).toBe(1);
   });
 
+  // @verifies REQ-NPPS-19
   it('requires both wavelengths at the SAME socket, not spread across the zone', () => {
     const fitting: Record<number, string | null> = {};
     // Every socket has one wavelength or the other, none has both.
@@ -407,6 +429,7 @@ describe('zone coverage', () => {
     expect(c.satisfied).toEqual([]);
   });
 
+  // @verifies REQ-NPPS-19
   it('sorts offered zones by coverage, best first', () => {
     const parietalLeft = zoneNamespace.get('Parietal Left')!;
     const fitting: Record<number, string | null> = {};
@@ -451,6 +474,7 @@ const POSTERIOR_TARGETS = NP_SOCKETS
   .map(s => s.id);
 
 describe('protocol eligibility', () => {
+  // @verifies REQ-NPPS-19
   it('is eligible when every requested zone is fully covered', () => {
     const fl = zoneNamespace.get('Frontal Left')!;
     const inv = inventoryWith(Object.fromEntries(fl.sockets.map(s => [s, 'ZM-PBM-DUAL'])));
@@ -461,6 +485,7 @@ describe('protocol eligibility', () => {
     expect(result.summary).toBe('');
   });
 
+  // @verifies REQ-NPPS-19
   it('is eligible-but-degraded on partial coverage', () => {
     const fl = zoneNamespace.get('Frontal Left')!;
     const fitting: Record<number, string | null> = {};
@@ -473,6 +498,7 @@ describe('protocol eligibility', () => {
     expect(result.shortfalls[0].coverage[0].satisfied.length).toBe(fitted);
   });
 
+  // @verifies REQ-NPPS-19
   it('is ineligible with per-socket detail when a zone has no support', () => {
     const inv = inventoryWith({}); // empty helmet
     const result = evaluateProtocol(pbmProtocol(['Frontal Left']), inv, zoneNamespace);
@@ -488,6 +514,7 @@ describe('protocol eligibility', () => {
     expect(shortfall.sockets[0].fitted).toBeUndefined();
   });
 
+  // @verifies REQ-NPPS-19
   it('names modules that would fix each blocking socket', () => {
     const inv = inventoryWith({ 1: 'ZM-EEG' });
     const result = evaluateProtocol(pbmProtocol(['Frontal Left']), inv, zoneNamespace);
@@ -527,6 +554,7 @@ describe('protocol eligibility', () => {
    * as unresolved rather than waved through as full coverage — an unrecognised
    * target is not "everywhere".
    */
+  // @verifies REQ-NPPS-08
   it('rejects a zone selection that is not an NPPS zone reference', () => {
     const proto = pbmProtocol([]);
     (proto.modalities[0].modalityParams.params as { zones: string }).zones = 'front';
@@ -538,6 +566,7 @@ describe('protocol eligibility', () => {
     expect(result.shortfalls[0].unresolvedZones[0]).toContain('not an NPPS zone reference');
   });
 
+  // @verifies REQ-NPPS-19
   it('ignores accessory-delivered modalities when judging socket fit', () => {
     for (const type of ['pbm_intranasal', 'vns_hrv', 'audio_entrainment', 'visual_stimulation', 'tms'] as const) {
       expect(MODALITY_REQUIREMENTS[type].socketBased).toBe(false);
@@ -553,6 +582,7 @@ describe('protocol eligibility', () => {
     expect(result.eligible).toBe(true);
   });
 
+  // @verifies REQ-NPPS-19
   it('requires the dual-rated electrode specifically for HD-tDCS', () => {
     const fl = zoneNamespace.get('Frontal Left')!;
     const tesOnly = inventoryWith(Object.fromEntries(fl.sockets.map(s => [s, 'ZM-TES'])));
@@ -576,6 +606,7 @@ describe('protocol eligibility', () => {
     return p;
   }
 
+  // @verifies REQ-NPPS-19
   it('blocks a clinician-selected protocol until sockets are chosen', () => {
     const inv = new NPSimulatedInventoryProvider('full-t1').getInventory()!;
     const result = evaluateProtocol(clinicianTargetedProtocol(), inv, zoneNamespace);
@@ -587,6 +618,7 @@ describe('protocol eligibility', () => {
     expect(result.summary).toContain('selected for this patient');
   });
 
+  // @verifies REQ-NPPS-19
   it('clears once the operator supplies sockets', () => {
     const inv = new NPSimulatedInventoryProvider('full-t1').getInventory()!;
     const targeting = new Map([['pbm_transcranial' as const, POSTERIOR_TARGETS]]);
@@ -596,6 +628,7 @@ describe('protocol eligibility', () => {
     expect(result.requiresTargeting).toEqual([]);
   });
 
+  // @verifies REQ-NPPS-19
   it('still checks the fitted hardware at the operator-chosen sockets', () => {
     // Anterior rows only, so the posterior targets are empty sockets.
     const inv = new NPSimulatedInventoryProvider('partial-anterior').getInventory()!;
@@ -607,6 +640,7 @@ describe('protocol eligibility', () => {
     expect(result.shortfalls[0].sockets.map(s => s.socketId)).toEqual(POSTERIOR_TARGETS.slice(0, 2));
   });
 
+  // @verifies REQ-NPPS-19
   it('an empty selection does not count as targeting', () => {
     const inv = new NPSimulatedInventoryProvider('full-t1').getInventory()!;
     const targeting = new Map([['pbm_transcranial' as const, [] as number[]]]);
@@ -615,6 +649,7 @@ describe('protocol eligibility', () => {
     expect(result.requiresTargeting).toEqual(['pbm_transcranial']);
   });
 
+  // @verifies REQ-NPPS-18
   it('the shipped stroke protocol defers its target to the clinician', () => {
     const source = readFileSync(
       join(__repoRoot, 'protocols', 'predefined', 'clinical-09-pbm-stroke-rehab.npps'),
@@ -630,6 +665,7 @@ describe('protocol eligibility', () => {
     expect(result.requiresTargeting).toContain('pbm_transcranial');
   });
 
+  // @verifies REQ-NPPS-17
   it('flags a zone socket that is not addressable on this helmet', () => {
     const bogus: NPZoneDefinition = { name: 'Bogus', sockets: [1, 2, 999] };
     const inv = new NPSimulatedInventoryProvider('pbm-only').getInventory()!;

@@ -8,6 +8,7 @@ import { parseNPPS, parseNPPSFile } from '../../../../common/lib/nppsParser';
 import { serializeNPPS, serializeWavelengthRules } from '../../../../common/lib/nppsSerializer';
 
 describe('the wavelength_rules block', () => {
+  // @verifies REQ-NPPS-03
   it('round-trips through the serializer', () => {
     const r: NPWavelengthRules = {
       name: 'Lab A', level: 'user', description: 'looser red',
@@ -34,6 +35,7 @@ describe('the modality `start` field', () => {
     }
 }`;
 
+  // @verifies REQ-NPPS-03
   it('parses to startOffsetSeconds and round-trips', () => {
     const [entry] = parseNPPS(src('start: 4m'));
     if (entry.kind !== 'single') throw new Error('expected a protocol');
@@ -44,6 +46,7 @@ describe('the modality `start` field', () => {
     expect(again.protocol.modalities[0].modalityParams).toEqual(entry.protocol.modalities[0].modalityParams);
   });
 
+  // @verifies REQ-NPPS-03
   it('is absent when omitted or zero, so existing protocols serialize unchanged', () => {
     for (const s of ['', 'start: 0s']) {
       const [entry] = parseNPPS(src(s));

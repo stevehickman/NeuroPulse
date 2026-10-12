@@ -21,6 +21,7 @@ const find = (name: string) => namespace.entries.find(e => e.kind === 'single' &
 const validate = (name: string) => nppsValidate({ entry: coreEntry(find(name)), limits: {} });
 
 describe('cautionsOf', () => {
+  // @verifies REQ-NPPS-21
   it('lists the one caution of a tDCS protocol in the caution zone, with the id and the dose', () => {
     const v = validate('ADHD Focus');
     expect(v.zone).toBe('caution');
@@ -33,11 +34,13 @@ describe('cautionsOf', () => {
     expect(c.value).toBeCloseTo(102.857, 3);
   });
 
+  // @verifies REQ-NPPS-21
   it('lists nothing for a protocol in the safe zone', () => {
     const safe = namespace.entries.find(e => e.kind === 'single' && nppsValidate({ entry: coreEntry(e), limits: {} }).zone === 'safe')!;
     expect(cautionsOf(nppsValidate({ entry: coreEntry(safe), limits: {} }).zones)).toEqual([]);
   });
 
+  // @verifies REQ-NPPS-21
   it('the ids it lists are exactly what lets the protocol compile, and nothing less does', () => {
     const entry = find('ADHD Focus');
     if (entry.kind !== 'single') throw new Error('not single');

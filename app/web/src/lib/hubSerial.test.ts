@@ -3,6 +3,7 @@ import { compileProtocol } from './hubCompiler';
 import { DEVICE_SERIAL_LEN, DEVICE_SERIAL_UUID, parseDeviceSerial } from './hubSerial';
 
 describe('hubSerial (OI-AND-WIRE-02)', () => {
+  // @verifies REQ-FWHUB-08
   it('accepts exactly 32 bytes, as a copy', () => {
     const v = Uint8Array.from({ length: DEVICE_SERIAL_LEN }, (_, i) => 0x40 + i);
     const s = parseDeviceSerial(v)!;
@@ -11,6 +12,7 @@ describe('hubSerial (OI-AND-WIRE-02)', () => {
     expect(s[0]).toBe(0x40);
   });
 
+  // @verifies REQ-FWHUB-08
   it('refuses short, long, empty and absent values', () => {
     expect(parseDeviceSerial(new Uint8Array(31))).toBeNull();
     expect(parseDeviceSerial(new Uint8Array(33))).toBeNull();
@@ -19,6 +21,7 @@ describe('hubSerial (OI-AND-WIRE-02)', () => {
     expect(parseDeviceSerial(undefined)).toBeNull();
   });
 
+  // @verifies REQ-FWHUB-08
   it('uses the UUID the hub, iOS and Android carry', () => {
     expect(DEVICE_SERIAL_UUID).toBe('4e455550-0017-1000-8000-00805f9b34fb');
   });

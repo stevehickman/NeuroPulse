@@ -77,6 +77,7 @@ fn every_definition_compiles_to_the_web_compilers_bytes() {
     assert!(failures.is_empty(), "{} divergence(s):\n{}", failures.len(), failures.join("\n"));
 }
 
+// @verifies REQ-NPPS-12
 #[test]
 fn the_golden_file_the_other_runtimes_read_agrees_with_the_cases_file() {
     let golden = data("hub-descriptor-golden.json");
@@ -86,6 +87,7 @@ fn the_golden_file_the_other_runtimes_read_agrees_with_the_cases_file() {
     }
 }
 
+// @verifies REQ-NPPS-04
 #[test]
 fn every_refusal_reads_as_the_web_compilers_does() {
     let cases = data("hub-descriptor-cases.json");
@@ -104,6 +106,7 @@ fn every_refusal_reads_as_the_web_compilers_does() {
     assert!(failures.is_empty(), "{} divergence(s):\n{}", failures.len(), failures.join("\n"));
 }
 
+// @verifies REQ-FWHUB-08
 #[test]
 fn autonomous_sets_only_the_mode_3_flag() {
     let cases = data("hub-descriptor-cases.json");

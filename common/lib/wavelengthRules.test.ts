@@ -24,21 +24,25 @@ import { parseNPPSFile, NPPSParseError } from './nppsParser';
 const DEFAULTS_FILE = path.resolve(__dirname, '../../protocols/predefined/00-wavelength-rules.npps');
 
 describe('parsePbmWavelength', () => {
+  // @verifies REQ-NPPS-03
   it('retires the combined channel names and names their replacements', () => {
     expect(parsePbmWavelength('660_808nm')).toMatchObject({ kind: 'retired', replacement: ['660nm', '808nm'] });
     expect(parsePbmWavelength('660_808_1064nm')).toMatchObject({ kind: 'retired', replacement: ['660nm', '808nm', '1064nm'] });
   });
 
+  // @verifies REQ-NPPS-03
   it('reads 1064nm as the plain wavelength it is', () => {
     expect(parsePbmWavelength('1064nm')).toEqual({ kind: 'single', value: '1064nm', nm: 1064 });
     expect(resolvePbmChannels('1064nm', DEFAULT_WAVELENGTH_RULES)).toMatchObject({ ok: true, elements: ['led_1064'] });
   });
 
+  // @verifies REQ-NPPS-03
   it('reads one wavelength, including a decimal', () => {
     expect(parsePbmWavelength('810nm')).toEqual({ kind: 'single', value: '810nm', nm: 810 });
     expect(parsePbmWavelength('632.8nm')).toMatchObject({ kind: 'single', nm: 632.8 });
   });
 
+  // @verifies REQ-NPPS-03
   it('rejects anything else', () => {
     for (const v of ['810', 'nm', '810 nm', '660_808', '-810nm', '0nm', 'abc', '']) {
       expect(parsePbmWavelength(v).kind, v).toBe('invalid');
@@ -56,6 +60,7 @@ describe('mapWavelength under the shipped defaults', () => {
     [1170, null],   // the deep channel is its own modality, never a transcranial mapping
   ];
   for (const [nm, want] of cases) {
+    // @verifies REQ-NPPS-03
     it(`${nm} nm → ${want ?? 'unsupported'}`, () => {
       expect(mapWavelength(nm, DEFAULT_WAVELENGTH_RULES)).toBe(want);
     });
@@ -74,6 +79,7 @@ describe('user rules', () => {
     channels: [{ element: 'led_808', nominalNm: 808, minNm: 808, maxNm: 808 }],
   };
 
+  // @verifies REQ-NPPS-03
   it('a user rule replaces only the channel it names', () => {
     const r = resolveWavelengthRules(DEFAULT_WAVELENGTH_RULES, looser);
     expect(r.level).toBe('user');
@@ -82,18 +88,21 @@ describe('user rules', () => {
     expect(mapWavelength(1064, r)).toBe('led_1064');
   });
 
+  // @verifies REQ-NPPS-03
   it('tightening can make a previously supported wavelength unsupported', () => {
     const r = resolveWavelengthRules(DEFAULT_WAVELENGTH_RULES, stricter);
     expect(mapWavelength(808, r)).toBe('led_808');
     expect(mapWavelength(810, r)).toBeNull();
   });
 
+  // @verifies REQ-NPPS-03
   it('never mutates the defaults', () => {
     const before = JSON.stringify(DEFAULT_WAVELENGTH_RULES);
     resolveWavelengthRules(DEFAULT_WAVELENGTH_RULES, looser);
     expect(JSON.stringify(DEFAULT_WAVELENGTH_RULES)).toBe(before);
   });
 
+  // @verifies REQ-NPPS-03
   it('overlapping windows: nearest nominal wins, and rule order does not matter', () => {
     const wide = (order: 'ab' | 'ba'): NPWavelengthRules => {
       const a = { element: 'led_660' as const, nominalNm: 660, minNm: 600, maxNm: 900 };
@@ -109,13 +118,16 @@ describe('user rules', () => {
 });
 
 describe('resolvePbmChannels / pbmRequirementGroups', () => {
+  // @verifies REQ-NPPS-03
   it('a single wavelength becomes one requirement group', () => {
     expect(pbmRequirementGroups('810nm', DEFAULT_WAVELENGTH_RULES)).toEqual([['led_808']]);
   });
+  // @verifies REQ-NPPS-03
   it('a retired combined name yields no group: it is refused, not expanded', () => {
     expect(pbmRequirementGroups('660_808nm', DEFAULT_WAVELENGTH_RULES)).toBeNull();
     expect(resolvePbmChannels('660_808nm', DEFAULT_WAVELENGTH_RULES)).toMatchObject({ ok: false, reason: 'retired' });
   });
+  // @verifies REQ-NPPS-03
   it('unmapped and invalid are distinct failures, and neither yields a group', () => {
     expect(resolvePbmChannels('850nm', DEFAULT_WAVELENGTH_RULES)).toMatchObject({ ok: false, reason: 'unmapped', requestedNm: 850 });
     expect(resolvePbmChannels('red', DEFAULT_WAVELENGTH_RULES)).toMatchObject({ ok: false, reason: 'invalid' });
@@ -124,9 +136,11 @@ describe('resolvePbmChannels / pbmRequirementGroups', () => {
 });
 
 describe('validateWavelengthRules', () => {
+  // @verifies REQ-NPPS-03
   it('accepts the defaults', () => {
     expect(validateWavelengthRules(DEFAULT_WAVELENGTH_RULES)).toEqual([]);
   });
+  // @verifies REQ-NPPS-03
   it('rejects an inverted window, a duplicate channel and a non-positive value', () => {
     const bad: NPWavelengthRules = {
       name: 'bad', level: 'user', channels: [
@@ -143,6 +157,7 @@ describe('validateWavelengthRules', () => {
 });
 
 describe('the wavelength_rules block', () => {
+  // @verifies REQ-NPPS-03
   it('the shipped defaults file parses to exactly DEFAULT_WAVELENGTH_RULES', () => {
     const parsed = parseNPPSFile(fs.readFileSync(DEFAULTS_FILE, 'utf8'));
     expect(parsed.entries).toEqual([]);
@@ -154,10 +169,15 @@ describe('the wavelength_rules block', () => {
   const reject = (body: string, why: RegExp) => {
     expect(() => parseNPPSFile(`wavelength_rules "x" {\n${body}\n}`)).toThrow(why);
   };
+  // @verifies REQ-NPPS-03
   it('refuses an unknown channel', () => reject('channel "led_900" { nominal_nm: 900 min_nm: 890 max_nm: 910 }', /unknown channel/));
+  // @verifies REQ-NPPS-03
   it('refuses a channel missing a bound', () => reject('channel "led_808" { nominal_nm: 808 min_nm: 800 }', /all required/));
+  // @verifies REQ-NPPS-03
   it('refuses an inverted window', () => reject('channel "led_808" { nominal_nm: 808 min_nm: 840 max_nm: 800 }', /above max_nm/));
+  // @verifies REQ-NPPS-03
   it('refuses a level other than global or user', () => reject('level: helmet', /level must be global or user/));
+  // @verifies REQ-NPPS-03
   it('is an NPPSParseError, with a line', () => {
     try { parseNPPSFile('wavelength_rules "x" {\n level: nope\n}'); } catch (e) {
       expect(e).toBeInstanceOf(NPPSParseError);

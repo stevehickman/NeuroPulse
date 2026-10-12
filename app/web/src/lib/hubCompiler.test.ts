@@ -219,6 +219,7 @@ describe('socket-addressed cranial targets', () => {
     expect(NP_SOCKETS.length).toBeLessThan(16 * 8);
   });
 
+  // @verifies REQ-FWHUB-32
   it('unions multiple zoneRefs', () => {
     const { blob } = compileProtocol(
       pbmProtocol({ zoneRefs: ['Temporal Left', 'Temporal Right'] }), { zones });
@@ -232,6 +233,7 @@ describe('socket-addressed cranial targets', () => {
   // The reason the wire carries a bitmap rather than a socket list: midline
   // sockets belong to both hemisphere zones, so a union names them twice, and a
   // list would drive those modules twice — double J/cm² on a real PBM protocol.
+  // @verifies REQ-FWHUB-32
   it('delivers overlapping zones once per socket', () => {
     const fl = zones.get('Frontal Left')!.sockets;
     const fr = zones.get('Frontal Right')!.sockets;
@@ -251,6 +253,7 @@ describe('socket-addressed cranial targets', () => {
     expect(selected).toEqual(distinct);
   });
 
+  // @verifies REQ-FWHUB-08
   it('gives an interval protocol\'s stop commands the same target as the on', () => {
     const proto = pbmProtocol({ zoneRefs: ['Frontal Left'] });
     proto.modalities[0].interval =
@@ -267,11 +270,13 @@ describe('socket-addressed cranial targets', () => {
 });
 
 describe('clinician-selected targets', () => {
+  // @verifies REQ-FWHUB-31
   it('refuses to compile without an operator socket selection', () => {
     expect(() => compileProtocol(pbmProtocol({ zones: 'clinician_selected' }), { zones }))
       .toThrow(/operator must choose the sockets/);
   });
 
+  // @verifies REQ-FWHUB-31
   it('compiles the operator\'s sockets when given', () => {
     const { blob } = compileProtocol(
       pbmProtocol({ zones: 'clinician_selected' }),
@@ -285,12 +290,14 @@ describe('retired five-slot selectors', () => {
   // members and the compiler's resolver has no branch that could accept one.
   // These assert the removal from the outside: a hand-built object carrying an
   // old selector is not silently treated as coverage.
+  // @verifies REQ-NPPS-08
   it.each(['all', 'front', 'rear', 'custom'])('does not compile zones: %s', (selector) => {
     expect(() => compileProtocol(
       pbmProtocol({ zones: selector as unknown as PBMTranscranialParams['zones'] }), { zones }))
       .toThrow();
   });
 
+  // @verifies REQ-NPPS-08
   it('does not resolve a numeric zone list', () => {
     expect(() => compileProtocol(
       pbmProtocol({ zones: [1, 2] as unknown as PBMTranscranialParams['zones'] }), { zones }))
@@ -302,6 +309,7 @@ describe('newly-created protocols', () => {
   // defaultParams() seeds the UI's "add a modality" flow. It used to seed the
   // retired `zones: 'all'` selector, which no longer exists — so a freshly-created
   // protocol would not have compiled at all.
+  // @verifies REQ-FWHUB-08
   it('compiles a protocol built from defaultParams', () => {
     const proto = pbmProtocol({});
     proto.modalities[0].modalityParams = {
@@ -327,6 +335,7 @@ describe('zone resolution failures', () => {
       .toThrow(/not in the zone namespace/);
   });
 
+  // @verifies REQ-NPPS-17
   it('refuses a zone naming a socket this helmet does not have', () => {
     // One past the highest wired socket — derived, so a lattice re-cut keeps it
     // genuinely out of range (it was 78 sockets, now 80).
@@ -366,6 +375,7 @@ describe('slot-addressed fixed devices', () => {
     expect(blob.length).toBe(HEADER_LEN + CMD_HDR_LEN + 5 + SIG_LEN);
   });
 
+  // @verifies REQ-FWHUB-07
   it('never emits a retired zone slot', () => {
     const { blob } = compileProtocol(eegProtocol(), { zones });
     for (const cmd of readBlob(blob).cmds) {

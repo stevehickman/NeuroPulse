@@ -147,6 +147,7 @@ composite "Full Multi-Modal RCT" {
 // ─── Parser — old format rejection ───────────────────────────────────────────
 
 describe('parser — old format rejection', () => {
+  // @verifies REQ-NPPS-10
   it('rejects protocol with "name:" field (old format key)', () => {
     // Old format: name field inside protocol block was the classic marker
     const oldFormat = `
@@ -160,6 +161,7 @@ protocol {
     expect(() => parseNPPS(oldFormat)).toThrow(NPPSParseError);
   });
 
+  // @verifies REQ-NPPS-10
   it('rejects "modalities [...]" wrapper block', () => {
     const oldFormat = `
 protocol "Test" {
@@ -171,6 +173,7 @@ protocol "Test" {
     expect(() => parseNPPS(oldFormat)).toThrow(NPPSParseError);
   });
 
+  // @verifies REQ-NPPS-10
   it('rejects "timing { ... }" block', () => {
     const oldFormat = `
 protocol "Test" {
@@ -180,6 +183,7 @@ protocol "Test" {
     expect(() => parseNPPS(oldFormat)).toThrow(NPPSParseError);
   });
 
+  // @verifies REQ-NPPS-10
   it('rejects inline "layers [ ... ]" wrapper in composite', () => {
     const oldFormat = `
 composite "Test" {
@@ -195,12 +199,14 @@ composite "Test" {
 // ─── Parser — new format ──────────────────────────────────────────────────────
 
 describe('parser — new format', () => {
+  // @verifies REQ-NPPS-16
   it('parses a single protocol', () => {
     const entries = parseNPPS(GAMMA_FOCUS_NPPS);
     expect(entries).toHaveLength(1);
     expect(entries[0].kind).toBe('single');
   });
 
+  // @verifies REQ-NPPS-16
   it('parses protocol metadata correctly', () => {
     const proto = (parseNPPS(GAMMA_FOCUS_NPPS)[0] as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
     expect(proto.name).toBe('Gamma Focus');
@@ -213,6 +219,7 @@ describe('parser — new format', () => {
     expect(proto.timingMode).toMatchObject({ type: 'duration', seconds: 1200 });
   });
 
+  // @verifies REQ-NPPS-16
   it('parses 4 modalities from Gamma Focus', () => {
     const proto = (parseNPPS(GAMMA_FOCUS_NPPS)[0] as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
     expect(proto.modalities).toHaveLength(4);
@@ -220,6 +227,7 @@ describe('parser — new format', () => {
     expect(types).toEqual(['pbm_transcranial', 'audio_entrainment', 'visual_stimulation', 'eeg_neurofeedback']);
   });
 
+  // @verifies REQ-NPPS-16
   it('parses pbm_transcranial params with short aliases', () => {
     const proto = (parseNPPS(GAMMA_FOCUS_NPPS)[0] as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
     const pbm = proto.modalities[0].modalityParams;
@@ -234,6 +242,7 @@ describe('parser — new format', () => {
     }
   });
 
+  // @verifies REQ-NPPS-16
   it('parses visual_stimulation interval fields', () => {
     const proto = (parseNPPS(GAMMA_FOCUS_NPPS)[0] as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
     const visual = proto.modalities[2];
@@ -243,6 +252,7 @@ describe('parser — new format', () => {
     expect(visual.interval.repeatCount).toBeUndefined(); // "until_end"
   });
 
+  // @verifies REQ-NPPS-16
   it('parses eeg_neurofeedback band + closed_loop alias', () => {
     const proto = (parseNPPS(GAMMA_FOCUS_NPPS)[0] as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
     const eeg = proto.modalities[3].modalityParams;
@@ -252,6 +262,7 @@ describe('parser — new format', () => {
     }
   });
 
+  // @verifies REQ-NPPS-16
   it('parses all 8 T1 modalities', () => {
     const proto = (parseNPPS(ALL_T1_NPPS)[0] as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
     expect(proto.modalities).toHaveLength(8);
@@ -266,6 +277,7 @@ describe('parser — new format', () => {
     expect(types).toContain('visual_stimulation');
   });
 
+  // @verifies REQ-NPPS-16
   it('parses bes_tacs intensity in mA', () => {
     const proto = (parseNPPS(ALL_T1_NPPS)[0] as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
     const bes = proto.modalities.find(m => m.modalityParams.type === 'bes_tacs')!.modalityParams;
@@ -275,6 +287,7 @@ describe('parser — new format', () => {
     }
   });
 
+  // @verifies REQ-NPPS-16
   it('parses tdcs electrode_pairs', () => {
     const proto = (parseNPPS(ALL_T1_NPPS)[0] as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
     const tdcs = proto.modalities.find(m => m.modalityParams.type === 'tdcs')!.modalityParams;
@@ -286,6 +299,7 @@ describe('parser — new format', () => {
   });
 
 
+  // @verifies REQ-NPPS-16
   it('parses vns_hrv protocol and breathing rate aliases', () => {
     const proto = (parseNPPS(ALL_T1_NPPS)[0] as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
     const vns = proto.modalities.find(m => m.modalityParams.type === 'vns_hrv')!.modalityParams;
@@ -295,11 +309,13 @@ describe('parser — new format', () => {
     }
   });
 
+  // @verifies REQ-NPPS-16
   it('parses duration in minutes', () => {
     const proto = (parseNPPS(ALL_T1_NPPS)[0] as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
     expect(proto.timingMode).toMatchObject({ type: 'duration', seconds: 1800 }); // 30m = 1800s
   });
 
+  // @verifies REQ-NPPS-10
   it('parses composite with layers', () => {
     const entries = parseNPPS(COMPOSITE_NPPS);
     expect(entries[0].kind).toBe('composite');
@@ -316,6 +332,7 @@ describe('parser — new format', () => {
     expect(composite.layers[1].durationSeconds).toBe(1200); // 20m
   });
 
+  // @verifies REQ-NPPS-16
   it('parses multiple top-level entries from one string', () => {
     const combined = GAMMA_FOCUS_NPPS + '\n\n' + COMPOSITE_NPPS;
     const entries = parseNPPS(combined);
@@ -324,6 +341,7 @@ describe('parser — new format', () => {
     expect(entries[1].kind).toBe('composite');
   });
 
+  // @verifies REQ-NPPS-16
   it('ignores # comments', () => {
     const withComments = `
 # This is a comment
@@ -343,6 +361,7 @@ protocol "Test" {
     expect(proto.modalities).toHaveLength(0); // comment not parsed as modality
   });
 
+  // @verifies REQ-NPPS-16
   it('throws NPPSParseError on empty protocol block with no name', () => {
     expect(() => parseNPPS('protocol {')).toThrow(NPPSParseError);
   });
@@ -351,6 +370,7 @@ protocol "Test" {
 // ─── Serializer ───────────────────────────────────────────────────────────────
 
 describe('serializer', () => {
+  // @verifies REQ-NPPS-11
   it('serializes a single protocol with correct header', () => {
     const [entry] = parseNPPS(GAMMA_FOCUS_NPPS);
     const out = serializeProtocol(entry);
@@ -359,6 +379,7 @@ describe('serializer', () => {
     expect(out).toContain('readonly: true');
   });
 
+  // @verifies REQ-NPPS-11
   it('serializes pbm_transcranial fields with unit suffixes', () => {
     const [entry] = parseNPPS(GAMMA_FOCUS_NPPS);
     const out = serializeProtocol(entry);
@@ -370,6 +391,7 @@ describe('serializer', () => {
     expect(out).toContain('wavelength: \"808nm\"');
   });
 
+  // @verifies REQ-NPPS-11
   it('serializes interval fields inside modality block', () => {
     const [entry] = parseNPPS(GAMMA_FOCUS_NPPS);
     const out = serializeProtocol(entry);
@@ -379,30 +401,35 @@ describe('serializer', () => {
     expect(out).toContain('repeat: until_end');
   });
 
+  // @verifies REQ-NPPS-10
   it('does NOT emit "name:" field (old format)', () => {
     const [entry] = parseNPPS(GAMMA_FOCUS_NPPS);
     const out = serializeProtocol(entry);
     expect(out).not.toContain('name:');
   });
 
+  // @verifies REQ-NPPS-10
   it('does NOT emit "modalities [" wrapper (old format)', () => {
     const [entry] = parseNPPS(GAMMA_FOCUS_NPPS);
     const out = serializeProtocol(entry);
     expect(out).not.toMatch(/modalities\s*\[/);
   });
 
+  // @verifies REQ-NPPS-10
   it('does NOT emit "modality {" typed wrapper (old format)', () => {
     const [entry] = parseNPPS(GAMMA_FOCUS_NPPS);
     const out = serializeProtocol(entry);
     expect(out).not.toMatch(/\bmodality\s*\{/);
   });
 
+  // @verifies REQ-NPPS-10
   it('does NOT emit "timing {" block (old format)', () => {
     const [entry] = parseNPPS(GAMMA_FOCUS_NPPS);
     const out = serializeProtocol(entry);
     expect(out).not.toMatch(/\btiming\s*\{/);
   });
 
+  // @verifies REQ-NPPS-11
   it('serializes bes_tacs intensity in mA', () => {
     const [entry] = parseNPPS(ALL_T1_NPPS);
     const out = serializeProtocol(entry);
@@ -410,6 +437,7 @@ describe('serializer', () => {
     expect(out).toContain('intensity: 0.8mA');
   });
 
+  // @verifies REQ-NPPS-11
   it('serializes tdcs with electrode_pairs', () => {
     const [entry] = parseNPPS(ALL_T1_NPPS);
     const out = serializeProtocol(entry);
@@ -421,6 +449,7 @@ describe('serializer', () => {
     expect(out).toContain('ramp: 30s');
   });
 
+  // @verifies REQ-NPPS-10
   it('serializes composite without "layers [" wrapper', () => {
     const [entry] = parseNPPS(COMPOSITE_NPPS);
     const out = serializeProtocol(entry);
@@ -433,6 +462,7 @@ describe('serializer', () => {
     expect(out).toContain('intensity_scale: 0.5');
   });
 
+  // @verifies REQ-NPPS-16
   it('omits intensity_scale: 1.0 (default) from composite layer', () => {
     const [entry] = parseNPPS(COMPOSITE_NPPS);
     const out = serializeProtocol(entry);
@@ -538,16 +568,19 @@ protocol "Retinal" {
       .protocol.modalities.find(m => m.modalityParams.type === 'visual_stimulation')!;
   };
 
+  // @verifies REQ-NPPS-16
   it('parses the canonical enable_mode_f key', () => {
     const v = visualOf(modeFSource('enable_mode_f'));
     expect((v.modalityParams.params as { enableModeF: boolean }).enableModeF).toBe(true);
   });
 
+  // @verifies REQ-NPPS-16
   it('does not confuse the mode_f VALUE with a field key', () => {
     const v = visualOf(modeFSource('enable_mode_f'));
     expect((v.modalityParams.params as { mode: string }).mode).toBe('mode_f');
   });
 
+  // @verifies REQ-NPPS-11
   it('serializes the canonical key', () => {
     const [entry] = parseNPPS(modeFSource('enable_mode_f'));
     const serialized = serializeProtocol(entry);
@@ -573,6 +606,7 @@ describe('canonical field names shared by every runtime', () => {
   // (electrode_area_cm2: 35), not as a unit-suffixed literal (35cm2): the
   // lexer's suffixes are Hz/%/mA/s/m, and a digit-leading token that is not a
   // number with a known suffix is a parse error by design (NP-NPPS-REF-001 §2).
+  // @verifies REQ-NPPS-05
   it('tdcs electrode_area_cm2 parses, and a cm2 suffix does not', () => {
     const m = modalityOf(proto(`    tdcs {\n        electrode_area_cm2: 25\n    }`), 'tdcs');
     expect((m.modalityParams.params as { electrodeAreaCm2: number }).electrodeAreaCm2).toBe(25);
@@ -589,16 +623,19 @@ describe('canonical field names shared by every runtime', () => {
       .toThrow(/electrode_area_cm2 is required and is never defaulted/);
   });
 
+  // @verifies REQ-NPPS-16
   it('qeeg_21ch sloreta_enabled', () => {
     const m = modalityOf(proto(`    qeeg_21ch {\n        sloreta_enabled: true\n    }`), 'qeeg_21ch');
     expect((m.modalityParams.params as { sloretaEnabled: boolean }).sloretaEnabled).toBe(true);
   });
 
+  // @verifies REQ-NPPS-16
   it('tms intensity_percent_mt', () => {
     const m = modalityOf(proto(`    tms {\n        tms_protocol: rTMS\n        intensity_percent_mt: 90\n    }`), 'tms');
     expect((m.modalityParams.params as { intensityPercentMT: number }).intensityPercentMT).toBe(90);
   });
 
+  // @verifies REQ-NPPS-16
   it('vibrotactile sync_to_audio / sync_to_visual', () => {
     const m = modalityOf(
       proto(`    vibrotactile_40hz {\n        intensity_g: 0.8\n        sync_to_audio: true\n        sync_to_visual: true\n    }`),
@@ -609,6 +646,7 @@ describe('canonical field names shared by every runtime', () => {
     expect(p.syncToVisual).toBe(true);
   });
 
+  // @verifies REQ-NPPS-16
   it('audio limits max_volume_db / max_binaural_beats / max_isochronic_tones', () => {
     const lim = parseNPPSLimits(
       `limits "L" {\n    level: global\n    audio_entrainment {\n        max_volume_db: 85\n        max_binaural_beats: 100\n        max_isochronic_tones: 90\n    }\n}\n`,
@@ -620,11 +658,13 @@ describe('canonical field names shared by every runtime', () => {
     });
   });
 
+  // @verifies REQ-NPPS-16
   it('tms limits max_intensity_pct_mt', () => {
     const lim = parseNPPSLimits(`limits "L" {\n    level: global\n    tms {\n        max_intensity_pct_mt: 120\n    }\n}\n`);
     expect(lim!.tms).toMatchObject({ maxIntensityPercentMT: 120 });
   });
 
+  // @verifies REQ-NPPS-16
   it('vibrotactile limits max_intensity', () => {
     const lim = parseNPPSLimits(
       `limits "L" {\n    level: global\n    vibrotactile_40hz {\n        max_intensity: 1.2\n    }\n}\n`,
@@ -632,6 +672,7 @@ describe('canonical field names shared by every runtime', () => {
     expect(lim!.vibrotactile40hz).toMatchObject({ maxIntensityG: 1.2 });
   });
 
+  // @verifies REQ-NPPS-16
   it('hd_tdcs montage uses the spelling all three runtimes and §4.13 share', () => {
     const m = modalityOf(proto(`    hd_tdcs {\n        montage: standard_2_electrode\n    }`), 'hd_tdcs');
     expect((m.modalityParams.params as { montage: string }).montage).toBe('standard_2_electrode');
@@ -657,6 +698,7 @@ describe('quoted awkward values (JSON-leaning cleanup)', () => {
   // §4.9 documented `10-20`, but no implementation ever mapped that value —
   // both parsers use `standard_1020`. The doc was corrected rather than the
   // lexer extended, so the unquoted form stays a parse error (asserted below).
+  // @verifies REQ-NPPS-16
   it('parses the qEEG montage value both parsers actually use', () => {
     const m = modalityOf(proto(`    qeeg_21ch {\n        montage: standard_1020\n    }`), 'qeeg_21ch');
     expect((m.modalityParams.params as { montage: string }).montage).toBe('standard_1020');
@@ -670,6 +712,7 @@ describe('quoted awkward values (JSON-leaning cleanup)', () => {
     }
   });
 
+  // @verifies REQ-NPPS-16
   it('parses quoted hyphenated tags', () => {
     const [entry] = parseNPPS(`protocol "T" {\n    tags: ["wind-down", "all-modalities", plain]\n    duration: 5m\n}\n`);
     const p = (entry as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
@@ -691,6 +734,7 @@ describe('quoted awkward values (JSON-leaning cleanup)', () => {
     expect(() => parseNPPS(`protocol "T" {\n    tags: [wind-down]\n    duration: 5m\n}\n`)).toThrow(NPPSParseError);
   });
 
+  // @verifies REQ-NPPS-16
   it('still lexes numbers with unit suffixes, which are unaffected', () => {
     const [entry] = parseNPPS(
       proto(`    bes_tacs {\n        frequency: 40Hz\n        intensity: 0.8mA\n        interval_on: 30s\n    }`),
@@ -702,6 +746,7 @@ describe('quoted awkward values (JSON-leaning cleanup)', () => {
     expect(m.interval.intervalOnSeconds).toBe(30);
   });
 
+  // @verifies REQ-NPPS-11
   it('serializes quoted forms so they round-trip', () => {
     const src = proto(`    pbm_transcranial {\n        zones: ["Frontal Left"]\n        wavelength: "808nm"\n irradiance: 300mW_cm2 }`);
     const [entry] = parseNPPS(src);
@@ -719,6 +764,7 @@ describe('quoted awkward values (JSON-leaning cleanup)', () => {
 describe('serialize → parse round-trip holds for every modality', () => {
   const ids = Object.keys(MODALITY_META);
 
+  // @verifies REQ-NPPS-16
   it('covers all modality types', () => {
     expect(ids.length).toBeGreaterThanOrEqual(15);
   });
@@ -740,6 +786,7 @@ describe('serialize → parse round-trip holds for every modality', () => {
     expect(serializeProtocol(parseNPPS(out)[0])).toBe(out);
   });
 
+  // @verifies REQ-NPPS-16
   it('a defaulted pbm_transcranial names its zones instead of emitting the tag', () => {
     const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        irradiance: 322mW_cm2\n wavelength: "808nm" }\n}\n`);
     const out = serializeProtocol(entry);
@@ -747,6 +794,7 @@ describe('serialize → parse round-trip holds for every modality', () => {
     expect(out).not.toMatch(/^\s*zones:\s*named\s*$/m);
   });
 
+  // @verifies REQ-NPPS-11
   it('clinician_selected still serializes as the bare keyword it is', () => {
     const [entry] = parseNPPS(
       `protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        zones: clinician_selected\n irradiance: 300mW_cm2 wavelength: "808nm" }\n}\n`,
@@ -756,6 +804,7 @@ describe('serialize → parse round-trip holds for every modality', () => {
     expect(() => parseNPPS(out)).not.toThrow();
   });
 
+  // @verifies REQ-NPPS-16
   it('an empty named ref list is reported as a caller bug, not written out', () => {
     const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        irradiance: 322mW_cm2\n wavelength: "808nm" }\n}\n`);
     const proto = (entry as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
@@ -808,6 +857,7 @@ describe('absolute intensity: irradiance in mW/cm², volume in dB', () => {
     expect(() => parseNPPS(pbm('irradiance: 300mW_cm2'))).toThrow(/wavelength is required/);
   });
 
+  // @verifies REQ-NPPS-03
   it('refuses the retired combined channel names and says what replaces them', () => {
     for (const wl of ['660_808nm', '660_808_1064nm']) {
       expect(() => parseNPPS(pbm(`wavelength: "${wl}"\n        irradiance: 300mW_cm2`)))
@@ -845,6 +895,7 @@ describe('absolute intensity: irradiance in mW/cm², volume in dB', () => {
     expect(lim!.pbmTranscranial).toMatchObject({ maxIrradianceMWcm2: 250 });
   });
 
+  // @verifies REQ-NPPS-11
   it('round-trips the unit-bearing spelling', () => {
     const [entry] = parseNPPS(pbm('wavelength: "660nm"\n        irradiance: 12.5mW_cm2'));
     expect(serializeProtocol(entry)).toContain('irradiance: 12.5mW_cm2');
@@ -880,6 +931,7 @@ protocol "CW" {
     expect(paramsOf(pbm('frequency: 0Hz\n duty_cycle: 100%')).dutyCyclePercent).toBe(100);
   });
 
+  // @verifies REQ-NPPS-16
   it('leaves a pulsed block alone', () => {
     const p = paramsOf(pbm('frequency: 40Hz\n duty_cycle: 25%'));
     expect(p).toMatchObject({ frequencyHz: 40, dutyCyclePercent: 25 });

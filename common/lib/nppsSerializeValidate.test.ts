@@ -38,6 +38,7 @@ describe('serializer wrapper', () => {
     expect(n).toBeGreaterThan(100);
   });
 
+  // @verifies REQ-NPPS-16
   it('refuses a zone it cannot write, with the message the web gave', () => {
     expect(() => serializeZone({ name: 'Z', sockets: [0, 4, 4, 999] } as any)).toThrow(NppsRefusal);
     expect(() => serializeZone({ name: 'Z', sockets: [0, 4, 4, 999] } as any)).toThrow(
@@ -72,6 +73,7 @@ const ADDED = new Set([
 ]);
 
 describe('validator wrapper', () => {
+  // @verifies REQ-NPPS-12
   it('reports what the web validator reported, in English, over the whole corpus', () => {
     const g = data('npps-validate-golden.json');
     expect(g.cases.length).toBeGreaterThan(500);
@@ -100,6 +102,7 @@ describe('validator wrapper', () => {
     }
   });
 
+  // @verifies REQ-NPPS-12
   it('resolves a nested message: a layer prefix wraps the issue it prefixes', () => {
     const r = validateEntry(
       { kind: 'composite', composite: { id: 'c', name: 'C', description: '', author: 'a', version: '1', tags: [],

@@ -170,6 +170,7 @@ describe('tDCS charge-density pre-flight (OI-CHARGE-04)', () => {
   // to the ceiling cannot quietly take it away again. At the retired 40 the
   // routine protocol was unavailable; 13 of the 14 shipped predefined tDCS
   // protocols exceeded it.
+  // @verifies REQ-NPPS-14#a
   it('leaves the routine 2 mA × 20 min protocol available', () => {
     // 2 mA × 1200 s / 35 cm² = 68.6 mC/cm² — the single most common protocol
     // in the literature and the median of docs/tdcs_database_full.csv.
@@ -188,6 +189,7 @@ describe('tDCS charge-density pre-flight (OI-CHARGE-04)', () => {
     ))).toHaveLength(1);
   });
 
+  // @verifies REQ-NPPS-14#a
   it('does not double-report: a zero area gives an area error, not a density one', () => {
     // Dividing by zero would otherwise produce an Infinity mC/cm² message on
     // top of the real diagnosis.

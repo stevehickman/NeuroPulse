@@ -90,6 +90,7 @@ fn everything_the_library_declares_survives_write_then_read() {
     }
 }
 
+// @verifies REQ-NPPS-16
 #[test]
 fn a_limits_set_survives_write_then_read() {
     // The web writer snake-cased property names (max_irradiance_m_wcm2, max_frequency_hz), which the parser
@@ -123,6 +124,7 @@ fn a_limits_set_survives_write_then_read() {
     assert!(text.contains("max_irradiance_mw_cm2: 300") && text.contains("max_intensity_pct_mt: 80"), "{text}");
 }
 
+// @verifies REQ-NPPS-16
 #[test]
 fn a_model_that_cannot_be_written_is_refused_with_the_web_messages() {
     let zone = json!({ "items": [{ "kind": "zone", "zone": { "name": "Z", "sockets": [0, 4, 4, 999] } }] });
@@ -139,6 +141,7 @@ fn a_model_that_cannot_be_written_is_refused_with_the_web_messages() {
     assert!(serialize_json(&named.to_string()).unwrap_err().starts_with("pbm_transcranial: zones is 'named' but zoneRefs is empty"));
 }
 
+// @verifies REQ-NPPS-16
 #[test]
 fn a_zone_is_written_with_a_list_for_each_hardware_version_and_a_bare_list_migrates_to_version_one() {
     // SWR-HV-05. A model with only `sockets` (every zone before hardware versions) is written as version 1, which is how
@@ -162,6 +165,7 @@ fn a_zone_is_written_with_a_list_for_each_hardware_version_and_a_bare_list_migra
     round_trip("two versions", &written);
 }
 
+// @verifies SWR-HV-05
 #[test]
 fn a_zone_whose_two_version_one_lists_disagree_is_refused_not_resolved() {
     let zone = json!({ "items": [{ "kind": "zone", "zone": { "name": "Z", "sockets": [1, 2, 3],
@@ -171,6 +175,7 @@ fn a_zone_whose_two_version_one_lists_disagree_is_refused_not_resolved() {
     assert!(serialize_json(&bad.to_string()).unwrap_err().contains("'0' is not a hardware version"));
 }
 
+// @verifies SWR-FM-01
 #[test]
 fn a_protocols_family_id_and_hardware_version_survive_write_then_read() {
     let src = "protocol \"P\" {\n    id: \"11111111-2222-3333-4444-555555555555\"\n    family_id: \"0123abcd-4567-4def-8901-23456789abcd\"\n    hardware_version: 1\n    duration: 5m\n}";

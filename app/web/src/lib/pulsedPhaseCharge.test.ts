@@ -67,6 +67,7 @@ const sessionErrors = (d: NPProtocolDefinition) =>
     i => i.severity === 'error' && i.parameterKey === 'chargeDensityMCcm2');
 
 describe('pulsed / AC per-phase charge density (OI-CHARGE-05 b)', () => {
+  // @verifies REQ-NPPS-14#b
   it('never applies the DC per-session dose to a charge-balanced modality', () => {
     // An hour of BES/tACS at its 1 mA cap. Integrated as |I| × t this is
     // 3600 mC — 144 mC/cm² on a 25 cm² pad, right at the DC ceiling — but it
@@ -139,11 +140,13 @@ describe('pulsed / AC per-phase charge density (OI-CHARGE-05 b)', () => {
       { intensityMilliamps: 1, frequencyHz: 1, waveform: 'square' }))).toHaveLength(0);
   });
 
+  // @verifies REQ-NPPS-14#b
   it('is not raised for a modality that drives no electrode', () => {
     expect(phaseErrors(protocolWith('pbm_transcranial', {}))).toHaveLength(0);
     expect(phaseErrors(protocolWith('audio_entrainment', {}))).toHaveLength(0);
   });
 
+  // @verifies REQ-NPPS-14#b
   it('does not divide by zero on a zero frequency or amplitude', () => {
     expect(phaseErrors(protocolWith('bes_tacs',
       { intensityMilliamps: 1, frequencyHz: 0, waveform: 'sinusoidal' }))).toHaveLength(0);

@@ -34,6 +34,7 @@ const allFiles = [
 ];
 
 describe('predefined NPPS library', () => {
+  // @verifies REQ-NPPS-18
   it('every manifest file exists and parses without throwing', () => {
     for (const f of allFiles) {
       const fp = path.join(DIR, f);
@@ -45,6 +46,7 @@ describe('predefined NPPS library', () => {
   const parsed = allFiles.map(f => parseNPPSFile(fs.readFileSync(path.join(DIR, f), 'utf8')));
   const { namespace, errors: namespaceErrors } = buildNamespace(parsed);
 
+  // @verifies REQ-NPPS-18
   it('has no duplicate zone/condition name collisions', () => {
     // A collision is an error, not a warning, and leaves the name unbound —
     // so the shipped library having one would also break reference resolution.
@@ -57,6 +59,7 @@ describe('predefined NPPS library', () => {
    * just be a second copy of the file, and would quietly reject the user-defined
    * and research zones the .npps tree is designed to accept (SMART-1).
    */
+  // @verifies REQ-NPPS-18
   it('every declared zone carries a non-empty, deduplicated socket set', () => {
     expect(namespace.zones.size).toBeGreaterThan(0);
 
@@ -69,11 +72,13 @@ describe('predefined NPPS library', () => {
     }
   });
 
+  // @verifies REQ-NPPS-18
   it('every protocol/composite zone and condition reference resolves', () => {
     const errors = validateNamespaceReferences(namespace);
     expect(errors).toEqual([]);
   });
 
+  // @verifies REQ-NPPS-18
   it('every protocol condition names a defined condition with a link', () => {
     for (const [, c] of namespace.conditions) {
       expect(c.link, `condition ${c.name} link`).toMatch(/^https?:\/\//);
@@ -95,6 +100,7 @@ describe('predefined NPPS library', () => {
   // half. This test is what stops the shipped library and the enforcer drifting
   // apart again in either direction — a ceiling that rejects the library, or a
   // protocol authored past the ceiling.
+  // @verifies REQ-NPPS-18
   it('every shipped protocol passes hardware validation', () => {
     const hardwareOnly: NPLimitsSet = {
       id: 'predefined-hw-check',
@@ -181,6 +187,7 @@ describe('predefined NPPS library', () => {
   // The charge ceilings specifically carry no waiver — OI-CHARGE-05 exists to
   // make the shipped library admissible under them, so a single failure here
   // means either the library or the ceiling has moved and they no longer agree.
+  // @verifies REQ-NPPS-14
   it('no shipped protocol exceeds either charge ceiling', () => {
     const hardwareOnly: NPLimitsSet = {
       id: 'predefined-charge-check',
@@ -208,6 +215,7 @@ describe('predefined NPPS library', () => {
       .toEqual([]);
   });
 
+  // @verifies REQ-NPPS-18
   it('includes the expected clinical protocol coverage (53 clinical presets)', () => {
     const clinical = manifest.protocols.filter(f => f.startsWith('clinical-'));
     // 50 → 53: three sections whose evidence is two trials an order of
@@ -218,6 +226,7 @@ describe('predefined NPPS library', () => {
     expect(clinical.length).toBe(53);
   });
 
+  // @verifies REQ-NPPS-18
   it('every clinical protocol carries at least one condition and one reference', () => {
     for (const entry of namespace.entries) {
       if (entry.kind !== 'single') continue;
@@ -231,6 +240,7 @@ describe('predefined NPPS library', () => {
   // with the duplicate it policed: public/protocols/ was a byte-identical copy
   // of protocols/, so every edit had to be made twice. Vite now serves the
   // canonical tree directly (see vite.config.ts), leaving nothing to mirror.
+  // @verifies REQ-NPPS-13
   it('has no second copy of the protocol tree in the web app', () => {
     const publicCopy = path.resolve(__dirname, '../../public/protocols');
     expect(

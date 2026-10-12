@@ -59,6 +59,7 @@ public class HubDescriptorCompilerTests
             IrradianceMwCm2 = irr, FrequencyHz = hz, DutyCyclePercent = duty,
         }));
 
+    // @verifies REQ-NPPS-03
     [Fact]
     public void PbmChannels()
     {
@@ -86,6 +87,7 @@ public class HubDescriptorCompilerTests
         }),
     }));
 
+    // @verifies REQ-NPPS-02
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
@@ -97,14 +99,17 @@ public class HubDescriptorCompilerTests
         Build(Cw(kind, 100));
     }
 
+    // @verifies REQ-FWHUB-08
     [Fact]
     public void ParallelWavelengthsMergeIntoOneTileCommand()
         => Check("pbmMerged", Def(600, Pbm("660nm", 100), Pbm("808nm", 200)));
 
+    // @verifies REQ-FWHUB-31
     [Fact]
     public void ClinicianSelectedSockets()
         => Check("pbmClin", Def(600, Pbm("808nm", 100, new PbmTarget.ClinicianSelected(), hz: 0, duty: 100)));
 
+    // @verifies REQ-FWHUB-08
     [Fact]
     public void T1Modalities()
     {
@@ -126,6 +131,7 @@ public class HubDescriptorCompilerTests
         Check("visual", Def(600, Mod(new NPModalityParams.VisualStimulation(new VisualStimParams { EmdrCadenceHz = 1.5 }))));
     }
 
+    // @verifies REQ-FWHUB-08
     [Fact]
     public void T2Modalities()
     {
@@ -142,6 +148,7 @@ public class HubDescriptorCompilerTests
         Assert.True(Build(Def(600, Mod(new NPModalityParams.CervicalVns(new CervicalVnsParams())))).IsT2);
     }
 
+    // @verifies REQ-FWHUB-08
     [Fact]
     public void IntervalsExpandToOnAndStopAndBlockStartShiftsTheSchedule()
         => Check("interval", Def(100,
@@ -152,6 +159,7 @@ public class HubDescriptorCompilerTests
                 { IntensityMilliamps = 1, ElectrodePairs = [["F3", "F4"]], RampSeconds = 45, ElectrodeAreaCm2 = 10 }),
                 new NPIntervalConfig { StartOffsetSeconds = 30 })));
 
+    // @verifies DI-SAFE-06
     [Fact]
     public void SignatureCoversTheRawRegionAndLandsInTheLast64Bytes()
     {
@@ -167,11 +175,13 @@ public class HubDescriptorCompilerTests
         Assert.Equal("fp", d.PublicKeyFingerprint);
     }
 
+    // @verifies DI-SAFE-06
     [Fact]
     public void AWrongLengthSignatureIsRefused()
         => Assert.Throws<HubCompileException>(() =>
             HubDescriptorCompiler.Compile(Def(600, Pbm("808nm", 100)), sign: _ => (new byte[63], "fp")));
 
+    // @verifies REQ-FWHUB-08
     [Fact]
     public void DeviceSerialIsTheReplayGuard()
     {
@@ -180,6 +190,7 @@ public class HubDescriptorCompilerTests
         Assert.Equal(serial, blob[28..60]);
     }
 
+    // @verifies REQ-FWHUB-08
     [Fact]
     public void HubSerialIsThirtyTwoBytesOrNothing()
     {
@@ -194,6 +205,7 @@ public class HubDescriptorCompilerTests
         Assert.Equal(new Guid("4E455550-0017-1000-8000-00805F9B34FB"), new Guid(GattUuidStrings.DEVICE_SERIAL_ID));
     }
 
+    // @verifies REQ-FWHUB-08
     [Fact]
     public void HeaderMagicAndAutonomousFlag()
     {
@@ -203,6 +215,7 @@ public class HubDescriptorCompilerTests
         Assert.Equal(0b10, Build(Def(600, Pbm("808nm", 100)), autonomous: true).Blob[6]);
     }
 
+    // @verifies REQ-NPPS-04
     [Fact]
     public void RefusalsNameTheProblemAndNeverReshape()
     {
@@ -226,6 +239,7 @@ public class HubDescriptorCompilerTests
             new NPIntervalConfig { IntervalOnSeconds = 10, IntervalOffSeconds = 10 }))));
     }
 
+    // @verifies REQ-NPPS-04
     [Fact]
     public void TheProbeRefusalReadsLikeUnmapped()
     {
@@ -235,6 +249,7 @@ public class HubDescriptorCompilerTests
             "Intranasal PBM cannot be delivered on led_1064: 1064nm maps to a channel it does not carry.", e.Message);
     }
 
+    // @verifies REQ-FWHUB-31
     [Fact]
     public void TheTargetBlockCarriesTheResolvedMask()
     {
@@ -248,6 +263,7 @@ public class HubDescriptorCompilerTests
         Assert.Equal(new[] { 72, 73, 74, 77, 78 }, ids);
     }
 
+    // @verifies REQ-FWHUB-31
     [Fact]
     public void ZoneBlocksParseFromNppsText()
     {

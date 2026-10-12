@@ -15,6 +15,7 @@ import type {
 // ─── Zone definitions ──────────────────────────────────────────────────────────
 
 describe('zone blocks', () => {
+  // @verifies REQ-NPPS-17
   it('parses a socket-list zone with a stable id (predefined)', () => {
     const { zones } = parseNPPSFile('zone "Frontal Left" { id: "z1" sockets: [1, 2, 4, 5] }');
     expect(zones).toHaveLength(1);
@@ -22,6 +23,7 @@ describe('zone blocks', () => {
     expect(zones[0].isPredefined).toBe(true);
   });
 
+  // @verifies REQ-NPPS-17
   it('parses an arbitrary, non-contiguous socket-list zone', () => {
     const { zones } = parseNPPSFile('zone "Scattered" { sockets: [3, 17, 25] }');
     expect(zones[0].sockets).toEqual([3, 17, 25]);
@@ -30,11 +32,13 @@ describe('zone blocks', () => {
 
   // ── Socket-id range enforcement (numbering base is 1, count is derived) ──────
 
+  // @verifies REQ-NPPS-17
   it('rejects a socket id past the end of the lattice', () => {
     expect(() => parseNPPSFile(`zone "Too far" { sockets: [1, ${NP_SOCKET_ID_MAX + 1}] }`))
       .toThrow(/is not a socket on this helmet/);
   });
 
+  // @verifies REQ-NPPS-17
   it('rejects socket id 0 — ids are 1-based, not 0-based', () => {
     // The numbering base was documented and then not enforced, so `[0, 1, 2]`
     // parsed happily and addressed a socket that does not exist.
@@ -42,6 +46,7 @@ describe('zone blocks', () => {
       .toThrow(/is not a socket on this helmet/);
   });
 
+  // @verifies REQ-NPPS-17
   it('rejects negative and fractional socket ids', () => {
     expect(() => parseNPPSFile('zone "Negative" { sockets: [-1] }'))
       .toThrow(/is not a socket on this helmet/);
@@ -49,6 +54,7 @@ describe('zone blocks', () => {
       .toThrow(/is not a socket on this helmet/);
   });
 
+  // @verifies REQ-NPPS-17
   it('rejects values that only LOOK numeric to Number()', () => {
     // Bare Number() maps true->1, [5]->5, '0x10'->16, '1e1'->10, and the lexer
     // admits booleans, identifiers and nested arrays into a generic array — so
@@ -66,6 +72,7 @@ describe('zone blocks', () => {
     }
   });
 
+  // @verifies REQ-NPPS-17
   it('accepts a quoted decimal, which is unambiguous', () => {
     // Deliberate: a plain decimal in quotes names exactly one socket, and the
     // same coercion serves the config UI's text box. Only values that need
@@ -73,23 +80,27 @@ describe('zone blocks', () => {
     expect(parseNPPSFile('zone "Quoted" { sockets: ["4"] }').zones[0].sockets).toEqual([4]);
   });
 
+  // @verifies REQ-NPPS-17
   it('quotes the offending token rather than reporting NaN', () => {
     // "socket NaN is not on this helmet" named nothing the author could find.
     expect(() => parseNPPSFile('zone "Bad" { sockets: [banana] }'))
       .toThrow(/banana/);
   });
 
+  // @verifies REQ-NPPS-17
   it('names the offending id and the valid range in the error', () => {
     const bad = NP_SOCKET_ID_MAX + 5;
     expect(() => parseNPPSFile(`zone "Bad" { sockets: [${bad}] }`))
       .toThrow(new RegExp(`${bad}.*${NP_SOCKET_ID_MIN}.*${NP_SOCKET_ID_MAX}`));
   });
 
+  // @verifies REQ-NPPS-17
   it('accepts both ends of the valid range', () => {
     const src = `zone "Ends" { sockets: [${NP_SOCKET_ID_MIN}, ${NP_SOCKET_ID_MAX}] }`;
     expect(parseNPPSFile(src).zones[0].sockets).toEqual([NP_SOCKET_ID_MIN, NP_SOCKET_ID_MAX]);
   });
 
+  // @verifies REQ-NPPS-17
   it('deduplicates and sorts a zone socket list', () => {
     // A zone is a SET. A repeated socket would otherwise inflate coverage
     // denominators and get dosed twice by any per-socket iteration.
@@ -97,6 +108,7 @@ describe('zone blocks', () => {
     expect(zones[0].sockets).toEqual([1, 3, 5]);
   });
 
+  // @verifies REQ-NPPS-17
   it('parses a socket-list zone with an element-type filter', () => {
     const { zones } = parseNPPSFile(
       'zone "Frontal LEDs" { sockets: [3, 4] types: [led_660, led_808] }'
@@ -105,6 +117,7 @@ describe('zone blocks', () => {
     expect(zones[0].types).toEqual(['led_660', 'led_808']);
   });
 
+  // @verifies REQ-NPPS-16
   it('refuses to serialize a zone the parser would reject', () => {
     // The write path must enforce the read path's contract, or the app emits a
     // .npps file it cannot load back.
@@ -112,6 +125,7 @@ describe('zone blocks', () => {
       .toThrow(/cannot serialize zone "Bad"/);
   });
 
+  // @verifies REQ-NPPS-17
   it('canonicalises sockets on serialize, so output always re-parses', () => {
     const out = serializeZone({ name: 'Messy', sockets: [5, 3, 5, 1] });
     expect(out).toContain('sockets: [1, 3, 5]');
@@ -131,6 +145,7 @@ describe('zone blocks', () => {
 // ─── Condition definitions ──────────────────────────────────────────────────────
 
 describe('condition blocks', () => {
+  // @verifies REQ-NPPS-16
   it('parses a condition name → link pair', () => {
     const { conditions } = parseNPPSFile(
       'condition "Major Depressive Disorder" { link: "https://en.wikipedia.org/wiki/Major_depressive_disorder" code: "6A70" }'
@@ -142,6 +157,7 @@ describe('condition blocks', () => {
     });
   });
 
+  // @verifies REQ-NPPS-16
   it('round-trips a condition through the serializer', () => {
     const { conditions } = parseNPPSFile('condition "Anxiety" { link: "https://x/anxiety" }');
     const out = serializeCondition(conditions[0]);
@@ -177,10 +193,12 @@ protocol "Depression DLPFC" {
 describe('protocol conditions, references, and zone refs', () => {
   const proto = (parseNPPS(PROTO_WITH_REFS)[0] as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
 
+  // @verifies REQ-NPPS-16
   it('parses the conditions list', () => {
     expect(proto.conditions).toEqual(['Major Depressive Disorder']);
   });
 
+  // @verifies REQ-NPPS-16
   it('parses bare and labelled references', () => {
     expect(proto.references).toEqual([
       'https://doi.org/10.1000/plain',
@@ -188,12 +206,14 @@ describe('protocol conditions, references, and zone refs', () => {
     ]);
   });
 
+  // @verifies REQ-NPPS-16
   it('parses zones as named references', () => {
     const pbm = proto.modalities[0].modalityParams.params as PBMTranscranialParams;
     expect(pbm.zones).toBe('named');
     expect(pbm.zoneRefs).toEqual(['Left Frontal', 'Right Frontal']);
   });
 
+  // @verifies REQ-NPPS-16
   it('round-trips conditions, references, and zone refs', () => {
     const out = serializeProtocol({ kind: 'single', protocol: proto });
     const proto2 = (parseNPPS(out)[0] as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
@@ -203,6 +223,7 @@ describe('protocol conditions, references, and zone refs', () => {
     expect(pbm2.zoneRefs).toEqual(['Left Frontal', 'Right Frontal']);
   });
 
+  // @verifies REQ-NPPS-08
   it('rejects the retired keyword zone selectors outright', () => {
     // Not "parses but refuses to resolve" — there are no existing users, so the
     // five-slot forms are gone from the grammar entirely.
@@ -213,6 +234,7 @@ describe('protocol conditions, references, and zone refs', () => {
     }
   });
 
+  // @verifies REQ-NPPS-17
   it('rejects a numeric zone list', () => {
     expect(() => parseNPPS(
       'protocol "L" { id: "x" pbm_transcranial { zones: [1, 2] wavelength: \"808nm\" irradiance: 300mW_cm2 } }'
@@ -223,6 +245,7 @@ describe('protocol conditions, references, and zone refs', () => {
 // ─── Single namespace across files ──────────────────────────────────────────────
 
 describe('single namespace and reference validation', () => {
+  // @verifies REQ-NPPS-08
   it('resolves zones and conditions defined in a separate file', () => {
     const defsFile = parseNPPSFile(`
       zone "Left Frontal" { id: "zf-l" sockets: [1, 2, 4, 5] }
@@ -293,6 +316,7 @@ describe('single namespace and reference validation', () => {
     expect(refErrors.some(e => e.includes("undefined zone 'Left Frontal'"))).toBe(true);
   });
 
+  // @verifies REQ-NPPS-08
   it('a third definition cannot re-bind a name already known to collide', () => {
     const a = parseNPPSFile('zone "Z" { sockets: [1] }');
     const b = parseNPPSFile('zone "Z" { sockets: [2] }');
