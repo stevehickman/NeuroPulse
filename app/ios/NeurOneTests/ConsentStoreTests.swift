@@ -475,6 +475,93 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertTrue(reloaded.researchConsent.blanketConsentWithdrawn)
     }
 
+    // MARK: - Withdrawal is permanent for every data period (REQ-CONSENT-13)
+    //
+    // The device has the admission gate and nothing past it: no extract is generated or sent yet
+    // (OI-CONSENT-07). So these pin what exists, which is the half that matters first: once a
+    // user has withdrawn, nothing a study says about itself (its issue date, its categories, the
+    // elements it asks for) gets it past the gate.
+
+    /// A descriptor carries no "data period" the gate could be talked into: the only date on it is
+    /// when it was issued. So withdrawal must hold for a study issued long before, just before or
+    /// long after the withdrawal, which are the sessions that predate it and the ones that follow.
+    // @verifies REQ-CONSENT-13#a
+    func testBlanketWithdrawalRefusesEveryStudyWhateverItsDateOrScope() {
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
+                              consent: blanketConsent)
+        XCTAssertEqual(store.ingestStudyDescriptor(makeDescriptor()),
+                       .admitted(posture: .engagementNotification, descriptorHash: descriptorHash))
+        store.withdrawBlanketResearchConsent()
+
+        let day: TimeInterval = 86_400
+        let issued = [Date(timeIntervalSince1970: 1_577_836_800),   // 2020-01-01
+                      Date().addingTimeInterval(-day),
+                      Date().addingTimeInterval(30 * day)]
+        for (i, date) in issued.enumerated() {
+            var d = makeDescriptor(categories: ResearchCategory.allCases,
+                                   elements: Set(UHDRElement.allCases))
+            d.studyID = "AFTER-WITHDRAWAL-\(i)"
+            d.issuedAt = date
+            XCTAssertEqual(store.ingestStudyDescriptor(d), .refused(.researchConsentWithdrawn),
+                           "a study issued \(date) must not be processed after withdrawal")
+        }
+        XCTAssertEqual(store.pendingInvitations.count, 1, "no invitation was created after withdrawal")
+        XCTAssertEqual(store.studyParticipations.count, 1, "and no participation was recorded")
+    }
+
+    /// The study the user had already joined is no exception: withdrawal outranks "already joined",
+    /// so a re-issued descriptor for it is refused as withdrawn, not quietly treated as known.
+    // @verifies REQ-CONSENT-13#a
+    func testWithdrawalAlsoRefusesAReissueOfAStudyAlreadyJoined() {
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
+                              consent: blanketConsent)
+        store.ingestStudyDescriptor(makeDescriptor())
+        store.withdrawBlanketResearchConsent()
+
+        var reissued = makeDescriptor(elements: Set(UHDRElement.allCases))
+        reissued.issuedAt = Date().addingTimeInterval(86_400)
+        XCTAssertEqual(store.ingestStudyDescriptor(reissued), .refused(.researchConsentWithdrawn))
+    }
+
+    /// Permanent means across a relaunch too: the refusal comes from persisted state, not from
+    /// anything held in memory.
+    // @verifies REQ-CONSENT-13#a
+    func testWithdrawalStillRefusesEveryStudyAfterARelaunch() {
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
+                              consent: blanketConsent)
+        store.withdrawBlanketResearchConsent()
+
+        // A fresh store over the same persisted state, with a verifier that accepts everything,
+        // so the only thing standing between the descriptor and the user is the withdrawal.
+        let reloaded = ConsentStore(
+            descriptorVerifier: StubVerifier(result: .verified(descriptorHash: descriptorHash)))
+        var old = makeDescriptor()
+        old.issuedAt = Date(timeIntervalSince1970: 1_577_836_800)
+        XCTAssertEqual(reloaded.ingestStudyDescriptor(old), .refused(.researchConsentWithdrawn))
+        XCTAssertEqual(reloaded.ingestStudyDescriptor(makeDescriptor()), .refused(.researchConsentWithdrawn))
+    }
+
+    /// Withdrawing from one study is permanent for that study: a re-issue that is newer and asks
+    /// for more is still the study the user left.
+    // @verifies REQ-CONSENT-13#b
+    func testWithdrawnStudyStaysWithdrawnWhateverTheReissueSays() {
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash),
+                              consent: categoryConsent)
+        store.ingestStudyDescriptor(makeDescriptor())
+        store.acceptInvitation(studyID: studyID)
+        store.withdrawFromStudy(studyID: studyID)
+        XCTAssertFalse(store.studyParticipations[0].isActive)
+
+        var reissued = makeDescriptor(elements: Set(UHDRElement.allCases))
+        reissued.issuedAt = Date().addingTimeInterval(30 * 86_400)
+        XCTAssertEqual(store.ingestStudyDescriptor(reissued), .refused(.studyAlreadyDecided))
+
+        let reloaded = ConsentStore(
+            descriptorVerifier: StubVerifier(result: .verified(descriptorHash: descriptorHash)))
+        XCTAssertEqual(reloaded.ingestStudyDescriptor(reissued), .refused(.studyAlreadyDecided))
+        XCTAssertFalse(reloaded.studyParticipations[0].isActive)
+    }
+
     /// The §5.3 audit trail names a descriptor. It used to record the literal string "pending",
     /// because there was no descriptor to hash.
     func testTheParticipationRecordCarriesTheDescriptorHash() {

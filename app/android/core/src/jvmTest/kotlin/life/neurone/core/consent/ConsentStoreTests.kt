@@ -546,6 +546,114 @@ class ConsentStoreTests {
         assertTrue(reloaded.researchConsent.blanketConsentWithdrawn)
     }
 
+    // ── Withdrawal is permanent for every data period (REQ-CONSENT-13) ───
+    //
+    // The device has the admission gate and nothing past it: no extract is generated or sent yet
+    // (OI-CONSENT-07). These pin what exists: once a user has withdrawn, nothing a study says about
+    // itself (its issue date, its categories, the elements it asks for) gets it past the gate.
+
+    /**
+     * A descriptor carries no "data period" the gate could be talked into: the only date on it is
+     * when it was issued. Withdrawal must hold for a study issued long before, just before or long
+     * after the withdrawal, which are the sessions that predate it and the ones that follow.
+     */
+    // @verifies REQ-CONSENT-13#a
+    @Test
+    fun blanketWithdrawalRefusesEveryStudyWhateverItsDateOrScope() {
+        val (store, _) = ingestingStore(consent = blanketConsent())
+        assertIs<StudyDescriptorAdmission.Admitted>(store.ingestStudyDescriptor(descriptor()))
+        store.withdrawBlanketResearchConsent()
+
+        val today = LocalDate.now()
+        val issued = listOf("2020-01-01", today.minusDays(1).toString(), today.plusDays(30).toString())
+        issued.forEachIndexed { i, day ->
+            val d = descriptor(
+                categories = ResearchCategory.entries,
+                elements = UHDRElement.entries.toSet(),
+            ).copy(studyId = "AFTER-WITHDRAWAL-$i", issuedOnDay = day)
+            assertEquals(
+                StudyDescriptorAdmission.Reason.RESEARCH_CONSENT_WITHDRAWN,
+                refusalOf(store.ingestStudyDescriptor(d)),
+                "a study issued $day must not be processed after withdrawal",
+            )
+        }
+        assertEquals(1, store.pendingInvitations.size, "no invitation was created after withdrawal")
+        assertEquals(1, store.studyParticipations.size, "and no participation was recorded")
+    }
+
+    /**
+     * The study the user had already joined is no exception: withdrawal outranks "already joined",
+     * so a re-issued descriptor for it is refused as withdrawn, not quietly treated as known.
+     */
+    // @verifies REQ-CONSENT-13#a
+    @Test
+    fun withdrawalAlsoRefusesAReissueOfAStudyAlreadyJoined() {
+        val (store, _) = ingestingStore(consent = blanketConsent())
+        store.ingestStudyDescriptor(descriptor())
+        store.withdrawBlanketResearchConsent()
+
+        val reissued = descriptor(elements = UHDRElement.entries.toSet())
+            .copy(issuedOnDay = LocalDate.now().plusDays(1).toString())
+        assertEquals(
+            StudyDescriptorAdmission.Reason.RESEARCH_CONSENT_WITHDRAWN,
+            refusalOf(store.ingestStudyDescriptor(reissued)),
+        )
+    }
+
+    /** Permanent means across a relaunch too: the refusal comes from persisted state. */
+    // @verifies REQ-CONSENT-13#a
+    @Test
+    fun withdrawalStillRefusesEveryStudyAfterARelaunch() {
+        val (store, kv) = ingestingStore(consent = blanketConsent())
+        store.withdrawBlanketResearchConsent()
+
+        // A fresh store over the same persisted state, with a verifier that accepts everything, so
+        // the only thing between the descriptor and the user is the withdrawal.
+        val reloaded = ConsentStore(
+            kv, ResearchAnalyticsGate(kv, RecordingBackend()),
+            descriptorVerifier = { StudyDescriptorVerification.Verified(HASH) },
+        )
+        assertEquals(
+            StudyDescriptorAdmission.Reason.RESEARCH_CONSENT_WITHDRAWN,
+            refusalOf(reloaded.ingestStudyDescriptor(descriptor().copy(issuedOnDay = "2020-01-01"))),
+        )
+        assertEquals(
+            StudyDescriptorAdmission.Reason.RESEARCH_CONSENT_WITHDRAWN,
+            refusalOf(reloaded.ingestStudyDescriptor(descriptor())),
+        )
+    }
+
+    /**
+     * Withdrawing from one study is permanent for that study: a re-issue that is newer and asks
+     * for more is still the study the user left.
+     */
+    // @verifies REQ-CONSENT-13#b
+    @Test
+    fun withdrawnStudyStaysWithdrawnWhateverTheReissueSays() {
+        val (store, kv) = ingestingStore()
+        store.ingestStudyDescriptor(descriptor())
+        store.acceptInvitation(STUDY_ID)
+        store.withdrawFromStudy(STUDY_ID)
+        assertFalse(store.studyParticipations[0].isActive)
+
+        val reissued = descriptor(elements = UHDRElement.entries.toSet())
+            .copy(issuedOnDay = LocalDate.now().plusDays(30).toString())
+        assertEquals(
+            StudyDescriptorAdmission.Reason.STUDY_ALREADY_DECIDED,
+            refusalOf(store.ingestStudyDescriptor(reissued)),
+        )
+
+        val reloaded = ConsentStore(
+            kv, ResearchAnalyticsGate(kv, RecordingBackend()),
+            descriptorVerifier = { StudyDescriptorVerification.Verified(HASH) },
+        )
+        assertEquals(
+            StudyDescriptorAdmission.Reason.STUDY_ALREADY_DECIDED,
+            refusalOf(reloaded.ingestStudyDescriptor(reissued)),
+        )
+        assertFalse(reloaded.studyParticipations[0].isActive)
+    }
+
     /**
      * The §5.3 audit trail names a descriptor. It used to record the literal string "pending",
      * because there was no descriptor to hash.

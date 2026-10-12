@@ -32,6 +32,12 @@
       "d": "Enable GPIO low < 100 ms from detection",
       "e": "30 s lockout before re-enable",
       "f": "App confirmation and repeat impedance before re-enable"
+    },
+    "REQ-CONSENT-13": {
+      "a": "After blanket withdrawal the device processes no study descriptor, whatever its issue date, categories or elements",
+      "b": "After withdrawing from a study, that study is never processed again, whatever a re-issue says",
+      "c": "No further extract is generated or transmitted for any data period, including sessions that predate the withdrawal (not built)",
+      "d": "Results notifications for studies already joined continue and carry no new data (not built)"
     }
   },
   "nonTest": {
