@@ -32,6 +32,7 @@ class NPZoneCautionTests {
     )
 
     // @verifies REQ-NPPS-21
+    // @verifies SWR-SS-02#c
     @Test fun parseListsOnlyAnAxisInItsCautionBand() {
         val zones = Json.parseToJsonElement(
             """[{"index":1,"modality":"tdcs","zone":"caution","axes":[

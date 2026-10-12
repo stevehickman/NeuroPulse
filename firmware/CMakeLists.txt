@@ -410,6 +410,12 @@ if(NP_BUILD_TESTS)
         COMMAND np_stim_xcheck_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    # REQ-FWHUB-11 / -17 / -18: heartbeat session_status, requested mask and
+    # the session-signature command frame.
+    add_test(NAME np_safety_spi_tests
+        COMMAND np_safety_spi_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     add_test(NAME np_log_backend_tests
         COMMAND np_log_backend_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})

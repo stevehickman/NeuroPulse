@@ -81,6 +81,7 @@ B np_protocol_tests
 B np_session_lease_tests
 B np_pbm_socket_telem_tests
 B np_socket_dispatch_tests
+B np_safety_spi_tests
 B np_stim_xcheck_tests
 B np_transport_tests
 B np_uhdr_key_tests

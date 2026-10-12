@@ -324,6 +324,46 @@ static void test_build_config_electrode_map(void)
     check(c.electrode_config == 0U, "config: invalid side → bilateral (fail-safe)");
 }
 
+/* REQ-FWHUB-23: a descriptor that asks to skip the cardiac baseline is
+ * ignored. The same command with baseline_req 0 and 1 builds the same
+ * configuration, leaves IDLE the same way, and requests no enable before the
+ * library reports delivery. */
+/* @verifies REQ-FWHUB-23#a,b */
+static void test_baseline_is_not_waivable_by_the_descriptor(void)
+{
+    np_mod_cvns_params_t p0 = make_params();
+    np_mod_cvns_params_t p1 = make_params();
+    p0.baseline_req = 0U;
+    p1.baseline_req = 1U;
+
+    check(NP_CVNS_PPG_SAMPLE_RATE_HZ == 200U,
+          "baseline: the PPG rate the Pan-Tompkins constants assume is pinned (and asserted at build)");
+
+    np_cvns_session_config_t c0, c1;
+    memset(&c0, 0, sizeof(c0)); memset(&c1, 0, sizeof(c1));
+    np_mod_cvns_build_config(&p0, &c0);
+    np_mod_cvns_build_config(&p1, &c1);
+    check(memcmp(&c0, &c1, sizeof(c0)) == 0,
+          "baseline: baseline_req 0 and 1 build the same library configuration");
+
+    np_cvns_stage_t stage[2];
+    int enables[2];
+    const np_mod_cvns_params_t *ps[2] = { &p0, &p1 };
+    for (int i = 0; i < 2; i++) {
+        reset_mocks();
+        np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+        np_mod_cvns_control(NP_HUB_SLOT_CVNS, ps[i], sizeof(*ps[i]));
+        for (uint32_t t = 0; t < 500U; t += 100U) {
+            np_mod_cvns_tick(t, g_now_unix);
+        }
+        stage[i]   = np_cvns_session_stage(np_mod_cvns_test_session());
+        enables[i] = g_enable_calls;
+    }
+    check(stage[0] == stage[1], "baseline: the session reaches the same stage either way");
+    check(enables[0] == 0 && enables[1] == 0,
+          "baseline: neither requests the unified enable before delivery");
+}
+
 /* @verifies REQ-FWHUB-59 */
 static void test_control_invalid_len(void)
 {
@@ -913,6 +953,7 @@ int main(void)
     test_build_config_current_pw();
     test_build_config_electrode_map();
     test_control_invalid_len();
+    test_baseline_is_not_waivable_by_the_descriptor();
     test_control_start_no_immediate_enable();
     test_tick_pre_delivery_no_enable();
     test_enable_asserted_when_delivering();

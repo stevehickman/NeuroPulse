@@ -2,11 +2,16 @@ package life.neurone.app.data
 
 import life.neurone.core.analytics.WarrantyAnalyticsGate
 import life.neurone.core.common.InMemoryKeyValueStore
+import java.io.ByteArrayInputStream
+import java.security.cert.CertificateFactory
+import java.security.cert.X509Certificate
+import javax.net.ssl.SSLPeerUnverifiedException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -123,5 +128,55 @@ class ShdrUploaderTests {
         ) { invoked = true }
 
         assertFalse(invoked, "no staged payload → no upload attempt")
+    }
+    // ── REQ-SHDR-04: the upload endpoint is pinned ─────────────────────────────────────────────────────────────
+    //
+    // The default client is private, so these read it by reflection rather than widen its visibility for a test.
+    // The certificate below is a throwaway self-signed one (CN=not-the-fleet.test); it has never been the fleet's.
+
+    private val strangerPem = """
+-----BEGIN CERTIFICATE-----
+MIIBkTCCATegAwIBAgIUIU/Su4YjinPNDpP72jdOaBtrlQgwCgYIKoZIzj0EAwIw
+HTEbMBkGA1UEAwwSbm90LXRoZS1mbGVldC50ZXN0MCAXDTI2MTAxMjE3MTIyNFoY
+DzIxMjYwOTE4MTcxMjI0WjAdMRswGQYDVQQDDBJub3QtdGhlLWZsZWV0LnRlc3Qw
+WTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAS2BAjYUDfS/D7Bj7y9MrVmtaCojUYn
+0Hi+z2L/YrKwsSiRL8L1r997SACopH0RUV6ECiwhDeP4G4FjiLjlCkJyo1MwUTAd
+BgNVHQ4EFgQUpGUNrUPzMKaeeyWeb5Oc7tc5DjIwHwYDVR0jBBgwFoAUpGUNrUPz
+MKaeeyWeb5Oc7tc5DjIwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNIADBF
+AiEAkV1niWk0BONCofAdY2IKBDbMQHweNT4OZyHI28iOUzYCIBcF0K2bT93UklQ0
+DQe5uIuf3oUzoLfX59gNvtxE5zZD
+-----END CERTIFICATE-----
+    """.trimIndent()
+
+    private fun stranger(): X509Certificate =
+        CertificateFactory.getInstance("X.509")
+            .generateCertificate(ByteArrayInputStream(strangerPem.toByteArray())) as X509Certificate
+
+    private fun defaultPinner(): okhttp3.CertificatePinner {
+        val f = ShdrUploader::class.java.getDeclaredField("client").apply { isAccessible = true }
+        return (f.get(uploader(FakeTokenStore())) as okhttp3.OkHttpClient).certificatePinner
+    }
+
+    /** The pinned set as the uploader defines it (a private companion value, read by reflection). */
+    @Suppress("UNCHECKED_CAST")
+    private fun pinnedSet(): List<String> =
+        ShdrUploader::class.java.getDeclaredField("PINNED_SPKI_HASHES")
+            .apply { isAccessible = true }.get(null) as List<String>
+
+    // @verifies REQ-SHDR-04#a
+    @Test
+    fun theFleetHostHasAPrimaryAndAtLeastOneDistinctBackupPin() {
+        val pins = pinnedSet()
+        assertTrue(pins.size >= 2, "expected a primary and a backup pin, found $pins")
+        assertEquals(pins.size, pins.toSet().size, "the pins are distinct")
+        assertTrue(pins.all { it.startsWith("sha256/") }, "every pin is an SPKI SHA-256: $pins")
+    }
+
+    // @verifies REQ-SHDR-04#b
+    @Test
+    fun aLeafWhoseKeyIsNotPinnedIsRefusedForTheFleetHost() {
+        assertFailsWith<SSLPeerUnverifiedException> {
+            defaultPinner().check(ShdrUploader.FLEET_HOST, listOf(stranger()))
+        }
     }
 }

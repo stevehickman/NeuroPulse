@@ -35,6 +35,7 @@ fn a_protocol_inside_every_boundary_is_safe_and_compiles_without_a_word() {
 }
 
 // @verifies REQ-NPPS-21
+// @verifies SWR-SS-02#a,b
 #[test]
 fn caution_compiles_only_for_the_acknowledgement_of_that_dose() {
     let def = tacs_1hz(1.0);
