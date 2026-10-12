@@ -48,7 +48,7 @@ extern np_hub_status_t np_mod_cvns_init(uint8_t slot);
 extern np_hub_status_t np_mod_cvns_control(uint8_t slot, const void *params, uint16_t len);
 extern np_hub_status_t np_mod_cvns_telemetry(uint8_t slot, np_telem_record_t *out);
 extern np_hub_status_t np_mod_cvns_shutdown(uint8_t slot);
-extern void            np_mod_cvns_build_config(const np_mod_cvns_params_t *p,
+extern np_hub_status_t np_mod_cvns_build_config(const np_mod_cvns_params_t *p,
                                                 np_cvns_session_config_t   *out);
 extern void            np_mod_cvns_tick(uint32_t now_ms, uint32_t now_s);
 extern void            np_mod_cvns_push_ppg(uint32_t sample, uint32_t timestamp_ms);
@@ -256,72 +256,125 @@ static void test_init(void)
     check(g_enable_calls == 0, "init: no enable requested");
 }
 
-/* @verifies REQ-FWHUB-59 */
+/* An out-of-range value is refused, never reshaped: the status is
+ * NP_HUB_ERR_INVALID_ARG and the configuration is zeroed. */
+static bool refused(const np_mod_cvns_params_t *p)
+{
+    np_cvns_session_config_t c;
+    memset(&c, 0xA5, sizeof(c));
+    const np_hub_status_t rc = np_mod_cvns_build_config(p, &c);
+    np_cvns_session_config_t zero;
+    memset(&zero, 0, sizeof(zero));
+    return rc == NP_HUB_ERR_INVALID_ARG && memcmp(&c, &zero, sizeof(c)) == 0;
+}
+
+/* @verifies REQ-FWHUB-59, REQ-NPPS-23 */
 static void test_build_config_frequency(void)
 {
     np_mod_cvns_params_t p = make_params();
     np_cvns_session_config_t c;
 
-    p.freq_mhz = 25000U;  np_mod_cvns_build_config(&p, &c);
-    check(c.freq_hz == 25U, "config: 25000 mHz → 25 Hz");
+    p.freq_mhz = 25000U;
+    check(np_mod_cvns_build_config(&p, &c) == NP_HUB_OK && c.freq_hz == 25U,
+          "config: 25000 mHz → 25 Hz");
 
-    p.freq_mhz = 40000U;  np_mod_cvns_build_config(&p, &c);
-    check(c.freq_hz == 25U, "config: 40000 mHz clamps to 25 Hz max");
+    p.freq_mhz = 1000U;
+    check(np_mod_cvns_build_config(&p, &c) == NP_HUB_OK && c.freq_hz == 1U,
+          "config: 1000 mHz → 1 Hz");
 
-    p.freq_mhz = 0U;      np_mod_cvns_build_config(&p, &c);
-    check(c.freq_hz == 1U, "config: 0 mHz clamps to 1 Hz min");
+    p.freq_mhz = 40000U;  check(refused(&p), "config: 40000 mHz is refused, not clamped to 25 Hz");
+    p.freq_mhz = 25001U;  check(refused(&p), "config: 25001 mHz is refused");
+    p.freq_mhz = 0U;      check(refused(&p), "config: 0 mHz is refused, not clamped to 1 Hz");
+    p.freq_mhz = 999U;    check(refused(&p), "config: 999 mHz is refused");
 
-    p.freq_mhz = 10400U;  np_mod_cvns_build_config(&p, &c);
-    check(c.freq_hz == 10U, "config: 10400 mHz rounds to 10 Hz");
+    p.freq_mhz = 10400U;
+    check(np_mod_cvns_build_config(&p, &c) == NP_HUB_OK && c.freq_hz == 10U,
+          "config: 10400 mHz rounds to 10 Hz");
 
-    p.freq_mhz = 10500U;  np_mod_cvns_build_config(&p, &c);
-    check(c.freq_hz == 11U, "config: 10500 mHz rounds to 11 Hz");
+    p.freq_mhz = 10500U;
+    check(np_mod_cvns_build_config(&p, &c) == NP_HUB_OK && c.freq_hz == 11U,
+          "config: 10500 mHz rounds to 11 Hz");
 }
 
-/* @verifies REQ-FWHUB-59 */
+/* @verifies REQ-FWHUB-59, REQ-NPPS-23 */
 static void test_build_config_current_pw(void)
 {
     np_mod_cvns_params_t p = make_params();
     np_cvns_session_config_t c;
 
-    p.amplitude_ua = 5000U; np_mod_cvns_build_config(&p, &c);
-    check(c.current_ua == NP_CVNS_CURRENT_UA_MAX, "config: 5000 µA clamps to 2000 µA");
+    p.amplitude_ua = 5000U; check(refused(&p), "config: 5000 µA is refused, not clamped to 2000 µA");
+    p.amplitude_ua = NP_CVNS_CURRENT_UA_MAX + 1U;
+    check(refused(&p), "config: 2001 µA is refused");
 
-    p.amplitude_ua = 1500U; np_mod_cvns_build_config(&p, &c);
-    check(c.current_ua == 1500U, "config: 1500 µA passes through");
+    p.amplitude_ua = NP_CVNS_CURRENT_UA_MAX;
+    check(np_mod_cvns_build_config(&p, &c) == NP_HUB_OK && c.current_ua == NP_CVNS_CURRENT_UA_MAX,
+          "config: 2000 µA passes through");
+
+    p.amplitude_ua = 1500U;
+    check(np_mod_cvns_build_config(&p, &c) == NP_HUB_OK && c.current_ua == 1500U,
+          "config: 1500 µA passes through");
 
     /* pulse_width_us is uint16_t in the wire protocol — the full clinical
-     * 200–1000 µs range is expressible and clamped at both ends. */
+     * 200–1000 µs range is expressible; both ends are refused outside it. */
     p = make_params();
-    p.pulse_width_us = 0U;    np_mod_cvns_build_config(&p, &c);
-    check(c.pulse_width_us == 250U, "config: pw 0 → 250 µs default");
+    p.pulse_width_us = 0U;
+    check(np_mod_cvns_build_config(&p, &c) == NP_HUB_OK && c.pulse_width_us == 250U,
+          "config: pw 0 → 250 µs default");
 
-    p.pulse_width_us = 100U;  np_mod_cvns_build_config(&p, &c);
-    check(c.pulse_width_us == NP_CVNS_PULSE_WIDTH_US_MIN, "config: pw 100 clamps to 200 µs");
+    p.pulse_width_us = 100U;  check(refused(&p), "config: pw 100 is refused, not clamped to 200 µs");
+    p.pulse_width_us = 199U;  check(refused(&p), "config: pw 199 is refused");
 
-    p.pulse_width_us = 600U;  np_mod_cvns_build_config(&p, &c);
-    check(c.pulse_width_us == 600U, "config: pw 600 passes through in-range");
+    p.pulse_width_us = 600U;
+    check(np_mod_cvns_build_config(&p, &c) == NP_HUB_OK && c.pulse_width_us == 600U,
+          "config: pw 600 passes through in-range");
 
-    p.pulse_width_us = 3000U; np_mod_cvns_build_config(&p, &c);
-    check(c.pulse_width_us == NP_CVNS_PULSE_WIDTH_US_MAX, "config: pw 3000 clamps to 1000 µs");
+    p.pulse_width_us = 1000U;
+    check(np_mod_cvns_build_config(&p, &c) == NP_HUB_OK && c.pulse_width_us == 1000U,
+          "config: pw 1000 passes through");
 
-    check(c.duration_s == NP_CVNS_SESSION_MAX_S, "config: duration bounded to 120 s");
+    p.pulse_width_us = 1001U; check(refused(&p), "config: pw 1001 is refused");
+    p.pulse_width_us = 3000U; check(refused(&p), "config: pw 3000 is refused, not clamped to 1000 µs");
+
+    p = make_params();
+    check(np_mod_cvns_build_config(&p, &c) == NP_HUB_OK && c.duration_s == NP_CVNS_SESSION_MAX_S,
+          "config: duration bounded to 120 s");
 }
 
-/* @verifies REQ-FWHUB-59 */
+/* @verifies REQ-FWHUB-59, REQ-NPPS-23 */
 static void test_build_config_electrode_map(void)
 {
     np_mod_cvns_params_t p = make_params();
     np_cvns_session_config_t c;
 
-    p.side = 2U; np_mod_cvns_build_config(&p, &c);
-    check(c.electrode_config == 0U, "config: side bilateral → electrode 0");
-    p.side = 1U; np_mod_cvns_build_config(&p, &c);
-    check(c.electrode_config == 1U, "config: side left → electrode 1 (unilateral L)");
-    p.side = 0U; np_mod_cvns_build_config(&p, &c);
-    check(c.electrode_config == 2U, "config: side right → electrode 2 (unilateral R)");
-    p.side = 9U; np_mod_cvns_build_config(&p, &c);
-    check(c.electrode_config == 0U, "config: invalid side → bilateral (fail-safe)");
+    p.side = 2U;
+    check(np_mod_cvns_build_config(&p, &c) == NP_HUB_OK && c.electrode_config == 0U,
+          "config: side bilateral → electrode 0");
+    p.side = 1U;
+    check(np_mod_cvns_build_config(&p, &c) == NP_HUB_OK && c.electrode_config == 1U,
+          "config: side left → electrode 1 (unilateral L)");
+    p.side = 0U;
+    check(np_mod_cvns_build_config(&p, &c) == NP_HUB_OK && c.electrode_config == 2U,
+          "config: side right → electrode 2 (unilateral R)");
+    p.side = 9U;
+    check(refused(&p), "config: invalid side is refused, not reshaped to bilateral");
+}
+
+/* @verifies REQ-FWHUB-59, REQ-NPPS-23 */
+static void test_control_refuses_out_of_range_descriptor(void)
+{
+    np_mod_cvns_params_t p = make_params();
+    p.amplitude_ua = 5000U;
+
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    check(np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p)) == NP_HUB_ERR_INVALID_ARG,
+          "control: an out-of-range command is refused with INVALID_ARG");
+    for (uint32_t t = 0; t < 500U; t += 100U) {
+        np_mod_cvns_tick(t, g_now_unix);
+    }
+    check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_IDLE,
+          "control: a refused command starts no session");
+    check(g_enable_calls == 0, "control: a refused command requests no enable");
 }
 
 /* REQ-FWHUB-23: a descriptor that asks to skip the cardiac baseline is
@@ -952,6 +1005,7 @@ int main(void)
     test_build_config_frequency();
     test_build_config_current_pw();
     test_build_config_electrode_map();
+    test_control_refuses_out_of_range_descriptor();
     test_control_invalid_len();
     test_baseline_is_not_waivable_by_the_descriptor();
     test_control_start_no_immediate_enable();

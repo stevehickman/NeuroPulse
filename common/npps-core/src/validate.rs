@@ -542,7 +542,7 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
             if ma > hw::CERVICAL_VNS_MAX_MILLIAMPS {
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),
                     s(format!("{} mA", num_string(hw::CERVICAL_VNS_MAX_MILLIAMPS))), "hardware",
-                    msg("VALIDATE_MSG_CERVICAL_VNS_INTENSITYMILLIAMPS", vec![n(ma)]));
+                    msg("VALIDATE_MSG_CERVICAL_VNS_INTENSITYMILLIAMPS", vec![n(ma), n(hw::CERVICAL_VNS_MAX_MILLIAMPS)]));
             }
             if let Some(m) = lim(l, "maxIntensityMilliamps").filter(|m| ma > *m) {
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),

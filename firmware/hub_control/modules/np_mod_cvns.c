@@ -130,7 +130,7 @@ typedef struct {
      * impedance, same as np_mod_stim; NO HR is ever cached here). */
     uint16_t last_current_ua;
     /* OI-CHARGE-05 (c): the COMMANDED amplitude for this session, taken from
-     * the clamped np_cvns_session_config_t at start.  Distinct from
+     * the validated np_cvns_session_config_t at start.  Distinct from
      * last_current_ua, which is the library's live display value: the safety
      * MCU's per-phase check must run against the commanded number (which came
      * from the signed descriptor and is constant for the session), not against
@@ -208,18 +208,22 @@ static np_cvns_interlock_config_t cvns_interlock_config(void)
 /* ── Descriptor → validated session config ───────────────────────────────────── */
 
 /*
- * Convert a signed np_mod_cvns_params_t command into a fully clamped
- * np_cvns_session_config_t.  Every field is forced into the library's accepted
- * range so np_cvns_stim_init() (which re-validates) can never be handed an
- * out-of-range value from a malformed descriptor.  Pure and side-effect free —
- * exercised directly by host tests.
+ * Convert a signed np_mod_cvns_params_t command into a validated
+ * np_cvns_session_config_t, or refuse it.  A value outside the library's
+ * accepted range is REFUSED (NP_HUB_ERR_INVALID_ARG) and never reshaped to fit:
+ * a clamped pulse train is a different stimulus from the one authored
+ * (CLAUDE.md §3).  On refusal *out is zeroed, so a caller that ignores the
+ * status cannot start a session from a half-built configuration.  Pure and
+ * side-effect free — exercised directly by host tests.
  *
  * Mappings:
- *   freq_mhz (mHz) → freq_hz, rounded, clamped 1..25 Hz
- *   amplitude_ua   → current_ua, clamped ≤ 2000 µA (2 mA absolute)
- *   pulse_width_us → clamped 200..1000 µs (0 → 250 µs default, in range)
+ *   freq_mhz (mHz) → freq_hz, rounded to the nearest Hz; refused outside
+ *                    1000..25000 mHz (1..25 Hz)
+ *   amplitude_ua   → current_ua; refused above 2000 µA (2 mA absolute)
+ *   pulse_width_us → 0 selects the 250 µs default (a documented default, not a
+ *                    clamp); otherwise refused outside 200..1000 µs
  *   side {0=right,1=left,2=bilateral} → electrode_config
- *        {0=bilateral,1=unilateral_L,2=unilateral_R}
+ *        {0=bilateral,1=unilateral_L,2=unilateral_R}; any other value refused
  *   duration_s     → NP_CVNS_SESSION_MAX_S (120 s) upper safety bound; the
  *                    session-runner stop command normally ends it earlier, but
  *                    the library auto-ramps-down at this bound if stop is missed.
@@ -228,35 +232,39 @@ static np_cvns_interlock_config_t cvns_interlock_config(void)
  * baseline is mandatory (see file header).  ramp_s has no config field; the
  * library ramps at its fixed NP_CVNS_RAMP_UP_S.
  */
-void np_mod_cvns_build_config(const np_mod_cvns_params_t *p,
-                              np_cvns_session_config_t   *out)
+np_hub_status_t np_mod_cvns_build_config(const np_mod_cvns_params_t *p,
+                                         np_cvns_session_config_t   *out)
 {
-    /* Frequency: mHz → Hz with round-to-nearest, then clamp to 1..25 Hz. */
-    uint32_t freq_hz = ((uint32_t)p->freq_mhz + 500U) / 1000U;
-    if (freq_hz < NP_CVNS_FREQ_HZ_MIN) { freq_hz = NP_CVNS_FREQ_HZ_MIN; }
-    if (freq_hz > NP_CVNS_FREQ_HZ_MAX) { freq_hz = NP_CVNS_FREQ_HZ_MAX; }
-    out->freq_hz = (uint16_t)freq_hz;
+    memset(out, 0, sizeof(*out));
 
-    /* Current: hard cap at the 2 mA absolute limit. */
-    out->current_ua = (p->amplitude_ua > NP_CVNS_CURRENT_UA_MAX)
-                        ? NP_CVNS_CURRENT_UA_MAX : p->amplitude_ua;
-
-    /* Pulse width: 0 → default 250 µs; otherwise clamp into 200..1000 µs. */
-    uint16_t pw = (p->pulse_width_us == 0U) ? 250U : p->pulse_width_us;
-    if (pw < NP_CVNS_PULSE_WIDTH_US_MIN) { pw = NP_CVNS_PULSE_WIDTH_US_MIN; }
-    if (pw > NP_CVNS_PULSE_WIDTH_US_MAX) { pw = NP_CVNS_PULSE_WIDTH_US_MAX; }
-    out->pulse_width_us = pw;
-
-    /* Electrode side mapping. */
-    switch (p->side) {
-    case 2U:  out->electrode_config = 0U; break; /* bilateral    */
-    case 1U:  out->electrode_config = 1U; break; /* unilateral L */
-    case 0U:  out->electrode_config = 2U; break; /* unilateral R */
-    default:  out->electrode_config = 0U; break; /* fail safe → bilateral */
+    const uint32_t freq_mhz = (uint32_t)p->freq_mhz;
+    if (freq_mhz < (NP_CVNS_FREQ_HZ_MIN * 1000U) ||
+        freq_mhz > (NP_CVNS_FREQ_HZ_MAX * 1000U)) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    if (p->amplitude_ua > NP_CVNS_CURRENT_UA_MAX) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    const uint16_t pw = (p->pulse_width_us == 0U) ? 250U : p->pulse_width_us;
+    if (pw < NP_CVNS_PULSE_WIDTH_US_MIN || pw > NP_CVNS_PULSE_WIDTH_US_MAX) {
+        return NP_HUB_ERR_INVALID_ARG;
     }
 
+    uint8_t electrode_config;
+    switch (p->side) {
+    case 2U:  electrode_config = 0U; break; /* bilateral    */
+    case 1U:  electrode_config = 1U; break; /* unilateral L */
+    case 0U:  electrode_config = 2U; break; /* unilateral R */
+    default:  return NP_HUB_ERR_INVALID_ARG;
+    }
+
+    out->freq_hz          = (uint16_t)((freq_mhz + 500U) / 1000U);
+    out->current_ua       = p->amplitude_ua;
+    out->pulse_width_us   = pw;
+    out->electrode_config = electrode_config;
     /* Runner controls session end; bound the library's auto-complete timer. */
-    out->duration_s = NP_CVNS_SESSION_MAX_S;
+    out->duration_s       = NP_CVNS_SESSION_MAX_S;
+    return NP_HUB_OK;
 }
 
 /* ── Unified enable-bit management ───────────────────────────────────────────── */
@@ -267,7 +275,7 @@ static void cvns_request_enable(void)
         np_safety_spi_request_enable(NP_SAFETY_EN_CVNS);
         /* OI-CHARGE-05 (c): publish the commanded amplitude alongside the
          * enable, so the safety MCU's per-phase check sees this channel.
-         * cmd_current_ua is the clamped value np_mod_cvns_build_config()
+         * cmd_current_ua is the validated value np_mod_cvns_build_config()
          * derived from the descriptor at session start. */
         np_safety_spi_set_channel_current(NP_SAFETY_CH_CVNS,
                                           s_state.cmd_current_ua);
@@ -723,6 +731,13 @@ np_hub_status_t np_mod_cvns_control(uint8_t slot, const void *params, uint16_t l
 
     const np_mod_cvns_params_t *p = (const np_mod_cvns_params_t *)params;
 
+    /* An out-of-range descriptor is refused before any state is touched, so a
+     * refused command cannot disturb a session already running. */
+    np_cvns_session_config_t cfg;
+    if (np_mod_cvns_build_config(p, &cfg) != NP_HUB_OK) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+
     /* Fresh session: discard any snapshot published before this start so the
      * first tick cannot act on a previous session's grant (OI-CVNS-HUB-08), and
      * re-arm the advisory impedance measurement (OI-CVNS-HUB-09). */
@@ -731,10 +746,7 @@ np_hub_status_t np_mod_cvns_control(uint8_t slot, const void *params, uint16_t l
     s_state.imp_state    = NP_CVNS_IMP_IDLE;
     s_state.imp_start_ms = 0U;
 
-    np_cvns_session_config_t cfg;
-    np_mod_cvns_build_config(p, &cfg);
-
-    /* OI-CHARGE-05 (c): remember the clamped commanded amplitude for the
+    /* OI-CHARGE-05 (c): remember the validated commanded amplitude for the
      * heartbeat publish in cvns_request_enable(). */
     s_state.cmd_current_ua = cfg.current_ua;
 
