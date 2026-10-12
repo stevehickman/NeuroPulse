@@ -157,20 +157,19 @@ DQe5uIuf3oUzoLfX59gNvtxE5zZD
         return (f.get(uploader(FakeTokenStore())) as okhttp3.OkHttpClient).certificatePinner
     }
 
-    /** The pins the pinner lists for the fleet host, read from its refusal message (OkHttp lists them there). */
-    private fun pinsListedFor(host: String): List<String> {
-        val e = assertFailsWith<SSLPeerUnverifiedException> { defaultPinner().check(host, listOf(stranger())) }
-        return e.message.orEmpty().lines().map { it.trim() }
-            .dropWhile { !it.startsWith("Pinned certificates for") }.drop(1)
-            .filter { it.startsWith("sha256/") }
-    }
+    /** The pinned set as the uploader defines it (a private companion value, read by reflection). */
+    @Suppress("UNCHECKED_CAST")
+    private fun pinnedSet(): List<String> =
+        ShdrUploader::class.java.getDeclaredField("PINNED_SPKI_HASHES")
+            .apply { isAccessible = true }.get(null) as List<String>
 
     // @verifies REQ-SHDR-04#a
     @Test
     fun theFleetHostHasAPrimaryAndAtLeastOneDistinctBackupPin() {
-        val pins = pinsListedFor(ShdrUploader.FLEET_HOST)
+        val pins = pinnedSet()
         assertTrue(pins.size >= 2, "expected a primary and a backup pin, found $pins")
         assertEquals(pins.size, pins.toSet().size, "the pins are distinct")
+        assertTrue(pins.all { it.startsWith("sha256/") }, "every pin is an SPKI SHA-256: $pins")
     }
 
     // @verifies REQ-SHDR-04#b
