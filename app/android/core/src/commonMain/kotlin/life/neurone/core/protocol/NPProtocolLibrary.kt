@@ -347,6 +347,53 @@ class NPProtocolLibrary(
         return copies
     }
 
+    /**
+     * The edit that a used family refused, kept: clone the whole family, then save [edited] over its own copy. The copy's
+     * id, family and read-only state are the clone's; the content is the person's edit, and the name is theirs when
+     * they changed it, else the clone's " (copy)" name. Returns the saved copy, or null when [edited] is not in the library.
+     */
+    fun saveAsClone(edited: NPProtocolEntry): NPProtocolEntry? {
+        val original = allProtocols.firstOrNull { it.id == edited.id && it.isRunnable } ?: return saveAsNewFamily(edited)
+        val copies = cloneFamily(edited.id)
+        val copy = copies.firstOrNull { cloneSources[it.id.toString()] == edited.id.toString() } ?: return null
+        val renamed = edited.name != original.name
+        val merged: NPProtocolEntry = when {
+            edited is NPProtocolEntry.Single && copy is NPProtocolEntry.Single -> NPProtocolEntry.Single(
+                edited.protocol.copy(
+                    id = copy.protocol.id,
+                    name = if (renamed) edited.protocol.name else copy.protocol.name,
+                    isPredefined = false, isReadOnly = false, familyId = copy.protocol.familyId,
+                ),
+            )
+            edited is NPProtocolEntry.Composite && copy is NPProtocolEntry.Composite -> NPProtocolEntry.Composite(
+                edited.composite.copy(
+                    id = copy.composite.id,
+                    name = if (renamed) edited.composite.name else copy.composite.name,
+                    isPredefined = false, isReadOnly = false, familyId = copy.composite.familyId,
+                ),
+            )
+            else -> return null
+        }
+        save(merged) // the copy is a new, unused family, so this saves in place
+        return merged
+    }
+
+    /** An edit that is not in the library yet and joined a used family's line: kept as a new family of its own, never as a variant of the used one. */
+    private fun saveAsNewFamily(edited: NPProtocolEntry): NPProtocolEntry? {
+        val taken = allProtocols.map { it.name }.toSet()
+        val name = if (edited.name in taken) uniqueCopyName(edited.name, taken) else edited.name
+        val newFamily = UUID.randomUUID().toString()
+        val merged: NPProtocolEntry = when (edited) {
+            is NPProtocolEntry.Single -> NPProtocolEntry.Single(
+                edited.protocol.copy(id = UUID.randomUUID(), name = name, isPredefined = false, isReadOnly = false, familyId = newFamily))
+            is NPProtocolEntry.Composite -> NPProtocolEntry.Composite(
+                edited.composite.copy(id = UUID.randomUUID(), name = name, isPredefined = false, isReadOnly = false, familyId = newFamily))
+            else -> return null
+        }
+        save(merged)
+        return merged
+    }
+
     private fun uniqueCopyName(base: String, taken: Set<String>): String {
         var candidate = "$base (copy)"
         var n = 2
@@ -402,11 +449,16 @@ class NPProtocolLibrary(
             source?.let { contentHash(it) },
         )
         return when (NPLibraryRules.string(answer, "reason")) {
-            "hardware_mismatch" -> UploadGate.HardwareMismatch(
-                helmetVersion = helmetHardwareVersion,
-                protocolVersions = answer["protocolVersions"]!!.jsonArray.map { it.jsonPrimitive.content.toInt() },
-                details = answer,
-            )
+            "hardware_mismatch" -> {
+                val diff = answer["layoutDiffs"]!!.jsonArray.firstOrNull()?.jsonObject?.get("diff") as? JsonObject
+                UploadGate.HardwareMismatch(
+                    helmetVersion = helmetHardwareVersion,
+                    protocolVersions = answer["protocolVersions"]!!.jsonArray.map { it.jsonPrimitive.content.toInt() },
+                    sharedSockets = diff?.get("both")?.jsonArray?.size,
+                    onlyProtocolSockets = diff?.get("onlyA")?.jsonArray?.size,
+                    onlyHelmetSockets = diff?.get("onlyB")?.jsonArray?.size,
+                )
+            }
             "unmodified_clone" -> UploadGate.UnmodifiedClone(source!!.id)
             else -> UploadGate.Allow
         }
