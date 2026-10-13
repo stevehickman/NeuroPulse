@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 32
+**Revision:** 33
 **Date:** 2026-10-13  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -652,3 +652,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 30 | 2026-10-14 | NeurOne Software Engineering | **§6.3: session controls in the Kotlin app (issue #569 package 5a).** `SWR-SS-05`, `-06` and `-07` gain their app half: pause, resume and end on the session screen, and the helmet's elapsed, remaining and active-part figures from `SESSION_PROGRESS`, with 12 locale keys in all eleven locales (English until translated). `SWR-SS-02`, `-03` and `-04` are not built: they wait on the health limits (#563) and on `OI-HEXTILE-30`/`-31`. Web, iOS and Windows session controls remain. No requirement text changed. |
 | 31 | 2026-10-14 | NeurOne Software Engineering | **§6.3: session controls in the iOS app (issue #569 package 5b).** `SWR-SS-05` and `-07` gain their iOS half: `SESSION_PROGRESS` decoded by `SessionProgress`, shown as elapsed, remaining, a bar and the active part, and Pause and Resume beside End, with the helmet's ramp state. 2 locale keys in all eleven locales (English until translated). The web and Windows apps have no hub link or session screen, so they have no session controls to build. `SWR-SS-02`, `-03` and `-04` remain unbuilt (#563, `OI-HEXTILE-30`/`-31`). No requirement text changed. |
 | 32 | 2026-10-14 | NeurOne Software Engineering | **§6.3: the migration and backup rules built once in the shared core (issue #569 package 6a).** `SWR-MG-01`, `-03`, `-04`, `-05`, `-06`, `-07`, `-08`, `-09`, `-10` and `-12` gain a core half: `migration_json` in `common/npps-core` (C ABI `npps_migration_json`, TypeScript `nppsMigration`), with a claim-race test over a conditional-write store. Not built: the bundle format and its encryption, the routes and their transports, the cloud API (`SWR-MG-11`, #566), the screens, and the Kotlin, Swift and C# bindings. `SWR-MG-02` is not touched, since it is entirely the platforms' encryption and routes. The UHDR-only item list and the format version scheme are `UC-085`. No requirement text changed. |
+| 33 | 2026-10-14 | NeurOne Software Engineering | **§6.3: the migration rules reach every runtime (issue #569 package 6b).** `NppsCore.migration` on Kotlin (JNI `nativeMigration`, the Apple C ABI and WebAssembly backends), `NppsCore.migration` on iOS and `NppsCore.Migration` on Windows call `npps_migration_json`, each with tests of the header, inventory, withdrawal and clear rules. Nothing calls them yet: the bundle format, its encryption, the routes, the screens and the cloud API remain. No requirement text changed. |

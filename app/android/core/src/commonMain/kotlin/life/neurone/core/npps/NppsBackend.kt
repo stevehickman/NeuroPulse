@@ -20,6 +20,9 @@ internal interface NppsBackend {
 
     /** The protocol library's rules (`SWR-PL`, `SWR-UP`, `SWR-WO`, `SWR-FM`, `SWR-HV-04`): `{"op": …}` in, JSON out. */
     fun library(request: String): String
+
+    /** The device-replacement migration and UHDR backup rules (`SWR-MG`): `{"op": …}` in, JSON out. */
+    fun migration(request: String): String
 }
 
 /** The backend this target has, or one that refuses with a message naming the missing binding. */
@@ -39,10 +42,11 @@ internal class UnwiredNppsBackend(private val target: String) : NppsBackend {
     override fun resolveLimits(request: String): String = unwired()
     override fun contentHash(request: String): String = unwired()
     override fun library(request: String): String = unwired()
+    override fun migration(request: String): String = unwired()
 }
 
 /** The entry points of the C ABI (`common/npps-ffi/include/neurone_npps.h`). */
-internal enum class NppsEntry { PARSE, COMPILE, NAMESPACE, SERIALIZE, VALIDATE, RESOLVE_LIMITS, CONTENT_HASH, LIBRARY }
+internal enum class NppsEntry { PARSE, COMPILE, NAMESPACE, SERIALIZE, VALIDATE, RESOLVE_LIMITS, CONTENT_HASH, LIBRARY, MIGRATION }
 
 /** What a C ABI call returns: its status code and the bytes it wrote to `out`. */
 internal class NppsFfiResult(val status: Int, val output: ByteArray)
@@ -89,4 +93,5 @@ internal abstract class CAbiNppsBackend : NppsBackend {
     override fun resolveLimits(request: String): String = bytes(NppsEntry.RESOLVE_LIMITS, request).decodeToString()
     override fun contentHash(request: String): String = bytes(NppsEntry.CONTENT_HASH, request).decodeToString()
     override fun library(request: String): String = bytes(NppsEntry.LIBRARY, request).decodeToString()
+    override fun migration(request: String): String = bytes(NppsEntry.MIGRATION, request).decodeToString()
 }
