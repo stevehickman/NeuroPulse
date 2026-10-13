@@ -6,6 +6,20 @@ import Foundation
 
 // MARK: - The core's questions
 
+/// One imported entry as the merge sees it: its id, its content hash, and whether it arrived flagged used.
+struct NPImportedEntry {
+    var id: String
+    var hash: String?
+    var used: Bool
+}
+
+/// How a protocol's layout overlaps the helmet's: sockets in both, only in the protocol's, only in the helmet's.
+struct NPLayoutOverlap {
+    var shared: Int
+    var onlyProtocol: Int
+    var onlyHelmet: Int
+}
+
 enum NPLibraryRules {
 
     private static func ask(_ op: String, _ fields: [String: Any] = [:]) -> [String: Any] {
@@ -97,7 +111,7 @@ enum NPLibraryRules {
         return ask("uploadResult", request)
     }
 
-    static func mergeImport(usedHashes: [String], incoming: [(id: String, hash: String?, used: Bool)]) -> [String: Bool] {
+    static func mergeImport(usedHashes: [String], incoming: [NPImportedEntry]) -> [String: Bool] {
         let rows: [[String: Any]] = incoming.map { row in
             var r: [String: Any] = ["id": row.id, "used": row.used]
             if let hash = row.hash { r["hash"] = hash }
@@ -135,8 +149,10 @@ enum NPLibraryRules {
 
     /// How the first of the protocol's layouts overlaps the helmet's, from an `uploadGate` refusal: sockets in both, only
     /// in the protocol's, only in the helmet's. Nil while the helmet's layout is not in the table.
-    static func overlap(_ gate: [String: Any]) -> (shared: Int, onlyProtocol: Int, onlyHelmet: Int)? {
+    static func overlap(_ gate: [String: Any]) -> NPLayoutOverlap? {
         guard let diff = ((gate["layoutDiffs"] as? [[String: Any]])?.first)?["diff"] as? [String: Any] else { return nil }
-        return ((diff["both"] as? [Any])?.count ?? 0, (diff["onlyA"] as? [Any])?.count ?? 0, (diff["onlyB"] as? [Any])?.count ?? 0)
+        return NPLayoutOverlap(shared: (diff["both"] as? [Any])?.count ?? 0,
+                               onlyProtocol: (diff["onlyA"] as? [Any])?.count ?? 0,
+                               onlyHelmet: (diff["onlyB"] as? [Any])?.count ?? 0)
     }
 }
