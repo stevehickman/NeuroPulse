@@ -200,7 +200,9 @@ final class NppsCoreTests: XCTestCase {
                 count += 1
                 let request = try JSONSerialization.data(withJSONObject: ["items": [try XCTUnwrap(item["item"])]])
                 let got = String(decoding: try NppsCore.serialize(requestJSON: request), as: UTF8.self)
-                if got != item["text"] as? String { failures.append("\(rel): differs") }
+                // The frozen web output stated hardware_version: N on every protocol and composite; only a zone does now (SWR-HV-05).
+                let want = (item["text"] as? String)?.replacingOccurrences(of: "(?m)^ {4}hardware_version: \\d+\n", with: "", options: .regularExpression)
+                if got != want { failures.append("\(rel): differs") }
             }
         }
         XCTAssertGreaterThan(count, 100)
