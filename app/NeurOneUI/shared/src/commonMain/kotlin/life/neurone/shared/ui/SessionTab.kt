@@ -87,6 +87,18 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             is ProtocolUploader.Result.CervicalRestartBlocked -> cervicalBlocked
             is ProtocolUploader.Result.DifferentPersonConfirmationRequired -> differentPersonBody
         }
+        // SWR-UP-01/-02: the upload is not over when the last chunk is written. The helmet's report decides whether it
+        // holds the protocol, and the library marks the family used for a confirmed or an unknown outcome, never for a
+        // refusal before sending (SWR-UP-02). A refusal before sending (the compile failed, the cervical gate held it)
+        // marks nothing.
+        if (result is ProtocolUploader.Result.Success) {
+            scope.launch {
+                val verdict = uploader.verify(result.sentHash)
+                services.protocolLibrary.recordUploadResult(
+                    entry, result.sentHash, verdict.helmetStatus, verdict.helmetHash, verdict.helmetRefusal,
+                )
+            }
+        }
         scope.launch { snackbar.showSnackbar(message) }
         showMenu = false
     }

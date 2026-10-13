@@ -8,6 +8,7 @@ import life.neurone.core.models.OtaStatusPacket
 import life.neurone.core.models.PacerPhase
 import life.neurone.core.models.SessionProgress
 import life.neurone.core.models.SessionStatus
+import life.neurone.core.models.UploadCheck
 import life.neurone.core.models.SocketMapFrame
 import life.neurone.core.models.ZoneModuleFrame
 
@@ -41,6 +42,9 @@ object GattParser {
 
     /** SESSION_PROGRESS: 22 bytes (SWR-SS-07). Null if malformed. */
     fun parseSessionProgress(data: ByteArray): SessionProgress? = SessionProgress.fromWire(data)
+
+    /** UPLOAD_CHECK: 34 bytes (SWR-UP-01). Null if malformed. */
+    fun parseUploadCheck(data: ByteArray): UploadCheck? = UploadCheck.fromWire(data)
 
     /** HRV_COHERENCE: uint16 coherence×100 + uint16 RMSSD ms */
     fun parseHrvCoherence(data: ByteArray): HRVData? {
