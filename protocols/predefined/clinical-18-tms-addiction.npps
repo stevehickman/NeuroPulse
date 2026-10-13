@@ -1,7 +1,6 @@
 protocol "TMS — Addiction (DLPFC)" {
     id: "30000018-0000-0000-0000-000000000000"
     family_id: "17ac4c53-6323-4cb0-b2c0-9d338b65fbe3"
-    hardware_version: 1
     description: "Figure-8 HF rTMS over DLPFC for substance-use craving. Grade B/C. 10+ sessions. (Deep H4 insula targeting for smoking cessation is a non-device coil.)"
     author: "NeurOne"
     version: "1.0"

@@ -1,7 +1,6 @@
 protocol "tDCS — Stroke Motor Rehab (M1)" {
     id: "30000032-0000-0000-0000-000000000000"
     family_id: "8aaaacf8-ea82-47d4-93c6-5760a3b5a782"
-    hardware_version: 1
     description: "Anodal ipsilesional M1 (or dual montage), 1–2mA, 20–40 min, paired with rehab/CIMT. Grade B. Weak alone."
     author: "NeurOne"
     version: "1.0"

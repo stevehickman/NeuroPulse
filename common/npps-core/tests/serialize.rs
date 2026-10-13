@@ -15,6 +15,17 @@ fn golden() -> Value {
     serde_json::from_str(&fs::read_to_string(p).expect("golden file")).expect("golden JSON")
 }
 
+/// The golden text without the protocol-level `hardware_version: N` line (4-space indent; a zone's block has no colon).
+fn without_hardware_version(text: &str) -> String {
+    text.lines()
+        .filter(|l| !(l.starts_with("    hardware_version: ")))
+        .map(|l| format!("{l}\n"))
+        .collect::<String>()
+        .trim_end_matches('\n')
+        .to_string()
+        + if text.ends_with('\n') { "\n" } else { "" }
+}
+
 // @verifies REQ-NPPS-12
 #[test]
 fn every_block_of_the_library_is_written_as_the_web_serializer_wrote_it() {
@@ -27,7 +38,9 @@ fn every_block_of_the_library_is_written_as_the_web_serializer_wrote_it() {
         for item in items.as_array().unwrap() {
             n += 1;
             let got = serialize_json(&json!({ "items": [item["item"]] }).to_string());
-            let want = item["text"].as_str().unwrap();
+            // The frozen web output stated `hardware_version: N` on every protocol and composite. Only a zone states one now
+            // (SWR-HV-05), so those lines are set aside.
+            let want = without_hardware_version(item["text"].as_str().unwrap());
             match got {
                 Ok(t) if t == want => {}
                 Ok(t) => failures.push(format!("{rel}: differs\n--- core\n{t}\n--- web\n{want}")),
@@ -177,61 +190,40 @@ fn a_zone_whose_two_version_one_lists_disagree_is_refused_not_resolved() {
 
 // @verifies SWR-FM-01
 #[test]
-fn a_protocols_family_id_and_hardware_version_survive_write_then_read() {
-    let src = "protocol \"P\" {\n    id: \"11111111-2222-3333-4444-555555555555\"\n    family_id: \"0123abcd-4567-4def-8901-23456789abcd\"\n    hardware_version: 1\n    duration: 5m\n}";
+fn a_protocols_family_id_survives_write_then_read() {
+    let src = "protocol \"P\" {\n    id: \"11111111-2222-3333-4444-555555555555\"\n    family_id: \"0123abcd-4567-4def-8901-23456789abcd\"\n    duration: 5m\n}";
     round_trip("identity", src);
     let parsed: Value = serde_json::from_str(&parse_json(src).unwrap()).unwrap();
     let text = serialize_json(&json!({ "items": items_of(&parsed) }).to_string()).unwrap();
-    assert!(text.contains("family_id: \"0123abcd-4567-4def-8901-23456789abcd\"\n    hardware_version: 1\n"), "{text}");
+    assert!(text.contains("family_id: \"0123abcd-4567-4def-8901-23456789abcd\"\n"), "{text}");
     // A protocol that states no family id is written without one: the writer adds no identity of its own.
-    let plain = "protocol \"P\" {\n    hardware_version: 1\n    duration: 5m\n}";
+    let plain = "protocol \"P\" {\n    duration: 5m\n}";
     let parsed: Value = serde_json::from_str(&parse_json(plain).unwrap()).unwrap();
     let text = serialize_json(&json!({ "items": items_of(&parsed) }).to_string()).unwrap();
-    assert!(!text.contains("family_id") && text.contains("hardware_version: 1"), "{text}");
+    assert!(!text.contains("family_id") && !text.contains("hardware_version"), "{text}");
 }
 
 // @verifies SWR-HV-01
 #[test]
-fn a_protocol_or_composite_with_no_hardware_version_is_malformed() {
-    // SWR-HV-01: a socket address names a place only on a given layout, so a definition that does not say which layout
-    // it is addressed on is refused, never read as version 1.
-    let p = parse_json("protocol \"P\" {\n    duration: 5m\n}").unwrap_err();
-    assert!(p.starts_with("Line 1: protocol \"P\" has no hardware_version"), "{p}");
-    let c = parse_json("composite \"C\" {\n    description: \"x\"\n}").unwrap_err();
-    assert!(c.starts_with("Line 1: composite \"C\" has no hardware_version"), "{c}");
-    // The refusal does not depend on what else the block holds, and a stated version satisfies it.
-    assert!(parse_json("protocol \"P\" {\n    family_id: \"0123abcd-4567-4def-8901-23456789abcd\"\n}").is_err());
-    assert!(parse_json("protocol \"P\" {\n    hardware_version: 1\n}").is_ok());
-    assert!(parse_json("composite \"C\" {\n    hardware_version: 1\n}").is_ok());
-    // Only protocols and composites state one: zones, conditions, limits and wavelength rules are not refused.
-    assert!(parse_json("condition \"X\" {\n}").is_ok());
+fn a_protocol_or_composite_refuses_a_hardware_version_and_needs_none() {
+    // Only a zone definition states a hardware version. A protocol or composite states none, and one that does is refused.
+    assert!(parse_json("protocol \"P\" {\n    duration: 5m\n}").is_ok());
+    assert!(parse_json("composite \"C\" {\n    description: \"x\"\n}").is_ok());
+    let p = parse_json("protocol \"P\" {\n    hardware_version: 1\n}").unwrap_err();
+    assert!(p.contains("hardware_version is not a field of a protocol") && p.contains("only a zone does"), "{p}");
+    let c = parse_json("composite \"C\" {\n    hardware_version: 1\n}").unwrap_err();
+    assert!(c.contains("hardware_version is not a field of a composite"), "{c}");
+    // The zone's own block still reads.
+    assert!(parse_json("zone \"Z\" {\n    hardware_version 1 {\n        sockets: [1]\n    }\n}").is_ok());
 }
 
 // @verifies SWR-HV-01
 #[test]
-fn the_writer_refuses_a_model_with_no_hardware_version_and_suggests_version_one() {
-    // SWR-HV-01: the parser refuses a protocol or composite without a hardware version, so the writer must not produce one.
+fn the_writer_writes_no_hardware_version_for_a_protocol() {
     let p = json!({ "items": [{ "kind": "single", "protocol": {
-        "name": "P", "description": "", "author": "a", "version": "1.0", "tags": [],
+        "name": "P", "description": "", "author": "a", "version": "1.0", "tags": [], "hardwareVersion": 1,
         "timingMode": { "type": "duration", "seconds": 300 }, "modalities": [] } }] });
-    let e = serialize_json(&p.to_string()).unwrap_err();
-    assert!(e.contains("cannot serialize protocol \"P\"") && e.contains("no hardwareVersion"), "{e}");
-    assert!(e.contains("Suggested correction: set hardwareVersion to 1"), "{e}");
-    let c = json!({ "items": [{ "kind": "composite", "composite": {
-        "name": "C", "description": "", "author": "a", "version": "1.0", "tags": [], "layers": [], "conflictResolution": "merge" } }] });
-    let e = serialize_json(&c.to_string()).unwrap_err();
-    assert!(e.contains("cannot serialize composite \"C\"") && e.contains("Suggested correction"), "{e}");
-    // Applying the suggestion makes it writable, and the result reads back.
-    let mut fixed = p.clone();
-    fixed["items"][0]["protocol"]["hardwareVersion"] = json!(1);
-    let text = serialize_json(&fixed.to_string()).unwrap();
-    assert!(text.contains("hardware_version: 1"), "{text}");
-    assert!(parse_json(&text).is_ok());
-    // A stated version that cannot be read back is refused too, without the suggestion (it is not missing).
-    for bad in [json!(0), json!(1.5)] {
-        let mut m = p.clone();
-        m["items"][0]["protocol"]["hardwareVersion"] = bad;
-        let e = serialize_json(&m.to_string()).unwrap_err();
-        assert!(e.contains("hardwareVersion must be a whole number of 1 or more") && !e.contains("Suggested"), "{e}");
-    }
+    let text = serialize_json(&p.to_string()).unwrap();
+    assert!(!text.contains("hardware_version"), "{text}");
+    assert!(parse_json(&text).is_ok(), "{text}");
 }

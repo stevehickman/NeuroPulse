@@ -140,20 +140,6 @@ impl Parser {
         }
         Ok(raw.to_ascii_lowercase())
     }
-    /// `hardware_version`: a whole number of 1 or more (`SWR-HV-01`). How many versions may exist is `UC-080`'s
-    /// open question and is not decided here.
-    fn read_hardware_version(&mut self) -> R<u32> {
-        self.skip_newlines();
-        let line = self.cur().line;
-        let n = self.read_number()?;
-        if n.fract() != 0.0 || n < 1.0 || n > f64::from(u32::MAX) {
-            return Err(ParseError::at(
-                format!("hardware_version must be a whole number of 1 or more, got {}", crate::js::num_string(n)),
-                line,
-            ));
-        }
-        Ok(n as u32)
-    }
     fn read_bool(&mut self) -> R<bool> {
         self.skip_newlines();
         let t = self.cur().clone();
@@ -373,7 +359,6 @@ impl Parser {
             ));
         }
         let name = self.cur().text.clone();
-        let open_line = self.cur().line;
         self.advance();
         self.skip_newlines();
         self.expect(Kind::LBrace)?;
@@ -391,8 +376,7 @@ impl Parser {
         let mut sessions_per_week: Option<f64> = None;
         let mut course_weeks: Option<f64> = None;
         let mut family_id: Option<String> = None;
-        let mut hardware_version: Option<u32> = None;
-        let mut used: Option<bool> = None;
+            let mut used: Option<bool> = None;
 
         self.skip_newlines();
         while !self.try_brace() {
@@ -432,16 +416,18 @@ impl Parser {
                 "sessions_per_week" => sessions_per_week = Some(self.read_number()?),
                 "course_weeks" => course_weeks = Some(self.read_number()?),
                 "family_id" => family_id = Some(self.read_family_id()?),
-                "hardware_version" => hardware_version = Some(self.read_hardware_version()?),
+                "hardware_version" => {
+                    return Err(ParseError::at(
+                        format!("hardware_version is not a field of a protocol: a protocol does not state a hardware version, only a zone does. Remove it, and give the zone a hardware_version N {{ sockets: [...] }} block"),
+                        key_tok.line,
+                    ))
+                }
                 "used" => used = Some(self.read_bool()?),
                 _ => self.skip_value()?,
             }
             self.skip_newlines();
         }
 
-        if hardware_version.is_none() {
-            return Err(ParseError::at(missing_hardware_version("protocol", &name), open_line));
-        }
 
         let mut proto = Map::new();
         if let Some(id) = &parsed_id {
@@ -471,13 +457,10 @@ impl Parser {
         if let Some(n) = course_weeks {
             proto.insert("courseWeeks".into(), number(n));
         }
-        // Identity metadata (SWR-FM-01, SWR-HV-01): the family this protocol is a variant of, and the hardware version
-        // it is authored for. Neither is a hub parameter; the family id is not part of the content hash.
+        // Identity metadata (SWR-FM-01): the family this protocol is a variant of. It is not a hub parameter and is not
+        // part of the content hash. A protocol states no hardware version: only a zone does (SWR-HV-05).
         if let Some(id) = family_id {
             proto.insert("familyId".into(), json!(id));
-        }
-        if let Some(v) = hardware_version {
-            proto.insert("hardwareVersion".into(), json!(v));
         }
         // The used flag (SWR-WO-03): carried in export, merged by OR on import, advisory, and not part of the content
         // hash. Written only when true, so a protocol that was never used reads back as it was written.
@@ -886,11 +869,3 @@ fn build_zones(raw: Option<&Value>, default: Option<&Value>, line: u32) -> R<(St
     Ok((zones, refs))
 }
 
-/// The refusal for a protocol or composite that states no `hardware_version` (`SWR-HV-01`). A socket address names a place
-/// only on a given layout, so a definition that does not say which layout it is addressed on is malformed, and is never
-/// read as version 1 (`SWR-HV-07`'s default is for a helmet that cannot report its version, not for a protocol).
-pub(crate) fn missing_hardware_version(kind: &str, name: &str) -> String {
-    format!(
-        "{kind} \"{name}\" has no hardware_version — every {kind} states the helmet hardware version its sockets are addressed on, e.g. hardware_version: 1"
-    )
-}

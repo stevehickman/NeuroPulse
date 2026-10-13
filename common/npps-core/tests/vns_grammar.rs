@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 const UUID: &str = "00112233445566778899aabbccddeeff";
 
 fn protocol_text(block: &str, header: &str) -> String {
-    format!("protocol \"VNS study\" {{\n    duration: 10m\n    hardware_version: 1\n{header}\n    vns_hrv {{\n{block}\n    }}\n}}\n")
+    format!("protocol \"VNS study\" {{\n    duration: 10m\n{header}\n    vns_hrv {{\n{block}\n    }}\n}}\n")
 }
 
 fn parse(block: &str, header: &str) -> Value {

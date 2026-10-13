@@ -1,7 +1,6 @@
 protocol "tACS — Schizophrenia (alpha 10Hz)" {
     id: "30000047-0000-0000-0000-000000000000"
     family_id: "15fde368-d664-4588-a9e5-3e9b3ddccaa0"
-    hardware_version: 1
     description: "Left frontotemporal 10Hz alpha tACS, 2mA, 20 min, 5 daily sessions, trending to reduced hallucinations. Grade C."
     author: "NeurOne"
     version: "1.0"

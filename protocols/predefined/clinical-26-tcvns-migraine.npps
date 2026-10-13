@@ -1,7 +1,6 @@
 protocol "tcVNS — Migraine / Cluster (cervical)" {
     id: "30000026-0000-0000-0000-000000000000"
     family_id: "e1d92fd3-009f-49ee-8e0a-ee45e86c59a0"
-    hardware_version: 1
     description: "T2 cervical accessory (tcVNS), 25Hz in 5kHz bursts, 120s doses, for acute + preventive migraine and cluster headache (gammaCore predicate). Grade A."
     author: "NeurOne"
     version: "1.0"

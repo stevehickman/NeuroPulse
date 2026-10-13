@@ -1,7 +1,6 @@
 protocol "Vascular Baseline" {
     id: "10000007-0000-0000-0000-000000000000"
     family_id: "e414f3d1-72ea-4524-a6c3-21d9c3912c13"
-    hardware_version: 1
     description: "Continuous-wave PBM for cerebrovascular support. Low-frequency VNS and alpha EEG. Use as a maintenance or recovery session."
     author: "NeurOne"
     version: "1.0"

@@ -1,7 +1,6 @@
 protocol "tDCS — MS Fatigue (S1/DLPFC)" {
     id: "30000038-0000-0000-0000-000000000000"
     family_id: "a9668721-d64c-4adf-af65-707681a9ee49"
-    hardware_version: 1
     description: "Anodal S1 (bilateral) or left DLPFC, 1.5–2mA, 15–20 min, for multiple-sclerosis fatigue. Grade B. Home/remote feasible."
     author: "NeurOne"
     version: "1.0"

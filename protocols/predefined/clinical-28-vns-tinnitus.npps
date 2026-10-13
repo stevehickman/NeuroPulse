@@ -1,7 +1,6 @@
 protocol "taVNS + Tones — Tinnitus (paired)" {
     id: "30000028-0000-0000-0000-000000000000"
     family_id: "9784755e-df21-46ce-bfe1-dadc4b15d9fd"
-    hardware_version: 1
     description: "Auricular taVNS (25Hz) paired to tailored audio tones to reverse maladaptive auditory plasticity. Grade B/C. Pairing is essential. 6–12 weeks."
     author: "NeurOne"
     version: "1.0"

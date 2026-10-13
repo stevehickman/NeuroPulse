@@ -1,7 +1,6 @@
 protocol "tACS — Fluid Intelligence (gamma 40Hz)" {
     id: "30000042-0000-0000-0000-000000000000"
     family_id: "c60bb668-b2f9-42b6-9170-aeee6b9ebcab"
-    hardware_version: 1
     description: "Left prefrontal 40Hz gamma tACS improving fluid reasoning. Grade B."
     author: "NeurOne"
     version: "1.0"

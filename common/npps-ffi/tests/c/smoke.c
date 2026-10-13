@@ -7,7 +7,7 @@
 #define CHECK(cond, msg) do { if (!(cond)) { fprintf(stderr, "FAIL: %s\n", msg); return 1; } } while (0)
 
 static const char *SRC =
-    "protocol \"C smoke\" {\n  hardware_version: 1\n  duration: 10m\n  bes_tacs {\n    frequency: 10Hz\n    intensity: 0.8mA\n  }\n}\n";
+    "protocol \"C smoke\" {\n  duration: 10m\n  bes_tacs {\n    frequency: 10Hz\n    intensity: 0.8mA\n  }\n}\n";
 
 int main(void) {
     uint8_t *out = NULL; size_t len = 0;
@@ -33,7 +33,7 @@ int main(void) {
     CHECK(sig_zero, "the signature slot is zeroed for the caller");
     npps_free(out, len);
 
-    const char *bad = "protocol \"x\" {\n hardware_version: 1\n pbm_transcranial {\n wavelength: \"808nm\"\n intensity: 80%\n }\n}\n";
+    const char *bad = "protocol \"x\" {\n pbm_transcranial {\n wavelength: \"808nm\"\n intensity: 80%\n }\n}\n";
     rc = npps_parse_json((const uint8_t *)bad, strlen(bad), &out, &len);
     CHECK(rc == NPPS_STATUS_REFUSED, "a percentage is refused");
     CHECK(memmem(out, len, "percentage of a baseline", 24) != NULL, "the refusal is the web parser's message");

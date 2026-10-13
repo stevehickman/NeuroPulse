@@ -1,8 +1,10 @@
 # NPPS PEG Grammar
 
-**Document:** NP-NPPS-GRAM-001 Rev 9  
+**Document:** NP-NPPS-GRAM-001 Rev 10  
 **Status:** ACTIVE  
-**Date:** 2026-10-11
+**Date:** 2026-10-13
+
+> **Rev 10 (2026-10-13): `hardware_version` is not a field of a protocol or a composite** (NP-NPPS-REF-001 Rev 30, `SWR-HV-01`; principal direction: it belongs inside a zone block only). The two checks Rev 9 added to `ProtocolBody` and `CompositeBody` are reversed: a body that has a `hardware_version` field is the error. The fixtures `error_no_hardware_version` and `error_composite_no_hardware_version` become `no_hardware_version` and `composite_no_hardware_version`, which are accepted, and every fixture and shipped file loses its `hardware_version` line. `npps-parser.mjs` was regenerated with Peggy 5.1.0 and the diff is the two checks only.
 
 > **Rev 9 (2026-10-11): `hardware_version` is required on a protocol and a composite** (NP-NPPS-REF-001 Rev 26, `SWR-HV-01`; GitHub #569). `ProtocolBody` and `CompositeBody` make the check themselves, as Rev 6 did for absolute quantities: a body with no `hardware_version` field is an error. The value is still checked by the runtimes (a whole number of 1 or more). Two new fixtures, `error_no_hardware_version` and `error_composite_no_hardware_version`; the eight fixtures that lacked the line gain it. `npps-parser.mjs` was regenerated with Peggy 5.1.0 after regenerating the Rev 8 grammar reproduced the committed parser byte for byte, so the diff is the two checks only.
 

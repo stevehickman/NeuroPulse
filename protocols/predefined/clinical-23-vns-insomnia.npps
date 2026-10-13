@@ -1,7 +1,6 @@
 protocol "taVNS — Insomnia" {
     id: "30000023-0000-0000-0000-000000000000"
     family_id: "9a13ee9a-09d5-4f21-9ab4-7fe20d163a77"
-    hardware_version: 1
     description: "Auricular taVNS (cymba conchae), 20Hz, 30 min x2/day, 8 weeks, improving PSQI. Grade B."
     author: "NeurOne"
     version: "1.0"

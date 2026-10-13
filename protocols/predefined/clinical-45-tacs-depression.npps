@@ -1,7 +1,6 @@
 protocol "tACS — Depression (alpha 10Hz)" {
     id: "30000045-0000-0000-0000-000000000000"
     family_id: "8cdbb074-510c-45d1-8012-ea881517e133"
-    hardware_version: 1
     description: "Alpha (10Hz) bifrontal tACS, 2mA, 40 min, 5+ daily sessions, reducing left-frontal alpha. Grade C."
     author: "NeurOne"
     version: "1.0"

@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 29
+**Revision:** 30
 **Date:** 2026-10-13  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
@@ -15,6 +15,8 @@
 
 ---
 
+> **Rev 30 (2026-10-13) — `hardware_version` belongs inside a zone block only, never directly inside a protocol or composite (principal direction; `SWR-HV-01`, `SWR-HV-05`).** Rev 26 had made it a parse error for a protocol or composite to omit it. That is reversed, and further: a protocol or composite that states it is now the parse error, with a message pointing to the zone block (`hardware_version N { sockets: [...] }`, §8). The parser (core and grammar, `NP-NPPS-GRAM-001` Rev 10) refuses it, and the writer never writes it. The line is removed from all 81 shipped protocols and composites. A protocol therefore names no layout of its own: the hub compiler is given the target helmet's hardware version when it resolves a named zone, as an input of the compile call and not as authored text, and a call given none does not check a zone's version lists. No dose and no descriptor byte changes.
+>
 > **Rev 29 (2026-10-13) — a predefined protocol's version moves once between releases (principal direction; `SWR-PL-05`).** Every predefined protocol is at `1.0` until a release is done. Edits made after a release cause a change of at least a minor step in the version number. That change is locked in only when a release is done. Once the number has changed, further edits before the next release do not change it again. The four shipped files that carried a higher number (`04-memory-boost` `1.1`; `clinical-03-pbm-alzheimers-1064` and `clinical-04-pbm-depression-schiffer` `2.0`; `clinical-05-pbm-anxiety-wang` `2.1`) are reset to `1.0`, since no release has been done. *Release version of a predefined protocol* is rewritten to say so. No dose and no descriptor byte changes.
 >
 > **Rev 28 (2026-10-13) — the compiler uses `interval_count`.** In an `interval_count` session each block's interval cycle (`interval_on`, `interval_off`) runs `count` times, unless the block states its own `repeat`, which wins. `repeat: until_end` in such a session means the protocol's count, since there is no duration to run to. `count` must be a whole number of 1 or more; anything else is refused when the protocol is compiled, with the range stated. The session length is still computed from the schedule (Rev 27). No new limit: a count whose commands exceed the command table is refused by the existing command-count error.
@@ -337,7 +339,6 @@ A protocol block defines a single session. The protocol name is declared inline 
 
 ```
 protocol "Gamma Focus" {
-  hardware_version: 1
     ...
 }
 ```
@@ -351,7 +352,7 @@ protocol "Gamma Focus" {
 | `author` | string | `"NeurOne"` | Creator name. |
 | `version` | string | `"1.0"` | The release version, `major.minor`, both whole numbers. How a developer edit changes it is in *Release version of a predefined protocol* below. |
 | `family_id` | string | absent | *(Rev 20)* A random 128-bit id written as UUID text (8-4-4-4-12 hex digits), the same for every variant of one authored protocol (`SWR-FM-01`). Authored once and never regenerated: a predefined protocol's id is fixed in its file. **It is not part of the content hash and is never sent to the helmet.** Read as lowercase. Anything else is a parse error. Also accepted on a `composite`. |
-| `hardware_version` | whole number | **required** | *(Rev 20; required Rev 26)* The helmet hardware version the protocol's sockets are addressed on (`SWR-HV-01`). A whole number of 1 or more; every shipped protocol states `1`, the only version that exists (`SWR-HV-07`). **A protocol or composite that omits it is a parse error** (Rev 22). Required on a `composite` too. The upper limit on versions (`UC-080`) is not decided here. |
+| `hardware_version` | — | **not a protocol field** | *(Rev 20; withdrawn Rev 30)* Only a zone states a hardware version, in its `hardware_version N { sockets: [...] }` block (§8). A protocol or composite that has the field is a parse error. The helmet hardware version a named zone resolves against comes from the compile call (`SWR-HV-05`, `SWR-HV-07`), not from the protocol. |
 | `used` | bool | `false` | *(Rev 26)* The protocol has run in a session (`SWR-WO-03`). Read as `isUsed`; written only when `true`. Carried in export and merged by OR on import; advisory, not a security control, and not part of the content hash. Also accepted on a `composite`. |
 | `readonly` | bool | `false` | Prevents editing or deletion in the app. |
 | `tags` | string array | `[]` | Freeform category labels. |
@@ -366,7 +367,6 @@ protocol "Gamma Focus" {
 
 ```
 protocol "PBM — Depression (DLPFC)" {
-  hardware_version: 1
     id: "30000004-0000-0000-0000-000000000000"
     tags: [pbm, clinical, depression]
     conditions: ["Major Depressive Disorder"]
@@ -399,7 +399,6 @@ Modalities follow the metadata fields, each as a typed block (see §4):
 
 ```
 protocol "Gamma Focus" {
-  hardware_version: 1
     id: "10000001-0000-0000-0000-000000000000"
     description: "40Hz multi-modal entrainment."
     author: "NeurOne"
@@ -1070,7 +1069,6 @@ A composite layers multiple named protocols on a shared timeline.
 
 ```
 composite "Full Multi-Modal RCT" {
-  hardware_version: 1
     id: "10000100-0000-0000-0000-000000000000"
     description: "Baseline → combined active phase → cool-down."
     author: "NeurOne"
@@ -1472,17 +1470,14 @@ A single `.npps` file may contain any number of `protocol`, `composite`, `limits
 # combined-sleep.npps
 
 protocol "Alpha Calm" {
-  hardware_version: 1
     ...
 }
 
 protocol "Deep Sleep" {
-  hardware_version: 1
     ...
 }
 
 composite "Sleep Wind-Down" {
-  hardware_version: 1
     conflict_resolution: sequential
     layer "Alpha Calm" { start: 0s   duration: 10m  intensity_scale: 1.0 }
     layer "Deep Sleep"  { start: 600s                intensity_scale: 1.0 }

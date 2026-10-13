@@ -17,7 +17,6 @@ zone "Bare Is Version One" {
 
 protocol "Identified" {
     family_id: "0123abcd-4567-4def-8901-23456789abcd"
-    hardware_version: 1
     version: "1.0"
     duration: 5m
     pbm_transcranial {

@@ -1,7 +1,6 @@
 protocol "Deep Sleep" {
     id: "10000003-0000-0000-0000-000000000000"
     family_id: "5a6e50bc-d4ad-403d-80aa-11b5002bc40b"
-    hardware_version: 1
     description: "Slow-wave sleep induction using 2Hz delta PBM on rear zones with brown noise and resonance breathing. Use within 30 minutes of bedtime."
     author: "NeurOne"
     version: "1.0"

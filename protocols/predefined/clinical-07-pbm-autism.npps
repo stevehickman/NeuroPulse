@@ -1,7 +1,6 @@
 protocol "PBM — Autism (pediatric, 40Hz)" {
     id: "30000007-0000-0000-0000-000000000000"
     family_id: "523703be-69b8-4250-a8b5-05ad4cd6c436"
-    hardware_version: 1
     description: "Low-power 850nm pulsed 40Hz over temporal + posterior sites for pediatric autism spectrum disorder. Grade B. 2x/week, 8 weeks. Conservative pediatric dosing — titrate for tolerability."
     author: "NeurOne"
     version: "1.0"

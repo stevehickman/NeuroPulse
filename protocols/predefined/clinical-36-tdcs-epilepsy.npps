@@ -1,7 +1,6 @@
 protocol "tDCS — Epilepsy (cathodal focus)" {
     id: "30000036-0000-0000-0000-000000000000"
     family_id: "fbee6bc2-0c56-4b77-a819-6ae542514c50"
-    hardware_version: 1
     description: "Uniquely CATHODAL (inhibitory) over the epileptogenic focus, anode contralateral, 1–2mA, 20–30 min, reducing seizures. Grade B."
     author: "NeurOne"
     version: "1.0"

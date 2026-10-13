@@ -1,7 +1,6 @@
 protocol "tDCS — Addiction / Craving (bilateral DLPFC)" {
     id: "30000035-0000-0000-0000-000000000000"
     family_id: "7bde881a-bb5b-41e6-ad8d-27a4540ad210"
-    hardware_version: 1
     description: "Bilateral DLPFC, right-anodal / left-cathodal, 2mA, 20 min, reducing craving across substances. Grade B. Repeated sessions for durability."
     author: "NeurOne"
     version: "1.0"

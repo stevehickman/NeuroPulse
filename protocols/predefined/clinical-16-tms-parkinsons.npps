@@ -1,7 +1,6 @@
 protocol "TMS — Parkinson's Motor (M1)" {
     id: "30000016-0000-0000-0000-000000000000"
     family_id: "b4019d05-e1e0-4491-b21a-52cd7a1eaf95"
-    hardware_version: 1
     description: "Figure-8 HF rTMS over bilateral M1, 5–25Hz, 90–110% RMT, 1000 pulses, for PD motor symptoms. Grade B. ≥8 sessions."
     author: "NeurOne"
     version: "1.0"

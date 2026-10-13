@@ -1,7 +1,6 @@
 protocol "Memory Boost" {
     id: "10000004-0000-0000-0000-000000000000"
     family_id: "a5c44a3d-e552-4a86-b3af-c8b064cbb655"
-    hardware_version: 1
     description: "Memory and working-memory support. The PBM channel follows its own cited evidence (Yao 2022 / Gonzalez-Lima lineage: 1064nm right prefrontal, 8 min) rather than the theta rhythm; theta (6Hz) entrainment lives in the audio, EEG neurofeedback and HRV channels, where entrainment evidence exists. NOT EVIDENCE-GRADE for the PBM channel: see the notes on that block — duty, dose, area and irradiance all fall short of the cited literature, and requires a 1064nm-capable (T1-C) module."
     author: "NeurOne"
     version: "1.0"

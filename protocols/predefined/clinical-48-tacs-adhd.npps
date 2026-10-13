@@ -1,7 +1,6 @@
 protocol "tACS — ADHD (gamma 40Hz)" {
     id: "30000048-0000-0000-0000-000000000000"
     family_id: "c9410a2d-9761-4460-91d8-b1622ea87a35"
-    hardware_version: 1
     description: "Frontal 40Hz gamma tACS improving attention. Grade C (pilot)."
     author: "NeurOne"
     version: "1.0"

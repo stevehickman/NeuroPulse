@@ -1,7 +1,6 @@
 composite "Sleep Optimisation Stack" {
     id: "10000101-0000-0000-0000-000000000000"
     family_id: "94a2db42-f4ba-41cb-9b3f-0d6cdfb90466"
-    hardware_version: 1
     description: "Evening stack: alpha wind-down then HRV coherence then deep sleep induction. Runs for approximately 90 minutes starting 2 hours before target sleep time."
     author: "NeurOne"
     version: "1.0"

@@ -32,7 +32,8 @@ describe('serializer wrapper', () => {
     for (const items of Object.values<any[]>(g.files)) {
       for (const { item, text } of items) {
         n++;
-        expect(nppsSerialize([item])).toBe(text);
+        // The frozen web output stated `hardware_version: N` on every protocol and composite; only a zone does now (SWR-HV-05).
+        expect(nppsSerialize([item])).toBe(text.replace(/^ {4}hardware_version: \d+\n/gm, ''));
       }
     }
     expect(n).toBeGreaterThan(100);

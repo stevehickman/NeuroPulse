@@ -21,7 +21,7 @@ function minimalBlock(type: string): string {
     // A required number is authored, never defaulted (REQ-NPPS-05); the table's default is the editor's.
     if (f.kind === 'number' && f.required) lines.push(`${f.key}: ${f.default}`);
   }
-  return `protocol "T" {\n  hardware_version: 1\n ${type} {\n${lines.join('\n')}\n }\n}\n`;
+  return `protocol "T" {\n ${type} {\n${lines.join('\n')}\n }\n}\n`;
 }
 
 describe('the field table agrees with the reference parser', () => {
