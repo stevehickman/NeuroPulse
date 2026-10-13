@@ -78,9 +78,10 @@
 #define NP_GATT_PAUSE_LIMIT_LEN 4U
 /*
  * SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B
- * remaining ms, 4 B total ms (all little-endian).
+ * remaining ms, 4 B total ms, 1 B ramp phase (0 none, 1 down, 2 held, 3 cervical VNS checks, 4 up), 1
+ * B ramp percent, 4 B ramp remaining ms (0xFFFFFFFF unknown) (all little-endian).
  */
-#define NP_GATT_SESSION_PROGRESS_LEN 16U
+#define NP_GATT_SESSION_PROGRESS_LEN 22U
 /*
  * Byte 0 of the frame.
  */

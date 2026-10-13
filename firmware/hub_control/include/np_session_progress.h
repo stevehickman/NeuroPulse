@@ -3,7 +3,7 @@
  * Document: NP-SW-001 §6.3 (SWR-SS-07)
  * SW item:  SW-02 (i.MX RT1062 main processor) — IEC 62304 Class B
  *
- * SESSION_PROGRESS (READ/NOTIFY, 16 bytes, little-endian) tells the app where a session is, so a person
+ * SESSION_PROGRESS (READ/NOTIFY, 22 bytes, little-endian) tells the app where a session is, so a person
  * can decide whether to pause or stop it:
  *
  *   [0]      state            np_session_state_t
@@ -13,6 +13,13 @@
  *   [4..7]   elapsed ms       session time; stops advancing while paused; capped at total
  *   [8..11]  remaining ms     total - elapsed, 0 once reached
  *   [12..15] total ms         the descriptor's session length
+ *   [16]     ramp phase       np_ramp_phase_t: 0 none, 1 ramping down (a pause, stimulation still on), 2 held (paused,
+ *                             nothing ramping), 3 cervical VNS checks (impedance, cardiac baseline), 4 ramping up
+ *   [17]     ramp percent     0..100 of the gating ramp (the one that finishes last)
+ *   [18..21] ramp remaining   ms until that ramp ends; 0xFFFFFFFF while it cannot be known (the cervical VNS checks)
+ *
+ * While a ramp runs the protocol clock stands still (elapsed does not advance), so the app shows the ramp beside the
+ * frozen elapsed time until the protocol is back where it would have been.
  *
  * Elapsed and remaining are what the helmet holds, so the app shows the helmet's figures and not its
  * own clock.  A "part" is a command of the descriptor: the descriptor has no other segmentation, and a
@@ -29,8 +36,9 @@
 #include <stdint.h>
 
 #include "np_hub_types.h"
+#include "np_ramp_plan.h"
 
-#define NP_PROGRESS_LEN         16U
+#define NP_PROGRESS_LEN         22U
 #define NP_PROGRESS_NO_PART     0xFFU
 
 typedef struct {
@@ -39,9 +47,10 @@ typedef struct {
     uint32_t                 total_ms;
     const np_session_cmd_t  *cmds;
     uint8_t                  cmd_count;
+    np_ramp_report_t         ramp;         /* the gating ramp, or phase NONE */
 } np_progress_in_t;
 
-/* Build the 16-byte frame from a snapshot. */
+/* Build the 22-byte frame from a snapshot. */
 void np_progress_build(const np_progress_in_t *in, uint8_t out[NP_PROGRESS_LEN]);
 
 /* The runner's snapshot function: fills `out` with the frame for the session as it is now. */

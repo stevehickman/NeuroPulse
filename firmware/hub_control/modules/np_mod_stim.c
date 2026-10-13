@@ -30,6 +30,7 @@
 #include "np_session_log.h"
 #include "np_safety_spi.h"
 #include "np_stim_xcheck.h"
+#include "np_ramp_plan.h"
 #include <string.h>
 
 #include "np_sw02_platform_hal.h"
@@ -41,11 +42,28 @@
 
 /* ── State ───────────────────────────────────────────────────────────────────── */
 
+/* tDCS ramp model (SWR-SS-05).  The hub models the ramp it commanded: a straight line from the level at the start of
+ * the segment to the segment's end, at the slope target / ramp_s.  A ramp-down on pause is at that slope, and a resume
+ * during it ramps back up at the same slope from where the down-ramp had got to, so the cost of a pause is only the
+ * distance it covered. */
+typedef enum { TD_IDLE = 0, TD_UP, TD_STEADY, TD_DOWN } td_phase_t;
+
 typedef struct {
     np_hub_mod_type_t type;
     uint8_t           active_pair;
     bool              active;
+    /* tDCS only */
+    td_phase_t        phase;
+    uint8_t           polarity;
+    uint16_t          target_ua;
+    uint16_t          ramp_s;        /* the full-scale ramp, seconds (>= STIM_MIN_RAMP_S) */
+    uint16_t          seg_from_ua;   /* level at the start of the current segment */
+    uint16_t          seg_to_ua;
+    uint32_t          seg_start_ms;
+    uint32_t          seg_ms;        /* segment length */
 } np_mod_stim_state_t;
+
+static uint32_t s_now_ms;            /* the runner's wall clock, as of the last np_mod_stim_tick() */
 
 /* One driver, two slots: NP_HUB_SLOT_BES_TACS and NP_HUB_SLOT_TDCS. They share
  * the silicon but not the state — they carry different parameter structs and the
@@ -65,6 +83,114 @@ static np_mod_stim_state_t *state_for_slot(uint8_t slot)
         case NP_HUB_SLOT_TDCS:     return &s_tdcs_state;
         default:                   return NULL;
     }
+}
+
+
+/* ── tDCS ramp model ─────────────────────────────────────────────────────────── */
+
+static uint16_t td_level(const np_mod_stim_state_t *st, uint32_t now_ms)
+{
+    switch (st->phase) {
+        case TD_UP:
+        case TD_DOWN: {
+            const uint32_t dt = now_ms - st->seg_start_ms;
+            if (st->seg_ms == 0U || dt >= st->seg_ms) { return st->seg_to_ua; }
+            const int32_t span = (int32_t)st->seg_to_ua - (int32_t)st->seg_from_ua;
+            return (uint16_t)((int32_t)st->seg_from_ua + (int32_t)(((int64_t)span * (int64_t)dt) / (int64_t)st->seg_ms));
+        }
+        case TD_STEADY: return st->target_ua;
+        default:        return 0U;
+    }
+}
+
+/* Whole seconds, rounded up, at least 1: the hardware ramp takes seconds, and rounding up is never faster than the slope. */
+static uint16_t ceil_s(uint32_t ms)
+{
+    uint32_t s = (ms + 999U) / 1000U;
+    if (s < 1U) { s = 1U; }
+    if (s > 0xFFFFU) { s = 0xFFFFU; }
+    return (uint16_t)s;
+}
+
+/* Time to cover `delta` µA at the full-scale slope target / ramp_s. */
+static uint32_t td_time_ms(const np_mod_stim_state_t *st, uint32_t delta_ua)
+{
+    if (st->target_ua == 0U) { return 0U; }
+    return (uint32_t)(((uint64_t)delta_ua * (uint64_t)st->ramp_s * 1000ULL + st->target_ua - 1U) / st->target_ua);
+}
+
+static void td_segment(np_mod_stim_state_t *st, td_phase_t ph, uint16_t from, uint16_t to, uint32_t ms, uint32_t now_ms)
+{
+    st->phase = ph; st->seg_from_ua = from; st->seg_to_ua = to; st->seg_start_ms = now_ms; st->seg_ms = ms;
+}
+
+static void td_finish_off(np_mod_stim_state_t *st)
+{
+    np_safety_spi_request_disable(NP_SAFETY_EN_TDCS);
+    np_safety_spi_set_channel_current(NP_SAFETY_CH_TDCS, 0U);
+    np_stim_xcheck_commanded(NP_SAFETY_CH_TDCS, 0U, 0U);
+    st->phase = TD_IDLE;
+    st->active = false;
+}
+
+void np_mod_stim_tick(uint32_t now_ms)
+{
+    s_now_ms = now_ms;
+    np_mod_stim_state_t *st = &s_tdcs_state;
+    if (!st->active) { return; }
+    if (st->phase == TD_UP && now_ms - st->seg_start_ms >= st->seg_ms) { st->phase = TD_STEADY; }
+    if (st->phase == TD_DOWN && now_ms - st->seg_start_ms >= st->seg_ms) { td_finish_off(st); }
+}
+
+/* Pause: ramp down at the slope, with the enable held until the current reaches zero.  Stimulation is delivered for as
+ * long as the ramp-down takes; a stop or abort still cuts at once (np_mod_stim_control with no parameters). */
+bool np_mod_stim_tdcs_pause(void)
+{
+    np_mod_stim_state_t *st = &s_tdcs_state;
+    if (!st->active || st->phase == TD_DOWN) { return st->active; }
+    const uint16_t level = td_level(st, s_now_ms);
+    if (level == 0U) { td_finish_off(st); return false; }
+    const uint32_t ms = td_time_ms(st, level);
+    const uint16_t s = ceil_s(ms);
+    if (np_mod_stim_hal_dc_ramp(st->active_pair, 0U, st->polarity, s) != NP_HUB_OK) {
+        /* cannot ramp it down: fall back to what a stop does */
+        (void)np_mod_stim_hal_dc_ramp(st->active_pair, 0U, 0U, STIM_MIN_RAMP_S);
+        td_finish_off(st);
+        return false;
+    }
+    td_segment(st, TD_DOWN, level, 0U, (uint32_t)s * 1000U, s_now_ms);
+    np_stim_xcheck_commanded(NP_SAFETY_CH_TDCS, 0U, (uint32_t)s * 1000U);   /* hold the previous level as the bound */
+    return true;
+}
+
+void np_mod_stim_tdcs_ramp(np_ramp_report_t *out)
+{
+    const np_mod_stim_state_t *st = &s_tdcs_state;
+    out->phase = NP_RAMP_NONE; out->pct = 0U; out->remaining_ms = 0U;
+    if (!st->active || (st->phase != TD_UP && st->phase != TD_DOWN)) { return; }
+    uint32_t dt = s_now_ms - st->seg_start_ms;
+    if (dt > st->seg_ms) { dt = st->seg_ms; }
+    out->phase = (st->phase == TD_UP) ? NP_RAMP_UP : NP_RAMP_DOWN;
+    out->remaining_ms = st->seg_ms - dt;
+    out->pct = (st->seg_ms == 0U) ? 100U : (uint8_t)(((uint64_t)dt * 100ULL) / st->seg_ms);
+}
+
+/* How long dispatching this tDCS command now would take to reach its level: the whole ramp, or the rest of it when it
+ * is a resume that reverses a ramp-down in progress. */
+uint32_t np_mod_stim_tdcs_ramp_up_ms(const void *params, uint16_t len)
+{
+    if (params == NULL || len != sizeof(np_mod_tdcs_params_t)) { return 0U; }
+    const np_mod_tdcs_params_t *p = (const np_mod_tdcs_params_t *)params;
+    const uint16_t cur = (p->current_ua > STIM_MAX_AMP_TDCS_UA) ? STIM_MAX_AMP_TDCS_UA : p->current_ua;
+    const uint16_t ramp_s = (p->ramp_s < STIM_MIN_RAMP_S) ? STIM_MIN_RAMP_S : p->ramp_s;
+    const np_mod_stim_state_t *st = &s_tdcs_state;
+    if (st->active && st->phase == TD_DOWN && st->active_pair == p->electrode_pair && st->polarity == p->polarity &&
+        st->target_ua == cur && st->ramp_s == ramp_s) {
+        const uint16_t level = td_level(st, s_now_ms);
+        if (level >= cur) { return 0U; }
+        return (uint32_t)ceil_s(td_time_ms(st, (uint32_t)cur - level)) * 1000U;
+    }
+    return (uint32_t)ramp_s * 1000U;
 }
 
 /* ── Detect ──────────────────────────────────────────────────────────────────── */
@@ -123,6 +249,7 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
                                          STIM_MIN_RAMP_S * 1000U);
             }
             st->active = false;
+            st->phase  = TD_IDLE;
         }
         return NP_HUB_OK;
     }
@@ -173,13 +300,32 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
                             ? STIM_MAX_AMP_TDCS_UA : p->current_ua;
         uint16_t ramp_s  = (p->ramp_s < STIM_MIN_RAMP_S) ? STIM_MIN_RAMP_S : p->ramp_s;
 
+        /* SWR-SS-05: a resume during a ramp-down reverses it, at the same slope, from where it had got to. */
+        uint16_t from = 0U;
+        uint32_t seg_ms = (uint32_t)ramp_s * 1000U;
+        uint16_t hal_s = ramp_s;
+        if (st->active && st->phase == TD_DOWN && st->active_pair == p->electrode_pair &&
+            st->polarity == p->polarity && st->target_ua == current && st->ramp_s == ramp_s) {
+            from = td_level(st, s_now_ms);
+            if (from < current) {
+                hal_s  = ceil_s(td_time_ms(st, (uint32_t)current - from));
+                seg_ms = (uint32_t)hal_s * 1000U;
+            } else {
+                seg_ms = 0U;
+            }
+        }
+
         np_hub_status_t rc = np_mod_stim_hal_dc_ramp(p->electrode_pair,
                                                        current,
                                                        p->polarity,
-                                                       ramp_s);
+                                                       hal_s);
         if (rc != NP_HUB_OK) { return NP_HUB_ERR_MOD_FAULT; }
         st->active_pair = p->electrode_pair;
         st->active = true;
+        st->polarity = p->polarity;
+        st->target_ua = current;
+        st->ramp_s = ramp_s;
+        td_segment(st, (seg_ms == 0U) ? TD_STEADY : TD_UP, from, current, seg_ms, s_now_ms);
         np_safety_spi_request_enable(NP_SAFETY_EN_TDCS);
         /* OI-CHARGE-05 (c): the capped DC target.  Published at the ramp TARGET
          * rather than tracking the ramp, which over-states delivered charge
@@ -188,8 +334,7 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
          * hardware timing the MCU cannot verify. */
         np_safety_spi_set_channel_current(NP_SAFETY_CH_TDCS, current);
         /* OI-FMEA-09: a lower target is reached over ramp_s, not at once. */
-        np_stim_xcheck_commanded(NP_SAFETY_CH_TDCS, current,
-                                 (uint32_t)ramp_s * 1000U);
+        np_stim_xcheck_commanded(NP_SAFETY_CH_TDCS, current, seg_ms);
     }
 
     return NP_HUB_OK;

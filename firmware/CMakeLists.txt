@@ -345,6 +345,10 @@ if(NP_BUILD_TESTS)
         COMMAND np_session_pause_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    add_test(NAME np_ramp_plan_tests
+        COMMAND np_ramp_plan_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     add_test(NAME np_pause_limit_tests
         COMMAND np_pause_limit_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})

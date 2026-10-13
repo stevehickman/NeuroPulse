@@ -536,9 +536,9 @@
         },
         {
           "name": "SESSION_PROGRESS_LEN",
-          "value": 16,
+          "value": 22,
           "int": true,
-          "note": "SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B remaining ms, 4 B total ms (all little-endian)."
+          "note": "SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B remaining ms, 4 B total ms, 1 B ramp phase (0 none, 1 down, 2 held, 3 cervical VNS checks, 4 up), 1 B ramp percent, 4 B ramp remaining ms (0xFFFFFFFF unknown) (all little-endian)."
         }
       ]
     },

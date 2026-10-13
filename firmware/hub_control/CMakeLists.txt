@@ -76,6 +76,14 @@ if(NP_BUILD_TESTS)
         $<TARGET_PROPERTY:np_littlefs,INTERFACE_INCLUDE_DIRECTORIES>)
     target_compile_options(np_pause_limit_tests PRIVATE -Wall -Wextra -std=c11)
 
+    # SWR-SS-05: the coordinated ramp-up plan. Pure C.
+    add_executable(np_ramp_plan_tests
+        tests/np_ramp_plan_tests.c
+        src/np_ramp_plan.c
+    )
+    target_include_directories(np_ramp_plan_tests PRIVATE include)
+    target_compile_options(np_ramp_plan_tests PRIVATE -Wall -Wextra -std=c11)
+
     # SWR-HV-02: the hardware fitting frame written at session start — the real
     # module map, simulated tiles.
     add_executable(np_session_fitting_tests
@@ -544,6 +552,7 @@ set(HUB_SOURCES
     src/np_warranty_token.c       # OI-WA-03: NP-FW-EMMC-002 §A warranty token
     src/np_consumables.c          # OI-ACC-08: CONSUMABLE_STATUS session counts
     src/np_pause_limit.c          # SWR-SS-05: the owner's pause time limit
+    src/np_ramp_plan.c            # SWR-SS-05: coordinated ramp-up
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
     src/np_hexmap_nvram.c         # OI-HEXMAP-01: npmp.bin on Config through np_cfg_store
     src/np_hexmap_inventory.c     # OI-HEXMAP-02: tile UID + element inventory over the socket seam

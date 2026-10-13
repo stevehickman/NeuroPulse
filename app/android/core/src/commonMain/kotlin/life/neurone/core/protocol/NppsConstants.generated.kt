@@ -313,8 +313,9 @@ object GattSizes {
     // PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit.
     const val PAUSE_LIMIT_LEN: Int = 4
     // SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B
-    // remaining ms, 4 B total ms (all little-endian).
-    const val SESSION_PROGRESS_LEN: Int = 16
+    // remaining ms, 4 B total ms, 1 B ramp phase (0 none, 1 down, 2 held, 3 cervical VNS checks, 4 up), 1
+    // B ramp percent, 4 B ramp remaining ms (0xFFFFFFFF unknown) (all little-endian).
+    const val SESSION_PROGRESS_LEN: Int = 22
 }
 
 // The anonymisation floors a study descriptor must meet before a user may be asked to consent to it (CLAUDE.md §5.3,

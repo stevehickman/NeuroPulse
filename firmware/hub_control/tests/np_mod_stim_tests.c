@@ -23,6 +23,7 @@
 
 #include "../include/np_hub_types.h"
 #include "../include/np_stim_xcheck.h"
+#include "../include/np_ramp_plan.h"
 
 /* The doubles below define symbols declared in np_sw02_platform_hal.h.
  * Including it is what makes drift from the production contract a compile
@@ -49,6 +50,10 @@ np_hub_status_t np_mod_stim_init(uint8_t slot);
 np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t len);
 np_hub_status_t np_mod_stim_telemetry(uint8_t slot, np_telem_record_t *out);
 np_hub_status_t np_mod_stim_shutdown(uint8_t slot);
+void     np_mod_stim_tick(uint32_t now_ms);
+bool     np_mod_stim_tdcs_pause(void);
+void     np_mod_stim_tdcs_ramp(np_ramp_report_t *out);
+uint32_t np_mod_stim_tdcs_ramp_up_ms(const void *params, uint16_t len);
 
 /* ── HAL + seam stubs: record what the driver asked the hardware to do ────────── */
 
@@ -342,6 +347,111 @@ static void test_driver_feeds_the_cross_check(void)
                   "window is flagged (driver stuck on)");
 }
 
+
+/* ── tDCS pause: ramp down at the slope, reverse on an early resume (SWR-SS-05) ─ */
+
+static np_mod_tdcs_params_t tdcs_2ma(void)
+{
+    np_mod_tdcs_params_t t;
+    memset(&t, 0, sizeof t);
+    t.electrode_pair = 1U; t.current_ua = 2000U; t.ramp_s = 30U; t.electrode_area_mcm2 = 35000U;
+    return t;
+}
+
+static void start_tdcs_at_steady(uint32_t t0)
+{
+    np_mod_stim_init(NP_HUB_SLOT_TDCS);
+    np_stim_xcheck_clear();
+    reset_stubs();
+    np_mod_tdcs_params_t t = tdcs_2ma();
+    np_mod_stim_tick(t0);
+    np_mod_stim_control(NP_HUB_SLOT_TDCS, &t, sizeof t);
+    np_mod_stim_tick(t0 + 31000U);   /* ramp-up done */
+}
+
+/* @verifies SWR-SS-05 */
+static void test_tdcs_pause_ramps_down_with_the_enable_held(void)
+{
+    start_tdcs_at_steady(1000U);
+    np_ramp_report_t r;
+    np_mod_stim_tdcs_ramp(&r);
+    check(r.phase == NP_RAMP_NONE, "tDCS pause: steady is not a ramp");
+
+    reset_stubs();
+    check(np_mod_stim_tdcs_pause(), "tDCS pause: a running tDCS ramps down");
+    check(g_dc_ramp_calls == 1 && g_dc_target_ua == 0U && g_dc_ramp_s == 30U,
+          "tDCS pause: from full level the ramp-down takes the full 30 s, at the slope of the ramp-up");
+    check((g_disabled_bits & NP_SAFETY_EN_TDCS) == 0U, "tDCS pause: the enable is not withdrawn while it ramps down");
+    check(g_chan_ua[NP_SAFETY_CH_TDCS] == 2000U, "tDCS pause: the published commanded current stays at the target (the strict bound)");
+
+    np_mod_stim_tick(1000U + 31000U + 10000U);
+    np_mod_stim_tdcs_ramp(&r);
+    check(r.phase == NP_RAMP_DOWN && r.pct == 33U && r.remaining_ms == 20000U, "tDCS pause: the ramp-down reports its percent and time left");
+
+    np_mod_stim_tick(1000U + 31000U + 30000U);
+    check((g_disabled_bits & NP_SAFETY_EN_TDCS) != 0U && g_chan_ua[NP_SAFETY_CH_TDCS] == 0U,
+          "tDCS pause: the enable is withdrawn when the current reaches zero");
+    np_mod_stim_tdcs_ramp(&r);
+    check(r.phase == NP_RAMP_NONE, "tDCS pause: and nothing ramps after that");
+}
+
+/* @verifies SWR-SS-05 */
+static void test_tdcs_pause_part_way_up_ramps_down_from_where_it_got_to(void)
+{
+    np_mod_stim_init(NP_HUB_SLOT_TDCS);
+    reset_stubs();
+    np_mod_tdcs_params_t t = tdcs_2ma();
+    np_mod_stim_tick(0U);
+    np_mod_stim_control(NP_HUB_SLOT_TDCS, &t, sizeof t);
+    np_mod_stim_tick(15000U);   /* half way up: 1 mA */
+    reset_stubs();
+    check(np_mod_stim_tdcs_pause() && g_dc_ramp_s == 15U, "tDCS pause: half way up, the ramp-down takes 15 s");
+}
+
+/* @verifies SWR-SS-05 */
+static void test_tdcs_resume_during_the_ramp_down_reverses_it(void)
+{
+    start_tdcs_at_steady(0U);
+    np_mod_stim_tick(40000U);
+    (void)np_mod_stim_tdcs_pause();
+    np_mod_stim_tick(50000U);   /* 10 s down: about 1.33 mA */
+    np_mod_tdcs_params_t t = tdcs_2ma();
+    check(np_mod_stim_tdcs_ramp_up_ms(&t, sizeof t) == 10000U, "tDCS resume: the plan sees only the distance the ramp-down covered (10 s)");
+    reset_stubs();
+    check(np_mod_stim_control(NP_HUB_SLOT_TDCS, &t, sizeof t) == NP_HUB_OK, "tDCS resume: the command is accepted");
+    check(g_dc_target_ua == 2000U && g_dc_ramp_s == 10U, "tDCS resume: it ramps back up in 10 s, not the full 30 s");
+    np_ramp_report_t r;
+    np_mod_stim_tdcs_ramp(&r);
+    check(r.phase == NP_RAMP_UP && r.remaining_ms == 10000U, "tDCS resume: the ramp reports as a ramp-up with 10 s to go");
+    np_mod_stim_tick(60000U);
+    np_mod_stim_tdcs_ramp(&r);
+    check(r.phase == NP_RAMP_NONE, "tDCS resume: it is steady again after that");
+}
+
+/* @verifies SWR-SS-05 */
+static void test_tdcs_resume_after_the_ramp_down_ended_is_a_full_ramp_up(void)
+{
+    start_tdcs_at_steady(0U);
+    np_mod_stim_tick(40000U);
+    (void)np_mod_stim_tdcs_pause();
+    np_mod_stim_tick(80000U);   /* well past the 30 s ramp-down */
+    np_mod_tdcs_params_t t = tdcs_2ma();
+    check(np_mod_stim_tdcs_ramp_up_ms(&t, sizeof t) == 30000U, "tDCS resume: after the ramp-down ended the plan sees the full 30 s");
+    reset_stubs();
+    (void)np_mod_stim_control(NP_HUB_SLOT_TDCS, &t, sizeof t);
+    check(g_dc_ramp_s == 30U, "tDCS resume: and the hardware ramps for the full 30 s");
+}
+
+/* @verifies SWR-SS-05 */
+static void test_tdcs_stop_during_the_ramp_down_still_cuts_at_once(void)
+{
+    start_tdcs_at_steady(0U);
+    (void)np_mod_stim_tdcs_pause();
+    reset_stubs();
+    np_mod_stim_control(NP_HUB_SLOT_TDCS, NULL, 0U);
+    check((g_disabled_bits & NP_SAFETY_EN_TDCS) != 0U, "tDCS stop: a stop during the ramp-down withdraws the enable at once");
+}
+
 int main(void)
 {
     test_detect_is_per_slot();
@@ -351,6 +461,11 @@ int main(void)
     test_param_length_is_exact();
     test_unowned_slot_is_refused();
     test_driver_feeds_the_cross_check();
+    test_tdcs_pause_ramps_down_with_the_enable_held();
+    test_tdcs_pause_part_way_up_ramps_down_from_where_it_got_to();
+    test_tdcs_resume_during_the_ramp_down_reverses_it();
+    test_tdcs_resume_after_the_ramp_down_ended_is_a_full_ramp_up();
+    test_tdcs_stop_during_the_ramp_down_still_cuts_at_once();
 
     if (g_failures == 0) {
         printf("\nALL TESTS PASSED\n");

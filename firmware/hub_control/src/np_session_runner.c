@@ -21,6 +21,7 @@
 #include "np_session_progress.h"
 #include "np_session_fitting.h"
 #include "np_pause_limit.h"
+#include "np_ramp_plan.h"
 #include "np_session_lease.h"
 #include "np_protocol.h"
 #include "np_module_registry.h"
@@ -54,6 +55,14 @@
  */
 extern bool     np_mod_cvns_active(void);
 extern void     np_mod_cvns_tick(uint32_t now_ms, uint32_t now_s);
+extern void     np_mod_cvns_ramp(uint32_t now_ms, np_ramp_report_t *out);
+extern uint32_t np_mod_cvns_ramp_up_ms(void);
+
+/* tDCS ramp model (modules/np_mod_stim.c, SWR-SS-05): the driver models the ramp it commanded. */
+extern void     np_mod_stim_tick(uint32_t wall_ms);
+extern bool     np_mod_stim_tdcs_pause(void);
+extern void     np_mod_stim_tdcs_ramp(np_ramp_report_t *out);
+extern uint32_t np_mod_stim_tdcs_ramp_up_ms(const void *params, uint16_t len);
 
 /* ── Internal state ───────────────────────────────────────────────────────────── */
 
@@ -274,6 +283,150 @@ static bool dispatch_tracked(uint16_t idx, uint32_t now_ms, bool *accepted)
     return marks;
 }
 
+
+/* ── Ramp gate (SWR-SS-05) ─────────────────────────────────────────────────────
+ * When the session starts, or resumes after a pause, with tDCS or cervical VNS in the protocol, the protocol clock is
+ * held and nothing else starts until every ramp has finished (np_ramp_plan.h).  The longer ramp starts first and the
+ * shorter is timed to end with it.  Then everything else starts at once.  A command that begins later in the protocol
+ * keeps its authored time: holding the clock then would slip every modality already running.
+ */
+#define NO_CMD 0xFFFFU
+
+typedef struct {
+    volatile bool open;          /* a gate is open: clock held, others deferred */
+    bool          resuming;      /* opened by a resume; else by the session start */
+    np_ramp_plan_t plan;
+    uint16_t      tdcs_cmd, cvns_cmd;               /* the ramped commands, NO_CMD when none */
+    uint16_t      held[NP_HUB_SLOT_MAX];            /* a resume: the other commands to start at release */
+    uint8_t       held_n;
+    uint16_t      skip_a, skip_b;                   /* a start gate: commands the gate dispatched itself */
+    bool          start_checked;                    /* the start gate was considered */
+} gate_t;
+
+static gate_t s_gate;
+
+static bool is_ramped_start(const np_session_cmd_t *c, uint8_t *which)
+{
+    if (c->target_kind != NP_PROTO_TARGET_SLOT || c->params_len == 0U) { return false; }
+    if (c->slot_id == NP_HUB_SLOT_TDCS) { *which = 1U; return true; }
+    if (c->slot_id == NP_HUB_SLOT_CVNS) { *which = 2U; return true; }
+    return false;
+}
+
+static void gate_reports(np_ramp_report_t *t, np_ramp_report_t *c)
+{
+    np_mod_stim_tdcs_ramp(t);
+    np_mod_cvns_ramp(np_mod_cvns_hal_now_ms(), c);
+}
+
+/* The ramp to show the app: the gate's gating ramp, else a tDCS ramp-down, else whichever module is ramping. */
+static np_ramp_report_t current_ramp(void)
+{
+    np_ramp_report_t t, c;
+    gate_reports(&t, &c);
+    if (s_gate.open) { return np_ramp_plan_gating(&s_gate.plan, &t, &c); }
+    if (c.phase == NP_RAMP_PRECHECK) { return c; }
+    if (t.phase != NP_RAMP_NONE && (c.phase == NP_RAMP_NONE || t.remaining_ms >= c.remaining_ms)) { return t; }
+    return c;
+}
+
+static void gate_open(bool resuming, bool want_t, uint16_t t_cmd, bool want_c, uint16_t c_cmd)
+{
+    s_gate.resuming = resuming;
+    s_gate.tdcs_cmd = want_t ? t_cmd : NO_CMD;
+    s_gate.cvns_cmd = want_c ? c_cmd : NO_CMD;
+    uint32_t t_ms = 0U;
+    if (want_t) {
+        const np_session_cmd_t *tc = &s_ctx.desc.cmds[t_cmd];
+        t_ms = np_mod_stim_tdcs_ramp_up_ms(tc->params, tc->params_len);
+    }
+    np_ramp_plan_begin(&s_gate.plan, want_t, t_ms, want_c, np_mod_cvns_ramp_up_ms());
+    s_gate.open = true;
+}
+
+static void gate_release(void)
+{
+    taskENTER_CRITICAL();
+    (void)np_session_clock_resume(&s_ctx.clock, clock_now_ms());
+    if (s_gate.resuming) { s_ctx.state = NP_SESSION_RUNNING; }
+    taskEXIT_CRITICAL();
+    s_gate.open = false;
+
+    if (s_gate.resuming) {
+        const uint32_t now_ms = elapsed_ms_now();
+        for (uint8_t i = 0U; i < s_gate.held_n; i++) {
+            bool accepted;
+            (void)dispatch_tracked(s_gate.held[i], now_ms, &accepted);
+            np_log_command(&s_ctx.desc.cmds[s_gate.held[i]], now_ms, accepted);
+        }
+        const uint16_t unrestored = np_sock_disp_resume();
+        if (unrestored != 0U) {
+            np_log_shdr_fault(NP_HUB_SLOT_NONE, NP_MOD_PBM_BASE, (uint8_t)(-NP_HUB_ERR_MOD_FAULT), now_ms);
+            if (s_ctx.abort_reason == NP_ABORT_NONE) {
+                s_ctx.abort_reason = NP_ABORT_MOD_FAULT;
+            }
+        }
+        np_log_session_pause(now_ms, false, unrestored);
+    }
+    np_progress_notify();
+}
+
+/* Start one ramped command through the ordinary dispatch path; a refusal stops the gate waiting for it. */
+static void gate_start(uint16_t idx, bool is_tdcs)
+{
+    const uint32_t now_ms = elapsed_ms_now();
+    const np_session_cmd_t *cmd = &s_ctx.desc.cmds[idx];
+    bool accepted;
+    const bool marks = dispatch_tracked(idx, now_ms, &accepted);
+    if (!s_gate.resuming) {
+        if (marks) { s_ctx.uhdr.mods_active_mask |= (1U << (uint8_t)cmd->mod_type); }
+    }
+    np_log_command(cmd, now_ms, accepted);
+    if (!accepted) { np_ramp_plan_refused(&s_gate.plan, is_tdcs, !is_tdcs); }
+}
+
+/* A gate loop wakes at the cervical VNS tick while that module is up, else at the runner tick. */
+static uint32_t gate_sleep_ms(void)
+{
+    return np_mod_cvns_active() ? NP_CVNS_STIM_TICK_MS : NP_RUNNER_TICK_MS;
+}
+
+/* One tick of the gate: advance the modules that need it, start what the plan says, release when every ramp is done. */
+static void gate_step(void)
+{
+    np_mod_stim_tick(clock_now_ms());
+    if (np_mod_cvns_active()) {
+        np_mod_cvns_tick(np_mod_cvns_hal_now_ms(), np_mod_cvns_hal_now_unix());
+    }
+    np_ramp_report_t t, c;
+    gate_reports(&t, &c);
+    const np_ramp_step_t st = np_ramp_plan_step(&s_gate.plan, &t, &c);
+    if (st.start_tdcs) { gate_start(s_gate.tdcs_cmd, true); }
+    if (st.start_cvns) { gate_start(s_gate.cvns_cmd, false); }
+    if (st.release_others) { gate_release(); } else { np_progress_notify(); }
+}
+
+/* The start gate: considered once, on the first pass, over the commands due at time 0. */
+static void gate_consider_start(uint32_t now_ms)
+{
+    s_gate.start_checked = true;
+    bool want_t = false, want_c = false;
+    uint16_t t_cmd = NO_CMD, c_cmd = NO_CMD;
+    for (uint16_t i = s_ctx.next_cmd_idx; i < s_ctx.desc.cmd_count && s_ctx.desc.cmds[i].start_ms <= now_ms; i++) {
+        uint8_t which;
+        if (!is_ramped_start(&s_ctx.desc.cmds[i], &which)) { continue; }
+        if (which == 1U && !want_t) { want_t = true; t_cmd = i; }
+        if (which == 2U && !want_c) { want_c = true; c_cmd = i; }
+    }
+    if (!want_t && !want_c) { return; }
+    s_gate.skip_a = t_cmd;
+    s_gate.skip_b = c_cmd;
+    taskENTER_CRITICAL();
+    (void)np_session_clock_pause(&s_ctx.clock, clock_now_ms());
+    taskEXIT_CRITICAL();
+    gate_open(false, want_t, t_cmd, want_c, c_cmd);
+}
+
 /*
  * do_pause — SWR-SS-05.  Withdraw every enable request, stop every driven module and every lit socket, and stop the
  * session clock.  The safety MCU is not asked for anything and nothing it holds is changed: with no request pending it
@@ -291,8 +444,16 @@ static void do_pause(uint32_t now_ms)
     uint8_t slots[NP_HUB_SLOT_MAX];
     const uint8_t n = np_slot_track_pause(&s_ctx.slots, slots);
 
+    np_mod_stim_tick(clock_now_ms());
     for (uint8_t i = 0U; i < n; i++) {
         const uint8_t slot = slots[i];
+        if (slot == NP_HUB_SLOT_TDCS) {
+            /* Ramp down at the slope with the enable held; the driver withdraws it when the current reaches zero, and a
+             * resume that comes first reverses the ramp (SWR-SS-05). */
+            (void)np_mod_stim_tdcs_pause();
+            s_ctx.stop_at_ms[slot] = 0U;
+            continue;
+        }
         np_mod_entry_t *mod = np_mod_reg_get(slot);
         if (mod != NULL && mod->control != NULL) {
             (void)mod->control(slot, NULL, 0U);
@@ -315,7 +476,8 @@ static void do_pause(uint32_t now_ms)
 }
 
 /*
- * do_resume — SWR-SS-05.  Restart the clock, then re-dispatch what the pause found running.  Each command goes through
+ * do_resume — SWR-SS-05.  Open a ramp gate over what the pause found running: the ramped modalities start first (the longer
+ * ramp first), and when every ramp is done the clock restarts and everything else is dispatched.  Each command goes through
  * dispatch_command as it did the first time, so a module's own start-up (a ramp starts again), the safety MCU's checks
  * and its decision to grant the line are all as for a fresh command: a cervical line held after a cardiac cutoff stays
  * held across a resume because the MCU still holds it.  A command that is refused now (a module taken out, the power
@@ -323,30 +485,25 @@ static void do_pause(uint32_t now_ms)
  */
 static void do_resume(void)
 {
-    taskENTER_CRITICAL();
-    (void)np_session_clock_resume(&s_ctx.clock, clock_now_ms());
-    s_ctx.state = NP_SESSION_RUNNING;
-    taskEXIT_CRITICAL();
+    s_pause_limit_ms = 0U;   /* the pause is over: its limit no longer applies while the protocol ramps back up */
+    np_mod_stim_tick(clock_now_ms());
 
-    const uint32_t now_ms = elapsed_ms_now();
     uint16_t cmds[NP_HUB_SLOT_MAX];
     const uint8_t n = np_slot_track_resume(&s_ctx.slots, cmds);
+    bool want_t = false, want_c = false;
+    uint16_t t_cmd = NO_CMD, c_cmd = NO_CMD;
+    s_gate.held_n = 0U;
     for (uint8_t i = 0U; i < n; i++) {
-        bool accepted;
-        (void)dispatch_tracked(cmds[i], now_ms, &accepted);
-        np_log_command(&s_ctx.desc.cmds[cmds[i]], now_ms, accepted);
-    }
-
-    const uint16_t unrestored = np_sock_disp_resume();
-    if (unrestored != 0U) {
-        np_log_shdr_fault(NP_HUB_SLOT_NONE, NP_MOD_PBM_BASE, (uint8_t)(-NP_HUB_ERR_MOD_FAULT), now_ms);
-        if (s_ctx.abort_reason == NP_ABORT_NONE) {
-            s_ctx.abort_reason = NP_ABORT_MOD_FAULT;
+        uint8_t which;
+        if (is_ramped_start(&s_ctx.desc.cmds[cmds[i]], &which)) {
+            if (which == 1U) { want_t = true; t_cmd = cmds[i]; } else { want_c = true; c_cmd = cmds[i]; }
+        } else {
+            s_gate.held[s_gate.held_n++] = cmds[i];
         }
     }
-
-    np_log_session_pause(now_ms, false, unrestored);
-    np_progress_notify();
+    /* The clock stays still, and the state stays PAUSED, until every ramp is done; the gate releases both. */
+    gate_open(true, want_t, t_cmd, want_c, c_cmd);
+    gate_step();
 }
 
 /*
@@ -414,6 +571,11 @@ void np_runner_init(EventGroupHandle_t hub_events)
 void np_runner_progress(uint8_t out[NP_PROGRESS_LEN])
 {
     np_progress_in_t in;
+    memset(&in, 0, sizeof in);
+    /* The ramp is read from the modules before the critical section: it calls into them. */
+    if (s_ctx.state == NP_SESSION_RUNNING || s_ctx.state == NP_SESSION_PAUSED) {
+        in.ramp = current_ramp();
+    }
     taskENTER_CRITICAL();
     in.state      = s_ctx.state;
     in.elapsed_ms = (s_ctx.state == NP_SESSION_RUNNING || s_ctx.state == NP_SESSION_PAUSED)
@@ -501,6 +663,8 @@ np_hub_status_t np_runner_run(void)
     s_ctx.state      = NP_SESSION_RUNNING;
     np_session_clock_start(&s_ctx.clock, clock_now_ms());
     np_slot_track_reset(&s_ctx.slots);
+    memset(&s_gate, 0, sizeof s_gate);
+    s_gate.tdcs_cmd = s_gate.cvns_cmd = s_gate.skip_a = s_gate.skip_b = NO_CMD;
 
     /* Populate UHDR session-start record. */
     memcpy(s_ctx.uhdr.session_uuid, s_ctx.desc.session_uuid,
@@ -587,6 +751,7 @@ np_hub_status_t np_runner_run(void)
     uint32_t last_telem_ms = 0U;
 
     for (;;) {
+        np_mod_stim_tick(clock_now_ms());   /* the tDCS ramp model's clock (SWR-SS-05) */
         uint32_t now_ms = elapsed_ms_now();
         s_ctx.elapsed_ms = now_ms;
 
@@ -606,7 +771,13 @@ np_hub_status_t np_runner_run(void)
          * dispatched, no stop is due (the session clock stands still), no dose is polled and no module telemetry is
          * taken; the loop only waits for a resume or an abort. */
         if (s_ctx.state == NP_SESSION_PAUSED) {
-            if (ev & NP_EV_SESSION_RESUME) {
+            if (s_gate.open) {
+                /* Resuming: the protocol is ramping back up.  A pause is refused until it is up (np_runner_pause);
+                 * a stop is not (the abort check above). */
+                xEventGroupClearBits(s_events, NP_EV_SESSION_RESUME | NP_EV_SESSION_PAUSE);
+                gate_step();
+                vTaskDelay(pdMS_TO_TICKS(gate_sleep_ms()));
+            } else if (ev & NP_EV_SESSION_RESUME) {
                 xEventGroupClearBits(s_events, NP_EV_SESSION_RESUME | NP_EV_SESSION_PAUSE);
                 do_resume();
             } else {
@@ -624,6 +795,18 @@ np_hub_status_t np_runner_run(void)
                 }
                 vTaskDelay(pdMS_TO_TICKS(NP_RUNNER_TICK_MS));
             }
+            continue;
+        }
+
+        /* SWR-SS-05: the start gate, and the ramps of a protocol coming up.  Considered once, before anything is
+         * dispatched; while it is open the clock stands still and the pause request is refused. */
+        if (!s_gate.start_checked) {
+            gate_consider_start(now_ms);
+        }
+        if (s_gate.open) {
+            xEventGroupClearBits(s_events, NP_EV_SESSION_PAUSE | NP_EV_SESSION_RESUME);
+            gate_step();
+            vTaskDelay(pdMS_TO_TICKS(gate_sleep_ms()));
             continue;
         }
         if (ev & NP_EV_SESSION_PAUSE) {
@@ -646,6 +829,10 @@ np_hub_status_t np_runner_run(void)
              * governor did not admit, OI-FWHUB-09) must not appear in it as
              * delivered. */
             const np_session_cmd_t *cmd = &s_ctx.desc.cmds[s_ctx.next_cmd_idx];
+            if (s_ctx.next_cmd_idx == s_gate.skip_a || s_ctx.next_cmd_idx == s_gate.skip_b) {
+                s_ctx.next_cmd_idx++;   /* the start gate dispatched and logged it already */
+                continue;
+            }
             bool accepted;
             if (dispatch_tracked(s_ctx.next_cmd_idx, now_ms, &accepted)) {
                 s_ctx.uhdr.mods_active_mask |= (1U << (uint8_t)cmd->mod_type);
@@ -716,6 +903,7 @@ np_hub_status_t np_runner_run(void)
     /* ── Graceful shutdown ─────────────────────────────────────────────────────── */
 
     /* A session ending while paused closes the pause first, so the length it reports is the time it was running. */
+    s_gate.open = false;
     np_session_clock_close(&s_ctx.clock, clock_now_ms());
     s_ctx.state = NP_SESSION_STOPPING;
     np_safety_spi_disable_all();
@@ -786,6 +974,9 @@ np_hub_status_t np_runner_pause(void)
     if (np_runner_get_state() != NP_SESSION_RUNNING) {
         return NP_HUB_ERR_NO_SESSION;
     }
+    if (s_gate.open) {
+        return NP_HUB_ERR_SESSION_ACTIVE;   /* the protocol is ramping up: a stop is accepted, a pause is not */
+    }
     xEventGroupSetBits(s_events, NP_EV_SESSION_PAUSE);
     return NP_HUB_OK;
 }
@@ -794,6 +985,9 @@ np_hub_status_t np_runner_resume(void)
 {
     if (np_runner_get_state() != NP_SESSION_PAUSED) {
         return NP_HUB_ERR_NO_SESSION;
+    }
+    if (s_gate.open) {
+        return NP_HUB_ERR_SESSION_ACTIVE;   /* already resuming */
     }
     xEventGroupSetBits(s_events, NP_EV_SESSION_RESUME);
     return NP_HUB_OK;

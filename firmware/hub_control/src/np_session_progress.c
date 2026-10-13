@@ -58,6 +58,14 @@ void np_progress_build(const np_progress_in_t *in, uint8_t out[NP_PROGRESS_LEN])
     put_u32(&out[4], elapsed);
     put_u32(&out[8], (in->total_ms > elapsed) ? (in->total_ms - elapsed) : 0U);
     put_u32(&out[12], in->total_ms);
+
+    np_ramp_phase_t ph = in->ramp.phase;
+    if (ph == NP_RAMP_NONE && in->state == NP_SESSION_PAUSED) {
+        ph = NP_RAMP_HELD;   /* paused with nothing ramping */
+    }
+    out[16] = (uint8_t)ph;
+    out[17] = (in->ramp.pct > 100U) ? 100U : in->ramp.pct;
+    put_u32(&out[18], in->ramp.remaining_ms);
 }
 
 void np_progress_set_source(np_progress_source_fn source)

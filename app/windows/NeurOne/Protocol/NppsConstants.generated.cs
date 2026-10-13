@@ -315,8 +315,9 @@ static class GattSizes
     /// PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit.
     public const int PAUSE_LIMIT_LEN = 4;
     /// SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B
-    /// remaining ms, 4 B total ms (all little-endian).
-    public const int SESSION_PROGRESS_LEN = 16;
+    /// remaining ms, 4 B total ms, 1 B ramp phase (0 none, 1 down, 2 held, 3 cervical VNS checks, 4 up), 1
+    /// B ramp percent, 4 B ramp remaining ms (0xFFFFFFFF unknown) (all little-endian).
+    public const int SESSION_PROGRESS_LEN = 22;
 }
 
 /// Sizes and flags of the signed session descriptor the apps build and the hub verifies (NP-FW-HUB-001 §4).

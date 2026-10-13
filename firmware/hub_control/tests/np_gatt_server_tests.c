@@ -730,6 +730,7 @@ static void test_progress_frame_elapsed_remaining_and_active_part(void)
     np_session_cmd_t cmds[3];
     uint8_t f[NP_PROGRESS_LEN];
     np_progress_in_t in;
+    memset(&in, 0, sizeof in);
 
     cmds[0] = make_cmd(NP_MOD_PBM_BASE, 0U, 300000U);
     cmds[1] = make_cmd(NP_MOD_AUDIO, 60000U, 60000U);
@@ -769,6 +770,7 @@ static void test_progress_states_and_unbounded_commands(void)
     np_session_cmd_t cmds[1];
     uint8_t f[NP_PROGRESS_LEN];
     np_progress_in_t in;
+    memset(&in, 0, sizeof in);
 
     cmds[0] = make_cmd(NP_MOD_EEG, 0U, 0U);   /* duration 0: until the session ends */
     in.state = NP_SESSION_PAUSED;
@@ -793,6 +795,32 @@ static void test_progress_states_and_unbounded_commands(void)
     np_progress_build(&in, f);
     check(f[0] == NP_SESSION_IDLE && rd32(&f[4]) == 0U && rd32(&f[8]) == 0U && rd32(&f[12]) == 0U &&
           f[1] == NP_PROGRESS_NO_PART, "progress: an idle hub reports zeros and no part");
+}
+
+
+/* @verifies SWR-SS-07 */
+static void test_progress_frame_reports_the_ramp(void)
+{
+    uint8_t f[NP_PROGRESS_LEN];
+    np_progress_in_t in;
+    memset(&in, 0, sizeof in);
+    in.state = NP_SESSION_PAUSED;
+    in.total_ms = 5000U;
+    np_progress_build(&in, f);
+    check(f[16] == NP_RAMP_HELD, "progress: paused with nothing ramping is HELD");
+
+    in.ramp.phase = NP_RAMP_DOWN; in.ramp.pct = 33U; in.ramp.remaining_ms = 20000U;
+    np_progress_build(&in, f);
+    check(f[16] == NP_RAMP_DOWN && f[17] == 33U && rd32(&f[18]) == 20000U, "progress: a ramp-down reports its phase, percent and time left");
+
+    in.state = NP_SESSION_RUNNING;
+    in.ramp.phase = NP_RAMP_PRECHECK; in.ramp.pct = 0U; in.ramp.remaining_ms = NP_RAMP_UNKNOWN_MS;
+    np_progress_build(&in, f);
+    check(f[16] == NP_RAMP_PRECHECK && rd32(&f[18]) == NP_RAMP_UNKNOWN_MS, "progress: the cervical VNS checks report an unknown time");
+
+    in.ramp.phase = NP_RAMP_NONE;
+    np_progress_build(&in, f);
+    check(f[16] == NP_RAMP_NONE && f[17] == 0U, "progress: a running session with no ramp reports none");
 }
 
 static void fake_progress_source(uint8_t out[NP_PROGRESS_LEN])
@@ -901,6 +929,7 @@ int main(void)
     test_stop_write_is_refused_when_it_would_not_take_effect();
     test_progress_frame_elapsed_remaining_and_active_part();
     test_progress_states_and_unbounded_commands();
+    test_progress_frame_reports_the_ramp();
     test_progress_is_read_and_notified_through_the_table();
     test_pause_write_forwards_pause_and_resume_to_the_runner();
     test_pause_write_is_refused_when_the_runner_refuses_or_the_value_is_wrong();
