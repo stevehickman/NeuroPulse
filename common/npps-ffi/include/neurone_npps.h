@@ -16,6 +16,8 @@
  *   npps_serialize_json {items:[…]} (JSON)    -> `.npps` text: the models of parse_json written back
  *   npps_validate_json {entry,limits,allProtocols} -> JSON: the issues, as locale keys and arguments
  *   npps_resolve_limits_json {global,helmet,individual} -> JSON: the effective limits and the tier of each value
+ *   npps_library_json  {op, …} (JSON)         -> JSON: the protocol library's rules (save, clone, upload gate and
+ *                                                outcome, import merge, layouts; neurone_npps_core::library)
  *
  * The request and result shapes are documented on neurone_npps_core::api (parse_json,
  * namespace_json, compile_json, serialize_json, validate_json, resolve_limits_json). Every call returns 0 on success. On failure they return non-zero and the
@@ -46,6 +48,7 @@ int32_t npps_parse_json(const uint8_t *src, size_t src_len, uint8_t **out, size_
 int32_t npps_compile_json(const uint8_t *req, size_t req_len, uint8_t **out, size_t *out_len);
 
 int32_t npps_content_hash_json(const uint8_t *req, size_t req_len, uint8_t **out, size_t *out_len);
+int32_t npps_library_json(const uint8_t *req, size_t req_len, uint8_t **out, size_t *out_len);
 
 int32_t npps_namespace_json(const uint8_t *req, size_t req_len, uint8_t **out, size_t *out_len);
 

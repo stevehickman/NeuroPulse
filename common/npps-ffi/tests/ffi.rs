@@ -5,7 +5,7 @@
 
 use neurone_npps_core::constants::status;
 use neurone_npps_ffi::{
-    npps_alloc, npps_compile_json, npps_free, npps_namespace_json, npps_parse_json, npps_serialize_json, npps_validate_json,
+    npps_alloc, npps_compile_json, npps_free, npps_library_json, npps_namespace_json, npps_parse_json, npps_serialize_json, npps_validate_json,
 };
 use serde_json::Value;
 use std::fs;
@@ -202,4 +202,19 @@ fn validate_returns_keys_not_text() {
     assert_eq!(v["isValid"], false);
     assert_eq!(v["issues"][0]["message"]["key"], "VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS");
     assert_eq!(v["issues"][0]["message"]["args"], serde_json::json!(["2", "1"]));
+}
+
+// @verifies SWR-PL-02
+#[test]
+fn the_library_rules_cross_the_c_abi_and_a_refusal_is_a_refusal() {
+    let req = br#"{"op":"saveCheck","entries":[{"id":"a","familyId":"F","used":true}],"id":"a"}"#;
+    let (code, out) = run(npps_library_json, req);
+    assert_eq!(code, status::OK);
+    let v: Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(v["allowed"], false);
+    assert_eq!(v["offer"], "clone_family");
+
+    let (code, out) = run(npps_library_json, br#"{"op":"nope"}"#);
+    assert_eq!(code, status::REFUSED);
+    assert!(String::from_utf8(out).unwrap().contains("unknown library operation"));
 }
