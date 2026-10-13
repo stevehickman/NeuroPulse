@@ -5,7 +5,7 @@
 
 use neurone_npps_core::constants::status;
 use neurone_npps_ffi::{
-    npps_alloc, npps_compile_json, npps_free, npps_library_json, npps_namespace_json, npps_parse_json, npps_serialize_json, npps_validate_json,
+    npps_alloc, npps_compile_json, npps_free, npps_library_json, npps_migration_json, npps_namespace_json, npps_parse_json, npps_serialize_json, npps_validate_json,
 };
 use serde_json::Value;
 use std::fs;
@@ -217,4 +217,18 @@ fn the_library_rules_cross_the_c_abi_and_a_refusal_is_a_refusal() {
     let (code, out) = run(npps_library_json, br#"{"op":"nope"}"#);
     assert_eq!(code, status::REFUSED);
     assert!(String::from_utf8(out).unwrap().contains("unknown library operation"));
+}
+
+// @verifies SWR-MG-05
+#[test]
+fn the_migration_rules_cross_the_c_abi_and_a_newer_bundle_is_refused_whole() {
+    let (code, out) = run(npps_migration_json, br#"{"op":"readHeader","header":{"kind":"migrate","formatVersion":99}}"#);
+    assert_eq!(code, status::OK);
+    let v: Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(v["ok"], false);
+    assert_eq!(v["reason"], "newer_version");
+
+    let (code, out) = run(npps_migration_json, br#"{"op":"nope"}"#);
+    assert_eq!(code, status::REFUSED);
+    assert!(String::from_utf8(out).unwrap().contains("unknown migration operation"));
 }

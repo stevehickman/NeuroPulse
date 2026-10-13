@@ -18,6 +18,8 @@
  *   npps_resolve_limits_json {global,helmet,individual} -> JSON: the effective limits and the tier of each value
  *   npps_library_json  {op, …} (JSON)         -> JSON: the protocol library's rules (save, clone, upload gate and
  *                                                outcome, import merge, layouts; neurone_npps_core::library)
+ *   npps_migration_json {op, …} (JSON)        -> JSON: the device-replacement migration and UHDR backup rules (bundle
+ *                                                kinds and header, withdrawal merge, claim, clear, probe; neurone_npps_core::migration)
  *
  * The request and result shapes are documented on neurone_npps_core::api (parse_json,
  * namespace_json, compile_json, serialize_json, validate_json, resolve_limits_json). Every call returns 0 on success. On failure they return non-zero and the
@@ -49,6 +51,7 @@ int32_t npps_compile_json(const uint8_t *req, size_t req_len, uint8_t **out, siz
 
 int32_t npps_content_hash_json(const uint8_t *req, size_t req_len, uint8_t **out, size_t *out_len);
 int32_t npps_library_json(const uint8_t *req, size_t req_len, uint8_t **out, size_t *out_len);
+int32_t npps_migration_json(const uint8_t *req, size_t req_len, uint8_t **out, size_t *out_len);
 
 int32_t npps_namespace_json(const uint8_t *req, size_t req_len, uint8_t **out, size_t *out_len);
 

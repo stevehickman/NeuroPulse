@@ -301,3 +301,9 @@ pub fn content_hash_json(request: &str) -> Result<String, String> {
 pub fn library_json(request: &str) -> Result<String, String> {
     crate::library::library_json(request)
 }
+
+/// Device-replacement migration and UHDR backup rules (`SWR-MG-01…10`, `SWR-MG-12`): one entry point for every binding,
+/// `{"op": …}` in and JSON out. The operations and their shapes are in `migration`.
+pub fn migration_json(request: &str) -> Result<String, String> {
+    crate::migration::migration_json(request)
+}
