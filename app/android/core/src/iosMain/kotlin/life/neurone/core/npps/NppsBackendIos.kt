@@ -18,6 +18,7 @@ import life.neurone.core.npps.ffi.npps_compile_json
 import life.neurone.core.npps.ffi.npps_content_hash_json
 import life.neurone.core.npps.ffi.npps_library_json
 import life.neurone.core.npps.ffi.npps_free
+import life.neurone.core.npps.ffi.npps_migration_json
 import life.neurone.core.npps.ffi.npps_namespace_json
 import life.neurone.core.npps.ffi.npps_parse_json
 import life.neurone.core.npps.ffi.npps_resolve_limits_json
@@ -50,6 +51,7 @@ internal class CinteropNppsBackend : CAbiNppsBackend() {
                 NppsEntry.RESOLVE_LIMITS -> npps_resolve_limits_json(src, length, outPointer.ptr, outLength.ptr)
                 NppsEntry.CONTENT_HASH -> npps_content_hash_json(src, length, outPointer.ptr, outLength.ptr)
                 NppsEntry.LIBRARY -> npps_library_json(src, length, outPointer.ptr, outLength.ptr)
+                NppsEntry.MIGRATION -> npps_migration_json(src, length, outPointer.ptr, outLength.ptr)
             }
         }
 
