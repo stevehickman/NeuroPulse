@@ -629,25 +629,6 @@ uint16_t np_module_map_socket_count(void)
     return s_map.initialized ? s_map.n_sockets : 0U;
 }
 
-np_hub_mod_type_t np_module_map_pbm_kind(uint16_t socket_id)
-{
-    bool led = false;
-    for (uint16_t el = 0U; el < NP_HEXMAP_MAX_ELEMENTS; el++) {
-        np_hex_addr_t     a = { .socket_id = (uint8_t)socket_id, .element_id = (uint8_t)el };
-        np_physical_loc_t loc;
-        if (socket_id > 0xFFU || np_module_map_resolve(a, &loc) != NP_HUB_OK) {
-            break;
-        }
-        if (loc.elem_type == NP_ELEM_LED_1064) {
-            return NP_MOD_PBM_SMART;
-        }
-        if (loc.elem_type == NP_ELEM_LED_660 || loc.elem_type == NP_ELEM_LED_808) {
-            led = true;
-        }
-    }
-    return led ? NP_MOD_PBM_BASE : NP_MOD_NONE;
-}
-
 /* ── NVRAM persistence ────────────────────────────────────────────────────────── */
 
 size_t np_module_map_serialized_size(void)

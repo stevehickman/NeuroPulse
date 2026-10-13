@@ -391,12 +391,6 @@ np_hub_status_t np_module_map_socket_uid(uint16_t socket_id, np_module_uid_t *ui
  */
 uint16_t np_module_map_socket_count(void);
 
-/*
- * np_module_map_pbm_kind — the PBM kind of the module in `socket_id`, from its element inventory: a 1064 nm emitter
- * makes it a smart tile (NP_MOD_PBM_SMART), 660/808 nm emitters alone a base tile (NP_MOD_PBM_BASE), and NP_MOD_NONE
- * for a module with no PBM emitter (an electrode tile), an empty socket or an id out of range.
- */
-np_hub_mod_type_t np_module_map_pbm_kind(uint16_t socket_id);
 
 /* ── Fixed helmet geometry (const table, one entry per socket) ──────────────── */
 
@@ -522,6 +516,36 @@ np_hub_status_t np_module_map_apply_poll(uint16_t                 socket_id,
  * empty / not in the helmet, or element_id ≥ the module's element count.
  */
 np_hub_status_t np_module_map_resolve(np_hex_addr_t addr, np_physical_loc_t *out);
+
+/*
+ * np_module_map_pbm_kind — the PBM kind of the module in `socket_id`, from its element inventory: a 1064 nm emitter
+ * makes it a smart tile (NP_MOD_PBM_SMART), 660/808 nm emitters alone a base tile (NP_MOD_PBM_BASE), and NP_MOD_NONE
+ * for a module with no PBM emitter (an electrode tile), an empty socket or an id out of range.
+ *
+ * Header-inline on purpose: it only calls np_module_map_resolve, so every user (the session fitting record, the socket
+ * telemetry) gets the one definition and a test that stubs np_module_map_resolve gets it too, with no link change.
+ */
+static inline np_hub_mod_type_t np_module_map_pbm_kind(uint16_t socket_id)
+{
+    bool led = false;
+    if (socket_id > 0xFFU) {
+        return NP_MOD_NONE;
+    }
+    for (uint16_t el = 0U; el < NP_HEXMAP_MAX_ELEMENTS; el++) {
+        np_hex_addr_t     a = { .socket_id = (uint8_t)socket_id, .element_id = (uint8_t)el };
+        np_physical_loc_t loc;
+        if (np_module_map_resolve(a, &loc) != NP_HUB_OK) {
+            break;
+        }
+        if (loc.elem_type == NP_ELEM_LED_1064) {
+            return NP_MOD_PBM_SMART;
+        }
+        if (loc.elem_type == NP_ELEM_LED_660 || loc.elem_type == NP_ELEM_LED_808) {
+            led = true;
+        }
+    }
+    return led ? NP_MOD_PBM_BASE : NP_MOD_NONE;
+}
 
 /*
  * np_module_map_resolve_group — expand a group query to the list of
