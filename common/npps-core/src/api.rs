@@ -295,3 +295,9 @@ pub fn content_hash_json(request: &str) -> Result<String, String> {
     let clinician = if req["clinicianSockets"].is_null() { None } else { Some(sockets(&req["clinicianSockets"])?) };
     identity::content_hash(&req["def"], req["hardwareVersion"].as_u64().and_then(|v| u32::try_from(v).ok()), &zones, clinician.as_deref())
 }
+
+/// The protocol library's rules (`SWR-PL-02/03/06`, `SWR-UP-02`, `SWR-WO-01/02/03`, `SWR-FM-03…07`, `SWR-HV-04`): one entry
+/// point for every binding, `{"op": …}` in and JSON out. The operations and their shapes are in `library`.
+pub fn library_json(request: &str) -> Result<String, String> {
+    crate::library::library_json(request)
+}
