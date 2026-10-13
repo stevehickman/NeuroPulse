@@ -1,7 +1,6 @@
 protocol "PBM — Depression (Cassano 2018, low-irradiance CW)" {
     id: "30000004-0000-0000-0000-000000000000"
     family_id: "9e5352da-fbe6-41a8-9738-c55f1eaf6a63"
-    hardware_version: 1
     description: "Bilateral DLPFC 823nm PBM for major depressive disorder at the parameters of Cassano 2018 (double-blind RCT, n=21): 36 mW/cm² continuous wave, up to 65 J/cm², 20–30 min, 16 sessions over 8 weeks; HAM-D effect size 0.9–1.5. Grade B. This is the LOW-IRRADIANCE arm of the §4 evidence — the section's 0.03–0.25 W/cm² band is two trials seven-fold apart, and this is the 0.03 end. See the Schiffer 2009 protocol for the other."
     author: "NeurOne"
     version: "1.0"

@@ -1,7 +1,6 @@
 protocol "Retinal Health" {
     id: "10000009-0000-0000-0000-000000000000"
     family_id: "dca88ec1-bb9a-455b-98da-2fc7f0ebedfc"
-    hardware_version: 1
     description: "Invisible 808-830nm near-infrared retinal PBM during normal-looking wear (Mode F). Supports mitochondrial function in retinal photoreceptors. 3-minute daily maintenance."
     author: "NeurOne"
     version: "1.0"

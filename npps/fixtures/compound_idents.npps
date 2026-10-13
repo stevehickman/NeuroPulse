@@ -1,5 +1,4 @@
 protocol "Quoted Wavelength" {
-  hardware_version: 1
     id: "00000000-0000-0000-0000-000000000003"
     description: "Tests a quoted digit-leading wavelength value"
     author: "test"

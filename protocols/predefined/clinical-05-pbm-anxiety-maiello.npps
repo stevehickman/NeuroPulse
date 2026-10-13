@@ -1,7 +1,6 @@
 protocol "PBM — Anxiety (Maiello 2019, low-irradiance CW)" {
     id: "30000005-0000-0000-0000-000000000000"
     family_id: "a68ec185-8480-4d41-a142-607abe3b0709"
-    hardware_version: 1
     description: "Bilateral prefrontal 830nm PBM for generalized anxiety, at the parameters of Maiello 2019 (open-label, n=15): 30 mW/cm² continuous wave, 36 J/cm², 20 min, daily for 8 weeks; SIGH-A 17.3→8.5, d=1.47. Grade B. This is the LOW-IRRADIANCE arm of the §5 evidence — the section's 0.03–0.31 W/cm² band is not a range one protocol occupies, it is two trials an order of magnitude apart, and this is the 0.03 end. See the Wang 2023 protocol for the other."
     author: "NeurOne"
     version: "1.0"

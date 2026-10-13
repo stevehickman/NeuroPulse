@@ -161,7 +161,8 @@ class NppsCoreTests {
         var n = 0
         for ((rel, items) in files) for (item in items.jsonArray) {
             n++
-            assertEquals(item.jsonObject["text"]!!.jsonPrimitive.content, NppsCore.serialize(listOf(item.jsonObject["item"]!!.jsonObject)), rel)
+            // The frozen web output stated hardware_version: N on every protocol and composite; only a zone does now (SWR-HV-05).
+            assertEquals(item.jsonObject["text"]!!.jsonPrimitive.content.replace(Regex("(?m)^ {4}hardware_version: \\d+\n"), ""), NppsCore.serialize(listOf(item.jsonObject["item"]!!.jsonObject)), rel)
         }
         assertTrue(n > 100)
     }

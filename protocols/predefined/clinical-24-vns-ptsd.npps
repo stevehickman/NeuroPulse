@@ -1,7 +1,6 @@
 protocol "taVNS — PTSD (extinction-paired)" {
     id: "30000024-0000-0000-0000-000000000000"
     family_id: "bdbc4231-09b8-4d7e-a2c9-903f104c552c"
-    hardware_version: 1
     description: "Auricular taVNS (concha), 25Hz, paired to fear-extinction trials, enhancing extinction memory. Grade B (paired)."
     author: "NeurOne"
     version: "1.0"

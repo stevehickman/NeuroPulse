@@ -147,3 +147,23 @@ fn an_interval_count_session_with_a_block_that_never_stops_is_refused_as_infinit
     let e = compile_timed(json!({ "type": "interval_count", "count": 3 }), json!({ "intervalOnSeconds": 0 })).expect_err("infinite");
     assert!(e.contains("Block 1 (bes_tacs)") && e.contains("cannot be infinite"), "{e:?}");
 }
+
+// @verifies REQ-NPPS-22
+#[test]
+fn interval_count_sets_how_many_times_each_interval_repeats() {
+    // 60 s on, 30 s off, no repeat of its own: count 4 gives four on-periods, ending at 3 * 90 + 60 = 330 s.
+    let b = compile_timed(json!({ "type": "interval_count", "count": 4 }), json!({ "intervalOnSeconds": 60, "intervalOffSeconds": 30 })).unwrap();
+    assert_eq!(length_ms(&b), 330_000);
+    assert_eq!(b[7], 8, "four starts and four stops");
+    // A repeat the block states itself wins over the protocol's count.
+    let b = compile_timed(json!({ "type": "interval_count", "count": 4 }), json!({ "intervalOnSeconds": 60, "intervalOffSeconds": 30, "repeatCount": 2 })).unwrap();
+    assert_eq!(length_ms(&b), 150_000);
+}
+
+// @verifies REQ-NPPS-22
+#[test]
+fn an_interval_count_that_is_not_a_whole_number_of_one_or_more_is_refused() {
+    for count in [json!(0), json!(-1), json!(2.5)] {
+        refused(compile_timed(json!({ "type": "interval_count", "count": count }), json!({ "intervalOnSeconds": 60, "intervalOffSeconds": 30 })), "whole number of 1 or more");
+    }
+}

@@ -1,7 +1,6 @@
 protocol "TMS — Stroke Motor (contralesional M1)" {
     id: "30000015-0000-0000-0000-000000000000"
     family_id: "1a20bdb4-94b5-43d3-8ba8-ab470a5ad9d9"
-    hardware_version: 1
     description: "Figure-8 1Hz inhibitory rTMS over contralesional M1, adjunct to rehab. Grade B. 5–10 sessions + rehab."
     author: "NeurOne"
     version: "1.0"

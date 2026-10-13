@@ -138,7 +138,9 @@ public class NppsCoreTests
             {
                 n++;
                 var got = NppsCore.Serialize([item!["item"]!]);
-                if (got != item["text"]!.GetValue<string>()) failures.Add($"{rel}: differs");
+                // The frozen web output stated hardware_version: N on every protocol and composite; only a zone does now (SWR-HV-05).
+                var want = System.Text.RegularExpressions.Regex.Replace(item["text"]!.GetValue<string>(), @"^ {4}hardware_version: \d+\n", "", System.Text.RegularExpressions.RegexOptions.Multiline);
+                if (got != want) failures.Add($"{rel}: differs");
             }
         Assert.True(n > 100);
         Assert.True(failures.Count == 0, $"{failures.Count} divergence(s):\n" + string.Join("\n", failures));

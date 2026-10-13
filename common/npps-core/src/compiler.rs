@@ -280,6 +280,20 @@ pub fn compile_protocol(proto: &Value, opts: &CompileOptions) -> R<Compiled> {
         return Err("Session duration must be greater than zero. Give the protocol a duration, or use interval_count with intervals that end.".into());
     }
 
+    // An interval_count session runs each block's interval cycle `count` times unless the block states its own repeat.
+    let default_repeats = if is_duration {
+        None
+    } else {
+        let n = f(timing, "count");
+        if !(n >= 1.0) || n.fract() != 0.0 {
+            return Err(format!(
+                "interval_count must be a whole number of 1 or more, got {}. Give the number of times each interval repeats, or use a duration.",
+                num_string(n)
+            ));
+        }
+        Some(n)
+    };
+
     let mut cmds: Vec<Cmd> = Vec::new();
     let mut is_t2 = false;
     let empty = Vec::new();
@@ -292,7 +306,7 @@ pub fn compile_protocol(proto: &Value, opts: &CompileOptions) -> R<Compiled> {
         if matches!(ty, "qeeg_21ch" | "tms" | "pbm_deep_1170nm" | "clinical_tacs" | "hd_tdcs" | "cervical_vns") {
             is_t2 = true;
         }
-        let generated = build_commands(ty, &m["params"], &m["interval"], session_ms, opts)?;
+        let generated = build_commands(ty, &m["params"], &m["interval"], session_ms, default_repeats, opts)?;
         for mut c in generated {
             c.block = block;
             cmds.push(c);
@@ -476,7 +490,7 @@ fn merge_overlapping_pbm(cmds: &mut Vec<Cmd>, session_ms: f64) -> R<()> {
 
 // ── command generation ───────────────────────────────────────────────────────
 
-fn build_commands(ty: &str, p: &Value, interval: &Value, session_ms: f64, opts: &CompileOptions) -> R<Vec<Cmd>> {
+fn build_commands(ty: &str, p: &Value, interval: &Value, session_ms: f64, default_repeats: Option<f64>, opts: &CompileOptions) -> R<Vec<Cmd>> {
     let enc = encode(ty, p, opts)?;
     let offset_ms = js_round(interval["startOffsetSeconds"].as_f64().unwrap_or(0.0) * 1000.0);
     if session_ms > 0.0 && offset_ms >= session_ms {
@@ -503,6 +517,7 @@ fn build_commands(ty: &str, p: &Value, interval: &Value, session_ms: f64, opts: 
     let period = on_ms + off_ms;
     let max_repeats = match interval["repeatCount"].as_f64() {
         Some(r) => r,
+        None if default_repeats.is_some() => default_repeats.unwrap_or(1.0),
         None if session_ms > 0.0 => (session_ms / period).ceil(),
         None => 1.0,
     };

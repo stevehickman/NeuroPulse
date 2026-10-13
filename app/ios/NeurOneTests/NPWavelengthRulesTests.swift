@@ -43,7 +43,6 @@ final class NPWavelengthRulesTests: XCTestCase {
     func testScriptWavelengthIsCarriedExactlyAndStartRoundTrips() throws {
         let script = """
         protocol "Series" {
-            hardware_version: 1
             duration: 8m
             pbm_transcranial {
                 wavelength: "810nm"

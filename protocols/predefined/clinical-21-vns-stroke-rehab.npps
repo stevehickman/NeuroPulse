@@ -1,7 +1,6 @@
 protocol "taVNS — Stroke Motor Rehab (paired)" {
     id: "30000021-0000-0000-0000-000000000000"
     family_id: "ab10ebdc-8984-4318-bc4e-db2f774dd3ab"
-    hardware_version: 1
     description: "Auricular taVNS paired to rehab movements, 30Hz, for post-stroke motor recovery (non-invasive analogue of Vivistim). Grade A (paired). 6 weeks clinic + home."
     author: "NeurOne"
     version: "1.0"

@@ -1,7 +1,6 @@
 protocol "taVNS + HRV — Autonomic Balance" {
     id: "30000025-0000-0000-0000-000000000000"
     family_id: "74d0e4d1-1837-48de-8cd9-8af7b8d739f8"
-    hardware_version: 1
     description: "Auricular taVNS synchronized with HRV coherence biofeedback (respiration-gated) to raise HRV and parasympathetic tone. Grade B (mechanistic). The backbone of the VNS+HRV clip."
     author: "NeurOne"
     version: "1.0"

@@ -1,5 +1,4 @@
 protocol "Gamma Focus" {
-  hardware_version: 1
     id: "10000001-0000-0000-0000-000000000000"
     description: "40Hz multi-sensory protocol"
     author: "NeurOne"

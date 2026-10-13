@@ -170,7 +170,6 @@ describe('condition blocks', () => {
 
 const PROTO_WITH_REFS = `
 protocol "Depression DLPFC" {
-    hardware_version: 1
     id: "20000001-0000-0000-0000-000000000000"
     description: "Bilateral DLPFC PBM"
     tags: [depression]
@@ -230,7 +229,7 @@ describe('protocol conditions, references, and zone refs', () => {
     // five-slot forms are gone from the grammar entirely.
     for (const selector of ['all', 'front', 'rear', 'custom']) {
       expect(() => parseNPPS(
-        `protocol "L" { hardware_version: 1 id: "x" pbm_transcranial { zones: ${selector} wavelength: \"660_808nm\" } }`
+        `protocol "L" { id: "x" pbm_transcranial { zones: ${selector} wavelength: \"660_808nm\" } }`
       )).toThrow(/unknown zone selector/);
     }
   });
@@ -238,7 +237,7 @@ describe('protocol conditions, references, and zone refs', () => {
   // @verifies REQ-NPPS-17
   it('rejects a numeric zone list', () => {
     expect(() => parseNPPS(
-      'protocol "L" { hardware_version: 1 id: "x" pbm_transcranial { zones: [1, 2] wavelength: \"808nm\" irradiance: 300mW_cm2 } }'
+      'protocol "L" { id: "x" pbm_transcranial { zones: [1, 2] wavelength: \"808nm\" irradiance: 300mW_cm2 } }'
     )).toThrow(/quoted zone names/);
   });
 });

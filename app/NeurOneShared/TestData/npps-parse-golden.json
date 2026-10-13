@@ -1196,8 +1196,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "76445389-393d-494f-bed5-b3e45482e8e6",
-      "hardwareVersion": 1
+      "familyId": "76445389-393d-494f-bed5-b3e45482e8e6"
      }
     }
    ],
@@ -1319,8 +1318,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "fe26f9f7-0fb9-49f2-834b-6bfcf2c3506d",
-      "hardwareVersion": 1
+      "familyId": "fe26f9f7-0fb9-49f2-834b-6bfcf2c3506d"
      }
     }
    ],
@@ -1440,8 +1438,7 @@
         "url": "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"
        }
       ],
-      "familyId": "5a6e50bc-d4ad-403d-80aa-11b5002bc40b",
-      "hardwareVersion": 1
+      "familyId": "5a6e50bc-d4ad-403d-80aa-11b5002bc40b"
      }
     }
    ],
@@ -1459,7 +1456,7 @@
       "name": "Memory Boost",
       "description": "Memory and working-memory support. The PBM channel follows its own cited evidence (Yao 2022 / Gonzalez-Lima lineage: 1064nm right prefrontal, 8 min) rather than the theta rhythm; theta (6Hz) entrainment lives in the audio, EEG neurofeedback and HRV channels, where entrainment evidence exists. NOT EVIDENCE-GRADE for the PBM channel: see the notes on that block — duty, dose, area and irradiance all fall short of the cited literature, and requires a 1064nm-capable (T1-C) module.",
       "author": "NeurOne",
-      "version": "1.1",
+      "version": "1.0",
       "tags": [
        "memory",
        "theta",
@@ -1554,8 +1551,7 @@
         "url": "docs/np_bib_1064_001.md"
        }
       ],
-      "familyId": "a5c44a3d-e552-4a86-b3af-c8b064cbb655",
-      "hardwareVersion": 1
+      "familyId": "a5c44a3d-e552-4a86-b3af-c8b064cbb655"
      }
     }
    ],
@@ -1682,8 +1678,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "87593870-ea5d-4b18-bcd8-66dad8ab1442",
-      "hardwareVersion": 1
+      "familyId": "87593870-ea5d-4b18-bcd8-66dad8ab1442"
      }
     }
    ],
@@ -1819,8 +1814,7 @@
        }
       ],
       "isReadOnly": true,
-      "familyId": "1221fe35-cb93-400e-bd8b-0ecca13259c1",
-      "hardwareVersion": 1
+      "familyId": "1221fe35-cb93-400e-bd8b-0ecca13259c1"
      }
     }
    ],
@@ -1917,8 +1911,7 @@
        }
       ],
       "isReadOnly": true,
-      "familyId": "e414f3d1-72ea-4524-a6c3-21d9c3912c13",
-      "hardwareVersion": 1
+      "familyId": "e414f3d1-72ea-4524-a6c3-21d9c3912c13"
      }
     }
    ],
@@ -2046,8 +2039,7 @@
         "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
        }
       ],
-      "familyId": "ee10cb40-11d0-4969-9abe-a61fc6e8b0b7",
-      "hardwareVersion": 1
+      "familyId": "ee10cb40-11d0-4969-9abe-a61fc6e8b0b7"
      }
     }
    ],
@@ -2096,8 +2088,7 @@
        }
       ],
       "isReadOnly": true,
-      "familyId": "dca88ec1-bb9a-455b-98da-2fc7f0ebedfc",
-      "hardwareVersion": 1
+      "familyId": "dca88ec1-bb9a-455b-98da-2fc7f0ebedfc"
      }
     }
    ],
@@ -2201,8 +2192,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "b24069a6-b955-4b72-a5a6-4a90805bd307",
-      "hardwareVersion": 1
+      "familyId": "b24069a6-b955-4b72-a5a6-4a90805bd307"
      }
     }
    ],
@@ -2274,8 +2264,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "aba80ec3-e974-4bf3-a9b4-cf3aaab821aa",
-      "hardwareVersion": 1
+      "familyId": "aba80ec3-e974-4bf3-a9b4-cf3aaab821aa"
      }
     }
    ],
@@ -2344,8 +2333,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "616a2f8d-5986-4724-90c2-210d06058884",
-      "hardwareVersion": 1
+      "familyId": "616a2f8d-5986-4724-90c2-210d06058884"
      }
     }
    ],
@@ -2470,8 +2458,7 @@
        }
       ],
       "isReadOnly": true,
-      "familyId": "449fe64e-1391-4ff5-bb86-a9b6a96a1fc9",
-      "hardwareVersion": 1
+      "familyId": "449fe64e-1391-4ff5-bb86-a9b6a96a1fc9"
      }
     }
    ],
@@ -2634,8 +2621,7 @@
        }
       ],
       "isReadOnly": true,
-      "familyId": "3a952e64-b1c4-4045-8310-47505327e871",
-      "hardwareVersion": 1
+      "familyId": "3a952e64-b1c4-4045-8310-47505327e871"
      }
     }
    ],
@@ -2824,8 +2810,7 @@
        }
       ],
       "isReadOnly": true,
-      "familyId": "9d2b5837-567e-419d-893e-abb71e8bedd5",
-      "hardwareVersion": 1
+      "familyId": "9d2b5837-567e-419d-893e-abb71e8bedd5"
      }
     }
    ],
@@ -2891,8 +2876,7 @@
         "url": "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"
        }
       ],
-      "familyId": "9c826e2b-f480-4a1d-82b1-3ce85bfdd11e",
-      "hardwareVersion": 1
+      "familyId": "9c826e2b-f480-4a1d-82b1-3ce85bfdd11e"
      }
     }
    ],
@@ -2972,8 +2956,7 @@
         "url": "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"
        }
       ],
-      "familyId": "7ce04f67-2369-4ce7-8961-e6071649e046",
-      "hardwareVersion": 1
+      "familyId": "7ce04f67-2369-4ce7-8961-e6071649e046"
      }
     }
    ],
@@ -3038,8 +3021,7 @@
         "url": "docs/pbm_neuro_protocols.md#2-mild-cognitive-impairment-mci--grade-a"
        }
       ],
-      "familyId": "e993cd52-ebfa-4e21-9497-83d63182a093",
-      "hardwareVersion": 1
+      "familyId": "e993cd52-ebfa-4e21-9497-83d63182a093"
      }
     }
    ],
@@ -3057,7 +3039,7 @@
       "name": "PBM — Alzheimer's 1064nm (deep-cortical channel)",
       "description": "Whole-vault 1064nm PBM for Alzheimer's / dementia, targeting §1's 1060–1080nm band (Qi/Nizamutdinov 2021: 1060–1080nm, 6 min twice daily, 108 sessions/56 d, MMSE +4.8). RE-AUTHORED 2026-08-26 from the §3 cognitive-enhancement target, which was 8.9× beyond this channel's reach; §1's band is the nearer target OI-HEXTILE-21 identifies. STILL NOT EVIDENCE-GRADE and still not reachable — the shortfall narrows, it does not close. See the notes on the modality block for the exact figures.",
       "author": "NeurOne",
-      "version": "2.0",
+      "version": "1.0",
       "tags": [
        "pbm",
        "1064nm",
@@ -3112,8 +3094,7 @@
         "url": "docs/np_opt_psf_001.md"
        }
       ],
-      "familyId": "258734b4-ffd7-4d95-b879-85a26bc0f537",
-      "hardwareVersion": 1
+      "familyId": "258734b4-ffd7-4d95-b879-85a26bc0f537"
      }
     }
    ],
@@ -3180,8 +3161,7 @@
         "url": "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"
        }
       ],
-      "familyId": "9e5352da-fbe6-41a8-9738-c55f1eaf6a63",
-      "hardwareVersion": 1
+      "familyId": "9e5352da-fbe6-41a8-9738-c55f1eaf6a63"
      }
     }
    ],
@@ -3199,7 +3179,7 @@
       "name": "PBM — Depression (Schiffer 2009, high-irradiance)",
       "description": "Single-session 810nm PBM for major depression, as Schiffer 2009 ran it (open pilot, n=10): an LED cluster, continuous wave, 250 mW/cm², 4 min at F3 and then 4 min at F4, 60 J/cm² per site. This is the HIGH-IRRADIANCE arm of the §4 evidence, seven times Cassano 2018; see that protocol for the other end. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 250 mW/cm² CW is inside the time-averaged ceiling at 808nm (≈329, CLAUDE.md §3, OI-HEXTILE-32 closed).",
       "author": "NeurOne",
-      "version": "2.0",
+      "version": "1.0",
       "tags": [
        "pbm",
        "clinical",
@@ -3268,8 +3248,7 @@
         "url": "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"
        }
       ],
-      "familyId": "1e445466-03c0-4080-be62-65d2fc98dece",
-      "hardwareVersion": 1
+      "familyId": "1e445466-03c0-4080-be62-65d2fc98dece"
      }
     }
    ],
@@ -3335,8 +3314,7 @@
         "url": "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"
        }
       ],
-      "familyId": "a68ec185-8480-4d41-a142-607abe3b0709",
-      "hardwareVersion": 1
+      "familyId": "a68ec185-8480-4d41-a142-607abe3b0709"
      }
     }
    ],
@@ -3354,7 +3332,7 @@
       "name": "PBM — Anxiety (Wang 2023, high-irradiance)",
       "description": "820nm PBM to the left DLPFC for generalized anxiety, as Wang 2023 ran it (double-blind sham-controlled RCT, n=36, 33 analysed): a continuous-wave laser at 310 mW/cm², a 1 cm spot at F5, four 4-minute exposures a day 5 minutes apart, on 14 consecutive days. HAMA fell more than sham (p=0.021) and stayed lower at 8 weeks; HAMA response 11/16 active vs 2/17 sham. Grade B. One session here is one day of that course; the 14-day schedule is the user's to keep, since the language has no course field. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 310 mW/cm² CW is inside the time-averaged ceiling at 820nm (≈348, CLAUDE.md §3).",
       "author": "NeurOne",
-      "version": "2.1",
+      "version": "1.0",
       "tags": [
        "pbm",
        "clinical",
@@ -3403,8 +3381,7 @@
         "url": "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"
        }
       ],
-      "familyId": "d6956a78-fca2-4aac-84eb-4192fefeed31",
-      "hardwareVersion": 1
+      "familyId": "d6956a78-fca2-4aac-84eb-4192fefeed31"
      }
     }
    ],
@@ -3496,8 +3473,7 @@
         "url": "docs/pbm_neuro_protocols.md#6-traumatic-brain-injury-chronic--post-concussion-syndrome--grade-b"
        }
       ],
-      "familyId": "2ad87fa5-0581-41e7-9ae5-f34052ed8ccc",
-      "hardwareVersion": 1
+      "familyId": "2ad87fa5-0581-41e7-9ae5-f34052ed8ccc"
      }
     }
    ],
@@ -3563,8 +3539,7 @@
         "url": "docs/pbm_neuro_protocols.md"
        }
       ],
-      "familyId": "523703be-69b8-4250-a8b5-05ad4cd6c436",
-      "hardwareVersion": 1
+      "familyId": "523703be-69b8-4250-a8b5-05ad4cd6c436"
      }
     }
    ],
@@ -3645,8 +3620,7 @@
         "url": "docs/pbm_neuro_protocols.md"
        }
       ],
-      "familyId": "2d6dc9c0-ab36-46a8-8330-31b232b53673",
-      "hardwareVersion": 1
+      "familyId": "2d6dc9c0-ab36-46a8-8330-31b232b53673"
      }
     }
    ],
@@ -3733,8 +3707,7 @@
         "url": "docs/pbm_neuro_protocols.md#9-stroke--grade-c-chronic-rehab--avoid-acute"
        }
       ],
-      "familyId": "37453987-a981-4f8e-9c87-6b6824c7fe48",
-      "hardwareVersion": 1
+      "familyId": "37453987-a981-4f8e-9c87-6b6824c7fe48"
      }
     }
    ],
@@ -3795,8 +3768,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "5954d826-7b13-4276-ac76-fa2e5c252458",
-      "hardwareVersion": 1
+      "familyId": "5954d826-7b13-4276-ac76-fa2e5c252458"
      }
     }
    ],
@@ -3858,8 +3830,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "30c953fa-b2c6-4e26-9d2c-0d7c6c7f500a",
-      "hardwareVersion": 1
+      "familyId": "30c953fa-b2c6-4e26-9d2c-0d7c6c7f500a"
      }
     }
    ],
@@ -3921,8 +3892,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "8612ee35-93c6-4133-a48e-ec22d6bdddec",
-      "hardwareVersion": 1
+      "familyId": "8612ee35-93c6-4133-a48e-ec22d6bdddec"
      }
     }
    ],
@@ -3979,8 +3949,7 @@
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
       ],
-      "familyId": "6b8fc44b-47b1-4a72-9e7a-88948d15af53",
-      "hardwareVersion": 1
+      "familyId": "6b8fc44b-47b1-4a72-9e7a-88948d15af53"
      }
     }
    ],
@@ -4037,8 +4006,7 @@
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
       ],
-      "familyId": "552816c6-9e50-4c44-99e6-66f31c2928ff",
-      "hardwareVersion": 1
+      "familyId": "552816c6-9e50-4c44-99e6-66f31c2928ff"
      }
     }
    ],
@@ -4095,8 +4063,7 @@
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
       ],
-      "familyId": "1a20bdb4-94b5-43d3-8ba8-ab470a5ad9d9",
-      "hardwareVersion": 1
+      "familyId": "1a20bdb4-94b5-43d3-8ba8-ab470a5ad9d9"
      }
     }
    ],
@@ -4153,8 +4120,7 @@
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
       ],
-      "familyId": "b4019d05-e1e0-4491-b21a-52cd7a1eaf95",
-      "hardwareVersion": 1
+      "familyId": "b4019d05-e1e0-4491-b21a-52cd7a1eaf95"
      }
     }
    ],
@@ -4211,8 +4177,7 @@
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
       ],
-      "familyId": "95fc0c1c-c658-4d04-8275-867fca2bbccf",
-      "hardwareVersion": 1
+      "familyId": "95fc0c1c-c658-4d04-8275-867fca2bbccf"
      }
     }
    ],
@@ -4269,8 +4234,7 @@
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
       ],
-      "familyId": "17ac4c53-6323-4cb0-b2c0-9d338b65fbe3",
-      "hardwareVersion": 1
+      "familyId": "17ac4c53-6323-4cb0-b2c0-9d338b65fbe3"
      }
     }
    ],
@@ -4330,8 +4294,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "5d3fbbfc-431e-4a18-8316-c1e0ade1cc44",
-      "hardwareVersion": 1
+      "familyId": "5d3fbbfc-431e-4a18-8316-c1e0ade1cc44"
      }
     }
    ],
@@ -4391,8 +4354,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "e60bd29e-145e-42f3-9736-7925e972d7cd",
-      "hardwareVersion": 1
+      "familyId": "e60bd29e-145e-42f3-9736-7925e972d7cd"
      }
     }
    ],
@@ -4453,8 +4415,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "ab10ebdc-8984-4318-bc4e-db2f774dd3ab",
-      "hardwareVersion": 1
+      "familyId": "ab10ebdc-8984-4318-bc4e-db2f774dd3ab"
      }
     }
    ],
@@ -4510,8 +4471,7 @@
         "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
        }
       ],
-      "familyId": "7070caa5-9f2b-45e8-840c-bdcad18360f6",
-      "hardwareVersion": 1
+      "familyId": "7070caa5-9f2b-45e8-840c-bdcad18360f6"
      }
     }
    ],
@@ -4568,8 +4528,7 @@
         "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
        }
       ],
-      "familyId": "9a13ee9a-09d5-4f21-9ab4-7fe20d163a77",
-      "hardwareVersion": 1
+      "familyId": "9a13ee9a-09d5-4f21-9ab4-7fe20d163a77"
      }
     }
    ],
@@ -4626,8 +4585,7 @@
         "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
        }
       ],
-      "familyId": "bdbc4231-09b8-4d7e-a2c9-903f104c552c",
-      "hardwareVersion": 1
+      "familyId": "bdbc4231-09b8-4d7e-a2c9-903f104c552c"
      }
     }
    ],
@@ -4688,8 +4646,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "74d0e4d1-1837-48de-8cd9-8af7b8d739f8",
-      "hardwareVersion": 1
+      "familyId": "74d0e4d1-1837-48de-8cd9-8af7b8d739f8"
      }
     }
    ],
@@ -4749,8 +4706,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "e1d92fd3-009f-49ee-8e0a-ee45e86c59a0",
-      "hardwareVersion": 1
+      "familyId": "e1d92fd3-009f-49ee-8e0a-ee45e86c59a0"
      }
     }
    ],
@@ -4810,8 +4766,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "0b94122b-5009-42d5-aacf-e9d3d2b2322b",
-      "hardwareVersion": 1
+      "familyId": "0b94122b-5009-42d5-aacf-e9d3d2b2322b"
      }
     }
    ],
@@ -4888,8 +4843,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "9784755e-df21-46ce-bfe1-dadc4b15d9fd",
-      "hardwareVersion": 1
+      "familyId": "9784755e-df21-46ce-bfe1-dadc4b15d9fd"
      }
     }
    ],
@@ -4953,8 +4907,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "7b78b54c-20b2-453b-b601-f8e329ad34b7",
-      "hardwareVersion": 1
+      "familyId": "7b78b54c-20b2-453b-b601-f8e329ad34b7"
      }
     }
    ],
@@ -5018,8 +4971,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "49893ab7-5f46-41cc-8391-ae798fab2161",
-      "hardwareVersion": 1
+      "familyId": "49893ab7-5f46-41cc-8391-ae798fab2161"
      }
     }
    ],
@@ -5085,8 +5037,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "d4616968-0f99-4d28-b7a8-bebc5f467610",
-      "hardwareVersion": 1
+      "familyId": "d4616968-0f99-4d28-b7a8-bebc5f467610"
      }
     }
    ],
@@ -5150,8 +5101,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "8aaaacf8-ea82-47d4-93c6-5760a3b5a782",
-      "hardwareVersion": 1
+      "familyId": "8aaaacf8-ea82-47d4-93c6-5760a3b5a782"
      }
     }
    ],
@@ -5217,8 +5167,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "a879b19d-ec07-42b2-89cb-9687accd783b",
-      "hardwareVersion": 1
+      "familyId": "a879b19d-ec07-42b2-89cb-9687accd783b"
      }
     }
    ],
@@ -5282,8 +5231,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "7cd5839c-6e99-4343-bb1a-2374059fbd52",
-      "hardwareVersion": 1
+      "familyId": "7cd5839c-6e99-4343-bb1a-2374059fbd52"
      }
     }
    ],
@@ -5347,8 +5295,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "7bde881a-bb5b-41e6-ad8d-27a4540ad210",
-      "hardwareVersion": 1
+      "familyId": "7bde881a-bb5b-41e6-ad8d-27a4540ad210"
      }
     }
    ],
@@ -5413,8 +5360,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "fbee6bc2-0c56-4b77-a819-6ae542514c50",
-      "hardwareVersion": 1
+      "familyId": "fbee6bc2-0c56-4b77-a819-6ae542514c50"
      }
     }
    ],
@@ -5478,8 +5424,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "29403448-486c-481f-9cb5-47bbc3c05971",
-      "hardwareVersion": 1
+      "familyId": "29403448-486c-481f-9cb5-47bbc3c05971"
      }
     }
    ],
@@ -5540,8 +5485,7 @@
         "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
        }
       ],
-      "familyId": "a9668721-d64c-4adf-af65-707681a9ee49",
-      "hardwareVersion": 1
+      "familyId": "a9668721-d64c-4adf-af65-707681a9ee49"
      }
     }
    ],
@@ -5605,8 +5549,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "089b5c10-140d-4aff-bbad-c47b8e72bf81",
-      "hardwareVersion": 1
+      "familyId": "089b5c10-140d-4aff-bbad-c47b8e72bf81"
      }
     }
    ],
@@ -5670,8 +5613,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "fa64b8fa-d89c-45f0-b4dd-0260af1137bb",
-      "hardwareVersion": 1
+      "familyId": "fa64b8fa-d89c-45f0-b4dd-0260af1137bb"
      }
     }
    ],
@@ -5730,8 +5672,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "ccc8d480-9c64-485c-aaa5-79e18d0d214e",
-      "hardwareVersion": 1
+      "familyId": "ccc8d480-9c64-485c-aaa5-79e18d0d214e"
      }
     }
    ],
@@ -5791,8 +5732,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "c60bb668-b2f9-42b6-9170-aeee6b9ebcab",
-      "hardwareVersion": 1
+      "familyId": "c60bb668-b2f9-42b6-9170-aeee6b9ebcab"
      }
     }
    ],
@@ -5853,8 +5793,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "e404df1d-4d34-4bef-aff0-df4aced8792c",
-      "hardwareVersion": 1
+      "familyId": "e404df1d-4d34-4bef-aff0-df4aced8792c"
      }
     }
    ],
@@ -5913,8 +5852,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "60aaa5f9-66d9-49a8-90d4-467620e1f7c9",
-      "hardwareVersion": 1
+      "familyId": "60aaa5f9-66d9-49a8-90d4-467620e1f7c9"
      }
     }
    ],
@@ -5973,8 +5911,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "8cdbb074-510c-45d1-8012-ea881517e133",
-      "hardwareVersion": 1
+      "familyId": "8cdbb074-510c-45d1-8012-ea881517e133"
      }
     }
    ],
@@ -6033,8 +5970,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "faf6c56a-2fb2-45ec-b4b2-4d7c11abcd99",
-      "hardwareVersion": 1
+      "familyId": "faf6c56a-2fb2-45ec-b4b2-4d7c11abcd99"
      }
     }
    ],
@@ -6093,8 +6029,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "15fde368-d664-4588-a9e5-3e9b3ddccaa0",
-      "hardwareVersion": 1
+      "familyId": "15fde368-d664-4588-a9e5-3e9b3ddccaa0"
      }
     }
    ],
@@ -6154,8 +6089,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "c9410a2d-9761-4460-91d8-b1622ea87a35",
-      "hardwareVersion": 1
+      "familyId": "c9410a2d-9761-4460-91d8-b1622ea87a35"
      }
     }
    ],
@@ -6216,8 +6150,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "170d0782-af01-45a8-8327-af613c53492b",
-      "hardwareVersion": 1
+      "familyId": "170d0782-af01-45a8-8327-af613c53492b"
      }
     }
    ],
@@ -6278,8 +6211,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "ca7fed3e-6653-4e96-83f4-cfca03760f4a",
-      "hardwareVersion": 1
+      "familyId": "ca7fed3e-6653-4e96-83f4-cfca03760f4a"
      }
     }
    ],
@@ -6336,8 +6268,7 @@
       ],
       "conflictResolution": "merge",
       "isReadOnly": true,
-      "familyId": "48ff7117-9d6c-4fb4-947d-4ddb111f5cf9",
-      "hardwareVersion": 1
+      "familyId": "48ff7117-9d6c-4fb4-947d-4ddb111f5cf9"
      }
     }
    ],
@@ -6386,8 +6317,7 @@
       ],
       "conflictResolution": "sequential",
       "isReadOnly": true,
-      "familyId": "94a2db42-f4ba-41cb-9b3f-0d6cdfb90466",
-      "hardwareVersion": 1
+      "familyId": "94a2db42-f4ba-41cb-9b3f-0d6cdfb90466"
      }
     }
    ],
@@ -6430,8 +6360,7 @@
       ],
       "conflictResolution": "merge",
       "isReadOnly": true,
-      "familyId": "99ccca1a-66a4-4fc3-b96c-9539873e9c17",
-      "hardwareVersion": 1
+      "familyId": "99ccca1a-66a4-4fc3-b96c-9539873e9c17"
      }
     }
    ],
@@ -6472,8 +6401,7 @@
       ],
       "conflictResolution": "sequential",
       "isReadOnly": true,
-      "familyId": "e320bcd3-cc6b-4dee-bbe8-f59cbc3d9cc3",
-      "hardwareVersion": 1
+      "familyId": "e320bcd3-cc6b-4dee-bbe8-f59cbc3d9cc3"
      }
     }
    ],
@@ -6568,8 +6496,7 @@
         }
        }
       ],
-      "isReadOnly": true,
-      "hardwareVersion": 1
+      "isReadOnly": true
      }
     }
    ],
@@ -6716,8 +6643,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -6742,8 +6668,7 @@
        "seconds": 600,
        "type": "duration"
       },
-      "modalities": [],
-      "hardwareVersion": 1
+      "modalities": []
      }
     }
    ],
@@ -6782,8 +6707,28 @@
        }
       ],
       "conflictResolution": "merge",
-      "isReadOnly": true,
-      "hardwareVersion": 1
+      "isReadOnly": true
+     }
+    }
+   ],
+   "zones": [],
+   "conditions": [],
+   "wavelengthRules": [],
+   "limits": null
+  },
+  "npps/fixtures/composite_no_hardware_version.npps": {
+   "entries": [
+    {
+     "kind": "composite",
+     "composite": {
+      "name": "No Hardware Version",
+      "description": "a composite states its hardware version too",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "layers": [],
+      "conflictResolution": "merge"
      }
     }
    ],
@@ -6827,8 +6772,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -6849,17 +6793,11 @@
   "npps/fixtures/error_combined_wavelength.npps": {
    "error": "Line 9: pbm_transcranial: wavelength \"660_808nm\" is retired: it welded independent emitters into one block. Write one block per wavelength (\"660nm\" and \"808nm\"), each with its own irradiance_mw_cm2."
   },
-  "npps/fixtures/error_composite_no_hardware_version.npps": {
-   "error": "Line 1: composite \"No Hardware Version\" has no hardware_version — every composite states the helmet hardware version its sockets are addressed on, e.g. hardware_version: 1"
-  },
   "npps/fixtures/error_cw_with_duty.npps": {
    "error": "Line 11: pbm_transcranial: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 25%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
   },
   "npps/fixtures/error_missing_irradiance.npps": {
    "error": "Line 8: pbm_transcranial: irradiance (e.g. irradiance: 300mW_cm2) is required and must be positive"
-  },
-  "npps/fixtures/error_no_hardware_version.npps": {
-   "error": "Line 1: protocol \"No Hardware Version\" has no hardware_version — every protocol states the helmet hardware version its sockets are addressed on, e.g. hardware_version: 1"
   },
   "npps/fixtures/error_old_format.npps": {
    "error": "Line 3: Expected protocol name string, got LBRACE"
@@ -6957,8 +6895,7 @@
         }
        }
       ],
-      "isReadOnly": true,
-      "hardwareVersion": 1
+      "isReadOnly": true
      }
     }
    ],
@@ -7002,8 +6939,7 @@
         }
        }
       ],
-      "familyId": "0123abcd-4567-4def-8901-23456789abcd",
-      "hardwareVersion": 1
+      "familyId": "0123abcd-4567-4def-8901-23456789abcd"
      }
     }
    ],
@@ -7087,8 +7023,33 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
+     }
+    }
+   ],
+   "zones": [],
+   "conditions": [],
+   "wavelengthRules": [],
+   "limits": null
+  },
+  "npps/fixtures/no_hardware_version.npps": {
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "id": "11111111-2222-3333-4444-555555555555",
+      "name": "No Hardware Version",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": true,
+      "timingMode": {
+       "seconds": 300,
+       "type": "duration"
+      },
+      "modalities": [],
+      "familyId": "0123abcd-4567-4def-8901-23456789abcd"
      }
     }
    ],
@@ -7157,8 +7118,7 @@
         }
        }
       ],
-      "isReadOnly": true,
-      "hardwareVersion": 1
+      "isReadOnly": true
      }
     }
    ],
@@ -7191,84 +7151,84 @@
  },
  "cases": {
   "tdcs_without_area": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  tdcs {\n    intensity: 1mA\n  }\n}\n",
-   "error": "Line 6: tdcs: electrode_area_cm2 is required and is never defaulted: it is compiled into the signed descriptor and the safety MCU's charge limit divides by it (e.g. electrode_area_cm2: 35)"
+   "source": "protocol \"T\" {\n  duration: 5m\n  tdcs {\n    intensity: 1mA\n  }\n}\n",
+   "error": "Line 5: tdcs: electrode_area_cm2 is required and is never defaulted: it is compiled into the signed descriptor and the safety MCU's charge limit divides by it (e.g. electrode_area_cm2: 35)"
   },
   "cw_with_duty": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 0Hz\n    duty_cycle: 25%\n  }\n}\n",
-   "error": "Line 9: pbm_transcranial: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 25%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 0Hz\n    duty_cycle: 25%\n  }\n}\n",
+   "error": "Line 8: pbm_transcranial: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 25%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
   },
   "cw_deep_with_duty": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_deep_1170nm {\n    intensity_mw_cm2: 500\n    frequency: 0\n    duty_cycle: 50%\n  }\n}\n",
-   "error": "Line 8: pbm_deep_1170nm: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 50%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_deep_1170nm {\n    intensity_mw_cm2: 500\n    frequency: 0\n    duty_cycle: 50%\n  }\n}\n",
+   "error": "Line 7: pbm_deep_1170nm: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 50%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
   },
   "cw_intranasal_with_duty": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_intranasal {\n    wavelength: \"660nm\"\n    irradiance: 30mW_cm2\n    frequency: 0\n    duty_cycle: 50%\n  }\n}\n",
-   "error": "Line 9: pbm_intranasal: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 50%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_intranasal {\n    wavelength: \"660nm\"\n    irradiance: 30mW_cm2\n    frequency: 0\n    duty_cycle: 50%\n  }\n}\n",
+   "error": "Line 8: pbm_intranasal: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 50%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
   },
   "percent_irradiance": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    intensity: 80%\n  }\n}\n",
-   "error": "Line 7: pbm_transcranial: 'intensity' is a percentage of a baseline the hardware owns and can change, so it does not state the stimulus. state irradiance in mW/cm², e.g. irradiance: 300mW_cm2 (NP-NPPS-REF-001 §4.1b)."
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    intensity: 80%\n  }\n}\n",
+   "error": "Line 6: pbm_transcranial: 'intensity' is a percentage of a baseline the hardware owns and can change, so it does not state the stimulus. state irradiance in mW/cm², e.g. irradiance: 300mW_cm2 (NP-NPPS-REF-001 §4.1b)."
   },
   "deep_has_no_intensity": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_deep_1170nm {\n    intensity: 500\n  }\n}\n",
-   "error": "Line 6: pbm_deep_1170nm: 'intensity' is not a field of this modality"
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_deep_1170nm {\n    intensity: 500\n  }\n}\n",
+   "error": "Line 5: pbm_deep_1170nm: 'intensity' is not a field of this modality"
   },
   "unitless_volume": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  audio_entrainment {\n    volume: 70\n  }\n}\n",
-   "error": "Line 5: audio_entrainment: volume needs its unit written (volume: 70dB); a bare number does not say what it measures"
+   "source": "protocol \"T\" {\n  duration: 5m\n  audio_entrainment {\n    volume: 70\n  }\n}\n",
+   "error": "Line 4: audio_entrainment: volume needs its unit written (volume: 70dB); a bare number does not say what it measures"
   },
   "percent_volume": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  audio_entrainment {\n    volume: 70%\n  }\n}\n",
-   "error": "Line 5: audio_entrainment: volume in % is refused — state it in dB"
+   "source": "protocol \"T\" {\n  duration: 5m\n  audio_entrainment {\n    volume: 70%\n  }\n}\n",
+   "error": "Line 4: audio_entrainment: volume in % is refused — state it in dB"
   },
   "wrong_unit_irradiance": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    irradiance: 12mA\n  }\n}\n",
-   "error": "Line 7: pbm_transcranial: irradiance takes mW_cm2, not mA"
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    irradiance: 12mA\n  }\n}\n",
+   "error": "Line 6: pbm_transcranial: irradiance takes mW_cm2, not mA"
   },
   "missing_volume": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  audio_entrainment {\n    carrier_hz: 440\n  }\n}\n",
-   "error": "Line 6: audio_entrainment: volume in dB SPL (e.g. volume: 72dB) is required and must be positive"
+   "source": "protocol \"T\" {\n  duration: 5m\n  audio_entrainment {\n    carrier_hz: 440\n  }\n}\n",
+   "error": "Line 5: audio_entrainment: volume in dB SPL (e.g. volume: 72dB) is required and must be positive"
   },
   "retired_wavelength": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"660_808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n",
-   "error": "Line 7: pbm_transcranial: wavelength \"660_808nm\" is retired: it welded independent emitters into one block. Write one block per wavelength (\"660nm\" and \"808nm\"), each with its own irradiance_mw_cm2."
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"660_808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n",
+   "error": "Line 6: pbm_transcranial: wavelength \"660_808nm\" is retired: it welded independent emitters into one block. Write one block per wavelength (\"660nm\" and \"808nm\"), each with its own irradiance_mw_cm2."
   },
   "missing_wavelength": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    irradiance: 100mW_cm2\n  }\n}\n",
-   "error": "Line 6: pbm_transcranial: wavelength is required, one value per block, e.g. wavelength: \"810nm\""
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    irradiance: 100mW_cm2\n  }\n}\n",
+   "error": "Line 5: pbm_transcranial: wavelength is required, one value per block, e.g. wavelength: \"810nm\""
   },
   "empty_zones": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: []\n  }\n}\n",
-   "error": "Line 8: pbm_transcranial: zones: [] names no zone — a session cannot target nothing"
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: []\n  }\n}\n",
+   "error": "Line 7: pbm_transcranial: zones: [] names no zone — a session cannot target nothing"
   },
   "bad_zone_selector": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: everything\n  }\n}\n",
-   "error": "Line 8: pbm_transcranial: unknown zone selector 'everything'. zones must be a list of quoted zone names (e.g. zones: [\"Frontal\"]) or clinician_selected"
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: everything\n  }\n}\n",
+   "error": "Line 7: pbm_transcranial: unknown zone selector 'everything'. zones must be a list of quoted zone names (e.g. zones: [\"Frontal\"]) or clinician_selected"
   },
   "unknown_modality": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  hologram {\n    x: 1\n  }\n}\n",
-   "error": "Line 6: Unknown modality block type: 'hologram'"
+   "source": "protocol \"T\" {\n  duration: 5m\n  hologram {\n    x: 1\n  }\n}\n",
+   "error": "Line 5: Unknown modality block type: 'hologram'"
   },
   "intensity_on_unknown_field": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  eeg_neurofeedback {\n    intensity: 1mA\n  }\n}\n",
-   "error": "Line 6: eeg_neurofeedback: 'intensity' is not a field of this modality"
+   "source": "protocol \"T\" {\n  duration: 5m\n  eeg_neurofeedback {\n    intensity: 1mA\n  }\n}\n",
+   "error": "Line 5: eeg_neurofeedback: 'intensity' is not a field of this modality"
   },
   "negative_start": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n    start: -5s\n  }\n}\n",
-   "error": "Line 5: bes_tacs: start must be a duration of zero or more"
+   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    start: -5s\n  }\n}\n",
+   "error": "Line 4: bes_tacs: start must be a duration of zero or more"
   },
   "unterminated_string": {
    "source": "protocol \"T {\n}\n",
    "error": "Line 3: Unterminated string"
   },
   "stray_minus": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n    frequency: -\n  }\n}\n",
-   "error": "Line 5: Unexpected character: -"
+   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    frequency: -\n  }\n}\n",
+   "error": "Line 4: Unexpected character: -"
   },
   "digit_leading": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  qeeg_21ch {\n    montage: 10-20\n  }\n}\n",
-   "error": "Line 5: Unquoted value '10-20' — values that start with a digit and are not a plain number must be quoted, e.g. \"10-20\""
+   "source": "protocol \"T\" {\n  duration: 5m\n  qeeg_21ch {\n    montage: 10-20\n  }\n}\n",
+   "error": "Line 4: Unquoted value '10-20' — values that start with a digit and are not a plain number must be quoted, e.g. \"10-20\""
   },
   "bad_top_level": {
    "source": "banana \"T\" {}\n",
@@ -7283,40 +7243,122 @@
    "error": "Line 2: zone \"Z\": 81 is not a socket on this helmet — ids are whole numbers 1–80 (80 sockets, numbered from 1)"
   },
   "family_id_not_an_id": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  family_id: \"not-an-id\"\n}\n",
-   "error": "Line 3: family_id \"not-an-id\" is not a 128-bit id — write it as UUID text, 8-4-4-4-12 hex digits"
+   "source": "protocol \"T\" {\n  family_id: \"not-an-id\"\n}\n",
+   "error": "Line 2: family_id \"not-an-id\" is not a 128-bit id — write it as UUID text, 8-4-4-4-12 hex digits"
   },
   "family_id_wrong_grouping": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  family_id: \"0123456789abcdef0123456789abcdef\"\n}\n",
-   "error": "Line 3: family_id \"0123456789abcdef0123456789abcdef\" is not a 128-bit id — write it as UUID text, 8-4-4-4-12 hex digits"
+   "source": "protocol \"T\" {\n  family_id: \"0123456789abcdef0123456789abcdef\"\n}\n",
+   "error": "Line 2: family_id \"0123456789abcdef0123456789abcdef\" is not a 128-bit id — write it as UUID text, 8-4-4-4-12 hex digits"
   },
   "hardware_version_zero": {
-   "source": "protocol \"T\" {\n  hardware_version: 0\n}\n",
-   "error": "Line 2: hardware_version must be a whole number of 1 or more, got 0"
+   "source": "protocol \"T\" {\n}\n",
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "seconds": 1200,
+       "type": "duration"
+      },
+      "modalities": []
+     }
+    }
+   ],
+   "zones": [],
+   "conditions": [],
+   "wavelengthRules": [],
+   "limits": null
   },
   "hardware_version_fraction": {
    "source": "protocol \"T\" {\n  hardware_version: 1.5\n}\n",
-   "error": "Line 2: hardware_version must be a whole number of 1 or more, got 1.5"
+   "error": "Line 2: hardware_version is not a field of a protocol: a protocol does not state a hardware version, only a zone does. Remove it, and give the zone a hardware_version N { sockets: [...] } block"
   },
   "hardware_version_text": {
    "source": "protocol \"T\" {\n  hardware_version: \"1\"\n}\n",
-   "error": "Line 2: Expected number, got STRING (1)"
+   "error": "Line 2: hardware_version is not a field of a protocol: a protocol does not state a hardware version, only a zone does. Remove it, and give the zone a hardware_version N { sockets: [...] } block"
   },
   "protocol_without_hardware_version": {
    "source": "protocol \"T\" {\n  duration: 5m\n}\n",
-   "error": "Line 1: protocol \"T\" has no hardware_version — every protocol states the helmet hardware version its sockets are addressed on, e.g. hardware_version: 1"
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "seconds": 300,
+       "type": "duration"
+      },
+      "modalities": []
+     }
+    }
+   ],
+   "zones": [],
+   "conditions": [],
+   "wavelengthRules": [],
+   "limits": null
   },
   "protocol_with_family_id_only": {
    "source": "protocol \"T\" {\n  family_id: \"0123abcd-4567-4def-8901-23456789abcd\"\n}\n",
-   "error": "Line 1: protocol \"T\" has no hardware_version — every protocol states the helmet hardware version its sockets are addressed on, e.g. hardware_version: 1"
+   "entries": [
+    {
+     "kind": "single",
+     "protocol": {
+      "name": "T",
+      "description": "",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "timingMode": {
+       "seconds": 1200,
+       "type": "duration"
+      },
+      "modalities": [],
+      "familyId": "0123abcd-4567-4def-8901-23456789abcd"
+     }
+    }
+   ],
+   "zones": [],
+   "conditions": [],
+   "wavelengthRules": [],
+   "limits": null
   },
   "composite_without_hardware_version": {
    "source": "composite \"C\" {\n  description: \"d\"\n}\n",
-   "error": "Line 1: composite \"C\" has no hardware_version — every composite states the helmet hardware version its sockets are addressed on, e.g. hardware_version: 1"
+   "entries": [
+    {
+     "kind": "composite",
+     "composite": {
+      "name": "C",
+      "description": "d",
+      "author": "NeurOne",
+      "version": "1.0",
+      "tags": [],
+      "isPredefined": false,
+      "layers": [],
+      "conflictResolution": "merge"
+     }
+    }
+   ],
+   "zones": [],
+   "conditions": [],
+   "wavelengthRules": [],
+   "limits": null
   },
   "composite_family_id_not_an_id": {
-   "source": "composite \"C\" {\n  hardware_version: 1\n  family_id: \"x\"\n}\n",
-   "error": "Line 3: family_id \"x\" is not a 128-bit id — write it as UUID text, 8-4-4-4-12 hex digits"
+   "source": "composite \"C\" {\n  family_id: \"x\"\n}\n",
+   "error": "Line 2: family_id \"x\" is not a 128-bit id — write it as UUID text, 8-4-4-4-12 hex digits"
   },
   "zone_version_zero": {
    "source": "zone \"Z\" {\n  hardware_version 0 {\n    sockets: [1]\n  }\n}\n",
@@ -7363,8 +7405,8 @@
    "error": "Line 1: Expected composite name string, got LBRACE"
   },
   "layer_no_name": {
-   "source": "composite \"C\" {\n  hardware_version: 1\n  layer {\n  }\n}\n",
-   "error": "Line 3: Expected layer protocol name string, got LBRACE"
+   "source": "composite \"C\" {\n  layer {\n  }\n}\n",
+   "error": "Line 2: Expected layer protocol name string, got LBRACE"
   },
   "wr_no_name": {
    "source": "wavelength_rules {\n}\n",
@@ -7506,7 +7548,7 @@
    "limits": null
   },
   "composite_everything": {
-   "source": "composite \"C\" {\n  hardware_version: 1\n  id: \"11111111-2222-3333-4444-555555555555\"\n  description: \"d\"\n  author: \"a\"\n  version: \"3\"\n  readonly: true\n  tags: [a, b]\n  conflict_resolution: sequential\n  conditions: [\"x\"]\n  references: [\"http://a\"]\n  unknown: 1\n  layer \"P1\" {\n    start: 2m\n    end: 5m\n    intensity_scale: 0.5\n    other: 1\n  }\n  layer \"P2\" {\n    duration: 90s\n  }\n}\n",
+   "source": "composite \"C\" {\n  id: \"11111111-2222-3333-4444-555555555555\"\n  description: \"d\"\n  author: \"a\"\n  version: \"3\"\n  readonly: true\n  tags: [a, b]\n  conflict_resolution: sequential\n  conditions: [\"x\"]\n  references: [\"http://a\"]\n  unknown: 1\n  layer \"P1\" {\n    start: 2m\n    end: 5m\n    intensity_scale: 0.5\n    other: 1\n  }\n  layer \"P2\" {\n    duration: 90s\n  }\n}\n",
    "entries": [
     {
      "kind": "composite",
@@ -7542,8 +7584,7 @@
       ],
       "references": [
        "http://a"
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -7553,7 +7594,7 @@
    "limits": null
   },
   "composite_minimal": {
-   "source": "composite \"C\" {\n  hardware_version: 1\n}\n",
+   "source": "composite \"C\" {\n}\n",
    "entries": [
     {
      "kind": "composite",
@@ -7565,8 +7606,7 @@
       "tags": [],
       "isPredefined": false,
       "layers": [],
-      "conflictResolution": "merge",
-      "hardwareVersion": 1
+      "conflictResolution": "merge"
      }
     }
    ],
@@ -7767,7 +7807,7 @@
    }
   },
   "everything_in_one_file": {
-   "source": "zone \"Z\" {\n  sockets: [1]\n}\ncondition \"C\" {\n}\nprotocol \"P\" {\n  hardware_version: 1\n  conditions: [\"C\"]\n  pbm_transcranial {\n    zones: [\"Z\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\ncomposite \"K\" {\n  hardware_version: 1\n  layer \"P\" {\n  }\n}\nlimits \"L\" {\n}\nwavelength_rules \"W\" {\n}\n",
+   "source": "zone \"Z\" {\n  sockets: [1]\n}\ncondition \"C\" {\n}\nprotocol \"P\" {\n  conditions: [\"C\"]\n  pbm_transcranial {\n    zones: [\"Z\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\ncomposite \"K\" {\n  layer \"P\" {\n  }\n}\nlimits \"L\" {\n}\nwavelength_rules \"W\" {\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -7804,8 +7844,7 @@
       ],
       "conditions": [
        "C"
-      ],
-      "hardwareVersion": 1
+      ]
      }
     },
     {
@@ -7824,8 +7863,7 @@
         "startOffsetSeconds": 0
        }
       ],
-      "conflictResolution": "merge",
-      "hardwareVersion": 1
+      "conflictResolution": "merge"
      }
     }
    ],
@@ -7863,7 +7901,7 @@
    }
   },
   "canonical_spellings": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n    frequency_hz: 12\n    intensity_milliamps: 0.6\n    waveform: square\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    frequency_hz: 12\n    intensity_milliamps: 0.6\n    waveform: square\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -7892,8 +7930,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -7903,7 +7940,7 @@
    "limits": null
   },
   "alias_spellings": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n    frequency: 12Hz\n    intensity: 0.6mA\n    waveform: square\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    frequency: 12Hz\n    intensity: 0.6mA\n    waveform: square\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -7932,8 +7969,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -7943,7 +7979,7 @@
    "limits": null
   },
   "canonical_beats_alias": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n    frequency_hz: 40\n    frequency: 10\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    frequency_hz: 40\n    frequency: 10\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -7972,8 +8008,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -7983,7 +8018,7 @@
    "limits": null
   },
   "alias_then_canonical": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n    frequency: 10\n    frequency_hz: 40\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    frequency: 10\n    frequency_hz: 40\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8012,8 +8047,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -8023,7 +8057,7 @@
    "limits": null
   },
   "cw_reads_as_full_duty": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 0Hz\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 0Hz\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8057,8 +8091,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -8068,7 +8101,7 @@
    "limits": null
   },
   "cw_with_full_duty": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 0Hz\n    duty_cycle: 100%\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 0Hz\n    duty_cycle: 100%\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8102,8 +8135,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -8113,7 +8145,7 @@
    "limits": null
   },
   "pulsed": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 40Hz\n    duty_cycle: 25%\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 40Hz\n    duty_cycle: 25%\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8147,8 +8179,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -8158,7 +8189,7 @@
    "limits": null
   },
   "clinician_selected": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: clinician_selected\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: clinician_selected\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8192,8 +8223,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -8203,7 +8233,7 @@
    "limits": null
   },
   "named_zones": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: [\"Frontal Left\", \"Frontal Right\"]\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: [\"Frontal Left\", \"Frontal Right\"]\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8238,8 +8268,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -8249,7 +8278,7 @@
    "limits": null
   },
   "noise_none_is_omitted": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  audio_entrainment {\n    volume: 70dB\n    noise: none\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  audio_entrainment {\n    volume: 70dB\n    noise: none\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8279,8 +8308,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -8290,7 +8318,7 @@
    "limits": null
   },
   "noise_pink": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  audio_entrainment {\n    volume: 70dB\n    noise: pink\n    binaural_hz: 40Hz\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  audio_entrainment {\n    volume: 70dB\n    noise: pink\n    binaural_hz: 40Hz\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8322,8 +8350,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -8333,7 +8360,7 @@
    "limits": null
   },
   "tdcs_pairs_and_defaults": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  tdcs {\n    electrode_pairs: [[\"F3\",\"F4\"],[\"Fp1\"],[\"P3\",\"P4\"]]\n    electrode_area_cm2: 25\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  tdcs {\n    electrode_pairs: [[\"F3\",\"F4\"],[\"Fp1\"],[\"P3\",\"P4\"]]\n    electrode_area_cm2: 25\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8376,8 +8403,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -8387,7 +8413,7 @@
    "limits": null
   },
   "eeg_custom_channels": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  eeg_neurofeedback {\n    channels: custom\n    custom_channels: [\"Cz\",\"Pz\"]\n    closed_loop: false\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  eeg_neurofeedback {\n    channels: custom\n    custom_channels: [\"Cz\",\"Pz\"]\n    closed_loop: false\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8420,8 +8446,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -8431,7 +8456,7 @@
    "limits": null
   },
   "interval_and_start": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n    interval_on: 20s\n    interval_off: 10s\n    repeat: 3\n    start: 2m\n    enabled: false\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    interval_on: 20s\n    interval_off: 10s\n    repeat: 3\n    start: 2m\n    enabled: false\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8462,8 +8487,7 @@
          "startOffsetSeconds": 120
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -8473,7 +8497,7 @@
    "limits": null
   },
   "repeat_until_end": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n    repeat: until_end\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    repeat: until_end\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8502,8 +8526,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -8513,7 +8536,7 @@
    "limits": null
   },
   "every_modality_defaults": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_intranasal {\n    wavelength: \"660nm\"\n    irradiance: 30mW_cm2\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  eeg_neurofeedback {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  tdcs {\n    electrode_area_cm2: 35\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  vns_hrv {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  visual_stimulation {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  qeeg_21ch {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  tms {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  clinical_tacs {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  hd_tdcs {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  cervical_vns {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  vibrotactile_40hz {\n\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_intranasal {\n    wavelength: \"660nm\"\n    irradiance: 30mW_cm2\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  eeg_neurofeedback {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  bes_tacs {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  tdcs {\n    electrode_area_cm2: 35\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  vns_hrv {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  visual_stimulation {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  qeeg_21ch {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  tms {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  clinical_tacs {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  hd_tdcs {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  cervical_vns {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  vibrotactile_40hz {\n\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8543,8 +8566,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     },
     {
@@ -8574,8 +8596,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     },
     {
@@ -8605,8 +8626,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     },
     {
@@ -8642,8 +8662,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     },
     {
@@ -8674,8 +8693,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     },
     {
@@ -8706,8 +8724,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     },
     {
@@ -8737,8 +8754,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     },
     {
@@ -8770,8 +8786,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     },
     {
@@ -8802,8 +8817,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     },
     {
@@ -8833,8 +8847,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     },
     {
@@ -8863,8 +8876,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     },
     {
@@ -8894,8 +8906,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -8905,7 +8916,7 @@
    "limits": null
   },
   "deep_defaults": {
-   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_deep_1170nm {\n\n  }\n}\n",
+   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_deep_1170nm {\n\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8934,8 +8945,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -8945,7 +8955,7 @@
    "limits": null
   },
   "metadata_identity": {
-   "source": "protocol \"I\" {\n  id: \"11111111-2222-3333-4444-555555555555\"\n  family_id: \"0123ABCD-4567-4def-8901-23456789abcd\"\n  hardware_version: 1\n  version: \"1.0\"\n}\n",
+   "source": "protocol \"I\" {\n  id: \"11111111-2222-3333-4444-555555555555\"\n  family_id: \"0123ABCD-4567-4def-8901-23456789abcd\"\n  version: \"1.0\"\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8962,8 +8972,7 @@
        "type": "duration"
       },
       "modalities": [],
-      "familyId": "0123abcd-4567-4def-8901-23456789abcd",
-      "hardwareVersion": 1
+      "familyId": "0123abcd-4567-4def-8901-23456789abcd"
      }
     }
    ],
@@ -8973,7 +8982,7 @@
    "limits": null
   },
   "composite_identity": {
-   "source": "composite \"C\" {\n  family_id: \"01234567-89ab-4def-8901-23456789abcd\"\n  hardware_version: 3\n}\n",
+   "source": "composite \"C\" {\n  family_id: \"01234567-89ab-4def-8901-23456789abcd\"\n}\n",
    "entries": [
     {
      "kind": "composite",
@@ -8986,8 +8995,7 @@
       "isPredefined": false,
       "layers": [],
       "conflictResolution": "merge",
-      "familyId": "01234567-89ab-4def-8901-23456789abcd",
-      "hardwareVersion": 3
+      "familyId": "01234567-89ab-4def-8901-23456789abcd"
      }
     }
    ],
@@ -9051,7 +9059,7 @@
    "limits": null
   },
   "metadata_everything": {
-   "source": "protocol \"M\" {\n  hardware_version: 1\n  id: \"11111111-2222-3333-4444-555555555555\"\n  description: \"d\"\n  author: \"a\"\n  version: \"2\"\n  readonly: true\n  tags: [alpha, \"x y\", 40Hz]\n  interval_count: 4\n  conditions: [\"c1\", c2]\n  references: [\"http://a\", [\"L\", \"http://b\"], [\"only\"]]\n  unknown_field: [1, [2, 3]]\n}\n",
+   "source": "protocol \"M\" {\n  id: \"11111111-2222-3333-4444-555555555555\"\n  description: \"d\"\n  author: \"a\"\n  version: \"2\"\n  readonly: true\n  tags: [alpha, \"x y\", 40Hz]\n  interval_count: 4\n  conditions: [\"c1\", c2]\n  references: [\"http://a\", [\"L\", \"http://b\"], [\"only\"]]\n  unknown_field: [1, [2, 3]]\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -9084,8 +9092,7 @@
         "url": "http://b"
        },
        "only"
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -9099,7 +9106,7 @@
   "cross_file_ok": {
    "sources": [
     "zone \"A\" {\n  sockets: [1, 2]\n}\ncondition \"C\" {\n  link: \"http://C\"\n}\n",
-    "protocol \"P\" {\n  hardware_version: 1\n  conditions: [\"C\"]\n  pbm_transcranial {\n    zones: [\"A\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n"
+    "protocol \"P\" {\n  conditions: [\"C\"]\n  pbm_transcranial {\n    zones: [\"A\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n"
    ],
    "entries": [
     {
@@ -9137,8 +9144,7 @@
       ],
       "conditions": [
        "C"
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -9171,7 +9177,7 @@
    "sources": [
     "zone \"A\" {\n  sockets: [1]\n}\n",
     "zone \"A\" {\n  sockets: [2]\n}\n",
-    "protocol \"P\" {\n  hardware_version: 1\n  conditions: []\n  pbm_transcranial {\n    zones: [\"A\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n"
+    "protocol \"P\" {\n  conditions: []\n  pbm_transcranial {\n    zones: [\"A\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n"
    ],
    "entries": [
     {
@@ -9207,8 +9213,7 @@
         }
        }
       ],
-      "conditions": [],
-      "hardwareVersion": 1
+      "conditions": []
      }
     }
    ],
@@ -9253,7 +9258,7 @@
    "sources": [
     "condition \"C\" {\n  link: \"http://C\"\n}\n",
     "condition \"C\" {\n  link: \"http://C\"\n}\n",
-    "protocol \"P\" {\n  hardware_version: 1\n  conditions: [\"C\"]\n  pbm_transcranial {\n    zones: clinician_selected\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n"
+    "protocol \"P\" {\n  conditions: [\"C\"]\n  pbm_transcranial {\n    zones: clinician_selected\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n"
    ],
    "entries": [
     {
@@ -9291,8 +9296,7 @@
       ],
       "conditions": [
        "C"
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -9328,7 +9332,7 @@
   },
   "dangling_zone_and_condition": {
    "sources": [
-    "protocol \"P\" {\n  hardware_version: 1\n  conditions: [\"Missing\"]\n  pbm_transcranial {\n    zones: [\"Nope\", \"Gone\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\ncomposite \"K\" {\n  hardware_version: 1\n  conditions: [\"AlsoMissing\"]\n}\n"
+    "protocol \"P\" {\n  conditions: [\"Missing\"]\n  pbm_transcranial {\n    zones: [\"Nope\", \"Gone\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\ncomposite \"K\" {\n  conditions: [\"AlsoMissing\"]\n}\n"
    ],
    "entries": [
     {
@@ -9367,8 +9371,7 @@
       ],
       "conditions": [
        "Missing"
-      ],
-      "hardwareVersion": 1
+      ]
      }
     },
     {
@@ -9384,8 +9387,7 @@
       "conflictResolution": "merge",
       "conditions": [
        "AlsoMissing"
-      ],
-      "hardwareVersion": 1
+      ]
      }
     }
    ],
@@ -9422,7 +9424,7 @@
   "zone_version_listed": {
    "sources": [
     "zone \"A\" {\n  hardware_version 1 {\n    sockets: [1]\n  }\n  hardware_version 2 {\n    sockets: [2]\n  }\n}\n",
-    "protocol \"P\" {\n  hardware_version: 2\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: [\"A\"]\n  }\n}\n"
+    "protocol \"P\" {\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: [\"A\"]\n  }\n}\n"
    ],
    "entries": [
     {
@@ -9457,8 +9459,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 2
+      ]
      }
     }
    ],
@@ -9486,7 +9487,7 @@
   "zone_version_missing": {
    "sources": [
     "zone \"A\" {\n  sockets: [1]\n}\n",
-    "protocol \"P\" {\n  hardware_version: 2\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: [\"A\"]\n  }\n}\n"
+    "protocol \"P\" {\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: [\"A\"]\n  }\n}\n"
    ],
    "entries": [
     {
@@ -9521,8 +9522,7 @@
          "intervalOnSeconds": 0
         }
        }
-      ],
-      "hardwareVersion": 2
+      ]
      }
     }
    ],
@@ -9542,9 +9542,7 @@
    ],
    "conditions": [],
    "errors": [],
-   "referenceErrors": [
-    "Protocol 'P' is for hardware version 2, and zone 'A' has no socket list for it"
-   ]
+   "referenceErrors": []
   },
   "library": {
    "paths": [
@@ -9739,8 +9737,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "76445389-393d-494f-bed5-b3e45482e8e6",
-      "hardwareVersion": 1
+      "familyId": "76445389-393d-494f-bed5-b3e45482e8e6"
      }
     },
     {
@@ -9854,8 +9851,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "fe26f9f7-0fb9-49f2-834b-6bfcf2c3506d",
-      "hardwareVersion": 1
+      "familyId": "fe26f9f7-0fb9-49f2-834b-6bfcf2c3506d"
      }
     },
     {
@@ -9967,8 +9963,7 @@
         "url": "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"
        }
       ],
-      "familyId": "5a6e50bc-d4ad-403d-80aa-11b5002bc40b",
-      "hardwareVersion": 1
+      "familyId": "5a6e50bc-d4ad-403d-80aa-11b5002bc40b"
      }
     },
     {
@@ -9978,7 +9973,7 @@
       "name": "Memory Boost",
       "description": "Memory and working-memory support. The PBM channel follows its own cited evidence (Yao 2022 / Gonzalez-Lima lineage: 1064nm right prefrontal, 8 min) rather than the theta rhythm; theta (6Hz) entrainment lives in the audio, EEG neurofeedback and HRV channels, where entrainment evidence exists. NOT EVIDENCE-GRADE for the PBM channel: see the notes on that block — duty, dose, area and irradiance all fall short of the cited literature, and requires a 1064nm-capable (T1-C) module.",
       "author": "NeurOne",
-      "version": "1.1",
+      "version": "1.0",
       "tags": [
        "memory",
        "theta",
@@ -10073,8 +10068,7 @@
         "url": "docs/np_bib_1064_001.md"
        }
       ],
-      "familyId": "a5c44a3d-e552-4a86-b3af-c8b064cbb655",
-      "hardwareVersion": 1
+      "familyId": "a5c44a3d-e552-4a86-b3af-c8b064cbb655"
      }
     },
     {
@@ -10193,8 +10187,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "87593870-ea5d-4b18-bcd8-66dad8ab1442",
-      "hardwareVersion": 1
+      "familyId": "87593870-ea5d-4b18-bcd8-66dad8ab1442"
      }
     },
     {
@@ -10322,8 +10315,7 @@
        }
       ],
       "isReadOnly": true,
-      "familyId": "1221fe35-cb93-400e-bd8b-0ecca13259c1",
-      "hardwareVersion": 1
+      "familyId": "1221fe35-cb93-400e-bd8b-0ecca13259c1"
      }
     },
     {
@@ -10412,8 +10404,7 @@
        }
       ],
       "isReadOnly": true,
-      "familyId": "e414f3d1-72ea-4524-a6c3-21d9c3912c13",
-      "hardwareVersion": 1
+      "familyId": "e414f3d1-72ea-4524-a6c3-21d9c3912c13"
      }
     },
     {
@@ -10533,8 +10524,7 @@
         "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
        }
       ],
-      "familyId": "ee10cb40-11d0-4969-9abe-a61fc6e8b0b7",
-      "hardwareVersion": 1
+      "familyId": "ee10cb40-11d0-4969-9abe-a61fc6e8b0b7"
      }
     },
     {
@@ -10575,8 +10565,7 @@
        }
       ],
       "isReadOnly": true,
-      "familyId": "dca88ec1-bb9a-455b-98da-2fc7f0ebedfc",
-      "hardwareVersion": 1
+      "familyId": "dca88ec1-bb9a-455b-98da-2fc7f0ebedfc"
      }
     },
     {
@@ -10672,8 +10661,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "b24069a6-b955-4b72-a5a6-4a90805bd307",
-      "hardwareVersion": 1
+      "familyId": "b24069a6-b955-4b72-a5a6-4a90805bd307"
      }
     },
     {
@@ -10737,8 +10725,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "aba80ec3-e974-4bf3-a9b4-cf3aaab821aa",
-      "hardwareVersion": 1
+      "familyId": "aba80ec3-e974-4bf3-a9b4-cf3aaab821aa"
      }
     },
     {
@@ -10799,8 +10786,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "616a2f8d-5986-4724-90c2-210d06058884",
-      "hardwareVersion": 1
+      "familyId": "616a2f8d-5986-4724-90c2-210d06058884"
      }
     },
     {
@@ -10917,8 +10903,7 @@
        }
       ],
       "isReadOnly": true,
-      "familyId": "449fe64e-1391-4ff5-bb86-a9b6a96a1fc9",
-      "hardwareVersion": 1
+      "familyId": "449fe64e-1391-4ff5-bb86-a9b6a96a1fc9"
      }
     },
     {
@@ -11073,8 +11058,7 @@
        }
       ],
       "isReadOnly": true,
-      "familyId": "3a952e64-b1c4-4045-8310-47505327e871",
-      "hardwareVersion": 1
+      "familyId": "3a952e64-b1c4-4045-8310-47505327e871"
      }
     },
     {
@@ -11255,8 +11239,7 @@
        }
       ],
       "isReadOnly": true,
-      "familyId": "9d2b5837-567e-419d-893e-abb71e8bedd5",
-      "hardwareVersion": 1
+      "familyId": "9d2b5837-567e-419d-893e-abb71e8bedd5"
      }
     },
     {
@@ -11314,8 +11297,7 @@
         "url": "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"
        }
       ],
-      "familyId": "9c826e2b-f480-4a1d-82b1-3ce85bfdd11e",
-      "hardwareVersion": 1
+      "familyId": "9c826e2b-f480-4a1d-82b1-3ce85bfdd11e"
      }
     },
     {
@@ -11387,8 +11369,7 @@
         "url": "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"
        }
       ],
-      "familyId": "7ce04f67-2369-4ce7-8961-e6071649e046",
-      "hardwareVersion": 1
+      "familyId": "7ce04f67-2369-4ce7-8961-e6071649e046"
      }
     },
     {
@@ -11445,8 +11426,7 @@
         "url": "docs/pbm_neuro_protocols.md#2-mild-cognitive-impairment-mci--grade-a"
        }
       ],
-      "familyId": "e993cd52-ebfa-4e21-9497-83d63182a093",
-      "hardwareVersion": 1
+      "familyId": "e993cd52-ebfa-4e21-9497-83d63182a093"
      }
     },
     {
@@ -11456,7 +11436,7 @@
       "name": "PBM — Alzheimer's 1064nm (deep-cortical channel)",
       "description": "Whole-vault 1064nm PBM for Alzheimer's / dementia, targeting §1's 1060–1080nm band (Qi/Nizamutdinov 2021: 1060–1080nm, 6 min twice daily, 108 sessions/56 d, MMSE +4.8). RE-AUTHORED 2026-08-26 from the §3 cognitive-enhancement target, which was 8.9× beyond this channel's reach; §1's band is the nearer target OI-HEXTILE-21 identifies. STILL NOT EVIDENCE-GRADE and still not reachable — the shortfall narrows, it does not close. See the notes on the modality block for the exact figures.",
       "author": "NeurOne",
-      "version": "2.0",
+      "version": "1.0",
       "tags": [
        "pbm",
        "1064nm",
@@ -11511,8 +11491,7 @@
         "url": "docs/np_opt_psf_001.md"
        }
       ],
-      "familyId": "258734b4-ffd7-4d95-b879-85a26bc0f537",
-      "hardwareVersion": 1
+      "familyId": "258734b4-ffd7-4d95-b879-85a26bc0f537"
      }
     },
     {
@@ -11571,8 +11550,7 @@
         "url": "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"
        }
       ],
-      "familyId": "9e5352da-fbe6-41a8-9738-c55f1eaf6a63",
-      "hardwareVersion": 1
+      "familyId": "9e5352da-fbe6-41a8-9738-c55f1eaf6a63"
      }
     },
     {
@@ -11582,7 +11560,7 @@
       "name": "PBM — Depression (Schiffer 2009, high-irradiance)",
       "description": "Single-session 810nm PBM for major depression, as Schiffer 2009 ran it (open pilot, n=10): an LED cluster, continuous wave, 250 mW/cm², 4 min at F3 and then 4 min at F4, 60 J/cm² per site. This is the HIGH-IRRADIANCE arm of the §4 evidence, seven times Cassano 2018; see that protocol for the other end. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 250 mW/cm² CW is inside the time-averaged ceiling at 808nm (≈329, CLAUDE.md §3, OI-HEXTILE-32 closed).",
       "author": "NeurOne",
-      "version": "2.0",
+      "version": "1.0",
       "tags": [
        "pbm",
        "clinical",
@@ -11651,8 +11629,7 @@
         "url": "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"
        }
       ],
-      "familyId": "1e445466-03c0-4080-be62-65d2fc98dece",
-      "hardwareVersion": 1
+      "familyId": "1e445466-03c0-4080-be62-65d2fc98dece"
      }
     },
     {
@@ -11710,8 +11687,7 @@
         "url": "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"
        }
       ],
-      "familyId": "a68ec185-8480-4d41-a142-607abe3b0709",
-      "hardwareVersion": 1
+      "familyId": "a68ec185-8480-4d41-a142-607abe3b0709"
      }
     },
     {
@@ -11721,7 +11697,7 @@
       "name": "PBM — Anxiety (Wang 2023, high-irradiance)",
       "description": "820nm PBM to the left DLPFC for generalized anxiety, as Wang 2023 ran it (double-blind sham-controlled RCT, n=36, 33 analysed): a continuous-wave laser at 310 mW/cm², a 1 cm spot at F5, four 4-minute exposures a day 5 minutes apart, on 14 consecutive days. HAMA fell more than sham (p=0.021) and stayed lower at 8 weeks; HAMA response 11/16 active vs 2/17 sham. Grade B. One session here is one day of that course; the 14-day schedule is the user's to keep, since the language has no course field. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 310 mW/cm² CW is inside the time-averaged ceiling at 820nm (≈348, CLAUDE.md §3).",
       "author": "NeurOne",
-      "version": "2.1",
+      "version": "1.0",
       "tags": [
        "pbm",
        "clinical",
@@ -11770,8 +11746,7 @@
         "url": "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"
        }
       ],
-      "familyId": "d6956a78-fca2-4aac-84eb-4192fefeed31",
-      "hardwareVersion": 1
+      "familyId": "d6956a78-fca2-4aac-84eb-4192fefeed31"
      }
     },
     {
@@ -11855,8 +11830,7 @@
         "url": "docs/pbm_neuro_protocols.md#6-traumatic-brain-injury-chronic--post-concussion-syndrome--grade-b"
        }
       ],
-      "familyId": "2ad87fa5-0581-41e7-9ae5-f34052ed8ccc",
-      "hardwareVersion": 1
+      "familyId": "2ad87fa5-0581-41e7-9ae5-f34052ed8ccc"
      }
     },
     {
@@ -11914,8 +11888,7 @@
         "url": "docs/pbm_neuro_protocols.md"
        }
       ],
-      "familyId": "523703be-69b8-4250-a8b5-05ad4cd6c436",
-      "hardwareVersion": 1
+      "familyId": "523703be-69b8-4250-a8b5-05ad4cd6c436"
      }
     },
     {
@@ -11988,8 +11961,7 @@
         "url": "docs/pbm_neuro_protocols.md"
        }
       ],
-      "familyId": "2d6dc9c0-ab36-46a8-8330-31b232b53673",
-      "hardwareVersion": 1
+      "familyId": "2d6dc9c0-ab36-46a8-8330-31b232b53673"
      }
     },
     {
@@ -12068,8 +12040,7 @@
         "url": "docs/pbm_neuro_protocols.md#9-stroke--grade-c-chronic-rehab--avoid-acute"
        }
       ],
-      "familyId": "37453987-a981-4f8e-9c87-6b6824c7fe48",
-      "hardwareVersion": 1
+      "familyId": "37453987-a981-4f8e-9c87-6b6824c7fe48"
      }
     },
     {
@@ -12122,8 +12093,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "5954d826-7b13-4276-ac76-fa2e5c252458",
-      "hardwareVersion": 1
+      "familyId": "5954d826-7b13-4276-ac76-fa2e5c252458"
      }
     },
     {
@@ -12177,8 +12147,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "30c953fa-b2c6-4e26-9d2c-0d7c6c7f500a",
-      "hardwareVersion": 1
+      "familyId": "30c953fa-b2c6-4e26-9d2c-0d7c6c7f500a"
      }
     },
     {
@@ -12232,8 +12201,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "8612ee35-93c6-4133-a48e-ec22d6bdddec",
-      "hardwareVersion": 1
+      "familyId": "8612ee35-93c6-4133-a48e-ec22d6bdddec"
      }
     },
     {
@@ -12282,8 +12250,7 @@
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
       ],
-      "familyId": "6b8fc44b-47b1-4a72-9e7a-88948d15af53",
-      "hardwareVersion": 1
+      "familyId": "6b8fc44b-47b1-4a72-9e7a-88948d15af53"
      }
     },
     {
@@ -12332,8 +12299,7 @@
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
       ],
-      "familyId": "552816c6-9e50-4c44-99e6-66f31c2928ff",
-      "hardwareVersion": 1
+      "familyId": "552816c6-9e50-4c44-99e6-66f31c2928ff"
      }
     },
     {
@@ -12382,8 +12348,7 @@
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
       ],
-      "familyId": "1a20bdb4-94b5-43d3-8ba8-ab470a5ad9d9",
-      "hardwareVersion": 1
+      "familyId": "1a20bdb4-94b5-43d3-8ba8-ab470a5ad9d9"
      }
     },
     {
@@ -12432,8 +12397,7 @@
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
       ],
-      "familyId": "b4019d05-e1e0-4491-b21a-52cd7a1eaf95",
-      "hardwareVersion": 1
+      "familyId": "b4019d05-e1e0-4491-b21a-52cd7a1eaf95"
      }
     },
     {
@@ -12482,8 +12446,7 @@
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
       ],
-      "familyId": "95fc0c1c-c658-4d04-8275-867fca2bbccf",
-      "hardwareVersion": 1
+      "familyId": "95fc0c1c-c658-4d04-8275-867fca2bbccf"
      }
     },
     {
@@ -12532,8 +12495,7 @@
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
       ],
-      "familyId": "17ac4c53-6323-4cb0-b2c0-9d338b65fbe3",
-      "hardwareVersion": 1
+      "familyId": "17ac4c53-6323-4cb0-b2c0-9d338b65fbe3"
      }
     },
     {
@@ -12585,8 +12547,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "5d3fbbfc-431e-4a18-8316-c1e0ade1cc44",
-      "hardwareVersion": 1
+      "familyId": "5d3fbbfc-431e-4a18-8316-c1e0ade1cc44"
      }
     },
     {
@@ -12638,8 +12599,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "e60bd29e-145e-42f3-9736-7925e972d7cd",
-      "hardwareVersion": 1
+      "familyId": "e60bd29e-145e-42f3-9736-7925e972d7cd"
      }
     },
     {
@@ -12692,8 +12652,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "ab10ebdc-8984-4318-bc4e-db2f774dd3ab",
-      "hardwareVersion": 1
+      "familyId": "ab10ebdc-8984-4318-bc4e-db2f774dd3ab"
      }
     },
     {
@@ -12741,8 +12700,7 @@
         "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
        }
       ],
-      "familyId": "7070caa5-9f2b-45e8-840c-bdcad18360f6",
-      "hardwareVersion": 1
+      "familyId": "7070caa5-9f2b-45e8-840c-bdcad18360f6"
      }
     },
     {
@@ -12791,8 +12749,7 @@
         "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
        }
       ],
-      "familyId": "9a13ee9a-09d5-4f21-9ab4-7fe20d163a77",
-      "hardwareVersion": 1
+      "familyId": "9a13ee9a-09d5-4f21-9ab4-7fe20d163a77"
      }
     },
     {
@@ -12841,8 +12798,7 @@
         "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
        }
       ],
-      "familyId": "bdbc4231-09b8-4d7e-a2c9-903f104c552c",
-      "hardwareVersion": 1
+      "familyId": "bdbc4231-09b8-4d7e-a2c9-903f104c552c"
      }
     },
     {
@@ -12895,8 +12851,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "74d0e4d1-1837-48de-8cd9-8af7b8d739f8",
-      "hardwareVersion": 1
+      "familyId": "74d0e4d1-1837-48de-8cd9-8af7b8d739f8"
      }
     },
     {
@@ -12948,8 +12903,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "e1d92fd3-009f-49ee-8e0a-ee45e86c59a0",
-      "hardwareVersion": 1
+      "familyId": "e1d92fd3-009f-49ee-8e0a-ee45e86c59a0"
      }
     },
     {
@@ -13001,8 +12955,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "0b94122b-5009-42d5-aacf-e9d3d2b2322b",
-      "hardwareVersion": 1
+      "familyId": "0b94122b-5009-42d5-aacf-e9d3d2b2322b"
      }
     },
     {
@@ -13071,8 +13024,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "9784755e-df21-46ce-bfe1-dadc4b15d9fd",
-      "hardwareVersion": 1
+      "familyId": "9784755e-df21-46ce-bfe1-dadc4b15d9fd"
      }
     },
     {
@@ -13128,8 +13080,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "7b78b54c-20b2-453b-b601-f8e329ad34b7",
-      "hardwareVersion": 1
+      "familyId": "7b78b54c-20b2-453b-b601-f8e329ad34b7"
      }
     },
     {
@@ -13185,8 +13136,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "49893ab7-5f46-41cc-8391-ae798fab2161",
-      "hardwareVersion": 1
+      "familyId": "49893ab7-5f46-41cc-8391-ae798fab2161"
      }
     },
     {
@@ -13244,8 +13194,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "d4616968-0f99-4d28-b7a8-bebc5f467610",
-      "hardwareVersion": 1
+      "familyId": "d4616968-0f99-4d28-b7a8-bebc5f467610"
      }
     },
     {
@@ -13301,8 +13250,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "8aaaacf8-ea82-47d4-93c6-5760a3b5a782",
-      "hardwareVersion": 1
+      "familyId": "8aaaacf8-ea82-47d4-93c6-5760a3b5a782"
      }
     },
     {
@@ -13360,8 +13308,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "a879b19d-ec07-42b2-89cb-9687accd783b",
-      "hardwareVersion": 1
+      "familyId": "a879b19d-ec07-42b2-89cb-9687accd783b"
      }
     },
     {
@@ -13417,8 +13364,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "7cd5839c-6e99-4343-bb1a-2374059fbd52",
-      "hardwareVersion": 1
+      "familyId": "7cd5839c-6e99-4343-bb1a-2374059fbd52"
      }
     },
     {
@@ -13474,8 +13420,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "7bde881a-bb5b-41e6-ad8d-27a4540ad210",
-      "hardwareVersion": 1
+      "familyId": "7bde881a-bb5b-41e6-ad8d-27a4540ad210"
      }
     },
     {
@@ -13532,8 +13477,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "fbee6bc2-0c56-4b77-a819-6ae542514c50",
-      "hardwareVersion": 1
+      "familyId": "fbee6bc2-0c56-4b77-a819-6ae542514c50"
      }
     },
     {
@@ -13589,8 +13533,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "29403448-486c-481f-9cb5-47bbc3c05971",
-      "hardwareVersion": 1
+      "familyId": "29403448-486c-481f-9cb5-47bbc3c05971"
      }
     },
     {
@@ -13643,8 +13586,7 @@
         "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
        }
       ],
-      "familyId": "a9668721-d64c-4adf-af65-707681a9ee49",
-      "hardwareVersion": 1
+      "familyId": "a9668721-d64c-4adf-af65-707681a9ee49"
      }
     },
     {
@@ -13700,8 +13642,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "089b5c10-140d-4aff-bbad-c47b8e72bf81",
-      "hardwareVersion": 1
+      "familyId": "089b5c10-140d-4aff-bbad-c47b8e72bf81"
      }
     },
     {
@@ -13757,8 +13698,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "fa64b8fa-d89c-45f0-b4dd-0260af1137bb",
-      "hardwareVersion": 1
+      "familyId": "fa64b8fa-d89c-45f0-b4dd-0260af1137bb"
      }
     },
     {
@@ -13809,8 +13749,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "ccc8d480-9c64-485c-aaa5-79e18d0d214e",
-      "hardwareVersion": 1
+      "familyId": "ccc8d480-9c64-485c-aaa5-79e18d0d214e"
      }
     },
     {
@@ -13862,8 +13801,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "c60bb668-b2f9-42b6-9170-aeee6b9ebcab",
-      "hardwareVersion": 1
+      "familyId": "c60bb668-b2f9-42b6-9170-aeee6b9ebcab"
      }
     },
     {
@@ -13916,8 +13854,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "e404df1d-4d34-4bef-aff0-df4aced8792c",
-      "hardwareVersion": 1
+      "familyId": "e404df1d-4d34-4bef-aff0-df4aced8792c"
      }
     },
     {
@@ -13968,8 +13905,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "60aaa5f9-66d9-49a8-90d4-467620e1f7c9",
-      "hardwareVersion": 1
+      "familyId": "60aaa5f9-66d9-49a8-90d4-467620e1f7c9"
      }
     },
     {
@@ -14020,8 +13956,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "8cdbb074-510c-45d1-8012-ea881517e133",
-      "hardwareVersion": 1
+      "familyId": "8cdbb074-510c-45d1-8012-ea881517e133"
      }
     },
     {
@@ -14072,8 +14007,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "faf6c56a-2fb2-45ec-b4b2-4d7c11abcd99",
-      "hardwareVersion": 1
+      "familyId": "faf6c56a-2fb2-45ec-b4b2-4d7c11abcd99"
      }
     },
     {
@@ -14124,8 +14058,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "15fde368-d664-4588-a9e5-3e9b3ddccaa0",
-      "hardwareVersion": 1
+      "familyId": "15fde368-d664-4588-a9e5-3e9b3ddccaa0"
      }
     },
     {
@@ -14177,8 +14110,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "c9410a2d-9761-4460-91d8-b1622ea87a35",
-      "hardwareVersion": 1
+      "familyId": "c9410a2d-9761-4460-91d8-b1622ea87a35"
      }
     },
     {
@@ -14231,8 +14163,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "170d0782-af01-45a8-8327-af613c53492b",
-      "hardwareVersion": 1
+      "familyId": "170d0782-af01-45a8-8327-af613c53492b"
      }
     },
     {
@@ -14285,8 +14216,7 @@
         "url": "docs/neuromod_neuro_protocols.md"
        }
       ],
-      "familyId": "ca7fed3e-6653-4e96-83f4-cfca03760f4a",
-      "hardwareVersion": 1
+      "familyId": "ca7fed3e-6653-4e96-83f4-cfca03760f4a"
      }
     },
     {
@@ -14335,8 +14265,7 @@
       ],
       "conflictResolution": "merge",
       "isReadOnly": true,
-      "familyId": "48ff7117-9d6c-4fb4-947d-4ddb111f5cf9",
-      "hardwareVersion": 1
+      "familyId": "48ff7117-9d6c-4fb4-947d-4ddb111f5cf9"
      }
     },
     {
@@ -14377,8 +14306,7 @@
       ],
       "conflictResolution": "sequential",
       "isReadOnly": true,
-      "familyId": "94a2db42-f4ba-41cb-9b3f-0d6cdfb90466",
-      "hardwareVersion": 1
+      "familyId": "94a2db42-f4ba-41cb-9b3f-0d6cdfb90466"
      }
     },
     {
@@ -14413,8 +14341,7 @@
       ],
       "conflictResolution": "merge",
       "isReadOnly": true,
-      "familyId": "99ccca1a-66a4-4fc3-b96c-9539873e9c17",
-      "hardwareVersion": 1
+      "familyId": "99ccca1a-66a4-4fc3-b96c-9539873e9c17"
      }
     },
     {
@@ -14447,8 +14374,7 @@
       ],
       "conflictResolution": "sequential",
       "isReadOnly": true,
-      "familyId": "e320bcd3-cc6b-4dee-bbe8-f59cbc3d9cc3",
-      "hardwareVersion": 1
+      "familyId": "e320bcd3-cc6b-4dee-bbe8-f59cbc3d9cc3"
      }
     }
    ],

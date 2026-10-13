@@ -185,7 +185,6 @@ fn used_flag_round_trips_through_parse_and_write_and_is_not_content() {
     let src = r#"protocol "P" {
   id: "p1"
   family_id: "11111111-2222-3333-4444-555555555555"
-  hardware_version: 1
   used: true
   duration: 10m
   pbm_transcranial {

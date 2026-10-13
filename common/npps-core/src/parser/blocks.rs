@@ -279,7 +279,6 @@ impl Parser {
     }
 
     pub(super) fn parse_composite(&mut self) -> R<Value> {
-        let open_line = self.cur().line;
         let name = self.block_name("composite")?;
         self.open_block()?;
 
@@ -294,7 +293,6 @@ impl Parser {
         let mut conditions: Option<Vec<String>> = None;
         let mut references: Option<Vec<Value>> = None;
         let mut family_id: Option<String> = None;
-        let mut hardware_version: Option<u32> = None;
         let mut used: Option<bool> = None;
 
         while !self.try_brace() {
@@ -320,16 +318,18 @@ impl Parser {
                 "conditions" => conditions = Some(self.read_tag_array()?),
                 "references" => references = Some(self.read_references()?),
                 "family_id" => family_id = Some(self.read_family_id()?),
-                "hardware_version" => hardware_version = Some(self.read_hardware_version()?),
+                "hardware_version" => {
+                    return Err(ParseError::at(
+                        "hardware_version is not a field of a composite: a composite does not state a hardware version, only a zone does. Remove it, and give the zone a hardware_version N { sockets: [...] } block".to_string(),
+                        self.cur().line,
+                    ))
+                }
                 "used" => used = Some(self.read_bool()?),
                 _ => self.skip_value()?,
             }
             self.skip_newlines();
         }
 
-        if hardware_version.is_none() {
-            return Err(ParseError::at(super::missing_hardware_version("composite", &name), open_line));
-        }
 
         let mut c = Map::new();
         if let Some(id) = &parsed_id {
@@ -354,9 +354,6 @@ impl Parser {
         }
         if let Some(id) = family_id {
             c.insert("familyId".into(), json!(id));
-        }
-        if let Some(v) = hardware_version {
-            c.insert("hardwareVersion".into(), json!(v));
         }
         if used == Some(true) {
             c.insert("isUsed".into(), json!(true));

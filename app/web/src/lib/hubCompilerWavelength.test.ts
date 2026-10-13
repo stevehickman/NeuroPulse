@@ -55,7 +55,7 @@ function commands(proto: NPProtocolDefinition, opts: Parameters<typeof compilePr
 }
 
 function protocol(body: string, duration = '10m'): NPProtocolDefinition {
-  const [entry] = parseNPPS(`protocol "T" {\n  hardware_version: 1\n    duration: ${duration}\n${body}\n}`);
+  const [entry] = parseNPPS(`protocol "T" {\n    duration: ${duration}\n${body}\n}`);
   if (entry.kind !== 'single') throw new Error('expected a protocol');
   return entry.protocol;
 }

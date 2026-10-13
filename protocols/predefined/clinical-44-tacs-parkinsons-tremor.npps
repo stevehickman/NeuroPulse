@@ -1,7 +1,6 @@
 protocol "tACS — Parkinson's Tremor (phase-locked)" {
     id: "30000044-0000-0000-0000-000000000000"
     family_id: "60aaa5f9-66d9-49a8-90d4-467620e1f7c9"
-    hardware_version: 1
     description: "Phase-locked tACS at the tremor frequency over M1 to suppress resting tremor ~50% by phase cancellation — a closed-loop, EEG/accelerometer-driven paradigm. Grade B."
     author: "NeurOne"
     version: "1.0"

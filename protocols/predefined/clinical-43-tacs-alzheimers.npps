@@ -1,7 +1,6 @@
 protocol "tACS — Alzheimer's (gamma 40Hz)" {
     id: "30000043-0000-0000-0000-000000000000"
     family_id: "e404df1d-4d34-4bef-aff0-df4aced8792c"
-    hardware_version: 1
     description: "40Hz gamma tACS over temporal/temporoparietal cortex, improving episodic memory (same 40Hz gamma target as PBM/GENUS — multi-modal convergence). Grade C."
     author: "NeurOne"
     version: "1.0"

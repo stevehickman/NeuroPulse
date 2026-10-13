@@ -1,7 +1,6 @@
 protocol "tACS — WM Restoration (older adults, HD)" {
     id: "30000050-0000-0000-0000-000000000000"
     family_id: "ca7fed3e-6653-4e96-83f4-cfca03760f4a"
-    hardware_version: 1
     description: "Frontotemporal HD phase-tuned individual-theta tACS restoring working memory in older adults (Reinhart & Nguyen 2019). Grade A. T2 multi-channel."
     author: "NeurOne"
     version: "1.0"

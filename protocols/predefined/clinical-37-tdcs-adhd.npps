@@ -1,7 +1,6 @@
 protocol "tDCS — ADHD (anodal F3)" {
     id: "30000037-0000-0000-0000-000000000000"
     family_id: "29403448-486c-481f-9cb5-47bbc3c05971"
-    hardware_version: 1
     description: "Anodal left DLPFC (F3) or right DLPFC (F4), 1–2mA, 20–30 min, for attention/inhibition. Grade B. Repeated dosing needed (single-session can be null)."
     author: "NeurOne"
     version: "1.0"

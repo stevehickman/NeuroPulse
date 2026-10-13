@@ -1,7 +1,6 @@
 protocol "PBM — Alzheimer's 40Hz (Woźniak-Mitał 2026)" {
     id: "30000001-0000-0000-0000-000000000000"
     family_id: "7ce04f67-2369-4ce7-8961-e6071649e046"
-    hardware_version: 1
     description: "Whole-head 810nm pulsed 40Hz transcranial PBM plus bilateral intranasal 660nm for Alzheimer's / dementia (gamma-entrainment rationale). Grade A. 3–7x/week, 8–12+ weeks."
     author: "NeurOne"
     version: "1.0"

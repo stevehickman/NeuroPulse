@@ -14,7 +14,6 @@ final class NPPBMTargetScriptingTests: XCTestCase {
     private func parseTarget(zonesLine: String, extra: String = "") throws -> NPPBMTarget {
         let source = """
         protocol "Target Test" {
-            hardware_version: 1
             id: "AABB0100-0000-0000-0000-000000000000"
             description: "Target parsing"
             author: "Test"

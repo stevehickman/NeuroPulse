@@ -1,7 +1,6 @@
 protocol "PBM — Stroke (chronic rehab)" {
     id: "30000009-0000-0000-0000-000000000000"
     family_id: "37453987-a981-4f8e-9c87-6b6824c7fe48"
-    hardware_version: 1
     description: "Perilesional + midline 810nm transcranial PBM plus intranasal for chronic post-stroke rehab, paired with physical/speech therapy. Grade C. 3x/week. Do NOT use for acute stroke (documented null; contraindicated as monotherapy)."
     author: "NeurOne"
     version: "1.0"

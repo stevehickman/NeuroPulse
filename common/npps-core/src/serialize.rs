@@ -311,32 +311,15 @@ fn references(refs: &[Value]) -> String {
 }
 
 /// The header fields `protocol` and `composite` share, in the order the web serializer wrote them.
-fn header(kind: &str, def: &Value, lines: &mut Vec<String>) -> R<()> {
+fn header(_kind: &str, def: &Value, lines: &mut Vec<String>) -> R<()> {
     lines.push(format!("{INDENT}id: {}", q(text(def, "id"))));
-    // Identity metadata (SWR-FM-01, SWR-HV-01): written when the model carries it, so a protocol read with a family id
-    // and a hardware version is written back with both.
+    // Identity metadata (SWR-FM-01): written when the model carries it, so a protocol read with a family id is written
+    // back with it.
     if !text(def, "familyId").is_empty() {
         lines.push(format!("{INDENT}family_id: {}", q(text(def, "familyId"))));
     }
-    // The hardware version is required (SWR-HV-01): the parser refuses a protocol or composite without one, so a model
-    // that has none is refused here rather than written into a file that cannot be read back.
-    match def["hardwareVersion"].as_f64() {
-        Some(v) if v.fract() == 0.0 && v >= 1.0 => lines.push(format!("{INDENT}hardware_version: {}", num_string(v))),
-        Some(v) => {
-            return Err(format!(
-                "cannot serialize {kind} {}: hardwareVersion must be a whole number of 1 or more, got {}",
-                q(text(def, "name")),
-                num_string(v)
-            ))
-        }
-        None => {
-            return Err(format!(
-                "cannot serialize {kind} {}: it has no hardwareVersion, and a {kind} without hardware_version is refused when it is read. \
-                 Suggested correction: set hardwareVersion to 1, the only hardware version that exists, which writes hardware_version: 1",
-                q(text(def, "name"))
-            ))
-        }
-    }
+    // A protocol or composite states no hardware version: only a zone does (SWR-HV-05), and the parser refuses the field
+    // on anything else. A model that carries one (a compile-time input, not authored) is written without it.
     lines.push(format!("{INDENT}description: {}", q(text(def, "description"))));
     lines.push(format!("{INDENT}author: {}", q(text(def, "author"))));
     lines.push(format!("{INDENT}version: {}", q(text(def, "version"))));

@@ -1,7 +1,6 @@
 protocol "Flow State" {
     id: "10000006-0000-0000-0000-000000000000"
     family_id: "1221fe35-cb93-400e-bd8b-0ecca13259c1"
-    hardware_version: 1
     description: "Gamma-theta coupled protocol targeting the flow state signature: frontal gamma + parieto-occipital theta. Split-zone PBM with closed-loop EEG adaptation."
     author: "NeurOne"
     version: "1.0"
