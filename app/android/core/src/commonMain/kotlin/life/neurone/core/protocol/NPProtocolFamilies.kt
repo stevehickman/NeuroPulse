@@ -54,11 +54,17 @@ sealed class UploadGate {
     object Allow : UploadGate()
 
     /**
-     * The protocol has no layout for the helmet's hardware version (SWR-HV-04). [details] is the core's answer: the
-     * helmet's version, the versions the protocol supports and the overlap and difference of each layout pair, for the
-     * screen that draws both.
+     * The protocol has no layout for the helmet's hardware version (SWR-HV-04): the helmet's version, the versions the
+     * protocol supports, and how the first of those layouts overlaps the helmet's (sockets in both, only in the protocol's,
+     * only in the helmet's). The counts are null while the helmet's layout is not in the table, so no overlap can be drawn.
      */
-    data class HardwareMismatch(val helmetVersion: Int, val protocolVersions: List<Int>, val details: JsonObject) : UploadGate()
+    data class HardwareMismatch(
+        val helmetVersion: Int,
+        val protocolVersions: List<Int>,
+        val sharedSockets: Int?,
+        val onlyProtocolSockets: Int?,
+        val onlyHelmetSockets: Int?,
+    ) : UploadGate()
 
     /** The clone's content is its source's (SWR-PL-06). The three outcomes are upload the source, edit the clone, cancel. */
     data class UnmodifiedClone(val sourceId: life.neurone.core.common.UUID) : UploadGate()

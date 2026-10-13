@@ -6,6 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -238,5 +239,50 @@ class NPProtocolFamilyTests {
         // An import of an unflagged copy of a protocol already used here leaves it used.
         lib.importScript(unflagged)
         assertTrue(lib.isUsed(copy))
+    }
+
+    // @verifies SWR-PL-02
+    @Test
+    fun theRefusedEditIsKeptOnACopyOfTheWholeFamily() {
+        val lib = library()
+        val copy = clone(lib)
+        val hash = assertNotNull(lib.contentHash(copy))
+        lib.recordUploadResult(copy, hash, "accepted", hash)
+        val edit = longer(copy)
+        assertTrue(lib.save(edit) is SaveResult.RefusedFamilyUsed)
+
+        val kept = assertNotNull(lib.saveAsClone(edit))
+        assertNotEquals(copy.id, kept.id)
+        assertNotEquals(copy.familyKey(), kept.familyKey(), "a new family")
+        assertFalse(lib.isUsed(kept))
+        val seconds = ((kept as NPProtocolEntry.Single).protocol.timingMode as NPTimingMode.Duration).seconds
+        val before = ((copy as NPProtocolEntry.Single).protocol.timingMode as NPTimingMode.Duration).seconds
+        assertEquals(before + 60, seconds, "the person's edit is what the copy holds")
+        assertEquals(hash, lib.contentHash(lib.userProtocols.first { it.id == copy.id }), "and the used protocol is untouched")
+    }
+
+    // @verifies SWR-FM-06
+    @Test
+    fun aNewVariantForAHardwareVersionTheUsedFamilyHasIsRefusedAndKeptAsItsOwnFamily() {
+        val lib = library()
+        val copy = clone(lib)
+        val hash = assertNotNull(lib.contentHash(copy))
+        lib.recordUploadResult(copy, hash, "accepted", hash)
+        val p = (copy as NPProtocolEntry.Single).protocol
+        val joiner = NPProtocolEntry.Single(p.copy(id = life.neurone.core.common.UUID.randomUUID(), name = "Joiner"))
+        assertEquals(SaveResult.RefusedVariantExists, lib.save(joiner))
+        val own = assertNotNull(lib.saveAsClone(joiner))
+        assertNotEquals(copy.familyKey(), own.familyKey())
+        assertTrue(lib.userProtocols.any { it.id == own.id })
+    }
+
+    // @verifies SWR-HV-04
+    @Test
+    fun theMismatchRefusalSaysTheHelmetLayoutIsNotInTheTableYet() {
+        val lib = library()
+        val copy = longer(clone(lib)).also { lib.save(it) }
+        val gate = lib.uploadGate(copy, helmetHardwareVersion = 2) as UploadGate.HardwareMismatch
+        assertNull(gate.sharedSockets, "no layout for version 2 exists, so no overlap is claimed")
+        assertNull(gate.onlyHelmetSockets)
     }
 }

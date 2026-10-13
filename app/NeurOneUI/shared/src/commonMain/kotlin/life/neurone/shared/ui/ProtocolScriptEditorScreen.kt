@@ -25,7 +25,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import life.neurone.core.protocol.NPPSError
+import life.neurone.core.protocol.NPProtocolEntry
 import life.neurone.core.protocol.NPProtocolLibrary
+import life.neurone.core.protocol.SaveResult
 import org.jetbrains.compose.resources.stringResource
 import life.neurone.shared.resources.Res
 import life.neurone.shared.resources.*
@@ -44,12 +46,13 @@ fun ProtocolScriptEditorScreen(
 ) {
     var text by remember { mutableStateOf(initialText) }
     var error by remember { mutableStateOf<ScriptError?>(null) }
+    var refusal by remember { mutableStateOf<Pair<NPProtocolEntry, SaveResult>?>(null) }
 
     fun save() {
         try {
             val entry = library.importScript(text)
-            library.save(entry)
-            onSaved()
+            val result = library.save(entry)
+            if (result is SaveResult.RefusedFamilyUsed || result is SaveResult.RefusedVariantExists) refusal = entry to result else onSaved()
         } catch (e: NPPSError) {
             error = ScriptError.AtLine(e.line, e.messageText)
         } catch (e: Exception) {
@@ -58,6 +61,9 @@ fun ProtocolScriptEditorScreen(
     }
 
     Column(modifier.fillMaxSize().padding(16.dp)) {
+        refusal?.let { (e, r) ->
+            SaveRefusalDialog(library, e, r, onResolved = { refusal = null; onSaved() }, onDismiss = { refusal = null })
+        }
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,

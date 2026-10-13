@@ -30,6 +30,7 @@ import life.neurone.core.protocol.NPProtocolDefinition
 import life.neurone.core.protocol.NPProtocolEntry
 import life.neurone.core.protocol.NPProtocolLibrary
 import life.neurone.core.protocol.NPTimingMode
+import life.neurone.core.protocol.SaveResult
 import org.jetbrains.compose.resources.stringResource
 import life.neurone.shared.resources.Res
 import life.neurone.shared.resources.*
@@ -61,6 +62,7 @@ fun ProtocolEditorScreen(
     }
 
     val untitledName = stringResource(Res.string.protocol_editor_untitled)
+    var refusal by remember { mutableStateOf<Pair<NPProtocolEntry, SaveResult>?>(null) }
 
     fun save() {
         val updated = existing.copy(
@@ -69,8 +71,10 @@ fun ProtocolEditorScreen(
             tags = tags.split(",").map { it.trim() }.filter { it.isNotEmpty() },
             timingMode = NPTimingMode.Duration((minutes.toIntOrNull() ?: 20).coerceAtLeast(1) * 60),
         )
-        library.save(NPProtocolEntry.Single(updated))
-        onSaved()
+        val entry = NPProtocolEntry.Single(updated)
+        val result = library.save(entry)
+        // A used family refuses the save; the dialog explains why and offers a copy that keeps this edit.
+        if (result is SaveResult.RefusedFamilyUsed || result is SaveResult.RefusedVariantExists) refusal = entry to result else onSaved()
     }
 
     Column(
@@ -79,6 +83,9 @@ fun ProtocolEditorScreen(
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
+        refusal?.let { (e, r) ->
+            SaveRefusalDialog(library, e, r, onResolved = { refusal = null; onSaved() }, onDismiss = { refusal = null })
+        }
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,

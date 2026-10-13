@@ -42,6 +42,7 @@ import life.neurone.core.protocol.NPPBMIntranasalParams
 import life.neurone.core.protocol.NPPBMTranscranialParams
 import life.neurone.core.protocol.NPProtocolDefinition
 import life.neurone.core.protocol.NPProtocolEntry
+import life.neurone.core.protocol.SaveResult
 import life.neurone.core.protocol.NPProtocolLibrary
 import life.neurone.core.protocol.NPProtocolModality
 import life.neurone.core.protocol.NPTDCSParams
@@ -67,6 +68,7 @@ fun ModalityEditorScreen(
     modifier: Modifier = Modifier,
 ) {
     var modalities by remember { mutableStateOf(existing.modalities) }
+    var refusal by remember { mutableStateOf<Pair<NPProtocolEntry, SaveResult>?>(null) }
     var expanded by remember { mutableStateOf<Int?>(0) }
 
     fun updateAt(index: Int, transform: (NPProtocolModality) -> NPProtocolModality) {
@@ -74,6 +76,9 @@ fun ModalityEditorScreen(
     }
 
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+        refusal?.let { (e, r) ->
+            SaveRefusalDialog(library, e, r, onResolved = { refusal = null; onSaved() }, onDismiss = { refusal = null })
+        }
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -82,8 +87,9 @@ fun ModalityEditorScreen(
             TextButton(onClick = onCancel) { Text(stringResource(Res.string.common_cancel)) }
             Text(stringResource(Res.string.and_modality_edit_modalities), style = MaterialTheme.typography.titleMedium)
             Button(onClick = {
-                library.save(NPProtocolEntry.Single(existing.copy(modalities = modalities)))
-                onSaved()
+                val entry = NPProtocolEntry.Single(existing.copy(modalities = modalities))
+                val result = library.save(entry)
+                if (result is SaveResult.RefusedFamilyUsed || result is SaveResult.RefusedVariantExists) refusal = entry to result else onSaved()
             }) { Text(stringResource(Res.string.protocol_composer_save)) }
         }
 

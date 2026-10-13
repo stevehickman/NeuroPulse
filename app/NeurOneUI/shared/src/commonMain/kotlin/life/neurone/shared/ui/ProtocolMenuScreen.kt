@@ -34,9 +34,12 @@ import life.neurone.core.protocol.NPLimitsSet
 import life.neurone.core.protocol.NPProtocolDefinition
 import life.neurone.core.protocol.NPProtocolEntry
 import life.neurone.core.protocol.NPProtocolLibrary
+import life.neurone.core.protocol.DeleteResult
 import life.neurone.core.protocol.ProtocolAvailability
+import life.neurone.core.protocol.UploadGate
 import life.neurone.core.protocol.id
 import life.neurone.core.protocol.isComposite
+import life.neurone.core.protocol.isRunnable
 import life.neurone.core.protocol.name
 import org.jetbrains.compose.resources.stringResource
 import life.neurone.shared.resources.Res
@@ -67,12 +70,25 @@ fun ProtocolMenuScreen(
     onSelect: (NPProtocolEntry) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    // The helmet's hardware version. Until the app reads it from the helmet (SWR-HV-02, the GATT read), version 1 is the
+    // only one that exists, so it is the default.
+    helmetHardwareVersion: Int = 1,
 ) {
     // Reflect the current BIPA consent into the library so EEG-adaptive rows gate live.
     library.updateEEGConsent(consentGranted)
 
     var editor by remember { mutableStateOf<ProtocolEditor?>(null) }
     var version by remember { mutableIntStateOf(0) } // bump to re-read the (non-observable) library
+    var deleteRefused by remember { mutableStateOf<NPProtocolEntry?>(null) }
+    var refusedUpload by remember { mutableStateOf<Pair<NPProtocolEntry, UploadGate>?>(null) }
+
+    // What an upload meets before any byte is sent (SWR-PL-06, SWR-HV-04): the core's gate, then the caller's upload.
+    fun tryUpload(entry: NPProtocolEntry) {
+        when (val gate = library.uploadGate(entry, helmetHardwareVersion)) {
+            UploadGate.Allow -> onSelect(entry)
+            else -> refusedUpload = entry to gate
+        }
+    }
 
     when (val e = editor) {
         is ProtocolEditor.New -> ProtocolScriptEditorScreen(
@@ -114,7 +130,10 @@ fun ProtocolMenuScreen(
             modifier = modifier,
         )
         null -> {
-            val protocols = remember(version) { library.allProtocols }
+            // The warranty owner's set first, then what was archived (kept, and restorable).
+            val offered = remember(version) { library.offeredProtocols.filter { it.isRunnable } }
+            val archived = remember(version) { library.allProtocols.filter { it.isRunnable && library.isArchived(it) } }
+            val protocols = offered + archived
             Column(modifier.fillMaxSize()) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
@@ -134,13 +153,18 @@ fun ProtocolMenuScreen(
                         val availability = library.availability(entry)
                         val validation = library.validationResult(entry, limits)
                         val editable = library.canEdit(entry)
+                        val isArchived = library.isArchived(entry)
                         ProtocolRow(
                             entry = entry,
                             availability = availability,
                             errorCount = validation.errors.size,
                             warningCount = validation.warnings.size,
                             eegUnavailableMessage = eegUnavailableMessage,
-                            onClick = { if (availability.isAvailable) onSelect(entry) },
+                            archived = isArchived,
+                            onClick = { if (availability.isAvailable && !isArchived) tryUpload(entry) },
+                            onCopy = { library.cloneFamily(entry.id); version++ },
+                            onArchive = if (isArchived) null else { { library.archiveFamily(entry); version++ } },
+                            onRestore = if (isArchived) { { library.unarchiveFamily(entry); version++ } } else null,
                             onEdit = if (!editable) null else {
                                 {
                                     editor = when (entry) {
@@ -150,9 +174,44 @@ fun ProtocolMenuScreen(
                                 }
                             },
                             onDelete = if (!editable) null else {
-                                { library.delete(entry.id); version++ }
+                                {
+                                    // A used family is archived, never deleted (SWR-FM-05): the dialog says so and offers it.
+                                    if (library.delete(entry.id) == DeleteResult.RefusedFamilyUsed) deleteRefused = entry
+                                    version++
+                                }
                             },
                         )
+                    }
+                }
+                deleteRefused?.let { e ->
+                    DeleteUsedDialog(
+                        onArchive = { library.archiveFamily(e); deleteRefused = null; version++ },
+                        onDismiss = { deleteRefused = null },
+                    )
+                }
+                refusedUpload?.let { (entry, gate) ->
+                    when (gate) {
+                        is UploadGate.UnmodifiedClone -> UnmodifiedCloneDialog(
+                            onUploadSource = {
+                                refusedUpload = null
+                                library.allProtocols.firstOrNull { it.id == gate.sourceId }?.let { tryUpload(it) }
+                            },
+                            onEditClone = {
+                                refusedUpload = null
+                                editor = when (entry) {
+                                    is NPProtocolEntry.Single -> ProtocolEditor.Form(entry.protocol)
+                                    else -> ProtocolEditor.Script(library.exportScript(entry))
+                                }
+                            },
+                            onCancel = { refusedUpload = null },
+                        )
+                        is UploadGate.HardwareMismatch -> HardwareMismatchDialog(
+                            gate = gate,
+                            variant = library.variantsFor(entry, gate.helmetVersion).firstOrNull { it.id != entry.id },
+                            onUseVariant = { refusedUpload = null; tryUpload(it) },
+                            onDismiss = { refusedUpload = null },
+                        )
+                        else -> Unit
                     }
                 }
             }
@@ -168,6 +227,10 @@ private fun ProtocolRow(
     warningCount: Int,
     eegUnavailableMessage: String,
     onClick: () -> Unit,
+    archived: Boolean = false,
+    onCopy: (() -> Unit)? = null,
+    onArchive: (() -> Unit)? = null,
+    onRestore: (() -> Unit)? = null,
     onEdit: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
 ) {
@@ -199,9 +262,10 @@ private fun ProtocolRow(
                 Text(reason, style = MaterialTheme.typography.bodySmall, color = Color(0xFFD32F2F))
             }
 
-            if (errorCount > 0 || warningCount > 0 || entry.isComposite) {
+            if (errorCount > 0 || warningCount > 0 || entry.isComposite || archived) {
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (archived) Badge(stringResource(Res.string.protocol_library_archived_badge), Color(0xFF616161))
                     if (entry.isComposite) Badge(stringResource(Res.string.protocol_menu_composite), Color(0xFF5E35B1))
                     if (errorCount > 0) Badge(
                         pluralString(Res.string.web_validation_error_count_one, Res.string.web_validation_error_count_other, errorCount, errorCount),
@@ -215,9 +279,12 @@ private fun ProtocolRow(
             }
 
             // Edit / delete for user (non-read-only) protocols.
-            if (onEdit != null || onDelete != null) {
+            if (onEdit != null || onDelete != null || onCopy != null || onArchive != null || onRestore != null) {
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    onCopy?.let { TextButton(onClick = it) { Text(stringResource(Res.string.protocol_library_copy_to_edit_action)) } }
+                    onArchive?.let { TextButton(onClick = it) { Text(stringResource(Res.string.protocol_library_archive_action)) } }
+                    onRestore?.let { TextButton(onClick = it) { Text(stringResource(Res.string.protocol_library_unarchive_action)) } }
                     onEdit?.let { TextButton(onClick = it) { Text(stringResource(Res.string.ui_edit)) } }
                     onDelete?.let { TextButton(onClick = it) { Text(stringResource(Res.string.ui_delete), color = Color(0xFFD32F2F)) } }
                 }
