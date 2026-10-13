@@ -841,6 +841,8 @@
   "SESSION_MODE_WIRELESS": "Mode 1 — Wireless",
   "SESSION_NOT_CONNECTED": "Not connected",
   "SESSION_PAUSE_BUTTON": "Pause",
+  "SESSION_PAUSE_ERROR": "The helmet did not accept the request. It refuses a pause while stimulation is ramping up. Check the connection and try again.",
+  "SESSION_PAUSE_ERROR_TITLE": "Couldn't Change the Session",
   "SESSION_PROGRESS_ELAPSED": "Elapsed",
   "SESSION_PROGRESS_NO_PART": "No part running",
   "SESSION_PROGRESS_PART": "Part {0}",
