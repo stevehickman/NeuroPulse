@@ -27,6 +27,13 @@ protocol ProtocolUploadGateway: AnyObject {
     /// The hub's 32-byte replay-guard serial (NP-FW-HUB-001 §4.2) once read over the encrypted
     /// link, else nil (OI-AND-WIRE-02). Stamped into every descriptor the uploader compiles.
     var deviceSerial: Data? { get }
+
+    /// What the hub says it received at the last upload (SWR-UP-01); nil before the first report or on a hub whose firmware
+    /// does not publish it.
+    var uploadCheck: UploadCheck? { get }
+
+    /// Read the hub's current upload report, so a missed notification does not leave the outcome unknown.
+    func requestUploadCheck()
 }
 
 extension ProtocolUploadGateway {
@@ -34,6 +41,8 @@ extension ProtocolUploadGateway {
     var cervicalRestartBlocked: Bool { false }
     var cervicalOutstandingForAnotherUser: Bool { false }
     var deviceSerial: Data? { nil }
+    var uploadCheck: UploadCheck? { nil }
+    func requestUploadCheck() {}
 }
 
 // NeurOneGATTManager satisfies this protocol without any code changes —

@@ -431,6 +431,7 @@ final class NPProtocolLibrary: ObservableObject {
     /// Record how an upload that was sent ended. Confirmed and unknown mark `entry`'s family used; a confirmed failure,
     /// a refusal before sending and a helmet refusal for hardware version, unmodified clone or tier do not (SWR-UP-02).
     /// `helmetStatus` is the hub's UPLOAD_CHECK verdict, "accepted" or "refused", or nil when it never answered.
+    @discardableResult
     func recordUploadResult(_ entry: NPProtocolEntry, sentHash: String, helmetStatus: String?, helmetHash: String?,
                             helmetRefusal: String? = nil, refusedBeforeSend: Bool = false) -> UploadOutcome {
         let answer = NPLibraryRules.uploadResult(sentHash: sentHash, helmetStatus: helmetStatus, helmetHash: helmetHash,
