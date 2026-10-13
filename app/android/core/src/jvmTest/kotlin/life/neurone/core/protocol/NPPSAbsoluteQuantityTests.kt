@@ -20,7 +20,7 @@ class NPPSAbsoluteQuantityTests {
     private fun parse(text: String): List<NPProtocolEntry> =
         NPPSParser.parse(text)
 
-    private fun proto(body: String) = "protocol \"T\" {\n    duration: 5m\n$body\n}\n"
+    private fun proto(body: String) = "protocol \"T\" {\n  hardware_version: 1\n    duration: 5m\n$body\n}\n"
 
     private fun single(text: String): NPProtocolDefinition =
         (parse(text).single() as NPProtocolEntry.Single).protocol
@@ -125,7 +125,7 @@ class NPPSAbsoluteQuantityTests {
     fun theValidatorChecksThe400PeakDirectly() {
         val params = NPPBMTranscranialParams(irradianceMWcm2 = 450.0)
         val def = NPProtocolDefinition(
-            name = "hot",
+            name = "hot", hardwareVersion = 1,
             modalities = listOf(NPProtocolModality(params = NPModalityParams.PbmTranscranial(params))),
         )
         val result = NPProtocolValidator(NPLimitsSet(name = "none", level = NPLimitsSet.LimitLevel.GLOBAL)).validate(def)
@@ -136,7 +136,7 @@ class NPPSAbsoluteQuantityTests {
     @Test
     fun theSessionBuilderCarriesAbsoluteValuesAndRefusesRetiredNames() {
         val def = NPProtocolDefinition(
-            name = "abs",
+            name = "abs", hardwareVersion = 1,
             modalities = listOf(
                 NPProtocolModality(params = NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(irradianceMWcm2 = 250.0))),
                 NPProtocolModality(params = NPModalityParams.PbmIntranasal(NPPBMIntranasalParams(irradianceMWcm2 = 40.0))),
@@ -153,14 +153,14 @@ class NPPSAbsoluteQuantityTests {
         assertEquals(60.toByte(), audio[64 + 14 + 5])
 
         val bad = NPProtocolDefinition(
-            name = "bad",
+            name = "bad", hardwareVersion = 1,
             modalities = listOf(NPProtocolModality(params = NPModalityParams.PbmTranscranial(
                 NPPBMTranscranialParams(wavelength = NPPBMTranscranialParams.Wavelength("660_808nm"))))),
         )
         val e = assertFailsWith<IllegalArgumentException> { compiler.compile(bad) }
         assertTrue(e.message.orEmpty().contains("retired"))
         val nasal1064 = NPProtocolDefinition(
-            name = "nasal",
+            name = "nasal", hardwareVersion = 1,
             modalities = listOf(NPProtocolModality(params = NPModalityParams.PbmIntranasal(
                 NPPBMIntranasalParams(wavelength = NPPBMTranscranialParams.Wavelength.NM_1064)))),
         )

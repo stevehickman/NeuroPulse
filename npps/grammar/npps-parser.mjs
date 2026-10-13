@@ -404,6 +404,9 @@ function peg$parse(input, options) {
         modalities.push({ type: m.type, fields: m.fields });
       }
     }
+    if (!fields.some(f => f.key === 'hardware_version')) {
+      error('protocol has no hardware_version: every protocol states the helmet hardware version its sockets are addressed on, e.g. hardware_version: 1');
+    }
     return { fields, modalities };
   }
   function peg$f3(m) {    return m;  }
@@ -415,6 +418,9 @@ function peg$parse(input, options) {
     for (const m of members) {
       if (m._type === 'layer') layers.push({ name: m.name, fields: m.fields });
       else fields.push({ key: m.key, value: m.value });
+    }
+    if (!fields.some(f => f.key === 'hardware_version')) {
+      error('composite has no hardware_version: every composite states the helmet hardware version its sockets are addressed on, e.g. hardware_version: 1');
     }
     return { fields, layers };
   }

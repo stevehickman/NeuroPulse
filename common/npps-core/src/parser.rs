@@ -373,6 +373,7 @@ impl Parser {
             ));
         }
         let name = self.cur().text.clone();
+        let open_line = self.cur().line;
         self.advance();
         self.skip_newlines();
         self.expect(Kind::LBrace)?;
@@ -391,6 +392,7 @@ impl Parser {
         let mut course_weeks: Option<f64> = None;
         let mut family_id: Option<String> = None;
         let mut hardware_version: Option<u32> = None;
+        let mut used: Option<bool> = None;
 
         self.skip_newlines();
         while !self.try_brace() {
@@ -431,9 +433,14 @@ impl Parser {
                 "course_weeks" => course_weeks = Some(self.read_number()?),
                 "family_id" => family_id = Some(self.read_family_id()?),
                 "hardware_version" => hardware_version = Some(self.read_hardware_version()?),
+                "used" => used = Some(self.read_bool()?),
                 _ => self.skip_value()?,
             }
             self.skip_newlines();
+        }
+
+        if hardware_version.is_none() {
+            return Err(ParseError::at(missing_hardware_version("protocol", &name), open_line));
         }
 
         let mut proto = Map::new();
@@ -471,6 +478,11 @@ impl Parser {
         }
         if let Some(v) = hardware_version {
             proto.insert("hardwareVersion".into(), json!(v));
+        }
+        // The used flag (SWR-WO-03): carried in export, merged by OR on import, advisory, and not part of the content
+        // hash. Written only when true, so a protocol that was never used reads back as it was written.
+        if used == Some(true) {
+            proto.insert("isUsed".into(), json!(true));
         }
         Ok(Value::Object(proto))
     }
@@ -872,4 +884,13 @@ fn build_zones(raw: Option<&Value>, default: Option<&Value>, line: u32) -> R<(St
         None => {}
     }
     Ok((zones, refs))
+}
+
+/// The refusal for a protocol or composite that states no `hardware_version` (`SWR-HV-01`). A socket address names a place
+/// only on a given layout, so a definition that does not say which layout it is addressed on is malformed, and is never
+/// read as version 1 (`SWR-HV-07`'s default is for a helmet that cannot report its version, not for a protocol).
+pub(crate) fn missing_hardware_version(kind: &str, name: &str) -> String {
+    format!(
+        "{kind} \"{name}\" has no hardware_version — every {kind} states the helmet hardware version its sockets are addressed on, e.g. hardware_version: 1"
+    )
 }

@@ -1,5 +1,6 @@
 # This is a full-line comment
 protocol "Comments Only" {
+  hardware_version: 1
     id: "00000000-0000-0000-0000-000000000002"
     description: "Protocol with comments" # inline comment
     author: "test"

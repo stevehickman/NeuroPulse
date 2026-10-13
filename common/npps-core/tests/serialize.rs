@@ -133,7 +133,7 @@ fn a_model_that_cannot_be_written_is_refused_with_the_web_messages() {
         "cannot serialize zone \"Z\": 0, 999 are not sockets on this helmet — ids are whole numbers 1–80"
     );
     let named = json!({ "items": [{ "kind": "single", "protocol": {
-        "name": "P", "id": "i", "description": "", "author": "a", "version": "1", "tags": [],
+        "name": "P", "id": "i", "hardwareVersion": 1, "description": "", "author": "a", "version": "1", "tags": [],
         "timingMode": { "type": "duration", "seconds": 60 },
         "modalities": [{ "type": "pbm_transcranial", "enabled": true, "interval": {},
             "params": { "wavelength": "808nm", "irradianceMWcm2": 100, "frequencyHz": 40, "dutyCyclePercent": 25,
@@ -183,9 +183,55 @@ fn a_protocols_family_id_and_hardware_version_survive_write_then_read() {
     let parsed: Value = serde_json::from_str(&parse_json(src).unwrap()).unwrap();
     let text = serialize_json(&json!({ "items": items_of(&parsed) }).to_string()).unwrap();
     assert!(text.contains("family_id: \"0123abcd-4567-4def-8901-23456789abcd\"\n    hardware_version: 1\n"), "{text}");
-    // A protocol that states neither is written with neither: the writer adds no identity of its own.
-    let plain = "protocol \"P\" {\n    duration: 5m\n}";
+    // A protocol that states no family id is written without one: the writer adds no identity of its own.
+    let plain = "protocol \"P\" {\n    hardware_version: 1\n    duration: 5m\n}";
     let parsed: Value = serde_json::from_str(&parse_json(plain).unwrap()).unwrap();
     let text = serialize_json(&json!({ "items": items_of(&parsed) }).to_string()).unwrap();
-    assert!(!text.contains("family_id") && !text.contains("hardware_version"), "{text}");
+    assert!(!text.contains("family_id") && text.contains("hardware_version: 1"), "{text}");
+}
+
+// @verifies SWR-HV-01
+#[test]
+fn a_protocol_or_composite_with_no_hardware_version_is_malformed() {
+    // SWR-HV-01: a socket address names a place only on a given layout, so a definition that does not say which layout
+    // it is addressed on is refused, never read as version 1.
+    let p = parse_json("protocol \"P\" {\n    duration: 5m\n}").unwrap_err();
+    assert!(p.starts_with("Line 1: protocol \"P\" has no hardware_version"), "{p}");
+    let c = parse_json("composite \"C\" {\n    description: \"x\"\n}").unwrap_err();
+    assert!(c.starts_with("Line 1: composite \"C\" has no hardware_version"), "{c}");
+    // The refusal does not depend on what else the block holds, and a stated version satisfies it.
+    assert!(parse_json("protocol \"P\" {\n    family_id: \"0123abcd-4567-4def-8901-23456789abcd\"\n}").is_err());
+    assert!(parse_json("protocol \"P\" {\n    hardware_version: 1\n}").is_ok());
+    assert!(parse_json("composite \"C\" {\n    hardware_version: 1\n}").is_ok());
+    // Only protocols and composites state one: zones, conditions, limits and wavelength rules are not refused.
+    assert!(parse_json("condition \"X\" {\n}").is_ok());
+}
+
+// @verifies SWR-HV-01
+#[test]
+fn the_writer_refuses_a_model_with_no_hardware_version_and_suggests_version_one() {
+    // SWR-HV-01: the parser refuses a protocol or composite without a hardware version, so the writer must not produce one.
+    let p = json!({ "items": [{ "kind": "single", "protocol": {
+        "name": "P", "description": "", "author": "a", "version": "1.0", "tags": [],
+        "timingMode": { "type": "duration", "seconds": 300 }, "modalities": [] } }] });
+    let e = serialize_json(&p.to_string()).unwrap_err();
+    assert!(e.contains("cannot serialize protocol \"P\"") && e.contains("no hardwareVersion"), "{e}");
+    assert!(e.contains("Suggested correction: set hardwareVersion to 1"), "{e}");
+    let c = json!({ "items": [{ "kind": "composite", "composite": {
+        "name": "C", "description": "", "author": "a", "version": "1.0", "tags": [], "layers": [], "conflictResolution": "merge" } }] });
+    let e = serialize_json(&c.to_string()).unwrap_err();
+    assert!(e.contains("cannot serialize composite \"C\"") && e.contains("Suggested correction"), "{e}");
+    // Applying the suggestion makes it writable, and the result reads back.
+    let mut fixed = p.clone();
+    fixed["items"][0]["protocol"]["hardwareVersion"] = json!(1);
+    let text = serialize_json(&fixed.to_string()).unwrap();
+    assert!(text.contains("hardware_version: 1"), "{text}");
+    assert!(parse_json(&text).is_ok());
+    // A stated version that cannot be read back is refused too, without the suggestion (it is not missing).
+    for bad in [json!(0), json!(1.5)] {
+        let mut m = p.clone();
+        m["items"][0]["protocol"]["hardwareVersion"] = bad;
+        let e = serialize_json(&m.to_string()).unwrap_err();
+        assert!(e.contains("hardwareVersion must be a whole number of 1 or more") && !e.contains("Suggested"), "{e}");
+    }
 }

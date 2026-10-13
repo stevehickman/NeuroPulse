@@ -8,6 +8,7 @@ import { MODALITY_META } from '../../../../common/types/protocol';
 
 const GAMMA_FOCUS_NPPS = `
 protocol "Gamma Focus" {
+    hardware_version: 1
     id: "10000001-0000-0000-0000-000000000000"
     description: "40Hz multi-sensory protocol"
     author: "NeurOne"
@@ -52,6 +53,7 @@ protocol "Gamma Focus" {
 
 const ALL_T1_NPPS = `
 protocol "All T1 Modalities" {
+    hardware_version: 1
     id: "00000000-0000-0000-0000-000000000001"
     description: "All eight T1 modalities"
     author: "test"
@@ -120,6 +122,7 @@ protocol "All T1 Modalities" {
 
 const COMPOSITE_NPPS = `
 composite "Full Multi-Modal RCT" {
+    hardware_version: 1
     id: "10000100-0000-0000-0000-000000000000"
     description: "RCT protocol"
     author: "NeurOne"
@@ -165,6 +168,7 @@ protocol {
   it('rejects "modalities [...]" wrapper block', () => {
     const oldFormat = `
 protocol "Test" {
+    hardware_version: 1
     duration: 20m
     modalities [
         modality { type: "pbm_transcranial" }
@@ -177,6 +181,7 @@ protocol "Test" {
   it('rejects "timing { ... }" block', () => {
     const oldFormat = `
 protocol "Test" {
+    hardware_version: 1
     timing { duration: 1200 }
     pbm_transcranial { irradiance: 322mW_cm2 wavelength: "808nm" }
 }`.trim();
@@ -187,6 +192,7 @@ protocol "Test" {
   it('rejects inline "layers [ ... ]" wrapper in composite', () => {
     const oldFormat = `
 composite "Test" {
+    hardware_version: 1
     conflict_resolution: merge
     layers [
         layer "Base" { start: 0s }
@@ -346,6 +352,7 @@ describe('parser — new format', () => {
     const withComments = `
 # This is a comment
 protocol "Test" {
+    hardware_version: 1
     # Another comment
     id: "00000000-0000-0000-0000-000000000099"
     description: ""
@@ -553,6 +560,7 @@ describe('round-trip', () => {
 describe('Mode F field name', () => {
   const modeFSource = (key: string) => `
 protocol "Retinal" {
+    hardware_version: 1
     duration: 3m
     visual_stimulation {
         frequency: 0Hz
@@ -600,7 +608,7 @@ describe('canonical field names shared by every runtime', () => {
       .protocol.modalities.find(m => m.modalityParams.type === type)!;
   };
 
-  const proto = (body: string) => `protocol "T" {\n    duration: 5m\n${body}\n}\n`;
+  const proto = (body: string) => `protocol "T" {\n  hardware_version: 1\n    duration: 5m\n${body}\n}\n`;
 
   // OI-CHARGE-04. The area is spelled with its unit in the key
   // (electrode_area_cm2: 35), not as a unit-suffixed literal (35cm2): the
@@ -687,7 +695,7 @@ describe('canonical field names shared by every runtime', () => {
 // admitted awkward bare values are gone, which is also what finally gives
 // `montage: 10-20` a spelling that parses.
 describe('quoted awkward values (JSON-leaning cleanup)', () => {
-  const proto = (body: string) => `protocol "T" {\n    duration: 5m\n${body}\n}\n`;
+  const proto = (body: string) => `protocol "T" {\n  hardware_version: 1\n    duration: 5m\n${body}\n}\n`;
 
   const modalityOf = (src: string, type: string) => {
     const [entry] = parseNPPS(src);
@@ -714,7 +722,7 @@ describe('quoted awkward values (JSON-leaning cleanup)', () => {
 
   // @verifies REQ-NPPS-16
   it('parses quoted hyphenated tags', () => {
-    const [entry] = parseNPPS(`protocol "T" {\n    tags: ["wind-down", "all-modalities", plain]\n    duration: 5m\n}\n`);
+    const [entry] = parseNPPS(`protocol "T" {\n  hardware_version: 1\n    tags: ["wind-down", "all-modalities", plain]\n    duration: 5m\n}\n`);
     const p = (entry as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
     expect(p.tags).toEqual(['wind-down', 'all-modalities', 'plain']);
   });
@@ -731,7 +739,7 @@ describe('quoted awkward values (JSON-leaning cleanup)', () => {
 
   // @verifies REQ-NPPS-10#a
   it('rejects an unquoted hyphenated tag', () => {
-    expect(() => parseNPPS(`protocol "T" {\n    tags: [wind-down]\n    duration: 5m\n}\n`)).toThrow(NPPSParseError);
+    expect(() => parseNPPS(`protocol "T" {\n  hardware_version: 1\n    tags: [wind-down]\n    duration: 5m\n}\n`)).toThrow(NPPSParseError);
   });
 
   // @verifies REQ-NPPS-16
@@ -779,7 +787,7 @@ describe('serialize → parse round-trip holds for every modality', () => {
       audio_entrainment: 'volume: 72dB',
       tdcs: 'electrode_area_cm2: 35',
     };
-    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    ${id} {\n        ${SEED[id] ?? ''}\n    }\n}\n`);
+    const [entry] = parseNPPS(`protocol "T" {\n  hardware_version: 1\n    duration: 5m\n    ${id} {\n        ${SEED[id] ?? ''}\n    }\n}\n`);
     const out = serializeProtocol(entry);
     expect(() => parseNPPS(out)).not.toThrow();
     // and is stable on a second cycle
@@ -788,7 +796,7 @@ describe('serialize → parse round-trip holds for every modality', () => {
 
   // @verifies REQ-NPPS-16
   it('a defaulted pbm_transcranial names its zones instead of emitting the tag', () => {
-    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        irradiance: 322mW_cm2\n wavelength: "808nm" }\n}\n`);
+    const [entry] = parseNPPS(`protocol "T" {\n  hardware_version: 1\n    duration: 5m\n    pbm_transcranial {\n        irradiance: 322mW_cm2\n wavelength: "808nm" }\n}\n`);
     const out = serializeProtocol(entry);
     expect(out).toContain('zones: ["All"]');
     expect(out).not.toMatch(/^\s*zones:\s*named\s*$/m);
@@ -797,7 +805,7 @@ describe('serialize → parse round-trip holds for every modality', () => {
   // @verifies REQ-NPPS-11
   it('clinician_selected still serializes as the bare keyword it is', () => {
     const [entry] = parseNPPS(
-      `protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        zones: clinician_selected\n irradiance: 300mW_cm2 wavelength: "808nm" }\n}\n`,
+      `protocol "T" {\n  hardware_version: 1\n    duration: 5m\n    pbm_transcranial {\n        zones: clinician_selected\n irradiance: 300mW_cm2 wavelength: "808nm" }\n}\n`,
     );
     const out = serializeProtocol(entry);
     expect(out).toContain('zones: clinician_selected');
@@ -806,7 +814,7 @@ describe('serialize → parse round-trip holds for every modality', () => {
 
   // @verifies REQ-NPPS-16
   it('an empty named ref list is reported as a caller bug, not written out', () => {
-    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        irradiance: 322mW_cm2\n wavelength: "808nm" }\n}\n`);
+    const [entry] = parseNPPS(`protocol "T" {\n  hardware_version: 1\n    duration: 5m\n    pbm_transcranial {\n        irradiance: 322mW_cm2\n wavelength: "808nm" }\n}\n`);
     const proto = (entry as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
     const params = proto.modalities[0].modalityParams.params as { zoneRefs?: string[] };
     delete params.zoneRefs;
@@ -818,7 +826,7 @@ describe('serialize → parse round-trip holds for every modality', () => {
 // ─── Absolute quantities (NP-NPPS-REF-001 §4.1b, §4.7) ───────────────────────
 
 describe('absolute intensity: irradiance in mW/cm², volume in dB', () => {
-  const proto = (body: string) => `protocol "T" {\n    duration: 5m\n${body}\n}\n`;
+  const proto = (body: string) => `protocol "T" {\n  hardware_version: 1\n    duration: 5m\n${body}\n}\n`;
   const modalityOf = (src: string, type: string) => {
     const [entry] = parseNPPS(src);
     return (entry as { kind: 'single'; protocol: NPProtocolDefinition }).protocol
@@ -905,6 +913,7 @@ describe('absolute intensity: irradiance in mW/cm², volume in dB', () => {
 describe('CW with a duty cycle (OI-SESPWR-03)', () => {
   const pbm = (body: string, kind = 'pbm_transcranial') => `
 protocol "CW" {
+    hardware_version: 1
     duration: 10m
     ${kind} {
         ${kind === 'pbm_intranasal' ? 'wavelength: "660nm"\n        irradiance: 60mW_cm2' : 'wavelength: "808nm"\n        irradiance: 300mW_cm2'}

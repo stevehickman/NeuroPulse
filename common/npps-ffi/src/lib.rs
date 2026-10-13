@@ -61,6 +61,13 @@ pub unsafe extern "C" fn npps_compile_json(req: *const u8, req_len: usize, out: 
 /// # Safety
 /// As `npps_parse_json`.
 #[no_mangle]
+pub unsafe extern "C" fn npps_content_hash_json(req: *const u8, req_len: usize, out: *mut *mut u8, out_len: *mut usize) -> i32 {
+    call(req, req_len, out, out_len, |t| api::content_hash_json(t).map(String::into_bytes))
+}
+
+/// # Safety
+/// As `npps_parse_json`.
+#[no_mangle]
 pub unsafe extern "C" fn npps_namespace_json(req: *const u8, req_len: usize, out: *mut *mut u8, out_len: *mut usize) -> i32 {
     call(req, req_len, out, out_len, |t| api::namespace_json(t).map(String::into_bytes))
 }

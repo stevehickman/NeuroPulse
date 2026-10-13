@@ -23,6 +23,7 @@ class NPWavelengthRulesTests {
 
     private val SERIES = """
         protocol "Series" {
+            hardware_version: 1
             duration: 8m
             pbm_transcranial {
                 wavelength: "810nm"

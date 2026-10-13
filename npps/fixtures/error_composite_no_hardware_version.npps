@@ -1,0 +1,3 @@
+composite "No Hardware Version" {
+  description: "a composite states its hardware version too"
+}

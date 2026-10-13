@@ -32,6 +32,8 @@ function blankProtocol(): NPProtocolDefinition {
     createdAt: now,
     modifiedAt: now,
     isPredefined: false,
+    // Every protocol states the hardware version its sockets are addressed on (SWR-HV-01); 1 is the only version.
+    hardwareVersion: 1,
     timingMode: { type: 'duration', seconds: 1200 },
     modalities: [],
   };

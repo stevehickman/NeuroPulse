@@ -199,6 +199,7 @@ private fun referencesJson(refs: List<NPProtocolReference>): JsonArray = JsonArr
 private fun kotlinx.serialization.json.JsonObjectBuilder.header(
     id: life.neurone.core.common.UUID, name: String, description: String, author: String, version: String,
     tags: List<String>, isReadOnly: Boolean, conditions: List<String>, references: List<NPProtocolReference>,
+    familyId: String?, hardwareVersion: Int?,
 ) {
     put("id", id.toString())
     put("name", name)
@@ -209,10 +210,13 @@ private fun kotlinx.serialization.json.JsonObjectBuilder.header(
     if (isReadOnly) put("isReadOnly", true)
     if (conditions.isNotEmpty()) put("conditions", jsonStrings(conditions))
     if (references.isNotEmpty()) put("references", referencesJson(references))
+    // Identity metadata (SWR-FM-01, SWR-HV-01). The writer refuses a protocol or composite with no hardwareVersion.
+    familyId?.let { put("familyId", it) }
+    hardwareVersion?.let { put("hardwareVersion", it) }
 }
 
 private fun NPCompositeProtocol.toNppsCoreJson(): JsonObject = buildJsonObject {
-    header(id, name, description, author, version, tags, isReadOnly, conditions, references)
+    header(id, name, description, author, version, tags, isReadOnly, conditions, references, familyId, hardwareVersion)
     put("conflictResolution", conflictResolution.rawValue)
     put("layers", JsonArray(layers.map { l ->
         buildJsonObject {
@@ -289,7 +293,7 @@ private fun NPLimitsSet.toNppsCoreJson(): JsonObject = buildJsonObject {
 internal fun NPProtocolDefinition.toNppsCoreFullJson(): JsonObject {
     val body = toNppsCoreJson()
     return buildJsonObject {
-        header(id, name, description, author, version, tags, isReadOnly, conditions, references)
+        header(id, name, description, author, version, tags, isReadOnly, conditions, references, familyId, hardwareVersion)
         for ((k, v) in body) put(k, v)
     }
 }

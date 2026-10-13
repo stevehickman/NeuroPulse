@@ -245,6 +245,7 @@ final class NPProtocolLibraryTests: XCTestCase {
     private func wavelengthProtocol(_ value: String) -> String {
         """
         protocol "Wavelength Test" {
+            hardware_version: 1
             version: "1.0"
             duration: 10m
             pbm_transcranial {
@@ -292,6 +293,7 @@ final class NPProtocolLibraryTests: XCTestCase {
     func testUnquotedHyphenatedTagIsRefused() {
         let input = """
         protocol "Hyphen Tag Test" {
+            hardware_version: 1
             version: "1.0"
             tags: [sleep, wind-down, recovery]
             duration: 10m
@@ -304,6 +306,7 @@ final class NPProtocolLibraryTests: XCTestCase {
     func testQuotedHyphenatedTagsParse() throws {
         let input = """
         protocol "Hyphen Tag Test" {
+            hardware_version: 1
             version: "1.0"
             tags: [sleep, "wind-down", "all-modalities", recovery]
             duration: 10m
@@ -325,6 +328,7 @@ final class NPProtocolLibraryTests: XCTestCase {
     func testHyphenatedTagRoundTripPreservesValue() throws {
         let input = """
         protocol "Hyphen Round Trip" {
+            hardware_version: 1
             id: "AABB0004-0000-0000-0000-000000000000"
             name: "Hyphen Round Trip"
             description: "Round-trip test"

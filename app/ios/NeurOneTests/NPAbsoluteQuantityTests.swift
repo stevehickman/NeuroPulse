@@ -13,7 +13,7 @@ final class NPAbsoluteQuantityTests: XCTestCase {
     }
 
     private func proto(_ body: String) -> String {
-        "protocol \"T\" {\n    duration: 5m\n\(body)\n}\n"
+        "protocol \"T\" {\n  hardware_version: 1\n    duration: 5m\n\(body)\n}\n"
     }
 
     private func pbm(_ fields: String) -> String {

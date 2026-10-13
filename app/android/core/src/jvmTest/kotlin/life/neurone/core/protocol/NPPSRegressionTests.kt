@@ -57,6 +57,7 @@ class NPPSRegressionTests {
         )) {
             val script = """
                 protocol "Wavelengths" {
+                    hardware_version: 1
                     version: "1.0"
                     pbm_transcranial {
                         irradiance: 302mW_cm2
@@ -75,6 +76,7 @@ class NPPSRegressionTests {
         for (literal in listOf("660_808nm", "660_808_1064nm")) {
             val script = """
                 protocol "Wavelengths" {
+                    hardware_version: 1
                     version: "1.0"
                     pbm_transcranial { irradiance: 302mW_cm2 wavelength: $literal }
                 }
@@ -98,6 +100,7 @@ class NPPSRegressionTests {
     fun testHyphenatedTagsQuotedParseBareRefused() {
         val script = """
             protocol "Hyphen Tags" {
+                hardware_version: 1
                 version: "1.0"
                 tags: ["wind-down", "all-modalities"]
                 pbm_transcranial {
@@ -120,7 +123,7 @@ class NPPSRegressionTests {
         // `down` — a tag split in half rather than an error. Rev 6 requires the
         // quoted form, and the shared parser (the core) refuses the bare one with the
         // message the web parser gives.
-        val e = assertFailsWith<NPPSError> { NPPSParser.parse("protocol \"P\" { tags: [wind-down, all-modalities] }") }
+        val e = assertFailsWith<NPPSError> { NPPSParser.parse("protocol \"P\" { hardware_version: 1 tags: [wind-down, all-modalities] }") }
         assertTrue(
             e.message.orEmpty().contains("Unexpected character: -"),
             "the error should be the shared parser's, got: ${e.message}",
@@ -133,6 +136,7 @@ class NPPSRegressionTests {
     fun testHyphenatedTagRoundTripPreservesValue() {
         val script = """
             protocol "Round Trip" {
+                hardware_version: 1
                 version: "1.0"
                 tags: ["wind-down"]
                 pbm_transcranial {
@@ -173,6 +177,7 @@ class NPPSRegressionTests {
     fun testQuotedWavelengthResolvesViaAsIdent() {
         val script = """
             protocol "Quoted Wavelength" {
+                hardware_version: 1
                 version: "1.0"
                 pbm_transcranial {
                     irradiance: 302mW_cm2
@@ -193,6 +198,7 @@ class NPPSRegressionTests {
     fun testUnitsAndTimeParse() {
         val script = """
             protocol "Units" {
+                hardware_version: 1
                 version: "1.0"
                 duration: 20m
                 bes_tacs {
@@ -236,6 +242,7 @@ class NPPSRegressionTests {
     fun testNamedZonesParseAndRoundTrip() {
         val script = """
             protocol "Named Zones" {
+                hardware_version: 1
                 version: "1.0"
                 pbm_transcranial {
                     irradiance: 302mW_cm2
@@ -264,6 +271,7 @@ class NPPSRegressionTests {
     fun testClinicianSelectedZones() {
         val script = """
             protocol "Clinician Selected" {
+                hardware_version: 1
                 version: "1.0"
                 pbm_transcranial { irradiance: 302mW_cm2 zones: clinician_selected wavelength: "808nm" }
             }
@@ -281,6 +289,7 @@ class NPPSRegressionTests {
         for (form in listOf("[1, 3, 5]", "all", "front", "rear", "custom")) {
             val script = """
                 protocol "Retired" {
+                    hardware_version: 1
                     version: "1.0"
                     pbm_transcranial { irradiance: 302mW_cm2 zones: $form wavelength: "808nm" }
                 }
@@ -334,6 +343,7 @@ class NPPSRegressionTests {
     fun testCompositeRoundTrip() {
         val script = """
             composite "Evening" {
+                hardware_version: 1
                 version: "1.0"
                 conflict_resolution: sequential
                 layer "Alpha Calm" {
@@ -369,6 +379,7 @@ class NPPSRegressionTests {
     fun testCwFrequencyRoundTrip() {
         val script = """
             protocol "Vascular" {
+                hardware_version: 1
                 version: "1.0"
                 pbm_transcranial {
                     irradiance: 202mW_cm2
@@ -390,6 +401,7 @@ class NPPSRegressionTests {
     fun testUnknownModalityThrowsButUnknownLimitsIgnored() {
         val badProtocol = """
             protocol "Bad" {
+                hardware_version: 1
                 version: "1.0"
                 not_a_real_modality {
                     some_field: 1
@@ -437,7 +449,7 @@ class NPPSRegressionTests {
     // @verifies REQ-NPPS-16
     @Test
     fun testEmptyNameParsesAsWritten() {
-        val entry = parse("protocol \"\" { version: \"1.0\" }").single()
+        val entry = parse("protocol \"\" { hardware_version: 1 version: \"1.0\" }").single()
         assertEquals("", (entry as NPProtocolEntry.Single).protocol.name)
     }
 }

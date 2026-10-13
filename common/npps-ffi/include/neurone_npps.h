@@ -7,6 +7,8 @@
  *
  *   npps_parse_json    NPPS source            -> JSON object: everything the file declares
  *                                                ({entries, zones, conditions, wavelengthRules, limits})
+ *   npps_content_hash_json hash request (JSON) -> 64 lowercase hex digits: the protocol's identity
+ *                                                (SWR-HV-01; neurone_npps_core::identity)
  *   npps_namespace_json {files:[parse results]} -> JSON: the files folded into one namespace and its
  *                                                cross-references checked
  *   npps_compile_json  compile request (JSON) -> the NP-FW-HUB-001 §4 descriptor bytes,
@@ -42,6 +44,8 @@ extern "C" {
 int32_t npps_parse_json(const uint8_t *src, size_t src_len, uint8_t **out, size_t *out_len);
 
 int32_t npps_compile_json(const uint8_t *req, size_t req_len, uint8_t **out, size_t *out_len);
+
+int32_t npps_content_hash_json(const uint8_t *req, size_t req_len, uint8_t **out, size_t *out_len);
 
 int32_t npps_namespace_json(const uint8_t *req, size_t req_len, uint8_t **out, size_t *out_len);
 

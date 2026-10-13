@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 25
-**Date:** 2026-10-12  
+**Revision:** 26
+**Date:** 2026-10-13  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -14,6 +14,8 @@
 **IEC 62304 Class:** —
 
 ---
+
+> **Rev 26 (2026-10-13) — `hardware_version` is required, a protocol has an identity hash, and a protocol may carry a used flag (GitHub #569 package 2; `SWR-HV-01`, `SWR-HV-05`, `SWR-WO-03`; hardware version required by principal direction).** A `protocol` or `composite` that states no `hardware_version` is malformed: the core's parser and the PEG grammar (NP-NPPS-GRAM-001 Rev 9) refuse it, with *protocol "P" has no hardware_version — every protocol states the helmet hardware version its sockets are addressed on, e.g. hardware_version: 1*. It is never read as version 1: a socket address names a place only on a given layout, and `SWR-HV-07`'s default is for a helmet that cannot report its version, not for a definition that does not say. The 73 shipped protocols and composites already state `1` (Rev 20) and are unchanged. Zones, conditions, limits and wavelength rules state none and are not affected. **No migration is needed:** no user-defined protocol exists yet, and the shipped ones already state it. **The writer refuses a model that has no `hardware_version`** (a protocol or composite whose `hardwareVersion` is absent, below 1 or not a whole number) instead of writing text the parser would refuse, and for an absent one it says so and suggests the correction: *set hardwareVersion to 1, the only hardware version that exists*. The correction is the caller's to apply; the writer never adds it silently, because a version written for a protocol that was authored for another layout would state a layout it does not have. **Identity hash and used flag.** A protocol and a composite may state `used: true`, the flag that the protocol has run in a session; it is read as `isUsed`, written only when true, carried in export, and is not part of the content hash. The core's `identity` module defines the hash (`neurone_npps_core::identity`, exposed as `content_hash_json`, `npps_content_hash_json` and `nativeContentHash`): SHA-256 over a domain string and the canonical JSON of the hardware version, the timing and each enabled modality with a PBM zone replaced by its sorted, de-duplicated sockets for the protocol's hardware version. The wavelength is the one the protocol requests; the serial, wavelength rules and version, Mode 3 flag, acknowledged cautions, session id, compile time, family id, used flag and every other metadata field are not in it. A protocol that states a hardware version and names a zone with no socket list for it fails to compile and to hash. A protocol that states no hardware version hashes with a null one, which no shipped protocol is. No existing field, dose or default changes.
 
 > **Rev 25 (2026-10-12) — `REQ-NPPS-23` (a) is closed for the gaps Rev 24 listed.** Every range §4 states is now checked when a protocol is edited or compiled, and each error names its range: PBM frequency (0 or 0.5–100 Hz, on all three PBM modalities), binaural beat and isochronic tone (0.5–100 Hz), TMS frequency (1–50 Hz), clinical tACS frequency (0.5–100 Hz), resonance breathing rate (4–7 breaths/min), and a negative BES/tACS intensity (range 0–1 mA). The ten new constants are in `common/npps/constants.json` with no derivation (`UC-082`). The two rows that disagreed with the code are corrected: §4.6 gives the VNS intensity as ≤ 40 mA (Rev 68) with no lower bound, and §4.5 gives the tDCS ramp as 30 s or more. `VALIDATE_MSG_PBM_TRANSCRANIAL_FREQUENCYHZ` ("cannot be negative") is replaced by `VALIDATE_MSG_PBM_FREQUENCYHZ`. A protocol that used a frequency outside these ranges, which the old validator accepted, is now an error.
 
@@ -329,6 +331,7 @@ A protocol block defines a single session. The protocol name is declared inline 
 
 ```
 protocol "Gamma Focus" {
+  hardware_version: 1
     ...
 }
 ```
@@ -342,7 +345,8 @@ protocol "Gamma Focus" {
 | `author` | string | `"NeurOne"` | Creator name. |
 | `version` | string | `"1.0"` | The release version, `major.minor`, both whole numbers. How a developer edit changes it is in *Release version of a predefined protocol* below. |
 | `family_id` | string | absent | *(Rev 20)* A random 128-bit id written as UUID text (8-4-4-4-12 hex digits), the same for every variant of one authored protocol (`SWR-FM-01`). Authored once and never regenerated: a predefined protocol's id is fixed in its file. **It is not part of the content hash and is never sent to the helmet.** Read as lowercase. Anything else is a parse error. Also accepted on a `composite`. |
-| `hardware_version` | whole number | absent | *(Rev 20)* The helmet hardware version the protocol's sockets are addressed on (`SWR-HV-01`). A whole number of 1 or more; every shipped protocol states `1`, the only version that exists (`SWR-HV-07`). Absent means the protocol states none. Also accepted on a `composite`. The upper limit on versions (`UC-080`) is not decided here. |
+| `hardware_version` | whole number | **required** | *(Rev 20; required Rev 26)* The helmet hardware version the protocol's sockets are addressed on (`SWR-HV-01`). A whole number of 1 or more; every shipped protocol states `1`, the only version that exists (`SWR-HV-07`). **A protocol or composite that omits it is a parse error** (Rev 22). Required on a `composite` too. The upper limit on versions (`UC-080`) is not decided here. |
+| `used` | bool | `false` | *(Rev 26)* The protocol has run in a session (`SWR-WO-03`). Read as `isUsed`; written only when `true`. Carried in export and merged by OR on import; advisory, not a security control, and not part of the content hash. Also accepted on a `composite`. |
 | `readonly` | bool | `false` | Prevents editing or deletion in the app. |
 | `tags` | string array | `[]` | Freeform category labels. |
 | `duration` | duration | `20m` | Fixed session length. |
@@ -356,6 +360,7 @@ protocol "Gamma Focus" {
 
 ```
 protocol "PBM — Depression (DLPFC)" {
+  hardware_version: 1
     id: "30000004-0000-0000-0000-000000000000"
     tags: [pbm, clinical, depression]
     conditions: ["Major Depressive Disorder"]
@@ -386,6 +391,7 @@ Modalities follow the metadata fields, each as a typed block (see §4):
 
 ```
 protocol "Gamma Focus" {
+  hardware_version: 1
     id: "10000001-0000-0000-0000-000000000000"
     description: "40Hz multi-modal entrainment."
     author: "NeurOne"
@@ -1056,6 +1062,7 @@ A composite layers multiple named protocols on a shared timeline.
 
 ```
 composite "Full Multi-Modal RCT" {
+  hardware_version: 1
     id: "10000100-0000-0000-0000-000000000000"
     description: "Baseline → combined active phase → cool-down."
     author: "NeurOne"
@@ -1364,7 +1371,7 @@ zone "Frontal Left" {
 - **A bare `sockets:` list is hardware version 1.** It is what every zone file had before Rev 20, and it still loads, so an existing user zone file needs no rewrite. **The migration lives in the writer:** `serialize` always writes the versioned form, so a file reaches it the next time the app saves that zone. Nothing rewrites a user's files in bulk.
 - **One form per zone.** A zone that has both a bare `sockets:` list and a `hardware_version` block is a parse error, because it would have two version 1 lists. A version listed twice, a version of 0 or a fraction, a block with no `sockets` and a block holding any other field are also parse errors.
 - **What a reader receives.** The parsed zone keeps `sockets` as its hardware version 1 list, which is what every consumer reads today, and adds `socketsByVersion`, the whole map keyed by version. Both come from the one authored place. A writer given both refuses a model whose two version 1 lists differ, rather than choosing one.
-- **A protocol for hardware version N that names a zone with no list for N is refused at namespace check** (`referenceErrors`: *Protocol 'P' is for hardware version N, and zone 'Z' has no socket list for it*). A protocol that states no `hardware_version` is not checked. The compile call still takes the caller's zone-to-sockets map, so choosing the list for the protocol's version is the caller's until the compiler takes the version itself (`NP-SW-001` §6.3, not built).
+- **A protocol for hardware version N that names a zone with no list for N is refused at namespace check** (`referenceErrors`: *Protocol 'P' is for hardware version N, and zone 'Z' has no socket list for it*). (Every protocol states one since Rev 26.) The compile call still takes the caller's zone-to-sockets map, so choosing the list for the protocol's version is the caller's until the compiler takes the version itself (`NP-SW-001` §6.3, not built).
 
 > **Socket ids** are integers matching the firmware socket (major) address (`np_module_map`). In the module-address diagram (NP-HEX-ZM-001) the `S-NN` labels are these ids — `S-11` is socket `11`. The `S-` prefix is display only.
 >
@@ -1457,14 +1464,17 @@ A single `.npps` file may contain any number of `protocol`, `composite`, `limits
 # combined-sleep.npps
 
 protocol "Alpha Calm" {
+  hardware_version: 1
     ...
 }
 
 protocol "Deep Sleep" {
+  hardware_version: 1
     ...
 }
 
 composite "Sleep Wind-Down" {
+  hardware_version: 1
     conflict_resolution: sequential
     layer "Alpha Calm" { start: 0s   duration: 10m  intensity_scale: 1.0 }
     layer "Deep Sleep"  { start: 600s                intensity_scale: 1.0 }
