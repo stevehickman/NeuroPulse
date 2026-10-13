@@ -170,7 +170,9 @@ fn serialize_writes_the_library_as_the_web_serializer_did() {
             let req = serde_json::json!({ "items": [item["item"]] });
             let (code, out) = run(npps_serialize_json, req.to_string().as_bytes());
             assert_eq!(code, status::OK, "{rel}");
-            assert_eq!(String::from_utf8(out).unwrap(), item["text"].as_str().unwrap(), "{rel}");
+            // The frozen web output stated `hardware_version: N` on every protocol and composite; only a zone does now.
+            let want: String = item["text"].as_str().unwrap().split_inclusive('\n').filter(|l| !l.starts_with("    hardware_version: ")).collect();
+            assert_eq!(String::from_utf8(out).unwrap(), want, "{rel}");
         }
     }
     assert!(n > 100);
