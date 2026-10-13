@@ -1459,7 +1459,7 @@
       "name": "Memory Boost",
       "description": "Memory and working-memory support. The PBM channel follows its own cited evidence (Yao 2022 / Gonzalez-Lima lineage: 1064nm right prefrontal, 8 min) rather than the theta rhythm; theta (6Hz) entrainment lives in the audio, EEG neurofeedback and HRV channels, where entrainment evidence exists. NOT EVIDENCE-GRADE for the PBM channel: see the notes on that block — duty, dose, area and irradiance all fall short of the cited literature, and requires a 1064nm-capable (T1-C) module.",
       "author": "NeurOne",
-      "version": "1.1",
+      "version": "1.0",
       "tags": [
        "memory",
        "theta",
@@ -3057,7 +3057,7 @@
       "name": "PBM — Alzheimer's 1064nm (deep-cortical channel)",
       "description": "Whole-vault 1064nm PBM for Alzheimer's / dementia, targeting §1's 1060–1080nm band (Qi/Nizamutdinov 2021: 1060–1080nm, 6 min twice daily, 108 sessions/56 d, MMSE +4.8). RE-AUTHORED 2026-08-26 from the §3 cognitive-enhancement target, which was 8.9× beyond this channel's reach; §1's band is the nearer target OI-HEXTILE-21 identifies. STILL NOT EVIDENCE-GRADE and still not reachable — the shortfall narrows, it does not close. See the notes on the modality block for the exact figures.",
       "author": "NeurOne",
-      "version": "2.0",
+      "version": "1.0",
       "tags": [
        "pbm",
        "1064nm",
@@ -3199,7 +3199,7 @@
       "name": "PBM — Depression (Schiffer 2009, high-irradiance)",
       "description": "Single-session 810nm PBM for major depression, as Schiffer 2009 ran it (open pilot, n=10): an LED cluster, continuous wave, 250 mW/cm², 4 min at F3 and then 4 min at F4, 60 J/cm² per site. This is the HIGH-IRRADIANCE arm of the §4 evidence, seven times Cassano 2018; see that protocol for the other end. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 250 mW/cm² CW is inside the time-averaged ceiling at 808nm (≈329, CLAUDE.md §3, OI-HEXTILE-32 closed).",
       "author": "NeurOne",
-      "version": "2.0",
+      "version": "1.0",
       "tags": [
        "pbm",
        "clinical",
@@ -3354,7 +3354,7 @@
       "name": "PBM — Anxiety (Wang 2023, high-irradiance)",
       "description": "820nm PBM to the left DLPFC for generalized anxiety, as Wang 2023 ran it (double-blind sham-controlled RCT, n=36, 33 analysed): a continuous-wave laser at 310 mW/cm², a 1 cm spot at F5, four 4-minute exposures a day 5 minutes apart, on 14 consecutive days. HAMA fell more than sham (p=0.021) and stayed lower at 8 weeks; HAMA response 11/16 active vs 2/17 sham. Grade B. One session here is one day of that course; the 14-day schedule is the user's to keep, since the language has no course field. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 310 mW/cm² CW is inside the time-averaged ceiling at 820nm (≈348, CLAUDE.md §3).",
       "author": "NeurOne",
-      "version": "2.1",
+      "version": "1.0",
       "tags": [
        "pbm",
        "clinical",
@@ -9978,7 +9978,7 @@
       "name": "Memory Boost",
       "description": "Memory and working-memory support. The PBM channel follows its own cited evidence (Yao 2022 / Gonzalez-Lima lineage: 1064nm right prefrontal, 8 min) rather than the theta rhythm; theta (6Hz) entrainment lives in the audio, EEG neurofeedback and HRV channels, where entrainment evidence exists. NOT EVIDENCE-GRADE for the PBM channel: see the notes on that block — duty, dose, area and irradiance all fall short of the cited literature, and requires a 1064nm-capable (T1-C) module.",
       "author": "NeurOne",
-      "version": "1.1",
+      "version": "1.0",
       "tags": [
        "memory",
        "theta",
@@ -11456,7 +11456,7 @@
       "name": "PBM — Alzheimer's 1064nm (deep-cortical channel)",
       "description": "Whole-vault 1064nm PBM for Alzheimer's / dementia, targeting §1's 1060–1080nm band (Qi/Nizamutdinov 2021: 1060–1080nm, 6 min twice daily, 108 sessions/56 d, MMSE +4.8). RE-AUTHORED 2026-08-26 from the §3 cognitive-enhancement target, which was 8.9× beyond this channel's reach; §1's band is the nearer target OI-HEXTILE-21 identifies. STILL NOT EVIDENCE-GRADE and still not reachable — the shortfall narrows, it does not close. See the notes on the modality block for the exact figures.",
       "author": "NeurOne",
-      "version": "2.0",
+      "version": "1.0",
       "tags": [
        "pbm",
        "1064nm",
@@ -11582,7 +11582,7 @@
       "name": "PBM — Depression (Schiffer 2009, high-irradiance)",
       "description": "Single-session 810nm PBM for major depression, as Schiffer 2009 ran it (open pilot, n=10): an LED cluster, continuous wave, 250 mW/cm², 4 min at F3 and then 4 min at F4, 60 J/cm² per site. This is the HIGH-IRRADIANCE arm of the §4 evidence, seven times Cassano 2018; see that protocol for the other end. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 250 mW/cm² CW is inside the time-averaged ceiling at 808nm (≈329, CLAUDE.md §3, OI-HEXTILE-32 closed).",
       "author": "NeurOne",
-      "version": "2.0",
+      "version": "1.0",
       "tags": [
        "pbm",
        "clinical",
@@ -11721,7 +11721,7 @@
       "name": "PBM — Anxiety (Wang 2023, high-irradiance)",
       "description": "820nm PBM to the left DLPFC for generalized anxiety, as Wang 2023 ran it (double-blind sham-controlled RCT, n=36, 33 analysed): a continuous-wave laser at 310 mW/cm², a 1 cm spot at F5, four 4-minute exposures a day 5 minutes apart, on 14 consecutive days. HAMA fell more than sham (p=0.021) and stayed lower at 8 weeks; HAMA response 11/16 active vs 2/17 sham. Grade B. One session here is one day of that course; the 14-day schedule is the user's to keep, since the language has no course field. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 310 mW/cm² CW is inside the time-averaged ceiling at 820nm (≈348, CLAUDE.md §3).",
       "author": "NeurOne",
-      "version": "2.1",
+      "version": "1.0",
       "tags": [
        "pbm",
        "clinical",

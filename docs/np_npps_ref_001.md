@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 28
+**Revision:** 29
 **Date:** 2026-10-13  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
@@ -15,6 +15,8 @@
 
 ---
 
+> **Rev 29 (2026-10-13) — a predefined protocol's version changes only at a release (principal direction; `SWR-PL-05`).** Every predefined protocol is at `1.0` until a release is done. A release is the only thing that changes a predefined protocol's version. One or more edits after a release change it by at least a minor step. The four shipped files that carried a higher number (`04-memory-boost` `1.1`; `clinical-03-pbm-alzheimers-1064` and `clinical-04-pbm-depression-schiffer` `2.0`; `clinical-05-pbm-anxiety-wang` `2.1`) are reset to `1.0`, since no release has been done. *Release version of a predefined protocol* is rewritten to say so. No dose and no descriptor byte changes.
+>
 > **Rev 28 (2026-10-13) — the compiler uses `interval_count`.** In an `interval_count` session each block's interval cycle (`interval_on`, `interval_off`) runs `count` times, unless the block states its own `repeat`, which wins. `repeat: until_end` in such a session means the protocol's count, since there is no duration to run to. `count` must be a whole number of 1 or more; anything else is refused when the protocol is compiled, with the range stated. The session length is still computed from the schedule (Rev 27). No new limit: a count whose commands exceed the command table is refused by the existing command-count error.
 >
 > **Rev 27 (2026-10-13) — an `interval_count` session carries a computed total length (`SWR-SS-01`).** The compiler used to write `session_duration_ms` 0 for an `interval_count` protocol, which the session runner reads as no limit. It now writes the length computed from the schedule (the end of the last block), and refuses a protocol whose blocks have no interval to end on, because a session cannot be infinite. A zero or negative `duration` and a computed length of zero are refused with the range stated. The hub refuses a descriptor whose `session_duration_ms` is 0 (`NP-FW-HUB-001` `REQ-FWHUB-60`). `interval_count: N` is still parsed but not used by the compiler.
@@ -379,14 +381,15 @@ protocol "PBM — Depression (DLPFC)" {
 
 ### Release version of a predefined protocol
 
-`version` is `major.minor`, and every shipped file carries one (`"1.0"` in 68 files, `"1.1"` in `04-memory-boost`, `"2.0"` in `clinical-03-pbm-alzheimers-1064` and `clinical-04-pbm-depression-schiffer`, `"2.1"` in `clinical-05-pbm-anxiety-wang`). `SWR-PL-05` governs how a developer edit changes it:
+`version` is `major.minor`, and every shipped file carries one. **Every predefined protocol is at `"1.0"` until a release is done** (all 81 files today). `SWR-PL-05` governs how it changes:
 
-- **Every edit to a predefined protocol changes the version by at least a minor step**: `1.0` becomes `1.1`, `1.1` becomes `1.2`.
+- **A release is the only thing that changes a predefined protocol's version.** Editing the file does not.
+- **One or more edits to a predefined protocol after a release change its version by at least a minor step.** The edits made between two releases count together: they take the version up once, at the next release, by at least a minor step. `1.0` becomes `1.1`, `1.1` becomes `1.2`.
 - **A major change also counts as a minor one.** A major step raises the first number and resets the second: `1.4` becomes `2.0`. Many minor changes may also make a release major.
 - **NeurOne decides which is which, case by case**, and may add rules. None is written here: `OI-UI-KMP-10` P5 leaves "what a major change is" open, and this section does not close it.
 - A version never goes down and is never reused for different content. The content of a superseded release stays retrievable by its hash (`SWR-PL-05`; not built).
 
-The Rev 20 change added `family_id` and `hardware_version` to every file and **left `version` alone**: it moved no dose and no descriptor byte, and no session record yet names a protocol by version or hash. Whether adding identity metadata is an edit that forces a minor step is the principal's to rule; it is not decided here. How a release version is shown to a user is open (GitHub #568).
+The Rev 20 change added `family_id` and `hardware_version` to every file and left `version` alone. Under this rule that is correct: no release has been done, so the version has not moved. Whether adding identity metadata after a release is an edit that forces a minor step is the principal's to rule; it is not decided here. How a release version is shown to a user is open (GitHub #568).
 
 
 ### Modality blocks
