@@ -27,6 +27,25 @@ struct NPPSSerializer {
         return String(bytes: out, encoding: .utf8) ?? ""
     }
 
+    /// As `serialize`, carrying the used flag (SWR-WO-03): an entry exported from a used family arrives used. The flag is
+    /// not part of the content hash.
+    func serialize(_ entry: NPProtocolEntry, used: Bool) -> String {
+        guard used else { return serialize(entry) }
+        var item = entry.nppsCoreItem()
+        for key in ["protocol", "composite"] {
+            if var body = item[key] as? [String: Any] {
+                body["isUsed"] = true
+                item[key] = body
+            }
+        }
+        do {
+            let out = try NppsCore.serialize(requestJSON: JSONSerialization.data(withJSONObject: ["items": [item]]))
+            return String(bytes: out, encoding: .utf8) ?? ""
+        } catch {
+            return "# This script cannot be written: \(error.localizedDescription)"
+        }
+    }
+
     /// As `write`, for a caller that shows the text (the editor's script pane, an export): a model the core cannot
     /// write comes back as a comment line saying why, which the parser skips, instead of crashing the view.
     func serialize(_ entry: NPProtocolEntry) -> String {

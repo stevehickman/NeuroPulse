@@ -41,6 +41,10 @@ struct ProtocolMenuView: View {
     @State private var editingEntry: NPProtocolEntry? = nil
     @State private var showComposer = false
     @State private var confirmDelete: NPProtocolEntry? = nil
+    @State private var deleteRefused: NPProtocolEntry? = nil
+    @State private var copyRefused: NPProtocolEntry? = nil
+    @State private var uploadGateRefusal: UploadGate? = nil
+    @State private var gateEntry: NPProtocolEntry? = nil
     @State private var unavailableAlert: NPProtocolEntry? = nil
     @State private var uploadConfirm: NPProtocolEntry? = nil
     @State private var uploadError: String? = nil
@@ -126,7 +130,10 @@ struct ProtocolMenuView: View {
                 set: { if !$0 { confirmDelete = nil } }
             )) {
                 Button("UI_DELETE", role: .destructive) {
-                    if let entry = confirmDelete { library.delete(entry.id) }
+                    if let entry = confirmDelete,
+                       library.delete(entry.id) == .refusedFamilyUsed {
+                        deleteRefused = entry
+                    }
                     confirmDelete = nil
                 }
                 Button("COMMON_CANCEL", role: .cancel) { confirmDelete = nil }
@@ -138,6 +145,38 @@ struct ProtocolMenuView: View {
                     ))
                 }
             }
+            .deleteUsedAlert(isPresented: Binding(
+                get: { deleteRefused != nil },
+                set: { if !$0 { deleteRefused = nil } }
+            )) {
+                if let entry = deleteRefused { library.archiveFamily(entry) }
+                deleteRefused = nil
+            }
+            .usedProtocolAlert(isPresented: Binding(
+                get: { copyRefused != nil },
+                set: { if !$0 { copyRefused = nil } }
+            )) {
+                if let entry = copyRefused { library.cloneFamily(entry.id, copyName: protocolCopyName) }
+                copyRefused = nil
+            }
+            .uploadGateAlert(
+                gate: $uploadGateRefusal,
+                variantAvailable: gateEntry.map { !library.variantsFor($0, helmetVersion: Self.helmetHardwareVersion).isEmpty } ?? false,
+                onUploadSource: { sourceId in
+                    if let source = library.allProtocols.first(where: { $0.id == sourceId }) { handleSelect(source) }
+                },
+                onEditClone: {
+                    if let entry = gateEntry {
+                        editingEntry = entry
+                        if entry.isComposite { showComposer = true } else { showEditor = true }
+                    }
+                },
+                onUseVariant: {
+                    if let entry = gateEntry,
+                       let variant = library.variantsFor(entry, helmetVersion: Self.helmetHardwareVersion).first {
+                        handleSelect(variant)
+                    }
+                })
             .safeAreaInset(edge: .top, spacing: 0) {
                 if let errorMsg = uploadError {
                     HStack(spacing: 8) {
@@ -380,8 +419,7 @@ struct ProtocolMenuView: View {
 
     private func duplicateButton(for entry: NPProtocolEntry) -> some View {
         Button {
-            let dup = entry.duplicated(newName: String(format: String(localized: "PROTOCOL_MENU_COPY_OF"), entry.name))
-            library.save(dup)
+            library.cloneFamily(entry.id, copyName: protocolCopyName)
         } label: {
             Label("PROTOCOL_MENU_DUPLICATE", systemImage: "plus.square.on.square")
         }
@@ -427,6 +465,20 @@ struct ProtocolMenuView: View {
                 }
             }
 
+            if library.isArchived(entry) {
+                Button {
+                    library.unarchiveFamily(entry)
+                } label: {
+                    Label("PROTOCOL_LIBRARY_UNARCHIVE_ACTION", systemImage: "tray.and.arrow.up")
+                }
+            } else {
+                Button {
+                    library.archiveFamily(entry)
+                } label: {
+                    Label("PROTOCOL_LIBRARY_ARCHIVE_ACTION", systemImage: "archivebox")
+                }
+            }
+
             if library.canDelete(entry) {
                 Button(role: .destructive) {
                     confirmDelete = entry
@@ -441,10 +493,10 @@ struct ProtocolMenuView: View {
         switch entry {
         case .single(var proto):
             proto.isReadOnly.toggle()
-            library.save(.single(proto))
+            if case .refusedFamilyUsed = library.save(.single(proto)) { copyRefused = entry }
         case .composite(var comp):
             comp.isReadOnly.toggle()
-            library.save(.composite(comp))
+            if case .refusedFamilyUsed = library.save(.composite(comp)) { copyRefused = entry }
         case .limits, .zone, .condition:
             break
         }
@@ -482,6 +534,10 @@ struct ProtocolMenuView: View {
 
     // MARK: - Selection handling
 
+    /// The helmet's hardware version. The helmet does not report it yet (OI-HUB-MAIN-01), so every helmet is version 1,
+    /// the one layout there is.
+    private static let helmetHardwareVersion = 1
+
     private func handleSelect(_ entry: NPProtocolEntry) {
         guard case .single(let proto) = entry else {
             // Composite protocols: select the first layer's source protocol.
@@ -495,6 +551,14 @@ struct ProtocolMenuView: View {
 
         lastSelectedEntry = entry
         withAnimation { uploadError = nil }
+
+        // The library's refusals come before any byte is sent (SWR-PL-06, SWR-HV-04): nothing is marked used.
+        let gate = library.uploadGate(entry, helmetHardwareVersion: Self.helmetHardwareVersion)
+        if gate != .allow {
+            gateEntry = entry
+            uploadGateRefusal = gate
+            return
+        }
 
         // A protocol in the caution zone runs only after its author acknowledges each caution.
         let cautions = uploader.cautions(for: proto)

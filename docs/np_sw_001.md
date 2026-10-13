@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 28
+**Revision:** 29
 **Date:** 2026-10-13  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -648,3 +648,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 26 | 2026-10-14 | NeurOne Software Engineering | **§6.3: the protocol library's rules built once in the shared core (issue #569 package 4a).** `SWR-PL-02/03/06`, `SWR-UP-02`, `SWR-WO-01/02/03`, `SWR-FM-03…07` and `SWR-HV-04` move to partly built: `library_json` in `common/npps-core` (C ABI `npps_library_json`, JNI `nativeLibrary`), with the layout table. The libraries, the upload path and the screens are packages 4b and 4c. No requirement text changed. |
 | 27 | 2026-10-14 | NeurOne Software Engineering | **§6.3: the Kotlin protocol library asks the core's rules (issue #569 package 4b-1).** `NppsBackend` gains `contentHash` and `library` on every Kotlin target (JNI, the Apple C ABI, WebAssembly); `NPProtocolLibrary` saves, deletes, clones a family, archives, gates an upload, records its outcome and merges an import through them. The refusal screens and the other platforms are packages 4b-2 and 4c. No requirement text changed. |
 | 28 | 2026-10-14 | NeurOne Software Engineering | **§6.3: the library's refusal and offer screens (issue #569 package 4b-2).** Dialogs for a refused save, a refused delete, an unmodified clone and a hardware mismatch, with 20 locale keys in all eleven locales (untranslated English until translated, `CLAUDE.md` §17.7); copy, archive and restore actions in the protocol list. The warranty-owner profile, the mismatch layout drawing and the other platforms remain. No requirement text changed. |
+| 29 | 2026-10-14 | NeurOne Software Engineering | **§6.3: the web, iOS and Windows libraries ask the core's rules (issue #569 package 4c).** The web `ProtocolLibrary` (tested over the WebAssembly core), the iOS `NPProtocolLibrary` and the Windows `NppsCore` (`ContentHash`, `Library`) take the same save, delete, clone, archive, upload-gate, upload-outcome and import rules the Kotlin library does. Web and iOS show the refusal, archive and copy dialogs, with the existing `PROTOCOL_LIBRARY_*` keys; the Windows app has no screen layer yet. The Swift and C# changes are compiled and tested in CI only. The hub `UPLOAD_CHECK` read, the mismatch layout drawing and the warranty-owner profile remain. No requirement text changed. |
