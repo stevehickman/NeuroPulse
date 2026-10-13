@@ -55,6 +55,7 @@
  */
 extern bool     np_mod_cvns_active(void);
 extern void     np_mod_cvns_tick(uint32_t now_ms, uint32_t now_s);
+extern void     np_mod_cvns_suspend(void);
 extern void     np_mod_cvns_ramp(uint32_t now_ms, np_ramp_report_t *out);
 extern uint32_t np_mod_cvns_ramp_up_ms(void);
 
@@ -454,9 +455,15 @@ static void do_pause(uint32_t now_ms)
             s_ctx.stop_at_ms[slot] = 0U;
             continue;
         }
-        np_mod_entry_t *mod = np_mod_reg_get(slot);
-        if (mod != NULL && mod->control != NULL) {
-            (void)mod->control(slot, NULL, 0U);
+        if (slot == NP_HUB_SLOT_CVNS) {
+            /* Ends this leg of the cervical VNS session without ending it: one session, one record, however many
+             * times it is paused.  The checks and the ramp run again on the resume. */
+            np_mod_cvns_suspend();
+        } else {
+            np_mod_entry_t *mod = np_mod_reg_get(slot);
+            if (mod != NULL && mod->control != NULL) {
+                (void)mod->control(slot, NULL, 0U);
+            }
         }
         const uint16_t bit = slot_to_safety_bit(slot);
         if (bit != 0U) {
@@ -975,7 +982,7 @@ np_hub_status_t np_runner_pause(void)
         return NP_HUB_ERR_NO_SESSION;
     }
     if (s_gate.open) {
-        return NP_HUB_ERR_SESSION_ACTIVE;   /* the protocol is ramping up: a stop is accepted, a pause is not */
+        return NP_HUB_ERR_RAMPING;   /* the protocol is ramping up: a stop is accepted, a pause is not */
     }
     xEventGroupSetBits(s_events, NP_EV_SESSION_PAUSE);
     return NP_HUB_OK;
@@ -987,7 +994,7 @@ np_hub_status_t np_runner_resume(void)
         return NP_HUB_ERR_NO_SESSION;
     }
     if (s_gate.open) {
-        return NP_HUB_ERR_SESSION_ACTIVE;   /* already resuming */
+        return NP_HUB_ERR_RAMPING;   /* already resuming */
     }
     xEventGroupSetBits(s_events, NP_EV_SESSION_RESUME);
     return NP_HUB_OK;

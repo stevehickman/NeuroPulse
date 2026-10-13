@@ -714,9 +714,10 @@ np_hub_status_t np_mod_cvns_control(uint8_t slot, const void *params, uint16_t l
         return NP_HUB_ERR_MOD_INIT;
     }
 
-    /* Stop — graceful ramp-down and unified disable. */
+    /* Stop — graceful ramp-down and unified disable.  A session paused between legs is closed here too, so it leaves its
+     * one record (np_cvns_session_stop on a suspended session). */
     if (params == NULL || len == 0U) {
-        if (s_state.active) {
+        if (s_state.active || np_cvns_session_suspended(&s_session)) {
             np_cvns_session_stop(&s_session, np_mod_cvns_hal_now_ms());
             s_state.active = false;
         }
@@ -831,6 +832,23 @@ void np_mod_cvns_tick(uint32_t now_ms, uint32_t now_s)
         stage == NP_CVNS_STAGE_IDLE) {
         s_state.active = false;
     }
+}
+
+/*
+ * np_mod_cvns_suspend — a pause (SWR-SS-05).  Ends the current leg of the cervical VNS session without ending the
+ * session: no record is written, and the next start continues it.  The enable is withdrawn, and the checks and ramp-up
+ * run again on the resume.  A session that has already ended (fault, complete) is left as it is.
+ */
+void np_mod_cvns_suspend(void)
+{
+    if (!s_state.ready || !s_state.active) {
+        return;
+    }
+    np_cvns_session_suspend(&s_session, np_mod_cvns_hal_now_ms());
+    s_state.active = false;
+    cvns_drop_enable();
+    s_hb_valid         = false;
+    s_hb_mcu_imp_valid = false;
 }
 
 /*

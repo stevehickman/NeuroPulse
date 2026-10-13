@@ -909,6 +909,21 @@ static void test_pause_write_is_refused_when_the_runner_refuses_or_the_value_is_
           "pause: the characteristic cannot be read");
 }
 
+/* @verifies SWR-SS-05 */
+static void test_pause_refused_while_ramping_says_so(void)
+{
+    const uint8_t pause = NP_SESSION_PAUSE_VALUE;
+    const uint8_t resume = NP_SESSION_RESUME_VALUE;
+    reset_world();
+    g_pause_calls = g_resume_calls = 0;
+    g_pause_rc = g_resume_rc = NP_HUB_ERR_RAMPING;
+    np_session_pause_init(pause_fn, resume_fn);
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &pause, 1U) == NP_ATT_APP_RAMPING,
+          "pause: refused because the protocol is ramping up is a distinct error (0x82), so the app can say why");
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &resume, 1U) == NP_ATT_APP_RAMPING,
+          "pause: so is a resume while one is already ramping up");
+}
+
 int main(void)
 {
     test_uuids_match_the_contract();
@@ -933,6 +948,7 @@ int main(void)
     test_progress_is_read_and_notified_through_the_table();
     test_pause_write_forwards_pause_and_resume_to_the_runner();
     test_pause_write_is_refused_when_the_runner_refuses_or_the_value_is_wrong();
+    test_pause_refused_while_ramping_says_so();
 
     if (g_failures != 0) {
         printf("\n%d FAILURE(S)\n", g_failures);

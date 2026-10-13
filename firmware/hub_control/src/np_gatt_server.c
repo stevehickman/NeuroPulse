@@ -195,7 +195,11 @@ np_att_status_t np_gatt_on_write(uint16_t id, const uint8_t *data, size_t len)
     if (data == NULL || len != c->write_len) {
         return NP_ATT_INVALID_VALUE_LENGTH;
     }
-    return (c->write(data, len) == NP_HUB_OK) ? NP_ATT_OK : NP_ATT_APP_REFUSED;
+    const np_hub_status_t rc = c->write(data, len);
+    if (rc == NP_HUB_OK) {
+        return NP_ATT_OK;
+    }
+    return (rc == NP_HUB_ERR_RAMPING) ? NP_ATT_APP_RAMPING : NP_ATT_APP_REFUSED;
 }
 
 np_hub_status_t np_gatt_notify(uint16_t id, const uint8_t *data, size_t len)
