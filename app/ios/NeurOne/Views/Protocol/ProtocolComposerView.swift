@@ -14,6 +14,7 @@ struct ProtocolComposerView: View {
     @State private var showScript = false
     @State private var saveError: String? = nil
     @State private var showSaveError = false
+    @State private var savedIntoUsed = false
     @State private var selectedLayerID: UUID? = nil
 
     init(existing: NPCompositeProtocol?) {
@@ -48,6 +49,10 @@ struct ProtocolComposerView: View {
             }
             .sheet(isPresented: $showScript) {
                 scriptPreviewSheet
+            }
+            .usedProtocolAlert(isPresented: $savedIntoUsed) {
+                _ = library.saveAsClone(.composite(draft), copyName: protocolCopyName)
+                dismiss()
             }
             .alert("PROTOCOL_COMPOSER_CANNOT_SAVE", isPresented: $showSaveError) {
                 Button("OK", role: .cancel) {}
@@ -229,8 +234,12 @@ struct ProtocolComposerView: View {
         draft.modifiedAt = Date()
         draft.isPredefined = false
         if existing == nil { draft.createdAt = Date() }
-        library.save(.composite(draft))
-        dismiss()
+        switch library.save(.composite(draft)) {
+        case .refusedFamilyUsed, .refusedVariantExists:
+            savedIntoUsed = true // nothing was saved; the person chooses to keep the edit as a copy
+        case .saved, .readOnly:
+            dismiss()
+        }
     }
 }
 

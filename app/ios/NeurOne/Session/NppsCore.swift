@@ -121,6 +121,21 @@ enum NppsCore {
         return json
     }
 
+    /// A protocol's identity (SWR-HV-01): 64 lowercase hex digits over what the helmet would be sent. The request is
+    /// `{"def":…, "hardwareVersion":n, "zonesByVersion":{<zone>:{<version>:[sockets]}}, "clinicianSockets":…|null}`. A
+    /// protocol that cannot be compiled yet (a clinician-selected target not chosen) is refused with the core's message.
+    static func contentHash(request: [String: Any]) throws -> String {
+        let out = try call(npps_content_hash_json, JSONSerialization.data(withJSONObject: request))
+        return String(bytes: out, encoding: .utf8) ?? ""
+    }
+
+    /// The protocol library's rules, one JSON op per call (`{"op":"saveCheck"|"deleteCheck"|"cloneFamily"|…, …}`), answered
+    /// as a JSON object. Every app asks this same core, so the five cannot disagree on what a used protocol allows.
+    static func library(_ request: [String: Any]) throws -> [String: Any] {
+        let out = try call(npps_library_json, JSONSerialization.data(withJSONObject: request))
+        return (try JSONSerialization.jsonObject(with: out) as? [String: Any]) ?? [:]
+    }
+
     /// Compile a protocol (`{"timingMode":…,"modalities":[…]}`, the shape `parse` returns under
     /// `protocol`) into the NP-FW-HUB-001 §4 descriptor. The 64-byte signature slot at the end is zeroed:
     /// sign the region before it and write the signature in.

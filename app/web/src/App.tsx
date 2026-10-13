@@ -53,6 +53,7 @@ type AppView =
 
 export default function App() {
   const [version, setVersion] = useState(0);
+  const [refused, setRefused] = useState<{ entry: NPProtocolEntry; variantExists: boolean } | null>(null);
   const [appView, setAppView] = useState<AppView>({ view: 'menu' });
   const [deviceTier, setDeviceTierState] = useState<DeviceTier>('t1');
   const [has1064, setHas1064] = useState(false);
@@ -94,22 +95,34 @@ export default function App() {
     refresh();
   }
 
+  // A save into a used family is refused (SWR-FM-03): say so, keep the editor open, offer the copy (SWR-PL-04).
+  function copyName(base: string): string {
+    return t('WEB_PROTOCOL_COPY_SUFFIX', { 0: base });
+  }
+
   function handleSaveEntry(entry: NPProtocolEntry) {
     // If it's predefined, duplicate it first
-    if (entry.kind === 'single' && entry.protocol.isPredefined) {
-      const dup = protocolLibrary.duplicateProtocol(entry, entry.protocol.name + ' (copy)');
-      protocolLibrary.saveUserProtocol(dup);
-    } else if (entry.kind === 'composite' && entry.composite.isPredefined) {
-      const dup = protocolLibrary.duplicateProtocol(entry, entry.composite.name + ' (copy)');
-      protocolLibrary.saveUserProtocol(dup);
-    } else {
-      protocolLibrary.saveUserProtocol(entry);
+    const predefined = (entry.kind === 'single' && entry.protocol.isPredefined)
+      || (entry.kind === 'composite' && entry.composite.isPredefined);
+    const toSave = predefined
+      ? protocolLibrary.duplicateProtocol(
+          entry, copyName(entry.kind === 'single' ? entry.protocol.name : entry.composite.name))
+      : entry;
+    const result = protocolLibrary.saveUserProtocol(toSave);
+    if (result.kind === 'family_used' || result.kind === 'variant_exists') {
+      setRefused({ entry: toSave, variantExists: result.kind === 'variant_exists' });
+      return;
     }
     setAppView({ view: 'menu' });
   }
 
   function handleSaveComposite(composite: NPCompositeProtocol) {
-    protocolLibrary.saveUserProtocol({ kind: 'composite', composite });
+    const entry: NPProtocolEntry = { kind: 'composite', composite };
+    const result = protocolLibrary.saveUserProtocol(entry);
+    if (result.kind === 'family_used' || result.kind === 'variant_exists') {
+      setRefused({ entry, variantExists: result.kind === 'variant_exists' });
+      return;
+    }
     setAppView({ view: 'menu' });
   }
 
@@ -178,6 +191,34 @@ export default function App() {
             ))}
           </div>
         </nav>
+
+        {refused && (
+          <div className="modal-overlay" onClick={() => setRefused(null)}>
+            <div className="modal confirm-dialog" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <span className="modal-title">
+                  {refused.variantExists ? t('PROTOCOL_LIBRARY_VARIANT_EXISTS_TITLE') : t('PROTOCOL_LIBRARY_USED_TITLE')}
+                </span>
+              </div>
+              <div className="modal-body">
+                {refused.variantExists ? t('PROTOCOL_LIBRARY_VARIANT_EXISTS_BODY') : t('PROTOCOL_LIBRARY_USED_BODY')}
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setRefused(null)}>{t('COMMON_CANCEL')}</button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    protocolLibrary.saveAsClone(refused.entry, copyName);
+                    setRefused(null);
+                    setAppView({ view: 'menu' });
+                  }}
+                >
+                  {t('PROTOCOL_LIBRARY_CLONE_ACTION')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <main className="main-content">
           {appView.view === 'menu' && (

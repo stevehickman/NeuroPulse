@@ -51,6 +51,20 @@ final class NPProtocolLibrary: ObservableObject {
     @Published var eegConsentGranted: Bool =
         UserDefaults.standard.bool(forKey: "np.onboarding.bipa-accepted")
 
+    // MARK: Family state (SWR-FM-03…07, SWR-WO-02)
+
+    /// Families that have been used: one bit per family, set by the first confirmed or unknown upload of any variant,
+    /// never cleared (SWR-WO-02). Stored as family ids and nothing else.
+    @Published private(set) var usedFamilies: Set<String> = []
+    /// Families the warranty owner archived: kept, no longer offered (SWR-WO-01, SWR-FM-05).
+    @Published private(set) var archivedFamilies: Set<String> = []
+    /// For each clone, the protocol it was made from (SWR-PL-06). Provenance only.
+    private(set) var cloneSources: [String: String] = [:]
+
+    static let usedFamiliesKey = "np.used-families"
+    static let archivedFamiliesKey = "np.archived-families"
+    static let cloneSourcesKey = "np.clone-sources"
+
     // MARK: Bundled (read-only) protocols loaded from embedded .npps content
 
     private(set) var bundledProtocols: [NPProtocolEntry] = []
@@ -74,6 +88,7 @@ final class NPProtocolLibrary: ObservableObject {
     init() {
         loadBundledProtocols()
         loadFromDisk()
+        loadFamilyState()
         publishZoneNamespace()
     }
 
@@ -235,33 +250,228 @@ final class NPProtocolLibrary: ObservableObject {
 
     // MARK: Mutations
 
-    func save(_ entry: NPProtocolEntry) {
-        // Silently ignore attempts to overwrite a bundled (read-only) entry
-        if bundledProtocols.contains(where: { $0.id == entry.id }) { return }
+    /// Save `entry`. The rules are the core's (SWR-PL-02/03, SWR-FM-03/06): a predefined protocol is never saved over; a
+    /// protocol of a used family is refused, nothing is written, and a clone of the whole family is offered; an unused
+    /// one saves in place. A new protocol joining a used family is a new variant, allowed only for a hardware version
+    /// the family has no variant for.
+    @discardableResult
+    func save(_ entry: NPProtocolEntry) -> SaveResult {
+        if bundledProtocols.contains(where: { $0.id == entry.id }) { return .readOnly }
         let id = entry.id
         if let idx = userProtocols.firstIndex(where: { $0.id == id }) {
+            let check = NPLibraryRules.saveCheck(familySummaries(withVersions: false), id: id.uuidString)
+            if (check["allowed"] as? Bool) != true {
+                return .refusedFamilyUsed(familyId: (check["familyId"] as? String) ?? entry.familyKey,
+                                          memberIds: (check["members"] as? [String]) ?? [])
+            }
             userProtocols[idx] = entry
         } else {
+            if entry.isRunnable, entry.familyId != nil, usedFamilies.contains(entry.familyKey) {
+                let version = NPLibraryRules.supportedVersions(entry).first ?? 1
+                let check = NPLibraryRules.addVariantCheck(familySummaries(withVersions: true),
+                                                           familyId: entry.familyKey, hardwareVersion: version)
+                if (check["allowed"] as? Bool) != true { return .refusedVariantExists }
+            }
             userProtocols.append(entry)
         }
         saveToDisk()
         publishZoneNamespace()
+        return .saved
     }
 
-    func delete(_ id: UUID) {
-        // Silently ignore attempts to delete a bundled (read-only) protocol
-        if bundledProtocols.contains(where: { $0.id == id }) { return }
+    /// Delete a user protocol. A used family is archived, never deleted (SWR-FM-05).
+    @discardableResult
+    func delete(_ id: UUID) -> DeleteResult {
+        if bundledProtocols.contains(where: { $0.id == id }) { return .readOnly }
+        guard userProtocols.contains(where: { $0.id == id }) else { return .notFound }
+        let check = NPLibraryRules.deleteCheck(familySummaries(withVersions: false), id: id.uuidString)
+        if (check["allowed"] as? Bool) != true { return .refusedFamilyUsed }
         userProtocols.removeAll { $0.id == id }
+        cloneSources[id.uuidString] = nil
         saveToDisk()
+        saveFamilyState()
         publishZoneNamespace()
+        return .deleted
+    }
+
+    // MARK: Families (SWR-FM-03…07, SWR-PL-02)
+
+    /// Whether `entry`'s family has been used. The use of any variant marks the family (SWR-FM-03).
+    func isUsed(_ entry: NPProtocolEntry) -> Bool { usedFamilies.contains(entry.familyKey) }
+
+    private func familySummaries(withVersions: Bool) -> [[String: Any]] {
+        NPLibraryRules.summaries(allProtocols, used: usedFamilies, withVersions: withVersions)
+    }
+
+    /// Clone the whole family `id` belongs to: a new family from the moment it is made, a copy of every variant, none of
+    /// them used, fully editable, the source recorded for provenance only (SWR-FM-03). Each copy's name is the source's
+    /// with a copy suffix added, made unique, because a protocol is referred to by name.
+    @discardableResult
+    func cloneFamily(_ id: UUID, copyName: (String) -> String) -> [NPProtocolEntry] {
+        guard let entry = allProtocols.first(where: { $0.id == id && $0.isRunnable }) else { return [] }
+        let members = allProtocols.filter { $0.isRunnable && $0.familyKey == entry.familyKey }
+        let newFamily = UUID().uuidString
+        let newIds = members.map { _ in UUID() }
+        // The core checks the count, that the family is new and that every id is new, before anything is made.
+        _ = NPLibraryRules.cloneFamily(familySummaries(withVersions: false), id: id.uuidString,
+                                       newFamilyId: newFamily, newIds: newIds.map(\.uuidString))
+        var taken = Set(allProtocols.map(\.name))
+        var copies: [NPProtocolEntry] = []
+        for (member, newId) in zip(members, newIds) {
+            let name = uniqueCopyName(member.name, taken: taken, copyName: copyName)
+            taken.insert(name)
+            var copy = member.duplicated(newName: name)
+            copy = copy.withIdentity(id: newId, familyId: newFamily)
+            copies.append(copy)
+        }
+        for (member, copy) in zip(members, copies) {
+            userProtocols.append(copy)
+            cloneSources[copy.id.uuidString] = member.id.uuidString
+        }
+        saveToDisk()
+        saveFamilyState()
+        publishZoneNamespace()
+        return copies
+    }
+
+    /// The edit that a used family refused, kept: clone the whole family, then save `edited` over its own copy. The
+    /// copy's id, family and read-only state are the clone's; the content is the person's edit, and the name is theirs
+    /// when they changed it, else the clone's copy name. Returns the saved copy, or nil when `edited` is not in the library.
+    func saveAsClone(_ edited: NPProtocolEntry, copyName: (String) -> String) -> NPProtocolEntry? {
+        guard let original = allProtocols.first(where: { $0.id == edited.id && $0.isRunnable }) else {
+            return saveAsNewFamily(edited, copyName: copyName)
+        }
+        let copies = cloneFamily(edited.id, copyName: copyName)
+        guard let copy = copies.first(where: { cloneSources[$0.id.uuidString] == edited.id.uuidString }) else { return nil }
+        let renamed = edited.name != original.name
+        let merged = edited.withIdentity(id: copy.id, familyId: copy.familyId)
+            .withName(renamed ? edited.name : copy.name)
+        save(merged) // the copy is a new, unused family, so this saves in place
+        return merged
+    }
+
+    /// An edit that is not in the library yet and joined a used family's line: kept as a new family of its own, never
+    /// as a variant of the used one.
+    private func saveAsNewFamily(_ edited: NPProtocolEntry, copyName: (String) -> String) -> NPProtocolEntry? {
+        guard edited.isRunnable else { return nil }
+        let taken = Set(allProtocols.map(\.name))
+        let name = taken.contains(edited.name) ? uniqueCopyName(edited.name, taken: taken, copyName: copyName) : edited.name
+        let merged = edited.withIdentity(id: UUID(), familyId: UUID().uuidString).withName(name)
+        save(merged)
+        return merged
+    }
+
+    private func uniqueCopyName(_ base: String, taken: Set<String>, copyName: (String) -> String) -> String {
+        var candidate = copyName(base)
+        var n = 2
+        while taken.contains(candidate) {
+            candidate = copyName("\(base) \(n)")
+            n += 1
+        }
+        return candidate
+    }
+
+    /// The variants of `entry`'s family that fit a helmet of `helmetVersion`, latest first; empty means the person
+    /// decides whether to create one (SWR-HV-04).
+    func variantsFor(_ entry: NPProtocolEntry, helmetVersion: Int) -> [NPProtocolEntry] {
+        let ids = NPLibraryRules.variantFor(familySummaries(withVersions: true), familyId: entry.familyKey, helmetVersion: helmetVersion)
+        return ids.compactMap { id in allProtocols.first { $0.id.uuidString == id } }
+    }
+
+    // MARK: Archive and the offered list (SWR-WO-01, SWR-FM-05)
+
+    /// Archive the family of `entry`: it drops out of the offered list and every variant is kept.
+    func archiveFamily(_ entry: NPProtocolEntry) {
+        if archivedFamilies.insert(entry.familyKey).inserted { saveFamilyState() }
+    }
+
+    func unarchiveFamily(_ entry: NPProtocolEntry) {
+        if archivedFamilies.remove(entry.familyKey) != nil { saveFamilyState() }
+    }
+
+    func isArchived(_ entry: NPProtocolEntry) -> Bool { archivedFamilies.contains(entry.familyKey) }
+
+    /// The warranty owner's set: every protocol whose family is not archived.
+    var offeredProtocols: [NPProtocolEntry] {
+        let offered = NPLibraryRules.offered(familySummaries(withVersions: false), archivedFamilies: archivedFamilies)
+        return allProtocols.filter { !$0.isRunnable || offered.contains($0.id.uuidString) }
+    }
+
+    // MARK: Upload (SWR-PL-06, SWR-HV-04, SWR-UP-02)
+
+    /// `entry`'s identity as the core defines it, or nil for a kind that has none.
+    func contentHash(_ entry: NPProtocolEntry) -> String? { NPLibraryRules.contentHash(entry) }
+
+    /// What an upload of `entry` to a helmet of `helmetHardwareVersion` meets before any byte is sent. The hardware
+    /// refusal comes first, then the unmodified clone; an allowed upload is then sent and its result passed to
+    /// `recordUploadResult`.
+    func uploadGate(_ entry: NPProtocolEntry, helmetHardwareVersion: Int) -> UploadGate {
+        guard let hash = contentHash(entry) else { return .allow }
+        let source = cloneSources[entry.id.uuidString].flatMap { sid in allProtocols.first { $0.id.uuidString == sid } }
+        let answer = NPLibraryRules.uploadGate(helmetVersion: helmetHardwareVersion,
+                                               protocolVersions: NPLibraryRules.supportedVersions(entry),
+                                               contentHash: hash, sourceHash: source.flatMap { contentHash($0) })
+        switch answer["reason"] as? String {
+        case "hardware_mismatch":
+            let diff = NPLibraryRules.overlap(answer)
+            return .hardwareMismatch(
+                helmetVersion: helmetHardwareVersion,
+                protocolVersions: (answer["protocolVersions"] as? [Any])?.compactMap { ($0 as? NSNumber)?.intValue } ?? [],
+                sharedSockets: diff?.shared,
+                onlyProtocolSockets: diff?.onlyProtocol,
+                onlyHelmetSockets: diff?.onlyHelmet)
+        case "unmodified_clone":
+            if let source { return .unmodifiedClone(sourceId: source.id) }
+            return .allow
+        default:
+            return .allow
+        }
+    }
+
+    /// Record how an upload that was sent ended. Confirmed and unknown mark `entry`'s family used; a confirmed failure,
+    /// a refusal before sending and a helmet refusal for hardware version, unmodified clone or tier do not (SWR-UP-02).
+    /// `helmetStatus` is the hub's UPLOAD_CHECK verdict, "accepted" or "refused", or nil when it never answered.
+    func recordUploadResult(_ entry: NPProtocolEntry, sentHash: String, helmetStatus: String?, helmetHash: String?,
+                            helmetRefusal: String? = nil, refusedBeforeSend: Bool = false) -> UploadOutcome {
+        let answer = NPLibraryRules.uploadResult(sentHash: sentHash, helmetStatus: helmetStatus, helmetHash: helmetHash,
+                                                 helmetRefusal: helmetRefusal, refusedBeforeSend: refusedBeforeSend)
+        if (answer["markUsed"] as? Bool) == true { markUsed(entry) }
+        return (answer["outcome"] as? String).flatMap(UploadOutcome.init(rawValue:)) ?? .unknown
+    }
+
+    /// The used flag is one bit per family and is never cleared (SWR-WO-02).
+    private func markUsed(_ entry: NPProtocolEntry) {
+        if usedFamilies.insert(entry.familyKey).inserted { saveFamilyState() }
+    }
+
+    // MARK: Family state persistence
+
+    private func loadFamilyState() {
+        let defaults = UserDefaults.standard
+        // A used record is the family id and nothing else; a stored value the core does not recognise is dropped.
+        let used = (defaults.array(forKey: Self.usedFamiliesKey) as? [String]) ?? []
+        usedFamilies = Set(used.filter { NPLibraryRules.isValidUsedRecord(NPLibraryRules.usedRecord(familyId: $0)) })
+        archivedFamilies = Set((defaults.array(forKey: Self.archivedFamiliesKey) as? [String]) ?? [])
+        cloneSources = (defaults.dictionary(forKey: Self.cloneSourcesKey) as? [String: String]) ?? [:]
+    }
+
+    private func saveFamilyState() {
+        let defaults = UserDefaults.standard
+        defaults.set(Array(usedFamilies).sorted(), forKey: Self.usedFamiliesKey)
+        defaults.set(Array(archivedFamilies).sorted(), forKey: Self.archivedFamiliesKey)
+        defaults.set(cloneSources, forKey: Self.cloneSourcesKey)
     }
 
     // MARK: Script export / import
 
+    /// The script for `entry`, carrying the used flag when its family is used (SWR-WO-03). The flag is not part of the
+    /// content hash.
     func exportScript(_ entry: NPProtocolEntry) -> String {
-        NPPSSerializer().serialize(entry)
+        NPPSSerializer().serialize(entry, used: isUsed(entry))
     }
 
+    /// Read the first entry of `text`. An entry that arrives flagged used makes its family used, and one that arrives
+    /// unflagged but whose content is already used here stays used; an import never clears the flag (SWR-WO-03).
     func importScript(_ text: String) throws -> NPProtocolEntry {
         var lexer = NPPSLexer(text)
         let tokens = try lexer.tokenize()
@@ -270,6 +480,16 @@ final class NPProtocolLibrary: ObservableObject {
         guard let first = entries.first else {
             throw NPPSError(message: String(localized: "LIBRARY_NO_PROTOCOL_FOUND_IN_SCRIPT"), line: 0)
         }
+        var flagged = false
+        if let parsed = try? JSONSerialization.jsonObject(with: NppsCore.parse(text)) as? [String: Any],
+           let raw = (parsed["entries"] as? [[String: Any]])?.first,
+           let body = (raw["protocol"] ?? raw["composite"]) as? [String: Any] {
+            flagged = (body["isUsed"] as? Bool) == true
+        }
+        let usedHashes = allProtocols.filter { isUsed($0) }.compactMap { contentHash($0) }
+        let incoming = NPImportedEntry(id: first.id.uuidString, hash: contentHash(first), used: flagged)
+        let merged = NPLibraryRules.mergeImport(usedHashes: usedHashes, incoming: [incoming])
+        if merged[first.id.uuidString] == true { markUsed(first) }
         return first
     }
 

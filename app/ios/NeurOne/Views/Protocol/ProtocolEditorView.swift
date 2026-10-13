@@ -30,6 +30,7 @@ struct ProtocolEditorView: View {
     @State private var showAddModality = false
     @State private var saveError: String? = nil
     @State private var showSaveError = false
+    @State private var savedIntoUsed = false
     @State private var expandedModality: UUID? = nil
 
     init(existing: NPProtocolEntry?) {
@@ -77,6 +78,10 @@ struct ProtocolEditorView: View {
                     draft.modalities.append(modality)
                     expandedModality = modality.id
                 }
+            }
+            .usedProtocolAlert(isPresented: $savedIntoUsed) {
+                _ = library.saveAsClone(.single(draft), copyName: protocolCopyName)
+                dismiss()
             }
             .alert("PROTOCOL_EDITOR_CANNOT_SAVE", isPresented: $showSaveError) {
                 Button("OK", role: .cancel) {}
@@ -368,8 +373,12 @@ struct ProtocolEditorView: View {
             draft.createdAt = Date()
         }
 
-        library.save(.single(draft))
-        dismiss()
+        switch library.save(.single(draft)) {
+        case .refusedFamilyUsed, .refusedVariantExists:
+            savedIntoUsed = true // nothing was saved; the person chooses to keep the edit as a copy
+        case .saved, .readOnly:
+            dismiss()
+        }
     }
 
     // MARK: - Helpers
