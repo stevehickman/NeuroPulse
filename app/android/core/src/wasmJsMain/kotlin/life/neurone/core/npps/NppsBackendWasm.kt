@@ -96,6 +96,7 @@ private object WasmNppsBackend : NppsBackend {
     override fun resolveLimits(request: String): String = text("npps_resolve_limits_json", request)
     override fun contentHash(request: String): String = text("npps_content_hash_json", request)
     override fun library(request: String): String = text("npps_library_json", request)
+    override fun migration(request: String): String = text("npps_migration_json", request)
 
     override fun compile(request: String): ByteArray {
         val status = nppsCall("npps_compile_json", request)

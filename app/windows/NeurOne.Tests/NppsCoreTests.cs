@@ -211,4 +211,37 @@ public class NppsCoreTests
         var unused = Library("{\"op\":\"saveCheck\",\"id\":\"a\",\"entries\":[{\"id\":\"a\",\"used\":false,\"version\":\"1\",\"scope\":\"owner\"}]}");
         Assert.True((bool)unused["allowed"]!);
     }
+
+    private static JsonNode Migration(string json) => NppsCore.Migration(JsonNode.Parse(json)!);
+
+    // @verifies SWR-MG-05
+    [Fact]
+    public void MigrationRefusesANewerBundleWholeAndReadsTheKindFirst()
+    {
+        var newer = Migration("{\"op\":\"readHeader\",\"header\":{\"kind\":\"migrate\",\"formatVersion\":99}}");
+        Assert.False((bool)newer["ok"]!);
+        Assert.Equal("newer_version", (string)newer["reason"]!);
+        var ok = Migration("{\"op\":\"readHeader\",\"header\":{\"kind\":\"uhdr\",\"formatVersion\":1}}");
+        Assert.Equal("uhdr", (string)ok["kind"]!);
+    }
+
+    // @verifies SWR-MG-04
+    [Fact]
+    public void MigrationKeepsAWithdrawalAndNeverAskedStaysNull()
+    {
+        var merged = Migration("{\"op\":\"mergeWithdrawal\",\"local\":{},\"incoming\":{\"blanketConsentWithdrawnAt\":\"2026-03-01T00:00:00Z\"}}");
+        Assert.Equal("2026-03-01T00:00:00Z", (string)merged["blanketConsentWithdrawnAt"]!);
+        var never = Migration("{\"op\":\"mergeWithdrawal\",\"local\":{},\"incoming\":{}}");
+        Assert.Null(never["blanketConsentWithdrawnAt"]);
+    }
+
+    // @verifies SWR-MG-08
+    [Fact]
+    public void MigrationClearsTheOldPhoneOnlyOnAMatchingConfirmation()
+    {
+        var none = Migration("{\"op\":\"clearDecision\",\"bundleHash\":\"h\",\"confirmation\":null}");
+        Assert.False((bool)none["clear"]!);
+        var ok = Migration("{\"op\":\"clearDecision\",\"bundleHash\":\"h\",\"confirmation\":{\"bundleHash\":\"h\"}}");
+        Assert.True((bool)ok["clear"]!);
+    }
 }

@@ -136,6 +136,14 @@ enum NppsCore {
         return (try JSONSerialization.jsonObject(with: out) as? [String: Any]) ?? [:]
     }
 
+    /// The device-replacement migration and UHDR backup rules, one JSON op per call (`{"op":"inventory"|"readHeader"|
+    /// "mergeWithdrawal"|"claimDecision"|…, …}`), answered as a JSON object. The core is given item names and ids, never a
+    /// bundle's contents (`SWR-MG`). Every app asks this same core, so the five cannot disagree on a claim or a clear.
+    static func migration(_ request: [String: Any]) throws -> [String: Any] {
+        let out = try call(npps_migration_json, JSONSerialization.data(withJSONObject: request))
+        return (try JSONSerialization.jsonObject(with: out) as? [String: Any]) ?? [:]
+    }
+
     /// Compile a protocol (`{"timingMode":…,"modalities":[…]}`, the shape `parse` returns under
     /// `protocol`) into the NP-FW-HUB-001 §4 descriptor. The 64-byte signature slot at the end is zeroed:
     /// sign the region before it and write the signature in.

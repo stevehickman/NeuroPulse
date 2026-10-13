@@ -44,6 +44,7 @@ object NppsCore {
     private fun nativeContentHash(request: String): String = backend.contentHash(request)
 
     private fun nativeLibrary(request: String): String = backend.library(request)
+    private fun nativeMigration(request: String): String = backend.migration(request)
 
     /**
      * Parse NPPS text into everything the file declares:
@@ -109,6 +110,14 @@ object NppsCore {
      * operation) is an [IllegalArgumentException]; a rule that says no is an ordinary answer (`"allowed": false`).
      */
     fun library(request: JsonObject): JsonObject = Json.parseToJsonElement(nativeLibrary(request.toString())) as JsonObject
+
+    /**
+     * The device-replacement migration and UHDR backup rules, decided once in the core for every app (`SWR-MG`):
+     * `{"op": "inventory" | "readHeader" | "mergeWithdrawal" | "claimDecision" | …, …}` in, the answer out. The core is
+     * given item names and ids, never a bundle's contents. A refusal of the request itself is an
+     * [IllegalArgumentException]; a rule that says no is an ordinary answer.
+     */
+    fun migration(request: JsonObject): JsonObject = Json.parseToJsonElement(nativeMigration(request.toString())) as JsonObject
 
     /** What a compile needs that is not in the protocol. Everything non-deterministic is an input. */
     class CompileOptions(
