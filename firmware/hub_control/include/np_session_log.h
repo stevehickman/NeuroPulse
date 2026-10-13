@@ -39,6 +39,7 @@
 #define NP_LOG_TAG_UHDR_COMMAND         0x19U  /* commanded dose: one dispatched command (OI-FMEA-09) */
 #define NP_LOG_TAG_UHDR_PBM_SOCKET      0x1AU  /* one lattice socket's dose + NTC (OI-FWHUB-10, F1–F8) */
 #define NP_LOG_TAG_UHDR_HRV_SESSION     0x1BU  /* HRV session record at session end (OI-HRV-03, np_log_hrv.h) */
+#define NP_LOG_TAG_UHDR_FITTING         0x1CU  /* the hardware fitted at session start (SWR-HV-02, np_session_fitting.h) */
 
 #define NP_LOG_TAG_SHDR_SESSION_END     0x80U
 #define NP_LOG_TAG_SHDR_PBM_HEALTH      0x81U
@@ -143,6 +144,16 @@ void np_log_telemetry(const np_telem_record_t *rec);
  * is written 0 and must not be read as darkness.
  */
 void np_log_pbm_socket(const np_pst_socket_record_t *rec, uint32_t session_ms);
+
+/*
+ * np_log_session_fitting — the hardware fitted at session start to UHDR (SWR-HV-02): the hardware version
+ * and the module in each socket.  UHDR ONLY (where on a person's head light can be applied).  Written right
+ * after the session-start record and made durable before the caller starts stimulating.  `frame` is the
+ * np_fitting_build() frame, its length checked against its own socket count; a malformed frame is not written.
+ *
+ * Layout after NP_LOG_TAG_UHDR_FITTING: the frame — hardware version (1), n (1), n module bytes.
+ */
+void np_log_session_fitting(const uint8_t *frame, size_t len);
 
 /*
  * np_log_shdr_pbm_socket_health — one occupied PBM tile's LATEST STATE to

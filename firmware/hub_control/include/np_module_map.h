@@ -385,6 +385,19 @@ np_hub_status_t np_module_map_get_cal(const np_module_uid_t *uid,
  */
 np_hub_status_t np_module_map_socket_uid(uint16_t socket_id, np_module_uid_t *uid_out);
 
+/*
+ * np_module_map_socket_count — the number of wired sockets the map was bound to, 0 before np_module_map_init().
+ * A property of the helmet's geometry, not of what is fitted.
+ */
+uint16_t np_module_map_socket_count(void);
+
+/*
+ * np_module_map_pbm_kind — the PBM kind of the module in `socket_id`, from its element inventory: a 1064 nm emitter
+ * makes it a smart tile (NP_MOD_PBM_SMART), 660/808 nm emitters alone a base tile (NP_MOD_PBM_BASE), and NP_MOD_NONE
+ * for a module with no PBM emitter (an electrode tile), an empty socket or an id out of range.
+ */
+np_hub_mod_type_t np_module_map_pbm_kind(uint16_t socket_id);
+
 /* ── Fixed helmet geometry (const table, one entry per socket) ──────────────── */
 
 /* Metric only — no lobe/side. Both were dropped with the lobe path (OI-HUB-C14):

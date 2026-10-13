@@ -59,6 +59,16 @@ if(NP_BUILD_TESTS)
     target_include_directories(np_module_map_tests PRIVATE include ../pbm/include)
     target_compile_options(np_module_map_tests PRIVATE -Wall -Wextra -std=c11)
 
+    # SWR-HV-02: the hardware fitting frame written at session start — the real
+    # module map, simulated tiles.
+    add_executable(np_session_fitting_tests
+        tests/np_session_fitting_tests.c
+        src/np_session_fitting.c
+        src/np_module_map.c
+    )
+    target_include_directories(np_session_fitting_tests PRIVATE include ../pbm/include)
+    target_compile_options(np_session_fitting_tests PRIVATE -Wall -Wextra -std=c11)
+
     # OI-HEXMAP-02: tile identity + element inventory over the socket I2C
     # seam, driving the real np_module_map. The seam is a simulated tile per
     # socket in the test; np_pbm_hal.c is deliberately not linked.
@@ -510,6 +520,7 @@ set(HUB_SOURCES
     src/np_upload_check.c         # SWR-UP-01: hash of the received protocol + verdict, UPLOAD_CHECK
     src/np_session_stop.c         # SWR-SS-06: SESSION_STOP write ends the session
     src/np_session_progress.c     # SWR-SS-07: SESSION_PROGRESS frame
+    src/np_session_fitting.c      # SWR-HV-02: hardware fitted at session start
     src/np_warranty_token.c       # OI-WA-03: NP-FW-EMMC-002 §A warranty token
     src/np_consumables.c          # OI-ACC-08: CONSUMABLE_STATUS session counts
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
