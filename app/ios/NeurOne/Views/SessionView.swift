@@ -20,6 +20,7 @@ struct SessionView: View {
     @State private var showProtocolPicker    = false
     @State private var showStopConfirmation  = false
     @State private var stopErrorMessage:     String?
+    @State private var controlErrorMessage:  String?
     @State private var showHistory           = false
 
     // Live snapshot for session history record — safe aggregated metrics only (ISC-49).
@@ -110,6 +111,15 @@ struct SessionView: View {
                 } message: {
                     Text(stopErrorMessage ?? "")
                 }
+                .alert("SESSION_PAUSE_ERROR_TITLE",
+                       isPresented: Binding(
+                           get: { controlErrorMessage != nil },
+                           set: { if !$0 { controlErrorMessage = nil } }
+                       )) {
+                    Button("COMMON_OK", role: .cancel) { controlErrorMessage = nil }
+                } message: {
+                    Text(controlErrorMessage ?? "")
+                }
                 // OI-ACC-07: the hub refused or stopped cervical VNS on a failed gel pad. The
                 // safety MCU has already acted; this only tells the wearer which pad, and where.
                 .sheet(item: Binding(
@@ -172,6 +182,9 @@ struct SessionView: View {
                                 if case .success = result { done(true) } else { done(false) }
                             }
                         }
+                    }
+                    if let progress = gatt.progress, progress.isActive {
+                        sessionProgressCard(progress)
                     }
                     if gatt.session.status == .running {
                         hrvBreathingRing
@@ -531,7 +544,11 @@ struct SessionView: View {
             .buttonStyle(.borderedProminent)
             .disabled(!setup.isFirstSetupComplete || gatt.connectionState != .connected)
 
-            if gatt.session.status == .running {
+            if let progress = gatt.progress, progress.isActive {
+                pauseResumeControl(progress)
+            }
+
+            if gatt.session.status == .running || gatt.session.status == .paused || gatt.progress?.isActive == true {
                 Button(role: .destructive) {
                     showStopConfirmation = true
                 } label: {
@@ -545,6 +562,85 @@ struct SessionView: View {
             if Self.shouldShowSessionDownload(status: gatt.session.status, epoch: gatt.session.epoch) {
                 sessionDownloadControl
             }
+        }
+    }
+
+    // Elapsed, remaining and the active part, all the helmet's own figures (SWR-SS-07).
+    private func sessionProgressCard(_ progress: SessionProgress) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("SESSION_PROGRESS_TITLE").font(.caption).foregroundColor(.secondary)
+            HStack {
+                VStack {
+                    Text(SessionProgress.formatClock(progress.elapsedMs)).font(.title2.monospacedDigit())
+                    Text("SESSION_PROGRESS_ELAPSED").font(.caption2).foregroundColor(.secondary)
+                }
+                Spacer()
+                VStack {
+                    Text(SessionProgress.formatClock(progress.remainingMs)).font(.title2.monospacedDigit())
+                    Text("SESSION_PROGRESS_REMAINING").font(.caption2).foregroundColor(.secondary)
+                }
+            }
+            ProgressView(value: Double(progress.elapsedMs), total: Double(max(progress.totalMs, 1)))
+            if let part = progress.activePart {
+                Text(String(format: String(localized: "SESSION_PROGRESS_PART"), String(part + 1))).font(.subheadline)
+            } else {
+                Text("SESSION_PROGRESS_NO_PART").font(.subheadline)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .combine)
+    }
+
+    // Pause and resume (SWR-SS-05). What is shown is the helmet's ramp state and not the app's guess: the pause is
+    // offered only when the helmet will take it (it refuses one during a ramp-up), and a resume says that stimulation
+    // returns only where the helmet's own checks allow it.
+    @ViewBuilder
+    private func pauseResumeControl(_ progress: SessionProgress) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let note = rampNote(progress) {
+                Text(note).font(.subheadline).foregroundColor(.secondary)
+                if progress.rampPhase == .down || progress.rampPhase == .up || progress.rampPhase == .precheck {
+                    ProgressView(value: Double(progress.rampPercent), total: 100)
+                }
+            }
+            if progress.isPaused {
+                Button {
+                    gatt.sendSessionResume { result in reportControlResult(result) }
+                } label: {
+                    Label(String(localized: "SESSION_RESUME_BUTTON"), systemImage: "play.circle").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(gatt.connectionState != .connected)
+                Text("SESSION_RESUME_NOTE").font(.caption).foregroundColor(.secondary)
+            } else {
+                Button {
+                    gatt.sendSessionPause { result in reportControlResult(result) }
+                } label: {
+                    Label(String(localized: "SESSION_PAUSE_BUTTON"), systemImage: "pause.circle").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(gatt.connectionState != .connected || progress.state != .running || progress.rampPhase == .up)
+            }
+        }
+    }
+
+    private func rampNote(_ progress: SessionProgress) -> String? {
+        switch progress.rampPhase {
+        case .down: return String(localized: "SESSION_RAMP_DOWN")
+        case .held: return String(localized: "SESSION_RAMP_HELD")
+        case .precheck: return String(localized: "SESSION_RAMP_PRECHECK")
+        case .up: return String(localized: "SESSION_RAMP_UP")
+        case .none: return progress.isPaused ? String(localized: "SESSION_RAMP_HELD") : nil
+        }
+    }
+
+    // The new state is shown from the helmet's next SESSION_PROGRESS frame, never assumed here (as for stop, ISC-34).
+    private func reportControlResult(_ result: Result<Void, GATTWriteError>) {
+        if case .failure(let error) = result {
+            Self.logger.error("Session pause or resume failed: \(String(describing: error))")
+            controlErrorMessage = String(localized: "SESSION_PAUSE_ERROR")
         }
     }
 

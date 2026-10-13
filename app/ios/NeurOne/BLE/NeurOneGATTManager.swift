@@ -40,6 +40,9 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     /// Live session data decoded from hub NOTIFY characteristics.
     @Published private(set) var session: SessionState = .empty
 
+    /// Where the helmet says the session is (SWR-SS-07): elapsed, remaining, active part, ramp. Nil before the first frame.
+    @Published private(set) var progress: SessionProgress?
+
     /// Live zone-module socket map — variable length, keyed by 1-based socket id.
     ///
     /// Not a fixed-size array: the helmet is tiled with a universal hex module
@@ -138,6 +141,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     var onCalibrationAck:    ((Result<Void, GATTWriteError>) -> Void)?
 
     private var onSessionStopAck: ((Result<Void, GATTWriteError>) -> Void)?
+    private var onSessionPauseAck: ((Result<Void, GATTWriteError>) -> Void)?
 
     // MARK: - Private properties
 
@@ -163,6 +167,8 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     private var otaCommandChar:     CBCharacteristic?
     private var calibrationCmdChar: CBCharacteristic?
     private var sessionStopChar:    CBCharacteristic?
+    private var sessionPauseChar:   CBCharacteristic?
+    private var sessionProgressChar: CBCharacteristic?
 
     // Dedicated subject for impedance results — fires ONLY from GattUuidStrings.IMPEDANCE_RESULT_ID handler.
     // Distinct from session state updates so SetupGATTProviding.waitForImpedanceResult cannot
@@ -250,6 +256,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         connectionState = .disconnected
         peripheral = nil
         session = .empty
+        progress = nil
         pending = .empty
         // Clear the map entirely rather than zeroing a fixed shape — on
         // reconnect the hub sends a fresh snapshot, and a stale "present" socket
@@ -409,6 +416,31 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         p.writeValue(Data([0x01]), for: char, type: .withResponse)
     }
 
+    /// Pause the running session (SWR-SS-05). The hub refuses it during a ramp-up and in any state but running; the
+    /// figures that follow in SESSION_PROGRESS say what happened, so the app does not guess.
+    func sendSessionPause(completion: @escaping (Result<Void, GATTWriteError>) -> Void) {
+        writeSessionPause(0x01, completion: completion)
+    }
+
+    /// Resume a paused session (SWR-SS-05). Stimulation returns only where the safety MCU grants it.
+    func sendSessionResume(completion: @escaping (Result<Void, GATTWriteError>) -> Void) {
+        writeSessionPause(0x02, completion: completion)
+    }
+
+    private func writeSessionPause(_ code: UInt8, completion: @escaping (Result<Void, GATTWriteError>) -> Void) {
+        guard let char = sessionPauseChar, let p = peripheral else {
+            completion(.failure(.notConnected)); return
+        }
+        onSessionPauseAck = completion
+        p.writeValue(Data([code]), for: char, type: .withResponse)
+    }
+
+    /// Decodes SESSION_PROGRESS; a malformed frame clears the figures rather than being partly believed.
+    /// `internal` — driven directly by tests.
+    func applySessionProgress(_ data: Data) {
+        progress = SessionProgress(wire: data)
+    }
+
     // MARK: - Cervical VNS gel pad alert (OI-ACC-07)
 
     /// Applies a CVNS_PAD_STATUS frame. A failure raises the alert; a both-pads-pass frame
@@ -523,6 +555,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         otaStatusChar = nil;      zoneModuleStatusChar = nil; shdrUploadStatusChar = nil
         protocolUploadChar = nil; edfRequestChar = nil; otaCommandChar = nil
         calibrationCmdChar = nil; sessionStopChar = nil; warrantyTokenChar = nil
+        sessionPauseChar = nil; sessionProgressChar = nil
         deviceSerialChar = nil
         socketMapChar = nil
         firmwareVersionChar = nil
@@ -587,6 +620,7 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             GattUuidStrings.SOCKET_MAP_ID, GattUuidStrings.CVNS_PAD_STATUS_ID,
             GattUuidStrings.CVNS_FAULT_STATUS_ID, GattUuidStrings.CVNS_REENABLE_CONFIRM_ID,
             GattUuidStrings.ACTIVE_USER_ID, GattUuidStrings.DEVICE_SERIAL_ID,
+            GattUuidStrings.SESSION_PROGRESS_ID, GattUuidStrings.SESSION_PAUSE_ID,
         ]
         peripheral.discoverCharacteristics(
             (GattUuidStrings.REQUIRED_IDS + optionalIDs).map(CBUUID.init(string:)), for: service)
@@ -662,6 +696,15 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
 
             case CBUUID(string: GattUuidStrings.SESSION_STOP_ID):
                 sessionStopChar = char
+
+            case CBUUID(string: GattUuidStrings.SESSION_PAUSE_ID):
+                sessionPauseChar = char
+
+            case CBUUID(string: GattUuidStrings.SESSION_PROGRESS_ID):
+                // SWR-SS-07: read once at link so a session already running shows its figures, then notified.
+                sessionProgressChar = char
+                peripheral.setNotifyValue(true, for: char)
+                peripheral.readValue(for: char)
 
             case CBUUID(string: GattUuidStrings.WARRANTY_TOKEN_ID):
                 // Optional — hub firmware not yet shipped. Silently absent until OI-WA-03 lands.
@@ -764,6 +807,12 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             return
         }
 
+        if characteristic.uuid == CBUUID(string: GattUuidStrings.SESSION_PROGRESS_ID) {
+            // Published on its own, like the cervical frames: not part of the accumulated session record.
+            applySessionProgress(data)
+            return
+        }
+
         if characteristic.uuid == CBUUID(string: GattUuidStrings.CVNS_FAULT_STATUS_ID) {
             // UHDR-class, not part of the session record — published on its own.
             applyCervicalFaultStatus(data)
@@ -838,6 +887,8 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             onCalibrationAck?(result); onCalibrationAck = nil
         case CBUUID(string: GattUuidStrings.SESSION_STOP_ID):
             onSessionStopAck?(result); onSessionStopAck = nil
+        case CBUUID(string: GattUuidStrings.SESSION_PAUSE_ID):
+            onSessionPauseAck?(result); onSessionPauseAck = nil
         case CBUUID(string: GattUuidStrings.CVNS_REENABLE_CONFIRM_ID):
             onCervicalReenableConfirmAck?(result); onCervicalReenableConfirmAck = nil
         default:
