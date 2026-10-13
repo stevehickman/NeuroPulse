@@ -750,7 +750,6 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
     /// Not part of the content hash and never sent to the helmet. Nil when the protocol states none.
     var familyId: String?
 
-
     // MARK: Computed
 
     var requiredModalityTypes: Set<NPModalityType> {
