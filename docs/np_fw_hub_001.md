@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 23
+**Revision:** 24
 **Date:** 2026-10-12
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -17,6 +17,8 @@
 
 ---
 
+> **Rev 24 (2026-10-13) — `REQ-FWHUB-60`: the hub refuses a zero session duration (`SWR-SS-01`).** `np_protocol_verify_and_parse` now returns `NP_HUB_ERR_INVALID_ARG` for `session_duration_ms == 0`, because the session runner treats 0 as no limit and a session cannot be infinite. Any finite non-zero value is accepted.
+>
 > **Rev 23 (2026-10-12) — ten requirement rows for behaviour the host tests already pin (§10.1, `REQ-FWHUB-50…59`).**
 > The safety SPI frame layouts, the Config store, the pinned littlefs configuration and its power-loss behaviour, the
 > consumable counters, the cervical fault summary, the GATT server contract, module inventory and the module map, the log
@@ -1929,6 +1931,7 @@ this line.
 | `REQ-FWHUB-56` | **(Rev 23)** The GATT server's UUIDs, attribute table and access rules are the published contract. The warranty token is provisioned once on first read, is never regenerated over an unreadable token, and leaves nothing behind when provisioning fails. The device serial, the active-user write and the fault-status read and notify agree. *Fails without it:* the apps read a different table from the one the hub serves, or a warranty token changes under the warranty owner. *Traced to:* `NP-SW-FAULTMSG-001` §9.3; `CLAUDE.md` §5.1, §6.0. |
 | `REQ-FWHUB-57` | **(Rev 23)** A module is inventoried on first sight and not again while its UID stays. Every failure (a bad CRC, a read fault, a swap between the header read and the block read, a count mismatch, an unknown type, a malformed header) leaves the socket empty, including one that held a module. The module map resolves addresses, zones and groups from that inventory, fails closed on an invalid group kind or an overflow, and ties a calibration to the module's UID, so it follows the module and is cleared when the occupant changes. *Fails without it:* a command reaches a module that is not the one inventoried, or a calibration is applied to another module. *Traced to:* `NP-HEX-ZM-001` §4.1; `REQ-FWHUB-31`; `REQ-LFS-02`. |
 | `REQ-FWHUB-58` | **(Rev 23)** The log backend writes UHDR and SHDR as independent streams, one UHDR file per session named by the session count, created exclusively and capped per file. A write failure latches a fault and stops further records, a full partition returns `NP_HUB_ERR_LOG_FULL`, and an EEG block lands in time order after the UHDR records logged before it. *Fails without it:* a session's records mix with another's, or a torn write is followed by records that look valid. *Traced to:* `CLAUDE.md` §4.1, §5; `NP-FW-EMMC-001` §12; `REQ-FWHUB-44`. |
+| `REQ-FWHUB-60` | **(Rev 24)** The hub refuses a protocol descriptor whose `session_duration_ms` is 0, and accepts any finite non-zero value, however long. *Fails without it:* a descriptor with no length runs with no limit, because the runner reads 0 as unlimited. *Traced to:* `SWR-SS-01` (`NP-SW-001`); `REQ-NPPS-22`. |
 | `REQ-FWHUB-59` | **(Rev 23)** A module driver drops its enable request on stop, on the terminal stage and on a fault, and logs a fault with its kind. A command to a module that is not initialised or a slot the driver does not own is refused. A latched channel is released only by an explicit clear. *Fails without it:* a stopped or faulted module keeps requesting its enable. *Traced to:* `CLAUDE.md` §4.2; `REQ-FWHUB-17`; `REQ-FWHUB-47`. |
 | `REQ-FWHUB-28` | **(Rev 7)** The wire format has a mechanical agreement check against `hubCompiler.ts`, falsified in both directions per `NP-CONV-001` §8. *Fails without it:* the two implementations agree only by inspection, and a length or offset drift surfaces on a device as `INVALID_ARG` | §4.6; `scripts/check-hub-wire-format.ts` (15 perturbation fixtures) |
 

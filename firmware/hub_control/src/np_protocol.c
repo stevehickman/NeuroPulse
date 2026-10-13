@@ -148,6 +148,12 @@ np_hub_status_t np_protocol_verify_and_parse(const uint8_t    *buf,
     if (hdr->cmd_count > NP_HUB_PROTO_CMD_MAX) {
         return NP_HUB_ERR_CMD_TOO_MANY;
     }
+    /* A session is finite and non-zero (SWR-SS-01).  The compiler writes the real total
+     * length, computed from the commands for an interval-count session, so a zero here is
+     * an unfinished descriptor and not a session with no limit. */
+    if (hdr->session_duration_ms == 0U) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
 
     /* Ed25519 signature is the last NP_HUB_PROTO_SIG_LEN bytes of buf. */
     const uint8_t *sig = buf + len - NP_HUB_PROTO_SIG_LEN;
