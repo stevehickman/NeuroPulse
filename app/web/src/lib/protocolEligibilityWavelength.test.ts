@@ -24,7 +24,7 @@ const zones = buildNamespace([
 const helmet = (preset: NPInventoryPreset) => new NPSimulatedInventoryProvider(preset).getInventory()!;
 
 function protocol(...blocks: string[]): NPProtocolDefinition {
-  const [entry] = parseNPPS(`protocol "T" {\n    duration: 10m\n${blocks.join('\n')}\n}`);
+  const [entry] = parseNPPS(`protocol "T" {\n  hardware_version: 1\n    duration: 10m\n${blocks.join('\n')}\n}`);
   if (entry.kind !== 'single') throw new Error('expected a protocol');
   return entry.protocol;
 }

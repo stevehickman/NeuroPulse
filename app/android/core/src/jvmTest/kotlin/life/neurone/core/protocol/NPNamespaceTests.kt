@@ -124,6 +124,7 @@ class NPNamespaceTests {
         val protocolFirst = parse(
             """
             protocol "P" {
+                hardware_version: 1
                 conditions: ["C"]
                 pbm_transcranial { zones: ["Z"] irradiance: 300mW_cm2 wavelength: "808nm" }
             }
@@ -148,6 +149,7 @@ class NPNamespaceTests {
             parse(
                 """
                 protocol "P" {
+                    hardware_version: 1
                     conditions: ["Missing Condition"]
                     pbm_transcranial { zones: ["Missing Zone"] irradiance: 300mW_cm2 wavelength: "808nm" }
                 }
@@ -232,6 +234,7 @@ class NPNamespaceTests {
     fun protocolConditionsAndReferencesParseAndRoundTrip() {
         val script = """
             protocol "P" {
+                hardware_version: 1
                 version: "1.0"
                 conditions: ["Major Depressive Disorder"]
                 references: ["https://doi.org/10.1000/x", ["Cassano 2018", "https://doi.org/10.1089/y"]]
@@ -276,7 +279,7 @@ class NPVisualModeTests {
     private fun parse(text: String) = NPPSParser.parse(text)
 
     private fun modeOf(token: String): NPVisualStimParams.VisualMode {
-        val e = parse("""protocol "P" { visual_stimulation { mode: $token } }""")
+        val e = parse("""protocol "P" { hardware_version: 1 visual_stimulation { mode: $token } }""")
             .single() as NPProtocolEntry.Single
         return ((e.protocol.modalities.single().params) as NPModalityParams.VisualStimulation).params.mode
     }
@@ -342,7 +345,7 @@ class NPPSListElementTests {
     // @verifies REQ-NPPS-16
     @Test
     fun quotedHyphenatedTagsSurviveIntact() {
-        val e = parse("""protocol "P" { tags: [sleep, "wind-down", recovery] }""").single()
+        val e = parse("""protocol "P" { hardware_version: 1 tags: [sleep, "wind-down", recovery] }""").single()
             as NPProtocolEntry.Single
         assertEquals(listOf("sleep", "wind-down", "recovery"), e.protocol.tags)
     }
@@ -350,7 +353,7 @@ class NPPSListElementTests {
     // @verifies REQ-NPPS-10#a
     @Test
     fun unquotedHyphenatedTagIsRejectedNotSplit() {
-        assertFailsWith<NPPSError> { parse("""protocol "P" { tags: [sleep, wind-down, recovery] }""") }
+        assertFailsWith<NPPSError> { parse("""protocol "P" { hardware_version: 1 tags: [sleep, wind-down, recovery] }""") }
     }
 
     // @verifies REQ-NPPS-18

@@ -22,8 +22,8 @@ const { parseNPPSFile, parseNPPSLimits, buildNamespace, validateNamespaceReferen
 const DIRS = ['protocols/predefined', 'npps/fixtures'];
 const OUT = ROOT + 'app/NeurOneShared/TestData/npps-parse-golden.json';
 
-const pbm = (body: string) => `protocol "T" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: "808nm"\n    irradiance: 100mW_cm2\n${body}\n  }\n}\n`;
-const blk = (type: string, body: string) => `protocol "T" {\n  duration: 5m\n  ${type} {\n${body}\n  }\n}\n`;
+const pbm = (body: string) => `protocol "T" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: "808nm"\n    irradiance: 100mW_cm2\n${body}\n  }\n}\n`;
+const blk = (type: string, body: string) => `protocol "T" {\n  hardware_version: 1\n  duration: 5m\n  ${type} {\n${body}\n  }\n}\n`;
 
 /** Inputs the fixtures do not cover, each a refusal or a normalisation worth pinning. */
 export const ERROR_CASES: Record<string, string> = {
@@ -50,12 +50,15 @@ export const ERROR_CASES: Record<string, string> = {
   bad_top_level: 'banana "T" {}\n',
   zone_bad_sockets: 'zone "Z" {\n  sockets: [0, 99, "x", 2.5, true, 3]\n}\n',
   zone_one_bad_socket: 'zone "Z" {\n  sockets: [1, 81]\n}\n',
-  family_id_not_an_id: 'protocol "T" {\n  family_id: "not-an-id"\n}\n',
-  family_id_wrong_grouping: 'protocol "T" {\n  family_id: "0123456789abcdef0123456789abcdef"\n}\n',
+  family_id_not_an_id: 'protocol "T" {\n  hardware_version: 1\n  family_id: "not-an-id"\n}\n',
+  family_id_wrong_grouping: 'protocol "T" {\n  hardware_version: 1\n  family_id: "0123456789abcdef0123456789abcdef"\n}\n',
   hardware_version_zero: 'protocol "T" {\n  hardware_version: 0\n}\n',
   hardware_version_fraction: 'protocol "T" {\n  hardware_version: 1.5\n}\n',
   hardware_version_text: 'protocol "T" {\n  hardware_version: "1"\n}\n',
-  composite_family_id_not_an_id: 'composite "C" {\n  family_id: "x"\n}\n',
+  protocol_without_hardware_version: 'protocol "T" {\n  duration: 5m\n}\n',
+  protocol_with_family_id_only: 'protocol "T" {\n  family_id: "0123abcd-4567-4def-8901-23456789abcd"\n}\n',
+  composite_without_hardware_version: 'composite "C" {\n  description: "d"\n}\n',
+  composite_family_id_not_an_id: 'composite "C" {\n  hardware_version: 1\n  family_id: "x"\n}\n',
   zone_version_zero: 'zone "Z" {\n  hardware_version 0 {\n    sockets: [1]\n  }\n}\n',
   zone_version_twice: 'zone "Z" {\n  hardware_version 1 {\n    sockets: [1]\n  }\n  hardware_version 1 {\n    sockets: [2]\n  }\n}\n',
   zone_bare_then_version: 'zone "Z" {\n  sockets: [1]\n  hardware_version 1 {\n    sockets: [1]\n  }\n}\n',
@@ -67,7 +70,7 @@ export const ERROR_CASES: Record<string, string> = {
   zone_no_name: 'zone {\n  sockets: [1]\n}\n',
   condition_no_name: 'condition {\n  link: "http://x"\n}\n',
   composite_no_name: 'composite {\n}\n',
-  layer_no_name: 'composite "C" {\n  layer {\n  }\n}\n',
+  layer_no_name: 'composite "C" {\n  hardware_version: 1\n  layer {\n  }\n}\n',
   wr_no_name: 'wavelength_rules {\n}\n',
   wr_bad_level: 'wavelength_rules "W" {\n  level: sometimes\n}\n',
   wr_unknown_channel: 'wavelength_rules "W" {\n  channel "led_900" {\n    nominal_nm: 900\n    min_nm: 890\n    max_nm: 910\n  }\n}\n',
@@ -91,15 +94,15 @@ export const OK_CASES: Record<string, string> = {
   zone_minimal: 'zone "Z" {\n}\n',
   condition_everything: 'condition "C" {\n  id: "cid"\n  link: "http://c"\n  code: "X1"\n  description: "d"\n  unknown: 1\n}\n',
   condition_minimal: 'condition "C" {\n}\n',
-  composite_everything: 'composite "C" {\n  id: "11111111-2222-3333-4444-555555555555"\n  description: "d"\n  author: "a"\n  version: "3"\n  readonly: true\n  tags: [a, b]\n  conflict_resolution: sequential\n  conditions: ["x"]\n  references: ["http://a"]\n  unknown: 1\n  layer "P1" {\n    start: 2m\n    end: 5m\n    intensity_scale: 0.5\n    other: 1\n  }\n  layer "P2" {\n    duration: 90s\n  }\n}\n',
-  composite_minimal: 'composite "C" {\n}\n',
+  composite_everything: 'composite "C" {\n  hardware_version: 1\n  id: "11111111-2222-3333-4444-555555555555"\n  description: "d"\n  author: "a"\n  version: "3"\n  readonly: true\n  tags: [a, b]\n  conflict_resolution: sequential\n  conditions: ["x"]\n  references: ["http://a"]\n  unknown: 1\n  layer "P1" {\n    start: 2m\n    end: 5m\n    intensity_scale: 0.5\n    other: 1\n  }\n  layer "P2" {\n    duration: 90s\n  }\n}\n',
+  composite_minimal: 'composite "C" {\n  hardware_version: 1\n}\n',
   wr_everything: 'wavelength_rules "W" {\n  level: user\n  description: "d"\n  unknown: 1\n  channel "led_660" {\n    nominal_nm: 660\n    min_nm: 650\n    max_nm: 670\n    other: 1\n  }\n  channel "led_1064" {\n    nominal_nm: 1064\n    min_nm: 1060\n    max_nm: 1070\n  }\n}\n',
   wr_minimal: 'wavelength_rules "W" {\n}\n',
   limits_everything: 'limits "L" {\n  level: helmet\n  helmet_id: "h1"\n  individual_id: "i1"\n  description: "d"\n  pbm_transcranial {\n    max_irradiance_mw_cm2: 300\n    max_frequency: 50\n    max_duty_cycle: 25\n    max_session_dose: 10\n    max_daily_dose: 30\n    other: 1\n  }\n  pbm_intranasal {\n    max_irradiance_mw_cm2: 60\n    max_session_dose: 5\n    max_session_duration: 600\n  }\n  eeg_neurofeedback {\n    allowed_bands: [alpha, theta]\n    require_closed_loop: true\n  }\n  bes_tacs {\n    max_intensity: 1\n    max_frequency: 40\n    min_frequency: 0.5\n    max_session_duration: 1800\n    max_sessions_per_day: 3\n  }\n  tdcs {\n    max_intensity: 2\n    max_session_duration: 1800\n    max_sessions_per_day: 2\n  }\n  vns_hrv {\n    max_intensity: 2\n    max_frequency: 25\n    max_session_duration: 900\n    allowed_protocols: standalone\n  }\n  audio_entrainment {\n    max_volume_db: 80\n    max_frequency: 40\n    max_binaural_beats: 30\n    max_isochronic_tones: 20\n  }\n  visual_stimulation {\n    max_frequency: 40\n    min_frequency: 1\n    allowed_modes: [binocular]\n    block_high_risk_range: true\n  }\n  tms {\n    max_intensity_pct_mt: 120\n    max_pulses_per_session: 3000\n    max_pulses_per_day: 6000\n    max_sessions_per_week: 5\n    allowed_protocols: [rTMS]\n    allowed_targets: ["DLPFC_L"]\n  }\n  pbm_deep_1170nm {\n    max_intensity: 800\n    max_session_duration: 600\n  }\n  clinical_tacs {\n    max_intensity: 4\n    max_session_duration: 1200\n  }\n  hd_tdcs {\n    max_intensity: 2\n    max_session_duration: 1200\n    allowed_montages: ring_4x1\n  }\n  cervical_vns {\n    max_intensity: 2\n    max_session_duration: 600\n  }\n  vibrotactile_40hz {\n    max_intensity: 1.2\n    max_session_duration: 600\n  }\n}\n',
   limits_defaults: 'limits {\n}\n',
   limits_ident_name: 'limits Mine {\n  level: sideways\n}\n',
   limits_odd_values: 'limits "L" {\n  bes_tacs {\n    max_intensity: "0.5"\n    max_frequency: true\n    min_frequency: [2]\n    max_sessions_per_day: "x"\n  }\n  eeg_neurofeedback {\n    require_closed_loop: "no"\n    allowed_bands: 7\n  }\n}\n',
-  everything_in_one_file: 'zone "Z" {\n  sockets: [1]\n}\ncondition "C" {\n}\nprotocol "P" {\n  conditions: ["C"]\n  pbm_transcranial {\n    zones: ["Z"]\n    wavelength: "808nm"\n    irradiance: 100mW_cm2\n  }\n}\ncomposite "K" {\n  layer "P" {\n  }\n}\nlimits "L" {\n}\nwavelength_rules "W" {\n}\n',
+  everything_in_one_file: 'zone "Z" {\n  sockets: [1]\n}\ncondition "C" {\n}\nprotocol "P" {\n  hardware_version: 1\n  conditions: ["C"]\n  pbm_transcranial {\n    zones: ["Z"]\n    wavelength: "808nm"\n    irradiance: 100mW_cm2\n  }\n}\ncomposite "K" {\n  hardware_version: 1\n  layer "P" {\n  }\n}\nlimits "L" {\n}\nwavelength_rules "W" {\n}\n',
   canonical_spellings: blk('bes_tacs', '    frequency_hz: 12\n    intensity_milliamps: 0.6\n    waveform: square'),
   alias_spellings: blk('bes_tacs', '    frequency: 12Hz\n    intensity: 0.6mA\n    waveform: square'),
   canonical_beats_alias: blk('bes_tacs', '    frequency_hz: 40\n    frequency: 10'),
@@ -122,7 +125,7 @@ export const OK_CASES: Record<string, string> = {
   composite_identity: 'composite "C" {\n  family_id: "01234567-89ab-4def-8901-23456789abcd"\n  hardware_version: 3\n}\n',
   zone_versioned: 'zone "Z" {\n  id: "zid"\n  hardware_version 2 {\n    sockets: [9, 8]\n  }\n  hardware_version 1 {\n    sockets: [5, 3, 3]\n  }\n  types: [led_660]\n}\n',
   zone_version_bare_is_one: 'zone "Z" {\n  sockets: [5, 3]\n}\n',
-  metadata_everything: 'protocol "M" {\n  id: "11111111-2222-3333-4444-555555555555"\n  description: "d"\n  author: "a"\n  version: "2"\n  readonly: true\n  tags: [alpha, "x y", 40Hz]\n  interval_count: 4\n  conditions: ["c1", c2]\n  references: ["http://a", ["L", "http://b"], ["only"]]\n  unknown_field: [1, [2, 3]]\n}\n',
+  metadata_everything: 'protocol "M" {\n  hardware_version: 1\n  id: "11111111-2222-3333-4444-555555555555"\n  description: "d"\n  author: "a"\n  version: "2"\n  readonly: true\n  tags: [alpha, "x y", 40Hz]\n  interval_count: 4\n  conditions: ["c1", c2]\n  references: ["http://a", ["L", "http://b"], ["only"]]\n  unknown_field: [1, [2, 3]]\n}\n',
 };
 
 function normaliseProtocol(p: any): any {
@@ -193,14 +196,14 @@ for (const [name, src] of Object.entries({ ...ERROR_CASES, ...OK_CASES })) {
 const zoneSrc = (name: string, sockets: string) => `zone "${name}" {\n  sockets: [${sockets}]\n}\n`;
 const condSrc = (name: string) => `condition "${name}" {\n  link: "http://${name}"\n}\n`;
 const useSrc = (name: string, zones: string[], conds: string[]) =>
-  `protocol "${name}" {\n  conditions: [${conds.map(c => `"${c}"`).join(', ')}]\n  pbm_transcranial {\n    zones: ${zones.length ? `[${zones.map(z => `"${z}"`).join(', ')}]` : 'clinician_selected'}\n    wavelength: "808nm"\n    irradiance: 100mW_cm2\n  }\n}\n`;
+  `protocol "${name}" {\n  hardware_version: 1\n  conditions: [${conds.map(c => `"${c}"`).join(', ')}]\n  pbm_transcranial {\n    zones: ${zones.length ? `[${zones.map(z => `"${z}"`).join(', ')}]` : 'clinician_selected'}\n    wavelength: "808nm"\n    irradiance: 100mW_cm2\n  }\n}\n`;
 export const NAMESPACE_CASES: Record<string, string[]> = {
   cross_file_ok: [zoneSrc('A', '1, 2') + condSrc('C'), useSrc('P', ['A'], ['C'])],
   duplicate_zone: [zoneSrc('A', '1'), zoneSrc('A', '2'), useSrc('P', ['A'], [])],
   triple_zone: [zoneSrc('A', '1'), zoneSrc('A', '2'), zoneSrc('A', '3'), zoneSrc('B', '4')],
   duplicate_condition: [condSrc('C'), condSrc('C'), useSrc('P', [], ['C'])],
   triple_condition: [condSrc('C'), condSrc('C'), condSrc('C'), condSrc('D')],
-  dangling_zone_and_condition: [useSrc('P', ['Nope', 'Gone'], ['Missing']) + 'composite "K" {\n  conditions: ["AlsoMissing"]\n}\n'],
+  dangling_zone_and_condition: [useSrc('P', ['Nope', 'Gone'], ['Missing']) + 'composite "K" {\n  hardware_version: 1\n  conditions: ["AlsoMissing"]\n}\n'],
   duplicate_within_one_file: [zoneSrc('A', '1') + zoneSrc('A', '2')],
   empty: [],
   // SWR-HV-05: a protocol for a hardware version names only zones that have a list for it.
@@ -212,7 +215,6 @@ export const NAMESPACE_CASES: Record<string, string[]> = {
     zoneSrc('A', '1'),
     'protocol "P" {\n  hardware_version: 2\n  pbm_transcranial {\n    wavelength: "808nm"\n    irradiance: 100mW_cm2\n    zones: ["A"]\n  }\n}\n',
   ],
-  no_hardware_version_not_checked: [zoneSrc('A', '1'), useSrc('P', ['A'], [])],
 };
 out.namespaces = {};
 for (const [name, srcs] of Object.entries(NAMESPACE_CASES)) {

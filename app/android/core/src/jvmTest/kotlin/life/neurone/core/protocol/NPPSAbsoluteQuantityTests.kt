@@ -20,7 +20,7 @@ class NPPSAbsoluteQuantityTests {
     private fun parse(text: String): List<NPProtocolEntry> =
         NPPSParser.parse(text)
 
-    private fun proto(body: String) = "protocol \"T\" {\n    duration: 5m\n$body\n}\n"
+    private fun proto(body: String) = "protocol \"T\" {\n  hardware_version: 1\n    duration: 5m\n$body\n}\n"
 
     private fun single(text: String): NPProtocolDefinition =
         (parse(text).single() as NPProtocolEntry.Single).protocol

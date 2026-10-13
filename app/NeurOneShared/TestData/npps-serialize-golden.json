@@ -1,5 +1,5 @@
 {
- "$comment": "The web serializer (app/web/src/lib/nppsSerializer.ts, before it moved to the core) output for every entry, zone, condition and wavelength_rules block of the shipped library. The core must write the same bytes. Frozen: regenerate only from a reviewed serializer change. One deliberate edit to the web output: durations of whole hours are written in minutes (the web wrote `1h`, a unit the lexer does not have, so the file did not load); nothing else differs.",
+ "$comment": "The web serializer (app/web/src/lib/nppsSerializer.ts, before it moved to the core) output for every entry, zone, condition and wavelength_rules block of the shipped library. The core must write the same bytes. Frozen: regenerate only from a reviewed serializer change. One deliberate edit to the web output: durations of whole hours are written in minutes (the web wrote `1h`, a unit the lexer does not have, so the file did not load); nothing else differs. A second deliberate edit (SWR-HV-01, #569): every protocol and composite states hardwareVersion 1 and the text carries `hardware_version: 1` before `description`, because the writer refuses a model without one; the web serializer never wrote it.",
  "files": {
   "protocols/predefined/00-conditions.npps": [
    {
@@ -1022,10 +1022,11 @@
         "label": "tACS 40Hz gamma convergence",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"Gamma Focus\" {\n    id: \"10000001-0000-0000-0000-000000000000\"\n    description: \"Simultaneous 40Hz entrainment across audio, visual, and PBM channels for cognitive enhancement and attention. Evidence-backed GENUS-inspired multi-sensory 40Hz protocol.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"focus\", \"gamma\", \"40Hz\", \"cognitive\", \"multimodal\"]\n    conditions: [\"Alzheimer's Disease\"]\n    references: [[\"PBM Alzheimer's 40Hz (Grade A)\", \"docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a\"], [\"tACS 40Hz gamma convergence\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 322.4mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Vault (excl. Occipital)\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 322.4mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Vault (excl. Occipital)\"]\n    }\n\n    audio_entrainment {\n        binaural_hz: 40Hz\n        noise: none\n        carrier_hz: 440Hz\n        volume: 75dB\n        eeg_adaptive: false\n        bone_conduction_pacer: false\n    }\n\n    visual_stimulation {\n        frequency: 40Hz\n        mode: binocular\n        emdr_cadence: 1Hz\n        enable_mode_f: false\n        interval_on: 1m\n        interval_off: 30s\n        repeat: until_end\n    }\n\n    eeg_neurofeedback {\n        band: gamma\n        channels: all\n        closed_loop: true\n    }\n}"
+    "text": "protocol \"Gamma Focus\" {\n    id: \"10000001-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Simultaneous 40Hz entrainment across audio, visual, and PBM channels for cognitive enhancement and attention. Evidence-backed GENUS-inspired multi-sensory 40Hz protocol.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"focus\", \"gamma\", \"40Hz\", \"cognitive\", \"multimodal\"]\n    conditions: [\"Alzheimer's Disease\"]\n    references: [[\"PBM Alzheimer's 40Hz (Grade A)\", \"docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a\"], [\"tACS 40Hz gamma convergence\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 322.4mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Vault (excl. Occipital)\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 322.4mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Vault (excl. Occipital)\"]\n    }\n\n    audio_entrainment {\n        binaural_hz: 40Hz\n        noise: none\n        carrier_hz: 440Hz\n        volume: 75dB\n        eeg_adaptive: false\n        bone_conduction_pacer: false\n    }\n\n    visual_stimulation {\n        frequency: 40Hz\n        mode: binocular\n        emdr_cadence: 1Hz\n        enable_mode_f: false\n        interval_on: 1m\n        interval_off: 30s\n        repeat: until_end\n    }\n\n    eeg_neurofeedback {\n        band: gamma\n        channels: all\n        closed_loop: true\n    }\n}"
    }
   ],
   "protocols/predefined/02-alpha-calm.npps": [
@@ -1140,10 +1141,11 @@
         "label": "tACS depression/alpha & taVNS anxiety context",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"Alpha Calm\" {\n    id: \"10000002-0000-0000-0000-000000000000\"\n    description: \"Promotes relaxed alertness via 10Hz alpha entrainment with PBM and HRV biofeedback. Ideal for stress reduction and pre-sleep wind-down.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"calm\", \"alpha\", \"relaxation\", \"stress\", \"hrv\"]\n    conditions: [\"Generalized Anxiety Disorder\"]\n    references: [[\"tACS depression/alpha & taVNS anxiety context\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 302.2mW_cm2\n        frequency: 10Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 302.2mW_cm2\n        frequency: 10Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n\n    eeg_neurofeedback {\n        band: alpha\n        channels: all\n        closed_loop: true\n    }\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 1.5mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n\n    audio_entrainment {\n        binaural_hz: 10Hz\n        noise: pink\n        carrier_hz: 440Hz\n        volume: 70dB\n        eeg_adaptive: true\n        bone_conduction_pacer: false\n    }\n}"
+    "text": "protocol \"Alpha Calm\" {\n    id: \"10000002-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Promotes relaxed alertness via 10Hz alpha entrainment with PBM and HRV biofeedback. Ideal for stress reduction and pre-sleep wind-down.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"calm\", \"alpha\", \"relaxation\", \"stress\", \"hrv\"]\n    conditions: [\"Generalized Anxiety Disorder\"]\n    references: [[\"tACS depression/alpha & taVNS anxiety context\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 302.2mW_cm2\n        frequency: 10Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 302.2mW_cm2\n        frequency: 10Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n\n    eeg_neurofeedback {\n        band: alpha\n        channels: all\n        closed_loop: true\n    }\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 1.5mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n\n    audio_entrainment {\n        binaural_hz: 10Hz\n        noise: pink\n        carrier_hz: 440Hz\n        volume: 70dB\n        eeg_adaptive: true\n        bone_conduction_pacer: false\n    }\n}"
    }
   ],
   "protocols/predefined/03-deep-sleep.npps": [
@@ -1256,10 +1258,11 @@
         "label": "tACS slow-oscillation sleep protocol",
         "url": "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"Deep Sleep\" {\n    id: \"10000003-0000-0000-0000-000000000000\"\n    description: \"Slow-wave sleep induction using 2Hz delta PBM on rear zones with brown noise and resonance breathing. Use within 30 minutes of bedtime.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"sleep\", \"delta\", \"recovery\", \"relaxation\"]\n    conditions: [\"Insomnia\"]\n    references: [[\"tACS slow-oscillation sleep protocol\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"]]\n    duration: 45m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 241.8mW_cm2\n        frequency: 2Hz\n        duty_cycle: 25%\n        zones: [\"Posterior\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 241.8mW_cm2\n        frequency: 2Hz\n        duty_cycle: 25%\n        zones: [\"Posterior\"]\n    }\n\n    eeg_neurofeedback {\n        band: delta\n        channels: all\n        closed_loop: true\n    }\n\n    audio_entrainment {\n        noise: brown\n        carrier_hz: 440Hz\n        volume: 60dB\n        eeg_adaptive: false\n        bone_conduction_pacer: false\n    }\n\n    vns_hrv {\n        frequency: 6Hz\n        intensity: 1mA\n        hrv_protocol: standalone\n        breathing_rate: 5\n    }\n}"
+    "text": "protocol \"Deep Sleep\" {\n    id: \"10000003-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Slow-wave sleep induction using 2Hz delta PBM on rear zones with brown noise and resonance breathing. Use within 30 minutes of bedtime.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"sleep\", \"delta\", \"recovery\", \"relaxation\"]\n    conditions: [\"Insomnia\"]\n    references: [[\"tACS slow-oscillation sleep protocol\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"]]\n    duration: 45m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 241.8mW_cm2\n        frequency: 2Hz\n        duty_cycle: 25%\n        zones: [\"Posterior\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 241.8mW_cm2\n        frequency: 2Hz\n        duty_cycle: 25%\n        zones: [\"Posterior\"]\n    }\n\n    eeg_neurofeedback {\n        band: delta\n        channels: all\n        closed_loop: true\n    }\n\n    audio_entrainment {\n        noise: brown\n        carrier_hz: 440Hz\n        volume: 60dB\n        eeg_adaptive: false\n        bone_conduction_pacer: false\n    }\n\n    vns_hrv {\n        frequency: 6Hz\n        intensity: 1mA\n        hrv_protocol: standalone\n        breathing_rate: 5\n    }\n}"
    }
   ],
   "protocols/predefined/04-memory-boost.npps": [
@@ -1365,10 +1368,11 @@
         "label": "1064nm evidence bibliography (NP-BIB-1064-001 Entry 12.1)",
         "url": "docs/np_bib_1064_001.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"Memory Boost\" {\n    id: \"10000004-0000-0000-0000-000000000000\"\n    description: \"Memory and working-memory support. The PBM channel follows its own cited evidence (Yao 2022 / Gonzalez-Lima lineage: 1064nm right prefrontal, 8 min) rather than the theta rhythm; theta (6Hz) entrainment lives in the audio, EEG neurofeedback and HRV channels, where entrainment evidence exists. NOT EVIDENCE-GRADE for the PBM channel: see the notes on that block \u2014 duty, dose, area and irradiance all fall short of the cited literature, and requires a 1064nm-capable (T1-C) module.\"\n    author: \"NeurOne\"\n    version: \"1.1\"\n    readonly: true\n    tags: [\"memory\", \"theta\", \"learning\", \"consolidation\", \"1064nm\"]\n    conditions: [\"Mild Cognitive Impairment\"]\n    references: [[\"PBM cognitive enhancement (Grade A)\", \"docs/pbm_neuro_protocols.md#3-cognitive-enhancement--healthy-adults--cognitive-aging--grade-a\"], [\"Yao 2022 (Sci Adv) \u2014 1064nm right PFC, CW, 250 mW/cm\u00b2, 8 min, visual working memory\", \"docs/np_bib_1064_001.md\"], [\"1064nm evidence bibliography (NP-BIB-1064-001 Entry 12.1)\", \"docs/np_bib_1064_001.md\"]]\n    duration: 30m\n\n    pbm_transcranial {\n        wavelength: \"1064nm\"\n        irradiance: 250mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Frontal Right (excl. midline)\"]\n        interval_on: 8m\n        interval_off: 22m\n        repeat: 1\n    }\n\n    eeg_neurofeedback {\n        band: theta\n        channels: all\n        closed_loop: true\n    }\n\n    audio_entrainment {\n        binaural_hz: 6Hz\n        noise: brown\n        carrier_hz: 440Hz\n        volume: 67.5dB\n        eeg_adaptive: true\n        bone_conduction_pacer: false\n    }\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 1.5mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n}"
+    "text": "protocol \"Memory Boost\" {\n    id: \"10000004-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Memory and working-memory support. The PBM channel follows its own cited evidence (Yao 2022 / Gonzalez-Lima lineage: 1064nm right prefrontal, 8 min) rather than the theta rhythm; theta (6Hz) entrainment lives in the audio, EEG neurofeedback and HRV channels, where entrainment evidence exists. NOT EVIDENCE-GRADE for the PBM channel: see the notes on that block \u2014 duty, dose, area and irradiance all fall short of the cited literature, and requires a 1064nm-capable (T1-C) module.\"\n    author: \"NeurOne\"\n    version: \"1.1\"\n    readonly: true\n    tags: [\"memory\", \"theta\", \"learning\", \"consolidation\", \"1064nm\"]\n    conditions: [\"Mild Cognitive Impairment\"]\n    references: [[\"PBM cognitive enhancement (Grade A)\", \"docs/pbm_neuro_protocols.md#3-cognitive-enhancement--healthy-adults--cognitive-aging--grade-a\"], [\"Yao 2022 (Sci Adv) \u2014 1064nm right PFC, CW, 250 mW/cm\u00b2, 8 min, visual working memory\", \"docs/np_bib_1064_001.md\"], [\"1064nm evidence bibliography (NP-BIB-1064-001 Entry 12.1)\", \"docs/np_bib_1064_001.md\"]]\n    duration: 30m\n\n    pbm_transcranial {\n        wavelength: \"1064nm\"\n        irradiance: 250mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Frontal Right (excl. midline)\"]\n        interval_on: 8m\n        interval_off: 22m\n        repeat: 1\n    }\n\n    eeg_neurofeedback {\n        band: theta\n        channels: all\n        closed_loop: true\n    }\n\n    audio_entrainment {\n        binaural_hz: 6Hz\n        noise: brown\n        carrier_hz: 440Hz\n        volume: 67.5dB\n        eeg_adaptive: true\n        bone_conduction_pacer: false\n    }\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 1.5mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n}"
    }
   ],
   "protocols/predefined/05-anxiety-relief.npps": [
@@ -1488,10 +1492,11 @@
         "label": "taVNS anxiety (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"Anxiety Relief\" {\n    id: \"10000005-0000-0000-0000-000000000000\"\n    description: \"Multi-modal anxiety reduction combining VNS, HRV coherence training, alpha PBM, and resonance breathing. Based on 24-RCT meta-analysis (d=0.83 anxiety reduction).\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"anxiety\", \"stress\", \"hrv\", \"vns\", \"alpha\", \"calm\"]\n    conditions: [\"Generalized Anxiety Disorder\"]\n    references: [[\"PBM anxiety (Grade B)\", \"docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b\"], [\"taVNS anxiety (Grade B)\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 0.5mA\n        hrv_protocol: eeg_biofeedback\n        breathing_rate: 6\n    }\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 261.9mW_cm2\n        frequency: 10Hz\n        duty_cycle: 25%\n        zones: [\"Frontal\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 261.9mW_cm2\n        frequency: 10Hz\n        duty_cycle: 25%\n        zones: [\"Frontal\"]\n    }\n\n    audio_entrainment {\n        binaural_hz: 10Hz\n        noise: pink\n        carrier_hz: 440Hz\n        volume: 70dB\n        eeg_adaptive: true\n        bone_conduction_pacer: true\n    }\n\n    eeg_neurofeedback {\n        band: alpha\n        channels: all\n        closed_loop: true\n    }\n}"
+    "text": "protocol \"Anxiety Relief\" {\n    id: \"10000005-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Multi-modal anxiety reduction combining VNS, HRV coherence training, alpha PBM, and resonance breathing. Based on 24-RCT meta-analysis (d=0.83 anxiety reduction).\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"anxiety\", \"stress\", \"hrv\", \"vns\", \"alpha\", \"calm\"]\n    conditions: [\"Generalized Anxiety Disorder\"]\n    references: [[\"PBM anxiety (Grade B)\", \"docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b\"], [\"taVNS anxiety (Grade B)\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 0.5mA\n        hrv_protocol: eeg_biofeedback\n        breathing_rate: 6\n    }\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 261.9mW_cm2\n        frequency: 10Hz\n        duty_cycle: 25%\n        zones: [\"Frontal\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 261.9mW_cm2\n        frequency: 10Hz\n        duty_cycle: 25%\n        zones: [\"Frontal\"]\n    }\n\n    audio_entrainment {\n        binaural_hz: 10Hz\n        noise: pink\n        carrier_hz: 440Hz\n        volume: 70dB\n        eeg_adaptive: true\n        bone_conduction_pacer: true\n    }\n\n    eeg_neurofeedback {\n        band: alpha\n        channels: all\n        closed_loop: true\n    }\n}"
    }
   ],
   "protocols/predefined/06-flow-state.npps": [
@@ -1620,10 +1625,11 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"Flow State\" {\n    id: \"10000006-0000-0000-0000-000000000000\"\n    description: \"Gamma-theta coupled protocol targeting the flow state signature: frontal gamma + parieto-occipital theta. Split-zone PBM with closed-loop EEG adaptation.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"flow\", \"gamma\", \"theta\", \"performance\", \"creative\", \"multimodal\"]\n    duration: 25m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 322.4mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Frontal\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 322.4mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Frontal\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 302.2mW_cm2\n        frequency: 6Hz\n        duty_cycle: 25%\n        zones: [\"Posterior\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 302.2mW_cm2\n        frequency: 6Hz\n        duty_cycle: 25%\n        zones: [\"Posterior\"]\n    }\n\n    eeg_neurofeedback {\n        band: gamma_theta\n        channels: all\n        closed_loop: true\n    }\n\n    audio_entrainment {\n        binaural_hz: 40Hz\n        isochronic_hz: 6Hz\n        noise: none\n        carrier_hz: 440Hz\n        volume: 72.5dB\n        eeg_adaptive: true\n        bone_conduction_pacer: false\n    }\n}"
+    "text": "protocol \"Flow State\" {\n    id: \"10000006-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Gamma-theta coupled protocol targeting the flow state signature: frontal gamma + parieto-occipital theta. Split-zone PBM with closed-loop EEG adaptation.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"flow\", \"gamma\", \"theta\", \"performance\", \"creative\", \"multimodal\"]\n    duration: 25m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 322.4mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Frontal\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 322.4mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Frontal\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 302.2mW_cm2\n        frequency: 6Hz\n        duty_cycle: 25%\n        zones: [\"Posterior\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 302.2mW_cm2\n        frequency: 6Hz\n        duty_cycle: 25%\n        zones: [\"Posterior\"]\n    }\n\n    eeg_neurofeedback {\n        band: gamma_theta\n        channels: all\n        closed_loop: true\n    }\n\n    audio_entrainment {\n        binaural_hz: 40Hz\n        isochronic_hz: 6Hz\n        noise: none\n        carrier_hz: 440Hz\n        volume: 72.5dB\n        eeg_adaptive: true\n        bone_conduction_pacer: false\n    }\n}"
    }
   ],
   "protocols/predefined/07-vascular-baseline.npps": [
@@ -1713,10 +1719,11 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"Vascular Baseline\" {\n    id: \"10000007-0000-0000-0000-000000000000\"\n    description: \"Continuous-wave PBM for cerebrovascular support. Low-frequency VNS and alpha EEG. Use as a maintenance or recovery session.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"circulation\", \"CW\", \"baseline\", \"maintenance\", \"cerebrovascular\"]\n    duration: 30m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 322.4mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"All\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 322.4mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"All\"]\n    }\n\n    vns_hrv {\n        frequency: 1Hz\n        intensity: 1mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n\n    eeg_neurofeedback {\n        band: alpha\n        channels: all\n        closed_loop: true\n    }\n}"
+    "text": "protocol \"Vascular Baseline\" {\n    id: \"10000007-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Continuous-wave PBM for cerebrovascular support. Low-frequency VNS and alpha EEG. Use as a maintenance or recovery session.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"circulation\", \"CW\", \"baseline\", \"maintenance\", \"cerebrovascular\"]\n    duration: 30m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 322.4mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"All\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 322.4mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"All\"]\n    }\n\n    vns_hrv {\n        frequency: 1Hz\n        intensity: 1mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n\n    eeg_neurofeedback {\n        band: alpha\n        channels: all\n        closed_loop: true\n    }\n}"
    }
   ],
   "protocols/predefined/08-adhd-focus.npps": [
@@ -1837,10 +1844,11 @@
         "label": "tDCS ADHD (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"ADHD Focus\" {\n    id: \"10000008-0000-0000-0000-000000000000\"\n    description: \"EEG neurofeedback theta/beta ratio training with tDCS cortical priming and 20Hz frontal PBM. Based on 21 RCTs (n=1,261) of EEG neurofeedback for ADHD.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"adhd\", \"focus\", \"theta\", \"beta\", \"neurofeedback\", \"tdcs\"]\n    conditions: [\"Attention Deficit Hyperactivity Disorder\"]\n    references: [[\"tDCS ADHD (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"]]\n    duration: 40m\n\n    eeg_neurofeedback {\n        band: alpha_theta\n        channels: front\n        closed_loop: true\n    }\n\n    tdcs {\n        intensity: 1.5mA\n        electrode_pairs: [[\"F3\", \"Fp2\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n        interval_on: 20m\n        interval_off: 20m\n        repeat: 1\n    }\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 282.1mW_cm2\n        frequency: 20Hz\n        duty_cycle: 25%\n        zones: [\"Frontal\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 282.1mW_cm2\n        frequency: 20Hz\n        duty_cycle: 25%\n        zones: [\"Frontal\"]\n    }\n\n    audio_entrainment {\n        isochronic_hz: 20Hz\n        noise: none\n        carrier_hz: 440Hz\n        volume: 67.5dB\n        eeg_adaptive: true\n        bone_conduction_pacer: false\n    }\n}"
+    "text": "protocol \"ADHD Focus\" {\n    id: \"10000008-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"EEG neurofeedback theta/beta ratio training with tDCS cortical priming and 20Hz frontal PBM. Based on 21 RCTs (n=1,261) of EEG neurofeedback for ADHD.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"adhd\", \"focus\", \"theta\", \"beta\", \"neurofeedback\", \"tdcs\"]\n    conditions: [\"Attention Deficit Hyperactivity Disorder\"]\n    references: [[\"tDCS ADHD (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"]]\n    duration: 40m\n\n    eeg_neurofeedback {\n        band: alpha_theta\n        channels: front\n        closed_loop: true\n    }\n\n    tdcs {\n        intensity: 1.5mA\n        electrode_pairs: [[\"F3\", \"Fp2\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n        interval_on: 20m\n        interval_off: 20m\n        repeat: 1\n    }\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 282.1mW_cm2\n        frequency: 20Hz\n        duty_cycle: 25%\n        zones: [\"Frontal\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 282.1mW_cm2\n        frequency: 20Hz\n        duty_cycle: 25%\n        zones: [\"Frontal\"]\n    }\n\n    audio_entrainment {\n        isochronic_hz: 20Hz\n        noise: none\n        carrier_hz: 440Hz\n        volume: 67.5dB\n        eeg_adaptive: true\n        bone_conduction_pacer: false\n    }\n}"
    }
   ],
   "protocols/predefined/09-retinal-health.npps": [
@@ -1882,10 +1890,11 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"Retinal Health\" {\n    id: \"10000009-0000-0000-0000-000000000000\"\n    description: \"Invisible 808-830nm near-infrared retinal PBM during normal-looking wear (Mode F). Supports mitochondrial function in retinal photoreceptors. 3-minute daily maintenance.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"retinal\", \"pbm\", \"nir\", \"mode_f\", \"ocular\", \"maintenance\"]\n    duration: 3m\n\n    visual_stimulation {\n        frequency: 0Hz\n        mode: mode_f\n        emdr_cadence: 1Hz\n        enable_mode_f: true\n    }\n}"
+    "text": "protocol \"Retinal Health\" {\n    id: \"10000009-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Invisible 808-830nm near-infrared retinal PBM during normal-looking wear (Mode F). Supports mitochondrial function in retinal photoreceptors. 3-minute daily maintenance.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"retinal\", \"pbm\", \"nir\", \"mode_f\", \"ocular\", \"maintenance\"]\n    duration: 3m\n\n    visual_stimulation {\n        frequency: 0Hz\n        mode: mode_f\n        emdr_cadence: 1Hz\n        enable_mode_f: true\n    }\n}"
    }
   ],
   "protocols/predefined/10-ptsd-emdr-support.npps": [
@@ -1982,10 +1991,11 @@
         "label": "taVNS PTSD extinction (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"PTSD EMDR Support\" {\n    id: \"1000000A-0000-0000-0000-000000000000\"\n    description: \"EMDR bilateral visual stimulation with VNS vagal support and calming brown noise. Intended for use alongside therapeutic EMDR sessions. WHO-recommended protocol basis.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"ptsd\", \"emdr\", \"bilateral\", \"trauma\", \"vns\", \"clinical\"]\n    conditions: [\"Post-Traumatic Stress Disorder\"]\n    references: [[\"TMS PTSD (Grade B)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"], [\"taVNS PTSD extinction (Grade B)\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 60m\n\n    visual_stimulation {\n        frequency: 1Hz\n        mode: emdr\n        emdr_cadence: 1Hz\n        enable_mode_f: false\n    }\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 0.4mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n\n    audio_entrainment {\n        noise: brown\n        carrier_hz: 440Hz\n        volume: 62.5dB\n        eeg_adaptive: false\n        bone_conduction_pacer: true\n    }\n\n    eeg_neurofeedback {\n        band: alpha\n        channels: all\n        closed_loop: false\n    }\n}"
+    "text": "protocol \"PTSD EMDR Support\" {\n    id: \"1000000A-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"EMDR bilateral visual stimulation with VNS vagal support and calming brown noise. Intended for use alongside therapeutic EMDR sessions. WHO-recommended protocol basis.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"ptsd\", \"emdr\", \"bilateral\", \"trauma\", \"vns\", \"clinical\"]\n    conditions: [\"Post-Traumatic Stress Disorder\"]\n    references: [[\"TMS PTSD (Grade B)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"], [\"taVNS PTSD extinction (Grade B)\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 60m\n\n    visual_stimulation {\n        frequency: 1Hz\n        mode: emdr\n        emdr_cadence: 1Hz\n        enable_mode_f: false\n    }\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 0.4mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n\n    audio_entrainment {\n        noise: brown\n        carrier_hz: 440Hz\n        volume: 62.5dB\n        eeg_adaptive: false\n        bone_conduction_pacer: true\n    }\n\n    eeg_neurofeedback {\n        band: alpha\n        channels: all\n        closed_loop: false\n    }\n}"
    }
   ],
   "protocols/predefined/11-hrv-coherence-training.npps": [
@@ -2050,10 +2060,11 @@
         "label": "taVNS autonomic / HRV (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"HRV Coherence Training\" {\n    id: \"1000000B-0000-0000-0000-000000000000\"\n    description: \"Standalone HRV coherence training with resonance breathing pacer. Bone conduction delivers the breathing cue. Evidence: meta-analysis 24 RCTs (d=0.83 anxiety reduction).\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"HRV\", \"coherence\", \"stress\", \"relaxation\", \"breathing\"]\n    conditions: [\"Generalized Anxiety Disorder\"]\n    references: [[\"taVNS autonomic / HRV (Grade B)\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 1.5mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n\n    audio_entrainment {\n        noise: pink\n        carrier_hz: 440Hz\n        volume: 60dB\n        eeg_adaptive: false\n        bone_conduction_pacer: true\n    }\n}"
+    "text": "protocol \"HRV Coherence Training\" {\n    id: \"1000000B-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Standalone HRV coherence training with resonance breathing pacer. Bone conduction delivers the breathing cue. Evidence: meta-analysis 24 RCTs (d=0.83 anxiety reduction).\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"HRV\", \"coherence\", \"stress\", \"relaxation\", \"breathing\"]\n    conditions: [\"Generalized Anxiety Disorder\"]\n    references: [[\"taVNS autonomic / HRV (Grade B)\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 1.5mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n\n    audio_entrainment {\n        noise: pink\n        carrier_hz: 440Hz\n        volume: 60dB\n        eeg_adaptive: false\n        bone_conduction_pacer: true\n    }\n}"
    }
   ],
   "protocols/predefined/12-hrv-tavns-synchronised.npps": [
@@ -2115,10 +2126,11 @@
         "label": "taVNS respiration-gated HRV (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"HRV + taVNS Synchronised\" {\n    id: \"1000000C-0000-0000-0000-000000000000\"\n    description: \"Stimulation pulses timed to inspiration phase for optimised noradrenergic modulation. Alpha EEG neurofeedback adds cortical awareness layer.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"HRV\", \"VNS\", \"advanced\", \"synchronised\"]\n    conditions: [\"Generalized Anxiety Disorder\"]\n    references: [[\"taVNS respiration-gated HRV (Grade B)\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 1.5mA\n        hrv_protocol: tavns_sync\n        breathing_rate: 6\n    }\n\n    eeg_neurofeedback {\n        band: alpha\n        channels: all\n        closed_loop: true\n    }\n}"
+    "text": "protocol \"HRV + taVNS Synchronised\" {\n    id: \"1000000C-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Stimulation pulses timed to inspiration phase for optimised noradrenergic modulation. Alpha EEG neurofeedback adds cortical awareness layer.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"HRV\", \"VNS\", \"advanced\", \"synchronised\"]\n    conditions: [\"Generalized Anxiety Disorder\"]\n    references: [[\"taVNS respiration-gated HRV (Grade B)\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 1.5mA\n        hrv_protocol: tavns_sync\n        breathing_rate: 6\n    }\n\n    eeg_neurofeedback {\n        band: alpha\n        channels: all\n        closed_loop: true\n    }\n}"
    }
   ],
   "protocols/predefined/13-focus-prime.npps": [
@@ -2236,10 +2248,11 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"Focus Prime\" {\n    id: \"1000000D-0000-0000-0000-000000000000\"\n    description: \"20Hz beta/focus protocol combining PBM, closed-loop EEG, BES, binaural audio, and visual entrainment. BES runs in 30-on/30-off intervals for habituation prevention.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"focus\", \"beta\", \"cognitive\", \"productivity\"]\n    duration: 20m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 322.4mW_cm2\n        frequency: 20Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 322.4mW_cm2\n        frequency: 20Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n\n    eeg_neurofeedback {\n        band: beta\n        channels: all\n        closed_loop: true\n    }\n\n    bes_tacs {\n        frequency: 20Hz\n        intensity: 0.8mA\n        waveform: sinusoidal\n        interval_on: 30s\n        interval_off: 30s\n        repeat: until_end\n    }\n\n    audio_entrainment {\n        binaural_hz: 20Hz\n        noise: pink\n        carrier_hz: 440Hz\n        volume: 70dB\n        eeg_adaptive: true\n        bone_conduction_pacer: false\n    }\n\n    visual_stimulation {\n        frequency: 20Hz\n        mode: binocular\n        emdr_cadence: 1Hz\n        enable_mode_f: false\n        interval_on: 5m\n        interval_off: 2m\n        repeat: until_end\n    }\n}"
+    "text": "protocol \"Focus Prime\" {\n    id: \"1000000D-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"20Hz beta/focus protocol combining PBM, closed-loop EEG, BES, binaural audio, and visual entrainment. BES runs in 30-on/30-off intervals for habituation prevention.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"focus\", \"beta\", \"cognitive\", \"productivity\"]\n    duration: 20m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 322.4mW_cm2\n        frequency: 20Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 322.4mW_cm2\n        frequency: 20Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n\n    eeg_neurofeedback {\n        band: beta\n        channels: all\n        closed_loop: true\n    }\n\n    bes_tacs {\n        frequency: 20Hz\n        intensity: 0.8mA\n        waveform: sinusoidal\n        interval_on: 30s\n        interval_off: 30s\n        repeat: until_end\n    }\n\n    audio_entrainment {\n        binaural_hz: 20Hz\n        noise: pink\n        carrier_hz: 440Hz\n        volume: 70dB\n        eeg_adaptive: true\n        bone_conduction_pacer: false\n    }\n\n    visual_stimulation {\n        frequency: 20Hz\n        mode: binocular\n        emdr_cadence: 1Hz\n        enable_mode_f: false\n        interval_on: 5m\n        interval_off: 2m\n        repeat: until_end\n    }\n}"
    }
   ],
   "protocols/predefined/14-gamma-theta-coupled.npps": [
@@ -2395,10 +2408,11 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"Gamma + Theta Coupled\" {\n    id: \"1000000E-0000-0000-0000-000000000000\"\n    description: \"Simultaneous 40Hz front-zone PBM and 6Hz rear-zone PBM with gamma-theta EEG coupling, binaural + isochronic audio, 40Hz visual entrainment, and BES.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"focus\", \"gamma\", \"theta\", \"coupled\", \"advanced\"]\n    duration: 20m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 302.2mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Frontal\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 302.2mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Frontal\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 282.1mW_cm2\n        frequency: 6Hz\n        duty_cycle: 25%\n        zones: [\"Posterior\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 282.1mW_cm2\n        frequency: 6Hz\n        duty_cycle: 25%\n        zones: [\"Posterior\"]\n    }\n\n    eeg_neurofeedback {\n        band: gamma_theta\n        channels: all\n        closed_loop: true\n    }\n\n    audio_entrainment {\n        binaural_hz: 40Hz\n        isochronic_hz: 6Hz\n        noise: pink\n        carrier_hz: 440Hz\n        volume: 70dB\n        eeg_adaptive: true\n        bone_conduction_pacer: false\n    }\n\n    visual_stimulation {\n        frequency: 40Hz\n        mode: binocular\n        emdr_cadence: 1Hz\n        enable_mode_f: false\n    }\n\n    bes_tacs {\n        frequency: 40Hz\n        intensity: 0.8mA\n        waveform: sinusoidal\n    }\n}"
+    "text": "protocol \"Gamma + Theta Coupled\" {\n    id: \"1000000E-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Simultaneous 40Hz front-zone PBM and 6Hz rear-zone PBM with gamma-theta EEG coupling, binaural + isochronic audio, 40Hz visual entrainment, and BES.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"focus\", \"gamma\", \"theta\", \"coupled\", \"advanced\"]\n    duration: 20m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 302.2mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Frontal\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 302.2mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Frontal\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 282.1mW_cm2\n        frequency: 6Hz\n        duty_cycle: 25%\n        zones: [\"Posterior\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 282.1mW_cm2\n        frequency: 6Hz\n        duty_cycle: 25%\n        zones: [\"Posterior\"]\n    }\n\n    eeg_neurofeedback {\n        band: gamma_theta\n        channels: all\n        closed_loop: true\n    }\n\n    audio_entrainment {\n        binaural_hz: 40Hz\n        isochronic_hz: 6Hz\n        noise: pink\n        carrier_hz: 440Hz\n        volume: 70dB\n        eeg_adaptive: true\n        bone_conduction_pacer: false\n    }\n\n    visual_stimulation {\n        frequency: 40Hz\n        mode: binocular\n        emdr_cadence: 1Hz\n        enable_mode_f: false\n    }\n\n    bes_tacs {\n        frequency: 40Hz\n        intensity: 0.8mA\n        waveform: sinusoidal\n    }\n}"
    }
   ],
   "protocols/predefined/15-full-t1-immersive.npps": [
@@ -2580,10 +2594,11 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"Full T1 Immersive\" {\n    id: \"1000000F-0000-0000-0000-000000000000\"\n    description: \"All 8 T1 modalities running simultaneously with balanced settings. For experienced users. Intranasal PBM and tDCS run in time-limited intervals within the 30-minute session.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"comprehensive\", \"all-modalities\", \"advanced\", \"T1\"]\n    duration: 30m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 302.2mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 302.2mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n\n    pbm_intranasal {\n        wavelength: \"660nm\"\n        irradiance: 60mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        interval_on: 15m\n        interval_off: 15m\n        repeat: 1\n    }\n\n    pbm_intranasal {\n        wavelength: \"808nm\"\n        irradiance: 60mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        interval_on: 15m\n        interval_off: 15m\n        repeat: 1\n    }\n\n    eeg_neurofeedback {\n        band: gamma\n        channels: all\n        closed_loop: true\n    }\n\n    bes_tacs {\n        frequency: 40Hz\n        intensity: 0.8mA\n        waveform: sinusoidal\n    }\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 1.5mA\n        hrv_protocol: tavns_sync\n        breathing_rate: 6\n    }\n\n    audio_entrainment {\n        isochronic_hz: 40Hz\n        noise: pink\n        carrier_hz: 440Hz\n        volume: 70dB\n        eeg_adaptive: true\n        bone_conduction_pacer: true\n    }\n\n    visual_stimulation {\n        frequency: 40Hz\n        mode: binocular\n        emdr_cadence: 1Hz\n        enable_mode_f: false\n    }\n\n    tdcs {\n        intensity: 1mA\n        electrode_pairs: [[\"Fp1\", \"P3\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n        interval_on: 20m\n        interval_off: 10m\n        repeat: 1\n    }\n}"
+    "text": "protocol \"Full T1 Immersive\" {\n    id: \"1000000F-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"All 8 T1 modalities running simultaneously with balanced settings. For experienced users. Intranasal PBM and tDCS run in time-limited intervals within the 30-minute session.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"comprehensive\", \"all-modalities\", \"advanced\", \"T1\"]\n    duration: 30m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 302.2mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 302.2mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n\n    pbm_intranasal {\n        wavelength: \"660nm\"\n        irradiance: 60mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        interval_on: 15m\n        interval_off: 15m\n        repeat: 1\n    }\n\n    pbm_intranasal {\n        wavelength: \"808nm\"\n        irradiance: 60mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        interval_on: 15m\n        interval_off: 15m\n        repeat: 1\n    }\n\n    eeg_neurofeedback {\n        band: gamma\n        channels: all\n        closed_loop: true\n    }\n\n    bes_tacs {\n        frequency: 40Hz\n        intensity: 0.8mA\n        waveform: sinusoidal\n    }\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 1.5mA\n        hrv_protocol: tavns_sync\n        breathing_rate: 6\n    }\n\n    audio_entrainment {\n        isochronic_hz: 40Hz\n        noise: pink\n        carrier_hz: 440Hz\n        volume: 70dB\n        eeg_adaptive: true\n        bone_conduction_pacer: true\n    }\n\n    visual_stimulation {\n        frequency: 40Hz\n        mode: binocular\n        emdr_cadence: 1Hz\n        enable_mode_f: false\n    }\n\n    tdcs {\n        intensity: 1mA\n        electrode_pairs: [[\"Fp1\", \"P3\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n        interval_on: 20m\n        interval_off: 10m\n        repeat: 1\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-01-pbm-alzheimers-chun.npps": [
@@ -2642,10 +2657,11 @@
         "label": "PBM protocol database \u00a71 \u2014 Alzheimer's / dementia (Grade A), section-level bands 0.1\u20130.3 W/cm\u00b2, 20\u201375 J/cm\u00b2",
         "url": "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"PBM \u2014 Alzheimer's (Chun 2026, 808nm high-irradiance)\" {\n    id: \"30000053-0000-0000-0000-000000000000\"\n    description: \"Whole-vault 808nm pulsed PBM for Alzheimer's / dementia at the parameters of Chun 2026 (double-blind, n=26): 0.3 W/cm\u00b2, 11 min, 72 sessions over 12 weeks; MoCA +3.87 vs \u22120.74 (p<0.001). Grade A. This is the only \u00a71 trial that states an IRRADIANCE \u2014 its companion protocol (Wo\u017aniak-Mita\u0142 2026) states total power only, from which no mW/cm\u00b2 follows.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"40Hz\", \"clinical\", \"alzheimers\", \"chun2026\"]\n    conditions: [\"Alzheimer's Disease\", \"Dementia\"]\n    references: [[\"Chun 2026 \u2014 double-blind, n=26, 808nm, 0.3 W/cm\u00b2, 4400 J, 11 min, 72 sessions/12 wk, MoCA +3.87 vs \u22120.74 (p<0.001). THIS protocol's source trial.\", \"docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a\"], [\"PBM protocol database \u00a71 \u2014 Alzheimer's / dementia (Grade A), section-level bands 0.1\u20130.3 W/cm\u00b2, 20\u201375 J/cm\u00b2\", \"docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a\"]]\n    duration: 11m\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 300mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Vault (excl. Occipital)\"]\n    }\n}"
+    "text": "protocol \"PBM \u2014 Alzheimer's (Chun 2026, 808nm high-irradiance)\" {\n    id: \"30000053-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Whole-vault 808nm pulsed PBM for Alzheimer's / dementia at the parameters of Chun 2026 (double-blind, n=26): 0.3 W/cm\u00b2, 11 min, 72 sessions over 12 weeks; MoCA +3.87 vs \u22120.74 (p<0.001). Grade A. This is the only \u00a71 trial that states an IRRADIANCE \u2014 its companion protocol (Wo\u017aniak-Mita\u0142 2026) states total power only, from which no mW/cm\u00b2 follows.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"40Hz\", \"clinical\", \"alzheimers\", \"chun2026\"]\n    conditions: [\"Alzheimer's Disease\", \"Dementia\"]\n    references: [[\"Chun 2026 \u2014 double-blind, n=26, 808nm, 0.3 W/cm\u00b2, 4400 J, 11 min, 72 sessions/12 wk, MoCA +3.87 vs \u22120.74 (p<0.001). THIS protocol's source trial.\", \"docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a\"], [\"PBM protocol database \u00a71 \u2014 Alzheimer's / dementia (Grade A), section-level bands 0.1\u20130.3 W/cm\u00b2, 20\u201375 J/cm\u00b2\", \"docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a\"]]\n    duration: 11m\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 300mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Vault (excl. Occipital)\"]\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-01-pbm-alzheimers-wozniak.npps": [
@@ -2718,10 +2734,11 @@
         "label": "PBM protocol database \u00a71 \u2014 Alzheimer's / dementia (Grade A), section-level bands 0.1\u20130.3 W/cm\u00b2, 20\u201375 J/cm\u00b2",
         "url": "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"PBM \u2014 Alzheimer's 40Hz (Wo\u017aniak-Mita\u0142 2026)\" {\n    id: \"30000001-0000-0000-0000-000000000000\"\n    description: \"Whole-head 810nm pulsed 40Hz transcranial PBM plus bilateral intranasal 660nm for Alzheimer's / dementia (gamma-entrainment rationale). Grade A. 3\u20137x/week, 8\u201312+ weeks.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"gamma\", \"40Hz\", \"clinical\", \"alzheimers\"]\n    conditions: [\"Alzheimer's Disease\", \"Dementia\"]\n    references: [[\"Wo\u017aniak-Mita\u0142 2026 \u2014 double-blind, n=33, 850nm PW 40Hz, 150 mW total, 20 min, 50 sessions/10 wk, MMSE 21.9\u219227.2, ADAS-Cog 34.8\u219218.2 (p<0.0001). THIS protocol's source trial. NOTE: the trial states TOTAL POWER, not irradiance \u2014 see the block notes.\", \"https://doi.org/10.1016/j.pmip.2026\"], [\"PBM protocol database \u00a71 \u2014 Alzheimer's / dementia (Grade A), section-level bands 0.1\u20130.3 W/cm\u00b2, 20\u201375 J/cm\u00b2\", \"docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a\"]]\n    duration: 20m\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 121mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Vault (excl. Occipital)\"]\n    }\n\n    pbm_intranasal {\n        wavelength: \"660nm\"\n        irradiance: 60mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n    }\n}"
+    "text": "protocol \"PBM \u2014 Alzheimer's 40Hz (Wo\u017aniak-Mita\u0142 2026)\" {\n    id: \"30000001-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Whole-head 810nm pulsed 40Hz transcranial PBM plus bilateral intranasal 660nm for Alzheimer's / dementia (gamma-entrainment rationale). Grade A. 3\u20137x/week, 8\u201312+ weeks.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"gamma\", \"40Hz\", \"clinical\", \"alzheimers\"]\n    conditions: [\"Alzheimer's Disease\", \"Dementia\"]\n    references: [[\"Wo\u017aniak-Mita\u0142 2026 \u2014 double-blind, n=33, 850nm PW 40Hz, 150 mW total, 20 min, 50 sessions/10 wk, MMSE 21.9\u219227.2, ADAS-Cog 34.8\u219218.2 (p<0.0001). THIS protocol's source trial. NOTE: the trial states TOTAL POWER, not irradiance \u2014 see the block notes.\", \"https://doi.org/10.1016/j.pmip.2026\"], [\"PBM protocol database \u00a71 \u2014 Alzheimer's / dementia (Grade A), section-level bands 0.1\u20130.3 W/cm\u00b2, 20\u201375 J/cm\u00b2\", \"docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a\"]]\n    duration: 20m\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 121mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Vault (excl. Occipital)\"]\n    }\n\n    pbm_intranasal {\n        wavelength: \"660nm\"\n        irradiance: 60mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-02-pbm-mci.npps": [
@@ -2779,10 +2796,11 @@
         "label": "PBM protocol database \u00a72 \u2014 MCI (Grade A), section-level bands 0.02\u20130.3 W/cm\u00b2, 7\u201360 J/cm\u00b2, 6\u201320 min",
         "url": "docs/pbm_neuro_protocols.md#2-mild-cognitive-impairment-mci--grade-a"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"PBM \u2014 Mild Cognitive Impairment (Papi 2022)\" {\n    id: \"30000002-0000-0000-0000-000000000000\"\n    description: \"Prefrontal 810nm pulsed 40Hz transcranial PBM for mild cognitive impairment. Grade A. 3\u20135x/week, 6\u201312 weeks.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"40Hz\", \"clinical\", \"cognition\"]\n    conditions: [\"Mild Cognitive Impairment\"]\n    references: [[\"Papi 2022 \u2014 sham-controlled, 850nm, 400 mW, 0.285 W/cm\u00b2, 10 min, 5 sessions, MMSE 18\u219227. THIS protocol's source trial: the ONLY \u00a72 trial that states an irradiance.\", \"docs/pbm_neuro_protocols.md#2-mild-cognitive-impairment-mci--grade-a\"], [\"PBM protocol database \u00a72 \u2014 MCI (Grade A), section-level bands 0.02\u20130.3 W/cm\u00b2, 7\u201360 J/cm\u00b2, 6\u201320 min\", \"docs/pbm_neuro_protocols.md#2-mild-cognitive-impairment-mci--grade-a\"]]\n    duration: 10m\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 285mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Frontal Left\", \"Frontal Right\"]\n    }\n}"
+    "text": "protocol \"PBM \u2014 Mild Cognitive Impairment (Papi 2022)\" {\n    id: \"30000002-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Prefrontal 810nm pulsed 40Hz transcranial PBM for mild cognitive impairment. Grade A. 3\u20135x/week, 6\u201312 weeks.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"40Hz\", \"clinical\", \"cognition\"]\n    conditions: [\"Mild Cognitive Impairment\"]\n    references: [[\"Papi 2022 \u2014 sham-controlled, 850nm, 400 mW, 0.285 W/cm\u00b2, 10 min, 5 sessions, MMSE 18\u219227. THIS protocol's source trial: the ONLY \u00a72 trial that states an irradiance.\", \"docs/pbm_neuro_protocols.md#2-mild-cognitive-impairment-mci--grade-a\"], [\"PBM protocol database \u00a72 \u2014 MCI (Grade A), section-level bands 0.02\u20130.3 W/cm\u00b2, 7\u201360 J/cm\u00b2, 6\u201320 min\", \"docs/pbm_neuro_protocols.md#2-mild-cognitive-impairment-mci--grade-a\"]]\n    duration: 10m\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 285mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Frontal Left\", \"Frontal Right\"]\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-03-pbm-alzheimers-1064.npps": [
@@ -2848,10 +2866,11 @@
         "label": "Lateralization decision + optical model (retained from Rev 1.1 \u2014 no longer load-bearing now the target is whole-vault)",
         "url": "docs/np_opt_psf_001.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"PBM \u2014 Alzheimer's 1064nm (deep-cortical channel)\" {\n    id: \"30000003-0000-0000-0000-000000000000\"\n    description: \"Whole-vault 1064nm PBM for Alzheimer's / dementia, targeting \u00a71's 1060\u20131080nm band (Qi/Nizamutdinov 2021: 1060\u20131080nm, 6 min twice daily, 108 sessions/56 d, MMSE +4.8). RE-AUTHORED 2026-08-26 from the \u00a73 cognitive-enhancement target, which was 8.9\u00d7 beyond this channel's reach; \u00a71's band is the nearer target OI-HEXTILE-21 identifies. STILL NOT EVIDENCE-GRADE and still not reachable \u2014 the shortfall narrows, it does not close. See the notes on the modality block for the exact figures.\"\n    author: \"NeurOne\"\n    version: \"2.0\"\n    readonly: true\n    tags: [\"pbm\", \"1064nm\", \"clinical\", \"alzheimers\"]\n    conditions: [\"Alzheimer's Disease\", \"Dementia\"]\n    references: [[\"Qi / Nizamutdinov 2021 \u2014 double-blind, n=60, 1060\u20131080nm, 6 min twice daily, 108 sessions/56 d, MMSE +4.8. THIS protocol's source trial: the only \u00a71 trial in the 1060\u20131080nm band. NOTE: it states no irradiance, so the target below comes from \u00a71's section-level band, not from the trial.\", \"docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a\"], [\"PBM protocol database \u00a71 \u2014 Alzheimer's / dementia (Grade A), section bands 0.1\u20130.3 W/cm\u00b2, 20\u201375 J/cm\u00b2, CW acceptable at 1060nm\", \"docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a\"], [\"OI-HEXTILE-21 \u2014 the 1064nm irradiance wall and the proposal to claim against the AD band rather than the cognitive one\", \"docs/np_hw_hextile_001.md\"], [\"Lateralization decision + optical model (retained from Rev 1.1 \u2014 no longer load-bearing now the target is whole-vault)\", \"docs/np_opt_psf_001.md\"]]\n    duration: 6m\n\n    pbm_transcranial {\n        wavelength: \"1064nm\"\n        irradiance: 100mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Vault (excl. Occipital)\"]\n    }\n}"
+    "text": "protocol \"PBM \u2014 Alzheimer's 1064nm (deep-cortical channel)\" {\n    id: \"30000003-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Whole-vault 1064nm PBM for Alzheimer's / dementia, targeting \u00a71's 1060\u20131080nm band (Qi/Nizamutdinov 2021: 1060\u20131080nm, 6 min twice daily, 108 sessions/56 d, MMSE +4.8). RE-AUTHORED 2026-08-26 from the \u00a73 cognitive-enhancement target, which was 8.9\u00d7 beyond this channel's reach; \u00a71's band is the nearer target OI-HEXTILE-21 identifies. STILL NOT EVIDENCE-GRADE and still not reachable \u2014 the shortfall narrows, it does not close. See the notes on the modality block for the exact figures.\"\n    author: \"NeurOne\"\n    version: \"2.0\"\n    readonly: true\n    tags: [\"pbm\", \"1064nm\", \"clinical\", \"alzheimers\"]\n    conditions: [\"Alzheimer's Disease\", \"Dementia\"]\n    references: [[\"Qi / Nizamutdinov 2021 \u2014 double-blind, n=60, 1060\u20131080nm, 6 min twice daily, 108 sessions/56 d, MMSE +4.8. THIS protocol's source trial: the only \u00a71 trial in the 1060\u20131080nm band. NOTE: it states no irradiance, so the target below comes from \u00a71's section-level band, not from the trial.\", \"docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a\"], [\"PBM protocol database \u00a71 \u2014 Alzheimer's / dementia (Grade A), section bands 0.1\u20130.3 W/cm\u00b2, 20\u201375 J/cm\u00b2, CW acceptable at 1060nm\", \"docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a\"], [\"OI-HEXTILE-21 \u2014 the 1064nm irradiance wall and the proposal to claim against the AD band rather than the cognitive one\", \"docs/np_hw_hextile_001.md\"], [\"Lateralization decision + optical model (retained from Rev 1.1 \u2014 no longer load-bearing now the target is whole-vault)\", \"docs/np_opt_psf_001.md\"]]\n    duration: 6m\n\n    pbm_transcranial {\n        wavelength: \"1064nm\"\n        irradiance: 100mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Vault (excl. Occipital)\"]\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-04-pbm-depression-cassano.npps": [
@@ -2911,10 +2930,11 @@
         "label": "PBM protocol database \u00a74 \u2014 Depression (Grade B), section-level bands 0.03\u20130.25 W/cm\u00b2, dose target \u226560 J/cm\u00b2/site",
         "url": "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"PBM \u2014 Depression (Cassano 2018, low-irradiance CW)\" {\n    id: \"30000004-0000-0000-0000-000000000000\"\n    description: \"Bilateral DLPFC 823nm PBM for major depressive disorder at the parameters of Cassano 2018 (double-blind RCT, n=21): 36 mW/cm\u00b2 continuous wave, up to 65 J/cm\u00b2, 20\u201330 min, 16 sessions over 8 weeks; HAM-D effect size 0.9\u20131.5. Grade B. This is the LOW-IRRADIANCE arm of the \u00a74 evidence \u2014 the section's 0.03\u20130.25 W/cm\u00b2 band is two trials seven-fold apart, and this is the 0.03 end. See the Schiffer 2009 protocol for the other.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"clinical\", \"depression\", \"dlpfc\", \"cw\", \"cassano2018\"]\n    conditions: [\"Major Depressive Disorder\"]\n    references: [[\"Cassano 2018 \u2014 double-blind RCT, n=21, 823nm CW, 36 mW/cm\u00b2, up to 65 J/cm\u00b2, 20\u201330 min, 16 sessions/8 wk, HAM-D ES 0.9\u20131.5. THIS protocol's source trial.\", \"https://doi.org/10.1089/photob.2018\"], [\"PBM protocol database \u00a74 \u2014 Depression (Grade B), section-level bands 0.03\u20130.25 W/cm\u00b2, dose target \u226560 J/cm\u00b2/site\", \"docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b\"]]\n    duration: 30m\n\n    pbm_transcranial {\n        wavelength: \"823nm\"\n        irradiance: 36mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Frontal Left\", \"Frontal Right\"]\n    }\n}"
+    "text": "protocol \"PBM \u2014 Depression (Cassano 2018, low-irradiance CW)\" {\n    id: \"30000004-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Bilateral DLPFC 823nm PBM for major depressive disorder at the parameters of Cassano 2018 (double-blind RCT, n=21): 36 mW/cm\u00b2 continuous wave, up to 65 J/cm\u00b2, 20\u201330 min, 16 sessions over 8 weeks; HAM-D effect size 0.9\u20131.5. Grade B. This is the LOW-IRRADIANCE arm of the \u00a74 evidence \u2014 the section's 0.03\u20130.25 W/cm\u00b2 band is two trials seven-fold apart, and this is the 0.03 end. See the Schiffer 2009 protocol for the other.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"clinical\", \"depression\", \"dlpfc\", \"cw\", \"cassano2018\"]\n    conditions: [\"Major Depressive Disorder\"]\n    references: [[\"Cassano 2018 \u2014 double-blind RCT, n=21, 823nm CW, 36 mW/cm\u00b2, up to 65 J/cm\u00b2, 20\u201330 min, 16 sessions/8 wk, HAM-D ES 0.9\u20131.5. THIS protocol's source trial.\", \"https://doi.org/10.1089/photob.2018\"], [\"PBM protocol database \u00a74 \u2014 Depression (Grade B), section-level bands 0.03\u20130.25 W/cm\u00b2, dose target \u226560 J/cm\u00b2/site\", \"docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b\"]]\n    duration: 30m\n\n    pbm_transcranial {\n        wavelength: \"823nm\"\n        irradiance: 36mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Frontal Left\", \"Frontal Right\"]\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-04-pbm-depression-schiffer.npps": [
@@ -2994,10 +3014,11 @@
         "label": "PBM protocol database \u00a74 \u2014 Depression (Grade B), section-level bands 0.03\u20130.25 W/cm\u00b2, dose target \u226560 J/cm\u00b2/site",
         "url": "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"PBM \u2014 Depression (Schiffer 2009, high-irradiance)\" {\n    id: \"30000052-0000-0000-0000-000000000000\"\n    description: \"Single-session 810nm PBM for major depression, as Schiffer 2009 ran it (open pilot, n=10): an LED cluster, continuous wave, 250 mW/cm\u00b2, 4 min at F3 and then 4 min at F4, 60 J/cm\u00b2 per site. This is the HIGH-IRRADIANCE arm of the \u00a74 evidence, seven times Cassano 2018; see that protocol for the other end. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 250 mW/cm\u00b2 CW is inside the time-averaged ceiling at 808nm (\u2248329, CLAUDE.md \u00a73, OI-HEXTILE-32 closed).\"\n    author: \"NeurOne\"\n    version: \"2.0\"\n    readonly: true\n    tags: [\"pbm\", \"clinical\", \"depression\", \"dlpfc\", \"cw\", \"schiffer2009\"]\n    conditions: [\"Major Depressive Disorder\"]\n    references: [[\"Schiffer F et al. 2009, Behav Brain Funct 5:46 \u2014 open pilot, n=10, single treatment; 810nm LED cluster, CW, 250 mW/cm\u00b2, 4 min at F3 then 4 min at F4, 60 J/cm\u00b2 per site. THIS protocol's source.\", \"docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b\"], [\"PBM protocol database \u00a74 \u2014 Depression (Grade B), section-level bands 0.03\u20130.25 W/cm\u00b2, dose target \u226560 J/cm\u00b2/site\", \"docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b\"]]\n    duration: 8m\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 250mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Frontal Left\"]\n        interval_on: 4m\n        interval_off: 0s\n        repeat: 1\n    }\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 250mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Frontal Right\"]\n        start: 4m\n        interval_on: 4m\n        interval_off: 0s\n        repeat: 1\n    }\n}"
+    "text": "protocol \"PBM \u2014 Depression (Schiffer 2009, high-irradiance)\" {\n    id: \"30000052-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Single-session 810nm PBM for major depression, as Schiffer 2009 ran it (open pilot, n=10): an LED cluster, continuous wave, 250 mW/cm\u00b2, 4 min at F3 and then 4 min at F4, 60 J/cm\u00b2 per site. This is the HIGH-IRRADIANCE arm of the \u00a74 evidence, seven times Cassano 2018; see that protocol for the other end. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 250 mW/cm\u00b2 CW is inside the time-averaged ceiling at 808nm (\u2248329, CLAUDE.md \u00a73, OI-HEXTILE-32 closed).\"\n    author: \"NeurOne\"\n    version: \"2.0\"\n    readonly: true\n    tags: [\"pbm\", \"clinical\", \"depression\", \"dlpfc\", \"cw\", \"schiffer2009\"]\n    conditions: [\"Major Depressive Disorder\"]\n    references: [[\"Schiffer F et al. 2009, Behav Brain Funct 5:46 \u2014 open pilot, n=10, single treatment; 810nm LED cluster, CW, 250 mW/cm\u00b2, 4 min at F3 then 4 min at F4, 60 J/cm\u00b2 per site. THIS protocol's source.\", \"docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b\"], [\"PBM protocol database \u00a74 \u2014 Depression (Grade B), section-level bands 0.03\u20130.25 W/cm\u00b2, dose target \u226560 J/cm\u00b2/site\", \"docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b\"]]\n    duration: 8m\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 250mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Frontal Left\"]\n        interval_on: 4m\n        interval_off: 0s\n        repeat: 1\n    }\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 250mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Frontal Right\"]\n        start: 4m\n        interval_on: 4m\n        interval_off: 0s\n        repeat: 1\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-05-pbm-anxiety-maiello.npps": [
@@ -3056,10 +3077,11 @@
         "label": "PBM protocol database \u00a75 \u2014 Anxiety / GAD (Grade B), section-level parameter bands",
         "url": "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"PBM \u2014 Anxiety (Maiello 2019, low-irradiance CW)\" {\n    id: \"30000005-0000-0000-0000-000000000000\"\n    description: \"Bilateral prefrontal 830nm PBM for generalized anxiety, at the parameters of Maiello 2019 (open-label, n=15): 30 mW/cm\u00b2 continuous wave, 36 J/cm\u00b2, 20 min, daily for 8 weeks; SIGH-A 17.3\u21928.5, d=1.47. Grade B. This is the LOW-IRRADIANCE arm of the \u00a75 evidence \u2014 the section's 0.03\u20130.31 W/cm\u00b2 band is not a range one protocol occupies, it is two trials an order of magnitude apart, and this is the 0.03 end. See the Wang 2023 protocol for the other.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"clinical\", \"anxiety\", \"cw\", \"maiello2019\"]\n    conditions: [\"Generalized Anxiety Disorder\"]\n    references: [[\"Maiello 2019 \u2014 open-label, n=15, 830nm, 30 mW/cm\u00b2 CW, 36 J/cm\u00b2, 20 min daily 8 wk, SIGH-A 17.3\u21928.5 (d=1.47). THIS protocol's source trial.\", \"docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b\"], [\"PBM protocol database \u00a75 \u2014 Anxiety / GAD (Grade B), section-level parameter bands\", \"docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b\"]]\n    duration: 20m\n\n    pbm_transcranial {\n        wavelength: \"830nm\"\n        irradiance: 30mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Frontal Left\", \"Frontal Right\"]\n    }\n}"
+    "text": "protocol \"PBM \u2014 Anxiety (Maiello 2019, low-irradiance CW)\" {\n    id: \"30000005-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Bilateral prefrontal 830nm PBM for generalized anxiety, at the parameters of Maiello 2019 (open-label, n=15): 30 mW/cm\u00b2 continuous wave, 36 J/cm\u00b2, 20 min, daily for 8 weeks; SIGH-A 17.3\u21928.5, d=1.47. Grade B. This is the LOW-IRRADIANCE arm of the \u00a75 evidence \u2014 the section's 0.03\u20130.31 W/cm\u00b2 band is not a range one protocol occupies, it is two trials an order of magnitude apart, and this is the 0.03 end. See the Wang 2023 protocol for the other.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"clinical\", \"anxiety\", \"cw\", \"maiello2019\"]\n    conditions: [\"Generalized Anxiety Disorder\"]\n    references: [[\"Maiello 2019 \u2014 open-label, n=15, 830nm, 30 mW/cm\u00b2 CW, 36 J/cm\u00b2, 20 min daily 8 wk, SIGH-A 17.3\u21928.5 (d=1.47). THIS protocol's source trial.\", \"docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b\"], [\"PBM protocol database \u00a75 \u2014 Anxiety / GAD (Grade B), section-level parameter bands\", \"docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b\"]]\n    duration: 20m\n\n    pbm_transcranial {\n        wavelength: \"830nm\"\n        irradiance: 30mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Frontal Left\", \"Frontal Right\"]\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-05-pbm-anxiety-wang.npps": [
@@ -3119,10 +3141,11 @@
         "label": "PBM protocol database \u00a75 \u2014 Anxiety / GAD (Grade B)",
         "url": "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"PBM \u2014 Anxiety (Wang 2023, high-irradiance)\" {\n    id: \"30000051-0000-0000-0000-000000000000\"\n    description: \"820nm PBM to the left DLPFC for generalized anxiety, as Wang 2023 ran it (double-blind sham-controlled RCT, n=36, 33 analysed): a continuous-wave laser at 310 mW/cm\u00b2, a 1 cm spot at F5, four 4-minute exposures a day 5 minutes apart, on 14 consecutive days. HAMA fell more than sham (p=0.021) and stayed lower at 8 weeks; HAMA response 11/16 active vs 2/17 sham. Grade B. One session here is one day of that course; the 14-day schedule is the user's to keep, since the language has no course field. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 310 mW/cm\u00b2 CW is inside the time-averaged ceiling at 820nm (\u2248348, CLAUDE.md \u00a73).\"\n    author: \"NeurOne\"\n    version: \"2.1\"\n    readonly: true\n    tags: [\"pbm\", \"clinical\", \"anxiety\", \"dlpfc\", \"cw\", \"wang2023\"]\n    conditions: [\"Generalized Anxiety Disorder\"]\n    references: [[\"Wang H, Song P et al. 2023, Brain Res Bull 200:110682, doi:10.1016/j.brainresbull.2023.110682 \u2014 double-blind sham-controlled RCT, n=36 (16 active and 17 sham completed); 820nm diverging continuous laser, 310 mW/cm\u00b2, 1 cm diameter spot at F5 (left DLPFC); 4 \u00d7 4 min daily at 5-min intervals, 16 min/day, 14 consecutive days; HAMA reduced vs sham (p=0.021), sustained to the 8-week follow-up. THIS protocol's source (\u00a72.2 of the paper).\", \"docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b\"], [\"PBM protocol database \u00a75 \u2014 Anxiety / GAD (Grade B)\", \"docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b\"]]\n    duration: 31m\n\n    pbm_transcranial {\n        wavelength: \"820nm\"\n        irradiance: 310mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Frontal Left (excl. midline)\"]\n        interval_on: 4m\n        interval_off: 5m\n        repeat: 4\n    }\n}"
+    "text": "protocol \"PBM \u2014 Anxiety (Wang 2023, high-irradiance)\" {\n    id: \"30000051-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"820nm PBM to the left DLPFC for generalized anxiety, as Wang 2023 ran it (double-blind sham-controlled RCT, n=36, 33 analysed): a continuous-wave laser at 310 mW/cm\u00b2, a 1 cm spot at F5, four 4-minute exposures a day 5 minutes apart, on 14 consecutive days. HAMA fell more than sham (p=0.021) and stayed lower at 8 weeks; HAMA response 11/16 active vs 2/17 sham. Grade B. One session here is one day of that course; the 14-day schedule is the user's to keep, since the language has no course field. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 310 mW/cm\u00b2 CW is inside the time-averaged ceiling at 820nm (\u2248348, CLAUDE.md \u00a73).\"\n    author: \"NeurOne\"\n    version: \"2.1\"\n    readonly: true\n    tags: [\"pbm\", \"clinical\", \"anxiety\", \"dlpfc\", \"cw\", \"wang2023\"]\n    conditions: [\"Generalized Anxiety Disorder\"]\n    references: [[\"Wang H, Song P et al. 2023, Brain Res Bull 200:110682, doi:10.1016/j.brainresbull.2023.110682 \u2014 double-blind sham-controlled RCT, n=36 (16 active and 17 sham completed); 820nm diverging continuous laser, 310 mW/cm\u00b2, 1 cm diameter spot at F5 (left DLPFC); 4 \u00d7 4 min daily at 5-min intervals, 16 min/day, 14 consecutive days; HAMA reduced vs sham (p=0.021), sustained to the 8-week follow-up. THIS protocol's source (\u00a72.2 of the paper).\", \"docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b\"], [\"PBM protocol database \u00a75 \u2014 Anxiety / GAD (Grade B)\", \"docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b\"]]\n    duration: 31m\n\n    pbm_transcranial {\n        wavelength: \"820nm\"\n        irradiance: 310mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Frontal Left (excl. midline)\"]\n        interval_on: 4m\n        interval_off: 5m\n        repeat: 4\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-06-pbm-tbi.npps": [
@@ -3207,10 +3230,11 @@
         "label": "PBM protocol database \u00a76 \u2014 TBI chronic / post-concussion (Grade B), section-level bands 0.02\u20130.25 W/cm\u00b2, 10\u2013120 J/cm\u00b2, 10\u201320 min",
         "url": "docs/pbm_neuro_protocols.md#6-traumatic-brain-injury-chronic--post-concussion-syndrome--grade-b"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"PBM \u2014 TBI (chronic) + Intranasal (Naeser 2011/2014)\" {\n    id: \"30000006-0000-0000-0000-000000000000\"\n    description: \"Multi-site scalp 810nm PBM plus bilateral intranasal for chronic traumatic brain injury / post-concussion syndrome. Grade B. 3x/week, 6+ weeks. Chronic > acute.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"clinical\", \"tbi\"]\n    conditions: [\"Traumatic Brain Injury\", \"Post-Concussion Syndrome\"]\n    references: [[\"Naeser 2011/2014 \u2014 case series / single-arm, 633+870nm CW, 22 mW/cm\u00b2, 13 J/cm\u00b2, transcranial + bilateral intranasal, 3\u00d7/wk, executive-function gains. THIS protocol's source trial: the \u00a76 trial whose 633+870nm pairing matches the T1-A tile's own two channels.\", \"docs/pbm_neuro_protocols.md#6-traumatic-brain-injury-chronic--post-concussion-syndrome--grade-b\"], [\"PBM protocol database \u00a76 \u2014 TBI chronic / post-concussion (Grade B), section-level bands 0.02\u20130.25 W/cm\u00b2, 10\u2013120 J/cm\u00b2, 10\u201320 min\", \"docs/pbm_neuro_protocols.md#6-traumatic-brain-injury-chronic--post-concussion-syndrome--grade-b\"]]\n    duration: 10m\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 22mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Vault (excl. Occipital)\"]\n    }\n\n    pbm_intranasal {\n        wavelength: \"660nm\"\n        irradiance: 60mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n    }\n\n    pbm_intranasal {\n        wavelength: \"808nm\"\n        irradiance: 60mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n    }\n}"
+    "text": "protocol \"PBM \u2014 TBI (chronic) + Intranasal (Naeser 2011/2014)\" {\n    id: \"30000006-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Multi-site scalp 810nm PBM plus bilateral intranasal for chronic traumatic brain injury / post-concussion syndrome. Grade B. 3x/week, 6+ weeks. Chronic > acute.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"clinical\", \"tbi\"]\n    conditions: [\"Traumatic Brain Injury\", \"Post-Concussion Syndrome\"]\n    references: [[\"Naeser 2011/2014 \u2014 case series / single-arm, 633+870nm CW, 22 mW/cm\u00b2, 13 J/cm\u00b2, transcranial + bilateral intranasal, 3\u00d7/wk, executive-function gains. THIS protocol's source trial: the \u00a76 trial whose 633+870nm pairing matches the T1-A tile's own two channels.\", \"docs/pbm_neuro_protocols.md#6-traumatic-brain-injury-chronic--post-concussion-syndrome--grade-b\"], [\"PBM protocol database \u00a76 \u2014 TBI chronic / post-concussion (Grade B), section-level bands 0.02\u20130.25 W/cm\u00b2, 10\u2013120 J/cm\u00b2, 10\u201320 min\", \"docs/pbm_neuro_protocols.md#6-traumatic-brain-injury-chronic--post-concussion-syndrome--grade-b\"]]\n    duration: 10m\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 22mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Vault (excl. Occipital)\"]\n    }\n\n    pbm_intranasal {\n        wavelength: \"660nm\"\n        irradiance: 60mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n    }\n\n    pbm_intranasal {\n        wavelength: \"808nm\"\n        irradiance: 60mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-07-pbm-autism.npps": [
@@ -3269,10 +3293,11 @@
         "label": "Fradkin 2024 DB RCT",
         "url": "docs/pbm_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"PBM \u2014 Autism (pediatric, 40Hz)\" {\n    id: \"30000007-0000-0000-0000-000000000000\"\n    description: \"Low-power 850nm pulsed 40Hz over temporal + posterior sites for pediatric autism spectrum disorder. Grade B. 2x/week, 8 weeks. Conservative pediatric dosing \u2014 titrate for tolerability.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"40Hz\", \"clinical\", \"autism\", \"pediatric\"]\n    conditions: [\"Autism Spectrum Disorder\"]\n    references: [[\"PBM protocol database \u00a77 (Grade B)\", \"docs/pbm_neuro_protocols.md#7-autism-spectrum-disorder-pediatric--grade-b\"], [\"Fradkin 2024 DB RCT\", \"docs/pbm_neuro_protocols.md\"]]\n    duration: 6m\n\n    pbm_transcranial {\n        wavelength: \"850nm\"\n        irradiance: 80.6mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Temporal Left\", \"Temporal Right\"]\n    }\n}"
+    "text": "protocol \"PBM \u2014 Autism (pediatric, 40Hz)\" {\n    id: \"30000007-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Low-power 850nm pulsed 40Hz over temporal + posterior sites for pediatric autism spectrum disorder. Grade B. 2x/week, 8 weeks. Conservative pediatric dosing \u2014 titrate for tolerability.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"40Hz\", \"clinical\", \"autism\", \"pediatric\"]\n    conditions: [\"Autism Spectrum Disorder\"]\n    references: [[\"PBM protocol database \u00a77 (Grade B)\", \"docs/pbm_neuro_protocols.md#7-autism-spectrum-disorder-pediatric--grade-b\"], [\"Fradkin 2024 DB RCT\", \"docs/pbm_neuro_protocols.md\"]]\n    duration: 6m\n\n    pbm_transcranial {\n        wavelength: \"850nm\"\n        irradiance: 80.6mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Temporal Left\", \"Temporal Right\"]\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-08-pbm-parkinsons.npps": [
@@ -3346,10 +3371,11 @@
         "label": "Liebert 2021/2024 (gut-brain + transcranial)",
         "url": "docs/pbm_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"PBM \u2014 Parkinson's (transcranial)\" {\n    id: \"30000008-0000-0000-0000-000000000000\"\n    description: \"Transcranial 810 + 660nm PBM over motor/midline for Parkinson's disease. Grade C. Daily / 6x week, \u226512 weeks. NOTE: the evidence pairs head PBM with NECK (vagus) and ABDOMEN (gut) light \u2014 those peripheral sites are NOT NeurOne device functions; this preset is the transcranial channel only.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"clinical\", \"parkinsons\"]\n    conditions: [\"Parkinson's Disease\"]\n    references: [[\"PBM protocol database \u00a78 (Grade C)\", \"docs/pbm_neuro_protocols.md#8-parkinsons-disease--grade-c\"], [\"Liebert 2021/2024 (gut-brain + transcranial)\", \"docs/pbm_neuro_protocols.md\"]]\n    duration: 20m\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 201.5mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Motor / SMA\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 201.5mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Motor / SMA\"]\n    }\n}"
+    "text": "protocol \"PBM \u2014 Parkinson's (transcranial)\" {\n    id: \"30000008-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Transcranial 810 + 660nm PBM over motor/midline for Parkinson's disease. Grade C. Daily / 6x week, \u226512 weeks. NOTE: the evidence pairs head PBM with NECK (vagus) and ABDOMEN (gut) light \u2014 those peripheral sites are NOT NeurOne device functions; this preset is the transcranial channel only.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"clinical\", \"parkinsons\"]\n    conditions: [\"Parkinson's Disease\"]\n    references: [[\"PBM protocol database \u00a78 (Grade C)\", \"docs/pbm_neuro_protocols.md#8-parkinsons-disease--grade-c\"], [\"Liebert 2021/2024 (gut-brain + transcranial)\", \"docs/pbm_neuro_protocols.md\"]]\n    duration: 20m\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 201.5mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Motor / SMA\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 201.5mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Motor / SMA\"]\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-09-pbm-stroke-rehab.npps": [
@@ -3429,10 +3455,11 @@
         "label": "PBM protocol database \u00a79 (Grade C, chronic)",
         "url": "docs/pbm_neuro_protocols.md#9-stroke--grade-c-chronic-rehab--avoid-acute"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"PBM \u2014 Stroke (chronic rehab)\" {\n    id: \"30000009-0000-0000-0000-000000000000\"\n    description: \"Perilesional + midline 810nm transcranial PBM plus intranasal for chronic post-stroke rehab, paired with physical/speech therapy. Grade C. 3x/week. Do NOT use for acute stroke (documented null; contraindicated as monotherapy).\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"clinical\", \"stroke\"]\n    conditions: [\"Stroke\"]\n    references: [[\"PBM protocol database \u00a79 (Grade C, chronic)\", \"docs/pbm_neuro_protocols.md#9-stroke--grade-c-chronic-rehab--avoid-acute\"]]\n    duration: 15m\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 20mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: clinician_selected\n    }\n\n    pbm_intranasal {\n        wavelength: \"660nm\"\n        irradiance: 50mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n    }\n\n    pbm_intranasal {\n        wavelength: \"808nm\"\n        irradiance: 50mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n    }\n}"
+    "text": "protocol \"PBM \u2014 Stroke (chronic rehab)\" {\n    id: \"30000009-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Perilesional + midline 810nm transcranial PBM plus intranasal for chronic post-stroke rehab, paired with physical/speech therapy. Grade C. 3x/week. Do NOT use for acute stroke (documented null; contraindicated as monotherapy).\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"clinical\", \"stroke\"]\n    conditions: [\"Stroke\"]\n    references: [[\"PBM protocol database \u00a79 (Grade C, chronic)\", \"docs/pbm_neuro_protocols.md#9-stroke--grade-c-chronic-rehab--avoid-acute\"]]\n    duration: 15m\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 20mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: clinician_selected\n    }\n\n    pbm_intranasal {\n        wavelength: \"660nm\"\n        irradiance: 50mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n    }\n\n    pbm_intranasal {\n        wavelength: \"808nm\"\n        irradiance: 50mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-10-tms-depression.npps": [
@@ -3486,10 +3513,11 @@
         "label": "O'Reardon 2007; George 2010",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"TMS \u2014 Depression (L-DLPFC 10Hz)\" {\n    id: \"30000010-0000-0000-0000-000000000000\"\n    description: \"Figure-8 rTMS, left DLPFC, 10Hz, 120% RMT, 3000 pulses. FDA-cleared workhorse for MDD. Grade A. 20\u201330 sessions over 4\u20136 weeks.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"clinical\", \"depression\", \"t2\"]\n    conditions: [\"Major Depressive Disorder\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS (Grade A)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"], [\"O'Reardon 2007; George 2010\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 37m\n\n    tms {\n        tms_protocol: rTMS\n        frequency: 10Hz\n        intensity_percent_mt: 120\n        target: DLPFC_L\n        pulse_count: 3000\n    }\n}"
+    "text": "protocol \"TMS \u2014 Depression (L-DLPFC 10Hz)\" {\n    id: \"30000010-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Figure-8 rTMS, left DLPFC, 10Hz, 120% RMT, 3000 pulses. FDA-cleared workhorse for MDD. Grade A. 20\u201330 sessions over 4\u20136 weeks.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"clinical\", \"depression\", \"t2\"]\n    conditions: [\"Major Depressive Disorder\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS (Grade A)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"], [\"O'Reardon 2007; George 2010\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 37m\n\n    tms {\n        tms_protocol: rTMS\n        frequency: 10Hz\n        intensity_percent_mt: 120\n        target: DLPFC_L\n        pulse_count: 3000\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-11-tms-depression-itbs.npps": [
@@ -3544,10 +3572,11 @@
         "label": "Cole 2022 SAINT",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"TMS \u2014 Depression Accelerated (iTBS)\" {\n    id: \"30000011-0000-0000-0000-000000000000\"\n    description: \"Figure-8 intermittent theta-burst (iTBS), left DLPFC, 90% rMT, 1800 pulses \u2014 accelerated SAINT/SNT-style dosing. Grade A. Multiple sessions/day.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"itbs\", \"clinical\", \"depression\", \"t2\"]\n    conditions: [\"Major Depressive Disorder\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS accelerated\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"], [\"Cole 2022 SAINT\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 10m\n\n    tms {\n        tms_protocol: iTBS\n        frequency: 50Hz\n        intensity_percent_mt: 90\n        target: DLPFC_L\n        pulse_count: 1800\n    }\n}"
+    "text": "protocol \"TMS \u2014 Depression Accelerated (iTBS)\" {\n    id: \"30000011-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Figure-8 intermittent theta-burst (iTBS), left DLPFC, 90% rMT, 1800 pulses \u2014 accelerated SAINT/SNT-style dosing. Grade A. Multiple sessions/day.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"itbs\", \"clinical\", \"depression\", \"t2\"]\n    conditions: [\"Major Depressive Disorder\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS accelerated\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"], [\"Cole 2022 SAINT\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 10m\n\n    tms {\n        tms_protocol: iTBS\n        frequency: 50Hz\n        intensity_percent_mt: 90\n        target: DLPFC_L\n        pulse_count: 1800\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-12-tms-pain.npps": [
@@ -3602,10 +3631,11 @@
         "label": "Lefaucheur 2008/2020",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"TMS \u2014 Chronic / Neuropathic Pain (M1)\" {\n    id: \"30000012-0000-0000-0000-000000000000\"\n    description: \"Figure-8 HF rTMS over M1 (somatotopic, contralateral), 80\u201390% RMT, 1500\u20132000 pulses. Level A recommendation. Grade A. Repeated sessions.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"clinical\", \"pain\", \"t2\"]\n    conditions: [\"Neuropathic Pain\", \"Chronic Pain\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS pain (Grade A)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"], [\"Lefaucheur 2008/2020\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tms {\n        tms_protocol: rTMS\n        frequency: 10Hz\n        intensity_percent_mt: 85\n        target: M1_R\n        pulse_count: 2000\n    }\n}"
+    "text": "protocol \"TMS \u2014 Chronic / Neuropathic Pain (M1)\" {\n    id: \"30000012-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Figure-8 HF rTMS over M1 (somatotopic, contralateral), 80\u201390% RMT, 1500\u20132000 pulses. Level A recommendation. Grade A. Repeated sessions.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"clinical\", \"pain\", \"t2\"]\n    conditions: [\"Neuropathic Pain\", \"Chronic Pain\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS pain (Grade A)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"], [\"Lefaucheur 2008/2020\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tms {\n        tms_protocol: rTMS\n        frequency: 10Hz\n        intensity_percent_mt: 85\n        target: M1_R\n        pulse_count: 2000\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-13-tms-migraine-prophylaxis.npps": [
@@ -3655,10 +3685,11 @@
         "label": "Neuromod protocol database \u00a71 TMS migraine (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"TMS \u2014 Migraine Prophylaxis (M1)\" {\n    id: \"30000013-0000-0000-0000-000000000000\"\n    description: \"Figure-8 HF rTMS over M1, 10Hz, 600 pulses, for migraine prevention. Grade B.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"clinical\", \"migraine\", \"t2\"]\n    conditions: [\"Migraine\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS migraine (Grade B)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"]]\n    duration: 10m\n\n    tms {\n        tms_protocol: rTMS\n        frequency: 10Hz\n        intensity_percent_mt: 85\n        target: M1_L\n        pulse_count: 600\n    }\n}"
+    "text": "protocol \"TMS \u2014 Migraine Prophylaxis (M1)\" {\n    id: \"30000013-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Figure-8 HF rTMS over M1, 10Hz, 600 pulses, for migraine prevention. Grade B.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"clinical\", \"migraine\", \"t2\"]\n    conditions: [\"Migraine\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS migraine (Grade B)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"]]\n    duration: 10m\n\n    tms {\n        tms_protocol: rTMS\n        frequency: 10Hz\n        intensity_percent_mt: 85\n        target: M1_L\n        pulse_count: 600\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-14-tms-ptsd.npps": [
@@ -3708,10 +3739,11 @@
         "label": "Neuromod protocol database \u00a71 TMS PTSD (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"TMS \u2014 PTSD (R-DLPFC)\" {\n    id: \"30000014-0000-0000-0000-000000000000\"\n    description: \"Figure-8 rTMS over right DLPFC (1 Hz or HF), augmenting exposure/CPT therapy. Grade B. 10\u201315 sessions.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"clinical\", \"ptsd\", \"t2\"]\n    conditions: [\"Post-Traumatic Stress Disorder\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS PTSD (Grade B)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"]]\n    duration: 20m\n\n    tms {\n        tms_protocol: rTMS\n        frequency: 1Hz\n        intensity_percent_mt: 100\n        target: DLPFC_R\n        pulse_count: 1200\n    }\n}"
+    "text": "protocol \"TMS \u2014 PTSD (R-DLPFC)\" {\n    id: \"30000014-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Figure-8 rTMS over right DLPFC (1 Hz or HF), augmenting exposure/CPT therapy. Grade B. 10\u201315 sessions.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"clinical\", \"ptsd\", \"t2\"]\n    conditions: [\"Post-Traumatic Stress Disorder\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS PTSD (Grade B)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"]]\n    duration: 20m\n\n    tms {\n        tms_protocol: rTMS\n        frequency: 1Hz\n        intensity_percent_mt: 100\n        target: DLPFC_R\n        pulse_count: 1200\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-15-tms-stroke-motor.npps": [
@@ -3761,10 +3793,11 @@
         "label": "Neuromod protocol database \u00a71 TMS stroke (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"TMS \u2014 Stroke Motor (contralesional M1)\" {\n    id: \"30000015-0000-0000-0000-000000000000\"\n    description: \"Figure-8 1Hz inhibitory rTMS over contralesional M1, adjunct to rehab. Grade B. 5\u201310 sessions + rehab.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"clinical\", \"stroke\", \"t2\"]\n    conditions: [\"Stroke\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS stroke (Grade B)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"]]\n    duration: 15m\n\n    tms {\n        tms_protocol: rTMS\n        frequency: 1Hz\n        intensity_percent_mt: 100\n        target: M1_R\n        pulse_count: 1200\n    }\n}"
+    "text": "protocol \"TMS \u2014 Stroke Motor (contralesional M1)\" {\n    id: \"30000015-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Figure-8 1Hz inhibitory rTMS over contralesional M1, adjunct to rehab. Grade B. 5\u201310 sessions + rehab.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"clinical\", \"stroke\", \"t2\"]\n    conditions: [\"Stroke\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS stroke (Grade B)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"]]\n    duration: 15m\n\n    tms {\n        tms_protocol: rTMS\n        frequency: 1Hz\n        intensity_percent_mt: 100\n        target: M1_R\n        pulse_count: 1200\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-16-tms-parkinsons.npps": [
@@ -3814,10 +3847,11 @@
         "label": "Neuromod protocol database \u00a71 TMS PD (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"TMS \u2014 Parkinson's Motor (M1)\" {\n    id: \"30000016-0000-0000-0000-000000000000\"\n    description: \"Figure-8 HF rTMS over bilateral M1, 5\u201325Hz, 90\u2013110% RMT, 1000 pulses, for PD motor symptoms. Grade B. \u22658 sessions.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"clinical\", \"parkinsons\", \"t2\"]\n    conditions: [\"Parkinson's Disease\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS PD (Grade B)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"]]\n    duration: 15m\n\n    tms {\n        tms_protocol: rTMS\n        frequency: 10Hz\n        intensity_percent_mt: 100\n        target: M1_L\n        pulse_count: 1000\n    }\n}"
+    "text": "protocol \"TMS \u2014 Parkinson's Motor (M1)\" {\n    id: \"30000016-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Figure-8 HF rTMS over bilateral M1, 5\u201325Hz, 90\u2013110% RMT, 1000 pulses, for PD motor symptoms. Grade B. \u22658 sessions.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"clinical\", \"parkinsons\", \"t2\"]\n    conditions: [\"Parkinson's Disease\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS PD (Grade B)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"]]\n    duration: 15m\n\n    tms {\n        tms_protocol: rTMS\n        frequency: 10Hz\n        intensity_percent_mt: 100\n        target: M1_L\n        pulse_count: 1000\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-17-tms-fibromyalgia.npps": [
@@ -3867,10 +3901,11 @@
         "label": "Neuromod protocol database \u00a71 TMS fibromyalgia (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"TMS \u2014 Fibromyalgia (L-M1)\" {\n    id: \"30000017-0000-0000-0000-000000000000\"\n    description: \"Figure-8 rTMS over left M1, 10Hz, 80% RMT, 1500\u20132000 pulses. Grade B. 10 sessions + maintenance.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"clinical\", \"fibromyalgia\", \"t2\"]\n    conditions: [\"Fibromyalgia\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS fibromyalgia (Grade B)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"]]\n    duration: 20m\n\n    tms {\n        tms_protocol: rTMS\n        frequency: 10Hz\n        intensity_percent_mt: 80\n        target: M1_L\n        pulse_count: 1800\n    }\n}"
+    "text": "protocol \"TMS \u2014 Fibromyalgia (L-M1)\" {\n    id: \"30000017-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Figure-8 rTMS over left M1, 10Hz, 80% RMT, 1500\u20132000 pulses. Grade B. 10 sessions + maintenance.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"clinical\", \"fibromyalgia\", \"t2\"]\n    conditions: [\"Fibromyalgia\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS fibromyalgia (Grade B)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"]]\n    duration: 20m\n\n    tms {\n        tms_protocol: rTMS\n        frequency: 10Hz\n        intensity_percent_mt: 80\n        target: M1_L\n        pulse_count: 1800\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-18-tms-addiction.npps": [
@@ -3920,10 +3955,11 @@
         "label": "Neuromod protocol database \u00a71 TMS addiction (Grade B/C)",
         "url": "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"TMS \u2014 Addiction (DLPFC)\" {\n    id: \"30000018-0000-0000-0000-000000000000\"\n    description: \"Figure-8 HF rTMS over DLPFC for substance-use craving. Grade B/C. 10+ sessions. (Deep H4 insula targeting for smoking cessation is a non-device coil.)\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"clinical\", \"addiction\", \"t2\"]\n    conditions: [\"Substance Use Disorder\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS addiction (Grade B/C)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"]]\n    duration: 15m\n\n    tms {\n        tms_protocol: rTMS\n        frequency: 10Hz\n        intensity_percent_mt: 100\n        target: DLPFC_L\n        pulse_count: 1500\n    }\n}"
+    "text": "protocol \"TMS \u2014 Addiction (DLPFC)\" {\n    id: \"30000018-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Figure-8 HF rTMS over DLPFC for substance-use craving. Grade B/C. 10+ sessions. (Deep H4 insula targeting for smoking cessation is a non-device coil.)\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tms\", \"clinical\", \"addiction\", \"t2\"]\n    conditions: [\"Substance Use Disorder\"]\n    references: [[\"Neuromod protocol database \u00a71 TMS addiction (Grade B/C)\", \"docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation\"]]\n    duration: 15m\n\n    tms {\n        tms_protocol: rTMS\n        frequency: 10Hz\n        intensity_percent_mt: 100\n        target: DLPFC_L\n        pulse_count: 1500\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-19-vns-epilepsy.npps": [
@@ -3976,10 +4012,11 @@
         "label": "Rong 2014",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"taVNS \u2014 Epilepsy\" {\n    id: \"30000019-0000-0000-0000-000000000000\"\n    description: \"Auricular taVNS (cymba conchae), 20\u201330Hz, \u22651\u20134 h/day, for epilepsy. Grade B (taVNS) / A (implanted reference). Efficacy accrues over months.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"clinical\", \"epilepsy\"]\n    conditions: [\"Epilepsy\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS epilepsy\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"], [\"Rong 2014\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 60m\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 1mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n}"
+    "text": "protocol \"taVNS \u2014 Epilepsy\" {\n    id: \"30000019-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Auricular taVNS (cymba conchae), 20\u201330Hz, \u22651\u20134 h/day, for epilepsy. Grade B (taVNS) / A (implanted reference). Efficacy accrues over months.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"clinical\", \"epilepsy\"]\n    conditions: [\"Epilepsy\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS epilepsy\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"], [\"Rong 2014\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 60m\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 1mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-20-vns-depression.npps": [
@@ -4032,10 +4069,11 @@
         "label": "Rong 2016; Song 2024",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"taVNS \u2014 Depression\" {\n    id: \"30000020-0000-0000-0000-000000000000\"\n    description: \"Auricular taVNS (cymba conchae), 20Hz, 4\u20136mA to tolerance, 30 min twice daily, 8\u201312 weeks, for MDD. Grade B (taVNS). Chronic therapy \u2014 judged over months.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"clinical\", \"depression\"]\n    conditions: [\"Major Depressive Disorder\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS depression\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"], [\"Rong 2016; Song 2024\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 30m\n\n    vns_hrv {\n        frequency: 20Hz\n        intensity: 1.5mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n}"
+    "text": "protocol \"taVNS \u2014 Depression\" {\n    id: \"30000020-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Auricular taVNS (cymba conchae), 20Hz, 4\u20136mA to tolerance, 30 min twice daily, 8\u201312 weeks, for MDD. Grade B (taVNS). Chronic therapy \u2014 judged over months.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"clinical\", \"depression\"]\n    conditions: [\"Major Depressive Disorder\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS depression\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"], [\"Rong 2016; Song 2024\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 30m\n\n    vns_hrv {\n        frequency: 20Hz\n        intensity: 1.5mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-21-vns-stroke-rehab.npps": [
@@ -4089,10 +4127,11 @@
         "label": "Dawson 2021 VNS-REHAB",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"taVNS \u2014 Stroke Motor Rehab (paired)\" {\n    id: \"30000021-0000-0000-0000-000000000000\"\n    description: \"Auricular taVNS paired to rehab movements, 30Hz, for post-stroke motor recovery (non-invasive analogue of Vivistim). Grade A (paired). 6 weeks clinic + home.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"clinical\", \"stroke\", \"paired\"]\n    conditions: [\"Stroke\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS stroke (Grade A paired)\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"], [\"Dawson 2021 VNS-REHAB\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 30m\n\n    vns_hrv {\n        frequency: 30Hz\n        intensity: 0.8mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n}"
+    "text": "protocol \"taVNS \u2014 Stroke Motor Rehab (paired)\" {\n    id: \"30000021-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Auricular taVNS paired to rehab movements, 30Hz, for post-stroke motor recovery (non-invasive analogue of Vivistim). Grade A (paired). 6 weeks clinic + home.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"clinical\", \"stroke\", \"paired\"]\n    conditions: [\"Stroke\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS stroke (Grade A paired)\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"], [\"Dawson 2021 VNS-REHAB\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 30m\n\n    vns_hrv {\n        frequency: 30Hz\n        intensity: 0.8mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-22-vns-anxiety.npps": [
@@ -4141,10 +4180,11 @@
         "label": "Neuromod protocol database \u00a72 VNS anxiety (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"taVNS \u2014 Anxiety\" {\n    id: \"30000022-0000-0000-0000-000000000000\"\n    description: \"Auricular taVNS (cymba conchae), 20Hz, 4\u20136mA, 30 min x2/day, 8 weeks, for generalized anxiety. Grade B.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"clinical\", \"anxiety\"]\n    conditions: [\"Generalized Anxiety Disorder\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS anxiety (Grade B)\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"]]\n    duration: 30m\n\n    vns_hrv {\n        frequency: 20Hz\n        intensity: 1.5mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n}"
+    "text": "protocol \"taVNS \u2014 Anxiety\" {\n    id: \"30000022-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Auricular taVNS (cymba conchae), 20Hz, 4\u20136mA, 30 min x2/day, 8 weeks, for generalized anxiety. Grade B.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"clinical\", \"anxiety\"]\n    conditions: [\"Generalized Anxiety Disorder\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS anxiety (Grade B)\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"]]\n    duration: 30m\n\n    vns_hrv {\n        frequency: 20Hz\n        intensity: 1.5mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-23-vns-insomnia.npps": [
@@ -4194,10 +4234,11 @@
         "label": "Neuromod protocol database \u00a72 VNS insomnia (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"taVNS \u2014 Insomnia\" {\n    id: \"30000023-0000-0000-0000-000000000000\"\n    description: \"Auricular taVNS (cymba conchae), 20Hz, 30 min x2/day, 8 weeks, improving PSQI. Grade B.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"clinical\", \"insomnia\", \"sleep\"]\n    conditions: [\"Insomnia\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS insomnia (Grade B)\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"]]\n    duration: 30m\n\n    vns_hrv {\n        frequency: 20Hz\n        intensity: 1.5mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n}"
+    "text": "protocol \"taVNS \u2014 Insomnia\" {\n    id: \"30000023-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Auricular taVNS (cymba conchae), 20Hz, 30 min x2/day, 8 weeks, improving PSQI. Grade B.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"clinical\", \"insomnia\", \"sleep\"]\n    conditions: [\"Insomnia\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS insomnia (Grade B)\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"]]\n    duration: 30m\n\n    vns_hrv {\n        frequency: 20Hz\n        intensity: 1.5mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-24-vns-ptsd.npps": [
@@ -4247,10 +4288,11 @@
         "label": "Neuromod protocol database \u00a72 VNS PTSD (Grade B paired)",
         "url": "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"taVNS \u2014 PTSD (extinction-paired)\" {\n    id: \"30000024-0000-0000-0000-000000000000\"\n    description: \"Auricular taVNS (concha), 25Hz, paired to fear-extinction trials, enhancing extinction memory. Grade B (paired).\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"clinical\", \"ptsd\", \"paired\"]\n    conditions: [\"Post-Traumatic Stress Disorder\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS PTSD (Grade B paired)\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"]]\n    duration: 20m\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 0.5mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n}"
+    "text": "protocol \"taVNS \u2014 PTSD (extinction-paired)\" {\n    id: \"30000024-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Auricular taVNS (concha), 25Hz, paired to fear-extinction trials, enhancing extinction memory. Grade B (paired).\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"clinical\", \"ptsd\", \"paired\"]\n    conditions: [\"Post-Traumatic Stress Disorder\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS PTSD (Grade B paired)\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"]]\n    duration: 20m\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 0.5mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-25-vns-hrv-autonomic.npps": [
@@ -4304,10 +4346,11 @@
         "label": "Clancy 2014; Sclocco 2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"taVNS + HRV \u2014 Autonomic Balance\" {\n    id: \"30000025-0000-0000-0000-000000000000\"\n    description: \"Auricular taVNS synchronized with HRV coherence biofeedback (respiration-gated) to raise HRV and parasympathetic tone. Grade B (mechanistic). The backbone of the VNS+HRV clip.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"hrv\", \"clinical\", \"autonomic\"]\n    conditions: [\"Generalized Anxiety Disorder\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS autonomic/HRV (Grade B)\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"], [\"Clancy 2014; Sclocco 2019\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 1mA\n        hrv_protocol: tavns_sync\n        breathing_rate: 6\n    }\n}"
+    "text": "protocol \"taVNS + HRV \u2014 Autonomic Balance\" {\n    id: \"30000025-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Auricular taVNS synchronized with HRV coherence biofeedback (respiration-gated) to raise HRV and parasympathetic tone. Grade B (mechanistic). The backbone of the VNS+HRV clip.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"hrv\", \"clinical\", \"autonomic\"]\n    conditions: [\"Generalized Anxiety Disorder\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS autonomic/HRV (Grade B)\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"], [\"Clancy 2014; Sclocco 2019\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 1mA\n        hrv_protocol: tavns_sync\n        breathing_rate: 6\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-26-tcvns-migraine.npps": [
@@ -4360,10 +4403,11 @@
         "label": "gammaCore ACT1/ACT2/PRESTO",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tcVNS \u2014 Migraine / Cluster (cervical)\" {\n    id: \"30000026-0000-0000-0000-000000000000\"\n    description: \"T2 cervical accessory (tcVNS), 25Hz in 5kHz bursts, 120s doses, for acute + preventive migraine and cluster headache (gammaCore predicate). Grade A.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tcvns\", \"clinical\", \"migraine\", \"t2\"]\n    conditions: [\"Migraine\", \"Cluster Headache\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS migraine (Grade A tcVNS)\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"], [\"gammaCore ACT1/ACT2/PRESTO\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 2m\n\n    cervical_vns {\n        frequency: 25Hz\n        intensity: 1.5mA\n    }\n}"
+    "text": "protocol \"tcVNS \u2014 Migraine / Cluster (cervical)\" {\n    id: \"30000026-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"T2 cervical accessory (tcVNS), 25Hz in 5kHz bursts, 120s doses, for acute + preventive migraine and cluster headache (gammaCore predicate). Grade A.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tcvns\", \"clinical\", \"migraine\", \"t2\"]\n    conditions: [\"Migraine\", \"Cluster Headache\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS migraine (Grade A tcVNS)\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"], [\"gammaCore ACT1/ACT2/PRESTO\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 2m\n\n    cervical_vns {\n        frequency: 25Hz\n        intensity: 1.5mA\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-27-vns-migraine-prophylaxis.npps": [
@@ -4416,10 +4460,11 @@
         "label": "Straube 2015",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"taVNS \u2014 Migraine Prophylaxis (1Hz)\" {\n    id: \"30000027-0000-0000-0000-000000000000\"\n    description: \"Auricular taVNS (cymba conchae) at 1Hz (note: NOT 25Hz) for migraine prevention \u2014 frequency is condition-specific. Grade B. 12 weeks.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"clinical\", \"migraine\"]\n    conditions: [\"Migraine\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS migraine taVNS (Grade B, 1Hz)\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"], [\"Straube 2015\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 30m\n\n    vns_hrv {\n        frequency: 1Hz\n        intensity: 1mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n}"
+    "text": "protocol \"taVNS \u2014 Migraine Prophylaxis (1Hz)\" {\n    id: \"30000027-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Auricular taVNS (cymba conchae) at 1Hz (note: NOT 25Hz) for migraine prevention \u2014 frequency is condition-specific. Grade B. 12 weeks.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"clinical\", \"migraine\"]\n    conditions: [\"Migraine\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS migraine taVNS (Grade B, 1Hz)\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"], [\"Straube 2015\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 30m\n\n    vns_hrv {\n        frequency: 1Hz\n        intensity: 1mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-28-vns-tinnitus.npps": [
@@ -4489,10 +4534,11 @@
         "label": "Tyler 2017",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"taVNS + Tones \u2014 Tinnitus (paired)\" {\n    id: \"30000028-0000-0000-0000-000000000000\"\n    description: \"Auricular taVNS (25Hz) paired to tailored audio tones to reverse maladaptive auditory plasticity. Grade B/C. Pairing is essential. 6\u201312 weeks.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"audio\", \"clinical\", \"tinnitus\", \"paired\"]\n    conditions: [\"Tinnitus\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS tinnitus (Grade B/C paired)\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"], [\"Tyler 2017\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 30m\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 0.8mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n\n    audio_entrainment {\n        isochronic_hz: 8Hz\n        noise: none\n        carrier_hz: 440Hz\n        volume: 65dB\n        eeg_adaptive: false\n        bone_conduction_pacer: false\n    }\n}"
+    "text": "protocol \"taVNS + Tones \u2014 Tinnitus (paired)\" {\n    id: \"30000028-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Auricular taVNS (25Hz) paired to tailored audio tones to reverse maladaptive auditory plasticity. Grade B/C. Pairing is essential. 6\u201312 weeks.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"vns\", \"tavns\", \"audio\", \"clinical\", \"tinnitus\", \"paired\"]\n    conditions: [\"Tinnitus\"]\n    references: [[\"Neuromod protocol database \u00a72 VNS tinnitus (Grade B/C paired)\", \"docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications\"], [\"Tyler 2017\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 30m\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 0.8mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n\n    audio_entrainment {\n        isochronic_hz: 8Hz\n        noise: none\n        carrier_hz: 440Hz\n        volume: 65dB\n        eeg_adaptive: false\n        bone_conduction_pacer: false\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-29-tdcs-cognition.npps": [
@@ -4549,10 +4595,11 @@
         "label": "Fregni 2005",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tDCS \u2014 Working Memory (anodal F3)\" {\n    id: \"30000029-0000-0000-0000-000000000000\"\n    description: \"Anodal tDCS over left DLPFC (F3), cathode right supraorbital, 1\u20132mA, applied during a working-memory task. Grade A. Effects require concurrent engagement.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"cognition\"]\n    conditions: [\"Mild Cognitive Impairment\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS cognition (Grade A)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Fregni 2005\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 1.5mA\n        electrode_pairs: [[\"F3\", \"Fp2\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
+    "text": "protocol \"tDCS \u2014 Working Memory (anodal F3)\" {\n    id: \"30000029-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Anodal tDCS over left DLPFC (F3), cathode right supraorbital, 1\u20132mA, applied during a working-memory task. Grade A. Effects require concurrent engagement.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"cognition\"]\n    conditions: [\"Mild Cognitive Impairment\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS cognition (Grade A)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Fregni 2005\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 1.5mA\n        electrode_pairs: [[\"F3\", \"Fp2\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-30-tdcs-depression.npps": [
@@ -4609,10 +4656,11 @@
         "label": "Brunoni 2013/2017",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tDCS \u2014 Depression (F3/F4)\" {\n    id: \"30000030-0000-0000-0000-000000000000\"\n    description: \"Anodal F3 / cathode F4, 2mA, 20\u201330 min, 10\u201322 sessions, as an accessible adjunct for MDD (not monotherapy). Grade B (mixed).\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"depression\"]\n    conditions: [\"Major Depressive Disorder\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS depression (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Brunoni 2013/2017\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 25m\n\n    tdcs {\n        intensity: 2mA\n        electrode_pairs: [[\"F3\", \"F4\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
+    "text": "protocol \"tDCS \u2014 Depression (F3/F4)\" {\n    id: \"30000030-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Anodal F3 / cathode F4, 2mA, 20\u201330 min, 10\u201322 sessions, as an accessible adjunct for MDD (not monotherapy). Grade B (mixed).\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"depression\"]\n    conditions: [\"Major Depressive Disorder\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS depression (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Brunoni 2013/2017\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 25m\n\n    tdcs {\n        intensity: 2mA\n        electrode_pairs: [[\"F3\", \"F4\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-31-tdcs-pain.npps": [
@@ -4671,10 +4719,11 @@
         "label": "Fregni 2006; Valle 2009",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tDCS \u2014 Chronic Pain / Fibromyalgia (M1)\" {\n    id: \"30000031-0000-0000-0000-000000000000\"\n    description: \"Anodal M1 (C3/C4), cathode contralateral supraorbital, 2mA, 20 min, 5\u201310 sessions. Grade B. M1 > DLPFC for fibromyalgia.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"pain\", \"fibromyalgia\"]\n    conditions: [\"Chronic Pain\", \"Fibromyalgia\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS pain (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Fregni 2006; Valle 2009\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 2mA\n        electrode_pairs: [[\"C3\", \"Fp2\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
+    "text": "protocol \"tDCS \u2014 Chronic Pain / Fibromyalgia (M1)\" {\n    id: \"30000031-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Anodal M1 (C3/C4), cathode contralateral supraorbital, 2mA, 20 min, 5\u201310 sessions. Grade B. M1 > DLPFC for fibromyalgia.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"pain\", \"fibromyalgia\"]\n    conditions: [\"Chronic Pain\", \"Fibromyalgia\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS pain (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Fregni 2006; Valle 2009\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 2mA\n        electrode_pairs: [[\"C3\", \"Fp2\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-32-tdcs-stroke-rehab.npps": [
@@ -4731,10 +4780,11 @@
         "label": "Lindenberg 2010",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tDCS \u2014 Stroke Motor Rehab (M1)\" {\n    id: \"30000032-0000-0000-0000-000000000000\"\n    description: \"Anodal ipsilesional M1 (or dual montage), 1\u20132mA, 20\u201340 min, paired with rehab/CIMT. Grade B. Weak alone.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"stroke\"]\n    conditions: [\"Stroke\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS stroke (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Lindenberg 2010\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 2mA\n        electrode_pairs: [[\"C3\", \"C4\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
+    "text": "protocol \"tDCS \u2014 Stroke Motor Rehab (M1)\" {\n    id: \"30000032-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Anodal ipsilesional M1 (or dual montage), 1\u20132mA, 20\u201340 min, paired with rehab/CIMT. Grade B. Weak alone.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"stroke\"]\n    conditions: [\"Stroke\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS stroke (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Lindenberg 2010\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 2mA\n        electrode_pairs: [[\"C3\", \"C4\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-33-tdcs-aphasia.npps": [
@@ -4793,10 +4843,11 @@
         "label": "Fridriksson 2018",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tDCS \u2014 Post-Stroke Aphasia (L-IFG)\" {\n    id: \"30000033-0000-0000-0000-000000000000\"\n    description: \"Anodal left IFG / perilesional, cathode right supraorbital, 1mA, 20 min, up to 15 sessions, + speech therapy. Grade B.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"aphasia\", \"stroke\"]\n    conditions: [\"Aphasia\", \"Stroke\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS aphasia (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Fridriksson 2018\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 1mA\n        electrode_pairs: [[\"F7\", \"Fp2\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
+    "text": "protocol \"tDCS \u2014 Post-Stroke Aphasia (L-IFG)\" {\n    id: \"30000033-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Anodal left IFG / perilesional, cathode right supraorbital, 1mA, 20 min, up to 15 sessions, + speech therapy. Grade B.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"aphasia\", \"stroke\"]\n    conditions: [\"Aphasia\", \"Stroke\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS aphasia (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Fridriksson 2018\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 1mA\n        electrode_pairs: [[\"F7\", \"Fp2\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-34-tdcs-schizophrenia.npps": [
@@ -4853,10 +4904,11 @@
         "label": "Brunelin 2012",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tDCS \u2014 Schizophrenia (hallucinations)\" {\n    id: \"30000034-0000-0000-0000-000000000000\"\n    description: \"Anode left DLPFC (F3) + cathode left temporoparietal, 2mA, 20 min x2/day, 10 sessions, for auditory hallucinations. Grade B.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"schizophrenia\"]\n    conditions: [\"Schizophrenia\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS schizophrenia (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Brunelin 2012\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 2mA\n        electrode_pairs: [[\"F3\", \"TP3\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
+    "text": "protocol \"tDCS \u2014 Schizophrenia (hallucinations)\" {\n    id: \"30000034-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Anode left DLPFC (F3) + cathode left temporoparietal, 2mA, 20 min x2/day, 10 sessions, for auditory hallucinations. Grade B.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"schizophrenia\"]\n    conditions: [\"Schizophrenia\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS schizophrenia (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Brunelin 2012\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 2mA\n        electrode_pairs: [[\"F3\", \"TP3\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-35-tdcs-addiction.npps": [
@@ -4913,10 +4965,11 @@
         "label": "Klauss 2014",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tDCS \u2014 Addiction / Craving (bilateral DLPFC)\" {\n    id: \"30000035-0000-0000-0000-000000000000\"\n    description: \"Bilateral DLPFC, right-anodal / left-cathodal, 2mA, 20 min, reducing craving across substances. Grade B. Repeated sessions for durability.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"addiction\"]\n    conditions: [\"Substance Use Disorder\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS addiction (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Klauss 2014\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 2mA\n        electrode_pairs: [[\"F4\", \"F3\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
+    "text": "protocol \"tDCS \u2014 Addiction / Craving (bilateral DLPFC)\" {\n    id: \"30000035-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Bilateral DLPFC, right-anodal / left-cathodal, 2mA, 20 min, reducing craving across substances. Grade B. Repeated sessions for durability.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"addiction\"]\n    conditions: [\"Substance Use Disorder\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS addiction (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Klauss 2014\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 2mA\n        electrode_pairs: [[\"F4\", \"F3\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-36-tdcs-epilepsy.npps": [
@@ -4974,10 +5027,11 @@
         "label": "Fregni 2006; San-Juan 2017",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tDCS \u2014 Epilepsy (cathodal focus)\" {\n    id: \"30000036-0000-0000-0000-000000000000\"\n    description: \"Uniquely CATHODAL (inhibitory) over the epileptogenic focus, anode contralateral, 1\u20132mA, 20\u201330 min, reducing seizures. Grade B.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"epilepsy\", \"cathodal\"]\n    conditions: [\"Epilepsy\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS epilepsy (Grade B, cathodal)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Fregni 2006; San-Juan 2017\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 1.5mA\n        electrode_pairs: [[\"Fp2\", \"C3\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
+    "text": "protocol \"tDCS \u2014 Epilepsy (cathodal focus)\" {\n    id: \"30000036-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Uniquely CATHODAL (inhibitory) over the epileptogenic focus, anode contralateral, 1\u20132mA, 20\u201330 min, reducing seizures. Grade B.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"epilepsy\", \"cathodal\"]\n    conditions: [\"Epilepsy\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS epilepsy (Grade B, cathodal)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Fregni 2006; San-Juan 2017\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 1.5mA\n        electrode_pairs: [[\"Fp2\", \"C3\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-37-tdcs-adhd.npps": [
@@ -5034,10 +5088,11 @@
         "label": "Leffa 2022",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tDCS \u2014 ADHD (anodal F3)\" {\n    id: \"30000037-0000-0000-0000-000000000000\"\n    description: \"Anodal left DLPFC (F3) or right DLPFC (F4), 1\u20132mA, 20\u201330 min, for attention/inhibition. Grade B. Repeated dosing needed (single-session can be null).\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"adhd\"]\n    conditions: [\"Attention Deficit Hyperactivity Disorder\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS ADHD (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Leffa 2022\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 25m\n\n    tdcs {\n        intensity: 1.5mA\n        electrode_pairs: [[\"F3\", \"Fp2\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
+    "text": "protocol \"tDCS \u2014 ADHD (anodal F3)\" {\n    id: \"30000037-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Anodal left DLPFC (F3) or right DLPFC (F4), 1\u20132mA, 20\u201330 min, for attention/inhibition. Grade B. Repeated dosing needed (single-session can be null).\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"adhd\"]\n    conditions: [\"Attention Deficit Hyperactivity Disorder\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS ADHD (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Leffa 2022\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 25m\n\n    tdcs {\n        intensity: 1.5mA\n        electrode_pairs: [[\"F3\", \"Fp2\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-38-tdcs-ms-fatigue.npps": [
@@ -5091,10 +5146,11 @@
         "label": "Neuromod protocol database \u00a73 tDCS MS (Grade B)",
         "url": "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tDCS \u2014 MS Fatigue (S1/DLPFC)\" {\n    id: \"30000038-0000-0000-0000-000000000000\"\n    description: \"Anodal S1 (bilateral) or left DLPFC, 1.5\u20132mA, 15\u201320 min, for multiple-sclerosis fatigue. Grade B. Home/remote feasible.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"ms\", \"fatigue\"]\n    conditions: [\"Multiple Sclerosis\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS MS (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 2mA\n        electrode_pairs: [[\"C3\", \"Fp2\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
+    "text": "protocol \"tDCS \u2014 MS Fatigue (S1/DLPFC)\" {\n    id: \"30000038-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Anodal S1 (bilateral) or left DLPFC, 1.5\u20132mA, 15\u201320 min, for multiple-sclerosis fatigue. Grade B. Home/remote feasible.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"ms\", \"fatigue\"]\n    conditions: [\"Multiple Sclerosis\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS MS (Grade B)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 2mA\n        electrode_pairs: [[\"C3\", \"Fp2\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-39-tdcs-alzheimers.npps": [
@@ -5151,10 +5207,11 @@
         "label": "Khedr 2014/2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tDCS \u2014 Alzheimer's (bilateral temporal)\" {\n    id: \"30000039-0000-0000-0000-000000000000\"\n    description: \"Anodal bilateral temporal or left DLPFC, 1.5\u20132mA, 15\u201330 min, for recognition memory. Grade C.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"alzheimers\"]\n    conditions: [\"Alzheimer's Disease\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS Alzheimer's (Grade C)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Khedr 2014/2019\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 2mA\n        electrode_pairs: [[\"T3\", \"T4\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
+    "text": "protocol \"tDCS \u2014 Alzheimer's (bilateral temporal)\" {\n    id: \"30000039-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Anodal bilateral temporal or left DLPFC, 1.5\u20132mA, 15\u201330 min, for recognition memory. Grade C.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"alzheimers\"]\n    conditions: [\"Alzheimer's Disease\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS Alzheimer's (Grade C)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Khedr 2014/2019\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    tdcs {\n        intensity: 2mA\n        electrode_pairs: [[\"T3\", \"T4\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-40-tdcs-parkinsons.npps": [
@@ -5211,10 +5268,11 @@
         "label": "Dagan 2018",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tDCS \u2014 Parkinson's (M1 / DLPFC)\" {\n    id: \"30000040-0000-0000-0000-000000000000\"\n    description: \"Anodal M1-leg for gait/freezing or DLPFC for executive/depression; multitarget > single. 2mA, 13\u201320 min. Grade C.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"parkinsons\"]\n    conditions: [\"Parkinson's Disease\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS PD (Grade C)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Dagan 2018\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 15m\n\n    tdcs {\n        intensity: 2mA\n        electrode_pairs: [[\"Cz\", \"Fp2\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
+    "text": "protocol \"tDCS \u2014 Parkinson's (M1 / DLPFC)\" {\n    id: \"30000040-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Anodal M1-leg for gait/freezing or DLPFC for executive/depression; multitarget > single. 2mA, 13\u201320 min. Grade C.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tdcs\", \"clinical\", \"parkinsons\"]\n    conditions: [\"Parkinson's Disease\"]\n    references: [[\"Neuromod protocol database \u00a73 tDCS PD (Grade C)\", \"docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation\"], [\"Dagan 2018\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 15m\n\n    tdcs {\n        intensity: 2mA\n        electrode_pairs: [[\"Cz\", \"Fp2\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-41-tacs-working-memory.npps": [
@@ -5266,10 +5324,11 @@
         "label": "Polania 2012; Reinhart 2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tACS \u2014 Working Memory (theta 6Hz)\" {\n    id: \"30000041-0000-0000-0000-000000000000\"\n    description: \"Frontoparietal theta (~6Hz) tACS delivered in-phase to improve working memory (in-phase \u2191, anti-phase \u2193). Grade A/B \u2014 strongest tACS evidence.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"theta\", \"clinical\", \"cognition\"]\n    conditions: [\"Mild Cognitive Impairment\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS WM (Grade A/B)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Polania 2012; Reinhart 2019\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    bes_tacs {\n        frequency: 6Hz\n        intensity: 1mA\n        waveform: sinusoidal\n    }\n}"
+    "text": "protocol \"tACS \u2014 Working Memory (theta 6Hz)\" {\n    id: \"30000041-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Frontoparietal theta (~6Hz) tACS delivered in-phase to improve working memory (in-phase \u2191, anti-phase \u2193). Grade A/B \u2014 strongest tACS evidence.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"theta\", \"clinical\", \"cognition\"]\n    conditions: [\"Mild Cognitive Impairment\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS WM (Grade A/B)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Polania 2012; Reinhart 2019\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    bes_tacs {\n        frequency: 6Hz\n        intensity: 1mA\n        waveform: sinusoidal\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-42-tacs-fluid-intelligence.npps": [
@@ -5322,10 +5381,11 @@
         "label": "Santarnecchi 2013",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tACS \u2014 Fluid Intelligence (gamma 40Hz)\" {\n    id: \"30000042-0000-0000-0000-000000000000\"\n    description: \"Left prefrontal 40Hz gamma tACS improving fluid reasoning. Grade B.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"gamma\", \"40Hz\", \"clinical\", \"cognition\"]\n    conditions: [\"Mild Cognitive Impairment\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS gamma (Grade B)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Santarnecchi 2013\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    bes_tacs {\n        frequency: 40Hz\n        intensity: 1mA\n        waveform: sinusoidal\n    }\n}"
+    "text": "protocol \"tACS \u2014 Fluid Intelligence (gamma 40Hz)\" {\n    id: \"30000042-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Left prefrontal 40Hz gamma tACS improving fluid reasoning. Grade B.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"gamma\", \"40Hz\", \"clinical\", \"cognition\"]\n    conditions: [\"Mild Cognitive Impairment\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS gamma (Grade B)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Santarnecchi 2013\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    bes_tacs {\n        frequency: 40Hz\n        intensity: 1mA\n        waveform: sinusoidal\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-43-tacs-alzheimers.npps": [
@@ -5379,10 +5439,11 @@
         "label": "Benussi 2021",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tACS \u2014 Alzheimer's (gamma 40Hz)\" {\n    id: \"30000043-0000-0000-0000-000000000000\"\n    description: \"40Hz gamma tACS over temporal/temporoparietal cortex, improving episodic memory (same 40Hz gamma target as PBM/GENUS \u2014 multi-modal convergence). Grade C.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"gamma\", \"40Hz\", \"clinical\", \"alzheimers\"]\n    conditions: [\"Alzheimer's Disease\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS Alzheimer's (Grade C)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Benussi 2021\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 60m\n\n    clinical_tacs {\n        frequency: 40Hz\n        intensity: 3mA\n        channel_count: 4\n        waveform: sinusoidal\n    }\n}"
+    "text": "protocol \"tACS \u2014 Alzheimer's (gamma 40Hz)\" {\n    id: \"30000043-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"40Hz gamma tACS over temporal/temporoparietal cortex, improving episodic memory (same 40Hz gamma target as PBM/GENUS \u2014 multi-modal convergence). Grade C.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"gamma\", \"40Hz\", \"clinical\", \"alzheimers\"]\n    conditions: [\"Alzheimer's Disease\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS Alzheimer's (Grade C)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Benussi 2021\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 60m\n\n    clinical_tacs {\n        frequency: 40Hz\n        intensity: 3mA\n        channel_count: 4\n        waveform: sinusoidal\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-44-tacs-parkinsons-tremor.npps": [
@@ -5434,10 +5495,11 @@
         "label": "Brittain 2013",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tACS \u2014 Parkinson's Tremor (phase-locked)\" {\n    id: \"30000044-0000-0000-0000-000000000000\"\n    description: \"Phase-locked tACS at the tremor frequency over M1 to suppress resting tremor ~50% by phase cancellation \u2014 a closed-loop, EEG/accelerometer-driven paradigm. Grade B.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"clinical\", \"parkinsons\", \"closed-loop\"]\n    conditions: [\"Parkinson's Disease\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS PD tremor (Grade B)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Brittain 2013\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 15m\n\n    bes_tacs {\n        frequency: 5Hz\n        intensity: 1mA\n        waveform: sinusoidal\n    }\n}"
+    "text": "protocol \"tACS \u2014 Parkinson's Tremor (phase-locked)\" {\n    id: \"30000044-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Phase-locked tACS at the tremor frequency over M1 to suppress resting tremor ~50% by phase cancellation \u2014 a closed-loop, EEG/accelerometer-driven paradigm. Grade B.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"clinical\", \"parkinsons\", \"closed-loop\"]\n    conditions: [\"Parkinson's Disease\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS PD tremor (Grade B)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Brittain 2013\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 15m\n\n    bes_tacs {\n        frequency: 5Hz\n        intensity: 1mA\n        waveform: sinusoidal\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-45-tacs-depression.npps": [
@@ -5489,10 +5551,11 @@
         "label": "Alexander 2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tACS \u2014 Depression (alpha 10Hz)\" {\n    id: \"30000045-0000-0000-0000-000000000000\"\n    description: \"Alpha (10Hz) bifrontal tACS, 2mA, 40 min, 5+ daily sessions, reducing left-frontal alpha. Grade C.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"alpha\", \"clinical\", \"depression\"]\n    conditions: [\"Major Depressive Disorder\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS depression (Grade C)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Alexander 2019\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 40m\n\n    bes_tacs {\n        frequency: 10Hz\n        intensity: 1mA\n        waveform: sinusoidal\n    }\n}"
+    "text": "protocol \"tACS \u2014 Depression (alpha 10Hz)\" {\n    id: \"30000045-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Alpha (10Hz) bifrontal tACS, 2mA, 40 min, 5+ daily sessions, reducing left-frontal alpha. Grade C.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"alpha\", \"clinical\", \"depression\"]\n    conditions: [\"Major Depressive Disorder\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS depression (Grade C)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Alexander 2019\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 40m\n\n    bes_tacs {\n        frequency: 10Hz\n        intensity: 1mA\n        waveform: sinusoidal\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-46-tacs-sleep-memory.npps": [
@@ -5544,10 +5607,11 @@
         "label": "Ketz 2018",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tACS \u2014 Sleep / Memory Consolidation (SO 0.75Hz)\" {\n    id: \"30000046-0000-0000-0000-000000000000\"\n    description: \"Slow-oscillation (0.75Hz) tACS time-locked during NREM sleep to boost spindles and declarative memory. Grade C.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"sleep\", \"clinical\", \"memory\"]\n    conditions: [\"Insomnia\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS sleep (Grade C)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Ketz 2018\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 30m\n\n    bes_tacs {\n        frequency: 0.75Hz\n        intensity: 0.75mA\n        waveform: sinusoidal\n    }\n}"
+    "text": "protocol \"tACS \u2014 Sleep / Memory Consolidation (SO 0.75Hz)\" {\n    id: \"30000046-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Slow-oscillation (0.75Hz) tACS time-locked during NREM sleep to boost spindles and declarative memory. Grade C.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"sleep\", \"clinical\", \"memory\"]\n    conditions: [\"Insomnia\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS sleep (Grade C)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Ketz 2018\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 30m\n\n    bes_tacs {\n        frequency: 0.75Hz\n        intensity: 0.75mA\n        waveform: sinusoidal\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-47-tacs-schizophrenia.npps": [
@@ -5599,10 +5663,11 @@
         "label": "Mellin 2018",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tACS \u2014 Schizophrenia (alpha 10Hz)\" {\n    id: \"30000047-0000-0000-0000-000000000000\"\n    description: \"Left frontotemporal 10Hz alpha tACS, 2mA, 20 min, 5 daily sessions, trending to reduced hallucinations. Grade C.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"alpha\", \"clinical\", \"schizophrenia\"]\n    conditions: [\"Schizophrenia\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS schizophrenia (Grade C)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Mellin 2018\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    bes_tacs {\n        frequency: 10Hz\n        intensity: 1mA\n        waveform: sinusoidal\n    }\n}"
+    "text": "protocol \"tACS \u2014 Schizophrenia (alpha 10Hz)\" {\n    id: \"30000047-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Left frontotemporal 10Hz alpha tACS, 2mA, 20 min, 5 daily sessions, trending to reduced hallucinations. Grade C.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"alpha\", \"clinical\", \"schizophrenia\"]\n    conditions: [\"Schizophrenia\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS schizophrenia (Grade C)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Mellin 2018\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    bes_tacs {\n        frequency: 10Hz\n        intensity: 1mA\n        waveform: sinusoidal\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-48-tacs-adhd.npps": [
@@ -5655,10 +5720,11 @@
         "label": "Dallmer-Zerbe 2020",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tACS \u2014 ADHD (gamma 40Hz)\" {\n    id: \"30000048-0000-0000-0000-000000000000\"\n    description: \"Frontal 40Hz gamma tACS improving attention. Grade C (pilot).\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"gamma\", \"40Hz\", \"clinical\", \"adhd\"]\n    conditions: [\"Attention Deficit Hyperactivity Disorder\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS ADHD (Grade C)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Dallmer-Zerbe 2020\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    bes_tacs {\n        frequency: 40Hz\n        intensity: 1mA\n        waveform: sinusoidal\n    }\n}"
+    "text": "protocol \"tACS \u2014 ADHD (gamma 40Hz)\" {\n    id: \"30000048-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Frontal 40Hz gamma tACS improving attention. Grade C (pilot).\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"gamma\", \"40Hz\", \"clinical\", \"adhd\"]\n    conditions: [\"Attention Deficit Hyperactivity Disorder\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS ADHD (Grade C)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Dallmer-Zerbe 2020\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    bes_tacs {\n        frequency: 40Hz\n        intensity: 1mA\n        waveform: sinusoidal\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-49-tacs-pain.npps": [
@@ -5712,10 +5778,11 @@
         "label": "Ahn 2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tACS \u2014 Chronic Pain / Fibromyalgia (alpha 10Hz)\" {\n    id: \"30000049-0000-0000-0000-000000000000\"\n    description: \"S1 / somatosensory 10Hz alpha tACS, 1\u20132mA, 20\u201340 min, reducing pain sensitivity. Grade C.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"alpha\", \"clinical\", \"pain\", \"fibromyalgia\"]\n    conditions: [\"Chronic Pain\", \"Fibromyalgia\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS pain (Grade C)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Ahn 2019\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    bes_tacs {\n        frequency: 10Hz\n        intensity: 1mA\n        waveform: sinusoidal\n    }\n}"
+    "text": "protocol \"tACS \u2014 Chronic Pain / Fibromyalgia (alpha 10Hz)\" {\n    id: \"30000049-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"S1 / somatosensory 10Hz alpha tACS, 1\u20132mA, 20\u201340 min, reducing pain sensitivity. Grade C.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"alpha\", \"clinical\", \"pain\", \"fibromyalgia\"]\n    conditions: [\"Chronic Pain\", \"Fibromyalgia\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS pain (Grade C)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Ahn 2019\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 20m\n\n    bes_tacs {\n        frequency: 10Hz\n        intensity: 1mA\n        waveform: sinusoidal\n    }\n}"
    }
   ],
   "protocols/predefined/clinical-50-tacs-wm-restoration.npps": [
@@ -5769,10 +5836,11 @@
         "label": "Reinhart & Nguyen 2019",
         "url": "docs/neuromod_neuro_protocols.md"
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"tACS \u2014 WM Restoration (older adults, HD)\" {\n    id: \"30000050-0000-0000-0000-000000000000\"\n    description: \"Frontotemporal HD phase-tuned individual-theta tACS restoring working memory in older adults (Reinhart & Nguyen 2019). Grade A. T2 multi-channel.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"theta\", \"clinical\", \"cognition\", \"t2\"]\n    conditions: [\"Mild Cognitive Impairment\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS WM restoration (Grade A)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Reinhart & Nguyen 2019\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 25m\n\n    clinical_tacs {\n        frequency: 6Hz\n        intensity: 1mA\n        channel_count: 8\n        waveform: sinusoidal\n    }\n}"
+    "text": "protocol \"tACS \u2014 WM Restoration (older adults, HD)\" {\n    id: \"30000050-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Frontotemporal HD phase-tuned individual-theta tACS restoring working memory in older adults (Reinhart & Nguyen 2019). Grade A. T2 multi-channel.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"tacs\", \"theta\", \"clinical\", \"cognition\", \"t2\"]\n    conditions: [\"Mild Cognitive Impairment\"]\n    references: [[\"Neuromod protocol database \u00a74 tACS WM restoration (Grade A)\", \"docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation\"], [\"Reinhart & Nguyen 2019\", \"docs/neuromod_neuro_protocols.md\"]]\n    duration: 25m\n\n    clinical_tacs {\n        frequency: 6Hz\n        intensity: 1mA\n        channel_count: 8\n        waveform: sinusoidal\n    }\n}"
    }
   ],
   "protocols/predefined/composite-01-full-rct.npps": [
@@ -5822,10 +5890,11 @@
        }
       ],
       "conflictResolution": "merge",
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     },
-    "text": "composite \"Full Multi-Modal RCT\" {\n    id: \"10000100-0000-0000-0000-000000000000\"\n    description: \"Replicates the 2025 nationally-conducted RCT protocol combining PBM + qEEG neurofeedback + HRV biofeedback simultaneously. Sequence: vascular baseline \u2192 combined active phase \u2192 cool-down HRV.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"rct\", \"multimodal\", \"pbm\", \"eeg\", \"hrv\", \"research\", \"depression\"]\n    conflict_resolution: merge\n\n    layer \"Vascular Baseline\" {\n        start: 0s\n        duration: 5m\n        intensity_scale: 0.5\n    }\n\n    layer \"Gamma Focus\" {\n        start: 5m\n        duration: 20m\n    }\n\n    layer \"HRV Coherence Training\" {\n        start: 5m\n        duration: 20m\n    }\n\n    layer \"Alpha Calm\" {\n        start: 25m\n        duration: 10m\n        intensity_scale: 0.6\n    }\n}"
+    "text": "composite \"Full Multi-Modal RCT\" {\n    id: \"10000100-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Replicates the 2025 nationally-conducted RCT protocol combining PBM + qEEG neurofeedback + HRV biofeedback simultaneously. Sequence: vascular baseline \u2192 combined active phase \u2192 cool-down HRV.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"rct\", \"multimodal\", \"pbm\", \"eeg\", \"hrv\", \"research\", \"depression\"]\n    conflict_resolution: merge\n\n    layer \"Vascular Baseline\" {\n        start: 0s\n        duration: 5m\n        intensity_scale: 0.5\n    }\n\n    layer \"Gamma Focus\" {\n        start: 5m\n        duration: 20m\n    }\n\n    layer \"HRV Coherence Training\" {\n        start: 5m\n        duration: 20m\n    }\n\n    layer \"Alpha Calm\" {\n        start: 25m\n        duration: 10m\n        intensity_scale: 0.6\n    }\n}"
    }
   ],
   "protocols/predefined/composite-02-sleep-stack.npps": [
@@ -5867,10 +5936,11 @@
        }
       ],
       "conflictResolution": "sequential",
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     },
-    "text": "composite \"Sleep Optimisation Stack\" {\n    id: \"10000101-0000-0000-0000-000000000000\"\n    description: \"Evening stack: alpha wind-down then HRV coherence then deep sleep induction. Runs for approximately 90 minutes starting 2 hours before target sleep time.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"sleep\", \"evening\", \"wind-down\", \"delta\", \"alpha\", \"stack\"]\n    conflict_resolution: sequential\n\n    layer \"Alpha Calm\" {\n        start: 0s\n        duration: 20m\n        intensity_scale: 0.8\n    }\n\n    layer \"HRV Coherence Training\" {\n        start: 10m\n        duration: 10m\n        intensity_scale: 0.7\n    }\n\n    layer \"Deep Sleep\" {\n        start: 20m\n    }\n}"
+    "text": "composite \"Sleep Optimisation Stack\" {\n    id: \"10000101-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Evening stack: alpha wind-down then HRV coherence then deep sleep induction. Runs for approximately 90 minutes starting 2 hours before target sleep time.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"sleep\", \"evening\", \"wind-down\", \"delta\", \"alpha\", \"stack\"]\n    conflict_resolution: sequential\n\n    layer \"Alpha Calm\" {\n        start: 0s\n        duration: 20m\n        intensity_scale: 0.8\n    }\n\n    layer \"HRV Coherence Training\" {\n        start: 10m\n        duration: 10m\n        intensity_scale: 0.7\n    }\n\n    layer \"Deep Sleep\" {\n        start: 20m\n    }\n}"
    }
   ],
   "protocols/predefined/composite-03-calm-to-focus.npps": [
@@ -5906,10 +5976,11 @@
        }
       ],
       "conflictResolution": "merge",
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     },
-    "text": "composite \"Calm to Focus\" {\n    id: \"10000102-0000-0000-0000-000000000000\"\n    description: \"Transitions from alpha calm to focused beta. Layers overlap for 2 minutes, allowing smooth frequency transition from 10Hz to 20Hz.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"transition\", \"ramp\", \"productivity\", \"calm\", \"focus\"]\n    conflict_resolution: merge\n\n    layer \"Alpha Calm\" {\n        start: 0s\n        duration: 10m\n    }\n\n    layer \"Focus Prime\" {\n        start: 8m\n        duration: 20m\n    }\n}"
+    "text": "composite \"Calm to Focus\" {\n    id: \"10000102-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Transitions from alpha calm to focused beta. Layers overlap for 2 minutes, allowing smooth frequency transition from 10Hz to 20Hz.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"transition\", \"ramp\", \"productivity\", \"calm\", \"focus\"]\n    conflict_resolution: merge\n\n    layer \"Alpha Calm\" {\n        start: 0s\n        duration: 10m\n    }\n\n    layer \"Focus Prime\" {\n        start: 8m\n        duration: 20m\n    }\n}"
    }
   ],
   "protocols/predefined/composite-04-sleep-wind-down.npps": [
@@ -5943,10 +6014,11 @@
        }
       ],
       "conflictResolution": "sequential",
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     },
-    "text": "composite \"Sleep Wind-Down\" {\n    id: \"10000103-0000-0000-0000-000000000000\"\n    description: \"Sequential transition from alpha calm to deep sleep preparation. No overlap \u2014 alpha calm finishes before sleep deep begins.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"sleep\", \"wind-down\", \"transition\", \"evening\"]\n    conflict_resolution: sequential\n\n    layer \"Alpha Calm\" {\n        start: 0s\n        duration: 10m\n    }\n\n    layer \"Deep Sleep\" {\n        start: 10m\n    }\n}"
+    "text": "composite \"Sleep Wind-Down\" {\n    id: \"10000103-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Sequential transition from alpha calm to deep sleep preparation. No overlap \u2014 alpha calm finishes before sleep deep begins.\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"sleep\", \"wind-down\", \"transition\", \"evening\"]\n    conflict_resolution: sequential\n\n    layer \"Alpha Calm\" {\n        start: 0s\n        duration: 10m\n    }\n\n    layer \"Deep Sleep\" {\n        start: 10m\n    }\n}"
    }
   ],
   "npps/fixtures/absolute_quantities.npps": [
@@ -6035,10 +6107,11 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"Absolute Quantities\" {\n    id: \"90000002-0000-0000-0000-000000000000\"\n    description: \"Two independent wavelengths, an intranasal block and a level in dB\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"absolute\"]\n    duration: 10m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 25mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Frontal Left\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 300mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Frontal Left\"]\n    }\n\n    pbm_intranasal {\n        wavelength: \"660nm\"\n        irradiance: 12.5mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n    }\n\n    audio_entrainment {\n        isochronic_hz: 40Hz\n        noise: none\n        carrier_hz: 440Hz\n        volume: 72.5dB\n        eeg_adaptive: false\n        bone_conduction_pacer: false\n    }\n}"
+    "text": "protocol \"Absolute Quantities\" {\n    id: \"90000002-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Two independent wavelengths, an intranasal block and a level in dB\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"absolute\"]\n    duration: 10m\n\n    pbm_transcranial {\n        wavelength: \"660nm\"\n        irradiance: 25mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Frontal Left\"]\n    }\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 300mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"Frontal Left\"]\n    }\n\n    pbm_intranasal {\n        wavelength: \"660nm\"\n        irradiance: 12.5mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n    }\n\n    audio_entrainment {\n        isochronic_hz: 40Hz\n        noise: none\n        carrier_hz: 440Hz\n        volume: 72.5dB\n        eeg_adaptive: false\n        bone_conduction_pacer: false\n    }\n}"
    }
   ],
   "npps/fixtures/all_t1_modalities.npps": [
@@ -6179,10 +6252,11 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"All T1 Modalities\" {\n    id: \"00000000-0000-0000-0000-000000000001\"\n    description: \"All eight T1 modalities\"\n    author: \"test\"\n    version: \"1.0\"\n    tags: []\n    duration: 30m\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 302mW_cm2\n        frequency: 20Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n\n    pbm_intranasal {\n        wavelength: \"660nm\"\n        irradiance: 60mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n    }\n\n    eeg_neurofeedback {\n        band: alpha\n        channels: all\n        closed_loop: true\n    }\n\n    bes_tacs {\n        frequency: 10Hz\n        intensity: 0.8mA\n        waveform: sinusoidal\n    }\n\n    tdcs {\n        intensity: 1.5mA\n        electrode_pairs: [[\"Fp1\", \"P3\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 1.5mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n\n    audio_entrainment {\n        binaural_hz: 40Hz\n        noise: pink\n        carrier_hz: 440Hz\n        volume: 70dB\n        eeg_adaptive: true\n        bone_conduction_pacer: true\n    }\n\n    visual_stimulation {\n        frequency: 40Hz\n        mode: binocular\n        emdr_cadence: 1Hz\n        enable_mode_f: false\n    }\n}"
+    "text": "protocol \"All T1 Modalities\" {\n    id: \"00000000-0000-0000-0000-000000000001\"\n    hardware_version: 1\n    description: \"All eight T1 modalities\"\n    author: \"test\"\n    version: \"1.0\"\n    tags: []\n    duration: 30m\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 302mW_cm2\n        frequency: 20Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n\n    pbm_intranasal {\n        wavelength: \"660nm\"\n        irradiance: 60mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n    }\n\n    eeg_neurofeedback {\n        band: alpha\n        channels: all\n        closed_loop: true\n    }\n\n    bes_tacs {\n        frequency: 10Hz\n        intensity: 0.8mA\n        waveform: sinusoidal\n    }\n\n    tdcs {\n        intensity: 1.5mA\n        electrode_pairs: [[\"Fp1\", \"P3\"]]\n        electrode_area_cm2: 35\n        ramp: 30s\n    }\n\n    vns_hrv {\n        frequency: 25Hz\n        intensity: 1.5mA\n        hrv_protocol: standalone\n        breathing_rate: 6\n    }\n\n    audio_entrainment {\n        binaural_hz: 40Hz\n        noise: pink\n        carrier_hz: 440Hz\n        volume: 70dB\n        eeg_adaptive: true\n        bone_conduction_pacer: true\n    }\n\n    visual_stimulation {\n        frequency: 40Hz\n        mode: binocular\n        emdr_cadence: 1Hz\n        enable_mode_f: false\n    }\n}"
    }
   ],
   "npps/fixtures/comments.npps": [
@@ -6201,10 +6275,11 @@
        "seconds": 600,
        "type": "duration"
       },
-      "modalities": []
+      "modalities": [],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"Comments Only\" {\n    id: \"00000000-0000-0000-0000-000000000002\"\n    description: \"Protocol with comments\"\n    author: \"test\"\n    version: \"1.0\"\n    tags: []\n    duration: 10m\n}"
+    "text": "protocol \"Comments Only\" {\n    id: \"00000000-0000-0000-0000-000000000002\"\n    hardware_version: 1\n    description: \"Protocol with comments\"\n    author: \"test\"\n    version: \"1.0\"\n    tags: []\n    duration: 10m\n}"
    }
   ],
   "npps/fixtures/composite.npps": [
@@ -6237,10 +6312,11 @@
        }
       ],
       "conflictResolution": "merge",
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     },
-    "text": "composite \"Full Multi-Modal RCT\" {\n    id: \"10000100-0000-0000-0000-000000000000\"\n    description: \"RCT protocol\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"rct\", \"multimodal\"]\n    conflict_resolution: merge\n\n    layer \"Vascular Baseline\" {\n        start: 0s\n        duration: 5m\n        intensity_scale: 0.5\n    }\n\n    layer \"Gamma Focus\" {\n        start: 5m\n        duration: 20m\n    }\n}"
+    "text": "composite \"Full Multi-Modal RCT\" {\n    id: \"10000100-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"RCT protocol\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"rct\", \"multimodal\"]\n    conflict_resolution: merge\n\n    layer \"Vascular Baseline\" {\n        start: 0s\n        duration: 5m\n        intensity_scale: 0.5\n    }\n\n    layer \"Gamma Focus\" {\n        start: 5m\n        duration: 20m\n    }\n}"
    }
   ],
   "npps/fixtures/compound_idents.npps": [
@@ -6278,10 +6354,11 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"Quoted Wavelength\" {\n    id: \"00000000-0000-0000-0000-000000000003\"\n    description: \"Tests a quoted digit-leading wavelength value\"\n    author: \"test\"\n    version: \"1.0\"\n    tags: []\n    duration: 10m\n\n    pbm_transcranial {\n        wavelength: \"1064nm\"\n        irradiance: 322mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n}"
+    "text": "protocol \"Quoted Wavelength\" {\n    id: \"00000000-0000-0000-0000-000000000003\"\n    hardware_version: 1\n    description: \"Tests a quoted digit-leading wavelength value\"\n    author: \"test\"\n    version: \"1.0\"\n    tags: []\n    duration: 10m\n\n    pbm_transcranial {\n        wavelength: \"1064nm\"\n        irradiance: 322mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n}"
    }
   ],
   "npps/fixtures/gamma_focus.npps": [
@@ -6365,10 +6442,11 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"Gamma Focus\" {\n    id: \"10000001-0000-0000-0000-000000000000\"\n    description: \"40Hz multi-sensory protocol\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"focus\", \"gamma\"]\n    duration: 20m\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 322mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n\n    audio_entrainment {\n        binaural_hz: 40Hz\n        noise: none\n        carrier_hz: 440Hz\n        volume: 75dB\n        eeg_adaptive: false\n        bone_conduction_pacer: false\n    }\n\n    visual_stimulation {\n        frequency: 40Hz\n        mode: binocular\n        emdr_cadence: 1Hz\n        enable_mode_f: false\n        interval_on: 1m\n        interval_off: 30s\n        repeat: until_end\n    }\n\n    eeg_neurofeedback {\n        band: gamma\n        channels: all\n        closed_loop: true\n    }\n}"
+    "text": "protocol \"Gamma Focus\" {\n    id: \"10000001-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"40Hz multi-sensory protocol\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"focus\", \"gamma\"]\n    duration: 20m\n\n    pbm_transcranial {\n        wavelength: \"808nm\"\n        irradiance: 322mW_cm2\n        frequency: 40Hz\n        duty_cycle: 25%\n        zones: [\"All\"]\n    }\n\n    audio_entrainment {\n        binaural_hz: 40Hz\n        noise: none\n        carrier_hz: 440Hz\n        volume: 75dB\n        eeg_adaptive: false\n        bone_conduction_pacer: false\n    }\n\n    visual_stimulation {\n        frequency: 40Hz\n        mode: binocular\n        emdr_cadence: 1Hz\n        enable_mode_f: false\n        interval_on: 1m\n        interval_off: 30s\n        repeat: until_end\n    }\n\n    eeg_neurofeedback {\n        band: gamma\n        channels: all\n        closed_loop: true\n    }\n}"
    }
   ],
   "npps/fixtures/hyphenated_tags.npps": [
@@ -6408,10 +6486,11 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"Hyphenated Tags\" {\n    id: \"00000000-0000-0000-0000-000000000004\"\n    description: \"Tests quoted hyphenated tag parsing\"\n    author: \"test\"\n    version: \"1.0\"\n    tags: [\"wind-down\", \"all-modalities\", \"deep-sleep\"]\n    duration: 15m\n\n    audio_entrainment {\n        binaural_hz: 4Hz\n        noise: brown\n        carrier_hz: 200Hz\n        volume: 65dB\n        eeg_adaptive: false\n        bone_conduction_pacer: false\n    }\n}"
+    "text": "protocol \"Hyphenated Tags\" {\n    id: \"00000000-0000-0000-0000-000000000004\"\n    hardware_version: 1\n    description: \"Tests quoted hyphenated tag parsing\"\n    author: \"test\"\n    version: \"1.0\"\n    tags: [\"wind-down\", \"all-modalities\", \"deep-sleep\"]\n    duration: 15m\n\n    audio_entrainment {\n        binaural_hz: 4Hz\n        noise: brown\n        carrier_hz: 200Hz\n        volume: 65dB\n        eeg_adaptive: false\n        bone_conduction_pacer: false\n    }\n}"
    }
   ],
   "npps/fixtures/per_wavelength_series.npps": [
@@ -6474,10 +6553,11 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     },
-    "text": "protocol \"Per-Wavelength Series\" {\n    id: \"90000001-0000-0000-0000-000000000000\"\n    description: \"Two 810nm blocks, one after the other\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"series\"]\n    duration: 8m\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 250mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Frontal Left\"]\n        interval_on: 4m\n        interval_off: 0s\n        repeat: 1\n    }\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 250mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Frontal Right\"]\n        start: 4m\n        interval_on: 4m\n        interval_off: 0s\n        repeat: 1\n    }\n}"
+    "text": "protocol \"Per-Wavelength Series\" {\n    id: \"90000001-0000-0000-0000-000000000000\"\n    hardware_version: 1\n    description: \"Two 810nm blocks, one after the other\"\n    author: \"NeurOne\"\n    version: \"1.0\"\n    readonly: true\n    tags: [\"pbm\", \"series\"]\n    duration: 8m\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 250mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Frontal Left\"]\n        interval_on: 4m\n        interval_off: 0s\n        repeat: 1\n    }\n\n    pbm_transcranial {\n        wavelength: \"810nm\"\n        irradiance: 250mW_cm2\n        frequency: 0Hz\n        duty_cycle: 100%\n        zones: [\"Frontal Right\"]\n        start: 4m\n        interval_on: 4m\n        interval_off: 0s\n        repeat: 1\n    }\n}"
    }
   ],
   "npps/fixtures/wavelength_rules.npps": [

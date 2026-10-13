@@ -6568,7 +6568,8 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     }
    ],
@@ -6715,7 +6716,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -6740,7 +6742,8 @@
        "seconds": 600,
        "type": "duration"
       },
-      "modalities": []
+      "modalities": [],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -6779,7 +6782,8 @@
        }
       ],
       "conflictResolution": "merge",
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     }
    ],
@@ -6823,7 +6827,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -6844,11 +6849,17 @@
   "npps/fixtures/error_combined_wavelength.npps": {
    "error": "Line 9: pbm_transcranial: wavelength \"660_808nm\" is retired: it welded independent emitters into one block. Write one block per wavelength (\"660nm\" and \"808nm\"), each with its own irradiance_mw_cm2."
   },
+  "npps/fixtures/error_composite_no_hardware_version.npps": {
+   "error": "Line 1: composite \"No Hardware Version\" has no hardware_version — every composite states the helmet hardware version its sockets are addressed on, e.g. hardware_version: 1"
+  },
   "npps/fixtures/error_cw_with_duty.npps": {
    "error": "Line 11: pbm_transcranial: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 25%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
   },
   "npps/fixtures/error_missing_irradiance.npps": {
    "error": "Line 8: pbm_transcranial: irradiance (e.g. irradiance: 300mW_cm2) is required and must be positive"
+  },
+  "npps/fixtures/error_no_hardware_version.npps": {
+   "error": "Line 1: protocol \"No Hardware Version\" has no hardware_version — every protocol states the helmet hardware version its sockets are addressed on, e.g. hardware_version: 1"
   },
   "npps/fixtures/error_old_format.npps": {
    "error": "Line 3: Expected protocol name string, got LBRACE"
@@ -6946,7 +6957,8 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     }
    ],
@@ -7075,7 +7087,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -7144,7 +7157,8 @@
         }
        }
       ],
-      "isReadOnly": true
+      "isReadOnly": true,
+      "hardwareVersion": 1
      }
     }
    ],
@@ -7177,84 +7191,84 @@
  },
  "cases": {
   "tdcs_without_area": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  tdcs {\n    intensity: 1mA\n  }\n}\n",
-   "error": "Line 5: tdcs: electrode_area_cm2 is required and is never defaulted: it is compiled into the signed descriptor and the safety MCU's charge limit divides by it (e.g. electrode_area_cm2: 35)"
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  tdcs {\n    intensity: 1mA\n  }\n}\n",
+   "error": "Line 6: tdcs: electrode_area_cm2 is required and is never defaulted: it is compiled into the signed descriptor and the safety MCU's charge limit divides by it (e.g. electrode_area_cm2: 35)"
   },
   "cw_with_duty": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 0Hz\n    duty_cycle: 25%\n  }\n}\n",
-   "error": "Line 8: pbm_transcranial: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 25%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 0Hz\n    duty_cycle: 25%\n  }\n}\n",
+   "error": "Line 9: pbm_transcranial: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 25%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
   },
   "cw_deep_with_duty": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_deep_1170nm {\n    intensity_mw_cm2: 500\n    frequency: 0\n    duty_cycle: 50%\n  }\n}\n",
-   "error": "Line 7: pbm_deep_1170nm: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 50%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_deep_1170nm {\n    intensity_mw_cm2: 500\n    frequency: 0\n    duty_cycle: 50%\n  }\n}\n",
+   "error": "Line 8: pbm_deep_1170nm: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 50%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
   },
   "cw_intranasal_with_duty": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_intranasal {\n    wavelength: \"660nm\"\n    irradiance: 30mW_cm2\n    frequency: 0\n    duty_cycle: 50%\n  }\n}\n",
-   "error": "Line 8: pbm_intranasal: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 50%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_intranasal {\n    wavelength: \"660nm\"\n    irradiance: 30mW_cm2\n    frequency: 0\n    duty_cycle: 50%\n  }\n}\n",
+   "error": "Line 9: pbm_intranasal: frequency: 0 selects continuous wave, which has no duty cycle, but duty_cycle is 50%. Remove duty_cycle for CW, or give a pulse frequency above 0 for a pulsed train"
   },
   "percent_irradiance": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    intensity: 80%\n  }\n}\n",
-   "error": "Line 6: pbm_transcranial: 'intensity' is a percentage of a baseline the hardware owns and can change, so it does not state the stimulus. state irradiance in mW/cm², e.g. irradiance: 300mW_cm2 (NP-NPPS-REF-001 §4.1b)."
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    intensity: 80%\n  }\n}\n",
+   "error": "Line 7: pbm_transcranial: 'intensity' is a percentage of a baseline the hardware owns and can change, so it does not state the stimulus. state irradiance in mW/cm², e.g. irradiance: 300mW_cm2 (NP-NPPS-REF-001 §4.1b)."
   },
   "deep_has_no_intensity": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_deep_1170nm {\n    intensity: 500\n  }\n}\n",
-   "error": "Line 5: pbm_deep_1170nm: 'intensity' is not a field of this modality"
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_deep_1170nm {\n    intensity: 500\n  }\n}\n",
+   "error": "Line 6: pbm_deep_1170nm: 'intensity' is not a field of this modality"
   },
   "unitless_volume": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  audio_entrainment {\n    volume: 70\n  }\n}\n",
-   "error": "Line 4: audio_entrainment: volume needs its unit written (volume: 70dB); a bare number does not say what it measures"
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  audio_entrainment {\n    volume: 70\n  }\n}\n",
+   "error": "Line 5: audio_entrainment: volume needs its unit written (volume: 70dB); a bare number does not say what it measures"
   },
   "percent_volume": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  audio_entrainment {\n    volume: 70%\n  }\n}\n",
-   "error": "Line 4: audio_entrainment: volume in % is refused — state it in dB"
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  audio_entrainment {\n    volume: 70%\n  }\n}\n",
+   "error": "Line 5: audio_entrainment: volume in % is refused — state it in dB"
   },
   "wrong_unit_irradiance": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    irradiance: 12mA\n  }\n}\n",
-   "error": "Line 6: pbm_transcranial: irradiance takes mW_cm2, not mA"
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    irradiance: 12mA\n  }\n}\n",
+   "error": "Line 7: pbm_transcranial: irradiance takes mW_cm2, not mA"
   },
   "missing_volume": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  audio_entrainment {\n    carrier_hz: 440\n  }\n}\n",
-   "error": "Line 5: audio_entrainment: volume in dB SPL (e.g. volume: 72dB) is required and must be positive"
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  audio_entrainment {\n    carrier_hz: 440\n  }\n}\n",
+   "error": "Line 6: audio_entrainment: volume in dB SPL (e.g. volume: 72dB) is required and must be positive"
   },
   "retired_wavelength": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"660_808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n",
-   "error": "Line 6: pbm_transcranial: wavelength \"660_808nm\" is retired: it welded independent emitters into one block. Write one block per wavelength (\"660nm\" and \"808nm\"), each with its own irradiance_mw_cm2."
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"660_808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n",
+   "error": "Line 7: pbm_transcranial: wavelength \"660_808nm\" is retired: it welded independent emitters into one block. Write one block per wavelength (\"660nm\" and \"808nm\"), each with its own irradiance_mw_cm2."
   },
   "missing_wavelength": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    irradiance: 100mW_cm2\n  }\n}\n",
-   "error": "Line 5: pbm_transcranial: wavelength is required, one value per block, e.g. wavelength: \"810nm\""
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    irradiance: 100mW_cm2\n  }\n}\n",
+   "error": "Line 6: pbm_transcranial: wavelength is required, one value per block, e.g. wavelength: \"810nm\""
   },
   "empty_zones": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: []\n  }\n}\n",
-   "error": "Line 7: pbm_transcranial: zones: [] names no zone — a session cannot target nothing"
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: []\n  }\n}\n",
+   "error": "Line 8: pbm_transcranial: zones: [] names no zone — a session cannot target nothing"
   },
   "bad_zone_selector": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: everything\n  }\n}\n",
-   "error": "Line 7: pbm_transcranial: unknown zone selector 'everything'. zones must be a list of quoted zone names (e.g. zones: [\"Frontal\"]) or clinician_selected"
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: everything\n  }\n}\n",
+   "error": "Line 8: pbm_transcranial: unknown zone selector 'everything'. zones must be a list of quoted zone names (e.g. zones: [\"Frontal\"]) or clinician_selected"
   },
   "unknown_modality": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  hologram {\n    x: 1\n  }\n}\n",
-   "error": "Line 5: Unknown modality block type: 'hologram'"
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  hologram {\n    x: 1\n  }\n}\n",
+   "error": "Line 6: Unknown modality block type: 'hologram'"
   },
   "intensity_on_unknown_field": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  eeg_neurofeedback {\n    intensity: 1mA\n  }\n}\n",
-   "error": "Line 5: eeg_neurofeedback: 'intensity' is not a field of this modality"
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  eeg_neurofeedback {\n    intensity: 1mA\n  }\n}\n",
+   "error": "Line 6: eeg_neurofeedback: 'intensity' is not a field of this modality"
   },
   "negative_start": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    start: -5s\n  }\n}\n",
-   "error": "Line 4: bes_tacs: start must be a duration of zero or more"
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n    start: -5s\n  }\n}\n",
+   "error": "Line 5: bes_tacs: start must be a duration of zero or more"
   },
   "unterminated_string": {
    "source": "protocol \"T {\n}\n",
    "error": "Line 3: Unterminated string"
   },
   "stray_minus": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    frequency: -\n  }\n}\n",
-   "error": "Line 4: Unexpected character: -"
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n    frequency: -\n  }\n}\n",
+   "error": "Line 5: Unexpected character: -"
   },
   "digit_leading": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  qeeg_21ch {\n    montage: 10-20\n  }\n}\n",
-   "error": "Line 4: Unquoted value '10-20' — values that start with a digit and are not a plain number must be quoted, e.g. \"10-20\""
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  qeeg_21ch {\n    montage: 10-20\n  }\n}\n",
+   "error": "Line 5: Unquoted value '10-20' — values that start with a digit and are not a plain number must be quoted, e.g. \"10-20\""
   },
   "bad_top_level": {
    "source": "banana \"T\" {}\n",
@@ -7269,12 +7283,12 @@
    "error": "Line 2: zone \"Z\": 81 is not a socket on this helmet — ids are whole numbers 1–80 (80 sockets, numbered from 1)"
   },
   "family_id_not_an_id": {
-   "source": "protocol \"T\" {\n  family_id: \"not-an-id\"\n}\n",
-   "error": "Line 2: family_id \"not-an-id\" is not a 128-bit id — write it as UUID text, 8-4-4-4-12 hex digits"
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  family_id: \"not-an-id\"\n}\n",
+   "error": "Line 3: family_id \"not-an-id\" is not a 128-bit id — write it as UUID text, 8-4-4-4-12 hex digits"
   },
   "family_id_wrong_grouping": {
-   "source": "protocol \"T\" {\n  family_id: \"0123456789abcdef0123456789abcdef\"\n}\n",
-   "error": "Line 2: family_id \"0123456789abcdef0123456789abcdef\" is not a 128-bit id — write it as UUID text, 8-4-4-4-12 hex digits"
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  family_id: \"0123456789abcdef0123456789abcdef\"\n}\n",
+   "error": "Line 3: family_id \"0123456789abcdef0123456789abcdef\" is not a 128-bit id — write it as UUID text, 8-4-4-4-12 hex digits"
   },
   "hardware_version_zero": {
    "source": "protocol \"T\" {\n  hardware_version: 0\n}\n",
@@ -7288,9 +7302,21 @@
    "source": "protocol \"T\" {\n  hardware_version: \"1\"\n}\n",
    "error": "Line 2: Expected number, got STRING (1)"
   },
+  "protocol_without_hardware_version": {
+   "source": "protocol \"T\" {\n  duration: 5m\n}\n",
+   "error": "Line 1: protocol \"T\" has no hardware_version — every protocol states the helmet hardware version its sockets are addressed on, e.g. hardware_version: 1"
+  },
+  "protocol_with_family_id_only": {
+   "source": "protocol \"T\" {\n  family_id: \"0123abcd-4567-4def-8901-23456789abcd\"\n}\n",
+   "error": "Line 1: protocol \"T\" has no hardware_version — every protocol states the helmet hardware version its sockets are addressed on, e.g. hardware_version: 1"
+  },
+  "composite_without_hardware_version": {
+   "source": "composite \"C\" {\n  description: \"d\"\n}\n",
+   "error": "Line 1: composite \"C\" has no hardware_version — every composite states the helmet hardware version its sockets are addressed on, e.g. hardware_version: 1"
+  },
   "composite_family_id_not_an_id": {
-   "source": "composite \"C\" {\n  family_id: \"x\"\n}\n",
-   "error": "Line 2: family_id \"x\" is not a 128-bit id — write it as UUID text, 8-4-4-4-12 hex digits"
+   "source": "composite \"C\" {\n  hardware_version: 1\n  family_id: \"x\"\n}\n",
+   "error": "Line 3: family_id \"x\" is not a 128-bit id — write it as UUID text, 8-4-4-4-12 hex digits"
   },
   "zone_version_zero": {
    "source": "zone \"Z\" {\n  hardware_version 0 {\n    sockets: [1]\n  }\n}\n",
@@ -7337,8 +7363,8 @@
    "error": "Line 1: Expected composite name string, got LBRACE"
   },
   "layer_no_name": {
-   "source": "composite \"C\" {\n  layer {\n  }\n}\n",
-   "error": "Line 2: Expected layer protocol name string, got LBRACE"
+   "source": "composite \"C\" {\n  hardware_version: 1\n  layer {\n  }\n}\n",
+   "error": "Line 3: Expected layer protocol name string, got LBRACE"
   },
   "wr_no_name": {
    "source": "wavelength_rules {\n}\n",
@@ -7480,7 +7506,7 @@
    "limits": null
   },
   "composite_everything": {
-   "source": "composite \"C\" {\n  id: \"11111111-2222-3333-4444-555555555555\"\n  description: \"d\"\n  author: \"a\"\n  version: \"3\"\n  readonly: true\n  tags: [a, b]\n  conflict_resolution: sequential\n  conditions: [\"x\"]\n  references: [\"http://a\"]\n  unknown: 1\n  layer \"P1\" {\n    start: 2m\n    end: 5m\n    intensity_scale: 0.5\n    other: 1\n  }\n  layer \"P2\" {\n    duration: 90s\n  }\n}\n",
+   "source": "composite \"C\" {\n  hardware_version: 1\n  id: \"11111111-2222-3333-4444-555555555555\"\n  description: \"d\"\n  author: \"a\"\n  version: \"3\"\n  readonly: true\n  tags: [a, b]\n  conflict_resolution: sequential\n  conditions: [\"x\"]\n  references: [\"http://a\"]\n  unknown: 1\n  layer \"P1\" {\n    start: 2m\n    end: 5m\n    intensity_scale: 0.5\n    other: 1\n  }\n  layer \"P2\" {\n    duration: 90s\n  }\n}\n",
    "entries": [
     {
      "kind": "composite",
@@ -7516,7 +7542,8 @@
       ],
       "references": [
        "http://a"
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -7526,7 +7553,7 @@
    "limits": null
   },
   "composite_minimal": {
-   "source": "composite \"C\" {\n}\n",
+   "source": "composite \"C\" {\n  hardware_version: 1\n}\n",
    "entries": [
     {
      "kind": "composite",
@@ -7538,7 +7565,8 @@
       "tags": [],
       "isPredefined": false,
       "layers": [],
-      "conflictResolution": "merge"
+      "conflictResolution": "merge",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -7739,7 +7767,7 @@
    }
   },
   "everything_in_one_file": {
-   "source": "zone \"Z\" {\n  sockets: [1]\n}\ncondition \"C\" {\n}\nprotocol \"P\" {\n  conditions: [\"C\"]\n  pbm_transcranial {\n    zones: [\"Z\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\ncomposite \"K\" {\n  layer \"P\" {\n  }\n}\nlimits \"L\" {\n}\nwavelength_rules \"W\" {\n}\n",
+   "source": "zone \"Z\" {\n  sockets: [1]\n}\ncondition \"C\" {\n}\nprotocol \"P\" {\n  hardware_version: 1\n  conditions: [\"C\"]\n  pbm_transcranial {\n    zones: [\"Z\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\ncomposite \"K\" {\n  hardware_version: 1\n  layer \"P\" {\n  }\n}\nlimits \"L\" {\n}\nwavelength_rules \"W\" {\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -7776,7 +7804,8 @@
       ],
       "conditions": [
        "C"
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
     {
@@ -7795,7 +7824,8 @@
         "startOffsetSeconds": 0
        }
       ],
-      "conflictResolution": "merge"
+      "conflictResolution": "merge",
+      "hardwareVersion": 1
      }
     }
    ],
@@ -7833,7 +7863,7 @@
    }
   },
   "canonical_spellings": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    frequency_hz: 12\n    intensity_milliamps: 0.6\n    waveform: square\n  }\n}\n",
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n    frequency_hz: 12\n    intensity_milliamps: 0.6\n    waveform: square\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -7862,7 +7892,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -7872,7 +7903,7 @@
    "limits": null
   },
   "alias_spellings": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    frequency: 12Hz\n    intensity: 0.6mA\n    waveform: square\n  }\n}\n",
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n    frequency: 12Hz\n    intensity: 0.6mA\n    waveform: square\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -7901,7 +7932,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -7911,7 +7943,7 @@
    "limits": null
   },
   "canonical_beats_alias": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    frequency_hz: 40\n    frequency: 10\n  }\n}\n",
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n    frequency_hz: 40\n    frequency: 10\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -7940,7 +7972,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -7950,7 +7983,7 @@
    "limits": null
   },
   "alias_then_canonical": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    frequency: 10\n    frequency_hz: 40\n  }\n}\n",
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n    frequency: 10\n    frequency_hz: 40\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -7979,7 +8012,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -7989,7 +8023,7 @@
    "limits": null
   },
   "cw_reads_as_full_duty": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 0Hz\n  }\n}\n",
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 0Hz\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8023,7 +8057,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -8033,7 +8068,7 @@
    "limits": null
   },
   "cw_with_full_duty": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 0Hz\n    duty_cycle: 100%\n  }\n}\n",
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 0Hz\n    duty_cycle: 100%\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8067,7 +8102,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -8077,7 +8113,7 @@
    "limits": null
   },
   "pulsed": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 40Hz\n    duty_cycle: 25%\n  }\n}\n",
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    frequency: 40Hz\n    duty_cycle: 25%\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8111,7 +8147,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -8121,7 +8158,7 @@
    "limits": null
   },
   "clinician_selected": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: clinician_selected\n  }\n}\n",
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: clinician_selected\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8155,7 +8192,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -8165,7 +8203,7 @@
    "limits": null
   },
   "named_zones": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: [\"Frontal Left\", \"Frontal Right\"]\n  }\n}\n",
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_transcranial {\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n    zones: [\"Frontal Left\", \"Frontal Right\"]\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8200,7 +8238,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -8210,7 +8249,7 @@
    "limits": null
   },
   "noise_none_is_omitted": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  audio_entrainment {\n    volume: 70dB\n    noise: none\n  }\n}\n",
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  audio_entrainment {\n    volume: 70dB\n    noise: none\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8240,7 +8279,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -8250,7 +8290,7 @@
    "limits": null
   },
   "noise_pink": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  audio_entrainment {\n    volume: 70dB\n    noise: pink\n    binaural_hz: 40Hz\n  }\n}\n",
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  audio_entrainment {\n    volume: 70dB\n    noise: pink\n    binaural_hz: 40Hz\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8282,7 +8322,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -8292,7 +8333,7 @@
    "limits": null
   },
   "tdcs_pairs_and_defaults": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  tdcs {\n    electrode_pairs: [[\"F3\",\"F4\"],[\"Fp1\"],[\"P3\",\"P4\"]]\n    electrode_area_cm2: 25\n  }\n}\n",
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  tdcs {\n    electrode_pairs: [[\"F3\",\"F4\"],[\"Fp1\"],[\"P3\",\"P4\"]]\n    electrode_area_cm2: 25\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8335,7 +8376,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -8345,7 +8387,7 @@
    "limits": null
   },
   "eeg_custom_channels": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  eeg_neurofeedback {\n    channels: custom\n    custom_channels: [\"Cz\",\"Pz\"]\n    closed_loop: false\n  }\n}\n",
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  eeg_neurofeedback {\n    channels: custom\n    custom_channels: [\"Cz\",\"Pz\"]\n    closed_loop: false\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8378,7 +8420,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -8388,7 +8431,7 @@
    "limits": null
   },
   "interval_and_start": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    interval_on: 20s\n    interval_off: 10s\n    repeat: 3\n    start: 2m\n    enabled: false\n  }\n}\n",
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n    interval_on: 20s\n    interval_off: 10s\n    repeat: 3\n    start: 2m\n    enabled: false\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8419,7 +8462,8 @@
          "startOffsetSeconds": 120
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -8429,7 +8473,7 @@
    "limits": null
   },
   "repeat_until_end": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  bes_tacs {\n    repeat: until_end\n  }\n}\n",
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n    repeat: until_end\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8458,7 +8502,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -8468,7 +8513,7 @@
    "limits": null
   },
   "every_modality_defaults": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_intranasal {\n    wavelength: \"660nm\"\n    irradiance: 30mW_cm2\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  eeg_neurofeedback {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  bes_tacs {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  tdcs {\n    electrode_area_cm2: 35\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  vns_hrv {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  visual_stimulation {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  qeeg_21ch {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  tms {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  clinical_tacs {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  hd_tdcs {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  cervical_vns {\n\n  }\n}\n\nprotocol \"T\" {\n  duration: 5m\n  vibrotactile_40hz {\n\n  }\n}\n",
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_intranasal {\n    wavelength: \"660nm\"\n    irradiance: 30mW_cm2\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  eeg_neurofeedback {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  bes_tacs {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  tdcs {\n    electrode_area_cm2: 35\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  vns_hrv {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  visual_stimulation {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  qeeg_21ch {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  tms {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  clinical_tacs {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  hd_tdcs {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  cervical_vns {\n\n  }\n}\n\nprotocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  vibrotactile_40hz {\n\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8498,7 +8543,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
     {
@@ -8528,7 +8574,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
     {
@@ -8558,7 +8605,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
     {
@@ -8594,7 +8642,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
     {
@@ -8625,7 +8674,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
     {
@@ -8656,7 +8706,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
     {
@@ -8686,7 +8737,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
     {
@@ -8718,7 +8770,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
     {
@@ -8749,7 +8802,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
     {
@@ -8779,7 +8833,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
     {
@@ -8808,7 +8863,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
     {
@@ -8838,7 +8894,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -8848,7 +8905,7 @@
    "limits": null
   },
   "deep_defaults": {
-   "source": "protocol \"T\" {\n  duration: 5m\n  pbm_deep_1170nm {\n\n  }\n}\n",
+   "source": "protocol \"T\" {\n  hardware_version: 1\n  duration: 5m\n  pbm_deep_1170nm {\n\n  }\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -8877,7 +8934,8 @@
          "intervalOnSeconds": 0
         }
        }
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -8993,7 +9051,7 @@
    "limits": null
   },
   "metadata_everything": {
-   "source": "protocol \"M\" {\n  id: \"11111111-2222-3333-4444-555555555555\"\n  description: \"d\"\n  author: \"a\"\n  version: \"2\"\n  readonly: true\n  tags: [alpha, \"x y\", 40Hz]\n  interval_count: 4\n  conditions: [\"c1\", c2]\n  references: [\"http://a\", [\"L\", \"http://b\"], [\"only\"]]\n  unknown_field: [1, [2, 3]]\n}\n",
+   "source": "protocol \"M\" {\n  hardware_version: 1\n  id: \"11111111-2222-3333-4444-555555555555\"\n  description: \"d\"\n  author: \"a\"\n  version: \"2\"\n  readonly: true\n  tags: [alpha, \"x y\", 40Hz]\n  interval_count: 4\n  conditions: [\"c1\", c2]\n  references: [\"http://a\", [\"L\", \"http://b\"], [\"only\"]]\n  unknown_field: [1, [2, 3]]\n}\n",
    "entries": [
     {
      "kind": "single",
@@ -9026,7 +9084,8 @@
         "url": "http://b"
        },
        "only"
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -9040,7 +9099,7 @@
   "cross_file_ok": {
    "sources": [
     "zone \"A\" {\n  sockets: [1, 2]\n}\ncondition \"C\" {\n  link: \"http://C\"\n}\n",
-    "protocol \"P\" {\n  conditions: [\"C\"]\n  pbm_transcranial {\n    zones: [\"A\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n"
+    "protocol \"P\" {\n  hardware_version: 1\n  conditions: [\"C\"]\n  pbm_transcranial {\n    zones: [\"A\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n"
    ],
    "entries": [
     {
@@ -9078,7 +9137,8 @@
       ],
       "conditions": [
        "C"
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -9111,7 +9171,7 @@
    "sources": [
     "zone \"A\" {\n  sockets: [1]\n}\n",
     "zone \"A\" {\n  sockets: [2]\n}\n",
-    "protocol \"P\" {\n  conditions: []\n  pbm_transcranial {\n    zones: [\"A\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n"
+    "protocol \"P\" {\n  hardware_version: 1\n  conditions: []\n  pbm_transcranial {\n    zones: [\"A\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n"
    ],
    "entries": [
     {
@@ -9147,7 +9207,8 @@
         }
        }
       ],
-      "conditions": []
+      "conditions": [],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -9192,7 +9253,7 @@
    "sources": [
     "condition \"C\" {\n  link: \"http://C\"\n}\n",
     "condition \"C\" {\n  link: \"http://C\"\n}\n",
-    "protocol \"P\" {\n  conditions: [\"C\"]\n  pbm_transcranial {\n    zones: clinician_selected\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n"
+    "protocol \"P\" {\n  hardware_version: 1\n  conditions: [\"C\"]\n  pbm_transcranial {\n    zones: clinician_selected\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n"
    ],
    "entries": [
     {
@@ -9230,7 +9291,8 @@
       ],
       "conditions": [
        "C"
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -9266,7 +9328,7 @@
   },
   "dangling_zone_and_condition": {
    "sources": [
-    "protocol \"P\" {\n  conditions: [\"Missing\"]\n  pbm_transcranial {\n    zones: [\"Nope\", \"Gone\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\ncomposite \"K\" {\n  conditions: [\"AlsoMissing\"]\n}\n"
+    "protocol \"P\" {\n  hardware_version: 1\n  conditions: [\"Missing\"]\n  pbm_transcranial {\n    zones: [\"Nope\", \"Gone\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\ncomposite \"K\" {\n  hardware_version: 1\n  conditions: [\"AlsoMissing\"]\n}\n"
    ],
    "entries": [
     {
@@ -9305,7 +9367,8 @@
       ],
       "conditions": [
        "Missing"
-      ]
+      ],
+      "hardwareVersion": 1
      }
     },
     {
@@ -9321,7 +9384,8 @@
       "conflictResolution": "merge",
       "conditions": [
        "AlsoMissing"
-      ]
+      ],
+      "hardwareVersion": 1
      }
     }
    ],
@@ -9481,67 +9545,6 @@
    "referenceErrors": [
     "Protocol 'P' is for hardware version 2, and zone 'A' has no socket list for it"
    ]
-  },
-  "no_hardware_version_not_checked": {
-   "sources": [
-    "zone \"A\" {\n  sockets: [1]\n}\n",
-    "protocol \"P\" {\n  conditions: []\n  pbm_transcranial {\n    zones: [\"A\"]\n    wavelength: \"808nm\"\n    irradiance: 100mW_cm2\n  }\n}\n"
-   ],
-   "entries": [
-    {
-     "kind": "single",
-     "protocol": {
-      "name": "P",
-      "description": "",
-      "author": "NeurOne",
-      "version": "1.0",
-      "tags": [],
-      "isPredefined": false,
-      "timingMode": {
-       "seconds": 1200,
-       "type": "duration"
-      },
-      "modalities": [
-       {
-        "type": "pbm_transcranial",
-        "enabled": true,
-        "params": {
-         "dutyCyclePercent": 25,
-         "frequencyHz": 40,
-         "irradianceMWcm2": 100,
-         "wavelength": "808nm",
-         "zoneRefs": [
-          "A"
-         ],
-         "zones": "named"
-        },
-        "interval": {
-         "intervalOffSeconds": 0,
-         "intervalOnSeconds": 0
-        }
-       }
-      ],
-      "conditions": []
-     }
-    }
-   ],
-   "zones": [
-    {
-     "isPredefined": false,
-     "name": "A",
-     "sockets": [
-      1
-     ],
-     "socketsByVersion": {
-      "1": [
-       1
-      ]
-     }
-    }
-   ],
-   "conditions": [],
-   "errors": [],
-   "referenceErrors": []
   },
   "library": {
    "paths": [

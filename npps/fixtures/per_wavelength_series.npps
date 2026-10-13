@@ -1,5 +1,6 @@
 # One wavelength per PBM block, run in series with `start` (NP-NPPS-REF-001 §4.1a, §5).
 protocol "Per-Wavelength Series" {
+  hardware_version: 1
     id: "90000001-0000-0000-0000-000000000000"
     description: "Two 810nm blocks, one after the other"
     author: "NeurOne"

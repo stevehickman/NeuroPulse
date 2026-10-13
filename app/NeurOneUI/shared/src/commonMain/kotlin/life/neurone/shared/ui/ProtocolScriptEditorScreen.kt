@@ -86,6 +86,7 @@ fun ProtocolScriptEditorScreen(
 
 /** A minimal valid NPPS template for a brand-new user protocol (no id → fresh UUID, editable). */
 const val NEW_PROTOCOL_TEMPLATE: String = """protocol "New Protocol" {
+    hardware_version: 1
     description: "My custom protocol"
     author: "You"
     version: "1.0"

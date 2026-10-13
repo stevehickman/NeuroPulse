@@ -1,0 +1,5 @@
+protocol "No Hardware Version" {
+  id: "11111111-2222-3333-4444-555555555555"
+  family_id: "0123abcd-4567-4def-8901-23456789abcd"
+  duration: 5m
+}

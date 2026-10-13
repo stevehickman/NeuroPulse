@@ -490,6 +490,9 @@ export interface NPProtocolDefinition {
   // is not sent to the helmet. The hardware version is the layout the protocol's sockets are addressed on.
   familyId?: string;
   hardwareVersion?: number;
+  // The used flag (`used: true`; SWR-WO-03): this protocol has run in a session. Carried in export, merged by OR on
+  // import, advisory, and not part of the content hash. Written only when true.
+  isUsed?: boolean;
 }
 
 // ─── Reference links ───────────────────────────────────────────────────────────
@@ -571,6 +574,9 @@ export interface NPCompositeProtocol {
   // is not sent to the helmet. The hardware version is the layout the protocol's sockets are addressed on.
   familyId?: string;
   hardwareVersion?: number;
+  // The used flag (`used: true`; SWR-WO-03): this protocol has run in a session. Carried in export, merged by OR on
+  // import, advisory, and not part of the content hash. Written only when true.
+  isUsed?: boolean;
 }
 
 // ─── Entry union ───────────────────────────────────────────────────────────────

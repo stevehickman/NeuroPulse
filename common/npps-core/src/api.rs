@@ -3,6 +3,7 @@
 //! nothing else, so there is exactly one place the contract lives.
 
 use crate::compiler::{compile_protocol, CompileOptions};
+use crate::identity;
 use crate::parser::{parse_file, Entry};
 use crate::wavelength::{Channel, ChannelRule, WavelengthRules};
 use serde_json::{json, Value};
@@ -71,24 +72,49 @@ fn rules(v: &Value) -> Result<Option<WavelengthRules>, String> {
     Ok(Some(WavelengthRules { name, channels }))
 }
 
+/// The zone namespace a request carries, resolved for the protocol. `zonesByVersion` (`{name:{"1":[…],"2":[…]}}`) is
+/// used when the protocol states a hardware version, and a named zone with no list for it is refused (`SWR-HV-05`);
+/// otherwise `zones` (`{name:[…]}`, already for one layout) is used as it always was.
+fn request_zones(req: &Value) -> Result<Option<HashMap<String, Vec<u32>>>, String> {
+    if let (Some(by_v), Some(v)) = (req["zonesByVersion"].as_object(), req["def"]["hardwareVersion"].as_u64()) {
+        let mut all: HashMap<String, HashMap<u32, Vec<u32>>> = HashMap::new();
+        for (name, lists) in by_v {
+            let mut one = HashMap::new();
+            for (ver, ids) in lists.as_object().ok_or("zonesByVersion entries must be objects")? {
+                let ver: u32 = ver.parse().map_err(|_| format!("zonesByVersion[{name}]: '{ver}' is not a hardware version"))?;
+                one.insert(ver, sockets(ids)?);
+            }
+            all.insert(name.clone(), one);
+        }
+        if let Some(z) = identity::zones_without_version_list(&req["def"], &all).first() {
+            let name = req["def"]["name"].as_str().unwrap_or("");
+            return Err(identity::zone_missing_message(name, v, z));
+        }
+        let v = u32::try_from(v).map_err(|_| "hardwareVersion does not fit in 32 bits".to_string())?;
+        return Ok(Some(identity::zones_for_version(&all, v)));
+    }
+    if req["zones"].is_null() {
+        return Ok(None);
+    }
+    let mut m = HashMap::new();
+    for (k, v) in req["zones"].as_object().ok_or("zones must be an object")? {
+        m.insert(k.clone(), sockets(v)?);
+    }
+    Ok(Some(m))
+}
+
 /// Compile a protocol. `request` is
 /// `{"def":{timingMode,modalities}, "zones":{name:[socket…]}, "clinicianSockets":[…]|null,
 ///   "deviceSerialHex":"…"|null, "nowUnix":n, "sessionUuidHex":"…32 hex…",
 ///   "wavelengthRules":{name,channels:[{element,nominalNm,minNm,maxNm}]}|null,
-///   "autonomous":true|false (optional, default false: sets the Mode 3 header flag)}`.
+///   "autonomous":true|false (optional, default false: sets the Mode 3 header flag),
+///   "zonesByVersion":{name:{"1":[…],…}} (optional: used instead of "zones" when the protocol states a hardware version, and
+///   a named zone with no list for it is refused, SWR-HV-05)}`.
 /// Returns the descriptor with a zeroed 64-byte signature slot, which the caller signs.
 /// The error is the compiler's refusal message.
 pub fn compile_json(request: &str) -> Result<Vec<u8>, String> {
     let req: Value = serde_json::from_str(request).map_err(|e| format!("compile request is not JSON: {e}"))?;
-    let zones: Option<HashMap<String, Vec<u32>>> = if req["zones"].is_null() {
-        None
-    } else {
-        let mut m = HashMap::new();
-        for (k, v) in req["zones"].as_object().ok_or("zones must be an object")? {
-            m.insert(k.clone(), sockets(v)?);
-        }
-        Some(m)
-    };
+    let zones = request_zones(&req)?;
     let clinician = if req["clinicianSockets"].is_null() { None } else { Some(sockets(&req["clinicianSockets"])?) };
     let serial = match req["deviceSerialHex"].as_str() {
         Some(h) => Some(hex_decode(h)?),
@@ -268,4 +294,15 @@ pub fn resolve_limits_json(request: &str) -> Result<String, String> {
     let req: Value = serde_json::from_str(request).map_err(|e| format!("resolve request is not JSON: {e}"))?;
     let (limits, sources) = crate::resolve::resolve_limits(&req["global"], &req["helmet"], &req["individual"]);
     Ok(json!({ "limits": limits, "sources": sources }).to_string())
+}
+
+/// A protocol's identity: the hash of its compiled content (`SWR-HV-01`; the form and what it leaves out are in
+/// `identity`). `request` is `{"def":…, "zones" | "zonesByVersion", "clinicianSockets":[…]|null}`, the same zone and socket
+/// inputs as `compile_json`; the serial, rules, Mode 3 flag, cautions, time and session id are not inputs. Returns 64
+/// lowercase hex digits.
+pub fn content_hash_json(request: &str) -> Result<String, String> {
+    let req: Value = serde_json::from_str(request).map_err(|e| format!("content hash request is not JSON: {e}"))?;
+    let zones = request_zones(&req)?.unwrap_or_default();
+    let clinician = if req["clinicianSockets"].is_null() { None } else { Some(sockets(&req["clinicianSockets"])?) };
+    identity::content_hash(&req["def"], &zones, clinician.as_deref())
 }

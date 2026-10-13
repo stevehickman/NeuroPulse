@@ -1,4 +1,5 @@
 composite "Full Multi-Modal RCT" {
+  hardware_version: 1
     id: "10000100-0000-0000-0000-000000000000"
     description: "RCT protocol"
     author: "NeurOne"

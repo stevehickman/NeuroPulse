@@ -311,21 +311,41 @@ fn references(refs: &[Value]) -> String {
 }
 
 /// The header fields `protocol` and `composite` share, in the order the web serializer wrote them.
-fn header(def: &Value, lines: &mut Vec<String>) -> R<()> {
+fn header(kind: &str, def: &Value, lines: &mut Vec<String>) -> R<()> {
     lines.push(format!("{INDENT}id: {}", q(text(def, "id"))));
     // Identity metadata (SWR-FM-01, SWR-HV-01): written when the model carries it, so a protocol read with a family id
     // and a hardware version is written back with both.
     if !text(def, "familyId").is_empty() {
         lines.push(format!("{INDENT}family_id: {}", q(text(def, "familyId"))));
     }
-    if let Some(v) = def["hardwareVersion"].as_f64() {
-        lines.push(format!("{INDENT}hardware_version: {}", num_string(v)));
+    // The hardware version is required (SWR-HV-01): the parser refuses a protocol or composite without one, so a model
+    // that has none is refused here rather than written into a file that cannot be read back.
+    match def["hardwareVersion"].as_f64() {
+        Some(v) if v.fract() == 0.0 && v >= 1.0 => lines.push(format!("{INDENT}hardware_version: {}", num_string(v))),
+        Some(v) => {
+            return Err(format!(
+                "cannot serialize {kind} {}: hardwareVersion must be a whole number of 1 or more, got {}",
+                q(text(def, "name")),
+                num_string(v)
+            ))
+        }
+        None => {
+            return Err(format!(
+                "cannot serialize {kind} {}: it has no hardwareVersion, and a {kind} without hardware_version is refused when it is read. \
+                 Suggested correction: set hardwareVersion to 1, the only hardware version that exists, which writes hardware_version: 1",
+                q(text(def, "name"))
+            ))
+        }
     }
     lines.push(format!("{INDENT}description: {}", q(text(def, "description"))));
     lines.push(format!("{INDENT}author: {}", q(text(def, "author"))));
     lines.push(format!("{INDENT}version: {}", q(text(def, "version"))));
     if def["isReadOnly"] == true {
         lines.push(format!("{INDENT}readonly: true"));
+    }
+    // The used flag travels with the protocol in export (SWR-WO-03); it is not part of the content hash.
+    if def["isUsed"] == true {
+        lines.push(format!("{INDENT}used: true"));
     }
     lines.push(format!("{INDENT}tags: {}", str_arr(&string_list(&def["tags"], "tags")?)));
     if let Some(c) = def["conditions"].as_array().filter(|c| !c.is_empty()) {
@@ -339,7 +359,7 @@ fn header(def: &Value, lines: &mut Vec<String>) -> R<()> {
 
 fn single(p: &Value) -> R<String> {
     let mut lines = vec![format!("protocol {} {{", q(text(p, "name")))];
-    header(p, &mut lines)?;
+    header("protocol", p, &mut lines)?;
     let tm = &p["timingMode"];
     if tm["type"] == "duration" {
         lines.push(format!("{INDENT}duration: {}", format_time(tm["seconds"].as_f64().ok_or("timingMode.seconds must be a number")?)));
@@ -361,7 +381,7 @@ fn single(p: &Value) -> R<String> {
 
 fn composite(c: &Value) -> R<String> {
     let mut lines = vec![format!("composite {} {{", q(text(c, "name")))];
-    header(c, &mut lines)?;
+    header("composite", c, &mut lines)?;
     lines.push(format!("{INDENT}conflict_resolution: {}", text(c, "conflictResolution")));
     for l in c["layers"].as_array().ok_or("layers must be a list")? {
         lines.push(String::new());

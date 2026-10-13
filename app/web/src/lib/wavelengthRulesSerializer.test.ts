@@ -21,6 +21,7 @@ describe('the wavelength_rules block', () => {
 
 describe('the modality `start` field', () => {
   const src = (start: string) => `protocol "Series" {
+    hardware_version: 1
     duration: 8m
     pbm_transcranial {
         wavelength: "810nm"
