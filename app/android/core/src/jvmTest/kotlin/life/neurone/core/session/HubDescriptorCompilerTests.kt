@@ -30,7 +30,7 @@ class HubDescriptorCompilerTests {
     private fun hex(b: ByteArray) = b.joinToString("") { "%02x".format(it) }
 
     private fun def(secs: Int, vararg m: NPProtocolModality) =
-        NPProtocolDefinition(name = "g", hardwareVersion = 1, timingMode = NPTimingMode.Duration(secs), modalities = m.toList())
+        NPProtocolDefinition(name = "g", timingMode = NPTimingMode.Duration(secs), modalities = m.toList())
 
     private fun mod(p: NPModalityParams, i: NPIntervalConfig = NPIntervalConfig.CONTINUOUS) =
         NPProtocolModality(params = p, interval = i)

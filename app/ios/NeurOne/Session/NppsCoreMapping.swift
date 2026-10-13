@@ -59,9 +59,8 @@ extension NPProtocolDefinition {
         if isReadOnly { json["isReadOnly"] = true }
         if !conditions.isEmpty { json["conditions"] = conditions }
         if !references.isEmpty { json["references"] = references.map { $0.nppsCoreJSON() } }
-        // Identity metadata (SWR-FM-01, SWR-HV-01). The writer refuses a protocol or composite with no hardwareVersion.
+        // Identity metadata (SWR-FM-01). A protocol states no hardware version: only a zone does (SWR-HV-05).
         if let familyId { json["familyId"] = familyId }
-        if let hardwareVersion { json["hardwareVersion"] = hardwareVersion }
         return json
     }
 }
@@ -91,9 +90,8 @@ extension NPCompositeProtocol {
         if isReadOnly { json["isReadOnly"] = true }
         if !conditions.isEmpty { json["conditions"] = conditions }
         if !references.isEmpty { json["references"] = references.map { $0.nppsCoreJSON() } }
-        // Identity metadata (SWR-FM-01, SWR-HV-01). The writer refuses a protocol or composite with no hardwareVersion.
+        // Identity metadata (SWR-FM-01). A protocol states no hardware version: only a zone does (SWR-HV-05).
         if let familyId { json["familyId"] = familyId }
-        if let hardwareVersion { json["hardwareVersion"] = hardwareVersion }
         return json
     }
 }

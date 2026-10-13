@@ -750,12 +750,6 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
     /// Not part of the content hash and never sent to the helmet. Nil when the protocol states none.
     var familyId: String?
 
-    /// `hardware_version` (SWR-HV-01): the helmet hardware version the protocol's sockets are addressed on. A
-    /// protocol states one, and the shared writer refuses a model that has none, suggesting 1, the only version that
-    /// exists. Nothing here defaults it: a version written for a protocol authored for another layout would state
-    /// a layout it does not have.
-    var hardwareVersion: Int?
-
     // MARK: Computed
 
     var requiredModalityTypes: Set<NPModalityType> {
@@ -803,7 +797,7 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
         case createdAt, modifiedAt, isPredefined, isReadOnly, modalities
         case timingType, timingValue
         case conditions, references
-        case familyId, hardwareVersion
+        case familyId
     }
 
     func encode(to encoder: Encoder) throws {
@@ -822,7 +816,6 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
         try c.encode(conditions, forKey: .conditions)
         try c.encode(references, forKey: .references)
         try c.encodeIfPresent(familyId, forKey: .familyId)
-        try c.encodeIfPresent(hardwareVersion, forKey: .hardwareVersion)
         switch timingMode {
         case .duration(let v):
             try c.encode("duration", forKey: .timingType)
@@ -851,7 +844,6 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
         conditions  = try c.decodeIfPresent([String].self, forKey: .conditions) ?? []
         references  = try c.decodeIfPresent([NPProtocolReference].self, forKey: .references) ?? []
         familyId    = try c.decodeIfPresent(String.self, forKey: .familyId)
-        hardwareVersion = try c.decodeIfPresent(Int.self, forKey: .hardwareVersion)
         let timingType = try c.decodeIfPresent(String.self, forKey: .timingType) ?? "duration"
         let timingValue = try c.decodeIfPresent(Int.self, forKey: .timingValue) ?? 1200
         if timingType == "interval_count" {
@@ -875,8 +867,7 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
          modalities: [NPProtocolModality] = [],
          conditions: [String] = [],
          references: [NPProtocolReference] = [],
-         familyId: String? = nil,
-         hardwareVersion: Int? = nil) {
+         familyId: String? = nil) {
         self.id = id
         self.name = name
         self.description = description
@@ -892,7 +883,6 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
         self.conditions = conditions
         self.references = references
         self.familyId = familyId
-        self.hardwareVersion = hardwareVersion
     }
 }
 
@@ -942,12 +932,6 @@ struct NPCompositeProtocol: Codable, Identifiable, Equatable {
     /// `family_id` (SWR-FM-01): the 128-bit id, as UUID text, shared by every variant of one authored protocol.
     /// Not part of the content hash and never sent to the helmet. Nil when the protocol states none.
     var familyId: String?
-
-    /// `hardware_version` (SWR-HV-01): the helmet hardware version the protocol's sockets are addressed on. A
-    /// protocol states one, and the shared writer refuses a model that has none, suggesting 1, the only version that
-    /// exists. Nothing here defaults it: a version written for a protocol authored for another layout would state
-    /// a layout it does not have.
-    var hardwareVersion: Int?
 }
 
 // MARK: - NPProtocolEntry

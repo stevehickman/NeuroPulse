@@ -45,8 +45,7 @@ final class NPPBMTargetScriptingTests: XCTestCase {
         params.target = target
         let proto = NPProtocolDefinition(
             name: "Serialize Test",
-            modalities: [NPProtocolModality(params: .pbmTranscranial(params))],
-            hardwareVersion: 1
+            modalities: [NPProtocolModality(params: .pbmTranscranial(params))]
         )
         return NPPSSerializer().serialize(.single(proto))
             .split(separator: "\n")

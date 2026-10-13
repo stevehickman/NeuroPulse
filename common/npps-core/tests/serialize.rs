@@ -146,7 +146,7 @@ fn a_model_that_cannot_be_written_is_refused_with_the_web_messages() {
         "cannot serialize zone \"Z\": 0, 999 are not sockets on this helmet — ids are whole numbers 1–80"
     );
     let named = json!({ "items": [{ "kind": "single", "protocol": {
-        "name": "P", "id": "i", "hardwareVersion": 1, "description": "", "author": "a", "version": "1", "tags": [],
+        "name": "P", "id": "i", "description": "", "author": "a", "version": "1", "tags": [],
         "timingMode": { "type": "duration", "seconds": 60 },
         "modalities": [{ "type": "pbm_transcranial", "enabled": true, "interval": {},
             "params": { "wavelength": "808nm", "irradianceMWcm2": 100, "frequencyHz": 40, "dutyCyclePercent": 25,
@@ -221,7 +221,7 @@ fn a_protocol_or_composite_refuses_a_hardware_version_and_needs_none() {
 #[test]
 fn the_writer_writes_no_hardware_version_for_a_protocol() {
     let p = json!({ "items": [{ "kind": "single", "protocol": {
-        "name": "P", "description": "", "author": "a", "version": "1.0", "tags": [], "hardwareVersion": 1,
+        "name": "P", "description": "", "author": "a", "version": "1.0", "tags": [],
         "timingMode": { "type": "duration", "seconds": 300 }, "modalities": [] } }] });
     let text = serialize_json(&p.to_string()).unwrap();
     assert!(!text.contains("hardware_version"), "{text}");

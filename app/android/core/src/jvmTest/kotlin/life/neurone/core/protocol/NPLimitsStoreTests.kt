@@ -131,7 +131,7 @@ class NPLimitsStoreTests {
         val store = NPLimitsStore(InMemoryKeyValueStore())
         store.saveGlobalLimits(NPLimitsSet(name = "g", pbmTranscranial = NPPBMTranscranialLimits(maxIrradianceMWcm2 = 50.0)))
         val def = NPProtocolDefinition(
-            name = "hot", hardwareVersion = 1,
+            name = "hot",
             modalities = listOf(
                 NPProtocolModality(params = NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(irradianceMWcm2 = 322.4))),
             ),

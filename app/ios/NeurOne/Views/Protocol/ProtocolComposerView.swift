@@ -18,7 +18,7 @@ struct ProtocolComposerView: View {
 
     init(existing: NPCompositeProtocol?) {
         self.existing = existing
-        _draft = State(initialValue: existing ?? NPCompositeProtocol(name: "", hardwareVersion: 1))
+        _draft = State(initialValue: existing ?? NPCompositeProtocol(name: ""))
     }
 
     var body: some View {

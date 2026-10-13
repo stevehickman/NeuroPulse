@@ -43,11 +43,9 @@ pub fn zone_missing_message(protocol: &str, version: u64, zone: &str) -> String 
     format!("Protocol '{protocol}' is for hardware version {version}, and zone '{zone}' has no socket list for it")
 }
 
-/// Every named zone an enabled PBM block of `def` refers to that `zones_by_version` has no list for at the
-/// protocol's hardware version. Empty when the protocol states no hardware version (it names none to resolve
-/// against) or when every zone resolves. A zone that is not in the namespace at all is the compiler's own error.
-pub fn zones_without_version_list(def: &Value, zones_by_version: &HashMap<String, HashMap<u32, Vec<u32>>>) -> Vec<String> {
-    let Some(v) = def["hardwareVersion"].as_u64().and_then(|v| u32::try_from(v).ok()) else { return Vec::new() };
+/// Every named zone an enabled PBM block of `def` refers to that `zones_by_version` has no list for at the target
+/// helmet's hardware `version` (a protocol states none). Empty when every zone resolves. A zone that is not in the namespace at all is the compiler's own error.
+pub fn zones_without_version_list(def: &Value, v: u32, zones_by_version: &HashMap<String, HashMap<u32, Vec<u32>>>) -> Vec<String> {
     let mut missing = Vec::new();
     for m in def["modalities"].as_array().into_iter().flatten() {
         if m["enabled"] == false || m["type"] != "pbm_transcranial" || m["params"]["zones"] != "named" {
@@ -68,9 +66,9 @@ fn sorted_sockets(ids: impl IntoIterator<Item = u32>) -> Value {
     json!(ids.into_iter().collect::<BTreeSet<u32>>().into_iter().collect::<Vec<u32>>())
 }
 
-/// The canonical content of `def` (see the module note). `zones` is the namespace already resolved for the
-/// protocol's hardware version; `clinician_sockets` is the operator's choice for a `clinician_selected` block.
-pub fn canonical_content(def: &Value, zones: &HashMap<String, Vec<u32>>, clinician_sockets: Option<&[u32]>) -> R<Value> {
+/// The canonical content of `def` (see the module note). `hardware_version` is the target helmet's (a protocol states
+/// none), `zones` is the namespace already resolved for it; `clinician_sockets` is the operator's choice for a `clinician_selected` block.
+pub fn canonical_content(def: &Value, hardware_version: Option<u32>, zones: &HashMap<String, Vec<u32>>, clinician_sockets: Option<&[u32]>) -> R<Value> {
     let mut modalities = Vec::new();
     for m in def["modalities"].as_array().into_iter().flatten() {
         if m["enabled"] == false {
@@ -106,7 +104,7 @@ pub fn canonical_content(def: &Value, zones: &HashMap<String, Vec<u32>>, clinici
         modalities.push(Value::Object(one));
     }
     Ok(json!({
-        "hardwareVersion": def["hardwareVersion"],
+        "hardwareVersion": hardware_version,
         "timingMode": def["timingMode"],
         "modalities": modalities,
     }))
@@ -120,8 +118,8 @@ pub fn canonical_bytes(content: &Value) -> Vec<u8> {
 }
 
 /// The protocol's identity: SHA-256 of `canonical_bytes`, as 64 lowercase hex digits.
-pub fn content_hash(def: &Value, zones: &HashMap<String, Vec<u32>>, clinician_sockets: Option<&[u32]>) -> R<String> {
-    let content = canonical_content(def, zones, clinician_sockets)?;
+pub fn content_hash(def: &Value, hardware_version: Option<u32>, zones: &HashMap<String, Vec<u32>>, clinician_sockets: Option<&[u32]>) -> R<String> {
+    let content = canonical_content(def, hardware_version, zones, clinician_sockets)?;
     let digest = Sha256::digest(canonical_bytes(&content));
     Ok(digest.iter().map(|b| format!("{b:02x}")).collect())
 }

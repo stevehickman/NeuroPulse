@@ -485,11 +485,10 @@ export interface NPProtocolDefinition {
   // Metadata: neither reaches the hub.
   sessionsPerWeek?: number;
   courseWeeks?: number;
-  // Identity metadata (`family_id`, `hardware_version`; SWR-FM-01, SWR-HV-01). The family id is a 128-bit id as UUID
-  // text: one authored protocol, across its variants for each hardware version. It is not part of the content hash and
-  // is not sent to the helmet. The hardware version is the layout the protocol's sockets are addressed on.
+  // Identity metadata (`family_id`; SWR-FM-01). The family id is a 128-bit id as UUID text: one authored protocol,
+  // across its variants for each hardware version. It is not part of the content hash and is not sent to the helmet.
+  // A protocol states no hardware version: only a zone does (SWR-HV-05).
   familyId?: string;
-  hardwareVersion?: number;
   // The used flag (`used: true`; SWR-WO-03): this protocol has run in a session. Carried in export, merged by OR on
   // import, advisory, and not part of the content hash. Written only when true.
   isUsed?: boolean;
@@ -569,11 +568,10 @@ export interface NPCompositeProtocol {
   conflictResolution: 'merge' | 'sequential' | 'override';
   conditions?: string[];
   references?: NPProtocolReference[];
-  // Identity metadata (`family_id`, `hardware_version`; SWR-FM-01, SWR-HV-01). The family id is a 128-bit id as UUID
-  // text: one authored protocol, across its variants for each hardware version. It is not part of the content hash and
-  // is not sent to the helmet. The hardware version is the layout the protocol's sockets are addressed on.
+  // Identity metadata (`family_id`; SWR-FM-01). The family id is a 128-bit id as UUID text: one authored protocol,
+  // across its variants for each hardware version. It is not part of the content hash and is not sent to the helmet.
+  // A protocol states no hardware version: only a zone does (SWR-HV-05).
   familyId?: string;
-  hardwareVersion?: number;
   // The used flag (`used: true`; SWR-WO-03): this protocol has run in a session. Carried in export, merged by OR on
   // import, advisory, and not part of the content hash. Written only when true.
   isUsed?: boolean;

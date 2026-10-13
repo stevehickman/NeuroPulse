@@ -37,7 +37,7 @@ struct ProtocolEditorView: View {
         if let existing = existing, case .single(let proto) = existing {
             _draft = State(initialValue: proto)
         } else {
-            _draft = State(initialValue: NPProtocolDefinition(name: "", hardwareVersion: 1))
+            _draft = State(initialValue: NPProtocolDefinition(name: ""))
         }
     }
 

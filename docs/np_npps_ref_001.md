@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 30
+**Revision:** 31
 **Date:** 2026-10-13  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
@@ -15,6 +15,8 @@
 
 ---
 
+> **Rev 31 (2026-10-13) — the `hardwareVersion` property is removed from the protocol and composite models (principal direction; `SWR-HV-01`, `SWR-HV-05`).** Rev 30 left it on the TypeScript, Kotlin and Swift models as a compile-time input. It is gone from them, from the parsers' mapping and from the editors. The target helmet's hardware version is now a top-level input of the core's compile and content-hash calls (`hardwareVersion`, beside `zonesByVersion`), not a field of the protocol, and it is still part of the compiled content, so the hash is unchanged for the same protocol on the same helmet. A call that gives none does not check a zone's version lists. The namespace check no longer tests a protocol against a version, since a protocol states none; the version check happens at compile. No app passes a version yet, which is `SWR-HV-05`'s open part.
+>
 > **Rev 30 (2026-10-13) — `hardware_version` belongs inside a zone block only, never directly inside a protocol or composite (principal direction; `SWR-HV-01`, `SWR-HV-05`).** Rev 26 had made it a parse error for a protocol or composite to omit it. That is reversed, and further: a protocol or composite that states it is now the parse error, with a message pointing to the zone block (`hardware_version N { sockets: [...] }`, §8). The parser (core and grammar, `NP-NPPS-GRAM-001` Rev 10) refuses it, and the writer never writes it. The line is removed from all 81 shipped protocols and composites. A protocol therefore names no layout of its own: the hub compiler is given the target helmet's hardware version when it resolves a named zone, as an input of the compile call and not as authored text, and a call given none does not check a zone's version lists. No dose and no descriptor byte changes.
 >
 > **Rev 29 (2026-10-13) — a predefined protocol's version moves once between releases (principal direction; `SWR-PL-05`).** Every predefined protocol is at `1.0` until a release is done. Edits made after a release cause a change of at least a minor step in the version number. That change is locked in only when a release is done. Once the number has changed, further edits before the next release do not change it again. The four shipped files that carried a higher number (`04-memory-boost` `1.1`; `clinical-03-pbm-alzheimers-1064` and `clinical-04-pbm-depression-schiffer` `2.0`; `clinical-05-pbm-anxiety-wang` `2.1`) are reset to `1.0`, since no release has been done. *Release version of a predefined protocol* is rewritten to say so. No dose and no descriptor byte changes.

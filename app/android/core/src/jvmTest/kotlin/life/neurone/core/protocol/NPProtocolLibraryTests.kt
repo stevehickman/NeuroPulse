@@ -109,7 +109,7 @@ class NPProtocolLibraryTests {
         val lib1 = NPProtocolLibrary(kv)
         val custom = NPProtocolEntry.Single(
             NPProtocolDefinition(
-                name = "My Custom", hardwareVersion = 1,
+                name = "My Custom",
                 modalities = listOf(
                     NPProtocolModality(params = NPModalityParams.PbmTranscranial(NPPBMTranscranialParams())),
                 ),

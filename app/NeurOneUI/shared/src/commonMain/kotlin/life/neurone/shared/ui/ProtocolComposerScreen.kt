@@ -61,7 +61,6 @@ fun ProtocolComposerScreen(
         val composite = NPCompositeProtocol(
             name = name.ifBlank { untitledName },
             layers = layers,
-            hardwareVersion = 1,  // SWR-HV-01: the only hardware version that exists
         )
         library.save(NPProtocolEntry.Composite(composite))
         onSaved()
