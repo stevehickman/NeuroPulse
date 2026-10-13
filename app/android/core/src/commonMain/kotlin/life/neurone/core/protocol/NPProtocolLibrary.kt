@@ -1,7 +1,18 @@
 package life.neurone.core.protocol
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.common.UUID
+import life.neurone.core.npps.NppsCore
+import life.neurone.core.npps.toNppsCoreItem
 
 // Port of iOS NPProtocolLibrary (app/ios/NeurOne/Protocol/NPProtocolLibrary.swift).
 // Pure-JVM: bundled + user protocol store, device-tier/EEG-consent availability, and
@@ -103,6 +114,15 @@ class NPProtocolLibrary(
     companion object {
         const val USER_PROTOCOLS_KEY = "np.user-protocols.npps"
         const val BIPA_ACCEPTED_KEY = "np.onboarding.bipa-accepted"
+
+        /** The families that have been used (SWR-WO-02): a list of `{"familyId"}` records, the family id and nothing else. */
+        const val USED_FAMILIES_KEY = "np.used-families"
+
+        /** The families the warranty owner has archived (SWR-WO-01): a list of family ids. A list state, never a deletion. */
+        const val ARCHIVED_FAMILIES_KEY = "np.archived-families"
+
+        /** Clone entry id → the entry it was cloned from, for the unmodified-clone check at upload (SWR-PL-06). */
+        const val CLONE_SOURCES_KEY = "np.clone-sources"
     }
 
     /** BIPA biometric consent (ISC-90). Seeded from the shared onboarding key. */
@@ -125,6 +145,11 @@ class NPProtocolLibrary(
 
     private val validationCache: MutableMap<UUID, NPValidationResult> = mutableMapOf()
 
+    // The state the library rules decide over (declared before `init`, which loads it).
+    private val usedFamilies: MutableSet<String> = linkedSetOf()
+    private val archivedFamilies: MutableSet<String> = linkedSetOf()
+    private val cloneSources: MutableMap<String, String> = linkedMapOf()
+
     /**
      * Duplicate zone/condition names between the shipped library and the user's
      * own scripts. Empty in the normal case; a non-empty list means those names
@@ -139,6 +164,7 @@ class NPProtocolLibrary(
 
     init {
         loadFromStore()
+        loadFamilyState()
         // Unconditional: loadFromStore() returns early when nothing is stored,
         // and the registry must be pointed at a namespace either way.
         publishZoneNamespace()
@@ -236,28 +262,209 @@ class NPProtocolLibrary(
 
     // MARK: Mutations
 
-    fun save(entry: NPProtocolEntry) {
-        if (bundledProtocols.any { it.id == entry.id }) return // never overwrite a bundled entry
+    /**
+     * Save [entry]. The rules are the core's (SWR-PL-02/03, SWR-FM-03/06): a predefined protocol is never saved over; a
+     * protocol of a used family is refused, nothing is written, and a clone of the whole family is offered; an unused one
+     * saves in place. A new protocol joining a used family is a new variant, allowed only for a hardware version the
+     * family has no variant for.
+     */
+    fun save(entry: NPProtocolEntry): SaveResult {
+        if (bundledProtocols.any { it.id == entry.id }) return SaveResult.ReadOnly // never overwrite a bundled entry
         val idx = _userProtocols.indexOfFirst { it.id == entry.id }
-        if (idx >= 0) _userProtocols[idx] = entry else _userProtocols.add(entry)
+        if (idx >= 0) {
+            val check = NPLibraryRules.saveCheck(familySummaries(withVersions = false), entry.id.toString())
+            if (check["allowed"]?.jsonPrimitive?.boolean != true) {
+                return SaveResult.RefusedFamilyUsed(
+                    familyId = NPLibraryRules.string(check, "familyId") ?: entry.familyKey(),
+                    memberIds = check["members"]?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList(),
+                )
+            }
+            _userProtocols[idx] = entry
+        } else {
+            if (entry.isRunnable && entry.familyId != null && entry.familyKey() in usedFamilies) {
+                val version = NPLibraryRules.supportedVersions(entry).firstOrNull() ?: 1
+                val check = NPLibraryRules.addVariantCheck(familySummaries(withVersions = true), entry.familyKey(), version)
+                if (check["allowed"]?.jsonPrimitive?.boolean != true) return SaveResult.RefusedVariantExists
+            }
+            _userProtocols.add(entry)
+        }
         saveToStore()
         publishZoneNamespace()
+        return SaveResult.Saved
     }
 
-    fun delete(id: UUID) {
-        if (bundledProtocols.any { it.id == id }) return
+    /** Delete a user protocol. A used family is archived, never deleted (SWR-FM-05). */
+    fun delete(id: UUID): DeleteResult {
+        if (bundledProtocols.any { it.id == id }) return DeleteResult.ReadOnly
+        if (_userProtocols.none { it.id == id }) return DeleteResult.NotFound
+        val check = NPLibraryRules.deleteCheck(familySummaries(withVersions = false), id.toString())
+        if (check["allowed"]?.jsonPrimitive?.boolean != true) return DeleteResult.RefusedFamilyUsed
         _userProtocols.removeAll { it.id == id }
+        cloneSources.remove(id.toString())
         saveToStore()
+        saveFamilyState()
         publishZoneNamespace()
+        return DeleteResult.Deleted
+    }
+
+    // MARK: Families (SWR-FM-03…07, SWR-PL-02)
+
+    /** Whether [entry]'s family has been used. The use of any variant marks the family (SWR-FM-03). */
+    fun isUsed(entry: NPProtocolEntry): Boolean = entry.familyKey() in usedFamilies
+
+    /**
+     * Clone the whole family [id] belongs to: a new family from the moment it is made, a copy of every variant, none of
+     * them used, fully editable, the source family recorded for provenance only (SWR-FM-03). Each copy's name is the
+     * source's with " (copy)" added, made unique, because a protocol is referred to by name.
+     */
+    fun cloneFamily(id: UUID): List<NPProtocolEntry> {
+        val entry = allProtocols.firstOrNull { it.id == id && it.isRunnable } ?: return emptyList()
+        val key = entry.familyKey()
+        val members = allProtocols.filter { it.isRunnable && it.familyKey() == key }
+        val newFamily = UUID.randomUUID().toString()
+        val newIds = members.map { UUID.randomUUID() }
+        // The core checks the count, that the family is new and that every id is new, before anything is made.
+        NPLibraryRules.cloneFamily(familySummaries(withVersions = false), id.toString(), newFamily, newIds.map { it.toString() })
+        val taken = allProtocols.map { it.name }.toMutableSet()
+        val copies = members.zip(newIds).map { (m, newId) ->
+            val name = uniqueCopyName(m.name, taken)
+            taken.add(name)
+            when (m) {
+                is NPProtocolEntry.Single -> NPProtocolEntry.Single(
+                    m.protocol.copy(id = newId, name = name, isPredefined = false, isReadOnly = false, familyId = newFamily))
+                is NPProtocolEntry.Composite -> NPProtocolEntry.Composite(
+                    m.composite.copy(id = newId, name = name, isPredefined = false, isReadOnly = false, familyId = newFamily))
+                else -> m
+            }
+        }
+        for ((m, copy) in members.zip(copies)) {
+            _userProtocols.add(copy)
+            cloneSources[copy.id.toString()] = m.id.toString()
+        }
+        saveToStore()
+        saveFamilyState()
+        publishZoneNamespace()
+        return copies
+    }
+
+    private fun uniqueCopyName(base: String, taken: Set<String>): String {
+        var candidate = "$base (copy)"
+        var n = 2
+        while (candidate in taken) candidate = "$base (copy $n)".also { n += 1 }
+        return candidate
+    }
+
+    /** The variants of [entry]'s family that fit a helmet of [helmetVersion], latest first; empty means the person decides whether to create one (SWR-HV-04). */
+    fun variantsFor(entry: NPProtocolEntry, helmetVersion: Int): List<NPProtocolEntry> {
+        val ids = NPLibraryRules.variantFor(familySummaries(withVersions = true), entry.familyKey(), helmetVersion)["variants"]!!
+            .jsonArray.map { it.jsonPrimitive.content }
+        return ids.mapNotNull { id -> allProtocols.firstOrNull { it.id.toString() == id } }
+    }
+
+    // MARK: Archive and the offered list (SWR-WO-01, SWR-FM-05)
+
+    /** Archive the family of [entry]: it drops out of the offered list and every variant is kept. */
+    fun archiveFamily(entry: NPProtocolEntry) {
+        if (archivedFamilies.add(entry.familyKey())) saveFamilyState()
+    }
+
+    fun unarchiveFamily(entry: NPProtocolEntry) {
+        if (archivedFamilies.remove(entry.familyKey())) saveFamilyState()
+    }
+
+    fun isArchived(entry: NPProtocolEntry): Boolean = entry.familyKey() in archivedFamilies
+
+    /** The warranty owner's set: every protocol whose family is not archived. */
+    val offeredProtocols: List<NPProtocolEntry>
+        get() {
+            val offered = NPLibraryRules.offered(familySummaries(withVersions = false), archivedFamilies).toSet()
+            return allProtocols.filter { !it.isRunnable || it.id.toString() in offered }
+        }
+
+    // MARK: Upload (SWR-PL-06, SWR-HV-04, SWR-UP-02)
+
+    /** [entry]'s identity as the core defines it, or null for a kind that has none. */
+    fun contentHash(entry: NPProtocolEntry): String? = NPLibraryRules.contentHash(entry)
+
+    /**
+     * What an upload of [entry] to a helmet of [helmetHardwareVersion] meets before any byte is sent. The hardware
+     * refusal comes first, then the unmodified clone; an allowed upload is then sent and its result passed to
+     * [recordUploadResult].
+     */
+    fun uploadGate(entry: NPProtocolEntry, helmetHardwareVersion: Int): UploadGate {
+        val hash = contentHash(entry) ?: return UploadGate.Allow
+        val sourceId = cloneSources[entry.id.toString()]
+        val source = sourceId?.let { sid -> allProtocols.firstOrNull { it.id.toString() == sid } }
+        val answer = NPLibraryRules.uploadGate(
+            helmetHardwareVersion,
+            NPLibraryRules.supportedVersions(entry),
+            hash,
+            source?.let { contentHash(it) },
+        )
+        return when (NPLibraryRules.string(answer, "reason")) {
+            "hardware_mismatch" -> UploadGate.HardwareMismatch(
+                helmetVersion = helmetHardwareVersion,
+                protocolVersions = answer["protocolVersions"]!!.jsonArray.map { it.jsonPrimitive.content.toInt() },
+                details = answer,
+            )
+            "unmodified_clone" -> UploadGate.UnmodifiedClone(source!!.id)
+            else -> UploadGate.Allow
+        }
+    }
+
+    /**
+     * Record how an upload that was sent ended. Confirmed and unknown mark [entry]'s family used; a confirmed failure, a
+     * refusal before sending and a helmet refusal for hardware version, unmodified clone or tier do not (SWR-UP-02).
+     * [helmetStatus] is the hub's `UPLOAD_CHECK` verdict, `"accepted"` or `"refused"`, or null when it never answered.
+     */
+    fun recordUploadResult(
+        entry: NPProtocolEntry,
+        sentHash: String,
+        helmetStatus: String?,
+        helmetHash: String?,
+        helmetRefusal: String? = null,
+        refusedBeforeSend: Boolean = false,
+    ): UploadOutcome {
+        val answer = NPLibraryRules.uploadResult(sentHash, helmetStatus, helmetHash, helmetRefusal, refusedBeforeSend)
+        if (answer["markUsed"]?.jsonPrimitive?.boolean == true) markUsed(entry)
+        val rule = NPLibraryRules.string(answer, "outcome")
+        return UploadOutcome.values().first { it.rule == rule }
+    }
+
+    /** The used flag is one bit per family and is never cleared (SWR-WO-02). */
+    private fun markUsed(entry: NPProtocolEntry) {
+        if (usedFamilies.add(entry.familyKey())) saveFamilyState()
     }
 
     // MARK: Script export / import
 
-    fun exportScript(entry: NPProtocolEntry): String = NPPSSerializer().serialize(entry)
+    /** The script for [entry], carrying the used flag when its family is used (SWR-WO-03). The flag is not part of the content hash. */
+    fun exportScript(entry: NPProtocolEntry): String {
+        val item = entry.toNppsCoreItem()
+        val flagged = if (entry is NPProtocolEntry.Single && isUsed(entry)) {
+            val protocol = JsonObject(item["protocol"]!!.jsonObject + ("isUsed" to JsonPrimitive(true)))
+            JsonObject(item + ("protocol" to protocol))
+        } else if (entry is NPProtocolEntry.Composite && isUsed(entry)) {
+            val composite = JsonObject(item["composite"]!!.jsonObject + ("isUsed" to JsonPrimitive(true)))
+            JsonObject(item + ("composite" to composite))
+        } else item
+        return NppsCore.serialize(listOf(flagged))
+    }
 
+    /**
+     * Read the first entry of [text]. An entry that arrives flagged used makes its family used, and one that arrives unflagged
+     * but whose content is already used here stays used; an import never clears the flag (SWR-WO-03).
+     */
     fun importScript(text: String): NPProtocolEntry {
         val entries = NPPSParser.parse(text)
-        return entries.firstOrNull() ?: throw NPPSError("No protocol found in script", 0)
+        val entry = entries.firstOrNull() ?: throw NPPSError("No protocol found in script", 0)
+        val raw = NppsCore.parse(text)["entries"]?.jsonArray?.firstOrNull()?.jsonObject
+        val body = raw?.get("protocol") ?: raw?.get("composite")
+        val flagged = body?.jsonObject?.get("isUsed")?.jsonPrimitive?.boolean == true
+        val usedHashes = allProtocols.filter { isUsed(it) }.mapNotNull { contentHash(it) }
+        val merged = NPLibraryRules.mergeImport(usedHashes, listOf(Triple(entry.id.toString(), contentHash(entry), flagged)))
+        if (merged[entry.id.toString()] == true) markUsed(entry)
+        return entry
     }
 
     // MARK: Lookup
@@ -310,6 +517,34 @@ class NPProtocolLibrary(
         zoneNamespaceErrors = build.errors
     }
 
+
+    /** The summaries the core decides over: every protocol and composite, the used families, and (when asked) the versions each fits. */
+    private fun familySummaries(withVersions: Boolean): JsonArray =
+        NPLibraryRules.summaries(allProtocols, usedFamilies, withVersions)
+
+    private fun loadFamilyState() {
+        usedFamilies.clear()
+        kv.getString(USED_FAMILIES_KEY)?.let { text ->
+            runCatching { Json.parseToJsonElement(text).jsonArray }.getOrNull()?.forEach { record ->
+                // A stored record with any field but the family id is not one this library wrote: it is dropped, not trusted.
+                if (NPLibraryRules.isValidUsedRecord(record)) usedFamilies.add(record.jsonObject["familyId"]!!.jsonPrimitive.content)
+            }
+        }
+        archivedFamilies.clear()
+        kv.getString(ARCHIVED_FAMILIES_KEY)?.let { text ->
+            runCatching { Json.parseToJsonElement(text).jsonArray }.getOrNull()?.forEach { archivedFamilies.add(it.jsonPrimitive.content) }
+        }
+        cloneSources.clear()
+        kv.getString(CLONE_SOURCES_KEY)?.let { text ->
+            runCatching { Json.parseToJsonElement(text).jsonObject }.getOrNull()?.forEach { (k, v) -> cloneSources[k] = v.jsonPrimitive.content }
+        }
+    }
+
+    private fun saveFamilyState() {
+        kv.putString(USED_FAMILIES_KEY, buildJsonArray { usedFamilies.forEach { add(NPLibraryRules.usedRecord(it)) } }.toString())
+        kv.putString(ARCHIVED_FAMILIES_KEY, buildJsonArray { archivedFamilies.forEach { add(JsonPrimitive(it)) } }.toString())
+        kv.putString(CLONE_SOURCES_KEY, JsonObject(cloneSources.mapValues { JsonPrimitive(it.value) }).toString())
+    }
 
     private fun saveToStore() {
         val serializer = NPPSSerializer()

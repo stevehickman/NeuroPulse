@@ -41,6 +41,10 @@ object NppsCore {
 
     private fun nativeResolveLimits(request: String): String = backend.resolveLimits(request)
 
+    private fun nativeContentHash(request: String): String = backend.contentHash(request)
+
+    private fun nativeLibrary(request: String): String = backend.library(request)
+
     /**
      * Parse NPPS text into everything the file declares:
      * `{"entries":[{"kind":"single","protocol":{…}} | {"kind":"composite","composite":{…}}],
@@ -91,6 +95,20 @@ object NppsCore {
         }
         return Json.parseToJsonElement(nativeResolveLimits(request.toString())) as JsonObject
     }
+
+    /**
+     * A protocol's identity (`SWR-HV-01`): 64 lowercase hex digits. `request` is
+     * `{"def":…, "hardwareVersion":n, "zonesByVersion":{…}, "clinicianSockets":[…]|null}` (or `"zones"` for one layout), the
+     * same zone and socket inputs as [compile]; the serial, rules, Mode 3 flag and cautions are not inputs.
+     */
+    fun contentHash(request: JsonObject): String = nativeContentHash(request.toString())
+
+    /**
+     * The protocol library's rules, decided once in the core for every app: `{"op": "saveCheck" | "deleteCheck" |
+     * "cloneFamily" | …, …}` in, the answer out. A refusal of the request itself (a missing field, an unknown
+     * operation) is an [IllegalArgumentException]; a rule that says no is an ordinary answer (`"allowed": false`).
+     */
+    fun library(request: JsonObject): JsonObject = Json.parseToJsonElement(nativeLibrary(request.toString())) as JsonObject
 
     /** What a compile needs that is not in the protocol. Everything non-deterministic is an input. */
     class CompileOptions(

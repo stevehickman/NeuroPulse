@@ -15,6 +15,8 @@ import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
 import life.neurone.core.npps.ffi.npps_compile_json
+import life.neurone.core.npps.ffi.npps_content_hash_json
+import life.neurone.core.npps.ffi.npps_library_json
 import life.neurone.core.npps.ffi.npps_free
 import life.neurone.core.npps.ffi.npps_namespace_json
 import life.neurone.core.npps.ffi.npps_parse_json
@@ -46,6 +48,8 @@ internal class CinteropNppsBackend : CAbiNppsBackend() {
                 NppsEntry.SERIALIZE -> npps_serialize_json(src, length, outPointer.ptr, outLength.ptr)
                 NppsEntry.VALIDATE -> npps_validate_json(src, length, outPointer.ptr, outLength.ptr)
                 NppsEntry.RESOLVE_LIMITS -> npps_resolve_limits_json(src, length, outPointer.ptr, outLength.ptr)
+                NppsEntry.CONTENT_HASH -> npps_content_hash_json(src, length, outPointer.ptr, outLength.ptr)
+                NppsEntry.LIBRARY -> npps_library_json(src, length, outPointer.ptr, outLength.ptr)
             }
         }
 
