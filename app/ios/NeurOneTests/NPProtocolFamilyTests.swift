@@ -23,9 +23,10 @@ final class NPProtocolFamilyTests: XCTestCase {
     }
 
     override func tearDown() async throws {
+        // Clear the used marks first: a used family cannot be deleted, and the clones must not leak into other tests.
+        stateKeys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
         let library = NPProtocolLibrary()
         for entry in library.userProtocols { library.delete(entry.id) }
-        stateKeys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
     }
 
     private func gamma(_ library: NPProtocolLibrary) throws -> NPProtocolEntry {
