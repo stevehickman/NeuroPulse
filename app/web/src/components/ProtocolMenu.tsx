@@ -47,6 +47,7 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'predefined' | 'mine'>('all');
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+  const [notice, setNotice] = useState<{ title: string; body: string; actionLabel: string; onAction: () => void } | null>(null);
   const [showLimits, setShowLimits] = useState(false);
   const [, setLimitsVersion] = useState(0);
   const [, setLibraryVersion] = useState(0);
@@ -87,15 +88,40 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
     const baseName = entryName(entry);
     const newName = t('WEB_PROTOCOL_COPY_SUFFIX', { 0: baseName });
     const dup = protocolLibrary.duplicateProtocol(entry, newName);
-    protocolLibrary.saveUserProtocol(dup);
+    const result = protocolLibrary.saveUserProtocol(dup);
+    if (result.kind === 'family_used') showUsedNotice(entry);
+  }
+
+  // A used family is locked (SWR-FM-03); the refusal explains it and offers the copy (SWR-PL-04).
+  function showUsedNotice(entry: NPProtocolEntry) {
+    setNotice({
+      title: t('PROTOCOL_LIBRARY_USED_TITLE'),
+      body: t('PROTOCOL_LIBRARY_USED_BODY'),
+      actionLabel: t('PROTOCOL_LIBRARY_CLONE_ACTION'),
+      onAction: () => {
+        protocolLibrary.cloneFamily(entryId(entry), base => t('WEB_PROTOCOL_COPY_SUFFIX', { 0: base }));
+        setNotice(null);
+      },
+    });
   }
 
   function handleDelete(entry: NPProtocolEntry) {
     setConfirm({
       message: t('WEB_CONFIRM_DELETE_PROTOCOL', { 0: entryName(entry) }),
       onConfirm: () => {
-        protocolLibrary.deleteUserProtocol(entryId(entry));
+        const result = protocolLibrary.deleteUserProtocol(entryId(entry));
         setConfirm(null);
+        if (result.kind === 'family_used') {
+          setNotice({
+            title: t('PROTOCOL_LIBRARY_DELETE_USED_TITLE'),
+            body: t('PROTOCOL_LIBRARY_DELETE_USED_BODY'),
+            actionLabel: t('PROTOCOL_LIBRARY_ARCHIVE_ACTION'),
+            onAction: () => {
+              protocolLibrary.archiveFamily(entry);
+              setNotice(null);
+            },
+          });
+        }
       },
     });
   }
@@ -224,6 +250,10 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
                   onDuplicate={() => handleDuplicate(entry)}
                   onDelete={protocolLibrary.canDelete(entry) ? () => handleDelete(entry) : null}
                   canEdit={protocolLibrary.canEdit(entry)}
+                  archived={protocolLibrary.isArchived(entry)}
+                  onToggleArchive={() => (protocolLibrary.isArchived(entry)
+                    ? protocolLibrary.unarchiveFamily(entry)
+                    : protocolLibrary.archiveFamily(entry))}
                 />
               ))}
             </div>
@@ -239,6 +269,22 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
         />
       )}
 
+      {notice && (
+        <div className="modal-overlay" onClick={() => setNotice(null)}>
+          <div className="modal confirm-dialog" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <span className="modal-title">{notice.title}</span>
+              <button className="modal-close" onClick={() => setNotice(null)}>×</button>
+            </div>
+            <div className="modal-body">{notice.body}</div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setNotice(null)}>{t('COMMON_CANCEL')}</button>
+              <button className="btn btn-primary" onClick={notice.onAction}>{notice.actionLabel}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showLimits && (
         <LimitsSettings onClose={() => setShowLimits(false)} />
       )}
@@ -249,6 +295,8 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
 // ─── Protocol Card ─────────────────────────────────────────────────────────────
 
 interface ProtocolCardProps {
+  archived?: boolean;
+  onToggleArchive?: () => void;
   entry: NPProtocolEntry;
   availability: ProtocolAvailability;
   validation: NPValidationResult;
@@ -258,7 +306,7 @@ interface ProtocolCardProps {
   canEdit?: boolean;
 }
 
-function ProtocolCard({ entry, availability, validation, onEdit, onDuplicate, onDelete, canEdit = true }: ProtocolCardProps) {
+function ProtocolCard({ entry, availability, validation, onEdit, onDuplicate, onDelete, canEdit = true, archived = false, onToggleArchive }: ProtocolCardProps) {
   const name = entryName(entry);
   const description = entryDescription(entry);
   const tags = entryTags(entry);
@@ -375,6 +423,11 @@ function ProtocolCard({ entry, availability, validation, onEdit, onDuplicate, on
         <button className="btn btn-ghost btn-sm" onClick={onDuplicate} title={t('WEB_DUPLICATE_TOOLTIP')}>
           {t('WEB_COPY')}
         </button>
+        {onToggleArchive && (
+          <button className="btn btn-ghost btn-sm" onClick={onToggleArchive}>
+            {archived ? t('PROTOCOL_LIBRARY_UNARCHIVE_ACTION') : t('PROTOCOL_LIBRARY_ARCHIVE_ACTION')}
+          </button>
+        )}
         {onDelete && canEdit && (
           <button className="btn btn-danger btn-sm" onClick={onDelete}>
             {t('UI_DELETE')}

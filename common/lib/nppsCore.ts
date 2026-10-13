@@ -30,6 +30,8 @@ interface CoreExports {
   npps_serialize_json(req: number, reqLen: number, out: number, outLen: number): number;
   npps_validate_json(req: number, reqLen: number, out: number, outLen: number): number;
   npps_resolve_limits_json(req: number, reqLen: number, out: number, outLen: number): number;
+  npps_content_hash_json(req: number, reqLen: number, out: number, outLen: number): number;
+  npps_library_json(req: number, reqLen: number, out: number, outLen: number): number;
 }
 
 // common/generated/ is a git-ignored build output directory (CLAUDE.md §20). In the simulator's bundle
@@ -79,7 +81,9 @@ function core(): CoreExports {
 
 
 function call(
-  entry: 'npps_parse_json' | 'npps_compile_json' | 'npps_namespace_json' | 'npps_serialize_json' | 'npps_validate_json' | 'npps_resolve_limits_json',
+  entry:
+    | 'npps_parse_json' | 'npps_compile_json' | 'npps_namespace_json' | 'npps_serialize_json' | 'npps_validate_json'
+    | 'npps_resolve_limits_json' | 'npps_content_hash_json' | 'npps_library_json',
   input: string,
 ): Uint8Array {
   const wasm = core();
@@ -199,6 +203,25 @@ export interface NppsResolvedLimits {
 export function nppsResolveLimits(tiers: { global?: object | null; helmet?: object | null; individual?: object | null }): NppsResolvedLimits {
   const request = { global: tiers.global ?? null, helmet: tiers.helmet ?? null, individual: tiers.individual ?? null };
   return JSON.parse(new TextDecoder().decode(call('npps_resolve_limits_json', JSON.stringify(request))));
+}
+
+/**
+ * A protocol's identity (neurone_npps_core::api::content_hash_json, SWR-HV-01): 64 lowercase hex digits. The request is
+ * `{def, hardwareVersion, zonesByVersion, clinicianSockets}` (or `zones` for one layout), the same zone and socket
+ * inputs as a compile; the serial, rules, Mode 3 flag and cautions are not inputs.
+ */
+export function nppsContentHash(request: object): string {
+  return new TextDecoder().decode(call('npps_content_hash_json', JSON.stringify(request)));
+}
+
+/**
+ * The protocol library's rules, decided once in the core for every app (neurone_npps_core::library, SWR-PL, SWR-UP,
+ * SWR-WO, SWR-FM, SWR-HV-04): `{op: …, …}` in, the answer out. A request the core cannot read throws NppsRefusal; a
+ * rule that says no is an ordinary answer (`allowed: false`).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function nppsLibrary(request: { op: string; [field: string]: unknown }): any {
+  return JSON.parse(new TextDecoder().decode(call('npps_library_json', JSON.stringify(request))));
 }
 
 /** What the core's parse returns. Models are built from it by common/lib/nppsParser.ts. */

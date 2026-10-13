@@ -46,6 +46,19 @@ export interface CompiledProtocol {
   cmdCount: number;
 }
 
+/** The protocol in the shape the core's compile, hash and library calls take: its timing and its modalities. */
+export function protocolCoreDef(proto: NPProtocolDefinition): object {
+  return {
+    timingMode: proto.timingMode,
+    modalities: proto.modalities.map(m => ({
+      type: m.modalityParams.type,
+      enabled: m.enabled,
+      params: m.modalityParams.params,
+      interval: m.interval,
+    })),
+  };
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export interface CompileOptions {
@@ -111,15 +124,7 @@ export function compileProtocol(
   }
 
   const blob = nppsCompile({
-    def: {
-      timingMode: proto.timingMode,
-      modalities: proto.modalities.map(m => ({
-        type: m.modalityParams.type,
-        enabled: m.enabled,
-        params: m.modalityParams.params,
-        interval: m.interval,
-      })),
-    },
+    def: protocolCoreDef(proto),
     zones,
     clinicianSockets: opts.clinicianSockets ? [...opts.clinicianSockets] : null,
     deviceSerialHex: hex(serial),
