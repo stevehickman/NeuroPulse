@@ -106,8 +106,13 @@ final class NPProtocolFamilyTests: XCTestCase {
         let library = NPProtocolLibrary()
         let copy = try clone(library)
         let hash = try XCTUnwrap(library.contentHash(copy))
-        XCTAssertEqual(library.recordUploadResult(copy, sentHash: hash, helmetStatus: "accepted", helmetHash: String(repeating: "0", count: 64)), .confirmedFailed)
-        XCTAssertEqual(library.recordUploadResult(copy, sentHash: hash, helmetStatus: nil, helmetHash: nil, refusedBeforeSend: true), .notSent)
+        let wrong = String(repeating: "0", count: 64)
+        XCTAssertEqual(
+            library.recordUploadResult(copy, sentHash: hash, helmetStatus: "accepted", helmetHash: wrong),
+            .confirmedFailed)
+        XCTAssertEqual(
+            library.recordUploadResult(copy, sentHash: hash, helmetStatus: nil, helmetHash: nil, refusedBeforeSend: true),
+            .notSent)
         XCTAssertFalse(library.isUsed(copy))
         XCTAssertEqual(library.recordUploadResult(copy, sentHash: hash, helmetStatus: nil, helmetHash: nil), .unknown)
         XCTAssertTrue(library.isUsed(copy), "the helmet may hold it")

@@ -487,8 +487,8 @@ final class NPProtocolLibrary: ObservableObject {
             flagged = (body["isUsed"] as? Bool) == true
         }
         let usedHashes = allProtocols.filter { isUsed($0) }.compactMap { contentHash($0) }
-        let merged = NPLibraryRules.mergeImport(usedHashes: usedHashes,
-                                                incoming: [NPImportedEntry(id: first.id.uuidString, hash: contentHash(first), used: flagged)])
+        let incoming = NPImportedEntry(id: first.id.uuidString, hash: contentHash(first), used: flagged)
+        let merged = NPLibraryRules.mergeImport(usedHashes: usedHashes, incoming: [incoming])
         if merged[first.id.uuidString] == true { markUsed(first) }
         return first
     }
