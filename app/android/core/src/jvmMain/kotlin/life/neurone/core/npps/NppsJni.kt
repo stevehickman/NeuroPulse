@@ -21,12 +21,18 @@ internal object NppsJni : NppsBackend {
 
     @JvmStatic private external fun nativeResolveLimits(request: String): String
 
+    @JvmStatic private external fun nativeContentHash(request: String): String
+
+    @JvmStatic private external fun nativeLibrary(request: String): String
+
     override fun parse(source: String): String = nativeParse(source)
     override fun compile(request: String): ByteArray = nativeCompile(request)
     override fun namespace(request: String): String = nativeNamespace(request)
     override fun serialize(request: String): String = nativeSerialize(request)
     override fun validate(request: String): String = nativeValidate(request)
     override fun resolveLimits(request: String): String = nativeResolveLimits(request)
+    override fun contentHash(request: String): String = nativeContentHash(request)
+    override fun library(request: String): String = nativeLibrary(request)
 }
 
 internal actual fun defaultNppsBackend(): NppsBackend = NppsJni

@@ -14,6 +14,12 @@ internal interface NppsBackend {
     fun serialize(request: String): String
     fun validate(request: String): String
     fun resolveLimits(request: String): String
+
+    /** A protocol's identity: 64 lowercase hex digits (`SWR-HV-01`). */
+    fun contentHash(request: String): String
+
+    /** The protocol library's rules (`SWR-PL`, `SWR-UP`, `SWR-WO`, `SWR-FM`, `SWR-HV-04`): `{"op": …}` in, JSON out. */
+    fun library(request: String): String
 }
 
 /** The backend this target has, or one that refuses with a message naming the missing binding. */
@@ -31,10 +37,12 @@ internal class UnwiredNppsBackend(private val target: String) : NppsBackend {
     override fun serialize(request: String): String = unwired()
     override fun validate(request: String): String = unwired()
     override fun resolveLimits(request: String): String = unwired()
+    override fun contentHash(request: String): String = unwired()
+    override fun library(request: String): String = unwired()
 }
 
-/** The six entry points of the C ABI (`common/npps-ffi/include/neurone_npps.h`). */
-internal enum class NppsEntry { PARSE, COMPILE, NAMESPACE, SERIALIZE, VALIDATE, RESOLVE_LIMITS }
+/** The entry points of the C ABI (`common/npps-ffi/include/neurone_npps.h`). */
+internal enum class NppsEntry { PARSE, COMPILE, NAMESPACE, SERIALIZE, VALIDATE, RESOLVE_LIMITS, CONTENT_HASH, LIBRARY }
 
 /** What a C ABI call returns: its status code and the bytes it wrote to `out`. */
 internal class NppsFfiResult(val status: Int, val output: ByteArray)
@@ -79,4 +87,6 @@ internal abstract class CAbiNppsBackend : NppsBackend {
     override fun serialize(request: String): String = bytes(NppsEntry.SERIALIZE, request).decodeToString()
     override fun validate(request: String): String = bytes(NppsEntry.VALIDATE, request).decodeToString()
     override fun resolveLimits(request: String): String = bytes(NppsEntry.RESOLVE_LIMITS, request).decodeToString()
+    override fun contentHash(request: String): String = bytes(NppsEntry.CONTENT_HASH, request).decodeToString()
+    override fun library(request: String): String = bytes(NppsEntry.LIBRARY, request).decodeToString()
 }
