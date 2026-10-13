@@ -18,6 +18,7 @@ pub mod identity;
 pub mod js;
 pub mod lexer;
 pub mod library;
+pub mod migration;
 pub mod parser;
 pub mod resolve;
 pub mod serialize;

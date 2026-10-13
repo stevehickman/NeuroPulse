@@ -32,6 +32,7 @@ interface CoreExports {
   npps_resolve_limits_json(req: number, reqLen: number, out: number, outLen: number): number;
   npps_content_hash_json(req: number, reqLen: number, out: number, outLen: number): number;
   npps_library_json(req: number, reqLen: number, out: number, outLen: number): number;
+  npps_migration_json(req: number, reqLen: number, out: number, outLen: number): number;
 }
 
 // common/generated/ is a git-ignored build output directory (CLAUDE.md §20). In the simulator's bundle
@@ -83,7 +84,7 @@ function core(): CoreExports {
 function call(
   entry:
     | 'npps_parse_json' | 'npps_compile_json' | 'npps_namespace_json' | 'npps_serialize_json' | 'npps_validate_json'
-    | 'npps_resolve_limits_json' | 'npps_content_hash_json' | 'npps_library_json',
+    | 'npps_resolve_limits_json' | 'npps_content_hash_json' | 'npps_library_json' | 'npps_migration_json',
   input: string,
 ): Uint8Array {
   const wasm = core();
@@ -235,4 +236,14 @@ export interface NppsParsed {
 export interface NppsNamespace {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   entries: any[]; zones: any[]; conditions: any[]; errors: string[]; referenceErrors: string[];
+}
+
+/**
+ * The device-replacement migration and UHDR backup rules, decided once in the core for every app
+ * (neurone_npps_core::migration, SWR-MG): `{op: …, …}` in, the answer out. The core is given item names and ids, never
+ * a bundle's contents. A request it cannot read throws NppsRefusal; a rule that says no is an ordinary answer.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function nppsMigration(request: { op: string; [field: string]: unknown }): any {
+  return JSON.parse(new TextDecoder().decode(call('npps_migration_json', JSON.stringify(request))));
 }
