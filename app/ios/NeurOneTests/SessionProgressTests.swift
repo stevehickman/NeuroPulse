@@ -9,7 +9,17 @@
 //  (app/ios/NeurOne/Models/SessionProgress.swift, app/ios/NeurOne/BLE/NeurOneGATTManager.swift)
 
 import XCTest
+import CoreBluetooth
 @testable import NeurOne
+
+/// A central that does nothing: the manager is driven directly through `applySessionProgress`.
+private final class InertBLECentral: BLECentralManager {
+    var state: CBManagerState = .poweredOn
+    func scanForPeripherals(withServices: [CBUUID]?, options: [String: Any]?) {}
+    func stopScan() {}
+    func connect(_ peripheral: CBPeripheral, options: [String: Any]?) {}
+    func cancelPeripheralConnection(_ peripheral: CBPeripheral) {}
+}
 
 final class SessionProgressTests: XCTestCase {
 
@@ -80,7 +90,7 @@ final class SessionProgressTests: XCTestCase {
     // @verifies SWR-SS-07
     @MainActor
     func testTheManagerShowsTheFiguresAndAMalformedFrameOrADroppedLinkClearsThem() {
-        let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
+        let manager = NeurOneGATTManager(mockCentral: InertBLECentral())
         let good = frame(state: 4, part: 1, mask: 0, elapsed: 10_000, remaining: 20_000, total: 30_000,
                          ramp: 2, pct: 0, rampLeft: 0)
         manager.applySessionProgress(good)
