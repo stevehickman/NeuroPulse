@@ -82,12 +82,26 @@ const ADDED: &[&str] = &[
     "VALIDATE_MSG_GENERAL_INTENSITYMWCM2_2",
     "VALIDATE_MSG_ZONE_CAUTION",
     "VALIDATE_MSG_ZONE_DANGER",
+    // REQ-NPPS-23 (a): the authorable ranges of NP-NPPS-REF-001 §4 that the web validator did not check.
+    "VALIDATE_MSG_PBM_FREQUENCYHZ",
+    "VALIDATE_MSG_TMS_FREQUENCYHZ",
+    "VALIDATE_MSG_CLINICAL_TACS_FREQUENCYHZ",
+    "VALIDATE_MSG_AUDIO_ENTRAINMENT_BINAURALBEATSHZ_RANGE",
+    "VALIDATE_MSG_AUDIO_ENTRAINMENT_ISOCHRONICTONESHZ_RANGE",
+    "VALIDATE_MSG_VNS_HRV_BREATHINGRATE",
+    "VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS_NEGATIVE",
 ];
 
 /// An issue the frozen web golden holds and the core no longer gives: the 2 mA auricular VNS hardware ceiling, replaced
-/// by the 40 mA one on the principal's instruction (OI-VNSCLIP-09, issues #554 and #559). The golden is frozen, so it is
-/// set aside here.
+/// by the 40 mA one on the principal's instruction (OI-VNSCLIP-09, issues #554 and #559), and "PBM frequency cannot be
+/// negative", which the PBM range check (`VALIDATE_MSG_PBM_FREQUENCYHZ`, REQ-NPPS-23) now states with its range. The
+/// golden is frozen, so both are set aside here.
 fn is_removed(issue: &Value) -> bool {
+    issue["message"].as_str() == Some("PBM frequency cannot be negative.")
+        || is_removed_vns(issue)
+}
+
+fn is_removed_vns(issue: &Value) -> bool {
     issue["modality"] == "vns_hrv"
         && issue["parameterKey"] == "intensityMilliamps"
         && issue["limitSource"] == "hardware"

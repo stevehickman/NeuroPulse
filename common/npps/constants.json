@@ -132,6 +132,56 @@
           "value": 500.0
         },
         {
+          "name": "PBM_MIN_HZ",
+          "value": 0.5,
+          "note": "Authorable range stated in NP-NPPS-REF-001 §4.1, §4.2 and §4.11 (0 means continuous wave); enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
+        },
+        {
+          "name": "PBM_MAX_HZ",
+          "value": 100.0,
+          "note": "Authorable range stated in NP-NPPS-REF-001 §4.1, §4.2 and §4.11 (0 means continuous wave); enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
+        },
+        {
+          "name": "AUDIO_BEAT_MIN_HZ",
+          "value": 0.5,
+          "note": "Authorable range stated in NP-NPPS-REF-001 §4.7 (binaural and isochronic); enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
+        },
+        {
+          "name": "AUDIO_BEAT_MAX_HZ",
+          "value": 100.0,
+          "note": "Authorable range stated in NP-NPPS-REF-001 §4.7 (binaural and isochronic); enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
+        },
+        {
+          "name": "TMS_MIN_HZ",
+          "value": 1.0,
+          "note": "Authorable range stated in NP-NPPS-REF-001 §4.10; enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
+        },
+        {
+          "name": "TMS_MAX_HZ",
+          "value": 50.0,
+          "note": "Authorable range stated in NP-NPPS-REF-001 §4.10; enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
+        },
+        {
+          "name": "CLINICAL_TACS_MIN_HZ",
+          "value": 0.5,
+          "note": "Authorable range stated in NP-NPPS-REF-001 §4.12; enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
+        },
+        {
+          "name": "CLINICAL_TACS_MAX_HZ",
+          "value": 100.0,
+          "note": "Authorable range stated in NP-NPPS-REF-001 §4.12; enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
+        },
+        {
+          "name": "BREATHING_MIN_BPM",
+          "value": 4.0,
+          "note": "Authorable range stated in NP-NPPS-REF-001 §4.6 (breaths per minute); enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
+        },
+        {
+          "name": "BREATHING_MAX_BPM",
+          "value": 7.0,
+          "note": "Authorable range stated in NP-NPPS-REF-001 §4.6 (breaths per minute); enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
+        },
+        {
           "name": "VISUAL_MAX_HZ",
           "value": 100.0,
           "note": "Visual stimulation"
