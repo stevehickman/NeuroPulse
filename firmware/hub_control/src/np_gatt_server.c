@@ -13,6 +13,10 @@
 #include "np_consumables.h"
 #include "np_cvns_fault_summary.h"
 #include "np_hub_config.h"
+#include "np_pause_limit.h"
+#include "np_session_progress.h"
+#include "np_session_stop.h"
+#include "np_upload_check.h"
 #include "np_sw02_platform_hal.h"
 #include "np_warranty_token.h"
 
@@ -72,6 +76,26 @@ static const np_gatt_char_t TABLE[] = {
 
     { NP_GATT_ACTIVE_USER_ID, NP_GATT_PROP_WRITE,
       0u, 4u, NULL, np_cvfs_on_active_user_write },
+
+    /* SWR-UP-01: the hash of the protocol bytes the hub received, and whether it accepted them. */
+    { NP_GATT_UPLOAD_CHECK_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
+      (uint8_t)NP_UPLOAD_CHECK_LEN, 0u, np_upload_check_read, NULL },
+
+    /* SWR-SS-06: a stop request from the app ends the session at the hub. */
+    { NP_GATT_SESSION_STOP_ID, NP_GATT_PROP_WRITE,
+      0u, 1u, NULL, np_session_stop_on_write },
+
+    /* SWR-SS-05: pause (0x01) or resume (0x02) the session. */
+    { NP_GATT_SESSION_PAUSE_ID, NP_GATT_PROP_WRITE,
+      0u, 1u, NULL, np_session_pause_on_write },
+
+    /* SWR-SS-07: where the session is. */
+    { NP_GATT_SESSION_PROGRESS_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
+      (uint8_t)NP_PROGRESS_LEN, 0u, np_progress_read, NULL },
+
+    /* SWR-SS-05: the owner's pause time limit, seconds; 0 is no limit (the default). */
+    { NP_GATT_PAUSE_LIMIT_ID, NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,
+      (uint8_t)NP_GATT_PAUSE_LIMIT_LEN, 4u, np_pause_limit_read, np_pause_limit_write },
 };
 
 #define K_TABLE_LEN (sizeof(TABLE) / sizeof(TABLE[0]))
@@ -82,6 +106,10 @@ _Static_assert(NP_WARRANTY_TOKEN_LEN <= NP_GATT_VALUE_MAX,
                "NP_GATT_VALUE_MAX must hold the warranty token");
 _Static_assert(NP_GATT_DEVICE_SERIAL_LEN <= NP_GATT_VALUE_MAX,
                "NP_GATT_VALUE_MAX must hold the device serial");
+_Static_assert(NP_UPLOAD_CHECK_LEN <= NP_GATT_VALUE_MAX,
+               "NP_GATT_VALUE_MAX must hold the upload check");
+_Static_assert(NP_PROGRESS_LEN <= NP_GATT_VALUE_MAX,
+               "NP_GATT_VALUE_MAX must hold the session progress frame");
 
 static const np_gatt_char_t *find(uint16_t id)
 {
@@ -167,7 +195,11 @@ np_att_status_t np_gatt_on_write(uint16_t id, const uint8_t *data, size_t len)
     if (data == NULL || len != c->write_len) {
         return NP_ATT_INVALID_VALUE_LENGTH;
     }
-    return (c->write(data, len) == NP_HUB_OK) ? NP_ATT_OK : NP_ATT_APP_REFUSED;
+    const np_hub_status_t rc = c->write(data, len);
+    if (rc == NP_HUB_OK) {
+        return NP_ATT_OK;
+    }
+    return (rc == NP_HUB_ERR_RAMPING) ? NP_ATT_APP_RAMPING : NP_ATT_APP_REFUSED;
 }
 
 np_hub_status_t np_gatt_notify(uint16_t id, const uint8_t *data, size_t len)

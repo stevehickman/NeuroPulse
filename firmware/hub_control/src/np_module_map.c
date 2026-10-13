@@ -624,6 +624,11 @@ np_hub_status_t np_module_map_socket_uid(uint16_t socket_id, np_module_uid_t *ui
     return NP_HUB_OK;
 }
 
+uint16_t np_module_map_socket_count(void)
+{
+    return s_map.initialized ? s_map.n_sockets : 0U;
+}
+
 /* ── NVRAM persistence ────────────────────────────────────────────────────────── */
 
 size_t np_module_map_serialized_size(void)

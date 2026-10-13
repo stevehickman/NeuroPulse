@@ -12,6 +12,8 @@
 #define NP_SESSION_RUNNER_H
 
 #include "np_hub_types.h"
+#include "np_session_pause.h"
+#include "np_session_progress.h"
 #include "FreeRTOS.h"
 #include "event_groups.h"
 
@@ -23,13 +25,16 @@
 #define NP_EV_THERMAL_FAULT     (1U << 3)  /* any module over-temperature */
 #define NP_EV_EEG_PPX           (1U << 4)  /* photoparoxysmal detection */
 #define NP_EV_POWER_FAULT       (1U << 5)  /* USB-C PD negotiation failure */
+#define NP_EV_SESSION_PAUSE     (1U << 6)  /* pause the running session (SWR-SS-05) */
+#define NP_EV_SESSION_RESUME    (1U << 7)  /* resume the paused session (SWR-SS-05) */
 
 /* ── Runner context (static allocation, single global instance) ──────────────── */
 
 typedef struct {
     np_session_desc_t  desc;               /* parsed session (.bss — §4.13) */
     np_session_state_t state;
-    TickType_t         start_tick;         /* xTaskGetTickCount() at session start */
+    np_session_clock_t clock;              /* session time, in ms; stands still while paused */
+    np_slot_track_t    slots;              /* which command is driving each slot (pause/resume) */
     uint32_t           elapsed_ms;         /* running session time */
     np_abort_reason_t  abort_reason;
 
@@ -81,6 +86,26 @@ void np_runner_abort(np_abort_reason_t reason);
  * np_runner_get_state — thread-safe state read (reads with a critical section).
  */
 np_session_state_t np_runner_get_state(void);
+
+/*
+ * np_runner_pause / np_runner_resume — ask the run loop to pause the RUNNING session, or resume the PAUSED one
+ * (SWR-SS-05).  Safe from any task.  The request is acted on by the run loop at its next wake, the same bound as
+ * np_runner_abort, so a pause stops stimulation as fast as an abort does.  NP_HUB_ERR_NO_SESSION when the session is
+ * not in the state the request needs; nothing is changed then.
+ *
+ * Paused time does not count (principal ruling 2026-10-13): the session clock stands still, so every command keeps its
+ * absolute start and stop and the dose delivered is the dose authored.  A pause withdraws every enable request and stops
+ * every driven module; a resume re-dispatches exactly what was running, through the ordinary dispatch path and so through
+ * every check a fresh command meets, the safety MCU's included.  Nothing is restored past an interlock.
+ */
+np_hub_status_t np_runner_pause(void);
+np_hub_status_t np_runner_resume(void);
+
+/*
+ * np_runner_progress — the SESSION_PROGRESS frame for the session as it is now (SWR-SS-07).
+ * Register it with np_progress_set_source() at bring-up.
+ */
+void np_runner_progress(uint8_t out[NP_PROGRESS_LEN]);
 
 /*
  * np_runner_elapsed_ms — ms since session start; 0 if not running.

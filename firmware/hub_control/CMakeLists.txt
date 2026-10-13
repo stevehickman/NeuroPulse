@@ -59,6 +59,41 @@ if(NP_BUILD_TESTS)
     target_include_directories(np_module_map_tests PRIVATE include ../pbm/include)
     target_compile_options(np_module_map_tests PRIVATE -Wall -Wextra -std=c11)
 
+    # SWR-SS-05: the paused session clock and the slot tracker. Pure C.
+    add_executable(np_session_pause_tests
+        tests/np_session_pause_tests.c
+        src/np_session_pause.c
+    )
+    target_include_directories(np_session_pause_tests PRIVATE include)
+    target_compile_options(np_session_pause_tests PRIVATE -Wall -Wextra -std=c11)
+
+    # SWR-SS-05: the owner's pause time limit — default, persistence, refusal.
+    add_executable(np_pause_limit_tests
+        tests/np_pause_limit_tests.c
+        src/np_pause_limit.c
+    )
+    target_include_directories(np_pause_limit_tests PRIVATE include ../common/include
+        $<TARGET_PROPERTY:np_littlefs,INTERFACE_INCLUDE_DIRECTORIES>)
+    target_compile_options(np_pause_limit_tests PRIVATE -Wall -Wextra -std=c11)
+
+    # SWR-SS-05: the coordinated ramp-up plan. Pure C.
+    add_executable(np_ramp_plan_tests
+        tests/np_ramp_plan_tests.c
+        src/np_ramp_plan.c
+    )
+    target_include_directories(np_ramp_plan_tests PRIVATE include)
+    target_compile_options(np_ramp_plan_tests PRIVATE -Wall -Wextra -std=c11)
+
+    # SWR-HV-02: the hardware fitting frame written at session start — the real
+    # module map, simulated tiles.
+    add_executable(np_session_fitting_tests
+        tests/np_session_fitting_tests.c
+        src/np_session_fitting.c
+        src/np_module_map.c
+    )
+    target_include_directories(np_session_fitting_tests PRIVATE include ../pbm/include)
+    target_compile_options(np_session_fitting_tests PRIVATE -Wall -Wextra -std=c11)
+
     # OI-HEXMAP-02: tile identity + element inventory over the socket I2C
     # seam, driving the real np_module_map. The seam is a simulated tile per
     # socket in the test; np_pbm_hal.c is deliberately not linked.
@@ -405,8 +440,12 @@ if(NP_BUILD_TESTS)
     add_executable(np_gatt_server_tests
         tests/np_gatt_server_tests.c
         src/np_gatt_server.c
+        src/np_upload_check.c         # SWR-UP-01
+        src/np_session_stop.c         # SWR-SS-06
+        src/np_session_progress.c     # SWR-SS-07
         src/np_warranty_token.c
         src/np_consumables.c
+        src/np_pause_limit.c          # SWR-SS-05
         src/np_cvns_fault_summary.c
         src/np_transport.c
     )
@@ -419,7 +458,7 @@ if(NP_BUILD_TESTS)
     )
     target_compile_options(np_gatt_server_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
-    target_link_libraries(np_gatt_server_tests m)
+    target_link_libraries(np_gatt_server_tests PRIVATE np_crypto m)
 
     # OI-ACC-08 (#381): the CONSUMABLE_STATUS producer — increment rule,
     # replacement reset, persistence (never zero over an unreadable record,
@@ -428,7 +467,11 @@ if(NP_BUILD_TESTS)
     add_executable(np_consumables_tests
         tests/np_consumables_tests.c
         src/np_consumables.c
+        src/np_pause_limit.c          # SWR-SS-05 (the GATT table references it)
         src/np_gatt_server.c
+        src/np_upload_check.c
+        src/np_session_stop.c
+        src/np_session_progress.c
         src/np_warranty_token.c
         src/np_cvns_fault_summary.c
         src/np_transport.c
@@ -442,7 +485,7 @@ if(NP_BUILD_TESTS)
     )
     target_compile_options(np_consumables_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
-    target_link_libraries(np_consumables_tests m)
+    target_link_libraries(np_consumables_tests PRIVATE np_crypto m)
 
     # OI-NVRAM-08: the Map 3 journal record and its version-tolerant scan.
     # The CI check that a journal written under version n loses no record
@@ -501,8 +544,15 @@ set(HUB_SOURCES
     src/np_cvns_reenable.c        # OI-CVNS-HUB-01: CVNS re-enable manager
     src/np_cvns_fault_summary.c   # NP-SW-FAULTMSG-001 §9.6: offline-fault summary + GATT handlers
     src/np_gatt_server.c          # OI-WA-03 / #381: BLE GATT service table + dispatch
+    src/np_upload_check.c         # SWR-UP-01: hash of the received protocol + verdict, UPLOAD_CHECK
+    src/np_session_stop.c         # SWR-SS-06: SESSION_STOP write ends the session
+    src/np_session_progress.c     # SWR-SS-07: SESSION_PROGRESS frame
+    src/np_session_fitting.c      # SWR-HV-02: hardware fitted at session start
+    src/np_session_pause.c        # SWR-SS-05: paused session clock + slot tracker
     src/np_warranty_token.c       # OI-WA-03: NP-FW-EMMC-002 §A warranty token
     src/np_consumables.c          # OI-ACC-08: CONSUMABLE_STATUS session counts
+    src/np_pause_limit.c          # SWR-SS-05: the owner's pause time limit
+    src/np_ramp_plan.c            # SWR-SS-05: coordinated ramp-up
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
     src/np_hexmap_nvram.c         # OI-HEXMAP-01: npmp.bin on Config through np_cfg_store
     src/np_hexmap_inventory.c     # OI-HEXMAP-02: tile UID + element inventory over the socket seam
@@ -581,3 +631,6 @@ target_link_libraries(np_hub_control
         np_cervical_vns
         m
 )
+# np_upload_check.c hashes the received protocol bytes (SWR-UP-01) with np_sha256, so the library needs np_crypto's header;
+# the application target already links np_crypto, so no second copy is linked.
+target_link_libraries(np_hub_control PRIVATE np_crypto)

@@ -53,6 +53,8 @@
 #include "np_protocol.h"
 #include "np_session_runner.h"
 #include "np_session_lease.h"   /* OI-FWHUB-17: detect/session exclusion */
+#include "np_session_stop.h"     /* SWR-SS-06 */
+#include "np_upload_check.h"     /* SWR-UP-01 */
 #include "np_pbm_socket_telem.h" /* OI-FWHUB-10: idle tile health pass */
 #include "np_session_log.h"
 #include "np_log_backend.h"
@@ -63,6 +65,7 @@
 #include "np_cvns_fault_summary.h"
 #include "np_gatt_server.h"     /* OI-WA-03: BLE GATT service */
 #include "np_consumables.h"     /* OI-ACC-08: CONSUMABLE_STATUS producer */
+#include "np_pause_limit.h"     /* SWR-SS-05: the owner's pause time limit */
 #include "np_factory_reset.h"   /* OI-NVRAM-17: interrupted-reset boot check */
 #include "FreeRTOS.h"
 #include "task.h"
@@ -235,6 +238,7 @@ static void task_safety_heartbeat(void *arg)
         /* OI-ACC-08: persist a pending consumable reset, retry a load that
          * failed, and notify CONSUMABLE_STATUS when the counts changed. */
         np_cons_poll();
+        np_pause_limit_poll();
 
         /* Transmit the REQUESTED mask (accumulated by the session runner via
          * request_enable/request_disable) — echoing the granted mask back
@@ -357,7 +361,8 @@ static void task_hub_control(void *arg)
         xEventGroupClearBits(g_hub_events,
                              NP_EV_SESSION_ABORT | NP_EV_SAFETY_FAULT |
                              NP_EV_THERMAL_FAULT | NP_EV_EEG_PPX |
-                             NP_EV_POWER_FAULT);
+                             NP_EV_POWER_FAULT | NP_EV_SESSION_PAUSE |
+                             NP_EV_SESSION_RESUME);
 
         np_hal_status_led_set(NP_LED_SESSION);
 
@@ -391,8 +396,11 @@ static void task_protocol_rx(void *arg)
             continue;
         }
 
-        /* np_runner_load verifies signature; returns error and does nothing on fail. */
-        (void)np_runner_load(g_proto_buf, recv_len);
+        /* SWR-UP-01: hash the bytes exactly as they arrived, BEFORE anything parses or verifies them,
+         * then report the hash with the verdict so the app can compare it with what it sent.
+         * np_runner_load verifies the signature and refuses a bad blob; the verdict is its result. */
+        np_upload_check_received(g_proto_buf, recv_len);
+        np_upload_check_result(np_runner_load(g_proto_buf, recv_len));
 
         /* Zero the receive buffer to avoid leaving a plaintext protocol in RAM. */
         memset(g_proto_buf, 0, recv_len);
@@ -588,6 +596,7 @@ void np_hub_control_app_main(void)
     /* OI-ACC-08 (#381): load the consumable session counts from Config before
      * the GATT service can be read and before any session can end. */
     np_cons_init();
+    np_pause_limit_init();
 
     /* OI-WA-03 (#381): publish the GATT service.  After np_cvfs_init(), so the
      * first CVNS_FAULT_STATUS read serves the persisted summary rather than an
@@ -612,6 +621,10 @@ void np_hub_control_app_main(void)
     configASSERT(g_hub_events != NULL);
 
     np_runner_init(g_hub_events);
+    np_upload_check_init();
+    np_session_stop_init(np_runner_get_state, np_runner_abort);   /* SWR-SS-06 */
+    np_session_pause_init(np_runner_pause, np_runner_resume);   /* SWR-SS-05 */
+    np_progress_set_source(np_runner_progress);                    /* SWR-SS-07 */
 
     np_hal_status_led_set(NP_LED_IDLE);
 

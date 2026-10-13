@@ -26,6 +26,8 @@ struct np_cvns_session_ctx {
     uint32_t  session_start_unix;
     uint32_t  stim_start_ms;        /* ms when RAMP_UP began                   */
     uint32_t  ramp_end_ms;          /* ms when RAMP_UP → ACTIVE transition done */
+    uint32_t  carried_stim_ms;      /* stimulation time of earlier legs of this session (a pause splits one) */
+    bool      suspended;            /* paused between legs: records open, nothing written, stage IDLE */
 
     np_cvns_session_record_t uhdr_record;
     np_cvns_shdr_summary_t   shdr_summary;
@@ -57,6 +59,16 @@ np_cvns_status_t np_cvns_session_start(np_cvns_session_ctx_t          *ctx,
                                         uint32_t                        now_unix);
 
 void np_cvns_session_stop(np_cvns_session_ctx_t *ctx, uint32_t now_ms);
+
+/*
+ * Pause (SWR-SS-05).  Ends the current leg without ending the session: stimulation and the interlock stop, the stage
+ * returns to IDLE, and the UHDR / SHDR records stay open with the stimulation time so far carried.  No record is
+ * written and the end callback is not called.  The next np_cvns_session_start() continues the same session (its checks
+ * and ramp run again; its records and duration carry on), and np_cvns_session_stop() on a suspended session closes it.
+ * One protocol session therefore leaves one cervical VNS record, however many times it was paused.
+ */
+void np_cvns_session_suspend(np_cvns_session_ctx_t *ctx, uint32_t now_ms);
+bool np_cvns_session_suspended(const np_cvns_session_ctx_t *ctx);
 
 /*
  * Main scheduler tick.  Must be called every NP_CVNS_STIM_TICK_MS (100 ms).

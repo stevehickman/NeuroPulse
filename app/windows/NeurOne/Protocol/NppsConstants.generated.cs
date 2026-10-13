@@ -207,7 +207,7 @@ static class GattIds
     public const int ZONE_MODULE_STATUS_ID = 0x000D;
     /// NOTIFY.
     public const int SHDR_UPLOAD_STATUS_ID = 0x000E;
-    /// WRITE 1 B (0x01 = stop). Placeholder pending hub BLE firmware (OI-WA-03).
+    /// WRITE 1 B (0x01 = stop). Ends the running or loaded session at the hub (SWR-SS-06).
     public const int SESSION_STOP_ID = 0x000F;
     /// READ 32 B, hub-provisioned TRNG warranty token (OI-WA-03).
     public const int WARRANTY_TOKEN_ID = 0x0010;
@@ -225,6 +225,19 @@ static class GattIds
     public const int ACTIVE_USER_ID = 0x0016;
     /// READ 32 B, encrypted link only (NP-FW-HUB-001 §4.2, OI-AND-WIRE-02).
     public const int DEVICE_SERIAL_ID = 0x0017;
+    /// READ/NOTIFY 34 B: status (0 none, 1 accepted, 2 refused, 3 pending), reason (0, or the refusal's
+    /// code as a positive number), SHA-256 of the exact bytes the hub received, taken before parsing
+    /// (SWR-UP-01).
+    public const int UPLOAD_CHECK_ID = 0x0018;
+    /// WRITE 1 B: 0x01 pause the running session, 0x02 resume the paused one (SWR-SS-05). Refused in any
+    /// other state.
+    public const int SESSION_PAUSE_ID = 0x001A;
+    /// READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
+    /// seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
+    public const int PAUSE_LIMIT_ID = 0x001B;
+    /// READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
+    /// (SWR-SS-07).
+    public const int SESSION_PROGRESS_ID = 0x0019;
 }
 
 /// The 128-bit UUID of each id above: 4E455550-0000-1000-8000-00805F9B34FB with its second group replaced.
@@ -258,7 +271,7 @@ static class GattUuidStrings
     public const string ZONE_MODULE_STATUS_ID = "4E455550-000D-1000-8000-00805F9B34FB";
     /// NOTIFY.
     public const string SHDR_UPLOAD_STATUS_ID = "4E455550-000E-1000-8000-00805F9B34FB";
-    /// WRITE 1 B (0x01 = stop). Placeholder pending hub BLE firmware (OI-WA-03).
+    /// WRITE 1 B (0x01 = stop). Ends the running or loaded session at the hub (SWR-SS-06).
     public const string SESSION_STOP_ID = "4E455550-000F-1000-8000-00805F9B34FB";
     /// READ 32 B, hub-provisioned TRNG warranty token (OI-WA-03).
     public const string WARRANTY_TOKEN_ID = "4E455550-0010-1000-8000-00805F9B34FB";
@@ -276,6 +289,19 @@ static class GattUuidStrings
     public const string ACTIVE_USER_ID = "4E455550-0016-1000-8000-00805F9B34FB";
     /// READ 32 B, encrypted link only (NP-FW-HUB-001 §4.2, OI-AND-WIRE-02).
     public const string DEVICE_SERIAL_ID = "4E455550-0017-1000-8000-00805F9B34FB";
+    /// READ/NOTIFY 34 B: status (0 none, 1 accepted, 2 refused, 3 pending), reason (0, or the refusal's
+    /// code as a positive number), SHA-256 of the exact bytes the hub received, taken before parsing
+    /// (SWR-UP-01).
+    public const string UPLOAD_CHECK_ID = "4E455550-0018-1000-8000-00805F9B34FB";
+    /// WRITE 1 B: 0x01 pause the running session, 0x02 resume the paused one (SWR-SS-05). Refused in any
+    /// other state.
+    public const string SESSION_PAUSE_ID = "4E455550-001A-1000-8000-00805F9B34FB";
+    /// READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
+    /// seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
+    public const string PAUSE_LIMIT_ID = "4E455550-001B-1000-8000-00805F9B34FB";
+    /// READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
+    /// (SWR-SS-07).
+    public const string SESSION_PROGRESS_ID = "4E455550-0019-1000-8000-00805F9B34FB";
 }
 
 /// Fixed value lengths of the NeurOne BLE service, in bytes.
@@ -284,6 +310,14 @@ static class GattSizes
     /// The hub's replay-guard serial (DEVICE_SERIAL characteristic, NP-FW-HUB-001 §4.2): exactly this many
     /// bytes, never padded or truncated.
     public const int DEVICE_SERIAL_LEN = 32;
+    /// UPLOAD_CHECK: 1 B status, 1 B reason, 32 B SHA-256 of the received bytes.
+    public const int UPLOAD_CHECK_LEN = 34;
+    /// PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit.
+    public const int PAUSE_LIMIT_LEN = 4;
+    /// SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B
+    /// remaining ms, 4 B total ms, 1 B ramp phase (0 none, 1 down, 2 held, 3 cervical VNS checks, 4 up), 1
+    /// B ramp percent, 4 B ramp remaining ms (0xFFFFFFFF unknown) (all little-endian).
+    public const int SESSION_PROGRESS_LEN = 22;
 }
 
 /// Sizes and flags of the signed session descriptor the apps build and the hub verifies (NP-FW-HUB-001 §4).

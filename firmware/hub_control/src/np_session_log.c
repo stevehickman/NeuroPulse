@@ -433,6 +433,28 @@ void np_log_hrv_session(const np_hrv_session_record_t *rec,
 
 /* ── Socket-path PBM (OI-FWHUB-10, NP-FW-HUB-001 §6.8) ─────────────────────── */
 
+void np_log_session_fitting(const uint8_t *frame, size_t len)
+{
+    /* hardware version (1), n (1), n bytes: a frame that disagrees with its own count is not a record. */
+    if (frame == NULL || len < 2U || (size_t)frame[1] + 2U != len || frame[1] == 0U) { return; }
+    take();
+    uhdr_u8(NP_LOG_TAG_UHDR_FITTING);
+    uhdr_write(frame, len);
+    uhdr_drain();   /* durable before the first command is dispatched */
+    give();
+}
+
+void np_log_session_pause(uint32_t session_ms, bool paused, uint16_t unrestored)
+{
+    const uint8_t ev = paused ? 1U : 0U;
+    take();
+    uhdr_u8(NP_LOG_TAG_UHDR_PAUSE);
+    uhdr_write(&session_ms, sizeof(session_ms));
+    uhdr_write(&ev,         1U);
+    uhdr_write(&unrestored, sizeof(unrestored));
+    give();
+}
+
 void np_log_pbm_socket(const np_pst_socket_record_t *rec, uint32_t session_ms)
 {
     if (rec == NULL || rec->socket_id >= (NP_HUB_SOCKET_MASK_BYTES * 8U)) { return; }

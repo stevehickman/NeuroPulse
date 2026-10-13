@@ -87,3 +87,7 @@ B np_transport_tests
 B np_uhdr_key_tests
 B np_zone_announce_tests
 B np_zone_notify_tests
+B np_session_fitting_tests
+B np_session_pause_tests
+B np_pause_limit_tests
+B np_ramp_plan_tests

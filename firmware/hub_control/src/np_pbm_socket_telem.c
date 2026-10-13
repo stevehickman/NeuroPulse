@@ -278,28 +278,6 @@ bool np_pst_health_pending(void)
     return s_health_pending;
 }
 
-/* The tile kind from its element inventory: a 1064 nm emitter makes it a
- * smart tile (T1-C); 660/808 alone a base tile.  NP_MOD_NONE for a module
- * with no PBM emitter (an electrode tile). */
-static np_hub_mod_type_t tile_kind(uint16_t socket_id)
-{
-    bool led = false;
-    for (uint16_t el = 0U; el < NP_HEXMAP_MAX_ELEMENTS; el++) {
-        np_hex_addr_t     a = { .socket_id = (uint8_t)socket_id, .element_id = (uint8_t)el };
-        np_physical_loc_t loc;
-        if (np_module_map_resolve(a, &loc) != NP_HUB_OK) {
-            break;
-        }
-        if (loc.elem_type == NP_ELEM_LED_1064) {
-            return NP_MOD_PBM_SMART;
-        }
-        if (loc.elem_type == NP_ELEM_LED_660 || loc.elem_type == NP_ELEM_LED_808) {
-            led = true;
-        }
-    }
-    return led ? NP_MOD_PBM_BASE : NP_MOD_NONE;
-}
-
 /* A PBM tile at this socket: its kind, and the UID bookkeeping for F14. */
 static bool tile_open(uint16_t socket_id, np_pst_health_record_t *h)
 {
@@ -309,7 +287,7 @@ static bool tile_open(uint16_t socket_id, np_pst_health_record_t *h)
         memset(&s_tile[socket_id], 0, sizeof s_tile[socket_id]);   /* empty */
         return false;
     }
-    np_hub_mod_type_t kind = tile_kind(socket_id);
+    np_hub_mod_type_t kind = np_module_map_pbm_kind(socket_id);
     if (kind == NP_MOD_NONE) {
         return false;                                               /* not PBM */
     }

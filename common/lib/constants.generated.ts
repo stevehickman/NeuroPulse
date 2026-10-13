@@ -196,7 +196,7 @@ export const GattIds = {
   ZONE_MODULE_STATUS_ID: 0x000D,
   // NOTIFY.
   SHDR_UPLOAD_STATUS_ID: 0x000E,
-  // WRITE 1 B (0x01 = stop). Placeholder pending hub BLE firmware (OI-WA-03).
+  // WRITE 1 B (0x01 = stop). Ends the running or loaded session at the hub (SWR-SS-06).
   SESSION_STOP_ID: 0x000F,
   // READ 32 B, hub-provisioned TRNG warranty token (OI-WA-03).
   WARRANTY_TOKEN_ID: 0x0010,
@@ -214,6 +214,16 @@ export const GattIds = {
   ACTIVE_USER_ID: 0x0016,
   // READ 32 B, encrypted link only (NP-FW-HUB-001 §4.2, OI-AND-WIRE-02).
   DEVICE_SERIAL_ID: 0x0017,
+  // READ/NOTIFY 34 B: status (0 none, 1 accepted, 2 refused, 3 pending), reason (0, or the refusal's code as a
+  // positive number), SHA-256 of the exact bytes the hub received, taken before parsing (SWR-UP-01).
+  UPLOAD_CHECK_ID: 0x0018,
+  // WRITE 1 B: 0x01 pause the running session, 0x02 resume the paused one (SWR-SS-05). Refused in any other state.
+  SESSION_PAUSE_ID: 0x001A,
+  // READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in seconds,
+  // before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
+  PAUSE_LIMIT_ID: 0x001B,
+  // READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask (SWR-SS-07).
+  SESSION_PROGRESS_ID: 0x0019,
 } as const;
 
 // The 128-bit UUID of each id above: 4E455550-0000-1000-8000-00805F9B34FB with its second group replaced.
@@ -246,7 +256,7 @@ export const GattUuidStrings = {
   ZONE_MODULE_STATUS_ID: "4e455550-000d-1000-8000-00805f9b34fb",
   // NOTIFY.
   SHDR_UPLOAD_STATUS_ID: "4e455550-000e-1000-8000-00805f9b34fb",
-  // WRITE 1 B (0x01 = stop). Placeholder pending hub BLE firmware (OI-WA-03).
+  // WRITE 1 B (0x01 = stop). Ends the running or loaded session at the hub (SWR-SS-06).
   SESSION_STOP_ID: "4e455550-000f-1000-8000-00805f9b34fb",
   // READ 32 B, hub-provisioned TRNG warranty token (OI-WA-03).
   WARRANTY_TOKEN_ID: "4e455550-0010-1000-8000-00805f9b34fb",
@@ -264,6 +274,19 @@ export const GattUuidStrings = {
   ACTIVE_USER_ID: "4e455550-0016-1000-8000-00805f9b34fb",
   // READ 32 B, encrypted link only (NP-FW-HUB-001 §4.2, OI-AND-WIRE-02).
   DEVICE_SERIAL_ID: "4e455550-0017-1000-8000-00805f9b34fb",
+  // READ/NOTIFY 34 B: status (0 none, 1 accepted, 2 refused, 3 pending), reason (0, or the refusal's
+  // code as a positive number), SHA-256 of the exact bytes the hub received, taken before parsing
+  // (SWR-UP-01).
+  UPLOAD_CHECK_ID: "4e455550-0018-1000-8000-00805f9b34fb",
+  // WRITE 1 B: 0x01 pause the running session, 0x02 resume the paused one (SWR-SS-05). Refused in any
+  // other state.
+  SESSION_PAUSE_ID: "4e455550-001a-1000-8000-00805f9b34fb",
+  // READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
+  // seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
+  PAUSE_LIMIT_ID: "4e455550-001b-1000-8000-00805f9b34fb",
+  // READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
+  // (SWR-SS-07).
+  SESSION_PROGRESS_ID: "4e455550-0019-1000-8000-00805f9b34fb",
 } as const;
 
 // Fixed value lengths of the NeurOne BLE service, in bytes.
@@ -271,4 +294,12 @@ export const GattSizes = {
   // The hub's replay-guard serial (DEVICE_SERIAL characteristic, NP-FW-HUB-001 §4.2): exactly this many bytes,
   // never padded or truncated.
   DEVICE_SERIAL_LEN: 32,
+  // UPLOAD_CHECK: 1 B status, 1 B reason, 32 B SHA-256 of the received bytes.
+  UPLOAD_CHECK_LEN: 34,
+  // PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit.
+  PAUSE_LIMIT_LEN: 4,
+  // SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B remaining ms, 4 B
+  // total ms, 1 B ramp phase (0 none, 1 down, 2 held, 3 cervical VNS checks, 4 up), 1 B ramp percent, 4 B ramp
+  // remaining ms (0xFFFFFFFF unknown) (all little-endian).
+  SESSION_PROGRESS_LEN: 22,
 } as const;

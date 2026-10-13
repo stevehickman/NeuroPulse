@@ -98,6 +98,12 @@ np_cvns_status_t np_cvns_session_init(np_cvns_session_ctx_t   *ctx,
     return NP_CVNS_OK;
 }
 
+/* Stimulation time of the session so far: earlier legs plus the leg that is running (stim_start_ms 0 = not started). */
+static uint32_t stim_elapsed_ms(const np_cvns_session_ctx_t *ctx, uint32_t now_ms)
+{
+    return ctx->carried_stim_ms + ((ctx->stim_start_ms > 0U) ? (now_ms - ctx->stim_start_ms) : 0U);
+}
+
 /* ── Internal helpers ────────────────────────────────────────────────────────── */
 
 static void session_advance_to_fault(np_cvns_session_ctx_t *ctx,
@@ -105,11 +111,12 @@ static void session_advance_to_fault(np_cvns_session_ctx_t *ctx,
                                        uint32_t                now_ms)
 {
     ctx->stage = NP_CVNS_STAGE_FAULT;
+    ctx->suspended = false;
     np_cvns_stim_stop(ctx->stim);
     np_cvns_interlock_disable(ctx->interlock);
 
     /* Finalise UHDR record. */
-    ctx->uhdr_record.session_duration_s = (uint32_t)(now_ms - ctx->stim_start_ms) / 1000U;
+    ctx->uhdr_record.session_duration_s = stim_elapsed_ms(ctx, now_ms) / 1000U;
     ctx->uhdr_record.abort_reason       = (uint8_t)(-reason); /* convert to positive */
 
     /* The fault kind, in the user's own record (NP-SW-FAULTMSG-001 P2,
@@ -137,8 +144,7 @@ static void session_advance_to_fault(np_cvns_session_ctx_t *ctx,
         ctx->uhdr_record.cutoff_hr_at_event_x10 =
             (uint16_t)(np_cvns_interlock_current_hr(ctx->interlock) * 10.0f);
         ctx->uhdr_record.cutoff_time_offset_s =
-            (ctx->stim_start_ms > 0U)
-            ? (now_ms - ctx->stim_start_ms) / 1000U : 0U;
+            stim_elapsed_ms(ctx, now_ms) / 1000U;
     }
 
     ctx->shdr_summary.cutoff_occurred = (reason == NP_CVNS_ERR_CARDIAC_CUTOFF) ? 1U : 0U;
@@ -155,9 +161,10 @@ static void session_advance_to_fault(np_cvns_session_ctx_t *ctx,
 static void session_complete(np_cvns_session_ctx_t *ctx, uint32_t now_ms)
 {
     ctx->stage = NP_CVNS_STAGE_COMPLETE;
+    ctx->suspended = false;
     np_cvns_interlock_disable(ctx->interlock);
 
-    ctx->uhdr_record.session_duration_s = (uint32_t)(now_ms - ctx->stim_start_ms) / 1000U;
+    ctx->uhdr_record.session_duration_s = stim_elapsed_ms(ctx, now_ms) / 1000U;
     ctx->uhdr_record.abort_reason       = 0U;
     ctx->uhdr_record.cutoff_occurred    = 0U;
     ctx->uhdr_record.fault_reason       = (uint8_t)NP_CVNS_FAULT_NONE;
@@ -192,19 +199,27 @@ np_cvns_status_t np_cvns_session_start(np_cvns_session_ctx_t          *ctx,
     ctx->session_start_unix = now_unix;
     ctx->stim_start_ms     = 0U;
 
-    /* Initialize UHDR record (timestamps and session parameters are UHDR). */
-    memset(&ctx->uhdr_record, 0, sizeof(ctx->uhdr_record));
-    ctx->uhdr_record.session_start_unix = now_unix;
-    ctx->uhdr_record.stim_freq_hz       = config->freq_hz;
-    ctx->uhdr_record.stim_current_ua    = config->current_ua;
-    ctx->uhdr_record.stim_pulse_width_us = config->pulse_width_us;
-    ctx->uhdr_record.electrode_config   = config->electrode_config;
+    if (ctx->suspended) {
+        /* Continuing a paused session: the records stay as they were (start time, impedances so far, stimulation time
+         * carried).  The configuration is the same command, re-validated below. */
+        ctx->suspended = false;
+    } else {
+        ctx->carried_stim_ms = 0U;
 
-    /* Initialize SHDR summary (no user biology). */
-    memset(&ctx->shdr_summary, 0, sizeof(ctx->shdr_summary));
-    ctx->shdr_summary.electrode_config  = config->electrode_config;
-    ctx->shdr_summary.stim_freq_hz      = config->freq_hz;
-    ctx->shdr_summary.stim_current_ua   = config->current_ua;
+        /* Initialize UHDR record (timestamps and session parameters are UHDR). */
+        memset(&ctx->uhdr_record, 0, sizeof(ctx->uhdr_record));
+        ctx->uhdr_record.session_start_unix = now_unix;
+        ctx->uhdr_record.stim_freq_hz       = config->freq_hz;
+        ctx->uhdr_record.stim_current_ua    = config->current_ua;
+        ctx->uhdr_record.stim_pulse_width_us = config->pulse_width_us;
+        ctx->uhdr_record.electrode_config   = config->electrode_config;
+
+        /* Initialize SHDR summary (no user biology). */
+        memset(&ctx->shdr_summary, 0, sizeof(ctx->shdr_summary));
+        ctx->shdr_summary.electrode_config  = config->electrode_config;
+        ctx->shdr_summary.stim_freq_hz      = config->freq_hz;
+        ctx->shdr_summary.stim_current_ua   = config->current_ua;
+    }
 
     /* Initialize stim module (validates config).  A non-NULL safety-response
      * callback is required by np_cvns_stim_init(); the session advances by
@@ -223,11 +238,30 @@ np_cvns_status_t np_cvns_session_start(np_cvns_session_ctx_t          *ctx,
 
 void np_cvns_session_stop(np_cvns_session_ctx_t *ctx, uint32_t now_ms)
 {
-    if (!ctx || ctx->stage == NP_CVNS_STAGE_IDLE) {
+    if (!ctx || (ctx->stage == NP_CVNS_STAGE_IDLE && !ctx->suspended)) {
         return;
     }
     session_advance_to_fault(ctx, NP_CVNS_ERR_NO_SESSION, now_ms);
     ctx->stage = NP_CVNS_STAGE_IDLE;
+}
+
+void np_cvns_session_suspend(np_cvns_session_ctx_t *ctx, uint32_t now_ms)
+{
+    if (!ctx || ctx->stage == NP_CVNS_STAGE_IDLE || ctx->stage == NP_CVNS_STAGE_COMPLETE ||
+        ctx->stage == NP_CVNS_STAGE_FAULT) {
+        return;   /* nothing to continue: an ended session stays ended */
+    }
+    ctx->carried_stim_ms = stim_elapsed_ms(ctx, now_ms);
+    ctx->stim_start_ms   = 0U;
+    np_cvns_stim_stop(ctx->stim);
+    np_cvns_interlock_disable(ctx->interlock);
+    ctx->suspended = true;
+    ctx->stage     = NP_CVNS_STAGE_IDLE;
+}
+
+bool np_cvns_session_suspended(const np_cvns_session_ctx_t *ctx)
+{
+    return ctx && ctx->suspended;
 }
 
 /* ── Session tick ────────────────────────────────────────────────────────────── */
@@ -285,6 +319,15 @@ void np_cvns_session_tick(np_cvns_session_ctx_t *ctx,
             if (ret == NP_CVNS_OK) {
                 ctx->stage        = NP_CVNS_STAGE_RAMP_UP;
                 ctx->stim_start_ms = now_ms;
+                if (ctx->carried_stim_ms > 0U) {
+                    /* A leg after a pause: the library's session length bound counts the legs together, so a pause
+                     * does not buy a second full session. */
+                    const uint32_t total_ms = (uint32_t)ctx->config.duration_s * 1000U;
+                    const uint32_t ramps_ms = ((uint32_t)NP_CVNS_RAMP_UP_S + (uint32_t)NP_CVNS_RAMP_DOWN_S) * 1000U;
+                    const uint32_t left_ms  = (total_ms > ctx->carried_stim_ms) ? (total_ms - ctx->carried_stim_ms) : 0U;
+                    const uint32_t active_ms = (left_ms > ramps_ms) ? (left_ms - ramps_ms) : 0U;
+                    ctx->stim->active_end_ms = now_ms + (uint32_t)NP_CVNS_RAMP_UP_S * 1000U + active_ms;
+                }
             } else {
                 session_advance_to_fault(ctx, ret, now_ms);
             }
@@ -339,7 +382,7 @@ void np_cvns_session_tick(np_cvns_session_ctx_t *ctx,
         /* Progress: 0–100% across ramp-up, active, ramp-down. */
         if (ctx->stim_start_ms > 0U && ctx->config.duration_s > 0U) {
             uint32_t total_ms  = (uint32_t)ctx->config.duration_s * 1000U;
-            uint32_t elapsed   = now_ms - ctx->stim_start_ms;
+            uint32_t elapsed   = stim_elapsed_ms(ctx, now_ms);
             disp.stim_progress_pct = (elapsed >= total_ms)
                                      ? 100.0f
                                      : (float)elapsed * 100.0f / (float)total_ms;

@@ -87,6 +87,9 @@ typedef enum {
     /* Application error: the value exists on the device but cannot be produced
      * now (a stored record unreadable).  Retrying may succeed. */
     NP_ATT_APP_UNAVAILABLE        = 0x81,
+    /* Application error: a pause (or a second resume) was refused because the protocol is ramping up.  SESSION_PROGRESS
+     * says how far the ramp is, so the app can tell the person why and how long (SWR-SS-05).  A stop is not refused. */
+    NP_ATT_APP_RAMPING            = 0x82,
 } np_att_status_t;
 
 typedef np_hub_status_t (*np_gatt_read_fn)(uint8_t *buf, size_t cap, size_t *len_out);

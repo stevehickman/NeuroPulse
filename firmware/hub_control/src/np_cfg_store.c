@@ -70,6 +70,13 @@ static const np_cfg_file_desc_t CFG_FILES[NP_CFG_FILE_COUNT] = {
     [NP_CFG_FILE_RESET_MARKER] = { NP_CFG_POLICY_REPLICATED,
                            { NP_CFG_REPLICA_DIR_A "/reset.mrk",
                              NP_CFG_REPLICA_DIR_B "/reset.mrk" } },
+    /* SWR-SS-05: the longest a session may stay paused (hardware-owner setting,
+     * default none).  One 5-byte record, rewritten only when the owner changes
+     * it, so REPLICATED costs nothing and one lost entry does not silently turn
+     * a limit off.  It bounds no emission (REQ-LFS-01). */
+    [NP_CFG_FILE_PAUSE_LIMIT] = { NP_CFG_POLICY_REPLICATED,
+                           { NP_CFG_REPLICA_DIR_A "/pauselim.rec",
+                             NP_CFG_REPLICA_DIR_B "/pauselim.rec" } },
 };
 
 /* ── RAM state — all of it lost at a reboot, and np_cfg_store_bind() is one ── */

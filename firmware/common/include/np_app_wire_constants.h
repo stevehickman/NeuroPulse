@@ -18,6 +18,10 @@
  */
 #define NP_GATT_CONSUMABLE_STATUS_ID 0x0007u
 /*
+ * WRITE 1 B (0x01 = stop). Ends the running or loaded session at the hub (SWR-SS-06).
+ */
+#define NP_GATT_SESSION_STOP_ID 0x000Fu
+/*
  * READ 32 B, hub-provisioned TRNG warranty token (OI-WA-03).
  */
 #define NP_GATT_WARRANTY_TOKEN_ID 0x0010u
@@ -37,12 +41,47 @@
  * READ 32 B, encrypted link only (NP-FW-HUB-001 §4.2, OI-AND-WIRE-02).
  */
 #define NP_GATT_DEVICE_SERIAL_ID 0x0017u
+/*
+ * READ/NOTIFY 34 B: status (0 none, 1 accepted, 2 refused, 3 pending), reason (0, or the refusal's
+ * code as a positive number), SHA-256 of the exact bytes the hub received, taken before parsing
+ * (SWR-UP-01).
+ */
+#define NP_GATT_UPLOAD_CHECK_ID 0x0018u
+/*
+ * WRITE 1 B: 0x01 pause the running session, 0x02 resume the paused one (SWR-SS-05). Refused in any
+ * other state.
+ */
+#define NP_GATT_SESSION_PAUSE_ID 0x001Au
+/*
+ * READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
+ * seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
+ */
+#define NP_GATT_PAUSE_LIMIT_ID 0x001Bu
+/*
+ * READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
+ * (SWR-SS-07).
+ */
+#define NP_GATT_SESSION_PROGRESS_ID 0x0019u
 
 /*
  * The hub's replay-guard serial (DEVICE_SERIAL characteristic, NP-FW-HUB-001 §4.2): exactly this many
  * bytes, never padded or truncated.
  */
 #define NP_GATT_DEVICE_SERIAL_LEN 32U
+/*
+ * UPLOAD_CHECK: 1 B status, 1 B reason, 32 B SHA-256 of the received bytes.
+ */
+#define NP_GATT_UPLOAD_CHECK_LEN 34U
+/*
+ * PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit.
+ */
+#define NP_GATT_PAUSE_LIMIT_LEN 4U
+/*
+ * SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B
+ * remaining ms, 4 B total ms, 1 B ramp phase (0 none, 1 down, 2 held, 3 cervical VNS checks, 4 up), 1
+ * B ramp percent, 4 B ramp remaining ms (0xFFFFFFFF unknown) (all little-endian).
+ */
+#define NP_GATT_SESSION_PROGRESS_LEN 22U
 /*
  * Byte 0 of the frame.
  */

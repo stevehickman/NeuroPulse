@@ -340,6 +340,24 @@ if(NP_BUILD_TESTS)
         COMMAND np_module_map_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    # SWR-SS-05: the paused session clock and the slot tracker.
+    add_test(NAME np_session_pause_tests
+        COMMAND np_session_pause_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_ramp_plan_tests
+        COMMAND np_ramp_plan_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_pause_limit_tests
+        COMMAND np_pause_limit_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # SWR-HV-02: the hardware fitting frame written at each session start.
+    add_test(NAME np_session_fitting_tests
+        COMMAND np_session_fitting_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     # OI-HEXMAP-02: the module inventory_fn and the one-socket poll, through
     # the real np_module_map, against simulated tiles.
     add_test(NAME np_hexmap_inventory_tests

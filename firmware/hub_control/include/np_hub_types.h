@@ -70,6 +70,9 @@ typedef enum {
      * a session is never run without its records (OI-NVRAM-19, option b).
      * Clears only at a boot the check permits. */
     NP_HUB_ERR_BOOT_REFUSED         = -25,
+    /* The protocol is ramping up (session start or resume): a pause is not accepted until every ramp has finished.
+     * Reaches the app as ATT 0x82, so it can say why (SWR-SS-05). */
+    NP_HUB_ERR_RAMPING              = -26,
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -460,6 +463,7 @@ typedef enum {
     NP_ABORT_EEG_SEIZURE    = 6,   /* photoparoxysmal detection at Oz */
     NP_ABORT_MOD_FAULT      = 7,   /* module reported unrecoverable fault */
     NP_ABORT_LOG_FAIL       = 8,   /* UHDR write failure (eMMC) */
+    NP_ABORT_PAUSE_TIMEOUT  = 9,   /* a pause outlasted the hardware owner's limit (SWR-SS-05) */
 } np_abort_reason_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════

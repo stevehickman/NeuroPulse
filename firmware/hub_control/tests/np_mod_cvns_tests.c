@@ -30,6 +30,7 @@
 #include <string.h>
 
 #include "../include/np_hub_types.h"
+#include "../include/np_ramp_plan.h"
 #include "np_cvns_types.h"
 #include "np_cvns_session.h"
 #include "np_cvns_interlock.h"
@@ -59,6 +60,8 @@ extern void            np_mod_cvns_set_mcu_impedance(const float kohm[], bool va
 
 /* Test seams (NPTEST_HOST). */
 extern np_cvns_session_ctx_t   *np_mod_cvns_test_session(void);
+extern void np_mod_cvns_ramp(uint32_t now_ms, np_ramp_report_t *out);
+extern void np_mod_cvns_suspend(void);
 extern np_cvns_interlock_ctx_t *np_mod_cvns_test_interlock(void);
 extern np_cvns_stim_ctx_t      *np_mod_cvns_test_stim(void);
 extern bool np_mod_cvns_test_enable_requested(void);
@@ -443,6 +446,33 @@ static void test_control_start_no_immediate_enable(void)
           "control: session left IDLE (impedance stage)");
     check(g_enable_calls == 0 && !np_mod_cvns_test_enable_requested(),
           "control: NP_SAFETY_EN_CVNS NOT requested before delivery");
+}
+
+/* @verifies SWR-SS-05 */
+static void test_ramp_report_checks_then_ramp_then_steady(void)
+{
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_ramp_report_t r;
+    np_mod_cvns_ramp(1000U, &r);
+    check(r.phase == NP_RAMP_NONE, "ramp report: nothing running reports no ramp");
+
+    np_mod_cvns_params_t p = make_params();
+    (void)np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    np_mod_cvns_ramp(1000U, &r);
+    check(r.phase == NP_RAMP_PRECHECK && r.remaining_ms == NP_RAMP_UNKNOWN_MS,
+          "ramp report: the impedance and baseline checks report PRECHECK with an unknown time");
+
+    np_cvns_session_ctx_t *s = np_mod_cvns_test_session();
+    s->stage = NP_CVNS_STAGE_RAMP_UP;
+    s->stim_start_ms = 5000U;
+    np_mod_cvns_ramp(8000U, &r);
+    check(r.phase == NP_RAMP_UP && r.pct == 30U && r.remaining_ms == 7000U,
+          "ramp report: 3 s into the 10 s ramp-up is 30% with 7 s left");
+
+    s->stage = NP_CVNS_STAGE_ACTIVE;
+    np_mod_cvns_ramp(20000U, &r);
+    check(r.phase == NP_RAMP_NONE, "ramp report: steady is not a ramp");
 }
 
 /* @verifies DI-SAFE-12 */
@@ -998,6 +1028,43 @@ static void test_control_before_init(void)
           "telemetry: fills NP_MOD_CVNS record");
 }
 
+/* @verifies SWR-SS-05 */
+static void test_a_pause_leaves_one_cervical_session_not_several(void)
+{
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    np_cvns_session_ctx_t *s = np_mod_cvns_test_session();
+    const uint32_t first_unix = s->uhdr_record.session_start_unix;
+    s->stage = NP_CVNS_STAGE_ACTIVE;
+    s->stim_start_ms = 5000U;
+    g_now_ms = 25000U;
+    np_mod_cvns_tick(10U, g_now_unix);          /* delivering: asserts the enable */
+    check(np_mod_cvns_test_enable_requested(), "cervical pause: (setup) the enable is up while delivering");
+    np_mod_cvns_suspend();
+    check(np_cvns_session_suspended(s) && s->stage == NP_CVNS_STAGE_IDLE && !np_mod_cvns_test_active() &&
+          s->carried_stim_ms == 20000U,
+          "cervical pause: the leg ends, the session stays open and its 20 s of stimulation are carried");
+    check(g_disable_calls >= 1 && !np_mod_cvns_test_enable_requested(), "cervical pause: the enable is withdrawn");
+
+    g_now_unix += 100U;
+    check(np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p)) == NP_HUB_OK &&
+          !np_cvns_session_suspended(s) && s->stage != NP_CVNS_STAGE_IDLE &&
+          s->uhdr_record.session_start_unix == first_unix,
+          "cervical resume: the same session continues (its start time is not renewed) and the checks run again");
+
+    s->stage = NP_CVNS_STAGE_ACTIVE;
+    s->stim_start_ms = 40000U;
+    g_now_ms = 45000U;
+    np_mod_cvns_suspend();
+    check(s->carried_stim_ms == 25000U, "cervical pause: a second pause adds its leg to the carried time");
+
+    check(np_mod_cvns_control(NP_HUB_SLOT_CVNS, NULL, 0U) == NP_HUB_OK && !np_cvns_session_suspended(s) &&
+          s->uhdr_record.session_duration_s == 25U,
+          "cervical stop while paused: closes the one session with all the stimulation time, 25 s");
+}
+
 int main(void)
 {
     test_detect();
@@ -1014,6 +1081,8 @@ int main(void)
     test_hr_report_paced_and_invalid_without_beats();
     test_terminal_stage_drops_enable();
     test_stop_drops_enable();
+    test_ramp_report_checks_then_ramp_then_steady();
+    test_a_pause_leaves_one_cervical_session_not_several();
     test_fault_cb_disables_and_logs();
     test_hb_impedance_advances_stage();
     test_hb_impedance_out_of_window_holds();

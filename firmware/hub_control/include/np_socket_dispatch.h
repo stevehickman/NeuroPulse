@@ -134,6 +134,25 @@ uint32_t np_sock_disp_next_stop_ms(uint32_t now_ms);
 /* Stop every active socket and release the cranial enable (session end). */
 void np_sock_disp_stop_all(void);
 
+/*
+ * np_sock_disp_pause — pause the lattice (SWR-SS-05).  Remembers what every active socket was being driven with
+ * and until when, then stops every socket and releases the cranial enable.  Nothing stays lit; the records of what
+ * was running are kept apart from the live records, so the governor and placement see a dark lattice.
+ */
+void np_sock_disp_pause(void);
+
+/*
+ * np_sock_disp_resume — put back what np_sock_disp_pause remembered, THROUGH THE SAME ADMISSION AS A FRESH
+ * COMMAND (placement, then power, then drive, then the cranial enable): a module removed during the pause, or a
+ * load the governor now refuses, is refused here exactly as it would be at the start.  Sockets that were driven
+ * with the same preset and stop time are re-admitted together, as the command that drove them was.  The stop time
+ * kept is the original's, which is correct because the session clock stood still during the pause.
+ *
+ * Returns the number of remembered sockets that could NOT be put back.  Those stay dark; the caller records it.
+ * Safe to call with nothing remembered (returns 0).
+ */
+uint16_t np_sock_disp_resume(void);
+
 /* Number of sockets currently driven. */
 uint16_t np_sock_disp_active_count(void);
 
