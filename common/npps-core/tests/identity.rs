@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 
 fn def() -> Value {
     json!({
-        "name": "Test", "hardwareVersion": 1, "familyId": "11111111-2222-3333-4444-555555555555",
+        "name": "Test", "familyId": "11111111-2222-3333-4444-555555555555",
         "timingMode": { "type": "duration", "seconds": 600 },
         "modalities": [{
             "type": "pbm_transcranial", "enabled": true,
@@ -25,7 +25,7 @@ fn zones_by_version() -> Value {
 
 fn req(def: Value) -> Value {
     json!({
-        "def": def, "zonesByVersion": zones_by_version(), "clinicianSockets": null,
+        "def": def, "hardwareVersion": 1, "zonesByVersion": zones_by_version(), "clinicianSockets": null,
         "deviceSerialHex": "aabbccdd", "nowUnix": 1_000, "sessionUuidHex": "00112233445566778899aabbccddeeff",
         "wavelengthRules": null, "autonomous": false, "acknowledgedCautions": []
     })
@@ -89,9 +89,9 @@ fn changing_an_input_the_requirement_names_changes_the_hash() {
     let mut d = def();
     d["modalities"][0]["params"]["wavelength"] = json!("808nm");
     assert_ne!(hash(&req(d)), base, "the requested wavelength");
-    let mut d = def();
-    d["hardwareVersion"] = json!(2);
-    assert_ne!(hash(&req(d)), base, "the hardware version");
+    let mut r = req(def());
+    r["hardwareVersion"] = json!(2);
+    assert_ne!(hash(&r), base, "the hardware version");
     let mut d = def();
     d["modalities"][0]["params"]["zoneRefs"] = json!(["Occipital"]);
     assert_ne!(hash(&req(d)), base, "the socket list");
@@ -128,21 +128,21 @@ fn a_zone_named_by_name_and_the_same_sockets_chosen_by_the_clinician_are_one_pro
 // @verifies SWR-HV-05
 #[test]
 fn version_two_resolves_its_own_list() {
-    let mut d = def();
-    d["hardwareVersion"] = json!(2);
-    let r = req(d.clone());
+    let d = def();
+    let mut r = req(d.clone());
+    r["hardwareVersion"] = json!(2);
     assert!(content_hash_json(&r.to_string()).is_ok());
-    let c = identity::canonical_content(&d, &[("Frontal".to_string(), vec![10, 11])].into_iter().collect(), None).unwrap();
+    let c = identity::canonical_content(&d, Some(2), &[("Frontal".to_string(), vec![10, 11])].into_iter().collect(), None).unwrap();
     assert_eq!(c["modalities"][0]["params"]["sockets"], json!([10, 11]));
 }
 
 // @verifies SWR-HV-05
 #[test]
-fn a_zone_with_no_list_for_the_protocols_version_is_refused_by_hash_and_by_compile() {
+fn a_zone_with_no_list_for_the_helmets_version_is_refused_by_hash_and_by_compile() {
     let mut d = def();
-    d["hardwareVersion"] = json!(2);
     d["modalities"][0]["params"]["zoneRefs"] = json!(["Occipital"]);
-    let r = req(d);
+    let mut r = req(d);
+    r["hardwareVersion"] = json!(2);
     let want = "Protocol 'Test' is for hardware version 2, and zone 'Occipital' has no socket list for it";
     assert_eq!(content_hash_json(&r.to_string()).unwrap_err(), want);
     assert_eq!(compile_json(&r.to_string()).unwrap_err(), want);
@@ -172,7 +172,7 @@ fn json_keys_are_written_sorted_so_the_canonical_form_is_stable() {
 fn the_hash_has_a_known_value() {
     // Pins the canonical form and the domain: a change to either changes this string on purpose, with a new DOMAIN.
     let zones = [("Frontal".to_string(), vec![1, 2, 3])].into_iter().collect();
-    let c = identity::canonical_content(&def(), &zones, None).unwrap();
+    let c = identity::canonical_content(&def(), Some(1), &zones, None).unwrap();
     assert_eq!(
         String::from_utf8(identity::canonical_bytes(&c)).unwrap(),
         "NeurOne.ProtocolContent.1\n{\"hardwareVersion\":1,\"modalities\":[{\"interval\":{\"intervalOffSeconds\":0,\"intervalOnSeconds\":0},\"params\":{\"dutyCyclePercent\":25,\"frequencyHz\":40,\"irradianceMWcm2\":200,\"sockets\":[1,2,3],\"wavelength\":\"660nm\"},\"type\":\"pbm_transcranial\"}],\"timingMode\":{\"seconds\":600,\"type\":\"duration\"}}"

@@ -25,7 +25,7 @@ class NPProtocolValidatorTests {
         interval: NPIntervalConfig = NPIntervalConfig.CONTINUOUS,
         durationSeconds: Int = 20 * 60,
     ) = NPProtocolDefinition(
-        name = "Test Protocol", hardwareVersion = 1,
+        name = "Test Protocol",
         timingMode = NPTimingMode.Duration(durationSeconds),
         modalities = listOf(NPProtocolModality(params = params, interval = interval, enabled = true)),
     )
@@ -386,7 +386,7 @@ class NPProtocolValidatorTests {
     // @verifies REQ-NPPS-22
     @Test
     fun emptyModalitiesRejected() {
-        val def = NPProtocolDefinition(name = "Empty", hardwareVersion = 1, modalities = emptyList())
+        val def = NPProtocolDefinition(name = "Empty", modalities = emptyList())
         val result = hardwareOnlyValidator().validate(def)
         assertFalse(result.isValid, "A protocol with no enabled modalities must be rejected.")
         assertTrue(result.errors.any { it.parameterKey == "modalities" })

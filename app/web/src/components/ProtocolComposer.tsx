@@ -35,7 +35,6 @@ function blankComposite(): NPCompositeProtocol {
     createdAt: now,
     modifiedAt: now,
     isPredefined: false,
-    hardwareVersion: 1,  // SWR-HV-01
     layers: [],
     conflictResolution: 'merge',
   };

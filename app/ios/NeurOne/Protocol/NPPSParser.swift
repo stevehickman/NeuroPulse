@@ -141,8 +141,7 @@ enum NPPSModels {
             modalities: try json.objects("modalities").map(modalityOf),
             conditions: json.strList("conditions") ?? [],
             references: referencesOf(json),
-            familyId: json.optStr("familyId"),
-            hardwareVersion: json.optInt("hardwareVersion")
+            familyId: json.optStr("familyId")
         )
     }
 
@@ -167,7 +166,6 @@ enum NPPSModels {
         composite.conditions = json.strList("conditions") ?? []
         composite.references = referencesOf(json)
         composite.familyId = json.optStr("familyId")
-        composite.hardwareVersion = json.optInt("hardwareVersion")
         return composite
     }
 

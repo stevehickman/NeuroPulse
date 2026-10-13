@@ -428,12 +428,6 @@ data class NPProtocolDefinition(
      * content hash and never sent to the helmet. Null when the protocol states none.
      */
     var familyId: String? = null,
-    /**
-     * `hardware_version` (SWR-HV-01): the helmet hardware version the protocol's sockets are addressed on. A protocol states
-     * one, and the shared writer refuses a model that has none (null), suggesting 1, the only version that exists. Nothing
-     * here defaults it: a version written for a protocol authored for another layout would state a layout it does not have.
-     */
-    var hardwareVersion: Int? = null,
 )
 
 /** A `references` entry: a bare URL/path, or a labelled link. */
@@ -470,12 +464,6 @@ data class NPCompositeProtocol(
      * content hash and never sent to the helmet. Null when the protocol states none.
      */
     var familyId: String? = null,
-    /**
-     * `hardware_version` (SWR-HV-01): the helmet hardware version the protocol's sockets are addressed on. A protocol states
-     * one, and the shared writer refuses a model that has none (null), suggesting 1, the only version that exists. Nothing
-     * here defaults it: a version written for a protocol authored for another layout would state a layout it does not have.
-     */
-    var hardwareVersion: Int? = null,
 ) {
     enum class ConflictResolution(val rawValue: String) {
         MERGE("merge"),

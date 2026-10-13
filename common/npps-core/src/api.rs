@@ -73,10 +73,11 @@ fn rules(v: &Value) -> Result<Option<WavelengthRules>, String> {
 }
 
 /// The zone namespace a request carries, resolved for the protocol. `zonesByVersion` (`{name:{"1":[…],"2":[…]}}`) is
-/// used when the protocol states a hardware version, and a named zone with no list for it is refused (`SWR-HV-05`);
+/// used when the request names the target helmet's `hardwareVersion`, and a named zone with no list for it is refused
+/// (`SWR-HV-05`). The version is the helmet's, an input of the call; a protocol states none;
 /// otherwise `zones` (`{name:[…]}`, already for one layout) is used as it always was.
 fn request_zones(req: &Value) -> Result<Option<HashMap<String, Vec<u32>>>, String> {
-    if let (Some(by_v), Some(v)) = (req["zonesByVersion"].as_object(), req["def"]["hardwareVersion"].as_u64()) {
+    if let (Some(by_v), Some(v)) = (req["zonesByVersion"].as_object(), req["hardwareVersion"].as_u64()) {
         let mut all: HashMap<String, HashMap<u32, Vec<u32>>> = HashMap::new();
         for (name, lists) in by_v {
             let mut one = HashMap::new();
@@ -86,7 +87,7 @@ fn request_zones(req: &Value) -> Result<Option<HashMap<String, Vec<u32>>>, Strin
             }
             all.insert(name.clone(), one);
         }
-        if let Some(z) = identity::zones_without_version_list(&req["def"], &all).first() {
+        if let Some(z) = identity::zones_without_version_list(&req["def"], v as u32, &all).first() {
             let name = req["def"]["name"].as_str().unwrap_or("");
             return Err(identity::zone_missing_message(name, v, z));
         }
@@ -108,8 +109,8 @@ fn request_zones(req: &Value) -> Result<Option<HashMap<String, Vec<u32>>>, Strin
 ///   "deviceSerialHex":"…"|null, "nowUnix":n, "sessionUuidHex":"…32 hex…",
 ///   "wavelengthRules":{name,channels:[{element,nominalNm,minNm,maxNm}]}|null,
 ///   "autonomous":true|false (optional, default false: sets the Mode 3 header flag),
-///   "zonesByVersion":{name:{"1":[…],…}} (optional: used instead of "zones" when the protocol states a hardware version, and
-///   a named zone with no list for it is refused, SWR-HV-05)}`.
+///   "hardwareVersion":n, "zonesByVersion":{name:{"1":[…],…}} (optional, together: the target helmet's hardware version, and
+///   the zone lists per version, used instead of "zones"; a named zone with no list for that version is refused, SWR-HV-05)}`.
 /// Returns the descriptor with a zeroed 64-byte signature slot, which the caller signs.
 /// The error is the compiler's refusal message.
 pub fn compile_json(request: &str) -> Result<Vec<u8>, String> {
@@ -209,24 +210,12 @@ pub fn namespace_json(request: &str) -> Result<String, String> {
             }
         }
         if single {
-            // SWR-HV-05: a zone with no list for the protocol's hardware version is refused before compile. A protocol
-            // that states no hardware version is not checked: it names none to resolve against.
-            let version = def["hardwareVersion"].as_u64();
             for m in def["modalities"].as_array().into_iter().flatten() {
                 if m["type"] == "pbm_transcranial" {
                     for z in m["params"]["zoneRefs"].as_array().into_iter().flatten() {
                         let z = z.as_str().unwrap_or("");
-                        let Some(zd) = zones.iter().find(|x| x["name"].as_str() == Some(z)) else {
+                        if !zones.iter().any(|x| x["name"].as_str() == Some(z)) {
                             reference_errors.push(format!("Protocol '{name}' references undefined zone '{z}'"));
-                            continue;
-                        };
-                        if let Some(v) = version {
-                            let listed = zd["socketsByVersion"].get(v.to_string()).map_or(false, Value::is_array);
-                            if !listed {
-                                reference_errors.push(format!(
-                                    "Protocol '{name}' is for hardware version {v}, and zone '{z}' has no socket list for it"
-                                ));
-                            }
                         }
                     }
                 }
@@ -297,12 +286,12 @@ pub fn resolve_limits_json(request: &str) -> Result<String, String> {
 }
 
 /// A protocol's identity: the hash of its compiled content (`SWR-HV-01`; the form and what it leaves out are in
-/// `identity`). `request` is `{"def":…, "zones" | "zonesByVersion", "clinicianSockets":[…]|null}`, the same zone and socket
+/// `identity`). `request` is `{"def":…, "zones" | "hardwareVersion" + "zonesByVersion", "clinicianSockets":[…]|null}`, the same zone and socket
 /// inputs as `compile_json`; the serial, rules, Mode 3 flag, cautions, time and session id are not inputs. Returns 64
 /// lowercase hex digits.
 pub fn content_hash_json(request: &str) -> Result<String, String> {
     let req: Value = serde_json::from_str(request).map_err(|e| format!("content hash request is not JSON: {e}"))?;
     let zones = request_zones(&req)?.unwrap_or_default();
     let clinician = if req["clinicianSockets"].is_null() { None } else { Some(sockets(&req["clinicianSockets"])?) };
-    identity::content_hash(&req["def"], &zones, clinician.as_deref())
+    identity::content_hash(&req["def"], req["hardwareVersion"].as_u64().and_then(|v| u32::try_from(v).ok()), &zones, clinician.as_deref())
 }

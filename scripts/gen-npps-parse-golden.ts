@@ -136,7 +136,7 @@ function normaliseProtocol(p: any): any {
   out.modalities = p.modalities.map((m: any) => ({
     type: m.modalityParams.type, enabled: m.enabled, params: m.modalityParams.params, interval: m.interval,
   }));
-  for (const k of ['isReadOnly', 'conditions', 'references', 'familyId', 'hardwareVersion']) if (p[k] !== undefined) out[k] = p[k];
+  for (const k of ['isReadOnly', 'conditions', 'references', 'familyId']) if (p[k] !== undefined) out[k] = p[k];
   return out;
 }
 
@@ -147,7 +147,7 @@ function normaliseComposite(c: any): any {
   out.tags = c.tags; out.isPredefined = c.isPredefined;
   out.layers = c.layers.map(({ id: _id, ...layer }: any) => layer);
   out.conflictResolution = c.conflictResolution;
-  for (const k of ['isReadOnly', 'conditions', 'references', 'familyId', 'hardwareVersion']) if (c[k] !== undefined) out[k] = c[k];
+  for (const k of ['isReadOnly', 'conditions', 'references', 'familyId']) if (c[k] !== undefined) out[k] = c[k];
   return out;
 }
 

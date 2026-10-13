@@ -109,7 +109,6 @@ object NPPSParser {
             conditions = p.strList("conditions") ?: emptyList(),
             references = referencesOf(p),
             familyId = p.optStr("familyId"),
-            hardwareVersion = p.optInt("hardwareVersion"),
         )
     }
 
@@ -136,7 +135,6 @@ object NPPSParser {
         conditions = c.strList("conditions") ?: emptyList(),
         references = referencesOf(c),
         familyId = c.optStr("familyId"),
-        hardwareVersion = c.optInt("hardwareVersion"),
     )
 
     private fun modalityOf(m: JsonObject): NPProtocolModality {
