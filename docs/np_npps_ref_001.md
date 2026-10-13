@@ -15,7 +15,7 @@
 
 ---
 
-> **Rev 29 (2026-10-13) — a predefined protocol's version changes only at a release (principal direction; `SWR-PL-05`).** Every predefined protocol is at `1.0` until a release is done. A release is the only thing that changes a predefined protocol's version. One or more edits after a release change it by at least a minor step. The four shipped files that carried a higher number (`04-memory-boost` `1.1`; `clinical-03-pbm-alzheimers-1064` and `clinical-04-pbm-depression-schiffer` `2.0`; `clinical-05-pbm-anxiety-wang` `2.1`) are reset to `1.0`, since no release has been done. *Release version of a predefined protocol* is rewritten to say so. No dose and no descriptor byte changes.
+> **Rev 29 (2026-10-13) — a predefined protocol's version moves once between releases (principal direction; `SWR-PL-05`).** Every predefined protocol is at `1.0` until a release is done. Edits made after a release cause a change of at least a minor step in the version number. That change is locked in only when a release is done. Once the number has changed, further edits before the next release do not change it again. The four shipped files that carried a higher number (`04-memory-boost` `1.1`; `clinical-03-pbm-alzheimers-1064` and `clinical-04-pbm-depression-schiffer` `2.0`; `clinical-05-pbm-anxiety-wang` `2.1`) are reset to `1.0`, since no release has been done. *Release version of a predefined protocol* is rewritten to say so. No dose and no descriptor byte changes.
 >
 > **Rev 28 (2026-10-13) — the compiler uses `interval_count`.** In an `interval_count` session each block's interval cycle (`interval_on`, `interval_off`) runs `count` times, unless the block states its own `repeat`, which wins. `repeat: until_end` in such a session means the protocol's count, since there is no duration to run to. `count` must be a whole number of 1 or more; anything else is refused when the protocol is compiled, with the range stated. The session length is still computed from the schedule (Rev 27). No new limit: a count whose commands exceed the command table is refused by the existing command-count error.
 >
@@ -381,10 +381,11 @@ protocol "PBM — Depression (DLPFC)" {
 
 ### Release version of a predefined protocol
 
-`version` is `major.minor`, and every shipped file carries one. **Every predefined protocol is at `"1.0"` until a release is done** (all 81 files today). `SWR-PL-05` governs how it changes:
+`version` is `major.minor`, and every shipped file carries one. `SWR-PL-05` governs how it changes (all 81 files are at `"1.0"` today, as no release has been done):
 
-- **A release is the only thing that changes a predefined protocol's version.** Editing the file does not.
-- **One or more edits to a predefined protocol after a release change its version by at least a minor step.** The edits made between two releases count together: they take the version up once, at the next release, by at least a minor step. `1.0` becomes `1.1`, `1.1` becomes `1.2`.
+- **Every predefined protocol is at `1.0` until a release is done.**
+- **Edits to a predefined protocol after a release cause a change of at least a minor step in its version.** `1.0` becomes `1.1`, `1.1` becomes `1.2`.
+- **That change is locked in only when a release is done.** Once the number has changed, further edits before the next release do not change it again; the edits made between two releases move it once.
 - **A major change also counts as a minor one.** A major step raises the first number and resets the second: `1.4` becomes `2.0`. Many minor changes may also make a release major.
 - **NeurOne decides which is which, case by case**, and may add rules. None is written here: `OI-UI-KMP-10` P5 leaves "what a major change is" open, and this section does not close it.
 - A version never goes down and is never reused for different content. The content of a superseded release stays retrievable by its hash (`SWR-PL-05`; not built).
