@@ -287,4 +287,15 @@ class GattParserTests {
         assertEquals(false, active(6))
         assertEquals(false, active(7))
     }
+
+    // @verifies SWR-HV-06
+    @Test
+    fun parseHardwareVersionReadsOneByteFromOneToFifteen() {
+        for (v in 1..15) assertEquals(v, GattParser.parseHardwareVersion(byteArrayOf(v.toByte())))
+        assertNull(GattParser.parseHardwareVersion(byteArrayOf(0)), "an upper nibble of 0 is malformed")
+        assertNull(GattParser.parseHardwareVersion(byteArrayOf(16)), "at most 16 versions exist, numbered 1 to 15 here")
+        assertNull(GattParser.parseHardwareVersion(byteArrayOf(-1)))
+        assertNull(GattParser.parseHardwareVersion(byteArrayOf()))
+        assertNull(GattParser.parseHardwareVersion(byteArrayOf(1, 1)), "exactly one byte")
+    }
 }

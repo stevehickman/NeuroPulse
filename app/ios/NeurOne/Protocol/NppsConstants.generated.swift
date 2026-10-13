@@ -232,6 +232,10 @@ enum GattIds {
     /// READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
     /// seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
     static let PAUSE_LIMIT_ID: Int = 0x001B
+    /// READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record;
+    /// 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
+    /// writes it.
+    static let HARDWARE_VERSION_ID: Int = 0x001C
     /// READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
     /// (SWR-SS-07).
     static let SESSION_PROGRESS_ID: Int = 0x0019
@@ -295,6 +299,10 @@ enum GattUuidStrings {
     /// READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
     /// seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
     static let PAUSE_LIMIT_ID: String = "4E455550-001B-1000-8000-00805F9B34FB"
+    /// READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record;
+    /// 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
+    /// writes it.
+    static let HARDWARE_VERSION_ID: String = "4E455550-001C-1000-8000-00805F9B34FB"
     /// READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
     /// (SWR-SS-07).
     static let SESSION_PROGRESS_ID: String = "4E455550-0019-1000-8000-00805F9B34FB"
@@ -325,6 +333,8 @@ enum GattSizes {
     static let UPLOAD_CHECK_LEN: Int = 34
     /// PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit.
     static let PAUSE_LIMIT_LEN: Int = 4
+    /// HARDWARE_VERSION: one byte, 1 to 15.
+    static let HARDWARE_VERSION_LEN: Int = 1
     /// SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B
     /// remaining ms, 4 B total ms, 1 B ramp phase (0 none, 1 down, 2 held, 3 cervical VNS checks, 4 up), 1
     /// B ramp percent, 4 B ramp remaining ms (0xFFFFFFFF unknown) (all little-endian).

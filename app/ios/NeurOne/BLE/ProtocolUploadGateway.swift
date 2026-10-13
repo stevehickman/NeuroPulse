@@ -27,6 +27,9 @@ protocol ProtocolUploadGateway: AnyObject {
     /// The hub's 32-byte replay-guard serial (NP-FW-HUB-001 §4.2) once read over the encrypted
     /// link, else nil (OI-AND-WIRE-02). Stamped into every descriptor the uploader compiles.
     var deviceSerial: Data? { get }
+
+    /// The helmet's hardware version (SWR-HV-06), 1 until it is read.
+    var hardwareVersion: Int { get }
 }
 
 extension ProtocolUploadGateway {
@@ -34,6 +37,7 @@ extension ProtocolUploadGateway {
     var cervicalRestartBlocked: Bool { false }
     var cervicalOutstandingForAnotherUser: Bool { false }
     var deviceSerial: Data? { nil }
+    var hardwareVersion: Int { 1 }
 }
 
 // NeurOneGATTManager satisfies this protocol without any code changes —

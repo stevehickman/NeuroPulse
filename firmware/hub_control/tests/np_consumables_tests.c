@@ -19,6 +19,7 @@
 #include "../include/np_cvns_fault_summary.h"
 #include "../include/np_warranty_token.h"
 #include "../include/np_session_log.h"
+#include "../include/np_safety_spi.h"
 
 static int g_failures = 0;
 
@@ -44,6 +45,9 @@ np_hub_status_t np_proto_hal_get_device_serial(uint8_t *buf, size_t len)
     memset(buf, 0, len);
     return NP_HUB_OK;
 }
+
+/* HARDWARE_VERSION (SWR-HV-06) is in the table this test links; nothing here reads it. */
+uint8_t np_safety_spi_get_hardware_version(void) { return 1U; }
 
 np_hub_status_t np_gatt_hal_register(const np_gatt_char_t *table, size_t count)
 {

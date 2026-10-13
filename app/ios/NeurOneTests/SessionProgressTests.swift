@@ -104,4 +104,35 @@ final class SessionProgressTests: XCTestCase {
         manager.applyDisconnection()
         XCTAssertNil(manager.progress)
     }
+
+    // @verifies SWR-HV-07
+    @MainActor
+    func testAHelmetThatStatesNoVersionIsVersionOne() {
+        XCTAssertEqual(NeurOneGATTManager(mockCentral: InertBLECentral()).hardwareVersion, 1)
+    }
+
+    // @verifies SWR-HV-06
+    @MainActor
+    func testTheVersionTheHelmetReportsIsUsedAndABadByteIsNotBelieved() {
+        let manager = NeurOneGATTManager(mockCentral: InertBLECentral())
+        manager.applyHardwareVersion(Data([2]))
+        XCTAssertEqual(manager.hardwareVersion, 2)
+        manager.applyHardwareVersion(Data([0]))
+        XCTAssertEqual(manager.hardwareVersion, 2, "an out-of-range byte changes nothing")
+        manager.applyHardwareVersion(Data([16]))
+        XCTAssertEqual(manager.hardwareVersion, 2)
+        manager.applyHardwareVersion(Data([3, 3]))
+        XCTAssertEqual(manager.hardwareVersion, 2, "a frame of the wrong length changes nothing")
+        manager.applyHardwareVersion(Data([15]))
+        XCTAssertEqual(manager.hardwareVersion, 15)
+    }
+
+    // @verifies SWR-HV-06
+    @MainActor
+    func testTheNextLinkMayBeAnotherHelmetSoADroppedLinkForgetsTheVersion() {
+        let manager = NeurOneGATTManager(mockCentral: InertBLECentral())
+        manager.applyHardwareVersion(Data([5]))
+        manager.applyDisconnection()
+        XCTAssertEqual(manager.hardwareVersion, 1)
+    }
 }

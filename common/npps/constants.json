@@ -494,6 +494,13 @@
           "hub": true
         },
         {
+          "name": "HARDWARE_VERSION_ID",
+          "value": 28,
+          "int": true,
+          "note": "READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record; 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field writes it.",
+          "hub": true
+        },
+        {
           "name": "SESSION_PROGRESS_ID",
           "value": 25,
           "int": true,
@@ -533,6 +540,12 @@
           "value": 4,
           "int": true,
           "note": "PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit."
+        },
+        {
+          "name": "HARDWARE_VERSION_LEN",
+          "value": 1,
+          "int": true,
+          "note": "HARDWARE_VERSION: one byte, 1 to 15."
         },
         {
           "name": "SESSION_PROGRESS_LEN",

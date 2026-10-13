@@ -20,6 +20,7 @@
 #include "../include/np_cfg_store.h"
 #include "../include/np_session_log.h"
 #include "../include/np_session_progress.h"
+#include "../include/np_safety_spi.h"
 #include "../include/np_session_stop.h"
 #include "../include/np_upload_check.h"
 #include "np_crypto.h"
@@ -129,6 +130,9 @@ np_hub_status_t np_cfg_store_replicated_write(np_cfg_file_t file,
     g_cfg_written = true;
     return NP_HUB_OK;
 }
+
+static uint8_t g_hw_version = 1U;
+uint8_t np_safety_spi_get_hardware_version(void) { return g_hw_version; }
 
 static uint32_t g_session_count;
 uint32_t np_log_session_count(void) { return g_session_count; }
@@ -240,6 +244,7 @@ static void test_uuids_match_the_contract(void)
         { NP_GATT_CVNS_REENABLE_CONFIRM_ID, "4E455550-0015-1000-8000-00805F9B34FB" },
         { NP_GATT_ACTIVE_USER_ID,           "4E455550-0016-1000-8000-00805F9B34FB" },
         { NP_GATT_DEVICE_SERIAL_ID,         "4E455550-0017-1000-8000-00805F9B34FB" },
+        { NP_GATT_HARDWARE_VERSION_ID,      "4E455550-001C-1000-8000-00805F9B34FB" },
     };
     bool ok = true;
     for (size_t i = 0U; i < sizeof(k) / sizeof(k[0]); i++) {
@@ -260,7 +265,7 @@ static void test_table_is_what_the_hub_produces(void)
 {
     size_t n = 0U;
     const np_gatt_char_t *t = np_gatt_table(&n);
-    check(n == 11U, "table: eleven characteristics, each with a producer");
+    check(n == 12U, "table: twelve characteristics, each with a producer");
 
     bool coherent = true;
     bool pending_absent = true;
@@ -480,6 +485,36 @@ static void test_device_serial(void)
     check(np_gatt_on_read(NP_GATT_DEVICE_SERIAL_ID, 0U, buf, sizeof buf, &len) == NP_ATT_APP_UNAVAILABLE,
           "serial: an unreadable serial is unavailable, never a zero serial");
     g_serial_rc = NP_HUB_OK;
+}
+
+/* @verifies SWR-HV-06 */
+static void test_hardware_version_is_read_from_the_safety_mcu_and_cannot_be_written(void)
+{
+    uint8_t buf[8];
+    size_t  len = 0U;
+    reset_world();
+
+    for (uint8_t v = 1U; v <= 15U; v++) {
+        g_hw_version = v;
+        check(np_gatt_on_read(NP_GATT_HARDWARE_VERSION_ID, 0U, buf, sizeof buf, &len) == NP_ATT_OK &&
+              len == NP_GATT_HARDWARE_VERSION_LEN && buf[0] == v,
+              "hardware version: the read serves the safety MCU's value, one byte");
+    }
+    g_hw_version = 1U;
+
+    check(np_gatt_on_write(NP_GATT_HARDWARE_VERSION_ID, buf, 1U) == NP_ATT_WRITE_NOT_PERMITTED,
+          "hardware version: nothing in the field writes it");
+
+    size_t n = 0U;
+    const np_gatt_char_t *t = np_gatt_table(&n);
+    bool read_only = false;
+    for (size_t i = 0U; i < n; i++) {
+        if (t[i].id == NP_GATT_HARDWARE_VERSION_ID) {
+            read_only = (t[i].props & NP_GATT_PROP_READ) != 0U &&
+                        (t[i].props & (NP_GATT_PROP_WRITE | NP_GATT_PROP_NOTIFY)) == 0U;
+        }
+    }
+    check(read_only, "hardware version: read-only in the table");
 }
 
 /* @verifies REQ-FWHUB-56 */
@@ -934,6 +969,7 @@ int main(void)
     test_warranty_never_regenerates_over_an_unreadable_token();
     test_warranty_provisioning_failures_leave_nothing();
     test_device_serial();
+    test_hardware_version_is_read_from_the_safety_mcu_and_cannot_be_written();
     test_active_user_write();
     test_reenable_confirm_write();
     test_fault_status_read_and_notify_agree();

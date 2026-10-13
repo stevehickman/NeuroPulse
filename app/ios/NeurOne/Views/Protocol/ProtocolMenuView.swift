@@ -161,7 +161,9 @@ struct ProtocolMenuView: View {
             }
             .uploadGateAlert(
                 gate: $uploadGateRefusal,
-                variantAvailable: gateEntry.map { !library.variantsFor($0, helmetVersion: Self.helmetHardwareVersion).isEmpty } ?? false,
+                variantAvailable: gateEntry.map {
+                    !library.variantsFor($0, helmetVersion: uploader.helmetHardwareVersion).isEmpty
+                } ?? false,
                 onUploadSource: { sourceId in
                     if let source = library.allProtocols.first(where: { $0.id == sourceId }) { handleSelect(source) }
                 },
@@ -173,7 +175,7 @@ struct ProtocolMenuView: View {
                 },
                 onUseVariant: {
                     if let entry = gateEntry,
-                       let variant = library.variantsFor(entry, helmetVersion: Self.helmetHardwareVersion).first {
+                       let variant = library.variantsFor(entry, helmetVersion: uploader.helmetHardwareVersion).first {
                         handleSelect(variant)
                     }
                 })
@@ -534,10 +536,6 @@ struct ProtocolMenuView: View {
 
     // MARK: - Selection handling
 
-    /// The helmet's hardware version. The helmet does not report it yet (OI-HUB-MAIN-01), so every helmet is version 1,
-    /// the one layout there is.
-    private static let helmetHardwareVersion = 1
-
     private func handleSelect(_ entry: NPProtocolEntry) {
         guard case .single(let proto) = entry else {
             // Composite protocols: select the first layer's source protocol.
@@ -553,7 +551,7 @@ struct ProtocolMenuView: View {
         withAnimation { uploadError = nil }
 
         // The library's refusals come before any byte is sent (SWR-PL-06, SWR-HV-04): nothing is marked used.
-        let gate = library.uploadGate(entry, helmetHardwareVersion: Self.helmetHardwareVersion)
+        let gate = library.uploadGate(entry, helmetHardwareVersion: uploader.helmetHardwareVersion)
         if gate != .allow {
             gateEntry = entry
             uploadGateRefusal = gate

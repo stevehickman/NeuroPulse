@@ -77,6 +77,9 @@ final class SessionProtocolUploader: ObservableObject {
                                            acknowledgedCautions: acknowledgedCautions))
     }
 
+    /// The helmet's hardware version, which the library's upload gate compares with the protocol's layouts (SWR-HV-04).
+    var helmetHardwareVersion: Int { gatt.hardwareVersion }
+
     /// What the author must acknowledge before `upload` or `programAutonomous` will compile this protocol
     /// (docs/reference/safety-zones.md). Empty when it is safe; a protocol in the danger zone is a validation
     /// error and is refused whatever is acknowledged. The caller shows `CautionAcknowledgementView` and passes
