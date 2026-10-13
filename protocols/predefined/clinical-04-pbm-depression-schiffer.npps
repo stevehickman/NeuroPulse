@@ -4,7 +4,7 @@ protocol "PBM — Depression (Schiffer 2009, high-irradiance)" {
     hardware_version: 1
     description: "Single-session 810nm PBM for major depression, as Schiffer 2009 ran it (open pilot, n=10): an LED cluster, continuous wave, 250 mW/cm², 4 min at F3 and then 4 min at F4, 60 J/cm² per site. This is the HIGH-IRRADIANCE arm of the §4 evidence, seven times Cassano 2018; see that protocol for the other end. REFUSED ON THIS HARDWARE TODAY: the validator still caps duty at 25% (OI-HEXTILE-31) and U4 cannot yet conduct CW (OI-HEXTILE-30). It is not reshaped to fit. 250 mW/cm² CW is inside the time-averaged ceiling at 808nm (≈329, CLAUDE.md §3, OI-HEXTILE-32 closed)."
     author: "NeurOne"
-    version: "2.0"
+    version: "1.0"
     readonly: true
     tags: ["pbm", "clinical", "depression", "dlpfc", "cw", "schiffer2009"]
     conditions: ["Major Depressive Disorder"]
