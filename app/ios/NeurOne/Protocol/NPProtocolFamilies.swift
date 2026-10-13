@@ -94,7 +94,7 @@ extension NPProtocolEntry {
         }
     }
 
-    fileprivate var versionText: String {
+    var versionText: String {
         switch self {
         case .single(let p):    return p.version
         case .composite(let c): return c.version
