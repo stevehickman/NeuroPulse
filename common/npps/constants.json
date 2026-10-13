@@ -487,6 +487,13 @@
           "hub": true
         },
         {
+          "name": "PAUSE_LIMIT_ID",
+          "value": 27,
+          "int": true,
+          "note": "READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).",
+          "hub": true
+        },
+        {
           "name": "SESSION_PROGRESS_ID",
           "value": 25,
           "int": true,
@@ -520,6 +527,12 @@
           "value": 34,
           "int": true,
           "note": "UPLOAD_CHECK: 1 B status, 1 B reason, 32 B SHA-256 of the received bytes."
+        },
+        {
+          "name": "PAUSE_LIMIT_LEN",
+          "value": 4,
+          "int": true,
+          "note": "PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit."
         },
         {
           "name": "SESSION_PROGRESS_LEN",

@@ -460,6 +460,7 @@ typedef enum {
     NP_ABORT_EEG_SEIZURE    = 6,   /* photoparoxysmal detection at Oz */
     NP_ABORT_MOD_FAULT      = 7,   /* module reported unrecoverable fault */
     NP_ABORT_LOG_FAIL       = 8,   /* UHDR write failure (eMMC) */
+    NP_ABORT_PAUSE_TIMEOUT  = 9,   /* a pause outlasted the hardware owner's limit (SWR-SS-05) */
 } np_abort_reason_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════

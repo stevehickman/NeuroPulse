@@ -229,6 +229,9 @@ enum GattIds {
     /// WRITE 1 B: 0x01 pause the running session, 0x02 resume the paused one (SWR-SS-05). Refused in any
     /// other state.
     static let SESSION_PAUSE_ID: Int = 0x001A
+    /// READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
+    /// seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
+    static let PAUSE_LIMIT_ID: Int = 0x001B
     /// READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
     /// (SWR-SS-07).
     static let SESSION_PROGRESS_ID: Int = 0x0019
@@ -289,6 +292,9 @@ enum GattUuidStrings {
     /// WRITE 1 B: 0x01 pause the running session, 0x02 resume the paused one (SWR-SS-05). Refused in any
     /// other state.
     static let SESSION_PAUSE_ID: String = "4E455550-001A-1000-8000-00805F9B34FB"
+    /// READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
+    /// seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
+    static let PAUSE_LIMIT_ID: String = "4E455550-001B-1000-8000-00805F9B34FB"
     /// READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
     /// (SWR-SS-07).
     static let SESSION_PROGRESS_ID: String = "4E455550-0019-1000-8000-00805F9B34FB"
@@ -317,6 +323,8 @@ enum GattSizes {
     static let DEVICE_SERIAL_LEN: Int = 32
     /// UPLOAD_CHECK: 1 B status, 1 B reason, 32 B SHA-256 of the received bytes.
     static let UPLOAD_CHECK_LEN: Int = 34
+    /// PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit.
+    static let PAUSE_LIMIT_LEN: Int = 4
     /// SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B
     /// remaining ms, 4 B total ms (all little-endian).
     static let SESSION_PROGRESS_LEN: Int = 16

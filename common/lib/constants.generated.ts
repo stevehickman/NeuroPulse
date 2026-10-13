@@ -219,6 +219,9 @@ export const GattIds = {
   UPLOAD_CHECK_ID: 0x0018,
   // WRITE 1 B: 0x01 pause the running session, 0x02 resume the paused one (SWR-SS-05). Refused in any other state.
   SESSION_PAUSE_ID: 0x001A,
+  // READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in seconds,
+  // before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
+  PAUSE_LIMIT_ID: 0x001B,
   // READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask (SWR-SS-07).
   SESSION_PROGRESS_ID: 0x0019,
 } as const;
@@ -278,6 +281,9 @@ export const GattUuidStrings = {
   // WRITE 1 B: 0x01 pause the running session, 0x02 resume the paused one (SWR-SS-05). Refused in any
   // other state.
   SESSION_PAUSE_ID: "4e455550-001a-1000-8000-00805f9b34fb",
+  // READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
+  // seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
+  PAUSE_LIMIT_ID: "4e455550-001b-1000-8000-00805f9b34fb",
   // READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
   // (SWR-SS-07).
   SESSION_PROGRESS_ID: "4e455550-0019-1000-8000-00805f9b34fb",
@@ -290,6 +296,8 @@ export const GattSizes = {
   DEVICE_SERIAL_LEN: 32,
   // UPLOAD_CHECK: 1 B status, 1 B reason, 32 B SHA-256 of the received bytes.
   UPLOAD_CHECK_LEN: 34,
+  // PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit.
+  PAUSE_LIMIT_LEN: 4,
   // SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B remaining ms, 4 B
   // total ms (all little-endian).
   SESSION_PROGRESS_LEN: 16,

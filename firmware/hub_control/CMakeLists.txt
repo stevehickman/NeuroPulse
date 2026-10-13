@@ -67,6 +67,15 @@ if(NP_BUILD_TESTS)
     target_include_directories(np_session_pause_tests PRIVATE include)
     target_compile_options(np_session_pause_tests PRIVATE -Wall -Wextra -std=c11)
 
+    # SWR-SS-05: the owner's pause time limit — default, persistence, refusal.
+    add_executable(np_pause_limit_tests
+        tests/np_pause_limit_tests.c
+        src/np_pause_limit.c
+    )
+    target_include_directories(np_pause_limit_tests PRIVATE include ../common/include
+        $<TARGET_PROPERTY:np_littlefs,INTERFACE_INCLUDE_DIRECTORIES>)
+    target_compile_options(np_pause_limit_tests PRIVATE -Wall -Wextra -std=c11)
+
     # SWR-HV-02: the hardware fitting frame written at session start — the real
     # module map, simulated tiles.
     add_executable(np_session_fitting_tests
@@ -428,6 +437,7 @@ if(NP_BUILD_TESTS)
         src/np_session_progress.c     # SWR-SS-07
         src/np_warranty_token.c
         src/np_consumables.c
+        src/np_pause_limit.c          # SWR-SS-05
         src/np_cvns_fault_summary.c
         src/np_transport.c
     )
@@ -449,6 +459,7 @@ if(NP_BUILD_TESTS)
     add_executable(np_consumables_tests
         tests/np_consumables_tests.c
         src/np_consumables.c
+        src/np_pause_limit.c          # SWR-SS-05 (the GATT table references it)
         src/np_gatt_server.c
         src/np_upload_check.c
         src/np_session_stop.c
@@ -532,6 +543,7 @@ set(HUB_SOURCES
     src/np_session_pause.c        # SWR-SS-05: paused session clock + slot tracker
     src/np_warranty_token.c       # OI-WA-03: NP-FW-EMMC-002 §A warranty token
     src/np_consumables.c          # OI-ACC-08: CONSUMABLE_STATUS session counts
+    src/np_pause_limit.c          # SWR-SS-05: the owner's pause time limit
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
     src/np_hexmap_nvram.c         # OI-HEXMAP-01: npmp.bin on Config through np_cfg_store
     src/np_hexmap_inventory.c     # OI-HEXMAP-02: tile UID + element inventory over the socket seam

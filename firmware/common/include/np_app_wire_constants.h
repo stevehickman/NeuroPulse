@@ -53,6 +53,11 @@
  */
 #define NP_GATT_SESSION_PAUSE_ID 0x001Au
 /*
+ * READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
+ * seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
+ */
+#define NP_GATT_PAUSE_LIMIT_ID 0x001Bu
+/*
  * READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
  * (SWR-SS-07).
  */
@@ -67,6 +72,10 @@
  * UPLOAD_CHECK: 1 B status, 1 B reason, 32 B SHA-256 of the received bytes.
  */
 #define NP_GATT_UPLOAD_CHECK_LEN 34U
+/*
+ * PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit.
+ */
+#define NP_GATT_PAUSE_LIMIT_LEN 4U
 /*
  * SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B
  * remaining ms, 4 B total ms (all little-endian).

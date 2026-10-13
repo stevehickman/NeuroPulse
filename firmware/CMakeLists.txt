@@ -345,6 +345,10 @@ if(NP_BUILD_TESTS)
         COMMAND np_session_pause_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    add_test(NAME np_pause_limit_tests
+        COMMAND np_pause_limit_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     # SWR-HV-02: the hardware fitting frame written at each session start.
     add_test(NAME np_session_fitting_tests
         COMMAND np_session_fitting_tests

@@ -20,6 +20,7 @@
 #include "np_session_runner.h"
 #include "np_session_progress.h"
 #include "np_session_fitting.h"
+#include "np_pause_limit.h"
 #include "np_session_lease.h"
 #include "np_protocol.h"
 #include "np_module_registry.h"
@@ -279,8 +280,14 @@ static bool dispatch_tracked(uint16_t idx, uint32_t now_ms, bool *accepted)
  * withholds every line, and its session stays ACTIVE (np_safety_session_status_bits maps PAUSED to ACTIVE) so its charge
  * accumulator and impedance checks run on across the pause instead of starting again.
  */
+static uint32_t s_pause_limit_ms;   /* the limit in force when the current pause began; 0 is none */
+static uint32_t s_pause_wall_ms;    /* wall time spent in the current pause */
+
 static void do_pause(uint32_t now_ms)
 {
+    const uint32_t lim_s = np_pause_limit_seconds();
+    s_pause_limit_ms = (lim_s > UINT32_MAX / 1000U) ? UINT32_MAX : lim_s * 1000U;
+    s_pause_wall_ms  = 0U;
     uint8_t slots[NP_HUB_SLOT_MAX];
     const uint8_t n = np_slot_track_pause(&s_ctx.slots, slots);
 
@@ -608,6 +615,12 @@ np_hub_status_t np_runner_run(void)
                 if (paused_ms >= NP_RUNNER_TELEM_INTERVAL_MS) {
                     paused_ms = 0U;
                     np_progress_notify();
+                }
+                /* The owner's pause limit, captured when this pause began; 0 is no limit. */
+                s_pause_wall_ms += NP_RUNNER_TICK_MS;
+                if (s_pause_limit_ms != 0U && s_pause_wall_ms >= s_pause_limit_ms) {
+                    s_ctx.abort_reason = NP_ABORT_PAUSE_TIMEOUT;
+                    break;
                 }
                 vTaskDelay(pdMS_TO_TICKS(NP_RUNNER_TICK_MS));
             }
