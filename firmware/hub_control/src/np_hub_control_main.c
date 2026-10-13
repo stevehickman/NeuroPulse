@@ -359,7 +359,8 @@ static void task_hub_control(void *arg)
         xEventGroupClearBits(g_hub_events,
                              NP_EV_SESSION_ABORT | NP_EV_SAFETY_FAULT |
                              NP_EV_THERMAL_FAULT | NP_EV_EEG_PPX |
-                             NP_EV_POWER_FAULT);
+                             NP_EV_POWER_FAULT | NP_EV_SESSION_PAUSE |
+                             NP_EV_SESSION_RESUME);
 
         np_hal_status_led_set(NP_LED_SESSION);
 
@@ -619,6 +620,7 @@ void np_hub_control_app_main(void)
     np_runner_init(g_hub_events);
     np_upload_check_init();
     np_session_stop_init(np_runner_get_state, np_runner_abort);   /* SWR-SS-06 */
+    np_session_pause_init(np_runner_pause, np_runner_resume);   /* SWR-SS-05 */
     np_progress_set_source(np_runner_progress);                    /* SWR-SS-07 */
 
     np_hal_status_led_set(NP_LED_IDLE);

@@ -74,9 +74,16 @@ static uint32_t ticks_to_ms(TickType_t ticks)
     return (uint32_t)(ticks * portTICK_PERIOD_MS);
 }
 
+static uint32_t clock_now_ms(void)
+{
+    return ticks_to_ms(xTaskGetTickCount());
+}
+
+/* Session time in ms.  It stands still while the session is paused (SWR-SS-05), so a command's absolute start and
+ * stop stay valid across a pause and paused time never counts toward dose. */
 static uint32_t elapsed_ms_now(void)
 {
-    return ticks_to_ms(xTaskGetTickCount() - s_ctx.start_tick);
+    return np_session_clock_elapsed(&s_ctx.clock, clock_now_ms());
 }
 
 /*
@@ -243,7 +250,96 @@ static void process_stops(uint32_t now_ms)
             np_safety_spi_request_disable(bit);
         }
         s_ctx.stop_at_ms[slot] = 0U;
+        np_slot_track_stopped(&s_ctx.slots, slot);   /* its command ran its course */
     }
+}
+
+/*
+ * dispatch_tracked — dispatch command `idx` and keep the slot tracker in step with what the module now does (a
+ * drive accepted: this command drives the slot; a stop accepted: nothing does).  The one place a slot command is
+ * dispatched, by the run loop and by a resume alike, so a resume re-dispatches exactly what a pause found running.
+ */
+static bool dispatch_tracked(uint16_t idx, uint32_t now_ms, bool *accepted)
+{
+    const np_session_cmd_t *cmd = &s_ctx.desc.cmds[idx];
+    const bool marks = dispatch_command(cmd, now_ms, accepted);
+    if (*accepted && cmd->target_kind == NP_PROTO_TARGET_SLOT) {
+        if (cmd->params_len > 0U) {
+            np_slot_track_started(&s_ctx.slots, cmd->slot_id, idx);
+        } else {
+            np_slot_track_stopped(&s_ctx.slots, cmd->slot_id);
+        }
+    }
+    return marks;
+}
+
+/*
+ * do_pause — SWR-SS-05.  Withdraw every enable request, stop every driven module and every lit socket, and stop the
+ * session clock.  The safety MCU is not asked for anything and nothing it holds is changed: with no request pending it
+ * withholds every line, and its session stays ACTIVE (np_safety_session_status_bits maps PAUSED to ACTIVE) so its charge
+ * accumulator and impedance checks run on across the pause instead of starting again.
+ */
+static void do_pause(uint32_t now_ms)
+{
+    uint8_t slots[NP_HUB_SLOT_MAX];
+    const uint8_t n = np_slot_track_pause(&s_ctx.slots, slots);
+
+    for (uint8_t i = 0U; i < n; i++) {
+        const uint8_t slot = slots[i];
+        np_mod_entry_t *mod = np_mod_reg_get(slot);
+        if (mod != NULL && mod->control != NULL) {
+            (void)mod->control(slot, NULL, 0U);
+        }
+        const uint16_t bit = slot_to_safety_bit(slot);
+        if (bit != 0U) {
+            np_safety_spi_request_disable(bit);
+        }
+        s_ctx.stop_at_ms[slot] = 0U;   /* a resume sets it again, from the command */
+    }
+    np_sock_disp_pause();   /* the lattice, and the cranial enable */
+
+    taskENTER_CRITICAL();
+    (void)np_session_clock_pause(&s_ctx.clock, clock_now_ms());
+    s_ctx.state = NP_SESSION_PAUSED;
+    taskEXIT_CRITICAL();
+
+    np_log_session_pause(now_ms, true, 0U);
+    np_progress_notify();
+}
+
+/*
+ * do_resume — SWR-SS-05.  Restart the clock, then re-dispatch what the pause found running.  Each command goes through
+ * dispatch_command as it did the first time, so a module's own start-up (a ramp starts again), the safety MCU's checks
+ * and its decision to grant the line are all as for a fresh command: a cervical line held after a cardiac cutoff stays
+ * held across a resume because the MCU still holds it.  A command that is refused now (a module taken out, the power
+ * governor) is recorded like any refused command and the session continues without it.
+ */
+static void do_resume(void)
+{
+    taskENTER_CRITICAL();
+    (void)np_session_clock_resume(&s_ctx.clock, clock_now_ms());
+    s_ctx.state = NP_SESSION_RUNNING;
+    taskEXIT_CRITICAL();
+
+    const uint32_t now_ms = elapsed_ms_now();
+    uint16_t cmds[NP_HUB_SLOT_MAX];
+    const uint8_t n = np_slot_track_resume(&s_ctx.slots, cmds);
+    for (uint8_t i = 0U; i < n; i++) {
+        bool accepted;
+        (void)dispatch_tracked(cmds[i], now_ms, &accepted);
+        np_log_command(&s_ctx.desc.cmds[cmds[i]], now_ms, accepted);
+    }
+
+    const uint16_t unrestored = np_sock_disp_resume();
+    if (unrestored != 0U) {
+        np_log_shdr_fault(NP_HUB_SLOT_NONE, NP_MOD_PBM_BASE, (uint8_t)(-NP_HUB_ERR_MOD_FAULT), now_ms);
+        if (s_ctx.abort_reason == NP_ABORT_NONE) {
+            s_ctx.abort_reason = NP_ABORT_MOD_FAULT;
+        }
+    }
+
+    np_log_session_pause(now_ms, false, unrestored);
+    np_progress_notify();
 }
 
 /*
@@ -313,7 +409,8 @@ void np_runner_progress(uint8_t out[NP_PROGRESS_LEN])
     np_progress_in_t in;
     taskENTER_CRITICAL();
     in.state      = s_ctx.state;
-    in.elapsed_ms = (s_ctx.state == NP_SESSION_RUNNING) ? elapsed_ms_now() : s_ctx.elapsed_ms;
+    in.elapsed_ms = (s_ctx.state == NP_SESSION_RUNNING || s_ctx.state == NP_SESSION_PAUSED)
+                    ? elapsed_ms_now() : s_ctx.elapsed_ms;
     in.total_ms   = s_ctx.desc.duration_ms;
     in.cmds       = s_ctx.desc.cmds;
     in.cmd_count  = (uint8_t)s_ctx.desc.cmd_count;
@@ -395,7 +492,8 @@ np_hub_status_t np_runner_run(void)
     np_cvns_reenable_session_reset();
 
     s_ctx.state      = NP_SESSION_RUNNING;
-    s_ctx.start_tick = xTaskGetTickCount();
+    np_session_clock_start(&s_ctx.clock, clock_now_ms());
+    np_slot_track_reset(&s_ctx.slots);
 
     /* Populate UHDR session-start record. */
     memcpy(s_ctx.uhdr.session_uuid, s_ctx.desc.session_uuid,
@@ -497,6 +595,30 @@ np_hub_status_t np_runner_run(void)
             break;
         }
 
+        /* SWR-SS-05: pause and resume.  After the abort check, so a stop wins over either.  While paused nothing is
+         * dispatched, no stop is due (the session clock stands still), no dose is polled and no module telemetry is
+         * taken; the loop only waits for a resume or an abort. */
+        if (s_ctx.state == NP_SESSION_PAUSED) {
+            if (ev & NP_EV_SESSION_RESUME) {
+                xEventGroupClearBits(s_events, NP_EV_SESSION_RESUME | NP_EV_SESSION_PAUSE);
+                do_resume();
+            } else {
+                static uint32_t paused_ms;
+                paused_ms += NP_RUNNER_TICK_MS;
+                if (paused_ms >= NP_RUNNER_TELEM_INTERVAL_MS) {
+                    paused_ms = 0U;
+                    np_progress_notify();
+                }
+                vTaskDelay(pdMS_TO_TICKS(NP_RUNNER_TICK_MS));
+            }
+            continue;
+        }
+        if (ev & NP_EV_SESSION_PAUSE) {
+            xEventGroupClearBits(s_events, NP_EV_SESSION_PAUSE | NP_EV_SESSION_RESUME);
+            do_pause(now_ms);
+            continue;
+        }
+
         /* Session duration exceeded */
         if (s_ctx.desc.duration_ms > 0U && now_ms >= s_ctx.desc.duration_ms) {
             break;
@@ -512,7 +634,7 @@ np_hub_status_t np_runner_run(void)
              * delivered. */
             const np_session_cmd_t *cmd = &s_ctx.desc.cmds[s_ctx.next_cmd_idx];
             bool accepted;
-            if (dispatch_command(cmd, now_ms, &accepted)) {
+            if (dispatch_tracked(s_ctx.next_cmd_idx, now_ms, &accepted)) {
                 s_ctx.uhdr.mods_active_mask |= (1U << (uint8_t)cmd->mod_type);
             }
             /* OI-FMEA-09: the commanded dose, refused commands included and
@@ -580,6 +702,8 @@ np_hub_status_t np_runner_run(void)
 
     /* ── Graceful shutdown ─────────────────────────────────────────────────────── */
 
+    /* A session ending while paused closes the pause first, so the length it reports is the time it was running. */
+    np_session_clock_close(&s_ctx.clock, clock_now_ms());
     s_ctx.state = NP_SESSION_STOPPING;
     np_safety_spi_disable_all();
 
@@ -644,6 +768,24 @@ void np_runner_abort(np_abort_reason_t reason)
     xEventGroupSetBits(s_events, NP_EV_SESSION_ABORT);
 }
 
+np_hub_status_t np_runner_pause(void)
+{
+    if (np_runner_get_state() != NP_SESSION_RUNNING) {
+        return NP_HUB_ERR_NO_SESSION;
+    }
+    xEventGroupSetBits(s_events, NP_EV_SESSION_PAUSE);
+    return NP_HUB_OK;
+}
+
+np_hub_status_t np_runner_resume(void)
+{
+    if (np_runner_get_state() != NP_SESSION_PAUSED) {
+        return NP_HUB_ERR_NO_SESSION;
+    }
+    xEventGroupSetBits(s_events, NP_EV_SESSION_RESUME);
+    return NP_HUB_OK;
+}
+
 np_session_state_t np_runner_get_state(void)
 {
     np_session_state_t st;
@@ -655,7 +797,7 @@ np_session_state_t np_runner_get_state(void)
 
 uint32_t np_runner_elapsed_ms(void)
 {
-    if (s_ctx.state != NP_SESSION_RUNNING) {
+    if (s_ctx.state != NP_SESSION_RUNNING && s_ctx.state != NP_SESSION_PAUSED) {
         return 0U;
     }
     return elapsed_ms_now();

@@ -444,6 +444,17 @@ void np_log_session_fitting(const uint8_t *frame, size_t len)
     give();
 }
 
+void np_log_session_pause(uint32_t session_ms, bool paused, uint16_t unrestored)
+{
+    const uint8_t ev = paused ? 1U : 0U;
+    take();
+    uhdr_u8(NP_LOG_TAG_UHDR_PAUSE);
+    uhdr_write(&session_ms, sizeof(session_ms));
+    uhdr_write(&ev,         1U);
+    uhdr_write(&unrestored, sizeof(unrestored));
+    give();
+}
+
 void np_log_pbm_socket(const np_pst_socket_record_t *rec, uint32_t session_ms)
 {
     if (rec == NULL || rec->socket_id >= (NP_HUB_SOCKET_MASK_BYTES * 8U)) { return; }

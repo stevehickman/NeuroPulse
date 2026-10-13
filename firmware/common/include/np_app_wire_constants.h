@@ -48,6 +48,11 @@
  */
 #define NP_GATT_UPLOAD_CHECK_ID 0x0018u
 /*
+ * WRITE 1 B: 0x01 pause the running session, 0x02 resume the paused one (SWR-SS-05). Refused in any
+ * other state.
+ */
+#define NP_GATT_SESSION_PAUSE_ID 0x001Au
+/*
  * READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
  * (SWR-SS-07).
  */

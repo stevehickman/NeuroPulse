@@ -340,6 +340,11 @@ if(NP_BUILD_TESTS)
         COMMAND np_module_map_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    # SWR-SS-05: the paused session clock and the slot tracker.
+    add_test(NAME np_session_pause_tests
+        COMMAND np_session_pause_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     # SWR-HV-02: the hardware fitting frame written at each session start.
     add_test(NAME np_session_fitting_tests
         COMMAND np_session_fitting_tests

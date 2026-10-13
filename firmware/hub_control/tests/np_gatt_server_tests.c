@@ -194,6 +194,7 @@ static void reset_world(void)
     np_cvfs_init();
     np_upload_check_init();
     np_session_stop_init(NULL, NULL);
+    np_session_pause_init(NULL, NULL);
     np_progress_set_source(NULL);
 }
 
@@ -259,7 +260,7 @@ static void test_table_is_what_the_hub_produces(void)
 {
     size_t n = 0U;
     const np_gatt_char_t *t = np_gatt_table(&n);
-    check(n == 9U, "table: nine characteristics, each with a producer");
+    check(n == 10U, "table: ten characteristics, each with a producer");
 
     bool coherent = true;
     bool pending_absent = true;
@@ -825,6 +826,61 @@ static void test_progress_is_read_and_notified_through_the_table(void)
           "progress: the app cannot write it");
 }
 
+/* ── Session pause and resume (SWR-SS-05) ─────────────────────────────────── */
+
+static int              g_pause_calls;
+static int              g_resume_calls;
+static np_hub_status_t  g_pause_rc;
+static np_hub_status_t  g_resume_rc;
+
+static np_hub_status_t pause_fn(void)  { g_pause_calls++;  return g_pause_rc; }
+static np_hub_status_t resume_fn(void) { g_resume_calls++; return g_resume_rc; }
+
+/* @verifies SWR-SS-05 */
+static void test_pause_write_forwards_pause_and_resume_to_the_runner(void)
+{
+    const uint8_t pause = NP_SESSION_PAUSE_VALUE;
+    const uint8_t resume = NP_SESSION_RESUME_VALUE;
+    reset_world();
+    g_pause_calls = g_resume_calls = 0;
+    g_pause_rc = g_resume_rc = NP_HUB_OK;
+    np_session_pause_init(pause_fn, resume_fn);
+
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &pause, 1U) == NP_ATT_OK &&
+          g_pause_calls == 1 && g_resume_calls == 0,
+          "pause: 0x01 asks the runner to pause");
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &resume, 1U) == NP_ATT_OK &&
+          g_pause_calls == 1 && g_resume_calls == 1,
+          "pause: 0x02 asks the runner to resume");
+}
+
+/* @verifies SWR-SS-05 */
+static void test_pause_write_is_refused_when_the_runner_refuses_or_the_value_is_wrong(void)
+{
+    const uint8_t pause = NP_SESSION_PAUSE_VALUE;
+    const uint8_t resume = NP_SESSION_RESUME_VALUE;
+    const uint8_t other = 0x03U;
+    reset_world();
+    g_pause_calls = g_resume_calls = 0;
+    g_pause_rc = g_resume_rc = NP_HUB_ERR_NO_SESSION;   /* the runner is not in the state the request needs */
+    np_session_pause_init(pause_fn, resume_fn);
+
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &pause, 1U) == NP_ATT_APP_REFUSED,
+          "pause: a pause the runner refuses is refused to the app, so it is not told it worked");
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &resume, 1U) == NP_ATT_APP_REFUSED,
+          "pause: so is a resume");
+    g_pause_calls = g_resume_calls = 0;
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &other, 1U) == NP_ATT_APP_REFUSED &&
+          g_pause_calls == 0 && g_resume_calls == 0,
+          "pause: any value but 0x01 and 0x02 is refused without reaching the runner");
+
+    np_session_pause_init(NULL, NULL);
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &pause, 1U) == NP_ATT_APP_REFUSED,
+          "pause: with no runner bound the write is refused, never ignored");
+    check(np_gatt_on_read(NP_GATT_SESSION_PAUSE_ID, 0U, (uint8_t[4]){0}, 4U, &(size_t){0}) == NP_ATT_READ_NOT_PERMITTED,
+          "pause: the characteristic cannot be read");
+}
+
 int main(void)
 {
     test_uuids_match_the_contract();
@@ -846,6 +902,8 @@ int main(void)
     test_progress_frame_elapsed_remaining_and_active_part();
     test_progress_states_and_unbounded_commands();
     test_progress_is_read_and_notified_through_the_table();
+    test_pause_write_forwards_pause_and_resume_to_the_runner();
+    test_pause_write_is_refused_when_the_runner_refuses_or_the_value_is_wrong();
 
     if (g_failures != 0) {
         printf("\n%d FAILURE(S)\n", g_failures);

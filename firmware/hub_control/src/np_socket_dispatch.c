@@ -68,6 +68,18 @@ static int required_emitters(np_hub_mod_type_t t, const uint8_t *params,
     return n;
 }
 
+/* What a pause remembers (SWR-SS-05): one entry per socket that was being driven. */
+typedef struct {
+    uint16_t          socket;
+    np_hub_mod_type_t mod_type;
+    uint8_t           params_len;
+    uint8_t           params[NP_SOCK_DISP_PARAMS_MAX];
+    uint32_t          stop_at_ms;
+} paused_sock_t;
+
+static paused_sock_t s_paused[NP_HEXMAP_MAX_SOCKETS];
+static uint16_t      s_paused_n;
+
 static void mark_inactive(uint16_t s)
 {
     if (s_sock[s].active) {
@@ -119,6 +131,7 @@ void np_sock_disp_reset(void)
 {
     memset(s_sock, 0, sizeof s_sock);
     s_active_count = 0U;
+    s_paused_n = 0U;
     /* A new session may drive every channel again (OI-PBMCH-03). */
     np_mod_pbm_socket_clear_channel_latches();
 }
@@ -284,6 +297,65 @@ uint32_t np_sock_disp_next_stop_ms(uint32_t now_ms)
         }
     }
     return best;
+}
+
+void np_sock_disp_pause(void)
+{
+    s_paused_n = 0U;
+    for (uint16_t s = 0U; s < NP_HEXMAP_MAX_SOCKETS; s++) {
+        if (!s_sock[s].active) {
+            continue;
+        }
+        paused_sock_t *p = &s_paused[s_paused_n++];
+        p->socket     = s;
+        p->mod_type   = s_sock[s].mod_type;
+        p->params_len = s_sock[s].params_len;
+        memcpy(p->params, s_sock[s].params, sizeof p->params);
+        p->stop_at_ms = s_sock[s].stop_at_ms;
+    }
+    stop_everything();
+}
+
+uint16_t np_sock_disp_resume(void)
+{
+    uint16_t refused = 0U;
+    bool     done[NP_HEXMAP_MAX_SOCKETS];
+    memset(done, 0, sizeof done);
+
+    for (uint16_t i = 0U; i < s_paused_n; i++) {
+        if (done[i]) {
+            continue;
+        }
+        /* Group every remembered socket with the same preset and stop time: the command that drove them
+         * admitted them together, and a partly restored command is not a dose anyone authored. */
+        np_session_cmd_t cmd;
+        memset(&cmd, 0, sizeof cmd);
+        cmd.mod_type    = s_paused[i].mod_type;
+        cmd.slot_id     = NP_HUB_SLOT_NONE;
+        cmd.target_kind = NP_PROTO_TARGET_SOCKET_MASK;
+        cmd.params_len  = s_paused[i].params_len;
+        memcpy(cmd.params, s_paused[i].params, sizeof s_paused[i].params);
+        cmd.start_ms    = 0U;
+        cmd.duration_ms = s_paused[i].stop_at_ms;   /* start 0, so the stop time is the original's */
+
+        uint16_t group = 0U;
+        for (uint16_t j = i; j < s_paused_n; j++) {
+            if (!done[j] &&
+                s_paused[j].mod_type == s_paused[i].mod_type &&
+                s_paused[j].params_len == s_paused[i].params_len &&
+                s_paused[j].stop_at_ms == s_paused[i].stop_at_ms &&
+                memcmp(s_paused[j].params, s_paused[i].params, sizeof s_paused[i].params) == 0) {
+                cmd.socket_mask[s_paused[j].socket / 8U] |= (uint8_t)(1U << (s_paused[j].socket % 8U));
+                done[j] = true;
+                group++;
+            }
+        }
+        if (np_sock_disp_command(&cmd) != NP_HUB_OK) {
+            refused = (uint16_t)(refused + group);
+        }
+    }
+    s_paused_n = 0U;
+    return refused;
 }
 
 void np_sock_disp_stop_all(void)

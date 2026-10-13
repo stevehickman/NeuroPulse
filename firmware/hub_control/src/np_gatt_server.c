@@ -84,6 +84,10 @@ static const np_gatt_char_t TABLE[] = {
     { NP_GATT_SESSION_STOP_ID, NP_GATT_PROP_WRITE,
       0u, 1u, NULL, np_session_stop_on_write },
 
+    /* SWR-SS-05: pause (0x01) or resume (0x02) the session. */
+    { NP_GATT_SESSION_PAUSE_ID, NP_GATT_PROP_WRITE,
+      0u, 1u, NULL, np_session_pause_on_write },
+
     /* SWR-SS-07: where the session is. */
     { NP_GATT_SESSION_PROGRESS_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
       (uint8_t)NP_PROGRESS_LEN, 0u, np_progress_read, NULL },

@@ -608,6 +608,96 @@ static void test_stop_all(void)
     check(np_sock_disp_active_count() == 0 && !cranial_requested(), "stop_all releases the gate");
 }
 
+
+/* @verifies SWR-SS-05 */
+static void test_pause_darkens_the_lattice_and_resume_redrives_it(void)
+{
+    setup();
+    const uint16_t s[] = { 2, 4, 7 };
+    np_session_cmd_t c = base_cmd(s, 3);
+    c.start_ms = 1000; c.duration_ms = 5000;
+    check(np_sock_disp_command(&c) == NP_HUB_OK, "pause: three sockets driven");
+
+    const int drives_before = count_ops('D');
+    np_sock_disp_pause();
+    check(was_stopped(2) && was_stopped(4) && was_stopped(7),
+          "pause: every driven socket is stopped");
+    check(np_sock_disp_active_count() == 0 && !cranial_requested(),
+          "pause: the lattice is dark and the cranial enable is withdrawn");
+    check(np_sock_disp_socket(4)->active == false && np_sock_disp_socket(4)->stop_at_ms == 0U,
+          "pause: the governor and placement see a dark lattice, not the paused one");
+
+    g_admit_calls = 0;
+    check(np_sock_disp_resume() == 0, "resume: nothing is left unrestored");
+    check(count_ops('D') == drives_before + 3, "resume: the same three sockets are driven again");
+    check(np_sock_disp_active_count() == 3 && cranial_requested(),
+          "resume: the lattice is lit again and the cranial enable asked for again");
+    check(g_admit_calls == 1, "resume: re-admitted through the governor, as one command, like the original");
+    check(np_sock_disp_socket(4)->stop_at_ms == 6000U,
+          "resume: the stop time is the original's (the session clock stood still)");
+    check(np_sock_disp_resume() == 0 && np_sock_disp_active_count() == 3,
+          "resume: a second resume has nothing to put back and changes nothing");
+}
+
+/* @verifies SWR-SS-05 */
+static void test_resume_is_refused_where_a_fresh_command_would_be(void)
+{
+    setup();
+    const uint16_t s[] = { 1, 2 };
+    np_session_cmd_t c = base_cmd(s, 2);
+    (void)np_sock_disp_command(&c);
+    np_sock_disp_pause();
+
+    g_admit = false;   /* the governor now refuses the load */
+    check(np_sock_disp_resume() == 2, "resume: a load the governor refuses is not restored, and is counted");
+    check(np_sock_disp_active_count() == 0 && !cranial_requested(),
+          "resume: refused sockets stay dark and the cranial enable is not requested");
+
+    /* A module taken out during the pause. */
+    setup();
+    const uint16_t t[] = { 3, 5 };
+    np_session_cmd_t c2 = base_cmd(t, 2);
+    (void)np_sock_disp_command(&c2);
+    np_sock_disp_pause();
+    plug(5, TILE_EMPTY);
+    check(np_sock_disp_resume() == 2, "resume: a command whose socket lost its module is refused whole");
+    check(np_sock_disp_active_count() == 0, "resume: none of that command's sockets is lit (all or nothing)");
+}
+
+/* @verifies SWR-SS-05 */
+static void test_resume_restores_each_preset_as_its_own_command(void)
+{
+    setup();
+    const uint16_t a[] = { 1, 2 };
+    const uint16_t b[] = { 11 };
+    np_session_cmd_t ca = base_cmd(a, 2);
+    np_session_cmd_t cb = smart_cmd(b, 1, 0x07);
+    cb.start_ms = 0; cb.duration_ms = 9000;
+    (void)np_sock_disp_command(&ca);
+    (void)np_sock_disp_command(&cb);
+    np_sock_disp_pause();
+
+    g_admit_calls = 0;
+    check(np_sock_disp_resume() == 0 && g_admit_calls == 2,
+          "resume: two different presets are two commands to the governor");
+    check(np_sock_disp_socket(1)->mod_type == NP_MOD_PBM_BASE && np_sock_disp_socket(11)->mod_type == NP_MOD_PBM_SMART &&
+          np_sock_disp_socket(11)->stop_at_ms == 9000U && np_sock_disp_socket(1)->stop_at_ms == 0U,
+          "resume: each socket gets back its own preset and its own stop time");
+}
+
+/* @verifies SWR-SS-05 */
+static void test_session_load_forgets_a_pause(void)
+{
+    setup();
+    const uint16_t s[] = { 1 };
+    np_session_cmd_t c = base_cmd(s, 1);
+    (void)np_sock_disp_command(&c);
+    np_sock_disp_pause();
+    np_sock_disp_reset();   /* the next session */
+    check(np_sock_disp_resume() == 0 && np_sock_disp_active_count() == 0,
+          "pause: a new session never inherits a paused one's sockets");
+}
+
 int main(void)
 {
     test_production_governor_is_closed();
@@ -625,6 +715,10 @@ int main(void)
     test_auto_stop_failure_drops_lattice();
     test_type_switch_stops_first();
     test_stop_all();
+    test_pause_darkens_the_lattice_and_resume_redrives_it();
+    test_resume_is_refused_where_a_fresh_command_would_be();
+    test_resume_restores_each_preset_as_its_own_command();
+    test_session_load_forgets_a_pause();
 
     if (g_failures != 0) {
         printf("\n%d FAILURE(S)\n", g_failures);

@@ -480,6 +480,13 @@
           "hub": true
         },
         {
+          "name": "SESSION_PAUSE_ID",
+          "value": 26,
+          "int": true,
+          "note": "WRITE 1 B: 0x01 pause the running session, 0x02 resume the paused one (SWR-SS-05). Refused in any other state.",
+          "hub": true
+        },
+        {
           "name": "SESSION_PROGRESS_ID",
           "value": 25,
           "int": true,

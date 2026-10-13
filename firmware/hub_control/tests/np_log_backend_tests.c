@@ -441,6 +441,29 @@ static void test_fitting_record_is_written_to_uhdr_and_durable(void)
           "fitting: a frame that disagrees with its own socket count is not written");
 }
 
+/* @verifies SWR-SS-05 */
+static void test_pause_and_resume_are_marked_in_uhdr(void)
+{
+    np_log_test_reset();
+    (void)np_log_backend_init();
+    np_log_init(0U);
+    memset(&g_rec, 0, sizeof g_rec);
+    np_log_session_start(&g_rec);
+    const size_t before = np_log_test_captured_len(NP_LOG_PART_UHDR);
+
+    np_log_session_pause(0x01020304U, true, 0U);
+    np_log_session_pause(0x01020304U, false, 0x0203U);
+    np_log_flush();
+    const uint8_t *cap = np_log_test_captured(NP_LOG_PART_UHDR);
+    static const uint8_t WANT[] = {
+        NP_LOG_TAG_UHDR_PAUSE, 0x04, 0x03, 0x02, 0x01, 1U, 0x00, 0x00,
+        NP_LOG_TAG_UHDR_PAUSE, 0x04, 0x03, 0x02, 0x01, 0U, 0x03, 0x02,
+    };
+    check(np_log_test_captured_len(NP_LOG_PART_UHDR) >= before + sizeof WANT &&
+          memcmp(&cap[before], WANT, sizeof WANT) == 0,
+          "pause: a pause and a resume are 8-byte UHDR records, session time, event, sockets not restored");
+}
+
 /* @verifies REQ-FWHUB-58 */
 static void test_logger_names_files_by_session_count(void)
 {
@@ -1221,6 +1244,7 @@ int main(void)
     test_queued_fault_precedes_session_end();
     test_fault_queue_full_keeps_oldest();
     test_fitting_record_is_written_to_uhdr_and_durable();
+    test_pause_and_resume_are_marked_in_uhdr();
 
     if (g_failures == 0) {
         printf("ALL TESTS PASSED\n");

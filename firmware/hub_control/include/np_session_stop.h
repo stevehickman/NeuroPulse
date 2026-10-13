@@ -37,4 +37,21 @@ void np_session_stop_init(np_session_stop_state_fn state, np_session_stop_abort_
 /* The GATT write handler (exactly one byte, 0x01). */
 np_hub_status_t np_session_stop_on_write(const uint8_t *data, size_t len);
 
+/*
+ * SESSION_PAUSE (WRITE, 1 byte, SWR-SS-05): 0x01 pauses the running session, 0x02 resumes the paused one.  The handler
+ * only forwards the request to the runner, which accepts it in the state it needs and refuses it in any other (ATT 0x80),
+ * so the app is told when a pause or resume did not take effect.  Everything a pause does is in np_session_runner.h; the
+ * handler adds no path to a stimulation line.
+ */
+#define NP_SESSION_PAUSE_VALUE    0x01U
+#define NP_SESSION_RESUME_VALUE   0x02U
+
+typedef np_hub_status_t (*np_session_request_fn)(void);
+
+/* Bring-up: where a pause and a resume are requested. */
+void np_session_pause_init(np_session_request_fn pause_fn, np_session_request_fn resume_fn);
+
+/* The GATT write handler (exactly one byte, 0x01 or 0x02). */
+np_hub_status_t np_session_pause_on_write(const uint8_t *data, size_t len);
+
 #endif /* NP_SESSION_STOP_H */

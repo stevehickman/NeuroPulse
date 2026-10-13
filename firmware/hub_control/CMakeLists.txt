@@ -59,6 +59,14 @@ if(NP_BUILD_TESTS)
     target_include_directories(np_module_map_tests PRIVATE include ../pbm/include)
     target_compile_options(np_module_map_tests PRIVATE -Wall -Wextra -std=c11)
 
+    # SWR-SS-05: the paused session clock and the slot tracker. Pure C.
+    add_executable(np_session_pause_tests
+        tests/np_session_pause_tests.c
+        src/np_session_pause.c
+    )
+    target_include_directories(np_session_pause_tests PRIVATE include)
+    target_compile_options(np_session_pause_tests PRIVATE -Wall -Wextra -std=c11)
+
     # SWR-HV-02: the hardware fitting frame written at session start — the real
     # module map, simulated tiles.
     add_executable(np_session_fitting_tests
@@ -521,6 +529,7 @@ set(HUB_SOURCES
     src/np_session_stop.c         # SWR-SS-06: SESSION_STOP write ends the session
     src/np_session_progress.c     # SWR-SS-07: SESSION_PROGRESS frame
     src/np_session_fitting.c      # SWR-HV-02: hardware fitted at session start
+    src/np_session_pause.c        # SWR-SS-05: paused session clock + slot tracker
     src/np_warranty_token.c       # OI-WA-03: NP-FW-EMMC-002 §A warranty token
     src/np_consumables.c          # OI-ACC-08: CONSUMABLE_STATUS session counts
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)

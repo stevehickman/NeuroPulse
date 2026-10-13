@@ -217,6 +217,8 @@ export const GattIds = {
   // READ/NOTIFY 34 B: status (0 none, 1 accepted, 2 refused, 3 pending), reason (0, or the refusal's code as a
   // positive number), SHA-256 of the exact bytes the hub received, taken before parsing (SWR-UP-01).
   UPLOAD_CHECK_ID: 0x0018,
+  // WRITE 1 B: 0x01 pause the running session, 0x02 resume the paused one (SWR-SS-05). Refused in any other state.
+  SESSION_PAUSE_ID: 0x001A,
   // READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask (SWR-SS-07).
   SESSION_PROGRESS_ID: 0x0019,
 } as const;
@@ -273,6 +275,9 @@ export const GattUuidStrings = {
   // code as a positive number), SHA-256 of the exact bytes the hub received, taken before parsing
   // (SWR-UP-01).
   UPLOAD_CHECK_ID: "4e455550-0018-1000-8000-00805f9b34fb",
+  // WRITE 1 B: 0x01 pause the running session, 0x02 resume the paused one (SWR-SS-05). Refused in any
+  // other state.
+  SESSION_PAUSE_ID: "4e455550-001a-1000-8000-00805f9b34fb",
   // READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
   // (SWR-SS-07).
   SESSION_PROGRESS_ID: "4e455550-0019-1000-8000-00805f9b34fb",

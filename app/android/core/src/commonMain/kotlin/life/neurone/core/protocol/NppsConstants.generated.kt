@@ -213,6 +213,9 @@ object GattIds {
     // code as a positive number), SHA-256 of the exact bytes the hub received, taken before parsing
     // (SWR-UP-01).
     const val UPLOAD_CHECK_ID: Int = 0x0018
+    // WRITE 1 B: 0x01 pause the running session, 0x02 resume the paused one (SWR-SS-05). Refused in any
+    // other state.
+    const val SESSION_PAUSE_ID: Int = 0x001A
     // READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
     // (SWR-SS-07).
     const val SESSION_PROGRESS_ID: Int = 0x0019
@@ -270,6 +273,9 @@ object GattUuidStrings {
     // code as a positive number), SHA-256 of the exact bytes the hub received, taken before parsing
     // (SWR-UP-01).
     const val UPLOAD_CHECK_ID: String = "4E455550-0018-1000-8000-00805F9B34FB"
+    // WRITE 1 B: 0x01 pause the running session, 0x02 resume the paused one (SWR-SS-05). Refused in any
+    // other state.
+    const val SESSION_PAUSE_ID: String = "4E455550-001A-1000-8000-00805F9B34FB"
     // READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
     // (SWR-SS-07).
     const val SESSION_PROGRESS_ID: String = "4E455550-0019-1000-8000-00805F9B34FB"
