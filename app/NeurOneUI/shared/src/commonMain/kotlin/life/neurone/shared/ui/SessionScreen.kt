@@ -48,6 +48,8 @@ import life.neurone.core.models.CervicalFaultRecord
 import life.neurone.core.models.CervicalFaultStatus
 import life.neurone.core.models.CervicalPadStatus
 import life.neurone.core.models.PacerPhase
+import life.neurone.core.models.RampPhase
+import life.neurone.core.models.SessionProgress
 import life.neurone.core.models.SessionState
 import life.neurone.core.models.SessionStatus
 
@@ -65,6 +67,10 @@ fun SessionScreen(
     onChooseProtocol: () -> Unit,
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The helmet's own figures for the session in progress (SWR-SS-07); null before its first frame. */
+    progress: SessionProgress? = null,
+    onPause: () -> Unit = {},
+    onResume: () -> Unit = {},
     cervicalPadAlert: CervicalPadStatus? = null,
     onAcknowledgeCervicalPadAlert: () -> Unit = {},
     cervicalFaultStatus: CervicalFaultStatus? = null,
@@ -80,7 +86,9 @@ fun SessionScreen(
     onForgetHub: (() -> Unit)? = null,
 ) {
     var showStopConfirm by remember { mutableStateOf(false) }
-    val isRunning = session.status == SessionStatus.RUNNING
+    // The controls follow the helmet's state (SWR-SS-05): a paused session is still a session in progress.
+    val isRunning = session.status == SessionStatus.RUNNING || session.status == SessionStatus.PAUSED ||
+        progress?.isActive == true
 
     Column(
         modifier = modifier
@@ -108,6 +116,12 @@ fun SessionScreen(
             }
 
             if (isRunning) {
+                if (progress != null) {
+                    ProgressCard(progress)
+                    Spacer(Modifier.height(16.dp))
+                    SessionControls(progress, onPause = onPause, onResume = onResume)
+                    Spacer(Modifier.height(16.dp))
+                }
                 LiveMetricsGrid(session)
                 Spacer(Modifier.height(16.dp))
                 BreathingPacer(session.pacerPhase, session.pacerElapsedPercent)
@@ -381,6 +395,85 @@ private fun ConnectionBanner(state: ConnectionState) {
                 .background(color),
         )
         Text(label, color = color, fontWeight = FontWeight.Medium)
+    }
+}
+
+/** Elapsed, remaining and the active part, all the helmet's own figures (SWR-SS-07). */
+@Composable
+private fun ProgressCard(progress: SessionProgress) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(stringResource(Res.string.session_progress_title), style = MaterialTheme.typography.labelMedium)
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Metric(
+                    stringResource(Res.string.session_progress_elapsed),
+                    SessionProgress.formatClock(progress.elapsedMs),
+                    MaterialTheme.colorScheme.onSurface,
+                )
+                Metric(
+                    stringResource(Res.string.session_progress_remaining),
+                    SessionProgress.formatClock(progress.remainingMs),
+                    MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { if (progress.totalMs > 0L) (progress.elapsedMs.toFloat() / progress.totalMs).coerceIn(0f, 1f) else 0f },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                progress.activePart?.let { stringResource(Res.string.session_progress_part, (it + 1).toString()) }
+                    ?: stringResource(Res.string.session_progress_no_part),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+/**
+ * Pause and resume (SWR-SS-05). What is shown is the helmet's ramp state and not the app's guess: the pause is offered
+ * only when the helmet will take it (it refuses one during a ramp-up), and a resume says that stimulation returns only
+ * where the helmet's own checks allow it.
+ */
+@Composable
+private fun SessionControls(progress: SessionProgress, onPause: () -> Unit, onResume: () -> Unit) {
+    val rampNote = when (progress.rampPhase) {
+        RampPhase.DOWN -> stringResource(Res.string.session_ramp_down)
+        RampPhase.HELD -> stringResource(Res.string.session_ramp_held)
+        RampPhase.PRECHECK -> stringResource(Res.string.session_ramp_precheck)
+        RampPhase.UP -> stringResource(Res.string.session_ramp_up)
+        RampPhase.NONE -> if (progress.isPaused) stringResource(Res.string.session_ramp_held) else null
+    }
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            rampNote?.let {
+                Text(it, style = MaterialTheme.typography.bodyMedium)
+                if (progress.rampPhase != RampPhase.NONE && progress.rampPhase != RampPhase.HELD) {
+                    Spacer(Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { progress.rampPercent / 100f },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+            if (progress.isPaused) {
+                OutlinedButton(onClick = onResume, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(Res.string.session_resume_button))
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(stringResource(Res.string.session_resume_note), style = MaterialTheme.typography.bodySmall)
+            } else {
+                OutlinedButton(
+                    onClick = onPause,
+                    enabled = progress.state == life.neurone.core.models.HubSessionState.RUNNING &&
+                        progress.rampPhase != RampPhase.UP,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(Res.string.session_pause_button)) }
+            }
+        }
     }
 }
 

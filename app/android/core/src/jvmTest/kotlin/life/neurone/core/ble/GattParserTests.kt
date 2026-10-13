@@ -3,7 +3,10 @@ package life.neurone.core.ble
 import life.neurone.core.protocol.GattUuidStrings
 import life.neurone.core.models.CervicalPadStatus
 import life.neurone.core.models.OtaPhase
+import life.neurone.core.models.HubSessionState
 import life.neurone.core.models.PacerPhase
+import life.neurone.core.models.RampPhase
+import life.neurone.core.models.SessionProgress
 import life.neurone.core.models.SessionStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -222,5 +225,66 @@ class GattParserTests {
     @Test
     fun cervicalPadStatusIsNotARequiredCharacteristic() {
         assertEquals(false, GattUuidStrings.REQUIRED_IDS.map(UUID::fromString).contains(UUID.fromString(GattUuidStrings.CVNS_PAD_STATUS_ID)))
+    }
+
+    private fun le32(v: Long) = byteArrayOf(v.toByte(), (v shr 8).toByte(), (v shr 16).toByte(), (v shr 24).toByte())
+
+    private fun progressFrame(
+        state: Int, part: Int, mask: Int, elapsed: Long, remaining: Long, total: Long,
+        ramp: Int, pct: Int, rampLeft: Long,
+    ): ByteArray = byteArrayOf(state.toByte(), part.toByte(), mask.toByte(), (mask shr 8).toByte()) +
+        le32(elapsed) + le32(remaining) + le32(total) + byteArrayOf(ramp.toByte(), pct.toByte()) + le32(rampLeft)
+
+    // @verifies SWR-SS-07
+    @Test
+    fun parseSessionProgressDecodesTheHelmetsFigures() {
+        val p = GattParser.parseSessionProgress(progressFrame(3, 2, 0x0105, 61_000, 539_000, 600_000, 0, 0, 0))!!
+        assertEquals(HubSessionState.RUNNING, p.state)
+        assertEquals(2, p.activePart)
+        assertEquals(0x0105, p.activeModalityMask)
+        assertEquals(61_000L, p.elapsedMs)
+        assertEquals(539_000L, p.remainingMs)
+        assertEquals(600_000L, p.totalMs)
+        assertEquals(RampPhase.NONE, p.rampPhase)
+    }
+
+    // @verifies SWR-SS-07
+    @Test
+    fun noRunningPartAndAnUnknownRampTimeAreNullNotNumbers() {
+        val p = GattParser.parseSessionProgress(progressFrame(4, 0xFF, 0, 10_000, 90_000, 100_000, 3, 40, 0xFFFFFFFFL))!!
+        assertNull(p.activePart)
+        assertNull(p.rampRemainingMs)
+        assertEquals(RampPhase.PRECHECK, p.rampPhase)
+        assertTrue(p.isPaused)
+    }
+
+    // @verifies SWR-SS-07
+    @Test
+    fun aMalformedProgressFrameIsDroppedWhole() {
+        assertNull(GattParser.parseSessionProgress(ByteArray(21)))
+        assertNull(GattParser.parseSessionProgress(ByteArray(23)))
+        assertNull(GattParser.parseSessionProgress(progressFrame(99, 0, 0, 0, 0, 0, 0, 0, 0)), "an unknown state")
+        assertNull(GattParser.parseSessionProgress(progressFrame(3, 0, 0, 0, 0, 0, 9, 0, 0)), "an unknown ramp phase")
+    }
+
+    // @verifies SWR-SS-07
+    @Test
+    fun elapsedIsShownAsAClock() {
+        assertEquals("0:00", SessionProgress.formatClock(0))
+        assertEquals("1:01", SessionProgress.formatClock(61_000))
+        assertEquals("1:00:00", SessionProgress.formatClock(3_600_000))
+        assertEquals("8:59:59", SessionProgress.formatClock(32_399_999))
+    }
+
+    // @verifies SWR-SS-05
+    @Test
+    fun aSessionIsInProgressWhileRunningPausedOrStoppingAndNotOtherwise() {
+        fun active(state: Int) = GattParser.parseSessionProgress(progressFrame(state, 0, 0, 0, 0, 0, 0, 0, 0))!!.isActive
+        assertTrue(active(3))
+        assertTrue(active(4))
+        assertTrue(active(5))
+        assertEquals(false, active(0))
+        assertEquals(false, active(6))
+        assertEquals(false, active(7))
     }
 }

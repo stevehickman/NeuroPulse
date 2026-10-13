@@ -9,6 +9,7 @@ import life.neurone.core.models.ActiveUserTag
 import life.neurone.core.models.CervicalFaultLedger
 import life.neurone.core.models.CervicalFaultRecord
 import life.neurone.core.models.CervicalFaultStatus
+import life.neurone.core.models.SessionProgress
 import life.neurone.core.models.CervicalPadStatus
 import life.neurone.core.models.OtaStatusPacket
 import life.neurone.core.models.SessionState
@@ -55,6 +56,10 @@ class NeurOneGattManager(
 
     private val _session = MutableStateFlow(SessionState.EMPTY)
     val session: StateFlow<SessionState> = _session
+
+    /** Where the helmet says the session is (SWR-SS-07): elapsed, remaining, active part, ramp. Null before the first frame. */
+    private val _progress = MutableStateFlow<SessionProgress?>(null)
+    val progress: StateFlow<SessionProgress?> = _progress
 
     private val _bluetoothUnavailable = MutableStateFlow(false)
     val bluetoothUnavailable: StateFlow<Boolean> = _bluetoothUnavailable
@@ -251,6 +256,11 @@ class NeurOneGattManager(
             central.enableNotifications(UUID.fromString(GattUuidStrings.CVNS_FAULT_STATUS_ID))
             central.read(UUID.fromString(GattUuidStrings.CVNS_FAULT_STATUS_ID))
         }
+        // SWR-SS-07: read once at link so a session already running shows its figures, then notified on the telemetry tick.
+        if (UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID) in characteristics) {
+            central.enableNotifications(UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID))
+            central.read(UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID))
+        }
         // Restore session status immediately on (re)connect.
         if (UUID.fromString(GattUuidStrings.SESSION_STATUS_ID) in characteristics) central.read(UUID.fromString(GattUuidStrings.SESSION_STATUS_ID))
     }
@@ -299,6 +309,7 @@ class NeurOneGattManager(
             UUID.fromString(GattUuidStrings.SESSION_STATUS_ID) -> GattParser.parseSessionStatus(value)?.let { (pid, status) ->
                 _session.value = _session.value.copy(protocolId = pid, status = status)
             }
+            UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID) -> _progress.value = GattParser.parseSessionProgress(value)
             UUID.fromString(GattUuidStrings.HRV_COHERENCE_ID) -> GattParser.parseHrvCoherence(value)?.let { hrv ->
                 _session.value = _session.value.copy(hrv = hrv)
             }
@@ -347,6 +358,15 @@ class NeurOneGattManager(
     fun writeProtocolChunk(chunk: ByteArray) = central.write(UUID.fromString(GattUuidStrings.PROTOCOL_UPLOAD_ID), chunk)
 
     fun requestSessionStop() = central.write(UUID.fromString(GattUuidStrings.SESSION_STOP_ID), byteArrayOf(0x01))
+
+    /**
+     * Pause the running session (SWR-SS-05). The hub refuses it during a ramp-up (ATT 0x82) and in any state but running;
+     * the figures that follow in SESSION_PROGRESS say what happened, so the app does not guess.
+     */
+    fun requestSessionPause() = central.write(UUID.fromString(GattUuidStrings.SESSION_PAUSE_ID), byteArrayOf(0x01))
+
+    /** Resume a paused session (SWR-SS-05). Stimulation returns only where the safety MCU grants it. */
+    fun requestSessionResume() = central.write(UUID.fromString(GattUuidStrings.SESSION_PAUSE_ID), byteArrayOf(0x02))
 
     /** Mode 4: trigger EDF+ download for the given hub session ID (LE uint32). */
     fun requestEdfDownload(sessionId: Long) {
@@ -481,6 +501,7 @@ class NeurOneGattManager(
         _connectionState.value = ConnectionState.DISCONNECTED
         _allCharacteristicsResolved.value = false
         _session.value = SessionState.EMPTY   // clear stale UHDR display state
+        _progress.value = null
         // Clear the inventory rather than zeroing a fixed shape: the hub sends a fresh snapshot
         // on reconnect, and a stale "present" socket would let a placement gate pass on a module
         // pulled while disconnected. The map goes too — the next link may be another helmet.

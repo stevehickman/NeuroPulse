@@ -39,6 +39,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
     // Live BLE state from the app-scoped GATT manager.
     val connectionState by gatt.connectionState.collectAsState()
     val session by gatt.session.collectAsState()
+    val progress by gatt.progress.collectAsState()
     val cervicalPadAlert by gatt.cervicalPadAlert.collectAsState()
     val cervicalFaultStatus by gatt.cervicalFaultStatus.collectAsState()
     val unreadCervicalFaults by gatt.unacknowledgedCervicalFaults.collectAsState()
@@ -141,6 +142,9 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             onConnect = requestConnect,
             onChooseProtocol = { showMenu = true },
             onStop = { gatt.requestSessionStop() },
+            progress = progress,
+            onPause = { gatt.requestSessionPause() },
+            onResume = { gatt.requestSessionResume() },
             modifier = modifier,
             cervicalPadAlert = cervicalPadAlert,
             onAcknowledgeCervicalPadAlert = { gatt.acknowledgeCervicalPadAlert() },
