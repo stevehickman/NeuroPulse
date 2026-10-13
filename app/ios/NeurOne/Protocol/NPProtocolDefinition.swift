@@ -932,7 +932,6 @@ struct NPCompositeProtocol: Codable, Identifiable, Equatable {
     /// `family_id` (SWR-FM-01): the 128-bit id, as UUID text, shared by every variant of one authored protocol.
     /// Not part of the content hash and never sent to the helmet. Nil when the protocol states none.
     var familyId: String?
-
 }
 
 // MARK: - NPProtocolEntry
