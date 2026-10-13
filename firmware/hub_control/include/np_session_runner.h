@@ -12,6 +12,7 @@
 #define NP_SESSION_RUNNER_H
 
 #include "np_hub_types.h"
+#include "np_session_progress.h"
 #include "FreeRTOS.h"
 #include "event_groups.h"
 
@@ -81,6 +82,12 @@ void np_runner_abort(np_abort_reason_t reason);
  * np_runner_get_state — thread-safe state read (reads with a critical section).
  */
 np_session_state_t np_runner_get_state(void);
+
+/*
+ * np_runner_progress — the SESSION_PROGRESS frame for the session as it is now (SWR-SS-07).
+ * Register it with np_progress_set_source() at bring-up.
+ */
+void np_runner_progress(uint8_t out[NP_PROGRESS_LEN]);
 
 /*
  * np_runner_elapsed_ms — ms since session start; 0 if not running.

@@ -53,6 +53,8 @@
 #include "np_protocol.h"
 #include "np_session_runner.h"
 #include "np_session_lease.h"   /* OI-FWHUB-17: detect/session exclusion */
+#include "np_session_stop.h"     /* SWR-SS-06 */
+#include "np_upload_check.h"     /* SWR-UP-01 */
 #include "np_pbm_socket_telem.h" /* OI-FWHUB-10: idle tile health pass */
 #include "np_session_log.h"
 #include "np_log_backend.h"
@@ -391,8 +393,11 @@ static void task_protocol_rx(void *arg)
             continue;
         }
 
-        /* np_runner_load verifies signature; returns error and does nothing on fail. */
-        (void)np_runner_load(g_proto_buf, recv_len);
+        /* SWR-UP-01: hash the bytes exactly as they arrived, BEFORE anything parses or verifies them,
+         * then report the hash with the verdict so the app can compare it with what it sent.
+         * np_runner_load verifies the signature and refuses a bad blob; the verdict is its result. */
+        np_upload_check_received(g_proto_buf, recv_len);
+        np_upload_check_result(np_runner_load(g_proto_buf, recv_len));
 
         /* Zero the receive buffer to avoid leaving a plaintext protocol in RAM. */
         memset(g_proto_buf, 0, recv_len);
@@ -612,6 +617,9 @@ void np_hub_control_app_main(void)
     configASSERT(g_hub_events != NULL);
 
     np_runner_init(g_hub_events);
+    np_upload_check_init();
+    np_session_stop_init(np_runner_get_state, np_runner_abort);   /* SWR-SS-06 */
+    np_progress_set_source(np_runner_progress);                    /* SWR-SS-07 */
 
     np_hal_status_led_set(NP_LED_IDLE);
 

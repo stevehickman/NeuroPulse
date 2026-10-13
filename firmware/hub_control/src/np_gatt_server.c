@@ -13,6 +13,9 @@
 #include "np_consumables.h"
 #include "np_cvns_fault_summary.h"
 #include "np_hub_config.h"
+#include "np_session_progress.h"
+#include "np_session_stop.h"
+#include "np_upload_check.h"
 #include "np_sw02_platform_hal.h"
 #include "np_warranty_token.h"
 
@@ -72,6 +75,18 @@ static const np_gatt_char_t TABLE[] = {
 
     { NP_GATT_ACTIVE_USER_ID, NP_GATT_PROP_WRITE,
       0u, 4u, NULL, np_cvfs_on_active_user_write },
+
+    /* SWR-UP-01: the hash of the protocol bytes the hub received, and whether it accepted them. */
+    { NP_GATT_UPLOAD_CHECK_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
+      (uint8_t)NP_UPLOAD_CHECK_LEN, 0u, np_upload_check_read, NULL },
+
+    /* SWR-SS-06: a stop request from the app ends the session at the hub. */
+    { NP_GATT_SESSION_STOP_ID, NP_GATT_PROP_WRITE,
+      0u, 1u, NULL, np_session_stop_on_write },
+
+    /* SWR-SS-07: where the session is. */
+    { NP_GATT_SESSION_PROGRESS_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
+      (uint8_t)NP_PROGRESS_LEN, 0u, np_progress_read, NULL },
 };
 
 #define K_TABLE_LEN (sizeof(TABLE) / sizeof(TABLE[0]))
@@ -82,6 +97,10 @@ _Static_assert(NP_WARRANTY_TOKEN_LEN <= NP_GATT_VALUE_MAX,
                "NP_GATT_VALUE_MAX must hold the warranty token");
 _Static_assert(NP_GATT_DEVICE_SERIAL_LEN <= NP_GATT_VALUE_MAX,
                "NP_GATT_VALUE_MAX must hold the device serial");
+_Static_assert(NP_UPLOAD_CHECK_LEN <= NP_GATT_VALUE_MAX,
+               "NP_GATT_VALUE_MAX must hold the upload check");
+_Static_assert(NP_PROGRESS_LEN <= NP_GATT_VALUE_MAX,
+               "NP_GATT_VALUE_MAX must hold the session progress frame");
 
 static const np_gatt_char_t *find(uint16_t id)
 {

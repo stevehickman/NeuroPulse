@@ -19,6 +19,10 @@
 #include "../include/np_cvns_fault_summary.h"
 #include "../include/np_cfg_store.h"
 #include "../include/np_session_log.h"
+#include "../include/np_session_progress.h"
+#include "../include/np_session_stop.h"
+#include "../include/np_upload_check.h"
+#include "np_crypto.h"
 
 static int g_failures = 0;
 
@@ -188,6 +192,9 @@ static void reset_world(void)
     g_confirms = 0;
     np_warranty_token_reset_cache();
     np_cvfs_init();
+    np_upload_check_init();
+    np_session_stop_init(NULL, NULL);
+    np_progress_set_source(NULL);
 }
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
@@ -252,7 +259,7 @@ static void test_table_is_what_the_hub_produces(void)
 {
     size_t n = 0U;
     const np_gatt_char_t *t = np_gatt_table(&n);
-    check(n == 6U, "table: six characteristics, each with a producer");
+    check(n == 9U, "table: nine characteristics, each with a producer");
 
     bool coherent = true;
     bool pending_absent = true;
@@ -291,7 +298,7 @@ static void test_access_rules(void)
 
     check(np_gatt_on_read(0x0013U, 0U, buf, sizeof buf, &len) == NP_ATT_ATTRIBUTE_NOT_FOUND,
           "access: an unpublished id is not found on read");
-    check(np_gatt_on_write(0x000FU, &one, 1U) == NP_ATT_ATTRIBUTE_NOT_FOUND,
+    check(np_gatt_on_write(0x0008U, &one, 1U) == NP_ATT_ATTRIBUTE_NOT_FOUND,
           "access: an unpublished id is not found on write");
     check(np_gatt_on_write(NP_GATT_WARRANTY_TOKEN_ID, buf, 32U) == NP_ATT_WRITE_NOT_PERMITTED,
           "access: the warranty token cannot be written");
@@ -537,6 +544,287 @@ static void test_fault_status_read_and_notify_agree(void)
     check(g_notifies == 1, "fault status: an unchanged frame is not re-notified");
 }
 
+
+/* ── Upload check (SWR-UP-01) ─────────────────────────────────────────────── */
+
+static void upload_frame(uint8_t out[NP_UPLOAD_CHECK_LEN])
+{
+    size_t len = 0U;
+    check(np_gatt_on_read(NP_GATT_UPLOAD_CHECK_ID, 0U, out, NP_UPLOAD_CHECK_LEN, &len) == NP_ATT_OK &&
+          len == NP_UPLOAD_CHECK_LEN, "upload check: the read returns the 34-byte frame");
+}
+
+/* @verifies SWR-UP-01 */
+static void test_upload_check_hash_and_verdict(void)
+{
+    static const uint8_t ABC[3] = { 'a', 'b', 'c' };
+    /* SHA-256("abc"), FIPS 180-4. */
+    static const uint8_t ABC_SHA[32] = {
+        0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea, 0x41, 0x41, 0x40, 0xde, 0x5d, 0xae, 0x22, 0x23,
+        0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c, 0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad };
+    uint8_t f[NP_UPLOAD_CHECK_LEN];
+    reset_world();
+
+    upload_frame(f);
+    check(f[0] == NP_UPLOAD_NONE && f[1] == 0U && all_zero(&f[2], 32U),
+          "upload check: before any upload the status is NONE and the hash is zero");
+
+    np_upload_check_received(ABC, sizeof ABC);
+    upload_frame(f);
+    check(f[0] == NP_UPLOAD_PENDING && f[1] == 0U && memcmp(&f[2], ABC_SHA, 32U) == 0,
+          "upload check: received bytes are hashed at once (SHA-256) and the verdict is PENDING");
+    check(g_notifies == 0, "upload check: nothing is notified before there is a verdict");
+
+    np_upload_check_result(NP_HUB_OK);
+    upload_frame(f);
+    check(f[0] == NP_UPLOAD_ACCEPTED && f[1] == 0U && memcmp(&f[2], ABC_SHA, 32U) == 0,
+          "upload check: an accepted load reports ACCEPTED with the hash of what was received");
+    check(g_notifies == 1 && g_ntf_id == NP_GATT_UPLOAD_CHECK_ID && g_ntf_len == NP_UPLOAD_CHECK_LEN &&
+          memcmp(g_ntf, f, NP_UPLOAD_CHECK_LEN) == 0,
+          "upload check: the verdict is notified, and is the frame a read returns");
+}
+
+/* @verifies SWR-UP-01 */
+static void test_upload_check_refusal_and_corruption(void)
+{
+    static const uint8_t GOOD[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+    static const uint8_t ALTERED[8] = { 1, 2, 3, 4, 5, 6, 7, 9 };
+    uint8_t good_hash[NP_SHA256_SIZE];
+    uint8_t f[NP_UPLOAD_CHECK_LEN];
+    reset_world();
+
+    np_sha256(GOOD, sizeof GOOD, good_hash);
+
+    np_upload_check_received(ALTERED, sizeof ALTERED);
+    np_upload_check_result(NP_HUB_ERR_BAD_SIGNATURE);
+    upload_frame(f);
+    check(f[0] == NP_UPLOAD_REFUSED && f[1] == 6U,
+          "upload check: a refusal reports REFUSED and the code of the refusal (bad signature = 6)");
+    check(memcmp(&f[2], good_hash, 32U) != 0,
+          "upload check: an altered upload hashes differently from the bytes the app sent");
+
+    np_upload_check_received(GOOD, 5U);   /* truncated */
+    np_upload_check_result(NP_HUB_ERR_BAD_MAGIC);
+    upload_frame(f);
+    check(f[0] == NP_UPLOAD_REFUSED && memcmp(&f[2], good_hash, 32U) != 0,
+          "upload check: a truncated upload hashes differently from the bytes the app sent");
+
+    /* The hash is of the bytes as they arrived, whatever happens to them next. */
+    np_upload_check_received(GOOD, sizeof GOOD);
+    np_upload_check_result(NP_HUB_ERR_SESSION_ACTIVE);
+    upload_frame(f);
+    check(f[0] == NP_UPLOAD_REFUSED && f[1] == 13U && memcmp(&f[2], good_hash, 32U) == 0,
+          "upload check: a refusal after a clean upload still carries the hash of what arrived");
+}
+
+/* @verifies SWR-UP-01 */
+static void test_upload_check_without_a_hash_changes_nothing(void)
+{
+    static const uint8_t BYTES[4] = { 9, 9, 9, 9 };
+    uint8_t before[NP_UPLOAD_CHECK_LEN];
+    uint8_t after[NP_UPLOAD_CHECK_LEN];
+    reset_world();
+
+    np_upload_check_result(NP_HUB_OK);   /* a verdict with no hash to attach it to */
+    upload_frame(after);
+    check(after[0] == NP_UPLOAD_NONE && g_notifies == 0,
+          "upload check: a verdict with no received bytes is ignored, not reported as an accept");
+
+    np_upload_check_received(BYTES, sizeof BYTES);
+    np_upload_check_result(NP_HUB_OK);
+    upload_frame(before);
+    np_upload_check_received(NULL, 4U);
+    np_upload_check_received(BYTES, 0U);
+    upload_frame(after);
+    check(memcmp(before, after, NP_UPLOAD_CHECK_LEN) == 0,
+          "upload check: an empty or missing buffer leaves the last report as it was");
+
+    check(np_gatt_on_write(NP_GATT_UPLOAD_CHECK_ID, BYTES, 1U) == NP_ATT_WRITE_NOT_PERMITTED,
+          "upload check: the report cannot be written by the app");
+}
+
+/* ── Session stop (SWR-SS-06) ─────────────────────────────────────────────── */
+
+static np_session_state_t g_stop_state;
+static int                g_aborts;
+static np_abort_reason_t  g_abort_reason;
+
+static np_session_state_t stop_state_fn(void) { return g_stop_state; }
+static void stop_abort_fn(np_abort_reason_t reason) { g_aborts++; g_abort_reason = reason; }
+
+/* @verifies SWR-SS-06 */
+static void test_stop_write_ends_a_running_or_paused_session(void)
+{
+    const uint8_t stop = NP_SESSION_STOP_VALUE;
+    reset_world();
+    np_session_stop_init(stop_state_fn, stop_abort_fn);
+    g_aborts = 0;
+
+    g_stop_state = NP_SESSION_RUNNING;
+    check(np_gatt_on_write(NP_GATT_SESSION_STOP_ID, &stop, 1U) == NP_ATT_OK &&
+          g_aborts == 1 && g_abort_reason == NP_ABORT_USER,
+          "stop: a stop request over the link aborts a running session with reason USER");
+
+    g_stop_state = NP_SESSION_PAUSED;
+    check(np_gatt_on_write(NP_GATT_SESSION_STOP_ID, &stop, 1U) == NP_ATT_OK && g_aborts == 2,
+          "stop: a paused session can be stopped too");
+}
+
+/* @verifies SWR-SS-06 */
+static void test_stop_write_is_refused_when_it_would_not_take_effect(void)
+{
+    const uint8_t stop = NP_SESSION_STOP_VALUE;
+    const uint8_t not_stop = 0x00U;
+    const uint8_t two[2] = { 0x01U, 0x01U };
+    static const np_session_state_t NOT_RUNNING[] = {
+        NP_SESSION_IDLE, NP_SESSION_LOADING, NP_SESSION_VERIFYING, NP_SESSION_STOPPING,
+        NP_SESSION_COMPLETE, NP_SESSION_FAULT };
+    reset_world();
+    np_session_stop_init(stop_state_fn, stop_abort_fn);
+    g_aborts = 0;
+
+    bool all_refused = true;
+    for (size_t i = 0U; i < sizeof(NOT_RUNNING) / sizeof(NOT_RUNNING[0]); i++) {
+        g_stop_state = NOT_RUNNING[i];
+        if (np_gatt_on_write(NP_GATT_SESSION_STOP_ID, &stop, 1U) != NP_ATT_APP_REFUSED) {
+            all_refused = false;
+        }
+    }
+    check(all_refused && g_aborts == 0,
+          "stop: outside a running or paused session the write is refused, so the app is not told it worked");
+
+    g_stop_state = NP_SESSION_RUNNING;
+    check(np_gatt_on_write(NP_GATT_SESSION_STOP_ID, &not_stop, 1U) == NP_ATT_APP_REFUSED && g_aborts == 0,
+          "stop: only 0x01 is a stop");
+    check(np_gatt_on_write(NP_GATT_SESSION_STOP_ID, two, 2U) == NP_ATT_INVALID_VALUE_LENGTH && g_aborts == 0,
+          "stop: the write is exactly one byte");
+    check(np_gatt_on_read(NP_GATT_SESSION_STOP_ID, 0U, (uint8_t[4]){0}, 4U, &(size_t){0}) == NP_ATT_READ_NOT_PERMITTED,
+          "stop: the characteristic cannot be read");
+
+    np_session_stop_init(NULL, NULL);
+    check(np_gatt_on_write(NP_GATT_SESSION_STOP_ID, &stop, 1U) == NP_ATT_APP_REFUSED,
+          "stop: with no session runner bound the write is refused, never ignored");
+}
+
+/* ── Session progress (SWR-SS-07) ─────────────────────────────────────────── */
+
+static uint32_t rd32(const uint8_t *p)
+{
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+}
+
+static np_session_cmd_t make_cmd(np_hub_mod_type_t t, uint32_t start, uint32_t dur)
+{
+    np_session_cmd_t c;
+    memset(&c, 0, sizeof c);
+    c.mod_type = t;
+    c.start_ms = start;
+    c.duration_ms = dur;
+    return c;
+}
+
+/* @verifies SWR-SS-07 */
+static void test_progress_frame_elapsed_remaining_and_active_part(void)
+{
+    np_session_cmd_t cmds[3];
+    uint8_t f[NP_PROGRESS_LEN];
+    np_progress_in_t in;
+
+    cmds[0] = make_cmd(NP_MOD_PBM_BASE, 0U, 300000U);
+    cmds[1] = make_cmd(NP_MOD_AUDIO, 60000U, 60000U);
+    cmds[2] = make_cmd(NP_MOD_EEG, 400000U, 100000U);
+    in.state = NP_SESSION_RUNNING;
+    in.elapsed_ms = 90000U;
+    in.total_ms = 600000U;
+    in.cmds = cmds;
+    in.cmd_count = 3U;
+
+    np_progress_build(&in, f);
+    check(f[0] == NP_SESSION_RUNNING && rd32(&f[4]) == 90000U && rd32(&f[8]) == 510000U &&
+          rd32(&f[12]) == 600000U,
+          "progress: elapsed, remaining and total are the helmet's figures");
+    check(f[1] == 1U && (f[2] | (f[3] << 8)) == ((1 << NP_MOD_PBM_BASE) | (1 << NP_MOD_AUDIO)),
+          "progress: the active part is the highest running command, and the mask has each running modality");
+
+    in.elapsed_ms = 130000U;   /* the audio command has ended; the PBM command is still running */
+    np_progress_build(&in, f);
+    check(f[1] == 0U && (f[2] | (f[3] << 8)) == (1 << NP_MOD_PBM_BASE),
+          "progress: when a command ends the active part and mask follow it");
+
+    in.elapsed_ms = 350000U;   /* between commands */
+    np_progress_build(&in, f);
+    check(f[1] == NP_PROGRESS_NO_PART && f[2] == 0U && f[3] == 0U,
+          "progress: with nothing running there is no active part");
+
+    in.elapsed_ms = 700000U;   /* past the end */
+    np_progress_build(&in, f);
+    check(rd32(&f[4]) == 600000U && rd32(&f[8]) == 0U,
+          "progress: elapsed never exceeds the total and remaining stops at zero");
+}
+
+/* @verifies SWR-SS-07 */
+static void test_progress_states_and_unbounded_commands(void)
+{
+    np_session_cmd_t cmds[1];
+    uint8_t f[NP_PROGRESS_LEN];
+    np_progress_in_t in;
+
+    cmds[0] = make_cmd(NP_MOD_EEG, 0U, 0U);   /* duration 0: until the session ends */
+    in.state = NP_SESSION_PAUSED;
+    in.elapsed_ms = 1000U;
+    in.total_ms = 5000U;
+    in.cmds = cmds;
+    in.cmd_count = 1U;
+    np_progress_build(&in, f);
+    check(f[0] == NP_SESSION_PAUSED && rd32(&f[4]) == 1000U && f[1] == 0U,
+          "progress: a paused session reports the elapsed time it was given, unchanged, and its part");
+
+    in.state = NP_SESSION_COMPLETE;
+    np_progress_build(&in, f);
+    check(f[0] == NP_SESSION_COMPLETE && f[1] == NP_PROGRESS_NO_PART && f[2] == 0U,
+          "progress: a finished session has no active part");
+
+    in.state = NP_SESSION_IDLE;
+    in.total_ms = 0U;
+    in.elapsed_ms = 0U;
+    in.cmds = NULL;
+    in.cmd_count = 0U;
+    np_progress_build(&in, f);
+    check(f[0] == NP_SESSION_IDLE && rd32(&f[4]) == 0U && rd32(&f[8]) == 0U && rd32(&f[12]) == 0U &&
+          f[1] == NP_PROGRESS_NO_PART, "progress: an idle hub reports zeros and no part");
+}
+
+static void fake_progress_source(uint8_t out[NP_PROGRESS_LEN])
+{
+    memset(out, 0, NP_PROGRESS_LEN);
+    out[0] = NP_SESSION_RUNNING;
+    out[1] = 2U;
+    out[4] = 0x10U;
+}
+
+/* @verifies SWR-SS-07 */
+static void test_progress_is_read_and_notified_through_the_table(void)
+{
+    uint8_t buf[NP_PROGRESS_LEN];
+    size_t  len = 0U;
+    reset_world();
+
+    check(np_gatt_on_read(NP_GATT_SESSION_PROGRESS_ID, 0U, buf, sizeof buf, &len) == NP_ATT_APP_UNAVAILABLE,
+          "progress: with no runner bound the read is unavailable, not a made-up zero");
+
+    np_progress_set_source(fake_progress_source);
+    check(np_gatt_on_read(NP_GATT_SESSION_PROGRESS_ID, 0U, buf, sizeof buf, &len) == NP_ATT_OK &&
+          len == NP_PROGRESS_LEN && buf[0] == NP_SESSION_RUNNING && buf[1] == 2U && buf[4] == 0x10U,
+          "progress: the read returns the runner's frame");
+    np_progress_notify();
+    check(g_notifies == 1 && g_ntf_id == NP_GATT_SESSION_PROGRESS_ID && g_ntf_len == NP_PROGRESS_LEN &&
+          memcmp(g_ntf, buf, NP_PROGRESS_LEN) == 0,
+          "progress: the notification is the same frame");
+    uint8_t w = 1U;
+    check(np_gatt_on_write(NP_GATT_SESSION_PROGRESS_ID, &w, 1U) == NP_ATT_WRITE_NOT_PERMITTED,
+          "progress: the app cannot write it");
+}
+
 int main(void)
 {
     test_uuids_match_the_contract();
@@ -550,6 +838,14 @@ int main(void)
     test_active_user_write();
     test_reenable_confirm_write();
     test_fault_status_read_and_notify_agree();
+    test_upload_check_hash_and_verdict();
+    test_upload_check_refusal_and_corruption();
+    test_upload_check_without_a_hash_changes_nothing();
+    test_stop_write_ends_a_running_or_paused_session();
+    test_stop_write_is_refused_when_it_would_not_take_effect();
+    test_progress_frame_elapsed_remaining_and_active_part();
+    test_progress_states_and_unbounded_commands();
+    test_progress_is_read_and_notified_through_the_table();
 
     if (g_failures != 0) {
         printf("\n%d FAILURE(S)\n", g_failures);

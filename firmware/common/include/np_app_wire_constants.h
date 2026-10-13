@@ -18,6 +18,10 @@
  */
 #define NP_GATT_CONSUMABLE_STATUS_ID 0x0007u
 /*
+ * WRITE 1 B (0x01 = stop). Ends the running or loaded session at the hub (SWR-SS-06).
+ */
+#define NP_GATT_SESSION_STOP_ID 0x000Fu
+/*
  * READ 32 B, hub-provisioned TRNG warranty token (OI-WA-03).
  */
 #define NP_GATT_WARRANTY_TOKEN_ID 0x0010u
@@ -37,12 +41,32 @@
  * READ 32 B, encrypted link only (NP-FW-HUB-001 §4.2, OI-AND-WIRE-02).
  */
 #define NP_GATT_DEVICE_SERIAL_ID 0x0017u
+/*
+ * READ/NOTIFY 34 B: status (0 none, 1 accepted, 2 refused, 3 pending), reason (0, or the refusal's
+ * code as a positive number), SHA-256 of the exact bytes the hub received, taken before parsing
+ * (SWR-UP-01).
+ */
+#define NP_GATT_UPLOAD_CHECK_ID 0x0018u
+/*
+ * READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
+ * (SWR-SS-07).
+ */
+#define NP_GATT_SESSION_PROGRESS_ID 0x0019u
 
 /*
  * The hub's replay-guard serial (DEVICE_SERIAL characteristic, NP-FW-HUB-001 §4.2): exactly this many
  * bytes, never padded or truncated.
  */
 #define NP_GATT_DEVICE_SERIAL_LEN 32U
+/*
+ * UPLOAD_CHECK: 1 B status, 1 B reason, 32 B SHA-256 of the received bytes.
+ */
+#define NP_GATT_UPLOAD_CHECK_LEN 34U
+/*
+ * SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B
+ * remaining ms, 4 B total ms (all little-endian).
+ */
+#define NP_GATT_SESSION_PROGRESS_LEN 16U
 /*
  * Byte 0 of the frame.
  */

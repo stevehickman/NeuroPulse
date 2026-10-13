@@ -18,6 +18,7 @@
  */
 
 #include "np_session_runner.h"
+#include "np_session_progress.h"
 #include "np_session_lease.h"
 #include "np_protocol.h"
 #include "np_module_registry.h"
@@ -300,6 +301,25 @@ void np_runner_init(EventGroupHandle_t hub_events)
     np_lease_init(lease_lock, lease_unlock);
 }
 
+/*
+ * np_runner_progress — the SESSION_PROGRESS frame for the session as it is now (SWR-SS-07).  Registered with
+ * np_progress_set_source() at bring-up; the GATT read and the runner's own notifications both come here.
+ * Elapsed time is the runner's, which is the helmet's: while the session is not running the last value the
+ * loop wrote stands, so a finished session reports the length it ran.
+ */
+void np_runner_progress(uint8_t out[NP_PROGRESS_LEN])
+{
+    np_progress_in_t in;
+    taskENTER_CRITICAL();
+    in.state      = s_ctx.state;
+    in.elapsed_ms = (s_ctx.state == NP_SESSION_RUNNING) ? elapsed_ms_now() : s_ctx.elapsed_ms;
+    in.total_ms   = s_ctx.desc.duration_ms;
+    in.cmds       = s_ctx.desc.cmds;
+    in.cmd_count  = (uint8_t)s_ctx.desc.cmd_count;
+    np_progress_build(&in, out);
+    taskEXIT_CRITICAL();
+}
+
 np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
 {
     if (proto_buf == NULL || proto_len == 0U) {
@@ -503,6 +523,7 @@ np_hub_status_t np_runner_run(void)
         /* Trigger telemetry snapshot */
         if (now_ms - last_telem_ms >= NP_RUNNER_TELEM_INTERVAL_MS) {
             last_telem_ms = now_ms;
+            np_progress_notify();           /* SWR-SS-07: the app's elapsed / remaining / active part */
             np_pst_log_telemetry(now_ms);   /* UHDR only (§6.8) */
             np_telem_record_t rec;
             for (uint8_t slot = 0U; slot < NP_HUB_SLOT_MAX; slot++) {
@@ -595,9 +616,11 @@ np_hub_status_t np_runner_run(void)
      * cannot lose the intranasal sleeve's one-session count. */
     np_cons_on_session_end(s_ctx.uhdr.mods_active_mask);
 
+    s_ctx.elapsed_ms = total_ms;
     s_ctx.state = (s_ctx.abort_reason == NP_ABORT_NONE)
                   ? NP_SESSION_COMPLETE
                   : NP_SESSION_FAULT;
+    np_progress_notify();   /* SWR-SS-07: the app sees the end state and the length it ran */
 
     /* Every output is stopped and the records are closed: module detection may
      * probe again (OI-FWHUB-17). */

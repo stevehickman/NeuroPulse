@@ -405,6 +405,9 @@ if(NP_BUILD_TESTS)
     add_executable(np_gatt_server_tests
         tests/np_gatt_server_tests.c
         src/np_gatt_server.c
+        src/np_upload_check.c         # SWR-UP-01
+        src/np_session_stop.c         # SWR-SS-06
+        src/np_session_progress.c     # SWR-SS-07
         src/np_warranty_token.c
         src/np_consumables.c
         src/np_cvns_fault_summary.c
@@ -419,7 +422,7 @@ if(NP_BUILD_TESTS)
     )
     target_compile_options(np_gatt_server_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
-    target_link_libraries(np_gatt_server_tests m)
+    target_link_libraries(np_gatt_server_tests PRIVATE np_crypto m)
 
     # OI-ACC-08 (#381): the CONSUMABLE_STATUS producer — increment rule,
     # replacement reset, persistence (never zero over an unreadable record,
@@ -429,6 +432,9 @@ if(NP_BUILD_TESTS)
         tests/np_consumables_tests.c
         src/np_consumables.c
         src/np_gatt_server.c
+        src/np_upload_check.c
+        src/np_session_stop.c
+        src/np_session_progress.c
         src/np_warranty_token.c
         src/np_cvns_fault_summary.c
         src/np_transport.c
@@ -442,7 +448,7 @@ if(NP_BUILD_TESTS)
     )
     target_compile_options(np_consumables_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
-    target_link_libraries(np_consumables_tests m)
+    target_link_libraries(np_consumables_tests PRIVATE np_crypto m)
 
     # OI-NVRAM-08: the Map 3 journal record and its version-tolerant scan.
     # The CI check that a journal written under version n loses no record
@@ -501,6 +507,9 @@ set(HUB_SOURCES
     src/np_cvns_reenable.c        # OI-CVNS-HUB-01: CVNS re-enable manager
     src/np_cvns_fault_summary.c   # NP-SW-FAULTMSG-001 §9.6: offline-fault summary + GATT handlers
     src/np_gatt_server.c          # OI-WA-03 / #381: BLE GATT service table + dispatch
+    src/np_upload_check.c         # SWR-UP-01: hash of the received protocol + verdict, UPLOAD_CHECK
+    src/np_session_stop.c         # SWR-SS-06: SESSION_STOP write ends the session
+    src/np_session_progress.c     # SWR-SS-07: SESSION_PROGRESS frame
     src/np_warranty_token.c       # OI-WA-03: NP-FW-EMMC-002 §A warranty token
     src/np_consumables.c          # OI-ACC-08: CONSUMABLE_STATUS session counts
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
