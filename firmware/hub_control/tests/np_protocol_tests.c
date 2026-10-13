@@ -612,6 +612,31 @@ static void test_rejects_slot_id_on_socket_target(void)
           "reject: a socket-addressed command may not also name a slot");
 }
 
+/* SWR-SS-01: a session is finite and non-zero.  A header whose session_duration_ms is 0 is refused whatever
+ * else it carries; any non-zero length is admitted, including the longest the field can hold. */
+/* @verifies SWR-SS-01, REQ-FWHUB-60 */
+static void test_rejects_zero_session_duration(void)
+{
+    const uint32_t cases[] = { 0U, 1U, 60000UL, 0xFFFFFFFFUL };
+    for (size_t i = 0U; i < sizeof cases / sizeof cases[0]; i++) {
+        blob_t b;
+        blob_begin(&b, NP_HUB_PROTO_VERSION);
+        blob_add_cmd(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG, 0U, 0U,
+                     NP_PROTO_TARGET_SLOT, NULL, 0U, NULL, 0U);
+        size_t len = blob_finish(&b);
+        memcpy(b.buf + 60, &cases[i], 4);   /* session_duration_ms, after blob_begin set 60000 */
+
+        np_session_desc_t desc;
+        np_hub_status_t rc = np_protocol_verify_and_parse(b.buf, len, &desc);
+        if (cases[i] == 0U) {
+            check(rc == NP_HUB_ERR_INVALID_ARG, "duration: 0 ms is refused");
+        } else {
+            check(rc == NP_HUB_OK && desc.duration_ms == cases[i],
+                  "duration: a finite non-zero length is admitted and carried through");
+        }
+    }
+}
+
 /* @verifies REQ-FWHUB-09 */
 static void test_rejects_bad_target_kind(void)
 {
@@ -889,6 +914,7 @@ int main(void)
     test_rejects_retired_zone_slots();
     test_rejects_slot_id_on_socket_target();
     test_rejects_bad_target_kind();
+    test_rejects_zero_session_duration();
     test_rejects_target_len_mismatch();
     test_rejects_truncated_target();
     test_rejects_trailing_body_bytes();

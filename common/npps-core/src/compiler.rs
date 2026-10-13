@@ -272,7 +272,13 @@ fn zone_gate(proto: &Value, opts: &CompileOptions) -> R<()> {
 
 pub fn compile_protocol(proto: &Value, opts: &CompileOptions) -> R<Compiled> {
     let timing = &proto["timingMode"];
-    let session_ms = if timing["type"] == "duration" { f(timing, "seconds") * 1000.0 } else { 0.0 };
+    let is_duration = timing["type"] == "duration";
+    let session_ms = if is_duration { f(timing, "seconds") * 1000.0 } else { 0.0 };
+    // SWR-SS-01: a session is finite and non-zero. A zero (or negative, or missing) duration is refused here
+    // as well as in the validator, because this is the last place before the descriptor is signed.
+    if is_duration && !(session_ms > 0.0) {
+        return Err("Session duration must be greater than zero. Give the protocol a duration, or use interval_count with intervals that end.".into());
+    }
 
     let mut cmds: Vec<Cmd> = Vec::new();
     let mut is_t2 = false;
@@ -309,6 +315,25 @@ pub fn compile_protocol(proto: &Value, opts: &CompileOptions) -> R<Compiled> {
 
     cmds.sort_by(|a, b| a.start_ms.partial_cmp(&b.start_ms).unwrap_or(std::cmp::Ordering::Equal));
 
+    // The length the descriptor carries. A duration protocol states it. An interval-count protocol does not, so it is
+    // computed: the end of the last command (a stop is a command at its own start). A block that starts and never stops
+    // (no interval) would run for ever in such a session, and sessions cannot be infinite (SWR-SS-01), so it is refused.
+    let session_len_ms = if is_duration {
+        session_ms
+    } else {
+        if let Some(open) = cmds.iter().find(|c| c.duration_ms == 0.0 && !c.params.is_empty()) {
+            let ty = proto["modalities"][open.block]["type"].as_str().unwrap_or("a block");
+            return Err(format!(
+                "Block {} ({ty}) has no interval, so it never stops, and the protocol sets interval_count instead of a duration. A session cannot be infinite: give the protocol a duration, or give the block an interval_on.",
+                open.block + 1
+            ));
+        }
+        cmds.iter().map(|c| c.start_ms + c.duration_ms).fold(0.0, f64::max)
+    };
+    if !(session_len_ms > 0.0) {
+        return Err("Session length is zero: the commands end at the moment they start. Give the protocol a duration, or give a block an interval_on greater than zero.".into());
+    }
+
     let targets: Vec<SerializedTarget> = cmds.iter().map(|c| serialize_target(&c.target)).collect::<R<_>>()?;
     let payload: usize =
         cmds.iter().zip(&targets).map(|(c, t)| CMD_HDR_LEN + t.block.len() + c.params.len()).sum();
@@ -331,7 +356,7 @@ pub fn compile_protocol(proto: &Value, opts: &CompileOptions) -> R<Compiled> {
         let n = serial.len().min(32);
         blob[28..28 + n].copy_from_slice(&serial[..n]);
     }
-    blob[60..64].copy_from_slice(&to_u32(session_ms).to_le_bytes());
+    blob[60..64].copy_from_slice(&to_u32(session_len_ms).to_le_bytes());
 
     let mut off = HEADER_LEN;
     for (c, t) in cmds.iter().zip(&targets) {

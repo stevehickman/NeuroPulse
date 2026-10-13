@@ -90,3 +90,60 @@ fn the_validator_reports_a_missing_required_parameter() {
     assert_eq!(check("clinical_tacs", json!({})).len(), 3);
     assert!(check("bes_tacs", json!({ "frequencyHz": 10, "intensityMilliamps": 1 })).is_empty());
 }
+
+// SWR-SS-01: a session is finite and non-zero. The descriptor carries its length at byte 60 (little-endian u32, ms).
+
+fn compile_timed(timing: Value, interval: Value) -> Result<Vec<u8>, String> {
+    let req = json!({
+        "def": { "timingMode": timing,
+                 "modalities": [{ "type": "bes_tacs", "params": { "frequencyHz": 10, "intensityMilliamps": 1, "waveform": "sine" }, "interval": interval }] },
+        "nowUnix": 1, "sessionUuidHex": UUID,
+    });
+    compile_json(&req.to_string())
+}
+
+fn length_ms(blob: &[u8]) -> u32 {
+    u32::from_le_bytes(blob[60..64].try_into().unwrap())
+}
+
+// @verifies SWR-SS-01
+#[test]
+fn a_zero_or_negative_duration_is_refused_by_the_compiler() {
+    for seconds in [0, -60] {
+        refused(compile_timed(json!({ "type": "duration", "seconds": seconds }), json!({ "intervalOnSeconds": 0 })), "greater than zero");
+    }
+}
+
+// @verifies SWR-SS-01
+#[test]
+fn a_very_long_finite_duration_is_not_refused_for_its_length() {
+    // 30 days: far past anything a session needs, and still finite.
+    let b = compile_timed(json!({ "type": "duration", "seconds": 2_592_000 }), json!({ "intervalOnSeconds": 0 })).unwrap();
+    assert_eq!(length_ms(&b), 2_592_000_000);
+}
+
+// @verifies SWR-SS-01
+#[test]
+fn an_interval_count_session_carries_the_length_computed_from_its_intervals() {
+    // 60 s on, 30 s off, three times: the stops fall at 60, 150 and 240 s, so the session ends at 240 s.
+    let b = compile_timed(
+        json!({ "type": "interval_count", "count": 3 }),
+        json!({ "intervalOnSeconds": 60, "intervalOffSeconds": 30, "repeatCount": 3 }),
+    )
+    .unwrap();
+    assert_eq!(length_ms(&b), 240_000);
+    // A start offset moves the end with it.
+    let b = compile_timed(
+        json!({ "type": "interval_count", "count": 1 }),
+        json!({ "intervalOnSeconds": 60, "intervalOffSeconds": 0, "startOffsetSeconds": 10 }),
+    )
+    .unwrap();
+    assert_eq!(length_ms(&b), 70_000);
+}
+
+// @verifies SWR-SS-01
+#[test]
+fn an_interval_count_session_with_a_block_that_never_stops_is_refused_as_infinite() {
+    let e = compile_timed(json!({ "type": "interval_count", "count": 3 }), json!({ "intervalOnSeconds": 0 })).expect_err("infinite");
+    assert!(e.contains("Block 1 (bes_tacs)") && e.contains("cannot be infinite"), "{e:?}");
+}
