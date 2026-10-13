@@ -63,6 +63,12 @@ static class NppsCore
     [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
     private static extern int npps_resolve_limits_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
 
+    [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int npps_content_hash_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
+
+    [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int npps_library_json(byte[] req, nuint reqLen, out IntPtr output, out nuint outLen);
+
     private delegate int Entry(byte[] input, nuint inputLen, out IntPtr output, out nuint outLen);
 
     /// Parse NPPS text into everything the file declares, as the core's JSON: `{"entries":[{"kind":"single",
@@ -110,6 +116,19 @@ static class NppsCore
         };
         return Call(npps_resolve_limits_json, Encoding.UTF8.GetBytes(request.ToJsonString()));
     }
+
+    /// A protocol's identity (SWR-HV-01): 64 lowercase hex digits over what the helmet would be sent. The request is
+    /// `{"def":…, "hardwareVersion":n, "zonesByVersion":{<zone>:{<version>:[sockets]}}, "clinicianSockets":…|null}`. A
+    /// protocol that cannot be compiled yet (a clinician-selected target not chosen) is refused with the core's message.
+    public static string ContentHash(JsonNode request)
+        => Encoding.UTF8.GetString(Call(npps_content_hash_json, Encoding.UTF8.GetBytes(request.ToJsonString())));
+
+    /// The protocol library's rules, one JSON op per call (`{"op":"saveCheck"|"deleteCheck"|"cloneFamily"|"addVariantCheck"|
+    /// "variantFor"|"supportedVersions"|"layouts"|"layoutDiff"|"uploadGate"|"uploadResult"|"mergeImport"|"offered"|
+    /// "usedRecord"|"propagationOffer"|"applyChanges"|"mapVariant", …}`), answered as JSON. Every app asks this same
+    /// core, so the five cannot disagree on what a used protocol allows.
+    public static JsonNode Library(JsonNode request)
+        => JsonNode.Parse(Call(npps_library_json, Encoding.UTF8.GetBytes(request.ToJsonString())))!;
 
     /// Compile a protocol (`{"timingMode":…,"modalities":[…]}`, the shape `Parse` returns under
     /// `protocol`) into the NP-FW-HUB-001 §4 descriptor. The 64-byte signature slot at the end is zeroed:

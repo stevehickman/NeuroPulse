@@ -188,4 +188,27 @@ public class NppsCoreTests
         }
         Assert.True(failures.Count == 0, $"{failures.Count} divergence(s):\n" + string.Join("\n", failures.Take(5)));
     }
+
+    private static JsonNode Library(string json) => NppsCore.Library(JsonNode.Parse(json)!);
+
+    // @verifies SWR-UP-02
+    [Fact]
+    public void LibraryUploadResultMarksUsedOnlyForConfirmedOrUnknown()
+    {
+        var h = new string('a', 64);
+        Assert.Equal("confirmed", (string)Library($"{{\"op\":\"uploadResult\",\"sentHash\":\"{h}\",\"helmetStatus\":\"accepted\",\"helmetHash\":\"{h}\"}}")["outcome"]!);
+        Assert.True((bool)Library($"{{\"op\":\"uploadResult\",\"sentHash\":\"{h}\"}}")["markUsed"]!);
+        Assert.False((bool)Library($"{{\"op\":\"uploadResult\",\"sentHash\":\"{h}\",\"refusedBeforeSend\":true}}")["markUsed"]!);
+        Assert.Equal("not_a_failed_upload", (string)Library($"{{\"op\":\"uploadResult\",\"sentHash\":\"{h}\",\"helmetStatus\":\"refused\",\"helmetRefusal\":\"tier\"}}")["outcome"]!);
+    }
+
+    // @verifies SWR-PL-02
+    [Fact]
+    public void LibrarySaveCheckRefusesAUsedFamily()
+    {
+        var used = Library("{\"op\":\"saveCheck\",\"id\":\"a\",\"entries\":[{\"id\":\"a\",\"used\":true,\"version\":\"1\",\"scope\":\"owner\"}]}");
+        Assert.False((bool)used["allowed"]!);
+        var unused = Library("{\"op\":\"saveCheck\",\"id\":\"a\",\"entries\":[{\"id\":\"a\",\"used\":false,\"version\":\"1\",\"scope\":\"owner\"}]}");
+        Assert.True((bool)unused["allowed"]!);
+    }
 }
