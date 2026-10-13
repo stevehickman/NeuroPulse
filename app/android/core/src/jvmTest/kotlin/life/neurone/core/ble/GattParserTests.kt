@@ -5,6 +5,7 @@ import life.neurone.core.models.CervicalPadStatus
 import life.neurone.core.models.OtaPhase
 import life.neurone.core.models.HubSessionState
 import life.neurone.core.models.PacerPhase
+import life.neurone.core.models.PauseLimit
 import life.neurone.core.models.RampPhase
 import life.neurone.core.models.SessionProgress
 import life.neurone.core.models.UploadCheck
@@ -347,5 +348,30 @@ class GattParserTests {
         assertEquals(none, UploadVerdict.of(GattParser.parseUploadCheck(uploadFrame(3, 0, ByteArray(32)))))
         val accepted = UploadVerdict.of(GattParser.parseUploadCheck(uploadFrame(1, 0, ByteArray(32))))
         assertEquals("accepted", accepted.helmetStatus)
+    }
+
+    // @verifies SWR-SS-05
+    @Test
+    fun theOwnersPauseLimitIsALittleEndianUint32OfSecondsAndZeroIsNoLimit() {
+        assertEquals(0L, GattParser.parsePauseLimit(byteArrayOf(0, 0, 0, 0)))
+        assertEquals(PauseLimit.NO_LIMIT_SECONDS, GattParser.parsePauseLimit(byteArrayOf(0, 0, 0, 0)))
+        assertEquals(300L, GattParser.parsePauseLimit(byteArrayOf(0x2C, 0x01, 0, 0)))
+        assertEquals(0xFFFF_FFFFL, GattParser.parsePauseLimit(byteArrayOf(-1, -1, -1, -1)), "no sign extension")
+        assertNull(GattParser.parsePauseLimit(byteArrayOf(1, 2, 3)))
+        assertNull(GattParser.parsePauseLimit(byteArrayOf(1, 2, 3, 4, 5)))
+    }
+
+    // @verifies SWR-SS-05
+    @Test
+    fun aPauseLimitRoundTripsAndOneThatDoesNotFitTheHelmetIsRefused() {
+        for (seconds in listOf(0L, 1L, 60L, 3_600L, 0xFFFF_FFFFL)) {
+            assertEquals(seconds, GattParser.parsePauseLimit(PauseLimit.toWire(seconds)!!))
+        }
+        assertNull(PauseLimit.toWire(-1L))
+        assertNull(PauseLimit.toWire(0x1_0000_0000L))
+        assertEquals(1_800L, PauseLimit.secondsOfMinutes(30))
+        assertEquals(0L, PauseLimit.secondsOfMinutes(0), "0 minutes is no limit")
+        assertNull(PauseLimit.secondsOfMinutes(-1))
+        assertNull(PauseLimit.secondsOfMinutes(Long.MAX_VALUE), "a number of minutes that overflows seconds is refused, not wrapped")
     }
 }

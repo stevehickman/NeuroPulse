@@ -56,6 +56,13 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     /// link. The hash is of protocol bytes the person authored and carries no user biology.
     @Published private(set) var uploadCheck: UploadCheck?
 
+    /// The hardware owner's pause time limit as the helmet holds it, in seconds; 0 is no limit, nil is not known (not read
+    /// yet, the helmet does not publish it, or the link is not paired: it is an encrypted characteristic). SWR-SS-05.
+    @Published private(set) var pauseLimitSeconds: UInt32?
+
+    /// True when this helmet publishes the pause limit, so the owner screen can offer it.
+    @Published private(set) var pauseLimitPublished = false
+
     /// Live zone-module socket map — variable length, keyed by 1-based socket id.
     ///
     /// Not a fixed-size array: the helmet is tiled with a universal hex module
@@ -184,6 +191,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     private var sessionProgressChar: CBCharacteristic?
     private var hardwareVersionChar: CBCharacteristic?
     private var uploadCheckChar:    CBCharacteristic?
+    private var pauseLimitChar:     CBCharacteristic?
 
     // Dedicated subject for impedance results — fires ONLY from GattUuidStrings.IMPEDANCE_RESULT_ID handler.
     // Distinct from session state updates so SetupGATTProviding.waitForImpedanceResult cannot
@@ -274,6 +282,8 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         progress = nil
         hardwareVersion = Self.defaultHardwareVersion // the next link may be another helmet
         uploadCheck = nil
+        pauseLimitSeconds = nil
+        pauseLimitPublished = false
         pending = .empty
         // Clear the map entirely rather than zeroing a fixed shape — on
         // reconnect the hub sends a fresh snapshot, and a stale "present" socket
@@ -471,6 +481,29 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         uploadCheck = UploadCheck(wire: data)
     }
 
+    /// Ask the helmet for its pause limit (an encrypted READ, which is refused until the helmet is paired).
+    func requestPauseLimit() {
+        guard let char = pauseLimitChar, let p = peripheral else { return }
+        p.readValue(for: char)
+    }
+
+    /// Set the pause limit, in seconds; 0 is no limit. Takes effect at the helmet's NEXT pause: the limit in force when a
+    /// pause begins is the limit for that pause. The write is followed by a read, so the screen shows what the helmet holds
+    /// and not what was asked for. Returns false when the helmet publishes none.
+    @discardableResult
+    func writePauseLimit(seconds: UInt32) -> Bool {
+        guard let char = pauseLimitChar, let p = peripheral else { return false }
+        p.writeValue(PauseLimit.wire(seconds: seconds), for: char, type: .withResponse)
+        p.readValue(for: char)
+        return true
+    }
+
+    /// Decodes PAUSE_LIMIT; a malformed frame clears the figure rather than being partly believed.
+    /// `internal` — driven directly by tests.
+    func applyPauseLimit(_ data: Data) {
+        pauseLimitSeconds = PauseLimit.seconds(fromWire: data)
+    }
+
     /// Decodes SESSION_PROGRESS; a malformed frame clears the figures rather than being partly believed.
     /// `internal` — driven directly by tests.
     func applySessionProgress(_ data: Data) {
@@ -592,6 +625,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         protocolUploadChar = nil; edfRequestChar = nil; otaCommandChar = nil
         calibrationCmdChar = nil; sessionStopChar = nil; warrantyTokenChar = nil
         sessionPauseChar = nil; sessionProgressChar = nil; hardwareVersionChar = nil; uploadCheckChar = nil
+        pauseLimitChar = nil
         deviceSerialChar = nil
         socketMapChar = nil
         firmwareVersionChar = nil
@@ -657,7 +691,7 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             GattUuidStrings.CVNS_FAULT_STATUS_ID, GattUuidStrings.CVNS_REENABLE_CONFIRM_ID,
             GattUuidStrings.ACTIVE_USER_ID, GattUuidStrings.DEVICE_SERIAL_ID,
             GattUuidStrings.SESSION_PROGRESS_ID, GattUuidStrings.SESSION_PAUSE_ID, GattUuidStrings.HARDWARE_VERSION_ID,
-            GattUuidStrings.SESSION_PROGRESS_ID, GattUuidStrings.SESSION_PAUSE_ID, GattUuidStrings.UPLOAD_CHECK_ID,
+            GattUuidStrings.UPLOAD_CHECK_ID, GattUuidStrings.PAUSE_LIMIT_ID,
         ]
         peripheral.discoverCharacteristics(
             (GattUuidStrings.REQUIRED_IDS + optionalIDs).map(CBUUID.init(string:)), for: service)
@@ -743,6 +777,12 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
                 // SWR-UP-01: optional (hub firmware); read at link, notified, and read again after each upload.
                 uploadCheckChar = char
                 peripheral.setNotifyValue(true, for: char)
+                peripheral.readValue(for: char)
+
+            case CBUUID(string: GattUuidStrings.PAUSE_LIMIT_ID):
+                // SWR-SS-05: optional (hub firmware); encrypted, so the read is refused until the helmet is paired.
+                pauseLimitChar = char
+                pauseLimitPublished = true
                 peripheral.readValue(for: char)
 
             case CBUUID(string: GattUuidStrings.SESSION_PAUSE_ID):
@@ -863,6 +903,11 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
         if characteristic.uuid == CBUUID(string: GattUuidStrings.UPLOAD_CHECK_ID) {
             // Published on its own: not part of the accumulated session record.
             applyUploadCheck(data)
+            return
+        }
+
+        if characteristic.uuid == CBUUID(string: GattUuidStrings.PAUSE_LIMIT_ID) {
+            applyPauseLimit(data)
             return
         }
 

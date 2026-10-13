@@ -50,6 +50,7 @@ fun SettingsScreen(app: AppServices, modifier: Modifier = Modifier) {
     var showSetup by remember { mutableStateOf(false) }
     var showLimits by remember { mutableStateOf(false) }
     var showProfiles by remember { mutableStateOf(false) }
+    var showOwner by remember { mutableStateOf(false) }
     var eegGranted by remember {
         mutableStateOf(app.keyValueStore.getBoolean(OnboardingKeys.BIPA_ACCEPTED))
     }
@@ -57,6 +58,11 @@ fun SettingsScreen(app: AppServices, modifier: Modifier = Modifier) {
     val otaStatus by app.gattManager.otaStatus.collectAsState()
 
     when {
+        showOwner -> WarrantyOwnerScreen(
+            app = app,
+            onDone = { showOwner = false },
+            modifier = modifier,
+        )
         showProfiles -> ProfilesScreen(
             store = app.limitsStore,
             onDone = { showProfiles = false },
@@ -104,6 +110,7 @@ fun SettingsScreen(app: AppServices, modifier: Modifier = Modifier) {
             onDeviceSetup = { showSetup = true },
             onManageLimits = { showLimits = true },
             onManageProfiles = { showProfiles = true },
+            onManageOwner = { showOwner = true },
             modifier = modifier,
         )
     }
@@ -120,6 +127,7 @@ private fun SettingsContent(
     onDeviceSetup: () -> Unit,
     onManageLimits: () -> Unit,
     onManageProfiles: () -> Unit,
+    onManageOwner: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
@@ -184,6 +192,14 @@ private fun SettingsContent(
         Text(stringResource(Res.string.and_ui_set_global_caps_on_stimulation_dose_and_inte), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onManageLimits) { Text(stringResource(Res.string.and_ui_edit_dosage_limits)) }
+
+        Spacer(Modifier.height(24.dp))
+
+        // The helmet owner's settings (SWR-WO-01, SWR-SS-05): what is offered, and the pause limit.
+        Text(stringResource(Res.string.settings_warranty_owner_title), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.settings_warranty_owner_body), style = MaterialTheme.typography.bodySmall)
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onManageOwner) { Text(stringResource(Res.string.settings_warranty_owner_button)) }
 
         Spacer(Modifier.height(24.dp))
 
