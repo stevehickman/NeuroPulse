@@ -631,3 +631,6 @@ target_link_libraries(np_hub_control
         np_cervical_vns
         m
 )
+# np_upload_check.c hashes the received protocol bytes (SWR-UP-01) with np_sha256, so the library needs np_crypto's header;
+# the application target already links np_crypto, so no second copy is linked.
+target_link_libraries(np_hub_control PRIVATE np_crypto)
