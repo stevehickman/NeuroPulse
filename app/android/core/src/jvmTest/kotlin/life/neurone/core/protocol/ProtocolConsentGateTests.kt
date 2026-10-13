@@ -18,7 +18,7 @@ class ProtocolConsentGateTests {
 
     private fun eegProtocol() = NPProtocolEntry.Single(
         NPProtocolDefinition(
-            name = "Test EEG Neurofeedback",
+            name = "Test EEG Neurofeedback", hardwareVersion = 1,
             modalities = listOf(
                 NPProtocolModality(
                     params = NPModalityParams.EegNeurofeedback(
@@ -31,7 +31,7 @@ class ProtocolConsentGateTests {
 
     private fun pbmProtocol() = NPProtocolEntry.Single(
         NPProtocolDefinition(
-            name = "Test PBM Vascular",
+            name = "Test PBM Vascular", hardwareVersion = 1,
             modalities = listOf(
                 NPProtocolModality(
                     params = NPModalityParams.PbmTranscranial(NPPBMTranscranialParams()),
@@ -42,7 +42,7 @@ class ProtocolConsentGateTests {
 
     private fun eegAdaptiveAudioProtocol() = NPProtocolEntry.Single(
         NPProtocolDefinition(
-            name = "Test EEG-Adaptive Audio",
+            name = "Test EEG-Adaptive Audio", hardwareVersion = 1,
             modalities = listOf(
                 NPProtocolModality(
                     params = NPModalityParams.AudioEntrainment(
@@ -81,7 +81,7 @@ class ProtocolConsentGateTests {
     fun isEEGDependent_falseWhenEEGModalityDisabled() {
         val disabled = NPProtocolEntry.Single(
             NPProtocolDefinition(
-                name = "Disabled EEG",
+                name = "Disabled EEG", hardwareVersion = 1,
                 modalities = listOf(
                     NPProtocolModality(
                         params = NPModalityParams.EegNeurofeedback(NPEEGNeurofeedbackParams()),
@@ -121,7 +121,7 @@ class ProtocolConsentGateTests {
     fun composite_blockedWhenAnyMemberEEGDependent() {
         val composite = NPProtocolEntry.Composite(
             NPCompositeProtocol(
-                name = "Test Composite",
+                name = "Test Composite", hardwareVersion = 1,
                 layers = listOf(
                     NPCompositeLayer(protocolName = "Test PBM Vascular"),
                     NPCompositeLayer(protocolName = "Test EEG Neurofeedback"),

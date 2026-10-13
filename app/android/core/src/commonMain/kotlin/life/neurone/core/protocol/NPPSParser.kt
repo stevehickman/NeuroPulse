@@ -108,6 +108,8 @@ object NPPSParser {
             modalities = p["modalities"]!!.jsonArray.map { modalityOf(it.jsonObject) },
             conditions = p.strList("conditions") ?: emptyList(),
             references = referencesOf(p),
+            familyId = p.optStr("familyId"),
+            hardwareVersion = p.optInt("hardwareVersion"),
         )
     }
 
@@ -133,6 +135,8 @@ object NPPSParser {
             .firstOrNull { it.rawValue == c.str("conflictResolution") } ?: NPCompositeProtocol.ConflictResolution.MERGE,
         conditions = c.strList("conditions") ?: emptyList(),
         references = referencesOf(c),
+        familyId = c.optStr("familyId"),
+        hardwareVersion = c.optInt("hardwareVersion"),
     )
 
     private fun modalityOf(m: JsonObject): NPProtocolModality {

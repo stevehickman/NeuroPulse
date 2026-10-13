@@ -21,7 +21,7 @@ class NPZoneCautionTests {
 
     // 1.5 mA over 35 cm² for 2400 s is 102.857 mC/cm²: the caution band of the 150 mC/cm² session ceiling.
     private fun tdcs(milliamps: Double) = NPProtocolDefinition(
-        name = "g",
+        name = "g", hardwareVersion = 1,
         timingMode = NPTimingMode.Duration(2400),
         modalities = listOf(
             NPProtocolModality(

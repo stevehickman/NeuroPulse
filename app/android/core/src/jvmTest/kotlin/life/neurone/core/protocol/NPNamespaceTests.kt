@@ -301,7 +301,7 @@ class NPVisualModeTests {
         // to the default mode.
         for (mode in NPVisualStimParams.VisualMode.entries) {
             val proto = NPProtocolDefinition(
-                name = "P",
+                name = "P", hardwareVersion = 1,
                 modalities = listOf(
                     NPProtocolModality(
                         params = NPModalityParams.VisualStimulation(NPVisualStimParams(mode = mode)),
