@@ -10,6 +10,7 @@ import life.neurone.core.models.CervicalFaultLedger
 import life.neurone.core.models.CervicalFaultRecord
 import life.neurone.core.models.CervicalFaultStatus
 import life.neurone.core.models.SessionProgress
+import life.neurone.core.models.UploadCheck
 import life.neurone.core.models.CervicalPadStatus
 import life.neurone.core.models.OtaStatusPacket
 import life.neurone.core.models.SessionState
@@ -67,6 +68,21 @@ class NeurOneGattManager(
      */
     private val _hardwareVersion = MutableStateFlow(DEFAULT_HARDWARE_VERSION)
     val hardwareVersion: StateFlow<Int> = _hardwareVersion
+
+    /**
+     * What the helmet says it received at the last protocol upload: its hash of the bytes and an accept or refuse verdict
+     * (SWR-UP-01). Null before the first report and after a dropped link. The hash is of protocol bytes the person authored
+     * and carries no user biology.
+     */
+    private val _uploadCheck = MutableStateFlow<UploadCheck?>(null)
+    val uploadCheck: StateFlow<UploadCheck?> = _uploadCheck
+
+    private var uploadCheckCharPresent = false
+
+    /** Ask the helmet for its current upload report (a READ, so a missed notification does not leave the outcome unknown). */
+    fun requestUploadCheck() {
+        if (uploadCheckCharPresent) central.read(UUID.fromString(GattUuidStrings.UPLOAD_CHECK_ID))
+    }
 
     private val _bluetoothUnavailable = MutableStateFlow(false)
     val bluetoothUnavailable: StateFlow<Boolean> = _bluetoothUnavailable
@@ -267,6 +283,12 @@ class NeurOneGattManager(
         if (UUID.fromString(GattUuidStrings.HARDWARE_VERSION_ID) in characteristics) {
             central.read(UUID.fromString(GattUuidStrings.HARDWARE_VERSION_ID))
         }
+        // SWR-UP-01: optional (hub firmware); read at link and notified, and read again after each upload.
+        uploadCheckCharPresent = UUID.fromString(GattUuidStrings.UPLOAD_CHECK_ID) in characteristics
+        if (uploadCheckCharPresent) {
+            central.enableNotifications(UUID.fromString(GattUuidStrings.UPLOAD_CHECK_ID))
+            central.read(UUID.fromString(GattUuidStrings.UPLOAD_CHECK_ID))
+        }
         // SWR-SS-07: read once at link so a session already running shows its figures, then notified on the telemetry tick.
         if (UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID) in characteristics) {
             central.enableNotifications(UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID))
@@ -322,6 +344,7 @@ class NeurOneGattManager(
             }
             UUID.fromString(GattUuidStrings.HARDWARE_VERSION_ID) ->
                 GattParser.parseHardwareVersion(value)?.let { _hardwareVersion.value = it }
+            UUID.fromString(GattUuidStrings.UPLOAD_CHECK_ID) -> _uploadCheck.value = GattParser.parseUploadCheck(value)
             UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID) -> _progress.value = GattParser.parseSessionProgress(value)
             UUID.fromString(GattUuidStrings.HRV_COHERENCE_ID) -> GattParser.parseHrvCoherence(value)?.let { hrv ->
                 _session.value = _session.value.copy(hrv = hrv)
@@ -516,6 +539,8 @@ class NeurOneGattManager(
         _session.value = SessionState.EMPTY   // clear stale UHDR display state
         _progress.value = null
         _hardwareVersion.value = DEFAULT_HARDWARE_VERSION // the next link may be another helmet
+        _uploadCheck.value = null
+        uploadCheckCharPresent = false
         // Clear the inventory rather than zeroing a fixed shape: the hub sends a fresh snapshot
         // on reconnect, and a stale "present" socket would let a placement gate pass on a module
         // pulled while disconnected. The map goes too — the next link may be another helmet.

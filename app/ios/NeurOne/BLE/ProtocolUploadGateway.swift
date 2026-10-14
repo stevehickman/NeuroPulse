@@ -30,6 +30,13 @@ protocol ProtocolUploadGateway: AnyObject {
 
     /// The helmet's hardware version (SWR-HV-06), 1 until it is read.
     var hardwareVersion: Int { get }
+
+    /// What the hub says it received at the last upload (SWR-UP-01); nil before the first report or on a hub whose firmware
+    /// does not publish it.
+    var uploadCheck: UploadCheck? { get }
+
+    /// Read the hub's current upload report, so a missed notification does not leave the outcome unknown.
+    func requestUploadCheck()
 }
 
 extension ProtocolUploadGateway {
@@ -38,6 +45,8 @@ extension ProtocolUploadGateway {
     var cervicalOutstandingForAnotherUser: Bool { false }
     var deviceSerial: Data? { nil }
     var hardwareVersion: Int { 1 }
+    var uploadCheck: UploadCheck? { nil }
+    func requestUploadCheck() {}
 }
 
 // NeurOneGATTManager satisfies this protocol without any code changes —
