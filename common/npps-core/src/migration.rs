@@ -22,7 +22,10 @@
 //! restore never resets it (`SWR-MG-04`). Which items the UHDR-only kind carries is not stated by the requirements beyond
 //! that, so the list is `UC-085` in `docs/status/unjustified-choices.md`.
 
+use aes_gcm::aead::{Aead, KeyInit, Payload};
+use aes_gcm::{Aes256Gcm, Nonce};
 use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 
 type R<T> = Result<T, String>;
@@ -245,6 +248,126 @@ fn probe_result(req: &Value) -> R<Value> {
     Ok(json!({ "result": "sufficient" }))
 }
 
+// ─── The encrypted bundle container (`SWR-MG-02`, `SWR-MG-05`) ───────────────────────────────────────────────────────────
+//
+// Layout, in bytes:  `"NPBK"` (4) · header length, big-endian u32 (4) · header JSON · ciphertext with its 16-byte tag.
+// The header is `{"kind","formatVersion","nonce"}`, in the clear so a restore can identify the kind and refuse a newer
+// version before it asks for a key (`SWR-MG-05`). The body is AES-256-GCM (`CLAUDE.md` §5.1) of `{"items":{name: value}}`,
+// with the magic, the length and the header as associated data, so an edited header or kind fails authentication and a
+// bundle cannot be re-labelled. The key is the user's: the platform derives it and hands it in for this one call, and the
+// core keeps nothing (`SWR-MG-02`: NeurOne holds no key and sees no plaintext). The nonce is also handed in, from the
+// platform's CSPRNG, because the core is pure and has no source of randomness; a nonce is used once per key.
+
+const MAGIC: &[u8; 4] = b"NPBK";
+const NONCE_LEN: usize = 12;
+const KEY_LEN: usize = 32;
+
+fn hex(b: &[u8]) -> String {
+    b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
+fn unhex(s: &str, what: &str) -> R<Vec<u8>> {
+    if s.len() % 2 != 0 || !s.is_ascii() {
+        return Err(format!("{what} is not hex"));
+    }
+    (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).map_err(|_| format!("{what} is not hex"))).collect()
+}
+
+/// `SWR-MG-07`, `SWR-MG-08`: the bundle hash a claim and a confirmation carry: SHA-256 of the whole bundle, as 64 hex digits.
+fn bundle_hash(bundle: &[u8]) -> String {
+    hex(&Sha256::digest(bundle))
+}
+
+/// Split a bundle into its header bytes, its parsed header and its ciphertext. A bundle that is not ours, is truncated, or
+/// has a header that is not JSON is `malformed`.
+fn split_bundle(bundle: &[u8]) -> Result<(&[u8], Value, &[u8]), &'static str> {
+    if bundle.len() < 8 || &bundle[..4] != MAGIC {
+        return Err("malformed");
+    }
+    let hlen = u32::from_be_bytes([bundle[4], bundle[5], bundle[6], bundle[7]]) as usize;
+    let end = 8usize.checked_add(hlen).ok_or("malformed")?;
+    if hlen == 0 || end > bundle.len() {
+        return Err("malformed");
+    }
+    let header = serde_json::from_slice(&bundle[8..end]).map_err(|_| "malformed")?;
+    Ok((&bundle[..end], header, &bundle[end..]))
+}
+
+/// `SWR-MG-05`: identify the kind and the format version of a bundle before it is restored, with no key.
+fn read_bundle_header(req: &Value) -> R<Value> {
+    let bundle = unhex(req["bundle"].as_str().ok_or("bundle is required")?, "bundle")?;
+    let Ok((_, header, _)) = split_bundle(&bundle) else {
+        return Ok(json!({ "ok": false, "reason": "malformed" }));
+    };
+    let mut out = read_header(&json!({ "header": header }))?;
+    out["bundleHash"] = json!(bundle_hash(&bundle));
+    Ok(out)
+}
+
+fn cipher(req: &Value) -> R<Aes256Gcm> {
+    let key = unhex(req["key"].as_str().ok_or("key is required")?, "key")?;
+    if key.len() != KEY_LEN {
+        return Err(format!("the key is {KEY_LEN} bytes"));
+    }
+    Aes256Gcm::new_from_slice(&key).map_err(|_| "bad key".to_string())
+}
+
+/// `SWR-MG-02`, `SWR-MG-03`: seal a bundle. Items the kind does not carry are refused whole, so a UHDR-only bundle can never
+/// hold protocols, limits profiles or consent grants, and a per-install item can never be sealed into either kind.
+fn seal_bundle(req: &Value) -> R<Value> {
+    let kind = req["kind"].as_str().ok_or("kind is required")?;
+    let carried = kind_items(kind)?;
+    let items = req["items"].as_object().ok_or("items must be an object")?;
+    if let Some(bad) = items.keys().find(|k| !carried.contains(&k.as_str())) {
+        return Err(format!("'{bad}' is not carried by a {kind} bundle"));
+    }
+    let nonce = unhex(req["nonce"].as_str().ok_or("nonce is required")?, "nonce")?;
+    if nonce.len() != NONCE_LEN {
+        return Err(format!("the nonce is {NONCE_LEN} bytes"));
+    }
+    let header = json!({ "kind": kind, "formatVersion": FORMAT_VERSION, "nonce": hex(&nonce) }).to_string().into_bytes();
+    let mut aad = Vec::with_capacity(8 + header.len());
+    aad.extend_from_slice(MAGIC);
+    aad.extend_from_slice(&(header.len() as u32).to_be_bytes());
+    aad.extend_from_slice(&header);
+    let plain = json!({ "items": items }).to_string().into_bytes();
+    let ct = cipher(req)?
+        .encrypt(Nonce::from_slice(&nonce), Payload { msg: &plain, aad: &aad })
+        .map_err(|_| "encryption failed".to_string())?;
+    aad.extend_from_slice(&ct);
+    Ok(json!({ "bundle": hex(&aad), "bundleHash": bundle_hash(&aad), "kind": kind, "formatVersion": FORMAT_VERSION }))
+}
+
+/// `SWR-MG-02`, `SWR-MG-05`: open a bundle with the user's key. A newer version or an unknown kind is refused before any
+/// decryption; a wrong key and an edited bundle are indistinguishable by design (`authentication_failed`), and nothing is
+/// returned from either. The items it returns are checked against the kind's list, so a forged body cannot bring an item
+/// the kind does not carry.
+fn open_bundle(req: &Value) -> R<Value> {
+    let bundle = unhex(req["bundle"].as_str().ok_or("bundle is required")?, "bundle")?;
+    let Ok((aad, header, ct)) = split_bundle(&bundle) else {
+        return Ok(json!({ "ok": false, "reason": "malformed" }));
+    };
+    let checked = read_header(&json!({ "header": header }))?;
+    if checked["ok"] != true {
+        return Ok(checked);
+    }
+    let kind = checked["kind"].as_str().unwrap_or_default();
+    let Some(nonce) = header["nonce"].as_str().and_then(|n| unhex(n, "nonce").ok()).filter(|n| n.len() == NONCE_LEN) else {
+        return Ok(json!({ "ok": false, "reason": "malformed" }));
+    };
+    let Ok(plain) = cipher(req)?.decrypt(Nonce::from_slice(&nonce), Payload { msg: ct, aad }) else {
+        return Ok(json!({ "ok": false, "reason": "authentication_failed" }));
+    };
+    let Some(items) = serde_json::from_slice::<Value>(&plain).ok().and_then(|v| v["items"].as_object().cloned()) else {
+        return Ok(json!({ "ok": false, "reason": "malformed" }));
+    };
+    let carried = kind_items(kind)?;
+    if items.keys().any(|k| !carried.contains(&k.as_str())) {
+        return Ok(json!({ "ok": false, "reason": "malformed" }));
+    }
+    Ok(json!({ "ok": true, "kind": kind, "formatVersion": checked["formatVersion"], "items": items, "bundleHash": bundle_hash(&bundle) }))
+}
+
 pub fn migration_json(request: &str) -> Result<String, String> {
     let req: Value = serde_json::from_str(request).map_err(|e| format!("bad migration request: {e}"))?;
     let op = req["op"].as_str().ok_or("op is required")?;
@@ -260,6 +383,9 @@ pub fn migration_json(request: &str) -> Result<String, String> {
         "clearDecision" => clear_decision(&req)?,
         "clearPlan" => clear_plan(&req)?,
         "probeResult" => probe_result(&req)?,
+        "sealBundle" => seal_bundle(&req)?,
+        "readBundleHeader" => read_bundle_header(&req)?,
+        "openBundle" => open_bundle(&req)?,
         other => return Err(format!("unknown migration operation '{other}'")),
     };
     let _: &Map<String, Value> = out.as_object().ok_or("a migration answer is an object")?;
@@ -511,5 +637,101 @@ mod tests {
         let mut not_run = all;
         not_run.as_object_mut().unwrap().remove("space");
         assert_eq!(ask(json!({"op":"probeResult","ops":not_run}))["result"], "insufficient", "an operation not run is not a pass");
+    }
+
+    const KEY: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+    const NONCE: &str = "a0a1a2a3a4a5a6a7a8a9aaab";
+
+    fn sealed(kind: &str, items: Value) -> Value {
+        ask(json!({"op":"sealBundle","kind":kind,"key":KEY,"nonce":NONCE,"items":items}))
+    }
+
+    // @verifies SWR-MG-02
+    #[test]
+    fn a_sealed_bundle_opens_with_the_key_and_returns_what_was_sealed() {
+        let items = json!({"sessionHistory":[{"id":1}],"withdrawalState":{"blanketConsentWithdrawnAt":"2026-10-01T00:00:00Z"}});
+        let b = sealed("uhdr", items.clone());
+        let opened = ask(json!({"op":"openBundle","bundle":b["bundle"],"key":KEY}));
+        assert_eq!(opened["ok"], true);
+        assert_eq!(opened["items"], items);
+        assert_eq!(opened["bundleHash"], b["bundleHash"]);
+    }
+
+    // @verifies SWR-MG-02
+    #[test]
+    fn the_bundle_is_unreadable_without_the_key_and_its_plaintext_is_not_in_it() {
+        let b = sealed("uhdr", json!({"sessionHistory":["a-very-distinctive-session-note"]}));
+        let bytes = unhex(b["bundle"].as_str().unwrap(), "bundle").unwrap();
+        assert!(!bytes.windows(10).any(|w| w == b"distinctiv"), "plaintext must not appear in the bundle");
+        let wrong = "ff".repeat(32);
+        let r = ask(json!({"op":"openBundle","bundle":b["bundle"],"key":wrong}));
+        assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("authentication_failed")));
+        assert!(r.get("items").is_none());
+    }
+
+    // @verifies SWR-MG-02
+    #[test]
+    fn an_edited_bundle_is_refused_and_a_relabelled_kind_does_not_authenticate() {
+        let b = sealed("uhdr", json!({"sessionHistory":[]}));
+        let mut bytes = unhex(b["bundle"].as_str().unwrap(), "bundle").unwrap();
+        let last = bytes.len() - 1;
+        bytes[last] ^= 1;
+        let r = ask(json!({"op":"openBundle","bundle":hex(&bytes),"key":KEY}));
+        assert_eq!(r["reason"], "authentication_failed");
+        // Re-label the cleartext kind as migrate: the header is associated data, so the tag no longer verifies.
+        let orig = unhex(b["bundle"].as_str().unwrap(), "bundle").unwrap();
+        let h = u32::from_be_bytes([orig[4], orig[5], orig[6], orig[7]]) as usize;
+        let header = String::from_utf8(orig[8..8 + h].to_vec()).unwrap().replace("\"uhdr\"", "\"migrate\"").into_bytes();
+        let mut relabelled = b"NPBK".to_vec();
+        relabelled.extend_from_slice(&(header.len() as u32).to_be_bytes());
+        relabelled.extend_from_slice(&header);
+        relabelled.extend_from_slice(&orig[8 + h..]);
+        let r = ask(json!({"op":"openBundle","bundle":hex(&relabelled),"key":KEY}));
+        assert_eq!(r["reason"], "authentication_failed");
+    }
+
+    // @verifies SWR-MG-05
+    #[test]
+    fn the_kind_and_version_are_readable_before_restore_with_no_key() {
+        for kind in ["uhdr", "migrate"] {
+            let b = sealed(kind, json!({}));
+            let h = ask(json!({"op":"readBundleHeader","bundle":b["bundle"]}));
+            assert_eq!((h["ok"].clone(), h["kind"].clone(), h["formatVersion"].clone()), (json!(true), json!(kind), json!(1)));
+            assert_eq!(h["bundleHash"], b["bundleHash"]);
+        }
+        assert_eq!(ask(json!({"op":"readBundleHeader","bundle":"00"}))["reason"], "malformed");
+        assert_eq!(ask(json!({"op":"readBundleHeader","bundle":hex(b"NPBK\0\0\0\x05{}")}))["reason"], "malformed");
+    }
+
+    // @verifies SWR-MG-05
+    #[test]
+    fn a_bundle_one_version_newer_is_refused_whole_before_any_decryption() {
+        let header = json!({"kind":"uhdr","formatVersion":FORMAT_VERSION + 1,"nonce":NONCE}).to_string().into_bytes();
+        let mut bytes = b"NPBK".to_vec();
+        bytes.extend_from_slice(&(header.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(&header);
+        bytes.extend_from_slice(&[0u8; 32]);
+        let r = ask(json!({"op":"openBundle","bundle":hex(&bytes),"key":KEY}));
+        assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("newer_version")));
+        assert!(r.get("items").is_none());
+    }
+
+    // @verifies SWR-MG-03
+    #[test]
+    fn a_bundle_cannot_carry_what_its_kind_omits_or_what_belongs_to_the_install() {
+        for (kind, item) in [("uhdr","protocols"),("uhdr","limitsProfiles"),("uhdr","consentGrants"),("migrate","researchDeviceToken"),("migrate","lastPairedHelmetId")] {
+            let r = migration_json(&json!({"op":"sealBundle","kind":kind,"key":KEY,"nonce":NONCE,"items":{item:[]}}).to_string());
+            assert!(r.is_err(), "{kind} must not seal {item}");
+        }
+        assert!(migration_json(&json!({"op":"sealBundle","kind":"migrate","key":KEY,"nonce":NONCE,"items":{"protocols":[]}}).to_string()).is_ok());
+    }
+
+    // @verifies SWR-MG-02
+    #[test]
+    fn a_key_or_nonce_of_the_wrong_length_is_refused() {
+        let short = migration_json(&json!({"op":"sealBundle","kind":"uhdr","key":"00","nonce":NONCE,"items":{}}).to_string());
+        assert!(short.is_err());
+        let nonce = migration_json(&json!({"op":"sealBundle","kind":"uhdr","key":KEY,"nonce":"00","items":{}}).to_string());
+        assert!(nonce.is_err());
     }
 }
