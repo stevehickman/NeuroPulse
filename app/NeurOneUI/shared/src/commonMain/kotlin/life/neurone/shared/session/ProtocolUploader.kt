@@ -10,6 +10,10 @@ import life.neurone.core.protocol.NPZoneCaution
 import life.neurone.core.session.ProtocolChunker
 import life.neurone.core.session.ProtocolSigner
 import life.neurone.core.session.HubDescriptorCompiler
+import kotlinx.coroutines.delay
+import life.neurone.core.models.UploadCheck
+import life.neurone.core.models.UploadCheckStatus
+import life.neurone.core.models.UploadVerdict
 
 // Mode-2 protocol upload: compile the definition to the signed binary descriptor of
 // NP-FW-HUB-001 §4 (OI-AND-WIRE-01), chunk it to BLE-MTU frames, and write each to the hub's
@@ -22,7 +26,8 @@ class ProtocolUploader(
     private val compiler = HubDescriptorCompiler(signer)
 
     sealed interface Result {
-        data object Success : Result
+        /** Every chunk was written. [sentHash] is the SHA-256 of the exact bytes sent, which [verify] waits for the helmet to echo. */
+        data class Success(val sentHash: String) : Result
         data class Failure(val message: String) : Result
         /** An unread cardiac cutoff from an offline session — read the summary first. */
         data object CervicalRestartBlocked : Result
@@ -58,9 +63,31 @@ class ProtocolUploader(
         return try {
             val blob = compiler.compile(definition, deviceSerial ?: gatt.deviceSerial, clinicianSockets, acknowledgedCautions)
             ProtocolChunker.chunk(blob.blob).forEach { gatt.writeProtocolChunk(it) }
-            Result.Success
+            Result.Success(UploadCheck.hashOf(blob.blob))
         } catch (e: Exception) {
             Result.Failure(e.message ?: "Protocol upload failed.")
+        }
+    }
+
+    /**
+     * Wait for the helmet's report of the upload whose bytes hash to [sentHash] (SWR-UP-01, SWR-UP-03). The app reads
+     * `UPLOAD_CHECK` every [pollMs] for up to [timeoutMs] and never sends the protocol again: an upload that has not
+     * been answered is resolved by reading the helmet and not by a second write. A report is for this upload when it is
+     * accepted or refused and carries [sentHash]. If none arrives in time, the last report is passed on as it is: a final
+     * report with another hash means the helmet holds other bytes (a truncated or altered upload), and no report, an
+     * empty or a pending one is no answer. What each of those means for the used mark is the library's rule
+     * (`NPProtocolLibrary.recordUploadResult`), not decided here.
+     */
+    suspend fun verify(sentHash: String, timeoutMs: Long = 10_000L, pollMs: Long = 500L): UploadVerdict {
+        fun forThisUpload(c: UploadCheck?) =
+            c != null && c.receivedHash == sentHash && c.status != UploadCheckStatus.PENDING && c.status != UploadCheckStatus.NONE
+        var waited = 0L
+        while (true) {
+            gatt.requestUploadCheck()
+            delay(pollMs)
+            waited += pollMs
+            val check = gatt.uploadCheck.value
+            if (forThisUpload(check) || waited >= timeoutMs) return UploadVerdict.of(check)
         }
     }
 
